@@ -10583,6 +10583,39 @@ static ssize_t mirror_axis_store(struct class *cla,
 	return count;
 }
 
+static ssize_t pps_coefs_store(struct class *cla,
+				    struct class_attribute *attr,
+				    const char *buf, size_t count)
+{
+	int parsed[3];
+	int layer_id = 0, bit9_mode = 0, coef_type = 0;
+
+	if (likely(parse_para(buf, 3, parsed) == 3)) {
+		layer_id = parsed[0];
+		bit9_mode = parsed[1];
+		coef_type = parsed[2];
+	}
+
+	dump_pps_coefs_info(layer_id, bit9_mode, coef_type);
+	return strnlen(buf, count);
+}
+
+static ssize_t load_pps_coefs_store(struct class *cla,
+				struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	load_pps_coef = res;
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -10846,6 +10879,14 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       mirror_axis_show,
 	       mirror_axis_store),
+	__ATTR(pps_coefs,
+	       0664,
+	       NULL,
+	       pps_coefs_store),
+	__ATTR(load_pps_coefs,
+	       0664,
+	       NULL,
+	       load_pps_coefs_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {

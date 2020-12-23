@@ -72,11 +72,35 @@ struct filter_info_s {
 	u32 scaler_filter_cnt;
 };
 
+#define PPS_COEF_NUM       (66 + 2)
+#define PPS_COEF_8TAP_NUM  (132 + 2)
+static unsigned int pps_coef = PPS_COEF_NUM;
+static unsigned int pps_coef_8tap = PPS_COEF_8TAP_NUM;
+static uint test_pps_h_coef[PPS_COEF_NUM] = {2, 33};
+static uint test_pps_h_coef_8tap[PPS_COEF_8TAP_NUM] = {8, 33};
+static uint test_pps_v_coef[PPS_COEF_NUM] = {2, 33};
+static uint test_pps_v_coef_8tap[PPS_COEF_8TAP_NUM] = {8, 33};
+static uint force_pps_hcoef_update;
+static uint force_pps_vcoef_update;
+uint load_pps_coef;
+MODULE_PARM_DESC(force_pps_hcoef_update, "\n force_pps_hcoef_update\n");
+module_param(force_pps_hcoef_update, uint, 0664);
+MODULE_PARM_DESC(force_pps_vcoef_update, "\n force_pps_vcoef_update\n");
+module_param(force_pps_vcoef_update, uint, 0664);
+module_param_array(test_pps_h_coef, uint, &pps_coef, 0664);
+MODULE_PARM_DESC(test_pps_h_coef, "\n test_pps_h_coef\n");
+module_param_array(test_pps_v_coef, uint, &pps_coef, 0664);
+MODULE_PARM_DESC(test_pps_v_coef, "\n test_pps_v_coef\n");
+module_param_array(test_pps_h_coef_8tap, uint, &pps_coef_8tap, 0664);
+MODULE_PARM_DESC(test_pps_h_coef_8tap, "\n test_pps_h_coef_8tap\n");
+module_param_array(test_pps_v_coef_8tap, uint, &pps_coef_8tap, 0664);
+MODULE_PARM_DESC(test_pps_v_coef_8tap, "\n test_pps_v_coef_8tap\n");
+
 static struct filter_info_s gfilter[MAX_VD_LAYERS];
 
 const u32 vpp_filter_coefs_bicubic_sharp[] = {
 	3,
-	33 | 0x8000,
+	33,
 	/* 0x01f80090, 0x01f80100, 0xff7f0200, 0xfe7f0300, */
 	0x01fa008c, 0x01fa0100, 0xff7f0200, 0xfe7f0300,
 	0xfd7e0500, 0xfc7e0600, 0xfb7d0800, 0xfb7c0900,
@@ -1032,6 +1056,101 @@ static int vpp_process_speed_check
 	return SPEED_CHECK_VSKIP;
 }
 
+static void horz_coef_print(u32 layer_id, struct vppfilter_mode_s *filter)
+{
+	int i;
+	int bit9_mode = filter->vpp_horz_coeff[1] & 0x8000;
+
+	if (bit9_mode) {
+		if (hscaler_8tap_enable[layer_id]) {
+			for (i = 0; i < (filter->vpp_horz_coeff[1]
+				& 0xff); i++) {
+				pr_info("horz 8tap 9bit coef[%d] = %x\n",
+					i,
+					filter->vpp_horz_coeff[i + 2]);
+				}
+			for (i = 0; i < (filter->vpp_horz_coeff[1]
+				& 0xff); i++) {
+				pr_info("horz 8tap 9bit coef[%d] = %x\n",
+					i,
+					filter->vpp_horz_coeff[i + 2 + 33]);
+			}
+			for (i = 0; i < (filter->vpp_horz_coeff[1]
+				& 0xff); i++) {
+				pr_info("horz 8tap 9bit coef[%d] = %x\n",
+					i,
+					filter->vpp_horz_coeff[i + 2 + 33 * 2]);
+			}
+			for (i = 0; i < (filter->vpp_horz_coeff[1]
+				& 0xff); i++) {
+				pr_info("horz 8tap 9bit coef[%d] = %x\n",
+					i,
+					filter->vpp_horz_coeff[i + 2 + 33 * 3]);
+			}
+		} else {
+			for (i = 0; i < (filter->vpp_horz_coeff[1]
+				& 0xff); i++) {
+				pr_info("horz 9bit coef[%d] = %x\n",
+					i,
+					filter->vpp_horz_coeff[i + 2]);
+				}
+			for (i = 0; i < (filter->vpp_horz_coeff[1]
+				& 0xff); i++) {
+				pr_info("horz 9bit coef[%d] = %x\n",
+					i,
+					filter->vpp_horz_coeff[i + 2 + 33]);
+			}
+		}
+	} else {
+		if (hscaler_8tap_enable[layer_id]) {
+			for (i = 0; i < (filter->vpp_horz_coeff[1]
+				& 0xff); i++) {
+				pr_info("horz 8tap coef[%d] = %x\n",
+					i,
+					filter->vpp_horz_coeff[i + 2]);
+				}
+			for (i = 0; i < (filter->vpp_horz_coeff[1]
+				& 0xff); i++) {
+				pr_info("horz 8tap coef[%d] = %x\n",
+					i,
+					filter->vpp_horz_coeff[i + 2 + 33]);
+				}
+		} else {
+			for (i = 0; i < (filter->vpp_horz_coeff[1]
+				& 0xff); i++) {
+				pr_info("horz coef[%d] = %x\n",
+					i,
+					filter->vpp_horz_coeff[i + 2]);
+			}
+		}
+	}
+}
+
+static void vert_coef_print(u32 layer_id, struct vppfilter_mode_s *filter)
+{
+	int i;
+	int bit9_mode = filter->vpp_vert_coeff[1] & 0x8000;
+
+	if (bit9_mode) {
+		for (i = 0; i < (filter->vpp_vert_coeff[1] & 0xff); i++) {
+			pr_info("vert 9bit coef[%d] = %x\n",
+				i,
+				filter->vpp_vert_coeff[i + 2]);
+		}
+		for (i = 0; i < (filter->vpp_vert_coeff[1] & 0xff); i++) {
+			pr_info("vert 9bit coef[%d] = %x\n",
+				i,
+				filter->vpp_vert_coeff[i + 2 + 33]);
+		}
+	} else {
+		for (i = 0; i < (filter->vpp_vert_coeff[1] & 0xff); i++) {
+			pr_info("vert coef[%d] = %x\n",
+				i,
+				filter->vpp_vert_coeff[i + 2]);
+		}
+	}
+}
+
 static int vpp_set_filters_internal
 	(struct disp_info_s *input,
 	u32 width_in,
@@ -1962,8 +2081,22 @@ RESTART:
 	}
 #endif
 
+	if (force_pps_hcoef_update) {
+		if (hscaler_8tap_enable[input->layer_id])
+			filter->vpp_horz_coeff = test_pps_h_coef_8tap;
+		else
+			filter->vpp_horz_coeff = test_pps_h_coef;
+		if (load_pps_coef)
+			horz_coef_print(input->layer_id, filter);
+	}
+	if (force_pps_vcoef_update) {
+		filter->vpp_vert_coeff = test_pps_v_coef;
+		if (load_pps_coef)
+			vert_coef_print(input->layer_id, filter);
+	}
+
 	if (cur_filter->last_vert_filter != filter->vpp_vert_filter ||
-	    cur_filter->last_horz_filter != filter->vpp_horz_filter) {
+	   cur_filter->last_horz_filter != filter->vpp_horz_filter) {
 		cur_filter->last_vert_filter = filter->vpp_vert_filter;
 		cur_filter->last_horz_filter = filter->vpp_horz_filter;
 		cur_filter->scaler_filter_cnt = 0;
@@ -1979,6 +2112,12 @@ RESTART:
 		cur_filter->cur_vert_filter = filter->vpp_vert_filter;
 		cur_filter->cur_horz_filter = filter->vpp_horz_filter;
 		cur_filter->scaler_filter_cnt = scaler_filter_cnt_limit;
+		ret = vppfilter_success_and_changed;
+	}
+	if (load_pps_coef &&
+	    (force_pps_hcoef_update ||
+	    force_pps_vcoef_update)) {
+		load_pps_coef = 0;
 		ret = vppfilter_success_and_changed;
 	}
 

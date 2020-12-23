@@ -428,6 +428,7 @@ void vpu_work_process(void);
 int vpp_crc_check(u32 vpp_crc_en);
 void enable_vpp_crc_viu2(u32 vpp_crc_en);
 int vpp_crc_viu2_check(u32 vpp_crc_en);
+void dump_pps_coefs_info(u8 layer_id, u8 bit9_mode, u8 coef_type);
 
 int video_hw_init(void);
 int video_early_init(struct amvideo_device_data_s *p_amvideo);
@@ -458,6 +459,7 @@ extern u32 force_blackout;
 extern atomic_t video_unreg_flag;
 extern atomic_t video_inirq_flag;
 extern struct video_recv_s *gvideo_recv[2];
+extern uint load_pps_coef;
 
 bool black_threshold_check(u8 id);
 struct vframe_s *get_cur_dispbuf(void);
