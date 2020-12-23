@@ -425,7 +425,9 @@ int vpu_pipeline_video_update(struct meson_vpu_pipeline *pipeline,
 int vpu_pipeline_osd_update(struct meson_vpu_pipeline *pipeline,
 			struct drm_atomic_state *old_state)
 {
+#ifdef CONFIG_DEBUG_FS
 	int i;
+#endif
 	unsigned long id;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs;
@@ -453,10 +455,12 @@ int vpu_pipeline_osd_update(struct meson_vpu_pipeline *pipeline,
 		}
 	}
 
+#ifdef CONFIG_DEBUG_FS
 	if (overwrite_enable) {
 		for (i = 0; i < reg_num; i++)
 			meson_vpu_write_reg(overwrite_reg[i], overwrite_val[i]);
 	}
+#endif
 
 	return 0;
 }
@@ -465,7 +469,9 @@ int vpu_pipeline_osd_update(struct meson_vpu_pipeline *pipeline,
 int vpu_pipeline_update(struct meson_vpu_pipeline *pipeline,
 			struct drm_atomic_state *old_state)
 {
+#ifdef CONFIG_DEBUG_FS
 	int i;
+#endif
 	unsigned long id;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs;
@@ -495,10 +501,12 @@ int vpu_pipeline_update(struct meson_vpu_pipeline *pipeline,
 		}
 	}
 
+#ifdef CONFIG_DEBUG_FS
 	if (overwrite_enable) {
 		for (i = 0; i < reg_num; i++)
 			meson_vpu_write_reg(overwrite_reg[i], overwrite_val[i]);
 	}
+#endif
 
 	return 0;
 }
