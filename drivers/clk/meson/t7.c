@@ -7818,6 +7818,8 @@ static int meson_t7_dvfs_setup_common(struct platform_device *pdev,
 	return 0;
 }
 
+static unsigned int skip_dvfs;
+
 static int meson_t7_dvfs_setup(struct platform_device *pdev)
 {
 	struct clk_hw **hws = t7_hw_onecell_data.hws;
@@ -7825,7 +7827,9 @@ static int meson_t7_dvfs_setup(struct platform_device *pdev)
 
 	/* Skip first ,bl31 is not ready*/
 	pr_info("skip meson t7 dvfs setup\n");
-	return 0;
+
+	if (!skip_dvfs)
+		return 0;
 
 	ret = meson_t7_dvfs_setup_common(pdev, hws);
 	if (ret)
