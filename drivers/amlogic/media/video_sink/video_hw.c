@@ -6655,6 +6655,7 @@ static void fgrain_start(u8 layer_id)
 			       0, 2);
 
 	glayer_info[layer_id].fgrain_start = true;
+	glayer_info[layer_id].fgrain_force_update = true;
 }
 
 static void fgrain_stop(u8 layer_id)
@@ -6834,14 +6835,8 @@ void fgrain_config(u8 layer_id,
 		setting->start_y = setting->start_y / 4 * 4;
 		setting->end_y = setting->end_y / 4 * 4;
 	} else {
-		int width, height;
-
-		width = ((setting->end_x - setting->start_x + 1)
-			>> 1) << 1;
-		height = ((setting->end_y - setting->start_y + 1)
-			>> 1) << 1;
-		setting->end_x = setting->start_x + width - 1;
-		setting->end_y = setting->start_y + height - 1;
+		setting->end_x = (setting->end_x >> 1) << 1;
+		setting->end_y = (setting->end_y >> 1) << 1;
 
 		setting->start_x = (setting->start_x >> 1) << 1;
 		setting->start_y = (setting->start_y >> 1) << 1;
@@ -6859,7 +6854,6 @@ void fgrain_setting(u8 layer_id,
 	if (!setting->used || !vf->fgs_valid ||
 	    !glayer_info[layer_id].fgrain_enable)
 		fgrain_stop(layer_id);
-
 	if (glayer_info[layer_id].fgrain_enable) {
 		if (setting->used && vf->fgs_valid &&
 		    vf->fgs_table_adr) {

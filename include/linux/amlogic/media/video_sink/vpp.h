@@ -206,6 +206,7 @@ struct disp_info_s {
 	bool fgrain_support;
 	bool fgrain_enable;
 	bool fgrain_start;
+	bool fgrain_force_update;
 	bool lut_dma_support;
 	bool dv_support;
 	bool alpha_support;
