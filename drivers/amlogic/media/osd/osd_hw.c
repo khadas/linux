@@ -8941,21 +8941,6 @@ void osd_secure_cb(u32 arg)
 		    arg, osd_hw.secure_src,
 		    osd_reg_read(VIU_DATA_SEC));
 }
-
-static void osd_secure_set(u32 secure_src)
-{
-	static int registered;
-	int ret = -1;
-
-	if (!registered) {
-		ret = secure_register(OSD_MODULE, 0,
-			VSYNCOSD_WR_MPEG_REG, osd_secure_cb);
-		if (ret == 0)
-			registered = 1;
-	}
-	if (registered)
-		secure_config(OSD_MODULE, secure_src);
-}
 #endif
 
 static int osd_setting_order(u32 output_index)
@@ -9157,7 +9142,7 @@ static int osd_setting_order(u32 output_index)
 	set_blend_reg(blend_reg);
 	save_blend_reg(blend_reg);
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-	osd_secure_set(secure_src);
+	secure_config(OSD_MODULE, secure_src);
 #endif
 	/* append RDMA_DETECT_REG at last and detect if rdma missed some regs */
 	rdma_dt_cnt++;
@@ -10329,6 +10314,11 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 	affinity_set_init();
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_register(OSD_MODULE, 0,
+			VSYNCOSD_WR_MPEG_REG, osd_secure_cb);
+#endif
+
 	osd_log_out = 1;
 }
 

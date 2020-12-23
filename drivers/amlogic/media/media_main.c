@@ -80,6 +80,7 @@ static int __init media_main_init(void)
 	call_sub_init(cvbs_init_module);
 	call_sub_init(lcd_init);
 	call_sub_init(esm_init);
+	call_sub_init(vpu_security_init);
 	call_sub_init(osd_init_module);
 	call_sub_init(dummy_venc_init);
 	call_sub_init(vout_sys_serve_init);
@@ -90,6 +91,7 @@ static int __init media_main_init(void)
 	call_sub_init(vfm_class_init);
 	call_sub_init(ge2d_init_module);
 	call_sub_init(configs_init_devices);
+	call_sub_init(lut_dma_init);
 	call_sub_init(video_init);
 	call_sub_init(vout2_init_module);
 	call_sub_init(ppmgr_init_module);
@@ -116,7 +118,6 @@ static int __init media_main_init(void)
 	call_sub_init(ldim_dev_init);
 	call_sub_init(aml_bl_init);
 	call_sub_init(amvdec_656in_init_module);
-	call_sub_init(vpu_security_init);
 	call_sub_init(vdin_drv_init);
 	call_sub_init(viuin_init_module);
 	call_sub_init(resman_init);

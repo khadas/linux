@@ -5910,16 +5910,6 @@ void video_secure_set(void)
 	u32 secure_src = 0;
 	u32 secure_enable = 0;
 	struct video_layer_s *layer = NULL;
-	static int registered;
-
-	if (!registered) {
-		int ret = -1;
-
-		ret = secure_register(VIDEO_MODULE, 0,
-			VSYNC_WR_MPEG_REG, vpp_secure_cb);
-		if (ret == 0)
-			registered = 1;
-	}
 
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
 		layer = &vd_layer[i];
@@ -6058,6 +6048,10 @@ int video_hw_init(void)
 		if (glayer_info[i].fgrain_support)
 			fgrain_init(i, FGRAIN_TBL_SIZE);
 	}
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	secure_register(VIDEO_MODULE, 0,
+		VSYNC_WR_MPEG_REG, vpp_secure_cb);
+#endif
 	return 0;
 }
 

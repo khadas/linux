@@ -460,4 +460,13 @@ static int resman_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
+int __init lut_dma_init(void);
+#else
+static int lut_dma_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif
