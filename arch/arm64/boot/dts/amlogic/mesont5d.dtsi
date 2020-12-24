@@ -1322,6 +1322,17 @@
 		status = "disabled";
 	};
 
+	meson_uvm {
+		compatible = "amlogic, meson_uvm";
+		status = "okay";
+	};
+
+	video_composer {
+		compatible = "amlogic, video_composer";
+		dev_name = "video_composer";
+		status = "okay";
+	};
+
 	vclk_serve: vclk_serve {
 		compatible = "amlogic, vclk_serve";
 		status = "okay";
