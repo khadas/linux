@@ -1,0 +1,69 @@
+menuconfig AMLOGIC_INPUT_TOUCHSCREEN
+	tristate "amlogic third-part touchscreen support"
+	default n
+	help
+	  Say Y here, and a list of supported touchscreen driver will be displayed
+
+	  If say N no touchsceen is displayed
+
+
+if AMLOGIC_INPUT_TOUCHSCREEN
+
+config TOUCHSCREEN_ELAN_EKTH3915N
+	tristate "Goodix GT738x firmware update module"
+	depends on I2C
+	default n
+	help
+	   Say Y here if you have an Elan eKTH I2C / I2CHID touchscreen
+           connected to your system.
+
+	   If unsure, say N.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called elants_hid.
+
+menuconfig TOUCHSCREEN_GOODIX_GT738X
+	tristate "Goodix GT738x touchscreen"
+	depends on I2C
+	default n
+	help
+	  Say Y here if you have a Goodix GT738x touch controller
+	  to your system.
+
+	  If unsure, say N.
+
+if TOUCHSCREEN_GOODIX_GT738X
+
+config TOUCHSCREEN_GOODIX_GT738X_UPDATE
+	tristate "Goodix GT738x firmware update module"
+	default n
+	help
+	  Say Y here to enable support for doing firmware update.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here.
+
+config TOUCHSCREEN_GOODIX_GT738X_GESTURE
+	tristate "Goodix GT738x gesture wakeup feature"
+	default n
+	help
+	  Say Y here to enable support for gesture wakeup feature..
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here.
+
+config TOUCHSCREEN_GOODIX_GT738X_TOOLS
+	tristate "Goodix touch tools support"
+	default n
+	help
+	  Say Y here to enable debug tools.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here.
+
+endif
+
+endif

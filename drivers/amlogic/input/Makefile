@@ -8,3 +8,4 @@ obj-$(CONFIG_AMLOGIC_MESON_IR) += ir/
 
 obj-$(CONFIG_AMLOGIC_INPUT_KEYBOARD) += keyboard/
 
+obj-$(CONFIG_AMLOGIC_INPUT_TOUCHSCREEN) += touchscreen/
