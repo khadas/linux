@@ -3159,130 +3159,130 @@ static struct clk_regmap t7_hdmitx_aud  = {
 	},
 };
 
-static struct clk_regmap t7_hdmitx_5m_sel = {
+static struct clk_regmap t7_hdmirx_5m_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_HRX_CLK_CTRL0,
 		.mask = 0x3,
 		.shift = 9,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "hdmitx_5m_sel",
+		.name = "hdmirx_5m_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = t7_hdmitx_sys_parent_data,
 		.num_parents = ARRAY_SIZE(t7_hdmitx_sys_parent_data),
 	},
 };
 
-static struct clk_regmap t7_hdmitx_5m_div = {
+static struct clk_regmap t7_hdmirx_5m_div = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = CLKCTRL_HRX_CLK_CTRL0,
 		.shift = 0,
 		.width = 7,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "hdmitx_5m_div",
+		.name = "hdmirx_5m_div",
 		.ops = &clk_regmap_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmitx_5m_sel.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_5m_sel.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
 };
 
-static struct clk_regmap t7_hdmitx_5m  = {
+static struct clk_regmap t7_hdmirx_5m  = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = CLKCTRL_HRX_CLK_CTRL0,
 		.bit_idx = 8,
 	},
 	.hw.init = &(struct clk_init_data) {
-		.name = "hdmitx_5m",
+		.name = "hdmirx_5m",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmitx_5m.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_5m.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
 };
 
-static struct clk_regmap t7_hdmitx_2m_sel = {
+static struct clk_regmap t7_hdmirx_2m_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_HRX_CLK_CTRL0,
 		.mask = 0x3,
 		.shift = 25,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "hdmitx_2m_sel",
+		.name = "hdmirx_2m_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = t7_hdmitx_sys_parent_data,
 		.num_parents = ARRAY_SIZE(t7_hdmitx_sys_parent_data),
 	},
 };
 
-static struct clk_regmap t7_hdmitx_2m_div = {
+static struct clk_regmap t7_hdmirx_2m_div = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = CLKCTRL_HRX_CLK_CTRL0,
 		.shift = 16,
 		.width = 7,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "hdmitx_2m_div",
+		.name = "hdmirx_2m_div",
 		.ops = &clk_regmap_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmitx_2m_sel.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_2m_sel.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
 };
 
-static struct clk_regmap t7_hdmitx_2m = {
+static struct clk_regmap t7_hdmirx_2m = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = CLKCTRL_HRX_CLK_CTRL0,
 		.bit_idx = 24,
 	},
 	.hw.init = &(struct clk_init_data) {
-		.name = "hdmitx_2m",
+		.name = "hdmirx_2m",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmitx_2m.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_2m.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
 };
 
-static struct clk_regmap t7_hdmitx_cfg_sel = {
+static struct clk_regmap t7_hdmirx_cfg_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_HRX_CLK_CTRL1,
 		.mask = 0x3,
 		.shift = 9,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "hdmitx_cfg_sel",
+		.name = "hdmirx_cfg_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = t7_hdmitx_sys_parent_data,
 		.num_parents = ARRAY_SIZE(t7_hdmitx_sys_parent_data),
 	},
 };
 
-static struct clk_regmap t7_hdmitx_cfg_div = {
+static struct clk_regmap t7_hdmirx_cfg_div = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = CLKCTRL_HRX_CLK_CTRL1,
 		.shift = 0,
 		.width = 7,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "hdmitx_cfg_div",
+		.name = "hdmirx_cfg_div",
 		.ops = &clk_regmap_divider_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmitx_cfg_sel.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_cfg_sel.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
 };
 
-static struct clk_regmap t7_hdmitx_cfg  = {
+static struct clk_regmap t7_hdmirx_cfg  = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = CLKCTRL_HRX_CLK_CTRL1,
 		.bit_idx = 8,
 	},
 	.hw.init = &(struct clk_init_data) {
-		.name = "hdmitx_cfg",
+		.name = "hdmirx_cfg",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &t7_hdmitx_cfg.hw },
+		.parent_hws = (const struct clk_hw *[]) { &t7_hdmirx_cfg.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT
 	},
@@ -7050,15 +7050,15 @@ static struct clk_hw_onecell_data t7_hw_onecell_data = {
 		[CLKID_HDMITX_AUD_MUX]		= &t7_hdmitx_aud_sel.hw,
 		[CLKID_HDMITX_AUD_DIV]		= &t7_hdmitx_aud_div.hw,
 		[CLKID_HDMITX_AUD]		= &t7_hdmitx_aud.hw,
-		[CLKID_HDMITX_5M_MUX]		= &t7_hdmitx_5m_sel.hw,
-		[CLKID_HDMITX_5M_DIV]		= &t7_hdmitx_5m_div.hw,
-		[CLKID_HDMITX_5M]		= &t7_hdmitx_5m.hw,
-		[CLKID_HDMITX_2M_MUX]		= &t7_hdmitx_2m_sel.hw,
-		[CLKID_HDMITX_2M_DIV]		= &t7_hdmitx_2m_div.hw,
-		[CLKID_HDMITX_2M]		= &t7_hdmitx_2m.hw,
-		[CLKID_HDMITX_CFG_MUX]		= &t7_hdmitx_cfg_sel.hw,
-		[CLKID_HDMITX_CFG_DIV]		= &t7_hdmitx_cfg_div.hw,
-		[CLKID_HDMITX_CFG]		= &t7_hdmitx_cfg.hw,
+		[CLKID_HDMIRX_5M_MUX]		= &t7_hdmirx_5m_sel.hw,
+		[CLKID_HDMIRX_5M_DIV]		= &t7_hdmirx_5m_div.hw,
+		[CLKID_HDMIRX_5M]		= &t7_hdmirx_5m.hw,
+		[CLKID_HDMIRX_2M_MUX]		= &t7_hdmirx_2m_sel.hw,
+		[CLKID_HDMIRX_2M_DIV]		= &t7_hdmirx_2m_div.hw,
+		[CLKID_HDMIRX_2M]		= &t7_hdmirx_2m.hw,
+		[CLKID_HDMIRX_CFG_MUX]		= &t7_hdmirx_cfg_sel.hw,
+		[CLKID_HDMIRX_CFG_DIV]		= &t7_hdmirx_cfg_div.hw,
+		[CLKID_HDMIRX_CFG]		= &t7_hdmirx_cfg.hw,
 		[CLKID_HDMIRX_HDCP_MUX]		= &t7_hdmirx_hdcp_sel.hw,
 		[CLKID_HDMIRX_HDCP_DIV]		= &t7_hdmirx_hdcp_div.hw,
 		[CLKID_HDMIRX_HDCP]		= &t7_hdmirx_hdcp.hw,
@@ -7441,15 +7441,15 @@ static struct clk_regmap *const t7_clk_regmaps[] = {
 	&t7_hdmitx_aud_sel,
 	&t7_hdmitx_aud_div,
 	&t7_hdmitx_aud,
-	&t7_hdmitx_5m_sel,
-	&t7_hdmitx_5m_div,
-	&t7_hdmitx_5m,
-	&t7_hdmitx_2m_sel,
-	&t7_hdmitx_2m_div,
-	&t7_hdmitx_2m,
-	&t7_hdmitx_cfg_sel,
-	&t7_hdmitx_cfg_div,
-	&t7_hdmitx_cfg,
+	&t7_hdmirx_5m_sel,
+	&t7_hdmirx_5m_div,
+	&t7_hdmirx_5m,
+	&t7_hdmirx_2m_sel,
+	&t7_hdmirx_2m_div,
+	&t7_hdmirx_2m,
+	&t7_hdmirx_cfg_sel,
+	&t7_hdmirx_cfg_div,
+	&t7_hdmirx_cfg,
 	&t7_hdmirx_hdcp_sel,
 	&t7_hdmirx_hdcp_div,
 	&t7_hdmirx_hdcp,

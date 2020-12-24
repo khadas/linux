@@ -29,17 +29,26 @@ struct parm {
 
 static inline unsigned int meson_parm_read(struct regmap *map, struct parm *p)
 {
-	unsigned int val;
+	unsigned int val, ret;
 
-	regmap_read(map, p->reg_off, &val);
+	ret = regmap_read(map, p->reg_off, &val);
+	if (ret) {
+		pr_err("meson_parm_read failed, ret = %d\n", ret);
+		return ret;
+	}
+
 	return PARM_GET(p->width, p->shift, val);
 }
 
 static inline void meson_parm_write(struct regmap *map, struct parm *p,
 				    unsigned int val)
 {
-	regmap_update_bits(map, p->reg_off, SETPMASK(p->width, p->shift),
+	unsigned int ret;
+
+	ret = regmap_update_bits(map, p->reg_off, SETPMASK(p->width, p->shift),
 			   val << p->shift);
+	if (ret)
+		pr_err("meson_parm_write failed, ret = %d\n", ret);
 }
 
 #endif /* __MESON_PARM_H */
