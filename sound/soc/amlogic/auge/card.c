@@ -31,6 +31,45 @@
 #include "../common/misc.h"
 //#include <linux/amlogic/media/sound/debug.h>
 
+/*the same as audio hal type define!*/
+static const char * const audio_format[] = {
+	"PCM",
+	"DTS_EXPRESS",
+	"DOLBY_DIGITAL",
+	"DTS",
+	"DOLBY_DIGITAL_PLUS",
+	"DTS_HD",
+	"MULTI_CHANNEL PCM",
+	"DOLBY_TRUEHD",
+	"DTS_HD_MA",
+	"HIFI PCM",
+	"DOLBY_AC4",
+	"DOLBY_MAT",
+	"DOLBY_DDP_ATMOS",
+	"DOLBY_THD_ATMOS",
+	"DOLBY_MAT_ATMOS",
+	"DOLBY_AC4_ATMOS",
+};
+
+enum audio_hal_format {
+	TYPE_PCM = 0,
+	TYPE_DTS_EXPRESS = 1,
+	TYPE_AC3 = 2,
+	TYPE_DTS = 3,
+	TYPE_EAC3 = 4,
+	TYPE_DTS_HD = 5,
+	TYPE_MULTI_PCM = 6,
+	TYPE_TRUE_HD = 7,
+	TYPE_DTS_HD_MA = 8,
+	TYPE_PCM_HIGH_SR = 9,
+	TYPE_AC4 = 10,
+	TYPE_MAT = 11,
+	TYPE_DDP_ATMOS = 12,
+	TYPE_TRUE_HD_ATMOS = 13,
+	TYPE_MAT_ATMOS = 14,
+	TYPE_AC4_ATMOS = 15,
+};
+
 struct aml_jack {
 	struct snd_soc_jack jack;
 	struct snd_soc_jack_pin pin;
@@ -77,6 +116,7 @@ struct aml_card_data {
 	bool av_mute_enable;
 	bool spk_mute_enable;
 	int irq_exception64;
+	enum audio_hal_format hal_fmt;
 };
 
 #define aml_priv_to_dev(priv) ((priv)->snd_card.dev)
@@ -106,6 +146,96 @@ static const unsigned int microphone_cable[] = {
 
 struct extcon_dev *audio_extcon_headphone;
 struct extcon_dev *audio_extcon_microphone;
+
+enum audio_event {
+	AUDIO_NONE_EVENT = 0,
+	AUDIO_SPDIF_FMT_EVENT
+};
+
+#define MAX_UEVENT_LEN 64
+struct audio_uevent {
+	const enum audio_event type;
+	int state;
+	const char *env;
+};
+
+static struct audio_uevent audio_events[] = {
+	{
+		.type = AUDIO_SPDIF_FMT_EVENT,
+		.env = "AUDIO_FORMAT=",
+	},
+	{
+		.type = AUDIO_NONE_EVENT,
+	}
+};
+
+int audio_send_uevent(struct snd_soc_card *card,
+		enum audio_event type, int val)
+{
+	char env[MAX_UEVENT_LEN];
+	struct audio_uevent *event = audio_events;
+	char *envp[2];
+	int ret = -1;
+
+	for (event = audio_events; event->type != AUDIO_NONE_EVENT; event++) {
+		if (type == event->type)
+			break;
+	}
+
+	if (event->type == AUDIO_NONE_EVENT)
+		return ret;
+
+	event->state = val;
+	memset(env, 0, sizeof(env));
+	envp[0] = env;
+	envp[1] = NULL;
+	snprintf(env, MAX_UEVENT_LEN, "%s%d", event->env, val);
+
+	ret = kobject_uevent_env(&card->dev->kobj, KOBJ_CHANGE, envp);
+	pr_info("%s[%d] %s %d\n", __func__, __LINE__, env, ret);
+	return ret;
+}
+
+static const struct soc_enum audio_hal_format_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_format),
+			audio_format);
+
+static int aml_audio_hal_format_get_enum(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct aml_card_data *p_aml_audio;
+
+	p_aml_audio = snd_soc_card_get_drvdata(card);
+	ucontrol->value.integer.value[0] = p_aml_audio->hal_fmt;
+
+	return 0;
+}
+
+static int aml_audio_hal_format_set_enum(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct aml_card_data *p_aml_audio;
+	int hal_format = ucontrol->value.integer.value[0];
+
+	p_aml_audio = snd_soc_card_get_drvdata(card);
+
+	audio_send_uevent(card, AUDIO_SPDIF_FMT_EVENT, hal_format);
+	pr_info("update audio atmos flag! audio_type = %d\n", hal_format);
+
+	if (p_aml_audio->hal_fmt != hal_format)
+		p_aml_audio->hal_fmt = hal_format;
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new snd_user_controls[] = {
+	SOC_ENUM_EXT("Audio HAL Format",
+		     audio_hal_format_enum,
+		     aml_audio_hal_format_get_enum,
+		     aml_audio_hal_format_set_enum)
+};
 
 static void jack_audio_start_timer(struct aml_card_data *card_data,
 				  unsigned long delay)
@@ -1014,6 +1144,10 @@ static int aml_card_probe(struct platform_device *pdev)
 		audio_jack_detect(priv);
 		audio_extcon_register(priv, dev);
 	}
+
+	snd_soc_add_card_controls(&priv->snd_card, snd_user_controls,
+				  ARRAY_SIZE(snd_user_controls));
+
 	priv->av_mute_enable = 0;
 	priv->spk_mute_enable = 0;
 	INIT_WORK(&priv->init_work, aml_init_work);
