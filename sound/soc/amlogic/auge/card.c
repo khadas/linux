@@ -381,37 +381,6 @@ static void aml_card_remove_jack(struct aml_jack *sjack)
 		snd_soc_jack_free_gpios(&sjack->jack, 1, &sjack->gpio);
 }
 
-static int aml_card_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct aml_card_data *priv =	snd_soc_card_get_drvdata(rtd->card);
-	struct aml_dai_props *dai_props =
-		aml_priv_to_props(priv, rtd->num);
-	int ret;
-
-	ret = clk_prepare_enable(dai_props->cpu_dai.clk);
-	if (ret)
-		return ret;
-
-	ret = clk_prepare_enable(dai_props->codec_dai.clk);
-	if (ret)
-		clk_disable_unprepare(dai_props->cpu_dai.clk);
-
-	return ret;
-}
-
-static void aml_card_shutdown(struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct aml_card_data *priv =	snd_soc_card_get_drvdata(rtd->card);
-	struct aml_dai_props *dai_props =
-		aml_priv_to_props(priv, rtd->num);
-
-	clk_disable_unprepare(dai_props->cpu_dai.clk);
-
-	clk_disable_unprepare(dai_props->codec_dai.clk);
-}
-
 static int aml_card_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
 {
@@ -465,8 +434,6 @@ err:
 }
 
 static struct snd_soc_ops aml_card_ops = {
-	.startup    = aml_card_startup,
-	.shutdown   = aml_card_shutdown,
 	.hw_params  = aml_card_hw_params,
 };
 
