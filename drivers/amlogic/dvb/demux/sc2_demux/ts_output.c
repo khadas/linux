@@ -1963,13 +1963,8 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
  */
 int ts_output_close(struct out_elem *pout)
 {
-	if (pout->ref) {
-//		if (pout->format != DVR_FORMAT)
-//			pr_err("error not close pout fmt:%d es:pid:%d\r\n",
-//				pout->format,
-//				pout->es_pes->pid);
-		return 0;
-	}
+	if (pout->ref)
+		return -1;
 
 	pout->running = TASK_DEAD;
 

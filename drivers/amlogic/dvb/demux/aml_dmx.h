@@ -25,6 +25,7 @@ struct sw_demux_ts_feed {
 	int pes_type;
 	int pid;
 	int state;
+	int format;
 };
 
 struct sw_demux_sec_filter {
@@ -91,6 +92,7 @@ struct aml_dmx {
 	/*dvr sec mem*/
 	__u32 sec_dvr_buff;
 	__u32 sec_dvr_size;
+	void *dvr_ts_output;
 };
 
 void dmx_init_hw(int sid_num, int *sid_info);

@@ -1191,6 +1191,13 @@ static int dvb_demux_do_ioctl(struct file *file,
 		}
 		ret = dmxdev->demux->set_sec_mem(dmxdev->demux, parg);
 		break;
+	case DMX_GET_DVR_MEM:
+		if (!dmxdev->demux->get_dvr_mem) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmxdev->demux->get_dvr_mem(dmxdev->demux, parg);
+		break;
 #endif
 
 	case DMX_ADD_PID:
@@ -1390,6 +1397,13 @@ static int dvb_dvr_do_ioctl(struct file *file,
 			break;
 		}
 		ret = dmxdev->demux->set_input(dmxdev->demux, arg);
+		break;
+	case DMX_GET_DVR_MEM:
+		if (!dmxdev->demux->get_dvr_mem) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmxdev->demux->get_dvr_mem(dmxdev->demux, parg);
 		break;
 #endif
 #ifdef CONFIG_DVB_MMAP

@@ -396,6 +396,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		sec_level = DMX_MEM_SEC_LEVEL3;
 
 	feed->type = type;
+	feed->format = format;
 	pr_dbg("%s sec_level:%d\n", __func__, sec_level);
 	if (type != VIDEO_TYPE && sec_level != 0) {
 		if (aml_aucpu_strm_get_load_firmware_status() != 0) {
@@ -417,6 +418,8 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		if (feed->ts_out_elem) {
 			pr_dbg("find same pid elem:0x%lx\n",
 			       (unsigned long)(feed->ts_out_elem));
+			demux->dvr_ts_output = feed->ts_out_elem;
+
 			if (feed->pid == 0x2000)
 				ts_output_add_pid(feed->ts_out_elem, feed->pid,
 						0x1fff, demux->id, &cb_id);
@@ -435,6 +438,9 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	feed->ts_out_elem = ts_output_open(sid, demux->id, format,
 		type, media_type, output_mode);
 	if (feed->ts_out_elem) {
+		if (format == DVR_FORMAT) {
+			demux->dvr_ts_output = feed->ts_out_elem;
+		}
 		if (demux->sec_dvr_size != 0 && format == DVR_FORMAT) {
 			ts_output_set_sec_mem(feed->ts_out_elem,
 				demux->sec_dvr_buff, demux->sec_dvr_size);
@@ -930,6 +936,7 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 	int sid;
 	int pcr_num = 0;
 	int pcr_index = 0;
+	int ret = 0;
 
 	if (!ts_feed)
 		return 0;
@@ -944,7 +951,13 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 		ts_output_remove_pid(feed->ts_out_elem, feed->pid);
 		ts_output_remove_cb(feed->ts_out_elem,
 				out_ts_elem_cb, feed, feed->cb_id, 0);
-		ts_output_close(feed->ts_out_elem);
+		if (feed->format == DVR_FORMAT) {
+			ret = ts_output_close(feed->ts_out_elem);
+			if (ret == 0)
+				demux->dvr_ts_output = NULL;
+		} else {
+			ts_output_close(feed->ts_out_elem);
+		}
 	}
 
 	switch (feed->pes_type) {
@@ -1495,6 +1508,30 @@ static int _dmx_set_sec_mem(struct dmx_demux *dmx, struct dmx_sec_mem *sec_mem)
 	return 0;
 }
 
+static int _dmx_get_dvr_mem(struct dmx_demux *dmx,
+			struct dvr_mem_info *info)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	unsigned int total_mem = 0;
+	unsigned int buf_phy_start = 0;
+	unsigned int free_mem = 0;
+	unsigned int wp_offset = 0;
+
+	pr_dbg("%s dmx%d\n", __func__, demux->id);
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+	if (demux->dvr_ts_output)
+		ts_output_get_mem_info(demux->dvr_ts_output,
+			   &total_mem,
+			   &buf_phy_start,
+			   &free_mem, &wp_offset, NULL);
+
+	info->wp_offset = wp_offset;
+	mutex_unlock(demux->pmutex);
+	return 0;
+}
+
 void dmx_init_hw(int sid_num, int *sid_info)
 {
 	ts_output_init(sid_num, sid_info);
@@ -1562,9 +1599,9 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 	pdmx->dmx.get_ts_mem_info = _dmx_get_ts_mem_info;
 	pdmx->dmx.set_hw_source = _dmx_set_hw_source;
 	pdmx->dmx.get_hw_source = _dmx_get_hw_source;
-	pdmx->dmx.get_dmx_mem_info = _dmx_get_mem_info,
-	pdmx->dmx.set_sec_mem = _dmx_set_sec_mem,
-
+	pdmx->dmx.get_dmx_mem_info = _dmx_get_mem_info;
+	pdmx->dmx.set_sec_mem = _dmx_set_sec_mem;
+	pdmx->dmx.get_dvr_mem = _dmx_get_dvr_mem;
 	pdmx->dev.filternum = (MAX_TS_FEED_NUM + MAX_SEC_FEED_NUM);
 	pdmx->dev.demux = &pdmx->dmx;
 	pdmx->dev.capabilities = DMXDEV_CAP_DUPLEX;
