@@ -940,7 +940,7 @@ static void dump_clk_registers(void)
 		/* hiu 104a, 104b*/
 
 	pr_info("----hiu----\n");
-	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid_pll_clk_div));
+	pr_info("0x%x", cvbs_out_vid_pll_read(cvbs_data->reg_vid_pll_clk_div));
 	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid_clk_div));
 	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid_clk_ctrl));
 	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid2_clk_div));
@@ -1677,6 +1677,35 @@ struct meson_cvbsout_data meson_sc2_cvbsout_data = {
 	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
 };
 
+struct meson_cvbsout_data meson_t5_cvbsout_data = {
+	.cpu_id = CVBS_CPU_TYPE_T5,
+	.name = "meson-t5-cvbsout",
+
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x5c,
+
+	.reg_vid_pll_clk_div = HHI_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = HHI_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = HHI_VID_CLK_CNTL,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+};
+
+struct meson_cvbsout_data meson_t5d_cvbsout_data = {
+	.cpu_id = CVBS_CPU_TYPE_T5D,
+	.name = "meson-t5d-cvbsout",
+
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x5c,
+
+	.reg_vid_pll_clk_div = HHI_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = HHI_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = HHI_VID_CLK_CNTL,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = HHI_VIID_CLK_CNTL,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+};
 static const struct of_device_id meson_cvbsout_dt_match[] = {
 	{
 		.compatible = "amlogic, cvbsout-g12a",
@@ -1696,6 +1725,12 @@ static const struct of_device_id meson_cvbsout_dt_match[] = {
 	}, {
 		.compatible = "amlogic, cvbsout-sc2",
 		.data		= &meson_sc2_cvbsout_data,
+	}, {
+		.compatible = "amlogic, cvbsout-t5",
+		.data		= &meson_t5_cvbsout_data,
+	}, {
+		.compatible = "amlogic, cvbsout-t5d",
+		.data		= &meson_t5d_cvbsout_data,
 	},
 	{}
 };
