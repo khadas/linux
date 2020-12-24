@@ -24,10 +24,11 @@ static struct rb_root fd_tree = RB_ROOT;
 static DEFINE_EVL_SPINLOCK(fdt_lock);
 
 /*
- * We could have a per-files_struct table of OOB fds, but this looks
- * overkill at the moment. So we only have a single rb-tree for now,
- * indexing our file descriptors on a composite key which pairs the
- * the in-band fd and the originating files struct pointer.
+ * We could have a per-files_struct table of fds managed out-of-band,
+ * but this looks overkill at the moment. So we only have a single
+ * rb-tree for now, indexing our file descriptors on a composite key
+ * which pairs the the in-band fd and the originating files struct
+ * pointer.
  */
 
 static inline bool lean_left(struct evl_fd *lh, struct evl_fd *rh)
@@ -201,21 +202,6 @@ struct evl_file *evl_get_file(unsigned int fd)
 }
 EXPORT_SYMBOL_GPL(evl_get_file);
 
-static void release_oob_ref(struct irq_work *work)
-{
-	struct evl_file *efilp;
-
-	efilp = container_of(work, struct evl_file, oob_work);
-	complete(&efilp->oob_done);
-}
-
-void __evl_put_file(struct evl_file *efilp)
-{
-	init_irq_work(&efilp->oob_work, release_oob_ref);
-	irq_work_queue(&efilp->oob_work);
-}
-EXPORT_SYMBOL_GPL(__evl_put_file);
-
 struct evl_file *evl_watch_fd(unsigned int fd,
 			struct evl_poll_node *node)
 {
@@ -245,26 +231,25 @@ void evl_ignore_fd(struct evl_poll_node *node)
 }
 
 /**
- * evl_open_file - Open new file with OOB capabilities
+ * evl_open_file - Open new file with oob capabilities
  *
- * Called by chrdev with OOB capabilities when a new @efilp is
+ * Called by chrdev with oob capabilities when a new @efilp is
  * opened. @efilp is paired with the in-band file struct at @filp.
  */
 int evl_open_file(struct evl_file *efilp, struct file *filp)
 {
 	efilp->filp = filp;
-	filp->oob_data = efilp;	/* mark filp as OOB-capable. */
-	atomic_set(&efilp->oob_refs, 1);
-	init_completion(&efilp->oob_done);
+	filp->oob_data = efilp;	/* mark filp as oob-capable. */
+	evl_init_crossing(&efilp->crossing);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(evl_open_file);
 
 /**
- * evl_release_file - Drop an OOB-capable file
+ * evl_release_file - Drop an oob-capable file
  *
- * Called by chrdev with OOB capabilities when @efilp is about to be
+ * Called by chrdev with oob capabilities when @efilp is about to be
  * released. Must be called from a fops->release() handler, and paired
  * with a previous call to evl_open_file() from the fops->open()
  * handler.
@@ -272,17 +257,17 @@ EXPORT_SYMBOL_GPL(evl_open_file);
 void evl_release_file(struct evl_file *efilp)
 {
 	/*
-	 * Release the original reference on @efilp. If OOB references
+	 * Release the original reference on @efilp. If oob references
 	 * are still pending (e.g. some thread is still blocked in
 	 * fops->oob_read()), we must wait for them to be dropped
 	 * before allowing the in-band code to dismantle @efilp->filp.
 	 *
-	 * NOTE: In-band and OOB fds are working together in lockstep
-	 * mode via dovetail_install/uninstall_fd() calls.  Therefore,
-	 * we can't livelock with evl_get_file() as @efilp was
-	 * removed from the fd tree before fops->release() called us.
+	 * NOTE: In-band and out-of-band fds are working together in
+	 * lockstep mode via dovetail_install/uninstall_fd() calls.
+	 * Therefore, we can't livelock with evl_get_file() as @efilp
+	 * was removed from the fd tree before fops->release() called
+	 * us.
 	 */
-	if (atomic_dec_return(&efilp->oob_refs) > 0)
-		wait_for_completion(&efilp->oob_done);
+	evl_pass_crossing(&efilp->crossing);
 }
 EXPORT_SYMBOL_GPL(evl_release_file);
