@@ -162,7 +162,7 @@ struct meson_vpu_osd_layer_info {
 	u32 afbc_inter_format;
 	u32 afbc_en;
 	u32 fb_size;
-	u32 premult_en;
+	u32 pixel_blend;
 	u32 rotation;
 	u32 blend_bypass;
 	u32 global_alpha;
@@ -202,7 +202,7 @@ struct meson_vpu_osd_state {
 	int r_mode;
 	u32 plane_index;
 	u32 fb_size;
-	u32 premult_en;
+	u32 pixel_blend;
 	u32 afbc_en;
 	u32 rotation;
 	u32 blend_bypass;
@@ -227,7 +227,7 @@ struct meson_vpu_video_layer_info {
 	u32 afbc_inter_format;
 	u32 afbc_en;
 	u32 fb_size[2];
-	u32 premult_en;
+	u32 pixel_blend;
 	struct vframe_s *vf;
 	bool is_uvm;
 };
@@ -274,7 +274,7 @@ struct meson_vpu_video_state {
 	int r_mode;
 	u32 plane_index;
 	u32 fb_size[2];
-	u32 premult_en;
+	u32 pixel_blend;
 	u32 afbc_en;
 	struct vframe_s *vf;
 	bool is_uvm;

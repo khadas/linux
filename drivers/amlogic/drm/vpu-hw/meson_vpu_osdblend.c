@@ -162,30 +162,6 @@ static void osd_blend_dummy_data_set(struct osdblend_reg_s *reg,
 		(dummy_data.channel2 & 0xff));
 }
 
-/*osd blend0 dummy data alpha config*/
-static void osd_blend0_dummy_alpha_set(struct osdblend_reg_s *reg,
-				       unsigned int dummy_alpha)
-{
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_dummy_alpha,
-				 dummy_alpha, 20, 9);
-}
-
-/*osd blend1 dummy data alpha config*/
-static void osd_blend1_dummy_alpha_set(struct osdblend_reg_s *reg,
-				       unsigned int dummy_alpha)
-{
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_dummy_alpha,
-				 dummy_alpha, 11, 9);
-}
-
-/*osd blend2 dummy data alpha config*/
-static void osd_blend2_dummy_alpha_set(struct osdblend_reg_s *reg,
-				       unsigned int dummy_alpha)
-{
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_dummy_alpha,
-				 dummy_alpha, 0, 9);
-}
-
 /*osd blend0 size config*/
 static void osd_blend0_size_set(struct osdblend_reg_s *reg,
 				unsigned int h_size, unsigned int v_size)
@@ -265,21 +241,11 @@ enum osd_channel_e osd2channel(u8 osd_index)
 static void osdblend_hw_update(struct osdblend_reg_s *reg,
 			       struct meson_vpu_osdblend_state *mvobs)
 {
-	struct osd_dummy_data_s dummy_data = {0, 0, 0};
-
 	/*din channel mux config*/
 	osd_din_channel_mux_set(reg, mvobs->din_channel_mux[DIN0], DIN0);
 	osd_din_channel_mux_set(reg, mvobs->din_channel_mux[DIN1], DIN1);
 	osd_din_channel_mux_set(reg, mvobs->din_channel_mux[DIN2], DIN2);
 	osd_din_channel_mux_set(reg, mvobs->din_channel_mux[DIN3], DIN3);
-
-	/*dummy data config*/
-	osd_blend_dummy_data_set(reg, dummy_data);
-
-	/*alpha config*/
-	osd_blend0_dummy_alpha_set(reg, 0);
-	osd_blend1_dummy_alpha_set(reg, 0);
-	osd_blend2_dummy_alpha_set(reg, 0);
 
 	/*internal channel disable default*/
 	osd_din0_input_enable_set(reg, (mvobs->input_mask >> DIN0) & 0x1);
@@ -597,8 +563,14 @@ static void osdblend_dump_register(struct meson_vpu_block *vblk,
 static void osdblend_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
+	struct osd_dummy_data_s dummy_data = {0x80, 0x80, 0x80};
 
 	osdblend->reg = &osdblend_reg;
+
+	/*dummy data/alpha config*/
+	osd_blend_dummy_data_set(osdblend->reg, dummy_data);
+	meson_vpu_write_reg(VIU_OSD_BLEND_DUMMY_ALPHA, 0);
+
 	DRM_DEBUG("%s hw_init called.\n", osdblend->base.name);
 }
 

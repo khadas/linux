@@ -274,7 +274,6 @@ static int meson_plane_fb_check(struct drm_plane *plane,
 	#ifdef CONFIG_DRM_MESON_USE_ION
 	meson_fb = container_of(fb, struct am_meson_fb, base);
 	if (!meson_fb) {
-		DRM_INFO("meson_fb is NULL!\n");
 		return -EINVAL;
 	}
 	DRM_DEBUG("meson_fb[id:%d,ref:%d]=0x%p\n",
@@ -295,7 +294,6 @@ static int meson_plane_fb_check(struct drm_plane *plane,
 	}
 	#else
 	if (!fb) {
-		DRM_INFO("fb is NULL!\n");
 		return -EINVAL;
 	}
 	/* Update Canvas with buffer address */
@@ -330,7 +328,6 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 	#ifdef CONFIG_DRM_MESON_USE_ION
 	meson_fb = container_of(fb, struct am_meson_fb, base);
 	if (!meson_fb) {
-		DRM_INFO("meson_fb is NULL!\n");
 		return -EINVAL;
 	}
 	DRM_DEBUG("meson_fb[id:%d,ref:%d]=0x%p\n",
@@ -361,7 +358,6 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 	}
 	#else
 	if (!fb) {
-		DRM_INFO("fb is NULL!\n");
 		return -EINVAL;
 	}
 	/* Update Canvas with buffer address */
@@ -655,10 +651,7 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 	plane_info->plane_index = osd_plane->plane_index;
 	/*get plane prop value*/
 	plane_info->zorder = state->zpos;
-	if (state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI)
-		plane_info->premult_en = 1;
-	else
-		plane_info->premult_en = 0;
+	plane_info->pixel_blend = state->pixel_blend_mode;
 	plane_info->global_alpha = state->alpha;
 
 	mvps->plane_index[osd_plane->plane_index] = osd_plane->plane_index;
@@ -923,14 +916,15 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 				 ARRAY_SIZE(supported_drm_formats),
 				 format_modifiers,
 				 type, plane_name);
-
 	drm_plane_create_blend_mode_property(plane,
-				DRM_MODE_BLEND_PREMULTI |
-				DRM_MODE_BLEND_COVERAGE);
+				BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+				BIT(DRM_MODE_BLEND_PREMULTI)   |
+				BIT(DRM_MODE_BLEND_COVERAGE));
 	drm_plane_create_alpha_property(plane);
-	drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
-					   DRM_MODE_ROTATE_0 |
-					   DRM_MODE_REFLECT_MASK);
+	drm_plane_create_rotation_property(plane,
+				DRM_MODE_ROTATE_0,
+				DRM_MODE_ROTATE_0 |
+				DRM_MODE_REFLECT_MASK);
 	drm_plane_create_zpos_property(plane, zpos, min_zpos, max_zpos);
 	drm_plane_helper_add(plane, &am_osd_helper_funcs);
 	DRM_INFO("osd plane %d create done\n", i);

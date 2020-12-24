@@ -326,7 +326,7 @@ void osd_global_alpha_set(struct osd_mif_reg_s *reg, u16 val)
 /*osd alpha_div en
  *if input is premult,alpha_div=1,else alpha_div=0
  */
-void osd_premult_enable(struct osd_mif_reg_s *reg, bool flag)
+void osd_premult_enable(struct osd_mif_reg_s *reg, int flag)
 {
 	/*afbc*/
 	meson_vpu_write_reg_bits(reg->viu_osd_mali_unpack_ctrl, flag, 28, 1);
@@ -358,15 +358,11 @@ void osd_mali_unpack_enable(struct osd_mif_reg_s *reg, bool flag)
 	meson_vpu_write_reg_bits(reg->viu_osd_mali_unpack_ctrl, flag, 31, 1);
 }
 
-static void osd_fifo_hold_line_config(struct osd_mif_reg_s *reg,
-				      u32 hold_line)
-{
-	meson_vpu_write_reg_bits(reg->viu_osd_fifo_ctrl_stat,
-				 hold_line & 0x1f, 5, 5);
-}
-
 void osd_ctrl_init(struct osd_mif_reg_s *reg)
 {
+	/*Need config follow crtc index.*/
+	u8 holdline = VIU1_DEFAULT_HOLD_LINE;
+
 	meson_vpu_write_reg(reg->viu_osd_fifo_ctrl_stat,
 			    (1 << 31) | /*BURSET_LEN_SEL[2]*/
 			    (0 << 30) | /*no swap*/
@@ -375,7 +371,7 @@ void osd_ctrl_init(struct osd_mif_reg_s *reg)
 			    (2 << 22) | /*Fifo_ctrl 2bits*/
 			    (0x20 << 12) | /*FIFO_DEPATH_VAL 7bits*/
 			    (1 << 10) | /*BURSET_LEN_SEL[1:0]*/
-			    (4 << 5) | /*hold fifo lines 5bits*/
+			    (holdline << 5) | /*hold fifo lines 5bits*/
 			    (0 << 4) | /*CLEAR_ERR*/
 			    (0 << 3) | /*fifo_sync_rst*/
 			    (0 << 1) | /*ENDIAN:no conversion*/
@@ -389,110 +385,36 @@ void osd_ctrl_init(struct osd_mif_reg_s *reg)
 			    (0 << 1) | /*premult_en*/
 			    (0 << 0)/*OSD_BLK_ENABLE*/);
 }
-/*osd ctrl config*/
-void osd_ctrl_set(struct osd_mif_reg_s *reg)
-{
-	meson_vpu_write_reg(reg->viu_osd_ctrl_stat,
-			    (0 << 31) | /*osd_cfg_sync_en*/
-			     (0 << 30) | /*Enable free_clk*/
-			     (0x100 << 12) | /*global alpha*/
-			     (0 << 11) | /*TEST_RD_EN*/
-			     (0 << 2) | /*osd_mem_mode 0:canvas_addr*/
-			     (0 << 1) | /*premult_en*/
-			     (0 << 0)/*OSD_BLK_ENABLE*/);
-	meson_vpu_write_reg(reg->viu_osd_ctrl_stat2,
-			    (1 << 14) | /*replaced_alpha_en*/
-			     (0xff << 6) | /*replaced_alpha*/
-			     (0 << 4) | /*hold fifo lines 2bit*/
-			     (0 << 3) | /*output fullrange enable 1bit*/
-			     (0 << 2)/*alpha 9bit mode 1bit*/);
-	meson_vpu_write_reg(reg->viu_osd_tcolor_ag0,
-			    (0xff << 24) | /*Y/R*/
-			     (0xff << 16) | /*CB/G*/
-			     (0xff << 24) | /*CR/B*/
-			     (0xff << 24)/*ALPHA*/);
-	meson_vpu_write_reg(reg->viu_osd_tcolor_ag1,
-			    (0xff << 24) | /*Y/R*/
-			     (0xff << 16) | /*CB/G*/
-			     (0xff << 24) | /*CR/B*/
-			     (0xff << 24)/*ALPHA*/);
-	meson_vpu_write_reg(reg->viu_osd_tcolor_ag2,
-			    (0xff << 24) | /*Y/R*/
-			     (0xff << 16) | /*CB/G*/
-			     (0xff << 24) | /*CR/B*/
-			     (0xff << 24)/*ALPHA*/);
-	meson_vpu_write_reg(reg->viu_osd_tcolor_ag3,
-			    (0xff << 24) | /*Y/R*/
-			     (0xff << 16) | /*CB/G*/
-			     (0xff << 24) | /*CR/B*/
-			     (0xff << 24)/*ALPHA*/);
-	meson_vpu_write_reg(reg->viu_osd_blk0_cfg_w0,
-			    (0 << 30) | /*read from ddr[0]/afbc[1]*/
-			     (0 << 29) | /*y reverse disable*/
-			     (0 << 28) | /*x reverse disable*/
-			     (osd_canvas[0][0] << 16) | /*canvas index*/
-			     (1 << 15) | /*little endian in ddr*/
-			     (0 << 14) | /*no repeat display y pre line*/
-			     (0 << 12) | /*no interpolation per pixel*/
-			     (5 << 8) | /*read from ddr 32bit mode*/
-			     (0 << 6) | /*TC_ALPHA_EN*/
-			     (1 << 2) | /*ARGB format for 32bit mode*/
-			     (0 << 1) | /*interlace en*/
-			     (0 << 0)/*output odd/even lines sel*/);
-	meson_vpu_write_reg(reg->viu_osd_blk0_cfg_w1,
-			    (1919 << 16) | /*x_end pixels[13bits]*/
-			     (0 << 0)/*x_start pixels[13bits]*/);
-	meson_vpu_write_reg(reg->viu_osd_blk0_cfg_w2,
-			    (1079 << 16) | /*y_end pixels[13bits]*/
-			     (0 << 0)/*y_start pixels[13bits]*/);
-	/*frame addr in linear addr*/
-	meson_vpu_write_reg(reg->viu_osd_blk1_cfg_w4, 0);
-	/*line_stride in linear addr*/
-	meson_vpu_write_reg(reg->viu_osd_blk2_cfg_w4, 0);
-	meson_vpu_write_reg(reg->viu_osd_fifo_ctrl_stat,
-			    (1 << 31) | /*BURSET_LEN_SEL[2]*/
-			     (0 << 30) | /*no swap*/
-			     (0 << 29) | /*div swap*/
-			     (2 << 24) | /*Fifo_lim 5bits*/
-			     (2 << 22) | /*Fifo_ctrl 2bits*/
-			     (0x20 << 12) | /*FIFO_DEPATH_VAL 7bits*/
-			     (1 << 10) | /*BURSET_LEN_SEL[1:0]*/
-			     (4 << 5) | /*hold fifo lines 5bits*/
-			     (0 << 4) | /*CLEAR_ERR*/
-			     (0 << 3) | /*fifo_sync_rst*/
-			     (0 << 1) | /*ENDIAN:no conversion*/
-			     (1 << 0)/*urgent enable*/);
-	meson_vpu_write_reg(reg->viu_osd_mali_unpack_ctrl,
-			    (0 << 31) | /*unpack normal src*/
-			     (0 << 28) | /*alpha div en*/
-			     (0 << 26) | /*dividor gating clk*/
-			     (1 << 24) | /*alpha mapping mode 2bits*/
-			     (0 << 16) | /*afbc swap 64bit 1bits*/
-			     (1 << 12) | /*afbcd_r_reorder r 4bits*/
-			     (2 << 8) | /*afbcd_r_reorder g 4bits*/
-			     (3 << 4) | /*afbcd_r_reorder b 4bits*/
-			     (4 << 0)/*afbcd_r_reorder alpha 4bits*/);
-}
 
 static void osd_color_config(struct osd_mif_reg_s *reg,
-			     u32 pixel_format, bool afbc_en)
+			     u32 pixel_format, u32 pixel_blend, bool afbc_en)
 {
 	u8 blk_mode, colormat, alpha_replace;
 
 	blk_mode = meson_drm_format_hw_blkmode(pixel_format, afbc_en);
 	colormat = meson_drm_format_hw_colormat(pixel_format, afbc_en);
-	alpha_replace = meson_drm_format_alpha_replace(pixel_format, afbc_en);
+	alpha_replace = (pixel_blend == DRM_MODE_BLEND_PIXEL_NONE) ||
+		meson_drm_format_alpha_replace(pixel_format, afbc_en);
 	meson_vpu_write_reg_bits(reg->viu_osd_blk0_cfg_w0,
 				 blk_mode, 8, 4);
 	meson_vpu_write_reg_bits(reg->viu_osd_blk0_cfg_w0,
 				 colormat, 2, 4);
-	meson_vpu_write_reg_bits(reg->viu_osd_ctrl_stat2,
-				 alpha_replace, 14, 1);
+
+	if (alpha_replace)
+		/*replace alpha    : bit 14 enable, 6~13 alpha val.*/
+		meson_vpu_write_reg_bits(reg->viu_osd_ctrl_stat2, 0x1ff, 6, 9);
+	else
+		meson_vpu_write_reg_bits(reg->viu_osd_ctrl_stat2, 0x0, 6, 9);
 }
 
 static void osd_afbc_config(struct osd_mif_reg_s *reg,
 			    u8 osd_index, bool afbc_en)
 {
+	if (!afbc_en)
+		meson_vpu_write_reg_bits(reg->viu_osd_ctrl_stat2, 0, 1, 1);
+	else
+		meson_vpu_write_reg_bits(reg->viu_osd_ctrl_stat2, 1, 1, 1);
+
 	osd_mali_unpack_enable(reg, afbc_en);
 	osd_mali_src_en(reg, osd_index, afbc_en);
 	osd_endian_mode(reg, !afbc_en);
@@ -578,7 +500,7 @@ static int osd_check_state(struct meson_vpu_block *vblk,
 	mvos->phy_addr = plane_info->phy_addr;
 	mvos->pixel_format = plane_info->pixel_format;
 	mvos->fb_size = plane_info->fb_size;
-	mvos->premult_en = plane_info->premult_en;
+	mvos->pixel_blend = plane_info->pixel_blend;
 	mvos->rotation = plane_info->rotation;
 	mvos->afbc_en = plane_info->afbc_en;
 	mvos->blend_bypass = plane_info->blend_bypass;
@@ -601,11 +523,10 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	u32 pixel_format, canvas_index, src_h, byte_stride;
 	struct osd_scope_s scope_src = {0, 1919, 0, 1079};
 	struct osd_mif_reg_s *reg = osd->reg;
-	bool alpha_div_en, reverse_x, reverse_y, afbc_en;
+	bool alpha_div_en = 0, reverse_x, reverse_y, afbc_en;
 	bool bflg = false;
 	void *buff = NULL;
 	u64 phy_addr;
-	u32 hold_line;
 	u16 global_alpha = 256; /*range 0~256*/
 
 	crtc = vblk->pipeline->crtc;
@@ -618,8 +539,10 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 
 	DRM_DEBUG("%s - %d %s called.\n", osd->base.name, vblk->index, __func__);
 
-	alpha_div_en = (mvos->premult_en && !mvos->blend_bypass) ? 1 : 0;
 	afbc_en = mvos->afbc_en ? 1 : 0;
+	if (mvos->pixel_blend == DRM_MODE_BLEND_PREMULTI)
+		alpha_div_en = 1;
+
 	/*drm alaph 16bit, amlogic alpha 8bit*/
 	global_alpha = mvos->global_alpha >> 8;
 	if (global_alpha == 0xff)
@@ -634,9 +557,7 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	scope_src.v_end = mvos->src_y + mvos->src_h - 1;
 	pixel_format = mvos->pixel_format;
 	canvas_index = osd_canvas[vblk->index][osd_canvas_index[vblk->index]];
-	/*Toto: need to separate*/
-	if (0)
-		osd_ctrl_set(osd->reg);
+
 	reverse_x = (mvos->rotation & DRM_MODE_REFLECT_X) ? 1 : 0;
 	reverse_y = (mvos->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0;
 	osd_reverse_x_enable(reg, reverse_x);
@@ -646,15 +567,11 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	osd_canvas_index[vblk->index] ^= 1;
 	osd_canvas_config(reg, canvas_index);
 	osd_input_size_config(reg, scope_src);
-	osd_color_config(reg, pixel_format, afbc_en);
+	osd_color_config(reg, pixel_format, mvos->pixel_blend, afbc_en);
 	osd_afbc_config(reg, vblk->index, afbc_en);
 	osd_premult_enable(reg, alpha_div_en);
 	osd_global_alpha_set(reg, global_alpha);
-	if (crtc->index == 0)
-		hold_line = VIU1_DEFAULT_HOLD_LINE;
-	else
-		hold_line = VIU2_DEFAULT_HOLD_LINE;
-	osd_fifo_hold_line_config(reg, hold_line);
+
 	DRM_DEBUG("plane_index=%d,HW-OSD=%d\n",
 		  mvos->plane_index, vblk->index);
 	DRM_DEBUG("canvas_index[%d]=0x%x,phy_addr=0x%pa\n",
