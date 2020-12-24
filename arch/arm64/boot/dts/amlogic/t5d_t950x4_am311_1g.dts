@@ -18,7 +18,7 @@
 /dts-v1/;
 
 #include "mesont5d.dtsi"
-//#include "partition_mbox_normal_P_32.dtsi"
+#include "partition_mbox_ab.dtsi"
 #include "mesont5d_am311-panel.dtsi"
 
 / {
