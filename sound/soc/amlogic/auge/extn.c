@@ -268,8 +268,8 @@ static int extn_open(struct snd_pcm_substream *substream)
 
 		if (toddr_src_get() == FRHDMIRX) {
 			ret = request_irq(p_extn->irq_frhdmirx,
-					frhdmirx_isr, 0, "irq_frhdmirx",
-					p_extn);
+					frhdmirx_isr, IRQF_SHARED,
+					"irq_frhdmirx", p_extn);
 			if (ret) {
 				ret = -ENXIO;
 				dev_err(p_extn->dev, "failed to claim irq_frhdmirx %u\n",
