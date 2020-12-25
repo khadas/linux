@@ -11,7 +11,6 @@
 #include <linux/percpu.h>
 #include <linux/list.h>
 #include <linux/irq_pipeline.h>
-#include <evl/lock.h>
 #include <evl/thread.h>
 #include <evl/sched/queue.h>
 #include <evl/sched/weak.h>
@@ -374,7 +373,7 @@ static inline bool evl_cannot_block(void)
 #define evl_get_thread_rq(__thread, __flags)				\
 	({								\
 		struct evl_rq *__rq;					\
-		evl_spin_lock_irqsave(&(__thread)->lock, __flags);	\
+		raw_spin_lock_irqsave(&(__thread)->lock, __flags);	\
 		__rq = (__thread)->rq;					\
 		raw_spin_lock(&__rq->lock);				\
 		__rq;							\
@@ -383,7 +382,7 @@ static inline bool evl_cannot_block(void)
 #define evl_put_thread_rq(__thread, __rq, __flags)			\
 	do {								\
 		raw_spin_unlock(&(__rq)->lock);				\
-		evl_spin_unlock_irqrestore(&(__thread)->lock, __flags);	\
+		raw_spin_unlock_irqrestore(&(__thread)->lock, __flags);	\
 	} while (0)
 
 bool evl_set_effective_thread_priority(struct evl_thread *thread,

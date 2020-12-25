@@ -83,11 +83,11 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 		evl_spin_lock_irqsave(&event->wait_queue.lock, flags);
 		event->state->flags |= (EVL_MONITOR_TARGETED|
 					EVL_MONITOR_SIGNALED);
-		evl_spin_lock(&target->lock);
+		raw_spin_lock(&target->lock);
 		raw_spin_lock(&target->rq->lock);
 		target->info |= T_SIGNAL;
 		raw_spin_unlock(&target->rq->lock);
-		evl_spin_unlock(&target->lock);
+		raw_spin_unlock(&target->lock);
 		evl_spin_unlock_irqrestore(&event->wait_queue.lock, flags);
 	}
 out:
@@ -506,11 +506,11 @@ static int wait_monitor(struct file *filp,
 
 	evl_add_wait_queue(&event->wait_queue, timeout, tmode);
 
-	evl_spin_lock(&curr->lock);
+	raw_spin_lock(&curr->lock);
 	raw_spin_lock(&curr->rq->lock);
 	curr->info &= ~T_SIGNAL;
 	raw_spin_unlock(&curr->rq->lock);
-	evl_spin_unlock(&curr->lock);
+	raw_spin_unlock(&curr->lock);
 	evl_spin_unlock(&event->wait_queue.lock);
 	__exit_monitor(gate, curr);
 	evl_spin_unlock_irqrestore(&gate->lock, flags);
