@@ -390,6 +390,9 @@ struct mmc_host {
 	unsigned int		max_blk_size;	/* maximum size of one mmc block */
 	unsigned int		max_blk_count;	/* maximum number of blocks in one req */
 	unsigned int		max_busy_timeout; /* max busy timeout in ms */
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int        capacity;
+#endif
 
 	/* private data */
 	spinlock_t		lock;		/* lock for claim and bus ops */

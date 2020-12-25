@@ -1580,8 +1580,11 @@ static u32 scan_emmc_cmd_win(struct mmc_host *mmc, int send_status)
 	char str[64] = {0};
 	long long before_time;
 	long long after_time;
-	u32 capacity = 8 * SZ_1M;
+	u32 capacity = 2 * SZ_1M;
 	u32 offset;
+
+	if (mmc->capacity)
+		capacity = mmc->capacity;
 
 	delay2 &= ~(0xff << 24);
 	host->cmd_retune = 0;
@@ -2307,8 +2310,17 @@ out:
 		writel(start, host->regs + SD_EMMC_START);
 	}
 
-	if (ret == IRQ_HANDLED)
+	if (ret == IRQ_HANDLED) {
+		meson_mmc_read_resp(host->mmc, cmd);
+		if (cmd->error && !host->is_tuning)
+			pr_err("cmd = %d, arg = 0x%x, dev_status = 0x%x\n",
+					cmd->opcode, cmd->arg, cmd->resp[0]);
 		meson_mmc_request_done(host->mmc, cmd->mrq);
+	} else if (ret == IRQ_NONE) {
+		dev_warn(host->dev,
+				"Unexpected IRQ! status=0x%08x, irq_en=0x%08x\n",
+				raw_status, irq_en);
+	}
 
 	return ret;
 }
@@ -2355,6 +2367,7 @@ static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
 				    host->bounce_buf, xfer_bytes);
 	}
 
+	meson_mmc_read_resp(host->mmc, cmd);
 	meson_mmc_request_done(host->mmc, cmd->mrq);
 
 	return IRQ_HANDLED;
