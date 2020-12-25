@@ -30,7 +30,7 @@
  */
 struct evl_subscriber {
   	struct rb_root subscriptions; /* struct evl_observer */
-	evl_spinlock_t lock;
+	hard_spinlock_t lock;
 };
 
 struct evl_notification_record {
@@ -133,7 +133,7 @@ static int add_subscription(struct evl_observable *observable,
 		sbr = kzalloc(sizeof(*sbr), GFP_KERNEL);
 		if (sbr == NULL)
 			return -ENOMEM;
-		evl_spin_lock_init(&sbr->lock);
+		raw_spin_lock_init(&sbr->lock);
 		sbr->subscriptions = RB_ROOT;
 		evl_set_subscriber(sbr);
 	}
@@ -169,9 +169,9 @@ static int add_subscription(struct evl_observable *observable,
 	if (op_flags & EVL_NOTIFY_ONCHANGE)
 		observer->flags |= EVL_NOTIFY_INITIAL;
 
-	evl_spin_lock_irqsave(&sbr->lock, flags);
+	raw_spin_lock_irqsave(&sbr->lock, flags);
 	ret = index_observer(&sbr->subscriptions, observer);
-	evl_spin_unlock_irqrestore(&sbr->lock, flags);
+	raw_spin_unlock_irqrestore(&sbr->lock, flags);
 	if (ret)
 		goto dup_subscription;
 
@@ -187,12 +187,12 @@ static int add_subscription(struct evl_observable *observable,
 	 * (FIFO) in case users make such assumption for master mode
 	 * (which undergoes round-robin).
 	 */
-	evl_spin_lock_irqsave(&observable->lock, flags);
+	raw_spin_lock_irqsave(&observable->lock, flags);
 	list_add_tail(&observer->next, &observable->observers);
 	raw_spin_lock(&observable->oob_wait.lock);
 	observable->writable_observers++;
 	raw_spin_unlock(&observable->oob_wait.lock);
-	evl_spin_unlock_irqrestore(&observable->lock, flags);
+	raw_spin_unlock_irqrestore(&observable->lock, flags);
 	evl_signal_poll_events(&observable->poll_head, POLLOUT|POLLWRNORM);
 
 	evl_put_element(&observable->element);
@@ -248,7 +248,7 @@ static bool detach_observer(struct evl_observer *observer,
 	bool dropped = false;
 	unsigned long flags;
 
-	evl_spin_lock_irqsave(&observable->lock, flags);
+	raw_spin_lock_irqsave(&observable->lock, flags);
 
 	/*
 	 * If the refcount does not drop to zero, push_notification()
@@ -259,7 +259,7 @@ static bool detach_observer(struct evl_observer *observer,
 		dropped = true;
 	}
 
-	evl_spin_unlock_irqrestore(&observable->lock, flags);
+	raw_spin_unlock_irqrestore(&observable->lock, flags);
 
 	return dropped;
 }
@@ -290,9 +290,9 @@ static int cancel_subscription(struct evl_observable *observable) /* in-band */
 	 * this observer escapes evl_drop_subscriptions() in case the
 	 * caller exits afterwards.
 	 */
-	evl_spin_lock_irqsave(&sbr->lock, flags);
+	raw_spin_lock_irqsave(&sbr->lock, flags);
 	rb_erase(&observer->rb, &sbr->subscriptions);
-	evl_spin_unlock_irqrestore(&sbr->lock, flags);
+	raw_spin_unlock_irqrestore(&sbr->lock, flags);
 
 	/*
 	 * Remove observer from observable->observers. Subscription
@@ -429,17 +429,17 @@ static void do_flush_work(struct evl_observable *observable)
 	 * only rarely, in case push_notification() raced with
 	 * cancel_subscription() or evl_drop_subscriptions().
 	 */
-	evl_spin_lock_irqsave(&observable->lock, flags);
+	raw_spin_lock_irqsave(&observable->lock, flags);
 
 	while (!list_empty(&observable->flush_list)) {
 		observer = list_get_entry(&observable->flush_list,
 					struct evl_observer, next);
-		evl_spin_unlock_irqrestore(&observable->lock, flags);
+		raw_spin_unlock_irqrestore(&observable->lock, flags);
 		kfree(observer);
-		evl_spin_lock_irqsave(&observable->lock, flags);
+		raw_spin_lock_irqsave(&observable->lock, flags);
 	}
 
-	evl_spin_unlock_irqrestore(&observable->lock, flags);
+	raw_spin_unlock_irqrestore(&observable->lock, flags);
 }
 
 static void inband_flush_irqwork(struct irq_work *work)
@@ -499,7 +499,7 @@ static bool notify_single(struct evl_observable *observable,
 	bool do_flush = false;
 	unsigned long flags;
 
-	evl_spin_lock_irqsave(&observable->lock, flags);
+	raw_spin_lock_irqsave(&observable->lock, flags);
 
 	if (list_empty(&observable->observers))
 		goto out;
@@ -519,12 +519,12 @@ static bool notify_single(struct evl_observable *observable,
 		list_add_tail(&observer->next, &observable->observers);
 	}
 
-	evl_spin_unlock_irqrestore(&observable->lock, flags);
+	raw_spin_unlock_irqrestore(&observable->lock, flags);
 
 	if (notify_one_observer(observable, observer, nfr))
 		*len_r += sizeof(struct evl_notice);
 
-	evl_spin_lock_irqsave(&observable->lock, flags);
+	raw_spin_lock_irqsave(&observable->lock, flags);
 
 	if (unlikely(put_observer(observer))) {
 		detach_observer_locked(observer, observable);
@@ -532,7 +532,7 @@ static bool notify_single(struct evl_observable *observable,
 		do_flush = true;
 	}
 out:
-	evl_spin_unlock_irqrestore(&observable->lock, flags);
+	raw_spin_unlock_irqrestore(&observable->lock, flags);
 
 	return do_flush;
 }
@@ -546,7 +546,7 @@ static bool notify_all(struct evl_observable *observable,
 	unsigned long flags;
 	bool do_flush;
 
-	evl_spin_lock_irqsave(&observable->lock, flags);
+	raw_spin_lock_irqsave(&observable->lock, flags);
 
 	if (list_empty(&observable->observers)) {
 		do_flush = false;
@@ -578,12 +578,12 @@ static bool notify_all(struct evl_observable *observable,
 
 		observer = list_entry(pos, struct evl_observer, next);
 
-		evl_spin_unlock_irqrestore(&observable->lock, flags);
+		raw_spin_unlock_irqrestore(&observable->lock, flags);
 
 		if (notify_one_observer(observable, observer, nfr))
 			*len_r += sizeof(struct evl_notice);
 
-		evl_spin_lock_irqsave(&observable->lock, flags);
+		raw_spin_lock_irqsave(&observable->lock, flags);
 
 		if (unlikely(put_observer(observer))) {
 			detach_observer_locked(observer, observable);
@@ -593,7 +593,7 @@ static bool notify_all(struct evl_observable *observable,
 
 	do_flush = !list_empty(&observable->flush_list);
 out:
-	evl_spin_unlock_irqrestore(&observable->lock, flags);
+	raw_spin_unlock_irqrestore(&observable->lock, flags);
 
 	return do_flush;
 }
@@ -1103,7 +1103,7 @@ struct evl_observable *evl_alloc_observable(const char __user *u_name,
 	init_irq_work(&observable->wake_irqwork, inband_wake_irqwork);
 	init_irq_work(&observable->flush_irqwork, inband_flush_irqwork);
 	evl_init_poll_head(&observable->poll_head);
-	evl_spin_lock_init(&observable->lock);
+	raw_spin_lock_init(&observable->lock);
 	evl_index_factory_element(&observable->element);
 
 	return observable;
