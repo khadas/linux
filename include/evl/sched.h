@@ -221,16 +221,16 @@ static inline void evl_set_resched(struct evl_rq *rq)
 {
 	struct evl_rq *this_rq = this_evl_rq();
 
-	assert_evl_lock(&rq->lock); /* Implies oob is stalled. */
+	assert_evl_lock(&rq->lock); /* Implies hard irqs are off. */
 
 	if (this_rq == rq) {
 		this_rq->flags |= RQ_SCHED;
 	} else if (!evl_need_resched(rq)) {
 		rq->flags |= RQ_SCHED;
 		/*
-		 * The following updates change CPU-local data and oob
-		 * is stalled on the current CPU, so this is safe
-		 * despite that we don't hold this_rq->lock.
+		 * The following updates change CPU-local data and
+		 * hard irqs are off on the current CPU, so this is
+		 * safe despite that we don't hold this_rq->lock.
 		 *
 		 * NOTE: raising RQ_SCHED in the local_flags too
 		 * ensures that the current CPU will pass through

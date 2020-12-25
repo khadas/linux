@@ -241,7 +241,7 @@ EXPORT_SYMBOL(evl_enable_preempt);
 static inline
 void evl_double_rq_lock(struct evl_rq *rq1, struct evl_rq *rq2)
 {
-	EVL_WARN_ON_ONCE(CORE, !oob_irqs_disabled());
+	EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled());
 
 	/* Prevent ABBA deadlock, always lock rqs in address order. */
 
@@ -300,7 +300,7 @@ static void migrate_rq(struct evl_thread *thread, struct evl_rq *dst_rq)
 	evl_double_rq_unlock(src_rq, dst_rq);
 }
 
-/* thread->lock held, oob stalled. @thread must not be running oob. */
+/* thread->lock held, hard irqs off. @thread must be running in-band. */
 void evl_migrate_thread(struct evl_thread *thread, struct evl_rq *dst_rq)
 {
 	assert_evl_lock(&thread->lock);
@@ -322,7 +322,7 @@ void evl_migrate_thread(struct evl_thread *thread, struct evl_rq *dst_rq)
 	evl_reset_account(&thread->stat.lastperiod);
 }
 
-static void check_cpu_affinity(struct task_struct *p) /* inband, oob stage stalled */
+static void check_cpu_affinity(struct task_struct *p) /* inband, hard irqs off */
 {
 	struct evl_thread *thread = evl_thread_from_task(p);
 	int cpu = task_cpu(p);
@@ -379,7 +379,7 @@ out:
 #else
 
 #define evl_double_rq_lock(__rq1, __rq2)  \
-	EVL_WARN_ON_ONCE(CORE, !oob_irqs_disabled());
+	EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled());
 
 #define evl_double_rq_unlock(__rq1, __rq2)  do { } while (0)
 
@@ -866,7 +866,7 @@ static inline void finish_rq_switch_from_inband(void)
 	evl_spin_unlock_irq(&this_rq->lock);
 }
 
-/* oob stalled. */
+/* hard irqs off. */
 static inline bool test_resched(struct evl_rq *this_rq)
 {
 	bool need_resched = evl_need_resched(this_rq);
@@ -893,19 +893,19 @@ static inline bool test_resched(struct evl_rq *this_rq)
  * use "current" for disambiguating if you intend to refer to the
  * running inband task.
  */
-void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
+void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 {
 	struct evl_rq *this_rq = this_evl_rq();
 	struct evl_thread *prev, *next, *curr;
 	bool leaving_inband, inband_tail;
 	unsigned long flags;
 
-	if (EVL_WARN_ON_ONCE(CORE, running_inband() && !oob_irqs_disabled()))
+	if (EVL_WARN_ON_ONCE(CORE, running_inband() && !hard_irqs_disabled()))
 		return;
 
 	trace_evl_schedule(this_rq);
 
-	flags = oob_irq_save();
+	flags = hard_local_irq_save();
 
 	/*
 	 * Check whether we have a pending priority ceiling request to
@@ -972,7 +972,7 @@ void __evl_schedule(void) /* oob or oob stalled (CPU migration-safe) */
 }
 EXPORT_SYMBOL_GPL(__evl_schedule);
 
-/* this_rq->lock held, oob stage stalled. */
+/* this_rq->lock held, hard irqs off. */
 static void start_ptsync_locked(struct evl_thread *stopper,
 				struct evl_rq *this_rq)
 {
@@ -995,7 +995,7 @@ void evl_start_ptsync(struct evl_thread *stopper)
 	if (EVL_WARN_ON(CORE, !(stopper->state & T_USER)))
 		return;
 
-	flags = oob_irq_save();
+	flags = hard_local_irq_save();
 	this_rq = this_evl_rq();
 	evl_spin_lock(&this_rq->lock);
 	start_ptsync_locked(stopper, this_rq);
@@ -1007,12 +1007,19 @@ void resume_oob_task(struct task_struct *p) /* inband, oob stage stalled */
 	struct evl_thread *thread = evl_thread_from_task(p);
 
 	/*
+	 * Dovetail calls us with hard irqs off, oob stage
+	 * stalled. Clear the stall bit which we don't use for
+	 * protection but keep hard irqs off.
+	 */
+	unstall_oob();
+	check_cpu_affinity(p);
+	evl_release_thread(thread, T_INBAND, 0);
+	/*
 	 * If T_PTSTOP is set, pick_next_thread() is not allowed to
 	 * freeze @thread while in flight to the out-of-band stage.
 	 */
-	check_cpu_affinity(p);
-	evl_release_thread(thread, T_INBAND, 0);
 	evl_schedule();
+	stall_oob();
 }
 
 int evl_switch_oob(void)
@@ -1042,10 +1049,17 @@ int evl_switch_oob(void)
 	}
 
 	/*
+	 * On success, dovetail_leave_inband() stalls the oob stage
+	 * before returning to us: clear this stall bit since we don't
+	 * use it for protection but keep hard irqs off.
+	 */
+	unstall_oob();
+
+	/*
 	 * The current task is now running on the out-of-band
 	 * execution stage, scheduled in by the latest call to
 	 * __evl_schedule() on this CPU: we must be holding the
-	 * runqueue lock and the oob stage must be stalled.
+	 * runqueue lock and hard irqs must be off.
 	 */
 	oob_context_only();
 
@@ -1095,7 +1109,7 @@ void evl_switch_inband(int cause)
 	 * only applies to the current thread running out-of-band on
 	 * this CPU. See caveat about dovetail_leave_oob() below.
 	 */
-	oob_irq_disable();
+	hard_local_irq_disable();
 	irq_work_queue(&curr->inband_work);
 
 	evl_spin_lock(&curr->lock);
@@ -1146,7 +1160,7 @@ void evl_switch_inband(int cause)
 	 * this_rq()->lock was released when the root thread resumed
 	 * from __evl_schedule() (i.e. inband_tail path).
 	 */
-	oob_irq_enable();
+	hard_local_irq_enable();
 	dovetail_resume_inband();
 
 	/*

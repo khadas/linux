@@ -9,8 +9,7 @@
 #include <linux/spinlock.h>
 
 /*
- * The spinlock API used in the EVL core, which preserves Dovetail's
- * stall bit for the out-of-band stage.
+ * The spinlock API used in the EVL core.
  */
 
 typedef struct evl_spinlock {
@@ -38,20 +37,17 @@ typedef struct evl_spinlock {
 
 #define evl_spin_lock_irq(__lock)			\
 	do {						\
-		oob_irq_disable();			\
-		raw_spin_lock(&(__lock)->_lock);	\
+		raw_spin_lock_irq(&(__lock)->_lock);	\
 	} while (0)
 
 #define evl_spin_unlock_irq(__lock)			\
 	do {						\
-		raw_spin_unlock(&(__lock)->_lock);	\
-		oob_irq_enable();			\
+		raw_spin_unlock_irq(&(__lock)->_lock);	\
 	} while (0)
 
 #define evl_spin_lock_irqsave(__lock, __flags)		\
 	do {						\
-		(__flags) = oob_irq_save();		\
-		evl_spin_lock(__lock);			\
+		raw_spin_lock_irqsave(&(__lock)->_lock, __flags);	\
 	} while (0)
 
 #define evl_spin_unlock(__lock)				\
@@ -59,8 +55,7 @@ typedef struct evl_spinlock {
 
 #define evl_spin_unlock_irqrestore(__lock, __flags)	\
 	do {						\
-		raw_spin_unlock(&(__lock)->_lock);	\
-		oob_irq_restore(__flags);		\
+		raw_spin_unlock_irqrestore(&(__lock)->_lock, __flags);	\
 	} while (0)
 
 #endif /* !_EVL_LOCK_H */
