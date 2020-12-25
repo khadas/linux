@@ -2125,11 +2125,11 @@ static irqreturn_t lineevent_oob_irq_handler(int irq, void *p)
 	if (lineevent_read_pin(le, &ge, false) == IRQ_NONE)
 		return IRQ_NONE;
 
-	evl_spin_lock(&le->oob_state.wait.lock);
+	raw_spin_lock(&le->oob_state.wait.lock);
 	kfifo_put(&le->events, ge);
 	evl_wake_up_head(&le->oob_state.wait);
 	evl_signal_poll_events(&le->oob_state.poll_head, POLLIN|POLLRDNORM);
-	evl_spin_unlock(&le->oob_state.wait.lock);
+	raw_spin_unlock(&le->oob_state.wait.lock);
 
 	return IRQ_HANDLED;
 }
@@ -2143,12 +2143,12 @@ static __poll_t lineevent_oob_poll(struct file *file,
 
 	evl_poll_watch(&le->oob_state.poll_head, wait, NULL);
 
-	evl_spin_lock_irqsave(&le->oob_state.wait.lock, flags);
+	raw_spin_lock_irqsave(&le->oob_state.wait.lock, flags);
 
 	if (!kfifo_is_empty(&le->events))
 		ready |= POLLIN|POLLRDNORM;
 
-	evl_spin_unlock_irqrestore(&le->oob_state.wait.lock, flags);
+	raw_spin_unlock_irqrestore(&le->oob_state.wait.lock, flags);
 
 	return ready;
 }
@@ -2169,7 +2169,7 @@ static ssize_t lineevent_oob_read(struct file *file,
 		return -EPERM;
 
 	do {
-		evl_spin_lock_irqsave(&le->oob_state.wait.lock, flags);
+		raw_spin_lock_irqsave(&le->oob_state.wait.lock, flags);
 
 		ret = kfifo_get(&le->events, &ge);
 		/*
@@ -2179,7 +2179,7 @@ static ssize_t lineevent_oob_read(struct file *file,
 		if (!ret)
 			ret = 0;
 
-		evl_spin_unlock_irqrestore(&le->oob_state.wait.lock, flags);
+		raw_spin_unlock_irqrestore(&le->oob_state.wait.lock, flags);
 
 		if (ret) {
 			ret = raw_copy_to_user(buf, &ge, sizeof(ge));

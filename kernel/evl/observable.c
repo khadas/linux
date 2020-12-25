@@ -189,9 +189,9 @@ static int add_subscription(struct evl_observable *observable,
 	 */
 	evl_spin_lock_irqsave(&observable->lock, flags);
 	list_add_tail(&observer->next, &observable->observers);
-	evl_spin_lock(&observable->oob_wait.lock);
+	raw_spin_lock(&observable->oob_wait.lock);
 	observable->writable_observers++;
-	evl_spin_unlock(&observable->oob_wait.lock);
+	raw_spin_unlock(&observable->oob_wait.lock);
 	evl_spin_unlock_irqrestore(&observable->lock, flags);
 	evl_signal_poll_events(&observable->poll_head, POLLOUT|POLLWRNORM);
 
@@ -220,12 +220,12 @@ static void detach_observer_locked(struct evl_observer *observer,
 {
 	list_del(&observer->next);
 
-	evl_spin_lock(&observable->oob_wait.lock);
+	raw_spin_lock(&observable->oob_wait.lock);
 
 	if (!list_empty(&observer->free_list))
 		decrease_writability(observable);
 
-	evl_spin_unlock(&observable->oob_wait.lock);
+	raw_spin_unlock(&observable->oob_wait.lock);
 }
 
 static inline void get_observer(struct evl_observer *observer)
@@ -351,12 +351,12 @@ static void wake_oob_threads(struct evl_observable *observable)
 {
 	unsigned long flags;
 
-	evl_spin_lock_irqsave(&observable->oob_wait.lock, flags);
+	raw_spin_lock_irqsave(&observable->oob_wait.lock, flags);
 
 	if (evl_wait_active(&observable->oob_wait))
 		evl_flush_wait_locked(&observable->oob_wait, 0);
 
-	evl_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
+	raw_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
 
 	evl_schedule();
 }
@@ -385,7 +385,7 @@ void evl_flush_observable(struct evl_observable *observable)
 	 * some events might still being pushed to the observable via
 	 * the thread file descriptor, so locking is required.
 	 */
-	evl_spin_lock_irqsave(&observable->oob_wait.lock, flags);
+	raw_spin_lock_irqsave(&observable->oob_wait.lock, flags);
 
 	list_for_each_entry_safe(observer, tmp, &observable->observers, next) {
 		list_del_init(&observer->next);
@@ -393,7 +393,7 @@ void evl_flush_observable(struct evl_observable *observable)
 			decrease_writability(observable);
 	}
 
-	evl_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
+	raw_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
 
 	wake_oob_threads(observable);
 }
@@ -459,7 +459,7 @@ static bool notify_one_observer(struct evl_observable *observable,
 	struct evl_notice last_notice;
 	unsigned long flags;
 
-	evl_spin_lock_irqsave(&observable->oob_wait.lock, flags);
+	raw_spin_lock_irqsave(&observable->oob_wait.lock, flags);
 
 	if (observer->flags & EVL_NOTIFY_ONCHANGE) {
 		last_notice = observer->last_notice;
@@ -473,7 +473,7 @@ static bool notify_one_observer(struct evl_observable *observable,
 	}
 
 	if (list_empty(&observer->free_list)) {
-		evl_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
+		raw_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
 		return false;
 	}
 
@@ -486,7 +486,7 @@ static bool notify_one_observer(struct evl_observable *observable,
 	if (list_empty(&observer->free_list))
 		decrease_writability(observable);
 done:
-	evl_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
+	raw_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
 
 	return true;
 }
@@ -733,7 +733,7 @@ pull_from_oob(struct evl_observable *observable,
 	unsigned long flags;
 	int ret;
 
-	evl_spin_lock_irqsave(&observable->oob_wait.lock, flags);
+	raw_spin_lock_irqsave(&observable->oob_wait.lock, flags);
 
 	/*
 	 * observable->wait.lock guards the pending and free
@@ -752,17 +752,17 @@ pull_from_oob(struct evl_observable *observable,
 			goto out;
 		}
 		evl_add_wait_queue(&observable->oob_wait, EVL_INFINITE, EVL_REL);
-		evl_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
+		raw_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
 		ret = evl_wait_schedule(&observable->oob_wait);
 		if (ret)
 			return ERR_PTR(ret);
-		evl_spin_lock_irqsave(&observable->oob_wait.lock, flags);
+		raw_spin_lock_irqsave(&observable->oob_wait.lock, flags);
 	}
 
 	nfr = list_get_entry(&observer->pending_list,
 			struct evl_notification_record, next);
 out:
-	evl_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
+	raw_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
 
 	return nfr;
 }
@@ -784,7 +784,7 @@ pull_from_inband(struct evl_observable *observable,
 	 * an explanation.
 	 */
 	spin_lock_irqsave(&observable->inband_wait.lock, ib_flags);
-	evl_spin_lock_irqsave(&observable->oob_wait.lock, oob_flags);
+	raw_spin_lock_irqsave(&observable->oob_wait.lock, oob_flags);
 
 	for (;;) {
 		/*
@@ -805,11 +805,11 @@ pull_from_inband(struct evl_observable *observable,
 			break;
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
-		evl_spin_unlock_irqrestore(&observable->oob_wait.lock, oob_flags);
+		raw_spin_unlock_irqrestore(&observable->oob_wait.lock, oob_flags);
 		spin_unlock_irqrestore(&observable->inband_wait.lock, ib_flags);
 		schedule();
 		spin_lock_irqsave(&observable->inband_wait.lock, ib_flags);
-		evl_spin_lock_irqsave(&observable->oob_wait.lock, oob_flags);
+		raw_spin_lock_irqsave(&observable->oob_wait.lock, oob_flags);
 
 		if (signal_pending(current)) {
 			ret = -ERESTARTSYS;
@@ -819,7 +819,7 @@ pull_from_inband(struct evl_observable *observable,
 
 	list_del(&wq_entry.entry);
 
-	evl_spin_unlock_irqrestore(&observable->oob_wait.lock, oob_flags);
+	raw_spin_unlock_irqrestore(&observable->oob_wait.lock, oob_flags);
 	spin_unlock_irqrestore(&observable->inband_wait.lock, ib_flags);
 
 	return ret ? ERR_PTR(ret) : nfr;
@@ -859,7 +859,7 @@ static int pull_notification(struct evl_observable *observable,
 	 */
 	ret = raw_copy_to_user(u_buf, &nf, sizeof(nf));
 
-	evl_spin_lock_irqsave(&observable->oob_wait.lock, flags);
+	raw_spin_lock_irqsave(&observable->oob_wait.lock, flags);
 
 	if (ret) {
 		list_add(&nfr->next, &observer->pending_list);
@@ -872,7 +872,7 @@ static int pull_notification(struct evl_observable *observable,
 		list_add(&nfr->next, &observer->free_list);
 	}
 
-	evl_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
+	raw_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
 
 	if (unlikely(sigpoll))
 		evl_signal_poll_events(&observable->poll_head,
@@ -944,7 +944,7 @@ static __poll_t poll_observable(struct evl_observable *observable)
 	if (observer == NULL)
 		return POLLERR;
 
-	evl_spin_lock_irqsave(&observable->oob_wait.lock, flags);
+	raw_spin_lock_irqsave(&observable->oob_wait.lock, flags);
 
 	/* Only subscribers can inquire about readability. */
 	if (observer && !list_empty(&observer->pending_list))
@@ -953,7 +953,7 @@ static __poll_t poll_observable(struct evl_observable *observable)
 	if (observable->writable_observers > 0)
 		ret |= POLLOUT|POLLWRNORM;
 
-	evl_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
+	raw_spin_unlock_irqrestore(&observable->oob_wait.lock, flags);
 
 	return ret;
 }

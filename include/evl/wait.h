@@ -11,7 +11,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/spinlock.h>
-#include <evl/lock.h>
 #include <evl/list.h>
 #include <evl/timer.h>
 #include <evl/clock.h>
@@ -32,13 +31,13 @@ struct evl_wait_queue {
 	int flags;
 	struct evl_clock *clock;
 	struct evl_wait_channel wchan;
-	evl_spinlock_t lock;
+	hard_spinlock_t lock;
 };
 
 #define EVL_WAIT_INITIALIZER(__name) {					\
 		.flags = EVL_WAIT_PRIO,					\
 		.clock = &evl_mono_clock,				\
-		.lock = __EVL_SPIN_LOCK_INITIALIZER((__name).lock),	\
+		.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock),	\
 		.wchan = {						\
 			.reorder_wait = evl_reorder_wait,		\
 			.follow_depend = evl_follow_wait_depend,	\
@@ -62,7 +61,7 @@ struct evl_wait_queue {
 	int __ret = 0, __bcast;						\
 	unsigned long __flags;						\
 									\
-	evl_spin_lock_irqsave(&(__wq)->lock, __flags);			\
+	raw_spin_lock_irqsave(&(__wq)->lock, __flags);			\
 	if (!(__cond)) {						\
 		if (timeout_nonblock(__timeout))			\
 			__ret = -EAGAIN;				\
@@ -70,14 +69,14 @@ struct evl_wait_queue {
 			do {						\
 				evl_add_wait_queue(__wq, __timeout,	\
 						__timeout_mode);	\
-				evl_spin_unlock_irqrestore(&(__wq)->lock, __flags); \
+				raw_spin_unlock_irqrestore(&(__wq)->lock, __flags); \
 				__ret = evl_wait_schedule(__wq);	\
 				__bcast = evl_current()->info & T_BCAST; \
-				evl_spin_lock_irqsave(&(__wq)->lock, __flags); \
+				raw_spin_lock_irqsave(&(__wq)->lock, __flags); \
 			} while (!__ret && !__bcast && !(__cond));	\
 		}							\
 	}								\
-	evl_spin_unlock_irqrestore(&(__wq)->lock, __flags);		\
+	raw_spin_unlock_irqrestore(&(__wq)->lock, __flags);		\
 	__ret;								\
 })
 
@@ -92,7 +91,7 @@ int evl_wait_schedule(struct evl_wait_queue *wq);
 
 static inline bool evl_wait_active(struct evl_wait_queue *wq)
 {
-	assert_evl_lock(&wq->lock);
+	assert_hard_lock(&wq->lock);
 	return !list_empty(&wq->wchan.wait_list);
 }
 
