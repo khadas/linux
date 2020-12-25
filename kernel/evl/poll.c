@@ -12,7 +12,6 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <evl/file.h>
-#include <evl/lock.h>
 #include <evl/thread.h>
 #include <evl/memory.h>
 #include <evl/poll.h>
@@ -25,7 +24,7 @@ struct poll_group {
 	struct rb_root item_index;  /* struct poll_item */
 	struct list_head item_list; /* struct poll_item */
 	struct list_head waiter_list; /* struct poll_waiter */
-	evl_spinlock_t wait_lock;
+	hard_spinlock_t wait_lock;
 	struct evl_file efile;
 	struct evl_kmutex item_lock;
 	int nr_items;
@@ -575,13 +574,13 @@ int wait_events(struct file *filp,
 	timeout = timespec64_to_ktime(*ts64);
 	tmode = timeout ? EVL_ABS : EVL_REL;
 
-	evl_spin_lock_irqsave(&group->wait_lock, flags);
+	raw_spin_lock_irqsave(&group->wait_lock, flags);
 	list_add(&waiter.next, &group->waiter_list);
-	evl_spin_unlock_irqrestore(&group->wait_lock, flags);
+	raw_spin_unlock_irqrestore(&group->wait_lock, flags);
 	ret = evl_wait_flag_timeout(&waiter.flag, timeout, tmode);
-	evl_spin_lock_irqsave(&group->wait_lock, flags);
+	raw_spin_lock_irqsave(&group->wait_lock, flags);
 	list_del(&waiter.next);
-	evl_spin_unlock_irqrestore(&group->wait_lock, flags);
+	raw_spin_unlock_irqrestore(&group->wait_lock, flags);
 
 	count = ret;
 	if (count == 0)	/* Re-collect events after successful wait. */
@@ -613,7 +612,7 @@ static int poll_open(struct inode *inode, struct file *filp)
 	INIT_LIST_HEAD(&group->item_list);
 	INIT_LIST_HEAD(&group->waiter_list);
 	evl_init_kmutex(&group->item_lock);
-	evl_spin_lock_init(&group->wait_lock);
+	raw_spin_lock_init(&group->wait_lock);
 	filp->private_data = group;
 	stream_open(inode, filp);
 
@@ -634,10 +633,10 @@ static int poll_release(struct inode *inode, struct file *filp)
 	struct poll_waiter *waiter;
 	unsigned long flags;
 
-	evl_spin_lock_irqsave(&group->wait_lock, flags);
+	raw_spin_lock_irqsave(&group->wait_lock, flags);
 	list_for_each_entry(waiter, &group->waiter_list, next)
 		evl_flush_flag_nosched(&waiter->flag, T_RMID);
-	evl_spin_unlock_irqrestore(&group->wait_lock, flags);
+	raw_spin_unlock_irqrestore(&group->wait_lock, flags);
 	evl_schedule();
 
 	flush_items(group);
