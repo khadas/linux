@@ -794,9 +794,6 @@
 			eqdrc_base {
 				reg = <0x0 0xFF602000 0x0 0x1000>;
 			};
-			reset_base {
-				reg = <0x0 0xFFD01000 0x0 0x1000>;
-			};
 			vad_base {
 				reg = <0x0 0xFF601800 0x0 0x400>;
 			};
@@ -1463,6 +1460,8 @@
 		tdmout_index = <1>;
 		tdmin_index = <1>;
 		dat0_ch_sel = <1>;
+		reset-names = "acodec";
+		resets = <&reset RESET_AUDIO_CODEC>;
 	};
 
 	audio_data: audio_data {

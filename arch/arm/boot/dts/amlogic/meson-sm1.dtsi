@@ -766,6 +766,8 @@
 		tdmout_index = <1>;
 		ch0_sel = <0>;
 		ch1_sel = <1>;
+		reset-names = "acodec";
+		resets = <&reset RESET_AUDIO_CODEC>;
 	};
 
 	audiobus: audiobus@0xFF660000 {
@@ -1221,9 +1223,6 @@
 		};
 		eqdrc_base {
 			reg = <0xFF662000 0x1000>;
-		};
-		reset_base {
-			reg = <0xFFD01000 0x1000>;
 		};
 		vad_base {
 			reg = <0xFF661800 0x400>;

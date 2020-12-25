@@ -320,15 +320,12 @@ static int aml_T9015_audio_reset(struct snd_soc_component *component)
 	struct aml_T9015_audio_priv *T9015_audio =
 		snd_soc_component_get_drvdata(component);
 
-	/* imporant: please call standard reset interface for new project */
 	if (T9015_audio && !IS_ERR(T9015_audio->rst)) {
 		pr_info("call standard reset interface\n");
 		reset_control_reset(T9015_audio->rst);
-		return 0;
+	} else {
+		pr_info("no call standard reset interface\n");
 	}
-	auge_acodec_reset();
-	usleep_range(950, 1000);
-
 	return 0;
 }
 

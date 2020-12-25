@@ -505,12 +505,6 @@ int snd_card_add_kcontrols(struct snd_soc_card *card)
 					 ARRAY_SIZE(snd_auge_controls));
 }
 
-void auge_acodec_reset(void)
-{
-	audioreset_update_bits(EE_RESET1, 1 << 29, 1 << 29);
-}
-EXPORT_SYMBOL(auge_acodec_reset);
-
 void auge_toacodec_ctrl(int tdmout_id)
 {
 	// TODO: check skew for g12a

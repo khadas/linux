@@ -185,33 +185,6 @@ void eqdrc_update_bits(unsigned int reg, unsigned int mask,
 }
 EXPORT_SYMBOL(eqdrc_update_bits);
 
-int audioreset_read(unsigned int reg)
-{
-	int ret, val = 0;
-
-	ret = aml_snd_read(IO_RESET, reg, &val);
-
-	if (ret) {
-		pr_err("read reg %x error %d\n", reg, ret);
-		return -1;
-	}
-	return val;
-}
-EXPORT_SYMBOL(audioreset_read);
-
-void audioreset_write(unsigned int reg, unsigned int val)
-{
-	aml_snd_write(IO_RESET, reg, val);
-}
-EXPORT_SYMBOL(audioreset_write);
-
-void audioreset_update_bits(unsigned int reg, unsigned int mask,
-			    unsigned int val)
-{
-	aml_snd_update_bits(IO_RESET, reg, mask, val);
-}
-EXPORT_SYMBOL(audioreset_update_bits);
-
 int vad_read(unsigned int reg)
 {
 	int ret, val = 0;

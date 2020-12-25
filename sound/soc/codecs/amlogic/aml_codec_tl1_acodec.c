@@ -21,6 +21,7 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/sound/auge_utils.h>
@@ -58,6 +59,7 @@ struct tl1_acodec_priv {
 	//tdmouta,tdmoutb,tdmoutc,none,tdmina,tdminb,tdminc
 	int dac1_input_sel;
 	int dac2_input_sel;
+	struct reset_control *rst;
 };
 
 static const struct reg_default tl1_acodec_init_list[] = {
@@ -551,11 +553,14 @@ static int tl1_acodec_dai_prepare
 
 static int tl1_acodec_reset(struct snd_soc_component *component)
 {
-	struct tl1_acodec_priv *tl1_acodec =
-			snd_soc_component_get_drvdata(component);
-	if (tl1_acodec)
-		auge_acodec_reset();
-	usleep_range(950, 1000);
+	struct tl1_acodec_priv *tl1_acodec = snd_soc_component_get_drvdata(component);
+
+	if (tl1_acodec && !IS_ERR(tl1_acodec->rst)) {
+		pr_info("call standard reset interface\n");
+		reset_control_reset(tl1_acodec->rst);
+	} else {
+		pr_info("no call standard reset interface\n");
+	}
 	return 0;
 }
 
@@ -660,6 +665,7 @@ static int tl1_acodec_probe(struct snd_soc_component *component)
 		return -EINVAL;
 	}
 	aml_acodec->component = component;
+	aml_acodec->rst = devm_reset_control_get(component->dev, "acodec");
 	INIT_WORK(&aml_acodec->work, tl1_acodec_release_fast_mode_work_func);
 	schedule_work(&aml_acodec->work);
 
