@@ -349,7 +349,7 @@ EXPORT_SYMBOL_GPL(evl_destroy_timer);
  * @clock:      reference clock
  * @rq:         runqueue to assign the timer to
  *
- * oob stage stalled on entry.
+ * hard irqs off on entry.
  */
 void evl_move_timer(struct evl_timer *timer,
 		struct evl_clock *clock, struct evl_rq *rq)
@@ -359,7 +359,7 @@ void evl_move_timer(struct evl_timer *timer,
 	unsigned long flags;
 	int cpu;
 
-	EVL_WARN_ON_ONCE(CORE, !oob_irqs_disabled());
+	EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled());
 
 	trace_evl_timer_move(timer, clock, evl_rq_cpu(rq));
 

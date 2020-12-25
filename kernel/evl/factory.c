@@ -259,11 +259,14 @@ static void do_put_element(struct evl_element *e)
 	 * These trampolines may look like a bit cheesy but we have no
 	 * choice but offloading the disposal to an in-band task
 	 * context. In (the rare) case the last ref. to an element was
-	 * dropped from OOB(-protected) context, we need to go via an
-	 * irq_work->workqueue chain in order to run
-	 * __do_put_element() eventually.
+	 * dropped from OOB(-protected) context or while hard irqs
+	 * were off, we need to go via an irq_work->workqueue chain in
+	 * order to run __do_put_element() eventually.
+	 *
+	 * NOTE: irq_work_queue() does not synchronize the interrupt
+	 * log when called with hard irqs off.
 	 */
-	if (unlikely(running_oob() || oob_irqs_disabled())) {
+	if (unlikely(running_oob() || hard_irqs_disabled())) {
 		init_irq_work(&e->irq_work, do_put_element_irq);
 		irq_work_queue(&e->irq_work);
 	} else

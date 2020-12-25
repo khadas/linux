@@ -481,7 +481,7 @@ fail_element:
 }
 EXPORT_SYMBOL_GPL(__evl_run_kthread);
 
-/* evl_current()->lock + evl_current()->rq->lock held, oob stalled. */
+/* evl_current()->lock + evl_current()->rq->lock held, hard irqs off. */
 void evl_sleep_on_locked(ktime_t timeout, enum evl_tmode timeout_mode,
 		struct evl_clock *clock,
 		struct evl_wait_channel *wchan)

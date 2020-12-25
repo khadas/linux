@@ -573,13 +573,13 @@ struct evl_timerfd {
 /* Pin @timer to the current thread rq. */
 static void pin_timer(struct evl_timer *timer)
 {
-	unsigned long flags = oob_irq_save();
+	unsigned long flags = hard_local_irq_save();
 	struct evl_rq *this_rq = evl_current_rq();
 
 	if (this_rq != timer->rq)
 		evl_move_timer(timer, timer->clock, this_rq);
 
-	oob_irq_restore(flags);
+	hard_local_irq_restore(flags);
 }
 
 #else

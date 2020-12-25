@@ -37,11 +37,10 @@
 #ifdef CONFIG_SMP
 #define assert_hard_lock(__lock) EVL_WARN_ON_ONCE(CORE, \
 				!(raw_spin_is_locked(__lock) && hard_irqs_disabled()))
-#define assert_evl_lock(__lock) EVL_WARN_ON_ONCE(CORE, \
-				!(raw_spin_is_locked(&(__lock)->_lock) && oob_irqs_disabled()))
+#define assert_evl_lock(__lock) assert_hard_lock(&(__lock)->_lock)
 #else
 #define assert_hard_lock(__lock) EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled())
-#define assert_evl_lock(__lock)  EVL_WARN_ON_ONCE(CORE, !oob_irqs_disabled())
+#define assert_evl_lock(__lock) assert_hard_lock(&(__lock)->_lock)
 #endif
 
 #define assert_thread_pinned(__thread)			\
