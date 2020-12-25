@@ -115,8 +115,8 @@ int evl_reorder_wait(struct evl_thread *waiter, struct evl_thread *originator)
 {
 	struct evl_wait_queue *wq = wchan_to_wait_queue(waiter->wchan);
 
-	assert_evl_lock(&waiter->lock);
-	assert_evl_lock(&originator->lock);
+	assert_hard_lock(&waiter->lock);
+	assert_hard_lock(&originator->lock);
 
 	evl_spin_lock(&wq->lock);
 

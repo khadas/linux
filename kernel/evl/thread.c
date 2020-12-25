@@ -155,9 +155,9 @@ static void pin_to_initial_cpu(struct evl_thread *thread)
 	 * out-of-band CPU.
 	 */
 	rq = evl_cpu_rq(cpu);
-	evl_spin_lock_irqsave(&thread->lock, flags);
+	raw_spin_lock_irqsave(&thread->lock, flags);
 	evl_migrate_thread(thread, rq);
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	raw_spin_unlock_irqrestore(&thread->lock, flags);
 }
 
 int evl_init_thread(struct evl_thread *thread,
@@ -227,7 +227,7 @@ int evl_init_thread(struct evl_thread *thread,
 	INIT_LIST_HEAD(&thread->boosters);
 	INIT_LIST_HEAD(&thread->trackers);
 	raw_spin_lock_init(&thread->tracking_lock);
-	evl_spin_lock_init(&thread->lock);
+	raw_spin_lock_init(&thread->lock);
 	init_completion(&thread->exited);
 	INIT_LIST_HEAD(&thread->ptsync_next);
 	thread->oob_mm = NULL;
@@ -490,7 +490,7 @@ void evl_sleep_on_locked(ktime_t timeout, enum evl_tmode timeout_mode,
 	struct evl_rq *rq = curr->rq;
 	unsigned long oldstate;
 
-	assert_evl_lock(&curr->lock);
+	assert_hard_lock(&curr->lock);
 	assert_hard_lock(&rq->lock);
 
 	trace_evl_sleep_on(timeout, timeout_mode, clock, wchan);
@@ -568,7 +568,7 @@ static void evl_wakeup_thread_locked(struct evl_thread *thread,
 	struct evl_rq *rq = thread->rq;
 	unsigned long oldstate;
 
-	assert_evl_lock(&thread->lock);
+	assert_hard_lock(&thread->lock);
 	assert_hard_lock(&thread->rq->lock);
 
 	if (EVL_WARN_ON(CORE, mask & ~(T_DELAY|T_PEND|T_WAIT)))
@@ -671,7 +671,7 @@ static void evl_release_thread_locked(struct evl_thread *thread,
 	struct evl_rq *rq = thread->rq;
 	unsigned long oldstate;
 
-	assert_evl_lock(&thread->lock);
+	assert_hard_lock(&thread->lock);
 	assert_hard_lock(&thread->rq->lock);
 
 	if (EVL_WARN_ON(CORE, mask & ~(T_SUSP|T_HALT|T_INBAND|T_DORMANT|T_PTSYNC)))
@@ -836,7 +836,7 @@ int evl_set_period(struct evl_clock *clock,
 	if (period < evl_get_clock_gravity(clock, kernel))
 		return -EINVAL;
 
-	evl_spin_lock_irqsave(&curr->lock, flags);
+	raw_spin_lock_irqsave(&curr->lock, flags);
 
 	evl_prepare_timed_wait(&curr->ptimer, clock, evl_thread_rq(curr));
 
@@ -845,7 +845,7 @@ int evl_set_period(struct evl_clock *clock,
 
 	evl_start_timer(&curr->ptimer, idate, period);
 
-	evl_spin_unlock_irqrestore(&curr->lock, flags);
+	raw_spin_unlock_irqrestore(&curr->lock, flags);
 
 	return ret;
 }
@@ -1933,7 +1933,7 @@ static int set_time_slice(struct evl_thread *thread, ktime_t quantum)
 {
 	struct evl_rq *rq = thread->rq;
 
-	assert_evl_lock(&thread->lock);
+	assert_hard_lock(&thread->lock);
 	assert_hard_lock(&rq->lock);
 
 	thread->rrperiod = quantum;
@@ -2578,7 +2578,7 @@ static ssize_t sched_show(struct device *dev,
 	if (thread == NULL)
 		return -EIO;
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
+	raw_spin_lock_irqsave(&thread->lock, flags);
 
 	sched_class = thread->sched_class;
 	bprio = thread->bprio;
@@ -2600,7 +2600,7 @@ static ssize_t sched_show(struct device *dev,
 	/* overwrites trailing whitespace */
 	buf[ret - 1] = '\n';
 out:
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	raw_spin_unlock_irqrestore(&thread->lock, flags);
 	evl_put_element(&thread->element);
 
 	return ret;
@@ -2624,7 +2624,7 @@ static ssize_t stats_show(struct device *dev,
 	if (thread == NULL)
 		return -EIO;
 
-	evl_spin_lock_irqsave(&thread->lock, flags);
+	raw_spin_lock_irqsave(&thread->lock, flags);
 
 	rq = evl_thread_rq(thread);
 
@@ -2642,7 +2642,7 @@ static ssize_t stats_show(struct device *dev,
 	thread->stat.lastperiod.total = total;
 	thread->stat.lastperiod.start = rq->last_account_switch;
 
-	evl_spin_unlock_irqrestore(&thread->lock, flags);
+	raw_spin_unlock_irqrestore(&thread->lock, flags);
 
 	if (account) {
 		while (account > 0xffffffffUL) {

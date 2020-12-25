@@ -58,7 +58,7 @@ static inline bool enable_inband_switch(struct evl_thread *curr)
 /* owner->lock held, irqs off. */
 static void raise_boost_flag(struct evl_thread *owner)
 {
-	assert_evl_lock(&owner->lock);
+	assert_hard_lock(&owner->lock);
 
 	raw_spin_lock(&owner->rq->lock);
 
@@ -79,8 +79,8 @@ static int inherit_thread_priority(struct evl_thread *owner,
 	struct evl_wait_channel *wchan;
 	int ret = 0;
 
-	assert_evl_lock(&owner->lock);
-	assert_evl_lock(&contender->lock);
+	assert_hard_lock(&owner->lock);
+	assert_hard_lock(&contender->lock);
 
 	/* Apply the scheduling policy of @contender to @owner */
 	evl_track_thread_policy(owner, contender);
@@ -139,7 +139,7 @@ static int adjust_boost(struct evl_thread *owner,
 	 * At each stage, wchan->reorder_wait() fixes up the priority
 	 * for @owner before walking deeper into PI chain.
 	 */
-	assert_evl_lock(&owner->lock);
+	assert_hard_lock(&owner->lock);
 	assert_evl_lock(&origin->lock);
 
 	/*
@@ -177,10 +177,10 @@ static int adjust_boost(struct evl_thread *owner,
 		if (contender == NULL) {
 			contender = list_first_entry(&mutex->wchan.wait_list,
 						struct evl_thread, wait_next);
-			evl_spin_lock(&contender->lock);
+			raw_spin_lock(&contender->lock);
 			ret = inherit_thread_priority(owner, contender,
 						originator);
-			evl_spin_unlock(&contender->lock);
+			raw_spin_unlock(&contender->lock);
 		} else { /* Otherwise @contender is already locked. */
 			ret = inherit_thread_priority(owner, contender,
 						originator);
@@ -220,7 +220,7 @@ static void ceil_owner_priority(struct evl_mutex *mutex,
 	 * current weighted priority below the ceiling value, until we
 	 * eventually release this mutex.
 	 */
-	evl_spin_lock(&owner->lock);
+	raw_spin_lock(&owner->lock);
 
 	list_add_priff(mutex, &owner->boosters, wprio, next_booster);
 	raise_boost_flag(owner);
@@ -229,7 +229,7 @@ static void ceil_owner_priority(struct evl_mutex *mutex,
 	if (wprio > owner->wprio)
 		adjust_boost(owner, NULL, mutex, originator);
 
-	evl_spin_unlock(&owner->lock);
+	raw_spin_unlock(&owner->lock);
 }
 
 /* mutex->lock held, irqs off */
@@ -348,7 +348,7 @@ static void clear_boost_locked(struct evl_mutex *mutex,
 			int flag)
 {
 	assert_evl_lock(&mutex->lock);
-	assert_evl_lock(&owner->lock);
+	assert_hard_lock(&owner->lock);
 
 	mutex->flags &= ~flag;
 
@@ -369,9 +369,9 @@ static void clear_boost(struct evl_mutex *mutex,
 {
 	assert_evl_lock(&mutex->lock);
 
-	evl_spin_lock(&owner->lock);
+	raw_spin_lock(&owner->lock);
 	clear_boost_locked(mutex, owner, flag);
-	evl_spin_unlock(&owner->lock);
+	raw_spin_unlock(&owner->lock);
 }
 
 /*
@@ -416,7 +416,7 @@ void evl_detect_boost_drop(void)
 	struct evl_mutex *mutex;
 	unsigned long flags;
 
-	evl_spin_lock_irqsave(&curr->lock, flags);
+	raw_spin_lock_irqsave(&curr->lock, flags);
 
 	/*
 	 * Iterate over waiters of each mutex we got boosted for due
@@ -435,7 +435,7 @@ void evl_detect_boost_drop(void)
 		evl_spin_unlock(&mutex->lock);
 	}
 
-	evl_spin_unlock_irqrestore(&curr->lock, flags);
+	raw_spin_unlock_irqrestore(&curr->lock, flags);
 }
 
 void __evl_init_mutex(struct evl_mutex *mutex,
@@ -592,14 +592,14 @@ static void finish_mutex_wait(struct evl_mutex *mutex)
 	contender = list_first_entry(&mutex->wchan.wait_list,
 				struct evl_thread, wait_next);
 
-	evl_spin_lock(&owner->lock);
-	evl_spin_lock(&contender->lock);
+	raw_spin_lock(&owner->lock);
+	raw_spin_lock(&contender->lock);
 	mutex->wprio = contender->wprio;
 	list_del(&mutex->next_booster);	/* owner->boosters */
 	list_add_priff(mutex, &owner->boosters, wprio, next_booster);
 	adjust_boost(owner, contender, mutex, owner);
-	evl_spin_unlock(&contender->lock);
-	evl_spin_unlock(&owner->lock);
+	raw_spin_unlock(&contender->lock);
+	raw_spin_unlock(&owner->lock);
 }
 
 /* owner->lock + originator->lock held, irqs off */
@@ -608,8 +608,8 @@ static int check_lock_chain(struct evl_thread *owner,
 {
 	struct evl_wait_channel *wchan;
 
-	assert_evl_lock(&owner->lock);
-	assert_evl_lock(&originator->lock);
+	assert_hard_lock(&owner->lock);
+	assert_hard_lock(&originator->lock);
 
 	wchan = owner->wchan;
 	if (wchan)
@@ -646,7 +646,7 @@ redo:
 
 	ret = 0;
 	evl_spin_lock_irqsave(&mutex->lock, flags);
-	evl_spin_lock(&curr->lock);
+	raw_spin_lock(&curr->lock);
 
 	/*
 	 * Set claimed bit.  In case it appears to be set already,
@@ -667,7 +667,7 @@ redo:
 	test_no_owner:
 		if (oldh == EVL_NO_HANDLE) {
 			/* Lock released from another cpu. */
-			evl_spin_unlock(&curr->lock);
+			raw_spin_unlock(&curr->lock);
 			evl_spin_unlock_irqrestore(&mutex->lock, flags);
 			goto redo;
 		}
@@ -685,7 +685,7 @@ redo:
 	 */
 	if (owner == NULL) {
 		untrack_owner(mutex);
-		evl_spin_unlock(&curr->lock);
+		raw_spin_unlock(&curr->lock);
 		evl_spin_unlock_irqrestore(&mutex->lock, flags);
 		return -EOWNERDEAD;
 	}
@@ -717,7 +717,7 @@ redo:
 		 */
 		evl_put_element(&owner->element);
 
-	evl_spin_lock(&owner->lock);
+	raw_spin_lock(&owner->lock);
 
 	if (unlikely(curr->state & T_WOLI))
 		detect_inband_owner(mutex, curr);
@@ -729,7 +729,7 @@ redo:
 			raw_spin_lock(&owner->rq->lock);
 			owner->info |= T_ROBBED;
 			raw_spin_unlock(&owner->rq->lock);
-			evl_spin_unlock(&owner->lock);
+			raw_spin_unlock(&owner->lock);
 			goto grab;
 		}
 
@@ -762,21 +762,22 @@ redo:
 		ret = check_lock_chain(owner, curr);
 	}
 
-	evl_spin_unlock(&owner->lock);
+	raw_spin_unlock(&owner->lock);
 
 	if (likely(!ret)) {
 		raw_spin_lock(&curr->rq->lock);
 		evl_sleep_on_locked(timeout, timeout_mode, mutex->clock, &mutex->wchan);
 		raw_spin_unlock(&curr->rq->lock);
-		evl_spin_unlock(&curr->lock);
+		raw_spin_unlock(&curr->lock);
 		evl_spin_unlock_irqrestore(&mutex->lock, flags);
 		ret = wait_mutex_schedule(mutex);
 		evl_spin_lock_irqsave(&mutex->lock, flags);
-	} else
-		evl_spin_unlock(&curr->lock);
+	} else {
+		raw_spin_unlock(&curr->lock);
+	}
 
 	finish_mutex_wait(mutex);
-	evl_spin_lock(&curr->lock);
+	raw_spin_lock(&curr->lock);
 	curr->wwake = NULL;
 	raw_spin_lock(&curr->rq->lock);
 	curr->info &= ~T_WAKEN;
@@ -798,7 +799,7 @@ redo:
 		if (timeout_mode != EVL_REL ||
 			timeout_infinite(timeout) ||
 			evl_get_stopped_timer_delta(&curr->rtimer) != 0) {
-			evl_spin_unlock(&curr->lock);
+			raw_spin_unlock(&curr->lock);
 			evl_spin_unlock_irqrestore(&mutex->lock, flags);
 			goto redo;
 		}
@@ -815,7 +816,7 @@ grab:
 
 	atomic_set(lockp, get_owner_handle(currh, mutex));
 out:
-	evl_spin_unlock(&curr->lock);
+	raw_spin_unlock(&curr->lock);
 	evl_spin_unlock_irqrestore(&mutex->lock, flags);
 
 	return ret;
@@ -848,10 +849,10 @@ static void transfer_ownership(struct evl_mutex *mutex,
 	 * set_current_owner_locked() to run before
 	 * evl_wakeup_thread() is called.
 	 */
-	evl_spin_lock(&n_owner->lock);
+	raw_spin_lock(&n_owner->lock);
 	n_owner->wwake = &mutex->wchan;
 	n_owner->wchan = NULL;
-	evl_spin_unlock(&n_owner->lock);
+	raw_spin_unlock(&n_owner->lock);
 	list_del_init(&n_owner->wait_next);
 	set_current_owner_locked(mutex, n_owner);
 	evl_wakeup_thread(n_owner, T_PEND, T_WAKEN);
@@ -893,7 +894,7 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 	 * locklessly.
 	 */
 	evl_spin_lock_irqsave(&mutex->lock, flags);
-	evl_spin_lock(&curr->lock);
+	raw_spin_lock(&curr->lock);
 
 	if (mutex->flags & EVL_MUTEX_CEILING)
 		clear_boost_locked(mutex, curr, EVL_MUTEX_CEILING);
@@ -909,7 +910,7 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 		untrack_owner(mutex);
 	}
 
-	evl_spin_unlock(&curr->lock);
+	raw_spin_unlock(&curr->lock);
 	evl_spin_unlock_irqrestore(&mutex->lock, flags);
 }
 
@@ -975,8 +976,8 @@ int evl_reorder_mutex_wait(struct evl_thread *waiter,
 	struct evl_thread *owner;
 	int ret;
 
-	assert_evl_lock(&waiter->lock);
-	assert_evl_lock(&originator->lock);
+	assert_hard_lock(&waiter->lock);
+	assert_hard_lock(&originator->lock);
 
 	evl_spin_lock(&mutex->lock);
 
@@ -1002,7 +1003,7 @@ int evl_reorder_mutex_wait(struct evl_thread *waiter,
 	/* Update the PI chain. */
 
 	mutex->wprio = waiter->wprio;
-	evl_spin_lock(&owner->lock);
+	raw_spin_lock(&owner->lock);
 
 	if (mutex->flags & EVL_MUTEX_CLAIMED) {
 		list_del(&mutex->next_booster);
@@ -1013,7 +1014,7 @@ int evl_reorder_mutex_wait(struct evl_thread *waiter,
 
 	list_add_priff(mutex, &owner->boosters, wprio, next_booster);
 	ret = adjust_boost(owner, waiter, mutex, originator);
-	evl_spin_unlock(&owner->lock);
+	raw_spin_unlock(&owner->lock);
 out:
 	evl_spin_unlock(&mutex->lock);
 
@@ -1030,7 +1031,7 @@ int evl_follow_mutex_depend(struct evl_wait_channel *wchan,
 	struct evl_thread *waiter;
 	int ret = 0;
 
-	assert_evl_lock(&originator->lock);
+	assert_hard_lock(&originator->lock);
 
 	evl_spin_lock(&mutex->lock);
 
@@ -1040,7 +1041,7 @@ int evl_follow_mutex_depend(struct evl_wait_channel *wchan,
 	}
 
 	for_each_evl_mutex_waiter(waiter, mutex) {
-		evl_spin_lock(&waiter->lock);
+		raw_spin_lock(&waiter->lock);
 		/*
 		 * Yes, this is no flat traversal, we do eat stack as
 		 * we progress in the dependency chain. Overflowing
@@ -1050,7 +1051,7 @@ int evl_follow_mutex_depend(struct evl_wait_channel *wchan,
 		depend = waiter->wchan;
 		if (depend)
 			ret = depend->follow_depend(depend, originator);
-		evl_spin_unlock(&waiter->lock);
+		raw_spin_unlock(&waiter->lock);
 		if (ret)
 			break;
 	}

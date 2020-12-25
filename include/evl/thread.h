@@ -59,7 +59,7 @@ struct evl_init_thread_attr {
 };
 
 struct evl_thread {
-	evl_spinlock_t lock;
+	hard_spinlock_t lock;
 
 	/*
 	 * Shared thread-specific data, covered by ->lock.

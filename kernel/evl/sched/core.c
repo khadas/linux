@@ -101,11 +101,11 @@ static void watchdog_handler(struct evl_timer *timer) /* oob stage stalled */
 		return;
 
 	if (curr->state & T_USER) {
-		evl_spin_lock(&curr->lock);
+		raw_spin_lock(&curr->lock);
 		raw_spin_lock(&this_rq->lock);
 		curr->info |= T_KICKED;
 		raw_spin_unlock(&this_rq->lock);
-		evl_spin_unlock(&curr->lock);
+		raw_spin_unlock(&curr->lock);
 		evl_notify_thread(curr, EVL_HMDIAG_WATCHDOG, evl_nil);
 		dovetail_send_mayday(current);
 		printk(EVL_WARNING "watchdog triggered on CPU #%d -- runaway thread "
@@ -121,11 +121,11 @@ static void watchdog_handler(struct evl_timer *timer) /* oob stage stalled */
 		 * T_BREAK condition, and T_CANCELD so that @curr
 		 * exits next time it invokes evl_test_cancel().
 		 */
-		evl_spin_lock(&curr->lock);
+		raw_spin_lock(&curr->lock);
 		raw_spin_lock(&this_rq->lock);
 		curr->info |= (T_KICKED|T_CANCELD);
 		raw_spin_unlock(&this_rq->lock);
-		evl_spin_unlock(&curr->lock);
+		raw_spin_unlock(&curr->lock);
 	}
 }
 
@@ -303,7 +303,7 @@ static void migrate_rq(struct evl_thread *thread, struct evl_rq *dst_rq)
 /* thread->lock held, hard irqs off. @thread must be running in-band. */
 void evl_migrate_thread(struct evl_thread *thread, struct evl_rq *dst_rq)
 {
-	assert_evl_lock(&thread->lock);
+	assert_hard_lock(&thread->lock);
 
 	if (thread->rq == dst_rq)
 		return;
@@ -328,7 +328,7 @@ static void check_cpu_affinity(struct task_struct *p) /* inband, hard irqs off *
 	int cpu = task_cpu(p);
 	struct evl_rq *rq = evl_cpu_rq(cpu);
 
-	evl_spin_lock(&thread->lock);
+	raw_spin_lock(&thread->lock);
 
 	if (likely(rq == thread->rq))
 		goto out;
@@ -373,7 +373,7 @@ static void check_cpu_affinity(struct task_struct *p) /* inband, hard irqs off *
 
 	evl_migrate_thread(thread, rq);
 out:
-	evl_spin_unlock(&thread->lock);
+	raw_spin_unlock(&thread->lock);
 }
 
 #else
@@ -388,10 +388,10 @@ static inline void check_cpu_affinity(struct task_struct *p)
 
 #endif	/* CONFIG_SMP */
 
-/* thread->lock + thread->rq->lock held, irqs off. */
+/* thread->lock + thread->rq->lock held, hard irqs off. */
 void evl_putback_thread(struct evl_thread *thread)
 {
-	assert_evl_lock(&thread->lock);
+	assert_hard_lock(&thread->lock);
 	assert_hard_lock(&thread->rq->lock);
 
 	if (thread->state & T_READY)
@@ -403,7 +403,7 @@ void evl_putback_thread(struct evl_thread *thread)
 	evl_set_resched(thread->rq);
 }
 
-/* thread->lock + thread->rq->lock held, irqs off. */
+/* thread->lock + thread->rq->lock held, hard irqs off. */
 int evl_set_thread_policy_locked(struct evl_thread *thread,
 				struct evl_sched_class *sched_class,
 				const union evl_sched_param *p)
@@ -412,7 +412,7 @@ int evl_set_thread_policy_locked(struct evl_thread *thread,
 	bool effective;
 	int ret;
 
-	assert_evl_lock(&thread->lock);
+	assert_hard_lock(&thread->lock);
 	assert_hard_lock(&thread->rq->lock);
 
 	/* Check parameters early on. */
@@ -507,12 +507,12 @@ int evl_set_thread_policy(struct evl_thread *thread,
 	return ret;
 }
 
-/* thread->lock + thread->rq->lock held, irqs off. */
+/* thread->lock + thread->rq->lock held, hard irqs off. */
 bool evl_set_effective_thread_priority(struct evl_thread *thread, int prio)
 {
 	int wprio = evl_calc_weighted_prio(thread->base_class, prio);
 
-	assert_evl_lock(&thread->lock);
+	assert_hard_lock(&thread->lock);
 	assert_hard_lock(&thread->rq->lock);
 
 	thread->bprio = prio;
@@ -536,14 +536,14 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread, int prio)
 	return true;
 }
 
-/* thread->lock + target->lock held, irqs off */
+/* thread->lock + target->lock held, hard irqs off */
 void evl_track_thread_policy(struct evl_thread *thread,
 			struct evl_thread *target)
 {
 	union evl_sched_param param;
 
-	assert_evl_lock(&thread->lock);
-	assert_evl_lock(&target->lock);
+	assert_hard_lock(&thread->lock);
+	assert_hard_lock(&target->lock);
 
 	evl_double_rq_lock(thread->rq, target->rq);
 
@@ -586,10 +586,10 @@ void evl_track_thread_policy(struct evl_thread *thread,
 	evl_double_rq_unlock(thread->rq, target->rq);
 }
 
-/* thread->lock, irqs off */
+/* thread->lock, hard irqs off */
 void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 {
-	assert_evl_lock(&thread->lock);
+	assert_hard_lock(&thread->lock);
 
 	raw_spin_lock(&thread->rq->lock);
 
@@ -781,7 +781,7 @@ static struct evl_thread *__pick_next_thread(struct evl_rq *rq)
 	return NULL; /* NOT REACHED (idle class). */
 }
 
-/* rq->curr->lock + rq->lock held, irqs off. */
+/* rq->curr->lock + rq->lock held, hard irqs off. */
 static struct evl_thread *pick_next_thread(struct evl_rq *rq)
 {
 	struct oob_mm_state *oob_mm;
@@ -923,12 +923,12 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 	 * but we grab curr->lock in advance in order to keep the
 	 * locking order safe from ABBA deadlocking.
 	 */
-	evl_spin_lock(&curr->lock);
+	raw_spin_lock(&curr->lock);
 	raw_spin_lock(&this_rq->lock);
 
 	if (unlikely(!test_resched(this_rq))) {
 		raw_spin_unlock(&this_rq->lock);
-		evl_spin_unlock_irqrestore(&curr->lock, flags);
+		raw_spin_unlock_irqrestore(&curr->lock, flags);
 		return;
 	}
 
@@ -941,7 +941,7 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 				evl_program_local_tick(&evl_mono_clock);
 		}
 		raw_spin_unlock(&this_rq->lock);
-		evl_spin_unlock_irqrestore(&curr->lock, flags);
+		raw_spin_unlock_irqrestore(&curr->lock, flags);
 		return;
 	}
 
@@ -963,7 +963,7 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 
 	evl_switch_account(this_rq, &next->stat.account);
 	evl_inc_counter(&next->stat.csw);
-	evl_spin_unlock(&prev->lock);
+	raw_spin_unlock(&prev->lock);
 
 	prepare_rq_switch(this_rq, next);
 	inband_tail = dovetail_context_switch(&prev->altsched,
@@ -1112,7 +1112,7 @@ void evl_switch_inband(int cause)
 	hard_local_irq_disable();
 	irq_work_queue(&curr->inband_work);
 
-	evl_spin_lock(&curr->lock);
+	raw_spin_lock(&curr->lock);
 	this_rq = curr->rq;
 	raw_spin_lock(&this_rq->lock);
 
@@ -1144,7 +1144,7 @@ void evl_switch_inband(int cause)
 	evl_set_resched(this_rq);
 
 	raw_spin_unlock(&this_rq->lock);
-	evl_spin_unlock(&curr->lock);
+	raw_spin_unlock(&curr->lock);
 
 	/*
 	 * CAVEAT: dovetail_leave_oob() must run _before_ the in-band
