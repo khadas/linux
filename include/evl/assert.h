@@ -46,7 +46,7 @@
 #define assert_thread_pinned(__thread)			\
 	do {						\
 		assert_evl_lock(&(__thread)->lock);	\
-		assert_evl_lock(&(__thread)->rq->lock);	\
+		assert_hard_lock(&(__thread)->rq->lock);\
 	} while (0)
 
 #endif /* !_EVL_ASSERT_H */

@@ -158,7 +158,7 @@ static void quota_refill_handler(struct evl_timer *timer) /* oob stage stalled *
 	qs = container_of(timer, struct evl_sched_quota, refill_timer);
 	rq = container_of(qs, struct evl_rq, quota);
 
-	evl_spin_lock(&rq->lock);
+	raw_spin_lock(&rq->lock);
 
 	list_for_each_entry(tg, &qs->groups, next) {
 		/* Allot a new runtime budget for the group. */
@@ -184,7 +184,7 @@ static void quota_refill_handler(struct evl_timer *timer) /* oob stage stalled *
 
 	evl_set_self_resched(evl_get_timer_rq(timer));
 
-	evl_spin_unlock(&rq->lock);
+	raw_spin_unlock(&rq->lock);
 }
 
 static void quota_limit_handler(struct evl_timer *timer) /* oob stage stalled */
@@ -197,9 +197,9 @@ static void quota_limit_handler(struct evl_timer *timer) /* oob stage stalled */
 	 * interrupt, so that the budget is re-evaluated for the
 	 * current group in evl_quota_pick().
 	 */
-	evl_spin_lock(&rq->lock);
+	raw_spin_lock(&rq->lock);
 	evl_set_self_resched(rq);
-	evl_spin_unlock(&rq->lock);
+	raw_spin_unlock(&rq->lock);
 }
 
 static int quota_sum_all(struct evl_sched_quota *qs)
@@ -487,7 +487,7 @@ static int quota_create_group(struct evl_quota_group *tg,
 	int tgid, nr_groups = MAX_QUOTA_GROUPS;
 	struct evl_sched_quota *qs = &rq->quota;
 
-	assert_evl_lock(&rq->lock);
+	assert_hard_lock(&rq->lock);
 
 	tgid = find_first_zero_bit(group_map, nr_groups);
 	if (tgid >= nr_groups)
@@ -525,7 +525,7 @@ static int quota_destroy_group(struct evl_quota_group *tg,
 	struct evl_thread *thread, *tmp;
 	union evl_sched_param param;
 
-	assert_evl_lock(&tg->rq->lock);
+	assert_hard_lock(&tg->rq->lock);
 
 	if (!list_empty(&tg->members)) {
 		if (!force)
@@ -561,7 +561,7 @@ static void quota_set_limit(struct evl_quota_group *tg,
 	ktime_t old_quota = tg->quota;
 	u64 n;
 
-	assert_evl_lock(&rq->lock);
+	assert_hard_lock(&rq->lock);
 
 	if (quota_percent < 0 || quota_percent > 100) { /* Quota off. */
 		quota_percent = 100;
@@ -634,7 +634,7 @@ find_quota_group(struct evl_rq *rq, int tgid)
 {
 	struct evl_quota_group *tg;
 
-	assert_evl_lock(&rq->lock);
+	assert_hard_lock(&rq->lock);
 
 	if (list_empty(&rq->quota.groups))
 		return NULL;
@@ -668,10 +668,10 @@ static ssize_t quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 			return -ENOMEM;
 		tg = &group->quota;
 		rq = evl_cpu_rq(cpu);
-		evl_spin_lock_irqsave(&rq->lock, flags);
+		raw_spin_lock_irqsave(&rq->lock, flags);
 		ret = quota_create_group(tg, rq, &quota_sum);
 		if (ret) {
-			evl_spin_unlock_irqrestore(&rq->lock, flags);
+			raw_spin_unlock_irqrestore(&rq->lock, flags);
 			evl_free(group);
 			return ret;
 		}
@@ -680,7 +680,7 @@ static ssize_t quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 	case evl_quota_remove:
 	case evl_quota_force_remove:
 		rq = evl_cpu_rq(cpu);
-		evl_spin_lock_irqsave(&rq->lock, flags);
+		raw_spin_lock_irqsave(&rq->lock, flags);
 		tg = find_quota_group(rq, pq->u.remove.tgid);
 		if (tg == NULL)
 			goto bad_tgid;
@@ -689,16 +689,16 @@ static ssize_t quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 					pq->op == evl_quota_force_remove,
 					&quota_sum);
 		if (ret) {
-			evl_spin_unlock_irqrestore(&rq->lock, flags);
+			raw_spin_unlock_irqrestore(&rq->lock, flags);
 			return ret;
 		}
 		list_del(&group->next);
-		evl_spin_unlock_irqrestore(&rq->lock, flags);
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
 		evl_free(group);
 		goto done;
 	case evl_quota_set:
 		rq = evl_cpu_rq(cpu);
-		evl_spin_lock_irqsave(&rq->lock, flags);
+		raw_spin_lock_irqsave(&rq->lock, flags);
 		tg = find_quota_group(rq, pq->u.set.tgid);
 		if (tg == NULL)
 			goto bad_tgid;
@@ -708,7 +708,7 @@ static ssize_t quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 		break;
 	case evl_quota_get:
 		rq = evl_cpu_rq(cpu);
-		evl_spin_lock_irqsave(&rq->lock, flags);
+		raw_spin_lock_irqsave(&rq->lock, flags);
 		tg = find_quota_group(rq, pq->u.get.tgid);
 		if (tg == NULL)
 			goto bad_tgid;
@@ -721,14 +721,14 @@ static ssize_t quota_control(int cpu, union evl_sched_ctlparam *ctlp,
 	iq->tgid = tg->tgid;
 	iq->quota = tg->quota_percent;
 	iq->quota_peak = tg->quota_peak_percent;
-	evl_spin_unlock_irqrestore(&rq->lock, flags);
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
 	iq->quota_sum = quota_sum;
 done:
 	evl_schedule();
 
 	return sizeof(*iq);
 bad_tgid:
-	evl_spin_unlock_irqrestore(&rq->lock, flags);
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
 
 	return -EINVAL;
 }

@@ -102,9 +102,9 @@ static void watchdog_handler(struct evl_timer *timer) /* oob stage stalled */
 
 	if (curr->state & T_USER) {
 		evl_spin_lock(&curr->lock);
-		evl_spin_lock(&this_rq->lock);
+		raw_spin_lock(&this_rq->lock);
 		curr->info |= T_KICKED;
-		evl_spin_unlock(&this_rq->lock);
+		raw_spin_unlock(&this_rq->lock);
 		evl_spin_unlock(&curr->lock);
 		evl_notify_thread(curr, EVL_HMDIAG_WATCHDOG, evl_nil);
 		dovetail_send_mayday(current);
@@ -122,9 +122,9 @@ static void watchdog_handler(struct evl_timer *timer) /* oob stage stalled */
 		 * exits next time it invokes evl_test_cancel().
 		 */
 		evl_spin_lock(&curr->lock);
-		evl_spin_lock(&this_rq->lock);
+		raw_spin_lock(&this_rq->lock);
 		curr->info |= (T_KICKED|T_CANCELD);
-		evl_spin_unlock(&this_rq->lock);
+		raw_spin_unlock(&this_rq->lock);
 		evl_spin_unlock(&curr->lock);
 	}
 }
@@ -136,9 +136,9 @@ static void roundrobin_handler(struct evl_timer *timer) /* hard irqs off */
 	struct evl_rq *this_rq;
 
 	this_rq = container_of(timer, struct evl_rq, rrbtimer);
-	evl_spin_lock(&this_rq->lock);
+	raw_spin_lock(&this_rq->lock);
 	evl_sched_tick(this_rq);
-	evl_spin_unlock(&this_rq->lock);
+	raw_spin_unlock(&this_rq->lock);
 }
 
 static void init_rq(struct evl_rq *rq, int cpu)
@@ -158,7 +158,7 @@ static void init_rq(struct evl_rq *rq, int cpu)
 	rq->proxy_timer_name = kstrdup("[proxy-timer]", GFP_KERNEL);
 	rq->rrb_timer_name = kstrdup("[rrb-timer]", GFP_KERNEL);
 #endif
-	evl_spin_lock_init(&rq->lock);
+	raw_spin_lock_init(&rq->lock);
 
 	for_each_evl_sched_class(sched_class) {
 		if (sched_class->sched_init)
@@ -246,22 +246,22 @@ void evl_double_rq_lock(struct evl_rq *rq1, struct evl_rq *rq2)
 	/* Prevent ABBA deadlock, always lock rqs in address order. */
 
 	if (rq1 == rq2) {
-		evl_spin_lock(&rq1->lock);
+		raw_spin_lock(&rq1->lock);
 	} else if (rq1 < rq2) {
-		evl_spin_lock(&rq1->lock);
-		evl_spin_lock_nested(&rq2->lock, SINGLE_DEPTH_NESTING);
+		raw_spin_lock(&rq1->lock);
+		raw_spin_lock_nested(&rq2->lock, SINGLE_DEPTH_NESTING);
 	} else {
-		evl_spin_lock(&rq2->lock);
-		evl_spin_lock_nested(&rq1->lock, SINGLE_DEPTH_NESTING);
+		raw_spin_lock(&rq2->lock);
+		raw_spin_lock_nested(&rq1->lock, SINGLE_DEPTH_NESTING);
 	}
 }
 
 static inline
 void evl_double_rq_unlock(struct evl_rq *rq1, struct evl_rq *rq2)
 {
-	evl_spin_unlock(&rq1->lock);
+	raw_spin_unlock(&rq1->lock);
 	if (rq1 != rq2)
-		evl_spin_unlock(&rq2->lock);
+		raw_spin_unlock(&rq2->lock);
 }
 
 static void migrate_rq(struct evl_thread *thread, struct evl_rq *dst_rq)
@@ -357,9 +357,9 @@ static void check_cpu_affinity(struct task_struct *p) /* inband, hard irqs off *
 		 * path to oob context, just raise T_CANCELD to catch
 		 * it in evl_switch_oob().
 		 */
-		evl_spin_lock(&thread->rq->lock);
+		raw_spin_lock(&thread->rq->lock);
 		thread->info |= T_CANCELD;
-		evl_spin_unlock(&thread->rq->lock);
+		raw_spin_unlock(&thread->rq->lock);
 	} else {
 		/*
 		 * If the current thread moved to a supported
@@ -392,7 +392,7 @@ static inline void check_cpu_affinity(struct task_struct *p)
 void evl_putback_thread(struct evl_thread *thread)
 {
 	assert_evl_lock(&thread->lock);
-	assert_evl_lock(&thread->rq->lock);
+	assert_hard_lock(&thread->rq->lock);
 
 	if (thread->state & T_READY)
 		evl_dequeue_thread(thread);
@@ -413,7 +413,7 @@ int evl_set_thread_policy_locked(struct evl_thread *thread,
 	int ret;
 
 	assert_evl_lock(&thread->lock);
-	assert_evl_lock(&thread->rq->lock);
+	assert_hard_lock(&thread->rq->lock);
 
 	/* Check parameters early on. */
 	ret = evl_check_schedparams(sched_class, thread, p);
@@ -513,7 +513,7 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread, int prio)
 	int wprio = evl_calc_weighted_prio(thread->base_class, prio);
 
 	assert_evl_lock(&thread->lock);
-	assert_evl_lock(&thread->rq->lock);
+	assert_hard_lock(&thread->rq->lock);
 
 	thread->bprio = prio;
 	if (wprio == thread->wprio)
@@ -591,7 +591,7 @@ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 {
 	assert_evl_lock(&thread->lock);
 
-	evl_spin_lock(&thread->rq->lock);
+	raw_spin_lock(&thread->rq->lock);
 
 	/*
 	 * Apply a PP boost by changing the effective priority of a
@@ -617,7 +617,7 @@ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 
 	evl_set_resched(thread->rq);
 
-	evl_spin_unlock(&thread->rq->lock);
+	raw_spin_unlock(&thread->rq->lock);
 }
 
 void evl_init_schedq(struct evl_multilevel_queue *q)
@@ -823,10 +823,10 @@ static inline void prepare_rq_switch(struct evl_rq *this_rq,
 				struct evl_thread *next)
 {
 	if (irq_pipeline_debug_locking())
-		spin_release(&this_rq->lock._lock.rlock.dep_map,
+		spin_release(&this_rq->lock.rlock.dep_map,
 			_THIS_IP_);
 #ifdef CONFIG_DEBUG_SPINLOCK
-	this_rq->lock._lock.rlock.owner = next->altsched.task;
+	this_rq->lock.rlock.owner = next->altsched.task;
 #endif
 }
 
@@ -847,9 +847,9 @@ static inline void finish_rq_switch(bool inband_tail, unsigned long flags)
 	 */
 	if (likely(!inband_tail)) {
 		if (irq_pipeline_debug_locking())
-			spin_acquire(&this_rq->lock._lock.rlock.dep_map,
+			spin_acquire(&this_rq->lock.rlock.dep_map,
 				0, 0, _THIS_IP_);
-		evl_spin_unlock_irqrestore(&this_rq->lock, flags);
+		raw_spin_unlock_irqrestore(&this_rq->lock, flags);
 	}
 }
 
@@ -857,13 +857,13 @@ static inline void finish_rq_switch_from_inband(void)
 {
 	struct evl_rq *this_rq = this_evl_rq();
 
-	assert_evl_lock(&this_rq->lock);
+	assert_hard_lock(&this_rq->lock);
 
 	if (irq_pipeline_debug_locking())
-		spin_acquire(&this_rq->lock._lock.rlock.dep_map,
+		spin_acquire(&this_rq->lock.rlock.dep_map,
 			0, 0, _THIS_IP_);
 
-	evl_spin_unlock_irq(&this_rq->lock);
+	raw_spin_unlock_irq(&this_rq->lock);
 }
 
 /* hard irqs off. */
@@ -924,10 +924,10 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 	 * locking order safe from ABBA deadlocking.
 	 */
 	evl_spin_lock(&curr->lock);
-	evl_spin_lock(&this_rq->lock);
+	raw_spin_lock(&this_rq->lock);
 
 	if (unlikely(!test_resched(this_rq))) {
-		evl_spin_unlock(&this_rq->lock);
+		raw_spin_unlock(&this_rq->lock);
 		evl_spin_unlock_irqrestore(&curr->lock, flags);
 		return;
 	}
@@ -940,7 +940,7 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 			if (this_rq->local_flags & RQ_TDEFER)
 				evl_program_local_tick(&evl_mono_clock);
 		}
-		evl_spin_unlock(&this_rq->lock);
+		raw_spin_unlock(&this_rq->lock);
 		evl_spin_unlock_irqrestore(&curr->lock, flags);
 		return;
 	}
@@ -997,9 +997,9 @@ void evl_start_ptsync(struct evl_thread *stopper)
 
 	flags = hard_local_irq_save();
 	this_rq = this_evl_rq();
-	evl_spin_lock(&this_rq->lock);
+	raw_spin_lock(&this_rq->lock);
 	start_ptsync_locked(stopper, this_rq);
-	evl_spin_unlock_irqrestore(&this_rq->lock, flags);
+	raw_spin_unlock_irqrestore(&this_rq->lock, flags);
 }
 
 void resume_oob_task(struct task_struct *p) /* inband, oob stage stalled */
@@ -1084,9 +1084,9 @@ int evl_switch_oob(void)
 	 * handling them.
 	 */
 	if (signal_pending(p)) {
-		evl_spin_lock_irqsave(&curr->rq->lock, flags);
+		raw_spin_lock_irqsave(&curr->rq->lock, flags);
 		curr->info |= T_KICKED;
-		evl_spin_unlock_irqrestore(&curr->rq->lock, flags);
+		raw_spin_unlock_irqrestore(&curr->rq->lock, flags);
 	}
 
 	return 0;
@@ -1114,7 +1114,7 @@ void evl_switch_inband(int cause)
 
 	evl_spin_lock(&curr->lock);
 	this_rq = curr->rq;
-	evl_spin_lock(&this_rq->lock);
+	raw_spin_lock(&this_rq->lock);
 
 	if (curr->state & T_READY) {
 		evl_dequeue_thread(curr);
@@ -1143,7 +1143,7 @@ void evl_switch_inband(int cause)
 
 	evl_set_resched(this_rq);
 
-	evl_spin_unlock(&this_rq->lock);
+	raw_spin_unlock(&this_rq->lock);
 	evl_spin_unlock(&curr->lock);
 
 	/*

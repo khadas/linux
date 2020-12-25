@@ -64,7 +64,7 @@ struct evl_sched_fifo {
 };
 
 struct evl_rq {
-	evl_spinlock_t lock;
+	hard_spinlock_t lock;
 
 	/*
 	 * Shared data, covered by ->lock.
@@ -200,7 +200,7 @@ static inline int evl_need_resched(struct evl_rq *rq)
 /* Set resched flag for the current rq. */
 static inline void evl_set_self_resched(struct evl_rq *rq)
 {
-	assert_evl_lock(&rq->lock);
+	assert_hard_lock(&rq->lock);
 	rq->flags |= RQ_SCHED;
 }
 
@@ -221,7 +221,7 @@ static inline void evl_set_resched(struct evl_rq *rq)
 {
 	struct evl_rq *this_rq = this_evl_rq();
 
-	assert_evl_lock(&rq->lock); /* Implies hard irqs are off. */
+	assert_hard_lock(&rq->lock); /* Implies hard irqs are off. */
 
 	if (this_rq == rq) {
 		this_rq->flags |= RQ_SCHED;
@@ -376,13 +376,13 @@ static inline bool evl_cannot_block(void)
 		struct evl_rq *__rq;					\
 		evl_spin_lock_irqsave(&(__thread)->lock, __flags);	\
 		__rq = (__thread)->rq;					\
-		evl_spin_lock(&__rq->lock);				\
+		raw_spin_lock(&__rq->lock);				\
 		__rq;							\
 	})
 
 #define evl_put_thread_rq(__thread, __rq, __flags)			\
 	do {								\
-		evl_spin_unlock(&(__rq)->lock);				\
+		raw_spin_unlock(&(__rq)->lock);				\
 		evl_spin_unlock_irqrestore(&(__thread)->lock, __flags);	\
 	} while (0)
 
@@ -428,13 +428,13 @@ static inline int evl_init_rq_thread(struct evl_thread *thread)
 	return ret;
 }
 
-/* rq->lock held, irqs off */
+/* rq->lock held, hard irqs off */
 static inline void evl_sched_tick(struct evl_rq *rq)
 {
 	struct evl_thread *curr = rq->curr;
 	struct evl_sched_class *sched_class = curr->sched_class;
 
-	assert_evl_lock(&rq->lock);
+	assert_hard_lock(&rq->lock);
 
 	/*
 	 * A thread that undergoes round-robin scheduling only
