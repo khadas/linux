@@ -27,7 +27,7 @@ struct evl_observable {
 	struct evl_poll_head poll_head;
 	struct irq_work wake_irqwork;
 	struct irq_work flush_irqwork;
-	evl_spinlock_t lock;		/* guards observers and flush_list */
+	hard_spinlock_t lock;		/* guards observers and flush_list */
 	u32 serial_counter;
 	int writable_observers;
 };
