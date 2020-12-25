@@ -333,8 +333,7 @@ static inline void __evl_disable_preempt(void)
 
 static inline void __evl_enable_preempt(void)
 {
-	if (--dovetail_current_state()->preempt_count == 0 &&
-		!oob_irqs_disabled())
+	if (--dovetail_current_state()->preempt_count == 0)
 		evl_schedule();
 }
 
