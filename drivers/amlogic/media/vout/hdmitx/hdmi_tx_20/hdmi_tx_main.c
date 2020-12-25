@@ -3226,7 +3226,7 @@ static ssize_t _show_dv_cap(struct device *dev,
 	int pos = 0;
 	int i;
 
-	if (dv->ieeeoui != DV_IEEE_OUI) {
+	if (dv->ieeeoui != DV_IEEE_OUI || dv->block_flag != CORRECT) {
 		pos += snprintf(buf + pos, PAGE_SIZE,
 			"The Rx don't support DolbyVision\n");
 		return pos;
