@@ -18,11 +18,11 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 {
 	wq->flags = flags;
 	wq->clock = clock;
-	evl_spin_lock_init(&wq->lock);
+	raw_spin_lock_init(&wq->lock);
 	wq->wchan.reorder_wait = evl_reorder_wait;
 	wq->wchan.follow_depend = evl_follow_wait_depend;
 	INIT_LIST_HEAD(&wq->wchan.wait_list);
-	lockdep_set_class_and_name(&wq->lock._lock, key, name);
+	lockdep_set_class_and_name(&wq->lock, key, name);
 }
 EXPORT_SYMBOL_GPL(__evl_init_wait);
 
@@ -33,13 +33,13 @@ void evl_destroy_wait(struct evl_wait_queue *wq)
 }
 EXPORT_SYMBOL_GPL(evl_destroy_wait);
 
-/* wq->lock held, irqs off */
+/* wq->lock held, hard irqs off */
 void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
 			enum evl_tmode timeout_mode)
 {
 	struct evl_thread *curr = evl_current();
 
-	assert_evl_lock(&wq->lock);
+	assert_hard_lock(&wq->lock);
 
 	trace_evl_wait(wq);
 
@@ -56,11 +56,11 @@ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
 }
 EXPORT_SYMBOL_GPL(evl_add_wait_queue);
 
-/* wq->lock held, irqs off */
+/* wq->lock held, hard irqs off */
 struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 			struct evl_thread *waiter)
 {
-	assert_evl_lock(&wq->lock);
+	assert_hard_lock(&wq->lock);
 
 	trace_evl_wake_up(wq);
 
@@ -78,12 +78,12 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 }
 EXPORT_SYMBOL_GPL(evl_wake_up);
 
-/* wq->lock held, irqs off */
+/* wq->lock held, hard irqs off */
 void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
 {
 	struct evl_thread *waiter, *tmp;
 
-	assert_evl_lock(&wq->lock);
+	assert_hard_lock(&wq->lock);
 
 	trace_evl_flush_wait(wq);
 
@@ -98,9 +98,9 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
 {
 	unsigned long flags;
 
-	evl_spin_lock_irqsave(&wq->lock, flags);
+	raw_spin_lock_irqsave(&wq->lock, flags);
 	evl_flush_wait_locked(wq, reason);
-	evl_spin_unlock_irqrestore(&wq->lock, flags);
+	raw_spin_unlock_irqrestore(&wq->lock, flags);
 }
 EXPORT_SYMBOL_GPL(evl_flush_wait);
 
@@ -110,7 +110,7 @@ wchan_to_wait_queue(struct evl_wait_channel *wchan)
 	return container_of(wchan, struct evl_wait_queue, wchan);
 }
 
-/* thread->lock held, irqs off */
+/* thread->lock held, hard irqs off */
 int evl_reorder_wait(struct evl_thread *waiter, struct evl_thread *originator)
 {
 	struct evl_wait_queue *wq = wchan_to_wait_queue(waiter->wchan);
@@ -118,20 +118,20 @@ int evl_reorder_wait(struct evl_thread *waiter, struct evl_thread *originator)
 	assert_hard_lock(&waiter->lock);
 	assert_hard_lock(&originator->lock);
 
-	evl_spin_lock(&wq->lock);
+	raw_spin_lock(&wq->lock);
 
 	if (wq->flags & EVL_WAIT_PRIO) {
 		list_del(&waiter->wait_next);
 		list_add_priff(waiter, &wq->wchan.wait_list, wprio, wait_next);
 	}
 
-	evl_spin_unlock(&wq->lock);
+	raw_spin_unlock(&wq->lock);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(evl_reorder_wait);
 
-/* originator->lock held, irqs off */
+/* originator->lock held, hard irqs off */
 int evl_follow_wait_depend(struct evl_wait_channel *wchan,
 			struct evl_thread *originator)
 {
@@ -185,7 +185,7 @@ int evl_wait_schedule(struct evl_wait_queue *wq)
 		return -EIDRM;
 
 	if (info & (T_TIMEO|T_BREAK)) {
-		evl_spin_lock_irqsave(&wq->lock, flags);
+		raw_spin_lock_irqsave(&wq->lock, flags);
 		if (!list_empty(&curr->wait_next)) {
 			list_del_init(&curr->wait_next);
 			if (info & T_TIMEO)
@@ -193,12 +193,12 @@ int evl_wait_schedule(struct evl_wait_queue *wq)
 			else if (info & T_BREAK)
 				ret = -EINTR;
 		}
-		evl_spin_unlock_irqrestore(&wq->lock, flags);
+		raw_spin_unlock_irqrestore(&wq->lock, flags);
 	} else if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE)) {
 		bool empty;
-		evl_spin_lock_irqsave(&wq->lock, flags);
+		raw_spin_lock_irqsave(&wq->lock, flags);
 		empty = list_empty(&curr->wait_next);
-		evl_spin_unlock_irqrestore(&wq->lock, flags);
+		raw_spin_unlock_irqrestore(&wq->lock, flags);
 		EVL_WARN_ON_ONCE(CORE, !empty);
 	}
 
@@ -208,7 +208,7 @@ EXPORT_SYMBOL_GPL(evl_wait_schedule);
 
 struct evl_thread *evl_wait_head(struct evl_wait_queue *wq)
 {
-	assert_evl_lock(&wq->lock);
+	assert_hard_lock(&wq->lock);
 	return list_first_entry_or_null(&wq->wchan.wait_list,
 					struct evl_thread, wait_next);
 }

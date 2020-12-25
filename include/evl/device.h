@@ -10,7 +10,6 @@
 #ifdef CONFIG_EVL
 
 #include <evl/file.h>
-#include <evl/lock.h>
 #include <evl/mutex.h>
 #include <evl/wait.h>
 #include <evl/poll.h>

@@ -53,7 +53,7 @@ static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
 	unsigned long flags;
 	bool notify = false;
 
-	evl_spin_lock_irqsave(&stax->oob_wait.lock, flags);
+	raw_spin_lock_irqsave(&stax->oob_wait.lock, flags);
 
 	if (gateval & STAX_CLAIMED_BIT) {
 		prev = atomic_read(&stax->gate);
@@ -79,9 +79,9 @@ static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
 		if (oob_may_access(atomic_read(&stax->gate)))
 			break;
 		evl_add_wait_queue(&stax->oob_wait, EVL_INFINITE, EVL_REL);
-		evl_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
+		raw_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
 		ret = evl_wait_schedule(&stax->oob_wait);
-		evl_spin_lock_irqsave(&stax->oob_wait.lock, flags);
+		raw_spin_lock_irqsave(&stax->oob_wait.lock, flags);
 	} while (!ret);
 
 	/* Clear the claim bit if nobody contends anymore. */
@@ -94,7 +94,7 @@ static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
 		} while (prev != old);
 	}
 out:
-	evl_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
+	raw_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
 
 	if (notify) {
 		evl_notify_thread(curr, EVL_HMDIAG_STAGEX, evl_nil);
@@ -161,7 +161,7 @@ static int claim_stax_from_inband(struct evl_stax *stax, int gateval)
 	 * this sequence is legit.
 	 */
 	spin_lock_irqsave(&stax->inband_wait.lock, ib_flags);
-	evl_spin_lock_irqsave(&stax->oob_wait.lock, oob_flags);
+	raw_spin_lock_irqsave(&stax->oob_wait.lock, oob_flags);
 
 	if (gateval & STAX_CLAIMED_BIT) {
 		prev = atomic_read(&stax->gate);
@@ -188,11 +188,11 @@ static int claim_stax_from_inband(struct evl_stax *stax, int gateval)
 			break;
 
 		set_current_state(TASK_INTERRUPTIBLE);
-		evl_spin_unlock_irqrestore(&stax->oob_wait.lock, oob_flags);
+		raw_spin_unlock_irqrestore(&stax->oob_wait.lock, oob_flags);
 		spin_unlock_irqrestore(&stax->inband_wait.lock, ib_flags);
 		schedule();
 		spin_lock_irqsave(&stax->inband_wait.lock, ib_flags);
-		evl_spin_lock_irqsave(&stax->oob_wait.lock, oob_flags);
+		raw_spin_lock_irqsave(&stax->oob_wait.lock, oob_flags);
 
 		if (signal_pending(current)) {
 			ret = -ERESTARTSYS;
@@ -211,7 +211,7 @@ static int claim_stax_from_inband(struct evl_stax *stax, int gateval)
 		} while (prev != old);
 	}
 out:
-	evl_spin_unlock_irqrestore(&stax->oob_wait.lock, oob_flags);
+	raw_spin_unlock_irqrestore(&stax->oob_wait.lock, oob_flags);
 	spin_unlock_irqrestore(&stax->inband_wait.lock, ib_flags);
 
 	return ret;
@@ -314,7 +314,7 @@ static void unlock_from_oob(struct evl_stax *stax)
 	 * stax is claimed by inband, we have to take the slow path
 	 * under lock.
 	 */
-	evl_spin_lock_irqsave(&stax->oob_wait.lock, flags);
+	raw_spin_lock_irqsave(&stax->oob_wait.lock, flags);
 
 	do {
 		old = prev;
@@ -324,7 +324,7 @@ static void unlock_from_oob(struct evl_stax *stax)
 		prev = atomic_cmpxchg(&stax->gate, old, new);
 	} while (prev != old);
 
-	evl_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
+	raw_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
 
 	if (!(new & STAX_CONCURRENCY_MASK))
 		irq_work_queue(&stax->irq_work);
@@ -363,7 +363,7 @@ static void unlock_from_inband(struct evl_stax *stax)
 	 * Converse to unlock_from_oob(): stax is claimed by oob, we
 	 * have to take the slow path under lock.
 	 */
-	evl_spin_lock_irqsave(&stax->oob_wait.lock, flags);
+	raw_spin_lock_irqsave(&stax->oob_wait.lock, flags);
 
 	do {
 		old = prev;
@@ -378,7 +378,7 @@ static void unlock_from_inband(struct evl_stax *stax)
 	if (!(new & STAX_CONCURRENCY_MASK))
 		evl_flush_wait_locked(&stax->oob_wait, 0);
 out:
-	evl_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
+	raw_spin_unlock_irqrestore(&stax->oob_wait.lock, flags);
 
 	evl_schedule();
 }

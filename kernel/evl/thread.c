@@ -1451,7 +1451,7 @@ int activate_oob_mm_state(struct oob_mm_state *p)
 	/*
 	 * A bit silly but we need a dynamic allocation for the EVL
 	 * wait queue only to work around some inclusion hell when
-	 * defining EVL's version of struct oob_mm_state.
+	 * defining EVL's version of struct oob_mm_state. Revisit?
 	 */
 	p->ptsync_barrier = kmalloc(sizeof(*p->ptsync_barrier), GFP_KERNEL);
 	if (p->ptsync_barrier == NULL)
@@ -1691,14 +1691,14 @@ static void join_ptsync(struct evl_thread *curr)
 {
 	struct oob_mm_state *oob_mm = curr->oob_mm;
 
-	evl_spin_lock(&oob_mm->ptsync_barrier->lock);
+	raw_spin_lock(&oob_mm->ptsync_barrier->lock);
 
 	/* In non-stop mode, no ptsync sequence is started. */
 	if (test_bit(EVL_MM_PTSYNC_BIT, &oob_mm->flags) &&
 		list_empty(&curr->ptsync_next))
 		list_add_tail(&curr->ptsync_next, &oob_mm->ptrace_sync);
 
-	evl_spin_unlock(&oob_mm->ptsync_barrier->lock);
+	raw_spin_unlock(&oob_mm->ptsync_barrier->lock);
 }
 
 static int leave_ptsync(struct evl_thread *leaver)
@@ -1707,7 +1707,7 @@ static int leave_ptsync(struct evl_thread *leaver)
 	unsigned long flags;
 	int ret = 0;
 
-	evl_spin_lock_irqsave(&oob_mm->ptsync_barrier->lock, flags);
+	raw_spin_lock_irqsave(&oob_mm->ptsync_barrier->lock, flags);
 
 	if (!test_bit(EVL_MM_PTSYNC_BIT, &oob_mm->flags))
 		goto out;
@@ -1721,7 +1721,7 @@ static int leave_ptsync(struct evl_thread *leaver)
 		ret = 1;
 	}
 out:
-	evl_spin_unlock_irqrestore(&oob_mm->ptsync_barrier->lock, flags);
+	raw_spin_unlock_irqrestore(&oob_mm->ptsync_barrier->lock, flags);
 
 	return ret;
 }

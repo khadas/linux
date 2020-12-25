@@ -51,10 +51,10 @@ static inline bool evl_read_flag(struct evl_flag *wf)
 }
 
 #define evl_lock_flag(__wf, __flags)		\
-	evl_spin_lock_irqsave(&(__wf)->wait.lock, __flags)
+	raw_spin_lock_irqsave(&(__wf)->wait.lock, __flags)
 
 #define evl_unlock_flag(__wf, __flags)		\
-	evl_spin_unlock_irqrestore(&(__wf)->wait.lock, __flags)
+	raw_spin_unlock_irqrestore(&(__wf)->wait.lock, __flags)
 
 static inline
 int evl_wait_flag_timeout(struct evl_flag *wf,
