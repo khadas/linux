@@ -12,7 +12,6 @@
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
 #include <linux/poll.h>
-#include <evl/lock.h>
 #include <evl/wait.h>
 #include <evl/factory.h>
 #include <uapi/evl/poll.h>
@@ -21,12 +20,12 @@ struct file;
 
 #define EVL_POLLHEAD_INITIALIZER(__name) {				\
 		.watchpoints = LIST_HEAD_INIT((__name).watchpoints),	\
-		.lock = __EVL_SPIN_LOCK_INITIALIZER((__name).lock),	\
+		.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock),	\
 	}
 
 struct evl_poll_head {
 	struct list_head watchpoints; /* struct poll_watchpoint */
-	evl_spinlock_t lock;
+	hard_spinlock_t lock;
 };
 
 struct evl_poll_node {
@@ -51,7 +50,7 @@ static inline
 void evl_init_poll_head(struct evl_poll_head *head)
 {
 	INIT_LIST_HEAD(&head->watchpoints);
-	evl_spin_lock_init(&head->lock);
+	raw_spin_lock_init(&head->lock);
 }
 
 void evl_poll_watch(struct evl_poll_head *head,
