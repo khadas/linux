@@ -1782,3 +1782,30 @@ void aml_phy_iq_skew_monitor_t7(void)
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL1, IQ_OFST_SIGN, 1 << 6 | abs(iq_skew));
 }
 
+bool aml_get_tmds_valid_t7(void)
+{
+	u32 tmdsclk_valid;
+	u32 sqofclk;
+	u32 tmds_align;
+	u32 ret;
+
+	/* digital tmds valid depends on PLL lock from analog phy. */
+	/* it is not necessary and T7 has not it */
+	/* tmds_valid = hdmirx_rd_dwc(DWC_HDMI_PLL_LCK_STS) & 0x01; */
+	sqofclk = hdmirx_rd_top(TOP_MISC_STAT0) & 0x1;
+	tmdsclk_valid = is_tmds_clk_stable();
+	/* modified in T7, 0x2b bit'0 tmds_align status */
+	tmds_align = hdmirx_rd_top(TOP_TMDS_ALIGN_STAT) & 0x01;
+	if (sqofclk && tmdsclk_valid && tmds_align) {
+		ret = 1;
+	} else {
+		if (log_level & VIDEO_LOG) {
+			rx_pr("sqo:%x,tmdsclk_valid:%x,align:%x\n",
+			      sqofclk, tmdsclk_valid, tmds_align);
+			rx_pr("cable clk0:%d\n", rx_measure_clock(MEASURE_CLK_CABLE));
+			rx_pr("cable clk1:%d\n", rx_get_clock(TOP_HDMI_CABLECLK));
+		}
+		ret = 0;
+	}
+	return ret;
+}

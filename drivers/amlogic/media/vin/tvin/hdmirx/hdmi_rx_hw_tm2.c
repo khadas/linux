@@ -1248,3 +1248,33 @@ void dump_aml_phy_sts_tm2(void)
 	comb_val_tm2("cdr0_int", cdr0_init, cdr1_init, cdr2_init, 7);
 }
 
+bool aml_get_tmds_valid_tm2(void)
+{
+	unsigned int tmdsclk_valid;
+	unsigned int sqofclk;
+	/* unsigned int pll_lock; */
+	unsigned int tmds_align;
+	u32 ret;
+
+	/* digital tmds valid depends on PLL lock from analog phy. */
+	/* it is not necessary and T7 has not it */
+	/* tmds_valid = hdmirx_rd_dwc(DWC_HDMI_PLL_LCK_STS) & 0x01; */
+	if (rx.aml_phy.force_sqo)
+		sqofclk = rx.aml_phy.force_sqo;
+	else
+		sqofclk = hdmirx_rd_top(TOP_MISC_STAT0) & 0x1;
+	tmdsclk_valid = aml_phy_pll_lock();
+	tmds_align = hdmirx_rd_top(TOP_TMDS_ALIGN_STAT) & 0x3f000000;
+	if (sqofclk && tmdsclk_valid && tmds_align == 0x3f000000) {
+		ret = 1;
+	} else {
+		if (log_level & VIDEO_LOG) {
+			rx_pr("sqo:%x,tmdsclk_valid:%x,align:%x\n",
+			      sqofclk, tmdsclk_valid, tmds_align);
+			rx_pr("cable clk0:%d\n", rx_measure_clock(MEASURE_CLK_CABLE));
+			rx_pr("cable clk1:%d\n", rx_get_clock(TOP_HDMI_CABLECLK));
+		}
+		ret = 0;
+	}
+	return ret;
+}

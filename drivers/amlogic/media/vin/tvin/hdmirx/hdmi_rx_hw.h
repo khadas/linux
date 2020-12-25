@@ -285,8 +285,14 @@
 #define TOP_EDID_PORT3_ADDR_S			0x1400
 #define TOP_EDID_PORT3_ADDR_E			0x15ff
 
+/* TL1/TM2/T5/T5D */
 #define TOP_DWC_BASE_OFFSET				0x8000
-#define TOP_AMLPHY_BASE_OFFSET			0xc000
+/* T5/T5D */
+#define TOP_AMLPHY_BASE_OFFSET_T5		0xc000
+/* t7 top base addr */
+#define TOP_AMLPHY_BASE_OFFSET_T7		0x4000
+#define TOP_COR_BASE_OFFSET_T7			0x8000
+
 
 #define TOP_DONT_TOUCH0                  0x0fe
 #define TOP_DONT_TOUCH1                  0x0ff
@@ -3154,11 +3160,13 @@ void aml_phy_init_tl1(void);
 void dump_reg_phy_tl1_tm2(void);
 void dump_aml_phy_sts_tl1(void);
 void aml_phy_short_bist_tl1(void);
+bool aml_get_tmds_valid_tl1(void);
 
 /* tm2 extern */
 void aml_phy_short_bist_tm2(void);
 void aml_phy_init_tm2(void);
 void dump_aml_phy_sts_tm2(void);
+bool aml_get_tmds_valid_tm2(void);
 
 /* t5 extern */
 void dump_reg_phy_t5(void);
@@ -3168,6 +3176,7 @@ void aml_eq_eye_monitor_t5(void);
 void aml_phy_offset_cal(void);
 void aml_phy_short_bist_t5(void);
 void aml_phy_iq_skew_monitor_t5(void);
+bool aml_get_tmds_valid_t5(void);
 void hdmirx_wr_bits_amlphy(unsigned int addr,
 			   unsigned int mask,
 			   unsigned int value);
@@ -3187,4 +3196,5 @@ void aml_eq_eye_monitor_t7(void);
 void aml_phy_offset_cal_t7(void);
 void aml_phy_short_bist_t7(void);
 void aml_phy_iq_skew_monitor_t7(void);
+bool aml_get_tmds_valid_t7(void);
 #endif

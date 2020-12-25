@@ -302,8 +302,11 @@ unsigned int hdmirx_rd_top(unsigned int addr)
 
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		spin_lock_irqsave(&reg_rw_lock, flags);
-		dev_offset = TOP_DWC_BASE_OFFSET +
-			rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
+		if (rx.chip_id == CHIP_ID_T7)
+			dev_offset = rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
+		else
+			dev_offset = TOP_DWC_BASE_OFFSET +
+				rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 		if (addr >= TOP_EDID_ADDR_S &&
 		    addr <= (TOP_EDID_PORT3_ADDR_E)) {
 			data = rd_reg_b(MAP_ADDR_MODULE_TOP,
@@ -348,8 +351,11 @@ void hdmirx_wr_top(unsigned int addr, unsigned int data)
 
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		spin_lock_irqsave(&reg_rw_lock, flags);
-		dev_offset = TOP_DWC_BASE_OFFSET +
-			rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
+		if (rx.chip_id == CHIP_ID_T7)
+			dev_offset = rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
+		else
+			dev_offset = TOP_DWC_BASE_OFFSET +
+				rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 		if (addr >= TOP_EDID_ADDR_S &&
 		    addr <= (TOP_EDID_PORT3_ADDR_E)) {
 			wr_reg_b(MAP_ADDR_MODULE_TOP,
@@ -391,9 +397,14 @@ unsigned int hdmirx_rd_amlphy(unsigned int addr)
 	ulong flags;
 	int data;
 	unsigned int dev_offset = 0;
+	u32 base_ofst = 0;
 
+	if (rx.chip_id == CHIP_ID_T7)
+		base_ofst = TOP_AMLPHY_BASE_OFFSET_T7;
+	else
+		base_ofst = TOP_AMLPHY_BASE_OFFSET_T5;
 	spin_lock_irqsave(&reg_rw_lock, flags);
-	dev_offset = TOP_AMLPHY_BASE_OFFSET +
+	dev_offset = base_ofst +
 		rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 	data = rd_reg(MAP_ADDR_MODULE_TOP, dev_offset + addr);
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
@@ -421,9 +432,14 @@ void hdmirx_wr_amlphy(unsigned int addr, unsigned int data)
 {
 	ulong flags;
 	unsigned long dev_offset = 0;
+	u32 base_ofst = 0;
 
+	if (rx.chip_id == CHIP_ID_T7)
+		base_ofst = TOP_AMLPHY_BASE_OFFSET_T7;
+	else
+		base_ofst = TOP_AMLPHY_BASE_OFFSET_T5;
 	spin_lock_irqsave(&reg_rw_lock, flags);
-	dev_offset = TOP_AMLPHY_BASE_OFFSET +
+	dev_offset = base_ofst +
 		rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 		wr_reg(MAP_ADDR_MODULE_TOP, dev_offset + addr, data);
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
@@ -447,10 +463,13 @@ u8 hdmirx_rd_cor(u32 addr)
 {
 	ulong flags;
 	u8 data;
+	u32 dev_offset = 0;
 
+	dev_offset = TOP_COR_BASE_OFFSET_T7 +
+		rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 	spin_lock_irqsave(&reg_rw_lock, flags);
 	data = rd_reg(MAP_ADDR_MODULE_TOP,
-		      addr + rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr);
+		      addr + dev_offset);
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 
 	return data;
@@ -464,10 +483,13 @@ u8 hdmirx_rd_bits_cor(u32 addr, u32 mask)
 void hdmirx_wr_cor(u32 addr, u8 data)
 {
 	ulong flags;
+	u32 dev_offset = 0;
 
+	dev_offset = TOP_COR_BASE_OFFSET_T7 +
+		rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 	spin_lock_irqsave(&reg_rw_lock, flags);
 	wr_reg(MAP_ADDR_MODULE_TOP,
-	       addr + rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr, data);
+	       addr + dev_offset, data);
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 }
 
@@ -1107,12 +1129,12 @@ void hdmirx_top_irq_en(bool flag)
 		data32 |= (1    << 10); // [   10] vid_fmt_chg
 		data32 |= (0x7  << 6);  // [ 8: 6] hdmirx_5v_fall
 		data32 |= (0x7  << 3);  // [ 5: 3] hdmirx_5v_rise
-		// [    2] sherman_phy_intr: sub-interrupts will be configured later
-		data32 |= (0    << 2);
-		// [    1] pwd_sherman_intr: sub-interrupts will be configured later
-		data32 |= (0    << 1);
-		// [    0] aon_sherman_intr: sub-interrupts will be configured later
-		data32 |= (0    << 0);
+		// [    2] sherman_phy_intr: phy digital interrupt
+		data32 |= (1    << 2);
+		// [    1] pwd_sherman_intr: controller pwd interrupt
+		data32 |= (1    << 1);
+		// [    0] aon_sherman_intr: controller aon interrupt
+		data32 |= (1    << 0);
 		top_intr_maskn_value = data32;
 	} else {
 		/* top_irq_en bit[16:13] hdcp_sts */
@@ -3292,26 +3314,24 @@ bool rx_get_dvi_mode(void)
 		return true;
 }
 
-u8 rx_get_hdcp_type(u8 hdcp14_state, u8 hdcp22_state)
+u8 rx_get_hdcp_type(void)
 {
 	u32 tmp;
 
-	hdcp14_state = 0;
-	hdcp22_state = 0;
 	if (rx.chip_id == CHIP_ID_T7) {
 		if (rx.cur.hdcp_type == HDCP_VER_14)
-			hdcp14_state = hdmirx_rd_cor(COR_HDCP14_STS) & 2;
+			rx.cur.hdcp14_state = hdmirx_rd_cor(COR_HDCP14_STS) & 2;
 		else if (rx.cur.hdcp_type == HDCP_VER_22)
 			// unfinished
-			hdcp22_state = (hdmirx_rd_cor(COR_HDCP2X_GEN_STS) >> 4) & 3;
+			rx.cur.hdcp22_state = (hdmirx_rd_cor(COR_HDCP2X_GEN_STS) >> 4) & 3;
 	} else {
 		if (hdcp22_on) {
 			tmp = hdmirx_rd_dwc(DWC_HDCP22_STATUS);
 			rx.cur.hdcp_type = (tmp >> 4) & 1;
-			hdcp22_state = tmp & 1;
+			rx.cur.hdcp22_state = tmp & 1;
 		}
 		if (!rx.cur.hdcp_type)
-			hdcp14_state = (hdmirx_rd_dwc(DWC_HDCP_STS) >> 8) & 3;
+			rx.cur.hdcp14_state = (hdmirx_rd_dwc(DWC_HDCP_STS) >> 8) & 3;
 	}
 	return 1;
 }
@@ -3464,7 +3484,7 @@ void rx_get_video_info(void)
 	/* DVI mode */
 	rx.cur.hw_dvi = rx_get_dvi_mode();
 	/* HDCP sts*/
-	rx_get_hdcp_type(rx.cur.hdcp14_state, rx.cur.hdcp22_state);
+	rx_get_hdcp_type();
 	/* AVI parameters */
 	rx_get_avi_params();
 	/* frame rate */
@@ -4306,36 +4326,16 @@ bool is_tmds_valid(void)
 
 unsigned int aml_phy_tmds_valid(void)
 {
-	unsigned int tmdsclk_valid;
-	unsigned int sqofclk;
-	/* unsigned int pll_lock; */
-	unsigned int tmds_align;
-	u32 ret;
-
-	/* digital tmds valid depends on PLL lock from analog phy. */
-	/* it is not necessary and T7 has not it */
-	/* tmds_valid = hdmirx_rd_dwc(DWC_HDMI_PLL_LCK_STS) & 0x01; */
-	if (rx.phy_ver == PHY_VER_TM2 && rx.aml_phy.force_sqo)
-		sqofclk = rx.aml_phy.force_sqo;
+	if (rx.phy_ver == PHY_VER_TL1)
+		return aml_get_tmds_valid_tl1();
+	else if (rx.phy_ver == PHY_VER_TM2)
+		return aml_get_tmds_valid_tm2();
+	else if (rx.phy_ver == PHY_VER_T5)
+		return aml_get_tmds_valid_t5();
+	else if (rx.phy_ver == PHY_VER_T7)
+		return aml_get_tmds_valid_t7();
 	else
-		sqofclk = hdmirx_rd_top(TOP_MISC_STAT0) & 0x1;
-	if (rx.phy_ver >= PHY_VER_TM2)
-		tmdsclk_valid = aml_phy_pll_lock();
-	else
-		tmdsclk_valid = is_tmds_clk_stable();
-	tmds_align = hdmirx_rd_top(TOP_TMDS_ALIGN_STAT) & 0x3f000000;
-	if (sqofclk && tmdsclk_valid && tmds_align == 0x3f000000) {
-		ret = 1;
-	} else {
-		if (log_level & VIDEO_LOG) {
-			rx_pr("sqo:%x,tmdsclk_valid:%x,align:%x\n",
-			      sqofclk, tmdsclk_valid, tmds_align);
-			rx_pr("cable clk0:%d\n", rx_measure_clock(MEASURE_CLK_CABLE));
-			rx_pr("cable clk1:%d\n", rx_get_clock(TOP_HDMI_CABLECLK));
-		}
-		ret = 0;
-	}
-	return ret;
+		return false;
 }
 
 void rx_phy_rxsense_pulse(unsigned int t1, unsigned int t2, bool en)

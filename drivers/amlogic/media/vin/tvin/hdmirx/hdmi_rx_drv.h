@@ -37,6 +37,7 @@
 #define VSI_LOG		0x800
 #define DBG_LOG		0x1000
 #define IRQ_LOG		0x2000
+#define COR_LOG		0x4000
 
 /* fix repeater ksvlist issue */
 #define RX_VER1 "ver.2020/08/27"
@@ -49,8 +50,8 @@
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
 
-/* optimize load22key flow */
-#define RX_VER2 "ver.2020/08/20"
+/* t7 bringup */
+#define RX_VER2 "ver.2020/12/28"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368

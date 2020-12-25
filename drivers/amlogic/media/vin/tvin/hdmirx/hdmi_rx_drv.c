@@ -1178,7 +1178,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 	struct hdmirx_dev_s *devp = NULL;
 	void __user *argp = (void __user *)arg;
 	u32 param = 0, temp_val, temp;
-	unsigned int size = sizeof(struct pd_infoframe_s);
+	//unsigned int size = sizeof(struct pd_infoframe_s);
 	struct pd_infoframe_s pkt_info;
 	void *srcbuff;
 
@@ -1290,24 +1290,24 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 		/*mutex_lock(&pktbuff_lock);*/
 		/*rx_pr("IOC_GET_PD_FIFO_PARAM\n");*/
 		/*get input param*/
-		if (copy_from_user(&param, argp, sizeof(u32))) {
-			pr_err("get pd fifo param err\n");
-			ret = -EFAULT;
+		//if (copy_from_user(&param, argp, sizeof(u32))) {
+			//pr_err("get pd fifo param err\n");
+			//ret = -EFAULT;
 			/*mutex_unlock(&pktbuff_lock);*/
-			break;
-		}
-		memset(&pkt_info, 0, sizeof(pkt_info));
-		srcbuff = &pkt_info;
-		size = sizeof(struct pd_infoframe_s);
-		rx_get_pd_fifo_param(param, &pkt_info);
+			//break;
+	//	}
+		//memset(&pkt_info, 0, sizeof(pkt_info));
+		//srcbuff = &pkt_info;
+		//size = sizeof(struct pd_infoframe_s);
+		//rx_get_pd_fifo_param(param, &pkt_info);
 
 		/*return pkt info*/
-		if (size > 0 && !srcbuff && !argp) {
-			if (copy_to_user(argp, srcbuff, size)) {
-				pr_err("get pd fifo param err\n");
-				ret = -EFAULT;
-			}
-		}
+		//if (size > 0 && !argp) {
+			//if (copy_to_user(argp, srcbuff, size)) {
+				//pr_err("get pd fifo param err\n");
+				//ret = -EFAULT;
+			//}
+		//}
 		/*mutex_unlock(&pktbuff_lock);*/
 		break;
 	case HDMI_IOC_HDCP14_KEY_MODE:
@@ -2413,6 +2413,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct clk *xtal_clk;
 	struct clk *fclk_div3_clk;
+	struct clk *fclk_div4_clk;
 	struct clk *fclk_div5_clk;
 	struct clk *fclk_div7_clk;
 	int clk_rate;
@@ -2646,28 +2647,29 @@ static int hdmirx_probe(struct platform_device *pdev)
 		clk_prepare_enable(hdevp->cfg_clk);
 		clk_rate = clk_get_rate(hdevp->cfg_clk);
 	}
-
-	hdevp->esm_clk = clk_get(&pdev->dev, "hdcp_rx22_esm");
-	if (IS_ERR(hdevp->esm_clk)) {
-		rx_pr("get esm_clk err\n");
-	} else {
-		/* clk_set_parent(hdevp->esm_clk, fclk_div7_clk); */
-		ret = clk_set_rate(hdevp->esm_clk, 285714285);
-		if (ret)
-			rx_pr("clk_set_rate:esm err-%d\n", __LINE__);
-		clk_prepare_enable(hdevp->esm_clk);
-		clk_rate = clk_get_rate(hdevp->esm_clk);
-	}
-	hdevp->skp_clk = clk_get(&pdev->dev, "hdcp_rx22_skp");
-	if (IS_ERR(hdevp->skp_clk)) {
-		rx_pr("get skp_clk err\n");
-	} else {
-		/* clk_set_parent(hdevp->skp_clk, xtal_clk); */
-		ret = clk_set_rate(hdevp->skp_clk, 24000000);
-		if (ret)
-			rx_pr("clk_set_rate:skp err-%d\n", __LINE__);
-		clk_prepare_enable(hdevp->skp_clk);
-		clk_rate = clk_get_rate(hdevp->skp_clk);
+	if (rx.chip_id < CHIP_ID_T7) {
+		hdevp->esm_clk = clk_get(&pdev->dev, "hdcp_rx22_esm");
+		if (IS_ERR(hdevp->esm_clk)) {
+			rx_pr("get esm_clk err\n");
+		} else {
+			/* clk_set_parent(hdevp->esm_clk, fclk_div7_clk); */
+			ret = clk_set_rate(hdevp->esm_clk, 285714285);
+			if (ret)
+				rx_pr("clk_set_rate:esm err-%d\n", __LINE__);
+			clk_prepare_enable(hdevp->esm_clk);
+			clk_rate = clk_get_rate(hdevp->esm_clk);
+		}
+		hdevp->skp_clk = clk_get(&pdev->dev, "hdcp_rx22_skp");
+		if (IS_ERR(hdevp->skp_clk)) {
+			rx_pr("get skp_clk err\n");
+		} else {
+			/* clk_set_parent(hdevp->skp_clk, xtal_clk); */
+			ret = clk_set_rate(hdevp->skp_clk, 24000000);
+			if (ret)
+				rx_pr("clk_set_rate:skp err-%d\n", __LINE__);
+			clk_prepare_enable(hdevp->skp_clk);
+			clk_rate = clk_get_rate(hdevp->skp_clk);
+		}
 	}
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		/*for audio clk measure*/
@@ -2746,6 +2748,11 @@ static int hdmirx_probe(struct platform_device *pdev)
 			clk_prepare_enable(hdevp->cts_hdmirx_hdcp2x_eclk);
 			clk_rate = clk_get_rate(hdevp->cts_hdmirx_hdcp2x_eclk);
 		}
+		fclk_div4_clk = clk_get(&pdev->dev, "fclk_div4");
+		if (IS_ERR(fclk_div4_clk))
+			rx_pr("get fclk_div4_clk err\n");
+		else
+			clk_rate = clk_get_rate(fclk_div4_clk);
 	}
 	pd_fifo_buf = kmalloc_array(1, PFIFO_SIZE * sizeof(u32),
 				    GFP_KERNEL);
