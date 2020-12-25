@@ -14,7 +14,7 @@
 #define EMMC_KEY_AREA_SIGNAL		"emmckeys"
 #define EMMC_KEY_AREA_SIGNAL_LEN	16
 
-#define EMMC_KEYAREA_SIZE		(128 * 1024)
+#define EMMC_KEYAREA_SIZE		(256 * 1024)
 #define EMMC_KEYAREA_COUNT		2
 
 /* we store partition table in the previous 16KB space */
@@ -39,6 +39,12 @@ struct aml_emmckey_info_t {
 	u8	key_init;
 	u8	key_valid;
 	u8	key_part_count;
+};
+
+struct aml_key_info {
+	u64 checksum;
+	u32 stamp;
+	u32 magic;
 };
 
 #define EMMCKEY_DATA_VALID_LEN		\
