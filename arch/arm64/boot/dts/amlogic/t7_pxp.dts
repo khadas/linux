@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include "mesont7.dtsi"
-#include "partition_mbox.dtsi"
+#include "partition_mbox_normal_P_32.dtsi"
 #include <dt-bindings/input/input.h>
 #include "mesont7_pxp-panel.dtsi"
 
@@ -1029,9 +1029,9 @@
 };
 
 &ir {
-	status = "disabled";
-	pinctrl-0 = <&remote_pins>;
-	pinctrl-names = "default";
+	status = "okay";
+//	pinctrl-0 = <&remote_pins>;
+//	pinctrl-names = "default";
 };
 
 &spicc0 {
