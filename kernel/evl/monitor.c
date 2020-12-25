@@ -14,7 +14,6 @@
 #include <evl/monitor.h>
 #include <evl/thread.h>
 #include <evl/memory.h>
-#include <evl/lock.h>
 #include <evl/sched.h>
 #include <evl/factory.h>
 #include <evl/syscall.h>
@@ -32,7 +31,7 @@ struct evl_monitor {
 		struct {
 			struct evl_mutex mutex;
 			struct list_head events;
-			evl_spinlock_t lock;
+			hard_spinlock_t lock;
 		};
 		struct {
 			struct evl_wait_queue wait_queue;
@@ -138,11 +137,11 @@ static void untrack_event(struct evl_monitor *event)
 	struct evl_monitor *gate = event->gate;
 	unsigned long flags;
 
-	evl_spin_lock_irqsave(&gate->lock, flags);
+	raw_spin_lock_irqsave(&gate->lock, flags);
 	raw_spin_lock(&event->wait_queue.lock);
 	__untrack_event(event);
 	raw_spin_unlock(&event->wait_queue.lock);
-	evl_spin_unlock_irqrestore(&gate->lock, flags);
+	raw_spin_unlock_irqrestore(&gate->lock, flags);
 }
 
 /* event->gate->lock and event->wait_queue.lock held, irqs off */
@@ -259,7 +258,7 @@ static int exit_monitor(struct evl_monitor *gate)
 	 * Locking order is gate lock first, depending event lock(s)
 	 * next.
 	 */
-	evl_spin_lock_irqsave(&gate->lock, flags);
+	raw_spin_lock_irqsave(&gate->lock, flags);
 
 	__exit_monitor(gate, curr);
 
@@ -277,7 +276,7 @@ static int exit_monitor(struct evl_monitor *gate)
 		}
 	}
 
-	evl_spin_unlock_irqrestore(&gate->lock, flags);
+	raw_spin_unlock_irqrestore(&gate->lock, flags);
 
 	evl_schedule();
 
@@ -483,7 +482,7 @@ static int wait_monitor(struct file *filp,
 		goto put;
 	}
 
-	evl_spin_lock_irqsave(&gate->lock, flags);
+	raw_spin_lock_irqsave(&gate->lock, flags);
 	raw_spin_lock(&event->wait_queue.lock);
 
 	/*
@@ -499,7 +498,7 @@ static int wait_monitor(struct file *filp,
 		event->state->u.event.gate_offset = evl_shared_offset(gate->state);
 	} else if (event->gate != gate) {
 		raw_spin_unlock(&event->wait_queue.lock);
-		evl_spin_unlock_irqrestore(&gate->lock, flags);
+		raw_spin_unlock_irqrestore(&gate->lock, flags);
 		op_ret = -EBADFD;
 		goto put;
 	}
@@ -513,7 +512,7 @@ static int wait_monitor(struct file *filp,
 	raw_spin_unlock(&curr->lock);
 	raw_spin_unlock(&event->wait_queue.lock);
 	__exit_monitor(gate, curr);
-	evl_spin_unlock_irqrestore(&gate->lock, flags);
+	raw_spin_unlock_irqrestore(&gate->lock, flags);
 
 	/*
 	 * Actually wait on the event. If a break condition is raised
@@ -844,7 +843,7 @@ monitor_factory_build(struct evl_factory *fac, const char __user *u_name,
 			INIT_LIST_HEAD(&mon->events);
 			break;
 		}
-		evl_spin_lock_init(&mon->lock);
+		raw_spin_lock_init(&mon->lock);
 		break;
 	case EVL_MONITOR_EVENT:
 		evl_init_wait(&mon->wait_queue, clock, EVL_WAIT_PRIO);
@@ -889,9 +888,9 @@ static void monitor_factory_dispose(struct evl_element *e)
 		evl_put_clock(mon->wait_queue.clock);
 		evl_destroy_wait(&mon->wait_queue);
 		if (mon->gate) {
-			evl_spin_lock_irqsave(&mon->gate->lock, flags);
+			raw_spin_lock_irqsave(&mon->gate->lock, flags);
 			list_del(&mon->next);
-			evl_spin_unlock_irqrestore(&mon->gate->lock, flags);
+			raw_spin_unlock_irqrestore(&mon->gate->lock, flags);
 		}
 	} else {
 		evl_put_clock(mon->mutex.clock);
