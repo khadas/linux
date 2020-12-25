@@ -60,7 +60,7 @@ static void raise_boost_flag(struct evl_thread *owner)
 {
 	assert_evl_lock(&owner->lock);
 
-	evl_spin_lock(&owner->rq->lock);
+	raw_spin_lock(&owner->rq->lock);
 
 	/* Backup the base priority at first boost only. */
 	if (!(owner->state & T_BOOST)) {
@@ -68,7 +68,7 @@ static void raise_boost_flag(struct evl_thread *owner)
 		owner->state |= T_BOOST;
 	}
 
-	evl_spin_unlock(&owner->rq->lock);
+	raw_spin_unlock(&owner->rq->lock);
 }
 
 /* owner->lock + contender->lock held, irqs off */
@@ -354,9 +354,9 @@ static void clear_boost_locked(struct evl_mutex *mutex,
 
 	list_del(&mutex->next_booster);	/* owner->boosters */
 	if (list_empty(&owner->boosters)) {
-		evl_spin_lock(&owner->rq->lock);
+		raw_spin_lock(&owner->rq->lock);
 		owner->state &= ~T_BOOST;
-		evl_spin_unlock(&owner->rq->lock);
+		raw_spin_unlock(&owner->rq->lock);
 		inherit_thread_priority(owner, owner, owner);
 	} else
 		adjust_boost(owner, NULL, mutex, owner);
@@ -389,18 +389,18 @@ static void detect_inband_owner(struct evl_mutex *mutex,
 	 * @curr == this_evl_rq()->curr so no need to grab
 	 * @curr->lock.
 	 */
-	evl_spin_lock(&curr->rq->lock);
+	raw_spin_lock(&curr->rq->lock);
 
 	if (curr->info & T_PIALERT) {
 		curr->info &= ~T_PIALERT;
 	} else if (owner->state & T_INBAND) {
 		curr->info |= T_PIALERT;
-		evl_spin_unlock(&curr->rq->lock);
+		raw_spin_unlock(&curr->rq->lock);
 		evl_notify_thread(curr, EVL_HMDIAG_LKDEPEND, evl_nil);
 		return;
 	}
 
-	evl_spin_unlock(&curr->rq->lock);
+	raw_spin_unlock(&curr->rq->lock);
 }
 
 /*
@@ -427,9 +427,9 @@ void evl_detect_boost_drop(void)
 		for_each_evl_mutex_waiter(waiter, mutex) {
 			if (!(waiter->state & T_WOLI))
 				continue;
-			evl_spin_lock(&waiter->rq->lock);
+			raw_spin_lock(&waiter->rq->lock);
 			waiter->info |= T_PIALERT;
-			evl_spin_unlock(&waiter->rq->lock);
+			raw_spin_unlock(&waiter->rq->lock);
 			evl_notify_thread(waiter, EVL_HMDIAG_LKDEPEND, evl_nil);
 		}
 		evl_spin_unlock(&mutex->lock);
@@ -726,9 +726,9 @@ redo:
 		if ((owner->info & T_WAKEN) && owner->wwake == &mutex->wchan) {
 			/* Ownership is still pending, steal the resource. */
 			set_current_owner_locked(mutex, curr);
-			evl_spin_lock(&owner->rq->lock);
+			raw_spin_lock(&owner->rq->lock);
 			owner->info |= T_ROBBED;
-			evl_spin_unlock(&owner->rq->lock);
+			raw_spin_unlock(&owner->rq->lock);
 			evl_spin_unlock(&owner->lock);
 			goto grab;
 		}
@@ -765,9 +765,9 @@ redo:
 	evl_spin_unlock(&owner->lock);
 
 	if (likely(!ret)) {
-		evl_spin_lock(&curr->rq->lock);
+		raw_spin_lock(&curr->rq->lock);
 		evl_sleep_on_locked(timeout, timeout_mode, mutex->clock, &mutex->wchan);
-		evl_spin_unlock(&curr->rq->lock);
+		raw_spin_unlock(&curr->rq->lock);
 		evl_spin_unlock(&curr->lock);
 		evl_spin_unlock_irqrestore(&mutex->lock, flags);
 		ret = wait_mutex_schedule(mutex);
@@ -778,11 +778,11 @@ redo:
 	finish_mutex_wait(mutex);
 	evl_spin_lock(&curr->lock);
 	curr->wwake = NULL;
-	evl_spin_lock(&curr->rq->lock);
+	raw_spin_lock(&curr->rq->lock);
 	curr->info &= ~T_WAKEN;
 
 	if (ret) {
-		evl_spin_unlock(&curr->rq->lock);
+		raw_spin_unlock(&curr->rq->lock);
 		goto out;
 	}
 
@@ -794,7 +794,7 @@ redo:
 		 * for the mutex, unless we know for sure it's too
 		 * late.
 		 */
-		evl_spin_unlock(&curr->rq->lock);
+		raw_spin_unlock(&curr->rq->lock);
 		if (timeout_mode != EVL_REL ||
 			timeout_infinite(timeout) ||
 			evl_get_stopped_timer_delta(&curr->rtimer) != 0) {
@@ -806,7 +806,7 @@ redo:
 		goto out;
 	}
 
-	evl_spin_unlock(&curr->rq->lock);
+	raw_spin_unlock(&curr->rq->lock);
 grab:
 	disable_inband_switch(curr);
 

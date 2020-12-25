@@ -491,7 +491,7 @@ void evl_sleep_on_locked(ktime_t timeout, enum evl_tmode timeout_mode,
 	unsigned long oldstate;
 
 	assert_evl_lock(&curr->lock);
-	assert_evl_lock(&rq->lock);
+	assert_hard_lock(&rq->lock);
 
 	trace_evl_sleep_on(timeout, timeout_mode, clock, wchan);
 
@@ -569,7 +569,7 @@ static void evl_wakeup_thread_locked(struct evl_thread *thread,
 	unsigned long oldstate;
 
 	assert_evl_lock(&thread->lock);
-	assert_evl_lock(&thread->rq->lock);
+	assert_hard_lock(&thread->rq->lock);
 
 	if (EVL_WARN_ON(CORE, mask & ~(T_DELAY|T_PEND|T_WAIT)))
 		return;
@@ -672,7 +672,7 @@ static void evl_release_thread_locked(struct evl_thread *thread,
 	unsigned long oldstate;
 
 	assert_evl_lock(&thread->lock);
-	assert_evl_lock(&thread->rq->lock);
+	assert_hard_lock(&thread->rq->lock);
 
 	if (EVL_WARN_ON(CORE, mask & ~(T_SUSP|T_HALT|T_INBAND|T_DORMANT|T_PTSYNC)))
 		return;
@@ -1827,7 +1827,7 @@ static int ptrace_sync(void)
 			evl_wait_event(oob_mm->ptsync_barrier,
 				list_empty(&oob_mm->ptrace_sync));
 
-	evl_spin_lock_irqsave(&this_rq->lock, flags);
+	raw_spin_lock_irqsave(&this_rq->lock, flags);
 
 	/*
 	 * If we got interrupted while waiting on the ptsync barrier,
@@ -1839,7 +1839,7 @@ static int ptrace_sync(void)
 		curr->state &= ~T_PTRACE;
 	}
 
-	evl_spin_unlock_irqrestore(&this_rq->lock, flags);
+	raw_spin_unlock_irqrestore(&this_rq->lock, flags);
 
 	return ret ? -ERESTARTSYS : 0;
 }
@@ -1934,7 +1934,7 @@ static int set_time_slice(struct evl_thread *thread, ktime_t quantum)
 	struct evl_rq *rq = thread->rq;
 
 	assert_evl_lock(&thread->lock);
-	assert_evl_lock(&rq->lock);
+	assert_hard_lock(&rq->lock);
 
 	thread->rrperiod = quantum;
 

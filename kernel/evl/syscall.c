@@ -168,7 +168,7 @@ static void prepare_for_signal(struct task_struct *p,
 	 * @curr == this_evl_rq()->curr over oob so no need to grab
 	 * @curr->lock (i.e. @curr cannot go away under out feet).
 	 */
-	evl_spin_lock_irqsave(&curr->rq->lock, flags);
+	raw_spin_lock_irqsave(&curr->rq->lock, flags);
 
 	/*
 	 * We are called from out-of-band mode only to act upon a
@@ -186,7 +186,7 @@ static void prepare_for_signal(struct task_struct *p,
 		curr->info &= ~T_KICKED;
 	}
 
-	evl_spin_unlock_irqrestore(&curr->rq->lock, flags);
+	raw_spin_unlock_irqrestore(&curr->rq->lock, flags);
 
 	evl_test_cancel();
 

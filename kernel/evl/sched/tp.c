@@ -17,7 +17,7 @@ static void tp_schedule_next(struct evl_sched_tp *tp)
 	int p_next;
 
 	rq = container_of(tp, struct evl_rq, tp);
-	assert_evl_lock(&rq->lock);
+	assert_hard_lock(&rq->lock);
 
 	/*
 	 * Switch to the next partition. Time holes in a global time
@@ -60,7 +60,7 @@ static void tp_tick_handler(struct evl_timer *timer)
 	struct evl_rq *rq = container_of(timer, struct evl_rq, tp.tf_timer);
 	struct evl_sched_tp *tp = &rq->tp;
 
-	evl_spin_lock(&rq->lock);
+	raw_spin_lock(&rq->lock);
 
 	/*
 	 * Advance beginning date of time frame by a full period if we
@@ -71,7 +71,7 @@ static void tp_tick_handler(struct evl_timer *timer)
 
 	tp_schedule_next(tp);
 
-	evl_spin_unlock(&rq->lock);
+	raw_spin_unlock(&rq->lock);
 }
 
 static void tp_init(struct evl_rq *rq)
@@ -232,7 +232,7 @@ static void start_tp_schedule(struct evl_rq *rq)
 {
 	struct evl_sched_tp *tp = &rq->tp;
 
-	assert_evl_lock(&rq->lock);
+	assert_hard_lock(&rq->lock);
 
 	if (tp->gps == NULL)
 		return;
@@ -246,7 +246,7 @@ static void stop_tp_schedule(struct evl_rq *rq)
 {
 	struct evl_sched_tp *tp = &rq->tp;
 
-	assert_evl_lock(&rq->lock);
+	assert_hard_lock(&rq->lock);
 
 	if (tp->gps)
 		evl_stop_timer(&tp->tf_timer);
@@ -260,7 +260,7 @@ set_tp_schedule(struct evl_rq *rq, struct evl_tp_schedule *gps)
 	struct evl_tp_schedule *old_gps;
 	union evl_sched_param param;
 
-	assert_evl_lock(&rq->lock);
+	assert_hard_lock(&rq->lock);
 
 	if (EVL_WARN_ON(CORE, gps != NULL &&
 		(gps->pwin_nr <= 0 || gps->pwins[0].w_offset != 0)))
@@ -291,7 +291,7 @@ get_tp_schedule(struct evl_rq *rq)
 {
 	struct evl_tp_schedule *gps = rq->tp.gps;
 
-	assert_evl_lock(&rq->lock);
+	assert_hard_lock(&rq->lock);
 
 	if (gps == NULL)
 		return NULL;
@@ -325,7 +325,7 @@ static ssize_t tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 
 	rq = evl_cpu_rq(cpu);
 
-	evl_spin_lock_irqsave(&rq->lock, flags);
+	raw_spin_lock_irqsave(&rq->lock, flags);
 
 	switch (pt->op) {
 	case evl_tp_install:
@@ -337,11 +337,11 @@ static ssize_t tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 		goto switch_schedule;
 	case evl_tp_start:
 		start_tp_schedule(rq);
-		evl_spin_unlock_irqrestore(&rq->lock, flags);
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
 		goto done;
 	case evl_tp_stop:
 		stop_tp_schedule(rq);
-		evl_spin_unlock_irqrestore(&rq->lock, flags);
+		raw_spin_unlock_irqrestore(&rq->lock, flags);
 		goto done;
 	case evl_tp_get:
 		break;
@@ -350,7 +350,7 @@ static ssize_t tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 	}
 
 	gps = get_tp_schedule(rq);
-	evl_spin_unlock_irqrestore(&rq->lock, flags);
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
 	if (gps == NULL)
 		goto done;
 
@@ -379,7 +379,7 @@ static ssize_t tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 	return evl_tp_infolen(nr_windows);
 
 install_schedule:
-	evl_spin_unlock_irqrestore(&rq->lock, flags);
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
 
 	gps = evl_alloc(sizeof(*gps) + pt->nr_windows * sizeof(*w));
 	if (gps == NULL)
@@ -413,10 +413,10 @@ install_schedule:
 	atomic_set(&gps->refcount, 1);
 	gps->pwin_nr = n;
 	gps->tf_duration = next_offset;
-	evl_spin_lock_irqsave(&rq->lock, flags);
+	raw_spin_lock_irqsave(&rq->lock, flags);
 switch_schedule:
 	ogps = set_tp_schedule(rq, gps);
-	evl_spin_unlock_irqrestore(&rq->lock, flags);
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
 
 	if (ogps)
 		put_tp_schedule(ogps);
