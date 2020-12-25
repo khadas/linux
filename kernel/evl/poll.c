@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <evl/file.h>
+#include <evl/lock.h>
 #include <evl/thread.h>
 #include <evl/memory.h>
 #include <evl/poll.h>
@@ -91,9 +92,9 @@ void evl_poll_watch(struct evl_poll_head *head,
 
 	wpt = container_of(wait, struct evl_poll_watchpoint, wait);
 	/* Connect to a driver's poll head. */
-	evl_spin_lock_irqsave(&head->lock, flags);
+	raw_spin_lock_irqsave(&head->lock, flags);
 	connect_watchpoint(wait, head, unwatch);
-	evl_spin_unlock_irqrestore(&head->lock, flags);
+	raw_spin_unlock_irqrestore(&head->lock, flags);
 }
 EXPORT_SYMBOL_GPL(evl_poll_watch);
 
@@ -105,7 +106,7 @@ void __evl_signal_poll_events(struct evl_poll_head *head,
 	unsigned long flags;
 	int ready;
 
-	evl_spin_lock_irqsave(&head->lock, flags);
+	raw_spin_lock_irqsave(&head->lock, flags);
 
 	list_for_each_entry(poco, &head->watchpoints, next) {
 		wpt = container_of(poco, struct evl_poll_watchpoint,
@@ -117,7 +118,7 @@ void __evl_signal_poll_events(struct evl_poll_head *head,
 		}
 	}
 
-	evl_spin_unlock_irqrestore(&head->lock, flags);
+	raw_spin_unlock_irqrestore(&head->lock, flags);
 }
 EXPORT_SYMBOL_GPL(__evl_signal_poll_events);
 
@@ -327,11 +328,11 @@ void evl_drop_watchpoints(struct list_head *drop_list)
 	list_for_each_entry(node, drop_list, next) {
 		wpt = container_of(node, struct evl_poll_watchpoint, node);
 		for_each_poll_connector(poco, wpt) {
-			evl_spin_lock(&poco->head->lock);
+			raw_spin_lock(&poco->head->lock);
 			poco->events_received |= POLLNVAL;
 			if (poco->unwatch) /* handler must NOT reschedule. */
 				poco->unwatch(poco->head);
-			evl_spin_unlock(&poco->head->lock);
+			raw_spin_unlock(&poco->head->lock);
 		}
 		evl_raise_flag_nosched(wpt->flag);
 		wpt->filp = NULL;
@@ -529,11 +530,11 @@ static inline void clear_wait(void)
 		evl_ignore_fd(&wpt->node);
 		/* Remove from driver's poll head(s). */
 		for_each_poll_connector(poco, wpt) {
-			evl_spin_lock_irqsave(&poco->head->lock, flags);
+			raw_spin_lock_irqsave(&poco->head->lock, flags);
 			list_del(&poco->next);
 			if (!(poco->events_received & POLLNVAL) && poco->unwatch)
 				poco->unwatch(poco->head);
-			evl_spin_unlock_irqrestore(&poco->head->lock, flags);
+			raw_spin_unlock_irqrestore(&poco->head->lock, flags);
 		}
 	}
 }
