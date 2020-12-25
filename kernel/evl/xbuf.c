@@ -17,7 +17,6 @@
 #include <evl/clock.h>
 #include <evl/xbuf.h>
 #include <evl/memory.h>
-#include <evl/lock.h>
 #include <evl/factory.h>
 #include <evl/sched.h>
 #include <evl/poll.h>
@@ -47,7 +46,7 @@ struct xbuf_inbound {		/* oob_write->read */
 	struct evl_flag o_event;
 	struct irq_work irq_work;
 	struct xbuf_ring ring;
-	evl_spinlock_t lock;
+	hard_spinlock_t lock;
 };
 
 struct xbuf_outbound {		/* write->oob_read */
@@ -300,7 +299,7 @@ static unsigned long inbound_lock(struct xbuf_ring *ring)
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
 	unsigned long flags;
 
-	evl_spin_lock_irqsave(&xbuf->ibnd.lock, flags);
+	raw_spin_lock_irqsave(&xbuf->ibnd.lock, flags);
 
 	return flags;
 }
@@ -309,7 +308,7 @@ static void inbound_unlock(struct xbuf_ring *ring, unsigned long flags)
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, ibnd.ring);
 
-	evl_spin_unlock_irqrestore(&xbuf->ibnd.lock, flags);
+	raw_spin_unlock_irqrestore(&xbuf->ibnd.lock, flags);
 }
 
 static int inbound_wait_input(struct xbuf_ring *ring, size_t len, size_t avail)
@@ -678,7 +677,7 @@ xbuf_factory_build(struct evl_factory *fac, const char __user *u_name,
 	/* Inbound traffic: oob_write() -> read(). */
 	init_waitqueue_head(&xbuf->ibnd.i_event);
 	evl_init_flag(&xbuf->ibnd.o_event);
-	evl_spin_lock_init(&xbuf->ibnd.lock);
+	raw_spin_lock_init(&xbuf->ibnd.lock);
 	init_irq_work(&xbuf->ibnd.irq_work, resume_inband_reader);
 	xbuf->ibnd.ring.bufmem = i_bufmem;
 	xbuf->ibnd.ring.bufsz = attrs.i_bufsz;
