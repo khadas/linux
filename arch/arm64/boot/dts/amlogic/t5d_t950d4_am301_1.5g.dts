@@ -667,8 +667,8 @@
 	};
 
 	unifykey {
-		compatible = "amlogic, unifykey";
-		status = "disabled";
+		compatible = "amlogic,unifykey";
+		status = "okay";
 
 		unifykey-num = <24>;
 		unifykey-index-0 = <&keysn_0>;
