@@ -173,18 +173,15 @@ static int rtswitch_to_rt(struct rtswitch_context *ctx,
 				evl_abs_timeout(&ctx->wake_up_delay,
 						ctx->pause_us * 1000),
 				EVL_INFINITE);
-		evl_disable_preempt();
 	} else
 		switch (to->base.flags & HECTIC_OOB_WAIT) {
 		case HECTIC_INBAND_WAIT:
 			ctx->utask = to;
 			barrier();
 			irq_work_queue(&ctx->wake_utask);
-			evl_disable_preempt();
 			break;
 
 		case HECTIC_OOB_WAIT:
-			evl_disable_preempt();
 			evl_raise_flag(&to->rt_synch);
 			break;
 
@@ -193,8 +190,6 @@ static int rtswitch_to_rt(struct rtswitch_context *ctx,
 		}
 
 	rc = evl_wait_flag(&from->rt_synch);
-	evl_enable_preempt();
-
 	if (rc < 0)
 		return rc;
 
