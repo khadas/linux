@@ -5,6 +5,7 @@
 #ifdef CONFIG_EVL
 
 #include <linux/list.h>
+#include <evl/wait.h>
 
 #define EVL_MM_PTSYNC_BIT  0
 #define EVL_MM_ACTIVE_BIT  30
@@ -15,7 +16,7 @@ struct evl_wait_queue;
 struct oob_mm_state {
 	unsigned long flags;	/* Guaranteed zero initially. */
 	struct list_head ptrace_sync;
-	struct evl_wait_queue *ptsync_barrier;
+	struct evl_wait_queue ptsync_barrier;
 };
 
 #else
