@@ -16,39 +16,7 @@
 #include <evl/stat.h>
 #include <evl/list.h>
 #include <evl/assert.h>
-
-/*
- * Basic assumption throughout the code: ktime_t is a 64bit signed
- * scalar type holding an internal time unit, which means that:
- *
- * - we may compare two ktime_t values using basic relational operators
- * - we may check for nullness by comparing to 0 directly
- * - we must use ktime_to_ns()/ns_to_ktime() helpers for converting
- *   to/from nanoseconds.
- */
-#define EVL_INFINITE   0
-#define EVL_NONBLOCK   ((s64)((u64)1 << 63))
-
-static inline bool timeout_infinite(ktime_t kt)
-{
-	return kt == 0;
-}
-
-static inline bool timeout_nonblock(ktime_t kt)
-{
-	return kt < 0;
-}
-
-static inline bool timeout_valid(ktime_t kt)
-{
-	return kt > 0;
-}
-
-/* Timer modes */
-enum evl_tmode {
-	EVL_REL,
-	EVL_ABS,
-};
+#include <evl/timeout.h>
 
 /* Timer status */
 #define EVL_TIMER_DEQUEUED  0x00000001

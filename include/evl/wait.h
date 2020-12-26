@@ -8,13 +8,10 @@
 #ifndef _EVL_WAIT_H
 #define _EVL_WAIT_H
 
-#include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/spinlock.h>
-#include <evl/list.h>
-#include <evl/timer.h>
-#include <evl/clock.h>
-#include <uapi/evl/thread.h>
+#include <linux/list.h>
+#include <evl/assert.h>
+#include <evl/timeout.h>
 
 #define EVL_WAIT_FIFO    0
 #define EVL_WAIT_PRIO    BIT(0)
@@ -63,9 +60,9 @@ struct evl_wait_queue {
 									\
 	raw_spin_lock_irqsave(&(__wq)->lock, __flags);			\
 	if (!(__cond)) {						\
-		if (timeout_nonblock(__timeout))			\
+		if (timeout_nonblock(__timeout)) {			\
 			__ret = -EAGAIN;				\
-		else {							\
+		} else {						\
 			do {						\
 				evl_add_wait_queue(__wq, __timeout,	\
 						__timeout_mode);	\
