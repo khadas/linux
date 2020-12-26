@@ -1448,16 +1448,7 @@ pid_t evl_get_inband_pid(struct evl_thread *thread)
 
 int activate_oob_mm_state(struct oob_mm_state *p)
 {
-	/*
-	 * A bit silly but we need a dynamic allocation for the EVL
-	 * wait queue only to work around some inclusion hell when
-	 * defining EVL's version of struct oob_mm_state. Revisit?
-	 */
-	p->ptsync_barrier = kmalloc(sizeof(*p->ptsync_barrier), GFP_KERNEL);
-	if (p->ptsync_barrier == NULL)
-		return -ENOMEM;
-
-	evl_init_wait(p->ptsync_barrier, &evl_mono_clock, EVL_WAIT_PRIO);
+	evl_init_wait(&p->ptsync_barrier, &evl_mono_clock, EVL_WAIT_PRIO);
 	INIT_LIST_HEAD(&p->ptrace_sync);
 	smp_mb__before_atomic();
 	set_bit(EVL_MM_ACTIVE_BIT, &p->flags);
@@ -1475,8 +1466,7 @@ static void flush_oob_mm_state(struct oob_mm_state *p)
 	 */
 	if (test_and_clear_bit(EVL_MM_ACTIVE_BIT, &p->flags)) {
 		EVL_WARN_ON(CORE, !list_empty(&p->ptrace_sync));
-		evl_destroy_wait(p->ptsync_barrier);
-		kfree(p->ptsync_barrier);
+		evl_destroy_wait(&p->ptsync_barrier);
 	}
 }
 
@@ -1691,14 +1681,14 @@ static void join_ptsync(struct evl_thread *curr)
 {
 	struct oob_mm_state *oob_mm = curr->oob_mm;
 
-	raw_spin_lock(&oob_mm->ptsync_barrier->lock);
+	raw_spin_lock(&oob_mm->ptsync_barrier.lock);
 
 	/* In non-stop mode, no ptsync sequence is started. */
 	if (test_bit(EVL_MM_PTSYNC_BIT, &oob_mm->flags) &&
 		list_empty(&curr->ptsync_next))
 		list_add_tail(&curr->ptsync_next, &oob_mm->ptrace_sync);
 
-	raw_spin_unlock(&oob_mm->ptsync_barrier->lock);
+	raw_spin_unlock(&oob_mm->ptsync_barrier.lock);
 }
 
 static int leave_ptsync(struct evl_thread *leaver)
@@ -1707,7 +1697,7 @@ static int leave_ptsync(struct evl_thread *leaver)
 	unsigned long flags;
 	int ret = 0;
 
-	raw_spin_lock_irqsave(&oob_mm->ptsync_barrier->lock, flags);
+	raw_spin_lock_irqsave(&oob_mm->ptsync_barrier.lock, flags);
 
 	if (!test_bit(EVL_MM_PTSYNC_BIT, &oob_mm->flags))
 		goto out;
@@ -1721,7 +1711,7 @@ static int leave_ptsync(struct evl_thread *leaver)
 		ret = 1;
 	}
 out:
-	raw_spin_unlock_irqrestore(&oob_mm->ptsync_barrier->lock, flags);
+	raw_spin_unlock_irqrestore(&oob_mm->ptsync_barrier.lock, flags);
 
 	return ret;
 }
@@ -1732,7 +1722,7 @@ static void skip_ptsync(struct evl_thread *thread)
 
 	if (test_bit(EVL_MM_ACTIVE_BIT, &oob_mm->flags) &&
 		leave_ptsync(thread) > 0) {
-		evl_flush_wait(oob_mm->ptsync_barrier, 0);
+		evl_flush_wait(&oob_mm->ptsync_barrier, 0);
 		evl_schedule();
 	}
 }
@@ -1820,11 +1810,11 @@ static int ptrace_sync(void)
 	sigpending = signal_pending(current);
 	ret = leave_ptsync(curr);
 	if (ret > 0) {
-		evl_flush_wait(oob_mm->ptsync_barrier, 0);
+		evl_flush_wait(&oob_mm->ptsync_barrier, 0);
 		ret = 0;
 	} else if (ret < 0)
 		ret = sigpending ? -ERESTARTSYS :
-			evl_wait_event(oob_mm->ptsync_barrier,
+			evl_wait_event(&oob_mm->ptsync_barrier,
 				list_empty(&oob_mm->ptrace_sync));
 
 	raw_spin_lock_irqsave(&this_rq->lock, flags);
