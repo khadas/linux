@@ -6407,6 +6407,100 @@ static struct clk_regmap t7_pwm_ao_f_gate = {
 	},
 };
 
+static struct clk_regmap t7_pwm_ao_g_mux = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = CLKCTRL_PWM_CLK_AO_GH_CTRL,
+		.mask = 0x3,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pwm_ao_g_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = t7_pwm_parent_data,
+		.num_parents = ARRAY_SIZE(t7_pwm_parent_data),
+	},
+};
+
+static struct clk_regmap t7_pwm_ao_g_div = {
+	.data = &(struct clk_regmap_div_data) {
+		.offset = CLKCTRL_PWM_CLK_AO_GH_CTRL,
+		.shift = 0,
+		.width = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pwm_ao_g_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t7_pwm_ao_g_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT
+	},
+};
+
+static struct clk_regmap t7_pwm_ao_g_gate = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = CLKCTRL_PWM_CLK_AO_GH_CTRL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pwm_ao_g_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t7_pwm_ao_g_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT
+	},
+};
+
+static struct clk_regmap t7_pwm_ao_h_mux = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = CLKCTRL_PWM_CLK_AO_GH_CTRL,
+		.mask = 0x3,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pwm_ao_h_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = t7_pwm_parent_data,
+		.num_parents = ARRAY_SIZE(t7_pwm_parent_data),
+	},
+};
+
+static struct clk_regmap t7_pwm_ao_h_div = {
+	.data = &(struct clk_regmap_div_data) {
+		.offset = CLKCTRL_PWM_CLK_AO_GH_CTRL,
+		.shift = 16,
+		.width = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pwm_ao_h_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t7_pwm_ao_h_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT
+	},
+};
+
+static struct clk_regmap t7_pwm_ao_h_gate = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = CLKCTRL_PWM_CLK_AO_GH_CTRL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pwm_ao_h_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t7_pwm_ao_h_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+	},
+};
+
 static u32 t7_dsi_meas_table[] = { 0, 1, 2, 3, 6, 7};
 
 static const struct clk_parent_data t7_dsi_meas_parent_data[] = {
@@ -7219,6 +7313,12 @@ static struct clk_hw_onecell_data t7_hw_onecell_data = {
 		[CLKID_PWM_AO_F_MUX]		= &t7_pwm_ao_f_mux.hw,
 		[CLKID_PWM_AO_F_DIV]		= &t7_pwm_ao_f_div.hw,
 		[CLKID_PWM_AO_F_GATE]		= &t7_pwm_ao_f_gate.hw,
+		[CLKID_PWM_AO_G_MUX]		= &t7_pwm_ao_g_mux.hw,
+		[CLKID_PWM_AO_G_DIV]		= &t7_pwm_ao_g_div.hw,
+		[CLKID_PWM_AO_G_GATE]		= &t7_pwm_ao_g_gate.hw,
+		[CLKID_PWM_AO_H_MUX]		= &t7_pwm_ao_h_mux.hw,
+		[CLKID_PWM_AO_H_DIV]		= &t7_pwm_ao_h_div.hw,
+		[CLKID_PWM_AO_H_GATE]		= &t7_pwm_ao_h_gate.hw,
 		[CLKID_SPICC0_MUX]		= &t7_spicc0_mux.hw,
 		[CLKID_SPICC0_DIV]		= &t7_spicc0_div.hw,
 		[CLKID_SPICC0_GATE]		= &t7_spicc0_gate.hw,
@@ -7610,6 +7710,12 @@ static struct clk_regmap *const t7_clk_regmaps[] = {
 	&t7_pwm_ao_f_mux,
 	&t7_pwm_ao_f_div,
 	&t7_pwm_ao_f_gate,
+	&t7_pwm_ao_g_mux,
+	&t7_pwm_ao_g_div,
+	&t7_pwm_ao_g_gate,
+	&t7_pwm_ao_h_mux,
+	&t7_pwm_ao_h_div,
+	&t7_pwm_ao_h_gate,
 	&t7_spicc0_mux,
 	&t7_spicc0_div,
 	&t7_spicc0_gate,

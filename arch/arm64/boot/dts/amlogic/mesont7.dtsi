@@ -433,6 +433,16 @@
 				status = "disabled";
 			};
 
+			pwmao_gh: pwm@32000 {
+				compatible = "amlogic,meson-v2-pwm";
+				reg = <0x0 0x32000 0x0 0x24>;
+				#pwm-cells = <3>;
+				clocks = <&clkc CLKID_PWM_AO_G_GATE>,
+						<&clkc CLKID_PWM_AO_H_GATE>;
+				clock-names = "clkin0", "clkin1";
+				status = "disabled";
+			};
+
 			i2c0: i2c@66000 {
 				compatible = "amlogic,meson-i2c";
 				reg = <0x0 0x66000 0x0 0x48>;
