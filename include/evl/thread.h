@@ -16,8 +16,6 @@
 #include <linux/atomic.h>
 #include <linux/spinlock.h>
 #include <linux/ptrace.h>
-#include <evl/list.h>
-#include <evl/lock.h>
 #include <evl/stat.h>
 #include <evl/init.h>
 #include <evl/timer.h>

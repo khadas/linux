@@ -29,7 +29,6 @@
 #include <evl/clock.h>
 #include <evl/stat.h>
 #include <evl/assert.h>
-#include <evl/lock.h>
 #include <evl/thread.h>
 #include <evl/memory.h>
 #include <evl/file.h>
@@ -489,6 +488,9 @@ void evl_sleep_on_locked(ktime_t timeout, enum evl_tmode timeout_mode,
 	struct evl_thread *curr = evl_current();
 	struct evl_rq *rq = curr->rq;
 	unsigned long oldstate;
+
+	/* Sleeping while preemption is disabled is a bug. */
+	EVL_WARN_ON(CORE, evl_preempt_count() != 0);
 
 	assert_hard_lock(&curr->lock);
 	assert_hard_lock(&rq->lock);
