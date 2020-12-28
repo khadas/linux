@@ -5,7 +5,6 @@ menu "Amlogic Backlight Support"
 
 config AMLOGIC_BACKLIGHT
 	bool "Amlogic backlight support"
-	depends on BACKLIGHT_LCD_SUPPORT
 	depends on BACKLIGHT_CLASS_DEVICE
 	default n
 	help

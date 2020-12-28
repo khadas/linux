@@ -13,7 +13,7 @@ config AMLOGIC_SUSPEND
       If you want this support, you should say Y here.
 
 config AMLOGIC_GX_SUSPEND
-    bool "Meson gx chips pm driver"
+    tristate "Meson gx chips pm driver"
     depends on AMLOGIC_SUSPEND
     depends on CPU_IDLE
     depends on PM_WAKELOCKS

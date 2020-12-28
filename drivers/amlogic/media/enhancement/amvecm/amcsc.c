@@ -397,7 +397,7 @@ static uint cur_hdr_policy = 0xff;
 module_param(hdr_policy, uint, 0664);
 MODULE_PARM_DESC(hdr_policy, "\n current hdr_policy\n");
 
-int __init boot_hdr_policy(char *str)
+int boot_hdr_policy(char *str)
 {
 	if (strncmp("1", str, 1) == 0) {
 		hdr_policy = 1; //follow source

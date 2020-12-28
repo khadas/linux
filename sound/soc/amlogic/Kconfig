@@ -28,7 +28,7 @@ config AMLOGIC_SND_SOC_COMMON
 		to select the audio interfaces to support below.
 
 config AMLOGIC_SND_NOTIFY
-	bool "Amlogic sound notify interface"
+	tristate "Amlogic sound notify interface"
 	default y if AMLOGIC_SND_SOC=m || AMLOGIC_SND_SOC=y
 	depends on AMLOGIC_GKI
 	help
