@@ -1044,7 +1044,8 @@ static void set_mcdi_def(struct DI_MIF1_S *di_inf_default,
 	op->wr(MCDI_BLKTOTAL, blkhsize * vsize);
 	op->wr(MCDI_MOTINEN, 1 << 1);
 	//enable motin refinement ary:in dimh_enable_mc_di_pre_g12
-	//op->wr(MCDI_REF_MV_NUM, 2);
+	if (!DIM_IS_IC(SC2))
+		op->wr(MCDI_REF_MV_NUM, 2);
 	//ary : in mc_di_param_init
 	op->wr(MCDI_CTRL_MODE, op->rd(MCDI_CTRL_MODE) |
 	//ary : dimh_mc_pre_mv_irq
@@ -2463,7 +2464,10 @@ static void set_di_post(struct DI_PST_S *ptcfg, const struct reg_acc *opin)
 	}
 	// motion for current display field.
 	if (ptcfg->blend_en) {
-		op->wr(MCDI_LMV_GAINTHD,  (3 << 20)); //normal di
+		if (DIM_IS_IC(SC2))
+			op->wr(MCDI_LMV_GAINTHD,  (3 << 20));//normal di
+		else
+			op->wr(DI_BLEND_CTRL,  (3 << 20));//normal di
 
 		op->wr(MTNRD_SCOPE_X,
 		       (ptcfg->mtn_mif->start_x) |
@@ -2786,7 +2790,10 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	       (ppcfg->pre_field_num << 29));
 	       // pre_field_num         = pre_ctrl[29];
 
-	op->wr(MCDI_LMV_GAINTHD,  (3 << 20));
+	if (DIM_IS_IC(SC2))
+		op->wr(MCDI_LMV_GAINTHD,  (3 << 20));
+	else
+		op->wr(DI_BLEND_CTRL,  (3 << 20));
 
 	op->wr(DI_POST_CTRL,
 	       (1 << 0) | // di_post_en      = post_ctrl[0];
@@ -3037,7 +3044,10 @@ static void enable_prepost_link_afbce(struct DI_PREPST_AFBC_S *pafcfg,
 	// pre_frm_sel = top_pre_ctrl[31:30];
 	//0:internal  1:pre-post link  2:viu  3:vcp(vdin)
 
-	op->wr(MCDI_LMV_GAINTHD,  (3 << 20));
+	if (DIM_IS_IC(SC2))
+		op->wr(MCDI_LMV_GAINTHD,  (3 << 20));
+	else
+		op->wr(DI_BLEND_CTRL,  (3 << 20));
 
 	op->wr(DI_POST_CTRL,
 	       (1 << 0) | // di_post_en      = post_ctrl[0];

@@ -231,7 +231,7 @@ void di_cfg_top_dts(void)
 	pd = &get_datal()->cfg_en[EDI_CFG_DAT];
 	pt = &di_cfg_top_ctr[EDI_CFG_DAT];
 	if (DIM_IS_IC(TM2B)	||
-	    DIM_IS_IC(SC2) || DIM_IS_IC(T5)) {
+	    DIM_IS_IC(SC2) || DIM_IS_IC(T5) || DIM_IS_IC(T7)) {
 		if (!pd->b.dts_have) {
 			pd->b.val_c = 0x3;
 			//pd->b.val_c = 0x0;//test
@@ -353,7 +353,7 @@ const struct di_cfgx_ctr_s di_cfgx_ctr[K_DI_CFGX_NUB] = {
 	/* cfg channel x*/
 	[EDI_CFGX_BEGIN]  = {"cfg x begin ", EDI_CFGX_BEGIN, 0},
 	/* bypass_all */
-	[EDI_CFGX_BYPASS_ALL]  = {"bypass_all", EDI_CFGX_BYPASS_ALL, 0},
+	[EDI_CFGX_BYPASS_ALL]  = {"bypass_all", EDI_CFGX_BYPASS_ALL, 1},
 	[EDI_CFGX_END]  = {"cfg x end ", EDI_CFGX_END, 0},
 
 	/* debug cfg x */

@@ -147,6 +147,7 @@ bool di_attach_ops_mtn(const struct mtn_op_s **ops);
 #define DI_IC_ID_T5		(0x19)// same with tm2b
 
 #define DI_IC_ID_SC2		(0x1B)
+#define DI_IC_ID_T7		(0x1C)
 #define DI_IC_ID_DEINTERLACE		(0xFF)
 
 /* is_meson_g12a_cpu */

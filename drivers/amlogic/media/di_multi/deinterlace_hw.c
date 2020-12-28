@@ -155,12 +155,12 @@ static void mc_di_param_init(void)
 	DIM_DI_WR(MCDI_CHK_EDGE_GAIN_OFFST, 0x4f6124);
 	DIM_DI_WR(MCDI_LMV_RT, 0x7455);
 	/*fix jira SWPL-32194,modify bit[31:24] to 0x20*/
-	if (DIM_IS_IC_BF(SC2))
+	if (!DIM_IS_IC(SC2))
 		DIM_DI_WR(MCDI_LMV_GAINTHD, 0x2014d409);
 
 	DIM_DI_WR(MCDI_REL_DET_LPF_MSK_22_30, 0x0a010001);
 	DIM_DI_WR(MCDI_REL_DET_LPF_MSK_31_34, 0x01010101);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL) && (DIM_IS_IC_BF(SC2)))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL) && (!DIM_IS_IC(SC2)))
 		DIM_DI_WR_REG_BITS(MCDI_REF_MV_NUM, 2, 0, 2);
 }
 
@@ -581,7 +581,7 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	set_skip_ctrl_size_regs();
 	ma_di_init();
 	ei_hw_init();
-	if (DIM_IS_IC_EF(SC2))
+	if (DIM_IS_IC(SC2))
 		mc_blend_sc2_init();
 	get_ops_nr()->nr_hw_init();
 	if (pd_enable)
@@ -2403,7 +2403,7 @@ void dimh_initial_di_post_2(int hsize_post, int vsize_post,
 		DIM_VSC_WR_MPG_BT(DI_EI_CTRL3, 1, 31, 1);
 
 	/* DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post >> 2) - 1); */
-	if (DIM_IS_IC_EF(SC2)) {
+	if (DIM_IS_IC(SC2)) {
 		DIM_VSC_WR_MPG_BT(MCDI_REF_MV_NUM,
 				  0, 16, 13);
 		DIM_VSC_WR_MPG_BT(MCDI_REF_MV_NUM,
@@ -2621,7 +2621,7 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 
 	if (di_ddr_en) {
 	}
-	if (DIM_IS_IC_EF(SC2)) {
+	if (DIM_IS_IC(SC2)) {
 		DIM_VSC_WR_MPG_BT(DI_POST_CTRL, blend_en, 1, 1);
 		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD, blend_mode, 20, 2);
 	} else {
@@ -2868,7 +2868,7 @@ void dimh_enable_di_post_2(struct DI_MIF_S		   *di_buf0_mif,
 		#endif
 	}
 	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, 7, 22, 3);
-	if (DIM_IS_IC_EF(SC2)) {
+	if (DIM_IS_IC(SC2)) {
 		DIM_VSC_WR_MPG_BT(DI_POST_CTRL, blend_en & 0x1, 1, 1);
 		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD, blend_mode & 0x3, 20, 2);
 	} else {
@@ -4331,7 +4331,7 @@ void dimh_combing_pd22_window_config(unsigned int width, unsigned int height)
 
 void dimh_pulldown_vof_win_config(struct pulldown_detected_s *wins)
 {
-	if (DIM_IS_IC_EF(SC2)) {
+	if (DIM_IS_IC(SC2)) {
 		DIM_VSC_WR_MPG_BT(MCDI_REF_MV_NUM,
 				  wins->regs[0].win_vs, 17, 12);
 		DIM_VSC_WR_MPG_BT(MCDI_REF_MV_NUM,
@@ -4352,7 +4352,7 @@ void dimh_pulldown_vof_win_config(struct pulldown_detected_s *wins)
 	DIM_VSC_WR_MPG_BT(DI_BLEND_REG3_Y, wins->regs[3].win_vs, 17, 12);
 	DIM_VSC_WR_MPG_BT(DI_BLEND_REG3_Y, wins->regs[3].win_ve, 1, 12);
 
-	if (DIM_IS_IC_EF(SC2)) {
+	if (DIM_IS_IC(SC2)) {
 		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD,
 				  (wins->regs[0].win_ve > wins->regs[0].win_vs)
 				  ? 1 : 0, 19, 1);
