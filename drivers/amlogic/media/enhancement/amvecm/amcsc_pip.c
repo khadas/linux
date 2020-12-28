@@ -148,17 +148,23 @@ void hdr_proc(struct vframe_s *vf,
 	pr_csc(8, "am_vecm: hdr module=%s, process=%s\n",
 	       module_str[module_sel],
 	       process_str[index]);
+
+	if (module_sel == 1)
+		process_id[0] = index;
+	else if (module_sel == 2)
+		process_id[1] = index;
 }
 
-void get_hdr_process_name(int id, char *name)
+void get_hdr_process_name(int id, char *name, char *output_fmt)
 {
 	int index;
 
 	if (id > 1)
 		return;
 	index = process_id[id];
-	if (index < 2)
-		memcpy(name, process_str[index], strlen(process_str[index]) + 1);
+	memcpy(name, process_str[index], strlen(process_str[index]) + 1);
+	memcpy(output_fmt, output_str[target_format[id]],
+	       strlen(output_str[target_format[id]]) + 1);
 }
 EXPORT_SYMBOL(get_hdr_process_name);
 
