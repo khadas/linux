@@ -61,10 +61,11 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 	struct am_hdmi_tx *am_hdmi = connector_to_am_hdmi(connector);
 	struct edid *edid;
 	int *vics;
-	int count = 0, i = 0;
+	int count = 0, i = 0, len = 0;
 	struct drm_display_mode *mode;
 	struct hdmi_format_para *hdmi_para;
 	struct hdmi_cea_timing *timing;
+	char *strp = NULL;
 
 	DRM_INFO("get_edid\n");
 	edid = drm_get_edid(connector, am_hdmi->ddc);
@@ -86,6 +87,17 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 
 			mode = drm_mode_create(connector->dev);
 			strcpy(mode->name, hdmi_para->hdmitx_vinfo.name);
+
+			/*
+			 * filter 4k420 mode, 4k420 mode end with "420"
+			 * 2160p60hz420 to 2160p60hz
+			 */
+			strp = strstr(mode->name, "420");
+			if (strp) {
+				len = strlen(mode->name) - strlen("420");
+				if (!strcmp(mode->name + len, "420"))
+					*strp = '\0';
+			}
 
 			mode->type = DRM_MODE_TYPE_DRIVER;
 			mode->vrefresh =
