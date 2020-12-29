@@ -223,6 +223,9 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 		else
 			lane_mask = setting->lane_mask_in;
 
+		if (p_tdm->chipinfo->slot_num_en && setting->slots > 0)
+			aml_tdmin_set_slot_num(p_tdm->actrl, p_tdm->id, setting->slots);
+
 		for (i = 0; i < p_tdm->lane_cnt; i++) {
 			if (i < lanes)
 				aml_tdm_set_channel_mask(p_tdm->actrl,
@@ -358,8 +361,7 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 		return -EINVAL;
 	}
 
-	if (p_tdm->chipinfo)
-		p_tdm->setting.sclk_ws_inv = p_tdm->chipinfo->sclk_ws_inv;
+	p_tdm->setting.sclk_ws_inv = p_tdm->chipinfo->sclk_ws_inv;
 
 	aml_tdm_set_format(p_tdm->actrl, &p_tdm->setting,
 			   p_tdm->clk_sel, p_tdm->id, fmt, 1, 1);
@@ -420,7 +422,9 @@ int aml_tdm_hw_setting_init(struct aml_tdm *p_tdm,
 		return ret;
 
 	/* Must enabe channel number for VAD */
-	if (stream == SNDRV_PCM_STREAM_CAPTURE && vad_tdm_is_running(p_tdm->id))
+	if (p_tdm->chipinfo->chnum_en &&
+	    stream == SNDRV_PCM_STREAM_CAPTURE &&
+	    vad_tdm_is_running(p_tdm->id))
 		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, true);
 
 	if (!p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
@@ -878,7 +882,7 @@ static int aml_tdm_prepare(struct snd_pcm_substream *substream)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		struct frddr *fr = p_tdm->fddr;
 
-		if (p_tdm->chipinfo && p_tdm->chipinfo->async_fifo) {
+		if (p_tdm->chipinfo->async_fifo) {
 			int offset = p_tdm->chipinfo->reset_reg_offset;
 
 			pr_debug("%s(), reset fddr\n", __func__);
@@ -978,11 +982,7 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 
 		/* i2s source to hdmix */
 		if (p_tdm->i2s2hdmitx) {
-			if (p_tdm->chipinfo) {
-				separated =
-				p_tdm->chipinfo->separate_tohdmitx_en;
-			}
-
+			separated = p_tdm->chipinfo->separate_tohdmitx_en;
 			i2s_to_hdmitx_ctrl(separated, p_tdm->id);
 			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
 						 substream);
@@ -1147,8 +1147,7 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_trigger(p_tdm, runtime->channels, cmd);
 
-			if (p_tdm->chipinfo	&&
-				p_tdm->chipinfo->async_fifo)
+			if (p_tdm->chipinfo->async_fifo)
 				aml_frddr_check(p_tdm->fddr);
 
 			aml_frddr_enable(p_tdm->fddr, false);
@@ -1192,7 +1191,8 @@ static int aml_dai_tdm_hw_free(struct snd_pcm_substream *substream,
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 
 	/* Disable channel number for VAD */
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
+	if (p_tdm->chipinfo->chnum_en &&
+	    substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
 	    vad_tdm_is_running(p_tdm->id))
 		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, false);
 
@@ -1298,7 +1298,7 @@ static int aml_dai_set_tdm_slot(struct snd_soc_dai *cpu_dai,
 			p_tdm->setting.lane_mask_in
 				& p_tdm->setting.lane_lb_mask_in);
 
-	if (p_tdm->chipinfo && p_tdm->chipinfo->oe_fn) {
+	if (p_tdm->chipinfo->oe_fn) {
 		if (p_tdm->setting.lane_mask_out
 				& p_tdm->setting.lane_oe_mask_out)
 			pr_err("pin(%x) should be selected for only one usage\n",
@@ -1650,7 +1650,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct aml_audio_controller *actrl = NULL;
 	struct aml_tdm *p_tdm = NULL;
-	struct tdm_chipinfo *p_chipinfo;
+	struct tdm_chipinfo *p_chipinfo = NULL;
 	int ret = 0;
 
 	p_tdm = devm_kzalloc(dev, sizeof(struct aml_tdm), GFP_KERNEL);
@@ -1693,8 +1693,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	}
 
 	/* default no same source */
-	if (p_tdm->chipinfo &&
-		p_tdm->chipinfo->same_src_fn) {
+	if (p_tdm->chipinfo->same_src_fn) {
 		int ss = 0;
 
 		ret = of_property_read_u32(node, "samesource_sel",
@@ -1710,8 +1709,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		}
 	}
 	/* default no acodec_adc */
-	if (p_tdm->chipinfo &&
-		p_tdm->chipinfo->adc_fn) {
+	if (p_tdm->chipinfo->adc_fn) {
 		ret = of_property_read_u32(node, "acodec_adc",
 				&p_tdm->acodec_adc);
 		if (ret < 0)

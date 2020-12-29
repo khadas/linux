@@ -55,6 +55,8 @@ struct tdm_chipinfo {
 	bool reset_tdmin;
 
 	struct src_table *tdmin_srcs;
+	bool slot_num_en;
+	bool chnum_en;
 };
 
 #define SRC_TDMIN_A     "tdmin_a"
@@ -107,6 +109,7 @@ struct tdm_chipinfo g12a_tdma_chipinfo = {
 	.same_src_fn = true,
 	.mclkpad_no_offset = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.chnum_en = true,
 };
 
 struct tdm_chipinfo g12a_tdmb_chipinfo = {
@@ -116,6 +119,7 @@ struct tdm_chipinfo g12a_tdmb_chipinfo = {
 	.same_src_fn = true,
 	.mclkpad_no_offset = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.chnum_en = true,
 };
 
 struct tdm_chipinfo g12a_tdmc_chipinfo = {
@@ -125,6 +129,7 @@ struct tdm_chipinfo g12a_tdmc_chipinfo = {
 	.same_src_fn = true,
 	.mclkpad_no_offset = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.chnum_en = true,
 };
 
 struct tdm_chipinfo tl1_tdma_chipinfo = {
@@ -136,6 +141,7 @@ struct tdm_chipinfo tl1_tdma_chipinfo = {
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.chnum_en = true,
 };
 
 struct tdm_chipinfo tl1_tdmb_chipinfo = {
@@ -147,6 +153,7 @@ struct tdm_chipinfo tl1_tdmb_chipinfo = {
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.chnum_en = true,
 };
 
 struct tdm_chipinfo tl1_tdmc_chipinfo = {
@@ -158,6 +165,7 @@ struct tdm_chipinfo tl1_tdmc_chipinfo = {
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.chnum_en = true,
 };
 
 struct tdm_chipinfo sm1_tdma_chipinfo = {
@@ -169,6 +177,7 @@ struct tdm_chipinfo sm1_tdma_chipinfo = {
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.chnum_en = true,
 };
 
 struct tdm_chipinfo sm1_tdmb_chipinfo = {
@@ -180,6 +189,7 @@ struct tdm_chipinfo sm1_tdmb_chipinfo = {
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.chnum_en = true,
 };
 
 struct tdm_chipinfo sm1_tdmc_chipinfo = {
@@ -191,6 +201,7 @@ struct tdm_chipinfo sm1_tdmc_chipinfo = {
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.chnum_en = true,
 };
 
 struct tdm_chipinfo tm2_tdma_chipinfo = {
@@ -203,6 +214,7 @@ struct tdm_chipinfo tm2_tdma_chipinfo = {
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.chnum_en = true,
 };
 
 struct tdm_chipinfo tm2_tdmb_chipinfo = {
@@ -215,6 +227,7 @@ struct tdm_chipinfo tm2_tdmb_chipinfo = {
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.chnum_en = true,
 };
 
 struct tdm_chipinfo tm2_tdmc_chipinfo = {
@@ -227,6 +240,7 @@ struct tdm_chipinfo tm2_tdmc_chipinfo = {
 	.reset_reg_offset = 1,
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.chnum_en = true,
 };
 
 struct tdm_chipinfo tm2_revb_tdma_chipinfo = {
@@ -240,6 +254,8 @@ struct tdm_chipinfo tm2_revb_tdma_chipinfo = {
 	.async_fifo  = true,
 	.separate_tohdmitx_en = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.slot_num_en = true,
+	.chnum_en = false,
 };
 
 struct tdm_chipinfo tm2_revb_tdmb_chipinfo = {
@@ -253,6 +269,8 @@ struct tdm_chipinfo tm2_revb_tdmb_chipinfo = {
 	.async_fifo  = true,
 	.separate_tohdmitx_en = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.slot_num_en = true,
+	.chnum_en = false,
 };
 
 struct tdm_chipinfo tm2_revb_tdmc_chipinfo = {
@@ -266,6 +284,8 @@ struct tdm_chipinfo tm2_revb_tdmc_chipinfo = {
 	.async_fifo  = true,
 	.separate_tohdmitx_en = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
+	.slot_num_en = true,
+	.chnum_en = false,
 };
 
 struct tdm_chipinfo t5_tdma_chipinfo = {
@@ -279,6 +299,8 @@ struct tdm_chipinfo t5_tdma_chipinfo = {
 	.async_fifo  = true,
 	.separate_tohdmitx_en = true,
 	.tdmin_srcs = &tdmin_srcs_v2[0],
+	.slot_num_en = true,
+	.chnum_en = false,
 };
 
 struct tdm_chipinfo t5_tdmb_chipinfo = {
@@ -292,6 +314,8 @@ struct tdm_chipinfo t5_tdmb_chipinfo = {
 	.async_fifo  = true,
 	.separate_tohdmitx_en = true,
 	.tdmin_srcs = &tdmin_srcs_v2[0],
+	.slot_num_en = true,
+	.chnum_en = false,
 };
 
 struct tdm_chipinfo t5_tdmc_chipinfo = {
@@ -305,6 +329,8 @@ struct tdm_chipinfo t5_tdmc_chipinfo = {
 	.async_fifo  = true,
 	.separate_tohdmitx_en = true,
 	.tdmin_srcs = &tdmin_srcs_v2[0],
+	.slot_num_en = true,
+	.chnum_en = false,
 };
 
 static const struct of_device_id aml_tdm_device_id[] = {

@@ -914,3 +914,12 @@ int aml_tdmin_get_status(int tdm_id)
 
 	return audiobus_read(reg);
 }
+
+void aml_tdmin_set_slot_num(struct aml_audio_controller *actrl, int index, int slot_num)
+{
+	unsigned int reg, offset;
+
+	offset = EE_AUDIO_TDMIN_B_CTRL - EE_AUDIO_TDMIN_A_CTRL;
+	reg = EE_AUDIO_TDMIN_A_CTRL + offset * index;
+	aml_audiobus_update_bits(actrl, reg, 0x1f << 8, (slot_num - 1) << 8);
+}
