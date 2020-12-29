@@ -37,7 +37,8 @@ enum tuner_type {
 	AM_TUNER_AV2018 = 19,
 	AM_TUNER_R836 = 20,
 	AM_TUNER_R848 = 21,
-	AM_TUNER_MXL603 = 22
+	AM_TUNER_MXL603 = 22,
+	AM_TUNER_RT710 = 23
 };
 
 enum atv_demod_type {
@@ -78,7 +79,9 @@ enum dtv_demod_type {
 	AM_DTV_DEMOD_MXL252C  = 23,
 	AM_DTV_DEMOD_MXL254C  = 24,
 	AM_DTV_DEMOD_MXL256C  = 25,
-	AM_DTV_DEMOD_MXL258C  = 26
+	AM_DTV_DEMOD_MXL258C  = 26,
+	AM_DTV_DEMOD_SI2169   = 27,
+	AM_DTV_DEMOD_AVL6221C = 28
 };
 
 enum aml_fe_dev_type {
@@ -99,6 +102,7 @@ struct gpio_config {
 /* For configure different tuners */
 /* It can add fields as extensions */
 struct tuner_config {
+	char *name;
 	u32 code; /* tuner chip code */
 	u8 id; /* enum tuner type */
 	u8 i2c_addr;
@@ -110,9 +114,15 @@ struct tuner_config {
 	u8 lt_out; /* loop through out, 0: off, 1: on. */
 	u8 dual_power; /* 0: 3.3v, 1: 1.8v and 3.3v. */
 	u8 if_agc; /* 0: self, 1: external. */
+	u8 if_hz; /* output intermediate frequency. */
+	u8 if_invert; /* spectrum, 0: normal, 1: inverted. */
+	u8 if_amp; /* output intermediate frequency amplitude. */
+
+	u8 detect; /* whether detect is required, 0 - off, 1 - on. */
 
 	/* tuner reset gpio, it can be implemented by RC circuit. */
 	struct gpio_config reset;
+	struct gpio_config power;
 
 	u32 reserved0;
 	u32 reserved1;
@@ -120,6 +130,7 @@ struct tuner_config {
 
 /* For configure different demod */
 struct demod_config {
+	char *name;
 	u32 code; /* demod chip code. */
 	u8 id; /* enum demod type. */
 	u8 mode; /* 0: internal, 1: external. */
@@ -157,6 +168,8 @@ struct demod_config {
 	 */
 	u8 ts_clk_pol;
 
+	u8 detect; /* whether detect is required, 0 - off, 1 - on. */
+
 	u8 i2c_addr;
 	u8 i2c_id;
 	struct i2c_adapter *i2c_adap;
@@ -166,6 +179,8 @@ struct demod_config {
 
 	struct gpio_config reset;
 	struct gpio_config ant_power;
+	struct gpio_config lnb_en;
+	struct gpio_config lnb_sel;
 	struct gpio_config other;
 
 	u8 reserved0;
@@ -227,6 +242,10 @@ static inline struct dvb_frontend *name##_attach(struct dvb_frontend *fe,\
 #define V4L2_COLOR_STD_PAL    ((v4l2_std_id) 0x04000000)
 #define V4L2_COLOR_STD_NTSC   ((v4l2_std_id) 0x08000000)
 #define V4L2_COLOR_STD_SECAM  ((v4l2_std_id) 0x10000000)
+
+#define AML_FE_UNDEFINED (0xFF)
+#define AML_MAX_DELSYS   (32)
+#define AML_MAX_FE       (32)
 
 #if (defined CONFIG_AMLOGIC_DVB_EXTERN ||\
 		defined CONFIG_AMLOGIC_DVB_EXTERN_MODULE)

@@ -9,31 +9,22 @@
 #include <linux/amlogic/aml_demod_common.h>
 #include <dvb_frontend.h>
 
-/* For demod ctrl */
-struct demod_priv {
-	bool inited;
-	bool suspended;
-	bool serial_mode;
+struct demod_module {
+	char *name;
 
-	struct mutex mutex;
+	u8 id;
+	u8 type[AML_MAX_FE]; /* FE type supported by demod. */
 
-	struct dvb_frontend fe;
-	struct demod_config cfg;
-	enum fe_delivery_system delivery_system;
+	void *attach_symbol; /* The actual attach function symbolic address. */
 
-	void *private;
-
-	int index;
-};
-
-/* For demod */
-struct demod_frontend {
-	struct platform_device *pdev;
-	struct class class;
-	struct mutex mutex;
-
-	struct list_head demod_list;
-	int demod_count;
+	struct dvb_frontend *(*attach)(const struct demod_module *module,
+			const struct demod_config *cfg);
+	int (*detach)(const struct demod_module *module);
+	int (*match)(const struct demod_module *module, int std);
+	int (*detect)(const struct demod_config *cfg);
+	int (*register_frontend)(struct dvb_adapter *dvb,
+			struct dvb_frontend *fe);
+	int (*unregister_frontend)(struct dvb_frontend *fe);
 };
 
 #if (defined CONFIG_AMLOGIC_DTV_DEMOD ||\
@@ -50,11 +41,10 @@ static inline __maybe_unused struct dvb_frontend *aml_dtvdm_attach(
 #if (defined CONFIG_AMLOGIC_DVB_EXTERN ||\
 		defined CONFIG_AMLOGIC_DVB_EXTERN_MODULE)
 enum dtv_demod_type aml_get_dtvdemod_type(const char *name);
-
-struct dvb_frontend *aml_attach_detach_dtvdemod(
-		enum dtv_demod_type type,
-		struct demod_config *cfg,
-		int attch);
+int aml_get_dts_demod_config(struct device_node *node,
+		struct demod_config *cfg, int index);
+void aml_show_demod_config(const char *title, const struct demod_config *cfg);
+const struct demod_module *aml_get_demod_module(enum dtv_demod_type type);
 #else
 static inline __maybe_unused enum dtv_demod_type aml_get_dtvdemod_type(
 		const char *name)
@@ -62,46 +52,23 @@ static inline __maybe_unused enum dtv_demod_type aml_get_dtvdemod_type(
 	return AM_DTV_DEMOD_NONE;
 }
 
-static inline __maybe_unused struct dvb_frontend *aml_attach_detach_dtvdemod(
-		enum dtv_demod_type type,
-		struct demod_config *cfg,
-		int attch)
-{
-	return NULL;
-}
-#endif
-
-static inline __maybe_unused struct dvb_frontend *aml_attach_dtvdemod(
-		enum dtv_demod_type type,
-		struct demod_config *cfg)
-{
-	return aml_attach_detach_dtvdemod(type, cfg, 1);
-}
-
-static inline __maybe_unused int aml_detach_dtvdemod(
-		const enum dtv_demod_type type)
-{
-	aml_attach_detach_dtvdemod(type, NULL, 0);
-
-	return 0;
-}
-
-#if (defined CONFIG_AMLOGIC_DVB_EXTERN ||\
-		defined CONFIG_AMLOGIC_DVB_EXTERN_MODULE)
-int aml_get_dts_demod_config(struct device_node *node,
-		struct demod_config *cfg, int index);
-void aml_show_demod_config(const char *title, struct demod_config *cfg);
-#else
 static inline __maybe_unused int aml_get_dts_demod_config(
 		struct device_node *node, struct demod_config *cfg, int index)
 {
-	return 0;
+	return -ENODEV;
 }
 
 static inline __maybe_unused void aml_show_demod_config(const char *title,
-		struct demod_config *cfg)
+		const struct demod_config *cfg)
 {
 }
+
+static inline __maybe_unused const struct demod_module *aml_get_demod_module(
+		enum dtv_demod_type type)
+{
+	return NULL;
+}
+
 #endif
 
 /* For attach demod driver end*/

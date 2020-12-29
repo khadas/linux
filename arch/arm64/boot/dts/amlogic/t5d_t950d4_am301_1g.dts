@@ -418,11 +418,39 @@
 	};
 	/* Audio Related end */
 
-	dvb {
-		compatible = "amlogic, dvb";
+	dvb-extern {
+		compatible = "amlogic, dvb-extern";
+		dev_name = "dvb-extern";
 		status = "disabled";
-		fe0_mode = "internal";
-		fe0_tuner = <&tuner>;
+
+		fe_num = <1>;
+		fe0_demod = "internal";
+
+		tuner_num = <2>; /* tuner number, multi tuner support */
+		tuner0_name = "mxl661_tuner";
+		tuner0_i2c_adap = <&i2c0>;
+		tuner0_i2c_addr = <0x60>;
+		tuner0_xtal = <1>; /* 0: 16MHz, 1: 24MHz */
+		tuner0_xtal_mode = <3>;
+					/* NO_SHARE_XTAL(0)
+					 * SLAVE_XTAL_SHARE(3)
+					 */
+		tuner0_xtal_cap = <25>;
+
+		tuner1_name = "rt710_tuner";
+		tuner1_i2c_adap = <&i2c0>;
+		tuner1_i2c_addr = <0xF4>;
+		tuner1_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
+		tuner1_xtal_mode = <0>;
+					/* NO_SHARE_XTAL(0)
+					 * SLAVE_XTAL_SHARE(3)
+					 */
+		tuner1_xtal_cap = <25>;
+	};
+
+	dvb-demux {
+		compatible = "amlogic, dvb-demux";
+		status = "disabled";
 
 		/*"parallel","serial","disable"*/
 		ts2 = "parallel";
@@ -1005,36 +1033,9 @@
 		status = "disabled";
 	};
 
-	tuner: tuner {
-		compatible = "amlogic, tuner";
-		status = "disabled";
-		tuner_cur = <0>; /* default use tuner */
-		tuner_num = <2>; /* tuner number, multi tuner support */
-		tuner_name_0 = "mxl661_tuner";
-		tuner_i2c_adap_0 = <&i2c0>;
-		tuner_i2c_addr_0 = <0x60>;
-		tuner_xtal_0 = <1>; /* 0: 16MHz, 1: 24MHz */
-		tuner_xtal_mode_0 = <3>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(3)
-					 */
-		tuner_xtal_cap_0 = <25>;
-
-		tuner_name_1 = "rt710_tuner";
-		tuner_i2c_adap_1 = <&i2c0>;
-		tuner_i2c_addr_1 = <0xF4>;
-		tuner_xtal_1 = <0>; /* 0: 16MHz, 1: 24MHz */
-		tuner_xtal_mode_1 = <0>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(3)
-					 */
-		tuner_xtal_cap_1 = <25>;
-	};
-
 	atv-demod {
 		compatible = "amlogic, atv-demod";
 		status = "disabled";
-		tuner = <&tuner>;
 		btsc_sap_mode = <1>;
 		interrupts = <0 236 1>;
 		/* pinctrl-names="atvdemod_agc_pins"; */

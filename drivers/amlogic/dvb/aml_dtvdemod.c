@@ -30,166 +30,524 @@ AML_DEMOD_ATTACH_FUNCTION(mxl252c);
 AML_DEMOD_ATTACH_FUNCTION(mxl254c);
 AML_DEMOD_ATTACH_FUNCTION(mxl256c);
 AML_DEMOD_ATTACH_FUNCTION(mxl258c);
+AML_DEMOD_ATTACH_FUNCTION(si2169);
+AML_DEMOD_ATTACH_FUNCTION(avl6221c);
 
-enum dtv_demod_type aml_get_dtvdemod_type(const char *name)
-{
-	enum dtv_demod_type type = AM_DTV_DEMOD_NONE;
+static struct dvb_frontend *aml_demod_attach(const struct demod_module *module,
+		const struct demod_config *cfg);
+static int aml_demod_detach(const struct demod_module *module);
+static int aml_demod_match(const struct demod_module *module, int std);
+static int aml_demod_detect(const struct demod_config *cfg);
+static int aml_dvb_register_frontend(struct dvb_adapter *dvb,
+		struct dvb_frontend *fe);
+static int aml_dvb_unregister_frontend(struct dvb_frontend *fe);
 
-	if (name == NULL)
-		return type;
+static const struct demod_module demod_modules[] = {
+	{
+		.name = "internal",
+		.id = AM_DTV_DEMOD_AMLDTV,
+		.type = { },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "m1",
+		.id = AM_DTV_DEMOD_M1,
+		.type = { AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "mxl101",
+		.id = AM_DTV_DEMOD_MXL101,
+		.type = { FE_OFDM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "avl6211",
+		.id = AM_DTV_DEMOD_AVL6211,
+		.type = { FE_QPSK, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "si2168",
+		.id = AM_DTV_DEMOD_SI2168,
+		.type = { FE_QAM, FE_OFDM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "ite9173",
+		.id = AM_DTV_DEMOD_ITE9173,
+		.type = { FE_ISDBT, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "dib8096",
+		.id = AM_DTV_DEMOD_DIB8096,
+		.type = { FE_ISDBT, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "atbm8869",
+		.id = AM_DTV_DEMOD_ATBM8869,
+		.type = { FE_DTMB, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "mxl241",
+		.id = AM_DTV_DEMOD_MXL241,
+		.type = { FE_QAM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "avl68xx",
+		.id = AM_DTV_DEMOD_AVL68xx,
+		.type = { },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "mxl683",
+		.id = AM_DTV_DEMOD_MXL683,
+		.type = { FE_ISDBT, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "atbm8881",
+		.id = AM_DTV_DEMOD_ATBM8881,
+		.type = { FE_QAM, FE_OFDM, FE_DTMB, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "atbm7821",
+		.id = AM_DTV_DEMOD_ATBM7821,
+		.type = { FE_QAM, FE_OFDM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "avl6762",
+		.id = AM_DTV_DEMOD_AVL6762,
+		.type = { FE_QAM, FE_OFDM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "cxd2856",
+		.id = AM_DTV_DEMOD_CXD2856,
+		.type = { FE_QPSK, FE_QAM, FE_OFDM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "mxl248",
+		.id = AM_DTV_DEMOD_MXL248,
+		.type = { FE_QAM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "m88dm6k",
+		.id = AM_DTV_DEMOD_M88DM6K,
+		.type = { FE_QPSK, FE_QAM, FE_OFDM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "mn88436",
+		.id = AM_DTV_DEMOD_MN88436,
+		.type = { FE_ATSC, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "mxl212c",
+		.id = AM_DTV_DEMOD_MXL212C,
+		.type = { FE_QAM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "mxl213c",
+		.id = AM_DTV_DEMOD_MXL213C,
+		.type = { FE_QAM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "mxl214c",
+		.id = AM_DTV_DEMOD_MXL214C,
+		.type = { FE_QAM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "mxl252c",
+		.id = AM_DTV_DEMOD_MXL252C,
+		.type = { FE_QAM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "mxl254c",
+		.id = AM_DTV_DEMOD_MXL254C,
+		.type = { FE_QAM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "mxl256c",
+		.id = AM_DTV_DEMOD_MXL256C,
+		.type = { FE_QAM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "mxl258c",
+		.id = AM_DTV_DEMOD_MXL258C,
+		.type = { FE_QAM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "si2169",
+		.id = AM_DTV_DEMOD_SI2169,
+		.type = { FE_QPSK, FE_QAM, FE_OFDM, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	},
+	{
+		.name = "avl6221c",
+		.id = AM_DTV_DEMOD_AVL6221C,
+		.type = { FE_QPSK, AML_FE_UNDEFINED },
+		.attach_symbol = NULL,
+		.attach = aml_demod_attach,
+		.detach = aml_demod_detach,
+		.match = aml_demod_match,
+		.detect = aml_demod_detect,
+		.register_frontend = aml_dvb_register_frontend,
+		.unregister_frontend = aml_dvb_unregister_frontend
+	}
+};
 
-	if (!strncasecmp(name, "internal", strlen("internal")))
-		type = AM_DTV_DEMOD_AMLDTV;
-	else if (!strncasecmp(name, "AMLDTV", strlen("AMLDTV")))
-		type = AM_DTV_DEMOD_AMLDTV;
-	else if (!strncasecmp(name, "M1", strlen("M1")))
-		type = AM_DTV_DEMOD_M1;
-	else if (!strncasecmp(name, "MXL101", strlen("MXL101")))
-		type = AM_DTV_DEMOD_MXL101;
-	else if (!strncasecmp(name, "AVL6211", strlen("AVL6211")))
-		type = AM_DTV_DEMOD_AVL6211;
-	else if (!strncasecmp(name, "SI2168", strlen("SI2168")))
-		type = AM_DTV_DEMOD_SI2168;
-	else if (!strncasecmp(name, "ITE9133", strlen("ITE9133")))
-		type = AM_DTV_DEMOD_ITE9133;
-	else if (!strncasecmp(name, "ITE9173", strlen("ITE9173")))
-		type = AM_DTV_DEMOD_ITE9173;
-	else if (!strncasecmp(name, "DIB8096", strlen("DIB8096")))
-		type = AM_DTV_DEMOD_DIB8096;
-	else if (!strncasecmp(name, "ATBM8869", strlen("ATBM8869")))
-		type = AM_DTV_DEMOD_ATBM8869;
-	else if (!strncasecmp(name, "MXL241", strlen("MXL241")))
-		type = AM_DTV_DEMOD_MXL241;
-	else if (!strncasecmp(name, "AVL68xx", strlen("AVL68xx")))
-		type = AM_DTV_DEMOD_AVL68xx;
-	else if (!strncasecmp(name, "MXL683", strlen("MXL683")))
-		type = AM_DTV_DEMOD_MXL683;
-	else if (!strncasecmp(name, "ATBM8881", strlen("ATBM8881")))
-		type = AM_DTV_DEMOD_ATBM8881;
-	else if (!strncasecmp(name, "ATBM7821", strlen("ATBM7821")))
-		type = AM_DTV_DEMOD_ATBM7821;
-	else if (!strncasecmp(name, "AVL6762", strlen("AVL6762")))
-		type = AM_DTV_DEMOD_AVL6762;
-	else if (!strncasecmp(name, "CXD2856", strlen("CXD2856")))
-		type = AM_DTV_DEMOD_CXD2856;
-	else if (!strncasecmp(name, "MXL248", strlen("MXL248")))
-		type = AM_DTV_DEMOD_MXL248;
-	else if (!strncasecmp(name, "M88DM6K", strlen("M88DM6K")))
-		type = AM_DTV_DEMOD_M88DM6K;
-	else if (!strncasecmp(name, "MN88436", strlen("MN88436")))
-		type = AM_DTV_DEMOD_MN88436;
-	else if (!strncasecmp(name, "MXL212C", strlen("MXL212C")))
-		type = AM_DTV_DEMOD_MXL212C;
-	else if (!strncasecmp(name, "MXL213C", strlen("MXL213C")))
-		type = AM_DTV_DEMOD_MXL213C;
-	else if (!strncasecmp(name, "MXL214C", strlen("MXL214C")))
-		type = AM_DTV_DEMOD_MXL214C;
-	else if (!strncasecmp(name, "MXL252C", strlen("MXL252C")))
-		type = AM_DTV_DEMOD_MXL252C;
-	else if (!strncasecmp(name, "MXL254C", strlen("MXL254C")))
-		type = AM_DTV_DEMOD_MXL254C;
-	else if (!strncasecmp(name, "MXL256C", strlen("MXL256C")))
-		type = AM_DTV_DEMOD_MXL256C;
-	else if (!strncasecmp(name, "MXL258C", strlen("MXL258C")))
-		type = AM_DTV_DEMOD_MXL258C;
-	else
-		type = AM_DTV_DEMOD_NONE;
-
-	return type;
-}
-EXPORT_SYMBOL(aml_get_dtvdemod_type);
-
-struct dvb_frontend *aml_attach_detach_dtvdemod(
+static struct dvb_frontend *aml_attach_detach_dtvdemod(
 		enum dtv_demod_type type,
-		struct demod_config *cfg,
+		const struct demod_config *cfg,
 		int attch)
 {
 	struct dvb_frontend *p = 0;
 
-	if (type == AM_DTV_DEMOD_AMLDTV)
+	switch (type) {
+	case AM_DTV_DEMOD_AMLDTV:
 		attch ? (p = aml_dvb_attach(aml_dtvdm_attach, cfg)) :
 				aml_dvb_detach(aml_dtvdm_attach);
-	else if (type == AM_DTV_DEMOD_M1)
+		break;
+	case AM_DTV_DEMOD_M1:
 		attch ? (p = aml_dvb_attach(m1_attach, cfg)) :
 				aml_dvb_detach(m1_attach);
-	else if (type == AM_DTV_DEMOD_MXL101)
+		break;
+	case AM_DTV_DEMOD_MXL101:
 		attch ? (p = aml_dvb_attach(mxl101_attach, cfg)) :
 				aml_dvb_detach(mxl101_attach);
-	else if (type == AM_DTV_DEMOD_AVL6211)
+		break;
+	case AM_DTV_DEMOD_AVL6211:
 		attch ? (p = aml_dvb_attach(avl6211_attach, cfg)) :
 				aml_dvb_detach(avl6211_attach);
-	else if (type == AM_DTV_DEMOD_SI2168)
+		break;
+	case AM_DTV_DEMOD_SI2168:
 		attch ? (p = aml_dvb_attach(si2168_attach, cfg)) :
 				aml_dvb_detach(si2168_attach);
-	else if (type == AM_DTV_DEMOD_ITE9133)
+		break;
+	case AM_DTV_DEMOD_ITE9133:
 		attch ? (p = aml_dvb_attach(ite9133_attach, cfg)) :
 				aml_dvb_detach(ite9133_attach);
-	else if (type == AM_DTV_DEMOD_ITE9173)
+		break;
+	case AM_DTV_DEMOD_ITE9173:
 		attch ? (p = aml_dvb_attach(ite9173_attach, cfg)) :
 				aml_dvb_detach(ite9173_attach);
-	else if (type == AM_DTV_DEMOD_DIB8096)
+		break;
+	case AM_DTV_DEMOD_DIB8096:
 		attch ? (p = aml_dvb_attach(dib8096_attach, cfg)) :
 				aml_dvb_detach(dib8096_attach);
-	else if (type == AM_DTV_DEMOD_ATBM8869)
+		break;
+	case AM_DTV_DEMOD_ATBM8869:
 		attch ? (p = aml_dvb_attach(atbm8869_attach, cfg)) :
 				aml_dvb_detach(atbm8869_attach);
-	else if (type == AM_DTV_DEMOD_MXL241)
+		break;
+	case AM_DTV_DEMOD_MXL241:
 		attch ? (p = aml_dvb_attach(mxl241_attach, cfg)) :
 				aml_dvb_detach(mxl241_attach);
-	else if (type == AM_DTV_DEMOD_AVL68xx)
+		break;
+	case AM_DTV_DEMOD_AVL68xx:
 		attch ? (p = aml_dvb_attach(avl68xx_attach, cfg)) :
 				aml_dvb_detach(avl68xx_attach);
-	else if (type == AM_DTV_DEMOD_MXL683)
+		break;
+	case AM_DTV_DEMOD_MXL683:
 		attch ? (p = aml_dvb_attach(mxl683_attach, cfg)) :
 				aml_dvb_detach(mxl683_attach);
-	else if (type == AM_DTV_DEMOD_ATBM8881)
+		break;
+	case AM_DTV_DEMOD_ATBM8881:
 		attch ? (p = aml_dvb_attach(atbm8881_attach, cfg)) :
 				aml_dvb_detach(atbm8881_attach);
-	else if (type == AM_DTV_DEMOD_ATBM7821)
+		break;
+	case AM_DTV_DEMOD_ATBM7821:
 		attch ? (p = aml_dvb_attach(atbm7821_attach, cfg)) :
 				aml_dvb_detach(atbm7821_attach);
-	else if (type == AM_DTV_DEMOD_AVL6762)
+		break;
+	case AM_DTV_DEMOD_AVL6762:
 		attch ? (p = aml_dvb_attach(avl6762_attach, cfg)) :
 				aml_dvb_detach(avl6762_attach);
-	else if (type == AM_DTV_DEMOD_CXD2856)
+		break;
+	case AM_DTV_DEMOD_CXD2856:
 		attch ? (p = aml_dvb_attach(cxd2856_attach, cfg)) :
 				aml_dvb_detach(cxd2856_attach);
-	else if (type == AM_DTV_DEMOD_MXL248)
+		break;
+	case AM_DTV_DEMOD_MXL248:
 		attch ? (p = aml_dvb_attach(mxl248_attach, cfg)) :
 				aml_dvb_detach(mxl248_attach);
-	else if (type == AM_DTV_DEMOD_M88DM6K)
+		break;
+	case AM_DTV_DEMOD_M88DM6K:
 		attch ? (p = aml_dvb_attach(m88dm6k_attach, cfg)) :
 				aml_dvb_detach(m88dm6k_attach);
-	else if (type == AM_DTV_DEMOD_MN88436)
+		break;
+	case AM_DTV_DEMOD_MN88436:
 		attch ? (p = aml_dvb_attach(mn88436_attach, cfg)) :
 				aml_dvb_detach(mn88436_attach);
-	else if (type == AM_DTV_DEMOD_MXL212C)
+		break;
+	case AM_DTV_DEMOD_MXL212C:
 		attch ? (p = aml_dvb_attach(mxl212c_attach, cfg)) :
 				aml_dvb_detach(mxl212c_attach);
-	else if (type == AM_DTV_DEMOD_MXL213C)
+		break;
+	case AM_DTV_DEMOD_MXL213C:
 		attch ? (p = aml_dvb_attach(mxl213c_attach, cfg)) :
 				aml_dvb_detach(mxl213c_attach);
-	else if (type == AM_DTV_DEMOD_MXL214C)
+		break;
+	case AM_DTV_DEMOD_MXL214C:
 		attch ? (p = aml_dvb_attach(mxl214c_attach, cfg)) :
 				aml_dvb_detach(mxl214c_attach);
-	else if (type == AM_DTV_DEMOD_MXL252C)
+		break;
+	case AM_DTV_DEMOD_MXL252C:
 		attch ? (p = aml_dvb_attach(mxl252c_attach, cfg)) :
 				aml_dvb_detach(mxl252c_attach);
-	else if (type == AM_DTV_DEMOD_MXL254C)
+		break;
+	case AM_DTV_DEMOD_MXL254C:
 		attch ? (p = aml_dvb_attach(mxl254c_attach, cfg)) :
 				aml_dvb_detach(mxl254c_attach);
-	else if (type == AM_DTV_DEMOD_MXL256C)
+		break;
+	case AM_DTV_DEMOD_MXL256C:
 		attch ? (p = aml_dvb_attach(mxl256c_attach, cfg)) :
 				aml_dvb_detach(mxl256c_attach);
-	else if (type == AM_DTV_DEMOD_MXL258C)
+		break;
+	case AM_DTV_DEMOD_MXL258C:
 		attch ? (p = aml_dvb_attach(mxl258c_attach, cfg)) :
 				aml_dvb_detach(mxl258c_attach);
-	else
+		break;
+	case AM_DTV_DEMOD_SI2169:
+		attch ? (p = aml_dvb_attach(si2169_attach, cfg)) :
+				aml_dvb_detach(si2169_attach);
+		break;
+	case AM_DTV_DEMOD_AVL6221C:
+		attch ? (p = aml_dvb_attach(avl6221c_attach, cfg)) :
+				aml_dvb_detach(avl6221c_attach);
+		break;
+	default:
 		p = NULL;
+		break;
+	}
 
 	return p;
 }
-EXPORT_SYMBOL(aml_attach_detach_dtvdemod);
+
+static struct dvb_frontend *aml_demod_attach(const struct demod_module *module,
+		const struct demod_config *cfg)
+{
+	if (!IS_ERR_OR_NULL(module))
+		return aml_attach_detach_dtvdemod(module->id, cfg, true);
+
+	return NULL;
+}
+
+static int aml_demod_detach(const struct demod_module *module)
+{
+	if (!IS_ERR_OR_NULL(module))
+		aml_attach_detach_dtvdemod(module->id, NULL, false);
+
+	return 0;
+}
+
+static int aml_demod_match(const struct demod_module *module, int std)
+{
+	int n = 0;
+
+	if (IS_ERR_OR_NULL(module))
+		return -EFAULT;
+
+	/* std = FE type. Now use this method. */
+	n = 0;
+	while (n < AML_MAX_FE && module->type[n] != AML_FE_UNDEFINED) {
+		if (module->type[n] == std)
+			return 0;
+
+		n++;
+	}
+
+	return -EINVAL;
+}
+
+static int aml_demod_detect(const struct demod_config *cfg)
+{
+	return 0;
+}
+
+static int aml_dvb_register_frontend(struct dvb_adapter *dvb,
+		struct dvb_frontend *fe)
+{
+	return dvb_register_frontend(dvb, fe);
+}
+
+static int aml_dvb_unregister_frontend(struct dvb_frontend *fe)
+{
+	return dvb_unregister_frontend(fe);
+}
 
 int aml_get_dts_demod_config(struct device_node *node,
 		struct demod_config *cfg, int index)
@@ -200,6 +558,12 @@ int aml_get_dts_demod_config(struct device_node *node,
 	struct device_node *node_i2c = NULL;
 	char buf[32] = { 0 };
 	const char *str = NULL;
+
+	if (IS_ERR_OR_NULL(node) || IS_ERR_OR_NULL(cfg)) {
+		pr_err("Demod: NULL or error pointer of node or cfg.\n");
+
+		return -EFAULT;
+	}
 
 	memset(buf, 0, 32);
 	snprintf(buf, sizeof(buf), "fe%d_demod", index);
@@ -219,13 +583,13 @@ int aml_get_dts_demod_config(struct device_node *node,
 	memset(buf, 0, 32);
 	snprintf(buf, sizeof(buf), "fe%d_i2c_adap_id", index);
 	node_i2c = of_parse_phandle(node, buf, 0);
-	if (node_i2c != NULL) {
+	if (!IS_ERR_OR_NULL(node_i2c)) {
 		cfg->i2c_adap = of_find_i2c_adapter_by_node(node_i2c);
 		of_node_put(node_i2c);
-		if (cfg->i2c_adap == NULL) {
+		if (IS_ERR_OR_NULL(cfg->i2c_adap)) {
 			pr_err("Demod: can't get i2c_adapter ret[NULL].\n");
 
-			return -1;
+			//return -1;
 		} else
 			cfg->i2c_id = i2c_adapter_id(cfg->i2c_adap);
 	} else {
@@ -233,7 +597,7 @@ int aml_get_dts_demod_config(struct device_node *node,
 
 		cfg->i2c_adap = NULL;
 
-		return -1;
+		//return -1;
 	}
 
 	memset(buf, 0, 32);
@@ -245,8 +609,9 @@ int aml_get_dts_demod_config(struct device_node *node,
 		pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->i2c_addr = 0;
+		ret = 0;
 
-		return ret;
+		//return ret;
 	}
 
 	memset(buf, 0, 32);
@@ -258,8 +623,9 @@ int aml_get_dts_demod_config(struct device_node *node,
 		pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
 
 		cfg->ts = 0;
+		ret = 0;
 
-		return ret;
+		//return ret;
 	}
 
 	memset(buf, 0, 32);
@@ -455,6 +821,18 @@ int aml_get_dts_demod_config(struct device_node *node,
 	}
 
 	memset(buf, 0, 32);
+	snprintf(buf, sizeof(buf), "fe%d_detect", index);
+	ret = of_property_read_u32(node, buf, &value);
+	if (!ret) {
+		cfg->detect = value;
+	} else {
+		//pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
+
+		cfg->detect = 0;
+		ret = 0;
+	}
+
+	memset(buf, 0, 32);
 	str = NULL;
 	snprintf(buf, sizeof(buf), "fe%d_reset_gpio", index);
 	ret = of_property_read_string(node, buf, &str);
@@ -529,6 +907,84 @@ int aml_get_dts_demod_config(struct device_node *node,
 
 	memset(buf, 0, 32);
 	str = NULL;
+	snprintf(buf, sizeof(buf), "fe%d_lnb_en_gpio", index);
+	ret = of_property_read_string(node, buf, &str);
+	if (ret) {
+		//pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
+
+		cfg->lnb_en.pin = -1;
+		ret = 0;
+	} else {
+		cfg->lnb_en.pin = of_get_named_gpio_flags(
+				node, buf, 0, NULL);
+		pr_err("Demod: get %s: %d\n", buf, cfg->lnb_en.pin);
+	}
+
+	memset(buf, 0, 32);
+	snprintf(buf, sizeof(buf), "fe%d_lnb_en_dir", index);
+	ret = of_property_read_u32(node, buf, &value);
+	if (ret) {
+		//pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
+
+		cfg->lnb_en.dir = 0;
+		ret = 0;
+	} else {
+		cfg->lnb_en.dir = value;
+	}
+
+	memset(buf, 0, 32);
+	snprintf(buf, sizeof(buf), "fe%d_lnb_en_value", index);
+	ret = of_property_read_u32(node, buf, &value);
+	if (ret) {
+		//pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
+
+		cfg->lnb_en.value = 0;
+		ret = 0;
+	} else {
+		cfg->lnb_en.value = value;
+	}
+
+	memset(buf, 0, 32);
+	str = NULL;
+	snprintf(buf, sizeof(buf), "fe%d_lnb_sel_gpio", index);
+	ret = of_property_read_string(node, buf, &str);
+	if (ret) {
+		//pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
+
+		cfg->lnb_sel.pin = -1;
+		ret = 0;
+	} else {
+		cfg->lnb_sel.pin = of_get_named_gpio_flags(
+				node, buf, 0, NULL);
+		pr_err("Demod: get %s: %d\n", buf, cfg->lnb_sel.pin);
+	}
+
+	memset(buf, 0, 32);
+	snprintf(buf, sizeof(buf), "fe%d_lnb_sel_dir", index);
+	ret = of_property_read_u32(node, buf, &value);
+	if (ret) {
+		//pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
+
+		cfg->lnb_sel.dir = 0;
+		ret = 0;
+	} else {
+		cfg->lnb_sel.dir = value;
+	}
+
+	memset(buf, 0, 32);
+	snprintf(buf, sizeof(buf), "fe%d_lnb_sel_value", index);
+	ret = of_property_read_u32(node, buf, &value);
+	if (ret) {
+		//pr_err("Demod: can't get %s ret[%d].\n", buf, ret);
+
+		cfg->lnb_sel.value = 0;
+		ret = 0;
+	} else {
+		cfg->lnb_sel.value = value;
+	}
+
+	memset(buf, 0, 32);
+	str = NULL;
 	snprintf(buf, sizeof(buf), "fe%d_other_gpio", index);
 	ret = of_property_read_string(node, buf, &str);
 	if (ret) {
@@ -550,8 +1006,9 @@ int aml_get_dts_demod_config(struct device_node *node,
 
 		cfg->other.dir = 0;
 		ret = 0;
-	} else
+	} else {
 		cfg->other.dir = value;
+	}
 
 	memset(buf, 0, 32);
 	snprintf(buf, sizeof(buf), "fe%d_other_value", index);
@@ -561,8 +1018,9 @@ int aml_get_dts_demod_config(struct device_node *node,
 
 		cfg->other.value = 0;
 		ret = 0;
-	} else
+	} else {
 		cfg->other.value = value;
+	}
 
 	memset(buf, 0, 32);
 	snprintf(buf, sizeof(buf), "fe%d_reserved0", index);
@@ -572,8 +1030,9 @@ int aml_get_dts_demod_config(struct device_node *node,
 
 		cfg->reserved0 = 0;
 		ret = 0;
-	} else
+	} else {
 		cfg->reserved0 = value;
+	}
 
 	memset(buf, 0, 32);
 	snprintf(buf, sizeof(buf), "fe%d_reserved1", index);
@@ -583,22 +1042,27 @@ int aml_get_dts_demod_config(struct device_node *node,
 
 		cfg->reserved1 = 0;
 		ret = 0;
-	} else
+	} else {
 		cfg->reserved1 = value;
+	}
 
 	return 0;
 }
 EXPORT_SYMBOL(aml_get_dts_demod_config);
 
-void aml_show_demod_config(const char *title, struct demod_config *cfg)
+void aml_show_demod_config(const char *title, const struct demod_config *cfg)
 {
 	int i = 0;
 
-	if (!title || !cfg)
+	if (IS_ERR_OR_NULL(title) || IS_ERR_OR_NULL(cfg))
 		return;
 
-	pr_err("[%s] type: %d, code: 0x%x, mode: %d (0:Internal, 1:External).\n",
-			title, cfg->id, cfg->code, cfg->mode);
+	pr_err("[%s] name: %s, type: %d, code: 0x%x, mode: %d (0:Internal, 1:External).\n",
+			title,
+			cfg->name ? cfg->name : "",
+			cfg->id,
+			cfg->code,
+			cfg->mode);
 	pr_err("[%s] xtal %d.\n", title, cfg->xtal);
 	pr_err("[%s] ts: %d, ts_out_mode: %d (0:Serial, 1:Parallel).\n",
 			title, cfg->ts, cfg->ts_out_mode);
@@ -631,13 +1095,20 @@ void aml_show_demod_config(const char *title, struct demod_config *cfg)
 	pr_err("[%s] ant power pin: %d, dir: %d, value: %d.\n",
 			title,
 			cfg->ant_power.pin, cfg->ant_power.dir, cfg->ant_power.value);
+	pr_err("[%s] lnb en pin: %d, dir: %d, value: %d.\n",
+			title,
+			cfg->lnb_en.pin, cfg->lnb_en.dir, cfg->lnb_en.value);
+	pr_err("[%s] lnb sel pin: %d, dir: %d, value: %d.\n",
+			title,
+			cfg->lnb_sel.pin, cfg->lnb_sel.dir, cfg->lnb_sel.value);
 	pr_err("[%s] other pin: %d, dir: %d, value: %d.\n",
 			title,
 			cfg->other.pin, cfg->other.dir, cfg->other.value);
 	pr_err("[%s] i2c_addr: 0x%x, i2c_id: 0x%x, i2c_adap: 0x%p.\n",
 			title, cfg->i2c_addr, cfg->i2c_id, cfg->i2c_adap);
-	pr_err("[%s] tuner0 code: 0x%x, id: %d, i2c_addr: 0x%x, i2c_id: %d, i2c_adap: 0x%p, xtal: %d; xtal_cap: %d, xtal_mode: %d, lt_out: %d.\n",
+	pr_err("[%s] tuner0 name: %s, code: 0x%x, id: %d, i2c_addr: 0x%x, i2c_id: %d, i2c_adap: 0x%p, xtal: %d; xtal_cap: %d, xtal_mode: %d, lt_out: %d.\n",
 			title,
+			cfg->tuner0.name ? cfg->tuner0.name : "",
 			cfg->tuner0.code,
 			cfg->tuner0.id,
 			cfg->tuner0.i2c_addr,
@@ -652,31 +1123,93 @@ void aml_show_demod_config(const char *title, struct demod_config *cfg)
 			cfg->tuner0.reset.pin,
 			cfg->tuner0.reset.dir,
 			cfg->tuner0.reset.value);
-	pr_err("[%s] tuner0 dual_power: %d (0:3.3v, 1:1.8v and 3.3v), if_agc: %d (0:Self, 1:External).\n",
+	pr_err("[%s] tuner0 power pin: %d, dir: %d, value: %d.\n",
 			title,
-			cfg->tuner0.dual_power,
-			cfg->tuner0.if_agc);
-	pr_err("[%s] tuner1 code: 0x%x, id: %d, i2c_addr: 0x%x, i2c_id: %d, i2c_adap: 0x%p, xtal: %d; xtal_cap: %d, xtal_mode: %d, lt_out: %d.\n",
+			cfg->tuner0.power.pin,
+			cfg->tuner0.power.dir,
+			cfg->tuner0.power.value);
+	pr_err("[%s] tuner0 dual_power: %d (0:3.3v, 1:1.8v and 3.3v).\n",
 			title,
+			cfg->tuner0.dual_power);
+	pr_err("[%s] tuner0 if_agc: %d (0:Self, 1:External), if_hz: %d Hz, if_invert: %d (0:Normal, 1:Inverted), if_amp: %d.\n",
+			title,
+			cfg->tuner0.if_agc,
+			cfg->tuner0.if_hz,
+			cfg->tuner0.if_invert,
+			cfg->tuner0.if_amp);
+	pr_err("[%s] tuner0 detect: %d, reserved0: %d, reserved1: %d.\n",
+			title,
+			cfg->tuner0.detect,
+			cfg->tuner0.reserved0,
+			cfg->tuner0.reserved1);
+	pr_err("[%s] tuner1 name: %s, code: 0x%x, id: %d, i2c_addr: 0x%x, i2c_id: %d, i2c_adap: 0x%p, xtal: %d; xtal_cap: %d, xtal_mode: %d, lt_out: %d.\n",
+			title,
+			cfg->tuner1.name ? cfg->tuner1.name : "",
 			cfg->tuner1.code,
 			cfg->tuner1.id,
 			cfg->tuner1.i2c_addr,
 			cfg->tuner1.i2c_id,
-			cfg->tuner0.i2c_adap,
+			cfg->tuner1.i2c_adap,
 			cfg->tuner1.xtal,
 			cfg->tuner1.xtal_cap,
 			cfg->tuner1.xtal_mode,
 			cfg->tuner1.lt_out);
-	pr_err("[%s] tuner1 dual_power: %d (0:3.3v, 1:1.8v and 3.3v), if_agc: %d (0:Self, 1:External).\n",
+	pr_err("[%s] tuner1 dual_power: %d (0:3.3v, 1:1.8v and 3.3v).\n",
 			title,
-			cfg->tuner1.dual_power,
-			cfg->tuner1.if_agc);
+			cfg->tuner1.dual_power);
+	pr_err("[%s] tuner1 if_agc: %d (0:Self, 1:External), if_hz: %d Hz, if_invert: %d (0:Normal, 1:Inverted), if_amp: %d.\n",
+			title,
+			cfg->tuner1.if_agc,
+			cfg->tuner1.if_hz,
+			cfg->tuner1.if_invert,
+			cfg->tuner1.if_amp);
 	pr_err("[%s] tuner1 reset pin: %d, dir: %d, value: %d.\n",
 			title,
 			cfg->tuner1.reset.pin,
 			cfg->tuner1.reset.dir,
 			cfg->tuner1.reset.value);
-	pr_err("[%s] reserved0: %d, reserved1: %d.\n",
-			title, cfg->reserved0, cfg->reserved1);
+	pr_err("[%s] tuner1 power pin: %d, dir: %d, value: %d.\n",
+			title,
+			cfg->tuner1.power.pin,
+			cfg->tuner1.power.dir,
+			cfg->tuner1.power.value);
+	pr_err("[%s] tuner1 detect: %d, reserved0: %d, reserved1: %d.\n",
+			title,
+			cfg->tuner1.detect,
+			cfg->tuner1.reserved0,
+			cfg->tuner1.reserved1);
+	pr_err("[%s] detect: %d, reserved0: %d, reserved1: %d.\n",
+			title, cfg->detect, cfg->reserved0, cfg->reserved1);
 }
 EXPORT_SYMBOL(aml_show_demod_config);
+
+enum dtv_demod_type aml_get_dtvdemod_type(const char *name)
+{
+	int i = 0;
+	int count = ARRAY_SIZE(demod_modules);
+
+	for (i = 0; i < count; ++i) {
+		if (!strncasecmp(name, demod_modules[i].name,
+				strlen(demod_modules[i].name)))
+			return demod_modules[i].id;
+	}
+
+	return AM_DTV_DEMOD_NONE;
+}
+EXPORT_SYMBOL(aml_get_dtvdemod_type);
+
+const struct demod_module *aml_get_demod_module(enum dtv_demod_type type)
+{
+	int i = 0;
+	int count = ARRAY_SIZE(demod_modules);
+
+	for (i = 0; i < count; ++i) {
+		if (demod_modules[i].id == type)
+			return &demod_modules[i];
+	}
+
+	pr_err("Demod: get demod [%d] module fail.\n", type);
+
+	return NULL;
+}
+EXPORT_SYMBOL(aml_get_demod_module);

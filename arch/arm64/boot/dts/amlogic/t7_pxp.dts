@@ -337,9 +337,37 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 	};
-	dvb_cxd2856 {
-		compatible = "amlogic sc2, dvb";
-		dev_name = "dvb";
+
+	dvb-extern {
+		compatible = "amlogic, dvb-extern";
+		dev_name = "dvb-extern";
+		status = "disabled";
+
+		fe_num = <2>;
+		fe0_demod = "cxd2856";
+		fe0_i2c_adap_id = <&i2c2>;
+		fe0_demod_i2c_addr = <0xD8>;
+		fe0_reset_value = <0>;
+		//fe0_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+		fe0_reset_dir = <1>; /* 0: out, 1: in. */
+		fe0_ant_poweron_value = <0>;
+		///fe0_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
+		fe0_ts  = <0>;
+
+		fe1_demod = "cxd2856";
+		fe1_i2c_adap_id = <&i2c2>;
+		fe1_demod_i2c_addr = <0xCA>;
+		fe1_reset_value = <0>;
+		//fe1_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
+		fe1_reset_dir = <1>; /* 0: out, 1: in. */
+		fe1_ant_poweron_value = <0>;
+		//fe1_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
+		fe1_ts  = <1>;
+	};
+
+	dvb-demux {
+		compatible = "amlogic sc2, dvb-demux";
+		dev_name = "dvb-demux";
 		status = "disabled";
 
 		reg = <0x0 0xfe000000 0x0 0x480000>;
@@ -348,37 +376,11 @@
 
 		tsn_from = "demod";
 
-		fe0_mode = "external";
-		fe0_demod = "cxd2856";
-		fe0_i2c_adap_id = <&i2c2>;
-		fe0_demod_i2c_addr = <0xD8>;
-		fe0_reset_value = <0>;
-		//fe0_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-		fe0_reset_dir = <1>; /* 0: out, 1: in. */
-		fe0_ant_poweron_value = <0>;
-		//fe0_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-		fe0_dtv_demod = <0>;
-		fe0_ts  = <0>;
-		fe0_dev = <0>;
-
 		/*single demod setting */
 		ts0_sid = <0x20>;
 		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
 		ts0_control = <0x0>;
 		ts0_invert = <0>;
-
-		fe1_mode = "external";
-		fe1_demod = "cxd2856";
-		fe1_i2c_adap_id = <&i2c2>;
-		fe1_demod_i2c_addr = <0xCA>;
-		fe1_reset_value = <0>;
-	//	fe1_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-		fe1_reset_dir = <1>; /* 0: out, 1: in. */
-		fe1_ant_poweron_value = <0>;
-	//	fe1_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-		fe1_dtv_demod = <1>;
-		fe1_ts  = <1>;
-		fe1_dev = <1>;
 
 		ts1_sid = <0x21>;
 		ts1 = "serial-4wire";
@@ -388,149 +390,6 @@
 		pinctrl-names = "s_ts0", "s_ts1";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
 		pinctrl-1 = <&dvb_s_ts1_pins>;
-	};
-	dvb_mxl258c {
-		compatible = "amlogic sc2, dvb";
-		dev_name = "dvb";
-		status = "disabled";
-
-		reg = <0x0 0xfe000000 0x0 0x480000>;
-
-		dmxdev_num = <4>;
-
-		tsn_from = "demod";
-
-		/*single demod setting */
-		/*ts will bind with dmx device*/
-		ts0_sid = <0x20>;
-		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
-		ts0_control = <0x0>;
-
-		/* tsinB: parallel, serial-4wire, serial-3wire */
-		//ts1_dmx = <0x21>;
-		//ts1 = "serial-4wire";
-		//ts1_control = <0x0>;
-
-		//ts2_sid = <0x22>;
-		//ts2 = "serial-4wire"; /* tsinC: serial-4wire, serial-3wire */
-		//ts2_control = <0x0>;
-
-		//ts3_sid = <0x23>;
-		//ts3 = "serial-4wire"; /* tsinD: serial-4wire, serial-3wire */
-		//ts3_control = <0x0>;
-
-		/*multi demod setting, such as maxlinear demod*/
-		/*attention: ts how to bind to dmx device
-		 * it should set sid in maxlinear driver
-		 * sid list:
-		 * dmx0 sid:0x20
-		 * dmx1 sid:0x21
-		 * ...
-		 * dmx31 sid:0x2F
-		 */
-		//ts0_header_len = <4>;
-		//ts0_header = <0x4b 0x20 0x0 0x0>;
-		//ts0_sid_offset = <1>;
-
-		//ts1_header_len = <4>;
-		//ts1_header = <0x4b 0x21 0x0 0x0>;
-		//ts1_sid_offset = <1>;
-
-		//ts2_header_len = <4>;
-		//ts2_header = <0x4b 0x22 0x0 0x0>;
-		//ts2_sid_offset = <1>;
-
-		//ts3_header_len = <4>;
-		//ts3_header = <0x4b 0x23 0x0 0x0>;
-		//ts3_sid_offset = <1>;
-
-		fe0_mode = "external";
-		fe0_demod = "MXL258C";
-		fe0_i2c_adap_id = <&i2c2>;
-		fe0_demod_i2c_addr = <0x50>;
-		fe0_demod_code = <0x258c>;
-
-		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
-		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
-		fe0_ts_mux_mode = <0>;
-		/* 10, 21, 25, 28, 42, 56, 84, 112 (MHz). */
-		fe0_ts_clk = <56>;
-		fe0_reset_value = <0>;
-		//fe0_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-		fe0_reset_dir = <1>; /* 0:out, 1:in */
-		/*fe0_ant_poweron_value = <0>;*/
-		/*fe0_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;*/
-		fe0_ts = <0>; /* select tsin port */
-
-		//fe1_mode = "external";
-		//fe1_demod = "MXL258C";
-		//fe1_i2c_adap_id = <&i2c2>;
-		//fe1_demod_i2c_addr = <0x50>;
-		//fe1_demod_code = <0x258c>;
-
-		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
-		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
-		//fe1_ts_mux_mode = <0>;
-		/* 10, 21, 25, 28, 42, 56, 84, 112 (MHz). */
-		//fe1_ts_clk = <56>;
-		//fe1_reset_value = <0>;
-		//fe1_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-		//fe1_reset_dir = <1>; /* 0:out, 1:in */
-		//fe1_ant_poweron_value = <0>;
-		/*fe1_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;*/
-		//fe1_ts = <1>; /* select tsin port */
-
-		//fe2_mode = "external";
-		//fe2_demod = "MXL258C";
-		//fe2_i2c_adap_id = <&i2c2>;
-		//fe2_demod_i2c_addr = <0x50>;
-		//fe2_demod_code = <0x258c>;
-
-		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
-		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
-		//fe2_ts_mux_mode = <0>;
-		/* 10, 21, 25, 28, 42, 56, 84, 112 (MHz). */
-		//fe2_ts_clk = <56>;
-		//fe2_reset_value = <0>;
-		//fe2_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-		//fe2_reset_dir = <1>; /* 0:out, 1:in */
-		//fe2_ant_poweron_value = <0>;
-		/*fe2_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;*/
-		//fe2_ts = <2>; /* select tsin port */
-
-		//fe3_mode = "external";
-		//fe3_demod = "MXL258C";
-		//fe3_i2c_adap_id = <&i2c2>;
-		//fe3_demod_i2c_addr = <0x50>;
-		//fe3_demod_code = <0x258c>;
-
-		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
-		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
-		//fe3_ts_mux_mode = <0>;
-		/* 10, 21, 25, 28, 42, 56, 84, 112 (MHz). */
-		//fe3_ts_clk = <56>;
-		//fe3_reset_value = <0>;
-		//fe3_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-		//fe3_reset_dir = <1>; /* 0:out, 1:in */
-		//fe3_ant_poweron_value = <0>;
-		/*fe3_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;*/
-		//fe3_ts = <3>; /* select tsin port */
-
-		/* serial */
-		pinctrl-names = "s_ts0";
-		pinctrl-0 = <&dvb_s_ts0_pins>;
-		//pinctrl-names = "s_ts0", "s_ts1", "s_ts2", "s_ts3";
-		//pinctrl-0 = <&dvb_s_ts0_pins>;
-		//pinctrl-1 = <&dvb_s_ts1_pins>;
-		//pinctrl-2 = <&dvb_s_ts2_pins>;
-		//pinctrl-3 = <&dvb_s_ts3_pins>;
-
-		/* parallel */
-		//pinctrl-names = "p_ts0", "p_ts1", "p_ts2", "p_ts3";
-		//pinctrl-0 = <&dvb_p_ts1_pins>;
-		//pinctrl-1 = <&dvb_p_ts1_pins>;
-		//pinctrl-2 = <&dvb_p_ts1_pins>;
-		//pinctrl-3 = <&dvb_p_ts1_pins>;
 	};
 
 	/* SMC */

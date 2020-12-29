@@ -9,28 +9,29 @@
 #include <linux/amlogic/aml_demod_common.h>
 #include <dvb_frontend.h>
 
-struct tuner_frontend {
-	struct platform_device *pdev;
-	struct class class;
-	struct mutex mutex;
+struct tuner_module {
+	char *name;
 
-	struct tuner_config cfg;
-	struct analog_parameters param;
+	u8 id;
+	u8 delsys[AML_MAX_DELSYS]; /* Delivery system supported by tuner. */
+	u8 type[AML_MAX_FE]; /* FE type supported by tuner. */
 
-	enum fe_type fe_type;
+	void *attach_symbol; /* The actual attach function symbolic address. */
 
-	void *private;
+	struct dvb_frontend *(*attach)(const struct tuner_module *module,
+			struct dvb_frontend *fe, const struct tuner_config *cfg);
+	int (*detach)(const struct tuner_module *module);
+	int (*match)(const struct tuner_module *module, int std);
+	int (*detect)(const struct tuner_config *cfg);
 };
 
 #if (defined CONFIG_AMLOGIC_DVB_EXTERN ||\
 		defined CONFIG_AMLOGIC_DVB_EXTERN_MODULE)
 enum tuner_type aml_get_tuner_type(const char *name);
-
-struct dvb_frontend *aml_attach_detach_tuner(
-		const enum tuner_type type,
-		struct dvb_frontend *fe,
-		struct tuner_config *cfg,
-		int attach);
+int aml_get_dts_tuner_config(struct device_node *node,
+		struct tuner_config *cfg, int index);
+void aml_show_tuner_config(const char *title, const struct tuner_config *cfg);
+const struct tuner_module *aml_get_tuner_module(enum tuner_type type);
 #else
 static inline __maybe_unused enum tuner_type aml_get_tuner_type(
 		const char *name)
@@ -38,40 +39,21 @@ static inline __maybe_unused enum tuner_type aml_get_tuner_type(
 	return AM_TUNER_NONE;
 }
 
-static inline __maybe_unused struct dvb_frontend *aml_attach_detach_tuner(
-		const enum tuner_type type,
-		struct dvb_frontend *fe,
-		struct tuner_config *cfg,
-		int attach)
-{
-	return NULL;
-}
-#endif
-
-static __maybe_unused struct dvb_frontend *aml_attach_tuner(
-		const enum tuner_type type,
-		struct dvb_frontend *fe,
-		struct tuner_config *cfg)
-{
-	return aml_attach_detach_tuner(type, fe, cfg, 1);
-}
-
-static __maybe_unused int aml_detach_tuner(const enum tuner_type type)
-{
-	aml_attach_detach_tuner(type, NULL, NULL, 0);
-
-	return 0;
-}
-
-#if (defined CONFIG_AMLOGIC_DVB_EXTERN ||\
-		defined CONFIG_AMLOGIC_DVB_EXTERN_MODULE)
-int aml_get_dts_tuner_config(struct device_node *node,
-		struct tuner_config *cfg, int index);
-#else
 static inline __maybe_unused int aml_get_dts_tuner_config(
 		struct device_node *node, struct tuner_config *cfg, int index)
 {
-	return 0;
+	return -ENODEV;
+}
+
+static inline __maybe_unused void aml_show_tuner_config(const char *title,
+		const struct tuner_config *cfg)
+{
+}
+
+static inline __maybe_unused const struct tuner_module *aml_get_tuner_module(
+		enum tuner_type type)
+{
+	return NULL;
 }
 #endif
 

@@ -9,7 +9,6 @@
 #include "aml_dmx.h"
 #include "aml_dsc.h"
 //#include "hw_demux/hwdemux.h"
-#include <linux/amlogic/aml_demod_common.h>
 
 #define DMX_DEV_COUNT     32
 #define DSC_DEV_COUNT     DMX_DEV_COUNT
@@ -55,11 +54,6 @@ struct aml_dvb {
 	struct mutex mutex;
 	/*protect register operate*/
 	spinlock_t slock;
-
-	unsigned int tuner_num;
-	unsigned int tuner_cur;
-	struct aml_tuner *tuners;
-	bool tuner_attached;
 
 	/*1: dsc connect demod
 	 *0: dsc connect local

@@ -136,14 +136,12 @@ int demux_get_pcr(int demux_device_index, int index, u64 *pcr)
 }
 EXPORT_SYMBOL(demux_get_pcr);
 
-static CLASS_ATTR_RW(tuner_setting);
 static CLASS_ATTR_RW(ts_setting);
 static CLASS_ATTR_RO(get_pcr);
 static CLASS_ATTR_RO(dmx_setting);
 static CLASS_ATTR_RO(dsc_setting);
 
 static struct attribute *aml_stb_class_attrs[] = {
-	&class_attr_tuner_setting.attr,
 	&class_attr_ts_setting.attr,
 	&class_attr_get_pcr.attr,
 	&class_attr_dmx_setting.attr,
@@ -393,7 +391,7 @@ INIT_ERR:
 #ifdef CONFIG_OF
 static const struct of_device_id aml_dvb_dt_match[] = {
 	{
-	 .compatible = "amlogic sc2, dvb",
+	 .compatible = "amlogic sc2, dvb-demux",
 	 },
 	{}
 };
@@ -405,7 +403,7 @@ struct platform_driver aml_dvb_driver = {
 	.suspend = NULL,
 	.resume = NULL,
 	.driver = {
-		   .name = "amlogic-dvb",
+		   .name = "amlogic-dvb-demux",
 		   .owner = THIS_MODULE,
 #ifdef CONFIG_OF
 		   .of_match_table = aml_dvb_dt_match,

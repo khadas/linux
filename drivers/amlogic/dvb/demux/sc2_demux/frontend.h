@@ -11,12 +11,6 @@ int frontend_probe(struct platform_device *pdev);
 int frontend_remove(void);
 void frontend_config_ts_sid(void);
 
-ssize_t tuner_setting_show(struct class *class,
-			   struct class_attribute *attr, char *buf);
-
-ssize_t tuner_setting_store(struct class *class,
-			    struct class_attribute *attr,
-			    const char *buf, size_t count);
 ssize_t ts_setting_show(struct class *class,
 			struct class_attribute *attr, char *buf);
 ssize_t ts_setting_store(struct class *class,

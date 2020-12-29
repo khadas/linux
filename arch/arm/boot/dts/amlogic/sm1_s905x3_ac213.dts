@@ -603,18 +603,12 @@
 		status = "okay";
 	};
 
-	dvb {
-		compatible = "amlogic, dvb";
-		dev_name = "dvb";
-		status = "ok";
+	dvb-extern {
+		compatible = "amlogic, dvb-extern";
+		dev_name = "dvb-extern";
+		status = "okay";
 
-		dmx = <&demux>;
-		key_endia = <1>;
-		add_s2p2 = <1>;
-		add_ts_in = <1>;
-		add_asyncfifo = <1>;
-
-		fe0_mode = "external";
+		fe_num = <1>;
 		fe0_demod = "Avl6762";
 		fe0_i2c_adap_id = <&i2c3>;
 		fe0_demod_i2c_addr = <0x14>;
@@ -623,6 +617,18 @@
 		fe0_reset_gpio = <&gpio GPIOZ_10 GPIO_ACTIVE_HIGH>;
 		fe0_ant_poweron_value = <0>;
 		fe0_ant_power_gpio = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+	};
+
+	dvb-demux {
+		compatible = "amlogic, dvb-demux";
+		dev_name = "dvb-demux";
+		status = "okay";
+
+		dmx = <&demux>;
+		key_endia = <1>;
+		add_s2p2 = <1>;
+		add_ts_in = <1>;
+		add_asyncfifo = <1>;
 
 		ts0 = "serial";
 		ts0_control = <0x800>;
