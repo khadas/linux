@@ -222,7 +222,7 @@ void di_cfg_top_dts(void)
 	}
 	//PR_INF("%s end\n", __func__);
 
-	if (cfgg(4K) && DIM_IS_IC_BF(TM2)) {
+	if (cfgg(4K) && (DIM_IS_IC_BF(TM2) || DIM_IS_IC(T5D))) {
 		cfgs(4K, 0);
 		PR_INF("not support 4k\n");
 	}
@@ -2517,14 +2517,24 @@ void dim_polic_prob(void)
 			pp->std = DIM_POLICY_STD;
 		else
 			pp->std = DIM_POLICY_STD_OLD;
+	} else if (DIM_IS_IC(T5D)) {
+#ifdef TEST_DISABLE_BYPASS_P
+		pp->std = DIM_POLICY_NOT_LIMIT;
+#else
+		if (de_devp->clkb_max_rate >= 334000000)
+			pp->std = DIM_POLICY_STD;
+		else
+			pp->std = DIM_POLICY_STD_OLD;
+#endif
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+#ifdef TEST_DISABLE_BYPASS_P
+		pp->std = DIM_POLICY_NOT_LIMIT;
+#else
 		if (de_devp->clkb_max_rate >= 340000000)
 			pp->std = DIM_POLICY_STD;
 		else
 			pp->std = DIM_POLICY_STD_OLD;
-	#ifdef TEST_DISABLE_BYPASS_P
-		pp->std = DIM_POLICY_NOT_LIMIT;
-	#endif
+#endif
 	} else {
 		pp->std = DIM_POLICY_STD_OLD;
 	}

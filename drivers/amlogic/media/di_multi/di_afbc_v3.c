@@ -1237,6 +1237,12 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 		memcpy(&pafd_ctr->fb, &cafbc_v5_sc2, sizeof(pafd_ctr->fb));
 		pafd_ctr->fb.mode = AFBC_WK_6D_NV21;
 		//AFBC_WK_6D_ALL;//AFBC_WK_IN;//
+	} else if (IS_IC_EF(cid, T5D)) { //unsupport afbc
+		pafd_ctr->fb.ver = AFBCD_NONE;
+		pafd_ctr->fb.sp.b.inp = 0;
+		pafd_ctr->fb.sp.b.mem = 0;
+		pafd_ctr->fb.pre_dec = EAFBC_DEC0;
+		pafd_ctr->fb.mode = AFBC_WK_NONE;
 	} else if (IS_IC_EF(cid, T5)) { //afbc config same with tm2b
 		afbc_cfg = 0;
 		memcpy(&pafd_ctr->fb, &cafbc_v4_tm2, sizeof(pafd_ctr->fb));

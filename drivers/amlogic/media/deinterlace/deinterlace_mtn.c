@@ -29,6 +29,7 @@
 #include <linux/amlogic/iomap.h>
 #include "register.h"
 #include "deinterlace_mtn.h"
+#include "deinterlace.h"
 
 #include "di_pqa.h"
 #define MAX_NUM_DI_REG 32
@@ -355,7 +356,9 @@ struct combing_status_s *adpative_combing_config(unsigned int width,
 }
 void mtn_int_combing_glbmot(void)
 {
-	if (is_meson_tl1_cpu() || is_meson_tm2_cpu()) {/*from VLSI yanling.liu*/
+	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
+	    IS_IC(dil_get_cpuver_flag(), T5) ||
+		IS_IC(dil_get_cpuver_flag(), T5D)) {/*from VLSI yanling.liu*/
 		combing_glbmot_radprat[0] = 30;
 	}
 	di_mtn_p_mode = 0;
@@ -810,7 +813,9 @@ int adaptive_combing_fixing(
 	if (
 		is_meson_txhd_cpu() ||
 		is_meson_tl1_cpu() ||
-		is_meson_tm2_cpu()) {
+		is_meson_tm2_cpu() ||
+		IS_IC(dil_get_cpuver_flag(), T5) ||
+		IS_IC(dil_get_cpuver_flag(), T5D)) {
 		if (
 			glb_mot[0] < combing_diff_min &&
 			glb_mot[1] > combing_diff_max &&

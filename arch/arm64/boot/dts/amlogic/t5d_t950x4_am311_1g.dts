@@ -205,7 +205,7 @@
 
 	multi-di {
 		compatible = "amlogic, dim-t5d";
-		status = "disabled";
+		status = "okay";
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
 		flag_cma = <4>;//t5d unsupport 4K,di 1CH need 42M
 		en_4k = <0>;

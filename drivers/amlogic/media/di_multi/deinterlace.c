@@ -7791,6 +7791,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		    is_meson_tm2_cpu()		||
 		    is_meson_sm1_cpu()		||
 		    DIM_IS_IC(T5)		||
+		    DIM_IS_IC(T5D)		||
 		    DIM_IS_IC_EF(SC2)) {
 			if (di_cfg_top_get(EDI_CFG_REF_2)	&&
 			    mc_pre_flag				&&
@@ -9013,6 +9014,7 @@ void di_unreg_setting(void)
 	    is_meson_tl1_cpu()	||
 	    is_meson_tm2_cpu()	||
 	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5D)	||
 	    is_meson_sm1_cpu()) {
 		dim_pre_gate_control(false, dimp_get(edi_mp_mcpre_en));
 		get_ops_nr()->nr_gate_control(false);
@@ -9039,6 +9041,7 @@ void di_unreg_setting(void)
 	    is_meson_tl1_cpu()	||
 	    is_meson_tm2_cpu()	||
 	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5D)	||
 	    is_meson_sm1_cpu()) {
 		dimh_enable_di_post_mif(GATE_OFF);
 		dim_post_gate_control(false);
@@ -9239,6 +9242,7 @@ static void di_pre_size_change(unsigned short width,
 		    is_meson_tl1_cpu()	||
 		    is_meson_tm2_cpu()	||
 		    DIM_IS_IC(T5)	||
+		    DIM_IS_IC(T5D)	||
 		    is_meson_sm1_cpu()	||
 		    DIM_IS_IC_EF(SC2))
 			dim_film_mode_win_config(width, height);
@@ -9274,7 +9278,7 @@ static void di_pre_size_change(unsigned short width,
 			       (dimp_get(edi_mp_pps_dsth) >> 1));
 	}
 	if (is_meson_sm1_cpu() || is_meson_tm2_cpu()	||
-	    DIM_IS_IC(T5) || DIM_IS_IC_EF(SC2)) {
+	    DIM_IS_IC(T5) || DIM_IS_IC(T5D) || DIM_IS_IC_EF(SC2)) {
 		if (de_devp->h_sc_down_en) {
 			pps_w = ppre->cur_width;
 			tmp = di_mp_uit_get(edi_mp_pre_hsc_down_width);
@@ -9444,6 +9448,7 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 		    is_meson_tl1_cpu()	||
 		    is_meson_tm2_cpu()	||
 		    DIM_IS_IC(T5)	||
+		    DIM_IS_IC(T5D)	||
 		    is_meson_sm1_cpu()	||
 		    DIM_IS_IC_EF(SC2)) {
 			#ifdef CLK_TREE_SUPPORT
@@ -10269,6 +10274,7 @@ void dim_set_di_flag(void)
 	    is_meson_tl1_cpu()	||
 	    is_meson_tm2_cpu()	||
 	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5D)	||
 	    is_meson_sm1_cpu()	||
 	    DIM_IS_IC_EF(SC2)) {
 		dimp_set(edi_mp_mcpre_en, 1);
@@ -10295,6 +10301,7 @@ void dim_set_di_flag(void)
 		    is_meson_tl1_cpu()	||
 		    is_meson_tm2_cpu()	||
 		    DIM_IS_IC(T5)	||
+		    DIM_IS_IC(T5D)	||
 		    is_meson_sm1_cpu()	||
 		    DIM_IS_IC_EF(SC2)) {
 			dimp_set(edi_mp_full_422_pack, 1);
@@ -10313,6 +10320,7 @@ void dim_set_di_flag(void)
 			 is_meson_tl1_cpu()	||
 			 is_meson_tm2_cpu()	||
 			 DIM_IS_IC(T5)	||
+			 DIM_IS_IC(T5D)	||
 			 is_meson_sm1_cpu()	||
 			 DIM_IS_IC_EF(SC2)) ? 10 : 17);
 	} else {
@@ -10338,7 +10346,7 @@ void dim_set_di_flag(void)
 		pldn_dly1 = 2;
 	}
 
-	if (DIM_IS_IC(T5) || DIM_IS_IC(TM2B))
+	if (DIM_IS_IC(T5) || DIM_IS_IC(TM2B) || DIM_IS_IC(T5D))
 		di_cfg_set(ECFG_DIM_BYPASS_P, 0);//for t5 enable p
 
 	get_ops_mtn()->mtn_int_combing_glbmot();
@@ -10372,7 +10380,7 @@ void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev)
 
 	if (DIM_IS_IC_EF(SC2))
 		vpu_clk = clk_get(dev, "vpu_mux");
-	else if (DIM_IS_IC(T5))
+	else if (DIM_IS_IC(T5) || DIM_IS_IC(T5D))
 		vpu_clk = clk_get(dev, "t5_vpu_clkb_tmp_gate");
 	else
 		vpu_clk = clk_get(dev, "vpu_mux");
@@ -10395,7 +10403,7 @@ void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev)
 	#ifdef CLK_TREE_SUPPORT
 	if (DIM_IS_IC_EF(SC2))
 		pdev->vpu_clkb = clk_get(dev, "vpu_clkb");
-	else if (DIM_IS_IC(T5))
+	else if (DIM_IS_IC(T5) || DIM_IS_IC(T5D))
 		pdev->vpu_clkb = clk_get(dev, "t5_vpu_clkb_gate");
 	else
 		pdev->vpu_clkb = clk_get(dev, "vpu_clkb");
