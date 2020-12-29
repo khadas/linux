@@ -35,8 +35,11 @@
 		i2c7 = &i2c_AO_B;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
-		tsensor0 = &p_tsensor;
-		tsensor1 = &d_tsensor;
+		tsensor0 = &a73_tsensor;
+		tsensor1 = &a53_tsensor;
+		tsensor2 = &gpu_tsensor;
+		tsensor3 = &nna_tsensor;
+		tsensor4 = &hevc_tsensor;
 	};
 
 	memory@00000000 {

@@ -16,6 +16,8 @@
 #include <linux/cpu_cooling.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
+#include <linux/arm-smccc.h>
+#include <linux/firmware/meson/meson_sm.h>
 #include "../../thermal/thermal_core.h"
 
 /*r1p1 thermal sensor version*/
@@ -90,6 +92,7 @@
 #define R1P1_TS_WAIT		5
 #define R1P1_PM_MIN_TIMEOUT	5
 #define R1P1_PM_MAX_TIMEOUT	250
+#define TSENSOR_CALI_READ	0x82000047
 
 enum soc_type {
 	SOC_ARCH_TS_R1P0 = 1,
@@ -105,6 +108,7 @@ enum soc_type {
  */
 struct meson_tsensor_platform_data {
 	u32 cal_type;
+	int tsensor_id;
 	u32 cal_coeff[4];
 	int reboot_temp;
 };
@@ -194,7 +198,7 @@ static u32 temp_to_code(struct meson_tsensor_data *data, int temp, bool trend)
 	cal_b = pdata->cal_coeff[1];
 	cal_c = pdata->cal_coeff[2];
 	cal_d = pdata->cal_coeff[3];
-	switch (cal_type) {
+	switch (cal_type & 0xf) {
 	case 0x1:
 		div_tmp2 = cal_c;
 		div_tmp2 = div_tmp2 + temp * 10;
@@ -237,7 +241,7 @@ static int code_to_temp(struct meson_tsensor_data *data, int temp_code)
 	uefuse = uefuse & 0xffff;
 	temp = temp_code;
 
-	cal_type = pdata->cal_type;
+	cal_type = (pdata->cal_type) & 0xf;
 	cal_a = pdata->cal_coeff[0];
 	cal_b = pdata->cal_coeff[1];
 	cal_c = pdata->cal_coeff[2];
@@ -345,20 +349,17 @@ static int r1p1_tsensor_hw_initialize(struct platform_device *pdev)
 {
 	struct meson_tsensor_data *data = platform_get_drvdata(pdev);
 	struct meson_tsensor_platform_data *pdata = data->pdata;
-	u32 trim_info = 0;
 	u32 reboot_reg = 0xffff, con = 0;
 	int ret = 0, reboot_temp;
 	int ver;
 
 	/*frist get the r1p1 trim info*/
-	trim_info = readl(data->base_e + R1P1_TRIM_INFO);
-	ver = (trim_info >> 24) & 0xff;
+	ver = (data->trim_info >> 24) & 0xff;
 	/*r1p1 tsensor ver to doing*/
 	if (((ver & 0xf) >> 2) == 0)
 		return -EINVAL;
 	if ((ver & 0x80)  == 0)
 		return -EINVAL;
-	data->trim_info = trim_info;
 
 	/*r1p1 init the ts reboot soc function*/
 	reboot_temp = pdata->reboot_temp;
@@ -595,6 +596,10 @@ static int meson_of_get_soc_type(struct device_node *np)
 static int meson_of_sensor_conf(struct platform_device *pdev,
 				struct meson_tsensor_platform_data *pdata)
 {
+	if (of_property_read_u32(pdev->dev.of_node, "tsensor_id",
+				 &pdata->tsensor_id)) {
+		pdata->tsensor_id = -1;
+	}
 	if (of_property_read_u32(pdev->dev.of_node, "cal_type",
 				 &pdata->cal_type)) {
 		dev_warn(&pdev->dev,
@@ -624,6 +629,8 @@ static int meson_map_dt_data(struct platform_device *pdev)
 	struct meson_tsensor_data *data = platform_get_drvdata(pdev);
 	struct meson_tsensor_platform_data *pdata;
 	struct resource res;
+	struct arm_smccc_res smc_res;
+	void *sharemem_outbuf_base;
 
 	if (!data || !pdev->dev.of_node)
 		return -ENODEV;
@@ -649,21 +656,37 @@ static int meson_map_dt_data(struct platform_device *pdev)
 		return -EADDRNOTAVAIL;
 	}
 
-	if (of_address_to_resource(pdev->dev.of_node, 1, &res)) {
-		dev_err(&pdev->dev, "failed to get Resource 1\n");
-		return -ENODEV;
-	}
-	data->base_e = devm_ioremap(&pdev->dev, res.start, resource_size(&res));
-	if (!data->base_e) {
-		dev_err(&pdev->dev, "Failed to ioremap memory\n");
-		return -ENOMEM;
-	}
 	pdata = devm_kzalloc(&pdev->dev,
 			     sizeof(struct meson_tsensor_platform_data),
 			     GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 	meson_of_sensor_conf(pdev, pdata);
+
+	if (!(pdata->cal_type & 0xf0)) {
+		if (of_address_to_resource(pdev->dev.of_node, 1, &res)) {
+			dev_err(&pdev->dev, "failed to get Resource 1\n");
+			return -ENODEV;
+		}
+		data->base_e = devm_ioremap(&pdev->dev, res.start, resource_size(&res));
+		if (!data->base_e) {
+			dev_err(&pdev->dev, "Failed to ioremap memory\n");
+			return -ENOMEM;
+		}
+		data->trim_info = readl(data->base_e + R1P1_TRIM_INFO);
+	} else {
+		if (pdata->tsensor_id == -1) {
+			dev_err(&pdev->dev, "Failed to get tsensor id\n");
+			return -EINVAL;
+		}
+
+		arm_smccc_smc(TSENSOR_CALI_READ, pdata->tsensor_id, 0, 0, 0, 0, 0, 0, &smc_res);
+		meson_sm_mutex_lock();
+		sharemem_outbuf_base = get_meson_sm_output_base();
+		meson_sm_mutex_unlock();
+		memcpy(&data->trim_info, (const void *)sharemem_outbuf_base, 4);
+	}
+
 	data->pdata = pdata;
 	data->soc = meson_of_get_soc_type(pdev->dev.of_node);
 	switch (data->soc) {
