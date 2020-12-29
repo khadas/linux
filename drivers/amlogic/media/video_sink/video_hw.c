@@ -4589,6 +4589,22 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 		vd_layer[1].enabled = vd_layer[1].enabled_status_saved;
 	}
 
+	if (!vd_layer[0].enabled && is_local_vf(vd_layer[0].dispbuf)) {
+		safe_switch_videolayer(0, false, true);
+		if (vd_layer[0].keep_frame_id == 1)
+			video_pip_keeper_new_frame_notify();
+		else if (vd_layer[0].keep_frame_id == 0)
+			video_keeper_new_frame_notify();
+	}
+
+	if (!vd_layer[1].enabled && is_local_vf(vd_layer[1].dispbuf)) {
+		safe_switch_videolayer(1, false, true);
+		if (vd_layer[1].keep_frame_id == 1)
+			video_pip_keeper_new_frame_notify();
+		else if (vd_layer[1].keep_frame_id == 0)
+			video_keeper_new_frame_notify();
+	}
+
 	if (!vd_layer[1].enabled &&
 	    ((vpp_misc_set & VPP_VD2_POSTBLEND) ||
 	     (vpp_misc_set & VPP_VD2_PREBLEND)))
