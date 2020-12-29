@@ -188,6 +188,7 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
 
+	vpp_osd1_postblend_mux_set(postblend->reg, VPP_NULL);
 	DRM_DEBUG("%s disable called.\n", postblend->base.name);
 }
 
