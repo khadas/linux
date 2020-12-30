@@ -29,6 +29,9 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+		i2c6 = &i2c_AO_A;
+		i2c7 = &i2c_AO_B;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
 		tsensor0 = &p_tsensor;
