@@ -164,28 +164,41 @@ static int format_port(char *buf, u64 port_mask)
 static ssize_t port_show(struct class *cla,
 			 struct class_attribute *attr, char *buf)
 {
-	int size = 0, i;
+	int s = 0, i;
 
-	for (i = 0; i < aml_db->channels; i++) {
-		size += sprintf(buf + size, "ch %d:%16llx: ports:\n",
-				i, aml_db->port[i]);
-		size += format_port(buf + size, aml_db->port[i]);
+	if (aml_db->ops && !aml_db->ops->config_range) {
+		for (i = 0; i < aml_db->channels; i++) {
+			s += sprintf(buf + s, "ch %d:%16llx: ports:\n",
+					i, aml_db->port[i]);
+			s += format_port(buf + s, aml_db->port[i]);
+		}
+		return s;
 	}
-
-	return size;
+	for (i = 0; i < aml_db->channels; i++) {
+		s += sprintf(buf + s, "ch %d:%16llx, [%08lx-%08lx], ports:\n",
+				i, aml_db->port[i],
+				aml_db->range[i].start,
+				aml_db->range[i].end);
+		s += format_port(buf + s, aml_db->port[i]);
+	}
+	return s;
 }
 
 static ssize_t port_store(struct class *cla,
 			  struct class_attribute *attr,
 			  const char *buf, size_t count)
 {
-	int ch = 0, port = 0;
+	int ch = 0, port = 0, paras = -1;
+	unsigned long start = 0xffffffff, end;
 
-	if (sscanf(buf, "%d:%d", &ch, &port) < 2) {
-		pr_info("invalid input:%s\n", buf);
-		return count;
+	paras = sscanf(buf, "%d:%d %lx-%lx", &ch, &port, &start, &end);
+	if (paras < 4) {
+		paras = sscanf(buf, "%d:%d", &ch, &port);
+		if (paras < 2) {
+			pr_info("invalid input:%s\n", buf);
+			return count;
+		}
 	}
-
 	if (ch >= MAX_CHANNEL || ch < 0 ||
 	    (ch && aml_db->cpu_type < DMC_TYPE_GXTVBB) ||
 	    port > MAX_PORTS) {
@@ -199,6 +212,13 @@ static ssize_t port_store(struct class *cla,
 			aml_db->port[ch] = 0;
 		else
 			aml_db->port[ch] |= 1ULL << port;
+	}
+
+	if (paras == 4 && aml_db->ops &&
+		aml_db->ops->config_range && start != 0xffffffffUL) {
+		aml_db->ops->config_range(aml_db, ch, start, end);
+		aml_db->range[ch].start = start;
+		aml_db->range[ch].end   = end;
 	}
 
 	return count;
@@ -264,16 +284,6 @@ static ssize_t mode_store(struct class *cla,
 	if (val > MODE_AUTODETECT || val < MODE_DISABLE)
 		val = MODE_AUTODETECT;
 
-	if (val == MODE_AUTODETECT && aml_db->ops && aml_db->ops->config_port) {
-		if (aml_db->mali_port[0] >= 0) {
-			aml_db->port[0] = (1ULL << aml_db->mali_port[0]);
-			aml_db->ops->config_port(aml_db, 0, aml_db->port[0]);
-		}
-		if (aml_db->mali_port[1] >= 0) {
-			aml_db->port[1] = (1ULL << aml_db->mali_port[1]);
-			aml_db->ops->config_port(aml_db, 1, aml_db->port[1]);
-		}
-	}
 	if (aml_db->mode == MODE_DISABLE && val != MODE_DISABLE) {
 		int r = request_irq(aml_db->irq_num, dmc_irq_handler,
 				IRQF_SHARED, "ddr_bandwidth", (void *)aml_db);
@@ -289,6 +299,16 @@ static ssize_t mode_store(struct class *cla,
 		aml_db->cur_sample.total_usage = 0;
 		aml_db->cur_sample.total_bandwidth = 0;
 		aml_db->busy = 0;
+	}
+	if (val == MODE_AUTODETECT && aml_db->ops && aml_db->ops->config_port) {
+		if (aml_db->mali_port[0] >= 0) {
+			aml_db->ops->config_port(aml_db, 0, aml_db->mali_port[0]);
+			aml_db->port[0] = (1ULL << aml_db->mali_port[0]);
+		}
+		if (aml_db->mali_port[1] >= 0) {
+			aml_db->ops->config_port(aml_db, 1, aml_db->mali_port[1]);
+			aml_db->port[1] = (1ULL << aml_db->mali_port[1]);
+		}
 	}
 	aml_db->mode = val;
 
@@ -683,6 +703,15 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		}
 		break;
 #endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_T5
+	case DMC_TYPE_T5:
+	case DMC_TYPE_T5D:
+		band->ops = &t5_ddr_bw_ops;
+		aml_db->channels = 8;
+		aml_db->mali_port[0] = 1; /* port1: mali */
+		aml_db->mali_port[1] = -1;
+		break;
+#endif
 	default:
 		pr_err("%s, Can't find ops for chip:%x\n", __func__, cpu);
 		return -1;
@@ -851,6 +880,14 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 	{
 		.compatible = "amlogic,ddr-bandwidth-tm2",
 		.data = (void *)DMC_TYPE_TM2,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-t5",
+		.data = (void *)DMC_TYPE_T5,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-t5d",
+		.data = (void *)DMC_TYPE_T5D,
 	},
 	{}
 };

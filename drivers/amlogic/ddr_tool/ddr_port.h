@@ -28,6 +28,8 @@
 #define DMC_TYPE_TL1			0x2E
 #define DMC_TYPE_TM2			0x2F
 #define DMC_TYPE_C1			0x30
+#define DMC_TYPE_T5			0x34
+#define DMC_TYPE_T5D			0x35
 
 struct ddr_port_desc {
 	char port_name[MAX_NAME];

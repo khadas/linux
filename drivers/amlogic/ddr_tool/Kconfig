@@ -58,6 +58,17 @@ config AMLOGIC_DDR_BANDWIDTH_A1
 		to get ddr total bandwidth, it can be used for
 		ddr DVFS/devfreq system.
 
+config AMLOGIC_DDR_BANDWIDTH_T5
+	bool "Meson ddr bandwidth for T5"
+	default n
+	depends on AMLOGIC_DDR_BANDWIDTH
+	help
+		This config enables ddr bandwidth measure for T5.
+		If open it, this driver will export interface
+		to get ddr total bandwidth, it can be used for
+		ddr DVFS/devfreq system.
+
+
 config AMLOGIC_DMC_MONITOR
 	bool "Amlogic dmc monitor"
 	depends on AMLOGIC_DDR_TOOL

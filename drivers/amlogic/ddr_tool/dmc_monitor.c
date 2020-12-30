@@ -404,6 +404,11 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 			#error need support for revA
 		#endif
 		break;
+
+	case DMC_TYPE_T5:
+	case DMC_TYPE_T5D:
+		mon->ops = &tm2_dmc_mon_ops;
+		break;
 #endif
 	default:
 		pr_err("%s, Can't find ops for chip:%x\n", __func__, chip);
@@ -537,6 +542,14 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-tm2",
 		.data = (void *)DMC_TYPE_TM2,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-t5",
+		.data = (void *)DMC_TYPE_T5,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-t5d",
+		.data = (void *)DMC_TYPE_T5D,
 	},
 	{}
 };

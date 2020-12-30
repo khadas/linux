@@ -16,7 +16,7 @@
 #define DEFAULT_XTAL_FREQ		24000000UL
 
 #define DMC_QOS_IRQ			BIT(30)
-#define MAX_CHANNEL			4
+#define MAX_CHANNEL			8
 
 #include "ddr_port.h"
 /*
@@ -103,13 +103,17 @@ struct ddr_bandwidth;
 
 struct ddr_grant {
 	unsigned long long tick;
-	unsigned int all_grant, all_req;
+	unsigned int all_grant;
+	unsigned int all_req;
+	unsigned int all_grant16;
 	unsigned int channel_grant[MAX_CHANNEL];
 };
 
 struct ddr_bandwidth_ops {
 	void (*init)(struct ddr_bandwidth *db);
 	void (*config_port)(struct ddr_bandwidth *db, int channel, int port);
+	void (*config_range)(struct ddr_bandwidth *db, int channel,
+			     unsigned int start, unsigned int end);
 	int  (*handle_irq)(struct ddr_bandwidth *db, struct ddr_grant *dg);
 	void (*bandwidth_enable)(struct ddr_bandwidth *db);
 	unsigned long (*get_freq)(struct ddr_bandwidth *db);
@@ -132,6 +136,11 @@ struct ddr_avg_bandwidth {
 	unsigned int sample_count;
 };
 
+struct bandwidth_addr_range {
+	unsigned long start;
+	unsigned long end;
+};
+
 struct ddr_bandwidth {
 	unsigned short cpu_type;
 	unsigned short real_ports;
@@ -150,6 +159,7 @@ struct ddr_bandwidth {
 	struct ddr_bandwidth_sample max_sample;
 	struct ddr_bandwidth_sample min_sample;
 	struct ddr_avg_bandwidth    avg;
+	struct bandwidth_addr_range range[MAX_CHANNEL];
 	u64	     port[MAX_CHANNEL];
 	void __iomem *ddr_reg;
 	void __iomem *pll_reg;
@@ -170,6 +180,9 @@ extern struct ddr_bandwidth_ops gxl_ddr_bw_ops;
 #endif
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_A1
 extern struct ddr_bandwidth_ops a1_ddr_bw_ops;
+#endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_T5
+extern struct ddr_bandwidth_ops t5_ddr_bw_ops;
 #endif
 
 unsigned int aml_get_ddr_usage(void);
