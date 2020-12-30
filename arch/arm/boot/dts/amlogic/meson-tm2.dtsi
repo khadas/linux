@@ -256,6 +256,14 @@
 		status = "okay";
 	};
 
+	aml_pm {
+		compatible = "amlogic, pm";
+		status = "okay";
+		device_name = "aml_pm";
+		reg = <0xff8000a8 0x4>, /*SYSCTRL_STATUS_REG2*/
+			<0xff80023c 0x4>; /*SYSCTRL_SEC_STATUS_REG31*/
+	};
+
 	ddr_bandwidth {
 		compatible = "amlogic,ddr-bandwidth-tm2";
 		status = "okay";
