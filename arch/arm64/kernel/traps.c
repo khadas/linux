@@ -892,15 +892,18 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned int esr)
 
 	case ESR_ELx_AET_UC:	/* Uncontainable or Uncategorized error */
 	default:
+		pr_err("\n###SERROR,%s,%d\n", __func__, __LINE__);
+		return false;
 		/* Error has been silently propagated */
-		arm64_serror_panic(regs, esr);
+		//arm64_serror_panic(regs, esr);
 	}
 }
 
 asmlinkage void do_serror(struct pt_regs *regs, unsigned int esr)
 {
 	const bool was_in_nmi = in_nmi();
-
+	pr_err("\n!!!SERROR,%s,%d\n", __func__, __LINE__);
+	return;
 	if (!was_in_nmi)
 		nmi_enter();
 
