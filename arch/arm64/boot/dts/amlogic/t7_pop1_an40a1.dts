@@ -290,6 +290,13 @@
 		};
 	};//End unifykey
 
+	pmic_osc: clock-pmic {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "pmic_osc";
+	};
+
 	hdmirx {
 		compatible = "amlogic, hdmirx_t7";
 		#address-cells=<1>;
@@ -1103,3 +1110,146 @@
 	tv_bit_mode = <1>;
 };
 
+&i2c_AO_A {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_ao_pins1>;
+	status = "okay";
+
+	pmic: pmic@4b {
+		compatible = "rohm,bd71837";
+		reg = <0x4b>;
+		clocks = <&pmic_osc>;
+		clock-names = "osc";
+		clock-output-names = "pmic_clk";
+		interrupt-parent = <&gpio_intc>;
+		interrupts = <GPIOD_11 GPIO_ACTIVE_LOW>;
+		interrupt-names = "irq";
+		rohm,reset-snvs-powered;
+
+		regulators {
+			VDD_NPU: BUCK1 {
+				regulator-name = "VDD_NPU";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-boot-on;
+				regulator-ramp-delay = <1250>;
+				rohm,dvs-run-voltage = <900000>;
+				rohm,dvs-idle-voltage = <850000>;
+				rohm,dvs-suspend-voltage = <800000>;
+				regulator-always-on;
+			};
+
+			VDD_EE: BUCK2 {
+				regulator-name = "VDD_EE";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-boot-on;
+				regulator-ramp-delay = <1250>;
+				rohm,dvs-run-voltage = <1000000>;
+				rohm,dvs-idle-voltage = <900000>;
+				regulator-always-on;
+			};
+
+			VDD_CPU_B: BUCK3 {
+				regulator-name = "VDD_CPU_B";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-boot-on;
+				rohm,dvs-run-voltage = <1000000>;
+				regulator-always-on;
+			};
+
+			VDD_DDR: BUCK4 {
+				regulator-name = "VDD_DDR";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				rohm,dvs-run-voltage = <1000000>;
+				regulator-always-on;
+			};
+
+			VDDQ: BUCK5 {
+				regulator-name = "VDDQ";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			VDDIO_3V3: BUCK6 {
+				regulator-name = "VDDIO_3V3";
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			VDDIO_1V8: BUCK7 {
+				regulator-name = "VDDIO_1V8";
+				regulator-min-microvolt = <1605000>;
+				regulator-max-microvolt = <1995000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			VDD_GPU: BUCK8 {
+				regulator-name = "VDD_GPU";
+				regulator-min-microvolt = <680000>;
+				regulator-max-microvolt = <1370000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			VDD_CPU_A: LDO1 {
+				regulator-name = "VDD_CPU_A";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1900000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ldo2_reg: LDO2 {
+				regulator-name = "ldo2";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+			};
+
+			VDDAO_1V8: LDO3 {
+				regulator-name = "VDDAO_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			CAMERA_VDD: LDO4 {
+				regulator-name = "CAMERA_VDD";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+
+			WIFI_BT_VIO: LDO5 {
+				regulator-name = "WIFI_BT_VIO";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			BUCK8_EXT: LDO6 {
+				regulator-name = "BUCK8_EXT";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			TOUCH_AVDD: LDO7 {
+				regulator-name = "TOUCH_AVDD";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+		};
+	};
+};
