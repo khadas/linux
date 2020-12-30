@@ -1724,6 +1724,7 @@ struct di_ch_s {
 	unsigned char cfg_cp[EDI_CFG_END];/*2020-12-15*/
 	//struct dev_vfram_t vfm;
 	enum vframe_source_type_e	src_type;
+	bool	ponly;
 	struct dentry *dbg_rootx;	/*dbg_fs*/
 
 	unsigned int ch_id;

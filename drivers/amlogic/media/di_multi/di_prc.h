@@ -185,7 +185,8 @@ void dim_trig_unreg(unsigned int ch);
 
 void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe);
 enum EDI_SGN di_vframe_2_sgn(struct vframe_s *vframe);
-const struct di_mm_cfg_s *di_get_mm_tab(unsigned int is_4k);
+const struct di_mm_cfg_s *di_get_mm_tab(unsigned int is_4k,
+					struct di_ch_s *pch);
 
 /************************************************
  * sct

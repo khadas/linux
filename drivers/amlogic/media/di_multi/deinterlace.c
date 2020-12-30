@@ -1416,6 +1416,13 @@ unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int ch)
 		reason = 0x89;
 	}
 
+	if (!reason	&&
+	    vf_in	&&
+	    pch->ponly	&&
+	    IS_I_SRC(vf_in->type)) {
+		reason = 0x8a;
+		//PR_INF("%s:bypass for p only\n", __func__);
+	}
 	return reason;
 }
 
@@ -2084,7 +2091,7 @@ static void di_cnt_pst_afbct(struct di_ch_s *pch)
 	//if (cfgg(4K))
 	is_4k = true;
 
-	pcfg = di_get_mm_tab(is_4k);
+	pcfg = di_get_mm_tab(is_4k, pch);
 	width	= pcfg->di_w;
 	height	= pcfg->di_h;
 
@@ -5478,7 +5485,7 @@ static void re_build_buf(struct di_ch_s *pch, enum EDI_SGN sgn)
 	mtsk_release(ch, ECMD_BLK_RELEASE);
 
 	/* mm change*/
-	ptab = di_get_mm_tab(is_4k);
+	ptab = di_get_mm_tab(is_4k, pch);
 	mm = dim_mm_get(ch);
 
 	mm->cfg.di_h = ptab->di_h;
@@ -5584,7 +5591,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 
 	if ((di_que_list_count(channel, QUE_IN_FREE) < 2	&&
 	     !ppre->di_inp_buf_next)				||
-	    ((ppre->sgn_lv != EDI_SGN_4K) &&
+	    (((ppre->sgn_lv != EDI_SGN_4K) && (!pch->ponly)) &&
 	     (queue_empty(channel, QUEUE_LOCAL_FREE))))
 		return 3;
 
@@ -10074,6 +10081,7 @@ void di_unreg_variable(unsigned int channel)
 //ary 2020-12-09	di_lock_irqfiq_save(irq_flag2);
 	//dim_print("%s: dim_uninit_buf\n", __func__);
 	pch->src_type = 0;
+	pch->ponly	= 0;
 	dim_uninit_buf(mirror_disable, channel);
 	ndrd_reset(pch);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA

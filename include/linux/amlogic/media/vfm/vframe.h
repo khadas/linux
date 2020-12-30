@@ -101,6 +101,7 @@
 #define VFRAME_FLAG_VIDEO_VDETECT		0x8000
 #define VFRAME_FLAG_VIDEO_VDETECT_PUT		0x10000
 #define VFRAME_FLAG_VIDEO_SECURE		0x20000
+#define VFRAME_FLAG_DI_P_ONLY			0x40000 /* ary */
 
 
 enum pixel_aspect_ratio_e {

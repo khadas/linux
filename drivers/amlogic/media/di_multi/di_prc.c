@@ -2005,6 +2005,14 @@ static const struct di_mm_cfg_s c_mm_cfg_normal = {
 	.num_step1_post = 1,
 };
 
+static const struct di_mm_cfg_s c_mm_cfg_normal_ponly = {
+	.di_h	=	1088,
+	.di_w	=	1920,
+	.num_local	=	0,
+	.num_post	=	POST_BUF_NUM,
+	.num_step1_post = 1,
+};
+
 static const struct di_mm_cfg_s c_mm_cfg_4k = {
 	.di_h	=	2160,
 	.di_w	=	3840,
@@ -2029,10 +2037,13 @@ static const struct di_mm_cfg_s c_mm_cfg_bypass = {
 	.num_step1_post = 0,
 };
 
-const struct di_mm_cfg_s *di_get_mm_tab(unsigned int is_4k)
+const struct di_mm_cfg_s *di_get_mm_tab(unsigned int is_4k,
+					struct di_ch_s *pch)
 {
 	if (is_4k)
 		return &c_mm_cfg_4k;
+	else if (pch->ponly)
+		return &c_mm_cfg_normal_ponly;
 	else
 		return &c_mm_cfg_normal;
 }
@@ -2708,6 +2719,11 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		dimp_set(edi_mp_use_2_interlace_buff, 1);
 	}
 	pch->src_type = vframe->source_type;
+	if ((vframe->flag & VFRAME_FLAG_DI_P_ONLY) || bget(&dim_cfg, 1))
+		pch->ponly = true;
+	else
+		pch->ponly = false;
+
 	if (dim_afds())
 		di_set_default(ch);
 
@@ -2747,6 +2763,11 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		mm->cfg.fix_buf = 1;
 	else
 		mm->cfg.fix_buf = 0;
+
+	if (pch->ponly) {
+		PR_INF("%s:ponly\n", __func__);
+		mm->cfg.num_local = 0;
+	}
 
 	post_nub = cfggch(pch, POST_NUB);
 	if ((post_nub) && post_nub < POST_BUF_NUM)
