@@ -1,0 +1,24 @@
+LEDs connected to tlc59116
+
+Required properties
+- compatible: should be "amlogic,tlc59116_led"
+- #address-cells: must be 1
+- #size-cells: must be 0
+- reg: typically 0x60
+
+Examples:
+
+
+tlc59116: tlc59116@60 {
+	compatible = "amlogic,tlc59116_led";
+	reg = <0x60>;
+	status = "okay";
+
+	led {
+		tlc59116,name = "tlc59116_led";
+		tlc59116,imax = <255>;
+		tlc59116,brightness = <255>;
+		tlc59116,max_brightness = <255>;
+	};
+};
+
