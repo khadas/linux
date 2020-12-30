@@ -1027,6 +1027,12 @@
 			"clk_hcodec_mux",
 			"clk_hevcf_mux",
 			"clk_hevcb_mux";
+		assigned-clock-parents = <&clkc CLKID_VDEC_P0>,
+			<&clkc CLKID_HEVCF_P0>,
+			<&clkc CLKID_HEVCB_P0>;
+		assigned-clocks = <&clkc CLKID_VDEC_MUX>,
+			<&clkc CLKID_HEVCF_MUX>,
+			<&clkc CLKID_HEVCB_MUX>;
 	};
 
 	vdec {
