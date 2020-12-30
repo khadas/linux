@@ -1729,6 +1729,12 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
 	cs-gpios = <&gpio GPIOH_8 0>;
+	spi-nor@0 {
+		compatible = "jedec,spi-nor";
+		status = "disabled";
+		reg = <0>;
+		spi-max-frequency = <16000000>;
+	};
 };
 
 &meson_fb {

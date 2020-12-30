@@ -1248,6 +1248,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	master->transfer_one = meson_spicc_transfer_one;
 #ifdef CONFIG_AMLOGIC_MODIFY
 	master->auto_runtime_pm = true;
+	pm_runtime_enable(&pdev->dev);
 #endif
 
 	/* Setup max rate according to the Meson GX datasheet */
@@ -1266,9 +1267,6 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		goto out_clk;
 	}
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-	pm_runtime_enable(&pdev->dev);
-#endif
 	return 0;
 
 out_clk:
