@@ -108,7 +108,16 @@ static DEFINE_SPINLOCK(video3_onoff_lock);
 #define VPU_VIDEO_LAYER2_CHANGED		BIT(7)
 #define VPU_VIDEO_LAYER3_CHANGED		BIT(8)
 
+#define VPU_DELAYWORK_MEM_POWER_OFF_DOLBY0		BIT(9)
+#define VPU_DELAYWORK_MEM_POWER_OFF_DOLBY1A		BIT(10)
+#define VPU_DELAYWORK_MEM_POWER_OFF_DOLBY1B		BIT(11)
+#define VPU_DELAYWORK_MEM_POWER_OFF_DOLBY2		BIT(12)
+#define VPU_DELAYWORK_MEM_POWER_OFF_DOLBY_CORE3		BIT(13)
+#define VPU_DELAYWORK_MEM_POWER_OFF_PRIME_DOLBY		BIT(14)
+
 #define VPU_MEM_POWEROFF_DELAY	100
+#define DV_MEM_POWEROFF_DELAY	2
+
 static struct work_struct vpu_delay_work;
 static int vpu_vd1_clk_level;
 static int vpu_vd2_clk_level;
@@ -116,6 +125,7 @@ static int vpu_vd3_clk_level;
 static DEFINE_SPINLOCK(delay_work_lock);
 static int vpu_delay_work_flag;
 static int vpu_mem_power_off_count;
+static int dv_mem_power_off_count;
 static struct vpu_dev_s *vd1_vpu_dev;
 static struct vpu_dev_s *afbc_vpu_dev;
 static struct vpu_dev_s *di_post_vpu_dev;
@@ -126,10 +136,18 @@ static struct vpu_dev_s *afbc2_vpu_dev;
 static struct vpu_dev_s *vd2_scale_vpu_dev;
 
 static struct vpu_dev_s *vpu_fgrain1;
+
 static struct vpu_dev_s *vd3_vpu_dev;
 static struct vpu_dev_s *afbc3_vpu_dev;
 static struct vpu_dev_s *vd3_scale_vpu_dev;
 static struct vpu_dev_s *vpu_fgrain2;
+
+static struct vpu_dev_s *vpu_dolby0;
+static struct vpu_dev_s *vpu_dolby1a;
+static struct vpu_dev_s *vpu_dolby1b;
+static struct vpu_dev_s *vpu_dolby2;
+static struct vpu_dev_s *vpu_dolby_core3;
+static struct vpu_dev_s *vpu_prime_dolby_ram;
 
 #define VPU_VD1_CLK_SWITCH(level) \
 	do { \
@@ -437,6 +455,126 @@ static struct vpu_dev_s *vpu_fgrain2;
 		pr_info("VIDEO: disable_video_all_layer_nodelay()\n"); \
 	} while (0)
 
+void dv_mem_power_off(enum vpu_mod_e mode)
+{
+	unsigned long flags;
+	unsigned int dv_flag;
+
+	if (mode == VPU_DOLBY0)
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY0;
+	else if (mode == VPU_DOLBY1A)
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY1A;
+	else if (mode == VPU_DOLBY1B)
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY1B;
+	else if (mode == VPU_DOLBY2)
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY2;
+	else if (mode == VPU_DOLBY_CORE3)
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY_CORE3;
+	else if (mode == VPU_PRIME_DOLBY_RAM)
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_PRIME_DOLBY;
+	else
+		return;
+
+	return; /*currently power function not ok*/
+	spin_lock_irqsave(&delay_work_lock, flags);
+	vpu_delay_work_flag |= dv_flag;
+	dv_mem_power_off_count = DV_MEM_POWEROFF_DELAY;
+	spin_unlock_irqrestore(&delay_work_lock, flags);
+}
+EXPORT_SYMBOL(dv_mem_power_off);
+
+void dv_mem_power_on(enum vpu_mod_e mode)
+{
+	unsigned long flags;
+	unsigned int dv_flag;
+	static struct vpu_dev_s *p_dev;
+
+	if (mode == VPU_DOLBY0) {
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY0;
+		p_dev = vpu_dolby0;
+	} else if (mode == VPU_DOLBY1A) {
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY1A;
+		p_dev = vpu_dolby1a;
+	} else if (mode == VPU_DOLBY1B) {
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY1B;
+		p_dev = vpu_dolby1b;
+	} else if (mode == VPU_DOLBY2) {
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY2;
+		p_dev = vpu_dolby2;
+	} else if (mode == VPU_DOLBY_CORE3) {
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY_CORE3;
+		p_dev = vpu_dolby_core3;
+	} else if (mode == VPU_PRIME_DOLBY_RAM) {
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_PRIME_DOLBY;
+		p_dev = vpu_prime_dolby_ram;
+	} else {
+		return;
+	}
+	spin_lock_irqsave(&delay_work_lock, flags);
+	vpu_delay_work_flag &= ~dv_flag;
+	spin_unlock_irqrestore(&delay_work_lock, flags);
+	vpu_dev_mem_power_on(p_dev);
+}
+EXPORT_SYMBOL(dv_mem_power_on);
+
+/*get mem power status on the way*/
+int get_dv_mem_power_flag(enum vpu_mod_e mode)
+{
+	unsigned long flags;
+	unsigned int dv_flag;
+	int ret = VPU_MEM_POWER_ON;
+
+	if (mode == VPU_DOLBY0)
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY0;
+	else if (mode == VPU_DOLBY1A)
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY1A;
+	else if (mode == VPU_DOLBY1B)
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY1B;
+	else if (mode == VPU_DOLBY2)
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY2;
+	else if (mode == VPU_DOLBY_CORE3)
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_DOLBY_CORE3;
+	else if (mode == VPU_PRIME_DOLBY_RAM)
+		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_PRIME_DOLBY;
+	else
+		return -1;
+	return ret; /*currently power function not ok*/
+	spin_lock_irqsave(&delay_work_lock, flags);
+	if (vpu_delay_work_flag & dv_flag)
+		ret = VPU_MEM_POWER_DOWN;
+	spin_unlock_irqrestore(&delay_work_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(get_dv_mem_power_flag);
+
+/*get vpu mem power status*/
+int get_dv_vpu_mem_power_status(enum vpu_mod_e mode)
+{
+	int ret = VPU_MEM_POWER_ON;
+	static struct vpu_dev_s *p_dev;
+
+	if (mode == VPU_DOLBY0)
+		p_dev = vpu_dolby0;
+	else if (mode == VPU_DOLBY1A)
+		p_dev = vpu_dolby1a;
+	else if (mode == VPU_DOLBY1B)
+		p_dev = vpu_dolby1b;
+	else if (mode == VPU_DOLBY2)
+		p_dev = vpu_dolby2;
+	else if (mode == VPU_DOLBY_CORE3)
+		p_dev = vpu_dolby_core3;
+	else if (mode == VPU_PRIME_DOLBY_RAM)
+		p_dev = vpu_prime_dolby_ram;
+	else
+		return ret;
+
+	return ret; /*currently power function not ok*/
+
+	ret = vpu_dev_mem_pd_get(p_dev);
+	return ret;
+}
+EXPORT_SYMBOL(get_dv_vpu_mem_power_status);
+
 /*********************************************************/
 static struct vframe_pic_mode_s gpic_info[MAX_VD_LAYERS];
 static u32 reference_zorder = 128;
@@ -480,6 +618,18 @@ bool is_dolby_vision_stb_mode(void)
 bool for_dolby_vision_certification(void)
 {
 	return false;
+}
+
+void dv_vf_light_reg_provider(void)
+{
+}
+
+void dv_vf_light_unreg_provider(void)
+{
+}
+
+void dolby_vision_update_backlight(void)
+{
 }
 
 bool is_dovi_frame(struct vframe_s *vf)
@@ -6225,6 +6375,47 @@ static void do_vpu_delay_work(struct work_struct *work)
 		}
 	}
 
+	if (dv_mem_power_off_count > 0) {
+		dv_mem_power_off_count--;
+		if (dv_mem_power_off_count == 0) {
+			if ((vpu_delay_work_flag &
+			     VPU_DELAYWORK_MEM_POWER_OFF_DOLBY0)) {
+				vpu_delay_work_flag &=
+				    ~VPU_DELAYWORK_MEM_POWER_OFF_DOLBY0;
+				vpu_dev_mem_power_down(vpu_dolby0);
+			}
+			if ((vpu_delay_work_flag &
+				VPU_DELAYWORK_MEM_POWER_OFF_DOLBY1A)) {
+				vpu_delay_work_flag &=
+					 ~VPU_DELAYWORK_MEM_POWER_OFF_DOLBY1A;
+				vpu_dev_mem_power_down(vpu_dolby1a);
+			}
+			if ((vpu_delay_work_flag &
+				VPU_DELAYWORK_MEM_POWER_OFF_DOLBY1B)) {
+				vpu_delay_work_flag &=
+					~VPU_DELAYWORK_MEM_POWER_OFF_DOLBY1B;
+				vpu_dev_mem_power_down(vpu_dolby1b);
+			}
+			if ((vpu_delay_work_flag &
+				VPU_DELAYWORK_MEM_POWER_OFF_DOLBY2)) {
+				vpu_delay_work_flag &=
+				~VPU_DELAYWORK_MEM_POWER_OFF_DOLBY2;
+				vpu_dev_mem_power_down(vpu_dolby2);
+			}
+			if ((vpu_delay_work_flag &
+				VPU_DELAYWORK_MEM_POWER_OFF_DOLBY_CORE3)) {
+				vpu_delay_work_flag &=
+				~VPU_DELAYWORK_MEM_POWER_OFF_DOLBY_CORE3;
+				vpu_dev_mem_power_down(vpu_dolby_core3);
+			}
+			if ((vpu_delay_work_flag &
+				VPU_DELAYWORK_MEM_POWER_OFF_PRIME_DOLBY)) {
+				vpu_delay_work_flag &=
+				~VPU_DELAYWORK_MEM_POWER_OFF_PRIME_DOLBY;
+				vpu_dev_mem_power_down(vpu_prime_dolby_ram);
+			}
+		}
+	}
 	spin_unlock_irqrestore(&delay_work_lock, flags);
 }
 
@@ -6945,6 +7136,13 @@ int video_hw_init(void)
 		vpu_fgrain2 = vpu_dev_register(VPU_FGRAIN2, "VPU_FGRAIN2");
 
 #endif
+	vpu_dolby0 = vpu_dev_register(VPU_DOLBY0, "DOLBY0");
+	vpu_dolby1a = vpu_dev_register(VPU_DOLBY1A, "DOLBY1A");
+	vpu_dolby1b = vpu_dev_register(VPU_DOLBY1B, "DOLBY1B");
+	vpu_dolby2 = vpu_dev_register(VPU_DOLBY2, "DOLBY2");
+	vpu_dolby_core3 = vpu_dev_register(VPU_DOLBY_CORE3, "DOLBY_CORE3");
+	vpu_prime_dolby_ram = vpu_dev_register(VPU_PRIME_DOLBY_RAM, "PRIME_DOLBY_RAM");
+
 	arb_vpu_dev = vpu_dev_register(VPU_VPU_ARB, "ARB");
 	vpu_dev_mem_power_on(arb_vpu_dev);
 

@@ -1726,6 +1726,10 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			else/*vic == HDMI_4096x2160p24_256x135*/
 				VEN_DB1[4] = 0x4;
 		}
+		if (type == EOTF_T_DV_AHEAD) {
+			hdev->hwop.setpacket(HDMI_PACKET_VEND, VEN_DB1, VEN_HB);
+			return;
+		}
 		if (type == EOTF_T_DOLBYVISION) {
 			/*first disable drm package*/
 			hdmitx_device.hwop.setpacket(HDMI_PACKET_DRM,
@@ -1820,6 +1824,10 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			VEN_DB2[6] = data->vers.ver2.auxiliary_runmode;
 			VEN_DB2[7] = data->vers.ver2.auxiliary_runversion;
 			VEN_DB2[8] = data->vers.ver2.auxiliary_debug0;
+		}
+		if (type == EOTF_T_DV_AHEAD) {
+			hdev->hwop.setpacket(HDMI_PACKET_VEND, VEN_DB2, VEN_HB);
+			return;
 		}
 		/*Dolby Vision standard case*/
 		if (type == EOTF_T_DOLBYVISION) {

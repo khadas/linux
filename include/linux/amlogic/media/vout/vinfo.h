@@ -130,6 +130,7 @@ enum eotf_type {
 	EOTF_T_HDR10,
 	EOTF_T_SDR,
 	EOTF_T_LL_MODE,
+	EOTF_T_DV_AHEAD,
 	EOTF_T_MAX,
 };
 

@@ -18,6 +18,7 @@
 #define _AMDV_H_
 
 #define V1_5
+#define V1_6_1
 #define V2_4
 /*  driver version */
 #define DRIVER_VER "20181220"
@@ -49,6 +50,12 @@
 #define TUNINGMODE_EXTLEVEL5_DISABLE     0x10
 #define TUNINGMODE_EL_FORCEDDISABLE      0x20
 
+#define VPP_VD1_DSC_CTRL                           0x1a83
+#define VPP_VD2_DSC_CTRL                           0x1a84
+#define VPP_VD3_DSC_CTRL                           0x1a85
+#define DOLBY_PATH_SWAP_CTRL1                      0x1a70
+#define DOLBY_PATH_SWAP_CTRL2                      0x1a71
+
 enum core1_switch_type {
 	NO_SWITCH = 0,
 	SWITCH_BEFORE_DVCORE_1,
@@ -67,11 +74,14 @@ enum core3_switch_type {
 struct TgtOutCscCfg {
 	s32   lms2RgbMat[3][3]; /**<@brief  LMS to RGB matrix */
 	s32   lms2RgbMatScale;  /**<@brief  LMS 2 RGB matrix scale */
+#ifdef V1_6_1
+	s32   reserved[4];
+#else
 	u8   whitePoint[3];    /**<@brief  White point */
 	u8   whitePointScale;  /**<@brief  White point scale */
 	s32   reserved[3];
+#endif
 };
-
 #pragma pack(pop)
 
 /*! @brief Global dimming configuration.*/
@@ -99,15 +109,119 @@ struct TgtGDCfg {
 	u16  gdTriggerPeriod;
 	u32  gdTriggerLinThresh;
 	u32  gdDelayMilliSec_ott;
+#ifdef V1_6_1
+	s16   gdRiseWeight;      /*Back light rise weight signed Q3.12 */
+	s16   gdFallWeight;      /*Back light fall weight signed Q3.12 */
+	u32  gdDelayMilliSec_ll;/*Back light delay for LL case */
+	u32  gdContrast;        /*GD Contrast DM 4 only */
+	u32  reserved[3];
+#else
 #ifdef V1_5
 	u32  reserved[6];
 #else
 	u32  reserved[9];
 #endif
+#endif
 };
 
 #pragma pack(pop)
 
+#ifdef V1_6_1
+#define AMBIENT_UPD_FRONT     (uint32_t)(1 << 0)
+#define AMBIENT_UPD_REAR      (uint32_t)(1 << 1)
+#define AMBIENT_UPD_WHITEXY   (uint32_t)(1 << 2)
+#define AMBIENT_UPD_MODE      (uint32_t)(1 << 3)
+
+struct ambient_cfg_s {
+	u32 update_flag;
+	u32 ambient; /* 1 << 16 */
+	u32 tRearLum;
+	u32 tFrontLux;
+	u32 tWhiteX; /* 1 << 15 */
+	u32 tWhiteY; /* 1 << 15 */
+};
+
+/*! @brief Ambient light configuration.*/
+# pragma pack(push, 1)
+struct AmbientCfg {
+	u32 ambient;
+	u32 tFrontLux;
+	u32 tFrontLuxScale;
+	u32 tRearLum;
+	u32 tRearLumScale;
+	u32 tWhitexy[2];
+	u32 tSurroundReflection;
+	u32 tScreenReflection;
+	u32 alDelay;
+	u32 alRise;
+	u32 alFall;
+};
+
+#pragma pack(pop)
+
+/*! @brief Adaptive Boost configuration.*/
+# pragma pack(push, 1)
+struct TgtABCfg {
+	s32   abEnable;             /*Adaptive boost enabled */
+	u32  abHighestTmax;        /*Adaptive boost highest Tmax */
+	u32  abLowestTmax;         /*Adaptive boost lowest Tmax  */
+	s16   abRiseWeight;         /*Back light rise weight signed Q3.12 */
+	s16   abFallWeight;         /*Back light fall weight signed Q3.12 */
+	u32  abDelayMilliSec_hdmi; /*Back light delay for HDMI case */
+	u32  abDelayMilliSec_ott;  /*Back light delay for OTT case */
+	u32  abDelayMilliSec_ll;   /*Back light delay for LL case */
+	u32  reserved[3];
+};
+
+#pragma pack(pop)
+
+# pragma pack(push, 1)
+struct TargetDisplayConfig {
+	u16 gamma;        /*Gamma */
+	u16 eotf;         /*Target EOTF */
+	u16 rangeSpec;    /*Target Range */
+	u16 maxPq;        /*Target max luminance in PQ */
+	u16 minPq;        /*Target min luminance in PQ */
+	u16 maxPq_dm3;    /*Target max luminance for DM3 in PQ  */
+	s32  min_lin;      /*Target min luminance in linear scale 2^18 */
+	s32  max_lin;      /*Target max luminance in linear scale 2^18 */
+	s32  max_lin_dm3;  /*Target max luminance for DM 3*/
+	s32  tPrimaries[8];/*Target primaries */
+	u16 mSWeight;  /*Multi-scale Weight,maybe overwritten by metadata*/
+	s16  trimSlopeBias;  /*Trim Slope bias */
+	s16  trimOffsetBias; /*Trim Offset bias */
+	s16  trimPowerBias;      /*Trim Power bias */
+	s16  msWeightBias;       /*Multi-scale weight bias */
+	s16  chromaWeightBias;   /*Tone mapping chroma weight bias */
+	s16  saturationGainBias; /*Tone mapping saturation gain bias */
+	u16 tuningMode;         /*Tuning Mode */
+	s16  brightness;         /*Brightness */
+	s16  contrast;           /*Contrast */
+	s16  dColorShift;        /*ColorShift */
+	s16  dSaturation;        /*Saturation */
+	s16  dBacklight;         /*Backlight */
+	s16  dbgExecParamsPrintPeriod; /*Print reg values every n-th frame*/
+	s16  dbgDmMdPrintPeriod;       /*Print DM metadata*/
+	s16  dbgDmCfgPrintPeriod;      /*Print DM configuration*/
+	struct TgtGDCfg  gdConfig;         /*Global Dimming configuration */
+	struct TgtABCfg  abConfig;         /*Adaptive boost configuration */
+	struct AmbientCfg ambientConfig;   /*Ambient light configuration */
+	u8  vsvdb[7];
+	u8  dm31_avail;
+	u8  reference_mode_dark_id;
+	u8  applyL11;
+	u8  reserved1[1];
+	s16  backlight_scaler;       /*Backlight Scaler */
+	struct TgtOutCscCfg ocscConfig;  /*Output CSC configuration */
+	s16  brightnessPreservation; /*Brightness preservation */
+	u8  num_total_viewing_modes;/*Num of total viewing modes in cfg*/
+	u8  viewing_mode_valid;     /*1 if the viewing mode is valid*/
+	s16  padding[128];
+};
+
+#pragma pack(pop)
+
+#else
 /*! @defgroup general Enumerations and data structures*/
 # pragma pack(push, 1)
 struct TargetDisplayConfig {
@@ -180,13 +294,15 @@ struct TargetDisplayConfig {
 };
 
 #pragma pack(pop)
-
+#endif
 /*! @brief PQ config main data structure.*/
 struct pq_config_s {
+#ifndef V1_6_1
 	unsigned char default_gm_lut[GM_LUT_HDR_SIZE + GM_LUT_SIZE];
 	unsigned char gd_gm_lut_min[GM_LUT_HDR_SIZE + GM_LUT_SIZE];
 	unsigned char gd_gm_lut_max[GM_LUT_HDR_SIZE + GM_LUT_SIZE];
 	unsigned char pq2gamma[sizeof(s32) * PQ2G_LUT_SIZE];
+#endif
 	unsigned char backlight_lut[BACLIGHT_LUT_SIZE];
 	struct TargetDisplayConfig target_display_config;
 };
@@ -545,12 +661,69 @@ struct dovi_setting_s {
 #endif
 };
 
+struct dv_cfg_info_s {
+	int id;
+	char pic_mode_name[32];
+	s16  brightness;        /*Brightness */
+	s16  contrast;          /*Contrast */
+	s16  colorshift;        /*ColorShift or Tint*/
+	s16  saturation;        /*Saturation or color */
+	u8  vsvdb[7];
+};
+
+struct dv_pq_center_value_s {
+	s16  brightness;        /*Brightness */
+	s16  contrast;          /*Contrast */
+	s16  colorshift;        /*ColorShift or Tint*/
+	s16  saturation;        /*Saturation or color */
+};
+
+struct dv_pq_range_s {
+	s16  left;
+	s16  right;
+};
+
+struct tv_input_info_s {
+	s16 brightness_off[8][2];
+	s32 debug_buf[500];
+};
+
+#ifdef V1_6_1
+#define PREFIX_SEI_NUT 39
+#define SUFFIX_SEI_NUT 40
+#define SEI_USER_DATA_REGISTERED_ITU_T_T35 4
+#define SEI_MASTERING_DISPLAY_COLOUR_VOLUME 137
+
+#define MAX_LENGTH_2086_SEI 256
+#define MAX_LENGTH_2094_SEI 256
+
+/* VUI parameters required to generate Dolby Vision metadata for ATSC 3.0*/
+struct _dv_vui_param_s_ {
+	s32  i_video_format;
+	s32      b_video_full_range;
+	s32      b_colour_description;
+	s32  i_colour_primaries;
+	s32  i_transfer_characteristics;
+	s32  i_matrix_coefficients;
+};
+
+/* Data structure that combines all ATSC related parameters.*/
+struct _dv_atsc_s_ {
+	struct _dv_vui_param_s_  vui_param;
+	u32 length_2086_sei;
+	u8  payload_2086_sei[MAX_LENGTH_2086_SEI];
+	u32 length_2094_sei;
+	u8  payload_2094_sei[MAX_LENGTH_2094_SEI];
+};
+#endif
 enum cpuID_e {
 	_CPU_MAJOR_ID_GXM,
 	_CPU_MAJOR_ID_TXLX,
 	_CPU_MAJOR_ID_G12,
 	_CPU_MAJOR_ID_TM2,
+	_CPU_MAJOR_ID_TM2_REVB,
 	_CPU_MAJOR_ID_SC2,
+	_CPU_MAJOR_ID_T7,
 	_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -589,8 +762,24 @@ struct tv_dovi_setting_s {
 	u32 video_width;
 	u32 video_height;
 	enum input_mode_e input_mode;
+	u16 backlight;
 };
 
+#ifdef V1_6_1
+int tv_control_path(enum signal_format_e in_format,
+	enum input_mode_e in_mode,
+	char *in_comp, int in_comp_size,
+	char *in_md, int in_md_size,
+	int set_bit_depth, int set_chroma_format, int set_yuv_range,
+	struct pq_config_s *pq_config,
+	struct ui_menu_params_s *menu_param,
+	int set_no_el,
+	struct hdr10_param_s *hdr10_param,
+	struct tv_dovi_setting_s *output,
+	char *vsem_if, int vsem_if_size,
+	struct ambient_cfg_s *ambient_cfg,
+	struct tv_input_info_s *input_info);
+#else
 int tv_control_path(enum signal_format_e in_format,
 	enum input_mode_e in_mode,
 	char *in_comp, int in_comp_size,
@@ -602,6 +791,7 @@ int tv_control_path(enum signal_format_e in_format,
 	struct hdr10_param_s *hdr10_param,
 	struct tv_dovi_setting_s *output);
 
+#endif
 void *metadata_parser_init(int flag);
 int metadata_parser_reset(int flag);
 int metadata_parser_process(char  *src_rpu, int rpu_len,
@@ -612,6 +802,7 @@ void metadata_parser_release(void);
 struct dolby_vision_func_s {
 	const char *version_info;
 	void * (*metadata_parser_init)(int flag);
+	/*flag: bit0 flag, bit1 0->dv, 1->atsc*/
 	int (*metadata_parser_reset)(int flag);
 	int (*metadata_parser_process)(char  *src_rpu, int rpu_len,
 		char  *dst_comp, int *comp_len,
@@ -628,6 +819,21 @@ struct dolby_vision_func_s {
 		int set_no_el,
 		struct hdr10_param_s *hdr10_param,
 		struct dovi_setting_s *output);
+#ifdef V1_6_1
+	int (*tv_control_path)(enum signal_format_e in_format,
+		enum input_mode_e in_mode,
+		char *in_comp, int in_comp_size,
+		char *in_md, int in_md_size,
+		int set_bit_depth, int set_chroma_format, int set_yuv_range,
+		struct pq_config_s *pq_config,
+		struct ui_menu_params_s *menu_param,
+		int set_no_el,
+		struct hdr10_param_s *hdr10_param,
+		struct tv_dovi_setting_s *output,
+		char *vsem_if, int vsem_if_size,
+		struct ambient_cfg_s *ambient_cfg,
+		struct tv_input_info_s *input_info);
+#else
 	int (*tv_control_path)(enum signal_format_e in_format,
 		enum input_mode_e in_mode,
 		char *in_comp, int in_comp_size,
@@ -638,6 +844,7 @@ struct dolby_vision_func_s {
 		int set_no_el,
 		struct hdr10_param_s *hdr10_param,
 		struct tv_dovi_setting_s *output);
+#endif
 };
 
 int register_dv_functions(const struct dolby_vision_func_s *func);
@@ -653,4 +860,8 @@ u32 VSYNC_RD_MPEG_REG(u32 adr);
 int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
 #endif
 
+void dv_mem_power_on(enum vpu_mod_e mode);
+void dv_mem_power_off(enum vpu_mod_e mode);
+int get_dv_mem_power_flag(enum vpu_mod_e mode);
+int get_dv_vpu_mem_power_status(enum vpu_mod_e mode);
 #endif

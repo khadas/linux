@@ -6950,6 +6950,10 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		dovi_drop_flag = false;
 		dovi_drop_frame_num = 0;
 		mutex_unlock(&omx_mutex);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		if (is_dolby_vision_enable())
+			dv_vf_light_unreg_provider();
+#endif
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
 		video_vf_light_unreg_provider(1);
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG) {
@@ -6993,6 +6997,10 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 			(void *)1);
 #endif
 		video_vf_light_unreg_provider(0);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		if (is_dolby_vision_enable())
+			dv_vf_light_reg_provider();
+#endif
 	} else if (type == VFRAME_EVENT_PROVIDER_FORCE_BLACKOUT) {
 		force_blackout = 1;
 		if (debug_flag & DEBUG_FLAG_BLACKOUT) {
