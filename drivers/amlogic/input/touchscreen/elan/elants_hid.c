@@ -195,6 +195,10 @@ struct elants_data {
 	u16 hw_version;
 	unsigned int x_res;	/* resolution in units/mm */
 	unsigned int y_res;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int x_dis;     /* use to map touch to display */
+	unsigned int y_dis;
+#endif
 	unsigned int x_max;
 	unsigned int y_max;
 	unsigned int cols;
@@ -2015,6 +2019,13 @@ static void elants_i2c_mt_event_hid_i2c_finger(struct elants_data *ts, u8 *buf)
 			 *y = y * 2560 / 3008;
 			 *y = 2560 - y;
 			 */
+#ifdef CONFIG_AMLOGIC_MODIFY
+			/* remap touch to display */
+			if (ts->x_dis && ts->y_dis) {
+				x = x * ts->x_dis / ts->x_max;
+				y = y * ts->y_dis / ts->y_max;
+			}
+#endif
 			input_report_abs(idev, ABS_MT_TOUCH_MAJOR, p);
 			input_report_abs(idev, ABS_MT_PRESSURE, p);
 			input_report_abs(idev, ABS_MT_POSITION_X, x);
@@ -2216,7 +2227,7 @@ static void  elan_ts_work_func(struct work_struct *work)
 	client = ts->client;
 
 	if (gpio_get_value(ts->intr_gpio)) {
-		pr_info("[elan] Detected the jitter on INT pin");
+		//pr_info("[elan] Detected the jitter on INT pin");
 		//enable_irq(client->irq);
 		elan_set_irq_status(client->irq, 1);
 		return; //IRQ_HANDLED;
@@ -3011,9 +3022,27 @@ static int elants_i2c_probe(struct i2c_client *client,
 		return error;
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	error  = of_property_read_u32(client->dev.of_node, "elen,display-x", &ts->x_dis);
+	if (error) {
+		ts->x_dis = 0;
+		ts->y_dis = 0;
+	} else {
+		error  = of_property_read_u32(client->dev.of_node, "elen,display-y", &ts->y_dis);
+		if (error) {
+			dev_err(&client->dev, "need to set y & x at the same time\n");
+			return error;
+		}
+	}
+#endif
 	input_set_abs_params(ts->input, ABS_MT_TOOL_TYPE, 0, MT_TOOL_MAX, 0, 0);
+#ifndef CONFIG_AMLOGIC_MODIFY
 	input_set_abs_params(ts->input, ABS_MT_POSITION_X, 0, ts->x_max, 0, 0);
 	input_set_abs_params(ts->input, ABS_MT_POSITION_Y, 0, ts->y_max, 0, 0);
+#else
+	input_set_abs_params(ts->input, ABS_MT_POSITION_X, 0, ts->x_dis, 0, 0);
+	input_set_abs_params(ts->input, ABS_MT_POSITION_Y, 0, ts->y_dis, 0, 0);
+#endif
 	input_set_abs_params(ts->input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input, ABS_MT_PRESSURE, 0, 255, 0, 0);
 	input_abs_set_res(ts->input, ABS_MT_POSITION_X, ts->x_res);

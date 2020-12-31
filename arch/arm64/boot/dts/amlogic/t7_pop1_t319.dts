@@ -1365,3 +1365,21 @@
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
 };
+
+&i2c2 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins2>;
+	status = "disabled";
+
+	elan@10 {
+		compatible = "elan,ekth3500";
+		status = "disabled";
+		reg = <0x10>;
+		vcc33-supply = <&TOUCH_AVDD>;
+		elan,irq-gpio = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		elan,reset-gpio = <&gpio GPIOY_5 GPIO_ACTIVE_LOW>;
+		elen,display-x = <1920>;
+		elen,display-y = <1080>;
+	};
+};
