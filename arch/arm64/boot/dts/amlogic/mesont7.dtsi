@@ -1015,7 +1015,7 @@
 		};
 
 		uart_F: serial@fe082000 {
-			compatible = "amlogic, meson-uart";
+			compatible = "amlogic,meson-uart";
 			status = "disabled";
 			reg = <0x0 0xfe082000 0x0 0x18>;
 			interrupts = <0 173 1>;
