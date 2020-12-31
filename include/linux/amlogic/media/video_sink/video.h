@@ -222,6 +222,21 @@ enum {
 #define VPP_PREVSC_DS_RATIO_BIT_T5     0
 #define VPP_PREVSC_DS_RATIO_WID_T5     2
 
+#define VPP_COEF11_MODE_BIT_T7        20
+#define VPP_COEF11_MODE_WID_T7         1
+#define VPP_PREVSC_NOR_RD_BIT_T7      16
+#define VPP_PREVSC_NOR_RD_WID_T7       4
+#define VPP_PREHSC_NOR_RS_BIT_T7      12
+#define VPP_PREHSC_NOR_RS_WID_T7       4
+#define VPP_PREHSC_FLT_NUM_BIT_T7      8
+#define VPP_PREHSC_FLT_NUM_WID_T7      4
+#define VPP_PREVSC_FLT_NUM_BIT_T7      4
+#define VPP_PREVSC_FLT_NUM_WID_T7      4
+#define VPP_PREHSC_DS_RATIO_BIT_T7     2
+#define VPP_PREHSC_DS_RATIO_WID_T7     2
+#define VPP_PREVSC_DS_RATIO_BIT_T7     0
+#define VPP_PREVSC_DS_RATIO_WID_T7     2
+
 #define VPP_PREHSC_FLT_NUM_BIT      0
 #define VPP_PREHSC_FLT_NUM_WID      4
 #define VPP_PREHSC_COEF3_BIT        24
@@ -232,6 +247,15 @@ enum {
 #define VPP_PREHSC_COEF1_WID        8
 #define VPP_PREHSC_COEF0_BIT        0
 #define VPP_PREHSC_COEF0_WID        8
+
+#define VPP_PREHSC_8TAP_COEF3_BIT        16
+#define VPP_PREHSC_8TAP_COEF3_WID        10
+#define VPP_PREHSC_8TAP_COEF2_BIT        0
+#define VPP_PREHSC_8TAP_COEF2_WID        10
+#define VPP_PREHSC_8TAP_COEF1_BIT        16
+#define VPP_PREHSC_8TAP_COEF1_WID        10
+#define VPP_PREHSC_8TAP_COEF0_BIT        0
+#define VPP_PREHSC_8TAP_COEF0_WID        10
 
 #define VPP_PREVSC_COEF1_BIT        8
 #define VPP_PREVSC_COEF1_WID        8

@@ -155,6 +155,7 @@ struct mif_pos_s {
 
 	bool skip_afbc;
 	u32 vpp_3d_mode;
+	u8 block_mode;
 };
 
 struct scaler_setting_s {
@@ -325,6 +326,7 @@ struct amvideo_device_data_s {
 	u8 supscl_path;
 	u8 fgrain_support[MAX_VD_LAYER];
 	u8 has_hscaler_8tap[MAX_VD_LAYER];
+	/* 1: 4tap; 2: 8tap */
 	u8 has_pre_hscaler_ntap[MAX_VD_LAYER];
 	u8 has_pre_vscaler_ntap[MAX_VD_LAYER];
 	u32 src_width_max[MAX_VD_LAYER];
@@ -512,6 +514,7 @@ void fgrain_update_table(u8 layer_id,
 void video_secure_set(void);
 bool has_hscaler_8tap(u8 layer_id);
 bool has_pre_hscaler_ntap(u8 layer_id);
+bool has_pre_hscaler_8tap(u8 layer_id);
 bool has_pre_vscaler_ntap(u8 layer_id);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC

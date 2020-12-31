@@ -456,5 +456,9 @@
 #define VD3_IF0_BADDR_CR_F1                            0x4927
 #define VD3_IF0_STRIDE_0_F1                            0x4928
 #define VD3_IF0_STRIDE_1_F1                            0x4929
+
+#define VD1_AFBCDM_VDTOP_CTRL0 0x4838
+#define VD2_AFBCDM_VDTOP_CTRL0 0x48b8
+#define VD3_AFBCDM_VDTOP_CTRL0 0x4938
 #endif
 

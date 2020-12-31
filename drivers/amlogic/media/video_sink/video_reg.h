@@ -78,6 +78,7 @@ struct hw_afbc_reg_s {
 	u32 afbcdec_iquant_lut_2; /* AFBCDEC_IQUANT_LUT_2 */
 	u32 afbcdec_iquant_lut_3; /* AFBCDEC_IQUANT_LUT_3 */
 	u32 afbcdec_iquant_lut_4; /* AFBCDEC_IQUANT_LUT_4 */
+	u32 afbc_top_ctrl;
 };
 
 struct hw_sr_reg_s {

@@ -11451,12 +11451,12 @@ static struct amvideo_device_data_s amvideo_t7 = {
 	.has_hscaler_8tap[0] = 1,
 	.has_hscaler_8tap[1] = 1,
 	.has_hscaler_8tap[2] = 1,
-	.has_pre_hscaler_ntap[0] = 1,
-	.has_pre_hscaler_ntap[1] = 0,
-	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 2,
+	.has_pre_hscaler_ntap[1] = 2,
+	.has_pre_hscaler_ntap[2] = 2,
 	.has_pre_vscaler_ntap[0] = 1,
-	.has_pre_vscaler_ntap[1] = 0,
-	.has_pre_vscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[1] = 1,
+	.has_pre_vscaler_ntap[2] = 1,
 	.mif_linear = 1,
 	.t7_display = 1,
 };
@@ -11527,6 +11527,14 @@ bool has_hscaler_8tap(u8 layer_id)
 bool has_pre_hscaler_ntap(u8 layer_id)
 {
 	if (amvideo_meson_dev.has_pre_hscaler_ntap[layer_id])
+		return true;
+	else
+		return false;
+}
+
+bool has_pre_hscaler_8tap(u8 layer_id)
+{
+	if (amvideo_meson_dev.has_pre_hscaler_ntap[layer_id] == 2)
 		return true;
 	else
 		return false;

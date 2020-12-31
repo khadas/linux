@@ -61,8 +61,10 @@
 #define VPP_HSC_INI_PAT_CTRL              0x1d35
 #define VPP_PREHSC_COEF                   0x1d37
 #define VPP_PREHSC_CTRL                   0x1d38
-#define VPP_PRE_SCALE_CTRL 0x1d38
-#define VPP_PREVSC_COEF 0x1d39
+#define VPP_PRE_SCALE_CTRL                0x1d38
+#define VPP_PREVSC_COEF                   0x1d39
+#define VPP_PREHSC_COEF1                  0x1d3a
+
 #define VPP_VADJ_CTRL                     0x1d40
 #define VPP_VADJ1_Y                       0x1d41
 #define VPP_VADJ1_MA_MB                   0x1d42
