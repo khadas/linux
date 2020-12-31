@@ -192,10 +192,8 @@
 	};
 
 	secmon {
-		compatible = "amlogic, secmon";
+		compatible = "amlogic,meson-gxbb-sm";
 		memory-region = <&secmon_reserved>;
-		in_base_func = <0x82000020>;
-		out_base_func = <0x82000021>;
 		reserve_mem_size = <0x00300000>;
 	};
 
@@ -283,7 +281,7 @@
 
 	cpuinfo {
 		compatible = "amlogic, cpuinfo";
-		status = "disabled";
+		status = "okay";
 		cpuinfo_cmd = <0x82000044>;
 	};
 

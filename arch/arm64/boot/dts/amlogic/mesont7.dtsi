@@ -225,11 +225,9 @@
 	};
 
 	secmon {
-		compatible = "amlogic, secmon";
+		compatible = "amlogic,meson-gxbb-sm";
 		memory-region = <&secmon_reserved>;
-		in_base_func = <0x82000020>;
-		out_base_func = <0x82000021>;
-		reserve_mem_size = <0x03300000>;
+		reserve_mem_size = <0x00300000>;
 	};
 
 	cma_shrinker {
@@ -338,6 +336,7 @@
 
 	cpu_info {
 		compatible = "amlogic, cpuinfo";
+		status = "okay";
 		cpuinfo_cmd = <0x82000044>;
 	};
 

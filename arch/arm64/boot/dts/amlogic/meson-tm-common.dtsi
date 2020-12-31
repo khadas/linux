@@ -48,6 +48,12 @@
 		reserve_mem_size = <0x00300000>;
 	};
 
+	cpu_info {
+		compatible = "amlogic, cpuinfo";
+		status = "okay";
+		cpuinfo_cmd = <0x82000044>;
+	};
+
 	cma_shrinker {
 		compatible = "amlogic, cma-shrinker";
 		status = "okay";

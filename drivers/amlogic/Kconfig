@@ -121,6 +121,7 @@ source "drivers/amlogic/mtd/Kconfig"
 source "drivers/amlogic/led/Kconfig"
 source "drivers/amlogic/audioinfo/Kconfig"
 source "drivers/amlogic/dolby_fw/Kconfig"
+source "drivers/amlogic/cpu_info/Kconfig"
 
 endmenu
 endif
