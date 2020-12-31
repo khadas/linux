@@ -518,12 +518,14 @@
 				reg = <0x0 0x7a000 0x0 0x18>;
 				interrupts = <0 169 1>;
 				status = "disabled";
-				clocks = <&xtal>;
-				clock-names = "clk_uart";
+				clocks = <&xtal
+						&clkc CLKID_UART_B>;
+				clock-names = "clk_uart",
+						"clk_gate";
 				xtal_tick_en = <2>;
 				fifosize = < 64 >;
 				pinctrl-names = "default";
-				/*pinctrl-0 = <&ao_uart_pins>;*/
+				pinctrl-0 = <&b_uart_pins>;
 				support-sysrq = <1>;  /* 0 not support*/
 			};
 
@@ -971,7 +973,7 @@
 //		};
 //
 		uart_C: serial@fe07c000 {
-			compatible = "amlogic, meson-uart";
+			compatible = "amlogic,meson-uart";
 			reg = <0x0 0xfe07c000 0x0 0x18>;
 			interrupts = <0 170 1>;
 			status = "disabled";
@@ -985,7 +987,7 @@
 		};
 
 		uart_D: serial@fe07e000 {
-			compatible = "amlogic, meson-uart";
+			compatible = "amlogic,meson-uart";
 			status = "disabled";
 			reg = <0x0 0xfe07e000 0x0 0x18>;
 			interrupts = <0 171 1>;
@@ -999,7 +1001,7 @@
 		};
 
 		uart_E: serial@fe080000 {
-			compatible = "amlogic, meson-uart";
+			compatible = "amlogic,meson-uart";
 			status = "disabled";
 			reg = <0x0 0xfe080000 0x0 0x18>;
 			interrupts = <0 172 1>;
@@ -1010,6 +1012,20 @@
 			fifosize = < 64 >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&e_uart_pins>;
+		};
+
+		uart_F: serial@fe082000 {
+			compatible = "amlogic, meson-uart";
+			status = "disabled";
+			reg = <0x0 0xfe082000 0x0 0x18>;
+			interrupts = <0 173 1>;
+			clocks = <&xtal
+					&clkc CLKID_UART_F>;
+			clock-names = "clk_uart",
+						"clk_gate";
+			fifosize = < 64 >;
+			pinctrl-names = "default";
+			pinctrl-0 = <&f_uart_pins>;
 		};
 	};
 
@@ -1808,10 +1824,20 @@
 		};
 	};
 
+	b_uart_pins:b_uart {
+		mux {
+			groups = "uart_ao_b_tx",
+				"uart_ao_b_rx";
+			function = "uart_ao_b";
+		};
+	};
+
 	c_uart_pins:c_uart {
 		mux {
 			groups = "uart_c_tx",
-				"uart_c_rx";
+				"uart_c_rx",
+				"uart_c_cts",
+				"uart_c_rts";
 			bias-pull-up;
 			output-high;
 			function = "uart_c";
@@ -1820,16 +1846,16 @@
 
 	d_uart_pins1:d_uart1 {
 		mux {
-			groups = "uart_d_tx_x6",
-				"uart_d_rx_x7";
+			groups = "uart_d_tx_m",
+				"uart_d_rx_m";
 			function = "uart_d";
 		};
 	};
 
 	d_uart_pins2:d_uart2 {
 		mux {
-			groups = "uart_d_tx_x10",
-				"uart_d_rx_x11";
+			groups = "uart_d_tx_y",
+				"uart_d_rx_y";
 			function = "uart_d";
 		};
 	};
@@ -1845,6 +1871,15 @@
 			function = "uart_e";
 		};
 	};
+
+	f_uart_pins:f_uart {
+		mux {
+			groups = "uart_f_tx",
+				"uart_f_rx";
+			function = "uart_f";
+		};
+	};
+
 	emmc_pins: emmc {
 		mux-0 {
 			groups = "emmc_nand_d0",

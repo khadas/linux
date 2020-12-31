@@ -20,10 +20,11 @@
 
 	aliases {
 		serial0 = &uart_A;
-		serial1 = &uart_E;
-		serial2 = &uart_C;
+		serial1 = &uart_C;
+		serial2 = &uart_B;
 		serial3 = &uart_D;
-		//serial4 = &uart_A;
+		serial4 = &uart_E;
+		serial5 = &uart_F;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
