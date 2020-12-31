@@ -27,6 +27,7 @@
 #include "meson_hdmi.h"
 #include "meson_hdcp.h"
 #include "meson_vpu.h"
+#include "meson_crtc.h"
 
 #define DEVICE_NAME "amhdmitx"
 struct am_hdmi_tx am_hdmi_info;
@@ -244,20 +245,17 @@ static const struct drm_connector_funcs am_hdmi_connector_funcs = {
 	.atomic_destroy_state	= drm_atomic_helper_connector_destroy_state,
 };
 
-void am_hdmi_encoder_mode_set(struct drm_encoder *encoder,
-			      struct drm_display_mode *mode,
-				   struct drm_display_mode *adjusted_mode)
+void am_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
+	struct drm_crtc_state *crtc_state,
+	struct drm_connector_state *conn_state)
 {
-	/*skip dummy mode*/
-	if (strcmp(adjusted_mode->name, dummy_mode.name) == 0) {
-		DRM_INFO("SKIP dummy mode setting.");
-		return;
-	}
 }
 
-void am_hdmi_encoder_enable(struct drm_encoder *encoder)
+void am_hdmi_encoder_atomic_enable(struct drm_encoder *encoder,
+	struct drm_atomic_state *state)
 {
 	enum vmode_e vmode = get_current_vmode();
+	struct am_meson_crtc_state *meson_crtc_state = to_am_meson_crtc_state(encoder->crtc->state);
 
 	if (vmode == VMODE_HDMI) {
 		DRM_INFO("enable\n");
@@ -266,28 +264,31 @@ void am_hdmi_encoder_enable(struct drm_encoder *encoder)
 		return;
 	}
 
+	if (meson_crtc_state->uboot_mode_init == 1)
+		vmode |= VMODE_INIT_BIT_MASK;
+
 	set_vout_mode_pre_process(vmode);
 	set_vout_vmode(vmode);
 	set_vout_mode_post_process(vmode);
 	msleep(1000);
 }
 
-void am_hdmi_encoder_disable(struct drm_encoder *encoder)
+void am_hdmi_encoder_atomic_disable(struct drm_encoder *encoder,
+	struct drm_atomic_state *state)
 {
 }
 
 static int am_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
-					struct drm_crtc_state *crtc_state,
-				struct drm_connector_state *conn_state)
+	struct drm_crtc_state *crtc_state,
+	struct drm_connector_state *conn_state)
 {
 	return 0;
 }
 
-static const struct drm_encoder_helper_funcs
-	am_hdmi_encoder_helper_funcs = {
-	.mode_set	= am_hdmi_encoder_mode_set,
-	.enable		= am_hdmi_encoder_enable,
-	.disable	= am_hdmi_encoder_disable,
+static const struct drm_encoder_helper_funcs am_hdmi_encoder_helper_funcs = {
+	.atomic_mode_set	= am_hdmi_encoder_atomic_mode_set,
+	.atomic_enable	= am_hdmi_encoder_atomic_enable,
+	.atomic_disable	= am_hdmi_encoder_atomic_disable,
 	.atomic_check	= am_hdmi_encoder_atomic_check,
 };
 

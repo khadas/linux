@@ -43,6 +43,8 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &meson_crtc_state->base);
+
+	meson_crtc_state->uboot_mode_init = 0;
 	return &meson_crtc_state->base;
 }
 
@@ -144,6 +146,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	enum vmode_e mode;
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
+	struct am_meson_crtc_state *meson_crtc_state = to_am_meson_crtc_state(crtc->state);
 	struct meson_vpu_pipeline *pipeline = amcrtc->pipeline;
 
 	DRM_INFO("%s:in\n", __func__);
@@ -152,7 +155,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 			  adjusted_mode->name);
 		return;
 	}
-	DRM_INFO("%s: %s\n", __func__, adjusted_mode->name);
+	DRM_INFO("%s: %s, %d\n", __func__, adjusted_mode->name, meson_crtc_state->uboot_mode_init);
 
 	name = am_meson_crtc_get_voutmode(adjusted_mode);
 	mode = validate_vmode(name, 0);
@@ -166,6 +169,9 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		mode == VMODE_DUMMY_ENCP) {
 		set_current_vmode(mode);
 	} else {
+		if (meson_crtc_state->uboot_mode_init)
+			mode |= VMODE_INIT_BIT_MASK;
+
 		set_vout_init(mode);
 		update_vout_viu();
 	}
@@ -175,7 +181,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	       sizeof(struct drm_display_mode));
 	drm_crtc_vblank_on(crtc);
 	enable_irq(amcrtc->irq);
-	DRM_DEBUG("%s:out\n", __func__);
+	DRM_INFO("%s-%d:out\n", __func__, meson_crtc_state->uboot_mode_init);
 }
 
 static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,

@@ -250,12 +250,16 @@ int __am_meson_drm_set_config(struct drm_mode_set *set,
 	struct drm_plane_state *primary_state;
 	struct drm_crtc *crtc = set->crtc;
 	struct meson_drm *private = crtc->dev->dev_private;
+	struct am_meson_crtc_state *meson_crtc_state;
 	int hdisplay, vdisplay;
 	int ret;
 
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
+
+	meson_crtc_state = to_am_meson_crtc_state(crtc_state);
+	meson_crtc_state->uboot_mode_init = get_vout_mode_uboot_state();
 
 	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
 	if (IS_ERR(primary_state))
@@ -430,6 +434,8 @@ static void am_meson_load_logo(struct drm_device *dev)
 				      GFP_KERNEL);
 	if (!connector_set)
 		return;
+
+	DRM_ERROR("mode private flag %x\n", mode->private_flags);
 
 	connector_set[0] = connector;
 	set.crtc = private->crtc;

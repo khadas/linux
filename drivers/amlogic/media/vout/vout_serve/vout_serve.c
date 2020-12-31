@@ -202,6 +202,12 @@ char *get_vout_mode_uboot(void)
 }
 EXPORT_SYMBOL(get_vout_mode_uboot);
 
+int get_vout_mode_uboot_state(void)
+{
+	return uboot_display;
+}
+EXPORT_SYMBOL(get_vout_mode_uboot_state);
+
 #define MAX_UEVENT_LEN 64
 
 static int vout_set_uevent(unsigned int vout_event, int val)

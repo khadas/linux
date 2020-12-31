@@ -31,6 +31,8 @@ struct am_meson_crtc_state {
 	u32 hdr_policy;
 	u32 dv_policy;
 	struct video_out_fence_state fence_state;
+
+	int uboot_mode_init;
 };
 
 struct am_meson_video_out_fence {

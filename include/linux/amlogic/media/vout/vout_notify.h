@@ -125,6 +125,7 @@ void set_vout3_bist(unsigned int bist);
 
 char *get_vout_mode_internal(void);
 char *get_vout_mode_uboot(void);
+int get_vout_mode_uboot_state(void);
 
 int set_vout_mode(char *name);
 void set_vout_init(enum vmode_e mode);
