@@ -219,10 +219,59 @@
 		pinctrl-1=<&jtag_b_pins>;
 	};
 
-	vddcpu0: pwm_j-regulator {
+	vddcpua: pwmao_d-regulator {
 		compatible = "pwm-regulator";
-		//pwms = <&pwm_ij MESON_PWM_1 1500 0>;//Wait for hardware confirmation
-		regulator-name = "vddcpu0";
+		pwms = <&pwmao_cd MESON_PWM_1 1500 0>;
+		regulator-name = "vddcpua";
+		regulator-min-microvolt = <689000>;
+		regulator-max-microvolt = <1049000>;
+		regulator-always-on;
+		max-duty-cycle = <1500>;
+		/* Voltage Duty-Cycle */
+		voltage-table = <1049000 0>,
+				<1039000 3>,
+				<1029000 6>,
+				<1019000 9>,
+				<1009000 12>,
+				<999000 14>,
+				<989000 17>,
+				<979000 20>,
+				<969000 23>,
+				<959000 26>,
+				<949000 29>,
+				<939000 31>,
+				<929000 34>,
+				<919000 37>,
+				<909000 40>,
+				<899000 43>,
+				<889000 45>,
+				<879000 48>,
+				<869000 51>,
+				<859000 54>,
+				<849000 56>,
+				<839000 59>,
+				<829000 62>,
+				<819000 65>,
+				<809000 68>,
+				<799000 70>,
+				<789000 73>,
+				<779000 76>,
+				<769000 79>,
+				<759000 81>,
+				<749000 84>,
+				<739000 87>,
+				<729000 89>,
+				<719000 92>,
+				<709000 95>,
+				<699000 98>,
+				<689000 100>;
+		status = "disabled";
+	};
+
+	vddcpub: pwmao_b-regulator {
+		compatible = "pwm-regulator";
+		pwms = <&pwmao_ab MESON_PWM_1 1500 0>;
+		regulator-name = "vddcpub";
 		regulator-min-microvolt = <689000>;
 		regulator-max-microvolt = <1049000>;
 		regulator-always-on;
