@@ -614,7 +614,7 @@
 					internal_ephy: ethernet_phy@8 {
 						compatible = "ethernet-phy-id0180.3301",
 							     "ethernet-phy-ieee802.3-c22";
-						interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+						interrupts = <GIC_SPI 340 IRQ_TYPE_LEVEL_HIGH>;
 						reg = <8>;
 						max-speed = <100>;
 					};
@@ -982,13 +982,12 @@
 
 		ethmac: ethernet@fdc00000 {
 			compatible = "amlogic,meson-axg-dwmac",
-				     "snps,dwmac-3.70a",
-				     "snps,dwmac";
+				     "snps,dwmac-4.00";
 			reg = <0x0 0xfdc00000 0x0 0x10000>,
 			      <0x0 0xfe024000 0x0 0x8>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-//			power-domains = <&pwrdm PDID_SC2_ETH>;
+			power-domains = <&pwrdm PDID_T7_ETH>;
 			clocks = <&clkc CLKID_ETH>,
 				 <&clkc CLKID_FCLK_DIV2>,
 				 <&clkc CLKID_MPLL2>;
