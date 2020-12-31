@@ -3273,6 +3273,8 @@
 			This will also cause panics on machine check exceptions.
 			Useful together with panic=30 to trigger a reboot.
 
+	otg_device=	[meson] Set kernel otg mode in bootloader.
+
 	page_alloc.shuffle=
 			[KNL] Boolean flag to control whether the page allocator
 			should randomize its free lists. The randomization may

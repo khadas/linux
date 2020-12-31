@@ -26,7 +26,7 @@ int aml_new_otg_register_notifier(struct notifier_block *nb);
 int aml_new_otg_unregister_notifier(struct notifier_block *nb);
 
 struct u2p_aml_regs_v2 {
-	void __iomem	*u2p_r_v2[2];
+	void __iomem	*u2p_r_v2[4];
 };
 
 union u2p_r0_v2 {
@@ -54,6 +54,42 @@ union u2p_r1_v2 {
 		unsigned OTGSESSVLD0:1;
 		unsigned VBUSVALID0:1;
 		unsigned reserved:28;
+	} b;
+};
+
+union u2p_r2_v2 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned iddig_sync:1;
+		unsigned iddig_reg:1;
+		unsigned iddig_cfg:2;
+		unsigned iddig_en0:1;
+		unsigned iddig_en1:1;
+		unsigned iddig_curr:1;
+		unsigned usb_iddig_irq:1;
+		unsigned iddig_th:8;
+		unsigned iddig_cnt:8;
+		unsigned reserved:8;
+	} b;
+};
+
+union u2p_r3_v2 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned vbusdig_sync:1;
+		unsigned vbusdig_reg:1;
+		unsigned vbusdig_cfg:2;
+		unsigned vbusdig_en0:1;
+		unsigned vbusdig_en1:1;
+		unsigned vbusdig_curr:1;
+		unsigned usb_vbusdig_irq:1;
+		unsigned vbusdig_th:8;
+		unsigned vbusdig_cnt:8;
+		unsigned reserved:8;
 	} b;
 };
 

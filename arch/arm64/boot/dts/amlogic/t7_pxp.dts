@@ -919,27 +919,50 @@
 	status = "disabled";
 };
 
-&dwc2_a {
-	status = "disabled";
-	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
-	controller-type = <3>;
+&crg20_otg {
+	status = "okay";
+	controller-type = <1>;
+	gpio-vbus-power = "GPIOM_8";
+	gpios = <&gpio GPIOM_8 GPIO_ACTIVE_HIGH>;
 };
 
-&usb0 {
-	status = "disabled";
+&crg21_otg {
+	status = "okay";
+	controller-type = <1>;
+	gpio-vbus-power = "GPIOM_9";
+	gpios = <&gpio GPIOM_9 GPIO_ACTIVE_HIGH>;
 };
 
-&usb2_phy_v2 {
-	status = "disabled";
-	portnum = <2>;
+&crg2_drd {
+	compatible = "amlogic, crg";
+	/*compatible = "amlogic, crg-host";*/
+	status = "okay";
 };
 
-&usb3_phy_v2 {
-	status = "disabled";
+&crg3_drd {
+	compatible = "amlogic, crg-host";
+	/*compatible = "amlogic, crg";*/
+	status = "okay";
+};
+
+&crg_phy_20 {
+	status = "okay";
 	portnum = <1>;
-	otg = <1>;
-	/*gpio-vbus-power = "GPIOH_6";*/
-	/*gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;*/
+};
+
+&crg_phy_21 {
+	status = "okay";
+	portnum = <1>;
+};
+
+&crg3_phy_20 {
+	status = "okay";
+	portnum = <0>;
+};
+
+&crg3_phy_21 {
+	status = "okay";
+	portnum = <0>;
 };
 
 &pcie {

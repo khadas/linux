@@ -1,0 +1,355 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+#include <linux/module.h>
+#include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/irqreturn.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/clk.h>
+#include <linux/err.h>
+#include <linux/pm_runtime.h>
+#include <linux/delay.h>
+#include <linux/usb/phy.h>
+#include <linux/amlogic/usb-v2.h>
+#include <linux/amlogic/aml_gpio_consumer.h>
+#include <linux/workqueue.h>
+#include <linux/notifier.h>
+#include <linux/amlogic/usbtype.h>
+#include "../phy/phy-aml-new-usb-v2.h"
+
+#include <linux/amlogic/gki_module.h>
+#define HOST_MODE	0
+#define DEVICE_MODE	1
+
+struct usb_aml_regs_v2 usb_crg_otg_aml_regs;
+struct amlogic_crg_otg	*g_crg_otg;
+
+struct amlogic_crg_otg {
+	struct device           *dev;
+	void __iomem    *phy3_cfg;
+	void __iomem    *phy3_cfg_r1;
+	void __iomem    *phy3_cfg_r2;
+	void __iomem    *phy3_cfg_r4;
+	void __iomem    *phy3_cfg_r5;
+	void __iomem    *usb2_phy_cfg;
+	/* Set VBus Power though GPIO */
+	int vbus_power_pin;
+	int vbus_power_pin_work_mask;
+	struct delayed_work     work;
+	struct gpio_desc *usb_gpio_desc;
+};
+
+bool crg_force_device_mode;
+module_param_named(otg_device, crg_force_device_mode,
+		bool, 0644);
+
+static char otg_mode_string[2] = "0";
+static int force_otg_mode(char *s)
+{
+	if (!s)
+		sprintf(otg_mode_string, "%s", s);
+	if (strcmp(otg_mode_string, "0") == 0)
+		crg_force_device_mode = 0;
+	else
+		crg_force_device_mode = 1;
+	return 0;
+}
+__setup("otg_device=", force_otg_mode);
+
+static void set_mode(unsigned long reg_addr, int mode);
+
+static void set_usb_vbus_power
+	(struct gpio_desc *usb_gd, int pin, char is_power_on)
+{
+	if (is_power_on)
+		/*set vbus on by gpio*/
+		gpiod_direction_output(usb_gd, 1);
+	else
+		/*set vbus off by gpio first*/
+		gpiod_direction_output(usb_gd, 0);
+}
+
+static void amlogic_crg_set_vbus_power
+		(struct amlogic_crg_otg *phy, char is_power_on)
+{
+	if (phy->vbus_power_pin != -1)
+		set_usb_vbus_power(phy->usb_gpio_desc,
+				   phy->vbus_power_pin, is_power_on);
+}
+
+static int amlogic_crg_otg_init(struct amlogic_crg_otg *phy)
+{
+	union usb_r1_v2 r1 = {.d32 = 0};
+	union u2p_r2_v2 reg2 = {.d32 = 0};
+	int i = 0;
+
+	for (i = 0; i < 6; i++)
+		usb_crg_otg_aml_regs.usb_r_v2[i] = (void __iomem *)
+			((unsigned long)phy->usb2_phy_cfg + 0x80 + 4 * i);
+
+	r1.d32 = readl(usb_crg_otg_aml_regs.usb_r_v2[1]);
+	r1.b.u3h_fladj_30mhz_reg = 0x20;
+	writel(r1.d32, usb_crg_otg_aml_regs.usb_r_v2[1]);
+
+	reg2.d32 = readl((void __iomem *)((unsigned long)phy->usb2_phy_cfg + 8));
+	reg2.b.iddig_en0 = 1;
+	reg2.b.iddig_en1 = 1;
+	reg2.b.iddig_th = 255;
+	writel(reg2.d32, (void __iomem *)((unsigned long)phy->usb2_phy_cfg + 8));
+
+	return 0;
+}
+
+static void set_mode(unsigned long reg_addr, int mode)
+{
+	struct u2p_aml_regs_v2 u2p_aml_regs;
+	struct usb_aml_regs_v2 usb_gxl_aml_regs;
+	union u2p_r0_v2 reg0;
+	union usb_r0_v2 r0 = {.d32 = 0};
+	union usb_r4_v2 r4 = {.d32 = 0};
+
+	u2p_aml_regs.u2p_r_v2[0] = (void __iomem	*)
+				((unsigned long)reg_addr + PHY_REGISTER_SIZE);
+
+	usb_gxl_aml_regs.usb_r_v2[0] = (void __iomem *)
+				((unsigned long)reg_addr + 4 * PHY_REGISTER_SIZE
+				+ 4 * 0);
+	usb_gxl_aml_regs.usb_r_v2[1] = (void __iomem *)
+				((unsigned long)reg_addr + 4 * PHY_REGISTER_SIZE
+				+ 4 * 1);
+	usb_gxl_aml_regs.usb_r_v2[4] = (void __iomem *)
+				((unsigned long)reg_addr + 4 * PHY_REGISTER_SIZE
+				+ 4 * 4);
+
+	r0.d32 = readl(usb_gxl_aml_regs.usb_r_v2[0]);
+	if (mode == DEVICE_MODE) {
+		r0.b.u2d_act = 1;
+		r0.b.u2d_ss_scaledown_mode = 0;
+	} else {
+		r0.b.u2d_act = 0;
+	}
+	writel(r0.d32, usb_gxl_aml_regs.usb_r_v2[0]);
+
+	r4.d32 = readl(usb_gxl_aml_regs.usb_r_v2[4]);
+	if (mode == DEVICE_MODE)
+		r4.b.p21_SLEEPM0 = 0x1;
+	else
+		r4.b.p21_SLEEPM0 = 0x0;
+	writel(r4.d32, usb_gxl_aml_regs.usb_r_v2[4]);
+
+	reg0.d32 = readl(u2p_aml_regs.u2p_r_v2[0]);
+	if (mode == DEVICE_MODE) {
+		reg0.b.host_device = 0;
+		reg0.b.POR = 0;
+	} else {
+		reg0.b.host_device = 1;
+		reg0.b.POR = 0;
+	}
+	writel(reg0.d32, u2p_aml_regs.u2p_r_v2[0]);
+
+	usleep_range(500, 600);
+}
+
+static void amlogic_crg_otg_work(struct work_struct *work)
+{
+	struct amlogic_crg_otg *phy =
+		container_of(work, struct amlogic_crg_otg, work.work);
+	union u2p_r2_v2 reg2;
+	unsigned long reg_addr = ((unsigned long)phy->usb2_phy_cfg);
+
+	reg2.d32 = readl((void __iomem *)(reg_addr + 8));
+	if (reg2.b.iddig_curr == 0) {
+		amlogic_crg_set_vbus_power(phy, 1);
+		/* to do*/
+		crg_gadget_exit();
+		crg_init();
+		set_mode(reg_addr, HOST_MODE);
+	} else {
+		/* to do*/
+		crg_exit();
+		crg_gadget_init();
+		set_mode(reg_addr, DEVICE_MODE);
+		amlogic_crg_set_vbus_power(phy, 0);
+	}
+	reg2.b.usb_iddig_irq = 0;
+	writel(reg2.d32, (void __iomem *)(reg_addr + 8));
+}
+
+static irqreturn_t amlogic_crgotg_detect_irq(int irq, void *dev)
+{
+	struct amlogic_crg_otg *phy = (struct amlogic_crg_otg *)dev;
+	union u2p_r2_v2 reg2;
+
+	reg2.d32 = readl((void __iomem *)((unsigned long)phy->usb2_phy_cfg + 8));
+	reg2.b.usb_iddig_irq = 0;
+	writel(reg2.d32, (void __iomem *)((unsigned long)phy->usb2_phy_cfg + 8));
+
+	schedule_delayed_work(&phy->work, msecs_to_jiffies(10));
+
+	return IRQ_HANDLED;
+}
+
+static int amlogic_crg_otg_probe(struct platform_device *pdev)
+{
+	struct amlogic_crg_otg			*phy;
+	struct device *dev = &pdev->dev;
+	void __iomem *usb2_phy_base;
+	unsigned int usb2_phy_mem;
+	unsigned int usb2_phy_mem_size = 0;
+	const char *gpio_name = NULL;
+	struct gpio_desc *usb_gd = NULL;
+	const void *prop;
+	int irq;
+	int retval;
+	int gpio_vbus_power_pin = -1;
+	int otg = 0;
+	int controller_type = USB_NORMAL;
+
+	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
+	if (gpio_name) {
+		gpio_vbus_power_pin = 1;
+		usb_gd = gpiod_get_index(&pdev->dev,
+					 NULL, 0, GPIOD_OUT_LOW);
+		if (IS_ERR(usb_gd))
+			return -1;
+	}
+
+	prop = of_get_property(dev->of_node, "controller-type", NULL);
+	if (prop)
+		controller_type = of_read_ulong(prop, 1);
+
+	retval = of_property_read_u32
+				(dev->of_node, "usb2-phy-reg", &usb2_phy_mem);
+	if (retval < 0)
+		return -EINVAL;
+
+	retval = of_property_read_u32
+		(dev->of_node, "usb2-phy-reg-size", &usb2_phy_mem_size);
+	if (retval < 0)
+		return -EINVAL;
+
+	usb2_phy_base = devm_ioremap_nocache
+				(&pdev->dev, (resource_size_t)usb2_phy_mem,
+				(unsigned long)usb2_phy_mem_size);
+	if (!usb2_phy_base)
+		return -ENOMEM;
+
+	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
+	if (!phy)
+		return -ENOMEM;
+
+	if (controller_type == USB_OTG && crg_force_device_mode == 0)
+		otg = 1;
+
+	if (otg) {
+		irq = platform_get_irq(pdev, 0);
+		if (irq < 0)
+			return -ENODEV;
+		retval = request_irq(irq, amlogic_crgotg_detect_irq,
+				     IRQF_SHARED | IRQ_LEVEL,
+				     "amlogic_botg_detect", phy);
+
+		if (retval) {
+			dev_err(&pdev->dev, "request of irq%d failed\n", irq);
+			retval = -EBUSY;
+			return retval;
+		}
+	}
+
+	dev_info(&pdev->dev, "phy_mem:0x%lx, iomap phy_base:0x%lx\n",
+		 (unsigned long)usb2_phy_mem,
+		 (unsigned long)usb2_phy_base);
+
+	phy->dev		= dev;
+	phy->usb2_phy_cfg	= usb2_phy_base;
+	phy->vbus_power_pin = gpio_vbus_power_pin;
+	phy->usb_gpio_desc = usb_gd;
+
+	INIT_DELAYED_WORK(&phy->work, amlogic_crg_otg_work);
+
+	platform_set_drvdata(pdev, phy);
+
+	pm_runtime_enable(phy->dev);
+	g_crg_otg = phy;
+
+	amlogic_crg_otg_init(phy);
+
+	if (otg == 0) {
+		if (crg_force_device_mode || controller_type == USB_DEVICE_ONLY) {
+			crg_gadget_init();
+			set_mode((unsigned long)phy->usb2_phy_cfg, DEVICE_MODE);
+			amlogic_crg_set_vbus_power(phy, 0);
+		} else if (controller_type == USB_HOST_ONLY) {
+			amlogic_crg_set_vbus_power(phy, 1);
+			crg_init();
+			set_mode((unsigned long)phy->usb2_phy_cfg, HOST_MODE);
+		}
+	} else {
+		crg_gadget_init();
+		set_mode((unsigned long)phy->usb2_phy_cfg, DEVICE_MODE);
+		amlogic_crg_set_vbus_power(phy, 0);
+	}
+
+	return 0;
+}
+
+static int amlogic_crg_otg_remove(struct platform_device *pdev)
+{
+	return 0;
+}
+
+#ifdef CONFIG_PM_RUNTIME
+
+static int amlogic_crg_otg_runtime_suspend(struct device *dev)
+{
+	return 0;
+}
+
+static int amlogic_crg_otg_runtime_resume(struct device *dev)
+{
+	u32 ret = 0;
+
+	return ret;
+}
+
+static const struct dev_pm_ops amlogic_crg_otg_pm_ops = {
+	SET_RUNTIME_PM_OPS(amlogic_crg_otg_runtime_suspend,
+			   amlogic_crg_otg_runtime_resume,
+			   NULL)
+};
+
+#define DEV_PM_OPS     (&amlogic_new_otg_pm_ops)
+#else
+#define DEV_PM_OPS     NULL
+#endif
+
+#ifdef CONFIG_OF
+static const struct of_device_id amlogic_crg_otg_id_table[] = {
+	{ .compatible = "amlogic, amlogic-crg-otg" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, amlogic_crg_otg_id_table);
+#endif
+
+static struct platform_driver amlogic_crg_otg_driver = {
+	.probe		= amlogic_crg_otg_probe,
+	.remove		= amlogic_crg_otg_remove,
+	.driver		= {
+		.name	= "amlogic-crg-otg",
+		.owner	= THIS_MODULE,
+		.pm	= DEV_PM_OPS,
+		.of_match_table = of_match_ptr(amlogic_crg_otg_id_table),
+	},
+};
+
+module_platform_driver(amlogic_crg_otg_driver);
+
+MODULE_ALIAS("platform: amlogic crg otg");
+MODULE_AUTHOR("Amlogic Inc.");
+MODULE_DESCRIPTION("amlogic crg otg driver");
+MODULE_LICENSE("GPL v2");
