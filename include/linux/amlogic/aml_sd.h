@@ -40,6 +40,13 @@
 #define aml_card_type_sdio(c)		((c)->card_type == CARD_TYPE_SDIO)
 #define aml_card_type_non_sdio(c)	((c)->card_type == CARD_TYPE_NON_SDIO)
 
+/* flag is "@ML" */
+#define TUNED_FLAG            0x004C4D40
+/* version is "V1" */
+#define TUNED_VERSION         0x00003156
+/* magic is 0x00487e44 */
+#define TUNED_MAGIC           0x00487e44
+
 struct mmc_phase {
 	unsigned int core_phase;
 	unsigned int tx_phase;
