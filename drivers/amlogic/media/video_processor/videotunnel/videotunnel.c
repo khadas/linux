@@ -299,6 +299,7 @@ static struct vt_instance *vt_instance_create(struct vt_dev *dev)
 		return ERR_PTR(-ENOMEM);
 
 	instance->dev = dev;
+	instance->fcount = 0;
 	mutex_init(&instance->lock);
 	mutex_init(&instance->cmd_lock);
 	INIT_LIST_HEAD(&instance->entry);
@@ -1066,8 +1067,9 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 		wake_up_interruptible(&instance->consumer->wait_consumer);
 	}
 
-	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] queuebuffer pfd:%d end\n",
-		 instance->id, buffer->buffer_fd_pro);
+	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] queuebuffer pfd: %d, buffer(%p) buffer file(%p)\n",
+		 instance->id, buffer->buffer_fd_pro,
+		 buffer, buffer->file_buffer);
 
 	return 0;
 }
@@ -1181,7 +1183,7 @@ static int vt_acquire_buffer_process(struct vt_buffer_data *data,
 	}
 
 	/* get the fd in consumer */
-	if (buffer->buffer_fd_con <= 0) {
+	if (buffer->buffer_fd_con < 0) {
 		fd = get_unused_fd_flags(O_CLOEXEC);
 		if (fd < 0) {
 			/* back to producer */
@@ -1218,9 +1220,9 @@ static int vt_acquire_buffer_process(struct vt_buffer_data *data,
 	data->buffer_size = 1;
 	data->buffers[0] = buffer->item;
 
-	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] acquirebuffer pfd: %d buffer(%p) buffer session(%p)\n",
+	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] acquirebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%p)\n",
 		 instance->id, buffer->buffer_fd_pro,
-		 buffer, buffer->session_pro);
+		 buffer->buffer_fd_con, buffer, buffer->file_buffer);
 
 	return 0;
 }
@@ -1242,12 +1244,16 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 
 	for (i = 0; i < data->buffer_size; i++) {
 		item = &data->buffers[i];
+		if (item->buffer_fd < 0)
+			return -EINVAL;
+
 		buffer = vt_buffer_get(instance, item->buffer_fd);
 
 		if (!buffer)
 			return -EINVAL;
 
-		if (item->fence_fd > 0)
+		buffer->file_fence = NULL;
+		if (item->fence_fd >= 0)
 			buffer->file_fence = fget(item->fence_fd);
 
 		if (!buffer->file_fence)
@@ -1260,9 +1266,9 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 		instance->fcount--;
 
 		vt_debug(VT_DEBUG_FILE,
-			 "vt [%d] releasebuffer file(%p) buffer(%p) buffer sesion(%p) fcount=%d\n",
+			 "vt [%d] releasebuffer file(%p) buffer(%p) buffer cfd(%d) fcount=%d\n",
 			 instance->id, buffer->file_buffer, buffer,
-			 buffer->session_pro, instance->fcount);
+			 buffer->buffer_fd_con, instance->fcount);
 
 		buffer->item.buffer_fd = buffer->buffer_fd_pro;
 		buffer->item.buffer_status = VT_BUFFER_RELEASE;
@@ -1295,8 +1301,10 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 		wake_up_interruptible(&instance->producer->wait_producer);
 	}
 
-	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] releasebuffer pfd:%d end\n",
-		 instance->id, buffer->buffer_fd_pro);
+	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] releasebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%p)\n",
+		 instance->id, buffer->buffer_fd_pro,
+		 buffer->buffer_fd_con, buffer, buffer->file_buffer);
+
 	return 0;
 }
 
