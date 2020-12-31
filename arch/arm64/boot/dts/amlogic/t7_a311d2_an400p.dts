@@ -362,7 +362,7 @@
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
 
-		status = "disabled";
+		status = "okay";
 
 		aml-audio-card,dai-link@0 {
 			format = "i2s";
@@ -594,7 +594,7 @@
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
-		status = "disabled";
+		status = "okay";
 
 		/* !!!For --TV platform-- ONLY */
 		Channel_Mask {
@@ -615,7 +615,7 @@
 				&clkc CLKID_MPLL1>;
 		clock-names = "mclk", "clk_srcpll";
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	tdmc:tdm@2 {
@@ -629,7 +629,7 @@
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk", "clk_srcpll";
-		status = "disabled";
+		status = "okay";
 	};
 
 	pdm:pdm {
@@ -653,7 +653,7 @@
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	spdifa:spdif@0 {
@@ -680,7 +680,7 @@
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 	spdifb:spdif@1 {
 		compatible = "amlogic, tm2-revb-snd-spdif-b";
@@ -691,7 +691,7 @@
 		clock-names = "sysclk",
 				"gate_spdifout", "clk_spdifout";
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	extn:extn {
@@ -702,7 +702,7 @@
 				<GIC_SPI 42 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "irq_frhdmirx";
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	aed:effect {
@@ -727,7 +727,7 @@
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0xff>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	asrca:resample@0 {
@@ -801,7 +801,7 @@
 		 */
 		level = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	loopbacka:loopback@0 {
@@ -856,7 +856,7 @@
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	loopbackb:loopback@1 {

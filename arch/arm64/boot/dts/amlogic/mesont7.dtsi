@@ -641,7 +641,7 @@
 		dummy_codec:dummy{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, aml_dummy_codec";
-			status = "disabled";
+			status = "okay";
 		};
 		acodec:codec {
 			#sound-dai-cells = <0>;
@@ -668,13 +668,13 @@
 			ranges = <0x0 0x0 0x0 0xFE330000 0x0 0x3000>;
 
 			power-domains = <&pwrdm PDID_T7_AUDIO>;
-			status = "disabled";
+			status = "okay";
 
 			clkaudio: audio_clocks {
 				compatible = "amlogic, t7-audio-clocks";
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0xb0>;
-				status = "disabled";
+				status = "okay";
 			};
 			ddr_manager {
 				compatible =
@@ -694,12 +694,12 @@
 					"toddr_d",
 					"frddr_a", "frddr_b", "frddr_c",
 					"frddr_d";
-				status = "disabled";
+				status = "okay";
 			};
 
 		pinctrl_audio: pinctrl {
 				compatible = "amlogic, audio-pinctrl";
-				status = "disabled";
+				status = "okay";
 			};
 		};/* end of audiobus*/
 
@@ -759,7 +759,7 @@
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
-			status = "disabled";
+			status = "okay";
 			#address-cells=<2>;
 			#size-cells=<2>;
 			ranges;
