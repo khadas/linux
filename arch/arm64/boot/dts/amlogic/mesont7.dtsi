@@ -2399,5 +2399,49 @@
 		reg_mask = <0x21>;
 		reg_bit = <1>;
 	};
+
+	spdifout_d: spdifout_d {
+		mux { /* GPIOD_8 */
+			groups = "spdif_out_d";
+			function = "spdif_out";
+		};
+	};
+
+	spdifout_d_mute: spdifout_d_mute {
+		mux { /* GPIOD_8 */
+			groups = "GPIOD_8";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
+
+	spdifout_t: spdifout_t {
+		mux { /* GPIOT_3 */
+			groups = "spdif_out_t";
+			function = "spdif_out";
+		};
+	};
+
+	spdifout_t_mute: spdifout_t_mute {
+		mux { /* GPIOT_3 */
+			groups = "GPIOT_3";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
+
+	spdifin_d: spdifin_d {
+		mux {/* GPIOD_9 */
+			groups = "spdif_in_d";
+			function = "spdif_in";
+		};
+	};
+
+	spdifin_t: spdifin_t {
+		mux {/* GPIOT_4 */
+			groups = "spdif_in_t";
+			function = "spdif_in";
+		};
+	};
 };
 

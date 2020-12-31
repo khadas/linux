@@ -674,8 +674,8 @@
 
 		interrupt-names = "irq_spdifin";
 		//pinctrl-names = "spdif_pins", "spdif_pins_mute";
-		//pinctrl-0 = <&spdifout>;
-		//pinctrl-1 = <&spdifout_a_mute>;
+		//pinctrl-0 = <&spdifout_d>;
+		//pinctrl-1 = <&spdifout_d_mute>;
 
 		samesource_sel = <4>;
 
