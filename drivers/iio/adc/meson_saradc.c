@@ -178,6 +178,7 @@
 	#define MESON_SAR_ADC_REG11_EOC				BIT(1)
 	#define MESON_SAR_ADC_REG11_VREF_EN			BIT(5)
 	#define MESON_SAR_ADC_REG11_CMV_SEL			BIT(6)
+	#define MESON_SAR_ADC_REG11_TEMP_SEL			BIT(21)
 	#define MESON_SAR_ADC_REG11_CHNL_REGS_EN		BIT(30)
 	#define MESON_SAR_ADC_REG11_FIFO_EN			BIT(31)
 #endif
@@ -1316,6 +1317,12 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 	if (priv->param->vref_is_optional) {
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
 				   MESON_SAR_ADC_REG11_VREF_SEL, regval);
+	}
+
+	/* after g12a, select channel 6 input to external input */
+	if (priv->param->has_chnl_regs) {
+		regmap_update_bits(priv->regmap, MESON_SAR_ADC_REG11,
+				   MESON_SAR_ADC_REG11_TEMP_SEL, 0);
 	}
 #endif
 

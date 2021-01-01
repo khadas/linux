@@ -1121,7 +1121,7 @@
 };
 
 &saradc {
-	status = "disabled";
+	status = "okay";
 };
 
 //&ext_mdio {
