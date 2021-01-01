@@ -678,8 +678,8 @@
 			"pdm_dclk",
 			"pdm_sysclk";
 
-		//pinctrl-names = "pdm_pins";
-		//pinctrl-0 = <&pdmin>;
+		pinctrl-names = "pdm_pins";
+		pinctrl-0 = <&pdmin_pins>;
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
@@ -1161,6 +1161,19 @@
 	 *bit3:support 12bit
 	 */
 	tv_bit_mode = <1>;
+};
+
+&periphs_pinctrl {
+	pdmin_pins: pdmin_pin {
+		mux { /* GPIOM_3, GPIOM_4, GPIOM_5, GPIOM_1, GPIOM_2 */
+			groups = "pdm_dclk",
+				"pdm_din0",
+				"pdm_din1_m5",
+				"pdm_din2",
+				"pdm_din3";
+			function = "pdm";
+		};
+	};
 };
 
 &i2c_AO_A {
