@@ -63,20 +63,20 @@ static size_t tm2_dmc_dump_reg(char *buf)
 	unsigned long val;
 
 	for (i = 0; i < 2; i++) {
-		val = dmc_prot_rw(DMC_PROT0_RANGE + (i * 12), 0, DMC_READ);
+		val = dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_RANGE + (i * 12), 0, DMC_READ);
 		sz += sprintf(buf + sz, "DMC_PROT%zu_RANGE:%lx\n", i, val);
-		val = dmc_prot_rw(DMC_PROT0_CTRL + (i * 12), 0, DMC_READ);
+		val = dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_CTRL + (i * 12), 0, DMC_READ);
 		sz += sprintf(buf + sz, "DMC_PROT%zu_CTRL:%lx\n", i, val);
-		val = dmc_prot_rw(DMC_PROT0_CTRL1 + (i * 12), 0, DMC_READ);
+		val = dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_CTRL1 + (i * 12), 0, DMC_READ);
 		sz += sprintf(buf + sz, "DMC_PROT%zu_CTRL1:%lx\n", i, val);
 	}
 	for (i = 0; i < 4; i++) {
-		val = dmc_prot_rw(DMC_PROT_VIO_0 + (i << 2), 0, DMC_READ);
+		val = dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT_VIO_0 + (i << 2), 0, DMC_READ);
 		sz += sprintf(buf + sz, "DMC_PROT_VIO_%zu:%lx\n", i, val);
 	}
-	val = dmc_prot_rw(DMC_PROT_IRQ_CTRL, 0, DMC_READ);
+	val = dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT_IRQ_CTRL, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_PROT_IRQ_CTRL:%lx\n", val);
-	val = dmc_prot_rw(DMC_IRQ_STS, 0, DMC_READ);
+	val = dmc_prot_rw(dmc_mon->io_mem1, DMC_IRQ_STS, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_IRQ_STS:%lx\n", val);
 
 	return sz;
@@ -91,10 +91,10 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 	struct page_trace *trace;
 
 	for (i = 1; i < 4; i += 2) {
-		status = dmc_prot_rw(DMC_PROT_VIO_0 + (i << 2), 0, DMC_READ);
+		status = dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT_VIO_0 + (i << 2), 0, DMC_READ);
 		if (!(status & (1 << 19)))
 			continue;
-		addr = dmc_prot_rw(DMC_PROT_VIO_0 + ((i - 1) << 2), 0,
+		addr = dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT_VIO_0 + ((i - 1) << 2), 0,
 				   DMC_READ);
 		if (addr > mon->addr_end)
 			continue;
@@ -136,7 +136,7 @@ static void tm2_dmc_mon_irq(struct dmc_monitor *mon, void *data)
 {
 	unsigned long value;
 
-	value = dmc_prot_rw(DMC_IRQ_STS, 0, DMC_READ);
+	value = dmc_prot_rw(dmc_mon->io_mem1, DMC_IRQ_STS, 0, DMC_READ);
 	if (in_interrupt()) {
 		if (value & DMC_WRITE_VIOLATION)
 			check_violation(mon, data);
@@ -147,7 +147,7 @@ static void tm2_dmc_mon_irq(struct dmc_monitor *mon, void *data)
 	/* clear irq */
 	value &= 0x03;		/* irq flags */
 	value |= 0x04;		/* en */
-	dmc_prot_rw(DMC_PROT_IRQ_CTRL, value, DMC_WRITE);
+	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT_IRQ_CTRL, value, DMC_WRITE);
 }
 
 static int tm2_dmc_mon_set(struct dmc_monitor *mon)
@@ -157,23 +157,23 @@ static int tm2_dmc_mon_set(struct dmc_monitor *mon)
 	/* aligned to 64KB */
 	end = ALIGN(mon->addr_end, DMC_ADDR_SIZE);
 	value = (mon->addr_start >> 16) | ((end >> 16) << 16);
-	dmc_prot_rw(DMC_PROT0_RANGE, value, DMC_WRITE);
+	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_RANGE, value, DMC_WRITE);
 
-	dmc_prot_rw(DMC_PROT0_CTRL, mon->device | 1 << 24, DMC_WRITE);
-	dmc_prot_rw(DMC_PROT0_CTRL1, 1 << 24 | 0xff, DMC_WRITE);
-	dmc_prot_rw(DMC_PROT_IRQ_CTRL, 0x06, DMC_WRITE);
+	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_CTRL, mon->device | 1 << 24, DMC_WRITE);
+	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_CTRL1, 1 << 24 | 0xff, DMC_WRITE);
+	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT_IRQ_CTRL, 0x06, DMC_WRITE);
 
-	pr_emerg("range:%08lx - %08lx, device:%x\n",
+	pr_emerg("range:%08lx - %08lx, device:%llx\n",
 		 mon->addr_start, mon->addr_end, mon->device);
 	return 0;
 }
 
 void tm2_dmc_mon_disable(struct dmc_monitor *mon)
 {
-	dmc_prot_rw(DMC_PROT0_RANGE, 0, DMC_WRITE);
-	dmc_prot_rw(DMC_PROT0_CTRL, 0, DMC_WRITE);
-	dmc_prot_rw(DMC_PROT0_CTRL1, 0, DMC_WRITE);
-	dmc_prot_rw(DMC_PROT_IRQ_CTRL, 0, DMC_WRITE);
+	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_RANGE, 0, DMC_WRITE);
+	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_CTRL, 0, DMC_WRITE);
+	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_CTRL1, 0, DMC_WRITE);
+	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT_IRQ_CTRL, 0, DMC_WRITE);
 	mon->device     = 0;
 	mon->addr_start = 0;
 	mon->addr_end   = 0;

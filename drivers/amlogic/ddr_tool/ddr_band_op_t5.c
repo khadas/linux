@@ -77,8 +77,8 @@ static void t5_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 
 	/* clear all port mask */
 	if (port < 0) {
-		writel(0, db->ddr_reg + off + 4);	/* DMC_MON*_CTRL1 */
-		writel(0, db->ddr_reg + off + 8);	/* DMC_MON*_CTRL2 */
+		writel(0, db->ddr_reg1 + off + 4);	/* DMC_MON*_CTRL1 */
+		writel(0, db->ddr_reg1 + off + 8);	/* DMC_MON*_CTRL2 */
 		return;
 	}
 
@@ -86,22 +86,22 @@ static void t5_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 		subport = port - PORT_MAJOR;
 
 	if (subport < 0) {
-		val = readl(db->ddr_reg + off + 4);
+		val = readl(db->ddr_reg1 + off + 4);
 		val |=  (1 << port);
-		writel(val, db->ddr_reg + off + 4);	/* DMC_MON*_CTRL1 */
+		writel(val, db->ddr_reg1 + off + 4);	/* DMC_MON*_CTRL1 */
 		val = 0xffff;
-		writel(val, db->ddr_reg + off + 8);	/* DMC_MON*_CTRL2 */
+		writel(val, db->ddr_reg1 + off + 8);	/* DMC_MON*_CTRL2 */
 	} else {
 		val = (0x1 << 23);	/* select device */
-		writel(val, db->ddr_reg + off + 4);
-		val = readl(db->ddr_reg + off + 8);
+		writel(val, db->ddr_reg1 + off + 4);
+		val = readl(db->ddr_reg1 + off + 8);
 		val |= (1 << subport);
-		writel(val, db->ddr_reg + off + 8);
+		writel(val, db->ddr_reg1 + off + 8);
 	}
 }
 
 static void t5_dmc_range_config(struct ddr_bandwidth *db, int channel,
-				unsigned int start, unsigned int end)
+				unsigned long start, unsigned long end)
 {
 	unsigned int val;
 	unsigned int off = 0;
@@ -112,7 +112,7 @@ static void t5_dmc_range_config(struct ddr_bandwidth *db, int channel,
 		off = (channel - 4) * 16 + DMC_MON4_CTRL;
 
 	val = (start >> 16) | (end & 0xffff0000);
-	writel(val, db->ddr_reg + off);			/* DMC_MON*_CTRL */
+	writel(val, db->ddr_reg1 + off);			/* DMC_MON*_CTRL */
 }
 
 static unsigned long t5_get_dmc_freq_quick(struct ddr_bandwidth *db)
@@ -167,7 +167,7 @@ static void t5_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 	val =  (0x01 << 31) |	/* enable bit */
 	       (0x01 << 20) |	/* use timer  */
 	       (0xff <<  0);
-	writel(val, db->ddr_reg + DMC_MON_G12_CTRL0);
+	writel(val, db->ddr_reg1 + DMC_MON_G12_CTRL0);
 }
 
 static void t5_dmc_bandwidth_init(struct ddr_bandwidth *db)
@@ -175,7 +175,7 @@ static void t5_dmc_bandwidth_init(struct ddr_bandwidth *db)
 	unsigned int i;
 
 	/* set timer trigger clock_cnt */
-	writel(db->clock_count, db->ddr_reg + DMC_MON_TIMER);
+	writel(db->clock_count, db->ddr_reg1 + DMC_MON_TIMER);
 	t5_dmc_bandwidth_enable(db);
 
 	for (i = 0; i < db->channels; i++) {
@@ -192,13 +192,13 @@ static int t5_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	unsigned int i, val, off;
 	int ret = -1;
 
-	val = readl(db->ddr_reg + DMC_MON_CTRL0);
+	val = readl(db->ddr_reg1 + DMC_MON_CTRL0);
 	if (val & DMC_QOS_IRQ) {
 		/*
 		 * get total bytes by each channel, each cycle 16 bytes;
 		 */
-		dg->all_grant    = readl(db->ddr_reg + DMC_MON_ALL_BW);
-		dg->all_grant16  = readl(db->ddr_reg + DMC_MON_ALL16_BW);
+		dg->all_grant    = readl(db->ddr_reg1 + DMC_MON_ALL_BW);
+		dg->all_grant16  = readl(db->ddr_reg1 + DMC_MON_ALL16_BW);
 		dg->all_grant   *= 16;
 		dg->all_grant16 *= 16;
 		for (i = 0; i < db->channels; i++) {
@@ -206,10 +206,10 @@ static int t5_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
 				off = i * 16 + DMC_MON0_BW;
 			else
 				off = (i - 4) * 16 + DMC_MON4_BW;
-			dg->channel_grant[i] = readl(db->ddr_reg + off) * 16;
+			dg->channel_grant[i] = readl(db->ddr_reg1 + off) * 16;
 		}
 		/* clear irq flags */
-		writel(val, db->ddr_reg + DMC_MON_CTRL0);
+		writel(val, db->ddr_reg1 + DMC_MON_CTRL0);
 		t5_dmc_bandwidth_enable(db);
 
 		ret = 0;
@@ -223,15 +223,15 @@ static int t5_dump_reg(struct ddr_bandwidth *db, char *buf)
 	int s = 0, i;
 	unsigned int r, off;
 
-	r  = readl(db->ddr_reg + DMC_MON_CTRL0);
+	r  = readl(db->ddr_reg1 + DMC_MON_CTRL0);
 	s += sprintf(buf + s, "DMC_MON_CTRL0:        %08x\n", r);
-	r  = readl(db->ddr_reg + DMC_MON_TIMER);
+	r  = readl(db->ddr_reg1 + DMC_MON_TIMER);
 	s += sprintf(buf + s, "DMC_MON_TIMER:        %08x\n", r);
-	r  = readl(db->ddr_reg + DMC_MON_ALL_IDLE_CNT);
+	r  = readl(db->ddr_reg1 + DMC_MON_ALL_IDLE_CNT);
 	s += sprintf(buf + s, "DMC_MON_ALL_IDLE_CNT: %08x\n", r);
-	r  = readl(db->ddr_reg + DMC_MON_ALL_BW);
+	r  = readl(db->ddr_reg1 + DMC_MON_ALL_BW);
 	s += sprintf(buf + s, "DMC_MON_ALL_BW:       %08x\n", r);
-	r  = readl(db->ddr_reg + DMC_MON_ALL16_BW);
+	r  = readl(db->ddr_reg1 + DMC_MON_ALL16_BW);
 	s += sprintf(buf + s, "DMC_MON_ALL16_BW:     %08x\n", r);
 
 	for (i = 0; i < 8; i++) {
@@ -240,13 +240,13 @@ static int t5_dump_reg(struct ddr_bandwidth *db, char *buf)
 		else
 			off = (i - 4) * 16 + DMC_MON4_CTRL;
 
-		r  = readl(db->ddr_reg + off);
+		r  = readl(db->ddr_reg1 + off);
 		s += sprintf(buf + s, "DMC_MON%d_CTRL:        %08x\n", i, r);
-		r  = readl(db->ddr_reg + off + 4);
+		r  = readl(db->ddr_reg1 + off + 4);
 		s += sprintf(buf + s, "DMC_MON%d_CTRL1:       %08x\n", i, r);
-		r  = readl(db->ddr_reg + off + 8);
+		r  = readl(db->ddr_reg1 + off + 8);
 		s += sprintf(buf + s, "DMC_MON%d_CTRL2:       %08x\n", i, r);
-		r  = readl(db->ddr_reg + off + 12);
+		r  = readl(db->ddr_reg1 + off + 12);
 		s += sprintf(buf + s, "DMC_MON%d_BW:          %08x\n", i, r);
 	}
 	return s;

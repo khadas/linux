@@ -15,6 +15,7 @@ Required properties for the root node:
 		      "amlogic,dmc_monitor-txl"
 		      "amlogic,dmc_monitor-txlx"
 		      "amlogic,dmc_monitor-txhd"
+		      "amlogic,dmc_monitor-t7"
 		      "amlogic,dmc_monitor-tl1"
 		      "amlogic,dmc_monitor-c1"
 		      "amlogic,dmc_monitor-t5"

@@ -589,6 +589,62 @@ static struct ddr_port_desc ddr_port_desc_t5[] __initdata = {
 	{ .port_id = 47, .port_name = "DEMODE"        }
 };
 
+static struct ddr_port_desc ddr_port_desc_t7[] __initdata = {
+	/* CCI */
+	{ .port_id =  1, .port_name = "ARM_A53"       },
+	{ .port_id =  2, .port_name = "ARM_A73"       },
+	{ .port_id =  3, .port_name = "MALI0"         },
+	{ .port_id =  4, .port_name = "MALI1"         },
+	{ .port_id =  5, .port_name = "CCI"           },
+	/* NIC1 */
+	{ .port_id =  8, .port_name = "NNA0"          },
+	{ .port_id =  9, .port_name = "NNA1"          },
+	{ .port_id = 10, .port_name = "NNA2"          },
+	{ .port_id = 11, .port_name = "NNA3"          },
+	/* NIC2 */
+	{ .port_id = 16, .port_name = "HDMI_RX"       },
+	{ .port_id = 17, .port_name = "USB2"          },
+	{ .port_id = 18, .port_name = "USB3"          },
+	{ .port_id = 19, .port_name = "PCIE"          },
+	{ .port_id = 24, .port_name = "SPICC0"        },
+	{ .port_id = 25, .port_name = "SPICC1"        },
+	{ .port_id = 26, .port_name = "SDEMMCA"       },
+	{ .port_id = 27, .port_name = "SDEMMCB"       },
+	{ .port_id = 28, .port_name = "SDEMMCC"       },
+	{ .port_id = 29, .port_name = "SPICC2"        },
+	{ .port_id = 34, .port_name = "ETHERNET"      },
+	{ .port_id = 35, .port_name = "AFIFO"         },
+	{ .port_id = 36, .port_name = "AUDMA"         },
+	{ .port_id = 37, .port_name = "SPICC3"        },
+	{ .port_id = 38, .port_name = "SPICC4"        },
+	{ .port_id = 39, .port_name = "SPICC5"        },
+	/* NIC3 */
+	{ .port_id = 48, .port_name = "GE2D"          },
+	{ .port_id = 49, .port_name = "GDC"           },
+	{ .port_id = 50, .port_name = "DEWARP"        },
+	{ .port_id = 51, .port_name = "VDEC"          },
+	{ .port_id = 52, .port_name = "HEVC_F"        },
+	{ .port_id = 53, .port_name = "HEVC_B"        },
+	{ .port_id = 54, .port_name = "HCODEC"        },
+	{ .port_id = 55, .port_name = "WAVE521"       },
+	/* NIC4 */
+	{ .port_id = 63, .port_name = "DEMUX"         },
+	{ .port_id = 64, .port_name = "ISP0"          },
+	{ .port_id = 65, .port_name = "ISP1"          },
+	{ .port_id = 66, .port_name = "ISP2"          },
+	{ .port_id = 67, .port_name = "ISP3"          },
+	{ .port_id = 68, .port_name = "DSPA"          },
+	{ .port_id = 69, .port_name = "DSPB"          },
+	{ .port_id = 70, .port_name = "AOCPU"         },
+	{ .port_id = 71, .port_name = "JTAG"          },
+	{ .port_id = 72, .port_name = "AUDIO"         },
+	{ .port_id = 73, .port_name = "DMA"           },
+	/* NIC5 */
+	{ .port_id = 80, .port_name = "VPU0"          },
+	{ .port_id = 81, .port_name = "VPU1"          },
+	{ .port_id = 82, .port_name = "VPU2"          }
+};
+
 static struct ddr_port_desc *chip_ddr_port;
 static unsigned int chip_ddr_port_num __initdata;
 
@@ -686,6 +742,11 @@ int __init ddr_find_port_desc(int cpu_type, struct ddr_port_desc **desc)
 	case DMC_TYPE_T5D:
 		*desc = ddr_port_desc_t5;
 		desc_size = ARRAY_SIZE(ddr_port_desc_t5);
+		break;
+
+	case DMC_TYPE_T7:
+		*desc = ddr_port_desc_t7;
+		desc_size = ARRAY_SIZE(ddr_port_desc_t7);
 		break;
 
 	default:

@@ -113,7 +113,7 @@ struct ddr_bandwidth_ops {
 	void (*init)(struct ddr_bandwidth *db);
 	void (*config_port)(struct ddr_bandwidth *db, int channel, int port);
 	void (*config_range)(struct ddr_bandwidth *db, int channel,
-			     unsigned int start, unsigned int end);
+			     unsigned long start, unsigned long end);
 	int  (*handle_irq)(struct ddr_bandwidth *db, struct ddr_grant *dg);
 	void (*bandwidth_enable)(struct ddr_bandwidth *db);
 	unsigned long (*get_freq)(struct ddr_bandwidth *db);
@@ -133,6 +133,7 @@ struct ddr_avg_bandwidth {
 	unsigned long long avg_bandwidth;
 	unsigned long long avg_usage;
 	unsigned long long avg_port[MAX_CHANNEL];
+	unsigned long max_bandwidth[MAX_CHANNEL];
 	unsigned int sample_count;
 };
 
@@ -147,6 +148,7 @@ struct ddr_bandwidth {
 	char busy;
 	char mode;
 	char bytes_per_cycle;
+	char soc_feature;		/* some special featur of it */
 	int mali_port[2];
 	int stat_flag;
 	unsigned int threshold;
@@ -157,11 +159,11 @@ struct ddr_bandwidth {
 	spinlock_t lock;		/* lock for usage statistics */
 	struct ddr_bandwidth_sample cur_sample;
 	struct ddr_bandwidth_sample max_sample;
-	struct ddr_bandwidth_sample min_sample;
 	struct ddr_avg_bandwidth    avg;
 	struct bandwidth_addr_range range[MAX_CHANNEL];
 	u64	     port[MAX_CHANNEL];
-	void __iomem *ddr_reg;
+	void __iomem *ddr_reg1;		/* dmc 1 */
+	void __iomem *ddr_reg2;		/* dmc 2 */
 	void __iomem *pll_reg;
 	struct class *class;
 	struct ddr_port_desc *port_desc;
@@ -183,6 +185,9 @@ extern struct ddr_bandwidth_ops a1_ddr_bw_ops;
 #endif
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_T5
 extern struct ddr_bandwidth_ops t5_ddr_bw_ops;
+#endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_T7
+extern struct ddr_bandwidth_ops t7_ddr_bw_ops;
 #endif
 
 unsigned int aml_get_ddr_usage(void);

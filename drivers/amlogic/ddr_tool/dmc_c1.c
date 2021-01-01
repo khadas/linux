@@ -53,28 +53,28 @@ static size_t c1_dmc_dump_reg(char *buf)
 	size_t sz = 0, i;
 	unsigned long val;
 
-	val = dmc_prot_rw(DMC_PROT0_STA, 0, DMC_READ);
+	val = dmc_prot_rw(NULL, DMC_PROT0_STA, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_PROT0_STA:%lx\n", val);
-	val = dmc_prot_rw(DMC_PROT0_EDA, 0, DMC_READ);
+	val = dmc_prot_rw(NULL, DMC_PROT0_EDA, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_PROT0_EDA:%lx\n", val);
-	val = dmc_prot_rw(DMC_PROT0_CTRL, 0, DMC_READ);
+	val = dmc_prot_rw(NULL, DMC_PROT0_CTRL, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_PROT0_CTRL:%lx\n", val);
-	val = dmc_prot_rw(DMC_PROT0_CTRL1, 0, DMC_READ);
+	val = dmc_prot_rw(NULL, DMC_PROT0_CTRL1, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_PROT0_CTRL1:%lx\n", val);
 
-	val = dmc_prot_rw(DMC_PROT1_STA, 0, DMC_READ);
+	val = dmc_prot_rw(NULL, DMC_PROT1_STA, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_PROT1_STA:%lx\n", val);
-	val = dmc_prot_rw(DMC_PROT1_EDA, 0, DMC_READ);
+	val = dmc_prot_rw(NULL, DMC_PROT1_EDA, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_PROT1_EDA:%lx\n", val);
-	val = dmc_prot_rw(DMC_PROT1_CTRL, 0, DMC_READ);
+	val = dmc_prot_rw(NULL, DMC_PROT1_CTRL, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_PROT1_CTRL:%lx\n", val);
-	val = dmc_prot_rw(DMC_PROT1_CTRL1, 0, DMC_READ);
+	val = dmc_prot_rw(NULL, DMC_PROT1_CTRL1, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_PROT1_CTRL1:%lx\n", val);
 
-	val = dmc_prot_rw(DMC_SEC_STATUS, 0, DMC_READ);
+	val = dmc_prot_rw(NULL, DMC_SEC_STATUS, 0, DMC_READ);
 	sz += sprintf(buf + sz, "DMC_SEC_STATUS:%lx\n", val);
 	for (i = 0; i < 4; i++) {
-		val = dmc_prot_rw(DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
+		val = dmc_prot_rw(NULL, DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
 		sz += sprintf(buf + sz, "DMC_VIO_ADDR%zu:%lx\n", i, val);
 	}
 
@@ -89,10 +89,10 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 	struct page_trace *trace;
 
 	for (i = 1; i < 4; i += 2) {
-		status = dmc_prot_rw(DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
+		status = dmc_prot_rw(NULL, DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
 		if (!(status & PROT0_VIOLATION))
 			continue;
-		addr = dmc_prot_rw(DMC_VIO_ADDR0 + ((i - 1) << 2), 0,
+		addr = dmc_prot_rw(NULL, DMC_VIO_ADDR0 + ((i - 1) << 2), 0,
 				   DMC_READ);
 		if (addr > mon->addr_end)
 			continue;
@@ -128,7 +128,7 @@ static void c1_dmc_mon_irq(struct dmc_monitor *mon, void *data)
 {
 	unsigned long value;
 
-	value = dmc_prot_rw(DMC_SEC_STATUS, 0, DMC_READ);
+	value = dmc_prot_rw(NULL, DMC_SEC_STATUS, 0, DMC_READ);
 	if (in_interrupt()) {
 		if (value & DMC_WRITE_VIOLATION)
 			check_violation(mon, data);
@@ -137,7 +137,7 @@ static void c1_dmc_mon_irq(struct dmc_monitor *mon, void *data)
 		mod_delayed_work(system_wq, &mon->work, 0);
 	}
 	/* clear irq */
-	dmc_prot_rw(DMC_SEC_STATUS, value, DMC_WRITE);
+	dmc_prot_rw(NULL, DMC_SEC_STATUS, value, DMC_WRITE);
 }
 
 static int c1_dmc_mon_set(struct dmc_monitor *mon)
@@ -145,24 +145,24 @@ static int c1_dmc_mon_set(struct dmc_monitor *mon)
 	unsigned long add;
 
 	add = mon->addr_start & PAGE_MASK;
-	dmc_prot_rw(DMC_PROT0_STA, add, DMC_WRITE);
+	dmc_prot_rw(NULL, DMC_PROT0_STA, add, DMC_WRITE);
 	add = mon->addr_end & PAGE_MASK;
-	dmc_prot_rw(DMC_PROT0_EDA, add, DMC_WRITE);
+	dmc_prot_rw(NULL, DMC_PROT0_EDA, add, DMC_WRITE);
 
-	dmc_prot_rw(DMC_PROT0_CTRL, mon->device, DMC_WRITE);
-	dmc_prot_rw(DMC_PROT0_CTRL1, 1 << 24, DMC_WRITE);
+	dmc_prot_rw(NULL, DMC_PROT0_CTRL, mon->device, DMC_WRITE);
+	dmc_prot_rw(NULL, DMC_PROT0_CTRL1, 1 << 24, DMC_WRITE);
 
-	pr_emerg("range:%08lx - %08lx, device:%x\n",
+	pr_emerg("range:%08lx - %08lx, device:%llx\n",
 		 mon->addr_start, mon->addr_end, mon->device);
 	return 0;
 }
 
 void c1_dmc_mon_disable(struct dmc_monitor *mon)
 {
-	dmc_prot_rw(DMC_PROT0_STA,   0, DMC_WRITE);
-	dmc_prot_rw(DMC_PROT0_EDA,   0, DMC_WRITE);
-	dmc_prot_rw(DMC_PROT0_CTRL,  0, DMC_WRITE);
-	dmc_prot_rw(DMC_PROT0_CTRL1, 0, DMC_WRITE);
+	dmc_prot_rw(NULL, DMC_PROT0_STA,   0, DMC_WRITE);
+	dmc_prot_rw(NULL, DMC_PROT0_EDA,   0, DMC_WRITE);
+	dmc_prot_rw(NULL, DMC_PROT0_CTRL,  0, DMC_WRITE);
+	dmc_prot_rw(NULL, DMC_PROT0_CTRL1, 0, DMC_WRITE);
 
 	mon->device     = 0;
 	mon->addr_start = 0;

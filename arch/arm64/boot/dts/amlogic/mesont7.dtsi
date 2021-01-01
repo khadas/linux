@@ -1307,20 +1307,26 @@
 	};
 
 	ddr_bandwidth {
-		compatible = "amlogic,ddr-bandwidth-g12a";
-		status = "disabled";
-		reg = <0 0xfe0360C0 0 0x100
-		       0 0xfe036c00 0 0x100>;
-		interrupts = <0 62 IRQ_TYPE_EDGE_RISING>;
+		compatible = "amlogic,ddr-bandwidth-t7";
+		status = "okay";
+		reg = <0 0xfe036000 0 0x400
+		       0 0xfe034000 0 0x400
+		       0 0xfe0a0000 0 0x100>;
+		interrupts = <0 332 IRQ_TYPE_EDGE_RISING
+			      0 336 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ddr_bandwidth";
 	};
+
 	dmc_monitor {
-		compatible = "amlogic,dmc_monitor-g12a";
-		status = "disabled";
-		reg = <0 0xfe036000 0 0x100>;
+		compatible = "amlogic,dmc_monitor-t7";
+		status = "okay";
+		reg = <0 0xfe036000 0 0x400
+		       0 0xfe034000 0 0x400>;
 		reg_base = <0xfe036000>;
-		interrupts = <0 62 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <0 333 IRQ_TYPE_EDGE_RISING
+			      0 336 IRQ_TYPE_EDGE_RISING>;
 	};
+
 	amhdmitx: amhdmitx{
 		compatible = "amlogic, amhdmitx-sc2";
 		dev_name = "amhdmitx";

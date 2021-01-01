@@ -17,6 +17,7 @@ Required properties for the root node:
 		      "amlogic,ddr-bandwidth-txlx"
 		      "amlogic,ddr-bandwidth-txhd"
 		      "amlogic,ddr-bandwidth-tm2"
+		      "amlogic,ddr-bandwidth-t7"
 		      "amlogic,ddr-bandwidth-tl1"
 		      "amlogic,ddr-bandwidth-a1"
 		      "amlogic,ddr-bandwidth-c1"
