@@ -8,6 +8,7 @@
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/ge2d/ge2d.h>
+#include <linux/amlogic/media/canvas/canvas.h>
 
 /* Local Headers */
 #include "ge2d_log.h"
@@ -323,6 +324,26 @@ void ge2d_canv_config(u32 index, ulong *addr, u32 *stride)
 	}
 }
 
+static void get_canvas_info(u32 canvas_index, ulong *addr, u32 *stride)
+{
+	struct canvas_s canvas;
+	int i, tmp_index = 0;
+
+	if (!addr || !stride) {
+		ge2d_log_err("get canvas info error\n");
+		return;
+	}
+
+	for (i = 0; i < 3 ; i++) {
+		tmp_index = (canvas_index >> (i * 8)) & 0xff;
+		if (tmp_index) {
+			canvas_read(tmp_index, &canvas);
+			addr[i] = canvas.addr;
+			stride[i] = canvas.width;
+		}
+	}
+}
+
 void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg)
 {
 	ge2d_reg_set_bits(GE2D_GEN_CTRL1, cfg->urgent_en,  10, 1);
@@ -332,6 +353,10 @@ void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg)
 	ge2d_reg_set_bits(GE2D_GEN_CTRL1, cfg->ddr_burst_size_cr, 16, 2);
 
 	if (ge2d_meson_dev.canvas_status) {
+		/* if virtual canvas is used, get info from it */
+		if (cfg->canaddr)
+			get_canvas_info(cfg->canaddr,
+					cfg->phy_addr, cfg->stride);
 		ge2d_canv_config(GE2D_SRC1_INDEX,
 				 cfg->phy_addr,
 				 cfg->stride);
@@ -466,6 +491,14 @@ void ge2d_set_src2_dst_data(struct ge2d_src2_dst_data_s *cfg)
 	ge2d_reg_set_bits(GE2D_GEN_CTRL1, cfg->ddr_burst_size, 22, 2);
 
 	if (ge2d_meson_dev.canvas_status) {
+		/* if virtual canvas is used, get info from it */
+		if (cfg->src2_canaddr)
+			get_canvas_info(cfg->src2_canaddr,
+					cfg->src2_phyaddr, cfg->src2_stride);
+		if (cfg->dst_canaddr)
+			get_canvas_info(cfg->dst_canaddr,
+					cfg->dst_phyaddr, cfg->dst_stride);
+
 		ge2d_canv_config(GE2D_SRC2_INDEX,
 				 cfg->src2_phyaddr,
 				 cfg->src2_stride);
