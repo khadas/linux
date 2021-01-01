@@ -338,16 +338,18 @@ void aml_set_jtag_state(unsigned int state, unsigned int select)
 static int aml_jtag_select(struct platform_device *pdev)
 {
 	struct aml_jtag_dev *jdev = platform_get_drvdata(pdev);
-	unsigned int select = jdev->select;
+	unsigned int select;
 	unsigned int state = AMLOGIC_JTAG_STATE_OFF;
 	struct jtag_id_desc *tmp = NULL;
 
-	if (select != AMLOGIC_JTAG_DISABLE)
+	if (jdev->select != AMLOGIC_JTAG_DISABLE)
 		state = AMLOGIC_JTAG_STATE_ON;
 
 	if (jdev->cluster != 0)
-		jdev->cluster = CLUSTER_TYPE_UPDATE(jdev->select,
+		jdev->select = CLUSTER_TYPE_UPDATE(jdev->select,
 						    jdev->cluster);
+	select = jdev->select;
+
 	tmp = select_to_name(jdev->select);
 	if (tmp)
 		pr_info("select %s,%s, alias:%s\n",
