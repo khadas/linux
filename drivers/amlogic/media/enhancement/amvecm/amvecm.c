@@ -1502,6 +1502,19 @@ static int cabc_aad_on_vs(int vf_state)
 	return 0;
 }
 
+#ifdef T7_BRINGUP_MULTI_VPP
+int min_vpp_process(vpp_top_index)
+{
+	int result = 0;
+	//write csc and gain/offset for vpp1/2 here
+	// update hdr matrix
+	result = amvecm_matrix_process(toggle_vf, vf, flags, vd_path);
+	// to do
+
+	return result
+}
+#endif
+
 int amvecm_on_vs(struct vframe_s *vf,
 		 struct vframe_s *toggle_vf,
 		 int flags,
@@ -1515,10 +1528,27 @@ int amvecm_on_vs(struct vframe_s *vf,
 {
 	int result = 0;
 	int vf_state = 0;
-
+#ifdef T7_BRINGUP_MULTI_VPP
+	// to do, t7 vecm bringup,
+	int vpp_top_index = 0;
+	// temp flag, should update it from video display module in future
+	// assuming here that post process only be used for vd1 input of vpp top0
+	// and there is no post process for vpp top 1/2
+#endif
 	if (probe_ok == 0)
 		return 0;
 
+#ifdef T7_BRINGUP_MULTI_VPP
+	// todo, will not support in pxp bringup stage
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7 &&
+	    vpp_top_index != 0) {
+		// for t7 case, for min vpp 1 & 2
+		// keep the legacy driver for vd1 not changed for back compatible
+		//and try to minimum the changes and add independent handler for min vpp newly added
+		result = min_vpp_process(vpp_top_index);
+		return result;
+	}
+#endif
 	amvecm_overscan_process(vf, toggle_vf, flags, vd_path);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (for_dolby_vision_certification() && vd_path == VD1_PATH)
@@ -1599,6 +1629,14 @@ void refresh_on_vs(struct vframe_s *vf)
 {
 	if (probe_ok == 0)
 		return;
+
+#ifdef T7_BRINGUP_MULTI_VPP
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7 &&
+	    vpp_top_index != 0) {
+		return 0;
+	}
+#endif
+
 	if (vf) {
 		vpp_get_vframe_hist_info(vf);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -8269,7 +8307,8 @@ void init_pq_setting(void)
 	    is_meson_txlx_cpu() || is_meson_txhd_cpu() ||
 		is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
-		get_cpu_type() == MESON_CPU_MAJOR_ID_T5D)
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
 		goto tvchip_pq_setting;
 	else if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
 		 is_meson_sm1_cpu() ||
@@ -8368,7 +8407,7 @@ tvchip_pq_setting:
 void amvecm_gamma_init(bool en)
 {
 	unsigned int i;
-	static unsigned short data[256];
+	unsigned short data[256];
 
 	for (i = 0; i < 256; i++) {
 		data[i] = i << 2;
@@ -8378,17 +8417,25 @@ void amvecm_gamma_init(bool en)
 	}
 
 	if (en) {
-		WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
-				   0, GAMMA_EN, 1);
-		amve_write_gamma_table(data,
-				       H_SEL_R);
-		amve_write_gamma_table(data,
-				       H_SEL_G);
-		amve_write_gamma_table(data,
-				       H_SEL_B);
+		if (cpu_after_eq_t7()) {
+			lcd_gamma_api(video_gamma_table_r.data,
+				video_gamma_table_g.data,
+				video_gamma_table_b.data,
+				0, 0);
+			vpp_enable_lcd_gamma_table(0, 0);
+		} else {
+			WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
+					0, GAMMA_EN, 1);
+			amve_write_gamma_table(data,
+						H_SEL_R);
+			amve_write_gamma_table(data,
+						H_SEL_G);
+			amve_write_gamma_table(data,
+						H_SEL_B);
 
-		WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
-				   1, GAMMA_EN, 1);
+			WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
+					1, GAMMA_EN, 1);
+		}
 	}
 }
 
@@ -8397,61 +8444,57 @@ static void amvecm_wb_init(bool en)
 	int *initcoef;
 
 	initcoef = wb_init_bypass_coef;
-	if (en) {
-		if (video_rgb_ogo_xvy_mtx) {
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 3, 8, 3);
 
-			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1,
-				      ((initcoef[0] & 0xfff) << 16)
-				      | (initcoef[1] & 0xfff));
-			WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2,
-				      initcoef[2] & 0xfff);
-			WRITE_VPP_REG(VPP_MATRIX_COEF00_01,
-				      ((initcoef[3] & 0x1fff) << 16)
-				      | (initcoef[4] & 0x1fff));
-			WRITE_VPP_REG(VPP_MATRIX_COEF02_10,
-				      ((initcoef[5]  & 0x1fff) << 16)
-				      | (initcoef[6] & 0x1fff));
-			WRITE_VPP_REG(VPP_MATRIX_COEF11_12,
-				      ((initcoef[7] & 0x1fff) << 16)
-				      | (initcoef[8] & 0x1fff));
-			WRITE_VPP_REG(VPP_MATRIX_COEF20_21,
-				      ((initcoef[9] & 0x1fff) << 16)
-				      | (initcoef[10] & 0x1fff));
-			WRITE_VPP_REG(VPP_MATRIX_COEF22,
-				      initcoef[11] & 0x1fff);
-			if (initcoef[21]) {
-				WRITE_VPP_REG(VPP_MATRIX_COEF13_14,
-					      ((initcoef[12] & 0x1fff) << 16)
-					      | (initcoef[13] & 0x1fff));
-				WRITE_VPP_REG(VPP_MATRIX_COEF15_25,
-					      ((initcoef[14] & 0x1fff) << 16)
-					      | (initcoef[17] & 0x1fff));
-				WRITE_VPP_REG(VPP_MATRIX_COEF23_24,
-					      ((initcoef[15] & 0x1fff) << 16)
-					      | (initcoef[16] & 0x1fff));
-			}
-			WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1,
-				      ((initcoef[18] & 0xfff) << 16)
-				      | (initcoef[19] & 0xfff));
-			WRITE_VPP_REG(VPP_MATRIX_OFFSET2,
-				      initcoef[20] & 0xfff);
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP,
-					   initcoef[21], 3, 2);
-			WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP,
-					   initcoef[22], 5, 3);
-		} else {
-			WRITE_VPP_REG(VPP_GAINOFF_CTRL0,
-				      (1024 << 16) | 1024);
-			WRITE_VPP_REG(VPP_GAINOFF_CTRL1,
-				      (1024 << 16));
+	if (video_rgb_ogo_xvy_mtx) {
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 3, 8, 3);
+
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET0_1,
+					((initcoef[0] & 0xfff) << 16)
+					| (initcoef[1] & 0xfff));
+		WRITE_VPP_REG(VPP_MATRIX_PRE_OFFSET2,
+					initcoef[2] & 0xfff);
+		WRITE_VPP_REG(VPP_MATRIX_COEF00_01,
+					((initcoef[3] & 0x1fff) << 16)
+					| (initcoef[4] & 0x1fff));
+		WRITE_VPP_REG(VPP_MATRIX_COEF02_10,
+					((initcoef[5]  & 0x1fff) << 16)
+					| (initcoef[6] & 0x1fff));
+		WRITE_VPP_REG(VPP_MATRIX_COEF11_12,
+					((initcoef[7] & 0x1fff) << 16)
+					| (initcoef[8] & 0x1fff));
+		WRITE_VPP_REG(VPP_MATRIX_COEF20_21,
+					((initcoef[9] & 0x1fff) << 16)
+					| (initcoef[10] & 0x1fff));
+		WRITE_VPP_REG(VPP_MATRIX_COEF22,
+					initcoef[11] & 0x1fff);
+		if (initcoef[21]) {
+			WRITE_VPP_REG(VPP_MATRIX_COEF13_14,
+						((initcoef[12] & 0x1fff) << 16)
+						| (initcoef[13] & 0x1fff));
+			WRITE_VPP_REG(VPP_MATRIX_COEF15_25,
+						((initcoef[14] & 0x1fff) << 16)
+						| (initcoef[17] & 0x1fff));
+			WRITE_VPP_REG(VPP_MATRIX_COEF23_24,
+						((initcoef[15] & 0x1fff) << 16)
+						| (initcoef[16] & 0x1fff));
 		}
-	}
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET0_1,
+					((initcoef[18] & 0xfff) << 16)
+					| (initcoef[19] & 0xfff));
+		WRITE_VPP_REG(VPP_MATRIX_OFFSET2,
+					initcoef[20] & 0xfff);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP,
+					initcoef[21], 3, 2);
+		WRITE_VPP_REG_BITS(VPP_MATRIX_CLIP,
+					initcoef[22], 5, 3);
 
-	if (video_rgb_ogo_xvy_mtx)
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, en, 6, 1);
-	else
-		WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, en, 31, 1);
+	} else {
+		WRITE_VPP_REG(VPP_GAINOFF_CTRL0,
+					(en << 31) | (1024 << 16) | 1024);
+		WRITE_VPP_REG(VPP_GAINOFF_CTRL1,
+					(1024 << 16));
+	}
 }
 
 void amvecm_3dlut_init(bool en)
@@ -8683,6 +8726,10 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	},
 	{
 		.compatible = "amlogic, vecm-t5",
+		.data = &vecm_dt_tm5,
+	},
+	{
+		.compatible = "amlogic, vecm-t7",
 		.data = &vecm_dt_tm5,
 	},
 	{},

@@ -85,6 +85,17 @@ void hdr_osd_off(void)
 	       HDR_BYPASS, cur_hdr_process);
 }
 
+void hdr_osd2_off(void)
+{
+	enum hdr_process_sel cur_hdr_process;
+
+	cur_hdr_process =
+		hdr_func(OSD2_HDR, HDR_BYPASS,
+			 get_current_vinfo(), NULL);
+	pr_csc(8, "am_vecm: module=OSD2_HDR, process=HDR_BYPASS(%d, %d)\n",
+	       HDR_BYPASS, cur_hdr_process);
+}
+
 void hdr_vd1_off(void)
 {
 	enum hdr_process_sel cur_hdr_process;
@@ -104,6 +115,17 @@ void hdr_vd2_off(void)
 		hdr_func(VD2_HDR, HDR_BYPASS,
 			 get_current_vinfo(), NULL);
 	pr_csc(8, "am_vecm: module=VD2_HDR, process=HDR_BYPASS(%d, %d)\n",
+	       HDR_BYPASS, cur_hdr_process);
+}
+
+void hdr_vd3_off(void)
+{
+	enum hdr_process_sel cur_hdr_process;
+
+	cur_hdr_process =
+		hdr_func(VD3_HDR, HDR_BYPASS,
+			 get_current_vinfo(), NULL);
+	pr_csc(8, "am_vecm: module=VD3_HDR, process=HDR_BYPASS(%d, %d)\n",
 	       HDR_BYPASS, cur_hdr_process);
 }
 
@@ -6671,10 +6693,17 @@ EXPORT_SYMBOL(get_hdr_module_status);
 static bool video_layer_wait_on[VD_PATH_MAX];
 bool is_video_layer_on(enum vd_path_e vd_path)
 {
-	bool video_on =
-		(vd_path == VD1_PATH) ?
-		get_video_enabled() :
-		get_videopip_enabled();
+	bool video_on;
+
+	if (vd_path == VD1_PATH)
+		video_on = get_video_enabled();
+	else if (vd_path == VD2_PATH)
+		video_on = get_videopip_enabled();
+	else
+		video_on = 0;
+	/*else if (vd_path == VD3_PATH)*/
+	/*	video_on = get_videopip2_enabled();*/
+
 
 	if (video_on)
 		video_layer_wait_on[vd_path] = false;
@@ -6757,6 +6786,10 @@ void hdr10_plus_process_update(int force_source_lumin, enum vd_path_e vd_path)
 		hdr10p_ebzcurve_update(VD2_HDR,
 				       HDR10P_SDR,
 				       &hdr10pgen_param);
+	else if (vd_path == VD3_PATH)
+		hdr10p_ebzcurve_update(VD3_HDR,
+				       HDR10P_SDR,
+				       &hdr10pgen_param);
 }
 EXPORT_SYMBOL(hdr10_plus_process_update);
 
@@ -6768,6 +6801,8 @@ static void hdr10_tm_process_update(struct vframe_master_display_colour_s *p,
 		hdr10_tm_update(VD1_HDR, HDR_SDR);
 	else if (vd_path == VD2_PATH)
 		hdr10_tm_update(VD2_HDR, HDR_SDR);
+	else if (vd_path == VD3_PATH)
+		hdr10_tm_update(VD3_HDR, HDR_SDR);
 }
 
 static struct hdr10plus_para hdmitx_hdr10plus_params[VD_PATH_MAX];
@@ -7469,6 +7504,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	enum hdr_type_e source_format[VD_PATH_MAX];
 	static struct hdr10plus_para *para;
 	static int signal_change_latch;
+	int i, k;
 
 	if (!vinfo || vinfo->mode == VMODE_NULL ||
 	    vinfo->mode == VMODE_INVALID)
@@ -7506,7 +7542,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	if (video_process_status[vd_path] == HDR_MODULE_BYPASS &&
 	    !(video_process_flags[vd_path] & PROC_FLAG_FORCE_PROCESS)) {
 		if ((is_video_layer_on(vd_path) ||
-		     video_layer_wait_on[vd_path]) &&
+		     video_layer_wait_on[vd_path]) && // TODO  should we add vd3 here
 		    (!is_dolby_vision_on() || vd_path == VD2_PATH)) {
 			video_process_status[vd_path] = HDR_MODULE_ON;
 			pr_csc(4,
@@ -7524,8 +7560,15 @@ static int vpp_matrix_update(struct vframe_s *vf,
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
 	    get_cpu_type() != MESON_CPU_MAJOR_ID_TL1) {
-		enum vd_path_e oth_path =
-			(vd_path == VD1_PATH) ? VD2_PATH : VD1_PATH;
+		enum vd_path_e oth_path[VD_PATH_MAX - 1];
+
+		k = 0;
+		for (i = 0; i < VD_PATH_MAX; i++) {
+			if (i != vd_path) {
+				oth_path[k] = i;
+				k++;
+			}
+		}
 
 		if (get_hdr_policy() != cur_hdr_policy) {
 			pr_csc(4, "policy changed from %d to %d.\n",
@@ -7536,14 +7579,25 @@ static int vpp_matrix_update(struct vframe_s *vf,
 
 		source_format[VD1_PATH] = get_source_type(VD1_PATH);
 		source_format[VD2_PATH] = get_source_type(VD2_PATH);
+		source_format[VD3_PATH] = get_source_type(VD3_PATH);
 		get_cur_vd_signal_type(vd_path);
-
+#ifdef T7_BRINGUP_MULTI_VPP
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+			signal_change_flag |=
+			hdr_policy_process_t7(vinfo, source_format, vd_path);
+		else
+			signal_change_flag |=
+			hdr_policy_process(vinfo, source_format, vd_path);
+#else
 		signal_change_flag |=
 			hdr_policy_process(vinfo, source_format, vd_path);
+#endif
+
 		if (signal_change_flag & SIG_OUTPUT_MODE_CHG) {
 			if (!is_video_layer_on(vd_path))
 				video_layer_wait_on[vd_path] = true;
-			video_process_flags[oth_path] |=
+			for (i = 0; i < VD_PATH_MAX - 1; i++)
+				video_process_flags[oth_path[i]] |=
 				PROC_FLAG_FORCE_PROCESS;
 			return 1;
 		}
@@ -7565,6 +7619,36 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		}
 	}
 
+#ifdef T7_BRINGUP_MULTI_VPP
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7) {
+		// TODO
+		// support vd3
+		//
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+		if (vd_path == VD1_PATH ||
+		    (vd_path == VD2_PATH &&
+		     !is_video_layer_on(VD1_PATH) &&
+		     is_video_layer_on(VD2_PATH))) {
+			para =
+			hdr10p_meta_updated ?
+			&hdmitx_hdr10plus_params[vd_path] : NULL;
+			hdmi_packet_process(signal_change_flag, vinfo, p,
+					    para,
+					    vd_path, source_format);
+		}
+	} else {
+		if (vd_path == VD1_PATH ||
+		    (vd_path == VD2_PATH &&
+		     !is_video_layer_on(VD1_PATH)))
+			hdr_tx_pkt_cb(vinfo,
+				      signal_change_flag,
+				      csc_type,
+				      p,
+				      &hdmi_scs_type_changed,
+				      &hdmitx_hdr10plus_params[vd_path],
+				      vd_path);
+	}
+#else
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (vd_path == VD1_PATH ||
 		    (vd_path == VD2_PATH &&
@@ -7590,6 +7674,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 				      vd_path);
 	}
 
+#endif
+
 	if (hdmi_scs_type_changed &&
 	    (flags & CSC_FLAG_CHECK_OUTPUT) &&
 	    (csc_en & 0x10))
@@ -7605,13 +7691,27 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	      SIG_HDR_SUPPORT | SIG_HLG_MODE | SIG_OP_CHG |
 	      SIG_SRC_OUTPUT_CHG | SIG_HDR10_PLUS_MODE |
 	      SIG_SRC_CHG | SIG_HDR_OOTF_CHG | SIG_FORCE_CHG))) {
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
-		    (get_cpu_type() != MESON_CPU_MAJOR_ID_TL1))
+#ifdef T7_BRINGUP_MULTI_VPP
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+			video_post_process_t7(vf, csc_type, vinfo,
+					      vd_path, p, source_format);
+		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
+			 (get_cpu_type() != MESON_CPU_MAJOR_ID_TL1))
 			video_post_process(vf, csc_type, vinfo,
 					   vd_path, p, source_format);
 		else
 			video_process(vf, csc_type, signal_change_flag,
 				      vinfo, p, vd_path, source_format);
+#else
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
+			 (get_cpu_type() != MESON_CPU_MAJOR_ID_TL1))
+			video_post_process(vf, csc_type, vinfo,
+					   vd_path, p, source_format);
+		else
+			video_process(vf, csc_type, signal_change_flag,
+				      vinfo, p, vd_path, source_format);
+
+#endif
 		cur_hdr_policy = get_hdr_policy();
 	}
 
@@ -7940,7 +8040,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				       is_dolby_vision_on(),
 				       get_dolby_vision_policy(),
 				       dv_hdr_policy);
-				if (vd_path == VD2_PATH ||
+				if (vd_path == VD2_PATH || // TODO, add vd3??
 				    (vd_path == VD1_PATH &&
 				     (get_source_type(VD1_PATH) == HDRTYPE_HDR10PLUS ||
 				      get_source_type(VD1_PATH) == HDRTYPE_MVC ||
@@ -7951,7 +8051,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				       !(dv_hdr_policy & 2)) ||
 				      (get_source_type(VD1_PATH) == HDRTYPE_SDR &&
 				       !(dv_hdr_policy & 0x20))))) {
-					/* and VD1 adaptive or VD2 */
+					/* and VD1 adaptive or VD2*/
 					/* or always hdr hdr+/hlg bypass */
 					/* faked vframe to switch matrix */
 					/* 2020 to 601 when video disabled */
@@ -8017,7 +8117,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				pr_csc(4,
 				       "video_process_status[%s] = HDR_MODULE_BYPASS\n",
 				       vd_path == VD1_PATH ? "VD1" : "VD2");
-				if (vd_path == VD2_PATH &&
+				if (vd_path == VD2_PATH && // should we add vd3 here?? TODO
 				    (is_video_layer_on(VD1_PATH) ||
 				     video_layer_wait_on[VD1_PATH]))
 					video_process_flags[VD1_PATH] |=
@@ -8036,7 +8136,7 @@ int amvecm_hdr_dbg(u32 sel)
 	if (sel == 1) /* dump reg */
 		goto reg_dump;
 
-	if (!dbg_vf[VD1_PATH] && !dbg_vf[VD2_PATH])
+	if (!dbg_vf[VD1_PATH] && !dbg_vf[VD2_PATH] && !dbg_vf[VD3_PATH])
 		goto hdr_dump;
 
 	for (k = 0; k < VD_PATH_MAX; k++) {

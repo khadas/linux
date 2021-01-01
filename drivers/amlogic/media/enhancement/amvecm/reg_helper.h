@@ -30,6 +30,11 @@
 #define GET_BITS(x, y) (((0x01 << (y)) - 1) << (x))
 
 /* useful inline fucntions to handle different offset */
+static inline bool cpu_after_eq_t7(void)
+{
+	return cpu_after_eq(MESON_CPU_MAJOR_ID_T7);
+}
+
 static inline bool cpu_after_eq_tm2b(void)
 {
 	return (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) &&
@@ -74,7 +79,9 @@ static inline bool is_sr1_dnlpv2_reg(u32 addr)
 static inline u32 get_sr0_offset(void)
 {
 	/*sr0  register shfit*/
-	if (cpu_after_eq_tm2b())
+	if (cpu_after_eq_t7())
+		return 0x1200;
+	else if (cpu_after_eq_tm2b())
 		return 0x1200;
 	else if (cpu_after_eq_tl1())
 		return 0x0;
@@ -89,6 +96,8 @@ static inline u32 get_sr0_offset(void)
 static inline u32 get_sr1_offset(void)
 {
 	/*sr1 register shfit*/
+	if (cpu_after_eq_t7())
+		return 0x1300;
 	if (cpu_after_eq_tm2b())
 		return 0x1300;
 	else if (cpu_after_eq_tl1())
@@ -104,7 +113,9 @@ static inline u32 get_sr1_offset(void)
 static inline u32 get_lc_offset(void)
 {
 	/* lc register shfit*/
-	if (cpu_after_eq_tm2b())
+	if (cpu_after_eq_t7())
+		return 0x1300;
+	else if (cpu_after_eq_tm2b())
 		return 0x1300;
 
 	return 0;
@@ -113,7 +124,9 @@ static inline u32 get_lc_offset(void)
 static inline u32 get_sr0_dnlp2_offset(void)
 {
 	/* SHARP0_DNLP_00 shfit*/
-	if (cpu_after_eq_tm2b())
+	if (cpu_after_eq_t7())
+		return 0x1300;
+	else if (cpu_after_eq_tm2b())
 		return 0x1200;
 
 	return 0;
@@ -122,7 +135,9 @@ static inline u32 get_sr0_dnlp2_offset(void)
 static inline u32 get_sr1_dnlp2_offset(void)
 {
 	/* SHARP0_DNLP_00 shfit*/
-	if (cpu_after_eq_tm2b())
+	if (cpu_after_eq_t7())
+		return 0x1300;
+	else if (cpu_after_eq_tm2b())
 		return 0x1300;
 
 	return 0;

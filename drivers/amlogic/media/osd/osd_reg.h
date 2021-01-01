@@ -1771,11 +1771,11 @@
 #define OSD3_HDR_IN_SIZE                           0x1a5c
 #define OSD4_HDR_IN_SIZE                           0x1a5d
 #define OSD1_HDR2_CTRL                             0x38a0
-#define OSD2_HDR2_CTRL                             0x5b00
+#define _OSD2_HDR2_CTRL                             0x5b00
 #define OSD3_HDR2_CTRL                             0x5b50
 #define OSD4_HDR2_CTRL                             0x5ba0
-#define OSD2_HDR2_MATRIXI_EN_CTRL                  0x5b3b
-#define OSD2_HDR2_MATRIXO_EN_CTRL                  0x5b3c
+#define _OSD2_HDR2_MATRIXI_EN_CTRL                  0x5b3b
+#define _OSD2_HDR2_MATRIXO_EN_CTRL                  0x5b3c
 #define OSD3_HDR2_MATRIXI_EN_CTRL                  0x5b8b
 #define OSD3_HDR2_MATRIXO_EN_CTRL                  0x5b8c
 #define OSD4_HDR2_MATRIXI_EN_CTRL                  0x5bdb

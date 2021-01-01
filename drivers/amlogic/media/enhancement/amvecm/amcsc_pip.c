@@ -46,11 +46,13 @@ static u32 bt2020_white_point[2] = {
 	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5
 };
 
-static const char *module_str[7] = {
+static const char *module_str[9] = {
 	"UNKNOWN",
 	"VD1",
 	"VD2",
+	"VD3",
 	"OSD1",
+	"OSD2",
 	"VDIN0",
 	"VDIN1",
 	"DI"
@@ -168,13 +170,25 @@ void get_hdr_process_name(int id, char *name, char *output_fmt)
 }
 EXPORT_SYMBOL(get_hdr_process_name);
 
+#ifdef T7_BRINGUP_MULTI_VPP
+int hdr_policy_process_t7(struct vinfo_s *vinfo,
+		       enum hdr_type_e *source_format,
+		       enum vd_path_e vd_path)
+{
+	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T7)
+		return 0;
+
+	return 0;
+}
+#endif
+
 int hdr_policy_process(struct vinfo_s *vinfo,
 		       enum hdr_type_e *source_format,
 		       enum vd_path_e vd_path)
 {
 	int change_flag = 0;
 	enum vd_path_e oth_path =
-		(vd_path == VD1_PATH) ? VD2_PATH : VD1_PATH;
+			(vd_path == VD1_PATH) ? VD2_PATH : VD1_PATH;
 	int cur_hdr_policy;
 	int dv_policy = 0;
 	int dv_hdr_policy = 0;
@@ -1043,6 +1057,30 @@ void hdmi_packet_process(int signal_change_flag,
 	}
 }
 
+#ifdef T7_BRINGUP_MULTI_VPP
+void video_post_process_t7(struct vframe_s *vf,
+			enum vpp_matrix_csc_e csc_type,
+			struct vinfo_s *vinfo,
+			enum vd_path_e vd_path,
+			struct vframe_master_display_colour_s *master_info,
+			enum hdr_type_e *source_type)
+{
+	//special for t7
+	// since in with t7, there will be more differernt combination
+	// of vd input and osd input, vd2 or vd3 is possible be the main video
+
+	//vd1+osd0+osd1+vpp0+venc0 as 1st/main display process path
+	//vd2+osd3+vpp1+venc1 as 2nd/assistant display process path
+	//vd3+osd4+vpp2+venc2 as 3th/assistant display process path
+
+	// if 3 vpp is enabled
+	// vd2 could be the main video of vpp1 typically
+	// vd3 could be the main video of vpp2 typically
+	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T7)
+		return 0;
+}
+#endif
+
 void video_post_process(struct vframe_s *vf,
 			enum vpp_matrix_csc_e csc_type,
 			struct vinfo_s *vinfo,
@@ -1065,7 +1103,7 @@ void video_post_process(struct vframe_s *vf,
 	};
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-		if (is_meson_rev_a() && is_meson_tm2_cpu())
+		if (is_meson_tm2_cpu() && is_meson_rev_a())
 			eo_sel = 0;
 		else
 			eo_sel = 1;

@@ -113,8 +113,8 @@ void ve_enable_dnlp(void);
 void ve_disable_dnlp(void);
 
 int vpp_get_encl_viu_mux(void);
-void vpp_enable_lcd_gamma_table(int viu_sel);
-void vpp_disable_lcd_gamma_table(int viu_sel);
+void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write);
+void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write);
 void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask, int viu_sel);
 void amve_write_gamma_table(u16 *data, u32 rgb_mask);
 void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p);
@@ -199,5 +199,7 @@ void amvecm_wb_enable(int enable);
 int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg);
 unsigned int skip_pq_ctrl_load(struct am_reg_s *p);
 void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb);
+void lcd_gamma_api(u16 *r_data, u16 *g_data,
+	u16 *b_data, int rdma_write, int rw_flag);
 #endif
 

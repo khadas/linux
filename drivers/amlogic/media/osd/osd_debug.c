@@ -175,7 +175,7 @@ static void osd_debug_dump_register_all(void)
 		osd_log_info("reg[0x%x]: 0x%08x(osd4 hdr size)\n", reg, osd_reg_read(reg));
 		reg = OSD1_HDR2_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x(osd1 hdr ctrl)\n", reg, osd_reg_read(reg));
-		reg = OSD2_HDR2_CTRL;
+		reg = _OSD2_HDR2_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x(osd2 hdr ctrl)\n", reg, osd_reg_read(reg));
 		reg = OSD3_HDR2_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x(osd3 hdr ctrl)\n", reg, osd_reg_read(reg));
@@ -185,9 +185,9 @@ static void osd_debug_dump_register_all(void)
 		osd_log_info("reg[0x%x]: 0x%08x(osd1 csc matrixi ctrl)\n", reg, osd_reg_read(reg));
 		reg = OSD1_HDR2_MATRIXO_EN_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x(osd1 csc matrixo ctrl)\n", reg, osd_reg_read(reg));
-		reg = OSD2_HDR2_MATRIXI_EN_CTRL;
+		reg = _OSD2_HDR2_MATRIXI_EN_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x(osd2 csc matrixi ctrl)\n", reg, osd_reg_read(reg));
-		reg = OSD2_HDR2_MATRIXO_EN_CTRL;
+		reg = _OSD2_HDR2_MATRIXO_EN_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x(osd2 csc matrixo ctrl)\n", reg, osd_reg_read(reg));
 		reg = OSD3_HDR2_MATRIXI_EN_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x(osd3 csc matrixi ctrl)\n", reg, osd_reg_read(reg));

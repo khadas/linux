@@ -19,6 +19,8 @@
 #ifndef AMVECM_H
 #define AMVECM_H
 
+//#define T7_BRINGUP_MULTI_VPP
+
 #include "linux/amlogic/media/amvecm/ve.h"
 #include "linux/amlogic/media/amvecm/cm.h"
 #include <linux/amlogic/media/vfm/vframe.h>

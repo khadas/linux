@@ -1390,5 +1390,23 @@
 #define LC_STTS_WHITE_INFO     0x403b
 #define LC_STTS_BLACK_INFO     0x403c
 /*LC register end*/
+
+/*new gamma rw interface, implement from T7*/
+#define LCD_GAMMA_CNTL_PORT0    0x14b4
+#define L_GAMMA_VCOM_POL        7
+#define L_GAMMA_RVS_OUT         6
+#define L_GAMMA_TR              2
+#define L_GAMMA_LATCH           1
+#define L_GAMMA_EN              0
+#define LCD_GAMMA_DATA_PORT0    0x14b5
+#define LCD_GAMMA_ADDR_PORT0    0x14b6
+#define L_H_AUTO_INC            8
+/* 7:0 */
+#define L_INDEX                 0
+/* 10bit */
+#define L_GAMMA_R               20
+#define L_GAMMA_G               10
+#define L_GAMMA_B               0
+
 #endif
 
