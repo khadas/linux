@@ -17,6 +17,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
 #include <linux/stmmac.h>
+#include <linux/arm-smccc.h>
 
 #include "stmmac_platform.h"
 
@@ -45,6 +46,30 @@
 #define PRG_ETH0_TX_AND_PHY_REF_CLK	BIT(12)
 
 #define MUX_CLK_NUM_PARENTS		2
+
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+#define ETH_PLL_CTL3_CTS            0x50
+
+unsigned int cts_setting[16] = {0xA7E00000, 0x87E00000, 0x8BE00000, 0x93E00000,
+				0x8FE00000, 0x97E00000,	0x9BE00000, 0xA7E00000,
+				0xABE00000, 0xB3E00000, 0xAFE00000, 0xB7E00000,
+				0xE7E00000, 0xEFE00000, 0xFBE00000, 0xFFE00000};
+
+enum {
+	/* chip num */
+	ETH_PHY		= 0x0,
+	ETH_PHY_C1	= 0x1,
+	ETH_PHY_C2	= 0x2,
+	ETH_PHY_SC2	= 0x3, //kerel android-q
+	ETH_PHY_T5      = 0x4,
+	ETH_PHY_T7      = 0x5,
+};
+
+unsigned int tx_amp_bl2;
+EXPORT_SYMBOL_GPL(tx_amp_bl2);
+unsigned int enet_type;
+EXPORT_SYMBOL_GPL(enet_type);
+#endif
 
 struct meson8b_dwmac;
 
@@ -320,6 +345,104 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+void __iomem *ee_reset_base;
+static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac *dwmac)
+{
+	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
+//	struct device_node *np = dev->of_node;
+//	struct g12a_mdio_mux *priv = dev_get_drvdata(dev);
+	void __iomem *tx_amp_src = NULL;
+	void __iomem *addr = NULL;
+	struct resource *res = NULL;
+	unsigned int internal_phy = 0;
+	unsigned int cts_valid = 0;
+	unsigned int cts_amp = 0;
+
+	tx_amp_bl2 = 0;
+	enet_type = 0;
+
+	/*get tx amp setting from tx_amp_src*/
+	pr_info("aml_cust_setting\n");
+
+	/*map ETH_RESET address*/
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "eth_reset");
+	if (!res) {
+		dev_err(&pdev->dev, "Unable to get resource(%d)\n", __LINE__);
+		ee_reset_base = NULL;
+	} else {
+		addr = devm_ioremap(dev, res->start, resource_size(res));
+		if (IS_ERR(addr))
+			dev_err(&pdev->dev, "Unable to map reset base\n");
+		ee_reset_base = addr;
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "tx_amp_src");
+	if (!res) {
+		pr_info("tx_amp_src not setup\n");
+	} else {
+		tx_amp_src = devm_ioremap_resource(dev, res);
+		if (IS_ERR(addr)) {
+			dev_err(&pdev->dev,
+				"cat't map tx_amp (%d)\n", __LINE__);
+		}
+		tx_amp_bl2 = readl(tx_amp_src);
+	}
+	/*enet_type*/
+	if (of_property_read_u32(np, "enet_type", &enet_type))
+		pr_info("default enet type as 0\n");
+
+	if (of_property_read_u32(np, "internal_phy", &internal_phy) != 0)
+		pr_info("use default internal_phy as 0\n");
+
+	if (internal_phy) {
+		tx_amp_bl2 = (readl(tx_amp_src) & 0x3f);
+		/*T5 use new method for tuning cts*/
+		if (enet_type == ETH_PHY_T5) {
+			cts_valid =  (tx_amp_bl2 >> 4) & 0x3;
+
+			if (cts_valid)
+				cts_amp  = tx_amp_bl2 & 0xf;
+			/*invalid will set cts_setting[0] 0xA7E00000*/
+			writel(cts_setting[cts_amp], dwmac->regs + ETH_PLL_CTL3_CTS);
+			tx_amp_bl2 = 0x15;
+		}
+	/*test*/
+//	tx_amp_bl2 = 0x15;
+	}
+	return 0;
+}
+
+extern int stmmac_pltfr_suspend(struct device *dev);
+static int aml_dwmac_suspend(struct device *dev)
+{
+	int ret = 0;
+
+	pr_info("wzh aml_suspend\n");
+	ret = stmmac_pltfr_suspend(dev);
+	return ret;
+}
+
+extern int stmmac_pltfr_resume(struct device *dev);
+static int aml_dwmac_resume(struct device *dev)
+{
+	int ret = 0;
+
+	pr_info("wzh aml_resume\n");
+	ret = stmmac_pltfr_resume(dev);
+	return 0;
+}
+
+void set_wol_notify_bl31(void)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(0x8200009D, 0,
+					0, 0, 0, 0, 0, 0, &res);
+}
+
+#endif
 static int meson8b_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
@@ -386,7 +509,11 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (ret)
 		goto err_remove_config_dt;
-
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	aml_custom_setting(pdev, dwmac);
+	set_wol_notify_bl31();
+	device_init_wakeup(&pdev->dev, 1);
+#endif
 	return 0;
 
 err_remove_config_dt:
@@ -423,13 +550,20 @@ static const struct of_device_id meson8b_dwmac_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, meson8b_dwmac_match);
-
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+SIMPLE_DEV_PM_OPS(stmmac_meson8b_pm_ops, aml_dwmac_suspend,
+		  aml_dwmac_resume);
+#endif
 static struct platform_driver meson8b_dwmac_driver = {
 	.probe  = meson8b_dwmac_probe,
 	.remove = stmmac_pltfr_remove,
 	.driver = {
 		.name           = "meson8b-dwmac",
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+		.pm		= &stmmac_meson8b_pm_ops,
+#else
 		.pm		= &stmmac_pltfr_pm_ops,
+#endif
 		.of_match_table = meson8b_dwmac_match,
 	},
 };

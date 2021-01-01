@@ -1058,7 +1058,9 @@
 			compatible = "amlogic,meson-axg-dwmac",
 				     "snps,dwmac-4.00";
 			reg = <0x0 0xfdc00000 0x0 0x10000>,
-			      <0x0 0xfe024000 0x0 0x8>;
+			      <0x0 0xfe024000 0x0 0x8>,
+			      <0x0 0xFE010330 0x0 0x4>;
+			reg-names = "eth_base", "eth_cfg", "tx_amp_src";
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
 			power-domains = <&pwrdm PDID_T7_ETH>;
@@ -1068,6 +1070,8 @@
 			clock-names = "stmmaceth", "clkin0", "clkin1";
 			rx-fifo-depth = <4096>;
 			tx-fifo-depth = <2048>;
+			enet_type = <5>;
+			internal_phy = <1>;
 			status = "disabled";
 
 			mdio0: mdio {

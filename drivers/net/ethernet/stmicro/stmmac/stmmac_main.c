@@ -4823,7 +4823,12 @@ int stmmac_suspend(struct device *dev)
 
 	/* Enable Power down mode by programming the PMT regs */
 	if (device_may_wakeup(priv->device)) {
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+		pr_info("wzh setup wol\n");
+		stmmac_pmt(priv, priv->hw, 0x1 << 5);
+#else
 		stmmac_pmt(priv, priv->hw, priv->wolopts);
+#endif
 		priv->irq_wake = 1;
 	} else {
 		mutex_unlock(&priv->lock);
