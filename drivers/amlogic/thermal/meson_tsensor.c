@@ -681,6 +681,11 @@ static int meson_map_dt_data(struct platform_device *pdev)
 		}
 
 		arm_smccc_smc(TSENSOR_CALI_READ, pdata->tsensor_id, 0, 0, 0, 0, 0, 0, &smc_res);
+		if (smc_res.a0) {
+			dev_err(&pdev->dev, "Failed to get thermal cali data from bl31\n");
+			return -EINVAL;
+		}
+
 		meson_sm_mutex_lock();
 		sharemem_outbuf_base = get_meson_sm_output_base();
 		meson_sm_mutex_unlock();
