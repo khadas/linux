@@ -622,11 +622,25 @@
 		amlvideo2_id = <1>;
 		cma_mode = <1>;
 	};
+
 	amdolby_vision {
 		compatible = "amlogic, dolby_vision_t7";
 		dev_name = "aml_amdolby_vision_driver";
 		status = "okay";
 		tv_mode = <1>;/*1:enabel ;0:disable*/
+	};
+
+	adc_keypad {
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "update", "vol-", "vol+", "enter";
+		key_num = <4>;
+		io-channels = <&saradc 2>;
+		io-channel-names = "key-chan-2";
+		key_chan = <2 2 2 2>;
+		key_code = <141 114 115 28>;
+		key_val = <0 143 266 389>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40>;
 	};
 };
 
