@@ -1462,14 +1462,12 @@
 		interrupts = <0 3 1
 			0 23 1
 			0 32 1
-			0 91 1
 			0 92 1
 			0 93 1
 			0 72 1>;
 		interrupt-names = "vsync",
 			"demux",
 			"parser",
-			"mailbox_0",
 			"mailbox_1",
 			"mailbox_2",
 			"parser_b";
@@ -1659,48 +1657,59 @@
 			    "efusebus";
 	};
 
-	amvenc_avc{
-		compatible = "amlogic, amvenc_avc";
-		dev_name = "amvenc_avc";
-		status = "disabled";
-		clocks = <&clkc CLKID_HCODEC_P0>;
-		clock-names = "cts_hcodec_aclk";
-		interrupts = <0 93 1>;
-		interrupt-names = "mailbox_2";
-		//reset-names = "hcodec_rst";
-		//resets = <&reset RESET_BRG_HCODEC_PIPL0>;
-	};
 	jpegenc{
 		compatible = "amlogic, jpegenc";
 		dev_name = "jpegenc";
-		status = "disabled";
+		status = "okay";
+
+		clocks = <&clkc CLKID_DOS
+			&clkc CLKID_VAPB
+			&clkc CLKID_HCODEC_MUX>;
+
+		clock-names =
+			"clk_dos",
+			"clk_apb_dos",
+			"clk_jpeg_enc";
+
+		/*
 		clocks = <&clkc CLKID_HCODEC_P0>;
-		clock-names = "cts_jpegenc_aclk";
-		interrupts = <0 93 1>;
-		interrupt-names = "mailbox_2";
+		clock-names = "hcodec_p0";
+		*/
+
+		power-domains = <&pwrdm PDID_T7_DOS_HCODEC>;
+		interrupts = <0 91 1 0 92 1 0 93 1>;
+		interrupt-names = "dos_mbox_slow_irq0", "dos_mbox_slow_irq1", "dos_mbox_slow_irq2";
 		//reset-names = "jpegenc_rst";
 		//resets = <&reset RESET_BRG_HCODEC_PIPL0>;
 	};
-	hevc_enc{
-		compatible = "cnm, HevcEnc";
-		//memory-region = <&hevc_enc_reserved>;
-		dev_name = "HevcEnc";
-		status = "disabled";
-		interrupts = <0 94 1>;
-		interrupt-names = "wave420l_irq";
+	aml_enc {
+		compatible = "cnm, MultiEnc";
+		dev_name = "amvenc_multi";
+		status = "okay";
+		config_mm_sz_mb = <200>;
+		clocks = <&clkc CLKID_DOS
+			&clkc CLKID_VAPB
+			&clkc CLKID_WAVE_A_GATE
+			&clkc CLKID_WAVE_B_GATE
+			&clkc CLKID_WAVE_C_GATE>;
+		clock-names =
+			"clk_dos",
+			"clk_apb_dos",
+			"clk_MultiEnc_A",
+			"clk_MultiEnc_B",
+			"clk_MultiEnc_C";
+		interrupts = <0 94 1 0 95 1>;
+		interrupt-names = "multienc_irq", "multienc_idle_irq";
 		#address-cells=<2>;
 		#size-cells=<2>;
-		clocks = <&clkc CLKID_WAVE_A_GATE
-				&clkc CLKID_WAVE_B_GATE
-				&clkc CLKID_WAVE_C_GATE>;
-		clock-names = "cts_wave420_aclk",
-				"cts_wave420_bclk",
-				"cts_wave420_cclk";
+		pwr-ctl = <0>;
+		power-domains = <&pwrdm PDID_T7_DOS_WAVE>;
 		ranges;
-		io_reg_base{
-				reg = <0x0 0xfe310000 0x0 0x4000>;
+		io_reg_base {
+			reg = <0x0 0xfe310000 0x0 0x10000>;
 		};
 	};
+
 	vpu: vpu {
 		compatible = "amlogic, vpu-t7";
 		status = "okay";
