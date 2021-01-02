@@ -4701,6 +4701,8 @@ static void osd_set_two_ports(bool set)
 {
 	static u32 data32[2];
 
+	if (osd_dev_hw.has_multi_vpp)
+		return;
 	if (set) {
 		data32[0] = osd_reg_read(VPP_RDARB_MODE);
 		data32[1] = osd_reg_read(VPU_RDARB_MODE_L2C1);
@@ -6543,6 +6545,8 @@ static void osd_update_enable(u32 index)
 					(osd_reg->vpu_mafbc_surface_cfg,
 					0x1, index, 1);
 				osd_hw.osd_afbcd[index].afbc_start = 1;
+				VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_ctrl_stat2,
+							  1, 1, 1);
 			}
 		} else {
 			/* disable mali afbc */
@@ -6550,9 +6554,9 @@ static void osd_update_enable(u32 index)
 				(osd_reg->vpu_mafbc_surface_cfg,
 				0x0, index, 1);
 			osd_hw.osd_afbcd[index].afbc_start = 0;
+			VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_ctrl_stat2,
+						  0, 1, 1);
 		}
-		VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_ctrl_stat2,
-					  1, 1, 1);
 	}
 	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
 		u8 postbld_src_sel = 0;
@@ -11178,10 +11182,10 @@ static void fix_vpu_clk2_default_regs(void)
 {
 	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T7) {
 		 /* default: osd byp osd_blend */
-		osd_reg_set_bits(VPP_OSD1_SCALE_CTRL, 0x6, 0, 3);
-		osd_reg_set_bits(VPP_OSD2_SCALE_CTRL, 0x7, 0, 3);
-		osd_reg_set_bits(VPP_OSD3_SCALE_CTRL, 0x7, 0, 3);
-		osd_reg_set_bits(VPP_OSD4_SCALE_CTRL, 0x7, 0, 3);
+		osd_reg_set_bits(VPP_OSD1_SCALE_CTRL, 0x2, 0, 3);
+		osd_reg_set_bits(VPP_OSD2_SCALE_CTRL, 0x3, 0, 3);
+		osd_reg_set_bits(VPP_OSD3_SCALE_CTRL, 0x3, 0, 3);
+		osd_reg_set_bits(VPP_OSD4_SCALE_CTRL, 0x3, 0, 3);
 
 		/* default: osd byp dolby */
 		osd_reg_set_bits(VPP_VD1_DSC_CTRL, 0x1, 4, 1);
