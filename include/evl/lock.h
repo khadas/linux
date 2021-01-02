@@ -96,13 +96,13 @@ typedef struct evl_spinlock {
 #define _evl_spin_lock(__lock)				\
 	do {						\
 		_evl_spin_lock_check();			\
-		__evl_spin_lock(&(__lock)->_lock);	\
+		__evl_spin_lock(__lock);		\
 	} while (0)
 
-#define _evl_spin_lock_nested(__lock, __subclass)			\
-	do {								\
-		_evl_spin_lock_check();					\
-		__evl_spin_lock_nested(&(__lock)->_lock, __subclass);	\
+#define _evl_spin_lock_nested(__lock, __subclass)		\
+	do {							\
+		_evl_spin_lock_check();				\
+		__evl_spin_lock_nested(__lock, __subclass);	\
 	} while (0)
 
 #define _evl_spin_trylock(__lock)			\
@@ -139,7 +139,7 @@ typedef struct evl_spinlock {
 
 #define evl_spin_unlock(__lock)				\
 	do {						\
-		raw_spin_unlock(&(__lock)->_lock)	\
+		raw_spin_unlock(&(__lock)->_lock);	\
 		evl_enable_preempt();			\
 	} while (0)
 
