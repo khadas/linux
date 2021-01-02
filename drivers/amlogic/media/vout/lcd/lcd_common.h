@@ -92,6 +92,9 @@ void lcd_mute_setting(unsigned char flag);
 int lcd_debug_probe(void);
 int lcd_debug_remove(void);
 
+void lcd_display_init_test(void);
+void lcd_display_init_reg_dump(void);
+
 /* lcd driver */
 #ifdef CONFIG_AMLOGIC_LCD_TV
 void lcd_tv_vout_server_init(void);

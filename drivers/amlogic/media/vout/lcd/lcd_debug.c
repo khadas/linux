@@ -1262,6 +1262,12 @@ void lcd_debug_test(unsigned int num)
 	unsigned int h_active, video_on_pixel;
 	static int change_flag;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+	unsigned int offset;
+
+	if (lcd_drv->data->chip_type == LCD_CHIP_T7)
+		offset = 0x800;
+	else
+		offset = 0;
 
 	num = (num >= LCD_ENC_TST_NUM_MAX) ? 0 : num;
 
@@ -1285,15 +1291,15 @@ void lcd_debug_test(unsigned int num)
 			lcd_vcbus_setb(L_GAMMA_CNTL_PORT, 1, 0, 1);
 		}
 	}
-	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL, lcd_enc_tst[num][6]);
-	lcd_vcbus_write(ENCL_TST_MDSEL, lcd_enc_tst[num][0]);
-	lcd_vcbus_write(ENCL_TST_Y, lcd_enc_tst[num][1]);
-	lcd_vcbus_write(ENCL_TST_CB, lcd_enc_tst[num][2]);
-	lcd_vcbus_write(ENCL_TST_CR, lcd_enc_tst[num][3]);
-	lcd_vcbus_write(ENCL_TST_CLRBAR_STRT, video_on_pixel);
-	lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH, (h_active / 9));
-	lcd_vcbus_write(ENCL_TST_EN, lcd_enc_tst[num][4]);
-	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV, lcd_enc_tst[num][5], 3, 1);
+	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, lcd_enc_tst[num][6]);
+	lcd_vcbus_write(ENCL_TST_MDSEL + offset, lcd_enc_tst[num][0]);
+	lcd_vcbus_write(ENCL_TST_Y + offset, lcd_enc_tst[num][1]);
+	lcd_vcbus_write(ENCL_TST_CB + offset, lcd_enc_tst[num][2]);
+	lcd_vcbus_write(ENCL_TST_CR + offset, lcd_enc_tst[num][3]);
+	lcd_vcbus_write(ENCL_TST_CLRBAR_STRT + offset, video_on_pixel);
+	lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH + offset, (h_active / 9));
+	lcd_vcbus_write(ENCL_TST_EN + offset, lcd_enc_tst[num][4]);
+	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, lcd_enc_tst[num][5], 3, 1);
 	if (num > 0)
 		LCDPR("show test pattern: %s\n", lcd_enc_tst_str[num]);
 	else
@@ -1302,6 +1308,11 @@ void lcd_debug_test(unsigned int num)
 
 void lcd_mute_setting(unsigned char flag)
 {
+	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
+
+	if (lcd_drv->data->chip_type == LCD_CHIP_T7)
+		return;
+
 	if (flag) {
 		lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL, 3);
 		lcd_vcbus_write(ENCL_TST_MDSEL, 0);
@@ -1321,6 +1332,9 @@ static void lcd_screen_restore(void)
 	unsigned int h_active, video_on_pixel;
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	unsigned int num;
+
+	if (lcd_drv->data->chip_type == LCD_CHIP_T7)
+		return;
 
 	num = lcd_drv->lcd_test_state;
 	num = (num >= LCD_ENC_TST_NUM_MAX) ? 0 : num;
@@ -1820,6 +1834,10 @@ static ssize_t lcd_debug_store(struct class *class,
 		break;
 	case 'r':
 		if (buf[2] == 'g') { /* reg */
+			if (lcd_drv->data->chip_type == LCD_CHIP_T7) {
+				lcd_display_init_reg_dump();
+				return count;
+			}
 			print_buf = kcalloc(PR_BUF_MAX, sizeof(char),
 					    GFP_KERNEL);
 			if (!print_buf) {
@@ -2795,6 +2813,21 @@ static void lcd_debug_reg_write(unsigned int reg, unsigned int data,
 				reg, data, lcd_tcon_reg_read(reg));
 		}
 		break;
+	case 7: /* edp */
+		lcd_edp_write(reg, data);
+		pr_info("write edp [0x%04x] = 0x%08x, readback 0x%08x\n",
+			reg, data, lcd_edp_read(reg));
+		break;
+	case 8: /* combo dphy */
+		lcd_combo_dphy_write(reg, data);
+		pr_info("write combo dphy [0x%04x] = 0x%08x, readback 0x%08x\n",
+			reg, data, lcd_combo_dphy_read(reg));
+		break;
+	case 9: /* rst */
+		lcd_rst_write(reg, data);
+		pr_info("write rst [0x%04x] = 0x%08x, readback 0x%08x\n",
+			reg, data, lcd_rst_read(reg));
+		break;
 	default:
 		break;
 	}
@@ -2827,7 +2860,7 @@ static void lcd_debug_reg_read(unsigned int reg, unsigned int bus)
 		pr_info("read mipi_dsi_phy [0x%04x] = 0x%08x\n",
 			reg, dsi_phy_read(reg));
 		break;
-	case 6:
+	case 6: /* tcon */
 		if (reg < TCON_TOP_BASE) {
 			pr_info("read tcon [0x%04x] = 0x%02x\n",
 				reg, lcd_tcon_reg_read(reg));
@@ -2835,6 +2868,18 @@ static void lcd_debug_reg_read(unsigned int reg, unsigned int bus)
 			pr_info("read tcon [0x%04x] = 0x%08x\n",
 				reg, lcd_tcon_reg_read(reg));
 		}
+		break;
+	case 7: /* edp */
+		pr_info("read edp [0x%04x] = 0x%08x\n",
+			reg, lcd_edp_read(reg));
+		break;
+	case 8: /* combo dphy */
+		pr_info("read combo dphy [0x%04x] = 0x%08x\n",
+			reg, lcd_combo_dphy_read(reg));
+		break;
+	case 9: /* rst */
+		pr_info("read rst [0x%04x] = 0x%08x\n",
+			reg, lcd_rst_read(reg));
 		break;
 	default:
 		break;
@@ -2889,7 +2934,7 @@ static void lcd_debug_reg_dump(unsigned int reg, unsigned int num,
 				(reg + i), dsi_phy_read(reg + i));
 		}
 		break;
-	case 6:
+	case 6: /* tcon */
 		pr_info("dump tcon regs:\n");
 		if (reg < TCON_TOP_BASE) {
 			for (i = 0; i < num; i++) {
@@ -2901,6 +2946,27 @@ static void lcd_debug_reg_dump(unsigned int reg, unsigned int num,
 				pr_info("[0x%04x] = 0x%08x\n",
 					(reg + i), lcd_tcon_reg_read(reg + i));
 			}
+		}
+		break;
+	case 7: /* edp */
+		pr_info("dump edp regs:\n");
+		for (i = 0; i < num; i++) {
+			pr_info("[0x%04x] = 0x%08x\n",
+				(reg + i), lcd_edp_read(reg + i));
+		}
+		break;
+	case 8: /* combo dphy */
+		pr_info("dump combo dphy regs:\n");
+		for (i = 0; i < num; i++) {
+			pr_info("[0x%04x] = 0x%08x\n",
+				(reg + i), lcd_combo_dphy_read(reg + i));
+		}
+		break;
+	case 9: /* rst */
+		pr_info("dump rst regs:\n");
+		for (i = 0; i < num; i++) {
+			pr_info("[0x%04x] = 0x%08x\n",
+				(reg + i), lcd_rst_read(reg + i));
 		}
 		break;
 	default:
@@ -2918,16 +2984,16 @@ static ssize_t lcd_debug_reg_store(struct class *class,
 
 	switch (buf[0]) {
 	case 'w':
-		if (buf[1] == 'v') {
+		if (buf[1] == 'v') { /* vcbus */
 			ret = sscanf(buf, "wv %x %x", &reg32, &data32);
 			bus = 0;
-		} else if (buf[1] == 'a') {
+		} else if (buf[1] == 'a') { /* ana */
 			ret = sscanf(buf, "wa %x %x", &reg32, &data32);
 			bus = 1;
-		} else if (buf[1] == 'c') {
+		} else if (buf[1] == 'c') { /* clk */
 			ret = sscanf(buf, "wc %x %x", &reg32, &data32);
 			bus = 2;
-		} else if (buf[1] == 'p') {
+		} else if (buf[1] == 'p') { /* periphs */
 			ret = sscanf(buf, "wp %x %x", &reg32, &data32);
 			bus = 3;
 		} else if (buf[1] == 'm') {
@@ -2938,9 +3004,18 @@ static ssize_t lcd_debug_reg_store(struct class *class,
 				ret = sscanf(buf, "wmp %x %x", &reg32, &data32);
 				bus = 5;
 			}
-		} else if (buf[1] == 't') {
+		} else if (buf[1] == 't') { /* tcon */
 			ret = sscanf(buf, "wt %x %x", &reg32, &data32);
 			bus = 6;
+		} else if (buf[1] == 'e') { /* edp */
+			ret = sscanf(buf, "we %x %x", &reg32, &data32);
+			bus = 7;
+		} else if (buf[1] == 'd') { /* combo dphy */
+			ret = sscanf(buf, "wd %x %x", &reg32, &data32);
+			bus = 8;
+		} else if (buf[1] == 'r') { /* rst */
+			ret = sscanf(buf, "wr %x %x", &reg32, &data32);
+			bus = 9;
 		}
 		if (ret == 2) {
 			lcd_debug_reg_write(reg32, data32, bus);
@@ -2950,16 +3025,16 @@ static ssize_t lcd_debug_reg_store(struct class *class,
 		}
 		break;
 	case 'r':
-		if (buf[1] == 'v') {
+		if (buf[1] == 'v') { /* vcbus */
 			ret = sscanf(buf, "rv %x", &reg32);
 			bus = 0;
-		} else if (buf[1] == 'a') {
+		} else if (buf[1] == 'a') { /* ana */
 			ret = sscanf(buf, "ra %x", &reg32);
 			bus = 1;
-		} else if (buf[1] == 'c') {
+		} else if (buf[1] == 'c') { /* clk */
 			ret = sscanf(buf, "rc %x", &reg32);
 			bus = 2;
-		} else if (buf[1] == 'p') {
+		} else if (buf[1] == 'p') { /* periphs */
 			ret = sscanf(buf, "rp %x", &reg32);
 			bus = 3;
 		} else if (buf[1] == 'm') {
@@ -2970,9 +3045,18 @@ static ssize_t lcd_debug_reg_store(struct class *class,
 				ret = sscanf(buf, "rmp %x", &reg32);
 				bus = 5;
 			}
-		} else if (buf[1] == 't') {
+		} else if (buf[1] == 't') { /* tcon */
 			ret = sscanf(buf, "rt %x", &reg32);
 			bus = 6;
+		} else if (buf[1] == 'e') { /* edp */
+			ret = sscanf(buf, "re %x", &reg32);
+			bus = 7;
+		} else if (buf[1] == 'd') { /* combo dphy */
+			ret = sscanf(buf, "rd %x", &reg32);
+			bus = 8;
+		} else if (buf[1] == 'r') { /* rst */
+			ret = sscanf(buf, "rr %x", &reg32);
+			bus = 9;
 		}
 		if (ret == 1) {
 			lcd_debug_reg_read(reg32, bus);
@@ -2982,16 +3066,16 @@ static ssize_t lcd_debug_reg_store(struct class *class,
 		}
 		break;
 	case 'd':
-		if (buf[1] == 'v') {
+		if (buf[1] == 'v') { /* vcbus */
 			ret = sscanf(buf, "dv %x %d", &reg32, &data32);
 			bus = 0;
-		} else if (buf[1] == 'a') {
+		} else if (buf[1] == 'a') { /* ana */
 			ret = sscanf(buf, "da %x %d", &reg32, &data32);
 			bus = 1;
-		} else if (buf[1] == 'c') {
+		} else if (buf[1] == 'c') { /* clk */
 			ret = sscanf(buf, "dc %x %d", &reg32, &data32);
 			bus = 2;
-		} else if (buf[1] == 'p') {
+		} else if (buf[1] == 'p') { /* periphs */
 			ret = sscanf(buf, "dp %x %d", &reg32, &data32);
 			bus = 3;
 		} else if (buf[1] == 'm') {
@@ -3002,9 +3086,18 @@ static ssize_t lcd_debug_reg_store(struct class *class,
 				ret = sscanf(buf, "dmp %x %d", &reg32, &data32);
 				bus = 5;
 			}
-		} else if (buf[1] == 't') {
+		} else if (buf[1] == 't') { /* tcon */
 			ret = sscanf(buf, "dt %x %d", &reg32, &data32);
 			bus = 6;
+		} else if (buf[1] == 'e') { /* edp */
+			ret = sscanf(buf, "de %x %x", &reg32, &data32);
+			bus = 7;
+		} else if (buf[1] == 'd') { /* combo dphy */
+			ret = sscanf(buf, "dd %x %x", &reg32, &data32);
+			bus = 8;
+		} else if (buf[1] == 'r') { /* rst */
+			ret = sscanf(buf, "dr %x %x", &reg32, &data32);
+			bus = 9;
 		}
 		if (ret == 2) {
 			lcd_debug_reg_dump(reg32, data32, bus);

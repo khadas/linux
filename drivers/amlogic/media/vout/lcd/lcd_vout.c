@@ -386,6 +386,13 @@ static void lcd_power_encl_on(void)
 		return;
 	}
 
+	if (lcd_driver->data->chip_type == LCD_CHIP_T7) {
+		lcd_display_init_test();
+		lcd_driver->lcd_status |= LCD_STATUS_ON;
+		mutex_unlock(&lcd_vout_mutex);
+		return;
+	}
+
 	lcd_driver->driver_init_pre();
 	lcd_driver->lcd_status |= LCD_STATUS_ENCL_ON;
 
@@ -410,6 +417,11 @@ static void lcd_power_encl_on(void)
 
 static void lcd_power_encl_off(void)
 {
+	if (lcd_driver->data->chip_type == LCD_CHIP_T7) {
+		lcd_driver->lcd_status &= ~LCD_STATUS_ENCL_ON;
+		return;
+	}
+
 	mutex_lock(&lcd_vout_mutex);
 
 	if (!(lcd_driver->lcd_status & LCD_STATUS_ENCL_ON)) {
@@ -442,6 +454,11 @@ static void lcd_power_if_on(void)
 
 static void lcd_power_if_off(void)
 {
+	if (lcd_driver->data->chip_type == LCD_CHIP_T7) {
+		lcd_driver->lcd_status &= ~LCD_STATUS_IF_ON;
+		return;
+	}
+
 	mutex_lock(&lcd_vout_mutex);
 	if (lcd_driver->lcd_status & LCD_STATUS_IF_ON) {
 		lcd_driver->lcd_status &= ~LCD_STATUS_IF_ON;
@@ -472,6 +489,9 @@ static void lcd_power_screen_restore(void)
 
 static void lcd_module_reset(void)
 {
+	if (lcd_driver->data->chip_type == LCD_CHIP_T7)
+		return;
+
 	mutex_lock(&lcd_vout_mutex);
 
 	lcd_driver->lcd_status &= ~LCD_STATUS_ON;
@@ -530,6 +550,9 @@ static inline void lcd_vsync_handler(void)
 #endif
 
 	if (!lcd_driver)
+		return;
+
+	if (lcd_driver->data->chip_type == LCD_CHIP_T7)
 		return;
 
 	pconf = lcd_driver->lcd_config;
@@ -618,6 +641,9 @@ static void lcd_wait_vsync(void)
 	if (!lcd_driver)
 		return;
 	if (lcd_driver->lcd_pxp)
+		return;
+
+	if (lcd_driver->data->chip_type == LCD_CHIP_T7)
 		return;
 
 	line_cnt = 0x1fff;
@@ -1240,14 +1266,22 @@ static void lcd_config_probe_delayed(struct work_struct *work)
 static void lcd_config_default(void)
 {
 	struct lcd_config_s *pconf;
+	unsigned int offset;
+
+	if (lcd_driver->data->chip_type == LCD_CHIP_T7)
+		offset = 0x800;
+	else
+		offset = 0;
 
 	pconf = lcd_driver->lcd_config;
-	pconf->lcd_basic.h_active = lcd_vcbus_read(ENCL_VIDEO_HAVON_END)
-			- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN) + 1;
-	pconf->lcd_basic.v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE)
-			- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE) + 1;
+	pconf->lcd_basic.h_active =
+		lcd_vcbus_read(ENCL_VIDEO_HAVON_END + offset)
+			- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN + offset) + 1;
+	pconf->lcd_basic.v_active =
+		lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE + offset)
+			- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE + offset) + 1;
 	lcd_init_flag = 0;
-	if (lcd_vcbus_read(ENCL_VIDEO_EN)) {
+	if (lcd_vcbus_read(ENCL_VIDEO_EN + offset)) {
 		switch (lcd_boot_ctrl_config.lcd_init_level) {
 		case LCD_INIT_LEVEL_NORMAL:
 			lcd_driver->lcd_status = LCD_STATUS_ON;
@@ -1505,7 +1539,7 @@ static struct lcd_data_s lcd_data_t5d = {
 static struct lcd_data_s lcd_data_t7 = {
 	.chip_type = LCD_CHIP_T7,
 	.chip_name = "t7",
-	.reg_map_table = &lcd_reg_tl1[0],
+	.reg_map_table = &lcd_reg_t7[0],
 };
 
 static const struct of_device_id lcd_dt_match_table[] = {

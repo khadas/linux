@@ -2763,6 +2763,34 @@
 			function = "spdif_in";
 		};
 	};
+
+	lcd_vbyone_a_pins: lcd_vbyone_a_pin {
+		mux {
+			groups = "vx1_a_htpdn","vx1_a_lockn";
+			function = "vx1_a";
+		};
+	};
+
+	lcd_vbyone_b_pins: lcd_vbyone_b_pin {
+		mux {
+			groups = "vx1_b_htpdn","vx1_b_lockn";
+			function = "vx1_b";
+		};
+	};
+
+	lcd_edp_a_pins: lcd_edp_a_pin {
+		mux {
+			groups = "edp_a_hpd";
+			function = "edp_a";
+		};
+	};
+
+	lcd_edp_b_pins: lcd_edp_b_pin {
+		mux {
+			groups = "edp_b_hpd";
+			function = "edp_b";
+		};
+	};
 };
 
 &gpu{

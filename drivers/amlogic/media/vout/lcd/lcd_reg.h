@@ -65,6 +65,32 @@
 #define PERIPHS_PIN_MUX_E_TL1                      0x0be
 #define PERIPHS_PIN_MUX_F_TL1                      0x0bf
 
+#define PADCTRL_PIN_MUX_REG0                       0x0000
+#define PADCTRL_PIN_MUX_REG1                       0x0001
+#define PADCTRL_PIN_MUX_REG2                       0x0002
+#define PADCTRL_PIN_MUX_REG3                       0x0003
+#define PADCTRL_PIN_MUX_REG4                       0x0004
+#define PADCTRL_PIN_MUX_REG5                       0x0005
+#define PADCTRL_PIN_MUX_REG6                       0x0006
+#define PADCTRL_PIN_MUX_REG7                       0x0007
+#define PADCTRL_PIN_MUX_REG8                       0x0008
+#define PADCTRL_PIN_MUX_REG9                       0x0009
+#define PADCTRL_PIN_MUX_REGA                       0x000a
+#define PADCTRL_PIN_MUX_REGB                       0x000b
+#define PADCTRL_PIN_MUX_REGC                       0x000c
+#define PADCTRL_PIN_MUX_REGD                       0x000d
+#define PADCTRL_PIN_MUX_REGE                       0x000e
+#define PADCTRL_PIN_MUX_REGF                       0x000f
+#define PADCTRL_PIN_MUX_REGG                       0x0010
+#define PADCTRL_PIN_MUX_REGH                       0x0011
+#define PADCTRL_PIN_MUX_REGI                       0x0012
+#define PADCTRL_PIN_MUX_REGJ                       0x0013
+#define PADCTRL_PIN_MUX_REGK                       0x0014
+#define PADCTRL_PIN_MUX_REGL                       0x0015
+#define PADCTRL_PIN_MUX_REGM                       0x0016
+#define PADCTRL_PIN_MUX_REGN                       0x0017
+#define PADCTRL_PIN_MUX_REGO                       0x0018
+
 /* HIU:  HHI_CBUS_BASE = 0x10 */
 #define HHI_GCLK_MPEG0                             0x50
 #define HHI_GCLK_MPEG1                             0x51
@@ -128,9 +154,21 @@
 #define HHI_EDP_TX_PHY_CNTL0                       0x9c
 #define HHI_EDP_TX_PHY_CNTL1                       0x9d
 /*  T7  */
-#define CLKCTRL_VID_CLK0_CTRL2	0x31
-#define CLKCTRL_VIID_CLK0_DIV	0x33
-#define CLKCTRL_VIID_CLK0_CTRL	0x34
+#define CLKCTRL_VID_CLK0_CTRL                      0x0030
+#define CLKCTRL_VID_CLK0_CTRL2                     0x0031
+#define CLKCTRL_VID_CLK0_DIV                       0x0032
+#define CLKCTRL_VIID_CLK0_DIV                      0x0033
+#define CLKCTRL_VIID_CLK0_CTRL                     0x0034
+#define CLKCTRL_VID_CLK1_CTRL                      0x0073
+#define CLKCTRL_VID_CLK1_CTRL2                     0x0074
+#define CLKCTRL_VID_CLK1_DIV                       0x0075
+#define CLKCTRL_VIID_CLK1_DIV                      0x0076
+#define CLKCTRL_VIID_CLK1_CTRL                     0x0077
+#define CLKCTRL_VID_CLK2_CTRL                      0x0078
+#define CLKCTRL_VID_CLK2_CTRL2                     0x0079
+#define CLKCTRL_VID_CLK2_DIV                       0x007a
+#define CLKCTRL_VIID_CLK2_DIV                      0x007b
+#define CLKCTRL_VIID_CLK2_CTRL                     0x007c
 
 /* g9tv */
 #define HHI_HDMI_PLL_CNTL                          0xc8
@@ -204,6 +242,59 @@
 #define HHI_DIF_TCON_CNTL2                         0x3e
 #define HHI_TCON_CLK_CNTL                          0x9c
 
+#define ANACTRL_DIF_PHY_CNTL1                      0x00c8
+#define ANACTRL_DIF_PHY_CNTL2                      0x00c9
+#define ANACTRL_DIF_PHY_CNTL3                      0x00ca
+#define ANACTRL_DIF_PHY_CNTL4                      0x00cb
+#define ANACTRL_DIF_PHY_CNTL5                      0x00cc
+#define ANACTRL_DIF_PHY_CNTL6                      0x00cd
+#define ANACTRL_DIF_PHY_CNTL7                      0x00ce
+#define ANACTRL_DIF_PHY_CNTL8                      0x00cf
+#define ANACTRL_DIF_PHY_CNTL9                      0x00d0
+#define ANACTRL_DIF_PHY_CNTL10                     0x00d1
+#define ANACTRL_DIF_PHY_CNTL11                     0x00d2
+#define ANACTRL_DIF_PHY_CNTL12                     0x00d3
+#define ANACTRL_DIF_PHY_CNTL13                     0x00d4
+#define ANACTRL_DIF_PHY_CNTL14                     0x00d5
+#define ANACTRL_DIF_PHY_CNTL15                     0x00d6
+#define ANACTRL_DIF_PHY_CNTL16                     0x00d7
+#define ANACTRL_DIF_PHY_CNTL17                     0x00d8
+#define ANACTRL_DIF_PHY_CNTL18                     0x00d9
+#define ANACTRL_DIF_PHY_CNTL19                     0x00da
+#define ANACTRL_DIF_PHY_CNTL20                     0x00db
+#define ANACTRL_DIF_PHY_CNTL21                     0x00dc
+#define ANACTRL_TCON_PLL0_CNTL0                    0x00e0
+#define ANACTRL_TCON_PLL0_CNTL1                    0x00e1
+#define ANACTRL_TCON_PLL0_CNTL2                    0x00e2
+#define ANACTRL_TCON_PLL0_CNTL3                    0x00e3
+#define ANACTRL_TCON_PLL0_CNTL4                    0x00e4
+#define ANACTRL_TCON_PLL1_CNTL0                    0x00e5
+#define ANACTRL_TCON_PLL1_CNTL1                    0x00e6
+#define ANACTRL_TCON_PLL1_CNTL2                    0x00e7
+#define ANACTRL_TCON_PLL1_CNTL3                    0x00e8
+#define ANACTRL_TCON_PLL1_CNTL4                    0x00e9
+#define ANACTRL_TCON_PLL2_CNTL0                    0x00ea
+#define ANACTRL_TCON_PLL2_CNTL1                    0x00eb
+#define ANACTRL_TCON_PLL2_CNTL2                    0x00ec
+#define ANACTRL_TCON_PLL2_CNTL3                    0x00ed
+#define ANACTRL_TCON_PLL2_CNTL4                    0x00ee
+#define ANACTRL_TCON_PLL0_STS                      0x00ef
+#define ANACTRL_TCON_PLL1_STS                      0x00f0
+#define ANACTRL_TCON_PLL2_STS                      0x00f1
+
+#define COMBO_DPHY_CNTL0                           0x0000
+#define COMBO_DPHY_CNTL1                           0x0001
+#define COMBO_DPHY_VID_PLL0_DIV                    0x0002
+#define COMBO_DPHY_VID_PLL1_DIV                    0x0003
+#define COMBO_DPHY_VID_PLL2_DIV                    0x0004
+#define COMBO_DPHY_EDP_PIXEL_CLK_DIV               0x0005
+#define COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0          0x0006
+#define COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL0          0x0007
+#define COMBO_DPHY_EDP_LVDS_TX_PHY2_CNTL0          0x0008
+#define COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1          0x0009
+#define COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL1          0x000a
+#define COMBO_DPHY_EDP_LVDS_TX_PHY2_CNTL1          0x000b
+
 /*  Global control:  RESET_CBUS_BASE = 0x11 */
 #define VERSION_CTRL                               0x1100
 #define RESET0_REGISTER                            0x1101
@@ -223,6 +314,28 @@
 #define RESET6_MASK                                0x1116
 #define CRT_MASK                                   0x1117
 #define RESET7_MASK                                0x1118
+
+#define RESETCTRL_RESET0                           0x0000
+#define RESETCTRL_RESET1                           0x0001
+#define RESETCTRL_RESET2                           0x0002
+#define RESETCTRL_RESET3                           0x0003
+#define RESETCTRL_RESET4                           0x0004
+#define RESETCTRL_RESET5                           0x0005
+#define RESETCTRL_RESET6                           0x0006
+#define RESETCTRL_RESET0_LEVEL                     0x0010
+#define RESETCTRL_RESET1_LEVEL                     0x0011
+#define RESETCTRL_RESET2_LEVEL                     0x0012
+#define RESETCTRL_RESET3_LEVEL                     0x0013
+#define RESETCTRL_RESET4_LEVEL                     0x0014
+#define RESETCTRL_RESET5_LEVEL                     0x0015
+#define RESETCTRL_RESET6_LEVEL                     0x0016
+#define RESETCTRL_RESET0_MASK                      0x0020
+#define RESETCTRL_RESET1_MASK                      0x0021
+#define RESETCTRL_RESET2_MASK                      0x0022
+#define RESETCTRL_RESET3_MASK                      0x0023
+#define RESETCTRL_RESET4_MASK                      0x0024
+#define RESETCTRL_RESET5_MASK                      0x0025
+#define RESETCTRL_RESET6_MASK                      0x0026
 
 /* ********************************
  * TCON:  VCBUS_BASE = 0x14
@@ -805,6 +918,27 @@
    /* Bit 11:0 */
    #define     MLVDS_RESET_RANGE_LINE_1    0
 
+#define DE_HS_ADDR_T7                              0x19d1
+// New from M3 :
+// Bit 15:12 -- Enable OFFSET Double Generate(TOCN3-TCON0)
+#define DE_HE_ADDR_T7                               0x19d2
+#define DE_VS_ADDR_T7                              0x19d3
+#define DE_VE_ADDR_T7                              0x19d4
+#define HSYNC_HS_ADDR_T7                           0x19d5
+#define HSYNC_HE_ADDR_T7                           0x19d6
+#define HSYNC_VS_ADDR_T7                           0x19d7
+#define HSYNC_VE_ADDR_T7                           0x19d8
+#define VSYNC_HS_ADDR_T7                           0x19d9
+#define VSYNC_HE_ADDR_T7                           0x19da
+#define VSYNC_VS_ADDR_T7                           0x19db
+#define VSYNC_VE_ADDR_T7                           0x19dc
+
+#define LVDS_SER_EN_T7                             0x19f0
+#define LVDS_PACK_CNTL_ADDR_T7                     0x19d0
+#define LVDS_GEN_CNTL_T7                           0x19e0
+#define P2P_CH_SWAP0_T7                            0x195e
+#define P2P_CH_SWAP1_T7                            0x195f
+#define P2P_BIT_REV_T7                             0x1950
 /* **************************************************************************
  * Vbyone registers  (Note: no MinLVDS in G9tv, share the register)
  */
@@ -941,13 +1075,16 @@
 #define ENCL_INBUF_CNTL0                           0x1cd3
 #define ENCL_INBUF_CNTL1                           0x1cd4
 #define ENCL_INBUF_CNT                             0x1cd5
-#ifndef VPU_VENC_CTRL
-#define VPU_VENC_CTRL                              0x1cef
-#endif
-#ifndef VPU_DISP_VIU0_CTRL
-#define VPU_DISP_VIU0_CTRL                         0x2786
-#endif
 
+#define VPU_VENC_CTRL                              0x1cef
+#define VPU_DISP_VIU0_CTRL                         0x2786
+#define VPU_DISP_VIU1_CTRL                         0x2787
+#define VPU_DISP_VIU2_CTRL                         0x2788
+
+#define LCD_RGB_BASE_ADDR                          0x14a5
+#define LCD_RGB_COEFF_ADDR                         0x14a6
+#define LCD_POL_CNTL_ADDR                          0x14a7
+#define LCD_DITH_CNTL_ADDR                         0x14a8
 /* ********************************
  * TCON TOP:  TCON_TOP_BASE = 0x2000
  * ********************************
@@ -1500,6 +1637,7 @@
 extern int lcd_reg_gxb[];
 extern int lcd_reg_g12a[];
 extern int lcd_reg_tl1[];
+extern int lcd_reg_t7[];
 
 int lcd_ioremap(struct platform_device *pdev);
 unsigned int lcd_vcbus_read(unsigned int _reg);
@@ -1576,5 +1714,27 @@ void lcd_tcon_update_bits_byte(unsigned int reg, unsigned char mask,
 			       unsigned char value);
 int lcd_tcon_check_bits_byte(unsigned int reg, unsigned char mask,
 			     unsigned char value);
+
+unsigned int lcd_edp_read(unsigned int _reg);
+void lcd_edp_write(unsigned int _reg, unsigned int _value);
+void lcd_edp_setb(unsigned int reg, unsigned int value,
+		  unsigned int _start, unsigned int _len);
+unsigned int lcd_edp_getb(unsigned int reg,
+			  unsigned int _start, unsigned int _len);
+
+unsigned int lcd_combo_dphy_read(unsigned int _reg);
+void lcd_combo_dphy_write(unsigned int _reg, unsigned int _value);
+void lcd_combo_dphy_setb(unsigned int reg, unsigned int value,
+			 unsigned int _start, unsigned int _len);
+unsigned int lcd_combo_dphy_getb(unsigned int reg,
+				 unsigned int _start, unsigned int _len);
+unsigned int lcd_rst_read(unsigned int _reg);
+void lcd_rst_write(unsigned int _reg, unsigned int _value);
+void lcd_rst_setb(unsigned int reg, unsigned int value,
+		  unsigned int _start, unsigned int _len);
+unsigned int lcd_rst_getb(unsigned int reg,
+			  unsigned int _start, unsigned int _len);
+void lcd_rst_set_mask(unsigned int reg, unsigned int _mask);
+void lcd_rst_clr_mask(unsigned int reg, unsigned int _mask);
 #endif
 
