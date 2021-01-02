@@ -448,7 +448,7 @@
 #define VIU_VD3_FMT_W                                  0x491e
 #define VD3_IF0_BADDR_Y                                0x4920
 #define VD3_IF0_BADDR_CB                               0x4921
-#define VD3_IF0_BADDR_CR                               0x4921
+#define VD3_IF0_BADDR_CR                               0x4922
 #define VD3_IF0_STRIDE_0                               0x4923
 #define VD3_IF0_STRIDE_1                               0x4924
 #define VD3_IF0_BADDR_Y_F1                             0x4925

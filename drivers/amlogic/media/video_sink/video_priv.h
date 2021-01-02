@@ -244,6 +244,7 @@ struct video_layer_s {
 	struct hw_vd_linear_reg_s vd_mif_linear_reg;
 	struct hw_afbc_reg_s vd_afbc_reg;
 	struct hw_fg_reg_s fg_reg;
+	struct hw_pps_reg_s pps_reg;
 	struct hw_vpp_blend_reg_s vpp_blend_reg;
 	u8 cur_canvas_id;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
@@ -434,7 +435,7 @@ void proc_vd_vsc_phase_per_vsync(u8 layer_id,
 				 struct vframe_s *vf);
 
 void vpp_blend_update(const struct vinfo_s *vinfo);
-
+void vpp_blend_update_t7(const struct vinfo_s *vinfo);
 int get_layer_display_canvas(u8 layer_id);
 int set_layer_display_canvas(u8 layer_id,
 			     struct vframe_s *vf,

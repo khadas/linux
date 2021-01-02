@@ -10306,6 +10306,10 @@ static void osd_setting_default_hwc(void)
 	u32 postbld_osd1_premult = 0, postbld_osd2_premult = 0;
 
 	osd_log_dbg(MODULE_BASE, "%s\n", __func__);
+	if (osd_dev_hw.t7_display)
+		postbld_src3_sel = POSTBLD_OSD1_T7;
+	else
+		postbld_src3_sel = POSTBLD_OSD1;
 	/* depend on din0_premult_en */
 	postbld_osd1_premult = 0;
 	/* depend on din_premult_en bit 4 */

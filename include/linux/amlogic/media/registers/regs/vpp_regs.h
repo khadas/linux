@@ -238,6 +238,38 @@
 #define VD2_SC_GCLK_CTRL                  0x395c
 #define VPP_VD2_HDR_IN_SIZE               0x1df0
 
+/* t7 vd2 pps */
+#define VD2_SCALE_COEF_IDX_T7                         0x3933
+#define VD2_SCALE_COEF_T7                             0x3934
+#define VD2_VSC_REGION12_STARTP_T7                    0x3935
+#define VD2_VSC_REGION34_STARTP_T7                    0x3936
+#define VD2_VSC_REGION4_ENDP_T7                       0x3937
+#define VD2_VSC_START_PHASE_STEP_T7                   0x3938
+#define VD2_VSC_REGION0_PHASE_SLOPE_T7                0x3939
+#define VD2_VSC_REGION1_PHASE_SLOPE_T7                0x393a
+#define VD2_VSC_REGION3_PHASE_SLOPE_T7                0x393b
+#define VD2_VSC_REGION4_PHASE_SLOPE_T7                0x393c
+#define VD2_VSC_PHASE_CTRL_T7                         0x393d
+#define VD2_VSC_INI_PHASE_T7                          0x393e
+#define VD2_HSC_REGION12_STARTP_T7                    0x393f
+#define VD2_HSC_REGION34_STARTP_T7                    0x3940
+#define VD2_HSC_REGION4_ENDP_T7                       0x3941
+#define VD2_HSC_START_PHASE_STEP_T7                   0x3942
+#define VD2_HSC_REGION0_PHASE_SLOPE_T7                0x3943
+#define VD2_HSC_REGION1_PHASE_SLOPE_T7                0x3944
+#define VD2_HSC_REGION3_PHASE_SLOPE_T7                0x3945
+#define VD2_HSC_REGION4_PHASE_SLOPE_T7                0x3946
+#define VD2_HSC_PHASE_CTRL_T7                         0x3947
+#define VD2_SC_MISC_T7                                0x3948
+#define VD2_SCO_FIFO_CTRL_T7                          0x3949
+#define VD2_HSC_PHASE_CTRL1_T7                        0x394a
+#define VD2_HSC_INI_PAT_CTRL_T7                       0x394b
+#define VD2_SC_GCLK_CTRL_T7                           0x394c
+#define VD2_PREHSC_COEF_T7                            0x394d
+#define VD2_PRE_SCALE_CTRL_T7                         0x394e
+#define VD2_PREVSC_COEF_T7                            0x394f
+#define VD2_PREHSC_COEF1_T7                           0x3950
+
 /* t7 vd3 pps */
 #define VD3_SCALE_COEF_IDX                         0x5903
 #define VD3_SCALE_COEF                             0x5904

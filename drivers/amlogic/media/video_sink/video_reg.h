@@ -91,6 +91,32 @@ struct hw_fg_reg_s {
 	u32 fgrain_win_v;
 };
 
+struct hw_pps_reg_s {
+	u32 vd_scale_coef_idx;
+	u32 vd_scale_coef;
+	u32 vd_vsc_region12_startp;
+	u32 vd_vsc_region34_startp;
+	u32 vd_vsc_region4_endp;
+	u32 vd_vsc_start_phase_step;
+	u32 vd_vsc_region1_phase_slope;
+	u32 vd_vsc_region3_phase_slope;
+	u32 vd_vsc_init_phase;
+	u32 vd_vsc_phase_ctrl;
+	u32 vd_hsc_region12_startp;
+	u32 vd_hsc_region34_startp;
+	u32 vd_hsc_region4_endp;
+	u32 vd_hsc_start_phase_step;
+	u32 vd_hsc_region1_phase_slope;
+	u32 vd_hsc_region3_phase_slope;
+	u32 vd_hsc_phase_ctrl;
+	u32 vd_sc_misc;
+	u32 vd_hsc_phase_ctrl1;
+	u32 vd_prehsc_coef;
+	u32 vd_pre_scale_ctrl;/* sc2 VPP_PREHSC_CTRL */
+	u32 vd_prevsc_coef;
+	u32 vd_prehsc_coef1;
+};
+
 struct hw_vpp_blend_reg_s {
 	u32 preblend_h_start_end;
 	u32 preblend_v_start_end;
@@ -109,7 +135,7 @@ struct hw_viu_misc_reg_s   {
 	u32 mali_afbcd2_top_ctrl;
 	u32 vpp_vd1_top_ctrl;
 	u32 vpp_vd2_top_ctrl;
-	u32 vpp_vd3_top_ctr;
+	u32 vpp_vd3_top_ctrl;
 	u32 vd_path_misc_ctrl;
 	u32 path_start_sel;
 	u32 vpp_misc;
@@ -155,11 +181,15 @@ extern struct hw_afbc_reg_s vd_afbc_reg_array[MAX_VD_LAYER_G12];
 extern struct hw_afbc_reg_s vd_afbc_reg_sc2_array[MAX_VD_LAYER_G12];
 extern struct hw_fg_reg_s fg_reg_g12_array[MAX_VD_LAYER_G12];
 extern struct hw_fg_reg_s fg_reg_sc2_array[MAX_VD_LAYER_G12];
+extern struct hw_pps_reg_s pps_reg_array[MAX_VD_LAYER_G12];
 extern struct hw_vpp_blend_reg_s vpp_blend_reg_array[MAX_VD_LAYER_G12];
 
 extern struct hw_vd_reg_s vd_mif_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_vd_linear_reg_s vd_mif_linear_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_afbc_reg_s vd_afbc_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_fg_reg_s fg_reg_t7_array[MAX_VD_LAYER_T7];
+extern struct hw_pps_reg_s pps_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_vpp_blend_reg_s vpp_blend_reg_t7_array[MAX_VD_LAYER_T7];
+extern struct hw_vpp_path_size_s vpp_path_size_reg;
+extern struct hw_viu_misc_reg_s viu_misc_reg;
 #endif
