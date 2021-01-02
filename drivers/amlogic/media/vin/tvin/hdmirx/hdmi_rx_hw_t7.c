@@ -281,9 +281,9 @@ void aml_pll_bw_cfg_t7(void)
 			break;
 		}
 		if (log_level & VIDEO_LOG) {
-			rx_pr("pll init-cableclk=%d,pixelclk=%d,\n",
-			      rx.phy.cable_clk / MHz,
-			      meson_clk_measure(29) / MHz);
+			//rx_pr("pll init-cableclk=%d,pixelclk=%d,\n",
+			     // rx.phy.cable_clk / MHz,
+			     // meson_clk_measure(44) / MHz);
 			rx_pr("sq=%d,pll_lock=%d",
 			      hdmirx_rd_top(TOP_MISC_STAT0) & 0x1,
 			      aml_phy_pll_lock());
@@ -1258,9 +1258,9 @@ void aml_phy_short_bist_t7(void)
 	int lock_sts = 0;
 
 	if (rx.aml_phy.long_bist_en)
-		rx_pr("long bist start\n");
+		rx_pr("t7 long bist start\n");
 	else
-		rx_pr("short bist start\n");
+		rx_pr("t7 short bist start\n");
 	for (port = 0; port < 3; port++) {
 		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, 0x4003f07f);
 		usleep_range(1000, 1005);
@@ -1809,3 +1809,24 @@ bool aml_get_tmds_valid_t7(void)
 	}
 	return ret;
 }
+
+void aml_phy_power_off_t7(void)
+{
+	/* pll power down */
+	hdmirx_wr_bits_amlphy(HHI_RX_APLL_CNTL0, _BIT(28), 0);
+	hdmirx_wr_bits_amlphy(HHI_RX_APLL_CNTL0, _BIT(29), 1);
+	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, 0x800800);
+	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL1, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL2, 0x60000002);
+	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL3, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL0, 0x10000000);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL1, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL2, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL3, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL0, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL1, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL2, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL3, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL4, 0x0);
+}
+

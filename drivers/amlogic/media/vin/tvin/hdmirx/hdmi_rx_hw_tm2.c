@@ -685,9 +685,9 @@ void aml_pll_bw_cfg_tm2(void)
 			break;
 		}
 		if (log_level & VIDEO_LOG) {
-			rx_pr("pll init-cableclk=%d,pixelclk=%d,\n",
-			      rx.phy.cable_clk / MHz,
-			      meson_clk_measure(29) / MHz);
+			//rx_pr("pll init-cableclk=%d,pixelclk=%d,\n",
+			      //rx.phy.cable_clk / MHz,
+			     // meson_clk_measure(29) / MHz);
 			rx_pr("sq=%d,pll_lock=%d",
 			      hdmirx_rd_top(TOP_MISC_STAT0) & 0x1,
 			      aml_phy_pll_lock());
@@ -1278,3 +1278,23 @@ bool aml_get_tmds_valid_tm2(void)
 	}
 	return ret;
 }
+
+void aml_phy_power_off_tm2(void)
+{
+	/* pll power down */
+	wr_reg_hhi_bits(HHI_HDMIRX_APLL_CNTL0, _BIT(28), 0);
+	wr_reg_hhi_bits(HHI_HDMIRX_APLL_CNTL0, _BIT(29), 1);
+	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, 0x22800800);
+	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL1, 0x01000000);
+	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL2, 0x60000000);
+	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3, 0x0);
+	wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL0, 0x01000000);
+	wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL1, 0x0);
+	wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL2, 0x0);
+	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL0, 0x0);
+	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1, 0x0);
+	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL2, 0x0);
+	wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL3, 0x0);
+	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL3, 0x0);
+}
+

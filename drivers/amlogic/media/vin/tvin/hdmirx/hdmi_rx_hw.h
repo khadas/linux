@@ -1170,6 +1170,8 @@
 #define HDCP22_RX_SET_DUK_KEY	0x8200002e
 #define HDCP22_RP_SET_DUK_KEY	0x8200002c
 #define HDCP14_RX_SETKEY	0x8200002d
+#define HDMIRX_RD_SEC_TOP_NEW	0x820000c0
+#define HDMIRX_WR_SEC_TOP_NEW	0x820000c1
 
 /* COR reg start */
 #define COR_SCDC_TMDS_CFG	0x7820
@@ -1203,11 +1205,11 @@
 #define COR_LINE_CNT_LO		0x188E
 #define COR_LINE_CNT_HI		0x188F
 
-#define RX_CLK_CTRL			0x4A
-#define RX_CLK_CTRL1			0x4B
-#define RX_CLK_CTRL2			0x4C
-#define RX_CLK_CTRL3			0x4D
-#define CLKCTRL_SYS_CLK_EN0_REG2	0x13
+#define RX_CLK_CTRL			(0x4A << 2)
+#define RX_CLK_CTRL1		(0x4B << 2)
+#define RX_CLK_CTRL2		(0x4C << 2)
+#define RX_CLK_CTRL3		(0x4D << 2)
+#define CLKCTRL_SYS_CLK_EN0_REG2	(0x13 << 2)
 
 /* AONREG */
 #define RX_AON_SRST		0x05
@@ -2936,6 +2938,7 @@ enum measure_clk_src_e {
 	MEASURE_CLK_AUD_PLL,
 	MEASURE_CLK_AUD_DIV,
 	MEASURE_CLK_ESM,
+	MEASURE_CLK_PCLK,
 };
 
 #define MHz	1000000
@@ -3161,19 +3164,21 @@ void dump_reg_phy_tl1_tm2(void);
 void dump_aml_phy_sts_tl1(void);
 void aml_phy_short_bist_tl1(void);
 bool aml_get_tmds_valid_tl1(void);
+void aml_phy_power_off_tl1(void);
 
 /* tm2 extern */
 void aml_phy_short_bist_tm2(void);
 void aml_phy_init_tm2(void);
 void dump_aml_phy_sts_tm2(void);
 bool aml_get_tmds_valid_tm2(void);
+void aml_phy_power_off_tm2(void);
 
 /* t5 extern */
 void dump_reg_phy_t5(void);
 void aml_phy_init_t5(void);
 void dump_aml_phy_sts_t5(void);
 void aml_eq_eye_monitor_t5(void);
-void aml_phy_offset_cal(void);
+void aml_phy_offset_cal_t5(void);
 void aml_phy_short_bist_t5(void);
 void aml_phy_iq_skew_monitor_t5(void);
 bool aml_get_tmds_valid_t5(void);
@@ -3183,6 +3188,7 @@ void hdmirx_wr_bits_amlphy(unsigned int addr,
 void hdmirx_wr_amlphy(unsigned int addr, unsigned int data);
 u32 hdmirx_rd_bits_amlphy(u16 addr, u32 mask);
 unsigned int hdmirx_rd_amlphy(unsigned int addr);
+void aml_phy_power_off_t5(void);
 
 /* T7 */
 u8 hdmirx_rd_cor(u32 addr);
@@ -3197,4 +3203,5 @@ void aml_phy_offset_cal_t7(void);
 void aml_phy_short_bist_t7(void);
 void aml_phy_iq_skew_monitor_t7(void);
 bool aml_get_tmds_valid_t7(void);
+void aml_phy_power_off_t7(void);
 #endif

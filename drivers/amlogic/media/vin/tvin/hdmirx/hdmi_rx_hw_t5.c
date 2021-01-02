@@ -281,9 +281,9 @@ void aml_pll_bw_cfg_t5(void)
 			break;
 		}
 		if (log_level & VIDEO_LOG) {
-			rx_pr("pll init-cableclk=%d,pixelclk=%d,\n",
-			      rx.phy.cable_clk / MHz,
-			      meson_clk_measure(29) / MHz);
+			//rx_pr("pll init-cableclk=%d,pixelclk=%d,\n",
+			      //rx.phy.cable_clk / MHz,
+			     // meson_clk_measure(29) / MHz);
 			rx_pr("sq=%d,pll_lock=%d",
 			      hdmirx_rd_top(TOP_MISC_STAT0) & 0x1,
 			      aml_phy_pll_lock());
@@ -543,7 +543,7 @@ void aml_dfe_en(void)
 }
 
 /* phy offset calibration based on different chip and board */
-void aml_phy_offset_cal(void)
+void aml_phy_offset_cal_t5(void)
 {
 	u32 data32;
 	u32 idx = PHY_BW_2;
@@ -844,7 +844,7 @@ void aml_phy_cfg_t5(void)
 	if (rx.aml_phy.pre_int) {
 		rx_pr("\nphy reg init\n");
 		if (rx.aml_phy.ofst_en)
-			aml_phy_offset_cal();
+			aml_phy_offset_cal_t5();
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL1,
 				      OFST_CAL_START, 0);
 		usleep_range(1000, 1100);
@@ -1809,3 +1809,24 @@ bool aml_get_tmds_valid_t5(void)
 	}
 	return ret;
 }
+
+void aml_phy_power_off_t5(void)
+{
+	/* pll power down */
+	hdmirx_wr_bits_amlphy(HHI_RX_APLL_CNTL0, _BIT(28), 0);
+	hdmirx_wr_bits_amlphy(HHI_RX_APLL_CNTL0, _BIT(29), 1);
+	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, 0x800800);
+	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL1, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL2, 0x60000002);
+	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL3, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL0, 0x10000000);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL1, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL2, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL3, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL0, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL1, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL2, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL3, 0x0);
+	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL4, 0x0);
+}
+

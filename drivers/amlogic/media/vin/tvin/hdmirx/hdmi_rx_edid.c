@@ -44,7 +44,7 @@ static unsigned char recv_vsvdb_len = 0xFF;
 static unsigned char recv_vsvdb[VSVDB_LEN] = {0};
 bool vsvdb_update_hpd_en = true;
 
-int edid_mode;
+int edid_mode = 1;
 int port_map = 0x4231;
 MODULE_PARM_DESC(port_map, "\n port_map\n");
 module_param(port_map, int, 0664);

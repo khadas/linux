@@ -164,7 +164,7 @@ static struct notifier_block aml_hdcp22_pm_notifier = {
 
 static struct meson_hdmirx_data rx_t7_data = {
 	.chip_id = CHIP_ID_T7,
-	.phy_ver = PHY_VER_T5,
+	.phy_ver = PHY_VER_T7,
 };
 
 static struct meson_hdmirx_data rx_t5d_data = {
@@ -2633,7 +2633,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 		clk_prepare_enable(hdevp->modet_clk);
 		clk_rate = clk_get_rate(hdevp->modet_clk);
 	}
-
 	hdevp->cfg_clk = clk_get(&pdev->dev, "hdmirx_cfg_clk");
 	if (IS_ERR(hdevp->cfg_clk)) {
 		rx_pr("get cfg_clk err\n");

@@ -355,11 +355,12 @@
 		#address-cells=<1>;
 		#size-cells=<1>;
 		/*memory-region = <&hdmirx_emp_cma_reserved>;*/
-		status = "disabled";
+		status = "okay";
 		pinctrl-names = "hdmirx_pins";
 		pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
 			&hdmirx_c_mux>;
 		repeat = <0>;
+		power-domains = <&pwrdm PDID_T7_HDMIRX>;
 		interrupts = <0 41 IRQ_TYPE_LEVEL_HIGH>;
 		clocks =<&clkc CLKID_HDMIRX_CFG>,
 			   <&clkc CLKID_HDMIRX_ACR>,
@@ -370,7 +371,7 @@
 			   <&xtal>,
 			   <&clkc CLKID_FCLK_DIV4>,
 			   <&clkc CLKID_FCLK_DIV5>;
-		clock-names = "cts_hdmirx_cfg_clk",
+		clock-names = "hdmirx_cfg_clk",
 				"cts_hdmirx_acr_ref_clk",
 				"cts_hdmirx_meter_clk",
 				"cts_hdmirx_2m_clk",
@@ -381,7 +382,7 @@
 				"fclk_div5";
 		hdmirx_id = <0>;
 		en_4k_2_2k = <0>;
-		hpd_low_cec_off = <1>;
+		hpd_low_cec_off = <0>;
 		arc_port = <1>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
@@ -399,7 +400,7 @@
 			0x0 0x0 0x0 0x0
 			0x0 0x0 0x0 0x0
 			0x0 0x0 0x0 0x0
-			0x0 0xfe398000 0x0 0x7fff
+			0x0 0xfe398000 0x0 0x18000
 			0x0 0xfe000000 0x0 0x1fff>;
 	};
 

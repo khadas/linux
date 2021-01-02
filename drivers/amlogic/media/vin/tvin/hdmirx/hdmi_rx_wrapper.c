@@ -1373,6 +1373,12 @@ static int get_timing_fmt(void)
 			continue;
 		break;
 	}
+	if (force_vic) {
+		i = 0;
+		rx.pre.sw_vic = force_vic;
+		rx.pre.sw_dvi = 0;
+		return i;
+	}
 	if (i == size) {
 		/* if format is not matched, sw_vic will be UNSUPPORT */
 		rx.pre.sw_vic = HDMI_UNSUPPORT;
@@ -1947,8 +1953,7 @@ bool comp_set_pr_var(u8 *buff, u8 *var_str, u32 var, u32 val)
 
 bool set_pr_var(unsigned char *buff, u32 var, u32 value)
 {
-	comp_set_pr_var(buff, var_to_str(var), var, value);
-	return true;
+	return comp_set_pr_var(buff, var_to_str(var), var, value);
 }
 
 int rx_set_global_variable(const char *buf, int size)
@@ -1984,12 +1989,18 @@ int rx_set_global_variable(const char *buf, int size)
 
 	if (set_pr_var(tmpbuf, dwc_rst_wait_cnt_max, value))
 		return pr_var(dwc_rst_wait_cnt_max, index);
+	index++;
 	if (set_pr_var(tmpbuf, sig_stable_max, value))
 		return pr_var(sig_stable_max, index);
-	if (set_pr_var(tmpbuf, hpd_wait_max, value))
+	index++;
+	if (set_pr_var(tmpbuf, hpd_wait_max, value)) {
+		rx_pr("index=%d, value=%d\n", index, value);
 		return pr_var(hpd_wait_max, index);
+	}
+	index++;
 	if (set_pr_var(tmpbuf, sig_unstable_max, value))
 		return pr_var(sig_unstable_max, index);
+	index++;
 	if (set_pr_var(tmpbuf, sig_unready_max, value))
 		return pr_var(sig_unready_max, index);
 	if (set_pr_var(tmpbuf, pow5v_max_cnt, value))
@@ -3181,8 +3192,10 @@ static void dump_phy_status(void)
 {
 	if (rx.phy_ver == PHY_VER_TM2)
 		dump_aml_phy_sts_tm2();
-	if (rx.phy_ver == PHY_VER_T5)
+	else if (rx.phy_ver == PHY_VER_T5)
 		dump_aml_phy_sts_t5();
+	else if (rx.phy_ver == PHY_VER_T7)
+		dump_aml_phy_sts_t7();
 	else
 		dump_aml_phy_sts_tl1();
 }
