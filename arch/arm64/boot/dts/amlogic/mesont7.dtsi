@@ -2791,13 +2791,30 @@
 	power-domains = <&pwrdm PDID_T7_MALI_TOP>;
 	num_of_pp = <4>;
 	system-coherency = <0>;
+	clocks = <&clkc CLKID_MALI_MUX>;
+	clock-names = "gpu_mux";
 
-	tbl =  <&dvfs500_cfg
+	/*
+	 * Mali clocking is provided by two identical clock paths
+	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
+	 * free mux to safely change frequency while running.
+	 */
+	assigned-clocks = <&clkc CLKID_MALI_0_SEL>,
+			  <&clkc CLKID_MALI_0>,
+			  <&clkc CLKID_MALI_MUX>; /* Glitch free mux */
+	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
+				 <0>, /* Do Nothing */
+				 <&clkc CLKID_MALI_0>;
+	assigned-clock-rates = <0>, /* Do Nothing */
+			       <800000000>,
+			       <0>; /* Do Nothing */
+
+	tbl =  <&dvfs285_cfg
+		&dvfs400_cfg
 		&dvfs500_cfg
-		&dvfs500_cfg
-		&dvfs500_cfg
-		&dvfs500_cfg
-		&dvfs500_cfg>;
+		&dvfs666_cfg
+		&dvfs800_cfg
+		&dvfs800_cfg>;
 
 	reset_cfg:reset_cfg {
 		reg_level = <0x11>;
