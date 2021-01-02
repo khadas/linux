@@ -331,7 +331,7 @@ static ssize_t tp_control(int cpu, union evl_sched_ctlparam *ctlp,
 	case evl_tp_install:
 		if (pt->nr_windows > 0)
 			goto install_schedule;
-		/* fall-through. */
+		fallthrough;
 	case evl_tp_uninstall:
 		gps = NULL;
 		goto switch_schedule;
