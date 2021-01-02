@@ -683,7 +683,7 @@
 			compatible = "amlogic, amlogic-crg-drd-usb2";
 			status = "disable";
 			#phy-cells = <0>;
-			reg = <0x0 0xfe03a000 0x0 0x80
+			reg = <0x0 0xfe03a020 0x0 0x80
 				0x0 0xFE002000 0x0 0x100
 				0x0 0xfe03e000 0x0 0x2000>;
 			pll-setting-1 = <0x09400414>;
@@ -749,10 +749,9 @@
 		};
 
 		crg2_drd: crg2drd@fdd00000 {
-			compatible = "amlogic, crg";
 			status = "disabled";
 			reg = <0x0 0xfdd00000 0x0 0x100000>;
-			interrupts = <0 131 4>;
+			interrupts = <0 131 IRQ_TYPE_EDGE_RISING>;
 			usb-phy = <&crg_phy_21>, <&crg3_phy_21>;
 			cpu-type = "gxl";
 			clock-src = "usb3.0";
@@ -762,10 +761,9 @@
 		};
 
 		crg3_drd: crg3drd@fde00000 {
-			compatible = "amlogic, crg";
 			status = "disabled";
 			reg = <0x0 0xfde00000 0x0 0x100000>;
-			interrupts = <0 130 4>;
+			interrupts = <0 130 IRQ_TYPE_EDGE_RISING>;
 			usb-phy = <&crg_phy_20>, <&crg3_phy_20>;
 			cpu-type = "gxl";
 			clock-src = "usb3.0";
@@ -779,7 +777,7 @@
 			status = "disable";
 			device_name = "crg_udc_3";
 			reg = <0x0 0xfde00000 0x0 0x100000>;
-			interrupts = <0 130 4>;
+			interrupts = <0 130 IRQ_TYPE_EDGE_RISING>;
 			clock-src = "usb0"; /** clock src */
 			port-speed = <0>; /** 0: default, high, 1: full */
 			phy-reg = <0xfe03a000>;
@@ -788,12 +786,12 @@
 			clock-names = "usb_general";
 		};
 
-		crg_udc_2: crgudc3@0xfdd00000 {
+		crg_udc_2: crgudc2@0xfdd00000 {
 			compatible = "amlogic, crg_udc";
 			status = "disable";
 			device_name = "crg_udc_2";
 			reg = <0x0 0xfdd00000 0x0 0x100000>;
-			interrupts = <0 131 4>;
+			interrupts = <0 131 IRQ_TYPE_EDGE_RISING>;
 			clock-src = "usb0"; /** clock src */
 			port-speed = <0>; /** 0: default, high, 1: full */
 			phy-reg = <0xfe03a000>;

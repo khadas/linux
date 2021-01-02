@@ -297,6 +297,7 @@ static int crg_probe(struct platform_device *pdev)
 	struct crg *crg;
 	int	ret;
 	void *mem;
+	const void *prop;
 
 	mem = devm_kzalloc(dev, sizeof(*crg) + CRG_ALIGN_MASK, GFP_KERNEL);
 	if (!mem)
@@ -305,7 +306,13 @@ static int crg_probe(struct platform_device *pdev)
 	crg = PTR_ALIGN(mem, CRG_ALIGN_MASK + 1);
 	crg->mem = mem;
 	crg->dev = dev;
-	crg->dr_mode = USB_DR_MODE_HOST;
+	crg->dr_mode = USB_DR_MODE_PERIPHERAL;
+
+	prop = of_get_property(dev->of_node, "dr_mode", NULL);
+	if (prop)
+		crg->dr_mode = of_read_ulong(prop, 1);
+	else
+		crg->dr_mode = USB_DR_MODE_HOST;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -362,7 +369,6 @@ static int crg_probe(struct platform_device *pdev)
 	}
 
 	crg->maximum_speed = USB_SPEED_HIGH;
-	crg->dr_mode = USB_DR_MODE_HOST;
 
 	/* Check the maximum_speed parameter */
 	switch (crg->maximum_speed) {

@@ -281,8 +281,9 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 
 	if (otg == 0) {
 		if (crg_force_device_mode || controller_type == USB_DEVICE_ONLY) {
-			crg_gadget_init();
+			crg_init();
 			set_mode((unsigned long)phy->usb2_phy_cfg, DEVICE_MODE);
+			crg_gadget_init();
 			amlogic_crg_set_vbus_power(phy, 0);
 		} else if (controller_type == USB_HOST_ONLY) {
 			amlogic_crg_set_vbus_power(phy, 1);
@@ -347,7 +348,12 @@ static struct platform_driver amlogic_crg_otg_driver = {
 	},
 };
 
-module_platform_driver(amlogic_crg_otg_driver);
+static int __init crg_otg_init(void)
+{
+	return platform_driver_register(&amlogic_crg_otg_driver);
+}
+late_initcall(crg_otg_init);
+
 
 MODULE_ALIAS("platform: amlogic crg otg");
 MODULE_AUTHOR("Amlogic Inc.");
