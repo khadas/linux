@@ -35,6 +35,10 @@
 		i2c7 = &i2c_AO_B;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
+		spi3 = &spicc2;
+		spi4 = &spicc3;
+		spi5 = &spicc4;
+		spi6 = &spicc5;
 		tsensor0 = &a73_tsensor;
 		tsensor1 = &a53_tsensor;
 		tsensor2 = &gpu_tsensor;
@@ -1144,20 +1148,6 @@
 	status = "disabled";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
-};
-
-&spicc0 {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc0_pins_x>;
-	cs-gpios = <&gpio GPIOX_10 0>;
-};
-
-&spicc1 {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc1_pins_h>;
-	cs-gpios = <&gpio GPIOH_6 0>;
 };
 
 &fb {
