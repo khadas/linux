@@ -273,7 +273,7 @@ static const unsigned int filt_coef3[] = { /* 3 point triangle */
 	0x00
 };
 
-void ge2d_canv_config(u32 index, ulong *addr, u32 *stride)
+void ge2d_canv_config(u32 index, ulong *addr, u32 *stride, u32 *stride_mode)
 {
 	int i;
 
@@ -288,6 +288,9 @@ void ge2d_canv_config(u32 index, ulong *addr, u32 *stride)
 		}
 	} else if (ge2d_meson_dev.canvas_status == 2) {
 		if (index <= 2) {
+			if (!ge2d_meson_dev.blk_stride_mode)
+				memset(stride_mode, 0, sizeof(u32) * MAX_PLANE);
+
 			switch (index) {
 			case GE2D_SRC1_INDEX:
 				for (i = 0; i < 3; i++) {
@@ -298,14 +301,16 @@ void ge2d_canv_config(u32 index, ulong *addr, u32 *stride)
 					 ((addr[i] + 7) >> 3));
 					ge2d_reg_write
 					(GE2D_C1_SRC1_STRIDE_CTRL_Y + i * 2,
-					 ((stride[i] + 7) >> 3));
+					 ((stride[i] + 7) >> 3) |
+					 (stride_mode[i] << 17));
 				}
 				break;
 			case GE2D_SRC2_INDEX:
 				ge2d_reg_write(GE2D_C1_SRC2_BADDR_CTRL,
 					       ((addr[0] + 7) >> 3));
 				ge2d_reg_write(GE2D_C1_SRC2_STRIDE_CTRL,
-					       ((stride[0] + 7) >> 3));
+					       ((stride[0] + 7) >> 3) |
+					       (stride_mode[0] << 17));
 				break;
 			case GE2D_DST1_INDEX:
 				for (i = 0; i < 2; i++) {
@@ -316,7 +321,8 @@ void ge2d_canv_config(u32 index, ulong *addr, u32 *stride)
 					 ((addr[i] + 7) >> 3));
 					ge2d_reg_write
 					(GE2D_C1_DST1_STRIDE_CTRL + i * 2,
-					 ((stride[i] + 7) >> 3));
+					 ((stride[i] + 7) >> 3) |
+					 (stride_mode[i] << 17));
 				}
 				break;
 			}
@@ -324,12 +330,13 @@ void ge2d_canv_config(u32 index, ulong *addr, u32 *stride)
 	}
 }
 
-static void get_canvas_info(u32 canvas_index, ulong *addr, u32 *stride)
+static void get_canvas_info(u32 canvas_index, ulong *addr, u32 *stride,
+			    u32 *stride_mode)
 {
 	struct canvas_s canvas;
 	int i, tmp_index = 0;
 
-	if (!addr || !stride) {
+	if (!addr || !stride || !stride_mode) {
 		ge2d_log_err("get canvas info error\n");
 		return;
 	}
@@ -340,6 +347,7 @@ static void get_canvas_info(u32 canvas_index, ulong *addr, u32 *stride)
 			canvas_read(tmp_index, &canvas);
 			addr[i] = canvas.addr;
 			stride[i] = canvas.width;
+			stride_mode[i] = canvas.blkmode;
 		}
 	}
 }
@@ -355,11 +363,12 @@ void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg)
 	if (ge2d_meson_dev.canvas_status) {
 		/* if virtual canvas is used, get info from it */
 		if (cfg->canaddr)
-			get_canvas_info(cfg->canaddr,
-					cfg->phy_addr, cfg->stride);
+			get_canvas_info(cfg->canaddr, cfg->phy_addr,
+					cfg->stride, cfg->stride_mode);
 		ge2d_canv_config(GE2D_SRC1_INDEX,
 				 cfg->phy_addr,
-				 cfg->stride);
+				 cfg->stride,
+				 cfg->stride_mode);
 	} else {
 		ge2d_reg_write(GE2D_SRC1_CANVAS,
 			       ((cfg->canaddr & 0xff) << 24) |
@@ -493,18 +502,21 @@ void ge2d_set_src2_dst_data(struct ge2d_src2_dst_data_s *cfg)
 	if (ge2d_meson_dev.canvas_status) {
 		/* if virtual canvas is used, get info from it */
 		if (cfg->src2_canaddr)
-			get_canvas_info(cfg->src2_canaddr,
-					cfg->src2_phyaddr, cfg->src2_stride);
+			get_canvas_info(cfg->src2_canaddr, cfg->src2_phyaddr,
+					cfg->src2_stride,
+					cfg->src2_stride_mode);
 		if (cfg->dst_canaddr)
-			get_canvas_info(cfg->dst_canaddr,
-					cfg->dst_phyaddr, cfg->dst_stride);
+			get_canvas_info(cfg->dst_canaddr, cfg->dst_phyaddr,
+					cfg->dst_stride, cfg->dst_stride_mode);
 
 		ge2d_canv_config(GE2D_SRC2_INDEX,
 				 cfg->src2_phyaddr,
-				 cfg->src2_stride);
+				 cfg->src2_stride,
+				 cfg->src2_stride_mode);
 		ge2d_canv_config(GE2D_DST1_INDEX,
 				 cfg->dst_phyaddr,
-				 cfg->dst_stride);
+				 cfg->dst_stride,
+				 cfg->dst_stride_mode);
 	} else {
 		/* only for m6 and later chips. */
 		ge2d_reg_write(GE2D_SRC2_DST_CANVAS, (cfg->src2_canaddr << 8) |

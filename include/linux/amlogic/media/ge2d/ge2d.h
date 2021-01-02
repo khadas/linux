@@ -441,6 +441,7 @@ struct ge2d_src1_data_s {
 	unsigned int      format_all;
 	unsigned long      phy_addr[MAX_PLANE];
 	unsigned int      stride[MAX_PLANE];
+	unsigned int      stride_mode[MAX_PLANE];
 };
 
 struct ge2d_src1_gen_s {
@@ -491,8 +492,10 @@ struct ge2d_src2_dst_data_s {
 
 	unsigned long src2_phyaddr[MAX_PLANE];
 	unsigned int src2_stride[MAX_PLANE];
+	unsigned int src2_stride_mode[MAX_PLANE];
 	unsigned long dst_phyaddr[MAX_PLANE];
 	unsigned int dst_stride[MAX_PLANE];
+	unsigned int dst_stride_mode[MAX_PLANE];
 	unsigned char dst_rpt;
 };
 
@@ -1178,6 +1181,7 @@ struct ge2d_device_data_s {
 	unsigned int src2_repeat;    /* src2 x/y repeat */
 	unsigned int dst_repeat;     /* dst x repeat */
 	unsigned int dst_sign_mode;  /* dst signed matrix */
+	unsigned int blk_stride_mode;     /* block or linear mode*/
 };
 
 extern struct ge2d_device_data_s ge2d_meson_dev;
@@ -1271,7 +1275,7 @@ extern struct ge2d_src2_dst_gen_s
 struct ge2d_dp_gen_s *ge2d_wq_get_dp_gen(struct ge2d_context_s *wq);
 struct ge2d_cmd_s *ge2d_wq_get_cmd(struct ge2d_context_s *wq);
 int ge2d_wq_add_work(struct ge2d_context_s *wq);
-void ge2d_canv_config(u32 index, ulong *addr, u32 *stride);
+void ge2d_canv_config(u32 index, ulong *addr, u32 *stride, u32 *stride_mode);
 #include "ge2d_func.h"
 
 #endif

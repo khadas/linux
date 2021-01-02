@@ -1297,6 +1297,7 @@ static struct ge2d_device_data_s ge2d_t7 = {
 	.src2_repeat = 1,
 	.dst_repeat = 1,
 	.dst_sign_mode = 1,
+	.blk_stride_mode = 1,
 };
 
 static const struct of_device_id ge2d_dt_match[] = {
