@@ -81,8 +81,6 @@ int log_level = LOG_EN;
 
 /* used in other module */
 static int audio_sample_rate;
-module_param(audio_sample_rate, int, 0664);
-MODULE_PARM_DESC(audio_sample_rate, "audio_sample_rate");
 
 static int auds_rcv_sts;
 module_param(auds_rcv_sts, int, 0664);
@@ -1797,9 +1795,6 @@ void rx_get_global_variable(const char *buf)
 	pr_var(sig_unstable_max, i++);
 	pr_var(sig_unready_max, i++);
 	pr_var(pow5v_max_cnt, i++);
-	pr_var(rgb_quant_range, i++);
-	pr_var(yuv_quant_range, i++);
-	pr_var(it_content, i++);
 	pr_var(diff_pixel_th, i++);
 	pr_var(diff_line_th, i++);
 	pr_var(diff_frame_th, i++);
@@ -1807,13 +1802,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(aud_sr_stb_max, i++);
 	pr_var(hdcp22_kill_esm, i++);
 	pr_var(pwr_sts_to_esm, i++);
-	pr_var(audio_sample_rate, i++);
-	pr_var(auds_rcv_sts, i++);
-	pr_var(audio_coding_type, i++);
-	pr_var(audio_channel_count, i++);
-	pr_var(hdcp22_capable_sts, i++);
 	pr_var(esm_auth_fail_en, i++);
-	pr_var(hdcp22_auth_sts, i++);
 	pr_var(log_level, i++);
 	pr_var(rx5v_debug_en, i++);
 	pr_var(clk_unstable_cnt, i++);
@@ -1940,20 +1929,20 @@ bool str_cmp(unsigned char *buff, unsigned char *str)
 		return false;
 }
 
-bool comp_set_pr_var(u8 *buff, u8 *var_str, u32 var, u32 val)
+bool comp_set_pr_var(u8 *buff, u8 *var_str, void *var, u32 val)
 {
 	char index_c[5] = {'\0'};
 
 	if (str_cmp(buff, var_str) || str_cmp((buff), (index_c))) {
-		memcpy(&var, &val, sizeof(val));
+		memcpy(var, &val, sizeof(val));
 		return true;
 	}
 	return false;
 }
 
-bool set_pr_var(unsigned char *buff, u32 var, u32 value)
+bool set_pr_var(unsigned char *buff, unsigned char *str, void *var, u32 value)
 {
-	return comp_set_pr_var(buff, var_to_str(var), var, value);
+	return comp_set_pr_var(buff, str, var, value);
 }
 
 int rx_set_global_variable(const char *buf, int size)
@@ -1987,288 +1976,267 @@ int rx_set_global_variable(const char *buf, int size)
 		return -2;
 	}
 
-	if (set_pr_var(tmpbuf, dwc_rst_wait_cnt_max, value))
+	if (set_pr_var(tmpbuf, var_to_str(dwc_rst_wait_cnt_max), &dwc_rst_wait_cnt_max, value))
 		return pr_var(dwc_rst_wait_cnt_max, index);
-	index++;
-	if (set_pr_var(tmpbuf, sig_stable_max, value))
+	if (set_pr_var(tmpbuf, var_to_str(sig_stable_max), &sig_stable_max, value))
 		return pr_var(sig_stable_max, index);
-	index++;
-	if (set_pr_var(tmpbuf, hpd_wait_max, value)) {
-		rx_pr("index=%d, value=%d\n", index, value);
+	if (set_pr_var(tmpbuf, var_to_str(hpd_wait_max), &hpd_wait_max, value))
 		return pr_var(hpd_wait_max, index);
-	}
-	index++;
-	if (set_pr_var(tmpbuf, sig_unstable_max, value))
-		return pr_var(sig_unstable_max, index);
-	index++;
-	if (set_pr_var(tmpbuf, sig_unready_max, value))
-		return pr_var(sig_unready_max, index);
-	if (set_pr_var(tmpbuf, pow5v_max_cnt, value))
-		return pr_var(pow5v_max_cnt, index);
-	if (set_pr_var(tmpbuf, rgb_quant_range, value))
-		return pr_var(rgb_quant_range, index);
-	if (set_pr_var(tmpbuf, yuv_quant_range, value))
-		return pr_var(yuv_quant_range, index);
-	if (set_pr_var(tmpbuf, it_content, value))
-		return pr_var(it_content, index);
-	if (set_pr_var(tmpbuf, diff_pixel_th, value))
-		return pr_var(diff_pixel_th, index);
-	if (set_pr_var(tmpbuf, diff_line_th, value))
-		return pr_var(diff_line_th, index);
-	if (set_pr_var(tmpbuf, diff_frame_th, value))
-		return pr_var(diff_frame_th, index);
-	if (set_pr_var(tmpbuf, force_vic, value))
-		return pr_var(force_vic, index);
-	if (set_pr_var(tmpbuf, aud_sr_stb_max, value))
-		return pr_var(aud_sr_stb_max, index);
-	if (set_pr_var(tmpbuf, hdcp22_kill_esm, value))
-		return pr_var(hdcp22_kill_esm, index);
-	if (set_pr_var(tmpbuf, pwr_sts_to_esm, value))
-		return pr_var(pwr_sts_to_esm, index);
-	if (set_pr_var(tmpbuf, audio_sample_rate, value))
-		return pr_var(audio_sample_rate, index);
-	if (set_pr_var(tmpbuf, auds_rcv_sts, value))
-		return pr_var(auds_rcv_sts, index);
-	if (set_pr_var(tmpbuf, audio_coding_type, value))
-		return pr_var(audio_coding_type, index);
-	if (set_pr_var(tmpbuf, audio_channel_count, value))
-		return pr_var(audio_channel_count, index);
-	if (set_pr_var(tmpbuf, hdcp22_capable_sts, value))
-		return pr_var(hdcp22_capable_sts, index);
-	if (set_pr_var(tmpbuf, esm_auth_fail_en, value))
-		return pr_var(esm_auth_fail_en, index);
-	if (set_pr_var(tmpbuf, hdcp22_auth_sts, value))
-		return pr_var(hdcp22_auth_sts, index);
-	if (set_pr_var(tmpbuf, log_level, value))
+	if (set_pr_var(tmpbuf, var_to_str(log_level), &log_level, value))
 		return pr_var(log_level, index);
-	if (set_pr_var(tmpbuf, rx5v_debug_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(sig_unready_max), &sig_unready_max, value))
+		return pr_var(sig_unready_max, index);
+	if (set_pr_var(tmpbuf, var_to_str(pow5v_max_cnt), &pow5v_max_cnt, value))
+		return pr_var(pow5v_max_cnt, index);
+	if (set_pr_var(tmpbuf, var_to_str(diff_pixel_th), &diff_pixel_th, value))
+		return pr_var(diff_pixel_th, index);
+	if (set_pr_var(tmpbuf, var_to_str(diff_line_th), &diff_line_th, value))
+		return pr_var(diff_line_th, index);
+	if (set_pr_var(tmpbuf, var_to_str(diff_frame_th), &diff_frame_th, value))
+		return pr_var(diff_frame_th, index);
+	if (set_pr_var(tmpbuf, var_to_str(force_vic), &force_vic, value))
+		return pr_var(force_vic, index);
+	if (set_pr_var(tmpbuf, var_to_str(aud_sr_stb_max), &aud_sr_stb_max, value))
+		return pr_var(aud_sr_stb_max, index);
+	if (set_pr_var(tmpbuf, var_to_str(hdcp22_kill_esm), &hdcp22_kill_esm, value))
+		return pr_var(hdcp22_kill_esm, index);
+	if (set_pr_var(tmpbuf, var_to_str(pwr_sts_to_esm), &pwr_sts_to_esm, value))
+		return pr_var(pwr_sts_to_esm, index);
+	if (set_pr_var(tmpbuf, var_to_str(esm_auth_fail_en), &esm_auth_fail_en, value))
+		return pr_var(esm_auth_fail_en, index);
+	if (set_pr_var(tmpbuf, var_to_str(rx5v_debug_en), &rx5v_debug_en, value))
 		return pr_var(rx5v_debug_en, index);
-	if (set_pr_var(tmpbuf, clk_unstable_cnt, value))
+	if (set_pr_var(tmpbuf, var_to_str(clk_unstable_cnt), &clk_unstable_cnt, value))
 		return pr_var(clk_unstable_cnt, index);
-	if (set_pr_var(tmpbuf, clk_unstable_max, value))
+	if (set_pr_var(tmpbuf, var_to_str(clk_unstable_max), &clk_unstable_max, value))
 		return pr_var(clk_unstable_max, index);
-	if (set_pr_var(tmpbuf, clk_stable_cnt, value))
+	if (set_pr_var(tmpbuf, var_to_str(clk_stable_cnt), &clk_stable_cnt, value))
 		return pr_var(clk_stable_cnt, index);
-	if (set_pr_var(tmpbuf, clk_stable_max, value))
+	if (set_pr_var(tmpbuf, var_to_str(clk_stable_max), &clk_stable_max, value))
 		return pr_var(clk_stable_max, index);
-	if (set_pr_var(tmpbuf, wait_no_sig_max, value))
+	if (set_pr_var(tmpbuf, var_to_str(wait_no_sig_max), &wait_no_sig_max, value))
 		return pr_var(wait_no_sig_max, index);
-	if (set_pr_var(tmpbuf, receive_edid_len, value))
+	if (set_pr_var(tmpbuf, var_to_str(receive_edid_len), &receive_edid_len, value))
 		return pr_var(receive_edid_len, index);
-	if (set_pr_var(tmpbuf, new_edid, value))
-		return pr_var(new_edid, index);
-	if (set_pr_var(tmpbuf, hdcp_array_len, value))
+	if (set_pr_var(tmpbuf, var_to_str(new_edid), &new_edid, value))
 		return pr_var(hdcp_array_len, index);
-	if (set_pr_var(tmpbuf, hdcp_len, value))
+	if (set_pr_var(tmpbuf, var_to_str(hdcp_len), &hdcp_len, value))
 		return pr_var(hdcp_len, index);
-	if (set_pr_var(tmpbuf, hdcp_repeat_depth, value))
+	if (set_pr_var(tmpbuf, var_to_str(hdcp_repeat_depth), &hdcp_repeat_depth, value))
 		return pr_var(hdcp_repeat_depth, index);
-	if (set_pr_var(tmpbuf, new_hdcp, value))
+	if (set_pr_var(tmpbuf, var_to_str(new_hdcp), &new_hdcp, value))
 		return pr_var(new_hdcp, index);
-	if (set_pr_var(tmpbuf, repeat_plug, value))
+	if (set_pr_var(tmpbuf, var_to_str(repeat_plug), &repeat_plug, value))
 		return pr_var(repeat_plug, index);
-	if (set_pr_var(tmpbuf, up_phy_addr, value))
+	if (set_pr_var(tmpbuf, var_to_str(up_phy_addr), &up_phy_addr, value))
 		return pr_var(up_phy_addr, index);
-	if (set_pr_var(tmpbuf, hpd_to_esm, value))
+	if (set_pr_var(tmpbuf, var_to_str(hpd_to_esm), &hpd_to_esm, value))
 		return pr_var(hpd_to_esm, index);
-	if (set_pr_var(tmpbuf, esm_reset_flag, value))
+	if (set_pr_var(tmpbuf, var_to_str(esm_reset_flag), &esm_reset_flag, value))
 		return pr_var(esm_reset_flag, index);
-	if (set_pr_var(tmpbuf, video_stable_to_esm, value))
+	if (set_pr_var(tmpbuf, var_to_str(video_stable_to_esm), &video_stable_to_esm, value))
 		return pr_var(video_stable_to_esm, index);
-	if (set_pr_var(tmpbuf, enable_hdcp22_esm_log, value))
+	if (set_pr_var(tmpbuf, var_to_str(enable_hdcp22_esm_log), &enable_hdcp22_esm_log, value))
 		return pr_var(enable_hdcp22_esm_log, index);
-	if (set_pr_var(tmpbuf, esm_error_flag, value))
+	if (set_pr_var(tmpbuf, var_to_str(esm_error_flag), &esm_error_flag, value))
 		return pr_var(esm_error_flag, index);
-	if (set_pr_var(tmpbuf, stable_check_lvl, value))
+	if (set_pr_var(tmpbuf, var_to_str(stable_check_lvl), &stable_check_lvl, value))
 		return pr_var(stable_check_lvl, index);
-	if (set_pr_var(tmpbuf, hdcp22_reauth_enable, value))
+	if (set_pr_var(tmpbuf, var_to_str(hdcp22_reauth_enable), &hdcp22_reauth_enable, value))
 		return pr_var(hdcp22_reauth_enable, index);
-	if (set_pr_var(tmpbuf, hdcp22_stop_auth_enable, value))
+	if (set_pr_var(tmpbuf, var_to_str(hdcp22_stop_auth_enable),
+		&hdcp22_stop_auth_enable, value))
 		return pr_var(hdcp22_stop_auth_enable, index);
-	if (set_pr_var(tmpbuf, hdcp22_stop_auth, value))
+	if (set_pr_var(tmpbuf, var_to_str(hdcp22_stop_auth), &hdcp22_stop_auth, value))
 		return pr_var(hdcp22_stop_auth, index);
-	if (set_pr_var(tmpbuf, hdcp22_esm_reset2_enable, value))
+	if (set_pr_var(tmpbuf, var_to_str(hdcp22_esm_reset2_enable),
+		&hdcp22_esm_reset2_enable, value))
 		return pr_var(hdcp22_esm_reset2_enable, index);
-	if (set_pr_var(tmpbuf, hdcp22_esm_reset2, value))
+	if (set_pr_var(tmpbuf, var_to_str(hdcp22_esm_reset2), &hdcp22_esm_reset2, value))
 		return pr_var(hdcp22_esm_reset2, index);
-	if (set_pr_var(tmpbuf, esm_recovery_mode, value))
+	if (set_pr_var(tmpbuf, var_to_str(esm_recovery_mode), &esm_recovery_mode, value))
 		return pr_var(esm_recovery_mode, index);
-	if (set_pr_var(tmpbuf, unnormal_wait_max, value))
+	if (set_pr_var(tmpbuf, var_to_str(unnormal_wait_max), &unnormal_wait_max, value))
 		return pr_var(unnormal_wait_max, index);
-	/* if (set_pr_var(tmpbuf, edid_update_delay, value)) */
-		/*return pr_var(edid_update_delay, index);*/
-	if (set_pr_var(tmpbuf, hdmi_yuv444_enable, value))
+	if (set_pr_var(tmpbuf, var_to_str(edid_update_delay), &edid_update_delay, value))
+		return pr_var(edid_update_delay, index);
+	if (set_pr_var(tmpbuf, var_to_str(hdmi_yuv444_enable), &hdmi_yuv444_enable, value))
 		return pr_var(hdmi_yuv444_enable, index);
-	if (set_pr_var(tmpbuf, pc_mode_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(pc_mode_en), &pc_mode_en, value))
 		return pr_var(pc_mode_en, index);
-	if (set_pr_var(tmpbuf, en_4k_2_2k, value))
+	if (set_pr_var(tmpbuf, var_to_str(en_4k_2_2k), &en_4k_2_2k, value))
 		return pr_var(en_4k_2_2k, index);
-	if (set_pr_var(tmpbuf, en_4096_2_3840, value))
+	if (set_pr_var(tmpbuf, var_to_str(en_4096_2_3840), &en_4096_2_3840, value))
 		return pr_var(en_4096_2_3840, index);
-	if (set_pr_var(tmpbuf, en_4k_timing, value))
+	if (set_pr_var(tmpbuf, var_to_str(en_4k_timing), &en_4k_timing, value))
 		return pr_var(en_4k_timing, index);
-	if (set_pr_var(tmpbuf, acr_mode, value))
+	if (set_pr_var(tmpbuf, var_to_str(acr_mode), &acr_mode, value))
 		return pr_var(acr_mode, index);
-	if (set_pr_var(tmpbuf, force_clk_rate, value))
+	if (set_pr_var(tmpbuf, var_to_str(force_clk_rate), &force_clk_rate, value))
 		return pr_var(force_clk_rate, index);
-	if (set_pr_var(tmpbuf, auto_aclk_mute, value))
+	if (set_pr_var(tmpbuf, var_to_str(auto_aclk_mute), &auto_aclk_mute, value))
 		return pr_var(auto_aclk_mute, index);
-	if (set_pr_var(tmpbuf, aud_avmute_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(aud_avmute_en), &aud_avmute_en, value))
 		return pr_var(aud_avmute_en, index);
-	if (set_pr_var(tmpbuf, aud_mute_sel, value))
+	if (set_pr_var(tmpbuf, var_to_str(aud_mute_sel), &aud_mute_sel, value))
 		return pr_var(aud_mute_sel, index);
-	if (set_pr_var(tmpbuf, md_ists_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(md_ists_en), &md_ists_en, value))
 		return pr_var(md_ists_en, index);
-	if (set_pr_var(tmpbuf, pdec_ists_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(pdec_ists_en), &pdec_ists_en, value))
 		return pr_var(pdec_ists_en, index);
-	if (set_pr_var(tmpbuf, packet_fifo_cfg, value))
+	if (set_pr_var(tmpbuf, var_to_str(packet_fifo_cfg), &packet_fifo_cfg, value))
 		return pr_var(packet_fifo_cfg, index);
-	if (set_pr_var(tmpbuf, pd_fifo_start_cnt, value))
+	if (set_pr_var(tmpbuf, var_to_str(pd_fifo_start_cnt), &pd_fifo_start_cnt, value))
 		return pr_var(pd_fifo_start_cnt, index);
-	if (set_pr_var(tmpbuf, hdcp22_on, value))
+	if (set_pr_var(tmpbuf, var_to_str(hdcp22_on), &hdcp22_on, value))
 		return pr_var(hdcp22_on, index);
-	if (set_pr_var(tmpbuf, delay_ms_cnt, value))
+	if (set_pr_var(tmpbuf, var_to_str(delay_ms_cnt), &delay_ms_cnt, value))
 		return pr_var(delay_ms_cnt, index);
-	if (set_pr_var(tmpbuf, downstream_repeat_support, value))
+	if (set_pr_var(tmpbuf, var_to_str(downstream_repeat_support),
+		&downstream_repeat_support, value))
 		return pr_var(downstream_repeat_support, index);
-	if (set_pr_var(tmpbuf, eq_max_setting, value))
+	if (set_pr_var(tmpbuf, var_to_str(eq_max_setting), &eq_max_setting, value))
 		return pr_var(eq_max_setting, index);
-	if (set_pr_var(tmpbuf, eq_dbg_ch0, value))
+	if (set_pr_var(tmpbuf, var_to_str(eq_dbg_ch0), &eq_dbg_ch0, value))
 		return pr_var(eq_dbg_ch0, index);
-	if (set_pr_var(tmpbuf, eq_dbg_ch1, value))
+	if (set_pr_var(tmpbuf, var_to_str(eq_dbg_ch1), &eq_dbg_ch1, value))
 		return pr_var(eq_dbg_ch1, index);
-	if (set_pr_var(tmpbuf, eq_dbg_ch2, value))
+	if (set_pr_var(tmpbuf, var_to_str(eq_dbg_ch2), &eq_dbg_ch2, value))
 		return pr_var(eq_dbg_ch2, index);
-	if (set_pr_var(tmpbuf, edid_mode, value))
+	if (set_pr_var(tmpbuf, var_to_str(edid_mode), &edid_mode, value))
 		return pr_var(edid_mode, index);
-	if (set_pr_var(tmpbuf, phy_pddq_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(phy_pddq_en), &phy_pddq_en, value))
 		return pr_var(phy_pddq_en, index);
-	if (set_pr_var(tmpbuf, long_cable_best_setting, value))
+	if (set_pr_var(tmpbuf, var_to_str(long_cable_best_setting),
+		&long_cable_best_setting, value))
 		return pr_var(long_cable_best_setting, index);
-	if (set_pr_var(tmpbuf, port_map, value))
+	if (set_pr_var(tmpbuf, var_to_str(port_map), &port_map, value))
 		return pr_var(port_map, index);
-	if (set_pr_var(tmpbuf, new_hdr_lum, value))
+	if (set_pr_var(tmpbuf, var_to_str(new_hdr_lum), &new_hdr_lum, value))
 		return pr_var(new_hdr_lum, index);
-	if (set_pr_var(tmpbuf, skip_frame_cnt, value))
+	if (set_pr_var(tmpbuf, var_to_str(skip_frame_cnt), &skip_frame_cnt, value))
 		return pr_var(skip_frame_cnt, index);
-	if (set_pr_var(tmpbuf, vdin_drop_frame_cnt, value))
+	if (set_pr_var(tmpbuf, var_to_str(vdin_drop_frame_cnt), &vdin_drop_frame_cnt, value))
 		return pr_var(vdin_drop_frame_cnt, index);
-	if (set_pr_var(tmpbuf, atmos_edid_update_hpd_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(atmos_edid_update_hpd_en),
+		&atmos_edid_update_hpd_en, value))
 		return pr_var(atmos_edid_update_hpd_en, index);
-	if (set_pr_var(tmpbuf, suspend_pddq_sel, value))
+	if (set_pr_var(tmpbuf, var_to_str(suspend_pddq_sel), &suspend_pddq_sel, value))
 		return pr_var(suspend_pddq_sel, index);
-	if (set_pr_var(tmpbuf, aud_ch_map, value))
+	if (set_pr_var(tmpbuf, var_to_str(aud_ch_map), &aud_ch_map, value))
 		return pr_var(aud_ch_map, index);
-	if (set_pr_var(tmpbuf, hdcp_none_wait_max, value))
+	if (set_pr_var(tmpbuf, var_to_str(hdcp_none_wait_max), &hdcp_none_wait_max, value))
 		return pr_var(hdcp_none_wait_max, index);
-	if (set_pr_var(tmpbuf, pll_unlock_max, value))
+	if (set_pr_var(tmpbuf, var_to_str(pll_unlock_max), &pll_unlock_max, value))
 		return pr_var(pll_unlock_max, index);
-	if (set_pr_var(tmpbuf, esd_phy_rst_max, value))
+	if (set_pr_var(tmpbuf, var_to_str(esd_phy_rst_max), &esd_phy_rst_max, value))
 		return pr_var(esd_phy_rst_max, index);
-	if (set_pr_var(tmpbuf, ignore_sscp_charerr, value))
+	if (set_pr_var(tmpbuf, var_to_str(ignore_sscp_charerr), &ignore_sscp_charerr, value))
 		return pr_var(ignore_sscp_charerr, index);
-	if (set_pr_var(tmpbuf, ignore_sscp_tmds, value))
+	if (set_pr_var(tmpbuf, var_to_str(ignore_sscp_tmds), &ignore_sscp_tmds, value))
 		return pr_var(ignore_sscp_tmds, index);
-	if (set_pr_var(tmpbuf, err_chk_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(err_chk_en), &err_chk_en, value))
 		return pr_var(err_chk_en, index);
-	if (set_pr_var(tmpbuf, find_best_eq, value))
+	if (set_pr_var(tmpbuf, var_to_str(find_best_eq), &find_best_eq, value))
 		return pr_var(find_best_eq, index);
-	if (set_pr_var(tmpbuf, eq_try_cnt, value))
+	if (set_pr_var(tmpbuf, var_to_str(eq_try_cnt), &eq_try_cnt, value))
 		return pr_var(eq_try_cnt, index);
-	if (set_pr_var(tmpbuf, pll_rst_max, value))
+	if (set_pr_var(tmpbuf, var_to_str(pll_rst_max), &pll_rst_max, value))
 		return pr_var(pll_rst_max, index);
-	if (set_pr_var(tmpbuf, hdcp_enc_mode, value))
+	if (set_pr_var(tmpbuf, var_to_str(hdcp_enc_mode), &hdcp_enc_mode, value))
 		return pr_var(hdcp_enc_mode, index);
-	if (set_pr_var(tmpbuf, hbr_force_8ch, value))
+	if (set_pr_var(tmpbuf, var_to_str(hbr_force_8ch), &hbr_force_8ch, value))
 		return pr_var(hbr_force_8ch, index);
-	if (set_pr_var(tmpbuf, cdr_lock_level, value))
+	if (set_pr_var(tmpbuf, var_to_str(cdr_lock_level), &cdr_lock_level, value))
 		return pr_var(cdr_lock_level, index);
-	if (set_pr_var(tmpbuf, top_intr_maskn_value, value))
+	if (set_pr_var(tmpbuf, var_to_str(top_intr_maskn_value), &top_intr_maskn_value, value))
 		return pr_var(top_intr_maskn_value, index);
-	if (set_pr_var(tmpbuf, pll_lock_max, value))
+	if (set_pr_var(tmpbuf, var_to_str(pll_lock_max), &pll_lock_max, value))
 		return pr_var(pll_lock_max, index);
-	if (set_pr_var(tmpbuf, clock_lock_th, value))
+	if (set_pr_var(tmpbuf, var_to_str(clock_lock_th), &clock_lock_th, value))
 		return pr_var(clock_lock_th, index);
-	if (set_pr_var(tmpbuf, en_take_dtd_space, value))
+	if (set_pr_var(tmpbuf, var_to_str(en_take_dtd_space), &en_take_dtd_space, value))
 		return pr_var(en_take_dtd_space, index);
-	if (set_pr_var(tmpbuf, earc_cap_ds_update_hpd_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(earc_cap_ds_update_hpd_en),
+		&earc_cap_ds_update_hpd_en, value))
 		return pr_var(earc_cap_ds_update_hpd_en, index);
-	if (set_pr_var(tmpbuf, scdc_force_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(scdc_force_en), &scdc_force_en, value))
 		return pr_var(scdc_force_en, index);
-	if (set_pr_var(tmpbuf, hdcp_hpd_ctrl_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(hdcp_hpd_ctrl_en), &hdcp_hpd_ctrl_en, value))
 		return pr_var(hdcp_hpd_ctrl_en, index);
-	if (set_pr_var(tmpbuf, eq_dbg_lvl, value))
+	if (set_pr_var(tmpbuf, var_to_str(eq_dbg_lvl), &eq_dbg_lvl, value))
 		return pr_var(eq_dbg_lvl, index);
-	if (set_pr_var(tmpbuf, edid_select, value))
+	if (set_pr_var(tmpbuf, var_to_str(edid_select), &edid_select, value))
 		return pr_var(edid_select, index);
-	if (set_pr_var(tmpbuf, vpp_mute_enable, value))
+	if (set_pr_var(tmpbuf, var_to_str(vpp_mute_enable), &vpp_mute_enable, value))
 		return pr_var(vpp_mute_enable, index);
-	if (set_pr_var(tmpbuf, rx.var.dbg_ve, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.var.dbg_ve), &rx.var.dbg_ve, value))
 		return pr_var(rx.var.dbg_ve, index);
-	if (set_pr_var(tmpbuf, rx.var.avi_chk_frames, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.var.avi_chk_frames), &rx.var.avi_chk_frames, value))
 		return pr_var(rx.var.avi_chk_frames, index);
-	if (set_pr_var(tmpbuf, vsvdb_update_hpd_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(vsvdb_update_hpd_en), &vsvdb_update_hpd_en, value))
 		return pr_var(vsvdb_update_hpd_en, index);
-	if (set_pr_var(tmpbuf, clk_chg_max, value))
+	if (set_pr_var(tmpbuf, var_to_str(clk_chg_max), &clk_chg_max, value))
 		return pr_var(clk_chg_max, index);
-	if (set_pr_var(tmpbuf, rx.var.force_pattern, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.var.force_pattern), &rx.var.force_pattern, value))
 		return pr_var(rx.var.force_pattern, index);
-	/* phy var definitioin */
-	if (set_pr_var(tmpbuf, rx.aml_phy.sqrst_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.sqrst_en), &rx.aml_phy.sqrst_en, value))
 		return pr_var(rx.aml_phy.sqrst_en, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.vga_dbg, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.vga_dbg), &rx.aml_phy.vga_dbg, value))
 		return pr_var(rx.aml_phy.vga_dbg, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.dfe_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.dfe_en), &rx.aml_phy.dfe_en, value))
 		return pr_var(rx.aml_phy.dfe_en, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.ofst_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.ofst_en), &rx.aml_phy.ofst_en, value))
 		return pr_var(rx.aml_phy.ofst_en, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.cdr_mode, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.cdr_mode), &rx.aml_phy.cdr_mode, value))
 		return pr_var(rx.aml_phy.cdr_mode, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.pre_int_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.pre_int_en), &rx.aml_phy.pre_int_en, value))
 		return pr_var(rx.aml_phy.pre_int_en, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.pre_int, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.pre_int), &rx.aml_phy.pre_int, value))
 		return pr_var(rx.aml_phy.pre_int, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.phy_bwth, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.phy_bwth), &rx.aml_phy.phy_bwth, value))
 		return pr_var(rx.aml_phy.phy_bwth, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.vga_dbg_delay, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.vga_dbg_delay),
+		&rx.aml_phy.vga_dbg_delay, value))
 		return pr_var(rx.aml_phy.vga_dbg_delay, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.alirst_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.alirst_en), &rx.aml_phy.alirst_en, value))
 		return pr_var(rx.aml_phy.alirst_en, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.tap1_byp, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.tap1_byp), &rx.aml_phy.tap1_byp, value))
 		return pr_var(rx.aml_phy.tap1_byp, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.eq_byp, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.eq_byp), &rx.aml_phy.eq_byp, value))
 		return pr_var(rx.aml_phy.eq_byp, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.long_cable, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.long_cable), &rx.aml_phy.long_cable, value))
 		return pr_var(rx.aml_phy.long_cable, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.osc_mode, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.osc_mode), &rx.aml_phy.osc_mode, value))
 		return pr_var(rx.aml_phy.osc_mode, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.pll_div, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.pll_div), &rx.aml_phy.pll_div, value))
 		return pr_var(rx.aml_phy.pll_div, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.eq_fix_val, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.eq_fix_val), &rx.aml_phy.eq_fix_val, value))
 		return pr_var(rx.aml_phy.eq_fix_val, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.cdr_fr_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.cdr_fr_en), &rx.aml_phy.cdr_fr_en, value))
 		return pr_var(rx.aml_phy.cdr_fr_en, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.force_sqo, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.force_sqo), &rx.aml_phy.force_sqo, value))
 		return pr_var(rx.aml_phy.force_sqo, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.os_rate, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.os_rate), &rx.aml_phy.os_rate, value))
 		return pr_var(rx.aml_phy.os_rate, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.vga_gain, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.vga_gain), &rx.aml_phy.vga_gain, value))
 		return pr_var(rx.aml_phy.vga_gain, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.eq_stg1, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.eq_stg1), &rx.aml_phy.eq_stg1, value))
 		return pr_var(rx.aml_phy.eq_stg1, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.eq_stg2, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.eq_stg2), &rx.aml_phy.eq_stg2, value))
 		return pr_var(rx.aml_phy.eq_stg2, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.dfe_hold, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.dfe_hold), &rx.aml_phy.dfe_hold, value))
 		return pr_var(rx.aml_phy.dfe_hold, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.eq_hold, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.eq_hold), &rx.aml_phy.eq_hold, value))
 		return pr_var(rx.aml_phy.eq_hold, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.eye_delay, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.eye_delay), &rx.aml_phy.eye_delay, value))
 		return pr_var(rx.aml_phy.eye_delay, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.eq_retry, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.eq_retry), &rx.aml_phy.eq_retry, value))
 		return pr_var(rx.aml_phy.eq_retry, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.tap2_byp, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.tap2_byp), &rx.aml_phy.tap2_byp, value))
 		return pr_var(rx.aml_phy.tap2_byp, index);
-	if (set_pr_var(tmpbuf, rx.aml_phy.long_bist_en, value))
+	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.long_bist_en),
+		&rx.aml_phy.long_bist_en, value))
 		return pr_var(rx.aml_phy.long_bist_en, index);
 	return 0;
 }
@@ -3216,8 +3184,9 @@ static void dump_clk_status(void)
 	      rx_measure_clock(MEASURE_CLK_PIXEL));
 	rx_pr("audio clock = %d\n",
 	      rx_measure_clock(MEASURE_CLK_AUD_PLL));
-	rx_pr("esm clock = %d\n",
-	      rx_measure_clock(MEASURE_CLK_ESM));
+	if (rx.chip_id < CHIP_ID_T7)
+		rx_pr("esm clock = %d\n",
+			rx_measure_clock(MEASURE_CLK_ESM));
 	if (log_level & DBG_LOG) {
 		rx_pr("top audio meter clk=%d\n",
 		      rx_get_clock(TOP_HDMI_AUDIOCLK));

@@ -1298,3 +1298,22 @@ void aml_phy_power_off_tm2(void)
 	wr_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL3, 0x0);
 }
 
+void aml_phy_switch_port_tm2(void)
+{
+	u32 data32;
+
+	/* reset and select data port */
+	data32 = rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3);
+	data32 &= (~(0x7 << 6));
+	data32 |= ((1 << rx.port) << 6);
+	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3, data32);
+	data32 &= (~(1 << 11));
+	/* release reset */
+	data32 |= (1 << 11);
+	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3, data32);
+	udelay(5);
+
+	data32 = 0;
+	data32 |= rx.port << 2;
+	hdmirx_wr_dwc(DWC_SNPS_PHYG3_CTRL, data32);
+}
