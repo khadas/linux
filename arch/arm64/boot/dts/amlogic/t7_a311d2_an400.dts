@@ -372,15 +372,10 @@
 		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
 		pinctrl-names= "default";
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
-#if 0
-		pinctrl-0= <&cmclkout2_pins>;
-		clocks = <&clkc CLKID_GP_PLL_DIV2_GATE>;
-		clock-names = "mclk_0";
-		pwdn = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
-		reset = <&gpio GPIOM_12 GPIO_ACTIVE_HIGH>;
-		ir_cut_gpio = <&gpio GPIOA_10 GPIO_ACTIVE_HIGH
-				&gpio GPIOA_12 GPIO_ACTIVE_HIGH>;
-#endif
+		#clocks = <&clkc CLKID_MCLK_0>;
+		#clock-names = "mclk_0";
+		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
