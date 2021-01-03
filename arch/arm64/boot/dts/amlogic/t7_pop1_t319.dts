@@ -1048,7 +1048,7 @@
 
 /* SDIO */
 &sd_emmc_a {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&sdio_pins>;
 	pinctrl-1 = <&sdio_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -1058,8 +1058,8 @@
 	bus-width = <4>;
 	cap-sd-highspeed;
 	sd-uhs-sdr50;
-	sd_uhs-sdr104;
-	max-frequency = <200000000>;
+	sd-uhs-sdr104;
+	max-frequency = <100000000>;
 
 	non-removable;
 	disable-wp;
@@ -1403,4 +1403,31 @@
 	 */
 	 vlock_pll_m_limit = <1>;
 	 vlock_line_limit = <2>;
+};
+
+&aml_wifi{
+	status = "okay";
+	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
+	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
+};
+
+&aml_bt {
+	status = "disabled";
+	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
+	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
+};
+
+&pwm_ab {
+	pinctrl-0 = <&pwm_a_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&irblaster {
+	status = "disabled";
+};
+
+&uart_E {
+	status = "disabled";
+	uart-has-rtscts;
 };

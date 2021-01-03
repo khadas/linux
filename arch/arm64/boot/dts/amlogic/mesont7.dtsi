@@ -450,7 +450,7 @@
 				clocks = <&clkc CLKID_PWM_A_GATE>,
 						<&clkc CLKID_PWM_B_GATE>;
 				clock-names = "clkin0", "clkin1";
-				status = "disabled";
+				status = "okay";
 			};
 
 			pwm_cd: pwm@5a000 {
@@ -999,8 +999,8 @@
 		sd_emmc_a: sdio@fe088000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0x0 0xfe088000 0x0 0x800>,
-				<0x0 0xfe000164 0x0 0x4>,
-				<0x0 0xfe00400c 0x0 0x4>;
+				<0x0 0xfe00016c 0x0 0x4>,
+				<0x0 0xfe004008 0x0 0x4>;
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SD_EMMC_A>,
@@ -1011,7 +1011,6 @@
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1";
 			card_type = <3>;
-			mmc_debug_flag;
 			cap-sdio-irq;
 			keep-power-in-suspend;
 			//resets = <&reset RESET_SD_EMMC_A>;
@@ -2011,6 +2010,34 @@
 		power-domains = <&pwrdm PDID_T7_GE2D>;
 	};
 
+	aml_bt: aml_bt {
+		compatible = "amlogic, aml-bt";
+		status = "disabled";
+	};
+
+	aml_wifi: aml_wifi {
+		compatible = "amlogic, aml-wifi";
+		status = "disabled";
+		irq_trigger_type = "GPIO_IRQ_LOW";
+		dhd_static_buf;
+		//pinctrl-0 = <&pwm_e_pins>;
+		//pinctrl-names = "default";
+		pwm_config = <&wifi_pwm_conf>;
+	};
+
+	wifi_pwm_conf:wifi_pwm_conf{
+		pwm_channel1_conf {
+			pwms = <&pwm_ab 0 30550 0>;
+			duty-cycle = <15270>;
+			times = <8>;
+		};
+		pwm_channel2_conf {
+			pwms = <&pwm_ab 2 30500 0>;
+			duty-cycle = <15250>;
+			times = <12>;
+		};
+	};
+
 	gdc {
 		#address-cells=<2>;
 		#size-cells=<2>;
@@ -2443,14 +2470,15 @@
 	/* sdio port A */
 	sdio_pins: sdio {
 		mux {
-			groups = "sdio_d0_x",
-				 "sdio_d1_x",
-				 "sdio_d2_x",
-				 "sdio_d3_x",
-				 "sdio_clk_x",
-				 "sdio_cmd_x";
+			groups = "sdio_d0",
+				 "sdio_d1",
+				 "sdio_d2",
+				 "sdio_d3",
+				 "sdio_clk",
+				 "sdio_cmd";
 			function = "sdio";
 			bias-disable;
+			//bias-pull-up;
 			drive-strength-microamp = <4000>;
 		};
 	};
@@ -2558,6 +2586,7 @@
 		mux {
 			groups = "pwm_a";
 			function = "pwm_a";
+			drive-strength-microamp = <500>;
 		};
 	};
 
