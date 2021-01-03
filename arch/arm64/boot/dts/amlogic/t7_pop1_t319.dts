@@ -1383,6 +1383,19 @@
 		elen,display-x = <1920>;
 		elen,display-y = <1080>;
 	};
+
+	goodix-gt738x@5d {
+		compatible = "goodix,gt738x";
+		reg = <0x5d>;
+		status = "disabled";
+		goodix,irq-gpio = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		goodix,reset-gpio = <&gpio GPIOY_5 GPIO_ACTIVE_HIGH>;
+		goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling;*/
+		goodix,panel-max-x = <1920>;
+		goodix,panel-max-y = <1080>;
+		goodix,avdd-name = "vtouch";
+		vtouch-supply = <&TOUCH_AVDD>;
+	};
 };
 
 &amlvecm {
