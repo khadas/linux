@@ -620,6 +620,8 @@
 				mdio-parent-bus = <&mdio0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				enet_type = <5>;
+				tx_amp_src = <0xFE010330>;
 
 				ext_mdio: mdio@0 {
 					reg = <0>;
@@ -1058,9 +1060,7 @@
 			compatible = "amlogic,meson-axg-dwmac",
 				     "snps,dwmac-4.00";
 			reg = <0x0 0xfdc00000 0x0 0x10000>,
-			      <0x0 0xfe024000 0x0 0x8>,
-			      <0x0 0xFE010330 0x0 0x4>;
-			reg-names = "eth_base", "eth_cfg", "tx_amp_src";
+			      <0x0 0xfe024000 0x0 0x8>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
 			power-domains = <&pwrdm PDID_T7_ETH>;
@@ -1070,8 +1070,9 @@
 			clock-names = "stmmaceth", "clkin0", "clkin1";
 			rx-fifo-depth = <4096>;
 			tx-fifo-depth = <2048>;
-			enet_type = <5>;
-			internal_phy = <1>;
+			/*1:inphy; 2:exphy;*/
+			internal_phy = <2>;
+			cali_val = <0x80000>;
 			status = "disabled";
 
 			mdio0: mdio {
@@ -2817,6 +2818,36 @@
 		mux {
 			groups = "edp_b_hpd";
 			function = "edp_b";
+		};
+	};
+
+	eth_pins: eth {
+		mux {
+			groups = "eth_mdio",
+				 "eth_mdc",
+				 "eth_rgmii_rx_clk",
+				 "eth_rx_dv",
+				 "eth_rxd0",
+				 "eth_rxd1",
+				 "eth_txen",
+				 "eth_txd0",
+				 "eth_txd1";
+			function = "eth";
+			drive-strength-microamp = <4000>;
+			bias-disable;
+		};
+	};
+
+	eth_rgmii_pins: eth-rgmii {
+		mux {
+			groups = "eth_rxd2_rgmii",
+				 "eth_rxd3_rgmii",
+				 "eth_rgmii_tx_clk",
+				 "eth_txd2_rgmii",
+				 "eth_txd3_rgmii";
+			function = "eth";
+			drive-strength-microamp = <4000>;
+			bias-disable;
 		};
 	};
 };

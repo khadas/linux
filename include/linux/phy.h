@@ -1240,6 +1240,10 @@ static inline int phy_ethtool_get_sset_count(struct phy_device *phydev)
 	return -EOPNOTSUPP;
 }
 
+/*custom_internal_config*/
+extern unsigned int enet_type;
+extern unsigned int tx_amp_bl2;
+
 static inline int phy_ethtool_get_stats(struct phy_device *phydev,
 					struct ethtool_stats *stats, u64 *data)
 {

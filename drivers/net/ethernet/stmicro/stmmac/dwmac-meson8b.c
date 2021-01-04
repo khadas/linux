@@ -22,6 +22,7 @@
 #include "stmmac_platform.h"
 
 #define PRG_ETH0			0x0
+#define PRG_ETH1			0x4
 
 #define PRG_ETH0_RGMII_MODE		BIT(0)
 
@@ -46,30 +47,6 @@
 #define PRG_ETH0_TX_AND_PHY_REF_CLK	BIT(12)
 
 #define MUX_CLK_NUM_PARENTS		2
-
-#ifdef CONFIG_AMLOGIC_ETH_PRIVE
-#define ETH_PLL_CTL3_CTS            0x50
-
-unsigned int cts_setting[16] = {0xA7E00000, 0x87E00000, 0x8BE00000, 0x93E00000,
-				0x8FE00000, 0x97E00000,	0x9BE00000, 0xA7E00000,
-				0xABE00000, 0xB3E00000, 0xAFE00000, 0xB7E00000,
-				0xE7E00000, 0xEFE00000, 0xFBE00000, 0xFFE00000};
-
-enum {
-	/* chip num */
-	ETH_PHY		= 0x0,
-	ETH_PHY_C1	= 0x1,
-	ETH_PHY_C2	= 0x2,
-	ETH_PHY_SC2	= 0x3, //kerel android-q
-	ETH_PHY_T5      = 0x4,
-	ETH_PHY_T7      = 0x5,
-};
-
-unsigned int tx_amp_bl2;
-EXPORT_SYMBOL_GPL(tx_amp_bl2);
-unsigned int enet_type;
-EXPORT_SYMBOL_GPL(enet_type);
-#endif
 
 struct meson8b_dwmac;
 
@@ -351,17 +328,10 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
-//	struct device_node *np = dev->of_node;
-//	struct g12a_mdio_mux *priv = dev_get_drvdata(dev);
-	void __iomem *tx_amp_src = NULL;
 	void __iomem *addr = NULL;
 	struct resource *res = NULL;
 	unsigned int internal_phy = 0;
-	unsigned int cts_valid = 0;
-	unsigned int cts_amp = 0;
-
-	tx_amp_bl2 = 0;
-	enet_type = 0;
+	unsigned int cali_val = 0;
 
 	/*get tx amp setting from tx_amp_src*/
 	pr_info("aml_cust_setting\n");
@@ -378,39 +348,15 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 		ee_reset_base = addr;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "tx_amp_src");
-	if (!res) {
-		pr_info("tx_amp_src not setup\n");
-	} else {
-		tx_amp_src = devm_ioremap_resource(dev, res);
-		if (IS_ERR(addr)) {
-			dev_err(&pdev->dev,
-				"cat't map tx_amp (%d)\n", __LINE__);
-		}
-		tx_amp_bl2 = readl(tx_amp_src);
-	}
-	/*enet_type*/
-	if (of_property_read_u32(np, "enet_type", &enet_type))
-		pr_info("default enet type as 0\n");
-
 	if (of_property_read_u32(np, "internal_phy", &internal_phy) != 0)
 		pr_info("use default internal_phy as 0\n");
 
-	if (internal_phy) {
-		tx_amp_bl2 = (readl(tx_amp_src) & 0x3f);
-		/*T5 use new method for tuning cts*/
-		if (enet_type == ETH_PHY_T5) {
-			cts_valid =  (tx_amp_bl2 >> 4) & 0x3;
+	if (of_property_read_u32(np, "cali_val", &cali_val) != 0)
+		pr_info("set default cali_val as 0\n");
+	/*internal_phy 1:inphy;2:exphy; 0 as default*/
+	if (internal_phy == 2)
+		writel(cali_val, dwmac->regs + PRG_ETH1);
 
-			if (cts_valid)
-				cts_amp  = tx_amp_bl2 & 0xf;
-			/*invalid will set cts_setting[0] 0xA7E00000*/
-			writel(cts_setting[cts_amp], dwmac->regs + ETH_PLL_CTL3_CTS);
-			tx_amp_bl2 = 0x15;
-		}
-	/*test*/
-//	tx_amp_bl2 = 0x15;
-	}
 	return 0;
 }
 

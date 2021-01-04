@@ -14,6 +14,29 @@
 #include <linux/phy.h>
 #include <linux/platform_device.h>
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+
+unsigned int cts_setting[16] = {0xA7E00000, 0x87E00000, 0x8BE00000, 0x93E00000,
+				0x8FE00000, 0x97E00000,	0x9BE00000, 0xA7E00000,
+				0xABE00000, 0xB3E00000, 0xAFE00000, 0xB7E00000,
+				0xE7E00000, 0xEFE00000, 0xFBE00000, 0xFFE00000};
+
+enum {
+	/* chip num */
+	ETH_PHY		= 0x0,
+	ETH_PHY_C1	= 0x1,
+	ETH_PHY_C2	= 0x2,
+	ETH_PHY_SC2	= 0x3, //kerel android-q
+	ETH_PHY_T5      = 0x4,
+	ETH_PHY_T7      = 0x5,
+};
+
+unsigned int tx_amp_bl2;
+EXPORT_SYMBOL_GPL(tx_amp_bl2);
+unsigned int enet_type;
+EXPORT_SYMBOL_GPL(enet_type);
+#endif
+
 #define ETH_PLL_STS		0x40
 #define ETH_PLL_CTL0		0x44
 #define  PLL_CTL0_LOCK_DIG	BIT(30)
@@ -57,6 +80,9 @@ struct g12a_mdio_mux {
 	void *mux_handle;
 	struct clk *pclk;
 	struct clk *pll;
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	struct device *dev;
+#endif
 };
 
 struct g12a_ephy_pll {
@@ -149,7 +175,16 @@ static const struct clk_ops g12a_ephy_pll_ops = {
 static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 {
 	int ret;
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	void __iomem *tx_amp_src = NULL;
+	unsigned int tx_amp_addr = 0;
+	unsigned int cts_valid = 0;
+	unsigned int cts_amp = 0;
+	struct device_node *np = priv->dev->of_node;
 
+	tx_amp_bl2 = 0;
+	enet_type = 0;
+#endif
 	/* Enable the phy clock */
 	if (!priv->pll_is_enabled) {
 		ret = clk_prepare_enable(priv->pll);
@@ -175,6 +210,30 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	       PHY_CNTL2_RX_CLK_EPHY,
 	       priv->regs + ETH_PHY_CNTL2);
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	/*enet_type*/
+	if (of_property_read_u32(np, "enet_type", &enet_type))
+		pr_info("default enet type as 0\n");
+
+	if (of_property_read_u32(np, "tx_amp_src", &tx_amp_addr) != 0)
+		pr_info("use default rx_amp_src as 0\n");
+
+	tx_amp_src = devm_ioremap(priv->dev,
+			(resource_size_t)tx_amp_addr, sizeof(resource_size_t));
+
+	tx_amp_bl2 = (readl(tx_amp_src) & 0x3f);
+	pr_info("wzh txamp 0x%x\n", readl(tx_amp_src));
+
+	/*T5 use new method for tuning cts*/
+	if (enet_type == ETH_PHY_T5) {
+		cts_valid =  (tx_amp_bl2 >> 4) & 0x3;
+		if (cts_valid)
+			cts_amp  = tx_amp_bl2 & 0xf;
+		/*invalid will set cts_setting[0] 0xA7E00000*/
+		writel(cts_setting[cts_amp], priv->regs + ETH_PLL_CTL3);
+		tx_amp_bl2 = 0x15;
+	}
+#endif
 	return 0;
 }
 
@@ -188,7 +247,6 @@ static int g12a_enable_external_mdio(struct g12a_mdio_mux *priv)
 		clk_disable_unprepare(priv->pll);
 		priv->pll_is_enabled = false;
 	}
-
 	return 0;
 }
 
@@ -323,7 +381,9 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 			dev_err(dev, "failed to get peripheral clock\n");
 		return ret;
 	}
-
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	priv->dev = dev;
+#endif
 	/* Make sure the device registers are clocked */
 	ret = clk_prepare_enable(priv->pclk);
 	if (ret) {
