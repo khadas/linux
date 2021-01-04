@@ -443,6 +443,8 @@ static int amlogic_crg_drd_usb3_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(phy->dev);
 
+	amlogic_crg_drd_usb3_init(&phy->phy);
+
 	return 0;
 }
 

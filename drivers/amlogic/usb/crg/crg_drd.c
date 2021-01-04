@@ -26,6 +26,7 @@
 #include <linux/amlogic/usbtype.h>
 #include <linux/clk.h>
 #include <linux/phy/phy.h>
+#include <linux/amlogic/aml_gpio_consumer.h>
 
 #define CRG_DEFAULT_AUTOSUSPEND_DELAY	5000 /* ms */
 #define CRG_XHCI_RESOURCES_NUM	2
@@ -34,13 +35,11 @@
 #define CRG_GCTL_PRTCAP_OTG	3
 #define CRG_XHCI_REGS_END		0x7fff
 
-struct crg {
+struct crg_drd {
 	struct device		*dev;
 
 	struct platform_device	*xhci;
 	struct resource		xhci_resources[CRG_XHCI_RESOURCES_NUM];
-	struct usb_phy		*usb2_phy;
-	struct usb_phy		*usb3_phy;
 
 	void __iomem		*regs;
 	size_t			regs_size;
@@ -49,42 +48,36 @@ struct crg {
 	void			*mem;
 
 	unsigned		super_speed_support:1;
-	struct clk		*general_clk;
+	bool		usb_phy_init;
+	bool		usb_suspend;
+	int vbus_power_pin;
+	struct gpio_desc *usb_gpio_desc;
 };
 
 /* -------------------------------------------------------------------------- */
-void crg_set_mode(struct crg *crg, u32 mode)
+static void crg_set_mode(struct crg_drd *crg, u32 mode)
 {
-	//TODO
+	u64 tmp;
+
+	if (mode == USB_DR_MODE_HOST) {
+		/* set controller host role*/
+		tmp = readl(crg->regs + 0x20FC) & ~0x1;
+		writel(tmp, crg->regs + 0x20FC);
+	}
 }
 
-static int crg_core_soft_reset(struct crg *crg)
+static int crg_core_soft_reset(struct crg_drd *crg)
 {
-	usb_phy_init(crg->usb2_phy);
-	usb_phy_init(crg->usb3_phy);
-
 	return 0;
 }
 
-static void crg_core_exit(struct crg *crg)
-{
-	usb_phy_shutdown(crg->usb2_phy);
-	usb_phy_shutdown(crg->usb3_phy);
-
-	usb_phy_set_suspend(crg->usb2_phy, 1);
-	usb_phy_set_suspend(crg->usb3_phy, 1);
-}
-
-static int crg_core_init(struct crg *crg)
+static int crg_core_init(struct crg_drd *crg)
 {
 	int			ret;
 
 	ret = crg_core_soft_reset(crg);
 	if (ret)
 		return ret;
-
-	usb_phy_set_suspend(crg->usb2_phy, 0);
-	usb_phy_set_suspend(crg->usb3_phy, 0);
 
 	switch (crg->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
@@ -104,52 +97,17 @@ static int crg_core_init(struct crg *crg)
 	return 0;
 }
 
-static int crg_core_get_phy(struct crg *crg)
+static int crg_core_get_phy(struct crg_drd *crg)
 {
-	struct device		*dev = crg->dev;
-	struct device_node	*node = dev->of_node;
-	int ret;
-
-	if (node) {
-		crg->usb2_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
-		crg->usb3_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 1);
-	} else {
-		crg->usb2_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB2);
-		crg->usb3_phy = devm_usb_get_phy(dev, USB_PHY_TYPE_USB3);
-	}
-
-	if (IS_ERR(crg->usb2_phy)) {
-		ret = PTR_ERR(crg->usb2_phy);
-		if (ret == -ENXIO || ret == -ENODEV)
-			crg->usb2_phy = NULL;
-		else if (ret == -EPROBE_DEFER)
-			return ret;
-
-		dev_err(dev, "no usb2 phy configured\n");
-		return ret;
-	}
-
-	if (IS_ERR(crg->usb3_phy)) {
-		ret = PTR_ERR(crg->usb3_phy);
-		if (ret == -ENXIO || ret == -ENODEV)
-			crg->usb3_phy = NULL;
-		else if (ret == -EPROBE_DEFER)
-			return ret;
-
-		dev_err(dev, "no usb3 phy configured\n");
-		return ret;
-	}
-
-	crg->super_speed_support = 0;
-
-	if (crg->usb3_phy)
-		if (crg->usb3_phy->flags == AML_USB3_PHY_ENABLE)
-			crg->super_speed_support = 1;
-
 	return 0;
 }
 
-int crg_host_init(struct crg *crg)
+static void crg_host_exit(struct crg_drd *crg)
+{
+	platform_device_unregister(crg->xhci);
+}
+
+static int crg_host_init(struct crg_drd *crg)
 {
 	struct property_entry	props[3];
 	struct platform_device	*xhci;
@@ -223,6 +181,8 @@ int crg_host_init(struct crg *crg)
 	if (crg->super_speed_support)
 		props[prop_idx++].name = "super_speed_support";
 
+	props[prop_idx++].name = "xhci-crg-host";
+
 	if (prop_idx) {
 		ret = platform_device_add_properties(xhci, props);
 		if (ret) {
@@ -244,7 +204,7 @@ err1:
 	return ret;
 }
 
-static int crg_core_init_mode(struct crg *crg)
+static int crg_core_init_mode(struct crg_drd *crg)
 {
 	struct device *dev = crg->dev;
 	int ret;
@@ -269,15 +229,37 @@ static int crg_core_init_mode(struct crg *crg)
 	return 0;
 }
 
+static void crg_set_usb_vbus_power
+	(struct gpio_desc *usb_gd, int pin, char is_power_on)
+{
+	if (is_power_on)
+		/*set vbus on by gpio*/
+		gpiod_direction_output(usb_gd, 1);
+	else
+		/*set vbus off by gpio first*/
+		gpiod_direction_output(usb_gd, 0);
+}
+
+static void crg_set_vbus_power
+		(struct crg_drd *crg, char is_power_on)
+{
+	if (crg->vbus_power_pin != -1)
+		crg_set_usb_vbus_power(crg->usb_gpio_desc,
+				   crg->vbus_power_pin, is_power_on);
+}
+
 #define CRG_ALIGN_MASK		(16 - 1)
 
 static int crg_probe(struct platform_device *pdev)
 {
-	struct device		*dev = &pdev->dev;
-	struct resource		*res;
-	struct crg		*crg;
-	int			ret;
-	void			*mem;
+	struct device *dev = &pdev->dev;
+	struct resource	*res;
+	struct crg_drd *crg;
+	int	ret;
+	void *mem;
+	const char *gpio_name = NULL;
+	int gpio_vbus_power_pin = -1;
+	struct gpio_desc *usb_gd = NULL;
 
 	mem = devm_kzalloc(dev, sizeof(*crg) + CRG_ALIGN_MASK, GFP_KERNEL);
 	if (!mem)
@@ -286,6 +268,21 @@ static int crg_probe(struct platform_device *pdev)
 	crg = PTR_ALIGN(mem, CRG_ALIGN_MASK + 1);
 	crg->mem = mem;
 	crg->dev = dev;
+	crg->dr_mode = USB_DR_MODE_HOST;
+
+	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
+	if (gpio_name) {
+		gpio_vbus_power_pin = 1;
+		usb_gd = devm_gpiod_get_index(&pdev->dev,
+					 NULL, 0, GPIOD_OUT_LOW);
+		if (IS_ERR(usb_gd))
+			return -1;
+	}
+
+	crg->vbus_power_pin = gpio_vbus_power_pin;
+	crg->usb_gpio_desc = usb_gd;
+
+	crg_set_vbus_power(crg, 1);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -299,12 +296,10 @@ static int crg_probe(struct platform_device *pdev)
 	crg->xhci_resources[0].flags = res->flags;
 	crg->xhci_resources[0].name = res->name;
 
-	crg->general_clk = devm_clk_get(dev, "crg_general");
-	if (IS_ERR(crg->general_clk)) {
-		ret = PTR_ERR(crg->general_clk);
-		goto err0;
-	} else {
-		clk_prepare_enable(crg->general_clk);
+	crg->regs = ioremap(res->start, resource_size(res));
+	if (!crg->regs) {
+		dev_err(dev, "ioremap failed\n");
+		return -ENODEV;
 	}
 
 	platform_set_drvdata(pdev, crg);
@@ -336,7 +331,6 @@ static int crg_probe(struct platform_device *pdev)
 	}
 
 	crg->maximum_speed = USB_SPEED_HIGH;
-	crg->dr_mode = USB_DR_MODE_HOST;
 
 	/* Check the maximum_speed parameter */
 	switch (crg->maximum_speed) {
@@ -361,12 +355,17 @@ static int crg_probe(struct platform_device *pdev)
 	return 0;
 
 err0:
+	iounmap(crg->regs);
 	return ret;
 }
 
-void crg_shutdown(struct platform_device *pdev)
+static void crg_shutdown(struct platform_device *pdev)
 {
+	struct crg_drd     *crg = platform_get_drvdata(pdev);
+
 	pm_runtime_get_sync(&pdev->dev);
+
+	crg_host_exit(crg);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
@@ -375,7 +374,11 @@ void crg_shutdown(struct platform_device *pdev)
 
 static int crg_remove(struct platform_device *pdev)
 {
+	struct crg_drd	   *crg = platform_get_drvdata(pdev);
+
 	pm_runtime_get_sync(&pdev->dev);
+
+	crg_host_exit(crg);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
@@ -385,7 +388,7 @@ static int crg_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int crg_suspend_common(struct crg *crg)
+static int crg_suspend_common(struct crg_drd *crg)
 {
 	switch (crg->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
@@ -397,32 +400,17 @@ static int crg_suspend_common(struct crg *crg)
 		break;
 	}
 
-	crg_core_exit(crg);
-
 	return 0;
 }
 
-static int crg_resume_common(struct crg *crg)
+static int crg_resume_common(struct crg_drd *crg)
 {
-	int		ret;
-
-	ret = crg_core_init(crg);
-	if (ret)
-		return ret;
-
-	switch (crg->dr_mode) {
-	case USB_DR_MODE_PERIPHERAL:
-	case USB_DR_MODE_OTG:
-	case USB_DR_MODE_HOST:
-	default:
-		/* do nothing */
-		break;
-	}
+	crg_set_mode(crg, CRG_GCTL_PRTCAP_HOST);
 
 	return 0;
 }
 
-static int crg_runtime_checks(struct crg *crg)
+static int crg_runtime_checks(struct crg_drd *crg)
 {
 	switch (crg->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
@@ -438,7 +426,7 @@ static int crg_runtime_checks(struct crg *crg)
 
 static int crg_runtime_suspend(struct device *dev)
 {
-	struct crg     *crg = dev_get_drvdata(dev);
+	struct crg_drd     *crg = dev_get_drvdata(dev);
 	int		ret;
 
 	if (crg_runtime_checks(crg))
@@ -455,7 +443,7 @@ static int crg_runtime_suspend(struct device *dev)
 
 static int crg_runtime_resume(struct device *dev)
 {
-	struct crg     *crg = dev_get_drvdata(dev);
+	struct crg_drd     *crg = dev_get_drvdata(dev);
 	int		ret;
 
 	device_init_wakeup(dev, false);
@@ -481,7 +469,7 @@ static int crg_runtime_resume(struct device *dev)
 
 static int crg_runtime_idle(struct device *dev)
 {
-	struct crg     *crg = dev_get_drvdata(dev);
+	struct crg_drd     *crg = dev_get_drvdata(dev);
 
 	switch (crg->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
@@ -505,14 +493,13 @@ static int crg_runtime_idle(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 static int crg_suspend(struct device *dev)
 {
-	struct crg	*crg = dev_get_drvdata(dev);
+	struct crg_drd	*crg = dev_get_drvdata(dev);
 	int		ret;
 
+	crg->usb_suspend = 1;
 	ret = crg_suspend_common(crg);
 	if (ret)
 		return ret;
-
-	clk_disable_unprepare(crg->general_clk);
 
 	pinctrl_pm_select_sleep_state(dev);
 
@@ -521,12 +508,12 @@ static int crg_suspend(struct device *dev)
 
 static int crg_resume(struct device *dev)
 {
-	struct crg	*crg = dev_get_drvdata(dev);
+	struct crg_drd	*crg = dev_get_drvdata(dev);
 	int		ret;
 
-	pinctrl_pm_select_default_state(dev);
+	crg->usb_suspend = 0;
 
-	clk_prepare_enable(crg->general_clk);
+	pinctrl_pm_select_default_state(dev);
 
 	ret = crg_resume_common(crg);
 	if (ret)
@@ -549,7 +536,7 @@ static const struct dev_pm_ops crg_dev_pm_ops = {
 #ifdef CONFIG_OF
 static const struct of_device_id of_crg_match[] = {
 	{
-		.compatible = "amlogic, crg"
+		.compatible = "amlogic, crg-drd"
 	},
 	{ },
 };
@@ -557,20 +544,50 @@ MODULE_DEVICE_TABLE(of, of_crg_match);
 #endif
 
 static struct platform_driver crg_driver = {
+	.probe		= crg_probe,
 	.remove		= crg_remove,
 	.shutdown	= crg_shutdown,
 	.driver		= {
-		.name	= "crg",
+		.name	= "crg_drd_otg",
 		.of_match_table	= of_match_ptr(of_crg_match),
 		.pm	= &crg_dev_pm_ops,
 	},
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id of_crg_host_match[] = {
+	{
+		.compatible = "amlogic, crg-host-drd"
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, of_crg_host_match);
+#endif
+
+static struct platform_driver crg_host_driver = {
+	.remove		= crg_remove,
+	.shutdown	= crg_shutdown,
+	.driver		= {
+		.name	= "crg_drd",
+		.of_match_table	= of_match_ptr(of_crg_host_match),
+		.pm	= &crg_dev_pm_ops,
+	},
+};
+
+void crg_exit(void)
+{
+	platform_driver_unregister(&crg_driver);
+}
+
+int crg_init(void)
+{
+	return platform_driver_register(&crg_driver);
+}
+
 /* AMLOGIC corigine driver does not allow module unload */
 static int __init amlogic_crg_init(void)
 {
-	platform_driver_probe(&crg_driver, crg_probe);
-	return 0;
+	return platform_driver_probe(&crg_host_driver, crg_probe);
 }
 late_initcall(amlogic_crg_init);
 

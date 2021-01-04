@@ -29,12 +29,9 @@
 struct clk_reset {
 	struct clk *usb_reset_usb_general;
 	struct clk *usb_reset_usb;
-	//struct clk *usb_reset_usb_to_ddr;
 };
 
 struct clk_reset crg_p_clk_reset[4];
-
-bool crg_udc_init;
 
 /* ret 1: device plug in */
 /* ret 0: device plug out */
@@ -62,7 +59,6 @@ static void crg_set_device_mode_v2(struct platform_device *pdev,
 	struct usb_aml_regs_v2 usb_aml_regs;
 	union u2p_r0_v2 reg0;
 	union usb_r0_v2 r0 = {.d32 = 0};
-	union usb_r1_v2 r1 = {.d32 = 0};
 	union usb_r4_v2 r4 = {.d32 = 0};
 
 	u2p_aml_regs.u2p_r_v2[0] = (void __iomem *)
@@ -85,12 +81,6 @@ static void crg_set_device_mode_v2(struct platform_device *pdev,
 	r4.b.p21_SLEEPM0 = 0x1;
 	writel(r4.d32, usb_aml_regs.usb_r_v2[4]);
 
-	if (controller_type != USB_OTG) {
-		r1.d32 = readl(usb_aml_regs.usb_r_v2[1]);
-		r1.b.u3h_host_u2_port_disable = 0x2;
-		writel(r1.d32, usb_aml_regs.usb_r_v2[1]);
-	}
-
 	reg0.d32 = readl(u2p_aml_regs.u2p_r_v2[0]);
 	reg0.b.host_device = 0;
 	reg0.b.POR = 0;
@@ -102,15 +92,10 @@ int crg_clk_enable_usb_v2(struct platform_device *pdev,
 {
 	struct clk *usb_reset;
 
-	if (crg_udc_init == 0) {
-		usb_reset = devm_clk_get(&pdev->dev, "usb_general");
-		clk_prepare_enable(usb_reset);
-		crg_p_clk_reset[pdev->id].usb_reset_usb_general = usb_reset;
-		//usb_reset = devm_clk_get(&pdev->dev, "usb1");
-		//clk_prepare_enable(usb_reset);
-		//crg_p_clk_reset[pdev->id].usb_reset_usb_to_ddr = usb_reset;
-		crg_udc_init = 1;
-	}
+	usb_reset = devm_clk_get(&pdev->dev, "usb_general");
+	clk_prepare_enable(usb_reset);
+	crg_p_clk_reset[pdev->id].usb_reset_usb_general = usb_reset;
+
 	crg_set_device_mode_v2(pdev, usb_peri_reg, controller_type);
 	return 0;
 }
@@ -120,12 +105,8 @@ void crg_clk_disable_usb_v2(struct platform_device *pdev,
 {
 	struct clk *usb_reset;
 
-	if (crg_udc_init == 1) {
-		usb_reset = crg_p_clk_reset[pdev->id].usb_reset_usb_general;
-		clk_disable_unprepare(usb_reset);
-		//usb_reset = crg_p_clk_reset[pdev->id].usb_reset_usb_to_ddr;
-		//clk_disable_unprepare(usb_reset);
-	}
+	usb_reset = crg_p_clk_reset[pdev->id].usb_reset_usb_general;
+	clk_disable_unprepare(usb_reset);
 }
 
 int crg_clk_resume_usb_v2(struct platform_device *pdev,
@@ -136,13 +117,9 @@ int crg_clk_resume_usb_v2(struct platform_device *pdev,
 	if (pdev->id == 0) {
 		usb_reset = crg_p_clk_reset[pdev->id].usb_reset_usb_general;
 		clk_prepare_enable(usb_reset);
-		//usb_reset = crg_p_clk_reset[pdev->id].usb_reset_usb_to_ddr;
-		//clk_prepare_enable(usb_reset);
 	} else if (pdev->id == 1) {
 		usb_reset = crg_p_clk_reset[pdev->id].usb_reset_usb_general;
 		clk_prepare_enable(usb_reset);
-		//usb_reset = crg_p_clk_reset[pdev->id].usb_reset_usb_to_ddr;
-		//clk_prepare_enable(usb_reset);
 	} else {
 		dev_err(&pdev->dev, "bad usb clk name.\n");
 		return -1;

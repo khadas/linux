@@ -30,6 +30,7 @@
 #include <linux/of_gpio.h>
 #include <linux/clk.h>
 #include "crg_udc.h"
+#include <linux/amlogic/usb-v2.h>
 
 #define MAX_PACKET_SIZE 1024
 int g_dnl_board_usb_cable_connected(void);
@@ -4384,6 +4385,7 @@ static int crg_udc_probe(struct platform_device *pdev)
 	struct device_node	*of_node = pdev->dev.of_node;
 	const void *prop;
 	int retval = 0;
+	u32 phy_id = 1;
 
 	crg_udc = &crg_udc_dev;
 	crg_udc->dev = &pdev->dev;
@@ -4431,6 +4433,12 @@ static int crg_udc_probe(struct platform_device *pdev)
 				return -ENOMEM;
 
 			crg_udc->phy_reg_addr = phy_reg_addr;
+
+			prop = of_get_property(of_node, "phy-id", NULL);
+			if (prop)
+				phy_id = of_read_ulong(prop, 1);
+			else
+				phy_id = 1;
 		}
 	}
 
@@ -4439,6 +4447,8 @@ static int crg_udc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Set crg_udc PHY clock failed!\n");
 		return -ENODEV;
 	}
+
+	amlogic_crg_device_usb2_init(phy_id);
 
 	crg_udc->mmio_phys_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!crg_udc->mmio_phys_base) {
@@ -4519,11 +4529,6 @@ static int crg_udc_remove(struct platform_device *pdev)
 	tmp = reg_read(crg_udc->mmio_virt_base + 0x20FC) & ~0x1;
 	reg_write(crg_udc->mmio_virt_base + 0x20FC, tmp);
 
-	if (crg_udc->mmio_virt_base) {
-		iounmap(crg_udc->mmio_virt_base);
-		crg_udc->mmio_virt_base = NULL;
-	}
-
 	if (crg_udc->irq)
 		free_irq(crg_udc->irq, crg_udc);
 
@@ -4547,11 +4552,6 @@ static void crg_udc_shutdown(struct platform_device *pdev)
 	crg_udc->device_state = USB_STATE_ATTACHED;
 	crg_vbus_detect(crg_udc, 0);
 	usb_del_gadget_udc(&crg_udc->gadget);
-
-	if (crg_udc->mmio_virt_base) {
-		iounmap(crg_udc->mmio_virt_base);
-		crg_udc->mmio_virt_base = NULL;
-	}
 
 	if (crg_udc->irq)
 		free_irq(crg_udc->irq, crg_udc);
@@ -4584,11 +4584,25 @@ int usb_gadget_handle_interrupts(int index)
 #ifdef CONFIG_PM
 static int crg_udc_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+	struct crg_gadget_dev *crg_udc;
+
+	crg_udc = &crg_udc_dev;
+
+	crg_clk_disable_usb(pdev, (unsigned long)crg_udc->phy_reg_addr);
 	return 0;
 }
 
 static int crg_udc_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
+	struct crg_gadget_dev *crg_udc;
+
+	crg_udc = &crg_udc_dev;
+	crg_clk_enable_usb(pdev,
+			(unsigned long)crg_udc->phy_reg_addr,
+			crg_udc->controller_type);
+
 	return 0;
 }
 #else

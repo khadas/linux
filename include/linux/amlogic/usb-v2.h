@@ -247,6 +247,8 @@ struct amlogic_usb_v2 {
 	u32 portconfig_31;
 	u32 portconfig_30;
 	void __iomem	*usb_phy_trim_reg;
+	u32 phy_id;
+	struct clk		*general_clk;
 };
 
 union phy3_r1 {
@@ -308,7 +310,7 @@ union phy3_r5 {
 
 int aml_new_otg_get_mode(void);
 int aml_new_usb_get_mode(void);
-
+int amlogic_crg_device_usb2_init(u32 phy_id);
 #ifdef CONFIG_AMLOGIC_USB3PHY
 void aml_new_otg_init(void);
 #endif

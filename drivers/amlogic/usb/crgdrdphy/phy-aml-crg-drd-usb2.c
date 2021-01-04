@@ -18,8 +18,9 @@
 #include <linux/amlogic/usb-v2.h>
 #include <linux/amlogic/usbtype.h>
 #include "../phy/phy-aml-new-usb-v2.h"
+#include <linux/clk.h>
 
-struct amlogic_usb_v2	*g_crg_drd_phy2;
+struct amlogic_usb_v2	*g_crg_drd_phy2[2];
 char name_crg[32];
 #define TUNING_DISCONNECT_THRESHOLD 0x34
 
@@ -69,14 +70,14 @@ static void set_usb_pll(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 	/**write 0x0c must write 0x78000 to 0x34**/
 	writel(TUNING_DISCONNECT_THRESHOLD, reg + 0xC);
 	/* PHY Tune */
-	if (g_crg_drd_phy2) {
-		if (g_crg_drd_phy2->phy_version) {
+	if (g_crg_drd_phy2[phy->phy_id]) {
+		if (g_crg_drd_phy2[phy->phy_id]->phy_version) {
 			writel(phy->pll_setting[3], reg + 0x50);
 			writel(0x2a, reg + 0x54);
 
 	/**phy_version == 3, 0x10 set value in usb_set_calibration_trim**/
 	/**phy_version == 3, 0x08 no longer contains the default value of 0x10**/
-			if (g_crg_drd_phy2->phy_version != 3) {
+			if (g_crg_drd_phy2[phy->phy_id]->phy_version != 3) {
 				val = readl(reg + 0x08);
 				val &= 0xfff;
 				if (val == 0)
@@ -135,12 +136,98 @@ static int amlogic_crg_drd_usb2_init(struct usb_phy *x)
 		reg0.b.POR = 1;
 		if (phy->suspend_flag == 0) {
 			reg0.b.host_device = 1;
-			if (i == phy->otg_phy_index) {
-				reg0.b.IDPULLUP0 = 1;
-				reg0.b.DRVVBUS0 = 1;
-			}
+			reg0.b.IDPULLUP0 = 1;
+			reg0.b.DRVVBUS0 = 1;
+		}
+		writel(reg0.d32, u2p_aml_regs.u2p_r_v2[0]);
+	}
+
+	usleep_range(9, 10);
+	amlogic_crg_drd_usbphy_reset_phycfg(phy, phy->portnum);
+	usleep_range(49, 50);
+
+	for (i = 0; i < phy->portnum; i++) {
+		for (j = 0; j < 2; j++) {
+			u2p_aml_regs.u2p_r_v2[j] = (void __iomem	*)
+				((unsigned long)phy->regs + i * PHY_REGISTER_SIZE
+				+ 4 * j);
+		}
+		usb_set_calibration_trim(phy->phy_cfg[i], phy);
+
+		/* ID DETECT: usb2_otg_aca_en set to 0 */
+		/* usb2_otg_iddet_en set to 1 */
+		writel(readl(phy->phy_cfg[i] + 0x54) & (~(1 << 2)),
+			(phy->phy_cfg[i] + 0x54));
+
+		reg1.d32 = readl(u2p_aml_regs.u2p_r_v2[1]);
+		cnt = 0;
+		while (reg1.b.phy_rdy != 1) {
+			reg1.d32 = readl(u2p_aml_regs.u2p_r_v2[1]);
+			/*we wait phy ready max 1ms, common is 100us*/
+			if (cnt > 200)
+				break;
+
+			cnt++;
+			udelay(5);
+		}
+	}
+
+	/* step 7: pll setting */
+	for (i = 0; i < phy->portnum; i++)
+		set_usb_pll(phy, phy->phy_cfg[i]);
+
+	if (phy->suspend_flag)
+		phy->suspend_flag = 0;
+
+	return 0;
+}
+
+int amlogic_crg_device_usb2_init(u32 phy_id)
+{
+	struct usb_phy *x;
+	int i, j, cnt;
+	struct amlogic_usb_v2 *phy;
+	struct u2p_aml_regs_v2 u2p_aml_regs;
+	union u2p_r0_v2 reg0;
+	union u2p_r1_v2 reg1;
+	u32 val;
+	u32 temp = 0;
+	u32 portnum;
+	size_t mask = 0;
+
+	x = &g_crg_drd_phy2[phy_id]->phy;
+	phy = phy_to_amlusb(x);
+	portnum = phy->portnum;
+
+	mask = (size_t)phy->reset_regs & 0xf;
+
+	if (phy->suspend_flag) {
+		if (phy->phy.flags == AML_USB2_PHY_ENABLE)
+			clk_prepare_enable(phy->clk);
+	}
+
+	for (i = 0; i < portnum; i++)
+		temp = temp | (1 << phy->phy_reset_level_bit[i]);
+
+	val = readl((void __iomem *)
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
+	writel((val | temp), (void __iomem *)
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
+
+	amlogic_crg_drd_usbphy_reset(phy);
+
+	for (i = 0; i < phy->portnum; i++) {
+		for (j = 0; j < 2; j++) {
+			u2p_aml_regs.u2p_r_v2[j] = (void __iomem	*)
+				((unsigned long)phy->regs + i * PHY_REGISTER_SIZE
+				+ 4 * j);
 		}
 
+		reg0.d32 = readl(u2p_aml_regs.u2p_r_v2[0]);
+		reg0.b.host_device = 0;
+		reg0.b.POR = 0;
+		reg0.b.IDPULLUP0 = 1;
+		reg0.b.DRVVBUS0 = 1;
 		writel(reg0.d32, u2p_aml_regs.u2p_r_v2[0]);
 	}
 
@@ -239,8 +326,10 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 	u32 phy_reset_level_bit[USB_PHY_MAX_NUMBER] = {-1};
 	u32 usb_reset_bit = 2;
 	u32 otg_phy_index = 1;
+	u32 phy_id = 0;
 	u32 val;
 	u32 usbclk_div = 0;
+	u32 ret;
 
 	prop = of_get_property(dev->of_node, "portnum", NULL);
 	if (prop)
@@ -274,6 +363,23 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 		otg_phy_index = of_read_ulong(prop, 1);
 	else
 		otg_phy_index = 1;
+
+	prop = of_get_property(dev->of_node, "phy-id", NULL);
+	if (prop)
+		phy_id = of_read_ulong(prop, 1);
+	else
+		phy_id = 0;
+
+	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
+	if (!phy)
+		return -ENOMEM;
+
+	phy->general_clk = devm_clk_get(dev, "crg_general");
+	if (IS_ERR(phy->general_clk)) {
+		ret = PTR_ERR(phy->general_clk);
+		return ret;
+	}
+	clk_prepare_enable(phy->general_clk);
 
 	phy_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	phy_base = ioremap(phy_mem->start, resource_size(phy_mem));
@@ -344,10 +450,6 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 	else
 		usb_reset_bit = 2;
 
-	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
-	if (!phy)
-		return -ENOMEM;
-
 	retval = of_property_read_u32(dev->of_node,
 		"pll-setting-1", &pll_setting[0]);
 	if (retval < 0)
@@ -415,6 +517,7 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 	phy->reset_level = reset_level;
 	phy->usb_reset_bit = usb_reset_bit;
 	phy->usb_phy_trim_reg = usb_phy_trim_reg;
+	phy->phy_id = phy_id;
 	for (i = 0; i < portnum; i++) {
 		phy->phy_cfg[i] = phy_cfg_base[i];
 		/* set port default tuning state */
@@ -440,7 +543,9 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(phy->dev);
 
-	g_crg_drd_phy2 = phy;
+	g_crg_drd_phy2[phy_id] = phy;
+
+	amlogic_crg_drd_usb2_init(&phy->phy);
 
 	return 0;
 }
