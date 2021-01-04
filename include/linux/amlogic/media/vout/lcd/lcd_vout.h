@@ -95,6 +95,7 @@ enum lcd_type_e {
 	LCD_MIPI,
 	LCD_MLVDS,
 	LCD_P2P,
+	LCD_EDP,
 	LCD_TYPE_MAX,
 };
 

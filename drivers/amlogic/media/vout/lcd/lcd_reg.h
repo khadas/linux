@@ -1715,11 +1715,11 @@ void lcd_tcon_update_bits_byte(unsigned int reg, unsigned char mask,
 int lcd_tcon_check_bits_byte(unsigned int reg, unsigned char mask,
 			     unsigned char value);
 
-unsigned int lcd_edp_read(unsigned int _reg);
-void lcd_edp_write(unsigned int _reg, unsigned int _value);
-void lcd_edp_setb(unsigned int reg, unsigned int value,
+unsigned int dptx_reg_read(unsigned int _reg);
+void dptx_reg_write(unsigned int _reg, unsigned int _value);
+void dptx_reg_setb(unsigned int reg, unsigned int value,
 		  unsigned int _start, unsigned int _len);
-unsigned int lcd_edp_getb(unsigned int reg,
+unsigned int dptx_reg_getb(unsigned int reg,
 			  unsigned int _start, unsigned int _len);
 
 unsigned int lcd_combo_dphy_read(unsigned int _reg);

@@ -1264,10 +1264,14 @@ void lcd_debug_test(unsigned int num)
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	unsigned int offset;
 
-	if (lcd_drv->data->chip_type == LCD_CHIP_T7)
-		offset = 0x800;
-	else
+	if (lcd_drv->data->chip_type == LCD_CHIP_T7) {
+		if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_LVDS)
+			offset = 0x800;
+		else
+			offset = 0;
+	} else {
 		offset = 0;
+	}
 
 	num = (num >= LCD_ENC_TST_NUM_MAX) ? 0 : num;
 
@@ -2721,6 +2725,11 @@ lcd_debug_test_store_next:
 		pr_info("invalid data\n");
 		return -EINVAL;
 	}
+	if (temp == 11) {
+		lcd_edp_debug();
+		return count;
+	}
+
 	temp = (temp >= LCD_ENC_TST_NUM_MAX) ? 0 : temp;
 	lcd_drv->lcd_test_flag = (unsigned char)(temp | LCD_TEST_UPDATE);
 	while (i++ < 5000) {
@@ -2814,9 +2823,9 @@ static void lcd_debug_reg_write(unsigned int reg, unsigned int data,
 		}
 		break;
 	case 7: /* edp */
-		lcd_edp_write(reg, data);
+		dptx_reg_write(reg, data);
 		pr_info("write edp [0x%04x] = 0x%08x, readback 0x%08x\n",
-			reg, data, lcd_edp_read(reg));
+			reg, data, dptx_reg_read(reg));
 		break;
 	case 8: /* combo dphy */
 		lcd_combo_dphy_write(reg, data);
@@ -2871,7 +2880,7 @@ static void lcd_debug_reg_read(unsigned int reg, unsigned int bus)
 		break;
 	case 7: /* edp */
 		pr_info("read edp [0x%04x] = 0x%08x\n",
-			reg, lcd_edp_read(reg));
+			reg, dptx_reg_read(reg));
 		break;
 	case 8: /* combo dphy */
 		pr_info("read combo dphy [0x%04x] = 0x%08x\n",
@@ -2952,7 +2961,7 @@ static void lcd_debug_reg_dump(unsigned int reg, unsigned int num,
 		pr_info("dump edp regs:\n");
 		for (i = 0; i < num; i++) {
 			pr_info("[0x%04x] = 0x%08x\n",
-				(reg + i), lcd_edp_read(reg + i));
+				(reg + i), dptx_reg_read(reg + i));
 		}
 		break;
 	case 8: /* combo dphy */

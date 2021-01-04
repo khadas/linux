@@ -1268,10 +1268,14 @@ static void lcd_config_default(void)
 	struct lcd_config_s *pconf;
 	unsigned int offset;
 
-	if (lcd_driver->data->chip_type == LCD_CHIP_T7)
-		offset = 0x800;
-	else
+	if (lcd_driver->data->chip_type == LCD_CHIP_T7) {
+		if (lcd_driver->lcd_config->lcd_basic.lcd_type == LCD_LVDS)
+			offset = 0x800;
+		else
+			offset = 0;
+	} else {
 		offset = 0;
+	}
 
 	pconf = lcd_driver->lcd_config;
 	pconf->lcd_basic.h_active =

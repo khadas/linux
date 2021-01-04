@@ -68,10 +68,9 @@ int lcd_ioremap(struct platform_device *pdev)
 
 	lcd_reg_map = kcalloc(LCD_MAP_MAX,
 			      sizeof(struct lcd_reg_map_s), GFP_KERNEL);
-	if (!lcd_reg_map) {
-		LCDERR("%s: lcd_reg_map buf malloc error\n", __func__);
+	if (!lcd_reg_map)
 		return -1;
-	}
+
 	table = lcd_drv->data->reg_map_table;
 	while (i < LCD_MAP_MAX) {
 		if (table[i] == LCD_MAP_MAX)
@@ -79,7 +78,7 @@ int lcd_ioremap(struct platform_device *pdev)
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res) {
-			LCDERR("%s: lcd_reg resource get error\n", __func__);
+			LCDERR("%s: resource get error\n", __func__);
 			kfree(lcd_reg_map);
 			lcd_reg_map = NULL;
 			return -1;
@@ -90,19 +89,21 @@ int lcd_ioremap(struct platform_device *pdev)
 			res->start, lcd_reg_map[table[i]].size);
 		if (!lcd_reg_map[table[i]].p) {
 			lcd_reg_map[table[i]].flag = 0;
-			LCDERR("%s: reg map failed: 0x%x\n",
-			       __func__,
-			       lcd_reg_map[table[i]].base_addr);
+			LCDERR("%s: reg %d failed: 0x%x 0x%x\n",
+			       __func__, i,
+			       lcd_reg_map[table[i]].base_addr,
+			       lcd_reg_map[table[i]].size);
 			kfree(lcd_reg_map);
 			lcd_reg_map = NULL;
 			return -1;
 		} else {
 			lcd_reg_map[table[i]].flag = 1;
 			if (lcd_debug_print_flag) {
-				LCDPR("%s: reg mapped: 0x%x -> %p\n",
-				      __func__,
+				LCDPR("%s: reg %d: 0x%x -> %p, size: 0x%x\n",
+				      __func__, i,
 				      lcd_reg_map[table[i]].base_addr,
-				      lcd_reg_map[table[i]].p);
+				      lcd_reg_map[table[i]].p,
+				      lcd_reg_map[table[i]].size);
 			}
 		}
 		i++;
@@ -222,7 +223,7 @@ static inline void __iomem *check_lcd_tcon_reg_byte(unsigned int _reg)
 	return p;
 }
 
-static inline void __iomem *check_lcd_edp_reg(unsigned int _reg)
+static inline void __iomem *check_dptx_reg(unsigned int _reg)
 {
 	void __iomem *p;
 	int reg_bus;
@@ -232,10 +233,10 @@ static inline void __iomem *check_lcd_edp_reg(unsigned int _reg)
 	if (check_lcd_ioremap(reg_bus))
 		return NULL;
 
-	reg_offset = LCD_REG_OFFSET(_reg);
+	reg_offset = _reg; /* don't left shift */
 
 	if (reg_offset >= lcd_reg_map[reg_bus].size) {
-		LCDERR("invalid periphs reg offset: 0x%04x\n", _reg);
+		LCDERR("invalid dptx reg offset: 0x%04x\n", _reg);
 		return NULL;
 	}
 	p = lcd_reg_map[reg_bus].p + reg_offset;
@@ -255,7 +256,7 @@ static inline void __iomem *check_lcd_combo_dphy_reg(unsigned int _reg)
 	reg_offset = LCD_REG_OFFSET(_reg);
 
 	if (reg_offset >= lcd_reg_map[reg_bus].size) {
-		LCDERR("invalid periphs reg offset: 0x%04x\n", _reg);
+		LCDERR("invalid combo dphy reg offset: 0x%04x\n", _reg);
 		return NULL;
 	}
 	p = lcd_reg_map[reg_bus].p + reg_offset;
@@ -275,7 +276,7 @@ static inline void __iomem *check_lcd_rst_reg(unsigned int _reg)
 	reg_offset = LCD_REG_OFFSET(_reg);
 
 	if (reg_offset >= lcd_reg_map[reg_bus].size) {
-		LCDERR("invalid periphs reg offset: 0x%04x\n", _reg);
+		LCDERR("invalid reset reg offset: 0x%04x\n", _reg);
 		return NULL;
 	}
 	p = lcd_reg_map[reg_bus].p + reg_offset;
@@ -744,38 +745,38 @@ int lcd_tcon_check_bits_byte(unsigned int reg,
 	return temp;
 }
 
-unsigned int lcd_edp_read(unsigned int _reg)
+unsigned int dptx_reg_read(unsigned int _reg)
 {
 	void __iomem *p;
 
-	p = check_lcd_edp_reg(_reg);
+	p = check_dptx_reg(_reg);
 	if (p)
 		return readl(p);
 	else
 		return -1;
 };
 
-void lcd_edp_write(unsigned int _reg, unsigned int _value)
+void dptx_reg_write(unsigned int _reg, unsigned int _value)
 {
 	void __iomem *p;
 
-	p = check_lcd_edp_reg(_reg);
+	p = check_dptx_reg(_reg);
 	if (p)
 		writel(_value, p);
 };
 
-void lcd_edp_setb(unsigned int reg, unsigned int value,
+void dptx_reg_setb(unsigned int reg, unsigned int value,
 		  unsigned int _start, unsigned int _len)
 {
-	lcd_edp_write(reg, ((lcd_edp_read(reg) &
+	dptx_reg_write(reg, ((dptx_reg_read(reg) &
 			    (~(((1L << _len) - 1) << _start))) |
 			    ((value & ((1L << _len) - 1)) << _start)));
 }
 
-unsigned int lcd_edp_getb(unsigned int reg,
+unsigned int dptx_reg_getb(unsigned int reg,
 			  unsigned int _start, unsigned int _len)
 {
-	return (lcd_edp_read(reg) >> _start) & ((1L << _len) - 1);
+	return (dptx_reg_read(reg) >> _start) & ((1L << _len) - 1);
 }
 
 unsigned int lcd_combo_dphy_read(unsigned int _reg)

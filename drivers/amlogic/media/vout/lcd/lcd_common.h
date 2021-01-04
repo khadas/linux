@@ -94,6 +94,7 @@ int lcd_debug_remove(void);
 
 void lcd_display_init_test(void);
 void lcd_display_init_reg_dump(void);
+void lcd_edp_debug(void);
 
 /* lcd driver */
 #ifdef CONFIG_AMLOGIC_LCD_TV

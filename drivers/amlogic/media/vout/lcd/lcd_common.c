@@ -43,6 +43,7 @@ static struct lcd_type_match_s lcd_type_match_table[] = {
 	{"mipi",     LCD_MIPI},
 	{"minilvds", LCD_MLVDS},
 	{"p2p",      LCD_P2P},
+	{"edp",      LCD_EDP},
 	{"invalid",  LCD_TYPE_MAX},
 };
 
