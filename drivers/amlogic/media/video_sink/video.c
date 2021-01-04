@@ -944,7 +944,7 @@ static void dump_vpp_blend_reg(void)
 	u32 reg_addr, reg_val = 0;
 
 	for (i = 0; i < cur_dev->max_vd_layers; i++) {
-		pr_info("vd%d pps regs:\n", i);
+		pr_info("vd%d pps blend regs:\n", i);
 		reg_addr = vd_layer[i].vpp_blend_reg.preblend_h_start_end;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("preblend_h_start_end[0x%x] = 0x%X\n",
@@ -1163,6 +1163,35 @@ static void dump_vpp_misc_reg(void)
 	reg_addr = viu_misc_reg.vpp_misc1;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("vpp_misc1[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+}
+
+static void dump_zorder_reg(void)
+{
+	u32 reg_addr, reg_val = 0;
+
+	if (!cur_dev->t7_display)
+		return;
+	pr_info("vpp zorder reg:\n");
+	reg_addr = VD1_BLEND_SRC_CTRL;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VD1_BLEND_SRC_CTRL[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = VD2_BLEND_SRC_CTRL;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VD2_BLEND_SRC_CTRL[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = VD3_BLEND_SRC_CTRL;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("VD3_BLEND_SRC_CTRL[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = OSD1_BLEND_SRC_CTRL;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("OSD1_BLEND_SRC_CTRL[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = OSD2_BLEND_SRC_CTRL;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("OSD2_BLEND_SRC_CTRL[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
 }
 
@@ -12491,6 +12520,62 @@ static ssize_t hscaler_8tap_enable_store
 	return count;
 }
 
+static ssize_t pip_hscaler_8tap_enable_show
+	(struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 64, "pip hscaler_8tap_en: %d\n\n",
+		hscaler_8tap_enable[1]);
+}
+
+static ssize_t pip_hscaler_8tap_enable_store
+	(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int ret;
+	int hscaler_8tap_en;
+
+	ret = kstrtoint(buf, 0, &hscaler_8tap_en);
+	if (ret < 0)
+		return -EINVAL;
+
+	if (amvideo_meson_dev.has_hscaler_8tap[1] &&
+	    hscaler_8tap_en != hscaler_8tap_enable[1]) {
+		hscaler_8tap_enable[1] = hscaler_8tap_en;
+	}
+	return count;
+}
+
+static ssize_t pip2_hscaler_8tap_enable_show
+	(struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 64, "pip2_hscaler_8tap_en: %d\n\n",
+		hscaler_8tap_enable[2]);
+}
+
+static ssize_t pip2_hscaler_8tap_enable_store
+	(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int ret;
+	int hscaler_8tap_en;
+
+	ret = kstrtoint(buf, 0, &hscaler_8tap_en);
+	if (ret < 0)
+		return -EINVAL;
+
+	if (amvideo_meson_dev.has_hscaler_8tap[2] &&
+	    hscaler_8tap_en != hscaler_8tap_enable[2]) {
+		hscaler_8tap_enable[2] = hscaler_8tap_en;
+	}
+	return count;
+}
+
 static ssize_t pre_hscaler_ntap_enable_show
 	(struct class *cla,
 	struct class_attribute *attr,
@@ -12705,6 +12790,7 @@ static ssize_t reg_dump_store(struct class *cla,
 		dump_vpp_blend_reg();
 		dump_vpp_path_size_reg();
 		dump_vpp_misc_reg();
+		dump_zorder_reg();
 		dump_fgrain_reg();
 	}
 	return count;
@@ -12986,6 +13072,14 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       hscaler_8tap_enable_show,
 	       hscaler_8tap_enable_store),
+	__ATTR(pip_hscaler_8tap_en,
+	       0664,
+	       pip_hscaler_8tap_enable_show,
+	       pip_hscaler_8tap_enable_store),
+	__ATTR(pip2_hscaler_8tap_en,
+	       0664,
+	       pip2_hscaler_8tap_enable_show,
+	       pip2_hscaler_8tap_enable_store),
 	__ATTR(pre_hscaler_ntap_en,
 	       0664,
 	       pre_hscaler_ntap_enable_show,

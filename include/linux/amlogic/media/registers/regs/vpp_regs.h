@@ -461,6 +461,8 @@
 #define MALI_AFBCD1_TOP_CTRL                       0x1a55
 #define MALI_AFBCD2_TOP_CTRL                       0x1a56
 #define VD_PATH_MISC_CTRL                          0x1a7a
+#define T7_VD2_PPS_DUMMY_DATA                      0x1a81
+#define VD3_PPS_DUMMY_DATA                         0x1a82
 #define VPP_VD1_DSC_CTRL                           0x1a83
 #define VPP_VD2_DSC_CTRL                           0x1a84
 #define VPP_VD3_DSC_CTRL                           0x1a85

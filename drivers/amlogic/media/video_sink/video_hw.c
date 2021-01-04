@@ -950,7 +950,7 @@ static u32 viu_line_stride(u32 pixel_bits, u32 hsize)
 	ali_32b = (hsize * pixel_bits + 255) >> 8;
 	ali_32b = ali_32b << 1;
 	if (line_stride != ali_32b)
-		pr_err("burst mismatch !!!!! line_stride=%d,ali_32b=%d\n",
+		pr_debug("burst mismatch !!!!! line_stride=%d,ali_32b=%d\n",
 		line_stride, ali_32b);
 
 	return line_stride;
@@ -3270,7 +3270,7 @@ static void proc_vd1_vsc_phase_per_vsync(struct video_layer_s *layer,
 	vpp_filter = &frame_par->vpp_filter;
 	misc_off = layer->misc_reg_offt;
 	vin_type = vf->type & VIDTYPE_TYPEMASK;
-	vd_pps_reg = &vd_layer[2].pps_reg;
+	vd_pps_reg = &vd_layer[0].pps_reg;
 
 	/* vertical phase */
 	vphase = &frame_par->VPP_vf_ini_phase_
@@ -7001,6 +7001,10 @@ int video_hw_init(void)
 		cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/*black 10bit*/
 		WRITE_VCBUS_REG(VPP_DUMMY_DATA, 0x4080200);
+		if (cur_dev->t7_display) {
+			WRITE_VCBUS_REG(T7_VD2_PPS_DUMMY_DATA, 0x4080200);
+			WRITE_VCBUS_REG(VD3_PPS_DUMMY_DATA, 0x4080200);
+		}
 	}
 	/* temp: enable VPU arb mem */
 	vd1_vpu_dev = vpu_dev_register(VPU_VIU_VD1, "VD1");

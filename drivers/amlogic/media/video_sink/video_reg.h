@@ -100,8 +100,8 @@ struct hw_pps_reg_s {
 	u32 vd_vsc_start_phase_step;
 	u32 vd_vsc_region1_phase_slope;
 	u32 vd_vsc_region3_phase_slope;
-	u32 vd_vsc_init_phase;
 	u32 vd_vsc_phase_ctrl;
+	u32 vd_vsc_init_phase;
 	u32 vd_hsc_region12_startp;
 	u32 vd_hsc_region34_startp;
 	u32 vd_hsc_region4_endp;
