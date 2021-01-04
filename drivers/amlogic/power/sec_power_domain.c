@@ -18,6 +18,7 @@ struct sec_pm_domain {
 	struct generic_pm_domain base;
 	int pd_index;
 	bool pd_status;
+	int pd_parent;
 };
 
 struct sec_pm_domain_data {
@@ -49,7 +50,7 @@ static int sec_pm_domain_power_on(struct generic_pm_domain *genpd)
 	return 0;
 }
 
-#define POWER_DOMAIN(_name, index, status, flag)		\
+#define TOP_DOMAIN(_name, index, status, flag, parent)		\
 {					\
 		.base = {					\
 			.name = #_name,				\
@@ -59,7 +60,11 @@ static int sec_pm_domain_power_on(struct generic_pm_domain *genpd)
 		},						\
 		.pd_index = index,				\
 		.pd_status = status,				\
+		.pd_parent = parent,				\
 }
+
+#define POWER_DOMAIN(_name, index, status, flag)	\
+	TOP_DOMAIN(_name, index, status, flag, 0)
 
 static struct sec_pm_domain a1_pm_domains[] = {
 	[PDID_A1_CPU_PWR0] = POWER_DOMAIN(cpu_pwr0, PDID_A1_CPU_PWR0, DOMAIN_INIT_ON,
@@ -182,16 +187,17 @@ static struct sec_pm_domain_data t5_pm_domain_data = {
 static struct sec_pm_domain t7_pm_domains[] = {
 	[PDID_T7_DSPA] = POWER_DOMAIN(dspa, PDID_T7_DSPA, DOMAIN_INIT_OFF, 0),
 	[PDID_T7_DSPB] = POWER_DOMAIN(dspb, PDID_T7_DSPB, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_DOS_HCODEC] = POWER_DOMAIN(hcodec, PDID_T7_DOS_HCODEC, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_T7_DOS_HEVC, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_T7_DOS_VDEC, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_DOS_WAVE] = POWER_DOMAIN(wave, PDID_T7_DOS_WAVE, DOMAIN_INIT_OFF, 0),
+	[PDID_T7_DOS_HCODEC] = TOP_DOMAIN(hcodec, PDID_T7_DOS_HCODEC, DOMAIN_INIT_OFF, 0,
+					  PDID_T7_NIC3),
+	[PDID_T7_DOS_HEVC] = TOP_DOMAIN(hevc, PDID_T7_DOS_HEVC, DOMAIN_INIT_OFF, 0, PDID_T7_NIC3),
+	[PDID_T7_DOS_VDEC] = TOP_DOMAIN(vdec, PDID_T7_DOS_VDEC, DOMAIN_INIT_OFF, 0, PDID_T7_NIC3),
+	[PDID_T7_DOS_WAVE] = TOP_DOMAIN(wave, PDID_T7_DOS_WAVE, DOMAIN_INIT_OFF, 0, PDID_T7_NIC3),
 	[PDID_T7_VPU_HDMI] = POWER_DOMAIN(vpu, PDID_T7_VPU_HDMI, DOMAIN_INIT_ON,
 					  GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_USB_COMB] = POWER_DOMAIN(usb, PDID_T7_USB_COMB, DOMAIN_INIT_ON,
 					  GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_PCIE] = POWER_DOMAIN(pcie, PDID_T7_PCIE, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_GE2D] = POWER_DOMAIN(ge2d, PDID_T7_GE2D, DOMAIN_INIT_OFF, 0),
+	[PDID_T7_GE2D] = TOP_DOMAIN(ge2d, PDID_T7_GE2D, DOMAIN_INIT_OFF, 0, PDID_T7_NIC3),
 	[PDID_T7_SRAMA] = POWER_DOMAIN(srama, PDID_T7_SRAMA, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_SRAMB] = POWER_DOMAIN(sramb, PDID_T7_SRAMB, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_HDMIRX] = POWER_DOMAIN(hdmirx, PDID_T7_HDMIRX, DOMAIN_INIT_OFF, 0),
@@ -202,22 +208,30 @@ static struct sec_pm_domain t7_pm_domains[] = {
 	[PDID_T7_ETH] = POWER_DOMAIN(eth, PDID_T7_ETH, DOMAIN_INIT_OFF, 0),
 	[PDID_T7_ISP] = POWER_DOMAIN(isp, PDID_T7_ISP, DOMAIN_INIT_OFF, 0),
 	[PDID_T7_MIPI_ISP] = POWER_DOMAIN(mipi_isp, PDID_T7_MIPI_ISP, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_GDC] = POWER_DOMAIN(gdc, PDID_T7_GDC, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_DEWARP] = POWER_DOMAIN(dewarp, PDID_T7_DEWARP, DOMAIN_INIT_OFF, 0),
+	[PDID_T7_GDC] = TOP_DOMAIN(gdc, PDID_T7_GDC, DOMAIN_INIT_OFF, 0, PDID_T7_NIC3),
+	[PDID_T7_DEWARP] = TOP_DOMAIN(dewarp, PDID_T7_DEWARP, DOMAIN_INIT_OFF, 0, PDID_T7_NIC3),
 	[PDID_T7_SDIO_A] = POWER_DOMAIN(sdio_a, PDID_T7_SDIO_A,
 					DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_SDIO_B] = POWER_DOMAIN(sdio_b, PDID_T7_SDIO_B,
 					DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_EMMC] = POWER_DOMAIN(emmc, PDID_T7_EMMC, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
-	[PDID_T7_MALI_SC0] = POWER_DOMAIN(mali_sc0, PDID_T7_MALI_SC0, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_MALI_SC1] = POWER_DOMAIN(mali_sc1, PDID_T7_MALI_SC1, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_MALI_SC2] = POWER_DOMAIN(mali_sc2, PDID_T7_MALI_SC2, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_MALI_SC3] = POWER_DOMAIN(mali_sc3, PDID_T7_MALI_SC3, DOMAIN_INIT_OFF, 0),
+	[PDID_T7_MALI_SC0] = TOP_DOMAIN(mali_sc0, PDID_T7_MALI_SC0, DOMAIN_INIT_OFF, 0,
+					PDID_T7_MALI_TOP),
+	[PDID_T7_MALI_SC1] = TOP_DOMAIN(mali_sc1, PDID_T7_MALI_SC1, DOMAIN_INIT_OFF, 0,
+					PDID_T7_MALI_TOP),
+	[PDID_T7_MALI_SC2] = TOP_DOMAIN(mali_sc2, PDID_T7_MALI_SC2, DOMAIN_INIT_OFF, 0,
+					PDID_T7_MALI_TOP),
+	[PDID_T7_MALI_SC3] = TOP_DOMAIN(mali_sc3, PDID_T7_MALI_SC3, DOMAIN_INIT_OFF, 0,
+					PDID_T7_MALI_TOP),
 	[PDID_T7_MALI_TOP] = POWER_DOMAIN(mali_top, PDID_T7_MALI_TOP, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_NNA_CORE0] = POWER_DOMAIN(nna_core0, PDID_T7_NNA_CORE0, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_NNA_CORE1] = POWER_DOMAIN(nna_core1, PDID_T7_NNA_CORE1, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_NNA_CORE2] = POWER_DOMAIN(nna_core2, PDID_T7_NNA_CORE2, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_NNA_CORE3] = POWER_DOMAIN(nna_core3, PDID_T7_NNA_CORE3, DOMAIN_INIT_OFF, 0),
+	[PDID_T7_NNA_CORE0] = TOP_DOMAIN(nna_core0, PDID_T7_NNA_CORE0, DOMAIN_INIT_OFF, 0,
+					 PDID_T7_NNA_TOP),
+	[PDID_T7_NNA_CORE1] = TOP_DOMAIN(nna_core1, PDID_T7_NNA_CORE1, DOMAIN_INIT_OFF, 0,
+					 PDID_T7_NNA_TOP),
+	[PDID_T7_NNA_CORE2] = TOP_DOMAIN(nna_core2, PDID_T7_NNA_CORE2, DOMAIN_INIT_OFF, 0,
+					 PDID_T7_NNA_TOP),
+	[PDID_T7_NNA_CORE3] = TOP_DOMAIN(nna_core3, PDID_T7_NNA_CORE3, DOMAIN_INIT_OFF, 0,
+					 PDID_T7_NNA_TOP),
 	[PDID_T7_NNA_TOP] = POWER_DOMAIN(nna_top, PDID_T7_NNA_TOP, DOMAIN_INIT_OFF, 0),
 	[PDID_T7_DDR0] = POWER_DOMAIN(ddr0, PDID_T7_DDR0, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_DDR1] = POWER_DOMAIN(ddr1, PDID_T7_DDR1, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
@@ -225,7 +239,7 @@ static struct sec_pm_domain t7_pm_domains[] = {
 	[PDID_T7_DMC1] = POWER_DOMAIN(dmc1, PDID_T7_DMC1, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_NOC] = POWER_DOMAIN(noc, PDID_T7_NOC, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_NIC2] = POWER_DOMAIN(nic2, PDID_T7_NIC2, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
-	[PDID_T7_NIC3] = POWER_DOMAIN(nic3, PDID_T7_NIC3, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T7_NIC3] = POWER_DOMAIN(nic3, PDID_T7_NIC3, DOMAIN_INIT_OFF, 0),
 	[PDID_T7_CCI] = POWER_DOMAIN(cci, PDID_T7_CCI, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_MIPI_DSI0] = POWER_DOMAIN(mipi_dsi0, PDID_T7_MIPI_DSI0,
 					   DOMAIN_INIT_ON,
@@ -308,6 +322,15 @@ static int sec_pd_probe(struct platform_device *pdev)
 			pm_genpd_init(&pd->base, NULL, init_status);
 
 		sec_pd_onecell_data->domains[i] = &pd->base;
+	}
+
+	for (i = 0; i < match->domains_count; i++) {
+		pd = &match->domains[i];
+
+		if (!pd->pd_parent)
+			continue;
+
+		pm_genpd_add_subdomain(&match->domains[pd->pd_parent].base, &pd->base);
 	}
 
 	pd_dev_create_file(&pdev->dev, 0, sec_pd_onecell_data->num_domains,
