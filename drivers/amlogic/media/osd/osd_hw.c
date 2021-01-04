@@ -4701,7 +4701,7 @@ static void osd_set_two_ports(bool set)
 {
 	static u32 data32[2];
 
-	if (osd_dev_hw.has_multi_vpp)
+	if (osd_dev_hw.t7_display)
 		return;
 	if (set) {
 		data32[0] = osd_reg_read(VPP_RDARB_MODE);
