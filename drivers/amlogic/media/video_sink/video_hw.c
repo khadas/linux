@@ -938,23 +938,13 @@ static void vdx_path_select(struct video_layer_s *layer,
 	}
 }
 
-static u32 viu_line_stride(u32 pixel_bits, u32 hsize)
+static u32 viu_line_stride(u32 buffr_width)
 {
 	u32 line_stride;
-	u32 ali_32b;
 
-	/* 64 byte align */
-	line_stride = (hsize * pixel_bits + 511) >> 9;
+	/* input: buffer width not hsize */
 	/* 1 stride = 16 byte */
-	line_stride = line_stride << 2;
-
-	/* 32 byte align */
-	ali_32b = (hsize * pixel_bits + 255) >> 8;
-	ali_32b = ali_32b << 1;
-	if (line_stride != ali_32b)
-		pr_debug("burst mismatch !!!!! line_stride=%d,ali_32b=%d\n",
-		line_stride, ali_32b);
-
+	line_stride = (buffr_width + 15) / 16;
 	return line_stride;
 }
 
@@ -962,28 +952,20 @@ static void set_vd_mif_linear_cs(struct video_layer_s *layer,
 				   struct canvas_s *cs0,
 				   struct canvas_s *cs1,
 				   struct canvas_s *cs2,
-				   u32 type)
+				   struct vframe_s *vf)
 {
 	u32 y_line_stride;
 	u32 c_line_stride;
-	int y_bits = 8, c_bits, y_hsize, c_hsize, bpp = 1;
+	int y_buffer_width, c_buffer_width;
 	u64 baddr_y, baddr_cb, baddr_cr;
 	struct hw_vd_linear_reg_s *vd_mif_linear_reg = &layer->vd_mif_linear_reg;
 
-	if ((type & VIDTYPE_VIU_444) ||
-		    (type & VIDTYPE_RGB_444) ||
-		    (type & VIDTYPE_VIU_422)) {
-		if ((type & VIDTYPE_VIU_444) ||
-			    (type & VIDTYPE_RGB_444)) {
-			y_bits = 24;
-			bpp = 3;
-		} else if (type & VIDTYPE_VIU_422) {
-			y_bits = 16;
-			bpp = 2;
-		}
+	if ((vf->type & VIDTYPE_VIU_444) ||
+		    (vf->type & VIDTYPE_RGB_444) ||
+		    (vf->type & VIDTYPE_VIU_422)) {
 		baddr_y = cs0->addr;
-		y_hsize = cs0->width;
-		y_line_stride = viu_line_stride(y_bits, y_hsize / bpp);
+		y_buffer_width = cs0->width;
+		y_line_stride = viu_line_stride(y_buffer_width);
 		baddr_cb = 0;
 		baddr_cr = 0;
 		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_y,
@@ -998,15 +980,13 @@ static void set_vd_mif_linear_cs(struct video_layer_s *layer,
 			1 << 16 | 0);
 	} else {
 		baddr_y = cs0->addr;
-		y_hsize = cs0->width;
-		y_bits = 8;
+		y_buffer_width = cs0->width;
 		baddr_cb = cs1->addr;
-		c_hsize = cs1->width;
-		c_bits = 8;
+		c_buffer_width = cs1->width;
 		baddr_cr = cs2->addr;
 
-		y_line_stride = viu_line_stride(y_bits, y_hsize);
-		c_line_stride = viu_line_stride(c_bits, c_hsize);
+		y_line_stride = viu_line_stride(y_buffer_width);
+		c_line_stride = viu_line_stride(c_buffer_width);
 		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_y,
 			baddr_y >> 4);
 		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_cb,
@@ -1023,25 +1003,20 @@ static void set_vd_mif_linear_cs(struct video_layer_s *layer,
 static void set_vd_mif_linear(struct video_layer_s *layer,
 				   struct canvas_config_s *config,
 				   u32 planes,
-				   u32 type)
+				   struct vframe_s *vf)
 {
 	u32 y_line_stride;
 	u32 c_line_stride;
-	int y_bits = 8, c_bits, y_hsize, c_hsize;
+	int y_buffer_width, c_buffer_width;
 	u64 baddr_y, baddr_cb, baddr_cr;
 	struct hw_vd_linear_reg_s *vd_mif_linear_reg = &layer->vd_mif_linear_reg;
 	struct canvas_config_s *cfg = config;
 
 	switch (planes) {
 	case 1:
-		if ((type & VIDTYPE_VIU_444) ||
-			    (type & VIDTYPE_RGB_444))
-			y_bits = 24;
-		else if (type & VIDTYPE_VIU_422)
-			y_bits = 16;
 		baddr_y = cfg->phy_addr;
-		y_hsize = cfg->width;
-		y_line_stride = viu_line_stride(y_bits, y_hsize);
+		y_buffer_width = cfg->width;
+		y_line_stride = viu_line_stride(y_buffer_width);
 		baddr_cb = 0;
 		baddr_cr = 0;
 		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_y,
@@ -1057,15 +1032,13 @@ static void set_vd_mif_linear(struct video_layer_s *layer,
 		break;
 	case 2:
 		baddr_y = cfg->phy_addr;
-		y_hsize = cfg->width;
-		y_bits = 8;
+		y_buffer_width = cfg->width;
 		cfg++;
 		baddr_cb = cfg->phy_addr;
-		c_hsize = cfg->width;
-		c_bits = 8;
+		c_buffer_width = cfg->width;
 		baddr_cr = 0;
-		y_line_stride = viu_line_stride(y_bits, y_hsize);
-		c_line_stride = viu_line_stride(c_bits, c_hsize);
+		y_line_stride = viu_line_stride(y_buffer_width);
+		c_line_stride = viu_line_stride(c_buffer_width);
 		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_y,
 			baddr_y >> 4);
 		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_cb,
@@ -1076,21 +1049,17 @@ static void set_vd_mif_linear(struct video_layer_s *layer,
 			y_line_stride | c_line_stride << 16);
 		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_stride_1,
 			1 << 16 | c_line_stride);
-
 		break;
 	case 3:
 		baddr_y = cfg->phy_addr;
-		y_hsize = cfg->width;
-		y_bits = 8;
+		y_buffer_width = cfg->width;
 		cfg++;
 		baddr_cb = cfg->phy_addr;
-		c_hsize = cfg->width;
-		c_bits = 8;
+		c_buffer_width = cfg->width;
 		cfg++;
 		baddr_cr = cfg->phy_addr;
-
-		y_line_stride = viu_line_stride(y_bits, y_hsize);
-		c_line_stride = viu_line_stride(c_bits, c_hsize);
+		y_line_stride = viu_line_stride(y_buffer_width);
+		c_line_stride = viu_line_stride(c_buffer_width);
 		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_y,
 			baddr_y >> 4);
 		VSYNC_WR_MPEG_REG(vd_mif_linear_reg->vd_if0_baddr_cb,
@@ -5858,7 +5827,7 @@ int set_layer_display_canvas(u8 layer_id,
 				canvas_read(cur_canvas_tbl[2], &cs2);
 				set_vd_mif_linear_cs(layer,
 					&cs0, &cs1, &cs2,
-					vf->type);
+					vf);
 			}
 		} else {
 			vframe_canvas_set
@@ -5869,7 +5838,7 @@ int set_layer_display_canvas(u8 layer_id,
 				set_vd_mif_linear(layer,
 					&vf->canvas0_config[0],
 					vf->plane_num,
-					vf->type);
+					vf);
 				vd_layer[layer_id].mif_setting.block_mode =
 					vf->canvas0_config[0].block_mode;
 			}
@@ -5893,7 +5862,7 @@ int set_layer_display_canvas(u8 layer_id,
 					canvas_read(cur_canvas_tbl[5], &cs2);
 					set_vd_mif_linear_cs(layer,
 						&cs0, &cs1, &cs2,
-						vf->type);
+						vf);
 				}
 			} else {
 				vframe_canvas_set
@@ -5904,7 +5873,7 @@ int set_layer_display_canvas(u8 layer_id,
 					set_vd_mif_linear(layer,
 						&vf->canvas1_config[0],
 						vf->plane_num,
-						vf->type);
+						vf);
 				vd_layer[1].mif_setting.block_mode =
 					vf->canvas1_config[0].block_mode;
 				}
