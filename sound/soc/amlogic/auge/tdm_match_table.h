@@ -102,6 +102,19 @@ struct src_table tdmin_srcs_v2[] = {
 	{ /* sentinel */ }
 };
 
+/* t7 afterwards */
+struct src_table tdmin_srcs_v3[] = {
+	TDMIN_SRC_CONFIG(SRC_TDMIN_A, 0),
+	TDMIN_SRC_CONFIG(SRC_TDMIN_B, 1),
+	TDMIN_SRC_CONFIG(SRC_TDMIN_C, 2),
+	TDMIN_SRC_CONFIG(SRC_HDMIRX, 6),
+	TDMIN_SRC_CONFIG(SRC_ACODEC, 7),
+	TDMIN_SRC_CONFIG(SRC_TDMOUT_A, 12),
+	TDMIN_SRC_CONFIG(SRC_TDMOUT_B, 13),
+	TDMIN_SRC_CONFIG(SRC_TDMOUT_B, 14),
+	{ /* sentinel */ }
+};
+
 struct tdm_chipinfo g12a_tdma_chipinfo = {
 	.id          = TDM_A,
 	.sclk_ws_inv = true,
@@ -333,6 +346,51 @@ struct tdm_chipinfo t5_tdmc_chipinfo = {
 	.chnum_en = false,
 };
 
+struct tdm_chipinfo t7_tdma_chipinfo = {
+	.id          = TDM_A,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = true,
+	.adc_fn      = true,
+	.lane_cnt    = LANE_MAX1,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
+	.separate_tohdmitx_en = true,
+	.tdmin_srcs = &tdmin_srcs_v3[0],
+	.slot_num_en = true,
+	.chnum_en = false,
+};
+
+struct tdm_chipinfo t7_tdmb_chipinfo = {
+	.id          = TDM_B,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = true,
+	.adc_fn      = true,
+	.lane_cnt    = LANE_MAX1,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
+	.separate_tohdmitx_en = true,
+	.tdmin_srcs = &tdmin_srcs_v3[0],
+	.slot_num_en = true,
+	.chnum_en = false,
+};
+
+struct tdm_chipinfo t7_tdmc_chipinfo = {
+	.id          = TDM_C,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = true,
+	.adc_fn      = true,
+	.lane_cnt    = LANE_MAX1,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
+	.separate_tohdmitx_en = true,
+	.tdmin_srcs = &tdmin_srcs_v3[0],
+	.slot_num_en = true,
+	.chnum_en = false,
+};
+
 static const struct of_device_id aml_tdm_device_id[] = {
 	{
 		.compatible = "amlogic, g12a-snd-tdma",
@@ -405,6 +463,18 @@ static const struct of_device_id aml_tdm_device_id[] = {
 	{
 		.compatible = "amlogic, t5-snd-tdmc",
 		.data       = &t5_tdmc_chipinfo,
+	},
+	{
+		.compatible = "amlogic, t7-snd-tdma",
+		.data       = &t7_tdma_chipinfo,
+	},
+	{
+		.compatible = "amlogic, t7-snd-tdmb",
+		.data       = &t7_tdmb_chipinfo,
+	},
+	{
+		.compatible = "amlogic, t7-snd-tdmc",
+		.data       = &t7_tdmc_chipinfo,
 	},
 	{}
 };

@@ -444,7 +444,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/
-		//avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		avout_mute-gpios = <&gpio GPIOH_2 GPIO_ACTIVE_HIGH>;
 		//spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
 
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
@@ -479,7 +479,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmacodec: codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&acodec>;
 				//prefix-names = "AMP", "AMP1";
 				//sound-dai = <&ad82584f &ad82584f1 &tl1_codec>;
 			};
@@ -667,7 +667,7 @@
 
 &audiobus {
 	tdma:tdm@0 {
-		compatible = "amlogic, t5-snd-tdma";
+		compatible = "amlogic, t7-snd-tdma";
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0>;
@@ -711,7 +711,7 @@
 	};
 
 	tdmb:tdm@1 {
-		compatible = "amlogic, t5-snd-tdmb";
+		compatible = "amlogic, t7-snd-tdmb";
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0 0 0>;
@@ -726,7 +726,7 @@
 	};
 
 	tdmc:tdm@2 {
-		compatible = "amlogic, t5-snd-tdmc";
+		compatible = "amlogic, t7-snd-tdmc";
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0 0 0>;
