@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Amlogic Meson-SC2 Clock Controller Driver
+ * Amlogic Meson-T7 Clock Controller Driver
  *
  * Copyright (c) 2018 Amlogic, inc.
  */
@@ -765,13 +765,22 @@ static struct clk_regmap t7_mclk_pll_dco = {
 	},
 };
 
+/* max div is 16 */
+static const struct clk_div_table mclk_div[] = {
+	{ .val = 0, .div = 1 },
+	{ .val = 1, .div = 2 },
+	{ .val = 2, .div = 4 },
+	{ .val = 3, .div = 8 },
+	{ .val = 4, .div = 16 },
+	{ /* sentinel */ }
+};
+
 static struct clk_regmap t7_mclk_pre_od = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = ANACTRL_MCLK_PLL_CNTL0,
 		.shift = 12,
 		.width = 3,
-		.flags = (CLK_DIVIDER_POWER_OF_TWO |
-			  CLK_DIVIDER_ROUND_CLOSEST),
+		.table = mclk_div,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mclk_pre_od",
@@ -1736,6 +1745,7 @@ static struct clk_regmap t7_rtc_clk = {
 
 /* sys clk */
 static u32 mux_table_sys_ab_clk_sel[] = { 0, 1, 2, 3, 4, 5, 7 };
+
 static const char * const sys_ab_clk_parent_names[] = {
 	"xtal", "fclk_div2", "fclk_div3", "fclk_div4",
 	"fclk_div5", "axi_clk_frcpu", "rtc_clk"
@@ -6930,17 +6940,28 @@ static struct clk_regmap t7_mclk_0_sel = {
 	},
 };
 
-static struct clk_regmap t7_mclk_0_div = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = ANACTRL_MCLK_PLL_CNTL4,
-		.shift = 2,
-		.width = 1,
-	},
+static struct clk_fixed_factor t7_mclk_0_div2 = {
+	.mult = 1,
+	.div = 2,
 	.hw.init = &(struct clk_init_data){
-		.name = "mclk_0_div",
-		.ops = &clk_regmap_divider_ro_ops,
+		.name = "mclk_0_div2",
+		.ops = &clk_fixed_factor_ops,
+		.parent_hws = (const struct clk_hw *[]) { &t7_mclk_0_sel.hw },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap t7_mclk_0_pre = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = ANACTRL_MCLK_PLL_CNTL4,
+		.bit_idx = 2,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "mclk_0_pre",
+		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&t7_mclk_0_sel.hw
+			&t7_mclk_0_div2.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -6954,9 +6975,9 @@ static struct clk_regmap t7_mclk_0 = {
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "mclk_0",
-		.ops = &clk_regmap_gate_ro_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&t7_mclk_0_sel.hw
+			&t7_mclk_0_pre.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -6982,17 +7003,28 @@ static struct clk_regmap t7_mclk_1_sel = {
 	},
 };
 
-static struct clk_regmap t7_mclk_1_div = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = ANACTRL_MCLK_PLL_CNTL4,
-		.shift = 10,
-		.width = 1,
-	},
+static struct clk_fixed_factor t7_mclk_1_div2 = {
+	.mult = 1,
+	.div = 2,
 	.hw.init = &(struct clk_init_data){
-		.name = "mclk_1_div",
-		.ops = &clk_regmap_divider_ro_ops,
+		.name = "mclk_1_div2",
+		.ops = &clk_fixed_factor_ops,
+		.parent_hws = (const struct clk_hw *[]) { &t7_mclk_1_sel.hw },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap t7_mclk_1_pre = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = ANACTRL_MCLK_PLL_CNTL4,
+		.bit_idx = 10,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "mclk_1_pre",
+		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&t7_mclk_1_sel.hw
+			&t7_mclk_1_div2.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -7006,16 +7038,16 @@ static struct clk_regmap t7_mclk_1 = {
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "mclk_1",
-		.ops = &clk_regmap_gate_ro_ops,
+		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&t7_mclk_1_sel.hw
+			&t7_mclk_1_pre.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-#define MESON_SC2_SYS_GATE(_name, _reg, _bit)				\
+#define MESON_T7_SYS_GATE(_name, _reg, _bit)				\
 struct clk_regmap _name = {						\
 	.data = &(struct clk_regmap_gate_data) {			\
 		.offset = (_reg),					\
@@ -7033,89 +7065,89 @@ struct clk_regmap _name = {						\
 }
 
 /*CLKCTRL_SYS_CLK_EN0_REG0*/
-static MESON_SC2_SYS_GATE(t7_ddr,		CLKCTRL_SYS_CLK_EN0_REG0, 0);
-static MESON_SC2_SYS_GATE(t7_dos,		CLKCTRL_SYS_CLK_EN0_REG0, 1);
-static MESON_SC2_SYS_GATE(t7_mipi_dsi_a,	CLKCTRL_SYS_CLK_EN0_REG0, 2);
-static MESON_SC2_SYS_GATE(t7_mipi_dsi_b,	CLKCTRL_SYS_CLK_EN0_REG0, 3);
-static MESON_SC2_SYS_GATE(t7_ethphy,		CLKCTRL_SYS_CLK_EN0_REG0, 4);
-static MESON_SC2_SYS_GATE(t7_mali,		CLKCTRL_SYS_CLK_EN0_REG0, 6);
-static MESON_SC2_SYS_GATE(t7_aocpu,		CLKCTRL_SYS_CLK_EN0_REG0, 13);
-static MESON_SC2_SYS_GATE(t7_aucpu,		CLKCTRL_SYS_CLK_EN0_REG0, 14);
-static MESON_SC2_SYS_GATE(t7_cec,		CLKCTRL_SYS_CLK_EN0_REG0, 16);
-static MESON_SC2_SYS_GATE(t7_gdc,		CLKCTRL_SYS_CLK_EN0_REG0, 17);
-static MESON_SC2_SYS_GATE(t7_deswarp,		CLKCTRL_SYS_CLK_EN0_REG0, 18);
-static MESON_SC2_SYS_GATE(t7_ampipe_nand,	CLKCTRL_SYS_CLK_EN0_REG0, 19);
-static MESON_SC2_SYS_GATE(t7_ampipe_eth,	CLKCTRL_SYS_CLK_EN0_REG0, 20);
-static MESON_SC2_SYS_GATE(t7_am2axi0,		CLKCTRL_SYS_CLK_EN0_REG0, 21);
-static MESON_SC2_SYS_GATE(t7_am2axi1,		CLKCTRL_SYS_CLK_EN0_REG0, 22);
-static MESON_SC2_SYS_GATE(t7_am2axi2,		CLKCTRL_SYS_CLK_EN0_REG0, 23);
-static MESON_SC2_SYS_GATE(t7_sdemmca,		CLKCTRL_SYS_CLK_EN0_REG0, 24);
-static MESON_SC2_SYS_GATE(t7_sdemmcb,		CLKCTRL_SYS_CLK_EN0_REG0, 25);
-static MESON_SC2_SYS_GATE(t7_sdemmcc,		CLKCTRL_SYS_CLK_EN0_REG0, 26);
-static MESON_SC2_SYS_GATE(t7_smartcard,		CLKCTRL_SYS_CLK_EN0_REG0, 27);
-static MESON_SC2_SYS_GATE(t7_acodec,		CLKCTRL_SYS_CLK_EN0_REG0, 28);
-static MESON_SC2_SYS_GATE(t7_spifc,		CLKCTRL_SYS_CLK_EN0_REG0, 29);
-static MESON_SC2_SYS_GATE(t7_msr_clk,		CLKCTRL_SYS_CLK_EN0_REG0, 30);
-static MESON_SC2_SYS_GATE(t7_ir_ctrl,		CLKCTRL_SYS_CLK_EN0_REG0, 31);
+static MESON_T7_SYS_GATE(t7_ddr,		CLKCTRL_SYS_CLK_EN0_REG0, 0);
+static MESON_T7_SYS_GATE(t7_dos,		CLKCTRL_SYS_CLK_EN0_REG0, 1);
+static MESON_T7_SYS_GATE(t7_mipi_dsi_a,	CLKCTRL_SYS_CLK_EN0_REG0, 2);
+static MESON_T7_SYS_GATE(t7_mipi_dsi_b,	CLKCTRL_SYS_CLK_EN0_REG0, 3);
+static MESON_T7_SYS_GATE(t7_ethphy,		CLKCTRL_SYS_CLK_EN0_REG0, 4);
+static MESON_T7_SYS_GATE(t7_mali,		CLKCTRL_SYS_CLK_EN0_REG0, 6);
+static MESON_T7_SYS_GATE(t7_aocpu,		CLKCTRL_SYS_CLK_EN0_REG0, 13);
+static MESON_T7_SYS_GATE(t7_aucpu,		CLKCTRL_SYS_CLK_EN0_REG0, 14);
+static MESON_T7_SYS_GATE(t7_cec,		CLKCTRL_SYS_CLK_EN0_REG0, 16);
+static MESON_T7_SYS_GATE(t7_gdc,		CLKCTRL_SYS_CLK_EN0_REG0, 17);
+static MESON_T7_SYS_GATE(t7_deswarp,		CLKCTRL_SYS_CLK_EN0_REG0, 18);
+static MESON_T7_SYS_GATE(t7_ampipe_nand,	CLKCTRL_SYS_CLK_EN0_REG0, 19);
+static MESON_T7_SYS_GATE(t7_ampipe_eth,	CLKCTRL_SYS_CLK_EN0_REG0, 20);
+static MESON_T7_SYS_GATE(t7_am2axi0,		CLKCTRL_SYS_CLK_EN0_REG0, 21);
+static MESON_T7_SYS_GATE(t7_am2axi1,		CLKCTRL_SYS_CLK_EN0_REG0, 22);
+static MESON_T7_SYS_GATE(t7_am2axi2,		CLKCTRL_SYS_CLK_EN0_REG0, 23);
+static MESON_T7_SYS_GATE(t7_sdemmca,		CLKCTRL_SYS_CLK_EN0_REG0, 24);
+static MESON_T7_SYS_GATE(t7_sdemmcb,		CLKCTRL_SYS_CLK_EN0_REG0, 25);
+static MESON_T7_SYS_GATE(t7_sdemmcc,		CLKCTRL_SYS_CLK_EN0_REG0, 26);
+static MESON_T7_SYS_GATE(t7_smartcard,		CLKCTRL_SYS_CLK_EN0_REG0, 27);
+static MESON_T7_SYS_GATE(t7_acodec,		CLKCTRL_SYS_CLK_EN0_REG0, 28);
+static MESON_T7_SYS_GATE(t7_spifc,		CLKCTRL_SYS_CLK_EN0_REG0, 29);
+static MESON_T7_SYS_GATE(t7_msr_clk,		CLKCTRL_SYS_CLK_EN0_REG0, 30);
+static MESON_T7_SYS_GATE(t7_ir_ctrl,		CLKCTRL_SYS_CLK_EN0_REG0, 31);
 
 /*CLKCTRL_SYS_CLK_EN0_REG1*/
-static MESON_SC2_SYS_GATE(t7_audio,		CLKCTRL_SYS_CLK_EN0_REG1, 0);
-static MESON_SC2_SYS_GATE(t7_eth,		CLKCTRL_SYS_CLK_EN0_REG1, 3);
-static MESON_SC2_SYS_GATE(t7_uart_a,		CLKCTRL_SYS_CLK_EN0_REG1, 5);
-static MESON_SC2_SYS_GATE(t7_uart_b,		CLKCTRL_SYS_CLK_EN0_REG1, 6);
-static MESON_SC2_SYS_GATE(t7_uart_c,		CLKCTRL_SYS_CLK_EN0_REG1, 7);
-static MESON_SC2_SYS_GATE(t7_uart_d,		CLKCTRL_SYS_CLK_EN0_REG1, 8);
-static MESON_SC2_SYS_GATE(t7_uart_e,		CLKCTRL_SYS_CLK_EN0_REG1, 9);
-static MESON_SC2_SYS_GATE(t7_uart_f,		CLKCTRL_SYS_CLK_EN0_REG1, 10);
-static MESON_SC2_SYS_GATE(t7_aififo,		CLKCTRL_SYS_CLK_EN0_REG1, 11);
-static MESON_SC2_SYS_GATE(t7_spicc2,		CLKCTRL_SYS_CLK_EN0_REG1, 12);
-static MESON_SC2_SYS_GATE(t7_spicc3,		CLKCTRL_SYS_CLK_EN0_REG1, 13);
-static MESON_SC2_SYS_GATE(t7_spicc4,		CLKCTRL_SYS_CLK_EN0_REG1, 14);
-static MESON_SC2_SYS_GATE(t7_ts_a73,		CLKCTRL_SYS_CLK_EN0_REG1, 15);
-static MESON_SC2_SYS_GATE(t7_ts_a53,		CLKCTRL_SYS_CLK_EN0_REG1, 16);
-static MESON_SC2_SYS_GATE(t7_spicc5,		CLKCTRL_SYS_CLK_EN0_REG1, 17);
-static MESON_SC2_SYS_GATE(t7_g2d,		CLKCTRL_SYS_CLK_EN0_REG1, 20);
-static MESON_SC2_SYS_GATE(t7_spicc0,		CLKCTRL_SYS_CLK_EN0_REG1, 21);
-static MESON_SC2_SYS_GATE(t7_spicc1,		CLKCTRL_SYS_CLK_EN0_REG1, 22);
-static MESON_SC2_SYS_GATE(t7_pcie,		CLKCTRL_SYS_CLK_EN0_REG1, 24);
-static MESON_SC2_SYS_GATE(t7_usb,		CLKCTRL_SYS_CLK_EN0_REG1, 26);
-static MESON_SC2_SYS_GATE(t7_pcie_phy,		CLKCTRL_SYS_CLK_EN0_REG1, 27);
-static MESON_SC2_SYS_GATE(t7_i2c_ao_a,		CLKCTRL_SYS_CLK_EN0_REG1, 28);
-static MESON_SC2_SYS_GATE(t7_i2c_ao_b,		CLKCTRL_SYS_CLK_EN0_REG1, 29);
-static MESON_SC2_SYS_GATE(t7_i2c_m_a,		CLKCTRL_SYS_CLK_EN0_REG1, 30);
-static MESON_SC2_SYS_GATE(t7_i2c_m_b,		CLKCTRL_SYS_CLK_EN0_REG1, 31);
+static MESON_T7_SYS_GATE(t7_audio,		CLKCTRL_SYS_CLK_EN0_REG1, 0);
+static MESON_T7_SYS_GATE(t7_eth,		CLKCTRL_SYS_CLK_EN0_REG1, 3);
+static MESON_T7_SYS_GATE(t7_uart_a,		CLKCTRL_SYS_CLK_EN0_REG1, 5);
+static MESON_T7_SYS_GATE(t7_uart_b,		CLKCTRL_SYS_CLK_EN0_REG1, 6);
+static MESON_T7_SYS_GATE(t7_uart_c,		CLKCTRL_SYS_CLK_EN0_REG1, 7);
+static MESON_T7_SYS_GATE(t7_uart_d,		CLKCTRL_SYS_CLK_EN0_REG1, 8);
+static MESON_T7_SYS_GATE(t7_uart_e,		CLKCTRL_SYS_CLK_EN0_REG1, 9);
+static MESON_T7_SYS_GATE(t7_uart_f,		CLKCTRL_SYS_CLK_EN0_REG1, 10);
+static MESON_T7_SYS_GATE(t7_aififo,		CLKCTRL_SYS_CLK_EN0_REG1, 11);
+static MESON_T7_SYS_GATE(t7_spicc2,		CLKCTRL_SYS_CLK_EN0_REG1, 12);
+static MESON_T7_SYS_GATE(t7_spicc3,		CLKCTRL_SYS_CLK_EN0_REG1, 13);
+static MESON_T7_SYS_GATE(t7_spicc4,		CLKCTRL_SYS_CLK_EN0_REG1, 14);
+static MESON_T7_SYS_GATE(t7_ts_a73,		CLKCTRL_SYS_CLK_EN0_REG1, 15);
+static MESON_T7_SYS_GATE(t7_ts_a53,		CLKCTRL_SYS_CLK_EN0_REG1, 16);
+static MESON_T7_SYS_GATE(t7_spicc5,		CLKCTRL_SYS_CLK_EN0_REG1, 17);
+static MESON_T7_SYS_GATE(t7_g2d,		CLKCTRL_SYS_CLK_EN0_REG1, 20);
+static MESON_T7_SYS_GATE(t7_spicc0,		CLKCTRL_SYS_CLK_EN0_REG1, 21);
+static MESON_T7_SYS_GATE(t7_spicc1,		CLKCTRL_SYS_CLK_EN0_REG1, 22);
+static MESON_T7_SYS_GATE(t7_pcie,		CLKCTRL_SYS_CLK_EN0_REG1, 24);
+static MESON_T7_SYS_GATE(t7_usb,		CLKCTRL_SYS_CLK_EN0_REG1, 26);
+static MESON_T7_SYS_GATE(t7_pcie_phy,		CLKCTRL_SYS_CLK_EN0_REG1, 27);
+static MESON_T7_SYS_GATE(t7_i2c_ao_a,		CLKCTRL_SYS_CLK_EN0_REG1, 28);
+static MESON_T7_SYS_GATE(t7_i2c_ao_b,		CLKCTRL_SYS_CLK_EN0_REG1, 29);
+static MESON_T7_SYS_GATE(t7_i2c_m_a,		CLKCTRL_SYS_CLK_EN0_REG1, 30);
+static MESON_T7_SYS_GATE(t7_i2c_m_b,		CLKCTRL_SYS_CLK_EN0_REG1, 31);
 
 /*CLKCTRL_SYS_CLK_EN0_REG2*/
-static MESON_SC2_SYS_GATE(t7_i2c_m_c,		CLKCTRL_SYS_CLK_EN0_REG2, 0);
-static MESON_SC2_SYS_GATE(t7_i2c_m_d,		CLKCTRL_SYS_CLK_EN0_REG2, 1);
-static MESON_SC2_SYS_GATE(t7_i2c_m_e,		CLKCTRL_SYS_CLK_EN0_REG2, 2);
-static MESON_SC2_SYS_GATE(t7_i2c_m_f,		CLKCTRL_SYS_CLK_EN0_REG2, 3);
-static MESON_SC2_SYS_GATE(t7_hdmitx_apb,	CLKCTRL_SYS_CLK_EN0_REG2, 4);
-static MESON_SC2_SYS_GATE(t7_i2c_s_a,		CLKCTRL_SYS_CLK_EN0_REG2, 5);
-static MESON_SC2_SYS_GATE(t7_hdmirx_pclk,	CLKCTRL_SYS_CLK_EN0_REG2, 8);
-static MESON_SC2_SYS_GATE(t7_mmc_apb,		CLKCTRL_SYS_CLK_EN0_REG2, 11);
-static MESON_SC2_SYS_GATE(t7_mipi_isp_pclk,	CLKCTRL_SYS_CLK_EN0_REG2, 17);
-static MESON_SC2_SYS_GATE(t7_rsa,		CLKCTRL_SYS_CLK_EN0_REG2, 18);
-static MESON_SC2_SYS_GATE(t7_pclk_sys_cpu_apb,	CLKCTRL_SYS_CLK_EN0_REG2, 19);
-static MESON_SC2_SYS_GATE(t7_a73pclk_cpu_apb,	CLKCTRL_SYS_CLK_EN0_REG2, 20);
-static MESON_SC2_SYS_GATE(t7_dspa,		CLKCTRL_SYS_CLK_EN0_REG2, 21);
-static MESON_SC2_SYS_GATE(t7_dspb,		CLKCTRL_SYS_CLK_EN0_REG2, 22);
-static MESON_SC2_SYS_GATE(t7_vpu_intr,		CLKCTRL_SYS_CLK_EN0_REG2, 25);
-static MESON_SC2_SYS_GATE(t7_sar_adc,		CLKCTRL_SYS_CLK_EN0_REG2, 28);
-static MESON_SC2_SYS_GATE(t7_gic,		CLKCTRL_SYS_CLK_EN0_REG2, 30);
-static MESON_SC2_SYS_GATE(t7_ts_gpu,		CLKCTRL_SYS_CLK_EN0_REG2, 31);
+static MESON_T7_SYS_GATE(t7_i2c_m_c,		CLKCTRL_SYS_CLK_EN0_REG2, 0);
+static MESON_T7_SYS_GATE(t7_i2c_m_d,		CLKCTRL_SYS_CLK_EN0_REG2, 1);
+static MESON_T7_SYS_GATE(t7_i2c_m_e,		CLKCTRL_SYS_CLK_EN0_REG2, 2);
+static MESON_T7_SYS_GATE(t7_i2c_m_f,		CLKCTRL_SYS_CLK_EN0_REG2, 3);
+static MESON_T7_SYS_GATE(t7_hdmitx_apb,	CLKCTRL_SYS_CLK_EN0_REG2, 4);
+static MESON_T7_SYS_GATE(t7_i2c_s_a,		CLKCTRL_SYS_CLK_EN0_REG2, 5);
+static MESON_T7_SYS_GATE(t7_hdmirx_pclk,	CLKCTRL_SYS_CLK_EN0_REG2, 8);
+static MESON_T7_SYS_GATE(t7_mmc_apb,		CLKCTRL_SYS_CLK_EN0_REG2, 11);
+static MESON_T7_SYS_GATE(t7_mipi_isp_pclk,	CLKCTRL_SYS_CLK_EN0_REG2, 17);
+static MESON_T7_SYS_GATE(t7_rsa,		CLKCTRL_SYS_CLK_EN0_REG2, 18);
+static MESON_T7_SYS_GATE(t7_pclk_sys_cpu_apb,	CLKCTRL_SYS_CLK_EN0_REG2, 19);
+static MESON_T7_SYS_GATE(t7_a73pclk_cpu_apb,	CLKCTRL_SYS_CLK_EN0_REG2, 20);
+static MESON_T7_SYS_GATE(t7_dspa,		CLKCTRL_SYS_CLK_EN0_REG2, 21);
+static MESON_T7_SYS_GATE(t7_dspb,		CLKCTRL_SYS_CLK_EN0_REG2, 22);
+static MESON_T7_SYS_GATE(t7_vpu_intr,		CLKCTRL_SYS_CLK_EN0_REG2, 25);
+static MESON_T7_SYS_GATE(t7_sar_adc,		CLKCTRL_SYS_CLK_EN0_REG2, 28);
+static MESON_T7_SYS_GATE(t7_gic,		CLKCTRL_SYS_CLK_EN0_REG2, 30);
+static MESON_T7_SYS_GATE(t7_ts_gpu,		CLKCTRL_SYS_CLK_EN0_REG2, 31);
 
 /*CLKCTRL_SYS_CLK_EN0_REG3*/
-static MESON_SC2_SYS_GATE(t7_ts_nna,		CLKCTRL_SYS_CLK_EN0_REG3, 0);
-static MESON_SC2_SYS_GATE(t7_ts_vpu,		CLKCTRL_SYS_CLK_EN0_REG3, 1);
-static MESON_SC2_SYS_GATE(t7_ts_hevc,		CLKCTRL_SYS_CLK_EN0_REG3, 2);
-static MESON_SC2_SYS_GATE(t7_pwm_ao_ab,		CLKCTRL_SYS_CLK_EN0_REG3, 3);
-static MESON_SC2_SYS_GATE(t7_pwm_ao_cd,		CLKCTRL_SYS_CLK_EN0_REG3, 4);
-static MESON_SC2_SYS_GATE(t7_pwm_ao_ef,		CLKCTRL_SYS_CLK_EN0_REG3, 5);
-static MESON_SC2_SYS_GATE(t7_pwm_ao_gh,		CLKCTRL_SYS_CLK_EN0_REG3, 6);
-static MESON_SC2_SYS_GATE(t7_pwm_ab,		CLKCTRL_SYS_CLK_EN0_REG3, 7);
-static MESON_SC2_SYS_GATE(t7_pwm_cd,		CLKCTRL_SYS_CLK_EN0_REG3, 8);
-static MESON_SC2_SYS_GATE(t7_pwm_ef,		CLKCTRL_SYS_CLK_EN0_REG3, 9);
+static MESON_T7_SYS_GATE(t7_ts_nna,		CLKCTRL_SYS_CLK_EN0_REG3, 0);
+static MESON_T7_SYS_GATE(t7_ts_vpu,		CLKCTRL_SYS_CLK_EN0_REG3, 1);
+static MESON_T7_SYS_GATE(t7_ts_hevc,		CLKCTRL_SYS_CLK_EN0_REG3, 2);
+static MESON_T7_SYS_GATE(t7_pwm_ao_ab,		CLKCTRL_SYS_CLK_EN0_REG3, 3);
+static MESON_T7_SYS_GATE(t7_pwm_ao_cd,		CLKCTRL_SYS_CLK_EN0_REG3, 4);
+static MESON_T7_SYS_GATE(t7_pwm_ao_ef,		CLKCTRL_SYS_CLK_EN0_REG3, 5);
+static MESON_T7_SYS_GATE(t7_pwm_ao_gh,		CLKCTRL_SYS_CLK_EN0_REG3, 6);
+static MESON_T7_SYS_GATE(t7_pwm_ab,		CLKCTRL_SYS_CLK_EN0_REG3, 7);
+static MESON_T7_SYS_GATE(t7_pwm_cd,		CLKCTRL_SYS_CLK_EN0_REG3, 8);
+static MESON_T7_SYS_GATE(t7_pwm_ef,		CLKCTRL_SYS_CLK_EN0_REG3, 9);
 
 /* Array of all clocks provided by this provider */
 static struct clk_hw_onecell_data t7_hw_onecell_data = {
@@ -7289,10 +7321,12 @@ static struct clk_hw_onecell_data t7_hw_onecell_data = {
 		[CLKID_HDMIRX_METER_DIV]	= &t7_hdmirx_meter_div.hw,
 		[CLKID_HDMIRX_METER]		= &t7_hdmirx_meter.hw,
 		[CLKID_MCLK_0_SEL]		= &t7_mclk_0_sel.hw,
-		[CLKID_MCLK_0_DIV]		= &t7_mclk_0_div.hw,
+		[CLKID_MCLK_0_DIV2]		= &t7_mclk_0_div2.hw,
+		[CLKID_MCLK_0_PRE]		= &t7_mclk_0_pre.hw,
 		[CLKID_MCLK_0]			= &t7_mclk_0.hw,
 		[CLKID_MCLK_1_SEL]		= &t7_mclk_1_sel.hw,
-		[CLKID_MCLK_1_DIV]		= &t7_mclk_1_div.hw,
+		[CLKID_MCLK_1_DIV2]		= &t7_mclk_1_div2.hw,
+		[CLKID_MCLK_1_PRE]		= &t7_mclk_1_pre.hw,
 		[CLKID_MCLK_1]			= &t7_mclk_1.hw,
 		[CLKID_TS_CLK_DIV]		= &t7_ts_clk_div.hw,
 		[CLKID_TS_CLK_GATE]		= &t7_ts_clk_gate.hw,
@@ -7691,12 +7725,6 @@ static struct clk_regmap *const t7_clk_regmaps[] = {
 	&t7_hdmirx_meter_sel,
 	&t7_hdmirx_meter_div,
 	&t7_hdmirx_meter,
-	&t7_mclk_0_sel,
-	&t7_mclk_0_div,
-	&t7_mclk_0,
-	&t7_mclk_1_sel,
-	&t7_mclk_1_div,
-	&t7_mclk_1,
 	&t7_ts_clk_div,
 	&t7_ts_clk_gate,
 	&t7_mali_0_sel,
@@ -8027,7 +8055,13 @@ static struct clk_regmap *const t7_pll_clk_regmaps[] = {
 	&t7_mpll2_div,
 	&t7_mpll2,
 	&t7_mpll3_div,
-	&t7_mpll3
+	&t7_mpll3,
+	&t7_mclk_0_sel,
+	&t7_mclk_0_pre,
+	&t7_mclk_0,
+	&t7_mclk_1_sel,
+	&t7_mclk_1_pre,
+	&t7_mclk_1
 };
 
 static int meson_t7_dvfs_setup(struct platform_device *pdev)
