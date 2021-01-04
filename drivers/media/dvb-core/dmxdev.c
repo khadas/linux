@@ -1484,12 +1484,16 @@ static const struct file_operations dvb_dvr_fops = {
 	.read = dvb_dvr_read,
 	.write = dvb_dvr_write,
 	.unlocked_ioctl = dvb_dvr_ioctl,
+
 	.open = dvb_dvr_open,
 	.release = dvb_dvr_release,
 	.poll = dvb_dvr_poll,
 	.llseek = default_llseek,
 #ifdef CONFIG_DVB_MMAP
 	.mmap = dvb_dvr_mmap,
+#endif
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+	.compat_ioctl = dvb_dvr_ioctl,
 #endif
 };
 
