@@ -72,6 +72,19 @@ struct ve_regs_s {
 	unsigned int rsv:5;
 };
 
+enum pst_hist_mod {
+	HIST_VB = 0,
+	HIST_UG,
+	HIST_YR,
+	HIST_MAXRGB
+};
+
+enum pst_hist_pos {
+	BEFORE_POST2_MTX = 0,
+	AFTER_POST2_MTX,
+	POS_MAX
+};
+
 extern unsigned int gamma_loadprotect_en;
 extern struct ve_hist_s video_ve_hist;
 void ve_hist_gamma_reset(void);
@@ -201,5 +214,10 @@ unsigned int skip_pq_ctrl_load(struct am_reg_s *p);
 void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb);
 void lcd_gamma_api(u16 *r_data, u16 *g_data,
 	u16 *b_data, int rdma_write, int rw_flag);
+void vpp_pst_hist_sta_config(int en,
+	enum pst_hist_mod mod,
+	enum pst_hist_pos pos,
+	struct vinfo_s *vinfo);
+void vpp_pst_hist_sta_read(unsigned int *hist);
 #endif
 

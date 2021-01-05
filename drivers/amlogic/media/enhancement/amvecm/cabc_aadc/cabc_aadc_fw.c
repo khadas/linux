@@ -1,6 +1,5 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/media/enhancement/amvecm/hdr/gamut_convet.c
+ * drivers/amlogic/media/enhancement/amvecm/cabc_aadc_fw.c
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -33,6 +32,9 @@ MODULE_PARM_DESC(pr_cabc_aad, "\n pr_cabc_aad\n");
 		if (pr_cabc_aad)\
 			pr_info("CACB_AAD: " fmt, ##args);\
 	} while (0)
+
+static int cabc_aad_en;
+static int status_flag;
 
 static int lut_Y_gain[17] = {
 	0, 256, 512, 768, 1024, 1280, 1536, 1792, 2048, 2304,
@@ -112,7 +114,8 @@ static int xy_lut[16][2] = {
 };
 
 static int hist[64] = {0};
-static char update_ver[32] = "no alg";
+int aad_final_gain[3] = {4096, 4096, 4096};
+int cabc_final_gain[3] = {4096, 4096, 4096};
 static int pre_gamma[3][65] = {
 	{
 		0, 16, 32, 48, 64, 80, 96, 112, 128, 144,
@@ -145,7 +148,6 @@ static int pre_gamma[3][65] = {
 
 static struct pre_gamma_table_s pre_gam;
 static int sensor_rgb[3] = {243, 256, 314};
-
 static struct aad_param_s aad_parm = {
 	.aad_sensor_mode = 1,
 	.aad_mode = 2,
@@ -195,37 +197,68 @@ static struct pre_gam_param_s pre_gam_parm = {
 	.pre_gamma_gain_ratio = 16,
 };
 
-static struct debug_param_s dbg_parm = {
-	.cabc_gain = 0,
+static struct cabc_debug_param_s cabc_dbg_parm = {
+	.dbg_cabc_gain = 0,
 	.avg = 0,
 	.max95 = 0,
 	.tf_bl = 0,
+};
+
+static struct aad_debug_param_s aad_dbg_parm = {
 	.y_val = 0,
 	.rg_val = 0,
 	.bg_val = 0,
 	.cur_frm_gain = 0,
 };
 
-struct cabc_aad_fw_param_s fw_parm = {
-	.fw_en = 0,
+static char aad_ver[32] = "aad_v1_20201016";
+int cur_o_gain[3] = {4096, 4096, 4096};
+struct aad_fw_param_s fw_aad_parm = {
 	.fw_aad_en = 0,
-	.fw_status = 0,
-	.fw_ver = 0,
-	.fw_update_ver = update_ver,
+	.fw_aad_status = 0,
+	.fw_aad_ver = aad_ver,
 	.aad_param = &aad_parm,
-	.cabc_param = &cabc_parm,
-	.pre_gam_param = &pre_gam_parm,
-	.i_hist = hist,
-	.o_pre_gamma = pre_gamma,
-	.tgt_bl = 0,
-	.debug_mode = 0,
-	.dbg_param = &dbg_parm,
-	.cabc_aad_alg = NULL,
+	.cur_gain = cur_o_gain,
+	.aad_debug_mode = 0,
+	.dbg_param = &aad_dbg_parm,
+	.aad_alg = NULL,
 };
 
-static int pre_gamma_init(void)
+static char cabc_ver[32] = "cabc_v1_20201016";
+struct cabc_fw_param_s fw_cabc_parm = {
+	.fw_cabc_en = 1,
+	.fw_cabc_status = 0,
+	.fw_cabc_ver = cabc_ver,
+	.cabc_param = &cabc_parm,
+	.i_hist = hist,
+	.cur_bl = 0,
+	.tgt_bl = 0,
+	.cabc_debug_mode = 0,
+	.dbg_param = &cabc_dbg_parm,
+	.cabc_alg = NULL,
+};
+
+int *vf_hist_get(void)
+{
+	return fw_cabc_parm.i_hist;
+}
+
+struct pgm_param_s fw_pre_gma_parm = {
+	.fw_pre_gamma_en = 1,
+	.pre_gam_param = &pre_gam_parm,
+	.aad_gain = aad_final_gain,
+	.cabc_gain = cabc_final_gain,
+	.pre_gamma_proc = NULL,
+};
+
+static int gain_pregamma_init(void)
 {
 	int i, j;
+
+	for (i = 0; i < 3; i++) {
+		aad_final_gain[i] = 4096;
+		cabc_final_gain[i] = 4096;
+	}
 
 	for (i = 0; i < 3; i++) {
 		for (j = 0; j < 64; j++)
@@ -235,243 +268,315 @@ static int pre_gamma_init(void)
 	return 0;
 }
 
-static void pre_gamma_set(struct pre_gamma_table_s *pre_gam)
+static void pre_gamma_data_cp(struct pre_gamma_table_s *pre_gam)
 {
 	memcpy(pre_gam->lut_r, pre_gamma[0], sizeof(int) * 65);
 	memcpy(pre_gam->lut_g, pre_gamma[1], sizeof(int) * 65);
 	memcpy(pre_gam->lut_b, pre_gamma[2], sizeof(int) * 65);
 }
 
-struct cabc_aad_fw_param_s *cabc_aad_fw_param_get(void)
+struct aad_fw_param_s *aad_fw_param_get(void)
 {
-	return &fw_parm;
+	return &fw_aad_parm;
 }
-EXPORT_SYMBOL(cabc_aad_fw_param_get);
+EXPORT_SYMBOL(aad_fw_param_get);
 
-int *vf_param_get(void)
+struct cabc_fw_param_s *cabc_fw_param_get(void)
 {
-	return fw_parm.i_hist;
+	return &fw_cabc_parm;
 }
+EXPORT_SYMBOL(cabc_fw_param_get);
+
+struct pgm_param_s *pregam_fw_param_get(void)
+{
+	return &fw_pre_gma_parm;
+}
+EXPORT_SYMBOL(pregam_fw_param_get);
 
 int fw_en_get(void)
 {
-	return fw_parm.fw_en;
+	return cabc_aad_en;
 }
 
-#define FW_ENABLE  1
-#define FW_DISABLE  0
 void aml_cabc_alg_process(struct work_struct *work)
 {
-	if (fw_parm.fw_en && !fw_parm.fw_status) {
-		fw_parm.fw_status = FW_ENABLE;
-		pre_gam.en = fw_parm.fw_en;
-		pr_cabc_aad_dbg("%s: fw_en = %d\n", __func__, fw_parm.fw_en);
+	if (!fw_aad_parm.aad_alg) {
+		if (pr_cabc_aad & AAD_DEBUG)
+			pr_cabc_aad_dbg("%s: aad alg func is NULL\n", __func__);
+	} else {
+		fw_aad_parm.aad_alg(&fw_aad_parm, aad_final_gain);
 	}
 
-	if (!fw_parm.cabc_aad_alg) {
-		pr_cabc_aad_dbg("%s: cabc aad alg func is NULL\n", __func__);
-		return;
+	if (!fw_cabc_parm.cabc_alg) {
+		if (pr_cabc_aad & CABC_DEBUG)
+			pr_cabc_aad_dbg("%s: cabc alg func is NULL\n", __func__);
+	} else {
+		fw_cabc_parm.cabc_alg(&fw_cabc_parm, cabc_final_gain);
 	}
 
-	if (fw_parm.fw_en) {
-		fw_parm.cabc_aad_alg(&fw_parm);
-		pre_gamma_set(&pre_gam);
+	if (!fw_pre_gma_parm.pre_gamma_proc) {
+		if (pr_cabc_aad & PRE_GAM_DEBUG)
+			pr_cabc_aad_dbg("%s: pre gamma proc is NULL\n", __func__);
+	} else {
+		pre_gam.en = fw_pre_gma_parm.fw_pre_gamma_en;
+		fw_pre_gma_parm.pre_gamma_proc(&fw_pre_gma_parm, pre_gamma);
+		pre_gamma_data_cp(&pre_gam);
 		set_pre_gamma_reg(&pre_gam);
 	}
+
+	if (!status_flag)
+		status_flag = 1;
 }
 
 void aml_cabc_alg_bypass(struct work_struct *work)
 {
-	if (!fw_parm.fw_en && fw_parm.fw_status) {
-		fw_parm.fw_status = FW_DISABLE;
-		pre_gam.en = fw_parm.fw_en;
-		pre_gamma_init();
-		pre_gamma_set(&pre_gam);
+	if (!cabc_aad_en && status_flag) {
+		pre_gam.en = 0;
+		gain_pregamma_init();
+		pre_gamma_data_cp(&pre_gam);
 		set_pre_gamma_reg(&pre_gam);
-		pr_cabc_aad_dbg("%s: fw_en = %d\n", __func__, fw_parm.fw_en);
+		pr_cabc_aad_dbg("%s\n", __func__);
+		status_flag = 0;
 	}
 }
 
-int cabc_aad_alg_state(void)
+int cabc_alg_state(void)
 {
 	int i;
-	struct cabc_aad_fw_param_s *fw_param = cabc_aad_fw_param_get();
+	struct cabc_fw_param_s *fw_cabc_param = cabc_fw_param_get();
 
-	pr_info("fw_en = %d\n", fw_param->fw_en);
-	pr_info("fw_aad_en = %d\n", fw_param->fw_aad_en);
-	pr_info("fw_status = %d\n", fw_param->fw_status);
-	pr_info("fw_ver = %d\n", fw_param->fw_ver);
-	pr_info("fw_ver = %s\n", fw_param->fw_update_ver);
+	pr_info("\n--------cabc alg print-------\n");
+	pr_info("fw_cabc_en = %d\n", fw_cabc_param->fw_cabc_en);
+	pr_info("cabc_status = %d\n", fw_cabc_param->fw_cabc_status);
+	pr_info("fw_cabc_ver = %s\n", fw_cabc_param->fw_cabc_ver);
 
-	pr_info("\n--------fw aad parameters-------\n");
-	pr_info("aad_sensor_mode = %d\n", fw_param->aad_param->aad_sensor_mode);
-	pr_info("aad_mode = %d\n", fw_param->aad_param->aad_mode);
-	for (i = 0; i < 3; i++)
-		pr_info("xyz2rgb_matrix[%d] = %d, %d, %d\n",
-			i,
-			fw_param->aad_param->aad_xyz2rgb_matrix[i * 3],
-			fw_param->aad_param->aad_xyz2rgb_matrix[i * 3 + 1],
-			fw_param->aad_param->aad_xyz2rgb_matrix[i * 3 + 2]);
-	for (i = 0; i < 3; i++)
-		pr_info("rgb2xyz_matrix[%d] = %d, %d, %d\n",
-			i,
-			fw_param->aad_param->aad_rgb2xyz_matrix[i * 3],
-			fw_param->aad_param->aad_rgb2xyz_matrix[i * 3 + 1],
-			fw_param->aad_param->aad_rgb2xyz_matrix[i * 3 + 2]);
-	for (i = 0; i < 3; i++)
-		pr_info("xyz2lms_matrix[%d] = %d, %d, %d\n",
-			i,
-			fw_param->aad_param->aad_xyz2lms_matrix[i * 3],
-			fw_param->aad_param->aad_xyz2lms_matrix[i * 3 + 1],
-			fw_param->aad_param->aad_xyz2lms_matrix[i * 3 + 2]);
-	for (i = 0; i < 3; i++)
-		pr_info("lms2xyz_matrix[%d] = %d, %d, %d\n",
-			i,
-			fw_param->aad_param->aad_lms2xyz_matrix[i * 3],
-			fw_param->aad_param->aad_lms2xyz_matrix[i * 3 + 1],
-			fw_param->aad_param->aad_lms2xyz_matrix[i * 3 + 2]);
-	for (i = 0; i < 3; i++)
-		pr_info("rgb2lms_matrix[%d] = %d, %d, %d\n",
-			i,
-			fw_param->aad_param->aad_rgb2lms_matrix[i * 3],
-			fw_param->aad_param->aad_rgb2lms_matrix[i * 3 + 1],
-			fw_param->aad_param->aad_rgb2lms_matrix[i * 3 + 2]);
-	for (i = 0; i < 3; i++)
-		pr_info("lms2rgb_matrix[%d] = %d, %d, %d\n",
-			i,
-			fw_param->aad_param->aad_lms2rgb_matrix[i * 3],
-			fw_param->aad_param->aad_lms2rgb_matrix[i * 3 + 1],
-			fw_param->aad_param->aad_lms2rgb_matrix[i * 3 + 2]);
-	for (i = 0; i < 17; i++)
-		pr_info("aad_LUT_Y_gain[%d] = %d\n",
-			i, fw_param->aad_param->aad_LUT_Y_gain[i]);
-	for (i = 0; i < 17; i++)
-		pr_info("aad_LUT_RG_gain[%d] = %d\n",
-			i, fw_param->aad_param->aad_LUT_RG_gain[i]);
-	for (i = 0; i < 17; i++)
-		pr_info("aad_LUT_BG_gain[%d] = %d\n",
-			i, fw_param->aad_param->aad_LUT_BG_gain[i]);
-	pr_info("aad_Y_gain_min = %d\n", fw_param->aad_param->aad_Y_gain_min);
-	pr_info("aad_Y_gain_max = %d\n", fw_param->aad_param->aad_Y_gain_max);
-	pr_info("aad_RG_gain_min = %d\n", fw_param->aad_param->aad_RG_gain_min);
-	pr_info("aad_RG_gain_max = %d\n", fw_param->aad_param->aad_RG_gain_max);
-	pr_info("aad_BG_gain_min = %d\n", fw_param->aad_param->aad_BG_gain_min);
-	pr_info("aad_BG_gain_max = %d\n", fw_param->aad_param->aad_BG_gain_max);
-	pr_info("aad_tf_en = %d\n", fw_param->aad_param->aad_tf_en);
-	pr_info("aad_tf_alpha = %d\n", fw_param->aad_param->aad_tf_alpha);
-	pr_info("aad_dist_mode = %d\n", fw_param->aad_param->aad_dist_mode);
-	pr_info("aad_force_gain_en = %d\n",
-		fw_param->aad_param->aad_force_gain_en);
-	for (i = 0; i < 16; i++)
-		pr_info("aad_gain_lut[%d] = %d, %d, %d\n",
-			i,
-		fw_param->aad_param->aad_gain_lut[i][0],
-		fw_param->aad_param->aad_gain_lut[i][1],
-		fw_param->aad_param->aad_gain_lut[i][2]);
-	for (i = 0; i < 16; i++)
-		pr_info("aad_xy_lut[%d] = %d, %d\n",
-			i,
-		fw_param->aad_param->aad_xy_lut[i][0],
-		fw_param->aad_param->aad_xy_lut[i][1]);
-	pr_info("aad_r_gain = %d\n", fw_param->aad_param->aad_r_gain);
-	pr_info("aad_g_gain = %d\n", fw_param->aad_param->aad_g_gain);
-	pr_info("aad_b_gain = %d\n", fw_param->aad_param->aad_b_gain);
-	pr_info("aad_min_dist_th = %d\n", fw_param->aad_param->aad_min_dist_th);
-	pr_info("sensor_input[0] = %d\n", fw_param->aad_param->sensor_input[0]);
-	pr_info("sensor_input[1] = %d\n", fw_param->aad_param->sensor_input[1]);
-	pr_info("sensor_input[2] = %d\n", fw_param->aad_param->sensor_input[2]);
-
-	pr_info("\n--------fw cabc parameters-------\n");
-	pr_info("cabc_max95_ratio = %d\n", fw_param->cabc_param->cabc_max95_ratio);
-	pr_info("cabc_hist_mode = %d\n", fw_param->cabc_param->cabc_hist_mode);
+	pr_info("\n--------cabc alg parameters-------\n");
+	pr_info("cabc_max95_ratio = %d\n", fw_cabc_param->cabc_param->cabc_max95_ratio);
+	pr_info("cabc_hist_mode = %d\n", fw_cabc_param->cabc_param->cabc_hist_mode);
 	pr_info("cabc_hist_blend_alpha = %d\n",
-		fw_param->cabc_param->cabc_hist_blend_alpha);
+		fw_cabc_param->cabc_param->cabc_hist_blend_alpha);
 	pr_info("cabc_init_bl_min = %d\n",
-		fw_param->cabc_param->cabc_init_bl_min);
+		fw_cabc_param->cabc_param->cabc_init_bl_min);
 	pr_info("cabc_init_bl_max = %d\n",
-		fw_param->cabc_param->cabc_init_bl_max);
+		fw_cabc_param->cabc_param->cabc_init_bl_max);
 	pr_info("cabc_tf_alpha = %d\n",
-		fw_param->cabc_param->cabc_tf_alpha);
-	pr_info("cabc_tf_en = %d\n", fw_param->cabc_param->cabc_tf_en);
-	pr_info("cabc_sc_flag = %d\n", fw_param->cabc_param->cabc_sc_flag);
+		fw_cabc_param->cabc_param->cabc_tf_alpha);
+	pr_info("cabc_tf_en = %d\n", fw_cabc_param->cabc_param->cabc_tf_en);
+	pr_info("cabc_sc_flag = %d\n", fw_cabc_param->cabc_param->cabc_sc_flag);
 	pr_info("cabc_sc_hist_diff_thd = %d\n",
-		fw_param->cabc_param->cabc_sc_hist_diff_thd);
+		fw_cabc_param->cabc_param->cabc_sc_hist_diff_thd);
 	pr_info("cabc_sc_apl_diff_thd = %d\n",
-		fw_param->cabc_param->cabc_sc_apl_diff_thd);
+		fw_cabc_param->cabc_param->cabc_sc_apl_diff_thd);
 	pr_info("cabc_en = %d\n",
-		fw_param->cabc_param->cabc_en);
-	pr_info("\n--------fw pre gamma parameters-------\n");
-	pr_info("pre_gma_ratio = %d\n",
-		fw_param->pre_gam_param->pre_gamma_gain_ratio);
+		fw_cabc_param->cabc_param->cabc_en);
 
 	pr_info("\n--------fw vpp y hist-------\n");
-	if (fw_param->i_hist) {
+	if (fw_cabc_param->i_hist) {
 		for (i = 0; i < 16; i++)
 			pr_info("i_hist[%2d ~ %2d] = 0x%5x, 0x%5x, 0x%5x, 0x%5x\n",
 				i * 4, i * 4 + 3,
-				fw_param->i_hist[i * 4],
-				fw_param->i_hist[i * 4 + 1],
-				fw_param->i_hist[i * 4 + 2],
-				fw_param->i_hist[i * 4 + 3]);
+				fw_cabc_param->i_hist[i * 4],
+				fw_cabc_param->i_hist[i * 4 + 1],
+				fw_cabc_param->i_hist[i * 4 + 2],
+				fw_cabc_param->i_hist[i * 4 + 3]);
 	}
+
+	pr_info("cur_bl = %d\n", fw_cabc_param->cur_bl);
+	pr_info("tgt_bl = %d\n", fw_cabc_param->tgt_bl);
+	pr_info("\n--------cabc final gain-------\n");
+	for (i = 0; i < 3; i++)
+		pr_info("cabc_final_gain[%d] = %d\n", i, cabc_final_gain[i]);
+	pr_info("cabc_debug_mode = %d\n", fw_cabc_param->cabc_debug_mode);
+
+	pr_info("\n--------cabc debug parameters-------\n");
+	pr_info("dbg_cabc_gain = %d\n", fw_cabc_param->dbg_param->dbg_cabc_gain);
+	pr_info("avg = %d\n", fw_cabc_param->dbg_param->avg);
+	pr_info("max95 = %d\n", fw_cabc_param->dbg_param->max95);
+	pr_info("tf_bl = %d\n", fw_cabc_param->dbg_param->tf_bl);
+
+	pr_info("cabc_alg = %p\n", fw_cabc_param->cabc_alg);
+
+	return 0;
+}
+
+int aad_alg_state(void)
+{
+	int i;
+	struct aad_fw_param_s *fw_aad_param = aad_fw_param_get();
+
+	pr_info("\n--------aad alg print-------\n");
+	pr_info("fw_aad_en = %d\n", fw_aad_param->fw_aad_en);
+	pr_info("fw_aad_status = %d\n", fw_aad_param->fw_aad_status);
+	pr_info("fw_aad_ver = %s\n", fw_aad_param->fw_aad_ver);
+
+	pr_info("\n--------aadc alg parameters-------\n");
+	pr_info("aad_sensor_mode = %d\n", fw_aad_param->aad_param->aad_sensor_mode);
+	pr_info("aad_mode = %d\n", fw_aad_param->aad_param->aad_mode);
+	for (i = 0; i < 3; i++)
+		pr_info("xyz2rgb_matrix[%d] = %d, %d, %d\n",
+			i,
+			fw_aad_param->aad_param->aad_xyz2rgb_matrix[i * 3],
+			fw_aad_param->aad_param->aad_xyz2rgb_matrix[i * 3 + 1],
+			fw_aad_param->aad_param->aad_xyz2rgb_matrix[i * 3 + 2]);
+	for (i = 0; i < 3; i++)
+		pr_info("rgb2xyz_matrix[%d] = %d, %d, %d\n",
+			i,
+			fw_aad_param->aad_param->aad_rgb2xyz_matrix[i * 3],
+			fw_aad_param->aad_param->aad_rgb2xyz_matrix[i * 3 + 1],
+			fw_aad_param->aad_param->aad_rgb2xyz_matrix[i * 3 + 2]);
+	for (i = 0; i < 3; i++)
+		pr_info("xyz2lms_matrix[%d] = %d, %d, %d\n",
+			i,
+			fw_aad_param->aad_param->aad_xyz2lms_matrix[i * 3],
+			fw_aad_param->aad_param->aad_xyz2lms_matrix[i * 3 + 1],
+			fw_aad_param->aad_param->aad_xyz2lms_matrix[i * 3 + 2]);
+	for (i = 0; i < 3; i++)
+		pr_info("lms2xyz_matrix[%d] = %d, %d, %d\n",
+			i,
+			fw_aad_param->aad_param->aad_lms2xyz_matrix[i * 3],
+			fw_aad_param->aad_param->aad_lms2xyz_matrix[i * 3 + 1],
+			fw_aad_param->aad_param->aad_lms2xyz_matrix[i * 3 + 2]);
+	for (i = 0; i < 3; i++)
+		pr_info("rgb2lms_matrix[%d] = %d, %d, %d\n",
+			i,
+			fw_aad_param->aad_param->aad_rgb2lms_matrix[i * 3],
+			fw_aad_param->aad_param->aad_rgb2lms_matrix[i * 3 + 1],
+			fw_aad_param->aad_param->aad_rgb2lms_matrix[i * 3 + 2]);
+	for (i = 0; i < 3; i++)
+		pr_info("lms2rgb_matrix[%d] = %d, %d, %d\n",
+			i,
+			fw_aad_param->aad_param->aad_lms2rgb_matrix[i * 3],
+			fw_aad_param->aad_param->aad_lms2rgb_matrix[i * 3 + 1],
+			fw_aad_param->aad_param->aad_lms2rgb_matrix[i * 3 + 2]);
+	for (i = 0; i < 17; i++)
+		pr_info("aad_LUT_Y_gain[%d] = %d\n",
+			i, fw_aad_param->aad_param->aad_LUT_Y_gain[i]);
+	for (i = 0; i < 17; i++)
+		pr_info("aad_LUT_RG_gain[%d] = %d\n",
+			i, fw_aad_param->aad_param->aad_LUT_RG_gain[i]);
+	for (i = 0; i < 17; i++)
+		pr_info("aad_LUT_BG_gain[%d] = %d\n",
+			i, fw_aad_param->aad_param->aad_LUT_BG_gain[i]);
+	pr_info("aad_Y_gain_min = %d\n", fw_aad_param->aad_param->aad_Y_gain_min);
+	pr_info("aad_Y_gain_max = %d\n", fw_aad_param->aad_param->aad_Y_gain_max);
+	pr_info("aad_RG_gain_min = %d\n", fw_aad_param->aad_param->aad_RG_gain_min);
+	pr_info("aad_RG_gain_max = %d\n", fw_aad_param->aad_param->aad_RG_gain_max);
+	pr_info("aad_BG_gain_min = %d\n", fw_aad_param->aad_param->aad_BG_gain_min);
+	pr_info("aad_BG_gain_max = %d\n", fw_aad_param->aad_param->aad_BG_gain_max);
+	pr_info("aad_tf_en = %d\n", fw_aad_param->aad_param->aad_tf_en);
+	pr_info("aad_tf_alpha = %d\n", fw_aad_param->aad_param->aad_tf_alpha);
+	pr_info("aad_dist_mode = %d\n", fw_aad_param->aad_param->aad_dist_mode);
+	pr_info("aad_force_gain_en = %d\n",
+		fw_aad_param->aad_param->aad_force_gain_en);
+	for (i = 0; i < 16; i++)
+		pr_info("aad_gain_lut[%d] = %d, %d, %d\n",
+		i,
+		fw_aad_param->aad_param->aad_gain_lut[i][0],
+		fw_aad_param->aad_param->aad_gain_lut[i][1],
+		fw_aad_param->aad_param->aad_gain_lut[i][2]);
+	for (i = 0; i < 16; i++)
+		pr_info("aad_xy_lut[%d] = %d, %d\n",
+		i,
+		fw_aad_param->aad_param->aad_xy_lut[i][0],
+		fw_aad_param->aad_param->aad_xy_lut[i][1]);
+
+	pr_info("aad_r_gain = %d\n", fw_aad_param->aad_param->aad_r_gain);
+	pr_info("aad_g_gain = %d\n", fw_aad_param->aad_param->aad_g_gain);
+	pr_info("aad_b_gain = %d\n", fw_aad_param->aad_param->aad_b_gain);
+	pr_info("aad_min_dist_th = %d\n", fw_aad_param->aad_param->aad_min_dist_th);
+	pr_info("sensor_input[0] = %d\n", fw_aad_param->aad_param->sensor_input[0]);
+	pr_info("sensor_input[1] = %d\n", fw_aad_param->aad_param->sensor_input[1]);
+	pr_info("sensor_input[2] = %d\n", fw_aad_param->aad_param->sensor_input[2]);
+
+	pr_info("\n-----cur aad gain, before temporal filter----\n");
+	pr_info("cur_gain[0] = %d\n", fw_aad_param->cur_gain[0]);
+	pr_info("cur_gain[1] = %d\n", fw_aad_param->cur_gain[1]);
+	pr_info("cur_gain[2] = %d\n", fw_aad_param->cur_gain[2]);
+
+	pr_info("\n--------aad final gain-------\n");
+	pr_info("aad_final_gain[0] = %d\n", aad_final_gain[0]);
+	pr_info("aad_final_gain[1] = %d\n", aad_final_gain[1]);
+	pr_info("aad_final_gain[2] = %d\n", aad_final_gain[2]);
+
+	pr_info("\n aad_debug_mode = %d\n", fw_aad_param->aad_debug_mode);
+	pr_info("aad_debug_mode = %d\n", fw_aad_param->aad_debug_mode);
+
+	pr_info("\n--------aad dbg parameters-------\n");
+	pr_info("aad_debug_mode = %d\n", fw_aad_param->aad_debug_mode);
+	pr_info("y_val = %d\n", fw_aad_param->dbg_param->y_val);
+	pr_info("rg_val = %d\n", fw_aad_param->dbg_param->rg_val);
+	pr_info("bg_val = %d\n", fw_aad_param->dbg_param->bg_val);
+	pr_info("cur_frm_gain = %d\n", fw_aad_param->dbg_param->cur_frm_gain);
+
+	pr_info("aad_alg = %p\n", fw_aad_param->aad_alg);
+
+	return 0;
+}
+
+int pre_gamma_alg_state(void)
+{
+	int i;
+	struct pgm_param_s *fw_pregm_param = pregam_fw_param_get();
+
+	pr_info("\n--------pre gamma print-------\n");
+	pr_info("fw_pre_gamma_en = %d\n", fw_pregm_param->fw_pre_gamma_en);
+	pr_info("pre_gamma_gain_ratio = %d\n",
+		fw_pregm_param->pre_gam_param->pre_gamma_gain_ratio);
+	for (i = 0; i < 3; i++)
+		pr_info("aad_gain[%d] = %d\n", i, fw_pregm_param->aad_gain[i]);
+	for (i = 0; i < 3; i++)
+		pr_info("cabc_gain[%d] = %d\n", i, fw_pregm_param->cabc_gain[i]);
 
 	pr_info("\n--------out pre_gamma-------\n");
-	if (fw_param->o_pre_gamma) {
-		pr_info("\n--------pre_gamma R-------\n");
-		for (i = 0; i < 17; i++) {
-			if (i < 16)
-				pr_info("pre_gamma R[%2d ~ %2d] = %4d, %4d, %4d, %4d\n",
-					i * 4, i * 4 + 3,
-					fw_param->o_pre_gamma[0][i * 4],
-					fw_param->o_pre_gamma[0][i * 4 + 1],
-					fw_param->o_pre_gamma[0][i * 4 + 2],
-					fw_param->o_pre_gamma[0][i * 4 + 3]);
-			else
-				pr_info("pre_gamma R[%2d] = %4d\n",
-					i * 4, fw_param->o_pre_gamma[0][i * 4]);
-		}
-		pr_info("\n--------pre_gamma G-------\n");
-		for (i = 0; i < 17; i++) {
-			if (i < 16)
-				pr_info("pre_gamma G[%2d ~ %2d] = %4d, %4d, %4d, %4d\n",
-					i * 4, i * 4 + 3,
-					fw_param->o_pre_gamma[1][i * 4],
-					fw_param->o_pre_gamma[1][i * 4 + 1],
-					fw_param->o_pre_gamma[1][i * 4 + 2],
-					fw_param->o_pre_gamma[1][i * 4 + 3]);
-			else
-				pr_info("pre_gamma G[%2d] = %4d\n",
-					i * 4, fw_param->o_pre_gamma[1][i * 4]);
-		}
-		pr_info("\n--------pre_gamma B-------\n");
-		for (i = 0; i < 17; i++) {
-			if (i < 16)
-				pr_info("pre_gamma B[%2d ~ %2d] = %4d, %4d, %4d, %4d\n",
-					i * 4, i * 4 + 3,
-					fw_param->o_pre_gamma[2][i * 4],
-					fw_param->o_pre_gamma[2][i * 4 + 1],
-					fw_param->o_pre_gamma[2][i * 4 + 2],
-					fw_param->o_pre_gamma[2][i * 4 + 3]);
-			else
-				pr_info("pre_gamma B[%2d] = %4d\n",
-					i * 4, fw_param->o_pre_gamma[2][i * 4]);
-		}
+	pr_info("\n--------pre_gamma R-------\n");
+	for (i = 0; i < 17; i++) {
+		if (i < 16)
+			pr_info("pre_gamma R[%2d ~ %2d] = %4d, %4d, %4d, %4d\n",
+				i * 4, i * 4 + 3,
+				pre_gamma[0][i * 4],
+				pre_gamma[0][i * 4 + 1],
+				pre_gamma[0][i * 4 + 2],
+				pre_gamma[0][i * 4 + 3]);
+		else
+			pr_info("pre_gamma R[%2d] = %4d\n",
+				i * 4, pre_gamma[0][i * 4]);
 	}
+	pr_info("\n--------pre_gamma G-------\n");
+	for (i = 0; i < 17; i++) {
+		if (i < 16)
+			pr_info("pre_gamma G[%2d ~ %2d] = %4d, %4d, %4d, %4d\n",
+				i * 4, i * 4 + 3,
+				pre_gamma[1][i * 4],
+				pre_gamma[1][i * 4 + 1],
+				pre_gamma[1][i * 4 + 2],
+				pre_gamma[1][i * 4 + 3]);
+		else
+			pr_info("pre_gamma G[%2d] = %4d\n",
+				i * 4, pre_gamma[1][i * 4]);
+	}
+	pr_info("\n--------pre_gamma B-------\n");
+	for (i = 0; i < 17; i++) {
+		if (i < 16)
+			pr_info("pre_gamma B[%2d ~ %2d] = %4d, %4d, %4d, %4d\n",
+				i * 4, i * 4 + 3,
+				pre_gamma[2][i * 4],
+				pre_gamma[2][i * 4 + 1],
+				pre_gamma[2][i * 4 + 2],
+				pre_gamma[2][i * 4 + 3]);
+		else
+			pr_info("pre_gamma B[%2d] = %4d\n",
+				i * 4, pre_gamma[2][i * 4]);
+	}
+	pr_info("pre_gamma_proc = %p\n", fw_pregm_param->pre_gamma_proc);
 
-	pr_info("\n--------target backlight-------\n");
-	pr_info("tgt_bl = %d\n", fw_param->tgt_bl);
+	return 0;
+}
 
-	pr_info("\n--------debug parameters-------\n");
-	pr_info("debug_mode = %d\n", fw_param->debug_mode);
-	pr_info("cabc_gain = %d\n", fw_param->dbg_param->cabc_gain);
-	pr_info("avg = %d\n", fw_param->dbg_param->avg);
-	pr_info("max95 = %d\n", fw_param->dbg_param->max95);
-	pr_info("tf_bl = %d\n", fw_param->dbg_param->tf_bl);
-	pr_info("aad_gain = %d\n", fw_param->dbg_param->aad_gain);
-	pr_info("y_val = %d\n", fw_param->dbg_param->y_val);
-	pr_info("rg_val = %d\n", fw_param->dbg_param->rg_val);
-	pr_info("bg_val = %d\n", fw_param->dbg_param->bg_val);
-	pr_info("cur_frm_gain = %d\n", fw_param->dbg_param->cur_frm_gain);
+int cabc_aad_print(void)
+{
+	cabc_alg_state();
+	aad_alg_state();
+	pre_gamma_alg_state();
 
 	return 0;
 }
@@ -511,176 +616,178 @@ static void str_sapr_conv(const char *s, unsigned int size, int *dest, int num)
 int cabc_aad_debug(char **param)
 {
 	long val;
-	struct cabc_aad_fw_param_s *fw_param = cabc_aad_fw_param_get();
+	struct aad_fw_param_s *fw_aad_param = aad_fw_param_get();
+	struct cabc_fw_param_s *fw_cabc_param = cabc_fw_param_get();
+	struct pgm_param_s *fw_pregm_param = pregam_fw_param_get();
 	int lut[48] = {0};
 	int i;
 
 	if (!param)
 		return -1;
 
-	if (!strcmp(param[0], "enable")) {
-		fw_param->fw_en = 1;
-		pr_info("enable cabc aad\n");
+	if (!strcmp(param[0], "enable")) {/*module en/disable*/
+		cabc_aad_en = 1;
+		pr_info("enable aad\n");
 	} else if (!strcmp(param[0], "disable")) {
-		fw_param->fw_en = 0;
-		pr_info("disable cabc aad\n");
-	} else if (!strcmp(param[0], "aad_enable")) {
-		fw_param->fw_aad_en = 1;
+		cabc_aad_en = 0;
+		pr_info("disable aad\n");
+	} else if (!strcmp(param[0], "aad_enable")) {/*debug aad*/
+		fw_aad_param->fw_aad_en = 1;
 		pr_info("enable aad\n");
 	} else if (!strcmp(param[0], "aad_disable")) {
-		fw_param->fw_aad_en = 0;
+		fw_aad_param->fw_aad_en = 0;
 		pr_info("disable aad\n");
-	} else if (!strcmp(param[0], "status")) {
+	} else if (!strcmp(param[0], "aad_status")) {
 		if (!strcmp(param[1], "enable"))
-			fw_param->fw_status = 1;
+			fw_aad_param->fw_aad_status = 1;
 		else if (!strcmp(param[1], "disable"))
-			fw_param->fw_status = 0;
-		pr_info("fw_status = %d\n", fw_param->fw_status);
-	} else if (!strcmp(param[0], "aad_sensor_mode")) {/*debug aad*/
-		if (!fw_param->aad_param)
+			fw_aad_param->fw_aad_status = 0;
+		pr_info("aad_status = %d\n", fw_aad_param->fw_aad_status);
+	} else if (!strcmp(param[0], "aad_sensor_mode")) {
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->aad_param->aad_sensor_mode = val;
+		fw_aad_param->aad_param->aad_sensor_mode = val;
 		pr_info("aad_sensor_mode = %d\n", (int)val);
 	} else if (!strcmp(param[0], "aad_mode")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->aad_param->aad_mode = val;
+		fw_aad_param->aad_param->aad_mode = val;
 		pr_info("aad_mode = %d\n", (int)val);
 	} else if (!strcmp(param[0], "aad_LUT_Y_gain")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (!param[1])
 			goto error;
 		str_sapr_conv(param[1], 5,
-			      fw_param->aad_param->aad_LUT_Y_gain,
-			      17);
+			fw_aad_param->aad_param->aad_LUT_Y_gain,
+			17);
 		pr_info("set aad_LUT_Y_gain\n");
 	} else if (!strcmp(param[0], "aad_LUT_RG_gain")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (!param[1])
 			goto error;
 		str_sapr_conv(param[1], 5,
-			      fw_param->aad_param->aad_LUT_RG_gain,
-			      17);
+			fw_aad_param->aad_param->aad_LUT_RG_gain,
+			17);
 		pr_info("set aad_LUT_RG_gain\n");
 	} else if (!strcmp(param[0], "aad_LUT_BG_gain")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (!param[1])
 			goto error;
 		str_sapr_conv(param[1], 5,
-			      fw_param->aad_param->aad_LUT_BG_gain,
-			      17);
+			fw_aad_param->aad_param->aad_LUT_BG_gain,
+			17);
 		pr_info("set aad_LUT_BG_gain\n");
 	} else if (!strcmp(param[0], "aad_Y_gain_min")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->aad_param->aad_Y_gain_min = val;
+		fw_aad_param->aad_param->aad_Y_gain_min = val;
 		pr_info("aad_Y_gain_min = %d\n", (int)val);
 	} else if (!strcmp(param[0], "aad_Y_gain_max")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->aad_param->aad_Y_gain_max = val;
+		fw_aad_param->aad_param->aad_Y_gain_max = val;
 		pr_info("aad_Y_gain_max = %d\n", (int)val);
 	} else if (!strcmp(param[0], "aad_RG_gain_min")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->aad_param->aad_RG_gain_min = val;
+		fw_aad_param->aad_param->aad_RG_gain_min = val;
 		pr_info("aad_RG_gain_min = %d\n", (int)val);
 	} else if (!strcmp(param[0], "aad_RG_gain_max")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->aad_param->aad_RG_gain_max = val;
+		fw_aad_param->aad_param->aad_RG_gain_max = val;
 		pr_info("aad_RG_gain_max = %d\n", (int)val);
 	} else if (!strcmp(param[0], "aad_BG_gain_min")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->aad_param->aad_BG_gain_min = val;
+		fw_aad_param->aad_param->aad_BG_gain_min = val;
 		pr_info("aad_BG_gain_min = %d\n", (int)val);
 	} else if (!strcmp(param[0], "aad_BG_gain_max")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->aad_param->aad_BG_gain_max = val;
+		fw_aad_param->aad_param->aad_BG_gain_max = val;
 		pr_info("aad_BG_gain_max = %d\n", (int)val);
 	} else if (!strcmp(param[0], "aad_tf_en")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->aad_param->aad_tf_en = val;
+		fw_aad_param->aad_param->aad_tf_en = val;
 		pr_info("aad_tf_en = %d\n", (int)val);
 	} else if (!strcmp(param[0], "aad_tf_alpha")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->aad_param->aad_tf_alpha = val;
+		fw_aad_param->aad_param->aad_tf_alpha = val;
 		pr_info("aad_tf_alpha = %d\n", (int)val);
 	} else if (!strcmp(param[0], "aad_dist_mode")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->aad_param->aad_dist_mode = val;
+		fw_aad_param->aad_param->aad_dist_mode = val;
 		pr_info("aad_dist_mode = %d\n", (int)val);
 	} else if (!strcmp(param[0], "aad_force_gain_en")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->aad_param->aad_force_gain_en = val;
+		fw_aad_param->aad_param->aad_force_gain_en = val;
 		pr_info("aad_force_gain_en = %d\n", (int)val);
 	} else if (!strcmp(param[0], "aad_rgb_gain")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (param[3]) {
 			if (kstrtoul(param[1], 10, &val) < 0)
 				goto error;
-			fw_param->aad_param->aad_r_gain = val;
+			fw_aad_param->aad_param->aad_r_gain = val;
 			if (kstrtoul(param[2], 10, &val) < 0)
 				goto error;
-			fw_param->aad_param->aad_g_gain = val;
+			fw_aad_param->aad_param->aad_g_gain = val;
 			if (kstrtoul(param[3], 10, &val) < 0)
 				goto error;
-			fw_param->aad_param->aad_b_gain = val;
+			fw_aad_param->aad_param->aad_b_gain = val;
 			pr_info("aad_rgb_gain = %d, %d, %d\n",
-				fw_param->aad_param->aad_r_gain,
-				fw_param->aad_param->aad_g_gain,
-				fw_param->aad_param->aad_b_gain);
+				fw_aad_param->aad_param->aad_r_gain,
+				fw_aad_param->aad_param->aad_g_gain,
+				fw_aad_param->aad_param->aad_b_gain);
 		}
 	} else if (!strcmp(param[0], "aad_gain_lut")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (!param[1])
 			goto error;
 		str_sapr_conv(param[1], 4,
-			      lut,
-			      33);
+			lut,
+			33);
 		for (i = 0; i < 11; i++) {
-			fw_param->aad_param->aad_gain_lut[i][0] = lut[i * 3];
-			fw_param->aad_param->aad_gain_lut[i][1] = lut[i * 3 + 1];
-			fw_param->aad_param->aad_gain_lut[i][2] = lut[i * 3 + 2];
+			fw_aad_param->aad_param->aad_gain_lut[i][0] = lut[i * 3];
+			fw_aad_param->aad_param->aad_gain_lut[i][1] = lut[i * 3 + 1];
+			fw_aad_param->aad_param->aad_gain_lut[i][2] = lut[i * 3 + 2];
 		}
 		pr_info("set aad_gain_lut\n");
 	} else if (!strcmp(param[0], "gain_lut")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (param[4]) {
 			if (kstrtoul(param[1], 10, &val) < 0)
@@ -688,34 +795,34 @@ int cabc_aad_debug(char **param)
 			i = val;
 			if (kstrtoul(param[2], 10, &val) < 0)
 				goto error;
-			fw_param->aad_param->aad_gain_lut[i][0] = val;
+			fw_aad_param->aad_param->aad_gain_lut[i][0] = val;
 			if (kstrtoul(param[3], 10, &val) < 0)
 				goto error;
-			fw_param->aad_param->aad_gain_lut[i][1] = val;
+			fw_aad_param->aad_param->aad_gain_lut[i][1] = val;
 			if (kstrtoul(param[4], 10, &val) < 0)
 				goto error;
-			fw_param->aad_param->aad_gain_lut[i][2] = val;
+			fw_aad_param->aad_param->aad_gain_lut[i][2] = val;
 			pr_info("gain_lut[%d] = %d, %d, %d\n",
 				i,
-				fw_param->aad_param->aad_gain_lut[i][0],
-				fw_param->aad_param->aad_gain_lut[i][1],
-				fw_param->aad_param->aad_gain_lut[i][2]);
+				fw_aad_param->aad_param->aad_gain_lut[i][0],
+				fw_aad_param->aad_param->aad_gain_lut[i][1],
+				fw_aad_param->aad_param->aad_gain_lut[i][2]);
 		}
 	} else if (!strcmp(param[0], "aad_xy_lut")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (!param[1])
 			goto error;
 		str_sapr_conv(param[1], 4,
-			      lut,
-			      22);
+			lut,
+			22);
 		for (i = 0; i < 11; i++) {
-			fw_param->aad_param->aad_xy_lut[i][0] = lut[i * 2];
-			fw_param->aad_param->aad_xy_lut[i][1] = lut[i * 2 + 1];
+			fw_aad_param->aad_param->aad_xy_lut[i][0] = lut[i * 2];
+			fw_aad_param->aad_param->aad_xy_lut[i][1] = lut[i * 2 + 1];
 		}
 		pr_info("set aad_xy_lut\n");
 	} else if (!strcmp(param[0], "xy_lut")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (param[3]) {
 			if (kstrtoul(param[1], 10, &val) < 0)
@@ -723,129 +830,156 @@ int cabc_aad_debug(char **param)
 			i = val;
 			if (kstrtoul(param[2], 10, &val) < 0)
 				goto error;
-			fw_param->aad_param->aad_xy_lut[i][0] = val;
+			fw_aad_param->aad_param->aad_xy_lut[i][0] = val;
 			if (kstrtoul(param[3], 10, &val) < 0)
 				goto error;
-			fw_param->aad_param->aad_xy_lut[i][1] = val;
+			fw_aad_param->aad_param->aad_xy_lut[i][1] = val;
 			pr_info("gain_lut[%d] = %d, %d\n",
 				i,
-				fw_param->aad_param->aad_xy_lut[i][0],
-				fw_param->aad_param->aad_xy_lut[i][1]);
+				fw_aad_param->aad_param->aad_xy_lut[i][0],
+				fw_aad_param->aad_param->aad_xy_lut[i][1]);
 		}
 	} else if (!strcmp(param[0], "aad_min_dist_th")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->aad_param->aad_min_dist_th = val;
+		fw_aad_param->aad_param->aad_min_dist_th = val;
 		pr_info("aad_min_dist_th = %d\n", (int)val);
 	} else if (!strcmp(param[0], "sensor_input")) {
-		if (!fw_param->aad_param)
+		if (!fw_aad_param->aad_param)
 			goto error;
 		if (param[3]) {
 			if (kstrtoul(param[1], 10, &val) < 0)
 				goto error;
-			fw_param->aad_param->sensor_input[0] = val;
+			fw_aad_param->aad_param->sensor_input[0] = val;
 			if (kstrtoul(param[2], 10, &val) < 0)
 				goto error;
-			fw_param->aad_param->sensor_input[1] = val;
+			fw_aad_param->aad_param->sensor_input[1] = val;
 			if (kstrtoul(param[3], 10, &val) < 0)
 				goto error;
-			fw_param->aad_param->sensor_input[2] = val;
+			fw_aad_param->aad_param->sensor_input[2] = val;
 			pr_info("sensor_input = %d, %d, %d\n",
-				fw_param->aad_param->sensor_input[0],
-				fw_param->aad_param->sensor_input[1],
-				fw_param->aad_param->sensor_input[2]);
+				fw_aad_param->aad_param->sensor_input[0],
+				fw_aad_param->aad_param->sensor_input[1],
+				fw_aad_param->aad_param->sensor_input[2]);
 		}
-	} else if (!strcmp(param[0], "cabc_max95_ratio")) {/*debug cabc*/
-		if (!fw_param->cabc_param)
+	} else if (!strcmp(param[0], "aad_debug_mode")) {
+		if (kstrtoul(param[1], 10, &val) < 0)
+			goto error;
+		fw_aad_param->aad_debug_mode = val;
+		pr_info("aad_debug_mode = %d\n", (int)val);
+	} else if (!strcmp(param[0], "fw_cabc_en")) {/*debug cabc*/
+		if (kstrtoul(param[1], 10, &val) < 0)
+			goto error;
+		fw_cabc_param->fw_cabc_en = val;
+		pr_info("fw_cabc_en = %d\n", (int)val);
+	} else if (!strcmp(param[0], "cabc_status")) {
+		if (!strcmp(param[1], "enable"))
+			fw_cabc_param->fw_cabc_status = 1;
+		else if (!strcmp(param[1], "disable"))
+			fw_cabc_param->fw_cabc_status = 0;
+		pr_info("cabc_status = %d\n", fw_cabc_param->fw_cabc_status);
+	} else if (!strcmp(param[0], "cabc_max95_ratio")) {
+		if (!fw_cabc_param->cabc_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->cabc_param->cabc_max95_ratio = val;
+		fw_cabc_param->cabc_param->cabc_max95_ratio = val;
 		pr_info("cabc_max95_ratio = %d\n", (int)val);
 	} else if (!strcmp(param[0], "cabc_hist_mode")) {
-		if (!fw_param->cabc_param)
+		if (!fw_cabc_param->cabc_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->cabc_param->cabc_hist_mode = val;
+		fw_cabc_param->cabc_param->cabc_hist_mode = val;
 		pr_info("cabc_hist_mode = %d\n", (int)val);
 	} else if (!strcmp(param[0], "cabc_hist_blend_alpha")) {
-		if (!fw_param->cabc_param)
+		if (!fw_cabc_param->cabc_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->cabc_param->cabc_hist_blend_alpha = val;
+		fw_cabc_param->cabc_param->cabc_hist_blend_alpha = val;
 		pr_info("cabc_hist_blend_alpha = %d\n", (int)val);
 	} else if (!strcmp(param[0], "cabc_init_bl_min")) {
-		if (!fw_param->cabc_param)
+		if (!fw_cabc_param->cabc_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->cabc_param->cabc_init_bl_min = val;
+		fw_cabc_param->cabc_param->cabc_init_bl_min = val;
 		pr_info("cabc_init_bl_min = %d\n", (int)val);
 	} else if (!strcmp(param[0], "cabc_init_bl_max")) {
-		if (!fw_param->cabc_param)
+		if (!fw_cabc_param->cabc_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->cabc_param->cabc_init_bl_max = val;
+		fw_cabc_param->cabc_param->cabc_init_bl_max = val;
 		pr_info("cabc_init_bl_max = %d\n", (int)val);
 	} else if (!strcmp(param[0], "cabc_tf_alpha")) {
-		if (!fw_param->cabc_param)
+		if (!fw_cabc_param->cabc_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->cabc_param->cabc_tf_alpha = val;
+		fw_cabc_param->cabc_param->cabc_tf_alpha = val;
 		pr_info("cabc_tf_alpha = %d\n", (int)val);
 	} else if (!strcmp(param[0], "cabc_tf_en")) {
-		if (!fw_param->cabc_param)
+		if (!fw_cabc_param->cabc_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->cabc_param->cabc_tf_en = val;
+		fw_cabc_param->cabc_param->cabc_tf_en = val;
 		pr_info("cabc_tf_en = %d\n", (int)val);
 	} else if (!strcmp(param[0], "cabc_sc_flag")) {
-		if (!fw_param->cabc_param)
+		if (!fw_cabc_param->cabc_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->cabc_param->cabc_sc_flag = val;
+		fw_cabc_param->cabc_param->cabc_sc_flag = val;
 		pr_info("cabc_sc_flag = %d\n", (int)val);
 	} else if (!strcmp(param[0], "cabc_sc_hist_diff_thd")) {
-		if (!fw_param->cabc_param)
+		if (!fw_cabc_param->cabc_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->cabc_param->cabc_sc_hist_diff_thd = val;
+		fw_cabc_param->cabc_param->cabc_sc_hist_diff_thd = val;
 		pr_info("cabc_sc_hist_diff_thd = %d\n", (int)val);
 	} else if (!strcmp(param[0], "cabc_sc_apl_diff_thd")) {
-		if (!fw_param->cabc_param)
+		if (!fw_cabc_param->cabc_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->cabc_param->cabc_sc_apl_diff_thd = val;
+		fw_cabc_param->cabc_param->cabc_sc_apl_diff_thd = val;
 		pr_info("cabc_sc_apl_diff_thd = %d\n", (int)val);
 	} else if (!strcmp(param[0], "cabc_en")) {
-		if (!fw_param->cabc_param)
+		if (!fw_cabc_param->cabc_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->cabc_param->cabc_en = val;
+		fw_cabc_param->cabc_param->cabc_en = val;
 		pr_info("cabc_en = %d\n", (int)val);
-	} else if (!strcmp(param[0], "pre_gamma_gain_ratio")) {/*debug pre gma*/
-		if (!fw_param->pre_gam_param)
+	} else if (!strcmp(param[0], "cabc_debug_mode")) {
+		if (kstrtoul(param[1], 10, &val) < 0)
+			goto error;
+		fw_cabc_param->cabc_debug_mode = val;
+		pr_info("cabc_debug_mode = %d\n", (int)val);
+	} else if (!strcmp(param[0], "pre_gamma_en")) {/*debug pre gma*/
+		if (kstrtoul(param[1], 10, &val) < 0)
+			goto error;
+		fw_pregm_param->fw_pre_gamma_en = val;
+		pr_info("fw_pre_gamma_en = %d\n", (int)val);
+	} else if (!strcmp(param[0], "pre_gamma_gain_ratio")) {
+		if (!fw_pregm_param->pre_gam_param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_param->pre_gam_param->pre_gamma_gain_ratio = val;
+		fw_pregm_param->pre_gam_param->pre_gamma_gain_ratio = val;
 		pr_info("pre_gamma_gain_ratio = %d\n", (int)val);
-	} else if (!strcmp(param[0], "debug_mode")) {/*debug mode*/
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_param->debug_mode = val;
-		pr_info("debug_mode = %d\n", (int)val);
+	} else if (!strcmp(param[0], "aad_print")) {/*print state*/
+		aad_alg_state();
+	} else if (!strcmp(param[0], "cabc_print")) {
+		cabc_alg_state();
+	} else if (!strcmp(param[0], "pregamma_print")) {
+		pre_gamma_alg_state();
 	}
 
 	return 0;

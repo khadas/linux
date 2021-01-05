@@ -60,35 +60,58 @@ struct pre_gam_param_s {
 	int pre_gamma_gain_ratio;
 };
 
-struct debug_param_s {
-	int cabc_gain;
+struct cabc_debug_param_s {
+	int dbg_cabc_gain;
 	int avg;
 	int max95;
 	int tf_bl;
-	int aad_gain;
+};
+
+struct aad_debug_param_s {
 	int y_val;
 	int rg_val;
 	int bg_val;
 	int cur_frm_gain;
 };
 
-struct cabc_aad_fw_param_s {
-	int fw_en;
+struct aad_fw_param_s {
 	int fw_aad_en;
-	int fw_status;
-	int fw_ver;
-	char *fw_update_ver;
+	int fw_aad_status;
+	char *fw_aad_ver;
 	struct aad_param_s *aad_param;
-	struct cabc_param_s *cabc_param;
-	struct pre_gam_param_s *pre_gam_param;
-	int *i_hist;
-	int (*o_pre_gamma)[65];
-	int tgt_bl;
-	int debug_mode;
-	struct debug_param_s *dbg_param;
+	int *cur_gain;
+	int aad_debug_mode;
+	struct aad_debug_param_s *dbg_param;
 
-	void (*cabc_aad_alg)(struct cabc_aad_fw_param_s *fw_param);
+	void (*aad_alg)(struct aad_fw_param_s *fw_aad_param,
+		int *aad_final_gain);
 };
 
-struct cabc_aad_fw_param_s *cabc_aad_fw_param_get(void);
+struct cabc_fw_param_s {
+	int fw_cabc_en;
+	int fw_cabc_status;
+	char *fw_cabc_ver;
+	struct cabc_param_s *cabc_param;
+	int *i_hist;
+	int cur_bl;
+	int tgt_bl;
+	int cabc_debug_mode;
+	struct cabc_debug_param_s *dbg_param;
+
+	void (*cabc_alg)(struct cabc_fw_param_s *fw_cabc_param,
+		int *cabc_final_gain);
+};
+
+struct pgm_param_s {
+	int fw_pre_gamma_en;
+	struct pre_gam_param_s *pre_gam_param;
+	int *aad_gain;
+	int *cabc_gain;
+
+	void (*pre_gamma_proc)(struct pgm_param_s *pgm_param, int (*final_pre_gamma)[65]);
+};
+
+struct aad_fw_param_s *aad_fw_param_get(void);
+struct cabc_fw_param_s *cabc_fw_param_get(void);
+struct pgm_param_s *pregam_fw_param_get(void);
 #endif

@@ -1401,12 +1401,15 @@
 #define LCD_GAMMA_DATA_PORT0    0x14b5
 #define LCD_GAMMA_ADDR_PORT0    0x14b6
 #define L_H_AUTO_INC            8
-/* 7:0 */
-#define L_INDEX                 0
 /* 10bit */
 #define L_GAMMA_R               20
 #define L_GAMMA_G               10
 #define L_GAMMA_B               0
 
+/*postblender yuv/maxrgb hist statistics*/
+#define VPP_PST_STA_CTRL        0x1d3b
+#define VPP_PST_STA_WIN_X       0x1d3c
+#define VPP_PST_STA_WIN_Y       0x1d3d
+#define VPP_PST_STA_RO_HIST     0x1d3e
 #endif
 

@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
  * drivers/amlogic/media/enhancement/amvecm/cacb_aadc.h
  *
@@ -19,10 +18,14 @@
 #ifndef CABC_AADC_H
 #define CABC_AADC_H
 
+#define AAD_DEBUG 0x1
+#define CABC_DEBUG 0X2
+#define PRE_GAM_DEBUG 0x4
+
 void aml_cabc_alg_process(struct work_struct *work);
 void aml_cabc_alg_bypass(struct work_struct *work);
 int cabc_aad_debug(char **param);
-int cabc_aad_alg_state(void);
-int *vf_param_get(void);
+int cabc_aad_print(void);
+int *vf_hist_get(void);
 int fw_en_get(void);
 #endif

@@ -206,7 +206,7 @@ void ve_dnlp_load_reg(void)
 				WRITE_VPP_REG(SRSHARP1_DNLP_00 + i,
 					      ve_dnlp_reg[i]);
 		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			if (vinfo->mode != VMODE_LCD)
+			if (vinfo->mode != VMODE_LCD || is_meson_t7_cpu())
 				dnlp_reg = SRSHARP0_DNLP2_00;
 			else
 				dnlp_reg = SRSHARP1_DNLP2_00;
@@ -238,7 +238,7 @@ static void ve_dnlp_load_def_reg(void)
 				WRITE_VPP_REG(SRSHARP1_DNLP_00 + i,
 					      ve_dnlp_reg[i]);
 		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			if (vinfo->mode != VMODE_LCD)
+			if (vinfo->mode != VMODE_LCD || is_meson_t7_cpu())
 				dnlp_reg = SRSHARP0_DNLP2_00;
 			else
 				dnlp_reg = SRSHARP1_DNLP2_00;
@@ -740,7 +740,7 @@ void ve_enable_dnlp(void)
 		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu())
 			WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 1, 0, 1);
 		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
-			if (vinfo->mode != VMODE_LCD)
+			if (vinfo->mode != VMODE_LCD || is_meson_t7_cpu())
 				WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 1, 0, 1);
 			else
 				WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 1, 0, 1);
@@ -762,7 +762,7 @@ void ve_disable_dnlp(void)
 		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu())
 			WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 0, 0, 1);
 		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
-			if (vinfo->mode != VMODE_LCD)
+			if (vinfo->mode != VMODE_LCD || is_meson_t7_cpu())
 				WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 0, 0, 1);
 			else
 				WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 0, 0, 1);
@@ -2194,6 +2194,40 @@ void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb)
 	VSYNC_WRITE_VPP_REG(VPP_GAMMA_BIN_DATA, (pre_gma_tb->lut_b[64] << 2) & 0xffff);
 
 	VSYNC_WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL, pre_gma_tb->en, 0, 1);
+}
+
+void vpp_pst_hist_sta_config(int en,
+	enum pst_hist_mod mod,
+	enum pst_hist_pos pos,
+	struct vinfo_s *vinfo)
+{
+	int cfg = 0;
+	unsigned int height = 0;
+	unsigned int width = 0;
+
+	/*config*/
+	cfg = (0 << 16) | /*rd index*/
+		(0 << 8) | /*00: clk_en, 01: close clk, 1x: original clk*/
+		(1 << 4) | /*pst_hist_window_en: 1: win_en*/
+		(mod << 2) | /*pst hist model sel  2: y/r 1:U/G 0:V/B 3: max(y/r 1:U/G 0:V/B )*/
+		(pos << 1) | /*pst hist after csc 1: rgb 0, yuv*/
+		(en << 0);/*pst hist sta en  1: en*/
+	WRITE_VPP_REG(VPP_PST_STA_CTRL, cfg);
+	if (vinfo) {
+		height = vinfo->height - 1;
+		width = vinfo->width - 1;
+	}
+	WRITE_VPP_REG(VPP_PST_STA_WIN_X, width << 16);
+	WRITE_VPP_REG(VPP_PST_STA_WIN_Y, height << 16);
+}
+
+void vpp_pst_hist_sta_read(unsigned int *hist)
+{
+	int i;
+
+	VSYNC_WRITE_VPP_REG_BITS(VPP_PST_STA_CTRL, 0, 16, 16);
+	for (i = 0; i < 64; i++)
+		hist[i] = VSYNC_READ_VPP_REG(VPP_PST_STA_RO_HIST);
 }
 
 void amvecm_wb_enable(int enable)

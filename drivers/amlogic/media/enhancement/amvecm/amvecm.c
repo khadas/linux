@@ -1471,7 +1471,12 @@ static int cabc_add_hist_proc(struct vframe_s *vf)
 	int *hist;
 	int i;
 
-	hist = vf_param_get();
+	hist = vf_hist_get();
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7)) {
+		vpp_pst_hist_sta_read(hist);
+		return 1;
+	}
 
 	if (vf) {
 		for (i = 0; i < 64; i++)
@@ -3343,7 +3348,7 @@ free_buf:
 static ssize_t amvecm_cabc_aad_show(struct class *cla,
 				    struct class_attribute *attr, char *buf)
 {
-	cabc_aad_alg_state();
+	cabc_aad_print();
 	return 0;
 }
 
@@ -7741,7 +7746,7 @@ static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 			WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1 + i, tmp);
 		}
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+		    !(is_meson_tm2_cpu() && is_meson_rev_a())) {
 			for (j = 0; j < 2 ; j++) {
 				tmp1 = *(p + 2 * i);
 				tmp2 = *(p + 2 * i + 1);
@@ -7754,7 +7759,7 @@ static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 		break;
 	case YPKBV_YMAXVAL_LMT:
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_rev_a() && is_meson_tm2_cpu()))
+		    !(is_meson_tm2_cpu() && is_meson_rev_a()))
 			break;
 
 		for (i = 0; i < 6 ; i++) {
@@ -7766,7 +7771,7 @@ static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 		break;
 	case YMAXVAL_LMT:
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+		    !(is_meson_tm2_cpu() && is_meson_rev_a())) {
 			for (i = 0; i < 6 ; i++) {
 				tmp1 = *(p + 2 * i);
 				tmp2 = *(p + 2 * i + 1);
@@ -7787,7 +7792,7 @@ static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 		break;
 	case YPKBV_LMT:
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+		    !(is_meson_tm2_cpu() && is_meson_rev_a())) {
 			for (i = 0; i < 8 ; i++) {
 				tmp1 = *(p + 2 * i);
 				tmp2 = *(p + 2 * i + 1);
@@ -8356,6 +8361,10 @@ tvchip_pq_setting:
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
 			hdr_hist_config_int();
+
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+			vpp_pst_hist_sta_config(1, HIST_YR,
+				BEFORE_POST2_MTX, vinfo);
 	}
 
 	/* enable vadj1 by default */
