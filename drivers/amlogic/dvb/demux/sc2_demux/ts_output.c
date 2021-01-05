@@ -1326,6 +1326,8 @@ static int write_sec_video_es_data(struct out_elem *pout,
 		flag = 1;
 	len = es_params->header.len - es_params->data_len;
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
+	if (ret == 0)
+		return -1;
 	if (es_params->data_start == 0)
 		es_params->data_start = (unsigned long)ptmp;
 
