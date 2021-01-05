@@ -7,7 +7,7 @@
 	lcd {
 		compatible = "amlogic, lcd-t7";
 		status = "okay";
-		mode = "tv";
+		mode = "tablet";
 		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
 		reg = <0x0 0xfe018000 0x0 0x60     /* combo dphy */
