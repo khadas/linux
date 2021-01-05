@@ -224,8 +224,8 @@ static unsigned int meson_cpufreq_set_rate(struct cpufreq_policy *policy,
 	return 0;
 }
 
-static int meson_regulator_set_volate(struct regulator *regulator, int old_uv,
-				      int new_uv, int tol_uv)
+static int meson_regulator_set_volate(struct regulator *regulator, u32 cluster_id,
+	int old_uv, int new_uv, int tol_uv)
 {
 	int cur, to, vol_cnt = 0;
 	int ret = 0;
@@ -243,7 +243,7 @@ static int meson_regulator_set_volate(struct regulator *regulator, int old_uv,
 	if (to >= vol_cnt)
 		to = vol_cnt - 1;
 
-	if (cur < 0 || cur >= vol_cnt) {
+	if (cur < 0 || cur >= vol_cnt || reg_use_buck[cluster_id]) {
 		temp_uv = regulator_list_voltage(regulator, to);
 		ret = regulator_set_voltage_tol(regulator, temp_uv, temp_uv
 						+ tol_uv);
@@ -339,7 +339,7 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	/*cpufreq up,change voltage before frequency*/
 	if (freq_new > freq_old) {
-		ret = meson_regulator_set_volate(cpu_reg, volt_old,
+		ret = meson_regulator_set_volate(cpu_reg, cur_cluster, volt_old,
 						 volt_new, volt_tol);
 		if (ret) {
 			mutex_unlock(&cpufreq_target_lock);
@@ -360,7 +360,7 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 		       freq_new / 1000000, ret);
 		if (volt_old > 0 && freq_new > freq_old) {
 			pr_debug("scaling to old voltage %u\n", volt_old);
-			meson_regulator_set_volate(cpu_reg, volt_old, volt_old,
+			meson_regulator_set_volate(cpu_reg, cur_cluster, volt_old, volt_old,
 						   volt_tol);
 		}
 		mutex_unlock(&cpufreq_target_lock);
@@ -370,7 +370,7 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 	meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_POSTCHANGE);
 	/*cpufreq down,change voltage after frequency*/
 	if (freq_new < freq_old) {
-		ret = meson_regulator_set_volate(cpu_reg, volt_old,
+		ret = meson_regulator_set_volate(cpu_reg, cur_cluster, volt_old,
 						 volt_new, volt_tol);
 		if (ret) {
 			pr_err("failed to scale volt %u %u down: %d\n",
@@ -625,6 +625,8 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 
 	cpufreq_voltage_set_skip = of_property_read_bool(np,
 							 "cpufreq_voltage_set_skip");
+	reg_use_buck[cur_cluster] = of_property_read_bool(np,
+		"cpu_reg_use_buck");
 	cpu_reg = devm_regulator_get(cpu_dev, CORE_SUPPLY);
 	if (IS_ERR(cpu_reg)) {
 		pr_err("%s:failed to get regulator, %ld\n", __func__,
