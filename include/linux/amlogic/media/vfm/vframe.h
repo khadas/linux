@@ -584,6 +584,8 @@ struct vframe_s {
 	char *hdr10p_data_buf;
 
 	bool discard_dv_data;
+
+	u32 frame_type;
 } /*vframe_t */;
 
 int get_curren_frame_para(int *top, int *left, int *bottom, int *right);
