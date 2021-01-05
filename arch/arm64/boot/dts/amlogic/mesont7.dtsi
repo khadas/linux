@@ -1000,7 +1000,7 @@
 			pcie-phy-rst-bit = <13>;
 			pcie-ctrl-a-rst-bit = <12>;
 			pwr-ctl = <0>;
-//			power-domains = <&pwrdm PDID_SC2_PCIE>;
+			power-domains = <&pwrdm PDID_T7_PCIE>;
 			pcie-ctrl-sleep-shift = <15>;
 			pcie-hhi-mem-pd-shift = <26>;
 			pcie-hhi-mem-pd-mask = <0xf>;

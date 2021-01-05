@@ -1050,7 +1050,7 @@
 };
 
 &pcie {
-	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
+	reset-gpio = <&gpio GPIOH_3 GPIO_ACTIVE_HIGH>;
 	status = "disable";
 };
 
