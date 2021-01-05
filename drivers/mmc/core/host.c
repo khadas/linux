@@ -376,6 +376,11 @@ int mmc_of_parse(struct mmc_host *host)
 	else
 		mmc->ignore_desc_busy = false;
 
+	if (device_property_read_bool(dev, "use_intf3_tuning"))
+		mmc->use_intf3_tuning = true;
+	else
+		mmc->use_intf3_tuning = false;
+
 	if (device_property_read_u32(dev, "tx_delay",
 				&mmc->sdmmc.hs4.tx_delay) < 0)
 		aml_dts_u32_read(dev, "hs4_tx_delay",

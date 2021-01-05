@@ -799,9 +799,9 @@ static unsigned long _test_fixed_adj(struct mmc_host *mmc,
 			set_bit(adj + i, &fixed_adj_map);
 			len += sprintf(adj_print + len,
 				"%d ", adj + i);
-			pr_debug("%s: rx_tuning_result[%d] = %d\n",
-				mmc_hostname(mmc), adj + i, nmatch);
 		}
+		pr_info("%s: rx_tuning_result[%d] = %d\n",
+				mmc_hostname(mmc), adj + i, nmatch);
 	}
 	len += sprintf(adj_print + len, ">\n");
 	pr_info("%s", host->adj_win);
@@ -2821,6 +2821,106 @@ retry1:
 	return 0;
 }
 
+static int intf3_scan(struct mmc_host *mmc, u32 opcode)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 intf3;
+	u32 i, j, err;
+	char rx_r[64] = {0}, rx_f[64] = {0};
+	u32 vclk = readl(host->regs + SD_EMMC_CLOCK);
+	int best_s1 = -1, best_sz1 = 0;
+	int best_s2 = -1, best_sz2 = 0;
+
+	intf3 = readl(host->regs + SD_EMMC_INTF3);
+	intf3 |= SD_INTF3;
+	intf3 &= ~EYETEST_SEL;
+
+	host->cmd_retune = 0;
+	for (i = 0; i < 2; i++) {
+		if (i)
+			intf3 |= RESP_SEL;
+		else
+			intf3 &= ~RESP_SEL;
+		writel(intf3, (host->regs + SD_EMMC_INTF3));
+		for (j = 0; j < 64; j++) {
+			vclk &= ~CLK_V3_RX_DELAY_MASK;
+			vclk |= j << __ffs(CLK_V3_RX_DELAY_MASK);
+			writel(vclk, host->regs + SD_EMMC_CLOCK);
+			if (aml_card_type_mmc(host)) {
+				err = emmc_test_bus(mmc);
+				if (!err) {
+					if (i)
+						rx_f[j]++;
+					else
+						rx_r[j]++;
+				}
+			} else {
+				err = meson_mmc_tuning_transfer(mmc, opcode);
+				if (err == TUNING_NUM_PER_POINT) {
+					if (i)
+						rx_f[j]++;
+					else
+						rx_r[j]++;
+				}
+			}
+		}
+	}
+	host->cmd_retune = 1;
+	find_best_win(mmc, rx_r, 64, &best_s1, &best_sz1);
+	find_best_win(mmc, rx_f, 64, &best_s2, &best_sz2);
+	if (host->debug_flag) {
+		emmc_show_cmd_window(rx_r, 1);
+		emmc_show_cmd_window(rx_f, 1);
+	}
+	pr_info("r: b_s = %x, b_sz = %x, f: b_s = %x, b_sz = %x\n",
+		best_s1, best_sz1, best_s2, best_sz2);
+
+	if (!best_sz1 && !best_sz2)
+		return -1;
+
+	vclk &= ~CLK_V3_RX_DELAY_MASK;
+	if (best_sz1 >= best_sz2) {
+		intf3 &= ~RESP_SEL;
+		vclk |= (best_s1 + best_sz1 / 2) << __ffs(CLK_V3_RX_DELAY_MASK);
+	} else {
+		intf3 |= RESP_SEL;
+		vclk |= (best_s2 + best_sz2 / 2) << __ffs(CLK_V3_RX_DELAY_MASK);
+	}
+	pr_info("the final result: sel = %lx, rx = %lx\n",
+		(intf3 & SD_INTF3) >> __ffs(SD_INTF3),
+		(vclk & CLK_V3_RX_DELAY_MASK) >> __ffs(CLK_V3_RX_DELAY_MASK));
+	writel(vclk, host->regs + SD_EMMC_CLOCK);
+	writel(intf3, host->regs + SD_EMMC_INTF3);
+
+	return 0;
+}
+
+static int mmc_intf3_win_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 vclk, ret = -1;
+
+	vclk = readl(host->regs + SD_EMMC_CLOCK);
+
+	if ((vclk & CLK_DIV_MASK) > 8) {
+		pr_err("clk div is too big.\n");
+		return -1;
+	}
+
+	vclk &= ~CLK_V3_RX_DELAY_MASK;
+	writel(vclk, host->regs + SD_EMMC_CLOCK);
+	writel(0, host->regs + SD_EMMC_DELAY1);
+	writel(0, host->regs + SD_EMMC_DELAY2);
+	writel(0, host->regs + SD_EMMC_V3_ADJUST);
+	writel(0, host->regs + SD_EMMC_INTF3);
+
+	ret = intf3_scan(mmc, opcode);
+	if (ret)
+		pr_err("scan intf3 rx window fail.\n");
+
+	return ret;
+}
+
 static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct meson_host *host = mmc_priv(mmc);
@@ -2828,7 +2928,9 @@ static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	u32 intf3 = 0;
 
 	host->is_tuning = 1;
-	if (!(mmc->caps2 & MMC_CAP2_HS400_1_8V)) {
+	if (host->use_intf3_tuning)
+		err = mmc_intf3_win_tuning(mmc, opcode);
+	else if (!(mmc->caps2 & MMC_CAP2_HS400_1_8V)) {
 #ifndef SD_EMMC_FIXED_ADJ_HS200
 		err = meson_mmc_clk_phase_tuning(mmc, opcode);
 #else

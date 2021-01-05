@@ -184,6 +184,7 @@ struct meson_host {
 	struct aml_tuning_para para;
 	int run_pxp_flag;
 	bool ignore_desc_busy;
+	bool use_intf3_tuning;
 };
 
 int sdio_reset_comm(struct mmc_card *card);
@@ -251,6 +252,8 @@ const char *get_wifi_inf(void);
 #define   DS_SHT_M_MASK GENMASK(17, 12)
 #define   DS_SHT_EXP_MASK GENMASK(21, 18)
 #define   SD_INTF3 BIT(22)
+#define   EYETEST_SEL BIT(26)
+#define   RESP_SEL BIT(27)
 #define SD_EMMC_START 0x40
 #define   START_DESC_INIT BIT(0)
 #define   START_DESC_BUSY BIT(1)
