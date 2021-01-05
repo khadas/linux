@@ -27,6 +27,8 @@ obj-$(CONFIG_AMLOGIC_IRBLASTER)		+= irblaster/
 obj-$(CONFIG_MTD_NAND_MESON)		+= mtd/nand/
 obj-$(CONFIG_MTD_RESV_MESON)		+= mtd/reserve/
 obj-$(CONFIG_MTD_SPI_NAND_MESON)	+= mtd/spi_nand/
+obj-$(CONFIG_AMLOGIC_AUDIO_DSP)  	+= audiodsp/
+obj-$(CONFIG_AMLOGIC_AMAUDIO)		+= amaudio/
 obj-$(CONFIG_AMLOGIC_AUDIO_INFO) 	+= audioinfo/
 
 #Always build in code/modules
