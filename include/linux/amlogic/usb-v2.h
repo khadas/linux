@@ -249,6 +249,9 @@ struct amlogic_usb_v2 {
 	void __iomem	*usb_phy_trim_reg;
 	u32 phy_id;
 	struct clk		*general_clk;
+	u32 usb3_apb_reset_bit;
+	u32 usb3_phy_reset_bit;
+	u32 usb3_reset_shift;
 };
 
 union phy3_r1 {

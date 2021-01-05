@@ -20,13 +20,9 @@
 #include <linux/workqueue.h>
 #include <linux/notifier.h>
 #include <linux/amlogic/usbtype.h>
-//#include <dt-bindings/power/amlogic,pd.h>
 #include "../phy/phy-aml-new-usb-v2.h"
 
-#define HOST_MODE	0
-#define DEVICE_MODE	1
-
-struct usb_aml_regs_v2 usb_crg_drd_aml_regs;
+struct usb_aml_regs_v2 usb_crg_drd_aml_regs[2];
 
 static int amlogic_crg_drd_usb3_suspend(struct usb_phy *x, int suspend)
 {
@@ -37,133 +33,131 @@ static void amlogic_crg_drd_usb3phy_shutdown(struct usb_phy *x)
 {
 	struct amlogic_usb_v2 *phy = phy_to_amlusb(x);
 
-	if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
+	if (phy->phy.flags == AML_USB3_PHY_ENABLE)
 		clk_disable_unprepare(phy->clk);
-		//clk_disable_unprepare(phy->gate1_clk);
-	}
 
 	phy->suspend_flag = 1;
 }
 
-static void cr_bus_addr_31(struct amlogic_usb_v2 *phy_v3, unsigned int addr)
+static void cr_bus_addr(struct amlogic_usb_v2 *phy_v3, unsigned int addr)
 {
 	union phy3_r4 phy_r4 = {.d32 = 0};
 	union phy3_r5 phy_r5 = {.d32 = 0};
 	unsigned long timeout_jiffies;
 
 	phy_r4.b.phy_cr_data_in = addr;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 
 	phy_r4.b.phy_cr_cap_addr = 0;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 	phy_r4.b.phy_cr_cap_addr = 1;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 	timeout_jiffies = jiffies +
 			msecs_to_jiffies(1000);
 	do {
-		phy_r5.d32 = readl(phy_v3->phy31_cfg_r5);
+		phy_r5.d32 = readl(phy_v3->phy3_cfg_r5);
 	} while (phy_r5.b.phy_cr_ack == 0 &&
 		time_is_after_jiffies(timeout_jiffies));
 
 	phy_r4.b.phy_cr_cap_addr = 0;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 	timeout_jiffies = jiffies +
 			msecs_to_jiffies(1000);
 	do {
-		phy_r5.d32 = readl(phy_v3->phy31_cfg_r5);
+		phy_r5.d32 = readl(phy_v3->phy3_cfg_r5);
 	} while (phy_r5.b.phy_cr_ack == 1 &&
 		time_is_after_jiffies(timeout_jiffies));
 }
 
-static int cr_bus_read_31(struct amlogic_usb_v2 *phy_v3, unsigned int addr)
+static int cr_bus_read(struct amlogic_usb_v2 *phy_v3, unsigned int addr)
 {
 	int data;
 	union phy3_r4 phy_r4 = {.d32 = 0};
 	union phy3_r5 phy_r5 = {.d32 = 0};
 	unsigned long timeout_jiffies;
 
-	cr_bus_addr_31(phy_v3, addr);
+	cr_bus_addr(phy_v3, addr);
 
 	phy_r4.b.phy_cr_read = 0;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 	phy_r4.b.phy_cr_read = 1;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 
 	timeout_jiffies = jiffies +
 			msecs_to_jiffies(1000);
 	do {
-		phy_r5.d32 = readl(phy_v3->phy31_cfg_r5);
+		phy_r5.d32 = readl(phy_v3->phy3_cfg_r5);
 	} while (phy_r5.b.phy_cr_ack == 0 &&
 		time_is_after_jiffies(timeout_jiffies));
 
 	data = phy_r5.b.phy_cr_data_out;
 
 	phy_r4.b.phy_cr_read = 0;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 	timeout_jiffies = jiffies +
 			msecs_to_jiffies(1000);
 	do {
-		phy_r5.d32 = readl(phy_v3->phy31_cfg_r5);
+		phy_r5.d32 = readl(phy_v3->phy3_cfg_r5);
 	} while (phy_r5.b.phy_cr_ack == 1 &&
 		time_is_after_jiffies(timeout_jiffies));
 
 	return data;
 }
 
-static void cr_bus_write_31(struct amlogic_usb_v2 *phy_v3,
-			    unsigned int addr, unsigned int data)
+static void cr_bus_write(struct amlogic_usb_v2 *phy_v3,
+			 unsigned int addr, unsigned int data)
 {
 	union phy3_r4 phy_r4 = {.d32 = 0};
 	union phy3_r5 phy_r5 = {.d32 = 0};
 	unsigned long timeout_jiffies;
 
-	cr_bus_addr_31(phy_v3, addr);
+	cr_bus_addr(phy_v3, addr);
 
 	phy_r4.b.phy_cr_data_in = data;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 
 	phy_r4.b.phy_cr_cap_data = 0;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 	phy_r4.b.phy_cr_cap_data = 1;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 	timeout_jiffies = jiffies +
 		msecs_to_jiffies(1000);
 	do {
-		phy_r5.d32 = readl(phy_v3->phy31_cfg_r5);
+		phy_r5.d32 = readl(phy_v3->phy3_cfg_r5);
 	} while (phy_r5.b.phy_cr_ack == 0 &&
 		time_is_after_jiffies(timeout_jiffies));
 
 	phy_r4.b.phy_cr_cap_data = 0;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 	timeout_jiffies = jiffies +
 		msecs_to_jiffies(1000);
 	do {
-		phy_r5.d32 = readl(phy_v3->phy31_cfg_r5);
+		phy_r5.d32 = readl(phy_v3->phy3_cfg_r5);
 	} while (phy_r5.b.phy_cr_ack == 1 &&
 		time_is_after_jiffies(timeout_jiffies));
 
 	phy_r4.b.phy_cr_write = 0;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 	phy_r4.b.phy_cr_write = 1;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 	timeout_jiffies = jiffies +
 		msecs_to_jiffies(1000);
 	do {
-		phy_r5.d32 = readl(phy_v3->phy31_cfg_r5);
+		phy_r5.d32 = readl(phy_v3->phy3_cfg_r5);
 	} while (phy_r5.b.phy_cr_ack == 0 &&
 		time_is_after_jiffies(timeout_jiffies));
 
 	phy_r4.b.phy_cr_write = 0;
-	writel(phy_r4.d32, phy_v3->phy31_cfg_r4);
+	writel(phy_r4.d32, phy_v3->phy3_cfg_r4);
 	timeout_jiffies = jiffies +
 		msecs_to_jiffies(1000);
 	do {
-		phy_r5.d32 = readl(phy_v3->phy31_cfg_r5);
+		phy_r5.d32 = readl(phy_v3->phy3_cfg_r5);
 	} while (phy_r5.b.phy_cr_ack == 1 &&
 		time_is_after_jiffies(timeout_jiffies));
 }
 
-static void amlogic_crg_drd_phy_cr_config_31(struct amlogic_usb_v2 *phy)
+static void usb3_phy_cr_config_30(struct amlogic_usb_v2 *phy)
 {
 	u32 data = 0;
 
@@ -174,14 +168,14 @@ static void amlogic_crg_drd_phy_cr_config_31(struct amlogic_usb_v2 *phy)
 	 * LANE0.TX_ALT_BLOCK.EN_ALT_BUS to enable TX to use alt bus
 	 * mode
 	 */
-	data = cr_bus_read_31(phy, 0x102d);
+	data = cr_bus_read(phy, 0x102d);
 	data |= (1 << 7);
-	cr_bus_write_31(phy, 0x102D, data);
+	cr_bus_write(phy, 0x102D, data);
 
-	data = cr_bus_read_31(phy, 0x1010);
+	data = cr_bus_read(phy, 0x1010);
 	data &= ~0xff0;
 	data |= 0x20;
-	cr_bus_write_31(phy, 0x1010, data);
+	cr_bus_write(phy, 0x1010, data);
 
 	/*
 	 * Fix RX Equalization setting as follows
@@ -190,13 +184,13 @@ static void amlogic_crg_drd_phy_cr_config_31(struct amlogic_usb_v2 *phy)
 	 * LANE0.RX_OVRD_IN_HI.RX_EQ set to 3
 	 * LANE0.RX_OVRD_IN_HI.RX_EQ_OVRD set to 1
 	 */
-	data = cr_bus_read_31(phy, 0x1006);
+	data = cr_bus_read(phy, 0x1006);
 	data &= ~(1 << 6);
 	data |= (1 << 7);
 	data &= ~(0x7 << 8);
 	data |= (0x3 << 8);
 	data |= (0x1 << 11);
-	cr_bus_write_31(phy, 0x1006, data);
+	cr_bus_write(phy, 0x1006, data);
 
 	/*
 	 * S	et EQ and TX launch amplitudes as follows
@@ -204,37 +198,36 @@ static void amlogic_crg_drd_phy_cr_config_31(struct amlogic_usb_v2 *phy)
 	 * LANE0.TX_OVRD_DRV_LO.AMPLITUDE set to 127
 	 * LANE0.TX_OVRD_DRV_LO.EN set to 1.
 	 */
-	data = cr_bus_read_31(phy, 0x1002);
+	data = cr_bus_read(phy, 0x1002);
 	data &= ~0x3f80;
 	data |= (0x16 << 7);
 	data &= ~0x7f;
 	data |= (0x7f | (1 << 14));
-	cr_bus_write_31(phy, 0x1002, data);
+	cr_bus_write(phy, 0x1002, data);
 
 	/*
 	 * MPLL_LOOP_CTL.PROP_CNTRL
 	 */
-	data = cr_bus_read_31(phy, 0x30);
+	data = cr_bus_read(phy, 0x30);
 	data &= ~(0xf << 4);
 	data |= (0x8 << 4);
-	cr_bus_write_31(phy, 0x30, data);
+	cr_bus_write(phy, 0x30, data);
 	udelay(2);
 }
 
 static int amlogic_crg_drd_usb3_init(struct usb_phy *x)
 {
 	struct amlogic_usb_v2 *phy = phy_to_amlusb(x);
+	union usb_r2_v2 r2 = {.d32 = 0};
+	union usb_r1_v2 r1 = {.d32 = 0};
 	union usb_r3_v2 r3 = {.d32 = 0};
-	union usb_r7_v2 r7 = {.d32 = 0};
 	union phy3_r2 p3_r2 = {.d32 = 0};
 	union phy3_r1 p3_r1 = {.d32 = 0};
 	int i = 0;
 
 	if (phy->suspend_flag) {
-		if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
-			//clk_prepare_enable(phy->gate1_clk);
+		if (phy->phy.flags == AML_USB3_PHY_ENABLE)
 			clk_prepare_enable(phy->clk);
-		}
 
 		phy->suspend_flag = 0;
 		return 0;
@@ -243,44 +236,50 @@ static int amlogic_crg_drd_usb3_init(struct usb_phy *x)
 	if (phy->phy.flags != AML_USB3_PHY_ENABLE)
 		return 0;
 
-	for (i = 0; i < 8; i++) {
-		usb_crg_drd_aml_regs.usb_r_v2[i] = (void __iomem *)
+	for (i = 0; i < 8; i++)
+		usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[i] = (void __iomem *)
 			((unsigned long)phy->regs + 4 * i);
-	}
 
 	if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
-		/* config usb31 phy */
-		r7.d32 = readl(usb_crg_drd_aml_regs.usb_r_v2[7]);
-		r7.b.p31_ssc_en = 1;
-		r7.b.p31_ssc_range = 2;
-		r7.b.p31_ref_ssp_en = 1;
-		writel(r7.d32, usb_crg_drd_aml_regs.usb_r_v2[7]);
-		udelay(2);
-		r7.d32 = readl(usb_crg_drd_aml_regs.usb_r_v2[7]);
-		r7.b.p31_pcs_tx_deemph_6db = 0x20;
-		r7.b.p31_pcs_tx_swing_full = 127;
-		writel(r7.d32, usb_crg_drd_aml_regs.usb_r_v2[7]);
-		udelay(2);
-		r3.d32 = readl(usb_crg_drd_aml_regs.usb_r_v2[3]);
-		r3.b.p31_pcs_tx_deemph_3p5db = 0x15;
-		writel(r3.d32, usb_crg_drd_aml_regs.usb_r_v2[3]);
+		r3.d32 = readl(usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[3]);
+		r3.b.p30_ssc_en = 1;
+		r3.b.p30_ssc_range = 2;
+		r3.b.p30_ref_ssp_en = 1;
+		writel(r3.d32, usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[3]);
 
 		udelay(2);
-		p3_r2.d32 = readl(phy->phy31_cfg_r2);
+
+		r2.d32 = readl(usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[2]);
+		r2.b.p30_pcs_tx_deemph_3p5db = 0x15;
+		r2.b.p30_pcs_tx_deemph_6db = 0x20;
+		writel(r2.d32, usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[2]);
+
+		udelay(2);
+
+		r1.d32 = readl(usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[1]);
+		r1.b.u3h_host_port_power_control_present = 1;
+		r1.b.u3h_fladj_30mhz_reg = 0x20;
+		r1.b.p30_pcs_tx_swing_full = 127;
+		r1.b.u3h_host_u3_port_disable = 0;
+		writel(r1.d32, usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[1]);
+
+		udelay(2);
+
+		p3_r2.d32 = readl(phy->phy3_cfg_r2);
 		p3_r2.b.phy_tx_vboost_lvl = 0x4;
-		writel(p3_r2.d32, phy->phy31_cfg_r2);
+		writel(p3_r2.d32, phy->phy3_cfg_r2);
+
 		udelay(2);
 
-		amlogic_crg_drd_phy_cr_config_31(phy);
-
+		usb3_phy_cr_config_30(phy);
 		/*
-		 * LOS_BIAS	to 0x5
+		 * LOS_BIAS to 0x5
 		 * LOS_LEVEL to 0x9
 		 */
-		p3_r1.d32 = readl(phy->phy31_cfg_r1);
+		p3_r1.d32 = readl(phy->phy3_cfg_r1);
 		p3_r1.b.phy_los_bias = 0x5;
 		p3_r1.b.phy_los_level = 0x9;
-		writel(p3_r1.d32, phy->phy31_cfg_r1);
+		writel(p3_r1.d32, phy->phy3_cfg_r1);
 	}
 
 	return 0;
@@ -305,6 +304,11 @@ static int amlogic_crg_drd_usb3_probe(struct platform_device *pdev)
 	unsigned long rate;
 #define PCIE_PLL_RATE 100000000
 	u32 val;
+	u32 phy_id = 0;
+	int reset_level = 0x40;
+	u32 usb3_apb_reset_bit = 23;
+	u32 usb3_phy_reset_bit = 22;
+	u32 usb3_reset_shift = 4;
 
 	prop = of_get_property(dev->of_node, "portnum", NULL);
 	if (prop)
@@ -312,6 +316,12 @@ static int amlogic_crg_drd_usb3_probe(struct platform_device *pdev)
 
 	if (!portnum)
 		dev_err(&pdev->dev, "This phy has no usb port\n");
+
+	prop = of_get_property(dev->of_node, "phy-id", NULL);
+	if (prop)
+		phy_id = of_read_ulong(prop, 1);
+	else
+		phy_id = 0;
 
 	phy_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	phy_base = ioremap(phy_mem->start, resource_size(phy_mem));
@@ -348,6 +358,30 @@ static int amlogic_crg_drd_usb3_probe(struct platform_device *pdev)
 	if (!reset_base)
 		return -ENOMEM;
 
+	prop = of_get_property(dev->of_node, "reset-level", NULL);
+	if (prop)
+		reset_level = of_read_ulong(prop, 1);
+	else
+		reset_level = 0x40;
+
+	prop = of_get_property(dev->of_node, "usb3-apb-reset-bit", NULL);
+	if (prop)
+		usb3_apb_reset_bit = of_read_ulong(prop, 1);
+	else
+		usb3_apb_reset_bit = 23;
+
+	prop = of_get_property(dev->of_node, "usb3-phy-reset-bit", NULL);
+	if (prop)
+		usb3_phy_reset_bit = of_read_ulong(prop, 1);
+	else
+		usb3_phy_reset_bit = 22;
+
+	prop = of_get_property(dev->of_node, "usb3-reset-shit", NULL);
+	if (prop)
+		usb3_reset_shift = of_read_ulong(prop, 1);
+	else
+		usb3_reset_shift = 4;
+
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
@@ -358,13 +392,13 @@ static int amlogic_crg_drd_usb3_probe(struct platform_device *pdev)
 	phy->dev		= dev;
 	phy->regs		= phy_base;
 	phy->phy31_cfg	= phy31_base;
-	phy->phy31_cfg_r1 = (void __iomem *)
+	phy->phy3_cfg_r1 = (void __iomem *)
 			((unsigned long)phy->phy31_cfg + 4 * 1);
-	phy->phy31_cfg_r2 = (void __iomem *)
+	phy->phy3_cfg_r2 = (void __iomem *)
 			((unsigned long)phy->phy31_cfg + 4 * 2);
-	phy->phy31_cfg_r4 = (void __iomem *)
+	phy->phy3_cfg_r4 = (void __iomem *)
 			((unsigned long)phy->phy31_cfg + 4 * 4);
-	phy->phy31_cfg_r5 = (void __iomem *)
+	phy->phy3_cfg_r5 = (void __iomem *)
 			((unsigned long)phy->phy31_cfg + 4 * 5);
 	phy->portnum      = portnum;
 	phy->suspend_flag = 0;
@@ -376,42 +410,38 @@ static int amlogic_crg_drd_usb3_probe(struct platform_device *pdev)
 	phy->phy.type		= USB_PHY_TYPE_USB3;
 	phy->phy.flags		= AML_USB3_PHY_DISABLE;
 	phy->reset_regs = reset_base;
+	phy->phy_id = phy_id;
+	phy->reset_level = reset_level;
+	phy->usb3_apb_reset_bit = usb3_apb_reset_bit;
+	phy->usb3_phy_reset_bit = usb3_phy_reset_bit;
+	phy->usb3_reset_shift = usb3_reset_shift;
 
 	/* set the phy from pcie to usb3 */
 	if (phy->portnum > 0) {
-		val = readl((void __iomem *)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
-		writel((val & (~(0x1 << 23))), (void __iomem *)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
+		writel((0x1 << usb3_apb_reset_bit) | (0x1 << usb3_phy_reset_bit),
+			(void __iomem *)
+			((unsigned long)phy->reset_regs + phy->usb3_reset_shift));
 
 		usleep_range(100, 200);
 
-		val = readl((void __iomem *)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
-
-		writel((val | (0x1 << 23)), (void __iomem	*)
-		((unsigned long)phy->reset_regs + (0x20 * 4 - 0x8)));
-
-		usleep_range(100, 200);
-
-		writel((readl(phy->phy31_cfg) | (3 << 5)),
-			   phy->phy31_cfg);
+		val = readl(phy->reset_regs + phy->reset_level + phy->usb3_reset_shift);
+		writel(val | (0x1 << usb3_apb_reset_bit) | (0x1 << usb3_phy_reset_bit),
+			(void __iomem *)
+			((unsigned long)phy->reset_regs + phy->reset_level
+			+ phy->usb3_reset_shift));
 
 		usleep_range(100, 200);
 
-		//phy->gate1_clk = devm_clk_get(dev, "usb3_gate");
-		//if (IS_ERR(phy->gate1_clk)) {
-		//	dev_err(dev, "Failed to get usb3 bus clock\n");
-		//	ret = PTR_ERR(phy->gate1_clk);
-		//	return ret;
-		//}
+		val = readl(phy->phy31_cfg);
+		val |= (3 << 5);
+		writel(val, phy->phy31_cfg);
 
-		//ret = clk_prepare_enable(phy->gate1_clk);
-		//if (ret) {
-		//	dev_err(dev, "Failed to enable usb3 bus clock\n");
-		//	ret = PTR_ERR(phy->gate1_clk);
-		//	return ret;
-		//}
+		usleep_range(100, 200);
+
+		val = readl(phy->phy31_cfg + 0x18);
+		val &= (~(0x3 << 17));
+		val |= (0x1 << 18);
+		writel(val, phy->phy31_cfg + 0x18);
 
 		usleep_range(100, 200);
 

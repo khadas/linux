@@ -46,6 +46,8 @@ struct crg_drd {
 	enum usb_dr_mode	dr_mode;
 	u32			maximum_speed;
 	void			*mem;
+	struct usb_phy		*usb2_phy;
+	struct usb_phy		*usb3_phy;
 
 	unsigned		super_speed_support:1;
 	bool		usb_phy_init;
@@ -99,6 +101,16 @@ static int crg_core_init(struct crg_drd *crg)
 
 static int crg_core_get_phy(struct crg_drd *crg)
 {
+	struct device *dev = crg->dev;
+
+	crg->super_speed_support = 0;
+
+	crg->usb3_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 1);
+
+	if (crg->usb3_phy)
+		if (crg->usb3_phy->flags == AML_USB3_PHY_ENABLE)
+			crg->super_speed_support = 1;
+
 	return 0;
 }
 

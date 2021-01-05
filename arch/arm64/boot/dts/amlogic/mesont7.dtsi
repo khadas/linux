@@ -717,10 +717,13 @@
 			phy1-reg-size = <0x2000>;
 			reset-reg = <0xFE002000>;
 			reset-reg-size = <0x100>;
+			reset-level = <0x40>;
+			usb3-apb-reset-bit = <23>;
+			usb3-phy-reset-bit = <22>;
+			usb3-reset-shit = <0x4>;
 			clocks = <&clkc CLKID_PCIE_PLL>;
-				/*&clkc CLKID_PCIE1_EN>;*/
 			clock-names = "pcie_refpll";
-				/*"usb3_gate";*/
+			phy-id = <1>;
 		};
 
 		crg3_phy_20: crg3phy20@fe03a080 {
@@ -732,10 +735,13 @@
 			phy1-reg-size = <0x2000>;
 			reset-reg = <0xFE002000>;
 			reset-reg-size = <0x100>;
+			reset-level = <0x40>;
+			usb3-apb-reset-bit = <23>;
+			usb3-phy-reset-bit = <22>;
+			usb3-reset-shit = <0x4>;
 			clocks = <&clkc CLKID_PCIE_PLL>;
-				/*&clkc CLKID_PCIE1_EN>;*/
 			clock-names = "pcie_refpll";
-				/*  "usb3_gate";*/
+			phy-id = <0>;
 		};
 
 		crg20_otg: crg20otg@ffe09080 {
