@@ -94,14 +94,15 @@ static const char *input_str[8] = {
 };
 
 /* output_format_e */
-static const char *output_str[7] = {
+static const char *output_str[8] = {
 	"UNKNOWN",
 	"709",
 	"2020",
 	"HDR",
 	"HDR+",
 	"HLG",
-	"IPT"
+	"IPT",
+	"BYPASS"
 };
 
 static const char *dv_output_str[6] = {
@@ -595,6 +596,14 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				hdr10_plus_process_mode[vd_path] = PROC_HDRP_TO_SDR;
 				break;
 			case BT2020:
+				sdr_process_mode[vd_path] =
+					PROC_SDR_TO_HDR;
+				hlg_process_mode[vd_path] =
+					PROC_HLG_TO_HDR;
+				hdr_process_mode[vd_path] =
+					PROC_BYPASS;
+				hdr10_plus_process_mode[vd_path] =
+					PROC_HDRP_TO_HDR;
 				break;
 			case BT2020_PQ:
 				sdr_process_mode[vd_path] = PROC_SDR_TO_HDR;
@@ -616,6 +625,17 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				break;
 			case BT2100_IPT:
 				/* hdr module not handle dv output */
+				break;
+			case BT_BYPASS:
+				/* force bypass all process */
+				sdr_process_mode[vd_path] =
+					PROC_BYPASS;
+				hlg_process_mode[vd_path] =
+					PROC_BYPASS;
+				hdr_process_mode[vd_path] =
+					PROC_BYPASS;
+				hdr10_plus_process_mode[vd_path] =
+					PROC_BYPASS;
 				break;
 			default:
 				sdr_process_mode[vd_path] = PROC_BYPASS;
@@ -1025,6 +1045,7 @@ void hdmi_packet_process(int signal_change_flag,
 		break;
 	case UNKNOWN_FMT:
 	case BT2100_IPT:
+	case BT_BYPASS:
 		/* handle by dolby vision */
 		return;
 	}
@@ -1138,6 +1159,9 @@ void video_post_process(struct vframe_s *vf,
 			     (vd_path == VD2_PATH &&
 			     !is_video_layer_on(VD1_PATH)))
 				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL);
+			else if ((get_hdr_policy() == 2) &&
+				(target_format[vd_path] == BT_BYPASS))
+				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL);
 		} else if (sdr_process_mode[vd_path] == PROC_SDR_TO_HDR) {
 			if (vd_path == VD1_PATH)
 				hdr_proc(vf, VD1_HDR, SDR_HDR, vinfo, NULL);
@@ -1162,7 +1186,11 @@ void video_post_process(struct vframe_s *vf,
 				hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, NULL);
 			else
 				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL);
-			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL);
+			if (get_hdr_policy() == 2 &&
+			    target_format[vd_path] == BT_BYPASS)
+				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL);
+			else
+				hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL);
 		} else if (hdr_process_mode[vd_path] == PROC_HDR_TO_SDR) {
 			gamut_convert_process(vinfo, source_type, vd_path, &m, 8);
 			eo_clip_proc(master_info, eo_sel);
@@ -1189,7 +1217,11 @@ void video_post_process(struct vframe_s *vf,
 				hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, NULL);
 			else
 				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL);
-			hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL);
+			if ((get_hdr_policy() == 2) &&
+			    target_format[vd_path] == BT_BYPASS)
+				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL);
+			else
+				hdr_proc(vf, OSD1_HDR, SDR_HLG, vinfo, NULL);
 		} else if (hlg_process_mode[vd_path] == PROC_HLG_TO_SDR) {
 			if (vd_path == VD1_PATH)
 				hdr_proc(vf, VD1_HDR, HLG_SDR, vinfo, NULL);
@@ -1215,8 +1247,13 @@ void video_post_process(struct vframe_s *vf,
 				hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, NULL);
 			else
 				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL);
-			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL);
-		} else if (hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_HDR) {
+			if ((get_hdr_policy() == 2) &&
+			    target_format[vd_path] == BT_BYPASS)
+				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL);
+			else
+				hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL);
+		} else if (hdr10_plus_process_mode[vd_path] ==
+		PROC_HDRP_TO_HDR) {
 			if (vd_path == VD1_PATH)
 				hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, &m);
 			else

@@ -96,7 +96,9 @@ enum output_format_e {
 	BT2020_PQ,
 	BT2020_PQ_DYNAMIC,
 	BT2020_HLG,
-	BT2100_IPT
+	BT2100_IPT,
+	/* force bypass all process */
+	BT_BYPASS
 };
 
 #define POST_MTX_EN_MASK BIT(POST_MTX_EN)

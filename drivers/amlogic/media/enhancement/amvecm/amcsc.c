@@ -441,8 +441,9 @@ __setup("hdr_policy=", boot_hdr_policy);
 /*	BT2020_PQ_DYNAMIC = 4,	*/
 /*	BT2020_HLG = 5,			*/
 /*	BT2100_IPT = 6			*/
+/*	BT_BYPASS = 7			*/
 /* BT2020 = 2: 2020 + gamma not support in hdmi now */
-static uint force_output; /* 0: no force */
+static uint force_output = 5; /* 0: no force */
 module_param(force_output, uint, 0664);
 MODULE_PARM_DESC(force_output, "\n current force_output\n");
 
@@ -3821,6 +3822,7 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 	    get_hdr_policy() != 1) {
 		switch (get_force_output()) {
 		case BT709:
+		case BT_BYPASS:
 			break;
 		case BT2020:
 			hdr_cap |= BT2020_SUPPORT;
