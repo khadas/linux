@@ -12581,12 +12581,19 @@ static ssize_t pre_hscaler_ntap_enable_show
 	struct class_attribute *attr,
 	char *buf)
 {
-	if (pre_hscaler_ntap_set[0] == 0xff)
-		return snprintf(buf, 64, "pre_hscaler_ntap_en(0xff):%d\n",
-			pre_hscaler_ntap_enable[0]);
-	else
-		return snprintf(buf, 64, "pre_hscaler_ntap_en: %d\n",
-			pre_hscaler_ntap_set[0]);
+	int i;
+
+	for (i = 0; i < MAX_VD_LAYER; i++) {
+		if (pre_hscaler_ntap_set[i] == 0xff)
+			pr_info("pre_hscaler_ntap_en[%d](0xff):%d\n",
+				i,
+				pre_hscaler_ntap_enable[i]);
+		else
+			pr_info("pre_hscaler_ntap_en[%d]: %d\n",
+				i,
+				pre_hscaler_ntap_set[i]);
+	}
+	return 0;
 }
 
 static ssize_t pre_hscaler_ntap_enable_store
@@ -12594,76 +12601,44 @@ static ssize_t pre_hscaler_ntap_enable_store
 	struct class_attribute *attr,
 	const char *buf, size_t count)
 {
-	int ret;
-	int pre_hscaler_ntap_en;
+	int parsed[2];
+	int layer_id = 0, pre_hscaler_ntap_en = 0;
 
-	ret = kstrtoint(buf, 0, &pre_hscaler_ntap_en);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (pre_hscaler_ntap_en != pre_hscaler_ntap_set[0])
-		pre_hscaler_ntap_set[0] = pre_hscaler_ntap_en;
-	return count;
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		if (parsed[0] < MAX_VD_LAYER)
+			layer_id = parsed[0];
+		pre_hscaler_ntap_en = parsed[1];
+		if (pre_hscaler_ntap_en != pre_hscaler_ntap_set[layer_id])
+			pre_hscaler_ntap_set[layer_id] = pre_hscaler_ntap_en;
+	}
+	return strnlen(buf, count);
 }
 
-static ssize_t pip2_pre_hscaler_ntap_enable_show
+static ssize_t pre_hscaler_ntap_set_show
 	(struct class *cla,
 	struct class_attribute *attr,
 	char *buf)
 {
-	if (pre_hscaler_ntap_set[2] == 0xff)
-		return snprintf(buf, 64, "pip2_pre_hscaler_ntap_en(0xff):%d\n",
-			pre_hscaler_ntap_enable[2]);
-	else
-		return snprintf(buf, 64, "pip2_pre_hscaler_ntap_en: %d\n",
-			pre_hscaler_ntap_set[2]);
+	return snprintf(buf, 256, "pre_hscaler_ntap: vd1:%d, vd2:%d, vd3:%d\n",
+		pre_hscaler_ntap[0],
+		pre_hscaler_ntap[1],
+		pre_hscaler_ntap[2]);
 }
 
-static ssize_t pip2_pre_hscaler_ntap_enable_store
+static ssize_t pre_hscaler_ntap_set_store
 	(struct class *cla,
 	struct class_attribute *attr,
 	const char *buf, size_t count)
 {
-	int ret;
-	int pre_hscaler_ntap_en;
+	int parsed[2];
+	int layer_id = 0;
 
-	ret = kstrtoint(buf, 0, &pre_hscaler_ntap_en);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (pre_hscaler_ntap_en != pre_hscaler_ntap_set[2])
-		pre_hscaler_ntap_set[2] = pre_hscaler_ntap_en;
-	return count;
-}
-
-static ssize_t pip_pre_hscaler_ntap_enable_show
-	(struct class *cla,
-	struct class_attribute *attr,
-	char *buf)
-{
-	if (pre_hscaler_ntap_set[1] == 0xff)
-		return snprintf(buf, 64, "pip_pre_hscaler_ntap_en(0xff):%d\n",
-			pre_hscaler_ntap_enable[1]);
-	else
-		return snprintf(buf, 64, "pip_pre_hscaler_ntap_en: %d\n",
-			pre_hscaler_ntap_set[1]);
-}
-
-static ssize_t pip_pre_hscaler_ntap_enable_store
-	(struct class *cla,
-	struct class_attribute *attr,
-	const char *buf, size_t count)
-{
-	int ret;
-	int pre_hscaler_ntap_en;
-
-	ret = kstrtoint(buf, 0, &pre_hscaler_ntap_en);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (pre_hscaler_ntap_en != pre_hscaler_ntap_set[1])
-		pre_hscaler_ntap_set[1] = pre_hscaler_ntap_en;
-	return count;
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		if (parsed[0] < MAX_VD_LAYER)
+			layer_id = parsed[0];
+		pre_hscaler_ntap[layer_id] = parsed[1];
+	}
+	return strnlen(buf, count);
 }
 
 static ssize_t pre_vscaler_ntap_enable_show
@@ -12671,12 +12646,19 @@ static ssize_t pre_vscaler_ntap_enable_show
 	struct class_attribute *attr,
 	char *buf)
 {
-	if (pre_vscaler_ntap_set[0] == 0xff)
-		return snprintf(buf, 64, "pre_vscaler_ntap_en(0xff):%d\n",
-			pre_vscaler_ntap_enable[0]);
-	else
-		return snprintf(buf, 64, "pre_vscaler_ntap_en: %d\n",
-			pre_vscaler_ntap_set[0]);
+	int i;
+
+	for (i = 0; i < MAX_VD_LAYER; i++) {
+		if (pre_vscaler_ntap_set[i] == 0xff)
+			pr_info("pre_vscaler_ntap_en[%d](0xff):%d\n",
+				i,
+				pre_vscaler_ntap_enable[i]);
+		else
+			pr_info("pre_vscaler_ntap_en[%d]: %d\n",
+				i,
+				pre_vscaler_ntap_set[i]);
+	}
+	return 0;
 }
 
 static ssize_t pre_vscaler_ntap_enable_store
@@ -12684,16 +12666,44 @@ static ssize_t pre_vscaler_ntap_enable_store
 	struct class_attribute *attr,
 	const char *buf, size_t count)
 {
-	int ret;
-	int pre_vscaler_ntap_en;
+	int parsed[2];
+	int layer_id = 0, pre_vscaler_ntap_en = 0;
 
-	ret = kstrtoint(buf, 0, &pre_vscaler_ntap_en);
-	if (ret < 0)
-		return -EINVAL;
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		if (parsed[0] < MAX_VD_LAYER)
+			layer_id = parsed[0];
+		pre_vscaler_ntap_en = parsed[1];
+		if (pre_vscaler_ntap_en != pre_vscaler_ntap_set[layer_id])
+			pre_vscaler_ntap_set[layer_id] = pre_vscaler_ntap_en;
+	}
+	return strnlen(buf, count);
+}
 
-	if (pre_vscaler_ntap_en != pre_vscaler_ntap_set[0])
-		pre_vscaler_ntap_set[0] = pre_vscaler_ntap_en;
-	return count;
+static ssize_t pre_vscaler_ntap_set_show
+	(struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 256, "pre_vscaler_ntap: vd1:%d, vd2:%d, vd3:%d\n",
+		pre_vscaler_ntap[0],
+		pre_vscaler_ntap[1],
+		pre_vscaler_ntap[2]);
+}
+
+static ssize_t pre_vscaler_ntap_set_store
+	(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int parsed[2];
+	int layer_id = 0;
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		if (parsed[0] < MAX_VD_LAYER)
+			layer_id = parsed[0];
+		pre_vscaler_ntap[layer_id] = parsed[1];
+	}
+	return strnlen(buf, count);
 }
 
 static ssize_t probe_en_store
@@ -13084,18 +13094,18 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       pre_hscaler_ntap_enable_show,
 	       pre_hscaler_ntap_enable_store),
-	__ATTR(pip2_pre_hscaler_ntap_en,
+	__ATTR(pre_hscaler_ntap,
 	       0664,
-	       pip2_pre_hscaler_ntap_enable_show,
-	       pip2_pre_hscaler_ntap_enable_store),
-	__ATTR(pip_pre_hscaler_ntap_en,
-	       0664,
-	       pip_pre_hscaler_ntap_enable_show,
-	       pip_pre_hscaler_ntap_enable_store),
+	       pre_hscaler_ntap_set_show,
+	       pre_hscaler_ntap_set_store),
 	__ATTR(pre_vscaler_ntap_en,
 	       0664,
 	       pre_vscaler_ntap_enable_show,
 	       pre_vscaler_ntap_enable_store),
+	__ATTR(pre_vscaler_ntap,
+	       0664,
+	       pre_vscaler_ntap_set_show,
+	       pre_vscaler_ntap_set_store),
 	__ATTR(probe_en,
 	       0644,
 	       NULL,

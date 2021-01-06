@@ -87,14 +87,12 @@
 #define MAX_PIP_WINDOW    16
 #define VPP_FILER_COEFS_NUM   33
 
-/* karry ? */
 enum vd_path_id {
 	VFM_PATH_DEF = -1,
 	VFM_PATH_AMVIDEO = 0,
 	VFM_PATH_PIP = 1,
 	VFM_PATH_VIDEO_RENDER0 = 2,
 	VFM_PATH_VIDEO_RENDER1 = 3,
-	/* karry ? */
 	VFM_PATH_PIP2 = 4,
 	VFM_PATH_VIDEO_RENDER2 = 5,
 	VFM_PATH_AUTO = 0xfe,
@@ -105,6 +103,13 @@ enum toggle_out_fl_frame_e {
 	OUT_FA_A_FRAME,
 	OUT_FA_BANK_FRAME,
 	OUT_FA_B_FRAME
+};
+
+enum pre_hscaler_e {
+	PRE_HSCALER_2TAP = 2,
+	PRE_HSCALER_4TAP = 4,
+	PRE_HSCALER_6TAP = 6,
+	PRE_HSCALER_8TAP = 8
 };
 
 struct video_dev_s {
@@ -355,8 +360,10 @@ extern bool legacy_vpp;
 extern bool hscaler_8tap_enable[MAX_VD_LAYER];
 extern int pre_hscaler_ntap_enable[MAX_VD_LAYER];
 extern int pre_hscaler_ntap_set[MAX_VD_LAYER];
+extern int pre_hscaler_ntap[MAX_VD_LAYER];
 extern int pre_vscaler_ntap_enable[MAX_VD_LAYER];
 extern int pre_vscaler_ntap_set[MAX_VD_LAYER];
+extern int pre_vscaler_ntap[MAX_VD_LAYER];
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);
 bool is_dolby_vision_stb_mode(void);
