@@ -4253,7 +4253,7 @@ static irqreturn_t crg_udc_common_irq(int irq, void *dev)
 
 	retval = crg_gadget_handle_interrupt(dev);
 
-	return IRQ_RETVAL(retval);
+	return IRQ_HANDLED;
 }
 
 int crg_gadget_irq_init(struct platform_device *pdev)
