@@ -6467,7 +6467,7 @@ static void osd_update_color_mode(u32 index)
 
 static void osd_update_enable(u32 index)
 {
-	u32 temp_val = 0;
+	u32 temp_val = 0, output_index;
 	struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[index];
 
 	if (osd_hw.osd_meson_dev.afbc_type == MESON_AFBC &&
@@ -6558,11 +6558,22 @@ static void osd_update_enable(u32 index)
 						  0, 1, 1);
 		}
 	}
-	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
+	output_index = get_output_device_id(index);
+	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE &&
+		osd_hw.hwc_enable[output_index]) {
 		u8 postbld_src_sel = 0;
+		u8 postbld_osd1, postbld_osd2;
 
-		if (osd_hw.enable[index] == ENABLE)
-			postbld_src_sel = (index == 0) ? 3 : 4;
+		if (osd_hw.enable[index] == ENABLE) {
+			if (osd_dev_hw.t7_display) {
+				postbld_osd1 = POSTBLD_OSD1_T7;
+				postbld_osd2 = POSTBLD_OSD2_T7;
+			} else {
+				postbld_osd1 = POSTBLD_OSD1;
+				postbld_osd2 = POSTBLD_OSD2;
+			}
+			postbld_src_sel = (index == 0) ? postbld_osd1 : postbld_osd2;
+		}
 		if (index == 0)
 			VSYNCOSD_WR_MPEG_REG(OSD1_BLEND_SRC_CTRL,
 					     (0 & 0xf) << 0 |
