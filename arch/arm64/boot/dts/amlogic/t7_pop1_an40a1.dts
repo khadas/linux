@@ -1471,6 +1471,13 @@
 				regulator-max-microvolt = <3300000>;
 				regulator-always-on;
 			};
+
+			BACKLIGHT: MUXSW_EN {
+				regulator-name = "BACKLIGHT";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
 		};
 	};
 };

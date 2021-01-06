@@ -222,6 +222,22 @@ static const struct regulator_ops bd718xx_dvs_buck_regulator_ops = {
 	.set_ramp_delay = bd718xx_buck1234_set_ramp_delay,
 };
 
+static int bd71837_muxsw_en_set_voltage(struct regulator_dev *rdev,
+					int min_uV,
+					int max_uV,
+					unsigned int *selector)
+{
+	return 0;
+}
+
+static const struct regulator_ops bd718xx_muxsw_en_regulator_ops = {
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
+	.set_voltage = bd71837_muxsw_en_set_voltage,
+	.list_voltage = regulator_list_voltage_table,
+};
+
 /*
  * BD71837 BUCK1/2/3/4
  * BD71847 BUCK1/2
@@ -405,6 +421,14 @@ static const struct regulator_linear_range bd718xx_ldo6_volts[] = {
  */
 static const struct regulator_linear_range bd71837_ldo7_volts[] = {
 	REGULATOR_LINEAR_RANGE(1800000, 0x00, 0x0F, 100000),
+};
+
+/*
+ * MUXSW_EN
+ * 1.8
+ */
+static const unsigned int muxsw_en_volts[] = {
+	1800000
 };
 
 struct reg_init {
@@ -1235,6 +1259,21 @@ static const struct bd718xx_regulator_data bd71837_regulators[] = {
 			.reg = BD71837_REG_LDO7_VOLT,
 			.mask = BD718XX_LDO_SEL,
 			.val = BD718XX_LDO_SEL,
+		},
+	},
+	{
+		.desc = {
+			.name = "muxsw_en",
+			.of_match = of_match_ptr("MUXSW_EN"),
+			.regulators_node = of_match_ptr("regulators"),
+			.id = BD718XX_MUXSW_EN,
+			.ops = &bd718xx_muxsw_en_regulator_ops,
+			.type = REGULATOR_VOLTAGE,
+			.n_voltages = BD71837_MUXSW_EN_VOLTAGE_NUM,
+			.volt_table = &muxsw_en_volts[0],
+			.enable_reg = BD71837_REG_MUXSW_EN,
+			.enable_mask = BD71837_MUXSW_EN_MASK,
+			.owner = THIS_MODULE,
 		},
 	},
 };
