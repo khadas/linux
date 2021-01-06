@@ -55,6 +55,9 @@
 #define VPP_VD3_DSC_CTRL                           0x1a85
 #define DOLBY_PATH_SWAP_CTRL1                      0x1a70
 #define DOLBY_PATH_SWAP_CTRL2                      0x1a71
+#define MALI_AFBCD_TOP_CTRL                        0x1a0f
+#define MALI_AFBCD1_TOP_CTRL                       0x1a55
+
 
 enum core1_switch_type {
 	NO_SWITCH = 0,
