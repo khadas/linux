@@ -184,7 +184,7 @@ bool tee_enabled(void)
 
 	if (disable_flag == 1)
 		return false;
-	return false; /*disable tee load temporary*/
+	/*return false;*/ /*disable tee load temporary*/
 
 	arm_smccc_smc(TEE_SMC_CALLS_UID, 0, 0, 0, 0, 0, 0, 0, &res);
 
