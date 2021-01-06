@@ -961,7 +961,7 @@
 		 */
 		resample_module = <8>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	asrcb:resample@1 {
@@ -972,8 +972,9 @@
 		clock-names = "resample_pll", "resample_src", "resample_clk";
 
 		/*this resample is only used for loopback_A.*/
+		capture_sample_rate = <16000>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	vad:vad {

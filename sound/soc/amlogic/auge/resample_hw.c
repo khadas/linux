@@ -242,7 +242,7 @@ void new_resampleA_set_format(enum resample_idx id, int channel, int bits)
 	/* bit width */
 	//new_resample_update_bits(id, AUDIO_RSAMP_CTRL1, 0x1f << 13,
 	//			 msb << 13);
-	if (get_resample_version() >= 2)
+	if (get_resample_version() >= T5_RESAMPLE)
 		get_toddr_bits_config(src, bits, &msb, &lsb);
 	resample_set_bits(id, msb, lsb);
 
@@ -310,9 +310,11 @@ void new_resample_src_select(enum resample_idx id, enum resample_src src)
 
 void new_resample_src_select_v2(enum resample_idx id, unsigned int src)
 {
-    /* resample B is always for loopbackA */
+	/* from t5 chip, resample src changed
+	 * resampleB is set for tdmin_lb
+	 */
 	if (id == RESAMPLE_B)
-		src = LOOPBACK_A;
+		src = TDMIN_LB;
 
 	new_resample_update_bits(id, AUDIO_RSAMP_CTRL1,
 				 0x1 << 11, 0 << 11);

@@ -508,19 +508,13 @@ static int extn_dai_prepare(struct snd_pcm_substream *substream,
 
 			if (p_extn->hdmirx_mode == HDMIRX_MODE_PAO) { /* PAO */
 				msb = 28 - 1 - 4;
-				if (bit_depth == 16)
-					lsb = 24 - bit_depth;
-				else
-					lsb = 4;
+				lsb = (bit_depth == 16) ? 24 - bit_depth : 4;
 			} else { /* SPDIFIN */
 				msb = 28 - 1;
-				if (bit_depth <= 24)
-					lsb = 28 - bit_depth;
-				else
-					lsb = 4;
+				lsb = (bit_depth <= 24) ? 28 - bit_depth : 4;
 			}
 
-			if (get_resample_version() >= 2 &&
+			if (get_resample_version() >= T5_RESAMPLE &&
 			    get_resample_source(RESAMPLE_A) == FRHDMIRX) {
 				msb = 31;
 				lsb = 32 - bit_depth;

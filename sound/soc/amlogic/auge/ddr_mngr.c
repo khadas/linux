@@ -795,12 +795,12 @@ static void aml_resample_enable(struct toddr *to,
 				endian << 24 | toddr_type << 13);
 		}
 
-		if (p_attach_resample->resample_version >= 1) {
+		if (p_attach_resample->resample_version >= SM1_RESAMPLE) {
 			if (p_attach_resample->id == RESAMPLE_A) {
 				new_resampleA_set_format(p_attach_resample->id,
 						to->fmt.ch_num, bitwidth);
 			}
-			if (p_attach_resample->resample_version == 1) {
+			if (p_attach_resample->resample_version == SM1_RESAMPLE) {
 				new_resample_src_select(p_attach_resample->id,
 							to->fifo_id);
 			} else {
@@ -815,7 +815,7 @@ static void aml_resample_enable(struct toddr *to,
 				}
 				new_resample_src_select_v2(p_attach_resample->id, conf->val);
 			}
-		} else if (p_attach_resample->resample_version == 0) {
+		} else if (p_attach_resample->resample_version == AXG_RESAMPLE) {
 			/* toddr index for resample */
 			if (to->chipinfo &&
 			    to->chipinfo->asrc_src_sel_ctrl) {
@@ -829,8 +829,9 @@ static void aml_resample_enable(struct toddr *to,
 		}
 	}
 
-	if (p_attach_resample->resample_version > 1) {
-		aml_toddr_select_src(to, RESAMPLEA + p_attach_resample->id);
+	if (p_attach_resample->resample_version >= T5_RESAMPLE &&
+	    p_attach_resample->id == RESAMPLE_A) {
+		aml_toddr_select_src(to, RESAMPLEA);
 	} else {
 		/* select reample data */
 		if (to->chipinfo && to->chipinfo->asrc_src_sel_ctrl)
@@ -841,9 +842,9 @@ static void aml_resample_enable(struct toddr *to,
 	}
 
 	/* resample enable or disable */
-	if (p_attach_resample->resample_version >= 1)
+	if (p_attach_resample->resample_version >= SM1_RESAMPLE)
 		new_resample_enable(p_attach_resample->id, enable, to->fmt.ch_num);
-	else if (p_attach_resample->resample_version == 0)
+	else if (p_attach_resample->resample_version == AXG_RESAMPLE)
 		resample_enable(p_attach_resample->id, enable);
 	mutex_unlock(&p_attach_resample->lock);
 }
@@ -867,8 +868,9 @@ void aml_set_resample(enum resample_idx id,
 
 	mutex_lock(&ddr_mutex);
 	/* toddr src to resample after T5 */
-	if (p_attach_resample->resample_version >= 2)
-		tosrc = RESAMPLEA + id;
+	if (p_attach_resample->resample_version >= T5_RESAMPLE &&
+	    id == RESAMPLE_A)
+		tosrc = RESAMPLEA;
 
 	to = fetch_toddr_by_src(tosrc);
 	if (!to) {
@@ -902,8 +904,9 @@ static void aml_check_resample(struct toddr *to, bool enable)
 			else
 				p_attach_resample->status = DISABLED;
 
-			if (p_attach_resample->resample_version > 1) {
-				aml_toddr_select_src(to, RESAMPLEA + p_attach_resample->id);
+			if (p_attach_resample->resample_version >= T5_RESAMPLE &&
+			    p_attach_resample->id == RESAMPLE_A) {
+				aml_toddr_select_src(to, RESAMPLEA);
 			}
 
 			/*if disable toddr, disable attached resampler*/
@@ -1652,13 +1655,20 @@ void aml_aed_set_frddr_reserved(void)
 void get_toddr_bits_config(enum toddr_src src,
 	int bit_depth, int *msb, int *lsb)
 {
-	/* TODO: PAO to SPDIF */
-	if (src == FRHDMIRX) {
-		*msb = 23;
+	switch (src) {
+	case FRHDMIRX:
+		/* TODO: PAO to SPDIF */
+		*msb = 24 - 1;
 		*lsb = (bit_depth > 24) ? 0 : 24 - bit_depth;
-	} else {
+		break;
+	case SPDIFIN:
+		*msb = 28 - 1;
+		*lsb = (bit_depth <= 24) ? 28 - bit_depth : 4;
+		break;
+	default:
 		*msb = 31;
 		*lsb = 32 - bit_depth;
+		break;
 	}
 }
 

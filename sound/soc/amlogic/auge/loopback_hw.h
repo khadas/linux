@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include "loopback.h"
+#include "resample.h"
 
 struct mux_conf {
 	char name[32];
@@ -41,7 +42,7 @@ struct data_cfg {
 	/* loopback datalb src */
 	unsigned int src;
 
-	unsigned int datalb_src;
+	unsigned int loopback_src;
 
 	/* channel and mask in new ctrol register */
 	bool ch_ctrl_switch;
@@ -65,7 +66,7 @@ void tdminlb_set_lanemask_and_chswap
 void tdminlb_set_src(int src);
 void lb_set_datain_src(int id, int src);
 void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg);
-void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg);
+void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg, int version);
 void lb_enable(int id, bool enable, bool chnum_en);
 void lb_set_chnum_en(int id, bool en, bool chnum_en);
 

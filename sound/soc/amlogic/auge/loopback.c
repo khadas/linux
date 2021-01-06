@@ -21,7 +21,6 @@
 #include "ddr_mngr.h"
 #include "tdm_hw.h"
 #include "pdm_hw.h"
-#include "resample.h"
 
 #include "vad.h"
 #include "pdm.h"
@@ -584,13 +583,14 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 		datalb_cfg.type        = datalb_toddr_type;
 		datalb_cfg.m           = datalb_msb;
 		datalb_cfg.n           = datalb_lsb;
-		datalb_cfg.datalb_src  = 0; /* todo: tdmin_LB */
+		datalb_cfg.loopback_src  = 0; /* todo: tdmin_LB */
 		datalb_cfg.tdmin_lb_srcs = p_loopback->chipinfo->tdmin_lb_srcs;
 		/* get resample B status */
 		datalb_cfg.resample_enable =
 			(unsigned int)get_resample_enable(RESAMPLE_B);
-
-		lb_set_datalb_cfg(p_loopback->id, &datalb_cfg);
+		lb_set_datalb_cfg(p_loopback->id,
+				  &datalb_cfg,
+				  get_resample_version_id(RESAMPLE_B));
 	}
 
 	tdminlb_set_format(p_loopback->lb_format == SND_SOC_DAIFMT_I2S);

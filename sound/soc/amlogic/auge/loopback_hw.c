@@ -182,7 +182,7 @@ void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg)
 			     conf->val << conf->shift);
 }
 
-void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg)
+void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg, int version)
 {
 	int offset = EE_AUDIO_LB_B_CTRL1 - EE_AUDIO_LB_A_CTRL1;
 	int reg = EE_AUDIO_LB_A_CTRL1 + offset * id;
@@ -192,24 +192,36 @@ void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg)
 
 	if (datalb_cfg->ch_ctrl_switch) {
 		audiobus_update_bits(reg,
-			0x3 << 30 | 0x1 << 29 | 0x7 << 13 |
-			0x1f << 8 | 0x1f << 3 | 0x1 << 1,
-			datalb_cfg->resample_enable << 30 | // TODO: T5 don't use this bit
+			0x1 << 29 | 0x7 << 13 |
+			0x1f << 8 | 0x1f << 3,
 			datalb_cfg->ext_signed << 29 |
 			datalb_cfg->type       << 13 |
 			datalb_cfg->m          << 8  |
-			datalb_cfg->n          << 3  |
-			datalb_cfg->datalb_src << 0
-		);
+			datalb_cfg->n          << 3);
+		if (version < T5_RESAMPLE)
+			audiobus_update_bits(reg,
+					     0x3 << 30 |
+					     0x1 << 0,
+					     datalb_cfg->resample_enable << 30 |
+					     datalb_cfg->loopback_src << 0);
 
 		/* channel and mask */
 		offset = EE_AUDIO_LB_B_CTRL3 - EE_AUDIO_LB_A_CTRL3;
 		reg = EE_AUDIO_LB_A_CTRL3 + offset * id;
 		audiobus_write(reg,
-			6 << 20 | // TODO: default tdmin_lb, need configurable
 			(datalb_cfg->chnum - 1) << 16 |
 			datalb_cfg->chmask	<< 0
 		);
+		if (version >= T5_RESAMPLE) {
+			/* from t5 chip, loopback src changed if resample for loopback */
+			int loopback_src;
+
+			if (datalb_cfg->resample_enable)
+				loopback_src = RESAMPLEB;
+			else
+				loopback_src = TDMIN_LB;
+			audiobus_update_bits(reg, 0x1f << 20, loopback_src << 20);
+		}
 	} else {
 		audiobus_write(reg,
 			datalb_cfg->ext_signed   << 29 |

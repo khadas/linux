@@ -1273,11 +1273,13 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		}
 
 		msb = 28 - 1;
-		if (bit_depth <= 24)
-			lsb = 28 - bit_depth;
-		else
-			lsb = 4;
+		lsb = (bit_depth <= 24) ? 28 - bit_depth : 4;
 
+		if (get_resample_version() >= T5_RESAMPLE &&
+		    get_resample_source(RESAMPLE_A) == SPDIFIN) {
+			msb = 31;
+			lsb = 32 - bit_depth;
+		}
 		// to ddr spdifin
 		fmt.type       = toddr_type;
 		fmt.msb        = msb;
@@ -1418,7 +1420,8 @@ static int aml_dai_spdif_hw_free(struct snd_pcm_substream *substream,
 {
 	struct aml_spdif *p_spdif = snd_soc_dai_get_drvdata(cpu_dai);
 
-	if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+	    p_spdif->samesource_sel != SHAREBUFFER_NONE)
 		spdif_sharebuffer_free(p_spdif, substream);
 
 	return 0;

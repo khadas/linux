@@ -239,9 +239,9 @@ static int resample_get_enum(struct snd_kcontrol *kcontrol,
 		return 0;
 	}
 
-	if (p_resample->chipinfo->resample_version >= 1)
+	if (p_resample->chipinfo->resample_version >= SM1_RESAMPLE)
 		resample_enable = new_resample_get_status(p_resample->id);
-	else if (p_resample->chipinfo->resample_version == 0)
+	else if (p_resample->chipinfo->resample_version == AXG_RESAMPLE)
 		resample_enable = resample_get_status(p_resample->id);
 
 	if (resample_enable)
@@ -304,7 +304,7 @@ int resample_set(enum resample_idx id, enum samplerate_index index)
 	p_resample->out_rate = resample_rate;
 
 	if (index == RATE_OFF) {
-		if (p_resample->chipinfo->resample_version >= 1) {
+		if (p_resample->chipinfo->resample_version >= SM1_RESAMPLE) {
 			/* delete the timer when resample is disable */
 			if (p_resample->timer_running &&
 			    p_resample->chipinfo &&
@@ -312,11 +312,11 @@ int resample_set(enum resample_idx id, enum samplerate_index index)
 				p_resample->timer_running = false;
 				del_timer(&p_resample->timer);
 			}
-		} else if (p_resample->chipinfo->resample_version == 0) {
+		} else if (p_resample->chipinfo->resample_version == AXG_RESAMPLE) {
 			frhdmirx_afifo_reset();
 		}
 	} else {
-		if (p_resample->chipinfo->resample_version >= 1) {
+		if (p_resample->chipinfo->resample_version >= SM1_RESAMPLE) {
 			new_resample_set_ratio(id, resample_rate,
 					       DEFAULT_SPK_SAMPLERATE);
 
@@ -332,7 +332,7 @@ int resample_set(enum resample_idx id, enum samplerate_index index)
 					  jiffies + msecs_to_jiffies(500));
 				p_resample->timer_running = true;
 			}
-		} else if (p_resample->chipinfo->resample_version == 0) {
+		} else if (p_resample->chipinfo->resample_version == AXG_RESAMPLE) {
 			resample_init(p_resample->id, resample_rate);
 			resample_set_hw_param(p_resample->id, index);
 		}
@@ -520,13 +520,13 @@ int card_add_resample_kcontrols(struct snd_soc_card *card)
 	int err = 0;
 
 	if (s_resample_a && s_resample_a->chipinfo) {
-		if (s_resample_a->chipinfo->resample_version >= 1) {
+		if (s_resample_a->chipinfo->resample_version >= SM1_RESAMPLE) {
 			for (idx = 0; idx < ARRAY_SIZE(rsamp_a_controls);
 				idx++) {
 				err = snd_ctl_add(card->snd_card,
 					snd_ctl_new1(&rsamp_a_controls[idx], s_resample_a));
 			}
-		} else if (s_resample_a->chipinfo->resample_version == 0) {
+		} else if (s_resample_a->chipinfo->resample_version == AXG_RESAMPLE) {
 			for (idx = 0; idx < ARRAY_SIZE(asrc_a_controls);
 				idx++) {
 				err = snd_ctl_add(card->snd_card,
@@ -591,49 +591,49 @@ static int new_resample_init(struct audioresample *p_resample)
 static struct resample_chipinfo axg_resample_chipinfo = {
 	.num        = 1,
 	.id         = RESAMPLE_A,
-	.resample_version = 0,
+	.resample_version = AXG_RESAMPLE,
 };
 
 static struct resample_chipinfo g12a_resample_chipinfo = {
 	.num        = 1,
 	.id         = RESAMPLE_A,
 	.dividor_fn = true,
-	.resample_version = 0,
+	.resample_version = AXG_RESAMPLE,
 };
 
 static struct resample_chipinfo tl1_resample_a_chipinfo = {
 	.num        = 2,
 	.id         = RESAMPLE_A,
 	.dividor_fn = true,
-	.resample_version = 0,
+	.resample_version = AXG_RESAMPLE,
 };
 
 static struct resample_chipinfo tl1_resample_b_chipinfo = {
 	.num        = 2,
 	.id         = RESAMPLE_B,
 	.dividor_fn = true,
-	.resample_version = 0,
+	.resample_version = AXG_RESAMPLE,
 };
 
 static struct resample_chipinfo sm1_resample_a_chipinfo = {
 	.num        = 2,
 	.id         = RESAMPLE_A,
 	.dividor_fn = true,
-	.resample_version = 1,
+	.resample_version = SM1_RESAMPLE,
 };
 
 static struct resample_chipinfo sm1_resample_b_chipinfo = {
 	.num        = 2,
 	.id         = RESAMPLE_B,
 	.dividor_fn = true,
-	.resample_version = 1,
+	.resample_version = SM1_RESAMPLE,
 };
 
 static struct resample_chipinfo tm2_revb_resample_a_chipinfo = {
 	.num        = 2,
 	.id         = RESAMPLE_A,
 	.dividor_fn = true,
-	.resample_version = 1,
+	.resample_version = SM1_RESAMPLE,
 	.chnum_sync = true,
 	.watchdog  = true,
 };
@@ -642,7 +642,7 @@ static struct resample_chipinfo tm2_revb_resample_b_chipinfo = {
 	.num        = 2,
 	.id         = RESAMPLE_B,
 	.dividor_fn = true,
-	.resample_version = 1,
+	.resample_version = SM1_RESAMPLE,
 	.chnum_sync = true,
 	.watchdog  = true,
 };
@@ -651,7 +651,7 @@ static struct resample_chipinfo t5_resample_a_chipinfo = {
 	.num        = 2,
 	.id         = RESAMPLE_A,
 	.dividor_fn = true,
-	.resample_version = 2,
+	.resample_version = T5_RESAMPLE,
 	.chnum_sync = true,
 	.watchdog  = true,
 	//.src_conf  = &resample_srcs_v2[0],
@@ -661,7 +661,7 @@ static struct resample_chipinfo t5_resample_b_chipinfo = {
 	.num        = 2,
 	.id         = RESAMPLE_B,
 	.dividor_fn = true,
-	.resample_version = 2,
+	.resample_version = T5_RESAMPLE,
 	.chnum_sync = true,
 	.watchdog  = true,
 	//.src_conf  = &resample_srcs_v2[0],
@@ -814,9 +814,9 @@ static int resample_platform_probe(struct platform_device *pdev)
 	else
 		s_resample_a = p_resample;
 
-	if (p_chipinfo && p_chipinfo->resample_version >= 1)
+	if (p_chipinfo && p_chipinfo->resample_version >= SM1_RESAMPLE)
 		new_resample_init(p_resample);
-	else if (p_chipinfo && p_chipinfo->resample_version == 0)
+	else if (p_chipinfo && p_chipinfo->resample_version == AXG_RESAMPLE)
 		resample_clk_set(p_resample, DEFAULT_SPK_SAMPLERATE);
 
 	aml_set_resample(p_resample->id, p_resample->enable,
