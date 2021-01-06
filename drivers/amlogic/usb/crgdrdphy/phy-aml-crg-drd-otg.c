@@ -322,7 +322,9 @@ static struct platform_driver amlogic_crg_otg_driver = {
 
 static int __init crg_otg_init(void)
 {
-	return platform_driver_register(&amlogic_crg_otg_driver);
+	platform_driver_register(&amlogic_crg_otg_driver);
+
+	return 0;
 }
 late_initcall(crg_otg_init);
 

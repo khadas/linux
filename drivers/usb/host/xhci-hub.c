@@ -648,7 +648,13 @@ static int xhci_enter_test_mode(struct xhci_hcd *xhci,
 	if (retval)
 		return retval;
 	/* Disable runtime PM for test mode */
+#ifdef CONFIG_AMLOGIC_USB
+	spin_unlock_irqrestore(&xhci->lock, *flags);
+#endif
 	pm_runtime_forbid(xhci_to_hcd(xhci)->self.controller);
+#ifdef CONFIG_AMLOGIC_USB
+	spin_lock_irqsave(&xhci->lock, *flags);
+#endif
 	/* Set PORTPMSC.PTC field to enter selected test mode */
 	/* Port is selected by wIndex. port_id = wIndex + 1 */
 	xhci_dbg(xhci, "Enter Test Mode: %d, Port_id=%d\n",

@@ -599,7 +599,9 @@ int crg_init(void)
 /* AMLOGIC corigine driver does not allow module unload */
 static int __init amlogic_crg_init(void)
 {
-	return platform_driver_probe(&crg_host_driver, crg_probe);
+	platform_driver_probe(&crg_host_driver, crg_probe);
+
+	return 0;
 }
 late_initcall(amlogic_crg_init);
 
