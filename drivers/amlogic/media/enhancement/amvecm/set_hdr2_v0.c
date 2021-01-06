@@ -2345,10 +2345,14 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	int *oft_post_out = bypass_pos;
 	bool always_full_func = false;
 
+	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T7 &&
+		module_sel == OSD2_HDR)
+		return hdr_process_select;
+
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
-	if (module_sel == OSD1_HDR &&
+	if ((module_sel == OSD1_HDR || module_sel == OSD2_HDR) &&
 	    cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/* turn off OSD mtx and use HDR for g12, sm1, tl1 */
 		VSYNC_WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0);
@@ -3010,7 +3014,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		return hdr_process_select;
 
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7 &&
-	    (module_sel == VD3_HDR || module_sel == OSD2_HDR))
+	    module_sel == VD3_HDR)
 		return hdr_process_select;
 
 	set_hdr_matrix(module_sel, HDR_IN_MTX, &hdr_mtx_param, NULL);
@@ -3053,7 +3057,8 @@ int hdr10p_ebzcurve_update(enum hdr_module_sel module_sel,
 	if (module_sel == VD1_HDR ||
 	    module_sel == VD2_HDR ||
 	    module_sel == VD3_HDR ||
-	    module_sel == OSD1_HDR)
+	    module_sel == OSD1_HDR ||
+	    module_sel == OSD2_HDR)
 		bit_depth = 12;
 	else if (module_sel == VDIN0_HDR ||
 		 module_sel == VDIN1_HDR ||
@@ -3183,7 +3188,7 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
-	if (module_sel == OSD1_HDR &&
+	if ((module_sel == OSD1_HDR || module_sel == OSD2_HDR) &&
 	    (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))) {
 		/* turn off OSD mtx and use HDR for g12, sm1, tl1 */
 		VSYNC_WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0);
@@ -3201,7 +3206,8 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 	if (module_sel == VD1_HDR ||
 	    module_sel == VD2_HDR ||
 	    module_sel == VD3_HDR ||
-	    module_sel == OSD1_HDR)
+	    module_sel == OSD1_HDR ||
+	    module_sel == OSD2_HDR)
 		bit_depth = 12;
 	else if (module_sel == VDIN0_HDR ||
 		 module_sel == VDIN1_HDR ||
