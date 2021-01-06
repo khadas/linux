@@ -100,3 +100,18 @@ aml_sha{
 	dev_name = "aml_sha_dma";
 };
 
+* Content based crypto engine
+This feature is only supported on devices that has key table integrated
+
+Required properties:
+- compatible : Should be "amlogic,crypto_sc2" for sc2
+- dev_name : Should be "aml_crypto_dev"
+
+Example:
+crypto {
+	compatible = "amlogic,crypto_sc2";
+	dev_name = "aml_crypto_dev";
+	status = "okay";
+	thread = /bits/ 5 <0x0>;
+	interrupts = <0 29 1>;
+}

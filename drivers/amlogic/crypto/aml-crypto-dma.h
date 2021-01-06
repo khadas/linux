@@ -3,14 +3,18 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#ifndef _AML_CRYPTO_H_
-#define _AML_CRYPTO_H_
+#ifndef _AML_CRYPTO_DMA_H_
+#define _AML_CRYPTO_DMA_H_
 #include <linux/io.h>
 #include <crypto/hash.h>
+#include <crypto/algapi.h>
 
  /* Reserved 4096 bytes and table is 12 bytes each */
 #define MAX_NUM_TABLES 341
 #define DMA_IRQ_MODE	(0)
+
+#define DMA_BLOCK_MODE_SIZE (512)
+
 enum GXL_DMA_REG_OFFSETS {
 	GXL_DMA_T0   = 0x00,
 	GXL_DMA_T1   = 0x01,
@@ -156,3 +160,6 @@ void aml_tdes_driver_exit(void);
 
 int __init aml_aes_driver_init(void);
 void aml_aes_driver_exit(void);
+
+int __init aml_crypto_device_driver_init(void);
+void aml_crypto_device_driver_exit(void);
