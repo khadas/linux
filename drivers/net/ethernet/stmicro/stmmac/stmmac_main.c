@@ -2846,7 +2846,9 @@ static int stmmac_release(struct net_device *dev)
 	netif_carrier_off(dev);
 
 	stmmac_release_ptp(priv);
-
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	gmac_remove_sysfs(priv->phylink->phydev);
+#endif
 	return 0;
 }
 
