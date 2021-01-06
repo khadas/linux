@@ -32,6 +32,7 @@
 		i2c5 = &i2c5;
 		i2c6 = &i2c_AO_A;
 		i2c7 = &i2c_AO_B;
+		spi0 = &spifc;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
 		spi3 = &spicc2;
@@ -1190,6 +1191,13 @@
 	status = "okay";
 //	pinctrl-0 = <&remote_pins>;
 //	pinctrl-names = "default";
+};
+
+&spifc {
+	status = "disabled";
+	spi-nor@0 {
+		status = "disabled";
+	};
 };
 
 &fb {
