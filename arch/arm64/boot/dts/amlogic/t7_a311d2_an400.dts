@@ -485,8 +485,9 @@
 		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
 		pinctrl-names= "default";
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
-		#clocks = <&clkc CLKID_MCLK_0>;
-		#clock-names = "mclk_0";
+		clocks = <&clkc CLKID_MCLK_0>,
+				<&clkc CLKID_MCLK_1>;
+		clock-names = "mclk_0","mclk_1";
 		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
 		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 	};
