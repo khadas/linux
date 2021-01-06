@@ -1246,6 +1246,13 @@
 			status = "okay";
 		};
 
+		crypto {
+			compatible = "amlogic,crypto_sc2";
+			dev_name = "aml_crypto_dev";
+			status = "okay";
+			thread = /bits/ 8 <0x5>;
+			interrupts = <0 29 1>;
+		};
 	};
 
 	rng {

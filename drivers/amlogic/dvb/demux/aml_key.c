@@ -54,6 +54,11 @@
 #define MKL_STS_OK           (0)
 
 #define MKL_USER_CRYPTO_T0   (0)
+#define MKL_USER_CRYPTO_T1   (1)
+#define MKL_USER_CRYPTO_T2   (2)
+#define MKL_USER_CRYPTO_T3   (3)
+#define MKL_USER_CRYPTO_T4   (4)
+#define MKL_USER_CRYPTO_T5   (5)
 #define MKL_USER_LOC_DEC     (8)
 #define MKL_USER_NETWORK     (9)
 #define MKL_USER_LOC_ENC     (10)
@@ -241,6 +246,21 @@ static int kt_config(u32 handle, int key_userid, int key_algo)
 	case CRYPTO_T0:
 		key_table[index].key_userid = MKL_USER_CRYPTO_T0;
 		break;
+	case CRYPTO_T1:
+		key_table[index].key_userid = MKL_USER_CRYPTO_T1;
+		break;
+	case CRYPTO_T2:
+		key_table[index].key_userid = MKL_USER_CRYPTO_T2;
+		break;
+	case CRYPTO_T3:
+		key_table[index].key_userid = MKL_USER_CRYPTO_T3;
+		break;
+	case CRYPTO_T4:
+		key_table[index].key_userid = MKL_USER_CRYPTO_T4;
+		break;
+	case CRYPTO_T5:
+		key_table[index].key_userid = MKL_USER_CRYPTO_T5;
+		break;
 	default:
 		dprint("%s, %d invalid user id\n",
 		       __func__, __LINE__);
@@ -335,7 +355,7 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 		memcpy((void *)&key3, &key[12], 4);
 
 	user_id = key_table[index].key_userid;
-	if (user_id == MKL_USER_CRYPTO_T0) {
+	if (user_id <= MKL_USER_CRYPTO_T5) {
 		if (key_len == 1) {
 			en_decrypt = 1;
 		} else if (key_len == 2) {

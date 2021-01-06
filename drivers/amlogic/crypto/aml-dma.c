@@ -38,6 +38,7 @@
 #define ENABLE_SHA	(1)
 #define ENABLE_AES	(1)
 #define ENABLE_TDES	(1)
+#define ENABLE_CRYPTO_DEV (1)
 #define AML_DMA_QUEUE_LENGTH (50)
 static struct dentry *aml_dma_debug_dent;
 int debug = 2;
@@ -264,6 +265,11 @@ static int __init aml_dma_driver_init(void)
 	if (ret)
 		goto aes_init_failed;
 #endif
+#if ENABLE_CRYPTO_DEV
+	ret = aml_crypto_device_driver_init();
+	if (ret)
+		goto crypto_dev_init_failed;
+#endif
 	ret = platform_driver_register(&aml_dma_driver);
 	if (ret)
 		goto plat_init_failed;
@@ -271,6 +277,10 @@ static int __init aml_dma_driver_init(void)
 	return ret;
 
 plat_init_failed:
+#if ENABLE_CRYPTO_DEV
+crypto_dev_init_failed:
+	aml_crypto_device_driver_exit();
+#endif
 #if ENABLE_AES
 aes_init_failed:
 	aml_aes_driver_exit();
@@ -297,6 +307,9 @@ static void __exit aml_dma_driver_exit(void)
 #endif
 #if ENABLE_AES
 	aml_aes_driver_exit();
+#endif
+#if ENABLE_CRYPTO_DEV
+	aml_crypto_device_driver_exit();
 #endif
 	platform_driver_unregister(&aml_dma_driver);
 }

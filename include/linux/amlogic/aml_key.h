@@ -25,6 +25,11 @@ enum user_id {
 	DSC_LOC_ENC,
 
 	CRYPTO_T0 = 0x100,
+	CRYPTO_T1 = 0x101,
+	CRYPTO_T2 = 0x102,
+	CRYPTO_T3 = 0x103,
+	CRYPTO_T4 = 0x104,
+	CRYPTO_T5 = 0x105,
 };
 
 enum key_algo {
