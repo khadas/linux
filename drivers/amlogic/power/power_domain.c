@@ -38,6 +38,7 @@
 //ao reg
 #define	AO_RTI_GEN_PWR_SLEEP0		0x0
 #define	AO_RTI_GEN_PWR_ISO0		0x4
+#define	AO_RTI_GEN_PWR_ACK0		0x8
 
 //mempd reg
 #define	HHI_MEM_PD_REG1			0x4
@@ -63,6 +64,7 @@
 
 static u32 vpu_mem_pd_reg3;
 static u32 vpu_mem_pd_reg4;
+static bool probe_done;
 
 struct power_domains {
 	void __iomem *dos_addr;
@@ -80,6 +82,12 @@ struct power_domains {
 };
 
 static struct power_domains *s_pd;
+
+bool is_support_power_domain(void)
+{
+	return probe_done;
+}
+EXPORT_SYMBOL(is_support_power_domain);
 
 static void power_switch(int pwr_domain, bool pwr_switch)
 {
@@ -577,8 +585,21 @@ static void iso_switch(int pwr_domain, bool pwr_switch)
 	spin_unlock_irqrestore(&s_pd->iso_lock, flags);
 }
 
+static bool check_ack(int pwr_domain)
+{
+	bool ack;
+	unsigned int value;
+
+	value = readl(s_pd->ao_addr + AO_RTI_GEN_PWR_ACK0);
+	ack = (value & (0x1 << pwr_domain)) == (0x1 << pwr_domain) ? 1 : 0;
+
+	return ack;
+}
+
 void power_domain_switch(int pwr_domain, bool pwr_switch)
 {
+	bool ack_flag;
+
 	if (pwr_switch == PWR_ON) {
 		/* Powerup Power Domain */
 		power_switch(pwr_domain, PWR_ON);
@@ -586,6 +607,10 @@ void power_domain_switch(int pwr_domain, bool pwr_switch)
 
 		/* Powerup memories */
 		mem_pd_switch(pwr_domain, PWR_ON);
+
+		do {
+			ack_flag = check_ack(pwr_domain);
+		} while (ack_flag);
 		usleep_range(100, 150);
 
 		reset_switch(pwr_domain, PWR_OFF);
@@ -685,6 +710,7 @@ static int pd_probe(struct platform_device *pdev)
 	spin_lock_init(&power_domains->iso_lock);
 
 	s_pd = power_domains;
+	probe_done = 1;
 
 	return 0;
 }

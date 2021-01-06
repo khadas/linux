@@ -128,6 +128,13 @@ enum ge2d_memtype_s {
 #define FILTER_TYPE_GAU0_BOT    5
 #define FILTER_TYPE_GAU1    6
 
+#define CANVAS_STATUS   (BIT(5) | BIT(6))
+#define HAS_SELF_POWER  BIT(4)
+#define DEEP_COLOR      BIT(3)
+#define ADVANCED_MATRIX BIT(2)
+#define SRC2_REPEAT     BIT(1)
+#define SRC2_ALPHA      BIT(0)
+
 #define MATRIX_YCC_TO_RGB               (1 << 0)
 #define MATRIX_RGB_TO_YCC               (1 << 1)
 #define MATRIX_FULL_RANGE_YCC_TO_RGB    (1 << 2)
@@ -136,11 +143,13 @@ enum ge2d_memtype_s {
 #define MATRIX_BT_601                   (0 << 4)
 #define MATRIX_BT_709                   (1 << 4)
 #define MATRIX_CUSTOM                   BIT(5)
+#define STRIDE_CUSTOM                   BIT(6)
 
 #define GE2D_FORMAT_BT_STANDARD         (1 << 28)
 #define GE2D_FORMAT_BT601               (0 << 28)
 #define GE2D_FORMAT_BT709               (1 << 28)
 #define GE2D_MATRIX_CUSTOM              BIT(29)
+#define GE2D_STRIDE_CUSTOM              BIT(30)
 
 #define GE2D_ENDIAN_SHIFT	24
 #define GE2D_ENDIAN_MASK            (0x1 << GE2D_ENDIAN_SHIFT)
@@ -368,6 +377,9 @@ enum ge2d_memtype_s {
 #define	UPDATE_DP_GEN       0x10
 #define	UPDATE_SCALE_COEF   0x20
 #define	UPDATE_ALL          0x3f
+
+/* Indicates that dma fd has been attatched using ioctl GE2D_ATTACH_DMA_FD */
+#define DMA_FD_ATTACHED     (-2)
 
 struct rectangle_s {
 	int x;   /* X coordinate of its top-left point */
@@ -638,7 +650,7 @@ struct ge2d_canvas_cfg_s {
 };
 
 struct ge2d_dma_cfg_s {
-	int dma_used;
+	int dma_used[MAX_PLANE];
 	void *dma_cfg;
 };
 
@@ -662,6 +674,12 @@ struct ge2d_matrix_s {
 	unsigned char sat_in_en;
 };
 
+struct ge2d_stride_s {
+	unsigned int src1_stride[MAX_PLANE];
+	unsigned int src2_stride[MAX_PLANE];
+	unsigned int dst_stride[MAX_PLANE];
+};
+
 struct ge2d_config_s {
 	struct ge2d_gen_s            gen;
 	struct ge2d_src1_data_s      src1_data;
@@ -679,6 +697,8 @@ struct ge2d_config_s {
 	struct ge2d_dma_cfg_s src2_dma_cfg[MAX_PLANE];
 	struct ge2d_dma_cfg_s dst_dma_cfg[MAX_PLANE];
 	struct ge2d_matrix_s matrix_custom;
+	/* operate on secure memory */
+	int mem_sec;
 };
 
 struct ge2d_dma_buf_s {
@@ -739,6 +759,8 @@ struct ge2d_event_s {
 	/* for queue switch and create destroy queue. */
 	spinlock_t sem_lock;
 	struct semaphore cmd_in_sem;
+	/* for destroy context */
+	struct mutex destroy_lock;
 };
 
 struct ge2d_manager_s {
@@ -874,6 +896,8 @@ struct config_para_ex_s {
 	struct config_planes_s src_planes[4];
 	struct config_planes_s src2_planes[4];
 	struct config_planes_s dst_planes[4];
+	/* operate on secure memory */
+	int mem_sec;
 };
 
 #ifdef CONFIG_COMPAT
@@ -917,6 +941,8 @@ struct compat_config_para_ex_s {
 	struct compat_config_planes_s src_planes[4];
 	struct compat_config_planes_s src2_planes[4];
 	struct compat_config_planes_s dst_planes[4];
+	/* operate on secure memory */
+	int mem_sec;
 };
 #endif
 
@@ -1045,6 +1071,8 @@ struct config_para_ex_memtype_s {
 	unsigned int dst_mem_alloc_type;
 	/* for customized matrix */
 	struct ge2d_matrix_s matrix_custom;
+	/* for customized stride */
+	struct ge2d_stride_s stride_custom;
 };
 
 struct config_ge2d_para_ex_s {
@@ -1065,6 +1093,8 @@ struct compat_config_para_ex_memtype_s {
 	unsigned int dst_mem_alloc_type;
 	/* for customized matrix */
 	struct ge2d_matrix_s matrix_custom;
+	/* for customized stride */
+	struct ge2d_stride_s stride_custom;
 };
 
 struct compat_config_ge2d_para_ex_s {
@@ -1087,6 +1117,12 @@ struct ge2d_dmabuf_exp_s {
 	unsigned int flags;
 	int fd;
 };
+
+struct ge2d_dmabuf_attach_s {
+	int dma_fd[MAX_PLANE];
+	enum ge2d_data_type_e data_type;
+};
+
 /* end of ge2d dma buffer define */
 
 enum {
@@ -1097,6 +1133,7 @@ enum {
 	GEN_PWR_ISO0,
 	MEM_PD_REG0,
 	PWR_DOMAIN_CTRL,
+	PWR_SMC,
 };
 
 struct ge2d_ctrl_s {
@@ -1171,6 +1208,10 @@ extern struct ge2d_device_data_s ge2d_meson_dev;
 
 #define GE2D_SYNC_DEVICE _IOW(GE2D_IOC_MAGIC, 0x08, int)
 #define GE2D_SYNC_CPU _IOW(GE2D_IOC_MAGIC, 0x09, int)
+
+#define GE2D_ATTACH_DMA_FD \
+	_IOW(GE2D_IOC_MAGIC, 0x0a, struct ge2d_dmabuf_attach_s)
+#define GE2D_DETACH_DMA_FD _IOW(GE2D_IOC_MAGIC, 0x0b, enum ge2d_data_type_e)
 
 extern void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg);
 extern void ge2d_set_src1_gen(struct ge2d_src1_gen_s *cfg);

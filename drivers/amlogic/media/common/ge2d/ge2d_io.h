@@ -29,6 +29,7 @@
 
 #define GE2DBUS_REG_ADDR(reg) (((reg - 0x1800) << 2))
 #define GE2D_PWR_DOMAIN       19
+#define GE2D_PWR_INDEX        8
 
 extern unsigned int ge2d_dump_reg_cnt;
 extern unsigned int ge2d_dump_reg_enable;
@@ -183,6 +184,9 @@ static inline void ge2d_set_pwr_tbl_bits(unsigned int table_type,
 	break;
 	case PWR_DOMAIN_CTRL:
 		power_domain_switch(GE2D_PWR_DOMAIN, val);
+	break;
+	case PWR_SMC:
+		pwr_ctrl_psci_smc(GE2D_PWR_INDEX, val);
 	break;
 	default:
 		ge2d_log_err("unsupported bus type\n");
