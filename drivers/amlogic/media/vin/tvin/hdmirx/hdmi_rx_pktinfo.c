@@ -524,25 +524,25 @@ static void rx_pktdump_avi(void *pdata)
 		rx_pr("colorimetry SC: 0x%x\n", pktdata->cont.v1.pic_scaling);
 	} else {
 		/*ver 2/3*/
-		rx_pr("scaninfo S: 0x%x\n", pktdata->cont.v2v3.scaninfo);
-		rx_pr("barinfo B: 0x%x\n", pktdata->cont.v2v3.barinfo);
-		rx_pr("activeinfo A: 0x%x\n", pktdata->cont.v2v3.activeinfo);
+		rx_pr("scaninfo S: 0x%x\n", pktdata->cont.v4.scaninfo);
+		rx_pr("barinfo B: 0x%x\n", pktdata->cont.v4.barinfo);
+		rx_pr("activeinfo A: 0x%x\n", pktdata->cont.v4.activeinfo);
 		rx_pr("colorimetry Y: 0x%x\n",
-		      pktdata->cont.v2v3.colorindicator);
-		rx_pr("fmt_ration R: 0x%x\n", pktdata->cont.v2v3.fmt_ration);
-		rx_pr("pic_ration M: 0x%x\n", pktdata->cont.v2v3.pic_ration);
-		rx_pr("colorimetry C: 0x%x\n", pktdata->cont.v2v3.colorimetry);
-		rx_pr("pic_scaling SC: 0x%x\n", pktdata->cont.v2v3.pic_scaling);
-		rx_pr("qt_range Q: 0x%x\n", pktdata->cont.v2v3.qt_range);
-		rx_pr("ext_color EC : 0x%x\n", pktdata->cont.v2v3.ext_color);
-		rx_pr("it_content ITC: 0x%x\n", pktdata->cont.v2v3.it_content);
-		rx_pr("vic: 0x%x\n", pktdata->cont.v2v3.vic);
+		      pktdata->cont.v4.colorindicator);
+		rx_pr("fmt_ration R: 0x%x\n", pktdata->cont.v4.fmt_ration);
+		rx_pr("pic_ration M: 0x%x\n", pktdata->cont.v4.pic_ration);
+		rx_pr("colorimetry C: 0x%x\n", pktdata->cont.v4.colorimetry);
+		rx_pr("pic_scaling SC: 0x%x\n", pktdata->cont.v4.pic_scaling);
+		rx_pr("qt_range Q: 0x%x\n", pktdata->cont.v4.qt_range);
+		rx_pr("ext_color EC : 0x%x\n", pktdata->cont.v4.ext_color);
+		rx_pr("it_content ITC: 0x%x\n", pktdata->cont.v4.it_content);
+		rx_pr("vic: 0x%x\n", pktdata->cont.v4.vic);
 		rx_pr("pix_repeat PR: 0x%x\n",
-		      pktdata->cont.v2v3.pix_repeat);
+		      pktdata->cont.v4.pix_repeat);
 		rx_pr("content_type CN: 0x%x\n",
-		      pktdata->cont.v2v3.content_type);
+		      pktdata->cont.v4.content_type);
 		rx_pr("ycc_range YQ: 0x%x\n",
-		      pktdata->cont.v2v3.ycc_range);
+		      pktdata->cont.v4.ycc_range);
 	}
 	rx_pr("line_end_topbar: 0x%x\n",
 	      pktdata->line_num_end_topbar);
@@ -951,37 +951,37 @@ void rx_pkt_get_avi_ex(void *pktinfo)
 	pkt->checksum =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, MSK(8, 16));
 	/* AVI parameters */
-	pkt->cont.v2v3.vic =
+	pkt->cont.v4.vic =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, VID_IDENT_CODE);
-	pkt->cont.v2v3.pix_repeat =
+	pkt->cont.v4.pix_repeat =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, PIX_REP_FACTOR);
-	pkt->cont.v2v3.colorindicator =
+	pkt->cont.v4.colorindicator =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, VIDEO_FORMAT);
-	pkt->cont.v2v3.it_content =
+	pkt->cont.v4.it_content =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, IT_CONTENT);
-	pkt->cont.v2v3.pic_scaling =
+	pkt->cont.v4.pic_scaling =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, RGB_QUANT_RANGE);
-	pkt->cont.v2v3.content_type =
+	pkt->cont.v4.content_type =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, MSK(2, 28));
-	pkt->cont.v2v3.qt_range =
+	pkt->cont.v4.qt_range =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_HB, YUV_QUANT_RANGE);
-	pkt->cont.v2v3.activeinfo =
+	pkt->cont.v4.activeinfo =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, ACT_INFO_PRESENT);
-	pkt->cont.v2v3.barinfo =
+	pkt->cont.v4.barinfo =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, BAR_INFO_VALID);
-	pkt->cont.v2v3.scaninfo =
+	pkt->cont.v4.scaninfo =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, SCAN_INFO);
-	pkt->cont.v2v3.colorimetry =
+	pkt->cont.v4.colorimetry =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, COLORIMETRY);
-	pkt->cont.v2v3.pic_ration =
+	pkt->cont.v4.pic_ration =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, PIC_ASPECT_RATIO);
-	pkt->cont.v2v3.fmt_ration =
+	pkt->cont.v4.fmt_ration =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, ACT_ASPECT_RATIO);
-	pkt->cont.v2v3.it_content =
+	pkt->cont.v4.it_content =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, IT_CONTENT);
-	pkt->cont.v2v3.ext_color =
+	pkt->cont.v4.ext_color =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, EXT_COLORIMETRY);
-	pkt->cont.v2v3.pic_scaling =
+	pkt->cont.v4.pic_scaling =
 		hdmirx_rd_bits_dwc(DWC_PDEC_AVI_PB, NON_UNIF_SCALE);
 
 	pkt->line_num_end_topbar =

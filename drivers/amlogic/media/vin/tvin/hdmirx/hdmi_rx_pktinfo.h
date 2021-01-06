@@ -14,7 +14,7 @@
 
 #define K_FLAG_TAB_END			0xa0a05f5f
 
-#define VSIF_PKT_READ_FROM_PD_FIFO
+//#define VSIF_PKT_READ_FROM_PD_FIFO
 
 #define IEEE_VSI14		0x000c03
 #define IEEE_DV15		0x00d046
@@ -679,7 +679,6 @@ struct avi_infoframe_st {
 	u8 pkttype;
 	u8 version;
 	u8 length;
-	u8 rsd;
 	/*PB0*/
 	u8 checksum;
 	union cont_u {
@@ -702,12 +701,12 @@ struct avi_infoframe_st {
 			/*byte 5*/
 			u8 rev3:8;
 		} __packed v1;
-		struct v2v3_st {
+		struct v4_st { /* v2=v3=v4 */
 			/*byte 1*/
 			u8 scaninfo:2;			/* S1,S0 */
 			u8 barinfo:2;			/* B1,B0 */
-			u8 activeinfo:1;		/* A0 1:R3-R0*/
-			u8 colorindicator:3;	/* Y2-Y0 */
+			u8 activeinfo:1;		/* A0 1 */
+			u8 colorindicator:3;		/* Y2-Y0 */
 			/*byte 2*/
 			u8 fmt_ration:4;		/* R3-R0 */
 			u8 pic_ration:2;		/* M1-M0 */
@@ -715,15 +714,15 @@ struct avi_infoframe_st {
 			/*byte 3*/
 			u8 pic_scaling:2;		/* SC1-SC0 */
 			u8 qt_range:2;			/* Q1-Q0 */
-			u8 ext_color:3;		/* EC2-EC0 */
+			u8 ext_color:3;			/* EC2-EC0 */
 			u8 it_content:1;		/* ITC */
 			/*byte 4*/
 			u8 vic:8;				/* VIC7-VIC0 */
 			/*byte 5*/
 			u8 pix_repeat:4;		/* PR3-PR0 */
 			u8 content_type:2;		/* CN1-CN0 */
-			u8 ycc_range:2;		/* YQ1-YQ0 */
-		} __packed v2v3;
+			u8 ycc_range:2;			/* YQ1-YQ0 */
+		} __packed v4;
 	} cont;
 	/*byte 6,7*/
 	u16 line_num_end_topbar:16;	/*littel endian can use*/
@@ -733,6 +732,8 @@ struct avi_infoframe_st {
 	u16 pix_num_left_bar:16;
 	/*byte 12,13*/
 	u16 pix_num_right_bar:16;
+	/* byte 14 */
+	u8 additional_colorimetry;
 } __packed;
 
 /* source product descriptor infoFrame  - 0x83 */
@@ -1062,5 +1063,6 @@ u32 rx_pkt_chk_busy_vsi(void);
 u32 rx_pkt_chk_busy_drm(void);
 void rx_get_pd_fifo_param(enum pkt_type_e pkt_type,
 			  struct pd_infoframe_s *pkt_info);
+void rx_get_avi_info(struct avi_infoframe_st *st_pkt);
 
 #endif

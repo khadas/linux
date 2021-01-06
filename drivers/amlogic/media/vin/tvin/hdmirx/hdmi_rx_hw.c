@@ -2994,20 +2994,23 @@ void cor_init(void)
 	data8 |= (0	   << 2);// rsvd
 	data8 |= (0	   << 1);// hsync_polarity
 	data8 |= (0	   << 0);// vsync_polarity
-	hdmirx_wr_cor(RX_VP_OUTPUT_SYNC_CONFIG, data8);//register address: 0x1842
+	hdmirx_wr_cor(VP_OUTPUT_SYNC_CFG_VID_IVCRX, data8);//register address: 0x1842
 
 	data32 = 0;
 	//data32 |= (((rx_color_format==HDMI_COLOR_FORMAT_422)?3:2)   << 9);
+	data32 |= (2 << 9);
 	// [11: 9] select_cr: 0=ch1(Y); 1=ch0(Cb); 2=ch2(Cr); 3={ch2 8-b,ch0 4-b}(422).
 	//data32 |= (((rx_color_format==HDMI_COLOR_FORMAT_422)?3:1)   << 6);
+	data32 |= (1 << 6);
 	// [ 8: 6] select_cb: 0=ch1(Y); 1=ch0(Cb); 2=ch2(Cr); 3={ch2 8-b,ch0 4-b}(422).
 	//data32 |= (((rx_color_format==HDMI_COLOR_FORMAT_422)?3:0)   << 3);
+	data32 |= (0 << 3);
 	// [ 5: 3] select_y : 0=ch1(Y); 1=ch0(Cb); 2=ch2(Cr); 3={ch1 8-b,ch0 4-b}(422).
 	data32 |= (0 << 2);// [    2] reverse_cr
 	data32 |= (0 << 1);// [    1] reverse_cb
 	data32 |= (0 << 0);// [    0] reverse_y
-	hdmirx_wr_cor(RX_VP_OUTPUT_MAPPING, data32 & 0xff);
-	hdmirx_wr_cor(RX_VP_OUTPUT_MAPPING + 1, (data32 >> 8) & 0xff);
+	hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX, data32 & 0xff);
+	hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX + 1, (data32 >> 8) & 0xff);
 
 	//------------------
 	// audio I2S config
@@ -3368,7 +3371,7 @@ bool rx_get_dvi_mode(void)
 	u32 ret;
 
 	if (rx.chip_id == CHIP_ID_T7)
-		ret = hdmirx_rd_cor(COR_AUD_PATH_STS) & 1;
+		ret = hdmirx_rd_cor(RX_AUDP_STAT_DP2_IVCRX) & 1;
 	else
 		ret = hdmirx_rd_bits_dwc(DWC_PDEC_STS, DVIDET);
 	if (ret)
@@ -3401,13 +3404,15 @@ u8 rx_get_hdcp_type(void)
 
 void rx_get_avi_params(void)
 {
+	u8 data8;
+
 	if (rx.chip_id == CHIP_ID_T7) {
-		/* there are not related registers. need get from AVI packets */
-		/* for debug */
-		rx.cur.hw_vic = 16;
+		data8 = hdmirx_rd_cor(AVIRX_DBYTE1_DP2_IVCRX);
+		rx.cur.hw_vic = data8;
 		rx.cur.cn_type = 0;
 		rx.cur.repeat = 0;
-		rx.cur.colorspace = 2;
+		data8 = hdmirx_rd_cor(AVIRX_DBYTE1_DP2_IVCRX);
+		rx.cur.colorspace = (data8 >> 5) & 0x07;
 		rx.cur.it_content = 0;
 		rx.cur.rgb_quant_range = 0;
 		rx.cur.yuv_quant_range = 0;
@@ -3602,8 +3607,50 @@ void set_dv_ll_mode(bool en)
  */
 void hdmirx_config_video(void)
 {
+	u32 data32 = 0;
+
+	if (dbg_cs & 0x10)
+		rx.pre.colorspace = dbg_cs & 0x0f;
+
 	hdmirx_set_video_mute(0);
 	set_dv_ll_mode(false);
+
+	switch (rx.pre.colorspace) {
+	case E_COLOR_YUV422:
+		data32 |= 3 << 9;
+		data32 |= 3 << 6;
+		data32 |= 3 << 3;
+		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX, data32 & 0xff);
+		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX + 1, (data32 >> 8) & 0xff);
+		data32 = hdmirx_rd_top(TOP_VID_CNTL);
+		data32 |= 1 << 24;
+		hdmirx_wr_top(TOP_VID_CNTL, data32);
+		break;
+	case E_COLOR_YUV420:
+		data32 |= 3 << 9;
+		data32 |= 3 << 6;
+		data32 |= 3 << 3;
+		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX, data32 & 0xff);
+		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX + 1, (data32 >> 8) & 0xff);
+		data32 = hdmirx_rd_top(TOP_VID_CNTL);
+		data32 |= 0 << 24;
+		hdmirx_wr_top(TOP_VID_CNTL, data32);
+		break;
+	case E_COLOR_YUV444:
+	case E_COLOR_RGB:
+	default:
+		data32 |= 2 << 9;
+		data32 |= 1 << 6;
+		data32 |= 0 << 3;
+		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX, data32 & 0xff);
+		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX
+
+		+ 1, (data32 >> 8) & 0xff);
+		data32 = hdmirx_rd_top(TOP_VID_CNTL);
+		data32 |= 2 << 24;
+		hdmirx_wr_top(TOP_VID_CNTL, data32);
+	break;
+	}
 }
 
 /*

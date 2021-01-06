@@ -78,6 +78,7 @@ bool rx5v_debug_en;
 u32 err_chk_en;
 u32 force_vic;
 int log_level = LOG_EN;
+u32 dbg_cs;
 
 /* used in other module */
 static int audio_sample_rate;
@@ -724,8 +725,7 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			#endif
 			if (rx.state == FSM_SIG_READY) {
 				rx.vsync_cnt++;
-				/* t5d 5.4 vdin not enabled 1222*/
-				/* rx_update_sig_info(); */
+				rx_update_sig_info();
 			}
 			if (log_level & 0x400)
 				rx_pr("[isr] DE rise.\n");
@@ -1884,6 +1884,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(eq_dbg_lvl, i++);
 	pr_var(edid_select, i++);
 	pr_var(vpp_mute_enable, i++);
+	pr_var(dbg_cs, i++);
 	pr_var(rx.var.force_pattern, i++);
 	/* phy var definitioin */
 	pr_var(rx.aml_phy.sqrst_en, i++);
@@ -2178,6 +2179,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(vsvdb_update_hpd_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(clk_chg_max), &clk_chg_max, value))
 		return pr_var(clk_chg_max, index);
+	if (set_pr_var(tmpbuf, var_to_str(dbg_cs), &dbg_cs, value))
+		return pr_var(dbg_cs, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx.var.force_pattern), &rx.var.force_pattern, value))
 		return pr_var(rx.var.force_pattern, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.sqrst_en), &rx.aml_phy.sqrst_en, value))
