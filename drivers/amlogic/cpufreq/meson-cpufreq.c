@@ -331,11 +331,10 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 	}
 	freq_old = clk_get_rate(clk[cur_cluster]);
 
-	pr_debug("Scalling from %lu MHz, %u mV,cur_cluster_id:%u, --> %lu MHz, %u mV,new_cluster_id:%u\n",
+	pr_debug("[cluster%d:%d]Scalling from %lu MHz, %u mV --> %lu MHz, %u mV\n",
+		 cur_cluster, reg_use_buck[cur_cluster],
 		 freq_old / 1000000, (volt_old > 0) ? volt_old / 1000 : -1,
-		 cur_cluster,
-		 freq_new / 1000000, volt_new ? volt_new / 1000 : -1,
-		 cur_cluster);
+		 freq_new / 1000000, volt_new ? volt_new / 1000 : -1);
 
 	/*cpufreq up,change voltage before frequency*/
 	if (freq_new > freq_old) {
