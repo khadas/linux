@@ -1168,10 +1168,10 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 
 		r = 0x1700;
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			if (vf && vf->source_type
-				!= VFRAME_SOURCE_TYPE_HDMI)
+			if (vf &&
+			    (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+			    !(vf->type & VIDTYPE_DI_PW)))
 				r |= (1 << 19); /* dos_uncomp */
-
 			if (type & VIDTYPE_COMB_MODE)
 				r |= (1 << 20);
 		}
@@ -1667,8 +1667,9 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 
 		r = 0x1700;
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			if (vf && vf->source_type
-			    != VFRAME_SOURCE_TYPE_HDMI)
+			if (vf &&
+			    (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+			    !(vf->type & VIDTYPE_DI_PW)))
 				r |= (1 << 19); /* dos_uncomp */
 		}
 		VSYNC_WR_MPEG_REG(vd_afbc_reg->afbc_enable, r);
