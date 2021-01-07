@@ -26,9 +26,6 @@
 #define HOST_MODE	0
 #define DEVICE_MODE	1
 
-struct usb_aml_regs_v2 usb_crg_otg_aml_regs;
-struct amlogic_crg_otg	*g_crg_otg;
-
 struct amlogic_crg_otg {
 	struct device           *dev;
 	void __iomem    *phy3_cfg;
@@ -57,17 +54,16 @@ static int force_otg_mode(char *s)
 }
 __setup("otg_device=", force_otg_mode);
 
-static void set_mode(unsigned long reg_addr, int mode);
+static void set_mode
+	(unsigned long reg_addr, int mode, unsigned long phy3_addr);
 
 static int amlogic_crg_otg_init(struct amlogic_crg_otg *phy)
 {
 	union usb_r1_v2 r1 = {.d32 = 0};
 	union u2p_r2_v2 reg2 = {.d32 = 0};
-	int i = 0;
+	struct usb_aml_regs_v2 usb_crg_otg_aml_regs;
 
-	for (i = 0; i < 6; i++)
-		usb_crg_otg_aml_regs.usb_r_v2[i] = (void __iomem *)
-			((unsigned long)phy->usb2_phy_cfg + 0x80 + 4 * i);
+	usb_crg_otg_aml_regs.usb_r_v2[1] = phy->phy3_cfg + 4;
 
 	r1.d32 = readl(usb_crg_otg_aml_regs.usb_r_v2[1]);
 	r1.b.u3h_fladj_30mhz_reg = 0x20;
@@ -82,42 +78,35 @@ static int amlogic_crg_otg_init(struct amlogic_crg_otg *phy)
 	return 0;
 }
 
-static void set_mode(unsigned long reg_addr, int mode)
+static void set_mode(unsigned long reg_addr, int mode, unsigned long phy3_addr)
 {
 	struct u2p_aml_regs_v2 u2p_aml_regs;
-	struct usb_aml_regs_v2 usb_gxl_aml_regs;
+	struct usb_aml_regs_v2 usb_crg_otg_aml_regs;
 	union u2p_r0_v2 reg0;
 	union usb_r0_v2 r0 = {.d32 = 0};
 	union usb_r4_v2 r4 = {.d32 = 0};
 
-	u2p_aml_regs.u2p_r_v2[0] = (void __iomem	*)
-				((unsigned long)reg_addr + PHY_REGISTER_SIZE);
+	u2p_aml_regs.u2p_r_v2[0] = (void __iomem *)((unsigned long)reg_addr);
 
-	usb_gxl_aml_regs.usb_r_v2[0] = (void __iomem *)
-				((unsigned long)reg_addr + 4 * PHY_REGISTER_SIZE
-				+ 4 * 0);
-	usb_gxl_aml_regs.usb_r_v2[1] = (void __iomem *)
-				((unsigned long)reg_addr + 4 * PHY_REGISTER_SIZE
-				+ 4 * 1);
-	usb_gxl_aml_regs.usb_r_v2[4] = (void __iomem *)
-				((unsigned long)reg_addr + 4 * PHY_REGISTER_SIZE
-				+ 4 * 4);
+	usb_crg_otg_aml_regs.usb_r_v2[0] = (void __iomem *)(phy3_addr + 4 * 0);
+	usb_crg_otg_aml_regs.usb_r_v2[1] = (void __iomem *)(phy3_addr + 4 * 1);
+	usb_crg_otg_aml_regs.usb_r_v2[4] = (void __iomem *)(phy3_addr + 4 * 4);
 
-	r0.d32 = readl(usb_gxl_aml_regs.usb_r_v2[0]);
+	r0.d32 = readl(usb_crg_otg_aml_regs.usb_r_v2[0]);
 	if (mode == DEVICE_MODE) {
 		r0.b.u2d_act = 1;
 		r0.b.u2d_ss_scaledown_mode = 0;
 	} else {
 		r0.b.u2d_act = 0;
 	}
-	writel(r0.d32, usb_gxl_aml_regs.usb_r_v2[0]);
+	writel(r0.d32, usb_crg_otg_aml_regs.usb_r_v2[0]);
 
-	r4.d32 = readl(usb_gxl_aml_regs.usb_r_v2[4]);
+	r4.d32 = readl(usb_crg_otg_aml_regs.usb_r_v2[4]);
 	if (mode == DEVICE_MODE)
 		r4.b.p21_SLEEPM0 = 0x1;
 	else
 		r4.b.p21_SLEEPM0 = 0x0;
-	writel(r4.d32, usb_gxl_aml_regs.usb_r_v2[4]);
+	writel(r4.d32, usb_crg_otg_aml_regs.usb_r_v2[4]);
 
 	reg0.d32 = readl(u2p_aml_regs.u2p_r_v2[0]);
 	if (mode == DEVICE_MODE) {
@@ -138,17 +127,18 @@ static void amlogic_crg_otg_work(struct work_struct *work)
 		container_of(work, struct amlogic_crg_otg, work.work);
 	union u2p_r2_v2 reg2;
 	unsigned long reg_addr = ((unsigned long)phy->usb2_phy_cfg);
+	unsigned long phy3_addr = ((unsigned long)phy->phy3_cfg);
 
 	reg2.d32 = readl((void __iomem *)(reg_addr + 8));
 	if (reg2.b.iddig_curr == 0) {
 		/* to do*/
 		crg_gadget_exit();
-		set_mode(reg_addr, HOST_MODE);
+		set_mode(reg_addr, HOST_MODE, phy3_addr);
 		crg_init();
 	} else {
 		/* to do*/
 		crg_exit();
-		set_mode(reg_addr, DEVICE_MODE);
+		set_mode(reg_addr, DEVICE_MODE, phy3_addr);
 		crg_gadget_init();
 	}
 	reg2.b.usb_iddig_irq = 0;
@@ -176,6 +166,9 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	void __iomem *usb2_phy_base;
 	unsigned int usb2_phy_mem;
 	unsigned int usb2_phy_mem_size = 0;
+	void __iomem *usb3_phy_base;
+	unsigned int usb3_phy_mem;
+	unsigned int usb3_phy_mem_size = 0;
 	const void *prop;
 	int irq;
 	int retval;
@@ -204,6 +197,22 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	if (!usb2_phy_base)
 		return -ENOMEM;
 
+	retval = of_property_read_u32
+				(dev->of_node, "usb3-phy-reg", &usb3_phy_mem);
+	if (retval < 0)
+		return -EINVAL;
+
+	retval = of_property_read_u32
+		(dev->of_node, "usb3-phy-reg-size", &usb3_phy_mem_size);
+	if (retval < 0)
+		return -EINVAL;
+
+	usb3_phy_base = devm_ioremap_nocache
+				(&pdev->dev, (resource_size_t)usb3_phy_mem,
+				(unsigned long)usb3_phy_mem_size);
+	if (!usb3_phy_base)
+		return -ENOMEM;
+
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
@@ -215,19 +224,23 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "crg_force_device_mode is %d\n", crg_force_device_mode);
 	dev_info(&pdev->dev, "otg is %d\n", otg);
 
-	dev_info(&pdev->dev, "phy_mem:0x%lx, iomap phy_base:0x%lx\n",
+	dev_info(&pdev->dev, "phy2_mem:0x%lx, iomap phy2_base:0x%lx\n",
 		 (unsigned long)usb2_phy_mem,
 		 (unsigned long)usb2_phy_base);
 
+	dev_info(&pdev->dev, "phy3_mem:0x%lx, iomap phy3_base:0x%lx\n",
+		 (unsigned long)usb3_phy_mem,
+		 (unsigned long)usb3_phy_base);
+
 	phy->dev		= dev;
 	phy->usb2_phy_cfg	= usb2_phy_base;
+	phy->phy3_cfg = usb3_phy_base;
 
 	INIT_DELAYED_WORK(&phy->work, amlogic_crg_otg_work);
 
 	platform_set_drvdata(pdev, phy);
 
 	pm_runtime_enable(phy->dev);
-	g_crg_otg = phy;
 
 	if (otg) {
 		irq = platform_get_irq(pdev, 0);
@@ -248,20 +261,24 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	if (otg == 0) {
 		if (crg_force_device_mode || controller_type == USB_DEVICE_ONLY) {
 			crg_init();
-			set_mode((unsigned long)phy->usb2_phy_cfg, DEVICE_MODE);
+			set_mode((unsigned long)phy->usb2_phy_cfg,
+				DEVICE_MODE, (unsigned long)phy->phy3_cfg);
 			crg_gadget_init();
 		} else if (controller_type == USB_HOST_ONLY) {
 			crg_init();
-			set_mode((unsigned long)phy->usb2_phy_cfg, HOST_MODE);
+			set_mode((unsigned long)phy->usb2_phy_cfg,
+				HOST_MODE, (unsigned long)phy->phy3_cfg);
 		}
 	} else {
 		reg_addr = ((unsigned long)phy->usb2_phy_cfg);
 		reg2.d32 = readl((void __iomem *)(reg_addr + 8));
 		if (reg2.b.iddig_curr == 0) {
-			set_mode(reg_addr, HOST_MODE);
+			set_mode(reg_addr, HOST_MODE,
+				(unsigned long)phy->phy3_cfg);
 			crg_init();
 		} else {
-			set_mode(reg_addr, DEVICE_MODE);
+			set_mode(reg_addr, DEVICE_MODE,
+				(unsigned long)phy->phy3_cfg);
 			crg_gadget_init();
 		}
 		reg2.b.usb_iddig_irq = 0;

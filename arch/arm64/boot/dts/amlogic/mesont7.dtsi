@@ -870,19 +870,23 @@
 			phy-id = <0>;
 		};
 
-		crg20_otg: crg20otg@ffe09080 {
+		crg20_otg: crg20otg@fe03a000 {
 			compatible = "amlogic, amlogic-crg-otg";
 			status = "disabled";
 			usb2-phy-reg = <0xfe03a000>;
-			usb2-phy-reg-size = <0x100>;
+			usb2-phy-reg-size = <0x80>;
+			usb3-phy-reg = <0xfe03a080>;
+			usb3-phy-reg-size = <0x20>;
 			interrupts = <0 129 IRQ_TYPE_EDGE_RISING>;
 		};
 
-		crg21_otg: crg21otg@ffe09080 {
+		crg21_otg: crg21otg@fe03a020 {
 			compatible = "amlogic, amlogic-crg-otg";
 			status = "disabled";
 			usb2-phy-reg = <0xfe03a020>;
-			usb2-phy-reg-size = <0x80>;
+			usb2-phy-reg-size = <0x60>;
+			usb3-phy-reg = <0xfe03a080>;
+			usb3-phy-reg-size = <0x20>;
 			interrupts = <0 281 IRQ_TYPE_EDGE_RISING>;
 		};
 
