@@ -4,13 +4,17 @@
  */
 
 #include <linux/amlogic/aml_mtd_nand.h>
+#include <linux/amlogic/gki_module.h>
+
+extern struct mtd_info *aml_mtd_info[NAND_MAX_DEVICE];
+static char *cmdline;
 
 struct boot_area_entry general_boot_part_entry[MAX_BOOT_AREA_ENTRIES] = {
 	{BAE_BB1ST, BOOT_AREA_BB1ST, 0, BOOT_FIRST_BLOB_SIZE},
 	{BAE_BL2E, BOOT_AREA_BL2E, 0, 0x40000},
 	{BAE_BL2X, BOOT_AREA_BL2X, 0, 0x40000},
 	{BAE_DDRFIP, BOOT_AREA_DDRFIP, 0, 0x40000},
-	{BAE_DEVFIP, BOOT_AREA_DEVFIP, 0, 0x280000},
+	{BAE_DEVFIP, BOOT_AREA_DEVFIP, 0, 0x380000},
 };
 
 struct boot_layout general_boot_layout = {
@@ -38,15 +42,18 @@ static int storage_get_and_parse_ssp(void)
 {
 	struct storage_startup_parameter *ssp;
 	union storage_independent_parameter *sip;
+	struct mtd_info *mtd;
 
+	mtd = aml_mtd_info[0];
 	ssp = &g_ssp;
 	memset(ssp, 0, sizeof(struct storage_startup_parameter));
 	sip = &ssp->sip;
 
 	ssp->boot_backups = 8;
-	sip->nsp.page_size =  0x800; //fixme base on nand
-	sip->nsp.block_size =  0x20000; //fixme base on nand
-	sip->nsp.pages_per_block = 64; //fixme base on nand
+	sip->nsp.page_size =  mtd->writesize;
+	sip->nsp.block_size =  mtd->erasesize;
+	sip->nsp.pages_per_block = mtd->erasesize /
+		mtd->writesize;
 	sip->nsp.layout_reserve_size =
 		NAND_RSV_BLOCK_NUM * sip->nsp.block_size;
 
@@ -97,6 +104,29 @@ int storage_boot_layout_general_setting(struct boot_layout *boot_layout)
 	return 0;
 }
 
+int aml_nand_parse_env(char *cmd)
+{
+	struct boot_area_entry *boot_entry = NULL;
+	char *p = cmd;
+
+	if (!p) {
+		pr_info("WARN, no bl2e/x, so use reserved\n");
+		return 0;
+	}
+
+	boot_entry = general_boot_layout.boot_entry;
+	p = strchr(p, ':');
+	pr_info("%s\n", p + 1);
+	boot_entry[BOOT_AREA_BL2E].size = memparse(p + 1, NULL);
+	p = strchr(p, ',');
+	pr_info("%s\n", p + 1);
+	boot_entry[BOOT_AREA_BL2X].size = memparse(p + 1, NULL);
+	pr_info("bl2e_size(0x%llx) bl2x_size(0x%llx)\n",
+		boot_entry[BOOT_AREA_BL2E].size,
+		boot_entry[BOOT_AREA_BL2X].size);
+	return 0;
+}
+
 int aml_nand_param_check_and_layout_init(void)
 {
 	int ret = -1;
@@ -104,8 +134,19 @@ int aml_nand_param_check_and_layout_init(void)
 	ret = storage_get_and_parse_ssp();
 	if (ret < 0)
 		return -1;
+
+	aml_nand_parse_env(cmdline);
 	storage_boot_layout_general_setting(&general_boot_layout);
 	storage_boot_layout_debug_info(&general_boot_layout);
 
 	return ret;
 }
+
+static int mtdbootpart_setup(char *s)
+{
+	cmdline = s;
+	return 0;
+}
+
+__setup("mtdbootparts=", mtdbootpart_setup);
+

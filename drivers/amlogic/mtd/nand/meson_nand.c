@@ -23,6 +23,7 @@
 #include "linux/amlogic/cpu_version.h"
 #include <linux/mtd/partitions.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/amlogic/gki_module.h>
 
 struct mtd_info *aml_mtd_info[NAND_MAX_DEVICE];
 u8 aml_mtd_devnum;
@@ -1940,7 +1941,23 @@ static struct platform_driver meson_nfc_driver = {
 		.of_match_table = meson_nfc_id_table,
 	},
 };
+
+#ifndef MODULE
 module_platform_driver(meson_nfc_driver);
+#else
+int __init meson_nfc_init_module(void)
+{
+    return platform_driver_register(&meson_nfc_driver);
+}
+
+__exit void meson_nfc_exit_module(void)
+{
+	platform_driver_unregister(&meson_nfc_driver);
+}
+
+module_init(meson_nfc_init_module);
+module_exit(meson_nfc_exit_module);
+#endif
 
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_AUTHOR("Liang Yang <liang.yang@amlogic.com>");
