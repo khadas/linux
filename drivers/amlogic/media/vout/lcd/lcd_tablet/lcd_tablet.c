@@ -490,6 +490,7 @@ static void lcd_tablet_vinfo_update_default(void)
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct vinfo_s *vinfo;
 	unsigned int h_active, v_active, h_total, v_total;
+	unsigned int offset;
 
 	if (!lcd_drv)
 		return;
@@ -499,12 +500,21 @@ static void lcd_tablet_vinfo_update_default(void)
 		return;
 	}
 
-	h_active = lcd_vcbus_read(ENCL_VIDEO_HAVON_END)
-			- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN) + 1;
-	v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE)
-			- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE) + 1;
-	h_total = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT) + 1;
-	v_total = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT) + 1;
+	if (lcd_drv->data->chip_type == LCD_CHIP_T7) {
+		if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_LVDS)
+			offset = 0x800;
+		else
+			offset = 0;
+	} else {
+		offset = 0;
+	}
+
+	h_active = lcd_vcbus_read(ENCL_VIDEO_HAVON_END + offset)
+			- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN + offset) + 1;
+	v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE + offset)
+			- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE + offset) + 1;
+	h_total = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT + offset) + 1;
+	v_total = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT + offset) + 1;
 
 	vinfo = lcd_drv->lcd_info;
 	if (vinfo) {

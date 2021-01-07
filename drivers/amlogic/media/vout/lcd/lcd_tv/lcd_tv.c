@@ -746,6 +746,7 @@ static void lcd_vinfo_update_default(void)
 	unsigned int h_active, v_active, h_total, v_total;
 	char *mode;
 	unsigned int frame_rate, frac;
+	unsigned int offset;
 
 	if (!lcd_drv)
 		return;
@@ -753,6 +754,15 @@ static void lcd_vinfo_update_default(void)
 	if (!lcd_drv->lcd_info) {
 		LCDERR("no lcd_info exist\n");
 		return;
+	}
+
+	if (lcd_drv->data->chip_type == LCD_CHIP_T7) {
+		if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_LVDS)
+			offset = 0x800;
+		else
+			offset = 0;
+	} else {
+		offset = 0;
 	}
 
 	mode = kstrdup(get_vout_mode_uboot(), GFP_KERNEL);
@@ -767,12 +777,12 @@ static void lcd_vinfo_update_default(void)
 			return;
 		}
 	}
-	h_active = lcd_vcbus_read(ENCL_VIDEO_HAVON_END)
-			- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN) + 1;
-	v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE)
-			- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE) + 1;
-	h_total = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT) + 1;
-	v_total = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT) + 1;
+	h_active = lcd_vcbus_read(ENCL_VIDEO_HAVON_END + offset)
+			- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN + offset) + 1;
+	v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE + offset)
+			- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE + offset) + 1;
+	h_total = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT + offset) + 1;
+	v_total = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT + offset) + 1;
 
 	memset(lcd_output_name, 0, sizeof(lcd_output_name));
 	snprintf(lcd_output_name, sizeof(lcd_output_name), "%s", mode);

@@ -40,6 +40,7 @@ static int lcd_type_supported(struct lcd_config_s *pconf)
 	case LCD_LVDS:
 	case LCD_VBYONE:
 	case LCD_MIPI:
+	case LCD_EDP:
 		ret = 0;
 		break;
 	default:

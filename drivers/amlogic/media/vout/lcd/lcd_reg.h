@@ -14,7 +14,6 @@
 /* base & offset */
 
 #define LCD_REG_OFFSET(reg)                   (((reg) << 2))
-#define LCD_REG_OFFSET_MIPI_HOST(reg)         ((((reg) & 0xff) << 2))
 #define LCD_REG_OFFSET_BYTE(reg)              ((reg))
 
 /* PERIPHS: 0xc8834400 */
@@ -169,6 +168,8 @@
 #define CLKCTRL_VID_CLK2_DIV                       0x007a
 #define CLKCTRL_VIID_CLK2_DIV                      0x007b
 #define CLKCTRL_VIID_CLK2_CTRL                     0x007c
+#define CLKCTRL_MIPIDSI_PHY_CLK_CTRL               0x0041
+#define CLKCTRL_MIPI_DSI_MEAS_CLK_CTRL             0x0080
 
 /* g9tv */
 #define HHI_HDMI_PLL_CNTL                          0xc8
@@ -1281,53 +1282,53 @@
  * VCBUS_BASE = 0x2c(0x2c00 - 0x2cff)
  */
 /* DWC IP registers */
-#define MIPI_DSI_DWC_VERSION_OS                    0x1800
-#define MIPI_DSI_DWC_PWR_UP_OS                     0x1801
-#define MIPI_DSI_DWC_CLKMGR_CFG_OS                 0x1802
-#define MIPI_DSI_DWC_DPI_VCID_OS                   0x1803
-#define MIPI_DSI_DWC_DPI_COLOR_CODING_OS           0x1804
-#define MIPI_DSI_DWC_DPI_CFG_POL_OS                0x1805
-#define MIPI_DSI_DWC_DPI_LP_CMD_TIM_OS             0x1806
-#define MIPI_DSI_DWC_PCKHDL_CFG_OS                 0x180b
-#define MIPI_DSI_DWC_GEN_VCID_OS                   0x180c
-#define MIPI_DSI_DWC_MODE_CFG_OS                   0x180d
-#define MIPI_DSI_DWC_VID_MODE_CFG_OS               0x180e
-#define MIPI_DSI_DWC_VID_PKT_SIZE_OS               0x180f
-#define MIPI_DSI_DWC_VID_NUM_CHUNKS_OS             0x1810
-#define MIPI_DSI_DWC_VID_NULL_SIZE_OS              0x1811
-#define MIPI_DSI_DWC_VID_HSA_TIME_OS               0x1812
-#define MIPI_DSI_DWC_VID_HBP_TIME_OS               0x1813
-#define MIPI_DSI_DWC_VID_HLINE_TIME_OS             0x1814
-#define MIPI_DSI_DWC_VID_VSA_LINES_OS              0x1815
-#define MIPI_DSI_DWC_VID_VBP_LINES_OS              0x1816
-#define MIPI_DSI_DWC_VID_VFP_LINES_OS              0x1817
-#define MIPI_DSI_DWC_VID_VACTIVE_LINES_OS          0x1818
-#define MIPI_DSI_DWC_EDPI_CMD_SIZE_OS              0x1819
-#define MIPI_DSI_DWC_CMD_MODE_CFG_OS               0x181a
-#define MIPI_DSI_DWC_GEN_HDR_OS                    0x181b
-#define MIPI_DSI_DWC_GEN_PLD_DATA_OS               0x181c
-#define MIPI_DSI_DWC_CMD_PKT_STATUS_OS             0x181d
-#define MIPI_DSI_DWC_TO_CNT_CFG_OS                 0x181e
-#define MIPI_DSI_DWC_HS_RD_TO_CNT_OS               0x181f
-#define MIPI_DSI_DWC_LP_RD_TO_CNT_OS               0x1820
-#define MIPI_DSI_DWC_HS_WR_TO_CNT_OS               0x1821
-#define MIPI_DSI_DWC_LP_WR_TO_CNT_OS               0x1822
-#define MIPI_DSI_DWC_BTA_TO_CNT_OS                 0x1823
-#define MIPI_DSI_DWC_SDF_3D_OS                     0x1824
-#define MIPI_DSI_DWC_LPCLK_CTRL_OS                 0x1825
-#define MIPI_DSI_DWC_PHY_TMR_LPCLK_CFG_OS          0x1826
-#define MIPI_DSI_DWC_PHY_TMR_CFG_OS                0x1827
-#define MIPI_DSI_DWC_PHY_RSTZ_OS                   0x1828
-#define MIPI_DSI_DWC_PHY_IF_CFG_OS                 0x1829
-#define MIPI_DSI_DWC_PHY_ULPS_CTRL_OS              0x182a
-#define MIPI_DSI_DWC_PHY_TX_TRIGGERS_OS            0x182b
-#define MIPI_DSI_DWC_PHY_STATUS_OS                 0x182c
-#define MIPI_DSI_DWC_PHY_TST_CTRL0_OS              0x182d
-#define MIPI_DSI_DWC_PHY_TST_CTRL1_OS              0x182e
-#define MIPI_DSI_DWC_INT_ST0_OS                    0x182f
-#define MIPI_DSI_DWC_INT_ST1_OS                    0x1830
-#define MIPI_DSI_DWC_INT_MSK0_OS                   0x1831
-#define MIPI_DSI_DWC_INT_MSK1_OS                   0x1832
+#define MIPI_DSI_DWC_VERSION_OS                    0x0000
+#define MIPI_DSI_DWC_PWR_UP_OS                     0x0001
+#define MIPI_DSI_DWC_CLKMGR_CFG_OS                 0x0002
+#define MIPI_DSI_DWC_DPI_VCID_OS                   0x0003
+#define MIPI_DSI_DWC_DPI_COLOR_CODING_OS           0x0004
+#define MIPI_DSI_DWC_DPI_CFG_POL_OS                0x0005
+#define MIPI_DSI_DWC_DPI_LP_CMD_TIM_OS             0x0006
+#define MIPI_DSI_DWC_PCKHDL_CFG_OS                 0x000b
+#define MIPI_DSI_DWC_GEN_VCID_OS                   0x000c
+#define MIPI_DSI_DWC_MODE_CFG_OS                   0x000d
+#define MIPI_DSI_DWC_VID_MODE_CFG_OS               0x000e
+#define MIPI_DSI_DWC_VID_PKT_SIZE_OS               0x000f
+#define MIPI_DSI_DWC_VID_NUM_CHUNKS_OS             0x0010
+#define MIPI_DSI_DWC_VID_NULL_SIZE_OS              0x0011
+#define MIPI_DSI_DWC_VID_HSA_TIME_OS               0x0012
+#define MIPI_DSI_DWC_VID_HBP_TIME_OS               0x0013
+#define MIPI_DSI_DWC_VID_HLINE_TIME_OS             0x0014
+#define MIPI_DSI_DWC_VID_VSA_LINES_OS              0x0015
+#define MIPI_DSI_DWC_VID_VBP_LINES_OS              0x0016
+#define MIPI_DSI_DWC_VID_VFP_LINES_OS              0x0017
+#define MIPI_DSI_DWC_VID_VACTIVE_LINES_OS          0x0018
+#define MIPI_DSI_DWC_EDPI_CMD_SIZE_OS              0x0019
+#define MIPI_DSI_DWC_CMD_MODE_CFG_OS               0x001a
+#define MIPI_DSI_DWC_GEN_HDR_OS                    0x001b
+#define MIPI_DSI_DWC_GEN_PLD_DATA_OS               0x001c
+#define MIPI_DSI_DWC_CMD_PKT_STATUS_OS             0x001d
+#define MIPI_DSI_DWC_TO_CNT_CFG_OS                 0x001e
+#define MIPI_DSI_DWC_HS_RD_TO_CNT_OS               0x001f
+#define MIPI_DSI_DWC_LP_RD_TO_CNT_OS               0x0020
+#define MIPI_DSI_DWC_HS_WR_TO_CNT_OS               0x0021
+#define MIPI_DSI_DWC_LP_WR_TO_CNT_OS               0x0022
+#define MIPI_DSI_DWC_BTA_TO_CNT_OS                 0x0023
+#define MIPI_DSI_DWC_SDF_3D_OS                     0x0024
+#define MIPI_DSI_DWC_LPCLK_CTRL_OS                 0x0025
+#define MIPI_DSI_DWC_PHY_TMR_LPCLK_CFG_OS          0x0026
+#define MIPI_DSI_DWC_PHY_TMR_CFG_OS                0x0027
+#define MIPI_DSI_DWC_PHY_RSTZ_OS                   0x0028
+#define MIPI_DSI_DWC_PHY_IF_CFG_OS                 0x0029
+#define MIPI_DSI_DWC_PHY_ULPS_CTRL_OS              0x002a
+#define MIPI_DSI_DWC_PHY_TX_TRIGGERS_OS            0x002b
+#define MIPI_DSI_DWC_PHY_STATUS_OS                 0x002c
+#define MIPI_DSI_DWC_PHY_TST_CTRL0_OS              0x002d
+#define MIPI_DSI_DWC_PHY_TST_CTRL1_OS              0x002e
+#define MIPI_DSI_DWC_INT_ST0_OS                    0x002f
+#define MIPI_DSI_DWC_INT_ST1_OS                    0x0030
+#define MIPI_DSI_DWC_INT_MSK0_OS                   0x0031
+#define MIPI_DSI_DWC_INT_MSK1_OS                   0x0032
 
 /* Top-level registers */
 /* [31: 3]    Reserved.     Default 0.
@@ -1338,7 +1339,7 @@
  *     [0] RW dwc_rst_n:  Default 1.
  *		1=Assert SW reset on IP core.   0=Release reset.
  */
-#define MIPI_DSI_TOP_SW_RESET                      0x18f0
+#define MIPI_DSI_TOP_SW_RESET                      0x00f0
 /* [31: 5] Reserved.   Default 0.
  *     [4] RW manual_edpihalt: Default 0.
  *		1=Manual suspend VencL; 0=do not suspend VencL.
@@ -1353,7 +1354,7 @@
  *     [0] RW enable_sysclk: A manual clock gate option, due to DWC IP does not
  *		have auto-clock gating. 1=Enable sysclk.      Default 0.
  */
-#define MIPI_DSI_TOP_CLK_CNTL                      0x18f1
+#define MIPI_DSI_TOP_CLK_CNTL                      0x00f1
 /* [31:24]    Reserved. Default 0.
  * [23:20] RW dpi_color_mode: Define DPI pixel format. Default 0.
  *		0=16-bit RGB565 config 1;
@@ -1397,17 +1398,17 @@
  *     [1]    Reserved.  Default 0.
  *     [0]    Reserved.  Default 0.
  */
-#define MIPI_DSI_TOP_CNTL                          0x18f2
-#define MIPI_DSI_TOP_SUSPEND_CNTL                  0x18f3
-#define MIPI_DSI_TOP_SUSPEND_LINE                  0x18f4
-#define MIPI_DSI_TOP_SUSPEND_PIX                   0x18f5
-#define MIPI_DSI_TOP_MEAS_CNTL                     0x18f6
+#define MIPI_DSI_TOP_CNTL                          0x00f2
+#define MIPI_DSI_TOP_SUSPEND_CNTL                  0x00f3
+#define MIPI_DSI_TOP_SUSPEND_LINE                  0x00f4
+#define MIPI_DSI_TOP_SUSPEND_PIX                   0x00f5
+#define MIPI_DSI_TOP_MEAS_CNTL                     0x00f6
 /* [0] R  stat_edpihalt:  edpihalt signal from IP.    Default 0. */
-#define MIPI_DSI_TOP_STAT                          0x18f7
-#define MIPI_DSI_TOP_MEAS_STAT_TE0                 0x18f8
-#define MIPI_DSI_TOP_MEAS_STAT_TE1                 0x18f9
-#define MIPI_DSI_TOP_MEAS_STAT_VS0                 0x18fa
-#define MIPI_DSI_TOP_MEAS_STAT_VS1                 0x18fb
+#define MIPI_DSI_TOP_STAT                          0x00f7
+#define MIPI_DSI_TOP_MEAS_STAT_TE0                 0x00f8
+#define MIPI_DSI_TOP_MEAS_STAT_TE1                 0x00f9
+#define MIPI_DSI_TOP_MEAS_STAT_VS0                 0x00fa
+#define MIPI_DSI_TOP_MEAS_STAT_VS1                 0x00fb
 /* [31:16] RW intr_stat/clr. Default 0.
  *		For each bit, read as this interrupt level status,
  *		write 1 to clear.
@@ -1428,77 +1429,14 @@
  *	[    1] vs_rise interrupt
  *	[    0] dwc_edpite interrupt
  */
-#define MIPI_DSI_TOP_INTR_CNTL_STAT                0x18fc
+#define MIPI_DSI_TOP_INTR_CNTL_STAT                0x00fc
 // 31: 2    Reserved.   Default 0.
 //  1: 0 RW mem_pd.     Default 3.
-#define MIPI_DSI_TOP_MEM_PD                        0x18fd
+#define MIPI_DSI_TOP_MEM_PD                        0x00fd
 
-#define MIPI_DSI_DWC_VERSION_OS_G12A                    0x1c00
-#define MIPI_DSI_DWC_PWR_UP_OS_G12A                     0x1c01
-#define MIPI_DSI_DWC_CLKMGR_CFG_OS_G12A                 0x1c02
-#define MIPI_DSI_DWC_DPI_VCID_OS_G12A                   0x1c03
-#define MIPI_DSI_DWC_DPI_COLOR_CODING_OS_G12A           0x1c04
-#define MIPI_DSI_DWC_DPI_CFG_POL_OS_G12A                0x1c05
-#define MIPI_DSI_DWC_DPI_LP_CMD_TIM_OS_G12A             0x1c06
-#define MIPI_DSI_DWC_PCKHDL_CFG_OS_G12A                 0x1c0b
-#define MIPI_DSI_DWC_GEN_VCID_OS_G12A                   0x180c
-#define MIPI_DSI_DWC_MODE_CFG_OS_G12A                   0x1c0d
-#define MIPI_DSI_DWC_VID_MODE_CFG_OS_G12A               0x1c0e
-#define MIPI_DSI_DWC_VID_PKT_SIZE_OS_G12A               0x1c0f
-#define MIPI_DSI_DWC_VID_NUM_CHUNKS_OS_G12A             0x1c10
-#define MIPI_DSI_DWC_VID_NULL_SIZE_OS_G12A              0x1c11
-#define MIPI_DSI_DWC_VID_HSA_TIME_OS_G12A               0x1c12
-#define MIPI_DSI_DWC_VID_HBP_TIME_OS_G12A               0x1c13
-#define MIPI_DSI_DWC_VID_HLINE_TIME_OS_G12A             0x1c14
-#define MIPI_DSI_DWC_VID_VSA_LINES_OS_G12A              0x1c15
-#define MIPI_DSI_DWC_VID_VBP_LINES_OS_G12A              0x1c16
-#define MIPI_DSI_DWC_VID_VFP_LINES_OS_G12A              0x1c17
-#define MIPI_DSI_DWC_VID_VACTIVE_LINES_OS_G12A          0x1c18
-#define MIPI_DSI_DWC_EDPI_CMD_SIZE_OS_G12A              0x1c19
-#define MIPI_DSI_DWC_CMD_MODE_CFG_OS_G12A               0x1c1a
-#define MIPI_DSI_DWC_GEN_HDR_OS_G12A                    0x1c1b
-#define MIPI_DSI_DWC_GEN_PLD_DATA_OS_G12A               0x1c1c
-#define MIPI_DSI_DWC_CMD_PKT_STATUS_OS_G12A             0x1c1d
-#define MIPI_DSI_DWC_TO_CNT_CFG_OS_G12A                 0x1c1e
-#define MIPI_DSI_DWC_HS_RD_TO_CNT_OS_G12A               0x1c1f
-#define MIPI_DSI_DWC_LP_RD_TO_CNT_OS_G12A               0x1c20
-#define MIPI_DSI_DWC_HS_WR_TO_CNT_OS_G12A               0x1c21
-#define MIPI_DSI_DWC_LP_WR_TO_CNT_OS_G12A               0x1c22
-#define MIPI_DSI_DWC_BTA_TO_CNT_OS_G12A                 0x1c23
-#define MIPI_DSI_DWC_SDF_3D_OS_G12A                     0x1c24
-#define MIPI_DSI_DWC_LPCLK_CTRL_OS_G12A                 0x1c25
-#define MIPI_DSI_DWC_PHY_TMR_LPCLK_CFG_OS_G12A          0x1c26
-#define MIPI_DSI_DWC_PHY_TMR_CFG_OS_G12A                0x1c27
-#define MIPI_DSI_DWC_PHY_RSTZ_OS_G12A                   0x1c28
-#define MIPI_DSI_DWC_PHY_IF_CFG_OS_G12A                 0x1c29
-#define MIPI_DSI_DWC_PHY_ULPS_CTRL_OS_G12A              0x1c2a
-#define MIPI_DSI_DWC_PHY_TX_TRIGGERS_OS_G12A            0x1c2b
-#define MIPI_DSI_DWC_PHY_STATUS_OS_G12A                 0x1c2c
-#define MIPI_DSI_DWC_PHY_TST_CTRL0_OS_G12A              0x1c2d
-#define MIPI_DSI_DWC_PHY_TST_CTRL1_OS_G12A              0x1c2e
-#define MIPI_DSI_DWC_INT_ST0_OS_G12A                    0x1c2f
-#define MIPI_DSI_DWC_INT_ST1_OS_G12A                    0x1c30
-#define MIPI_DSI_DWC_INT_MSK0_OS_G12A                   0x1c31
-#define MIPI_DSI_DWC_INT_MSK1_OS_G12A                   0x1c32
-#define MIPI_DSI_TOP_SW_RESET_G12A                      0x1cf0
-#define MIPI_DSI_TOP_CLK_CNTL_G12A                      0x1cf1
-#define MIPI_DSI_TOP_CNTL_G12A                          0x1cf2
-#define MIPI_DSI_TOP_SUSPEND_CNTL_G12A                  0x1cf3
-#define MIPI_DSI_TOP_SUSPEND_LINE_G12A                  0x1cf4
-#define MIPI_DSI_TOP_SUSPEND_PIX_G12A                   0x1cf5
-#define MIPI_DSI_TOP_MEAS_CNTL_G12A                     0x1cf6
-#define MIPI_DSI_TOP_STAT_G12A                          0x1cf7
-#define MIPI_DSI_TOP_MEAS_STAT_TE0_G12A                 0x1cf8
-#define MIPI_DSI_TOP_MEAS_STAT_TE1_G12A                 0x1cf9
-#define MIPI_DSI_TOP_MEAS_STAT_VS0_G12A                 0x1cfa
-#define MIPI_DSI_TOP_MEAS_STAT_VS1_G12A                 0x1cfb
-#define MIPI_DSI_TOP_INTR_CNTL_STAT_G12A                0x1cfc
-#define MIPI_DSI_TOP_MEM_PD_G12A                        0x1cfd
 /* ***********************************************
  * DSI PHY register offset address define
  */
-#define MIPI_DSI_PHY_START      0xff640000
-#define MIPI_DSI_PHY_END        0xff641fff
 /* [31] soft reset for the phy.
  *		1: reset. 0: dessert the reset.
  * [30] clock lane soft reset.

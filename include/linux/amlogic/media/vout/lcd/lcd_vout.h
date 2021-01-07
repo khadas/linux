@@ -307,6 +307,30 @@ struct dsi_config_s {
 	struct dsi_read_s *dread;
 };
 
+struct edp_config_s {
+	unsigned char lane_count;
+	unsigned char link_rate;
+	unsigned char sync_clock_mode;
+	unsigned char scramble_en;
+	unsigned char link_adaptive;
+	unsigned char pn_swap;
+
+	unsigned char vswing;
+	unsigned char preemphasis;
+
+	unsigned char max_lane_count;
+	unsigned char max_link_rate;
+
+	/* internal state */
+	unsigned char link_update;
+	unsigned char training_settings;
+	unsigned int  state; /* bit[0]=output_en, bit[1]=main_stream_en
+			      * bit[2]=scramble_en
+			      * bit[3]=enhanced_framing_en
+			      * bit[15:8]=training state
+			      */
+};
+
 struct mlvds_config_s {
 	unsigned int channel_num;
 	unsigned int channel_sel0;
@@ -350,6 +374,7 @@ struct lcd_control_config_s {
 	struct lvds_config_s *lvds_config;
 	struct vbyone_config_s *vbyone_config;
 	struct dsi_config_s *mipi_config;
+	struct edp_config_s *edp_config;
 	struct mlvds_config_s *mlvds_config;
 	struct p2p_config_s *p2p_config;
 	unsigned int *vlock_param;
