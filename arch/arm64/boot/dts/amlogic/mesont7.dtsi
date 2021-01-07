@@ -2263,6 +2263,11 @@
 		mbox-wr-rd = <1>;
 		#mbox-cells = <1>;
 	};
+
+	lut_dma:lut_dma {
+		compatible = "amlogic, meson-sc2, lut_dma";
+		status = "okay";
+	};
 };
 
 &periphs_pinctrl {
