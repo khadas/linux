@@ -328,6 +328,7 @@
 #define HEVC_SAO_CTRL5                      0x3623
 #define HEVC_SAO_CTRL6                      0x3624
 #define HEVC_SAO_CTRL7                      0x3625
+#define HEVC_SAO_CTRL26                     0x3677
 #define HEVC_SAO_DBG_DATA_0                 0x3630
 #define HEVC_SAO_DBG_DATA_1                 0x3631
 #define HEVC_SAO_DBG_DATA_2                 0x3632

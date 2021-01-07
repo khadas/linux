@@ -142,6 +142,15 @@
 #define MDEC_DOUBLEW_STATUS          0x09e3
 #define MDEC_EXTIF_CFG0              0x09e4
 #define MDEC_EXTIF_CFG1              0x09e5
+/*add from t7*/
+#define MDEC_EXTIF_CFG2              0x09e6
+#define MDEC_EXTIF_STS0              0x09e7
+#define MDEC_PICW_BUFDW_CFG0         0x09e8
+#define MDEC_PICW_BUFDW_CFG1         0x09e9
+#define MDEC_CAV_LUT_DATAL           0x09ea
+#define MDEC_CAV_LUT_DATAH           0x09eb
+#define MDEC_CAV_LUT_ADDR            0x09ec
+#define MDEC_CAV_CFG0                0x09ed
 
 /**/
 #define DBLK_RST                     0x0950

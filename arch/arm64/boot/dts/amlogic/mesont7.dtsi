@@ -1429,7 +1429,7 @@
 	};
 
 	vdec {
-		compatible = "amlogic, vdec-pm-pd-sec-api";
+		compatible = "amlogic, vdec-pm-pd";
 		dev_name = "vdec.0";
 		status = "okay";
 		interrupts = <0 3 1
@@ -1448,10 +1448,12 @@
 			"parser_b";
 		power-domains = <&pwrdm PDID_T7_DOS_VDEC>,
 			<&pwrdm PDID_T7_DOS_HCODEC>,
-			<&pwrdm PDID_T7_DOS_HEVC>;
+			<&pwrdm PDID_T7_DOS_HEVC>,
+			<&pwrdm PDID_T7_DOS_WAVE>;
 		power-domain-names = "pwrc-vdec",
 			"pwrc-hcodec",
-			"pwrc-hevc";
+			"pwrc-hevc",
+			"pwrc-wave";
 	};
 	cpu_ver_name {
 		compatible = "amlogic, cpu-major-id-t7";
