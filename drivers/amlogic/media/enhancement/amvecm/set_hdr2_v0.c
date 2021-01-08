@@ -2346,7 +2346,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	bool always_full_func = false;
 
 	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T7 &&
-		module_sel == OSD2_HDR)
+		(module_sel == OSD2_HDR ||
+		module_sel == VD3_HDR))
 		return hdr_process_select;
 
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
@@ -3009,9 +3010,6 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	    (module_sel == VD2_HDR || module_sel == OSD1_HDR))
 		return hdr_process_select;
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7 &&
-	    module_sel == VD3_HDR)
-		return hdr_process_select;
 
 	set_hdr_matrix(module_sel, HDR_IN_MTX, &hdr_mtx_param, NULL);
 

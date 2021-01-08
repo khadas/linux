@@ -537,7 +537,7 @@ static uint cur_sdr_mode;
 
 /* 0: sdr->sdr, 1:sdr->hdr, 2:sdr->hlg */
 uint sdr_process_mode[VD_PATH_MAX];
-uint cur_sdr_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF};
+uint cur_sdr_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
 module_param_array(sdr_process_mode, uint, &vd_path_max, 0444);
 MODULE_PARM_DESC(sdr_process_mode, "\n current hdr_process_mode\n");
 
@@ -4842,8 +4842,10 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 		hdr_func(OSD2_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL);
 		if (vd_path == VD1_PATH)
 			hdr_func(VD1_HDR, HDR_SDR | hdr_ex, vinfo, &m);
-		else
+		else if (vd_path == VD2_PATH)
 			hdr_func(VD2_HDR, HDR_SDR | hdr_ex, vinfo, &m);
+		else if (vd_path == VD3_PATH)
+			hdr_func(VD3_HDR, HDR_SDR | hdr_ex, vinfo, &m);
 		return need_adjust_contrast_saturation;
 	}
 
@@ -5071,8 +5073,10 @@ static int hdr10p_process(enum vpp_matrix_csc_e csc_type,
 		hdr_func(OSD2_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL);
 		if (vd_path == VD1_PATH)
 			hdr10p_func(VD1_HDR, HDR10P_SDR | hdr_ex, vinfo, &m);
-		else
+		else if (vd_path == VD2_PATH)
 			hdr10p_func(VD2_HDR, HDR10P_SDR | hdr_ex, vinfo, &m);
+		else if (vd_path == VD3_PATH)
+			hdr10p_func(VD3_HDR, HDR10P_SDR | hdr_ex, vinfo, &m);
 	} else {
 		hdr_process(csc_type, vinfo, master_info, vd_path,
 			    source_type);
@@ -5139,8 +5143,10 @@ static int hlg_process(enum vpp_matrix_csc_e csc_type,
 		gamut_convert_process(vinfo, source_type, vd_path, &m, 8);
 		if (vd_path == VD1_PATH)
 			hdr_func(VD1_HDR, HLG_SDR | hdr_ex, vinfo, &m);
-		else
+		else if (vd_path == VD2_PATH)
 			hdr_func(VD2_HDR, HLG_SDR | hdr_ex, vinfo, &m);
+		else if (vd_path == VD3_PATH)
+			hdr_func(VD3_HDR, HLG_SDR | hdr_ex, vinfo, &m);
 		hdr_func(OSD1_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL);
 		hdr_func(OSD2_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL);
 		return need_adjust_contrast_saturation;
@@ -5381,8 +5387,13 @@ static void bypass_hdr_process(enum vpp_matrix_csc_e csc_type,
 				 p_sel,
 				 vinfo,
 				 gamut_conv_enable ? &m : NULL);
-		else
+		else if (vd_path == VD2_PATH)
 			hdr_func(VD2_HDR,
+				 p_sel,
+				 vinfo,
+				 gamut_conv_enable ? &m : NULL);
+		else if (vd_path == VD3_PATH)
+			hdr_func(VD3_HDR,
 				 p_sel,
 				 vinfo,
 				 gamut_conv_enable ? &m : NULL);
@@ -6105,6 +6116,8 @@ static void hlg_hdr_process(enum vpp_matrix_csc_e csc_type,
 			hdr_func(VD1_HDR, HLG_HDR | hdr_ex, vinfo, NULL);
 		else if (vd_path == VD2_PATH)
 			hdr_func(VD2_HDR, HLG_HDR | hdr_ex, vinfo, NULL);
+		else if (vd_path == VD3_PATH)
+			hdr_func(VD3_HDR, HLG_HDR | hdr_ex, vinfo, NULL);
 		hdr_func(OSD1_HDR, SDR_HDR | hdr_ex, vinfo, NULL);
 		hdr_func(OSD2_HDR, SDR_HDR | hdr_ex, vinfo, NULL);
 		return;
@@ -6360,8 +6373,11 @@ static void sdr_hdr_process(enum vpp_matrix_csc_e csc_type,
 			if (vd_path == VD1_PATH)
 				hdr_func(VD1_HDR,
 					 SDR_HDR | hdr_ex, vinfo, NULL);
-			else
+			else if (vd_path == VD2_PATH)
 				hdr_func(VD2_HDR,
+					 SDR_HDR | hdr_ex, vinfo, NULL);
+			else if (vd_path == VD3_PATH)
+				hdr_func(VD3_HDR,
 					 SDR_HDR | hdr_ex, vinfo, NULL);
 			hdr_func(OSD1_HDR, SDR_HDR | hdr_ex, vinfo, NULL);
 			hdr_func(OSD2_HDR, SDR_HDR | hdr_ex, vinfo, NULL);
@@ -6715,6 +6731,8 @@ bool is_video_layer_on(enum vd_path_e vd_path)
 		video_on = get_video_enabled();
 	else if (vd_path == VD2_PATH)
 		video_on = get_videopip_enabled();
+	else if (vd_path == VD3_PATH)
+		video_on = get_videopip2_enabled();
 	else
 		video_on = 0;
 	/*else if (vd_path == VD3_PATH)*/
@@ -7559,11 +7577,11 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	    !(video_process_flags[vd_path] & PROC_FLAG_FORCE_PROCESS)) {
 		if ((is_video_layer_on(vd_path) ||
 		     video_layer_wait_on[vd_path]) && // TODO  should we add vd3 here
-		    (!is_dolby_vision_on() || vd_path == VD2_PATH)) {
+		    (!is_dolby_vision_on() || vd_path == VD2_PATH || vd_path == VD3_PATH)) {
 			video_process_status[vd_path] = HDR_MODULE_ON;
 			pr_csc(4,
-			       "video_process_status[%s] = HDR_MODULE_ON\n",
-			       vd_path == VD1_PATH ? "VD1" : "VD2");
+			       "video_process_status[VD%d] = HDR_MODULE_ON\n",
+			       vd_path + 1);
 		} else {
 			return 2;
 		}
@@ -7875,8 +7893,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			if (video_process_status[vd_path] != HDR_MODULE_ON) {
 				video_process_status[vd_path] = HDR_MODULE_ON;
 				pr_csc(4,
-				       "video_process_status[%s] = HDR_MODULE_ON\n",
-				       vd_path == VD1_PATH ? "VD1" : "VD2");
+				       "video_process_status[VD%d] = HDR_MODULE_ON\n",
+				       vd_path + 1);
 			}
 			vpp_matrix_update(vf, vinfo, flags, vd_path);
 			video_process_flags[vd_path] &= ~PROC_FLAG_FORCE_PROCESS;
@@ -7904,8 +7922,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			if (video_process_status[vd_path] != HDR_MODULE_ON) {
 				video_process_status[vd_path] = HDR_MODULE_ON;
 				pr_csc(4,
-				       "video_process_status[%s] = HDR_MODULE_ON\n",
-				       vd_path == VD1_PATH ? "VD1" : "VD2");
+				       "video_process_status[%d] = HDR_MODULE_ON\n",
+				       vd_path + 1);
 			}
 			vpp_matrix_update(vf_rpt, vinfo, flags, vd_path);
 			video_process_flags[vd_path] &= ~PROC_FLAG_FORCE_PROCESS;
@@ -8131,8 +8149,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				video_process_status[vd_path] =
 					HDR_MODULE_BYPASS;
 				pr_csc(4,
-				       "video_process_status[%s] = HDR_MODULE_BYPASS\n",
-				       vd_path == VD1_PATH ? "VD1" : "VD2");
+				       "video_process_status[VD%d] = HDR_MODULE_BYPASS\n",
+				       vd_path + 1);
 				if (vd_path == VD2_PATH && // should we add vd3 here?? TODO
 				    (is_video_layer_on(VD1_PATH) ||
 				     video_layer_wait_on[VD1_PATH]))

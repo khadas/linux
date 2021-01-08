@@ -185,6 +185,7 @@ int amvecm_hdr_dbg(u32 sel);
 
 u32 get_video_enabled(void);
 u32 get_videopip_enabled(void);
+u32 get_videopip2_enabled(void);
 
 void set_video_mute(bool on);
 int get_video_mute(void);
