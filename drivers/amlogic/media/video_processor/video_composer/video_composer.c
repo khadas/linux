@@ -345,7 +345,7 @@ static struct file_private_data *vc_get_file_private(struct composer_dev *dev,
 
 	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
 				 VF_PROCESS_V4LVIDEO);
-	if (!uhmod || !uhmod->arg) {
+	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
 		vc_print(dev->index, PRINT_ERROR,
 			 "dma file file_private_data is NULL\n");
 		return NULL;
@@ -1678,6 +1678,11 @@ static void set_frames_info(struct composer_dev *dev,
 					(file_vf->private_data));
 			} else {
 				file_private_data = vc_get_file_private(dev, file_vf);
+				if (!file_private_data) {
+					vc_print(dev->index, PRINT_ERROR,
+						"invalid fd: no uvm, no v4lvideo!!\n");
+					return;
+				}
 				vf = &file_private_data->vf;
 			}
 			if (!vf) {
