@@ -543,7 +543,7 @@ QUERY:
  *		1, success
  */
 
-int rdma_config(int handle, int trigger_type)
+int rdma_config(int handle, u32 trigger_type)
 {
 	int ret = 0;
 	unsigned long flags;
@@ -625,7 +625,8 @@ int rdma_config(int handle, int trigger_type)
 		       (rdma_read ? 1 : 2) * sizeof(u32));
 		ins->prev_read_count = ins->rdma_item_count;
 
-		if (trigger_type > 0 && trigger_type <= RDMA_TRIGGER_MANUAL) {
+		if (trigger_type > 0 &&
+		    trigger_type <= BIT(rdma_meson_dev.trigger_mask_len)) {
 			ins->rdma_write_count = ins->rdma_item_count;
 			ins->prev_trigger_type = trigger_type;
 			if (trigger_type == RDMA_TRIGGER_MANUAL) {
@@ -1188,7 +1189,7 @@ static struct rdma_device_data_s rdma_sc2 = {
 static struct rdma_device_data_s rdma_t7 = {
 	.cpu_type = CPU_T7,
 	.rdma_ver = RDMA_VER_3,
-	.trigger_mask_len = 16,
+	.trigger_mask_len = 24,
 };
 
 static const struct of_device_id rdma_dt_match[] = {

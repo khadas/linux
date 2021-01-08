@@ -13,15 +13,15 @@ struct rdma_op_s {
 
 #define RDMA_TRIGGER_VSYNC_INPUT 0x1
 #define RDMA_TRIGGER_LINE_INPUT  BIT(5)
-#define RDMA_TRIGGER_MANUAL	     0x100
+#define RDMA_TRIGGER_MANUAL      0x100
 #define RDMA_TRIGGER_DEBUG1      0x101
 #define RDMA_TRIGGER_DEBUG2      0x102
-#define RDMA_AUTO_START_MASK     0x80000
+#define RDMA_AUTO_START_MASK     0x80000000
 
-/* rdma write: bit[20] = 0
- * rdma read:  bit[20] = 1
+/* rdma write: bit[30] = 0
+ * rdma read:  bit[30] = 1
  */
-#define RDMA_READ_MASK 0x100000
+#define RDMA_READ_MASK 0x40000000
 
 enum rdma_ver_e {
 	RDMA_VER_1,
@@ -58,7 +58,7 @@ int rdma_register(struct rdma_op_s *rdma_op, void *op_arg, int table_size);
  */
 void rdma_unregister(int i);
 
-int rdma_config(int handle, int trigger_type);
+int rdma_config(int handle, u32 trigger_type);
 
 u32 rdma_read_reg(int handle, u32 adr);
 
