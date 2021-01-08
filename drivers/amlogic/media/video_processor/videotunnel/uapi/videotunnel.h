@@ -22,8 +22,7 @@
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
-#define MAX_VIDEO_BUFFER_NUM 4
-#define MAX_VIDEO_TUNNEL 8
+#define MAX_VIDEO_TUNNEL 16
 
 enum vt_role_e {
 	VT_ROLE_PRODUCER,
@@ -46,15 +45,6 @@ enum vt_video_cmd_e {
 	VT_VIDEO_GET_STATUS,
 };
 
-enum vt_buffer_status {
-	VT_BUFFER_QUEUE,
-	VT_BUFFER_DEQUEUE,
-	VT_BUFFER_ACQUIRE,
-	VT_BUFFER_RELEASE,
-	VT_BUFFER_FREE,
-	VT_BUFFER_INVALID,
-};
-
 struct vt_alloc_id_data {
 	int tunnel_id;
 };
@@ -69,23 +59,15 @@ struct vt_ctrl_data {
 };
 
 /**
- * struct vt_buffer_item - vframe buffer metadata
+ * struct vt_buffer_data - vframe buffer metadata
+ * buffer data transfer between producer and consumer
  */
-struct vt_buffer_item {
+struct vt_buffer_data {
 	int tunnel_id;
 	int buffer_fd;
 	int fence_fd;
 	int buffer_status;
 	long long time_stamp;
-};
-
-/**
- * struct vt_buffer_data - buffer data transfer between producer and consumer
- */
-struct vt_buffer_data {
-	int buffer_size;
-	int tunnel_id;
-	struct vt_buffer_item buffers[MAX_VIDEO_BUFFER_NUM];
 };
 
 #define VT_IOC_MAGIC 'V'

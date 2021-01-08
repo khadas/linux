@@ -1065,14 +1065,13 @@ static struct vt_buffer *vt_get_free_buffer(struct vt_instance *instance)
 }
 
 static int vt_queue_buffer_process(struct vt_buffer_data *data,
-				   struct vt_session *session)
+				   struct vt_session *session,
+				   struct file *vt_buffer_file)
 {
 	struct vt_dev *dev = session->dev;
 	struct vt_instance *instance =
 		idr_find(&dev->instance_idr, data->tunnel_id);
-	struct vt_buffer_item *item;
 	struct vt_buffer *buffer = NULL;
-	int i;
 
 	if (!instance || !instance->producer)
 		return -EINVAL;
@@ -1082,36 +1081,39 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 	vt_debug(VT_DEBUG_BUFFERS,
 		 "vt [%d] queuebuffer start\n", instance->id);
 
-	for (i = 0; i < data->buffer_size; i++) {
-		item = &data->buffers[i];
-		buffer = vt_get_free_buffer(instance);
-		if (!buffer)
-			return -ENOMEM;
-		buffer->file_buffer = fget(item->buffer_fd);
+	buffer = vt_get_free_buffer(instance);
+	if (!buffer)
+		return -ENOMEM;
 
-		if (!buffer->file_buffer)
-			return -EBADF;
-
-		mutex_lock(&instance->lock);
-		instance->fcount++;
-
-		buffer->buffer_fd_pro = item->buffer_fd;
-		buffer->buffer_fd_con = -1;
-		buffer->session_pro = session;
-		buffer->cid_pro = session->cid;
-		buffer->item = *item;
-		buffer->item.buffer_status = VT_BUFFER_QUEUE;
-
-		vt_debug(VT_DEBUG_FILE,
-			 "vt [%d] queuebuffer fget file(%p) buffer(%p) buffer session(%p) fcount=%d\n",
-			 instance->id, buffer->file_buffer,
-			 buffer, buffer->session_pro, instance->fcount);
-
-		kfifo_put(&instance->fifo_to_consumer, buffer);
-		mutex_unlock(&instance->lock);
+	if (vt_buffer_file) {
+		buffer->file_buffer = vt_buffer_file;
+		get_file(buffer->file_buffer);
+	} else {
+		buffer->file_buffer = fget(data->buffer_fd);
 	}
 
-	if (instance->consumer && data->buffer_size > 0)
+	if (!buffer->file_buffer)
+		return -EBADF;
+
+	mutex_lock(&instance->lock);
+	instance->fcount++;
+
+	buffer->buffer_fd_pro = data->buffer_fd;
+	buffer->buffer_fd_con = -1;
+	buffer->session_pro = session;
+	buffer->cid_pro = session->cid;
+	buffer->item = *data;
+	buffer->item.buffer_status = VT_BUFFER_QUEUE;
+
+	vt_debug(VT_DEBUG_FILE,
+		 "vt [%d] queuebuffer fget file(%p) buffer(%p) buffer session(%p) fcount=%d\n",
+		 instance->id, buffer->file_buffer,
+		 buffer, buffer->session_pro, instance->fcount);
+
+	kfifo_put(&instance->fifo_to_consumer, buffer);
+	mutex_unlock(&instance->lock);
+
+	if (instance->consumer)
 		wake_up_interruptible(&instance->wait_consumer);
 
 
@@ -1125,7 +1127,9 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 }
 
 static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
-				     struct vt_session *session)
+				     struct vt_session *session,
+				     struct file **vt_buffer_file,
+				     struct file **vt_fence_file)
 {
 	struct vt_dev *dev = session->dev;
 	struct vt_instance *instance =
@@ -1159,6 +1163,7 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 		return -EAGAIN;
 	}
 
+	buffer->item.buffer_status = VT_BUFFER_DEQUEUE;
 	/* it's previous connect buffer */
 	if (buffer->cid_pro != session->cid) {
 		if (buffer->file_fence)
@@ -1168,11 +1173,14 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 		return -EAGAIN;
 	}
 
-	if (buffer->file_fence) {
+	/* only install fence fd if vt_fence_file is null */
+	if (buffer->file_fence && !vt_fence_file) {
 		fd = get_unused_fd_flags(O_CLOEXEC);
 		if (fd < 0) {
 			pr_info("vt [%d] dequeuebuffer install fence fd error, Suspected fd leak!!\n",
 			       instance->id);
+			/* could not get unused fd, put the file fence */
+			fput(buffer->file_fence);
 			mutex_unlock(&instance->lock);
 			return -ENOMEM;
 		}
@@ -1188,11 +1196,13 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 	buffer->item.buffer_fd = buffer->buffer_fd_pro;
 	buffer->item.tunnel_id = instance->id;
 	buffer->item.buffer_status = VT_BUFFER_DEQUEUE;
+	if (vt_buffer_file)
+		*vt_buffer_file = buffer->file_buffer;
+	if (vt_fence_file)
+		*vt_fence_file = buffer->file_fence;
 
 	/* return the buffer */
-	data->buffer_size = 1;
-	data->buffers[0] = buffer->item;
-	buffer->item.buffer_status = VT_BUFFER_DEQUEUE;
+	*data = buffer->item;
 	mutex_unlock(&instance->lock);
 
 	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] dequeuebuffer buffer(%p) end pfd(%d) cfd(%d) fence fd(%d) timestamp(%lld)\n",
@@ -1272,8 +1282,7 @@ static int vt_acquire_buffer_process(struct vt_buffer_data *data,
 	buffer->item.buffer_status = VT_BUFFER_ACQUIRE;
 
 	/* return the buffer */
-	data->buffer_size = 1;
-	data->buffers[0] = buffer->item;
+	*data = buffer->item;
 	mutex_unlock(&instance->lock);
 
 	vt_debug(VT_DEBUG_BUFFERS,
@@ -1291,88 +1300,81 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 	struct vt_dev *dev = session->dev;
 	struct vt_instance *instance =
 		idr_find(&dev->instance_idr, data->tunnel_id);
-	struct vt_buffer_item *item;
 	struct vt_buffer *buffer = NULL;
-	int i;
 
 	if (!instance || !instance->consumer)
 		return -EINVAL;
 	if (instance->consumer && instance->consumer != session)
 		return -EINVAL;
 
+	if (data->buffer_fd < 0)
+		return -EINVAL;
+
 	mutex_lock(&instance->lock);
-	for (i = 0; i < data->buffer_size; i++) {
-		item = &data->buffers[i];
-		if (item->buffer_fd < 0) {
-			pr_err("vt [%d] releasebuffer error buffer:%d\n",
-			      instance->id, item->buffer_fd);
-			mutex_unlock(&instance->lock);
-			return -EINVAL;
-		}
-
-		buffer = vt_buffer_get_locked(instance, item->buffer_fd);
-
-		if (!buffer) {
-			pr_err("vt [%d] releasebuffer cann't find buffer:%d\n",
-			      instance->id, item->buffer_fd);
-			mutex_unlock(&instance->lock);
-			return -EINVAL;
-		}
-
-		buffer->file_fence = NULL;
-		if (item->fence_fd >= 0)
-			buffer->file_fence = fget(item->fence_fd);
-
-		if (!buffer->file_fence)
-			vt_debug(VT_DEBUG_BUFFERS,
-				 "vt [%d] releasebuffer fence file is null\n",
-				 instance->id);
-		else
-			vt_debug(VT_DEBUG_BUFFERS,
-				"vt [%d] releasebuffer fence file(%p) fence fd(%d)\n",
-				instance->id, buffer->file_fence, item->fence_fd);
-
-		/* close the fd in consumer side */
-		vt_close_fd(session, buffer->buffer_fd_con);
-		instance->fcount--;
-
-		vt_debug(VT_DEBUG_FILE,
-			 "vt [%d] releasebuffer file(%p) buffer(%p) buffer cfd(%d) fcount=%d\n",
-			 instance->id, buffer->file_buffer, buffer,
-			 buffer->buffer_fd_con, instance->fcount);
-
-		buffer->item.buffer_fd = buffer->buffer_fd_pro;
-		buffer->item.buffer_status = VT_BUFFER_RELEASE;
-
-		/* if producer has disconnect */
-		if (!instance->producer) {
-			vt_debug(VT_DEBUG_BUFFERS,
-				 "vt [%d] releasebuffer buffer, no producer\n",
-				 instance->id);
-			buffer->item.buffer_status = VT_BUFFER_FREE;
-		} else {
-			if (buffer->session_pro &&
-			    buffer->session_pro != instance->producer) {
-				vt_debug(VT_DEBUG_BUFFERS,
-					 "vt [%d] releasebuffer buffer producer not valid, instance->producer(%p), buffer session(%p)\n",
-					 instance->id,
-					 instance->producer,
-					 buffer->session_pro);
-				buffer->item.buffer_status = VT_BUFFER_FREE;
-				continue;
-			}
-
-			kfifo_put(&instance->fifo_to_producer, buffer);
-		}
+	buffer = vt_buffer_get_locked(instance, data->buffer_fd);
+	if (!buffer) {
+		pr_err("vt [%d] releasebuffer cann't find buffer:%d\n",
+		      instance->id, data->buffer_fd);
+		mutex_unlock(&instance->lock);
+		return -EINVAL;
 	}
+
+	buffer->file_fence = NULL;
+	if (data->fence_fd >= 0)
+		buffer->file_fence = fget(data->fence_fd);
+
+	if (!buffer->file_fence)
+		vt_debug(VT_DEBUG_BUFFERS,
+			 "vt [%d] releasebuffer fence file is null\n",
+			 instance->id);
+	else
+		vt_debug(VT_DEBUG_FILE,
+			"vt [%d] releasebuffer fence file(%p) fence fd(%d)\n",
+			instance->id, buffer->file_fence, data->fence_fd);
+
+	/* close the fd in consumer side */
+	vt_close_fd(session, buffer->buffer_fd_con);
+	instance->fcount--;
+
+	vt_debug(VT_DEBUG_FILE,
+		 "vt [%d] releasebuffer file(%p) buffer(%p) buffer sesion(%p) fcount=%d\n",
+		 instance->id, buffer->file_buffer, buffer,
+		 buffer->session_pro, instance->fcount);
+
+	buffer->item.buffer_fd = buffer->buffer_fd_pro;
+	buffer->item.buffer_status = VT_BUFFER_RELEASE;
+
+	/* if producer has disconnect */
+	if (!instance->producer) {
+		vt_debug(VT_DEBUG_BUFFERS,
+			 "vt [%d] releasebuffer buffer, no producer\n",
+			 instance->id);
+		buffer->item.buffer_status = VT_BUFFER_FREE;
+		mutex_unlock(&instance->lock);
+		return 0;
+	}
+	if (buffer->session_pro &&
+	    buffer->session_pro != instance->producer) {
+		vt_debug(VT_DEBUG_BUFFERS,
+			 "vt [%d] releasebuffer buffer producer not valid, instance->producer(%p), buffer session(%p)\n",
+			 instance->id,
+			 instance->producer,
+			 buffer->session_pro);
+		buffer->item.buffer_status = VT_BUFFER_FREE;
+		mutex_unlock(&instance->lock);
+		return -EINVAL;
+	}
+
+	kfifo_put(&instance->fifo_to_producer, buffer);
 	mutex_unlock(&instance->lock);
 
-	if (instance->producer && data->buffer_size > 0) {
+	if (instance->producer) {
 		wake_up_interruptible(&instance->wait_producer);
 		wake_up_interruptible(&instance->producer->wait_producer);
 	}
 
-	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] releasebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%p) timestamp(%lld)\n",
+	vt_debug(VT_DEBUG_BUFFERS,
+		 "vt [%d] releasebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%p) timestamp(%lld)\n",
 		 instance->id, buffer->buffer_fd_pro,
 		 buffer->buffer_fd_con, buffer, buffer->file_buffer, buffer->item.time_stamp);
 
@@ -1422,10 +1424,13 @@ static long vt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = vt_ctrl_process(&data.ctrl_data, session);
 		break;
 	case VT_IOC_QUEUE_BUFFER:
-		ret = vt_queue_buffer_process(&data.buffer_data, session);
+		ret = vt_queue_buffer_process(&data.buffer_data, session, NULL);
 		break;
 	case VT_IOC_DEQUEUE_BUFFER:
-		ret = vt_dequeue_buffer_process(&data.buffer_data, session);
+		ret = vt_dequeue_buffer_process(&data.buffer_data,
+						session,
+						NULL,
+						NULL);
 		break;
 	case VT_IOC_RELEASE_BUFFER:
 		ret = vt_release_buffer_process(&data.buffer_data, session);
@@ -1499,7 +1504,7 @@ EXPORT_SYMBOL(vt_session_create);
 int vt_alloc_id(struct vt_session *session, int *tunnel_id)
 {
 	int ret = 0;
-	struct vt_alloc_id_data data;
+	struct vt_alloc_id_data data = { 0 };
 
 	ret = vt_alloc_id_process(&data, session);
 
@@ -1513,7 +1518,7 @@ EXPORT_SYMBOL(vt_alloc_id);
 
 int vt_free_id(struct vt_session *session, int tunnel_id)
 {
-	struct vt_alloc_id_data data;
+	struct vt_alloc_id_data data = { 0 };
 
 	data.tunnel_id = tunnel_id;
 	return vt_free_id_process(&data, session);
@@ -1522,7 +1527,7 @@ EXPORT_SYMBOL(vt_free_id);
 
 int vt_producer_connect(struct vt_session *session, int tunnel_id)
 {
-	struct vt_ctrl_data data;
+	struct vt_ctrl_data data = { 0 };
 
 	data.tunnel_id = tunnel_id;
 	data.role = VT_ROLE_PRODUCER;
@@ -1533,7 +1538,7 @@ EXPORT_SYMBOL(vt_producer_connect);
 
 int vt_producer_disconnect(struct vt_session *session, int tunnel_id)
 {
-	struct vt_ctrl_data data;
+	struct vt_ctrl_data data = { 0 };
 
 	data.tunnel_id = tunnel_id;
 	data.role = VT_ROLE_PRODUCER;
@@ -1543,31 +1548,27 @@ int vt_producer_disconnect(struct vt_session *session, int tunnel_id)
 EXPORT_SYMBOL(vt_producer_disconnect);
 
 int vt_queue_buffer(struct vt_session *session, int tunnel_id,
-		    int buffer_fd, int fence_fd, int64_t time_stamp)
+		    struct file *buffer_file, int fence_fd, int64_t time_stamp)
 {
-	struct vt_buffer_data data;
+	struct vt_buffer_data data = { 0 };
 
 	data.tunnel_id = tunnel_id;
-	data.buffer_size = 1;
-	data.buffers[0].tunnel_id = tunnel_id;
-	data.buffers[0].buffer_fd = buffer_fd;
-	data.buffers[0].fence_fd = fence_fd;
-	data.buffers[0].time_stamp = time_stamp;
+	data.buffer_fd = -1;
+	data.fence_fd = fence_fd;
+	data.time_stamp = time_stamp;
 
-	return vt_queue_buffer_process(&data, session);
+	return vt_queue_buffer_process(&data, session, buffer_file);
 }
 EXPORT_SYMBOL(vt_queue_buffer);
 
 int vt_dequeue_buffer(struct vt_session *session, int tunnel_id,
-		      int *buffer_fd, int *fence_fd)
+		      struct file **buffer_file, struct file **fence_file)
 {
-	struct vt_buffer_data data;
+	struct vt_buffer_data data = { 0 };
 	int ret;
 
 	data.tunnel_id = tunnel_id;
-	ret = vt_dequeue_buffer_process(&data, session);
-	*buffer_fd = data.buffers[0].buffer_fd;
-	*fence_fd = -1;
+	ret = vt_dequeue_buffer_process(&data, session, buffer_file, fence_file);
 
 	return ret;
 }
