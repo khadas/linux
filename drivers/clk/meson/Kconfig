@@ -167,6 +167,20 @@ config COMMON_CLK_T7
 	  Support for the clock controller on Amlogic T7
 	  devices, aka t7. Say Y if you want peripherals to work.
 
+config COMMON_CLK_S4
+	bool "Meson S4 clock controller"
+	depends on ARCH_MESON
+	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_DUALDIV
+	select COMMON_CLK_MESON_MPLL
+	select COMMON_CLK_MESON_PLL
+	select COMMON_CLK_MESON_CPU_DYNDIV
+	select COMMON_CLK_MESON_VID_PLL_DIV
+	select MFD_SYSCON
+	help
+	  Support for the clock controller on Amlogic AH219 and AH212
+	  devices, aka s4. Say Y if you want peripherals to work.
+
 config MESON_CLKC_MODULE
 	tristate "Meson SoC clock controllers"
 	default y

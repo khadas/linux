@@ -16,6 +16,7 @@ Required properties:
 			"amlogic,meson-tm2-clk-measure" for TM2 SoCs
 			"amlogic,meson-t5d-clk-measure" for T5D SoCs
 			"amlogic,meson-t7-clk-measure" for T7 SoCs
+			"amlogic,meson-s4-clk-measure" for S4 SoCs
 - reg: base address and size of the Clock Measurer register space.
 
 Example:

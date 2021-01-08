@@ -354,20 +354,20 @@
 			ranges = <0x0 0x0 0x0 0xfe000000 0x0 0x480000>;
 
 			clkc: clock-controller {
-				compatible = "amlogic,sc2-clkc";
+				compatible = "amlogic,s4-clkc";
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0x49c>,
-				      <0x0 0x8000 0x0 0x2e8>,
+				      <0x0 0x8000 0x0 0x348>,
 				      <0x0 0xe140 0x0 0x24>;
 				reg-names = "basic", "pll",
 					    "cpu_clk";
 				clocks = <&xtal>;
 				clock-names = "xtal";
-				status = "disabled";
+				status = "okay";
 			};
 
 			meson_clk_msr@48000 {
-				compatible = "amlogic,meson-sc2-clk-measure";
+				compatible = "amlogic,meson-s4-clk-measure";
 				reg = <0x0 0x48000 0x0 0x1c>;
 			};
 

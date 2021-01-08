@@ -28,3 +28,4 @@ $(CLK_MODULE_NAME)-$(CONFIG_COMMON_CLK_SC2) += sc2.o sc2_clk_regmap.o
 $(CLK_MODULE_NAME)-$(CONFIG_COMMON_CLK_T5D) += t5d/t5d.o t5d/t5d-periph.o
 $(CLK_MODULE_NAME)-$(CONFIG_COMMON_CLK_T5D) += t5d/t5d-aoclk.o
 $(CLK_MODULE_NAME)-$(CONFIG_COMMON_CLK_T7) += t7.o sc2_clk_regmap.o
+$(CLK_MODULE_NAME)-$(CONFIG_COMMON_CLK_S4) += s4.o
