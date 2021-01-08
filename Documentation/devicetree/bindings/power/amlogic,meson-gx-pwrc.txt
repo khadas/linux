@@ -90,4 +90,10 @@ ao_sysctrl: sys-ctrl@0 {
 		status = "okay";
 	};
 
+	pwrdm: power-domains {
+		compatible = "amlogic,s4-power-domain";
+		#power-domain-cells = <1>;
+		status = "okay";
+	};
+
 

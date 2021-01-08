@@ -12,6 +12,7 @@
 #include <dt-bindings/power/sc2-pd.h>
 #include <dt-bindings/power/t5-pd.h>
 #include <dt-bindings/power/t7-pd.h>
+#include <dt-bindings/power/s4-pd.h>
 #include <linux/kallsyms.h>
 
 struct sec_pm_domain {
@@ -265,6 +266,23 @@ static struct sec_pm_domain_data t7_pm_domain_data = {
 	.domains_count = ARRAY_SIZE(t7_pm_domains),
 };
 
+static struct sec_pm_domain s4_pm_domains[] = {
+	[PDID_S4_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_S4_DOS_HEVC, DOMAIN_INIT_OFF, 0),
+	[PDID_S4_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_S4_DOS_VDEC, DOMAIN_INIT_OFF, 0),
+	[PDID_S4_VPU_HDMI] = POWER_DOMAIN(vpu, PDID_S4_VPU_HDMI, DOMAIN_INIT_ON,
+		GENPD_FLAG_ALWAYS_ON),
+	[PDID_S4_USB_COMB] = POWER_DOMAIN(usb, PDID_S4_USB_COMB, DOMAIN_INIT_ON,
+		GENPD_FLAG_ALWAYS_ON),
+	[PDID_S4_GE2D] = POWER_DOMAIN(ge2d, PDID_S4_GE2D, DOMAIN_INIT_OFF, 0),
+	[PDID_S4_ETH] = POWER_DOMAIN(eth, PDID_S4_ETH, DOMAIN_INIT_ON, 0),
+	[PDID_S4_DEMOD] = POWER_DOMAIN(audio, PDID_S4_DEMOD, DOMAIN_INIT_OFF, 0),
+};
+
+static struct sec_pm_domain_data s4_pm_domain_data = {
+	.domains = s4_pm_domains,
+	.domains_count = ARRAY_SIZE(s4_pm_domains),
+};
+
 static int sec_pd_probe(struct platform_device *pdev)
 {
 	int ret, i;
@@ -369,6 +387,10 @@ static const struct of_device_id pd_match_table[] = {
 	{
 		.compatible = "amlogic,t7-power-domain",
 		.data = &t7_pm_domain_data,
+	},
+	{
+		.compatible = "amlogic,s4-power-domain",
+		.data = &s4_pm_domain_data,
 	},
 	{}
 };
