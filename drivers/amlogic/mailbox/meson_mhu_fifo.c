@@ -54,9 +54,6 @@ struct mhu_ctlr {
 	int mhu_irqmax;
 };
 
-/*spinlock lock for mbox list data report*/
-static spinlock_t mhu_list_lock;
-
 static struct list_head mbox_devs = LIST_HEAD_INIT(mbox_devs);
 static struct class *mbox_class;
 
@@ -135,10 +132,16 @@ static void mbox_chan_report(u32 status, void *msg, int idx)
 	unsigned long flags;
 	struct mbox_data *mbox_data =
 		(struct mbox_data *)(data_buf->rx_buf);
+	struct mhu_mbox *mbox_dev, *n;
 
-	spin_lock_irqsave(&mhu_list_lock, flags);
+	list_for_each_entry_safe(mbox_dev, n, &mbox_devs, char_list) {
+		if (mbox_dev->channel_id == idx)
+			break;
+	}
+
+	spin_lock_irqsave(&mbox_dev->mhu_lock, flags);
 	if (list_empty(&mbox_list[idx])) {
-		spin_unlock_irqrestore(&mhu_list_lock, flags);
+		spin_unlock_irqrestore(&mbox_dev->mhu_lock, flags);
 		return;
 	}
 
@@ -149,18 +152,16 @@ static void mbox_chan_report(u32 status, void *msg, int idx)
 			memcpy(message->data, mbox_data->data,
 			       SIZE_LEN(status));
 			complete(&message->complete);
-			spin_unlock_irqrestore(&mhu_list_lock, flags);
+			spin_unlock_irqrestore(&mbox_dev->mhu_lock, flags);
 			return;
 		} else if (!listen_msg && (status & CMD_MASK) == message->cmd) {
 			listen_msg = message;
 		}
 	}
 
-	spin_unlock_irqrestore(&mhu_list_lock, flags);
+	spin_unlock_irqrestore(&mbox_dev->mhu_lock, flags);
 	if (listen_msg) {
-		memcpy(listen_msg->data,
-		       mbox_data->data,
-		       SIZE_LEN(status));
+		memcpy(listen_msg->data, mbox_data->data, SIZE_LEN(status));
 		complete(&listen_msg->complete);
 		return;
 	}
@@ -203,17 +204,19 @@ static void mbox_isr_handler(int mhu_id, void *p)
 		return;
 	}
 
-	chan = &ctlr->channels[channel];
-	data = chan->data;
-
 	status = readl(mbox_sts_base + CTL_OFFSET(mhu_id));
-
-	if (data->rx_buf) {
-		mbox_fifo_read(data->rx_buf,
-			       mbox_rd_base + PAYLOAD_OFFSET(mhu_id),
-			       data->rx_size);
-		mbox_chan_report(status, data, channel);
-		memset(data->rx_buf, 0, data->rx_size);
+	if (status) {
+		chan = &ctlr->channels[channel];
+		data = chan->data;
+		if (!data)
+			return;
+		if (data->rx_buf) {
+			mbox_fifo_read(data->rx_buf,
+				       mbox_rd_base + PAYLOAD_OFFSET(mhu_id),
+				       data->rx_size);
+			mbox_chan_report(status, data, channel);
+			memset(data->rx_buf, 0, data->rx_size);
+		}
 	}
 	writel(~0, mbox_clr_base + CTL_OFFSET(mhu_id));
 	mbox_irq_clean(IRQ_REV_BIT(mhu_id), ctlr);
