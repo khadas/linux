@@ -2335,8 +2335,8 @@ static void vd1_scaler_setting(struct scaler_setting_s *setting)
 	struct vppfilter_mode_s *vpp_filter;
 	u32 hsc_rpt_p0_num0 = 1;
 	u32 hsc_init_rev_num0 = 4;
-	u32 bit9_mode = 0;
 	struct hw_pps_reg_s *vd_pps_reg;
+	u32 bit9_mode = 0, s11_mode = 0;
 
 	if (!setting || !setting->frame_par)
 		return;
@@ -2434,8 +2434,15 @@ static void vd1_scaler_setting(struct scaler_setting_s *setting)
 	/* horitontal filter settings */
 	if (setting->sc_h_enable) {
 		bit9_mode = vpp_filter->vpp_horz_coeff[1] & 0x8000;
+		s11_mode = vpp_filter->vpp_horz_coeff[1] & 0x4000;
+		if (s11_mode && cur_dev->t7_display)
+			VSYNC_WR_MPEG_REG_BITS(vd_pps_reg->vd_pre_scale_ctrl,
+					       0x199, 12, 9);
+		else
+			VSYNC_WR_MPEG_REG_BITS(vd_pps_reg->vd_pre_scale_ctrl,
+					       0x77, 12, 9);
 		if (hscaler_8tap_enable[0]) {
-			if (bit9_mode) {
+			if (bit9_mode || s11_mode) {
 				VSYNC_WR_MPEG_REG
 					(vd_pps_reg->vd_scale_coef_idx,
 					VPP_COEF_HORZ | VPP_COEF_9BIT);
@@ -2485,7 +2492,7 @@ static void vd1_scaler_setting(struct scaler_setting_s *setting)
 				}
 			}
 		} else {
-			if (bit9_mode) {
+			if (bit9_mode || s11_mode) {
 				VSYNC_WR_MPEG_REG
 					(vd_pps_reg->vd_scale_coef_idx,
 					VPP_COEF_HORZ | VPP_COEF_9BIT);
@@ -2731,7 +2738,14 @@ static void vd1_scaler_setting(struct scaler_setting_s *setting)
 			VPP_PHASECTL_DOUBLELINE_BIT,
 			VPP_PHASECTL_DOUBLELINE_WID);
 		bit9_mode = vpp_filter->vpp_vert_coeff[1] & 0x8000;
-		if (bit9_mode) {
+		s11_mode = vpp_filter->vpp_vert_coeff[1] & 0x4000;
+		if (s11_mode && cur_dev->t7_display)
+			VSYNC_WR_MPEG_REG_BITS(vd_pps_reg->vd_pre_scale_ctrl,
+					       0x199, 12, 9);
+		else
+			VSYNC_WR_MPEG_REG_BITS(vd_pps_reg->vd_pre_scale_ctrl,
+					       0x77, 12, 9);
+		if (bit9_mode || s11_mode) {
 			VSYNC_WR_MPEG_REG
 				(vd_pps_reg->vd_scale_coef_idx,
 				VPP_COEF_VERT |
@@ -2764,7 +2778,14 @@ static void vd1_scaler_setting(struct scaler_setting_s *setting)
 			const u32 *pcoeff = vpp_filter->vpp_vert_chroma_coeff;
 
 			bit9_mode = pcoeff[1] & 0x8000;
-			if (bit9_mode) {
+			s11_mode = pcoeff[1] & 0x4000;
+			if (s11_mode && cur_dev->t7_display)
+				VSYNC_WR_MPEG_REG_BITS(vd_pps_reg->vd_pre_scale_ctrl,
+						       0x199, 12, 9);
+			else
+				VSYNC_WR_MPEG_REG_BITS(vd_pps_reg->vd_pre_scale_ctrl,
+						       0x77, 12, 9);
+			if (bit9_mode || s11_mode) {
 				VSYNC_WR_MPEG_REG
 					(vd_pps_reg->vd_scale_coef_idx,
 					VPP_COEF_VERT_CHROMA | VPP_COEF_SEP_EN);
@@ -2868,8 +2889,8 @@ static void vdx_scaler_setting(u8 layer_id, struct scaler_setting_s *setting)
 	struct vppfilter_mode_s *vpp_filter;
 	u32 hsc_rpt_p0_num0 = 1;
 	u32 hsc_init_rev_num0 = 4;
-	u32 bit9_mode = 0;
 	struct hw_pps_reg_s *vd_pps_reg;
+	u32 bit9_mode = 0, s11_mode = 0;
 
 	if (!setting || !setting->frame_par)
 		return;
@@ -2940,8 +2961,15 @@ static void vdx_scaler_setting(u8 layer_id, struct scaler_setting_s *setting)
 	/* horitontal filter settings */
 	if (setting->sc_h_enable) {
 		bit9_mode = vpp_filter->vpp_horz_coeff[1] & 0x8000;
+		s11_mode = vpp_filter->vpp_horz_coeff[1] & 0x4000;
+		if (s11_mode && cur_dev->t7_display)
+			VSYNC_WR_MPEG_REG_BITS(vd_pps_reg->vd_pre_scale_ctrl,
+					       0x199, 12, 9);
+		else
+			VSYNC_WR_MPEG_REG_BITS(vd_pps_reg->vd_pre_scale_ctrl,
+					       0x77, 12, 9);
 		if (hscaler_8tap_enable[layer_id]) {
-			if (bit9_mode) {
+			if (bit9_mode || s11_mode) {
 				VSYNC_WR_MPEG_REG
 					(vd_pps_reg->vd_scale_coef_idx,
 					VPP_COEF_HORZ | VPP_COEF_9BIT);
@@ -2991,7 +3019,7 @@ static void vdx_scaler_setting(u8 layer_id, struct scaler_setting_s *setting)
 				}
 			}
 		} else {
-			if (bit9_mode) {
+			if (bit9_mode || s11_mode) {
 				VSYNC_WR_MPEG_REG
 					(vd_pps_reg->vd_scale_coef_idx,
 					VPP_COEF_HORZ | VPP_COEF_9BIT);
@@ -3221,7 +3249,14 @@ static void vdx_scaler_setting(u8 layer_id, struct scaler_setting_s *setting)
 			VPP_PHASECTL_DOUBLELINE_BIT,
 			VPP_PHASECTL_DOUBLELINE_WID);
 		bit9_mode = vpp_filter->vpp_vert_coeff[1] & 0x8000;
-		if (bit9_mode) {
+		s11_mode = vpp_filter->vpp_vert_coeff[1] & 0x4000;
+		if (s11_mode && cur_dev->t7_display)
+			VSYNC_WR_MPEG_REG_BITS(vd_pps_reg->vd_pre_scale_ctrl,
+					       0x199, 12, 9);
+		else
+			VSYNC_WR_MPEG_REG_BITS(vd_pps_reg->vd_pre_scale_ctrl,
+					       0x77, 12, 9);
+		if (bit9_mode || s11_mode) {
 			VSYNC_WR_MPEG_REG
 				(vd_pps_reg->vd_scale_coef_idx,
 				VPP_COEF_VERT |
@@ -3255,7 +3290,14 @@ static void vdx_scaler_setting(u8 layer_id, struct scaler_setting_s *setting)
 			const u32 *pcoeff = vpp_filter->vpp_vert_chroma_coeff;
 
 			bit9_mode = pcoeff[1] & 0x8000;
-			if (bit9_mode) {
+			s11_mode = pcoeff[1] & 0x4000;
+			if (s11_mode && cur_dev->t7_display)
+				VSYNC_WR_MPEG_REG_BITS(vd_pps_reg->vd_pre_scale_ctrl,
+						       0x199, 12, 9);
+			else
+				VSYNC_WR_MPEG_REG_BITS(vd_pps_reg->vd_pre_scale_ctrl,
+						       0x77, 12, 9);
+			if (bit9_mode || s11_mode) {
 				VSYNC_WR_MPEG_REG
 					(vd_pps_reg->vd_scale_coef_idx,
 					VPP_COEF_VERT_CHROMA | VPP_COEF_SEP_EN);
