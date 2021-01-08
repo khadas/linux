@@ -35,7 +35,15 @@
 
 #define  VT_POOL_SIZE 32
 #define  VT_MAX_WAIT_MS 4
-#define  VT_FENCE_WAIT_MS 3000
+
+enum vt_buffer_status {
+	VT_BUFFER_QUEUE,
+	VT_BUFFER_DEQUEUE,
+	VT_BUFFER_ACQUIRE,
+	VT_BUFFER_RELEASE,
+	VT_BUFFER_FREE,
+	VT_BUFFER_INVALID,
+};
 
 union vt_ioctl_arg {
 	struct vt_alloc_id_data alloc_data;
@@ -119,7 +127,7 @@ struct vt_buffer {
 	struct file *file_fence;
 	struct vt_session *session_pro;
 	long cid_pro;
-	struct vt_buffer_item item;
+	struct vt_buffer_data item;
 };
 
 /*

@@ -70,7 +70,8 @@ int vt_producer_disconnect(struct vt_session *session, int tunnel_id);
  * Return of a value other than 0 means an error has occurred.
  */
 int vt_queue_buffer(struct vt_session *session, int tunnel_id,
-			   int buffer_fd, int fence_fd, int64_t time_stamp);
+			   struct file *buffer_file,
+			   int fence_fd, int64_t time_stamp);
 
 /**
  * vt_dequeue_buffer -requests a buffer from videotunnel to use.
@@ -84,7 +85,7 @@ int vt_queue_buffer(struct vt_session *session, int tunnel_id,
  * it returns -EAGAIN with a default 4ms timeout.
  */
 int vt_dequeue_buffer(struct vt_session *session, int tunnel_id,
-			     int *buffer_fd, int *fence_fd);
+			     struct file **buffer_file, struct file **fence_file);
 
 /**
  * vt_send_cmd - send videotunnel cmd to server
