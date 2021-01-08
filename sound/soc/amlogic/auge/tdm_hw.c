@@ -394,6 +394,8 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 
 	/* TDM in */
 	if (capture_active) {
+		int mode;
+
 		reg_in = EE_AUDIO_CLK_TDMIN_A_CTRL + id;
 		aml_audiobus_update_bits(actrl, reg_in,
 			0x3 << 30, 0x3 << 30);
@@ -410,10 +412,8 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 		aml_audiobus_update_bits(actrl, reg_in,
 			0x1 << 25, finv << 25);
 
-		if (p_config->pcm_mode == SND_SOC_DAIFMT_I2S)
-			aml_audiobus_update_bits(actrl, reg_in,
-				1 << 30,
-				1 << 30);
+		mode = (p_config->pcm_mode == SND_SOC_DAIFMT_I2S) ? 0x1 : 0x0;
+		aml_audiobus_update_bits(actrl, reg_in, 0x1 << 30, mode << 30);
 	}
 }
 
