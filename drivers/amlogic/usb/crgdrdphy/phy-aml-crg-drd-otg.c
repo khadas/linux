@@ -260,7 +260,6 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 
 	if (otg == 0) {
 		if (crg_force_device_mode || controller_type == USB_DEVICE_ONLY) {
-			crg_init();
 			set_mode((unsigned long)phy->usb2_phy_cfg,
 				DEVICE_MODE, (unsigned long)phy->phy3_cfg);
 			crg_gadget_init();
