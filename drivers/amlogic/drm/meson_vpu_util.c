@@ -101,16 +101,21 @@ static int meson_vpu_get_enter_encp_line(int viu_index)
 
 void meson_vpu_line_check(int viu_index, int vdisplay)
 {
-	int active_begin_line, wait_cnt, cur_line;
+	int vsync_begin_porch, wait_cnt, cur_line;
 
-	active_begin_line = meson_vpu_get_active_begin_line(viu_index);
+	/*for rdma, we need
+	 * 1. finish rdma table write before VSYNC(in VBP).
+	 * 2. wait rdma hw flush finish (flush time depends on aps clock.)
+	 * | VSYNC| VBP | VACTIVE | VFP | VSYNC |...
+	 */
+	vsync_begin_porch = meson_vpu_get_active_begin_line(viu_index);
 	cur_line = meson_vpu_get_enter_encp_line(viu_index);
-	/* if nearly vsync signal, wait vsync here */
 	wait_cnt = 0;
-	while (cur_line >= vdisplay + active_begin_line *
-	       (100 - LINE_THRESHOLD) / 100 ||
-	       cur_line <= active_begin_line * LINE_THRESHOLD / 100) {
-		DRM_DEBUG("enc line=%d\n", cur_line);
+	while (cur_line >= vdisplay + vsync_begin_porch *
+			(100 - LINE_THRESHOLD) / 100 ||
+			cur_line <= vsync_begin_porch) {
+		DRM_DEBUG("enc line=%d, vdisplay %d, BP = %d\n",
+			cur_line, vdisplay, vsync_begin_porch);
 		/* 0.5ms */
 		usleep_range(500, 600);
 		wait_cnt++;
