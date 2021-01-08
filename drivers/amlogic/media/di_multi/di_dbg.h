@@ -29,7 +29,7 @@ void didbg_fs_exit(void);
 void di_cfgx_init_val(void);
 
 void didbg_vframe_in_copy(unsigned int ch, struct vframe_s *pvfm);
-void didbg_vframe_out_save(unsigned int ch, struct vframe_s *pvfm);
+void didbg_vframe_out_save(unsigned int ch, struct vframe_s *pvfm, unsigned int id);
 
 /********************************
  *debug register:

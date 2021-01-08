@@ -599,7 +599,7 @@ struct vframe_s *di_vf_l_get(unsigned int channel)
 	vframe_ret = ndrd_qout(pch);
 	if (!vframe_ret || !vframe_ret->private_data) {
 		dbg_nq("%s:bypass?\n", __func__);
-		didbg_vframe_out_save(channel, vframe_ret);
+		didbg_vframe_out_save(channel, vframe_ret, 3);
 		return vframe_ret;
 	}
 	ndis1 = (struct dim_ndis_s *)vframe_ret->private_data;
@@ -608,8 +608,7 @@ struct vframe_s *di_vf_l_get(unsigned int channel)
 	ndis2 = ndis_move(pch, QBF_NDIS_Q_USED, QBF_NDIS_Q_DISPLAY);
 	if (ndis1 != ndis2)
 		PR_ERR("%s:\n", __func__);
-
-	didbg_vframe_out_save(channel, vframe_ret);
+	didbg_vframe_out_save(channel, vframe_ret, 4);
 	dim_tr_ops.post_get(vframe_ret->index_disp);
 	return vframe_ret;
 }

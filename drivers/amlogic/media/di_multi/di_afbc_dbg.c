@@ -375,7 +375,7 @@ static unsigned int get_reg_bits(unsigned int val, unsigned int bstart,
 }
 
 //static
-	void dbg_regs_tab(struct seq_file *s, const struct regs_t *pregtab,
+void dbg_regs_tab(struct seq_file *s, const struct regs_t *pregtab,
 			  const unsigned int *padd)
 {
 	struct regs_t creg;
@@ -423,4 +423,11 @@ void dbg_afbce_bits_show(struct seq_file *s, enum EAFBC_ENC eidx)
 	dbg_regs_tab(s, &reg_bits_tab_afbce[0], dim_afds()->get_e_addrp(eidx));
 }
 EXPORT_SYMBOL(dbg_afbce_bits_show);
+
+void dbg_mif_wr_bits_show(struct seq_file *s, enum EDI_MIFSM mifsel)
+{
+	seq_printf(s, "dump bits:wr[%d]\n", mifsel);
+	dbg_regs_tab(s, opl1()->reg_mif_wr_bits_tab, opl1()->reg_mif_wr_tab[mifsel]);
+}
+EXPORT_SYMBOL(dbg_mif_wr_bits_show);
 

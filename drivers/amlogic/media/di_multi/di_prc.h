@@ -381,5 +381,8 @@ int dim_dbg_tst_in_show(struct seq_file *s, void *what);
 #endif
 unsigned int dim_get_dbg_dec21(void);
 bool dim_in_linear(void);
+bool dim_dbg_cfg_disable_arb(void);
+void dbg_vfm_w(struct vframe_s *vfm, unsigned int dbgid);
+bool dbg_is_trig_eos(unsigned int ch);
 
 #endif	/*__DI_PRC_H__*/

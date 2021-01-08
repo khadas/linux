@@ -1214,7 +1214,7 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		buf_p->afbc_adr	= buf_p->adr_start;
 		buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.afbci_size;
 		buf_p->nr_adr = buf_p->dw_adr + mm->cfg.dw_size;
-
+		buf_p->buf_hsize	= mm->cfg.ibuf_hsize;
 		/* count afbct setting and crc */
 		if (dim_afds() && mm->cfg.afbci_size) {
 			afbce_map.bodyadd	= buf_p->nr_adr;
@@ -1299,6 +1299,7 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		buf_p->nr_adr = buf_p->dw_adr + mm->cfg.dw_size;
 		buf_p->tab_size = mm->cfg.pst_afbct_size;
 		buf_p->nr_size = mm->cfg.pst_buf_size;
+		buf_p->buf_hsize = mm->cfg.pbuf_hsize;
 
 		if (buf_p->blk_buf &&
 		    buf_p->blk_buf->flg.b.typ == EDIM_BLK_TYP_PSCT) {

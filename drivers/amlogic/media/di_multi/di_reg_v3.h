@@ -115,7 +115,19 @@
 //Bit   28:16,    reg_cropwin_end_v      unsigned, default = 1079 ;
 //Bit   15:13,    reserved
 //Bit   12:0,     reg_cropwin_bgn_v      unsigned, default = 0    ;
-//
+//t7
+#define DI_NRWR_BADDR0                             0x20a0
+//Bit   31:0      wmif_baddr_luma        unsigned, default = 0x20000
+#define DI_NRWR_STRIDE0                            0x20a1
+//Bit   31        canvas_mode_en         unsigned, default = 0    ;
+//Bit   30:14     reserved
+//Bit   13:0      wmif_stride_luma       unsigned, default = 0x1000;
+#define DI_NRWR_BADDR1                             0x20a2
+//Bit   31:0      wmif_baddr_chroma      unsigned, default = 0x20000
+#define DI_NRWR_STRIDE1                            0x20a3
+//Bit   31        canvas_mode_en         unsigned, default = 0    ;
+//Bit   30:14     reserved
+//Bit   13:0      wmif_stride_chroma     unsigned, default = 0x1000;
 
 /* post wr */
 #define DIWR_DBG_AXI_CMD_CNT                       0x20f0
@@ -186,7 +198,19 @@
 //Bit   28:16,    reg_cropwin_end_v      unsigned, default = 1079 ;
 //Bit   15:13,    reserved
 //Bit   12:0,     reg_cropwin_bgn_v      unsigned, default = 0    ;
-//
+//t7
+#define DI_DIWR_BADDR0                             0x20a8
+//Bit   31:0      wmif_baddr_luma        unsigned, default = 0x20000
+#define DI_DIWR_STRIDE0                            0x20a9
+//Bit   31        canvas_mode_en         unsigned, default = 0    ;
+//Bit   30:14     reserved
+//Bit   13:0      wmif_stride_luma       unsigned, default = 0x1000;
+#define DI_DIWR_BADDR1                             0x20aa
+//Bit   31:0      wmif_baddr_chroma      unsigned, default = 0x20000
+#define DI_DIWR_STRIDE1                            0x20ab
+//Bit   31        canvas_mode_en         unsigned, default = 0    ;
+//Bit   30:14     reserved
+//Bit   13:0      wmif_stride_chroma     unsigned, default = 0x1000;
 
 /* mif */
 /* need move to here */
@@ -221,7 +245,23 @@
 #define RDMIFXN_GEN_REG3                           0x541c
 #define RDMIFXN_CFMT_CTRL                          0x541d
 #define RDMIFXN_CFMT_W                             0x541e
-
+//t7
+#define RDMIFXN_BADDR_Y                            0x5420
+//Bit 31:0      cntl_f0_baddr_y                        //unsigned, RW, default = 0
+#define RDMIFXN_BADDR_CB                           0x5421
+//Bit 31:0      cntl_f0_baddr_cb                       //unsigned, RW, default = 0
+#define RDMIFXN_BADDR_CR                           0x5422
+//Bit 31:0      cntl_f0_baddr_cr                       //unsigned, RW, default = 0
+#define RDMIFXN_STRIDE_0                           0x5423
+//Bit 31:29     reserved
+//Bit 28:16     cntl_f0_stride_cb                      //unsigned, RW, default = 256
+//Bit 15:13     reserved
+//Bit 12:0      cntl_f0_stride_y                       //unsigned, RW, default = 256
+#define RDMIFXN_STRIDE_1                           0x5424
+//Bit 31:17     reserved
+//Bit 16        cntl_f0_acc_mode                       //unsigned, RW, default = 0
+//Bit 15:13     reserved
+//Bit 12:0      cntl_f0_stride_cr                      //unsigned, RW, default = 256
 #define DI_SC2_INP_GEN_REG                            0x5400
 #define DI_SC2_INP_CANVAS0                            0x5401
 #define DI_SC2_INP_CANVAS1                            0x5402
@@ -253,6 +293,12 @@
 #define DI_SC2_INP_GEN_REG3                           0x541c
 #define DI_SC2_INP_CFMT_CTRL                          0x541d
 #define DI_SC2_INP_CFMT_W                             0x541e
+//t7
+#define DI_T7_INP_BADDR_Y                            0x5420
+#define DI_T7_INP_BADDR_CB                           0x5421
+#define DI_T7_INP_BADDR_CR                           0x5422
+#define DI_T7_INP_STRIDE_0                           0x5423
+#define DI_T7_INP_STRIDE_1                           0x5424
 
 #define DI_SC2_CHAN2_GEN_REG                            0x5480	//off = 0x80
 #define DI_SC2_CHAN2_CANVAS0                            0x5481
@@ -285,6 +331,12 @@
 #define DI_SC2_CHAN2_GEN_REG3                           0x549c
 #define DI_SC2_CHAN2_CFMT_CTRL                          0x549d
 #define DI_SC2_CHAN2_CFMT_W                             0x549e
+//t7:
+#define DI_T7_CHAN2_BADDR_Y                            0x54a0
+#define DI_T7_CHAN2_BADDR_CB                           0x54a1
+#define DI_T7_CHAN2_BADDR_CR                           0x54a2
+#define DI_T7_CHAN2_STRIDE_0                           0x54a3
+#define DI_T7_CHAN2_STRIDE_1                           0x54a4
 
 #define DI_SC2_MEM_GEN_REG                            0x5500 //off = 0x100
 #define DI_SC2_MEM_CANVAS0                            0x5501
@@ -318,6 +370,13 @@
 #define DI_SC2_MEM_CFMT_CTRL                          0x551d
 #define DI_SC2_MEM_CFMT_W                             0x551e
 
+//t7:
+#define DI_T7_MEM_BADDR_Y                            0x5520
+#define DI_T7_MEM_BADDR_CB                           0x5521
+#define DI_T7_MEM_BADDR_CR                           0x5522
+#define DI_T7_MEM_STRIDE_0                           0x5523
+#define DI_T7_MEM_STRIDE_1                           0x5524
+
 #define DI_SC2_IF1_GEN_REG                            0x5580	//off = 0x180
 #define DI_SC2_IF1_CANVAS0                            0x5581
 #define DI_SC2_IF1_CANVAS1                            0x5582
@@ -349,6 +408,12 @@
 #define DI_SC2_IF1_GEN_REG3                           0x559c
 #define DI_SC2_IF1_CFMT_CTRL                          0x559d
 #define DI_SC2_IF1_CFMT_W                             0x559e
+//t7
+#define DI_T7_IF1_BADDR_Y                            0x55a0
+#define DI_T7_IF1_BADDR_CB                           0x55a1
+#define DI_T7_IF1_BADDR_CR                           0x55a2
+#define DI_T7_IF1_STRIDE_0                           0x55a3
+#define DI_T7_IF1_STRIDE_1                           0x55a4
 
 #define DI_SC2_IF0_GEN_REG                            0x5600	//off = 0x200
 #define DI_SC2_IF0_CANVAS0                            0x5601
@@ -381,6 +446,12 @@
 #define DI_SC2_IF0_GEN_REG3                           0x561c
 #define DI_SC2_IF0_CFMT_CTRL                          0x561d
 #define DI_SC2_IF0_CFMT_W                             0x561e
+//t7:
+#define DI_T7_IF0_BADDR_Y                            0x5620
+#define DI_T7_IF0_BADDR_CB                           0x5621
+#define DI_T7_IF0_BADDR_CR                           0x5622
+#define DI_T7_IF0_STRIDE_0                           0x5623
+#define DI_T7_IF0_STRIDE_1                           0x5624
 
 #define DI_SC2_IF2_GEN_REG                            0x5680	//off = 0x280
 #define DI_SC2_IF2_CANVAS0                            0x5681
@@ -413,6 +484,24 @@
 #define DI_SC2_IF2_GEN_REG3                           0x569c
 #define DI_SC2_IF2_CFMT_CTRL                          0x569d
 #define DI_SC2_IF2_CFMT_W                             0x569e
+//t7
+#define DI_T7_IF2_BADDR_Y                            0x56a0
+#define DI_T7_IF2_BADDR_CB                           0x56a1
+#define DI_T7_IF2_BADDR_CR                           0x56a2
+#define DI_T7_IF2_STRIDE_0                           0x56a3
+#define DI_T7_IF2_STRIDE_1                           0x56a4
+
+//==========================================================================
+// VD_TOP for t7 each afbc add xx38
+//==========================================================================
+#define AFBCDM_VDTOP_CTRL0                         0x5438
+//Bit  31:22       reserved              //
+//Bit  21:16       reg_afbc_gclk_ctrl    // unsigned, RW, default = 0
+//Bit  15          reg_frm_start_sel     // unsigned, RW, default = 0
+//Bit  14          reg_use_4kram         // unsigned, RW, default = 0
+//Bit  13          reg_afbc_vd_sel       // unsigned, RW, default = 0, 0:nor_rdmif 1:afbc_dec
+//Bit  12          reg_rdmif_lbuf_bypas  // unsigned, RW, default = 1, 1:rdmif lbuf bypass
+//Bit  11:0        reg_rdmif_lbuf_depth  // unsigned, RW, default = 512
 
 /*afbcd*/
 #define AFBCDM_ENABLE                              0x5440
@@ -921,6 +1010,16 @@
 #define AFBCDM_VD1_FGRAIN_PARAM_ADDR                   0x4878
 #define AFBCDM_VD1_FGRAIN_PARAM_DATA                   0x4879
 
+//for t7:
+#define AFBCDM_INP_CTRL0                         0x5438
+//Bit  31:22       reserved              //
+//Bit  21:16       reg_afbc_gclk_ctrl    // unsigned, RW, default = 0
+//Bit  15          reg_frm_start_sel     // unsigned, RW, default = 0
+//Bit  14          reg_use_4kram         // unsigned, RW, default = 0
+//Bit  13          reg_afbc_vd_sel       // unsigned, RW, default = 0, 0:nor_rdmif 1:afbc_dec
+//Bit  12          reg_rdmif_lbuf_bypas  // unsigned, RW, default = 1, 1:rdmif lbuf bypass
+//Bit  11:0        reg_rdmif_lbuf_depth  // unsigned, RW, default = 512
+
 /*afbcd add*/
 #define AFBCDM_INP_ENABLE                              0x5440
 #define AFBCDM_INP_MODE                                0x5441
@@ -964,6 +1063,16 @@
 #define AFBCDM_INP_FGRAIN_PARAM_ADDR                   0x5478
 #define AFBCDM_INP_FGRAIN_PARAM_DATA                   0x5479
 
+//for t7:
+#define AFBCDM_CHAN2_CTRL0                         0x54b8
+//Bit  31:22       reserved              //
+//Bit  21:16       reg_afbc_gclk_ctrl    // unsigned, RW, default = 0
+//Bit  15          reg_frm_start_sel     // unsigned, RW, default = 0
+//Bit  14          reg_use_4kram         // unsigned, RW, default = 0
+//Bit  13          reg_afbc_vd_sel       // unsigned, RW, default = 0, 0:nor_rdmif 1:afbc_dec
+//Bit  12          reg_rdmif_lbuf_bypas  // unsigned, RW, default = 1, 1:rdmif lbuf bypass
+//Bit  11:0        reg_rdmif_lbuf_depth  // unsigned, RW, default = 512
+
 #define AFBCDM_CHAN2_ENABLE                              0x54c0	//0x80
 #define AFBCDM_CHAN2_MODE                                0x54c1
 #define AFBCDM_CHAN2_SIZE_IN                             0x54c2
@@ -1005,6 +1114,16 @@
 #define AFBCDM_CHAN2_FGRAIN_GCLK_CTRL_2                  0x54f7
 #define AFBCDM_CHAN2_FGRAIN_PARAM_ADDR                   0x54f8
 #define AFBCDM_CHAN2_FGRAIN_PARAM_DATA                   0x54f9
+
+//for t7:
+#define AFBCDM_MEM_CTRL0                         0x5538
+//Bit  31:22       reserved              //
+//Bit  21:16       reg_afbc_gclk_ctrl    // unsigned, RW, default = 0
+//Bit  15          reg_frm_start_sel     // unsigned, RW, default = 0
+//Bit  14          reg_use_4kram         // unsigned, RW, default = 0
+//Bit  13          reg_afbc_vd_sel       // unsigned, RW, default = 0, 0:nor_rdmif 1:afbc_dec
+//Bit  12          reg_rdmif_lbuf_bypas  // unsigned, RW, default = 1, 1:rdmif lbuf bypass
+//Bit  11:0        reg_rdmif_lbuf_depth  // unsigned, RW, default = 512
 
 #define AFBCDM_MEM_ENABLE                              0x5540	/*0x100*/
 #define AFBCDM_MEM_MODE                                0x5541
@@ -1048,6 +1167,16 @@
 #define AFBCDM_MEM_FGRAIN_PARAM_ADDR                   0x5578
 #define AFBCDM_MEM_FGRAIN_PARAM_DATA                   0x5579
 
+//for t7:
+#define AFBCDM_IF1_CTRL0                         0x55b8
+//Bit  31:22       reserved              //
+//Bit  21:16       reg_afbc_gclk_ctrl    // unsigned, RW, default = 0
+//Bit  15          reg_frm_start_sel     // unsigned, RW, default = 0
+//Bit  14          reg_use_4kram         // unsigned, RW, default = 0
+//Bit  13          reg_afbc_vd_sel       // unsigned, RW, default = 0, 0:nor_rdmif 1:afbc_dec
+//Bit  12          reg_rdmif_lbuf_bypas  // unsigned, RW, default = 1, 1:rdmif lbuf bypass
+//Bit  11:0        reg_rdmif_lbuf_depth  // unsigned, RW, default = 512
+
 #define AFBCDM_IF1_ENABLE                              0x55c0	/*0x180*/
 #define AFBCDM_IF1_MODE                                0x55c1
 #define AFBCDM_IF1_SIZE_IN                             0x55c2
@@ -1090,6 +1219,16 @@
 #define AFBCDM_IF1_FGRAIN_PARAM_ADDR                   0x55f8
 #define AFBCDM_IF1_FGRAIN_PARAM_DATA                   0x55f9
 
+//for t7:
+#define AFBCDM_IF0_CTRL0                         0x5638
+//Bit  31:22       reserved              //
+//Bit  21:16       reg_afbc_gclk_ctrl    // unsigned, RW, default = 0
+//Bit  15          reg_frm_start_sel     // unsigned, RW, default = 0
+//Bit  14          reg_use_4kram         // unsigned, RW, default = 0
+//Bit  13          reg_afbc_vd_sel       // unsigned, RW, default = 0, 0:nor_rdmif 1:afbc_dec
+//Bit  12          reg_rdmif_lbuf_bypas  // unsigned, RW, default = 1, 1:rdmif lbuf bypass
+//Bit  11:0        reg_rdmif_lbuf_depth  // unsigned, RW, default = 512
+
 #define AFBCDM_IF0_ENABLE                              0x5640	/*0x200*/
 #define AFBCDM_IF0_MODE                                0x5641
 #define AFBCDM_IF0_SIZE_IN                             0x5642
@@ -1131,6 +1270,16 @@
 #define AFBCDM_IF0_FGRAIN_GCLK_CTRL_2                  0x5677
 #define AFBCDM_IF0_FGRAIN_PARAM_ADDR                   0x5678
 #define AFBCDM_IF0_FGRAIN_PARAM_DATA                   0x5679
+
+//for t7:
+#define AFBCDM_IF2_CTRL0                         0x56b8
+//Bit  31:22       reserved              //
+//Bit  21:16       reg_afbc_gclk_ctrl    // unsigned, RW, default = 0
+//Bit  15          reg_frm_start_sel     // unsigned, RW, default = 0
+//Bit  14          reg_use_4kram         // unsigned, RW, default = 0
+//Bit  13          reg_afbc_vd_sel       // unsigned, RW, default = 0, 0:nor_rdmif 1:afbc_dec
+//Bit  12          reg_rdmif_lbuf_bypas  // unsigned, RW, default = 1, 1:rdmif lbuf bypass
+//Bit  11:0        reg_rdmif_lbuf_depth  // unsigned, RW, default = 512
 
 #define AFBCDM_IF2_ENABLE                              0x56c0
 #define AFBCDM_IF2_MODE                                0x56c1
@@ -2266,6 +2415,23 @@
 #define DI_PRE_SEC_IN				0x2010
 #define DI_POST_SEC_IN				0x2011
 #define DI_VIU_DATA_SEC				0x1A50
+
+//t7
+#define CONTRD_BADDR                               0x3729
+#define CONT2RD_BADDR                              0x372a
+#define MTNRD_BADDR                                0x372b
+#define MCVECRD_BADDR                              0x372c
+#define MCINFRD_BADDR                              0x372d
+#define CONTWR_BADDR                               0x3734
+#define CONTWR_STRIDE                              0x3735
+#define MTNWR_BADDR                                0x3736
+#define MTNWR_STRIDE                               0x3737
+#define MCVECWR_BADDR                              0x372e
+#define MCVECWR_STRIDE                             0x372f
+#define MCINFWR_BADDR                              0x37ce
+#define MCINFWR_STRIDE                             0x37cf
+#define NRDSWR_BADDR                               0x37fd
+#define NRDSWR_STRIDE                              0x37fe
 
 #endif	/*__DI_REG_V3_H__*/
 

@@ -141,6 +141,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_TMODE_1,	/*EDIM_TMODE_1_PW_VFM*/
 	EDI_CFG_TMODE_2,	/*EDIM_TMODE_2_PW_OUT*/
 	EDI_CFG_TMODE_3,	/*EDIM_TMODE_3_PW_LOCAL*/
+	EDI_CFG_LINEAR,
 	EDI_CFG_END,
 };
 
@@ -1154,6 +1155,8 @@ struct di_mm_cfg_s {
 	unsigned int dis_afbce	: 1;
 	unsigned int rev1	: 30;
 	unsigned int pre_inser_size;
+	unsigned int ibuf_hsize;
+	unsigned int pbuf_hsize;
 };
 struct dim_mm_t_s {
 	/* use for reserved and alloc all*/
@@ -2059,6 +2062,7 @@ struct di_data_l_s {
 #define DBG_M_SCT		DI_BIT19
 #define DBG_M_NQ		DI_BIT20
 #define DBG_M_BPASS		DI_BIT21
+#define DBG_M_IC		DI_BIT28
 #define DBG_M_RESET_PRE		DI_BIT29
 extern unsigned int di_dbg;
 
@@ -2098,7 +2102,7 @@ extern unsigned int di_dbg;
 #define dbg_sct(fmt, args ...)		dbg_m(DBG_M_SCT, fmt, ##args)
 #define dbg_nq(fmt, args ...)		dbg_m(DBG_M_NQ, fmt, ##args)
 #define dbg_bypass(fmt, args ...)	dbg_m(DBG_M_BPASS, fmt, ##args)
-
+#define dbg_ic(fmt, args ...)		dbg_m(DBG_M_IC, fmt, ##args)
 char *di_cfgx_get_name(enum EDI_CFGX_IDX idx);
 bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx);
 void di_cfgx_set(unsigned int ch, enum EDI_CFGX_IDX idx, bool en);

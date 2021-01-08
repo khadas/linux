@@ -232,6 +232,11 @@ static void dump_mif_state(struct DI_MIF_S *mif)
 		mif->canvas0_addr0,
 		mif->canvas0_addr1,
 		mif->canvas0_addr2);
+	pr_info("linear:%d:addr <0x%lx 0x%lx 0x%lx>.\n",
+		mif->linear,
+		mif->addr0,
+		mif->addr1,
+		mif->addr2);
 }
 
 /*2018-08-17 add debugfs*/
@@ -249,6 +254,15 @@ void dump_mif_state_seq(struct DI_MIF_S *mif,
 		   mif->canvas0_addr0,
 		   mif->canvas0_addr1,
 		   mif->canvas0_addr2);
+	seq_printf(seq, "\tlinear[%d] addr <0x%lx 0x%lx 0x%lx>.\n",
+		   mif->linear,
+		   mif->addr0,
+		   mif->addr1,
+		   mif->addr2);
+	seq_printf(seq, "\tbuf_crop_en[%d] buf_hsize <%d> blk<%d>.\n",
+		   mif->buf_crop_en,
+		   mif->buf_hsize,
+		   mif->block_mode);
 	seq_printf(seq, "\tbit_mode [%u] set_separate_en[%u]\n",
 		   mif->bit_mode,
 		   mif->set_separate_en);
@@ -283,6 +297,15 @@ void dump_simple_mif_state_seq(struct DI_SIM_MIF_s *simp_mif,
 		   simp_mif->start_y, simp_mif->end_y);
 	seq_printf(seq, "\tcanvas num <%u>.\n",
 		   simp_mif->canvas_num);
+	seq_printf(seq, "\tlinear[%d] <0x%lx 0x%lx>.\n",
+		   simp_mif->linear,
+		   simp_mif->addr,
+		   simp_mif->addr1);
+	seq_printf(seq, "\tper_bits[%d]\n",
+		   simp_mif->per_bits);
+	seq_printf(seq, "\tbuf_crop_en[%d] buf_hsize <%d>.\n",
+		   simp_mif->buf_crop_en,
+		   simp_mif->buf_hsize);
 	seq_printf(seq, "\tbit_mode [%u] set_separate_en[%u]\n",
 		   simp_mif->bit_mode,
 		   simp_mif->set_separate_en);
@@ -315,6 +338,11 @@ static void dump_mc_mif_state_seq(struct DI_MC_MIF_s *mc_mif,
 		   mc_mif->start_x, mc_mif->start_y,
 		   mc_mif->end_y, mc_mif->size_x,
 		   mc_mif->size_y);
+	seq_printf(seq, "\tlinear[%d],addr[0x%lx]\n",
+		   mc_mif->linear,
+		   mc_mif->addr);
+	seq_printf(seq, "\tper_bits[%d]\n",
+		   mc_mif->per_bits);
 }
 
 void dim_dump_pre_stru(struct di_pre_stru_s *ppre)

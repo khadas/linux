@@ -42,6 +42,10 @@
 #include <linux/amlogic/media/di/di.h>
 //#include "../deinterlace/di_pqa.h"
 
+unsigned int di_dbg = DBG_M_EVENT/*|DBG_M_IC|DBG_M_MEM2|DBG_M_RESET_PRE*/;
+module_param(di_dbg, uint, 0664);
+MODULE_PARM_DESC(di_dbg, "debug print");
+
 /************************************************
  * dim_cfg
  *	[0] bypass_all_p
@@ -53,6 +57,19 @@ static unsigned int dim_cfg = 1;
 #endif
 module_param_named(dim_cfg, dim_cfg, uint, 0664);
 
+bool dim_dbg_cfg_post_byapss(void)
+{
+	if (dim_cfg & DI_BIT8)
+		return true;
+	return false;
+}
+
+bool dim_dbg_cfg_disable_arb(void)
+{
+	if (dim_cfg & DI_BIT9)
+		return true;
+	return false;
+}
 static unsigned int dim_dbg_dec21;
 module_param_named(dim_dbg_dec21, dim_dbg_dec21, uint, 0644);
 unsigned int dim_get_dbg_dec21(void)
@@ -90,6 +107,9 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			1,
 			K_DI_CFG_T_FLG_NOTHING},
 	[EDI_CFG_KEEP_CLEAR_AUTO]  = {"keep_buf clear auto",
+		/* 0: default */
+		/* 1: releas keep buffer when next reg */
+		/* 2: not keep buffer */
 			EDI_CFG_KEEP_CLEAR_AUTO,
 			0,
 			K_DI_CFG_T_FLG_NOTHING},
@@ -163,6 +183,12 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_TMODE_3]  = {"tmode3",
 			EDI_CFG_TMODE_3,
+			0,
+			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_LINEAR]  = {"linear",
+			/* 0:canvans;	*/
+			/* 1:linear;		*/
+			EDI_CFG_LINEAR,
 			0,
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
@@ -271,12 +297,17 @@ void di_cfg_top_dts(void)
 		cfgs(4K, 0);
 		PR_INF("not support 4k\n");
 	}
+	if (DIM_IS_IC_EF(T7)) {
+		cfgs(LINEAR, 1);
+		PR_INF("t7 linear mode\n");
+	}
 	/* dat */
 	/*bit 0: pst dat; bit 1: idat */
 	pd = &get_datal()->cfg_en[EDI_CFG_DAT];
 	pt = &di_cfg_top_ctr[EDI_CFG_DAT];
 	if (DIM_IS_IC(TM2B)	||
-	    DIM_IS_IC(SC2) || DIM_IS_IC(T5) || DIM_IS_IC(T7)) {
+	    DIM_IS_IC(SC2) || DIM_IS_IC(T5) ||
+	    DIM_IS_IC(T7)) {
 		if (!pd->b.dts_have) {
 			pd->b.val_c = 0x3;
 			//pd->b.val_c = 0x0;//test
@@ -417,7 +448,7 @@ const struct di_cfgx_ctr_s di_cfgx_ctr[K_DI_CFGX_NUB] = {
 	/* cfg channel x*/
 	[EDI_CFGX_BEGIN]  = {"cfg x begin ", EDI_CFGX_BEGIN, 0},
 	/* bypass_all */
-	[EDI_CFGX_BYPASS_ALL]  = {"bypass_all", EDI_CFGX_BYPASS_ALL, 1},
+	[EDI_CFGX_BYPASS_ALL]  = {"bypass_all", EDI_CFGX_BYPASS_ALL, 0},
 	[EDI_CFGX_END]  = {"cfg x end ", EDI_CFGX_END, 0},
 
 	/* debug cfg x */
@@ -3964,7 +3995,7 @@ void dip_itf_ndrd_ins_m2_out(struct di_ch_s *pch)
 			     ndis1->header.index));
 		}
 		#endif
-		didbg_vframe_out_save(pch->ch_id, buffer->vf);
+		didbg_vframe_out_save(pch->ch_id, buffer->vf, 1);
 		pch->itf.u.dinst.parm.ops.fill_output_done(buffer);
 		sum_pst_g_inc(pch->ch_id);
 	}
@@ -4000,7 +4031,7 @@ void dip_itf_ndrd_ins_m1_out(struct di_ch_s *pch)
 			break;
 		}
 		buffer = (struct di_buffer *)pbuf.qbc;
-		didbg_vframe_out_save(pch->ch_id, buffer->vf);
+		didbg_vframe_out_save(pch->ch_id, buffer->vf, 2);
 		pch->itf.u.dinst.parm.ops.fill_output_done(buffer);
 		sum_pst_g_inc(pch->ch_id);
 	}
@@ -4399,7 +4430,10 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 	if (dis->etype == EDIM_NIN_TYPE_VFM) {
 		memcpy(&dis->c.vfm, di_buf->vframe, sizeof(dis->c.vfm));
 		dis->c.vfm.private_data = dis;
-
+		if (di_buf->is_bypass_pst) {
+			PR_INF("%s:vfm:%px,t:0x%x\n",
+				__func__, &dis->c.vfm, dis->c.vfm.type);
+		}
 		/* to ready buffer */
 		ndrd_qin(pch, &dis->c.vfm);
 	} else {
@@ -4730,7 +4764,10 @@ void dip_init_pq_ops(void)
 
 	/* hw l1 ops*/
 	if (IS_IC_EF(ic_id, SC2)) {
-		get_datal()->hop_l1 = &dim_ops_l1_v3;
+		if (IS_IC(ic_id, T7))
+			get_datal()->hop_l1 = &dim_ops_l1_v4;
+		else
+			get_datal()->hop_l1 = &dim_ops_l1_v3;
 		di_attach_ops_v3(&get_datal()->hop_l2);
 	#ifdef MARK_SC2
 		if (get_datal()->hop_l2)
@@ -4739,10 +4776,19 @@ void dip_init_pq_ops(void)
 			PR_INF("%s\n", "op12 failed");
 	#endif
 	}
-
+	PR_INF("%s:%d:%s\n", __func__, ic_id, opl1()->info.name);
 	pq_sv_db_ini();
 }
 
+bool dip_is_linear(void)
+{
+	bool ret = false;
+
+	if (cfgg(LINEAR))
+		ret = true;
+
+	return ret;
+}
 /**********************************/
 void dip_clean_value(void)
 {
@@ -6323,6 +6369,23 @@ void dbg_pip_func(struct di_ch_s *pch, unsigned int mode)
 }
 #endif
 
+static unsigned int dbg_trig_eos;
+module_param_named(dbg_trig_eos, dbg_trig_eos, uint, 0664);
+
+bool dbg_is_trig_eos(unsigned int ch)
+{
+	bool ret = false;
+	struct di_pre_stru_s *ppre = get_pre_stru(ch);
+
+	if ((dbg_trig_eos & DI_BIT0) && ppre->field_count_for_cont >= 1) {
+		ret = true;
+		dbg_trig_eos &= ~DI_BIT0;
+		PR_INF("%s:%d\n", __func__, dbg_trig_eos);
+	}
+
+	return ret;
+}
+
 void dbg_q_listid(struct seq_file *s, struct buf_que_s *pqbuf)
 {
 	unsigned int j, i;
@@ -6475,5 +6538,17 @@ void dbg_buffer_print(void *in)
 		PR_INF("\t:vf:0x%px, 0x%x\n", buffer->vf, buffer->vf->index);
 	else
 		PR_INF("\t:%s\n", "no vf");
+}
+
+void dbg_vfm_w(struct vframe_s *vfm, unsigned int dbgid)
+{
+	dbg_ic("%s:%d:\n", __func__, dbgid);
+	if (!vfm) {
+		dbg_ic("\t:no vmf\n");
+		return;
+	}
+	dbg_ic("\t0x%px:id[%d];t[0x%x]\n", vfm, vfm->index_disp, vfm->type);
+	dbg_ic("\t xy<%d,%d><%d, %d>\n", vfm->width, vfm->height, vfm->compWidth, vfm->compHeight);
+	dbg_ic("\t ph:<%d %d>\n", vfm->canvas0_config[0].width, vfm->canvas0_config[0].height);
 }
 

@@ -264,6 +264,7 @@ struct di_buf_s {
 	unsigned int width_bk; /*move from ppre*/
 	unsigned int dw_width_bk;
 	unsigned int dw_height_bk;
+	unsigned int buf_hsize;	/* for t7 */
 //	unsigned int flg_tvp;
 	unsigned int afbc_info; /*bit 0: src is i; bit 1: src is real i */
 	unsigned char afbc_sgn_cfg;
@@ -286,8 +287,9 @@ struct di_buf_s {
 	unsigned int trig_post_update	: 1;
 	unsigned int afbce_out_yuv420_10	: 1; /* 2020-11-26*/
 	unsigned int is_nbypass	: 1; /*2020-12-07*/
-	//unsigned int src_i	: 1;
-	unsigned int rev1	: 5;
+	unsigned int is_bypass_pst : 1; /*2021-01-07*/
+	unsigned int rev1	: 4;
+
 	unsigned int rev2	: 16;
 	struct dsub_bufv_s	c;
 };
@@ -815,5 +817,8 @@ void hpre_timeout_read(void);
 /*@ary_note: 2020-12-17*/
 /* */
 //#define TST_NEW_INS_INTERFACE		(1)
+
 //#define TMP_TEST	(1)
+
+#define TMP_MASK_FOR_T7 (1)
 #endif

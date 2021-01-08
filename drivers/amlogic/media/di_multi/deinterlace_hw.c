@@ -840,13 +840,15 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 			    struct DI_SIM_MIF_s *di_contwr_mif,
 			    unsigned char madi_en,
 			    unsigned char pre_field_num,
-			    unsigned char pre_vdin_link)
+			    unsigned char pre_vdin_link,
+			    void *pre)
 {
 	bool mem_bypass = false, chan2_disable = false;
 	unsigned short nrwr_hsize = 0, nrwr_vsize = 0;
 	unsigned short chan2_hsize = 0, chan2_vsize = 0;
 	unsigned short mem_hsize = 0, mem_vsize = 0;
 	unsigned int sc2_tfbf = 0; /* DI_PRE_CTRL bit [12:11] */
+	struct di_pre_stru_s *ppre = (struct di_pre_stru_s *)pre;
 
 	if (DIM_IS_IC(T5))
 		mem_bypass = (pre_vdin_link & DI_BIT4) ? true : false;
@@ -930,11 +932,15 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (madi_en) {
-			set_ma_pre_mif_g12(di_mtnwr_mif,
-					   di_contprd_mif,
-					   di_contp2rd_mif,
-					   di_contwr_mif,
-					   dimp_get(edi_mp_pre_urgent));
+			if (DIM_IS_IC_EF(T7) && opl1()->pre_ma_mif_set)
+				opl1()->pre_ma_mif_set(ppre,
+					dimp_get(edi_mp_pre_urgent));
+			else
+				set_ma_pre_mif_g12(di_mtnwr_mif,
+						   di_contprd_mif,
+						   di_contp2rd_mif,
+						   di_contwr_mif,
+						   dimp_get(edi_mp_pre_urgent));
 		} else {
 			chan2_disable = true;
 		}
@@ -1107,11 +1113,22 @@ void dimh_en_mc_di_post_g12(struct DI_MC_MIF_s *mcvecrd_mif,
 {
 	unsigned int end_x;
 
-	DIM_VSYNC_WR_MPEG_REG(MCVECRD_CTRL1,
-			      mcvecrd_mif->canvas_num << 16	|
-			      2 << 8				|
-			      (reverse ? 3 : 0) << 4		|
-			      2);
+	if (mcvecrd_mif->linear) {
+		DIM_VSYNC_WR_MPEG_REG(MCVECRD_CTRL1,
+				      2 << 8 | //burst len = 2
+				      0 << 6 | //little endian //ary ??bit and revers?
+				      2 << 0);//pack mode
+		di_mcmif_linear_rd_cfg(mcvecrd_mif,
+				      MCVECRD_CTRL1,
+				      MCVECRD_CTRL2,
+				      MCVECRD_BADDR);
+	} else {
+		DIM_VSYNC_WR_MPEG_REG(MCVECRD_CTRL1,
+				      mcvecrd_mif->canvas_num << 16	|
+				      2 << 8				|
+				      (reverse ? 3 : 0) << 4		|
+				      2);
+	}
 	end_x = mcvecrd_mif->size_x + mcvecrd_mif->start_x;
 	DIM_VSYNC_WR_MPEG_REG(MCVECRD_SCOPE_X,
 			      mcvecrd_mif->start_x	|
@@ -2548,9 +2565,12 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 	buf1_en =  (!ei_only && (di_ddr_en || di_vpp_en));
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
-		if (DIM_IS_IC_EF(SC2))
+		if (DIM_IS_IC_EF(SC2)) {
 			opl1()->pst_mif_update_csv(di_buf0_mif,
 						   DI_MIF0_ID_IF0, NULL);
+			if (di_ddr_en)
+				opl1()->wrmif_set(di_diwr_mif, NULL, EDI_MIFSM_WR);
+		}
 		else
 			DIM_VSYNC_WR_MPEG_REG
 				(DI_IF0_CANVAS0,
@@ -2561,13 +2581,25 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 		if (!di_ddr_en)
 			DIM_VSC_WR_MPG_BT(VD1_IF0_GEN_REG, 0, 0, 1);
 		if (mc_enable) {
-			DIM_VSC_WR_MPG_BT(MCVECRD_CTRL1,
-					  di_mcvecrd_mif->canvas_num, 16, 8);
+			if (di_mcvecrd_mif->linear)
+				di_mcmif_linear_rd_cfg(di_mcvecrd_mif,
+						      MCVECRD_CTRL1,
+						      MCVECRD_CTRL2,
+						      MCVECRD_BADDR);
+			else
+				DIM_VSC_WR_MPG_BT(MCVECRD_CTRL1,
+						  di_mcvecrd_mif->canvas_num, 16, 8);
 		}
 		/*motion for current display field.*/
 		if (blend_mtn_en) {
-			DIM_VSC_WR_MPG_BT(MTNRD_CTRL1,
-					  di_mtnprd_mif->canvas_num, 16, 8);
+			if (di_mtnprd_mif->linear)
+				di_mif1_linear_rd_cfg(di_mtnprd_mif,
+						      MTNRD_CTRL1,
+						      MTNRD_CTRL2,
+						      MTNRD_BADDR);
+			else
+				DIM_VSC_WR_MPG_BT(MTNRD_CTRL1,
+						  di_mtnprd_mif->canvas_num, 16, 8);
 			/* current field mtn canvas index.*/
 		}
 	} else {
@@ -2637,13 +2669,16 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 
 	if (di_ddr_en) {
 	}
-	if (DIM_IS_IC(SC2)) {
+	if (DIM_IS_IC_EF(SC2))
 		DIM_VSC_WR_MPG_BT(DI_POST_CTRL, blend_en, 1, 1);
-		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD, blend_mode, 20, 2);
-	} else {
+	else
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_en, 31, 1);
+
+	if (DIM_IS_IC(SC2))
+		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD, blend_mode, 20, 2);
+	else
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_mode, 20, 2);
-	}
+
 	if ((dimp_get(edi_mp_pldn_ctrl_rflsh) == 1) && pd_enable)
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, 7, 22, 3);
 
@@ -2840,7 +2875,9 @@ void dimh_enable_di_post_2(struct DI_MIF_S		   *di_buf0_mif,
 				       di_vpp_en, hold_line, vskip_cnt);
 	}
 	/* motion for current display field. */
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+	if (di_mtnprd_mif->linear && opl1()->post_mtnrd_mif_set)
+		opl1()->post_mtnrd_mif_set(di_mtnprd_mif);
+	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		set_post_mtnrd_mif_g12(di_mtnprd_mif);
 	else
 		set_post_mtnrd_mif(di_mtnprd_mif, urgent);
@@ -2884,13 +2921,17 @@ void dimh_enable_di_post_2(struct DI_MIF_S		   *di_buf0_mif,
 		#endif
 	}
 	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, 7, 22, 3);
-	if (DIM_IS_IC(SC2)) {
+
+	if (DIM_IS_IC_EF(SC2))
 		DIM_VSC_WR_MPG_BT(DI_POST_CTRL, blend_en & 0x1, 1, 1);
-		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD, blend_mode & 0x3, 20, 2);
-	} else {
+	else
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_en & 0x1, 31, 1);
+
+	if (DIM_IS_IC(SC2))
+		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD, blend_mode & 0x3, 20, 2);
+	else
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_mode & 0x3, 20, 2);
-	}
+
 	if (!is_meson_txlx_cpu())
 		invert_mv = 0;
 
@@ -3003,22 +3044,24 @@ void dimh_enable_di_post_afbc(struct pst_cfg_afbc_s *cfg)
 			       cfg->buf_o->vframe);
 
 	/* motion for current display field. */
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+	if (cfg->di_mtnprd_mif->linear && opl1()->post_mtnrd_mif_set)
+		opl1()->post_mtnrd_mif_set(cfg->di_mtnprd_mif);
+	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		set_post_mtnrd_mif_g12(cfg->di_mtnprd_mif);
 	else
 		set_post_mtnrd_mif(cfg->di_mtnprd_mif, cfg->urgent);
 
 	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, 7, 22, 3);
-	#ifdef MARK_HIS
-		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, cfg->blend_en & 0x1, 31, 1);
-		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, cfg->blend_mode & 0x3, 20, 2);
-
-	#else
+	if (DIM_IS_IC_EF(SC2))
 		DIM_VSC_WR_MPG_BT(DI_POST_CTRL, cfg->blend_en & 0x1, 1, 1);
+	else
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, cfg->blend_en & 0x1, 31, 1);
+	if (DIM_IS_IC(SC2))
 		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD,
 				  cfg->blend_mode & 0x3, 20, 2);
+	else
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, cfg->blend_mode & 0x3, 20, 2);
 
-	#endif
 	//if (!is_meson_txlx_cpu())
 		//invert_mv = 0; /* ary ?? */
 
@@ -3235,6 +3278,18 @@ void dim_pulldown_info_clear_g12a(void)
 {
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 		DIM_RDMA_WR_BITS(DI_PRE_CTRL, 1, 30, 1);
+	dbg_ic("%s:\n", __func__);
+}
+
+void dbg_reg_mem(unsigned int dbgid)
+{
+	const struct reg_acc *op = &di_pre_regset;
+	unsigned int val;
+
+	val = op->rd(0x551e);
+	dbg_ic("%s:[%d], 0x%x\n", __func__, dbgid, val);
+	val = op->rd(0x5538);
+	dbg_ic("%s:[%d], reg:[0x5538]0x%x\n", __func__, dbgid, val);
 }
 
 /*
@@ -3788,9 +3843,14 @@ void dim_post_gate_control_sc2(bool gate)
 
 static void di_async_reset(void)/*2019-01-17 add for debug*/
 {
+	if (DIM_IS_IC_EF(T7)) {
+		DIM_RDMA_WR_BITS(VIUB_SW_RESET, 1, 4, 1);
+		DIM_RDMA_WR_BITS(VIUB_SW_RESET, 0, 4, 1);
+	} else {
 	/*wrmif async reset*/
-	DIM_RDMA_WR_BITS(VIUB_SW_RESET, 1, 14, 1);
-	DIM_RDMA_WR_BITS(VIUB_SW_RESET, 0, 14, 1);
+		DIM_RDMA_WR_BITS(VIUB_SW_RESET, 1, 14, 1);
+		DIM_RDMA_WR_BITS(VIUB_SW_RESET, 0, 14, 1);
+	}
 }
 
 static void di_pre_rst_frame(void)

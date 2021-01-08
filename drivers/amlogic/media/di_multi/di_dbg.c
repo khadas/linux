@@ -70,10 +70,12 @@ static struct vframe_s *di_get_dbg_vframe_in(unsigned int ch)
 	return &get_datal()->ch_data[ch].dbg_data.vfm_input;
 }
 
+#ifdef MARK_HIS
 static struct vframe_s **di_get_dbg_vframe_out(unsigned int ch)
 {
 	return &get_datal()->ch_data[ch].dbg_data.pfm_out;
 }
+#endif
 
 /********************************
  *timer:
@@ -553,7 +555,7 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 		seq_puts(seq, "war: dump vframe NULL\n");
 		return 0;
 	}
-	seq_printf(seq, "%-15s:0x%p\n", "addr", pvfm);
+	seq_printf(seq, "%-15s:0x%px\n", "addr", pvfm);
 	seq_printf(seq, "%-15s:%d\n", "index", pvfm->index);
 	seq_printf(seq, "%-15s:%d\n", "index_disp", pvfm->index_disp);
 	seq_printf(seq, "%-15s:%d\n", "omx_index", pvfm->omx_index);
@@ -720,17 +722,22 @@ static int seq_file_vframe_in_show(struct seq_file *seq, void *v)
 /***********************/
 /* debug output vframe */
 /***********************/
-void didbg_vframe_out_save(unsigned int ch, struct vframe_s *pvfm)
+void didbg_vframe_out_save(unsigned int ch, struct vframe_s *pvfm, unsigned int id)
 {
 	//unsigned int ch;
-	struct vframe_s **pvfm_t;
+	//struct vframe_s **pvfm_t;
 
 	//ch = DI_SUB_ID_S0;
 	if (!di_cfgx_get(ch, EDI_DBG_CFGX_IDX_VFM_OT))
 		return;
 
-	pvfm_t = di_get_dbg_vframe_out(ch);
-	*pvfm_t = pvfm;
+	//pvfm_t = di_get_dbg_vframe_out(ch);
+	/* *pvfm_t = pvfm; */
+	get_datal()->ch_data[ch].dbg_data.pfm_out = pvfm;
+	if (dimp_get(edi_mp_bypass_post_state)) {
+		PR_INF("%s:pvfm:0x%px\n", __func__,
+			get_datal()->ch_data[ch].dbg_data.pfm_out);
+	}
 }
 
 static int seq_file_vframe_out_show(struct seq_file *seq, void *v)
@@ -745,7 +752,10 @@ static int seq_file_vframe_out_show(struct seq_file *seq, void *v)
 		return 0;
 	}
 
-	seq_file_vframe(seq, v, *di_get_dbg_vframe_out(ch));
+	//seq_file_vframe(seq, v, *di_get_dbg_vframe_out(ch));
+	seq_file_vframe(seq,
+			v,
+			get_datal()->ch_data[ch].dbg_data.pfm_out);
 
 	return 0;
 }
@@ -1122,6 +1132,13 @@ static int seq_file_mif_show(struct seq_file *seq, void *v)
 
 	dim_dump_mif_size_state_show(seq, v, ch);
 
+	return 0;
+}
+
+static int hw_info_show(struct seq_file *s, void *v)
+{
+	seq_printf(s, "hw_infor:%s:\n", get_datal()->hop_l1->info.name);
+	seq_printf(s, "\tupdate:%s:\n", get_datal()->hop_l1->info.update);
 	return 0;
 }
 
@@ -2079,6 +2096,18 @@ static int dbg_afd7_reg_show(struct seq_file *s, void *v)
 	return 0;
 }
 
+static int dbg_afde0_reg_show(struct seq_file *s, void *v)
+{
+	dbg_afe_reg_v3(s, EAFBC_ENC0);
+	return 0;
+}
+
+static int dbg_afde1_reg_show(struct seq_file *s, void *v)
+{
+	dbg_afe_reg_v3(s, EAFBC_ENC1);
+	return 0;
+}
+
 static int dbg_afd_bits_afbc0_show(struct seq_file *s, void *v)
 {
 	//struct reg_afbs_s *pafbc = get_afbc(0);
@@ -2133,6 +2162,19 @@ static int dbg_afd_bits_afbc7_show(struct seq_file *s, void *v)
 	return 0;
 }
 
+static int dbg_afd_bits_afbce0_show(struct seq_file *s, void *v)
+{
+	dbg_afbce_bits_show(s, EAFBC_ENC0);
+
+	return 0;
+}
+
+static int dbg_afd_bits_afbce1_show(struct seq_file *s, void *v)
+{
+	dbg_afbce_bits_show(s, EAFBC_ENC1);
+	return 0;
+}
+
 /* mif */
 static int mif_inp_reg_show(struct seq_file *s, void *v)
 {
@@ -2173,6 +2215,18 @@ static int mif_if2_reg_show(struct seq_file *s, void *v)
 {
 	//opl1()->dbg_mif_reg(s, DI_MIF0_ID_IF2);
 	dbg_mif_reg(s, DI_MIF0_ID_IF2);
+	return 0;
+}
+
+static int mif_nr_reg_show(struct seq_file *s, void *v)
+{
+	dbg_mif_wr_bits_show(s, EDI_MIFSM_NR);
+	return 0;
+}
+
+static int mif_wr_reg_show(struct seq_file *s, void *v)
+{
+	dbg_mif_wr_bits_show(s, EDI_MIFSM_WR);
 	return 0;
 }
 
@@ -2244,6 +2298,11 @@ DEFINE_SEQ_SHOW_ONLY(dbg_afd_bits_afbc4);
 DEFINE_SEQ_SHOW_ONLY(dbg_afd_bits_afbc5);
 DEFINE_SEQ_SHOW_ONLY(dbg_afd_bits_afbc6);
 DEFINE_SEQ_SHOW_ONLY(dbg_afd_bits_afbc7);
+DEFINE_SEQ_SHOW_ONLY(dbg_afd_bits_afbce0);
+DEFINE_SEQ_SHOW_ONLY(dbg_afd_bits_afbce1);
+
+DEFINE_SEQ_SHOW_ONLY(dbg_afde0_reg);
+DEFINE_SEQ_SHOW_ONLY(dbg_afde1_reg);
 
 /* mif */
 DEFINE_SEQ_SHOW_ONLY(mif_inp_reg);
@@ -2252,7 +2311,12 @@ DEFINE_SEQ_SHOW_ONLY(mif_chan2_reg);
 DEFINE_SEQ_SHOW_ONLY(mif_if0_reg);
 DEFINE_SEQ_SHOW_ONLY(mif_if1_reg);
 DEFINE_SEQ_SHOW_ONLY(mif_if2_reg);
+DEFINE_SEQ_SHOW_ONLY(mif_nr_reg);
+DEFINE_SEQ_SHOW_ONLY(mif_wr_reg);
 DEFINE_SEQ_SHOW_ONLY(reg_contr);
+
+/* hw */
+DEFINE_SEQ_SHOW_ONLY(hw_info);
 
 DEFINE_SEQ_SHOW_ONLY(dbg_mif_print);
 DEFINE_STORE_ONLY(dbg_crc);
@@ -2318,6 +2382,8 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"reg_afd5", S_IFREG | 0644, &dbg_afd5_reg_fops},
 	{"reg_afd6", S_IFREG | 0644, &dbg_afd6_reg_fops},
 	{"reg_afd7", S_IFREG | 0644, &dbg_afd7_reg_fops},
+	{"reg_afe0", S_IFREG | 0644, &dbg_afde0_reg_fops},
+	{"reg_afe1", S_IFREG | 0644, &dbg_afde1_reg_fops},
 	{"bits_afd0", S_IFREG | 0644, &dbg_afd_bits_afbc0_fops},
 	{"bits_afd1", S_IFREG | 0644, &dbg_afd_bits_afbc1_fops},
 	{"bits_afd2", S_IFREG | 0644, &dbg_afd_bits_afbc2_fops},
@@ -2326,13 +2392,18 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"bits_afd5", S_IFREG | 0644, &dbg_afd_bits_afbc5_fops},
 	{"bits_afd6", S_IFREG | 0644, &dbg_afd_bits_afbc6_fops},
 	{"bits_afd7", S_IFREG | 0644, &dbg_afd_bits_afbc7_fops},
+	{"bits_afe0", S_IFREG | 0644, &dbg_afd_bits_afbce0_fops},
+	{"bits_afe1", S_IFREG | 0644, &dbg_afd_bits_afbce1_fops},
 	{"reg_mif_inp", S_IFREG | 0644, &mif_inp_reg_fops},
 	{"reg_mif_mem", S_IFREG | 0644, &mif_mem_reg_fops},
 	{"reg_mif_ch2", S_IFREG | 0644, &mif_chan2_reg_fops},
 	{"reg_mif_if0", S_IFREG | 0644, &mif_if0_reg_fops},
 	{"reg_mif_if1", S_IFREG | 0644, &mif_if1_reg_fops},
 	{"reg_mif_if2", S_IFREG | 0644, &mif_if2_reg_fops},
+	{"reg_mif_nr", S_IFREG | 0644, &mif_nr_reg_fops},
+	{"reg_mif_wr", S_IFREG | 0644, &mif_wr_reg_fops},
 	{"regmif", S_IFREG | 0644, &dbg_mif_print_fops},
+	{"hw_info", S_IFREG | 0644, &hw_info_fops},
 	{"dct_mif", S_IFREG | 0644, &dbg_dct_mif_fops},
 	{"dct_ctr", S_IFREG | 0644, &dbg_dct_contr_fops},
 	{"dct_other", S_IFREG | 0644, &dbg_dct_core_fops},

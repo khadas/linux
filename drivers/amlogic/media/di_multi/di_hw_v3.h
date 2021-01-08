@@ -283,6 +283,7 @@ struct di_hw_ops_info_s {
 };
 
 extern const struct dim_hw_opsv_s dim_ops_l1_v3;
+extern const struct dim_hw_opsv_s dim_ops_l1_v4;
 
 struct hw_ops_s {
 	struct di_hw_ops_info_s info;
