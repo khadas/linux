@@ -151,6 +151,8 @@
 #define VIU_MISC_CTRL1			0x1a07
 #define VPP_DOLBY_CTRL			0x1d93
 #define VIU_SW_RESET			0x1a01
+#define VIU_SW_RESET0			0x1a02
+
 #define VPU_HDMI_FMT_CTRL		0x2743
 #define VPU_422T0444_CTRL0		0x274b
 #define VPU_422T0444_CTRL1		0x274c

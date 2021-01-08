@@ -72,6 +72,16 @@ enum core3_switch_type {
 	CORE3_AFTER_VD2_HDR,
 };
 
+enum core_type {
+	DOLBY_TVCORE = 0,
+	DOLBY_CORE1A,
+	DOLBY_CORE1B,
+	DOLBY_CORE1C,
+	DOLBY_CORE2A,
+	DOLBY_CORE2B,
+	DOLBY_CORE2C,
+};
+
 /*! @brief Output CSC configuration.*/
 # pragma pack(push, 1)
 struct TgtOutCscCfg {
