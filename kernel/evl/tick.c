@@ -247,7 +247,6 @@ void evl_program_proxy_tick(struct evl_clock *clock)
 #ifdef CONFIG_SMP
 void evl_send_timer_ipi(struct evl_clock *clock, struct evl_rq *rq)
 {
-	irq_pipeline_send_remote(TIMER_OOB_IPI,
-				cpumask_of(evl_rq_cpu(rq)));
+	irq_send_oob_ipi(TIMER_OOB_IPI,	cpumask_of(evl_rq_cpu(rq)));
 }
 #endif

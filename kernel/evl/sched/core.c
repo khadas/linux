@@ -874,8 +874,7 @@ static inline bool test_resched(struct evl_rq *this_rq)
 #ifdef CONFIG_SMP
 	/* Send resched IPI to remote CPU(s). */
 	if (unlikely(!cpumask_empty(&this_rq->resched_cpus))) {
-		irq_pipeline_send_remote(RESCHEDULE_OOB_IPI,
-					&this_rq->resched_cpus);
+		irq_send_oob_ipi(RESCHEDULE_OOB_IPI, &this_rq->resched_cpus);
 		cpumask_clear(&this_rq->resched_cpus);
 		this_rq->local_flags &= ~RQ_SCHED;
 	}
