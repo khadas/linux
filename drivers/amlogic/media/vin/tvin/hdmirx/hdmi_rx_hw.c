@@ -820,6 +820,64 @@ unsigned int rx_sec_reg_read(unsigned int *addr)
 }
 
 /*
+ * rx_sec_reg_write - aes reg write
+ */
+void rx_sec_reg_aes_write(unsigned int *addr, unsigned int value)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(HDMIRX_WR_AES, (unsigned long)(uintptr_t)addr,
+		      value, 0, 0, 0, 0, 0, &res);
+}
+
+unsigned int rx_sec_reg_aes_read(unsigned int *addr)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(HDMIRX_RD_AES, (unsigned long)(uintptr_t)addr,
+		      0, 0, 0, 0, 0, 0, &res);
+	return (unsigned int)((res.a0) & 0xffffffff);
+}
+
+unsigned int rx_rd_aes(u32 addr)
+{
+	return (unsigned int)rx_sec_reg_aes_read((unsigned int *)(unsigned long)addr);
+}
+
+void rx_wr_aes(unsigned int addr, unsigned int data)
+{
+	rx_sec_reg_aes_write((unsigned int *)(unsigned long)addr, data);
+}
+
+void rx_sec_reg_cor_write(unsigned int *addr, unsigned int value)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(HDMIRX_WR_COR, (unsigned long)(uintptr_t)addr,
+		      value, 0, 0, 0, 0, 0, &res);
+}
+
+unsigned int rx_sec_reg_cor_read(unsigned int *addr)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(HDMIRX_RD_COR, (unsigned long)(uintptr_t)addr,
+		      0, 0, 0, 0, 0, 0, &res);
+
+	return (unsigned int)((res.a0) & 0xffffffff);
+}
+
+unsigned int rx_rd_cor(u32 addr)
+{
+	return (unsigned int)rx_sec_reg_cor_read((unsigned int *)(unsigned long)addr);
+}
+
+void rx_wr_cor(unsigned int addr, unsigned int data)
+{
+	rx_sec_reg_cor_write((unsigned int *)(unsigned long)addr, data);
+}
+
+/*
  * rx_sec_set_duk
  */
 unsigned int rx_sec_set_duk(bool repeater)
@@ -1402,10 +1460,7 @@ void set_scdc_cfg(int hpdlow, int pwrprovided)
 	}
 }
 
-/*
- * packet_init - packet receiving config
- */
-int packet_init(void)
+int packet_init_t5(void)
 {
 	int error = 0;
 	int data32 = 0;
@@ -1445,6 +1500,52 @@ int packet_init(void)
 	hdmirx_wr_dwc(DWC_PDEC_FIFO_CFG, data32);
 
 	return error;
+}
+
+int packet_init_t7(void)
+{
+	/* vsif id check en */
+	hdmirx_wr_cor(VSI_CTRL2_DP3_IVCRX, 1);
+	/* vsif pkt id cfg, default is 000c03 */
+	//hdmirx_wr_cor(VSIF_ID1_DP3_IVCRX, 0x03);
+	//hdmirx_wr_cor(VSIF_ID2_DP3_IVCRX, 0x0c);
+	//hdmirx_wr_cor(VSIF_ID3_DP3_IVCRX, 0);
+	//hdmirx_wr_cor(VSIF_ID4_DP3_IVCRX, 0);
+
+	/* hf-vsif id check en */
+	hdmirx_wr_bits_cor(HF_VSIF_CTRL_DP3_IVCRX, _BIT(3), 1);
+	/* hf-vsif set to get dv, default is 0xc45dd8 */
+	hdmirx_wr_cor(HF_VSIF_ID1_DP3_IVCRX, 0x46);
+	hdmirx_wr_cor(HF_VSIF_ID2_DP3_IVCRX, 0xd0);
+	hdmirx_wr_cor(HF_VSIF_ID3_DP3_IVCRX, 0x00);
+
+	/* use aif pkt to store vsif */
+	hdmirx_wr_bits_cor(RX_INT_IF_CTRL_DP2_IVCRX, _BIT(7), 1);
+	/* enable comparison first 3 bytes IEEE */
+	hdmirx_wr_bits_cor(VSI_CTRL1_DP3_IVCRX, _BIT(5), 1);
+	hdmirx_wr_cor(VSI_CTRL3_DP3_IVCRX, 1);
+	/* aif to stort hdr10+ */
+	hdmirx_wr_cor(VSI_ID1_DP3_IVCRX, 0x8b);
+	hdmirx_wr_cor(VSI_ID2_DP3_IVCRX, 0x84);
+	hdmirx_wr_cor(VSI_ID3_DP3_IVCRX, 0x90);
+
+	/* use  unrec to store vsif */
+	hdmirx_wr_cor(RX_UNREC_CTRL_DP2_IVCRX, 1);
+	hdmirx_wr_cor(RX_UNREC_DEC_DP2_IVCRX, PKT_TYPE_INFOFRAME_VSI);
+	/* get data 0x11c0-11de */
+	return 0;
+}
+
+/*
+ * packet_init - packet receiving config
+ */
+int packet_init(void)
+{
+	if (rx.chip_id == CHIP_ID_T7)
+		packet_init_t7();
+	else
+		packet_init_t5();
+	return 0;
 }
 
 /*
@@ -3123,30 +3224,49 @@ void cor_init(void)
 	//----BCAPS config-----
 	data8 =  0;
 	data8 |= (0 << 4);//bit[4] reg_fast		 I2C transfers speed.
-	data8 |= (1 << 5);//bit[5] reg_fifo_rdy
-	data8 |= (1 << 6);//bit[6] reg_repeater	 Rx Repeater
+	data8 |= (0 << 5);//bit[5] reg_fifo_rdy
+	data8 |= (0 << 6);//bit[6] reg_repeater	 Rx Repeater
 	data8 |= (1 << 7);//bit[7] reg_hdmi_capable	 HDMI capable
 	hdmirx_wr_cor(RX_BCAPS_SET_HDCP1X_IVCRX, data8);//register address: 0x169e (0x80)
 
 	//----BCAPS1 config-----
 	data8 =  0;
-	data8 |= (2 << 0);//bit[6:0] reg_dve_cnt
+	data8 |= (0 << 0);//bit[6:0] reg_dve_cnt
 	data8 |= (0 << 7);//bit[  7] reg_dve_exceed
 	hdmirx_wr_cor(RX_SHD_BSTATUS1_HDCP1X_IVCRX, data8);//register address: 0x169f (0x00)
 
 	//----Rx Sha length in bytes----
-	hdmirx_wr_cor(RX_SHA_length1_HDCP1X_IVCRX, 0x0a);//[7:0] 10=2ksv*5byte
-	hdmirx_wr_cor(RX_SHA_length2_HDCP1X_IVCRX, 0x00);//[9:8]
+	//hdmirx_wr_cor(RX_SHA_length1_HDCP1X_IVCRX, 0x0a);//[7:0] 10=2ksv*5byte
+	//hdmirx_wr_cor(RX_SHA_length2_HDCP1X_IVCRX, 0x00);//[9:8]
 
 	//----Rx Sha repeater KSV fifo start addr----
-	hdmirx_wr_cor(RX_KSV_SHA_start1_HDCP1X_IVCRX, 0x00);//[7:0]
-	hdmirx_wr_cor(RX_KSV_SHA_start2_HDCP1X_IVCRX, 0x00);//[9:8]
-
-	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x02);//SRST = 1
+	//hdmirx_wr_cor(RX_KSV_SHA_start1_HDCP1X_IVCRX, 0x00);//[7:0]
+	//hdmirx_wr_cor(RX_KSV_SHA_start2_HDCP1X_IVCRX, 0x00);//[9:8]
+	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x12);//SRST = 1
 	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x00);//SRST = 0
 	rx_pr("cor iii\n");
 }
 
+void hdcp_init_t7(void)
+{
+	//key config and crc check
+	rx_sec_hdcp_cfg_t7();
+	//hdcp config
+	hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x1);//HPD
+	hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, 0x01);//ri_hdcp2x_en
+	hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02);// int
+	hdmirx_wr_cor(PWD_SW_CLMP_AUE_OIF_PWD_IVCRX, 0x0);
+	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x4);
+	hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3);
+	hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, 0x1);
+	hdmirx_wr_cor(CP2PA_TP1_HDCP2X_IVCRX, 0x9e);
+	hdmirx_wr_cor(CP2PA_TP3_HDCP2X_IVCRX, 0x32);
+	hdmirx_wr_cor(CP2PA_TP5_HDCP2X_IVCRX, 0x32);
+	hdmirx_wr_cor(CP2PAX_GP_IN1_HDCP2X_IVCRX, 0x2);
+	hdmirx_wr_cor(CP2PAX_GP_CTL_HDCP2X_IVCRX, 0xdb);
+	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x8);
+	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x0);
+}
 void hdmirx_hw_config(void)
 {
 	rx_pr("%s port:%d\n", __func__, rx.port);
@@ -3157,12 +3277,13 @@ void hdmirx_hw_config(void)
 		control_reset();
 		rx_hdcp_init();
 		hdmirx_audio_init();
-		packet_init();
+		//packet_init();
 		if (rx.chip_id != CHIP_ID_TXHD)
 			hdmirx_20_init();
 		DWC_init();
 		hdmirx_irq_hdcp_enable(true);
 	}
+	packet_init();
 	if (rx.chip_id >= CHIP_ID_TL1)
 		aml_phy_switch_port();
 	hdmirx_phy_init();
@@ -3194,7 +3315,7 @@ void hdmirx_hw_probe(void)
 		DWC_init();
 		hdcp22_clk_en(1);
 		hdmirx_audio_init();
-		packet_init();
+		//packet_init();
 		if (rx.chip_id != CHIP_ID_TXHD)
 			hdmirx_20_init();
 		}
@@ -3202,12 +3323,15 @@ void hdmirx_hw_probe(void)
 	hdmi_rx_top_edid_update();
 	if (rx.chip_id >= CHIP_ID_TL1)
 		aml_phy_switch_port();
+
 	/* for t5,offset_cal also did some phy & pll init operation*/
 	/* dont need to do phy init again */
 	if (rx.phy_ver >= PHY_VER_T5)
 		aml_phy_offset_cal();
 	else
 		hdmirx_phy_init();
+	if (rx.chip_id == CHIP_ID_T7)
+		hdcp_init_t7();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
 	hdmirx_top_irq_en(true);
@@ -4094,8 +4218,11 @@ int rx_debug_wr_reg(const char *buf, char *tmpbuf, int i)
 			hdmirx_wr_amlphy(adr, value);
 			rx_pr("write %x to amlphy [%x]\n", value, adr);
 		} else if (buf[2] == 'c') {
-			wr_reg_clk_ctl(adr, value);
-			rx_pr("write %x to clk_ctl [%x]\n", value, adr);
+			rx_wr_cor(adr, value);
+			rx_pr("write %x to sec cor [%x]\n", value, adr);
+		} else if (buf[2] == 'e') {
+			rx_wr_aes(adr, value);
+			rx_pr("write %x to aes reg [%x]\n", value, adr);
 		}
 	}
 	return 0;
@@ -4134,8 +4261,11 @@ int rx_debug_rd_reg(const char *buf, char *tmpbuf)
 			value = hdmirx_rd_amlphy(adr);
 			rx_pr("amlphy [%x]=%x\n", adr, value);
 		} else if (tmpbuf[2] == 'c') {
-			value = rd_reg_clk_ctl(adr);
-			rx_pr("clk_ctl [%x]=%x\n", adr, value);
+			value = rx_rd_cor(adr);
+			rx_pr("sec cor [%x]=%x\n", adr, value);
+		} else if (tmpbuf[2] == 'e') {
+			value = rx_rd_aes(adr);
+			rx_pr("aes [%x]=%x\n", adr, value);
 		}
 	}
 	return 0;

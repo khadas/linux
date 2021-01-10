@@ -997,33 +997,21 @@ void rx_pkt_get_avi_ex(void *pktinfo)
 void rx_pkt_get_vsi_ex(void *pktinfo)
 {
 	struct vsi_infoframe_st *pkt = pktinfo;
-	u32 st0;
-	u32 st1;
+	u32 st0 = 0;
+	u32 st1 = 0;
 
 	if (!pktinfo) {
 		rx_pr("pkinfo null\n");
 		return;
 	}
 
-	/*memset(pkt, 0, sizeof(struct vsi_infoframe_st));*/
+	if (rx.chip_id >= CHIP_ID_T7) {
 
-	/*length = 0x18,PB6-PB24 = 0x00*/
-	st0 = hdmirx_rd_dwc(DWC_PDEC_VSI_ST0);
-	st1 = hdmirx_rd_dwc(DWC_PDEC_VSI_ST1);
 
-	pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
-	pkt->length = st1 & 0x1f;
-
-	pkt->checksum = (st0 >> 24) & 0xff;
-	pkt->ieee = st0 & 0xffffff;
-
-	pkt->ver_st.version = 1;
-	pkt->ver_st.chgbit = 0;
-
-	if (rx.chip_id != CHIP_ID_TXHD &&
-		rx.chip_id != CHIP_ID_T5D) {
-		/* data alignment mismatch */
-		/* TODO */
+	} else if (rx.chip_id != CHIP_ID_TXHD &&
+		   rx.chip_id != CHIP_ID_T5D) {
+		st0 = hdmirx_rd_dwc(DWC_PDEC_VSI_ST0);
+		st1 = hdmirx_rd_dwc(DWC_PDEC_VSI_ST1);
 		pkt->sbpkt.payload.data[0] =
 			hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0);
 		pkt->sbpkt.payload.data[1] =
@@ -1037,6 +1025,12 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 		pkt->sbpkt.payload.data[5] =
 			hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD5);
 	}
+	pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
+	pkt->length = st1 & 0x1f;
+	pkt->checksum = (st0 >> 24) & 0xff;
+	pkt->ieee = st0 & 0xffffff;
+	pkt->ver_st.version = 1;
+	pkt->ver_st.chgbit = 0;
 }
 
 /*return 32 byte data , data struct see register spec*/

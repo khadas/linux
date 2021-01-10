@@ -79,6 +79,7 @@ u32 err_chk_en;
 u32 force_vic;
 int log_level = LOG_EN;
 u32 dbg_cs;
+u32 dbg_pkt;// = 0x81;
 
 /* used in other module */
 static int audio_sample_rate;
@@ -725,7 +726,8 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			#endif
 			if (rx.state == FSM_SIG_READY) {
 				rx.vsync_cnt++;
-				rx_update_sig_info();
+				/* t5d 5.4 vdin not enabled 1222*/
+				/* rx_update_sig_info(); */
 			}
 			if (log_level & 0x400)
 				rx_pr("[isr] DE rise.\n");
@@ -1885,6 +1887,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(edid_select, i++);
 	pr_var(vpp_mute_enable, i++);
 	pr_var(dbg_cs, i++);
+	pr_var(dbg_pkt, i++);
 	pr_var(rx.var.force_pattern, i++);
 	/* phy var definitioin */
 	pr_var(rx.aml_phy.sqrst_en, i++);
@@ -2181,6 +2184,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(clk_chg_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(dbg_cs), &dbg_cs, value))
 		return pr_var(dbg_cs, index);
+	if (set_pr_var(tmpbuf, var_to_str(dbg_pkt), &dbg_pkt, value))
+		return pr_var(dbg_pkt, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx.var.force_pattern), &rx.var.force_pattern, value))
 		return pr_var(rx.var.force_pattern, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.sqrst_en), &rx.aml_phy.sqrst_en, value))
@@ -3359,6 +3364,32 @@ void rx_debug_help(void)
 	rx_pr("*****************\n");
 }
 
+void dump_vsi_reg(void)
+{
+	u8 data8, i;
+
+	rx_pr("vsi data:\n");
+	for (i = 0; i <= 30; i++) {
+		data8 = hdmirx_rd_cor(VSIRX_TYPE_DP3_IVCRX + i);
+		rx_pr("%d-[%x]\n", i, data8);
+	}
+	rx_pr("hf-vsi data:\n");
+	for (i = 0; i <= 30; i++) {
+		data8 = hdmirx_rd_cor(HF_VSIRX_TYPE_DP3_IVCRX + i);
+		rx_pr("%d-[%x]\n", i, data8);
+	}
+	rx_pr("aif-vsi data:\n");
+	for (i = 0; i <= 30; i++) {
+		data8 = hdmirx_rd_cor(AUDRX_TYPE_DP2_IVCRX + i);
+		rx_pr("%d-[%x]\n", i, data8);
+	}
+	rx_pr("unrec data:\n");
+	for (i = 0; i <= 30; i++) {
+		data8 = hdmirx_rd_cor(RX_UNREC_BYTE1_DP2_IVCRX + i);
+		rx_pr("%d-[%x]\n", i, data8);
+	}
+}
+
 int hdmirx_debug(const char *buf, int size)
 {
 	char tmpbuf[128];
@@ -3412,7 +3443,8 @@ int hdmirx_debug(const char *buf, int size)
 			hdmirx_phy_init();
 		} else if (tmpbuf[5] == '3') {
 			rx_pr(" irq open\n");
-			rx_irq_en(true);
+			//rx_irq_en(true);
+			dump_vsi_reg();
 		} else if (tmpbuf[5] == '4') {
 			rx_pr(" edid update\n");
 			hdmi_rx_top_edid_update();
@@ -3556,6 +3588,8 @@ int hdmirx_debug(const char *buf, int size)
 		sm_pause = 0;
 	} else if (strncmp(tmpbuf, "iq", 2) == 0) {
 		aml_phy_iq_skew_monitor();
+	} else if (strncmp(tmpbuf, "crc", 3) == 0) {
+		rx_sec_hdcp_cfg_t7();
 	}
 	return 0;
 }

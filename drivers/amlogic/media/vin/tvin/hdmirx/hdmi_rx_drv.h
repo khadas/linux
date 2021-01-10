@@ -696,6 +696,7 @@ extern bool esm_error_flag;
 extern bool hdcp22_stop_auth;
 extern bool hdcp22_esm_reset2;
 extern int esm_recovery_mode;
+extern u32 dbg_pkt;
 
 int rx_set_global_variable(const char *buf, int size);
 void rx_get_global_variable(const char *buf);

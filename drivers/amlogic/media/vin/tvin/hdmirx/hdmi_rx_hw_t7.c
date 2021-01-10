@@ -1847,3 +1847,13 @@ void aml_phy_switch_port_t7(void)
 
 	hdmirx_wr_bits_top(TOP_PORT_SEL, MSK(3, 0), (1 << rx.port));
 }
+
+unsigned int rx_sec_hdcp_cfg_t7(void)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(HDMI_RX_HDCP_CFG, 0, 0, 0, 0, 0, 0, 0, &res);
+
+	return (unsigned int)((res.a0) & 0xffffffff);
+}
+

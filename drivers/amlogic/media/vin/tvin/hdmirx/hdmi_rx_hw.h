@@ -1170,15 +1170,20 @@
  * SMC CMD define
  * call BL31 interface
  */
-#define HDMIRX_RD_SEC_TOP	0x8200001d
-#define HDMIRX_WR_SEC_TOP	0x8200001e
-#define HDCP22_RX_ESM_READ	0x8200001f
-#define HDCP22_RX_ESM_WRITE	0x8200002f
+#define HDMIRX_RD_SEC_TOP		0x8200001d
+#define HDMIRX_WR_SEC_TOP		0x8200001e
+#define HDCP22_RX_ESM_READ		0x8200001f
+#define HDCP22_RX_ESM_WRITE		0x8200002f
 #define HDCP22_RX_SET_DUK_KEY	0x8200002e
 #define HDCP22_RP_SET_DUK_KEY	0x8200002c
-#define HDCP14_RX_SETKEY	0x8200002d
+#define HDCP14_RX_SETKEY		0x8200002d
 #define HDMIRX_RD_SEC_TOP_NEW	0x8200008b
 #define HDMIRX_WR_SEC_TOP_NEW	0x8200008c
+#define HDMIRX_RD_AES			0x8200008d
+#define HDMIRX_WR_AES			0x8200008e
+#define HDMIRX_RD_COR			0x8200008f
+#define HDMIRX_WR_COR			0x82000091
+#define HDMI_RX_HDCP_CFG		0x820000aa
 
 /* COR reg start */
 #define COR_SCDC_TMDS_CFG	0x7820
@@ -3310,4 +3315,5 @@ void aml_phy_iq_skew_monitor_t7(void);
 bool aml_get_tmds_valid_t7(void);
 void aml_phy_power_off_t7(void);
 void aml_phy_switch_port_t7(void);
+unsigned int rx_sec_hdcp_cfg_t7(void);
 #endif
