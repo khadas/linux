@@ -1330,7 +1330,7 @@ unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int ch)
 	if (reason)
 		return reason;
 
-	if (di_cfgx_get(ch, EDI_CFGX_BYPASS_ALL)) {
+	if (di_cfgx_get(ch, EDI_CFGX_BYPASS_ALL) && (DIM_IS_IC(T7))) {
 		reason = 0x81;
 	} else if (ppre->cur_prog_flag		&&
 		   ((ppre->cur_width > default_width)	||
@@ -1383,7 +1383,7 @@ bool is_bypass2(struct vframe_s *vf_in, unsigned int ch)
 	if (dimp_get(edi_mp_di_debug_flag) & 0x10000) /* for debugging */
 		return true;
 
-	if (di_cfgx_get(ch, EDI_CFGX_BYPASS_ALL))	/*bypass_all*/
+	if (di_cfgx_get(ch, EDI_CFGX_BYPASS_ALL) && (DIM_IS_IC(T7)))/*bypass*/
 		return true;
 
 	if (dimp_get(edi_mp_bypass_trick_mode)) {
