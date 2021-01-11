@@ -1567,7 +1567,7 @@
 };
 
 &aml_bt {
-	status = "disabled";
+	status = "okay";
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
 };
@@ -1582,8 +1582,8 @@
 	status = "disabled";
 };
 
-&uart_E {
-	status = "disabled";
+&uart_C {
+	status = "okay";
 	uart-has-rtscts;
 };
 
