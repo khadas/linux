@@ -99,27 +99,6 @@ static struct tvafe_avin_det_s *avdev;
 static struct meson_avin_data *meson_data;
 static DECLARE_WAIT_QUEUE_HEAD(tvafe_avin_waitq);
 
-static int avin_cbus_read(unsigned int reg)
-{
-	reg = (reg - CVBS_IRQ0_CNTL) << 2;
-	return readl(avdev->cbus_reg_base + reg);
-}
-
-static int avin_cbus_write(unsigned int reg, unsigned int val)
-{
-	reg = (reg - CVBS_IRQ0_CNTL) << 2;
-	writel(val, (avdev->cbus_reg_base + reg));
-	return 0;
-}
-
-static void avin_cbus_setb(unsigned int reg, unsigned int value,
-		    unsigned int start, unsigned int len)
-{
-	avin_cbus_write(reg, ((avin_cbus_read(reg) &
-			~(((1L << (len)) - 1) << (start))) |
-			(((value) & ((1L << (len)) - 1)) << (start))));
-}
-
 static int tvafe_avin_dts_parse(struct platform_device *pdev)
 {
 	int ret;
@@ -511,16 +490,21 @@ static void tvafe_avin_detect_anlog_config(void)
 
 static void tvafe_avin_detect_digital_config(void)
 {
-	avin_cbus_setb(CVBS_IRQ0_CNTL, irq_mode,
-		CVBS_IRQ_MODE_BIT, CVBS_IRQ_MODE_WIDTH);
-	avin_cbus_setb(CVBS_IRQ0_CNTL, trigger_sel,
-		CVBS_IRQ_TRIGGER_SEL_BIT, CVBS_IRQ_TRIGGER_SEL_WIDTH);
-	avin_cbus_setb(CVBS_IRQ0_CNTL, irq_edge_en,
-		CVBS_IRQ_EDGE_EN_BIT, CVBS_IRQ_EDGE_EN_WIDTH);
-	avin_cbus_setb(CVBS_IRQ0_CNTL, irq_filter,
-		CVBS_IRQ_FILTER_BIT, CVBS_IRQ_FILTER_WIDTH);
-	avin_cbus_setb(CVBS_IRQ0_CNTL, irq_pol,
-		CVBS_IRQ_POL_BIT, CVBS_IRQ_POL_WIDTH);
+	aml_cbus_update_bits(CVBS_IRQ0_CNTL,
+		CVBS_IRQ_MODE_MASK << CVBS_IRQ_MODE_BIT,
+		irq_mode << CVBS_IRQ_MODE_BIT);
+	aml_cbus_update_bits(CVBS_IRQ0_CNTL,
+		CVBS_IRQ_TRIGGER_SEL_MASK << CVBS_IRQ_TRIGGER_SEL_BIT,
+		trigger_sel << CVBS_IRQ_TRIGGER_SEL_BIT);
+	aml_cbus_update_bits(CVBS_IRQ0_CNTL,
+		CVBS_IRQ_EDGE_EN_MASK << CVBS_IRQ_EDGE_EN_BIT,
+		irq_edge_en << CVBS_IRQ_EDGE_EN_BIT);
+	aml_cbus_update_bits(CVBS_IRQ0_CNTL,
+		CVBS_IRQ_FILTER_MASK << CVBS_IRQ_FILTER_BIT,
+		irq_filter << CVBS_IRQ_FILTER_BIT);
+	aml_cbus_update_bits(CVBS_IRQ0_CNTL,
+		CVBS_IRQ_POL_MASK << CVBS_IRQ_POL_BIT,
+		irq_pol << CVBS_IRQ_POL_BIT);
 }
 
 static int tvafe_avin_open(struct inode *inode, struct file *file)
@@ -921,13 +905,13 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 	}
 
 	if (avdev->dts_param.device_mask == TVAFE_AVIN_CH1_MASK) {
-		avdev->irq_counter[0] = avin_cbus_read(CVBS_IRQ0_COUNTER);
+		avdev->irq_counter[0] = aml_read_cbus(CVBS_IRQ0_COUNTER);
 		if (!R_HIU_BIT(HHI_CVBS_DETECT_CNTL,
 			AFE_CH1_EN_DETECT_BIT, AFE_CH1_EN_DETECT_WIDTH)) {
 			goto TIMER;
 		}
 	} else if (avdev->dts_param.device_mask == TVAFE_AVIN_CH2_MASK) {
-		avdev->irq_counter[0] = avin_cbus_read(CVBS_IRQ1_COUNTER);
+		avdev->irq_counter[0] = aml_read_cbus(CVBS_IRQ1_COUNTER);
 		if (meson_data) {
 			if (!R_HIU_BIT(HHI_CVBS_DETECT_CNTL,
 			AFE_TL_CH2_EN_DETECT_BIT, AFE_TL_CH2_EN_DETECT_WIDTH))
@@ -938,8 +922,8 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 				goto TIMER;
 		}
 	} else if (avdev->dts_param.device_mask == TVAFE_AVIN_MASK) {
-		avdev->irq_counter[0] = avin_cbus_read(CVBS_IRQ0_COUNTER);
-		avdev->irq_counter[1] = avin_cbus_read(CVBS_IRQ1_COUNTER);
+		avdev->irq_counter[0] = aml_read_cbus(CVBS_IRQ0_COUNTER);
+		avdev->irq_counter[1] = aml_read_cbus(CVBS_IRQ1_COUNTER);
 		if (meson_data) {
 			if (!R_HIU_BIT(HHI_CVBS_DETECT_CNTL,
 			AFE_CH1_EN_DETECT_BIT, AFE_CH1_EN_DETECT_WIDTH) ||
@@ -1062,8 +1046,7 @@ static int tvafe_avin_detect_probe(struct platform_device *pdev)
 {
 	int ret;
 	int state = 0;
-	int size_io_reg;
-	struct resource *res;
+
 
 	meson_data = (struct meson_avin_data *)
 		of_device_get_match_data(&pdev->dev);
@@ -1094,30 +1077,6 @@ static int tvafe_avin_detect_probe(struct platform_device *pdev)
 		goto fail_create_dbg_file;
 	}
 	dev_set_drvdata(avdev->config_dev, avdev);
-
-	/* cbus register memmap */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "missing memory resource\n");
-		return -ENODEV;
-	}
-	size_io_reg = resource_size(res);
-	tvafe_pr_info("%s:cbus reg base=%p,size=%x\n",
-		__func__, (void *)res->start, size_io_reg);
-	if (!devm_request_mem_region(&pdev->dev,
-				res->start, size_io_reg, pdev->name)) {
-		dev_err(&pdev->dev, "Memory region busy\n");
-		return -EBUSY;
-	}
-
-	avdev->cbus_reg_base =
-		devm_ioremap_nocache(&pdev->dev, res->start, size_io_reg);
-	if (!avdev->cbus_reg_base) {
-		dev_err(&pdev->dev, "cbus ioremap failed\n");
-		return -ENOMEM;
-	}
-	tvafe_pr_info("%s: avin maped reg_base =%p, size=%x\n",
-			__func__, avdev->cbus_reg_base, size_io_reg);
 
 	/*config analog part setting*/
 	tvafe_avin_detect_anlog_config();
@@ -1181,8 +1140,6 @@ int tvafe_avin_detect_remove(struct platform_device *pdev)
 {
 	struct tvafe_avin_det_s *avdev = platform_get_drvdata(pdev);
 
-	if (avdev->cbus_reg_base)
-		devm_iounmap(&pdev->dev, avdev->cbus_reg_base);
 	cdev_del(&avdev->avin_cdev);
 	del_timer_sync(&avin_detect_timer);
 	tvafe_avin_detect_disable(avdev);

@@ -115,7 +115,6 @@ struct tvafe_avin_det_s {
 	struct tvafe_dts_const_param_s dts_param;
 	struct tvafe_report_data_s report_data_s[2];
 	struct work_struct work_struct_update;
-	void __iomem *cbus_reg_base;
 	unsigned int irq_counter[2];
 	unsigned int device_num;
 };

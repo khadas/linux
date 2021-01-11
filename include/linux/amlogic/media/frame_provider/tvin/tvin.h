@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/amlogic/media/amvecm/cm.h>
+#include <linux/dvb/frontend.h>
 
 enum {
 	MEMP_VDIN_WITHOUT_3D = 0,
@@ -519,6 +520,8 @@ struct dfe_adcpll_para {
 	unsigned int adcpllctl;
 	unsigned int demodctl;
 	unsigned int atsc;
+	enum fe_delivery_system delsys;
+	unsigned int adc_clk;
 };
 
 struct rx_audio_stat_s {
@@ -565,7 +568,7 @@ int adc_get_pll_flag(void);
 /*ADC_EN_DTV_DEMOD	0x4*/
 /*ADC_EN_DTV_DEMODPLL	0x8*/
 int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para_);
-void adc_set_ddemod_default(void);/* add for dtv demod */
+void adc_set_ddemod_default(enum fe_delivery_system delsys);/* add for dtv demod */
 #else
 static inline void adc_pll_down(void)
 {
@@ -585,7 +588,7 @@ static inline int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_par
 	return 0;
 }
 
-static inline void adc_set_ddemod_default(void)
+static inline void adc_set_ddemod_default(enum fe_delivery_system delsys)
 {
 }
 #endif

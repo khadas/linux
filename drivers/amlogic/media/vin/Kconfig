@@ -13,6 +13,7 @@ config AMLOGIC_MEDIA_VIN
 
 if AMLOGIC_MEDIA_VIN
 source "drivers/amlogic/media/vin/tvin/Kconfig"
+source "drivers/amlogic/media/vin/adc/Kconfig"
 endif
 
 endmenu

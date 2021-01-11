@@ -147,6 +147,7 @@ void tvafe_remove_device_files(struct device *dev);
 int tvafe_pq_config_probe(struct meson_tvafe_data *tvafe_data);
 void cvd_set_shift_cnt(enum tvafe_cvd2_shift_cnt_e src, unsigned int val);
 unsigned int cvd_get_shift_cnt(enum tvafe_cvd2_shift_cnt_e src);
+int tvafe_bringup_detect_signal(struct tvafe_dev_s *devp, enum tvin_port_e port);
 
 extern bool disableapi;
 extern bool force_stable;

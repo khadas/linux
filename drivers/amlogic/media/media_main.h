@@ -468,6 +468,15 @@ static int vpu_security_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ADC
+int adc_init(void);
+#else
+static int adc_init(void)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE
 int tvafe_drv_init(void);
 #else

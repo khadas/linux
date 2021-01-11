@@ -1,0 +1,8 @@
+#
+# ADC Device Driver Configuration
+#
+config AMLOGIC_MEDIA_ADC
+        tristate "Amlogic ADC device driver"
+        default n
+        help
+            ADC device driver.

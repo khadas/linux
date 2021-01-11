@@ -39,7 +39,6 @@
 
 /* Local include */
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
-#include <linux/amlogic/media/vout/vclk_serve.h>
 #include "../tvin_frontend.h"
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
@@ -322,6 +321,54 @@ static int tvafe_get_v_fmt(void)
 	return fmt;
 }
 #endif
+
+/*
+ * tvafe bringup detect signal code
+ */
+int tvafe_bringup_detect_signal(struct tvafe_dev_s *devp, enum tvin_port_e port)
+{
+	struct tvafe_info_s *tvafe = &devp->tvafe;
+	enum tvafe_adc_ch_e adc_ch = TVAFE_ADC_CH_NULL;
+
+	adc_ch = tvafe_port_to_channel(port, devp->pinmux);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
+	/*only txlx chip enabled*/
+	if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) {
+		/*synctip set to 0 when tvafe working&&av connected*/
+		/*enable clamp if av connected*/
+		if (adc_ch == TVAFE_ADC_CH_0) {
+			/*channel-1*/
+			tvafe_cha1_SYNCTIP_close_config();
+		} else if (adc_ch == TVAFE_ADC_CH_1) {
+			/*channel-2*/
+			tvafe_cha2_SYNCTIP_close_config();
+		}
+	}
+#endif
+	tvafe_config_init(devp, port);
+	/**enable and reset tvafe clock**/
+	tvafe_enable_module(true);
+
+	/* set APB bus register accessing error exception */
+	tvafe_set_apb_bus_err_ctrl();
+	/**set cvd2 reset to high**/
+	/*tvafe_cvd2_hold_rst();?????*/
+
+	/* init tvafe registers */
+	tvafe_init_reg(&tvafe->cvd2, &devp->mem, port);
+
+	/* must reload mux if you change adc reg table!!! */
+	tvafe_adc_pin_muxing(adc_ch);
+
+	W_APB_BIT(TVFE_CLAMP_INTF, 1, CLAMP_EN_BIT, CLAMP_EN_WID);
+	devp->flags |= TVAFE_FLAG_DEV_OPENED;
+
+	tvafe_pr_info("%s open port:0x%x ok.\n", __func__, port);
+
+	return 0;
+}
+
 /*
  * tvafe open port and init register
  */
@@ -1380,22 +1427,14 @@ EXPORT_SYMBOL(tvafe_vbi_reg_write);
 
 int tvafe_hiu_reg_read(unsigned int reg, unsigned int *val)
 {
-#ifdef CONFIG_AMLOGIC_VOUT_CLK_SERVE
-	*val = vclk_clk_reg_read(reg);
-#else
 	*val =  aml_read_hiubus(reg);
-#endif
 	return 0;
 }
 EXPORT_SYMBOL(tvafe_hiu_reg_read);
 
 int tvafe_hiu_reg_write(unsigned int reg, unsigned int val)
 {
-#ifdef CONFIG_AMLOGIC_VOUT_CLK_SERVE
-	vclk_clk_reg_write(reg, val);
-#else
 	aml_write_hiubus(reg, val);
-#endif
 	return 0;
 }
 EXPORT_SYMBOL(tvafe_hiu_reg_write);

@@ -550,6 +550,8 @@ static ssize_t debug_store(struct device *dev,
 			pr_info("[tvafe]%s nostd_bypass_iir, ori val = %u\n",
 				__func__, user_param->nostd_bypass_iir);
 		}
+	} else if (!strncmp(parm[0], "tvafe_init", strlen("tvafe_init"))) {
+		tvafe_bringup_detect_signal(devp, TVIN_PORT_CVBS1);
 	} else {
 		tvafe_pr_info("[%s]:invalid command.\n", __func__);
 	}
