@@ -9,6 +9,7 @@
 #define LOCAL_DIMMING_CHAN     0
 #define FILM_GRAIN0_CHAN       1
 #define FILM_GRAIN1_CHAN       2
+#define FILM_GRAIN2_CHAN       4
 #define FILM_GRAIN_DI_CHAN     3
 
 enum LUT_DMA_DIR_e {
@@ -44,6 +45,6 @@ int lut_dma_register(struct lut_dma_set_t *lut_dma_set);
 void lut_dma_unregister(u32 dma_dir, u32 channel);
 int lut_dma_read(u32 channel, void *paddr);
 int lut_dma_write(u32 channel, void *paddr, u32 size);
-int lut_dma_write_phy_addr(u32 channel, u32 phy_addr, u32 size);
+int lut_dma_write_phy_addr(u32 channel, ulong phy_addr, u32 size);
 void lut_dma_update_irq_source(u32 channel, u32 irq_source);
 #endif

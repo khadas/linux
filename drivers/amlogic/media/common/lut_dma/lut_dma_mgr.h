@@ -77,10 +77,10 @@ struct lut_dma_ins {
 	unsigned char baddr_set;
 	u32 trigger_irq_type;
 	u32 rd_table_size[DMA_BUF_NUM];
-	u32 rd_phy_addr[DMA_BUF_NUM];
+	ulong rd_phy_addr[DMA_BUF_NUM];
 	u32 *rd_table_addr[DMA_BUF_NUM];
 	u32 wr_table_size[DMA_BUF_NUM];
-	u32 wr_phy_addr[DMA_BUF_NUM];
+	ulong wr_phy_addr[DMA_BUF_NUM];
 	u32 *wr_table_addr[DMA_BUF_NUM];
 	u32 wr_size[DMA_BUF_NUM];
 };
@@ -95,10 +95,12 @@ struct lut_dma_device_info {
 enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_COMPATIBALE = 0x1,
 	MESON_CPU_MAJOR_ID_SC2_,
+	MESON_CPU_MAJOR_ID_T7_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
 struct lutdma_device_data_s {
 	enum cpu_type_e cpu_type;
+	int support_8G_addr;
 };
 #endif

@@ -2283,7 +2283,7 @@
 	};
 
 	lut_dma:lut_dma {
-		compatible = "amlogic, meson-sc2, lut_dma";
+		compatible = "amlogic, meson-t7, lut_dma";
 		status = "okay";
 	};
 };

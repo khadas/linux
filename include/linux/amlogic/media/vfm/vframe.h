@@ -557,7 +557,7 @@ struct vframe_s {
 	u32 dwHeadAddr;
 	u32 dwBodyAddr;
 	bool fgs_valid;
-	u32 fgs_table_adr;
+	ulong fgs_table_adr;
 
 	u32 di_instance_id;
 

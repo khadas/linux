@@ -112,6 +112,12 @@ enum pre_hscaler_e {
 	PRE_HSCALER_8TAP = 8
 };
 
+enum vpp_type_e {
+	VPP0,
+	VPP1,
+	VPP2,
+};
+
 struct video_dev_s {
 	int vpp_off;
 	int viu_off;

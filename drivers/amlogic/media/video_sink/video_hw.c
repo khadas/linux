@@ -6747,6 +6747,8 @@ static int fgrain_init(u8 layer_id, u32 table_size)
 		channel = FILM_GRAIN0_CHAN;
 	else if (layer_id == 1)
 		channel = FILM_GRAIN1_CHAN;
+	else if (layer_id == 2)
+		channel = FILM_GRAIN2_CHAN;
 	lut_dma_set.channel = channel;
 	lut_dma_set.dma_dir = LUT_DMA_WR;
 	lut_dma_set.irq_source = ENCP_GO_FEILD;
@@ -6774,10 +6776,13 @@ static void fgrain_uninit(u8 layer_id)
 		channel = FILM_GRAIN0_CHAN;
 	else if (layer_id == 1)
 		channel = FILM_GRAIN1_CHAN;
+	else if (layer_id == 2)
+		channel = FILM_GRAIN2_CHAN;
+
 	lut_dma_unregister(LUT_DMA_WR, channel);
 }
 
-static int fgrain_write(u32 layer_id, u32 fgs_table_addr)
+static int fgrain_write(u32 layer_id, ulong fgs_table_addr)
 {
 	int table_size = FGRAIN_TBL_SIZE;
 	u32 channel = 0;
@@ -6786,11 +6791,48 @@ static int fgrain_write(u32 layer_id, u32 fgs_table_addr)
 		channel = FILM_GRAIN0_CHAN;
 	else if (layer_id == 1)
 		channel = FILM_GRAIN1_CHAN;
-
+	else if (layer_id == 2)
+		channel = FILM_GRAIN2_CHAN;
 	lut_dma_write_phy_addr(channel,
 			       fgs_table_addr,
 			       table_size);
 	return 0;
+}
+
+static int get_viu_irq_source(u32 vpp_index)
+{
+	u32 venc_mux = 3, viu = 0;
+	u32 venc_addr = VPU_VENC_CTRL;
+	u32 irq_source = ENCP_GO_FEILD;
+
+	venc_mux = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+	venc_mux >>= (vpp_index * 2);
+	venc_mux &= 0x3;
+
+	switch (venc_mux) {
+	case 0:
+		venc_addr = VPU_VENC_CTRL;
+		break;
+	case 1:
+		venc_addr = VPU1_VENC_CTRL;
+		break;
+	case 2:
+		venc_addr = VPU2_VENC_CTRL;
+		break;
+	}
+	viu = READ_VCBUS_REG(venc_addr) & 0x3;
+	switch (viu) {
+	case 0:
+		irq_source = ENCI_GO_FEILD;
+		break;
+	case 1:
+		irq_source = ENCP_GO_FEILD;
+		break;
+	case 2:
+		irq_source = ENCL_GO_FEILD;
+		break;
+	}
+	return irq_source;
 }
 
 static void fgrain_update_irq_source(u32 layer_id)
@@ -6798,24 +6840,30 @@ static void fgrain_update_irq_source(u32 layer_id)
 	u32 irq_source = ENCP_GO_FEILD;
 	u32 viu, channel = 0;
 
-	viu = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3;
+	if (cur_dev->t7_display) {
+		/* get vpp0 irq source */
+		irq_source = get_viu_irq_source(VPP0);
+	} else {
+		viu = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3;
 
-	switch (viu) {
-	case 0:
-		irq_source = ENCL_GO_FEILD;
-		break;
-	case 1:
-		irq_source = ENCI_GO_FEILD;
-		break;
-	case 2:
-		irq_source = ENCP_GO_FEILD;
-		break;
+		switch (viu) {
+		case 0:
+			irq_source = ENCL_GO_FEILD;
+			break;
+		case 1:
+			irq_source = ENCI_GO_FEILD;
+			break;
+		case 2:
+			irq_source = ENCP_GO_FEILD;
+			break;
+		}
 	}
 	if (layer_id == 0)
 		channel = FILM_GRAIN0_CHAN;
 	else if (layer_id == 1)
 		channel = FILM_GRAIN1_CHAN;
-
+	else if (layer_id == 2)
+		channel = FILM_GRAIN2_CHAN;
 	lut_dma_update_irq_source(channel, irq_source);
 }
 

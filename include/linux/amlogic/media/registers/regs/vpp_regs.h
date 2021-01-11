@@ -467,5 +467,9 @@
 #define VPP_VD2_DSC_CTRL                           0x1a84
 #define VPP_VD3_DSC_CTRL                           0x1a85
 #define PATH_START_SEL                             0x1a8a
+
+#define VPU_VENC_CTRL                              0x1cef
+#define VPU1_VENC_CTRL                             0x22ef
+#define VPU2_VENC_CTRL                             0x24ef
 #endif
 
