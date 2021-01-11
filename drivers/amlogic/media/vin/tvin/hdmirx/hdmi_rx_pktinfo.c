@@ -997,21 +997,54 @@ void rx_pkt_get_avi_ex(void *pktinfo)
 void rx_pkt_get_vsi_ex(void *pktinfo)
 {
 	struct vsi_infoframe_st *pkt = pktinfo;
-	u32 st0 = 0;
-	u32 st1 = 0;
+	u32 st0;
+	u32 st1;
+	u8 tmp, i;
 
 	if (!pktinfo) {
 		rx_pr("pkinfo null\n");
 		return;
 	}
-
 	if (rx.chip_id >= CHIP_ID_T7) {
-
-
+		pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
+		pkt->length = hdmirx_rd_cor(HF_VSIRX_LENGTH_DP3_IVCRX) & 0x1f;
+		pkt->ieee = IEEE_DV15;
+		tmp = hdmirx_rd_cor(HF_VSIRX_VERS_DP3_IVCRX);
+		pkt->ver_st.version = tmp & 0x7f;
+		pkt->ver_st.chgbit = tmp >> 7 & 1;
+		pkt->checksum = hdmirx_rd_cor(HF_VSIRX_DBYTE0_DP3_IVCRX);
+		tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE1_DP3_IVCRX);
+		pkt->sbpkt.vsi_dobv.ll = tmp & 1;
+		pkt->sbpkt.vsi_dobv.dv_vs10_sig_type = tmp >> 1 & 0x0f;
+		pkt->sbpkt.vsi_dobv.source_dm_ver = tmp >> 5 & 7;
+		tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE2_DP3_IVCRX);
+		pkt->sbpkt.vsi_dobv.tmax_pq_hi = tmp & 0x0f;
+		pkt->sbpkt.vsi_dobv.aux_md = tmp >> 6 & 1;
+		pkt->sbpkt.vsi_dobv.bklt_md = tmp >> 7 & 1;
+		tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE3_DP3_IVCRX);
+		pkt->sbpkt.vsi_dobv.tmax_pq_lo = tmp;
+		tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE4_DP3_IVCRX);
+		pkt->sbpkt.vsi_dobv.aux_run_mode = tmp;
+		tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE5_DP3_IVCRX);
+		pkt->sbpkt.vsi_dobv.aux_run_mode = tmp;
+		tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE6_DP3_IVCRX);
+		pkt->sbpkt.vsi_dobv.aux_run_mode = tmp;
+		tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE7_DP3_IVCRX);
+		pkt->sbpkt.vsi_dobv.aux_run_mode = tmp;
+		for (i = 0; i < 17; i++) {
+			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE8_DP3_IVCRX + i);
+			pkt->sbpkt.vsi_dobv.data[i] = tmp;
+		}
 	} else if (rx.chip_id != CHIP_ID_TXHD &&
 		   rx.chip_id != CHIP_ID_T5D) {
 		st0 = hdmirx_rd_dwc(DWC_PDEC_VSI_ST0);
 		st1 = hdmirx_rd_dwc(DWC_PDEC_VSI_ST1);
+		pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
+		pkt->length = st1 & 0x1f;
+		pkt->checksum = (st0 >> 24) & 0xff;
+		pkt->ieee = st0 & 0xffffff;
+		pkt->ver_st.version = 1;
+		pkt->ver_st.chgbit = 0;
 		pkt->sbpkt.payload.data[0] =
 			hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD0);
 		pkt->sbpkt.payload.data[1] =
@@ -1025,12 +1058,6 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 		pkt->sbpkt.payload.data[5] =
 			hdmirx_rd_dwc(DWC_PDEC_VSI_PLAYLOAD5);
 	}
-	pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
-	pkt->length = st1 & 0x1f;
-	pkt->checksum = (st0 >> 24) & 0xff;
-	pkt->ieee = st0 & 0xffffff;
-	pkt->ver_st.version = 1;
-	pkt->ver_st.chgbit = 0;
 }
 
 /*return 32 byte data , data struct see register spec*/
@@ -1247,7 +1274,7 @@ void rx_get_vsi_info(void)
 		pkt->pkttype = 0x81;
 		pkt->length = E_PKT_LENGTH_27;
 		pkt->ieee = rx.empbuff.emp_tagid;
-		pkt->sbpkt.vsi_dobv.dv_on = 1;
+		pkt->sbpkt.vsi_dobv.dv_vs10_sig_type = 1;
 		pkt->sbpkt.vsi_dobv.ll =
 			(rx.empbuff.data_ver == 1) ? 1 : 0;
 		pkt->sbpkt.vsi_dobv.bklt_md = 0;
@@ -1265,7 +1292,7 @@ void rx_get_vsi_info(void)
 		num = rxpktsts.pkt_cnt_vsi;
 	}
 	if (log_level & PACKET_LOG)
-		rx_pr("%x\n", pkt->ieee);
+		rx_pr("ieee-%x\n", pkt->ieee);
 	switch (pkt->ieee) {
 	case IEEE_DV15:
 		/* dolbyvision 1.5 */

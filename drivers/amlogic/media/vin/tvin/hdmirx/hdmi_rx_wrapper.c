@@ -686,8 +686,11 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 
 	/* must clear ip interrupt quickly */
-	if (rx.chip_id >= CHIP_ID_TL1)
+	if (rx.chip_id >= CHIP_ID_TL1 &&
+	    rx.chip_id <= CHIP_ID_T5D)
 		tmp = hdmirx_top_intr_stat & 0x1;
+	else if (rx.chip_id >= CHIP_ID_T7)
+		tmp = 0;
 	else
 		tmp = hdmirx_top_intr_stat & (~(1 << 30));
 
@@ -724,10 +727,12 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			#ifdef VSIF_PKT_READ_FROM_PD_FIFO
 			rx_pkt_handler(PKT_BUFF_SET_FIFO);
 			#endif
+			if (dbg_pkt == PKT_TYPE_INFOFRAME_VSI)
+				rx_pkt_handler(PKT_BUFF_SET_VSI);
 			if (rx.state == FSM_SIG_READY) {
 				rx.vsync_cnt++;
 				/* t5d 5.4 vdin not enabled 1222*/
-				/* rx_update_sig_info(); */
+				rx_update_sig_info();
 			}
 			if (log_level & 0x400)
 				rx_pr("[isr] DE rise.\n");
@@ -3364,32 +3369,6 @@ void rx_debug_help(void)
 	rx_pr("*****************\n");
 }
 
-void dump_vsi_reg(void)
-{
-	u8 data8, i;
-
-	rx_pr("vsi data:\n");
-	for (i = 0; i <= 30; i++) {
-		data8 = hdmirx_rd_cor(VSIRX_TYPE_DP3_IVCRX + i);
-		rx_pr("%d-[%x]\n", i, data8);
-	}
-	rx_pr("hf-vsi data:\n");
-	for (i = 0; i <= 30; i++) {
-		data8 = hdmirx_rd_cor(HF_VSIRX_TYPE_DP3_IVCRX + i);
-		rx_pr("%d-[%x]\n", i, data8);
-	}
-	rx_pr("aif-vsi data:\n");
-	for (i = 0; i <= 30; i++) {
-		data8 = hdmirx_rd_cor(AUDRX_TYPE_DP2_IVCRX + i);
-		rx_pr("%d-[%x]\n", i, data8);
-	}
-	rx_pr("unrec data:\n");
-	for (i = 0; i <= 30; i++) {
-		data8 = hdmirx_rd_cor(RX_UNREC_BYTE1_DP2_IVCRX + i);
-		rx_pr("%d-[%x]\n", i, data8);
-	}
-}
-
 int hdmirx_debug(const char *buf, int size)
 {
 	char tmpbuf[128];
@@ -3444,7 +3423,7 @@ int hdmirx_debug(const char *buf, int size)
 		} else if (tmpbuf[5] == '3') {
 			rx_pr(" irq open\n");
 			//rx_irq_en(true);
-			dump_vsi_reg();
+			dump_vsi_reg_t7();
 		} else if (tmpbuf[5] == '4') {
 			rx_pr(" edid update\n");
 			hdmi_rx_top_edid_update();

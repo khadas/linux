@@ -1848,6 +1848,32 @@ void aml_phy_switch_port_t7(void)
 	hdmirx_wr_bits_top(TOP_PORT_SEL, MSK(3, 0), (1 << rx.port));
 }
 
+void dump_vsi_reg_t7(void)
+{
+	u8 data8, i;
+
+	rx_pr("vsi data:\n");
+	for (i = 0; i <= 30; i++) {
+		data8 = hdmirx_rd_cor(VSIRX_TYPE_DP3_IVCRX + i);
+		rx_pr("%d-[%x]\n", i, data8);
+	}
+	rx_pr("hf-vsi data:\n");
+	for (i = 0; i <= 30; i++) {
+		data8 = hdmirx_rd_cor(HF_VSIRX_TYPE_DP3_IVCRX + i);
+		rx_pr("%d-[%x]\n", i, data8);
+	}
+	rx_pr("aif-vsi data:\n");
+	for (i = 0; i <= 30; i++) {
+		data8 = hdmirx_rd_cor(AUDRX_TYPE_DP2_IVCRX + i);
+		rx_pr("%d-[%x]\n", i, data8);
+	}
+	rx_pr("unrec data:\n");
+	for (i = 0; i <= 30; i++) {
+		data8 = hdmirx_rd_cor(RX_UNREC_BYTE1_DP2_IVCRX + i);
+		rx_pr("%d-[%x]\n", i, data8);
+	}
+}
+
 unsigned int rx_sec_hdcp_cfg_t7(void)
 {
 	struct arm_smccc_res res;
@@ -1856,4 +1882,3 @@ unsigned int rx_sec_hdcp_cfg_t7(void)
 
 	return (unsigned int)((res.a0) & 0xffffffff);
 }
-

@@ -638,15 +638,15 @@ struct vsi_infoframe_st {
 		struct vsi_dobv {
 			/*pb4*/
 			u8 ll:1;
-			u8 dv_on:1;
-			u8 rsvd0:6;
+			u8 dv_vs10_sig_type:4;
+			u8 source_dm_ver:3;
 			/*pb5*/
-			u8 tmax_pq_lo:4;
+			u8 tmax_pq_hi:4;
 			u8 rsvd:2;
 			u8 aux_md:1;
 			u8 bklt_md:1;
 			/*pb6*/
-			u8 tmax_pq_hi;
+			u8 tmax_pq_lo;
 			/*pb7*/
 			u8 aux_run_mode;
 			/*pb8*/

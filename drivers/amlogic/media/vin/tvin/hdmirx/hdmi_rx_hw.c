@@ -1185,31 +1185,31 @@ void hdmirx_top_irq_en(bool flag)
 
 	if (rx.chip_id == CHIP_ID_T7) {
 		data32  = 0;
-		data32 |= (1    << 30); // [   30] aud_chg;
-		data32 |= (1    << 29); // [   29] hdmirx_sqofclk_fall;
-		data32 |= (1    << 28); // [   28] hdmirx_sqofclk_rise;
+		data32 |= (0    << 30); // [   30] aud_chg;
+		data32 |= (0    << 29); // [   29] hdmirx_sqofclk_fall;
+		data32 |= (0    << 28); // [   28] hdmirx_sqofclk_rise;
 		data32 |= (1    << 27); // [   27] de_rise_del_irq;
-		data32 |= (1    << 26); // [   26] last_emp_done;
-		data32 |= (1    << 25); // [   25] emp_field_done;
-		data32 |= (1    << 23); // [   23] meter_stable_chg_cable;
-		data32 |= (1    << 19); // [   19] edid_addr2_intr
-		data32 |= (1    << 18); // [   18] edid_addr1_intr
-		data32 |= (1    << 17); // [   17] edid_addr0_intr
-		data32 |= (1    << 16); // [   16] hdcp_enc_state_fall
-		data32 |= (1    << 15); // [   15] hdcp_enc_state_rise
-		data32 |= (1    << 14); // [   14] hdcp_auth_start_fall
-		data32 |= (1    << 13); // [   13] hdcp_auth_start_rise
-		data32 |= (1    << 12); // [   12] meter_stable_chg_hdmi
-		data32 |= (1    << 11); // [   11] vid_colour_depth_chg
-		data32 |= (1    << 10); // [   10] vid_fmt_chg
-		data32 |= (0x7  << 6);  // [ 8: 6] hdmirx_5v_fall
-		data32 |= (0x7  << 3);  // [ 5: 3] hdmirx_5v_rise
+		data32 |= (0    << 26); // [   26] last_emp_done;
+		data32 |= (0    << 25); // [   25] emp_field_done;
+		data32 |= (0    << 23); // [   23] meter_stable_chg_cable;
+		data32 |= (0    << 19); // [   19] edid_addr2_intr
+		data32 |= (0    << 18); // [   18] edid_addr1_intr
+		data32 |= (0    << 17); // [   17] edid_addr0_intr
+		data32 |= (0    << 16); // [   16] hdcp_enc_state_fall
+		data32 |= (0    << 15); // [   15] hdcp_enc_state_rise
+		data32 |= (0    << 14); // [   14] hdcp_auth_start_fall
+		data32 |= (0    << 13); // [   13] hdcp_auth_start_rise
+		data32 |= (0    << 12); // [   12] meter_stable_chg_hdmi
+		data32 |= (01    << 11); // [   11] vid_colour_depth_chg
+		data32 |= (0    << 10); // [   10] vid_fmt_chg
+		data32 |= (0x0  << 6);  // [ 8: 6] hdmirx_5v_fall
+		data32 |= (0x0  << 3);  // [ 5: 3] hdmirx_5v_rise
 		// [    2] sherman_phy_intr: phy digital interrupt
-		data32 |= (1    << 2);
+		data32 |= (0    << 2);
 		// [    1] pwd_sherman_intr: controller pwd interrupt
-		data32 |= (1    << 1);
+		data32 |= (0    << 1);
 		// [    0] aon_sherman_intr: controller aon interrupt
-		data32 |= (1    << 0);
+		data32 |= (0    << 0);
 		top_intr_maskn_value = data32;
 	} else {
 		/* top_irq_en bit[16:13] hdcp_sts */
@@ -1541,7 +1541,7 @@ int packet_init_t7(void)
  */
 int packet_init(void)
 {
-	if (rx.chip_id == CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		packet_init_t7();
 	else
 		packet_init_t5();
@@ -3267,6 +3267,7 @@ void hdcp_init_t7(void)
 	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x8);
 	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x0);
 }
+
 void hdmirx_hw_config(void)
 {
 	rx_pr("%s port:%d\n", __func__, rx.port);
