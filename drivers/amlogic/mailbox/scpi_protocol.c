@@ -365,7 +365,7 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 	chan = mbox_request_channel(&cl, chan_idx);
 	if (IS_ERR(chan)) {
 		status = -SCPI_ERR_NOMEM;
-		goto free_channel;
+		goto free_buf;
 	}
 
 	init_completion(&scpi_buf->complete);
