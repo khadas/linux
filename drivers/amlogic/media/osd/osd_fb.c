@@ -1810,6 +1810,7 @@ static int osd_release(struct fb_info *info, int arg)
 		if (osd_meson_dev.has_viu2 &&
 		    fbdev->fb_index == osd_meson_dev.viu2_index)
 			clk_disable_unprepare(osd_meson_dev.vpu_clkc);
+		osd_hw.powered[fbdev->fb_index] = 0;
 	}
 	fbdev->open_count--;
 done:
