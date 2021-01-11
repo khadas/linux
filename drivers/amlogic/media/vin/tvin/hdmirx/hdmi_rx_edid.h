@@ -705,6 +705,7 @@ enum earc_cap_block_id {
 	EARC_CAP_BLOCK_ID_3 = 3
 };
 
+extern u8 port_hpd_rst_flag;
 extern int edid_mode;
 extern int port_map;
 extern bool new_hdr_lum;

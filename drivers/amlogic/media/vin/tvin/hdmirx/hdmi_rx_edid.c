@@ -44,7 +44,8 @@ static unsigned char recv_vsvdb_len = 0xFF;
 static unsigned char recv_vsvdb[VSVDB_LEN] = {0};
 bool vsvdb_update_hpd_en = true;
 
-int edid_mode = 1;
+int edid_mode;
+u8 port_hpd_rst_flag;
 int port_map = 0x4231;
 MODULE_PARM_DESC(port_map, "\n port_map\n");
 module_param(port_map, int, 0664);
@@ -671,19 +672,26 @@ void hdmirx_fill_edid_buf(const char *buf, int size)
 
 void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 {
-	if (edid_delivery_mothed == EDID_DELIVERY_NULL)
-		edid_delivery_mothed = EDID_DELIVERY_ONE_PORT;
-	else if (edid_delivery_mothed == EDID_DELIVERY_ALL_PORT)
+	u8 port_num;
+
+	if (edid_delivery_mothed == EDID_DELIVERY_ALL_PORT)
 		rx_pr("!!Error, use 2 methods to delivery edid\n");
 
+	edid_delivery_mothed = EDID_DELIVERY_ONE_PORT;
 	if (size != (EDID_SIZE + 1)) {
 		rx_pr("Error: %s,edid size %d", __func__, size);
 		rx_pr(" is larger than the max size of %d\n",
 			MAX_EDID_BUF_SIZE);
 		return;
 	}
+	port_num = buf[0] - 1;
+	if (hdmi_cec_en) {
+		port_hpd_rst_flag |= 1 << port_num;
+		rx_set_port_hpd(port_num, 0);
+		rx_pr("port%d_hpd_low\n", port_num);
+	}
 	if (buf[0] > 0 && buf[0] < 4)
-		memcpy(edid_buf + EDID_SIZE * (buf[0] - 1) * 2, buf + 1, size);
+		memcpy(edid_buf + EDID_SIZE * port_num * 2, buf + 1, size);
 
 	edid_size = MAX_EDID_BUF_SIZE;
 	rx_pr("HDMIRX: fill edid buf, size %d\n", size);
@@ -1813,8 +1821,7 @@ bool hdmi_rx_top_edid_update(void)
 	 * update vsvdb
 	 */
 	rx_edid_update_hdr_info(pedid_data1);
-	rx_edid_update_audio_info(pedid_data1,
-				  EDID_SIZE);
+	rx_edid_update_audio_info(pedid_data1, EDID_SIZE);
 	edid_splice_earc_capds(pedid_data1,
 			       recv_earc_cap_ds, earc_cap_ds_len);
 	rx_edid_update_atmos(pedid_data1);

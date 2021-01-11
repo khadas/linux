@@ -468,7 +468,7 @@ void aml_hyper_gain_tuning_t7(void)
 	u32 hyper_gain_0, hyper_gain_1, hyper_gain_2;
 
 	/* use HYPER_GAIN calibartion instead of vga */
-	wr_reg_hhi_bits(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
+	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x0);
 	usleep_range(1000, 1100);
@@ -802,12 +802,12 @@ void aml_eq_cfg_t7(void)
 		/*t7 removed, tap1 min value*/
 		/* if (rx.aml_phy.tap1_byp) { */
 			/* aml_phy_tap1_byp_t7(); */
-			/* wr_reg_hhi_bits( */
+			/* hdmirx_wr_bits_amlphy( */
 				/* HHI_RX_PHY_DCHD_CNTL2, */
 				/* DFE_EN, 0); */
 		/* } */
 		/*udelay(100);*/
-		/* wr_reg_hhi_bits(HHI_RX_PHY_DCHD_CNTL0, */
+		/* hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, */
 			/* _BIT(28), 1); */
 		if (rx.aml_phy.long_cable)
 			;/* aml_phy_long_cable_det_t7(); */
@@ -1813,8 +1813,7 @@ bool aml_get_tmds_valid_t7(void)
 void aml_phy_power_off_t7(void)
 {
 	/* pll power down */
-	hdmirx_wr_bits_amlphy(HHI_RX_APLL_CNTL0, _BIT(28), 0);
-	hdmirx_wr_bits_amlphy(HHI_RX_APLL_CNTL0, _BIT(29), 1);
+	hdmirx_wr_bits_amlphy(HHI_RX_APLL_CNTL0, MSK(2, 28), 2);
 	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, 0x800800);
 	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL1, 0x0);
 	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL2, 0x60000002);
@@ -1881,4 +1880,28 @@ unsigned int rx_sec_hdcp_cfg_t7(void)
 	arm_smccc_smc(HDMI_RX_HDCP_CFG, 0, 0, 0, 0, 0, 0, 0, &res);
 
 	return (unsigned int)((res.a0) & 0xffffffff);
+}
+
+void rx_set_irq_t7(bool en)
+{
+	u8 data8;
+
+	data8 = 0;
+	data8 |= 1 << 4; /* intr_new_unrec en */
+	data8 |= 1 << 2; /* intr_new_aud */
+	hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, data8);
+
+	data8 = 0;
+	data8 |= 1 << 4; /* intr_cea_repeat_hf_vsi en */
+	data8 |= 1 << 3; /* intr_cea_new_hf_vsi en */
+	data8 |= 1 << 2; /* intr_cea_new_vsi */
+	hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, data8);
+
+	hdmirx_wr_cor(RX_INTR1_MASK_PWD_IVCRX, 0x05);//register_address: 0x1050
+	hdmirx_wr_cor(RX_INTR2_MASK_PWD_IVCRX, 0x00);//register_address: 0x1051
+	hdmirx_wr_cor(RX_INTR3_MASK_PWD_IVCRX, 0x00);//register_address: 0x1052
+	hdmirx_wr_cor(RX_INTR4_MASK_PWD_IVCRX, 0x00);//register_address: 0x1053
+	hdmirx_wr_cor(RX_INTR5_MASK_PWD_IVCRX, 0x00);//register_address: 0x1054
+	hdmirx_wr_cor(RX_INTR6_MASK_PWD_IVCRX, 0x00);//register_address: 0x1055
+	hdmirx_wr_cor(RX_INTR7_MASK_PWD_IVCRX, 0x00);//register_address: 0x1056
 }

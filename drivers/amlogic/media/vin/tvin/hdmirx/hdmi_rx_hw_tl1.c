@@ -747,8 +747,7 @@ bool aml_get_tmds_valid_tl1(void)
 void aml_phy_power_off_tl1(void)
 {
 	/* pll power down */
-	wr_reg_hhi_bits(HHI_HDMIRX_APLL_CNTL0, _BIT(28), 0);
-	wr_reg_hhi_bits(HHI_HDMIRX_APLL_CNTL0, _BIT(29), 1);
+	wr_reg_hhi_bits(HHI_HDMIRX_APLL_CNTL0, MSK(2, 28), 2);
 	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, 0x32037800);
 	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL1, 0x1000000);
 	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL2, 0x62208002);

@@ -40,7 +40,7 @@
 #define COR_LOG		0x4000
 
 /* fix repeater ksvlist issue */
-#define RX_VER1 "ver.2020/08/27"
+#define RX_VER1 "ver.2021/01/22"
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 
@@ -375,10 +375,10 @@ struct rx_video_info {
 	u8 picture_ratio;
 	u8 ext_colorimetry;
 	u8 n_uniform_scale;
-	u8 bar_end_top;
-	u8 bar_start_bottom;
-	u8 bar_end_left;
-	u8 bar_start_right;
+	u32 bar_end_top;
+	u32 bar_start_bottom;
+	u32 bar_end_left;
+	u32 bar_start_right;
 	bool sw_fp;
 	bool sw_alternative;
 };

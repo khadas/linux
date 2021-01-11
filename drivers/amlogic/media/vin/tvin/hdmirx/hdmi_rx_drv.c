@@ -1219,12 +1219,12 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 		/*fsm_restart();*/
 		break;
 	case HDMI_IOC_EDID_UPDATE:
-		/* if (rx.open_fg) { */
-		rx_irq_en(false);
-		rx_set_cur_hpd(0, 4);
-		edid_update_flag = 1;
-		/* } */
-		/*hdmi_rx_top_edid_update();*/
+		/* ref board ui can only be set in current hdmi port */
+		if (edid_delivery_mothed == EDID_DELIVERY_ALL_PORT) {
+			rx_irq_en(false);
+			rx_set_cur_hpd(0, 4);
+			edid_update_flag = 1;
+		}
 		fsm_restart();
 		rx_pr("*update edid*\n");
 		break;

@@ -3317,4 +3317,5 @@ void aml_phy_power_off_t7(void);
 void aml_phy_switch_port_t7(void);
 unsigned int rx_sec_hdcp_cfg_t7(void);
 void dump_vsi_reg_t7(void);
+void rx_set_irq_t7(bool en);
 #endif
