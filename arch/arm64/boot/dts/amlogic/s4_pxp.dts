@@ -1241,12 +1241,12 @@
 
 /* SD card */
 &sd_emmc_b {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&sdcard_pins>;
 	pinctrl-1 = <&sdcard_clk_gate_pins>;
 	pinctrl-2 = <&sd_1bit_pins>;
 	pinctrl-3 = <&sd_to_ao_uart_clr_pins
-		&sdcard_clk_gate_pins &ao_to_sd_uart_pins>;
+		&sdcard_pins &ao_to_sd_uart_pins>;
 	pinctrl-4 = <&sd_to_ao_uart_clr_pins
 		&sd_1bit_pins &ao_to_sd_uart_pins>;
 	pinctrl-5 = <&sdcard_pins &ao_uart_pins>;
@@ -1280,7 +1280,7 @@
 };
 
 &sd_emmc_c {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -1288,8 +1288,8 @@
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	//mmc-ddr-1_8v;
-	mmc-hs200-1_8v;
-	mmc-hs400-1_8v;
+//	mmc-hs200-1_8v;
+//	mmc-hs400-1_8v;
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;

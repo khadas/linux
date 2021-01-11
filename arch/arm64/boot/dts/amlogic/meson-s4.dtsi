@@ -870,7 +870,7 @@
 		sd_emmc_a: sdio@fe088000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0x0 0xfe088000 0x0 0x800>,
-				<0x0 0xfe000164 0x0 0x4>,
+				<0x0 0xfe00016c 0x0 0x4>,
 				<0x0 0xfe00400c 0x0 0x4>;
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
@@ -891,7 +891,7 @@
 		sd_emmc_b: sd@fe08a000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0x0 0xfe08a000 0x0 0x800>,
-				<0x0 0xfe000164 0x0 0x4>,
+				<0x0 0xfe00016c 0x0 0x4>,
 				<0x0 0xfe004024 0x0 0x4>;
 			interrupts = <GIC_SPI 177 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
@@ -903,7 +903,7 @@
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1";
 			card_type = <5>;
-			mmc_debug_flag;
+		//	mmc_debug_flag;
 			//resets = <&reset RESET_SD_EMMC_B>;
 		};
 
@@ -1814,7 +1814,7 @@
 
 	emmc_ds_pins: emmc-ds {
 		mux {
-			groups = "emmc_nand_dqs";
+			groups = "emmc_nand_ds";
 			function = "emmc";
 			bias-pull-down;
 			drive-strength-microamp = <4000>;
@@ -1862,7 +1862,7 @@
 		};
 	};
 
-	ao_uart_pins:ao__uart_pins {
+	ao_uart_pins:ao_uart_pins {
 		mux {
 			groups = "uart_b_tx_d",
 				"uart_b_rx_d";
@@ -1900,7 +1900,7 @@
 		};
 	};
 
-	sd_1bit_pins: sdcard {
+	sd_1bit_pins:sd_1bit_pins {
 		mux {
 			groups = "sdcard_d0_c",
 				 "sdcard_clk_c",
@@ -1922,12 +1922,12 @@
 
 	sdio_pins: sdio {
 		mux {
-			groups = "sdio_d0_x",
-				 "sdio_d1_x",
-				 "sdio_d2_x",
-				 "sdio_d3_x",
-				 "sdio_clk_x",
-				 "sdio_cmd_x";
+			groups = "sdio_d0",
+				 "sdio_d1",
+				 "sdio_d2",
+				 "sdio_d3",
+				 "sdio_clk",
+				 "sdio_cmd";
 			function = "sdio";
 			bias-disable;
 			drive-strength-microamp = <4000>;
