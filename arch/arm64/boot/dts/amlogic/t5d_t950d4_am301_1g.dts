@@ -194,13 +194,13 @@
 		compatible = "amlogic, picdec";
 		memory-region = <&picdec_cma_reserved>;
 		dev_name = "picdec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	ppmgr {
 		compatible = "amlogic, ppmgr";
 		memory-region = <&ppmgr_reserved>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	multi-di {
@@ -834,7 +834,7 @@
 	amlvideo2_0 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";
-		status = "disabled";
+		status = "okay";
 		amlvideo2_id = <0>;
 		cma_mode = <1>;
 	};
@@ -842,7 +842,7 @@
 	amlvideo2_1 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";
-		status = "disabled";
+		status = "okay";
 		amlvideo2_id = <1>;
 		cma_mode = <1>;
 	};

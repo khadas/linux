@@ -1319,7 +1319,7 @@
 
 	amlvideo {
 		compatible = "amlogic, amlvideo";
-		status = "disabled";
+		status = "okay";
 	};
 
 	meson_uvm {
