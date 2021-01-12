@@ -1987,58 +1987,30 @@
 		};
 	};
 
-	pwm_a_pins1: pwm_a_pins1 {
+	pwm_a_pins: pwm_a_pins {
 		mux {
-			groups = "pwm_a_e";
-			function = "pwm_a";
-		};
-	};
-
-	pwm_a_pins2: pwm_a_pins2 {
-		mux {
-			groups = "pwm_a_x";
+			groups = "pwm_a_d";
 			function = "pwm_a";
 		};
 	};
 
 	pwm_b_pins1: pwm_b_pins1 {
 		mux {
-			groups = "pwm_b_h";
+			groups = "pwm_b_d";
 			function = "pwm_b";
 		};
 	};
 
 	pwm_b_pins2: pwm_b_pins2 {
 		mux {
-			groups = "pwm_b_z0";
-			function = "pwm_b";
-		};
-	};
-
-	pwm_b_pins3: pwm_b_pins3 {
-		mux {
-			groups = "pwm_b_z13";
-			function = "pwm_b";
-		};
-	};
-
-	pwm_b_pins4: pwm_b_pins4 {
-		mux {
-			groups = "pwm_b_x7";
-			function = "pwm_b";
-		};
-	};
-
-	pwm_b_pins5: pwm_b_pins5 {
-		mux {
-			groups = "pwm_b_x19";
+			groups = "pwm_b_x";
 			function = "pwm_b";
 		};
 	};
 
 	pwm_c_pins1: pwm_c_pins1 {
 		mux {
-			groups = "pwm_c_c";
+			groups = "pwm_c_d";
 			function = "pwm_c";
 		};
 	};
@@ -2050,39 +2022,31 @@
 		};
 	};
 
-	pwm_c_pins3: pwm_c_pins3 {
-		mux {
-			groups = "pwm_c_z";
-			function = "pwm_c";
-		};
-	};
-
 	pwm_d_pins1: pwm_d_pins1 {
 		mux {
-			groups = "pwm_d_z";
+			groups = "pwm_d_d";
 			function = "pwm_d";
 		};
 	};
 
 	pwm_d_pins2: pwm_d_pins2 {
 		mux {
-			groups = "pwm_d_x3";
+			groups = "pwm_d_h";
 			function = "pwm_d";
 		};
 	};
 
-	pwm_d_pins3: pwm_d_pins3 {
+	pwm_e_pins1: pwm_e_pins1 {
 		mux {
-			groups = "pwm_d_x6";
-			function = "pwm_d";
-		};
-	};
-
-	pwm_e_pins: pwm_e_pins {
-		mux {
-			groups = "pwm_e";
+			groups = "pwm_e_x";
 			function = "pwm_e";
-			drive-strength-microamp = <500>;
+		};
+	};
+
+	pwm_e_pins2: pwm_e_pins2 {
+		mux {
+			groups = "pwm_e_z";
+			function = "pwm_e";
 		};
 	};
 
@@ -2095,21 +2059,21 @@
 
 	pwm_f_pins2: pwm_f_pins2 {
 		mux {
-			groups = "pwm_f_h";
-			function = "pwm_f";
-		};
-	};
-
-	pwm_f_pins3: pwm_f_pins3 {
-		mux {
 			groups = "pwm_f_z";
 			function = "pwm_f";
 		};
 	};
 
-	pwm_g_pins: pwm_g_pins {
+	pwm_g_pins1: pwm_g_pins1 {
 		mux {
-			groups = "pwm_g";
+			groups = "pwm_g_d";
+			function = "pwm_g";
+		};
+	};
+
+	pwm_g_pins2: pwm_g_pins2 {
+		mux {
+			groups = "pwm_g_z";
 			function = "pwm_g";
 		};
 	};
@@ -2123,43 +2087,43 @@
 
 	pwm_i_pins1: pwm_i_pins1 {
 		mux {
-			groups = "pwm_i_d4";
+			groups = "pwm_i_d";
 			function = "pwm_i";
 		};
 	};
 
 	pwm_i_pins2: pwm_i_pins2 {
 		mux {
-			groups = "pwm_i_d6";
+			groups = "pwm_i_h";
 			function = "pwm_i";
 		};
 	};
 
-	pwm_j_pins1: pwm_j_pins1 {
+	pwm_j_pins: pwm_j_pins {
 		mux {
-			groups = "pwm_j_e";
+			groups = "pwm_j";
 			function = "pwm_j";
 		};
 	};
 
-	pwm_j_pins2: pwm_j_pins2 {
+	pwm_a_hiz_pins: pwm_a_hiz_pins {
 		mux {
-			groups = "pwm_j_d5";
-			function = "pwm_j";
+			groups = "pwm_a_hiz";
+			function = "pwm_a_hiz";
 		};
 	};
 
-	pwm_j_pins3: pwm_j_pins3 {
+	pwm_b_hiz_pins: pwm_b_hiz_pins {
 		mux {
-			groups = "pwm_j_d10";
-			function = "pwm_j";
+			groups = "pwm_b_hiz";
+			function = "pwm_b_hiz";
 		};
 	};
 
-	pwm_i_hiz_pins: pwm_i_hiz_pins {
+	pwm_c_hiz_pins: pwm_c_hiz_pins {
 		mux {
-			groups = "pwm_i_hiz";
-			function = "pwm_i_hiz";
+			groups = "pwm_c_hiz";
+			function = "pwm_b_hiz";
 		};
 	};
 

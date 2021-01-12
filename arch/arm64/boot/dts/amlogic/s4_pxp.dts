@@ -1432,12 +1432,6 @@
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
 };
 
-&pwm_ef {
-	pinctrl-0 = <&pwm_e_pins>;
-	pinctrl-names = "default";
-	status = "disabled";
-};
-
 &uart_E {
 	status = "disabled";
 	uart-has-rtscts;
