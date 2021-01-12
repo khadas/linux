@@ -259,10 +259,9 @@ struct amlpmu_context {
 
 extern struct amlpmu_context amlpmu_ctx;
 
-int amlpmu_handle_irq(struct arm_pmu *cpu_pmu, int irq_num, int has_overflowed);
-
-/* defined int arch/arm(64)/kernel/perf_event(_v7).c */
-void amlpmu_handle_irq_ipi(void *arg);
+void amlpmu_handle_irq(struct arm_pmu *cpu_pmu,
+		       int irq_num,
+		       int has_overflowed);
 #endif
 
 #endif /* CONFIG_ARM_PMU */

@@ -250,6 +250,21 @@
 		min_delta_ns=<10>;
 	};
 
+        arm_pmu {
+                compatible = "arm,armv8-pmuv3";
+		/* private-interrupts; */
+                clusterb-enabled;
+                interrupts = <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
+                        <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
+                reg = <0x0 0xfe00e340 0x0 0x4>,
+                        <0x0 0xfe00e280 0x0 0x04>;
+                cpumasks = <0x0f 0xf0>;
+                /* default 10ms */
+                relax-timer-ns = <10000000>;
+                /* default 10000us */
+                max-wait-cnt = <10000>;
+        };
+
 	gic: interrupt-controller@fff01000 {
 		compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
