@@ -89,6 +89,10 @@ struct loopback_chipinfo {
 	/* srcs config to make reg compatible */
 	struct mux_conf *srcs;
 	struct mux_conf *tdmin_lb_srcs;
+	/* from t5 chip, Lb src sel: EE_AUDIO_LB_A_CTRL3 [24:20]
+	 * before t5 chips, Lb src sel: EE_AUDIO_LB_A_CTRL1 [0]
+	 */
+	bool multi_bits_lbsrcs;
 };
 
 static struct loopback_chipinfo g12a_loopbacka_chipinfo = {
@@ -168,6 +172,7 @@ static struct loopback_chipinfo t5_loopbacka_chipinfo = {
 	.chnum_en = false,
 	.srcs	  = &lb_srcs_v2[0],
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v2[0],
+	.multi_bits_lbsrcs = true,
 };
 
 static const struct of_device_id loopback_device_id[] = {

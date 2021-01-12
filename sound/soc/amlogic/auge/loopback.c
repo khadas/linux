@@ -589,8 +589,8 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 		datalb_cfg.resample_enable =
 			(unsigned int)get_resample_enable(RESAMPLE_B);
 		lb_set_datalb_cfg(p_loopback->id,
-				  &datalb_cfg,
-				  get_resample_version_id(RESAMPLE_B));
+			&datalb_cfg,
+			p_loopback->chipinfo->multi_bits_lbsrcs);
 	}
 
 	tdminlb_set_format(p_loopback->lb_format == SND_SOC_DAIFMT_I2S);
