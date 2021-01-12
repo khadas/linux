@@ -266,6 +266,10 @@ enum {
 #define VPP_PREVSC_COEF1_WID        8
 #define VPP_PREVSC_COEF0_BIT        0
 #define VPP_PREVSC_COEF0_WID        8
+#define VPP_PREVSC_COEF1_BIT_T7        16
+#define VPP_PREVSC_COEF1_WID_T7        16
+#define VPP_PREVSC_COEF0_BIT_T7        0
+#define VPP_PREVSC_COEF0_WID_T7        16
 #define VPP_OFIFO_LINELEN_MASK      0xfff
 #define VPP_OFIFO_LINELEN_BIT       20
 #define VPP_INV_VS                  BIT(19)

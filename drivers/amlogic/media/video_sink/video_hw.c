@@ -2646,8 +2646,8 @@ static void vd1_scaler_setting(struct scaler_setting_s *setting)
 					VSYNC_WR_MPEG_REG_BITS
 						(vd_pps_reg->vd_pre_scale_ctrl,
 						ds_ratio,
-						VPP_PREVSC_DS_RATIO_BIT_T7,
-						VPP_PREVSC_DS_RATIO_WID_T7);
+						VPP_PREHSC_DS_RATIO_BIT_T7,
+						VPP_PREHSC_DS_RATIO_WID_T7);
 				} else {
 					/* T5 */
 					VSYNC_WR_MPEG_REG_BITS
@@ -2658,8 +2658,8 @@ static void vd1_scaler_setting(struct scaler_setting_s *setting)
 					VSYNC_WR_MPEG_REG_BITS
 						(vd_pps_reg->vd_pre_scale_ctrl,
 						ds_ratio,
-						VPP_PREVSC_DS_RATIO_BIT_T5,
-						VPP_PREVSC_DS_RATIO_WID_T5);
+						VPP_PREHSC_DS_RATIO_BIT_T5,
+						VPP_PREHSC_DS_RATIO_WID_T5);
 				}
 			} else {
 				/* SC2 */
@@ -2673,34 +2673,66 @@ static void vd1_scaler_setting(struct scaler_setting_s *setting)
 		if (has_pre_vscaler_ntap(0)) {
 			int ds_ratio = 1;
 			int flt_num = 4;
-			int pre_vscaler_table[2] = {
-				0xf8, 0x48};
 
-			if (!pre_vscaler_ntap_enable[0]) {
-				pre_vscaler_table[0] = 0;
-				pre_vscaler_table[1] = 0x40;
-				flt_num = 2;
+			if (has_pre_hscaler_8tap(0)) {
+				int pre_vscaler_table[2] = {0xc0, 0x40};
+
+				if (!pre_vscaler_ntap_enable[(0)]) {
+					pre_vscaler_table[0] = 0x100;
+					pre_vscaler_table[1] = 0x0;
+					flt_num = 2;
+				}
+				/* T7 */
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_prevsc_coef,
+					pre_vscaler_table[0],
+					VPP_PREVSC_COEF0_BIT_T7,
+					VPP_PREVSC_COEF0_WID_T7);
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_prevsc_coef,
+					pre_vscaler_table[1],
+					VPP_PREVSC_COEF1_BIT_T7,
+					VPP_PREVSC_COEF1_WID_T7);
+
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_pre_scale_ctrl,
+					flt_num,
+					VPP_PREVSC_FLT_NUM_BIT_T7,
+					VPP_PREVSC_FLT_NUM_WID_T7);
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_pre_scale_ctrl,
+					ds_ratio,
+					VPP_PREVSC_DS_RATIO_BIT_T7,
+					VPP_PREVSC_DS_RATIO_WID_T7);
+			} else {
+				int pre_vscaler_table[2] = {0xf8, 0x48};
+
+				if (!pre_vscaler_ntap_enable[0]) {
+					pre_vscaler_table[0] = 0;
+					pre_vscaler_table[1] = 0x40;
+					flt_num = 2;
+				}
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_prevsc_coef,
+					pre_vscaler_table[0],
+					VPP_PREVSC_COEF0_BIT,
+					VPP_PREVSC_COEF0_WID);
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_prevsc_coef,
+					pre_vscaler_table[1],
+					VPP_PREVSC_COEF1_BIT,
+					VPP_PREVSC_COEF1_WID);
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_pre_scale_ctrl,
+					flt_num,
+					VPP_PREVSC_FLT_NUM_BIT_T5,
+					VPP_PREVSC_FLT_NUM_WID_T5);
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_pre_scale_ctrl,
+					ds_ratio,
+					VPP_PREVSC_DS_RATIO_BIT_T5,
+					VPP_PREVSC_DS_RATIO_WID_T5);
 			}
-			VSYNC_WR_MPEG_REG_BITS
-				(vd_pps_reg->vd_prevsc_coef,
-				pre_vscaler_table[0],
-				VPP_PREVSC_COEF0_BIT,
-				VPP_PREVSC_COEF0_WID);
-			VSYNC_WR_MPEG_REG_BITS
-				(vd_pps_reg->vd_prevsc_coef,
-				pre_vscaler_table[1],
-				VPP_PREVSC_COEF1_BIT,
-				VPP_PREVSC_COEF1_WID);
-			VSYNC_WR_MPEG_REG_BITS
-				(vd_pps_reg->vd_pre_scale_ctrl,
-				flt_num,
-				VPP_PREVSC_FLT_NUM_BIT_T5,
-				VPP_PREVSC_FLT_NUM_WID_T5);
-			VSYNC_WR_MPEG_REG_BITS
-				(vd_pps_reg->vd_pre_scale_ctrl,
-				ds_ratio,
-				VPP_PREVSC_DS_RATIO_BIT_T5,
-				VPP_PREVSC_DS_RATIO_WID_T5);
 		}
 
 		VSYNC_WR_MPEG_REG
@@ -3157,8 +3189,8 @@ static void vdx_scaler_setting(u8 layer_id, struct scaler_setting_s *setting)
 					VSYNC_WR_MPEG_REG_BITS
 						(vd_pps_reg->vd_pre_scale_ctrl,
 						ds_ratio,
-						VPP_PREVSC_DS_RATIO_BIT_T7,
-						VPP_PREVSC_DS_RATIO_WID_T7);
+						VPP_PREHSC_DS_RATIO_BIT_T7,
+						VPP_PREHSC_DS_RATIO_WID_T7);
 				} else {
 					/* T5 */
 					VSYNC_WR_MPEG_REG_BITS
@@ -3169,8 +3201,8 @@ static void vdx_scaler_setting(u8 layer_id, struct scaler_setting_s *setting)
 					VSYNC_WR_MPEG_REG_BITS
 						(vd_pps_reg->vd_pre_scale_ctrl,
 						ds_ratio,
-						VPP_PREVSC_DS_RATIO_BIT_T5,
-						VPP_PREVSC_DS_RATIO_WID_T5);
+						VPP_PREHSC_DS_RATIO_BIT_T5,
+						VPP_PREHSC_DS_RATIO_WID_T5);
 				}
 			} else {
 				/* SC2 */
@@ -3184,34 +3216,68 @@ static void vdx_scaler_setting(u8 layer_id, struct scaler_setting_s *setting)
 		if (has_pre_vscaler_ntap(layer_id)) {
 			int ds_ratio = 1;
 			int flt_num = 4;
-			int pre_vscaler_table[2] = {
-				0xf8, 0x48};
 
-			if (!pre_vscaler_ntap_enable[(layer_id)]) {
-				pre_vscaler_table[0] = 0;
-				pre_vscaler_table[1] = 0x40;
-				flt_num = 2;
+			if (has_pre_hscaler_8tap(layer_id)) {
+				int pre_vscaler_table[2] = {0xc0, 0x40};
+
+				if (!pre_vscaler_ntap_enable[(layer_id)]) {
+					pre_vscaler_table[0] = 0x100;
+					pre_vscaler_table[1] = 0x0;
+					flt_num = 2;
+				}
+				/* T7 */
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_prevsc_coef,
+					pre_vscaler_table[0],
+					VPP_PREVSC_COEF0_BIT_T7,
+					VPP_PREVSC_COEF0_WID_T7);
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_prevsc_coef,
+					pre_vscaler_table[1],
+					VPP_PREVSC_COEF1_BIT_T7,
+					VPP_PREVSC_COEF1_WID_T7);
+
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_pre_scale_ctrl,
+					flt_num,
+					VPP_PREVSC_FLT_NUM_BIT_T7,
+					VPP_PREVSC_FLT_NUM_WID_T7);
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_pre_scale_ctrl,
+					ds_ratio,
+					VPP_PREVSC_DS_RATIO_BIT_T7,
+					VPP_PREVSC_DS_RATIO_WID_T7);
+
+			} else {
+				int pre_vscaler_table[2] = {0xf8, 0x48};
+
+				if (!pre_vscaler_ntap_enable[(layer_id)]) {
+					pre_vscaler_table[0] = 0;
+					pre_vscaler_table[1] = 0x40;
+					flt_num = 2;
+				}
+				/* T5 */
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_prevsc_coef,
+					pre_vscaler_table[0],
+					VPP_PREVSC_COEF0_BIT,
+					VPP_PREVSC_COEF0_WID);
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_prevsc_coef,
+					pre_vscaler_table[1],
+					VPP_PREVSC_COEF1_BIT,
+					VPP_PREVSC_COEF1_WID);
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_pre_scale_ctrl,
+					flt_num,
+					VPP_PREVSC_FLT_NUM_BIT_T5,
+					VPP_PREVSC_FLT_NUM_WID_T5);
+				VSYNC_WR_MPEG_REG_BITS
+					(vd_pps_reg->vd_pre_scale_ctrl,
+					ds_ratio,
+					VPP_PREVSC_DS_RATIO_BIT_T5,
+					VPP_PREVSC_DS_RATIO_WID_T5);
 			}
-			VSYNC_WR_MPEG_REG_BITS
-				(vd_pps_reg->vd_prevsc_coef,
-				pre_vscaler_table[0],
-				VPP_PREVSC_COEF0_BIT,
-				VPP_PREVSC_COEF0_WID);
-			VSYNC_WR_MPEG_REG_BITS
-				(vd_pps_reg->vd_prevsc_coef,
-				pre_vscaler_table[1],
-				VPP_PREVSC_COEF1_BIT,
-				VPP_PREVSC_COEF1_WID);
-			VSYNC_WR_MPEG_REG_BITS
-				(vd_pps_reg->vd_pre_scale_ctrl,
-				flt_num,
-				VPP_PREVSC_FLT_NUM_BIT_T5,
-				VPP_PREVSC_FLT_NUM_WID_T5);
-			VSYNC_WR_MPEG_REG_BITS
-				(vd_pps_reg->vd_pre_scale_ctrl,
-				ds_ratio,
-				VPP_PREVSC_DS_RATIO_BIT_T5,
-				VPP_PREVSC_DS_RATIO_WID_T5);
 		}
 
 		VSYNC_WR_MPEG_REG
