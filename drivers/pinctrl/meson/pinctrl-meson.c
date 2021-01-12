@@ -631,7 +631,7 @@ static int meson_gpio_to_irq(struct gpio_chip *chip, unsigned int gpio)
 	fwspec.fwnode = of_node_to_fwnode(pc->of_irq);
 	fwspec.param_count = 2;
 	fwspec.param[0] = hwirq;
-	fwspec.param[1] = IRQ_TYPE_EDGE_RISING;
+	fwspec.param[1] = IRQ_TYPE_NONE;
 
 	return irq_create_fwspec_mapping(&fwspec);
 }
