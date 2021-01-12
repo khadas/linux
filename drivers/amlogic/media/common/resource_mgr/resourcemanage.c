@@ -187,6 +187,7 @@ static dev_t resman_devno;
 static int sess_id = 1;
 static struct cdev *resman_cdev;
 static struct class *resman_class;
+static char *resman_configs;
 
 module_param(resman_debug, int, 0644);
 module_param(preempt_timeout_ms, int, 0644);
@@ -1127,6 +1128,9 @@ static bool resman_parser_config(const char *buf)
 	if (!ret) {
 		dprintk(0, "%s parse config failed\n%s\n", __func__, buf);
 		all_resource_uninit();
+	} else {
+		kfree(resman_configs);
+		resman_configs = kstrdup(buf, GFP_KERNEL);
 	}
 	kfree(configs);
 	return ret;
@@ -1314,6 +1318,10 @@ static long resman_ioctl_release_all(struct resman_session *sess,
 	return r;
 }
 
+#define APPEND_ATTR_BUF(format, args...) { \
+	size += snprintf(buf + size, PAGE_SIZE - size, format, args); \
+}
+
 static ssize_t usage_show(struct class *class,
 			  struct class_attribute *attr, char *buf)
 {
@@ -1329,17 +1337,15 @@ static ssize_t usage_show(struct class *class,
 	list_for_each_safe(pos1, tmp1, &resources_head) {
 		resource = list_entry(pos1, struct resman_resource, list);
 		for (i = 0; i < j; i++)
-			size += sprintf(buf + size, "| ");
-		size += sprintf(buf + size,
-				"%s %d\n", resource->name, resource->value);
+			APPEND_ATTR_BUF("%c ", '|')
+		APPEND_ATTR_BUF("%s %d\n", resource->name, resource->value)
 		j++;
 	}
 	for (i = 0; i < j; i++)
-		size += sprintf(buf + size, "| ");
-	size += sprintf(buf + size, "%-32s", "name");
-	size += sprintf(buf + size, "%-10s", "status");
-	size += sprintf(buf + size, "%-16s", "proc/PID/TID");
-	size += sprintf(buf + size, "\n");
+		APPEND_ATTR_BUF("%c ", '|')
+	APPEND_ATTR_BUF("%-32s", "name")
+	APPEND_ATTR_BUF("%-10s", "status")
+	APPEND_ATTR_BUF("%-16s\n", "proc/PID/TID")
 
 	mutex_lock(&sessions_lock);
 	list_for_each_safe(pos2, tmp2, &sessions_head) {
@@ -1348,37 +1354,49 @@ static ssize_t usage_show(struct class *class,
 			resource = list_entry(pos1,
 					      struct resman_resource, list);
 			if (resman_find_node_by_resource_id(sess, resource->id))
-				size += sprintf(buf + size, "%-2c", 'x');
+				APPEND_ATTR_BUF("%-2c", 'x')
 			else
-				size += sprintf(buf + size, "%-2c", ' ');
+				APPEND_ATTR_BUF("%-2c", ' ')
 		}
-		size += sprintf(buf + size, "%-32s", sess->app_name);
+		APPEND_ATTR_BUF("%-32s", sess->app_name)
 		switch (sess->status) {
 		case RESMAN_STATUS_INITED:
-			size += sprintf(buf + size, "%-10s", "inited");
+			APPEND_ATTR_BUF("%-10s", "inited")
 			break;
 		case RESMAN_STATUS_ACQUIRED:
-			size += sprintf(buf + size, "%-10s", "acquired");
+			APPEND_ATTR_BUF("%-10s", "acquired")
 			break;
 		case RESMAN_STATUS_PREEMPTED:
-			size += sprintf(buf + size, "%-10s", "preempted");
+			APPEND_ATTR_BUF("%-10s", "preempted")
 			break;
 		default:
-			size += sprintf(buf + size, "%-10s", "unknown");
+			APPEND_ATTR_BUF("%-10s", "unknown")
 			break;
 		}
 
-		size += sprintf(buf + size, "%s/%d/%d",
+		APPEND_ATTR_BUF("%s/%d/%d\n",
 				sess->comm,
 				sess->tgid,
-				sess->pid);
-		size += sprintf(buf + size, "\n");
+				sess->pid)
 	}
 	mutex_unlock(&sessions_lock);
 	mutex_unlock(&resource_lock);
-	size += sprintf(buf + size, "\n");
+	APPEND_ATTR_BUF("%s", "\n")
 	return size;
 }
+
+static ssize_t config_show(struct class *class,
+			   struct class_attribute *attr,
+			   char *buf)
+{
+	ssize_t size = 0;
+
+	if (resman_configs)
+		APPEND_ATTR_BUF("%s\n", resman_configs)
+	return size;
+}
+
+#undef APPEND_ATTR_BUF
 
 static ssize_t config_store(struct class *class,
 			    struct class_attribute *attr,
@@ -1527,7 +1545,7 @@ const struct file_operations resman_fops = {
  */
 static struct class_attribute resman_class_attrs[] = {
 	__ATTR_RO(usage),
-	__ATTR_WO(config),
+	__ATTR_RW(config),
 	__ATTR_NULL
 };
 
@@ -1610,6 +1628,7 @@ fail1:
 void __exit resman_exit(void)
 {
 	all_resource_uninit();
+	kfree(resman_configs);
 	cdev_del(resman_cdev);
 	kfree(resman_cdev);
 	device_destroy(resman_class, MKDEV(MAJOR(resman_devno), 0));
@@ -1618,5 +1637,10 @@ void __exit resman_exit(void)
 	unregister_chrdev_region(resman_devno, 1);
 	dprintk(1, "uninstall sourmanage module\n");
 }
+
+#ifndef MODULE
+device_initcall(resman_init);
+module_exit(resman_exit);
+#endif
 
 MODULE_LICENSE("GPL");
