@@ -37,8 +37,7 @@ static inline bool cpu_after_eq_t7(void)
 
 static inline bool cpu_after_eq_tm2b(void)
 {
-	return (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) &&
-		(!(is_meson_rev_a() && is_meson_tm2_cpu()));
+	return cpu_after_eq(MESON_CPU_MAJOR_ID_TM2);
 }
 
 static inline bool cpu_after_eq_tl1(void)

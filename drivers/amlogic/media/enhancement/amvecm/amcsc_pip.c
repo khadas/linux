@@ -1123,12 +1123,8 @@ void video_post_process(struct vframe_s *vf,
 		1
 	};
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-		if (is_meson_tm2_cpu() && is_meson_rev_a())
-			eo_sel = 0;
-		else
-			eo_sel = 1;
-	}
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
+		eo_sel = 1;
 
 	if (get_hdr_module_status(vd_path) == HDR_MODULE_OFF) {
 		if (vd_path == VD1_PATH)

@@ -5659,8 +5659,7 @@ static void amvecm_pq_enable(int enable)
 					   1, 23, 1);
 		}
 
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_tm2_cpu() && is_meson_rev_a())) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
 					   0x3f, 0, 6);
 			WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
@@ -5782,8 +5781,7 @@ static void amvecm_pq_enable(int enable)
 					   0, 23, 1);
 		}
 
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_tm2_cpu() && is_meson_rev_a())) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
 					   0, 0, 6);
 			WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
@@ -7493,8 +7491,7 @@ static void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type)
 			pr_info("reg_yminVal_lmt[%d] =%4d.\n",
 				2 * i + 1, tmp2);
 		}
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			for (j = 0; j < 2 ; j++) {
 				tmp =
 				READ_VPP_REG(LC_CURVE_YMINVAL_LMT_12_13 + j);
@@ -7509,8 +7506,7 @@ static void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type)
 		}
 		break;
 	case YPKBV_YMAXVAL_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_rev_a() && is_meson_tm2_cpu()))
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
 			break;
 
 		for (i = 0; i < 6 ; i++) {
@@ -7524,8 +7520,7 @@ static void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type)
 		}
 		break;
 	case YMAXVAL_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			for (i = 0; i < 6 ; i++) {
 				tmp =
 				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_0_1 + i);
@@ -7551,8 +7546,7 @@ static void lc_rd_reg(enum lc_reg_lut_e reg_sel, int data_type)
 		}
 		break;
 	case YPKBV_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			for (i = 0; i < 8 ; i++) {
 				tmp =
 				READ_VPP_REG(LC_CURVE_YPKBV_LMT_0_1 + i);
@@ -7627,8 +7621,7 @@ dump_as_string:
 			lut_data[2 * i] = tmp1;
 			lut_data[2 * i + 1] = tmp2;
 		}
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			len = 16;
 			for (j = 0; j < 2 ; j++) {
 				tmp =
@@ -7646,8 +7639,7 @@ dump_as_string:
 		pr_info("%s\n", stemp);
 		break;
 	case YPKBV_YMAXVAL_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_rev_a() && is_meson_tm2_cpu()))
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
 			break;
 
 		for (i = 0; i < 6 ; i++) {
@@ -7663,8 +7655,7 @@ dump_as_string:
 		pr_info("%s\n", stemp);
 		break;
 	case YMAXVAL_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			for (i = 0; i < 6 ; i++) {
 				tmp =
 				READ_VPP_REG(LC_CURVE_YMAXVAL_LMT_0_1 + i);
@@ -7691,8 +7682,7 @@ dump_as_string:
 		pr_info("%s\n", stemp);
 		break;
 	case YPKBV_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			for (i = 0; i < 8 ; i++) {
 				tmp = READ_VPP_REG(LC_CURVE_YPKBV_LMT_0_1 + i);
 				tmp1 = (tmp >> 16) & 0x3ff;
@@ -7745,8 +7735,7 @@ static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 			tmp = ((tmp1 & 0x3ff) << 16) | (tmp2 & 0x3ff);
 			WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1 + i, tmp);
 		}
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_tm2_cpu() && is_meson_rev_a())) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			for (j = 0; j < 2 ; j++) {
 				tmp1 = *(p + 2 * i);
 				tmp2 = *(p + 2 * i + 1);
@@ -7758,8 +7747,7 @@ static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 		}
 		break;
 	case YPKBV_YMAXVAL_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_tm2_cpu() && is_meson_rev_a()))
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
 			break;
 
 		for (i = 0; i < 6 ; i++) {
@@ -7770,8 +7758,7 @@ static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 		}
 		break;
 	case YMAXVAL_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_tm2_cpu() && is_meson_rev_a())) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			for (i = 0; i < 6 ; i++) {
 				tmp1 = *(p + 2 * i);
 				tmp2 = *(p + 2 * i + 1);
@@ -7791,8 +7778,7 @@ static void lc_wr_reg(int *p, enum lc_reg_lut_e reg_sel)
 		}
 		break;
 	case YPKBV_LMT:
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-		    !(is_meson_tm2_cpu() && is_meson_rev_a())) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			for (i = 0; i < 8 ; i++) {
 				tmp1 = *(p + 2 * i);
 				tmp2 = *(p + 2 * i + 1);
@@ -8703,7 +8689,7 @@ static const struct vecm_match_data_s vecm_dt_tm2_verb = {
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
 
-static const struct vecm_match_data_s vecm_dt_tm5 = {
+static const struct vecm_match_data_s vecm_dt_t5 = {
 	.vlk_chip = vlock_chip_t5,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -8735,11 +8721,15 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	},
 	{
 		.compatible = "amlogic, vecm-t5",
-		.data = &vecm_dt_tm5,
+		.data = &vecm_dt_t5,
+	},
+	{
+		.compatible = "amlogic, vecm-t5d",
+		.data = &vecm_dt_t5,
 	},
 	{
 		.compatible = "amlogic, vecm-t7",
-		.data = &vecm_dt_tm5,
+		.data = &vecm_dt_t5,
 	},
 	{},
 };

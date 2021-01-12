@@ -703,8 +703,7 @@ static int face_hist_checker(struct vframe_s *vf)
 	}
 
 	/* patch */
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-	    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 		if (vf->source_type == VFRAME_SOURCE_TYPE_CVBS &&
 		    vf->source_mode == VFRAME_SOURCE_MODE_PAL)
 			flag = 0;
@@ -871,8 +870,7 @@ static int corn_hist_checker(struct vframe_s *vf)
 	}
 
 	/* patch */
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-	    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 		if (vf->source_type == VFRAME_SOURCE_TYPE_CVBS &&
 		    vf->source_mode == VFRAME_SOURCE_MODE_PAL)
 			flag = 0;

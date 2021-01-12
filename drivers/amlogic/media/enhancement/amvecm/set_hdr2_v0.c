@@ -2365,12 +2365,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			always_full_func = true;
 	}
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-		if (is_meson_tm2_cpu() && is_meson_rev_a())
-			eo_gmt_bit_mode = false;
-		else
-			eo_gmt_bit_mode = true;
-	}
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
+		eo_gmt_bit_mode = true;
 
 	if (module_sel == VD1_HDR ||
 	    module_sel == VD2_HDR ||
@@ -3067,12 +3063,8 @@ int hdr10p_ebzcurve_update(enum hdr_module_sel module_sel,
 	else
 		return 0;
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-		if (is_meson_tm2_cpu() && is_meson_rev_a())
-			eo_gmt_bit_mode = false;
-		else
-			eo_gmt_bit_mode = true;
-	}
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
+		eo_gmt_bit_mode = true;
 
 	if (is_meson_tl1_cpu())
 		bit_depth = 10;
@@ -3196,12 +3188,8 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 			hdr_process_select |= RGB_OSD;
 	}
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-		if (is_meson_tm2_cpu() && is_meson_rev_a())
-			eo_gmt_bit_mode = false;
-		else
-			eo_gmt_bit_mode = true;
-	}
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
+		eo_gmt_bit_mode = true;
 
 	if (module_sel == VD1_HDR ||
 	    module_sel == VD2_HDR ||

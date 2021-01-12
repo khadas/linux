@@ -259,7 +259,7 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 					WRITE_VPP_REG(matrix_coef20_21,
 						      0x04a80812);
 					WRITE_VPP_REG(matrix_coef22, 0x0);
-				} else if (is_meson_rev_a() && is_meson_tm2_cpu()) {
+				} else if (is_meson_tm2_cpu()) {
 					WRITE_VPP_REG(matrix_coef00_01,
 						      0x012a0000);
 					WRITE_VPP_REG(matrix_coef02_10,
@@ -359,7 +359,7 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 					WRITE_VPP_REG(matrix_coef20_21,
 						      0x04A80876);
 					WRITE_VPP_REG(matrix_coef22, 0x0);
-				} else if (is_meson_rev_a() && is_meson_tm2_cpu()) {
+				} else if (is_meson_tm2_cpu()) {
 					WRITE_VPP_REG(matrix_coef00_01,
 						      0x012a0000);
 					WRITE_VPP_REG(matrix_coef02_10,
@@ -459,7 +459,7 @@ static void lc_mtx_set(enum lc_mtx_sel_e mtx_sel,
 					WRITE_VPP_REG(matrix_coef20_21,
 						      0x0400076d);
 					WRITE_VPP_REG(matrix_coef22, 0x0);
-				} else if (is_meson_rev_a() && is_meson_tm2_cpu()) {
+				} else if (is_meson_tm2_cpu()) {
 					WRITE_VPP_REG(matrix_coef00_01,
 						      0x01000000);
 					WRITE_VPP_REG(matrix_coef02_10,
@@ -1831,8 +1831,7 @@ void lc_init(int bitdepth)
 		WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_10_11, 0x02d70310);
 		WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_12_13, 0x03400380);
 		WRITE_VPP_REG(LC_CURVE_YPKBV_LMT_14_15, 0x03c003ff);
-	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
-	    !(is_meson_rev_a() && is_meson_tm2_cpu())) {
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_0_1, 0x0030005d);
 		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_2_3, 0x00830091);
 		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_4_5, 0x00a000c4);
