@@ -570,8 +570,8 @@ static int aml_tuner_detect(const struct tuner_config *cfg)
 {
 	int i = 0;
 	int ret = 0;
-	unsigned char data_w[2] = { 0, 0 };
-	unsigned char data_r[2] = { 0, 0 };
+	unsigned char data_w[4] = { 0, 0, 0, 0 };
+	unsigned char data_r[4] = { 0, 0, 0, 0 };
 	struct i2c_msg msg_w, msg_r;
 
 	if (IS_ERR_OR_NULL(cfg) || IS_ERR_OR_NULL(cfg->i2c_adap))
@@ -726,8 +726,9 @@ static int aml_tuner_detect(const struct tuner_config *cfg)
 		break;
 
 	case AM_TUNER_MXL661:
-		msg_w.len = 1;
-		data_w[0] = 0x18;
+		msg_w.len = 2;
+		data_w[0] = 0xFB;
+		data_w[1] = 0x18;
 		msg_r.len = 1;
 		data_r[0] = 0x00;
 

@@ -8,6 +8,8 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/seq_file.h>
+#include <linux/proc_fs.h>
 #include <linux/amlogic/aml_tuner.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 #include <linux/amlogic/aml_dvb_extern.h>
@@ -19,7 +21,7 @@
 #define AML_DVB_EXTERN_MODULE_NAME    "aml_dvb_extern"
 #define AML_DVB_EXTERN_CLASS_NAME     "aml_dvb_extern"
 
-#define AML_DVB_EXTERN_VERSION    "V1.03"
+#define AML_DVB_EXTERN_VERSION    "V1.04"
 
 static struct dvb_extern_device *dvb_extern_dev;
 
@@ -70,6 +72,9 @@ static ssize_t tuner_debug_store(struct class *class,
 			container_of(class, struct dvb_extern_device, class);
 	struct dvb_frontend *fe = &dev->fe;
 	struct analog_parameters *p = &dev->para;
+	u32 status = FE_TIMEDOUT, frequency = 0, bandwidth = 0;
+	u32 if_frequency[2] = { 0 };
+	s16 strength = 0;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	ps = buf_orig;
@@ -105,6 +110,10 @@ static ssize_t tuner_debug_store(struct class *class,
 		pr_err("init tuner mode [%d][%s].\n",
 				fe->ops.info.type,
 				fe_type_name[fe->ops.info.type]);
+
+		if (fe->ops.tuner_ops.init)
+			ret = fe->ops.tuner_ops.init(fe);
+
 		if (fe->ops.tuner_ops.set_config)
 			ret = fe->ops.tuner_ops.set_config(fe, NULL);
 	} else if (!strncmp(parm[0], "tune", 4)) {
@@ -177,14 +186,15 @@ static ssize_t tuner_debug_store(struct class *class,
 		else
 			pr_err("invaild audio std.\n");
 	} else if (!strncmp(parm[0], "status", 6)) {
-		pr_err("tuner numbers %d.\n", dev->tuner_num);
+		pr_err("tuner numbers: %d.\n", dev->tuner_num);
 		pr_err("all tuners:\n");
 		list_for_each_entry(ops, &tuner->list, list) {
 			name = ops->fe.ops.tuner_ops.info.name;
-			pr_err("tuner %d, id %d (%s) %s.\n",
+			pr_err("tuner %d, id %d (%s) %s, %sdetected.\n",
 					ops->index, ops->cfg.id,
 					name ? name : "", ops->attached ?
-					"attached" : "detached");
+					"attached" : "detached",
+					ops->cfg.detect ? (ops->valid ? "" : "un") : "no ");
 		}
 
 		if (tuner->used) {
@@ -194,6 +204,39 @@ static ssize_t tuner_debug_store(struct class *class,
 					tuner->used->cfg.id,
 					name ? name : "",
 					tuner->used->type);
+
+			if (tuner->used->fe.ops.tuner_ops.get_status) {
+				tuner->used->fe.ops.tuner_ops.get_status(
+						&tuner->used->fe, &status);
+				pr_err("signal status: %s.\n",
+						status & FE_HAS_LOCK ? "Locked" : "Unlocked");
+			}
+
+			if (tuner->used->fe.ops.tuner_ops.get_strength) {
+				tuner->used->fe.ops.tuner_ops.get_strength(
+						&tuner->used->fe, &strength);
+				pr_err("strength: %d dBm.\n", strength);
+			}
+
+			if (tuner->used->fe.ops.tuner_ops.get_frequency) {
+				tuner->used->fe.ops.tuner_ops.get_frequency(
+						&tuner->used->fe, &frequency);
+				pr_err("frequency: %d Hz.\n", frequency);
+			}
+
+			if (tuner->used->fe.ops.tuner_ops.get_bandwidth) {
+				tuner->used->fe.ops.tuner_ops.get_bandwidth(
+						&tuner->used->fe, &bandwidth);
+				pr_err("bandwidth: %d Hz.\n", bandwidth);
+			}
+
+			if (tuner->used->fe.ops.tuner_ops.get_if_frequency) {
+				tuner->used->fe.ops.tuner_ops.get_if_frequency(
+						&tuner->used->fe, if_frequency);
+				pr_err("if frequency: %d Hz (IF spectrum %s).\n",
+						if_frequency[1],
+						if_frequency[0] ? "inverted" : "normal");
+			}
 		}
 	} else if (!strncmp(parm[0], "uninit", 6)) {
 		if (fe->ops.tuner_ops.release)
@@ -206,7 +249,7 @@ static ssize_t tuner_debug_store(struct class *class,
 			val = 0;
 
 		if (val >= dev->tuner_num) {
-			pr_err("tuner index %ld error, the max is %d, use default %d.\n",
+			pr_err("input tuner index %ld error, the max is %d, use default %d.\n",
 					val, dev->tuner_num - 1, dev->tuner_cur);
 
 			goto EXIT;
@@ -223,6 +266,27 @@ static ssize_t tuner_debug_store(struct class *class,
 		}
 	} else if (!strncmp(parm[0], "detach", 6)) {
 		tuner->attach(tuner, false);
+	} else if (!strncmp(parm[0], "match", 5)) {
+		if (parm[1])
+			ret = kstrtoul(parm[1], 0, &val);
+		else
+			val = FE_ANALOG;
+
+		if (val > FE_ISDBT) {
+			pr_err("input tuner match fe type %ld error.\n", val);
+
+			goto EXIT;
+		}
+
+		if (tuner->match(tuner, val))
+			pr_err("tuner match fe type %ld (%s) done.\n",
+					val, fe_type_name[val]);
+		else
+			pr_err("tuner match fe type %ld (%s) fail.\n",
+					val, fe_type_name[val]);
+
+	} else if (!strncmp(parm[0], "detect", 6)) {
+		tuner->detect(tuner);
 	} else {
 		pr_err("invalid command: %s.\n", parm[0]);
 	}
@@ -243,21 +307,34 @@ static ssize_t tuner_debug_show(struct class *class,
 	struct dvb_tuner *tuner = get_dvb_tuners();
 	struct dvb_extern_device *dev =
 			container_of(class, struct dvb_extern_device, class);
+	u32 status = FE_TIMEDOUT, frequency = 0, bandwidth = 0;
+	u32 if_frequency[2] = { 0 };
+	s16 strength = 0;
 
-	n += sprintf(buff + n, "\nTuner Debug Usage:\n");
+	n += sprintf(buff + n, "\nTuner Debug Usage (%s):\n", AML_DVB_EXTERN_VERSION);
 	n += sprintf(buff + n, "[status]\necho status > %s\n", path);
 	n += sprintf(buff + n, "[attach]\necho attach > %s\n", path);
 	n += sprintf(buff + n, "[detach]\necho detach > %s\n", path);
+	n += sprintf(buff + n, "[match]\necho match [fe_type] > %s\n", path);
+	n += sprintf(buff + n, "\tfe_type:\n");
+	n += sprintf(buff + n, "\tDVB-S/S2 [FE_QPSK]  : 0\n");
+	n += sprintf(buff + n, "\tDVB-C    [FE_QAM]   : 1\n");
+	n += sprintf(buff + n, "\tDVB-T/T2 [FE_OFDM]  : 2\n");
+	n += sprintf(buff + n, "\tATSC     [FE_ATSC]  : 3\n");
+	n += sprintf(buff + n, "\tANALOG   [FE_ANALOG]: 4\n");
+	n += sprintf(buff + n, "\tDTMB     [FE_DTMB]  : 5\n");
+	n += sprintf(buff + n, "\tISDBT    [FE_ISDBT] : 6\n");
+	n += sprintf(buff + n, "[detect]\necho detect > %s\n", path);
 	n += sprintf(buff + n, "[init]\n");
 	n += sprintf(buff + n, "echo init [fe_type] > %s\n", path);
 	n += sprintf(buff + n, "\tfe_type:\n");
-	n += sprintf(buff + n, "\tDVB-S  [FE_QPSK]  : 0\n");
-	n += sprintf(buff + n, "\tDVB-C  [FE_QAM]   : 1\n");
-	n += sprintf(buff + n, "\tDVB-T  [FE_OFDM]  : 2\n");
-	n += sprintf(buff + n, "\tATSC   [FE_ATSC]  : 3\n");
-	n += sprintf(buff + n, "\tANALOG [FE_ANALOG]: 4\n");
-	n += sprintf(buff + n, "\tDTMB   [FE_DTMB]  : 5\n");
-	n += sprintf(buff + n, "\tISDBT  [FE_ISDBT] : 6\n");
+	n += sprintf(buff + n, "\tDVB-S/S2 [FE_QPSK]  : 0\n");
+	n += sprintf(buff + n, "\tDVB-C    [FE_QAM]   : 1\n");
+	n += sprintf(buff + n, "\tDVB-T/T2 [FE_OFDM]  : 2\n");
+	n += sprintf(buff + n, "\tATSC     [FE_ATSC]  : 3\n");
+	n += sprintf(buff + n, "\tANALOG   [FE_ANALOG]: 4\n");
+	n += sprintf(buff + n, "\tDTMB     [FE_DTMB]  : 5\n");
+	n += sprintf(buff + n, "\tISDBT    [FE_ISDBT] : 6\n");
 	n += sprintf(buff + n, "[set atv std]\n");
 	n += sprintf(buff + n, "echo std [vstd] [astd] > %s\n", path);
 	n += sprintf(buff + n, "\tvstd: pal, ntsc, secam\n");
@@ -271,15 +348,17 @@ static ssize_t tuner_debug_show(struct class *class,
 	n += sprintf(buff + n, "\t3: roll-off = 0.40\n");
 	n += sprintf(buff + n, "[uninit]\necho uninit > %s\n", path);
 
-	n += sprintf(buff + n, "\ntuner status:\n");
-	n += sprintf(buff + n, "tuner numbers %d.\n", dev->tuner_num);
+	n += sprintf(buff + n, "\n------------------------------------------------------------\n");
+	n += sprintf(buff + n, "\nTuner Status:\n");
+	n += sprintf(buff + n, "tuner numbers: %d.\n", dev->tuner_num);
 	n += sprintf(buff + n, "all tuners:\n");
 	list_for_each_entry(ops, &tuner->list, list) {
 		name = ops->fe.ops.tuner_ops.info.name;
-		n += sprintf(buff + n, "tuner %d, id %d (%s) %s.\n",
+		n += sprintf(buff + n, "tuner %d, id %d (%s) %s, %sdetected.\n",
 				ops->index, ops->cfg.id,
 				name ? name : "", ops->attached ?
-				"attached" : "detached");
+				"attached" : "detached",
+				ops->cfg.detect ? (ops->valid ? "" : "un") : "no ");
 	}
 
 	if (tuner->used) {
@@ -289,6 +368,39 @@ static ssize_t tuner_debug_show(struct class *class,
 				tuner->used->cfg.id,
 				name ? name : "",
 				tuner->used->type);
+
+		if (tuner->used->fe.ops.tuner_ops.get_status) {
+			tuner->used->fe.ops.tuner_ops.get_status(
+					&tuner->used->fe, &status);
+			n += sprintf(buff + n, "signal status: %s.\n",
+					status & FE_HAS_LOCK ? "Locked" : "Unlocked");
+		}
+
+		if (tuner->used->fe.ops.tuner_ops.get_strength) {
+			tuner->used->fe.ops.tuner_ops.get_strength(
+					&tuner->used->fe, &strength);
+			n += sprintf(buff + n, "strength: %d dBm.\n", strength);
+		}
+
+		if (tuner->used->fe.ops.tuner_ops.get_frequency) {
+			tuner->used->fe.ops.tuner_ops.get_frequency(
+					&tuner->used->fe, &frequency);
+			n += sprintf(buff + n, "frequency: %d Hz.\n", frequency);
+		}
+
+		if (tuner->used->fe.ops.tuner_ops.get_bandwidth) {
+			tuner->used->fe.ops.tuner_ops.get_bandwidth(
+					&tuner->used->fe, &bandwidth);
+			n += sprintf(buff + n, "bandwidth: %d Hz.\n", bandwidth);
+		}
+
+		if (tuner->used->fe.ops.tuner_ops.get_if_frequency) {
+			tuner->used->fe.ops.tuner_ops.get_if_frequency(
+					&tuner->used->fe, if_frequency);
+			n += sprintf(buff + n, "if frequency: %d Hz (IF spectrum %s).\n",
+					if_frequency[1],
+					if_frequency[0] ? "inverted" : "normal");
+		}
 	}
 
 	n += sprintf(buff + n, "\n");
@@ -351,6 +463,10 @@ static ssize_t demod_debug_store(struct class *class,
 		pr_err("init demod delsys [%d][%s].\n",
 				c->delivery_system,
 				fe_delsys_name[c->delivery_system]);
+
+		if (fe->ops.init)
+			ret = fe->ops.init(fe);
+
 		if (fe->ops.set_property)
 			ret = fe->ops.set_property(fe, &tvp);
 	} else if (!strncmp(parm[0], "tune", 4)) {
@@ -383,7 +499,7 @@ static ssize_t demod_debug_store(struct class *class,
 		c->bandwidth_hz = bw;
 		c->modulation = modul;
 
-		pr_err("[mxl258c] [tune] delivery_system %d, frequency %d, symbol_rate %d, bandwidth_hz %d, modulation %d, inversion %d.\n",
+		pr_err("tune delivery_system %d, frequency %d, symbol_rate %d, bandwidth_hz %d, modulation %d, inversion %d.\n",
 				c->delivery_system, c->frequency, c->symbol_rate,
 				c->bandwidth_hz, c->modulation, c->inversion);
 
@@ -391,15 +507,16 @@ static ssize_t demod_debug_store(struct class *class,
 			fe->ops.set_frontend(fe);
 
 	} else if (!strncmp(parm[0], "status", 6)) {
-		pr_err("demod numbers %d.\n", dev->demod_num);
+		pr_err("demod numbers: %d.\n", dev->demod_num);
 		pr_err("all demods:\n");
 		list_for_each_entry(ops, &demod->list, list) {
 			name = demod->used->fe ? ops->fe->ops.info.name : "";
-			pr_err("demod %d, id %d (%s) %s, %sregistered.\n",
+			pr_err("demod %d, id %d (%s) %s, %sregistered, %sdetected.\n",
 					ops->index, ops->cfg.id,
 					name ? name : "", ops->attached ?
 					"attached" : "detached",
-					ops->registered ? "" : "un");
+					ops->registered ? "" : "un",
+					ops->cfg.detect ? (ops->valid ? "" : "un") : "no ");
 		}
 
 		if (demod->used && demod->used->fe) {
@@ -451,6 +568,27 @@ static ssize_t demod_debug_store(struct class *class,
 		}
 	} else if (!strncmp(parm[0], "detach", 6)) {
 		demod->attach(demod, false);
+	} else if (!strncmp(parm[0], "match", 5)) {
+		if (parm[1])
+			ret = kstrtoul(parm[1], 0, &val);
+		else
+			val = FE_ANALOG;
+
+		if (val > FE_ISDBT) {
+			pr_err("input demod match fe type %ld error.\n", val);
+
+			goto EXIT;
+		}
+
+		if (demod->match(demod, val))
+			pr_err("demod match fe type %ld (%s) done.\n",
+					val, fe_type_name[val]);
+		else
+			pr_err("demod match fe type %ld (%s) fail.\n",
+					val, fe_type_name[val]);
+
+	} else if (!strncmp(parm[0], "detect", 6)) {
+		demod->detect(demod);
 	} else if (!strncmp(parm[0], "register", 8)) {
 		demod->register_frontend(demod, true);
 	} else if (!strncmp(parm[0], "unregister", 10)) {
@@ -476,10 +614,20 @@ static ssize_t demod_debug_show(struct class *class,
 	struct dvb_extern_device *dev =
 			container_of(class, struct dvb_extern_device, class);
 
-	n += sprintf(buff + n, "\nDemod Debug Usage:\n");
+	n += sprintf(buff + n, "\nDemod Debug Usage (%s):\n", AML_DVB_EXTERN_VERSION);
 	n += sprintf(buff + n, "[status]\necho status > %s\n", path);
 	n += sprintf(buff + n, "[attach]\necho attach > %s\n", path);
 	n += sprintf(buff + n, "[detach]\necho detach > %s\n", path);
+	n += sprintf(buff + n, "[match]\necho match [fe_type] > %s\n", path);
+	n += sprintf(buff + n, "\tfe_type:\n");
+	n += sprintf(buff + n, "\tDVB-S/S2 [FE_QPSK]  : 0\n");
+	n += sprintf(buff + n, "\tDVB-C    [FE_QAM]   : 1\n");
+	n += sprintf(buff + n, "\tDVB-T/T2 [FE_OFDM]  : 2\n");
+	n += sprintf(buff + n, "\tATSC     [FE_ATSC]  : 3\n");
+	n += sprintf(buff + n, "\tANALOG   [FE_ANALOG]: 4\n");
+	n += sprintf(buff + n, "\tDTMB     [FE_DTMB]  : 5\n");
+	n += sprintf(buff + n, "\tISDBT    [FE_ISDBT] : 6\n");
+	n += sprintf(buff + n, "[detect]\necho detect > %s\n", path);
 	n += sprintf(buff + n, "[register]\necho register > %s\n", path);
 	n += sprintf(buff + n, "[unregister]\necho unregister > %s\n", path);
 	n += sprintf(buff + n, "[init]\n");
@@ -525,16 +673,18 @@ static ssize_t demod_debug_show(struct class *class,
 	n += sprintf(buff + n, "\tQAM_4_NR : 13\n");
 	n += sprintf(buff + n, "[uninit]\necho uninit > %s\n", path);
 
-	n += sprintf(buff + n, "\ndemod status:\n");
-	n += sprintf(buff + n, "demod numbers %d.\n", dev->demod_num);
+	n += sprintf(buff + n, "\n------------------------------------------------------------\n");
+	n += sprintf(buff + n, "\nDemod Status:\n");
+	n += sprintf(buff + n, "demod numbers: %d.\n", dev->demod_num);
 	n += sprintf(buff + n, "all demods:\n");
 	list_for_each_entry(ops, &demod->list, list) {
 		name = ops->fe ? ops->fe->ops.info.name : "";
-		n += sprintf(buff + n, "demod %d, id %d (%s) %s, %sregistered.\n",
+		n += sprintf(buff + n, "demod %d, id %d (%s) %s, %sregistered, %sdetected.\n",
 				ops->index, ops->cfg.id,
 				name ? name : "", ops->attached ?
 				"attached" : "detached",
-				ops->registered ? "" : "un");
+				ops->registered ? "" : "un",
+				ops->cfg.detect ? (ops->valid ? "" : "un") : "no ");
 	}
 
 	if (demod->used && demod->used->fe) {
@@ -552,6 +702,137 @@ static ssize_t demod_debug_show(struct class *class,
 
 	return n;
 }
+
+static int tuner_debug_seq_show(struct seq_file *m, void *v)
+{
+	char *name = NULL;
+	struct tuner_ops *ops = NULL;
+	struct dvb_tuner *tuner = get_dvb_tuners();
+	u32 status = FE_TIMEDOUT, frequency = 0, bandwidth = 0;
+	u32 if_frequency[2] = { 0 };
+	s16 strength = 0;
+	struct dvb_extern_device *dev = m->private;
+
+	seq_puts(m, "\n------------------------------------------------------------\n");
+	seq_puts(m, "Tuner Status:\n");
+	seq_printf(m, "tuner numbers: %d.\n", dev->tuner_num);
+	seq_puts(m, "all tuners:\n");
+	list_for_each_entry(ops, &tuner->list, list) {
+		name = ops->fe.ops.tuner_ops.info.name;
+		seq_printf(m, "tuner %d, id %d (%s) %s, %sdetected.\n",
+				ops->index, ops->cfg.id,
+				name ? name : "", ops->attached ?
+				"attached" : "detached",
+				ops->cfg.detect ? (ops->valid ? "" : "un") : "no ");
+	}
+
+	if (tuner->used) {
+		name = tuner->used->fe.ops.tuner_ops.info.name;
+		seq_printf(m, "current use tuner %d, id %d (%s), fe type %d.\n",
+				tuner->used->index,
+				tuner->used->cfg.id,
+				name ? name : "",
+				tuner->used->type);
+
+		if (tuner->used->fe.ops.tuner_ops.get_status) {
+			tuner->used->fe.ops.tuner_ops.get_status(
+					&tuner->used->fe, &status);
+			seq_printf(m, "signal status: %s.\n",
+					status & FE_HAS_LOCK ? "Locked" : "Unlocked");
+		}
+
+		if (tuner->used->fe.ops.tuner_ops.get_strength) {
+			tuner->used->fe.ops.tuner_ops.get_strength(
+					&tuner->used->fe, &strength);
+			seq_printf(m, "strength: %d dBm.\n", strength);
+		}
+
+		if (tuner->used->fe.ops.tuner_ops.get_frequency) {
+			tuner->used->fe.ops.tuner_ops.get_frequency(
+					&tuner->used->fe, &frequency);
+			seq_printf(m, "frequency: %d Hz.\n", frequency);
+		}
+
+		if (tuner->used->fe.ops.tuner_ops.get_bandwidth) {
+			tuner->used->fe.ops.tuner_ops.get_bandwidth(
+					&tuner->used->fe, &bandwidth);
+			seq_printf(m, "bandwidth: %d Hz.\n", bandwidth);
+		}
+
+		if (tuner->used->fe.ops.tuner_ops.get_if_frequency) {
+			tuner->used->fe.ops.tuner_ops.get_if_frequency(
+					&tuner->used->fe, if_frequency);
+			seq_printf(m, "if frequency: %d Hz (IF spectrum %s).\n",
+					if_frequency[1],
+					if_frequency[0] ? "inverted" : "normal");
+		}
+	}
+
+	seq_puts(m, "------------------------------------------------------------\n\n");
+
+	return 0;
+}
+
+static int tuner_debug_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, tuner_debug_seq_show, PDE_DATA(inode));
+}
+
+static const struct file_operations tuner_debug_fops = {
+	.owner = THIS_MODULE,
+	.open = tuner_debug_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release
+};
+
+static int demod_debug_seq_show(struct seq_file *m, void *v)
+{
+	char *name = NULL;
+	struct demod_ops *ops = NULL;
+	struct dvb_demod *demod = get_dvb_demods();
+	struct dvb_extern_device *dev = m->private;
+
+	seq_puts(m, "\nDemod Status:\n");
+	seq_printf(m, "demod numbers: %d.\n", dev->demod_num);
+	seq_puts(m, "all demods:\n");
+	list_for_each_entry(ops, &demod->list, list) {
+		name = ops->fe ? ops->fe->ops.info.name : "";
+		seq_printf(m, "demod %d, id %d (%s) %s, %sregistered, %sdetected.\n",
+				ops->index, ops->cfg.id,
+				name ? name : "", ops->attached ?
+				"attached" : "detached",
+				ops->registered ? "" : "un",
+				ops->cfg.detect ? (ops->valid ? "" : "un") : "no ");
+	}
+
+	if (demod->used && demod->used->fe) {
+		name = demod->used->fe->ops.info.name;
+		seq_printf(m, "current use demod %d, id %d (%s), fe type %d, delivery system %d.\n",
+				demod->used->index,
+				demod->used->cfg.id,
+				name ? name : "",
+				demod->used->type,
+				demod->used->fe->dtv_property_cache.delivery_system);
+	}
+
+	seq_puts(m, "\n");
+
+	return 0;
+}
+
+static int demod_debug_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, demod_debug_seq_show, PDE_DATA(inode));
+}
+
+static const struct file_operations demod_debug_fops = {
+	.owner = THIS_MODULE,
+	.open = demod_debug_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release
+};
 
 static CLASS_ATTR_RW(tuner_debug);
 static CLASS_ATTR_RW(demod_debug);
@@ -596,6 +877,22 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 	dvbdev->class.name = AML_DVB_EXTERN_DEVICE_NAME;
 	dvbdev->class.owner = THIS_MODULE;
 	dvbdev->class.class_groups = dvb_extern_class_groups;
+
+	dvbdev->debug_proc_dir = proc_mkdir(AML_DVB_EXTERN_DEVICE_NAME, NULL);
+	if (!dvbdev->debug_proc_dir)
+		goto fail_proc_dir;
+
+	if (!proc_create_data("tuner_debug", 0644, dvbdev->debug_proc_dir,
+			&tuner_debug_fops, dvbdev)) {
+		pr_err("proc create tuner_debug fail.\n");
+		goto fail_proc_create;
+	}
+
+	if (!proc_create_data("demod_debug", 0644, dvbdev->debug_proc_dir,
+			&demod_debug_fops, dvbdev)) {
+		pr_err("proc create tuner_debug fail.\n");
+		goto fail_proc_create;
+	}
 
 	if (class_register(&dvbdev->class)) {
 		pr_err("class register fail.\n");
@@ -732,6 +1029,10 @@ fail_demod_create:
 	class_unregister(&dvbdev->class);
 
 fail_class_register:
+fail_proc_create:
+	proc_remove(dvbdev->debug_proc_dir);
+
+fail_proc_dir:
 	kfree(dvbdev);
 	dvbdev = NULL;
 
@@ -751,6 +1052,8 @@ static int aml_dvb_extern_remove(struct platform_device *pdev)
 	dvb_demod_ops_destroy_all();
 
 	class_unregister(&dvbdev->class);
+	if (dvbdev->debug_proc_dir)
+		proc_remove(dvbdev->debug_proc_dir);
 
 	kfree(dvbdev);
 	dvbdev = NULL;

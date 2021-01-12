@@ -123,8 +123,14 @@ static int demod_detect(struct dvb_demod *demod)
 		if (!ops->attached || !ops->cfg.detect || ops->valid)
 			continue;
 
-		if (ops->fe->ops.init)
+		if (ops->fe->ops.init) {
 			ret = ops->fe->ops.init(ops->fe);
+		} else {
+			pr_err("Demod: demod [%d] init() is NULL.\n",
+					ops->cfg.id);
+
+			continue;
+		}
 
 		if (!ret) {
 			ret = ops->module->detect(&ops->cfg);
@@ -138,6 +144,9 @@ static int demod_detect(struct dvb_demod *demod)
 
 			if (ops->fe->ops.release)
 				ops->fe->ops.release(ops->fe);
+		} else {
+			pr_err("Demod: demod [%d] init() error, ret %d.\n",
+					ops->cfg.id, ret);
 		}
 	}
 

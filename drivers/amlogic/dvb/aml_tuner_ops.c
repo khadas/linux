@@ -114,11 +114,19 @@ static int tuner_detect(struct dvb_tuner *tuner)
 	mutex_lock(&tuner->mutex);
 
 	list_for_each_entry(ops, &tuner->list, list) {
+		ret = 0;
+
 		if (!ops->attached || !ops->cfg.detect || ops->valid)
 			continue;
 
-		if (ops->fe.ops.tuner_ops.set_config)
+		if (ops->fe.ops.tuner_ops.set_config) {
 			ret = ops->fe.ops.tuner_ops.set_config(&ops->fe, NULL);
+		} else {
+			pr_err("Tuner: tuner [%d] set_config() is NULL.\n",
+					ops->cfg.id);
+
+			continue;
+		}
 
 		if (!ret) {
 			ret = ops->module->detect(&ops->cfg);
@@ -132,6 +140,9 @@ static int tuner_detect(struct dvb_tuner *tuner)
 
 			if (ops->fe.ops.tuner_ops.release)
 				ops->fe.ops.tuner_ops.release(&ops->fe);
+		} else {
+			pr_err("Tuner: tuner [%d] set_config() error, ret %d.\n",
+					ops->cfg.id, ret);
 		}
 	}
 
