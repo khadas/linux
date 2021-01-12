@@ -903,7 +903,7 @@
 	};
 
 	extn:extn {
-		compatible = "amlogic, tm2-snd-extn";
+		compatible = "amlogic, t7-snd-extn";
 		#sound-dai-cells = <0>;
 
 		interrupts =

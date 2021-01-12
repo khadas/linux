@@ -104,6 +104,7 @@ struct extn {
 			SNDRV_PCM_FMTBIT_S24_LE |\
 			SNDRV_PCM_FMTBIT_S32_LE)
 
+static struct extn *s_extn;
 static const struct snd_pcm_hardware extn_hardware = {
 	.info =
 		SNDRV_PCM_INFO_MMAP |
@@ -124,6 +125,11 @@ static const struct snd_pcm_hardware extn_hardware = {
 	.channels_min = 1,
 	.channels_max = 32,
 };
+
+int get_hdmirx_mode(void)
+{
+	return s_extn->hdmirx_mode;
+}
 
 static void frhdmirx_nonpcm2pcm_clr_reset(struct extn *p_extn)
 {
@@ -1001,6 +1007,7 @@ static int extn_platform_probe(struct platform_device *pdev)
 		}
 	}
 
+	s_extn = p_extn;
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &extn_component,
 					      extn_dai,

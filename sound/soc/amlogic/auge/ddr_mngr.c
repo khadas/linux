@@ -27,6 +27,8 @@
 #include "effects_v2.h"
 #include "pwrdet_hw.h"
 #include "vad.h"
+#include "extn.h"
+#include "frhdmirx_hw.h"
 
 #define DRV_NAME "audio-ddr-manager"
 
@@ -1657,9 +1659,13 @@ void get_toddr_bits_config(enum toddr_src src,
 {
 	switch (src) {
 	case FRHDMIRX:
-		/* TODO: PAO to SPDIF */
-		*msb = 24 - 1;
-		*lsb = (bit_depth > 24) ? 0 : 24 - bit_depth;
+		if (get_hdmirx_mode() == HDMIRX_MODE_PAO) {
+			*msb = 24 - 1;
+			*lsb = (bit_depth > 24) ? 0 : 24 - bit_depth;
+		} else {
+			*msb = 28 - 1;
+			*lsb = (bit_depth <= 24) ? 28 - bit_depth : 4;
+		}
 		break;
 	case SPDIFIN:
 		*msb = 28 - 1;
