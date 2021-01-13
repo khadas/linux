@@ -218,8 +218,8 @@ static void mbox_isr_handler(int mhu_id, void *p)
 			memset(data->rx_buf, 0, data->rx_size);
 		}
 	}
-	writel(~0, mbox_clr_base + CTL_OFFSET(mhu_id));
 	mbox_irq_clean(IRQ_REV_BIT(mhu_id), ctlr);
+	writel(~0, mbox_clr_base + CTL_OFFSET(mhu_id));
 }
 
 void mbox_ack_isr_handler(int mhu_id, void *p)
@@ -252,15 +252,13 @@ void mbox_ack_isr_handler(int mhu_id, void *p)
 				       mbox_rd_base + PAYLOAD_OFFSET(mhu_id),
 				       data->rx_size);
 		}
+		chan->data = NULL;
+		mbox_chan_received_data(mbox_chan, data);
 	}
-
-	chan->data = NULL;
-	mbox_chan_received_data(mbox_chan, data);
-
-	complete(&mbox_chan->tx_complete);
 	mbox_fifo_clr(mbox_wr_base + PAYLOAD_OFFSET(mhu_id),
 		      MBOX_FIFO_SIZE);
 	mbox_irq_clean(IRQ_SENDACK_BIT(mhu_id), ctlr);
+	complete(&mbox_chan->tx_complete);
 }
 
 static u64 mbox_irqstatus(struct mhu_ctlr *ctlr)
@@ -287,14 +285,14 @@ static irqreturn_t mbox_handler(int irq, void *p)
 	int irqmax = ctlr->mhu_irqmax;
 	u64 status, prestatus = 0;
 	u64 outcnt;
-	int i;
+	u64 i, bit = 1;
 
 	outcnt = irqmax;
 
 	status = mbox_irqstatus(ctlr);
 	while (status && (outcnt != 0)) {
 		for (i = 0; i < irqmax; i++) {
-			if (status & (1 << i)) {
+			if (status & (bit << i)) {
 				if (i % 2)
 					mbox_ack_isr_handler(i / 2, p);
 				else
