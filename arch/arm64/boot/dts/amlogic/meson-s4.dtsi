@@ -1096,6 +1096,7 @@
 		compatible = "amlogic, amhdmitx-sc2";
 		dev_name = "amhdmitx";
 		status = "disabled";
+		power-domains = <&pwrdm PDID_S4_VPU_HDMI>;
 		vend-data = <&vend_data>;
 		pinctrl-names="default";
 		pinctrl-0=<&hdmitx_hpd &hdmitx_ddc>;
