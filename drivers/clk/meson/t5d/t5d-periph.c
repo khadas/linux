@@ -265,8 +265,11 @@ static struct clk_regmap t5d_vpu_p0_gate = {
 			&t5d_vpu_p0_div.hw
 		},
 		.num_parents = 1,
-		/* delete CLK_IGNORE_UNUSED in real chip */
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+		/*
+		 * vpu clk is used for display module, vpu driver is a KO, It is too late
+		 * to enable to clk again. add CLK_IGNORE_UNUSED to avoid display abnormal
+		 */
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -313,7 +316,12 @@ static struct clk_regmap t5d_vpu_p1_gate = {
 			&t5d_vpu_p1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+		/*
+		 * vpu clk p1 may be used for display module, vpu driver is a KO,
+		 * It is too late to enable to clk again. add CLK_IGNORE_UNUSED
+		 * to avoid display abnormal.
+		 */
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED
 	},
 };
 
@@ -950,7 +958,11 @@ static struct clk_regmap t5d_vapb_p0_gate = {
 			&t5d_vapb_p0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+		/*
+		 * vapb clk is used for display module, vpu driver is a KO, It is too late
+		 * to enable to clk again. add CLK_IGNORE_UNUSED to avoid display abnormal
+		 */
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED
 	},
 };
 
@@ -999,7 +1011,12 @@ static struct clk_regmap t5d_vapb_p1_gate = {
 			&t5d_vapb_p1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+		/*
+		 * vapb clk p1 may be used for display module, vpu driver is a KO,
+		 * It is too late to enable to clk again. add CLK_IGNORE_UNUSED
+		 * to avoid display abnormal
+		 */
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED
 	},
 };
 
