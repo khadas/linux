@@ -300,6 +300,106 @@
 		status = "okay";
 	};
 
+	nna_top_ports_wrapper_0: nna_top_ports_wrapper@fe372000 {
+		compatible = "amazon,nna-1.0";
+		device-name = "acenna0";
+		status = "okay";
+		clocks = <&clkc  CLKID_ANAKIN_CLK>;
+		clock-names = "nna_clk_gate";
+		assigned-clocks =<&clkc CLKID_ANAKIN_0_MUX>,
+		      <&clkc CLKID_ANAKIN>,
+		      <&clkc CLKID_ANAKIN_CLK>;
+		assigned-clock-parentsd = <&clkc CLKID_FCLK_DIV2P5>,
+		      <&clkc CLKID_ANAKIN_0>,
+		      <0>;
+		assigned-clock-rates = <0>,
+		      <0>,
+		      <800000000>;
+		interrupt-names = "nna_interrupt";
+		interrupts = <0 187 1>;
+		minor-number = <0>;
+		power-domains = <&pwrdm PDID_T7_NNA_CORE0>,
+		      <&pwrdm PDID_T7_NNA_TOP>;
+		power-domain-names = "pwrc-core","pwrc-top";
+		reg = <0x0 0xfe372000 0x0 0x1000>;
+		reg-names = "nna_irq_wrapper";
+	};
+
+	nna_top_ports_wrapper_1: nna_top_ports_wrapper@fe373000 {
+		compatible = "amazon,nna-1.1";
+		device-name = "acenna1";
+		status = "okay";
+		clocks = <&clkc  CLKID_ANAKIN_CLK>;
+		clock-names = "nna_clk_gate";
+		assigned-clocks =<&clkc CLKID_ANAKIN_0_MUX>,
+		      <&clkc CLKID_ANAKIN>,
+		      <&clkc CLKID_ANAKIN_CLK>;
+		assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
+		      <&clkc CLKID_ANAKIN_0>,
+		      <0>;
+		assigned-clock-rates = <0>,
+		      <0>,
+		      <800000000>;
+		interrupt-names = "nna_interrupt";
+		interrupts = <0 188 1>;
+		minor-number = <1>;
+		power-domains = <&pwrdm PDID_T7_NNA_CORE1>,
+		      <&pwrdm PDID_T7_NNA_TOP>;
+		power-domain-names = "pwrc-core","pwrc-top";
+		reg = <0x0 0xfe373000 0x0 0x1000>;
+		reg-names = "nna_irq_wrapper";
+	};
+
+	nna_top_ports_wrapper_2: nna_top_ports_wrapper@fe370000 {
+		compatible = "amazon,nna-1.2";
+		device-name = "acenna2";
+		status = "okay";
+		clocks = <&clkc  CLKID_ANAKIN_CLK>;
+		clock-names = "nna_clk_gate";
+		assigned-clocks =<&clkc CLKID_ANAKIN_0_MUX>,
+		      <&clkc CLKID_ANAKIN>,
+		      <&clkc CLKID_ANAKIN_CLK>;
+		assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
+		      <&clkc CLKID_ANAKIN_0>,
+		      <0>;
+		assigned-clock-rates = <0>,
+		      <0>,
+		      <800000000>;
+		interrupt-names = "nna_interrupt";
+		interrupts = <0 185 1>;
+		minor-number = <2>;
+		power-domains = <&pwrdm PDID_T7_NNA_CORE2>,
+		      <&pwrdm PDID_T7_NNA_TOP>;
+		power-domain-names = "pwrc-core","pwrc-top";
+		reg = <0x0 0xfe370000 0x0 0x1000>;
+		reg-names = "nna_irq_wrapper";
+	};
+
+	nna_top_ports_wrapper_3: nna_top_ports_wrapper@fe371000 {
+		compatible = "amazon,nna-1.3";
+		device-name = "acenna3";
+		status = "okay";
+		clocks = <&clkc  CLKID_ANAKIN_CLK>;
+		clock-names = "nna_clk_gate";
+		assigned-clocks =<&clkc CLKID_ANAKIN_0_MUX>,
+		      <&clkc CLKID_ANAKIN>,
+		      <&clkc CLKID_ANAKIN_CLK>;
+		assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
+		      <&clkc CLKID_ANAKIN_0>,
+		      <0>;
+		assigned-clock-rates = <0>,
+		      <0>,
+		      <800000000>;
+		interrupt-names = "nna_interrupt";
+		interrupts = <0 186 1>;
+		minor-number = <3>;
+		power-domains = <&pwrdm PDID_T7_NNA_CORE3>,
+		      <&pwrdm PDID_T7_NNA_TOP>;
+		power-domain-names = "pwrc-core","pwrc-top";
+		reg = <0x0 0xfe371000 0x0 0x1000>;
+		reg-names = "nna_irq_wrapper";
+	};
+
 	jtag {
 		compatible = "amlogic, jtag";
 		status = "okay";
