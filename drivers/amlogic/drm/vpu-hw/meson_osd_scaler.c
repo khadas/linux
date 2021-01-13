@@ -8,6 +8,10 @@
 #include "meson_vpu_util.h"
 #include "meson_osd_scaler.h"
 
+static int osdscaler_force_update;
+module_param(osdscaler_force_update, int, 0664);
+MODULE_PARM_DESC(osdscaler_force_update, "osdscaler_force_update");
+
 static int osdscaler_v_filter_mode = -1;
 module_param(osdscaler_v_filter_mode, int, 0664);
 MODULE_PARM_DESC(osdscaler_v_filter_mode, "osdscaler_v_filter_mode");
@@ -67,6 +71,18 @@ static struct osd_scaler_reg_s osd_scaler_reg[HW_OSD_SCALER_NUM] = {
 	}
 };
 
+static unsigned int __osd_filter_coefs_bicubic_sharp[] = {
+	0x01fa008c, 0x01fa0100, 0xff7f0200, 0xfe7f0300,
+	0xfd7e0500, 0xfc7e0600, 0xfb7d0800, 0xfb7c0900,
+	0xfa7b0b00, 0xfa7a0dff, 0xf9790fff, 0xf97711ff,
+	0xf87613ff, 0xf87416fe, 0xf87218fe, 0xf8701afe,
+	0xf76f1dfd, 0xf76d1ffd, 0xf76b21fd, 0xf76824fd,
+	0xf76627fc, 0xf76429fc, 0xf7612cfc, 0xf75f2ffb,
+	0xf75d31fb, 0xf75a34fb, 0xf75837fa, 0xf7553afa,
+	0xf8523cfa, 0xf8503ff9, 0xf84d42f9, 0xf84a45f9,
+	0xf84848f8
+};
+
 static unsigned int __osd_filter_coefs_bicubic[] = { /* bicubic	coef0 */
 	0x00800000, 0x007f0100, 0xff7f0200, 0xfe7f0300, 0xfd7e0500, 0xfc7e0600,
 	0xfb7d0800, 0xfb7c0900, 0xfa7b0b00, 0xfa7a0dff, 0xf9790fff, 0xf97711ff,
@@ -74,6 +90,15 @@ static unsigned int __osd_filter_coefs_bicubic[] = { /* bicubic	coef0 */
 	0xf76b21fd, 0xf76824fd, 0xf76627fc, 0xf76429fc, 0xf7612cfc, 0xf75f2ffb,
 	0xf75d31fb, 0xf75a34fb, 0xf75837fa, 0xf7553afa, 0xf8523cfa, 0xf8503ff9,
 	0xf84d42f9, 0xf84a45f9, 0xf84848f8
+};
+
+static unsigned int __osd_filter_coefs_bilinear[] = { /* 2 point bilinear	coef1 */
+	0x00800000, 0x007e0200, 0x007c0400, 0x007a0600, 0x00780800, 0x00760a00,
+	0x00740c00, 0x00720e00, 0x00701000, 0x006e1200, 0x006c1400, 0x006a1600,
+	0x00681800, 0x00661a00, 0x00641c00, 0x00621e00, 0x00602000, 0x005e2200,
+	0x005c2400, 0x005a2600, 0x00582800, 0x00562a00, 0x00542c00, 0x00522e00,
+	0x00503000, 0x004e3200, 0x004c3400, 0x004a3600, 0x00483800, 0x00463a00,
+	0x00443c00, 0x00423e00, 0x00404000
 };
 
 static unsigned int __osd_filter_coefs_2point_binilear[] = {
@@ -84,6 +109,31 @@ static unsigned int __osd_filter_coefs_2point_binilear[] = {
 	0x5c240000, 0x5a260000, 0x58280000, 0x562a0000, 0x542c0000, 0x522e0000,
 	0x50300000, 0x4e320000, 0x4c340000, 0x4a360000, 0x48380000, 0x463a0000,
 	0x443c0000, 0x423e0000, 0x40400000
+};
+
+/* filt_triangle, point_num =3, filt_len =2.6, group_num = 64 */
+static unsigned int __osd_filter_coefs_3point_triangle_sharp[] = {
+	0x40400000, 0x3e420000, 0x3d430000, 0x3b450000,
+	0x3a460000, 0x38480000, 0x37490000, 0x354b0000,
+	0x344c0000, 0x324e0000, 0x314f0000, 0x2f510000,
+	0x2e520000, 0x2c540000, 0x2b550000, 0x29570000,
+	0x28580000, 0x265a0000, 0x245c0000, 0x235d0000,
+	0x215f0000, 0x20600000, 0x1e620000, 0x1d620100,
+	0x1b620300, 0x19630400, 0x17630600, 0x15640700,
+	0x14640800, 0x12640a00, 0x11640b00, 0x0f650c00,
+	0x0d660d00
+};
+
+static unsigned int __osd_filter_coefs_3point_triangle[] = {
+	0x40400000, 0x3f400100, 0x3d410200, 0x3c410300,
+	0x3a420400, 0x39420500, 0x37430600, 0x36430700,
+	0x35430800, 0x33450800, 0x32450900, 0x31450a00,
+	0x30450b00, 0x2e460c00, 0x2d460d00, 0x2c470d00,
+	0x2b470e00, 0x29480f00, 0x28481000, 0x27481100,
+	0x26491100, 0x25491200, 0x24491300, 0x234a1300,
+	0x224a1400, 0x214a1500, 0x204a1600, 0x1f4b1600,
+	0x1e4b1700, 0x1d4b1800, 0x1c4c1800, 0x1b4c1900,
+	0x1a4c1a00
 };
 
 static unsigned int __osd_filter_coefs_4point_triangle[] = {
@@ -98,6 +148,33 @@ static unsigned int __osd_filter_coefs_4point_triangle[] = {
 	0x10303010
 };
 
+/* 4th order (cubic) b-spline */
+/* filt_cubic point_num =4, filt_len =4, group_num = 64 */
+static unsigned int __vpp_filter_coefs_4point_bspline[] = {
+	0x15561500, 0x14561600, 0x13561700, 0x12561800,
+	0x11551a00, 0x11541b00, 0x10541c00, 0x0f541d00,
+	0x0f531e00, 0x0e531f00, 0x0d522100, 0x0c522200,
+	0x0b522300, 0x0b512400, 0x0a502600, 0x0a4f2700,
+	0x094e2900, 0x084e2a00, 0x084d2b00, 0x074c2c01,
+	0x074b2d01, 0x064a2f01, 0x06493001, 0x05483201,
+	0x05473301, 0x05463401, 0x04453601, 0x04433702,
+	0x04423802, 0x03413a02, 0x03403b02, 0x033f3c02,
+	0x033d3d03
+};
+
+/* filt_quadratic, point_num =3, filt_len =3, group_num = 64 */
+static unsigned int __osd_filter_coefs_3point_bspline[] = {
+	0x40400000, 0x3e420000, 0x3c440000, 0x3a460000,
+	0x38480000, 0x364a0000, 0x344b0100, 0x334c0100,
+	0x314e0100, 0x304f0100, 0x2e500200, 0x2c520200,
+	0x2a540200, 0x29540300, 0x27560300, 0x26570300,
+	0x24580400, 0x23590400, 0x215a0500, 0x205b0500,
+	0x1e5c0600, 0x1d5c0700, 0x1c5d0700, 0x1a5e0800,
+	0x195e0900, 0x185e0a00, 0x175f0a00, 0x15600b00,
+	0x14600c00, 0x13600d00, 0x12600e00, 0x11600f00,
+	0x10601000
+};
+
 static unsigned int __osd_filter_coefs_repeat[] = { /* repeat coef0 */
 	0x00800000, 0x00800000, 0x00800000, 0x00800000, 0x00800000, 0x00800000,
 	0x00800000, 0x00800000, 0x00800000, 0x00800000, 0x00800000, 0x00800000,
@@ -108,9 +185,15 @@ static unsigned int __osd_filter_coefs_repeat[] = { /* repeat coef0 */
 };
 
 static unsigned int *osd_scaler_filter_table[] = {
+	__osd_filter_coefs_bicubic_sharp,
 	__osd_filter_coefs_bicubic,
+	__osd_filter_coefs_bilinear,
 	__osd_filter_coefs_2point_binilear,
+	__osd_filter_coefs_3point_triangle_sharp,
+	__osd_filter_coefs_3point_triangle,
 	__osd_filter_coefs_4point_triangle,
+	__vpp_filter_coefs_4point_bspline,
+	__osd_filter_coefs_3point_bspline,
 	__osd_filter_coefs_repeat
 };
 
@@ -667,9 +750,10 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 	scaler_size_check(vblk, state);
 	scan_mode_check(vblk->pipeline, scaler_state);
 	DRM_DEBUG("scaler_state=0x%x\n", scaler_state->state_changed);
-	if (scaler_state->state_changed) {
+	if (scaler_state->state_changed || osdscaler_force_update) {
 		osd_scaler_config(reg, scaler_state, vblk);
 		scaler_state->state_changed = 0;
+		osdscaler_force_update = 0;
 	}
 	DRM_DEBUG("scaler%d input/output w/h[%d, %d, %d, %d].\n",
 		  scaler->base.index,
