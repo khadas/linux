@@ -169,6 +169,7 @@ struct meson_host {
 	char cmd_retune;
 	unsigned int win_start;
 	u8 *blk_test;
+	u8 *adj_win;
 	unsigned int cmd_c;
 	int cd_irq;
 	irqreturn_t (*cd_gpio_isr)(int irq, void *dev_id);
@@ -187,6 +188,214 @@ struct meson_host {
 int sdio_reset_comm(struct mmc_card *card);
 void sdio_reinit(void);
 const char *get_wifi_inf(void);
+
+#define   DRIVER_NAME "meson-gx-mmc"
+
+#define	  SD_EMMC_CLOCK 0x0
+#define   CLK_DIV_MASK GENMASK(5, 0)
+#define   CLK_SRC_MASK GENMASK(7, 6)
+#define   CLK_CORE_PHASE_MASK GENMASK(9, 8)
+#define   CLK_TX_PHASE_MASK GENMASK(11, 10)
+#define   CLK_RX_PHASE_MASK GENMASK(13, 12)
+#define   CLK_PHASE_0 0
+#define   CLK_PHASE_180 2
+#define   CLK_V2_TX_DELAY_MASK GENMASK(19, 16)
+#define   CLK_V2_RX_DELAY_MASK GENMASK(23, 20)
+#define   CLK_V2_ALWAYS_ON BIT(24)
+
+#define   CLK_V3_TX_DELAY_MASK GENMASK(21, 16)
+#define   CLK_V3_RX_DELAY_MASK GENMASK(27, 22)
+#define   CLK_V3_ALWAYS_ON BIT(28)
+#define   CFG_IRQ_SDIO_SLEEP BIT(29)
+#define   CFG_IRQ_SDIO_SLEEP_DS BIT(30)
+
+#define   CLK_TX_DELAY_MASK(h)    ((h)->data->tx_delay_mask)
+#define   CLK_RX_DELAY_MASK(h)    ((h)->data->rx_delay_mask)
+#define   CLK_ALWAYS_ON(h)        ((h)->data->always_on)
+
+#define SD_EMMC_DELAY 0x4
+
+#define SD_EMMC_ADJUST 0x8
+#define   ADJUST_ADJ_DELAY_MASK GENMASK(21, 16)
+#define   ADJUST_DS_EN BIT(15)
+#define   ADJUST_ADJ_EN BIT(13)
+
+#define SD_EMMC_DELAY1 0x4
+#define SD_EMMC_DELAY2 0x8
+#define SD_EMMC_V3_ADJUST 0xc
+#define	  CALI_SEL_MASK GENMASK(11, 8)
+#define	  CALI_ENABLE BIT(12)
+#define	  CFG_ADJUST_ENABLE BIT(13)
+#define	  CALI_RISE BIT(14)
+#define	  DS_ENABLE BIT(15)
+#define	  CLK_ADJUST_DELAY GENMASK(21, 16)
+#define	  ADJ_AUTO BIT(22)
+
+#define SD_EMMC_CALOUT 0x10
+#define SD_EMMC_ADJ_IDX_LOG 0x20
+#define SD_EMMC_CLKTEST_LOG 0x24
+#define   CLKTEST_TIMES_MASK GENMASK(30, 0)
+#define   CLKTEST_DONE BIT(31)
+#define SD_EMMC_CLKTEST_OUT 0x28
+#define SD_EMMC_EYETEST_LOG 0x2c
+#define   EYETEST_TIMES_MASK GENMASK(30, 0)
+#define   EYETEST_DONE BIT(31)
+#define SD_EMMC_EYETEST_OUT0 0x30
+#define SD_EMMC_EYETEST_OUT1 0x34
+#define SD_EMMC_INTF3 0x38
+#define   CLKTEST_EXP_MASK GENMASK(4, 0)
+#define   CLKTEST_ON_M BIT(5)
+#define   EYETEST_EXP_MASK GENMASK(10, 6)
+#define   EYETEST_ON BIT(11)
+#define   DS_SHT_M_MASK GENMASK(17, 12)
+#define   DS_SHT_EXP_MASK GENMASK(21, 18)
+#define   SD_INTF3 BIT(22)
+#define SD_EMMC_START 0x40
+#define   START_DESC_INIT BIT(0)
+#define   START_DESC_BUSY BIT(1)
+#define   START_DESC_ADDR_MASK GENMASK(31, 2)
+
+#define SD_EMMC_CFG 0x44
+#define   CFG_BUS_WIDTH_MASK GENMASK(1, 0)
+#define   CFG_BUS_WIDTH_1 0x0
+#define   CFG_BUS_WIDTH_4 0x1
+#define   CFG_BUS_WIDTH_8 0x2
+#define   CFG_DDR BIT(2)
+#define   CFG_BLK_LEN_MASK GENMASK(7, 4)
+#define   CFG_RESP_TIMEOUT_MASK GENMASK(11, 8)
+#define   CFG_RC_CC_MASK GENMASK(15, 12)
+#define   CFG_STOP_CLOCK BIT(22)
+#define   CFG_CLK_ALWAYS_ON BIT(18)
+#define   CFG_CHK_DS BIT(20)
+#define   CFG_AUTO_CLK BIT(23)
+#define   CFG_ERR_ABORT BIT(27)
+
+#define SD_EMMC_STATUS 0x48
+#define   STATUS_BUSY BIT(31)
+#define   STATUS_DESC_BUSY BIT(30)
+#define   STATUS_DATI GENMASK(23, 16)
+
+#define SD_EMMC_IRQ_EN 0x4c
+#define   IRQ_RXD_ERR_MASK GENMASK(7, 0)
+#define   IRQ_TXD_ERR BIT(8)
+#define   IRQ_DESC_ERR BIT(9)
+#define   IRQ_RESP_ERR BIT(10)
+#define   IRQ_CRC_ERR \
+	(IRQ_RXD_ERR_MASK | IRQ_TXD_ERR | IRQ_DESC_ERR | IRQ_RESP_ERR)
+#define   IRQ_RESP_TIMEOUT BIT(11)
+#define   IRQ_DESC_TIMEOUT BIT(12)
+#define   IRQ_TIMEOUTS \
+	(IRQ_RESP_TIMEOUT | IRQ_DESC_TIMEOUT)
+#define   IRQ_END_OF_CHAIN BIT(13)
+#define   IRQ_RESP_STATUS BIT(14)
+#define   IRQ_SDIO BIT(15)
+#define   CFG_CMD_SETUP BIT(17)
+#define   IRQ_EN_MASK \
+	(IRQ_CRC_ERR | IRQ_TIMEOUTS | IRQ_END_OF_CHAIN | IRQ_RESP_STATUS |\
+	 IRQ_SDIO)
+
+#define SD_EMMC_CMD_CFG 0x50
+#define SD_EMMC_CMD_ARG 0x54
+#define SD_EMMC_CMD_DAT 0x58
+#define SD_EMMC_CMD_RSP 0x5c
+#define SD_EMMC_CMD_RSP1 0x60
+#define SD_EMMC_CMD_RSP2 0x64
+#define SD_EMMC_CMD_RSP3 0x68
+
+#define SD_EMMC_RXD 0x94
+#define SD_EMMC_TXD 0x94
+#define SD_EMMC_LAST_REG SD_EMMC_TXD
+
+#define SD_EMMC_SRAM_DATA_BUF_LEN 1536
+#define SD_EMMC_SRAM_DATA_BUF_OFF 0x200
+#define SD_EMMC_MAX_SEGS 1024
+#define SD_EMMC_MAX_REQ_SIZE (128 * 1024)
+
+#define SD_EMMC_CFG_BLK_SIZE 512 /* internal buffer max: 512 bytes */
+#define SD_EMMC_CFG_RESP_TIMEOUT 256 /* in clock cycles */
+#define SD_EMMC_CMD_TIMEOUT 1024 /* in ms */
+#define SD_EMMC_CMD_TIMEOUT_DATA 4096 /* in ms */
+#define SD_EMMC_CFG_CMD_GAP 16 /* in clock cycles */
+#define SD_EMMC_DESC_BUF_LEN PAGE_SIZE
+
+#define SD_EMMC_PRE_REQ_DONE BIT(0)
+#define SD_EMMC_DESC_CHAIN_MODE BIT(1)
+
+#define MUX_CLK_NUM_PARENTS 2
+
+#define CMD_CFG_LENGTH_MASK GENMASK(8, 0)
+#define CMD_CFG_BLOCK_MODE BIT(9)
+#define CMD_CFG_R1B BIT(10)
+#define CMD_CFG_END_OF_CHAIN BIT(11)
+#define CMD_CFG_TIMEOUT_MASK GENMASK(15, 12)
+#define CMD_CFG_NO_RESP BIT(16)
+#define CMD_CFG_NO_CMD BIT(17)
+#define CMD_CFG_DATA_IO BIT(18)
+#define CMD_CFG_DATA_WR BIT(19)
+#define CMD_CFG_RESP_NOCRC BIT(20)
+#define CMD_CFG_RESP_128 BIT(21)
+#define CMD_CFG_RESP_NUM BIT(22)
+#define CMD_CFG_DATA_NUM BIT(23)
+#define CMD_CFG_CMD_INDEX_MASK GENMASK(29, 24)
+#define CMD_CFG_ERROR BIT(30)
+#define CMD_CFG_OWNER BIT(31)
+
+#define CMD_DATA_MASK GENMASK(31, 2)
+#define CMD_DATA_BIG_ENDIAN BIT(1)
+#define CMD_DATA_SRAM BIT(0)
+#define CMD_RESP_MASK GENMASK(31, 1)
+#define CMD_RESP_SRAM BIT(0)
+#define EMMC_SDIO_CLOCK_FELD    0Xffff
+#define CALI_HS_50M_ADJUST      0
+#define ERROR   1
+#define FIXED   2
+#define		SZ_1M			0x00100000
+#define	MMC_PATTERN_NAME		"pattern"
+#define	MMC_PATTERN_OFFSET		((SZ_1M * (36 + 3)) / 512)
+#define	MMC_MAGIC_NAME			"magic"
+#define	MMC_MAGIC_OFFSET		((SZ_1M * (36 + 6)) / 512)
+#define	MMC_RANDOM_NAME			"random"
+#define	MMC_RANDOM_OFFSET		((SZ_1M * (36 + 7)) / 512)
+#define	MMC_DTB_NAME			"dtb"
+#define	MMC_DTB_OFFSET			((SZ_1M * (36 + 4)) / 512)
+#define CALI_BLK_CNT	80
+#define CALI_HS_50M_ADJUST	0
+#define EMMC_SDIO_CLOCK_FELD	0Xffff
+#define MMC_PM_TIMEOUT	(2000)
+#define ERROR	1
+#define FIXED	2
+#define RETUNING	3
+#define	DATA3_PINMUX_MASK GENMASK(15, 12)
+
+#define TUNING_NUM_PER_POINT 40
+#define MAX_TUNING_RETRY 4
+#define AML_FIXED_ADJ_MAX 6
+#define AML_FIXED_ADJ_MIN 5
+#define AML_FIXADJ_STEP 4
+#define ADJ_WIN_PRINT_MAXLEN 256
+#define NO_FIXED_ADJ_MID BIT(31)
+#define AML_MV_DLY1_NOMMC(x) { \
+	typeof(x) _x = (x); \
+	((_x) << 0) | ((_x) << 6) | ((_x) << 12) | ((_x) << 18); }
+#define AML_MV_DLY1(x) { \
+	typeof(x) _x = (x); \
+	((_x) << 0) | ((_x) << 6) | ((_x) << 12) | ((_x) << 18) | ((_x) << 24); }
+#define AML_MV_DLY2(x) { \
+	typeof(x) _x = (x); \
+	((_x) << 0) | ((_x) << 6) | ((_x) << 12) | ((_x) << 24); }
+#define AML_MV_DLY2_NOMMC_CMD(x) ((x) << 24)
+#define AML_MV_DLY2_NOCMD(x) { \
+	typeof(x) _x = (x); \
+	((_x) << 0) | ((_x) << 6) | ((_x) << 12); }
+
+#define SD_EMMC_FIXED_ADJ_HS200
+
+#define DBG_COMMON        BIT(0)
+#define DBG_HS200         BIT(1)
+#define Print_dbg(dbg_level, fmt, args...) do {\
+		if ((dbg_level) & mmc_debug)	\
+			pr_info("[%s]" fmt, __func__, ##args);	\
+} while (0)
 
 #endif /*__AML_SD_H__*/
 

@@ -37,183 +37,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/sched/clock.h>
 
-#define DRIVER_NAME "meson-gx-mmc"
-
-#define SD_EMMC_CLOCK 0x0
-#define   CLK_DIV_MASK GENMASK(5, 0)
-#define   CLK_SRC_MASK GENMASK(7, 6)
-#define   CLK_CORE_PHASE_MASK GENMASK(9, 8)
-#define   CLK_TX_PHASE_MASK GENMASK(11, 10)
-#define   CLK_RX_PHASE_MASK GENMASK(13, 12)
-#define   CLK_PHASE_0 0
-#define   CLK_PHASE_180 2
-#define   CLK_V2_TX_DELAY_MASK GENMASK(19, 16)
-#define   CLK_V2_RX_DELAY_MASK GENMASK(23, 20)
-#define   CLK_V2_ALWAYS_ON BIT(24)
-
-#define   CLK_V3_TX_DELAY_MASK GENMASK(21, 16)
-#define   CLK_V3_RX_DELAY_MASK GENMASK(27, 22)
-#define   CLK_V3_ALWAYS_ON BIT(28)
-#define   CFG_IRQ_SDIO_SLEEP BIT(29)
-#define   CFG_IRQ_SDIO_SLEEP_DS BIT(30)
-
-#define   CLK_TX_DELAY_MASK(h)		(h->data->tx_delay_mask)
-#define   CLK_RX_DELAY_MASK(h)		(h->data->rx_delay_mask)
-#define   CLK_ALWAYS_ON(h)		(h->data->always_on)
-
-#define SD_EMMC_DELAY 0x4
-#define SD_EMMC_ADJUST 0x8
-#define   ADJUST_ADJ_DELAY_MASK GENMASK(21, 16)
-#define   ADJUST_DS_EN BIT(15)
-#define   ADJUST_ADJ_EN BIT(13)
-
-#define SD_EMMC_DELAY1 0x4
-#define SD_EMMC_DELAY2 0x8
-#define SD_EMMC_V3_ADJUST 0xc
-#define	  CALI_SEL_MASK GENMASK(11, 8)
-#define	  CALI_ENABLE BIT(12)
-#define	  CFG_ADJUST_ENABLE BIT(13)
-#define	  CALI_RISE BIT(14)
-#define	  DS_ENABLE BIT(15)
-#define	  CLK_ADJUST_DELAY GENMASK(21, 16)
-#define	  ADJ_AUTO BIT(22)
-
-#define SD_EMMC_CALOUT 0x10
-#define SD_EMMC_ADJ_IDX_LOG 0x20
-#define SD_EMMC_CLKTEST_LOG 0x24
-#define   CLKTEST_TIMES_MASK GENMASK(30, 0)
-#define   CLKTEST_DONE BIT(31)
-#define SD_EMMC_CLKTEST_OUT 0x28
-#define SD_EMMC_EYETEST_LOG 0x2c
-#define   EYETEST_TIMES_MASK GENMASK(30, 0)
-#define   EYETEST_DONE BIT(31)
-#define SD_EMMC_EYETEST_OUT0 0x30
-#define SD_EMMC_EYETEST_OUT1 0x34
-#define SD_EMMC_INTF3 0x38
-#define   CLKTEST_EXP_MASK GENMASK(4, 0)
-#define   CLKTEST_ON_M BIT(5)
-#define   EYETEST_EXP_MASK GENMASK(10, 6)
-#define   EYETEST_ON BIT(11)
-#define   DS_SHT_M_MASK GENMASK(17, 12)
-#define   DS_SHT_EXP_MASK GENMASK(21, 18)
-#define   SD_INTF3 BIT(22)
-#define SD_EMMC_START 0x40
-#define   START_DESC_INIT BIT(0)
-#define   START_DESC_BUSY BIT(1)
-#define   START_DESC_ADDR_MASK GENMASK(31, 2)
-
-#define SD_EMMC_CFG 0x44
-#define   CFG_BUS_WIDTH_MASK GENMASK(1, 0)
-#define   CFG_BUS_WIDTH_1 0x0
-#define   CFG_BUS_WIDTH_4 0x1
-#define   CFG_BUS_WIDTH_8 0x2
-#define   CFG_DDR BIT(2)
-#define   CFG_BLK_LEN_MASK GENMASK(7, 4)
-#define   CFG_RESP_TIMEOUT_MASK GENMASK(11, 8)
-#define   CFG_RC_CC_MASK GENMASK(15, 12)
-#define   CFG_STOP_CLOCK BIT(22)
-#define   CFG_CLK_ALWAYS_ON BIT(18)
-#define   CFG_CHK_DS BIT(20)
-#define   CFG_AUTO_CLK BIT(23)
-#define   CFG_ERR_ABORT BIT(27)
-
-#define SD_EMMC_STATUS 0x48
-#define   STATUS_BUSY BIT(31)
-#define   STATUS_DESC_BUSY BIT(30)
-#define   STATUS_DATI GENMASK(23, 16)
-
-#define SD_EMMC_IRQ_EN 0x4c
-#define   IRQ_RXD_ERR_MASK GENMASK(7, 0)
-#define   IRQ_TXD_ERR BIT(8)
-#define   IRQ_DESC_ERR BIT(9)
-#define   IRQ_RESP_ERR BIT(10)
-#define   IRQ_CRC_ERR \
-	(IRQ_RXD_ERR_MASK | IRQ_TXD_ERR | IRQ_DESC_ERR | IRQ_RESP_ERR)
-#define   IRQ_RESP_TIMEOUT BIT(11)
-#define   IRQ_DESC_TIMEOUT BIT(12)
-#define   IRQ_TIMEOUTS \
-	(IRQ_RESP_TIMEOUT | IRQ_DESC_TIMEOUT)
-#define   IRQ_END_OF_CHAIN BIT(13)
-#define   IRQ_RESP_STATUS BIT(14)
-#define   IRQ_SDIO BIT(15)
-#define   CFG_CMD_SETUP BIT(17)
-#define   IRQ_EN_MASK \
-	(IRQ_CRC_ERR | IRQ_TIMEOUTS | IRQ_END_OF_CHAIN | IRQ_RESP_STATUS |\
-	 IRQ_SDIO)
-
-#define SD_EMMC_CMD_CFG 0x50
-#define SD_EMMC_CMD_ARG 0x54
-#define SD_EMMC_CMD_DAT 0x58
-#define SD_EMMC_CMD_RSP 0x5c
-#define SD_EMMC_CMD_RSP1 0x60
-#define SD_EMMC_CMD_RSP2 0x64
-#define SD_EMMC_CMD_RSP3 0x68
-
-#define SD_EMMC_RXD 0x94
-#define SD_EMMC_TXD 0x94
-#define SD_EMMC_LAST_REG SD_EMMC_TXD
-
-#define SD_EMMC_SRAM_DATA_BUF_LEN 1536
-#define SD_EMMC_SRAM_DATA_BUF_OFF 0x200
-#define SD_EMMC_MAX_SEGS 1024
-#define SD_EMMC_MAX_REQ_SIZE (128 * 1024)
-
-#define SD_EMMC_CFG_BLK_SIZE 512 /* internal buffer max: 512 bytes */
-#define SD_EMMC_CFG_RESP_TIMEOUT 256 /* in clock cycles */
-#define SD_EMMC_CMD_TIMEOUT 1024 /* in ms */
-#define SD_EMMC_CMD_TIMEOUT_DATA 4096 /* in ms */
-#define SD_EMMC_CFG_CMD_GAP 16 /* in clock cycles */
-#define SD_EMMC_DESC_BUF_LEN PAGE_SIZE
-
-#define SD_EMMC_PRE_REQ_DONE BIT(0)
-#define SD_EMMC_DESC_CHAIN_MODE BIT(1)
-
-#define MUX_CLK_NUM_PARENTS 2
-
-#define CMD_CFG_LENGTH_MASK GENMASK(8, 0)
-#define CMD_CFG_BLOCK_MODE BIT(9)
-#define CMD_CFG_R1B BIT(10)
-#define CMD_CFG_END_OF_CHAIN BIT(11)
-#define CMD_CFG_TIMEOUT_MASK GENMASK(15, 12)
-#define CMD_CFG_NO_RESP BIT(16)
-#define CMD_CFG_NO_CMD BIT(17)
-#define CMD_CFG_DATA_IO BIT(18)
-#define CMD_CFG_DATA_WR BIT(19)
-#define CMD_CFG_RESP_NOCRC BIT(20)
-#define CMD_CFG_RESP_128 BIT(21)
-#define CMD_CFG_RESP_NUM BIT(22)
-#define CMD_CFG_DATA_NUM BIT(23)
-#define CMD_CFG_CMD_INDEX_MASK GENMASK(29, 24)
-#define CMD_CFG_ERROR BIT(30)
-#define CMD_CFG_OWNER BIT(31)
-
-#define CMD_DATA_MASK GENMASK(31, 2)
-#define CMD_DATA_BIG_ENDIAN BIT(1)
-#define CMD_DATA_SRAM BIT(0)
-#define CMD_RESP_MASK GENMASK(31, 1)
-#define CMD_RESP_SRAM BIT(0)
-#define EMMC_SDIO_CLOCK_FELD    0Xffff
-#define CALI_HS_50M_ADJUST      0
-#define ERROR   1
-#define FIXED   2
-#define		SZ_1M			0x00100000
-#define	MMC_PATTERN_NAME		"pattern"
-#define	MMC_PATTERN_OFFSET		((SZ_1M * (36 + 3)) / 512)
-#define	MMC_MAGIC_NAME			"magic"
-#define	MMC_MAGIC_OFFSET		((SZ_1M * (36 + 6)) / 512)
-#define	MMC_RANDOM_NAME			"random"
-#define	MMC_RANDOM_OFFSET		((SZ_1M * (36 + 7)) / 512)
-#define	MMC_DTB_NAME			"dtb"
-#define	MMC_DTB_OFFSET			((SZ_1M * (36 + 4)) / 512)
-#define CALI_BLK_CNT	80
-#define CALI_HS_50M_ADJUST	0
-#define EMMC_SDIO_CLOCK_FELD	0Xffff
-#define MMC_PM_TIMEOUT	(2000)
-#define ERROR	1
-#define FIXED	2
-#define RETUNING	3
-#define	DATA3_PINMUX_MASK GENMASK(15, 12)
-
 struct mmc_gpio {
 	struct gpio_desc *ro_gpio;
 	struct gpio_desc *cd_gpio;
@@ -646,6 +469,7 @@ static int meson_mmc_set_adjust(struct mmc_host *mmc, u32 value)
 	return 0;
 }
 
+#ifndef SD_EMMC_FIXED_ADJ_HS200
 static void meson_mmc_set_delay(struct mmc_host *mmc, u32 delay)
 {
 	u32 val;
@@ -658,13 +482,14 @@ static void meson_mmc_set_delay(struct mmc_host *mmc, u32 delay)
 	val = delay * onedelay2;
 	writel(val, host->regs + SD_EMMC_DELAY2);
 }
+#endif
 
 int meson_mmc_tuning_transfer(struct mmc_host *mmc, u32 opcode)
 {
 	int tuning_err = 0;
 	int n, nmatch;
 	/* try ntries */
-	for (n = 0, nmatch = 0; n < 40; n++) {
+	for (n = 0, nmatch = 0; n < TUNING_NUM_PER_POINT; n++) {
 		tuning_err = mmc_send_tuning(mmc, opcode, NULL);
 		if (!tuning_err)
 			nmatch++;
@@ -674,6 +499,7 @@ int meson_mmc_tuning_transfer(struct mmc_host *mmc, u32 opcode)
 	return nmatch;
 }
 
+#ifndef SD_EMMC_FIXED_ADJ_HS200
 static int meson_mmc_delay_tuning(struct mmc_host *mmc, u32 delay,
 				  u32 value, u32 opcode)
 {
@@ -730,7 +556,8 @@ static int meson_mmc_is_hole(struct mmc_host *mmc, u32 delay,
 
 	ret1 = meson_mmc_delay_tuning(mmc, delay, adjust, opcode);
 	ret2 = meson_mmc_delay_tuning(mmc, delay + 1, adjust, opcode);
-	if (ret1 == 40 && ret2 == 40)
+	if (ret1 == TUNING_NUM_PER_POINT &&
+			ret2 == TUNING_NUM_PER_POINT)
 		ret = 1;
 
 	return ret;
@@ -842,7 +669,259 @@ static int meson_mmc_find_tuning_point(unsigned long *test, u8 clk_div)
 
 	return offset;
 }
+#endif
 
+static int find_best_win(struct mmc_host *mmc,
+		char *buf, int num, int *b_s, int *b_sz)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	int wrap_win_start = -1, wrap_win_size = 0;
+	int curr_win_start = -1, curr_win_size = 0;
+	int best_win_start = -1, best_win_size = 0;
+	int i = 0, len = 0;
+	u8 *adj_print = NULL;
+
+	len = 0;
+	adj_print = host->adj_win;
+	memset(adj_print, 0, sizeof(u8) * ADJ_WIN_PRINT_MAXLEN);
+	len += sprintf(adj_print, "%s: adj_win: < ", mmc_hostname(mmc));
+
+	for (i = 0; i < num; i++) {
+		/*get a ok adjust point!*/
+		if (buf[i]) {
+			if (i == 0)
+				wrap_win_start = i;
+
+			if (wrap_win_start >= 0)
+				wrap_win_size++;
+
+			if (curr_win_start < 0)
+				curr_win_start = i;
+
+			curr_win_size++;
+			len += sprintf(adj_print + len,
+					"%d ", i);
+		} else {
+			if (curr_win_start >= 0) {
+				if (best_win_start < 0) {
+					best_win_start = curr_win_start;
+					best_win_size = curr_win_size;
+				} else {
+					if (best_win_size < curr_win_size) {
+						best_win_start = curr_win_start;
+						best_win_size = curr_win_size;
+					}
+				}
+				wrap_win_start = -1;
+				curr_win_start = -1;
+				curr_win_size = 0;
+			}
+		}
+	}
+
+	sprintf(adj_print + len, ">\n");
+	if (num <= AML_FIXED_ADJ_MAX)
+		pr_info("%s", host->adj_win);
+
+	/* last point is ok! */
+	if (curr_win_start >= 0) {
+		if (best_win_start < 0) {
+			best_win_start = curr_win_start;
+			best_win_size = curr_win_size;
+		} else if (wrap_win_size > 0) {
+			/* Wrap around case */
+			if (curr_win_size + wrap_win_size > best_win_size) {
+				best_win_start = curr_win_start;
+				best_win_size = curr_win_size + wrap_win_size;
+			}
+		} else if (best_win_size < curr_win_size) {
+			best_win_start = curr_win_start;
+			best_win_size = curr_win_size;
+		}
+
+		curr_win_start = -1;
+		curr_win_size = 0;
+	}
+	*b_s = best_win_start;
+	*b_sz = best_win_size;
+
+	return 0;
+}
+
+static void pr_adj_info(char *name,
+		unsigned long x, u32 fir_adj, u32 div)
+{
+	int i;
+
+	pr_debug("[%s] fixed_adj_win_map:%lu\n", name, x);
+	for (i = 0; i < div; i++)
+		pr_debug("[%d]=%d\n", (fir_adj + i) % div,
+				((x >> i) & 0x1) ? 1 : 0);
+}
+
+static unsigned long _test_fixed_adj(struct mmc_host *mmc,
+		u32 opcode, u32 adj, u32 div)
+{
+	int i = 0;
+	struct meson_host *host = mmc_priv(mmc);
+	u8 *adj_print = host->adj_win;
+	u32 len = 0;
+	u32 nmatch = 0;
+	unsigned long fixed_adj_map = 0;
+
+	memset(adj_print, 0, sizeof(u8) * ADJ_WIN_PRINT_MAXLEN);
+	len += sprintf(adj_print + len, "%s: adj_win: < ", mmc_hostname(mmc));
+	bitmap_zero(&fixed_adj_map, div);
+	for (i = 0; i < div; i++) {
+		meson_mmc_set_adjust(mmc, adj + i);
+		nmatch = meson_mmc_tuning_transfer(mmc, opcode);
+		/*get a ok adjust point!*/
+		if (nmatch == TUNING_NUM_PER_POINT) {
+			set_bit(adj + i, &fixed_adj_map);
+			len += sprintf(adj_print + len,
+				"%d ", adj + i);
+			pr_debug("%s: rx_tuning_result[%d] = %d\n",
+				mmc_hostname(mmc), adj + i, nmatch);
+		}
+	}
+	len += sprintf(adj_print + len, ">\n");
+	pr_info("%s", host->adj_win);
+
+	return fixed_adj_map;
+}
+
+static u32 _find_fixed_adj_mid(unsigned long map,
+		u32 adj, u32 div, u32 co)
+{
+	u32 left, right, mid, size = 0;
+
+	left = find_last_bit(&map, div);
+	right = find_first_bit(&map, div);
+	mid = find_first_zero_bit(&map, div);
+	size = left - right + 1;
+	pr_info("left:%u, right:%u, mid:%u, size:%u\n",
+			left, right, mid, size);
+	if (size >= 3 && (mid < right || mid > left)) {
+		mid = (adj + (size - 1) / 2 + (size - 1) % 2) % div;
+		if ((mid == (co - 1)) && div == 5)
+			return NO_FIXED_ADJ_MID;
+		return mid;
+	}
+	return NO_FIXED_ADJ_MID;
+}
+
+static unsigned long _swap_fixed_adj_win(unsigned long map,
+		u32 shift, u32 div)
+{
+	unsigned long left, right;
+
+	bitmap_shift_right(&right, &map,
+			shift, div);
+	bitmap_shift_left(&left, &map,
+			div - shift, div);
+	bitmap_or(&map, &right, &left, div);
+	return map;
+}
+
+static void set_fixed_adj_line_delay(u32 step,
+		struct meson_host *host, bool no_cmd)
+{
+	if (aml_card_type_mmc(host)) {
+		writel(AML_MV_DLY1(step), host->regs + SD_EMMC_DELAY1);
+		if (no_cmd)
+			writel(AML_MV_DLY2_NOCMD(step),
+					host->regs + SD_EMMC_DELAY2);
+		else
+			writel(AML_MV_DLY2(step),
+					host->regs + SD_EMMC_DELAY2);
+	} else {
+		writel(AML_MV_DLY1_NOMMC(step), host->regs + SD_EMMC_DELAY1);
+		if (!no_cmd)
+			writel(AML_MV_DLY2_NOMMC_CMD(step),
+					host->regs + SD_EMMC_DELAY2);
+	}
+	pr_info("step:%u, delay1:0x%x, delay2:0x%x\n",
+			step,
+			readl(host->regs + SD_EMMC_DELAY1),
+			readl(host->regs + SD_EMMC_DELAY2));
+}
+
+/*	1. find first removed a fixed_adj_point
+ *	2. re-range fixed adj point
+ *	3. retry
+ */
+static u32 _find_fixed_adj_valid_win(struct mmc_host *mmc,
+		u32 opcode,	unsigned long *fixed_adj_map, u32 div)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 step = 0, ret = NO_FIXED_ADJ_MID, fir_adj = 0xff;
+	unsigned long cur_map[1] = {0};
+	unsigned long prev_map[1] = {0};
+	unsigned long tmp[1] = {0};
+	unsigned long dst[1] = {0};
+//	struct mmc_phase *mmc_phase_init = &host->sdmmc.init;
+	u32 cop, vclk;
+
+	vclk = readl(host->regs + SD_EMMC_CLOCK);
+	cop = (vclk & CLK_CORE_PHASE_MASK) >> __ffs(CLK_CORE_PHASE_MASK);
+//	cop = para->hs2.core_phase;
+
+	div = (div == AML_FIXED_ADJ_MIN) ?
+			AML_FIXED_ADJ_MIN : AML_FIXED_ADJ_MAX;
+	*prev_map = *fixed_adj_map;
+	pr_adj_info("prev_map", *prev_map, 0, div);
+	for (; step <= 63;) {
+		pr_debug("[%s]retry test fixed adj...\n", __func__);
+		step += AML_FIXADJ_STEP;
+		set_fixed_adj_line_delay(step, host, false);
+		*cur_map = _test_fixed_adj(mmc, opcode, 0, div);
+		/*pr_adj_info("cur_map", *cur_map, 0, div);*/
+		bitmap_and(tmp, prev_map, cur_map, div);
+		bitmap_xor(dst, prev_map, tmp, div);
+		if (*dst != 0) {
+			fir_adj = find_first_bit(dst, div);
+			pr_adj_info(">>>>>>>>bitmap_xor_dst", *dst, 0, div);
+			pr_debug("[%s] fir_adj:%u\n", __func__, fir_adj);
+
+			*prev_map = _swap_fixed_adj_win(*prev_map,
+					fir_adj, div);
+			pr_adj_info(">>>>>>>>prev_map_range",
+					*prev_map, fir_adj, div);
+			ret = _find_fixed_adj_mid(*prev_map, fir_adj, div, cop);
+			if (ret != NO_FIXED_ADJ_MID) {
+				/* pre adj=core phase-1="hole"&&200MHZ,all line delay+step */
+				if (((ret - 1) == (cop - 1)) && div == 5)
+					set_fixed_adj_line_delay(AML_FIXADJ_STEP, host, false);
+				else
+					set_fixed_adj_line_delay(0,	host, false);
+				return ret;
+			}
+
+			fir_adj = (fir_adj + find_next_bit(prev_map,
+				div, 1)) % div;
+		}
+		if (fir_adj == 0xff)
+			continue;
+
+		*prev_map = *cur_map;
+		*cur_map = _swap_fixed_adj_win(*cur_map, fir_adj, div);
+		pr_adj_info(">>>>>>>>cur_map_range", *cur_map, fir_adj, div);
+		ret = _find_fixed_adj_mid(*cur_map, fir_adj, div, cop);
+		if (ret != NO_FIXED_ADJ_MID) {
+			/* pre adj=core phase-1="hole"&&200MHZ,all line delay+step */
+			if (((ret - 1) == (cop - 1)) && div == 5) {
+				step += AML_FIXADJ_STEP;
+				set_fixed_adj_line_delay(step, host, false);
+			}
+			return ret;
+		}
+	}
+
+	pr_info("[%s][%d] no fixed adj\n", __func__, __LINE__);
+	return ret;
+}
+
+#ifndef SD_EMMC_FIXED_ADJ_HS200
 static int meson_mmc_clk_phase_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	int point, ret, need_fix_hole = 1;
@@ -867,7 +946,7 @@ tuning:
 	for (point = 0; point < clk_div; point++) {
 		meson_mmc_set_adjust(mmc, point);
 		ret = meson_mmc_tuning_transfer(mmc, opcode);
-		if (ret == 40) {
+		if (ret == TUNING_NUM_PER_POINT) {
 			set_bit(point, test);
 			print_val |= 1 << (4 * point);
 		}
@@ -952,6 +1031,110 @@ tuning:
 	}
 	return 0;
 }
+#else
+static int meson_mmc_fixadj_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 nmatch = 0;
+	int adj_delay = 0;
+	u8 tuning_num = 0;
+	u32 clk_div, vclk;
+	u32 old_dly, d1_dly, dly;
+	u32 adj_delay_find =  0xff;
+	unsigned long fixed_adj_map[1];
+	bool all_flag = false;
+	int best_s = -1, best_sz = 0;
+	char rx_adj[64] = {0};
+
+	old_dly = readl(host->regs + SD_EMMC_V3_ADJUST);
+	d1_dly = (old_dly >> 0x6) & 0x3F;
+	pr_info("Data 1 aligned delay is %d\n", d1_dly);
+	writel(0, host->regs + SD_EMMC_V3_ADJUST);
+
+tuning:
+	/* renew */
+	best_s = -1;
+	best_sz = 0;
+	memset(rx_adj, 0, 64);
+
+	vclk = readl(host->regs + SD_EMMC_CLOCK);
+	clk_div = vclk & CLK_DIV_MASK;
+	pr_info("%s: clk %d div %d tuning start\n",
+			mmc_hostname(mmc), mmc->actual_clock, clk_div);
+
+	if (clk_div <= AML_FIXED_ADJ_MAX)
+		bitmap_zero(fixed_adj_map, clk_div);
+	for (adj_delay = 0; adj_delay < clk_div; adj_delay++) {
+		meson_mmc_set_adjust(mmc, adj_delay);
+		nmatch = meson_mmc_tuning_transfer(host->mmc, opcode);
+		if (nmatch == TUNING_NUM_PER_POINT) {
+			rx_adj[adj_delay]++;
+			if (clk_div <= AML_FIXED_ADJ_MAX)
+				set_bit(adj_delay, fixed_adj_map);
+		}
+	}
+
+	find_best_win(mmc, rx_adj, clk_div, &best_s, &best_sz);
+
+	if (best_sz <= 0) {
+		if ((tuning_num++ > MAX_TUNING_RETRY) || clk_div >= 10) {
+			pr_info("%s: final result of tuning failed\n",
+				 mmc_hostname(mmc));
+			return -1;
+		}
+		clk_div++;
+		vclk &= ~CLK_DIV_MASK;
+		vclk |= clk_div & CLK_DIV_MASK;
+		writel(vclk, host->regs + SD_EMMC_CLOCK);
+		pr_info("%s: tuning failed, reduce freq and retuning\n",
+			mmc_hostname(mmc));
+		goto tuning;
+	} else if ((best_sz < clk_div) &&
+			(clk_div <= AML_FIXED_ADJ_MAX) &&
+			(clk_div >= AML_FIXED_ADJ_MIN) &&
+			!all_flag) {
+		adj_delay_find = _find_fixed_adj_valid_win(mmc,
+				opcode, fixed_adj_map, clk_div);
+	} else if (best_sz == clk_div) {
+		all_flag = true;
+		dly = readl(host->regs + SD_EMMC_DELAY1);
+		d1_dly = (dly >> 0x6) & 0x3F;
+		pr_warn("%s() d1_dly %d, window start %d, size %d\n",
+			__func__, d1_dly, best_s, best_sz);
+		if (++d1_dly > 0x3F) {
+			pr_err("%s: tuning failed\n",
+				mmc_hostname(mmc));
+			return -1;
+		}
+		dly &= ~(0x3F << 6);
+		dly |= d1_dly << 6;
+		writel(dly, host->regs + SD_EMMC_DELAY1);
+		goto tuning;
+	} else {
+		pr_info("%s: best_s = %d, best_sz = %d\n",
+				mmc_hostname(mmc),
+				best_s, best_sz);
+	}
+
+	if (adj_delay_find == 0xff) {
+		adj_delay_find = best_s + (best_sz - 1) / 2
+		+ (best_sz - 1) % 2;
+		writel(old_dly, host->regs + SD_EMMC_DELAY1);
+	}
+	adj_delay_find = adj_delay_find % clk_div;
+
+	meson_mmc_set_adjust(mmc, adj_delay_find);
+
+	pr_info("%s: clk= 0x%x, adj = 0x%x, dly1 = %x, dly2 = %x\n",
+			mmc_hostname(mmc),
+			readl(host->regs + SD_EMMC_CLOCK),
+			readl(host->regs + SD_EMMC_V3_ADJUST),
+			readl(host->regs + SD_EMMC_DELAY1),
+			readl(host->regs + SD_EMMC_DELAY2));
+
+	return 0;
+}
+#endif
 
 static int meson_mmc_prepare_ios_clock(struct meson_host *host,
 				       struct mmc_ios *ios)
@@ -2620,7 +2803,11 @@ static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 
 	host->is_tuning = 1;
 	if (!(mmc->caps2 & MMC_CAP2_HS400_1_8V)) {
+#ifndef SD_EMMC_FIXED_ADJ_HS200
 		err = meson_mmc_clk_phase_tuning(mmc, opcode);
+#else
+		err = meson_mmc_fixadj_tuning(mmc, opcode);
+#endif
 	} else {
 		intf3 = readl(host->regs + SD_EMMC_INTF3);
 		intf3 |= (1 << 22);
@@ -2858,7 +3045,9 @@ ssize_t emmc_hs200_show(struct device *dev,
 	else
 		opcode = MMC_SEND_TUNING_BLOCK;
 	host->is_tuning = 1;
+#ifndef SD_EMMC_FIXED_ADJ_HS200
 	meson_mmc_clk_phase_tuning(mmc, opcode);
+#endif
 	host->is_tuning = 0;
 	mmc_release_host(mmc);
 	return 1;
@@ -3210,6 +3399,12 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		}
 	}
 
+	host->adj_win = devm_kzalloc(host->dev, sizeof(u8) * ADJ_WIN_PRINT_MAXLEN, GFP_KERNEL);
+	if (!host->adj_win) {
+		ret = -ENOMEM;
+		goto err_free_irq;
+	}
+
 	host->descs = dma_alloc_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
 		      &host->descs_dma_addr, GFP_KERNEL);
 	if (!host->descs) {
@@ -3299,6 +3494,7 @@ err_bounce_buf:
 		dma_free_coherent(host->dev, host->bounce_buf_size,
 				  host->bounce_buf, host->bounce_dma_addr);
 err_free_irq:
+	devm_kfree(host->dev, host->adj_win);
 	free_irq(host->irq, host);
 err_init_clk:
 	clk_disable_unprepare(host->mmc_clk);
@@ -3330,6 +3526,7 @@ static int meson_mmc_remove(struct platform_device *pdev)
 	clk_disable_unprepare(host->mmc_clk);
 	clk_disable_unprepare(host->core_clk);
 
+	devm_kfree(host->dev, host->adj_win);
 	mmc_free_host(host->mmc);
 	return 0;
 }
