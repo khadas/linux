@@ -4378,9 +4378,13 @@ static ssize_t amvecm_set_post_matrix_show(struct class *cla,
 	pr_info("36 : osd2 output\n");
 	pr_info("40 : postblend output\n");
 	pr_info("48: osd1 output\n");
-
-	val = READ_VPP_REG(VPP_MATRIX_CTRL);
-	pr_info("current setting: %d\n", (val >> 10) & 0x3f);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7)) {
+		val = READ_VPP_REG(VPP_PROBE_CTRL);
+		pr_info("current setting: %d\n", val & 0x3f);
+	} else {
+		val = READ_VPP_REG(VPP_MATRIX_CTRL);
+		pr_info("current setting: %d\n", (val >> 10) & 0x3f);
+	}
 
 	return 0;
 }
@@ -4393,14 +4397,27 @@ static ssize_t amvecm_set_post_matrix_store(struct class *cla,
 
 	if (kstrtoint(buf, 10, &val) < 0)
 		return -EINVAL;
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7)) {
+		reg_val = READ_VPP_REG(VPP_PROBE_CTRL);
+		reg_val = reg_val & 0xffffffc0;
+		reg_val |= 0x10000;
+		/* enable probe hit */
+		reg_val = reg_val | (val & 0x3f);
 
-	reg_val = READ_VPP_REG(VPP_MATRIX_CTRL);
-	reg_val = reg_val & 0xffff03ff;
-	reg_val = reg_val | ((val & 0x3f) << 10);
+		WRITE_VPP_REG(VPP_PROBE_CTRL, reg_val);
+		WRITE_VPP_REG(VPP_HI_COLOR, 0x80000000);
 
-	WRITE_VPP_REG(VPP_MATRIX_CTRL, reg_val);
+		pr_info("VPP_PROBE_CTRL is set\n");
 
-	pr_info("VPP_MATRIX_CTRL is set\n");
+	} else {
+		reg_val = READ_VPP_REG(VPP_MATRIX_CTRL);
+		reg_val = reg_val & 0xffff03ff;
+		reg_val = reg_val | ((val & 0x3f) << 10);
+
+		WRITE_VPP_REG(VPP_MATRIX_CTRL, reg_val);
+
+		pr_info("VPP_MATRIX_CTRL is set\n");
+	}
 	return count;
 }
 
@@ -4413,7 +4430,10 @@ static ssize_t amvecm_post_matrix_pos_show(struct class *cla,
 	pr_info("Usage:\n");
 	pr_info("echo x y > /sys/class/amvecm/matrix_pos\n");
 
-	val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+		val = READ_VPP_REG(VPP_PROBE_POS);
+	else
+		val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
 	pr_info("current position: %d %d\n",
 		(val >> 16) & 0x1fff,
 			(val >> 0) & 0x1fff);
@@ -4444,11 +4464,17 @@ static ssize_t amvecm_post_matrix_pos_store(struct class *cla,
 	val_x = val_x & 0x1fff;
 	val_y = val_y & 0x1fff;
 
-	reg_val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+		reg_val = READ_VPP_REG(VPP_PROBE_POS);
+	else
+		reg_val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
 	reg_val = reg_val & 0xe000e000;
 	reg_val = reg_val | (val_x << 16) | val_y;
 
-	WRITE_VPP_REG(VPP_MATRIX_PROBE_POS, reg_val);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+		WRITE_VPP_REG(VPP_PROBE_POS, reg_val);
+	else
+		WRITE_VPP_REG(VPP_MATRIX_PROBE_POS, reg_val);
 
 	kfree(buf_orig);
 	return count;
@@ -4460,7 +4486,10 @@ static ssize_t amvecm_post_matrix_data_show(struct class *cla,
 {
 	int len = 0, val1 = 0, val2 = 0;
 
-	val1 = READ_VPP_REG(VPP_MATRIX_PROBE_COLOR);
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+		val1 = READ_VPP_REG(VPP_PROBE_COLOR);
+	else
+		val1 = READ_VPP_REG(VPP_MATRIX_PROBE_COLOR);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		len += sprintf(buf + len,
 		"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",

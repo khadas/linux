@@ -19,6 +19,12 @@
 #ifndef VPP_REGS_HEADER_
 #define VPP_REGS_HEADER_
 
+#define VPP_PROBE_CTRL    0x1a7b
+#define VPP_PROBE_POS     0x1a7c
+#define VPP_HI_COLOR      0x1a7d
+#define VPP_PROBE_COLOR   0x1a7e
+#define VPP_PROBE_COLOR1  0x1a7f
+
 #define VPP_DUMMY_DATA 0x1d00
 #define VPP_LINE_IN_LENGTH 0x1d01
 #define VPP_PIC_IN_HEIGHT 0x1d02
