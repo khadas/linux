@@ -3,8 +3,8 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#ifndef __SC2_CLKC_H
-#define __SC2_CLKC_H
+#ifndef __S4_CLKC_H
+#define __S4_CLKC_H
 
 /*
  * CLKID index values
@@ -359,6 +359,13 @@
 #define CLKID_PWM_IJ			(CLKID_BASE + 256)
 #define CLKID_DEMOD			(CLKID_BASE + 257)
 
-#define NR_CLKS				(CLKID_BASE + 258)
+#define CLKID_HDCP22_ESMCLK_MUX		(CLKID_BASE + 258)
+#define CLKID_HDCP22_ESMCLK_DIV		(CLKID_BASE + 259)
+#define CLKID_HDCP22_ESMCLK_GATE	(CLKID_BASE + 260)
+#define CLKID_HDCP22_SKPCLK_MUX		(CLKID_BASE + 261)
+#define CLKID_HDCP22_SKPCLK_DIV		(CLKID_BASE + 262)
+#define CLKID_HDCP22_SKPCLK_GATE	(CLKID_BASE + 263)
 
-#endif /* __SC2_CLKC_H */
+#define NR_CLKS				(CLKID_BASE + 264)
+
+#endif /* __S4_CLKC_H */
