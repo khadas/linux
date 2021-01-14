@@ -597,6 +597,7 @@ struct usr_crc_info_t {
 #define AMSTREAM_SET_VIDEO_DELAY_LIMIT_MS     0x11A
 #define AMSTREAM_SET_AUDIO_DELAY_LIMIT_MS     0x11B
 #define AMSTREAM_SET_DRMMODE                  0x11C
+#define AMSTREAM_SET_VIDEO_ID                 0x11E
 
 /*  video set   cmd */
 #define AMSTREAM_SET_OMX_VPTS                 0x160
