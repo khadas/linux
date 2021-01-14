@@ -27,6 +27,11 @@
 #define CLK_LEVEL_DFT_T5D     5
 #define CLK_LEVEL_MAX_T5D     6
 
+/* S4 */
+/* freq max=400M, default=400M */
+#define CLK_LEVEL_DFT_S4     5
+#define CLK_LEVEL_MAX_S4     6
+
 /* vpu clk setting */
 enum vpu_mux_e {
 	FCLK_DIV4 = 0,

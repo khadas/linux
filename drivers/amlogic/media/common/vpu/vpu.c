@@ -2096,6 +2096,42 @@ static struct vpu_data_s vpu_data_t7 = {
 	.mempd_get = vpu_vmod_mem_pd_get_new,
 };
 
+static struct vpu_data_s vpu_data_s4 = {
+	.chip_type = VPU_CHIP_S4,
+	.chip_name = "s4",
+
+	.clk_level_dft = CLK_LEVEL_DFT_S4,
+	.clk_level_max = CLK_LEVEL_MAX_S4,
+	.fclk_div_table = fclk_div_table_g12a,
+	.reg_map_table = vpu_reg_table_new,
+
+	.vpu_clk_reg = CLKCTRL_VPU_CLK_CTRL,
+	.vapb_clk_reg = CLKCTRL_VAPBCLK_CTRL,
+
+	.gp_pll_valid = 0,
+	.mem_pd_reg[0] = PWRCTRL_MEM_PD5_SC2,
+	.mem_pd_reg[1] = PWRCTRL_MEM_PD6_SC2,
+	.mem_pd_reg[2] = PWRCTRL_MEM_PD7_SC2,
+	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
+	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
+	.mem_pd_reg_flag = 1,
+
+	.pwrctrl_id = 5,
+
+	.power_table = NULL,
+	.iso_table = NULL,
+	.reset_table = NULL,
+	.module_init_table = NULL,
+
+	.mem_pd_table = vpu_mem_pd_sc2,
+	.clk_gate_table = NULL,
+
+	.power_on = vpu_power_on_new,
+	.power_off = vpu_power_off_new,
+	.mempd_switch = vpu_vmod_mem_pd_switch_new,
+	.mempd_get = vpu_vmod_mem_pd_get_new,
+};
+
 static const struct of_device_id vpu_of_table[] = {
 	{
 		.compatible = "amlogic, vpu-g12a",
@@ -2136,6 +2172,10 @@ static const struct of_device_id vpu_of_table[] = {
 	{
 		.compatible = "amlogic, vpu-t7",
 		.data = &vpu_data_t7,
+	},
+	{
+		.compatible = "amlogic, vpu-s4",
+		.data = &vpu_data_s4,
 	},
 	{}
 };
