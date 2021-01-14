@@ -1182,7 +1182,7 @@
 
 	rng {
 		compatible = "amlogic,meson-rng";
-		status = "disabled";
+		status = "okay";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		reg = <0x0 0xfe440788 0x0 0x0c>;
