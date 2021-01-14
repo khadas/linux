@@ -3023,7 +3023,7 @@
 		};
 	};
 
-		spdifout_d: spdifout_d {
+	spdifout_d: spdifout_d {
 		mux { /* GPIOD_8 */
 			groups = "spdif_out_d";
 			function = "spdif_out";
@@ -3064,6 +3064,20 @@
 		mux {/* GPIOT_4 */
 			groups = "spdif_in_t";
 			function = "spdif_in";
+		};
+	};
+
+	mclk_1_pins: mclk_1_pin {
+		mux { /* GPIOT_0 */
+			groups = "mclk1";
+			function = "mclk";
+		};
+	};
+
+	mclk_2_pins: mclk_2_pin {
+		mux { /* GPIOT_13 */
+			groups = "mclk2";
+			function = "mclk";
 		};
 	};
 
