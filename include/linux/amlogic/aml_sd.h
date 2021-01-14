@@ -183,6 +183,7 @@ struct meson_host {
 	unsigned int src_clk_rate;
 	struct aml_tuning_para para;
 	int run_pxp_flag;
+	bool ignore_desc_busy;
 };
 
 int sdio_reset_comm(struct mmc_card *card);

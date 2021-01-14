@@ -369,6 +369,13 @@ int mmc_of_parse(struct mmc_host *host)
 			 &mmc->sdmmc.hs4.tx_phase, 0);
 	aml_dts_u32_read(dev, "src_clk_rate", &mmc->src_clk_rate, 0);
 
+	aml_dts_u32_read(dev, "src_clk_rate", &mmc->src_clk_rate, 0);
+
+	if (device_property_read_bool(dev, "ignore_desc_busy"))
+		mmc->ignore_desc_busy = true;
+	else
+		mmc->ignore_desc_busy = false;
+
 	if (device_property_read_u32(dev, "tx_delay",
 				&mmc->sdmmc.hs4.tx_delay) < 0)
 		aml_dts_u32_read(dev, "hs4_tx_delay",

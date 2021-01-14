@@ -238,13 +238,32 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 				return ret;
 			}
 		} else {
-			if (rate > 200000000)
+			if (rate > 200000000) {
 				ret = clk_set_parent(host->mux[0], host->clk[2]);
-			else
+				if (ret) {
+					dev_err(host->dev, "set parent error!\n");
+					return ret;
+				}
+				if (host->src_clk_rate != 0) {
+					dev_notice(host->dev, "set src rate to:%u\n",
+								host->src_clk_rate);
+					ret = clk_set_rate(host->clk[2], host->src_clk_rate);
+					if (ret) {
+						dev_err(host->dev, "set src err\n");
+						return ret;
+					}
+				}
+			} else {
 				ret = clk_set_parent(host->mux[0], host->clk[1]);
-			if (ret) {
-				dev_err(host->dev, "SET 1188M parent error!\n");
-				return ret;
+				if (host->src_clk_rate != 0) {
+					dev_notice(host->dev, "set src rate to:%u\n",
+								host->src_clk_rate);
+					ret = clk_set_rate(host->clk[1], host->src_clk_rate);
+					if (ret) {
+						dev_err(host->dev, "set src err\n");
+						return ret;
+					}
+				}
 			}
 		}
 		ret = clk_set_rate(host->mmc_clk, rate);
@@ -1841,9 +1860,9 @@ static u32 scan_emmc_cmd_win(struct mmc_host *mmc, int send_status)
 			else
 				break;
 		}
-			pr_debug("delay2: 0x%x, send cmd %d times success %d times, is ok\n",
+		pr_debug("delay2: 0x%x, send cmd %d times success %d times, is ok\n",
 				 delay2, repeat_times, str[i]);
-			delay2 += (1 << 24);
+		delay2 += (1 << 24);
 	}
 	after_time = sched_clock();
 	host->is_tuning = 0;
@@ -2453,6 +2472,12 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 	if (WARN_ON(!host))
 		return IRQ_NONE;
 
+	if (!host->cmd && aml_card_type_mmc(host)) {
+		pr_debug("ignore irq.[%s]status:0x%x\n",
+			__func__, readl(host->regs + SD_EMMC_STATUS));
+		return IRQ_HANDLED;
+	}
+
 	irq_en = readl(host->regs + SD_EMMC_IRQ_EN);
 	raw_status = readl(host->regs + SD_EMMC_STATUS);
 	status = raw_status & irq_en;
@@ -2550,7 +2575,8 @@ out:
 		u32 start = readl(host->regs + SD_EMMC_START);
 
 		start &= ~START_DESC_BUSY;
-		writel(start, host->regs + SD_EMMC_START);
+		if (!host->ignore_desc_busy)
+			writel(start, host->regs + SD_EMMC_START);
 	}
 
 	if (ret == IRQ_HANDLED) {
@@ -2582,7 +2608,7 @@ static int meson_mmc_wait_desc_stop(struct meson_host *host)
 
 	return readl_poll_timeout(host->regs + SD_EMMC_STATUS, status,
 				  !(status & (STATUS_BUSY | STATUS_DESC_BUSY)),
-				  100, 5000);
+				  100, 10000);
 }
 
 static irqreturn_t meson_mmc_irq_thread(int irq, void *dev_id)
@@ -2702,7 +2728,7 @@ static int meson_mmc_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 	return -EINVAL;
 }
 
-int aml_emmc_hs200_tl1(struct mmc_host *mmc)
+int __attribute__((unused)) aml_emmc_hs200_tl1(struct mmc_host *mmc)
 {
 	struct meson_host *host = mmc_priv(mmc);
 	u32 vclkc = readl(host->regs + SD_EMMC_CLOCK);
@@ -2812,8 +2838,6 @@ static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		intf3 = readl(host->regs + SD_EMMC_INTF3);
 		intf3 |= (1 << 22);
 		writel(intf3, (host->regs + SD_EMMC_INTF3));
-		if (0)
-			aml_emmc_hs200_tl1(mmc);
 		err = 0;
 	}
 
