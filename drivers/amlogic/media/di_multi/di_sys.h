@@ -26,8 +26,8 @@ u8 *dim_vmap(ulong addr, u32 size, bool *bflg);
 void dim_unmap_phyaddr(u8 *vaddr);
 void dim_mcinfo_v_alloc(struct di_buf_s *pbuf, unsigned int bsize);
 void dim_mcinfo_v_release(struct di_buf_s *pbuf);
-void dim_mcinfo_v_alloc_idat(struct dim_iat_s *idat, unsigned int bsize);
-void dim_mcinfo_v_release_idat(struct dim_iat_s *idat);
+//void dim_mcinfo_v_alloc_idat(struct dim_iat_s *idat, unsigned int bsize);
+//void dim_mcinfo_v_release_idat(struct dim_iat_s *idat);
 struct dim_mm_s {
 	struct page	*ppage;
 	unsigned long	addr;

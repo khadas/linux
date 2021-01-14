@@ -1006,7 +1006,8 @@ struct dev_vfram_t {
 
 struct di_dat_s {
 //	struct dim_mm_blk_s *blk_buf;
-	void	*virt;
+	void	*virt; //for cma: (struct page	*)
+	unsigned int cnt; //for cma
 	bool	flg_alloc;
 
 	struct blk_flg_s flg;
@@ -1474,7 +1475,7 @@ struct dim_iat_s {
 
 //	unsigned long	start_idat;
 	unsigned long	start_afbct;
-	unsigned long	start_mc;
+	//unsigned long	start_mc;
 	unsigned short	*mcinfo_adr_v;/**/
 	bool		mcinfo_alloc_flg;
 };
@@ -1783,7 +1784,9 @@ struct di_ch_s {
 	struct dim_iat_s	iat_bf[DIM_IAT_NUB];
 	unsigned int		is_tvp	:2;
 	//0: unknown, 1: non tvp, 2: tvp
-	unsigned int		is_secure	:2;
+	unsigned int		is_secure_pre	:2;
+	//0: unknown, 1: non secure, 2: secure
+	unsigned int		is_secure_pst	:2;
 	//0: unknown, 1: non secure, 2: secure
 	/* qb: sct 2020-11-03 */
 	struct buf_que_s sct_qb;
@@ -2357,14 +2360,24 @@ static inline void set_flag_tvp(unsigned char ch, unsigned int data)
 	get_datal()->ch_data[ch].is_tvp = data;
 }
 
-static inline unsigned int get_flag_secure(unsigned char ch)
+static inline unsigned int get_flag_secure_pre(unsigned char ch)
 {
-	return get_datal()->ch_data[ch].is_secure;
+	return get_datal()->ch_data[ch].is_secure_pre;
 }
 
-static inline void set_flag_secure(unsigned char ch, unsigned int data)
+static inline void set_flag_secure_pre(unsigned char ch, unsigned int data)
 {
-	get_datal()->ch_data[ch].is_secure = data;
+	get_datal()->ch_data[ch].is_secure_pre = data;
+}
+
+static inline unsigned int get_flag_secure_pst(unsigned char ch)
+{
+	return get_datal()->ch_data[ch].is_secure_pst;
+}
+
+static inline void set_flag_secure_pst(unsigned char ch, unsigned int data)
+{
+	get_datal()->ch_data[ch].is_secure_pst = data;
 }
 
 /*sum*/

@@ -17,6 +17,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/amlogic/tee.h>
 #include "deinterlace.h"
 #include "di_data_l.h"
 
@@ -4461,50 +4462,68 @@ void dim_sc2_afbce_rst(unsigned int ec_nub)
 	}
 }
 
-void dim_sc2_secure_pre_en(unsigned char ch)
+void dim_secure_pre_en(unsigned char ch)
 {
 	if (get_datal()->ch_data[ch].is_tvp == 2) {
-		DIM_DI_WR(DI_PRE_SEC_IN, 0x3F);//secure
-		get_datal()->ch_data[ch].is_secure = 2;
+		if (DIM_IS_IC_EF(SC2))
+			DIM_DI_WR(DI_PRE_SEC_IN, 0x3F);//secure
+		else
+			tee_config_device_state(16, 1);
+		get_datal()->ch_data[ch].is_secure_pre = 2;
+		//dbg_mem2("%s:tvp3 pre SECURE:%d\n", __func__, ch);
 	} else {
-		DIM_DI_WR(DI_PRE_SEC_IN, 0x0);
-		get_datal()->ch_data[ch].is_secure = 1;
+		if (DIM_IS_IC_EF(SC2))
+			DIM_DI_WR(DI_PRE_SEC_IN, 0x0);
+		else
+			tee_config_device_state(16, 0);
+		get_datal()->ch_data[ch].is_secure_pre = 1;
+		//dbg_mem2("%s:tvp3 pre NOSECURE:%d\n", __func__, ch);
 	}
 }
 
-void dim_sc2_secure_sw_pre(unsigned char ch)
+void dim_secure_sw_pre(unsigned char ch)
 {
-	if (DIM_IS_IC_BF(SC2))
+	if (DIM_IS_IC_BF(G12A))
 		return;
+	dbg_mem2("%s:tvp3 pre:%d\n", __func__, ch);
 
-	if (get_datal()->ch_data[ch].is_secure == 0)//first set
-		dim_sc2_secure_pre_en(ch);
+	if (get_datal()->ch_data[ch].is_secure_pre == 0)//first set
+		dim_secure_pre_en(ch);
 	else if (get_datal()->ch_data[ch].is_tvp !=
-		 get_datal()->ch_data[ch].is_secure)
-		dim_sc2_secure_pre_en(ch);
+		 get_datal()->ch_data[ch].is_secure_pre)
+		dim_secure_pre_en(ch);
 }
 
-void dim_sc2_secure_pst_en(unsigned char ch)
+void dim_secure_pst_en(unsigned char ch)
 {
 	if (get_datal()->ch_data[ch].is_tvp == 2) {
-		DIM_DI_WR(DI_POST_SEC_IN, 0x1F);//secure
-		get_datal()->ch_data[ch].is_secure = 2;
+		if (DIM_IS_IC_EF(SC2))
+			DIM_DI_WR(DI_POST_SEC_IN, 0x1F);//secure
+		else
+			tee_config_device_state(17, 1);
+		get_datal()->ch_data[ch].is_secure_pst = 2;
+		//dbg_mem2("%s:tvp4 PST SECURE:%d\n", __func__, ch);
 	} else {
-		DIM_DI_WR(DI_POST_SEC_IN, 0x0);
-		get_datal()->ch_data[ch].is_secure = 1;
+		if (DIM_IS_IC_EF(SC2))
+			DIM_DI_WR(DI_POST_SEC_IN, 0x0);
+		else
+			tee_config_device_state(17, 0);
+		get_datal()->ch_data[ch].is_secure_pst = 1;
+		//dbg_mem2("%s:tvp4 pST NOSECURE:%d\n", __func__, ch);
 	}
 }
 
-void dim_sc2_secure_sw_post(unsigned char ch)
+void dim_secure_sw_post(unsigned char ch)
 {
-	if (DIM_IS_IC_BF(SC2))
+	if (DIM_IS_IC_BF(G12A))
 		return;
+	dbg_mem2("%s:tvp4 post:%d\n", __func__, ch);
 
-	if (get_datal()->ch_data[ch].is_secure == 0)//first set
-		dim_sc2_secure_pst_en(ch);
+	if (get_datal()->ch_data[ch].is_secure_pst == 0)//first set
+		dim_secure_pst_en(ch);
 	else if (get_datal()->ch_data[ch].is_tvp !=
-		 get_datal()->ch_data[ch].is_secure)
-		dim_sc2_secure_pst_en(ch);
+		 get_datal()->ch_data[ch].is_secure_pst)
+		dim_secure_pst_en(ch);
 }
 
 void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg)

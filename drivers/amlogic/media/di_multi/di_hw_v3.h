@@ -346,7 +346,7 @@ unsigned int afbce_read_used(enum EAFBC_ENC enc);//tmp
 
 void hpre_gl_read(void);
 void cvsi_cfg(struct dim_cvsi_s	*pcvsi);
-void dim_sc2_secure_sw_pre(unsigned char ch);
-void dim_sc2_secure_sw_post(unsigned char ch);
+void dim_secure_sw_pre(unsigned char ch);
+void dim_secure_sw_post(unsigned char ch);
 
 #endif /* __DI_HW_V3_H__ */

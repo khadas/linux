@@ -1919,12 +1919,13 @@ static int di_cnt_i_buf(struct di_ch_s *pch, int width, int height)
 	if (mc_mem_alloc) {
 		di_buf_size += mtn_size +
 				count_size +
-				mv_size;
-		one_idat_size = mc_size;
+				mv_size +
+				mc_size;
+		//one_idat_size = mc_size;
 	} else {
 		di_buf_size += mtn_size +
 				count_size;
-		one_idat_size = 0;
+		//one_idat_size = 0;
 	}
 	mm->cfg.afbct_local_max_size = di_cnt_pre_afbct(pch);
 	one_idat_size += mm->cfg.afbct_local_max_size;
@@ -2456,7 +2457,8 @@ static void check_tvp_state(struct di_ch_s *pch)
 
 	ch = pch->ch_id;
 	set_flag_tvp(ch, 0);
-	set_flag_secure(ch, 0);
+	set_flag_secure_pre(ch, 0);
+	set_flag_secure_pst(ch, 0);
 	provider_name = vf_get_provider_name(pch->itf.dvfm.name);
 
 	while (provider_name) {
@@ -4180,7 +4182,7 @@ void dim_pre_de_process(unsigned int channel)
 	if (IS_ERR_OR_NULL(ppre->di_mem_buf_dup_p))
 		return;
 
-	dim_sc2_secure_sw_pre(channel);
+	dim_secure_sw_pre(channel);
 
 	if (ppre->di_mem_buf_dup_p	&&
 	    ppre->di_mem_buf_dup_p != ppre->di_inp_buf) {
@@ -7667,7 +7669,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		       channel);
 	}
 
-	dim_sc2_secure_sw_post(channel);
+	dim_secure_sw_post(channel);
 
 	dim_ddbg_mod_save(EDI_DBG_MOD_POST_SETB, channel, ppost->frame_cnt);
 	dbg_post_cnt(channel, "ps1");

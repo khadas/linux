@@ -4382,7 +4382,7 @@ static bool ndis_fill_ready_bypass(struct di_ch_s *pch, struct di_buf_s *di_buf)
 static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 {
 	struct dim_ndis_s *dis;
-	//struct di_buffer *buffer;
+	struct di_buffer *buffer;
 
 	//dis = ndisq_peek(pch, QBF_NDIS_Q_IDLE);
 	dis = ndis_move(pch, QBF_NDIS_Q_IDLE, QBF_NDIS_Q_USED);
@@ -4429,7 +4429,15 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 				return false;
 			}
 			di_buf->c.buffer = NULL;
-			memcpy(&dis->c.pbuff->vf, di_buf->vframe, sizeof(*dis->c.pbuff->vf));
+			buffer = dis->c.pbuff;
+			if (!buffer->vf) {
+				PR_WARN("%s:no buffer vf\n", __func__);
+				return false;
+			}
+			memcpy(dis->c.pbuff->vf,
+			       di_buf->vframe, sizeof(*buffer->vf));
+			//memcpy(&dis->c.pbuff->vf,
+			//di_buf->vframe, sizeof(*dis->c.pbuff->vf));
 			dis->c.pbuff->private_data = dis;
 			dis->c.pbuff->caller_data = pch->itf.u.dinst.parm.caller_data;
 			ndrd_qin(pch, &dis->c.pbuff);
