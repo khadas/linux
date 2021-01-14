@@ -2204,7 +2204,11 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 		 (temp & XHCI_HLC)) {
 		xhci_dbg_trace(xhci, trace_xhci_dbg_init,
 			       "xHCI 1.0: support USB2 hardware lpm");
+#ifdef CONFIG_AMLOGIC_USB
+		xhci->quirks |= XHCI_HW_LPM_DISABLE;
+#else
 		xhci->hw_lpm_support = 1;
+#endif
 	}
 
 	port_offset--;

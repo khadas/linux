@@ -1880,8 +1880,8 @@ struct xhci_hcd {
 #define XHCI_RESET_PLL_ON_DISCONNECT	BIT_ULL(34)
 #define XHCI_SNPS_BROKEN_SUSPEND    BIT_ULL(35)
 #ifdef CONFIG_AMLOGIC_USB
-#define XHCI_AML_SUPER_SPEED_SUPPORT   BIT_ULL(29)
-#define XHCI_CRG_HOST		BIT(30)
+#define XHCI_AML_SUPER_SPEED_SUPPORT   BIT_ULL(36)
+#define XHCI_CRG_HOST		BIT_ULL(37)
 #endif
 
 	unsigned int		num_active_eps;
