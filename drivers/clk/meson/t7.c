@@ -6384,7 +6384,8 @@ static struct clk_regmap t7_pwm_ao_e_gate = {
 			&t7_pwm_ao_e_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT
+		/*The clock feeds the GPU,it should be always on*/
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -6478,7 +6479,8 @@ static struct clk_regmap t7_pwm_ao_g_gate = {
 			&t7_pwm_ao_g_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT
+		/*This clock feeds the DDR,it should be always on.*/
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
