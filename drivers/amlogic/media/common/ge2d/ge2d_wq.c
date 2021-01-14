@@ -1279,8 +1279,9 @@ static int build_ge2d_config_ex_dma(struct ge2d_context_s *context,
 				canvas_set = 1;
 				ret = 0;
 			} else if (plane[i].addr) {
-				plane[i].addr += plane[0].addr;
+	//			plane[i].addr += plane[0].addr;
 				canvas_set = 1;
+				ret = 0;
 			}
 			if (canvas_set) {
 				canvas_cfg = ge2d_wq_get_canvas_cfg(context,
