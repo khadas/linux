@@ -242,7 +242,15 @@ enum EAFBC_CFG {
 enum EAFBC_STS {
 	EAFBC_MEM_NEED,
 	EAFBC_MEMI_NEED,
+	EAFBC_EN_6CH,	//en afbcd x 6
+	EAFBC_EN_ENC, //en afbce x 2
+};
 
+enum EAFBC_SNG_SET {
+	EAFBC_SNG_CLR_NR,
+	EAFBC_SNG_CLR_WR,
+	EAFBC_SNG_SET_NR,
+	EAFBC_SNG_SET_WR,
 };
 
 struct afbce_map_s {
@@ -486,7 +494,7 @@ struct afd_ops_s {
 	//void (*pre_check2)(struct di_buf_s *di_buf);
 	void (*pst_check)(struct vframe_s *vf, void *pch);
 	bool (*is_sts)(enum EAFBC_STS status);
-	void (*sgn_mode_set)(unsigned int sgn_mode);
+	void (*sgn_mode_set)(unsigned char *sgn_mode, enum EAFBC_SNG_SET cmd);
 	unsigned char (*cnt_sgn_mode)(unsigned int sgn);
 	void (*cfg_mode_set)(unsigned int mode, union afbc_blk_s *en_cfg);
 };

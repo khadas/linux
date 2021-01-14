@@ -155,11 +155,11 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_TMODE_1]  = {"tmode1",
 			EDI_CFG_TMODE_1,
-			1,
+			2,
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_TMODE_2]  = {"tmode2",
 			EDI_CFG_TMODE_2,
-			1,
+			2,
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_TMODE_3]  = {"tmode3",
 			EDI_CFG_TMODE_3,
@@ -1396,6 +1396,7 @@ void dip_sum_post_ch(void)
 	unsigned int ch;
 	unsigned int chst;
 	struct di_ch_s *pch;
+	unsigned int cnt;
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
 		pch = get_chdata(ch);
@@ -1409,6 +1410,9 @@ void dip_sum_post_ch(void)
 			bset(&pch->self_trig_mask, 30);
 			break;
 		}
+		cnt = ndkb_cnt(pch);
+		if (cnt)
+			task_send_ready();
 	}
 }
 
@@ -4457,14 +4461,66 @@ bool ndis_fill_ready(struct di_ch_s *pch, struct di_buf_s *di_buf)
 
 static bool ndrd_m1_fill_ready_bypass(struct di_ch_s *pch, struct di_buf_s *di_buf)
 {
-	struct di_buffer *buffer;
+	struct di_buffer *buffer_in, *buffer_o;
+	struct di_buf_s *buf_pst;
+	struct di_buf_s *ibuf;
+	struct dim_nins_s *nins;
+	//void *in_ori;
+	struct vframe_s *dec_vfm;
 
-	if (di_buf->is_nbypass)
-		buffer = di_buf->c.buffer;
+	if (!di_buf->is_nbypass)
+		return false;
+	//check:
+	if (di_buf->type != VFRAME_TYPE_POST) {
+		PR_ERR("%s:bypass not post ?\n", __func__);
+		return true;
+	}
+	ibuf = di_buf->di_buf_dup_p[0];
+	if (!ibuf) {
+		PR_ERR("%s:bypass no in ?\n", __func__);
+		return true;
+	}
+	nins = (struct dim_nins_s *)ibuf->c.in;
+	if (!nins) {
+		PR_ERR("%s:no in ori ?\n", __func__);
+		return true;
+	}
+	/* get out buffer */
+	buf_pst = di_que_out_to_di_buf(pch->ch_id, QUE_POST_FREE);
+	if (!buf_pst) {
+		PR_ERR("%s:no post free\n", __func__);
+		return true;
+	}
 
-	return false;
+	buffer_o = buf_pst->c.buffer;
+	if (!buffer_o) {
+		PR_ERR("%s:no buffer_o\n", __func__);
+		return true;
+	}
+
+	buffer_in = (struct di_buffer *)nins->c.ori;
+	buffer_in->flag |= DI_FLAG_BUF_BY_PASS;
+	dec_vfm = buffer_in->vf;
+	/* recycle nins */
+	//no need nins->c.ori = NULL;
+	//nins_used_some_to_recycle(pch, nins);
+
+	//ibuf->c.in = NULL;
+	queue_in(pch->ch_id, ibuf, QUEUE_RECYCLE);
+
+	di_buf_clear(pch, di_buf);
+	di_que_in(pch->ch_id, QUE_PST_NO_BUF, di_buf);
+	di_buf_clear(pch, buf_pst);
+	di_que_in(pch->ch_id, QUE_PST_NO_BUF_WAIT, buf_pst);
+
+	buffer_o->vf->vf_ext = dec_vfm;
+	dbg_bypass("%s:vfm:0x%px, %d\n", __func__, dec_vfm, dec_vfm->index);
+	buffer_o->flag |= DI_FLAG_BUF_BY_PASS;
+
+	ndrd_qin(pch, buffer_o);
+
+	return true;
 }
-
 /* @ary_note: use exbuf only */
 
 static bool ndrd_m1_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)

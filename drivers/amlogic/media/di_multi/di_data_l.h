@@ -29,7 +29,7 @@
 #include "../deinterlace/di_pqa.h"
 //#include "di_pqa.h"
 
-#define DI_CHANNEL_NUB	(3)
+#define DI_CHANNEL_NUB	(4)
 #define DI_CHANNEL_MAX  (4)
 
 /* for vfm mode limit input vf */
@@ -2055,6 +2055,7 @@ struct di_data_l_s {
 #define DBG_M_PQ		DI_BIT18
 #define DBG_M_SCT		DI_BIT19
 #define DBG_M_NQ		DI_BIT20
+#define DBG_M_BPASS		DI_BIT21
 #define DBG_M_RESET_PRE		DI_BIT29
 extern unsigned int di_dbg;
 
@@ -2093,6 +2094,7 @@ extern unsigned int di_dbg;
 #define dbg_pq(fmt, args ...)		dbg_m(DBG_M_PQ, fmt, ##args)
 #define dbg_sct(fmt, args ...)		dbg_m(DBG_M_SCT, fmt, ##args)
 #define dbg_nq(fmt, args ...)		dbg_m(DBG_M_NQ, fmt, ##args)
+#define dbg_bypass(fmt, args ...)	dbg_m(DBG_M_BPASS, fmt, ##args)
 
 char *di_cfgx_get_name(enum EDI_CFGX_IDX idx);
 bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx);

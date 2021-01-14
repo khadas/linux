@@ -6459,7 +6459,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 
 		if (VFMT_IS_I(ppre->cur_inp_type))
 			di_buf->afbc_info |= DI_BIT1;/*flg is real i */
-
+		#ifdef HIS_CODE
 		if (DIM_IS_IC_EF(SC2) && dim_afds() &&
 		    dim_afds()->cnt_sgn_mode) {
 			if (IS_COMP_MODE(ppre->di_inp_buf->vframe->type)) {
@@ -6473,6 +6473,28 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			di_buf->afbc_sgn_cfg =
 					dim_afds()->cnt_sgn_mode(AFBC_SGN_BYPSS);
 		}
+		#else
+		if (dim_afds()) {
+			if (dim_afds()->is_sts(EAFBC_EN_6CH)) {
+				if (IS_COMP_MODE(ppre->di_inp_buf->vframe->type)) {
+					di_buf->afbc_sgn_cfg =
+					dim_afds()->cnt_sgn_mode(AFBC_SGN_I_H265);
+				} else {
+					di_buf->afbc_sgn_cfg =
+						dim_afds()->cnt_sgn_mode(AFBC_SGN_I);
+				}
+				if (cfggch(pch, IOUT_FMT) != 3)	//afbce
+					dim_afds()->sgn_mode_set(&di_buf->afbc_sgn_cfg,
+								 EAFBC_SNG_CLR_WR);
+			} else {
+				di_buf->afbc_sgn_cfg =
+					dim_afds()->cnt_sgn_mode(AFBC_SGN_BYPSS);
+				if (cfggch(pch, IOUT_FMT) == 3)
+					dim_afds()->sgn_mode_set(&di_buf->afbc_sgn_cfg,
+								 EAFBC_SNG_SET_WR);
+			}
+		}
+		#endif
 	}
 
 	if (is_bypass_post(channel)) {
@@ -7266,31 +7288,41 @@ static void dimpst_fill_outvf(struct vframe_s *vfm,
 		di_cnt_cvs_nv21(0, &cvsh, &cvsv, di_buf->channel);
 		/* 0 */
 		cvsp = &vfm->canvas0_config[0];
-		if (ext_buf)
-			cvsp->phy_addr = cvsf->phy_addr;
-		else
+		if (ext_buf) {
+			cvsp->phy_addr	= cvsf->phy_addr;
+			cvsp->width	= cvsf->width;
+			cvsp->height	= cvsf->height;
+		} else {
 			cvsp->phy_addr = di_buf->nr_adr;
+			cvsp->width = cvsh;
+			cvsp->height = cvsv;
+		}
 		cvsp->block_mode = 0;
 		cvsp->endian = 0;
-		cvsp->width = cvsh;
-		cvsp->height = cvsv;
+
 		csize = roundup((cvsh * cvsv), PAGE_SIZE);
 		/* 1 */
 		cvsp = &vfm->canvas0_config[1];
-		cvsp->width = cvsh;
-		cvsp->height = cvsv;
+
 		if (ext_buf) {
 			cvsf = &buffer->vf->canvas0_config[1];
 			cvsp->phy_addr = cvsf->phy_addr;
+			cvsp->width	= cvsf->width;
+			cvsp->height	= cvsf->height;
 		} else {
 			cvsp->phy_addr = di_buf->nr_adr + csize;
+			cvsp->width = cvsh;
+			cvsp->height = cvsv;
 		}
 		cvsp->block_mode = 0;
 		cvsp->endian = 0;
 	}
-	dim_print("%s:%d:addr0[0x%x], 1[0x%x]\n", __func__,
+	dim_print("%s:%d:addr0[0x%x], 1[0x%x],w[%d,%d]\n",
+		__func__,
 	ext_buf, vfm->canvas0_config[0].phy_addr,
-		vfm->canvas0_config[1].phy_addr);
+		vfm->canvas0_config[1].phy_addr,
+		vfm->canvas0_config[0].width,
+		vfm->canvas0_config[0].height);
 	/* type */
 	if (mode == EDPST_OUT_MODE_NV21 ||
 	    mode == EDPST_OUT_MODE_NV12) {
@@ -7681,8 +7713,9 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 	if (di_buf->trig_post_update) {
 		pst->last_pst_size = 0;
 		//PR_INF("post trig\n");
+		ppost->seq = 0;
 	}
-
+	di_buf->seq = ppost->seq;
 	if (/*RD(DI_POST_SIZE)*/pst->last_pst_size != ((di_width - 1) |
 	    ((di_height - 1) << 16)) ||
 	    ppost->buf_type != di_buf->di_buf_dup_p[0]->type ||
@@ -7840,6 +7873,16 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		ppost->di_buf2_mif.luma_x_start0 = di_start_x;
 		ppost->di_buf2_mif.luma_x_end0 = di_end_x;
 
+		ppost->di_buf0_mif.reg_swap	= 1;
+		ppost->di_buf0_mif.l_endian	= 0;
+		ppost->di_buf0_mif.cbcr_swap	= 0;
+
+		ppost->di_buf1_mif.reg_swap	= 1;
+		ppost->di_buf1_mif.l_endian	= 0;
+		ppost->di_buf1_mif.cbcr_swap	= 0;
+		ppost->di_buf2_mif.reg_swap	= 1;
+		ppost->di_buf2_mif.l_endian	= 0;
+		ppost->di_buf2_mif.cbcr_swap	= 0;
 		if (dimp_get(edi_mp_post_wr_en) &&
 		    dimp_get(edi_mp_post_wr_support)) {
 			if (de_devp->pps_enable &&
@@ -8464,6 +8507,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 	dim_ddbg_mod_save(EDI_DBG_MOD_POST_SETE, channel, ppost->frame_cnt);
 	dbg_post_cnt(channel, "ps2");
 	ppost->frame_cnt++;
+	ppost->seq++;
 	pch->sum_pst++;
 
 	return 0;
@@ -10229,17 +10273,19 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 //			di_set_default();
 		dip_init_value_reg(channel, vframe);/*add 0404 for post*/
 		dim_ddbg_mod_save(EDI_DBG_MOD_RVB, channel, 0);
-		if (dim_need_bypass(channel, vframe)) {
-			if (!ppre->bypass_flag) {
-				PR_INF("%ux%u-0x%x.\n",
-				       vframe->width,
-				       vframe->height,
-				       vframe->type);
+		if (!dip_itf_is_ins_exbuf(pch)) {
+			if (dim_need_bypass(channel, vframe)) {
+				if (!ppre->bypass_flag) {
+					PR_INF("%ux%u-0x%x.\n",
+						vframe->width,
+						vframe->height,
+						vframe->type);
+				}
+				ppre->bypass_flag = true;
+				ppre->sgn_lv	= EDI_SGN_OTHER;
+				dimh_patch_post_update_mc_sw(DI_MC_SW_OTHER, false);
+				return;
 			}
-			ppre->bypass_flag = true;
-			ppre->sgn_lv	= EDI_SGN_OTHER;
-			dimh_patch_post_update_mc_sw(DI_MC_SW_OTHER, false);
-			return;
 		}
 		dim_mp_update_reg();
 		ppre->bypass_flag = false;

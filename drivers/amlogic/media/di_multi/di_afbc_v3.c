@@ -272,6 +272,14 @@ static bool is_status(enum EAFBC_STS status)
 	case EAFBC_MEMI_NEED:
 		ret = pafd_ctr->fb.mem_alloci;
 		break;
+	case EAFBC_EN_6CH:
+		if (pafd_ctr->fb.mode >= AFBC_WK_6D)
+			ret = true;
+		break;
+	case EAFBC_EN_ENC:
+		if (pafd_ctr->fb.mode >= AFBC_WK_P)
+			ret = true;
+		break;
 	}
 
 	return ret;
@@ -1134,6 +1142,7 @@ static const union afbc_blk_s cafbc_cfg_sgn[] = {
 	}
 };
 
+#ifdef HIS_CODE
 static void afbc_sgn_mode_set(unsigned int sgn_mode)
 {
 	struct afbcd_ctr_s *pafd_ctr;
@@ -1150,7 +1159,29 @@ static void afbc_sgn_mode_set(unsigned int sgn_mode)
 		pafd_ctr->en_sgn.d8 = 0;
 	}
 }
+#else
+static void afbc_sgn_mode_set(unsigned char *sgn_mode, enum EAFBC_SNG_SET cmd)
+{
+	union afbc_blk_s *en_cfg;
 
+	en_cfg  = (union afbc_blk_s *)sgn_mode;
+	switch (cmd) {
+	case EAFBC_SNG_CLR_NR:
+		en_cfg->b.enc_nr = 0;
+		break;
+	case EAFBC_SNG_CLR_WR:
+		en_cfg->b.enc_wr = 0;
+		break;
+	case EAFBC_SNG_SET_NR:
+		en_cfg->b.enc_nr = 1;
+		break;
+	case EAFBC_SNG_SET_WR:
+		en_cfg->b.enc_wr = 1;
+		break;
+	};
+}
+
+#endif
 static unsigned char afbc_cnt_sgn_mode(unsigned int sgn)
 {
 //	struct afbcd_ctr_s *pafd_ctr;
@@ -1192,6 +1223,8 @@ static void afbc_get_mode_from_cfg(void)
 	/*******************************
 	 * cfg for debug:
 	 ******************************/
+	if (!afbc_cfg)
+		return;
 	if (is_cfg(EAFBC_CFG_DISABLE)) {
 		pafd_ctr->fb.mode = 0;
 	} else if (afbc_cfg & (BITS_EAFBC_CFG_INP_AFBC |
@@ -1295,8 +1328,8 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 	}
 
 	//afbc_cfg = BITS_EAFBC_CFG_DISABLE;
-	di_pr_info("%s:ver[%d],%s\n", __func__, pafd_ctr->fb.ver,
-		   afbc_get_version());
+	di_pr_info("%s:ver[%d],%s,mode[%d]\n", __func__, pafd_ctr->fb.ver,
+		   afbc_get_version(), pafd_ctr->fb.mode);
 }
 
 /*

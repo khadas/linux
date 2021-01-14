@@ -1526,6 +1526,18 @@ bool mem_cfg_pst(struct di_ch_s *pch)
 void mem_resize_buf(struct di_ch_s *pch, struct di_buf_s *di_buf)
 {
 	struct div2_mm_s *mm;
+	struct di_buffer *buf;
+
+	//struct vframe_s *vfm;
+
+	if (dip_itf_is_ins_exbuf(pch)) {
+		buf = (struct di_buffer *)di_buf->c.buffer;
+		if (buf && buf->vf) {
+			di_buf->canvas_width[NR_CANVAS] = buf->vf->canvas0_config[0].width;
+			return;
+		}
+		PR_ERR("%s:\n", __func__);
+	}
 
 	mm = dim_mm_get(pch->ch_id);
 	di_buf->canvas_width[NR_CANVAS]	= mm->cfg.pst_cvs_w;

@@ -557,6 +557,7 @@ struct di_post_stru_s {
 	struct pst_cfg_afbc_s afbc_cfg;/* ary add for afbc dec*/
 	/*frame cnt*/
 	unsigned int frame_cnt;	/*cnt for post process*/
+	unsigned int seq; /* 2021-01-13 */
 //	unsigned int last_pst_size;
 	union hw_sc2_ctr_pst_s	pst_top_cfg;
 	union afbc_blk_s	en_cfg;
