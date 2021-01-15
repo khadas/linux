@@ -428,7 +428,7 @@ void demod_power_switch(int pwr_cntl)
 
 	/* DO NOT set any power related regs in T5 */
 	if (devp->data->hw_ver >= DTVDEMOD_HW_T5) {
-		if (devp->data->hw_ver == DTVDEMOD_HW_T5D) {
+		if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
 			/* UART pin mux for RISCV debug */
 			/* demod_set_ao_reg(0x104411, 0x14); */
 		}
@@ -890,7 +890,6 @@ void atsc_write_reg_v4(unsigned int addr, unsigned int data)
 		return;
 
 	mutex_lock(&mp);
-	/* printk("[demod][write]%x,data is %x\n",(addr),data);*/
 
 	writel(data, gbase_atsc() + (addr << 2));
 
@@ -935,6 +934,21 @@ void demod_init_mutex(void)
 	mutex_init(&mp);
 }
 
+static void download_fw_to_sram(struct amldtvdemod_device_s *devp)
+{
+	unsigned int i;
+
+	for (i = 0; i < 10; i++) {
+		if (write_riscv_ram()) {
+			PR_ERR("write fw err %d\n", i);
+		} else {
+			devp->fw_wr_done = 1;
+			PR_INFO("download fw to sram done.\n");
+			break;
+		}
+	}
+}
+
 int demod_set_sys(struct amldtvdemod_device_s *devp, struct aml_demod_sta *demod_sta,
 		  struct aml_demod_sys *demod_sys)
 {
@@ -947,7 +961,6 @@ int demod_set_sys(struct amldtvdemod_device_s *devp, struct aml_demod_sta *demod
 	nco_rate = (clk_adc * 256) / clk_dem + 2;
 	PR_DBG("%s,clk_adc is %d,clk_demod is %d\n", __func__, clk_adc, clk_dem);
 	clocks_set_sys_defaults(fe, demod_sta, clk_adc);
-
 	/* set adc clk */
 	demod_set_adc_core_clk(clk_adc, clk_dem, demod_sta);
 
@@ -972,7 +985,7 @@ int demod_set_sys(struct amldtvdemod_device_s *devp, struct aml_demod_sta *demod
 	case SYS_ISDBT:
 		if (is_meson_txlx_cpu()) {
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x8);
-		} else if (dtvdd_devp->data->hw_ver == DTVDEMOD_HW_T5D) {
+		} else if (dtvdd_devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x10);
 			usleep_range(1000, 1001);
@@ -1028,13 +1041,14 @@ int demod_set_sys(struct amldtvdemod_device_s *devp, struct aml_demod_sta *demod
 
 	case SYS_DVBT:
 	case SYS_DVBT2:
-		if (devp->data->hw_ver == DTVDEMOD_HW_T5D) {
+		if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
 			nco_rate = 0x80;
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x110010);
 			usleep_range(1000, 1001);
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
+			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 			front_write_bits(AFIFO_ADC, nco_rate, AFIFO_NCO_RATE_BIT,
 					 AFIFO_NCO_RATE_WID);
 			front_write_reg(0x22, 0x7200a06);
@@ -1055,7 +1069,9 @@ int demod_set_sys(struct amldtvdemod_device_s *devp, struct aml_demod_sta *demod
 			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 
 			if (demod_sta->delsys == SYS_DVBT2) {
-				write_riscv_ram();
+				if (!devp->fw_wr_done)
+					download_fw_to_sram(devp);
+
 				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 			}
 		}
@@ -1063,7 +1079,7 @@ int demod_set_sys(struct amldtvdemod_device_s *devp, struct aml_demod_sta *demod
 
 	case SYS_DVBS:
 	case SYS_DVBS2:
-		if (devp->data->hw_ver == DTVDEMOD_HW_T5D) {
+		if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
 			nco_rate = 0x0;
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x220011);
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x220010);

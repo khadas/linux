@@ -11,7 +11,7 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/02/08: for s4 bringup"
+#define DTVDEMOD_VER	"2021/03/10: compatible version for t5d revA/B"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
@@ -102,6 +102,7 @@ enum dtv_demod_hw_ver_e {
 	DTVDEMOD_HW_T5,
 	DTVDEMOD_HW_T5D,
 	DTVDEMOD_HW_S4,
+	DTVDEMOD_HW_T5D_B,
 };
 
 struct meson_ddemod_data {
@@ -238,6 +239,8 @@ struct amldtvdemod_device_s {
 	unsigned int debug_on;
 	/* select dvbc module for s4 */
 	unsigned int dvbc_sel;
+	unsigned int demod_thread;
+	unsigned int fw_wr_done;
 };
 
 extern struct amldtvdemod_device_s *dtvdd_devp;

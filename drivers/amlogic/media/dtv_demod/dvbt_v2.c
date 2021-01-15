@@ -34,7 +34,7 @@ int dvbt_isdbt_set_ch(struct aml_demod_sta *demod_sta,
 		return -1;
 	}
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_T5D)
+	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D)
 		bw = BANDWIDTH_AUTO;
 	else
 		bw = demod_dvbt->bw;
@@ -893,7 +893,7 @@ void dvbt2_init(void)
 	dvbt_t2_wrb(0x281b, 0x02);
 
 	/* T5D revA:0,revB:1, select workaround in fw to init sram */
-	dvbt_t2_wrb(0x807, 0);
+	dvbt_t2_wrb(0x807, 1);
 
 	/* DDR addr */
 	dvbt_t2_wrb(0x360c, devp->mem_start & 0xff);
@@ -980,11 +980,12 @@ struct st_chip_register_t reset368dvbt_val[] =	 /*init minimum setting STV368+TD
 	{R368TER_IDM_RD_DVBT_2, 0x15 } /* IDM_RD_DVBT_2 */
 };
 
-void write_riscv_ram(void)
+unsigned int write_riscv_ram(void)
 {
 	unsigned int ck0;
 	unsigned int addr = 0;
 	int value;
+	unsigned int ret = 0;
 	struct amldtvdemod_device_s *devp = dtvdd_devp;
 
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0xa0);
@@ -993,6 +994,11 @@ void write_riscv_ram(void)
 		value = (devp->fw_buf[ck0 + 3] << 24) | (devp->fw_buf[ck0 + 2] << 16) |
 			 (devp->fw_buf[ck0 + 1] << 8) | devp->fw_buf[ck0];
 		dvbt_t2_write_w(addr, value);
+		if (dvbt_t2_read_w(addr) != value) {
+			PR_ERR("write fw err, addr: 0x%x, val: 0x%x, value: 0x%x\n", addr,
+			       dvbt_t2_read_w(addr), value);
+			return 1;
+		}
 		addr += 4;
 	}
 
@@ -1003,17 +1009,17 @@ void write_riscv_ram(void)
 		value = (devp->fw_buf[ck0 + 3] << 24) | (devp->fw_buf[ck0 + 2] << 16) |
 			 (devp->fw_buf[ck0 + 1] << 8) | devp->fw_buf[ck0];
 		dvbt_t2_write_w(addr, value);
+		if (dvbt_t2_read_w(addr) != value) {
+			PR_ERR("write fw err, addr: 0x%x, val: 0x%x, value: 0x%x\n", addr,
+			       dvbt_t2_read_w(addr), value);
+			return 1;
+		}
 		addr += 4;
 	}
 
-	PR_DBGL("write_riscv_ram:\n");
-	for (ck0 = 0; ck0 < 100 * 4; ck0 += 4) {
-		value = (devp->fw_buf[ck0 + 3] << 24) | (devp->fw_buf[ck0 + 2] << 16) |
-			 (devp->fw_buf[ck0 + 1] << 8) | devp->fw_buf[ck0];
-		PR_DBGL("[%d] = 0x%x\n", ck0, value);
-	}
-
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+
+	return ret;
 }
 
 static void dvbt2_riscv_init(enum fe_bandwidth bw)
@@ -1042,15 +1048,26 @@ static void dvbt2_riscv_init(enum fe_bandwidth bw)
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 }
 
-void dtvdemod_reset_fw(void)
+void dtvdemod_reset_fw(struct amldtvdemod_device_s *devp)
 {
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x110010);
+	usleep_range(1000, 1001);
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
+	front_write_bits(AFIFO_ADC, 0x80, AFIFO_NCO_RATE_BIT,
+			 AFIFO_NCO_RATE_WID);
+	front_write_reg(0x22, 0x7200a06);
+	front_write_reg(0x2f, 0x0);
+	front_write_reg(0x39, 0xc0002000);
+	front_write_reg(TEST_BUS_VLD, 0x80000000);
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
+	riscv_ctl_write_reg(0x30, 5);
 	riscv_ctl_write_reg(0x30, 4);
-	/* spare write for delay */
-	riscv_ctl_write_reg(0x30, 4);
-	riscv_ctl_write_reg(0x30, 4);
-	riscv_ctl_write_reg(0x30, 0);
+	/* t2 top test bus addr */
+	dvbt_t2_wr_word_bits(0x38, 0, 16, 4);
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+	dvbt2_riscv_init(devp->bw);
 }
 
 void dvbt_reg_initial(unsigned int bw)
@@ -1117,6 +1134,13 @@ void dvbt_reg_initial(unsigned int bw)
 	dvbt_t2_wrb(0x2891, 0x30);
 	dvbt_t2_wrb(0x2892, 0x0c);
 	dvbt_t2_wrb(0x2893, 0x03);
+	/* increase agc target to make signal strong enouth for locking */
+	dvbt_t2_wrb(0x15d6, 0xa0);
+	dvbt_t2_wrb(0x2751, 0xf0);
+	dvbt_t2_wrb(0x2752, 0x3c);
+	dvbt_t2_wrb(0x2815, 0x03);
+	dvbt_t2_wr_byte_bits(0x2906, 0, 3, 4);
+
 	dvbt_t2_wrb(0x2900, 0x00);
 	dvbt_t2_wrb(0x2900, 0x20);
 
@@ -1481,7 +1505,221 @@ static int m_get_carrier_offset(void)
 	return carrier_offset;
 }
 
-void dvbt2_info(void)
+static int get_per_val(void)
+{
+	int timeout1;
+	int oldvalue;
+	int errors;
+	int per;
+	int cpt = 0;
+	int i;
+	unsigned int r_599, r_59a, r_59b;
+
+	timeout1 = 1500;
+
+	do {
+		r_599 =	(dvbt_t2_rdb(0x599) & 0x7) << 16;
+		r_59a =	dvbt_t2_rdb(0x59a) << 8;
+		r_59b =	dvbt_t2_rdb(0x59b);
+		oldvalue = r_599 & 0x80;
+
+		if (!oldvalue) {
+			errors = r_599 + r_59a + r_59b;
+
+			if (errors == 0) {
+				per = 0;
+			} else {
+				for (i = 0; i < 3; i++)
+					errors = ((errors * 100) / (1 << 6));
+				per = ((errors * 10) / (1 << 3));
+			}
+		}
+
+		cpt += 5;
+	} while ((oldvalue == 1) && (cpt < timeout1));
+
+	return per;
+}
+
+void dvbt_info(struct amldtvdemod_device_s *devp, struct seq_file *seq)
+{
+	unsigned int sm = dvbt_t2_rdb(0x2901);
+	unsigned int sm_st = sm >> 4;
+	unsigned int sm_cst = sm & 0xf;
+	unsigned int gi_st0 = dvbt_t2_rdb(0x2745);
+	unsigned int gi_st1 = dvbt_t2_rdb(0x2744);
+	unsigned int gi_echo = (gi_st0 >> 4) & 0x1;
+	unsigned int giq = gi_st1 >> 4;
+	unsigned int gi = gi_st1 & 0xf;
+	unsigned int cfo = (dvbt_t2_rdb(0x28CD) << 8) + dvbt_t2_rdb(0x28CC);
+	unsigned int snr = dvbt_t2_rdb(0x2a08) + ((dvbt_t2_rdb(0x2a09)) << 8);
+	unsigned int csnr = snr * 3 / 64;
+	unsigned int ber = dvbt_t2_rdb(0x53b);
+	unsigned int per = get_per_val();
+	unsigned int p1_dlok = dvbt_t2_rdb(0x53e);
+	unsigned int punc = dvbt_t2_rdb(0x53a) & 0x1f;
+	char *str_sm_st, *str_sm_cst, *str_gi, *str_giq, *str_punc;
+
+	switch (devp->bw) {
+	case BANDWIDTH_6_MHZ:
+		cfo = ((cfo * 3000) / 7) >> 14;
+		break;
+	case BANDWIDTH_7_MHZ:
+		cfo = (cfo * 1000) >> 15;
+		break;
+	case BANDWIDTH_8_MHZ:
+		cfo = ((cfo * 1000) / 7) >> 12;
+		break;
+	default:
+		break;
+	}
+
+	switch (sm_st) {
+	case 0:
+		str_sm_st = "No_st";
+		break;
+	case 1:
+		str_sm_st = "AGC_L";
+		break;
+	case 3:
+		str_sm_st = "GID_L";
+		break;
+	case 7:
+		str_sm_st = "TPS_L";
+		break;
+	case 15:
+		str_sm_st = "Tra_F";
+		break;
+	default:
+		str_sm_st = "Error";
+		break;
+	}
+
+	switch (sm_cst) {
+	case 0:
+		str_sm_cst = "Idle";
+		break;
+	case 1:
+		str_sm_cst = "res_stat";
+		break;
+	case 2:
+		str_sm_cst = "W_AGC_lock";
+		break;
+	case 3:
+		str_sm_cst = "W_GID_lock";
+		break;
+	case 4:
+		str_sm_cst = "W_CP_Corr";
+		break;
+	case 5:
+		str_sm_cst = "W_2CP_Corr";
+		break;
+	case 6:
+		str_sm_cst = "W_SP_Corr";
+		break;
+	case 7:
+		str_sm_cst = "G_SP_Corr";
+		break;
+	case 8:
+		str_sm_cst = "W_TPS_lock";
+		break;
+	case 9:
+		str_sm_cst = "TPS_Monitr";
+		break;
+	case 12:
+		str_sm_cst = "G_AGC_lock";
+		break;
+	case 13:
+		str_sm_cst = "G_GID_lock";
+		break;
+	case 14:
+		str_sm_cst = "W_CP_Corr";
+		break;
+	default:
+		str_sm_cst = "Error";
+		break;
+	}
+
+	switch (gi) {
+	case 0:
+		str_gi = "1/32";
+		break;
+	case 1:
+		str_gi = "1/16";
+		break;
+	case 2:
+		str_gi = "1/8";
+		break;
+	case 3:
+		str_gi = "1/4";
+		break;
+	case 4:
+		str_gi = "1/128";
+		break;
+	case 5:
+		str_gi = "19/128";
+		break;
+	case 6:
+		str_gi = "19/256";
+		break;
+	default:
+		str_gi = "NF";
+		break;
+	}
+
+	str_giq = "NULL";
+	if (gi_echo) {
+		if (giq > 2)
+			str_giq = "G";
+		else
+			str_giq = "B";
+	} else {
+		if (giq > 7)
+			str_giq = "G";
+		else if (giq < 3)
+			str_giq = "B";
+	}
+
+	switch (punc) {
+	case 0xd:
+		str_punc = "1/2";
+		break;
+	case 0x12:
+		str_punc = "2/3";
+		break;
+	case 0x15:
+		str_punc = "3/4";
+		break;
+	case 0x18:
+		str_punc = "5/6";
+		break;
+	case 0x19:
+		str_punc = "6/7";
+		break;
+	case 0x1a:
+		str_punc = "7/8";
+		break;
+	default:
+		str_punc = "Err";
+		break;
+	}
+
+	if (seq) {
+		seq_printf(seq, "FSM 0x%x, ST %s, CST %s, GI %s, GI_Q %s, CFO %dKHz, SNR %ddB\n",
+			sm, str_sm_st, str_sm_cst, str_gi, str_giq, cfo, csnr);
+		seq_printf(seq, "pwr_meter 0x%x,ber %d, per %d, TS 0x%x, VIT lock %d, Punc %s\n\n",
+			(dvbt_t2_rdb(0x82f) << 8) + dvbt_t2_rdb(0x82e), ber, per,
+			dvbt_t2_rdb(0x581) & 0x8 >> 3, p1_dlok, str_punc);
+	} else {
+		PR_DVBT("FSM 0x%x, ST %s, CST %s, GI %s, GI_Q %s, CFO %dKHz, SNR %ddB\n",
+			sm, str_sm_st, str_sm_cst, str_gi, str_giq, cfo, csnr);
+		PR_DVBT("pwr_meter 0x%x,ber %d, per %d, TS 0x%x, VIT lock %d, Punc %s\n\n",
+			(dvbt_t2_rdb(0x82f) << 8) + dvbt_t2_rdb(0x82e), ber, per,
+			dvbt_t2_rdb(0x581) & 0x8 >> 3, p1_dlok, str_punc);
+	}
+}
+
+void dvbt2_info(struct seq_file *seq)
 {
 	/* SNR */
 	unsigned int c_snr = dvbt_t2_rdb(0x2a08) + ((dvbt_t2_rdb(0x2a09)) << 8);
@@ -1650,15 +1888,31 @@ void dvbt2_info(void)
 		break;
 	}
 
-	PR_DVBT("SNR c%ddB, F%d,D%d %s FFT %s %s %s, GI %s, L1 %s, PP_md %s, CFO %dHz, SFO %dppm\n",
-		c_snr, f_snr, d_snr, str_ts_type, str_fft,
-		str_constel, str_miso_mode, str_gi, str_l1_cstl, str_pp_mode, cfo, sfo);
-	PR_DVBT("LDPC %2d,bch 0x%x, D 0x%x/0x%x C 0x%x/0x%x\n",
-		ldpc_it, bch, data_err, data_ttl, cmmn_err, cmmn_ttl);
-	PR_DVBT("COM:%x,AUT:%x,GI:%x,PRE:%x,POST:%x,P1G:%2x,CASG:%2x, 0x361b:0x%x\n\n",
-		(dvbt_t2_rdb(0x1579) >> 6) & 0x01, (dvbt_t2_rdb(0x1579) >> 5) & 0x01,
-		(dvbt_t2_rdb(0x2745) >> 5) & 0x01, (dvbt_t2_rdb(0x839) >> 4) & 0x01,
-		(dvbt_t2_rdb(0x839) >> 3) & 0x01, dvbt_t2_rdb(0x15ba), dvbt_t2_rdb(0x15d5),
-		dvbt_t2_rdb(0x361b));
+	if (seq) {
+		seq_printf(seq, "SNR c%ddB, F%d,D%d %s FFT %s %s %s, GI %s, L1 %s, PP_md %s\n",
+			c_snr, f_snr, d_snr, str_ts_type, str_fft,
+			str_constel, str_miso_mode, str_gi, str_l1_cstl, str_pp_mode);
+		seq_printf(seq, "LDPC %2d,bch 0x%x, D 0x%x/0x%x C 0x%x/0x%x, CFO %dKHz, SFO %dppm\n",
+			ldpc_it, bch, data_err, data_ttl, cmmn_err, cmmn_ttl, cfo, sfo);
+		seq_printf(seq, "COM:%x,AUT:%x,GI:%x,PRE:%x,POST:%x,P1G:%x,CASG:%x,0x361b:%x\n",
+			(dvbt_t2_rdb(0x1579) >> 6) & 0x01, (dvbt_t2_rdb(0x1579) >> 5) & 0x01,
+			(dvbt_t2_rdb(0x2745) >> 5) & 0x01, (dvbt_t2_rdb(0x839) >> 4) & 0x01,
+			(dvbt_t2_rdb(0x839) >> 3) & 0x01, dvbt_t2_rdb(0x15ba), dvbt_t2_rdb(0x15d5),
+			dvbt_t2_rdb(0x361b));
+		seq_printf(seq, "pwr_meter 0x%x\n\n",
+			   (dvbt_t2_rdb(0x82f) << 8) + dvbt_t2_rdb(0x82e));
+	} else {
+		PR_DVBT("SNR c%ddB, F%d,D%d %s FFT %s %s %s, GI %s, L1 %s, PP_md %s\n",
+			c_snr, f_snr, d_snr, str_ts_type, str_fft,
+			str_constel, str_miso_mode, str_gi, str_l1_cstl, str_pp_mode);
+		PR_DVBT("LDPC %2d,bch 0x%x, D 0x%x/0x%x C 0x%x/0x%x, CFO %dKHz, SFO %dppm\n",
+			ldpc_it, bch, data_err, data_ttl, cmmn_err, cmmn_ttl, cfo, sfo);
+		PR_DVBT("COM:%x,AUT:%x,GI:%x,PRE:%x,POST:%x,P1G:%2x,CASG:%2x, 0x361b:0x%x\n",
+			(dvbt_t2_rdb(0x1579) >> 6) & 0x01, (dvbt_t2_rdb(0x1579) >> 5) & 0x01,
+			(dvbt_t2_rdb(0x2745) >> 5) & 0x01, (dvbt_t2_rdb(0x839) >> 4) & 0x01,
+			(dvbt_t2_rdb(0x839) >> 3) & 0x01, dvbt_t2_rdb(0x15ba), dvbt_t2_rdb(0x15d5),
+			dvbt_t2_rdb(0x361b));
+		PR_DVBT("pwr_meter 0x%x\n\n", (dvbt_t2_rdb(0x82f) << 8) + dvbt_t2_rdb(0x82e));
+	}
 }
 

@@ -439,8 +439,6 @@ u32 dvbc_set_auto_symtrack(void)
 
 int dvbc_status(struct aml_demod_sta *demod_sta, struct aml_demod_sts *demod_sts)
 {
-	int ftmp, tmp;
-
 	struct dvb_frontend *fe = aml_get_fe();
 
 	demod_sts->ch_sts = qam_read_reg(0x6);
@@ -450,31 +448,13 @@ int dvbc_status(struct aml_demod_sta *demod_sta, struct aml_demod_sts *demod_sts
 	demod_sts->ch_per = dvbc_get_per();
 	demod_sts->symb_rate = dvbc_get_symb_rate();
 	demod_sts->freq_off = dvbc_get_freq_off();
-	/*demod_sts->dat0 = dvbc_read_reg(QAM_BASE+0x28); */
-/*    demod_sts->dat0 = tuner_get_ch_power(demod_i2c);*/
 	demod_sts->dat1 = tuner_get_ch_power(fe);
-	ftmp = demod_sts->ch_sts;
-	PR_DVBC("[dvbc debug] ch_sts is %x\n", ftmp);
-	ftmp = demod_sts->ch_snr;
-	ftmp /= 100;
-	PR_DVBC("snr %d dB ", ftmp);
-	ftmp = demod_sts->ch_ber;
-	PR_DVBC("ber %.d ", ftmp);
-	tmp = demod_sts->ch_per;
-	PR_DVBC("per %d ", tmp);
-	ftmp = demod_sts->symb_rate;
-	PR_DVBC("srate %.d ", ftmp);
-	ftmp = demod_sts->freq_off;
-	PR_DVBC("freqoff %.d kHz ", ftmp);
-	tmp = demod_sts->dat1;
-	/*change %lu to %u*/
-	PR_DVBC("strength %ddb  0xe0 status is %u ,b4 status is %u", tmp,
-		(qam_read_reg(0x38) & 0xffff),
-		(qam_read_reg(0x2d) & 0xffff));
-	/*change %lu to %u*/
-	PR_DVBC("dagc_gain is %u ", qam_read_reg(0x29) & 0x7f);
-	tmp = demod_sts->ch_pow;
-	PR_DVBC("power is %ddb\n", (tmp & 0xffff));
+	PR_DVBC("ch_sts is 0x%x, snr %ddB, ber %d, per %d, srate %d, freqoff %dkHz\n",
+		demod_sts->ch_sts, demod_sts->ch_snr / 100, demod_sts->ch_ber, demod_sts->ch_per,
+		demod_sts->symb_rate, demod_sts->freq_off);
+	PR_DVBC("strength %ddb,0xe0 status %u,b4 status %u, dagc_gain %u, power %ddb\n\n",
+		demod_sts->dat1, qam_read_reg(0x38) & 0xffff, qam_read_reg(0x2d) & 0xffff,
+		qam_read_reg(0x29) & 0x7f, demod_sts->ch_pow & 0xffff);
 
 	return 0;
 }

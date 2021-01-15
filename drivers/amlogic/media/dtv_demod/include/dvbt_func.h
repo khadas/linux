@@ -348,6 +348,7 @@ void dtvdemod_get_plp(struct dtv_property *tvp);
 void dtvdemod_get_plp_dbg(void);
 void dtvdemod_set_plpid(char id);
 void dvbt_reg_initial(unsigned int bw);
-void dtvdemod_reset_fw(void);
-void dvbt2_info(void);
+void dtvdemod_reset_fw(struct amldtvdemod_device_s *devp);
+void dvbt2_info(struct seq_file *seq);
+void dvbt_info(struct amldtvdemod_device_s *devp, struct seq_file *seq);
 #endif

@@ -62,6 +62,14 @@ static int adc_wr_afe(unsigned int reg, unsigned int val)
 	return 0;
 }
 
+static unsigned int adc_rd_afe(unsigned int reg)
+{
+	if (!probe_finish || !adc_devp)
+		return -1;
+
+	return readl(adc_devp->vir_addr[MAP_ADDR_AFE] + (reg << 2));
+}
+
 static int adc_wr_hiu(unsigned int reg, unsigned int val)
 {
 	if (!probe_finish || !adc_devp)
@@ -691,8 +699,27 @@ static void adc_parse_para(char *buf_orig, char **parm)
 	}
 }
 
-static ssize_t adc_store(struct device *dev,
-			       struct device_attribute *attr,
+static void adc_dump_regs(void)
+{
+	pr_info("AFE_VAFE_CTRL0:0x%x\n", adc_rd_afe(AFE_VAFE_CTRL0));
+	pr_info("AFE_VAFE_CTRL1:0x%x\n", adc_rd_afe(AFE_VAFE_CTRL1));
+	pr_info("AFE_VAFE_CTRL2:0x%x\n", adc_rd_afe(AFE_VAFE_CTRL2));
+	pr_info("HHI_DADC_CNTL:0x%x\n", adc_rd_hiu(HHI_DADC_CNTL));
+	pr_info("HHI_DADC_CNTL2:0x%x\n", adc_rd_hiu(HHI_DADC_CNTL2));
+	pr_info("HHI_DADC_CNTL3:0x%x\n", adc_rd_hiu(HHI_DADC_CNTL3));
+	pr_info("HHI_DADC_CNTL4:0x%x\n", adc_rd_hiu(HHI_DADC_CNTL4));
+	pr_info("HHI_S2_DADC_CNTL:0x%x\n", adc_rd_hiu(HHI_S2_DADC_CNTL));
+	pr_info("HHI_ADC_PLL_CNTL0_TL1:0x%x\n", adc_rd_hiu(HHI_ADC_PLL_CNTL0_TL1));
+	pr_info("HHI_ADC_PLL_CNTL1_TL1:0x%x\n", adc_rd_hiu(HHI_ADC_PLL_CNTL1_TL1));
+	pr_info("HHI_ADC_PLL_CNTL2_TL1:0x%x\n", adc_rd_hiu(HHI_ADC_PLL_CNTL2_TL1));
+	pr_info("HHI_ADC_PLL_CNTL3_TL1:0x%x\n", adc_rd_hiu(HHI_ADC_PLL_CNTL3_TL1));
+	pr_info("HHI_ADC_PLL_CNTL4_TL1:0x%x\n", adc_rd_hiu(HHI_ADC_PLL_CNTL4_TL1));
+	pr_info("HHI_ADC_PLL_CNTL5_TL1:0x%x\n", adc_rd_hiu(HHI_ADC_PLL_CNTL5_TL1));
+	pr_info("HHI_ADC_PLL_CNTL6_TL1:0x%x\n", adc_rd_hiu(HHI_ADC_PLL_CNTL6_TL1));
+	pr_info("HHI_VDAC_CNTL0_T5:0x%x\n", adc_rd_hiu(HHI_VDAC_CNTL0_T5));
+}
+
+static ssize_t adc_store(struct device *dev, struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
 	char *buf_orig, *parm[47] = {NULL};
@@ -708,7 +735,7 @@ static ssize_t adc_store(struct device *dev,
 	if (parm[0] && !strcmp(parm[0], "state")) {
 		pr_info("adc state\n");
 	} else if (parm[0] && !strcmp(parm[0], "dump_reg")) {
-		pr_info("dump reg\n");
+		adc_dump_regs();
 	} else if (parm[0] && !strcmp(parm[0], "debug")) {
 		if (!parm[1])
 			goto tvin_adc_store_err;

@@ -647,6 +647,6 @@ void dvbs_write_reg(unsigned int addr, unsigned int data);
 unsigned int dvbs_read_reg(unsigned int addr);
 int aml_demod_init(void);
 void aml_demod_exit(void);
-void write_riscv_ram(void);
+unsigned int write_riscv_ram(void);
 void dvbs2_reg_initial(unsigned int symb_rate);
 #endif

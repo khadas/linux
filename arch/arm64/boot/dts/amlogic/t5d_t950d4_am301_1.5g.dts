@@ -258,7 +258,7 @@
 	};
 
 	aml_dtv_demod {
-		compatible = "amlogic, ddemod-t5d";
+		compatible = "amlogic, ddemod-t5d-revB";
 		dev_name = "aml_dtv_demod";
 		status = "okay";
 		diseqc_name = "sgm_41286";
