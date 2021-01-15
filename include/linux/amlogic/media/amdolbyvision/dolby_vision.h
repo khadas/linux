@@ -114,6 +114,10 @@ struct dv_config_file_s {
 /* set Amlogic_cfg.txt and dv_config.bin dir */
 #define DV_IOC_SET_DV_CONFIG_FILE _IOW((DV_M), 0x9, struct dv_config_file_s)
 
+#define DV_SEI 0x01000000
+#define DV_AV1_SEI 0x14000000
+#define HDR10P 0x02000000
+
 void enable_dolby_vision(int enable);
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);

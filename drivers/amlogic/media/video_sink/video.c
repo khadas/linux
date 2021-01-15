@@ -8365,9 +8365,6 @@ EXPORT_SYMBOL(di_unreg_notify);
 #define signal_color_primaries ((vf->signal_type >> 16) & 0xff)
 #define signal_transfer_characteristic ((vf->signal_type >> 8) & 0xff)
 
-#define DV_SEI 0x01000000
-#define HDR10P 0x02000000
-
 static int check_media_sei(char *sei, u32 sei_size, u32 sei_type)
 {
 	int ret = 0;
@@ -8388,7 +8385,10 @@ static int check_media_sei(char *sei, u32 sei_size, u32 sei_type)
 		type = (type << 8) | *p++;
 		type = (type << 8) | *p++;
 
-		if (type == sei_type) {
+		if (((sei_type == DV_SEI || sei_type == HDR10P) &&
+			sei_type == type) ||
+			(sei_type == DV_AV1_SEI &&
+			sei_type == (type & 0xffff0000))) {
 			ret = 1;
 			break;
 		}
@@ -8466,7 +8466,8 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 		if (vf->discard_dv_data) {
 			if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
 				pr_info("ignore nonstandard dv\n");
-		} else if (dual_layer || check_media_sei(sei, size, DV_SEI)) {
+		} else if (dual_layer || check_media_sei(sei, size, DV_SEI) ||
+			   check_media_sei(sei, size, DV_AV1_SEI)) {
 			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_DOVI;
 			vf->src_fmt.dual_layer = dual_layer;
 #if PARSE_MD_IN_ADVANCE

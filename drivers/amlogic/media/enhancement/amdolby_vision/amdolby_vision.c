@@ -7090,7 +7090,8 @@ int is_dovi_frame(struct vframe_s *vf)
 			type = (type << 8) | *p++;
 			type = (type << 8) | *p++;
 			type = (type << 8) | *p++;
-			if (type == 0x01000000 || (type & 0xff000000) == 0x14000000)
+			if (type == DV_SEI ||
+			    (type & 0xffff0000) == DV_AV1_SEI)
 				return 1;
 			p += size;
 		}
@@ -7443,12 +7444,12 @@ int parse_sei_and_meta_ext(struct vframe_s *vf,
 			ret = 1;
 			goto parse_err;
 		}
-		if (type == 0x01000000 || /* hevc t35 sei */
-			(type & 0xff000000) == 0x14000000) { /* av1 t35 obu */
+		if (type == DV_SEI || /* hevc t35 sei */
+			(type & 0xffff0000) == DV_AV1_SEI) { /* av1 t35 obu */
 			*total_comp_size = 0;
 			*total_md_size = 0;
 
-			if ((type & 0xff000000) == 0x14000000 &&
+			if ((type & 0xffff0000) == DV_AV1_SEI &&
 			    p[0] == 0xb5 &&
 			    p[1] == 0x00 &&
 			    p[2] == 0x3b &&
@@ -7590,7 +7591,7 @@ int parse_sei_and_meta_ext(struct vframe_s *vf,
 			if (is_meson_tvmode())
 				rpu_ret =
 				p_funcs_tv->metadata_parser_process
-				(meta_buf, size,
+				(meta_buf, rpu_size,
 				 comp_buf + *total_comp_size,
 				 &comp_size,
 				 md_buf + *total_md_size,
@@ -7599,7 +7600,7 @@ int parse_sei_and_meta_ext(struct vframe_s *vf,
 			else
 				rpu_ret =
 				p_funcs_stb->metadata_parser_process
-				(meta_buf, size,
+				(meta_buf, rpu_size,
 				 comp_buf + *total_comp_size,
 				 &comp_size,
 				 md_buf + *total_md_size,
@@ -7645,6 +7646,7 @@ int parse_sei_and_meta_ext(struct vframe_s *vf,
 		struct _dv_vui_param_s_ vui_param;
 		u32 len_2086_sei = 0;
 		u32 len_2094_sei = 0;
+
 		u8 payload_2086_sei[MAX_LENGTH_2086_SEI];
 		u8 payload_2094_sei[MAX_LENGTH_2094_SEI];
 		unsigned char nal_type;
@@ -7775,6 +7777,7 @@ int parse_sei_and_meta_ext(struct vframe_s *vf,
 			spin_lock_irqsave(&dovi_lock, flags);
 			parser_ready = 0;
 			reset_flag = 2; /*flag: bit0 flag, bit1 0->dv, 1->atsc*/
+
 			if (!metadata_parser) {
 				if (is_meson_tvmode()) {
 					metadata_parser =
@@ -9278,36 +9281,36 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 		if ((fmt == VFRAME_SIGNAL_FMT_DOVI ||
 		    fmt == VFRAME_SIGNAL_FMT_INVALID) &&
 		    !vf->discard_dv_data) {
+			vf_notify_provider_by_name
+				(dv_provider,
+				 VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+				  (void *)&req);
+		}
+		/* use callback aux date first, if invalid, use sei_ptr */
+		if ((!req.aux_buf || !req.aux_size) &&
+		    fmt == VFRAME_SIGNAL_FMT_DOVI) {
 			u32 sei_size = 0;
 			char *sei;
 
-			if (!strcmp(dv_provider, "dvbldec"))
-				vf_notify_provider_by_name
-					(dv_provider,
-					 VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
-					 (void *)&req);
-			/* use aux date first, if invalid, use sei_ptr */
-			if ((!req.aux_buf || !req.aux_size) &&
-			    fmt == VFRAME_SIGNAL_FMT_DOVI) {
-				if (debug_dolby & 1)
-					pr_dolby_dbg("no aux buf %p %x, el %d from %s\n",
-						     req.aux_buf,
-						     req.aux_size,
-						     req.dv_enhance_exist,
-						     dv_provider);
-				sei = (char *)get_sei_from_src_fmt
-					(vf, &sei_size);
-				if (sei && sei_size) {
-					req.aux_buf = sei;
-					req.aux_size = sei_size;
-					req.dv_enhance_exist =
-						vf->src_fmt.dual_layer;
-				}
+			if (debug_dolby & 1)
+				pr_dolby_dbg("no aux %p %x, el %d from %s, use sei_ptr\n",
+					     req.aux_buf,
+					     req.aux_size,
+					     req.dv_enhance_exist,
+					     dv_provider);
+
+			sei = (char *)get_sei_from_src_fmt
+				(vf, &sei_size);
+			if (sei && sei_size) {
+				req.aux_buf = sei;
+				req.aux_size = sei_size;
+				req.dv_enhance_exist =
+					vf->src_fmt.dual_layer;
 			}
 		}
 		if (debug_dolby & 1)
-			pr_dolby_dbg("dvbldec get vf %p(%d), fmt %d, aux %p %x, el %d\n",
-				     vf, vf->discard_dv_data, fmt,
+			pr_dolby_dbg("%s get vf %p(%d), fmt %d, aux %p %x, el %d\n",
+				     dv_provider, vf, vf->discard_dv_data, fmt,
 				     req.aux_buf,
 				     req.aux_size,
 				     req.dv_enhance_exist);
@@ -9326,23 +9329,21 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 				total_md_size =  vf->src_fmt.md_size;
 				total_comp_size =  vf->src_fmt.comp_size;
 				ret_flags = vf->src_fmt.parse_ret_flags;
-			} else if (ret == 2) { /*parse failed*/
-				meta_flag_bl = 1;
-				src_format = FORMAT_DOVI;
-				pr_dolby_dbg("parser error vf %p\n", vf);
-			} else {  /*no parse*/
+			} else {  /*no parse or parse failed*/
 				meta_flag_bl =
-				parse_sei_and_meta(vf, &req,
-						   &total_comp_size,
-						   &total_md_size,
-						   &src_format,
-						   &ret_flags, drop_flag);
+				parse_sei_and_meta
+					(vf, &req,
+					 &total_comp_size,
+					 &total_md_size,
+					 &src_format,
+					  &ret_flags, drop_flag);
 			}
 			if (force_mel)
 				ret_flags = 1;
 
 			if (ret_flags && req.dv_enhance_exist) {
-				vf_notify_provider_by_name
+				if (!strcmp(dv_provider, "dvbldec"))
+					vf_notify_provider_by_name
 					(dv_provider,
 					 VFRAME_EVENT_RECEIVER_DOLBY_BYPASS_EL,
 					 (void *)&req);
