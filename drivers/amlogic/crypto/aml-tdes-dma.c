@@ -213,7 +213,10 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 		dev_err(dev, "error allocating key_iv buffer\n");
 		return -EINVAL;
 	}
-	memcpy(key_iv, key, keylen);
+
+	if (key)
+		memcpy(key_iv, key, keylen);
+
 	if (iv)
 		memcpy(piv, iv, 8);
 
@@ -1296,6 +1299,9 @@ static void aml_tdes_done_task(unsigned long data)
 		if (err == -EINPROGRESS)
 			return; /* DMA started. Not fininishing. */
 	}
+
+	if (dd->ctx->kte < 0)
+		err = set_tdes_key_iv(dd, NULL, 0, NULL);
 
 	aml_tdes_finish_req(dd, err);
 	aml_tdes_handle_queue(dd, NULL);

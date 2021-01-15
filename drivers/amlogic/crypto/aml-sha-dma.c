@@ -666,14 +666,61 @@ static int aml_sha_finish_hmac(struct ahash_request *req)
 	return 0;
 }
 
+static void aml_sha_clean_key(struct ahash_request *req)
+{
+	struct aml_sha_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
+	struct aml_sha_dev *dd = tctx->dd;
+	struct dma_dsc *dsc = 0;
+	dma_addr_t dma_key = 0;
+	dma_addr_t dma_descript_tab = 0;
+	u8 *key = 0;
+
+	dsc = dmam_alloc_coherent(dd->dev, sizeof(struct dma_dsc),
+			&dma_descript_tab, GFP_ATOMIC | GFP_DMA);
+	if (!dsc)
+		return;
+
+	key = dmam_alloc_coherent(dd->dev, tctx->keylen,
+			&dma_key, GFP_ATOMIC | GFP_DMA);
+	if (!key) {
+		dmam_free_coherent(dd->dev, sizeof(struct dma_dsc),
+				dsc, dma_descript_tab);
+		return;
+	}
+
+	memset(key, 0, tctx->keylen);
+
+	dsc[0].src_addr = (u32)dma_key;
+	dsc[0].tgt_addr = 0;
+	dsc[0].dsc_cfg.d32 = 0;
+	dsc[0].dsc_cfg.b.length = tctx->keylen;
+	dsc[0].dsc_cfg.b.mode = MODE_KEY;
+	dsc[0].dsc_cfg.b.eoc = 1;
+	dsc[0].dsc_cfg.b.owner = 1;
+
+	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
+
+	aml_write_crypto_reg(dd->thread,
+			(uintptr_t)dma_descript_tab | 2);
+	while (aml_read_crypto_reg(dd->status) == 0)
+		;
+	aml_write_crypto_reg(dd->status, 0xf);
+
+	dmam_free_coherent(dd->dev, tctx->keylen, key, dma_key);
+	dmam_free_coherent(dd->dev, sizeof(struct dma_dsc),
+			dsc, dma_descript_tab);
+}
+
 static int aml_sha_finish(struct ahash_request *req)
 {
 	struct aml_sha_reqctx *ctx = ahash_request_ctx(req);
 	struct aml_sha_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
 	int err = 0;
 
-	if (tctx->is_hmac)
+	if (tctx->is_hmac) {
 		err = aml_sha_finish_hmac(req);
+		aml_sha_clean_key(req);
+	}
 	aml_sha_copy_ready_hash(req);
 
 	kfree(ctx->digest);
