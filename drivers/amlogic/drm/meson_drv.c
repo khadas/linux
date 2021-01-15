@@ -298,7 +298,11 @@ int __am_meson_drm_set_config(struct drm_mode_set *set,
 		return ret;
 
 	drm_mode_get_hv_timing(set->mode, &hdisplay, &vdisplay);
-
+	/*now we use amlogic vinfo,
+	 *vdisplay is only half of full lines for interlace mode.
+	 */
+	if (crtc->mode.flags & DRM_MODE_FLAG_INTERLACE)
+		vdisplay = vdisplay * 2;
 	drm_atomic_set_fb_for_plane(primary_state, set->fb);
 	primary_state->crtc_x = 0;
 	primary_state->crtc_y = 0;
