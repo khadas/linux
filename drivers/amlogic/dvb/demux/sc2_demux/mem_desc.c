@@ -213,10 +213,8 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 	pchan->memdescs->bits.loop = loop_desc;
 	pchan->memdescs->bits.eoc = 1;
 
-	pchan->memdescs_map = dma_map_single(aml_get_device(),
-					     (void *)pchan->memdescs,
-					     sizeof(union mem_desc),
-					     DMA_TO_DEVICE);
+	dma_sync_single_for_device(aml_get_device(),
+		pchan->memdescs_phy, sizeof(union mem_desc), DMA_TO_DEVICE);
 	pr_dbg("flush mem descs to ddr\n");
 	pr_dbg("%s mem_desc phy addr 0x%x, memdsc:0x%lx\n", __func__,
 	       pchan->memdescs_phy, (unsigned long)pchan->memdescs);
@@ -235,9 +233,6 @@ static void _bufferid_free_desc_mem(struct chan_id *pchan)
 	if (pchan->memdescs)
 		_free_buff((unsigned long)pchan->memdescs_phy,
 			   sizeof(union mem_desc), 0, 0);
-	if (pchan->memdescs_map)
-		dma_unmap_single(aml_get_device(), pchan->memdescs_map,
-				 pchan->mem_size, DMA_TO_DEVICE);
 	pchan->mem = 0;
 	pchan->mem_phy = 0;
 	pchan->mem_size = 0;
@@ -630,10 +625,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 	const char __user *p = buf;
 	unsigned int tmp;
 	unsigned int times = 0;
-	dma_addr_t dma_addr = 0;
-	dma_addr_t dma_desc_addr = 0;
 	struct dmx_sec_ts_data ts_data;
-//      dma_addr_t dma_desc_addr = 0;
 
 	pr_dbg("%s start w:%d\n", __func__, r);
 	do {
@@ -660,10 +652,10 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 			pchan->memdescs->bits.address = tmp;
 			pchan->memdescs->bits.byte_length =
 				ts_data.buf_end - ts_data.buf_start;
-			dma_desc_addr = dma_map_single(aml_get_device(),
-						       (void *)pchan->memdescs,
-						       sizeof(union mem_desc),
-						       DMA_TO_DEVICE);
+
+			dma_sync_single_for_device(aml_get_device(),
+				pchan->memdescs_phy, sizeof(union mem_desc),
+				DMA_TO_DEVICE);
 
 			tmp = (unsigned long)(pchan->memdescs) & 0xFFFFFFFF;
 			len = pchan->memdescs->bits.byte_length;
@@ -684,26 +676,14 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 				dump_file_open(INPUT_DUMP_FILE);
 				dump_file_write((char *)pchan->mem, len);
 			}
-			dma_addr = dma_map_single(aml_get_device(),
-						  (void *)pchan->mem,
-						  pchan->mem_size,
-						  DMA_TO_DEVICE);
+			dma_sync_single_for_device(aml_get_device(),
+				pchan->mem_phy, pchan->mem_size, DMA_TO_DEVICE);
 
 			//set desc mem ==len for trigger data transfer.
 			pchan->memdescs->bits.byte_length = len;
-			dma_desc_addr = dma_map_single(aml_get_device(),
-						       (void *)pchan->memdescs,
-						       sizeof(union mem_desc),
-						       DMA_TO_DEVICE);
-
-			if (dma_mapping_error(aml_get_device(), dma_addr)) {
-				dprint("mem dma_mapping error\n");
-				dma_unmap_single(aml_get_device(),
-						 dma_desc_addr,
-						 sizeof(union mem_desc),
-						 DMA_TO_DEVICE);
-				return -EFAULT;
-			}
+			dma_sync_single_for_device(aml_get_device(),
+				pchan->memdescs_phy, sizeof(union mem_desc),
+				DMA_TO_DEVICE);
 
 			wmb();	/*Ensure pchan->mem contents visible */
 
@@ -717,17 +697,10 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 			tmp = pchan->memdescs_phy & 0xFFFFFFFF;
 			rdma_config_enable(pchan->id, 1, tmp,
 					   pchan->mem_size, len);
-			dma_unmap_single(aml_get_device(),
-					 dma_addr, pchan->mem_size,
-					 DMA_TO_DEVICE);
 		}
 
 		do {
 		} while (!rdma_get_done(pchan->id));
-
-		dma_unmap_single(aml_get_device(),
-				 dma_desc_addr, sizeof(union mem_desc),
-				 DMA_TO_DEVICE);
 
 		ret = rdma_get_rd_len(pchan->id);
 		if (ret != len)

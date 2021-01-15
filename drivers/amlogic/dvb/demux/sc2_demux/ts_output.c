@@ -1379,11 +1379,17 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	sec_es_data.pts_dts_flag = es_params->header.pts_dts_flag;
 	sec_es_data.dts = es_params->header.dts;
 	sec_es_data.pts = es_params->header.pts;
-	sec_es_data.buf_start = pout->pchan->mem;
-	sec_es_data.buf_end = pout->pchan->mem + pout->pchan->mem_size;
-	sec_es_data.data_start = es_params->data_start;
-	sec_es_data.data_end = (unsigned long)ptmp + len;
-
+	sec_es_data.buf_start = pout->pchan->mem_phy;
+	sec_es_data.buf_end = pout->pchan->mem_phy + pout->pchan->mem_size;
+	if (flag) {
+		sec_es_data.data_start = es_params->data_start;
+		sec_es_data.data_end = (unsigned long)ptmp + len;
+	} else {
+		sec_es_data.data_start = es_params->data_start -
+			pout->pchan->mem + pout->pchan->mem_phy;
+		sec_es_data.data_end = (unsigned long)ptmp -
+			pout->pchan->mem + pout->pchan->mem_phy + len;
+	}
 	if (sec_es_data.data_end > sec_es_data.data_start)
 		pr_dbg("video data start:0x%x, end:0x%x len:0x%x\n",
 			sec_es_data.data_start, sec_es_data.data_end,
