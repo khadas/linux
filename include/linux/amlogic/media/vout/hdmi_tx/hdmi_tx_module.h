@@ -923,6 +923,7 @@ bool hdmitx_find_vendor(struct hdmitx_dev *hdev);
 int drm_hdmitx_detect_hpd(void);
 int drm_hdmitx_register_hpd_cb(drm_hpd_cb cb, void *data);
 int drm_hdmitx_get_vic_list(int **vics);
+unsigned char *drm_hdmitx_get_raw_edid(void);
 /*DRM connector API end*/
 
 #endif

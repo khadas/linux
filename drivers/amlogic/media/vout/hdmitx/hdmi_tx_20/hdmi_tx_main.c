@@ -5826,6 +5826,13 @@ int drm_hdmitx_get_vic_list(int **vics)
 	return count;
 }
 EXPORT_SYMBOL(drm_hdmitx_get_vic_list);
+
+unsigned char *drm_hdmitx_get_raw_edid(void)
+{
+	return hdmitx_device.EDID_buf;
+}
+EXPORT_SYMBOL(drm_hdmitx_get_raw_edid);
+
 /*************DRM connector API**************/
 
 static void hdmitx_init_parameters(struct hdmitx_info *info)

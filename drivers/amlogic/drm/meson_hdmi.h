@@ -55,11 +55,8 @@ struct am_hdmi_tx {
 	struct drm_property *color_space_property;
 	struct drm_display_mode previous_mode;
 	struct am_hdmi_data hdmi_info;
-	struct am_hdmi_i2c *i2c;
-	struct i2c_adapter *ddc;
 	struct workqueue_struct *hdmi_wq;
 	const char *hpd_pin;
-	const char *ddc_pin;
 	unsigned int hpd_flag;/*0:none   1:up    2:down*/
 	struct mutex hdcp_mutex;
 	unsigned int hdcp_feature;

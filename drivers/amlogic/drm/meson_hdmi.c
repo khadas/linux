@@ -31,6 +31,8 @@
 
 #define DEVICE_NAME "amhdmitx"
 struct am_hdmi_tx am_hdmi_info;
+/*for hw limitiation, limit to 1080p/720p for recovery ui.*/
+bool hdmitx_set_smaller_pref = true;
 
 /*TODO:will remove later.*/
 static struct drm_display_mode dummy_mode = {
@@ -59,7 +61,6 @@ char *am_meson_hdmi_get_voutmode(struct drm_display_mode *mode)
 
 int am_hdmi_tx_get_modes(struct drm_connector *connector)
 {
-	struct am_hdmi_tx *am_hdmi = connector_to_am_hdmi(connector);
 	struct edid *edid;
 	int *vics;
 	int count = 0, i = 0, len = 0;
@@ -67,13 +68,10 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 	struct hdmi_format_para *hdmi_para;
 	struct hdmi_cea_timing *timing;
 	char *strp = NULL;
+	bool set_pref = false;
 
-	DRM_INFO("get_edid\n");
-	edid = drm_get_edid(connector, am_hdmi->ddc);
+	edid = (struct edid *)drm_hdmitx_get_raw_edid();
 	drm_connector_update_edid_property(connector, edid);
-	if (edid)
-		kfree(edid);
-	edid = NULL;
 
 	/*add modes from hdmitx instead of edid*/
 	count = drm_hdmitx_get_vic_list(&vics);
@@ -123,6 +121,15 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 
 			if (hdmi_para->hdmitx_vinfo.field_height != hdmi_para->hdmitx_vinfo.height)
 				mode->flags |= DRM_MODE_FLAG_INTERLACE;
+
+			/*for recovery ui*/
+			if (hdmitx_set_smaller_pref && !set_pref) {
+				if ((mode->hdisplay == 1920 && mode->vdisplay == 1080) ||
+					(mode->hdisplay == 1280 && mode->vdisplay == 720)) {
+					mode->type |= DRM_MODE_TYPE_PREFERRED;
+					set_pref = true;
+				}
+			}
 
 			drm_mode_probed_add(connector, mode);
 
@@ -296,185 +303,6 @@ static const struct drm_encoder_funcs am_hdmi_encoder_funcs = {
 	.destroy        = drm_encoder_cleanup,
 };
 
-static int am_hdmi_i2c_write(struct am_hdmi_tx *am_hdmi,
-			     unsigned char *buf, unsigned int length)
-{
-	struct am_hdmi_i2c *i2c = am_hdmi->i2c;
-	int stat;
-
-	if (!i2c->is_regaddr) {
-		/* Use the first write byte as register address */
-		i2c->slave_reg = buf[0];
-		length--;
-		buf++;
-		i2c->is_regaddr = 1;
-	}
-
-	while (length--) {
-		reinit_completion(&i2c->cmp);
-
-		hdmitx_wr_reg(HDMITX_DWC_I2CM_DATAO, *buf++);
-		hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS, i2c->slave_reg++);
-		hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 4);
-
-		stat = wait_for_completion_timeout(&i2c->cmp, HZ / 100);
-
-		stat = 1;
-		/* Check for error condition on the bus */
-		if (i2c->stat & 1)
-			return -EIO;
-	}
-
-	return 0;
-}
-
-static int am_hdmi_i2c_read(struct am_hdmi_tx *am_hdmi,
-			    unsigned char *buf, unsigned int length)
-{
-	struct am_hdmi_i2c *i2c = am_hdmi->i2c;
-	int stat;
-
-	if (!i2c->is_regaddr) {
-		dev_dbg(am_hdmi->dev, "set read register address to 0\n");
-		i2c->slave_reg = 0x00;
-		i2c->is_regaddr = 1;
-	}
-
-	while (length--) {
-		reinit_completion(&i2c->cmp);
-
-		hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS, i2c->slave_reg++);
-		if (i2c->is_segment)
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 1);
-		else
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 0);
-
-		stat = wait_for_completion_timeout(&i2c->cmp, HZ / 100);
-
-		stat = 1;
-
-		/* Check for error condition on the bus */
-		if (i2c->stat & 0x1)
-			return -EIO;
-
-		*buf++ = hdmitx_rd_reg(HDMITX_DWC_I2CM_DATAI);
-	}
-	i2c->is_segment = 0;
-
-	return 0;
-}
-
-static int am_hdmi_i2c_xfer(struct i2c_adapter *adap,
-			    struct i2c_msg *msgs, int num)
-{
-	struct am_hdmi_tx *am_hdmi =  i2c_get_adapdata(adap);
-	struct am_hdmi_i2c *i2c = am_hdmi->i2c;
-	u8 addr = msgs[0].addr;
-	int i, ret = 0;
-
-	dev_dbg(am_hdmi->dev, "xfer: num: %d, addr: %#x\n", num, addr);
-
-	for (i = 0; i < num; i++) {
-		if (msgs[i].len == 0) {
-			dev_dbg(am_hdmi->dev,
-				"unsupported transfer %d/%d, no data\n",
-				i + 1, num);
-			return -EOPNOTSUPP;
-		}
-	}
-
-	mutex_lock(&i2c->lock);
-
-	/* Clear the EDID interrupt flag and unmute the interrupt */
-	hdmitx_wr_reg(HDMITX_DWC_I2CM_SOFTRSTZ, 0);
-	hdmitx_wr_reg(HDMITX_DWC_IH_MUTE_I2CM_STAT0, 0);
-	/* TODO */
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
-
-	/* Set slave device address taken from the first I2C message */
-	hdmitx_wr_reg(HDMITX_DWC_I2CM_SLAVE, addr);
-
-	/* Set slave device register address on transfer */
-	i2c->is_regaddr = 0;
-
-	/* Set segment pointer for I2C extended read mode operation */
-	i2c->is_segment = 0;
-
-	for (i = 0; i < num; i++) {
-		dev_dbg(am_hdmi->dev, "xfer: num: %d/%d, len: %d, flags: %#x\n",
-			i + 1, num, msgs[i].len, msgs[i].flags);
-		if (msgs[i].addr == DDC_SEGMENT_ADDR && msgs[i].len == 1) {
-			i2c->is_segment = 1;
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR,
-				      DDC_SEGMENT_ADDR);
-			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, *msgs[i].buf);
-		} else {
-			if (msgs[i].flags & I2C_M_RD)
-				ret = am_hdmi_i2c_read(am_hdmi, msgs[i].buf,
-						       msgs[i].len);
-			else
-				ret = am_hdmi_i2c_write(am_hdmi, msgs[i].buf,
-							msgs[i].len);
-		}
-		if (ret < 0)
-			break;
-	}
-
-	if (!ret)
-		ret = num;
-
-	mutex_unlock(&i2c->lock);
-
-	return ret;
-}
-
-static u32 am_hdmi_i2c_func(struct i2c_adapter *adapter)
-{
-	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
-}
-
-static const struct i2c_algorithm am_hdmi_algorithm = {
-	.master_xfer	= am_hdmi_i2c_xfer,
-	.functionality	= am_hdmi_i2c_func,
-};
-
-static struct i2c_adapter *am_hdmi_i2c_adapter(struct am_hdmi_tx *am_hdmi)
-{
-	struct i2c_adapter *adap;
-	struct am_hdmi_i2c *i2c;
-	int ret;
-
-	i2c = devm_kzalloc(am_hdmi->priv->dev, sizeof(*i2c), GFP_KERNEL);
-	if (!i2c) {
-		ret = -ENOMEM;
-		DRM_INFO("error : %d\n", ret);
-	}
-
-	mutex_init(&i2c->lock);
-	init_completion(&i2c->cmp);
-
-	adap = &i2c->adap;
-	adap->class = I2C_CLASS_DDC;
-	adap->owner = THIS_MODULE;
-	adap->dev.parent = am_hdmi->priv->dev;
-	adap->dev.of_node = am_hdmi->priv->dev->of_node;
-	adap->algo = &am_hdmi_algorithm;
-	strlcpy(adap->name, "Am HDMI", sizeof(adap->name));
-	i2c_set_adapdata(adap, am_hdmi);
-
-	ret = i2c_add_adapter(adap);
-	if (ret) {
-		DRM_INFO("cannot add %s I2C adapter\n",
-			 adap->name);
-		devm_kfree(am_hdmi->priv->dev, i2c);
-		return ERR_PTR(ret);
-	}
-	am_hdmi->i2c = i2c;
-	DRM_INFO("registered %s I2C bus driver\n", adap->name);
-
-	return adap;
-}
-
 static const struct of_device_id am_meson_hdmi_dt_ids[] = {
 	{ .compatible = "amlogic, drm-amhdmitx", },
 	{},
@@ -554,9 +382,6 @@ static int am_meson_hdmi_bind(struct device *dev,
 	encoder->possible_crtcs = BIT(0);
 	drm_connector_attach_encoder(connector, encoder);
 
-	/*DDC init*/
-	am_hdmi->ddc = am_hdmi_i2c_adapter(am_hdmi);
-	DRM_INFO("hdmitx:DDC init complete\n");
 	/*hpd irq moved to amhdmitx, registe call back */
 	drm_hdmitx_register_hpd_cb(am_meson_hdmi_hpd_cb, (void *)am_hdmi);
 
