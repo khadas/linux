@@ -2399,36 +2399,41 @@ static int __maybe_unused meson_sar_adc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 #ifdef CONFIG_AMLOGIC_MODIFY
-	int ret;
+	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 
-	if (meson_sar_adc_pm_runtime_supported(indio_dev))
+	if (iio_buffer_enabled(indio_dev))
+		meson_sar_adc_buffer_predisable(indio_dev);
+
+	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
+		pm_runtime_force_suspend(indio_dev->dev.parent);
+
+		clk_prepare_enable(priv->core_clk);
 		return 0;
-
-	if (iio_buffer_enabled(indio_dev)) {
-		ret = meson_sar_adc_buffer_predisable(indio_dev);
-		if (ret)
-			return ret;
+	} else {
+		return meson_sar_adc_hw_disable(indio_dev);
 	}
-#endif
+
+#else
 	return meson_sar_adc_hw_disable(indio_dev);
+#endif
 }
 
 static int __maybe_unused meson_sar_adc_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 #ifdef CONFIG_AMLOGIC_MODIFY
+	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 	int ret;
 
 	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
-		if (iio_buffer_enabled(indio_dev))
-			return meson_sar_adc_buffer_postenable(indio_dev);
+		clk_disable_unprepare(priv->core_clk);
 
-		return 0;
+		pm_runtime_force_resume(indio_dev->dev.parent);
+	} else {
+		ret = meson_sar_adc_hw_enable(indio_dev);
+		if (ret)
+			return ret;
 	}
-
-	ret = meson_sar_adc_hw_enable(indio_dev);
-	if (ret)
-		return ret;
 
 	if (iio_buffer_enabled(indio_dev))
 		return meson_sar_adc_buffer_postenable(indio_dev);
