@@ -1019,8 +1019,9 @@ int __init ddr_bandwidth_init(void)
 	ddr_bandwidth_driver.driver.of_match_table = match_id;
 #endif
 
-	return platform_driver_probe(&ddr_bandwidth_driver,
-				     ddr_bandwidth_probe);
+	platform_driver_probe(&ddr_bandwidth_driver,
+			      ddr_bandwidth_probe);
+	return 0;
 }
 
 void ddr_bandwidth_exit(void)

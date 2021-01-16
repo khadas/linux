@@ -106,7 +106,7 @@ void show_violation_mem(unsigned long addr)
 unsigned long dmc_prot_rw(void  __iomem *base,
 			  unsigned long off, unsigned long value, int rw)
 {
-	if (dmc_mon->io_mem1) {
+	if (base) {
 		if (rw == DMC_WRITE) {
 			writel(value, base + off);
 			return 0;
@@ -687,7 +687,8 @@ int __init dmc_monitor_init(void)
 	dmc_monitor_driver.driver.of_match_table = match_id;
 #endif
 
-	return platform_driver_probe(&dmc_monitor_driver, dmc_monitor_probe);
+	platform_driver_probe(&dmc_monitor_driver, dmc_monitor_probe);
+	return 0;
 }
 
 void dmc_monitor_exit(void)

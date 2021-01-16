@@ -951,3 +951,4 @@ int gmac_remove_sysfs(struct phy_device *phydev)
 	c_phy_dev = NULL;
 	return 0;
 }
+EXPORT_SYMBOL(gmac_remove_sysfs);
