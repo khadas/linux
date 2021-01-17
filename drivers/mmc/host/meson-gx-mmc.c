@@ -250,7 +250,7 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 			if (host->src_clk_rate != 0) {
 				dev_notice(host->dev, "set src rate to:%u\n",
 							host->src_clk_rate);
-				ret = clk_set_rate(host->clk[1], host->src_clk_rate);
+				ret = clk_set_rate(host->clk[2], host->src_clk_rate);
 				if (ret) {
 					dev_err(host->dev, "set src err\n");
 					return ret;
