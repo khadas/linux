@@ -46,7 +46,6 @@ static bool no_render;/* default: false */
 static bool async_mode;/* default: false */
 /*static u32 video_early_threshold = 900;  default: 900=>10ms */
 
-
 /* video freerun mode */
 #define FREERUN_NONE    0	/* no freerun mode */
 #define FREERUN_NODUR   1	/* freerun without duration */
@@ -1908,7 +1907,3 @@ void __exit videosync_exit(void)
 	class_unregister(&videosync_class);
 }
 
-#ifndef MODULE
-module_init(videosync_init);
-module_exit(videosync_exit);
-#endif

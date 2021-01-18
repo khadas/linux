@@ -4589,9 +4589,3 @@ void __exit cec_uninit(void)
 	platform_driver_unregister(&aml_cec_driver);
 }
 
-#ifndef MODULE
-module_init(cec_init);
-module_exit(cec_uninit);
-MODULE_DESCRIPTION("AMLOGIC HDMI TX CEC driver");
-MODULE_LICENSE("GPL");
-#endif

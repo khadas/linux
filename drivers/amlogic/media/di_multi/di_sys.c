@@ -3840,11 +3840,6 @@ void __exit dim_module_exit(void)
 	PR_INF("%s: ok.\n", __func__);
 }
 
-#ifndef MODULE
-module_init(dim_module_init);
-module_exit(dim_module_exit);
-#endif
-
 //MODULE_DESCRIPTION("AMLOGIC MULTI-DI driver");
 //MODULE_LICENSE("GPL");
 //MODULE_VERSION("4.0.0");

@@ -1453,11 +1453,6 @@ void __exit ppmgr_remove_module(void)
 	amlog_level(LOG_LEVEL_HIGH, "ppmgr module removed.\n");
 }
 
-#ifndef MODULE
-module_init(ppmgr_init_module);
-module_exit(ppmgr_remove_module);
-#endif
-
 RESERVEDMEM_OF_DECLARE(ppmgr, "amlogic, idev-mem", ppmgr_mem_setup);
 //MODULE_DESCRIPTION("AMLOGIC  ppmgr driver");
 //MODULE_LICENSE("GPL");

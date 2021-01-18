@@ -3123,7 +3123,6 @@ static ssize_t lcd_debug_reg_store(struct class *class,
 	return count;
 }
 
-
 static ssize_t lcd_debug_vlock_show(struct class *class,
 				    struct class_attribute *attr, char *buf)
 {

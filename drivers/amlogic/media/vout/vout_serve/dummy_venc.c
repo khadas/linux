@@ -1650,8 +1650,3 @@ void __exit dummy_venc_exit(void)
 	platform_driver_unregister(&dummy_venc_platform_driver);
 }
 
-#ifndef MODULE
-subsys_initcall(dummy_venc_init);
-module_exit(dummy_venc_exit);
-#endif
-

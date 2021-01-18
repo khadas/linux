@@ -6495,7 +6495,4 @@ void __exit amlvideo2_exit(void)
 
 RESERVEDMEM_OF_DECLARE(amlvideo2, "amlogic, amlvideo2_memory",
 		       amlvideo2_mem_setup);
-#ifndef MODULE
-module_init(amlvideo2_init);
-module_exit(amlvideo2_exit);
-#endif
+

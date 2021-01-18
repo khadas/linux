@@ -27,12 +27,10 @@
 #include "nr_downscale.h"
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 
-
 /*2018-07-18 add debugfs*/
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 /*2018-07-18 -----------*/
-
 
 void parse_cmd_params(char *buf_orig, char **parm)
 {
@@ -647,7 +645,6 @@ void dump_mif_size_state(struct di_pre_stru_s *pre_stru_p,
 		pr_info("NR_DS_BUF_SIZE=0x%x\n", Rd(0x3740));
 	}
 
-
 	pr_info("=====inp mif:\n");
 #if 0
 	Wr(DI_DBG_CTRL, 0x1b);
@@ -953,7 +950,6 @@ static void print_di_buf_seq(struct di_buf_s *di_buf, int format,
 	}
 }
 
-
 void dump_pre_mif_state(void)
 {
 	unsigned int i = 0;
@@ -1238,7 +1234,6 @@ static int seq_file_afbc_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "VD1_AFBCD0_MISC_CTRL 0x%x.\n",
 				RDMA_RD(VD1_AFBCD0_MISC_CTRL));
 	seq_puts(seq, "***************************\n");
-
 
 	seq_printf(seq, "VIU_MISC_CTRL0 0x%x.\n", RDMA_RD(VIU_MISC_CTRL0));
 	seq_printf(seq, "VIU_MISC_CTRL1 0x%x.\n", RDMA_RD(VIU_MISC_CTRL1));

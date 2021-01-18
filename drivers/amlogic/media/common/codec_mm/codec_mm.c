@@ -2632,9 +2632,6 @@ int __init codec_mm_module_init(void)
 	return 0;
 }
 
-#ifndef MODULE
-arch_initcall(codec_mm_module_init);
-#endif
 //MODULE_DESCRIPTION("AMLOGIC amports mem  driver");
 //MODULE_LICENSE("GPL");
 

@@ -151,7 +151,6 @@ static unsigned int combing_bias_static_setting[MAX_NUM_DI_REG] = {
 	0x00000166
 };
 
-
 static unsigned int combing_normal_setting[MAX_NUM_DI_REG] = {
 	0x00202015,
 	0x1A1A3A62,
@@ -426,7 +425,6 @@ unsigned int adp_set_mtn_ctrl3(unsigned int diff, unsigned int dlvel)
 	return rst;
 }
 
-
 int cmb_num_rat_ctl4 = 64; /* 0~255 */
 module_param(cmb_num_rat_ctl4, int, 0644);
 MODULE_PARM_DESC(cmb_num_rat_ctl4, "cmb_num_rat_ctl4");
@@ -434,7 +432,6 @@ MODULE_PARM_DESC(cmb_num_rat_ctl4, "cmb_num_rat_ctl4");
 int cmb_rat_ctl4_minthd = 64;
 module_param(cmb_rat_ctl4_minthd, int, 0644);
 MODULE_PARM_DESC(cmb_rat_ctl4_minthd, "cmb_rat_ctl4_minthd");
-
 
 unsigned int adp_set_mtn_ctrl4(unsigned int diff, unsigned int dlvel,
 	unsigned int height, int cmb_cnt)

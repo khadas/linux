@@ -1047,7 +1047,6 @@ static int tvafe_avin_detect_probe(struct platform_device *pdev)
 	int ret;
 	int state = 0;
 
-
 	meson_data = (struct meson_avin_data *)
 		of_device_get_match_data(&pdev->dev);
 	if (meson_data)
@@ -1214,11 +1213,6 @@ void __exit tvafe_avin_detect_exit(void)
 {
 	platform_driver_unregister(&tvafe_avin_driver);
 }
-
-#ifndef MODULE
-module_init(tvafe_avin_detect_init);
-module_exit(tvafe_avin_detect_exit);
-#endif
 
 //MODULE_DESCRIPTION("Meson TVAFE AVIN detect Driver");
 //MODULE_LICENSE("GPL");

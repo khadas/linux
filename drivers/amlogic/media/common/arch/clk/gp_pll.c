@@ -144,6 +144,3 @@ int __init gp_pll_init(void)
 	return 0;
 }
 
-#ifndef MODULE
-fs_initcall(gp_pll_init);
-#endif

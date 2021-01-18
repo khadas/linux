@@ -2161,11 +2161,6 @@ void __exit picdec_remove_module(void)
 	amlog_level(LOG_LEVEL_HIGH, "picdec module removed.\n");
 }
 
-#ifndef MODULE
-module_init(picdec_init_module);
-module_exit(picdec_remove_module);
-#endif
-
 RESERVEDMEM_OF_DECLARE(picdec, "amlogic, picdec_memory", picdec_mem_setup);
 
 //MODULE_DESCRIPTION("Amlogic picture decoder driver");

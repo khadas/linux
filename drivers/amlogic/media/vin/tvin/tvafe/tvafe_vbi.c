@@ -2410,10 +2410,6 @@ static int __init vbi_mem_setup(struct reserved_mem *rmem)
 	return 0;
 }
 
-#ifndef MODULE
-module_init(vbi_init);
-module_exit(vbi_exit);
-#endif
 RESERVEDMEM_OF_DECLARE(vbi, "amlogic, vbi-mem",
 	vbi_mem_setup);
 

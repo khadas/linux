@@ -6471,11 +6471,6 @@ void __exit amhdmitx_exit(void)
 	platform_driver_unregister(&amhdmitx_driver);
 }
 
-#ifndef MODULE
-subsys_initcall(amhdmitx_init);
-module_exit(amhdmitx_exit);
-#endif
-
 //MODULE_DESCRIPTION("AMLOGIC HDMI TX driver");
 //MODULE_LICENSE("GPL");
 //MODULE_VERSION("1.0.0");

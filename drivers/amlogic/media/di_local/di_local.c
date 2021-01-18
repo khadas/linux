@@ -384,11 +384,6 @@ void __exit dil_exit(void)
 	PR_INF("%s: ok.\n", __func__);
 }
 
-#ifndef MODULE
-module_init(dil_init);
-module_exit(dil_exit);
-#endif
-
 //MODULE_DESCRIPTION("AMLOGIC DI_LOCAL driver");
 //MODULE_LICENSE("GPL");
 //MODULE_VERSION("4.0.0");

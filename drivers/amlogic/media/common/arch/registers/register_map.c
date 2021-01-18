@@ -66,7 +66,6 @@ static struct codecio_device_data_s codecio_tl1 = {
 	.cpu_id = MESON_CPU_MAJOR_ID_TL1,
 };
 
-
 static struct codecio_device_data_s codecio_sm1 = {
 	.cpu_id = MESON_CPU_MAJOR_ID_SM1,
 };
@@ -736,7 +735,6 @@ void aml_dosbus_update_bits(unsigned int reg,
 }
 EXPORT_SYMBOL(aml_dosbus_update_bits);
 
-
 /* end of aml_read_xxx/ aml_write_xxx apis*/
 static int __init codec_io_probe(struct platform_device *pdev)
 {
@@ -826,6 +824,3 @@ int __init codec_io_init(void)
 module_param(regs_cmd_debug, uint, 0664);
 MODULE_PARM_DESC(regs_cmd_debug, "\n register commands sequence debug.\n");
 
-#ifndef MODULE
-arch_initcall_sync(codec_io_init);
-#endif

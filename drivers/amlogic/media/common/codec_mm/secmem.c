@@ -435,8 +435,4 @@ void __exit secmem_exit(void)
 	pr_dbg("exit done\n");
 }
 
-#ifndef MODULE
-arch_initcall(secmem_init);
-#endif
-
 MODULE_LICENSE("GPL");

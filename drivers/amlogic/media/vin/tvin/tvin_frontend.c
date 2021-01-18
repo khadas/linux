@@ -168,10 +168,5 @@ void __exit tvin_common_exit(void)
 	class_destroy(tvcom_clsp);
 }
 
-#ifndef MODULE
-module_init(tvin_common_init);
-module_exit(tvin_common_exit);
-#endif
-
 //MODULE_LICENSE("GPL");
 

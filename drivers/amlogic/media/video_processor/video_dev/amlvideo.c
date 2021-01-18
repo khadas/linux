@@ -1025,7 +1025,3 @@ void __exit amlvideo_exit(void)
 	amlvideo_release();
 }
 
-#ifndef MODULE
-module_init(amlvideo_init);
-module_exit(amlvideo_exit);
-#endif

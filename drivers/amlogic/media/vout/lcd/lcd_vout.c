@@ -1750,11 +1750,6 @@ void __exit lcd_exit(void)
 	platform_driver_unregister(&lcd_platform_driver);
 }
 
-#ifndef MODULE
-subsys_initcall(lcd_init);
-module_exit(lcd_exit);
-#endif
-
 static int lcd_panel_type_para_setup(char *str)
 {
 	if (str)

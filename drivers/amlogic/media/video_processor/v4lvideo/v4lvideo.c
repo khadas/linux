@@ -2494,7 +2494,3 @@ void __exit v4lvideo_exit(void)
 //MODULE_LICENSE("Dual BSD/GPL");
 //MODULE_VERSION(V4LVIDEO_VERSION);
 
-#ifndef MODULE
-module_init(v4lvideo_init);
-module_exit(v4lvideo_exit);
-#endif

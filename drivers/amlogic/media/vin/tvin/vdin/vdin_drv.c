@@ -4720,11 +4720,6 @@ static int __init vdin_mem_setup(struct reserved_mem *rmem)
 	return 0;
 }
 
-#ifndef MODULE
-module_init(vdin_drv_init);
-module_exit(vdin_drv_exit);
-#endif
-
 RESERVEDMEM_OF_DECLARE(vdin, "amlogic, vdin_memory", vdin_mem_setup);
 
 //MODULE_VERSION(VDIN_VER);

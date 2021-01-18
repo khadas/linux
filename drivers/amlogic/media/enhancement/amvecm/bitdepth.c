@@ -33,7 +33,6 @@
 #include "bitdepth.h"
 #include "reg_helper.h"
 
-
 /*u2s_mode:0:true 12bit;1:false 12bit*/
 static unsigned int u2s_mode;
 module_param(u2s_mode, uint, 0664);

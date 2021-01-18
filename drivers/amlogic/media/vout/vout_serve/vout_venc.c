@@ -204,8 +204,3 @@ void __exit vout_venc_exit(void)
 	platform_driver_unregister(&vout_venc_platform_driver);
 }
 
-#ifndef MODULE
-subsys_initcall(vout_venc_init);
-module_exit(vout_venc_exit);
-#endif
-

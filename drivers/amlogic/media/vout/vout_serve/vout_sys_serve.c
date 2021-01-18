@@ -193,11 +193,6 @@ __exit void vout_sys_serve_exit(void)
 	platform_driver_unregister(&aml_vs_driver);
 }
 
-#ifndef MODULE
-subsys_initcall(vout_sys_serve_init);
-module_exit(vout_sys_serve_exit);
-#endif
-
 //MODULE_AUTHOR("Evoke Zhang <evoke.zhang@amlogic.com>");
 //MODULE_DESCRIPTION("VOUT_SYS Server Module");
 //MODULE_LICENSE("GPL");

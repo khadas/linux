@@ -1418,7 +1418,6 @@ static ssize_t nr_dbg_show(struct device *dev,
 	return len;
 }
 
-
 static DEVICE_ATTR(nr_debug, 0664, nr_dbg_show, nr_dbg_store);
 
 void nr_hw_init(void)

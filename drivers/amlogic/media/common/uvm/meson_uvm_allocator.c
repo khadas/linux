@@ -541,9 +541,5 @@ void __exit mua_exit(void)
 	platform_driver_unregister(&mua_driver);
 }
 
-#ifndef MODULE
-module_init(mua_init);
-module_exit(mua_exit);
-#endif
 //MODULE_DESCRIPTION("AMLOGIC uvm dmabuf allocator device driver");
 //MODULE_LICENSE("GPL");

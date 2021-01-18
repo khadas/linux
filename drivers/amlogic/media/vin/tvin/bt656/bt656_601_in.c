@@ -1458,11 +1458,6 @@ void amvdec_656in_exit_module(void)
 	platform_driver_unregister(&amvdec_656in_driver);
 }
 
-#ifndef MODULE
-module_init(amvdec_656in_init_module);
-module_exit(amvdec_656in_exit_module);
-#endif
-
 //MODULE_DESCRIPTION("AMLOGIC BT656_601 input driver");
 //MODULE_LICENSE("GPL");
 //MODULE_VERSION("2.0.0");

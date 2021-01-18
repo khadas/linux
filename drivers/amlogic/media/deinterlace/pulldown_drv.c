@@ -74,7 +74,6 @@ module_param_named(pldn_cmb0, pldn_cmb0, uint, 0644);
 static unsigned int pldn_cmb1;
 module_param_named(pldn_cmb1, pldn_cmb1, uint, 0644);
 
-
 /* static unsigned int flmxx_sure_num[7]
  * = {50, 50, 50, 50, 50, 50, 50};
  */

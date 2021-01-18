@@ -161,11 +161,6 @@ void __exit aml_bl_extern_i2c_exit(void)
 	i2c_del_driver(&aml_bl_extern_i2c_driver);
 }
 
-#ifndef MODULE
-module_init(aml_bl_extern_i2c_init);
-module_exit(aml_bl_extern_i2c_exit);
-#endif
-
 //MODULE_AUTHOR("AMLOGIC");
 //MODULE_DESCRIPTION("bl extern driver");
 //MODULE_LICENSE("GPL");

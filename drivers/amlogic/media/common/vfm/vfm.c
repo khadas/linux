@@ -1020,11 +1020,6 @@ void __exit vfm_class_exit(void)
 	unregister_chrdev(VFM_MAJOR, DEV_NAME);
 }
 
-#ifndef MODULE
-fs_initcall(vfm_class_init);
-module_exit(vfm_class_exit);
-#endif
-
 //MODULE_DESCRIPTION("Amlogic video frame manager driver");
 //MODULE_LICENSE("GPL");
 //MODULE_AUTHOR("Bobby Yang <bo.yang@amlogic.com>");

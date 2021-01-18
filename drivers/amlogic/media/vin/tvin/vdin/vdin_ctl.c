@@ -2032,7 +2032,6 @@ static inline void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 		v = devp->v_shrink_out;
 	}
 
-
 	switch (format_convert)	{
 	case VDIN_FORMAT_CONVERT_YUV_YUV422:
 	case VDIN_FORMAT_CONVERT_RGB_YUV422:

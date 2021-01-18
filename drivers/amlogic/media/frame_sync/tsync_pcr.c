@@ -2365,8 +2365,3 @@ void __exit tsync_pcr_exit(void)
 	pr_info("[%s]exit success.\n", __func__);
 }
 
-#ifndef MODULE
-module_init(tsync_pcr_init);
-module_exit(tsync_pcr_exit);
-#endif
-

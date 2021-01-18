@@ -1603,7 +1603,3 @@ void __exit meson_videotunnel_exit(void)
 	platform_driver_unregister(&meson_vt_driver);
 }
 
-#ifndef MODULE
-module_init(meson_videotunnel_init);
-module_exit(meson_videotunnel_exit);
-#endif

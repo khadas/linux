@@ -920,7 +920,6 @@ static void amvdac_drv_shutdown(struct platform_device *pdev)
 	pr_info("%s: private_flag:0x%x\n", __func__, pri_flag);
 }
 
-
 static struct platform_driver aml_vdac_driver = {
 	.driver = {
 		.name = "aml_vdac",
@@ -952,11 +951,6 @@ void __exit aml_vdac_exit(void)
 {
 	platform_driver_unregister(&aml_vdac_driver);
 }
-
-#ifndef MODULE
-subsys_initcall(aml_vdac_init);
-module_exit(aml_vdac_exit);
-#endif
 
 //MODULE_DESCRIPTION("AMLOGIC vdac driver");
 //MODULE_LICENSE("GPL");

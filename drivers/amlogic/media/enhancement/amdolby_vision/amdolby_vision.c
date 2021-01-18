@@ -14286,11 +14286,6 @@ void __exit amdolby_vision_exit(void)
 	platform_driver_unregister(&aml_amdolby_vision_driver);
 }
 
-#ifndef MODULE
-module_init(amdolby_vision_init);
-module_exit(amdolby_vision_exit);
-#endif
-
 //MODULE_DESCRIPTION("AMLOGIC amdolby_vision driver");
 //MODULE_LICENSE("GPL");
 

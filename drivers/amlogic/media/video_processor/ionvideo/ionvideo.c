@@ -1430,7 +1430,3 @@ void __exit ionvideo_exit(void)
 //MODULE_LICENSE("Dual BSD/GPL");
 //MODULE_VERSION(IONVIDEO_VERSION);
 
-#ifndef MODULE
-module_init(ionvideo_init);
-module_exit(ionvideo_exit);
-#endif

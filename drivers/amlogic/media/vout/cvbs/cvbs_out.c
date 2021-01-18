@@ -900,9 +900,6 @@ static void cvbs_bist_test(unsigned int bist)
 	}
 }
 
-
-
-
 static ssize_t aml_CVBS_attr_vdac_power_show(struct class *class,
 					     struct class_attribute *attr,
 					     char *buf)
@@ -1950,11 +1947,6 @@ __exit void cvbs_exit_module(void)
 	/* cvbs_log_info("%s module exit\n", __func__); */
 	platform_driver_unregister(&cvbsout_driver);
 }
-
-#ifndef MODULE
-subsys_initcall(cvbs_init_module);
-module_exit(cvbs_exit_module);
-#endif
 
 //MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 //MODULE_DESCRIPTION("TV Output Module");

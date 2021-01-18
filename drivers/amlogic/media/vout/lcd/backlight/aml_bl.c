@@ -3898,11 +3898,6 @@ void __exit aml_bl_exit(void)
 	platform_driver_unregister(&aml_bl_driver);
 }
 
-#ifndef MODULE
-late_initcall(aml_bl_init);
-module_exit(aml_bl_exit);
-#endif
-
 static int aml_bl_boot_para_setup(char *s)
 {
 	char bl_off_policy_str[10] = "none";

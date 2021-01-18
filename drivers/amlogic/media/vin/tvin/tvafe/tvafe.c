@@ -1971,11 +1971,6 @@ static int __init tvafe_mem_setup(struct reserved_mem *rmem)
 	return 0;
 }
 
-#ifndef MODULE
-module_init(tvafe_drv_init);
-module_exit(tvafe_drv_exit);
-#endif
-
 RESERVEDMEM_OF_DECLARE(tvafe, "amlogic, tvafe_memory",
 	tvafe_mem_setup);
 

@@ -1571,7 +1571,3 @@ void __exit ge2d_remove_module(void)
 	ge2d_log_info("%s\n", __func__);
 }
 
-#ifndef MODULE
-module_init(ge2d_init_module);
-module_exit(ge2d_remove_module);
-#endif

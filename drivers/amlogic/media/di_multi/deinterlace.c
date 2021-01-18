@@ -1476,7 +1476,6 @@ static unsigned char is_bypass_post(unsigned int channel)
 	return 0;
 }
 
-
 #ifdef MARK_SC2
 static int di_post_idx[2][6];
 static int di_pre_idx[2][10];
@@ -1677,7 +1676,6 @@ static void config_mcvec_canvas_idx(struct di_buf_s *di_buf,
 		      di_buf->canvas_width[MV_CANVAS],
 		      di_buf->canvas_height, 0, 0);
 }
-
 
 //----begin
 #ifdef DIM_HIS	/*no use*/
@@ -4461,7 +4459,6 @@ void dim_pre_de_process(unsigned int channel)
 	dimh_txl_patch_prog(ppre->cur_prog_flag,
 			    ppre->field_count_for_cont,
 			    dimp_get(edi_mp_mcpre_en));
-
 
 	/* must make sure follow part issue without interrupts,
 	 * otherwise may cause watch dog reboot
@@ -10944,7 +10941,6 @@ unsigned int rd_reg_bits(unsigned int adr, unsigned int start,
 	return ((aml_read_vcbus(adr) &
 		(((1UL << (len)) - 1UL) << (start))) >> (start));
 }
-
 
 unsigned int DIM_RDMA_RD_BITS(unsigned int adr, unsigned int start,
 			      unsigned int len)

@@ -401,11 +401,6 @@ void __exit vpu_security_exit(void)
 	platform_driver_unregister(&vpu_security_driver);
 }
 
-#ifndef MODULE
-subsys_initcall(vpu_security_init);
-module_exit(vpu_security_exit);
-#endif
-
 //MODULE_DESCRIPTION("AMLOGIC VPU SECURITY driver");
 //MODULE_LICENSE("GPL");
 //MODULE_AUTHOR("PengCheng.Chen <pengcheng.chen@amlogic.com>");

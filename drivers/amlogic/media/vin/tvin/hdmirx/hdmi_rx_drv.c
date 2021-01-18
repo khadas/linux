@@ -3133,10 +3133,5 @@ void __exit hdmirx_exit(void)
 	rx_pr("%s\n", __func__);
 }
 
-#ifndef MODULE
-module_init(hdmirx_init);
-module_exit(hdmirx_exit);
-#endif
-
 //MODULE_DESCRIPTION("AMLOGIC HDMIRX driver");
 //MODULE_LICENSE("GPL");

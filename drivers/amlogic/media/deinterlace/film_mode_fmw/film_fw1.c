@@ -9,7 +9,6 @@
 #include "film_vof_soft.h"
 #include "../deinterlace.h"
 
-
 static int DIweavedetec(struct sFlmSftPar *pPar, int nDif01);
 /* Software parameters (registers) */
 UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar)
@@ -1084,7 +1083,6 @@ int Cal32Flm01(UINT8 *pFlm01, int *nDif01, int iDx,
 
 	for (nT0 = 0; nT0 < 5; nT0++)
 		dDif05[nT0] = 8 * dDif05[nT0] / (nSP + 1024);
-
 
 	if (iDx == 5) {
 		/* Last three */

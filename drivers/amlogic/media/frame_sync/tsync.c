@@ -2637,11 +2637,6 @@ void __exit tsync_module_exit(void)
 	class_unregister(&tsync_class);
 }
 
-#ifndef MODULE
-module_init(tsync_module_init);
-module_exit(tsync_module_exit);
-#endif
-
 MODULE_PARM_DESC(is_tunnel_mode, "\n is_tunnel_mode\n");
 module_param(is_tunnel_mode, uint, 0664);
 //MODULE_DESCRIPTION("AMLOGIC time sync management driver");

@@ -253,7 +253,6 @@ static unsigned int recovery_log_reason;
 static unsigned int recovery_log_queue_idx;
 static struct di_buf_s *recovery_log_di_buf;
 
-
 static long same_field_top_count;
 static long same_field_bot_count;
 /* bit 0:
@@ -345,7 +344,6 @@ static struct di_buf_s *cur_post_ready_di_buf;
 static struct di_buf_s di_buf_local[MAX_LOCAL_BUF_NUM * 2];
 static struct di_buf_s di_buf_in[MAX_IN_BUF_NUM];
 static struct di_buf_s di_buf_post[MAX_POST_BUF_NUM];
-
 
 /************For Write register**********************/
 static unsigned int di_stop_reg_flag;
@@ -978,8 +976,6 @@ static ssize_t show_tvp_region(struct device *dev,
 	return len;
 }
 
-
-
 static ssize_t store_dump_mem(struct device *dev, struct device_attribute *attr,
 			      const char *buf, size_t len);
 static DEVICE_ATTR(config, 0640, show_config, store_config);
@@ -1122,7 +1118,6 @@ struct di_buf_s *get_di_buf(int queue_idx, int *start_pos)
 
 	return di_buf;
 }
-
 
 static struct di_buf_s *get_di_buf_head(int queue_idx)
 {
@@ -1568,7 +1563,6 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 		if (bflg_vmap)
 			di_unmap_phyaddr(buff);
 
-
 		if (!(de_devp->flags & DI_MAP_FLAG))
 			iounmap(buff);
 		dump_state_flag = 0;
@@ -1812,7 +1806,6 @@ static unsigned char is_bypass_post(void)
 	if (bypass_post)
 		return 1;
 
-
 #ifdef DET3D
 	if (di_pre_stru.vframe_interleave_flag != 0)
 		return 1;
@@ -1987,7 +1980,6 @@ static void config_mcvec_canvas_idx(struct di_buf_s *di_buf,
 		di_buf->canvas_height, 0, 0);
 }
 
-
 #else
 
 static void config_canvas(struct di_buf_s *di_buf)
@@ -2055,7 +2047,6 @@ static bool mm_codec_alloc(const char *owner, size_t count,
 	if (cma_mode == 4 && !istvp)
 		flags = CODEC_MM_FLAGS_CMA_FIRST |
 			CODEC_MM_FLAGS_CPU;
-
 
 	o->addr = codec_mm_alloc_for_dma(owner,
 					count,
@@ -2227,7 +2218,6 @@ static unsigned int di_cma_alloc(struct di_dev_s *devp)
 		aret = di_mm_alloc(devp->flag_cma,
 			devp->buffer_size >> PAGE_SHIFT,
 			&omm);
-
 
 		if (!aret) {
 			buf_p->pages = NULL;
@@ -3337,7 +3327,6 @@ static void config_di_mif(struct DI_MIF_s *di_mif, struct di_buf_s *di_buf)
 		else
 			di_mif->set_separate_en = 1;
 
-
 		if (is_progressive(di_buf->vframe) &&
 		    (di_pre_stru.prog_proc_type)) {
 			di_mif->src_field_mode = 0;
@@ -4029,7 +4018,6 @@ module_param_named(pre_hsc_down_en, pre_hsc_down_en, bool, 0644);
 static int pre_hsc_down_width = 480;
 module_param_named(pre_hsc_down_width, pre_hsc_down_width, int, 0644);
 
-
 u32 di_requeset_afbc(u32 onoff)
 {
 	u32 afbc_busy;
@@ -4151,7 +4139,6 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 				VFM_NAME, VFRAME_EVENT_RECEIVER_PUT, NULL);
 			return 0;
 		}
-
 
 		/*
 		 * for afbc used by vpp and di, when di use it,
@@ -5965,7 +5952,6 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 		|| is_meson_txlx_cpu())
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, 0, 0, 2);
 
-
 /* set pull down region (f(t-1) */
 
 	if (di_pldn_buf && pulldown_enable &&
@@ -5985,7 +5971,6 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 	ddbg_mod_save(eDI_DBG_MOD_POST_SETE, 0, frame_count);/*dbg*/
 	return 0;
 }
-
 
 static void post_de_done_buf_config(void)
 {
@@ -6156,7 +6141,6 @@ void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf)
 		di_print("DI:%dth %s[%d] => post ready %u ms.\n",
 		frame_count, vframe_type_name[di_buf->type], di_buf->index,
 		jiffies_to_msecs(jiffies_64 - di_buf->vframe->ready_jiffies64));
-
 
 	}
 	di_unlock_irqfiq_restore(irq_flag2);
@@ -8184,7 +8168,6 @@ static int di_open(struct inode *node, struct file *file)
 	return 0;
 }
 
-
 static int di_release(struct inode *node, struct file *file)
 {
 /* di_dev_t *di_in_devp = file->private_data; */
@@ -9089,11 +9072,6 @@ void __exit di_module_exit(void)
 #endif
 	platform_driver_unregister(&di_driver);
 }
-
-#ifndef MODULE
-module_init(di_module_init);
-module_exit(di_module_exit);
-#endif
 
 module_param_named(bypass_all, bypass_all, int, 0664);
 module_param_named(bypass_3d, bypass_3d, int, 0664);

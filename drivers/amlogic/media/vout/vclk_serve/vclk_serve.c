@@ -426,11 +426,6 @@ __exit void aml_vclk_exit_module(void)
 	platform_driver_unregister(&aml_vclk_driver);
 }
 
-#ifndef MODULE
-postcore_initcall(aml_vclk_init_module);
-module_exit(aml_vclk_exit_module);
-#endif
-
 //MODULE_AUTHOR("Evoke Zhang <evoke.zhang@amlogic.com>");
 //MODULE_DESCRIPTION("VCLK Server Module");
 //MODULE_LICENSE("GPL");

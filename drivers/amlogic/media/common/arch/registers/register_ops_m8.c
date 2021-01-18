@@ -90,6 +90,3 @@ int __init vdec_reg_ops_init(void)
 	return 0;
 }
 
-#ifndef MODULE
-arch_initcall_sync(vdec_reg_ops_init);
-#endif

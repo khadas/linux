@@ -79,17 +79,9 @@ int __init meson_cpu_version_init(void)
 	return 0;
 }
 
-#ifndef MODULE
-early_initcall(meson_cpu_version_init);
-#endif
-
 void __exit meson_cpu_version_exit(void)
 {
 }
-
-#ifndef MODULE
-module_exit(meson_cpu_version_exit);
-#endif
 
 //MODULE_AUTHOR("Jianxin Pan<jianxin.pan@amlogic.com>");
 //MODULE_DESCRIPTION("cpu version driver");

@@ -567,11 +567,6 @@ void __exit viuin_exit_module(void)
 	platform_device_unregister(viuin_device);
 }
 
-#ifndef MODULE
-module_init(viuin_init_module);
-module_exit(viuin_exit_module);
-#endif
-
 //MODULE_DESCRIPTION("AMLOGIC viu input driver");
 //MODULE_LICENSE("GPL");
 //MODULE_VERSION("3.0.0");

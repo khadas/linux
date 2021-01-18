@@ -478,11 +478,6 @@ void __exit hld_exit(void)
 		free_esm_slot(&esm_devices[i]);
 }
 
-#ifndef MODULE
-module_init(hld_init);
-module_exit(hld_exit);
-#endif
-
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Synopsys, Inc.");
 MODULE_DESCRIPTION("ESM Linux Host Library Driver");

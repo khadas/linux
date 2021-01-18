@@ -956,11 +956,6 @@ __exit void vout_exit_module(void)
 	platform_driver_unregister(&vout_driver);
 }
 
-#ifndef MODULE
-subsys_initcall_sync(vout_init_module);
-module_exit(vout_exit_module);
-#endif
-
 static int str2lower(char *str)
 {
 	while (*str != '\0') {

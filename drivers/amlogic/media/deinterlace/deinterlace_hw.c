@@ -1386,7 +1386,6 @@ void enable_mc_di_pre_g12(struct DI_MC_MIF_s *mcinford_mif,
 	unsigned char mcdi_en)
 {
 
-
 	RDMA_WR_BITS(MCDI_MOTINEN, (mcdi_en?3:0), 0, 2);
 	if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
 		is_meson_sm1_cpu())
@@ -1427,7 +1426,6 @@ void enable_mc_di_pre(struct DI_MC_MIF_s *di_mcinford_mif,
 	ctrl_mode = (me_auto_en ? 0x1bfff7ff : 0x1bfe37ff);
 	RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? ctrl_mode : 0));
 	RDMA_WR_BITS(MCDI_MOTINEN, (mcdi_en?3:0), 0, 2);
-
 
 	RDMA_WR(MCDI_MCVECWR_X, di_mcvecwr_mif->size_x);
 	RDMA_WR(MCDI_MCVECWR_Y, di_mcvecwr_mif->size_y);
@@ -1536,8 +1534,6 @@ void enable_mc_di_post(struct DI_MC_MIF_s *di_mcvecrd_mif,
 	DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MC_CRTL, mcdebug_mode, 2, 3);
 }
 
-
-
 static void set_di_inp_fmt_more(unsigned int repeat_l0_en,
 				int hz_yc_ratio,		/* 2bit */
 				int hz_ini_phase,		/* 4bit */
@@ -1634,10 +1630,8 @@ static void set_di_inp_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 		chroma0_rpt_loop_pat = 0x00;
 	}
 
-
 	bytes_per_pixel = mif->set_separate_en ? 0 : (mif->video_mode ? 2 : 1);
 	demux_mode = mif->video_mode;
-
 
 	/* ---------------------- */
 	/* General register */
@@ -1847,7 +1841,6 @@ static void set_di_mem_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 
 	bytes_per_pixel = mif->set_separate_en ? 0 : (mif->video_mode ? 2 : 1);
 	demux_mode = mif->video_mode;
-
 
 	/* ---------------------- */
 	/* General register */
@@ -2063,7 +2056,6 @@ static void set_di_if2_mif(struct DI_MIF_s *mif, int urgent,
 	bytes_per_pixel = mif->set_separate_en ? 0 : (mif->video_mode ? 2 : 1);
 	demux_mode = mif->video_mode;
 
-
 	/* ---------------------- */
 	/* General register */
 	/* ---------------------- */
@@ -2167,7 +2159,6 @@ static void set_di_if1_mif(struct DI_MIF_s *mif, int urgent,
 
 	bytes_per_pixel = mif->set_separate_en ? 0 : (mif->video_mode ? 2 : 1);
 	demux_mode = mif->video_mode;
-
 
 	/* ---------------------- */
 	/* General register */
@@ -2295,7 +2286,6 @@ static void set_di_chan2_mif(struct DI_MIF_s *mif, int urgent, int hold_line)
 
 	bytes_per_pixel = mif->set_separate_en ? 0 : (mif->video_mode ? 2 : 1);
 	demux_mode = mif->video_mode;
-
 
 	/* ---------------------- */
 	/* General register */
@@ -2515,7 +2505,6 @@ static void set_di_if0_fmt_more_g12(int hfmt_en,
 					);
 }
 
-
 static void set_di_if0_mif_g12(struct DI_MIF_s *mif, int urgent, int hold_line,
 	int vskip_cnt, int post_write_en)
 {
@@ -2626,7 +2615,6 @@ void di_patch_post_update_mc(void)
 		DI_VSYNC_WR_MPEG_REG_BITS(MCDI_MCVECRD_CTRL, 1, 9, 1);
 	}
 }
-
 
 void di_patch_post_update_mc_sw(unsigned int cmd, bool on)
 {
@@ -3916,7 +3904,6 @@ void pulldown_vof_win_config(struct pulldown_detected_s *wins)
 					  0x03, 14, 2);
 }
 
-
 void di_load_regs(struct di_pq_parm_s *di_pq_ptr)
 {
 	unsigned int i = 0, j = 0, addr = 0, value = 0, mask = 0, len;
@@ -4012,7 +3999,6 @@ void di_txl_patch_prog(int prog_flg, unsigned int cnt, bool mc_en)
 			}
 			if (cnt == 5)
 				RDMA_WR(MCDI_CTRL_MODE, 0x1bfff7ff);
-
 
 		}
 
@@ -4124,7 +4110,6 @@ static void dbg_reg_tab(struct seq_file *s, const struct reg_t *pRegTab)
 		}
 	} while (creg.add != TABLE_FLG_END);
 }
-
 
 static const struct reg_t rtab_cue_int[] = {
 	//-----

@@ -4925,11 +4925,6 @@ void __exit osd_exit_module(void)
 	platform_driver_unregister(&osd_driver);
 }
 
-#ifndef MODULE
-subsys_initcall_sync(osd_init_module);
-module_exit(osd_exit_module);
-#endif
-
 //MODULE_AUTHOR("Platform-BJ <platform.bj@amlogic.com>");
 //MODULE_DESCRIPTION("OSD Module");
 //MODULE_LICENSE("GPL");

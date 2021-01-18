@@ -2,9 +2,6 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-
-#ifdef MODULE
-
 #include <linux/cdev.h>
 #include <linux/types.h>
 #include <linux/fs.h>
@@ -22,9 +19,8 @@
 #include <linux/extcon-provider.h>
 #include <linux/mm.h>
 #include "media_main.h"
-
+#ifdef MODULE
 #include <linux/amlogic/gki_module.h>
-
 #define PROTO(x...) x
 #define ARGS(x...) x
 #define KALLSYMS_FUNC_DEFRET(ret_type, name, args_proto, args) \
@@ -38,33 +34,28 @@ ret_type name(args_proto) \
 	} \
 	return func(args);\
 }
-
 KALLSYMS_FUNC_DEFRET(phys_addr_t,
 		     cma_get_base,
 		     PROTO(const struct cma *cma),
 		     ARGS(cma));
-
 KALLSYMS_FUNC_DEFRET(unsigned long,
 		     cma_get_size,
 		     PROTO(const struct cma *cma),
 		     ARGS(cma));
-
 KALLSYMS_FUNC_DEFRET(int,
 		     is_vmalloc_or_module_addr,
 		     PROTO(const void *x),
 		     ARGS(x));
-
+#endif
 #define call_sub_init(func) \
 { \
 	int ret = 0; \
 	ret = func(); \
 	pr_info("call %s() ret=%d\n", #func, ret); \
 }
-
 static int __init media_main_init(void)
 {
 	pr_info("### %s() start\n", __func__);
-
 	call_sub_init(meson_cpu_version_init);
 	call_sub_init(media_configs_system_init);
 	call_sub_init(secmem_init);
@@ -133,15 +124,11 @@ static int __init media_main_init(void)
 	pr_info("### %s() end\n", __func__);
 	return 0;
 }
-
 static void __exit media_main_exit(void)
 {
 	pr_info("%s()\n", __func__);
 	meson_videotunnel_exit();
 }
-
 module_init(media_main_init);
 module_exit(media_main_exit);
-
 MODULE_LICENSE("GPL v2");
-#endif

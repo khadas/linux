@@ -590,11 +590,6 @@ void __exit amcanvas_exit(void)
 	platform_driver_unregister(&canvas_driver);
 }
 
-#ifndef MODULE
-subsys_initcall(amcanvas_init);
-module_exit(amcanvas_exit);
-#endif
-
 //MODULE_DESCRIPTION("AMLOGIC Canvas management driver");
 //MODULE_LICENSE("GPL");
 //MODULE_AUTHOR("Tim Yao <timyao@amlogic.com>");

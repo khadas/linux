@@ -214,7 +214,6 @@ det3d_info.tscore_3d_tb_accum + (tb_score <= 0) -
 		det3d_info.chs_valid_his[0] = chessbd_score;
 		det3d_info.int_valid_his[0] = int_score;
 
-
 		for (m = 0; m < 8; m++) {
 			tmp1 = tmp1 + (det3d_info.chs_valid_his[m]);
 			tmp2 = tmp2 + (det3d_info.int_valid_his[m]);

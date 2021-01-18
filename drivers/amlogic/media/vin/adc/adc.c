@@ -971,11 +971,6 @@ void __exit adc_uninit(void)
 	platform_driver_unregister(&adc_driver);
 }
 
-#ifndef MODULE
-module_init(adc_init);
-module_exit(adc_uninit);
-#endif
-
 //MODULE_VERSION(TVDIN_ADC_VER);
 //MODULE_AUTHOR("yong.qin@amlogic.com");
 //MODULE_DESCRIPTION("AMLOGIC tvdin adc driver");

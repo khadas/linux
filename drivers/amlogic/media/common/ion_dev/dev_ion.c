@@ -218,7 +218,3 @@ void __exit ion_exit(void)
 	platform_driver_unregister(&ion_driver);
 }
 
-#ifndef MODULE
-fs_initcall(ion_init);
-module_exit(ion_exit);
-#endif

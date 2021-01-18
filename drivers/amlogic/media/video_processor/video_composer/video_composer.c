@@ -2866,7 +2866,3 @@ void __exit video_composer_module_exit(void)
 //MODULE_LICENSE("GPL");
 //MODULE_VERSION(VIDEO_COMPOSER_VERSION);
 
-#ifndef MODULE
-module_init(video_composer_module_init);
-module_exit(video_composer_module_exit);
-#endif

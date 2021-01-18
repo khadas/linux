@@ -664,7 +664,6 @@ int rdma_config(int handle, u32 trigger_type)
 					+ ins->rdma_item_count * 8 - 1);
 				}
 
-
 				WRITE_VCBUS_REG_BITS
 				(man_ins->rdma_regadr->addr_inc_reg,
 				 0,
@@ -1630,11 +1629,6 @@ void __exit amrdma_exit(void)
 {
 	platform_driver_unregister(&rdma_driver);
 }
-
-#ifndef MODULE
-subsys_initcall(amrdma_init);
-module_exit(amrdma_exit);
-#endif
 
 //MODULE_DESCRIPTION("AMLOGIC RDMA management driver");
 //MODULE_LICENSE("GPL");

@@ -2245,10 +2245,5 @@ void __exit vpu_exit(void)
 	platform_driver_unregister(&vpu_driver);
 }
 
-#ifndef MODULE
-arch_initcall_sync(vpu_init);
-module_exit(vpu_exit);
-#endif
-
 //MODULE_DESCRIPTION("meson vpu driver");
 //MODULE_LICENSE("GPL v2");

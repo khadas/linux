@@ -1992,7 +1992,6 @@ static void osd_update_disp_src_size(u32 index)
 	}
 }
 
-
 void osd_set_enable_hw(u32 index, u32 enable)
 {
 	u32 output_index = 0;
@@ -9880,7 +9879,6 @@ static void set_osd_blend_reg(struct osd_blend_reg_s *osd_blend_reg)
 			     (3 << 4) |
 			     ((osd2_alpha_div & 0x1) << 12) |
 			     (3 << 16));
-
 
 	VSYNCOSD_WR_MPEG_REG(VIU_OSD_BLEND_BLEND0_SIZE,
 			     osd_blend_reg->osd_blend_blend0_size);

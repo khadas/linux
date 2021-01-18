@@ -1833,11 +1833,6 @@ void __exit ldim_dev_exit(void)
 	platform_driver_unregister(&ldim_dev_platform_driver);
 }
 
-#ifndef MODULE
-late_initcall(ldim_dev_init);
-module_exit(ldim_dev_exit);
-#endif
-
 //MODULE_DESCRIPTION("LDIM device Driver for LCD Backlight");
 //MODULE_LICENSE("GPL");
 //MODULE_AUTHOR("Amlogic, Inc.");

@@ -14166,13 +14166,6 @@ MODULE_PARM_DESC(step_flag, "\n step_flag\n");
 
 /*arch_initcall(video_early_init);*/
 
-#ifndef MODULE
-module_init(video_init);
-#endif
-#ifndef MODULE
-module_exit(video_exit);
-#endif
-
 MODULE_PARM_DESC(smooth_sync_enable, "\n smooth_sync_enable\n");
 module_param(smooth_sync_enable, uint, 0664);
 

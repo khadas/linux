@@ -9157,11 +9157,6 @@ void __exit aml_vecm_exit(void)
 	platform_driver_unregister(&aml_vecm_driver);
 }
 
-#ifndef MODULE
-module_init(aml_vecm_init);
-module_exit(aml_vecm_exit);
-#endif
-
 //MODULE_VERSION(AMVECM_VER);
 //MODULE_DESCRIPTION("AMLOGIC amvecm driver");
 //MODULE_LICENSE("GPL");

@@ -454,10 +454,6 @@ error1:
 	return r;
 }
 
-#ifndef MODULE
-module_init(configs_init_devices);
-#endif
-
 int __init media_configs_system_init(void)
 {
 	int i;
@@ -483,9 +479,6 @@ int __init media_configs_system_init(void)
 	return 0;
 }
 
-#ifndef MODULE
-arch_initcall(media_configs_system_init);
-#endif
 //MODULE_DESCRIPTION("AMLOGIC config modules driver");
 //MODULE_LICENSE("GPL");
 

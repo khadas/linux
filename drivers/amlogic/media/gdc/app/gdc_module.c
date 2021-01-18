@@ -2080,10 +2080,5 @@ void gdc_driver_exit(void)
 	platform_driver_unregister(&amlgdc_platform_driver);
 }
 
-#ifndef MODULE
-module_init(gdc_driver_init);
-module_exit(gdc_driver_exit);
-#endif
-
 //MODULE_LICENSE("GPL v2");
 //MODULE_AUTHOR("Amlogic Multimedia");

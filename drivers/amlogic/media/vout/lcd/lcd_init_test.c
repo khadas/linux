@@ -1091,7 +1091,6 @@ static void lcd_venc_set_lvds(void)
 	data32 = (1 << 31) | (0 << 30) | (0 << 29) | (0 << 28);
 	lcd_vcbus_write(VPU_DISP_VIU2_CTRL, data32);
 
-
 	//config venc_tcon
 	offset = 0x200;
 	lcd_vcbus_write(LCD_RGB_BASE_ADDR + offset, 0x0);

@@ -26,7 +26,6 @@
 
 #define MAX_NONLINEAR_FACTOR    0x40
 
-
 const u32 vpp_filter_coefs_bicubic_sharp[] = {
 	3,
 	33 | 0x8000,
@@ -199,7 +198,6 @@ static int chroma_filter_table[] = {
 	COEF_3D_FILTER		  /* can not change */
 };
 
-
 static unsigned int vert_scaler_filter = 0xff;
 module_param_named(di_vert_scaler_filter, vert_scaler_filter, uint, 0664);
 
@@ -324,7 +322,6 @@ unsigned int di_filt_coef2[] =  //2 point bilinear, bank_length == 2
 	 0x423e0000,
 	 0x40400000
 };
-
 
 #define ZOOM_BITS       20
 #define PHASE_BITS      16
@@ -1369,5 +1366,4 @@ void dump_hdownscler_reg(unsigned int base_addr)
 	}
 	pr_info("-----dump hdownscler end-----\n");
 }
-
 

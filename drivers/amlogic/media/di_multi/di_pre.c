@@ -486,7 +486,6 @@ enum EDI_WAIT_INT di_pre_wait_int(void *data)
 
 		ppre = get_pre_stru(pre->curr_ch);
 
-
 		ret = EDI_WAIT_INT_HAVE_INT;
 
 	} else {

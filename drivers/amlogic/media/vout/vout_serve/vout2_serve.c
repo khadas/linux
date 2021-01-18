@@ -1024,11 +1024,6 @@ __exit void vout2_exit_module(void)
 	platform_driver_unregister(&vout2_driver);
 }
 
-#ifndef MODULE
-module_init(vout2_init_module);
-module_exit(vout2_exit_module);
-#endif
-
 static int str2lower(char *str)
 {
 	while (*str != '\0') {
