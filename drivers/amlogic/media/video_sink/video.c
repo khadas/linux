@@ -13612,6 +13612,7 @@ static struct amvideo_device_data_s amvideo_t5 = {
 	.afbc_conv_lbuf_len = 0x100,
 	.mif_linear = 0,
 	.t7_display = 0,
+	.max_vd_layers = 2,
 };
 
 static struct amvideo_device_data_s amvideo_t5d = {
@@ -13697,6 +13698,12 @@ static struct amvideo_device_data_s amvideo_t7 = {
 	.has_pre_vscaler_ntap[0] = 1,
 	.has_pre_vscaler_ntap[1] = 1,
 	.has_pre_vscaler_ntap[2] = 1,
+	.src_width_max[0] = 4096,
+	.src_width_max[1] = 4096,
+	.src_height_max[0] = 2160,
+	.src_height_max[1] = 2160,
+	.ofifo_size = 0x1000,
+	.afbc_conv_lbuf_len = 0x100,
 	.mif_linear = 1,
 	.t7_display = 1,
 	.max_vd_layers = 3,
