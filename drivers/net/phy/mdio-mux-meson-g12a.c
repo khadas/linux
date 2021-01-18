@@ -215,9 +215,11 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	if (of_property_read_u32(np, "enet_type", &enet_type))
 		pr_info("default enet type as 0\n");
 
-	if (of_property_read_u32(np, "tx_amp_src", &tx_amp_addr) != 0)
+	if (of_property_read_u32(np, "tx_amp_src", &tx_amp_addr) != 0) {
 		pr_info("use default rx_amp_src as 0\n");
-
+		/*no tx_amp setting needn't below flow*/
+		return 0;
+	}
 	tx_amp_src = devm_ioremap(priv->dev,
 			(resource_size_t)tx_amp_addr, sizeof(resource_size_t));
 
