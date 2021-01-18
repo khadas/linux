@@ -2947,7 +2947,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			devp->parm.info.fmt = parm.info.fmt;
 			fmt = parm.info.fmt;
 		}
-
+		if (vdin_dbg_en)
+			pr_info("port:0x%x, set fmt:0x%x\n", devp->parm.port, fmt);
 		devp->fmt_info_p =
 				(struct tvin_format_s *)tvin_get_fmt_info(fmt);
 		if (!devp->fmt_info_p) {

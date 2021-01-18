@@ -65,7 +65,8 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "ver:2021-0113: bringup for t7 dv meta data"
+
+#define VDIN_VER "ver:2021-0118: err fmt cause crash"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
