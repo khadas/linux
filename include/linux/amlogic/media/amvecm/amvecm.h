@@ -511,7 +511,7 @@ enum vlk_chiptype {
 	vlock_chip_tl1,
 	vlock_chip_tm2,
 	vlock_chip_sm1,
-	vlock_chip_t5,
+	vlock_chip_t5,/*same as t5d*/
 };
 
 enum vlock_hw_ver_e {

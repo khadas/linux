@@ -24,7 +24,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2020/1127: tm2 vlock not work- clk not enable"
+#define VLOCK_VER "Ref.2021/0118: vlock bringup on t5d 5_4"
 
 #define VLOCK_REG_NUM	33
 
