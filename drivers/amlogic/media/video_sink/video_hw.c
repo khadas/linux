@@ -4977,6 +4977,7 @@ static int vpp_zorder_check_t7(void)
 
 void vpp_blend_update(const struct vinfo_s *vinfo)
 {
+	static u32 vpp_misc_set_save;
 	u32 vpp_misc_save, vpp_misc_set, mode = 0;
 	u32 vpp_off = cur_dev->vpp_off;
 	int video1_off_req = 0;
@@ -5195,6 +5196,22 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 		vd_layer[1].enabled = vd_layer[1].enabled_status_saved;
 	}
 
+	if (!vd_layer[0].enabled && is_local_vf(vd_layer[0].dispbuf)) {
+		safe_switch_videolayer(0, false, true);
+		if (vd_layer[0].keep_frame_id == 1)
+			video_pip_keeper_new_frame_notify();
+		else if (vd_layer[0].keep_frame_id == 0)
+			video_keeper_new_frame_notify();
+	}
+
+	if (!vd_layer[1].enabled && is_local_vf(vd_layer[1].dispbuf)) {
+		safe_switch_videolayer(1, false, true);
+		if (vd_layer[1].keep_frame_id == 1)
+			video_pip_keeper_new_frame_notify();
+		else if (vd_layer[1].keep_frame_id == 0)
+			video_keeper_new_frame_notify();
+	}
+
 	if (!vd_layer[1].enabled &&
 	    ((vpp_misc_set & VPP_VD2_POSTBLEND) ||
 	     (vpp_misc_set & VPP_VD2_PREBLEND)))
@@ -5262,7 +5279,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 			VPP_PREBLEND_EN |
 			VPP_POSTBLEND_EN |
 			0xf);
-		if (vpp_misc_set != vpp_misc_save || force_flush) {
+		if (vpp_misc_set != vpp_misc_set_save || force_flush) {
 			u32 port_val[3] = {0, 0, 0};
 			u32 vd1_port, vd2_port, icnt;
 			u32 post_blend_reg[3] = {
@@ -5337,6 +5354,9 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 				set_value |= VPP_VD1_POSTBLEND;
 				set_value |= VPP_VD1_PREBLEND;
 			}
+			/* t5d bit 9:11 used by wm ctrl, chip after g12 not used bit 9:11, mask it*/
+			set_value &= 0xfffff1ff;
+			set_value |= (vpp_misc_save & 0xe00);
 			VSYNC_WR_MPEG_REG
 				(VPP_MISC + vpp_off,
 				set_value);
