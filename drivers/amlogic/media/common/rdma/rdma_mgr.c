@@ -242,7 +242,9 @@ static struct rdma_regadr_s rdma_regadr_tl1[RDMA_NUM] = {
 		28, 28
 	},
 	{RDMA_AHB_START_ADDR_5,
+		0,
 		RDMA_AHB_END_ADDR_5,
+		0,
 		RDMA_AUTO_SRC5_SEL, 0,
 		RDMA_ACCESS_AUTO2, 1,
 		RDMA_ACCESS_AUTO2, 5,
