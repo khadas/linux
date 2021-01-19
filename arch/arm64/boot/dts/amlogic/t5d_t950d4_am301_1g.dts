@@ -1796,3 +1796,13 @@
 	};
 };
 
+&aml_bt {
+	status = "okay";
+	reset-gpios = <&gpio_ao       GPIOD_3       GPIO_ACTIVE_HIGH>;
+};
+
+&aml_wifi{
+	status = "okay";
+	power_on-gpios  = <&gpio_ao       GPIOD_2       GPIO_ACTIVE_HIGH>;
+};
+
