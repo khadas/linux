@@ -30,13 +30,22 @@
 #include <linux/amlogic/aml_gpio_consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/iomap.h>
 #include <linux/io.h>
 #include <linux/amlogic/bt_device.h>
+#include <linux/amlogic/wifi_dt.h>
 #include <linux/random.h>
 #ifdef CONFIG_AM_WIFI_SD_MMC
 #include <linux/amlogic/wifi_dt.h>
 #endif
 #include "../../gpio/gpiolib.h"
+
+#include <linux/interrupt.h>
+#include <linux/pm_wakeup.h>
+#include <linux/pm_wakeirq.h>
+#include <linux/irq.h>
+
+#include <linux/input.h>
 
 #if defined(CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND) && defined(CONFIG_AMLOGIC_GX_SUSPEND)
 #include <linux/amlogic/pm.h>
@@ -49,8 +58,15 @@ char bt_addr[18] = "";
 char *btmac;
 core_param(btmac, btmac, charp, 0644);
 static struct class *bt_addr_class;
+static int btwake_evt;
+static int btirq_flag;
+static int btpower_evt;
+static int flag_n;
+static int flag_p;
+static int cnt;
+
 static ssize_t value_show(struct class *cls,
-			  struct class_attribute *attr, char *_buf)
+	struct class_attribute *attr, char *_buf)
 {
 	char local_addr[6];
 
@@ -65,8 +81,8 @@ static ssize_t value_show(struct class *cls,
 		local_addr[4] = prandom_u32();
 		local_addr[5] = prandom_u32();
 		sprintf(bt_addr, "%02x:%02x:%02x:%02x:%02x:%02x",
-			local_addr[0], local_addr[1], local_addr[2],
-			local_addr[3], local_addr[4], local_addr[5]);
+		local_addr[0], local_addr[1], local_addr[2],
+		local_addr[3], local_addr[4], local_addr[5]);
 	}
 
 	return sprintf(_buf, "%s\n", bt_addr);
@@ -98,33 +114,50 @@ struct bt_dev_runtime_data {
 
 static void bt_device_off(struct bt_dev_data *pdata)
 {
-	if (pdata->power_down_disable != 0 ||
-	    pdata->power_off_flag <= 0) {/*bt rc wakeup flag for bcm.*/
-		return;
-	}
-	if (pdata->gpio_reset > 0) {
-		if (pdata->power_on_pin_OD &&
-		    pdata->power_low_level) {
-			gpio_direction_input(pdata->gpio_reset);
-		} else {
-			gpio_direction_output(pdata->gpio_reset,
-					      pdata->power_low_level);
+	if (pdata->power_down_disable == 0) {
+		if (btpower_evt == 1 && pdata->gpio_reset > 0) {
+			if (pdata->power_on_pin_OD &&
+				pdata->power_low_level) {
+				gpio_direction_input(pdata->gpio_reset);
+			} else {
+				gpio_direction_output(pdata->gpio_reset,
+					pdata->power_low_level);
+			}
 		}
-	}
-	if (pdata->gpio_en > 0) {
-		if (pdata->power_on_pin_OD &&
-		    pdata->power_low_level) {
-			gpio_direction_input(pdata->gpio_en);
-		} else {
+		if (btpower_evt == 1 && pdata->gpio_en > 0) {
+			if (pdata->power_on_pin_OD &&
+				pdata->power_low_level) {
+				gpio_direction_input(pdata->gpio_en);
+			} else {
+				gpio_direction_output(pdata->gpio_en,
+					pdata->power_low_level);
+			}
+		}
+
+		if (btpower_evt == 2)
 			set_usb_bt_power(0);
+
+		if (btpower_evt == 0 && pdata->gpio_reset > 0) {
+			if (pdata->power_on_pin_OD &&
+				pdata->power_low_level) {
+				gpio_direction_input(pdata->gpio_reset);
+			} else {
+				gpio_direction_output(pdata->gpio_reset,
+					pdata->power_low_level);
+			}
 		}
+		if (btpower_evt == 0 && pdata->gpio_en > 0)
+			set_usb_bt_power(0);
+
+		msleep(20);
 	}
-	msleep(20);
 }
 
 static void bt_device_init(struct bt_dev_data *pdata)
 {
 	int tmp = 0;
+	btpower_evt = 0;
+	btirq_flag = 0;
 
 	if (pdata->gpio_reset > 0)
 		gpio_request(pdata->gpio_reset, BT_RFKILL);
@@ -135,6 +168,11 @@ static void bt_device_init(struct bt_dev_data *pdata)
 	if (pdata->gpio_hostwake > 0) {
 		gpio_request(pdata->gpio_hostwake, BT_RFKILL);
 		gpio_direction_output(pdata->gpio_hostwake, 1);
+	}
+
+	if (pdata->gpio_btwakeup > 0) {
+		gpio_request(pdata->gpio_btwakeup, BT_RFKILL);
+		gpio_direction_input(pdata->gpio_btwakeup);
 	}
 
 	tmp = pdata->power_down_disable;
@@ -151,6 +189,7 @@ static void bt_device_deinit(struct bt_dev_data *pdata)
 	if (pdata->gpio_en > 0)
 		gpio_free(pdata->gpio_en);
 
+	btpower_evt = 0;
 	if (pdata->gpio_hostwake > 0)
 		gpio_free(pdata->gpio_hostwake);
 }
@@ -158,43 +197,147 @@ static void bt_device_deinit(struct bt_dev_data *pdata)
 static void bt_device_on(struct bt_dev_data *pdata)
 {
 	if (pdata->power_down_disable == 0) {
-		if (pdata->gpio_reset > 0) {
+		if (btpower_evt == 1 && pdata->gpio_reset > 0) {
 			if (pdata->power_on_pin_OD &&
-			    pdata->power_low_level) {
+				pdata->power_low_level) {
 				gpio_direction_input(pdata->gpio_reset);
 			} else {
 				gpio_direction_output(pdata->gpio_reset,
-						      pdata->power_low_level);
+					pdata->power_low_level);
 			}
 		}
-		if (pdata->gpio_en > 0) {
+		if (btpower_evt == 1 && pdata->gpio_en > 0) {
 			if (pdata->power_on_pin_OD &&
-			    pdata->power_low_level) {
+				pdata->power_low_level) {
 				gpio_direction_input(pdata->gpio_en);
 			} else {
-				set_usb_bt_power(0);
+				gpio_direction_output(pdata->gpio_en,
+						pdata->power_low_level);
 			}
 		}
+
+		if (btpower_evt == 2)
+			set_usb_bt_power(0);
+
+		if (btpower_evt == 0 && pdata->gpio_reset > 0) {
+			if (pdata->power_on_pin_OD &&
+				pdata->power_low_level) {
+				gpio_direction_input(pdata->gpio_reset);
+			} else {
+				gpio_direction_output(pdata->gpio_reset,
+					pdata->power_low_level);
+			}
+		}
+		if (btpower_evt == 0 && pdata->gpio_en > 0)
+			set_usb_bt_power(0);
+
 		msleep(200);
 	}
-	if (pdata->gpio_reset > 0) {
+
+	if (btpower_evt == 1 && pdata->gpio_reset > 0) {
 		if (pdata->power_on_pin_OD &&
-		    !pdata->power_low_level) {
+			!pdata->power_low_level) {
 			gpio_direction_input(pdata->gpio_reset);
 		} else {
 			gpio_direction_output(pdata->gpio_reset,
-					      !pdata->power_low_level);
+				!pdata->power_low_level);
 		}
 	}
-	if (pdata->gpio_en > 0) {
+	if (btpower_evt == 1 && pdata->gpio_en > 0) {
 		if (pdata->power_on_pin_OD &&
-		    !pdata->power_low_level) {
+			!pdata->power_low_level) {
 			gpio_direction_input(pdata->gpio_en);
 		} else {
-			set_usb_bt_power(1);
+			gpio_direction_output(pdata->gpio_en,
+				!pdata->power_low_level);
 		}
 	}
+
+	if (btpower_evt == 2)
+		set_usb_bt_power(1);
+
+	if (btpower_evt == 0 && pdata->gpio_reset > 0) {
+		if (pdata->power_on_pin_OD &&
+			!pdata->power_low_level) {
+			gpio_direction_input(pdata->gpio_reset);
+		} else {
+			gpio_direction_output(pdata->gpio_reset,
+				!pdata->power_low_level);
+		}
+	}
+	if (btpower_evt == 0 && pdata->gpio_en > 0)
+		set_usb_bt_power(1);
+
 	msleep(200);
+}
+
+/*The system calls this function when GPIOC_14 interrupt occurs*/
+static irqreturn_t bt_interrupt(int irq, void *dev_id)
+{
+	struct bt_dev_data *pdata = (struct bt_dev_data *)dev_id;
+
+	if (btirq_flag == 1) {
+		schedule_work(&pdata->btwakeup_work);
+		pr_info("freeze: test BT IRQ\n");
+	}
+
+	return IRQ_HANDLED;
+}
+
+static enum hrtimer_restart btwakeup_timer_handler(struct hrtimer *timer)
+{
+	struct bt_dev_data *pdata  = container_of(timer,
+			struct bt_dev_data, timer);
+
+	if  (!gpio_get_value(pdata->gpio_btwakeup) && cnt  < 5)
+		cnt++;
+	if (cnt >= 5 && cnt < 15) {
+		if (gpio_get_value(pdata->gpio_btwakeup))
+			flag_p++;
+		else if (!gpio_get_value(pdata->gpio_btwakeup))
+			flag_n++;
+		cnt++;
+	}
+	pr_info("%s power: %d,netflix:%d\n", __func__, flag_p, flag_n);
+	if (flag_p >= 7) {
+		pr_info("%s power: %d\n", __func__, flag_p);
+		btwake_evt = 2;
+		cnt = 0;
+		flag_p = 0;
+		btirq_flag = 0;
+		input_event(pdata->input_dev,
+			EV_KEY, KEY_POWER, 1);
+		input_sync(pdata->input_dev);
+		input_event(pdata->input_dev,
+			EV_KEY, KEY_POWER, 0);
+		input_sync(pdata->input_dev);
+	} else if (flag_n >= 7) {
+		pr_info("%s netflix: %d\n", __func__, flag_n);
+		btwake_evt = 2;
+		cnt = 0;
+		flag_n = 0;
+		btirq_flag = 0;
+		input_event(pdata->input_dev, EV_KEY, 133, 1);
+		input_sync(pdata->input_dev);
+		input_event(pdata->input_dev, EV_KEY, 133, 0);
+		input_sync(pdata->input_dev);
+	}
+	if (btwake_evt != 2 && cnt != 0)
+		hrtimer_start(&pdata->timer,
+			ktime_set(0, 20 * 1000000), HRTIMER_MODE_REL);
+	return HRTIMER_NORESTART;
+}
+
+static void get_btwakeup_irq_work(struct work_struct *work)
+{
+	struct bt_dev_data *pdata  = container_of(work,
+		struct bt_dev_data, btwakeup_work);
+
+	if (btwake_evt == 2)
+		return;
+	pr_info("%s", __func__);
+	hrtimer_start(&pdata->timer,
+			ktime_set(0, 100 * 1000000), HRTIMER_MODE_REL);
 }
 
 static int bt_set_block(void *data, bool blocked)
@@ -204,10 +347,10 @@ static int bt_set_block(void *data, bool blocked)
 	pr_info("BT_RADIO going: %s\n", blocked ? "off" : "on");
 
 	if (!blocked) {
-		pr_info("AML_BT: going ON\n");
+		pr_info("AML_BT: going ON,btpower_evt=%d\n", btpower_evt);
 		bt_device_on(pdata);
 	} else {
-		pr_info("AML_BT: going OFF\n");
+		pr_info("AML_BT: going OFF,btpower_evt=%d\n", btpower_evt);
 	bt_device_off(pdata);
 	}
 	return 0;
@@ -230,11 +373,43 @@ static void bt_lateresume(struct early_suspend *h)
 static int bt_suspend(struct platform_device *pdev,
 		      pm_message_t state)
 {
+	struct bt_dev_data *pdata = platform_get_drvdata(pdev);
+
+	btwake_evt = 0;
+	pr_info("bt suspend\n");
+	disable_irq(pdata->irqno_wakeup);
+
 	return 0;
 }
 
 static int bt_resume(struct platform_device *pdev)
 {
+	int event = 0;
+	struct bt_dev_data *pdata = platform_get_drvdata(pdev);
+
+	pr_info("bt resume\n");
+	enable_irq(pdata->irqno_wakeup);
+	btwake_evt = 0;
+
+	if ((get_resume_method() == RTC_WAKEUP) ||
+		(get_resume_method() == AUTO_WAKEUP)) {
+		btwake_evt = 1;
+		btirq_flag = 1;
+	    flag_n = 0;
+		flag_p = 0;
+		cnt = 0;
+	}
+	event = sdio_get_vendor();
+	pr_info("event = %d\n", event);
+	if (event != 625 && get_resume_method() == BT_WAKEUP) {
+		input_event(pdata->input_dev,
+			EV_KEY, KEY_POWER, 1);
+		input_sync(pdata->input_dev);
+		input_event(pdata->input_dev,
+			EV_KEY, KEY_POWER, 0);
+		input_sync(pdata->input_dev);
+	}
+
 	return 0;
 }
 
@@ -245,6 +420,7 @@ static int bt_probe(struct platform_device *pdev)
 	struct rfkill *bt_rfk;
 	struct bt_dev_data *pdata = NULL;
 	struct bt_dev_runtime_data *prdata;
+	struct input_dev *input_dev;
 
 #ifdef CONFIG_OF
 	if (pdev && pdev->dev.of_node) {
@@ -288,6 +464,18 @@ static int bt_probe(struct platform_device *pdev)
 			pdata->gpio_hostwake = of_get_named_gpio_flags
 							(pdev->dev.of_node,
 							"hostwake-gpios",
+							0, NULL);
+		}
+		/*gpio_btwakeup = BT_WAKE_HOST*/
+		ret = of_property_read_string(pdev->dev.of_node,
+			"btwakeup-gpios", &str);
+		if (ret) {
+			pr_warn("not get btwakeup-gpios\n");
+			pdata->gpio_btwakeup = 0;
+		} else {
+			pdata->gpio_hostwake = of_get_named_gpio_flags
+							(pdev->dev.of_node,
+							"btwakeup-gpios",
 							0, NULL);
 		}
 
@@ -376,6 +564,62 @@ static int bt_probe(struct platform_device *pdev)
 	register_early_suspend(&bt_early_suspend);
 #endif
 
+	platform_set_drvdata(pdev, pdata);
+
+	/*1.Set BT_WAKE_HOST to the input state;*/
+	/*2.Get interrupt number(irqno_wakeup).*/
+	pdata->irqno_wakeup = gpio_to_irq(pdata->gpio_btwakeup);
+
+	/*Register interrupt service function*/
+	ret = request_irq(pdata->irqno_wakeup, bt_interrupt,
+			IRQF_TRIGGER_FALLING, "bt-irq", (void *)pdata);
+	if (ret < 0)
+		pr_err("request_irq error ret=%d\n", ret);
+
+	//disable_irq(pdata->irqno_wakeup);
+
+	ret = device_init_wakeup(&pdev->dev, 1);
+	if (ret)
+		pr_err("device_init_wakeup failed: %d\n", ret);
+	/*Wake up the interrupt*/
+	ret = dev_pm_set_wake_irq(&pdev->dev, pdata->irqno_wakeup);
+	if (ret)
+		pr_err("dev_pm_set_wake_irq failed: %d\n", ret);
+
+	INIT_WORK(&pdata->btwakeup_work, get_btwakeup_irq_work);
+
+	//input
+	input_dev = input_allocate_device();
+	if (!input_dev) {
+		pr_err("[abner test]input_allocate_device failed: %d\n", ret);
+		return -EINVAL;
+	}
+	set_bit(EV_KEY,  input_dev->evbit);
+	set_bit(KEY_POWER, input_dev->keybit);
+	set_bit(133, input_dev->keybit);
+
+	input_dev->name = "input_btrcu";
+	input_dev->phys = "input_btrcu/input0";
+	input_dev->dev.parent = &pdev->dev;
+	input_dev->id.bustype = BUS_ISA;
+	input_dev->id.vendor = 0x0001;
+	input_dev->id.product = 0x0001;
+	input_dev->id.version = 0x0100;
+	input_dev->rep[REP_DELAY] = 0xffffffff;
+	input_dev->rep[REP_PERIOD] = 0xffffffff;
+	input_dev->keycodesize = sizeof(unsigned short);
+	input_dev->keycodemax = 0x1ff;
+	ret = input_register_device(input_dev);
+	if (ret < 0) {
+		pr_err("[abner test]input_register_device failed: %d\n", ret);
+		input_free_device(input_dev);
+		return -EINVAL;
+	}
+	pdata->input_dev = input_dev;
+
+	hrtimer_init(&pdata->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	pdata->timer.function = btwakeup_timer_handler;
+
 	return 0;
 
 err_rfkill:
@@ -447,6 +691,11 @@ static void __exit bt_exit(void)
 	platform_driver_unregister(&bt_driver);
 }
 
+module_param(btpower_evt, int, 0664);
+MODULE_PARM_DESC(btpower_evt, "btpower_evt");
+
+module_param(btwake_evt, int, 0664);
+MODULE_PARM_DESC(btwake_evt, "btwake_evt");
 module_init(bt_init);
 module_exit(bt_exit);
 MODULE_DESCRIPTION("bt rfkill");
