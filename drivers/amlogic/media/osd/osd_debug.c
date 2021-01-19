@@ -467,7 +467,7 @@ static void osd_debug_dump_register(int argc, char **argv)
 
 	if (!(osd_hw.osd_meson_dev.osd_ver == OSD_SIMPLE) &&
 	    osd_hw.hw_rdma_en)
-		read_rdma_table();
+		read_rdma_table(VPU_VPP0);
 	if (argc == 3 && argv[1] && argv[2]) {
 		ret = kstrtoint(argv[1], 16, &reg_start);
 		ret = kstrtoint(argv[2], 16, &reg_end);

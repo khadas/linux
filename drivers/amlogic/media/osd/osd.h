@@ -543,6 +543,8 @@ struct osd_device_data_s {
 	u32 viu1_osd_count;
 	u32 viu2_index;
 	u32 mif_linear;
+	u32 has_vpp1;
+	u32 has_vpp2;
 	struct clk *vpu_clkc;
 };
 
@@ -729,6 +731,22 @@ struct osd_fence_fun_s {
 	osd_toggle_buffer_op toggle_buffer_handler;
 };
 
+typedef u32 (*osd_rdma_rd_op)(u32 reg);
+typedef int (*osd_rdma_wr_op)(u32 reg, u32 val);
+typedef int (*osd_rdma_wr_bits_op)(u32 reg, u32 val, u32 start, u32 len);
+typedef int (*osd_rdma_set_mask_op)(u32 reg, u32 mask);
+typedef int (*osd_rdma_clr_mask_op)(u32 reg, u32 mask);
+typedef int (*osd_rdma_wr_irq_op)(u32 reg, u32 val);
+
+struct osd_rdma_fun_s {
+	osd_rdma_rd_op osd_rdma_rd;
+	osd_rdma_wr_op osd_rdma_wr;
+	osd_rdma_wr_bits_op osd_rdma_wr_bits;
+	osd_rdma_set_mask_op osd_rdma_set_mask;
+	osd_rdma_clr_mask_op osd_rdma_clr_mask;
+	osd_rdma_wr_irq_op osd_rdma_wr_irq;
+};
+
 struct layer_info_s {
 	int enable;
 	ulong ext_addr;
@@ -875,9 +893,11 @@ struct hw_para_s {
 	u32 rdma_delayed_cnt;
 	u32 osd_reg_check;
 	u32 mif_linear;
+	u32 vpp_num;
 	struct hw_debug_s osd_debug;
 	int out_fence_fd[VIU_COUNT];
 	int in_fd[HW_OSD_COUNT];
 	struct osd_fence_fun_s osd_fence[VIU_COUNT][2];
+	struct osd_rdma_fun_s osd_rdma_func[VIU_COUNT];
 };
 #endif /* _OSD_H_ */

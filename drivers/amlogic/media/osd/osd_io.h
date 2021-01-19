@@ -24,4 +24,19 @@ int VSYNCOSD_WR_MPEG_REG_BITS(u32 reg, u32 val, u32 start, u32 len);
 int VSYNCOSD_SET_MPEG_REG_MASK(u32 reg, u32 mask);
 int VSYNCOSD_CLR_MPEG_REG_MASK(u32 reg, u32 mask);
 int VSYNCOSD_IRQ_WR_MPEG_REG(u32 reg, u32 val);
+
+u32 VSYNCOSD_RD_MPEG_REG_VPP1(u32 reg);
+int VSYNCOSD_WR_MPEG_REG_VPP1(u32 reg, u32 val);
+int VSYNCOSD_WR_MPEG_REG_BITS_VPP1(u32 reg, u32 val, u32 start, u32 len);
+int VSYNCOSD_SET_MPEG_REG_MASK_VPP1(u32 reg, u32 mask);
+int VSYNCOSD_CLR_MPEG_REG_MASK_VPP1(u32 reg, u32 mask);
+int VSYNCOSD_IRQ_WR_MPEG_REG_VPP1(u32 reg, u32 val);
+
+u32 VSYNCOSD_RD_MPEG_REG_VPP2(u32 reg);
+int VSYNCOSD_WR_MPEG_REG_VPP2(u32 reg, u32 val);
+int VSYNCOSD_WR_MPEG_REG_BITS_VPP2(u32 reg, u32 val, u32 start, u32 len);
+int VSYNCOSD_SET_MPEG_REG_MASK_VPP2(u32 reg, u32 mask);
+int VSYNCOSD_CLR_MPEG_REG_MASK_VPP2(u32 reg, u32 mask);
+int VSYNCOSD_IRQ_WR_MPEG_REG_VPP2(u32 reg, u32 val);
+
 #endif

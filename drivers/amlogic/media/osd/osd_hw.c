@@ -3053,7 +3053,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		osd_hw_reset();
 	} else {
 		osd_update_vsync_timestamp();
-		osd_rdma_interrupt_done_clear();
+		osd_rdma_interrupt_done_clear(VPU_VPP0);
 	}
 	if (osd_hw.osd_reg_check)
 		check_reg_changed();
@@ -3387,7 +3387,7 @@ void  osd_set_line_n_rdma(u32 line_n_rdma)
 		if (osd_hw.line_n_rdma)
 			enable_line_n_rdma();
 		else
-			enable_vsync_rdma();
+			enable_vsync_rdma(VPU_VPP0);
 	}
 }
 
@@ -11235,6 +11235,48 @@ static void osd_set_vpp_path_default(u32 osd_index, u32 vpp_index)
 	}
 }
 
+static void set_rdma_func_handler(void)
+{
+	osd_hw.osd_rdma_func[0].osd_rdma_rd =
+		VSYNCOSD_RD_MPEG_REG;
+	osd_hw.osd_rdma_func[0].osd_rdma_wr =
+		VSYNCOSD_WR_MPEG_REG;
+	osd_hw.osd_rdma_func[0].osd_rdma_wr_bits =
+		VSYNCOSD_WR_MPEG_REG_BITS;
+	osd_hw.osd_rdma_func[0].osd_rdma_set_mask =
+		VSYNCOSD_SET_MPEG_REG_MASK;
+	osd_hw.osd_rdma_func[0].osd_rdma_clr_mask =
+		VSYNCOSD_CLR_MPEG_REG_MASK;
+	osd_hw.osd_rdma_func[0].osd_rdma_wr_irq =
+		VSYNCOSD_IRQ_WR_MPEG_REG;
+
+	osd_hw.osd_rdma_func[1].osd_rdma_rd =
+		VSYNCOSD_RD_MPEG_REG_VPP1;
+	osd_hw.osd_rdma_func[1].osd_rdma_wr =
+		VSYNCOSD_WR_MPEG_REG_VPP1;
+	osd_hw.osd_rdma_func[1].osd_rdma_wr_bits =
+		VSYNCOSD_WR_MPEG_REG_BITS_VPP1;
+	osd_hw.osd_rdma_func[1].osd_rdma_set_mask =
+		VSYNCOSD_SET_MPEG_REG_MASK_VPP1;
+	osd_hw.osd_rdma_func[1].osd_rdma_clr_mask =
+		VSYNCOSD_CLR_MPEG_REG_MASK_VPP1;
+	osd_hw.osd_rdma_func[1].osd_rdma_wr_irq =
+		VSYNCOSD_IRQ_WR_MPEG_REG_VPP1;
+
+	osd_hw.osd_rdma_func[2].osd_rdma_rd =
+		VSYNCOSD_RD_MPEG_REG_VPP2;
+	osd_hw.osd_rdma_func[2].osd_rdma_wr =
+		VSYNCOSD_WR_MPEG_REG_VPP2;
+	osd_hw.osd_rdma_func[2].osd_rdma_wr_bits =
+		VSYNCOSD_WR_MPEG_REG_BITS_VPP2;
+	osd_hw.osd_rdma_func[2].osd_rdma_set_mask =
+		VSYNCOSD_SET_MPEG_REG_MASK_VPP2;
+	osd_hw.osd_rdma_func[2].osd_rdma_clr_mask =
+		VSYNCOSD_CLR_MPEG_REG_MASK_VPP2;
+	osd_hw.osd_rdma_func[2].osd_rdma_wr_irq =
+		VSYNCOSD_IRQ_WR_MPEG_REG_VPP2;
+}
+
 void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		 struct osd_device_data_s *osd_meson)
 {
@@ -11248,10 +11290,14 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 #endif
 
 	osd_hw.fb_drvier_probe = osd_probe;
+	osd_hw.vpp_num = 1;
 
 	memcpy(&osd_hw.osd_meson_dev, osd_meson,
 	       sizeof(struct osd_device_data_s));
-
+	if (osd_hw.osd_meson_dev.has_vpp1)
+		osd_hw.vpp_num++;
+	if (osd_hw.osd_meson_dev.has_vpp2)
+		osd_hw.vpp_num++;
 	osd_vpu_power_on();
 	if (osd_meson->osd_count == 3 &&
 	    osd_meson->has_viu2) {
@@ -11583,6 +11629,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		set_vpp_osd1_rgb2yuv(1);
 		set_vpp_osd2_rgb2yuv(1);
 	}
+	/* set osd vpp rdma func */
+	set_rdma_func_handler();
 	if (osd_hw.fb_drvier_probe) {
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 		INIT_LIST_HEAD(&post_fence_list[VIU1]);
@@ -11617,10 +11665,15 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		request_fiq(INT_VIU_VSYNC, &osd_viu2_fiq_isr);
 #endif
 	}
-	if (osd_hw.hw_rdma_en)
-		osd_rdma_enable(2);
-	else
+	if (osd_hw.hw_rdma_en) {
+		osd_rdma_enable(VPU_VPP0, 2);
+		if (osd_hw.osd_meson_dev.has_vpp1)
+			osd_rdma_enable(VPU_VPP1, 2);
+		if (osd_hw.osd_meson_dev.has_vpp2)
+			osd_rdma_enable(VPU_VPP2, 2);
+	} else {
 		osd_hw.afbc_force_reset = 0;
+	}
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 	affinity_set_init();
 #endif
@@ -12153,8 +12206,13 @@ void osd_shutdown_hw(void)
 	if (osd_hw.osd_meson_dev.has_rdma)
 		enable_rdma(0);
 #endif
-	if (osd_hw.hw_rdma_en)
-		osd_rdma_enable(0);
+	if (osd_hw.hw_rdma_en) {
+		osd_rdma_enable(VPU_VPP0, 0);
+		if (osd_hw.osd_meson_dev.has_vpp1)
+			osd_rdma_enable(VPU_VPP1, 0);
+		if (osd_hw.osd_meson_dev.has_vpp2)
+			osd_rdma_enable(VPU_VPP2, 0);
+	}
 	pr_info("osd_shutdown\n");
 }
 
@@ -12185,7 +12243,11 @@ void  osd_freeze_hw(void)
 		enable_rdma(0);
 #endif
 	if (osd_hw.hw_rdma_en) {
-		osd_rdma_enable(0);
+		osd_rdma_enable(VPU_VPP0, 0);
+		if (osd_hw.osd_meson_dev.has_vpp1)
+			osd_rdma_enable(VPU_VPP1, 0);
+		if (osd_hw.osd_meson_dev.has_vpp2)
+			osd_rdma_enable(VPU_VPP2, 0);
 		if (get_backup_reg(VIU_OSD1_BLK0_CFG_W0,
 				   &fb0_cfg_w0_save) != 0)
 			fb0_cfg_w0_save =
@@ -12199,8 +12261,13 @@ void  osd_freeze_hw(void)
 void osd_thaw_hw(void)
 {
 	pr_debug("osd_thawed\n");
-	if (osd_hw.hw_rdma_en)
-		osd_rdma_enable(2);
+	if (osd_hw.hw_rdma_en) {
+		osd_rdma_enable(VPU_VPP0, 2);
+		if (osd_hw.osd_meson_dev.has_vpp1)
+			osd_rdma_enable(VPU_VPP1, 2);
+		if (osd_hw.osd_meson_dev.has_vpp2)
+			osd_rdma_enable(VPU_VPP2, 2);
+	}
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	if (osd_hw.osd_meson_dev.has_rdma)
 		enable_rdma(1);
@@ -12212,8 +12279,13 @@ void osd_restore_hw(void)
 	int i;
 
 	osd_reg_write(VIU_OSD1_BLK0_CFG_W0, fb0_cfg_w0_save);
-	if (osd_hw.hw_rdma_en)
-		osd_rdma_enable(2);
+	if (osd_hw.hw_rdma_en) {
+		osd_rdma_enable(VPU_VPP0, 2);
+		if (osd_hw.osd_meson_dev.has_vpp1)
+			osd_rdma_enable(VPU_VPP1, 2);
+		if (osd_hw.osd_meson_dev.has_vpp2)
+			osd_rdma_enable(VPU_VPP2, 2);
+	}
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	if (osd_hw.osd_meson_dev.has_rdma)
 		enable_rdma(1);

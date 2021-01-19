@@ -4054,6 +4054,8 @@ static struct osd_device_data_s osd_gxbb = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_gxtvbb = {
@@ -4072,6 +4074,8 @@ static struct osd_device_data_s osd_gxtvbb = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_gxl = {
@@ -4090,6 +4094,8 @@ static struct osd_device_data_s osd_gxl = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_gxm = {
@@ -4108,6 +4114,8 @@ static struct osd_device_data_s osd_gxm = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_txl = {
@@ -4126,6 +4134,8 @@ static struct osd_device_data_s osd_txl = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_txlx = {
@@ -4144,6 +4154,8 @@ static struct osd_device_data_s osd_txlx = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_axg = {
@@ -4163,6 +4175,8 @@ static struct osd_device_data_s osd_axg = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0xff,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_g12a = {
@@ -4181,6 +4195,8 @@ static struct osd_device_data_s osd_g12a = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_g12b = {
@@ -4199,6 +4215,8 @@ static struct osd_device_data_s osd_g12b = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_tl1 = {
@@ -4217,6 +4235,8 @@ static struct osd_device_data_s osd_tl1 = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_sm1 = {
@@ -4235,6 +4255,8 @@ static struct osd_device_data_s osd_sm1 = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_tm2 = {
@@ -4253,6 +4275,8 @@ static struct osd_device_data_s osd_tm2 = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_a1 = {
@@ -4271,6 +4295,8 @@ static struct osd_device_data_s osd_a1 = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_sc2 = {
@@ -4289,6 +4315,8 @@ static struct osd_device_data_s osd_sc2 = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_t5 = {
@@ -4307,6 +4335,8 @@ static struct osd_device_data_s osd_t5 = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 1,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_t5d = {
@@ -4325,6 +4355,8 @@ static struct osd_device_data_s osd_t5d = {
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 1,
 	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct osd_device_data_s osd_t7 = {
@@ -4342,6 +4374,8 @@ static struct osd_device_data_s osd_t7 = {
 	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
 	.mif_linear = 1,
+	.has_vpp1 = 1,
+	.has_vpp2 = 1,
 };
 
 static struct osd_device_hw_s legcy_dev_property = {
@@ -4504,7 +4538,7 @@ static int __init osd_probe(struct platform_device *pdev)
 	}
 	if (osd_meson_dev.has_rdma) {
 		int_rdma = platform_get_irq_byname(pdev, "rdma");
-		if (int_viu_vsync  == -ENXIO) {
+		if (int_rdma  == -ENXIO) {
 			osd_log_err("cannot get osd rdma irq resource\n");
 			goto failed1;
 		}
