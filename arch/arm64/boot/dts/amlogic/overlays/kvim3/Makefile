@@ -5,7 +5,8 @@ dtbo-y += uart3.dtbo \
 		  onewire.dtbo \
 		  os08a10.dtbo \
 		  disable-ts050.dtbo \
-		  m2x-eth.dtbo
+		  m2x-eth.dtbo \
+		  otg-device.dtbo
 
 targets += $(dtbo-y)
 always  := $(dtbo-y)
