@@ -64,6 +64,7 @@ enum hdr_module_sel {
 	VDIN0_HDR = 6,
 	VDIN1_HDR = 7,
 	DI_HDR = 8,
+	DI_M2M_HDR = 9,
 	HDR_MAX
 };
 
@@ -97,7 +98,8 @@ enum hdr_process_sel {
 	HDR10P_SDR = BIT(11),
 	SDR_GMT_CONVERT = BIT(12),
 	IPT_MAP = BIT(13),
-	PROCESS_MAX = BIT(14),
+	IPT_SDR = BIT(14),
+	PROCESS_MAX = BIT(15),
 	/* reserved  several bits for additional info */
 	RGB_OSD = BIT(29),
 	RGB_VDIN = BIT(30),
