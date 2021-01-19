@@ -3541,7 +3541,7 @@ void cec_save_mail_box(void)
 	tmp = cec_get_cur_phy_addr();
 	if (cec_dev->dev_type != CEC_TV_ADDR) {
 		if (tmp == 0)
-			cec_dev->phy_addr = 0x1234;
+			cec_dev->phy_addr = 0xffff;
 		else
 			cec_dev->phy_addr = tmp;
 	} else {

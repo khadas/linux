@@ -6,7 +6,7 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION     "2020/11/13:cec t7\n"
+#define CEC_DRIVER_VERSION     "2021/01/19:phy addr error, defaut is 0xffff"
 
 #define CEC_DEV_NAME		"cec"
 
