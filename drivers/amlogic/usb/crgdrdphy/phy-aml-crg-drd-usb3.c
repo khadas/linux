@@ -157,7 +157,7 @@ static void cr_bus_write(struct amlogic_usb_v2 *phy_v3,
 		time_is_after_jiffies(timeout_jiffies));
 }
 
-static void usb3_phy_cr_config_30(struct amlogic_usb_v2 *phy)
+static void usb3_phy_cr_config(struct amlogic_usb_v2 *phy)
 {
 	u32 data = 0;
 
@@ -218,9 +218,8 @@ static void usb3_phy_cr_config_30(struct amlogic_usb_v2 *phy)
 static int amlogic_crg_drd_usb3_init(struct usb_phy *x)
 {
 	struct amlogic_usb_v2 *phy = phy_to_amlusb(x);
-	union usb_r2_v2 r2 = {.d32 = 0};
-	union usb_r1_v2 r1 = {.d32 = 0};
 	union usb_r3_v2 r3 = {.d32 = 0};
+	union usb_r7_v2 r7 = {.d32 = 0};
 	union phy3_r2 p3_r2 = {.d32 = 0};
 	union phy3_r1 p3_r1 = {.d32 = 0};
 	int i = 0;
@@ -242,36 +241,31 @@ static int amlogic_crg_drd_usb3_init(struct usb_phy *x)
 
 	if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
 		r3.d32 = readl(usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[3]);
-		r3.b.p30_ssc_en = 1;
-		r3.b.p30_ssc_range = 2;
 		r3.b.p30_ref_ssp_en = 1;
+		writel(r3.d32, usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[3]);
+		udelay(2);
+		r7.d32 = readl(usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[7]);
+		r7.b.p31_ssc_en = 1;
+		r7.b.p31_ssc_range = 2;
+		writel(r7.d32, usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[7]);
+		udelay(2);
+		r7.d32 = readl(usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[7]);
+		r7.b.p31_pcs_tx_deemph_6db = 0x20;
+		r7.b.p31_pcs_tx_swing_full = 127;
+		writel(r7.d32, usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[7]);
+		udelay(2);
+		r3.d32 = readl(usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[3]);
+		r3.b.p31_pcs_tx_deemph_3p5db = 0x15;
 		writel(r3.d32, usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[3]);
 
 		udelay(2);
-
-		r2.d32 = readl(usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[2]);
-		r2.b.p30_pcs_tx_deemph_3p5db = 0x15;
-		r2.b.p30_pcs_tx_deemph_6db = 0x20;
-		writel(r2.d32, usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[2]);
-
-		udelay(2);
-
-		r1.d32 = readl(usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[1]);
-		r1.b.u3h_host_port_power_control_present = 1;
-		r1.b.u3h_fladj_30mhz_reg = 0x20;
-		r1.b.p30_pcs_tx_swing_full = 127;
-		r1.b.u3h_host_u3_port_disable = 0;
-		writel(r1.d32, usb_crg_drd_aml_regs[phy->phy_id].usb_r_v2[1]);
-
-		udelay(2);
-
 		p3_r2.d32 = readl(phy->phy3_cfg_r2);
 		p3_r2.b.phy_tx_vboost_lvl = 0x4;
 		writel(p3_r2.d32, phy->phy3_cfg_r2);
-
 		udelay(2);
 
-		usb3_phy_cr_config_30(phy);
+		usb3_phy_cr_config(phy);
+
 		/*
 		 * LOS_BIAS to 0x5
 		 * LOS_LEVEL to 0x9
