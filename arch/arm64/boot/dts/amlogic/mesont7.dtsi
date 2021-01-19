@@ -1155,48 +1155,6 @@
 			status = "disabled";
 		};
 
-		sd_emmc_a: sdio@fe088000 {
-			compatible = "amlogic,meson-axg-mmc";
-			reg = <0x0 0xfe088000 0x0 0x800>,
-				<0x0 0xfe00016c 0x0 0x4>,
-				<0x0 0xfe004008 0x0 0x4>;
-			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
-			status = "disabled";
-			clocks = <&clkc CLKID_SD_EMMC_A>,
-				<&clkc CLKID_SD_EMMC_A_CLK_MUX>,
-				 <&clkc CLKID_SD_EMMC_A_CLK>,
-				 <&xtal>,
-				 <&clkc CLKID_GP0_PLL>;
-			clock-names = "core", "mux0", "mux1",
-					"clkin0", "clkin1";
-			card_type = <3>;
-			cap-sdio-irq;
-			keep-power-in-suspend;
-			src_clk_rate = <1152000000>;
-			use_intf3_tuning;
-			mmc_debug_flag;
-			//resets = <&reset RESET_SD_EMMC_A>;
-		};
-
-		sd_emmc_b: sd@fe08a000 {
-			compatible = "amlogic,meson-axg-mmc";
-			reg = <0x0 0xfe08a000 0x0 0x800>,
-				<0x0 0xfe00016c 0x0 0x4>,
-				<0x0 0xfe00401c 0x0 0x4>;
-			interrupts = <GIC_SPI 177 IRQ_TYPE_EDGE_RISING>;
-			status = "disabled";
-			clocks = <&clkc CLKID_SD_EMMC_B>,
-				<&clkc CLKID_SD_EMMC_B_CLK_MUX>,
-				 <&clkc CLKID_SD_EMMC_B_CLK>,
-				 <&xtal>,
-				 <&clkc CLKID_FCLK_DIV2>;
-			clock-names = "core", "mux0", "mux1",
-					"clkin0", "clkin1";
-			card_type = <5>;
-			mmc_debug_flag;
-			//resets = <&reset RESET_SD_EMMC_B>;
-		};
-
 		sd_emmc_c: mmc@fe08c000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0x0 0xfe08c000 0x0 0x800>,
@@ -1218,6 +1176,48 @@
 			ignore_desc_busy;
 			tx_delay = <16>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
+		};
+
+		sd_emmc_b: sd@fe08a000 {
+			compatible = "amlogic,meson-axg-mmc";
+			reg = <0x0 0xfe08a000 0x0 0x800>,
+				<0x0 0xfe00016c 0x0 0x4>,
+				<0x0 0xfe00401c 0x0 0x4>;
+			interrupts = <GIC_SPI 177 IRQ_TYPE_EDGE_RISING>;
+			status = "disabled";
+			clocks = <&clkc CLKID_SD_EMMC_B>,
+				<&clkc CLKID_SD_EMMC_B_CLK_MUX>,
+				 <&clkc CLKID_SD_EMMC_B_CLK>,
+				 <&xtal>,
+				 <&clkc CLKID_FCLK_DIV2>;
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1";
+			card_type = <5>;
+			mmc_debug_flag;
+			//resets = <&reset RESET_SD_EMMC_B>;
+		};
+
+		sd_emmc_a: sdio@fe088000 {
+			compatible = "amlogic,meson-axg-mmc";
+			reg = <0x0 0xfe088000 0x0 0x800>,
+				<0x0 0xfe00016c 0x0 0x4>,
+				<0x0 0xfe004008 0x0 0x4>;
+			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+			clocks = <&clkc CLKID_SD_EMMC_A>,
+				<&clkc CLKID_SD_EMMC_A_CLK_MUX>,
+				 <&clkc CLKID_SD_EMMC_A_CLK>,
+				 <&xtal>,
+				 <&clkc CLKID_GP0_PLL>;
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1";
+			card_type = <3>;
+			cap-sdio-irq;
+			keep-power-in-suspend;
+			src_clk_rate = <1152000000>;
+			use_intf3_tuning;
+			mmc_debug_flag;
+			//resets = <&reset RESET_SD_EMMC_A>;
 		};
 
 		ethmac: ethernet@fdc00000 {
