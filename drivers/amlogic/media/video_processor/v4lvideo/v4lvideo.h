@@ -233,11 +233,14 @@ struct v4lvideo_dev {
 	struct v4lvideo_file_s *v4lvideo_display_queue[V4LVIDEO_POOL_SIZE];
 	/* mutex_input */
 	struct mutex mutex_input;
+	/* mutex_opened */
+	struct mutex mutex_opened;
 	struct v4l2_buffer v4lvideo_input[V4LVIDEO_POOL_SIZE];
 	struct v4l2_amlogic_parm am_parm;
 	u8 first_frame;
 	char *provider_name;
 	struct v4lvideo_file_s v4lvideo_file[V4LVIDEO_POOL_SIZE];
+	bool opened;
 };
 
 enum vframe_source_type {
@@ -257,5 +260,6 @@ unsigned int get_v4lvideo_debug(void);
 #define V4LVIDEO_IOCTL_ALLOC_ID   _IOW(V4LVIDEO_IOC_MAGIC, 0x00, int)
 #define V4LVIDEO_IOCTL_FREE_ID    _IOW(V4LVIDEO_IOC_MAGIC, 0x01, int)
 #define V4LVIDEO_IOCTL_ALLOC_FD   _IOW(V4LVIDEO_IOC_MAGIC, 0x02, int)
+#define V4LVIDEO_IOCTL_LINK_FD    _IOW(V4LVIDEO_IOC_MAGIC, 0x03, int)
 
 #endif

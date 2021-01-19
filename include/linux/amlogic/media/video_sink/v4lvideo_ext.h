@@ -54,6 +54,7 @@ struct file_private_data {
 	u32 flag;
 	struct metadata md;
 	void *private;
+	struct file *cnt_file;
 };
 
 struct v4l_data_t {
