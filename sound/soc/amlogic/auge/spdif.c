@@ -368,6 +368,11 @@ int spdifout_get_lane_mask_version(int id)
 	return ret;
 }
 
+unsigned int spdif_get_codec(void)
+{
+	return spdif_priv[0]->codec_type;
+}
+
 static int spdifin_samplerate_get_enum(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {

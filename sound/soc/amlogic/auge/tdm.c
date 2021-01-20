@@ -214,6 +214,9 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 			}
 		}
 		swap_val = 0x76543210;
+		/* TODO: find why LFE and FC(2ch, 3ch) HDMITX needs swap */
+		if (p_tdm->i2s2hdmitx)
+			swap_val = 0x76542310;
 		if (p_tdm->lane_cnt > LANE_MAX1)
 			swap_val1 = 0xfedcba98;
 		aml_tdm_set_lane_channel_swap(p_tdm->actrl,
@@ -992,8 +995,13 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		if (p_tdm->i2s2hdmitx) {
 			separated = p_tdm->chipinfo->separate_tohdmitx_en;
 			i2s_to_hdmitx_ctrl(separated, p_tdm->id);
-			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
-						 &aud_param);
+			if (spdif_get_codec() == AUD_CODEC_TYPE_MULTI_LPCM)
+				aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
+							 &aud_param);
+			else
+				pr_warn("%s(), i2s2hdmi with wrong fmt,codec_type:%d\n",
+					__func__, spdif_get_codec());
+
 		}
 
 		fifo_id = aml_frddr_get_fifo_id(fr);
