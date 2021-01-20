@@ -1212,14 +1212,13 @@
 
 	canvas: canvas{
 		compatible = "amlogic, meson, canvas";
-		dev_name = "amlogic-canvas";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe036048 0x0 0x2000>;
 	};
 
 	codec_io: codec_io {
-		compatible = "amlogic, meson-sc2, codec-io";
-		status = "disabled";
+		compatible = "amlogic, meson-s4, codec-io";
+		status = "okay";
 		#address-cells=<2>;
 		#size-cells=<2>;
 		ranges;
@@ -1302,9 +1301,9 @@
 		/* 4: 333.3M    5: 400.0M    6: 500.0M    7: 666.7M */
 	};
 
-	rdma{
+	rdma {
 		compatible = "amlogic, meson-sc2, rdma";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "rdma";
 		/* after sc2 */
