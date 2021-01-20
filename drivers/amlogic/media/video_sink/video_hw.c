@@ -2535,7 +2535,11 @@ static void vd1_scaler_setting(struct scaler_setting_s *setting)
 		    frame_par->supscl_path ==
 		     PPS_CORE0_CORE1 ||
 		    frame_par->supscl_path ==
-		     PPS_CORE0_POSTBLEND_CORE1)
+		     PPS_CORE0_POSTBLEND_CORE1 ||
+		     frame_par->supscl_path ==
+		     PPS_POSTBLEND_CORE1 ||
+		     frame_par->supscl_path ==
+		     PPS_CORE1_CM)
 			r3 >>= frame_par->supsc1_hori_ratio;
 		if (frame_par->supscl_path ==
 		     CORE0_AFTER_PPS ||
@@ -2866,7 +2870,11 @@ static void vd1_scaler_setting(struct scaler_setting_s *setting)
 		    frame_par->supscl_path ==
 		     PPS_CORE0_CORE1 ||
 		    frame_par->supscl_path ==
-		     PPS_CORE0_POSTBLEND_CORE1)
+		     PPS_CORE0_POSTBLEND_CORE1 ||
+		     frame_par->supscl_path ==
+		     PPS_POSTBLEND_CORE1 ||
+		     frame_par->supscl_path ==
+		     PPS_CORE1_CM)
 			r1 >>= frame_par->supsc0_vert_ratio;
 
 		VSYNC_WR_MPEG_REG
