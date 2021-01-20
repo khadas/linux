@@ -1302,6 +1302,7 @@
 			mmc_debug_flag;
 			ignore_desc_busy;
 			tx_delay = <16>;
+			nwr_cnt = <12>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
 

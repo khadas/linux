@@ -239,25 +239,43 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 				return ret;
 			}
 		} else {
-			if (rate > 200000000)
+			if (rate > 200000000) {
+				/* HS400@200 config src clock */
 				ret = clk_set_parent(host->mux[0], host->clk[2]);
-			else
-				ret = clk_set_parent(host->mux[0], host->clk[1]);
-			if (ret) {
-				dev_err(host->dev, "set parent error\n");
-				return ret;
-			}
-
-			if (host->src_clk_rate != 0) {
-				dev_notice(host->dev, "set src rate to:%u\n",
-							host->src_clk_rate);
-				ret = clk_set_rate(host->clk[2], host->src_clk_rate);
 				if (ret) {
-					dev_err(host->dev, "set src err\n");
+					dev_err(host->dev, "set parent error\n");
 					return ret;
 				}
+				if (host->src_clk_rate != 0) {
+					dev_notice(host->dev, "set src rate to:%u\n",
+								host->src_clk_rate);
+					ret = clk_set_rate(host->clk[2], host->src_clk_rate);
+					if (ret) {
+						dev_err(host->dev, "set src err\n");
+						return ret;
+					}
+				}
+				clk_prepare_enable(host->clk[2]);
+			} else {
+				/* sdr104@200 config src clock */
+				ret = clk_set_parent(host->mux[0], host->clk[1]);
+				if (ret) {
+					dev_err(host->dev, "set parent error\n");
+					return ret;
+				}
+				if (host->src_clk_rate != 0 && !aml_card_type_mmc(host)) {
+					dev_notice(host->dev, "set src rate to:%u\n",
+								host->src_clk_rate);
+					ret = clk_set_rate(host->clk[1], host->src_clk_rate);
+					if (ret) {
+						dev_err(host->dev, "set src err\n");
+						return ret;
+					}
+				}
+				clk_prepare_enable(host->clk[1]);
 			}
 		}
+
 		ret = clk_set_rate(host->mmc_clk, rate);
 		if (ret) {
 			dev_err(host->dev, "Unable to set cfg_div_clk to %lu. ret=%d\n",
@@ -1507,7 +1525,6 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 
 	cmd_cfg |= FIELD_PREP(CMD_CFG_CMD_INDEX_MASK, cmd->opcode);
 	cmd_cfg |= CMD_CFG_OWNER;  /* owned by CPU */
-	cmd_cfg |= CMD_CFG_ERROR; /* stop in case of error */
 
 	meson_mmc_set_response_bits(cmd, &cmd_cfg);
 
@@ -1857,7 +1874,7 @@ static u32 scan_emmc_cmd_win(struct mmc_host *mmc, int send_status)
 				err = single_read_scan(mmc,
 						       MMC_READ_SINGLE_BLOCK,
 						       host->blk_test, 512, 1,
-						       offset);
+						       offset + (j * 512));
 			if (!err)
 				str[i]++;
 			else
@@ -2020,10 +2037,11 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 	struct meson_host *host = mmc_priv(mmc);
 	u32 val, intf3 = readl(host->regs + SD_EMMC_INTF3);
 	int i, err = 0;
-	int match[64];
+	int match[64], size = 0;
 	int best_start = -1, best_size = -1;
 	int cur_start = -1, cur_size = 0;
 
+	memset(match, -1, sizeof(match));
 	host->cmd_retune = 1;
 	for (i = 0; i < 64; i++) {
 		host->is_tuning = 1;
@@ -2031,10 +2049,14 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 		host->is_tuning = 0;
 		pr_debug("intf3: 0x%x, err[%d]: %d\n",
 			 readl(host->regs + SD_EMMC_INTF3), i, err);
-		if (!err)
+		if (!err) {
 			match[i] = 0;
-		else
+			++size;
+		} else {
 			match[i] = -1;
+			if (size > DELAY_CELL_COUNTS)
+				break;
+		}
 		val = intf3 & DS_SHT_M_MASK;
 		val += 1 << __ffs(DS_SHT_M_MASK);
 		intf3 &= ~DS_SHT_M_MASK;
@@ -2398,6 +2420,40 @@ static int aml_para_is_exist(struct mmc_host *mmc)
 	return 1;
 }
 
+/* Insufficient number of NWR clocks in T7 EMMC Controller */
+static void set_emmc_nwr_clks(struct mmc_host *mmc)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 delay1 = 0, delay2 = 0, count = host->nwr_cnt;
+
+	delay1 = (count << 0) | (count << 6) | (count << 12) |
+		(count << 18) | (count << 24);
+	delay2 = (count << 0) | (count << 6) | (count << 12) |
+		(count << 18);
+	writel(delay1, host->regs + SD_EMMC_DELAY1);
+	writel(delay2, host->regs + SD_EMMC_DELAY2);
+	pr_info("[%s], delay1: 0x%x, delay2: 0x%x\n",
+		__func__, readl(host->regs + SD_EMMC_DELAY1),
+		readl(host->regs + SD_EMMC_DELAY2));
+}
+
+static void aml_emmc_hs400_v5(struct mmc_host *mmc)
+{
+	set_emmc_nwr_clks(mmc);
+	set_emmc_cmd_delay(mmc, 1);
+	emmc_ds_manual_sht(mmc);
+}
+
+static void aml_get_ctrl_ver(struct mmc_host *mmc)
+{
+	struct meson_host *host = mmc_priv(mmc);
+
+	if (host->ignore_desc_busy)
+		aml_emmc_hs400_v5(mmc);
+	else
+		aml_emmc_hs400_tl1(mmc);
+}
+
 static void aml_post_hs400_timming(struct mmc_host *mmc)
 {
 	aml_sd_emmc_clktest(mmc);
@@ -2406,7 +2462,7 @@ static void aml_post_hs400_timming(struct mmc_host *mmc)
 		aml_set_tuning_para(mmc);
 		return;
 	}
-	aml_emmc_hs400_tl1(mmc);
+	aml_get_ctrl_ver(mmc);
 
 	aml_save_tuning_para(mmc);
 }
@@ -2716,7 +2772,6 @@ static void meson_mmc_cfg_init(struct meson_host *host)
 	cfg |= FIELD_PREP(CFG_BLK_LEN_MASK, ilog2(SD_EMMC_CFG_BLK_SIZE));
 
 	/* abort chain on R/W errors */
-	cfg |= CFG_ERR_ABORT;
 
 	writel(cfg, host->regs + SD_EMMC_CFG);
 }

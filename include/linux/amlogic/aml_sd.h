@@ -196,6 +196,7 @@ struct meson_host {
 	unsigned int src_clk_rate;
 	struct aml_tuning_para para;
 	int run_pxp_flag;
+	int nwr_cnt;
 	bool ignore_desc_busy;
 	bool use_intf3_tuning;
 	struct dentry *debugfs_root;
@@ -418,5 +419,7 @@ void aml_host_bus_fsm_show(struct mmc_host *mmc, int status);
 			pr_info("[%s]" fmt, __func__, ##args);	\
 } while (0)
 
+/* delay_cell=70ps,1ns/delay_cell */
+#define DELAY_CELL_COUNTS 14
 #endif /*__AML_SD_H__*/
 
