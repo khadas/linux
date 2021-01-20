@@ -446,7 +446,7 @@ __setup("hdr_policy=", boot_hdr_policy);
 /*	BT2100_IPT = 6			*/
 /*	BT_BYPASS = 7			*/
 /* BT2020 = 2: 2020 + gamma not support in hdmi now */
-static uint force_output = 5; /* 0: no force */
+static uint force_output; /* 0: no force */
 module_param(force_output, uint, 0664);
 MODULE_PARM_DESC(force_output, "\n current force_output\n");
 
