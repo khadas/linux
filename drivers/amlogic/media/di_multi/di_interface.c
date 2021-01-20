@@ -312,7 +312,7 @@ void dim_dbg_buffer2(struct di_buffer *buffer, unsigned int id)
 	}
 	dbg_nq("%s:%d:%px\n", __func__, id, buffer);
 	if (buffer->vf) {
-		dbg_nq("\t:0x%px, 0x%x,0x%x\n", buffer,
+		dbg_nq("\t:0x%px, 0x%lx,0x%lx\n", buffer,
 			buffer->vf->canvas0_config[0].phy_addr,
 			buffer->vf->canvas0_config[1].phy_addr);
 	} else {

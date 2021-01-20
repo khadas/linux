@@ -4488,7 +4488,7 @@ static bool ndrd_m1_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 	cvp_ori	= &buffer->vf->canvas0_config[0];
 
 	if (cvp_di->phy_addr != cvp_ori->phy_addr) {
-		PR_ERR("%s:0x%x->0x%x\n", __func__, cvp_ori->phy_addr, cvp_di->phy_addr);
+		PR_ERR("%s:0x%lx->0x%lx\n", __func__, cvp_ori->phy_addr, cvp_di->phy_addr);
 		return false;
 	}
 	memcpy(buffer->vf, di_buf->vframe, sizeof(*buffer->vf));
