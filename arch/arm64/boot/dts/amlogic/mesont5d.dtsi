@@ -57,7 +57,7 @@
 				"high_freq_clk_parent";
 			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
-			/*cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;*/
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			dynamic-power-coefficient = <80>;
@@ -78,7 +78,7 @@
 				"high_freq_clk_parent";
 			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
-			/*cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;*/
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			dynamic-power-coefficient = <80>;
@@ -99,7 +99,7 @@
 				"high_freq_clk_parent";
 			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
-			/*cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;*/
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			dynamic-power-coefficient = <80>;
@@ -120,7 +120,7 @@
 				"high_freq_clk_parent";
 			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
-			/*cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;*/
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			dynamic-power-coefficient = <80>;
@@ -139,7 +139,7 @@
 			};
 			SYSTEM_SLEEP_0: system-sleep-0 {
 				compatible = "arm,idle-state";
-				arm,psci-suspend-param = <0x0020000>;
+				arm,psci-suspend-param = <0x0000000>;
 				entry-latency-us = <0x3fffffff>;
 				exit-latency-us = <0x40000000>;
 				min-residency-us = <0xffffffff>;
@@ -156,7 +156,8 @@
 	};
 
 	timer_bc {
-		compatible = "arm, meson-bc-timer";
+		compatible = "arm,bc-timer";
+		status = "disabled";
 		reg = <0x0 0xffd0f190  0x0 0x4  0x0 0xffd0f194  0x0 0x4>;
 		timer_name = "Meson TimerF";
 		clockevent-rating =<300>;
