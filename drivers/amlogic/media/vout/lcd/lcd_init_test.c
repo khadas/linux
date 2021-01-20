@@ -784,8 +784,8 @@ set_pll_retry_edp:
 	lcd_ana_write(ANACTRL_DIF_PHY_CNTL14, 0xc22a0028);
 	lcd_ana_write(ANACTRL_DIF_PHY_CNTL15, 0xc22a0028);
 	lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x1e406243);
-	lcd_ana_write(ANACTRL_DIF_PHY_CNTL20, 0x0);
-	lcd_ana_write(ANACTRL_DIF_PHY_CNTL21, 0x0);
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL20, 0xffff0000);
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL21, 0xffff);
 
 	LCDPR(" lcd init pre\n");
 }
