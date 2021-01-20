@@ -889,6 +889,11 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 		((nMx + nMn / 2) / (nMn + 1)) < flm32_dif02_gap &&
 		pFlg32[HISDETNUM - 1] > 1)
 		nSTP = 0;
+
+		/*bias static similar to pulldown, max02 must bigger than min02*/
+		/*suggest from vlsi yanling*/
+	if (nMx < (1 << 14) && nMx < (nMn << 7) && pFlg32[HISDETNUM - 1] > 1)
+		nSTP = 0;
 	/*---------------*/
 	for (nT0 = 1; nT0 < HISDETNUM; nT0++) {
 		pFlm02[nT0 - 1] = pFlm02[nT0];

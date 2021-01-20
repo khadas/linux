@@ -469,6 +469,11 @@ int	FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02)
 
 			sModFlg01[tT0] = tModFlg01[tT0];
 			sModFlg02[tT0] = tModFlg02[tT0];
+
+			/*bias static similar to pulldown 32322, max02 must bigger than min02*/
+			/*suggest from vlsi yanling*/
+			if (nMax02 < (1 << 11))
+				nModLvl[tT0] = 0;
 		} /* 2-3-4-5*/
 	}
 
