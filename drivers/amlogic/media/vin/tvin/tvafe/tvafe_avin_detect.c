@@ -82,7 +82,7 @@ static unsigned int irq_filter;
 
 static unsigned int irq_pol;
 
-static unsigned int avin_count_times = 3;
+static unsigned int avin_count_times = 5;
 
 static unsigned int avin_timer_time = 10;/*100ms*/
 
@@ -951,6 +951,8 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 					tvafe_pr_info("avin[1].status IN.\n");
 				/*port opened and plug in,enable clamp*/
 				/*sync tip close*/
+				if (avport_opened == TVAFE_PORT_AV2)
+					tvafe_cha2_SYNCTIP_close_config();
 				}
 				s_irq_counter1_time = 0;
 			}
@@ -968,6 +970,11 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 					av2_plugin_state = 1;
 					tvafe_pr_info("avin[1].status OUT.\n");
 				/*port opened but plug out,need disable clamp*/
+				if (avport_opened == TVAFE_PORT_AV2) {
+					W_APB_BIT(TVFE_CLAMP_INTF, 0,
+						  CLAMP_EN_BIT, CLAMP_EN_WID);
+					tvafe_cha2_detect_restart_config();
+				}
 				}
 				s_irq_counter1_time = 0;
 			}
@@ -991,6 +998,8 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 				tvafe_pr_info("avin[0].status IN.\n");
 				/*port opened and plug in then enable clamp*/
 				/*sync tip close*/
+				if (avport_opened == TVAFE_PORT_AV1)
+					tvafe_cha1_SYNCTIP_close_config();
 			}
 			s_irq_counter0_time = 0;
 		}
@@ -1012,6 +1021,11 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 			/*the EN_SYNC_TIP need be set to "1"*/
 			/*to sense the plug in operation*/
 			/*port opened but plug out,need disable clamp*/
+			if (avport_opened == TVAFE_PORT_AV1) {
+				W_APB_BIT(TVFE_CLAMP_INTF, 0,
+					  CLAMP_EN_BIT, CLAMP_EN_WID);
+				tvafe_cha1_detect_restart_config();
+			}
 			}
 			s_irq_counter0_time = 0;
 		}

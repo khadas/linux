@@ -75,6 +75,8 @@ static bool enable_db_reg = true;
 module_param(enable_db_reg, bool, 0644);
 MODULE_PARM_DESC(enable_db_reg, "enable/disable tvafe load reg");
 
+int top_init_en;
+
 /*0: atv playmode*/
 /*1: atv search mode*/
 static bool tvafe_mode;
@@ -829,6 +831,37 @@ static struct tvin_decoder_ops_s tvafe_dec_ops = {
 	.callmaster_det = NULL,
 };
 
+static bool white_pattern_reset_pag(enum tvin_port_e port,
+				    struct tvafe_cvd2_s cvd2)
+{
+	if (IS_TVAFE_AVIN_SRC(port)) {
+		if (port == TVIN_PORT_CVBS1) {
+			if (av1_plugin_state == 1) {
+				top_init_en = 1;
+				return true;
+			}
+		}
+
+		if (port == TVIN_PORT_CVBS2) {
+			if (av2_plugin_state == 1) {
+				top_init_en = 1;
+				return true;
+			}
+		}
+
+		if ((av1_plugin_state == 0 || av2_plugin_state == 0) &&
+		      top_init_en && cvd2.info.state_cnt == 3) {
+			white_pattern_pga_reset(port);
+			tvafe_pr_info("av1:%u av2:%u\n", av1_plugin_state,
+				      av2_plugin_state);
+			top_init_en = 0;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 /*
  * tvafe signal status: signal on/off
  */
@@ -853,6 +886,9 @@ static bool tvafe_is_nosig(struct tvin_frontend_s *fe)
 
 	if (!IS_TVAFE_SRC(port))
 		return ret;
+
+	if (white_pattern_reset_pag(port, tvafe->cvd2))
+		return true;
 
 	if (tvafe->cvd2.info.smr_cnt++ >= 65536)
 		tvafe->cvd2.info.smr_cnt = 0;

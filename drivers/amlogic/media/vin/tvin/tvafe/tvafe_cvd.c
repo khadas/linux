@@ -74,7 +74,7 @@
 #define CVD_REG07_PAL 0x03
 #define SYNC_SENSITIVITY true
 #define NOISE_JUDGE false
-#define PGA_DEFAULT_VAL 0x20
+#define PGA_DEFAULT_VAL 0xa
 
 /*0:NORMAL  1:a little sharper 2:sharper 3:even sharper*/
 #define CVD2_FILTER_CONFIG_LEVEL 0
@@ -1839,6 +1839,12 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 			tvafe_pr_info("%s: current fmt is:%s\n",
 			__func__, tvin_sig_fmt_str(cvd2->config_fmt));
 	} else if (cvd2->info.state == TVAFE_CVD2_STATE_FIND) {
+		if (IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
+			if (!cvd2->hw.chroma_lock && cvd2->hw.no_color_burst &&
+			    !cvd2->hw.h_lock && !cvd2->hw.no_sig)
+				W_APB_BIT(TVFE_CLAMP_INTF, 0x0,
+					  CLAMP_EN_BIT, CLAMP_EN_WID);
+		}
 		/* manual mode => go directly to the manual format */
 		try_format_cnt = 0;
 		if (tvafe_cvd2_condition_shift(cvd2)) {
@@ -1851,6 +1857,12 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 				tvafe_cvd2_try_format(cvd2, mem,
 						TVIN_SIG_FMT_CVBS_PAL_I);
 				cvd2->info.state = TVAFE_CVD2_STATE_INIT;
+				if (IS_TVAFE_AVIN_SRC(cvd2->vd_port)) {
+					if (!R_APB_BIT(TVFE_CLAMP_INTF,
+						CLAMP_EN_BIT, CLAMP_EN_WID))
+						W_APB_BIT(TVFE_CLAMP_INTF, 0x1,
+						CLAMP_EN_BIT, CLAMP_EN_WID);
+				}
 				cvd2->info.ntsc_switch_cnt = 0;
 				try_format_cnt = 0;
 				cvd_pr_flag = false;

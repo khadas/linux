@@ -176,6 +176,7 @@ void tvafe_enable_module(bool enable);
 void tvafe_enable_avout(enum tvin_port_e port, bool enable);
 int tvafe_cpu_type(void);
 void tvafe_clk_gate_ctrl(int status);
+void white_pattern_pga_reset(enum tvin_port_e port);
 
 extern unsigned int cvd_reg87_pal;
 extern void __iomem *ana_addr;

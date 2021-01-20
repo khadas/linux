@@ -669,3 +669,38 @@ void tvafe_enable_module(bool enable)
 	}
 }
 
+/*
+ * tvafe power control of the module
+ */
+static void tvafe_top_enable_module(bool enable)
+{
+	/* disable */
+	if (!enable) {
+		W_APB_BIT(TVFE_VAFE_CTRL1, 0,
+			  VAFE_PGA_EN_BIT, VAFE_PGA_EN_WID);
+	}
+	W_APB_BIT(TVFE_TOP_CTRL, 0, DCLK_ENABLE_BIT, DCLK_ENABLE_WID);
+	tvafe_pr_info("reset module\n");
+	W_APB_BIT(TVFE_RST_CTRL, 1, DCLK_RST_BIT, DCLK_RST_WID);
+	W_APB_BIT(TVFE_RST_CTRL, 0, DCLK_RST_BIT, DCLK_RST_WID);
+}
+
+static void tvafe_top_init_reg(enum tvin_port_e port)
+{
+	W_APB_BIT(TVFE_TOP_CTRL, 1, DCLK_ENABLE_BIT, DCLK_ENABLE_WID);
+	if (IS_TVAFE_AVIN_SRC(port)) {
+		if (port == TVIN_PORT_CVBS1)
+			W_APB_REG(TVFE_VAFE_CTRL1, 0x0000110e);
+		else
+			W_APB_REG(TVFE_VAFE_CTRL1, 0x0000210e);
+	}
+	tvafe_pr_info("%s ok.\n", __func__);
+}
+
+void white_pattern_pga_reset(enum tvin_port_e port)
+{
+	tvafe_top_enable_module(false);
+	tvafe_top_init_reg(port);
+	W_APB_BIT(TVFE_CLAMP_INTF, 1, CLAMP_EN_BIT, CLAMP_EN_WID);
+}
+
