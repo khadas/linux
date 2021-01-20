@@ -11,6 +11,8 @@
 #include <linux/of_graph.h>
 #include <linux/component.h>
 
+#include <uapi/linux/sched/types.h>
+
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
@@ -60,7 +62,7 @@ static void am_meson_fb_output_poll_changed(struct drm_device *dev)
 static const struct drm_mode_config_funcs meson_mode_config_funcs = {
 	.output_poll_changed = am_meson_fb_output_poll_changed,
 	.atomic_check        = drm_atomic_helper_check,
-	.atomic_commit       = drm_atomic_helper_commit,
+	.atomic_commit       = meson_atomic_commit,
 #ifdef CONFIG_DRM_MESON_USE_ION
 	.fb_create           = am_meson_fb_create,
 #else
@@ -555,6 +557,32 @@ static struct drm_driver meson_driver = {
 	.minor			= 0,
 };
 
+static int meson_worker_thread_init(struct meson_drm *priv)
+{
+	int ret;
+	struct sched_param param;
+	struct drm_device *drm = priv->drm;
+
+	param.sched_priority = 16;
+
+	kthread_init_worker(&priv->commit_thread[0].worker);
+	priv->commit_thread[0].dev = drm;
+	priv->commit_thread[0].thread = kthread_run(kthread_worker_fn,
+						    &priv->commit_thread[0].worker,
+						    "crtc_commit");
+	if (IS_ERR(priv->commit_thread[0].thread)) {
+		DRM_ERROR("failed to create commit thread\n");
+		priv->commit_thread[0].thread = NULL;
+		return -1;
+	}
+
+	ret = sched_setscheduler(priv->commit_thread[0].thread, SCHED_FIFO, &param);
+	if (ret)
+		DRM_ERROR("failed to set priority\n");
+
+	return 0;
+}
+
 static int am_meson_drm_bind(struct device *dev)
 {
 	struct meson_drm *priv;
@@ -603,6 +631,10 @@ static int am_meson_drm_bind(struct device *dev)
 	if (ret)
 		goto err_gem;
 	DRM_INFO("mode_config crtc number:%d\n", drm->mode_config.num_crtc);
+
+	ret = meson_worker_thread_init(priv);
+	if (ret)
+		goto err_unbind_all;
 
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret)

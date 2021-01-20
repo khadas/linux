@@ -7,6 +7,7 @@
 #define __AM_MESON_DRV_H
 
 #include <linux/platform_device.h>
+#include <linux/kthread.h>
 #include <linux/of.h>
 #include <drm/drmP.h>
 #ifdef CONFIG_DRM_MESON_USE_ION
@@ -36,6 +37,13 @@ struct meson_crtc_funcs {
 	void (*disable_vblank)(struct drm_crtc *crtc);
 };
 
+struct meson_drm_thread {
+	struct kthread_worker worker;
+	struct drm_device *dev;
+	struct task_struct *thread;
+	unsigned int crtc_id;
+};
+
 struct meson_drm {
 	struct device *dev;
 
@@ -57,6 +65,7 @@ struct meson_drm {
 
 	u32 num_crtcs;
 	struct am_meson_crtc *crtcs[MESON_MAX_CRTC];
+	struct meson_drm_thread commit_thread[MESON_MAX_CRTC];
 
 	u32 num_planes;
 	struct am_osd_plane *osd_planes[MESON_MAX_OSD];
@@ -77,6 +86,9 @@ int am_meson_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct meson_crtc_funcs *crtc_funcs);
 void am_meson_unregister_crtc_funcs(struct drm_crtc *crtc);
 struct drm_connector *am_meson_hdmi_connector(void);
+int meson_atomic_commit(struct drm_device *dev,
+			     struct drm_atomic_state *state,
+			     bool nonblock);
 
 #ifdef CONFIG_DEBUG_FS
 int meson_debugfs_init(struct drm_minor *minor);
