@@ -1029,14 +1029,14 @@ static int t7_sys_pll_notifier_cb(struct notifier_block *nb,
 }
 
 static struct t7_sys_pll_nb_data t7_sys1_pll_nb_data = {
-	.sys_pll = &t7_sys_pll.hw,
+	.sys_pll = &t7_sys1_pll.hw,
 	.cpu_clk = &t7_cpu_clk.hw,
 	.cpu_dyn_clk = &t7_cpu_dyn_clk.hw,
 	.nb.notifier_call = t7_sys_pll_notifier_cb,
 };
 
 static struct t7_sys_pll_nb_data t7_sys_pll_nb_data = {
-	.sys_pll = &t7_sys1_pll.hw,
+	.sys_pll = &t7_sys_pll.hw,
 	.cpu_clk = &t7_a73_clk.hw,
 	.cpu_dyn_clk = &t7_a73_dyn_clk.hw,
 	.nb.notifier_call = t7_sys_pll_notifier_cb,
@@ -8078,7 +8078,7 @@ static int meson_t7_dvfs_setup(struct platform_device *pdev)
 		return ret;
 	}
 	/* Setup cluster 1 clock notifier for sys1_pll */
-	ret = clk_notifier_register(t7_sys_pll.hw.clk,
+	ret = clk_notifier_register(t7_sys1_pll.hw.clk,
 				    &t7_sys1_pll_nb_data.nb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register sys1_pll notifier\n");
