@@ -52,8 +52,6 @@ struct crg_drd {
 	unsigned		super_speed_support:1;
 	bool		usb_phy_init;
 	bool		usb_suspend;
-	int vbus_power_pin;
-	struct gpio_desc *usb_gpio_desc;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -241,25 +239,6 @@ static int crg_core_init_mode(struct crg_drd *crg)
 	return 0;
 }
 
-static void crg_set_usb_vbus_power
-	(struct gpio_desc *usb_gd, int pin, char is_power_on)
-{
-	if (is_power_on)
-		/*set vbus on by gpio*/
-		gpiod_direction_output(usb_gd, 1);
-	else
-		/*set vbus off by gpio first*/
-		gpiod_direction_output(usb_gd, 0);
-}
-
-static void crg_set_vbus_power
-		(struct crg_drd *crg, char is_power_on)
-{
-	if (crg->vbus_power_pin != -1)
-		crg_set_usb_vbus_power(crg->usb_gpio_desc,
-				   crg->vbus_power_pin, is_power_on);
-}
-
 #define CRG_ALIGN_MASK		(16 - 1)
 
 static int crg_probe(struct platform_device *pdev)
@@ -269,9 +248,6 @@ static int crg_probe(struct platform_device *pdev)
 	struct crg_drd *crg;
 	int	ret;
 	void *mem;
-	const char *gpio_name = NULL;
-	int gpio_vbus_power_pin = -1;
-	struct gpio_desc *usb_gd = NULL;
 
 	mem = devm_kzalloc(dev, sizeof(*crg) + CRG_ALIGN_MASK, GFP_KERNEL);
 	if (!mem)
@@ -281,20 +257,6 @@ static int crg_probe(struct platform_device *pdev)
 	crg->mem = mem;
 	crg->dev = dev;
 	crg->dr_mode = USB_DR_MODE_HOST;
-
-	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
-	if (gpio_name) {
-		gpio_vbus_power_pin = 1;
-		usb_gd = devm_gpiod_get_index(&pdev->dev,
-					 NULL, 0, GPIOD_OUT_LOW);
-		if (IS_ERR(usb_gd))
-			return -1;
-	}
-
-	crg->vbus_power_pin = gpio_vbus_power_pin;
-	crg->usb_gpio_desc = usb_gd;
-
-	crg_set_vbus_power(crg, 1);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {

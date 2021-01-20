@@ -81,32 +81,9 @@ static int amlogic_crg_otg_init(struct amlogic_crg_otg *phy)
 static void set_mode(unsigned long reg_addr, int mode, unsigned long phy3_addr)
 {
 	struct u2p_aml_regs_v2 u2p_aml_regs;
-	struct usb_aml_regs_v2 usb_crg_otg_aml_regs;
 	union u2p_r0_v2 reg0;
-	union usb_r0_v2 r0 = {.d32 = 0};
-	union usb_r4_v2 r4 = {.d32 = 0};
 
 	u2p_aml_regs.u2p_r_v2[0] = (void __iomem *)((unsigned long)reg_addr);
-
-	usb_crg_otg_aml_regs.usb_r_v2[0] = (void __iomem *)(phy3_addr + 4 * 0);
-	usb_crg_otg_aml_regs.usb_r_v2[1] = (void __iomem *)(phy3_addr + 4 * 1);
-	usb_crg_otg_aml_regs.usb_r_v2[4] = (void __iomem *)(phy3_addr + 4 * 4);
-
-	r0.d32 = readl(usb_crg_otg_aml_regs.usb_r_v2[0]);
-	if (mode == DEVICE_MODE) {
-		r0.b.u2d_act = 1;
-		r0.b.u2d_ss_scaledown_mode = 0;
-	} else {
-		r0.b.u2d_act = 0;
-	}
-	writel(r0.d32, usb_crg_otg_aml_regs.usb_r_v2[0]);
-
-	r4.d32 = readl(usb_crg_otg_aml_regs.usb_r_v2[4]);
-	if (mode == DEVICE_MODE)
-		r4.b.p21_SLEEPM0 = 0x1;
-	else
-		r4.b.p21_SLEEPM0 = 0x0;
-	writel(r4.d32, usb_crg_otg_aml_regs.usb_r_v2[4]);
 
 	reg0.d32 = readl(u2p_aml_regs.u2p_r_v2[0]);
 	if (mode == DEVICE_MODE) {

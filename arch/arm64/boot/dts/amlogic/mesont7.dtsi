@@ -957,7 +957,7 @@
 			interrupts = <0 131 IRQ_TYPE_EDGE_RISING>;
 			clock-src = "usb0"; /** clock src */
 			port-speed = <0>; /** 0: default, high, 1: full */
-			phy-reg = <0xfe03a000>;
+			phy-reg = <0xfe03a020>;
 			phy-reg-size = <0xa0>;
 			clocks = <&clkc CLKID_USB>;
 			clock-names = "usb_general";

@@ -42,8 +42,7 @@ int crg_device_status_v2(unsigned long usb_peri_reg)
 	int ret = 1;
 
 	u2p_aml_regs.u2p_r_v2[1] = (void __iomem	*)
-				((unsigned long)usb_peri_reg +
-					PHY_REGISTER_SIZE + 0x4);
+				((unsigned long)usb_peri_reg + 0x4);
 	reg1.d32 = readl(u2p_aml_regs.u2p_r_v2[1]);
 	if (!reg1.b.OTGSESSVLD0)
 		ret = 0;
@@ -56,30 +55,10 @@ static void crg_set_device_mode_v2(struct platform_device *pdev,
 				unsigned long reg_addr, int controller_type)
 {
 	struct u2p_aml_regs_v2 u2p_aml_regs;
-	struct usb_aml_regs_v2 usb_aml_regs;
 	union u2p_r0_v2 reg0;
-	union usb_r0_v2 r0 = {.d32 = 0};
-	union usb_r4_v2 r4 = {.d32 = 0};
 
 	u2p_aml_regs.u2p_r_v2[0] = (void __iomem *)
-				((unsigned long)reg_addr + PHY_REGISTER_SIZE);
-	usb_aml_regs.usb_r_v2[0] = (void __iomem *)
-				((unsigned long)reg_addr + 4 * PHY_REGISTER_SIZE
-				+ 4 * 0);
-	usb_aml_regs.usb_r_v2[1] = (void __iomem *)
-				((unsigned long)reg_addr + 4 * PHY_REGISTER_SIZE
-				+ 4 * 1);
-	usb_aml_regs.usb_r_v2[4] = (void __iomem *)
-				((unsigned long)reg_addr + 4 * PHY_REGISTER_SIZE
-				+ 4 * 4);
-	r0.d32 = readl(usb_aml_regs.usb_r_v2[0]);
-	r0.b.u2d_act = 1;
-	r0.b.u2d_ss_scaledown_mode = 0;
-	writel(r0.d32, usb_aml_regs.usb_r_v2[0]);
-
-	r4.d32 = readl(usb_aml_regs.usb_r_v2[4]);
-	r4.b.p21_SLEEPM0 = 0x1;
-	writel(r4.d32, usb_aml_regs.usb_r_v2[4]);
+				((unsigned long)reg_addr);
 
 	reg0.d32 = readl(u2p_aml_regs.u2p_r_v2[0]);
 	reg0.b.host_device = 0;

@@ -95,6 +95,25 @@ static void set_usb_pll(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 	}
 }
 
+static void amlogic_crg_drd_usb2_set_usb_vbus_power
+	(struct gpio_desc *usb_gd, int pin, char is_power_on)
+{
+	if (is_power_on)
+		/*set vbus on by gpio*/
+		gpiod_direction_output(usb_gd, 1);
+	else
+		/*set vbus off by gpio first*/
+		gpiod_direction_output(usb_gd, 0);
+}
+
+static void amlogic_crg_drd_usb2_set_vbus_power
+		(struct amlogic_usb_v2 *phy, char is_power_on)
+{
+	if (phy->vbus_power_pin != -1)
+		amlogic_crg_drd_usb2_set_usb_vbus_power(phy->usb_gpio_desc,
+				   phy->vbus_power_pin, is_power_on);
+}
+
 static int amlogic_crg_drd_usb2_init(struct usb_phy *x)
 {
 	int i, j, cnt;
@@ -107,6 +126,8 @@ static int amlogic_crg_drd_usb2_init(struct usb_phy *x)
 	u32 temp = 0;
 	u32 portnum = phy->portnum;
 	size_t mask = 0;
+
+	amlogic_crg_drd_usb2_set_vbus_power(phy, 1);
 
 	mask = (size_t)phy->reset_regs & 0xf;
 
@@ -128,8 +149,7 @@ static int amlogic_crg_drd_usb2_init(struct usb_phy *x)
 	for (i = 0; i < phy->portnum; i++) {
 		for (j = 0; j < 2; j++) {
 			u2p_aml_regs.u2p_r_v2[j] = (void __iomem	*)
-				((unsigned long)phy->regs + i * PHY_REGISTER_SIZE
-				+ 4 * j);
+				((unsigned long)phy->regs + 4 * j);
 		}
 
 		reg0.d32 = readl(u2p_aml_regs.u2p_r_v2[0]);
@@ -149,8 +169,7 @@ static int amlogic_crg_drd_usb2_init(struct usb_phy *x)
 	for (i = 0; i < phy->portnum; i++) {
 		for (j = 0; j < 2; j++) {
 			u2p_aml_regs.u2p_r_v2[j] = (void __iomem	*)
-				((unsigned long)phy->regs + i * PHY_REGISTER_SIZE
-				+ 4 * j);
+				((unsigned long)phy->regs + 4 * j);
 		}
 		usb_set_calibration_trim(phy->phy_cfg[i], phy);
 
@@ -199,6 +218,8 @@ int amlogic_crg_device_usb2_init(u32 phy_id)
 	phy = phy_to_amlusb(x);
 	portnum = phy->portnum;
 
+	amlogic_crg_drd_usb2_set_vbus_power(phy, 0);
+
 	mask = (size_t)phy->reset_regs & 0xf;
 
 	if (phy->suspend_flag) {
@@ -219,8 +240,7 @@ int amlogic_crg_device_usb2_init(u32 phy_id)
 	for (i = 0; i < phy->portnum; i++) {
 		for (j = 0; j < 2; j++) {
 			u2p_aml_regs.u2p_r_v2[j] = (void __iomem	*)
-				((unsigned long)phy->regs + i * PHY_REGISTER_SIZE
-				+ 4 * j);
+				((unsigned long)phy->regs + 4 * j);
 		}
 
 		reg0.d32 = readl(u2p_aml_regs.u2p_r_v2[0]);
@@ -238,8 +258,7 @@ int amlogic_crg_device_usb2_init(u32 phy_id)
 	for (i = 0; i < phy->portnum; i++) {
 		for (j = 0; j < 2; j++) {
 			u2p_aml_regs.u2p_r_v2[j] = (void __iomem	*)
-				((unsigned long)phy->regs + i * PHY_REGISTER_SIZE
-				+ 4 * j);
+				((unsigned long)phy->regs + 4 * j);
 		}
 		usb_set_calibration_trim(phy->phy_cfg[i], phy);
 
@@ -330,6 +349,18 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 	u32 val;
 	u32 usbclk_div = 0;
 	u32 ret;
+	const char *gpio_name = NULL;
+	int gpio_vbus_power_pin = -1;
+	struct gpio_desc *usb_gd = NULL;
+
+	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
+	if (gpio_name) {
+		gpio_vbus_power_pin = 1;
+		usb_gd = devm_gpiod_get_index(&pdev->dev,
+					 NULL, 0, GPIOD_OUT_LOW);
+		if (IS_ERR(usb_gd))
+			return -1;
+	}
 
 	prop = of_get_property(dev->of_node, "portnum", NULL);
 	if (prop)
@@ -518,6 +549,8 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 	phy->usb_reset_bit = usb_reset_bit;
 	phy->usb_phy_trim_reg = usb_phy_trim_reg;
 	phy->phy_id = phy_id;
+	phy->vbus_power_pin = gpio_vbus_power_pin;
+	phy->usb_gpio_desc = usb_gd;
 	for (i = 0; i < portnum; i++) {
 		phy->phy_cfg[i] = phy_cfg_base[i];
 		/* set port default tuning state */

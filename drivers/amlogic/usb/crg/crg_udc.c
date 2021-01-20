@@ -2304,7 +2304,7 @@ static void crg_ep_struct_setup(struct crg_gadget_dev *crg_udc,
 	} else if (DCI == 0) {
 		strcpy(ep->name, "ep0");
 		ep->usb_ep.name = ep->name;
-		ep->usb_ep.maxpacket = 64;
+		ep->usb_ep.maxpacket = 512;
 		ep->usb_ep.caps.type_control = 1;
 		ep->usb_ep.caps.dir_in = 1;
 		ep->usb_ep.caps.dir_out = 1;
@@ -4398,8 +4398,8 @@ static int crg_udc_probe(struct platform_device *pdev)
 	crg_udc->gadget.ep0 = &crg_udc->udc_ep[0].usb_ep;
 	crg_udc->gadget.dev.parent = &pdev->dev;
 	INIT_LIST_HEAD(&crg_udc->gadget.ep_list);
-	crg_udc->gadget.max_speed = USB_SPEED_HIGH;
-	crg_udc->gadget.speed = USB_SPEED_HIGH;// USB_SPEED_UNKNOWN;
+	crg_udc->gadget.max_speed = USB_SPEED_SUPER_PLUS;
+	crg_udc->gadget.speed = USB_SPEED_SUPER_PLUS;// USB_SPEED_UNKNOWN;
 	crg_udc->gadget.name = "crg-gadget";
 
 	crg_udc->connected = 0;

@@ -1051,7 +1051,7 @@
 
 &crg20_otg {
 	status = "disable";
-	controller-type = <1>;
+	controller-type = <3>;
 };
 
 &crg21_otg {
@@ -1062,27 +1062,27 @@
 &crg2_drd {
 	compatible = "amlogic, crg-drd";
 	/*compatible = "amlogic, crg-host-drd";*/
-	gpio-vbus-power = "GPIOM_8";
-	gpios = <&gpio GPIOM_8 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &crg3_drd {
 	compatible = "amlogic, crg-host-drd";
 	/*compatible = "amlogic, crg-drd";*/
-	gpio-vbus-power = "GPIOM_9";
-	gpios = <&gpio GPIOM_9 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &crg_phy_20 {
 	status = "okay";
 	portnum = <1>;
+	gpio-vbus-power = "GPIOM_8";
+	gpios = <&gpio GPIOM_8 GPIO_ACTIVE_HIGH>;
 };
 
 &crg_phy_21 {
 	status = "okay";
 	portnum = <1>;
+	gpio-vbus-power = "GPIOM_9";
+	gpios = <&gpio GPIOM_9 GPIO_ACTIVE_HIGH>;
 };
 
 &crg3_phy_20 {
