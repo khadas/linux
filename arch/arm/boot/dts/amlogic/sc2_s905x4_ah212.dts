@@ -127,7 +127,7 @@
 			reusable;
 			size = <0x00800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x3400000 0x00800000>;
+			alloc-ranges = <0x30000000 0x00800000>;
 		};
 	};
 
