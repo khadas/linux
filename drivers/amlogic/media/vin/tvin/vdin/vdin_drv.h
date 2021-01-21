@@ -72,6 +72,7 @@
 //#define VDIN_BRINGUP_NO_VLOCK
 //#define VDIN_BRINGUP_NO_AMLVECM
 //#define VDIN_BRINGUP_BYPASS_COLOR_CNVT
+#define K_FORCE_HV_SHRINK	0
 
 enum vdin_work_mode_e {
 	VDIN_WORK_MD_NORMAL = 0,
@@ -100,12 +101,10 @@ enum vdin_hw_ver_e {
 	/*
 	 * t7 removed canvas
 	 * no DV meta data slicer
+	 * dv 422 to 444, and to 10 bit 422 (fix shrink issue)
 	 */
 	VDIN_HW_T7,
 };
-
-/*addr for verify chip*/
-#define K_FORCE_HV_SHRINK	0
 
 enum vdin_irq_flg_e {
 	VDIN_IRQ_FLG_NO_END = 1,

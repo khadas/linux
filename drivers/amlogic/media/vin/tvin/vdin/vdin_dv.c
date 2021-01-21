@@ -67,7 +67,7 @@ void vdin_wrmif2_enable(struct vdin_dev_s *devp, u32 en)
 	else
 		wr_bits(offset, VDIN2_WR_CTRL, 0, 8, 1);
 
-	dprintk(0, "%s %d\n", __func__, en);
+	dprintk(1, "%s %d\n", __func__, en);
 }
 
 /*

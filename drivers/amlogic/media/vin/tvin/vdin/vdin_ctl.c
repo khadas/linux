@@ -769,8 +769,8 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 	}
 #endif
 	/*hw test:vdin de-tunnel to 422 12bit*/
-	if (devp->dtdata->ipt444_to_422_12bit && vdin_cfg_444_to_422_wmif_en)
-		format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
+	//if (devp->dtdata->ipt444_to_422_12bit && vdin_cfg_444_to_422_wmif_en)
+	//	format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
 
 	devp->format_convert = format_convert;
 	if (vdin_is_convert_to_422(format_convert))
@@ -3062,14 +3062,8 @@ void vdin_set_dolby_tunnel(struct vdin_dev_s *devp)
 		/*hdmi rx call back, 422 tunnel to 444*/
 		sm_ops->hdmi_dv_config(true, devp->frontend);
 		pr_info("dv rx tunnel mode\n");
-		/*vdin de tunnel and tunnel for vdin scaling*/
-		if (devp->dtdata->de_tunnel_tunnel && vdin_dv_de_scramble)
-			vdin_dolby_desc_sc_enable(devp, 1);
-		else
-			vdin_dolby_desc_sc_enable(devp, 0);
 	} else {
 		sm_ops->hdmi_dv_config(false, devp->frontend);
-		vdin_dolby_desc_sc_enable(devp, 0);
 	}
 }
 
@@ -3412,8 +3406,10 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 	wr(offset, VDIN_WIN_V_START_END, 0x00000000);
 
 	/*hw verify:de-tunnel 444 to 422 12bit*/
-	if (devp->dtdata->ipt444_to_422_12bit)
-		vdin_dolby_de_tunnel_to_12bit(devp, false);
+	if (devp->dtdata->de_tunnel_tunnel) {
+		vdin_dolby_de_tunnel_to_44410bit(devp, false);
+		vdin_dolby_desc_to_4448bit(devp, false);
+	}
 }
 
 void vdin_hw_enable(struct vdin_dev_s *devp)
@@ -4018,7 +4014,7 @@ set_hvshrink:
 			vdin_set_vshrink(devp);
 	}
 
-	if (vdin_ctl_dbg) {
+	if (vdin_dbg_en) {
 		pr_info("[vdin.%d] %s hactive:%u,vactive:%u.\n", devp->index,
 			__func__, devp->h_active, devp->v_active);
 		pr_info("[vdin.%d] %s shrink out h:%d,v:%d\n", devp->index,
@@ -4046,8 +4042,8 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 		devp->full_pack = VDIN_422_FULL_PK_DIS;
 
 	/*hw verify:de-tunnel 444 to 422 12bit*/
-	if (devp->dtdata->ipt444_to_422_12bit && vdin_cfg_444_to_422_wmif_en)
-		devp->full_pack = VDIN_422_FULL_PK_DIS;
+	//if (devp->dtdata->ipt444_to_422_12bit && vdin_cfg_444_to_422_wmif_en)
+	//	devp->full_pack = VDIN_422_FULL_PK_DIS;
 
 	if (devp->output_color_depth &&
 	    (devp->prop.fps == 50 || devp->prop.fps == 60) &&
@@ -4110,14 +4106,6 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 			bit_dep = VDIN_COLOR_DEEPS_8BIT;
 		}
 
-		/*hw verify:de-tunnel 444 to 422 12bit*/
-		if (devp->dtdata->ipt444_to_422_12bit &&
-		    vdin_cfg_444_to_422_wmif_en) {
-			/*devp->source_bitdepth = VDIN_COLOR_DEEPS_12BIT;*/
-			bit_dep = VDIN_COLOR_DEEPS_10BIT;
-			vdin_dolby_de_tunnel_to_12bit(devp, true);
-		}
-
 		break;
 	default:
 		bit_dep = VDIN_COLOR_DEEPS_8BIT;
@@ -4139,6 +4127,9 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 	if (!vdin_is_support_10bit_for_dw(devp))
 		wr_bits(offset, VDIN_WR_CTRL2, MIF_8BIT,
 			VDIN_WR_10BIT_MODE_BIT,	VDIN_WR_10BIT_MODE_WID);
+	if (vdin_dbg_en)
+		pr_info("%s %d cfg:0x%x\n", __func__, devp->source_bitdepth,
+			devp->color_depth_config);
 }
 
 /* do horizontal reverse and veritical reverse
@@ -4866,7 +4857,7 @@ void vdin_dobly_mdata_write_en(unsigned int offset, unsigned int en)
  * parm: devp
  * on:1 off:0
  */
-void vdin_dolby_desc_sc_enable(struct vdin_dev_s *devp,
+void vdin_dolby_desc_to_4448bit(struct vdin_dev_s *devp,
 			       unsigned int onoff)
 {
 	unsigned int offset = devp->addr_offset;
@@ -4874,7 +4865,7 @@ void vdin_dolby_desc_sc_enable(struct vdin_dev_s *devp,
 	/* only support vdin0
 	 * don't support in T5
 	 */
-	if (offset == 1 ||
+	if (devp->index == 1 ||
 	    (devp->dtdata->hw_ver == VDIN_HW_T5 ||
 	     devp->dtdata->hw_ver == VDIN_HW_T5D))
 		return;
@@ -4892,29 +4883,38 @@ void vdin_dolby_desc_sc_enable(struct vdin_dev_s *devp,
 					WR_SEL_VDIN0_SML,
 					MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 			}
+			wr(offset, VDIN_DSC_TUNNEL_SEL, 0x3d11);/*re-order*/
 
-			wr(offset, VDIN_DSC_DETUNNEL_SEL, 0x2c2d0);
-			wr(offset, VDIN_DSC_TUNNEL_SEL, 0x3d11);
+			/*small path size in*/
+			wr_bits(offset, VDIN_SCB_CTRL1, devp->v_shrink_out, 0, 13);
+			wr_bits(offset, VDIN_SCB_CTRL1, devp->h_shrink_out, 16, 13);
+			/*de-cramble enable*/
+			wr_bits(offset, VDIN_VSHRK_CTRL, 0x1, 28, 1);
+			/*small path cramble enable*/
+			wr_bits(offset, VDIN_VSHRK_CTRL, 0x1, 29, 1);
+			if (vdin_dbg_en)
+				pr_info("vdin SC small in:(%d, %d)\n",
+					devp->h_shrink_out, devp->v_shrink_out);
 
-			/*de-scramble h size in*/
-			wr_bits(offset, VDIN_CFMT_W, devp->h_active_org / 2,
-				0, 13);
-			wr_bits(offset, VDIN_CFMT_W, devp->h_active_org,
-				16, 13);
-			/**/
-			wr_bits(offset, VDIN_DSC_HSIZE, devp->h_active_org,
-				0, 13);
-			wr_bits(offset, VDIN_DSC_HSIZE, devp->h_active_org,
-				16, 13);
-			/*scaler out size*/
-			wr_bits(offset, VDIN_SCB_CTRL1, devp->v_active, 0, 13);
-			wr_bits(offset, VDIN_SCB_CTRL1, devp->h_active,
-				16, 13);
-			/*enable descramble & scramble*/
-			wr_bits(offset, VDIN_VSHRK_CTRL, 0x3, 28, 2);
+			/* normal path size in */
+			wr_bits(offset, VDIN_DSC2_HSIZE, devp->v_active, 0, 13);
+			wr_bits(offset, VDIN_DSC2_HSIZE, devp->h_active, 16, 13);
+			/* normal patch scramble enable */
+			wr_bits(offset, VDIN_SCB_CTRL0, 0x1, 28, 1);
+
+			if (vdin_dbg_en)
+				pr_info("vdin SC normal in:(%d, %d)\n",
+					devp->h_active, devp->v_active);
+
 		} else {
 			/* disable descramble & scramble */
-			wr_bits(offset, VDIN_VSHRK_CTRL, 0x0, 28, 2);
+			/*small patch disable*/
+			/*de-cramble disable*/
+			wr_bits(offset, VDIN_VSHRK_CTRL, 0x0, 28, 1);
+			/*small path cramble enable*/
+			wr_bits(offset, VDIN_VSHRK_CTRL, 0x0, 29, 1);
+			/* normal path disable */
+			wr_bits(offset, VDIN_SCB_CTRL0, 0x0, 28, 1);
 
 			if (!devp->double_wr) {
 				/* enable channel 0 for normal TV path */
@@ -4928,9 +4928,9 @@ void vdin_dolby_desc_sc_enable(struct vdin_dev_s *devp,
 }
 
 /*
- * yuv format, tunneled (444) vdin de tunnel 422 12bit mode
+ * yuv format, DV descramble 422 12bit TO 444 10bit
  */
-void vdin_dolby_de_tunnel_to_12bit(struct vdin_dev_s *devp,
+void vdin_dolby_de_tunnel_to_44410bit(struct vdin_dev_s *devp,
 				   unsigned int onoff)
 {
 	u32 data32;
@@ -4947,6 +4947,46 @@ void vdin_dolby_de_tunnel_to_12bit(struct vdin_dev_s *devp,
 		wr(offset, VDIN_RO_WRMIF_STATUS, data32 | (1 << 2));
 	else
 		wr(offset, VDIN_RO_WRMIF_STATUS, data32);
+
+	wr(offset, VDIN_DSC_DETUNNEL_SEL, 0x2c2d0);
+	/*de-scramble h size in*/
+	wr_bits(offset, VDIN_CFMT_W, devp->h_active_org / 2,
+		0, 13);
+	wr_bits(offset, VDIN_CFMT_W, devp->h_active_org,
+		16, 13);
+	/**/
+	wr_bits(offset, VDIN_DSC_HSIZE, devp->h_active_org,
+		0, 13);
+	wr_bits(offset, VDIN_DSC_HSIZE, devp->h_active_org,
+		16, 13);
+	if (vdin_dbg_en)
+		pr_info("vdin DSC in:(%d, %d)\n",
+			devp->h_active_org, devp->v_active_org);
+}
+
+void vdin_dv_detunel_tunel_set(struct vdin_dev_s *devp)
+{
+	if (!vdin_is_dolby_signal_in(devp))
+		return;
+
+	if (!devp->dtdata->de_tunnel_tunnel)
+		return;
+
+	if (vdin_dbg_en) {
+		pr_info("vdin dv tunel_set shrink:(%d, %d)\n",
+			devp->h_active, devp->h_shrink_out);
+	}
+
+	/* h shrink on*/
+	if (devp->h_shrink_out < devp->h_active) {
+		/*hw verify:de-tunnel 444 to 422 12bit*/
+		vdin_dolby_de_tunnel_to_44410bit(devp, true);
+		/*vdin de tunnel and tunnel for vdin scaling*/
+		vdin_dolby_desc_to_4448bit(devp, true);
+	} else {
+		vdin_dolby_de_tunnel_to_44410bit(devp, false);
+		vdin_dolby_desc_to_4448bit(devp, false);
+	}
 }
 
 static int vdin_get_max_buf(struct vdin_dev_s *devp)
@@ -5301,8 +5341,10 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 		tvin_get_force_fmt_range(devp->prop.color_format);
 
 	if (devp->dtdata->hw_ver == VDIN_HW_T7 &&
-		devp->irq_cnt == 1)
+		(devp->irq_cnt == 1 || devp->irq_cnt == 10)) {
+		vdin_wrmif2_enable(devp, 0);
 		vdin_wrmif2_enable(devp, 1);
+	}
 }
 
 void vdin_check_hdmi_hdr(struct vdin_dev_s *devp)

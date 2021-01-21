@@ -927,6 +927,8 @@
 #define VDIN_DSC_DETUNNEL_SEL	0x12d6
 #define VDIN_DSC_TUNNEL_SEL	0x12d7
 
+#define VDIN_DSC2_HSIZE		0x12da
+
 /*tm2 new add begin*/
 #define VDIN_VSHRK_SIZE_M1	0x12d9
 #define VSHRK_IN_HSIZE_BIT	0

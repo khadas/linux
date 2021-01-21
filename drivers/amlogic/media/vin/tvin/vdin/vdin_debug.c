@@ -859,7 +859,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->canvas_w, devp->canvas_h);
 	pr_info("canvas_alin_w = %d, canvas_active_w = %d\n",
 		devp->canvas_alin_w, devp->canvas_active_w);
-	pr_info("double write: %d,10bit sup: %d\n", devp->double_wr,
+	pr_info("double write cfg:0x%x, cur:%d,10bit sup: %d\n", devp->double_wr_cfg,
+		devp->double_wr,
 		devp->double_wr_10bit_sup);
 	pr_info("secure_en: %d, mem protected: %d\n", devp->secure_en,
 		devp->mem_protected);
@@ -2555,14 +2556,6 @@ start_chk:
 					vdin_change_matrixhdr(offset, mode);
 			}
 		}
-	} else if (!strcmp(parm[0], "scramble")) {
-		if (parm[1]) {
-			if (kstrtouint(parm[1], 10, &mode) == 0) {
-				pr_info("dv scramble %d\n", mode);
-				vdin_dv_de_scramble = mode;
-				vdin_dolby_desc_sc_enable(devp, mode);
-			}
-		}
 	} else if (!strcmp(parm[0], "wr_frame_en")) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 10, &devp->vframe_wr_en) == 0)
@@ -2630,6 +2623,9 @@ start_chk:
 	} else if (!strcmp(parm[0], "hv_reverse_en")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
 			devp->hv_reverse_en = temp;
+	} else if (!strcmp(parm[0], "doublewrite")) {
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+			devp->double_wr_cfg = temp;
 	} else {
 		pr_info("unknown command\n");
 	}

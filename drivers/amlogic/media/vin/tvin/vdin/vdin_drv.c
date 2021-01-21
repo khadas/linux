@@ -165,10 +165,6 @@ unsigned int vdin_drop_cnt;
 module_param(vdin_drop_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_drop_cnt, "vdin_drop_cnt");
 
-unsigned int vdin_dv_de_scramble;
-/*module_param(vdin_dv_de_scramble, uint, 0664);*/
-/*MODULE_PARM_DESC(vdin_dv_de_scramble, "vdin_dv_de_scramble");*/
-
 unsigned int vdin_drop_num = 2;
 module_param(vdin_drop_num, uint, 0664);
 MODULE_PARM_DESC(vdin_drop_num, "vdin_drop_num");
@@ -619,7 +615,7 @@ static void vdin_double_write_confirm(struct vdin_dev_s *devp)
 			devp->double_wr = 0;
 
 		if (vdin_dbg_en)
-			pr_info("dv in disable dw\n");
+			pr_info("dv in dw %d\n", devp->double_wr);
 	}
 #endif
 }
@@ -745,7 +741,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	}
 	vdin_set_cutwin(devp);
 	vdin_set_hvscale(devp);
-
+	vdin_dv_detunel_tunel_set(devp);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
 		vdin_set_bitdepth(devp);
 
@@ -794,12 +790,27 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	    devp->index == devp->dv.dv_path_idx) {
 		/* config dolby vision */
 		vdin_dolby_config(devp);
+		#ifndef VDIN_BRINGUP_NO_VF
+		if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
+			vf_reg_provider(&devp->dv.vprov_dv);
+			pr_info("vdin%d provider: dv reg\n", devp->index);
+				vf_notify_receiver(VDIN_DV_NAME,
+				VFRAME_EVENT_PROVIDER_START, NULL);
+		}
+		#endif
 	} else {
 		/*disable dv mdata write*/
 		vdin_dobly_mdata_write_en(devp->addr_offset, 0);
+		#ifndef VDIN_BRINGUP_NO_VF
+		if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
+			vf_reg_provider(&devp->vprov);
+			pr_info("vdin%d provider: reg\n", devp->index);
+			vf_notify_receiver(devp->name,
+					   VFRAME_EVENT_PROVIDER_START, NULL);
+		}
+		#endif
 	}
 #endif
-
 	vdin_write_done_check(devp->addr_offset, devp);
 
 	devp->dv.chg_cnt = 0;
@@ -852,27 +863,6 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	}
 #endif
 
-#ifndef VDIN_BRINGUP_NO_VF
-	if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
-		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		/*only for vdin0;vdin1 used for debug*/
-		if (vdin_is_dolby_signal_in(devp) &&
-		    devp->index == devp->dv.dv_path_idx) {
-			vf_reg_provider(&devp->dv.vprov_dv);
-			pr_info("vdin%d provider: dv reg\n", devp->index);
-			vf_notify_receiver(VDIN_DV_NAME,
-					   VFRAME_EVENT_PROVIDER_START, NULL);
-		} else {
-		#endif
-			vf_reg_provider(&devp->vprov);
-			pr_info("vdin%d provider: reg\n", devp->index);
-			vf_notify_receiver(devp->name,
-					   VFRAME_EVENT_PROVIDER_START, NULL);
-		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		}
-		#endif
-	}
-#endif
 	if (vdin_dbg_en)
 		pr_info("****[%s]ok!****\n", __func__);
 #ifdef CONFIG_AM_TIMESYNC
@@ -981,23 +971,18 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	vdin_set_def_wr_canvas(devp);
 
 	if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
-		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		if (vdin_is_dolby_signal_in(devp) ||
-		    (devp->dv.dv_config &&
-		     devp->index == devp->dv.dv_path_idx)) {
+		if (devp->dv.dv_config && devp->index == devp->dv.dv_path_idx) {
 			devp->dv.dv_config = 0;
 			vf_unreg_provider(&devp->dv.vprov_dv);
 			pr_info("vdin%d provider: dv unreg\n", devp->index);
 		} else {
-		#endif
 			vf_unreg_provider(&devp->vprov);
 			pr_info("vdin%d provider: unreg\n", devp->index);
-		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		}
-		#endif
 	}
 	vdin_dolby_addr_release(devp, devp->vfp->size);
-	vdin_dolby_desc_sc_enable(devp, 0);
+	vdin_dolby_desc_to_4448bit(devp, 0);
+	vdin_dolby_de_tunnel_to_44410bit(devp, 0);
 
 	/*disable afbc*/
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
@@ -3510,12 +3495,6 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			       devp->index, recov_idx);
 		}
 		break;
-	case TVIN_IOC_S_DV_DESCRAMBLE:
-		if (copy_from_user(&idx, argp, sizeof(idx)))
-			return -EFAULT;
-		vdin_dv_de_scramble = idx;
-		vdin_dolby_desc_sc_enable(devp, vdin_dv_de_scramble);
-		break;
 	case TVIN_IOC_S_PC_MODE:
 		if (copy_from_user(&vdin_pc_mode, argp, sizeof(unsigned int))) {
 			ret = -EFAULT;
@@ -3799,8 +3778,6 @@ static ssize_t vdin_param_show(struct device *dev,
 
 	len += sprintf(buf + len, "422wmif_en = %d\n",
 		       vdin_cfg_444_to_422_wmif_en);
-	len += sprintf(buf + len, "vdin_dv_de_scramble = %d\n",
-		       vdin_dv_de_scramble);
 	len += sprintf(buf + len, "vdin_dbg_en = %d\n",
 		       vdin_dbg_en);
 
@@ -3827,11 +3804,6 @@ static ssize_t vdin_param_store(struct device *dev,
 		if (!token || kstrtouint(token, 16, &val) < 0)
 			return count;
 		vdin_cfg_444_to_422_wmif_en = val;
-	} else if (token && strncmp(token, "dv_de_scramble", 14) == 0) {
-		token = strsep(&cur, delim);
-		if (!token || kstrtouint(token, 16, &val) < 0)
-			return count;
-		vdin_dv_de_scramble = val;
 	} else if (token && strncmp(token, "vdin_dbg_en", 11) == 0) {
 		token = strsep(&cur, delim);
 		if (!token || kstrtouint(token, 16, &val) < 0)
@@ -4053,13 +4025,13 @@ const struct match_data_s vdin_dt_sm1 = {
 static const struct match_data_s vdin_dt_tm2 = {
 	.name = "vdin-tm2",
 	.hw_ver = VDIN_HW_TM2,
-	.de_tunnel_tunnel = 1, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
+	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 };
 
 static const struct match_data_s vdin_dt_tm2_ver_b = {
 	.name = "vdin-tm2verb",
 	.hw_ver = VDIN_HW_TM2_B,
-	.de_tunnel_tunnel = 1, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
+	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 };
 
 static const struct match_data_s vdin_dt_sc2 = {
@@ -4083,7 +4055,7 @@ static const struct match_data_s vdin_dt_t5d = {
 static const struct match_data_s vdin_dt_t7 = {
 	.name = "vdin-t7",
 	.hw_ver = VDIN_HW_T7,
-	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
+	.de_tunnel_tunnel = 1, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 };
 
 static const struct of_device_id vdin_dt_match[] = {

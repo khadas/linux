@@ -308,6 +308,10 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 			unsigned int rdma_enable, struct vf_entry *vfe);
 void vdin_dolby_pr_meta_data(void *addr, unsigned int size);
 bool vdin_is_dv_meta_data_case(struct vdin_dev_s *devp);
-
+void vdin_dv_detunel_tunel_set(struct vdin_dev_s *devp);
+void vdin_dolby_de_tunnel_to_44410bit(struct vdin_dev_s *devp,
+				   unsigned int onoff);
+void vdin_dolby_desc_to_4448bit(struct vdin_dev_s *devp,
+			       unsigned int onoff);
 #endif
 
