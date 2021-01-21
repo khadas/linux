@@ -28,7 +28,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x0>;
-//			enable-method = "psci";
+			enable-method = "psci";
 ////			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
 //			#cooling-cells = <2>;
@@ -48,11 +48,11 @@
 //			clock-latency = <50000>;
 		};
 
-//		CPU1:cpu@1 {
-//			device_type = "cpu";
-//			compatible = "arm,cortex-a55","arm,armv8";
-//			reg = <0x0 0x1>;
-//			enable-method = "psci";
+		CPU1:cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55","arm,armv8";
+			reg = <0x0 0x1>;
+			enable-method = "psci";
 ////			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
 //			#cooling-cells = <2>;
@@ -70,13 +70,13 @@
 //			cpu-supply = <&vddcpu0>;
 //			voltage-tolerance = <0>;
 //			clock-latency = <50000>;
-//		};
-//
-//		CPU2:cpu@2 {
-//			device_type = "cpu";
-//			compatible = "arm,cortex-a55","arm,armv8";
-//			reg = <0x0 0x2>;
-//			enable-method = "psci";
+		};
+
+		CPU2:cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55","arm,armv8";
+			reg = <0x0 0x2>;
+			enable-method = "psci";
 ////			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
 //			#cooling-cells = <2>;
@@ -94,13 +94,13 @@
 //			cpu-supply = <&vddcpu0>;
 //			voltage-tolerance = <0>;
 //			clock-latency = <50000>;
-//		};
-//
-//		CPU3:cpu@3 {
-//			device_type = "cpu";
-//			compatible = "arm,cortex-a55","arm,armv8";
-//			reg = <0x0 0x3>;
-//			enable-method = "psci";
+		};
+
+		CPU3:cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55","arm,armv8";
+			reg = <0x0 0x3>;
+			enable-method = "psci";
 ////			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
 //			#cooling-cells = <2>;
@@ -118,8 +118,8 @@
 //			cpu-supply = <&vddcpu0>;
 //			voltage-tolerance = <0>;
 //			clock-latency = <50000>;
-//		};
-//
+		};
+
 //		idle-states {
 //			entry-method = "arm,psci-0.2";
 //			CPU_SLEEP_0: cpu-sleep-0 {
@@ -174,7 +174,7 @@
 	};
 
 	psci {
-		//compatible = "arm,psci-0.2";
+		compatible = "arm,psci-0.2";
 		method = "smc";
 	};
 
