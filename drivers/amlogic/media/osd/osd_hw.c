@@ -2217,6 +2217,7 @@ static void osd_update_phy_addr(u32 index)
 {
 	u32 line_stride, bpp;
 	u32 fmt_mode = COLOR_INDEX_32_BGRX;
+	u32 output_index = get_output_device_id(index);
 
 	if (osd_hw.color_info[index])
 		fmt_mode =
@@ -2226,9 +2227,10 @@ static void osd_update_phy_addr(u32 index)
 	line_stride = line_stride_calc
 		(fmt_mode,
 		osd_hw.fb_gem[index].width / bpp, 1);
-	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_array[index].osd_blk1_cfg_w4,
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(hw_osd_reg_array[index].osd_blk1_cfg_w4,
 			     osd_hw.fb_gem[index].addr);
-	VSYNCOSD_WR_MPEG_REG_BITS
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 		(hw_osd_reg_array[index].osd_blk2_cfg_w4,
 		line_stride,
 		0, 12);
@@ -2238,6 +2240,7 @@ static void osd_update_mif_linear_addr(u32 index)
 {
 	u32 line_stride, bpp;
 	u32 fmt_mode = COLOR_INDEX_32_BGRX;
+	u32 output_index = get_output_device_id(index);
 
 	if (osd_hw.color_info[index])
 		fmt_mode =
@@ -2248,15 +2251,16 @@ static void osd_update_mif_linear_addr(u32 index)
 		(fmt_mode,
 		osd_hw.fb_gem[index].width / bpp, 0);
 	/* set frame addr, 8G addr, need >> 4*/
-	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_array[index].osd_blk1_cfg_w4,
-			     osd_hw.fb_gem[index].addr >> 4);
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(hw_osd_reg_array[index].osd_blk1_cfg_w4,
+		osd_hw.fb_gem[index].addr >> 4);
 	/* set line stride */
-	VSYNCOSD_WR_MPEG_REG_BITS
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 		(hw_osd_reg_array[index].osd_blk2_cfg_w4,
 		line_stride,
 		0, 12);
 	/* used phyic addr */
-	VSYNCOSD_WR_MPEG_REG_BITS
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 		(hw_osd_reg_array[index].osd_ctrl_stat,
 		1, 2, 1);
 }
@@ -2268,13 +2272,14 @@ static void osd_update_interlace_mode(int index)
 	unsigned int fb0_cfg_w0 = 0, fb1_cfg_w0 = 0;
 	unsigned int scan_line_number = 0;
 	unsigned int odd_even;
+	u32 output_index = get_output_device_id(index);
 
 	spin_lock_irqsave(&osd_lock, lock_flags);
 	if ((index & (1 << OSD1)) == (1 << OSD1))
-		fb0_cfg_w0 = VSYNCOSD_RD_MPEG_REG
+		fb0_cfg_w0 = osd_hw.osd_rdma_func[output_index].osd_rdma_rd
 			(hw_osd_reg_array[OSD1].osd_blk0_cfg_w0);
 	if ((index & (1 << OSD2)) == (1 << OSD2))
-		fb1_cfg_w0 = VSYNCOSD_RD_MPEG_REG
+		fb1_cfg_w0 = osd_hw.osd_rdma_func[output_index].osd_rdma_rd
 			(hw_osd_reg_array[OSD2].osd_blk0_cfg_w0);
 
 	if (osd_reg_read(ENCP_VIDEO_MODE) & (1 << 12)) {
@@ -2316,17 +2321,17 @@ static void osd_update_interlace_mode(int index)
 	fb0_cfg_w0 |= odd_even;
 	fb1_cfg_w0 |= odd_even;
 	if ((index & (1 << OSD1)) == (1 << OSD1)) {
-		VSYNCOSD_IRQ_WR_MPEG_REG
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_irq
 			(hw_osd_reg_array[OSD1].osd_blk0_cfg_w0, fb0_cfg_w0);
 		if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
 			if ((osd_hw.osd_meson_dev.viu1_osd_count - 1) == OSD3)
-				VSYNCOSD_IRQ_WR_MPEG_REG
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_irq
 				(hw_osd_reg_array[OSD3].osd_blk0_cfg_w0,
 				fb0_cfg_w0);
 		}
 	}
 	if ((index & (1 << OSD2)) == (1 << OSD2))
-		VSYNCOSD_IRQ_WR_MPEG_REG
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_irq
 			(hw_osd_reg_array[OSD2].osd_blk0_cfg_w0,
 			fb1_cfg_w0);
 
@@ -2499,8 +2504,10 @@ static bool mali_afbcn_get_error(u32 index)
 	u32 status;
 	bool error = false;
 	struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[index];
+	u32 output_index = get_output_device_id(index);
 
-	status = VSYNCOSD_RD_MPEG_REG(osd_reg->vpu_mafbc_irq_raw_status);
+	status = osd_hw.osd_rdma_func[output_index].osd_rdma_rd
+		(osd_reg->vpu_mafbc_irq_raw_status);
 	if (status & 0x3c) {
 		osd_log_dbg(MODULE_BASE,
 			    "afbc(%d) error happened,status=0x%x\n", index, status);
@@ -2514,7 +2521,8 @@ static bool mali_afbcn_get_error(u32 index)
 		}
 		error = true;
 	}
-	status = VSYNCOSD_WR_MPEG_REG(osd_reg->vpu_mafbc_irq_clear, 0x3f);
+	status = osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(osd_reg->vpu_mafbc_irq_clear, 0x3f);
 	return error;
 }
 
@@ -3351,10 +3359,10 @@ int osd_set_scan_mode(u32 index)
 	if (index == OSD2) {
 		if (osd_hw.scan_mode[OSD2] == SCAN_MODE_INTERLACE)
 			return 1;
-		data32 = (VSYNCOSD_RD_MPEG_REG
+		data32 = (osd_hw.osd_rdma_func[output_index].osd_rdma_rd
 			(hw_osd_reg_array[index].osd_blk0_cfg_w0) & 3) >> 1;
 	} else {
-		data32 = (VSYNCOSD_RD_MPEG_REG
+		data32 = (osd_hw.osd_rdma_func[output_index].osd_rdma_rd
 			(hw_osd_reg_array[index].osd_blk0_cfg_w0) & 3) >> 1;
 	}
 	if (data32 == osd_hw.scan_mode[index])
@@ -3719,6 +3727,8 @@ void osd_setpal_hw(u32 index,
 		   unsigned int transp
 		  )
 {
+	u32 output_index = get_output_device_id(index);
+
 	if (osd_hw.osd_meson_dev.has_lut) {
 		if (regno < 256) {
 			u32 pal;
@@ -3728,10 +3738,10 @@ void osd_setpal_hw(u32 index,
 			      ((blue  & 0xff) <<  8) |
 			      (transp & 0xff);
 			spin_lock_irqsave(&osd_lock, lock_flags);
-			VSYNCOSD_WR_MPEG_REG
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 				(hw_osd_reg_array[index].osd_color_addr,
 				regno);
-			VSYNCOSD_WR_MPEG_REG
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 				(hw_osd_reg_array[index].osd_color, pal);
 			spin_unlock_irqrestore(&osd_lock, lock_flags);
 		}
@@ -4530,13 +4540,15 @@ void osd_set_deband(u32 index, u32 osd_deband_enable)
 {
 	u32 data32;
 	struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[index];
+	u32 output_index = get_output_device_id(index);
 
 	if (osd_hw.osd_meson_dev.has_deband) {
 		if (osd_hw.free_scale_enable[index]) {
 			osd_hw.osd_deband_enable[index] = osd_deband_enable;
 			spin_lock_irqsave(&osd_lock, lock_flags);
 
-			data32 = VSYNCOSD_RD_MPEG_REG(osd_reg->osd_db_flt_ctrl);
+			data32 = osd_hw.osd_rdma_func[output_index].osd_rdma_rd
+				(osd_reg->osd_db_flt_ctrl);
 			if (osd_deband_enable) {
 				/* Bit 23	 debanding registers of side
 				 * lines, [0] for luma
@@ -4551,7 +4563,8 @@ void osd_set_deband(u32 index, u32 osd_deband_enable)
 				data32 |= 0 << 4;
 				data32 |= 0 << 22;
 			}
-			VSYNCOSD_WR_MPEG_REG(osd_reg->osd_db_flt_ctrl, data32);
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+				(osd_reg->osd_db_flt_ctrl, data32);
 			spin_unlock_irqrestore(&osd_lock, lock_flags);
 			osd_wait_vsync_hw_viu1();
 		}
@@ -4803,9 +4816,10 @@ void osd_set_dimm_info(u32 index, u32 osd_dimm_layer, u32 osd_dimm_color)
 u32 osd_get_hold_line(u32 index)
 {
 	unsigned int data32 = 0, val = 0;
+	u32 output_index = get_output_device_id(index);
 
 	if (osd_hw.powered[index]) {
-		data32 = VSYNCOSD_RD_MPEG_REG
+		data32 = osd_hw.osd_rdma_func[output_index].osd_rdma_rd
 			(hw_osd_reg_array[index].osd_fifo_ctrl_stat);
 		val = (data32 >> 5) & 0x1f;
 	}
@@ -4815,13 +4829,14 @@ u32 osd_get_hold_line(u32 index)
 void osd_set_hold_line(u32 index, int hold_line)
 {
 	unsigned int data32 = 0, val = 0;
+	u32 output_index = get_output_device_id(index);
 
 	if (osd_hw.powered[index]) {
-		data32 = VSYNCOSD_RD_MPEG_REG
+		data32 = osd_hw.osd_rdma_func[output_index].osd_rdma_rd
 			(hw_osd_reg_array[index].osd_fifo_ctrl_stat);
 		val = (data32 >> 5) & 0x1f;
 		if (val != hold_line) {
-			VSYNCOSD_WR_MPEG_REG_BITS
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 				(hw_osd_reg_array[index].osd_fifo_ctrl_stat,
 				hold_line & 0x1f, 5, 5);
 		}
@@ -5987,31 +6002,32 @@ static  void  osd_update_disp_scale_enable(u32 index)
 {
 	u32 osd2_cursor = 0;
 	struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[index];
+	u32 output_index = get_output_device_id(index);
 
 	if (osd_hw.hw_cursor_en)
 		osd2_cursor = 1;
 
 	if (osd_hw.scale[index].h_enable) {
-		VSYNCOSD_SET_MPEG_REG_MASK
+		osd_hw.osd_rdma_func[output_index].osd_rdma_set_mask
 			(osd_reg->osd_blk0_cfg_w0, 3 << 12);
 		if (index == OSD2 && osd2_cursor) {
-			VSYNCOSD_CLR_MPEG_REG_MASK
+			osd_hw.osd_rdma_func[output_index].osd_rdma_clr_mask
 				(osd_reg->osd_blk0_cfg_w0, 3 << 12);
 		}
 	} else {
-		VSYNCOSD_CLR_MPEG_REG_MASK
+		osd_hw.osd_rdma_func[output_index].osd_rdma_clr_mask
 			(osd_reg->osd_blk0_cfg_w0, 3 << 12);
 	}
 	if (osd_hw.scan_mode[index] != SCAN_MODE_INTERLACE) {
 		if (osd_hw.scale[index].v_enable) {
-			VSYNCOSD_SET_MPEG_REG_MASK
+			osd_hw.osd_rdma_func[output_index].osd_rdma_set_mask
 				(osd_reg->osd_blk0_cfg_w0, 1 << 14);
 			if (index == OSD2 && osd2_cursor) {
-				VSYNCOSD_CLR_MPEG_REG_MASK
+				osd_hw.osd_rdma_func[output_index].osd_rdma_clr_mask
 					(osd_reg->osd_blk0_cfg_w0, 1 << 14);
 			}
 		} else {
-			VSYNCOSD_CLR_MPEG_REG_MASK
+			osd_hw.osd_rdma_func[output_index].osd_rdma_clr_mask
 				(osd_reg->osd_blk0_cfg_w0, 1 << 14);
 		}
 	}
@@ -6020,8 +6036,11 @@ static  void  osd_update_disp_scale_enable(u32 index)
 
 static void osd_set_dummy_data(u32 index, u32 alpha)
 {
-	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_array[index].osd_sc_dummy_data,
-			     osd_hw.osd_meson_dev.dummy_data | alpha);
+	u32 output_index = get_output_device_id(index);
+
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(hw_osd_reg_array[index].osd_sc_dummy_data,
+		osd_hw.osd_meson_dev.dummy_data | alpha);
 }
 
 static void osd_update_disp_freescale_enable(u32 index)
@@ -6090,12 +6109,14 @@ static void osd_update_disp_freescale_enable(u32 index)
 			/* Todo: vd alpha */
 			data32 |= 1 << 2; /* enable osd scaler */
 			data32 |= 1 << 3; /* enable osd scaler path */
-			VSYNCOSD_WR_MPEG_REG(osd_reg->osd_sc_ctrl0,
-					     data32);
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+				(osd_reg->osd_sc_ctrl0,
+				data32);
 		}
 	} else {
 		/* disable osd scaler path */
-		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_sc_ctrl0, 0);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(osd_reg->osd_sc_ctrl0, 0);
 	}
 
 	hf_phase_step = (u64)src_w << 24;
@@ -6168,13 +6189,16 @@ static void osd_update_disp_freescale_enable(u32 index)
 	if (osd_hw.free_scale_enable[index]) {
 		data32 = (((src_h - 1) & 0x1fff)
 				| ((src_w - 1) & 0x1fff) << 16);
-		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_sci_wh_m1, data32);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(osd_reg->osd_sci_wh_m1, data32);
 		data32 = ((osd_hw.free_dst_data[index].x_end & 0xfff) |
 			  (osd_hw.free_dst_data[index].x_start & 0xfff) << 16);
-		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_sco_h_start_end, data32);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(osd_reg->osd_sco_h_start_end, data32);
 		data32 = ((osd_hw.free_dst_data[index].y_end & 0xfff) |
 			  (osd_hw.free_dst_data[index].y_start & 0xfff) << 16);
-		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_sco_v_start_end, data32);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(osd_reg->osd_sco_v_start_end, data32);
 	}
 
 	data32 = 0x0;
@@ -6193,7 +6217,8 @@ static void osd_update_disp_freescale_enable(u32 index)
 			__MESON_CPU_MAJOR_ID_G12B)
 			data32 |= 1 << 25;
 	}
-	VSYNCOSD_WR_MPEG_REG(osd_reg->osd_vsc_ctrl0, data32);
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(osd_reg->osd_vsc_ctrl0, data32);
 	data32 = 0x0;
 	if (osd_hw.free_scale[index].h_enable) {
 		data32 |= (hf_bank_len & 0x7)
@@ -6201,7 +6226,8 @@ static void osd_update_disp_freescale_enable(u32 index)
 			| ((hsc_ini_rpt_p0_num & 0x3) << 8);
 		data32 |= 1 << 22;
 	}
-	VSYNCOSD_WR_MPEG_REG(osd_reg->osd_hsc_ctrl0, data32);
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(osd_reg->osd_hsc_ctrl0, data32);
 
 	data32 = top_ini_phase;
 	if (osd_hw.free_scale_enable[index]) {
@@ -6212,14 +6238,18 @@ static void osd_update_disp_freescale_enable(u32 index)
 			if (src_h == dst_h * 2)
 				data32 |= 0x80008000;
 		}
-		VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_hsc_phase_step,
-					  hf_phase_step, 0, 28);
-		VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_hsc_init_phase,
-					  0, 0, 16);
-		VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_vsc_phase_step,
-					  vf_phase_step, 0, 28);
-		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_vsc_init_phase,
-				     data32);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+			(osd_reg->osd_hsc_phase_step,
+			hf_phase_step, 0, 28);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+			(osd_reg->osd_hsc_init_phase,
+			0, 0, 16);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+			(osd_reg->osd_vsc_phase_step,
+			vf_phase_step, 0, 28);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(osd_reg->osd_vsc_init_phase,
+			data32);
 	}
 	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE &&
 	    !osd_hw.hwc_enable[output_index]) {
@@ -6335,6 +6365,7 @@ static void osd_update_color_mode(u32 index)
 {
 	u32  data32 = 0;
 	struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[index];
+	u32 output_index = get_output_device_id(index);
 
 	if (osd_hw.color_info[index]) {
 		enum color_index_e idx =
@@ -6342,7 +6373,8 @@ static void osd_update_color_mode(u32 index)
 
 		data32 = (osd_hw.scan_mode[index] ==
 			SCAN_MODE_INTERLACE) ? 2 : 0;
-		data32 |= VSYNCOSD_RD_MPEG_REG(osd_reg->osd_blk0_cfg_w0)
+		data32 |= osd_hw.osd_rdma_func[output_index].osd_rdma_rd
+			(osd_reg->osd_blk0_cfg_w0)
 			& 0x70007040;
 		data32 |= osd_hw.fb_gem[index].canvas_idx << 16;
 		if (osd_hw.osd_afbcd[index].enable &&
@@ -6371,7 +6403,8 @@ static void osd_update_color_mode(u32 index)
 		data32 |=  osd_hw.color_info[index]->hw_blkmode << 8;
 		if (osd_hw.osd_v_skip[index])
 			data32 |= 1 << 24;
-		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_blk0_cfg_w0, data32);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(osd_reg->osd_blk0_cfg_w0, data32);
 
 		/*
 		 * VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK1_CFG_W0, data32);
@@ -6381,7 +6414,8 @@ static void osd_update_color_mode(u32 index)
 		if (osd_hw.osd_afbcd[index].enable) {
 			if (osd_hw.osd_meson_dev.afbc_type == MESON_AFBC) {
 				/* only the RGBA32 mode */
-				VSYNCOSD_WR_MPEG_REG(OSD1_AFBCD_MODE,
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+					(OSD1_AFBCD_MODE,
 						     (3 << 24) |
 						     (4 << 16) |
 						     (0xe4 << 8) |
@@ -6389,7 +6423,7 @@ static void osd_update_color_mode(u32 index)
 						     (1 << 5) |
 						     (0x15 << 0));
 				/* TODO: add pixel_packing_fmt setting */
-				VSYNCOSD_WR_MPEG_REG
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(OSD1_AFBCD_CONV_CTRL,
 					 osd_hw.osd_afbcd[index].conv_lbuf_len
 					 & 0xffff);
@@ -6401,7 +6435,7 @@ static void osd_update_color_mode(u32 index)
 				 *	OSD1_AFBCD_CHROMA_PTR,
 				 *	data32);
 				 */
-				VSYNCOSD_WR_MPEG_REG_BITS
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 					(OSD1_AFBCD_CHROMA_PTR, 0xe4, 24, 8);
 				/*
 				 * data32 = (0xe4 << 24) |
@@ -6427,21 +6461,21 @@ static void osd_update_color_mode(u32 index)
 					(pixel_format,
 					osd_hw.osd_afbcd[index].frame_width,
 					aligned_32);
-				VSYNCOSD_WR_MPEG_REG
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(osd_reg->afbc_format_specifier_s,
 					(osd_hw.osd_afbcd[index].inter_format |
 					(pixel_format & 0xf)));
-				VSYNCOSD_WR_MPEG_REG_BITS
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 					(osd_reg->osd_mali_unpack_ctrl,
 					afbc_color_reorder,
 					0, 16);
-				VSYNCOSD_WR_MPEG_REG_BITS
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 					(osd_reg->osd_blk2_cfg_w4,
 					line_stride, 0, 12);
 				output_stride =
 					osd_hw.osd_afbcd[index].frame_width
 					* bpp;
-				VSYNCOSD_WR_MPEG_REG
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(osd_reg->afbc_output_buf_stride_s,
 					output_stride);
 			}
@@ -6449,17 +6483,19 @@ static void osd_update_color_mode(u32 index)
 			if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
 				if (!osd_hw.osd_meson_dev.mif_linear)
 					/* line stride should not clear for mif */
-					VSYNCOSD_WR_MPEG_REG
+					osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 						(osd_reg->osd_blk2_cfg_w4, 0);
 			}
 		}
 		if (idx >= COLOR_INDEX_32_BGRX &&
 		    idx <= COLOR_INDEX_32_XRGB)
-			VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_ctrl_stat2,
-						  0x1ff, 6, 9);
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+				(osd_reg->osd_ctrl_stat2,
+				0x1ff, 6, 9);
 		else
-			VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_ctrl_stat2,
-						  0, 6, 9);
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+				(osd_reg->osd_ctrl_stat2,
+				0, 6, 9);
 	}
 	remove_from_update_list(index, OSD_COLOR_MODE);
 }
@@ -6469,13 +6505,17 @@ static void osd_update_enable(u32 index)
 	u32 temp_val = 0, output_index;
 	struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[index];
 
+	output_index = get_output_device_id(index);
+
 	if (osd_hw.osd_meson_dev.afbc_type == MESON_AFBC &&
 	    osd_hw.enable[index] == ENABLE) {
 		/* only for osd1 */
-		if ((VSYNCOSD_RD_MPEG_REG(VPU_RDARB_MODE_L1C2) &
+		if ((osd_hw.osd_rdma_func[output_index].osd_rdma_rd
+			(VPU_RDARB_MODE_L1C2) &
 			(1 << 16)) == 0) {
-			VSYNCOSD_WR_MPEG_REG_BITS(VPU_RDARB_MODE_L1C2,
-						  1, 16, 1);
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+				(VPU_RDARB_MODE_L1C2,
+				1, 16, 1);
 		}
 	}
 	if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL) {
@@ -6489,46 +6529,56 @@ static void osd_update_enable(u32 index)
 			osd_vpp_misc &= ~temp_val;
 	}
 	if (osd_hw.enable[index] == ENABLE) {
-		VSYNCOSD_SET_MPEG_REG_MASK(osd_reg->osd_ctrl_stat,
-					   1 << 0);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_set_mask
+			(osd_reg->osd_ctrl_stat,
+			1 << 0);
 		if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL) {
-			VSYNCOSD_SET_MPEG_REG_MASK(VPP_MISC,
-						   temp_val |
-						   VPP_POSTBLEND_EN);
+			osd_hw.osd_rdma_func[output_index].osd_rdma_set_mask
+				(VPP_MISC,
+				temp_val |
+				VPP_POSTBLEND_EN);
 			notify_to_amvideo();
 		}
 	} else {
 		if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL) {
 			notify_to_amvideo();
-			VSYNCOSD_CLR_MPEG_REG_MASK(VPP_MISC, temp_val);
+			osd_hw.osd_rdma_func[output_index].osd_rdma_clr_mask
+				(VPP_MISC, temp_val);
 		}
 		if (!(osd_hw.osd_meson_dev.cpu_id ==
 			__MESON_CPU_MAJOR_ID_G12B))
-			VSYNCOSD_CLR_MPEG_REG_MASK(osd_reg->osd_ctrl_stat,
-						   1 << 0);
+			osd_hw.osd_rdma_func[output_index].osd_rdma_clr_mask
+				(osd_reg->osd_ctrl_stat,
+				1 << 0);
 	}
 	if (osd_hw.osd_meson_dev.afbc_type == MESON_AFBC) {
 		if (osd_hw.osd_afbcd[index].enable == ENABLE &&
 		    osd_hw.enable[index] == ENABLE) {
 			if (!osd_afbc_dec_enable &&
 			    osd_hw.osd_afbcd[index].phy_addr != 0) {
-				VSYNCOSD_WR_MPEG_REG(OSD1_AFBCD_ENABLE, 0x8100);
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+					(OSD1_AFBCD_ENABLE, 0x8100);
 				osd_afbc_dec_enable = 1;
 			}
-			VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_ctrl_stat2,
-						  1, 15, 1);
-			if ((VSYNCOSD_RD_MPEG_REG(VIU_MISC_CTRL1) &
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+				(osd_reg->osd_ctrl_stat2,
+				1, 15, 1);
+			if ((osd_hw.osd_rdma_func[output_index].osd_rdma_rd
+				(VIU_MISC_CTRL1) &
 			     (0xff << 8)) != 0x9000) {
-				VSYNCOSD_WR_MPEG_REG_BITS(VIU_MISC_CTRL1,
-							  0x90, 8, 8);
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+					(VIU_MISC_CTRL1,
+					0x90, 8, 8);
 			}
 		} else {
 			if (osd_afbc_dec_enable) {
-				VSYNCOSD_WR_MPEG_REG(OSD1_AFBCD_ENABLE, 0x8000);
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+					(OSD1_AFBCD_ENABLE, 0x8000);
 				osd_afbc_dec_enable = 0;
 			}
-			VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_ctrl_stat2,
-						  0, 15, 1);
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+				(osd_reg->osd_ctrl_stat2,
+				0, 15, 1);
 		}
 	} else if (osd_hw.osd_meson_dev.afbc_type
 		== MALI_AFBC) {
@@ -6538,26 +6588,27 @@ static void osd_update_enable(u32 index)
 			if (!osd_hw.osd_afbcd[index].afbc_start &&
 			    osd_hw.osd_afbcd[index].phy_addr != 0) {
 				/* enable mali afbc */
-				VSYNCOSD_WR_MPEG_REG
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(osd_reg->vpu_mafbc_irq_mask, 0xf);
-				VSYNCOSD_WR_MPEG_REG_BITS
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 					(osd_reg->vpu_mafbc_surface_cfg,
 					0x1, index, 1);
 				osd_hw.osd_afbcd[index].afbc_start = 1;
-				VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_ctrl_stat2,
-							  1, 1, 1);
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+					(osd_reg->osd_ctrl_stat2,
+					1, 1, 1);
 			}
 		} else {
 			/* disable mali afbc */
-			VSYNCOSD_WR_MPEG_REG_BITS
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 				(osd_reg->vpu_mafbc_surface_cfg,
 				0x0, index, 1);
 			osd_hw.osd_afbcd[index].afbc_start = 0;
-			VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_ctrl_stat2,
-						  0, 1, 1);
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+				(osd_reg->osd_ctrl_stat2,
+				0, 1, 1);
 		}
 	}
-	output_index = get_output_device_id(index);
 	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE &&
 		osd_hw.hwc_enable[output_index]) {
 		u8 postbld_src_sel = 0;
@@ -6574,14 +6625,16 @@ static void osd_update_enable(u32 index)
 			postbld_src_sel = (index == 0) ? postbld_osd1 : postbld_osd2;
 		}
 		if (index == 0)
-			VSYNCOSD_WR_MPEG_REG(OSD1_BLEND_SRC_CTRL,
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+				(OSD1_BLEND_SRC_CTRL,
 					     (0 & 0xf) << 0 |
 					     (0 & 0x1) << 4 |
 					     (postbld_src_sel & 0xf) << 8 |
 					     (0 & 0x1) << 16 |
 					     (1 & 0x1) << 20);
 		else if ((index == 1) && (!enable_vd_zorder))
-			VSYNCOSD_WR_MPEG_REG(OSD2_BLEND_SRC_CTRL,
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+				(OSD2_BLEND_SRC_CTRL,
 					     (0 & 0xf) << 0 |
 					     (0 & 0x1) << 4 |
 					     (postbld_src_sel & 0xf) << 8 |
@@ -6593,35 +6646,37 @@ static void osd_update_enable(u32 index)
 
 static void osd_update_disp_osd_reverse(u32 index)
 {
+	u32 output_index = get_output_device_id(index);
+
 	if (osd_hw.osd_reverse[index] == REVERSE_TRUE) {
-		VSYNCOSD_WR_MPEG_REG_BITS
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 			(hw_osd_reg_array[index].osd_blk0_cfg_w0, 3, 28, 2);
 		if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
 		    osd_hw.osd_afbcd[index].enable == ENABLE)
-			VSYNCOSD_WR_MPEG_REG_BITS
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 			(hw_osd_reg_array[index].afbc_prefetch_cfg_s, 3, 0, 2);
 	} else if (osd_hw.osd_reverse[index] == REVERSE_X) {
-		VSYNCOSD_WR_MPEG_REG_BITS
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 			(hw_osd_reg_array[index].osd_blk0_cfg_w0, 1, 28, 2);
 		if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
 		    osd_hw.osd_afbcd[index].enable == ENABLE)
-			VSYNCOSD_WR_MPEG_REG_BITS
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 				(hw_osd_reg_array[index].afbc_prefetch_cfg_s,
 				 1, 0, 2);
 	} else if (osd_hw.osd_reverse[index] == REVERSE_Y) {
-		VSYNCOSD_WR_MPEG_REG_BITS
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 			(hw_osd_reg_array[index].osd_blk0_cfg_w0, 2, 28, 2);
 		if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
 		    osd_hw.osd_afbcd[index].enable == ENABLE)
-			VSYNCOSD_WR_MPEG_REG_BITS
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 				(hw_osd_reg_array[index].afbc_prefetch_cfg_s,
 				 2, 0, 2);
 	} else {
-		VSYNCOSD_WR_MPEG_REG_BITS
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 			(hw_osd_reg_array[index].osd_blk0_cfg_w0, 0, 28, 2);
 		if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
 		    osd_hw.osd_afbcd[index].enable == ENABLE)
-			VSYNCOSD_WR_MPEG_REG_BITS
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 				(hw_osd_reg_array[index].afbc_prefetch_cfg_s,
 				 0, 0, 2);
 	}
@@ -6731,7 +6786,10 @@ static void osd_update_disp_osd_rotate(u32 index)
 
 static void osd_update_color_key(u32 index)
 {
-	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_array[index].osd_tcolor_ag0,
+	u32 output_index = get_output_device_id(index);
+
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(hw_osd_reg_array[index].osd_tcolor_ag0,
 			     osd_hw.color_key[index]);
 	remove_from_update_list(index, OSD_COLOR_KEY);
 }
@@ -6739,13 +6797,15 @@ static void osd_update_color_key(u32 index)
 static void osd_update_color_key_enable(u32 index)
 {
 	u32  data32;
+	u32 output_index = get_output_device_id(index);
 
-	data32 = VSYNCOSD_RD_MPEG_REG
+	data32 = osd_hw.osd_rdma_func[output_index].osd_rdma_rd
 		(hw_osd_reg_array[index].osd_blk0_cfg_w0);
 	data32 &= ~(1 << 6);
 	data32 |= (osd_hw.color_key_enable[index] << 6);
-	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_array[index].osd_blk0_cfg_w0,
-			     data32);
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(hw_osd_reg_array[index].osd_blk0_cfg_w0,
+		data32);
 	/*
 	 * VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK1_CFG_W0, data32);
 	 * VSYNCOSD_WR_MPEG_REG(VIU_OSD1_BLK2_CFG_W0, data32);
@@ -6757,12 +6817,15 @@ static void osd_update_color_key_enable(u32 index)
 static void osd_update_gbl_alpha(u32 index)
 {
 	u32  data32;
+	u32 output_index = get_output_device_id(index);
 
-	data32 = VSYNCOSD_RD_MPEG_REG(hw_osd_reg_array[index].osd_ctrl_stat);
+	data32 = osd_hw.osd_rdma_func[output_index].osd_rdma_rd
+		(hw_osd_reg_array[index].osd_ctrl_stat);
 	data32 &= ~(0x1ff << 12);
 	data32 |= osd_hw.gbl_alpha[index] << 12;
-	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_array[index].osd_ctrl_stat,
-			     data32);
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(hw_osd_reg_array[index].osd_ctrl_stat,
+		data32);
 	remove_from_update_list(index, OSD_GBL_ALPHA);
 }
 
@@ -7245,6 +7308,7 @@ static int osd_setting_blending_scope(u32 index)
 	u32 bld_osd_h_start, bld_osd_h_end;
 	u32 bld_osd_v_start, bld_osd_v_end;
 	u32 reg_offset = 2;
+	u32 output_index = get_output_device_id(index);
 
 	if (index >= osd_hw.osd_meson_dev.viu1_osd_count) {
 		osd_log_err("error osd index=%d\n", index);
@@ -7286,11 +7350,13 @@ static int osd_setting_blending_scope(u32 index)
 		    bld_osd_v_end);
 
 	/* it is setting for osdx */
-	VSYNCOSD_WR_MPEG_REG(VIU_OSD_BLEND_DIN0_SCOPE_H +
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(VIU_OSD_BLEND_DIN0_SCOPE_H +
 		reg_offset * index,
 		bld_osd_h_end << 16 |
 		bld_osd_h_start);
-	VSYNCOSD_WR_MPEG_REG(VIU_OSD_BLEND_DIN0_SCOPE_V +
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(VIU_OSD_BLEND_DIN0_SCOPE_V +
 		reg_offset * index,
 		bld_osd_v_end << 16 |
 		bld_osd_v_start);
@@ -7302,6 +7368,7 @@ static int vpp_blend_setting_default(u32 index)
 	u32 osd1_dst_h = 0, osd1_dst_v = 0;
 	u32 osd1_h_start = 0, osd1_h_end = 0;
 	u32 osd1_v_start = 0, osd1_v_end = 0;
+	u32 output_index = get_output_device_id(index);
 
 	osd_log_dbg(MODULE_BASE, "%s\n", __func__);
 
@@ -7330,10 +7397,12 @@ static int vpp_blend_setting_default(u32 index)
 	}
 
 	/* setting blend scope */
-	VSYNCOSD_WR_MPEG_REG(VPP_OSD1_BLD_H_SCOPE,
-			     osd1_h_start << 16 | osd1_h_end);
-	VSYNCOSD_WR_MPEG_REG(VPP_OSD1_BLD_V_SCOPE,
-			     osd1_v_start << 16 | osd1_v_end);
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(VPP_OSD1_BLD_H_SCOPE,
+		osd1_h_start << 16 | osd1_h_end);
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(VPP_OSD1_BLD_V_SCOPE,
+		osd1_v_start << 16 | osd1_v_end);
 
 	return 0;
 }
@@ -9761,22 +9830,28 @@ static void osd_set_vpp_path(u32 osd_index, u32 vpp_index)
 
 static void set_osd_hdr_size_in(u32 osd_index, u32 osd_hsize, u32 osd_vsize)
 {
+	u32 output_index = get_output_device_id(osd_index);
+
 	switch (osd_index) {
 	case VPP_OSD1:
-		VSYNCOSD_WR_MPEG_REG(OSD1_HDR_IN_SIZE,
-				    osd_vsize << 16 | osd_hsize);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(OSD1_HDR_IN_SIZE,
+			osd_vsize << 16 | osd_hsize);
 		break;
 	case VPP_OSD2:
-		VSYNCOSD_WR_MPEG_REG(OSD2_HDR_IN_SIZE,
-				    osd_vsize << 16 | osd_hsize);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(OSD2_HDR_IN_SIZE,
+			osd_vsize << 16 | osd_hsize);
 		break;
 	case VPP_OSD3:
-		VSYNCOSD_WR_MPEG_REG(OSD3_HDR_IN_SIZE,
-				    osd_vsize << 16 | osd_hsize);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(OSD3_HDR_IN_SIZE,
+			osd_vsize << 16 | osd_hsize);
 		break;
 	case VPP_OSD4:
-		VSYNCOSD_WR_MPEG_REG(OSD4_HDR_IN_SIZE,
-				    osd_vsize << 16 | osd_hsize);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(OSD4_HDR_IN_SIZE,
+			osd_vsize << 16 | osd_hsize);
 		break;
 	default:
 		break;
@@ -10593,10 +10668,12 @@ static void osd_basic_update_disp_geometry(u32 index)
 	struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[index];
 	u32 data32;
 	u32 buffer_w, buffer_h;
+	u32 output_index = get_output_device_id(index);
 
 	data32 = (osd_hw.dispdata[index].x_start & 0xfff)
 		| (osd_hw.dispdata[index].x_end & 0xfff) << 16;
-	VSYNCOSD_WR_MPEG_REG(osd_reg->osd_blk0_cfg_w3, data32);
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(osd_reg->osd_blk0_cfg_w3, data32);
 	if (osd_hw.scan_mode[index] == SCAN_MODE_INTERLACE)
 		data32 = ((osd_hw.dispdata[index].y_start >> 1) & 0xfff)
 			| ((((osd_hw.dispdata[index].y_end + 1)
@@ -10605,8 +10682,9 @@ static void osd_basic_update_disp_geometry(u32 index)
 		data32 = (osd_hw.dispdata[index].y_start & 0xfff)
 			| (osd_hw.dispdata[index].y_end
 			& 0xfff) << 16;
-	VSYNCOSD_WR_MPEG_REG(osd_reg->osd_blk0_cfg_w4,
-			     data32);
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(osd_reg->osd_blk0_cfg_w4,
+		data32);
 
 	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC) {
 		if (osd_hw.osd_afbcd[index].enable) {
@@ -10620,66 +10698,72 @@ static void osd_basic_update_disp_geometry(u32 index)
 			/*  0:canvas_araddr
 			 *  1:linear_araddr
 			 */
-			VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_ctrl_stat,
-						  0x1, 2, 1);
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+				(osd_reg->osd_ctrl_stat,
+				0x1, 2, 1);
 			if (osd_dev_hw.has_8G_addr)
-				VSYNCOSD_WR_MPEG_REG(osd_reg->osd_blk1_cfg_w4,
-						     out_addr >> 4);
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+					(osd_reg->osd_blk1_cfg_w4,
+					out_addr >> 4);
 			else
-				VSYNCOSD_WR_MPEG_REG(osd_reg->osd_blk1_cfg_w4,
-						     out_addr);
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+					(osd_reg->osd_blk1_cfg_w4,
+					out_addr);
 			/* unpac mali src */
-			VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_mali_unpack_ctrl,
-						  0x1, 31, 1);
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+				(osd_reg->osd_mali_unpack_ctrl,
+				0x1, 31, 1);
 
 			/* osd switch to mali */
 			if (osd_dev_hw.multi_afbc_core) {
 				if (index == OSD1)
-					VSYNCOSD_WR_MPEG_REG_BITS
+					osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 						(osd_reg->mali_afbcd_top_ctrl,
 						 0x1, 16, 1);
 				else
-					VSYNCOSD_WR_MPEG_REG_BITS
+					osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 						(osd_reg->mali_afbcd_top_ctrl,
 						 0x1, 21, 1);
 			} else {
-				VSYNCOSD_WR_MPEG_REG_BITS(OSD_PATH_MISC_CTRL,
-							  0x01, (index + 4), 1);
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+					(OSD_PATH_MISC_CTRL,
+					0x01, (index + 4), 1);
 			}
 			/* read from mali afbd decoder */
-			VSYNCOSD_WR_MPEG_REG_BITS(osd_reg->osd_blk0_cfg_w0,
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+				(osd_reg->osd_blk0_cfg_w0,
 						  0x1, 30, 1);
 
-			VSYNCOSD_WR_MPEG_REG
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 				(osd_reg->afbc_header_buf_addr_low_s,
 				headr_addr & 0xffffffff);
-			VSYNCOSD_WR_MPEG_REG
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 				(osd_reg->afbc_header_buf_addr_high_s,
 				(headr_addr >> 32) & 0xffffffff);
-			VSYNCOSD_WR_MPEG_REG
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 				(osd_reg->afbc_buffer_width_s,
 				osd_hw.osd_afbcd[index].frame_width);
-			VSYNCOSD_WR_MPEG_REG
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 				(osd_reg->afbc_buffer_hight_s,
 				osd_hw.osd_afbcd[index].frame_height);
-			VSYNCOSD_WR_MPEG_REG
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 				(osd_reg->afbc_output_buf_addr_low_s,
 				out_addr & 0xffffffff);
-			VSYNCOSD_WR_MPEG_REG
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 				(osd_reg->afbc_output_buf_addr_high_s,
 				(out_addr >> 32) & 0xffffffff);
 			if (osd_hw.osd_afbcd[index].enable) {
-				VSYNCOSD_WR_MPEG_REG
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(osd_reg->afbc_boundings_box_x_start_s,
 					osd_hw.src_data[index].x);
-				VSYNCOSD_WR_MPEG_REG
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(osd_reg->afbc_boundings_box_x_end_s,
 					osd_hw.src_data[index].x +
 					osd_hw.src_data[index].w - 1);
-				VSYNCOSD_WR_MPEG_REG
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(osd_reg->afbc_boundings_box_y_start_s,
 					osd_hw.src_data[index].y);
-				VSYNCOSD_WR_MPEG_REG
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(osd_reg->afbc_boundings_box_y_end_s,
 					osd_hw.src_data[index].y +
 					osd_hw.src_data[index].h -  1);
@@ -10688,27 +10772,27 @@ static void osd_basic_update_disp_geometry(u32 index)
 			/* osd switch to mali */
 			if (osd_dev_hw.multi_afbc_core) {
 				if (index == OSD1)
-					VSYNCOSD_WR_MPEG_REG_BITS
+					osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 						(osd_reg->mali_afbcd_top_ctrl,
 						 0x0, 16, 1);
 				else
-					VSYNCOSD_WR_MPEG_REG_BITS
+					osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 						(osd_reg->mali_afbcd_top_ctrl,
 						 0x0, 21, 1);
 			} else {
-				VSYNCOSD_WR_MPEG_REG_BITS
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 					(OSD_PATH_MISC_CTRL, 0x0, (index + 4), 1);
 			}
 			/*  unpac normal src */
-			VSYNCOSD_WR_MPEG_REG_BITS
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 				(osd_reg->osd_mali_unpack_ctrl,
 				0x0, 31, 1);
 			/* read from ddr */
-			VSYNCOSD_WR_MPEG_REG_BITS
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 				(osd_reg->osd_blk0_cfg_w0, 0x0, 30, 1);
 			/* use canvas addr should not clear for mif */
 			if (!osd_hw.osd_meson_dev.mif_linear)
-				VSYNCOSD_WR_MPEG_REG_BITS
+				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 					(osd_reg->osd_ctrl_stat, 0x0, 2, 1);
 		}
 	}
@@ -10718,37 +10802,44 @@ static void osd_basic_update_disp_geometry(u32 index)
 		/* enable osd free scale */
 		data32 = (osd_hw.free_src_data[index].x_start & 0x1fff) |
 			 (osd_hw.free_src_data[index].x_end & 0x1fff) << 16;
-		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_blk0_cfg_w1, data32);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(osd_reg->osd_blk0_cfg_w1, data32);
 		data32 = ((osd_hw.free_src_data[index].y_start
 			+ osd_hw.pandata[index].y_start) & 0x1fff)
 			| ((osd_hw.free_src_data[index].y_end
 			+ osd_hw.pandata[index].y_start) & 0x1fff) << 16;
-		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_blk0_cfg_w2, data32);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(osd_reg->osd_blk0_cfg_w2, data32);
 	} else {
 		/* normal mode */
 		data32 = (osd_hw.pandata[index].x_start & 0x1fff)
 			| (osd_hw.pandata[index].x_end & 0x1fff) << 16;
-		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_blk0_cfg_w1, data32);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(osd_reg->osd_blk0_cfg_w1, data32);
 		data32 = (osd_hw.pandata[index].y_start & 0x1fff)
 			| (osd_hw.pandata[index].y_end & 0x1fff) << 16;
-		VSYNCOSD_WR_MPEG_REG(osd_reg->osd_blk0_cfg_w2, data32);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+			(osd_reg->osd_blk0_cfg_w2, data32);
 	}
 	data32 = (osd_hw.src_data[index].x & 0x1fff) |
 			 ((osd_hw.src_data[index].x +
 			 osd_hw.src_data[index].w - 1) & 0x1fff) << 16;
-	VSYNCOSD_WR_MPEG_REG
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 		(hw_osd_reg_array[index].osd_blk0_cfg_w1, data32);
 	buffer_w = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
 	data32 = (osd_hw.src_data[index].y & 0x1fff)
 		| ((osd_hw.src_data[index].y +
 		osd_hw.src_data[index].h - 1) & 0x1fff) << 16;
-	VSYNCOSD_WR_MPEG_REG(osd_reg->osd_blk0_cfg_w2, data32);
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(osd_reg->osd_blk0_cfg_w2, data32);
 	buffer_h = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
-	data32 = VSYNCOSD_RD_MPEG_REG(osd_reg->osd_ctrl_stat);
+	data32 = osd_hw.osd_rdma_func[output_index].osd_rdma_rd
+		(osd_reg->osd_ctrl_stat);
 	data32 &= ~0x1ff008;//0x1ff00e;
 	data32 |= osd_hw.gbl_alpha[index] << 12;
 	/* data32 |= HW_OSD_BLOCK_ENABLE_0; */
-	VSYNCOSD_WR_MPEG_REG(osd_reg->osd_ctrl_stat, data32);
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+		(osd_reg->osd_ctrl_stat, data32);
 	remove_from_update_list(index, DISP_GEOMETRY);
 }
 
@@ -10878,7 +10969,8 @@ static void osd1_basic_update_disp_geometry(void)
 		VSYNCOSD_WR_MPEG_REG(OSD1_AFBCD_ENABLE, 0x8100);
 		osd_afbc_dec_enable = 1;
 	}
-	data32 = VSYNCOSD_RD_MPEG_REG(hw_osd_reg_array[OSD1].osd_ctrl_stat);
+	data32 = VSYNCOSD_RD_MPEG_REG
+		(hw_osd_reg_array[OSD1].osd_ctrl_stat);
 	data32 &= ~0x1ff00e;
 	data32 |= osd_hw.gbl_alpha[OSD1] << 12;
 	/* data32 |= HW_OSD_BLOCK_ENABLE_0; */
@@ -11003,11 +11095,12 @@ static void osd_update_disp_3d_mode(u32 index)
 static void osd_update_fifo(u32 index)
 {
 	u32 data32;
+	u32 output_index = get_output_device_id(index);
 
-	data32 = VSYNCOSD_RD_MPEG_REG
+	data32 = osd_hw.osd_rdma_func[output_index].osd_rdma_rd
 			(hw_osd_reg_array[index].osd_fifo_ctrl_stat);
 	data32 |= osd_hw.urgent[index] & 1;
-	VSYNCOSD_WR_MPEG_REG
+	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 		(hw_osd_reg_array[index].osd_fifo_ctrl_stat, data32);
 	remove_from_update_list(index, OSD_FIFO);
 }
@@ -11335,6 +11428,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 	}
 
 	recovery_regs_init();
+	/* set osd vpp rdma func */
+	set_rdma_func_handler();
 	for (idx = 0; idx < HW_REG_INDEX_MAX; idx++)
 		osd_hw.reg[idx].update_func =
 		hw_func_array[idx];
@@ -11629,8 +11724,6 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		set_vpp_osd1_rgb2yuv(1);
 		set_vpp_osd2_rgb2yuv(1);
 	}
-	/* set osd vpp rdma func */
-	set_rdma_func_handler();
 	if (osd_hw.fb_drvier_probe) {
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 		INIT_LIST_HEAD(&post_fence_list[VIU1]);
