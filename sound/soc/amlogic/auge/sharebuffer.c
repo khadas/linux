@@ -5,6 +5,7 @@
  */
 
 #include <sound/pcm.h>
+#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
 #include <linux/amlogic/media/sound/aout_notify.h>
 
 #include "sharebuffer.h"
@@ -37,8 +38,9 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int bit_depth;
 	struct iec958_chsts chsts;
-	struct snd_pcm_substream substream_tmp;
-	struct snd_pcm_runtime runtime_tmp;
+	struct aud_para aud_param;
+
+	memset(&aud_param, 0, sizeof(aud_param));
 
 	bit_depth = snd_pcm_format_width(runtime->format);
 
@@ -57,13 +59,12 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 	spdif_set_channel_status_info(&chsts, spdif_id);
 
 	/* for samesource case, always 2ch substream to hdmitx */
-	substream_tmp.runtime = &runtime_tmp;
-	memcpy((void *)&runtime_tmp, (void *)(substream->runtime),
-	       sizeof(struct snd_pcm_runtime));
-	runtime_tmp.channels = 2;
+	aud_param.rate = runtime->rate;
+	aud_param.size = runtime->sample_bits;
+	aud_param.chs = 2;
 
 	/* notify hdmitx audio */
-	aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &substream_tmp);
+	aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &aud_param);
 
 	return 0;
 }

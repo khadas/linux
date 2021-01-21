@@ -610,6 +610,7 @@ struct hdmitx_dev {
 #define MISC_TMDS_CEDST		(CMD_MISC_OFFSET + 0x13)
 #define MISC_TRIGGER_HPD        (CMD_MISC_OFFSET + 0X14)
 #define MISC_SUSFLAG		(CMD_MISC_OFFSET + 0X15)
+#define MISC_AUDIO_RESET	(CMD_MISC_OFFSET + 0x16)
 
 /***********************************************************************
  *                          Get State //getstate

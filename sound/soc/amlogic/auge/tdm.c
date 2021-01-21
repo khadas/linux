@@ -26,6 +26,7 @@
 #include <linux/amlogic/clk_measure.h>
 #include <linux/amlogic/cpu_version.h>
 
+#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
 #include <linux/amlogic/media/sound/aout_notify.h>
 
 #include "ddr_mngr.h"
@@ -969,6 +970,13 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 	int bit_depth, separated = 0;
+	struct aud_para aud_param;
+
+	memset(&aud_param, 0, sizeof(aud_param));
+
+	aud_param.rate = runtime->rate;
+	aud_param.size = runtime->sample_bits;
+	aud_param.chs  = runtime->channels;
 
 	bit_depth = snd_pcm_format_width(runtime->format);
 
@@ -985,7 +993,7 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			separated = p_tdm->chipinfo->separate_tohdmitx_en;
 			i2s_to_hdmitx_ctrl(separated, p_tdm->id);
 			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
-						 substream);
+						 &aud_param);
 		}
 
 		fifo_id = aml_frddr_get_fifo_id(fr);

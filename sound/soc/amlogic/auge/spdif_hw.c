@@ -12,6 +12,7 @@
 #include "ddr_mngr.h"
 #include "spdif.h"
 
+#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
 #include <linux/amlogic/media/sound/aout_notify.h>
 
 unsigned int aml_spdif_ctrl_read(struct aml_audio_controller *actrl,
@@ -562,12 +563,19 @@ void spdifout_play_with_zerodata(unsigned int spdif_id, bool reenable, int separ
 		struct iec958_chsts chsts;
 		struct snd_pcm_substream substream;
 		struct snd_pcm_runtime runtime;
+		struct aud_para aud_param;
+
+		memset(&aud_param, 0, sizeof(aud_param));
 
 		substream.runtime = &runtime;
 		runtime.rate = sample_rate;
 		runtime.format = SNDRV_PCM_FORMAT_S16_LE;
 		runtime.channels = 2;
 		runtime.sample_bits = 16;
+
+		aud_param.rate = runtime.rate;
+		aud_param.size = runtime.sample_bits;
+		aud_param.chs  = runtime.channels;
 
 		/* check whether fix to spdif a */
 		if (spdif_id == 0)
@@ -591,7 +599,7 @@ void spdifout_play_with_zerodata(unsigned int spdif_id, bool reenable, int separ
 		spdif_set_channel_status_info(&chsts, spdif_id);
 
 		/* notify hdmitx audio */
-		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &substream);
+		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &aud_param);
 
 		/* init frddr to output zero data. */
 		frddr_init_without_mngr(frddr_index, src0_sel);

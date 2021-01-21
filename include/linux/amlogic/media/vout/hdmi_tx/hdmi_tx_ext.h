@@ -6,6 +6,8 @@
 #ifndef __HDMI_TX_EXT_H__
 #define __HDMI_TX_EXT_H__
 
+#include "hdmi_common.h"
+
 void direct_hdcptx14_start(void);
 void direct_hdcptx14_stop(void);
 
@@ -35,5 +37,13 @@ void hdmitx_ext_set_i2s_mask(char ch_num, char ch_msk);
  * get I2S mask
  */
 char hdmitx_ext_get_i2s_mask(void);
+
+struct aud_para {
+	enum hdmi_audio_type type;
+	enum hdmi_audio_fs rate;
+	enum hdmi_audio_sampsize size;
+	enum hdmi_audio_chnnum chs;
+	bool fifo_rst;
+};
 
 #endif

@@ -335,27 +335,37 @@ void iec_get_channel_status_info(struct iec958_chsts *chsts,
 void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,
 			    enum aud_codec_types codec_type)
 {
+	struct aud_para aud_param;
+
+	memset(&aud_param, 0, sizeof(aud_param));
+
+	aud_param.rate = substream->runtime->rate;
+	aud_param.size = substream->runtime->sample_bits;
+	aud_param.chs  = substream->runtime->channels;
+
 	if (codec_type == AUD_CODEC_TYPE_AC3) {
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_AC_3,
-					 substream);
+					 &aud_param);
 	} else if (codec_type == AUD_CODEC_TYPE_DTS) {
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS,
-					 substream);
+					 &aud_param);
 	} else if (codec_type == AUD_CODEC_TYPE_EAC3) {
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DOBLY_DIGITAL_PLUS,
-					 substream);
+					 &aud_param);
 	} else if (codec_type == AUD_CODEC_TYPE_DTS_HD) {
+		aud_param.fifo_rst = 1;
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS_HD,
-					 substream);
+					 &aud_param);
 	} else if (codec_type == AUD_CODEC_TYPE_TRUEHD) {
+		aud_param.fifo_rst = 1;
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_MAT_MLP,
-					 substream);
+					 &aud_param);
 	} else if (codec_type == AUD_CODEC_TYPE_DTS_HD_MA) {
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_DTS_HD_MA,
-					 substream);
+					 &aud_param);
 	} else {
 		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
-					 substream);
+					 &aud_param);
 	}
 }
 

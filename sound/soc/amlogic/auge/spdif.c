@@ -1190,10 +1190,6 @@ static void aml_dai_spdif_shutdown(struct snd_pcm_substream *substream,
 			return;
 		}
 	}
-
-	clk_disable_unprepare(p_spdif->clk_spdifin);
-	clk_disable_unprepare(p_spdif->fixed_clk);
-	clk_disable_unprepare(p_spdif->gate_spdifin);
 }
 
 static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
@@ -1243,6 +1239,18 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		 */
 		separated = p_spdif->chipinfo->separate_tohdmitx_en;
 		enable_spdifout_to_hdmitx(separated);
+
+		if (p_spdif->codec_type == AUD_CODEC_TYPE_TRUEHD ||
+		    p_spdif->codec_type == AUD_CODEC_TYPE_DTS_HD) {
+			aml_spdif_enable(p_spdif->actrl,
+				substream->stream, p_spdif->id, false);
+			if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
+				spdif_sharebuffer_trigger(p_spdif, runtime->channels,
+							  SNDRV_PCM_TRIGGER_STOP);
+			aml_spdif_mute(p_spdif->actrl,
+				substream->stream, p_spdif->id, false);
+		}
+
 		if (get_spdif_to_hdmitx_id() == p_spdif->id) {
 			/* notify to hdmitx */
 			spdif_notify_to_hdmitx(substream, p_spdif->codec_type);
