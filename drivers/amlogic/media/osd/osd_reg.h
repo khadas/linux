@@ -1780,4 +1780,12 @@
 #define OSD3_HDR2_MATRIXO_EN_CTRL                  0x5b8c
 #define OSD4_HDR2_MATRIXI_EN_CTRL                  0x5bdb
 #define OSD4_HDR2_MATRIXO_EN_CTRL                  0x5bdc
+
+#define VPU_VENCI_STAT                             0x1ceb
+#define VPU_VENCL_STAT                             0x1cec
+#define VPU_VENCP_STAT                             0x1ced
+#define VPU_VENC_CTRL                              0x1cef
+#define VPU1_VENC_CTRL                             0x22ef
+#define VPU2_VENC_CTRL                             0x24ef
+
 #endif

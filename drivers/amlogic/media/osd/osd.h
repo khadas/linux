@@ -376,6 +376,7 @@ enum viu2_rotate_format {
 enum viu_type {
 	VIU1,
 	VIU2,
+	VIU3,
 };
 
 enum vpp_mux_input_type {
