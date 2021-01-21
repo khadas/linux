@@ -6,7 +6,7 @@ config GKI_HIDDEN_DRM_CONFIGS
 	select DRM_MIPI_DSI
 	select DRM_TTM if (HAS_IOMEM && DRM)
 	select VIDEOMODE_HELPERS
-	select WANT_DEV_COREDUMP
+	select WANT_DEV_COREDUMP if !AMLOGIC_MODIFY
 	select INTERVAL_TREE
 	help
 	  Dummy config option used to enable hidden DRM configs.
@@ -47,7 +47,7 @@ config GKI_HIDDEN_SND_SOC_CONFIGS
 	select SND_PCM_IEC958
 	select SND_SOC_COMPRESS if (SND_SOC && SND)
 	select SND_SOC_TOPOLOGY if (SND_SOC && SND)
-	select DMA_VIRTUAL_CHANNELS
+	select DMA_VIRTUAL_CHANNELS if !AMLOGIC_MODIFY
 	help
 	  Dummy config option used to enable hidden SND_SOC configs.
 	  These are normally selected implicitly when a module
@@ -63,8 +63,8 @@ config GKI_HIDDEN_MMC_CONFIGS
 
 config GKI_HIDDEN_GPIO_CONFIGS
 	bool "Hidden GPIO configs needed for GKI"
-	select PINCTRL_SINGLE if (PINCTRL && OF && HAS_IOMEM)
-	select GPIO_PL061 if (HAS_IOMEM && ARM_AMBA && GPIOLIB)
+	select PINCTRL_SINGLE if (PINCTRL && OF && HAS_IOMEM && !AMLOGIC_MODIFY)
+	select GPIO_PL061 if (HAS_IOMEM && ARM_AMBA && GPIOLIB && !AMLOGIC_MODIFY)
 	help
 	  Dummy config option used to enable hidden GPIO configs.
 	  These are normally selected implicitly when a module
@@ -97,7 +97,7 @@ config GKI_HIDDEN_MEDIA_CONFIGS
 
 config GKI_HIDDEN_VIRTUAL_CONFIGS
 	bool "Hidden Virtual configs needed for GKI"
-	select HVC_DRIVER
+	select HVC_DRIVER if !AMLOGIC_MODIFY
 	help
 	  Dummy config option used to enable hidden virtual device configs.
 	  These are normally selected implicitly when a module
@@ -162,7 +162,7 @@ config GKI_HIDDEN_GPU_CONFIGS
 
 config GKI_HIDDEN_IRQ_CONFIGS
 	bool "Hidden IRQ configuration needed for GKI"
-	select GENERIC_IRQ_CHIP
+	select GENERIC_IRQ_CHIP if !AMLOGIC_MODIFY
 	help
 	  Dummy config option used to enable GENERIC_IRQ_CHIP hidden
 	  config, required by various SoC platforms. This is usually
@@ -170,7 +170,7 @@ config GKI_HIDDEN_IRQ_CONFIGS
 
 config GKI_HIDDEN_HYPERVISOR_CONFIGS
 	bool "Hidden hypervisor configuration needed for GKI"
-	select SYS_HYPERVISOR
+	select SYS_HYPERVISOR if !AMLOGIC_MODIFY
 	help
 	  Dummy config option used to enable the SYS_HYPERVISOR hidden
 	  config, required by various SoC platforms. This is usually
@@ -192,7 +192,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_SND_SOC_CONFIGS
 	select GKI_HIDDEN_MMC_CONFIGS
 	select GKI_HIDDEN_GPIO_CONFIGS
-	select GKI_HIDDEN_QCOM_CONFIGS
+	select GKI_HIDDEN_QCOM_CONFIGS if !AMLOGIC_MODIFY
 	select GKI_LEGACY_WEXT_ALLCONFIG
 	select GKI_HIDDEN_MEDIA_CONFIGS
 	select GKI_HIDDEN_VIRTUAL_CONFIGS
