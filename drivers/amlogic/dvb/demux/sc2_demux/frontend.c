@@ -243,7 +243,7 @@ static void ts_process(struct platform_device *pdev)
 		memset(buf, 0, 32);
 		snprintf(buf, sizeof(buf), "ts%d_sid_offset", i);
 		ret = of_property_read_u32(pdev->dev.of_node, buf, &value);
-		if (!ret) {
+		if (!ret && advb->ts[i].header_len) {
 			advb->ts[i].sid_offset = value;
 			advb->ts[i].ts_sid = advb->ts[i].header[value];
 		}
@@ -302,11 +302,13 @@ void frontend_config_ts_sid(void)
 			if (advb->ts[i].ts_sid != -1) {
 				sid = advb->ts[i].ts_sid;
 				demod_config_single(i, sid);
+				demod_config_fifo(i, 5 * 188);
 			}
 		} else {
 			demod_config_multi(i, advb->ts[i].header_len / 4,
 					   advb->ts[i].header[0],
 					   advb->ts[i].sid_offset);
+			demod_config_fifo(i, 5 * 188);
 		}
 	}
 }

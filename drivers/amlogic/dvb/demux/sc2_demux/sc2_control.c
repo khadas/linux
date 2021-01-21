@@ -569,6 +569,20 @@ void demod_config_multi(u8 port, u8 header_len,
 	pr_dbg("%s data:0x%0x\n", __func__, data);
 }
 
+void demod_config_fifo(u8 port, u16 fifo_th)
+{
+	unsigned int data = 0;
+
+	data = READ_CBUS_REG(DEMOD_FIFO_CFG(port));
+	if (port % 2 == 0)
+		data = (data & 0xFFFF0000) | fifo_th;
+	else
+		data = (data & 0xFFFF) | (fifo_th << 16);
+
+	WRITE_CBUS_REG(DEMOD_FIFO_CFG(port), data);
+	pr_dbg("%s data:0x%0x\n", __func__, data);
+}
+
 void demod_config_tsin_invert(u8 port, u8 invert)
 {
 	unsigned int data = 0;

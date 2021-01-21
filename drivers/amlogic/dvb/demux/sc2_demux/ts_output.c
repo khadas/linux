@@ -43,12 +43,15 @@ static struct mutex es_output_mutex;
 
 struct es_params_t {
 	struct dmx_non_sec_es_header header;
+	char last_last_header[16];
 	char last_header[16];
 	u8 have_header;
 	u8 have_send_header;
 	unsigned long data_start;
 	unsigned int data_len;
 	int es_overflow;
+	int es_error_cn;
+	u32 header_wp;
 };
 
 struct ts_out {
@@ -661,17 +664,17 @@ static int _task_es_out_func(void *data)
 				continue;
 			}
 			if (ptmp->pout->format == ES_FORMAT) {
-				pr_dbg("get %s data\n",
-				       ptmp->pout->type == AUDIO_TYPE ?
-				       "audio" : "video");
+//				pr_dbg("get %s data\n",
+//				       ptmp->pout->type == AUDIO_TYPE ?
+//				       "audio" : "video");
 				do {
 					ret =
 					    _handle_es(ptmp->pout,
 						       ptmp->es_params);
 				} while (ret == 0);
-				pr_dbg("get %s data done\n",
-				       ptmp->pout->type == AUDIO_TYPE ?
-				       "audio" : "video");
+//				pr_dbg("get %s data done\n",
+//				       ptmp->pout->type == AUDIO_TYPE ?
+//				       "audio" : "video");
 			}
 			ptmp = ptmp->pnext;
 		}
@@ -698,6 +701,7 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	unsigned int last_es_bytes = 0;
 
 //      pr_dbg("%s enter\n", __func__);
+//	pr_dbg("%s pid:0x%0x\n", __func__, pout->es_pes->pid);
 
 	header_len = 16;
 	offset = 0;
@@ -784,7 +788,8 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 
 	pr_dbg("%s len:%d,cur_es_bytes:0x%0x, last_es_bytes:0x%0x\n",
 	       __func__, pheader->len, cur_es_bytes, last_es_bytes);
-	pr_dbg("%s exit\n", __func__);
+	pr_dbg("%s pid:0x%0x\n", __func__, pout->es_pes->pid);
+
 	return 0;
 }
 
@@ -1354,6 +1359,7 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	int ret;
 	int flag = 0;
 
+	pr_dbg("%s pid:0x%0x enter\n", __func__, pout->es_pes->pid);
 	if (es_params->header.len == 0)
 		return -1;
 
@@ -1363,6 +1369,7 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
 	if (ret == 0)
 		return -1;
+
 	if (es_params->data_start == 0)
 		es_params->data_start = (unsigned long)ptmp;
 
@@ -1391,6 +1398,7 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	if (ret != len) {
 		if (pout->pchan->r_offset != 0)
 			return -1;
+
 		/*if loop back , read one time */
 		len = es_params->header.len - es_params->data_len;
 		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
@@ -1438,7 +1446,8 @@ static int write_sec_video_es_data(struct out_elem *pout,
 		pr_err("video data start:0x%x, buf end:0x%x\n",
 			sec_es_data.data_start, sec_es_data.buf_end);
 
-	pr_dbg("video pdts_flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
+	pr_dbg("video pid:0x%0x pdts_flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
+			pout->es_pes->pid,
 			sec_es_data.pts_dts_flag,
 			(unsigned long)sec_es_data.pts,
 			(unsigned long)sec_es_data.dts,
@@ -1488,22 +1497,64 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 			else
 				ret = clean_es_data(pout,
 						pout->pchan, dirty_len);
+			memcpy(&es_params->last_last_header,
+				&es_params->last_header, 16);
 			memcpy(&es_params->last_header, pcur_header,
 					sizeof(es_params->last_header));
+			dprint("error: clean dirty len:0x%0x\n", dirty_len);
 			return 0;
 		}
 		if (pheader->len == 0) {
+			memcpy(&es_params->last_last_header,
+				&es_params->last_header, 16);
 			memcpy(&es_params->last_header, pcur_header,
 					sizeof(es_params->last_header));
-			pr_dbg("header.len is 0, jump\n");
+			dprint("error: header.len is 0, jump\n");
+			return 0;
+		} else if (pheader->len >= pout->pchan->mem_size) {
+			memcpy(&es_params->last_last_header,
+				&es_params->last_header, 16);
+			memcpy(&es_params->last_header, pcur_header,
+					sizeof(es_params->last_header));
+			es_params->header_wp =
+				SC2_bufferid_get_wp_offset(pout->pchan1);
+			dprint("error: es len: 0x%0x\n", pheader->len);
+			es_params->es_error_cn++;
 			return 0;
 		}
+		memcpy(&es_params->last_last_header,
+			&es_params->last_header, 16);
 		memcpy(&es_params->last_header, pcur_header,
 				sizeof(es_params->last_header));
 		es_params->have_header = 1;
 	}
+	if (debug_ts_output == 2 && es_params->es_error_cn) {
+		int cn = 0;
 
+		dprint("##############pid:0x%0x\n",
+				pout->es_pes->pid);
+		dprint("es_params header:%d\n", es_params->have_header);
+		dprint("es_params have_send_header:%d\n",
+				es_params->have_send_header);
+		dprint("es_params data_len:%d\n", es_params->data_len);
+		dprint("es_params header len:0x%0x\n", es_params->header.len);
+		dprint("es_params es_error_cn:%d\n", es_params->es_error_cn);
+		dprint("es_params header_wp:0x%0x\n", es_params->header_wp);
+
+		dprint("get last header:\n");
+		for (cn = 0; cn < 16; cn++)
+			dprint("0x%0x ", es_params->last_header[cn]);
+
+		dprint("get last last header:\n");
+		for (cn = 0; cn < 16; cn++)
+			dprint("0x%0x ", es_params->last_last_header[cn]);
+
+		dprint("\n#########################\n");
+	}
 	if (pout->output_mode || pout->pchan->sec_level) {
+		if (es_params->have_header == 0)
+			return -1;
+
 		if (pout->type == VIDEO_TYPE) {
 			ret = write_sec_video_es_data(pout, es_params);
 		} else {
@@ -2476,8 +2527,9 @@ int ts_output_dump_info(char *buf)
 			total += r;
 
 			r = sprintf(buf,
-				    "free size:0x%0x, wp:0x%0x\n",
-				    free_size, wp_offset);
+				    "free size:0x%0x, rp:0x%0x, wp:0x%0x\n",
+				    free_size, pout->pchan->r_offset,
+					wp_offset);
 			buf += r;
 			total += r;
 
@@ -2534,8 +2586,9 @@ int ts_output_dump_info(char *buf)
 			total += r;
 
 			r = sprintf(buf,
-				    "free size:0x%0x, wp:0x%0x\n",
-				    free_size, wp_offset);
+				    "free size:0x%0x, rp:0x%0x, wp:0x%0x\n",
+				    free_size, es_slot->pout->pchan->r_offset,
+					wp_offset);
 			buf += r;
 			total += r;
 
@@ -2579,8 +2632,9 @@ int ts_output_dump_info(char *buf)
 			total += r;
 
 			r = sprintf(buf,
-				    "free size:0x%0x, wp:0x%0x, ",
-				    free_size, wp_offset);
+				    "free size:0x%0x, rp:0x%0x, wp:0x%0x, ",
+				    free_size, es_slot->pout->pchan->r_offset,
+					wp_offset);
 			buf += r;
 			total += r;
 
