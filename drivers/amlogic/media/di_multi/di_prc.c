@@ -144,9 +144,10 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_DAT,
 			0,
 			K_DI_CFG_T_FLG_DTS},
-	[EDI_CFG_ALLOC_SCT]  = {"alloc sct",
+	[EDI_CFG_ALLOC_SCT]  = {"alloc_sct",
 		/* 0:not support;	*/
-		/* 1: for 4k only	*/
+		/* bit 0: for 4k	*/
+		/* bit 1: for 1080p	*/
 			EDI_CFG_ALLOC_SCT,
 			0,
 			K_DI_CFG_T_FLG_DTS},
@@ -316,6 +317,19 @@ void di_cfg_top_dts(void)
 		pd->b.val_c = 0;
 	}
 	PR_INF("%s:%s:0x%x\n", __func__, pt->dts_name, pd->b.val_c);
+	/* afbce and pout */
+	if (!DIM_IS_IC(TM2B)	&&
+	    !DIM_IS_IC(T5)	&&
+	    DIM_IS_IC_EF(SC2)) {
+		if (cfgg(ALLOC_SCT)) {
+			PR_WARN("alloc_sct:not support:%d->0\n", cfgg(ALLOC_SCT));
+			cfgs(ALLOC_SCT, 0);
+		}
+		if (cfgg(POUT_FMT) >= 3) {
+			PR_WARN("pout:from:%d->0\n", cfgg(POUT_FMT));
+			cfgs(POUT_FMT, 0);
+		}
+	}
 }
 
 static void di_cfgt_show_item_one(struct seq_file *s, unsigned int index)
@@ -2679,6 +2693,22 @@ bool dip_is_support_nv2110(unsigned int ch)
 	return false;
 }
 
+bool dip_is_4k_sct_mem(struct di_ch_s *pch)
+{
+	if ((cfggch(pch, ALLOC_SCT) & DI_BIT0))
+		return true;
+
+	return false;
+}
+
+bool dip_is_ponly_sct_mem(struct di_ch_s *pch)
+{
+	if ((cfggch(pch, ALLOC_SCT) & DI_BIT1))
+		return true;
+
+	return false;
+}
+
 void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 {
 	struct di_post_stru_s *ppost;
@@ -2742,6 +2772,11 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 			       sizeof(struct di_mm_cfg_s));
 		}
 		mm->cfg.fix_buf = 1;
+	} else if (pch->ponly && dip_is_ponly_sct_mem(pch)) {
+		if (!cfggch(pch, 4K))
+			memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
+		else
+			memcpy(&mm->cfg, &c_mm_cfg_4k, sizeof(struct di_mm_cfg_s));
 	} else if (!cfggch(pch, 4K)) {
 		memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
 	} else if (sgn <= EDI_SGN_HD) {
@@ -2756,7 +2791,9 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		memcpy(&mm->cfg, &c_mm_cfg_bypass, sizeof(struct di_mm_cfg_s));
 	}
 
-	if ((cfggch(pch, POUT_FMT) <= 2))
+	if (pch->ponly && dip_is_ponly_sct_mem(pch))
+		mm->cfg.dis_afbce = 0;
+	else if ((cfggch(pch, POUT_FMT) <= 2))
 		mm->cfg.dis_afbce = 1;
 
 	if (cfgg(FIX_BUF))

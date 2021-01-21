@@ -326,6 +326,8 @@ void pre_cfg_cvs(struct vframe_s *vf);//debug only
 void dbg_pip_func(struct di_ch_s *pch, unsigned int mode);
 bool dip_is_support_4k(unsigned int ch);
 bool dip_is_support_nv2110(unsigned int ch);
+bool dip_is_4k_sct_mem(struct di_ch_s *pch);
+bool dip_is_ponly_sct_mem(struct di_ch_s *pch);
 
 void dim_vf_x_y(struct vframe_s *vf, unsigned int *x, unsigned int *y);
 

@@ -2246,7 +2246,9 @@ static int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 		mm->cfg.pst_afbct_size	= afbc_tab_size;
 
 		#ifdef CFG_BUF_ALLOC_SP
-		if ((cfgg(ALLOC_SCT) == 1) && is_4k) {
+		if (is_4k && dip_is_4k_sct_mem(pch)) {
+			mm->cfg.size_post	= mm->cfg.pst_afbci_size;
+		} else if (pch->ponly && dip_is_ponly_sct_mem(pch)) {
 			mm->cfg.size_post	= mm->cfg.pst_afbci_size;
 		} else if (dip_itf_is_ins_exbuf(pch)) {
 			mm->cfg.size_post	= mm->cfg.pst_afbci_size;
@@ -2279,7 +2281,9 @@ static int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 	else
 		mm->cfg.pbuf_flg.b.dw = 0;
 
-	if ((cfgg(ALLOC_SCT) == 1) && is_4k)
+	if (is_4k && dip_is_4k_sct_mem(pch))
+		mm->cfg.pbuf_flg.b.typ = EDIM_BLK_TYP_PSCT;
+	else if (pch->ponly && dip_is_ponly_sct_mem(pch))
 		mm->cfg.pbuf_flg.b.typ = EDIM_BLK_TYP_PSCT;
 	else
 		mm->cfg.pbuf_flg.b.typ = EDIM_BLK_TYP_OLDP;
@@ -5498,8 +5502,10 @@ static void re_build_buf(struct di_ch_s *pch, enum EDI_SGN sgn)
 	if (post_nub && post_nub < POST_BUF_NUM)
 		mm->cfg.num_post = post_nub;
 
-	if (!is_4k &&
-	    ((cfggch(pch, POUT_FMT) == 4) || (cfggch(pch, POUT_FMT) == 6)))
+	if (pch->ponly && dip_is_ponly_sct_mem(pch))
+		mm->cfg.dis_afbce = 0;
+	else if ((!is_4k &&
+	     ((cfggch(pch, POUT_FMT) == 4) || (cfggch(pch, POUT_FMT) == 6))))
 		mm->cfg.dis_afbce = 1;
 	else
 		mm->cfg.dis_afbce = 0;
@@ -5742,7 +5748,12 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		change_type = is_source_change(vframe, channel);
 		if (!bypassr && change_type) {
 			sgn = di_vframe_2_sgn(vframe);
-			if (sgn != ppre->sgn_lv	&&
+			if (pch->ponly && dip_is_ponly_sct_mem(pch)) {
+				if (sgn != ppre->sgn_lv)
+					PR_INF("%s:p:%d->%d\n", __func__,
+				       ppre->sgn_lv, sgn);
+				       ppre->sgn_lv = sgn;
+			} else if ((sgn != ppre->sgn_lv)	&&
 			    dim_afds()			&&
 			    dip_is_support_4k(channel) &&
 			    ((sgn == EDI_SGN_4K &&
@@ -6209,7 +6220,9 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 					VIDTYPE_INTERLACE_BOTTOM;
 				di_buf_tmp->post_proc_flag = 0;
 				/*keep dec vf*/
-				if (cfggch(pch, KEEP_DEC_VF) == 1)
+				if (pch->ponly && dip_is_ponly_sct_mem(pch))
+					di_buf_tmp->dec_vf_state = DI_BIT0;
+				else if (cfggch(pch, KEEP_DEC_VF) == 1)
 					di_buf_tmp->dec_vf_state = DI_BIT0;
 				else if ((cfggch(pch, KEEP_DEC_VF) == 2) &&
 					 (ppre->sgn_lv == EDI_SGN_4K))
@@ -6365,7 +6378,10 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		di_buf->di_wr_linked_buf = NULL;
 		di_buf->c.src_is_i = false;
 		//if (dim_cfg_pre_nv21(0)) {
-		if ((cfggch(pch, POUT_FMT) == 1) || (cfggch(pch, POUT_FMT) == 2)) {
+		if (pch->ponly && dip_is_ponly_sct_mem(pch)) {
+			nv21_flg = 0;
+			di_buf->flg_nv21 = 0;
+		} else if ((cfggch(pch, POUT_FMT) == 1) || (cfggch(pch, POUT_FMT) == 2)) {
 			nv21_flg = 1; /*nv21*/
 			di_buf->flg_nv21 = cfggch(pch, POUT_FMT);
 		} else if ((cfggch(pch, POUT_FMT) == 5) &&
@@ -6375,7 +6391,9 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		}
 		/*keep dec vf*/
 		//di_buf->dec_vf_state = DI_BIT0;
-		if (cfggch(pch, KEEP_DEC_VF) == 1)
+		if (pch->ponly && dip_is_ponly_sct_mem(pch))
+			ppre->di_inp_buf->dec_vf_state = DI_BIT0;
+		else if (cfggch(pch, KEEP_DEC_VF) == 1)
 			ppre->di_inp_buf->dec_vf_state = DI_BIT0;
 		else if ((cfggch(pch, KEEP_DEC_VF) == 2) &&
 			 (ppre->sgn_lv == EDI_SGN_4K))
@@ -6500,9 +6518,22 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		if (ppre->cur_inp_type & VIDTYPE_PRE_INTERLACE)
 			di_buf->vframe->type |= VIDTYPE_PRE_INTERLACE;
 
-		if (ppre->prog_proc_type == 0x10 &&
-		    (nv21_flg || (cfggch(pch, POUT_FMT) == 0) ||
-		    (((cfggch(pch, POUT_FMT) == 4) ||
+		if (pch->ponly && dip_is_ponly_sct_mem(pch)) {
+			if (dim_afds() && dim_afds()->cnt_sgn_mode) {
+				if (IS_COMP_MODE
+				   (ppre->di_inp_buf->vframe->type)) {
+					di_buf->afbc_sgn_cfg =
+					dim_afds()->cnt_sgn_mode
+						(AFBC_SGN_P_H265);
+				} else {
+					di_buf->afbc_sgn_cfg =
+					dim_afds()->cnt_sgn_mode(AFBC_SGN_P);
+				}
+			}
+		} else if (ppre->prog_proc_type == 0x10 &&
+		    (nv21_flg				||
+		     (cfggch(pch, POUT_FMT) == 0)	||
+		     (((cfggch(pch, POUT_FMT) == 4) ||
 		      (cfggch(pch, POUT_FMT) == 5) ||
 		      (cfggch(pch, POUT_FMT) == 6)) &&
 		     (ppre->sgn_lv <= EDI_SGN_HD)))) {
