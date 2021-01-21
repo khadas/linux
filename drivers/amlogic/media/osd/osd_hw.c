@@ -1232,33 +1232,96 @@ static bool is_encp(u32 viu_type)
 	return ret;
 }
 
+static int get_venc_type(u32 viu_type)
+{
+	u32 venc_type = 0;
+
+	if (osd_dev_hw.t7_display) {
+		u32 venc_mux = 3;
+		u32 venc_addr = VPU_VENC_CTRL;
+
+		venc_mux = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux >>= (viu_type * 2);
+		venc_mux &= 0x3;
+
+		switch (venc_mux) {
+		case 0:
+			venc_addr = VPU_VENC_CTRL;
+			break;
+		case 1:
+			venc_addr = VPU1_VENC_CTRL;
+			break;
+		case 2:
+			venc_addr = VPU2_VENC_CTRL;
+			break;
+		}
+		venc_type = osd_reg_read(venc_addr);
+	} else {
+		if (viu_type == VIU1)
+			venc_type = osd_reg_read(VPU_VIU_VENC_MUX_CTRL);
+		else if (viu_type == VIU2)
+			venc_type = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) >> 2;
+	}
+
+	venc_type &= 0x3;
+
+	return venc_type;
+}
+
 static int get_active_begin_line(u32 viu_type)
 {
 	int active_line_begin = 0;
-	u32 viu = VIU1;
+	u32 offset = 0;
+	u32 reg = ENCL_VIDEO_VAVON_BLINE;
 
-	if (viu_type == VIU1)
-		viu = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3;
-	else if (viu_type == VIU2)
-		viu = (osd_reg_read(VPU_VIU_VENC_MUX_CTRL) >> 2) & 0x3;
-	switch (viu) {
-	case 0:
-		active_line_begin =
-			osd_reg_read(ENCL_VIDEO_VAVON_BLINE);
-		break;
-	case 1:
-		active_line_begin =
-			osd_reg_read(ENCI_VFIFO2VD_LINE_TOP_START);
-		break;
-	case 2:
-		active_line_begin =
-			osd_reg_read(ENCP_VIDEO_VAVON_BLINE);
-		break;
-	case 3:
-		active_line_begin =
-			osd_reg_read(ENCT_VIDEO_VAVON_BLINE);
-		break;
+	if (osd_dev_hw.t7_display) {
+		u32 venc_mux = 3;
+
+		venc_mux = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux >>= (viu_type * 2);
+		venc_mux &= 0x3;
+
+		switch (venc_mux) {
+		case 0:
+			offset = 0;
+			break;
+		case 1:
+			offset = 0x600;
+			break;
+		case 2:
+			offset = 0x800;
+			break;
+		}
+		switch (get_venc_type(viu_type)) {
+		case 0:
+			reg = ENCI_VFIFO2VD_LINE_TOP_START;
+			break;
+		case 1:
+			reg = ENCP_VIDEO_VAVON_BLINE;
+			break;
+		case 2:
+			reg = ENCL_VIDEO_VAVON_BLINE;
+			break;
+		}
+
+	} else {
+		switch (get_venc_type(viu_type)) {
+		case 0:
+			reg = ENCL_VIDEO_VAVON_BLINE;
+			break;
+		case 1:
+			reg = ENCI_VFIFO2VD_LINE_TOP_START;
+			break;
+		case 2:
+			reg = ENCP_VIDEO_VAVON_BLINE;
+			break;
+		case 3:
+			reg = ENCT_VIDEO_VAVON_BLINE;
+			break;
+		}
 	}
+
+	active_line_begin = osd_reg_read(reg + offset);
 
 	return active_line_begin;
 }
@@ -1266,28 +1329,59 @@ static int get_active_begin_line(u32 viu_type)
 static int get_encp_line(u32 viu_type)
 {
 	int enc_line = 0;
-	unsigned int reg = 0;
-	u32 viu = VIU1;
+	unsigned int reg = VPU_VENCI_STAT;
+	unsigned int reg_val = 0;
+	u32 offset = 0;
+	u32 venc_type = get_venc_type(viu_type);
 
-	if (viu_type == VIU1)
-		viu = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3;
-	else if (viu_type == VIU2)
-		viu = (osd_reg_read(VPU_VIU_VENC_MUX_CTRL) >> 2) & 0x3;
-	switch (viu) {
-	case 0:
-		reg = osd_reg_read(ENCL_INFO_READ);
-		break;
-	case 1:
-		reg = osd_reg_read(ENCI_INFO_READ);
-		break;
-	case 2:
-		reg = osd_reg_read(ENCP_INFO_READ);
-		break;
-	case 3:
-		reg = osd_reg_read(ENCT_INFO_READ);
-		break;
+	if (osd_dev_hw.t7_display) {
+		u32 venc_mux = 3;
+
+		venc_mux = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux >>= (viu_type * 2);
+		venc_mux &= 0x3;
+		switch (venc_mux) {
+		case 0:
+			offset = 0;
+			break;
+		case 1:
+			offset = 0x600;
+			break;
+		case 2:
+			offset = 0x800;
+			break;
+		}
+		switch (venc_type) {
+		case 0:
+			reg = VPU_VENCI_STAT;
+			break;
+		case 1:
+			reg = VPU_VENCP_STAT;
+			break;
+		case 2:
+			reg = VPU_VENCL_STAT;
+			break;
+		}
+	} else {
+		switch (venc_type) {
+		case 0:
+			reg = ENCL_INFO_READ;
+			break;
+		case 1:
+			reg = ENCI_INFO_READ;
+			break;
+		case 2:
+			reg = ENCP_INFO_READ;
+			break;
+		case 3:
+			reg = ENCT_INFO_READ;
+			break;
+		}
 	}
-	enc_line = (reg >> 16) & 0x1fff;
+
+	reg_val = osd_reg_read(reg + offset);
+
+	enc_line = (reg_val >> 16) & 0x1fff;
 
 	return enc_line;
 }
