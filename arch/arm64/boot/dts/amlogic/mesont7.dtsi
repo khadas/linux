@@ -1405,15 +1405,15 @@
 		link-device = <&isp_sc>;
 		att-device = <&isp_flicker>;
 		cmpr-device = <&isp_cmpr>;
+		md-device = <&isp_md>;
 	};
 	adapter: isp-adapter@fe3b0000 {
 		compatible = "amlogic, isp-adapter";
-		reg = <0x0 0xfe3b0000 0x0 0x00001400>,
+		reg = <0x0 0xfe3b0000 0x0 0x00005800>,
 		      <0x0 0xfe3b0800 0x0 0x00000400>;
 		reg-names = "adapter","adapter2";
-		interrupts = <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "adapter-irq","adapter2-irq";
+		interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "adapter-irq";
 	};
 	phycsi: phy-csi@fe3be000 {
 		compatible = "amlogic, phy-csi";
