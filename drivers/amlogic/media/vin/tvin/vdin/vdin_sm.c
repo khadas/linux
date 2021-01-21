@@ -292,6 +292,38 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			}
 		}
 
+		if (devp->pre_prop.latency.it_content !=
+		    devp->prop.latency.it_content) {
+			if (devp->dv.allm_chg_cnt > vdin_dv_chg_cnt) {
+				devp->dv.allm_chg_cnt = 0;
+				signal_chg |= TVIN_SIG_CHG_DV_ALLM;
+				temp = devp->pre_prop.latency.it_content;
+				if (signal_chg)
+					pr_info("%s it_content chg:(0x%x->0x%x)\n",
+						__func__,
+						temp,
+						devp->prop.latency.it_content);
+				devp->pre_prop.latency.it_content =
+					devp->prop.latency.it_content;
+			}
+		}
+
+		if (devp->pre_prop.latency.cn_type !=
+		    devp->prop.latency.cn_type) {
+			if (devp->dv.allm_chg_cnt > vdin_dv_chg_cnt) {
+				devp->dv.allm_chg_cnt = 0;
+				signal_chg |= TVIN_SIG_CHG_DV_ALLM;
+				temp = devp->pre_prop.latency.cn_type;
+				if (signal_chg)
+					pr_info("%s cn_type chg:(0x%x->0x%x)\n",
+						__func__,
+						temp,
+						devp->prop.latency.cn_type);
+				devp->pre_prop.latency.cn_type =
+					devp->prop.latency.cn_type;
+			}
+		}
+
 		if (devp->pre_prop.fps != devp->prop.fps) {
 			signal_chg |= TVIN_SIG_CHG_VS_FRQ;
 			pr_info("%s fps chg:(0x%x->0x%x)\n", __func__,
