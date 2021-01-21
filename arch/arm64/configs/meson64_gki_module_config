@@ -149,6 +149,9 @@ CONFIG_AMLOGIC_ATV_DEMOD=y
 # meson-leds-tlc59116.ko
 CONFIG_AMLOGIC_LEDS_TLC59116=m
 
+#meson-leds-state.ko
+CONFIG_AMLOGIC_LEDS_STATE=m
+
 # meson-clk-debug.ko
 CONFIG_AMLOGIC_CLK_DEBUG=m
 

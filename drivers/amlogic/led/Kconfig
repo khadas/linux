@@ -22,4 +22,13 @@ config AMLOGIC_LEDS_TLC59116
 	help
 	  Choose this option if you want to use the LED on
 	  TLC59116.
+
+config AMLOGIC_LEDS_STATE
+	tristate "LED state support"
+	depends on LEDS_CLASS
+	default n
+	help
+	  Choose this option if you want to use the LED state
+		and led function
+
 endif

@@ -1,7 +1,9 @@
 LEDs connected to tlc59116
+LEDS STATE
 
 Required properties
 - compatible: should be "amlogic,tlc59116_led"
+- compatible: should be "amlogic,state-led-aocpu"
 - #address-cells: must be 1
 - #size-cells: must be 0
 - reg: typically 0x60
@@ -22,3 +24,7 @@ tlc59116: tlc59116@60 {
 	};
 };
 
+state_led: state_led {
+		compatible = "amlogic,state-led-aocpu";
+		status = "disabled";
+	};
