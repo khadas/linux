@@ -87,6 +87,9 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 			    unsigned int  argv);
 static enum hdmi_vic get_vic_from_pkt(void);
 
+typedef void (*pf_callbakck)(bool st);
+static pf_callbakck earc_hdmitx_hpdst;
+
 #define EDID_RAM_ADDR_SIZE	 (8)
 
 /* HSYNC polarity: active high */
@@ -178,6 +181,19 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 	return 0;
 }
 EXPORT_SYMBOL(hdmitx_ddc_hw_op);
+
+int register_earcrx_callback(pf_callbakck callback)
+{
+	earc_hdmitx_hpdst = callback;
+	return 0;
+}
+EXPORT_SYMBOL(register_earcrx_callback);
+
+void unregister_earcrx_callback(void)
+{
+	earc_hdmitx_hpdst = NULL;
+}
+EXPORT_SYMBOL(unregister_earcrx_callback);
 
 static int hdcp_topo_st = -1;
 static int hdcp22_susflag;
@@ -772,6 +788,8 @@ static irqreturn_t intr_handler(int irq, void *dev)
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
 		hdev->rhpd_state = 1;
 		hdmitx_phy_bandgap_en(hdev);
+		if (earc_hdmitx_hpdst)
+			earc_hdmitx_hpdst(true);
 		queue_delayed_work(hdev->hdmi_wq,
 				   &hdev->work_hpd_plugin, HZ / 2);
 	}
@@ -782,6 +800,8 @@ static irqreturn_t intr_handler(int irq, void *dev)
 		hdev->hdmitx_event |= HDMI_TX_HPD_PLUGOUT;
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 		hdev->rhpd_state = 0;
+		if (earc_hdmitx_hpdst)
+			earc_hdmitx_hpdst(false);
 		queue_delayed_work(hdev->hdmi_wq,
 			&hdev->work_hpd_plugout, 0);
 	}

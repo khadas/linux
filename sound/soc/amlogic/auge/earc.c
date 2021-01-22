@@ -2288,6 +2288,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 	if (!IS_ERR(p_earc->rx_top_map)) {
 		earcrx_extcon_register(p_earc);
 		earcrx_cmdc_setup(p_earc);
+		register_earcrx_callback(earc_hdmitx_hpdst);
 	}
 
 	/* TX */
@@ -2307,12 +2308,21 @@ static int earc_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
+int earc_platform_remove(struct platform_device *pdev)
+{
+	unregister_earcrx_callback();
+	s_earc = NULL;
+	snd_soc_unregister_component(&pdev->dev);
+	return 0;
+}
+
 struct platform_driver earc_driver = {
 	.driver = {
 		.name           = DRV_NAME,
 		.of_match_table = earc_device_id,
 	},
 	.probe = earc_platform_probe,
+	.remove = earc_platform_remove,
 };
 
 int __init earc_init(void)

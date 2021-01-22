@@ -8,6 +8,7 @@
 #define __HDMI_EARC_H__
 
 void earc_hdmirx_hpdst(int port, bool st);
-void earc_hdmitx_hpdst(bool st);
+int register_earcrx_callback(void (*callbakck)(bool st));
+void unregister_earcrx_callback(void);
 
 #endif
