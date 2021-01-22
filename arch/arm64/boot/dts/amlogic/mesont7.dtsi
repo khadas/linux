@@ -2291,6 +2291,11 @@
 		compatible = "amlogic, meson-t7, lut_dma";
 		status = "okay";
 	};
+
+	state_led:state_led {
+		compatible = "amlogic,state-led-aocpu";
+		status = "disabled";
+	};
 };
 
 &periphs_pinctrl {
