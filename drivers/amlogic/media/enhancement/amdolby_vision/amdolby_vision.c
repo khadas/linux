@@ -381,6 +381,8 @@ static bool force_set_lut;
 static u32 first_reseted;
 
 static char *ko_info;
+static char total_chip_name[20];
+static char chip_name[5] = "null";
 
 /*bit0: copy core1a to core1b;  bit1: copy core1a to core1c*/
 static int copy_core1a;
@@ -12763,6 +12765,43 @@ static ssize_t amdolby_vision_bin_config_show
 	return 0;
 }
 
+static int get_chip_name(void)
+{
+	char *check = "chip_name = ";
+	int check_len = 0;
+	int name_len = 0;
+	int total_name_len;
+
+	if (is_meson_g12())
+		snprintf(chip_name, sizeof("g12"), "%s", "g12");
+	else if (is_meson_txlx())
+		snprintf(chip_name, sizeof("txlx"), "%s", "txlx");
+	else if (is_meson_gxm())
+		snprintf(chip_name, sizeof("gxm"), "%s", "gxm");
+	else if (is_meson_tm2())
+		snprintf(chip_name, sizeof("tm2"), "%s", "tm2");
+	else if (is_meson_sc2())
+		snprintf(chip_name, sizeof("sc2"), "%s", "sc2");
+	else if (is_meson_t7())
+		snprintf(chip_name, sizeof("t7"), "%s", "t7");
+	else
+		snprintf(chip_name, sizeof("null"), "%s", "null");
+
+	check_len = strlen(check);
+	name_len = strlen(chip_name);
+
+	total_name_len =
+		check_len + name_len + 1;
+
+	if (total_name_len < sizeof(total_chip_name))
+		snprintf(total_chip_name,
+			total_name_len,
+			"%s%s",
+			check,
+			chip_name);
+	return total_name_len;
+}
+
 int register_dv_functions(const struct dolby_vision_func_s *func)
 {
 	int ret = -1;
@@ -12771,6 +12810,8 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 	struct pq_config_s *pq_config;
 	const struct vinfo_s *vinfo = get_current_vinfo();
 	unsigned int ko_info_len = 0;
+	int total_name_len = 0;
+	char *get_ko = NULL;
 
 	/*when dv ko load into kernel, this flag will be disabled
 	 *otherwise it will effect hdr module
@@ -12786,6 +12827,16 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		dolby_vision_wait_on = false;
 		dolby_vision_wait_init = false;
 		dolby_vision_on_in_uboot = 0;
+	}
+
+	if (is_meson_t7()) {
+		total_name_len = get_chip_name();
+		get_ko = strstr(func->version_info, total_chip_name);
+
+		if (!get_ko) {
+			pr_info("error: dolby vision get fail ko, version: %s", func->version_info);
+			return ret;
+		}
 	}
 
 	if ((!p_funcs_stb || !p_funcs_tv) && func) {
