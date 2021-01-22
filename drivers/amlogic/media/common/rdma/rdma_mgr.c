@@ -29,6 +29,7 @@
 #include <linux/of_fdt.h>
 #include <linux/reset.h>
 
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
 #include <linux/amlogic/media/vpu/vpu.h>
@@ -1491,6 +1492,8 @@ static int __init rdma_probe(struct platform_device *pdev)
 	u32 data32;
 	int int_rdma;
 	int handle;
+	const void *prop;
+	int rdma_table_size;
 	struct rdma_device_info *info = &rdma_info;
 
 	int_rdma = platform_get_irq_byname(pdev, "rdma");
@@ -1522,9 +1525,17 @@ static int __init rdma_probe(struct platform_device *pdev)
 		pr_err("dev %s NOT found\n", __func__);
 		return -ENODEV;
 	}
-	pr_info("%s,cpu_type:%d, ver:%d, len:%d\n", __func__,
+	/* get rdma_table_size resource  */
+	rdma_table_size = RDMA_TABLE_SIZE;
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+		rdma_table_size = 16 * PAGE_SIZE;
+		prop = of_get_property(pdev->dev.of_node, "rdma_table_page_count", NULL);
+		if (prop)
+			rdma_table_size = of_read_ulong(prop, 1) * PAGE_SIZE;
+	}
+	pr_info("%s,cpu_type:%d, ver:%d, len:%d,rdma_table_size:%d\n", __func__,
 		rdma_meson_dev.cpu_type,
-		rdma_meson_dev.rdma_ver, rdma_meson_dev.trigger_mask_len);
+		rdma_meson_dev.rdma_ver, rdma_meson_dev.trigger_mask_len, rdma_table_size);
 
 	rdma_vpu_dev = vpu_dev_register(VPU_RDMA, "rdma");
 	vpu_dev_mem_power_on(rdma_vpu_dev);
@@ -1588,10 +1599,10 @@ static int __init rdma_probe(struct platform_device *pdev)
 	info->rdma_dev = pdev;
 
 	handle = rdma_register(get_rdma_ops(VSYNC_RDMA),
-			       NULL, RDMA_TABLE_SIZE);
+			       NULL, rdma_table_size);
 	set_rdma_handle(VSYNC_RDMA, handle);
 	handle = rdma_register(get_rdma_ops(VSYNC_RDMA_READ),
-			       NULL, RDMA_TABLE_SIZE);
+			       NULL, rdma_table_size);
 	set_rdma_handle(VSYNC_RDMA_READ, handle);
 
 	create_rdma_mgr_class();

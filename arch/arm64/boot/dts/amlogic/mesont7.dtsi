@@ -1741,6 +1741,7 @@
 		/* after sc2 */
 		reset-names = "rdma";
 		resets = <&reset RESET_RDMA>;
+		rdma_table_page_count = <16>;
 	};
 
 	vclk_serve: vclk_serve {
