@@ -3675,6 +3675,19 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
 	 * even if a suitable page happened to be free.
 	 */
 #ifdef CONFIG_AMLOGIC_CMA
+	/* cma first after system boot, dont care the watermark when:
+	 * 1) total ram is smaller than 1G or
+	 * 2) cma pages is more than 30% of totalram  (total - reserved)
+	 */
+	if ((totalcma_pages * 10 > 3 * totalram_pages() ||
+		totalram_pages() < 262144) &&
+		(system_state == SYSTEM_RUNNING &&
+		unlikely(!cma_first_wm_low))) {
+		cma_first_wm_low = true;
+		pr_info("Now can use cma1, free:%ld, wm:%ld, cma:%ld, total:%ld\n",
+			free_pages, min + z->lowmem_reserve[classzone_idx],
+			totalcma_pages, totalram_pages());
+	}
 	if (free_pages <= min + z->lowmem_reserve[classzone_idx]) {
 		/* do not using cma until water mark is low */
 		if (unlikely(!cma_first_wm_low && free_pages > 0)) {
