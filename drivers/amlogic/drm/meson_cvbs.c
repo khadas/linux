@@ -18,6 +18,7 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 
+#include "meson_crtc.h"
 #include "meson_cvbs.h"
 #include <vout/cvbs/cvbs_out.h>
 
@@ -31,7 +32,7 @@ static struct drm_display_mode cvbs_mode[] = {
 		.hsync_end = 1430,
 		.htotal = 1716,
 		.hskew = 0,
-		.vdisplay = 480,
+		.vdisplay = 240,//TODO: follow vout field_height, vdisplay is 1/2 height;
 		.vsync_start = 725,
 		.vsync_end = 730,
 		.vtotal = 750,
@@ -48,7 +49,7 @@ static struct drm_display_mode cvbs_mode[] = {
 		.hsync_end = 1430,
 		.htotal = 1650,
 		.hskew = 0,
-		.vdisplay = 576,
+		.vdisplay = 288,//TODO: follow vout field_height, vdisplay is 1/2 height;
 		.vsync_start = 725,
 		.vsync_end = 730,
 		.vtotal = 750,
@@ -202,38 +203,38 @@ static const struct drm_connector_funcs am_cvbs_connector_funcs = {
 };
 
 void am_cvbs_encoder_mode_set(struct drm_encoder *encoder,
-			      struct drm_display_mode *mode,
-				   struct drm_display_mode *adjusted_mode)
+	struct drm_crtc_state *crtc_state,
+	struct drm_connector_state *conn_state)
 {
-	DRM_INFO("mode : %s, adjusted_mode : %s\n",
-		 mode->name,  adjusted_mode->name);
-
-	get_valid_vinfo(adjusted_mode->name);
 }
 
-void am_cvbs_encoder_enable(struct drm_encoder *encoder)
+void am_cvbs_encoder_enable(struct drm_encoder *encoder,
+	struct drm_atomic_state *state)
 {
 	enum vmode_e vmode = get_current_vmode();
+	struct am_meson_crtc_state *meson_crtc_state = to_am_meson_crtc_state(encoder->crtc->state);
+
+	if (meson_crtc_state->uboot_mode_init == 1)
+		vmode |= VMODE_INIT_BIT_MASK;
 
 	set_vout_mode_pre_process(vmode);
-	cvbs_set_current_vmode(VMODE_CVBS);
+	cvbs_set_current_vmode(vmode);
 	set_vout_mode_post_process(vmode);
 }
 
-void am_cvbs_encoder_disable(struct drm_encoder *encoder)
+void am_cvbs_encoder_disable(struct drm_encoder *encoder,
+	struct drm_atomic_state *state)
 {
 	struct am_drm_cvbs_s *am_drm_cvbs = encoder_to_cvbs(encoder);
-	struct drm_connector_state *state = am_drm_cvbs->connector.state;
+	struct drm_connector_state *con_state = am_drm_cvbs->connector.state;
 
-	state->content_protection = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
+	con_state->content_protection = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
 }
 
-static const struct drm_encoder_helper_funcs
-	am_cvbs_encoder_helper_funcs = {
-	.mode_set	= am_cvbs_encoder_mode_set,
-	.enable		= am_cvbs_encoder_enable,
-	.disable	= am_cvbs_encoder_disable,
-
+static const struct drm_encoder_helper_funcs am_cvbs_encoder_helper_funcs = {
+	.atomic_mode_set = am_cvbs_encoder_mode_set,
+	.atomic_enable = am_cvbs_encoder_enable,
+	.atomic_disable = am_cvbs_encoder_disable,
 };
 
 static const struct drm_encoder_funcs am_cvbs_encoder_funcs = {

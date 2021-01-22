@@ -15,6 +15,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 
+#include "meson_crtc.h"
 #include "meson_lcd.h"
 
 struct am_drm_lcd_s {
@@ -211,16 +212,18 @@ static const struct drm_connector_funcs am_lcd_connector_funcs = {
 };
 
 static void am_lcd_encoder_mode_set(struct drm_encoder *encoder,
-				    struct drm_display_mode *mode,
-				   struct drm_display_mode *adjusted_mode)
+			struct drm_crtc_state *crtc_state,
+			struct drm_connector_state *conn_state)
 {
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 }
 
-static void am_lcd_encoder_enable(struct drm_encoder *encoder)
+static void am_lcd_encoder_enable(struct drm_encoder *encoder,
+	struct drm_atomic_state *state)
 {
 	enum vmode_e vmode = get_current_vmode();
 	struct am_drm_lcd_s *lcd = encoder_to_lcd(encoder);
+	struct am_meson_crtc_state *meson_crtc_state = to_am_meson_crtc_state(encoder->crtc->state);
 
 	if (!lcd)
 		return;
@@ -231,6 +234,9 @@ static void am_lcd_encoder_enable(struct drm_encoder *encoder)
 		DRM_DEBUG("enable\n");
 	else
 		DRM_DEBUG("enable fail! vmode:%d\n", vmode);
+
+	if (meson_crtc_state->uboot_mode_init == 1)
+		vmode |= VMODE_INIT_BIT_MASK;
 
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &vmode);
@@ -256,7 +262,8 @@ static void am_lcd_encoder_enable(struct drm_encoder *encoder)
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 }
 
-static void am_lcd_encoder_disable(struct drm_encoder *encoder)
+static void am_lcd_encoder_disable(struct drm_encoder *encoder,
+	struct drm_atomic_state *state)
 {
 	struct am_drm_lcd_s *lcd = encoder_to_lcd(encoder);
 
@@ -273,29 +280,23 @@ static void am_lcd_encoder_disable(struct drm_encoder *encoder)
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 }
 
-static void am_lcd_encoder_commit(struct drm_encoder *encoder)
-{
-	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
-}
-
 static int am_lcd_encoder_atomic_check(struct drm_encoder *encoder,
-				       struct drm_crtc_state *crtc_state,
-				struct drm_connector_state *conn_state)
+	struct drm_crtc_state *crtc_state,
+	struct drm_connector_state *conn_state)
 {
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 	return 0;
 }
 
 static const struct drm_encoder_helper_funcs am_lcd_encoder_helper_funcs = {
-	.commit = am_lcd_encoder_commit,
-	.mode_set = am_lcd_encoder_mode_set,
-	.enable = am_lcd_encoder_enable,
-	.disable = am_lcd_encoder_disable,
+	.atomic_mode_set = am_lcd_encoder_mode_set,
+	.atomic_enable = am_lcd_encoder_enable,
+	.atomic_disable = am_lcd_encoder_disable,
 	.atomic_check = am_lcd_encoder_atomic_check,
 };
 
 static const struct drm_encoder_funcs am_lcd_encoder_funcs = {
-	.destroy        = drm_encoder_cleanup,
+	.destroy = drm_encoder_cleanup,
 };
 
 static int am_lcd_disable(struct drm_panel *panel)

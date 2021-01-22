@@ -293,14 +293,14 @@ static int am_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
 }
 
 static const struct drm_encoder_helper_funcs am_hdmi_encoder_helper_funcs = {
-	.atomic_mode_set	= am_hdmi_encoder_atomic_mode_set,
-	.atomic_enable	= am_hdmi_encoder_atomic_enable,
-	.atomic_disable	= am_hdmi_encoder_atomic_disable,
-	.atomic_check	= am_hdmi_encoder_atomic_check,
+	.atomic_mode_set = am_hdmi_encoder_atomic_mode_set,
+	.atomic_enable = am_hdmi_encoder_atomic_enable,
+	.atomic_disable = am_hdmi_encoder_atomic_disable,
+	.atomic_check = am_hdmi_encoder_atomic_check,
 };
 
 static const struct drm_encoder_funcs am_hdmi_encoder_funcs = {
-	.destroy        = drm_encoder_cleanup,
+	.destroy = drm_encoder_cleanup,
 };
 
 static const struct of_device_id am_meson_hdmi_dt_ids[] = {
