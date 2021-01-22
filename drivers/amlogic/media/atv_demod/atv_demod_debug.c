@@ -208,9 +208,6 @@ static const struct file_operations dfs_fops = {
 	.read  = debugfs_read,
 	.write = debugfs_write,
 };
-#else
-DEBUG_FS_CREATE_NODES(NULL);
-DEBUG_FS_CREATE_FILES(NULL, NULL);
 #endif
 
 int aml_atvdemod_create_debugfs(const char *name)
