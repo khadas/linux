@@ -658,31 +658,16 @@
 			interrupts = <0 129 4>;
 		};
 
-		usb0: usb@fde00000 {
-			compatible = "amlogic,meson-g12a-dwc3";
-			status = "disable";
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
-
+		crg: crg@fde00000 {
+			compatible = "amlogic, crg";
+			status = "disabled";
+			reg = <0x0 0xfde00000 0x0 0x100000>;
+			interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+			usb-phy = <&usb2_phy_v2>, <&usb3_phy_v2>;
+			cpu-type = "gxl";
+			clock-src = "usb3.0";
 			clocks = <&clkc CLKID_USB>;
-			clock-names = "usb_general";
-
-			dwc3: dwc3@fde00000 {
-				compatible = "snps,dwc3";
-				reg = <0x0 0xfde00000 0x0 0x100000>;
-				interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
-				dr_mode = "host";
-				maximum-speed = "high-speed";
-				snps,dis_u2_susphy_quirk;
-				snps,quirk-frame-length-adjustment;
-				usb-phy = <&usb2_phy_v2>, <&usb3_phy_v2>;
-				clocks = <&clkc CLKID_USB>;
-				clock-names = "usb_general";
-				/*usb5v-supply = <&ao_5v>;*/
-				/*usb3v3-supply = <&vddao_3v3>;*/
-				/*usb1v8-supply = <&vddio_ao1v8>;*/
-			};
+			clock-names = "crg_general";
 		};
 
 		dummy_codec:dummy{
