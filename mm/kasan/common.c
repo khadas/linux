@@ -81,11 +81,13 @@ void kasan_enable_current(void)
 {
 	current->kasan_depth++;
 }
+EXPORT_SYMBOL(kasan_enable_current);
 
 void kasan_disable_current(void)
 {
 	current->kasan_depth--;
 }
+EXPORT_SYMBOL(kasan_disable_current);
 
 bool __kasan_check_read(const volatile void *p, unsigned int size)
 {
