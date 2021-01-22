@@ -63,9 +63,10 @@
 			alignment = <0x400000>;
 		};
 		/*di CMA pool */
-		di_cma_reserved:linux,di_cma {
-			compatible = "shared-dma-pool";
-			reusable;
+		//di_cma_reserved:linux,di_cma {
+			//compatible = "shared-dma-pool";
+			//status = "okay";
+			//reusable;
 			/* buffer_size = 3621952(yuv422 8bit)
 			 *  | 4736064(yuv422 10bit)
 			 *  | 4074560(yuv422 10bit full pack mode)
@@ -74,9 +75,9 @@
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
 			//size = <0x0B000000>;
-			size = <0x0>;
-			alignment = <0x400000>;
-		};
+			//size = <0x0>;
+			//alignment = <0x400000>;
+		//};
 
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
@@ -276,7 +277,7 @@
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
 		flag_cma = <4>;	//<1>;
 		//memory-region = <&di_reserved>;
-		memory-region = <&di_cma_reserved>;
+		//memory-region = <&di_cma_reserved>;
 		interrupts = <0 203 1
 				0 202 1>;
 		interrupt-names = "pre_irq", "post_irq";
