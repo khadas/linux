@@ -92,7 +92,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x1b000000>;
+			size = <0x0 0x12000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -137,7 +137,7 @@
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
 		dev_name = "codec_mm";
-		status = "disabled";
+		status = "okay";
 	};
 	amdolby_vision {
 		compatible = "amlogic, dolby_vision_sc2";

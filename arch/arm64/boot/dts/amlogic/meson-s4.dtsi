@@ -1015,7 +1015,7 @@
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
 		dev_name = "mesonstream";
-		status = "disabled";
+		status = "okay";
 		clocks = <&clkc CLKID_DOS
 			&clkc CLKID_VDEC_MUX
 			&clkc CLKID_HCODEC_MUX
@@ -1031,7 +1031,7 @@
 	vdec {
 		compatible = "amlogic, vdec-pm-pd";
 		dev_name = "vdec.0";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 3 1
 			0 23 1
 			0 32 1
@@ -1046,18 +1046,18 @@
 			"mailbox_1",
 			"mailbox_2",
 			"parser_b";
-//		power-domains = <&pwrdm PDID_SC2_DOS_VDEC>,
-//			<&pwrdm PDID_SC2_DOS_HCODEC>,
-//			<&pwrdm PDID_SC2_DOS_HEVC>;
-//		power-domain-names = "pwrc-vdec",
-//			"pwrc-hcodec",
-//			"pwrc-hevc";
+		power-domains = <&pwrdm PDID_S4_DOS_VDEC>,
+			<&pwrdm PDID_S4_DOS_HEVC>;
+		power-domain-names = "pwrc-vdec",
+			"pwrc-hevc";
 	};
-
+	cpu_ver_name {
+		compatible = "amlogic, cpu-major-id-s4";
+	};
 	vcodec_dec {
 		compatible = "amlogic, vcodec-dec";
 		dev_name = "aml-vcodec-dec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	ddr_bandwidth {

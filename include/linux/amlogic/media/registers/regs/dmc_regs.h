@@ -321,4 +321,6 @@
 /* t5 chip used in vdec */
 #define  T5_DMC_CHAN_STS 0xbc
 
+#define S4_DMC_CHAN_STS 0xce
+
 #endif

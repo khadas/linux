@@ -137,7 +137,7 @@
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
 		dev_name = "codec_mm";
-		status = "disabled";
+		status = "okay";
 	};
 	amdolby_vision {
 		compatible = "amlogic, dolby_vision_sc2";
