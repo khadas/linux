@@ -5,6 +5,7 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset/amlogic,meson-t3-reset.h>
 / {
 	cpus:cpus {
 		#address-cells = <2>;
@@ -154,6 +155,12 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xfe000000 0x0 0x480000>;
+
+			reset: reset-controller@2000 {
+				compatible = "amlogic,meson-t7-reset";
+				reg = <0x0 0x2000 0x0 0x98>;
+				#reset-cells = <1>;
+			};
 
 			uart_B: serial@7a000 {
 				compatible = "amlogic,meson-uart";
