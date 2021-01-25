@@ -1721,7 +1721,7 @@ static int dump_mem_infos(void *buf, int size)
 		if (buf) {
 			pbuf += s;
 			if (tsize > size - 256) {
-				s += snprintf(pbuf + s, size - tsize,
+				s = snprintf(pbuf, size - tsize,
 					"\n\t\t**NOT END**\n");
 				tsize += s;
 				break;/*no memory for dump now.*/
