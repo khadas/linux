@@ -213,6 +213,35 @@ static bool dim_bypass_first_frame(struct di_ch_s *pch)
 	return true;
 }
 
+static struct vframe_s *dim_nbypass_get(struct di_ch_s *pch)
+{
+	struct vframe_s *vframe;
+	struct dim_nins_s *nins;
+
+	nins = nins_peek(pch);
+	if (!nins)
+		return NULL;
+
+	nins = nins_get(pch);
+	vframe = nins->c.ori;
+	nins->c.ori = NULL;
+	nins_used_some_to_recycle(pch, nins);
+
+	pw_vf_notify_receiver(pch->ch_id,
+			      VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
+
+	//PR_INF("%s:ok\n", __func__);
+	return vframe;
+}
+
+static struct vframe_s *dim_nbypass_peek(struct di_ch_s *pch)
+{
+	struct vframe_s *vframe;
+
+	vframe = nins_peekvfm(pch);
+	return vframe;
+}
+
 /* @ary_note: api for release */
 void dim_post_keep_cmd_release2_local(struct vframe_s *vframe)
 {
@@ -1161,6 +1190,7 @@ static struct vframe_s *di_vf_peek(void *arg)
 {
 	unsigned int ch = *(int *)arg;
 	struct di_ch_s *pch;
+	struct vframe_s *vfm;
 
 	/*dim_print("%s:ch[%d]\n",__func__,ch);*/
 	pch = get_chdata(ch);
@@ -1171,16 +1201,21 @@ static struct vframe_s *di_vf_peek(void *arg)
 	if (di_is_pause(ch))
 		return NULL;
 
-	if (is_bypss2_complete(ch))
+	if (is_bypss2_complete(ch)) {
+		vfm = dim_nbypass_peek(pch);
+		if (vfm)
+			return vfm;
 		return pw_vf_peek(ch);
-	else
-		return di_vf_l_peek(ch);
+	}
+	return di_vf_l_peek(ch);
 }
 
 static struct vframe_s *di_vf_get(void *arg)
 {
 	unsigned int ch = *(int *)arg;
 	struct di_ch_s *pch;
+	struct vframe_s *vfm;
+
 	/*struct vframe_s *vfm;*/
 	pch = get_chdata(ch);
 
@@ -1195,15 +1230,12 @@ static struct vframe_s *di_vf_get(void *arg)
 
 	/*pvfm = get_dev_vframe(ch);*/
 
-	if (is_bypss2_complete(ch))
-	#ifdef MARK_HIS
-		vfm = pw_vf_peek(ch);
-		if (dim_bypass_detect(ch, vfm))
-			return NULL;
-
-	#endif
+	if (is_bypss2_complete(ch)) {
+		vfm = dim_nbypass_get(pch);
+		if (vfm)
+			return vfm;
 		return pw_vf_get(ch);
-
+	}
 	sum_pst_g_inc(ch);
 
 	return di_vf_l_get(ch);
