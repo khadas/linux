@@ -141,6 +141,7 @@
 #define SPICC_CAP_AHEAD_1_CYCLE	1
 #define SPICC_CAP_NO_DELAY	2
 #define SPICC_CAP_DELAY_1_CYCLE	3
+#define SPICC_DELAY_MASK	GENMASK(21, 16)
 #define SPICC_FIFORST_MASK	GENMASK(23, 22) /* FIFO Softreset */
 #else
 #define SPICC_LBC_RO		BIT(13)	/* Loop Back Control Read-Only */
@@ -215,6 +216,9 @@ struct meson_spicc_device {
 	unsigned long			xfer_remain;
 	bool				is_burst_end;
 	bool				is_last_burst;
+	unsigned int			backup_con;
+	unsigned int			backup_enh0;
+	unsigned int			backup_test;
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -248,12 +252,10 @@ static void meson_spicc_auto_io_delay(struct meson_spicc_device *spicc,
 
 	if (loop)
 		cap_delay = SPICC_CAP_AHEAD_1_CYCLE;
-	else if (hz >= 100000000)
-		cap_delay = SPICC_CAP_DELAY_1_CYCLE;
 	else if (hz >= 80000000)
-		cap_delay = SPICC_CAP_NO_DELAY;
+		cap_delay = SPICC_CAP_DELAY_1_CYCLE;
 	else if (hz >= 40000000)
-		cap_delay = SPICC_CAP_AHEAD_1_CYCLE;
+		cap_delay = SPICC_CAP_NO_DELAY;
 	else if (div >= 16)
 		mi_delay = SPICC_MI_DELAY_3_CYCLE;
 	else if (div >= 8)
@@ -616,8 +618,10 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 	   DIV_ROUND_UP(spicc->xfer->bits_per_word, 8);
 
 	/* Setup transfer parameters */
-	meson_spicc_hw_prepare(spicc, spi->mode, xfer->bits_per_word,
-			       xfer->speed_hz);
+	if (xfer->bits_per_word != spi->bits_per_word ||
+	    xfer->speed_hz != spi->max_speed_hz)
+		meson_spicc_hw_prepare(spicc, spi->mode, xfer->bits_per_word,
+				       xfer->speed_hz);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 	spicc->using_dma = 0;
@@ -772,9 +776,7 @@ static int meson_spicc_hw_init(struct meson_spicc_device *spicc)
 		       spicc->base + SPICC_CONREG);
 
 	if (spicc->data->has_oen)
-		writel_relaxed(readl_relaxed(spicc->base + SPICC_ENH_CTL0) |
-			       SPICC_ENH_MOSI_OEN | SPICC_ENH_CLK_OEN |
-			       SPICC_ENH_CS_OEN, spicc->base + SPICC_ENH_CTL0);
+		writel_relaxed(0xf020000, spicc->base + SPICC_ENH_CTL0);
 
 	/* Disable all IRQs */
 	writel_relaxed(0, spicc->base + SPICC_INTREG);
@@ -1009,59 +1011,48 @@ static DEVICE_ATTR_WO(test);
  *    src -> 0 -> 1 -> 5 -> out
  *    src -> 2 -> 3 -> 5 -> out
  */
+static struct clk_div_table power2_div_table[9] = {
+	{0, 4}, {1, 8}, {2, 16}, {3, 32},
+	{4, 64}, {5, 128}, {6, 256}, {7, 512}, {0}
+};
+
+static struct clk_div_table linear_div_table[255] = {
+	[0] = {0},
+	[254] = {0}
+};
 
 static struct clk *
 meson_spicc_divider_clk_get(struct meson_spicc_device *spicc, bool is_linear)
 {
 	struct device *dev = &spicc->pdev->dev;
 	struct clk_init_data init;
-	struct clk_fixed_factor *ff;
 	struct clk_divider *div;
 	struct clk *clk;
 	const char *parent_names[1];
 	char name[32], *which;
 
-	ff = devm_kzalloc(dev, sizeof(*ff) + sizeof(*div), GFP_KERNEL);
-	if (!ff)
+	div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
+	if (!div)
 		return ERR_PTR(-ENOMEM);
-	div = (struct clk_divider *)&ff[1];
 
 	if (is_linear) {
 		which = "linear";
-		ff->mult = 1;
-		ff->div = 2;
 		div->reg = spicc->base + SPICC_ENH_CTL0;
 		div->shift = SPICC_ENH_DATARATE_SHIFT;
 		div->width = SPICC_ENH_DATARATE_WIDTH;
 		div->flags = CLK_DIVIDER_ROUND_CLOSEST;
-//		if (spicc->data->has_async_clk)
-//			div->flags |= CLK_DIVIDER_PROHIBIT_ZERO;
+		div->table = linear_div_table;
 	} else {
 		which = "power2";
-		ff->mult = 1;
-		ff->div = 4;
 		div->reg = spicc->base + SPICC_CONREG;
 		div->shift = SPICC_DATARATE_SHIFT;
 		div->width = SPICC_DATARATE_WIDTH;
-		div->flags = CLK_DIVIDER_ROUND_CLOSEST
-			     | CLK_DIVIDER_POWER_OF_TWO;
+		div->flags = CLK_DIVIDER_ROUND_CLOSEST;
+		div->table = power2_div_table;
 	}
 
-	/* Register clk-fixed-factor */
+	/* Register clk-divider */
 	clk = spicc->data->has_async_clk ? spicc->async_clk : spicc->core;
-	parent_names[0] = __clk_get_name(clk);
-	snprintf(name, sizeof(name), "%s_%s_ff", dev_name(dev), which);
-	init.name = name;
-	init.ops = &clk_fixed_factor_ops;
-	init.flags = CLK_SET_RATE_PARENT;
-	init.parent_names = parent_names;
-	init.num_parents = 1;
-	ff->hw.init = &init;
-	clk = devm_clk_register(dev, &ff->hw);
-	if (IS_ERR_OR_NULL(clk))
-		return clk;
-
-	/* Register clk-divider, which parent the clk-fixed-factor */
 	parent_names[0] = __clk_get_name(clk);
 	snprintf(name, sizeof(name), "%s_%s_div", dev_name(dev), which);
 	init.name = name;
@@ -1109,6 +1100,13 @@ static struct clk *meson_spicc_clk_get(struct meson_spicc_device *spicc)
 {
 	struct clk *clk;
 	const char *parent_names[2];
+	int i;
+
+	if (!linear_div_table[0].div)
+		for (i = 0; i < ARRAY_SIZE(linear_div_table) - 1; i++) {
+			linear_div_table[i].val = i + 2;
+			linear_div_table[i].div = (i + 3) * 2;
+		}
 
 	/* Get power-of-two divider clk */
 	clk = meson_spicc_divider_clk_get(spicc, 0);
@@ -1129,6 +1127,31 @@ static struct clk *meson_spicc_clk_get(struct meson_spicc_device *spicc)
 
 	return clk;
 }
+
+#ifdef CONFIG_PM_SLEEP
+/* The clk data rate setting is handled by clk core. We have to save/restore
+ * it when system suspend/resume.
+ */
+static void meson_spicc_hw_clk_save(struct meson_spicc_device *spicc)
+{
+	spicc->backup_con = readl_relaxed(spicc->base + SPICC_CONREG) &
+			    SPICC_DATARATE_MASK;
+	spicc->backup_enh0 = readl_relaxed(spicc->base + SPICC_ENH_CTL0) &
+			     (SPICC_ENH_DATARATE_MASK | SPICC_ENH_DATARATE_EN);
+	spicc->backup_test = readl_relaxed(spicc->base + SPICC_TESTREG) &
+			     SPICC_DELAY_MASK;
+}
+
+static void meson_spicc_hw_clk_restore(struct meson_spicc_device *spicc)
+{
+	writel_bits_relaxed(SPICC_DATARATE_MASK, spicc->backup_con,
+			    spicc->base + SPICC_CONREG);
+	writel_bits_relaxed(SPICC_ENH_DATARATE_MASK | SPICC_ENH_DATARATE_EN,
+			    spicc->backup_enh0, spicc->base + SPICC_ENH_CTL0);
+	writel_bits_relaxed(SPICC_DELAY_MASK, spicc->backup_test,
+			    spicc->base + SPICC_TESTREG);
+}
+#endif
 #endif
 
 static int meson_spicc_probe(struct platform_device *pdev)
@@ -1246,11 +1269,6 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	master->prepare_message = meson_spicc_prepare_message;
 	master->unprepare_transfer_hardware = meson_spicc_unprepare_transfer;
 	master->transfer_one = meson_spicc_transfer_one;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	master->auto_runtime_pm = true;
-	pm_runtime_enable(&pdev->dev);
-#endif
-
 	/* Setup max rate according to the Meson GX datasheet */
 #ifdef CONFIG_AMLOGIC_MODIFY
 	master->max_speed_hz = spicc->data->max_speed_hz;
@@ -1266,6 +1284,16 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "spi master registration failed\n");
 		goto out_clk;
 	}
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+#ifdef CONFIG_PM_SLEEP
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 500);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	master->auto_runtime_pm = true;
+	pm_runtime_enable(&pdev->dev);
+	meson_spicc_hw_clk_save(spicc);
+#endif
+#endif
 
 	return 0;
 
@@ -1326,6 +1354,7 @@ static int meson_spicc_runtime_suspend(struct device *dev)
 {
 	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
 
+	meson_spicc_hw_clk_save(spicc);
 	meson_spicc_clk_disable(spicc);
 
 	return 0;
@@ -1336,6 +1365,7 @@ static int meson_spicc_runtime_resume(struct device *dev)
 	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
 
 	meson_spicc_hw_init(spicc);
+	meson_spicc_hw_clk_restore(spicc);
 
 	return meson_spicc_clk_enable(spicc);
 }

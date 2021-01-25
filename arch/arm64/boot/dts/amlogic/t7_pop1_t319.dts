@@ -1270,6 +1270,19 @@
 	};
 };
 
+&spicc3 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc3_pins>;
+	cs-gpios = <&gpio GPIOT_9 0>;
+	spi-nor@0 {
+		compatible = "jedec,spi-nor";
+		status = "okay";
+		reg = <0>;
+		spi-max-frequency = <16000000>;
+	};
+};
+
 &fb {
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;

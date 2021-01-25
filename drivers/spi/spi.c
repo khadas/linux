@@ -1080,7 +1080,11 @@ static int spi_transfer_wait(struct spi_controller *ctlr,
 			return -EINTR;
 		}
 	} else {
+#ifdef CONFIG_AMLOGIC_MODIFY
+		ms = 32LL * 1000LL * xfer->len;
+#else
 		ms = 8LL * 1000LL * xfer->len;
+#endif
 		do_div(ms, xfer->speed_hz);
 		ms += ms + 200; /* some tolerance */
 
