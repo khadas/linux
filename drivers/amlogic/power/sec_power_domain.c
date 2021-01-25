@@ -275,7 +275,8 @@ static struct sec_pm_domain s4_pm_domains[] = {
 		GENPD_FLAG_ALWAYS_ON),
 	[PDID_S4_GE2D] = POWER_DOMAIN(ge2d, PDID_S4_GE2D, DOMAIN_INIT_OFF, 0),
 	[PDID_S4_ETH] = POWER_DOMAIN(eth, PDID_S4_ETH, DOMAIN_INIT_ON, 0),
-	[PDID_S4_DEMOD] = POWER_DOMAIN(audio, PDID_S4_DEMOD, DOMAIN_INIT_OFF, 0),
+	[PDID_S4_DEMOD] = POWER_DOMAIN(demod, PDID_S4_DEMOD, DOMAIN_INIT_OFF, 0),
+	[PDID_S4_AUDIO] = POWER_DOMAIN(audio, PDID_S4_AUDIO, DOMAIN_INIT_OFF, 0),
 };
 
 static struct sec_pm_domain_data s4_pm_domain_data = {

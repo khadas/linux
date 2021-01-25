@@ -10,3 +10,4 @@
 #define PDID_S4_GE2D		4
 #define PDID_S4_ETH		5
 #define PDID_S4_DEMOD		6
+#define PDID_S4_AUDIO		7
