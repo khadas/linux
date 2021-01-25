@@ -1039,7 +1039,7 @@
 			ranges = <0x0 0x0 0x0 0xfe333000 0x0 0x1000>;
 
 			earc: earc@0 {
-				compatible = "amlogic, sm1-snd-earc";
+				compatible = "amlogic, tm2-revb-snd-earc";
 				#sound-dai-cells = <0>;
 
 				status = "disabled";

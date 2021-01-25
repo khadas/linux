@@ -3935,7 +3935,7 @@ int rx_get_clock(enum measure_clk_top_e clk_src)
 			tmp_data2 = hdmirx_rd_top(TOP_AUDMEAS_REF_CYCLES_STAT1);
 			audclk = ((tmp_data2 & 0xffff) << 32) | tmp_data;
 			if (tmp_data2 & (0x1 << 17))
-				audclk = (24000 * 65536) / ((audclk + 1) / 1000);
+				audclk = div_u64((24000 * 65536), div_u64((audclk + 1), 1000));
 			else
 				rx_pr("audio clk measure fail\n");
 		}

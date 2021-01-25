@@ -87,8 +87,8 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 			    unsigned int  argv);
 static enum hdmi_vic get_vic_from_pkt(void);
 
-typedef void (*pf_callbakck)(bool st);
-static pf_callbakck earc_hdmitx_hpdst;
+typedef void (*pf_callback)(bool st);
+static pf_callback earc_hdmitx_hpdst;
 
 #define EDID_RAM_ADDR_SIZE	 (8)
 
@@ -182,7 +182,7 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 }
 EXPORT_SYMBOL(hdmitx_ddc_hw_op);
 
-int register_earcrx_callback(pf_callbakck callback)
+int register_earcrx_callback(pf_callback callback)
 {
 	earc_hdmitx_hpdst = callback;
 	return 0;

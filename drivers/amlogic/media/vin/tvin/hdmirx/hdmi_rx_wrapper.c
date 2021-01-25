@@ -70,6 +70,9 @@ static int clk_stable_max;
 static int unnormal_wait_max = 200;
 static int wait_no_sig_max = 600;
 
+typedef void (*pf_callback)(int earc_port, bool st);
+static pf_callback earc_hdmirx_hpdst;
+
 /* for debug */
 bool vic_check_en;
 bool dvi_check_en;
@@ -385,6 +388,19 @@ int cec_set_dev_info(u8 dev_idx)
 	return 0;
 }
 EXPORT_SYMBOL(cec_set_dev_info);
+
+int register_earctx_callback(pf_callback callback)
+{
+	earc_hdmirx_hpdst = callback;
+	return 0;
+}
+EXPORT_SYMBOL(register_earctx_callback);
+
+void unregister_earctx_callback(void)
+{
+	earc_hdmirx_hpdst = NULL;
+}
+EXPORT_SYMBOL(unregister_earctx_callback);
 
 static bool video_mute_enabled(void)
 {
@@ -2597,12 +2613,10 @@ void rx_5v_monitor(void)
 		else
 			pwr_sts_to_esm = false;
 	}
-	if (rx.chip_id == CHIP_ID_TM2) {
-		tmp_arc_5v = (pwr_sts >> rx.arc_port) & 1;
-		if (rx.arc_5vsts != tmp_arc_5v) {
-			rx.arc_5vsts = tmp_arc_5v;
-			//earc_hdmirx_hpdst(rx.arc_port, rx.arc_5vsts);
-		}
+	tmp_arc_5v = (pwr_sts >> rx.arc_port) & 1;
+	if (earc_hdmirx_hpdst && rx.arc_5vsts != tmp_arc_5v) {
+		rx.arc_5vsts = tmp_arc_5v;
+		earc_hdmirx_hpdst(rx.arc_port, rx.arc_5vsts);
 	}
 }
 

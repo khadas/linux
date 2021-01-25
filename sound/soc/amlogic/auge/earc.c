@@ -2295,6 +2295,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 	if (!IS_ERR(p_earc->tx_top_map)) {
 		earctx_extcon_register(p_earc);
 		earctx_cmdc_setup(p_earc);
+		register_earctx_callback(earc_hdmirx_hpdst);
 	}
 
 	if ((!IS_ERR(p_earc->rx_top_map)) ||
@@ -2310,7 +2311,10 @@ static int earc_platform_probe(struct platform_device *pdev)
 
 int earc_platform_remove(struct platform_device *pdev)
 {
-	unregister_earcrx_callback();
+	if (!IS_ERR(s_earc->rx_top_map))
+		unregister_earcrx_callback();
+	if (!IS_ERR(s_earc->tx_top_map))
+		unregister_earctx_callback();
 	s_earc = NULL;
 	snd_soc_unregister_component(&pdev->dev);
 	return 0;
