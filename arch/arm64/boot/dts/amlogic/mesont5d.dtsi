@@ -2301,6 +2301,14 @@
 		};
 	};
 
+	diseqc_out: diseqc_out {
+		mux {
+			groups = "diseqc_out_z0";
+			function = "diseqc_out";
+			bias-pull-down;
+		};
+	};
+
 	lcd_tcon_mlvds_pins: lcd_tcon_mlvds_pin {
 		mux {
 			groups = "tcon_0","tcon_1","tcon_2","tcon_3",

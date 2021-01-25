@@ -206,7 +206,8 @@ static void adc_set_dtvdemod_pll_by_delsys(struct tvin_adc_dev *devp,
 		HIU_WR(HHI_ADC_PLL_CNTL5_TL1, 0x3927a000);
 		HIU_WR(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
 		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x100504b4);
-		//dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL1 << 2, 0x704);
+		dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL1 << 2,
+				       0x704);
 		break;
 
 	case SYS_DVBS2:
@@ -219,7 +220,8 @@ static void adc_set_dtvdemod_pll_by_delsys(struct tvin_adc_dev *devp,
 		HIU_WR(HHI_ADC_PLL_CNTL5_TL1, 0x3927a000);
 		HIU_WR(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
 		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x10050487);
-		//dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL1 << 2, 0x702);
+		dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL1 << 2,
+				       0x702);
 		break;
 
 	default:
@@ -441,16 +443,13 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			switch (p_dtv_para->delsys) {
 			case SYS_ISDBT:
 				if (devp->plat_data->chip_id == ADC_CHIP_T5D)
-					//dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x507);
-					pr_info("comments first\n");
+					dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x507);
 				else
-					//dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
-					pr_info("comments first\n");
+					dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
 				break;
 
 			default:
-				//dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
-				pr_info("comments first\n");
+				dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
 				break;
 			}
 		} else if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {

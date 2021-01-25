@@ -5,6 +5,9 @@
 
 #include <linux/amlogic/aml_dtvdemod.h>
 
+#ifdef MODULE
+AML_DEMOD_ATTACH_FUNCTION(aml_dtvdm);
+#endif
 AML_DEMOD_ATTACH_FUNCTION(m1);
 AML_DEMOD_ATTACH_FUNCTION(mxl101);
 AML_DEMOD_ATTACH_FUNCTION(avl6211);

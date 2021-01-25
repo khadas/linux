@@ -27,6 +27,7 @@ struct demod_module {
 	int (*unregister_frontend)(struct dvb_frontend *fe);
 };
 
+#ifndef MODULE
 #if (defined CONFIG_AMLOGIC_DTV_DEMOD ||\
 		defined CONFIG_AMLOGIC_DTV_DEMOD_MODULE)
 struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *cfg);
@@ -36,6 +37,7 @@ static inline __maybe_unused struct dvb_frontend *aml_dtvdm_attach(
 {
 	return NULL;
 }
+#endif
 #endif
 
 #if (defined CONFIG_AMLOGIC_DVB_EXTERN ||\

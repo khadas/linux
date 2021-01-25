@@ -549,4 +549,13 @@ static int aml_atvdemod_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_DTV_DEMOD
+int __init aml_dtvdemod_init(void);
+#else
+static int aml_dtvdemod_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif
