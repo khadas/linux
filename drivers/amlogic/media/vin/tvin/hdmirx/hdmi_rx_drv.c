@@ -642,7 +642,8 @@ void hdmirx_get_fps_info(struct tvin_sig_property_s *prop)
 {
 	u32 rate = rx.pre.frame_rate;
 
-	rate = rate / 100 + (((rate % 100) / 10 >= 5) ? 1 : 0);
+	if (rx.chip_id < CHIP_ID_T7)
+		rate = rate / 100 + (((rate % 100) / 10 >= 5) ? 1 : 0);
 	prop->fps = rate;
 }
 

@@ -1897,11 +1897,29 @@ void rx_set_irq_t7(bool en)
 	data8 |= 1 << 2; /* intr_cea_new_vsi */
 	hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, data8);
 
-	hdmirx_wr_cor(RX_INTR1_MASK_PWD_IVCRX, 0x05);//register_address: 0x1050
+	//hdmirx_wr_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, 0);
+	hdmirx_wr_cor(RX_INTR1_MASK_PWD_IVCRX, 0x03);//register_address: 0x1050
 	hdmirx_wr_cor(RX_INTR2_MASK_PWD_IVCRX, 0x00);//register_address: 0x1051
 	hdmirx_wr_cor(RX_INTR3_MASK_PWD_IVCRX, 0x00);//register_address: 0x1052
 	hdmirx_wr_cor(RX_INTR4_MASK_PWD_IVCRX, 0x00);//register_address: 0x1053
 	hdmirx_wr_cor(RX_INTR5_MASK_PWD_IVCRX, 0x00);//register_address: 0x1054
 	hdmirx_wr_cor(RX_INTR6_MASK_PWD_IVCRX, 0x00);//register_address: 0x1055
 	hdmirx_wr_cor(RX_INTR7_MASK_PWD_IVCRX, 0x00);//register_address: 0x1056
+	hdmirx_wr_cor(RX_INTR8_MASK_PWD_IVCRX, 0x00);//register_address: 0x1057
+	hdmirx_wr_cor(RX_INTR9_MASK_PWD_IVCRX, 0x00);//register_address: 0x1058
+
+	data8 = 0;
+	data8 |= 1 << 4; /* end of VSIF EMP data received */
+	data8 |= 0 << 3;
+	data8 |= 0 << 2;
+	hdmirx_wr_cor(RX_DEPACK2_INTR2_MASK_DP0B_IVCRX, data8);
+
+	//===for depack interrupt ====
+	//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3);
+	//hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02);// int
+	//hdmirx_wr_cor(RX_PWD_INT_CTRL, 0x00);//[1] reg_intr_polarity, default = 1
+	//hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, 0x85);//interrupt mask
+	//hdmirx_wr_cor(RX_DEPACK_INTR4_MASK_DP2_IVCRX, 0x00);//interrupt mask
+	//hdmirx_wr_cor(RX_DEPACK2_INTR0_MASK_DP0B_IVCRX, 0x0c);//interrupt mask
+	//hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, 0x20);//interrupt mask   [5] acr
 }

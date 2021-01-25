@@ -21,6 +21,13 @@
 #define IEEE_VSI21		0xc45dd8
 #define IEEE_HDR10PLUS		0x90848b
 
+#define VSIF_TYPE_DV15		1
+#define VSIF_TYPE_HDR10P	2
+#define VSIF_TYPE_HDMI21	4
+#define VSIF_TYPE_HDMI14	8
+
+#define EMP_TYPE_VSIF		1
+
 enum vsi_state_e {
 	E_VSI_NULL,
 	E_VSI_4K3D,
@@ -565,7 +572,7 @@ struct vsi_infoframe_st {
 	} __packed ver_st;
 	u8 length:5;
 	u8 rsd:3;
-	u8 rsd_hdmi;
+	u8 rsd_hdmi; /* T7 has no this byte */
 	/*PB0*/
 	u32 checksum:8;
 	/*PB1-3*/
@@ -579,14 +586,8 @@ struct vsi_infoframe_st {
 
 		/* video format 0x01*/
 		struct vsi_st {
-			/*pb4*/
-			u8 rsvd0:5;
-			u8 vdfmt:3;
-			/*pb5*/
-			u8 hdmi_vic;
-			/*pb6*/
-			u8 data[22];
-		} __packed vsi;
+			u8 data[24];
+		} __packed vsi_st;
 
 		/* 3D: video format(0x2) */
 		struct vsi_3dext_st {
@@ -606,36 +607,36 @@ struct vsi_infoframe_st {
 			u8 threed_meta_data[20];
 		} __packed vsi_3dext;
 
-		/* dolby vision, length 0x18 */
+		/* dolby vision10, length 0x18 */
 		/* ieee 0x000c03 */
-		struct vsi_dobv_st {
+		struct vsi_dobv10 {
 			/*pb4*/
-			/*	0x00: Video formats not defined in Table 8-14
-			 *		of the HDMI specification v1.4b
-			 *	0x20: Video formats defined in Table 8-14
-			 *		of the HDMI specification v1.4b
+			/* 0x00: Video formats not defined in Table 8-14
+			 *	of the HDMI specification v1.4b
+			 * 0x20: Video formats defined in Table 8-14
+			 *	of the HDMI specification v1.4b
 			 */
 			u8 vdfmt;
 			/*pb5*/
-			/*	0x0: Video formats not defined in Table 8-14
-			 *		of the HDMI specification, v1.4b
-			 *	0x1: 4K x 2K at 29.97 Hz or 30Hz
-			 *		as defined in Table 8-14
-			 *		of the HDMI specification, v1.4b
-			 *	0x2: 4K x 2K at 25 Hz as defined in Table 8-14
-			 *		of the HDMI specification, v1.4b
-			 *	0x3: 4K x 2K at 23.98 Hz or 24Hz
-			 *		as defined in Table 8-14
-			 *		of the HDMI specification, v1.4b
+			/* 0x0: Video formats not defined in Table 8-14
+			 *	of the HDMI specification, v1.4b
+			 * 0x1: 4K x 2K at 29.97 Hz or 30Hz
+			 *	as defined in Table 8-14
+			 *	of the HDMI specification, v1.4b
+			 * 0x2: 4K x 2K at 25 Hz as defined in Table 8-14
+			 *	of the HDMI specification, v1.4b
+			 * 0x3: 4K x 2K at 23.98 Hz or 24Hz
+			 *	as defined in Table 8-14
+			 *	of the HDMI specification, v1.4b
 			 */
 			u8 hdmi_vic;
 			/*pb6*/
-			u8 data[22]; /* val=0 */
-		} __packed vsi_dobv_st;
+			u8 data[19]; /* val=0 */
+		} __packed vsi_dobv10;
 
-		/* dolby vision, length 0x1b*/
+		/* dolby vision15, length 0x1b*/
 		/* ieee 0x00d046 */
-		struct vsi_dobv {
+		struct vsi_dobv15 {
 			/*pb4*/
 			u8 ll:1;
 			u8 dv_vs10_sig_type:4;
@@ -657,19 +658,48 @@ struct vsi_infoframe_st {
 			u8 content_type;
 			/*pb11~27*/
 			u8 data[17]; /* val=0 */
-		} __packed vsi_dobv;
+		} __packed vsi_dobv15;
+
+		/* HDR10+, length 27*/
+		/* ieee 0x90848b */
+		struct vsi_hdr10p {
+			/*pb4*/
+			u8 rsvd:1;
+			u8 max_lum:5;
+			u8 app_ver:2;
+			u8 average_maxrgb;
+			u8 distr_val_0;
+			u8 distr_val_1;
+			u8 distr_val_2;
+			u8 distr_val_3;
+			u8 distr_val_4;
+			u8 distr_val_5;
+			u8 distr_val_6;
+			u8 distr_val_7;
+			u8 distr_val_8;
+			u8 knee_point_x_hi:4;
+			u8 num_bezier:4;
+			u8 knee_point_y_hi:2;
+			u8 knee_point_x_lo:6;
+			u8 knee_point_y_lo;
+			/*pb17~26*/
+			u8 data[10]; /* val=0 */
+			u8 rsvd1:6;
+			u8 vsif_timing_mode:1;
+			u8 graphics_overlay_flag:1;
+		} __packed vsi_hdr10p;
 
 		/*TODO:hdmi2.1 spec vsi packet*/
 		struct vsi_st_21 {
 			/*pb4*/
 			u8 ver:8;
 			/*pb5*/
-			u8 threed_valid:1;
+			u8 valid_3d:1;
 			u8 allm_mode:1;
 			u8 rsvd1:2;
 			u8 ccbpc:4;
 			/*pb6*/
-			/*todo*/
+			u8 data[22];
 		} __packed vsi_st_21;
 	} __packed sbpkt;
 } __packed;
@@ -1030,6 +1060,8 @@ struct st_pkt_test_buff {
 };
 
 extern struct packet_info_s rx_pkt;
+extern u32 vsif_type;
+extern u32 emp_type;
 /*extern bool hdr_enable;*/
 void rx_pkt_status(void);
 void rx_pkt_debug(void);

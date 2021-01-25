@@ -695,13 +695,19 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	//u8 rx_intr_12 = 0;
 	//u8 rx_intr_13 = 0;
 	//u8 rx_intr_14 = 0;
+	u8 rx_depack2_intr0;
+	u8 rx_depack2_intr1;
+	u8 rx_depack2_intr2;
+	u8 grp_intr1;
 	//bool vsi_handle_flag = false;
 	//bool drm_handle_flag = false;
 	//bool emp_handle_flag = false;
 	//u32 rx_top_intr_stat = 0;
 	//bool irq_need_clr = 0;
-
 	/* clear interrupt quickly */
+	grp_intr1 = hdmirx_rd_cor(RX_GRP_INTR1_STAT_PWD_IVCRX);
+	if (grp_intr1 != 0)
+		hdmirx_wr_cor(RX_GRP_INTR1_STAT_PWD_IVCRX, grp_intr1);
 	intr_0 = hdmirx_rd_cor(RX_DEPACK_INTR0_DP2_IVCRX);
 	if (intr_0 != 0)
 		hdmirx_wr_cor(RX_DEPACK_INTR0_DP2_IVCRX, intr_0);
@@ -740,13 +746,41 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	if (rx_intr_5 != 0)
 		hdmirx_wr_cor(RX_INTR5_PWD_IVCRX, rx_intr_5);
 
-	if (intr_2 && (log_level & IRQ_LOG))
-		rx_pr("2-%x\n", intr_2);
-	if (intr_3 && (log_level & IRQ_LOG))
-		rx_pr("3-%x\n", intr_3);
+	rx_depack2_intr0 = hdmirx_rd_cor(RX_DEPACK2_INTR0_DP0B_IVCRX);
+	if (rx_depack2_intr0 != 0)
+		hdmirx_wr_cor(RX_DEPACK2_INTR0_DP0B_IVCRX, rx_depack2_intr0);
+	rx_depack2_intr1 = hdmirx_rd_cor(RX_DEPACK2_INTR1_DP0B_IVCRX);
+	if (rx_depack2_intr1 != 0)
+		hdmirx_wr_cor(RX_DEPACK2_INTR1_DP0B_IVCRX, rx_depack2_intr1);
+	rx_depack2_intr2 = hdmirx_rd_cor(RX_DEPACK2_INTR2_DP0B_IVCRX);
+	if (rx_depack2_intr2 != 0)
+		hdmirx_wr_cor(RX_DEPACK2_INTR2_DP0B_IVCRX, rx_depack2_intr2);
 
-	//if (vsi_handle_flag)
-		///rx_pkt_handler(PKT_BUFF_SET_VSI);
+	if (intr_2) {
+		if (log_level & IRQ_LOG)
+			rx_pr("irq2-%x\n", intr_2);
+		if (rx_get_bits(intr_2, INTR2_BIT2_AUD))
+			vsif_type |= VSIF_TYPE_HDR10P;
+		if (rx_get_bits(intr_2, INTR2_BIT4_UNREC))
+			vsif_type |= VSIF_TYPE_HDMI21;
+	}
+	if (intr_3) {
+		if (log_level & IRQ_LOG)
+			rx_pr("irq3-%x\n", intr_3);
+		if (rx_get_bits(intr_3, INTR3_BIT34_HF_VSI))
+			vsif_type |= VSIF_TYPE_DV15;
+		if (rx_get_bits(intr_3, INTR3_BIT2_VSI))
+			vsif_type |= VSIF_TYPE_HDMI14;
+	}
+
+	if (rx_depack2_intr2) {
+		if (log_level & IRQ_LOG)
+			rx_pr("dp-irq2-%x\n", rx_depack2_intr2);
+		if (rx_get_bits(rx_depack2_intr2, _BIT(4)))
+			emp_type |= EMP_TYPE_VSIF;
+	}
+	//if (vsif_type)
+		//rx_pkt_handler(PKT_BUFF_SET_VSI);
 
 	//if (drm_handle_flag)
 		//rx_pkt_handler(PKT_BUFF_SET_DRM);
@@ -759,7 +793,6 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 
 	//if (irq_need_clr)
 		//error = 1;
-
 	return error;
 }
 
@@ -827,6 +860,10 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 				rx_pkt_handler(PKT_BUFF_SET_VSI);
 			if (rx.state == FSM_SIG_READY) {
 				rx.vsync_cnt++;
+				if (vsif_type) {
+					rx_pkt_handler(PKT_BUFF_SET_VSI);
+					vsif_type = 0;
+				}
 				/* t5d 5.4 vdin not enabled 1222*/
 				rx_update_sig_info();
 			}
@@ -840,6 +877,7 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 		}
 		if (hdmirx_top_intr_stat & (1 << 25)) {
 			rx_emp_field_done_irq();
+			rx_pkt_handler(PKT_BUFF_SET_EMP);
 			if (log_level & 0x400)
 				rx_pr("[isr] emp_field_done\n");
 		}
@@ -869,7 +907,6 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			if (log_level & COR_LOG)
 				rx_pr("[isr] ctrl aon\n");
 	}
-
 	if (rx.chip_id < CHIP_ID_TL1) {
 		if (error == 1)
 			goto reisr;
@@ -881,7 +918,8 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 				rx_pr("\n irq_miss");
 			goto_cnt++;
 			if (goto_cnt > 5) {
-				rx_pr("\n irq_miss_5times");
+				if (log_level & ERR_LOG)
+					rx_pr("\n irq_miss_5times");
 				hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
 			} else {
 				goto reisr;

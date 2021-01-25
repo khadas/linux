@@ -1201,7 +1201,7 @@ void hdmirx_top_irq_en(bool flag)
 		data32 |= (0    << 28); // [   28] hdmirx_sqofclk_rise;
 		data32 |= (1    << 27); // [   27] de_rise_del_irq;
 		data32 |= (0    << 26); // [   26] last_emp_done;
-		data32 |= (0    << 25); // [   25] emp_field_done;
+		data32 |= (1    << 25); // [   25] emp_field_done;
 		data32 |= (0    << 23); // [   23] meter_stable_chg_cable;
 		data32 |= (0    << 19); // [   19] edid_addr2_intr
 		data32 |= (0    << 18); // [   18] edid_addr1_intr
@@ -1533,6 +1533,22 @@ int packet_init_t7(void)
 	hdmirx_wr_cor(HF_VSIF_ID3_DP3_IVCRX, 0x00);
 
 	data8 = 0;
+	data8 |= 1 << 7; /* enable clr vsif pkt */
+	data8 |= 1 << 5; /* enable comparison first 3 bytes IEEE */
+	data8 |= 4 << 2; /* clr register if 4 frames no pkt */
+	hdmirx_wr_cor(VSI_CTRL1_DP3_IVCRX, data8);
+	hdmirx_wr_cor(VSI_CTRL3_DP3_IVCRX, 1);
+	/* aif to stort hdr10+ */
+	hdmirx_wr_cor(VSI_ID1_DP3_IVCRX, 0x8b);
+	hdmirx_wr_cor(VSI_ID2_DP3_IVCRX, 0x84);
+	hdmirx_wr_cor(VSI_ID3_DP3_IVCRX, 0x90);
+
+	/* use unrec to store hf-vsif */
+	hdmirx_wr_cor(RX_UNREC_CTRL_DP2_IVCRX, 1);
+	hdmirx_wr_cor(RX_UNREC_DEC_DP2_IVCRX, PKT_TYPE_INFOFRAME_VSI);
+	/* get data 0x11c0-11de */
+
+	data8 = 0;
 	data8 |= 1 << 7; /* use AIF to VSI */
 	data8 |= 1 << 6; /* irq is set for any VSIF */
 	data8 |= 0 << 5; /* irq is set for any ACP */
@@ -1552,7 +1568,7 @@ int packet_init_t7(void)
 	data8 |= 0 << 2; /* irq is set for any GCP */
 	data8 |= 0 << 1; /* irq is set for any ISC2 */
 	data8 |= 0 << 0; /* irq is set for any ISC1 */
-	hdmirx_wr_cor(RX_INT_IF_CTRL_DP2_IVCRX, data8);
+	hdmirx_wr_cor(RX_INT_IF_CTRL2_DP2_IVCRX, data8);
 
 	/* auto clr pkt if cable-unplugged/sync lost */
 	data8 = 0;
@@ -1578,21 +1594,6 @@ int packet_init_t7(void)
 	data8 |= 1 << 0; /*  */
 	hdmirx_wr_cor(RX_AUTO_CLR_PKT2_DP2_IVCRX, data8);
 
-	data8 = 0;
-	data8 |= 1 << 7; /* enable clr vsif pkt */
-	data8 |= 1 << 5; /* enable comparison first 3 bytes IEEE */
-	data8 |= 4 << 2; /* clr register if 4 frames no pkt */
-	hdmirx_wr_cor(VSI_CTRL1_DP3_IVCRX, data8);
-	hdmirx_wr_cor(VSI_CTRL3_DP3_IVCRX, 1);
-	/* aif to stort hdr10+ */
-	hdmirx_wr_cor(VSI_ID1_DP3_IVCRX, 0x8b);
-	hdmirx_wr_cor(VSI_ID2_DP3_IVCRX, 0x84);
-	hdmirx_wr_cor(VSI_ID3_DP3_IVCRX, 0x90);
-
-	/* use  unrec to store vsif */
-	hdmirx_wr_cor(RX_UNREC_CTRL_DP2_IVCRX, 1);
-	hdmirx_wr_cor(RX_UNREC_DEC_DP2_IVCRX, PKT_TYPE_INFOFRAME_VSI);
-	/* get data 0x11c0-11de */
 	return 0;
 }
 
@@ -1654,7 +1655,7 @@ static int TOP_init(void)
 	int err = 0;
 	int data32 = 0;
 
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		rx_hdcp22_wr_top(TOP_SECURE_MODE,  1);
 		/* Filter 100ns glitch */
 		hdmirx_wr_top(TOP_AUDPLL_LOCK_FILTER,  32);
@@ -1683,14 +1684,15 @@ static int TOP_init(void)
 	hdmirx_wr_top(TOP_INFILTER_I2C1, data32);
 	hdmirx_wr_top(TOP_INFILTER_I2C2, data32);
 	hdmirx_wr_top(TOP_INFILTER_I2C3, data32);
-	if (rx.chip_id != CHIP_ID_T7)
-		hdmirx_wr_top(TOP_INFILTER_HDCP, data32);
+	hdmirx_wr_top(TOP_INFILTER_HDCP, data32);
 
 	data32 = 0;
-	/*420to444_en*/
-	data32 |= 1	<< 21;
-	/*422to444_en*/
-	data32 |= 1	<< 20;
+	if (rx.chip_id >= CHIP_ID_T7) {
+		/*420to444_en*/
+		data32 |= 1	<< 21;
+		/*422to444_en*/
+		data32 |= 1	<< 20;
+	}
 	/* conversion mode of 422 to 444 */
 	data32 |= 0	<< 19;
 	/* !!!!dolby vision 422 to 444 ctl bit */
@@ -3118,13 +3120,6 @@ void cor_init(void)
 	data8 |= (0 << 0);// [1:0] input_pixel_rate
 	hdmirx_wr_cor(RX_VP_INPUT_FORMAT_HI, data8);
 
-	//===for depack interrupt ====
-	hdmirx_wr_cor(RX_PWD_INT_CTRL, 0x00);//[1] reg_intr_polarity, default = 1
-	hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, 0x85);//interrupt mask
-	hdmirx_wr_cor(RX_DEPACK_INTR4_MASK_DP2_IVCRX, 0x00);//interrupt mask
-	hdmirx_wr_cor(RX_DEPACK2_INTR0_MASK_DP0B_IVCRX, 0x0c);//interrupt mask
-	hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, 0x20);//interrupt mask   [5] acr
-
 	//===
 	hdmirx_wr_cor(RX_SW_HDMI_MODE_PWD_IVCRX, 0x00);//register address: 0x1022
 
@@ -3143,7 +3138,7 @@ void cor_init(void)
 	hdmirx_wr_cor(PWD0_CLK_EN_3_PHYCK_IVCRX, 0x01);//register address: 0x20a5
 
 	hdmirx_wr_cor(RX_AON_SRST_AON_IVCRX, 0x00);//reset
-
+	hdmirx_wr_cor(RX_PWD_INT_CTRL, 0x00);//[1] reg_intr_polarity, default = 1
 	//-------------------
 	//  vp core config
 	//-------------------
@@ -3312,16 +3307,16 @@ void hdcp_init_t7(void)
 	//hdcp config
 	hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x1);//HPD
 	hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, 0x01);//ri_hdcp2x_en
-	hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02);// int
+	//hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02);// irq
 	hdmirx_wr_cor(PWD_SW_CLMP_AUE_OIF_PWD_IVCRX, 0x0);
 	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x4);
-	hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3);
-	hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, 0x1);
-	hdmirx_wr_cor(CP2PA_TP1_HDCP2X_IVCRX, 0x9e);
-	hdmirx_wr_cor(CP2PA_TP3_HDCP2X_IVCRX, 0x32);
-	hdmirx_wr_cor(CP2PA_TP5_HDCP2X_IVCRX, 0x32);
-	hdmirx_wr_cor(CP2PAX_GP_IN1_HDCP2X_IVCRX, 0x2);
-	hdmirx_wr_cor(CP2PAX_GP_CTL_HDCP2X_IVCRX, 0xdb);
+	//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3); irq
+	//hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, 0x1); //same as L3309
+	//hdmirx_wr_cor(CP2PA_TP1_HDCP2X_IVCRX, 0x9e);
+	//hdmirx_wr_cor(CP2PA_TP3_HDCP2X_IVCRX, 0x32);
+	//hdmirx_wr_cor(CP2PA_TP5_HDCP2X_IVCRX, 0x32);
+	//hdmirx_wr_cor(CP2PAX_GP_IN1_HDCP2X_IVCRX, 0x2);
+	//hdmirx_wr_cor(CP2PAX_GP_CTL_HDCP2X_IVCRX, 0xdb);
 	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x8);
 	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x0);
 }
@@ -3749,10 +3744,10 @@ void rx_get_de_sts(void)
 	if (!rx.cur.colordepth)
 		rx.cur.colordepth = 8;
 
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		tmp = hdmirx_rd_cor(COR_PIXEL_CNT_LO) |
 			(hdmirx_rd_cor(COR_PIXEL_CNT_HI) << 8);
-		rx.cur.hactive = tmp / rx.cur.colordepth * 8;
+		rx.cur.hactive = tmp;
 		rx.cur.vactive = hdmirx_rd_cor(COR_LINE_CNT_LO) |
 			(hdmirx_rd_cor(COR_LINE_CNT_HI) << 8);
 	} else {
@@ -3839,6 +3834,9 @@ void hdmirx_config_video(void)
 	hdmirx_set_video_mute(0);
 	set_dv_ll_mode(false);
 
+	if (rx.chip_id < CHIP_ID_T7)
+		return;
+
 	switch (temp) {
 	case E_COLOR_YUV422:
 		data32 |= 3 << 9;
@@ -3869,9 +3867,7 @@ void hdmirx_config_video(void)
 		data32 |= 1 << 6;
 		data32 |= 0 << 3;
 		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX, data32 & 0xff);
-		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX
-
-		+ 1, (data32 >> 8) & 0xff);
+		hdmirx_wr_cor(VP_INPUT_MAPPING_VID_IVCRX + 1, (data32 >> 8) & 0xff);
 		data32 = hdmirx_rd_top(TOP_VID_CNTL);
 		data32 &= (~(0x7 << 24));
 		data32 |= 2 << 24;
@@ -4745,54 +4741,57 @@ void aml_eq_eye_monitor(void)
 
 void rx_emp_to_ddr_init(void)
 {
-	unsigned int data;
+	u32 data32;
 
-	if (rx.chip_id < CHIP_ID_TL1)
+	if (rx.chip_id < CHIP_ID_T7)
 		return;
 
 	if (rx.empbuff.pg_addr) {
 		rx_pr("%s\n", __func__);
 		/*disable field done and last pkt interrupt*/
-		top_intr_maskn_value &= ~(1 << 25);
-		top_intr_maskn_value &= ~(1 << 26);
-		hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
+		data32 = hdmirx_rd_top(TOP_INTR_MASKN);
+		data32 &= ~(1 << 25);
+		data32 &= ~(1 << 26);
+		hdmirx_wr_top(TOP_INTR_MASKN, data32);
 
 		if (rx.empbuff.p_addr_a) {
 			/* emp int enable */
 			/* config ddr buffer */
-			hdmirx_wr_top(TOP_EMP_DDR_START_A, rx.empbuff.p_addr_a);
-			hdmirx_wr_top(TOP_EMP_DDR_START_B, rx.empbuff.p_addr_b);
+			hdmirx_wr_top(TOP_EMP_DDR_START_A, rx.empbuff.p_addr_a >> 2);
+			hdmirx_wr_top(TOP_EMP_DDR_START_B, rx.empbuff.p_addr_b >> 2);
 		}
 		/* enable store EMP pkt type */
-		data = 0;
-		data |= 0x1 << 15;/* ddr_store_emp */
-		hdmirx_wr_top(TOP_EMP_DDR_FILTER, data);
+		data32 = 0;
+		data32 |= 0x1 << 22;/* ddr_store_drm */
+		data32 |= 0x1 << 15;/* ddr_store_emp */
+		hdmirx_wr_top(TOP_EMP_DDR_FILTER, data32);
 		/* max pkt count */
 		hdmirx_wr_top(TOP_EMP_CNTMAX, EMP_BUFF_MAX_PKT_CNT);
 
-		data = 0;
-		data |= 0xf << 16;/*[23:16] hs_beat_rate=0xf */
-		data |= 0x0 << 14;/*[14] buffer_info_mode=0 */
-		data |= 0x1 << 13;/*[13] reset_on_de=1 */
-		data |= 0x1 << 12;/*[12] burst_end_on_last_emp=1 */
-		data |= 0x0 << 2;/*[11:2] de_rise_delay=0 */
-		data |= 0x0 << 0;/*[1:0] Endian = 0 */
-		hdmirx_wr_top(TOP_EMP_CNTL_0, data);
+		data32 = 0;
+		data32 |= 0xf << 16;/*[23:16] hs_beat_rate=0xf */
+		data32 |= 0x0 << 14;/*[14] buffer_info_mode=0 */
+		data32 |= 0x1 << 13;/*[13] reset_on_de=1 */
+		data32 |= 0x1 << 12;/*[12] burst_end_on_last_emp=1 */
+		data32 |= 0x0 << 2;/*[11:2] de_rise_delay=0 */
+		data32 |= 0x0 << 0;/*[1:0] Endian = 0 */
+		hdmirx_wr_top(TOP_EMP_CNTL_0, data32);
 
-		data = 0;
-		data |= 0 << 1;/*ddr_mode[1] 0: emp 1: tmds*/
-		hdmirx_wr_top(TOP_EMP_CNTL_1, data);
+		data32 = 0;
+		data32 |= 0 << 1;/*ddr_mode[1] 0: emp 1: tmds*/
+		hdmirx_wr_top(TOP_EMP_CNTL_1, data32);
 
-		data = 0;
-		data |= 1;	/*ddr_en[0] 1:enable*/
-		hdmirx_wr_top(TOP_EMP_CNTL_1, data);
+		data32 = 0;
+		data32 |= 0 << 1; /*ddr_mode[1] 0: emp 1: tmds*/
+		data32 |= 1 << 0; /*ddr_en[0] 1:enable*/
+		hdmirx_wr_top(TOP_EMP_CNTL_1, data32);
 
 		/* emp int enable TOP_INTR_MASKN*/
 		/* emp field end done at DE rist bit[25]*/
 		/* emp last EMP pkt recv done bit[26]*/
 		/* disable emp irq */
-		top_intr_maskn_value |= _BIT(25);
-		hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
+		//top_intr_maskn_value |= _BIT(25);
+		//hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
 	}
 
 	rx.empbuff.ready = NULL;
@@ -4813,7 +4812,7 @@ void rx_emp_field_done_irq(void)
 	struct page *cur_start_pg_addr;
 
 	/*emp data start physical address*/
-	p_addr = hdmirx_rd_top(TOP_EMP_DDR_PTR_S_BUF);
+	p_addr = hdmirx_rd_top(TOP_EMP_DDR_PTR_S_BUF) << 2;
 
 	/*buffer number*/
 	recv_pkt_cnt = hdmirx_rd_top(TOP_EMP_RCV_CNT_BUF);
@@ -4838,7 +4837,7 @@ void rx_emp_field_done_irq(void)
 					PAGE_SIZE, DMA_TO_DEVICE);
 		if (recv_byte_cnt >= PAGE_SIZE) {
 			for (j = 0; j < PAGE_SIZE;) {
-				if (src_addr[j] == 0x7f) {
+				//if (src_addr[j] == 0x7f) {
 					emp_pkt_cnt++;
 					/*32 bytes per emp pkt*/
 					for (k = 0; k < 32; k++) {
@@ -4846,13 +4845,13 @@ void rx_emp_field_done_irq(void)
 						src_addr[PAGE_SIZE * i + j + k];
 						datacnt++;
 					}
-				}
+				//}
 				j += 32;
 			}
 			recv_byte_cnt -= PAGE_SIZE;
 		} else {
 			for (j = 0; j < recv_byte_cnt;) {
-				if (src_addr[j] == 0x7f) {
+				//if (src_addr[j] == 0x7f) {
 					emp_pkt_cnt++;
 					/*32 bytes per emp pkt*/
 					for (k = 0; k < 32; k++) {
@@ -4860,7 +4859,7 @@ void rx_emp_field_done_irq(void)
 						src_addr[PAGE_SIZE * i + j + k];
 						datacnt++;
 					}
-				}
+				//}
 				j += 32;
 			}
 		}
@@ -4910,7 +4909,7 @@ void rx_tmds_to_ddr_init(void)
 	unsigned int data, data2;
 	unsigned int i = 0;
 
-	if (rx.chip_id < CHIP_ID_TL1)
+	if (rx.chip_id < CHIP_ID_T7)
 		return;
 
 	if (rx.empbuff.pg_addr) {
@@ -4938,8 +4937,8 @@ void rx_tmds_to_ddr_init(void)
 		}
 		if (rx.empbuff.p_addr_a) {
 			/* config ddr buffer */
-			hdmirx_wr_top(TOP_EMP_DDR_START_A, rx.empbuff.p_addr_a);
-			hdmirx_wr_top(TOP_EMP_DDR_START_B, rx.empbuff.p_addr_a);
+			hdmirx_wr_top(TOP_EMP_DDR_START_A, rx.empbuff.p_addr_a >> 2);
+			hdmirx_wr_top(TOP_EMP_DDR_START_B, rx.empbuff.p_addr_a >> 2);
 			rx_pr("cfg hw addr=0x%p\n", (void *)rx.empbuff.p_addr_a);
 		}
 
