@@ -18,5 +18,5 @@
 
 int spdif_set_audio_clk(int id, struct clk *clk_src, int rate, int same);
 int spdifout_get_lane_mask_version(int id);
-
+unsigned int spdif_get_codec(void);
 #endif

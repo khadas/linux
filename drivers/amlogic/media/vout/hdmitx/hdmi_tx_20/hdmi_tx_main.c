@@ -5220,7 +5220,16 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	}
 
 	if (audio_param->channel_num != (aud_param->chs - 1)) {
-		audio_param->channel_num = aud_param->chs - 1;
+		int chnum = aud_param->chs;
+		int lane_cnt = chnum / 2;
+		int lane_mask = (1 << lane_cnt) - 1;
+
+		pr_info(AUD "aout notify channel num: %d\n", chnum);
+		audio_param->channel_num = chnum - 1;
+		if (cmd == CT_PCM && chnum > 2)
+			hdev->aud_output_ch = chnum << 4 | lane_mask;
+		else
+			hdev->aud_output_ch = 0;
 		hdev->audio_param_update_flag = 1;
 	}
 	if (hdev->tx_aud_cfg == 2) {

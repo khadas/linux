@@ -2598,7 +2598,7 @@ static void set_aud_chnls(struct hdmitx_dev *hdev,
 	/* set default 48k 2ch pcm */
 	if (audio_param->type == CT_PCM &&
 	    (audio_param->channel_num == (2 - 1))) {
-		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSV, 0x11);
+		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSV, 0);
 		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS7, 0x02);
 		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS8, 0xd2);
 	} else {
