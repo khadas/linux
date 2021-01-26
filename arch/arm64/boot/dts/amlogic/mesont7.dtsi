@@ -71,6 +71,7 @@
 			clock-latency = <50000>;
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <550>;
+			#cooling-cells = <2>;
 		};
 
 		CPU1:cpu@1 {
@@ -90,6 +91,8 @@
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <550>;
+			#cooling-cells = <2>;
 		};
 
 		CPU2:cpu@2 {
@@ -109,6 +112,8 @@
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <550>;
+			#cooling-cells = <2>;
 		};
 
 		CPU3:cpu@3 {
@@ -128,6 +133,8 @@
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <550>;
+			#cooling-cells = <2>;
 		};
 
 		CPU4:cpu@100 {
@@ -148,6 +155,7 @@
 			clock-latency = <50000>;
 			capacity-dmips-mhz = <632>;
 			dynamic-power-coefficient = <110>;
+			#cooling-cells = <2>;
 		};
 
 		CPU5:cpu@101{
@@ -167,6 +175,8 @@
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			capacity-dmips-mhz = <632>;
+			dynamic-power-coefficient = <110>;
+			#cooling-cells = <2>;
 		};
 
 		CPU6:cpu@102 {
@@ -186,6 +196,8 @@
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			capacity-dmips-mhz = <632>;
+			dynamic-power-coefficient = <110>;
+			#cooling-cells = <2>;
 		};
 
 		CPU7:cpu@103 {
@@ -205,6 +217,8 @@
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			capacity-dmips-mhz = <632>;
+			dynamic-power-coefficient = <110>;
+			#cooling-cells = <2>;
 		};
 
 		idle-states {
@@ -1976,7 +1990,7 @@
 		tsensor_id = <1>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
-		rtemp = <110000>;
+		rtemp = <115000>;
 		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
@@ -1990,7 +2004,7 @@
 		tsensor_id = <2>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
-		rtemp = <110000>;
+		rtemp = <115000>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
@@ -2004,7 +2018,7 @@
 		tsensor_id = <3>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
-		rtemp = <110000>;
+		rtemp = <115000>;
 		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
@@ -2019,7 +2033,7 @@
 		tsensor_id = <4>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
-		rtemp = <110000>;
+		rtemp = <115000>;
 		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
@@ -2034,107 +2048,107 @@
 		tsensor_id = <5>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
-		rtemp = <110000>;
+		rtemp = <115000>;
 		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
 		power-domains = <&pwrdm PDID_T7_DOS_HEVC>;
 		#thermal-sensor-cells = <1>;
 	};
-/*
- *	meson_cooldev: meson-cooldev@0 {
- *			status = "disabled";
- *			compatible = "amlogic, meson-cooldev";
- *			cooling_devices {
- *				cpucore_cool_cluster0 {
- *					cluster_id = <0>;
- *					node_name = "cpucore_cool0";
- *					device_type = "cpucore";
- *				};
- *				gpufreq_cool {
- *					dyn_coeff = <140>;
- *					node_name = "gpufreq_cool0";
- *					device_type = "gpufreq";
- *				};
- *			};
- *			cpucore_cool0:cpucore_cool0 {
- *				#cooling-cells = <2>;
- *			};
- *			gpufreq_cool0:gpufreq_cool0 {
- *				#cooling-cells = <2>;
- *			};
- *			gpucore_cool0:gpucore_cool0 {
- *				#cooling-cells = <2>;
- *			};
- *		};
- */
-/*meson cooling devices end*/
+
+	meson_cooldev: meson-cooldev@0 {
+		status = "okay";
+		compatible = "amlogic, meson-cooldev";
+		cooling_devices {
+			cpucore_cool_cluster0 {
+				cluster_id = <0>;
+				node_name = "cpucore_cool0";
+				device_type = "cpucore";
+			};
+			cpucore_cool_cluster1 {
+				cluster_id = <1>;
+				node_name = "cpucore_cool1";
+				device_type = "cpucore";
+			};
+			gpufreq_cool {
+				dyn_coeff = <358>;
+				node_name = "bifrost";
+				device_type = "gpufreq";
+			};
+		};
+		cpucore_cool0:cpucore_cool0 {
+			#cooling-cells = <2>;
+		};
+		cpucore_cool1:cpucore_cool1 {
+			#cooling-cells = <2>;
+		};
+	};/*meson cooling devices end*/
 
 	thermal-zones {
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
-			sustainable-power = <1160>;
+			sustainable-power = <5160>;
 			thermal-sensors = <&a73_tsensor 0>;
 			trips {
 				a73switch_on: trip-point@0 {
-					temperature = <85000>;
+					temperature = <80000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a73control: trip-point@1 {
-					temperature = <95000>;
+					temperature = <90000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a73critical: trip-point@2 {
-					temperature = <105000>;
+					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
 			};
-/*
- *			cooling-maps {
- *				cpufreq_cooling_map {
- *					trip = <&pcontrol>;
- *					cooling-device = <&cpufreq_cool0 0 6>;
- *					contribution = <1024>;
- *				};
- *				gpufreq_cooling_map {
- *					trip = <&pcontrol>;
- *					cooling-device = <&gpufreq_cool0 0 3>;
- *					contribution = <1024>;
- *				};
- *			};
- */
+			cooling-maps {
+				cpufreq_cooling_map0 {
+					trip = <&a73control>;
+					cooling-device = <&CPU0 0 6>;
+					contribution = <1024>;
+				};
+			};
 		};
 		a53_thermal: a53_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
-			sustainable-power = <1410>;
+			sustainable-power = <960>;
 			thermal-sensors = <&a53_tsensor 1>;
 			trips {
 				a53switch_on: trip-point@0 {
-					temperature = <85000>;
+					temperature = <90000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a53control: trip-point@1 {
-					temperature = <95000>;
+					temperature = <100000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a53critical: trip-point@2 {
-					temperature = <105000>;
+					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
+				};
+			};
+			cooling-maps {
+				cpufreq_cooling_map1 {
+					trip = <&a53control>;
+					cooling-device = <&CPU4 0 5>;
+					contribution = <1024>;
 				};
 			};
 		};
 		gpu_thermal: gpu_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
-			sustainable-power = <1410>;
+			sustainable-power = <400>;
 			thermal-sensors = <&gpu_tsensor 2>;
 			trips {
 				gpuswitch_on: trip-point@0 {
@@ -2148,7 +2162,7 @@
 					type = "passive";
 				};
 				gpucritical: trip-point@2 {
-					temperature = <105000>;
+					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2157,7 +2171,7 @@
 		nna_thermal: nna_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
-			sustainable-power = <1410>;
+			sustainable-power = <3550>;
 			thermal-sensors = <&nna_tsensor 3>;
 			trips {
 				nnaswitch_on: trip-point@0 {
@@ -2171,7 +2185,7 @@
 					type = "passive";
 				};
 				nnacritical: trip-point@2 {
-					temperature = <105000>;
+					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2180,7 +2194,7 @@
 		hevc_thermal: hevc_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
-			sustainable-power = <1410>;
+			sustainable-power = <3550>;
 			thermal-sensors = <&hevc_tsensor 4>;
 			trips {
 				hevcswitch_on: trip-point@0 {
@@ -2194,7 +2208,7 @@
 					type = "passive";
 				};
 				hevccritical: trip-point@2 {
-					temperature = <105000>;
+					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};

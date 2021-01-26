@@ -287,7 +287,7 @@ cpucore_cooling_register(struct device_node *np, int cluster_id)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (mc_capable()) {
+	if (topology_physical_package_id(0) != -1) {
 		for_each_possible_cpu(cpu) {
 			if (topology_physical_package_id(cpu) == cluster_id)
 				cores++;
