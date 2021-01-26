@@ -218,7 +218,10 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 		dev_err(dev, "error allocating key_iv buffer\n");
 		return -EINVAL;
 	}
-	memcpy(key_iv, key, keylen);
+
+	if (key)
+		memcpy(key_iv, key, keylen);
+
 	if (iv) {
 		u32 *piv = key_iv + 8;
 
@@ -1302,6 +1305,9 @@ static void aml_aes_done_task(unsigned long data)
 		if (err == -EINPROGRESS)
 			return; /* DMA started. Not fininishing. */
 	}
+
+	if (dd->ctx->kte < 0)
+		err = set_aes_key_iv(dd, NULL, 0, NULL, 0);
 
 	aml_aes_finish_req(dd, err);
 	aml_aes_handle_queue(dd, NULL);
