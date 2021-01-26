@@ -4494,31 +4494,28 @@ static int vdin_drv_probe(struct platform_device *pdev)
 
 		fclk_div5 = clk_get(&pdev->dev, "fclk_div5");
 		if (IS_ERR(fclk_div5)) {
-			pr_err("get fclk_div5 err\n");
+			pr_err("vdin%d get fclk_div5 err\n", vdevp->index);
 		} else {
 			clk_rate = clk_get_rate(fclk_div5);
 			pr_info("%s: fclk_div5 is %d MHZ\n", __func__,
 				clk_rate / 1000000);
 		}
 		vdevp->msr_clk = clk_get(&pdev->dev, "cts_vdin_meas_clk");
-		if (IS_ERR(fclk_div5) || IS_ERR(vdevp->msr_clk)) {
-			pr_err("%s: vdin cannot get msr clk !!!\n", __func__);
+		if (IS_ERR(vdevp->msr_clk)) {
+			pr_err("%s: vdin%d cannot get msr clk !!!\n",
+				__func__, vdevp->index);
 			fclk_div5 = NULL;
 			vdevp->msr_clk = NULL;
 		} else {
-			clk_set_parent(vdevp->msr_clk, fclk_div5);
+			if (!IS_ERR(fclk_div5))
+				clk_set_parent(vdevp->msr_clk, fclk_div5);
+
 			clk_set_rate(vdevp->msr_clk, 50000000);
 			clk_prepare_enable(vdevp->msr_clk);
-			if (!IS_ERR(vdevp->msr_clk)) {
-				vdevp->msr_clk_val =
-					clk_get_rate(vdevp->msr_clk);
-				pr_info("%s: vdin[%d] clock is %d MHZ\n",
-					__func__, vdevp->index,
-					vdevp->msr_clk_val / 1000000);
-			} else {
-				pr_err("%s: vdin[%d] cannot get clock !!!\n",
-				       __func__, vdevp->index);
-			}
+			vdevp->msr_clk_val = clk_get_rate(vdevp->msr_clk);
+			pr_info("%s: vdin[%d] clock is %d MHZ\n",
+				__func__, vdevp->index,
+				vdevp->msr_clk_val / 1000000);
 		}
 	}
 	/* register vpu clk control interface */
