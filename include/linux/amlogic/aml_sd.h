@@ -190,6 +190,7 @@ struct meson_host {
 int sdio_reset_comm(struct mmc_card *card);
 void sdio_reinit(void);
 const char *get_wifi_inf(void);
+int sdio_get_vendor(void);
 
 #define   DRIVER_NAME "meson-gx-mmc"
 

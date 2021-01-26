@@ -2978,6 +2978,18 @@ const char *get_wifi_inf(void)
 }
 EXPORT_SYMBOL(get_wifi_inf);
 
+int sdio_get_vendor(void)
+{
+	int vendor = 0;
+
+	if (sdio_host)
+		vendor = sdio_host->card->cis.vendor;
+
+	pr_info("sdio vendor is 0x%x\n", vendor);
+	return vendor;
+}
+EXPORT_SYMBOL(sdio_get_vendor);
+
 static struct pinctrl * __must_check aml_pinctrl_select(struct meson_host *host,
 							const char *name)
 {
