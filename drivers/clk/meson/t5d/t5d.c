@@ -1059,7 +1059,7 @@ static struct notifier_block t5d_cpu_clk_mux_nb = {
 
 struct t5d_cpu_clk_postmux_nb_data {
 	struct notifier_block nb;
-	struct clk_hw *xtal;
+	struct clk_hw *fclk_div2;
 	struct clk_hw *cpu_clk_dyn;
 	struct clk_hw *cpu_clk_postmux0;
 	struct clk_hw *cpu_clk_postmux1;
@@ -1088,9 +1088,9 @@ static int t5d_cpu_clk_postmux_notifier_cb(struct notifier_block *nb,
 		 *			\- fclk_div3 or fclk_div2
 		 */
 
-		/* Setup cpu_clk_premux1 to xtal */
+		/* Setup cpu_clk_premux1 to fclk_div2 */
 		clk_hw_set_parent(nb_data->cpu_clk_premux1,
-				  nb_data->xtal);
+				  nb_data->fclk_div2);
 
 		/* Setup cpu_clk_postmux1 to bypass divider */
 		clk_hw_set_parent(nb_data->cpu_clk_postmux1,
@@ -1101,12 +1101,12 @@ static int t5d_cpu_clk_postmux_notifier_cb(struct notifier_block *nb,
 				  nb_data->cpu_clk_postmux1);
 
 		/*
-		 * Now, cpu_clk is 24MHz in the current path :
+		 * Now, cpu_clk is fclk_div2 in the current path :
 		 * cpu_clk
 		 *    \- cpu_clk_dyn
 		 *          \- cpu_clk_postmux1
 		 *                \- cpu_clk_premux1
-		 *                      \- xtal
+		 *                      \- fclk_div2
 		 */
 
 		udelay(100);
@@ -1546,13 +1546,13 @@ static int meson_t5d_dvfs_setup_common(struct platform_device *pdev,
 					struct clk_hw **hws)
 {
 	struct clk *notifier_clk;
-	struct clk_hw *xtal;
+	struct clk_hw *fclk_div2;
 	int ret;
 
-	xtal = clk_hw_get_parent_by_index(hws[CLKID_CPU_CLK_DYN1_SEL], 0);
+	fclk_div2 = clk_hw_get_parent_by_index(hws[CLKID_CPU_CLK_DYN1_SEL], 1);
 
 	/* Setup clock notifier for cpu_clk_postmux0 */
-	t5d_cpu_clk_postmux0_nb_data.xtal = xtal;
+	t5d_cpu_clk_postmux0_nb_data.fclk_div2 = fclk_div2;
 	notifier_clk = t5d_cpu_clk_postmux0.hw.clk;
 	ret = clk_notifier_register(notifier_clk,
 				    &t5d_cpu_clk_postmux0_nb_data.nb);
