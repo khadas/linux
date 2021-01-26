@@ -4544,13 +4544,12 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			}
 		} else {
 		/*********************************/
-		if ((di_buf->vframe->width >= 1920) &&
-		    (di_buf->vframe->height >= 1080))
-			flg_1080i = true;
+			if ((di_buf->vframe->width >= 1920) &&
+				(di_buf->vframe->height >= 1080))
+				flg_1080i = true;
 
 		/*********************************/
-			if (
-				di_pre_stru.di_chan2_buf_dup_p == NULL) {
+			if (di_pre_stru.di_chan2_buf_dup_p == NULL) {
 				di_pre_stru.field_count_for_cont = 0;
 				/* ignore contp2rd and contprd */
 			}

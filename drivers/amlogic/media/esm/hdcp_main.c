@@ -109,7 +109,7 @@ static long load_code(struct esm_device *esm, struct esm_ioc_code __user *arg)
 		return -EFAULT;
 
 	/* esm->code_loaded = 1; */
-		return 0;
+	return 0;
 }
 
 /* ESM_IOC_WRITE_DATA implementation */

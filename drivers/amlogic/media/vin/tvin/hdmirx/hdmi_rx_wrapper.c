@@ -641,7 +641,7 @@ static int hdmi_rx_ctrl_irq_handler(void)
 			else
 				rx_afifo_store_all_subpkt(false);
 			//if (rx.aud_info.real_sr != 0)
-				error |= hdmirx_audio_fifo_rst();
+			error |= hdmirx_audio_fifo_rst();
 		}
 		if (rx_get_bits(intr_aud_fifo, UNDERFL) != 0) {
 			if (log_level & 0x100)
@@ -649,7 +649,7 @@ static int hdmi_rx_ctrl_irq_handler(void)
 			/* rx.irq_flag |= IRQ_AUD_FLAG; */
 			rx_afifo_store_all_subpkt(false);
 			//if (rx.aud_info.real_sr != 0)
-				error |= hdmirx_audio_fifo_rst();
+			error |= hdmirx_audio_fifo_rst();
 		}
 	}
 	if (vsi_handle_flag)
