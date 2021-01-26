@@ -147,7 +147,7 @@ enum ffs_setup_state {
 };
 
 #ifdef CONFIG_AMLOGIC_USB
-#define FFS_BUFFER_MAX	100
+#define FFS_BUFFER_MAX	256
 struct ffs_data_buffer {
 	char *data_ep;
 	int data_state;
