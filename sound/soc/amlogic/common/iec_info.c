@@ -11,9 +11,7 @@
 
 #include <linux/amlogic/media/sound/aout_notify.h>
 #include "iec_info.h"
-#ifdef CONFIG_AMLOGIC_HDMITX
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
-#endif
 
 const struct soc_enum audio_coding_type_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_coding_type_names),
