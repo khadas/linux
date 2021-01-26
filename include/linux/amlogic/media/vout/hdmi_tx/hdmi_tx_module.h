@@ -398,7 +398,8 @@ struct hdmitx_dev {
 	unsigned char EDID_buf1[EDID_MAX_BLOCK * 128]; /* for second read */
 	unsigned char tmp_edid_buf[128 * EDID_MAX_BLOCK];
 	unsigned char *edid_ptr;
-	unsigned int edid_parsing; /* Indicator that RX edid data integrated */
+	/* indicate RX edid data integrated, HEAD valid and checksum pass */
+	unsigned int edid_parsing;
 	unsigned char EDID_hash[20];
 	struct rx_cap rxcap;
 	struct hdmitx_vidpara *cur_video_param;
@@ -475,6 +476,7 @@ struct hdmitx_dev {
 	unsigned int hdr10plus_feature;
 	enum eotf_type hdmi_current_eotf_type;
 	enum mode_type hdmi_current_tunnel_mode;
+	bool hdmi_current_signal_sdr;
 	unsigned int flag_3dfp:1;
 	unsigned int flag_3dtb:1;
 	unsigned int flag_3dss:1;
@@ -489,6 +491,7 @@ struct hdmitx_dev {
 	unsigned int drm_feature;/*force 0 now.*/
 	drm_hpd_cb drm_cb;
 	void *drm_data;
+	bool systemcontrol_on;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
@@ -556,6 +559,7 @@ struct hdmitx_dev {
 	#define SET_CT_GRAPHICS	2
 	#define SET_CT_PHOTO	3
 	#define SET_CT_CINEMA	4
+#define CONF_GET_AVI_BT2020 (CMD_CONF_OFFSET + 0X2000 + 0x05)
 #define CONF_VIDEO_MUTE_OP      (CMD_CONF_OFFSET + 0x1000 + 0x04)
 #define VIDEO_MUTE          0x1
 #define VIDEO_UNMUTE        0x2
@@ -661,6 +665,8 @@ void hdmitx_edid_clear(struct hdmitx_dev *hdmitx_device);
 void hdmitx_edid_ram_buffer_clear(struct hdmitx_dev *hdmitx_device);
 void hdmitx_edid_buf_compare_print(struct hdmitx_dev *hdmitx_device);
 const char *hdmitx_edid_get_native_VIC(struct hdmitx_dev *hdmitx_device);
+bool hdmitx_check_edid_all_zeros(unsigned char *buf);
+bool hdmitx_edid_notify_ng(unsigned char *buf);
 
 /* VSIF: Vendor Specific InfoFrame
  * It has multiple purposes:
@@ -783,6 +789,7 @@ int hdmitx_set_uevent(enum hdmitx_event type, int val);
 #ifdef CONFIG_AMLOGIC_HDMITX
 struct hdmitx_dev *get_hdmitx_device(void);
 int get_hpd_state(void);
+bool is_tv_changed(void);
 int hdmitx_event_notifier_regist(struct notifier_block *nb);
 int hdmitx_event_notifier_unregist(struct notifier_block *nb);
 void hdmitx_event_notify(unsigned long state, void *arg);
@@ -926,5 +933,5 @@ int drm_hdmitx_register_hpd_cb(drm_hpd_cb cb, void *data);
 int drm_hdmitx_get_vic_list(int **vics);
 unsigned char *drm_hdmitx_get_raw_edid(void);
 /*DRM connector API end*/
-
+int hdmitx_uboot_already_display(int type);
 #endif

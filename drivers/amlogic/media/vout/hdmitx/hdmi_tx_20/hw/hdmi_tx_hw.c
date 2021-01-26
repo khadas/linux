@@ -480,7 +480,7 @@ static int hdmitx_uboot_sc2_already_display(void)
 	return ret;
 }
 
-static int hdmitx_uboot_already_display(int type)
+int hdmitx_uboot_already_display(int type)
 {
 	int ret = 0;
 
@@ -4150,6 +4150,13 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 		if (argv == CLR_AVI_BT2020)
 			hdmitx_set_avi_colorimetry(hdev->para);
 		break;
+	case CONF_GET_AVI_BT2020:
+		if (((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF1) & 0xC0) == 0xC0) &&
+		    ((hdmitx_rd_reg(HDMITX_DWC_FC_AVICONF2) & 0x70) == 0x60))
+			ret = 1;
+		else
+			ret = 0;
+		break;
 	case CONF_CLR_DV_VS10_SIG:
 /* if current is DV/VSIF.DOVI, next will switch to HDR, need set
  * Dolby_Vision_VS10_Signal_Type as 0
@@ -4291,7 +4298,10 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 	case MISC_HPD_GPI_ST:
 		return hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO);
 	case MISC_TRIGGER_HPD:
-		hdmitx_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 1);
+		if (argv == 1)
+			hdmitx_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 1);
+		else
+			hdmitx_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 2);
 		return 0;
 	case MISC_HPLL_FAKE:
 		hdmitx_set_fake_vic(hdev);
