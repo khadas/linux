@@ -57,7 +57,7 @@ static int goodix_parse_cfg_bin(struct goodix_cfg_bin *cfg_bin)
 	}
 
 	/*allocate memory for cfg packages*/
-	cfg_bin->cfg_pkgs = kzalloc(sizeof(cfg_bin->cfg_pkgs) *
+	cfg_bin->cfg_pkgs = kzalloc(sizeof(*cfg_bin->cfg_pkgs) *
 				    cfg_bin->head.pkg_num, GFP_KERNEL);
 	if (!cfg_bin->cfg_pkgs) {
 		r = -ENOMEM;
