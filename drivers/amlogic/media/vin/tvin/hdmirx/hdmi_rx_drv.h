@@ -20,8 +20,8 @@
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 
-/* Add kernel5.4 for tm2-b */
-#define RX_VER0 "ver.2020/11/17"
+/* fix t5d color abnormal issue */
+#define RX_VER0 "ver.2021/01/26"
 
 /*print type*/
 #define	LOG_EN		0x01

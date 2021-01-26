@@ -3556,7 +3556,7 @@ bool rx_get_dvi_mode(void)
 	if (rx.chip_id == CHIP_ID_T7)
 		ret = hdmirx_rd_cor(RX_AUDP_STAT_DP2_IVCRX) & 1;
 	else
-		ret = hdmirx_rd_bits_dwc(DWC_PDEC_STS, DVIDET);
+		ret = !hdmirx_rd_bits_dwc(DWC_PDEC_STS, DVIDET);
 	if (ret)
 		return false;
 	else
@@ -4464,9 +4464,10 @@ void aml_phy_switch_port(void)
 		aml_phy_switch_port_tl1();
 	else if (rx.chip_id == CHIP_ID_TM2)
 		aml_phy_switch_port_tm2();
-	else if (rx.chip_id == CHIP_ID_T5)
+	else if (rx.chip_id >= CHIP_ID_T5 &&
+		rx.chip_id <= CHIP_ID_T5D)
 		aml_phy_switch_port_t5();
-	else if (rx.chip_id == CHIP_ID_T7)
+	else if (rx.chip_id >= CHIP_ID_T7)
 		aml_phy_switch_port_t7();
 }
 
