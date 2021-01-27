@@ -87,9 +87,9 @@ void vdin_wrmif2_initial(struct vdin_dev_s *devp)
 		return;
 
 	/* vdin2 mif sel t7 vdin1 normal is meta data*/
-	wr_bits(offset, VDIN_TOP_DOUBLE_CTRL, 3, MIF2_OUT_SEL_BIT,
+	wr_bits(offset, VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN1_NOR, MIF2_OUT_SEL_BIT,
 		VDIN_REORDER_SEL_WID);
-	wr_bits(offset, VDIN_TOP_DOUBLE_CTRL, 0, MIF1_OUT_SEL_BIT,
+	wr_bits(offset, VDIN_TOP_DOUBLE_CTRL, WR_SEL_VDIN1_SML, MIF1_OUT_SEL_BIT,
 		VDIN_REORDER_SEL_WID);
 
 	/* scope */
