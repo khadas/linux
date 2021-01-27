@@ -1560,7 +1560,7 @@
 
 	ge2d {
 		compatible = "amlogic, ge2d-sc2";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 217 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ge2d";
 		clocks = <&clkc CLKID_VAPB>,
@@ -1570,7 +1570,7 @@
 			"clk_ge2d",
 			"clk_ge2d_gate";
 		reg = <0x0 0xff040000 0x0 0x100>;
-//		power-domains = <&pwrdm PDID_SC2_GE2D>;
+		power-domains = <&pwrdm PDID_S4_GE2D>;
 	};
 
 	aml_bt: aml_bt {
