@@ -6,11 +6,13 @@
  *
  */
 
-#ifdef CONFIG_AMLOGIC_ATV_DEMOD
+#if (defined CONFIG_AMLOGIC_ATV_DEMOD ||\
+		defined CONFIG_AMLOGIC_ATV_DEMOD_MODULE)
 #include <linux/amlogic/aml_atvdemod.h>
 #endif
 
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #endif
 
@@ -21,7 +23,8 @@ static const char *const audio_is_stable[] = {
 	"true"
 };
 
-#ifdef CONFIG_AMLOGIC_ATV_DEMOD
+#if (defined CONFIG_AMLOGIC_ATV_DEMOD ||\
+		defined CONFIG_AMLOGIC_ATV_DEMOD_MODULE)
 
 const struct soc_enum atv_audio_status_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_is_stable),
@@ -38,7 +41,8 @@ int aml_get_atv_audio_stable(struct snd_kcontrol *kcontrol,
 }
 #endif /* CONFIG_AMLOGIC_ATV_DEMOD */
 
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT ||\
+		defined CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT_MODULE)
 
 const struct soc_enum av_audio_status_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_is_stable),
@@ -52,7 +56,8 @@ int aml_get_av_audio_stable(struct snd_kcontrol *kcontrol,
 }
 #endif /* CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT */
 
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 int hdmiin_fifo_disable_count;
 
 int get_hdmi_sample_rate_index(void)

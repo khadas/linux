@@ -36,7 +36,7 @@ void aml_fe_hook_cvd(hook_func_t atv_mode, hook_func_t cvd_hv_lock,
 
 	pr_info("%s: %s OK.\n", __func__, atv_mode != NULL ? "set" : "reset");
 }
-EXPORT_SYMBOL(aml_fe_hook_cvd);
+EXPORT_SYMBOL_GPL(aml_fe_hook_cvd);
 
 bool aml_fe_has_hook_up(void)
 {

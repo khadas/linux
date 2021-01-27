@@ -118,7 +118,7 @@ void aml_fe_get_atvaudio_state(int *state)
 #endif
 	pr_audio("%s: %d, power = %d\n", __func__, *state, power);
 }
-EXPORT_SYMBOL(aml_fe_get_atvaudio_state);
+EXPORT_SYMBOL_GPL(aml_fe_get_atvaudio_state);
 
 int aml_atvdemod_get_btsc_sap_mode(void)
 {
@@ -1470,4 +1470,4 @@ struct dvb_frontend *aml_atvdemod_attach(struct dvb_frontend *fe,
 
 	return fe;
 }
-EXPORT_SYMBOL(aml_atvdemod_attach);
+EXPORT_SYMBOL_GPL(aml_atvdemod_attach);

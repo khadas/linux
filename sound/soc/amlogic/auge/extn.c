@@ -32,7 +32,8 @@
 #include "earc.h"
 
 #include "../common/misc.h"
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #endif
 
@@ -159,7 +160,8 @@ static irqreturn_t extn_ddr_isr(int irq, void *devid)
 	/* check pcm or nonpcm for PAO*/
 	if (p_extn->hdmirx_mode == HDMIRX_MODE_PAO) {
 		int timeout_thres = 5;
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 		int sample_rate_index = get_hdmi_sample_rate_index();
 
 		/*192K audio*/
@@ -701,7 +703,9 @@ static int frhdmirx_set_mode(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 /* spdif in audio format detect: LPCM or NONE-LPCM */
 struct sppdif_audio_info {
 	unsigned char aud_type;
@@ -839,21 +843,24 @@ static const struct snd_kcontrol_new extn_controls[] = {
 		frhdmirx_get_mode,
 		frhdmirx_set_mode),
 
-#ifdef CONFIG_AMLOGIC_ATV_DEMOD
+#if (defined CONFIG_AMLOGIC_ATV_DEMOD ||\
+		defined CONFIG_AMLOGIC_ATV_DEMOD_MODULE)
 	SOC_ENUM_EXT("ATV audio stable",
 		atv_audio_status_enum,
 		aml_get_atv_audio_stable,
 		NULL),
 #endif
 
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT ||\
+		defined CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT_MODULE)
 	SOC_ENUM_EXT("AV audio stable",
 		av_audio_status_enum,
 		aml_get_av_audio_stable,
 		NULL),
 #endif
 
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 	SOC_ENUM_EXT("HDMIIN audio stable",
 		hdmi_in_status_enum[0],
 		aml_get_hdmiin_audio_stable,
@@ -996,12 +1003,14 @@ static int extn_platform_probe(struct platform_device *pdev)
 	if (p_extn->chipinfo) {
 		if (p_extn->chipinfo->PAO_channel_sync) {
 			p_extn->hdmirx_mode = HDMIRX_MODE_PAO;
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 			rx_set_audio_param(HDMIRX_MODE_PAO);
 #endif
 		} else {
 			p_extn->hdmirx_mode = HDMIRX_MODE_SPDIFIN;
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 			rx_set_audio_param(HDMIRX_MODE_SPDIFIN);
 #endif
 		}

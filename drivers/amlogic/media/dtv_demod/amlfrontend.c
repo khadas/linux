@@ -4875,7 +4875,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 
 	return fe;
 }
-EXPORT_SYMBOL(aml_dtvdm_attach);
+EXPORT_SYMBOL_GPL(aml_dtvdm_attach);
 
 static struct aml_exp_func aml_exp_ops = {
 	.leave_mode = leave_mode,
@@ -4892,7 +4892,7 @@ struct aml_exp_func *aml_dtvdm_exp_attach(struct aml_exp_func *exp)
 	}
 	return exp;
 }
-EXPORT_SYMBOL(aml_dtvdm_exp_attach);
+EXPORT_SYMBOL_GPL(aml_dtvdm_exp_attach);
 
 struct dvb_frontend *aml_get_fe(void)
 {
@@ -4905,7 +4905,7 @@ void aml_exp_attach(struct aml_exp_func *afe)
 {
 
 }
-EXPORT_SYMBOL(aml_exp_attach);
+EXPORT_SYMBOL_GPL(aml_exp_attach);
 
 #ifndef MODULE
 fs_initcall(aml_dtvdemod_init);

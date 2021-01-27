@@ -994,7 +994,7 @@ int tvin_get_av_status(void)
 
 	return false;
 }
-EXPORT_SYMBOL(tvin_get_av_status);
+EXPORT_SYMBOL_GPL(tvin_get_av_status);
 
 void vdin_send_event(struct vdin_dev_s *devp, enum tvin_sg_chg_flg sts)
 {
