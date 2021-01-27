@@ -219,7 +219,7 @@ int configs_init_new_node(struct mconfig_node *node,
 	INIT_LIST_HEAD(&node->son_node_list);
 	return 0;
 }
-EXPORT_SYMBOL(configs_init_new_node);
+EXPORT_SYMBOL_GPL(configs_init_new_node);
 
 int configs_register_node(struct mconfig_node *parent,
 			  struct mconfig_node *new_node)
@@ -271,7 +271,7 @@ int configs_register_node(struct mconfig_node *parent,
 	mutex_unlock(&parent->lock);
 	return 0;
 }
-EXPORT_SYMBOL(configs_register_node);
+EXPORT_SYMBOL_GPL(configs_register_node);
 
 static struct mconfig_node *
 configs_get_node_path_end_node(struct mconfig_node *root_node, const char *path)
@@ -334,7 +334,7 @@ int configs_register_path_node(const char *path,
 	configs_put_node(parent, 1, NULL);
 	return ret;
 }
-EXPORT_SYMBOL(configs_register_path_node);
+EXPORT_SYMBOL_GPL(configs_register_path_node);
 
 int configs_register_configs(struct mconfig_node *node,
 			     struct mconfig *configs, int num)
@@ -361,7 +361,7 @@ int configs_register_configs(struct mconfig_node *node,
 	mutex_unlock(&node->lock);
 	return 0;
 }
-EXPORT_SYMBOL(configs_register_configs);
+EXPORT_SYMBOL_GPL(configs_register_configs);
 
 int configs_register_path_configs(const char *path,
 				  struct mconfig *configs, int num)
@@ -379,7 +379,7 @@ int configs_register_path_configs(const char *path,
 	}
 	return -1;
 }
-EXPORT_SYMBOL(configs_register_path_configs);
+EXPORT_SYMBOL_GPL(configs_register_path_configs);
 
 int configs_del_endnode(struct mconfig_node *parent,
 			struct mconfig_node *node)
