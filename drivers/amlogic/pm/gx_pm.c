@@ -340,7 +340,6 @@ static int meson_pm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	device_create_file(&pdev->dev, &dev_attr_suspend_reason);
 	device_create_file(&pdev->dev, &dev_attr_time_out);
-	device_rename(&pdev->dev, "aml_pm");
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	if (lgcy_early_suspend_init(pdev))
 		return -1;
