@@ -77,18 +77,19 @@
 		lcd_tcon_reserved:linux,lcd_tcon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x0>;
+			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x3e400000 0x0 0x1400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0xe400000>;
+			size = <0x0 0xc400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
+			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
 		};
 
 		/* codec shared reserved */
@@ -102,8 +103,15 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x2000000>;
+			/* device/amlogic/xxx/BoardConfig.mk
+			 *        |HWC_PRIMARY_FRAMEBUFFER_WIDTH := 1920
+			 *        |      |HWC_PRIMARY_FRAMEBUFFER_HEIGHT := 1080
+			 *        |      |      |NUM_FRAMEBUFFER_SURFACE_BUFFERS := 3
+			 * size = 1920 * 1080 * 3 * 4(RGBA: 4 bytes/pixel) + 4M(10% * afbc)
+			 */
+			size = <0x0 0x01c00000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -122,6 +130,7 @@
 			/* 1920x1080x2x4  =16 M */
 			size = <0x0 0x1400000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
 		};
 
 		/* demod_reserved:linux,demod {
@@ -136,9 +145,10 @@
 		demod_cma_reserved:linux,demod_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 8M */
-			size = <0x0 0x0800000>;
+			/* 40M */
+			size = <0x0 0x02800000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
 		};
 
 		/*di CMA pool */
