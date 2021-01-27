@@ -139,7 +139,7 @@ static const char * const ceca_reg_name3[] = {
 	"STAT_1_2"
 };
 
-unsigned int top_reg_tab[AO_REG_DEF_END][2] = {
+unsigned int top_reg_tab[AO_REG_DEF_END][cec_reg_group_max] = {
 	/*old, A1 later, */
 	{(0x1d << 2), 0xffff},/*AO_CEC_CLK_CNTL_REG0*/
 	{(0x1e << 2), 0xffff},/*AO_CEC_CLK_CNTL_REG1*/
@@ -174,13 +174,14 @@ unsigned int top_reg_tab[AO_REG_DEF_END][2] = {
 static void write_ao(unsigned int addr, unsigned int data)
 {
 	unsigned int real_addr;
+	unsigned int reg_grp = cec_dev->plat_data->reg_tab_group;
 
-	if (cec_dev->plat_data->chip_id == CEC_CHIP_A1 ||
-	    cec_dev->plat_data->chip_id == CEC_CHIP_SC2 ||
-	    cec_dev->plat_data->chip_id == CEC_CHIP_T7)
-		real_addr = top_reg_tab[addr][1];
-	else
-		real_addr = top_reg_tab[addr][0];
+	if (reg_grp >= cec_reg_group_max) {
+		pr_err("%s reg grp %d err\n", __func__, reg_grp);
+		return;
+	}
+
+	real_addr = top_reg_tab[addr][reg_grp];
 
 	if ((real_addr & REG_MASK_ADDR) == 0xffff) {
 		dprintk(L_4, "%s, no exist reg:0x%x", __func__, addr);
@@ -202,13 +203,14 @@ static unsigned int read_ao(unsigned int addr)
 {
 	unsigned int real_addr;
 	unsigned int data;
+	unsigned int reg_grp = cec_dev->plat_data->reg_tab_group;
 
-	if (cec_dev->plat_data->chip_id == CEC_CHIP_A1 ||
-	    cec_dev->plat_data->chip_id == CEC_CHIP_SC2 ||
-	    cec_dev->plat_data->chip_id == CEC_CHIP_T7)
-		real_addr = top_reg_tab[addr][1];
-	else
-		real_addr = top_reg_tab[addr][0];
+	if (reg_grp >= cec_reg_group_max) {
+		pr_err("%s reg grp %d err\n", __func__, reg_grp);
+		return 0;
+	}
+
+	real_addr = top_reg_tab[addr][reg_grp];
 
 	if (((real_addr & REG_MASK_ADDR)) == 0xffff) {
 		dprintk(L_4, "w ao no exist reg:0x%x", addr);
@@ -902,7 +904,8 @@ int dump_cecrx_reg(char *b)
 		s += sprintf(b + s, "%2x:%2x\n", 0xe8, read_periphs(0xe8));
 		s += sprintf(b + s, "%2x:%2x\n", 0xec, read_periphs(0xec));
 		s += sprintf(b + s, "%2x:%2x\n", 0xf0, read_periphs(0xf0));
-	} else if (cec_dev->plat_data->chip_id == CEC_CHIP_SC2) {
+	} else if (cec_dev->plat_data->chip_id == CEC_CHIP_SC2 ||
+		   cec_dev->plat_data->chip_id == CEC_CHIP_S4) {
 		s += sprintf(b + s, "%2x:%2x\n", 0x22, read_clock(0x22));
 		s += sprintf(b + s, "%2x:%2x\n", 0x23, read_clock(0x23));
 		s += sprintf(b + s, "%2x:%2x\n", 0x24, read_clock(0x24));
@@ -3136,8 +3139,8 @@ void cec_status(void)
 	struct hdmi_port_info *port;
 
 	CEC_ERR("driver date:%s\n", CEC_DRIVER_VERSION);
-	CEC_ERR("chip type:0x%x\n",
-		get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR));
+	/*CEC_ERR("chip type:0x%x\n",*/
+	/*	get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR));*/
 	CEC_ERR("ee_cec:%d\n", ee_cec);
 	CEC_ERR("cec_num:%d\n", cec_dev->cec_num);
 	CEC_ERR("dev_type:%d\n", (unsigned int)cec_dev->dev_type);
@@ -3681,6 +3684,7 @@ static const struct cec_platform_data_s cec_gxl_data = {
 	.ceca_ver = CECA_VER_0,
 	.cecb_ver = CECB_VER_0,
 	.share_io = false,
+	.reg_tab_group = cec_reg_group_old,
 };
 
 static const struct cec_platform_data_s cec_txlx_data = {
@@ -3692,6 +3696,7 @@ static const struct cec_platform_data_s cec_txlx_data = {
 	.ceca_ver = CECA_VER_0,
 	.cecb_ver = CECB_VER_1,
 	.share_io = false,
+	.reg_tab_group = cec_reg_group_old,
 };
 
 static const struct cec_platform_data_s cec_g12a_data = {
@@ -3703,6 +3708,7 @@ static const struct cec_platform_data_s cec_g12a_data = {
 	.ceca_ver = CECA_VER_0,
 	.cecb_ver = CECB_VER_1,
 	.share_io = false,
+	.reg_tab_group = cec_reg_group_old,
 };
 
 static const struct cec_platform_data_s cec_g12b_data = {
@@ -3714,6 +3720,7 @@ static const struct cec_platform_data_s cec_g12b_data = {
 	.ceca_ver = CECA_VER_0,
 	.cecb_ver = CECB_VER_1,
 	.share_io = false,
+	.reg_tab_group = cec_reg_group_old,
 };
 
 static const struct cec_platform_data_s cec_txl_data = {
@@ -3725,6 +3732,7 @@ static const struct cec_platform_data_s cec_txl_data = {
 	.ceca_ver = CECA_VER_0,
 	.cecb_ver = CECB_VER_0,
 	.share_io = false,
+	.reg_tab_group = cec_reg_group_old,
 };
 
 static const struct cec_platform_data_s cec_tl1_data = {
@@ -3736,6 +3744,7 @@ static const struct cec_platform_data_s cec_tl1_data = {
 	.ceca_ver = CECA_VER_0,
 	.cecb_ver = CECB_VER_2,
 	.share_io = false,
+	.reg_tab_group = cec_reg_group_old,
 };
 
 static const struct cec_platform_data_s cec_sm1_data = {
@@ -3747,6 +3756,7 @@ static const struct cec_platform_data_s cec_sm1_data = {
 	.ceca_ver = CECA_VER_1,
 	.cecb_ver = CECB_VER_2,
 	.share_io = true,
+	.reg_tab_group = cec_reg_group_old,
 };
 
 static const struct cec_platform_data_s cec_tm2_data = {
@@ -3758,6 +3768,7 @@ static const struct cec_platform_data_s cec_tm2_data = {
 	.ceca_ver = CECA_VER_1,
 	.cecb_ver = CECB_VER_2,
 	.share_io = true,
+	.reg_tab_group = cec_reg_group_old,
 };
 
 static const struct cec_platform_data_s cec_a1_data = {
@@ -3769,6 +3780,7 @@ static const struct cec_platform_data_s cec_a1_data = {
 	.ceca_ver = CECA_VER_1,
 	.cecb_ver = CECB_VER_2,
 	.share_io = true,
+	.reg_tab_group = cec_reg_group_a1,
 };
 
 static const struct cec_platform_data_s cec_sc2_data = {
@@ -3780,6 +3792,7 @@ static const struct cec_platform_data_s cec_sc2_data = {
 	.ceca_ver = CECA_VER_1,
 	.cecb_ver = CECB_VER_3,
 	.share_io = true,
+	.reg_tab_group = cec_reg_group_a1,
 };
 
 static const struct cec_platform_data_s cec_t5_data = {
@@ -3791,6 +3804,7 @@ static const struct cec_platform_data_s cec_t5_data = {
 	.ceca_ver = CECA_NONE,
 	.cecb_ver = CECB_VER_2,
 	.share_io = true,
+	.reg_tab_group = cec_reg_group_old,
 };
 
 static const struct cec_platform_data_s cec_t5d_data = {
@@ -3802,6 +3816,7 @@ static const struct cec_platform_data_s cec_t5d_data = {
 	.ceca_ver = CECA_NONE,
 	.cecb_ver = CECB_VER_2,
 	.share_io = true,
+	.reg_tab_group = cec_reg_group_old,
 };
 
 static const struct cec_platform_data_s cec_t7_data = {
@@ -3813,6 +3828,19 @@ static const struct cec_platform_data_s cec_t7_data = {
 	.ceca_ver = CECA_VER_1,
 	.cecb_ver = CECB_VER_3,
 	.share_io = false,
+	.reg_tab_group = cec_reg_group_a1,
+};
+
+static const struct cec_platform_data_s cec_s4_data = {
+	.chip_id = CEC_CHIP_S4,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 1,
+	.ceca_ver = CECA_VER_1,
+	.cecb_ver = CECB_VER_3,
+	.share_io = true,
+	.reg_tab_group = cec_reg_group_a1,
 };
 
 static const struct of_device_id aml_cec_dt_match[] = {
@@ -3867,6 +3895,10 @@ static const struct of_device_id aml_cec_dt_match[] = {
 	{
 		.compatible = "amlogic, aocec-t7",
 		.data = &cec_t7_data,
+	},
+	{
+		.compatible = "amlogic, aocec-s4",
+		.data = &cec_s4_data,
 	},
 	{}
 };
@@ -4277,7 +4309,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 		cec_dev->irq_ceca = cec_dev->irq_cecb;
 	}
 
-	dprintk(0, "irq cnt:%d, a:%d, b:%d\n", __of_irq_count(node),
+	dprintk(0, "%d irq src, a:%d, b:%d\n", __of_irq_count(node),
 		   cec_dev->irq_ceca, cec_dev->irq_cecb);
 	if (of_get_property(node, "interrupt-names", NULL)) {
 		if (of_property_count_strings(node, "interrupt-names") > 1) {

@@ -1130,15 +1130,15 @@
 	};
 
 	aocec: aocec {
-		compatible = "amlogic, aocec-sc2";
+		compatible = "amlogic, aocec-s4";
 		dev_name = "aocec";
-		status = "disabled";
+		status = "okay";
 		vendor_name = "Amlogic"; /* Max Chars: 8     */
 		/* Refer to the following URL at:
 		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
 		 */
 		vendor_id = <0xffffff>;
-		product_desc = "SC2"; /* Max Chars: 16    */
+		product_desc = "S4"; /* Max Chars: 16    */
 		cec_osd_string = "AML_MBOX"; /* Max Chars: 14    */
 		cec_version = <5>;/*5:1.4;6:2.0*/
 		port_num = <1>;
@@ -1975,15 +1975,15 @@
 
 	eecec_a: ee_ceca {
 		mux {
-			groups = "cec_a_h";
-			function = "cec_a";
+			groups = "ao_cec_a";
+			function = "ao_cec_a";
 		};
 	};
 
 	eecec_b: ee_cecb {
 		mux {
-			groups = "cec_b_h";
-			function = "cec_b";
+			groups = "ao_cec_b";
+			function = "ao_cec_b";
 		};
 	};
 

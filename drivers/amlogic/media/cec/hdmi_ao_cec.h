@@ -34,6 +34,7 @@ enum cec_chip_ver {
 	CEC_CHIP_T5,	/*only have cecb, first bringup at 4.9-dev*/
 	CEC_CHIP_T5D,	/*only have cecb, first bringup at 4.9-dev*/
 	CEC_CHIP_T7,
+	CEC_CHIP_S4,/*base on sc2*/
 };
 
 enum cecaver {
@@ -110,6 +111,7 @@ struct cec_platform_data_s {
 	enum cecbver cecb_ver;/* detail discription ref enum cecbver */
 	enum cecaver ceca_ver;
 	bool share_io;
+	unsigned int reg_tab_group;
 };
 
 struct cec_wakeup_t {
@@ -201,6 +203,12 @@ struct cec_msg_last {
 #define CEC_FUNC_CFG_NONE			0x0
 
 #define PREG_PAD_GPIO3_I			(0x01b << 2)
+
+enum cec_reg_group {
+	cec_reg_group_old = 0,
+	cec_reg_group_a1,
+	cec_reg_group_max,
+};
 
 enum {
 	AO_CEC_CLK_CNTL_REG0 = 0,
