@@ -449,6 +449,7 @@ int dmabuf_set_vframe(struct dma_buf *dmabuf, struct vframe_s *vf,
 	handle->vfp = vf;
 
 	handle->mod_attached_mask |= (1 << type);
+	UVM_PRINTK(1, "%s called, type-%d.\n", __func__, type);
 
 	return 0;
 }
@@ -530,7 +531,7 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 	handle->mod_attached_mask |= 1 << (uhmod->type);
 	mutex_unlock(&handle->lock);
 
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(1, "%s called, type-%d.\n", __func__, info->type);
 
 	return 0;
 }
@@ -546,23 +547,28 @@ EXPORT_SYMBOL(uvm_detach_hook_mod);
 static struct uvm_hook_mod *uvm_find_hook_mod(struct uvm_handle *handle,
 					      int type)
 {
+	struct uvm_hook_mod *ret = NULL;
 	struct uvm_hook_mod *uhmod = NULL;
+
+	UVM_PRINTK(1, "%s called, type-%d.\n", __func__, type);
 
 	mutex_lock(&handle->lock);
 	if (!list_empty(&handle->mod_attached)) {
 		list_for_each_entry(uhmod, &handle->mod_attached, list) {
-			if (uhmod->type == type)
+			if (uhmod->type == type) {
+				ret = uhmod;
 				break;
+			}
 		}
 	}
 	mutex_unlock(&handle->lock);
 
-	if (!uhmod) {
+	if (!ret) {
 		UVM_PRINTK(1, "%s fail.\n", __func__);
 		return NULL;
 	}
 
-	return uhmod;
+	return ret;
 }
 
 struct uvm_hook_mod *uvm_get_hook_mod(struct dma_buf *dmabuf,
