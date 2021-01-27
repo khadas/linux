@@ -391,6 +391,8 @@ static void edp_tx_init(void)
 	unsigned char edptx_auxdata[2];
 	int ret;
 
+	lcd_vcbus_write(ENCL_VIDEO_EN, 0);
+
 	dptx_reset();
 	dptx_init();  /* initialize aux-channel clk_div*/
 
@@ -433,6 +435,7 @@ static void edp_tx_init(void)
 	/*dptx_dpcd_dump();*/
 
 	dptx_set_msa();
+	lcd_vcbus_write(ENCL_VIDEO_EN, 1);
 
 	LCDPR("edp enabling the main stream video\n");
 	dptx_reg_write(EDP_TX_MAIN_STREAM_ENABLE, 0x1); /* Enable main-link*/
@@ -875,6 +878,401 @@ static void lcd_venc_set_mipi_dsi(void)
 	LCDPR(" lcd venc init\n");
 }
 
+static void vx1_sw_reset(void)
+{
+	/* force PHY to 0 */
+	lcd_combo_dphy_setb(COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0, 3, 8, 2);
+	lcd_vcbus_write(VBO_SOFT_RST_T7, 0x1ff);
+	lcd_delay_us(5);
+	/* realease PHY */
+	lcd_combo_dphy_setb(COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0, 0, 8, 2);
+	lcd_vcbus_write(VBO_SOFT_RST_T7, 0);
+}
+
+#define VX1_HPD_WAIT_TIMEOUT    5000 /* 500ms */
+static void vx1_wait_hpd(void)
+{
+	int i = 0;
+	int ret = 1;
+
+	LCDPR("%s:", __func__);
+	while (i++ < VX1_HPD_WAIT_TIMEOUT) {
+		ret = (lcd_vcbus_read(VBO_STATUS_L_T7) >> 6) & 1;
+		if (ret == 0)
+			break;
+		lcd_delay_us(100);
+	}
+
+	if (ret) {
+		LCDPR("hpd=%d\n",
+		      ((lcd_vcbus_read(VBO_STATUS_L_T7) >> 6) & 1));
+	} else {
+		LCDPR("hpd=%d, i=%d\n",
+		      ((lcd_vcbus_read(VBO_STATUS_L_T7) >> 6) & 1), i);
+	}
+
+	lcd_delay_ms(10); /* add 10ms delay for compatibility */
+}
+
+#define VX1_LOCKN_WAIT_TIMEOUT    500 /* 500ms */
+static void vx1_wait_stable(void)
+{
+	int i = 0;
+	int ret = 1;
+
+	while (i++ < VX1_LOCKN_WAIT_TIMEOUT) {
+		ret = lcd_vcbus_read(VBO_STATUS_L_T7) & 0x3f;
+		if (ret == 0x20)
+			break;
+		mdelay(1);
+	}
+	LCDPR("%s status: 0x%x, i=%d\n", __func__,
+	      lcd_vcbus_read(VBO_STATUS_L), i);
+}
+
+static void vx1_clk_util_set(void)
+{
+	/* set fifo_clk_sel*/
+	lcd_combo_dphy_write(COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0, (3 << 5));
+	/* set cntl_ser_en:  8-channel to 1 */
+	lcd_combo_dphy_setb(COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0, 0xfff, 16, 8);
+
+	/* decoupling fifo enable, gated clock enable */
+	lcd_combo_dphy_write(COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1,
+			(1 << 6) | (1 << 0));
+	/* decoupling fifo write enable after fifo enable */
+	lcd_combo_dphy_setb(COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1, 1, 7, 1);
+}
+
+static int vx1_lanes_set(void)
+{
+	unsigned int sublane_num, tmp;
+	unsigned int region_size[4];
+
+	sublane_num = 8 / 2; /* lane num in each region */
+	lcd_vcbus_setb(VBO_LANES_T7, (8 - 1), 0, 3);
+	lcd_vcbus_setb(VBO_LANES_T7, (2 - 1), 4, 2);
+	lcd_vcbus_setb(VBO_LANES_T7, (sublane_num - 1), 8, 3);
+	lcd_vcbus_setb(VBO_LANES_T7, (4 - 1), 11, 2);
+
+	region_size[3] = (3840 / 8) * sublane_num;
+	tmp = (3840 % 8);
+	region_size[0] = region_size[3] + (((tmp / sublane_num) > 0) ?
+		sublane_num : (tmp % sublane_num));
+	region_size[1] = region_size[3] + (((tmp / sublane_num) > 1) ?
+		sublane_num : (tmp % sublane_num));
+	region_size[2] = region_size[3] + (((tmp / sublane_num) > 2) ?
+		sublane_num : (tmp % sublane_num));
+	lcd_vcbus_write(VBO_REGION_00_T7, region_size[0]);
+	lcd_vcbus_write(VBO_REGION_01_T7, region_size[1]);
+	lcd_vcbus_write(VBO_REGION_02_T7, region_size[2]);
+	lcd_vcbus_write(VBO_REGION_03_T7, region_size[3]);
+
+	lcd_vcbus_write(VBO_ACT_VSIZE_T7, 2160);
+	/* different from FBC code!!! */
+	/* lcd_vcbus_setb(VBO_CTRL_H_T7,0x80,11,5); */
+	/* different from simulation code!!! */
+	lcd_vcbus_setb(VBO_CTRL_H_T7, 0x0, 0, 4);
+	lcd_vcbus_setb(VBO_CTRL_H_T7, 0x1, 9, 1);
+	/* lcd_vcbus_setb(VBO_CTRL_L_T7,enable,0,1); */
+
+	return 0;
+}
+
+static void vx1_sync_pol(int hsync_pol, int vsync_pol)
+{
+	lcd_vcbus_setb(VBO_VIN_CTRL_T7, hsync_pol, 4, 1);
+	lcd_vcbus_setb(VBO_VIN_CTRL_T7, vsync_pol, 5, 1);
+
+	lcd_vcbus_setb(VBO_VIN_CTRL_T7, hsync_pol, 6, 1);
+	lcd_vcbus_setb(VBO_VIN_CTRL_T7, vsync_pol, 7, 1);
+}
+
+static void vx1_wait_timing_stable(void)
+{
+	unsigned int timing_state;
+	int i = 200;
+
+	timing_state = lcd_vcbus_read(VBO_INTR_STATE_T7) & 0x1ff;
+	while ((timing_state) && (i > 0)) {
+		/* clear video timing error intr */
+		lcd_vcbus_setb(VBO_INTR_STATE_CTRL_T7, 0x7, 0, 3);
+		lcd_vcbus_setb(VBO_INTR_STATE_CTRL_T7, 0, 0, 3);
+		mdelay(2);
+		timing_state = lcd_vcbus_read(VBO_INTR_STATE_T7) & 0x1ff;
+		i--;
+	};
+
+	LCDPR("vbyone timing state: 0x%03x, i=%d\n",
+		timing_state, (200 - i));
+
+	mdelay(2);
+}
+
+static void vx1_control_set(void)
+{
+	int lane_count, byte_mode, region_num, hsize, vsize;
+	/* int color_fmt; */
+	int vin_color, vin_bpp;
+
+	LCDPR("%s\n", __func__);
+
+	hsize = 3840;
+	vsize = 2160;
+	lane_count = 8;
+	region_num = 2;
+	byte_mode = 4;
+
+	vx1_clk_util_set();
+
+	vin_color = 4; /* fixed RGB */
+	vin_bpp   = 0; /* fixed 30bbp 4:4:4 */
+
+	/* set Vbyone vin color format */
+	lcd_vcbus_setb(VBO_VIN_CTRL_T7, vin_color, 8, 3);
+	lcd_vcbus_setb(VBO_VIN_CTRL_T7, vin_bpp, 11, 2);
+
+	vx1_lanes_set();
+	/*set hsync/vsync polarity to let the polarity is low active
+	 *inside the VbyOne
+	 */
+	vx1_sync_pol(0, 0);
+
+	/* below line copy from simulation */
+	/* gate the input when vsync asserted */
+	lcd_vcbus_setb(VBO_VIN_CTRL_T7, 1, 0, 2);
+
+	/* VBO_RGN_GEN clk always on */
+	lcd_vcbus_setb(VBO_GCLK_MAIN_T7, 2, 2, 2);
+
+	/* PAD select: */
+	if (lane_count == 1 || lane_count == 2)
+		lcd_vcbus_setb(LCD_PORT_SWAP_T7, 1, 9, 2);
+	else if (lane_count == 4)
+		lcd_vcbus_setb(LCD_PORT_SWAP_T7, 2, 9, 2);
+	else
+		lcd_vcbus_setb(LCD_PORT_SWAP_T7, 0, 9, 2);
+	/* lcd_vcbus_setb(LCD_PORT_SWAP, 1, 8, 1);//reverse lane output order */
+
+	/* Mux pads in combo-phy: 0 for dsi; 1 for lvds or vbyone; 2 for edp */
+	//lcd_hiu_write(HHI_DSI_LVDS_EDP_CNTL0, 0x1);
+
+	lcd_vcbus_setb(VBO_INSGN_CTRL_T7, 0, 2, 2);
+
+	lcd_vcbus_setb(VBO_CTRL_L_T7, 1, 0, 1);
+
+	vx1_wait_timing_stable();
+	vx1_sw_reset();
+}
+
+static void vx1_tx_init(void)
+{
+	unsigned int data32;
+
+	//Hot-plug GPIO
+	data32 = lcd_periphs_read(PADCTRL_PIN_MUX_REGK);
+	data32 &= (~(0xf << 8));
+	data32 |= (0x4 << 8);
+	lcd_periphs_write(PADCTRL_PIN_MUX_REGK, data32);
+
+	vx1_control_set();
+	vx1_wait_hpd();
+	vx1_wait_stable();
+
+	LCDPR(" vx1 tx finish\n");
+}
+
+static void lcd_init_pre_vx1(void)
+{
+	int cnt = 0, i;
+
+	//1.config pll
+set_pll_retry_vx1:
+	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL0, 0x000f04f7);
+	lcd_delay_us(10);
+	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL0, 0x200f04f7);
+	lcd_delay_us(10);
+	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL0, 0x300f04f7);
+	lcd_delay_us(10);
+	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL1, 0x10110000);
+	lcd_delay_us(10);
+	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL2, 0x00001108);
+	lcd_delay_us(10);
+	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL3, 0x10051400);
+	lcd_delay_us(10);
+	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL4, 0x010100c0);
+	lcd_delay_us(10);
+	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL4, 0x038300c0);
+	lcd_delay_us(10);
+	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL0, 0x340f04f7);
+	lcd_delay_us(10);
+	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL0, 0x140f04f7);
+	lcd_delay_us(10);
+	lcd_ana_write(ANACTRL_TCON_PLL0_CNTL2, 0x0000300c);
+	lcd_delay_us(100);
+
+	i = 0;
+	while (i++ < 200) {
+		lcd_delay_us(50);
+		if (lcd_ana_read(ANACTRL_TCON_PLL0_STS) & 0x80000000)
+			break;
+	}
+	if (!(lcd_ana_read(ANACTRL_TCON_PLL0_STS) & 0x80000000)) {
+		if (cnt++ < 20)
+			goto set_pll_retry_vx1;
+		else
+			LCDPR(" pll lock failed!!!\n");
+	}
+
+	//2.config divider
+	lcd_clk_setb(CLKCTRL_VIID_CLK0_CTRL, 0, 19, 1);
+	/* Disable the div output clock */
+	lcd_combo_dphy_setb(COMBO_DPHY_VID_PLL0_DIV, 0, 19, 1);
+	lcd_combo_dphy_setb(COMBO_DPHY_VID_PLL0_DIV, 0, 15, 1);
+
+	lcd_combo_dphy_setb(COMBO_DPHY_VID_PLL0_DIV, 0, 18, 1);
+	lcd_combo_dphy_setb(COMBO_DPHY_VID_PLL0_DIV, 0, 16, 2);
+	lcd_combo_dphy_setb(COMBO_DPHY_VID_PLL0_DIV, 0, 15, 1);
+	lcd_combo_dphy_setb(COMBO_DPHY_VID_PLL0_DIV, 0, 0, 14);
+
+	lcd_combo_dphy_setb(COMBO_DPHY_VID_PLL0_DIV, 2, 16, 2);
+	lcd_combo_dphy_setb(COMBO_DPHY_VID_PLL0_DIV, 1, 15, 1);
+	lcd_combo_dphy_setb(COMBO_DPHY_VID_PLL0_DIV, 0x739c, 0, 15);
+	lcd_combo_dphy_setb(COMBO_DPHY_VID_PLL0_DIV, 0, 15, 1);
+	lcd_combo_dphy_setb(COMBO_DPHY_VID_PLL0_DIV, 1, 19, 1);
+
+	//3.config vclk
+	lcd_clk_write(CLKCTRL_VIID_CLK0_DIV, 0x00000000);
+	lcd_delay_us(5);
+	lcd_clk_write(CLKCTRL_VIID_CLK0_CTRL, 0x00080000);
+	lcd_delay_us(5);
+	lcd_clk_write(CLKCTRL_VIID_CLK0_DIV, 0x00008000);
+	lcd_clk_write(CLKCTRL_VIID_CLK0_DIV, 0x00018000);
+	lcd_delay_us(5);
+	lcd_clk_write(CLKCTRL_VIID_CLK0_CTRL, 0x00080001);
+	lcd_clk_write(CLKCTRL_VIID_CLK0_CTRL, 0x00088001);
+	lcd_delay_us(10);
+	lcd_clk_write(CLKCTRL_VIID_CLK0_CTRL, 0x00080001);
+	lcd_delay_us(5);
+	lcd_clk_write(CLKCTRL_VID_CLK0_CTRL2, 0x00000008);
+
+	//4. reset phy
+	lcd_rst_clr_mask(RESETCTRL_RESET1_MASK,
+			 ((0x1 << 20) | (0x1 << 19) | (0x1 << 7)));
+	lcd_rst_clr_mask(RESETCTRL_RESET1_LEVEL,
+			 ((0x1 << 20) | (0x1 << 19) | (0x1 << 7)));
+	lcd_delay_us(1);
+	lcd_rst_set_mask(RESETCTRL_RESET1_LEVEL,
+			 ((0x1 << 20) | (0x1 << 19) | (0x1 << 7)));
+	lcd_delay_us(10);
+
+	lcd_combo_dphy_write(COMBO_DPHY_CNTL0, 0x15);
+	lcd_combo_dphy_write(COMBO_DPHY_CNTL1, 0x55555555);
+
+	//6. config phy
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL1, 0x26430028);
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL2, 0x0000ffff);
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL3, 0x26530028);
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL4, 0x26530028);
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL5, 0x26530028);
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL6, 0x26530028);
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL7, 0x26530028);//ch5
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL8, 0x26530028);//ch6
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL9, 0x26530028);//ch7
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL10, 0x0);//ch8
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL11, 0x0);//ch8 AUX
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL12, 0x0);//ch9
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL13, 0x0);//ch10
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL14, 0x0);//ch11
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL15, 0x0);//ch12
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL16, 0x0);//ch13
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL17, 0x0);//ch14
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x00401648);//COMMON
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL20, 0x0);
+	lcd_ana_write(ANACTRL_DIF_PHY_CNTL21, 0x0);
+
+	LCDPR(" lcd init pre\n");
+}
+
+static void lcd_venc_set_vx1(void)
+{
+	unsigned int hactive = 3840;
+	unsigned int vactive = 2160;
+	unsigned int htotal = 4400;
+	unsigned int vtotal = 2250;
+	unsigned int hsw = 33;
+	unsigned int hbp = 477;
+	unsigned int vsw = 6;
+	unsigned int vbp = 65;
+	unsigned int data32;
+
+	lcd_vcbus_write(ENCL_VIDEO_EN, 0);
+
+	lcd_vcbus_write(ENCL_VIDEO_MODE, 0x8000);
+	lcd_vcbus_write(ENCL_VIDEO_MODE_ADV, 0x0418);
+
+	lcd_vcbus_write(ENCL_VIDEO_FILT_CTRL, 0x1000);
+	lcd_vcbus_write(ENCL_VIDEO_MAX_PXCNT, htotal - 1);
+	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT, vtotal - 1);
+	lcd_vcbus_write(ENCL_VIDEO_HAVON_BEGIN, hsw + hbp);
+	lcd_vcbus_write(ENCL_VIDEO_HAVON_END, hactive - 1 + hsw + hbp);
+	lcd_vcbus_write(ENCL_VIDEO_VAVON_BLINE, vsw + vbp);
+	lcd_vcbus_write(ENCL_VIDEO_VAVON_ELINE,
+			vactive - 1 + vsw + vbp);
+
+	lcd_vcbus_write(ENCL_VIDEO_HSO_BEGIN, 0);
+	lcd_vcbus_write(ENCL_VIDEO_HSO_END, hsw);
+	lcd_vcbus_write(ENCL_VIDEO_VSO_BEGIN, 0);
+	lcd_vcbus_write(ENCL_VIDEO_VSO_END, 0);
+	lcd_vcbus_write(ENCL_VIDEO_VSO_BLINE, 0);
+	lcd_vcbus_write(ENCL_VIDEO_VSO_ELINE, vsw);
+	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL, 3); //yuv: 1, rgb: 3
+
+	lcd_vcbus_write(ENCL_INBUF_CNTL1, (5 << 13) | (hactive - 1));
+	lcd_vcbus_write(ENCL_INBUF_CNTL0, 0x200);
+
+	/* default colorbar pattern */
+	lcd_vcbus_write(ENCL_TST_MDSEL, 1);
+	lcd_vcbus_write(ENCL_TST_Y, 0x200);
+	lcd_vcbus_write(ENCL_TST_CB, 0x200);
+	lcd_vcbus_write(ENCL_TST_CR, 0x200);
+	lcd_vcbus_write(ENCL_TST_CLRBAR_STRT, hsw + hbp);
+	lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH, 240);
+	lcd_vcbus_write(ENCL_TST_EN, 0);
+
+	lcd_vcbus_write(ENCL_VIDEO_EN, 1);
+	//select venc to lvds
+	data32 = (1 << 31) | (0 << 30) | (0 << 29) | (0 << 28);
+	lcd_vcbus_write(VPU_DISP_VIU2_CTRL, data32);
+
+	//config venc_tcon
+	lcd_vcbus_write(LCD_RGB_BASE_ADDR, 0x0);
+	lcd_vcbus_write(LCD_RGB_COEFF_ADDR, 0x400);
+
+	/* DE signal */
+	lcd_vcbus_write(DE_HS_ADDR_T7, hsw + hbp);
+	lcd_vcbus_write(DE_HE_ADDR_T7, hsw + hbp + hactive);
+	lcd_vcbus_write(DE_VS_ADDR_T7, vsw + vbp);
+	lcd_vcbus_write(DE_VE_ADDR_T7, vsw + vbp + vactive - 1);
+
+	/* Hsync signal */
+	lcd_vcbus_write(HSYNC_HS_ADDR_T7, 0);
+	lcd_vcbus_write(HSYNC_HE_ADDR_T7, hsw);
+	lcd_vcbus_write(HSYNC_VS_ADDR_T7, 0);
+	lcd_vcbus_write(HSYNC_VE_ADDR_T7, vtotal - 1);
+
+	/* Vsync signal */
+	lcd_vcbus_write(VSYNC_HS_ADDR_T7, 0);
+	lcd_vcbus_write(VSYNC_HE_ADDR_T7, 0);
+	lcd_vcbus_write(VSYNC_VS_ADDR_T7, 0);
+	lcd_vcbus_write(VSYNC_VE_ADDR_T7, vsw);
+
+	//select encl
+	lcd_vcbus_write(VPU_VENC_CTRL, 2);
+
+	LCDPR(" lcd venc init\n");
+}
+
 static void lcd_init_pre_lvds(void)
 {
 	int cnt = 0, i;
@@ -1144,6 +1542,11 @@ void lcd_display_init_test(void)
 		mipi_dsi_power_init();
 		mipi_dsi_tx_init();
 		LCDPR("mipi_dsi init test done\n");
+	} else if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE) {
+		lcd_init_pre_vx1();
+		lcd_venc_set_vx1();
+		vx1_tx_init();
+		LCDPR("vx1 init test done\n");
 	}
 }
 
@@ -1185,71 +1588,6 @@ void lcd_display_init_reg_dump(void)
 			lcd_clk_read(CLKCTRL_VIID_CLK2_CTRL),
 			CLKCTRL_VID_CLK2_CTRL2,
 			lcd_clk_read(CLKCTRL_VID_CLK2_CTRL2));
-
-		pr_info("phy regs:\n");
-		pr_info("0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n",
-			ANACTRL_DIF_PHY_CNTL1,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL1),
-			ANACTRL_DIF_PHY_CNTL2,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL2),
-			ANACTRL_DIF_PHY_CNTL3,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL3),
-			ANACTRL_DIF_PHY_CNTL4,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL4),
-			ANACTRL_DIF_PHY_CNTL5,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL5),
-			ANACTRL_DIF_PHY_CNTL6,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL6),
-			ANACTRL_DIF_PHY_CNTL7,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL7),
-			ANACTRL_DIF_PHY_CNTL8,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL8),
-			ANACTRL_DIF_PHY_CNTL9,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL9),
-			ANACTRL_DIF_PHY_CNTL10,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL10),
-			ANACTRL_DIF_PHY_CNTL11,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL11),
-			ANACTRL_DIF_PHY_CNTL12,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL12),
-			ANACTRL_DIF_PHY_CNTL13,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL13),
-			ANACTRL_DIF_PHY_CNTL14,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL14),
-			ANACTRL_DIF_PHY_CNTL15,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL15),
-			ANACTRL_DIF_PHY_CNTL16,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL16),
-			ANACTRL_DIF_PHY_CNTL17,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL17),
-			ANACTRL_DIF_PHY_CNTL18,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL18),
-			ANACTRL_DIF_PHY_CNTL19,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL19),
-			ANACTRL_DIF_PHY_CNTL20,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL20),
-			ANACTRL_DIF_PHY_CNTL21,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL21));
 
 		pr_info("lvds regs:\n");
 		pr_info("0x%04x: 0x%08x\n"
@@ -1378,71 +1716,6 @@ void lcd_display_init_reg_dump(void)
 			lcd_clk_read(CLKCTRL_VIID_CLK0_CTRL),
 			CLKCTRL_VID_CLK0_CTRL2,
 			lcd_clk_read(CLKCTRL_VID_CLK0_CTRL2));
-
-		pr_info("phy regs:\n");
-		pr_info("0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n",
-			ANACTRL_DIF_PHY_CNTL1,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL1),
-			ANACTRL_DIF_PHY_CNTL2,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL2),
-			ANACTRL_DIF_PHY_CNTL3,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL3),
-			ANACTRL_DIF_PHY_CNTL4,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL4),
-			ANACTRL_DIF_PHY_CNTL5,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL5),
-			ANACTRL_DIF_PHY_CNTL6,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL6),
-			ANACTRL_DIF_PHY_CNTL7,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL7),
-			ANACTRL_DIF_PHY_CNTL8,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL8),
-			ANACTRL_DIF_PHY_CNTL9,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL9),
-			ANACTRL_DIF_PHY_CNTL10,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL10),
-			ANACTRL_DIF_PHY_CNTL11,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL11),
-			ANACTRL_DIF_PHY_CNTL12,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL12),
-			ANACTRL_DIF_PHY_CNTL13,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL13),
-			ANACTRL_DIF_PHY_CNTL14,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL14),
-			ANACTRL_DIF_PHY_CNTL15,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL15),
-			ANACTRL_DIF_PHY_CNTL16,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL16),
-			ANACTRL_DIF_PHY_CNTL17,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL17),
-			ANACTRL_DIF_PHY_CNTL18,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL18),
-			ANACTRL_DIF_PHY_CNTL19,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL19),
-			ANACTRL_DIF_PHY_CNTL20,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL20),
-			ANACTRL_DIF_PHY_CNTL21,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL21));
 
 		pr_info("edp regs:\n");
 		pr_info("0x%04x: 0x%08x\n"
@@ -1601,71 +1874,6 @@ void lcd_display_init_reg_dump(void)
 			lcd_clk_read(CLKCTRL_VIID_CLK0_CTRL),
 			CLKCTRL_VID_CLK0_CTRL2,
 			lcd_clk_read(CLKCTRL_VID_CLK0_CTRL2));
-
-		pr_info("phy regs:\n");
-		pr_info("0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n"
-			"0x%04x: 0x%08x\n",
-			ANACTRL_DIF_PHY_CNTL1,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL1),
-			ANACTRL_DIF_PHY_CNTL2,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL2),
-			ANACTRL_DIF_PHY_CNTL3,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL3),
-			ANACTRL_DIF_PHY_CNTL4,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL4),
-			ANACTRL_DIF_PHY_CNTL5,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL5),
-			ANACTRL_DIF_PHY_CNTL6,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL6),
-			ANACTRL_DIF_PHY_CNTL7,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL7),
-			ANACTRL_DIF_PHY_CNTL8,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL8),
-			ANACTRL_DIF_PHY_CNTL9,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL9),
-			ANACTRL_DIF_PHY_CNTL10,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL10),
-			ANACTRL_DIF_PHY_CNTL11,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL11),
-			ANACTRL_DIF_PHY_CNTL12,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL12),
-			ANACTRL_DIF_PHY_CNTL13,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL13),
-			ANACTRL_DIF_PHY_CNTL14,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL14),
-			ANACTRL_DIF_PHY_CNTL15,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL15),
-			ANACTRL_DIF_PHY_CNTL16,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL16),
-			ANACTRL_DIF_PHY_CNTL17,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL17),
-			ANACTRL_DIF_PHY_CNTL18,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL18),
-			ANACTRL_DIF_PHY_CNTL19,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL19),
-			ANACTRL_DIF_PHY_CNTL20,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL20),
-			ANACTRL_DIF_PHY_CNTL21,
-			lcd_ana_read(ANACTRL_DIF_PHY_CNTL21));
 
 		pr_info("mipi-dsi host regs:\n");
 		pr_info("0x%04x: 0x%08x\n"
@@ -1870,10 +2078,218 @@ void lcd_display_init_reg_dump(void)
 			lcd_vcbus_read(VPU_DISP_VIU0_CTRL),
 			VPU_VENC_CTRL,
 			lcd_vcbus_read(VPU_VENC_CTRL));
+	} else if (lcd_drv->lcd_config->lcd_basic.lcd_type == LCD_VBYONE) {
+		pr_info("pll regs:\n");
+		pr_info("0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n",
+			ANACTRL_TCON_PLL0_CNTL0,
+			lcd_ana_read(ANACTRL_TCON_PLL0_CNTL0),
+			ANACTRL_TCON_PLL0_CNTL1,
+			lcd_ana_read(ANACTRL_TCON_PLL0_CNTL1),
+			ANACTRL_TCON_PLL0_CNTL2,
+			lcd_ana_read(ANACTRL_TCON_PLL0_CNTL2),
+			ANACTRL_TCON_PLL0_CNTL3,
+			lcd_ana_read(ANACTRL_TCON_PLL0_CNTL3),
+			ANACTRL_TCON_PLL0_CNTL4,
+			lcd_ana_read(ANACTRL_TCON_PLL0_CNTL4),
+			ANACTRL_TCON_PLL0_STS,
+			lcd_ana_read(ANACTRL_TCON_PLL0_STS));
+
+		pr_info("clk regs:\n");
+		pr_info("0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n",
+			COMBO_DPHY_VID_PLL0_DIV,
+			lcd_combo_dphy_read(COMBO_DPHY_VID_PLL0_DIV),
+			CLKCTRL_VIID_CLK0_DIV,
+			lcd_clk_read(CLKCTRL_VIID_CLK0_DIV),
+			CLKCTRL_VIID_CLK0_CTRL,
+			lcd_clk_read(CLKCTRL_VIID_CLK0_CTRL),
+			CLKCTRL_VID_CLK0_CTRL2,
+			lcd_clk_read(CLKCTRL_VID_CLK0_CTRL2));
+
+		pr_info("vx1 regs:\n");
+		pr_info("0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n",
+			VBO_VIN_CTRL_T7,
+			lcd_vcbus_read(VBO_VIN_CTRL_T7),
+			VBO_STATUS_L_T7,
+			lcd_vcbus_read(VBO_STATUS_L_T7),
+			VBO_LANES_T7,
+			lcd_vcbus_read(VBO_LANES_T7),
+			VBO_REGION_00_T7,
+			lcd_vcbus_read(VBO_REGION_00_T7),
+			VBO_REGION_01_T7,
+			lcd_vcbus_read(VBO_REGION_01_T7),
+			VBO_REGION_02_T7,
+			lcd_vcbus_read(VBO_REGION_02_T7),
+			VBO_REGION_03_T7,
+			lcd_vcbus_read(VBO_REGION_03_T7),
+			VBO_ACT_VSIZE_T7,
+			lcd_vcbus_read(VBO_ACT_VSIZE_T7),
+			VBO_CTRL_H_T7,
+			lcd_vcbus_read(VBO_CTRL_H_T7),
+			VBO_INTR_STATE_CTRL_T7,
+			lcd_vcbus_read(VBO_INTR_STATE_CTRL_T7),
+			VBO_INTR_STATE_T7,
+			lcd_vcbus_read(VBO_INTR_STATE_T7),
+			VBO_GCLK_MAIN_T7,
+			lcd_vcbus_read(VBO_GCLK_MAIN_T7),
+			VBO_INSGN_CTRL_T7,
+			lcd_vcbus_read(VBO_INSGN_CTRL_T7),
+			VBO_CTRL_L_T7,
+			lcd_vcbus_read(VBO_CTRL_L_T7));
+
+		pr_info("venc regs:\n");
+		pr_info("0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n"
+			"0x%04x: 0x%08x\n",
+			ENCL_VIDEO_EN,
+			lcd_vcbus_read(ENCL_VIDEO_EN),
+			ENCL_VIDEO_MODE,
+			lcd_vcbus_read(ENCL_VIDEO_MODE),
+			ENCL_VIDEO_MODE_ADV,
+			lcd_vcbus_read(ENCL_VIDEO_MODE_ADV),
+			ENCL_VIDEO_FILT_CTRL,
+			lcd_vcbus_read(ENCL_VIDEO_FILT_CTRL),
+			ENCL_VIDEO_MAX_PXCNT,
+			lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT),
+			ENCL_VIDEO_MAX_LNCNT,
+			lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT),
+			ENCL_VIDEO_HAVON_BEGIN,
+			lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN),
+			ENCL_VIDEO_HAVON_END,
+			lcd_vcbus_read(ENCL_VIDEO_HAVON_END),
+			ENCL_VIDEO_VAVON_BLINE,
+			lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE),
+			ENCL_VIDEO_VAVON_ELINE,
+			lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE),
+			ENCL_VIDEO_HSO_BEGIN,
+			lcd_vcbus_read(ENCL_VIDEO_HSO_BEGIN),
+			ENCL_VIDEO_HSO_END,
+			lcd_vcbus_read(ENCL_VIDEO_HSO_END),
+			ENCL_VIDEO_VSO_BEGIN,
+			lcd_vcbus_read(ENCL_VIDEO_VSO_BEGIN),
+			ENCL_VIDEO_VSO_END,
+			lcd_vcbus_read(ENCL_VIDEO_VSO_END),
+			ENCL_VIDEO_VSO_BLINE,
+			lcd_vcbus_read(ENCL_VIDEO_VSO_BLINE),
+			ENCL_VIDEO_VSO_ELINE,
+			lcd_vcbus_read(ENCL_VIDEO_VSO_ELINE),
+			ENCL_VIDEO_RGBIN_CTRL,
+			lcd_vcbus_read(ENCL_VIDEO_RGBIN_CTRL),
+			ENCL_INBUF_CNTL1,
+			lcd_vcbus_read(ENCL_INBUF_CNTL1),
+			ENCL_INBUF_CNTL0,
+			lcd_vcbus_read(ENCL_INBUF_CNTL0),
+			VPU_DISP_VIU0_CTRL,
+			lcd_vcbus_read(VPU_DISP_VIU0_CTRL),
+			VPU_VENC_CTRL,
+			lcd_vcbus_read(VPU_VENC_CTRL));
 	}
 	pr_info("0x%04x: 0x%08x\n",
 		VPU_VIU_VENC_MUX_CTRL,
 		lcd_vcbus_read(VPU_VIU_VENC_MUX_CTRL));
+
+	pr_info("phy regs:\n");
+	pr_info("0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n"
+		"0x%04x: 0x%08x\n",
+		ANACTRL_DIF_PHY_CNTL1,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL1),
+		ANACTRL_DIF_PHY_CNTL2,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL2),
+		ANACTRL_DIF_PHY_CNTL3,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL3),
+		ANACTRL_DIF_PHY_CNTL4,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL4),
+		ANACTRL_DIF_PHY_CNTL5,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL5),
+		ANACTRL_DIF_PHY_CNTL6,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL6),
+		ANACTRL_DIF_PHY_CNTL7,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL7),
+		ANACTRL_DIF_PHY_CNTL8,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL8),
+		ANACTRL_DIF_PHY_CNTL9,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL9),
+		ANACTRL_DIF_PHY_CNTL10,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL10),
+		ANACTRL_DIF_PHY_CNTL11,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL11),
+		ANACTRL_DIF_PHY_CNTL12,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL12),
+		ANACTRL_DIF_PHY_CNTL13,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL13),
+		ANACTRL_DIF_PHY_CNTL14,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL14),
+		ANACTRL_DIF_PHY_CNTL15,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL15),
+		ANACTRL_DIF_PHY_CNTL16,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL16),
+		ANACTRL_DIF_PHY_CNTL17,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL17),
+		ANACTRL_DIF_PHY_CNTL18,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL18),
+		ANACTRL_DIF_PHY_CNTL19,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL19),
+		ANACTRL_DIF_PHY_CNTL20,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL20),
+		ANACTRL_DIF_PHY_CNTL21,
+		lcd_ana_read(ANACTRL_DIF_PHY_CNTL21));
 }
 
 void lcd_edp_debug(void)

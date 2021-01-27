@@ -983,6 +983,46 @@
 #define VBO_INFILTER_TICK_PERIOD_L                 0x14f9
 #define VBO_INSGN_CTRL                             0x14fa
 #define VBO_INFILTER_TICK_PERIOD_H                 0x1477
+/* T7 */
+#define VBO_CTRL_L_T7                              0x1960
+#define VBO_CTRL_H_T7                              0x1961
+#define VBO_SOFT_RST_T7                            0x1962
+#define VBO_LANES_T7                               0x1963
+#define VBO_VIN_CTRL_T7                            0x1964
+#define VBO_ACT_VSIZE_T7                           0x1965
+#define VBO_REGION_00_T7                           0x1966
+#define VBO_REGION_01_T7                           0x1967
+#define VBO_REGION_02_T7                           0x1968
+#define VBO_REGION_03_T7                           0x1969
+#define VBO_VBK_CTRL_0_T7                          0x196a
+#define VBO_VBK_CTRL_1_T7                          0x196b
+#define VBO_HBK_CTRL_T7                            0x196c
+#define VBO_PXL_CTRL_T7                            0x196d
+#define VBO_LANE_SKEW_L_T7                         0x196e
+#define VBO_LANE_SKEW_H_T7                         0x196f
+#define VBO_GCLK_LANE_L_T7                         0x1970
+#define VBO_GCLK_LANE_H_T7                         0x1971
+#define VBO_GCLK_MAIN_T7                           0x1972
+#define VBO_STATUS_L_T7                            0x1973
+#define VBO_STATUS_H_T7                            0x1974
+#define VBO_LANE_OUTPUT_T7                         0x1975
+#define LCD_PORT_SWAP_T7                           0x1976
+#define VBO_TMCHK_THRD_L_T7                        0x1978
+#define VBO_TMCHK_THRD_H_T7                        0x1979
+#define VBO_FSM_HOLDER_L_T7                        0x197a
+#define VBO_FSM_HOLDER_H_T7                        0x197b
+#define VBO_INTR_STATE_CTRL_T7                     0x197c
+#define VBO_INTR_UNMASK_T7                         0x197d
+#define VBO_TMCHK_HSYNC_STATE_L_T7                 0x197e
+#define VBO_TMCHK_HSYNC_STATE_H_T7                 0x197f
+#define VBO_TMCHK_VSYNC_STATE_L_T7                 0x19f4
+#define VBO_TMCHK_VSYNC_STATE_H_T7                 0x19f5
+#define VBO_TMCHK_VDE_STATE_L_T7                   0x19f6
+#define VBO_TMCHK_VDE_STATE_H_T7                   0x19f7
+#define VBO_INTR_STATE_T7                          0x19f8
+#define VBO_INFILTER_CTRL_T7                       0x19f9
+#define VBO_INSGN_CTRL_T7                          0x19fa
+#define VBO_INFILTER_CTRL_H_T7                     0x1977
 
 /* ********************************
  * Video Interface:  VENC_VCBUS_BASE = 0x1b
