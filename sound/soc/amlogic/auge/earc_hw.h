@@ -275,7 +275,7 @@ void earcrx_enable(struct regmap *cmdc_map,
 		   struct regmap *dmac_map, bool enable);
 void earctx_cmdc_int_mask(struct regmap *top_map);
 
-void earctx_cmdc_init(struct regmap *top_map, bool en);
+void earctx_cmdc_init(struct regmap *top_map, bool en, bool rterm_on);
 void earctx_cmdc_set_timeout(struct regmap *cmdc_map, int no_timeout);
 void earctx_cmdc_arc_connect(struct regmap *cmdc_map, bool init);
 void earctx_cmdc_hpd_detect(struct regmap *top_map,
@@ -308,7 +308,8 @@ void earctx_enable(struct regmap *top_map,
 		   struct regmap *cmdc_map,
 		   struct regmap *dmac_map,
 		   enum audio_coding_types coding_type,
-		   bool enable);
+		   bool enable,
+		   bool rterm_on);
 
 void earcrx_cmdc_get_latency(struct regmap *cmdc_map, u8 *latency);
 void earcrx_cmdc_set_latency(struct regmap *cmdc_map, u8 *latency);

@@ -73,6 +73,8 @@ enum work_event {
 struct earc_chipinfo {
 	unsigned int earc_spdifout_lane_mask;
 	bool rx_dmac_sync_int;
+	bool rterm_on;
+	bool no_ana_auto_cal;
 };
 
 struct earc {
@@ -797,7 +799,8 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				      p_earc->tx_cmdc_map,
 				      p_earc->tx_dmac_map,
 				      p_earc->tx_audio_coding_type,
-				      true);
+				      true,
+				      p_earc->chipinfo->rterm_on);
 		} else {
 			dev_info(substream->pcm->card->dev, "eARC/ARC RX enable\n");
 
@@ -817,7 +820,8 @@ static int earc_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 				      p_earc->tx_cmdc_map,
 				      p_earc->tx_dmac_map,
 				      p_earc->tx_audio_coding_type,
-				      false);
+				      false,
+				      p_earc->chipinfo->rterm_on);
 			aml_frddr_enable(p_earc->fddr, false);
 		} else {
 			dev_info(substream->pcm->card->dev, "eARC/ARC RX disable\n");
@@ -1866,6 +1870,13 @@ struct earc_chipinfo tm2_revb_earc_chipinfo = {
 	.rx_dmac_sync_int = true,
 };
 
+struct earc_chipinfo t7_earc_chipinfo = {
+	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
+	.rx_dmac_sync_int = true,
+	.rterm_on = true,
+	.no_ana_auto_cal = true,
+};
+
 static const struct of_device_id earc_device_id[] = {
 	{
 		.compatible = "amlogic, sm1-snd-earc",
@@ -1879,7 +1890,11 @@ static const struct of_device_id earc_device_id[] = {
 		.compatible = "amlogic, tm2-revb-snd-earc",
 		.data = &tm2_revb_earc_chipinfo,
 	},
-	{},
+	{
+		.compatible = "amlogic, t7-snd-earc",
+		.data = &t7_earc_chipinfo,
+	},
+	{}
 };
 
 MODULE_DEVICE_TABLE(of, earc_device_id);
@@ -2029,7 +2044,7 @@ void earc_hdmirx_hpdst(int earc_port, bool st)
 	}
 
 	/* tx cmdc anlog init */
-	earctx_cmdc_init(p_earc->tx_top_map, st);
+	earctx_cmdc_init(p_earc->tx_top_map, st, p_earc->chipinfo->rterm_on);
 
 	earctx_cmdc_arc_connect(p_earc->tx_cmdc_map, st);
 	earctx_cmdc_hpd_detect(p_earc->tx_top_map,
@@ -2080,15 +2095,17 @@ static void earc_work_func(struct work_struct *work)
 	struct earc *p_earc = container_of(work, struct earc, work);
 
 	/* RX */
-	if ((!IS_ERR(p_earc->rx_top_map)) &&
-	    (p_earc->event & EVENT_RX_ANA_AUTO_CAL)) {
+	if (!IS_ERR(p_earc->rx_top_map) &&
+	    !p_earc->chipinfo->no_ana_auto_cal &&
+	    p_earc->event & EVENT_RX_ANA_AUTO_CAL) {
 		p_earc->event &= ~EVENT_RX_ANA_AUTO_CAL;
 		earcrx_ana_auto_cal(p_earc->rx_top_map);
 	}
 
 	/* TX */
-	if ((!IS_ERR(p_earc->tx_top_map)) &&
-	    (p_earc->event & EVENT_TX_ANA_AUTO_CAL)) {
+	if (!IS_ERR(p_earc->tx_top_map) &&
+	    !p_earc->chipinfo->no_ana_auto_cal &&
+	    p_earc->event & EVENT_TX_ANA_AUTO_CAL) {
 		p_earc->event &= ~EVENT_TX_ANA_AUTO_CAL;
 		earctx_ana_auto_cal(p_earc->tx_top_map);
 	}

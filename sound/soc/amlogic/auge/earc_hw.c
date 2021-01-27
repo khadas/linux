@@ -700,19 +700,32 @@ void earctx_cmdc_int_mask(struct regmap *top_map)
 		  );
 }
 
-void earctx_cmdc_init(struct regmap *top_map, bool en)
+void earctx_cmdc_init(struct regmap *top_map, bool en, bool rterm_on)
 {
 	/* ana */
-	mmio_write(top_map, EARCTX_ANA_CTRL0,
-		   en << 31   |  /* earctx_en_d2a */
-		   0x1 << 28  |  /* earctx_cmdcrx_rcfilter_sel */
-		   0x4 << 26  |  /* earctx_cmdcrx_hystrim */
-		   0x8 << 20  |  /* earctx_idr_trim */
-		   0x10 << 12 |  /* earctx_rterm_trim */
-		   0x4 << 8   |  /* earctx_dmac_slew_con */
-		   0x4 << 5   |  /* earctx_cmdctx_ack_hystrim */
-		   0x10 << 0     /* earctx_cmdctx_ack_reftrim */
-		  );
+	if (rterm_on)
+		mmio_write(top_map, EARCTX_ANA_CTRL0,
+			   en << 31   |  /* earctx_en_d2a */
+			   0x1 << 28  |  /* earctx_cmdcrx_rcfilter_sel */
+			   0x4 << 26  |  /* earctx_cmdcrx_hystrim */
+			   0x8 << 19  |  /* earctx_idr_trim */
+			   0x1 << 17  |  /* earctx_rterm_on */
+			   0x10 << 12 |  /* earctx_rterm_trim */
+			   0x4 << 8   |  /* earctx_dmac_slew_con */
+			   0x4 << 5   |  /* earctx_cmdctx_ack_hystrim */
+			   0x10 << 0     /* earctx_cmdctx_ack_reftrim */
+			  );
+	else
+		mmio_write(top_map, EARCTX_ANA_CTRL0,
+			   en << 31   |  /* earctx_en_d2a */
+			   0x1 << 28  |  /* earctx_cmdcrx_rcfilter_sel */
+			   0x4 << 26  |  /* earctx_cmdcrx_hystrim */
+			   0x8 << 20  |  /* earctx_idr_trim */
+			   0x10 << 12 |  /* earctx_rterm_trim */
+			   0x4 << 8   |  /* earctx_dmac_slew_con */
+			   0x4 << 5   |  /* earctx_cmdctx_ack_hystrim */
+			   0x10 << 0     /* earctx_cmdctx_ack_reftrim */
+			  );
 }
 
 void earctx_cmdc_set_timeout(struct regmap *cmdc_map, int no_timeout)
@@ -1223,21 +1236,31 @@ void earctx_enable(struct regmap *top_map,
 		   struct regmap *cmdc_map,
 		   struct regmap *dmac_map,
 		   enum audio_coding_types coding_type,
-		   bool enable)
+		   bool enable,
+		   bool rterm_on)
 {
 	enum attend_type type = earctx_cmdc_get_attended_type(cmdc_map);
 
 	if (enable) {
+		int offset, mask;
+
+		if (rterm_on) {
+			offset = 19;
+			mask = 0x1f;
+		} else {
+			offset = 20;
+			mask = 0xf;
+		}
 		if (type == ATNDTYP_ARC) {
 			mmio_update_bits(top_map,
 					 EARCTX_ANA_CTRL0,
-					 0xf << 20,
-					 9 << 20);
+					 mask << offset,
+					 9 << offset);
 		} else if (type == ATNDTYP_EARC) {
 			mmio_update_bits(top_map,
 					 EARCTX_ANA_CTRL0,
-					 0xf << 20,
-					 8 << 20);
+					 mask << offset,
+					 8 << offset);
 		}
 
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
