@@ -10,6 +10,7 @@
 #include <linux/cpumask.h>
 struct cpucore_cooling_device {
 	int id;
+	int hot_step;
 	struct thermal_cooling_device *cool_dev;
 	unsigned int cpucore_state;
 	unsigned int cpucore_val;

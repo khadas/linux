@@ -293,9 +293,9 @@ static int meson_tsensor_trips_initialize(struct platform_device *pdev)
 	int ret;
 
 	if (of_thermal_get_ntrips(data->tzd) > data->ntrip) {
-		dev_info(&pdev->dev,
+		dev_info_once(&pdev->dev,
 			 "More trip points than supported by this tsensor.\n");
-		dev_info(&pdev->dev,
+		dev_info_once(&pdev->dev,
 			 "%d trip points should be configured in polling mode.\n",
 			 (of_thermal_get_ntrips(data->tzd) - data->ntrip));
 	}
@@ -409,7 +409,7 @@ static int r1p1_tsensor_trips_initialize(struct platform_device *pdev)
 	 * [23:12] - fall_th2
 	 * [11:0] - fall_th3
 	 */
-	for (i = (of_thermal_get_ntrips(tz) - 1); i >= 0; i--) {
+	for (i = (data->ntrip - 1); i >= 0; i--) {
 		reg_off = (i / 2) << 2;
 		bit_off = ((i + 1) % 2);
 		tz->ops->get_trip_temp(tz, i, &temp);

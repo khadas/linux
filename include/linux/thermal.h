@@ -128,6 +128,7 @@ struct thermal_cooling_device_ops {
 #ifdef CONFIG_AMLOGIC_MODIFY
 	int (*notify_state)(struct thermal_cooling_device*,
 			    struct thermal_zone_device*,
+			    int trip,
 			    enum thermal_trip_type);
 #endif
 };
@@ -210,9 +211,6 @@ struct thermal_zone_device {
 	int last_temperature;
 	int emul_temperature;
 	int passive;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	int hot_step;
-#endif
 	int prev_low_trip;
 	int prev_high_trip;
 	unsigned int forced_passive;

@@ -184,13 +184,33 @@ static int cpucore_power2state(struct thermal_cooling_device *cdev,
 
 static int cpucore_notify_state(struct thermal_cooling_device *cdev,
 				struct thermal_zone_device *tz,
+				int trip,
 				enum thermal_trip_type type)
 {
 	struct thermal_instance *ins = NULL;
+	struct cpucore_cooling_device *cpucore_device = cdev->devdata;
 	unsigned long  ins_upper, target_upper = 0;
 	long cur_state;
 	long upper = -1;
 	int i;
+	int hyst = 0, trip_temp;
+
+	tz->ops->get_trip_hyst(tz, trip, &hyst);
+	tz->ops->get_trip_temp(tz, trip, &trip_temp);
+
+	/* increase each hyst step */
+	if (tz->temperature >= (trip_temp + cpucore_device->hot_step * hyst)) {
+		cpucore_device->hot_step++;
+		pr_info("temp:%d increase, hyst:%d, trip_temp:%d, hot:%x\n",
+			tz->temperature, hyst, trip_temp, cpucore_device->hot_step);
+	}
+	/* reserve a step gap */
+	if (tz->temperature <= (trip_temp + (cpucore_device->hot_step - 2) * hyst) &&
+	    cpucore_device->hot_step) {
+		cpucore_device->hot_step--;
+		pr_info("temp:%d decrease, hyst:%d, trip_temp:%d, hot:%x\n",
+			tz->temperature, hyst, trip_temp, cpucore_device->hot_step);
+	}
 
 	switch (type) {
 	case THERMAL_TRIP_HOT:
@@ -208,14 +228,14 @@ static int cpucore_notify_state(struct thermal_cooling_device *cdev,
 					 __func__);
 			}
 		}
-		cur_state = tz->hot_step;
+		cur_state = cpucore_device->hot_step;
 		/* do not exceed levels */
 		if (upper != -1 && cur_state > upper)
 			cur_state = upper;
 		if (cur_state < 0)
 			cur_state = 0;
 		pr_debug("%s, cur_state:%ld, upper:%ld, step:%d\n",
-			 __func__, cur_state, upper, tz->hot_step);
+			 __func__, cur_state, upper, cpucore_device->hot_step);
 		cdev->ops->set_cur_state(cdev, cur_state);
 		break;
 	default:

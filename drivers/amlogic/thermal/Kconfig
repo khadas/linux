@@ -59,4 +59,15 @@ config AMLOGIC_GPUCORE_THERMAL
 
 		If you want this support, you should say Y here.
 
+config AMLOGIC_DDR_THERMAL
+	tristate "generic ddr cooling support"
+	depends on AMLOGIC_COOLDEV
+	default n
+	help
+		This implements change the ddr reflash rate.
+		This will be useful for platforms using the generic thermal interface
+		and not the ACPI interface.
+
+		If you want this support, you should say Y here.
+
 endmenu

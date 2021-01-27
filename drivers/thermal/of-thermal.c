@@ -398,37 +398,19 @@ static int of_thermal_notify(struct thermal_zone_device *tz, int trip,
 {
 	struct thermal_instance *instance;
 	struct thermal_cooling_device *cdev;
-	int ret = 0, hyst = 0, trip_temp;
+	int ret = 0, trip_temp;
 
 	if (type != THERMAL_TRIP_HOT)
 		return ret;
 
-	tz->ops->get_trip_hyst(tz, trip, &hyst);
 	if (tz->temperature < 0)
 		return ret;
 
-	tz->ops->get_trip_temp(tz, trip, &trip_temp);
-
-	/* increase each hyst step */
-	if (tz->temperature >= (trip_temp + tz->hot_step * hyst)) {
-		tz->hot_step++;
-		dev_info(&tz->device,
-			 "temp:%d increase, hyst:%d, trip_temp:%d, hot:%x\n",
-			 tz->temperature, hyst, trip_temp, tz->hot_step);
-	}
-	/* reserve a step gap */
-	if (tz->temperature <= (trip_temp + (tz->hot_step - 2) * hyst) &&
-	    tz->hot_step) {
-		tz->hot_step--;
-		dev_info(&tz->device,
-			 "temp:%d decrease, hyst:%d, trip_temp:%d, hot:%x\n",
-			 tz->temperature, hyst, trip_temp, tz->hot_step);
-	}
-
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		cdev = instance->cdev;
-		if (cdev->ops && cdev->ops->notify_state)
-			ret += cdev->ops->notify_state(cdev, tz, type);
+		tz->ops->get_trip_temp(tz, instance->trip, &trip_temp);
+		if (cdev->ops && cdev->ops->notify_state && trip == instance->trip)
+			ret += cdev->ops->notify_state(cdev, tz, trip, type);
 	}
 	return ret;
 }

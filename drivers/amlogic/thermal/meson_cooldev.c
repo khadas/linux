@@ -14,6 +14,7 @@
 #include "cpucore_cooling.h"
 #include <linux/amlogic/gpucore_cooling.h>
 #include <linux/amlogic/gpu_cooling.h>
+#include <linux/amlogic/ddr_cooling.h>
 #include <linux/amlogic/meson_cooldev.h>
 #include <linux/cpu.h>
 
@@ -27,13 +28,8 @@ enum cool_dev_type {
 	COOL_DEV_TYPE_CPU_CORE = 0,
 	COOL_DEV_TYPE_GPU_FREQ,
 	COOL_DEV_TYPE_GPU_CORE,
+	COOL_DEV_TYPE_DDR,
 	COOL_DEV_TYPE_MAX
-};
-
-struct cool_dev {
-	char *device_type;
-	struct device_node *np;
-	struct thermal_cooling_device *cooling_dev;
 };
 
 struct meson_cooldev {
@@ -53,6 +49,8 @@ static int get_cool_dev_type(char *type)
 		return COOL_DEV_TYPE_GPU_FREQ;
 	if (!strcmp(type, "gpucore"))
 		return COOL_DEV_TYPE_GPU_CORE;
+	if (!strcmp(type, "ddr"))
+		return COOL_DEV_TYPE_DDR;
 	return COOL_DEV_TYPE_MAX;
 }
 
@@ -94,6 +92,38 @@ static int register_cool_dev(struct platform_device *pdev,
 							     c_id);
 		break;
 
+	case COOL_DEV_TYPE_DDR:
+		node = of_find_node_by_name(NULL, node_name);
+		if (!node) {
+			pr_err("thermal: can't find node\n");
+			return -EINVAL;
+		}
+		cool->np = node;
+
+		if (of_property_read_u32(child, "ddr_reg", &cool->ddr_reg)) {
+			pr_err("thermal: read ddr reg_addr failed\n");
+			return -EINVAL;
+		}
+
+		if (of_property_read_u32(child, "ddr_status", &cool->ddr_status)) {
+			pr_err("thermal: read ddr reg_status failed\n");
+			return -EINVAL;
+		}
+
+		if (of_property_read_u32_array(child, "ddr_bits",
+					       &cool->ddr_bits[0], 2)) {
+			pr_err("thermal: read ddr_bits failed\n");
+			return -EINVAL;
+		}
+
+		if (of_property_read_u32_array(child, "ddr_data",
+					       &cool->ddr_data[0], cool->ddr_status)) {
+			pr_err("thermal: read ddr_data failed\n");
+			return -EINVAL;
+		}
+
+		cool->cooling_dev = ddr_cooling_register(cool->np, cool);
+		break;
 	/* GPU is KO, just save these parameters */
 	case COOL_DEV_TYPE_GPU_FREQ:
 		node = of_find_node_by_name(NULL, node_name);
