@@ -263,7 +263,7 @@ static const unsigned int hdmirx_b_sda_pins[]		= { GPIOW_10 };
 static const unsigned int hdmirx_b_sck_pins[]		= { GPIOW_11 };
 static const unsigned int cec_a_pins[]			= { GPIOW_12 };
 static const unsigned int hdmitx_sda_w13_pins[]		= { GPIOW_13 };
-static const unsigned int hdmitx_scl_w14_pins[]		= { GPIOW_14 };
+static const unsigned int hdmitx_sck_w14_pins[]		= { GPIOW_14 };
 static const unsigned int hdmitx_hpd_in_pins[]		= { GPIOW_15 };
 static const unsigned int cec_b_pins[]			= { GPIOW_16 };
 
@@ -277,7 +277,7 @@ static const unsigned int uart_ao_a_rx_w11_pins[]	= { GPIOW_11 };
 
 /* Bank W func3 */
 static const unsigned int hdmitx_sda_w2_pins[]		= { GPIOW_2 };
-static const unsigned int hdmitx_scl_w3_pins[]		= { GPIOW_3 };
+static const unsigned int hdmitx_sck_w3_pins[]		= { GPIOW_3 };
 
 /* Bank D func1 */
 static const unsigned int uart_ao_a_tx_d0_pins[]	= { GPIOD_0 };
@@ -786,7 +786,7 @@ static struct meson_pmx_group meson_t7_periphs_groups[] = {
 	GROUP(hdmirx_b_sck,		1),
 	GROUP(cec_a,			1),
 	GROUP(hdmitx_sda_w13,		1),
-	GROUP(hdmitx_scl_w14,		1),
+	GROUP(hdmitx_sck_w14,		1),
 	GROUP(hdmitx_hpd_in,		1),
 	GROUP(cec_b,			1),
 
@@ -800,7 +800,7 @@ static struct meson_pmx_group meson_t7_periphs_groups[] = {
 
 	/* Bank W func3 */
 	GROUP(hdmitx_sda_w2,		3),
-	GROUP(hdmitx_scl_w3,		3),
+	GROUP(hdmitx_sck_w3,		3),
 
 	/* Bank D func1 */
 	GROUP(uart_ao_a_tx_d0,		1),
@@ -1334,8 +1334,8 @@ static const char * const cec_b_groups[] = {
 };
 
 static const char * const hdmitx_groups[] = {
-	"hdmitx_sda_w13", "hdmitx_scl_w14", "hdmitx_hpd_in",
-	"hdmitx_sda_w2", "hdmitx_scl_w3"
+	"hdmitx_sda_w13", "hdmitx_sck_w14", "hdmitx_hpd_in",
+	"hdmitx_sda_w2", "hdmitx_sck_w3"
 };
 
 static const char * const remote_out_groups[] = {

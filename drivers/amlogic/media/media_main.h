@@ -61,6 +61,15 @@ static inline int amrdma_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_HDMITX21
+int amhdmitx21_init(void);
+#else
+static inline int amhdmitx21_init(void)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_HDMITX
 int amhdmitx_init(void);
 #else

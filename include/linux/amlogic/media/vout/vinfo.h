@@ -6,6 +6,7 @@
 #ifndef _VINFO_H_
 #define _VINFO_H_
 #include <linux/amlogic/media/video_common.h>
+#include <linux/types.h>
 
 /* the MSB is represent vmode set by vmode_init */
 #define	VMODE_INIT_BIT_MASK	0x8000

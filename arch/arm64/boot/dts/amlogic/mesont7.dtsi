@@ -1529,44 +1529,34 @@
 	};
 
 	amhdmitx: amhdmitx{
-		compatible = "amlogic, amhdmitx-sc2";
+		compatible = "amlogic, amhdmitx-t7";
 		dev_name = "amhdmitx";
 		status = "disabled";
+		power-domains = <&pwrdm PDID_T7_VI_CLK2>;
 		vend-data = <&vend_data>;
-		pinctrl-names="default";
-		pinctrl-0=<&hdmitx_hpd &hdmitx_ddc>;
-		clock-names = "venci_top_gate",
-			"venci_0_gate",
-			"venci_1_gate",
-			"hdmi_vapb_clk",
-			"hdmi_vpu_clk";
-		/* refer to sc2-system-registers.docx */
+		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
+		pinctrl-0=<&hdmitx_hpd>;
+		pinctrl-1=<&hdmitx_ddc>;
 		interrupts = <0 204 1>;
 		interrupt-names = "hdmitx_hpd";
-		/* refer to hdmi_tx_module.h */
-		ic_type = <15>;
-		reg =	<0x0 0x00000000 0x0 0x000>, /* reserved */
-			<0x0 0xff000000 0x0 0x40000>,
-			<0x0 0x00000000 0x0 0x000>, /* reserved */
-			<0x0 0xfe308000 0x0 0x4000>,
-			<0x0 0xfe300000 0x0 0x8000>,
-			<0x0 0xfe032000 0x0 0x100>,
-			<0x0 0xfe008000 0x0 0x400>,
-			<0x0 0xfe00c000 0x0 0x800>,
-			<0x0 0xfe002000 0x0 0x400>,
-			<0x0 0xfe010000 0x0 0x100>,
-			<0x0 0xfe000000 0x0 0x2000>;
-		reg-names = "cbus",
-			    "vpu",
-			    "hiu",
-			    "hdmitxdwc",
+		reg =	<0x0 0xff000000 0x0 0x40000>,
+			<0x0 0xfe380000 0x0 0x10000>,
+			<0x0 0xfe300000 0x0 0x10000>,
+			<0x0 0xfe010000 0x0 0x2000>,
+			<0x0 0xfe00c000 0x0 0x2000>,
+			<0x0 0xfe008000 0x0 0x2000>,
+			<0x0 0xfe002000 0x0 0x2000>,
+			<0x0 0xfe000000 0x0 0x2000>,
+			<0x0 0xfe004000 0x0 0x200>;
+		reg-names = "vpu",
+			    "hdmitxcor",
 			    "hdmitxtop",
-			    "esm",
-			    "anactrl",
-			    "pwrctrl",
-			    "resetctrl",
 			    "sysctrl",
-			    "clkctrl";
+			    "pwrctrl",
+			    "anactrl",
+			    "resetctrl",
+			    "clkctrl",
+			    "padctrl";
 
 		vend_data: vend_data{ /* Should modified by Customer */
 			vendor_name = "Amlogic"; /* Max Chars: 8 */
@@ -2725,7 +2715,7 @@
 
 	hdmitx_hpd_gpio: hdmitx_hpd_gpio {
 		mux {
-			groups = "GPIOH_1";
+			groups = "GPIOW_15";
 			function = "gpio_periphs";
 			bias-disable;
 		};
@@ -2733,11 +2723,11 @@
 
 	hdmitx_ddc: hdmitx_ddc {
 		mux {
-			groups = "hdmitx_sda",
-				"hdmitx_sck";
+			groups = "hdmitx_sda_w13",
+				"hdmitx_sck_w14";
 			function = "hdmitx";
 			bias-disable;
-			drive-strength = <3>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 

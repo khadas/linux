@@ -1306,7 +1306,7 @@ static int clk_msr_summary_show(struct seq_file *s, void *data)
 			return val;
 		}
 
-		seq_printf(s, " %-20s %10d    +/-%dHz\n",
+		seq_printf(s, "[%d] %-20s %10d    +/-%dHz\n", i,
 			   msr_table[i].name, val, precision);
 	}
 
