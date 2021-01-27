@@ -254,7 +254,7 @@
 	};
 
 	mailbox_mhu_fifo: mhu@0 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, meson_mhu_fifo";
 		reg = <0x0 0xfe006000 0x0 0x800>,  /* mhu wr fifo */
 		      <0x0 0xfe006800 0x0 0x800>,  /* mhu rd fifo */
@@ -264,16 +264,12 @@
 		      <0x0 0xfe007020 0x0 0x40>;   /* mhu irqctrl reg */
 		interrupts = <0 248 1>;   /* irq top */
 		mbox-irqctlr = <0>;
-		mbox-nums = <4>;
-		mbox-names = "dsp_dev",
-			     "ap_to_dspa",
-			     "ao_dev",
+		mbox-nums = <2>;
+		mbox-names = "ao_dev",
 			     "ap_to_ao";
 		mboxes = <&mailbox_mhu_fifo 0>,
-			 <&mailbox_mhu_fifo 1>,
-			 <&mailbox_mhu_fifo 2>,
-			 <&mailbox_mhu_fifo 3>;
-		mbox-id = <0x0 0x1 0x2 0x3>;
+			 <&mailbox_mhu_fifo 1>;
+		mbox-id = <0x2 0x3>;
 		#mbox-cells = <1>;
 	};
 
