@@ -246,7 +246,7 @@ void earcrx_pll_refresh(struct regmap *top_map,
 			enum pll_rst_src rst_src,
 			bool level);
 void earcrx_cmdc_int_mask(struct regmap *top_map);
-void earcrx_cmdc_init(struct regmap *top_map, bool en, bool rx_dmac_sync_int);
+void earcrx_cmdc_init(struct regmap *top_map, bool en, bool rx_dmac_sync_int, bool rterm_on);
 void earcrx_cmdc_arc_connect(struct regmap *cmdc_map, bool init);
 void earcrx_cmdc_hpd_detect(struct regmap *cmdc_map, bool st);
 void earcrx_dmac_sync_int_enable(struct regmap *top_map, int enable);

@@ -65,18 +65,34 @@ void earcrx_cmdc_int_mask(struct regmap *top_map)
 		  );
 }
 
-void earcrx_cmdc_init(struct regmap *top_map, bool en, bool rx_dmac_sync_int)
+void earcrx_cmdc_init(struct regmap *top_map, bool en, bool rx_dmac_sync_int, bool rterm_on)
 {
-	mmio_write(top_map, EARCRX_ANA_CTRL0,
-		   en  << 31 | /* earcrx_en_d2a */
-		   0x10 << 24 | /* earcrx_cmdcrx_reftrim */
-		   0x8  << 20 | /* earcrx_idr_trim */
-		   0x10 << 15 | /* earcrx_rterm_trim */
-		   0x4  << 12 | /* earcrx_cmdctx_ack_hystrim */
-		   0x10 << 7  | /* earcrx_cmdctx_ack_reftrim */
-		   0x1  << 4  | /* earcrx_cmdcrx_rcfilter_sel */
-		   0x4  << 0    /* earcrx_cmdcrx_hystrim */
-		  );
+	if (rterm_on) {
+		mmio_write(top_map, EARCRX_ANA_CTRL0,
+			   en  << 31 | /* earcrx_en_d2a */
+			   0x10 << 25 | /* earcrx_cmdcrx_reftrim */
+			   0x8  << 20 | /* earcrx_idr_trim */
+			   0x10 << 15 | /* earcrx_rterm_trim */
+			   0x4  << 12 | /* earcrx_cmdctx_ack_hystrim */
+			   0x10 << 7  | /* earcrx_cmdctx_ack_reftrim */
+			   0x1  << 4  | /* earcrx_cmdcrx_rcfilter_sel */
+			   0x4  << 0    /* earcrx_cmdcrx_hystrim */
+			  );
+		mmio_update_bits(top_map, EARCRX_ANA_CTRL1,
+				 0x1 << 10,
+				 0x1 << 10);
+	} else {
+		mmio_write(top_map, EARCRX_ANA_CTRL0,
+			   en  << 31 | /* earcrx_en_d2a */
+			   0x10 << 24 | /* earcrx_cmdcrx_reftrim */
+			   0x8  << 20 | /* earcrx_idr_trim */
+			   0x10 << 15 | /* earcrx_rterm_trim */
+			   0x4  << 12 | /* earcrx_cmdctx_ack_hystrim */
+			   0x10 << 7  | /* earcrx_cmdctx_ack_reftrim */
+			   0x1  << 4  | /* earcrx_cmdcrx_rcfilter_sel */
+			   0x4  << 0    /* earcrx_cmdcrx_hystrim */
+			  );
+	}
 
 	mmio_write(top_map, EARCRX_PLL_CTRL3,
 		   0x2 << 20 | /* earcrx_pll_bias_adj */

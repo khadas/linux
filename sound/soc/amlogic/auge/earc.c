@@ -1949,7 +1949,8 @@ void earc_hdmitx_hpdst(bool st)
 	/* rx cmdc init */
 	earcrx_cmdc_init(p_earc->rx_top_map,
 			 st,
-			 p_earc->chipinfo->rx_dmac_sync_int);
+			 p_earc->chipinfo->rx_dmac_sync_int,
+			 p_earc->chipinfo->rterm_on);
 
 	if (st)
 		earcrx_cmdc_int_mask(p_earc->rx_top_map);
