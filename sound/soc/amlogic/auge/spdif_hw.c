@@ -599,8 +599,8 @@ void spdifout_play_with_zerodata(unsigned int spdif_id, bool reenable, int separ
 		spdif_set_channel_status_info(&chsts, spdif_id);
 
 		/* notify hdmitx audio */
-		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &aud_param);
-
+		if (get_spdif_to_hdmitx_id() == spdif_id)
+			aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &aud_param);
 		/* init frddr to output zero data. */
 		frddr_init_without_mngr(frddr_index, src0_sel);
 

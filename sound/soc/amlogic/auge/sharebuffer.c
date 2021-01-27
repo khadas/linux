@@ -64,7 +64,8 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 	aud_param.chs = 2;
 
 	/* notify hdmitx audio */
-	aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &aud_param);
+	if (get_spdif_to_hdmitx_id() == spdif_id)
+		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &aud_param);
 
 	return 0;
 }
