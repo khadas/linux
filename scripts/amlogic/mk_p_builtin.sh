@@ -30,7 +30,6 @@ set -ex
 $MAKE_CLANG Image
 $MAKE_CLANG dtbs
 $MAKE_CLANG modules
-./scripts/amlogic/mkimage -A arm64 -O linux -T kernel -C none -a 0x1080000 -e 0x1080000 -n linux-next -d arch/arm64/boot/Image uImage
 set +ex
 
 echo "Build success!"
