@@ -20,3 +20,6 @@ dtb-y += t5d_t950d4_am301_1g.dtb
 dtb-y += t5d_t950d4_am301_1.5g.dtb
 dtb-y += t5d_t950x4_am311_1g.dtb
 dtb-y += s4_pxp.dtb
+dtb-y += s4_s805x2_aq222_1g.dtb
+dtb-y += s4_s905y4_ap222.dtb
+dtb-y += s4_s905y4_ap229.dtb
