@@ -1000,25 +1000,9 @@ static struct clk_regmap sc2_dsu_clk = {
 	},
 };
 
-static int sc2_cpu_clk_mux_notifier_cb(struct notifier_block *nb,
-				       unsigned long event, void *data)
-{
-	if (event == POST_RATE_CHANGE || event == PRE_RATE_CHANGE) {
-		/* Wait for clock propagation before/after changing the mux */
-		udelay(100);
-		return NOTIFY_OK;
-	}
-
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block sc2_cpu_clk_mux_nb = {
-	.notifier_call = sc2_cpu_clk_mux_notifier_cb,
-};
-
 struct sc2_cpu_clk_postmux_nb_data {
 	struct notifier_block nb;
-	struct clk_hw *xtal;
+	struct clk_hw *fclk_div2;
 	struct clk_hw *cpu_clk_dyn;
 	struct clk_hw *cpu_clk_postmux0;
 	struct clk_hw *cpu_clk_postmux1;
@@ -1047,9 +1031,9 @@ static int sc2_cpu_clk_postmux_notifier_cb(struct notifier_block *nb,
 		 *			\- fclk_div3 or fclk_div2
 		 */
 
-		/* Setup cpu_clk_premux1 to xtal */
+		/* Setup cpu_clk_premux1 to fclk_div2 */
 		clk_hw_set_parent(nb_data->cpu_clk_premux1,
-				  nb_data->xtal);
+				  nb_data->fclk_div2);
 
 		/* Setup cpu_clk_postmux1 to bypass divider */
 		clk_hw_set_parent(nb_data->cpu_clk_postmux1,
@@ -1060,15 +1044,13 @@ static int sc2_cpu_clk_postmux_notifier_cb(struct notifier_block *nb,
 				  nb_data->cpu_clk_postmux1);
 
 		/*
-		 * Now, cpu_clk is 24MHz in the current path :
+		 * Now, cpu_clk is fclk_div2 in the current path :
 		 * cpu_clk
 		 *    \- cpu_clk_dyn
 		 *          \- cpu_clk_postmux1
 		 *                \- cpu_clk_premux1
-		 *                      \- xtal
+		 *                      \- fclk_div2
 		 */
-
-		udelay(100);
 
 		return NOTIFY_OK;
 
@@ -1095,8 +1077,6 @@ static int sc2_cpu_clk_postmux_notifier_cb(struct notifier_block *nb,
 		 *                \- cpu_clk_premux0
 		 *			\- fclk_div3 or fclk_div2
 		 */
-
-		udelay(100);
 
 		return NOTIFY_OK;
 
@@ -1151,8 +1131,6 @@ static int sc2_sys_pll_notifier_cb(struct notifier_block *nb,
 		 *                   \- xtal/fclk_div2/fclk_div3
 		 */
 
-		udelay(100);
-
 		return NOTIFY_OK;
 
 	case POST_RATE_CHANGE:
@@ -1164,8 +1142,6 @@ static int sc2_sys_pll_notifier_cb(struct notifier_block *nb,
 		/* Configure cpu_clk to use sys_pll */
 		clk_hw_set_parent(nb_data->cpu_clk,
 				  nb_data->sys_pll);
-
-		udelay(100);
 
 		/* new path :
 		 * cpu_clk
@@ -1208,14 +1184,12 @@ static int sc2_dsu_clk_postmux_notifier_cb(struct notifier_block *nb,
 					nb_data->dsu_clk_postmux1);
 		if (ret)
 			return notifier_from_errno(ret);
-		udelay(100);
 		return NOTIFY_OK;
 	case POST_RATE_CHANGE:
 		ret = clk_hw_set_parent(nb_data->dsu_clk_dyn,
 					nb_data->dsu_clk_postmux0);
 		if (ret)
 			return notifier_from_errno(ret);
-		udelay(100);
 		return NOTIFY_OK;
 	default:
 		return NOTIFY_DONE;
@@ -6154,26 +6128,15 @@ static int meson_sc2_dvfs_setup_common(struct platform_device *pdev,
 				       struct clk_hw **hws)
 {
 	struct clk *notifier_clk;
-	struct clk_hw *xtal;
 	int ret;
 
-	xtal = clk_hw_get_parent_by_index(hws[CLKID_CPU_CLK_DYN1_SEL], 0);
-
 	/* Setup clock notifier for cpu_clk_postmux0 */
-	sc2_cpu_clk_postmux0_nb_data.xtal = xtal;
+	sc2_cpu_clk_postmux0_nb_data.fclk_div2 = &sc2_fclk_div2.hw;
 	notifier_clk = sc2_cpu_clk_postmux0.hw.clk;
 	ret = clk_notifier_register(notifier_clk,
 				    &sc2_cpu_clk_postmux0_nb_data.nb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register the cpu_clk_postmux0 notifier\n");
-		return ret;
-	}
-
-	/* Setup clock notifier for cpu_clk_dyn mux */
-	notifier_clk = sc2_cpu_clk_dyn.hw.clk;
-	ret = clk_notifier_register(notifier_clk, &sc2_cpu_clk_mux_nb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register the cpu_clk_dyn notifier\n");
 		return ret;
 	}
 
@@ -6188,13 +6151,6 @@ static int meson_sc2_dvfs_setup(struct platform_device *pdev)
 	ret = meson_sc2_dvfs_setup_common(pdev, hws);
 	if (ret)
 		return ret;
-
-	/* Setup clock notifier for cpu_clk mux */
-	ret = clk_notifier_register(sc2_cpu_clk.hw.clk, &sc2_cpu_clk_mux_nb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register cpu_clk notifier\n");
-		return ret;
-	}
 
 	/* Setup clock notifier for sys_pll */
 	ret = clk_notifier_register(sc2_sys_pll.hw.clk,
