@@ -681,6 +681,7 @@ struct usr_crc_info_t {
 #define AMSTREAM_GET_EX_VDECSTAT              0x902
 #define AMSTREAM_GET_EX_ADECSTAT              0x903
 #define AMSTREAM_GET_EX_UD_POC                0x904
+#define AMSTREAM_GET_EX_WR_COUNT              0x905
 
 /*  video get ex cmd */
 #define AMSTREAM_GET_EX_VF_STATUS             0x960
@@ -713,7 +714,8 @@ struct am_ioctl_parm_ex {
 		struct adec_status astatus;
 
 		struct userdata_poc_info_t data_userdata_info;
-		char data[24];
+		u32 wr_count;
+		char data[20];
 
 	};
 	u32 cmd;
