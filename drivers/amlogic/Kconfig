@@ -85,6 +85,7 @@ if AMLOGIC_DRIVER
 menu "Amlogic Device Drivers"
 # Please add folders in alphabetical order
 
+source "drivers/amlogic/algorithm/Kconfig"
 source "drivers/amlogic/cpufreq/Kconfig"
 source "drivers/amlogic/efuse_unifykey/Kconfig"
 source "drivers/amlogic/ddr_tool/Kconfig"

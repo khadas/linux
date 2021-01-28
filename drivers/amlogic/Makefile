@@ -31,6 +31,7 @@ obj-$(CONFIG_AMLOGIC_AUDIO_DSP)  	+= audiodsp/
 obj-$(CONFIG_AMLOGIC_AMAUDIO)		+= amaudio/
 obj-$(CONFIG_AMLOGIC_AUDIO_INFO) 	+= audioinfo/
 obj-$(CONFIG_AMLOGIC_ETH_PRIVE)		+= ethernet/phy/
+obj-$(CONFIG_AMLOGIC_MEDIA_ALGORITHM)	+= algorithm/
 
 #Always build in code/modules
 obj-$(CONFIG_AMLOGIC_CPUIDLE)		+= cpuidle/
