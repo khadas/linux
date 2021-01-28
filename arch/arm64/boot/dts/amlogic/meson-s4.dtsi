@@ -585,6 +585,8 @@
 				mdio-parent-bus = <&mdio0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				enet_type = <5>;
+				tx_amp_src = <0xFE010330>;
 
 				ext_mdio: mdio@0 {
 					reg = <0>;
@@ -940,7 +942,7 @@
 			      <0x0 0xfe024000 0x0 0x8>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-//			power-domains = <&pwrdm PDID_SC2_ETH>;
+			power-domains = <&pwrdm PDID_S4_ETH>;
 			clocks = <&clkc CLKID_ETH>,
 				 <&clkc CLKID_FCLK_DIV2>,
 				 <&clkc CLKID_MPLL2>;
