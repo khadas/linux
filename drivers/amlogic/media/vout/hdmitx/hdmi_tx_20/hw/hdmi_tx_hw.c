@@ -4971,7 +4971,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32 |= (0 << 0);
 	hdmitx_wr_reg(HDMITX_DWC_FC_AVICONF3,   data32);
 
-	hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, (para->vic & HDMITX_VIC_MASK));
+	hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, vic & HDMITX_VIC_MASK);
 
 	/* For VESA modes, set VIC as 0 */
 	if (para->vic >= HDMITX_VESA_OFFSET) {

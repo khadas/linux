@@ -5043,44 +5043,9 @@ static int hdmitx_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static bool mode_is_sd(const char *mode)
+static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac)
 {
-	if (strncmp(mode, "480i", 4) == 0)
-		return 1;
-	if (strncmp(mode, "480p", 4) == 0)
-		return 1;
-	if (strncmp(mode, "576i", 4) == 0)
-		return 1;
-	if (strncmp(mode, "576p", 4) == 0)
-		return 1;
-	return 0;
-}
-
-static enum vmode_e hdmitx_validate_vmode(char *_mode, unsigned int frac)
-{
-	struct vinfo_s *info = NULL;
-	char mode[32] = {0};
-	struct rx_cap *prxcap = &hdmitx_device.rxcap;
-	unsigned int hort_size = 0;
-	unsigned int vert_size = 0;
-
-	strncpy(mode, _mode, sizeof(mode));
-	mode[31] = 0;
-
-/* if the EDID horizontal size / vertical size equals to 4:3,
- * then consider the SD formats as 4:3
- */
-	hort_size = prxcap->physcial_weight;
-	vert_size = prxcap->physcial_height;
-	if (vert_size && (hort_size * 3 / vert_size) == 4) {
-		if (mode_is_sd(_mode)) {
-			pr_info("%s[%d]\n", __func__, __LINE__);
-			strcat(mode, "_4x3");
-			mode[31] = 0;
-		}
-	}
-
-	info = hdmi_get_valid_vinfo(mode);
+	struct vinfo_s *info = hdmi_get_valid_vinfo(mode);
 
 	if (info) {
 		/* //remove frac support for vout api

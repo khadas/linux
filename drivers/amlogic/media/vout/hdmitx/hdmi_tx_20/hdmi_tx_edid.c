@@ -2873,6 +2873,52 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	return valid;
 }
 
+static bool check_sd(struct rx_cap *prxcap, const char *_mode,
+	const char *mode, const unsigned int _vic,
+	unsigned int *vic)
+{
+	int i;
+	bool check1 = 0;
+	bool check2 = 0;
+
+	if (strcmp(_mode, mode) == 0) {
+		for (i = 0 ; i < prxcap->VIC_count ; i++) {
+			if (prxcap->VIC[i] == _vic)
+				check1 = 1;
+		}
+		for (i = 0 ; i < prxcap->VIC_count ; i++) {
+			if (prxcap->VIC[i] == (_vic + 1))
+				check2 = 1;
+		}
+		if (check1 == 1 && check2 == 0) {
+			*vic = _vic;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/* For some TV only support 480p 4:3,
+ *then consider it also supports in disp_cap
+ */
+static bool is_sink_only_sd_4x3(struct hdmitx_dev *hdev,
+	const char *mode, unsigned int *vic)
+{
+	struct rx_cap *prxcap = &hdev->rxcap;
+
+	if (check_sd(prxcap, "480i60hz", mode, HDMI_720x480i60_4x3, vic))
+		return 1;
+	if (check_sd(prxcap, "480p60hz", mode, HDMI_720x480p60_4x3, vic))
+		return 1;
+	if (check_sd(prxcap, "576i50hz", mode, HDMI_720x576i50_4x3, vic))
+		return 1;
+	if (check_sd(prxcap, "576p50hz", mode, HDMI_720x576p50_4x3, vic))
+		return 1;
+
+	return 0;
+}
+
 /* force_flag: 0 means check with RX's edid */
 /* 1 means no check wich RX's edid */
 enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdev,
@@ -2898,6 +2944,10 @@ enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdev,
 			}
 			if (j >= prxcap->VIC_count)
 				vic = HDMI_UNKNOWN;
+		}
+		/* if TV only supports 480p/2, add 480p60hz as well */
+		if (is_sink_only_sd_4x3(hdev, disp_mode, &vic)) {
+			pr_info("hdmitx: find SD only 4x3\n");
 		}
 	}
 	if (vic == HDMI_UNKNOWN && vesa_vic != HDMI_UNKNOWN) {
