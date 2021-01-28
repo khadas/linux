@@ -626,9 +626,9 @@ void tsync_pcr_pcrscr_set(void)
 			} else {
 				ref_pcr = cur_checkin_vpts -
 					tsync_pcr_ref_latency;
-				tsync_set_pcr_mode(0, ref_pcr);
-				tsync_pcr_inited_mode = INIT_PRIORITY_VIDEO;
 			}
+			tsync_set_pcr_mode(0, ref_pcr);
+			tsync_pcr_inited_mode = INIT_PRIORITY_VIDEO;
 		} else if (((cur_pcr > min_checkinpts) &&
 			(cur_pcr - min_checkinpts) > 500 * 90) ||
 			tsync_disable_demux_pcr == 1) {
@@ -1309,7 +1309,8 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 		} else {
 			tsync_get_demux_pcr(&cur_pcr);
 			cur_checkin_vpts = get_last_checkin_pts(PTS_TYPE_VIDEO);
-			if ((abs(cur_pcr - cur_checkin_vpts) >
+			if (cur_checkin_vpts != 0xffffffff &&
+				(abs(cur_pcr - cur_checkin_vpts) >
 				PLAY_PCR_INVALID_THRESHOLD) &&
 				(tsync_pcr_inited_flag & complete_init_flag) &&
 				tsync_get_new_arch())
