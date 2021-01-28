@@ -982,10 +982,17 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned int esr)
 	}
 }
 
+int ignore_serror = 1;
+core_param(ignore_serror, ignore_serror, int, 0664);
+
 asmlinkage void do_serror(struct pt_regs *regs, unsigned int esr)
 {
 	const bool was_in_nmi = in_nmi();
 
+	if (ignore_serror) {
+		pr_crit("\nSerror:%s,%d,\n", __func__, __LINE__);
+		return;
+	}
 	if (!was_in_nmi)
 		nmi_enter();
 
