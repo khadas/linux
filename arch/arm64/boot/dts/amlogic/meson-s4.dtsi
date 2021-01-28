@@ -2192,8 +2192,8 @@
 
 	remote_pins: remote_pin {
 		mux {
-			groups = "remote_input_d5";
-			function = "remote_input";
+			groups = "remote_in";
+			function = "remote_in";
 			bias-disable;
 		};
 	};
