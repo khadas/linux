@@ -1829,7 +1829,7 @@
 
 	a53_tsensor: a53_tsensor@fe022000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe022000 0x0 0x50>;
 		tsensor_id = <2>;
 		cal_type = <0x11>;
