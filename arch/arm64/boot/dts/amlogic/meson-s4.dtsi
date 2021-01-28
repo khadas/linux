@@ -675,7 +675,7 @@
 		dummy_codec:dummy{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, aml_dummy_codec";
-			status = "disabled";
+			status = "okay";
 		};
 		amlogic_codec:t9015{
 			#sound-dai-cells = <0>;
@@ -689,17 +689,17 @@
 			reset-names = "acodec";
 			resets = <&reset RESET_ACODEC>;
 
-			status = "disabled";
+			status = "okay";
 		};
 
 		audiobus: audiobus@0xFE330000 {
-			//compatible = "amlogic, audio-controller", "simple-bus";
+			compatible = "amlogic, audio-controller", "simple-bus";
 			reg = <0x0 0xFE330000 0x0 0x3000>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xFE330000 0x0 0x3000>;
 
-//			power-domains = <&pwrdm PDID_SC2_AUDIO>;
+			power-domains = <&pwrdm PDID_S4_AUDIO>;
 
 			clkaudio: audio_clocks {
 				compatible = "amlogic, sm1-audio-clocks";
@@ -773,8 +773,8 @@
 
 		/* Sound iomap */
 		aml_snd_iomap {
-			//compatible = "amlogic, snd-iomap";
-			status = "disabled";
+			compatible = "amlogic, snd-iomap";
+			status = "okay";
 			#address-cells=<2>;
 			#size-cells=<2>;
 			ranges;
