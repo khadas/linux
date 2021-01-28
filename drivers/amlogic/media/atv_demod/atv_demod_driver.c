@@ -860,12 +860,12 @@ void __exit aml_atvdemod_exit(void)
 	pr_info("%s: OK.\n", __func__);
 }
 
+#ifndef MODULE
 MODULE_AUTHOR("nengwen.chen <nengwen.chen@amlogic.com>");
 MODULE_DESCRIPTION("aml atv demod device driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(AMLATVDEMOD_VER);
 
-#ifndef MODULE
 module_init(aml_atvdemod_init);
 module_exit(aml_atvdemod_exit);
 #endif

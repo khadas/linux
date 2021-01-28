@@ -4910,9 +4910,9 @@ EXPORT_SYMBOL_GPL(aml_exp_attach);
 #ifndef MODULE
 fs_initcall(aml_dtvdemod_init);
 module_exit(aml_dtvdemod_exit);
-#endif
 
 MODULE_VERSION(AMLDTVDEMOD_VER);
 MODULE_DESCRIPTION("gxtv_demod DVB-T/DVB-C/DTMB Demodulator driver");
 MODULE_AUTHOR("RSJ");
 MODULE_LICENSE("GPL");
+#endif
