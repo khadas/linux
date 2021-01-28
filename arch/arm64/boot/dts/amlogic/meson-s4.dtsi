@@ -1248,8 +1248,8 @@
 	};
 
 	vdac {
-		compatible = "amlogic, vdac-sc2";
-		status = "disabled";
+		compatible = "amlogic, vdac-s4";
+		status = "okay";
 	};
 
 	vout: vout {

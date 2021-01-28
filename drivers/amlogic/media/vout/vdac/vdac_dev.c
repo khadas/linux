@@ -100,6 +100,16 @@ static inline void vdac_ana_reg_setb(unsigned int reg, unsigned int value,
 			(((value) & ((1L << (len)) - 1)) << (start))));
 }
 
+static inline unsigned int vdac_ana_reg_getb(unsigned int reg,
+		unsigned int start, unsigned int len)
+{
+	unsigned int val;
+
+	val = ((vdac_ana_reg_read(reg) >> (start)) & ((1L << (len)) - 1));
+
+	return val;
+}
+
 static inline unsigned int vdac_hiu_reg_getb(unsigned int reg,
 		unsigned int start, unsigned int len)
 {
@@ -254,8 +264,8 @@ static void vdac_enable_avout_atv(bool on)
 		/* vdac_clk gated clock control */
 		vdac_vcbus_reg_setb(VENC_VDAC_DACSEL0, 1, 5, 1);
 
-		if (s_vdac_data->cpu_id == VDAC_CPU_T5 ||
-		    s_vdac_data->cpu_id == VDAC_CPU_T5D) {
+		if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
+		    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
 			vdac_enable_dac_input(reg_cntl0);
 			vdac_ctrl_config(1, reg_cntl1, 7);
 		} else {
@@ -269,8 +279,8 @@ static void vdac_enable_avout_atv(bool on)
 			vdac_ctrl_config(1, reg_cntl0, 0);
 		}
 	} else {
-		if (s_vdac_data->cpu_id == VDAC_CPU_T5 ||
-		    s_vdac_data->cpu_id == VDAC_CPU_T5D) {
+		if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
+		    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
 			vdac_ana_reg_setb(reg_cntl0, 0x0, 4, 1);
 			vdac_ctrl_config(0, reg_cntl1, 7);
 		} else {
@@ -300,8 +310,8 @@ static void vdac_enable_dtv_demod(bool on)
 	unsigned int reg_cntl1 = s_vdac_data->reg_cntl1;
 
 	if (on) {
-		if (s_vdac_data->cpu_id == VDAC_CPU_T5 ||
-		    s_vdac_data->cpu_id == VDAC_CPU_T5D) {
+		if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
+		    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
 			vdac_enable_dac_input(reg_cntl0);
 			vdac_ctrl_config(1, reg_cntl1, 7);
 		} else {
@@ -312,8 +322,8 @@ static void vdac_enable_dtv_demod(bool on)
 			vdac_ctrl_config(1, reg_cntl0, 0);
 		}
 	} else {
-		if (s_vdac_data->cpu_id == VDAC_CPU_T5 ||
-		    s_vdac_data->cpu_id == VDAC_CPU_T5D) {
+		if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
+		    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
 			vdac_ana_reg_setb(reg_cntl0, 0x0, 4, 1);
 			vdac_ctrl_config(0, reg_cntl1, 7);
 		} else {
@@ -329,10 +339,9 @@ static void vdac_enable_avout_av(bool on)
 	unsigned int reg_cntl1 = s_vdac_data->reg_cntl1;
 
 	if (on) {
-		if (s_vdac_data->cpu_id == VDAC_CPU_T5 ||
-		    s_vdac_data->cpu_id == VDAC_CPU_T5D) {
+		if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
+		    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
 			vdac_enable_dac_bypass(reg_cntl0);
-			vdac_ana_reg_setb(reg_cntl1, 0x5c, 0, 7);
 			vdac_ctrl_config(0, reg_cntl1, 7);
 		} else {
 			vdac_ctrl_config(1, reg_cntl0, 9);
@@ -347,8 +356,8 @@ static void vdac_enable_avout_av(bool on)
 			}
 		}
 	} else {
-		if (s_vdac_data->cpu_id == VDAC_CPU_T5 ||
-		    s_vdac_data->cpu_id == VDAC_CPU_T5D) {
+		if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
+		    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
 			vdac_disable_dac_bypass(reg_cntl0);
 			vdac_ctrl_config(0, reg_cntl1, 7);
 		} else {
@@ -375,8 +384,8 @@ static void vdac_enable_cvbs_out(bool on)
 	unsigned int reg_cntl1 = s_vdac_data->reg_cntl1;
 
 	if (on) {
-		if (s_vdac_data->cpu_id == VDAC_CPU_T5 ||
-		    s_vdac_data->cpu_id == VDAC_CPU_T5D) {
+		if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
+		    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
 			vdac_enable_dac_input(reg_cntl0);
 			vdac_ctrl_config(1, reg_cntl1, 7);
 		} else {
@@ -388,8 +397,8 @@ static void vdac_enable_cvbs_out(bool on)
 				vdac_ctrl_config(0, reg_cntl0, 10);
 		}
 	} else {
-		if (s_vdac_data->cpu_id == VDAC_CPU_T5 ||
-		    s_vdac_data->cpu_id == VDAC_CPU_T5D) {
+		if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
+		    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
 			vdac_ana_reg_setb(reg_cntl0, 0x0, 4, 1);
 			vdac_ctrl_config(0, reg_cntl1, 7);
 		} else {
@@ -414,8 +423,8 @@ static void vdac_enable_audio_out(bool on)
 			vdac_ctrl_config(0, reg_cntl0, 9);
 	}
 
-	if (s_vdac_data->cpu_id == VDAC_CPU_T5 ||
-	    s_vdac_data->cpu_id == VDAC_CPU_T5D) {
+	if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
+	    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
 		if (on)
 			vdac_ana_reg_setb(reg_cntl0, 0x1, 4, 1);
 		else
@@ -534,6 +543,11 @@ void vdac_enable(bool on, unsigned int module_sel)
 		pr_err("%s:module_sel: 0x%x wrong module index !! ",
 		       __func__, module_sel);
 		break;
+	}
+
+	if (s_vdac_data->cpu_id == VDAC_CPU_S4) {
+		if (!vdac_ana_reg_getb(s_vdac_data->reg_cntl0, 11, 1))
+			vdac_ana_reg_setb(s_vdac_data->reg_cntl0, 1, 11, 1);
 	}
 
 	if (vdac_debug_print) {

@@ -57,6 +57,14 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_t5[] = {
 	{HHI_VDAC_CNTL1_G12A, 1, 7, 1}, /* cdac_pwd */
 	{VDAC_REG_MAX, 0, 0, 0},
 };
+
+static struct meson_vdac_ctrl_s vdac_ctrl_enable_s4[] = {
+	{ANACTRL_VDAC_CTRL0, 0, 9, 1},
+	{ANACTRL_VDAC_CTRL0, 1, 0, 1},
+	{ANACTRL_VDAC_CTRL1, 1, 7, 1}, /* cdac_pwd */
+	{VDAC_REG_MAX, 0, 0, 0},
+};
+
 /* ********************************************************* */
 static struct meson_vdac_data meson_g12ab_vdac_data = {
 	.cpu_id = VDAC_CPU_G12AB,
@@ -134,6 +142,18 @@ static struct meson_vdac_data meson_t5d_vdac_data = {
 	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
 	.ctrl_table = vdac_ctrl_enable_t5,
 };
+
+static struct meson_vdac_data meson_s4_vdac_data = {
+	.cpu_id = VDAC_CPU_S4,
+	.name = "meson-s4-vdac",
+
+	.reg_cntl0 = ANACTRL_VDAC_CTRL0,
+	.reg_cntl1 = ANACTRL_VDAC_CTRL1,
+	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
+	.reg_vid2_clk_div = CLKCTRL_VIID_CLK_DIV,
+	.ctrl_table = vdac_ctrl_enable_s4,
+};
+
 const struct of_device_id meson_vdac_dt_match[] = {
 	{
 		.compatible = "amlogic, vdac-g12a",
@@ -159,6 +179,9 @@ const struct of_device_id meson_vdac_dt_match[] = {
 	}, {
 		.compatible = "amlogic, vdac-t5d",
 		.data		= &meson_t5d_vdac_data,
+	}, {
+		.compatible = "amlogic, vdac-s4",
+		.data		= &meson_s4_vdac_data,
 	},
 	{}
 };
