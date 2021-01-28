@@ -1451,12 +1451,12 @@
 
 	meson_uvm {
 		compatible = "amlogic, meson_uvm";
-		status = "disabled";
+		status = "okay";
 	};
 
 	meson_videotunnel{
 		compatible = "amlogic, meson_videotunnel";
-		status = "disabled";
+		status = "okay";
 	};
 
 	fb: fb {
@@ -1535,7 +1535,7 @@
 	video_composer {
 		compatible = "amlogic, video_composer";
 		dev_name = "video_composer";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vpu_security{
