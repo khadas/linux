@@ -1647,6 +1647,7 @@ struct urb_priv {
 	int	num_tds_done;
   #ifdef CONFIG_AMLOGIC_USB
 	unsigned char transfer_data[4096 + 16];
+	unsigned char setup_data[64 + 16];
 #endif
 	struct	xhci_td	td[0];
 };

@@ -1527,6 +1527,21 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 				(hcd->self.controller, align_addr,
 				urb->transfer_buffer_length, DMA_TO_DEVICE);
 		}
+
+		if ((urb->transfer_flags & URB_SETUP_MAP_SINGLE) &&
+			(((long)urb->setup_dma) & 0xf) &&
+			((urb->pipe & USB_DIR_IN) == 0)) {
+			align_addr = (char *)
+				(((unsigned long)urb_priv->setup_data + 0xf) & (~0xf));
+			memcpy(align_addr, urb->setup_packet,
+				sizeof(struct usb_ctrlrequest));
+			dma_unmap_single(hcd->self.controller, urb->setup_dma,
+				sizeof(struct usb_ctrlrequest), DMA_TO_DEVICE);
+			urb->setup_dma = dma_map_single(hcd->self.controller,
+					align_addr,
+					sizeof(struct usb_ctrlrequest),
+					DMA_TO_DEVICE);
+		}
 	}
 #endif
 

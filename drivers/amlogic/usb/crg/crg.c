@@ -224,7 +224,10 @@ int crg_host_init(struct crg *crg)
 	if (crg->super_speed_support)
 		props[prop_idx++].name = "super_speed_support";
 
-	props[prop_idx++].name = "xhci-crg-host";
+	if (((is_meson_t5_cpu()) && (is_meson_rev_a())) ||
+		((is_meson_t5d_cpu()) && (is_meson_rev_a()))) {
+		props[prop_idx++].name = "xhci-crg-host";
+	}
 
 	if (prop_idx) {
 		ret = platform_device_add_properties(xhci, props);
