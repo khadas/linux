@@ -13,7 +13,7 @@
 #define MAX_SR_NUM   2
 
 #define MAX_VD_LAYER_T7 3
-
+#define MAX_VPP_NUM     3
 struct hw_vd_reg_s {
 	u32 vd_if0_gen_reg; /* VD1_IF0_GEN_REG */
 	u32 vd_if0_canvas0;/* VD1_IF0_CANVAS0 */
@@ -129,6 +129,15 @@ struct hw_vpp_blend_reg_s {
 	u32 vd_pip_alph_scp_v;
 };
 
+struct hw_vppx_blend_reg_s {
+	u32 vpp_bld_din0_hscope;
+	u32 vpp_bld_din0_vscope;
+	u32 vpp_bld_out_size;
+	u32 vpp_bld_ctrl;
+	u32 vpp_bld_dummy_data;
+	u32 vpp_bld_dummy_alpha;
+};
+
 struct hw_viu_misc_reg_s   {
 	u32 mali_afbcd_top_ctrl;
 	u32 mali_afbcd1_top_ctrl;
@@ -193,4 +202,5 @@ extern struct hw_pps_reg_s pps_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_vpp_blend_reg_s vpp_blend_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_vpp_path_size_s vpp_path_size_reg;
 extern struct hw_viu_misc_reg_s viu_misc_reg;
+extern struct hw_vppx_blend_reg_s vppx_blend_reg_array[MAX_VPP_NUM - 1];
 #endif

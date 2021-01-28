@@ -109,6 +109,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 
 #include <linux/math64.h>
 #include "video_receiver.h"
+#include "video_multi_vsync.h"
 
 #include <linux/amlogic/gki_module.h>
 #define CREATE_TRACE_POINTS
@@ -134,6 +135,7 @@ bool update_osd_vpp_misc;
 u32 osd_preblend_en;
 int video_vsync = -ENXIO;
 int video_vsync_viu2 = -ENXIO;
+int video_vsync_viu3 = -ENXIO;
 
 static u32 cur_omx_index;
 
@@ -186,7 +188,7 @@ static DEFINE_MUTEX(omx_mutex);
 
 #define DURATION_GCD 750
 
-static bool bypass_pps = true;
+bool bypass_pps = true;
 
 /* for bit depth setting. */
 int bit_depth_flag = 8;
@@ -232,8 +234,8 @@ static const struct vframe_receiver_op_s videopip2_vf_receiver = {
 
 static struct vframe_receiver_s videopip_vf_recv;
 static struct vframe_receiver_s videopip2_vf_recv;
-static struct vpp_frame_par_s *curpip_frame_par;
-static struct vpp_frame_par_s *curpip2_frame_par;
+struct vpp_frame_par_s *curpip_frame_par;
+struct vpp_frame_par_s *curpip2_frame_par;
 struct vframe_s *cur_pipbuf;
 struct vframe_s *cur_pipbuf2;
 struct vframe_s local_pip;
@@ -308,7 +310,7 @@ static struct vframe_s hist_test_vf;
 static bool hist_test_flag;
 static unsigned long hist_buffer_addr;
 static u32 hist_print_count;
-static atomic_t gafbc_request = ATOMIC_INIT(0);
+atomic_t gafbc_request = ATOMIC_INIT(0);
 
 /* #define DUR2PTS(x) ((x) - ((x) >> 4)) */
 static inline int DUR2PTS(int x)
@@ -332,9 +334,9 @@ static int vpts_chase_pts_diff;
 static int step_enable;
 static int step_flag;
 
-struct video_recv_s *gvideo_recv[3] = {NULL, NULL, NULL};
+struct video_recv_s *gvideo_recv[5] = {NULL, NULL, NULL, NULL, NULL};
 /*seek values on.video_define.h*/
-static int debug_flag;
+int debug_flag;
 int get_video_debug_flags(void)
 {
 	return debug_flag;
@@ -478,9 +480,9 @@ static u32 vpts_remainder;
 static u32 video_notify_flag;
 static int enable_video_discontinue_report = 1;
 static struct amvideo_device_data_s amvideo_meson_dev;
-static bool video_suspend;
-static u32 video_suspend_cycle;
-static int log_out;
+bool video_suspend;
+u32 video_suspend_cycle;
+int log_out;
 
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
 static u32 video_scaler_mode;
@@ -1536,7 +1538,7 @@ static u32 rgb_screen;
 static u32 frame_repeat_count;
 
 /* vout */
-static const struct vinfo_s *vinfo;
+const struct vinfo_s *vinfo;
 
 /* config */
 struct vframe_s *cur_dispbuf;
@@ -1745,6 +1747,8 @@ s32 di_request_afbc_hw(u8 id, bool on)
 		ret = 1;
 	}
 	vd_layer[id].property_changed = true;
+	if (id > 0 && vd_layer[id].vpp_index != VPP0)
+		vd_layer_vpp[id - 1].property_changed = true;
 	return ret;
 }
 EXPORT_SYMBOL(di_request_afbc_hw);
@@ -2603,10 +2607,10 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 		if ((DI_POST_REG_RD(DI_IF1_GEN_REG) & 0x1) != 0) {
 			/* check mif enable status, disable post di */
-			VSYNC_WR_MPEG_REG(DI_POST_CTRL, 0x3 << 30);
-			VSYNC_WR_MPEG_REG(DI_POST_SIZE,
+			cur_dev->rdma_func[vpp_index].rdma_wr(DI_POST_CTRL, 0x3 << 30);
+			cur_dev->rdma_func[vpp_index].rdma_wr(DI_POST_SIZE,
 					  (32 - 1) | ((128 - 1) << 16));
-			VSYNC_WR_MPEG_REG(DI_IF1_GEN_REG,
+			cur_dev->rdma_func[vpp_index].rdma_wr(DI_IF1_GEN_REG,
 					  READ_VCBUS_REG(DI_IF1_GEN_REG) &
 					  0xfffffffe);
 		}
@@ -3952,7 +3956,7 @@ bool black_threshold_check(u8 id)
 	return ret;
 }
 
-static void _set_video_crop(struct disp_info_s *layer, int *p)
+void _set_video_crop(struct disp_info_s *layer, int *p)
 {
 	int last_l, last_r, last_t, last_b;
 	int new_l, new_r, new_t, new_b;
@@ -3976,16 +3980,23 @@ static void _set_video_crop(struct disp_info_s *layer, int *p)
 	new_r = layer->crop_right;
 	if (new_t != last_t || new_l != last_l ||
 	    new_b != last_b || new_r != last_r) {
-		if (layer->layer_id == 0)
+		if (layer->layer_id == 0) {
 			vd_layer[0].property_changed = true;
-		else if (layer->layer_id == 1)
-			vd_layer[1].property_changed = true;
-		else if (layer->layer_id == 2)
-			vd_layer[2].property_changed = true;
+		} else if (layer->layer_id == 1) {
+			if (vd_layer[1].vpp_index == VPP0)
+				vd_layer[1].property_changed = true;
+			else if (vd_layer_vpp[0].vpp_index != VPP0)
+				vd_layer_vpp[0].property_changed = true;
+		} else if (layer->layer_id == 2) {
+			if (vd_layer[2].vpp_index == VPP0)
+				vd_layer[2].property_changed = true;
+			else if (vd_layer_vpp[1].vpp_index != VPP0)
+				vd_layer_vpp[1].property_changed = true;
+		}
 	}
 }
 
-static void _set_video_window(struct disp_info_s *layer, int *p)
+void _set_video_window(struct disp_info_s *layer, int *p)
 {
 	int w, h;
 	int *parsed = p;
@@ -4084,9 +4095,15 @@ static void _set_video_window(struct disp_info_s *layer, int *p)
 					last_x, last_y, last_w, last_h,
 					new_x, new_y, new_w, new_h);
 		} else if (layer->layer_id == 1) {
-			vd_layer[1].property_changed = true;
+			if (vd_layer[1].vpp_index == VPP0)
+				vd_layer[1].property_changed = true;
+			else if (vd_layer_vpp[0].vpp_index != VPP0)
+				vd_layer_vpp[0].property_changed = true;
 		} else if (layer->layer_id == 2) {
-			vd_layer[2].property_changed = true;
+			if (vd_layer[2].vpp_index == VPP0)
+				vd_layer[2].property_changed = true;
+			else if (vd_layer_vpp[1].vpp_index != VPP0)
+				vd_layer_vpp[1].property_changed = true;
 		}
 	}
 }
@@ -4120,9 +4137,8 @@ void set_video_zorder_ext(int layer_index, int zorder)
 	}
 }
 
-static void pip2_swap_frame(struct vframe_s *vf)
+void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf)
 {
-	struct video_layer_s *layer = NULL;
 	struct disp_info_s *layer_info = NULL;
 	int axis[4];
 	int crop[4];
@@ -4131,7 +4147,6 @@ static void pip2_swap_frame(struct vframe_s *vf)
 	if (!vf)
 		return;
 
-	layer = &vd_layer[2];
 	layer_info = &glayer_info[2];
 
 	if (layer->global_debug &
@@ -4167,7 +4182,7 @@ static void pip2_swap_frame(struct vframe_s *vf)
 		else if (layer->keep_frame_id == 0)
 			video_keeper_new_frame_notify();
 	}
-	fgrain_update_table(layer->layer_id, vf);
+	fgrain_update_table(layer, vf);
 	if (stop_update)
 		layer->new_vpp_setting = false;
 }
@@ -4209,7 +4224,7 @@ static s32 pip2_render_frame(struct video_layer_s *layer)
 
 		/* for vout change or interlace frame */
 		proc_vd_vsc_phase_per_vsync
-			(layer->layer_id, layer,
+			(layer,
 			frame_par, layer->dispbuf);
 	}
 
@@ -4234,8 +4249,8 @@ static s32 pip2_render_frame(struct video_layer_s *layer)
 		config_vd_position
 			(layer, &layer->mif_setting);
 		vd_mif_setting
-			(layer->layer_id, &layer->mif_setting);
-		fgrain_config(layer->layer_id,
+			(layer, &layer->mif_setting);
+		fgrain_config(layer,
 			      layer->cur_frame_par,
 			      &layer->mif_setting,
 			      &layer->fgrain_setting,
@@ -4245,22 +4260,21 @@ static s32 pip2_render_frame(struct video_layer_s *layer)
 	config_vd_pps
 		(layer, &layer->sc_setting, vinfo);
 	vd_scaler_setting
-		(layer->layer_id, &layer->sc_setting);
+		(layer, &layer->sc_setting);
 
 	config_vd_blend
 		(layer, &layer->bld_setting);
 	vd_blend_setting
-		(layer->layer_id, &layer->bld_setting);
-	fgrain_setting(layer->layer_id,
+		(layer, &layer->bld_setting);
+	fgrain_setting(layer,
 		       &layer->fgrain_setting,
 		       layer->dispbuf);
 	layer->new_vpp_setting = false;
 	return 1;
 }
 
-static void pip_swap_frame(struct vframe_s *vf)
+void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf)
 {
-	struct video_layer_s *layer = NULL;
 	struct disp_info_s *layer_info = NULL;
 	int axis[4];
 	int crop[4];
@@ -4269,7 +4283,6 @@ static void pip_swap_frame(struct vframe_s *vf)
 	if (!vf)
 		return;
 
-	layer = &vd_layer[1];
 	layer_info = &glayer_info[1];
 
 	if (layer->global_debug &
@@ -4303,12 +4316,12 @@ static void pip_swap_frame(struct vframe_s *vf)
 		else if (layer->keep_frame_id == 0)
 			video_keeper_new_frame_notify();
 	}
-	fgrain_update_table(layer->layer_id, vf);
+	fgrain_update_table(layer, vf);
 	if (stop_update)
 		layer->new_vpp_setting = false;
 }
 
-static s32 pip_render_frame(struct video_layer_s *layer)
+s32 pip_render_frame(struct video_layer_s *layer)
 {
 	struct vpp_frame_par_s *frame_par;
 	u32 zoom_start_y, zoom_end_y;
@@ -4345,7 +4358,7 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 
 		/* for vout change or interlace frame */
 		proc_vd_vsc_phase_per_vsync
-			(layer->layer_id, layer,
+			(layer,
 			frame_par, layer->dispbuf);
 	}
 
@@ -4370,8 +4383,8 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 		config_vd_position
 			(layer, &layer->mif_setting);
 		vd_mif_setting
-			(layer->layer_id, &layer->mif_setting);
-		fgrain_config(layer->layer_id,
+			(layer, &layer->mif_setting);
+		fgrain_config(layer,
 			      layer->cur_frame_par,
 			      &layer->mif_setting,
 			      &layer->fgrain_setting,
@@ -4381,29 +4394,29 @@ static s32 pip_render_frame(struct video_layer_s *layer)
 	config_vd_pps
 		(layer, &layer->sc_setting, vinfo);
 	vd_scaler_setting
-		(layer->layer_id, &layer->sc_setting);
+		(layer, &layer->sc_setting);
 
 	config_vd_blend
 		(layer, &layer->bld_setting);
 	vd_blend_setting
-		(layer->layer_id, &layer->bld_setting);
-	fgrain_setting(layer->layer_id,
+		(layer, &layer->bld_setting);
+	fgrain_setting(layer,
 		       &layer->fgrain_setting,
 		       layer->dispbuf);
 	layer->new_vpp_setting = false;
 	return 1;
 }
 
-static void primary_swap_frame(struct vframe_s *vf1, int line)
+static void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int line)
 {
 	bool vf_with_el = false;
 	bool force_toggle = false;
 	int ret;
-	struct video_layer_s *layer = NULL;
 	struct disp_info_s *layer_info = NULL;
 	int axis[4];
 	int crop[4];
 	struct vframe_s *vf;
+	u32 vpp_index = 0;
 
 	ATRACE_COUNTER(__func__,  line);
 
@@ -4411,7 +4424,6 @@ static void primary_swap_frame(struct vframe_s *vf1, int line)
 		return;
 
 	vf = vf1;
-	layer = &vd_layer[0];
 	layer_info = &glayer_info[0];
 	if (layer->need_switch_vf) {
 		if ((vf1->flag & VFRAME_FLAG_DOUBLE_FRAM) &&
@@ -4465,11 +4477,11 @@ static void primary_swap_frame(struct vframe_s *vf1, int line)
 		/* FIXME: is_di_on */
 		if (is_di_post_mode(vf)) {
 			/* check mif enable status, disable post di */
-			VSYNC_WR_MPEG_REG(DI_POST_CTRL, 0x3 << 30);
-			VSYNC_WR_MPEG_REG
+			cur_dev->rdma_func[vpp_index].rdma_wr(DI_POST_CTRL, 0x3 << 30);
+			cur_dev->rdma_func[vpp_index].rdma_wr
 				(DI_POST_SIZE,
 				(32 - 1) | ((128 - 1) << 16));
-			VSYNC_WR_MPEG_REG
+			cur_dev->rdma_func[vpp_index].rdma_wr
 				(DI_IF1_GEN_REG,
 				READ_VCBUS_REG(DI_IF1_GEN_REG) &
 				0xfffffffe);
@@ -4557,7 +4569,7 @@ static void primary_swap_frame(struct vframe_s *vf1, int line)
 		else if (layer->keep_frame_id == 0)
 			video_keeper_new_frame_notify();
 	}
-	fgrain_update_table(layer->layer_id, vf);
+	fgrain_update_table(layer, vf);
 	if (stop_update)
 		layer->new_vpp_setting = false;
 	ATRACE_COUNTER(__func__,  0);
@@ -4623,7 +4635,7 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 #endif
 		/* for vout change or interlace frame */
 		proc_vd_vsc_phase_per_vsync
-			(layer->layer_id, layer,
+			(layer,
 			frame_par, layer->dispbuf);
 
 		/* because 3d and dv process, vd2 need no scale. */
@@ -4688,10 +4700,10 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 			update_vd2 = true;
 		}
 #endif
-		vd_mif_setting(0, &layer->mif_setting);
+		vd_mif_setting(layer, &layer->mif_setting);
 		if (update_vd2)
-			vd_mif_setting(1, &local_vd2_mif);
-		fgrain_config(layer->layer_id,
+			vd_mif_setting(&vd_layer[1], &local_vd2_mif);
+		fgrain_config(layer,
 			      layer->cur_frame_par,
 			      &layer->mif_setting,
 			      &layer->fgrain_setting,
@@ -4739,19 +4751,19 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 	}
 #endif
 
-	vd_scaler_setting(0, &layer->sc_setting);
-	vd_blend_setting(0, &layer->bld_setting);
+	vd_scaler_setting(layer, &layer->sc_setting);
+	vd_blend_setting(layer, &layer->bld_setting);
 
 	if (update_vd2) {
-		vd_scaler_setting(1, &local_vd2_pps);
-		vd_blend_setting(1, &local_vd2_blend);
+		vd_scaler_setting(&vd_layer[1], &local_vd2_pps);
+		vd_blend_setting(&vd_layer[1], &local_vd2_blend);
 	}
 	/* dolby vision process for each vsync */
 	/* need set after correct_vd1_mif_size_for_DV */
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	dolby_vision_proc(layer, frame_par);
 #endif
-	fgrain_setting(0, &layer->fgrain_setting,
+	fgrain_setting(layer, &layer->fgrain_setting,
 		       layer->dispbuf);
 	layer->new_vpp_setting = false;
 	return 1;
@@ -4969,7 +4981,8 @@ static int update_pip2_recycle_buffer(void)
 	return 0;
 }
 
-void set_alpha_scpxn(int layer_id, struct componser_info_t *componser_info)
+void set_alpha_scpxn(struct video_layer_s *layer,
+			   struct componser_info_t *componser_info)
 {
 	struct pip_alpha_scpxn_s alpha_win;
 	int win_num = 0;
@@ -4986,7 +4999,7 @@ void set_alpha_scpxn(int layer_id, struct componser_info_t *componser_info)
 		alpha_win.scpxn_end_v[i] = componser_info->axis[i][3];
 		win_en |= 1 << i;
 	}
-	set_alpha(layer_id, win_en, &alpha_win);
+	set_alpha(layer, win_en, &alpha_win);
 }
 
 #ifdef FIQ_VSYNC
@@ -6676,19 +6689,19 @@ SET_FILTER:
 		crop[3] = vd_layer[0].dispbuf->crop[3];
 		_set_video_window(&glayer_info[0], axis);
 		_set_video_crop(&glayer_info[0], crop);
-		set_alpha_scpxn(0, vd_layer[0].dispbuf->componser_info);
+		set_alpha_scpxn(&vd_layer[0], vd_layer[0].dispbuf->componser_info);
 		glayer_info[0].zorder = vd_layer[0].dispbuf->zorder;
 	}
 	/* setting video display property in underflow mode */
 	if (!new_frame &&
 	    vd_layer[0].dispbuf &&
 	    vd_layer[0].property_changed) {
-		primary_swap_frame(vd_layer[0].dispbuf, __LINE__);
+		primary_swap_frame(&vd_layer[0], vd_layer[0].dispbuf, __LINE__);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		dvel_swap_frame(cur_dispbuf2);
 #endif
 	} else if (new_frame) {
-		primary_swap_frame(new_frame, __LINE__);
+		primary_swap_frame(&vd_layer[0], new_frame, __LINE__);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		dvel_swap_frame(cur_dispbuf2);
 #endif
@@ -6985,7 +6998,7 @@ SET_FILTER:
 		crop[3] = vd_layer[1].dispbuf->crop[3];
 		_set_video_window(&glayer_info[1], axis);
 		_set_video_crop(&glayer_info[1], crop);
-		set_alpha_scpxn(1, vd_layer[1].dispbuf->componser_info);
+		set_alpha_scpxn(&vd_layer[1], vd_layer[1].dispbuf->componser_info);
 		glayer_info[1].zorder = vd_layer[1].dispbuf->zorder;
 	}
 
@@ -6993,10 +7006,10 @@ SET_FILTER:
 	if (!new_frame2 &&
 	    vd_layer[1].dispbuf &&
 	    vd_layer[1].property_changed) {
-		pip_swap_frame(vd_layer[1].dispbuf);
+		pip_swap_frame(&vd_layer[1], vd_layer[1].dispbuf);
 		need_disable_vd2 = false;
 	} else if (new_frame2) {
-		pip_swap_frame(new_frame2);
+		pip_swap_frame(&vd_layer[1], new_frame2);
 		need_disable_vd2 = false;
 	}
 
@@ -7244,7 +7257,7 @@ SET_FILTER:
 			crop[3] = vd_layer[2].dispbuf->crop[3];
 			_set_video_window(&glayer_info[2], axis);
 			_set_video_crop(&glayer_info[2], crop);
-			set_alpha_scpxn(2, vd_layer[2].dispbuf->componser_info);
+			set_alpha_scpxn(&vd_layer[2], vd_layer[2].dispbuf->componser_info);
 			glayer_info[2].zorder = vd_layer[2].dispbuf->zorder;
 		}
 
@@ -7252,10 +7265,10 @@ SET_FILTER:
 		if (!new_frame3 &&
 		    vd_layer[2].dispbuf &&
 		    vd_layer[2].property_changed) {
-			pip2_swap_frame(vd_layer[2].dispbuf);
+			pip2_swap_frame(&vd_layer[2], vd_layer[2].dispbuf);
 			need_disable_vd3 = false;
 		} else if (new_frame3) {
-			pip2_swap_frame(new_frame3);
+			pip2_swap_frame(&vd_layer[2], new_frame3);
 			need_disable_vd3 = false;
 		}
 
@@ -7453,7 +7466,7 @@ exit:
 		wake_up_interruptible(&amvideo_prop_change_wait);
 	}
 	vpu_work_process();
-	vpp_crc_result = vpp_crc_check(vpp_crc_en);
+	vpp_crc_result = vpp_crc_check(vpp_crc_en, VPP0);
 
 	cur_vd1_path_id = vd1_path_id;
 	cur_vd2_path_id = vd2_path_id;
@@ -7484,11 +7497,6 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	atomic_set(&video_inirq_flag, 0);
 	return ret;
 }
-
-static irqreturn_t vsync_isr_viu2(int irq, void *dev_id)
-{
-	return IRQ_HANDLED;
-}
 #endif
 
 /*********************************************************
@@ -7503,10 +7511,16 @@ static void vsync_fiq_up(void)
 
 	r = request_irq(video_vsync, &vsync_isr,
 		IRQF_SHARED, "vsync", (void *)video_dev_id);
-	if (amvideo_meson_dev.cpu_type >= MESON_CPU_MAJOR_ID_SC2_)
+	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_SC2_ ||
+	    amvideo_meson_dev.has_vpp1)
 		r = request_irq(video_vsync_viu2, &vsync_isr_viu2,
 				IRQF_SHARED, "vsync_viu2",
-				(void *)video_dev_id);
+				NULL);
+
+	if (amvideo_meson_dev.has_vpp2)
+		r = request_irq(video_vsync_viu3, &vsync_isr_viu3,
+				IRQF_SHARED, "vsync_viu3",
+				NULL);
 
 #ifdef CONFIG_MESON_TRUSTZONE
 	if (num_online_cpus() > 1)
@@ -7521,8 +7535,11 @@ static void vsync_fiq_down(void)
 	free_fiq(INT_VIU_VSYNC, &vsync_fisr);
 #else
 	free_irq(video_vsync, (void *)video_dev_id);
-	if (amvideo_meson_dev.cpu_type >= MESON_CPU_MAJOR_ID_SC2_)
-		free_irq(video_vsync_viu2, (void *)video_dev_id);
+	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_SC2_ ||
+	   amvideo_meson_dev.has_vpp1)
+		free_irq(video_vsync_viu2, NULL);
+	if (amvideo_meson_dev.has_vpp2)
+		free_irq(video_vsync_viu3, NULL);
 #endif
 }
 
@@ -12095,7 +12112,6 @@ static ssize_t hist_test_store(struct class *cla,
 					LAYER1_CANVAS_BASE_INDEX + 5;
 				hist_test_vf.canvas1Addr =
 					LAYER1_CANVAS_BASE_INDEX + 5;
-				/* karry */
 				canvas_config
 					(LAYER1_CANVAS_BASE_INDEX + 5,
 					(unsigned int)hist_buffer_addr,
@@ -13025,7 +13041,7 @@ static ssize_t pip_alpha_store
 			}
 			pr_info("layer_id=%d, win_num=%d, win_en=%d\n",
 				layer_id, win_num, win_en);
-			set_alpha(layer_id, win_en, &alpha_win);
+			set_alpha(&vd_layer[layer_id], win_en, &alpha_win);
 		}
 	}
 
@@ -13370,6 +13386,37 @@ static ssize_t status_changed_show(struct class *cla,
 	return sprintf(buf, "0x%x\n", status);
 }
 
+static ssize_t vd_attach_vpp_show
+	(struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 256, "vpp_index: vd1:%d, vd2:%d, vd3:%d\n",
+		vd_layer[0].vpp_index,
+		vd_layer[1].vpp_index,
+		vd_layer[2].vpp_index);
+}
+
+static ssize_t vd_attach_vpp_store
+	(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int parsed[2];
+	int layer_id = 0;
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		if (parsed[0] < MAX_VD_LAYER)
+			layer_id = parsed[0];
+		vd_layer[layer_id].vpp_index = parsed[1];
+		if (layer_id == 1)
+			vd_layer_vpp[0].vpp_index = parsed[1];
+		if (layer_id == 2)
+			vd_layer_vpp[1].vpp_index = parsed[1];
+	}
+	return strnlen(buf, count);
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -13702,6 +13749,11 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0220,
 	       NULL,
 	       reg_dump_store),
+	__ATTR(vd_attch_vpp,
+	       0664,
+	       vd_attach_vpp_show,
+	       vd_attach_vpp_store),
+
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -14038,6 +14090,8 @@ static struct amvideo_device_data_s amvideo = {
 	.mif_linear = 0,
 	.t7_display = 0,
 	.max_vd_layers = 2,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct amvideo_device_data_s amvideo_tm2_revb = {
@@ -14085,6 +14139,8 @@ static struct amvideo_device_data_s amvideo_tm2_revb = {
 	.mif_linear = 0,
 	.t7_display = 0,
 	.max_vd_layers = 2,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct amvideo_device_data_s amvideo_sc2 = {
@@ -14132,6 +14188,8 @@ static struct amvideo_device_data_s amvideo_sc2 = {
 	.mif_linear = 0,
 	.t7_display = 0,
 	.max_vd_layers = 2,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct amvideo_device_data_s amvideo_t5 = {
@@ -14179,6 +14237,8 @@ static struct amvideo_device_data_s amvideo_t5 = {
 	.mif_linear = 0,
 	.t7_display = 0,
 	.max_vd_layers = 2,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct amvideo_device_data_s amvideo_t5d = {
@@ -14226,6 +14286,8 @@ static struct amvideo_device_data_s amvideo_t5d = {
 	.mif_linear = 0,
 	.t7_display = 0,
 	.max_vd_layers = 2,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
 };
 
 static struct amvideo_device_data_s amvideo_t7 = {
@@ -14275,6 +14337,8 @@ static struct amvideo_device_data_s amvideo_t7 = {
 	.mif_linear = 1,
 	.t7_display = 1,
 	.max_vd_layers = 3,
+	.has_vpp1 = 1,
+	.has_vpp2 = 1,
 };
 
 static struct amvideo_device_data_s amvideo_s4 = {
@@ -14497,6 +14561,30 @@ static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 	}
 }
 
+static void set_rdma_func_handler(void)
+{
+	cur_dev->rdma_func[0].rdma_rd =
+		VSYNC_RD_MPEG_REG;
+	cur_dev->rdma_func[0].rdma_wr =
+		VSYNC_WR_MPEG_REG;
+	cur_dev->rdma_func[0].rdma_wr_bits =
+		VSYNC_WR_MPEG_REG_BITS;
+
+	cur_dev->rdma_func[1].rdma_rd =
+		VSYNC_RD_MPEG_REG_VPP1;
+	cur_dev->rdma_func[1].rdma_wr =
+		VSYNC_WR_MPEG_REG_VPP1;
+	cur_dev->rdma_func[1].rdma_wr_bits =
+		VSYNC_WR_MPEG_REG_BITS_VPP1;
+
+	cur_dev->rdma_func[2].rdma_rd =
+		VSYNC_RD_MPEG_REG_VPP2;
+	cur_dev->rdma_func[2].rdma_wr =
+		VSYNC_WR_MPEG_REG_VPP2;
+	cur_dev->rdma_func[2].rdma_wr_bits =
+		VSYNC_WR_MPEG_REG_BITS_VPP2;
+}
+
 static int amvideom_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -14522,7 +14610,7 @@ static int amvideom_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 	}
-
+	set_rdma_func_handler();
 	video_early_init(&amvideo_meson_dev);
 	video_cap_set(&amvideo_meson_dev);
 	video_hw_init();
@@ -14543,7 +14631,8 @@ static int amvideom_probe(struct platform_device *pdev)
 	}
 
 	pr_info("amvideom vsync irq: %d\n", video_vsync);
-	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_SC2_) {
+	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_SC2_ ||
+	    amvideo_meson_dev.has_vpp1) {
 		/* get interrupt resource */
 		video_vsync_viu2 = platform_get_irq_byname(pdev, "vsync_viu2");
 		if (video_vsync_viu2  == -ENXIO)
@@ -14552,7 +14641,15 @@ static int amvideom_probe(struct platform_device *pdev)
 			pr_info("amvideom vsync viu2 irq: %d\n",
 				video_vsync_viu2);
 	}
-
+	if (amvideo_meson_dev.has_vpp2) {
+		/* get interrupt resource */
+		video_vsync_viu3 = platform_get_irq_byname(pdev, "vsync_viu3");
+		if (video_vsync_viu3  == -ENXIO)
+			pr_info("cannot get amvideom viu3 irq resource\n");
+		else
+			pr_info("amvideom vsync viu3 irq: %d\n",
+				video_vsync_viu3);
+	}
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&video_early_suspend_handler);
 #endif

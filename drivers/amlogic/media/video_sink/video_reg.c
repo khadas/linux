@@ -786,6 +786,25 @@ struct hw_vpp_blend_reg_s vpp_blend_reg_t7_array[MAX_VD_LAYER_T7] = {
 	},
 };
 
+struct hw_vppx_blend_reg_s vppx_blend_reg_array[MAX_VPP_NUM - 1] = {
+	{
+		VPP1_BLD_DIN0_HSCOPE,
+		VPP1_BLD_DIN0_VSCOPE,
+		VPP1_BLD_OUT_SIZE,
+		VPP1_BLD_CTRL,
+		VPP1_BLEND_BLEND_DUMMY_DATA,
+		VPP1_BLEND_DUMMY_ALPHA,
+	},
+	{
+		VPP2_BLD_DIN0_HSCOPE,
+		VPP2_BLD_DIN0_VSCOPE,
+		VPP2_BLD_OUT_SIZE,
+		VPP2_BLD_CTRL,
+		VPP2_BLEND_BLEND_DUMMY_DATA,
+		VPP2_BLEND_DUMMY_ALPHA,
+	},
+};
+
 struct hw_viu_misc_reg_s viu_misc_reg = {
 	MALI_AFBCD_TOP_CTRL,
 	MALI_AFBCD1_TOP_CTRL,

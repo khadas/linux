@@ -50,11 +50,23 @@ static bool first_config[RDMA_NUM];
 static bool rdma_done[RDMA_NUM];
 
 static void vsync_rdma_irq(void *arg);
+static void vsync_rdma_vpp1_irq(void *arg);
+static void vsync_rdma_vpp2_irq(void *arg);
 static void line_n_int_rdma_irq(void *arg);
 static void vsync_rdma_read_irq(void *arg);
 
 struct rdma_op_s vsync_rdma_op = {
 	vsync_rdma_irq,
+	NULL
+};
+
+struct rdma_op_s vsync_rdma_vpp1_op = {
+	vsync_rdma_vpp1_irq,
+	NULL
+};
+
+struct rdma_op_s vsync_rdma_vpp2_op = {
+	vsync_rdma_vpp2_irq,
 	NULL
 };
 
@@ -141,17 +153,30 @@ void _vsync_rdma_config(int rdma_type)
 	iret = 0;
 	if (force_rdma_config[rdma_type]) {
 		if (enable_ == 1) {
-			if (rdma_type == VSYNC_RDMA) {
-				iret = rdma_config(vsync_rdma_handle[rdma_type],
-						   RDMA_TRIGGER_VSYNC_INPUT);
-			} else if (rdma_type == LINE_N_INT_RDMA) {
-				set_rdma_trigger_line();
-				iret = rdma_config(vsync_rdma_handle[rdma_type],
-						   RDMA_TRIGGER_LINE_INPUT);
-			} else if (rdma_type == VSYNC_RDMA_READ) {
-				iret = rdma_config(vsync_rdma_handle[rdma_type],
-						   RDMA_TRIGGER_VSYNC_INPUT |
-						   RDMA_READ_MASK);
+			if (has_multi_vpp) {
+				if (rdma_type == VSYNC_RDMA) {
+					iret = rdma_config(vsync_rdma_handle[rdma_type],
+							   RDMA_TRIGGER_VSYNC_INPUT);
+				} else if (rdma_type == VSYNC_RDMA_VPP1) {
+					iret = rdma_config(vsync_rdma_handle[rdma_type],
+							   RDMA_TRIGGER_VPP1_VSYNC_INPUT);
+				} else if (rdma_type == VSYNC_RDMA_VPP2) {
+					iret = rdma_config(vsync_rdma_handle[rdma_type],
+							  RDMA_TRIGGER_VPP2_VSYNC_INPUT);
+				}
+			} else {
+				if (rdma_type == VSYNC_RDMA) {
+					iret = rdma_config(vsync_rdma_handle[rdma_type],
+							   RDMA_TRIGGER_VSYNC_INPUT);
+				} else if (rdma_type == LINE_N_INT_RDMA) {
+					set_rdma_trigger_line();
+					iret = rdma_config(vsync_rdma_handle[rdma_type],
+							   RDMA_TRIGGER_LINE_INPUT);
+				} else if (rdma_type == VSYNC_RDMA_READ) {
+					iret = rdma_config(vsync_rdma_handle[rdma_type],
+							   RDMA_TRIGGER_VSYNC_INPUT |
+							   RDMA_READ_MASK);
+				}
 			}
 			if (iret)
 				vsync_cfg_count[rdma_type]++;
@@ -182,12 +207,26 @@ void _vsync_rdma_config(int rdma_type)
 void vsync_rdma_config(void)
 {
 	_vsync_rdma_config(VSYNC_RDMA);
-	_vsync_rdma_config(VSYNC_RDMA_READ);
-	if (second_rdma_feature &&
-	    is_meson_g12b_revb())
-		_vsync_rdma_config(LINE_N_INT_RDMA);
+	if (!has_multi_vpp) {
+		_vsync_rdma_config(VSYNC_RDMA_READ);
+		if (second_rdma_feature &&
+		    is_meson_g12b_revb())
+			_vsync_rdma_config(LINE_N_INT_RDMA);
+	}
 }
 EXPORT_SYMBOL(vsync_rdma_config);
+
+void vsync_rdma_vpp1_config(void)
+{
+	_vsync_rdma_config(VSYNC_RDMA_VPP1);
+}
+EXPORT_SYMBOL(vsync_rdma_vpp1_config);
+
+void vsync_rdma_vpp2_config(void)
+{
+	_vsync_rdma_config(VSYNC_RDMA_VPP2);
+}
+EXPORT_SYMBOL(vsync_rdma_vpp2_config);
 
 void _vsync_rdma_config_pre(int rdma_type)
 {
@@ -204,12 +243,26 @@ void _vsync_rdma_config_pre(int rdma_type)
 void vsync_rdma_config_pre(void)
 {
 	_vsync_rdma_config_pre(VSYNC_RDMA);
-	_vsync_rdma_config_pre(VSYNC_RDMA_READ);
-	if (second_rdma_feature &&
-	    is_meson_g12b_revb())
-		_vsync_rdma_config_pre(LINE_N_INT_RDMA);
+	if (!has_multi_vpp) {
+		_vsync_rdma_config_pre(VSYNC_RDMA_READ);
+		if (second_rdma_feature &&
+		    is_meson_g12b_revb())
+			_vsync_rdma_config_pre(LINE_N_INT_RDMA);
+	}
 }
 EXPORT_SYMBOL(vsync_rdma_config_pre);
+
+void vsync_rdma_vpp1_config_pre(void)
+{
+	_vsync_rdma_config_pre(VSYNC_RDMA_VPP1);
+}
+EXPORT_SYMBOL(vsync_rdma_vpp1_config_pre);
+
+void vsync_rdma_vpp2_config_pre(void)
+{
+	_vsync_rdma_config_pre(VSYNC_RDMA_VPP2);
+}
+EXPORT_SYMBOL(vsync_rdma_vpp2_config_pre);
 
 static void vsync_rdma_irq(void *arg)
 {
@@ -233,6 +286,54 @@ static void vsync_rdma_irq(void *arg)
 		force_rdma_config[VSYNC_RDMA] = 0;
 	rdma_done[VSYNC_RDMA] = true;
 	irq_count[VSYNC_RDMA]++;
+}
+
+static void vsync_rdma_vpp1_irq(void *arg)
+{
+	int iret;
+	int enable_ = cur_enable[VSYNC_RDMA_VPP1] & 0xf;
+
+	if (enable_ == 1) {
+		/*triggered by next vsync*/
+		iret = rdma_config(vsync_rdma_handle[VSYNC_RDMA_VPP1],
+				   RDMA_TRIGGER_VPP1_VSYNC_INPUT);
+		if (iret)
+			vsync_cfg_count[VSYNC_RDMA_VPP1]++;
+	} else {
+		iret = rdma_config(vsync_rdma_handle[VSYNC_RDMA_VPP1], 0);
+	}
+	pre_enable_[VSYNC_RDMA_VPP1] = enable_;
+
+	if (!iret || enable_ != 1)
+		force_rdma_config[VSYNC_RDMA_VPP1] = 1;
+	else
+		force_rdma_config[VSYNC_RDMA_VPP1] = 0;
+	rdma_done[VSYNC_RDMA_VPP1] = true;
+	irq_count[VSYNC_RDMA_VPP1]++;
+}
+
+static void vsync_rdma_vpp2_irq(void *arg)
+{
+	int iret;
+	int enable_ = cur_enable[VSYNC_RDMA_VPP2] & 0xf;
+
+	if (enable_ == 1) {
+		/*triggered by next vsync*/
+		iret = rdma_config(vsync_rdma_handle[VSYNC_RDMA_VPP2],
+				   RDMA_TRIGGER_VPP2_VSYNC_INPUT);
+		if (iret)
+			vsync_cfg_count[VSYNC_RDMA_VPP2]++;
+	} else {
+		iret = rdma_config(vsync_rdma_handle[VSYNC_RDMA_VPP2], 0);
+	}
+	pre_enable_[VSYNC_RDMA_VPP2] = enable_;
+
+	if (!iret || enable_ != 1)
+		force_rdma_config[VSYNC_RDMA_VPP2] = 1;
+	else
+		force_rdma_config[VSYNC_RDMA_VPP2] = 0;
+	rdma_done[VSYNC_RDMA_VPP2] = true;
+	irq_count[VSYNC_RDMA_VPP2]++;
 }
 
 static void line_n_int_rdma_irq(void *arg)
@@ -330,6 +431,32 @@ u32 VSYNC_RD_MPEG_REG(u32 adr)
 }
 EXPORT_SYMBOL(VSYNC_RD_MPEG_REG);
 
+u32 VSYNC_RD_MPEG_REG_VPP1(u32 adr)
+{
+	int enable_ = cur_enable[VSYNC_RDMA_VPP1] & 0xf;
+
+	u32 read_val = Rd(adr);
+
+	if (enable_ != 0 && vsync_rdma_handle[VSYNC_RDMA_VPP1] > 0)
+		read_val = rdma_read_reg(vsync_rdma_handle[VSYNC_RDMA_VPP1], adr);
+
+	return read_val;
+}
+EXPORT_SYMBOL(VSYNC_RD_MPEG_REG_VPP1);
+
+u32 VSYNC_RD_MPEG_REG_VPP2(u32 adr)
+{
+	int enable_ = cur_enable[VSYNC_RDMA_VPP2] & 0xf;
+
+	u32 read_val = Rd(adr);
+
+	if (enable_ != 0 && vsync_rdma_handle[VSYNC_RDMA_VPP2] > 0)
+		read_val = rdma_read_reg(vsync_rdma_handle[VSYNC_RDMA_VPP2], adr);
+
+	return read_val;
+}
+EXPORT_SYMBOL(VSYNC_RD_MPEG_REG_VPP2);
+
 int VSYNC_WR_MPEG_REG(u32 adr, u32 val)
 {
 	int enable_ = cur_enable[VSYNC_RDMA] & 0xf;
@@ -344,6 +471,36 @@ int VSYNC_WR_MPEG_REG(u32 adr, u32 val)
 	return 0;
 }
 EXPORT_SYMBOL(VSYNC_WR_MPEG_REG);
+
+int VSYNC_WR_MPEG_REG_VPP1(u32 adr, u32 val)
+{
+	int enable_ = cur_enable[VSYNC_RDMA_VPP1] & 0xf;
+
+	if (enable_ != 0 && vsync_rdma_handle[VSYNC_RDMA_VPP1] > 0) {
+		rdma_write_reg(vsync_rdma_handle[VSYNC_RDMA_VPP1], adr, val);
+	} else {
+		Wr(adr, val);
+		if (debug_flag[VSYNC_RDMA_VPP1] & 1)
+			pr_info("VSYNC_VPP1_WR(%x)<=%x\n", adr, val);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(VSYNC_WR_MPEG_REG_VPP1);
+
+int VSYNC_WR_MPEG_REG_VPP2(u32 adr, u32 val)
+{
+	int enable_ = cur_enable[VSYNC_RDMA_VPP2] & 0xf;
+
+	if (enable_ != 0 && vsync_rdma_handle[VSYNC_RDMA_VPP2] > 0) {
+		rdma_write_reg(vsync_rdma_handle[VSYNC_RDMA_VPP2], adr, val);
+	} else {
+		Wr(adr, val);
+		if (debug_flag[VSYNC_RDMA_VPP2] & 1)
+			pr_info("VSYNC_VPP2_WR(%x)<=%x\n", adr, val);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(VSYNC_WR_MPEG_REG_VPP2);
 
 int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 {
@@ -364,6 +521,46 @@ int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 	return 0;
 }
 EXPORT_SYMBOL(VSYNC_WR_MPEG_REG_BITS);
+
+int VSYNC_WR_MPEG_REG_BITS_VPP1(u32 adr, u32 val, u32 start, u32 len)
+{
+	int enable_ = cur_enable[VSYNC_RDMA_VPP1] & 0xf;
+
+	if (enable_ != 0 && vsync_rdma_handle[VSYNC_RDMA_VPP1] > 0) {
+		rdma_write_reg_bits(vsync_rdma_handle[VSYNC_RDMA_VPP1],
+				    adr, val, start, len);
+	} else {
+		u32 read_val = Rd(adr);
+		u32 write_val = (read_val &
+				 ~(((1L << (len)) - 1) << (start)))
+			| ((unsigned int)(val) << (start));
+		Wr(adr, write_val);
+		if (debug_flag[VSYNC_RDMA_VPP1] & 1)
+			pr_info("VSYNC_VPP1_WR(%x)<=%x\n", adr, write_val);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(VSYNC_WR_MPEG_REG_BITS_VPP1);
+
+int VSYNC_WR_MPEG_REG_BITS_VPP2(u32 adr, u32 val, u32 start, u32 len)
+{
+	int enable_ = cur_enable[VSYNC_RDMA_VPP2] & 0xf;
+
+	if (enable_ != 0 && vsync_rdma_handle[VSYNC_RDMA_VPP2] > 0) {
+		rdma_write_reg_bits(vsync_rdma_handle[VSYNC_RDMA_VPP2],
+				    adr, val, start, len);
+	} else {
+		u32 read_val = Rd(adr);
+		u32 write_val = (read_val &
+				 ~(((1L << (len)) - 1) << (start)))
+			| ((unsigned int)(val) << (start));
+		Wr(adr, write_val);
+		if (debug_flag[VSYNC_RDMA_VPP2] & 1)
+			pr_info("VSYNC_VPP2_WR(%x)<=%x\n", adr, write_val);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(VSYNC_WR_MPEG_REG_BITS_VPP2);
 
 u32 _VSYNC_RD_MPEG_REG(u32 adr)
 {
@@ -442,16 +639,46 @@ bool is_vsync_rdma_enable(void)
 }
 EXPORT_SYMBOL(is_vsync_rdma_enable);
 
+bool is_vsync_vpp1_rdma_enable(void)
+{
+	bool ret;
+	int enable_ = cur_enable[VSYNC_RDMA_VPP1] & 0xf;
+
+	ret = (enable_ != 0);
+	return ret;
+}
+EXPORT_SYMBOL(is_vsync_vpp1_rdma_enable);
+
+bool is_vsync_vpp2_rdma_enable(void)
+{
+	bool ret;
+	int enable_ = cur_enable[VSYNC_RDMA_VPP2] & 0xf;
+
+	ret = (enable_ != 0);
+	return ret;
+}
+EXPORT_SYMBOL(is_vsync_vpp2_rdma_enable);
+
 void enable_rdma_log(int flag)
 {
 	if (flag) {
 		debug_flag[VSYNC_RDMA] |= 0x1;
-		debug_flag[LINE_N_INT_RDMA] |= 0x1;
-		debug_flag[VSYNC_RDMA_READ] |= 0x1;
+		if (has_multi_vpp) {
+			debug_flag[VSYNC_RDMA_VPP1] |= 0x1;
+			debug_flag[VSYNC_RDMA_VPP1] |= 0x1;
+		} else {
+			debug_flag[LINE_N_INT_RDMA] |= 0x1;
+			debug_flag[VSYNC_RDMA_READ] |= 0x1;
+		}
 	} else {
 		debug_flag[VSYNC_RDMA] &= (~0x1);
-		debug_flag[LINE_N_INT_RDMA] &= (~0x1);
-		debug_flag[VSYNC_RDMA_READ] &= (~0x1);
+		if (has_multi_vpp) {
+			debug_flag[VSYNC_RDMA_VPP1] &= (~0x1);
+			debug_flag[VSYNC_RDMA_VPP1] &= (~0x1);
+		} else {
+			debug_flag[LINE_N_INT_RDMA] &= (~0x1);
+			debug_flag[VSYNC_RDMA_READ] &= (~0x1);
+		}
 	}
 }
 EXPORT_SYMBOL(enable_rdma_log);
@@ -459,21 +686,37 @@ EXPORT_SYMBOL(enable_rdma_log);
 void enable_rdma(int enable_flag)
 {
 	enable[VSYNC_RDMA] = enable_flag;
-	enable[LINE_N_INT_RDMA] = enable_flag;
-	enable[VSYNC_RDMA_READ] = enable_flag;
+	if (has_multi_vpp) {
+		enable[VSYNC_RDMA_VPP1] = enable_flag;
+		enable[VSYNC_RDMA_VPP2] = enable_flag;
+	} else {
+		enable[LINE_N_INT_RDMA] = enable_flag;
+		enable[VSYNC_RDMA_READ] = enable_flag;
+	}
 }
 EXPORT_SYMBOL(enable_rdma);
 
 struct rdma_op_s *get_rdma_ops(int rdma_type)
 {
-	if (rdma_type == VSYNC_RDMA)
-		return &vsync_rdma_op;
-	else if (rdma_type == LINE_N_INT_RDMA)
-		return &line_n_int_rdma_op;
-	else if (rdma_type == VSYNC_RDMA_READ)
-		return &vsync_rdma_read_op;
-	else
-		return NULL;
+	if (has_multi_vpp) {
+		if (rdma_type == VSYNC_RDMA)
+			return &vsync_rdma_op;
+		else if (rdma_type == VSYNC_RDMA_VPP1)
+			return &vsync_rdma_vpp1_op;
+		else if (rdma_type == VSYNC_RDMA_VPP2)
+			return &vsync_rdma_vpp2_op;
+		else
+			return NULL;
+	} else {
+		if (rdma_type == VSYNC_RDMA)
+			return &vsync_rdma_op;
+		else if (rdma_type == LINE_N_INT_RDMA)
+			return &line_n_int_rdma_op;
+		else if (rdma_type == VSYNC_RDMA_READ)
+			return &vsync_rdma_read_op;
+		else
+			return NULL;
+	}
 }
 
 void set_rdma_handle(int rdma_type, int handle)
@@ -703,14 +946,24 @@ int rdma_init(void)
 	enable[VSYNC_RDMA] = 1;
 	force_rdma_config[VSYNC_RDMA] = 1;
 
-	cur_enable[VSYNC_RDMA_READ] = 0;
-	enable[VSYNC_RDMA_READ] = 1;
-	force_rdma_config[VSYNC_RDMA_READ] = 1;
+	if (has_multi_vpp) {
+		cur_enable[VSYNC_RDMA_VPP1] = 0;
+		enable[VSYNC_RDMA_VPP1] = 1;
+		force_rdma_config[VSYNC_RDMA_VPP1] = 1;
 
-	if (second_rdma_feature) {
-		cur_enable[LINE_N_INT_RDMA] = 0;
-		enable[LINE_N_INT_RDMA] = 1;
-		force_rdma_config[LINE_N_INT_RDMA] = 1;
+		cur_enable[VSYNC_RDMA_VPP1] = 0;
+		enable[VSYNC_RDMA_VPP1] = 1;
+		force_rdma_config[VSYNC_RDMA_VPP1] = 1;
+	} else {
+		cur_enable[VSYNC_RDMA_READ] = 0;
+		enable[VSYNC_RDMA_READ] = 1;
+		force_rdma_config[VSYNC_RDMA_READ] = 1;
+
+		if (second_rdma_feature) {
+			cur_enable[LINE_N_INT_RDMA] = 0;
+			enable[LINE_N_INT_RDMA] = 1;
+			force_rdma_config[LINE_N_INT_RDMA] = 1;
+		}
 	}
 	create_rdma_class();
 	return 0;

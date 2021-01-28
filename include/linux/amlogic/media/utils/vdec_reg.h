@@ -159,9 +159,27 @@
 #define VSYNC_RD_MPEG_REG(adr) READ_VCBUS_REG(adr)
 #define VSYNC_WR_MPEG_REG_BITS(adr, val, start, len) \
 	WRITE_VCBUS_REG_BITS(adr, val, start, len)
+
+#define VSYNC_WR_MPEG_REG_VPP1(adr, val) WRITE_VCBUS_REG(adr, val)
+#define VSYNC_RD_MPEG_REG_VPP1(adr) READ_VCBUS_REG(adr)
+#define VSYNC_WR_MPEG_REG_BITS_VPP1(adr, val, start, len) \
+	WRITE_VCBUS_REG_BITS(adr, val, start, len)
+
+#define VSYNC_WR_MPEG_REG_VPP2(adr, val) WRITE_VCBUS_REG(adr, val)
+#define VSYNC_RD_MPEG_REG_VPP2(adr) READ_VCBUS_REG(adr)
+#define VSYNC_WR_MPEG_REG_BITS_VPP2(adr, val, start, len) \
+	WRITE_VCBUS_REG_BITS(adr, val, start, len)
 #else
 int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 u32 VSYNC_RD_MPEG_REG(u32 adr);
 int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
+
+int VSYNC_WR_MPEG_REG_BITS_VPP1(u32 adr, u32 val, u32 start, u32 len);
+u32 VSYNC_RD_MPEG_REG_VPP1(u32 adr);
+int VSYNC_WR_MPEG_REG_VPP1(u32 adr, u32 val);
+
+int VSYNC_WR_MPEG_REG_BITS_VPP2(u32 adr, u32 val, u32 start, u32 len);
+u32 VSYNC_RD_MPEG_REG_VPP2(u32 adr);
+int VSYNC_WR_MPEG_REG_VPP2(u32 adr, u32 val);
 #endif
 #endif /* VDEC_REG_H */

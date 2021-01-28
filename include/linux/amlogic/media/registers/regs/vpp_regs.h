@@ -478,5 +478,27 @@
 #define VPU_VENC_CTRL                              0x1cef
 #define VPU1_VENC_CTRL                             0x22ef
 #define VPU2_VENC_CTRL                             0x24ef
+
+#define VPP1_BLD_CTRL                              0x5985
+#define VPP1_BLD_OUT_SIZE                          0x5986
+#define VPP1_BLD_DIN0_HSCOPE                       0x5987
+#define VPP1_BLD_DIN0_VSCOPE                       0x5988
+#define VPP1_BLD_DIN1_HSCOPE                       0x5989
+#define VPP1_BLD_DIN1_VSCOPE                       0x598a
+#define VPP1_BLD_DIN2_HSCOPE                       0x598b
+#define VPP1_BLD_DIN2_VSCOPE                       0x598c
+#define VPP1_BLEND_BLEND_DUMMY_DATA                0x59a9
+#define VPP1_BLEND_DUMMY_ALPHA                     0x59aa
+
+#define VPP2_BLD_CTRL                              0x59c5
+#define VPP2_BLD_OUT_SIZE                          0x59c6
+#define VPP2_BLD_DIN0_HSCOPE                       0x59c7
+#define VPP2_BLD_DIN0_VSCOPE                       0x59c8
+#define VPP2_BLD_DIN1_HSCOPE                       0x59c9
+#define VPP2_BLD_DIN1_VSCOPE                       0x59ca
+#define VPP2_BLD_DIN2_HSCOPE                       0x59cb
+#define VPP2_BLD_DIN2_VSCOPE                       0x59cc
+#define VPP2_BLEND_BLEND_DUMMY_DATA                0x59e9
+#define VPP2_BLEND_DUMMY_ALPHA                     0x59ea
 #endif
 

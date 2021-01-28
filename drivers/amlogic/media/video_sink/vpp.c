@@ -96,6 +96,7 @@ MODULE_PARM_DESC(test_pps_h_coef_8tap, "\n test_pps_h_coef_8tap\n");
 module_param_array(test_pps_v_coef_8tap, uint, &pps_coef_8tap, 0664);
 MODULE_PARM_DESC(test_pps_v_coef_8tap, "\n test_pps_v_coef_8tap\n");
 
+#define MAX_VD_LAYER 3
 static struct filter_info_s gfilter[MAX_VD_LAYER];
 const u32 vpp_filter_coefs_bicubic_sharp[] = {
 	3,

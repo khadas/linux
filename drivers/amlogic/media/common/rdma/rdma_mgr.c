@@ -47,7 +47,7 @@
 #define rdma_io_write(addr, val) writel((val), addr)
 
 /* #define SKIP_OSD_CHANNEL */
-
+int has_multi_vpp;
 int rdma_mgr_irq_request;
 int rdma_reset_tigger_flag;
 
@@ -1555,6 +1555,7 @@ static int __init rdma_probe(struct platform_device *pdev)
 		} else if (rdma_meson_dev.rdma_ver == RDMA_VER_3) {
 			info->rdma_ins[i].rdma_regadr = &rdma_regadr_t7[i];
 			support_64bit_addr = 1;
+			has_multi_vpp = 1;
 		} else {
 			info->rdma_ins[i].rdma_regadr = &rdma_regadr[i];
 		}
@@ -1599,12 +1600,21 @@ static int __init rdma_probe(struct platform_device *pdev)
 	info->rdma_dev = pdev;
 
 	handle = rdma_register(get_rdma_ops(VSYNC_RDMA),
-			       NULL, rdma_table_size);
+			       NULL, RDMA_TABLE_SIZE);
 	set_rdma_handle(VSYNC_RDMA, handle);
-	handle = rdma_register(get_rdma_ops(VSYNC_RDMA_READ),
-			       NULL, rdma_table_size);
-	set_rdma_handle(VSYNC_RDMA_READ, handle);
+	if (has_multi_vpp) {
+		handle = rdma_register(get_rdma_ops(VSYNC_RDMA_VPP1),
+				       NULL, RDMA_TABLE_SIZE);
+		set_rdma_handle(VSYNC_RDMA_VPP1, handle);
+		handle = rdma_register(get_rdma_ops(VSYNC_RDMA_VPP2),
+				       NULL, RDMA_TABLE_SIZE);
+		set_rdma_handle(VSYNC_RDMA_VPP2, handle);
 
+	} else {
+		handle = rdma_register(get_rdma_ops(VSYNC_RDMA_READ),
+				       NULL, RDMA_TABLE_SIZE);
+		set_rdma_handle(VSYNC_RDMA_READ, handle);
+	}
 	create_rdma_mgr_class();
 
 	rdma_init();
