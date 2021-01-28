@@ -205,7 +205,9 @@ static bool dovi_drop_flag;
 static int dovi_drop_frame_num;
 
 #define RECEIVER_NAME "amvideo"
-
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+static char dv_provider[32] = "dvbldec";
+#endif
 static s32 amvideo_poll_major;
 /*static s8 dolby_first_delay;*/ /* for bug 145902 */
 
@@ -3355,11 +3357,18 @@ static void vsync_notify(void)
 		    ~(VIDEO_NOTIFY_PROVIDER_GET | VIDEO_NOTIFY_PROVIDER_PUT);
 	}
 	if (video_notify_flag & VIDEO_NOTIFY_NEED_NO_COMP) {
-		/* FIXME: can not use fixed provider name */
-		vf_notify_provider_by_name
-			("vdin0",
-			VFRAME_EVENT_RECEIVER_NEED_NO_COMP,
-			(void *)&vpp_hold_setting_cnt);
+		char *provider_name = vf_get_provider_name(RECEIVER_NAME);
+
+		while (provider_name) {
+			if (!vf_get_provider_name(provider_name))
+				break;
+			provider_name =
+				vf_get_provider_name(provider_name);
+		}
+		if (provider_name)
+			vf_notify_provider_by_name(provider_name,
+				VFRAME_EVENT_RECEIVER_NEED_NO_COMP,
+				(void *)&vpp_hold_setting_cnt);
 		video_notify_flag &= ~VIDEO_NOTIFY_NEED_NO_COMP;
 	}
 #ifdef CONFIG_CLK81_DFS
@@ -3412,30 +3421,23 @@ static enum vmode_e new_vmode = VMODE_MAX;
 static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
 {
 	struct provider_disp_mode_req_s req;
+	char *provider_name = vf_get_provider_name(RECEIVER_NAME);
 	int ret = -1;
-
 	req.vf = vf;
 	req.disp_mode = 0;
 	req.req_mode = 1;
 
-	if (is_dolby_vision_enable()) {
-		ret = vf_notify_provider_by_name
-			("dv_vdin",
-			VFRAME_EVENT_RECEIVER_DISP_MODE,
-			(void *)&req);
-		if (ret == -1)
-			vf_notify_provider_by_name
-				("vdin0",
-				VFRAME_EVENT_RECEIVER_DISP_MODE,
-				(void *)&req);
-	} else {
-		vf_notify_provider_by_name
-			("vdin0",
-			VFRAME_EVENT_RECEIVER_DISP_MODE,
-			(void *)&req);
+	while (provider_name) {
+		if (!vf_get_provider_name(provider_name))
+			break;
+		provider_name =
+			vf_get_provider_name(provider_name);
 	}
+	if (provider_name)
+		ret = vf_notify_provider_by_name(provider_name,
+			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
 	if (req.disp_mode == VFRAME_DISP_MODE_OK ||
-	    req.disp_mode == VFRAME_DISP_MODE_NULL)
+		req.disp_mode == VFRAME_DISP_MODE_NULL)
 		return false;
 	/*whether need to check pts??*/
 	if (video_vf_put(vf) < 0)
@@ -3446,28 +3448,20 @@ static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
 static enum vframe_disp_mode_e video_vf_disp_mode_get(struct vframe_s *vf)
 {
 	struct provider_disp_mode_req_s req;
-	int ret = -1;
-
+	char *provider_name = vf_get_provider_name(RECEIVER_NAME);
 	req.vf = vf;
 	req.disp_mode = 0;
 	req.req_mode = 0;
 
-	if (is_dolby_vision_enable()) {
-		ret = vf_notify_provider_by_name
-			("dv_vdin",
-			VFRAME_EVENT_RECEIVER_DISP_MODE,
-			(void *)&req);
-		if (ret == -1)
-			vf_notify_provider_by_name
-				("vdin0",
-				VFRAME_EVENT_RECEIVER_DISP_MODE,
-				(void *)&req);
-	} else {
-		vf_notify_provider_by_name
-			("vdin0",
-			VFRAME_EVENT_RECEIVER_DISP_MODE,
-			(void *)&req);
+	while (provider_name) {
+		if (!vf_get_provider_name(provider_name))
+			break;
+		provider_name =
+			vf_get_provider_name(provider_name);
 	}
+	if (provider_name)
+		vf_notify_provider_by_name(provider_name,
+			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
 	return req.disp_mode;
 }
 
@@ -5152,6 +5146,36 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	vsync_notify_video_composer();
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_dolby_vision_enable()) {
+		char *provider_name = NULL;
+
+		if (vd1_path_id == VFM_PATH_PIP) {
+			provider_name = vf_get_provider_name(RECEIVERPIP_NAME);
+			while (provider_name) {
+				if (!vf_get_provider_name(provider_name))
+					break;
+				provider_name =
+					vf_get_provider_name(provider_name);
+			}
+			if (provider_name)
+				dolby_vision_set_provider(provider_name);
+			else
+				dolby_vision_set_provider(dv_provider);
+		} else {
+			provider_name = vf_get_provider_name(RECEIVER_NAME);
+			while (provider_name) {
+				if (!vf_get_provider_name(provider_name))
+					break;
+				provider_name =
+					vf_get_provider_name(provider_name);
+			}
+			if (provider_name)
+				dolby_vision_set_provider(provider_name);
+			else
+				dolby_vision_set_provider(dv_provider);
+		}
+	}
+
 	if (is_dolby_vision_enable() && dovi_drop_flag) {
 		struct vframe_s *vf = NULL;
 		unsigned int cnt = 10;
@@ -5323,39 +5347,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		dolby_vision_check_hdr10plus(vf);
 		dolby_vision_check_hlg(vf);
 	}
-
-	if (cur_vd1_path_id != vd1_path_id) {
-		char *provider_name = NULL;
-
-		/* FIXME: add more receiver check */
-		if (vd1_path_id == VFM_PATH_PIP) {
-			provider_name = vf_get_provider_name("videopip");
-			while (provider_name) {
-				if (!vf_get_provider_name(provider_name))
-					break;
-				provider_name =
-					vf_get_provider_name(provider_name);
-			}
-			if (provider_name)
-				dolby_vision_set_provider(provider_name);
-		} else {
-			dolby_vision_set_provider("dvbldec");
-		}
-		if (vd1_path_id == VFM_PATH_PIP2) {
-			provider_name = vf_get_provider_name("videopip2");
-			while (provider_name) {
-				if (!vf_get_provider_name(provider_name))
-					break;
-				provider_name =
-					vf_get_provider_name(provider_name);
-			}
-			if (provider_name)
-				dolby_vision_set_provider(provider_name);
-		} else {
-			dolby_vision_set_provider("dvbldec");
-		}
-	}
-
 #endif
 
 	if (vsync_pts_inc_upint) {
@@ -5738,7 +5729,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 
 			ATRACE_COUNTER(MODULE_NAME,  __LINE__);
-			if (debug_flag & DEBUG_FLAG_PTS_TRACE)
+			if (debug_flag & DEBUG_FLAG_PTS_TRACE) {
 				pr_info("vpts = 0x%x, c.dur=0x%x, n.pts=0x%x, scr = 0x%x, pcr-pts-diff=%d, ptstrace=%d\n",
 					timestamp_vpts_get(),
 					(cur_dispbuf) ?
@@ -5749,6 +5740,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					pts_trace);
 				if (pts_trace > 4)
 					pr_info("smooth trace:%d\n", pts_trace);
+			}
 			amlog_mask_if(toggle_cnt > 0, LOG_MASK_FRAMESKIP,
 				      "skipped\n");
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -12993,7 +12985,7 @@ static ssize_t film_grain_show
 	struct class_attribute *attr,
 	char *buf)
 {
-	return snprintf(buf, 40, "fgrain_enable vd1: %d vd2: %d， vd3: %d\n",
+	return snprintf(buf, 40, "fgrain_enable vd1: %d vd2: %d vd3: %d\n",
 		glayer_info[0].fgrain_enable,
 		glayer_info[1].fgrain_enable,
 		glayer_info[2].fgrain_enable);

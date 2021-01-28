@@ -660,7 +660,9 @@ bool is_dovi_tv_on(void)
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	return false;
 #else
-	return ((is_meson_txlx_package_962X() || is_meson_tm2_cpu()) &&
+	return ((is_meson_txlx_package_962X() ||
+		is_meson_tm2_cpu() ||
+		is_meson_t7_cpu()) &&
 		!is_dolby_vision_stb_mode() && is_dolby_vision_on());
 #endif
 }
