@@ -389,7 +389,7 @@
 
 			watchdog@2100 {
 				compatible = "amlogic,meson-sc2-wdt";
-				status = "disabled";
+				status = "okay";
 				/* 0:userspace, 1:kernel */
 				amlogic,feed_watchdog_mode = <1>;
 				reg = <0x0 0x2100 0x0 0x10>;
