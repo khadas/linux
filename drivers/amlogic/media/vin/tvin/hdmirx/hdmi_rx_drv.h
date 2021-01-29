@@ -50,8 +50,8 @@
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
 
-/* t7 bringup */
-#define RX_VER2 "ver.2020/12/28"
+/* fix phy addr update error issue */
+#define RX_VER2 "ver.2021/01/29"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
