@@ -345,6 +345,12 @@ static struct file_private_data *vc_get_file_private(struct composer_dev *dev,
 
 	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
 				 VF_PROCESS_V4LVIDEO);
+	if (!uhmod) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "dma file file_private_data is NULL\n");
+		return NULL;
+	}
+
 	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
 		vc_print(dev->index, PRINT_ERROR,
 			 "dma file file_private_data is NULL\n");
@@ -657,6 +663,110 @@ static struct output_axis output_axis_adjust(struct composer_dev *dev,
 	return axis;
 }
 
+static void config_ge2d_data(struct composer_dev *dev,
+			    struct vframe_s *vf,
+			    unsigned long addr,
+			    struct frame_info_t *info,
+			    struct src_data_para *data)
+{
+	if (vf) {
+		data->canvas0Addr = vf->canvas0Addr;
+		data->canvas1Addr = vf->canvas1Addr;
+		data->canvas0_config[0] = vf->canvas0_config[0];
+		data->canvas0_config[1] = vf->canvas0_config[1];
+		data->canvas0_config[2] = vf->canvas0_config[2];
+		data->canvas1_config[0] = vf->canvas1_config[0];
+		data->canvas1_config[1] = vf->canvas1_config[1];
+		data->canvas1_config[2] = vf->canvas1_config[2];
+		data->bitdepth = vf->bitdepth;
+		data->source_type = vf->source_type;
+		data->type = vf->type;
+		data->plane_num = vf->plane_num;
+		data->width = vf->width;
+		data->height = vf->height;
+		if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+			data->is_vframe = false;
+		else
+			data->is_vframe = true;
+	} else {
+		data->canvas0Addr = -1;
+		data->canvas1Addr = -1;
+		data->canvas0_config[0].phy_addr = addr;
+		if (info->buffer_w > info->reserved[0]) {
+			vc_print(dev->index, PRINT_PATTERN,
+				 "buffer_w(%d) > deal_w(%d)\n",
+				 info->buffer_w, info->reserved[0]);
+			data->canvas0_config[0].width = info->buffer_w;
+		} else {
+			vc_print(dev->index, PRINT_PATTERN,
+				 "buffer_w:%d, deal_w: %d\n",
+				 info->buffer_w, info->reserved[0]);
+			data->canvas0_config[0].width = info->reserved[0];
+		}
+		if (info->buffer_h > info->reserved[1]) {
+			vc_print(dev->index, PRINT_PATTERN,
+				 "buffer_h(%d) > deal_h(%d)\n",
+				 info->buffer_h, info->reserved[1]);
+			data->canvas0_config[0].height = info->buffer_h;
+		} else {
+			vc_print(dev->index, PRINT_PATTERN,
+				 "buffer_h: %d, deal_h: %d\n",
+				 info->buffer_h, info->reserved[1]);
+			data->canvas0_config[0].height = info->reserved[1];
+		}
+		data->canvas0_config[0].block_mode = CANVAS_BLKMODE_LINEAR;
+		data->canvas0_config[0].endian = 0;
+		data->canvas0_config[1].phy_addr =
+			(u32)(addr + (data->canvas0_config[0].width)
+			      * (data->canvas0_config[0].height));
+		data->canvas0_config[1].width =
+			data->canvas0_config[0].width;
+		data->canvas0_config[1].height =
+			data->canvas0_config[0].height / 2;
+		data->canvas0_config[1].block_mode =
+			CANVAS_BLKMODE_LINEAR;
+		data->canvas0_config[1].endian = 0;
+		data->bitdepth = BITDEPTH_Y8
+				    | BITDEPTH_U8
+				    | BITDEPTH_V8;
+		data->source_type = 0;
+		data->type = VIDTYPE_PROGRESSIVE
+				| VIDTYPE_VIU_FIELD
+				| VIDTYPE_VIU_NV21;
+		data->plane_num = 2;
+		data->width = info->buffer_w;
+		data->height = info->buffer_h;
+		data->is_vframe = false;
+	}
+}
+
+static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
+					 struct file *file_vf)
+{
+	struct vframe_s *vf = NULL;
+	bool is_dec_vf = false;
+	struct file_private_data *file_private_data = NULL;
+
+	is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
+
+	if (is_dec_vf) {
+		vf =
+		dmabuf_get_vframe((struct dma_buf *)(file_vf->private_data));
+		vc_print(dev->index, PRINT_OTHER, "vf is from decoder\n");
+	} else {
+		file_private_data = vc_get_file_private(dev, file_vf);
+		if (!file_private_data) {
+			vc_print(dev->index, PRINT_ERROR,
+				 "invalid fd: no uvm, no v4lvideo!!\n");
+		} else {
+			vf = &file_private_data->vf;
+			vc_print(dev->index, PRINT_OTHER,
+				 "vf is from v4lvideo\n");
+		}
+	}
+	return vf;
+}
+
 static void vframe_composer(struct composer_dev *dev)
 {
 	struct received_frames_t *received_frames = NULL;
@@ -668,7 +778,6 @@ static void vframe_composer(struct composer_dev *dev)
 	struct frame_info_t *vframe_info[MXA_LAYER_COUNT];
 	int i, j, tmp;
 	u32 zd1, zd2;
-	struct file_private_data *file_private_data;
 	struct config_para_ex_s ge2d_config;
 	struct timeval begin_time;
 	struct timeval end_time;
@@ -680,10 +789,12 @@ static void vframe_composer(struct composer_dev *dev)
 	u32 cur_transform = 0;
 	struct src_data_para src_data;
 	u32 drop_count = 0;
+	unsigned long addr = 0;
 	struct output_axis dst_axis;
 	int min_left = 0, min_top = 0;
 	int max_right = 0, max_bottom = 0;
 	struct componser_info_t *componser_info;
+	bool is_dec_vf = false, is_v4l_vf = false;
 
 	do_gettimeofday(&begin_time);
 
@@ -764,80 +875,51 @@ static void vframe_composer(struct composer_dev *dev)
 	min_left = vframe_info[0]->dst_x;
 	min_top = vframe_info[0]->dst_y;
 	for (i = 0; i < count; i++) {
+		file_vf = received_frames->file_vf[vf_dev[i]];
+		is_dec_vf =
+		is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
+		is_v4l_vf =
+		is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
 		if (vframe_info[vf_dev[i]]->type == 1) {
-			src_data.canvas0Addr = -1;
-			src_data.canvas1Addr = -1;
-			src_data.canvas0_config[0].phy_addr =
-				(u32)(received_frames->phy_addr[vf_dev[i]]);
-			src_data.canvas0_config[0].width =
-				(vframe_info[vf_dev[i]]->buffer_w
-				 + 0x1f) & ~0x1f;
-			src_data.canvas0_config[0].height =
-				vframe_info[vf_dev[i]]->buffer_h;
-			src_data.canvas0_config[0].block_mode =
-				CANVAS_BLKMODE_LINEAR;
-			src_data.canvas0_config[0].endian = 0;
-			src_data.canvas0_config[1].phy_addr =
-				(u32)(received_frames->phy_addr[vf_dev[i]]
-				      + (src_data.canvas0_config[0].width)
-				      * (src_data.canvas0_config[0].height));
-
-			src_data.canvas0_config[1].width =
-				(vframe_info[vf_dev[i]]->buffer_w
-				 + 0x1f) & ~0x1f;
-			src_data.canvas0_config[1].height =
-				(vframe_info[vf_dev[i]]->buffer_h) / 2;
-			src_data.canvas0_config[1].block_mode =
-				CANVAS_BLKMODE_LINEAR;
-			src_data.canvas0_config[1].endian = 0;
-
-			src_data.bitdepth = BITDEPTH_Y8
-					    | BITDEPTH_U8
-					    | BITDEPTH_V8;
-			src_data.source_type = 0;
-			src_data.type = VIDTYPE_PROGRESSIVE
-					| VIDTYPE_VIU_FIELD
-					| VIDTYPE_VIU_NV21;
-			src_data.plane_num = 2;
-			src_data.width = vframe_info[vf_dev[i]]->buffer_w;
-			src_data.height = vframe_info[vf_dev[i]]->buffer_h;
-			src_data.is_vframe = false;
-		} else {
-			file_vf = received_frames->file_vf[vf_dev[i]];
-			if (is_valid_mod_type(file_vf->private_data,
-					      VF_SRC_DECODER)) {
-				scr_vf = dmabuf_get_vframe((struct dma_buf *)
-					(file_vf->private_data));
+			if (is_dec_vf || is_v4l_vf) {
+				vc_print(dev->index, PRINT_OTHER,
+					 "%s dma buffer is vf\n", __func__);
+				scr_vf = get_vf_from_file(dev, file_vf);
+				if (!scr_vf) {
+					vc_print(dev->index,
+						 PRINT_ERROR, "get vf NULL\n");
+					continue;
+				}
+				if (scr_vf->type & VIDTYPE_V4L_EOS) {
+					vc_print(dev->index,
+						 PRINT_ERROR, "eos vf\n");
+					continue;
+				}
 			} else {
-				file_private_data =
-					vc_get_file_private(dev, file_vf);
-				scr_vf = &file_private_data->vf;
+				addr = received_frames->phy_addr[vf_dev[i]];
+				vc_print(dev->index, PRINT_OTHER,
+					 "%s dma buffer not vf\n",
+					 __func__);
+			}
+		} else if (vframe_info[vf_dev[i]]->type == 0) {
+			if (is_dec_vf || is_v4l_vf) {
+				vc_print(dev->index, PRINT_OTHER,
+					 "%s type 0 is vf\n", __func__);
+				scr_vf = get_vf_from_file(dev, file_vf);
+			}
+			if (!scr_vf) {
+				vc_print(dev->index,
+					 PRINT_ERROR, "get vf NULL\n");
+				continue;
 			}
 
 			if (scr_vf->type & VIDTYPE_V4L_EOS) {
 				vc_print(dev->index, PRINT_ERROR, "eos vf\n");
 				continue;
 			}
-
-			src_data.canvas0Addr = scr_vf->canvas0Addr;
-			src_data.canvas1Addr = scr_vf->canvas1Addr;
-			src_data.canvas0_config[0] = scr_vf->canvas0_config[0];
-			src_data.canvas0_config[1] = scr_vf->canvas0_config[1];
-			src_data.canvas0_config[2] = scr_vf->canvas0_config[2];
-			src_data.canvas1_config[0] = scr_vf->canvas1_config[0];
-			src_data.canvas1_config[1] = scr_vf->canvas1_config[1];
-			src_data.canvas1_config[2] = scr_vf->canvas1_config[2];
-			src_data.bitdepth = scr_vf->bitdepth;
-			src_data.source_type = scr_vf->source_type;
-			src_data.type = scr_vf->type;
-			src_data.plane_num = scr_vf->plane_num;
-			src_data.width = scr_vf->width;
-			src_data.height = scr_vf->height;
-			if (scr_vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
-				src_data.is_vframe = false;
-			else
-				src_data.is_vframe = true;
 		}
+		config_ge2d_data(dev, scr_vf, addr,
+				 vframe_info[vf_dev[i]], &src_data);
 		cur_transform = vframe_info[vf_dev[i]]->transform;
 		dev->ge2d_para.position_left =
 			vframe_info[vf_dev[i]]->dst_x;
@@ -1071,7 +1153,6 @@ static void video_composer_task(struct composer_dev *dev)
 	struct vframe_s *vf = NULL;
 	struct file *file_vf = NULL;
 	struct frame_info_t *frame_info = NULL;
-	struct file_private_data *file_private_data;
 	struct received_frames_t *received_frames = NULL;
 	struct frames_info_t *frames_info = NULL;
 	int count;
@@ -1082,6 +1163,7 @@ static void video_composer_task(struct composer_dev *dev)
 	struct vframe_s *vf_ext = NULL;
 	u32 pic_w;
 	u32 pic_h;
+	bool is_dec_vf = false, is_v4l_vf = false;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -1122,23 +1204,43 @@ static void video_composer_task(struct composer_dev *dev)
 			 dev->index,
 			 kfifo_len(&dev->receive_q));
 		file_vf = received_frames->file_vf[0];
+		is_dec_vf =
+		is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
+		is_v4l_vf =
+		is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
 		if (frame_info->type == 0) {
-			if (is_valid_mod_type(file_vf->private_data,
-					      VF_SRC_DECODER)) {
-				vf = dmabuf_get_vframe((struct dma_buf *)
-					(file_vf->private_data));
-			} else {
-				file_private_data = vc_get_file_private(dev, file_vf);
-				vf = &file_private_data->vf;
+			if (is_dec_vf || is_v4l_vf)
+				vf = get_vf_from_file(dev, file_vf);
+			vc_print(dev->index, PRINT_OTHER,
+				 "%s type 0 is vf\n", __func__);
+			if (!vf) {
+				vc_print(dev->index, PRINT_ERROR,
+					 "%s get vf is NULL\n", __func__);
+				return;
 			}
 			video_wait_decode_fence(dev, vf);
 		} else if (frame_info->type == 1) {
-			if (!kfifo_get(&dev->dma_free_q, &vf)) {
-				vc_print(dev->index, PRINT_ERROR,
-					 "task: get dma_free_q failed\n");
-				return;
+			if (is_dec_vf || is_v4l_vf) {
+				vf = get_vf_from_file(dev, file_vf);
+				vc_print(dev->index, PRINT_OTHER,
+					 "%s dma is vf\n", __func__);
+				if (!vf) {
+					vc_print(dev->index, PRINT_ERROR,
+						 "%s get vf is NULL\n",
+						 __func__);
+					return;
+				}
+				video_wait_decode_fence(dev, vf);
+			} else {
+				vc_print(dev->index, PRINT_OTHER,
+					 "%s dma buffer not vf\n", __func__);
+				if (!kfifo_get(&dev->dma_free_q, &vf)) {
+					vc_print(dev->index, PRINT_ERROR,
+						 "task: get dma_free_q failed\n");
+					return;
+				}
+				memset(vf, 0, sizeof(struct vframe_s));
 			}
-			memset(vf, 0, sizeof(struct vframe_s));
 		}
 		if (!kfifo_get(&dev->receive_q, &received_frames)) {
 			vc_print(dev->index, PRINT_ERROR,
@@ -1196,21 +1298,49 @@ static void video_composer_task(struct composer_dev *dev)
 		vf->pts_us64 = time_us64;
 		vf->disp_pts = 0;
 
-		if (frame_info->type == 1) {
+		if (frame_info->type == 1 && !(is_dec_vf || is_v4l_vf)) {
 			vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER_DMA;
 			vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
 			vf->canvas0Addr = -1;
 			vf->canvas0_config[0].phy_addr = phy_addr;
-			vf->canvas0_config[0].width = (frame_info->buffer_w
-						       + 0x1f) & ~0x1f;
-			vf->canvas0_config[0].height = frame_info->buffer_h;
+			if (frame_info->buffer_w > frame_info->reserved[0]) {
+				vf->canvas0_config[0].width =
+						frame_info->buffer_w;
+				vc_print(dev->index, PRINT_PATTERN,
+					 "buffer_w(%d) > deal_w(%d)\n",
+					 frame_info->buffer_w,
+					 frame_info->reserved[0]);
+			} else {
+				vf->canvas0_config[0].width =
+						frame_info->reserved[0];
+				vc_print(dev->index, PRINT_PATTERN,
+					 "buffer_w: %d, deal_w: %d\n",
+					 frame_info->buffer_w,
+					 frame_info->reserved[0]);
+			}
+			if (frame_info->buffer_h > frame_info->reserved[1]) {
+				vf->canvas0_config[0].height =
+						frame_info->buffer_h;
+				vc_print(dev->index, PRINT_PATTERN,
+					 "buffer_h(%d) > deal_h(%d)\n",
+					 frame_info->buffer_h,
+					 frame_info->reserved[1]);
+			} else {
+				vf->canvas0_config[0].height =
+						frame_info->reserved[1];
+				vc_print(dev->index, PRINT_PATTERN,
+					 "buffer_h: %d, deal_h: %d\n",
+					 frame_info->buffer_h,
+					 frame_info->reserved[1]);
+			}
 			vf->canvas1Addr = -1;
 			vf->canvas0_config[1].phy_addr = phy_addr
 				+ vf->canvas0_config[0].width
 				* vf->canvas0_config[0].height;
-			vf->canvas0_config[1].width = (frame_info->buffer_w
-						       + 0x1f) & ~0x1f;
-			vf->canvas0_config[1].height = frame_info->buffer_h;
+			vf->canvas0_config[1].width =
+				vf->canvas0_config[0].width;
+			vf->canvas0_config[1].height =
+				vf->canvas0_config[0].height;
 			vf->width = frame_info->buffer_w;
 			vf->height = frame_info->buffer_h;
 			vf->plane_num = 2;
@@ -1239,7 +1369,8 @@ static void video_composer_task(struct composer_dev *dev)
 			 frame_info->crop_h, frame_info->crop_w);
 		vc_print(dev->index, PRINT_AXIS,
 			 "frame buffer Width X Height: %d X %d\n",
-			 frame_info->buffer_w, frame_info->buffer_h);
+			 vf->canvas0_config[0].width,
+			 vf->canvas0_config[0].height);
 		vc_print(dev->index, PRINT_AXIS,
 			 "===============================\n");
 
@@ -1507,7 +1638,6 @@ static void set_frames_info(struct composer_dev *dev,
 	int j = 0;
 	struct file *file_vf = NULL;
 	struct vframe_s *vf = NULL;
-	struct file_private_data *file_private_data;
 	struct timeval time1;
 	struct timeval time2;
 	u64 time_us64;
@@ -1515,6 +1645,7 @@ static void set_frames_info(struct composer_dev *dev,
 	int axis[4];
 	int ready_len = 0;
 	bool current_is_sideband = false;
+	bool is_dec_vf = false, is_v4l_vf = false;
 	s32 sideband_type = -1;
 	int channel = -1;
 
@@ -1671,22 +1802,20 @@ static void set_frames_info(struct composer_dev *dev,
 		}
 		total_get_count++;
 		dev->received_frames[i].file_vf[j] = file_vf;
+		is_dec_vf =
+		is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
+		is_v4l_vf =
+		is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
 		if (frames_info->frame_info[j].type == 0) {
-			if (is_valid_mod_type(file_vf->private_data,
-					      VF_SRC_DECODER)) {
-				vf = dmabuf_get_vframe((struct dma_buf *)
-					(file_vf->private_data));
-			} else {
-				file_private_data = vc_get_file_private(dev, file_vf);
-				if (!file_private_data) {
-					vc_print(dev->index, PRINT_ERROR,
-						"invalid fd: no uvm, no v4lvideo!!\n");
-					return;
-				}
-				vf = &file_private_data->vf;
+			if (is_dec_vf || is_v4l_vf) {
+				vf = get_vf_from_file(dev, file_vf);
+				vc_print(dev->index, PRINT_OTHER,
+					 "%s type is 0 and get vf\n",
+					 __func__);
 			}
 			if (!vf) {
-				vc_print(dev->index, PRINT_ERROR, "received NULL vf!!\n");
+				vc_print(dev->index, PRINT_ERROR,
+					 "received NULL vf!!\n");
 				return;
 			}
 			if (dev->index == 0) {
@@ -1711,15 +1840,39 @@ static void set_frames_info(struct composer_dev *dev,
 			ATRACE_COUNTER("video_composer", vf->index_disp);
 #endif
 		} else if (frames_info->frame_info[j].type == 1) {
+			if (is_dec_vf || is_v4l_vf) {
+				vf = get_vf_from_file(dev, file_vf);
+				vc_print(dev->index, PRINT_OTHER,
+					 "%s dma buffer is vf\n",
+					 __func__);
+				if (!vf) {
+					vc_print(dev->index, PRINT_ERROR,
+						 "received NULL vf!!\n");
+					return;
+				}
+				if (dev->index == 0) {
+					drop_cnt = vf->omx_index
+						- dev->received_count;
+					receive_count = dev->received_count;
+				} else if (dev->index == 1) {
+					drop_cnt_pip = vf->omx_index
+						- dev->received_count;
+					receive_count_pip =
+						dev->received_count;
+				}
+			} else {
+				dev->received_frames[i].phy_addr[j] =
+				get_dma_phy_addr(frames_info->frame_info[j].fd,
+						 dev->index);
+				vc_print(dev->index, PRINT_OTHER,
+					 "%s dma buffer not vf\n", __func__);
+			}
 			vc_print(dev->index, PRINT_FENCE,
 				 "received_cnt=%lld,i=%d,z=%d,DMA_fd=%d\n",
 				 dev->received_count + 1,
 				 i,
 				 frames_info->frame_info[j].zorder,
 				 frames_info->frame_info[j].fd);
-			dev->received_frames[i].phy_addr[j] =
-			get_dma_phy_addr(frames_info->frame_info[j].fd,
-					 dev->index);
 		} else {
 			vc_print(dev->index, PRINT_ERROR,
 				 "unsupport type=%d\n",
