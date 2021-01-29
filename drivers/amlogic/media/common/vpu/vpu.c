@@ -2100,8 +2100,8 @@ static struct vpu_data_s vpu_data_s4 = {
 	.chip_type = VPU_CHIP_S4,
 	.chip_name = "s4",
 
-	.clk_level_dft = CLK_LEVEL_DFT_S4,
-	.clk_level_max = CLK_LEVEL_MAX_S4,
+	.clk_level_dft = CLK_LEVEL_DFT_G12A,
+	.clk_level_max = CLK_LEVEL_MAX_G12A,
 	.fclk_div_table = fclk_div_table_g12a,
 	.reg_map_table = vpu_reg_table_new,
 
