@@ -1259,11 +1259,14 @@ static struct clk_regmap t5d_hdmirx_meter_gate = {
 static const char * const t5d_vdin_meas_parent_names[] = { "xtal", "fclk_div4",
 	"fclk_div3", "fclk_div5" };
 
+static u32 mux_table_vdin_meas[] = { 0, 1, 2, 3 };
+
 static struct clk_regmap t5d_vdin_meas_mux = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = HHI_VDIN_MEAS_CLK_CNTL,
-		.mask = 0x3,
+		.mask = 0x7,
 		.shift = 9,
+		.table = mux_table_vdin_meas
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "vdin_meas_mux",
