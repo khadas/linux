@@ -5,8 +5,8 @@
  *
  */
 
-#ifndef __SC2_H
-#define __SC2_H
+#ifndef __S4_H
+#define __S4_H
 
 /*
  * Clock controller register offsets
@@ -219,6 +219,25 @@
 #define CPUCTRL_SYS_CPU_CLK_CTRL6                  ((0x0057 << 2))
 #define CPUCTRL_SYS_CPU_CLK_RESULT                 ((0x0058 << 2))
 
+#define SECURE_PLL_CLK			0x82000098
+#define SECURE_CPU_CLK			0x82000099
+
+/* PLL secure clock index */
+enum sec_pll {
+	SECID_SYS0_DCO_PLL = 0,
+	SECID_SYS0_DCO_PLL_DIS,
+	SECID_SYS0_PLL_OD,
+	SECID_SYS1_DCO_PLL,
+	SECID_SYS1_DCO_PLL_DIS,
+	SECID_SYS1_PLL_OD,
+	SECID_CPU_CLK_SEL,
+	SECID_CPU_CLK_RD,
+	SECID_CPU_CLK_DYN,
+	SECID_A73_CLK_SEL,
+	SECID_A73_CLK_RD,
+	SECID_A73_CLK_DYN,
+};
+
 #if 0
 /*SC2: pll: FDCO: 3G~6G FDCO = 24*(M+frac)/N
  *N: recommend is 1
@@ -328,4 +347,4 @@ static const struct pll_rate_table sc2_hifi_pll_rate_table[] = {
 /* include the CLKIDs that have been made part of the DT binding */
 #endif
 
-#endif /* __SC2_H */
+#endif /* __S4_H */
