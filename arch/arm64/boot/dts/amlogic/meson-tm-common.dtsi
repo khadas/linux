@@ -1558,6 +1558,7 @@
 
 			timer_bc: timer_F@f190{
 				compatible = "amlogic,bc-timer";
+				status = "disabled";
 				reg= <0x0 0xf190 0x0 0x8>;
 				timer_name = "Meson TimerF";
 				clockevent-rating=<300>;
