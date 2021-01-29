@@ -10459,7 +10459,8 @@ static unsigned int dim_bypass_check(struct vframe_s *vf)
 	unsigned int reason = 0;
 	unsigned int x, y;
 
-	if ((dimp_get(edi_mp_di_debug_flag) >> 20) & 0x1)
+	if (((dimp_get(edi_mp_di_debug_flag) >> 20) & 0x1) ||
+	    DIM_IS_IC(S4))
 		reason = 1;
 
 	if (reason || !vf)
@@ -11490,7 +11491,7 @@ void dim_set_di_flag(void)
 	}
 
 	if (DIM_IS_IC(T5) || DIM_IS_IC(TM2B) || DIM_IS_IC(T5D) ||
-		DIM_IS_IC(T7))
+		DIM_IS_IC(T7) || DIM_IS_IC(S4))
 		di_cfg_set(ECFG_DIM_BYPASS_P, 0);//for t5 enable p
 
 	get_ops_mtn()->mtn_int_combing_glbmot();

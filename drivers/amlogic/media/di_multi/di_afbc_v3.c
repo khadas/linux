@@ -1264,7 +1264,13 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 	}
 	pafd_ctr = &di_afdp->ctr;
 
-	if (IS_IC_EF(cid, SC2)) {
+	if (DIM_IS_IC(S4)) {//JUST 1 afbc D
+		pafd_ctr->fb.ver = AFBCD_NONE;
+		pafd_ctr->fb.sp.b.inp = 0;
+		pafd_ctr->fb.sp.b.mem = 0;
+		pafd_ctr->fb.pre_dec = EAFBC_DEC0;
+		pafd_ctr->fb.mode = AFBC_WK_NONE;
+	} else if (IS_IC_EF(cid, SC2)) {
 		//afbc_cfg = BITS_EAFBC_CFG_4K;
 		afbc_cfg = 0;
 		memcpy(&pafd_ctr->fb, &cafbc_v5_sc2, sizeof(pafd_ctr->fb));

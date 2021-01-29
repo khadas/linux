@@ -78,7 +78,7 @@
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
 			//size = <0x0 0x0B000000>;
-			size = <0x0 0x0>;
+			//size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 
@@ -272,12 +272,12 @@
 	};
 
 	multi-di {
-		compatible = "amlogic, dim-sc2";
-		status = "disabled";
+		compatible = "amlogic, dim-s4";
+		status = "okay";
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
 		flag_cma = <4>;	//<1>;
 		//memory-region = <&di_reserved>;
-		memory-region = <&di_cma_reserved>;
+		//memory-region = <&di_cma_reserved>;
 		interrupts = <0 203 1
 				0 202 1>;
 		interrupt-names = "pre_irq", "post_irq";
