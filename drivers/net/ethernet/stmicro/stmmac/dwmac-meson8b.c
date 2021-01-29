@@ -48,6 +48,8 @@
 
 #define MUX_CLK_NUM_PARENTS		2
 
+unsigned int support_mac_wol;
+
 struct meson8b_dwmac;
 
 struct meson8b_dwmac_data {
@@ -347,6 +349,8 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 			dev_err(&pdev->dev, "Unable to map reset base\n");
 		ee_reset_base = addr;
 	}
+	if (of_property_read_u32(np, "mac_wol", &support_mac_wol) != 0)
+		pr_info("no mac_wol\n");
 
 	if (of_property_read_u32(np, "internal_phy", &internal_phy) != 0)
 		pr_info("use default internal_phy as 0\n");
@@ -457,8 +461,10 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 		goto err_remove_config_dt;
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 	aml_custom_setting(pdev, dwmac);
-	set_wol_notify_bl31();
-	device_init_wakeup(&pdev->dev, 1);
+	if (support_mac_wol) {
+		set_wol_notify_bl31();
+		device_init_wakeup(&pdev->dev, 1);
+	}
 #endif
 	return 0;
 
