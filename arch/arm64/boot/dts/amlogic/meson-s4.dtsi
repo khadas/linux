@@ -970,7 +970,7 @@
 			xtal_tick_en = <3>;
 			fifosize = < 128 >;
 			pinctrl-names = "default";
-			pinctrl-0 = <&a_uart_pins1>;
+			pinctrl-0 = <&a_uart_pins>;
 		};
 
 		uart_C: serial@fe07c000 {
@@ -1012,7 +1012,7 @@
 						"clk_gate";
 			fifosize = < 64 >;
 			pinctrl-names = "default";
-			pinctrl-0 = <&e_uart_pins>;
+			pinctrl-0 = <&e_uart_pins1>;
 		};
 	};
 
@@ -1739,18 +1739,12 @@
 		};
 	};
 
-	a_uart_pins1:a_uart1 {
+	a_uart_pins:a_uart {
 		mux {
-			groups = "uart_a_tx_d2",
-				"uart_a_rx_d3";
-			function = "uart_a";
-		};
-	};
-
-	a_uart_pins2:a_uart2 {
-		mux {
-			groups = "uart_a_tx_d8",
-				"uart_a_rx_d9";
+			groups = "uart_a_tx",
+				"uart_a_rx",
+				"uart_a_cts",
+				"uart_a_rts";
 			function = "uart_a";
 		};
 	};
@@ -1759,39 +1753,50 @@
 		mux {
 			groups = "uart_c_tx",
 				"uart_c_rx";
-			bias-pull-up;
-			output-high;
 			function = "uart_c";
 		};
 	};
 
 	d_uart_pins1:d_uart1 {
 		mux {
-			groups = "uart_d_tx_x6",
-				"uart_d_rx_x7";
+			groups = "uart_d_tx_h",
+				"uart_d_rx_h";
 			function = "uart_d";
 		};
 	};
 
 	d_uart_pins2:d_uart2 {
 		mux {
-			groups = "uart_d_tx_x10",
-				"uart_d_rx_x11";
+			groups = "uart_d_tx_z",
+				"uart_d_rx_z";
 			function = "uart_d";
 		};
 	};
 
-	e_uart_pins:e_uart {
+	e_uart_pins1:e_uart1 {
 		mux {
-			groups = "uart_e_tx",
-				"uart_e_rx",
-				"uart_e_cts",
-				"uart_e_rts";
-			bias-pull-up;
-			output-high;
+			groups = "uart_e_tx_h",
+				"uart_e_rx_h";
 			function = "uart_e";
 		};
 	};
+
+	e_uart_pins2:e_uart2 {
+		mux {
+			groups = "uart_e_tx_z11",
+				"uart_e_rx_z12";
+			function = "uart_e";
+		};
+	};
+
+	e_uart_pins3:e_uart3 {
+		mux {
+			groups = "uart_e_tx_z8",
+				"uart_e_rx_z9";
+			function = "uart_e";
+		};
+	};
+
 	emmc_pins: emmc {
 		mux-0 {
 			groups = "emmc_nand_d0",
