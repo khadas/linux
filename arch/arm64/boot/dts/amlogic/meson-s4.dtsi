@@ -628,16 +628,17 @@
 			pll-setting-2 = <0x927E0000>;
 			pll-setting-3 = <0xac5f69e5>;
 			pll-setting-4 = <0xfe18>;
-			pll-setting-5 = <0x8000fff>;
+			pll-setting-5 = <0x7>;
 			pll-setting-6 = <0x78000>;
 			pll-setting-7 = <0xe0004>;
 			pll-setting-8 = <0xe000c>;
-			version = <2>;
+			version = <3>;
 //			power-domains = <&pwrdm PDID_SC2_USB_COMB>;
 			phy20-reset-level-bit = <8>;
 			phy21-reset-level-bit = <9>;
 			usb-reset-bit = <4>;
 			reset-level = <0x40>;
+			//usb-phy-trim-reg = <0xfe010330>;
 		};
 
 		usb3_phy_v2: usb3phy@fe03a080 {
