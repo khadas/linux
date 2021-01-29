@@ -31,7 +31,6 @@
 		spi1 = &spicc0;
 		spi2 = &spicc1;
 		tsensor0 = &p_tsensor;
-		tsensor1 = &d_tsensor;
 	};
 
 	memory@00000000 {

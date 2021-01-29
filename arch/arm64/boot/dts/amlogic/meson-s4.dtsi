@@ -31,7 +31,7 @@
 			enable-method = "psci";
 ////			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
-//			#cooling-cells = <2>;
+			#cooling-cells = <2>;
 //			clocks = <&clkc CLKID_CPU_CLK>,
 //				<&clkc CLKID_CPU_CLK_DYN>,
 //				<&clkc CLKID_SYS_PLL>,
@@ -55,7 +55,7 @@
 			enable-method = "psci";
 ////			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
-//			#cooling-cells = <2>;
+			#cooling-cells = <2>;
 //			clocks = <&clkc CLKID_CPU_CLK>,
 //				<&clkc CLKID_CPU_CLK_DYN>,
 //				<&clkc CLKID_SYS_PLL>,
@@ -79,7 +79,7 @@
 			enable-method = "psci";
 ////			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
-//			#cooling-cells = <2>;
+			#cooling-cells = <2>;
 //			clocks = <&clkc CLKID_CPU_CLK>,
 //				<&clkc CLKID_CPU_CLK_DYN>,
 //				<&clkc CLKID_SYS_PLL>,
@@ -103,7 +103,7 @@
 			enable-method = "psci";
 ////			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
-//			#cooling-cells = <2>;
+			#cooling-cells = <2>;
 //			clocks = <&clkc CLKID_CPU_CLK>,
 //				<&clkc CLKID_CPU_CLK_DYN>,
 //				<&clkc CLKID_SYS_PLL>,
@@ -1331,27 +1331,13 @@
 
 	p_tsensor: p_tsensor@fe020000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
-		reg = <0x0 0xfe020000 0x0 0x50>,
-			<0x0 0xfe010328 0x0 0x4>;
-		cal_type = <0x1>;
+		status = "okay";
+		reg = <0x0 0xfe020000 0x0 0x50>;
+		tsensor_id = <1>;
+		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
 		rtemp = <110000>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&clkc CLKID_TS_CLK_GATE>;
-		clock-names = "ts_comp";
-		#thermal-sensor-cells = <1>;
-	};
-
-	d_tsensor: d_tsensor@fe022000 {
-		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
-		reg = <0x0 0xfe022000 0x0 0x50>,
-			<0x0 0xfe010370 0x0 0x4>;
-		cal_type = <0x1>;
-		cal_coeff = <324 424 3159 9411>;
-		rtemp = <110000>;
-		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
@@ -1412,29 +1398,6 @@
 	//				cooling-device = <&gpu 0 3>;
 	//				contribution = <1024>;
 	//			};
-			};
-		};
-		ddr_thermal: ddr_thermal {
-			polling-delay = <2000>;
-			polling-delay-passive = <1000>;
-			sustainable-power = <1410>;
-			thermal-sensors = <&d_tsensor 1>;
-			trips {
-				dswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				dcontrol: trip-point@1 {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				dcritical: trip-point@2 {
-					temperature = <105000>;
-					hysteresis = <1000>;
-					type = "critical";
-				};
 			};
 		};
 	};/*thermal zone end*/
