@@ -63,6 +63,8 @@ void hd21_set_reg_bits(u32 addr, u32 value,
 void init_reg_map(u32 type);
 u32 hdmitx21_rd_reg(u32 addr);
 void hdmitx21_wr_reg(u32 addr, u32 val);
+void hdmitx21_poll_reg(u32 addr, u8 exp_data, u8 mask, ulong timeout);
+void hdmitx21_set_reg_bits(u32 addr, u32 value, u32 offset, u32 len);
 
 enum tvenc_type {
 	TV_ENC_160p = 0,

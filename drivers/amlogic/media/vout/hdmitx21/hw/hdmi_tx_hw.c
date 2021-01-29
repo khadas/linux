@@ -424,6 +424,19 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 {
 	u32 data32;
 
+	// --------------------------------------------------------
+	// Program core_pin_mux to enable HDMI pins
+	// --------------------------------------------------------
+	data32 = 0;
+	data32 |= (1 << 28);     // [31:28] GPIOW_15_SEL=1 for hdmitx_hpd
+	data32 |= (1 << 24);     // [27:24] GPIOW_14_SEL=1 for hdmitx_scl
+	data32 |= (1 << 20);     // [23:20] GPIOW_13_SEL=1 for hdmitx_sda
+	data32 |= (1 << 12);     // [15:12] GPIOW_11_SEL=1 for hdmirx_scl_B
+	data32 |= (1 << 8);     // [11: 8] GPIOW_10_SEL=1 for hdmirx_sda_B
+	data32 |= (1 << 4);     // [ 7: 4] GPIOW_9_SEL=1  for hdmirx_5v_B
+	data32 |= (1 << 0);     // [ 3: 0] GPIOW_8_SEL=1  for hdmirx_hpd_B
+	hd21_write_reg(PADCTRL_PIN_MUX_REGN, data32);
+
 	clocks_set_sys_defaults();    // set MPEG, audio and default video
 	// [8]      hdcp_topology_err
 	// [7]      rxsense_fall
@@ -436,6 +449,27 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	// [0]      core_pwd_intr_rise
 	hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT_CLR, 0x000001ff);
 
+	// Enable internal pixclk, tmds_clk, spdif_clk, i2s_clk, cecclk, and hdcp22_esmclk
+	// [   31] free_clk_en
+	// [   13] aud_mclk_sel: 0=Use i2s_mclk; 1=Use spdif_clk. For ACR.
+	// [   12] i2s_ws_inv
+	// [   11] i2s_clk_inv
+	// [    9] tmds_clk_inv
+	// [    8] pixel_clk_inv
+	// [    3] i2s_clk_enable
+	// [    1] tmds_clk_enable
+	// [ 0] pixel_clk_enable
+	data32 = 0;
+	data32 |= (0 << 31);
+	data32 |= ((1 - 0) << 13);
+	data32 |= (0 << 12);
+	data32 |= (0 << 11);
+	data32 |= (0 << 9);
+	data32 |= (0 << 8);
+	data32 |= (1 << 3);
+	data32 |= (1 << 1);
+	data32 |= (1 << 0);
+	hdmitx21_wr_reg(HDMITX_TOP_CLK_CNTL,  data32);
 	data32 = 0;
 	data32 |= (1 << 8);  // [  8] hdcp_topology_err
 	data32 |= (1 << 7);  // [  7] rxsense_fall
@@ -454,7 +488,8 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	data32 = 0;
 	data32 |= (1 << 24); // [26:24] infilter_ddc_intern_clk_divide
 	data32 |= (0 << 16); // [23:16] infilter_ddc_sample_clk_divide
-	hdmitx21_wr_reg(HDMITX_TOP_INFILTER,  data32);
+	hdmitx21_wr_reg(HDMITX_TOP_INFILTER, data32);
+	hdmitx21_set_reg_bits(AON_CYP_CTL_IVCTX, 2, 0, 2);
 }
 
 int hdmitx21_uboot_audio_en(void)
@@ -1001,19 +1036,6 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	else
 		enable_crt_video_encp2(1, 0);
 	enable_crt_video_hdmi(1, (TX_INPUT_COLOR_FORMAT == HDMI_COLOR_FORMAT_420) ? 1 : 0, enc_sel);
-
-	// --------------------------------------------------------
-	// Program core_pin_mux to enable HDMI pins
-	// --------------------------------------------------------
-	data32 = 0;
-	data32 |= (1 << 28);     // [31:28] GPIOW_15_SEL=1 for hdmitx_hpd
-	data32 |= (1 << 24);     // [27:24] GPIOW_14_SEL=1 for hdmitx_scl
-	data32 |= (1 << 20);     // [23:20] GPIOW_13_SEL=1 for hdmitx_sda
-	data32 |= (1 << 12);     // [15:12] GPIOW_11_SEL=1 for hdmirx_scl_B
-	data32 |= (1 << 8);     // [11: 8] GPIOW_10_SEL=1 for hdmirx_sda_B
-	data32 |= (1 << 4);     // [ 7: 4] GPIOW_9_SEL=1  for hdmirx_5v_B
-	data32 |= (1 << 0);     // [ 3: 0] GPIOW_8_SEL=1  for hdmirx_hpd_B
-	hd21_write_reg(PADCTRL_PIN_MUX_REGN, data32);
 
 	// --------------------------------------------------------
 	// Enable viu vsync interrupt, enable hdmitx interrupt, enable htx_hdcp22 interrupt
@@ -2494,27 +2516,6 @@ static void config_hdmi20_tx(enum hdmi_vic _vic,
 
 	pr_info("configure hdmitx21\n");
 
-	// Enable internal pixclk, tmds_clk, spdif_clk, i2s_clk, cecclk, and hdcp22_esmclk
-	// [   31] free_clk_en
-	// [   13] aud_mclk_sel: 0=Use i2s_mclk; 1=Use spdif_clk. For ACR.
-	// [   12] i2s_ws_inv
-	// [   11] i2s_clk_inv
-	// [    9] tmds_clk_inv
-	// [    8] pixel_clk_inv
-	// [    3] i2s_clk_enable
-	// [    1] tmds_clk_enable
-	// [ 0] pixel_clk_enable
-	data32 = 0;
-	data32 |= (0 << 31);
-	data32 |= ((1 - i2s_spdif) << 13);
-	data32 |= (0 << 12);
-	data32 |= (0 << 11);
-	data32 |= (0 << 9);
-	data32 |= (0 << 8);
-	data32 |= (1 << 3);
-	data32 |= (1 << 1);
-	data32 |= (1 << 0);
-	hdmitx21_wr_reg(HDMITX_TOP_CLK_CNTL,  data32);
 	// Enable normal output to PHY
 
 	if (tmds_clk_div4) {

@@ -867,19 +867,6 @@ void hdmi_tx_edid_proc(u8 *edid);
 
 void setup_attr(const char *buf);
 void get_attr(char attr[16]);
-u32 hd21_read_reg(u32 addr);
-void hd21_write_reg(u32 addr, u32 val);
-void hd21_set_reg_bits(u32 addr, u32 value,
-		     u32 offset, u32 len);
-void hdmitx21_wr_reg(u32 addr, u32 data);
-void hdmitx21_poll_reg(u32 addr, u32 val,
-		     unsigned long timeout);
-void hdmitx21_set_reg_bits(u32 addr, u32 value,
-			 u32 offset, u32 len);
-u32 hdmitx21_rd_reg(u32 addr);
-u32 hdmitx21_rd_check_reg(u32 addr, u32 exp_data,
-				 u32 mask);
-bool hdmitx21_get_bit(u32 addr, u32 bit_nr);
 void vsem_init_cfg(struct hdmitx_dev *hdev);
 
 enum hdmi_tf_type hdmitx21_get_cur_hdr_st(void);

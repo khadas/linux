@@ -113,19 +113,14 @@ void edid21_read_head_8bytes(void)
 	ddc_read_8byte(EDID_SLAVE, 0x00, head);
 }
 
-/*
- * Note: read 8 Bytes of EDID data every time
- */
-#define EDID_WAIT_TIMEOUT	10
-void hdmitx21_read_edid(u8 *rx_edid)
+void hdmitx21_read_edid(u8 *_rx_edid)
 {
 	u32 i;
 	u32 byte_num = 0;
-	u8 edid_extension = 0xff;
+	u8 edid_extension = 1;
+	u8 *rx_edid = _rx_edid;
 
-	mutex_lock(&ddc_mutex);
-	mutex_unlock(&ddc_mutex);
-	return;
+	// Program SLAVE/SEGMENT/ADDR
 	hdmitx21_wr_reg(LM_DDC_IVCTX, 0x80); //sel edid
 	hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x09); //clear fifo
 	hdmitx21_wr_reg(DDC_ADDR_IVCTX, 0xa0); //edid slave addr
@@ -133,20 +128,24 @@ void hdmitx21_read_edid(u8 *rx_edid)
 	// Read complete EDID data sequentially
 	while (byte_num < (128 * (1 + edid_extension))) {
 		if ((byte_num % 256) == 0)
-			hdmitx21_wr_reg(DDC_SEGM_IVCTX, byte_num >> 8) ; //segment
-		hdmitx21_wr_reg(DDC_OFFSET_IVCTX, byte_num & 0xff) ; //offset
-		hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, 1 << 3) ; //data length lo
-		hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0x00) ; //data length hi
-		hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x04) ;      //CMD
-		//sv_delay(1000); //ns
-		while (hdmitx21_rd_reg(DDC_STATUS_IVCTX) & (1 << 4))
-			; // wait for i2c done
+			hdmitx21_wr_reg(DDC_SEGM_IVCTX, byte_num >> 8); //segment
+		hdmitx21_wr_reg(DDC_OFFSET_IVCTX, byte_num & 0xff); //offset
+		hdmitx21_wr_reg(DDC_DIN_CNT1_IVCTX, 1 << 3); //data length lo
+		hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0x00); //data length hi
+		hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x04); //CMD
+		// Wait until I2C done
+		hdmitx21_poll_reg(DDC_STATUS_IVCTX, 1 << 4, ~(1 << 4), HZ / 100); //i2c process
+		hdmitx21_poll_reg(DDC_STATUS_IVCTX, 0 << 4, ~(1 << 4), HZ / 100); //i2c done
 		// Read back 8 bytes
 		for (i = 0; i < 8; i++) {
-			if (byte_num == 126)
-				edid_extension = hdmitx21_rd_reg(DDC_DATA_AON_IVCTX);
-			else
+			if (byte_num == 126) {
+				edid_extension  = hdmitx21_rd_reg(DDC_DATA_AON_IVCTX);
+				rx_edid[byte_num] = edid_extension;
+				if (edid_extension > 3)
+					edid_extension = 3;
+			} else {
 				rx_edid[byte_num] = hdmitx21_rd_reg(DDC_DATA_AON_IVCTX);
+			}
 			byte_num++;
 		}
 	}

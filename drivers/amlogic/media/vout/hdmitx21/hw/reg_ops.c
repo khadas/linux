@@ -247,19 +247,26 @@ void hdmitx21_set_reg_bits(u32 addr, u32 value,
 }
 EXPORT_SYMBOL(hdmitx21_set_reg_bits);
 
-void hdmitx21_poll_reg(u32 addr, u32 val, unsigned long timeout)
+void hdmitx21_poll_reg(u32 addr, u8 exp_data, u8 mask, ulong timeout)
 {
-	unsigned long time = 0;
+	u8 rd_data;
+	u8 done = 0;
+	ulong time = 0;
 
 	time = jiffies;
-	while ((!(hdmitx21_rd_reg(addr) & val)) &&
-	       time_before(jiffies, time + timeout)) {
-		mdelay(2);
+
+	rd_data = hdmitx21_rd_reg(addr);
+	while (time_before(jiffies, time + timeout)) {
+		if ((rd_data | mask) == (exp_data | mask)) {
+			done = 1;
+			break;
+		}
+		rd_data = hdmitx21_rd_reg(addr);
+		usleep_range(10, 20);
 	}
-	if (time_after(jiffies, time + timeout))
-		pr_info(REG "hdmitx poll:0x%x  val:0x%x T1=%lu t=%lu T2=%lu timeout\n",
-			addr, val, time, timeout, jiffies);
-}
+	if (done == 0)
+		pr_info("%s 0x%x poll time-out!\n", __func__, addr);
+} /* hdmitx21_poll_reg */
 EXPORT_SYMBOL(hdmitx21_poll_reg);
 
 u32 hdmitx21_rd_check_reg(u32 addr, u32 exp_data,
