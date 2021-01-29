@@ -1109,13 +1109,6 @@
 		};
 	};
 
-	spdifin: spdifin {
-		mux {/* GPIOH_5 */
-			groups = "spdif_in_h";
-			function = "spdif_in";
-		};
-	};
-
 	pdmin: pdmin {
 		mux { /* GPIOC_0, GPIOC_4 */
 			groups = "pdm_din0_c",

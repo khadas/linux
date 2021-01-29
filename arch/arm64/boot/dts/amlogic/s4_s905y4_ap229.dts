@@ -804,7 +804,7 @@
 
 		interrupt-names = "irq_spdifin";
 		pinctrl-names = "spdif_pins", "spdif_pins_mute";
-		pinctrl-0 = <&spdifout>;
+		pinctrl-0 = <&spdifout &spdifin>;
 		pinctrl-1 = <&spdifout_a_mute>;
 
 		/*spdif clk tuning enable*/
@@ -1106,13 +1106,6 @@
 		mux { /* GPIOA_10 */
 			groups = "tdmc_din0_a";
 			function = "tdmc_in";
-		};
-	};
-
-	spdifin: spdifin {
-		mux {/* GPIOH_5 */
-			groups = "spdif_in_h";
-			function = "spdif_in";
 		};
 	};
 

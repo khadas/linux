@@ -165,6 +165,8 @@ int set_resample_source(enum resample_idx id, enum toddr_src src)
 
 int get_resample_version(void)
 {
+	if (!s_resample_a)
+		return 0;
 	return s_resample_a->chipinfo->resample_version;
 }
 

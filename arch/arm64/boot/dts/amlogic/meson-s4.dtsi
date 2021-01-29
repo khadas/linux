@@ -704,7 +704,7 @@
 			};
 			ddr_manager {
 				compatible =
-					"amlogic, tm2-revb-audio-ddr-manager";
+					"amlogic, t5-audio-ddr-manager";
 				interrupts = <
 					GIC_SPI 32 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 33 IRQ_TYPE_EDGE_RISING
@@ -2212,6 +2212,13 @@
 		mux {
 			groups = "remote_out_d9";
 			function = "remote_out";
+		};
+	};
+
+	spdifin: spdifin {
+		mux {/* GPIOH_5 */
+			groups = "spdif_in";
+			function = "spdif_in";
 		};
 	};
 };
