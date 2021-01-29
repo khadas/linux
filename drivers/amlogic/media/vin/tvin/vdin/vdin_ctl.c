@@ -3090,7 +3090,8 @@ void vdin_set_double_write_regs(struct vdin_dev_s *devp)
 				MIF0_OUT_SEL_BIT, VDIN_REORDER_SEL_WID);
 			/* enable both channel for double wr */
 			/*wr(0, VDIN_LFIFO_CTRL, 0xc0060f00);*/
-			wr_bits(0, VDIN_LFIFO_CTRL, 0x3, 17, 2);
+			wr_bits(0, VDIN_LFIFO_CTRL, 0x1, CH0_OUT_EN_BIT, 1);
+			wr_bits(0, VDIN_LFIFO_CTRL, 0x1, CH1_OUT_EN_BIT, 1);
 			wr_bits(0, VDIN_LFIFO_CTRL, 0x3, 30, 2);
 		}
 	}
@@ -3207,21 +3208,23 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 		if (devp->dtdata->hw_ver == VDIN_HW_T5D ||
 		    devp->dtdata->hw_ver == VDIN_HW_T7 ||
 		    (devp->dtdata->hw_ver == VDIN_HW_T5 && devp->index)) {
-			/*t7 capture use small path*/
-			if (devp->dtdata->hw_ver == VDIN_HW_T7)
-				wr_bits(offset, VDIN_LFIFO_CTRL, 2, 17, 2);
-			else
-				wr_bits(offset, VDIN_LFIFO_CTRL, 1, 17, 2);
 			wr_bits(offset, VDIN_LFIFO_CTRL, 0x780,
 				LFIFO_BUF_SIZE_BIT, LFIFO_BUF_SIZE_WID);
 		} else {
 			/*set fifo size*/
 			wr_bits(offset, VDIN_LFIFO_CTRL, 0xf00,
 				LFIFO_BUF_SIZE_BIT, LFIFO_BUF_SIZE_WID);
-			/* enable vdin normal channel */
-			wr_bits(offset, VDIN_LFIFO_CTRL, 1, 17, 2);
 		}
 		wr(offset, VDIN_VSHRK_CTRL, 0);
+
+		/*t7 capture use small path */
+		if (devp->dtdata->hw_ver == VDIN_HW_T7 && devp->index) {
+			wr_bits(offset, VDIN_LFIFO_CTRL, 0, CH0_OUT_EN_BIT, 1);
+			wr_bits(offset, VDIN_LFIFO_CTRL, 1, CH1_OUT_EN_BIT, 1);
+		} else {
+			wr_bits(offset, VDIN_LFIFO_CTRL, 1, CH0_OUT_EN_BIT, 1);
+			wr_bits(offset, VDIN_LFIFO_CTRL, 0, CH1_OUT_EN_BIT, 1);
+		}
 
 		if (offset == 0) {
 			/* vdin0 normal->mif0 */
@@ -3406,7 +3409,7 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 	wr(offset, VDIN_WIN_V_START_END, 0x00000000);
 
 	/*hw verify:de-tunnel 444 to 422 12bit*/
-	if (devp->dtdata->de_tunnel_tunnel) {
+	/*if (devp->dtdata->de_tunnel_tunnel) */{
 		vdin_dolby_de_tunnel_to_44410bit(devp, false);
 		vdin_dolby_desc_to_4448bit(devp, false);
 	}
@@ -3466,6 +3469,11 @@ void vdin_hw_disable(struct vdin_dev_s *devp)
 	 */
 	vdin_clk_onoff(devp, false);
 	/* wr(offset, VDIN_COM_GCLK_CTRL, 0x5554); */
+
+	/*if (devp->dtdata->de_tunnel_tunnel) */{
+		vdin_dolby_desc_to_4448bit(devp, 0);
+		vdin_dolby_de_tunnel_to_44410bit(devp, 0);
+	}
 }
 
 /* get current vsync field type 0:top 1 bottom */

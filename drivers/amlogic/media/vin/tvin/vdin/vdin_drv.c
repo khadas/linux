@@ -611,8 +611,8 @@ static void vdin_double_write_confirm(struct vdin_dev_s *devp)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	/* CAN NOT use dw due to hshrink lose color when dv tunnel signal in */
 	if (vdin_is_dolby_signal_in(devp)) {
-		if (devp->dtdata->hw_ver < VDIN_HW_T7)
-			devp->double_wr = 0;
+		/*if (devp->dtdata->hw_ver < VDIN_HW_T7)*/
+		devp->double_wr = 0;
 
 		if (vdin_dbg_en)
 			pr_info("dv in dw %d\n", devp->double_wr);
@@ -981,8 +981,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		}
 	}
 	vdin_dolby_addr_release(devp, devp->vfp->size);
-	vdin_dolby_desc_to_4448bit(devp, 0);
-	vdin_dolby_de_tunnel_to_44410bit(devp, 0);
 
 	/*disable afbc*/
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
@@ -4055,7 +4053,7 @@ static const struct match_data_s vdin_dt_t5d = {
 static const struct match_data_s vdin_dt_t7 = {
 	.name = "vdin-t7",
 	.hw_ver = VDIN_HW_T7,
-	.de_tunnel_tunnel = 1, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
+	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 };
 
 static const struct of_device_id vdin_dt_match[] = {
