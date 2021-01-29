@@ -607,6 +607,9 @@ static int s4_sys_pll_notifier_cb(struct notifier_block *nb,
 		 *          \- sys_pll_dco
 		 */
 
+		/* make sure cpu_clk 1G*/
+		if (clk_set_rate(nb_data->cpu_clk_dyn->clk, 1000000000))
+			pr_err("%s in %d\n", __func__, __LINE__);
 		/* Configure cpu_clk to use cpu_clk_dyn */
 		clk_hw_set_parent(nb_data->cpu_clk,
 				  nb_data->cpu_clk_dyn);
@@ -4878,7 +4881,6 @@ static int meson_s4_probe(struct platform_device *pdev)
 	struct regmap *cpu_clk_map;
 	int ret, i;
 
-	pr_info("%s start initialization \n", __func__);
 	/* Get regmap for different clock area */
 	basic_map = s4_regmap_resource(dev, "basic");
 	if (IS_ERR(basic_map)) {
@@ -4926,12 +4928,8 @@ static int meson_s4_probe(struct platform_device *pdev)
 
 	meson_s4_dvfs_setup(pdev);
 
-	/*return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
-					   &s4_hw_onecell_data);*/
-	devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 					   &s4_hw_onecell_data);
-	pr_info("%s initialization complete\n", __func__);
-	return 0;
 }
 
 static const struct of_device_id clkc_match_table[] = {
