@@ -769,7 +769,7 @@ static struct of_device_id mcu_dt_ids[] = {
 	{ .compatible = "khadas-mcu" },
 	{},
 };
-MODULE_DEVICE_TABLE(i2c, mcu_dt_ids);
+MODULE_DEVICE_TABLE(of, mcu_dt_ids);
 
 struct i2c_driver mcu_driver = {
 	.driver  = {

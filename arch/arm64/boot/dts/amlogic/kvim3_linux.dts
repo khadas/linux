@@ -506,7 +506,7 @@
 		key_0:key_0{
 			keyname = "mac";
 			offset = <0>;
-			size = <6>;
+			size = <12>;
 		};
 	};//End efusekey
 

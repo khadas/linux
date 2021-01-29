@@ -504,8 +504,10 @@ void ge2d_set_src2_dst_gen(struct ge2d_src2_dst_gen_s *cfg)
 	ge2d_reg_set_bits(GE2D_GEN_CTRL1, cfg->dst_pic_struct, 14, 2);
 }
 
-void ge2d_set_dp_gen(struct ge2d_dp_gen_s *cfg)
+void ge2d_set_dp_gen(struct ge2d_config_s *config)
 {
+	struct ge2d_dp_gen_s *cfg = &config->dp_gen;
+
 	unsigned int antiflick_color_filter_n1[] = {0,   8,    16, 32};
 	unsigned int antiflick_color_filter_n2[] = {128, 112,  96, 64};
 	unsigned int antiflick_color_filter_n3[] = {0,   8,    16, 32};
@@ -595,7 +597,6 @@ void ge2d_set_dp_gen(struct ge2d_dp_gen_s *cfg)
 			((cfg->antiflick_color_filter_n1[3] & 0xff) << 0)
 			);
 
-
 		ge2d_reg_write(GE2D_ANTIFLICK_ALPHA_FILT0,
 			((cfg->antiflick_alpha_filter_th[0] & 0xff) << 24) |
 			((cfg->antiflick_alpha_filter_n3[0] & 0xff) << 16) |
@@ -624,107 +625,135 @@ void ge2d_set_dp_gen(struct ge2d_dp_gen_s *cfg)
 			);
 	} else
 		ge2d_reg_set_bits(GE2D_ANTIFLICK_CTRL0, 0, 31, 1);
-	if (cfg->use_matrix_default & MATRIX_YCC_TO_RGB) {
-		/* ycbcr(16-235) to rgb(0-255) */
-		cfg->matrix_coef[0] = 0x4a8;
-		cfg->matrix_coef[1] = 0;
-		cfg->matrix_coef[2] = 0x662;
-		cfg->matrix_coef[3] = 0x4a8;
-		cfg->matrix_coef[4] = 0x1e6f;
-		cfg->matrix_coef[5] = 0x1cbf;
-		cfg->matrix_coef[6] = 0x4a8;
-		cfg->matrix_coef[7] = 0x811;
-		cfg->matrix_coef[8] = 0x0;
-		cfg->matrix_offset[0] = 0;
-		cfg->matrix_offset[1] = 0;
-		cfg->matrix_offset[2] = 0;
-		cfg->matrix_sat_in_en = 1;
-		cfg->matrix_minus_16_ctrl = 0x4;
-		cfg->matrix_sign_ctrl = 0x3;
-	} else if (cfg->use_matrix_default & MATRIX_RGB_TO_YCC) {
-		if (cfg->use_matrix_default & MATRIX_BT_709) {
-			/* VDIN_MATRIX_RGB_YUV709 */
-			/* 0     0.183  0.614  0.062     16 */
-			/* 0    -0.101 -0.338  0.439    128 */
-			/* 0     0.439 -0.399 -0.04     128 */
-			cfg->matrix_coef[0] = 0xbb;
-			cfg->matrix_coef[1] = 0x275;
-			cfg->matrix_coef[2] = 0x3f;
-			cfg->matrix_coef[3] = 0x1f99;
-			cfg->matrix_coef[4] = 0x1ea6;
-			cfg->matrix_coef[5] = 0x1c2;
-			cfg->matrix_coef[6] = 0x1c2;
-			cfg->matrix_coef[7] = 0x1e67;
-			cfg->matrix_coef[8] = 0x1fd7;
-		} else {
-			/* rgb(0-255) to ycbcr(16-235) */
-			/* 0.257     0.504   0.098 */
-			/* -0.148    -0.291  0.439 */
-			/* 0.439     -0.368 -0.071 */
-			cfg->matrix_coef[0] = 0x107;
-			cfg->matrix_coef[1] = 0x204;
-			cfg->matrix_coef[2] = 0x64;
-			cfg->matrix_coef[3] = 0x1f68;
-			cfg->matrix_coef[4] = 0x1ed6;
-			cfg->matrix_coef[5] = 0x1c2;
-			cfg->matrix_coef[6] = 0x1c2;
-			cfg->matrix_coef[7] = 0x1e87;
-			cfg->matrix_coef[8] = 0x1fb7;
+
+	if (cfg->use_matrix_default & MATRIX_CUSTOM) {
+		struct ge2d_matrix_s *matrix = &config->matrix_custom;
+
+		ge2d_log_dbg("using matrix_custom\n");
+		cfg->matrix_coef[0] = matrix->coef0;
+		cfg->matrix_coef[1] = matrix->coef1;
+		cfg->matrix_coef[2] = matrix->coef2;
+		cfg->matrix_coef[3] = matrix->coef3;
+		cfg->matrix_coef[4] = matrix->coef4;
+		cfg->matrix_coef[5] = matrix->coef5;
+		cfg->matrix_coef[6] = matrix->coef6;
+		cfg->matrix_coef[7] = matrix->coef7;
+		cfg->matrix_coef[8] = matrix->coef8;
+		cfg->matrix_offset[0] = matrix->offset0;
+		cfg->matrix_offset[1] = matrix->offset1;
+		cfg->matrix_offset[2] = matrix->offset2;
+		cfg->matrix_sat_in_en = matrix->sat_in_en;
+
+		ge2d_reg_write(GE2D_MATRIX_PRE_OFFSET,
+			       (matrix->pre_offset0 << 20) |
+			       (matrix->pre_offset1 << 10) |
+			       matrix->pre_offset2);
+	} else {
+		if (cfg->use_matrix_default & MATRIX_YCC_TO_RGB) {
+			/* ycbcr(16-235) to rgb(0-255) */
+			cfg->matrix_coef[0] = 0x4a8;
+			cfg->matrix_coef[1] = 0;
+			cfg->matrix_coef[2] = 0x662;
+			cfg->matrix_coef[3] = 0x4a8;
+			cfg->matrix_coef[4] = 0x1e6f;
+			cfg->matrix_coef[5] = 0x1cbf;
+			cfg->matrix_coef[6] = 0x4a8;
+			cfg->matrix_coef[7] = 0x811;
+			cfg->matrix_coef[8] = 0x0;
+			cfg->matrix_offset[0] = 0;
+			cfg->matrix_offset[1] = 0;
+			cfg->matrix_offset[2] = 0;
+			cfg->matrix_sat_in_en = 1;
+			cfg->matrix_minus_16_ctrl = 0x4;
+			cfg->matrix_sign_ctrl = 0x3;
+		} else if (cfg->use_matrix_default & MATRIX_RGB_TO_YCC) {
+			if (cfg->use_matrix_default & MATRIX_BT_709) {
+				/* VDIN_MATRIX_RGB_YUV709 */
+				/* 0     0.183  0.614  0.062     16 */
+				/* 0    -0.101 -0.338  0.439    128 */
+				/* 0     0.439 -0.399 -0.04     128 */
+				cfg->matrix_coef[0] = 0xbb;
+				cfg->matrix_coef[1] = 0x275;
+				cfg->matrix_coef[2] = 0x3f;
+				cfg->matrix_coef[3] = 0x1f99;
+				cfg->matrix_coef[4] = 0x1ea6;
+				cfg->matrix_coef[5] = 0x1c2;
+				cfg->matrix_coef[6] = 0x1c2;
+				cfg->matrix_coef[7] = 0x1e67;
+				cfg->matrix_coef[8] = 0x1fd7;
+			} else {
+				/* rgb(0-255) to ycbcr(16-235) */
+				/* 0.257     0.504   0.098 */
+				/* -0.148    -0.291  0.439 */
+				/* 0.439     -0.368 -0.071 */
+				cfg->matrix_coef[0] = 0x107;
+				cfg->matrix_coef[1] = 0x204;
+				cfg->matrix_coef[2] = 0x64;
+				cfg->matrix_coef[3] = 0x1f68;
+				cfg->matrix_coef[4] = 0x1ed6;
+				cfg->matrix_coef[5] = 0x1c2;
+				cfg->matrix_coef[6] = 0x1c2;
+				cfg->matrix_coef[7] = 0x1e87;
+				cfg->matrix_coef[8] = 0x1fb7;
+			}
+			cfg->matrix_offset[0] = 16;
+			cfg->matrix_offset[1] = 128;
+			cfg->matrix_offset[2] = 128;
+			cfg->matrix_sat_in_en = 0;
+			cfg->matrix_minus_16_ctrl = 0;
+			cfg->matrix_sign_ctrl = 0;
+		} else if (cfg->use_matrix_default &
+			   MATRIX_FULL_RANGE_YCC_TO_RGB) {
+			/* ycbcr (0-255) to rgb(0-255) */
+			/* 1,     0,      1.402 */
+			/* 1, -0.34414,   -0.71414 */
+			/* 1, 1.772       0 */
+			cfg->matrix_coef[0] = 0x400;
+			cfg->matrix_coef[1] = 0;
+			cfg->matrix_coef[2] = 0x59c;
+			cfg->matrix_coef[3] = 0x400;
+			cfg->matrix_coef[4] = 0x1ea0;
+			cfg->matrix_coef[5] = 0x1d25;
+			cfg->matrix_coef[6] = 0x400;
+			cfg->matrix_coef[7] = 0x717;
+			cfg->matrix_coef[8] = 0;
+			cfg->matrix_offset[0] = 0;
+			cfg->matrix_offset[1] = 0;
+			cfg->matrix_offset[2] = 0;
+			cfg->matrix_sat_in_en = 0;
+			cfg->matrix_minus_16_ctrl = 0;
+			cfg->matrix_sign_ctrl = 0x3;
+		} else if (cfg->use_matrix_default &
+			   MATRIX_RGB_TO_FULL_RANGE_YCC) {
+			cfg->matrix_coef[0] = 0x132;
+			cfg->matrix_coef[1] = 0x259;
+			cfg->matrix_coef[2] = 0x75;
+			cfg->matrix_coef[3] = 0x1f53;
+			cfg->matrix_coef[4] = 0x1ead;
+			cfg->matrix_coef[5] = 0x200;
+			cfg->matrix_coef[6] = 0x200;
+			cfg->matrix_coef[7] = 0x1e53;
+			cfg->matrix_coef[8] = 0x1fad;
+			cfg->matrix_offset[0] = 0;
+			cfg->matrix_offset[1] = 128;
+			cfg->matrix_offset[2] = 128;
+			cfg->matrix_sat_in_en = 0;
+			cfg->matrix_minus_16_ctrl = 0;
+			cfg->matrix_sign_ctrl = 0;
 		}
-		cfg->matrix_offset[0] = 16;
-		cfg->matrix_offset[1] = 128;
-		cfg->matrix_offset[2] = 128;
-		cfg->matrix_sat_in_en = 0;
-		cfg->matrix_minus_16_ctrl = 0;
-		cfg->matrix_sign_ctrl = 0;
-	} else if (cfg->use_matrix_default & MATRIX_FULL_RANGE_YCC_TO_RGB) {
-		/* ycbcr (0-255) to rgb(0-255) */
-		/* 1,     0,      1.402 */
-		/* 1, -0.34414,   -0.71414 */
-		/* 1, 1.772       0 */
-		cfg->matrix_coef[0] = 0x400;
-		cfg->matrix_coef[1] = 0;
-		cfg->matrix_coef[2] = 0x59c;
-		cfg->matrix_coef[3] = 0x400;
-		cfg->matrix_coef[4] = 0x1ea0;
-		cfg->matrix_coef[5] = 0x1d25;
-		cfg->matrix_coef[6] = 0x400;
-		cfg->matrix_coef[7] = 0x717;
-		cfg->matrix_coef[8] = 0;
-		cfg->matrix_offset[0] = 0;
-		cfg->matrix_offset[1] = 0;
-		cfg->matrix_offset[2] = 0;
-		cfg->matrix_sat_in_en = 0;
-		cfg->matrix_minus_16_ctrl = 0;
-		cfg->matrix_sign_ctrl = 0x3;
-	} else if (cfg->use_matrix_default & MATRIX_RGB_TO_FULL_RANGE_YCC) {
-		cfg->matrix_coef[0] = 0x132;
-		cfg->matrix_coef[1] = 0x259;
-		cfg->matrix_coef[2] = 0x75;
-		cfg->matrix_coef[3] = 0x1f53;
-		cfg->matrix_coef[4] = 0x1ead;
-		cfg->matrix_coef[5] = 0x200;
-		cfg->matrix_coef[6] = 0x200;
-		cfg->matrix_coef[7] = 0x1e53;
-		cfg->matrix_coef[8] = 0x1fad;
-		cfg->matrix_offset[0] = 0;
-		cfg->matrix_offset[1] = 128;
-		cfg->matrix_offset[2] = 128;
-		cfg->matrix_sat_in_en = 0;
-		cfg->matrix_minus_16_ctrl = 0;
-		cfg->matrix_sign_ctrl = 0;
+
+		if (cfg->matrix_minus_16_ctrl)
+			ge2d_reg_set_bits(GE2D_MATRIX_PRE_OFFSET, 0x1f0, 20, 9);
+		else
+			ge2d_reg_set_bits(GE2D_MATRIX_PRE_OFFSET, 0, 20, 9);
+
+		if (cfg->matrix_sign_ctrl & 3)
+			ge2d_reg_set_bits(GE2D_MATRIX_PRE_OFFSET,
+					  ((0x180 << 10) | 0x180), 0, 20);
+		else
+			ge2d_reg_set_bits(GE2D_MATRIX_PRE_OFFSET, 0, 0, 20);
 	}
 
-	if (cfg->matrix_minus_16_ctrl)
-		ge2d_reg_set_bits(GE2D_MATRIX_PRE_OFFSET, 0x1f0, 20, 9);
-	else
-		ge2d_reg_set_bits(GE2D_MATRIX_PRE_OFFSET, 0, 20, 9);
-
-	if (cfg->matrix_sign_ctrl & 3)
-		ge2d_reg_set_bits(GE2D_MATRIX_PRE_OFFSET,
-				((0x180 << 10) | 0x180), 0, 20);
-	else
-		ge2d_reg_set_bits(GE2D_MATRIX_PRE_OFFSET, 0, 0, 20);
 	ge2d_reg_write(GE2D_MATRIX_COEF00_01,
 			(cfg->matrix_coef[0] << 16) |
 			(cfg->matrix_coef[1] << 0)
@@ -760,7 +789,6 @@ void ge2d_set_dp_gen(struct ge2d_dp_gen_s *cfg)
 			(cfg->matrix_offset[1] << 10) |
 			(cfg->matrix_offset[2] << 0)
 		       );
-
 
 	ge2d_reg_set_bits(GE2D_GEN_CTRL1, cfg->src1_gb_alpha, 0, 8);
 	ge2d_reg_set_bits(GE2D_GEN_CTRL2,
