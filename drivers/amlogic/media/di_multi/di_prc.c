@@ -295,7 +295,7 @@ void di_cfg_top_dts(void)
 
 	if (cfgg(4K) && (DIM_IS_IC_BF(TM2) || DIM_IS_IC(T5D))) {
 		cfgs(4K, 0);
-		PR_INF("not support 4k\n");
+		PR_WARN("not support 4k\n");
 	}
 	if (DIM_IS_IC_EF(T7)) {
 		cfgs(LINEAR, 1);
@@ -2653,8 +2653,8 @@ bool dip_is_support_4k(unsigned int ch)
 {
 	struct di_ch_s *pch = get_chdata(ch);
 
-	if ((cfgg(4K) == 1) ||
-	    ((cfgg(4K) == 2) && IS_VDIN_SRC(pch->src_type)))
+	if ((cfggch(pch, 4K) == 1) ||
+	    ((cfggch(pch, 4K) == 2) && IS_VDIN_SRC(pch->src_type)))
 		return true;
 	return false;
 }
@@ -4556,8 +4556,14 @@ static bool ndrd_m1_fill_ready_bypass(struct di_ch_s *pch, struct di_buf_s *di_b
 	di_que_in(pch->ch_id, QUE_PST_NO_BUF_WAIT, buf_pst);
 
 	buffer_o->vf->vf_ext = dec_vfm;
-	dbg_bypass("%s:vfm:0x%px, %d\n", __func__, dec_vfm, dec_vfm->index);
+	if (!dec_vfm)
+		dbg_bypass("%s:no in vfm\n", __func__);
+	else
+		dim_print("%s:vfm:0x%px, %d\n", __func__, dec_vfm, dec_vfm->index);
+
 	buffer_o->flag |= DI_FLAG_BUF_BY_PASS;
+	if (di_buf->is_eos)
+		buffer_o->flag |= DI_FLAG_EOS;
 
 	ndrd_qin(pch, buffer_o);
 

@@ -346,14 +346,20 @@ static void cfg_ch_set(struct di_ch_s *pch)
 		break;
 	}
 
-	if (dip_itf_is_ins_exbuf(pch))
-		cfgsch(pch, KEEP_DEC_VF, 0);
+	cfgsch(pch, KEEP_DEC_VF, 0); // for all new_interface
+	if (dip_itf_is_ins_exbuf(pch)) {
+		//cfgsch(pch, KEEP_DEC_VF, 0);
+		cfgsch(pch, ALLOC_SCT, 0);
+		cfgsch(pch, 4K, 0);
+	}
 
 	PR_INF("%s:ch[%d]\n",
 	       __func__, pch->ch_id);
 	PR_INF("\tkeep_dec_vf[%d]\n", cfggch(pch, KEEP_DEC_VF));
 	PR_INF("\tout_fmt[%d][%d]\n", cfggch(pch, POUT_FMT),
 		cfggch(pch, IOUT_FMT));
+	PR_INF("\talloc_sct[%d],4K[%d]\n", cfggch(pch, ALLOC_SCT),
+		cfggch(pch, 4K));
 }
 
 /**********************************************************

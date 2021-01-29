@@ -2056,6 +2056,8 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 		if (pafd_ctr->fb.ver == AFBCD_V4) {
 			if (pafd_ctr->en_set.b.inp)
 				afbc_tm2_sw_inp(true);
+			else
+				afbc_tm2_sw_inp(false);
 			if (mem_vf2 && pafd_ctr->en_set.b.mem)
 				afbc_tm2_sw_mem(true);
 			else

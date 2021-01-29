@@ -4975,6 +4975,7 @@ static void add_dummy_vframe_type_pre(struct di_buf_s *src_buf,
 	}
 }
 
+#ifdef HIS_CODE
 static void add_eos_pre(unsigned int ch, struct dim_nins_s *nin)
 {
 	struct di_buf_s *di_buf;
@@ -4989,6 +4990,29 @@ static void add_eos_pre(unsigned int ch, struct dim_nins_s *nin)
 	if (nin)
 		di_buf->c.in = nin;
 	di_que_in(ch, QUE_PRE_READY, di_buf);
+}
+#endif
+/* 2021-01-26 for eos out*/
+static void add_eos_in(unsigned int ch, struct dim_nins_s *nin)
+{
+	struct di_buf_s *di_buf;
+
+	if (di_que_is_empty(ch, QUE_IN_FREE)) {
+		PR_ERR("%s:no in buf\n", __func__);
+		return;
+	}
+	//PR_INF("%s:ch[%d]\n", __func__, ch);
+	di_buf = di_que_out_to_di_buf(ch, QUE_IN_FREE);
+	di_buf->is_eos = 1;
+	if (nin) {
+		di_buf->c.in = nin;
+		di_buf->is_nbypass = 1;
+	} else {
+		di_buf->c.in = NULL;
+	}
+
+	di_que_in(ch, QUE_PRE_READY, di_buf);
+	dbg_bypass("%s:\n", __func__);
 }
 
 /*
@@ -5656,9 +5680,9 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			if (ppre->cur_prog_flag == 0		&&
 			    ppre->field_count_for_cont > 0) {
 				if (dip_itf_is_ins(pch) && (vframe->type & VIDTYPE_V4L_EOS))
-					add_eos_pre(channel, nins);
+					add_eos_in(channel, nins);
 				else
-					add_eos_pre(channel, NULL);
+					add_eos_in(channel, NULL);
 			} else if (ppre->prog_proc_type == 0x10	&&
 				   ppre->di_mem_buf_dup_p		&&
 				   ppre->di_mem_buf_dup_p->flg_nr) {
@@ -5668,6 +5692,15 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				di_que_in(channel, QUE_PRE_READY,
 					  ppre->di_mem_buf_dup_p);
 				ppre->di_mem_buf_dup_p = NULL;
+				if (dip_itf_is_ins(pch) && (vframe->type & VIDTYPE_V4L_EOS))
+					add_eos_in(channel, nins);
+				else
+					add_eos_in(channel, NULL);
+			} else {
+				if (dip_itf_is_ins(pch) && (vframe->type & VIDTYPE_V4L_EOS))
+					add_eos_in(channel, nins);
+				else
+					add_eos_in(channel, NULL);
 			}
 			ppre->cur_width = 0;
 			ppre->di_mem_buf_dup_p	= NULL;
@@ -5862,7 +5895,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		    (ppre->cur_prog_flag == 0)		&&
 		    /*(ppre->in_seq > 1)*/(ppre->field_count_for_cont > 0)) {
 			/* last is i */
-			add_eos_pre(channel, NULL);
+			add_eos_in(channel, NULL);
 		}
 		/* source change, when i mix p,force p as i*/
 		//if (change_type == 1 || (change_type == 2 &&
@@ -6046,7 +6079,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			if (ppre->cur_prog_flag == 0		&&
 			    ppre->in_seq > 1) {
 				/* last is i */
-				add_eos_pre(channel, NULL);
+				add_eos_in(channel, NULL);
 				PR_INF("i to bypass, inset eos\n");
 			}
 
@@ -9145,6 +9178,43 @@ static void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf,
 //ary 2020-12-09	di_unlock_irqfiq_restore(irq_flag2);
 }
 
+static bool dim_pst_vfm_bypass(struct di_ch_s *pch, struct di_buf_s *ready_buf)
+{
+	unsigned int ch;
+	struct di_buf_s *di_buf, *p;
+
+	ch = pch->ch_id;
+	if (ready_buf && ready_buf->is_eos && !ready_buf->c.in) {
+	/* int eos */
+		dbg_bypass("%s:only int eos\n", __func__);
+		p = di_que_out_to_di_buf(ch, QUE_PRE_READY);
+		p->is_eos = 0;
+		queue_in(ch, p, QUEUE_RECYCLE);
+		return true;
+	}
+
+	//dbg_bypass("%s:1\n", __func__);
+	di_buf = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF);
+	if (dim_check_di_buf(di_buf, 19, ch)) {
+		PR_ERR("%s:no pst_no_buf", __func__);
+		return false;
+	}
+	//dbg_bypass("%s:2\n", __func__);
+	p = di_que_out_to_di_buf(ch, QUE_PRE_READY);
+	//dbg_bypass("%s:3\n", __func__);
+	di_buf->di_buf_dup_p[0] = p;
+	di_buf->di_buf_dup_p[1] = NULL;
+	di_buf->di_buf_dup_p[2] = NULL;
+	di_buf->process_fun_index =	PROCESS_FUN_NULL;
+	di_buf->is_nbypass = p->is_nbypass;
+	//dbg_bypass("%s:4\n", __func__);
+	di_que_in(ch, QUE_POST_DOING, di_buf);
+	//dbg_bypass("%s:5\n", __func__);
+	//dbg_bypass("%s:0x%px:%d,%d\n", __func__, p, p->type, p->index);
+	//dbg_bypass("%s:\n", __func__);
+	return true;
+}
+
 int dim_process_post_vframe(unsigned int channel)
 {
 /*
@@ -9174,7 +9244,7 @@ int dim_process_post_vframe(unsigned int channel)
 	struct di_ch_s *pch = get_chdata(channel);
 	struct di_buf_s *tmp_buf[3];
 	bool flg_eos = false;
-	struct dim_nins_s *nins; //add for eos
+	//struct dim_nins_s *nins; //add for eos
 
 #ifdef MARK_SC2 /* */
 	if (di_que_is_empty(channel, QUE_POST_FREE))
@@ -9212,10 +9282,12 @@ int dim_process_post_vframe(unsigned int channel)
 		for (itmp = 0; itmp < psize; itmp++) {
 			p = pw_qindex_2_buf(channel, tmpa[itmp]);
 			/* if(p->post_proc_flag == 0){ */
+			#ifdef HIS_CODE
 			if (p->type == VFRAME_TYPE_IN) {
 				ready_di_buf->post_proc_flag = -1;
 				ready_di_buf->new_format_flag = 1;
 			}
+			#endif
 			if (p->is_eos)
 				flg_eos = true;
 			i++;
@@ -9224,19 +9296,13 @@ int dim_process_post_vframe(unsigned int channel)
 		}
 	}
 	if (ready_count == 1 && ready_di_buf->is_eos) {
-		PR_INF("only eos:do noting\n");
-		ready_di_buf->is_eos = 0;
-		queue_out(channel, ready_di_buf);
-		di_que_in(channel, QUE_PRE_NO_BUF, ready_di_buf);
-		PR_INF("eos:que out only one :t[%d]idx[%d]\n",
-		       ready_di_buf->type,
-		       ready_di_buf->index);
-		if (ready_di_buf->c.in) {
-			nins = (struct dim_nins_s *)ready_di_buf->c.in;
-			ready_di_buf->c.in = NULL;
-			nins_used_some_to_recycle(pch, nins);
-			PR_INF("eos:nins to recycle\n");
-		}
+		PR_INF("%s:only eos\n", __func__);
+		dim_pst_vfm_bypass(pch, ready_di_buf);
+		return 1;
+	}
+	if (ready_di_buf->is_nbypass) {
+		dbg_bypass("%s:bypass?\n", __func__);
+		dim_pst_vfm_bypass(pch, NULL);
 		return 1;
 	}
 	if (ready_di_buf->post_proc_flag > 0) {
@@ -9317,9 +9383,12 @@ int dim_process_post_vframe(unsigned int channel)
 			}
 
 			if (tmp_buf[2] && tmp_buf[2]->is_eos) {
+				#ifdef HIS_CODE
 				tmp_buf[2]->is_eos = 0;
 				queue_out(channel, tmp_buf[2]);
 				di_que_in(channel, QUE_PRE_NO_BUF, tmp_buf[2]);
+				#endif
+				dim_pst_vfm_bypass(pch, tmp_buf[2]);
 				PR_INF("eos:que out 2:t[%d]idx[%d]\n",
 				       tmp_buf[2]->type, tmp_buf[2]->index);
 			} else {
