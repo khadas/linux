@@ -14397,7 +14397,7 @@ bool video_is_meson_t7_cpu(void)
 bool video_is_meson_s4_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
-		MESON_CPU_MAJOR_ID_T5D_)
+		MESON_CPU_MAJOR_ID_S4_)
 		return true;
 	else
 		return false;
