@@ -136,9 +136,6 @@ static void ge2d_pre_init(void)
 	 * 10: 48x64, 11:64x64
 	 */
 	ge2d_gen_cfg.burst_ctrl = 0;
-
-	/* bytes per-burst, 1: 64, 0: 32 */
-	ge2d_gen_cfg.bytes_per_burst = 1;
 	ge2d_set_gen(&ge2d_gen_cfg);
 }
 
@@ -197,11 +194,6 @@ static void ge2d_pwr_config(bool enable)
 	}
 
 	ge2d_clk_config(enable);
-
-	if (enable) {
-		ge2d_soft_rst();
-		ge2d_pre_init();
-	}
 }
 
 static int get_queue_member_count(struct list_head *head)
@@ -496,7 +488,7 @@ static void ge2d_update_matrix(struct ge2d_queue_item_s *pitem)
 
 		if (ge2d_meson_dev.dst_sign_mode &&
 		    dp_gen_cfg->dst_signed_mode) {
-			dp_gen_cfg->use_matrix_default_dst = MATRIX_SIGNED;
+			dp_gen_cfg->use_matrix_default_dst = MATRIX_ONE;
 			dp_gen_cfg->conv_matrix_en_dst = 1;
 		} else {
 			dp_gen_cfg->use_matrix_default_dst = 0;
@@ -590,6 +582,12 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 		pitem->config.update_flag = UPDATE_ALL;
 
 	do {
+		if (!(ge2d_dump_reg_enable & GE2D_NO_POWER_ON_OP))
+			ge2d_pwr_config(true);
+
+		ge2d_soft_rst();
+		ge2d_pre_init();
+
 		cfg = &pitem->config;
 		ge2d_set_canvas(cfg);
 		mask = 0x1;
@@ -656,6 +654,9 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 			wake_up_interruptible(&wq->cmd_complete);
 		}
 		pitem = (struct ge2d_queue_item_s *)pos;
+
+		if (!(ge2d_dump_reg_enable & GE2D_NO_POWER_OFF_OP))
+			ge2d_pwr_config(false);
 	} while (pos != head);
 
 	ge2d_manager.last_wq = wq;
@@ -840,13 +841,9 @@ static int ge2d_monitor_thread(void *data)
 		ret =
 		wait_for_completion_interruptible(&manager->event.cmd_in_com);
 
-		if (!(ge2d_dump_reg_enable & GE2D_NO_POWER_ON_OP))
-			ge2d_pwr_config(true);
 		while ((manager->current_wq =
-			get_next_work_queue(manager)) != NULL)
+				get_next_work_queue(manager)) != NULL)
 			ge2d_process_work_queue(manager->current_wq);
-		if (!(ge2d_dump_reg_enable & GE2D_NO_POWER_OFF_OP))
-			ge2d_pwr_config(false);
 	}
 	ge2d_log_info("exit %s\n", __func__);
 	return 0;

@@ -138,10 +138,12 @@ enum ge2d_memtype_s {
 #define MATRIX_RGB_TO_YCC               BIT(1)
 #define MATRIX_FULL_RANGE_YCC_TO_RGB    BIT(2)
 #define MATRIX_RGB_TO_FULL_RANGE_YCC    BIT(3)
+#define MATRIX_BT_STANDARD              BIT(4)
 #define MATRIX_BT_601                   (0 << 4)
 #define MATRIX_BT_709                   BIT(4)
 #define MATRIX_CUSTOM                   BIT(5)
-#define MATRIX_SIGNED                   BIT(6)
+#define STRIDE_CUSTOM                   BIT(6)
+#define MATRIX_ONE                      BIT(4)
 
 #define GE2D_EXT_MASK                   (BIT(25) | BIT(26) | BIT(27) | BIT(31))
 #define GE2D_DST_REPEAT_2               BIT(31)
@@ -404,13 +406,13 @@ struct ge2d_para_s {
 
 struct ge2d_gen_s {
 	unsigned char     interrupt_ctrl;
+
 	unsigned char     dp_onoff_mode;
 	unsigned char     vfmt_onoff_en;
 	unsigned int      dp_on_cnt;
 	unsigned int      dp_off_cnt;
 	unsigned int      fifo_size;
 	unsigned int      burst_ctrl;
-	unsigned int      bytes_per_burst;
 };
 
 struct ge2d_src1_data_s {

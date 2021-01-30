@@ -887,19 +887,19 @@ void ge2d_set_dp_gen(struct ge2d_config_s *config)
 				cfg->matrix_sat_in_en = 0;
 				cfg->matrix_minus_16_ctrl = 0;
 				cfg->matrix_sign_ctrl = 0;
-			} else if (matrix_using & MATRIX_SIGNED) {
-				cfg->matrix_coef[0] = 0x400;
+			} else if (matrix_using & MATRIX_ONE) {
+				cfg->matrix_coef[0] = 1;
 				cfg->matrix_coef[1] = 0;
 				cfg->matrix_coef[2] = 0;
 				cfg->matrix_coef[3] = 0;
-				cfg->matrix_coef[4] = 0x400;
+				cfg->matrix_coef[4] = 1;
 				cfg->matrix_coef[5] = 0;
 				cfg->matrix_coef[6] = 0;
 				cfg->matrix_coef[7] = 0;
-				cfg->matrix_coef[8] = 0x400;
-				cfg->matrix_offset[0] = 384; /* -128 */
-				cfg->matrix_offset[1] = 384; /* -128 */
-				cfg->matrix_offset[2] = 384; /* -128 */
+				cfg->matrix_coef[8] = 1;
+				cfg->matrix_offset[0] = 0;
+				cfg->matrix_offset[1] = 0;
+				cfg->matrix_offset[2] = 0;
 				cfg->matrix_sat_in_en = 0;
 				cfg->matrix_minus_16_ctrl = 0;
 				cfg->matrix_sign_ctrl = 0;
@@ -1416,14 +1416,13 @@ void ge2d_set_gen(struct ge2d_gen_s *cfg)
 		       );
 	if (ge2d_meson_dev.fifo == 1) {
 		ge2d_reg_set_bits(GE2D_GEN_CTRL4,
-				  (cfg->bytes_per_burst << 12) |
-				  (cfg->fifo_size << 10) |
-				  (cfg->fifo_size << 8) |
-				  (cfg->fifo_size << 6) |
-				  (cfg->fifo_size << 4) |
-				  (cfg->burst_ctrl << 2) |
-				  (cfg->burst_ctrl),
-				  16, 13);
+				  (cfg->fifo_size << 26) |
+				  (cfg->fifo_size << 24) |
+				  (cfg->fifo_size << 22) |
+				  (cfg->fifo_size << 20) |
+				  (cfg->burst_ctrl << 18) |
+				  (cfg->burst_ctrl << 16),
+				  16, 12);
 	}
 }
 
