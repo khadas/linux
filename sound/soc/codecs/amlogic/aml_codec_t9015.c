@@ -32,6 +32,7 @@
 
 struct t9015_acodec_chipinfo {
 	bool separate_toacodec_en;
+	int data_sel_shift;
 };
 
 struct aml_T9015_audio_priv {
@@ -51,11 +52,19 @@ struct aml_T9015_audio_priv {
 
 static struct t9015_acodec_chipinfo aml_acodec_cinfo = {
 	.separate_toacodec_en = false,
+	.data_sel_shift = DATA_SEL_SHIFT_VERSION0,
 };
 
 static struct t9015_acodec_chipinfo sc2_acodec_cinfo = {
 	.separate_toacodec_en = true,
+	.data_sel_shift = DATA_SEL_SHIFT_VERSION0,
 };
+
+static struct t9015_acodec_chipinfo s4_acodec_cinfo = {
+	.separate_toacodec_en = true,
+	.data_sel_shift = DATA_SEL_SHIFT_VERSION1,
+};
+
 static const struct reg_default t9015_init_list[] = {
 	{AUDIO_CONFIG_BLOCK_ENABLE, 0x0000B03F},
 	{ADC_VOL_CTR_PGA_IN_CONFIG, 0x00000000},
@@ -381,7 +390,8 @@ static int aml_T9015_audio_probe(struct snd_soc_component *component)
 		auge_toacodec_ctrl_ext(T9015_audio->tdmout_index,
 				       T9015_audio->ch0_sel,
 				       T9015_audio->ch1_sel,
-				       T9015_audio->chipinfo->separate_toacodec_en);
+				       T9015_audio->chipinfo->separate_toacodec_en,
+				       T9015_audio->chipinfo->data_sel_shift);
 	else
 		auge_toacodec_ctrl(T9015_audio->tdmout_index);
 
@@ -562,6 +572,10 @@ static const struct of_device_id aml_T9015_codec_dt_match[] = {
 	{
 		.compatible = "amlogic, sc2_codec_T9015",
 		.data = &sc2_acodec_cinfo,
+	},
+	{
+		.compatible = "amlogic, s4_codec_T9015",
+		.data = &s4_acodec_cinfo,
 	},
 	{}
 };
