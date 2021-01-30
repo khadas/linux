@@ -1004,22 +1004,22 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 				rx_pr("LL=%d\n", pkt->sbpkt.vsi_dobv15.ll);
 			pkt->sbpkt.vsi_dobv15.dv_vs10_sig_type = tmp >> 1 & 0x0f;
 			pkt->sbpkt.vsi_dobv15.source_dm_ver = tmp >> 5 & 7;
-			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE2_DP3_IVCRX);
+			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE5_DP3_IVCRX);
 			pkt->sbpkt.vsi_dobv15.tmax_pq_hi = tmp & 0x0f;
 			pkt->sbpkt.vsi_dobv15.aux_md = tmp >> 6 & 1;
 			pkt->sbpkt.vsi_dobv15.bklt_md = tmp >> 7 & 1;
-			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE3_DP3_IVCRX);
-			pkt->sbpkt.vsi_dobv15.tmax_pq_lo = tmp;
-			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE4_DP3_IVCRX);
-			pkt->sbpkt.vsi_dobv15.aux_run_mode = tmp;
-			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE5_DP3_IVCRX);
-			pkt->sbpkt.vsi_dobv15.aux_run_mode = tmp;
 			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE6_DP3_IVCRX);
-			pkt->sbpkt.vsi_dobv15.aux_run_mode = tmp;
+			pkt->sbpkt.vsi_dobv15.tmax_pq_lo = tmp;
 			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE7_DP3_IVCRX);
 			pkt->sbpkt.vsi_dobv15.aux_run_mode = tmp;
+			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE8_DP3_IVCRX);
+			pkt->sbpkt.vsi_dobv15.aux_run_mode = tmp;
+			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE9_DP3_IVCRX);
+			pkt->sbpkt.vsi_dobv15.aux_run_mode = tmp;
+			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE10_DP3_IVCRX);
+			pkt->sbpkt.vsi_dobv15.aux_run_mode = tmp;
 			for (i = 0; i < 17; i++) {
-				tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE8_DP3_IVCRX + i);
+				tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE11_DP3_IVCRX + i);
 				pkt->sbpkt.vsi_dobv15.data[i] = tmp;
 			}
 		} else if (vsif_type & VSIF_TYPE_HDR10P) {

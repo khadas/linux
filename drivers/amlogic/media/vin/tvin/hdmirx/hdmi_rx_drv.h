@@ -53,7 +53,8 @@
 /* enable tee path */
 /* update hdcp2.2 irq clear logic */
 /* update aud pll cntl for t3 */
-#define RX_VER2 "ver.2021/04/19"
+/* modify dv data */
+#define RX_VER2 "ver.2021/04/21"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
