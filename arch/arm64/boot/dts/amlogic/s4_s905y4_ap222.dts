@@ -706,6 +706,19 @@
 		compatible = "amlogic, cpufreq-meson";
 		status = "disabled";
 	};
+
+	adc_keypad {
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "standby", "vol+", "vol-";
+		key_num = <3>;
+		io-channels = <&saradc 0>;
+		io-channel-names = "key-chan-0";
+		key_chan = <0 0 0>;
+		key_code = <116 115 114>;
+		key_val = <0 512 891>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40>;
+	};
 };
 
 &pwm_ij {
