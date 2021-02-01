@@ -617,7 +617,7 @@ more details, with real examples.
 	bits on the scripts nonetheless.
 
 	Kbuild provides variables $(CONFIG_SHELL), $(AWK), $(PERL),
-	$(PYTHON) and $(PYTHON3) to refer to interpreters for the respective
+	and $(PYTHON3) to refer to interpreters for the respective
 	scripts.
 
 	Example::
