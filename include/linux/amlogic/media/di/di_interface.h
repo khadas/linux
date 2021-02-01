@@ -47,6 +47,7 @@ struct di_buffer {
 	struct vframe_s *vf;
 	void *caller_data; /*from di_init_parm.caller_data*/
 	u32 flag;
+	unsigned int crcout;
 };
 
 enum DI_FLAG {

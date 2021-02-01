@@ -54,6 +54,14 @@ bool disable_di_decontour(void)
 	return false;
 }
 
+void di_decontour_disable(bool on)
+{
+	if (on)
+		bset(&dbg_dct, 1);
+	else
+		bclr(&dbg_dct, 1);
+}
+
 /* dcntr dynamic used dbg_dct BIT:6-8*/
 bool dcntr_dynamic_alpha_1(void)
 {

@@ -4518,6 +4518,8 @@ void dim_pre_de_process(unsigned int channel)
 					      ppre->mcdi_enable);
 	}
 
+	if (dim_is_slt_mode())
+		DIM_DI_WR(0x2dff, 0xbeffc); //crc test
 	ppre->field_count_for_cont++;
 
 	if (ppre->field_count_for_cont >= 5)
@@ -9033,6 +9035,7 @@ void dim_post_de_done_buf_config(unsigned int channel)
 	struct di_post_stru_s *ppost = get_post_stru(channel);
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	struct di_ch_s *pch;
+	unsigned int datacrc = 0xffffffff;
 
 	if (!ppost->cur_post_buf) {
 		PR_ERR("%s:no cur\n", __func__);
@@ -9073,6 +9076,21 @@ void dim_post_de_done_buf_config(unsigned int channel)
 	#endif
 	//2020-12-07	di_unlock_irqfiq_restore(irq_flag2);
 	dim_tr_ops.post_ready(di_buf->vframe->index_disp);
+	if (dimp_get(edi_mp_pstcrc_ctrl) == 1) {
+		if (DIM_IS_IC(T5) ||
+		    DIM_IS_IC(T5D)) {
+			datacrc = RD(DI_T5_RO_CRC_DEINT);
+			//test crc DIM_DI_WR_REG_BITS(DI_T5_CRC_CHK0,
+			//test crc		      0x1, 30, 1);
+		} else if (DIM_IS_IC_EF(SC2)) {
+			datacrc = RD(DI_RO_CRC_DEINT);
+			DIM_DI_WR_REG_BITS(DI_CRC_CHK0,
+					   0x1, 30, 1);
+		}
+		dbg_post_ref("DEINT ==ch[=0x%x]\n", datacrc);
+		//dbg_post_ref("irq p= 0x%p\n",ppost->cur_post_buf);
+		ppost->cur_post_buf->datacrc = datacrc;
+	}
 	pch->itf.op_fill_ready(pch, ppost->cur_post_buf);
 	mtask_wake_m();
 	#ifdef MARK_HIS //2020-12-07 move to ndis_fill_ready
@@ -10688,6 +10706,7 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 		pre_run_flag = DI_RUN_FLAG_STEP_DONE;
 #endif
 	dbg_reg("%s:=%x\n", __func__, channel);
+	dim_slt_init();
 
 	dim_print("%s:0x%p\n", __func__, vframe);
 	pch = get_chdata(channel);

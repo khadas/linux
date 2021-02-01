@@ -852,6 +852,7 @@ enum EDI_MP_UI_T {
 	edi_mp_mcuv_en,
 	edi_mp_mcdebug_mode,
 	edi_mp_pldn_ctrl_rflsh,
+	edi_mp_pstcrc_ctrl,
 
 	EDI_MP_SUB_DI_E,
 	/**************************************/

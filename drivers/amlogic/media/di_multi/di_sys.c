@@ -1240,6 +1240,23 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 			mm->cfg.count_size;
 		buf_p->mcinfo_adr = buf_p->mcvec_adr +
 			mm->cfg.mv_size;
+		if (dim_is_slt_mode()) {//test crc
+		//----------------------------
+			afbce_map.tabadd	= buf_p->mtn_adr;
+			afbce_map.size_tab	= mm->cfg.mtn_size +
+						mm->cfg.count_size +
+						mm->cfg.mv_size +
+						mm->cfg.mcinfo_size;
+			dim_int_tab(&devp->pdev->dev,
+							    &afbce_map);
+			//dbg:
+			afbce_map.tabadd	= buf_p->nr_adr;
+			afbce_map.size_tab	= mm->cfg.nr_size;
+			dim_int_tab(&devp->pdev->dev,
+							    &afbce_map);
+		}
+		//----------------------------
+
 		dim_mcinfo_v_alloc(buf_p, mm->cfg.mcinfo_size);
 		//dim_mcinfo_v_alloc(buf_p, mm->cfg.mcinfo_size);
 

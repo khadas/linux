@@ -390,5 +390,10 @@ bool dbg_is_trig_eos(unsigned int ch);
 void pre_inp_mif_w(struct DI_MIF_S *di_mif, struct vframe_s *vf);
 void di_reg_setting_working(struct di_ch_s *pch,
 			    struct vframe_s *vfm);
+void dim_slt_init(void);
+bool dim_is_slt_mode(void);
+unsigned int dim_int_tab(struct device *dev,
+				 struct afbce_map_s *pcfg);
 
+void di_decontour_disable(bool on);
 #endif	/*__DI_PRC_H__*/

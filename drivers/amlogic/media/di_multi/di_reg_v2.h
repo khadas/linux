@@ -258,14 +258,14 @@
 /* `define DI_BLEND_CTRL2            8'h0f */
 /* no use */
 
-/* crc t5 ,same as sc2*/
+/* crc t5/t5d ,function same as sc2*/
 #define DI_T5_CRC_CHK0		((0x17cB))
 #define DI_T5_CRC_CHK1		((0x17cc))
 #define DI_T5_RO_CRC_NRWR	((0x17c3))
 #define DI_T5_RO_CRC_MTNWR	((0x17c4))
 #define DI_T5_RO_CRC_DEINT	((0x17c5))
 
-/* new pulldown t5,same as sc2 */
+/* new pulldown t5,function same as sc2 */
 #define DI_T5_PD_RO_SUM_P		((0x20f9))
 #define DI_T5_PD_RO_SUM_N		((0x20fa))
 #define DI_T5_PD_RO_CNT_P		((0x20fb))
