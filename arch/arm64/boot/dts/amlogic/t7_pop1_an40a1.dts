@@ -1185,7 +1185,7 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins1>;
 
-	tas5707_36: tas5707_36@36 {
+	tas5707_36: tas5707_36@1b {
 		compatible = "ti,tas5707";
 		#sound-dai-cells = <0>;
 		reg = <0x1b>;
@@ -1193,7 +1193,7 @@
 		reset_pin = <&gpio GPIOT_19 GPIO_ACTIVE_HIGH>;
 	};
 
-	tas5707_3a: tas5707_3a@3a {
+	tas5707_3a: tas5707_3a@1d {
 		compatible = "ti,tas5707";
 		#sound-dai-cells = <0>;
 		reg = <0x1d>;
