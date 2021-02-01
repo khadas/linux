@@ -29,7 +29,7 @@
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
-////			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
 			#cooling-cells = <2>;
 			clocks = <&clkc CLKID_CPU_CLK>,
@@ -49,7 +49,7 @@
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
-////			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
 			#cooling-cells = <2>;
 			clocks = <&clkc CLKID_CPU_CLK>,
@@ -69,7 +69,7 @@
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
-////			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
 			#cooling-cells = <2>;
 			clocks = <&clkc CLKID_CPU_CLK>,
@@ -89,7 +89,7 @@
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
-////			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			dynamic-power-coefficient = <230>;
 			#cooling-cells = <2>;
 			clocks = <&clkc CLKID_CPU_CLK>,
@@ -104,24 +104,24 @@
 			clock-latency = <50000>;
 		};
 
-//		idle-states {
-//			entry-method = "arm,psci-0.2";
-//			CPU_SLEEP_0: cpu-sleep-0 {
-//					compatible = "arm,idle-state";
-//					arm,psci-suspend-param = <0x0010000>;
-//					local-timer-stop;
-//					entry-latency-us = <4000>;
-//					exit-latency-us = <5000>;
-//					min-residency-us = <10000>;
-//			};
-//			SYSTEM_SLEEP_0: system-sleep-0 {
-//					compatible = "arm,idle-state";
-//					arm,psci-suspend-param = <0x0000000>;
-//					entry-latency-us = <0x3fffffff>;
-//					exit-latency-us = <0x40000000>;
-//					min-residency-us = <0xffffffff>;
-//			};
-//		};
+		idle-states {
+			entry-method = "arm,psci-0.2";
+			CPU_SLEEP_0: cpu-sleep-0 {
+					compatible = "arm,idle-state";
+					arm,psci-suspend-param = <0x0010000>;
+					local-timer-stop;
+					entry-latency-us = <4000>;
+					exit-latency-us = <5000>;
+					min-residency-us = <10000>;
+			};
+			SYSTEM_SLEEP_0: system-sleep-0 {
+					compatible = "arm,idle-state";
+					arm,psci-suspend-param = <0x0000000>;
+					entry-latency-us = <0x3fffffff>;
+					exit-latency-us = <0x40000000>;
+					min-residency-us = <0xffffffff>;
+			};
+		};
 	};
 
 	timer {
@@ -134,6 +134,7 @@
 
 	timer_bc {
 		compatible = "amlogic,bc-timer";
+		status = "disabled";
 		reg= <0x0 0xfe0100D8 0x0 0x4 0x0 0xfe0100DC 0x0 0x4>;
 		timer_name = "Meson TimerD";
 		clockevent-rating=<300>;
