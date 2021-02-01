@@ -2349,7 +2349,6 @@ static u32 mux_table_mali[] = { 0, 1, 3, 4, 5, 6, 7 };
 static const struct clk_parent_data s4_mali_0_1_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &s4_gp0_pll.hw },
-	{ .hw = &s4_hifi_pll.hw },
 	{ .hw = &s4_fclk_div2p5.hw },
 	{ .hw = &s4_fclk_div3.hw },
 	{ .hw = &s4_fclk_div4.hw },
