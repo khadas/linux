@@ -225,20 +225,21 @@ static inline void gdc_config_addr_write(u32 data, u32 dev_type)
 		struct page *page = phys_to_page(data);
 		void *vaddr = kmap(page);
 		u32 coef_size = *(u32 *)vaddr;
-		u32 aml_cfg_size = *((u32 *)vaddr + 1);
+		u32 mesh_size = *((u32 *)vaddr + 1);
 		u32 fw_offset = *((u32 *)vaddr + 2);
 
 		data += fw_offset;
 
 		gdc_coef_addr_write(data);
-		gdc_aml_cfg_addr_write(data + coef_size);
-		gdc_mesh_addr_write(data + coef_size + aml_cfg_size);
+		gdc_mesh_addr_write(data + coef_size);
+		gdc_aml_cfg_addr_write(data + coef_size + mesh_size);
+
 		kunmap(page);
 
 		gdc_log(LOG_DEBUG, "   coef_size: 0x%x %u\n",
 			coef_size, coef_size);
-		gdc_log(LOG_DEBUG, "aml_cfg_size: 0x%x %u\n",
-			aml_cfg_size, aml_cfg_size);
+		gdc_log(LOG_DEBUG, "   mesh_size: 0x%x %u\n",
+			mesh_size, mesh_size);
 		gdc_log(LOG_DEBUG, "   fw offset: 0x%x %u\n",
 			fw_offset, fw_offset);
 	}
