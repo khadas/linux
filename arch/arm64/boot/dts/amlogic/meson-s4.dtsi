@@ -2187,30 +2187,9 @@
 		};
 	};
 
-	irblaster_pins1:irblaster_pin1 {
+	irblaster_pins:irblaster_pin {
 		mux {
-			groups = "remote_out_h";
-			function = "remote_out";
-		};
-	};
-
-	irblaster_pins2:irblaster_pin2 {
-		mux {
-			groups = "remote_out_z";
-			function = "remote_out";
-		};
-	};
-
-	irblaster_pins3:irblaster_pin3 {
-		mux {
-			groups = "remote_out_d4";
-			function = "remote_out";
-		};
-	};
-
-	irblaster_pins4:irblaster_pin4 {
-		mux {
-			groups = "remote_out_d9";
+			groups = "remote_out";
 			function = "remote_out";
 		};
 	};
