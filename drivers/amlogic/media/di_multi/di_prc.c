@@ -743,6 +743,8 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 			edi_mp_mcdebug_mode, 0},
 	[edi_mp_pldn_ctrl_rflsh]  = {"pldn_ctrl_rflsh:uint:1",
 			edi_mp_pldn_ctrl_rflsh, 1},
+	[edi_mp_pstcrc_ctrl]  = {"edi_mp_pstcrc_ctrl:uint:1",
+			edi_mp_pstcrc_ctrl, 1},
 
 	[EDI_MP_SUB_DI_E]  = {"di end-------",
 				EDI_MP_SUB_DI_E, 0},
@@ -4538,6 +4540,9 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 				dis->c.dbuff.flag |= DI_FLAG_I;
 			else
 				dis->c.dbuff.flag |= DI_FLAG_P;
+			dis->c.dbuff.crcout = di_buf->datacrc;
+			//dbg_post_ref("00%s: %d\n", __func__, di_buf->datacrc);
+			//dbg_post_ref("fill p= 0x%p\n",di_buf);
 			ndrd_qin(pch, &dis->c.dbuff);
 			dim_tr_ops.post_get(dis->c.dbuff.vf->index_disp);
 		} else {
@@ -4559,6 +4564,8 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 			//di_buf->vframe, sizeof(*dis->c.pbuff->vf));
 			dis->c.pbuff->private_data = dis;
 			dis->c.pbuff->caller_data = pch->itf.u.dinst.parm.caller_data;
+			//dbg_post_ref("%s: %d\n", __func__, di_buf->datacrc);
+			dis->c.dbuff.crcout = di_buf->datacrc;
 			ndrd_qin(pch, &dis->c.pbuff);
 		}
 	}
@@ -4692,6 +4699,8 @@ static bool ndrd_m1_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 		buffer->flag |= DI_FLAG_I;
 	else
 		buffer->flag |= DI_FLAG_P;
+	buffer->crcout = di_buf->datacrc;
+	dbg_post_ref("%s: %d\n", __func__, di_buf->datacrc);
 	di_buf_clear(pch, di_buf);
 	di_que_in(pch->ch_id, QUE_PST_NO_BUF_WAIT, di_buf);
 	ndrd_qin(pch, buffer);
@@ -4886,6 +4895,69 @@ bool dip_is_linear(void)
 
 	return ret;
 }
+
+unsigned int dim_int_tab(struct device *dev,
+				 struct afbce_map_s *pcfg)
+{
+	bool flg = 0;
+	unsigned int *p;
+	unsigned int crc = 0;
+
+	if (!pcfg			||
+	    !dev)
+		return 0;
+
+	dma_sync_single_for_device(dev,
+				   pcfg->tabadd,
+				   pcfg->size_tab,
+				   DMA_TO_DEVICE);
+
+	p = (unsigned int *)dim_vmap(pcfg->tabadd, pcfg->size_tab, &flg);
+	if (!p) {
+		pr_error("%s:vmap:0x%lx\n", __func__, pcfg->tabadd);
+		return 0;
+	}
+
+	memset(p, 0, pcfg->size_tab);
+
+	/*debug*/
+	#ifdef PRINT_BASIC
+	di_pr_info("%s:tab:[0x%lx]: cnt[%d]\n",
+		   __func__,
+		   pcfg->tabadd, pcfg->size_tab);
+	#endif
+	dma_sync_single_for_device(dev,
+				   pcfg->tabadd,
+				   pcfg->size_tab,
+				   DMA_TO_DEVICE);
+
+	if (flg)
+		dim_unmap_phyaddr((u8 *)p);
+
+	return crc;
+}
+
+static bool dim_slt_mode;
+module_param_named(dim_slt_mode, dim_slt_mode, bool, 0664);
+
+bool dim_is_slt_mode(void)
+{
+	return dim_slt_mode;
+}
+
+void dim_slt_init(void)
+{
+	if (!dim_is_slt_mode())
+		return;
+	dimp_set(edi_mp_debug_blend_mode, 4);
+	dimp_set(edi_mp_pstcrc_ctrl, 1);
+	dimp_set(edi_mp_pq_load_dbg, 1);
+	cfgs(KEEP_CLEAR_AUTO, 2);
+
+	di_decontour_disable(true);
+	PR_INF("%s:\n", __func__);
+}
+
 /**********************************/
 void dip_clean_value(void)
 {

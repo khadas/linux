@@ -181,6 +181,16 @@ static void mc_blend_sc2_init(void)//sc2 from vlsi feijun for reg overlap
 	DIM_DI_WR_REG_BITS(MCDI_REF_MV_NUM, 2, 0, 2);
 }
 
+static void crc_init(void)//debug crc init
+{
+	if (DIM_IS_IC_BF(T5))
+		return;
+	if (DIM_IS_IC_EF(SC2))
+		DIM_DI_WR_REG_BITS(DI_CRC_CHK0, 0x7, 0, 3);
+	else if ((DIM_IS_IC(T5)) || (DIM_IS_IC(T5D)))
+		;//test crc DIM_DI_WR_REG_BITS(DI_T5_CRC_CHK0, 0x7, 0, 3);
+}
+
 void dimh_init_field_mode(unsigned short height)
 {
 	DIM_DI_WR(DIPD_COMB_CTRL0, 0x02400210);
@@ -595,6 +605,7 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	ei_hw_init();
 	if (DIM_IS_IC(SC2))
 		mc_blend_sc2_init();
+	crc_init();
 	get_ops_nr()->nr_hw_init();
 	if (pd_enable)
 		dimh_init_field_mode(288);

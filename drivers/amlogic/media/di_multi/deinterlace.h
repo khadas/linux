@@ -296,6 +296,7 @@ struct di_buf_s {
 
 	unsigned int rev2	: 16;
 	struct dsub_bufv_s	c;
+	unsigned int datacrc;
 };
 
 #define RDMA_DET3D_IRQ			0x20
