@@ -1385,7 +1385,7 @@
 };
 
 &amhdmitx {
-	status = "disabled";
+	status = "okay";
 };
 
 /*if you want to use vdin just modify status to "ok"*/
