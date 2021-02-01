@@ -28,6 +28,9 @@ extern unsigned int admin_timeout;
 #define NVME_DEFAULT_KATO	5
 #define NVME_KATO_GRACE		10
 
+#define NVME_CTRL_PAGE_SHIFT    12
+#define NVME_CTRL_PAGE_SIZE     (1 << NVME_CTRL_PAGE_SHIFT)
+
 extern struct workqueue_struct *nvme_wq;
 extern struct workqueue_struct *nvme_reset_wq;
 extern struct workqueue_struct *nvme_delete_wq;
