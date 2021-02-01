@@ -163,7 +163,6 @@ ssize_t tsn_source_store(struct class *class,
 {
 	struct aml_dvb *advb = aml_get_dvb_device();
 	int tsn_in_reg = 0;
-	int i = 0;
 
 	if (!strncmp(buf, "demod", 5))
 		tsn_in = INPUT_DEMOD;
@@ -184,11 +183,6 @@ ssize_t tsn_source_store(struct class *class,
 	advb->dsc_pipeline = tsn_in_reg;
 	//set demod/local
 	tee_demux_config_pipeline(tsn_in_reg, tsn_out);
-
-	for (i = 0; i < dmx_dev_num; i++) {
-		advb->dmx[i].source = tsn_in;
-		advb->dsc[i].source = tsn_in;
-	}
 
 	mutex_unlock(&advb->mutex);
 	return count;
