@@ -326,7 +326,7 @@ static void ldim_get_matrix_info_TF(struct aml_ldim_driver_s *ldim_drv)
 		kfree(buf);
 		return;
 	}
-	memcpy(ldim_matrix_t, &ldim_drv->fw_para->fdat->TF_BL_matrix[0],
+	memcpy(ldim_matrix_t, &ldim_drv->fw_para->fdat->tf_bl_matrix[0],
 	       len * sizeof(unsigned int));
 
 	pr_info("%s:\n", __func__);
@@ -360,7 +360,7 @@ static void ldim_get_matrix_info_SF(struct aml_ldim_driver_s *ldim_drv)
 		kfree(buf);
 		return;
 	}
-	memcpy(ldim_matrix_t, &ldim_drv->fw_para->fdat->SF_BL_matrix[0],
+	memcpy(ldim_matrix_t, &ldim_drv->fw_para->fdat->sf_bl_matrix[0],
 	       len * sizeof(unsigned int));
 
 	pr_info("%s:\n", __func__);
@@ -433,7 +433,7 @@ static void ldim_get_matrix_info_alpha(struct aml_ldim_driver_s *ldim_drv)
 		kfree(buf);
 		return;
 	}
-	memcpy(ldim_matrix_t, &ldim_drv->fw_para->fdat->TF_BL_alpha[0],
+	memcpy(ldim_matrix_t, &ldim_drv->fw_para->fdat->tf_bl_alpha[0],
 	       len * sizeof(unsigned int));
 
 	pr_info("%s:\n", __func__);
@@ -775,7 +775,7 @@ static void ldim_matrix_SF_matrix_mute_print(struct aml_ldim_driver_s *ldim_drv)
 		kfree(buf);
 		return;
 	}
-	memcpy(ldim_matrix_t, ldim_drv->fw_para->fdat->SF_BL_matrix,
+	memcpy(ldim_matrix_t, ldim_drv->fw_para->fdat->sf_bl_matrix,
 	       (n * sizeof(unsigned int)));
 
 	len = 0;
@@ -1595,13 +1595,13 @@ static ssize_t ldim_attr_store(struct class *cla,
 	} else if (!strcmp(parm[0], "TF_alpha")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
-				pr_info("for_tool:%d\n", fw_ctrl->TF_alpha);
+				pr_info("for_tool:%d\n", fw_ctrl->tf_alpha);
 				goto ldim_attr_store_end;
 			}
-			if (kstrtouint(parm[1], 10, &fw_ctrl->TF_alpha) < 0)
+			if (kstrtouint(parm[1], 10, &fw_ctrl->tf_alpha) < 0)
 				goto ldim_attr_store_err;
 		}
-		pr_info("TF_alpha = %d\n", fw_ctrl->TF_alpha);
+		pr_info("TF_alpha = %d\n", fw_ctrl->tf_alpha);
 	} else if (!strcmp(parm[0], "lpf_gain")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
@@ -1663,70 +1663,70 @@ static ssize_t ldim_attr_store(struct class *cla,
 		pr_info("max_luma = %d\n", fw_ctrl->max_luma);
 	} else if (!strcmp(parm[0], "lmh_avg_TH")) {
 		if (parm[1]) {
-			if (kstrtouint(parm[1], 10, &fw_ctrl->lmh_avg_TH) < 0)
+			if (kstrtouint(parm[1], 10, &fw_ctrl->lmh_avg_th) < 0)
 				goto ldim_attr_store_err;
 		}
-		pr_info("lmh_avg_TH = %d\n", fw_ctrl->lmh_avg_TH);
+		pr_info("lmh_avg_TH = %d\n", fw_ctrl->lmh_avg_th);
 	} else if (!strcmp(parm[0], "fw_TF_sum_th")) {
 		if (parm[1]) {
-			if (kstrtouint(parm[1], 10, &fw_ctrl->fw_TF_sum_th) < 0)
+			if (kstrtouint(parm[1], 10, &fw_ctrl->fw_tf_sum_th) < 0)
 				goto ldim_attr_store_err;
 		}
-		pr_info("fw_TF_sum_th = %d\n", fw_ctrl->fw_TF_sum_th);
+		pr_info("fw_TF_sum_th = %d\n", fw_ctrl->fw_tf_sum_th);
 	} else if (!strcmp(parm[0], "LPF_method")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
-				pr_info("for_tool:%d\n", fw_ctrl->LPF_method);
+				pr_info("for_tool:%d\n", fw_ctrl->lpf_method);
 				goto ldim_attr_store_end;
 			}
-			if (kstrtouint(parm[1], 10, &fw_ctrl->LPF_method) < 0)
+			if (kstrtouint(parm[1], 10, &fw_ctrl->lpf_method) < 0)
 				goto ldim_attr_store_err;
 		}
-		pr_info("LPF_method = %d\n", fw_ctrl->LPF_method);
+		pr_info("LPF_method = %d\n", fw_ctrl->lpf_method);
 	} else if (!strcmp(parm[0], "LD_TF_STEP_TH")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
 				pr_info("for_tool:%d\n",
-					fw_ctrl->LD_TF_STEP_TH);
+					fw_ctrl->ld_tf_step_th);
 				goto ldim_attr_store_end;
 			}
 			if (kstrtouint(parm[1], 10,
-				       &fw_ctrl->LD_TF_STEP_TH) < 0) {
+				       &fw_ctrl->ld_tf_step_th) < 0) {
 				goto ldim_attr_store_err;
 			}
 		}
-		pr_info("LD_TF_STEP_TH = %d\n", fw_ctrl->LD_TF_STEP_TH);
+		pr_info("LD_TF_STEP_TH = %d\n", fw_ctrl->ld_tf_step_th);
 	} else if (!strcmp(parm[0], "TF_step_method")) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 10,
-				       &fw_ctrl->TF_step_method) < 0) {
+				       &fw_ctrl->tf_step_method) < 0) {
 				goto ldim_attr_store_err;
 			}
 		}
-		pr_info("TF_step_method = %d\n", fw_ctrl->TF_step_method);
+		pr_info("TF_step_method = %d\n", fw_ctrl->tf_step_method);
 	} else if (!strcmp(parm[0], "TF_FRESH_BL")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
-				pr_info("for_tool:%d\n", fw_ctrl->TF_FRESH_BL);
+				pr_info("for_tool:%d\n", fw_ctrl->tf_fresh_bl);
 				goto ldim_attr_store_end;
 			}
-			if (kstrtouint(parm[1], 10, &fw_ctrl->TF_FRESH_BL) < 0)
+			if (kstrtouint(parm[1], 10, &fw_ctrl->tf_fresh_bl) < 0)
 				goto ldim_attr_store_err;
 		}
-		pr_info("TF_FRESH_BL = %d\n", fw_ctrl->TF_FRESH_BL);
+		pr_info("TF_FRESH_BL = %d\n", fw_ctrl->tf_fresh_bl);
 	} else if (!strcmp(parm[0], "TF_BLK_FRESH_BL")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
 				pr_info("for_tool:%d\n",
-					fw_ctrl->TF_BLK_FRESH_BL);
+					fw_ctrl->tf_blk_fresh_bl);
 				goto ldim_attr_store_end;
 			}
 			if (kstrtouint(parm[1], 10,
-				       &fw_ctrl->TF_BLK_FRESH_BL) < 0) {
+				       &fw_ctrl->tf_blk_fresh_bl) < 0) {
 				goto ldim_attr_store_err;
 			}
 		}
-		pr_info("TF_BLK_FRESH_BL = %d\n", fw_ctrl->TF_BLK_FRESH_BL);
+		pr_info("TF_BLK_FRESH_BL = %d\n", fw_ctrl->tf_blk_fresh_bl);
 	} else if (!strcmp(parm[0], "bbd_detect_en")) {
 		if (parm[1]) {
 			if (kstrtoul(parm[1], 10, &val1) < 0)

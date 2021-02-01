@@ -85,6 +85,10 @@ static int __init media_main_init(void)
 	call_sub_init(configs_init_devices);
 	call_sub_init(lut_dma_init);
 	call_sub_init(video_init);
+	call_sub_init(aml_lcd_extern_init);
+	call_sub_init(aml_bl_extern_init);
+	call_sub_init(aml_bl_init);
+	call_sub_init(ldim_dev_init);
 	call_sub_init(vout2_init_module);
 	call_sub_init(vout3_init_module);
 	call_sub_init(ppmgr_init_module);
@@ -105,12 +109,8 @@ static int __init media_main_init(void)
 	call_sub_init(dil_init);
 	call_sub_init(di_module_init);
 	call_sub_init(dim_module_init);
-	call_sub_init(aml_bl_extern_init);
 	call_sub_init(cec_init);
 	call_sub_init(gdc_driver_init);
-	call_sub_init(aml_lcd_extern_init);
-	call_sub_init(ldim_dev_init);
-	call_sub_init(aml_bl_init);
 	call_sub_init(amvdec_656in_init_module);
 	call_sub_init(adc_init);
 	call_sub_init(tvafe_drv_init);

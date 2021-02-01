@@ -202,7 +202,7 @@ int ldim_dev_global_probe(struct aml_ldim_driver_s *ldim_drv)
 	global_on_flag = 1; /* default enable in uboot */
 	LDIMPR("%s ok\n", __func__);
 
-	return ret;
+	return 0;
 }
 
 int ldim_dev_global_remove(struct aml_ldim_driver_s *ldim_drv)

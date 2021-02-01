@@ -13,8 +13,8 @@
 #include <linux/amlogic/media/vout/lcd/ldim_alg.h>
 
 /*20200215: init version */
-/*20201120: support t7 */
-#define LDIM_DRV_VER    "20201120"
+/*20210201: fix compiler mistake */
+#define LDIM_DRV_VER    "20210201"
 
 extern unsigned char ldim_debug_print;
 
@@ -31,12 +31,12 @@ struct ldim_operate_func_s {
 	unsigned short v_region_max;
 	unsigned short total_region_max;
 	int (*alloc_rmem)(void);
-	void (*remap_update)(struct LDReg_s *nprm,
+	void (*remap_update)(struct ld_reg_s *nprm,
 			     unsigned int avg_update_en,
 			     unsigned int matrix_update_en);
 	void (*stts_init)(unsigned int pic_h, unsigned int pic_v,
 			  unsigned int blk_vnum, unsigned int blk_hnum);
-	void (*remap_init)(struct LDReg_s *nprm,
+	void (*remap_init)(struct ld_reg_s *nprm,
 			   unsigned int bl_en, unsigned int hvcnt_bypass);
 	void (*vs_arithmetic)(void);
 };
@@ -45,8 +45,8 @@ struct ldim_operate_func_s {
 
 /* ldim func */
 int ldim_round(int ix, int ib);
-void ld_func_cfg_ldreg(struct LDReg_s *reg);
-void ld_func_fw_cfg_once(struct LDReg_s *nprm);
+void ld_func_cfg_ldreg(struct ld_reg_s *reg);
+void ld_func_fw_cfg_once(struct ld_reg_s *nprm);
 
 /* ldim hw */
 #define LDIM_VPU_DMA_WR    0
@@ -59,9 +59,9 @@ int ldim_hw_reg_dump(char *buf);
 int ldim_hw_reg_dump_tm2(char *buf);
 void ldim_hw_stts_read_zone(unsigned int nrow, unsigned int ncol);
 
-void ldim_hw_remap_init_txlx(struct LDReg_s *nprm, unsigned int ldim_bl_en,
+void ldim_hw_remap_init_txlx(struct ld_reg_s *nprm, unsigned int ldim_bl_en,
 			     unsigned int ldim_hvcnt_bypass);
-void ldim_hw_remap_init_tm2(struct LDReg_s *nprm, unsigned int ldim_bl_en,
+void ldim_hw_remap_init_tm2(struct ld_reg_s *nprm, unsigned int ldim_bl_en,
 			    unsigned int ldim_hvcnt_bypass);
 void ldim_hw_stts_initial_txlx(unsigned int pic_h, unsigned int pic_v,
 			       unsigned int blk_vnum, unsigned int blk_hnum);
@@ -69,9 +69,9 @@ void ldim_hw_stts_initial_tl1(unsigned int pic_h, unsigned int pic_v,
 			      unsigned int blk_vnum, unsigned int blk_hnum);
 void ldim_hw_stts_initial_tm2(unsigned int pic_h, unsigned int pic_v,
 			      unsigned int blk_vnum, unsigned int blk_hnum);
-void ldim_hw_remap_update_txlx(struct LDReg_s *nprm, unsigned int avg_update_en,
+void ldim_hw_remap_update_txlx(struct ld_reg_s *nprm, unsigned int avg_update_en,
 			       unsigned int matrix_update_en);
-void ldim_hw_remap_update_tm2(struct LDReg_s *nprm, unsigned int avg_update_en,
+void ldim_hw_remap_update_tm2(struct ld_reg_s *nprm, unsigned int avg_update_en,
 			      unsigned int matrix_update_en);
 
 /*==============debug=================*/

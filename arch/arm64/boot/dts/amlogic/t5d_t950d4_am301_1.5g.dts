@@ -1760,6 +1760,10 @@
 	status = "okay";
 };
 
+&pwm_ef {
+	status = "okay";
+};
+
 &vddcpu0 {
 	status = "okay";
 };

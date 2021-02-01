@@ -31,11 +31,11 @@
 #include <linux/timer.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
-#include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/vout/lcd/ldim_alg.h>
 #include <linux/of_reserved_mem.h>
@@ -49,6 +49,7 @@ unsigned char ldim_debug_print;
 struct ldim_dev_s {
 	struct ldim_operate_func_s *ldim_op_func;
 
+	struct vpu_dev_s *vpu_dev;
 	struct cdev   cdev;
 	struct device *dev;
 	dev_t aml_ldim_devno;
@@ -229,6 +230,8 @@ void ldim_stts_initial(unsigned int pic_h, unsigned int pic_v,
 		LDIMERR("%s: invalid ldim_op_func\n", __func__);
 		return;
 	}
+	if (ldim_dev.vpu_dev)
+		vpu_dev_mem_power_on(ldim_dev.vpu_dev);
 	if (ldim_dev.ldim_op_func->stts_init) {
 		ldim_dev.ldim_op_func->stts_init(pic_h, pic_v,
 						 hist_vnum, hist_hnum);
@@ -414,7 +417,7 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 
 static void ldim_on_vs_brightness(void)
 {
-	struct LDReg_s *nprm = ldim_driver.fw_para->nprm;
+	struct ld_reg_s *nprm = ldim_driver.fw_para->nprm;
 	unsigned int size;
 	unsigned int i;
 
@@ -437,17 +440,17 @@ static void ldim_on_vs_brightness(void)
 	if (ldim_driver.test_en) {
 		for (i = 0; i < size; i++) {
 			ldim_driver.local_ldim_matrix[i] =
-				(unsigned short)nprm->BL_matrix[i];
+				(unsigned short)nprm->bl_matrix[i];
 			ldim_driver.ldim_matrix_buf[i] =
 				ldim_driver.test_matrix[i];
 		}
 	} else {
 		for (i = 0; i < size; i++) {
 			ldim_driver.local_ldim_matrix[i] =
-				(unsigned short)nprm->BL_matrix[i];
+				(unsigned short)nprm->bl_matrix[i];
 			ldim_driver.ldim_matrix_buf[i] =
 				(unsigned short)
-				(((nprm->BL_matrix[i] * ldim_driver.litgain)
+				(((nprm->bl_matrix[i] * ldim_driver.litgain)
 				+ (LD_DATA_MAX / 2)) >> LD_DATA_DEPTH);
 		}
 	}
@@ -463,7 +466,7 @@ static void ldim_on_vs_brightness(void)
 
 static void ldim_off_vs_brightness(void)
 {
-	struct LDReg_s *nprm = ldim_driver.fw_para->nprm;
+	struct ld_reg_s *nprm = ldim_driver.fw_para->nprm;
 	unsigned int size;
 	unsigned int i;
 	int ret;
@@ -483,7 +486,7 @@ static void ldim_off_vs_brightness(void)
 		}
 		for (i = 0; i < size; i++) {
 			ldim_driver.local_ldim_matrix[i] =
-				(unsigned short)nprm->BL_matrix[i];
+				(unsigned short)nprm->bl_matrix[i];
 			ldim_driver.ldim_matrix_buf[i] =
 				(unsigned short)(ldim_driver.litgain);
 		}
@@ -906,10 +909,10 @@ static int aml_ldim_malloc(unsigned int hist_row, unsigned int hist_col)
 	if (!ldim_driver.ldim_matrix_buf)
 		goto ldim_malloc_err4;
 
-	fw_para->fdat->SF_BL_matrix = kcalloc((hist_row * hist_col),
+	fw_para->fdat->sf_bl_matrix = kcalloc((hist_row * hist_col),
 					       sizeof(unsigned int),
 					       GFP_KERNEL);
-	if (!fw_para->fdat->SF_BL_matrix)
+	if (!fw_para->fdat->sf_bl_matrix)
 		goto ldim_malloc_err5;
 
 	fw_para->fdat->last_sta1_maxrgb = kcalloc((hist_row * hist_col * 3),
@@ -918,21 +921,21 @@ static int aml_ldim_malloc(unsigned int hist_row, unsigned int hist_col)
 	if (!fw_para->fdat->last_sta1_maxrgb)
 		goto ldim_malloc_err6;
 
-	fw_para->fdat->TF_BL_matrix = kcalloc((hist_row * hist_col),
+	fw_para->fdat->tf_bl_matrix = kcalloc((hist_row * hist_col),
 					      sizeof(unsigned int),
 					      GFP_KERNEL);
-	if (!fw_para->fdat->TF_BL_matrix)
+	if (!fw_para->fdat->tf_bl_matrix)
 		goto ldim_malloc_err7;
 
-	fw_para->fdat->TF_BL_matrix_2 = kcalloc((hist_row * hist_col),
+	fw_para->fdat->tf_bl_matrix_2 = kcalloc((hist_row * hist_col),
 						sizeof(unsigned int),
 						GFP_KERNEL);
-	if (!fw_para->fdat->TF_BL_matrix_2)
+	if (!fw_para->fdat->tf_bl_matrix_2)
 		goto ldim_malloc_err8;
 
-	fw_para->fdat->TF_BL_alpha = kcalloc((hist_row * hist_col),
+	fw_para->fdat->tf_bl_alpha = kcalloc((hist_row * hist_col),
 					     sizeof(unsigned int), GFP_KERNEL);
-	if (!fw_para->fdat->TF_BL_alpha)
+	if (!fw_para->fdat->tf_bl_alpha)
 		goto ldim_malloc_err9;
 
 	if (ldim_dev.ldim_op_func->alloc_rmem) {
@@ -944,15 +947,15 @@ static int aml_ldim_malloc(unsigned int hist_row, unsigned int hist_col)
 	return 0;
 
 ldim_malloc_err10:
-	kfree(ldim_driver.fw_para->fdat->TF_BL_alpha);
+	kfree(ldim_driver.fw_para->fdat->tf_bl_alpha);
 ldim_malloc_err9:
-	kfree(ldim_driver.fw_para->fdat->TF_BL_matrix_2);
+	kfree(ldim_driver.fw_para->fdat->tf_bl_matrix_2);
 ldim_malloc_err8:
-	kfree(ldim_driver.fw_para->fdat->TF_BL_matrix);
+	kfree(ldim_driver.fw_para->fdat->tf_bl_matrix);
 ldim_malloc_err7:
 	kfree(ldim_driver.fw_para->fdat->last_sta1_maxrgb);
 ldim_malloc_err6:
-	kfree(ldim_driver.fw_para->fdat->SF_BL_matrix);
+	kfree(ldim_driver.fw_para->fdat->sf_bl_matrix);
 ldim_malloc_err5:
 	kfree(ldim_driver.ldim_matrix_buf);
 ldim_malloc_err4:
@@ -1052,6 +1055,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 		break;
 	case BL_CHIP_TM2:
 		devp->ldim_op_func = &ldim_op_func_tm2;
+		devp->vpu_dev = vpu_dev_register(VPU_DMA, "bl_ldim");
 		break;
 	default:
 		devp->ldim_op_func = NULL;
@@ -1160,11 +1164,11 @@ int aml_ldim_remove(void)
 	struct ldim_dev_s *devp = &ldim_dev;
 	struct aml_bl_drv_s *bl_drv = aml_bl_get_driver();
 
-	kfree(ldim_driver.fw_para->fdat->SF_BL_matrix);
-	kfree(ldim_driver.fw_para->fdat->TF_BL_matrix);
-	kfree(ldim_driver.fw_para->fdat->TF_BL_matrix_2);
+	kfree(ldim_driver.fw_para->fdat->sf_bl_matrix);
+	kfree(ldim_driver.fw_para->fdat->tf_bl_matrix);
+	kfree(ldim_driver.fw_para->fdat->tf_bl_matrix_2);
 	kfree(ldim_driver.fw_para->fdat->last_sta1_maxrgb);
-	kfree(ldim_driver.fw_para->fdat->TF_BL_alpha);
+	kfree(ldim_driver.fw_para->fdat->tf_bl_alpha);
 	kfree(ldim_driver.ldim_matrix_buf);
 	kfree(ldim_driver.hist_matrix);
 	kfree(ldim_driver.max_rgb);

@@ -1,8 +1,8 @@
 #
 # LDIM Device Driver Configuration
 #
-config AMLOGIC_LOCAL_DIMMING
-	bool "Amlogic Local Dimming"
+config AMLOGIC_BL_LDIM
+	bool "Amlogic Backlight Local Dimming"
 	default n
 	help
 		Say Y if you want to use Amlogic Local dimming.

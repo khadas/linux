@@ -15,8 +15,8 @@
 #include <linux/amlogic/media/vout/lcd/ldim_alg.h>
 #include "ldim_drv.h"
 
-static struct LDReg_s nprm;
-static struct FW_DAT_s fdat;
+static struct ld_reg_s nprm;
+static struct fw_dat_s fdat;
 
 /*bl_matrix remap curve*/
 static unsigned int bl_remap_curve[16] = {

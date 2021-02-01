@@ -14,7 +14,7 @@ config AMLOGIC_BACKLIGHT
 
 if AMLOGIC_BACKLIGHT
 source "drivers/amlogic/media/vout/lcd/backlight/bl_extern/Kconfig"
-source "drivers/amlogic/media/vout/lcd/backlight/aml_ldim/Kconfig"
+source "drivers/amlogic/media/vout/lcd/backlight/bl_ldim/Kconfig"
 endif
 
 endmenu

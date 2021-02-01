@@ -1047,11 +1047,11 @@ static int ldim_dev_get_config_from_dts(struct device_node *np, int index)
 			bl_pwm->pwm_duty_min = temp[3];
 			bl_pwm->pwm_duty = temp[4];
 		}
-		LDIMPR("get analog_pwm pol = %d, freq = %d, duty_max = %d%%,"
-			bl_pwm->pwm_method, bl_pwm->pwm_freq,
-			bl_pwm->pwm_duty_max);
-		LDIMPR(" duty_min = %d%%, default duty = %d%%\n",
-		       bl_pwm->pwm_duty_min, bl_pwm->pwm_duty);
+		LDIMPR("get analog_pwm pol = %d, freq = %d\n",
+			bl_pwm->pwm_method, bl_pwm->pwm_freq);
+		LDIMPR("duty max = %d\%, min = %d\%, default_duty = %d\%\n",
+			bl_pwm->pwm_duty_max,
+			bl_pwm->pwm_duty_min, bl_pwm->pwm_duty);
 
 		bl_pwm_config_init(bl_pwm);
 

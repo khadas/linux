@@ -29,7 +29,7 @@
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
 #include <linux/amlogic/media/vout/lcd/aml_bl_extern.h>
 #endif
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #endif
 
@@ -478,7 +478,7 @@ static void bl_set_pwm_vs(struct bl_pwm_config_s *bl_pwm,
 
 static inline void bl_pwm_normal_state_print(struct pwm_state *state)
 {
-	BLPR("pwm state: polarity=%d, duty_cycle=%d, period=%d, enabled=%d\n",
+	BLPR("pwm state: polarity=%d, duty_cycle=%lld, period=%lld, enabled=%d\n",
 	     state->polarity, state->duty_cycle,
 	     state->period, state->enabled);
 }
@@ -620,7 +620,7 @@ static void bl_power_on(void)
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
 	struct aml_bl_extern_driver_s *bl_ext;
 #endif
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	struct aml_ldim_driver_s *ldim_drv;
 #endif
 	int ret;
@@ -693,7 +693,7 @@ static void bl_power_on(void)
 			bl_power_en_ctrl(bconf, 1);
 		}
 		break;
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	case BL_CTRL_LOCAL_DIMMING:
 		ldim_drv = aml_ldim_get_driver();
 		if (!ldim_drv) {
@@ -774,7 +774,7 @@ static void bl_power_off(void)
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
 	struct aml_bl_extern_driver_s *bl_ext;
 #endif
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	struct aml_ldim_driver_s *ldim_drv;
 #endif
 	int ret;
@@ -784,7 +784,7 @@ static void bl_power_off(void)
 	mutex_lock(&bl_power_mutex);
 
 	if ((bl_drv->state & BL_STATE_BL_ON) == 0) {
-		mutex_unlock(&bl_power_mutex);
+		goto exit_power_off_bl;
 		return;
 	}
 
@@ -833,7 +833,7 @@ static void bl_power_off(void)
 			bl_pwm_ctrl(bconf->bl_pwm_combo1, 0);
 		}
 		break;
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	case BL_CTRL_LOCAL_DIMMING:
 		ldim_drv = aml_ldim_get_driver();
 		if (!ldim_drv) {
@@ -899,6 +899,7 @@ static void bl_power_off(void)
 #endif
 	default:
 		BLPR("invalid backlight control method\n");
+		goto exit_power_off_bl;
 		break;
 	}
 	if (bconf->power_off_delay > 0)
@@ -1065,7 +1066,7 @@ static void bl_set_level_extern(unsigned int level)
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 static void bl_set_level_ldim(unsigned int level)
 {
 	struct aml_ldim_driver_s *ldim_drv;
@@ -1144,7 +1145,7 @@ static void aml_bl_set_level(unsigned int level)
 			bl_set_level_pwm(pwm1, pwm1->level_min);
 		}
 		break;
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	case BL_CTRL_LOCAL_DIMMING:
 		bl_set_level_ldim(level);
 		break;
@@ -1741,7 +1742,7 @@ static int aml_bl_config_load_from_dts(struct bl_config_s *bconf,
 		bl_pwm_config_init(pwm_combo0);
 		bl_pwm_config_init(pwm_combo1);
 		break;
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	case BL_CTRL_LOCAL_DIMMING:
 		ret = of_property_read_u32(child,
 					   "en_sequence_reverse", &val);
@@ -1778,7 +1779,7 @@ static int aml_bl_config_load_from_dts(struct bl_config_s *bconf,
 		break;
 	}
 
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	if (bconf->ldim_flag) {
 		ret = aml_ldim_get_config_dts(child);
 		if (ret < 0)
@@ -2032,7 +2033,7 @@ static int aml_bl_config_load_from_unifykey(struct bl_config_s *bconf)
 		bl_pwm_config_init(pwm_combo0);
 		bl_pwm_config_init(pwm_combo1);
 		break;
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	case BL_CTRL_LOCAL_DIMMING:
 		bconf->ldim_flag = 1;
 		break;
@@ -2041,7 +2042,7 @@ static int aml_bl_config_load_from_unifykey(struct bl_config_s *bconf)
 		break;
 	}
 
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	if (bconf->ldim_flag) {
 		ret = aml_ldim_get_config_unifykey(para);
 		if (ret < 0) {
@@ -2125,8 +2126,8 @@ static int aml_bl_pwm_channel_register(struct bl_config_s *bconf,
 			BLERR("unable to request bl_pwm(%d)\n", index0);
 			return ret;
 		}
-		bl_pwm->pwm_data.meson = to_meson_pwm
-		(bl_pwm->pwm_data.pwm->chip);
+		bl_pwm->pwm_data.meson =
+			to_meson_pwm(bl_pwm->pwm_data.pwm->chip);
 		pwm_init_state(bl_pwm->pwm_data.pwm, &bl_pwm->pwm_data.state);
 		BLPR("register pwm_ch(%d) 0x%p\n",
 		     bl_pwm->pwm_data.port_index, bl_pwm->pwm_data.pwm);
@@ -2181,7 +2182,7 @@ static int aml_bl_config_load(struct bl_config_s *bconf,
 
 	aml_bl_config_print(bconf);
 
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	if (bconf->ldim_flag)
 		aml_ldim_probe(pdev);
 #endif
@@ -2408,7 +2409,7 @@ static int aml_bl_lcd_update_notifier(struct notifier_block *nb,
 				      unsigned long event, void *data)
 {
 	struct bl_pwm_config_s *bl_pwm = NULL;
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	unsigned int *frame_rate;
 #endif
@@ -2437,7 +2438,7 @@ static int aml_bl_lcd_update_notifier(struct notifier_block *nb,
 		if (bl_pwm)
 			aml_bl_pwm_vs_lcd_update(bl_pwm);
 		break;
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	case BL_CTRL_LOCAL_DIMMING:
 		if (data) {
 			frame_rate = (unsigned int *)data;
@@ -2464,7 +2465,7 @@ static int aml_bl_lcd_test_notifier(struct notifier_block *nb,
 				    unsigned long event, void *data)
 {
 	int *flag;
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 #endif
 
@@ -2479,7 +2480,7 @@ static int aml_bl_lcd_test_notifier(struct notifier_block *nb,
 
 	flag = (int *)data;
 	switch (bl_drv->bconf->method) {
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	case BL_CTRL_LOCAL_DIMMING:
 		if (ldim_drv->test_ctrl)
 			ldim_drv->test_ctrl(*flag);
@@ -2610,7 +2611,7 @@ static ssize_t bl_status_read(struct class *class,
 	struct bl_config_s *bconf = bl_drv->bconf;
 	struct bl_pwm_config_s *bl_pwm;
 	struct bl_pwm_config_s *pwm_combo0, *pwm_combo1;
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 #endif
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
@@ -2705,7 +2706,7 @@ static ssize_t bl_status_read(struct class *class,
 			       bconf->pwm_on_delay, bconf->pwm_off_delay,
 			       bconf->en_sequence_reverse);
 		break;
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	case BL_CTRL_LOCAL_DIMMING:
 		if (ldim_drv->config_print)
 			ldim_drv->config_print();
@@ -2785,8 +2786,8 @@ static ssize_t bl_debug_pwm_info_show(struct class *class,
 				pwm_get_state(bl_pwm->pwm_data.pwm, &pstate);
 				len += sprintf(buf + len,
 					       "pwm state:\n"
-					       "  period:           %d\n"
-					       "  duty_cycle:       %d\n"
+					       "  period:           %lld\n"
+					       "  duty_cycle:       %lld\n"
 					       "  polarity:         %d\n"
 					       "  enabled:          %d\n",
 					       pstate.period, pstate.duty_cycle,
@@ -2863,8 +2864,8 @@ static ssize_t bl_debug_pwm_info_show(struct class *class,
 				pwm_get_state(bl_pwm->pwm_data.pwm, &pstate);
 				len += sprintf(buf + len,
 					       "pwm state:\n"
-					       "  period:           %d\n"
-					       "  duty_cycle:       %d\n"
+					       "  period:           %lld\n"
+					       "  duty_cycle:       %lld\n"
 					       "  polarity:         %d\n"
 					       "  enabled:          %d\n",
 					       pstate.period, pstate.duty_cycle,
@@ -2936,8 +2937,8 @@ static ssize_t bl_debug_pwm_info_show(struct class *class,
 				pwm_get_state(bl_pwm->pwm_data.pwm, &pstate);
 				len += sprintf(buf + len,
 					       "pwm state:\n"
-					       "  period:           %d\n"
-					       "  duty_cycle:       %d\n"
+					       "  period:           %lld\n"
+					       "  duty_cycle:       %lld\n"
 					       "  polarity:         %d\n"
 					       "  enabled:          %d\n",
 					       pstate.period, pstate.duty_cycle,
@@ -3421,9 +3422,9 @@ static ssize_t bl_debug_brightness_store(struct class *class,
 					 const char *buf, size_t count)
 {
 	unsigned int ret;
-	unsigned int brightness_level = 0;
+	unsigned int level = 0;
 
-	ret = kstrtouint(buf, 10, &brightness_level);
+	ret = kstrtouint(buf, 10, &level);
 	if (ret != 0) {
 		BLERR("invalid data\n");
 		return -EINVAL;
@@ -3847,7 +3848,7 @@ static int __exit aml_bl_remove(struct platform_device *pdev)
 	aml_lcd_notifier_unregister(&aml_bl_on_nb);
 	aml_lcd_notifier_unregister(&aml_bl_off_nb);
 #endif
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 	if (bl_drv->bconf->ldim_flag)
 		aml_ldim_remove();
 #endif

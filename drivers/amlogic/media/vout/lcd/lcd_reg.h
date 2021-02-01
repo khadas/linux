@@ -91,11 +91,6 @@
 #define PADCTRL_PIN_MUX_REGO                       0x0018
 
 /* HIU:  HHI_CBUS_BASE = 0x10 */
-#define HHI_GCLK_MPEG0                             0x50
-#define HHI_GCLK_MPEG1                             0x51
-#define HHI_GCLK_MPEG2                             0x52
-#define HHI_GCLK_OTHER                             0x54
-
 #define HHI_VIID_PLL_CNTL4                         0x46
 #define HHI_VIID_PLL_CNTL                          0x47
 #define HHI_VIID_PLL_CNTL2                         0x48

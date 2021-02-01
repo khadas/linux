@@ -192,10 +192,10 @@ static inline void ldim_wr_reg_bits(unsigned int addr, unsigned int val,
 {
 	unsigned int data;
 
-	data = ldim_rd_32bits(addr);
+	data = ldim_rd_reg(addr);
 	data = (data & (~((1 << len) - 1) << start))  |
 		((val & ((1 << len) - 1)) << start);
-	ldim_wr_32bits(addr, data);
+	ldim_wr_reg(addr, data);
 }
 
 static inline void ldim_wr_lut(unsigned int base, unsigned int *pdata,

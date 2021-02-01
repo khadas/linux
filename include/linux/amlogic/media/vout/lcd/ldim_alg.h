@@ -24,7 +24,7 @@
 
 #define LD_BLKREGNUM 384  /* maximum support 24*16*/
 
-struct LDReg_s {
+struct ld_reg_s {
 	int reg_ld_pic_row_max;            /*u13*/
 	int reg_ld_pic_col_max;            /*u13*/
 	int reg_ld_pic_yuv_sum[3];
@@ -138,7 +138,7 @@ struct LDReg_s {
 	int ro_ldfw_bl_matrix_avg;/*u12: read-only register for bl_matrix*/
 
 	/* Backlit Modeling registers*/
-	int BL_matrix[LD_BLKREGNUM];
+	int bl_matrix[LD_BLKREGNUM];
 	/* Define the RAM Matrix*/
 	int reg_ld_blk_xtlk;
 	/*u1: 0 no block to block Xtalk model needed;   1: Xtalk model needed*/
@@ -254,7 +254,7 @@ struct LDReg_s {
 	 */
 };
 
-struct FW_DAT_s {
+struct fw_dat_s {
 	/* for temporary Firmware algorithm */
 	unsigned int *tf_bl_alpha;
 	unsigned int *last_yuv_sum;
@@ -330,8 +330,8 @@ struct ldim_fw_para_s {
 	unsigned int fw_print_frequent;/*20180606,print every 8 frame*/
 	unsigned int fw_dbgprint_lv;
 
-	struct LDReg_s *nprm;
-	struct FW_DAT_s *fdat;
+	struct ld_reg_s *nprm;
+	struct fw_dat_s *fdat;
 	unsigned int *bl_remap_curve; /* size: 16 */
 	unsigned int *fw_ld_whist;    /* size: 16 */
 

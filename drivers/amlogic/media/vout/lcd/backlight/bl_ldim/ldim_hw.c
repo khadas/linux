@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include <linux/amlogic/media/vout/lcd/ldim_alg.h>
@@ -44,37 +43,6 @@ static void ldim_hw_update_matrix_tm2(int new_bl_matrix[], int bl_matrix_num)
 	}
 	ldim_wr_vcbus_bits(VPU_DMA_RDMIF_CTRL3, (bl_matrix_num + 7) / 8, 0, 13);
 	ldim_wr_vcbus_bits(VPU_DMA_RDMIF_CTRL, 1, 13, 1);
-}
-
-static int ldim_hw_update_matrix_txlx(int new_bl_matrix[], int bl_matrix_num)
-{
-	int data;
-
-	data = ldim_rd_reg(REG_LD_MISC_CTRL0);
-	if (data & (1 << 12)) {  /*bl_ram_mode=1;*/
-		if (ldim_rd_reg(REG_LD_BLMAT_RAM_MISC) & 0x10000)
-			/*Previous Matrix is not used*/
-			goto previous_matrix;
-
-		ldim_wr_lut_drt(REG_LD_MATRIX_BASE,
-				new_bl_matrix, bl_matrix_num);
-		ldim_wr_reg(REG_LD_BLMAT_RAM_MISC,
-			    (bl_matrix_num & 0x1ff) | (1 << 16));
-		/*set Matrix update ready*/
-	} else {  /*bl_ram_mode=0*/
-		/*set ram_clk_sel=0, ram_bus_sel = 0*/
-		data = data & (~(3 << 9));
-		ldim_wr_reg(REG_LD_MISC_CTRL0, data);
-		ldim_wr_lut_drt(REG_LD_MATRIX_BASE,
-				new_bl_matrix, bl_matrix_num);
-		data = data | (3 << 9); /*set ram_clk_sel=1, ram_bus_sel = 1*/
-		ldim_wr_reg(REG_LD_MISC_CTRL0, data);
-	}
-
-	return 0;
-
-previous_matrix:
-	return 1;
 }
 
 static void ldim_vpu_dma_mif_set(int rw_sel, unsigned int hist_vnum,
@@ -678,8 +646,6 @@ void ldim_hw_stts_initial_tm2(unsigned int pic_h, unsigned int pic_v,
 	row_start = (pic_v - (blk_height * hist_vnum)) >> 1;
 	col_start = (pic_h - (blk_width * hist_hnum)) >> 1;
 
-	switch_vpu_mem_pd_vmod(VPU_DMA, VPU_MEM_POWER_ON);
-
 	ldim_hw_stts_en_tm2(resolution, 0, 0, 0, 1, 1, (hist_vnum * hist_hnum));
 	ldim_hw_set_matrix_rgb2ycbcr(0);// vpp out format : RGB
 
@@ -735,7 +701,7 @@ void ldim_hw_stts_read_zone(unsigned int nrow, unsigned int ncol)
 	}
 }
 
-void ldim_hw_remap_update_tm2(struct LDReg_s *nprm, unsigned int avg_update_en,
+void ldim_hw_remap_update_tm2(struct ld_reg_s *nprm, unsigned int avg_update_en,
 			      unsigned int matrix_update_en)
 {
 	int data;
@@ -743,7 +709,7 @@ void ldim_hw_remap_update_tm2(struct LDReg_s *nprm, unsigned int avg_update_en,
 	if (avg_update_en) {
 		/* LD_BKLIT_PARAM */
 		data = ldim_rd_reg(REG_LD_BKLIT_PARAM);
-		data = (data & (~0xfff)) | (nprm->reg_BL_matrix_AVG & 0xfff);
+		data = (data & (~0xfff)) | (nprm->reg_bl_matrix_avg & 0xfff);
 		ldim_wr_reg(REG_LD_BKLIT_PARAM, data);
 
 		/* compensate */
@@ -755,6 +721,6 @@ void ldim_hw_remap_update_tm2(struct LDReg_s *nprm, unsigned int avg_update_en,
 
 	if (matrix_update_en) {
 		data = nprm->reg_ld_blk_vnum * nprm->reg_ld_blk_hnum;
-		ldim_hw_update_matrix_tm2(nprm->BL_matrix, data);
+		ldim_hw_update_matrix_tm2(nprm->bl_matrix, data);
 	}
 }
