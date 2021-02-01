@@ -791,7 +791,7 @@ static unsigned long _test_fixed_adj(struct mmc_host *mmc,
 			len += sprintf(adj_print + len,
 				"%d ", adj + i);
 		}
-		pr_info("%s: rx_tuning_result[%d] = %d\n",
+		pr_debug("%s: rx_tuning_result[%d] = %d\n",
 				mmc_hostname(mmc), adj + i, nmatch);
 	}
 	len += sprintf(adj_print + len, ">\n");
@@ -1055,6 +1055,8 @@ static int meson_mmc_fixadj_tuning(struct mmc_host *mmc, u32 opcode)
 	bool all_flag = false;
 	int best_s = -1, best_sz = 0;
 	char rx_adj[64] = {0};
+	u8 *adj_print = NULL;
+	u32 len = 0;
 
 	old_dly = readl(host->regs + SD_EMMC_V3_ADJUST);
 	d1_dly = (old_dly >> 0x6) & 0x3F;
@@ -1067,6 +1069,10 @@ tuning:
 	best_sz = 0;
 	memset(rx_adj, 0, 64);
 
+	len = 0;
+	adj_print = host->adj_win;
+	memset(adj_print, 0, sizeof(u8) * ADJ_WIN_PRINT_MAXLEN);
+	len += sprintf(adj_print + len, "%s: adj_win: < ", mmc_hostname(mmc));
 	vclk = readl(host->regs + SD_EMMC_CLOCK);
 	clk_div = vclk & CLK_DIV_MASK;
 	pr_info("%s: clk %d div %d tuning start\n",
@@ -1081,8 +1087,13 @@ tuning:
 			rx_adj[adj_delay]++;
 			if (clk_div <= AML_FIXED_ADJ_MAX)
 				set_bit(adj_delay, fixed_adj_map);
+			len += sprintf(adj_print + len,
+				"%d ", adj_delay);
 		}
 	}
+
+	len += sprintf(adj_print + len, ">\n");
+	pr_info("%s", host->adj_win);
 
 	find_best_win(mmc, rx_adj, clk_div, &best_s, &best_sz);
 
@@ -2080,7 +2091,7 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 	intf3 |= (best_start + best_size / 2) << __ffs(DS_SHT_M_MASK);
 	writel(intf3, host->regs + SD_EMMC_INTF3);
 	pr_info("ds_sht: %lu, window:%d, intf3:0x%x, clock:0x%x",
-		intf3 & DS_SHT_M_MASK, best_size,
+		(intf3 & DS_SHT_M_MASK) >> __ffs(DS_SHT_M_MASK), best_size,
 		readl(host->regs + SD_EMMC_INTF3),
 		readl(host->regs + SD_EMMC_CLOCK));
 	pr_info("adjust:0x%x\n", readl(host->regs + SD_EMMC_V3_ADJUST));

@@ -883,6 +883,7 @@
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1", "clkin2";
 			card_type = <1>;
+			ignore_desc_busy;
 			mmc_debug_flag;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
@@ -1769,7 +1770,7 @@
 		};
 	};
 
-	emmc_pins: emmc {
+	emmc_pins: emmc_pins {
 		mux-0 {
 			groups = "emmc_nand_d0",
 				 "emmc_nand_d1",
@@ -1793,7 +1794,7 @@
 		};
 	};
 
-	emmc_ds_pins: emmc-ds {
+	emmc_ds_pins: emmc_ds_pins {
 		mux {
 			groups = "emmc_nand_ds";
 			function = "emmc";
@@ -1802,7 +1803,7 @@
 		};
 	};
 
-	emmc_clk_gate_pins: emmc_clk_gate {
+	emmc_clk_gate_pins: emmc_clk_gate_pins {
 		mux {
 			groups = "GPIOB_8";
 			function = "gpio_periphs";
@@ -1811,7 +1812,7 @@
 		};
 	};
 
-	sd_to_ao_uart_clr_pins:sd_to_ao_uart_clr_pins {
+	sd_to_ao_uart_clr_pins: sd_to_ao_uart_clr_pins {
 		mux {
 			groups = "GPIOD_0",
 				   "GPIOD_1";
@@ -1819,7 +1820,7 @@
 		};
 	};
 
-	sdcard_pins: sdcard {
+	sdcard_pins: sdcard_pins {
 		mux {
 			groups = "sdcard_d0_c",
 				 "sdcard_d1_c",
@@ -1833,7 +1834,7 @@
 		};
 	};
 
-	ao_to_sd_uart_pins:ao_to_sd_uart_pins {
+	ao_to_sd_uart_pins: ao_to_sd_uart_pins {
 		mux {
 			groups = "uart_b_tx_c",
 				"uart_b_rx_c";
@@ -1843,7 +1844,7 @@
 		};
 	};
 
-	ao_uart_pins:ao_uart_pins {
+	ao_uart_pins: ao_uart_pins {
 		mux {
 			groups = "uart_b_tx_d",
 				"uart_b_rx_d";
@@ -1853,7 +1854,7 @@
 		};
 	};
 
-	sd_clr_all_pins:sd_clr_all_pins {
+	sd_clr_all_pins: sd_clr_all_pins {
 		mux {
 			groups = "GPIOC_0",
 				   "GPIOC_1",
@@ -1870,7 +1871,7 @@
 		};
 	};
 
-	sd_clr_noall_pins:sd_clr_noall_pins {
+	sd_clr_noall_pins: sd_clr_noall_pins {
 		mux {
 			groups = "GPIOC_0",
 				   "GPIOC_1",
@@ -1881,7 +1882,7 @@
 		};
 	};
 
-	sd_1bit_pins:sd_1bit_pins {
+	sd_1bit_pins: sd_1bit_pins {
 		mux {
 			groups = "sdcard_d0_c",
 				 "sdcard_clk_c",
@@ -1892,7 +1893,7 @@
 		};
 	};
 
-	sdcard_clk_gate_pins: sdio_clk_gate {
+	sdcard_clk_gate_pins: sdcard_clk_gate_pins {
 		mux {
 			groups = "GPIOC_4";
 			function = "gpio_periphs";
@@ -1901,7 +1902,7 @@
 		};
 	};
 
-	sdio_pins: sdio {
+	sdio_pins: sdio_pins {
 		mux {
 			groups = "sdio_d0",
 				 "sdio_d1",
@@ -1915,7 +1916,7 @@
 		};
 	};
 
-	sdio_clk_gate_pins: sdio_clk_gate {
+	sdio_clk_gate_pins: sdio_clk_gate_pins {
 		mux {
 			groups = "GPIOX_4";
 			function = "gpio_periphs";
