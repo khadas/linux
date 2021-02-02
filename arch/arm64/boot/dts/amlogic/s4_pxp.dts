@@ -1403,11 +1403,10 @@
 	status = "okay";
 };
 
-/*if you want to use vdin just modify status to "ok"*/
 &vdin0 {
-	/*compatible = "amlogic, vdin-sc2";*/
+	/*compatible = "amlogic, vdin-s4";*/
 	/*memory-region = <&vdin0_cma_reserved>;*/
-	status = "disabled";
+	/*status = "disabled";*/
 	/* up to 1920x1080 yuv422 8bit and 5 buffers
 	 * 1920x1080x2x5 = 20 M
 	 */
@@ -1423,9 +1422,9 @@
 };
 
 &vdin1 {
-	/*compatible = "amlogic, vdin-sc2";*/
+	/*compatible = "amlogic, vdin-s4";*/
 	memory-region = <&vdin1_cma_reserved>;
-	status = "disabled";
+	/*status = "disabled";*/
 	/*vdin write mem color depth support:
 	 *bit0:support 8bit
 	 *bit1:support 9bit

@@ -65,8 +65,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-
-#define VDIN_VER "ver:2021-0207: free vdin irq warning"
+#define VDIN_VER "ver:2021-0202: vdin s4 bringup"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -104,6 +103,11 @@ enum vdin_hw_ver_e {
 	 * dv 422 to 444, and to 10 bit 422 (fix shrink issue)
 	 */
 	VDIN_HW_T7,
+	/*
+	 * 1.remove vdin0,	2.v scaling down input frame h max is 2k
+	 * 3.buff 2k		4.post matrix (hdr matrix)
+	 */
+	VDIN_HW_S4,
 };
 
 enum vdin_irq_flg_e {
@@ -132,6 +136,10 @@ struct match_data_s {
 	bool de_tunnel_tunnel;
 	/* tm2 verb :444 de-tunnel and wr mif 12 bit mode*/
 	bool ipt444_to_422_12bit;
+	u32 vdin0_en;
+	u32 vdin1_en;
+	u32 vdin0_line_buff_size;
+	u32 vdin1_line_buff_size;
 };
 
 /* #define VDIN_CRYSTAL               24000000 */

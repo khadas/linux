@@ -1620,7 +1620,6 @@ static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 		     reg <= VDIN_SCALE_COEF_IDX + size; reg++)
 			pr_info("0x%04x = 0x%08x\n",
 				(reg + offset), rd(offset, reg));
-
 		return;
 	}
 
@@ -1694,7 +1693,12 @@ static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 		pr_info("vdin%d afbce regs end----\n\n", devp->index);
 	}
 	reg = VDIN_MISC_CTRL;
-	pr_info("0x%04x = 0x%08x\n\n", (reg), R_VCBUS(reg));
+	pr_info("0x%04x = 0x%08x\n", (reg), R_VCBUS(reg));
+	pr_info("\nwrite back reg ---\n");
+	pr_info("0x%04x = 0x%08x\n", 0x271a, R_VCBUS(0x271a));
+	pr_info("0x%04x = 0x%08x\n", 0x1a0d, R_VCBUS(0x1a0d));
+	pr_info("0x%04x = 0x%08x\n", 0x1df9, R_VCBUS(0x1df9));
+	pr_info("0x%04x = 0x%08x\n", 0x2783, R_VCBUS(0x2783));
 }
 
 void vdin_test_front_end(void)
@@ -2004,6 +2008,9 @@ start_chk:
 		} else if (!strcmp(parm[1], "viu_wb1_post_blend")) {
 			param.port = TVIN_PORT_VIU1_WB1_POST_BLEND;
 			pr_info(" port is TVIN_PORT_VIU_WB1_POST_BLEND\n");
+		} else if (!strcmp(parm[1], "viu_wb1_vdinbist")) {
+			param.port = TVIN_PORT_VIU1_WB0_VDIN_BIST;
+			pr_info(" port is viu_wb1_vdinbist\n");
 		} else if (!strcmp(parm[1], "viuin2")) {
 			param.port = TVIN_PORT_VIU2;
 			pr_info(" port is TVIN_PORT_VIU\n");
@@ -2020,6 +2027,7 @@ start_chk:
 			param.port = TVIN_PORT_ISP;
 			pr_info(" port is TVIN_PORT_ISP\n");
 		}
+
 		/*parse the resolution*/
 		if (kstrtol(parm[2], 10, &val) == 0)
 			param.h_active = val;
@@ -2603,7 +2611,7 @@ start_chk:
 		 */
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0)) {
 			devp->matrix_pattern_mode = temp;
-			vdin_set_matrix_color(devp->index, devp->matrix_pattern_mode);
+			vdin_set_matrix_color(devp);
 			/* pr_info("matrix_pattern_mode:%d\n", devp->matrix_pattern_mode); */
 		}
 	} else if  (!strcmp(parm[0], "bist_set")) {
@@ -2626,6 +2634,14 @@ start_chk:
 	} else if (!strcmp(parm[0], "doublewrite")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
 			devp->double_wr_cfg = temp;
+	} else if (!strcmp(parm[0], "wv")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			if (parm[1] && (kstrtouint(parm[2], 16, &mode) == 0))
+				W_VCBUS(temp, mode);
+		}
+	} else if (!strcmp(parm[0], "rv")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0))
+			pr_info("addr:0x%x val:0x%x\n", temp, R_VCBUS(temp));
 	} else {
 		pr_info("unknown command\n");
 	}

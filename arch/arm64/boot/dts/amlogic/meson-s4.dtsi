@@ -1411,9 +1411,9 @@
 
 	/*if you want to use vdin just modify status to "ok"*/
 	vdin0: vdin0 {
-		compatible = "amlogic, vdin-sc2";
+		compatible = "amlogic, vdin-s4";
 		dev_name = "vdin0";
-		/*status = "disabled";*/
+		status = "okay";
 		reserve-iomap = "true";
 		flag_cma = <0>;/*1:share with codec_mm;2:cma alone*/
 		/*MByte, if 10bit disable: 64M(YUV422),
@@ -1426,25 +1426,18 @@
 		/*cma_size = <16>;*/
 		interrupts = <0 210 1>;
 		rdma-irq = <2>;
-		/*clocks = <&clkc CLKID_VPU_CLKB_GATE>,
-		 *	<&clkc CLKID_VPU_CLKB_TMP_MUX>;
-		 *clock-names = "vpu_clkb_gate",
-		 *	"vpu_clkb_tmp_mux";
-		 */
+		clocks = <&clkc CLKID_FCLK_DIV5>, <&clkc CLKID_VDIN_MEAS_GATE>;
+		clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		vdin_id = <0>;
 	};
 	vdin1: vdin1 {
-		compatible = "amlogic, vdin-sc2";
+		compatible = "amlogic, vdin-s4";
 		dev_name = "vdin1";
-		/*status = "disabled";*/
+		status = "okay";
 		reserve-iomap = "true";
 		flag_cma = <0>;/*1:share with codec_mm;0:cma alone*/
 		interrupts = <0 212 1>;
 		rdma-irq = <4>;
-		/*clocks = <&clock CLK_FPLL_DIV5>,
-		 *	<&clock CLK_VDIN_MEAS_CLK>;
-		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
-		 */
 		vdin_id = <1>;
 	};
 

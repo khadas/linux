@@ -259,7 +259,7 @@
 /* 12:0 lfifo_buf_size */
 #define VDIN_LFIFO_CTRL             ((0x121a))/* + 0xd0100000) */
 #define LFIFO_BUF_SIZE_BIT	0
-#define LFIFO_BUF_SIZE_WID	12
+#define LFIFO_BUF_SIZE_WID	14
 /* tm2 new add begin */
 #define CH0_OUT_EN_BIT	17
 #define CH1_OUT_EN_BIT	18

@@ -649,6 +649,16 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 		return;
 	}
 
+	if (devp->index == 0 && devp->dtdata->vdin0_en == 0) {
+		pr_err("%s vdin%d not enable\n", __func__, devp->index);
+		return;
+	}
+
+	if (devp->index == 1 && devp->dtdata->vdin1_en == 0) {
+		pr_err("%s vdin%d not enable\n", __func__, devp->index);
+		return;
+	}
+
 	/* refuse start dec during suspend period,
 	 * otherwise system will not go to suspend due to vdin clk on
 	 */
@@ -894,7 +904,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	devp->vframe_wr_en = 1;
 	devp->vframe_wr_en_pre = 1;
 	if (devp->matrix_pattern_mode)
-		vdin_set_matrix_color(devp->index, devp->matrix_pattern_mode);
+		vdin_set_matrix_color(devp);
 	if (vdin_time_en)
 		pr_info("vdin.%d start time: %ums, run time:%ums.\n",
 			devp->index, jiffies_to_msecs(jiffies),
@@ -919,6 +929,17 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		pr_info("vdin err no frontend\n");
 		return;
 	}
+
+	if (devp->index == 0 && devp->dtdata->vdin0_en == 0) {
+		pr_err("%s vdin%d not enable\n", __func__, devp->index);
+		return;
+	}
+
+	if (devp->index == 1 && devp->dtdata->vdin1_en == 0) {
+		pr_err("%s vdin%d not enable\n", __func__, devp->index);
+		return;
+	}
+
 #ifdef CONFIG_CMA
 	if (devp->cma_mem_alloc == 0 && devp->cma_config_en) {
 		pr_info("%s:cma not alloc,don't need do others!\n", __func__);
@@ -1204,8 +1225,15 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	}
 #endif
 	vdin_start_dec(devp);
+
 	devp->flags |= VDIN_FLAG_DEC_OPENED;
 	devp->flags |= VDIN_FLAG_DEC_STARTED;
+
+	/* vdin bist pattern */
+	if (devp->parm.port == TVIN_PORT_VIU1_WB0_VDIN_BIST)
+		vdin_set_bist_pattern(devp, 1, 1);
+	else
+		vdin_set_bist_pattern(devp, 0, 1);
 
 	/* for vdin0 loopback, already request irq in open */
 	if (devp->index == 0 && (devp->flags & VDIN_FLAG_ISR_REQ)) {
@@ -2645,6 +2673,19 @@ static int vdin_open(struct inode *inode, struct file *file)
 	devp = container_of(inode->i_cdev, struct vdin_dev_s, cdev);
 	file->private_data = devp;
 
+	if (!devp)
+		return -ENXIO;
+
+	if (devp->index == 0 && devp->dtdata->vdin0_en == 0) {
+		pr_err("%s vdin%d not enable\n", __func__, devp->index);
+		return -ENXIO;
+	}
+
+	if (devp->index == 1 && devp->dtdata->vdin1_en == 0) {
+		pr_err("%s vdin%d not enable\n", __func__, devp->index);
+		return -ENXIO;
+	}
+
 	if (devp->set_canvas_manual == 1)
 		return 0;
 
@@ -2740,9 +2781,6 @@ static int vdin_open(struct inode *inode, struct file *file)
 		pr_info("%s vdin.%d disable_irq\n", __func__,
 			devp->index);
 
-	/*init queue*/
-	init_waitqueue_head(&devp->queue);
-
 	/* remove the hardware limit to vertical [0-max]*/
 	/* WRITE_VCBUS_REG(VPP_PREBLEND_VD1_V_START_END, 0x00000fff); */
 	if (vdin_dbg_en)
@@ -2759,6 +2797,16 @@ static int vdin_open(struct inode *inode, struct file *file)
 static int vdin_release(struct inode *inode, struct file *file)
 {
 	struct vdin_dev_s *devp = file->private_data;
+
+	if (devp->index == 0 && devp->dtdata->vdin0_en == 0) {
+		pr_err("%s vdin%d not enable\n", __func__, devp->index);
+		return 0;
+	}
+
+	if (devp->index == 1 && devp->dtdata->vdin1_en == 0) {
+		pr_err("%s vdin%d not enable\n", __func__, devp->index);
+		return 0;
+	}
 
 	if (!(devp->flags & VDIN_FLAG_FS_OPENED)) {
 		if (vdin_dbg_en)
@@ -2862,6 +2910,17 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	devp = file->private_data;
 	if (!devp)
 		return -EFAULT;
+
+	if (devp->index == 0 && devp->dtdata->vdin0_en == 0) {
+		pr_err("%s vdin%d not enable\n", __func__, devp->index);
+		return 0;
+	}
+
+	if (devp->index == 1 && devp->dtdata->vdin1_en == 0) {
+		pr_err("%s vdin%d not enable\n", __func__, devp->index);
+		return 0;
+	}
+
 	switch (cmd) {
 	case TVIN_IOC_OPEN: {
 		struct tvin_parm_s parm = {0};
@@ -3635,6 +3694,9 @@ static unsigned int vdin_poll(struct file *file, poll_table *wait)
 	struct vdin_dev_s *devp = file->private_data;
 	unsigned int mask = 0;
 
+	if ((devp->flags & VDIN_FLAG_FS_OPENED) == 0)
+		return mask;
+
 	if (devp->set_canvas_manual == 1) {
 		poll_wait(file, &vframe_waitq, wait);
 
@@ -4023,55 +4085,81 @@ static struct tvin_state_machine_ops_s vdin_sm_ops = {
 static const struct match_data_s vdin_dt_xxx = {
 	.name = "vdin",
 	.hw_ver = VDIN_HW_ORG,
+	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0,		.ipt444_to_422_12bit = 0,
+	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
 };
 
 const struct match_data_s vdin_dt_tl1 = {
 	.name = "vdin",
 	.hw_ver = VDIN_HW_ORG,
+	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0,		.ipt444_to_422_12bit = 0,
+	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
 };
 
 const struct match_data_s vdin_dt_sm1 = {
 	.name = "vdin",
 	.hw_ver = VDIN_HW_ORG,
+	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0,		.ipt444_to_422_12bit = 0,
+	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
 };
 
 static const struct match_data_s vdin_dt_tm2 = {
 	.name = "vdin-tm2",
 	.hw_ver = VDIN_HW_TM2,
+	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
+	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
 };
 
 static const struct match_data_s vdin_dt_tm2_ver_b = {
 	.name = "vdin-tm2verb",
 	.hw_ver = VDIN_HW_TM2_B,
+	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
+	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
 };
 
 static const struct match_data_s vdin_dt_sc2 = {
 	.name = "vdin-sc2",
 	.hw_ver = VDIN_HW_SC2,
+	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
+	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
 };
 
 static const struct match_data_s vdin_dt_t5 = {
 	.name = "vdin-t5",
 	.hw_ver = VDIN_HW_T5,
+	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
+	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0x780,
 };
 
 static const struct match_data_s vdin_dt_t5d = {
 	.name = "vdin-t5d",
 	.hw_ver = VDIN_HW_T5D,
+	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
+	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
 };
 
 static const struct match_data_s vdin_dt_t7 = {
 	.name = "vdin-t7",
 	.hw_ver = VDIN_HW_T7,
+	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
+	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
+};
+
+static const struct match_data_s vdin_dt_s4 = {
+	.name = "vdin-s4",
+	.hw_ver = VDIN_HW_S4,
+	.vdin0_en = 0,			.vdin1_en = 1,
+	.de_tunnel_tunnel = 0,		.ipt444_to_422_12bit = 0,
+	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
 };
 
 static const struct of_device_id vdin_dt_match[] = {
@@ -4110,6 +4198,10 @@ static const struct of_device_id vdin_dt_match[] = {
 	{
 		.compatible = "amlogic, vdin-t7",
 		.data = &vdin_dt_t7,
+	},
+	{
+		.compatible = "amlogic, vdin-s4",
+		.data = &vdin_dt_s4,
 	},
 	/* DO NOT remove to avoid scan error of KASAN */
 	{}
@@ -4556,6 +4648,8 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	/*vdin event*/
 	INIT_DELAYED_WORK(&vdevp->event_dwork, vdin_event_work);
 	/*vdin_extcon_register(pdev, vdevp);*/
+	/*init queue*/
+	init_waitqueue_head(&vdevp->queue);
 
 	vdin_mif_config_init(vdevp); /* 2019-0425 add, ensure mif/afbc bit */
 	vdin_debugfs_init(vdevp);/*2018-07-18 add debugfs*/
