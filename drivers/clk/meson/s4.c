@@ -424,6 +424,7 @@ static const struct pll_params_table s4_gp0_pll_table[] = {
 	PLL_PARAMS(141, 1, 2), /* DCO = 3384M OD = 2 PLL = 846M */
 	PLL_PARAMS(132, 1, 2), /* DCO = 3168M OD = 2 PLL = 792M */
 	PLL_PARAMS(248, 1, 3), /* DCO = 5952M OD = 3 PLL = 744M */
+	PLL_PARAMS(96, 1, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
 	{ /* sentinel */  }
 };
 #else
@@ -431,6 +432,7 @@ static const struct pll_params_table s4_gp0_pll_table[] = {
 	PLL_PARAMS(141, 1), /* DCO = 3384M OD = 2 PLL = 846M */
 	PLL_PARAMS(132, 1), /* DCO = 3168M OD = 2 PLL = 792M */
 	PLL_PARAMS(248, 1), /* DCO = 5952M OD = 3 PLL = 744M */
+	PLL_PARAMS(96, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
 	{ /* sentinel */  }
 };
 #endif
