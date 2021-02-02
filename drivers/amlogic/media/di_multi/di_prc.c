@@ -298,14 +298,18 @@ void di_cfg_top_dts(void)
 		pd->b.val_c = pd->b.val_dts;
 	}
 	//PR_INF("%s end\n", __func__);
-
-	if (cfgg(4K) && (DIM_IS_IC_BF(TM2) || DIM_IS_IC(T5D))) {
+	if (cfgg(4K) &&
+	    (DIM_IS_IC_BF(TM2) || DIM_IS_IC(T5D) || DIM_IS_IC(S4))) {
 		cfgs(4K, 0);
 		PR_WARN("not support 4k\n");
 	}
-	if (DIM_IS_IC_EF(T7)) {
+	if (DIM_IS_IC(T7)) {
 		cfgs(LINEAR, 1);
 		PR_INF("t7 linear mode\n");
+	}
+	if (DIM_IS_IC(S4) && (cfgg(POUT_FMT) == 3)) {
+		cfgs(POUT_FMT, 0);
+		PR_INF("s4 not support AFBCE\n");
 	}
 	/* dat */
 	/*bit 0: pst dat; bit 1: idat */

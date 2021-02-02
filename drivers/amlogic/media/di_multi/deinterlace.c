@@ -10459,8 +10459,7 @@ static unsigned int dim_bypass_check(struct vframe_s *vf)
 	unsigned int reason = 0;
 	unsigned int x, y;
 
-	if (((dimp_get(edi_mp_di_debug_flag) >> 20) & 0x1) ||
-	    DIM_IS_IC(S4))
+	if ((dimp_get(edi_mp_di_debug_flag) >> 20) & 0x1)
 		reason = 1;
 
 	if (reason || !vf)

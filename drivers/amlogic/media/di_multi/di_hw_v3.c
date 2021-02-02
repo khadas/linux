@@ -5009,7 +5009,7 @@ void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg)
 		  DI_TOP_PRE_CTRL,
 		  val);
 	op->wr(DI_TOP_PRE_CTRL, val);
-	if (DIM_IS_IC_EF(T7)) {
+	if (DIM_IS_IC(T7)) {
 		op->bwr(AFBCDM_INP_CTRL0, cfg->b.is_inp_4k,  14, 1);
 		//reg_use_4kram
 		op->bwr(AFBCDM_INP_CTRL0, cfg->b.afbc_inp, 13, 1);
@@ -5160,7 +5160,7 @@ void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg)
 		  "DI_TOP_POST_CTRL",
 		  DI_TOP_POST_CTRL,
 		  val);
-	if (DIM_IS_IC_EF(T7)) {
+	if (DIM_IS_IC(T7)) {
 		op->bwr(AFBCDM_IF0_CTRL0, cfg->b.is_if0_4k, 14, 1);
 		//reg_use_4kram
 		op->bwr(AFBCDM_IF0_CTRL0, cfg->b.afbc_if0, 13, 1);
