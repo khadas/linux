@@ -433,8 +433,10 @@ static const struct dev_pm_ops meson_spifc_pm_ops = {
 };
 
 static const struct of_device_id meson_spifc_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{ .compatible = "amlogic,meson6-spifc", },
 	{ .compatible = "amlogic,meson-gxbb-spifc", },
+#endif
 	{ .compatible = "amlogic,meson-spifc", },
 	{ },
 };

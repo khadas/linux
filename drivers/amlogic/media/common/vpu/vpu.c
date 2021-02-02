@@ -1811,6 +1811,7 @@ static struct vpu_data_s vpu_data_g12b = {
 	.mempd_get = vpu_vmod_mem_pd_get,
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct vpu_data_s vpu_data_tl1 = {
 	.chip_type = VPU_CHIP_TL1,
 	.chip_name = "tl1",
@@ -1845,6 +1846,7 @@ static struct vpu_data_s vpu_data_tl1 = {
 	.mempd_switch = vpu_vmod_mem_pd_switch,
 	.mempd_get = vpu_vmod_mem_pd_get,
 };
+#endif
 
 static struct vpu_data_s vpu_data_sm1 = {
 	.chip_type = VPU_CHIP_SM1,
@@ -2141,10 +2143,12 @@ static const struct of_device_id vpu_of_table[] = {
 		.compatible = "amlogic, vpu-g12b",
 		.data = &vpu_data_g12b,
 	},
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, vpu-tl1",
 		.data = &vpu_data_tl1,
 	},
+#endif
 	{
 		.compatible = "amlogic, vpu-sm1",
 		.data = &vpu_data_sm1,

@@ -735,6 +735,7 @@ static const struct dev_pm_ops meson_i2c_pm_ops = {
 };
 #endif
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct meson_i2c_data i2c_meson6_data = {
 	.div_factor = 4,
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -755,6 +756,7 @@ static const struct meson_i2c_data i2c_axg_data = {
 	.delay_ajust = 15,
 #endif
 };
+#endif
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 /* for the stable i2c controller, div_factor=3*/
@@ -765,9 +767,11 @@ static const struct meson_i2c_data i2c_meson_data = {
 #endif
 
 static const struct of_device_id meson_i2c_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{ .compatible = "amlogic,meson6-i2c", .data = &i2c_meson6_data },
 	{ .compatible = "amlogic,meson-gxbb-i2c", .data = &i2c_gxbb_data },
 	{ .compatible = "amlogic,meson-axg-i2c", .data = &i2c_axg_data },
+#endif
 #ifdef CONFIG_AMLOGIC_MODIFY
 	{ .compatible = "amlogic,meson-i2c", .data = &i2c_meson_data },
 #endif

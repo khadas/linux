@@ -4039,6 +4039,7 @@ static void mem_free_work(struct work_struct *work)
 	}
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct osd_device_data_s osd_gxbb = {
 	.cpu_id = __MESON_CPU_MAJOR_ID_GXBB,
 	.osd_ver = OSD_NORMAL,
@@ -4180,6 +4181,47 @@ static struct osd_device_data_s osd_axg = {
 	.has_vpp2 = 0,
 };
 
+static struct osd_device_data_s osd_tl1 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_TL1,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 3,
+	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 1,
+	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0,
+	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
+};
+
+static struct osd_device_data_s osd_a1 = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_A1,
+	.osd_ver = OSD_NONE,
+	.afbc_type = NO_AFBC,
+	.osd_count = 1,
+	.has_deband = 0,
+	.has_lut = 0,
+	.has_rdma = 0,
+	.has_dolby_vision = 0,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
+	.osd_rgb2yuv = 0,
+	.mif_linear = 0,
+	.has_vpp1 = 0,
+	.has_vpp2 = 0,
+};
+#endif
+
 static struct osd_device_data_s osd_g12a = {
 	.cpu_id = __MESON_CPU_MAJOR_ID_G12A,
 	.osd_ver = OSD_HIGH_ONE,
@@ -4209,26 +4251,6 @@ static struct osd_device_data_s osd_g12b = {
 	.has_lut = 1,
 	.has_rdma = 1,
 	.has_dolby_vision = 1,
-	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
-	.vpp_fifo_len = 0xfff,/* 2048 */
-	.dummy_data = 0x00808000,
-	.has_viu2 = 1,
-	.osd0_sc_independ = 0,
-	.osd_rgb2yuv = 0,
-	.mif_linear = 0,
-	.has_vpp1 = 0,
-	.has_vpp2 = 0,
-};
-
-static struct osd_device_data_s osd_tl1 = {
-	.cpu_id = __MESON_CPU_MAJOR_ID_TL1,
-	.osd_ver = OSD_HIGH_ONE,
-	.afbc_type = MALI_AFBC,
-	.osd_count = 3,
-	.has_deband = 1,
-	.has_lut = 1,
-	.has_rdma = 1,
-	.has_dolby_vision = 0,
 	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
 	.vpp_fifo_len = 0xfff,/* 2048 */
 	.dummy_data = 0x00808000,
@@ -4273,26 +4295,6 @@ static struct osd_device_data_s osd_tm2 = {
 	.vpp_fifo_len = 0xfff,/* 2048 */
 	.dummy_data = 0x00808000,
 	.has_viu2 = 1,
-	.osd0_sc_independ = 0,
-	.osd_rgb2yuv = 0,
-	.mif_linear = 0,
-	.has_vpp1 = 0,
-	.has_vpp2 = 0,
-};
-
-static struct osd_device_data_s osd_a1 = {
-	.cpu_id = __MESON_CPU_MAJOR_ID_A1,
-	.osd_ver = OSD_NONE,
-	.afbc_type = NO_AFBC,
-	.osd_count = 1,
-	.has_deband = 0,
-	.has_lut = 0,
-	.has_rdma = 0,
-	.has_dolby_vision = 0,
-	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
-	.vpp_fifo_len = 0xfff,/* 2048 */
-	.dummy_data = 0x00808000,
-	.has_viu2 = 0,
 	.osd0_sc_independ = 0,
 	.osd_rgb2yuv = 0,
 	.mif_linear = 0,
@@ -4412,6 +4414,7 @@ static struct osd_device_data_s osd_s4 = {
 };
 
 static const struct of_device_id meson_fb_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, fb-gxbb",
 		.data = &osd_gxbb,
@@ -4446,6 +4449,15 @@ static const struct of_device_id meson_fb_dt_match[] = {
 
 	},
 	{
+		.compatible = "amlogic, fb-tl1",
+		.data = &osd_tl1,
+	},
+	{
+		.compatible = "amlogic, fb-a1",
+		.data = &osd_a1,
+	},
+#endif
+	{
 		.compatible = "amlogic, fb-g12a",
 		.data = &osd_g12a,
 	},
@@ -4454,20 +4466,12 @@ static const struct of_device_id meson_fb_dt_match[] = {
 		.data = &osd_g12b,
 	},
 	{
-		.compatible = "amlogic, fb-tl1",
-		.data = &osd_tl1,
-	},
-	{
 		.compatible = "amlogic, fb-sm1",
 		.data = &osd_sm1,
 	},
 	{
 		.compatible = "amlogic, fb-tm2",
 		.data = &osd_tm2,
-	},
-	{
-		.compatible = "amlogic, fb-a1",
-		.data = &osd_a1,
 	},
 	{
 		.compatible = "amlogic, fb-sc2",

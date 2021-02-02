@@ -49,10 +49,12 @@ struct meson_dma_data {
 	u32 status;
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 struct meson_dma_data meson_gxl_data = {
 	.thread = GXL_DMA_T0,
 	.status = GXL_DMA_STS0,
 };
+#endif
 
 struct meson_dma_data meson_txlx_data = {
 	.thread = TXLX_DMA_T0,
@@ -61,9 +63,11 @@ struct meson_dma_data meson_txlx_data = {
 
 #ifdef CONFIG_OF
 static const struct of_device_id aml_dma_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{	.compatible = "amlogic,aml_gxl_dma",
 		.data = &meson_gxl_data,
 	},
+#endif
 	{	.compatible = "amlogic,aml_txlx_dma",
 		.data = &meson_txlx_data,
 	},

@@ -3761,12 +3761,14 @@ static int meson_mmc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct meson_mmc_data meson_gx_data = {
 	.tx_delay_mask	= CLK_V2_TX_DELAY_MASK,
 	.rx_delay_mask	= CLK_V2_RX_DELAY_MASK,
 	.always_on	= CLK_V2_ALWAYS_ON,
 	.adjust		= SD_EMMC_ADJUST,
 };
+#endif
 
 static const struct meson_mmc_data meson_axg_data = {
 	.tx_delay_mask	= CLK_V3_TX_DELAY_MASK,
@@ -3776,10 +3778,12 @@ static const struct meson_mmc_data meson_axg_data = {
 };
 
 static const struct of_device_id meson_mmc_of_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{ .compatible = "amlogic,meson-gx-mmc",		.data = &meson_gx_data },
 	{ .compatible = "amlogic,meson-gxbb-mmc", 	.data = &meson_gx_data },
 	{ .compatible = "amlogic,meson-gxl-mmc",	.data = &meson_gx_data },
 	{ .compatible = "amlogic,meson-gxm-mmc",	.data = &meson_gx_data },
+#endif
 	{ .compatible = "amlogic,meson-axg-mmc",	.data = &meson_axg_data },
 	{}
 };

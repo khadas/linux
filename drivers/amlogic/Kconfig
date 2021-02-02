@@ -13,6 +13,14 @@ config AMLOGIC_MODIFY
 		kernel source code. All modify of kernel standard code
 		should be wrapped by this config
 
+config AMLOGIC_REMOVE_OLD
+	bool "Amlogic remove old soc code for g12a previous"
+	default n
+	help
+		This option is set up for removing code for G12A
+		previous.All modify of not used code should be
+		wrapped by this config
+
 config AMLOGIC_ARMV8_AARCH64
 	bool "AARCH64 kernel support for Amlogic ARMv8 Soc"
 	depends on AMLOGIC_MODIFY || COMPILE_TEST

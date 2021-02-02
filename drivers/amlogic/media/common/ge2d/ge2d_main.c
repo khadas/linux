@@ -1149,6 +1149,7 @@ static struct ge2d_ctrl_s runtime_poweroff_ctrl[] = {
 struct ge2d_power_table_s runtime_poweron_table = {1, runtime_poweron_ctrl};
 struct ge2d_power_table_s runtime_poweroff_table = {1, runtime_poweroff_ctrl};
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct ge2d_device_data_s ge2d_gxl = {
 	.ge2d_rate = 400000000,
 	.src2_alp = 0,
@@ -1204,30 +1205,6 @@ static struct ge2d_device_data_s ge2d_axg = {
 	.chip_type = MESON_CPU_MAJOR_ID_AXG,
 };
 
-static struct ge2d_device_data_s ge2d_g12a = {
-	.ge2d_rate = 500000000,
-	.src2_alp = 1,
-	.canvas_status = 0,
-	.deep_color = 1,
-	.hang_flag = 1,
-	.fifo = 1,
-	.has_self_pwr = 0,
-	.chip_type = MESON_CPU_MAJOR_ID_G12A,
-};
-
-static struct ge2d_device_data_s ge2d_sm1 = {
-	.ge2d_rate = 500000000,
-	.src2_alp = 1,
-	.canvas_status = 0,
-	.deep_color = 1,
-	.hang_flag = 1,
-	.fifo = 1,
-	.has_self_pwr = 1,
-	.poweron_table = &default_poweron_table,
-	.poweroff_table = &default_poweroff_table,
-	.chip_type = MESON_CPU_MAJOR_ID_SM1,
-};
-
 static struct ge2d_device_data_s ge2d_c1 = {
 	.ge2d_rate = 400000000,
 	.src2_alp = 1,
@@ -1254,6 +1231,31 @@ static struct ge2d_device_data_s ge2d_c2 = {
 	.chip_type = MESON_CPU_MAJOR_ID_C2,
 	.adv_matrix = 1,
 	.src2_repeat = 1,
+};
+#endif
+
+static struct ge2d_device_data_s ge2d_g12a = {
+	.ge2d_rate = 500000000,
+	.src2_alp = 1,
+	.canvas_status = 0,
+	.deep_color = 1,
+	.hang_flag = 1,
+	.fifo = 1,
+	.has_self_pwr = 0,
+	.chip_type = MESON_CPU_MAJOR_ID_G12A,
+};
+
+static struct ge2d_device_data_s ge2d_sm1 = {
+	.ge2d_rate = 500000000,
+	.src2_alp = 1,
+	.canvas_status = 0,
+	.deep_color = 1,
+	.hang_flag = 1,
+	.fifo = 1,
+	.has_self_pwr = 1,
+	.poweron_table = &default_poweron_table,
+	.poweroff_table = &default_poweroff_table,
+	.chip_type = MESON_CPU_MAJOR_ID_SM1,
 };
 
 static struct ge2d_device_data_s ge2d_sc2 = {
@@ -1316,6 +1318,7 @@ static struct ge2d_device_data_s ge2d_s4 = {
 };
 
 static const struct of_device_id ge2d_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, ge2d-gxl",
 		.data = &ge2d_gxl,
@@ -1337,20 +1340,21 @@ static const struct of_device_id ge2d_dt_match[] = {
 		.data = &ge2d_axg,
 	},
 	{
-		.compatible = "amlogic, ge2d-g12a",
-		.data = &ge2d_g12a,
-	},
-	{
-		.compatible = "amlogic, ge2d-sm1",
-		.data = &ge2d_sm1,
-	},
-	{
 		.compatible = "amlogic, ge2d-c1",
 		.data = &ge2d_c1,
 	},
 	{
 		.compatible = "amlogic, ge2d-c2",
 		.data = &ge2d_c2,
+	},
+#endif
+	{
+		.compatible = "amlogic, ge2d-g12a",
+		.data = &ge2d_g12a,
+	},
+	{
+		.compatible = "amlogic, ge2d-sm1",
+		.data = &ge2d_sm1,
 	},
 	{
 		.compatible = "amlogic, ge2d-sc2",

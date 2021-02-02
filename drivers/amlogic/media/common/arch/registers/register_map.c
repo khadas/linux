@@ -26,6 +26,7 @@ static u32 regs_cmd_debug;
 struct codecio_device_data_s codecio_meson_dev;
 EXPORT_SYMBOL(codecio_meson_dev);
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct codecio_device_data_s codecio_gxbb = {
 	.cpu_id = MESON_CPU_MAJOR_ID_GXBB,
 };
@@ -54,16 +55,17 @@ static struct codecio_device_data_s codecio_axg = {
 	.cpu_id = MESON_CPU_MAJOR_ID_AXG,
 };
 
+static struct codecio_device_data_s codecio_tl1 = {
+	.cpu_id = MESON_CPU_MAJOR_ID_TL1,
+};
+#endif
+
 static struct codecio_device_data_s codecio_g12a = {
 	.cpu_id = MESON_CPU_MAJOR_ID_G12A,
 };
 
 static struct codecio_device_data_s codecio_g12b = {
 	.cpu_id = MESON_CPU_MAJOR_ID_G12B,
-};
-
-static struct codecio_device_data_s codecio_tl1 = {
-	.cpu_id = MESON_CPU_MAJOR_ID_TL1,
 };
 
 static struct codecio_device_data_s codecio_sm1 = {
@@ -95,6 +97,7 @@ static struct codecio_device_data_s codecio_s4 = {
 };
 
 static const struct of_device_id codec_io_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, meson-gxbb, codec-io",
 		.data = &codecio_gxbb,
@@ -129,16 +132,17 @@ static const struct of_device_id codec_io_dt_match[] = {
 
 	},
 	{
+		.compatible = "amlogic, meson-tl1, codec-io",
+		.data = &codecio_tl1,
+	},
+#endif
+	{
 		.compatible = "amlogic, meson-g12a, codec-io",
 		.data = &codecio_g12a,
 	},
 	{
 		.compatible = "amlogic, meson-g12b, codec-io",
 		.data = &codecio_g12b,
-	},
-	{
-		.compatible = "amlogic, meson-tl1, codec-io",
-		.data = &codecio_tl1,
 	},
 	{
 		.compatible = "amlogic, meson-sm1, codec-io",

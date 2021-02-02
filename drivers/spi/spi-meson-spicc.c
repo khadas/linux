@@ -1347,6 +1347,7 @@ static const struct dev_pm_ops meson_spicc_pm_ops = {
 			   NULL)
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct meson_spicc_data meson_spicc_gx_data = {
 	.max_speed_hz = 30000000,
 };
@@ -1356,6 +1357,7 @@ static const struct meson_spicc_data meson_spicc_axg_data = {
 	.has_linear_div = true,
 	.has_oen = true,
 };
+#endif
 
 static const struct meson_spicc_data meson_spicc_g12_data = {
 	.max_speed_hz = 124000000,
@@ -1367,6 +1369,7 @@ static const struct meson_spicc_data meson_spicc_g12_data = {
 
 static const struct of_device_id meson_spicc_of_match[] = {
 #ifdef CONFIG_AMLOGIC_MODIFY
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic,meson-gx-spicc",
 		.data = &meson_spicc_gx_data,
@@ -1375,6 +1378,7 @@ static const struct of_device_id meson_spicc_of_match[] = {
 		.compatible = "amlogic,meson-axg-spicc",
 		.data = &meson_spicc_axg_data,
 	},
+#endif
 	{
 		.compatible = "amlogic,meson-g12-spicc",
 		.data = &meson_spicc_g12_data,

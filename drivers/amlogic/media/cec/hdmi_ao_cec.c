@@ -3675,6 +3675,7 @@ static void aocec_late_resume(struct early_suspend *h)
 #endif
 
 #ifdef CONFIG_OF
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct cec_platform_data_s cec_gxl_data = {
 	.chip_id = CEC_CHIP_GXL,
 	.line_reg = 0,
@@ -3691,30 +3692,6 @@ static const struct cec_platform_data_s cec_txlx_data = {
 	.chip_id = CEC_CHIP_TXLX,
 	.line_reg = 0,
 	.line_bit = 7,
-	.ee_to_ao = 1,
-	.ceca_sts_reg = 0,
-	.ceca_ver = CECA_VER_0,
-	.cecb_ver = CECB_VER_1,
-	.share_io = false,
-	.reg_tab_group = cec_reg_group_old,
-};
-
-static const struct cec_platform_data_s cec_g12a_data = {
-	.chip_id = CEC_CHIP_G12A,
-	.line_reg = 1,
-	.line_bit = 3,
-	.ee_to_ao = 1,
-	.ceca_sts_reg = 0,
-	.ceca_ver = CECA_VER_0,
-	.cecb_ver = CECB_VER_1,
-	.share_io = false,
-	.reg_tab_group = cec_reg_group_old,
-};
-
-static const struct cec_platform_data_s cec_g12b_data = {
-	.chip_id = CEC_CHIP_G12B,
-	.line_reg = 1,
-	.line_bit = 3,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 0,
 	.ceca_ver = CECA_VER_0,
@@ -3747,6 +3724,44 @@ static const struct cec_platform_data_s cec_tl1_data = {
 	.reg_tab_group = cec_reg_group_old,
 };
 
+static const struct cec_platform_data_s cec_a1_data = {
+	.chip_id = CEC_CHIP_A1,
+	.line_reg = 0xff,/*don't check*/
+	.line_bit = 0,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 1,
+	.ceca_ver = CECA_VER_1,
+	.cecb_ver = CECB_VER_2,
+	.share_io = true,
+	.reg_tab_group = cec_reg_group_a1,
+};
+#endif
+
+static const struct cec_platform_data_s cec_g12a_data = {
+	.chip_id = CEC_CHIP_G12A,
+	.line_reg = 1,
+	.line_bit = 3,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_VER_0,
+	.cecb_ver = CECB_VER_1,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_old,
+};
+
+static const struct cec_platform_data_s cec_g12b_data = {
+	.chip_id = CEC_CHIP_G12B,
+	.line_reg = 1,
+	.line_bit = 3,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 0,
+	.ceca_ver = CECA_VER_0,
+	.cecb_ver = CECB_VER_1,
+	.share_io = false,
+	.reg_tab_group = cec_reg_group_old,
+};
+
+
 static const struct cec_platform_data_s cec_sm1_data = {
 	.chip_id = CEC_CHIP_SM1,
 	.line_reg = 1,/*line_reg=1:PREG_PAD_GPIO3_I*/
@@ -3769,18 +3784,6 @@ static const struct cec_platform_data_s cec_tm2_data = {
 	.cecb_ver = CECB_VER_2,
 	.share_io = true,
 	.reg_tab_group = cec_reg_group_old,
-};
-
-static const struct cec_platform_data_s cec_a1_data = {
-	.chip_id = CEC_CHIP_A1,
-	.line_reg = 0xff,/*don't check*/
-	.line_bit = 0,
-	.ee_to_ao = 1,
-	.ceca_sts_reg = 1,
-	.ceca_ver = CECA_VER_1,
-	.cecb_ver = CECB_VER_2,
-	.share_io = true,
-	.reg_tab_group = cec_reg_group_a1,
 };
 
 static const struct cec_platform_data_s cec_sc2_data = {
@@ -3844,6 +3847,7 @@ static const struct cec_platform_data_s cec_s4_data = {
 };
 
 static const struct of_device_id aml_cec_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, amlogic-aocec",
 		.data = &cec_gxl_data,
@@ -3851,14 +3855,6 @@ static const struct of_device_id aml_cec_dt_match[] = {
 	{
 		.compatible = "amlogic, aocec-txlx",
 		.data = &cec_txlx_data,
-	},
-	{
-		.compatible = "amlogic, aocec-g12a",
-		.data = &cec_g12a_data,
-	},
-	{
-		.compatible = "amlogic, aocec-g12b",
-		.data = &cec_g12b_data,
 	},
 	{
 		.compatible = "amlogic, aocec-txl",
@@ -3869,16 +3865,25 @@ static const struct of_device_id aml_cec_dt_match[] = {
 		.data = &cec_tl1_data,
 	},
 	{
+		.compatible = "amlogic, aocec-a1",
+		.data = &cec_a1_data,
+	},
+#endif
+	{
+		.compatible = "amlogic, aocec-g12a",
+		.data = &cec_g12a_data,
+	},
+	{
+		.compatible = "amlogic, aocec-g12b",
+		.data = &cec_g12b_data,
+	},
+	{
 		.compatible = "amlogic, aocec-sm1",
 		.data = &cec_sm1_data,
 	},
 	{
 		.compatible = "amlogic, aocec-tm2",
 		.data = &cec_tm2_data,
-	},
-	{
-		.compatible = "amlogic, aocec-a1",
-		.data = &cec_a1_data,
 	},
 	{
 		.compatible = "amlogic, aocec-sc2",

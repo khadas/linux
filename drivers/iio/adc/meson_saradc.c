@@ -1888,6 +1888,7 @@ static const struct iio_info meson_sar_adc_iio_info = {
 #endif
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 #ifdef CONFIG_AMLOGIC_MODIFY
 static
 const struct meson_sar_adc_param meson_sar_adc_meson8_param __initconst = {
@@ -1960,8 +1961,10 @@ static const struct meson_sar_adc_param meson_sar_adc_gxl_param = {
 	.calib_enable = true,
 #endif
 };
+#endif
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct meson_sar_adc_param meson_sar_adc_txlx_param __initconst = {
 	.has_bl30_integration = true,
 	.clock_rate = 1200000,
@@ -1973,6 +1976,7 @@ static const struct meson_sar_adc_param meson_sar_adc_txlx_param __initconst = {
 	.vref_enable = 1,
 	.cmv_select = 1,
 };
+#endif
 
 static const struct meson_sar_adc_param meson_sar_adc_g12a_param __initconst = {
 	.has_bl30_integration = false,
@@ -1989,6 +1993,7 @@ static const struct meson_sar_adc_param meson_sar_adc_g12a_param __initconst = {
 };
 #endif
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 #ifdef CONFIG_AMLOGIC_MODIFY
 static const struct meson_sar_adc_data meson_sar_adc_meson8_data __initconst = {
 #else
@@ -2054,6 +2059,7 @@ static const struct meson_sar_adc_data meson_sar_adc_axg_data = {
 #endif
 	.name = "meson-axg-saradc",
 };
+#endif
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 static const struct meson_sar_adc_data meson_sar_adc_g12a_data __initconst = {
@@ -2066,13 +2072,16 @@ static const struct meson_sar_adc_data meson_sar_adc_g12a_data = {
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct meson_sar_adc_data meson_sar_adc_txlx_data __initconst = {
 	.param = &meson_sar_adc_txlx_param,
 	.name = "meson-txlx-saradc",
 };
 #endif
+#endif
 
 static const struct of_device_id meson_sar_adc_of_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic,meson8-saradc",
 		.data = &meson_sar_adc_meson8_data,
@@ -2097,15 +2106,19 @@ static const struct of_device_id meson_sar_adc_of_match[] = {
 	}, {
 		.compatible = "amlogic,meson-axg-saradc",
 		.data = &meson_sar_adc_axg_data,
-	}, {
+	},
+#endif
+	{
 		.compatible = "amlogic,meson-g12a-saradc",
 		.data = &meson_sar_adc_g12a_data,
 	},
 #ifdef CONFIG_AMLOGIC_MODIFY
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic,meson-txlx-saradc",
 		.data = &meson_sar_adc_txlx_data,
 	},
+#endif
 #endif
 	{},
 };

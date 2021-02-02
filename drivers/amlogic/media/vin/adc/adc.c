@@ -812,6 +812,7 @@ static const struct dev_pm_ops adc_pm = {
 	.resume_noirq = adc_resume_noirq,
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct adc_platform_data_s adc_data_txl = {
 	.chip_id = ADC_CHIP_TXL,
 };
@@ -827,6 +828,7 @@ static const struct adc_platform_data_s adc_data_gxlx = {
 static const struct adc_platform_data_s adc_data_tl1 = {
 	.chip_id = ADC_CHIP_TL1,
 };
+#endif
 
 static const struct adc_platform_data_s adc_data_tm2 = {
 	.chip_id = ADC_CHIP_TM2,
@@ -837,6 +839,7 @@ static const struct adc_platform_data_s adc_data_t5d = {
 };
 
 static const struct of_device_id adc_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, adc-txl",
 		.data = &adc_data_txl,
@@ -853,6 +856,7 @@ static const struct of_device_id adc_dt_match[] = {
 		.compatible = "amlogic, adc-tl1",
 		.data = &adc_data_tl1,
 	},
+#endif
 	{
 		.compatible = "amlogic, adc-tm2",
 		.data = &adc_data_tm2,

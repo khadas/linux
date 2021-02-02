@@ -93,10 +93,12 @@ static const struct meson_reset_param meson8b_param = {
 	.level_offset	= 0x7c,
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct meson_reset_param meson_a1_param = {
 	.reg_count	= 3,
 	.level_offset	= 0x40,
 };
+#endif
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 static const struct meson_reset_param meson_sc2_param = {
@@ -111,11 +113,13 @@ static const struct meson_reset_param meson_t7_param = {
 #endif
 
 static const struct of_device_id meson_reset_dt_ids[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	 { .compatible = "amlogic,meson8b-reset",    .data = &meson8b_param},
 	 { .compatible = "amlogic,meson-gxbb-reset", .data = &meson8b_param},
-	 { .compatible = "amlogic,meson-axg-reset",  .data = &meson8b_param},
 	 { .compatible = "amlogic,meson-a1-reset",   .data = &meson_a1_param},
+#endif
 #ifdef CONFIG_AMLOGIC_MODIFY
+	 { .compatible = "amlogic,meson-axg-reset",  .data = &meson8b_param},
 	 { .compatible = "amlogic,meson-sc2-reset",  .data = &meson_sc2_param},
 	 { .compatible = "amlogic,meson-t5d-reset",  .data = &meson8b_param},
 	 { .compatible = "amlogic,meson-t7-reset",  .data = &meson_t7_param},

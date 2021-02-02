@@ -607,6 +607,7 @@ static int dmc_monitor_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id dmc_monitor_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic,dmc_monitor-gxl",
 		.data = (void *)DMC_TYPE_GXL,	/* chip id */
@@ -622,18 +623,6 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-axg",
 		.data = (void *)DMC_TYPE_AXG,
-	},
-	{
-		.compatible = "amlogic,dmc_monitor-g12a",
-		.data = (void *)DMC_TYPE_G12A,
-	},
-	{
-		.compatible = "amlogic,dmc_monitor-sm1",
-		.data = (void *)DMC_TYPE_SM1,
-	},
-	{
-		.compatible = "amlogic,dmc_monitor-g12b",
-		.data = (void *)DMC_TYPE_G12B,
 	},
 	{
 		.compatible = "amlogic,dmc_monitor-txl",
@@ -654,6 +643,19 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-c1",
 		.data = (void *)DMC_TYPE_C1,
+	},
+#endif
+	{
+		.compatible = "amlogic,dmc_monitor-g12a",
+		.data = (void *)DMC_TYPE_G12A,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-sm1",
+		.data = (void *)DMC_TYPE_SM1,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-g12b",
+		.data = (void *)DMC_TYPE_G12B,
 	},
 	{
 		.compatible = "amlogic,dmc_monitor-tm2",
