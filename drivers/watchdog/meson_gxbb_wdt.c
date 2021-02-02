@@ -184,6 +184,17 @@ static void meson_clk_disable_unprepare(void *data)
 	clk_disable_unprepare(data);
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static void meson_gxbb_wdt_shutdown(struct platform_device *pdev)
+{
+	struct meson_gxbb_wdt *data = platform_get_drvdata(pdev);
+
+	if (watchdog_active(&data->wdt_dev) ||
+	    watchdog_hw_running(&data->wdt_dev))
+		meson_gxbb_wdt_stop(&data->wdt_dev);
+};
+#endif
+
 static int meson_gxbb_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -271,6 +282,9 @@ static struct platform_driver meson_gxbb_wdt_driver = {
 		.pm = &meson_gxbb_wdt_pm_ops,
 		.of_match_table	= meson_gxbb_wdt_dt_ids,
 	},
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.shutdown = meson_gxbb_wdt_shutdown,
+#endif
 };
 
 module_platform_driver(meson_gxbb_wdt_driver);
