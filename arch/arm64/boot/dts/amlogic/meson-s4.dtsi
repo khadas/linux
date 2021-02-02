@@ -9,7 +9,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/s4-pd.h>
-#include <dt-bindings/clock/amlogic,sm1-audio-clk.h>
+#include <dt-bindings/clock/amlogic,sc2-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-s4-gpio.h>
 #include <dt-bindings/reset/amlogic,meson-s4-reset.h>
@@ -722,50 +722,6 @@
 					"frddr_d";
 			};
 		};/* end of audiobus*/
-
-		/* eARC */
-		audio_earc: bus@fe333000 {
-			//compatible = "simple-bus";
-			reg = <0x0 0xfe333000 0x0 0x1000>;
-			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges = <0x0 0x0 0x0 0xfe333000 0x0 0x1000>;
-
-			earc: earc@0 {
-				compatible = "amlogic, sm1-snd-earc";
-				#sound-dai-cells = <0>;
-
-				status = "disabled";
-
-				reg =
-					<0x0 0x800 0x0 0x400>,
-					<0x0 0xc00 0x0 0x200>,
-					<0x0 0xe00 0x0 0x200>;
-				reg-names =
-					"rx_cmdc",
-					"rx_dmac",
-					"rx_top";
-
-				clocks = < &clkaudio CLKID_EARCRX_CMDC
-					&clkaudio CLKID_EARCRX_DMAC
-					&clkc CLKID_FCLK_DIV4
-					&clkc CLKID_FCLK_DIV4
-					&clkaudio CLKID_EARCTX_CMDC
-					&clkaudio CLKID_EARCTX_DMAC
-					&clkc CLKID_FCLK_DIV4
-					&clkc CLKID_MPLL1
-					>;
-				clock-names =
-					"rx_cmdc",
-					"rx_dmac",
-					"rx_cmdc_srcpll",
-					"rx_dmac_srcpll";
-
-				interrupts = <
-					GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names = "earc_rx";
-			};
-		};
 
 		/* Sound iomap */
 		aml_snd_iomap {

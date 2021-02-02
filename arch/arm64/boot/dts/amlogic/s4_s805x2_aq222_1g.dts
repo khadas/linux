@@ -462,7 +462,7 @@
 
 		/*avout mute gpio*/
 		avout_mute-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
-		spk_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		spk_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_LOW>;
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
@@ -599,18 +599,6 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
-
-//		aml-audio-card,dai-link@6 {
-//			mclk-fs = <256>;
-//			suffix-name = "alsaPORT-earc";
-//			cpu {
-//				sound-dai = <&earc>;
-//				system-clock-frequency = <12288000>;
-//			};
-//			codec {
-//				sound-dai = <&dummy_codec>;
-//			};
-//		};
 
 		aml-audio-card,dai-link@6 {
 			mclk-fs = <256>;
@@ -843,7 +831,7 @@
 	};
 
 	asrca: resample@0 {
-		compatible = "amlogic, tm2-revb-resample-a";
+		compatible = "amlogic, t5-resample-a";
 		clocks = <&clkc CLKID_MPLL3
 				&clkaudio CLKID_AUDIO_MCLK_F
 				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
@@ -859,6 +847,19 @@
 		 *	LOOPBACK, 7
 		 */
 		resample_module = <4>;
+		status = "disabled";
+	};
+
+	asrcb:resample@1 {
+		compatible = "amlogic, t5-resample-b";
+		clocks = <&clkc CLKID_MPLL3
+			&clkaudio CLKID_AUDIO_MCLK_F
+			&clkaudio CLKID_AUDIO_RESAMPLE_B>;
+		clock-names = "resample_pll", "resample_src", "resample_clk";
+
+		/*this resample is only used for loopback_A.*/
+		capture_sample_rate = <16000>;
+
 		status = "disabled";
 	};
 
@@ -954,7 +955,7 @@
 	};
 
 	loopbackb:loopback@1 {
-		compatible = "amlogic, tm2-revb-loopbackb";
+		compatible = "amlogic, t5-loopbackb";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1029,10 +1030,6 @@
 		status = "okay";
 	};
 }; /* end of audiobus */
-
-&earc {
-	status = "disabled";
-};
 
 &periphs_pinctrl {
 	tdm_a: tdm_a {
@@ -1169,7 +1166,7 @@
 }; /* end of periphs_pinctrl */
 
 &audio_data {
-	status = "disabled";
+	status = "okay";
 };
 
 &dwc2_a {

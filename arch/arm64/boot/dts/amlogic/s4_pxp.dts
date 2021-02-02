@@ -601,18 +601,6 @@
 			};
 		};
 
-//		aml-audio-card,dai-link@6 {
-//			mclk-fs = <256>;
-//			suffix-name = "alsaPORT-earc";
-//			cpu {
-//				sound-dai = <&earc>;
-//				system-clock-frequency = <12288000>;
-//			};
-//			codec {
-//				sound-dai = <&dummy_codec>;
-//			};
-//		};
-
 		aml-audio-card,dai-link@6 {
 			mclk-fs = <256>;
 			continuous-clock;
@@ -725,7 +713,7 @@
 
 &audiobus {
 	tdma: tdm@0 {
-		compatible = "amlogic, sc2-snd-tdma";
+		compatible = "amlogic, t5-snd-tdma";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <0 1>;
 		dai-tdm-lane-oe-slot-mask-out = <1 0>;
@@ -740,7 +728,7 @@
 	};
 
 	tdmb: tdm@1 {
-		compatible = "amlogic, tm2-revb-snd-tdmb";
+		compatible = "amlogic, t5-snd-tdmb";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <0 1 0 0>;
 		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
@@ -754,9 +742,6 @@
 			"samesource_srcpll", "samesource_clk";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = </*&tdmb_mclk &tdmout_b &tdmin_b*/>;
-
-		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
-
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -776,7 +761,7 @@
 	};
 
 	tdmc: tdm@2 {
-		compatible = "amlogic, tm2-revb-snd-tdmc";
+		compatible = "amlogic, t5-snd-tdmc";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <2>;
@@ -847,7 +832,7 @@
 	};
 
 	asrca: resample@0 {
-		compatible = "amlogic, tm2-revb-resample-a";
+		compatible = "amlogic, t5-resample-a";
 		clocks = <&clkc CLKID_MPLL3
 				&clkaudio CLKID_AUDIO_MCLK_F
 				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
@@ -866,6 +851,19 @@
 		status = "disabled";
 	};
 
+	asrcb:resample@1 {
+		compatible = "amlogic, t5-resample-b";
+		clocks = <&clkc CLKID_MPLL3
+			&clkaudio CLKID_AUDIO_MCLK_F
+			&clkaudio CLKID_AUDIO_RESAMPLE_B>;
+		clock-names = "resample_pll", "resample_src", "resample_clk";
+
+		/*this resample is only used for loopback_A.*/
+		capture_sample_rate = <16000>;
+
+		status = "disabled";
+	};
+
 	vad:vad {
 		compatible = "amlogic, snd-vad";
 		#sound-dai-cells = <0>;
@@ -875,8 +873,8 @@
 			&clkaudio CLKID_AUDIO_VAD>;
 		clock-names = "gate", "pll", "clk";
 
-		interrupts = <GIC_SPI 155 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 48 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 39 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 44 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "irq_wakeup", "irq_frame_sync";
 
 		/*
@@ -903,7 +901,7 @@
 	};
 
 	loopbacka:loopback@0 {
-		compatible = "amlogic, tm2-revb-loopbacka";
+		compatible = "amlogic, t5-loopbacka";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -958,7 +956,7 @@
 	};
 
 	loopbackb:loopback@1 {
-		compatible = "amlogic, tm2-revb-loopbackb";
+		compatible = "amlogic, t5-loopbackb";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1033,10 +1031,6 @@
 		status = "disabled";
 	};
 }; /* end of audiobus */
-
-&earc {
-	status = "disabled";
-};
 
 &periphs_pinctrl {
 	tdm_a: tdm_a {

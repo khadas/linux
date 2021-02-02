@@ -952,7 +952,7 @@
 	};
 
 	loopbacka:loopback@0 {
-		compatible = "amlogic, t5-loopbacka";
+		compatible = "amlogic, tm2-revb-loopbacka";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
