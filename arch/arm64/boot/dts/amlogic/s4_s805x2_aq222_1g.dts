@@ -632,7 +632,7 @@
 
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";
-		status = "disabled";
+		status = "okay";
 		opp-shared;
 
 		opp00 {
@@ -679,24 +679,16 @@
 			opp-hz = /bits/ 64 <1800000000>;
 			opp-microvolt = <959000>;
 		};
-		opp11 {
-			opp-hz = /bits/ 64 <1908000000>;
-			opp-microvolt = <1019000>;
-		};
-		opp12 {
-			opp-hz = /bits/ 64 <2004000000>;
-			opp-microvolt = <1049000>;
-		};
 	};
 
 	cpufreq-meson {
 		compatible = "amlogic, cpufreq-meson";
-		status = "disabled";
+		status = "okay";
 	};
 };
 
 &pwm_ij {
-	status = "disabled";
+	status = "okay";
 };
 
 &i2c2 {
@@ -707,7 +699,7 @@
 };
 
 &vddcpu0 {
-	status = "disabled";
+	status = "okay";
 };
 
 &audiobus {

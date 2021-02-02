@@ -633,7 +633,7 @@
 
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";
-		status = "disabled";
+		status = "okay";
 		opp-shared;
 
 		opp00 {
@@ -692,7 +692,7 @@
 
 	cpufreq-meson {
 		compatible = "amlogic, cpufreq-meson";
-		status = "disabled";
+		status = "okay";
 	};
 
 	adc_keypad {
@@ -710,7 +710,7 @@
 };
 
 &pwm_ij {
-	status = "disabled";
+	status = "okay";
 };
 
 &i2c2 {
@@ -721,7 +721,7 @@
 };
 
 &vddcpu0 {
-	status = "disabled";
+	status = "okay";
 };
 
 &audiobus {
