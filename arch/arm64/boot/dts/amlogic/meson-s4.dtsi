@@ -865,6 +865,7 @@
 			mmc_debug_flag;
 			cap-sdio-irq;
 			keep-power-in-suspend;
+			use_intf3_tuning;
 			//resets = <&reset RESET_SD_EMMC_A>;
 		};
 
