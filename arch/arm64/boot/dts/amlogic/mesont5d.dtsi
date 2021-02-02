@@ -1555,13 +1555,11 @@
 				node_name = "cpucore0";
 				device_type = "cpucore";
 			};
-/*
 			gpufreq_cool {
 				dyn_coeff = <245>;
 				node_name = "bifrost";
 				device_type = "gpufreq";
 			};
-*/
 		};
 		ddr_cool0:ddr_cool0 {
 			#cooling-cells = <2>; /* min followed by max */
@@ -1610,13 +1608,11 @@
 					cooling-device = <&ddr_cool0 0 2>;
 					contribution = <1024>;
 				};
-/*
 				gpufreq_cooling_map {
 					trip = <&pcontrol>;
-					cooling-device = <&gpu 0 4>;
+					cooling-device = <&gpu 0 3>;
 					contribution = <1024>;
 				};
-*/
 			};
 		};
 	}; /*thermal zone end*/
