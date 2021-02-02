@@ -698,6 +698,47 @@
 	clock-frequency = <300000>;
 };
 
+&i2c1 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c1_pins2>;
+	clock-frequency = <300000>; /* default 100k */
+
+	tlc59116: tlc59116@60 {
+		compatible = "amlogic,tlc59116_led";
+		reg = <0x60>;
+		status = "okay";
+
+		led0 {
+			default_colors = <0 0 0>;
+			r_io_number = <0>;
+			g_io_number = <10>;
+			b_io_number = <5>;
+		};
+
+		led1 {
+			default_colors = <0 0 0>;
+			r_io_number = <1>;
+			g_io_number = <11>;
+			b_io_number = <6>;
+		};
+
+		led2 {
+			default_colors = <0 0 0>;
+			r_io_number = <2>;
+			g_io_number = <12>;
+			b_io_number = <7>;
+		};
+
+		led3 {
+			default_colors = <0 0 0>;
+			r_io_number = <3>;
+			g_io_number = <13>;
+			b_io_number = <8>;
+		};
+	};
+};
+
 &vddcpu0 {
 	status = "okay";
 };
