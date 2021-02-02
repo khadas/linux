@@ -1321,6 +1321,7 @@
 };
 
 &amhdmitx {
+	res_1080p = <1>;
 	status = "okay";
 };
 

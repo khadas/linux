@@ -142,6 +142,7 @@ static struct hdmitx_dev hdmitx_device = {
 static const struct dv_info dv_dummy;
 static int log_level;
 static int hdr_mute_frame = 3;
+static unsigned int res_1080p;
 
 struct vout_device_s hdmitx_vdev = {
 	.dv_info = &hdmitx_device.rxcap.dv_info,
@@ -2708,12 +2709,7 @@ static int is_4k_fmt(char *mode)
 /* below items has feature limited, may need extra judgement */
 static bool hdmitx_limited_1080p(void)
 {
-	//if (is_meson_gxl_package_805X())
-	//	return 1;
-	//else if (is_meson_gxl_package_805Y())
-	//	return 1;
-	//else
-		return 0;
+	return res_1080p;
 }
 
 static bool hdmitx_limited_hdcp14(void)
@@ -6159,6 +6155,10 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 		if (!ret)
 			pr_info(SYS "hdmitx_device.dongle_mode: %d\n",
 				hdmitx_device.dongle_mode);
+		/* Get res_1080p information */
+		ret = of_property_read_u32(pdev->dev.of_node, "res_1080p",
+					   &res_1080p);
+		res_1080p = !!res_1080p;
 		/* Get repeater_tx information */
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "repeater_tx", &val);
