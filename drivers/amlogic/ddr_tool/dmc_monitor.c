@@ -593,7 +593,7 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	if (init_dev_mask)
 		dmc_set_monitor(init_start_addr,
 				init_end_addr, init_dev_mask, 1);
-
+	set_dump_dmc_func(dump_dmc_reg);
 	return 0;
 }
 
@@ -602,6 +602,7 @@ static int dmc_monitor_remove(struct platform_device *pdev)
 	cancel_delayed_work_sync(&dmc_mon->work);
 	class_unregister(&dmc_monitor_class);
 	dmc_mon = NULL;
+	set_dump_dmc_func(NULL);
 	return 0;
 }
 

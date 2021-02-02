@@ -306,7 +306,7 @@ static void show_data(unsigned long addr, int nbytes, const char *name)
 			}
 			++p;
 		}
-		pr_info("\n");
+		pr_cont("\n");
 	}
 }
 /*
@@ -348,7 +348,7 @@ static void show_user_data(unsigned long addr, int nbytes, const char *name)
 				pr_cont(" %08x", data);
 			++p;
 		}
-		pr_info("\n");
+		pr_cont("\n");
 	}
 }
 
@@ -429,7 +429,7 @@ static void show_user_extra_register_data(struct pt_regs *regs, int nbytes)
 	show_user_data(regs->pc - nbytes, nbytes * 2, "PC");
 	show_user_data(lr - nbytes, nbytes * 2, "LR");
 	show_user_data(sp - nbytes, nbytes * 2, "SP");
-	show_data(read_sysreg(far_el1), nbytes * 2, "FAR");
+	show_user_data(read_sysreg(far_el1), nbytes * 2, "FAR");
 	for (i = 0; i < top_reg; i++) {
 		char name[4];
 

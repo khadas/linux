@@ -77,8 +77,6 @@ unsigned int get_all_dev_mask(void);
 unsigned long dmc_prot_rw(void __iomem *base, unsigned long addr,
 			  unsigned long value, int rw);
 
-size_t dump_dmc_reg(char *buf);
-
 char *to_ports(int id);
 char *to_sub_ports(int mid, int sid, char *id_str);
 void show_violation_mem(unsigned long addr);
@@ -116,5 +114,11 @@ void dmc_monitor_exit(void)
 {
 }
 #endif
+
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+void set_dump_dmc_func(void *f);
+#else
+void set_dump_dmc_func(void *f) {}
+#endif /* CONFIG_AMLOGIC_USER_FAULT */
 
 #endif /* __DMC_MONITOR_H__ */

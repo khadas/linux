@@ -664,6 +664,9 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 		siaddr = NULL;
 	else
 		siaddr  = (void __user *)addr;
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	_dump_dmc_reg();
+#endif /* CONFIG_AMLOGIC_USER_FAULT */
 	arm64_notify_die(inf->name, regs, inf->sig, inf->code, siaddr, esr);
 
 	return 0;

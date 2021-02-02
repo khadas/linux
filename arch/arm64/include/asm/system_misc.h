@@ -33,12 +33,17 @@ struct mm_struct;
 #ifdef CONFIG_AMLOGIC_USER_FAULT
 void show_all_pfn(struct task_struct *task, struct pt_regs *regs);
 void show_vma(struct mm_struct *mm, unsigned long addr);
+void _dump_dmc_reg(void);
 #else
 static inline void show_all_pfn(struct task_struct *task, struct pt_regs *regs)
 {
 }
 
 static inline void show_vma(struct mm_struct *mm, unsigned long addr)
+{
+}
+
+static inline void _dump_dmc_reg(void)
 {
 }
 #endif /* CONFIG_AMLOGIC_USER_FAULT */

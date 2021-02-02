@@ -48,17 +48,26 @@
 #define DMC_VIO_PROT_RANGE0	BIT(17)
 #define DMC_VIO_PROT_RANGE1	BIT(18)
 
+#define DMC_SEC_STATUS                           (0x051a << 2)
+#define DMC_VIO_ADDR0                            (0x051b << 2)
+#define DMC_VIO_ADDR1                            (0x051c << 2)
+#define DMC_VIO_ADDR2                            (0x051d << 2)
+#define DMC_VIO_ADDR3                            (0x051e << 2)
+
 static size_t t7_dmc_dump_reg(char *buf)
 {
 	int sz = 0, i, j;
-	unsigned long val;
+	unsigned long val, base;
 	void *io;
 
 	for (j = 0; j < 2; j++) {
-		if (j)
+		if (j) {
 			io = dmc_mon->io_mem2;
-		else
+			base = 0xfe034000;
+		} else {
 			io = dmc_mon->io_mem1;
+			base = 0xfe036000;
+		}
 		sz += sprintf(buf + sz, "\nDMC%d:\n", j);
 
 		val = dmc_prot_rw(io, DMC_PROT0_STA, 0, DMC_READ);
@@ -85,6 +94,14 @@ static size_t t7_dmc_dump_reg(char *buf)
 		for (i = 0; i < 4; i++) {
 			val = dmc_prot_rw(io, DMC_PROT_VIO_0 + (i << 2), 0, DMC_READ);
 			sz += sprintf(buf + sz, "DMC_PROT_VIO_%d:%lx\n", i, val);
+		}
+
+		val = dmc_rw(base + DMC_SEC_STATUS, 0, DMC_READ);
+		sz += sprintf(buf + sz, "DMC_SEC_STATUS:%lx\n", val);
+
+		for (i = 0; i < 4; i++) {
+			val = dmc_rw(base + DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
+			sz += sprintf(buf + sz, "DMC_VIO_ADDR%zu:%lx\n", i, val);
 		}
 	}
 	return sz;
