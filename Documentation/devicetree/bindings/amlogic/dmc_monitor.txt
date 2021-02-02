@@ -20,6 +20,7 @@ Required properties for the root node:
 		      "amlogic,dmc_monitor-c1"
 		      "amlogic,dmc_monitor-t5"
 		      "amlogic,dmc_monitor-t5d"
+		      "amlogic,dmc_monitor-s4"
 
 Example:
 

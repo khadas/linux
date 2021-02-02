@@ -78,6 +78,15 @@ config AMLOGIC_DDR_BANDWIDTH_T5
 		to get ddr total bandwidth, it can be used for
 		ddr DVFS/devfreq system.
 
+config AMLOGIC_DDR_BANDWIDTH_S4
+        bool "Meson ddr bandwidth for S4"
+        default n
+        depends on AMLOGIC_DDR_BANDWIDTH
+        help
+                This config enables ddr bandwidth measure for S4.
+                If open it, this driver will export interface
+                to get ddr total bandwidth, it can be used for
+                ddr DVFS/devfreq system.
 
 config AMLOGIC_DMC_MONITOR
 	bool "Amlogic dmc monitor"
@@ -144,4 +153,14 @@ config AMLOGIC_DMC_MONITOR_T7
 		hardware. If hardware violated R/W permission, then interrupt
 		will generated and can help to debug memory pollution.
 
+config AMLOGIC_DMC_MONITOR_S4
+        bool "Amlogic dmc monitor for S4"
+        depends on AMLOGIC_DMC_MONITOR
+        default n
+        help
+                This config enables dmc monitor for s4 chip
+                DMC monitor for hardware connected to DMC master. Using it can
+                set up an address range and assign R/W permission for each
+                hardware. If hardware violated R/W permission, then interrupt
+                will generated and can help to debug memory pollution.
 

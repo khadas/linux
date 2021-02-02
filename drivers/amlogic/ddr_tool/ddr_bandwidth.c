@@ -776,6 +776,14 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 		aml_db->mali_port[1] = -1;
 		break;
 #endif
+#ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S4
+	case DMC_TYPE_S4:
+		band->ops = &s4_ddr_bw_ops;
+		aml_db->channels = 8;
+		aml_db->mali_port[0] = 1; /* port1: mali */
+		aml_db->mali_port[1] = -1;
+		break;
+#endif
 	default:
 		pr_err("%s, Can't find ops for chip:%x\n", __func__, cpu);
 		return -1;
@@ -867,13 +875,13 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 		if (res) {
 			base = ioremap(res->start, res->end - res->start);
 			aml_db->ddr_reg2 = (void *)base;
+			io_idx++;
 		} else {
 			pr_err("can't get ddr reg %d base\n", io_idx);
 			aml_db = NULL;
 			return -EINVAL;
 		}
 	}
-	io_idx++;
 
 	/* next for pll register base */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, io_idx);
@@ -881,7 +889,7 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 		base = ioremap(res->start, res->end - res->start);
 		aml_db->pll_reg = (void *)base;
 	} else {
-		pr_err("can't get ddr reg base\n");
+		pr_err("can't get ddr reg %d base\n", io_idx);
 		aml_db = NULL;
 		return -EINVAL;
 	}
@@ -998,6 +1006,10 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 	{
 		.compatible = "amlogic,ddr-bandwidth-t7",
 		.data = (void *)DMC_TYPE_T7,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-s4",
+		.data = (void *)DMC_TYPE_S4,
 	},
 	{}
 };

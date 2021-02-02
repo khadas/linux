@@ -23,6 +23,7 @@ Required properties for the root node:
 		      "amlogic,ddr-bandwidth-c1"
 		      "amlogic,ddr-bandwidth-t5"
 		      "amlogic,ddr-bandwidth-t5d"
+		      "amlogic,ddr-bandwidth-s4"
  - reg: address and size of registers controlling bandwidth function
 
 Example:

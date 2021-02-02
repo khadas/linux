@@ -1059,18 +1059,19 @@
 	};
 
 	ddr_bandwidth {
-		compatible = "amlogic,ddr-bandwidth-g12a";
-		status = "disabled";
-		reg = <0 0xfe0360C0 0 0x100
-		       0 0xfe036c00 0 0x100>;
-		interrupts = <0 62 IRQ_TYPE_EDGE_RISING>;
+		compatible = "amlogic,ddr-bandwidth-s4";
+		status = "okay";
+		reg = <0 0xfe036000 0 0x400
+			0 0xfe036c00 0 0x100>;
+		interrupts = <0 78 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "ddr_bandwidth";
 	};
+
 	dmc_monitor {
-		compatible = "amlogic,dmc_monitor-g12a";
-		status = "disabled";
-		reg = <0 0xfe036000 0 0x100>;
-		reg_base = <0xfe036000>;
+		compatible = "amlogic,dmc_monitor-s4";
+		status = "okay";
+		reg = <0 0xfe036000 0 0x400>;
+		reg_base = <0xfe037000>;
 		interrupts = <0 62 IRQ_TYPE_EDGE_RISING>;
 	};
 
