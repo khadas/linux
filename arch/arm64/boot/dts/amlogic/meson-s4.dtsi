@@ -245,7 +245,7 @@
 
 	jtag {
 		compatible = "amlogic, jtag";
-		status = "disabled";
+		status = "okay";
 		select = "disable"; /* disable/jtag_a/jtag_b */
 		pinctrl-names="jtag_a_pins", "jtag_b_pins";
 		pinctrl-0=<&jtag_a_pins>;
