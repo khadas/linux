@@ -1164,20 +1164,20 @@
 		aml_aes {
 			compatible = "amlogic,aes_g12a_dma";
 			dev_name = "aml_aes_dma";
-			status = "disabled";
+			status = "okay";
 			iv_swap = /bits/ 8 <0x0>;
 		};
 
 		aml_sha {
 			compatible = "amlogic,sha_dma";
 			dev_name = "aml_sha_dma";
-			status = "disabled";
+			status = "okay";
 		};
 
 		aml_tdes {
 			compatible = "amlogic,des_dma,tdes_dma";
 			dev_name = "aml_tdes_dma";
-			status = "disabled";
+			status = "okay";
 		};
 
 	};
