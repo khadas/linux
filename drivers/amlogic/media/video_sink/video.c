@@ -1595,7 +1595,9 @@ EXPORT_SYMBOL(trickmode_i);
 /* trickmode ff/fb */
 u32 trickmode_fffb;
 atomic_t trickmode_framedone = ATOMIC_INIT(0);
-atomic_t video_sizechange = ATOMIC_INIT(0);
+atomic_t video_prop_change = ATOMIC_INIT(0);
+atomic_t status_changed = ATOMIC_INIT(0);
+atomic_t axis_changed = ATOMIC_INIT(0);
 atomic_t video_unreg_flag = ATOMIC_INIT(0);
 atomic_t video_inirq_flag = ATOMIC_INIT(0);
 atomic_t video_pause_flag = ATOMIC_INIT(0);
@@ -1663,7 +1665,7 @@ EXPORT_SYMBOL(get_first_frame_toggled);
 static wait_queue_head_t amvideo_trick_wait;
 
 /* wait queue for poll */
-static wait_queue_head_t amvideo_sizechange_wait;
+static wait_queue_head_t amvideo_prop_change_wait;
 
 static u32 vpts_ref;
 static u32 video_frame_repeat_count;
@@ -1676,6 +1678,19 @@ static int vpp_crc_result;
 
 /* viu2 vpp_crc */
 static u32 vpp_crc_viu2_en;
+
+/* source fmt string */
+const char *src_fmt_str[] = {
+	"SDR", "HDR10", "HDR10+", "HDR Prime", "HLG",
+	"Dolby Vison", "Dolby Vison Low latency", "MVC"
+};
+
+atomic_t primary_src_fmt =
+	ATOMIC_INIT(VFRAME_SIGNAL_FMT_INVALID);
+atomic_t cur_primary_src_fmt =
+	ATOMIC_INIT(VFRAME_SIGNAL_FMT_INVALID);
+
+u32 video_prop_status;
 
 #define CONFIG_AM_VOUT
 
@@ -2656,10 +2671,8 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 				cur_height = vf->height;
 			}
 			if (old_w != cur_width ||
-			    old_h != cur_height) {
-				atomic_inc(&video_sizechange);
-				wake_up_interruptible(&amvideo_sizechange_wait);
-			}
+			    old_h != cur_height)
+				video_prop_status |= VIDEO_PROP_CHANGE_SIZE;
 			if (video_vf_put(vf) < 0)
 				check_dispbuf(vf, true);
 			ATRACE_COUNTER(__func__,  __LINE__);
@@ -4063,12 +4076,18 @@ static void _set_video_window(struct disp_info_s *layer, int *p)
 
 	if (last_x != new_x || last_y != new_y ||
 	    last_w != new_w || last_h != new_h) {
-		if (layer->layer_id == 0)
+		if (layer->layer_id == 0) {
+			atomic_set(&axis_changed, 1);
 			vd_layer[0].property_changed = true;
-		else if (layer->layer_id == 1)
+			if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
+				pr_info("VD1 axis changed: %d %d (%d %d)->%d %d (%d %d)\n",
+					last_x, last_y, last_w, last_h,
+					new_x, new_y, new_w, new_h);
+		} else if (layer->layer_id == 1) {
 			vd_layer[1].property_changed = true;
-		else if (layer->layer_id == 2)
+		} else if (layer->layer_id == 2) {
 			vd_layer[2].property_changed = true;
+		}
 	}
 }
 
@@ -4463,10 +4482,18 @@ static void primary_swap_frame(struct vframe_s *vf1, int line)
 		force_toggle = true;
 
 	if (!layer->dispbuf ||
+	    (vf->type & VIDTYPE_COMPRESS &&
+	     (layer->dispbuf->compWidth != vf->compWidth ||
+	      layer->dispbuf->compHeight != vf->compHeight)) ||
 	    (layer->dispbuf->width != vf->width ||
-	    layer->dispbuf->height != vf->height)) {
-		atomic_inc(&video_sizechange);
-		wake_up_interruptible(&amvideo_sizechange_wait);
+	     layer->dispbuf->height != vf->height)) {
+		video_prop_status |= VIDEO_PROP_CHANGE_SIZE;
+		if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
+			pr_info("VD1 src size changed: %dx%x->%dx%d. cur:%p, new:%p\n",
+				layer->dispbuf ? layer->dispbuf->width : 0,
+				layer->dispbuf ? layer->dispbuf->height : 0,
+				vf->width, vf->height,
+				layer->dispbuf, vf);
 	}
 
 	/* switch buffer */
@@ -4499,7 +4526,8 @@ static void primary_swap_frame(struct vframe_s *vf1, int line)
 				vpp_hold_setting_cnt);
 	} else {/* apply new vpp settings */
 		if (layer->next_frame_par->vscale_skip_count <= 1 &&
-		    (vf->type & VIDTYPE_SUPPORT_COMPRESS)) {
+		    vf->type_original & VIDTYPE_SUPPORT_COMPRESS &&
+		    !(vf->type_original & VIDTYPE_COMPRESS)) {
 			video_notify_flag |=
 				VIDEO_NOTIFY_NEED_NO_COMP;
 			if (layer->global_debug & DEBUG_FLAG_BLACKOUT)
@@ -5000,6 +5028,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	s32 vd3_path_id = glayer_info[2].display_path_id;
 	int axis[4];
 	int crop[4];
+	enum vframe_signal_fmt_e fmt;
 	int i, j = 0;
 
 	if (video_suspend && video_suspend_cycle >= 1) {
@@ -5519,6 +5548,24 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	    !(vd_layer[0].global_output == 1 &&
 	      vd_layer[0].enabled != vd_layer[0].enabled_status_saved))
 		goto exit;
+
+	fmt = atomic_read(&primary_src_fmt);
+	if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
+	    fmt != atomic_read(&cur_primary_src_fmt)) {
+		if (debug_flag & DEBUG_FLAG_TRACE_EVENT) {
+			char *old_str = NULL, *new_str = NULL;
+			enum vframe_signal_fmt_e old_fmt;
+
+			old_fmt = atomic_read(&cur_primary_src_fmt);
+			if (old_fmt != VFRAME_SIGNAL_FMT_INVALID)
+				old_str = (char *)src_fmt_str[old_fmt];
+			new_str = (char *)src_fmt_str[fmt];
+			pr_info("VD1 src fmt changed: %s->%s.\n",
+				old_str ? old_str : "invalid", new_str);
+		}
+		atomic_set(&cur_primary_src_fmt, fmt);
+		video_prop_status |= VIDEO_PROP_CHANGE_FMT;
+	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	if (is_vsync_rdma_enable()) {
@@ -6647,6 +6694,11 @@ SET_FILTER:
 #endif
 	}
 
+	if (atomic_read(&axis_changed)) {
+		video_prop_status |= VIDEO_PROP_CHANGE_AXIS;
+		atomic_set(&axis_changed, 0);
+	}
+
 	if (vd1_path_id == VFM_PATH_AMVIDEO ||
 	    vd1_path_id == VFM_PATH_DEF)
 		vd_layer[0].keep_frame_id = 0;
@@ -6688,6 +6740,53 @@ SET_FILTER:
 		0,
 		VD1_PATH);
 #endif
+
+	/* work around which dec/vdin don't call update src_fmt function */
+	if (vd_layer[0].dispbuf && !is_local_vf(vd_layer[0].dispbuf)) {
+		int new_src_fmt = -1;
+		u32 src_map[] = {
+			VFRAME_SIGNAL_FMT_INVALID,
+			VFRAME_SIGNAL_FMT_HDR10,
+			VFRAME_SIGNAL_FMT_HDR10PLUS,
+			VFRAME_SIGNAL_FMT_DOVI,
+			VFRAME_SIGNAL_FMT_HDR10PRIME,
+			VFRAME_SIGNAL_FMT_HLG,
+			VFRAME_SIGNAL_FMT_SDR,
+			VFRAME_SIGNAL_FMT_MVC
+		};
+
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		if (is_dolby_vision_enable())
+			new_src_fmt = get_dolby_vision_src_format();
+		else
+#endif
+			new_src_fmt = get_cur_source_type(VD1_PATH);
+#endif
+		if (new_src_fmt > 0 && new_src_fmt < 8)
+			fmt = src_map[new_src_fmt];
+		else
+			fmt = VFRAME_SIGNAL_FMT_INVALID;
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
+		    fmt != atomic_read(&cur_primary_src_fmt)) {
+			/* atomic_set(&primary_src_fmt, fmt); */
+			if (debug_flag & DEBUG_FLAG_TRACE_EVENT) {
+				char *old_str = NULL, *new_str = NULL;
+				enum vframe_signal_fmt_e old_fmt;
+
+				old_fmt = atomic_read(&cur_primary_src_fmt);
+				if (old_fmt != VFRAME_SIGNAL_FMT_INVALID)
+					old_str = (char *)src_fmt_str[old_fmt];
+				new_str = (char *)src_fmt_str[fmt];
+				pr_info("VD1 src fmt changed: %s->%s. vf: %p, signal_typ:0x%x\n",
+					old_str ? old_str : "invalid", new_str,
+					vd_layer[0].dispbuf,
+					vd_layer[0].dispbuf->signal_type);
+			}
+			atomic_set(&cur_primary_src_fmt, fmt);
+			video_prop_status |= VIDEO_PROP_CHANGE_FMT;
+		}
+	}
 
 	if (vd_layer[1].dispbuf_mapping == &cur_dispbuf &&
 	    (cur_dispbuf == &vf_local ||
@@ -7343,6 +7442,16 @@ exit:
 	if (video_notify_flag)
 		vsync_notify();
 
+	/* if prop_change not zero, event will be delayed to next vsync */
+	if (video_prop_status &&
+	    !atomic_read(&video_prop_change)) {
+		if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
+			pr_info("VD1 send event, changed status: 0x%x\n",
+				video_prop_status);
+		atomic_set(&video_prop_change, video_prop_status);
+		video_prop_status = VIDEO_PROP_CHANGE_NONE;
+		wake_up_interruptible(&amvideo_prop_change_wait);
+	}
 	vpu_work_process();
 	vpp_crc_result = vpp_crc_check(vpp_crc_en);
 
@@ -7590,6 +7699,10 @@ static void video_vf_unreg_provider(void)
 		== &cur_dispbuf)
 		layer3_used = true;
 
+	if (layer1_used) {
+		atomic_set(&primary_src_fmt, VFRAME_SIGNAL_FMT_INVALID);
+		atomic_set(&cur_primary_src_fmt, VFRAME_SIGNAL_FMT_INVALID);
+	}
 	if (pip_loop) {
 		vd_layer[1].disable_video =
 			VIDEO_DISABLE_FORNEXT;
@@ -7987,6 +8100,11 @@ static void pip_vf_unreg_provider(void)
 		== &cur_pipbuf) {
 		layer3_used = true;
 		enabled |= get_videopip_enabled();
+	}
+
+	if (layer1_used) {
+		atomic_set(&primary_src_fmt, VFRAME_SIGNAL_FMT_INVALID);
+		atomic_set(&cur_primary_src_fmt, VFRAME_SIGNAL_FMT_INVALID);
 	}
 
 	if (!layer1_used && !layer2_used && !layer3_used)
@@ -8419,9 +8537,11 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 				   void *sei, u32 size, bool dual_layer,
 				   char *prov_name, char *recv_name)
 {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #if PARSE_MD_IN_ADVANCE
 	int src_fmt = -1;
 	int ret = 0;
+#endif
 #endif
 	int i;
 	char *p;
@@ -8466,7 +8586,9 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 		if (vf->discard_dv_data) {
 			if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
 				pr_info("ignore nonstandard dv\n");
-		} else if (dual_layer || check_media_sei(sei, size, DV_SEI) ||
+		}
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		else if (dual_layer || check_media_sei(sei, size, DV_SEI) ||
 			   check_media_sei(sei, size, DV_AV1_SEI)) {
 			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_DOVI;
 			vf->src_fmt.dual_layer = dual_layer;
@@ -8501,6 +8623,7 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 			clear_vframe_dovi_md_info(vf);
 #endif
 		}
+#endif
 	}
 
 	if (vf->src_fmt.fmt == VFRAME_SIGNAL_FMT_INVALID) {
@@ -9733,10 +9856,14 @@ static unsigned int amvideo_poll(struct file *file, poll_table *wait_table)
 
 static unsigned int amvideo_poll_poll(struct file *file, poll_table *wait_table)
 {
-	poll_wait(file, &amvideo_sizechange_wait, wait_table);
+	u32 val = 0;
 
-	if (atomic_read(&video_sizechange)) {
-		atomic_set(&video_sizechange, 0);
+	poll_wait(file, &amvideo_prop_change_wait, wait_table);
+
+	val = atomic_read(&video_prop_change);
+	if (val) {
+		atomic_set(&status_changed, val);
+		atomic_set(&video_prop_change, 0);
 		return POLLIN | POLLWRNORM;
 	}
 
@@ -11145,6 +11272,9 @@ static ssize_t vframe_states_show(struct class *cla,
 			ret += sprintf(buf + ret,
 				"vf type=%d\n",
 				vf->type);
+			ret += sprintf(buf + ret,
+				"vf type_original=%d\n",
+				vf->type_original);
 			if (vf->type & VIDTYPE_COMPRESS) {
 				ret += sprintf(buf + ret,
 					"vf compHeadAddr=%x\n",
@@ -11579,10 +11709,6 @@ static ssize_t src_fmt_show(struct class *cla,
 	enum vframe_signal_fmt_e fmt;
 	void *sei_ptr;
 	u32 sei_size = 0;
-	static const char * const fmt_str[] = {
-		"SDR", "HDR10", "HDR10+", "HDR Prime", "HLG",
-		"Dolby Vison", "Dolby Vison Low latency", "MVC"
-	};
 
 	dispbuf = get_dispbuf(0);
 	ret += sprintf(buf + ret, "vd1 dispbuf: %p\n", dispbuf);
@@ -11591,7 +11717,7 @@ static ssize_t src_fmt_show(struct class *cla,
 		if (fmt != VFRAME_SIGNAL_FMT_INVALID) {
 			sei_ptr = get_sei_from_src_fmt(dispbuf, &sei_size);
 			ret += sprintf(buf + ret, "fmt = %s\n",
-				fmt_str[fmt]);
+				src_fmt_str[fmt]);
 			ret += sprintf(buf + ret, "sei: %p, size: %d\n",
 				sei_ptr, sei_size);
 		} else {
@@ -11606,7 +11732,7 @@ static ssize_t src_fmt_show(struct class *cla,
 			sei_size = 0;
 			sei_ptr = get_sei_from_src_fmt(dispbuf, &sei_size);
 			ret += sprintf(buf + ret, "fmt=0x%s\n",
-				fmt_str[fmt]);
+				src_fmt_str[fmt]);
 			ret += sprintf(buf + ret, "sei: %p, size: %d\n",
 				sei_ptr, sei_size);
 		} else {
@@ -12075,6 +12201,10 @@ int _videopip_set_disable(u32 index, u32 val)
 		layer = &vd_layer[1];
 	else if (index == 2)
 		layer = &vd_layer[2];
+
+	if (!layer)
+		return -EINVAL;
+
 	layer->disable_video = val;
 
 	if (layer->disable_video ==
@@ -12556,8 +12686,8 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 {
 	ssize_t len = 0;
 	struct vppfilter_mode_s *vpp_filter = NULL;
-	struct vpp_frame_par_s *_cur_frame_par;
-	struct video_layer_s *_vd_layer;
+	struct vpp_frame_par_s *_cur_frame_par = NULL;
+	struct video_layer_s *_vd_layer = NULL;
 
 	switch (index) {
 	case 0:
@@ -13216,6 +13346,30 @@ static ssize_t reg_dump_store(struct class *cla,
 	return count;
 }
 
+static ssize_t primary_src_fmt_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	int ret = 0;
+	enum vframe_signal_fmt_e fmt;
+
+	fmt = atomic_read(&cur_primary_src_fmt);
+	if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+		ret += sprintf(buf + ret, "src_fmt = %s\n",
+			src_fmt_str[fmt]);
+	else
+		ret += sprintf(buf + ret, "src_fmt = invalid\n");
+	return ret;
+}
+
+static ssize_t status_changed_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	u32 status = 0;
+
+	status = atomic_read(&status_changed);
+	return sprintf(buf, "0x%x\n", status);
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -13555,6 +13709,9 @@ static struct class_attribute amvideo_poll_class_attrs[] = {
 	__ATTR_RO(frame_height),
 	__ATTR_RO(vframe_states),
 	__ATTR_RO(video_state),
+	__ATTR_RO(primary_src_fmt),
+	__ATTR_RO(status_changed),
+	__ATTR_NULL
 };
 
 static struct class *amvideo_class;
@@ -14441,7 +14598,7 @@ int __init video_init(void)
 	}
 
 	init_waitqueue_head(&amvideo_trick_wait);
-	init_waitqueue_head(&amvideo_sizechange_wait);
+	init_waitqueue_head(&amvideo_prop_change_wait);
 
 #ifdef CONFIG_AM_VOUT
 	vout_hook();

@@ -170,6 +170,11 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 		layer2_used = true;
 	}
 
+	if (layer1_used) {
+		atomic_set(&primary_src_fmt, VFRAME_SIGNAL_FMT_INVALID);
+		atomic_set(&cur_primary_src_fmt, VFRAME_SIGNAL_FMT_INVALID);
+	}
+
 	if (!layer1_used && !layer2_used)
 		ins->cur_buf = NULL;
 

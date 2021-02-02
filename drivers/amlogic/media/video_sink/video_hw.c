@@ -459,7 +459,9 @@ static struct vpu_dev_s *vpu_prime_dolby_ram;
 
 void dv_mem_power_off(enum vpu_mod_e mode)
 {
+#ifdef DV_PWR
 	unsigned long flags;
+#endif
 	unsigned int dv_flag;
 
 	if (mode == VPU_DOLBY0)
@@ -476,12 +478,13 @@ void dv_mem_power_off(enum vpu_mod_e mode)
 		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_PRIME_DOLBY;
 	else
 		return;
-
-	return; /*currently power function not ok*/
+	/*currently power function not ok*/
+#ifdef DV_PWR
 	spin_lock_irqsave(&delay_work_lock, flags);
 	vpu_delay_work_flag |= dv_flag;
 	dv_mem_power_off_count = DV_MEM_POWEROFF_DELAY;
 	spin_unlock_irqrestore(&delay_work_lock, flags);
+#endif
 }
 EXPORT_SYMBOL(dv_mem_power_off);
 
@@ -522,7 +525,9 @@ EXPORT_SYMBOL(dv_mem_power_on);
 /*get mem power status on the way*/
 int get_dv_mem_power_flag(enum vpu_mod_e mode)
 {
+#ifdef DV_PWR
 	unsigned long flags;
+#endif
 	unsigned int dv_flag;
 	int ret = VPU_MEM_POWER_ON;
 
@@ -540,12 +545,16 @@ int get_dv_mem_power_flag(enum vpu_mod_e mode)
 		dv_flag = VPU_DELAYWORK_MEM_POWER_OFF_PRIME_DOLBY;
 	else
 		return -1;
-	return ret; /*currently power function not ok*/
+	/*currently power function not ok*/
+#ifndef DV_PWR
+	return ret;
+#else
 	spin_lock_irqsave(&delay_work_lock, flags);
 	if (vpu_delay_work_flag & dv_flag)
 		ret = VPU_MEM_POWER_DOWN;
 	spin_unlock_irqrestore(&delay_work_lock, flags);
 	return ret;
+#endif
 }
 EXPORT_SYMBOL(get_dv_mem_power_flag);
 
@@ -569,11 +578,13 @@ int get_dv_vpu_mem_power_status(enum vpu_mod_e mode)
 		p_dev = vpu_prime_dolby_ram;
 	else
 		return ret;
-
-	return ret; /*currently power function not ok*/
-
+	/*currently power function not ok*/
+#ifndef DV_PWR
+	return ret;
+#else
 	ret = vpu_dev_mem_pd_get(p_dev);
 	return ret;
+#endif
 }
 EXPORT_SYMBOL(get_dv_vpu_mem_power_status);
 
@@ -5051,6 +5062,7 @@ static int vpp_zorder_check_t7(void)
 
 void vpp_blend_update(const struct vinfo_s *vinfo)
 {
+	static u32 vd1_enabled;
 	static u32 vpp_misc_set_save;
 	u32 vpp_misc_save, vpp_misc_set, mode = 0;
 	u32 vpp_off = cur_dev->vpp_off;
@@ -5260,6 +5272,21 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 			VPP_VD1_POSTBLEND |
 			VPP_PREBLEND_EN);
 
+	if (vd1_enabled != vd_layer[0].enabled) {
+		if (vd_layer[0].enabled) {
+			video_prop_status &= ~VIDEO_PROP_CHANGE_DISABLE;
+			video_prop_status |= VIDEO_PROP_CHANGE_ENABLE;
+		} else {
+			video_prop_status &= ~VIDEO_PROP_CHANGE_ENABLE;
+			video_prop_status |= VIDEO_PROP_CHANGE_DISABLE;
+		}
+		if (vd_layer[0].global_debug & DEBUG_FLAG_TRACE_EVENT)
+			pr_info("VD1 enable/disable status changed: %s->%s.\n",
+				vd1_enabled ? "enable" : "disable",
+				vd_layer[0].enabled ? "enable" : "disable");
+		vd1_enabled = vd_layer[0].enabled;
+	}
+
 	if (!(mode & COMPOSE_MODE_3D) &&
 	    (vd_layer[1].global_output == 0 ||
 	     black_threshold_check(1))) {
@@ -5452,6 +5479,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 
 void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 {
+	static u32 t7_vd1_enabled;
 	u32 vpp_misc_save, vpp_misc_set, mode = 0;
 	u32 vpp_off = cur_dev->vpp_off;
 	int video1_off_req = 0;
@@ -5682,6 +5710,21 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 
 	} else {
 		vd_layer[0].enabled = vd_layer[0].enabled_status_saved;
+	}
+
+	if (t7_vd1_enabled != vd_layer[0].enabled) {
+		if (vd_layer[0].enabled) {
+			video_prop_status &= ~VIDEO_PROP_CHANGE_DISABLE;
+			video_prop_status |= VIDEO_PROP_CHANGE_ENABLE;
+		} else {
+			video_prop_status &= ~VIDEO_PROP_CHANGE_ENABLE;
+			video_prop_status |= VIDEO_PROP_CHANGE_DISABLE;
+		}
+		if (vd_layer[0].global_debug & DEBUG_FLAG_TRACE_EVENT)
+			pr_info("VD1 enable/disable status changed: %s->%s.\n",
+				t7_vd1_enabled ? "enable" : "disable",
+				vd_layer[0].enabled ? "enable" : "disable");
+		t7_vd1_enabled = vd_layer[0].enabled;
 	}
 
 	if (!vd_layer[0].enabled) {

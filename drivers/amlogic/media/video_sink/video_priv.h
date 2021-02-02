@@ -33,6 +33,7 @@
 #define DEBUG_FLAG_GET_COUNT                 0x8
 #define DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC        0x10
 #define DEBUG_FLAG_PRINT_PATH_SWITCH        0x20
+#define DEBUG_FLAG_TRACE_EVENT	        0x40
 #define DEBUG_FLAG_LOG_RDMA_LINE_MAX         0x100
 #define DEBUG_FLAG_TOGGLE_SKIP_KEEP_CURRENT  0x10000
 #define DEBUG_FLAG_TOGGLE_FRAME_PER_VSYNC    0x20000
@@ -69,6 +70,13 @@
 #define COMPOSE_MODE_3D			1
 #define COMPOSE_MODE_DV			2
 #define COMPOSE_MODE_BYPASS_CM	4
+
+#define VIDEO_PROP_CHANGE_NONE		0
+#define VIDEO_PROP_CHANGE_SIZE		0x1
+#define VIDEO_PROP_CHANGE_FMT		0x2
+#define VIDEO_PROP_CHANGE_ENABLE	0x4
+#define VIDEO_PROP_CHANGE_DISABLE	0x8
+#define VIDEO_PROP_CHANGE_AXIS		0x10
 
 #define MAX_ZOOM_RATIO 300
 
@@ -498,6 +506,7 @@ extern struct vframe_s *cur_pipbuf2;
 extern bool need_disable_vd2;
 extern bool need_disable_vd3;
 extern u32 last_el_status;
+extern u32 video_prop_status;
 extern u32 force_blackout;
 extern atomic_t video_unreg_flag;
 extern atomic_t video_inirq_flag;
@@ -505,6 +514,9 @@ extern uint load_pps_coef;
 extern struct video_recv_s *gvideo_recv[3];
 extern uint load_pps_coef;
 bool black_threshold_check(u8 id);
+extern atomic_t primary_src_fmt;
+extern atomic_t cur_primary_src_fmt;
+
 struct vframe_s *get_cur_dispbuf(void);
 s32 set_video_path_select(const char *recv_name, u8 layer_id);
 s32 set_sideband_type(s32 type, u8 layer_id);
