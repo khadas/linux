@@ -207,8 +207,6 @@ static inline int vfm_class_init(void)
 }
 #endif
 
-int meson_cpu_version_init(void);
-
 #ifdef CONFIG_AMLOGIC_MEDIA_GE2D
 int ge2d_init_module(void);
 #else

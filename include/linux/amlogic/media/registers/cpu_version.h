@@ -70,11 +70,13 @@ struct codecio_device_data_s {
 
 extern struct codecio_device_data_s codecio_meson_dev;
 
+int meson_cpu_version_init(void);
+
 unsigned char get_meson_cpu_version(int level);
 
 static inline int get_cpu_type(void)
 {
-	return codecio_meson_dev.cpu_id;
+	return get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR);
 }
 
 static inline u32 get_cpu_package(void)

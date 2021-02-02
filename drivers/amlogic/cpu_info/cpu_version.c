@@ -63,6 +63,7 @@ int __init meson_cpu_version_init(void)
 		pr_err("%s: invalid chipid value\n", __func__);
 		return -EINVAL;
 	}
+
 	cpu_version[MESON_CPU_VERSION_LVL_MAJOR] = (socinfo >> 24) & 0xff;
 	cpu_version[MESON_CPU_VERSION_LVL_MINOR] =  (socinfo >> 8) & 0xff;
 	cpu_version[MESON_CPU_VERSION_LVL_PACK] =  (socinfo >> 16) & 0xff;
@@ -78,11 +79,3 @@ int __init meson_cpu_version_init(void)
 	init_done = 1;
 	return 0;
 }
-
-void __exit meson_cpu_version_exit(void)
-{
-}
-
-//MODULE_AUTHOR("Jianxin Pan<jianxin.pan@amlogic.com>");
-//MODULE_DESCRIPTION("cpu version driver");
-//MODULE_LICENSE("GPL");

@@ -22,6 +22,7 @@
 #include <linux/of_fdt.h>
 #include <linux/amlogic/cpu_info.h>
 #include <linux/arm-smccc.h>
+#include <linux/amlogic/cpu_version.h>
 
 static unsigned char cpuinfo_chip_id[CHIPID_LEN];
 
@@ -96,6 +97,8 @@ static  struct platform_driver cpuinfo_platform_driver = {
 
 static int __init meson_cpuinfo_init(void)
 {
+	meson_cpu_version_init();
+
 	return  platform_driver_register(&cpuinfo_platform_driver);
 }
 module_init(meson_cpuinfo_init);
