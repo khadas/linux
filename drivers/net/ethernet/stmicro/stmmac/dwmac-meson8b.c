@@ -198,6 +198,7 @@ static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
 	return 0;
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static int meson8b_set_phy_mode(struct meson8b_dwmac *dwmac)
 {
 	switch (dwmac->phy_mode) {
@@ -223,6 +224,7 @@ static int meson8b_set_phy_mode(struct meson8b_dwmac *dwmac)
 
 	return 0;
 }
+#endif
 
 static int meson_axg_set_phy_mode(struct meson8b_dwmac *dwmac)
 {
@@ -474,15 +476,18 @@ err_remove_config_dt:
 	return ret;
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct meson8b_dwmac_data meson8b_dwmac_data = {
 	.set_phy_mode = meson8b_set_phy_mode,
 };
+#endif
 
 static const struct meson8b_dwmac_data meson_axg_dwmac_data = {
 	.set_phy_mode = meson_axg_set_phy_mode,
 };
 
 static const struct of_device_id meson8b_dwmac_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic,meson8b-dwmac",
 		.data = &meson8b_dwmac_data,
@@ -495,6 +500,7 @@ static const struct of_device_id meson8b_dwmac_match[] = {
 		.compatible = "amlogic,meson-gxbb-dwmac",
 		.data = &meson8b_dwmac_data,
 	},
+#endif
 	{
 		.compatible = "amlogic,meson-axg-dwmac",
 		.data = &meson_axg_dwmac_data,

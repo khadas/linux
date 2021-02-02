@@ -226,6 +226,7 @@ static struct vpu_ctrl_s vpu_mem_pd_g12b[] = {
 	{VPU_MOD_MAX,         VPU_REG_END,         0,    0,   0},
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct vpu_ctrl_s vpu_mem_pd_tl1[] = {
 	/* vpu module,        reg,                 val,  bit, len */
 	{VPU_VIU_OSD1,        HHI_VPU_MEM_PD_REG0, 0x3,  0,   2},
@@ -281,6 +282,7 @@ static struct vpu_ctrl_s vpu_mem_pd_tl1[] = {
 	{VPU_AFBCE,           HHI_VPU_MEM_PD_REG4, 0x3,  4,   2},
 	{VPU_MOD_MAX,         VPU_REG_END,         0,    0,   0},
 };
+#endif
 
 static struct vpu_ctrl_s vpu_mem_pd_sm1[] = {
 	/* vpu module,        reg,                 val,  bit, len */

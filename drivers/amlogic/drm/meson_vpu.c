@@ -325,15 +325,17 @@ static const struct component_ops am_meson_vpu_component_ops = {
 };
 
 static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{ .compatible = "amlogic, meson-gxbb-vpu",},
 	{ .compatible = "amlogic, meson-gxl-vpu",},
 	{ .compatible = "amlogic, meson-gxm-vpu",},
 	{ .compatible = "amlogic, meson-txl-vpu",},
 	{ .compatible = "amlogic, meson-txlx-vpu",},
 	{ .compatible = "amlogic, meson-axg-vpu",},
+	{.compatible = "amlogic, meson-tl1-vpu",},
+#endif
 	{ .compatible = "amlogic, meson-g12a-vpu",},
 	{ .compatible = "amlogic, meson-g12b-vpu",},
-	{.compatible = "amlogic, meson-tl1-vpu",},
 	{.compatible = "amlogic, meson-sm1-vpu",},
 	{.compatible = "amlogic, meson-tm2-vpu",},
 	{.compatible = "amlogic, meson-t5-vpu",},
