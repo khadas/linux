@@ -683,7 +683,6 @@ void ofdm_initial(int bandwidth,
 	/* Run Testbus dump to DDR */
 
 	dvbt_isdbt_wr_reg((0xd6 << 2), 0x00000003);
-	/* apb_write_reg(DVBT_BASE+(0xd7<<2), 0x00000008); */
 	dvbt_isdbt_wr_reg((0xd8 << 2), 0x00000120);
 	dvbt_isdbt_wr_reg((0xd9 << 2), 0x01010101);
 
@@ -713,13 +712,11 @@ static int dvbt_get_status(void)
 
 static int dvbt_get_ber(void)
 {
-/* PR_DVBT("[RSJ]per is %u\n",apb_read_reg(DVBT_BASE+(0xbf<<2))); */
 	return dvbt_isdbt_rd_reg((0xbf << 2));
 }
 
 static int dvbt_get_snr(struct aml_demod_sta *demod_sta)
 {
-/* PR_DVBT("2snr is %u\n",((apb_read_reg(DVBT_BASE+(0x0a<<2)))>>20)&0x3ff); */
 	return ((dvbt_isdbt_rd_reg((0x0a << 2))) >> 20) & 0x3ff;
 	/*dBm: bit0~bit2=decimal */
 }
@@ -779,7 +776,8 @@ struct st_chip_register_t reset368_dvbt2_val[] = {
 	{R368TER_ANA_CTRL, 0x81},/* PJ/TA/MS 10/2012 was 0x00 */
 	{R368TER_ANADIG_CTRL, 0x1F},
 	{R368TER_PLLODF, 0x0A},
-	{R368TER_PLLNDIV, 0x12},
+	/* test bus addr3, change from 0x12 to 0xe for bus hang issue */
+	{R368TER_PLLNDIV, 0xe},
 	{R368TER_PLLIDF, 0x29},
 	{R368TER_DUAL_AD12, 0x07},
 	{R368TER_PAD_COMP_CTRL, 0x00},
@@ -831,7 +829,12 @@ void dvbt2_init(void)
 {
 	/* bandwidth: 1=8M,2=7M,3=6M,4=5M,5=1.7M */
 	int i;
-	struct amldtvdemod_device_s *devp = dtvdd_devp;
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	if (unlikely(!devp)) {
+		PR_ERR("%s devp is NULL\n", __func__);
+		return;
+	}
 
 	dvbt_t2_wrb(0x0004, 0xff);
 	dvbt_t2_wrb(0x0005, 0xff);
@@ -889,7 +892,6 @@ void dvbt2_init(void)
 	dvbt_t2_wrb(0x2824, 0x02);
 	dvbt_t2_wrb(0x281b, 0x02);
 
-	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 	/* T5D revA:0,revB:1, select workaround in fw to init sram */
 	dvbt_t2_wrb(0x807, 0);
 
@@ -898,6 +900,15 @@ void dvbt2_init(void)
 	dvbt_t2_wrb(0x360d, (devp->mem_start >> 8) & 0xff);
 	dvbt_t2_wrb(0x360e, (devp->mem_start >> 16) & 0xff);
 	dvbt_t2_wrb(0x360f, (devp->mem_start >> 24) & 0xff);
+
+	dtvdemod_set_plpid(devp->plp_id);
+
+	/* test bus addr4 */
+	dvbt_t2_wr_byte_bits(0xe5, 0x1, 0, 6);
+	dvbt_t2_wrb(0xf0, 0x78);
+	dvbt_t2_wrb(0xf1, 0x56);
+	dvbt_t2_wrb(0xf2, 0x34);
+	dvbt_t2_wrb(0xf3, 0x12);
 }
 
 const unsigned short index_bw_1[] = {0, 0, 1, 1, 1, 1, 2, 3, 4};
@@ -1005,9 +1016,10 @@ void write_riscv_ram(void)
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 }
 
-static void dvbt2_riscv_init_cmd(enum fe_bandwidth bw)
+static void dvbt2_riscv_init(enum fe_bandwidth bw)
 {
-	PR_INFO("bw : %d\n", bw);
+	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+	dvbt2_init();
 
 	switch (bw) {
 	case BANDWIDTH_8_MHZ:
@@ -1025,10 +1037,9 @@ static void dvbt2_riscv_init_cmd(enum fe_bandwidth bw)
 		dvbt_t2_wrb(0x2835, 0x0e);
 		break;
 	}
-
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
 	riscv_ctl_write_reg(0x30, 0);
-	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 }
 
 void dtvdemod_reset_fw(void)
@@ -1039,7 +1050,7 @@ void dtvdemod_reset_fw(void)
 	riscv_ctl_write_reg(0x30, 4);
 	riscv_ctl_write_reg(0x30, 4);
 	riscv_ctl_write_reg(0x30, 0);
-	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 }
 
 void dvbt_reg_initial(unsigned int bw)
@@ -1199,9 +1210,6 @@ void dvbt_reg_initial(unsigned int bw)
 
 	dvbt_t2_wrb(0x1500, 0x20);
 	dvbt_t2_wrb(0x1500, 0x00);
-
-	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-
 	dvbt_t2_wrb(0x598, 0x91);
 	dvbt_t2_wrb(0x5a0, 0x0);
 	dvbt_t2_wrb(0x5a1, 0x0);
@@ -1214,7 +1222,6 @@ void dvbt_reg_initial(unsigned int bw)
 	for (i = 0; i < (sizeof(reset368dvbt_val) / sizeof(struct st_chip_register_t)); i++)
 		dvbt_t2_wrb(reset368dvbt_val[i].addr, reset368dvbt_val[i].value);
 
-	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 	PR_DVBT("DVB-T init ok.\n");
 }
 
@@ -1266,59 +1273,18 @@ unsigned int dvbt_set_ch(struct aml_demod_sta *demod_sta, struct aml_demod_dvbt 
 	if (bw == BANDWIDTH_AUTO)
 		demod_mode = 2;
 
-	devp->dvbt_bw = bw;
+	devp->bw = bw;
 	dvbt_reg_initial(bw);
 	PR_DVBT("DVBT mode\n");
 
 	return ret;
 }
 
-int dvbt2_set_ch(struct aml_demod_sta *demod_sta, struct aml_demod_dvbt *demod_dvbt)
+int dvbt2_set_ch(struct amldtvdemod_device_s *devp)
 {
 	int ret = 0;
-	u8_t demod_mode = 1;
-	u8_t bw, sr, ifreq, agc_mode;
-	u32_t ch_freq;
 
-	bw = demod_dvbt->bw;
-	sr = demod_dvbt->sr;
-	ifreq = demod_dvbt->ifreq;
-	agc_mode = demod_dvbt->agc_mode;
-	ch_freq = demod_dvbt->ch_freq;
-	demod_mode = demod_dvbt->dat0;
-	if (ch_freq < 1000 || ch_freq > 900000000) {
-		/* PR_DVBT("Error: Invalid Channel Freq option %d\n",*/
-		/* ch_freq); */
-		ch_freq = 474000;
-		ret = -1;
-	}
-
-	/*if (demod_mode < 0 || demod_mode > 4) {*/
-	if (demod_mode > 4) {
-		/* PR_DVBT("Error: Invalid demod mode option %d\n",*/
-		/* demod_mode); */
-		demod_mode = 1;
-		ret = -1;
-	}
-
-	demod_sta->ch_mode = 0;	/* TODO */
-	demod_sta->agc_mode = agc_mode;
-	demod_sta->ch_freq = ch_freq;
-	demod_sta->ch_bw = (8 - bw) * 1000;
-	demod_sta->symb_rate = 0;
-
-	demod_mode = 1;
-	/* for si2176 IF:5M   sr 28.57 */
-	sr = 4;
-	ifreq = 4;
-	PR_INFO("%s:1:bw=%d, demod_mode=%d\n", __func__, bw, demod_mode);
-
-	/*bw = BANDWIDTH_AUTO;*/
-	if (bw == BANDWIDTH_AUTO)
-		demod_mode = 2;
-
-	dvbt2_riscv_init_cmd(bw);
-	PR_DVBT("DVBT2 mode\n");
+	dvbt2_riscv_init(devp->bw);
 
 	return ret;
 }
@@ -1393,29 +1359,38 @@ unsigned int dtvdemod_calcul_get_field(unsigned int memory_base, unsigned int nb
 
 void dtvdemod_get_plp(struct dtv_property *tvp)
 {
-	unsigned int miso_mode;
+	/* unsigned int miso_mode; */
 	unsigned int plp_num;
-	unsigned int pos;
+	/* unsigned int pos; */
 	unsigned int i;
 	char plp_ids[MAX_PLP_NUM];
-	char plp_type[MAX_PLP_NUM];
+	/* char plp_type[MAX_PLP_NUM]; */
+	unsigned int val;
 
-	miso_mode = (dvbt_t2_rdb(0x871) >> 4) & 0x7;
-	plp_num = dvbt_t2_rdb(0x805);
-	PR_INFO("plp num: %d, miso mode: 0x%x\n", plp_num, miso_mode);
+	/* val[30-24]:0x805, plp num */
+	val = front_read_reg(0x3e);
+	plp_num = (val >> 24) & 0x7f;
 
-	if (1 == (miso_mode & 1))
-		pos = 70 + 4 + 22 + 8;
-	else
-		pos = 70;
+	/* miso_mode = (dvbt_t2_rdb(0x871) >> 4) & 0x7; */
+	/* plp_num = dvbt_t2_rdb(0x805); */
+	/* PR_INFO("plp num: %d, miso mode: 0x%x\n", plp_num, miso_mode); */
+	PR_INFO("plp num: %d\n", plp_num);
+
+	/* if (miso_mode)
+	 *	pos = 70 + 4 + 22 + 8;
+	 * else
+	 *	pos = 70;
+	 */
 
 	tvp->u.buffer.reserved1[0] = plp_num;
 
 	for (i = 0; i < plp_num; i++) {
-		plp_ids[i] = dtvdemod_calcul_get_field(0, pos, 8);
-		plp_type[i] = (enum plp_type_e)dtvdemod_calcul_get_field(0, pos + 8, 3);
-		pos += 89;
-		PR_INFO("plp id: %d, type : %d\n", plp_ids[i], plp_type[i]);
+		/* plp_ids[i] = dtvdemod_calcul_get_field(0, pos, 8); */
+		plp_ids[i] = i;
+		/* plp_type[i] = (enum plp_type_e)dtvdemod_calcul_get_field(0, pos + 8, 3);
+		 * pos += 89;
+		 * PR_INFO("plp id: %d, type : %d\n", plp_ids[i], plp_type[i]);
+		 */
 	}
 
 	if (copy_to_user(tvp->u.buffer.reserved2, plp_ids, plp_num * sizeof(char)))
@@ -1451,6 +1426,239 @@ void dtvdemod_get_plp_dbg(void)
 void dtvdemod_set_plpid(char id)
 {
 	dvbt_t2_wrb(0x806, id);
-	PR_INFO("set plpid : %d\n", id);
+	PR_INFO("dtvdemod_set_plpid : %d\n", id);
+}
+
+static int m_calcul_carrier_offset(int crl_in, enum channel_bw_e bw)
+{
+	int crl = 0;
+	unsigned int freq = 0;
+
+	switch (bw) {
+	case 1:
+		freq = (131 * 1000000) / 71;
+		break;
+
+	case 5:
+		freq = (40 * 1000000) / 7;
+		break;
+
+	case 6:
+		freq = (48 * 1000000) / 7;
+		break;
+
+	case 7:
+		freq = 8 * 1000000;
+		break;
+
+	case 8:
+	default:
+		freq = (64 * 1000000) / 7;
+		break;
+	}
+
+	crl = ((int)crl_in * freq) / 262144;
+
+	return crl;
+}
+
+static int m_get_carrier_offset(void)
+{
+	int crl_freq_status;
+	int carrier_offset;
+	unsigned int crl_freq_stat;
+	int bw_value = dvbt_t2_rdb(0x1c) & 0xf;
+
+	crl_freq_stat = dvbt_t2_rdb(0x28cc) + (dvbt_t2_rdb(0x28cd) << 8);
+
+	if (crl_freq_stat & 0x8000)
+		crl_freq_status = -(crl_freq_stat ^ 0xFFFF) - 1;
+	else
+		crl_freq_status = crl_freq_stat;
+
+	carrier_offset = m_calcul_carrier_offset(crl_freq_status, bw_value);
+
+	return carrier_offset;
+}
+
+void dvbt2_info(void)
+{
+	/* SNR */
+	unsigned int c_snr = dvbt_t2_rdb(0x2a08) + ((dvbt_t2_rdb(0x2a09)) << 8);
+	unsigned int f_snr = dvbt_t2_rdb(0x2a5c) + ((dvbt_t2_rdb(0x2a5d)) << 8);
+	unsigned int d_snr = dvbt_t2_rdb(0xabc) + ((dvbt_t2_rdb(0xabd)) << 8);
+
+	/* ts type */
+	unsigned int ts_type = dvbt_t2_rdb(0x870) & 0x3;
+
+	/* GI Detection 0x872 */
+	unsigned int gi_st0 = dvbt_t2_rdb(0x2745);
+	unsigned int gi = dvbt_t2_rdb(0x83a) & 0x7;
+	unsigned int fft = gi_st0 & 0x7;
+	unsigned int miso_mode = (dvbt_t2_rdb(0x871) >> 4) & 0x7;
+
+	/* L1 Post */
+	unsigned int l1_cstl = (dvbt_t2_rdb(0x873) >> 2) & 0xf;
+
+	/* Pilot Mode */
+	unsigned int pp_mode = (dvbt_t2_rdb(0x876) >> 2) & 0xf;
+
+	/* CFO */
+	unsigned int cfo = m_get_carrier_offset();
+
+	/* ldpc status */
+	unsigned int ldpc_it = dvbt_t2_rdb(0xa50);
+	unsigned int bch = dvbt_t2_rdb(0xab8) + (dvbt_t2_rdb(0xab9) << 8);
+	unsigned int data_err = dvbt_t2_rdb(0xab0) + (dvbt_t2_rdb(0xab1) << 8);
+	unsigned int data_ttl = dvbt_t2_rdb(0xab2) + (dvbt_t2_rdb(0xab3) << 8);
+	unsigned int cmmn_err = dvbt_t2_rdb(0xab4) + (dvbt_t2_rdb(0xab5) << 8);
+	unsigned int cmmn_ttl = dvbt_t2_rdb(0xab6) + (dvbt_t2_rdb(0xab7) << 8);
+	unsigned int constel = (dvbt_t2_rdb(0x8c3) >> 4) & 7;
+	char *str_ts_type, *str_fft, *str_constel, *str_miso_mode, *str_gi, *str_l1_cstl;
+	char *str_pp_mode;
+
+	/* SFO */
+	unsigned int sfo = dvbt_t2_rdb(0x28f8) | ((dvbt_t2_rdb(0x28f9) & 7) << 8);
+
+	sfo = ((sfo > 16383) ? (sfo - 32768) : sfo) / 16;
+	c_snr = c_snr * 3 / 64;
+	f_snr = f_snr * 3 / 64;
+	d_snr = d_snr * 3 / 64;
+
+	switch (ts_type) {
+	case 0:
+		str_ts_type = "T ";
+		break;
+
+	case 1:
+		str_ts_type = "G ";
+		break;
+
+	case 2:
+		str_ts_type = "T&G ";
+		break;
+
+	default:
+		str_ts_type = "UNK ";
+		break;
+	}
+
+	if (fft == 0)
+		str_fft = "2K	 ";
+	else if (fft == 1)
+		str_fft = "8K	 ";
+	else if (fft == 2)
+		str_fft = "4K	 ";
+	else if (fft == 3)
+		str_fft = "1K	 ";
+	else if (fft == 4)
+		str_fft = "16K  ";
+	else if (fft == 5)
+		str_fft = "32K  ";
+	else if (fft == 6)
+		str_fft = "8KE  ";
+	else
+		str_fft = "32KE ";
+
+	if (constel == 0)
+		str_constel = "QPSK  ";
+	else if (constel == 1)
+		str_constel = "16QAM ";
+	else if (constel == 2)
+		str_constel = "64QAM ";
+	else if (constel == 3)
+		str_constel = "256QAM ";
+	else
+		str_constel = "Err   ";
+
+	switch (miso_mode) {
+	case 0:
+		str_miso_mode = "SISO ";
+		break;
+
+	case 1:
+		str_miso_mode = "MISO ";
+		break;
+
+	case 2:
+		str_miso_mode = "NoT2 ";
+		break;
+
+	default:
+		str_miso_mode = "undef ";
+		break;
+	}
+
+	/* GID Print */
+	if (gi == 0)
+		str_gi = "1/32   ";
+	else if (gi == 1)
+		str_gi = "1/16   ";
+	else if (gi == 2)
+		str_gi = "1/8    ";
+	else if (gi == 3)
+		str_gi = "1/4    ";
+	else if (gi == 4)
+		str_gi = "1/128  ";
+	else if (gi == 5)
+		str_gi = "19/128 ";
+	else if (gi == 6)
+		str_gi = "19/256 ";
+	else
+		str_gi = "NF	   ";
+
+	/* L1 Constellation */
+	if (l1_cstl == 0)
+		str_l1_cstl = "BPSK  ";
+	else if (l1_cstl == 1)
+		str_l1_cstl = "QPSK  ";
+	else if (l1_cstl == 2)
+		str_l1_cstl = "16QAM ";
+	else if (l1_cstl == 3)
+		str_l1_cstl = "64QAM ";
+	else
+		str_l1_cstl = "Ukn   ";
+
+	/* Pilot Mode */
+	switch (pp_mode) {
+	case 0:
+		str_pp_mode = "PP1 ";
+		break;
+	case 1:
+		str_pp_mode = "PP2 ";
+		break;
+	case 2:
+		str_pp_mode = "PP3 ";
+		break;
+	case 3:
+		str_pp_mode = "PP4 ";
+		break;
+	case 4:
+		str_pp_mode = "PP5 ";
+		break;
+	case 5:
+		str_pp_mode = "PP6 ";
+		break;
+	case 6:
+		str_pp_mode = "PP7 ";
+		break;
+	case 7:
+		str_pp_mode = "PP8 ";
+		break;
+	default:
+		str_pp_mode = "Ukn ";
+		break;
+	}
+
+	PR_DVBT("SNR c%ddB, F%d,D%d %s FFT %s %s %s, GI %s, L1 %s, PP_md %s, CFO %dHz, SFO %dppm\n",
+		c_snr, f_snr, d_snr, str_ts_type, str_fft,
+		str_constel, str_miso_mode, str_gi, str_l1_cstl, str_pp_mode, cfo, sfo);
+	PR_DVBT("LDPC %2d,bch 0x%x, D 0x%x/0x%x C 0x%x/0x%x\n",
+		ldpc_it, bch, data_err, data_ttl, cmmn_err, cmmn_ttl);
+	PR_DVBT("COM:%x,AUT:%x,GI:%x,PRE:%x,POST:%x,P1G:%2x,CASG:%2x, 0x361b:0x%x\n\n",
+		(dvbt_t2_rdb(0x1579) >> 6) & 0x01, (dvbt_t2_rdb(0x1579) >> 5) & 0x01,
+		(dvbt_t2_rdb(0x2745) >> 5) & 0x01, (dvbt_t2_rdb(0x839) >> 4) & 0x01,
+		(dvbt_t2_rdb(0x839) >> 3) & 0x01, dvbt_t2_rdb(0x15ba), dvbt_t2_rdb(0x15d5),
+		dvbt_t2_rdb(0x361b));
 }
 

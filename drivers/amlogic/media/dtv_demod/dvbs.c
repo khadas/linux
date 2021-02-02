@@ -922,7 +922,8 @@ static struct stchip_register_t l2a_def_val_local[] = {
 	{0xe01,    0x12,    STCHIP_REGSIZE_8},/* REG_RL2A_DVBSX_HWARE_TSSTATE0 */
 	{0xe02,    0x00,    STCHIP_REGSIZE_8},/* REG_RL2A_DVBSX_HWARE_TSCFG2 */
 	{0xe03,    0x04,    STCHIP_REGSIZE_8},/* REG_RL2A_DVBSX_HWARE_TSCFG1 */
-	{0xe04,    0x20,    STCHIP_REGSIZE_8},/* REG_RL2A_DVBSX_HWARE_TSCFG0 */
+	/* change value from 0x20 to 0xa0 to support CI+ card */
+	{0xe04,    0xa0,    STCHIP_REGSIZE_8},/* REG_RL2A_DVBSX_HWARE_TSCFG0 */
 	{0xe05,    0x00,    STCHIP_REGSIZE_8},/* REG_RL2A_DVBSX_HWARE_TSSYNC */
 	{0xe06,    0x03,    STCHIP_REGSIZE_8},/* REG_RL2A_DVBSX_HWARE_TSDIVN */
 	{0xe07,    0x00,    STCHIP_REGSIZE_8},/* REG_RL2A_DVBSX_HWARE_TSCFG4 */

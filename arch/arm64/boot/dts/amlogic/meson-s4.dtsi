@@ -1279,6 +1279,14 @@
 		status = "okay";
 	};
 
+	adc: adc {
+		compatible = "amlogic, adc-s4";
+		status = "okay";
+		reg = <0x0 0xff654000 0x0 0x2000/* afe reg base */
+			0x0 0xfe008000 0x0 0x2000/* hiu base */
+			>;
+	};
+
 	ir: ir@8000 {
 		compatible = "amlogic, meson-ir";
 		reg = <0x0 0xfe084040 0x0 0x44>,
@@ -1905,6 +1913,14 @@
 			function = "hdmitx";
 			bias-disable;
 			drive-strength = <3>;
+		};
+	};
+
+	dtvdemod_agc_pins: dtvdemod_agc_pins {
+		mux {
+			groups = "dtv_a_if_agc_z6",
+				"dtv_b_if_agc";
+			function = "dtv";
 		};
 	};
 
