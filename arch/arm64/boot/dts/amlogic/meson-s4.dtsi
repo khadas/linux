@@ -705,6 +705,10 @@
 					"frddr_a", "frddr_b", "frddr_c",
 					"frddr_d";
 			};
+
+			pinctrl_audio: pinctrl {
+				compatible = "amlogic, audio-pinctrl";
+			};
 		};/* end of audiobus*/
 
 		/* Sound iomap */
