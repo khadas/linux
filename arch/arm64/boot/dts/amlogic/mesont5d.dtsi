@@ -1516,9 +1516,11 @@
 
 	defendkey: defendkey {
 		compatible = "amlogic, defendkey";
-		mem_size = <0 0x100000>;
-		status = "disabled";
+		reg=<0x0 0xff800228 0x0 0x4>;
+		mem_size = <0x100000>;
+		status = "okay";
 	};
+
 	cpu_ver_name {
 		compatible = "amlogic, cpu-major-id-t5d";
 	};
