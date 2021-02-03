@@ -414,27 +414,6 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 	if (tvafe_cpu_type() < TVAFE_CPU_TYPE_TL1)
 		W_HIU_REG(HHI_TVFE_AUTOMODE_CLK_CNTL, 0);
 
-	/*config adc*/
-	if (IS_TVAFE_ATV_SRC(port)) {
-		if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) {
-			/** DADC CNTL for LIF signal input **/
-			W_HIU_REG(HHI_DADC_CNTL, 0x00303044);
-			W_HIU_REG(HHI_DADC_CNTL2, 0x00003480);
-			W_HIU_REG(HHI_DADC_CNTL3, 0x08300b83);
-		} else {
-			/** DADC CNTL for LIF signal input **/
-			W_HIU_REG(HHI_DADC_CNTL, 0x1411036);
-			W_HIU_REG(HHI_DADC_CNTL2, 0x0);
-			W_HIU_REG(HHI_DADC_CNTL3, 0x430036);
-			W_HIU_REG(HHI_DADC_CNTL4, 0x80600240);
-		}
-	} else {
-		if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) {
-			W_HIU_REG(HHI_DADC_CNTL, 0x00303044);
-			W_HIU_REG(HHI_DADC_CNTL2, 0x00003400);
-			W_HIU_REG(HHI_DADC_CNTL3, 0x08300b83);
-		}
-	}
 	/** enable tv_decoder mem clk **/
 	if (tvafe_cpu_type() < TVAFE_CPU_TYPE_TM2_B)
 		W_HIU_BIT(HHI_VPU_CLK_CNTL, 1, 28, 1);

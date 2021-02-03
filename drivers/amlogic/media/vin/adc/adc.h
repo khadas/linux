@@ -18,6 +18,9 @@
 #define AFE_VAFE_CTRL1		(0x3B1)
 #define AFE_VAFE_CTRL2		(0x3B2)
 
+#define HHI_CADC_CNTL           0x20
+#define HHI_CADC_CNTL2          0x21
+
 /* HIU registers */
 #define HHI_DADC_CNTL		0x27
 #define HHI_DADC_CNTL2		0x28
