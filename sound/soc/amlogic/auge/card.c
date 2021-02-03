@@ -97,6 +97,7 @@ struct aml_card_data {
 	struct snd_soc_dai_link *dai_link;
 	int spk_mute_gpio;
 	bool spk_mute_active_low;
+	bool spk_mute_flag;
 	struct gpio_desc *avout_mute_desc;
 	struct timer_list timer;
 	struct work_struct work;
@@ -781,6 +782,8 @@ static int spk_mute_set(struct snd_kcontrol *kcontrol,
 	bool active_low = priv->spk_mute_active_low;
 	bool mute = ucontrol->value.integer.value[0];
 
+	priv->spk_mute_flag = mute;
+
 	if (gpio_is_valid(gpio)) {
 		bool value = active_low ? !mute : mute;
 
@@ -841,9 +844,10 @@ static int aml_card_parse_gpios(struct device_node *node,
 				GPIOF_OUT_INIT_HIGH);
 		} else {
 			msleep(200);
-			gpio_set_value(priv->spk_mute_gpio,
-				(active_low) ? GPIOF_OUT_INIT_HIGH :
-				GPIOF_OUT_INIT_LOW);
+			if (!priv->spk_mute_flag)
+				gpio_set_value(priv->spk_mute_gpio,
+					(active_low) ? GPIOF_OUT_INIT_HIGH :
+					GPIOF_OUT_INIT_LOW);
 		}
 
 		devm_gpio_request_one(dev, gpio, flags, "spk_mute");
