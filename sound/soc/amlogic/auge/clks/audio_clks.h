@@ -41,7 +41,6 @@
 		.shift = (_shift), \
 		.width = (_width), \
 		.lock = &aclk_lock, \
-		.flags = CLK_DIVIDER_ROUND_CLOSEST, \
 	}
 #define CLOCK_COM_GATE(_name, _reg, _bit) \
 	static struct clk_gate _name##_gate = { \
