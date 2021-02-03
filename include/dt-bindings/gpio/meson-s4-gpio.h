@@ -5,32 +5,33 @@
 
 #ifndef _DT_BINDINGS_MESON_S4_GPIO_H
 #define _DT_BINDINGS_MESON_S4_GPIO_H
-#define	GPIOE_0		0
-#define	GPIOE_1		1
 
-#define	GPIOB_0		2
-#define	GPIOB_1		3
-#define	GPIOB_2		4
-#define	GPIOB_3		5
-#define	GPIOB_4		6
-#define	GPIOB_5		7
-#define	GPIOB_6		8
-#define	GPIOB_7		9
-#define	GPIOB_8		10
-#define	GPIOB_9		11
-#define	GPIOB_10	12
-#define	GPIOB_11	13
-#define	GPIOB_12	14
-#define	GPIOB_13	15
+#define	GPIOB_0		0
+#define	GPIOB_1		1
+#define	GPIOB_2		2
+#define	GPIOB_3		3
+#define	GPIOB_4		4
+#define	GPIOB_5		5
+#define	GPIOB_6		6
+#define	GPIOB_7		7
+#define	GPIOB_8		8
+#define	GPIOB_9		9
+#define	GPIOB_10	10
+#define	GPIOB_11	11
+#define	GPIOB_12	12
+#define	GPIOB_13	13
 
-#define	GPIOC_0		16
-#define	GPIOC_1		17
-#define	GPIOC_2		18
-#define	GPIOC_3		19
-#define	GPIOC_4		20
-#define	GPIOC_5		21
-#define	GPIOC_6		22
-#define	GPIOC_7		23
+#define	GPIOC_0		14
+#define	GPIOC_1		15
+#define	GPIOC_2		16
+#define	GPIOC_3		17
+#define	GPIOC_4		18
+#define	GPIOC_5		19
+#define	GPIOC_6		20
+#define	GPIOC_7		21
+
+#define	GPIOE_0		22
+#define	GPIOE_1		23
 
 #define	GPIOD_0		24
 #define	GPIOD_1		25
