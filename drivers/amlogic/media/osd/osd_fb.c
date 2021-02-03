@@ -1043,6 +1043,7 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	default:
 		osd_log_err("command 0x%x not supported (%s)\n",
 			    cmd, current->comm);
+		mutex_unlock(&fbdev->lock);
 		return -1;
 	}
 	mutex_unlock(&fbdev->lock);
