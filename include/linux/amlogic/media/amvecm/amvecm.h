@@ -517,6 +517,7 @@ enum vlk_chiptype {
 	vlock_chip_tm2,
 	vlock_chip_sm1,
 	vlock_chip_t5,/*same as t5d*/
+	vlock_chip_t7,
 };
 
 enum vlock_hw_ver_e {
@@ -547,6 +548,9 @@ struct vecm_match_data_s {
 	enum vlock_hw_ver_e vlk_hwver;
 	u32 vlk_phlock_en;
 	u32 vlk_pll_sel;/*independent panel pll and hdmitx pll*/
+	u32 reg_addr_vlock;
+	u32 reg_addr_hiu;
+	u32 reg_addr_anactr;
 };
 
 enum vd_path_e {

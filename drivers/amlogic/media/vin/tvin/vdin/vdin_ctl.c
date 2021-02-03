@@ -3605,6 +3605,14 @@ bool vdin_write_done_check(unsigned int offset, struct vdin_dev_s *devp)
 	return false;
 }
 
+void vdin_get_duration_by_fps(struct vdin_dev_s *devp)
+{
+	if (devp->prop.fps && IS_HDMI_SRC(devp->parm.port))
+		devp->duration = 96000 / (devp->prop.fps);
+	else
+		devp->duration = devp->fmt_info_p->duration;
+}
+
 /*
  * cycle = delta_stamp = ((1/fps)/(1/msr_clk))*(vsync_span + 1)
  * msr_clk/fps unit is HZ
@@ -3638,12 +3646,9 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 {
 	unsigned int last_field_type, cycle_phase;
 	struct vframe_s *curr_wr_vf = NULL;
-	/* enum tvin_sig_fmt_e fmt = devp->parm.info.fmt; */
 	const struct tvin_format_s *fmt_info = devp->fmt_info_p;
-	/* unsigned int frame_rate =
-	 * (VDIN_CRYSTAL + (devp->cycle>>3))/devp->cycle;
-	 */
 	enum tvin_port_e port = devp->parm.port;
+	u32 fps;
 
 	curr_wr_vf = &devp->curr_wr_vfe->vf;
 	last_field_type = devp->curr_field_type;
@@ -3653,35 +3658,50 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 		if (vdin_ctl_dbg)
 			pr_info("%s:cycle_phase is 0!!!!", __func__);
 	}
-#ifdef VDIN_DYNAMIC_DURATION
-	devp->curr_wr_vf->duration =
-		(devp->cycle + cycle_phase / 2) / cycle_phase;
-#else
-	if (devp->use_frame_rate == 1 &&
-	    (port >= TVIN_PORT_HDMI0 && port <= TVIN_PORT_HDMI7)) {
-		curr_wr_vf->duration =
-			(devp->cycle + cycle_phase / 2) / cycle_phase;
-	} else {
+
+	/* dynamic duration update */
+	if (devp->dtdata->hw_ver >= VDIN_HW_T7) {
+		/* vstamp to fps */
+		if (devp->cycle) {
+			fps = devp->cycle / (devp->msr_clk_val / 1000000);
+			fps = 100000000 / fps;/*5994 to 6000*/
+			fps = roundup(fps, 100);
+			fps = fps / 100;
+			/* fps to duration */
+			devp->duration = 96000 / fps;
+		}
 		curr_wr_vf->duration = devp->duration;
-	}
-#endif
-	/* for 2D->3D mode & interlaced format, double top field
-	 * duration to match software frame lock
-	 */
+	} else {
 #ifdef VDIN_DYNAMIC_DURATION
-	if ((devp->parm.flag & TVIN_PARM_FLAG_2D_TO_3D) &&
-	    (last_field_type & VIDTYPE_INTERLACE))
-		curr_wr_vf->duration <<= 1;
+		devp->curr_wr_vf->duration =
+			(devp->cycle + cycle_phase / 2) / cycle_phase;
 #else
-	if ((devp->parm.flag & TVIN_PARM_FLAG_2D_TO_3D) &&
-	    (last_field_type & VIDTYPE_INTERLACE)) {
-		if (!fmt_info->duration)
-			curr_wr_vf->duration = ((devp->cycle << 1) +
-						cycle_phase / 2) / cycle_phase;
-		else
-			curr_wr_vf->duration = fmt_info->duration << 1;
-	}
+		if (devp->use_frame_rate == 1 &&
+		    (port >= TVIN_PORT_HDMI0 && port <= TVIN_PORT_HDMI7)) {
+			curr_wr_vf->duration =
+				(devp->cycle + cycle_phase / 2) / cycle_phase;
+		} else {
+			curr_wr_vf->duration = devp->duration;
+		}
 #endif
+		/* for 2D->3D mode & interlaced format, double top field
+		 * duration to match software frame lock
+		 */
+#ifdef VDIN_DYNAMIC_DURATION
+		if ((devp->parm.flag & TVIN_PARM_FLAG_2D_TO_3D) &&
+		    (last_field_type & VIDTYPE_INTERLACE))
+			curr_wr_vf->duration <<= 1;
+#else
+		if ((devp->parm.flag & TVIN_PARM_FLAG_2D_TO_3D) &&
+		    (last_field_type & VIDTYPE_INTERLACE)) {
+			if (!fmt_info->duration)
+				curr_wr_vf->duration = ((devp->cycle << 1) +
+							cycle_phase / 2) / cycle_phase;
+			else
+				curr_wr_vf->duration = fmt_info->duration << 1;
+		}
+#endif
+	}
 }
 
 /* just for horizontal down scale src_w is origin width,

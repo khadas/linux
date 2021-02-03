@@ -923,6 +923,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("force_yuv444_malloc:%d\n", devp->force_yuv444_malloc);
 	pr_info("hdr_Flag =0x%x\n", devp->prop.vdin_hdr_flag);
 	vdin_check_hdmi_hdr(devp);
+	pr_info("cycle:%d, msr_clk_val:%d\n", devp->cycle, devp->msr_clk_val);
+
 	vdin_dump_vf_state(devp->vfp);
 	if (vf) {
 		pr_info("current vframe index(%u):\n", vf->index);

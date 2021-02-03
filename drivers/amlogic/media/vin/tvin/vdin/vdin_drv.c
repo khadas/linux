@@ -783,13 +783,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 		vdin_afbce_config(devp);
 	}
 
-	if (devp->prop.fps &&
-	    devp->parm.port >= TVIN_PORT_HDMI0 &&
-	    devp->parm.port <= TVIN_PORT_HDMI7)
-		devp->duration = 96000 / (devp->prop.fps);
-	else
-		devp->duration = devp->fmt_info_p->duration;
-
+	vdin_get_duration_by_fps(devp);
 	devp->vfp->size = devp->vfmem_max_cnt; /* canvas and afbce compatible */
 	vf_pool_init(devp->vfp, devp->vfp->size);
 	vdin_game_mode_check(devp);
@@ -1879,6 +1873,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	/* avoid null pointer oops */
 	if (!devp)
 		return IRQ_HANDLED;
+
+	vdin_check_cycle(devp);
 
 	if (!devp->frontend) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_END;

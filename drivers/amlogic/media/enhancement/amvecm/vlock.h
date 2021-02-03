@@ -24,7 +24,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2021/0118: vlock bringup on t5d 5_4"
+#define VLOCK_VER "Ref.2021/0118: vlock bringup for t7"
 
 #define VLOCK_REG_NUM	33
 
@@ -46,6 +46,24 @@ struct vlock_log_s {
 	signed int err_sum;
 	signed int margin;
 	unsigned int vlock_regs[VLOCK_REG_NUM];
+};
+
+struct reg_map {
+	unsigned int phy_addr;
+	unsigned int size;
+	void __iomem *p;
+};
+
+enum vlock_regmap_e {
+	REG_MAP_VPU = 0,
+	REG_MAP_HIU,
+	REG_MAP_ANACTRL,/*enc*/
+	REG_MAP_END,
+};
+
+struct vlk_reg_map_tab {
+	unsigned int base;
+	unsigned int size;
 };
 
 enum vlock_param_e {
@@ -131,6 +149,18 @@ enum VLOCK_MD {
 	VLOCK_MODE_MANUAL_SOFT_ENC = 0x10,
 	VLOCK_MODE_MANUAL_MIX_PLL_ENC = 0x20,
 };
+
+/* ------------------ reg ----------------------*/
+/*base 0xfe008000*/
+#define ANACTRL_TCON_PLL_VLOCK		(0x00f2 << 2)
+
+#define ANACTRL_TCON_PLL0_CNTL0		(0x00e0 << 2)/*M(7:0) N(14:10)*/
+#define ANACTRL_TCON_PLL0_CNTL1		(0x00e1 << 2)/*frac(18:0)*/
+#define ANACTRL_TCON_PLL1_CNTL0		(0x00e5 << 2)
+#define ANACTRL_TCON_PLL1_CNTL1		(0x00e6 << 2)
+#define ANACTRL_TCON_PLL2_CNTL0		(0x00ea << 2)
+#define ANACTRL_TCON_PLL2_CNTL1		(0x00eb << 2)
+/* ------------------ reg ----------------------*/
 
 #define IS_MANUAL_MODE(md)	((md) & \
 				(VLOCK_MODE_MANUAL_PLL | \
