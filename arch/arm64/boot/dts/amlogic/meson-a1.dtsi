@@ -59,7 +59,10 @@
 	};
 
 	sm: secure-monitor {
-		compatible = "amlogic,meson-gxbb-sm";
+		compatible = "amlogic, secmon";
+		in_base_func = <0x82000020>;
+		out_base_func = <0x82000021>;
+		reserve_mem_size = <0x00300000>;
 	};
 
 	soc {

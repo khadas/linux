@@ -17,7 +17,9 @@
 #include <linux/sched.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/iomap.h>
-#include <linux/firmware/meson/meson_sm.h>
+#ifdef CONFIG_AMLOGIC_SEC
+#include <linux/amlogic/secmon.h>
+#endif
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/amlogic/cpu_info.h>

@@ -23,11 +23,4 @@ int meson_sm_call_write(void *buffer, unsigned int b_size, unsigned int cmd_inde
 int meson_sm_call_read(void *buffer, unsigned int bsize, unsigned int cmd_index,
 		       u32 arg0, u32 arg1, u32 arg2, u32 arg3, u32 arg4);
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-void meson_sm_mutex_lock(void);
-void meson_sm_mutex_unlock(void);
-void __iomem *get_meson_sm_input_base(void);
-void __iomem *get_meson_sm_output_base(void);
-#endif
-
 #endif /* _MESON_SM_FW_H_ */

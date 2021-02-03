@@ -6,6 +6,7 @@
 
 # GKI extern modules if enabled AMLOGIC_GKI
 obj-$(CONFIG_AMLOGIC_MESON_CPUFREQ)	+= cpufreq/
+obj-$(CONFIG_AMLOGIC_SEC)               += secmon/
 obj-$(CONFIG_AMLOGIC_EFUSE_UNIFYKEY)    += efuse_unifykey/
 obj-$(CONFIG_AMLOGIC_DDR_TOOL)		+= ddr_tool/
 obj-$(CONFIG_AMLOGIC_CRYPTO_DMA)	+= crypto/

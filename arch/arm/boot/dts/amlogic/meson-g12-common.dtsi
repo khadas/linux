@@ -72,9 +72,12 @@
 	};
 
 	secmon {
-		compatible = "amlogic,meson-gxbb-sm";
+		compatible = "amlogic, secmon";
 		memory-region = <&secmon_reserved>;
 		reserve_mem_size = <0x00300000>;
+		in_base_func = <0x82000020>;
+		out_base_func = <0x82000021>;
+		clear_range = <0x05100000 0x200000>;
 	};
 
 	soc: soc {

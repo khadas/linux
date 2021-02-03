@@ -17,7 +17,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
 #include <linux/arm-smccc.h>
-#include <linux/firmware/meson/meson_sm.h>
+#include <linux/amlogic/secmon.h>
 #include "../../thermal/thermal_core.h"
 
 /*r1p1 thermal sensor version*/

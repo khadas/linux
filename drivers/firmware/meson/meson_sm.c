@@ -20,15 +20,6 @@
 #include <linux/sizes.h>
  #include <linux/slab.h>
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-#include <linux/dma-contiguous.h>
-#include <linux/cma.h>
-#include <linux/mm.h>
-#include <linux/of_reserved_mem.h>
-
-#define RESERVE_MEM_SIZE	0x300000
-#endif
-
 #include <linux/firmware/meson/meson_sm.h>
 
 struct meson_sm_cmd {
@@ -65,10 +56,6 @@ struct meson_sm_firmware {
 
 static struct meson_sm_firmware fw;
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-static DEFINE_MUTEX(meson_sm_mutex);
-#endif
-
 static u32 meson_sm_get_cmd(const struct meson_sm_chip *chip,
 			    unsigned int cmd_index)
 {
@@ -89,24 +76,13 @@ static u32 __meson_sm_call(u32 cmd, u32 arg0, u32 arg1, u32 arg2,
 	return res.a0;
 }
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-static void __iomem *meson_sm_map_shmem(u32 cmd_shmem, unsigned int size,
-					int cma)
-#else
 static void __iomem *meson_sm_map_shmem(u32 cmd_shmem, unsigned int size)
-#endif
 {
 	u32 sm_phy_base;
 
 	sm_phy_base = __meson_sm_call(cmd_shmem, 0, 0, 0, 0, 0);
 	if (!sm_phy_base)
 		return 0;
-
-#ifdef CONFIG_AMLOGIC_MODIFY
-	/* mapped by kernel, physical address must in low mem */
-	if (cma)
-		return (void __iomem *)phys_to_virt(sm_phy_base);
-#endif
 
 	return ioremap_cache(sm_phy_base, size);
 }
@@ -234,44 +210,6 @@ int meson_sm_call_write(void *buffer, unsigned int size, unsigned int cmd_index,
 }
 EXPORT_SYMBOL(meson_sm_call_write);
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-void meson_sm_mutex_lock(void)
-{
-	mutex_lock(&meson_sm_mutex);
-}
-EXPORT_SYMBOL(meson_sm_mutex_lock);
-
-void meson_sm_mutex_unlock(void)
-{
-	mutex_unlock(&meson_sm_mutex);
-}
-EXPORT_SYMBOL(meson_sm_mutex_unlock);
-
-void __iomem *get_meson_sm_input_base(void)
-{
-	if (!fw.chip)
-		return NULL;
-
-	if (!fw.chip->cmd_shmem_in_base)
-		return NULL;
-
-	return fw.sm_shmem_in_base;
-}
-EXPORT_SYMBOL(get_meson_sm_input_base);
-
-void __iomem *get_meson_sm_output_base(void)
-{
-	if (!fw.chip)
-		return NULL;
-
-	if (!fw.chip->cmd_shmem_out_base)
-		return NULL;
-
-	return fw.sm_shmem_out_base;
-}
-EXPORT_SYMBOL(get_meson_sm_output_base);
-#endif
-
 #define SM_CHIP_ID_LENGTH	119
 #define SM_CHIP_ID_OFFSET	4
 #define SM_CHIP_ID_SIZE		12
@@ -328,85 +266,23 @@ static const struct of_device_id meson_sm_ids[] = {
 	{ /* sentinel */ },
 };
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-static int __init secmon_cma_setup(struct platform_device *pdev)
-{
-	struct page *page;
-	unsigned int clear[2] = {};
-	int size;
-	struct device_node *np = pdev->dev.of_node;
-
-	if (of_property_read_u32(np, "reserve_mem_size", &size))
-		size = RESERVE_MEM_SIZE;
-
-	pr_info("reserve_mem_size:0x%x\n", size);
-
-	/* need clear mmu for A73 core */
-	if (!of_property_read_u32_array(np, "clear_range", clear, 2))
-		pr_info("clear_range:%x %x\n", clear[0], clear[1]);
-
-	page = dma_alloc_from_contiguous(&pdev->dev, size >> PAGE_SHIFT, 0, 0);
-	if (!page) {
-		pr_err("%s, alloc page failed\n", __func__);
-		return -ENOMEM;
-	}
-	pr_info("%s, get page:%lx\n", __func__, page_to_pfn(page));
-
-	if (clear[0]) {
-		size = clear[1] / PAGE_SIZE;
-		page = phys_to_page(clear[0]);
-		cma_mmu_op(page, size, 0);
-	}
-	return 0;
-}
-#endif
-
 static int __init meson_sm_probe(struct platform_device *pdev)
 {
 	const struct meson_sm_chip *chip;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	int cma = 0, ret;
-	void *tmp;
-#endif
 
 	chip = of_match_device(meson_sm_ids, &pdev->dev)->data;
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-	ret = of_reserved_mem_device_init(&pdev->dev);
-	if (ret) {
-		pr_info("reserve memory init fail:%d\n", ret);
-		return ret;
-	}
-	pr_info("device cma:%lx\n", (unsigned long)pdev->dev.cma_area);
-	if (pdev->dev.cma_area) {
-		cma = 1;
-		if (secmon_cma_setup(pdev))
-			return -EINVAL;
-	}
-#endif
 
 	if (chip->cmd_shmem_in_base) {
-#ifdef CONFIG_AMLOGIC_MODIFY
-		tmp = meson_sm_map_shmem(chip->cmd_shmem_in_base,
-					 chip->shmem_size, cma);
-		fw.sm_shmem_in_base = tmp;
-#else
 		fw.sm_shmem_in_base = meson_sm_map_shmem(chip->cmd_shmem_in_base,
 							 chip->shmem_size);
-#endif
 		if (WARN_ON(!fw.sm_shmem_in_base))
 			goto out;
 	}
 
 	if (chip->cmd_shmem_out_base) {
-#ifdef CONFIG_AMLOGIC_MODIFY
-		tmp = meson_sm_map_shmem(chip->cmd_shmem_out_base,
-					 chip->shmem_size, cma);
-		fw.sm_shmem_out_base = tmp;
-#else
 		fw.sm_shmem_out_base = meson_sm_map_shmem(chip->cmd_shmem_out_base,
 							  chip->shmem_size);
-#endif
 		if (WARN_ON(!fw.sm_shmem_out_base))
 			goto out_in_base;
 	}

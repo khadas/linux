@@ -18,8 +18,10 @@
 #include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
 #include <linux/arm-smccc.h>
-#include <linux/firmware/meson/meson_sm.h>
 #include "dolby_fw.h"
+#ifdef CONFIG_AMLOGIC_SEC
+#include <linux/amlogic/secmon.h>
+#endif
 
 #define DOLBY_FW_DEVICE_NAME   "dolby_fw"
 #define DOLBY_FW_DRIVER_NAME   "dolby_fw"
