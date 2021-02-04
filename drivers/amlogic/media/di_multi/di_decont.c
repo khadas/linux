@@ -228,6 +228,8 @@ void dbg_dct_core_other(struct dcntr_core_s *pcore)
 {
 	if (!pcore)
 		return;
+	if (!(di_dbg & DBG_M_DCT))
+		return;
 	dim_print("%s:\n", __func__);
 
 	dim_print("\tlsize<%d,%d,%d,%d>:\n",
@@ -247,6 +249,8 @@ void dbg_dct_in(struct dcntr_in_s *pin)
 	int i;
 
 	if (!pin)
+		return;
+	if (!(di_dbg & DBG_M_DCT))
 		return;
 	dim_print("%s:\n", __func__);
 	dim_print("\tsize<%d,%d,%d,%d>:\n", pin->x_size, pin->y_size,
@@ -270,6 +274,8 @@ void dbg_dct_in(struct dcntr_in_s *pin)
 void dbg_dct_mif(struct dcntr_mif_s *pmif)
 {
 	if (!pmif)
+		return;
+	if (!(di_dbg & DBG_M_DCT))
 		return;
 	dim_print("%s:\n", __func__);
 	dim_print("\tsize<%d,%d,%d,%d>:\n",
@@ -1232,10 +1238,17 @@ void dcntr_check(struct vframe_s *vfm)
 			pcfg->burst = 0;
 		else if (cvs_w % 64)
 			pcfg->burst = 1;
+		#ifdef CVS_UINT
 		dim_print("%s:cvsy:add:0x%x,c:0x%x\n",
 			  __func__,
 			  vfm->canvas0_config[0].phy_addr,
 			  vfm->canvas0_config[1].phy_addr);
+		#else
+		dim_print("%s:cvsy:add:0x%lx,c:0x%lx\n",
+			  __func__,
+			  vfm->canvas0_config[0].phy_addr,
+			  vfm->canvas0_config[1].phy_addr);
+		#endif
 	} else {
 		pcfg->in.addr[ECNTR_MIF_IDX_DIVR] = ds_addy;
 		pcfg->in.addr[ECNTR_MIF_IDX_YFLT] = ds_addy;

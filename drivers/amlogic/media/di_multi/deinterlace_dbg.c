@@ -1332,7 +1332,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 				   pch->sum_pst);
 	seq_printf(seq, "%-15s=%d\n", "sum_ext_buf_in",
 				   pch->sum_ext_buf_in);
-	seq_printf(seq, "%-15s=%d\n", "sum_ext_buf_in",
+	seq_printf(seq, "%-15s=%d\n", "sum_ext_buf_in2",
 				   pch->sum_ext_buf_in2);
 
 	seq_printf(seq, "%-15s=%d\n", "sum_alloc_release",

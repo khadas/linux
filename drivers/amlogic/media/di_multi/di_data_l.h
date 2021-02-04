@@ -142,6 +142,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_TMODE_2,	/*EDIM_TMODE_2_PW_OUT*/
 	EDI_CFG_TMODE_3,	/*EDIM_TMODE_3_PW_LOCAL*/
 	EDI_CFG_LINEAR,
+	EDI_CFG_PONLY_BP_THD,
 	EDI_CFG_END,
 };
 
@@ -1764,7 +1765,9 @@ struct di_ch_s {
 		struct {
 			unsigned int no_buf	: 1,
 				scr_err		: 1,
-				rev		: 30;
+				rev1		: 2,
+				ponly_fst_cnt	: 4,
+				rev		: 24;
 		} b;
 	} rsc_bypass; /* 2020-11-03 for sct */
 	struct dim_mscttop_s	msct_top;
@@ -2063,6 +2066,7 @@ struct di_data_l_s {
 #define DBG_M_SCT		DI_BIT19
 #define DBG_M_NQ		DI_BIT20
 #define DBG_M_BPASS		DI_BIT21
+#define DBG_M_DCT		DI_BIT22
 #define DBG_M_IC		DI_BIT28
 #define DBG_M_RESET_PRE		DI_BIT29
 extern unsigned int di_dbg;

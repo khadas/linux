@@ -629,9 +629,9 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	seq_printf(seq, "%-15s:0x%p\n", "early_process_fun",
 		   pvfm->early_process_fun);
 	seq_printf(seq, "%-15s:0x%p\n", "process_fun",
-		   pvfm->early_process_fun);
+		   pvfm->process_fun);
 	seq_printf(seq, "%-15s:0x%p\n", "private_data",
-		   pvfm->early_process_fun);
+		   pvfm->private_data);
 
 	/* vframe properties */
 
@@ -654,8 +654,13 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	for (i = 0; i < pvfm->plane_num; i++) {
 		pcvs = &pvfm->canvas0_config[i];
 		seq_printf(seq, "%-15s:%d\n", "canvas0_cfg", i);
+	#ifdef CVS_UINT
+		seq_printf(seq, "\t%-15s:0x%x\n", "phy_addr",
+			   pcvs->phy_addr);
+	#else
 		seq_printf(seq, "\t%-15s:0x%lx\n", "phy_addr",
 			   pcvs->phy_addr);
+	#endif
 		seq_printf(seq, "\t%-15s:%d\n", "width",
 			   pcvs->width);
 		seq_printf(seq, "\t%-15s:%d\n", "height",

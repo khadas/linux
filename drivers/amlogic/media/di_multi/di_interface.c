@@ -381,6 +381,9 @@ int di_create_instance(struct di_init_parm parm)
 		return DI_ERR_REG_NO_IDLE_CH;
 	}
 
+	if ((parm.output_format & 0xffff) == DI_OUTPUT_422)
+		parm.output_format &= ~DI_OUTPUT_LINEAR;
+
 	ch = (unsigned int)ret;
 	pch = get_chdata(ch);
 	itf = &pch->itf;
@@ -440,6 +443,7 @@ int di_create_instance(struct di_init_parm parm)
 	cfg_ch_set(pch);
 	mutex_unlock(&pch->itf.lock_reg);
 	PR_INF("%s:ch[%d],tmode[%d]\n", __func__, ch, itf->tmode);
+	PR_INF("\tout:%d\n", itf->u.dinst.parm.output_format);
 	return ch;
 }
 EXPORT_SYMBOL(di_create_instance);

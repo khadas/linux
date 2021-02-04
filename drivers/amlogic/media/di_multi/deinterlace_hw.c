@@ -1547,17 +1547,26 @@ static void set_di_mem_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 		    (1 << 12)			| /*burst_size_cr*/
 		    (1 << 10)			| /*burst_size_cb*/
 		    (3 << 8)			| /*burst_size_y*/
+		    (mif->l_endian << 4)		|
 		    (chro_rpt_lastl_ctrl << 6)	|
 		    ((mif->set_separate_en != 0) << 1)	|
 		    (0 << 0)			/* cntl_enable */
 		    );
 	if (mif->set_separate_en == 2) {
 		/* Enable NV12 Display */
-		DIM_RDMA_WR_BITS(DI_MEM_GEN_REG2, 1, 0, 1);
+		//DIM_RDMA_WR_BITS(DI_MEM_GEN_REG2, 1, 0, 1);
+		if (mif->cbcr_swap)
+			DIM_RDMA_WR_BITS(DI_MEM_GEN_REG2, 2, 0, 2);
+		else
+			DIM_RDMA_WR_BITS(DI_MEM_GEN_REG2, 1, 0, 2);
 	} else {
 		DIM_RDMA_WR_BITS(DI_MEM_GEN_REG2, 0, 0, 1);
 	}
 	DIM_RDMA_WR_BITS(DI_MEM_GEN_REG3, mif->bit_mode & 0x3, 8, 2);
+	if (mif->reg_swap == 1)
+		DIM_RDMA_WR_BITS(DI_MEM_GEN_REG3, 1, 0, 1);
+	else
+		DIM_RDMA_WR_BITS(DI_MEM_GEN_REG3, 0, 0, 1);
 	/* ---------------------- */
 	/* Canvas */
 	/* ---------------------- */
@@ -2033,6 +2042,7 @@ static void set_di_chan2_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 		    (1 << 12)			|	/*burst_size_cr*/
 		    (1 << 10)			|	/*burst_size_cb*/
 		    (3 << 8)			|	/*burst_size_y*/
+		    (mif->l_endian << 4)	|
 		    (chro_rpt_lastl_ctrl << 6)	|
 		    ((mif->set_separate_en != 0) << 1)	|
 		    (0 << 0)			/* cntl_enable */
@@ -2042,11 +2052,20 @@ static void set_di_chan2_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 	/* ---------------------- */
 	if (mif->set_separate_en == 2) {
 		/* Enable NV12 Display */
-		DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG2, 1, 0, 1);
+		//DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG2, 1, 0, 1);
+		if (mif->cbcr_swap)
+			DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG2, 2, 0, 2);
+		else
+			DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG2, 1, 0, 2);
 	} else {
 		DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG2, 0, 0, 1);
 	}
 	DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG3, mif->bit_mode & 0x3, 8, 2);
+	if (mif->reg_swap == 1)
+		DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG3, 1, 0, 1);
+	else
+		DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG3, 0, 0, 1);
+
 	DIM_RDMA_WR(DI_CHAN2_CANVAS0, (mif->canvas0_addr2 << 16) |
 				(mif->canvas0_addr1 << 8) |
 				(mif->canvas0_addr0 << 0));

@@ -37,6 +37,10 @@
  ***********************************************/
 #define DIM_OUT_NV21	(1)
 //#define TEST_PIP	(1)
+/************************************************
+ * from t7 cvs address is ulong
+ ************************************************/
+//#define CVS_UINT	(1)
 
 /*trigger_pre_di_process param*/
 #define TRIGGER_PRE_BY_PUT			'p'
@@ -820,5 +824,5 @@ void hpre_timeout_read(void);
 
 //#define TMP_TEST	(1)
 
-#define TMP_MASK_FOR_T7 (1)
+//#define TMP_MASK_FOR_T7 (1)
 #endif

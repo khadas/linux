@@ -192,6 +192,11 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_LINEAR,
 			0,
 			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_PONLY_BP_THD]  = {"bp_thd",
+			/**/
+			EDI_CFG_PONLY_BP_THD,
+			2,
+			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
 
@@ -1415,7 +1420,12 @@ void dip_chst_process_ch(void)
 #endif
 			break;
 		case EDI_TOP_STATE_BYPASS:
-			vframe = nins_peekvfm(pch);
+			if (dip_itf_is_ins_exbuf(pch)) {
+				PR_ERR("%s:bypss:extbuf\n", __func__);
+				break;
+			}
+			vframe = pw_vf_peek(pch->ch_id);//nins_peekvfm(pch);
+
 			if (!vframe)
 				break;
 			if (dim_need_bypass(ch, vframe))
@@ -2735,6 +2745,13 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 	dim_bypass_st_clear(pch);
 	/* dw */
 	dw_int();
+	/* check format */
+	if (!dip_itf_is_ins_exbuf(pch)) {
+		if (cfggch(pch, POUT_FMT) <= 3 && cfggch(pch, IOUT_FMT) <= 3) {
+			cfgsch(pch, ALLOC_SCT, 0);
+			PR_INF("%s:chang alloc_sct\n", __func__);
+		}
+	}
 
 	if (cfgg(PMODE) == 2) {
 		//prog_proc_config = 3;
@@ -2749,10 +2766,13 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		dimp_set(edi_mp_use_2_interlace_buff, 1);
 	}
 	pch->src_type = vframe->source_type;
-	if ((vframe->flag & VFRAME_FLAG_DI_P_ONLY) || bget(&dim_cfg, 1))
+	if ((vframe->flag & VFRAME_FLAG_DI_P_ONLY) || bget(&dim_cfg, 1)) {
 		pch->ponly = true;
-	else
+		pch->rsc_bypass.b.ponly_fst_cnt = cfggch(pch, PONLY_BP_THD);
+	} else {
 		pch->ponly = false;
+		pch->rsc_bypass.b.ponly_fst_cnt = 0;
+	}
 
 	if (dim_afds())
 		di_set_default(ch);
@@ -3341,7 +3361,7 @@ void dbg_nins_log_buf(struct di_buf_s *di_buf, unsigned int dbgid)
 	if (di_buf && di_buf->c.in) {
 		ins = (struct dim_nins_s *)di_buf->c.in;
 	} else {
-		PR_INF("%s:no in:%d\n", "nins", di_buf->index);
+		PR_INF("no in\n");
 		return;
 	}
 
@@ -3583,7 +3603,7 @@ bool ndis_move_display2idle(struct di_ch_s *pch, struct dim_ndis_s *ndis)
 	qbuf_in(pbufq, QBF_NDIS_Q_IDLE, ndis->header.index);
 	//qbuf_dbg_checkid(pbufq, 5);
 	dbg_nq("%s:%d\n", __func__, ndis->header.index);
-	return ndis;
+	return ret;
 }
 
 bool ndis_is_in_display(struct di_ch_s *pch, struct dim_ndis_s *ndis)
@@ -3634,7 +3654,7 @@ bool ndis_move_keep2idle(struct di_ch_s *pch, struct dim_ndis_s *ndis)
 	qbuf_in(pbufq, QBF_NDIS_Q_IDLE, ndis->header.index);
 	//qbuf_dbg_checkid(pbufq, 5);
 	PR_INF("%s:%d\n", __func__, ndis->header.index);
-	return ndis;
+	return ret;
 }
 
 #ifdef MARK_HIS //no used
@@ -4650,7 +4670,13 @@ static bool ndrd_m1_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 	cvp_ori	= &buffer->vf->canvas0_config[0];
 
 	if (cvp_di->phy_addr != cvp_ori->phy_addr) {
-		PR_ERR("%s:0x%lx->0x%lx\n", __func__, cvp_ori->phy_addr, cvp_di->phy_addr);
+		#ifdef CVS_UINT
+		PR_ERR("%s:0x%x->0x%x\n", __func__,
+			cvp_ori->phy_addr, cvp_di->phy_addr);
+		#else
+		PR_ERR("%s:0x%lx->0x%lx\n", __func__,
+			cvp_ori->phy_addr, cvp_di->phy_addr);
+		#endif
 		return false;
 	}
 	memcpy(buffer->vf, di_buf->vframe, sizeof(*buffer->vf));
@@ -4957,16 +4983,23 @@ bool dbg_src_change_simple(unsigned int ch/*struct di_ch_s *pch*/)
 	//unsigned int ch;
 	static unsigned int last_w;
 	static enum EDI_SGN sgn;
+	struct di_ch_s *pch;
+	unsigned int x, y;
 
 	if (!cfgg(PAUSE_SRC_CHG))
 		return false;
 
 	//ch = pch->ch_id;
-	vfm = pw_vf_peek(ch);
+	pch = get_chdata(ch);
+	vfm = nins_peekvfm(pch);//pw_vf_peek(ch);
+	if (!vfm)
+		return false;
+
+	dim_vf_x_y(vfm, &x, &y);
 	if (cfgg(PAUSE_SRC_CHG) == 1) {
-		if (last_w != vfm->width) {
-			PR_INF("%s:%d->%d\n", __func__, last_w, vfm->width);
-			last_w = vfm->width;
+		if (last_w != x) {
+			PR_INF("%s:%d->%d,0x%x\n", __func__, last_w, x, vfm->type);
+			last_w = x;
 			pre_run_flag = DI_RUN_FLAG_PAUSE;
 		}
 	} else if (cfgg(PAUSE_SRC_CHG) == 2) {
@@ -5856,7 +5889,8 @@ void dbg_cp_4k(struct di_ch_s *pch, unsigned int mode)
 	t_c = cur_to_usecs();
 	us_diff[2] = (unsigned int)(t_c - t_st);
 
-	di_que_in(ch, QUE_POST_READY, di_buf);
+	//di_que_in(ch, QUE_POST_READY, di_buf);
+	pch->itf.op_fill_ready(pch, di_buf);
 	dbg_copy("di:typ2[0x%x]:\n", di_buf->vframe->type);
 	pw_vf_put(vfm_in, ch);
 

@@ -1132,7 +1132,7 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 #endif
 	pdat->flg.d32 = flg;
 	pdat->flg_alloc = 1;
-	PR_INF("%s:cma size:%d,0x%px,0x%lx\n",
+	PR_INF("%s:cma:size:%d,0x%px,0x%lx\n",
 	       __func__,
 	       dat_size, pdat->virt, pdat->addr_st);
 
@@ -2160,11 +2160,15 @@ unsigned int mem_release_keep_back(struct di_ch_s *pch)
 			continue;
 		}
 		ndis = (struct dim_ndis_s *)pbuf.qbc;
-		PR_INF("%s:keep back out %d\n", __func__, ndis->header.index);
-		if (!ndis || !ndis->c.blk) {
+		if (!ndis) {
 			PR_ERR("%s:no ndis ?:%d\n", __func__, i);
 			continue;
 		}
+		if (!ndis->c.blk) {
+			PR_ERR("%s:no ndis blk?:%d\n", __func__, i);
+			continue;
+		}
+		PR_INF("%s:keep back out %d\n", __func__, ndis->header.index);
 
 		mem_release_one_inused(pch, ndis->c.blk);
 		ndis_move_keep2idle(pch, ndis);
@@ -3722,7 +3726,7 @@ static int dim_probe(struct platform_device *pdev)
 	dil_set_diffver_flag(1);
 	dil_set_cpuver_flag(get_datal()->mdata->ic_id);
 
-	pr_info("%s:ok 08\n", __func__);
+	pr_info("%s:ok\n", __func__);
 	return ret;
 
 fail_cdev_add:
