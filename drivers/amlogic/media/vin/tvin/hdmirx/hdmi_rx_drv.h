@@ -20,8 +20,8 @@
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 
-/* fix t5d color abnormal issue */
-#define RX_VER0 "ver.2021/01/26"
+/* fix t7 repeatition error */
+#define RX_VER0 "ver.2021/02/04"
 
 /*print type*/
 #define	LOG_EN		0x01

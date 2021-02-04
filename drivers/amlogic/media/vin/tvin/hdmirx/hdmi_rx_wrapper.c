@@ -993,7 +993,7 @@ static const struct freq_ref_s freq_ref[] = {
 	{0,	3,	0,	2048,	2160,	HDMI_4096p50_256x135_Y420},
 	{0,	3,	0,	960,	1080,	HDMI_1080p_420},
 	/* interlace */
-	/* {1,	0,	0,	720,	240,	HDMI_720x480i}, */
+	{1,	0,	0,	720,	240,	HDMI_720x480i},
 	{1,	0,	0,	1440,	240,	HDMI_480i60},
 	/* {1, 0,	0,	720,	288,	HDMI_720x576i}, */
 	{1,	0,	0,	1440,	288,	HDMI_576i50},
@@ -1191,6 +1191,7 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 	case HDMI_480i120_16x9:	/* 51 */
 	case HDMI_480i240:	/* 58 */
 	case HDMI_480i240_16x9:	/* 59 */
+	case HDMI_720x480i:
 		fmt = TVIN_SIG_FMT_HDMI_1440X480I_60HZ;
 		break;
 	case HDMI_1080p24:	/* 32 */

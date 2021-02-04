@@ -1695,6 +1695,8 @@ static int TOP_init(void)
 	}
 	/* conversion mode of 422 to 444 */
 	data32 |= 0	<< 19;
+	/* pixel_repeat_ovr */
+	data32 |= 1 << 7;
 	/* !!!!dolby vision 422 to 444 ctl bit */
 	data32 |= 0	<< 0;
 	hdmirx_wr_top(TOP_VID_CNTL,	data32);
@@ -3825,7 +3827,9 @@ void hdmirx_config_video(void)
 {
 	u32 data32 = 0;
 	u32 temp = 0;
+	u8 data8;
 
+	int reg_clk_vp_core_div, reg_clk_vp_out_div;
 	if (dbg_cs & 0x10)
 		temp = dbg_cs & 0x0f;
 	else
@@ -3874,6 +3878,35 @@ void hdmirx_config_video(void)
 		hdmirx_wr_top(TOP_VID_CNTL, data32);
 	break;
 	}
+
+	/* repeatition config */
+	switch (rx.cur.repeat) {
+	case 1:
+		reg_clk_vp_core_div = 3;
+		reg_clk_vp_out_div = 1;
+	break;
+	case 3:
+		reg_clk_vp_core_div = 7;
+		reg_clk_vp_out_div = 3;
+	break;
+	default:
+		reg_clk_vp_core_div = 1;
+		reg_clk_vp_out_div = 0;
+	break;
+	}
+	data8 = hdmirx_rd_cor(RX_PWD0_CLK_DIV_0);
+	data8 &= (~0x3f);
+	//[5:3] divides the vpc out clock
+	data8 |= (reg_clk_vp_out_div << 3);//[5:3] divides the vpc out clock
+	//[2:0] divides the vpc core clock:
+	//0: divide by 1; 1: divide by 2; 3: divide by 4; 7: divide by 8
+	data8 |= (reg_clk_vp_core_div << 0);
+	hdmirx_wr_cor(RX_PWD0_CLK_DIV_0, data8) ;//register address: 0x10c1
+
+	data8 = hdmirx_rd_cor(RX_VP_INPUT_FORMAT_HI);
+	data8 &= (~0x7);
+	data8 |= ((rx.cur.repeat & 0x3) << 0);
+	hdmirx_wr_cor(RX_VP_INPUT_FORMAT_HI, data8);
 }
 
 /*
