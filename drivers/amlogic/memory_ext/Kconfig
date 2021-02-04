@@ -82,3 +82,11 @@ config AMLOGIC_WATCHPOINT
 		This driver export a debug sysfs in order
 		to using watch point function on ARMv8.
 		say y to enable Amlogic watch point driver
+
+config AMLOGIC_MEM_DEBUG
+	bool "Amlogic debug mem"
+	depends on AMLOGIC_DEBUG
+	default n
+	help
+		Memory debug which hacking to kernel mm source.
+		Enable if doubt.

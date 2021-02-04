@@ -24,4 +24,5 @@ config AMLOGIC_DEBUG_FTRACE_PSTORE
 	help
 		Dump function call and register access to ramoops after watchdog
 		reboot.
-		Enable if doubt.
+		Enable if doubt
+
