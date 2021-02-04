@@ -37,7 +37,7 @@
 				dev = "odm";
 				type = "ext4";
 				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,slotselect,logical,first_stage_mount";
+				fsmgr_flags = "wait,slotselect,avb,logical,first_stage_mount";
 				};
 			system_ext {
 				compatible = "android,system_ext";
@@ -55,10 +55,10 @@
 				};
 			metadata {
 				compatible = "android,metadata";
-				dev = "/dev/block/metadata";
+				dev = "/dev/block/by-name/metadata";
 				type = "ext4";
 				mnt_flags = "noatime,nosuid,nodev,nodelalloc,nomblk_io_submit,errors=panic";
-				fsmgr_flags = "wait,slotselect,check,formattable,first_stage_mount";
+				fsmgr_flags = "wait,check,formattable,first_stage_mount";
 				};
 			};
 		};

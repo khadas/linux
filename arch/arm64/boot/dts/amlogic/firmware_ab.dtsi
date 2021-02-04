@@ -37,7 +37,7 @@
 				dev = "odm";
 				type = "ext4";
 				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,slotselect,logical,first_stage_mount";
+				fsmgr_flags = "wait,slotselect,avb,logical,first_stage_mount";
 				};
 			system_ext {
 				compatible = "android,system_ext";
