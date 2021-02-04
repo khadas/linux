@@ -901,7 +901,6 @@ void vpu_dev_mem_power_on(struct vpu_dev_s *vpu_dev)
 	unsigned long flags = 0;
 	int ret;
 
-	return;
 	if (vpu_chip_valid_check())
 		return;
 
@@ -951,7 +950,6 @@ void vpu_dev_mem_power_down(struct vpu_dev_s *vpu_dev)
 	unsigned long flags = 0;
 	int ret;
 
-	return;
 	if (vpu_chip_valid_check())
 		return;
 
