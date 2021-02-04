@@ -681,7 +681,7 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
-
+/*
 		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
 			suffix-name = "alsaPORT-earc";
@@ -693,8 +693,8 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
-
-		aml-audio-card,dai-link@8 {
+*/
+		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
 			continuous-clock;
 			suffix-name = "alsaPORT-loopback";
@@ -1114,10 +1114,6 @@
 }; /* end of audiobus */
 
 &earc {
-	status = "okay";
-};
-
-&audio_data {
 	status = "disabled";
 };
 

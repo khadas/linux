@@ -1098,8 +1098,9 @@
 
 		audio_data: audio_data {
 			compatible = "amlogic, audio_data";
+			mem_in_base_cmd = <0x82000020>;
 			query_licence_cmd = <0x82000050>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		audiobus: audiobus@0xFE330000 {
