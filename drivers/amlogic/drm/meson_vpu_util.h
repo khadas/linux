@@ -14,7 +14,7 @@
 #include <linux/amlogic/iomap.h>
 
 #define LINE_THRESHOLD 90
-#define WAIT_CNT_MAX 20
+#define WAIT_CNT_MAX 100
 /*osd internal channel*/
 enum din_channel_e {
 	DIN0 = 0,
@@ -43,7 +43,7 @@ int meson_drm_canvas_pool_alloc_table(const char *owner, u32 *table, int size,
 void set_video_enabled(u32 value, u32 index);
 void meson_vpu_reg_handle_register(void);
 int meson_vpu_reg_vsync_config(void);
-void meson_vpu_line_check(int viu_index, int vdisplay);
+void meson_vpu_line_check(int viu_index, int vdisplay, int vrefresh);
 void meson_vpu_power_config(enum vpu_mod_e mode, bool en);
 void osd_vpu_power_on(void);
 #endif

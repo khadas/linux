@@ -142,6 +142,7 @@ static bool am_meson_crtc_mode_fixup(struct drm_crtc *crtc,
 static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 					struct drm_crtc_state *old_state)
 {
+	int ret;
 	char *name;
 	enum vmode_e mode;
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
@@ -167,7 +168,9 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (mode == VMODE_DUMMY_ENCL ||
 		mode == VMODE_DUMMY_ENCI ||
 		mode == VMODE_DUMMY_ENCP) {
-		set_current_vmode(mode);
+		ret = set_current_vmode(mode);
+		if (ret)
+			DRM_ERROR("new mode set error\n");
 	} else {
 		if (meson_crtc_state->uboot_mode_init)
 			mode |= VMODE_INIT_BIT_MASK;
@@ -324,12 +327,9 @@ static int am_meson_video_fence_create(struct drm_crtc *crtc)
 static void am_meson_crtc_atomic_begin(struct drm_crtc *crtc,
 				       struct drm_crtc_state *old_crtc_state)
 {
-	struct am_meson_crtc *amcrtc;
 	struct am_meson_crtc_state *meson_crtc_state;
-	unsigned long flags;
 	int ret = 0;
 
-	amcrtc = to_am_meson_crtc(crtc);
 	meson_crtc_state = to_am_meson_crtc_state(crtc->state);
 	if (meson_crtc_state->fence_state.video_out_fence_ptr) {
 		ret = am_meson_video_fence_create(crtc);
@@ -337,13 +337,6 @@ static void am_meson_crtc_atomic_begin(struct drm_crtc *crtc,
 	}
 	if (ret)
 		DRM_INFO("video fence create fail\n");
-
-	if (crtc->state->event) {
-		spin_lock_irqsave(&crtc->dev->event_lock, flags);
-		amcrtc->event = crtc->state->event;
-		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-		crtc->state->event = NULL;
-	}
 }
 
 static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
@@ -351,6 +344,7 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 {
 	struct drm_color_ctm *ctm;
 	struct drm_color_lut *lut;
+	unsigned long flags;
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
 	struct drm_atomic_state *old_atomic_state = old_state->state;
 	struct meson_drm *priv = amcrtc->priv;
@@ -404,12 +398,19 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 		vdisplay = crtc->mode.vdisplay * 2;
 	else
 		vdisplay = crtc->mode.vdisplay;
-	meson_vpu_line_check(crtc->index, vdisplay);
+	meson_vpu_line_check(crtc->index, vdisplay, crtc->mode.vrefresh);
 #endif
 	vpu_pipeline_update(pipeline, old_atomic_state);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	meson_vpu_reg_vsync_config();
 #endif
+
+	if (crtc->state->event) {
+		spin_lock_irqsave(&crtc->dev->event_lock, flags);
+		amcrtc->event = crtc->state->event;
+		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+		crtc->state->event = NULL;
+	}
 }
 
 static const struct drm_crtc_helper_funcs am_crtc_helper_funcs = {

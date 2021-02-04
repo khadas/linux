@@ -14,6 +14,10 @@
 /*one item need two u32 = 8byte,total 512 item is enough for vpu*/
 #define MESON_VPU_RDMA_TABLE_SIZE (512 * 8)
 
+static int flush_time = 3;
+module_param(flush_time, int, 0664);
+MODULE_PARM_DESC(flush_time, "flush time");
+
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 static int meson_vpu_reg_handle;
 static void meson_vpu_vsync_rdma_irq(void *arg)
@@ -99,9 +103,9 @@ static int meson_vpu_get_enter_encp_line(int viu_index)
 	return enc_line;
 }
 
-void meson_vpu_line_check(int viu_index, int vdisplay)
+void meson_vpu_line_check(int viu_index, int vdisplay, int vrefresh)
 {
-	int vsync_begin_porch, wait_cnt, cur_line;
+	int vsync_begin_porch, wait_cnt, cur_line, line_threshold;
 
 	/*for rdma, we need
 	 * 1. finish rdma table write before VSYNC(in VBP).
@@ -110,9 +114,9 @@ void meson_vpu_line_check(int viu_index, int vdisplay)
 	 */
 	vsync_begin_porch = meson_vpu_get_active_begin_line(viu_index);
 	cur_line = meson_vpu_get_enter_encp_line(viu_index);
+	line_threshold = vdisplay * flush_time * vrefresh / 1000;
 	wait_cnt = 0;
-	while (cur_line >= vdisplay + vsync_begin_porch *
-			(100 - LINE_THRESHOLD) / 100 ||
+	while (cur_line >= vdisplay + vsync_begin_porch - line_threshold ||
 			cur_line <= vsync_begin_porch) {
 		DRM_DEBUG("enc line=%d, vdisplay %d, BP = %d\n",
 			cur_line, vdisplay, vsync_begin_porch);

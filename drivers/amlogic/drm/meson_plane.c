@@ -844,7 +844,8 @@ void meson_osd_plane_async_update(struct drm_plane *plane,
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	meson_vpu_line_check(plane->crtc->index, plane->crtc->mode.vdisplay);
+	meson_vpu_line_check(plane->crtc->index, plane->crtc->mode.vdisplay,
+			     plane->crtc->mode.vrefresh);
 #endif
 	vpu_pipeline_osd_update(pipeline, old_state->state);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
