@@ -12,7 +12,7 @@
 #include <linux/mtd/rawnand.h>
 #include <linux/amlogic/aml_rsv.h>
 #include <linux/amlogic/aml_mtd_nand.h>
-#include "linux/amlogic/cpu_version.h"
+//#include "linux/amlogic/cpu_version.h"
 
 static bool node_has_compatible(struct device_node *pp)
 {
@@ -37,7 +37,7 @@ static int adjust_part_offset(struct mtd_info *master, u8 nr_parts,
 	adjust_offset = BOOT_TOTAL_PAGES * (loff_t)master->writesize;
 	bl_mode = nfc->param_from_dts.bl_mode;
 	if (bl_mode == NAND_FIPMODE_DISCRETE) {
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2) {
+		if (nfc->data->bl2ex_mode) {
 			aml_nand_param_check_and_layout_init();
 			fip_part_size =
 				g_ssp.boot_entry[BOOT_AREA_DEVFIP].size *

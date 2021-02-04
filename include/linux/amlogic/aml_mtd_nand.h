@@ -134,6 +134,7 @@ struct meson_nand_ecc {
 
 struct meson_nfc_data {
 	const struct nand_ecc_caps *ecc_caps;
+	int bl2ex_mode;
 };
 
 struct meson_nfc_param {

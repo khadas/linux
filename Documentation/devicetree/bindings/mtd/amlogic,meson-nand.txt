@@ -7,6 +7,8 @@ Required properties:
 - compatible : contains one of:
   - "amlogic,meson-nfc-full-ecc"
   - "amlogic,meson-nfc-single-ecc"
+  - "amlogic,meson-nfc-full-ecc-bl2ex"
+  - "amlogic,meson-nfc-single-ecc-bl2ex"
 - clocks     :
 	A list of phandle + clock-specifier pairs for the clocks listed
 	in clock-names.

@@ -20,7 +20,6 @@
 #include <linux/sched/task_stack.h>
 #include <linux/amlogic/aml_rsv.h>
 #include <linux/amlogic/aml_mtd_nand.h>
-#include "linux/amlogic/cpu_version.h"
 #include <linux/mtd/partitions.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/gki_module.h>
@@ -607,7 +606,6 @@ static void meson_info_page0_prepare(struct nand_chip *nand, u8 *page0_buf)
 		nand_get_controller_data(mtd_to_nand(aml_mtd_info[1]));
 	u32 pages_per_blk_shift, bbt_size;
 	int each_boot_pages, boot_num, bbt_pages;
-	int cpu_type = get_cpu_type();
 	u32 configure_data;
 	struct _nand_page0 *p_nand_page0 = NULL;
 	struct _nand_page0_sc2 *p_nand_page0_sc2 = NULL;
@@ -637,7 +635,7 @@ static void meson_info_page0_prepare(struct nand_chip *nand, u8 *page0_buf)
 				  NFC_CMD_SHORTMODE_DISABLE,
 				  nand->ecc.size >> 3,
 				  nand->ecc.steps);
-	if (cpu_type == MESON_CPU_MAJOR_ID_SC2) {
+	if (nfc->data->bl2ex_mode) {
 		p_nand_page0_sc2 = (struct _nand_page0_sc2 *)page0_buf;
 		p_nand_setup_sc2 = &p_nand_page0_sc2->nand_setup;
 		p_ext_info = &p_nand_page0_sc2->ext_info;
@@ -717,8 +715,7 @@ static int meson_nfc_boot_write_page_hwecc(struct nand_chip *nand,
 	u32 remainder;
 
 	if (nfc->param_from_dts.bl_mode)
-		boot_num =
-		get_cpu_type() < MESON_CPU_MAJOR_ID_AXG ? 4 : 8;
+		boot_num = 8;
 	else
 		boot_num = 1;
 	each_boot_pages = BOOT_TOTAL_PAGES / boot_num;
@@ -929,8 +926,7 @@ static int meson_nfc_boot_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 	int ecc_size, bch_mode, pages_per_blk, real_page;
 
 	if (nfc->param_from_dts.bl_mode)
-		boot_num = get_cpu_type() < MESON_CPU_MAJOR_ID_AXG ?
-		4 : 8;
+		boot_num = 8;
 	else
 		boot_num = 1;
 
@@ -1363,8 +1359,7 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 	int ret;
 
 	if (mtd->writesize <= 2048 ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_AXG ||
-		get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) {
+	    nfc->data->ecc_caps->stepinfos->stepsize == 512) {
 		nsectors = mtd->writesize / 512;
 	} else {
 		nsectors = mtd->writesize / 1024;
@@ -1389,8 +1384,7 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 	ret = nand_ecc_choose_conf(nand, nfc->data->ecc_caps,
 				   mtd->oobsize - 2 * nsectors);
 	if (mtd->writesize <= 2048 ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_AXG ||
-		get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) {
+		nfc->data->ecc_caps->stepinfos->stepsize == 512) {
 		nand->ecc.size = SZ_512;
 		nand->ecc.strength = 8;
 		nand->ecc.bytes = ECC_PARITY_BCH8_512B;
@@ -1777,6 +1771,16 @@ static const struct meson_nfc_data meson_single_ecc_data = {
 	.ecc_caps = &meson_512_ecc_caps,
 };
 
+static const struct meson_nfc_data meson_full_ecc_bl2ex_data = {
+	.ecc_caps = &meson_1K_ecc_caps,
+	.bl2ex_mode = 1,
+};
+
+static const struct meson_nfc_data meson_single_ecc_bl2ex_data = {
+	.ecc_caps = &meson_512_ecc_caps,
+	.bl2ex_mode = 1,
+};
+
 static const struct of_device_id meson_nfc_id_table[] = {
 	{
 		.compatible = "amlogic,meson-nfc-full-ecc",
@@ -1784,6 +1788,12 @@ static const struct of_device_id meson_nfc_id_table[] = {
 	}, {
 		.compatible = "amlogic,meson-nfc-single-ecc",
 		.data = (void *)&meson_single_ecc_data,
+	}, {
+		.compatible = "amlogic,meson-nfc-full-ecc-bl2ex",
+		.data = (void *)&meson_full_ecc_bl2ex_data,
+	}, {
+		.compatible = "amlogic,meson-nfc-single-ecc-bl2ex",
+		.data = (void *)&meson_single_ecc_bl2ex_data,
 	},
 	{}
 };

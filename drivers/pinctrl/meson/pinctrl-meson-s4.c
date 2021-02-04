@@ -871,6 +871,8 @@ static const char * const emmc_groups[] = {
 };
 
 static const char * const nand_groups[] = {
+	"emmc_nand_d0", "emmc_nand_d1", "emmc_nand_d2", "emmc_nand_d3",
+	"emmc_nand_d4", "emmc_nand_d5", "emmc_nand_d6", "emmc_nand_d7",
 	"nand_wen_clk", "nand_ale", "nand_ren_wr", "nand_cle", "nand_ce0"
 };
 

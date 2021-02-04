@@ -864,6 +864,18 @@
 			//resets = <&reset RESET_SD_EMMC_A>;
 		};
 
+		mtd_nand: nfc@fe08c800 {
+			compatible = "amlogic,meson-nfc-single-ecc-bl2ex";
+			status = "disabled";
+			reg = <0x0 0xfe08c800 0x0 0x200>;
+			interrupts = <GIC_SPI 175 IRQ_TYPE_EDGE_RISING>;
+
+			clocks = <&clkc CLKID_NAND>,
+					 <&clkc CLKID_FCLK_DIV2>;
+			clock-names = "gate", "fdiv2pll";
+			nand_clk_ctrl = <0xfe08c000>;
+		};
+
 		ethmac: ethernet@fdc00000 {
 			compatible = "amlogic,meson-axg-dwmac",
 				     "snps,dwmac-3.70a",
@@ -1709,6 +1721,33 @@
 			function = "gpio_periphs";
 			bias-pull-down;
 			drive-strength-microamp = <4000>;
+		};
+	};
+
+	all_nand_pins: all_nand_pins {
+	mux {
+			groups = "emmc_nand_d0",
+				"emmc_nand_d1",
+				"emmc_nand_d2",
+				"emmc_nand_d3",
+				"emmc_nand_d4",
+				"emmc_nand_d5",
+				"emmc_nand_d6",
+				"emmc_nand_d7",
+				"nand_ce0",
+				"nand_ale",
+				"nand_cle",
+				"nand_wen_clk",
+				"nand_ren_wr";
+			function = "nand";
+			input-enable;
+		};
+	};
+
+	nand_cs_pins: nand_cs {
+		mux {
+			groups = "nand_ce0";
+			function = "nand";
 		};
 	};
 
