@@ -195,10 +195,70 @@
 			0xffff  0x0>; /* ending flag */
 	};
 
-	dvb_cxd2856 {
-		compatible = "amlogic sc2, dvb";
-		dev_name = "dvb";
-		status = "disabled";
+	dvb-extern {
+		compatible = "amlogic, dvb-extern";
+		dev_name = "dvb-extern";
+		status = "okay";
+
+		/* dvb hardware main power. */
+		dvb_power_gpio = <&gpio GPIOZ_5 GPIO_ACTIVE_HIGH>;
+		dvb_power_value = <1>;
+		dvb_power_dir = <0>; /* 0: out, 1: in. */
+
+		fe_num = <3>;
+		fe0_demod = "internal";
+		fe0_tuner0 = <0>; /* use tuner0 */
+
+		fe1_demod = "internal";
+		fe1_tuner0 = <0>; /* use tuner1 */
+
+		fe2_demod = "cxd2856";
+		fe2_i2c_adap_id = <&i2c4>;
+		fe2_demod_i2c_addr = <0xD8>;
+		fe2_reset_value = <0>;
+		fe2_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
+		fe2_reset_dir = <0>; /* 0: out, 1: in. */
+		fe2_ant_poweron_value = <0>;
+		fe2_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
+		fe2_ts = <0>;
+		fe2_tuner1 = <3>; /* use tuner3, only S. */
+
+		tuner_num = <4>; /* tuner number, multi tuner support */
+		tuner0_name = "r836_tuner";
+		tuner0_i2c_adap = <&i2c3>;
+		tuner0_i2c_addr = <0x1a>; /* 7bit */
+		tuner0_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
+		tuner0_xtal_mode = <0>;
+					/* NO_SHARE_XTAL(0)
+					 * SLAVE_XTAL_SHARE(3)
+					 */
+		tuner0_xtal_cap = <16>;
+		tuner0_lt_out = <1>;
+
+		tuner1_name = "r836_tuner";
+		tuner1_i2c_adap = <&i2c3>;
+		tuner1_i2c_addr = <0x3a>; /* 7bit */
+		tuner1_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
+		tuner1_xtal_mode = <0>;
+					/* NO_SHARE_XTAL(0)
+					 * SLAVE_XTAL_SHARE(3)
+					 */
+		tuner1_xtal_cap = <16>;
+		tuner1_lt_out = <1>;
+
+		tuner2_name = "av2018_tuner";
+		tuner2_i2c_adap = <&i2c3>;
+		tuner2_i2c_addr = <0xC4>; /* 8bit */
+		tuner2_lt_out = <1>;
+
+		tuner3_name = "av2018_tuner";
+		tuner3_lt_out = <1>;
+	};
+
+	dvb-demux {
+		compatible = "amlogic sc2, dvb-demux";
+		dev_name = "dvb-demux";
+		status = "okay";
 
 		reg = <0x0 0xfe000000 0x0 0x480000>;
 
@@ -206,46 +266,24 @@
 
 		tsn_from = "demod";
 
-		fe0_mode = "external";
-		fe0_demod = "cxd2856";
-		fe0_i2c_adap_id = <&i2c2>;
-		fe0_demod_i2c_addr = <0xD8>;
-		fe0_reset_value = <0>;
-		fe0_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-		fe0_reset_dir = <1>; /* 0: out, 1: in. */
-		fe0_ant_poweron_value = <0>;
-		fe0_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-		fe0_dtv_demod = <0>;
-		fe0_ts  = <0>;
-		fe0_dev = <0>;
-
 		/*single demod setting */
 		ts0_sid = <0x20>;
 		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
 		ts0_control = <0x0>;
 		ts0_invert = <0>;
 
-		fe1_mode = "external";
-		fe1_demod = "cxd2856";
-		fe1_i2c_adap_id = <&i2c2>;
-		fe1_demod_i2c_addr = <0xCA>;
-		fe1_reset_value = <0>;
-		fe1_reset_gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-		fe1_reset_dir = <1>; /* 0: out, 1: in. */
-		fe1_ant_poweron_value = <0>;
-		fe1_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-		fe1_dtv_demod = <1>;
-		fe1_ts  = <1>;
-		fe1_dev = <1>;
-
 		ts1_sid = <0x21>;
-		ts1 = "serial-4wire";
+		ts1 = "parallel";
 		ts1_control = <0x0>;
 		ts1_invert = <0>;
 
-		pinctrl-names = "s_ts0", "s_ts1";
+		ts2_sid = <0x22>;
+		ts2 = "parallel";
+		ts2_control = <0x0>;
+		ts2_invert = <0>;
+
+		pinctrl-names = "s_ts0";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
-		pinctrl-1 = <&dvb_s_ts1_pins>;
 	};
 
 	ionvideo {
@@ -756,10 +794,17 @@
 	status = "okay";
 };
 
-&i2c2 {
-	status = "disabled";
+&i2c3 {
+	status = "okay";
 	pinctrl-names="default";
-	pinctrl-0=<&i2c2_pins3>;
+	pinctrl-0=<&i2c3_pins2>;
+	clock-frequency = <300000>;
+};
+
+&i2c4 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c4_pins3>;
 	clock-frequency = <300000>;
 };
 
@@ -1190,41 +1235,11 @@
 
 	dvb_s_ts0_pins: dvb_s_ts0_pins {
 		tsin_a {
-			groups = "tsin_a_sop_d",
-				"tsin_a_valid_d",
-				"tsin_a_clk_d",
-				"tsin_a_din0_d";
+			groups = "tsin_a_sop",
+				"tsin_a_valid",
+				"tsin_a_clk",
+				"tsin_a_din0";
 			function = "tsin_a";
-		};
-	};
-
-	dvb_s_ts1_pins: dvb_s_ts1_pins {
-		tsin_b {
-			groups = "tsin_b_sop",
-				"tsin_b_valid",
-				"tsin_b_clk",
-				"tsin_b_din0";
-			function = "tsin_b";
-		};
-	};
-
-	dvb_s_ts2_pins: dvb_s_ts2_pins {
-		tsin_c {
-			groups = "tsin_c_sop_z",
-				"tsin_c_valid_z",
-				"tsin_c_clk_z",
-				"tsin_c_din0_z";
-			function = "tsin_c";
-		};
-	};
-
-	dvb_s_ts3_pins: dvb_s_ts3_pins {
-		tsin_d {
-			groups = "tsin_d_sop_z",
-				"tsin_d_valid_z",
-				"tsin_d_clk_z",
-				"tsin_d_din0_z";
-			function = "tsin_d";
 		};
 	};
 }; /* end of periphs_pinctrl */
