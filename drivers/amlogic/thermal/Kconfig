@@ -6,7 +6,7 @@ menu "Amlogic Thermal and Cooling devices"
 
 config AMLOGIC_THERMAL
 	tristate "Amlgoic temperature sensor Support"
-	depends on THERMAL
+	depends on THERMAL && AMLOGIC_SEC
 	default n
 	help
 		Thermal sensor low level support for thermal
