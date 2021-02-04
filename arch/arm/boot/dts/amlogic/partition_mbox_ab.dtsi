@@ -11,7 +11,7 @@
 
 / {
     partitions: partitions{
-		parts = <21>;
+		parts = <23>;
 		part-0 = <&frp>;
 		part-1 = <&factory>;
 		part-2 = <&vendor_boot_a>;
@@ -25,14 +25,16 @@
 		part-10 = <&param>;
 		part-11 = <&odm_ext_a>;
 		part-12 = <&odm_ext_b>;
-		part-13 = <&boot_a>;
-		part-14 = <&boot_b>;
-		part-15 = <&rsv>;
-		part-16 = <&metadata>;
-		part-17 = <&vbmeta_a>;
-		part-18 = <&vbmeta_b>;
-		part-19 = <&super>;
-		part-20 = <&userdata>;
+		part-13 = <&oem_a>;
+		part-14 = <&oem_b>;
+		part-15 = <&boot_a>;
+		part-16 = <&boot_b>;
+		part-17 = <&rsv>;
+		part-18 = <&metadata>;
+		part-19 = <&vbmeta_a>;
+		part-20 = <&vbmeta_b>;
+		part-21 = <&super>;
+		part-22 = <&userdata>;
 
 		frp:frp{
 			pname = "frp";
@@ -120,6 +122,18 @@
 		{
 			pname = "odm_ext_b";
 			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		oem_a:oem_a
+		{
+			pname = "oem_a";
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		oem_b:oem_b
+		{
+			pname = "oem_b";
+			size = <0x0 0x2000000>;
 			mask = <1>;
 		};
 		boot_a:boot_a

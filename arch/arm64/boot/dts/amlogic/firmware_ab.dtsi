@@ -12,54 +12,8 @@
 			compatible = "android,firmware";
 			vbmeta {
 				compatible = "android,vbmeta";
-				parts = "vbmeta,boot,system,vendor";
+				parts = "vbmeta,boot,oem";
 				by_name_prefix="/dev/block";
-			};
-		fstab {
-			compatible = "android,fstab";
-			system {
-				compatible = "android,system";
-				dev = "system";
-				type = "ext4";
-				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,slotselect,avb=vbmeta,logical,first_stage_mount,avb_keys=/avb/q-gsi.avbpubkey:/avb/r-gsi.avbpubkey:/avb/s-gsi.avbpubkey";
-				};
-
-			vendor {
-				compatible = "android,vendor";
-				dev = "vendor";
-				type = "ext4";
-				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,slotselect,avb,logical,first_stage_mount";
-				};
-			odm {
-				compatible = "android,odm";
-				dev = "odm";
-				type = "ext4";
-				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,slotselect,avb,logical,first_stage_mount";
-				};
-			system_ext {
-				compatible = "android,system_ext";
-				dev = "system_ext";
-				type = "ext4";
-				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,slotselect,avb,logical,first_stage_mount";
-				};
-			product {
-				compatible = "android,product";
-				dev = "product";
-				type = "ext4";
-				mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-				fsmgr_flags = "wait,slotselect,avb,logical,first_stage_mount";
-				};
-			metadata {
-				compatible = "android,metadata";
-				dev = "/dev/block/by-name/metadata";
-				type = "ext4";
-				mnt_flags = "noatime,nosuid,nodev,nodelalloc,nomblk_io_submit,errors=panic";
-				fsmgr_flags = "wait,check,formattable,first_stage_mount";
-				};
 			};
 		};
 	};
