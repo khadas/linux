@@ -279,7 +279,7 @@ void am_set_regmap(struct am_regs_s *p)
 					WRITE_VPP_REG(addr, val);
 			} else {
 				if (pq_reg_wr_rdma) {
-					temp = VSYNC_READ_VPP_REG(addr);
+					temp = READ_VPP_REG(addr);
 					VSYNC_WRITE_VPP_REG(addr,
 							    (temp & (~mask)) |
 					       (val & mask));

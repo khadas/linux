@@ -2225,9 +2225,9 @@ void vpp_pst_hist_sta_read(unsigned int *hist)
 {
 	int i;
 
-	VSYNC_WRITE_VPP_REG_BITS(VPP_PST_STA_CTRL, 0, 16, 16);
+	WRITE_VPP_REG_BITS(VPP_PST_STA_CTRL, 0, 16, 16);
 	for (i = 0; i < 64; i++)
-		hist[i] = VSYNC_READ_VPP_REG(VPP_PST_STA_RO_HIST);
+		hist[i] = READ_VPP_REG(VPP_PST_STA_RO_HIST);
 }
 
 void amvecm_wb_enable(int enable)
