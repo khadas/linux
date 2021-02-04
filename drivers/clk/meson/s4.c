@@ -424,7 +424,6 @@ static const struct pll_params_table s4_gp0_pll_table[] = {
 	PLL_PARAMS(141, 1, 2), /* DCO = 3384M OD = 2 PLL = 846M */
 	PLL_PARAMS(132, 1, 2), /* DCO = 3168M OD = 2 PLL = 792M */
 	PLL_PARAMS(248, 1, 3), /* DCO = 5952M OD = 3 PLL = 744M */
-	PLL_PARAMS(96, 1, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
 	{ /* sentinel */  }
 };
 #else
@@ -432,7 +431,6 @@ static const struct pll_params_table s4_gp0_pll_table[] = {
 	PLL_PARAMS(141, 1), /* DCO = 3384M OD = 2 PLL = 846M */
 	PLL_PARAMS(132, 1), /* DCO = 3168M OD = 2 PLL = 792M */
 	PLL_PARAMS(248, 1), /* DCO = 5952M OD = 3 PLL = 744M */
-	PLL_PARAMS(96, 1), /* DCO = 2304M OD = 1 PLL = 1152M */
 	{ /* sentinel */  }
 };
 #endif
@@ -665,11 +663,13 @@ static struct s4_sys_pll_nb_data s4_sys_pll_nb_data = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table s4_hifi_pll_table[] = {
+	PLL_PARAMS(192, 1, 2), /* DCO = 4608M OD = 2 PLL = 1152M */
 	PLL_PARAMS(150, 1, 1), /* DCO = 1806.336M OD = 1 */
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table s4_hifi_pll_table[] = {
+	PLL_PARAMS(192, 1), /* DCO = 4608M OD = 2 PLL = 1152M */
 	PLL_PARAMS(150, 1), /* DCO = 1806.336M */
 	{ /* sentinel */  }
 };
@@ -704,6 +704,14 @@ static struct clk_regmap s4_hifi_pll_dco = {
 			.shift   = 10,
 			.width   = 5,
 		},
+#ifdef CONFIG_ARM
+		/* for 32bit */
+		.od = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL0,
+			.shift	 = 16,
+			.width	 = 2,
+		},
+#endif
 		.frac = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL1,
 			.shift   = 0,
@@ -732,6 +740,19 @@ static struct clk_regmap s4_hifi_pll_dco = {
 	},
 };
 
+#ifdef CONFIG_ARM
+static struct clk_regmap s4_hifi_pll = {
+	.hw.init = &(struct clk_init_data){
+		.name = "hifi_pll",
+		.ops = &meson_pll_clk_no_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s4_hifi_pll_dco.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+#else
 static struct clk_regmap s4_hifi_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = ANACTRL_HIFIPLL_CTRL0,
@@ -750,6 +771,7 @@ static struct clk_regmap s4_hifi_pll = {
 		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
+#endif
 
 static struct clk_regmap s4_hdmi_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
