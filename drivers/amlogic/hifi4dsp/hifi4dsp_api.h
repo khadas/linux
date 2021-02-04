@@ -32,9 +32,9 @@ struct hifi4dsp_info_t {
 #define HIFI4DSP_TEST		_IO(HIFI4DSP_IOC_MAGIC, 255)
 
 struct hifi4_shm_info_t {
-	long addr;
-	size_t size;
-};
+	unsigned int addr;
+	unsigned int size;
+} __packed;
 
 #define HIFI4DSP_SHM_CLEAN \
 		_IOWR(HIFI4DSP_IOC_MAGIC, 64, struct hifi4_shm_info_t)

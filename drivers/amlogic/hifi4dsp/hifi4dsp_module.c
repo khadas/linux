@@ -38,6 +38,7 @@
 #include <asm/cacheflush.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
+#include <linux/amlogic/scpi_protocol.h>
 
 #include "hifi4dsp_api.h"
 #include "hifi4dsp_priv.h"
@@ -229,7 +230,7 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 	break;
 	case HIFI4DSP_SHM_CLEAN:
 		ret = copy_from_user(&shminfo, argp, sizeof(shminfo));
-		pr_debug("%s clean cache, addr:%lu, size:%zu\n",
+		pr_debug("%s clean cache, addr:%u, size:%u\n",
 			 __func__, shminfo.addr, shminfo.size);
 		dma_sync_single_for_device
 								(priv->dev,
@@ -239,7 +240,7 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 	break;
 	case HIFI4DSP_SHM_INV:
 		ret = copy_from_user(&shminfo, argp, sizeof(shminfo));
-		pr_debug("%s invalidate cache, addr:%lu, size:%zu\n",
+		pr_debug("%s invalidate cache, addr:%u, size:%u\n",
 			 __func__, shminfo.addr, shminfo.size);
 		dma_sync_single_for_device(priv->dev,
 					   shminfo.addr,
@@ -447,6 +448,7 @@ static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp)
 		soc_dsp_bootup(dsp->id, boot_sram_addr, dsp->freq);
 
 	dsp->info = NULL;
+	dsp->dspstarted = 1;
 
 	return 0;
 }
@@ -464,14 +466,21 @@ static int hifi4dsp_driver_dsp_clk_off(struct hifi4dsp_dsp *dsp)
 static int hifi4dsp_driver_dsp_stop(struct hifi4dsp_dsp *dsp)
 {
 	struct  hifi4dsp_info_t *info;
+	char message[30];
 
 	info = (struct  hifi4dsp_info_t *)dsp->info;
 	pr_debug("%s\n", __func__);
+	strcpy(message, "SCPI_CMD_HIFI4STOP");
 
-	soc_dsp_poweroff(info->id);
-	hifi4dsp_driver_dsp_clk_off(dsp);
-
-	dsp->info = NULL;
+	if (dsp->dspstarted == 1) {
+		scpi_send_data(message, sizeof(message), info->id ? SCPI_DSPB : SCPI_DSPA,
+			SCPI_CMD_HIFI4STOP, NULL, 0);
+		msleep(50);
+		soc_dsp_poweroff(info->id);
+		hifi4dsp_driver_dsp_clk_off(dsp);
+		dsp->dspstarted = 0;
+		dsp->info = NULL;
+	}
 	return 0;
 }
 
