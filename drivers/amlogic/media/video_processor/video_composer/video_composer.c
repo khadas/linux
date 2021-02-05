@@ -1394,7 +1394,7 @@ static void video_composer_task(struct composer_dev *dev)
 			}
 		}
 
-		if (dev->last_file == file_vf && frame_info->type == 0) {
+		if (dev->last_file == file_vf && (is_dec_vf || is_v4l_vf)) {
 			vf->repeat_count[dev->index]++;
 			vc_print(dev->index, PRINT_FENCE,
 				 "repeat =%d, omx_index=%d\n",
