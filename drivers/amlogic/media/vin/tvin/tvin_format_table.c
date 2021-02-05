@@ -240,7 +240,7 @@ const struct tvin_format_s *tvin_get_fmt_info(enum tvin_sig_fmt_e fmt)
 {
 	/* find  format table through format */
 	if (fmt < TVIN_SIG_FMT_HDMI_MAX &&
-	    fmt > TVIN_SIG_FMT_HDMI_640X480P_60HZ)
+	    fmt >= TVIN_SIG_FMT_HDMI_640X480P_60HZ)
 		return &tvin_hdmi_fmt_tbl[fmt -
 				TVIN_SIG_FMT_HDMI_640X480P_60HZ];
 	else if (fmt < TVIN_SIG_FMT_CVBS_MAX &&
