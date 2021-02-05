@@ -29,7 +29,6 @@
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
 		spi1 = &spicc0;
-		spi2 = &spicc1;
 		tsensor0 = &p_tsensor;
 	};
 
@@ -1313,13 +1312,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_x>;
 	cs-gpios = <&gpio GPIOX_10 0>;
-};
-
-&spicc1 {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc1_pins_h>;
-	cs-gpios = <&gpio GPIOH_6 0>;
 };
 
 &spifc {
