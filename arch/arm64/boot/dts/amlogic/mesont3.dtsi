@@ -7,6 +7,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset/amlogic,meson-t3-reset.h>
 #include <dt-bindings/clock/amlogic,t3-clkc.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/meson-t3-gpio.h>
 / {
 	cpus:cpus {
 		#address-cells = <2>;
@@ -193,6 +195,39 @@
 				pinctrl-names = "default";
 				//pinctrl-0 = <&a_uart_pins1>;
 			};
+
+			periphs_pinctrl: pinctrl@4000 {
+				compatible = "amlogic,meson-t3-periphs-pinctrl";
+				#address-cells = <2>;
+				#size-cells = <2>;
+				ranges;
+
+				gpio: bank@4000 {
+					reg = <0x0 0x4000 0x0 0x0054>,
+					      <0x0 0x40c0 0x0 0x030c>;
+					reg-names = "mux", "gpio";
+					gpio-controller;
+					#gpio-cells = <2>;
+					gpio-ranges = <&periphs_pinctrl 0 0 136>;
+				};
+			};
+
+			analog_pinctrl: analog-pinctrl@4054 {
+				compatible = "amlogic,meson-t3-analog-pinctrl";
+				#address-cells = <2>;
+				#size-cells = <2>;
+				ranges;
+
+				analog_gpio: analog-bank@4054 {
+					reg = <0x0 0x4054 0x0 0x0008>,
+					      <0x0 0x43cc 0x0 0x0008>;
+					reg-names = "mux", "gpio";
+					gpio-controller;
+					#gpio-cells = <2>;
+					gpio-ranges = <&analog_pinctrl 0 0 3>;
+				};
+			};
+
 		};
 
 	};
