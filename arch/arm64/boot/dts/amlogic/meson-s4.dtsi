@@ -997,7 +997,7 @@
 		power-domain-names = "pwrc-vdec",
 			"pwrc-hevc";
 	};
-	cpu_ver_name {
+	vdec_cpu_ver: cpu_ver_name {
 		compatible = "amlogic, cpu-major-id-s4";
 	};
 	vcodec_dec {

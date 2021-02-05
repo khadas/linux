@@ -1390,3 +1390,7 @@
 	status = "okay";
 	uart-has-rtscts;
 };
+
+&vdec_cpu_ver {
+	compatible = "amlogic, cpu-major-id-s4-805x2";
+};
