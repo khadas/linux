@@ -738,7 +738,7 @@
 			&tdm_d1_pins
 			&tdma_clk_pins>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	tdmb: tdm@1 {
@@ -1382,7 +1382,7 @@
 };
 
 &amhdmitx {
-	status = "disabled";
+	status = "okay";
 };
 
 &vpu {
