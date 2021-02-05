@@ -14,7 +14,7 @@ static void dump32(u32 start, u32 end)
 	for (; start <= end; start += 4) {
 		value = hd21_read_reg(start);
 		if (value)
-			pr_info("[0x%08x] 0x%08x\n", start, value);
+			pr_info("[0x%08x] 0x%08x\n", TO21_PHY_ADDR(start), value);
 	}
 }
 
@@ -77,7 +77,7 @@ void dump_hdmitx_reg(void)
 	// 0x00000300 - 0x0000031a
 	dumpcor(TX_ZONE_CTL0_IVCTX, FIFO_10TO20_CTRL_IVCTX);
 	// 0x00000330 - 0x00000334
-	dumpcor(MHLHDMITXTOP_INTR_IVCTX, EMSC_ADCTC_LD_SEL_IVCTX);
+	// dumpcor(MHLHDMITXTOP_INTR_IVCTX, EMSC_ADCTC_LD_SEL_IVCTX);
 	// 0x00000400 - 0x000004a0
 	dumpcor(BIST_RST_IVCTX, CR_BLACK_HIGH_IVCTX);
 	// 0x00000607 - 0x00000777

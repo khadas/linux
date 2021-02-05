@@ -13,5 +13,6 @@ int hdmitx21_uboot_audio_en(void);
 int hdmitx21_init_reg_map(struct platform_device *pdev);
 void hdmitx21_disable_clk(struct hdmitx_dev *hdev);
 u32 hdcp21_rd_hdcp22_ver(void);
+struct hdmi_timing *hdmitx21_gettiming(enum hdmi_vic vic);
 
 #endif

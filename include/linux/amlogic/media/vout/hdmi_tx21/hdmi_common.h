@@ -250,27 +250,34 @@ enum hdmi_audio_fs;
 struct dtd;
 
 /* CEA TIMING STRUCT DEFINITION */
-struct hdmi_cea_timing {
-	u32 pixel_freq; /* Unit: 1000 */
-	u32 frac_freq; /* 1.001 shift */
-	u32 h_freq; /* Unit: Hz */
-	u32 v_freq; /* Unit: 0.001 Hz */
-	u32 vsync; /* Unit: Hz, rough data */
-	u32 vsync_polarity:1;
-	u32 hsync_polarity:1;
-	unsigned short h_active;
+struct hdmi_timing {
+	unsigned int vic;
+	unsigned char *name;
+	unsigned char *sname;
+	unsigned short pi_mode; /* 1: progressive  0: interlaced */
+	unsigned int h_freq; /* in Hz */
+	unsigned int v_freq; /* in 0.001 Hz */
+	unsigned int pixel_freq; /* Unit: 1000 */
 	unsigned short h_total;
 	unsigned short h_blank;
 	unsigned short h_front;
 	unsigned short h_sync;
 	unsigned short h_back;
-	unsigned short v_active;
+	unsigned short h_active;
 	unsigned short v_total;
 	unsigned short v_blank;
 	unsigned short v_front;
 	unsigned short v_sync;
 	unsigned short v_back;
+	unsigned short v_active;
 	unsigned short v_sync_ln;
+
+	unsigned short h_pol;
+	unsigned short v_pol;
+	unsigned short h_pict;
+	unsigned short v_pict;
+	unsigned short h_pixel;
+	unsigned short v_pixel;
 };
 
 enum hdmi_color_depth {
@@ -312,50 +319,42 @@ enum hdmi_3d_type {
 #define GET_TIMING(name)      (t->(name))
 
 struct hdmi_format_para {
-	enum hdmi_vic vic;
-	u8 *name;
-	u8 *sname;
-	char ext_name[32];
 	enum hdmi_color_depth cd; /* cd8, cd10 or cd12 */
 	enum hdmi_color_space cs; /* rgb, y444, y422, y420 */
 	enum hdmi_color_range cr; /* limit, full */
-	u32 pixel_repetition_factor;
-	u32 progress_mode:1;
 	u32 scrambler_en:1;
 	u32 tmds_clk_div40:1;
 	u32 tmds_clk; /* Unit: 1000 */
-	struct hdmi_cea_timing timing;
+	struct hdmi_timing timing;
 	struct vinfo_s hdmitx_vinfo;
 };
 
+/* Refer to HDMI Spec */
 /* HDMI Packet Type Definitions */
-#define PT_NULL_PKT 0x00
-#define PT_AUD_CLK_REGENERATION 0x01
-#define PT_AUD_SAMPLE 0x02
-#define PT_GENERAL_CONTROL 0x03
-#define PT_ACP 0x04
-#define PT_ISRC1 0x05
-#define PT_ISRC2 0x06
-#define PT_ONE_BIT_AUD_SAMPLE 0x07
-#define PT_DST_AUD 0x08
-#define PT_HBR_AUD_STREAM 0x09
-#define PT_GAMUT_METADATA 0x0A
-#define PT_3D_AUD_SAMPLE 0x0B
-#define PT_ONE_BIT_3D_AUD_SAMPLE 0x0C
-#define PT_AUD_METADATA 0x0D
-#define PT_MULTI_SREAM_AUD_SAMPLE 0x0E
-#define PT_ONE_BIT_MULTI_SREAM_AUD_SAMPLE 0x0F
+#define PKT_NULL		0x00
+#define PKT_ACR			0x01
+#define PKT_AUDSAMP		0x02
+#define PKT_GCP			0x03
+#define PKT_ACP			0x04
+#define PKT_ISRC1		0x05
+#define PKT_ISRC2		0x06
+#define PKT_ONEBITAUDSAMP	0x07
+#define PKT_DSTAUD		0x08
+#define PKT_HBRAUD		0x09
+#define PKT_GAMUTMETADATA	0x0A
+#define PKT_3DAUDSAMP		0x0B
+#define PKT_ONEBIT3DAUDSAMP	0x0C
+#define PKT_AUDMETADATA		0x0D
+#define PKT_MULTISTREAMAUDSAMP	0x0E
+#define PKT_ONEBITMULTISTREAM	0x0F
+#define PKT_EMP			0x7f
 /* Infoframe Packet */
-#define PT_IF_VENDOR_SEPCIFIC 0x81
-#define PT_IF_AVI 0x82
-#define PT_IF_SPD 0x83
-#define PT_IF_AUD 0x84
-#define PT_IF_MPEG_SOURCE 0x85
-
-/* Old definitions */
-#define TYPE_AVI_INFOFRAMES 0x82
-#define AVI_INFOFRAMES_VERSION 0x02
-#define AVI_INFOFRAMES_LENGTH 0x0D
+#define IF_VENDSPEC		0x81
+#define IF_AVI			0x82
+#define IF_SPD			0x83
+#define IF_AUD			0x84
+#define IF_MPEGSOURCE		0x85
+#define IF_DRM			0x87
 
 struct hdmi_csc_coef_table {
 	u8 input_format;
@@ -388,7 +387,7 @@ struct hdmi_format_para *hdmi21_match_dtd_paras(struct dtd *t);
 void check21_detail_fmt(void);
 struct hdmi_format_para *hdmi21_get_fmt_name(char const *name, char const *attr);
 struct hdmi_format_para *hdmi21_tst_fmt_name(char const *name, char const *attr);
-struct vinfo_s *hdmi21_get_valid_vinfo(char *mode);
+struct hdmi_format_para *hdmitx21_get_fmtpara(char *mode);
 u32 hdmi21_get_aud_n_paras(enum hdmi_audio_fs fs,
 				  enum hdmi_color_depth cd,
 				  u32 tmds_clk);

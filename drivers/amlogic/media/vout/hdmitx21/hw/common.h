@@ -66,35 +66,6 @@ void hdmitx21_wr_reg(u32 addr, u32 val);
 void hdmitx21_poll_reg(u32 addr, u8 exp_data, u8 mask, ulong timeout);
 void hdmitx21_set_reg_bits(u32 addr, u32 value, u32 offset, u32 len);
 
-enum tvenc_type {
-	TV_ENC_160p = 0,
-	TV_ENC_234,
-	TV_ENC_234_2,
-	TV_ENC_480i,
-	TV_ENC_480p,
-	TV_ENCP_480p,
-	TV_ENCI_480i,
-	TV_ENC_576i,
-	TV_ENC_576p,
-	TV_ENC_600p,
-	TV_ENC_720p,
-	TV_ENC_1080i,
-	TV_ENC_1080p,
-	TV_ENC_1280p,
-	TV_ENC_2048x1536,
-	TV_ENC_2205p,
-	TV_ENC_2440p,
-	TV_ENC_3840x2160p_vic01,
-	TV_ENC_3840x2160p_vic03,
-	TV_ENC_4096x2160p_vic04,
-	TV_ENC_4096x2160p_vic102,
-	TV_ENC_4096x540p_240hz,
-	TV_ENC_640x480p,
-	TV_ENC_320p,
-	TV_ENC_512p,
-	TV_ENC_TYPE_MAX
-};   /* tv encoder output format */
-
 #define VID_PLL_DIV_1 0
 #define VID_PLL_DIV_2      1
 #define VID_PLL_DIV_3      2
@@ -126,19 +97,16 @@ struct hw_enc_clk_val_group {
 	u32 enci_div;
 };
 
+void hdmitx21_set_default_clk(void);
 void hdmitx21_set_clk(struct hdmitx_dev *hdev);
 void hdmitx21_set_cts_sys_clk(struct hdmitx_dev *hdev);
 void hdmitx21_set_top_pclk(struct hdmitx_dev *hdev);
 void hdmitx21_set_hdcp_pclk(struct hdmitx_dev *hdev);
 void hdmitx21_set_cts_hdcp22_clk(struct hdmitx_dev *hdev);
-void hdmitx21_set_sys_clk(struct hdmitx_dev *hdev, u8 flag);
-void vclk_set_hdmitx(u32 vformat, u32 color_depth, u32 mode420);
 
-void set_tv_encp_new(u32 enc_index, enum tvenc_type output_type, u32 enable);
-void adjust_encp_for_hdmi(u8 enc_index, u8 interlace_mode, u32 total_pixels_venc,
-	u32 active_pixels_venc, u32 front_porch_venc, u32 hsync_pixels_venc,
-	u32 total_lines, u32 active_lines, u32 sof_lines, u32 vsync_lines,
-	u32 vs_adjust_420);
+void set_tv_encp_new(u32 enc_index, enum hdmi_vic vic, u32 enable);
+void adjust_encp_for_hdmi(u8 enc_index, struct hdmi_timing *timing, u32 vs_adjust_420);
+void hdmitx21_venc_en(bool en);
 
 /***********************************************************************
  *                   hdmi debug printk

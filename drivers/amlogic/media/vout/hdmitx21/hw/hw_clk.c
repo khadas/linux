@@ -16,7 +16,8 @@
 
 /* local frac_rate flag */
 static u32 frac_rate;
-
+static void set_crt_video_enc(u32 vidx, u32 in_sel, u32 div_n);
+static void set_crt_video_enc2(u32 vidx, u32 in_sel, u32 div_n);
 /*
  * HDMITX Clock configuration
  */
@@ -45,15 +46,6 @@ static inline int check_div(u32 div)
 		break;
 	}
 	return div;
-}
-
-void hdmitx21_set_sys_clk(struct hdmitx_dev *hdev, u8 flag)
-{
-	if (flag & 4)
-		hdmitx21_set_cts_sys_clk(hdev);
-
-	if (flag & 2)
-		hdmitx21_set_top_pclk(hdev);
 }
 
 static void hdmitx_disable_encp_clk(struct hdmitx_dev *hdev)
@@ -89,25 +81,64 @@ static void hdmitx_disable_tx_pixel_clk(struct hdmitx_dev *hdev)
 	//hd21_set_reg_bits(CLKCTRL_VID_CLK_CTRL2, 0, 5, 1);
 }
 
-void hdmitx21_set_cts_sys_clk(struct hdmitx_dev *hdev)
+void hdmitx21_set_default_clk(void)
 {
-	/* Enable cts_hdmitx_sys_clk */
-	/* .clk0 ( cts_oscin_clk ), */
-	/* .clk1 ( fclk_div4 ), */
-	/* .clk2 ( fclk_div3 ), */
-	/* .clk3 ( fclk_div5 ), */
-	/* [10: 9] clk_sel. select cts_oscin_clk=24MHz */
-	/* [	8] clk_en. Enable gated clock */
-	/* [ 6: 0] clk_div. Divide by 1. = 24/1 = 24 MHz */
-	hd21_set_reg_bits(CLKCTRL_HDMI_CLK_CTRL, 0, 9, 3);
-	hd21_set_reg_bits(CLKCTRL_HDMI_CLK_CTRL, 0, 0, 7);
-	hd21_set_reg_bits(CLKCTRL_HDMI_CLK_CTRL, 1, 8, 1);
-}
+	u32 data32;
 
-void hdmitx21_set_top_pclk(struct hdmitx_dev *hdev)
-{
-	/* top hdmitx pixel clock */
+	// Enable clk81_hdmitx_pclk
 	hd21_set_reg_bits(CLKCTRL_SYS_CLK_EN0_REG2, 1, 4, 1);
+
+	// Enable fixed hdmitx_sys_clk
+	data32 = 0;
+	data32 |= (3 << 9); // [10: 9] clk_sel for cts_hdmitx_sys_clk: 3=fclk_div5
+	data32 |= (0 << 8); // [    8] clk_en for cts_hdmitx_sys_clk
+	data32 |= (1 << 0); // [ 6: 0] clk_div for cts_hdmitx_sys_clk: fclk_dvi5/2=400/2=200M
+	hd21_write_reg(CLKCTRL_HDMI_CLK_CTRL, data32);
+	data32 |= (1 << 8); // [    8] clk_en for cts_hdmitx_sys_clk
+	hd21_write_reg(CLKCTRL_HDMI_CLK_CTRL, data32);
+
+	// Enable fixed hdmitx_prif_clk, hdmitx_200m_clk
+	data32 = 0;
+	data32 |= (3 << 25); // [26:25] clk_sel for cts_hdmitx_200m_clk: 3=fclk_div5
+	data32 |= (0 << 24); // [   24] clk_en for cts_hdmitx_200m_clk
+	data32 |= (1 << 16); // [22:16] clk_div for cts_hdmitx_200m_clk: fclk_dvi5/16=400/16=25M
+	data32 |= (3 << 9); // [10: 9] clk_sel for cts_hdmitx_prif_clk: 3=fclk_div5
+	data32 |= (0 << 8); // [    8] clk_en for cts_hdmitx_prif_clk
+	data32 |= (1 << 0); // [ 6: 0] clk_div for cts_hdmitx_prif_clk: fclk_dvi5/2=400/2=200M
+	hd21_write_reg(CLKCTRL_HTX_CLK_CTRL0, data32);
+	data32 |= (1 << 24); // [   24] clk_en for cts_hdmitx_200m_clk
+	data32 |= (1 << 8); // [    8] clk_en for cts_hdmitx_prif_clk
+	hd21_write_reg(CLKCTRL_HTX_CLK_CTRL0, data32);
+
+	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, 0, 0, 8);
+	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 0, 0, 5);
+
+	// Enable hdmitx_aud_clk
+	// [10: 9] clk_sel for cts_hdmitx_aud_clk: 2=fclk_div3
+	// [    8] clk_en for cts_hdmitx_aud_clk
+	// [ 6: 0] clk_div for cts_hdmitx_aud_clk: fclk_div3/aud_clk_div
+	data32 = 0;
+	data32 |= (2 << 9);
+	data32 |= (0 << 8);
+	data32 |= ((18 - 1) << 0);
+	hd21_write_reg(CLKCTRL_HTX_CLK_CTRL1, data32);
+	data32 |= (1 << 8);
+	// [    8] clk_en for cts_hdmitx_aud_clk
+	hd21_write_reg(CLKCTRL_HTX_CLK_CTRL1, data32);
+	// wire    wr_enable = control[3];
+	// wire    fifo_enable = control[2];
+	// assign  phy_clk_en = control[1];
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 1, 1, 1); // Enable tmds_clk
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 1, 2, 1); // Enable the decoupling FIFO
+	// Enable enable the write/read decoupling state machine
+	hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL1, 1, 3, 1);
+	// Bring HDMITX MEM output of power down
+	hd21_set_reg_bits(PWRCTRL_MEM_PD11, 0, 8, 8);
+	// Bring out of reset
+	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, 0);
+	// Test after initial out of reset, cannot write to IP register, unless enable access
+	hdmitx21_wr_reg(INTR3_MASK_IVCTX, 0xff);
+	hdmitx21_wr_reg(HDMITX_TOP_SEC_SCRATCH, 1);
 }
 
 void hdmitx21_set_cts_hdcp22_clk(struct hdmitx_dev *hdev)
@@ -196,7 +227,7 @@ static void set_hpll_od3(u32 div)
  * wire            set_preset      = control[15];
  * wire    [14:0]  shift_preset    = control[14:0];
  */
-static void set_hpll_od3_clk_div(int div_sel)
+static void clocks_set_vid_clk_div_for_hdmi(int div_sel)
 {
 	int shift_val = 0;
 	int shift_sel = 0;
@@ -207,6 +238,7 @@ static void set_hpll_od3_clk_div(int div_sel)
 	/* Disable the output clock */
 	hd21_set_reg_bits(reg_vid_pll, 0, 18, 2);
 	hd21_set_reg_bits(reg_vid_pll, 0, 15, 1);
+	hd21_set_reg_bits(reg_vid_pll, 1, 24, 1); /* vid_pll0_clk_sel_hdmi */
 
 	switch (div_sel) {
 	case VID_PLL_DIV_1:
@@ -603,14 +635,14 @@ static void hdmitx21_set_clk_(struct hdmitx_dev *hdev)
 	int i = 0;
 	int j = 0;
 	struct hw_enc_clk_val_group *p_enc = NULL;
-	enum hdmi_vic vic = hdev->cur_VIC;
+	enum hdmi_vic vic = hdev->para->timing.vic;
 	enum hdmi_color_space cs = hdev->para->cs;
 	enum hdmi_color_depth cd = hdev->para->cd;
 
 	/* YUV 422 always use 24B mode */
 	if (cs == COLORSPACE_YUV422)
 		cd = COLORDEPTH_24B;
-
+pr_info("%s[%d] cs %d cd %d\n", __func__, __LINE__, cs, cd);
 	if (hdev->flag_3dfp) {
 		p_enc = &setting_3dfp_enc_clk_val[0];
 		for (j = 0; j < sizeof(setting_3dfp_enc_clk_val)
@@ -676,14 +708,13 @@ static void hdmitx21_set_clk_(struct hdmitx_dev *hdev)
 		return;
 	}
 next:
-	hdmitx21_set_cts_sys_clk(hdev);
 	set_hpll_clk_out(p_enc[j].hpll_clk_out);
 	if (cd == COLORDEPTH_24B && hdev->sspll)
 		set_hpll_sspll(vic);
 	set_hpll_od1(p_enc[j].od1);
 	set_hpll_od2(p_enc[j].od2);
 	set_hpll_od3(p_enc[j].od3);
-	set_hpll_od3_clk_div(p_enc[j].vid_pll_div);
+	clocks_set_vid_clk_div_for_hdmi(p_enc[j].vid_pll_div);
 	pr_info("j = %d  vid_clk_div = %d\n", j, p_enc[j].vid_clk_div);
 	set_vid_clk_div(hdev, p_enc[j].vid_clk_div);
 	set_hdmi_tx_pixel_div(hdev, p_enc[j].hdmi_tx_pixel_div);
@@ -696,6 +727,11 @@ next:
 		hdmitx_enable_encp_clk(hdev);
 	}
 	set_hdmitx_fe_clk(hdev);
+
+	//configure crt_video V1: in_sel=vid_pll_clk(0),div_n=xd)
+	set_crt_video_enc(0, 0, 1);
+	if (0) /* TODO */
+		set_crt_video_enc2(0, 0, 1);
 }
 
 static int likely_frac_rate_mode(char *m)
@@ -714,7 +750,7 @@ static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev)
 
 	frac_rate = hdev->frac_rate_policy;
 	para = hdmi21_get_fmt_paras(vic);
-	if (para && para->name && likely_frac_rate_mode(para->name)) {
+	if (para && para->timing.name && likely_frac_rate_mode(para->timing.name)) {
 		;
 	} else {
 		pr_info("this mode doesn't have frac_rate\n");
@@ -727,7 +763,7 @@ static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev)
 void hdmitx21_set_clk(struct hdmitx_dev *hdev)
 {
 	hdmitx_check_frac_rate(hdev);
-
+pr_info("%s[%d]\n", __func__, __LINE__);
 	hdmitx21_set_clk_(hdev);
 }
 
@@ -742,102 +778,6 @@ void hdmitx21_disable_clk(struct hdmitx_dev *hdev)
 	/* hdmi_tx_pixel_clk */
 	hdmitx_disable_tx_pixel_clk(hdev);
 }
-
-// --------------------------------------------------
-//              clocks_set_vid_clk_div_for_hdmi
-// --------------------------------------------------
-// wire            clk_final_en    = control[19];
-// wire            clk_div1        = control[18];
-// wire    [1:0]   clk_sel         = control[17:16];
-// wire            set_preset      = control[15];
-// wire    [14:0]  shift_preset    = control[14:0];
-static void clocks_set_vid_clk_div_for_hdmi(u32 div_sel)
-{
-	u32 shift_val = 0;
-	u32 shift_sel = 0;
-
-	pr_info("%s\n", __func__);
-	// Disable the output clock
-	hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, 0, 19, 1);
-	hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, 0, 15, 1);
-	// Select hdmi_vid_pll_clk to be vid_pll0_clk and vid_pll2_clk
-	hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, 1, 24, 1);
-
-	switch (div_sel) {
-	case VID_PLL_DIV_1:
-		shift_val = 0xFFFF;
-		shift_sel = 0;
-		break;
-	case VID_PLL_DIV_2:
-		shift_val = 0x0aaa;
-		shift_sel = 0;
-		break;
-	case VID_PLL_DIV_3:
-		shift_val = 0x0db6;
-		shift_sel = 0;
-		break;
-	case VID_PLL_DIV_3p5:
-		shift_val = 0x36cc;
-		shift_sel = 1;
-		break;
-	case VID_PLL_DIV_3p75:
-		shift_val = 0x6666;
-		shift_sel = 2;
-		break;
-	case VID_PLL_DIV_4:
-		shift_val = 0x0ccc;
-		shift_sel = 0;
-		break;
-	case VID_PLL_DIV_5:
-		shift_val = 0x739c;
-		shift_sel = 2;
-		break;
-	case VID_PLL_DIV_6:
-		shift_val = 0x0e38;
-		shift_sel = 0;
-		break;
-	case VID_PLL_DIV_6p25:
-		shift_val = 0x0000;
-		shift_sel = 3;
-		break;
-	case VID_PLL_DIV_7:
-		shift_val = 0x3c78;
-		shift_sel = 1;
-		break;
-	case VID_PLL_DIV_7p5:
-		shift_val = 0x78f0;
-		shift_sel = 2;
-		break;
-	case VID_PLL_DIV_12:
-		shift_val = 0x0fc0;
-		shift_sel = 0;
-		break;
-	case VID_PLL_DIV_14:
-		shift_val = 0x3f80;
-		shift_sel = 1;
-		break;
-	case VID_PLL_DIV_15:
-		shift_val = 0x7f80;
-		shift_sel = 2;
-		break;
-	default:
-		pr_info("Error: %s:  Invalid parameter\n", __func__);
-		break;
-	}
-
-	if (shift_val == 0xffff) { // if divide by 1
-		hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, 1, 18, 1);
-	} else {
-		hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, 0, 0, 18);
-		hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, shift_sel, 16, 2);
-		hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, 1, 15, 1);
-		hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, shift_val, 0, 15);
-	}
-	// Set the selector low
-	hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, 0, 15, 1);
-	// Enable the final output clock
-	hd21_set_reg_bits(CLKCTRL_HDMI_VID_PLL_CLK_DIV, 1, 19, 1);
-}   // clocks_set_vid_clk_div_for_hdmi
 
 //===============================================================
 //  CRT_VIDEO SETTING FUNCTIONS
@@ -897,45 +837,3 @@ static void set_crt_video_enc2(u32 vidx, u32 in_sel, u32 div_n)
 		hd21_set_reg_bits(CLKCTRL_VIID_CLK2_CTRL, 1, 19, 1); //[19] -enable clk_div0
 	}
 }
-
-//=======================================================================================
-// function: vclk_set_hdmitx
-// clock setting for HDMI TX
-// vformat: video format
-// color_depth: 4 - 24-bit per pixel. Not for 422 video, always choose 4, even if the
-// bit-per-pixel may be 30-bit.
-//              5 - 30-bit per pixel
-//              6 - 36-bit per pixel
-// mode420: 0 - Non-420 mode;
-//          1 - HDMI output 420 video, hdmi_phy_clk and tmds_clk are half of the usual speed.
-void vclk_set_hdmitx(u32 vformat, u32 color_depth, u32 mode420)
-{
-	u32 vid_pll_clk_div;
-	u32 xd;
-
-	if (color_depth != 4 && color_depth != 5 && color_depth != 6) {
-		pr_info("Error: %s sees illegal color_depth = %d!\n", __func__, color_depth);
-		return;
-	}
-
-	if (mode420 != 0 && mode420 != 1) {
-		pr_info("Error: %s sees illegal mode420 = %d!\n", __func__, mode420);
-		return;
-	}
-
-	if (color_depth == 5)
-		vid_pll_clk_div = VID_PLL_DIV_6p25;
-	else if (color_depth == 6)
-		vid_pll_clk_div = VID_PLL_DIV_7p5;
-	else
-		vid_pll_clk_div = VID_PLL_DIV_5;
-	xd = 1;
-	//configure vid_clk_div_top
-	clocks_set_vid_clk_div_for_hdmi(vid_pll_clk_div);
-
-	//configure crt_video V1: in_sel=vid_pll_clk(0),div_n=xd)
-	if (vformat == TV_ENC_480i || vformat == TV_ENC_576i)
-		set_crt_video_enc(0, 0, xd);
-	else
-		set_crt_video_enc2(0, 0, xd);
-}   /* vclk_set_hdmitx */

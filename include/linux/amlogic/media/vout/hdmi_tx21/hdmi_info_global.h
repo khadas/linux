@@ -188,19 +188,6 @@ struct hdmitx_supspeakerformat {
 	u32 fl_fr:1;
 };
 
-struct hdmitx_vidpara {
-	u32 VIC;
-	enum hdmi_color_space color_prefer;
-	enum hdmi_color_space color;
-	enum hdmi_color_depth color_depth;
-	enum hdmi_barinfo bar_info;
-	enum hdmi_pixel_repeat repeat_time;
-	enum hdmi_aspect_ratio aspect_ratio;
-	enum hdmi_colourimetry cc;
-	enum hdmi_scan ss;
-	enum hdmi_slacing sc;
-};
-
 struct hdmitx_audpara {
 	enum hdmi_audio_type type;
 	enum hdmi_audio_chnnum channel_num;

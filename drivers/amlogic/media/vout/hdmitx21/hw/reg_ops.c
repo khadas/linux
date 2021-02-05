@@ -106,7 +106,7 @@ static u8 sec_rd8(u32 addr)
 	return data;
 }
 
-static u32 TO_PHY_ADDR(u32 addr)
+u32 TO21_PHY_ADDR(u32 addr)
 {
 	u32 index;
 	u32 offset;
@@ -134,7 +134,7 @@ u32 hd21_read_reg(u32 addr)
 
 	val = readl(TO_PMAP_ADDR(addr));
 	if (hdmi_dbg)
-		pr_info("Rd32[0x%08x] 0x%08x\n", TO_PHY_ADDR(addr), val);
+		pr_info("Rd32[0x%08x] 0x%08x\n", TO21_PHY_ADDR(addr), val);
 	return val;
 }
 EXPORT_SYMBOL(hd21_read_reg);
@@ -149,10 +149,10 @@ void hd21_write_reg(u32 addr, u32 val)
 		return;
 	if (val != rval)
 		pr_info("Wr32[0x%08x] 0x%08x != Rd32 0x%08x\n",
-			TO_PHY_ADDR(addr), val, rval);
+			TO21_PHY_ADDR(addr), val, rval);
 	else
 		pr_info("Wr32[0x%08x] 0x%08x\n",
-			TO_PHY_ADDR(addr), val);
+			TO21_PHY_ADDR(addr), val);
 }
 EXPORT_SYMBOL(hd21_write_reg);
 

@@ -25,73 +25,36 @@ static void hdmitx_set_spd_info(struct hdmitx_dev *hdmitx_device);
 static void hdmi_set_vend_spec_infofram(struct hdmitx_dev *hdev,
 					enum hdmi_vic videocode);
 
-static struct hdmitx_vidpara hdmi_tx_video_params[] = {
-	{
-		.VIC		= HDMI_16_1920x1080p60_16x9,
-		.color_prefer = COLORSPACE_RGB444,
-		.color_depth	= COLORDEPTH_24B,
-		.bar_info	= B_BAR_VERT_HORIZ,
-		.repeat_time	= NO_REPEAT,
-		.aspect_ratio = TV_ASPECT_RATIO_16_9,
-		.cc		= CC_ITU709,
-		.ss		= SS_SCAN_UNDER,
-		.sc		= SC_SCALE_HORIZ_VERT,
-	},
-};
-
-static struct
-hdmitx_vidpara *hdmi_get_video_param(enum hdmi_vic videocode)
-{
-	struct hdmitx_vidpara *video_param = NULL;
-	int  i;
-	int count = ARRAY_SIZE(hdmi_tx_video_params);
-
-	for (i = 0; i < count; i++) {
-		if (videocode == hdmi_tx_video_params[i].VIC)
-			break;
-	}
-	if (i < count)
-		video_param = &hdmi_tx_video_params[i];
-	return video_param;
-}
-
-static void hdmi_tx_construct_avi_packet(struct hdmitx_vidpara *video_param,
+static void hdmi_tx_construct_avi_packet(struct hdmi_format_para *para,
 					 char *AVI_DB)
 {
-	u8 color, bar_info, aspect_ratio, cc, ss, sc, ec = 0;
+	u8 color, aspect_ratio, sc, ec = 0;
 
-	ss = video_param->ss;
-	bar_info = video_param->bar_info;
-	if (video_param->color == COLORSPACE_YUV444)
+	if (para->cs == COLORSPACE_YUV444)
 		color = 2;
-	else if (video_param->color == COLORSPACE_YUV422)
+	else if (para->cs == COLORSPACE_YUV422)
 		color = 1;
 	else
 		color = 0;
-	AVI_DB[0] = (ss) | (bar_info << 2) | (1 << 4) | (color << 5);
+	AVI_DB[0] = (1 << 4) | (color << 5);
 
-	aspect_ratio = video_param->aspect_ratio;
-	cc = video_param->cc;
+	aspect_ratio = 1; /* TODO */
 	/*HDMI CT 7-24*/
-	AVI_DB[1] = 8 | (aspect_ratio << 4) | (cc << 6);
+	AVI_DB[1] = 8 | (aspect_ratio << 4);
 
-	sc = video_param->sc;
-	if (video_param->cc == CC_ITU601)
-		ec = 0;
-	if (video_param->cc == CC_ITU709)
-		/*according to CEA-861-D, all other values are reserved*/
-		ec = 1;
+	sc = 0; /* TODO */
+	ec = 1;
 	AVI_DB[2] = (sc) | (ec << 4);
 
-	AVI_DB[3] = video_param->VIC;
-	if (video_param->VIC == HDMI_95_3840x2160p30_16x9 ||
-	    video_param->VIC == HDMI_94_3840x2160p25_16x9 ||
-	    video_param->VIC == HDMI_93_3840x2160p24_16x9 ||
-	    video_param->VIC == HDMI_98_4096x2160p24_256x135)
+	AVI_DB[3] = para->timing.vic;
+	if (para->timing.vic == HDMI_95_3840x2160p30_16x9 ||
+	    para->timing.vic == HDMI_94_3840x2160p25_16x9 ||
+	    para->timing.vic == HDMI_93_3840x2160p24_16x9 ||
+	    para->timing.vic == HDMI_98_4096x2160p24_256x135)
 		/*HDMI Spec V1.4b P151*/
 		AVI_DB[3] = 0;
 
-	AVI_DB[4] = video_param->repeat_time;
+	AVI_DB[4] = 0;
 }
 
 /************************************
@@ -112,15 +75,13 @@ static int is_dvi_device(struct rx_cap *prxcap)
 
 int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 {
-	struct hdmitx_vidpara *param = NULL;
+	struct hdmi_format_para *param = NULL;
 	enum hdmi_vic vic;
 	int i, ret = -1;
 	u8 AVI_DB[32];
 	u8 AVI_HB[32];
 
-	AVI_HB[0] = TYPE_AVI_INFOFRAMES;
-	AVI_HB[1] = AVI_INFOFRAMES_VERSION;
-	AVI_HB[2] = AVI_INFOFRAMES_LENGTH;
+	AVI_HB[0] = IF_AVI; /* TODO */
 	for (i = 0; i < 32; i++)
 		AVI_DB[i] = 0;
 
@@ -132,23 +93,22 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 	if (vic != HDMI_UNKNOWN && vic == videocode)
 		hdev->cur_VIC = vic;
 
-	param = hdmi_get_video_param(videocode);
-	hdev->cur_video_param = param;
+	param = hdev->para;
 	if (param) {
-		param->color = param->color_prefer;
+		param->cs = param->cs;
 		/* HDMI CT 7-24 Pixel Encoding
 		 * YCbCr to YCbCr Sink
 		 */
 		switch (hdev->rxcap.native_Mode & 0x30) {
 		case 0x20:/*bit5==1, then support YCBCR444 + RGB*/
 		case 0x30:
-			param->color = COLORSPACE_YUV444;
+			param->cs = COLORSPACE_YUV444;
 			break;
 		case 0x10:/*bit4==1, then support YCBCR422 + RGB*/
-			param->color = COLORSPACE_YUV422;
+			param->cs = COLORSPACE_YUV422;
 			break;
 		default:
-			param->color = COLORSPACE_RGB444;
+			param->cs = COLORSPACE_RGB444;
 		}
 		/* For Y420 modes */
 		switch (videocode) {
@@ -156,16 +116,14 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		case HDMI_97_3840x2160p60_16x9:
 		case HDMI_101_4096x2160p50_256x135:
 		case HDMI_102_4096x2160p60_256x135:
-			param->color = COLORSPACE_YUV420;
+			//param->cs = COLORSPACE_YUV420; /* TODO */
 			break;
 		default:
 			break;
 		}
 
-		if (param->color == COLORSPACE_RGB444) {
-			hdev->para->cs = hdev->cur_video_param->color;
+		if (param->cs == COLORSPACE_RGB444)
 			pr_info(VID "rx edid only support RGB format\n");
-		}
 
 		if (videocode >= HDMITX_VESA_OFFSET) {
 			hdev->para->cs = COLORSPACE_RGB444;

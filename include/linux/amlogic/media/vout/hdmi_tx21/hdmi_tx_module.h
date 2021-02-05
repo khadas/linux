@@ -282,15 +282,16 @@ struct hdmitx_dev {
 	struct task_struct *task;
 	struct task_struct *task_monitor;
 	struct task_struct *task_hdcp;
-	struct notifier_block nb;
 	struct workqueue_struct *hdmi_wq;
 	struct workqueue_struct *rxsense_wq;
 	struct workqueue_struct *cedst_wq;
 	struct device *hdtx_dev;
 	struct device *pdev; /* for pinctrl*/
+	struct hdmi_format_para *para;
 	struct pinctrl_state *pinctrl_i2c;
 	struct pinctrl_state *pinctrl_default;
-	struct vinfo_s *vinfo;
+	struct amhdmitx_data_s *data;
+	struct notifier_block nb;
 	struct delayed_work work_hpd_plugin;
 	struct delayed_work work_hpd_plugout;
 	struct delayed_work work_aud_hpd_plug;
@@ -303,7 +304,6 @@ struct hdmitx_dev {
 	struct delayed_work cec_work;
 #endif
 	struct timer_list hdcp_timer;
-	struct amhdmitx_data_s *data;
 	int hdmi_init;
 	int hpdmode;
 	/* -1, no hdcp; 0, NULL; 1, 1.4; 2, 2.2 */
@@ -383,7 +383,6 @@ struct hdmitx_dev {
 	u32 edid_parsing; /* Indicator that RX edid data integrated */
 	u8 EDID_hash[20];
 	struct rx_cap rxcap;
-	struct hdmitx_vidpara *cur_video_param;
 	int vic_count;
 	struct hdmitx_clk_tree_s hdmitx_clk_tree;
 	/*audio*/
@@ -411,7 +410,6 @@ struct hdmitx_dev {
 	u32 log;
 	u32 tx_aud_cfg; /* 0, off; 1, on */
 	u32 hpd_lock;
-	struct hdmi_format_para *para;
 	/* 0: RGB444  1: Y444  2: Y422  3: Y420 */
 	/* 4: 24bit  5: 30bit  6: 36bit  7: 48bit */
 	/* if equals to 1, means current video & audio output are blank */
@@ -613,6 +611,8 @@ struct hdmitx_dev {
 #define HDMI_PROCESS_DELAY  msleep(10)
 /* reduce a little time, previous setting is 4000/10 */
 #define AUTH_PROCESS_TIME   (1000 / 100)
+
+struct hdmitx_dev *get_hdmitx21_device(void);
 
 /***********************************************************************
  *    hdmitx protocol level interface

@@ -252,7 +252,7 @@ static void calc_timing(u8 *data, struct vesa_standard_timing *t)
 	t->hsync = (data[1] & 0x3f) + 60;
 	para = hdmi21_get_vesa_paras(t);
 	if (para)
-		t->vesa_timing = para->vic;
+		t->vesa_timing = para->timing.vic;
 }
 
 static void edid_standardtiming(struct rx_cap *prxcap, u8 *data,
@@ -2076,10 +2076,10 @@ next:
  */
 	para = hdmi21_match_dtd_paras(t);
 	if (para) {
-		t->vic = para->vic;
+		t->vic = para->timing.vic;
 		prxcap->preferred_mode = prxcap->dtd[0].vic; /* Select dtd0 */
 		pr_info(EDID "get dtd%d vic: %d\n",
-			prxcap->dtd_idx, para->vic);
+			prxcap->dtd_idx, para->timing.vic);
 		prxcap->dtd_idx++;
 	} else {
 		dump_dtd_info(t);
@@ -2143,12 +2143,12 @@ static void edid_descriptor_pmt(struct rx_cap *prxcap,
 	t->vactive = data[5] + (((data[7] >> 4) & 0xf) << 8);
 	t->vblank = data[6] + ((data[7] & 0xf) << 8);
 	para = hdmi21_get_vesa_paras(t);
-	if (para && (para->vic < (HDMI_107_3840x2160p60_64x27 + 1))) {
-		prxcap->native_VIC = para->vic;
-		pr_info("hdmitx: get PMT vic: %d\n", para->vic);
+	if (para && (para->timing.vic < (HDMI_107_3840x2160p60_64x27 + 1))) {
+		prxcap->native_VIC = para->timing.vic;
+		pr_info("hdmitx: get PMT vic: %d\n", para->timing.vic);
 	}
-	if (para && para->vic >= HDMITX_VESA_OFFSET)
-		store_vesa_idx(prxcap, para->vic);
+	if (para && para->timing.vic >= HDMITX_VESA_OFFSET)
+		store_vesa_idx(prxcap, para->timing.vic);
 }
 
 static void edid_descriptor_pmt2(struct rx_cap *prxcap,
@@ -2163,8 +2163,8 @@ static void edid_descriptor_pmt2(struct rx_cap *prxcap,
 	t->vactive = data[5] + (((data[7] >> 4) & 0xf) << 8);
 	t->vblank = data[6] + ((data[7] & 0xf) << 8);
 	para = hdmi21_get_vesa_paras(t);
-	if (para && para->vic >= HDMITX_VESA_OFFSET)
-		store_vesa_idx(prxcap, para->vic);
+	if (para && para->timing.vic >= HDMITX_VESA_OFFSET)
+		store_vesa_idx(prxcap, para->timing.vic);
 }
 
 static void edid_cvt_timing_3bytes(struct rx_cap *prxcap,
@@ -2206,7 +2206,7 @@ static void edid_cvt_timing_3bytes(struct rx_cap *prxcap,
 	}
 	para = hdmi21_get_vesa_paras(t);
 	if (para)
-		t->vesa_timing = para->vic;
+		t->vesa_timing = para->timing.vic;
 }
 
 static void edid_cvt_timing(struct rx_cap *prxcap, u8 *data)
@@ -2695,10 +2695,10 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	if (!hdev || !para)
 		return 0;
 
-	if (strcmp(para->sname, "invalid") == 0)
+	if (strcmp(para->timing.sname, "invalid") == 0)
 		return 0;
 	/* exclude such as: 2160p60hz YCbCr444 10bit */
-	switch (para->vic) {
+	switch (para->timing.vic) {
 	case HDMI_96_3840x2160p50_16x9:
 	case HDMI_97_3840x2160p60_16x9:
 	case HDMI_101_4096x2160p50_256x135:
@@ -2728,7 +2728,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 
 	/* target mode is not contained at RX SVD */
 	for (i = 0; (i < prxcap->VIC_count) && (i < VIC_MAX_NUM); i++) {
-		if ((para->vic & 0xff) == (prxcap->VIC[i] & 0xff))
+		if ((para->timing.vic & 0xff) == (prxcap->VIC[i] & 0xff))
 			svd_flag = 1;
 	}
 	if (svd_flag == 0)
@@ -2863,9 +2863,9 @@ enum hdmi_vic hdmitx21_edid_get_VIC(struct hdmitx_dev *hdev,
 		for (j = 0; vesa_t[j] && j < VESA_MAX_TIMING; j++) {
 			para = hdmi21_get_fmt_paras(vesa_t[j]);
 			if (para) {
-				if (para->vic >= HDMITX_VESA_OFFSET &&
-					vesa_vic == para->vic) {
-					vic = para->vic;
+				if (para->timing.vic >= HDMITX_VESA_OFFSET &&
+					vesa_vic == para->timing.vic) {
+					vic = para->timing.vic;
 					break;
 				}
 			}
