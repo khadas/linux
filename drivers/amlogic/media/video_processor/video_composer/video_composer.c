@@ -663,13 +663,27 @@ static struct output_axis output_axis_adjust(struct composer_dev *dev,
 	return axis;
 }
 
-static void config_ge2d_data(struct composer_dev *dev,
-			    struct vframe_s *vf,
+static int config_ge2d_data(struct composer_dev *dev,
+			    struct vframe_s *src_vf,
 			    unsigned long addr,
 			    struct frame_info_t *info,
 			    struct src_data_para *data)
 {
-	if (vf) {
+	struct vframe_s *vf = NULL;
+
+	if (src_vf) {
+		if (src_vf->canvas0_config[0].phy_addr == 0) {
+			if ((src_vf->flag &  VFRAME_FLAG_DOUBLE_FRAM) &&
+			    src_vf->vf_ext) {
+				vf = src_vf->vf_ext;
+			} else {
+				vc_print(dev->index, PRINT_PATTERN,
+					 "vf no yuv data, composer fail\n");
+				return -1;
+			}
+		} else {
+			vf = src_vf;
+		}
 		data->canvas0Addr = vf->canvas0Addr;
 		data->canvas1Addr = vf->canvas1Addr;
 		data->canvas0_config[0] = vf->canvas0_config[0];
@@ -738,6 +752,7 @@ static void config_ge2d_data(struct composer_dev *dev,
 		data->height = info->buffer_h;
 		data->is_vframe = false;
 	}
+	return 0;
 }
 
 static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
@@ -918,8 +933,10 @@ static void vframe_composer(struct composer_dev *dev)
 				continue;
 			}
 		}
-		config_ge2d_data(dev, scr_vf, addr,
-				 vframe_info[vf_dev[i]], &src_data);
+		ret = config_ge2d_data(dev, scr_vf, addr,
+				       vframe_info[vf_dev[i]], &src_data);
+		if (ret < 0)
+			continue;
 		cur_transform = vframe_info[vf_dev[i]]->transform;
 		dev->ge2d_para.position_left =
 			vframe_info[vf_dev[i]]->dst_x;

@@ -1335,7 +1335,7 @@ static void set_di_inp_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 		else
 			DIM_RDMA_WR_BITS(DI_INP_GEN_REG2, 1, 0, 2);
 	} else {
-		DIM_RDMA_WR_BITS(DI_INP_GEN_REG2, 0, 0, 1);
+		DIM_RDMA_WR_BITS(DI_INP_GEN_REG2, 0, 0, 2);
 	}
 	if (mif->reg_swap == 1)
 		DIM_RDMA_WR_BITS(DI_INP_GEN_REG3, 1, 0, 1);
@@ -1560,7 +1560,7 @@ static void set_di_mem_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 		else
 			DIM_RDMA_WR_BITS(DI_MEM_GEN_REG2, 1, 0, 2);
 	} else {
-		DIM_RDMA_WR_BITS(DI_MEM_GEN_REG2, 0, 0, 1);
+		DIM_RDMA_WR_BITS(DI_MEM_GEN_REG2, 0, 0, 2);
 	}
 	DIM_RDMA_WR_BITS(DI_MEM_GEN_REG3, mif->bit_mode & 0x3, 8, 2);
 	if (mif->reg_swap == 1)
@@ -2058,7 +2058,7 @@ static void set_di_chan2_mif(struct DI_MIF_S *mif, int urgent, int hold_line)
 		else
 			DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG2, 1, 0, 2);
 	} else {
-		DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG2, 0, 0, 1);
+		DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG2, 0, 0, 2);
 	}
 	DIM_RDMA_WR_BITS(DI_CHAN2_GEN_REG3, mif->bit_mode & 0x3, 8, 2);
 	if (mif->reg_swap == 1)
@@ -2305,9 +2305,9 @@ static void set_di_if0_mif_g12(struct DI_MIF_S *mif, int urgent, int hold_line,
 			      (mif->canvas0_addr0 << 0));
 	if (mif->set_separate_en == 2) {
 		/* Enable NV12 Display */
-		DIM_RDMA_WR_BITS(DI_IF0_GEN_REG2, 1, 0, 1);
+		DIM_RDMA_WR_BITS(DI_IF0_GEN_REG2, 1, 0, 2);
 	} else {
-		DIM_RDMA_WR_BITS(DI_IF0_GEN_REG2, 0, 0, 1);
+		DIM_RDMA_WR_BITS(DI_IF0_GEN_REG2, 0, 0, 2);
 	}
 
 	/* ---------------------- */
