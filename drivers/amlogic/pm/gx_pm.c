@@ -242,8 +242,9 @@ unsigned int get_resume_method(void)
 {
 	unsigned int val = 0;
 
+	/*For tm2 SoC, we need use scpi to get this reason*/
 	if (exit_reg)
-		val = (readl_relaxed(exit_reg) >> 28) & 0xf;
+		val = readl_relaxed(exit_reg) & 0xf;
 	return val;
 }
 EXPORT_SYMBOL_GPL(get_resume_method);

@@ -200,7 +200,7 @@
 		status = "okay";
 		device_name = "aml_pm";
 		reg = <0x0 0xfe010288 0x0 0x4>, /*SYSCTRL_STATUS_REG2*/
-			<0x0 0xfe01037c 0x0 0x4>; /*SYSCTRL_SEC_STATUS_REG31*/
+			<0x0 0xfe0102dc 0x0 0x4>; /*SYSCTRL_STICKY_REG7*/
 	};
 
 	cpu_info {
