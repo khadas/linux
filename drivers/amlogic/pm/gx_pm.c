@@ -197,17 +197,6 @@ static struct notifier_block lgcy_early_suspend_notifier = {
 	.notifier_call = lgcy_early_suspend_notify,
 };
 
-unsigned int lgcy_early_suspend_init(struct platform_device *pdev)
-{
-	int ret;
-
-	device_create_file(&pdev->dev, &dev_attr_early_suspend_trigger);
-
-	ret = register_pm_notifier(&lgcy_early_suspend_notifier);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(lgcy_early_suspend_init);
-
 unsigned int lgcy_early_suspend_exit(struct platform_device *pdev)
 {
 	int ret;
@@ -322,9 +311,27 @@ ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RW(time_out);
 
+static struct attribute *meson_pm_attrs[] = {
+	&dev_attr_suspend_reason.attr,
+	&dev_attr_time_out.attr,
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	&dev_attr_early_suspend_trigger.attr,
+#endif
+	NULL,
+};
+
+ATTRIBUTE_GROUPS(meson_pm);
+
+static struct class meson_pm_class = {
+	.name		= "meson_pm",
+	.owner		= THIS_MODULE,
+	.class_groups = meson_pm_groups,
+};
+
 static int meson_pm_probe(struct platform_device *pdev)
 {
 	unsigned int irq_pwrctrl;
+	int err;
 
 	pr_info("enter %s!\n", __func__);
 
@@ -339,11 +346,15 @@ static int meson_pm_probe(struct platform_device *pdev)
 	exit_reg = of_iomap(pdev->dev.of_node, 1);
 	if (!exit_reg)
 		return -ENOMEM;
-	device_create_file(&pdev->dev, &dev_attr_suspend_reason);
-	device_create_file(&pdev->dev, &dev_attr_time_out);
+
+	err = class_register(&meson_pm_class);
+	if (unlikely(err))
+		return err;
+
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-	if (lgcy_early_suspend_init(pdev))
-		return -1;
+	err = register_pm_notifier(&lgcy_early_suspend_notifier);
+	if (unlikely(err))
+		return err;
 #endif
 
 	pr_info("%s done\n", __func__);
