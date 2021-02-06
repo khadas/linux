@@ -620,7 +620,9 @@ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 	raw_spin_unlock(&thread->rq->lock);
 }
 
-void evl_init_schedq(struct evl_multilevel_queue *q)
+#ifdef CONFIG_EVL_SCHED_SCALABLE
+
+void evl_init_schedq(struct evl_sched_queue *q)
 {
 	int prio;
 
@@ -631,14 +633,11 @@ void evl_init_schedq(struct evl_multilevel_queue *q)
 		INIT_LIST_HEAD(q->heads + prio);
 }
 
-struct evl_thread *evl_get_schedq(struct evl_multilevel_queue *q)
+struct evl_thread *__evl_get_schedq(struct evl_sched_queue *q)
 {
 	struct evl_thread *thread;
 	struct list_head *head;
 	int idx;
-
-	if (evl_schedq_is_empty(q))
-		return NULL;
 
 	idx = evl_get_schedq_weight(q);
 	head = q->heads + idx;
@@ -647,6 +646,61 @@ struct evl_thread *evl_get_schedq(struct evl_multilevel_queue *q)
 
 	return thread;
 }
+
+static struct evl_thread *lookup_fifo_class(struct evl_rq *rq)
+{
+	struct evl_sched_queue *q = &rq->fifo.runnable;
+	struct evl_thread *thread;
+	struct list_head *head;
+	int idx;
+
+	if (!q->elems)
+		return NULL;
+
+	/*
+	 * Some scheduling policies may be implemented as variants of
+	 * the core SCHED_FIFO class, sharing its runqueue
+	 * (e.g. SCHED_QUOTA). This means that we have to do some
+	 * cascading to call the right pick handler eventually.
+	 */
+	idx = evl_get_schedq_weight(q);
+	head = q->heads + idx;
+
+	/*
+	 * The active class (i.e. ->sched_class) is the one currently
+	 * queuing the thread, reflecting any priority boost due to
+	 * PI.
+	 */
+	thread = list_first_entry(head, struct evl_thread, rq_next);
+	if (unlikely(thread->sched_class != &evl_sched_fifo))
+		return thread->sched_class->sched_pick(rq);
+
+	__evl_del_schedq(q, &thread->rq_next, idx);
+
+	return thread;
+}
+
+#else /* !CONFIG_EVL_SCHED_SCALABLE */
+
+static __always_inline
+struct evl_thread *lookup_fifo_class(struct evl_rq *rq)
+{
+	struct evl_sched_queue *q = &rq->fifo.runnable;
+	struct evl_thread *thread = NULL;
+
+	if (list_empty(&q->head))
+		return NULL;
+
+	thread = list_first_entry(&q->head, struct evl_thread, rq_next);
+	if (unlikely(thread->sched_class != &evl_sched_fifo))
+		return thread->sched_class->sched_pick(rq);
+
+	evl_del_schedq(q, thread);
+
+	return thread;
+}
+
+#endif /* CONFIG_EVL_SCHED_SCALABLE */
 
 static inline void enter_inband(struct evl_thread *root)
 {
@@ -673,39 +727,6 @@ static irqreturn_t oob_reschedule_interrupt(int irq, void *dev_id)
 	/* Will reschedule from evl_exit_irq(). */
 
 	return IRQ_HANDLED;
-}
-
-static struct evl_thread *lookup_fifo_class(struct evl_rq *rq)
-{
-	struct evl_multilevel_queue *q = &rq->fifo.runnable;
-	struct evl_thread *thread;
-	struct list_head *head;
-	int idx;
-
-	if (evl_schedq_is_empty(q))
-		return NULL;
-
-	/*
-	 * Some scheduling policies may be implemented as variants of
-	 * the core SCHED_FIFO class, sharing its runqueue
-	 * (e.g. SCHED_QUOTA). This means that we have to do some
-	 * cascading to call the right pick handler eventually.
-	 */
-	idx = evl_get_schedq_weight(q);
-	head = q->heads + idx;
-
-	/*
-	 * The active class (i.e. ->sched_class) is the one currently
-	 * queuing the thread, reflecting any priority boost due to
-	 * PI.
-	 */
-	thread = list_first_entry(head, struct evl_thread, rq_next);
-	if (unlikely(thread->sched_class != &evl_sched_fifo))
-		return thread->sched_class->sched_pick(rq);
-
-	__evl_del_schedq(q, &thread->rq_next, idx);
-
-	return thread;
 }
 
 static inline void set_next_running(struct evl_rq *rq,

@@ -23,42 +23,45 @@
 #define EVL_CORE_MAX_PRIO  (MAX_RT_PRIO + 1)
 #define EVL_CORE_NR_PRIO   (EVL_CORE_MAX_PRIO - EVL_CORE_MIN_PRIO + 1)
 
-#define EVL_MLQ_LEVELS		 EVL_CORE_NR_PRIO
-
 #define EVL_CLASS_WEIGHT_FACTOR	 1024
+
+#ifdef CONFIG_EVL_SCHED_SCALABLE
+
+#define EVL_MLQ_LEVELS		 EVL_CORE_NR_PRIO
 
 #if EVL_CORE_NR_PRIO > EVL_CLASS_WEIGHT_FACTOR ||	\
 	EVL_CORE_NR_PRIO > EVL_MLQ_LEVELS
 #error "EVL_MLQ_LEVELS is too low"
 #endif
 
-struct evl_multilevel_queue {
+struct evl_sched_queue {
 	int elems;
 	DECLARE_BITMAP(prio_map, EVL_MLQ_LEVELS);
 	struct list_head heads[EVL_MLQ_LEVELS];
 };
 
-struct evl_thread;
+void evl_init_schedq(struct evl_sched_queue *q);
 
-void evl_init_schedq(struct evl_multilevel_queue *q);
-
-struct evl_thread *evl_get_schedq(struct evl_multilevel_queue *q);
+struct evl_thread *__evl_get_schedq(struct evl_sched_queue *q);
 
 static __always_inline
-int evl_schedq_is_empty(struct evl_multilevel_queue *q)
+struct evl_thread *evl_get_schedq(struct evl_sched_queue *q)
 {
-	return q->elems == 0;
+	if (!q->elems)
+		return NULL;
+
+	return __evl_get_schedq(q);
 }
 
 static __always_inline
-int evl_get_schedq_weight(struct evl_multilevel_queue *q)
+int evl_get_schedq_weight(struct evl_sched_queue *q)
 {
 	/* Highest priorities are mapped to lowest array elements. */
 	return find_first_bit(q->prio_map, EVL_MLQ_LEVELS);
 }
 
 static __always_inline
-int get_qindex(struct evl_multilevel_queue *q, int prio)
+int get_qindex(struct evl_sched_queue *q, int prio)
 {
 	/*
 	 * find_first_bit() is used to scan the bitmap, so the lower
@@ -68,7 +71,7 @@ int get_qindex(struct evl_multilevel_queue *q, int prio)
 }
 
 static __always_inline
-struct list_head *add_q(struct evl_multilevel_queue *q, int prio)
+struct list_head *add_q(struct evl_sched_queue *q, int prio)
 {
 	struct list_head *head;
 	int idx;
@@ -85,7 +88,7 @@ struct list_head *add_q(struct evl_multilevel_queue *q, int prio)
 }
 
 static __always_inline
-void evl_add_schedq(struct evl_multilevel_queue *q,
+void evl_add_schedq(struct evl_sched_queue *q,
 		struct evl_thread *thread)
 {
 	struct list_head *head = add_q(q, thread->cprio);
@@ -93,7 +96,7 @@ void evl_add_schedq(struct evl_multilevel_queue *q,
 }
 
 static __always_inline
-void evl_add_schedq_tail(struct evl_multilevel_queue *q,
+void evl_add_schedq_tail(struct evl_sched_queue *q,
 			struct evl_thread *thread)
 {
 	struct list_head *head = add_q(q, thread->cprio);
@@ -101,7 +104,7 @@ void evl_add_schedq_tail(struct evl_multilevel_queue *q,
 }
 
 static __always_inline
-void __evl_del_schedq(struct evl_multilevel_queue *q,
+void __evl_del_schedq(struct evl_sched_queue *q,
 		struct list_head *entry, int idx)
 {
 	struct list_head *head = q->heads + idx;
@@ -114,10 +117,54 @@ void __evl_del_schedq(struct evl_multilevel_queue *q,
 }
 
 static __always_inline
-void evl_del_schedq(struct evl_multilevel_queue *q,
-	struct evl_thread *thread)
+void evl_del_schedq(struct evl_sched_queue *q,
+		struct evl_thread *thread)
 {
 	__evl_del_schedq(q, &thread->rq_next, get_qindex(q, thread->cprio));
 }
+
+#else /* !CONFIG_EVL_SCHED_SCALABLE */
+
+struct evl_sched_queue {
+	struct list_head head;
+};
+
+static __always_inline
+void evl_init_schedq(struct evl_sched_queue *q)
+{
+	INIT_LIST_HEAD(&q->head);
+}
+
+static __always_inline
+struct evl_thread *evl_get_schedq(struct evl_sched_queue *q)
+{
+	if (list_empty(&q->head))
+		return NULL;
+
+	return list_get_entry(&q->head, struct evl_thread, rq_next);
+}
+
+static __always_inline
+void evl_add_schedq(struct evl_sched_queue *q,
+		struct evl_thread *thread)
+{
+	list_add_prilf(thread, &q->head, cprio, rq_next);
+}
+
+static __always_inline
+void evl_add_schedq_tail(struct evl_sched_queue *q,
+			struct evl_thread *thread)
+{
+	list_add_priff(thread, &q->head, cprio, rq_next);
+}
+
+static __always_inline
+void evl_del_schedq(struct evl_sched_queue *q,
+		struct evl_thread *thread)
+{
+	list_del(&thread->rq_next);
+}
+
+#endif /* CONFIG_EVL_SCHED_SCALABLE */
 
 #endif /* !_EVL_SCHED_QUEUE_H */

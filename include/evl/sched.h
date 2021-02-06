@@ -59,7 +59,7 @@
 #define RQ_TSTOPPED	0x00000800
 
 struct evl_sched_fifo {
-	struct evl_multilevel_queue runnable;
+	struct evl_sched_queue runnable;
 };
 
 struct evl_rq {

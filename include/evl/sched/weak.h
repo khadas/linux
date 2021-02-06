@@ -16,15 +16,10 @@
 #define EVL_WEAK_MAX_PRIO  99
 #define EVL_WEAK_NR_PRIO   (EVL_WEAK_MAX_PRIO - EVL_WEAK_MIN_PRIO + 1)
 
-#if EVL_WEAK_NR_PRIO > EVL_CLASS_WEIGHT_FACTOR ||	\
-	EVL_WEAK_NR_PRIO > EVL_MLQ_LEVELS
-#error "WEAK class has too many priority levels"
-#endif
-
 extern struct evl_sched_class evl_sched_weak;
 
 struct evl_sched_weak {
-	struct evl_multilevel_queue runnable;
+	struct evl_sched_queue runnable;
 };
 
 static inline int evl_weak_init_thread(struct evl_thread *thread)
