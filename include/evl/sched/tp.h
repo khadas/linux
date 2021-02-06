@@ -34,7 +34,7 @@ struct evl_tp_schedule {
 
 struct evl_sched_tp {
 	struct evl_tp_rq {
-		struct evl_multilevel_queue runnable;
+		struct evl_sched_queue runnable;
 	} partitions[CONFIG_EVL_SCHED_TP_NR_PART];
 	struct evl_tp_rq idle;
 	struct evl_tp_rq *tps;

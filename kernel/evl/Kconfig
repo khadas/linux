@@ -60,6 +60,19 @@ config EVL_TIMER_RBTREE
 
 endchoice
 
+config EVL_SCHED_SCALABLE
+	bool "O(1) scheduler"
+	help
+	This option causes a multi-level priority queue to be used in
+	the core scheduler, so that it operates in constant-time
+	regardless of the number of _concurrently runnable_ threads
+	(which is normally significantly lower than the total number
+	of threads existing in the system).
+
+	Its use is recommended for large multi-threaded systems
+	involving more than 10 of such threads; otherwise, the basic
+	linear method usually performs better latency-wise.
+
 config EVL_RUNSTATS
 	bool "Collect runtime statistics"
 	default y
