@@ -77,5 +77,13 @@ static inline int meson_t7_clkc_init(void)
 }
 #endif
 
+#ifdef CONFIG_COMMON_CLK_T3
+int meson_t3_clkc_init(void);
+#else
+static inline int meson_t3_clkc_init(void)
+{
+	return 0;
+}
+#endif
 #endif /* end of ifdef MODULE */
 #endif /* end of _CLK_MODULE_H__ */
