@@ -648,20 +648,6 @@ struct evl_thread *evl_get_schedq(struct evl_multilevel_queue *q)
 	return thread;
 }
 
-struct evl_thread *
-evl_lookup_schedq(struct evl_multilevel_queue *q, int prio)
-{
-	struct list_head *head;
-	int idx;
-
-	idx = get_qindex(q, prio);
-	head = q->heads + idx;
-	if (list_empty(head))
-		return NULL;
-
-	return list_first_entry(head, struct evl_thread, rq_next);
-}
-
 static inline void enter_inband(struct evl_thread *root)
 {
 #ifdef CONFIG_EVL_WATCHDOG
