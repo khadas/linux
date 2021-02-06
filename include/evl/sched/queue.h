@@ -44,9 +44,6 @@ void evl_init_schedq(struct evl_multilevel_queue *q);
 
 struct evl_thread *evl_get_schedq(struct evl_multilevel_queue *q);
 
-struct evl_thread *
-evl_lookup_schedq(struct evl_multilevel_queue *q, int prio);
-
 static __always_inline
 int evl_schedq_is_empty(struct evl_multilevel_queue *q)
 {
