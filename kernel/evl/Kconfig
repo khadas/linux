@@ -38,40 +38,47 @@ config EVL_SCHED_TP_NR_PART
 	Define the maximum number of temporal partitions the TP
 	scheduler may have to handle.
 
-choice
-	prompt "Timer indexing method"
-	default EVL_TIMER_LIST
-	help
-	This option selects the underlying data structure
-	which indexes the software timers managed by the EVL core.
-
-config EVL_TIMER_LIST
-	bool "Linear"
-	help
-	Use a linked list. Albeit O(N), a basic list is	particularly efficient
-	when only a few software timers are concurrently active (typically less
-	than 10).
-
-config EVL_TIMER_RBTREE
-	bool "Tree"
-	help
-	Use a red-black tree. This data structure delivers better performance
-	when a high number of software timers are concurrently active.
-
-endchoice
+config EVL_TIMER_SCALABLE
+	bool
 
 config EVL_SCHED_SCALABLE
-	bool "O(1) scheduler"
-	help
-	This option causes a multi-level priority queue to be used in
-	the core scheduler, so that it operates in constant-time
-	regardless of the number of _concurrently runnable_ threads
-	(which is normally significantly lower than the total number
-	of threads existing in the system).
+	bool
 
-	Its use is recommended for large multi-threaded systems
-	involving more than 10 of such threads; otherwise, the basic
-	linear method usually performs better latency-wise.
+config EVL_HIGH_PERCPU_CONCURRENCY
+	bool "Optimize for intra-core concurrency"
+	select EVL_TIMER_SCALABLE
+	select EVL_SCHED_SCALABLE
+	default n
+	help
+
+	This option optimizes the implementation for applications with
+	many real-time threads running concurrently on any given CPU
+	core (typically when eight or more threads may be sharing a
+	single CPU core). Currently, this option controls the
+	following aspects of the implementation:
+
+	- when enabled, a per-CPU multi-level priority queue is used
+	  for ordering threads, which operates in constant-time
+	  regardless of the number of concurrently runnable threads on
+	  a CPU (which is normally significantly lower than the total
+	  number of threads existing in the system). Otherwise, a
+	  basic per-CPU linear list is used, which performs better
+	  latency-wise for a small number of runnable threads per CPU.
+
+	- when enabled, a per-CPU red-black tree is used for indexing
+	  the software timers, which has good scalability when many
+	  timers may be outstanding concurrently on any given
+	  CPU. Otherwise, a basic per-CPU linear list is used, which
+	  performs better latency-wise for a small number of running
+	  threads per CPU.
+
+ 	In short, if your application system runs only a few EVL
+ 	threads per CPU core, then your best shot is at leaving this
+ 	option turned off, in order to minimize the cache footprint of
+ 	the queuing operations performed by the scheduler and timer
+ 	subsystems. Otherwise, you may benefit from turning it on in
+ 	order to have constant-time queuing operations for a large
+ 	number of runnable threads and outstanding timers.
 
 config EVL_RUNSTATS
 	bool "Collect runtime statistics"

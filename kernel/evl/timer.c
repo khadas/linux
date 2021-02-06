@@ -455,7 +455,7 @@ done:
 }
 EXPORT_SYMBOL_GPL(evl_get_timer_overruns);
 
-#ifdef CONFIG_EVL_TIMER_RBTREE
+#ifdef CONFIG_EVL_TIMER_SCALABLE
 
 static __always_inline
 bool date_is_earlier(struct evl_tnode *left,
