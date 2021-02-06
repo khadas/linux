@@ -38,6 +38,28 @@ config EVL_SCHED_TP_NR_PART
 	Define the maximum number of temporal partitions the TP
 	scheduler may have to handle.
 
+choice
+	prompt "Timer indexing method"
+	default EVL_TIMER_LIST
+	help
+	This option selects the underlying data structure
+	which indexes the software timers managed by the EVL core.
+
+config EVL_TIMER_LIST
+	bool "Linear"
+	help
+	Use a linked list. Albeit O(N), a basic list is	particularly efficient
+	when only a few software timers are concurrently active (typically less
+	than 10).
+
+config EVL_TIMER_RBTREE
+	bool "Tree"
+	help
+	Use a red-black tree. This data structure delivers better performance
+	when a high number of software timers are concurrently active.
+
+endchoice
+
 config EVL_RUNSTATS
 	bool "Collect runtime statistics"
 	default y

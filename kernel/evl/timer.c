@@ -455,6 +455,8 @@ done:
 }
 EXPORT_SYMBOL_GPL(evl_get_timer_overruns);
 
+#ifdef CONFIG_EVL_TIMER_RBTREE
+
 static __always_inline
 bool date_is_earlier(struct evl_tnode *left,
 		struct evl_tnode *right)
@@ -485,3 +487,5 @@ void evl_insert_tnode(struct evl_tqueue *tq, struct evl_tnode *node)
 	rb_link_node(&node->rb, parent, new);
 	rb_insert_color(&node->rb, &tq->root);
 }
+
+#endif

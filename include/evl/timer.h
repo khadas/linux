@@ -31,6 +31,76 @@
 #define EVL_TIMER_GRAVITY_MASK	(EVL_TIMER_KGRAVITY|EVL_TIMER_UGRAVITY)
 #define EVL_TIMER_INIT_MASK	EVL_TIMER_GRAVITY_MASK
 
+#ifdef CONFIG_EVL_TIMER_LIST
+
+struct evl_tnode {
+	ktime_t date;
+	struct list_head next;
+};
+
+struct evl_tqueue {
+	struct list_head q;
+};
+
+static inline void evl_init_tqueue(struct evl_tqueue *tq)
+{
+	INIT_LIST_HEAD(&tq->q);
+}
+
+#define evl_destroy_tqueue(__tq)	do { } while (0)
+
+static inline bool evl_tqueue_is_empty(struct evl_tqueue *tq)
+{
+	return list_empty(&tq->q);
+}
+
+static inline
+struct evl_tnode *evl_get_tqueue_head(struct evl_tqueue *tq)
+{
+	if (list_empty(&tq->q))
+		return NULL;
+
+	return list_first_entry(&tq->q, struct evl_tnode, next);
+}
+
+static inline
+struct evl_tnode *evl_get_tqueue_next(struct evl_tqueue *tq,
+				struct evl_tnode *node)
+{
+	if (list_is_last(&node->next, &tq->q))
+		return NULL;
+
+	return list_entry(node->next.next, struct evl_tnode, next);
+}
+
+static inline
+void evl_insert_tnode(struct evl_tqueue *tq,
+		struct evl_tnode *node)
+{
+	struct evl_tnode *n;
+
+	if (list_empty(&tq->q)) {
+		list_add(&node->next, &tq->q);
+	} else {
+		list_for_each_entry_reverse(n, &tq->q, next) {
+			if (n->date <= node->date)
+				break;
+		}
+		list_add(&node->next, &n->next);
+	}
+}
+
+static inline
+void evl_remove_tnode(struct evl_tqueue *tq, struct evl_tnode *node)
+{
+	list_del(&node->next);
+}
+
+#define for_each_evl_tnode(__node, __tq)	\
+	list_for_each_entry(__node, &(__tq)->q, next)
+
+#else /* CONFIG_EVL_TIMER_RBTREE */
+
 struct evl_tnode {
 	struct rb_node rb;
 	ktime_t date;
@@ -80,6 +150,8 @@ void evl_remove_tnode(struct evl_tqueue *tq, struct evl_tnode *node)
 #define for_each_evl_tnode(__node, __tq)			\
 	for ((__node) = evl_get_tqueue_head(__tq); (__node);	\
 	     (__node) = evl_get_tqueue_next(__tq, __node))
+
+#endif /* CONFIG_EVL_TIMER_LIST */
 
 struct evl_rq;
 
