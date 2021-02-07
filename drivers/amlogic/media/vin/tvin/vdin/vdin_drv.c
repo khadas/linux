@@ -641,9 +641,10 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 {
 	struct tvin_state_machine_ops_s *sm_ops;
 	struct vf_entry *vfe;
+	u32 sts;
 
 	/* avoid null pointer oops */
-	if (!devp || !devp->fmt_info_p) {
+	if (IS_ERR_OR_NULL(devp) || IS_ERR_OR_NULL(devp->fmt_info_p)) {
 		pr_info("[vdin]%s null error.\n", __func__);
 		return;
 	}
@@ -811,7 +812,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 		#endif
 	}
 #endif
-	vdin_write_done_check(devp->addr_offset, devp);
+	sts = vdin_write_done_check(devp->addr_offset, devp);
 
 	devp->dv.chg_cnt = 0;
 	devp->prop.hdr_info.hdr_check_cnt = 0;
@@ -2787,14 +2788,31 @@ static int vdin_release(struct inode *inode, struct file *file)
 	/* free irq */
 	if (devp->flags & VDIN_FLAG_ISR_REQ) {
 		free_irq(devp->irq, (void *)devp);
+		if (vdin_dbg_en)
+			pr_info("%s vdin.%d free vs irq\n", __func__,
+				devp->index);
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->index == 0 &&
-		    devp->vpu_crash_irq > 0)
+		    devp->vpu_crash_irq > 0) {
 			free_irq(devp->vpu_crash_irq, (void *)devp);
-		if (devp->wr_done_irq > 0)
+			if (vdin_dbg_en)
+				pr_info("%s vdin.%d free crash irq\n", __func__,
+					devp->index);
+		}
+
+		if (devp->wr_done_irq > 0) {
 			free_irq(devp->wr_done_irq, (void *)devp);
-		if (devp->vdin2_meta_wr_done_irq > 0)
+			if (vdin_dbg_en)
+				pr_info("%s vdin.%d free wr done irq\n", __func__,
+					devp->index);
+		}
+
+		if (devp->vdin2_meta_wr_done_irq > 0) {
 			free_irq(devp->vdin2_meta_wr_done_irq, (void *)devp);
+			if (vdin_dbg_en)
+				pr_info("%s vdin.%d free meta irq\n", __func__,
+					devp->index);
+		}
 
 		if (vdin_dbg_en)
 			pr_info("%s vdin.%d free_irq\n", __func__,
@@ -4599,19 +4617,21 @@ struct cpumask vdinirq_mask;
 static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct vdin_dev_s *vdevp;
-	struct irq_desc *desc;
-	const struct cpumask *mask;
+	//struct irq_desc *desc;
+	//const struct cpumask *mask;
 
 	vdevp = platform_get_drvdata(pdev);
-	if (vdevp->irq) {
-		desc = irq_to_desc((long)vdevp->irq);
-		mask = desc->irq_data.common->affinity;
+
+	//if (vdevp->irq) {
+	//	desc = irq_to_desc((long)vdevp->irq);
+	//	mask = desc->irq_data.common->affinity;
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-		if (irqd_is_setaffinity_pending(&desc->irq_data))
-			mask = desc->pending_mask;
+	//	if (irqd_is_setaffinity_pending(&desc->irq_data))
+	//		mask = desc->pending_mask;
 #endif
-	cpumask_copy(&vdinirq_mask, mask);
-	}
+	//cpumask_copy(&vdinirq_mask, mask);
+	//}
+
 	vdevp->flags |= VDIN_FLAG_SUSPEND;
 	/*no need setting any regs*/
 	/*vdin_enable_module(vdevp, false);*/
@@ -4633,7 +4653,7 @@ static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 	 */
 	vdin_clk_onoff(vdevp, false);
 
-	pr_info("%s ok.\n", __func__);
+	pr_info("%s id:%d ok.\n", __func__, vdevp->index);
 	return 0;
 }
 
@@ -4662,14 +4682,15 @@ static int vdin_drv_resume(struct platform_device *pdev)
 	 */
 	vdin_clk_onoff(vdevp, true);
 
-	if (vdevp->irq) {
+	//if (vdevp->irq) {
 	//	if (!irq_can_set_affinity(vdevp->irq))
 	//		return -EIO;
-		if (cpumask_intersects(&vdinirq_mask, cpu_online_mask))
-			irq_set_affinity_hint(vdevp->irq, &vdinirq_mask);
-	}
+	//	if (cpumask_intersects(&vdinirq_mask, cpu_online_mask))
+	//		irq_set_affinity_hint(vdevp->irq, &vdinirq_mask);
+	//}
+
 	vdevp->flags &= (~VDIN_FLAG_SUSPEND);
-	pr_info("%s ok.\n", __func__);
+	pr_info("%s id:%d ok.\n", __func__, vdevp->index);
 	return 0;
 }
 #endif

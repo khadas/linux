@@ -66,7 +66,7 @@
  *                 vpp also should support this function
  */
 
-#define VDIN_VER "ver:2021-0129: t7 dv need disable dw"
+#define VDIN_VER "ver:2021-0207: free vdin irq warning"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
