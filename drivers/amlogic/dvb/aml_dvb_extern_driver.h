@@ -20,6 +20,8 @@ struct dvb_extern_device {
 	struct dvb_frontend fe;
 	struct analog_parameters para;
 
+	struct gpio_config dvb_power;
+
 	int tuner_num;
 	int tuner_cur;
 	int tuner_cur_attached;

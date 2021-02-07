@@ -20,7 +20,8 @@ static int demod_attach(struct dvb_demod *demod, bool attach)
 	list_for_each_entry(ops, &demod->list, list) {
 		if ((ops->attached && attach) ||
 			(!ops->attached && !attach)) {
-			pr_err("Demod: demod [%d] had %s.\n", ops->cfg.id,
+			pr_err("Demod: demod%d [id %d] had %s.\n",
+					ops->index, ops->cfg.id,
 					attach ? "attached" : "detached");
 
 			continue;
@@ -32,15 +33,16 @@ static int demod_attach(struct dvb_demod *demod, bool attach)
 				ops->attached = true;
 				ops->fe = fe;
 
-				dvb_tuner_attach(ops->fe);
+				if (!ops->external)
+					dvb_tuner_attach(ops->fe);
 
-				pr_err("Demod: attach demod [%d] done.\n",
-						ops->cfg.id);
+				pr_err("Demod: attach demod%d [id %d] done.\n",
+						ops->index, ops->cfg.id);
 			} else {
 				ops->attached = false;
 
-				pr_err("Demod: attach demod [%d] fail.\n",
-						ops->cfg.id);
+				pr_err("Demod: attach demod%d [id %d] fail.\n",
+						ops->index, ops->cfg.id);
 			}
 		} else {
 			if (demod->used == ops)
@@ -53,8 +55,8 @@ static int demod_attach(struct dvb_demod *demod, bool attach)
 			ops->type = AML_FE_UNDEFINED;
 			ops->fe = NULL;
 
-			pr_err("Demod: detach demod [%d] done.\n",
-					ops->cfg.id);
+			pr_err("Demod: detach demod%d [id %d] done.\n",
+					ops->index, ops->cfg.id);
 		}
 	}
 
@@ -126,8 +128,8 @@ static int demod_detect(struct dvb_demod *demod)
 		if (ops->fe->ops.init) {
 			ret = ops->fe->ops.init(ops->fe);
 		} else {
-			pr_err("Demod: demod [%d] init() is NULL.\n",
-					ops->cfg.id);
+			pr_err("Demod: demod%d [id %d] init() is NULL.\n",
+					ops->index, ops->cfg.id);
 
 			continue;
 		}
@@ -139,14 +141,15 @@ static int demod_detect(struct dvb_demod *demod)
 			else
 				ops->valid = false;
 
-			pr_err("Demod: detect demod [%d] %s.\n", ops->cfg.id,
+			pr_err("Demod: detect demod%d [id %d] %s.\n",
+					ops->index, ops->cfg.id,
 					ops->valid ? "done" : "fail");
 
 			if (ops->fe->ops.release)
 				ops->fe->ops.release(ops->fe);
 		} else {
-			pr_err("Demod: demod [%d] init() error, ret %d.\n",
-					ops->cfg.id, ret);
+			pr_err("Demod: demod%d [id %d] init() error, ret %d.\n",
+					ops->index, ops->cfg.id, ret);
 		}
 	}
 
@@ -167,21 +170,22 @@ static int demod_register_frontend(struct dvb_demod *demod, bool regist)
 
 	list_for_each_entry(ops, &demod->list, list) {
 		if (!ops->attached) {
-			pr_err("Demod: demod [%d] had not attached.\n",
-					ops->cfg.id);
+			pr_err("Demod: demod%d [id %d] had not attached.\n",
+					ops->index, ops->cfg.id);
 			continue;
 		}
 
 		if (!ops->valid && ops->cfg.detect) {
-			pr_err("Demod: demod [%d] had not detected.\n",
-					ops->cfg.id);
+			pr_err("Demod: demod%d [id %d] had not detected.\n",
+					ops->index, ops->cfg.id);
 			continue;
 		}
 
 		if ((ops->registered && regist) ||
 			(!ops->registered && !regist)) {
-			pr_err("Demod: demod [%d] had %sregistered.\n",
-					ops->cfg.id, regist ? "" : "un");
+			pr_err("Demod: demod%d [id %d] had %sregistered.\n",
+					ops->index, ops->cfg.id,
+					regist ? "" : "un");
 
 			continue;
 		}
@@ -190,18 +194,40 @@ static int demod_register_frontend(struct dvb_demod *demod, bool regist)
 			ret = ops->module->register_frontend(
 					demod->dvb_adapter, ops->fe);
 			if (ret)
-				pr_err("Demod: demod [%d] register frontend fail, ret %d.\n",
-						ops->cfg.id, ret);
+				pr_err("Demod: demod%d [id %d] register frontend fail, ret %d.\n",
+						ops->index, ops->cfg.id, ret);
 			else
 				ops->registered = true;
 		} else {
 			ret = ops->module->unregister_frontend(ops->fe);
 			if (ret)
-				pr_err("Demod: demod [%d] unregister frontend fail, ret %d.\n",
-						ops->cfg.id, ret);
+				pr_err("Demod: demod%d [Id %d] unregister frontend fail, ret %d.\n",
+						ops->index, ops->cfg.id, ret);
 			else
 				ops->registered = false;
 		}
+	}
+
+	mutex_unlock(&demod->mutex);
+
+	return 0;
+}
+
+static int demod_pre_init(struct dvb_demod *demod)
+{
+	struct demod_ops *ops = NULL;
+
+	if (IS_ERR_OR_NULL(demod))
+		return -EFAULT;
+
+	mutex_lock(&demod->mutex);
+
+	list_for_each_entry(ops, &demod->list, list) {
+		if (!ops->attached || ops->pre_inited)
+			continue;
+
+		/* In some cases, pre-init is required. */
+		ops->pre_inited = true;
 	}
 
 	mutex_unlock(&demod->mutex);
@@ -219,7 +245,8 @@ static struct dvb_demod demods = {
 	.attach = demod_attach,
 	.match = demod_match,
 	.detect = demod_detect,
-	.register_frontend = demod_register_frontend
+	.register_frontend = demod_register_frontend,
+	.pre_init = demod_pre_init
 };
 
 int dvb_extern_register_frontend(struct dvb_adapter *adapter)
@@ -244,6 +271,8 @@ int dvb_extern_register_frontend(struct dvb_adapter *adapter)
 	demod->detect(demod);
 
 	demod->register_frontend(demod, true);
+
+	demod->pre_init(demod);
 
 	demod->refcount++;
 
@@ -284,6 +313,7 @@ struct demod_ops *dvb_demod_ops_create(void)
 		ops->attached = false;
 		ops->registered = false;
 		ops->index = -1;
+		ops->pre_inited = false;
 		ops->delivery_system = SYS_UNDEFINED;
 		ops->type = AML_FE_UNDEFINED;
 		ops->module = NULL;
@@ -340,7 +370,8 @@ int dvb_demod_ops_add(struct demod_ops *ops)
 		if (p == ops) {
 			mutex_unlock(&dvb_demods_mutex);
 
-			pr_err("Demod: demod ops [0x%p] exist.\n", ops);
+			pr_err("Demod: demod%d [id %d] ops [0x%p] exist.\n",
+					ops->index, ops->cfg.id, ops);
 
 			return -EEXIST;
 		}
@@ -352,6 +383,8 @@ int dvb_demod_ops_add(struct demod_ops *ops)
 
 		return -ENODEV;
 	}
+
+	ops->external = (ops->cfg.id != AM_DTV_DEMOD_AMLDTV);
 
 	list_add_tail(&ops->list, &demod->list);
 
@@ -378,6 +411,8 @@ void dvb_demod_ops_remove(struct demod_ops *ops)
 		ops->attached = false;
 		ops->registered = false;
 		ops->valid = false;
+		ops->pre_inited = false;
+		ops->external = false;
 		ops->index = -1;
 		ops->delivery_system = SYS_UNDEFINED;
 		ops->type = AML_FE_UNDEFINED;
