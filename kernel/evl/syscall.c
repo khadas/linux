@@ -111,19 +111,6 @@ static EVL_SYSCALL(ioctl, (int fd, unsigned int request, unsigned long arg))
 	return ret;
 }
 
-typedef long (*evl_syshand)(unsigned long arg1, unsigned long arg2,
-			unsigned long arg3, unsigned long arg4,
-			unsigned long arg5);
-
-#define __EVL_CALL_ENTRY(__name)  \
-	[sys_evl_ ## __name] = ((evl_syshand)(EVL_ ## __name))
-
-static const evl_syshand evl_systbl[] = {
-	   __EVL_CALL_ENTRY(read),
-	   __EVL_CALL_ENTRY(write),
-	   __EVL_CALL_ENTRY(ioctl),
-};
-
 #define __EVL_CALL_NAME(__name)  \
 	[sys_evl_ ## __name] = #__name
 
@@ -136,17 +123,33 @@ static const char *evl_sysnames[] = {
 #define SYSCALL_PROPAGATE   0
 #define SYSCALL_STOP        1
 
-static inline void invoke_syscall(unsigned int nr, struct pt_regs *regs)
+static __always_inline
+void invoke_syscall(unsigned int nr, struct pt_regs *regs)
 {
-	evl_syshand handler;
 	long ret;
 
-	handler = evl_systbl[array_index_nospec(nr, ARRAY_SIZE(evl_systbl))];
-	ret = handler(oob_arg1(regs),
-		oob_arg2(regs),
-		oob_arg3(regs),
-		oob_arg4(regs),
-		oob_arg5(regs));
+	/*
+	 * We have only very few syscalls, prefer a plain switch to a
+	 * pointer indirection which ends up being fairly costly due
+	 * to exploit mitigations.
+	 */
+	switch (nr) {
+	case sys_evl_read:
+		ret = EVL_read((int)oob_arg1(regs),
+			(char __user *)oob_arg2(regs),
+			(size_t)oob_arg3(regs));
+		break;
+	case sys_evl_write:
+		ret = EVL_write((int)oob_arg1(regs),
+				(const char __user *)oob_arg2(regs),
+				(size_t)oob_arg3(regs));
+		break;
+	case sys_evl_ioctl:
+		ret = EVL_ioctl((int)oob_arg1(regs),
+				(unsigned int)oob_arg2(regs),
+				oob_arg3(regs));
+		break;
+	}
 
 	set_oob_retval(regs, ret);
 }
@@ -267,7 +270,7 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
 		goto do_inband;
 
 	nr = oob_syscall_nr(regs);
-	if (nr >= ARRAY_SIZE(evl_systbl))
+	if (nr >= NR_EVL_SYSCALLS)
 		goto bad_syscall;
 
 	curr = evl_current();

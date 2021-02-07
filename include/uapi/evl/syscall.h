@@ -11,4 +11,6 @@
 #define sys_evl_write	1	/* oob_write() */
 #define sys_evl_ioctl	2	/* oob_ioctl() */
 
+#define NR_EVL_SYSCALLS 3
+
 #endif /* !_EVL_UAPI_SYSCALL_H */
