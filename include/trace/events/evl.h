@@ -245,6 +245,24 @@ DEFINE_EVENT(evl_schedule_event, evl_reschedule_ipi,
 	TP_ARGS(rq)
 );
 
+TRACE_EVENT(evl_pick_thread,
+	TP_PROTO(struct evl_thread *next),
+	TP_ARGS(next),
+
+	TP_STRUCT__entry(
+		__string(next_name, next->name)
+		__field(pid_t, next_pid)
+	),
+
+	TP_fast_assign(
+		__assign_str(next_name, next->name);
+		__entry->next_pid = evl_get_inband_pid(next);
+	),
+
+	TP_printk("{ next=%s[%d] }",
+		__get_str(next_name), __entry->next_pid)
+);
+
 TRACE_EVENT(evl_switch_context,
 	TP_PROTO(struct evl_thread *prev, struct evl_thread *next),
 	TP_ARGS(prev, next),
@@ -273,6 +291,24 @@ TRACE_EVENT(evl_switch_context,
 		  __get_str(prev_name), __entry->prev_pid,
 		  __entry->prev_prio, __entry->prev_state,
 		  __get_str(next_name), __entry->next_pid, __entry->next_prio)
+);
+
+TRACE_EVENT(evl_switch_tail,
+	TP_PROTO(struct evl_thread *curr),
+	TP_ARGS(curr),
+
+	TP_STRUCT__entry(
+		__string(curr_name, curr->name)
+		__field(pid_t, curr_pid)
+	),
+
+	TP_fast_assign(
+		__assign_str(curr_name, curr->name);
+		__entry->curr_pid = evl_get_inband_pid(curr);
+	),
+
+	TP_printk("{ current=%s[%d] }",
+		__get_str(curr_name), __entry->curr_pid)
 );
 
 TRACE_EVENT(evl_init_thread,
