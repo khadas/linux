@@ -21,6 +21,7 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 	raw_spin_lock_init(&wq->lock);
 	wq->wchan.reorder_wait = evl_reorder_wait;
 	wq->wchan.follow_depend = evl_follow_wait_depend;
+	wq->wchan.name = name;
 	INIT_LIST_HEAD(&wq->wchan.wait_list);
 	lockdep_set_class_and_name(&wq->lock, key, name);
 }
@@ -146,6 +147,8 @@ int evl_wait_schedule(struct evl_wait_queue *wq)
 	int ret = 0, info;
 
 	evl_schedule();
+
+	trace_evl_finish_wait(wq);
 
 	/*
 	 * Upon return from schedule, we may or may not have been

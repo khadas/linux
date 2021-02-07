@@ -18,13 +18,12 @@
 #include <linux/tracepoint.h>
 #include <linux/trace_seq.h>
 #include <evl/timer.h>
+#include <evl/wait.h>
 
 struct evl_rq;
 struct evl_thread;
 struct evl_sched_attrs;
 struct evl_init_thread_attr;
-struct evl_wait_channel;
-struct evl_wait_queue;
 struct evl_mutex;
 struct evl_clock;
 
@@ -72,14 +71,14 @@ DECLARE_EVENT_CLASS(wq_event,
 	TP_ARGS(wq),
 
 	TP_STRUCT__entry(
-		__field(struct evl_wait_queue *, wq)
+		__string(name, wq->wchan.name)
 	),
 
 	TP_fast_assign(
-		__entry->wq = wq;
+		__assign_str(name, wq->wchan.name);
 	),
 
-	TP_printk("wq=%p", __entry->wq)
+	TP_printk("wq=%s", __get_str(name))
 );
 
 DECLARE_EVENT_CLASS(mutex_event,
@@ -701,6 +700,11 @@ DEFINE_EVENT(wq_event, evl_wake_up,
 );
 
 DEFINE_EVENT(wq_event, evl_flush_wait,
+	TP_PROTO(struct evl_wait_queue *wq),
+	TP_ARGS(wq)
+);
+
+DEFINE_EVENT(wq_event, evl_finish_wait,
 	TP_PROTO(struct evl_wait_queue *wq),
 	TP_ARGS(wq)
 );
