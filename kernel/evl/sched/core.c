@@ -826,8 +826,9 @@ static struct evl_thread *pick_next_thread(struct evl_rq *rq)
 	return next;
 }
 
-static inline void prepare_rq_switch(struct evl_rq *this_rq,
-				struct evl_thread *next)
+static __always_inline
+void prepare_rq_switch(struct evl_rq *this_rq,
+		struct evl_thread *prev, struct evl_thread *next)
 {
 	if (irq_pipeline_debug_locking())
 		spin_release(&this_rq->lock.rlock.dep_map,
@@ -835,11 +836,16 @@ static inline void prepare_rq_switch(struct evl_rq *this_rq,
 #ifdef CONFIG_DEBUG_SPINLOCK
 	this_rq->lock.rlock.owner = next->altsched.task;
 #endif
+
+	trace_evl_switch_context(prev, next);
 }
 
-static inline void finish_rq_switch(bool inband_tail, unsigned long flags)
+static __always_inline
+void finish_rq_switch(bool inband_tail, unsigned long flags)
 {
 	struct evl_rq *this_rq = this_evl_rq();
+
+	trace_evl_switch_tail(this_rq->curr);
 
 	EVL_WARN_ON(CORE, this_rq->curr->state & EVL_THREAD_BLOCK_BITS);
 
@@ -860,7 +866,7 @@ static inline void finish_rq_switch(bool inband_tail, unsigned long flags)
 	}
 }
 
-static inline void finish_rq_switch_from_inband(void)
+static __always_inline void finish_rq_switch_from_inband(void)
 {
 	struct evl_rq *this_rq = this_evl_rq();
 
@@ -874,7 +880,7 @@ static inline void finish_rq_switch_from_inband(void)
 }
 
 /* hard irqs off. */
-static inline bool test_resched(struct evl_rq *this_rq)
+static __always_inline bool test_resched(struct evl_rq *this_rq)
 {
 	bool need_resched = evl_need_resched(this_rq);
 
@@ -939,6 +945,7 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 	}
 
 	next = pick_next_thread(this_rq);
+	trace_evl_pick_thread(next);
 	if (next == curr) {
 		if (unlikely(next->state & T_ROOT)) {
 			if (this_rq->local_flags & RQ_TPROXY)
@@ -952,7 +959,6 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 	}
 
 	prev = curr;
-	trace_evl_switch_context(prev, next);
 	this_rq->curr = next;
 	leaving_inband = false;
 
@@ -971,7 +977,7 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 	evl_inc_counter(&next->stat.csw);
 	raw_spin_unlock(&prev->lock);
 
-	prepare_rq_switch(this_rq, next);
+	prepare_rq_switch(this_rq, prev, next);
 	inband_tail = dovetail_context_switch(&prev->altsched,
 					&next->altsched, leaving_inband);
 	finish_rq_switch(inband_tail, flags);
