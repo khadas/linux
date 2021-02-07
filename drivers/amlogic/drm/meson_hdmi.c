@@ -277,7 +277,7 @@ void am_hdmi_encoder_atomic_enable(struct drm_encoder *encoder,
 	set_vout_mode_pre_process(vmode);
 	set_vout_vmode(vmode);
 	set_vout_mode_post_process(vmode);
-	msleep(1000);
+	/* msleep(1000); */
 }
 
 void am_hdmi_encoder_atomic_disable(struct drm_encoder *encoder,
