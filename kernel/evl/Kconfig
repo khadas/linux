@@ -15,7 +15,7 @@ config EVL_SCHED_QUOTA
 	If in doubt, say N.
 
 config EVL_SCHED_TP
-	bool "Temporal partitioning policy"
+	bool "Enable temporal partitioning policy"
 	default n
 	help
 	This option enables the SCHED_TP scheduling policy in the
