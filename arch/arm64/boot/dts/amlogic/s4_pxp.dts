@@ -28,6 +28,7 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
+		spi0 = &spifc;
 		spi1 = &spicc0;
 		tsensor0 = &p_tsensor;
 	};
@@ -1384,47 +1385,8 @@
 
 &spifc {
 	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spifc_pins>;
-	spi-nand@0 {
-		compatible = "spi-nand";
+	spi-nor@0 {
 		status = "disabled";
-		reg = <0>;
-		spi-max-frequency = <96000000>;
-		bl_mode = <1>;
-		fip_copies = <4>;
-		fip_size = <0x200000>;
-		partition = <&spinand_partitions>;
-		spinand_partitions: spinand_partitions{
-			bootloader{
-				offset=<0x0 0x0>;
-				size=<0x0 0x0>;
-			};
-			tpl{
-				offset=<0x0 0x0>;
-				size=<0x0 0x0>;
-			};
-			logo{
-				offset=<0x0 0x0>;
-				size=<0x0 0x200000>;
-			};
-			recovery{
-				offset=<0x0 0x0>;
-				size=<0x0 0x1000000>;
-			};
-			boot{
-				offset=<0x0 0x0>;
-				size=<0x0 0x1000000>;
-			};
-			system{
-				offset=<0x0 0x0>;
-				size=<0x0 0x4000000>;
-			};
-			data{
-				offset=<0xffffffff 0xffffffff>;
-				size=<0x0 0x0>;
-			};
-		};
 	};
 };
 
