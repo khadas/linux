@@ -692,6 +692,9 @@ static int set_disp_mode_auto(void)
 	hdev->output_blank_flag = 1;
 	hdev->ready = 1;
 	edidinfo_attach_to_vinfo(hdev);
+	/* backup values need to be updated to latest values */
+	memcpy(hdev->backup_fmt_attr, hdev->fmt_attr, 16);
+	hdev->backup_frac_rate_policy = hdev->frac_rate_policy;
 	return ret;
 }
 
@@ -5120,8 +5123,6 @@ static int hdmitx_check_same_vmodeattr(char *name)
 	if (memcmp(hdev->backup_fmt_attr, hdev->fmt_attr, 16) == 0 &&
 	    hdev->backup_frac_rate_policy == hdev->frac_rate_policy)
 		return 1;
-	memcpy(hdev->backup_fmt_attr, hdev->fmt_attr, 16);
-	hdev->backup_frac_rate_policy = hdev->frac_rate_policy;
 	return 0;
 }
 
