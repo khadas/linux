@@ -148,7 +148,6 @@ struct meson_gpio_irq_params {
 	.channel_num = 12,
 #endif
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct meson_gpio_irq_params meson8_params = {
 	INIT_MESON8_COMMON_DATA(134)
 };
@@ -165,11 +164,6 @@ static const struct meson_gpio_irq_params gxl_params = {
 	INIT_MESON8_COMMON_DATA(110)
 };
 
-static const struct meson_gpio_irq_params a1_params = {
-	INIT_MESON_A1_COMMON_DATA(62)
-};
-#endif
-
 static const struct meson_gpio_irq_params axg_params = {
 	INIT_MESON8_COMMON_DATA(100)
 };
@@ -178,6 +172,10 @@ static const struct meson_gpio_irq_params sm1_params = {
 	INIT_MESON8_COMMON_DATA(100)
 	.support_edge_both = true,
 	.edge_both_offset = 8,
+};
+
+static const struct meson_gpio_irq_params a1_params = {
+	INIT_MESON_A1_COMMON_DATA(62)
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -203,16 +201,14 @@ static const struct meson_gpio_irq_params t7_params = {
 #endif
 
 static const struct of_device_id meson_irq_gpio_matches[] = {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{ .compatible = "amlogic,meson8-gpio-intc", .data = &meson8_params },
 	{ .compatible = "amlogic,meson8b-gpio-intc", .data = &meson8b_params },
 	{ .compatible = "amlogic,meson-gxbb-gpio-intc", .data = &gxbb_params },
 	{ .compatible = "amlogic,meson-gxl-gpio-intc", .data = &gxl_params },
 	{ .compatible = "amlogic,meson-axg-gpio-intc", .data = &axg_params },
-	{ .compatible = "amlogic,meson-a1-gpio-intc", .data = &a1_params },
-#endif
 	{ .compatible = "amlogic,meson-g12a-gpio-intc", .data = &axg_params },
 	{ .compatible = "amlogic,meson-sm1-gpio-intc", .data = &sm1_params },
+	{ .compatible = "amlogic,meson-a1-gpio-intc", .data = &a1_params },
 #ifdef CONFIG_AMLOGIC_MODIFY
 	{ .compatible = "amlogic,meson-tm2-gpio-intc", .data = &tm2_params },
 	{ .compatible = "amlogic,meson-sc2-gpio-intc", .data = &sc2_params },

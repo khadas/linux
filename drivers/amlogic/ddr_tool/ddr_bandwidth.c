@@ -927,7 +927,6 @@ static int ddr_bandwidth_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic,ddr-bandwidth-m8b",
 		.data = (void *)DMC_TYPE_M8B,	/* chip id */
@@ -953,6 +952,14 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 		.data = (void *)DMC_TYPE_AXG,
 	},
 	{
+		.compatible = "amlogic,ddr-bandwidth-g12a",
+		.data = (void *)DMC_TYPE_G12A,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-g12b",
+		.data = (void *)DMC_TYPE_G12B,
+	},
+	{
 		.compatible = "amlogic,ddr-bandwidth-txl",
 		.data = (void *)DMC_TYPE_TXL,
 	},
@@ -975,15 +982,6 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 	{
 		.compatible = "amlogic,ddr-bandwidth-c1",
 		.data = (void *)DMC_TYPE_C1,
-	},
-#endif
-	{
-		.compatible = "amlogic,ddr-bandwidth-g12a",
-		.data = (void *)DMC_TYPE_G12A,
-	},
-	{
-		.compatible = "amlogic,ddr-bandwidth-g12b",
-		.data = (void *)DMC_TYPE_G12B,
 	},
 	{
 		.compatible = "amlogic,ddr-bandwidth-tm2",

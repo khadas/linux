@@ -187,7 +187,6 @@ static struct meson_hdmirx_data rx_tm2_data = {
 	.phy_ver = PHY_VER_TL1,
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct meson_hdmirx_data rx_tl1_data = {
 	.chip_id = CHIP_ID_TL1,
 	.phy_ver = PHY_VER_TL1,
@@ -212,7 +211,6 @@ static struct meson_hdmirx_data rx_gxtvbb_data = {
 	.chip_id = CHIP_ID_GXTVBB,
 	.phy_ver = PHY_VER_ORG,
 };
-#endif
 
 static const struct of_device_id hdmirx_dt_match[] = {
 	{
@@ -235,7 +233,6 @@ static const struct of_device_id hdmirx_dt_match[] = {
 		.compatible     = "amlogic, hdmirx_tm2",
 		.data           = &rx_tm2_data
 	},
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible     = "amlogic, hdmirx_tl1",
 		.data           = &rx_tl1_data
@@ -256,7 +253,6 @@ static const struct of_device_id hdmirx_dt_match[] = {
 		.compatible     = "amlogic, hdmirx_gxtvbb",
 		.data           = &rx_gxtvbb_data
 	},
-#endif
 	{},
 };
 

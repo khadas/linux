@@ -494,7 +494,6 @@ static const struct pwm_ops meson_pwm_ops = {
 	.owner = THIS_MODULE,
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const char * const pwm_meson8b_parent_names[] = {
 	"xtal", "vid_pll", "fclk_div4", "fclk_div3"
 };
@@ -558,7 +557,6 @@ static const struct meson_pwm_data pwm_axg_ao_data = {
 	.double_channel = true,
 #endif
 };
-#endif
 
 static const char * const pwm_g12a_ao_ab_parent_names[] = {
 	"xtal", "aoclk81", "fclk_div4", "fclk_div5"
@@ -614,7 +612,6 @@ static const struct meson_pwm_data pwm_v2_data = {
 #endif
 
 static const struct of_device_id meson_pwm_matches[] = {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic,meson8b-pwm",
 		.data = &pwm_meson8b_data
@@ -635,7 +632,6 @@ static const struct of_device_id meson_pwm_matches[] = {
 		.compatible = "amlogic,meson-axg-ao-pwm",
 		.data = &pwm_axg_ao_data
 	},
-#endif
 	{
 		.compatible = "amlogic,meson-g12a-ee-pwm",
 		.data = &pwm_g12a_ee_data
