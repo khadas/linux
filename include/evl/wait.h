@@ -22,6 +22,7 @@ struct evl_wait_channel {
 	int (*follow_depend)(struct evl_wait_channel *wchan,
 			struct evl_thread *originator);
 	struct list_head wait_list;
+	const char *name;
 };
 
 struct evl_wait_queue {
@@ -39,6 +40,7 @@ struct evl_wait_queue {
 			.reorder_wait = evl_reorder_wait,		\
 			.follow_depend = evl_follow_wait_depend,	\
 			.wait_list = LIST_HEAD_INIT((__name).wchan.wait_list), \
+			.name = #__name,				\
 		},							\
 	}
 
