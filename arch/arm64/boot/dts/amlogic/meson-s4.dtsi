@@ -1266,6 +1266,11 @@
 		fr_policy = <2>;
 	};
 
+	dummy_venc: dummy_venc {
+		compatible = "amlogic, dummy_venc_s4";
+		status = "okay";
+	};
+
 	ir: ir@8000 {
 		compatible = "amlogic, meson-ir";
 		reg = <0x0 0xfe084040 0x0 0x44>,
