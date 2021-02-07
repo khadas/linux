@@ -5199,6 +5199,7 @@ void enable_dolby_vision(int enable)
 				   is_meson_t7_stbmode() ||
 				   is_meson_sc2()) {
 				hdr_osd_off();
+				hdr_vd1_off();
 				set_hdr_module_status(VD1_PATH,
 					HDR_MODULE_BYPASS);
 				if (is_meson_t7_stbmode()) {
@@ -11808,6 +11809,7 @@ static bool load_dv_pq_config_data(char *bin_path, char *txt_path)
 	unsigned int cfg_len = sizeof(struct pq_config_s) * MAX_DV_PICTUREMODES;
 	char *txt_buf = NULL;
 	int i = 0;
+	int error;
 
 	if (!module_installed)
 		return false;
@@ -11825,7 +11827,9 @@ static bool load_dv_pq_config_data(char *bin_path, char *txt_path)
 		goto LOAD_END;
 	}
 
-	vfs_stat(bin_path, &stat);
+	error = vfs_stat(bin_path, &stat);
+	if (error < 0)
+		ret = false;
 	length = (stat.size > cfg_len) ? cfg_len : stat.size;
 	num_picture_mode = length / sizeof(struct pq_config_s);
 
@@ -11853,7 +11857,9 @@ static bool load_dv_pq_config_data(char *bin_path, char *txt_path)
 		ret = false;
 		pr_info("[%s] failed to open file: |%s|\n", __func__, txt_path);
 	} else {
-		vfs_stat(txt_path, &stat);
+		error = vfs_stat(txt_path, &stat);
+		if (error < 0)
+			ret = false;
 		length = stat.size;
 		txt_buf = vmalloc(length);
 
