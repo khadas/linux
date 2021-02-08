@@ -5814,6 +5814,7 @@ void dbg_cp_4k(struct di_ch_s *pch, unsigned int mode)
 	int i;
 	unsigned int flg_mode, mode_rotation, mode_copy;
 	char *mname = "nothing";
+	struct dim_nins_s *nins;
 
 //	struct di_hpst_s  *pst = get_hw_pst();
 	if (mode & 0x0f) {
@@ -5837,7 +5838,7 @@ void dbg_cp_4k(struct di_ch_s *pch, unsigned int mode)
 	pst->cfg_rot = (mode_rotation & (DI_BIT1 | DI_BIT2)) >> 1;
 	/**********************/
 	/* vfm */
-	vfm_in = pw_vf_peek(ch);
+	vfm_in = nins_peekvfm(pch);//pw_vf_peek(ch);
 	if (!vfm_in) {
 		dbg_copy("no input");
 		return;
@@ -5848,7 +5849,9 @@ void dbg_cp_4k(struct di_ch_s *pch, unsigned int mode)
 		return;
 	/**********************/
 	t_st = cur_to_usecs();
-	vfm_in	= pw_vf_get(ch);
+	//vfm_in	= pw_vf_get(ch);
+	nins = nins_get(pch);
+	vfm_in = &nins->c.vfm_cp;
 	di_buf	= di_que_out_to_di_buf(ch, QUE_POST_FREE);
 	t_c = cur_to_usecs();
 	us_diff[0] = (unsigned int)(t_c - t_st);
@@ -5886,8 +5889,9 @@ void dbg_cp_4k(struct di_ch_s *pch, unsigned int mode)
 		time_cnt++;
 	}
 	if (!pst->flg_int_done) {
-		//PR_ERR("%s:copy failed\n", __func__);
-		pw_vf_put(vfm_in, ch);
+		PR_ERR("%s:copy failed\n", __func__);
+		pw_vf_put(nins->c.ori, ch);
+		nins_move(pch, QBF_NINS_Q_USED, QBF_NINS_Q_IDLE);
 		return;
 	}
 	t_c = cur_to_usecs();
@@ -5896,7 +5900,8 @@ void dbg_cp_4k(struct di_ch_s *pch, unsigned int mode)
 	//di_que_in(ch, QUE_POST_READY, di_buf);
 	pch->itf.op_fill_ready(pch, di_buf);
 	dbg_copy("di:typ2[0x%x]:\n", di_buf->vframe->type);
-	pw_vf_put(vfm_in, ch);
+	pw_vf_put(nins->c.ori, ch);
+	nins_move(pch, QBF_NINS_Q_USED, QBF_NINS_Q_IDLE);
 
 	dbg_copy("%s:timer:%d:%px:%s\n", __func__, time_cnt, vfm_in, mname);
 	diffa = 0;
@@ -6140,10 +6145,18 @@ int dim_post_copy_pip(struct di_ch_s *pch,
 		in_buf->vframe = &ppost->in_buf_vf;
 		memcpy(in_buf->vframe, vfm_in, sizeof(struct vframe_s));
 		in_buf->vframe->private_data = in_buf;
-
+		i_mif->dbg_from_dec = 1; //data from decoder, tmp
 		pre_cfg_cvs(in_buf->vframe);
-		config_di_mif_v3(i_mif, DI_MIF0_ID_IF1, in_buf, ch);
+		pre_inp_mif_w(i_mif, in_buf->vframe);
+		//config_di_mif_v3_test_pip(i_mif, DI_MIF0_ID_IF1, in_buf, ch);
+		opl1()->pre_cfg_mif(i_mif, DI_MIF0_ID_IF1, in_buf, ch);
 		i_mif->mif_index = DI_MIF0_ID_IF1;
+		i_mif->burst_size_y	= 3;
+		i_mif->burst_size_cb	= 1;
+		i_mif->burst_size_cr	= 1;
+		i_mif->hold_line	= 0x0a;
+		if (di_dbg & DBG_M_COPY)
+			dim_dump_mif_state(i_mif, "if1");
 	}
 
 	/* set vf */
@@ -6430,6 +6443,7 @@ void dbg_pip_func(struct di_ch_s *pch, unsigned int mode)
 	struct di_buf_s		*di_buf;
 	unsigned int ch;
 	struct di_hpst_s  *pst = get_hw_pst();
+	struct dim_nins_s *nins;
 
 	ch	= pch->ch_id;
 	/**********************/
@@ -6439,7 +6453,7 @@ void dbg_pip_func(struct di_ch_s *pch, unsigned int mode)
 	pst->cfg_out_fmt = 1;
 	/**********************/
 	/* vfm */
-	vfm_in = pw_vf_peek(ch);
+	vfm_in = nins_peekvfm(pch);//pw_vf_peek(ch);
 	if (!vfm_in) {
 		dbg_copy("no input");
 		return;
@@ -6449,16 +6463,21 @@ void dbg_pip_func(struct di_ch_s *pch, unsigned int mode)
 	if (di_que_is_empty(ch, QUE_POST_FREE))
 		return;
 	/**********************/
-	vfm_in	= pw_vf_get(ch);
+	//vfm_in	= pw_vf_get(ch);
+	nins = nins_get(pch);
+	vfm_in = &nins->c.vfm_cp;
 	di_buf	= di_que_out_to_di_buf(ch, QUE_POST_FREE);
 
 	/**********************/
 	pst->cfg_pip_nub = (mode & 0xf);
 	dim_post_copy_pip(pch, vfm_in, di_buf, (mode & 0xf0) >> 4);
 
-	di_que_in(ch, QUE_POST_READY, di_buf);
+	//di_que_in(ch, QUE_POST_READY, di_buf);
+	pch->itf.op_fill_ready(pch, di_buf);
 	dbg_copy("di:typ2[0x%x]:\n", di_buf->vframe->type);
-	pw_vf_put(vfm_in, ch);
+	//pw_vf_put(vfm_in, ch);
+	pw_vf_put(nins->c.ori, ch);
+	nins_move(pch, QBF_NINS_Q_USED, QBF_NINS_Q_IDLE);
 }
 #else
 

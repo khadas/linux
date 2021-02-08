@@ -239,6 +239,12 @@ static void dump_mif_state(struct DI_MIF_S *mif)
 		mif->addr2);
 }
 
+void dim_dump_mif_state(struct DI_MIF_S *mif, char *name)
+{
+	pr_info("%s:%s\n", __func__, name);
+	dump_mif_state(mif);
+}
+
 /*2018-08-17 add debugfs*/
 /*same as dump_mif_state*/
 void dump_mif_state_seq(struct DI_MIF_S *mif,

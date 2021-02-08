@@ -1403,8 +1403,11 @@ static unsigned int set_afbce_cfg_v1(int index,
 		((hblksize_buf & 0x1fff) << 16) |  // out blk hsize
 		((vblksize_buf & 0x1fff) << 0)    // out blk vsize
 		);
+	if (DIM_IS_IC(T7))
+		op->wr(reg[AFBCEX_HEAD_BADDR], afbce->head_baddr >> 4);
+	else
+		op->wr(reg[AFBCEX_HEAD_BADDR], afbce->head_baddr);
 
-	op->wr(reg[AFBCEX_HEAD_BADDR], afbce->head_baddr);
 	//head addr of compressed data
 
 	op->bwr(reg[AFBCEX_MIF_SIZE],
@@ -1448,8 +1451,10 @@ static unsigned int set_afbce_cfg_v1(int index,
 
 //ary temp	cur_mmu_used += op->rd(AFBCE_MMU_NUM);
 //4k addr have used in every frame;
-
-	op->wr(reg[AFBCEX_MMU_RMIF_CTRL4], afbce->mmu_info_baddr);
+	if (DIM_IS_IC(T7))
+		op->wr(reg[AFBCEX_MMU_RMIF_CTRL4], afbce->mmu_info_baddr >> 4);
+	else
+		op->wr(reg[AFBCEX_MMU_RMIF_CTRL4], afbce->mmu_info_baddr);
 	op->bwr(reg[AFBCEX_MMU_RMIF_CTRL1], 0x1, 6, 1);//litter_endia
 	if (afbce->reg_pip_mode)
 		op->bwr(reg[AFBCEX_MMU_RMIF_SCOPE_X], 0x0, 0, 13);
@@ -3774,6 +3779,26 @@ void set_di_memcpy_rot(struct mem_cpy_s *cfg)
 		(0		<< 20) |
 		/* post_frm_sel   =top_post_ctrl[3];//0:viu  1:internal */
 		(1		<< 30));
+
+	if (DIM_IS_IC_EF(T7) && (!IS_ERR_OR_NULL(in_afbcd))) {
+		if (in_afbcd->index == EAFBC_DEC_IF0) {
+			//op->bwr(AFBCDM_IF0_CTRL0,cfg->b.is_if0_4k,14,1);
+			//reg_use_4kram
+			op->bwr(AFBCDM_IF0_CTRL0, 1, 13, 1);
+			//reg_afbc_vd_sel //1:afbc_dec 0:nor_rdmif
+		} else if (in_afbcd->index == EAFBC_DEC_IF1) {
+			//op->bwr(AFBCDM_IF1_CTRL0,cfg->b.is_if1_4k,14,1);
+			//reg_use_4kram
+			op->bwr(AFBCDM_IF1_CTRL0, 1, 13, 1);
+			//reg_afbc_vd_sel //1:afbc_dec 0:nor_rdmif
+		} else if (in_afbcd->index == EAFBC_DEC_IF2) {
+			//op->bwr(AFBCDM_IF2_CTRL0,cfg->b.is_if2_4k,14,1);
+			//reg_use_4kram
+			op->bwr(AFBCDM_IF2_CTRL0, 1, 13, 1);
+			//reg_afbc_vd_sel //1:afbc_dec 0:nor_rdmif
+		}
+	}
+
 	if (is_4k)
 		dim_sc2_4k_set(2);
 	#ifdef ARY_MARK
@@ -3844,7 +3869,8 @@ void set_di_memcpy(struct mem_cpy_s *cfg)
 		opl2()->afbcd_set(in_afbcd->index, in_afbcd, op);
 	} else {
 		dbg_copy("inp:mif:%d\n", in_rdmif->mif_index);
-		set_di_mif_v1(in_rdmif, in_rdmif->mif_index, op);
+		//set_di_mif_v1(in_rdmif, in_rdmif->mif_index, op);
+		opl1()->pre_mif_set(in_rdmif, in_rdmif->mif_index, NULL);
 	}
 
 	if (out_afbce) {
@@ -4030,7 +4056,7 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	// ----------------------
 	// General register
 	// ----------------------
-	if (mif_index == DI_MIF0_ID_INP) {
+	if (mif_index == DI_MIF0_ID_INP || mif->dbg_from_dec) {
 		if (mif->canvas_w % 32)
 			burst_len = 0;
 		else if (mif->canvas_w % 64)
@@ -4705,7 +4731,7 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 		//dbg_ic("%s:%d:linear\n", __func__, );
 		di_mif->linear = 1;
 		//di_mif->addr0 = di_buf->nr_adr;
-		if (mif_index == DI_MIF0_ID_INP) {
+		if (mif_index == DI_MIF0_ID_INP || di_mif->dbg_from_dec) {
 			dbg_ic("%s:inp not change addr\n", __func__);
 		} else {
 			di_mif->addr0 = di_buf->nr_adr;
@@ -5085,7 +5111,7 @@ void dim_secure_sw_pre(unsigned char ch)
 {
 	if (DIM_IS_IC_BF(G12A))
 		return;
-	dbg_mem2("%s:tvp3 pre:%d\n", __func__, ch);
+	//dbg_mem2("%s:tvp3 pre:%d\n", __func__, ch);
 
 	if (get_datal()->ch_data[ch].is_secure_pre == 0)//first set
 		dim_secure_pre_en(ch);
@@ -5117,7 +5143,7 @@ void dim_secure_sw_post(unsigned char ch)
 {
 	if (DIM_IS_IC_BF(G12A))
 		return;
-	dbg_mem2("%s:tvp4 post:%d\n", __func__, ch);
+	//dbg_mem2("%s:tvp4 post:%d\n", __func__, ch);
 
 	if (get_datal()->ch_data[ch].is_secure_pst == 0)//first set
 		dim_secure_pst_en(ch);

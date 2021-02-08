@@ -294,7 +294,8 @@ struct DI_MIF_S {
 	unsigned int		linear : 1;
 	unsigned int		buf_crop_en : 1;
 	unsigned int		block_mode : 1;
-	unsigned int reserved		:2;
+	unsigned int		dbg_from_dec: 1; //
+	unsigned int reserved		:1;
 	unsigned int	buf_hsize;
 	unsigned int cvs0_w;
 	unsigned int cvs1_w;

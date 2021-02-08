@@ -4169,7 +4169,7 @@ static void di_pre_size_change(unsigned short width,
 static void pre_inp_canvas_config(struct vframe_s *vf);
 #endif
 
-static void pre_inp_mif_w(struct DI_MIF_S *di_mif, struct vframe_s *vf);
+//static void pre_inp_mif_w(struct DI_MIF_S *di_mif, struct vframe_s *vf);
 static void dim_canvas_set2(struct vframe_s *vf, u32 *index);
 
 void dim_pre_de_process(unsigned int channel)
@@ -5121,7 +5121,8 @@ void pre_cfg_cvs(struct vframe_s *vf)
 #endif
 }
 
-static void pre_inp_mif_w(struct DI_MIF_S *di_mif, struct vframe_s *vf)
+//static
+void pre_inp_mif_w(struct DI_MIF_S *di_mif, struct vframe_s *vf)
 {
 	unsigned int dbga = dim_get_dbg_dec21();
 	int i;
