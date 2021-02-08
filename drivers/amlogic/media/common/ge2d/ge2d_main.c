@@ -1283,7 +1283,7 @@ static struct ge2d_device_data_s ge2d_t5 = {
 };
 
 static struct ge2d_device_data_s ge2d_t7 = {
-	.ge2d_rate = 500000000,
+	.ge2d_rate = 667000000,
 	.src2_alp = 1,
 	.canvas_status = 2,
 	.deep_color = 1,
