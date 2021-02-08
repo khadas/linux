@@ -758,6 +758,95 @@
 		tv_mode = <1>;/*1:enabel ;0:disable*/
 	};
 
+    /* SMC */
+	smartcard {
+		compatible = "amlogic,smartcard-sc2";
+		dev_name = "smartcard";
+		status = "disabled";
+
+		reg = <0x0 0xfe000000 0x0 0x480000>;
+		irq_trigger_type = "GPIO_IRQ_LOW";
+
+		reset_pin-gpios = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
+		detect_pin-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		enable_5v3v_pin-gpios = <&gpio GPIOT_11 GPIO_ACTIVE_HIGH>;
+		enable_pin-gpios = <&gpio GPIOT_12 GPIO_ACTIVE_HIGH>;
+
+		interrupts = <0 174 1>;
+		interrupt-names = "smc0_irq";
+		/*
+		 *Smc clock source, if change this,
+		 *you must adjust clk and divider in smartcard.c
+		 */
+		smc0_clock_source = <0>;
+		/*0: high voltage on detect pin indicates card in.*/
+		smc0_det_invert = <0>;
+		smc0_5v3v_level = <0>;
+		/*Ordinarily,smartcard controller needs a enable pin.*/
+		smc_need_enable_pin = "yes";
+		reset_level = <0>;
+		smc0_enable_level = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_iso7816_pins>;
+		clocks = <&clkc CLKID_SC_CLK_GATE>;
+		clock-names = "smartcard";
+	};
+
+	dvb-extern {
+		compatible = "amlogic, dvb-extern";
+		dev_name = "dvb-extern";
+		status = "okay";
+
+		fe_num = <2>;
+		fe0_demod = "cxd2856";
+		fe0_i2c_adap_id = <&i2c5>;
+		fe0_demod_i2c_addr = <0xD8>;
+		fe0_reset_value = <0>;
+		fe0_reset_gpio = <&gpio GPIOT_19 GPIO_ACTIVE_HIGH>;
+		fe0_reset_dir = <1>; /* 0: out, 1: in. */
+		fe0_ant_poweron_value = <0>;
+		fe0_ant_power_gpio = <&gpio GPIOT_18 GPIO_ACTIVE_HIGH>;
+		fe0_ts  = <0>;
+
+		fe1_demod = "cxd2856";
+		fe1_i2c_adap_id = <&i2c5>;
+		fe1_demod_i2c_addr = <0xCA>;
+		fe1_reset_value = <0>;
+		fe1_reset_gpio = <&gpio GPIOT_19 GPIO_ACTIVE_HIGH>;
+		fe1_reset_dir = <1>; /* 0: out, 1: in. */
+		fe1_ant_poweron_value = <0>;
+		fe1_ant_power_gpio = <&gpio GPIOT_18 GPIO_ACTIVE_HIGH>;
+		fe1_ts  = <1>;
+	};
+
+	dvb-demux {
+		compatible = "amlogic sc2, dvb-demux";
+		dev_name = "dvb-demux";
+		status = "okay";
+
+		reg = <0x0 0xfe000000 0x0 0x480000>;
+
+		dmxdev_num = <3>;
+
+		tsn_from = "demod";
+
+		/*single demod setting */
+		ts0_sid = <0x20>;
+		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
+		ts0_control = <0x0>;
+		ts0_invert = <0>;
+
+		ts1_sid = <0x21>;
+		ts1 = "serial-4wire";
+		ts1_control = <0x0>;
+		ts1_invert = <0>;
+
+		pinctrl-names = "s_ts0", "s_ts1";
+		pinctrl-0 = <&dvb_s_ts0_pins>;
+		pinctrl-1 = <&dvb_s_ts1_pins>;
+	};
+
 	ionvideo {
 		compatible = "amlogic, ionvideo";
 		dev_name = "ionvideo";
@@ -1220,7 +1309,7 @@
 };
 
 &i2c1 {
-	status = "okay";
+	status = "disable";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins1>;
 
@@ -1255,6 +1344,14 @@
 		reg-data-type = <1>;
 		link-device = <&phycsi>;
 	};
+};
+
+&i2c5 {
+	status = "okay";
+	pinctrl-names = "default";//, "sleep"
+	pinctrl-0 = <&i2c5_pins1>;
+	//pinctrl-1 = <&i2c2_sleep_pins2>;
+	clock-frequency = <100000>; /* default 100k */
 };
 
 /* SDIO */
@@ -1427,6 +1524,26 @@
 				"tdm_d4",
 				"tdm_d5";
 			function = "tdm";
+		};
+	};
+
+    dvb_s_ts0_pins: dvb_s_ts0_pins {
+		tsin_a {
+			groups = "tsin_a_sop_t",
+				   "tsin_a_valid_t",
+				   "tsin_a_clk_t",
+				   "tsin_a_din0_t";
+			function = "tsin_a";
+		};
+	};
+
+	dvb_s_ts1_pins: dvb_s_ts1_pins {
+		tsin_b {
+			groups = "tsin_b_sop",
+				   "tsin_b_valid",
+				   "tsin_b_clk",
+				   "tsin_b_din0";
+			function = "tsin_b";
 		};
 	};
 };

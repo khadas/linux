@@ -2299,6 +2299,20 @@
 		interrupt-names = "vpu_security";
 	};
 
+	dmx_aucpu: aucpu {
+		compatible = "amlogic, aucpu";
+		dev_name = "aml_aucpu";
+		status = "disabled";
+		interrupts = <0 77 1>;
+		interrupt-names = "aucpu_irq";
+		#address-cells=<2>;
+		#size-cells=<2>;
+		ranges;
+		io_reg_base{
+			reg = <0x0 0xfe09e080 0x0 0x100>;
+		};
+	};
+
 	ge2d {
 		compatible = "amlogic, ge2d-t7";
 		status = "okay";
@@ -2778,6 +2792,16 @@
 			function = "uart_ao_a_ee";
 			bias-pull-up;
 			input-enable;
+		};
+	};
+
+	sd_iso7816_pins:sd_iso7816_pins {
+		mux {
+			groups = "iso7816_clk_z",
+				"iso7816_data_z";
+			function = "iso7816";
+			input-enable;
+			bias-pull-down;
 		};
 	};
 
