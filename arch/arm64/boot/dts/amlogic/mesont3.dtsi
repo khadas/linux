@@ -176,6 +176,11 @@
 				status = "okay";
 			};
 
+			meson_clk_msr@48000 {
+				compatible = "amlogic,meson-t3-clk-measure";
+				reg = <0x0 0x48000 0x0 0x1c>;
+			};
+
 			uart_B: serial@7a000 {
 				compatible = "amlogic,meson-uart";
 				reg = <0x0 0x7a000 0x0 0x18>;
