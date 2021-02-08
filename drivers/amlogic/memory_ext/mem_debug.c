@@ -39,16 +39,20 @@ static void dump_mem_layout(char *buf)
 		MLM(MODULES_VADDR, MODULES_END));
 	pos += sprintf(buf + pos, "    vmalloc : 0x%16lx - 0x%16lx   (%6ld GB)\n",
 		MLG(VMALLOC_START, VMALLOC_END));
-	pos += sprintf(buf + pos, "      .text : 0x%px" " - 0x%px" "   (%6ld KB)\n",
-		MLK_ROUNDUP(_text, _etext));
-	pos += sprintf(buf + pos, "    .rodata : 0x%px" " - 0x%px" "   (%6ld KB)\n",
-		MLK_ROUNDUP(__start_rodata, __init_begin));
-	pos += sprintf(buf + pos, "      .init : 0x%px" " - 0x%px" "   (%6ld KB)\n",
-		MLK_ROUNDUP(__init_begin, __init_end));
-	pos += sprintf(buf + pos, "      .data : 0x%px" " - 0x%px" "   (%6ld KB)\n",
-		MLK_ROUNDUP(_sdata, _edata));
-	pos += sprintf(buf + pos, "       .bss : 0x%px" " - 0x%px" "   (%6ld KB)\n",
-		MLK_ROUNDUP(__bss_start, __bss_stop));
+	pos += sprintf(buf + pos, "      .text : 0x%px" " - 0x%px" "   (%6ld KB) 0x%lx\n",
+		MLK_ROUNDUP(_text, _etext), (unsigned long)__pa_symbol(_text));
+	pos += sprintf(buf + pos, "    .rodata : 0x%px" " - 0x%px" "   (%6ld KB) 0x%lx\n",
+		MLK_ROUNDUP(__start_rodata, __init_begin),
+		(unsigned long)__pa_symbol(__start_rodata));
+	pos += sprintf(buf + pos, "      .init : 0x%px" " - 0x%px" "   (%6ld KB) 0x%lx\n",
+		MLK_ROUNDUP(__init_begin, __init_end),
+		(unsigned long)__pa_symbol(__start_rodata));
+	pos += sprintf(buf + pos, "      .data : 0x%px" " - 0x%px" "   (%6ld KB) 0x%lx\n",
+		MLK_ROUNDUP(_sdata, _edata),
+		(unsigned long)__pa_symbol(_sdata));
+	pos += sprintf(buf + pos, "       .bss : 0x%px" " - 0x%px" "   (%6ld KB) 0x%lx\n",
+		MLK_ROUNDUP(__bss_start, __bss_stop),
+		(unsigned long)__pa_symbol(__bss_start));
 	pos += sprintf(buf + pos, "    fixed   : 0x%16lx - 0x%16lx   (%6ld KB)\n",
 		MLK(FIXADDR_START, FIXADDR_TOP));
 	pos += sprintf(buf + pos, "    PCI I/O : 0x%16lx - 0x%16lx   (%6ld MB)\n",
@@ -60,9 +64,9 @@ static void dump_mem_layout(char *buf)
 		MLM((unsigned long)phys_to_page(memblock_start_of_DRAM()),
 		    (unsigned long)virt_to_page(high_memory)));
 #endif
-	pos += sprintf(buf + pos, "    memory  : 0x%16lx - 0x%16lx   (%6ld MB)\n",
+	pos += sprintf(buf + pos, "    memory  : 0x%16lx - 0x%16lx   (%6ld MB) 0x%lx\n",
 		MLM(__phys_to_virt(memblock_start_of_DRAM()),
-		    (unsigned long)high_memory));
+		    (unsigned long)high_memory), (unsigned long)memblock_start_of_DRAM());
 #else
 
 #endif
