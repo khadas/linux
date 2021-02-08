@@ -971,7 +971,7 @@ static void hdmitx_set_infoframe(int type, u8 *hb, u8 *db)
 			return;
 		break;
 	case HDMI_AUDIO_INFO:
-		pkt_data_len = 9;
+		hdmitx_infoframe_send(IF_AUD, hb, db);
 		break;
 	case HDMI_SOURCE_DESCRIPTION:
 		pkt_data_len = 25;
@@ -1101,6 +1101,8 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	if (!audio_param)
 		return 0;
 	pr_info(HW "set audio\n");
+
+	hdmitx21_set_audioclk(1);
 	audio_mute_op(hdev->tx_aud_cfg);
 	/* PCM & multi channel use I2S */
 	if (audio_param->type == CT_PCM &&
@@ -2338,7 +2340,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	data32 |= ((audio_packet_type == HDMI_AUDIO_PACKET_HBR) << 2);
 	data32 |= (0 << 1);
 	data32 |= (0 << 0);
-	hdmitx21_wr_reg(AUD_MODE_IVCTX, data32);  //AUD_MODE
+	hdmitx21_wr_reg(AUD_MODE_IVCTX, 0x2);  //AUD_MODE
 
 	hdmitx21_wr_reg(AUD_EN_IVCTX, 0x03);           //AUD_EN
 

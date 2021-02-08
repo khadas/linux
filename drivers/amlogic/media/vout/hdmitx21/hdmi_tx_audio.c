@@ -230,20 +230,26 @@ int hdmitx21_set_audio(struct hdmitx_dev *hdmitx_device,
 		     struct hdmitx_audpara *audio_param)
 {
 	int i, ret = -1;
-	u8 AUD_DB[32];
+	u8 hb[3];
+	u8 db[28];
 	u8 CHAN_STAT_BUF[24 * 2];
 	u32 hdmi_ch = hdmitx_device->hdmi_ch;
 
-	for (i = 0; i < 32; i++)
-		AUD_DB[i] = 0;
+	memset(hb, 0, sizeof(hb));
+	memset(db, 0, sizeof(db));
+	hb[0] = 0x84;
+	hb[1] = 1;
+	hb[2] = 0x0a;
+	db[1] = 0x1;
 	for (i = 0; i < (24 * 2); i++)
 		CHAN_STAT_BUF[i] = 0;
 	if (hdmitx_device->hwop.setaudmode(hdmitx_device,
 					   audio_param) >= 0) {
-		hdmi_tx_construct_aud_packet(audio_param, AUD_DB,
+		if (0)
+			hdmi_tx_construct_aud_packet(audio_param, db,
 					     CHAN_STAT_BUF, hdmi_ch);
 
-		hdmitx_device->hwop.setinfoframe(HDMI_AUDIO_INFO, AUD_DB, CHAN_STAT_BUF);
+		hdmitx_device->hwop.setinfoframe(HDMI_AUDIO_INFO, hb, &db[1]);
 		ret = 0;
 	}
 	return ret;
