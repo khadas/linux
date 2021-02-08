@@ -1275,7 +1275,7 @@ static void video_composer_task(struct composer_dev *dev)
 		vf->axis[3] = frame_info->dst_h + frame_info->dst_y - 1;
 		vf->crop[0] = frame_info->crop_y;
 		vf->crop[1] = frame_info->crop_x;
-		if (frame_info->type == 0) {
+		if (is_dec_vf || is_v4l_vf) {
 			if ((vf->type & VIDTYPE_COMPRESS) != 0) {
 				pic_w = vf->compWidth;
 				pic_h = vf->compHeight;
@@ -1299,13 +1299,15 @@ static void video_composer_task(struct composer_dev *dev)
 				vc_print(dev->index, PRINT_AXIS,
 					"crop info is error!\n");
 			}
-		} else if (frame_info->type == 1) {
-			vf->crop[2] = frame_info->buffer_h
-				- frame_info->crop_h
-				- frame_info->crop_y;
-			vf->crop[3] = frame_info->buffer_w
-				- frame_info->crop_w
-				- frame_info->crop_x;
+		} else {
+			if (frame_info->type == 1) {
+				vf->crop[2] = frame_info->buffer_h
+					- frame_info->crop_h
+					- frame_info->crop_y;
+				vf->crop[3] = frame_info->buffer_w
+					- frame_info->crop_w
+					- frame_info->crop_x;
+			}
 		}
 		vf->zorder = frames_info->disp_zorder;
 		vf->file_vf = file_vf;
