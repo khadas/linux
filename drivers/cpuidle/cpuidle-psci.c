@@ -17,6 +17,9 @@
 #include <linux/of_device.h>
 #include <linux/psci.h>
 #include <linux/slab.h>
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/amlogic/cpu_version.h>
+#endif
 
 #include <asm/cpuidle.h>
 
@@ -214,6 +217,13 @@ static int __init psci_idle_init(void)
 	int cpu, ret;
 	struct cpuidle_driver *drv;
 	struct cpuidle_device *dev;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (((is_meson_t5_cpu()) && (is_meson_rev_a())) ||
+	    ((is_meson_t5d_cpu()) && (is_meson_rev_a()))) {
+		return -1;
+	}
+#endif
 
 	for_each_possible_cpu(cpu) {
 		ret = psci_idle_init_cpu(cpu);
