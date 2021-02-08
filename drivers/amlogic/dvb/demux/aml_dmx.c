@@ -203,9 +203,9 @@ static struct sw_demux_sec_filter *_dmx_dmx_sec_filter_alloc(struct
 	return &sec_feed->filter[i];
 }
 
+#ifdef DEBUG_DUMP
 static void prdump(const char *m, const void *data, u32 len)
 {
-	return;
 	if (m)
 		dprint_i("%s:\n", m);
 	if (data) {
@@ -243,6 +243,7 @@ static void prdump(const char *m, const void *data, u32 len)
 		}
 	}
 }
+#endif
 
 static void _sec_cb(u8 *sec, int len, void *data)
 {
@@ -267,10 +268,12 @@ static int _ts_out_sec_cb(struct out_elem *pout, char *buf,
 	int ret = 0;
 
 //      dprint("%s\n", __func__);
+#ifdef DEBUG_DUMP
 	if (debug_dmx == 1) {
 		pr_dbg("%s len:%d\n", __func__, count);
 		prdump("org", buf, 4);
 	}
+#endif
 	if (sec_feed->state != DMX_STATE_GO)
 		return 0;
 
@@ -375,8 +378,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			pr_dbg("%s DMX_OUTPUT_RAW_MODE\n", __func__);
 		}
 	} else {
-		if (filter->params.pes.output == DMX_OUT_TAP ||
-			filter->params.pes.output == DMX_OUT_TSDEMUX_TAP) {
+		if (filter->params.pes.output == DMX_OUT_TAP) {
 			format = PES_FORMAT;
 			pr_dbg("%s PES_FORMAT\n", __func__);
 		} else {
@@ -615,15 +617,15 @@ static int _dmx_section_add_filter(struct sw_demux_sec_feed *sec_feed, int i)
 	params.pid = sec_feed->pid;
 	params.crc32 = sec_feed->check_crc;
 
-	memcpy(&sec_feed->filter[i].section_filter.filter_value[1],
+	memmove(&sec_feed->filter[i].section_filter.filter_value[1],
 	       &sec_feed->filter[i].section_filter.filter_value[3],
-	       SWDMX_SEC_FILTER_LEN - 1);
-	memcpy(&sec_feed->filter[i].section_filter.filter_mask[1],
+	       SWDMX_SEC_FILTER_LEN - 3);
+	memmove(&sec_feed->filter[i].section_filter.filter_mask[1],
 	       &sec_feed->filter[i].section_filter.filter_mask[3],
-	       SWDMX_SEC_FILTER_LEN - 1);
-	memcpy(&sec_feed->filter[i].section_filter.filter_mode[1],
+	       SWDMX_SEC_FILTER_LEN - 3);
+	memmove(&sec_feed->filter[i].section_filter.filter_mode[1],
 	       &sec_feed->filter[i].section_filter.filter_mode[3],
-	       SWDMX_SEC_FILTER_LEN - 1);
+	       SWDMX_SEC_FILTER_LEN - 3);
 
 	_invert_mode(&sec_feed->filter[i].section_filter);
 

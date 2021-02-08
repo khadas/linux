@@ -1,0 +1,7 @@
+#
+#Smart card driver configuration
+#
+
+config AMLOGIC_SMARTCARD
+	tristate "Amlogic Smartcard driver"
+	default n

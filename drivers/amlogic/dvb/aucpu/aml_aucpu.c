@@ -1299,11 +1299,11 @@ s32 init_Aucpu_device(void)
 	r = register_chrdev(0, AUCPU_DEV_NAME, &aucpu_fops);
 	if (r <= 0) {
 		aucpu_pr(LOG_ERROR, "register aucpu device error.\n");
-		return  r;
+		return  -1;
 	}
 	s_aucpu_major = r;
 
-	class_register(&aucpu_class);
+	r = class_register(&aucpu_class);
 	s_register_flag = 1;
 	aucpu_dev = device_create(&aucpu_class, NULL, MKDEV(s_aucpu_major, 0),
 				  NULL, AUCPU_DEV_NAME);
@@ -1313,7 +1313,7 @@ s32 init_Aucpu_device(void)
 		class_unregister(&aucpu_class);
 		return -1;
 	}
-	return r;
+	return 0;
 }
 
 s32 uninit_Aucpu_device(void)
