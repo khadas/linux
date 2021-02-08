@@ -42,6 +42,10 @@ static unsigned long long	t_i_d[NR_CPUS];
 static int			irq_flg;
 static struct stack_trace	irq_trace[NR_CPUS];
 static unsigned long		t_entries[NR_CPUS][ENTRY];
+static struct stack_trace smc_trace[NR_CPUS + 1];
+static  unsigned long smc_t_entries[NR_CPUS + 1][ENTRY];
+static unsigned long smc_comd[NR_CPUS + 1];
+static unsigned long long t_s_d[NR_CPUS + 1];
 static unsigned long long	t_idle[NR_CPUS] = { 0 };
 static unsigned long long	t_d_out;
 
@@ -266,6 +270,70 @@ void  notrace __arch_cpu_idle_exit(void)
 	t_idle[cpu] = 0;
 }
 
+static unsigned long smcid_skip_list[] = {
+	0x84000001, /* suspned A32*/
+	0xC4000001, /* suspned A64*/
+	0x84000002, /* cpu off */
+	0x84000008, /* system off */
+	0x84000009, /* system reset */
+	0x8400000E, /* system suspend A32 */
+	0xC4000008, /* system suspend A64 */
+};
+
+void notrace smc_trace_start(unsigned long smcid)
+{
+	unsigned int cpu;
+	int i, ret = 0;
+	unsigned long flags;
+
+	if (!irq_flg || !irq_check_en || oops_in_progress)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(smcid_skip_list); i++) {
+		if (smcid == smcid_skip_list[i]) {
+			ret = 1;
+			break;
+		}
+	}
+	if (ret)
+		return;
+
+	local_irq_save(flags);
+
+	cpu = get_cpu();
+	put_cpu();
+
+	memset(&smc_trace[cpu], 0, sizeof(smc_trace[cpu]));
+	memset(&smc_t_entries[cpu][0], 0, sizeof(smc_t_entries[cpu][0]) * ENTRY);
+	smc_trace[cpu].entries = &smc_t_entries[cpu][0];
+	smc_trace[cpu].max_entries = ENTRY;
+	smc_trace[cpu].skip = 2;
+	smc_trace[cpu].nr_entries = 0;
+	t_s_d[cpu] = sched_clock();
+	smc_comd[cpu] = smcid;
+
+	save_stack_trace(&smc_trace[cpu]);
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(smc_trace_start);
+
+void notrace smc_trace_stop(void)
+{
+	unsigned int cpu;
+	unsigned long flags;
+
+	if (!irq_flg || !irq_check_en || oops_in_progress)
+		return;
+
+	local_irq_save(flags);
+	cpu = get_cpu();
+	put_cpu();
+	t_s_d[cpu] = 0;
+	smc_comd[cpu] = 0;
+	local_irq_restore(flags);
+}
+EXPORT_SYMBOL(smc_trace_stop);
+
 void pr_lockup_info(int c)
 {
 	int cpu;
@@ -305,6 +373,16 @@ void pr_lockup_info(int c)
 			       cpu, t_i_tmp, t_i_diff);
 			stack_trace_print(irq_trace[cpu].entries,
 					  irq_trace[cpu].nr_entries, 0);
+		}
+		if (t_s_d[cpu] || smc_comd[cpu]) {
+			t_i_diff = t_cur - t_s_d[cpu];
+			do_div(t_i_diff, ns2ms);
+			t_i_tmp = t_s_d[cpu];
+			do_div(t_i_tmp, ns2ms);
+			pr_err("SMC____ERR[%d]. <0x%lx %llu %llu>.\n",
+			       cpu, smc_comd[cpu], t_i_tmp, t_i_diff);
+			stack_trace_print(smc_trace[cpu].entries,
+					  smc_trace[cpu].nr_entries, 0);
 		}
 		if (t_idle[cpu] && (t_idle[cpu] > LONG_IDLE + t_cur)) {
 			t_idle_diff = t_cur - t_idle[cpu];

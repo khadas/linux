@@ -30,7 +30,9 @@ UNWIND(	.save	{r4-r7})
 	pop	{r4-r7}
 	ldr	r12, [sp, #(4 * 4)]
 	stm	r12, {r0-r3}
+#ifndef CONFIG_AMLOGIC_DEBUG_LOCKUP
 	bx	lr
+#endif
 UNWIND(	.fnend)
 	.endm
 
@@ -41,7 +43,18 @@ UNWIND(	.fnend)
  *		  struct arm_smccc_quirk *quirk)
  */
 ENTRY(__arm_smccc_smc)
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+	push {r0-r7, lr}
+	bl smc_trace_start
+	pop {r0-r7, lr}
+#endif
 	SMCCC SMCCC_SMC
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+	push {lr}
+	bl smc_trace_stop
+	pop {lr}
+	bx lr
+#endif
 ENDPROC(__arm_smccc_smc)
 
 /*
