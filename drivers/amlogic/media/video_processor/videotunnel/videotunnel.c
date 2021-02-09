@@ -964,12 +964,11 @@ static int vt_ctrl_process(struct vt_ctrl_data *data,
 	return ret;
 }
 
-static struct vt_buffer *vt_buffer_get(struct vt_instance *instance, int key)
+static struct vt_buffer *vt_buffer_get_locked(struct vt_instance *instance, int key)
 {
 	struct vt_buffer *buffer = NULL;
 	int i;
 
-	mutex_lock(&instance->lock);
 	for (i = 0; i < VT_POOL_SIZE; i++) {
 		buffer = &instance->vt_buffers[i];
 
@@ -977,7 +976,6 @@ static struct vt_buffer *vt_buffer_get(struct vt_instance *instance, int key)
 				buffer->buffer_fd_con == key)
 			break;
 	}
-	mutex_unlock(&instance->lock);
 
 	return buffer;
 }
@@ -1006,6 +1004,7 @@ static struct vt_buffer *vt_get_free_buffer(struct vt_instance *instance)
 			buffer = &instance->vt_buffers[i];
 			buffer->file_buffer = NULL;
 			buffer->file_fence = NULL;
+			buffer->buffer_fd_con = -1;
 			break;
 		}
 	}
@@ -1042,6 +1041,7 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 		if (!buffer->file_buffer)
 			return -EBADF;
 
+		mutex_lock(&instance->lock);
 		instance->fcount++;
 
 		buffer->buffer_fd_pro = item->buffer_fd;
@@ -1056,7 +1056,6 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 			 instance->id, buffer->file_buffer,
 			 buffer, buffer->session_pro, instance->fcount);
 
-		mutex_lock(&instance->lock);
 		kfifo_put(&instance->fifo_to_consumer, buffer);
 		mutex_unlock(&instance->lock);
 	}
@@ -1067,9 +1066,11 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 		wake_up_interruptible(&instance->consumer->wait_consumer);
 	}
 
-	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] queuebuffer pfd: %d, buffer(%p) buffer file(%p)\n",
+	vt_debug(VT_DEBUG_BUFFERS,
+		 "vt [%d] queuebuffer pfd: %d, buffer(%p) buffer file(%p) timestamp(%lld), now(%lld)\n",
 		 instance->id, buffer->buffer_fd_pro,
-		 buffer, buffer->file_buffer);
+		 buffer, buffer->file_buffer,
+		 buffer->item.time_stamp, ktime_to_us(ktime_get()));
 
 	return 0;
 }
@@ -1108,15 +1109,13 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 		mutex_unlock(&instance->lock);
 		return -EAGAIN;
 	}
-	mutex_unlock(&instance->lock);
-
-	buffer->item.buffer_status = VT_BUFFER_DEQUEUE;
 
 	/* it's previous connect buffer */
 	if (buffer->cid_pro != session->cid) {
 		if (buffer->file_fence)
 			fput(buffer->file_fence);
 
+		mutex_unlock(&instance->lock);
 		return -EAGAIN;
 	}
 
@@ -1125,10 +1124,15 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 		if (fd < 0) {
 			pr_info("vt [%d] dequeuebuffer install fence fd error, Suspected fd leak!!\n",
 			       instance->id);
-			ret = -ENOMEM;
+			mutex_unlock(&instance->lock);
+			return -ENOMEM;
 		}
 
 		fd_install(fd, buffer->file_fence);
+
+		vt_debug(VT_DEBUG_FILE,
+			"vt [%d] dequeubuffer fence file(%p) install fence fd(%d) buffer(%p)\n",
+			instance->id, buffer->file_fence, fd, buffer);
 	}
 
 	buffer->item.fence_fd = fd;
@@ -1139,9 +1143,12 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 	/* return the buffer */
 	data->buffer_size = 1;
 	data->buffers[0] = buffer->item;
+	buffer->item.buffer_status = VT_BUFFER_DEQUEUE;
+	mutex_unlock(&instance->lock);
 
-	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] dequeuebuffer end pfd:%d\n",
-		 instance->id, buffer->buffer_fd_pro);
+	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] dequeuebuffer buffer(%p) end pfd(%d) cfd(%d) fence fd(%d) timestamp(%lld)\n",
+		 instance->id, buffer, buffer->buffer_fd_pro, buffer->buffer_fd_con,
+		 buffer->item.fence_fd, buffer->item.time_stamp);
 
 	return 0;
 }
@@ -1176,9 +1183,9 @@ static int vt_acquire_buffer_process(struct vt_buffer_data *data,
 
 	mutex_lock(&instance->lock);
 	ret = kfifo_get(&instance->fifo_to_consumer, &buffer);
-	mutex_unlock(&instance->lock);
 	if (!ret || !buffer) {
 		pr_err("vt [%d] acquirebuffer got null buffer\n", instance->id);
+		mutex_unlock(&instance->lock);
 		return -EAGAIN;
 	}
 
@@ -1189,7 +1196,6 @@ static int vt_acquire_buffer_process(struct vt_buffer_data *data,
 			/* back to producer */
 			pr_info("vt [%d] acquirebuffer install fd error\n",
 			       instance->id);
-			mutex_lock(&instance->lock);
 			buffer->item.buffer_status = VT_BUFFER_RELEASE;
 			if (buffer->file_buffer) {
 				fput(buffer->file_buffer);
@@ -1219,10 +1225,13 @@ static int vt_acquire_buffer_process(struct vt_buffer_data *data,
 	/* return the buffer */
 	data->buffer_size = 1;
 	data->buffers[0] = buffer->item;
+	mutex_unlock(&instance->lock);
 
-	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] acquirebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%p)\n",
+	vt_debug(VT_DEBUG_BUFFERS,
+		 "vt [%d] acquirebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%p), timestamp(%lld), now(%lld)\n",
 		 instance->id, buffer->buffer_fd_pro,
-		 buffer->buffer_fd_con, buffer, buffer->file_buffer);
+		 buffer->buffer_fd_con, buffer, buffer->file_buffer,
+		 buffer->item.time_stamp, ktime_to_us(ktime_get()));
 
 	return 0;
 }
@@ -1242,15 +1251,20 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 	if (instance->consumer && instance->consumer != session)
 		return -EINVAL;
 
+	mutex_lock(&instance->lock);
 	for (i = 0; i < data->buffer_size; i++) {
 		item = &data->buffers[i];
-		if (item->buffer_fd < 0)
+		if (item->buffer_fd < 0) {
+			mutex_unlock(&instance->lock);
 			return -EINVAL;
+		}
 
-		buffer = vt_buffer_get(instance, item->buffer_fd);
+		buffer = vt_buffer_get_locked(instance, item->buffer_fd);
 
-		if (!buffer)
+		if (!buffer) {
+			mutex_unlock(&instance->lock);
 			return -EINVAL;
+		}
 
 		buffer->file_fence = NULL;
 		if (item->fence_fd >= 0)
@@ -1260,6 +1274,10 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 			vt_debug(VT_DEBUG_BUFFERS,
 				 "vt [%d] releasebuffer fence file is null\n",
 				 instance->id);
+		else
+			vt_debug(VT_DEBUG_FILE,
+				"vt [%d] releasebuffer fence file(%p) fence fd(%d)\n",
+				instance->id, buffer->file_fence, item->fence_fd);
 
 		/* close the fd in consumer side */
 		vt_close_fd(session, buffer->buffer_fd_con);
@@ -1291,19 +1309,19 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 				continue;
 			}
 
-			mutex_lock(&instance->lock);
 			kfifo_put(&instance->fifo_to_producer, buffer);
-			mutex_unlock(&instance->lock);
 		}
 	}
+	mutex_unlock(&instance->lock);
+
 	if (instance->producer && data->buffer_size > 0) {
 		wake_up_interruptible(&instance->wait_producer);
 		wake_up_interruptible(&instance->producer->wait_producer);
 	}
 
-	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] releasebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%p)\n",
+	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] releasebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%p) timestamp(%lld)\n",
 		 instance->id, buffer->buffer_fd_pro,
-		 buffer->buffer_fd_con, buffer, buffer->file_buffer);
+		 buffer->buffer_fd_con, buffer, buffer->file_buffer, buffer->item.time_stamp);
 
 	return 0;
 }
