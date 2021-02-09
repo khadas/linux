@@ -182,10 +182,11 @@ static void set_dvb_ts(struct platform_device *pdev,
 	} else if (!strcmp(str, "parallel")) {
 		dprint("ts%d:%s\n", i, str);
 
-		if (i != 1) {
-			dprint("error %s:parallel should be ts1\n", buf);
-			return;
-		}
+		/*internal demod will use tsin_b/tsin_c parallel*/
+//		if (i != 1) {
+//			dprint("error %s:parallel should be ts1\n", buf);
+//			return;
+//		}
 		memset(buf, 0, 32);
 		snprintf(buf, sizeof(buf), "p_ts%d", i);
 		advb->ts[i].mode = AM_TS_PARALLEL;
