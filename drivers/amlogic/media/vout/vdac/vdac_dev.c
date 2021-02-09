@@ -234,8 +234,6 @@ static void vdac_enable_dac_bypass(unsigned int reg_cntl0)
 	vdac_ana_reg_setb(reg_cntl0, 0x1, 4, 1);
 	vdac_ana_reg_setb(reg_cntl0, 0x1, 6, 1);
 	vdac_ana_reg_setb(reg_cntl0, 0x2, 8, 2);
-	vdac_ana_reg_setb(reg_cntl0, 0x1, 10, 1);
-	vdac_ana_reg_setb(reg_cntl0, 0x1, 12, 1);
 	vdac_ana_reg_setb(reg_cntl0, 0x3, 13, 3);
 	vdac_ana_reg_setb(reg_cntl0, 0x10, 18, 5);
 	vdac_ana_reg_setb(reg_cntl0, 0x1, 25, 1);
@@ -268,7 +266,8 @@ static void vdac_enable_avout_atv(bool on)
 		if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
 		    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
 			vdac_enable_dac_input(reg_cntl0);
-			vdac_ctrl_config(1, reg_cntl1, 7);
+			if (!s_vdac_data->cdac_disable)
+				vdac_ctrl_config(1, reg_cntl1, 7);
 		} else {
 			vdac_ctrl_config(1, reg_cntl0, 9);
 
@@ -314,7 +313,8 @@ static void vdac_enable_dtv_demod(bool on)
 		if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
 		    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
 			vdac_enable_dac_input(reg_cntl0);
-			vdac_ctrl_config(1, reg_cntl1, 7);
+			if (!s_vdac_data->cdac_disable)
+				vdac_ctrl_config(1, reg_cntl1, 7);
 		} else {
 			vdac_ctrl_config(1, reg_cntl0, 9);
 			vdac_ctrl_config(1, reg_cntl1, 3);
@@ -343,6 +343,10 @@ static void vdac_enable_avout_av(bool on)
 		if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
 		    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
 			vdac_enable_dac_bypass(reg_cntl0);
+			if (!s_vdac_data->cdac_disable) {
+				vdac_ana_reg_setb(reg_cntl0, 0x1, 10, 1);
+				vdac_ana_reg_setb(reg_cntl0, 0x1, 12, 1);
+			}
 			vdac_ctrl_config(0, reg_cntl1, 7);
 		} else {
 			vdac_ctrl_config(1, reg_cntl0, 9);
@@ -388,7 +392,8 @@ static void vdac_enable_cvbs_out(bool on)
 		if (s_vdac_data->cpu_id >= VDAC_CPU_T5 &&
 		    s_vdac_data->cpu_id < VDAC_CPU_MAX) {
 			vdac_enable_dac_input(reg_cntl0);
-			vdac_ctrl_config(1, reg_cntl1, 7);
+			if (!s_vdac_data->cdac_disable)
+				vdac_ctrl_config(1, reg_cntl1, 7);
 		} else {
 			vdac_ana_reg_setb(reg_cntl0, 0x6, 12, 4);
 			vdac_ctrl_config(1, reg_cntl1, 3);
@@ -702,11 +707,12 @@ static ssize_t vdac_info_show(struct class *class,
 	len += sprintf(buf + len,
 		"chip_type:                %s(%d)\n"
 		"private_flag:             0x%02x\n"
+		"cdac_disable:             0x%02x\n"
 		"reg_cntl0:                0x%02x=0x%08x\n"
 		"reg_cntl1:                0x%02x=0x%08x\n"
 		"debug_print:              %d\n",
 		s_vdac_data->name, s_vdac_data->cpu_id, pri_flag,
-		s_vdac_data->reg_cntl0,
+		s_vdac_data->cdac_disable, s_vdac_data->reg_cntl0,
 		vdac_ana_reg_read(s_vdac_data->reg_cntl0),
 		s_vdac_data->reg_cntl1,
 		vdac_ana_reg_read(s_vdac_data->reg_cntl1),
@@ -772,6 +778,13 @@ static ssize_t vdac_debug_store(struct class *class,
 				goto vdac_store_err;
 		}
 		pr_info("vdac_debug_print:%d\n", vdac_debug_print);
+	} else if (!strcmp(parm[0], "cdac_disable")) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10,
+				&s_vdac_data->cdac_disable) < 0)
+				goto vdac_store_err;
+		}
+		pr_info("cdac_disable:%d\n", s_vdac_data->cdac_disable);
 	} else {
 		pr_info("invalid cmd\n");
 	}

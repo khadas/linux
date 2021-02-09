@@ -238,6 +238,8 @@ struct meson_vdac_data *aml_vdac_config_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct meson_vdac_data *data;
+	unsigned int value;
+	int ret;
 
 	match = of_match_device(meson_vdac_dt_match, &pdev->dev);
 	if (!match) {
@@ -248,6 +250,15 @@ struct meson_vdac_data *aml_vdac_config_probe(struct platform_device *pdev)
 	if (data) {
 		pr_info("%s: cpu_id:%d, name:%s\n", __func__,
 			data->cpu_id, data->name);
+	}
+
+	/* cvbsout used earphone disable cdac default */
+	ret = of_property_read_u32(pdev->dev.of_node, "cdac_disable", &value);
+	if (ret) {
+		pr_info("not get cdac_disable.\n");
+		data->cdac_disable = 0;
+	} else {
+		data->cdac_disable = value;
 	}
 
 	return data;

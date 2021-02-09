@@ -1668,6 +1668,7 @@
 	vdac {
 		compatible = "amlogic, vdac-t5d";
 		status = "okay";
+		cdac_disable = <0>;
 	};
 
 	adc: adc {

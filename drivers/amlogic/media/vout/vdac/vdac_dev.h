@@ -69,6 +69,7 @@ struct meson_vdac_data {
 	unsigned int reg_vid_clk_ctrl2;
 	unsigned int reg_vid2_clk_div;
 	struct meson_vdac_ctrl_s *ctrl_table;
+	unsigned int cdac_disable;
 };
 
 struct meson_vdac_ctrl_s {
