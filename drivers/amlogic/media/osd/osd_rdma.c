@@ -73,17 +73,17 @@ static struct rdma_table_item *rdma_temp_tbl[VPP_NUM];
 static int support_64bit_addr = 1;
 void *memcpy(void *dest, const void *src, size_t len);
 
-static inline void spin_lock_irqsave_vpp(u32 vpp_index, unsigned long flags)
+static inline void spin_lock_irqsave_vpp(u32 vpp_index, unsigned long *flags)
 {
 	switch (vpp_index) {
 	case VPU_VPP0:
-		spin_lock_irqsave(&rdma_lock_vpp0, flags);
+		spin_lock_irqsave(&rdma_lock_vpp0, *flags);
 		break;
 	case VPU_VPP1:
-		spin_lock_irqsave(&rdma_lock_vpp1, flags);
+		spin_lock_irqsave(&rdma_lock_vpp1, *flags);
 		break;
 	case VPU_VPP2:
-		spin_lock_irqsave(&rdma_lock_vpp2, flags);
+		spin_lock_irqsave(&rdma_lock_vpp2, *flags);
 		break;
 	}
 }
@@ -217,7 +217,7 @@ static ulong rdma_end_addr_get(u32 vpp_index)
 
 static u32 rdma_current_table_addr_get(u32 vpp_index)
 {
-	u32 current_table_addr;
+	u32 current_table_addr = 0;
 
 	switch (vpp_index) {
 	case VPU_VPP0:
@@ -242,7 +242,7 @@ static u32 osd_rdma_flag_reg[VPP_NUM] = {
 
 static u32 osd_rdma_status_is_reject(u32 vpp_index)
 {
-	u32 ret;
+	u32 ret = 0;
 
 	switch (vpp_index) {
 	case 0:
@@ -260,7 +260,7 @@ static u32 osd_rdma_status_is_reject(u32 vpp_index)
 
 static u32 osd_rdma_status_mark_tbl_done(u32 vpp_index)
 {
-	u32 ret;
+	u32 ret = 0;
 
 	switch (vpp_index) {
 	case 0:
@@ -362,7 +362,7 @@ static inline void reset_rdma_table(u32 vpp_index)
 		trace_num = osd_hw.rdma_trace_num;
 	else
 		trace_num = 0;
-	spin_lock_irqsave_vpp(vpp_index, flags);
+	spin_lock_irqsave_vpp(vpp_index, &flags);
 	if (!osd_rdma_status_is_reject(vpp_index)) {
 		u32 val, mask;
 		int iret;
@@ -531,7 +531,7 @@ retry:
 		pr_debug("::retry count: %d-%d, count: %d, flag: 0x%x\n",
 			 reject1, reject2, item_count[vpp_index],
 			 osd_reg_read(osd_rdma_flag_reg[vpp_index]));
-		spin_lock_irqsave_vpp(vpp_index, flags);
+		spin_lock_irqsave_vpp(vpp_index, &flags);
 		request_item.addr = osd_rdma_flag_reg[vpp_index];
 		request_item.val = osd_rdma_status_mark_tbl_done(vpp_index);
 		osd_rdma_mem_cpy
@@ -573,7 +573,7 @@ retry:
 	}
 
 	/*atom_lock_start:*/
-	spin_lock_irqsave_vpp(vpp_index, flags);
+	spin_lock_irqsave_vpp(vpp_index, &flags);
 	request_item.addr = osd_rdma_flag_reg[vpp_index];
 	request_item.val = osd_rdma_status_mark_tbl_done(vpp_index);
 	osd_rdma_mem_cpy(&rdma_table[vpp_index][item_count[vpp_index]], &request_item, 8);
@@ -706,7 +706,7 @@ static u32 _VSYNCOSD_RD_MPEG_REG(u32 vpp_index, u32 addr)
 	rdma_en = rdma_enable[vpp_index];
 
 	if (rdma_en) {
-		spin_lock_irqsave_vpp(vpp_index, flags);
+		spin_lock_irqsave_vpp(vpp_index, &flags);
 		/* 1st, read from rdma table */
 		for (i = (int)(item_count[vpp_index] - 1);
 			i >= 0; i--) {
@@ -1631,7 +1631,7 @@ void enable_line_n_rdma(void)
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	rdma_clear(OSD_RDMA_CHANNEL_INDEX);
 #endif
-	spin_lock_irqsave_vpp(0, flags);
+	spin_lock_irqsave_vpp(0, &flags);
 	OSD_RDMA_STATUS_CLEAR_REJECT;
 	if (support_64bit_addr) {
 		#ifdef CONFIG_ARM64
@@ -1669,7 +1669,7 @@ void enable_vsync_rdma(u32 vpp_index)
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	rdma_clear(osd_rdma_handle[vpp_index]);
 #endif
-	spin_lock_irqsave_vpp(vpp_index, flags);
+	spin_lock_irqsave_vpp(vpp_index, &flags);
 	OSD_RDMA_STATUS_CLEAR_REJECT;
 	if (support_64bit_addr) {
 		#ifdef CONFIG_ARM64
@@ -1758,7 +1758,7 @@ int osd_rdma_enable(u32 vpp_index, u32 enable)
 		return -1;
 	rdma_enable[vpp_index] = enable;
 	if (enable) {
-		spin_lock_irqsave_vpp(vpp_index, flags);
+		spin_lock_irqsave_vpp(vpp_index, &flags);
 		osd_rdma_status_clear_reject(vpp_index);
 		rdma_start_end_addr_update(vpp_index, table_paddr[vpp_index]);
 		item_count[vpp_index] = 0;
@@ -1783,7 +1783,7 @@ int osd_rdma_reset_and_flush(u32 reset_bit)
 	u32 value;
 	u32 vpp_index = 0;
 
-	spin_lock_irqsave_vpp(0, flags);
+	spin_lock_irqsave_vpp(0, &flags);
 	reset_reg_mask = reset_bit;
 	reset_reg_mask &= ~HW_RESET_OSD1_REGS;
 	if (disable_osd_rdma_reset != 0) {
