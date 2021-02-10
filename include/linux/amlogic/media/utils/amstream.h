@@ -949,6 +949,10 @@ struct tsdemux_ops {
 	int (*set_skipbyte)(int skipbyte);
 
 	int (*set_demux)(int dev);
+
+	unsigned long (*hw_dmx_lock)(unsigned long flags);
+
+	int (*hw_dmx_unlock)(unsigned long flags);
 };
 
 void tsdemux_set_ops(struct tsdemux_ops *ops);
