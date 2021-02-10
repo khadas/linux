@@ -1451,3 +1451,12 @@
 	status = "disabled";
 	uart-has-rtscts;
 };
+
+&gpu {
+	tbl =  <&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg>;
+};

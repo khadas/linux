@@ -1458,3 +1458,12 @@
 &vdec_cpu_ver {
 	compatible = "amlogic, cpu-major-id-s4-805x2";
 };
+
+&gpu {
+	tbl =  <&dvfs285_cfg
+		&dvfs400_cfg
+		&dvfs500_cfg
+		&dvfs666_cfg
+		&dvfs800_cfg
+		&dvfs800_cfg>;
+};

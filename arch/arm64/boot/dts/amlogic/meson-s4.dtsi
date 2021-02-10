@@ -2187,11 +2187,4 @@
 	assigned-clock-rates = <0>, /* Do Nothing */
 			       <500000000>,
 			       <0>; /* Do Nothing */
-
-	tbl =  <&dvfs500_cfg
-		&dvfs500_cfg
-		&dvfs500_cfg
-		&dvfs500_cfg
-		&dvfs500_cfg
-		&dvfs500_cfg>;
 };
