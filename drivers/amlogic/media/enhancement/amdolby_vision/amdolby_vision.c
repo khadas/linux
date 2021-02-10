@@ -195,7 +195,7 @@ module_param(dolby_vision_status, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_status, "\n dolby_vision_status\n");
 
 /* delay before first frame toggle when core off->on */
-static uint dolby_vision_wait_delay = 3;
+static uint dolby_vision_wait_delay = 2;
 module_param(dolby_vision_wait_delay, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_wait_delay, "\n dolby_vision_wait_delay\n");
 static int dolby_vision_wait_count;
@@ -8773,7 +8773,7 @@ static void send_hdmi_pkt_ahead
 					? YUV422_BIT12 : RGB_8BIT, &vsif,
 					false);
 		}
-		pr_dolby_dbg("send_hdmi_pkt_fake: %s\n",
+		pr_dolby_dbg("send_hdmi_pkt ahead: %s\n",
 			     dovi_ll_enable ? "LL" : "DV");
 	}
 }
@@ -10623,13 +10623,17 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 				dolby_vision_wait_on = true;
 
 				/*dv off->on, delay vfream*/
-				if (dolby_vision_policy == 1 &&
+				if (dolby_vision_policy ==
+				    DOLBY_VISION_FOLLOW_SOURCE &&
+				    dolby_vision_mode ==
+				    DOLBY_VISION_OUTPUT_MODE_BYPASS &&
 				    mode ==
 				    DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL &&
 				    dolby_vision_wait_delay > 0) {
 					dolby_vision_wait_count =
 					dolby_vision_wait_delay;
-					send_hdmi_pkt_ahead(FORMAT_DOVI, vinfo);
+				} else {
+					dolby_vision_wait_count = 0;
 				}
 
 				pr_dolby_dbg("dolby_vision_need_wait src=%d mode=%d\n",
@@ -10649,16 +10653,32 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 			dolby_vision_on_count =
 				dolby_vision_run_mode_delay + 1;
 	}
-	if (dolby_vision_wait_init &&
-		dolby_vision_wait_count) {
-		dolby_vision_wait_count--;
-		pr_dolby_dbg("delay wait %d\n",
-		dolby_vision_wait_count);
+	if (dolby_vision_wait_init && dolby_vision_wait_count > 0) {
+		if (debug_dolby & 8)
+			pr_dolby_dbg("delay wait %d\n",
+				dolby_vision_wait_count);
+
+		if (!get_disable_video_flag(VD1_PATH)) {
+			/*update only after app enable video display,*/
+			/* to distinguish play start and netflix exit*/
+			send_hdmi_pkt_ahead(FORMAT_DOVI, vinfo);
+			dolby_vision_wait_count--;
+		} else {
+			/*exit netflix, still process vf after video disable,*/
+			/*wait init will be on, need reset wait init */
+			dolby_vision_wait_init = false;
+			dolby_vision_wait_count = 0;
+			if (debug_dolby & 8)
+				pr_dolby_dbg("clear dolby_vision_wait_on\n");
+		}
 		ret = 1;
 	} else if (dolby_vision_core1_on &&
 		(dolby_vision_on_count <=
 		dolby_vision_run_mode_delay))
 		ret = 1;
+
+	if (debug_dolby & 8)
+		pr_dolby_dbg("dv wait return %d\n", ret);
 
 	return ret;
 }
@@ -11036,6 +11056,11 @@ int dolby_vision_process(struct vframe_s *vf,
 		need_update_cfg = false;
 	}
 
+	if (debug_dolby & 8)
+		pr_dolby_dbg("vf %p, turn_off %d, video_status %d, toggle %d, flag %x\n",
+			vf, video_turn_off, video_status,
+			toggle_mode, dolby_vision_flags);
+
 	if ((!vf && video_turn_off) ||
 	    (video_status == -1)) {
 		if (dolby_vision_policy_process(&mode, FORMAT_SDR)) {
@@ -11048,6 +11073,7 @@ int dolby_vision_process(struct vframe_s *vf,
 					DOLBY_VISION_OUTPUT_MODE_BYPASS;
 				dolby_vision_set_toggle_flag(0);
 				dolby_vision_wait_on = false;
+				dolby_vision_wait_init = false;
 			} else {
 				dolby_vision_set_toggle_flag(1);
 			}

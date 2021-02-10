@@ -704,6 +704,17 @@ void set_video_enabled(u32 value, u32 index)
 }
 EXPORT_SYMBOL(set_video_enabled);
 
+bool get_disable_video_flag(enum vd_path_e vd_path)
+{
+	if (vd_path == VD1_PATH)
+		return vd_layer[0].disable_video == VIDEO_DISABLE_NORMAL;
+	else if (vd_path == VD2_PATH)
+		return vd_layer[1].disable_video == VIDEO_DISABLE_NORMAL;
+
+	return false;
+}
+EXPORT_SYMBOL(get_disable_video_flag);
+
 bool is_di_on(void)
 {
 	bool ret = false;
