@@ -3322,7 +3322,7 @@
 			       <800000000>,
 			       <0>; /* Do Nothing */
 
-	tbl =  <&dvfs285_cfg
+	tbl =  <&dvfs250_cfg
 		&dvfs400_cfg
 		&dvfs500_cfg
 		&dvfs666_cfg

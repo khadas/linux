@@ -46,7 +46,7 @@
 			clk_reg = <0xA01>;
 			voltage = <1150>;
 			keep_count = <5>;
-			threshold = <80 170>;
+			threshold = <0 76>;
 		};
 
 		dvfs285_cfg:dvfs285_cfg {
