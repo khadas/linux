@@ -512,10 +512,22 @@ static void wss_dispatch_cmd(char *p)
 ssize_t aml_CVBS_attr_wss_show(struct class *class,
 			       struct class_attribute *attr, char *buf)
 {
-	unsigned int enable = ((cvbs_out_reg_read(ENCI_VBI_SETTING) & 0xc)
-							== 0) ? 0 : 1;
-	unsigned int line = cvbs_out_reg_read(ENCI_VBI_WSS_LN) + 1;
-	unsigned int data = cvbs_out_reg_read(ENCI_VBI_WSSDT);
+	unsigned int line = 0;
+	unsigned int data = 0;
+	unsigned int enable = ((cvbs_out_reg_read(ENCI_VBI_SETTING) & 0x3c)
+						== 0) ? 0 : 1;
+	if (get_local_cvbs_mode() == MODE_576CVBS) {
+		line = cvbs_out_reg_read(ENCI_VBI_WSS_LN) + 1;
+		data = cvbs_out_reg_read(ENCI_VBI_WSSDT);
+	} else if (get_local_cvbs_mode() == MODE_480CVBS) {
+		line = cvbs_out_reg_read(ENCI_VBI_CGMS_LN);
+		line >>= 8;
+		line = line + 3;
+
+		data = cvbs_out_reg_read(ENCI_VBI_CGMSDT_L);
+		data >>= wss_info[11].start;
+		data &= 0xff;
+	}
 
 	if (enable == 1)
 		return sprintf(buf, "wss line:%d data 0x%x\n", line, data);
