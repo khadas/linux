@@ -1329,8 +1329,8 @@ static const struct reg_sequence sc2_pcie_pll_init_regs[] = {
 	{ .reg = ANACTRL_PCIEPLL_CTRL2,	.def = 0x00001100 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL3,	.def = 0x10058e00 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL4,	.def = 0x000100c0 },
-	{ .reg = ANACTRL_PCIEPLL_CTRL5,	.def = 0x68000048 },
-	{ .reg = ANACTRL_PCIEPLL_CTRL5,	.def = 0x68000068, .delay_us = 20 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL5,	.def = 0x68000040 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL5,	.def = 0x68000060, .delay_us = 20 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL4,	.def = 0x008100c0, .delay_us = 10 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL0,	.def = 0x340c04c8 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL0,	.def = 0x140c04c8, .delay_us = 10 },
@@ -1340,12 +1340,12 @@ static const struct reg_sequence sc2_pcie_pll_init_regs[] = {
 #ifdef CONFIG_ARM64
 /* Keep a single entry table for recalc/round_rate() ops */
 static const struct pll_params_table sc2_pcie_pll_table[] = {
-	PLL_PARAMS(150, 1),
+	PLL_PARAMS(200, 1),
 	{0, 0}
 };
 #else
 static const struct pll_params_table sc2_pcie_pll_table[] = {
-	PLL_PARAMS(150, 1, 0),
+	PLL_PARAMS(200, 1, 0),
 	{0, 0, 0}
 };
 #endif
@@ -1439,6 +1439,20 @@ static struct clk_fixed_factor sc2_pcie_pll = {
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap sc2_pcie_hcsl = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = ANACTRL_PCIEPLL_CTRL5,
+		.bit_idx = 3,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie_hcsl",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) { &sc2_pcie_pll.hw },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -5496,6 +5510,7 @@ static struct clk_hw_onecell_data sc2_hw_onecell_data = {
 		[CLKID_PCIE_PLL_DCO_DIV2]	= &sc2_pcie_pll_dco_div2.hw,
 		[CLKID_PCIE_PLL_OD]		= &sc2_pcie_pll_od.hw,
 		[CLKID_PCIE_PLL]		= &sc2_pcie_pll.hw,
+		[CLKID_PCIE_HCSL]		= &sc2_pcie_hcsl.hw,
 		[CLKID_HDMI_PLL_DCO]		= &sc2_hdmi_pll_dco.hw,
 		[CLKID_HDMI_PLL_OD]		= &sc2_hdmi_pll_od.hw,
 		[CLKID_HDMI_PLL]		= &sc2_hdmi_pll.hw,
@@ -6120,6 +6135,7 @@ static struct clk_regmap *const sc2_pll_clk_regmaps[] = {
 	&sc2_hifi_pll,
 	&sc2_pcie_pll_dco,
 	&sc2_pcie_pll_od,
+	&sc2_pcie_hcsl,
 	&sc2_hdmi_pll_dco,
 	&sc2_hdmi_pll_od,
 	&sc2_hdmi_pll,
