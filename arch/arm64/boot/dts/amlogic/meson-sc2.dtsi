@@ -888,10 +888,12 @@
 
 			clocks = <&clkc CLKID_PCIE_PLL
 				&clkc CLKID_PCIE
-				&clkc CLKID_PCIE_PHY>;
+				&clkc CLKID_PCIE_PHY
+				&clkc CLKID_PCIE_HCSL>;
 			clock-names = "pcie_refpll",
 					"pcie",
-					"pcie_phy";
+					"pcie_phy",
+					"pcie_hcsl";
 			/*reset-gpio-type 0:Shared pad(no reset)1:OD pad2:Normal pad*/
 			gpio-type = <2>;
 			pcie-apb-rst-bit = <14>;

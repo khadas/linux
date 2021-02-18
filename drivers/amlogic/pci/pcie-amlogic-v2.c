@@ -32,6 +32,7 @@ struct amlogic_pcie {
 	struct clk		*clk;
 	struct clk		*phy_clk;
 	struct clk		*bus_clk;
+	struct clk		*dev_clk;
 	int			pcie_num;
 	int			gpio_type;
 	u32			port_num;
@@ -843,16 +844,28 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 			writel(val, amlogic_pcie->phy->reset_base);
 		}
 	}
+
+	amlogic_pcie->dev_clk = devm_clk_get(dev, "pcie_hcsl");
+	if (IS_ERR(amlogic_pcie->dev_clk)) {
+		dev_err(dev, "Failed to get pcie pcie_hcsl clock\n");
+		ret = PTR_ERR(amlogic_pcie->dev_clk);
+		goto fail_pcie_phy;
+	}
+
+	ret = clk_prepare_enable(amlogic_pcie->dev_clk);
+	if (ret)
+		goto fail_pcie_phy;
+
 	amlogic_pcie->phy_clk = devm_clk_get(dev, "pcie_phy");
 	if (IS_ERR(amlogic_pcie->phy_clk)) {
 		dev_err(dev, "Failed to get pcie pcie_phy clock\n");
 		ret = PTR_ERR(amlogic_pcie->phy_clk);
-		goto fail_pcie;
+		goto fail_pcie_hcsl;
 	}
 
 	ret = clk_prepare_enable(amlogic_pcie->phy_clk);
 	if (ret)
-		goto fail_pcie_phy;
+		goto fail_pcie_hcsl;
 
 	amlogic_pcie->bus_clk = devm_clk_get(dev, "pcie_refpll");
 	if (IS_ERR(amlogic_pcie->bus_clk)) {
@@ -956,6 +969,8 @@ fail_bus_clk:
 	clk_disable_unprepare(amlogic_pcie->bus_clk);
 fail_pcie:
 	clk_disable_unprepare(amlogic_pcie->phy_clk);
+fail_pcie_hcsl:
+	clk_disable_unprepare(amlogic_pcie->dev_clk);
 	port_num--;
 fail_pcie_phy:
 	return ret;
@@ -1074,6 +1089,7 @@ static int amlogic_pcie_suspend_noirq(struct device *dev)
 	}
 
 	usleep_range(500, 510);
+	clk_disable_unprepare(amlogic_pcie->dev_clk);
 	clk_disable_unprepare(amlogic_pcie->clk);
 	clk_disable_unprepare(amlogic_pcie->phy_clk);
 	usleep_range(500, 510);
@@ -1117,6 +1133,7 @@ static int amlogic_pcie_resume_noirq(struct device *dev)
 	usleep_range(500, 510);
 	clk_prepare_enable(amlogic_pcie->phy_clk);
 	clk_prepare_enable(amlogic_pcie->clk);
+	clk_prepare_enable(amlogic_pcie->dev_clk);
 	usleep_range(500, 510);
 	if (amlogic_pcie->pcie_num == 1) {
 		writel(0x1c, pcie_aml_regs_v2.pcie_phy_r[0]);
