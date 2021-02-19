@@ -304,6 +304,7 @@ static unsigned int aml_mpll_mclk_ratio(unsigned int freq)
 
 	for (i = 1; i < 15; i++) {
 		ratio = 1 << i;
+		ratio = ratio * 16;
 		mpll_freq = freq * ratio;
 
 		if (mpll_freq > AML_MPLL_FREQ_MIN)
@@ -325,7 +326,7 @@ static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq)
 		clk_set_rate(p_tdm->clk, mpll_freq);
 		p_tdm->last_mpll_freq = mpll_freq;
 	}
-
+	clk_set_rate(p_tdm->mclk, freq);
 	if (freq != p_tdm->last_mclk_freq) {
 		clk_set_rate(p_tdm->mclk, freq);
 		p_tdm->last_mclk_freq = freq;
