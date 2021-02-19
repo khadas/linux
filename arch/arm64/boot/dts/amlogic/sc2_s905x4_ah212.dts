@@ -298,6 +298,30 @@
 		pps-enable = <1>;
 	};
 
+	gpio_keypad{
+		compatible = "amlogic, gpio_keypad";
+		status = "okay";
+		scan_period = <20>;
+		key_num = <1>;
+		key_name = "bluetooth";
+		key_code = <600>;
+		key-gpios = <&gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
+		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
+	};
+
+	adc_keypad {
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "vol-", "vol+", "power";
+		key_num = <3>;
+		io-channels = <&saradc 0>;
+		io-channel-names = "key-chan-0";
+		key_chan = <0 0 0>;
+		key_code = <114 115 116>;
+		key_val = <630 910 20>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40>;
+	};
+
 	provisionkey {
 		compatible = "amlogic, provisionkey";
 		status = "okay";
