@@ -1362,6 +1362,7 @@ DEVICE_ATTR(debuglevel, S_IRUGO | S_IWUSR, dbg_level_show,
  */
 void dwc_otg_attr_create(struct platform_device *pdev)
 {
+#ifndef CONFIG_AMLOGIC_USB
 	int error;
 	error = device_create_file(&pdev->dev, &dev_attr_regoffset);
 	error = device_create_file(&pdev->dev, &dev_attr_regvalue);
@@ -1410,6 +1411,7 @@ void dwc_otg_attr_create(struct platform_device *pdev)
 	error = device_create_file(&pdev->dev, &dev_attr_peri_otg_disable);
 	error = device_create_file(&pdev->dev, &dev_attr_peri_power);
 	error = device_create_file(&pdev->dev, &dev_attr_peri_sleepm);
+#endif
 }
 
 /**
@@ -1417,6 +1419,7 @@ void dwc_otg_attr_create(struct platform_device *pdev)
  */
 void dwc_otg_attr_remove(struct platform_device *pdev)
 {
+#ifndef CONFIG_AMLOGIC_USB
 	device_remove_file(&pdev->dev, &dev_attr_regoffset);
 	device_remove_file(&pdev->dev, &dev_attr_regvalue);
 	device_remove_file(&pdev->dev, &dev_attr_mode);
@@ -1462,4 +1465,5 @@ void dwc_otg_attr_remove(struct platform_device *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_peri_otg_disable);
 	device_remove_file(&pdev->dev, &dev_attr_peri_power);
 	device_remove_file(&pdev->dev, &dev_attr_peri_sleepm);
+#endif
 }
