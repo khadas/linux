@@ -890,7 +890,8 @@ static int clean_es_data(struct out_elem *pout, struct chan_id *pchan,
 static int start_aucpu_non_es(struct out_elem *pout)
 {
 	int ret;
-
+	if (!pout || !pout->pchan)
+		return -1;
 	if (!pout->aucpu_start &&
 		pout->aucpu_handle >= 0 &&
 		wdma_get_active(pout->pchan->id)) {
@@ -912,7 +913,8 @@ static void create_aucpu_pts(struct out_elem *pout)
 	struct aml_aucpu_strm_buf dst;
 	struct aml_aucpu_inst_config cfg;
 	int ret;
-
+	if (!pout || !pout->pchan1)
+		return;
 	if (pout->aucpu_pts_handle < 0 && pout->pchan1->sec_level) {
 		src.phy_start = pout->pchan1->mem_phy;
 		src.buf_size = pout->pchan1->mem_size;
@@ -956,6 +958,8 @@ static void create_aucpu_inst(struct out_elem *pout)
 	struct aml_aucpu_strm_buf dst;
 	struct aml_aucpu_inst_config cfg;
 	int ret;
+	if (!pout)
+		return;
 
 	if (pout->type == NONE_TYPE)
 		return;
@@ -2059,6 +2063,9 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 	struct pid_entry *pid_slot = NULL;
 	struct es_entry *es_pes = NULL;
 
+  	if (!pout)
+		return -1;
+
 	if (cb_id)
 		*cb_id = 0;
 
@@ -2074,6 +2081,10 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		es_pes = _malloc_es_entry_slot();
 		if (!es_pes) {
 			dprint("get es entry slot error\n");
+			return -1;
+		}
+          	if (!pout->pchan) {
+			dprint("get pout->pchan error\n");
 			return -1;
 		}
 		es_pes->buff_id = pout->pchan->id;
@@ -2105,6 +2116,8 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		tsout_config_es_table(es_pes->buff_id, es_pes->pid,
 				      pout->sid, 1, !drop_dup, pout->format);
 	} else {
+		if (cb_id)
+			*cb_id = dmx_id;
 		pid_slot = pout->pid_list;
 		while (pid_slot) {
 			if (pid_slot->pid == pid) {
@@ -2121,6 +2134,10 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		pid_slot = _malloc_pid_entry_slot(pout->sid, pid);
 		if (!pid_slot) {
 			pr_dbg("malloc pid entry fail\n");
+			return -1;
+		}
+                if (!pout->pchan) {
+			dprint("get pout->pchan NULL error\n");
 			return -1;
 		}
 		pid_slot->pid = pid;
@@ -2327,7 +2344,7 @@ static void remove_udata(struct cb_entry *tmp_cb, void *udata)
 	/*remove the free feed*/
 	for (i = 0; i <= tmp_cb->ref && i < MAX_FEED_NUM; i++) {
 		if (tmp_cb->udata[i] == udata) {
-			for (j = i; j < tmp_cb->ref && j < MAX_FEED_NUM; j++)
+			for (j = i; j < tmp_cb->ref && j < (MAX_FEED_NUM - 1); j++)
 				tmp_cb->udata[j] = tmp_cb->udata[j + 1];
 		}
 	}
