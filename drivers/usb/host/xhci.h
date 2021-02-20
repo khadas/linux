@@ -1642,13 +1642,17 @@ struct xhci_scratchpad {
 	void **sp_buffers;
 };
 
+#ifdef CONFIG_AMLOGIC_USB
+#define CRG_MAX_ALIGN_BUFFER_LENGTH (5120)
+#endif
+
 struct urb_priv {
-	int	num_tds;
-	int	num_tds_done;
-  #ifdef CONFIG_AMLOGIC_USB
-	unsigned char transfer_data[4096 + 16];
+#ifdef CONFIG_AMLOGIC_USB
+	unsigned char transfer_data[CRG_MAX_ALIGN_BUFFER_LENGTH + 16];
 	unsigned char setup_data[64 + 16];
 #endif
+	int	num_tds;
+	int	num_tds_done;
 	struct	xhci_td	td[0];
 };
 

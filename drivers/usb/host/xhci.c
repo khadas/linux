@@ -1514,8 +1514,19 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 
 #ifdef CONFIG_AMLOGIC_USB
 	if (xhci->quirks & XHCI_CRG_HOST) {
+		if (((long)urb->transfer_dma) & 0xf) {
+			if (urb->transfer_buffer_length > CRG_MAX_ALIGN_BUFFER_LENGTH) {
+				if ((urb->pipe & USB_DIR_IN) == 0) {
+					xhci_warn(xhci, "transfer buffer is not align\n");
+					xhci_warn(xhci, "OUT DIR\n");
+					xhci_warn(xhci, "transfer buffer length is %d, overflow\n",
+						urb->transfer_buffer_length);
+				}
+			}
+		}
+
 		if (((urb->pipe & USB_DIR_IN) == 0) &&
-			urb->transfer_buffer_length <= 4096 &&
+			(urb->transfer_buffer_length <= CRG_MAX_ALIGN_BUFFER_LENGTH) &&
 				(((long)urb->transfer_dma) & 0xf)) {
 			align_addr = (char *)
 				(((unsigned long)urb_priv->transfer_data + 0xf) & (~0xf));
