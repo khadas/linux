@@ -797,7 +797,8 @@
 	dvb-extern {
 		compatible = "amlogic, dvb-extern";
 		dev_name = "dvb-extern";
-		status = "okay";
+		/*GPIOT-19 conflict with audio speaker */
+		status = "disabled";
 
 		fe_num = <2>;
 		fe0_demod = "cxd2856";
@@ -1318,7 +1319,7 @@
 };
 
 &i2c1 {
-	status = "disable";
+	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins1>;
 
