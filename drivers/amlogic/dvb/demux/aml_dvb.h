@@ -64,4 +64,6 @@ struct aml_dvb {
 struct aml_dvb *aml_get_dvb_device(void);
 struct device *aml_get_device(void);
 
+extern int is_security_dmx;
+
 #endif
