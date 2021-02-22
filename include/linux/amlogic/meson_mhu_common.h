@@ -29,6 +29,9 @@
 #define MASK_MHU_FIFO           (BIT(1))
 #define MASK_MHU_PL             (BIT(2))
 
+#define MBOX_MAX		6
+#define MHUDEV_MAX		(MBOX_MAX / 2)
+
 extern struct device *mhu_device;
 extern struct device *mhu_fifo_device;
 extern struct device *mhu_pl_device;
@@ -79,5 +82,33 @@ struct mhu_mbox {
 	struct device *mhu_dev;
 	/*mhu lock for mhu hw reg*/
 	spinlock_t mhu_lock;
+};
+
+struct mhu_ctlr {
+	struct device *dev;
+	/*for old mhu*/
+	void __iomem *mbox_base;
+	void __iomem *payload_base;
+	/*for fifo mhu*/
+	void __iomem *mbox_wr_base;
+	void __iomem *mbox_rd_base;
+	void __iomem *mbox_fset_base;
+	void __iomem *mbox_fclr_base;
+	void __iomem *mbox_fsts_base;
+	void __iomem *mbox_irq_base;
+	void __iomem *mbox_payload_base;
+	int mhu_id[MBOX_MAX];
+	int mhu_irq;
+	int mhu_irqctlr;
+	int mhu_irqmax;
+	/*for pl mhu*/
+	void __iomem *mbox_sts_base[MHUDEV_MAX];
+	void __iomem *mbox_set_base[MHUDEV_MAX];
+	void __iomem *mbox_clr_base[MHUDEV_MAX];
+	void __iomem *mbox_pl_base[MHUDEV_MAX];
+	/*for common*/
+	struct mutex mutex;
+	struct mbox_controller mbox_con;
+	struct mhu_chan *channels;
 };
 #endif
