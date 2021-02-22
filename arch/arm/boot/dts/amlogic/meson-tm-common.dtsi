@@ -1574,7 +1574,7 @@
 			num-lanes = <1>;
 			pcie-num = <1>;
 
-			clocks = <&clkc CLKID_PCIE0_EN
+			clocks = <&clkc CLKID_PCIE_HCSL0
 					&clkc CLKID_PCIE0
 					&clkc CLKID_PCIE0PHY>;
 			clock-names = "pcie_refpll",
@@ -1617,7 +1617,7 @@
 			num-lanes = <1>;
 			pcie-num = <2>;
 
-			clocks = <&clkc CLKID_PCIE1_EN
+			clocks = <&clkc CLKID_PCIE_HCSL1
 					&clkc CLKID_PCIE1
 					&clkc CLKID_PCIE1PHY>;
 			clock-names = "pcie_refpll",
@@ -1668,9 +1668,9 @@
 				phy1-reg-size = <0x2000>;
 				reset-reg = <0xffd01008>;
 				reset-reg-size = <0x100>;
-				clocks = <&clkc CLKID_PCIE0_EN
+				clocks = <&clkc CLKID_PCIE_HCSL0
 						&clkc CLKID_PCIE_PLL
-						&clkc CLKID_PCIE1_EN>;
+						&clkc CLKID_PCIE_HCSL1>;
 				clock-names = "pcie0_gate",
 						"pcie_refpll",
 						"pcie1_gate";

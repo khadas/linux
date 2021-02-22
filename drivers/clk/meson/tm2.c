@@ -724,8 +724,8 @@ static const struct reg_sequence tm2_pcie_pll_init_regs[] = {
 	{ .reg = HHI_PCIE_PLL_CNTL2,	.def = 0x00001100 },
 	{ .reg = HHI_PCIE_PLL_CNTL3,	.def = 0x10058e00 },
 	{ .reg = HHI_PCIE_PLL_CNTL4,	.def = 0x000100c0 },
-	{ .reg = HHI_PCIE_PLL_CNTL5,	.def = 0x68000048 },
-	{ .reg = HHI_PCIE_PLL_CNTL5,	.def = 0x68000068, .delay_us = 20 },
+	{ .reg = HHI_PCIE_PLL_CNTL5,	.def = 0x68000040 },
+	{ .reg = HHI_PCIE_PLL_CNTL5,	.def = 0x68000060, .delay_us = 20 },
 	{ .reg = HHI_PCIE_PLL_CNTL4,	.def = 0x008100c0, .delay_us = 10 },
 	{ .reg = HHI_PCIE_PLL_CNTL0,	.def = 0x34090496 },
 	{ .reg = HHI_PCIE_PLL_CNTL0,	.def = 0x14090496, .delay_us = 10 },
@@ -860,13 +860,13 @@ static struct clk_regmap tm2_pcie_pre_gate = {
 	},
 };
 
-static struct clk_regmap tm2_pcie0_gate = {
+static struct clk_regmap tm2_pcie_hcsl0 = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = HHI_PCIE_PLL_CNTL5,
 		.bit_idx = 3,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "pcie0_gate",
+		.name = "pcie_hcsl0",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&tm2_pcie_pre_gate.hw
@@ -876,13 +876,13 @@ static struct clk_regmap tm2_pcie0_gate = {
 	},
 };
 
-static struct clk_regmap tm2_pcie1_gate = {
+static struct clk_regmap tm2_pcie_hcsl1 = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = HHI_PCIE_PLL_CNTL1,
 		.bit_idx = 28,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "pcie1_gate",
+		.name = "pcie_hcsl1",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&tm2_pcie_pre_gate.hw
@@ -5224,8 +5224,8 @@ static struct clk_hw_onecell_data tm2_hw_onecell_data = {
 		[CLKID_TS_DIV]			= &tm2_ts_div.hw,
 		[CLKID_TS]			= &tm2_ts.hw,
 		[CLKID_PCIE_PRE_EN]		= &tm2_pcie_pre_gate.hw,
-		[CLKID_PCIE0_EN]		= &tm2_pcie0_gate.hw,
-		[CLKID_PCIE1_EN]		= &tm2_pcie1_gate.hw,
+		[CLKID_PCIE_HCSL0]		= &tm2_pcie_hcsl0.hw,
+		[CLKID_PCIE_HCSL1]		= &tm2_pcie_hcsl1.hw,
 		[CLKID_DSI_MEAS_MUX]		= &tm2_dsi_meas_mux.hw,
 		[CLKID_DSI_MEAS_DIV]		= &tm2_dsi_meas_div.hw,
 		[CLKID_DSI_MEAS]		= &tm2_dsi_meas.hw,
@@ -5438,8 +5438,8 @@ static struct clk_regmap *const tm2_clk_regmaps[] = {
 	&tm2_cpu_clk_trace,
 	&tm2_pcie_pll_od,
 	&tm2_pcie_pll_dco,
-	&tm2_pcie0_gate,
-	&tm2_pcie1_gate,
+	&tm2_pcie_hcsl0,
+	&tm2_pcie_hcsl1,
 	&tm2_pcie_pre_gate,
 	&tm2_vdec_1_sel,
 	&tm2_vdec_1_div,

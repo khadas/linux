@@ -44,8 +44,8 @@
 #define CLKID_PCIE_PLL_OD			35
 #define CLKID_PCIE_PLL				36
 #define CLKID_PCIE_PRE_EN			37
-#define CLKID_PCIE0_EN				38
-#define CLKID_PCIE1_EN				39
+#define CLKID_PCIE_HCSL0			38
+#define CLKID_PCIE_HCSL1			39
 #define CLKID_GP1_PLL_DCO			40
 
 /*HHI_GCLK_MPEG0: 0x50*/
