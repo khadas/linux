@@ -1666,6 +1666,32 @@ static ssize_t hdcp_version_store(struct device *dev,
 	return count;
 }
 
+static ssize_t hdcp14_onoff_show(struct device *dev,
+			   struct device_attribute *attr,
+			   char *buf)
+{
+	int pos = 0;
+
+	if (rx.chip_id >= CHIP_ID_T7)
+		;//TODO
+	else
+		return sprintf(buf, "%s", (hdmirx_rd_dwc(DWC_HDCP_BKSV0) ? "1" : "0"));
+	return pos;
+}
+
+static ssize_t hdcp22_onoff_show(struct device *dev,
+			  struct device_attribute *attr,
+			  char *buf)
+{
+	int pos = 0;
+
+	if (rx.chip_id >= CHIP_ID_T7)
+		;//TODO
+	else
+		return sprintf(buf, "%d", hdcp22_on);
+	return pos;
+}
+
 static ssize_t hw_info_show(struct device *dev,
 			    struct device_attribute *attr,
 			    char *buf)
@@ -2031,6 +2057,8 @@ static DEVICE_ATTR_RW(edid_select);
 static DEVICE_ATTR_RW(audio_blk);
 static DEVICE_ATTR_RO(scan_mode);
 static DEVICE_ATTR_RW(edid_with_port);
+static DEVICE_ATTR_RO(hdcp14_onoff);
+static DEVICE_ATTR_RO(hdcp22_onoff);
 
 static int hdmirx_add_cdev(struct cdev *cdevp,
 			   const struct file_operations *fops,
@@ -2612,7 +2640,16 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx_pr("hdmirx: fail to create scan_mode file\n");
 		goto fail_create_scan_mode;
 	}
-
+	ret = device_create_file(hdevp->dev, &dev_attr_hdcp14_onoff);
+	if (ret < 0) {
+		rx_pr("hdmirx: fail to create hdcp14_onoff file\n");
+		goto fail_create_hdcp14_onoff;
+	}
+	ret = device_create_file(hdevp->dev, &dev_attr_hdcp22_onoff);
+	if (ret < 0) {
+		rx_pr("hdmirx: fail to create hdcp22_onoff file\n");
+		goto fail_create_hdcp22_onoff;
+	}
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		rx_pr("%s: can't get irq resource\n", __func__);
@@ -2899,6 +2936,10 @@ fail_kmalloc_pd_fifo:
 	return ret;
 fail_get_resource_irq:
 	return ret;
+fail_create_hdcp22_onoff:
+	device_remove_file(hdevp->dev, &dev_attr_hdcp22_onoff);
+fail_create_hdcp14_onoff:
+	device_remove_file(hdevp->dev, &dev_attr_hdcp14_onoff);
 fail_create_scan_mode:
 	device_remove_file(hdevp->dev, &dev_attr_scan_mode);
 fail_create_audio_blk:
@@ -2969,6 +3010,8 @@ static int hdmirx_remove(struct platform_device *pdev)
 	unregister_early_suspend(&hdmirx_early_suspend_handler);
 #endif
 	mutex_destroy(&hdevp->rx_lock);
+	device_remove_file(hdevp->dev, &dev_attr_hdcp22_onoff);
+	device_remove_file(hdevp->dev, &dev_attr_hdcp14_onoff);
 	device_remove_file(hdevp->dev, &dev_attr_scan_mode);
 	device_remove_file(hdevp->dev, &dev_attr_audio_blk);
 	device_remove_file(hdevp->dev, &dev_attr_edid_select);

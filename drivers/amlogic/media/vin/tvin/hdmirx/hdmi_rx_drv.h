@@ -50,8 +50,8 @@
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
 
-/* add api to update cec status */
-#define RX_VER2 "ver.2021/02/26"
+/* add hdcp key query interface */
+#define RX_VER2 "ver.2021/03/02"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
