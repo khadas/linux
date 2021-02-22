@@ -10,6 +10,8 @@
 #include <linux/printk.h>
 #include <linux/mailbox_client.h>
 #include <linux/slab.h>
+#include <linux/platform_device.h>
+#include <linux/of_device.h>
 #include <linux/amlogic/scpi_protocol.h>
 
 #include "meson_mhu.h"
@@ -240,8 +242,8 @@ static void scpi_rx_callback(struct mbox_client *cl, void *msg)
 	complete(&scpi_buf->complete);
 }
 
-static int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
-			 bool high_priority, int c_chan)
+int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
+		  bool high_priority, int c_chan)
 {
 	struct mbox_chan *chan;
 	struct mbox_client cl = {0};
@@ -254,6 +256,8 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 	unsigned long wait;
 	int ret;
 	int plhead_len = 0;
+	struct mhu_ctlr *mhu_ctlr;
+	struct platform_device *mhu_pdev;
 
 	switch (c_chan) {
 	case C_DSPA_FIFO:
@@ -362,9 +366,15 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 	}
 
 	cl.rx_callback = scpi_rx_callback;
+
+	mhu_pdev = container_of(cl.dev, struct platform_device, dev);
+	mhu_ctlr = platform_get_drvdata(mhu_pdev);
+	mutex_lock(&mhu_ctlr->mutex);
+
 	chan = mbox_request_channel(&cl, chan_idx);
 	if (IS_ERR(chan)) {
 		status = -SCPI_ERR_NOMEM;
+		mutex_unlock(&mhu_ctlr->mutex);
 		goto free_buf;
 	}
 
@@ -448,7 +458,7 @@ static int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 
 free_channel:
 	mbox_free_channel(chan);
-
+	mutex_unlock(&mhu_ctlr->mutex);
 free_buf:
 	kfree(rxbuf);
 	kfree(txbuf);
@@ -456,6 +466,7 @@ free_buf:
 free_end:
 	return scpi_to_linux_errno(status);
 }
+EXPORT_SYMBOL_GPL(send_scpi_cmd);
 
 #define SCPI_SETUP_DBUF(scpi_buf, mhu_buf, _client_id,\
 			_cmd, _tx_buf, _rx_buf) \

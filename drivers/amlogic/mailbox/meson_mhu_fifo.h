@@ -11,7 +11,7 @@
 #include <linux/amlogic/meson_mhu_common.h>
 
 #define CHANNEL_FIFO_MAX	6
-#define MBOX_MAX		CHANNEL_FIFO_MAX
+//#define MBOX_MAX		CHANNEL_FIFO_MAX
 #define MHUIRQ_MAXNUM_DEF	32
 
 #define PAYLOAD_OFFSET(chan)	(0x80 * (chan))

@@ -11,7 +11,7 @@
 #include <linux/amlogic/meson_mhu_common.h>
 
 #define CHANNEL_PL_MAX		6
-#define MHUDEV_MAX		(CHANNEL_PL_MAX / 2)
+//#define MHUDEV_MAX		(CHANNEL_PL_MAX / 2)
 
 #define MBOX_PL_SIZE		512
 #define RX_OFFSET_STAT          (0x20 << 2)

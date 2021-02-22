@@ -78,14 +78,6 @@ u32 isr_m4;
 #define RX_PAYLOAD(chan)	((chan) * PAYLOAD_OFFSET)
 #define TX_PAYLOAD(chan)	((chan) * PAYLOAD_OFFSET + PAYLOAD_MAX_SIZE)
 
-struct mhu_ctlr {
-	struct device *dev;
-	void __iomem *mbox_base;
-	void __iomem *payload_base;
-	struct mbox_controller mbox_con;
-	struct mhu_chan *channels;
-};
-
 void bl40_rx_callback(struct mbox_client *cl, void *msg)
 {
 	struct mhu_data_buf *data = (struct mhu_data_buf *)msg;
@@ -266,6 +258,7 @@ static int mhu_probe(struct platform_device *pdev)
 	if (IS_ERR(ctlr->payload_base))
 		return PTR_ERR(ctlr->payload_base);
 
+	mutex_init(&ctlr->mutex);
 	ctlr->dev = dev;
 	platform_set_drvdata(pdev, ctlr);
 

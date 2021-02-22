@@ -55,16 +55,6 @@ struct mbdata_sync {
 	char data[252];
 } __packed;
 
-struct mhu_ctlr {
-	struct device *dev;
-	void __iomem *mbox_sts_base[MHUDEV_MAX];
-	void __iomem *mbox_set_base[MHUDEV_MAX];
-	void __iomem *mbox_clr_base[MHUDEV_MAX];
-	void __iomem *mbox_pl_base[MHUDEV_MAX];
-	struct mbox_controller mbox_con;
-	struct mhu_chan *channels;
-};
-
 /*
  * mbox_chan_report
  * Report receive data
@@ -599,6 +589,7 @@ static int mhu_pl_probe(struct platform_device *pdev)
 			return PTR_ERR(mhu_ctlr->mbox_pl_base[i]);
 	}
 
+	mutex_init(&mhu_ctlr->mutex);
 	mhu_ctlr->dev = dev;
 	platform_set_drvdata(pdev, mhu_ctlr);
 
