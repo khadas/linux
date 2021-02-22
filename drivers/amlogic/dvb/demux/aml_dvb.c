@@ -26,6 +26,7 @@
 #include <linux/dvb/dmx.h>
 #include <linux/amlogic/tee.h>
 #include <linux/amlogic/aml_key.h>
+#include <linux/amlogic/tee_demux.h>
 
 #include "aml_dvb.h"
 #include "am_key.h"
@@ -57,6 +58,8 @@ static int tsn_out;
 #define MAX_DMX_DEV_NUM      32
 static int sid_info[MAX_DMX_DEV_NUM];
 #define DEFAULT_DMX_DEV_NUM  3
+
+int is_security_dmx;
 
 ssize_t get_pcr_show(struct class *class,
 		     struct class_attribute *attr, char *buf)
@@ -431,7 +434,11 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	class_register(&aml_stb_class);
 	dmx_regist_dmx_class();
 
-	dprint("probe dvb done\n");
+	ret = tee_demux_get(TEE_DMX_GET_SECURITY_ENABLE,
+			NULL, 0, &is_security_dmx, sizeof(is_security_dmx));
+
+	dprint("probe dvb done, ret:%d, is_security_dmx:%d\n",
+			ret, is_security_dmx);
 
 	return 0;
 

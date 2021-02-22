@@ -5,6 +5,7 @@
 
 #ifndef _SC2_CONTROL_H_
 #define _SC2_CONTROL_H_
+#include "mem_desc.h"
 
 struct dsc_pid_table {
 	int id;
@@ -88,7 +89,8 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type);
 /*****************************************************/
 /*****************************************************/
 /*****************************************************/
-void rdma_config_enable(u8 chan_id, int enable,
+//void rdma_config_enable(u8 chan_id, int enable,
+void rdma_config_enable(struct chan_id *pchan, int enable,
 			unsigned int desc, unsigned int total_size,
 			unsigned int len);
 void rdma_config_ready(u8 chan_id);
@@ -112,7 +114,8 @@ unsigned int rdma_get_cfg_fifo(void);
 /*****************************************************/
 /*****************************************************/
 void wdma_clean(u8 chan_id);
-void wdma_config_enable(u8 chan_id, int enable,
+//void wdma_config_enable(u8 chan_id, int enable,
+void wdma_config_enable(struct chan_id *pchan, int enable,
 			unsigned int desc, unsigned int total_size);
 void wdam_config_ready(u8 chan_id);
 unsigned int wdma_get_wptr(u8 chan_id);

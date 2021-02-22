@@ -15,6 +15,10 @@
 #include "demod_reg.h"
 #include "dsc_reg.h"
 #include "../dmx_log.h"
+#include "ts_output.h"
+#include "../aml_dvb.h"
+
+#include <linux/amlogic/tee_demux.h>
 
 enum es_on_off {
 	EST_OFF = 0,
@@ -38,6 +42,22 @@ unsigned int tsout_get_ready(void)
 	return READ_CBUS_REG(PID_RDY);
 }
 
+static void tee_tsout_config_sid_table(u32 sid, u32 begin, u32 length)
+{
+	struct tee_dmx_sid_table_param param = {0};
+	int ret = -1;
+
+	pr_dbg("%s TEE sid:%d, pid begin:%d,len:%d\n",
+			__func__, sid, begin, length);
+
+	param.sid = sid;
+	param.begin = begin;
+	param.length = length;
+	ret = tee_demux_set(TEE_DMX_SET_SID_TABLE,
+			(void *)&param, sizeof(param));
+	pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+}
+
 void tsout_config_sid_table(u32 sid, u32 begin, u32 length)
 {
 	u32 sid_reg_idx = sid / 2;
@@ -46,8 +66,11 @@ void tsout_config_sid_table(u32 sid, u32 begin, u32 length)
 	u32 sid_addr;
 
 	sid_addr = TS_OUT_SID_TAB_BASE + sid_reg_idx * 4;
-	pr_dbg("%s read addr:0x%0x,sid:%d, pid begin:%d,len:%d\n",
-	       __func__, sid_addr, sid, begin, length);
+	pr_dbg("%s, read addr:0x%0x,sid:%d, pid begin:%d,len:%d\n",
+			__func__, sid_addr, sid, begin, length);
+
+	if (is_security_dmx == TEE_DMX_ENABLE)
+		return tee_tsout_config_sid_table(sid, begin, length);
 
 	data = READ_CBUS_REG(sid_addr);
 	if (sid_offset == 0) {
@@ -63,6 +86,23 @@ void tsout_config_sid_table(u32 sid, u32 begin, u32 length)
 	WRITE_CBUS_REG(sid_addr, data);
 }
 
+static void tee_tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id)
+{
+	struct tee_dmx_ts_table_param param = {0};
+	int ret = -1;
+
+	pr_dbg("%s, TEE pid:0x%0x, mask:0x%0x, pid_entry:0x%0x, buf_id:%d\n",
+	       __func__, pid, pid_mask, pid_entry, buffer_id);
+
+	param.pid = pid;
+	param.pid_mask = pid_mask;
+	param.pid_entry = pid_entry;
+	param.buffer_id = buffer_id;
+	ret = tee_demux_set(TEE_DMX_SET_TS_TABLE,
+			(void *)&param, sizeof(param));
+	pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+}
+
 void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id)
 {
 	union PID_CFG_FIELD cfg;
@@ -70,6 +110,10 @@ void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id)
 
 	pr_dbg("%s,pid:0x%0x, mask:0x%0x, pid_entry:0x%0x, buf_id:%d\n",
 	       __func__, pid, pid_mask, pid_entry, buffer_id);
+
+	if (is_security_dmx == TEE_DMX_ENABLE)
+		return tee_tsout_config_ts_table(pid, pid_mask, pid_entry, buffer_id);
+
 	cfg.data = 0;
 	data.data = 0;
 	if (pid == -1) {
@@ -101,6 +145,27 @@ void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id)
 	} while (cfg.b.ap_pending);
 }
 
+static void tee_tsout_config_es_table(u32 es_entry, int pid,
+			   u32 sid, u32 reset, u32 dup_ok, u8 fmt)
+{
+	struct tee_dmx_es_table_param param = {0};
+	int ret = -1;
+
+	pr_dbg("%s TEE es_entry:%d, pid:0x%0x, sid:0x%0x,",
+	       __func__, es_entry, pid, sid);
+	pr_dbg("reset:%d, dup_ok:%d, fmt:%d\n", reset, dup_ok, fmt);
+
+	param.es_entry = es_entry;
+	param.pid = pid;
+	param.sid = sid;
+	param.reset = reset;
+	param.dup_ok = dup_ok;
+	param.fmt = fmt;
+	ret = tee_demux_set(TEE_DMX_SET_ES_TABLE,
+			(void *)&param, sizeof(param));
+	pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+}
+
 void tsout_config_es_table(u32 es_entry, int pid,
 			   u32 sid, u32 reset, u32 dup_ok, u8 fmt)
 {
@@ -110,6 +175,11 @@ void tsout_config_es_table(u32 es_entry, int pid,
 	pr_dbg("%s es_entry:%d, pid:0x%0x, sid:0x%0x,",
 	       __func__, es_entry, pid, sid);
 	pr_dbg("reset:%d, dup_ok:%d, fmt:%d\n", reset, dup_ok, fmt);
+
+	if (is_security_dmx == TEE_DMX_ENABLE)
+		return tee_tsout_config_es_table(es_entry, pid,
+				sid, reset, dup_ok, fmt);
+
 	if (pid == -1) {
 		data.b.on_off = EST_OFF;
 	} else {
@@ -129,10 +199,22 @@ void tsout_config_es_table(u32 es_entry, int pid,
 	WRITE_CBUS_REG(TS_OUTPUT_ES_TAB(es_entry), data.data);
 }
 
+static void tee_tsout_config_pcr_table(u32 pcr_entry, u32 pcr_pid, u32 sid)
+{
+	struct tee_dmx_pcr_table_param param = {0};
+
+	param.pcr_entry = pcr_entry;
+	param.pcr_pid = pcr_pid;
+	param.sid = sid;
+	tee_demux_set(TEE_DMX_SET_PCR_TABLE, (void *)&param, sizeof(param));
+}
+
 void tsout_config_pcr_table(u32 pcr_entry, u32 pcr_pid, u32 sid)
 {
 	union PCR_TAB_FIELD data;
 
+	if (is_security_dmx == TEE_DMX_ENABLE)
+		return tee_tsout_config_pcr_table(pcr_entry, pcr_pid, sid);
 	data.data = 0;
 
 	if (pcr_pid != -1) {
@@ -145,11 +227,20 @@ void tsout_config_pcr_table(u32 pcr_entry, u32 pcr_pid, u32 sid)
 	pr_dbg("%s data.data:0x%0x\n", __func__, data.data);
 }
 
+static int tee_tsout_config_get_pcr(u32 pcr_entry, u64 *pcr)
+{
+	return tee_demux_get(TEE_DMX_GET_PCR,
+			&pcr_entry, sizeof(pcr_entry), pcr, sizeof(*pcr));
+}
+
 int tsout_config_get_pcr(u32 pcr_entry, u64 *pcr)
 {
 	union PCR_REG_LSB_FIELD lsb;
 	union PCR_REG_MSB_FIELD msb;
 	u64 data = 0;
+
+	if (is_security_dmx == TEE_DMX_ENABLE)
+		return tee_tsout_config_get_pcr(pcr_entry, pcr);
 
 	lsb.data = READ_CBUS_REG(TS_OUTPUT_PCR_REG_LSB(pcr_entry));
 	msb.data = READ_CBUS_REG(TS_OUTPUT_PCR_REG_MSB(pcr_entry));
@@ -192,9 +283,35 @@ void dsc_config_ready(int dsc_type)
 		WRITE_CBUS_REG(TSE_PID_READY, 1);
 }
 
-//unsigned int dsc_get_pid_status(int dsc_type)
-//{
-//}
+static void tee_dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
+{
+	struct tee_dmx_pid_table_param param = {0};
+	int ret = -1;
+
+	pr_dbg("%s dsc_type:%d, pid_entry:%d, pid:%d\n",
+			__func__, dsc_type, pid_entry->id, pid_entry->pid);
+	param.type = dsc_type;
+	param.id = pid_entry->id;
+	param.table.bits.valid = pid_entry->valid;
+	//param.table.bits.resv0 = pid_entry->valid;
+	//param.table.bits.resv1 = pid_entry->valid;
+	param.table.bits.scb00 = pid_entry->scb00;
+	param.table.bits.scb_out = pid_entry->scb_out;
+	param.table.bits.scb_as_is = pid_entry->scb_as_is;
+	param.table.bits.odd_iv = pid_entry->odd_iv;
+	param.table.bits.even_00_iv = pid_entry->even_00_iv;
+	param.table.bits.sid = pid_entry->sid;
+	param.table.bits.pid = pid_entry->pid;
+	param.table.bits.algo = pid_entry->algo;
+	param.table.bits.kte_odd = pid_entry->kte_odd;
+	param.table.bits.kte_even_00 = pid_entry->kte_even_00;
+	//memcpy(&param.table, pid_entry, sizeof(struct dsc_pid_table));
+	ret = tee_demux_set(TEE_DMX_SET_PID_TABLE,
+			(void *)&param, sizeof(param));
+	pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+	dsc_get_ready(dsc_type);
+	dsc_config_ready(dsc_type);
+}
 
 void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 {
@@ -205,7 +322,10 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 
 	pr_dbg("%s dsc_type:%d, pid_entry:%d, sid:%d\n",
 	       __func__, dsc_type, pid_entry->id, pid_entry->sid);
+	if (is_security_dmx == TEE_DMX_ENABLE)
+		return tee_dsc_config_pid_table(pid_entry, dsc_type);
 	dsc_get_ready(dsc_type);
+
 	if (dsc_type == CA_DSC_COMMON_TYPE) {
 		lo_addr = TSN_BASE_ADDR + pid_entry->id * 8;
 		hi_addr = TSN_BASE_ADDR + pid_entry->id * 8 + 4;
@@ -236,29 +356,33 @@ void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 	dsc_config_ready(dsc_type);
 }
 
-void rdma_config_enable(u8 chan_id, int enable,
+//void rdma_config_enable(u8 chan_id, int enable,
+void rdma_config_enable(struct chan_id *pchan, int enable,
 			unsigned int desc, unsigned int total_size,
 			unsigned int len)
 {
 	u32 data = 0;
 
 	if (enable) {
-		WRITE_CBUS_REG(TS_DMA_RCH_ADDR(chan_id), desc);
-		WRITE_CBUS_REG(TS_DMA_RCH_LEN(chan_id), len);
+		WRITE_CBUS_REG(TS_DMA_RCH_ADDR(pchan->id), desc);
+		WRITE_CBUS_REG(TS_DMA_RCH_LEN(pchan->id), len);
 		pr_dbg("%s desc:0x%0x\n", __func__, desc);
 		pr_dbg("%s total_size:0x%0x\n", __func__, len);
 
 		data = 188 << RCH_CFG_READ_LEN;
 		data |= 188 << RCH_CFG_PACKET_LEN;
 		data |= 1 << RCH_CFG_ENABLE;
-		WRITE_CBUS_REG(TS_DMA_RCH_EACH_CFG(chan_id), data);
+		WRITE_CBUS_REG(TS_DMA_RCH_EACH_CFG(pchan->id), data);
 		pr_dbg("%s addr:0x%0x data:0x%0x\n", __func__,
-		       TS_DMA_RCH_EACH_CFG(chan_id), data);
+		       TS_DMA_RCH_EACH_CFG(pchan->id), data);
+		pr_dbg("%s, output address:0x%x, len:%d\n", __func__,
+				pchan->memdescs->bits.address,
+				pchan->memdescs->bits.byte_length);
 	} else {
-		data = READ_CBUS_REG(TS_DMA_RCH_EACH_CFG(chan_id));
+		data = READ_CBUS_REG(TS_DMA_RCH_EACH_CFG(pchan->id));
 
 		data &= ~(1 << RCH_CFG_ENABLE);
-		WRITE_CBUS_REG(TS_DMA_RCH_EACH_CFG(chan_id), data);
+		WRITE_CBUS_REG(TS_DMA_RCH_EACH_CFG(pchan->id), data);
 		pr_dbg("%s data:0x%0x\n", __func__, data);
 	}
 }
@@ -406,46 +530,69 @@ void wdam_config_ready(u8 chan_id)
 	WRITE_CBUS_REG(TS_DMA_WCH_READY(chan_id), 1);
 }
 
-void wdma_config_enable(u8 chan_id, int enable,
+//void wdma_config_enable(u8 chan_id, int enable,
+void wdma_config_enable(struct chan_id *pchan, int enable,
 			unsigned int desc, unsigned int total_size)
 {
 	int times = 0;
 	unsigned int cnt = 0;
+	struct tee_dmx_dma_desc_param param = {0};
+	int ret = -1;
 
 	if (enable) {
 		do {
-		} while (!wdma_get_ready(chan_id) && times++ < 20);
+		} while (!wdma_get_ready(pchan->id) && times++ < 20);
 
-		wdma_clean(chan_id);
+		wdma_clean(pchan->id);
 
-		WRITE_CBUS_REG(TS_DMA_WCH_ADDR(chan_id), desc);
-		WRITE_CBUS_REG(TS_DMA_WCH_LEN(chan_id), total_size);
+		param.address = pchan->memdescs->bits.address;
+		param.len = pchan->memdescs->bits.byte_length;
+		param.buffer_id = pchan->id;
+		if (is_security_dmx == TEE_DMX_ENABLE)
+			ret = tee_demux_set(TEE_DMX_SET_DMA_DESC,
+					(void *)&param, sizeof(param));
+		pr_dbg("[demux] %s ret:%d\n", __func__, ret);
 
+		WRITE_CBUS_REG(TS_DMA_WCH_ADDR(pchan->id), desc);
+		WRITE_CBUS_REG(TS_DMA_WCH_LEN(pchan->id), total_size);
+
+		pr_dbg("%s, output address:0x%x, len:%d\n", __func__,
+				pchan->memdescs->bits.address,
+				pchan->memdescs->bits.byte_length);
 		pr_dbg("%s desc:0x%0x\n", __func__, desc);
 		pr_dbg("%s total_size:0x%0x\n", __func__, total_size);
 	} else {
 //              unsigned int data;
 
-//              data = READ_CBUS_REG(TS_DMA_WCH_CFG(chan_id));
+//              data = READ_CBUS_REG(TS_DMA_WCH_CFG(pchan->id));
 //              data |= (1 << WCH_CFG_CLEAR);
-//              WRITE_CBUS_REG(TS_DMA_WCH_CFG(chan_id), data);
-		WRITE_CBUS_REG(TS_DMA_WCH_ADDR(chan_id), 0);
-		WRITE_CBUS_REG(TS_DMA_WCH_LEN(chan_id), 0);
+//              WRITE_CBUS_REG(TS_DMA_WCH_CFG(pchan->id), data);
+
+		param.address = 0;
+		param.len = 0;
+		param.buffer_id = pchan->id;
+		if (is_security_dmx == TEE_DMX_ENABLE)
+			ret = tee_demux_set(TEE_DMX_SET_DMA_DESC,
+					(void *)&param, sizeof(param));
+		pr_dbg("[demux] %s ret:%d\n", __func__, ret);
+
+		WRITE_CBUS_REG(TS_DMA_WCH_ADDR(pchan->id), 0);
+		WRITE_CBUS_REG(TS_DMA_WCH_LEN(pchan->id), 0);
 
 		/*if dmx have cmd completed, need delay,
 		 * or clean will cause
 		 * demod enter overflow status,
 		 * it can't resolve except reboot
 		 */
-		cnt = wdma_get_wcmdcnt(chan_id);
+		cnt = wdma_get_wcmdcnt(pchan->id);
 		if (cnt)
 			msleep(20);
-		wdma_clean(chan_id);
+		wdma_clean(pchan->id);
 		//delay
 //              while (times ++ < 500);
 		pr_dbg("%s wptr:0x%0x\n", __func__,
-		       READ_CBUS_REG(TS_DMA_WCH_WR_LEN(chan_id)));
-		wdam_config_ready(chan_id);
+		       READ_CBUS_REG(TS_DMA_WCH_WR_LEN(pchan->id)));
+		wdam_config_ready(pchan->id);
 	}
 }
 

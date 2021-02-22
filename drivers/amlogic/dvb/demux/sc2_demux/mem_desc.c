@@ -730,7 +730,12 @@ int SC2_bufferid_set_enable(struct chan_id *pchan, int enable)
 	pchan->enable = enable;
 
 	tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-	wdma_config_enable(pchan->id, enable, tmp, pchan->mem_size);
+	pr_dbg("WCH_ADDR, buffer id:%d, desc_phy:0x%x, addr:0x%x, length:%d\n",
+			pchan->id, tmp,
+			pchan->memdescs->bits.address,
+			pchan->memdescs->bits.byte_length);
+	//wdma_config_enable(pchan->id, enable, tmp, pchan->mem_size);
+	wdma_config_enable(pchan, enable, tmp, pchan->mem_size);
 
 	pr_dbg("######wdma start###########\n");
 	pr_dbg("err:0x%0x, active:%d\n", wdma_get_err(pchan->id),
@@ -922,7 +927,8 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 
 			tmp = (unsigned long)(pchan->memdescs) & 0xFFFFFFFF;
 			len = pchan->memdescs->bits.byte_length;
-			rdma_config_enable(pchan->id, 1, tmp, count, len);
+			//rdma_config_enable(pchan->id, 1, tmp, count, len);
+			rdma_config_enable(pchan, 1, tmp, count, len);
 			pr_dbg("%s isphybuf\n", __func__);
 			/*it will exit write loop*/
 			r = len;
@@ -958,7 +964,8 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 
 			pchan->enable = 1;
 			tmp = pchan->memdescs_phy & 0xFFFFFFFF;
-			rdma_config_enable(pchan->id, 1, tmp,
+			//rdma_config_enable(pchan->id, 1, tmp,
+			rdma_config_enable(pchan, 1, tmp,
 					   pchan->mem_size, len);
 		}
 
@@ -980,7 +987,8 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 		pr_dbg("#######rdma##########\n");
 
 		/*disable */
-		rdma_config_enable(pchan->id, 0, 0, 0, 0);
+		//rdma_config_enable(pchan->id, 0, 0, 0, 0);
+		rdma_config_enable(pchan, 0, 0, 0, 0);
 		rdma_clean(pchan->id);
 
 		p += len;
