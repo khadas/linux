@@ -40,6 +40,7 @@ struct {
 	{RESMAN_ID_SEC_TVP, "tvp"},
 	{RESMAN_ID_TSPARSER, "tsparser"},
 	{RESMAN_ID_CODEC_MM, "codec_mm"},
+	{RESMAN_ID_ADC_PLL, "adc_pll"},
 	{0, NULL}
 };
 
@@ -1144,7 +1145,8 @@ static void all_resource_init(void)
 		"videopip,type:1,avail:1;"
 		"tvp,type:3;"
 		"tsparser,type:1,avail:1;"
-		"codec_mm,type:4,total:0;";
+		"codec_mm,type:4,total:0;"
+		"adc_pll,type:1,avail:1;";
 
 	INIT_LIST_HEAD(&sessions_head);
 	INIT_LIST_HEAD(&resources_head);
