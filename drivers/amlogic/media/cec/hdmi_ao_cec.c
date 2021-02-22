@@ -586,6 +586,16 @@ int __attribute__((weak))hdmirx_get_connect_info(void)
 	return 0;
 }
 
+/*
+ * 0: cec off
+ * 1: cec on, auto power_on is off
+ * 2: cec on, auto power_on is on
+ */
+int __attribute__((weak))hdmirx_set_cec_cfg(u32 cfg)
+{
+	return 0;
+}
+
 static bool cec_message_op(unsigned char *msg, unsigned char len)
 {
 	int i, j;
@@ -3358,6 +3368,16 @@ static long hdmitx_cec_ioctl(struct file *f,
 			tmp |= CEC_FUNC_CFG_AUTO_POWER_ON;
 		else
 			tmp &= ~(CEC_FUNC_CFG_AUTO_POWER_ON);
+
+		if (tmp & CEC_IOC_SET_OPTION_ENALBE_CEC) {
+			if (tmp & CEC_FUNC_CFG_AUTO_POWER_ON)
+				hdmirx_set_cec_cfg(2);
+			else
+				hdmirx_set_cec_cfg(1);
+		} else {
+			hdmirx_set_cec_cfg(0);
+		}
+
 		cec_config(tmp, 1);
 		break;
 
@@ -3376,6 +3396,16 @@ static long hdmitx_cec_ioctl(struct file *f,
 			a |= CEC_FUNC_CFG_CEC_ON;
 		else
 			a &= ~(CEC_FUNC_CFG_CEC_ON);
+
+		if (a & CEC_IOC_SET_OPTION_ENALBE_CEC) {
+			if (a & CEC_FUNC_CFG_AUTO_POWER_ON)
+				hdmirx_set_cec_cfg(2);
+			else
+				hdmirx_set_cec_cfg(1);
+		} else {
+			hdmirx_set_cec_cfg(0);
+		}
+
 		cec_config(a, 1);
 
 		tmp = (1 << HDMI_OPTION_ENABLE_CEC);
