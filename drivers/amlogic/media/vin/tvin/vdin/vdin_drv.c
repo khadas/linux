@@ -998,8 +998,8 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	}
 	vdin_dolby_addr_release(devp, devp->vfp->size);
 
-	/*disable afbc*/
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+	/*only when stop vdin0, disable afbc*/
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && devp->index == 0)
 		vdin_afbce_soft_reset();
 
 #ifdef CONFIG_CMA

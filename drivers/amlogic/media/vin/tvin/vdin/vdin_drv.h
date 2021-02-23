@@ -65,7 +65,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "ver:2021-0202: vdin s4 bringup"
+#define VDIN_VER "ver:2021-0223: hdmi 4k,viuloop capture flashing line"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
