@@ -2695,8 +2695,6 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	if (!hdev || !para)
 		return 0;
 
-	if (strcmp(para->timing.sname, "invalid") == 0)
-		return 0;
 	/* exclude such as: 2160p60hz YCbCr444 10bit */
 	switch (para->timing.vic) {
 	case HDMI_96_3840x2160p50_16x9:

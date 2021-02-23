@@ -70,9 +70,29 @@ static inline void copy_para(struct hdmi_format_para *des,
 
 struct hdmi_format_para *hdmi21_tst_fmt_name(char const *name, char const *attr)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	static struct hdmi_format_para para;
+	int i;
 
-	return hdev->para;
+	memset(&para, 0, sizeof(para));
+	/* check sname first */
+	for (i = 0; i < ARRAY_SIZE(hdmi_timing_all); i++) {
+		if (hdmi_timing_all[i].sname &&
+		    (strstr(name, hdmi_timing_all[i].sname))) {
+			para.timing = hdmi_timing_all[i];
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(hdmi_timing_all)) {
+		/* check name */
+		for (i = 0; i < ARRAY_SIZE(hdmi_timing_all); i++) {
+			if (strstr(name, hdmi_timing_all[i].name)) {
+				para.timing = hdmi_timing_all[i];
+				break;
+			}
+		}
+	}
+
+	return &para;
 }
 
 static struct hdmi_timing *search_mode_in_allpara(char *mode)

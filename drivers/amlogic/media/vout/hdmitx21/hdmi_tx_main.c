@@ -4791,52 +4791,6 @@ EXPORT_SYMBOL(get21_hpd_state);
 
 static bool is_cur_tmds_div40(struct hdmitx_dev *hdev)
 {
-	struct hdmi_format_para *para1 = NULL;
-	struct hdmi_format_para *para2 = NULL;
-	u32 act_clk = 0;
-
-	if (!hdev)
-		return 0;
-
-	pr_info("hdmitx: get vic %d cscd %s\n", hdev->cur_VIC, hdev->fmt_attr);
-
-	para1 = hdmi21_get_fmt_paras(hdev->cur_VIC);
-	if (!para1) {
-		pr_info("%s[%d]\n", __func__, __LINE__);
-		return 0;
-	}
-	pr_info("hdmitx: mode name %s\n", para1->timing.name);
-	para2 = hdmi21_tst_fmt_name(para1->timing.name, hdev->fmt_attr);
-	if (!para2) {
-		pr_info("%s[%d]\n", __func__, __LINE__);
-		return 0;
-	}
-	pr_info("hdmitx: tmds clock %d\n", para2->tmds_clk / 1000);
-	act_clk = para2->tmds_clk / 1000;
-	if (para2->cs == COLORSPACE_YUV420)
-		act_clk = act_clk / 2;
-	if (para2->cs != COLORSPACE_YUV422) {
-		switch (para2->cd) {
-		case COLORDEPTH_30B:
-			act_clk = act_clk * 5 / 4;
-			break;
-		case COLORDEPTH_36B:
-			act_clk = act_clk * 3 / 2;
-			break;
-		case COLORDEPTH_48B:
-			act_clk = act_clk * 2;
-			break;
-		case COLORDEPTH_24B:
-		default:
-			act_clk = act_clk * 1;
-			break;
-		}
-	}
-	pr_info("hdmitx: act clock: %d\n", act_clk);
-
-	if (act_clk > 340)
-		return 1;
-
 	return 0;
 }
 
