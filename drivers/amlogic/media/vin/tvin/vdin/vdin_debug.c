@@ -1070,6 +1070,7 @@ static void vdin_dump_count(struct vdin_dev_s *devp)
 	pr_info("ignore_frames:%d\n", devp->ignore_frames);
 	pr_info("frame_drop_num:%d\n", devp->frame_drop_num);
 	pr_info("vdin_drop_cnt: %d\n", vdin_drop_cnt);
+	vdin_dump_vs_info(devp);
 }
 
 /*same as vdin_dump_state*/

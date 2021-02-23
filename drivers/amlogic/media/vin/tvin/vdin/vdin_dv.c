@@ -107,6 +107,9 @@ void vdin_wrmif2_initial(struct vdin_dev_s *devp)
 	//wr_bits(offset, VDIN2_WR_CTRL, 1, 8, 1);        //vdin_wr_req_en
 	wr_bits(offset, VDIN2_WR_CTRL, 0, 27, 1); //eol from pixel count
 
+	wr_bits(0, VDIN2_WR_URGENT_CTRL, 1, 9, 1);/*write done last sel*/
+	wr_bits(0, VDIN2_WR_URGENT_CTRL, 1, 8, 1);/*reg Bvalid enable*/
+
 	wr_bits(0, VDIN2_WR_CTRL, 1,
 			DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
 	wr_bits(0, VDIN2_WR_CTRL, 0,

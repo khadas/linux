@@ -109,6 +109,7 @@ u32 vdin_re_cfg_drop_cnt = 8;
 module_param(vdin_re_cfg_drop_cnt, int, 0664);
 MODULE_PARM_DESC(vdin_re_cfg_drop_cnt, "vdin_re_cfg_drop_cnt");
 
+/*#define DEBUG_SUPPORT*/
 #ifdef DEBUG_SUPPORT
 module_param(back_nosig_max_cnt, int, 0664);
 MODULE_PARM_DESC(back_nosig_max_cnt,

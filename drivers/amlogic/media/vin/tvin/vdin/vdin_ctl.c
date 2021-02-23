@@ -1282,6 +1282,7 @@ void vdin_fix_nonstd_vsync(struct vdin_dev_s *devp)
 	if (devp->dtdata->hw_ver >= VDIN_HW_TM2_B) {
 		wr_bits(offset, VDIN_WR_URGENT_CTRL, 1,
 			WR_DONE_LAST_SEL_BIT, WR_DONE_LAST_SEL_WID);
+		/*wr_bits(offset, VDIN_WR_URGENT_CTRL, 1, BVALID_EN_BIT, 1);*/
 	} else if (devp->dtdata->hw_ver == VDIN_HW_ORG) {
 		/* tm2 revA is 0x12be[9]*/
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
@@ -5354,9 +5355,8 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 	if (color_range_force)
 		devp->prop.color_fmt_range =
 		tvin_get_force_fmt_range(devp->prop.color_format);
-
 	if (devp->dtdata->hw_ver == VDIN_HW_T7 &&
-		(devp->irq_cnt == 1 || devp->irq_cnt == 10)) {
+	    (devp->irq_cnt == 1 || devp->irq_cnt == 10)) {
 		vdin_wrmif2_enable(devp, 0);
 		vdin_wrmif2_enable(devp, 1);
 	}
