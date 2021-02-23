@@ -280,6 +280,21 @@
 		method = "smc";
 	};
 
+	meson_suspend:pm {
+		compatible = "amlogic, pm";
+		status = "okay";
+		device_name = "aml_pm";
+		reg = <0x0 0xfe010288 0x0 0x4>, /*SYSCTRL_STATUS_REG2*/
+			<0x0 0xfe0102dc 0x0 0x4>; /*SYSCTRL_STICKY_REG7*/
+	};
+
+	aml_reboot {
+		compatible = "aml, reboot";
+		sys_reset = <0x84000009>;
+		sys_poweroff = <0x84000008>;
+		dis_nb_cpus_in_shutdown;
+	};
+
 	secmon {
 		compatible = "amlogic, secmon";
 		memory-region = <&secmon_reserved>;
@@ -300,6 +315,11 @@
 		compatible = "amlogic, cpuinfo";
 		status = "okay";
 		cpuinfo_cmd = <0x82000044>;
+	};
+
+	vrtc: rtc@0xfe010288 {
+		compatible = "amlogic,meson-vrtc";
+		reg = <0x0 0xfe010288 0x0 0x4>;
 	};
 
 	pwrdm: power-domains {
