@@ -107,6 +107,7 @@ void hdmitx21_set_cts_hdcp22_clk(struct hdmitx_dev *hdev);
 void set_tv_encp_new(u32 enc_index, enum hdmi_vic vic, u32 enable);
 void adjust_encp_for_hdmi(u8 enc_index, struct hdmi_timing *timing, u32 vs_adjust_420);
 void hdmitx21_venc_en(bool en);
+void hdmitx_infoframe_send(u8 info_type, u8 *hb, u8 *db);
 
 /***********************************************************************
  *                   hdmi debug printk

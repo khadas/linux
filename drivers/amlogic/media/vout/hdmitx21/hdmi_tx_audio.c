@@ -243,7 +243,7 @@ int hdmitx21_set_audio(struct hdmitx_dev *hdmitx_device,
 		hdmi_tx_construct_aud_packet(audio_param, AUD_DB,
 					     CHAN_STAT_BUF, hdmi_ch);
 
-		hdmitx_device->hwop.setaudioinfoframe(AUD_DB, CHAN_STAT_BUF);
+		hdmitx_device->hwop.setinfoframe(HDMI_AUDIO_INFO, AUD_DB, CHAN_STAT_BUF);
 		ret = 0;
 	}
 	return ret;

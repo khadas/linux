@@ -349,11 +349,12 @@ struct hdmi_format_para {
 #define PKT_ONEBITMULTISTREAM	0x0F
 #define PKT_EMP			0x7f
 /* Infoframe Packet */
-#define IF_VENDSPEC		0x81
+#define IF_VSIF			0x81
 #define IF_AVI			0x82
 #define IF_SPD			0x83
 #define IF_AUD			0x84
-#define IF_MPEGSOURCE		0x85
+//#define IF_MPEGSRC		0x85
+//#define IF_NTSCVBI		0x86
 #define IF_DRM			0x87
 
 struct hdmi_csc_coef_table {

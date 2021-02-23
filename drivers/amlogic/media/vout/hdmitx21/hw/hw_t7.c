@@ -55,8 +55,7 @@ static bool set_hpll_hclk_v1(u32 m, u32 frac_val)
 			hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x44331290);
 		}
 	} else {
-		if (hdmitx_find_vendor(hdev) &&
-		    (hdev->para->timing.vic == HDMI_96_3840x2160p50_16x9 ||
+		if ((hdev->para->timing.vic == HDMI_96_3840x2160p50_16x9 ||
 		    hdev->para->timing.vic == HDMI_97_3840x2160p60_16x9 ||
 		    hdev->para->timing.vic == HDMI_106_3840x2160p50_64x27 ||
 		    hdev->para->timing.vic == HDMI_107_3840x2160p60_64x27 ||

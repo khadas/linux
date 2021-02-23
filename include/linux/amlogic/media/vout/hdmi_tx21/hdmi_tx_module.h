@@ -323,17 +323,7 @@ struct hdmitx_dev {
 	u32 div40;
 	u32 lstore;
 	struct {
-		void (*setpacket)(int type, u8 *DB,
-				  u8 *HB);
-		void (*disablepacket)(int type);
-		/* In original setpacket, there are many policys, like
-		 *  if ((DB[4] >> 4) == T3D_FRAME_PACKING)
-		 * Need a only pure data packet to call
-		 */
-		void (*setdatapacket)(int type, u8 *DB,
-				      u8 *HB);
-		void (*setaudioinfoframe)(u8 *AUD_DB,
-					  u8 *CHAN_STAT_BUF);
+		void (*setinfoframe)(int type, u8 *hb, u8 *db);
 		int (*setdispmode)(struct hdmitx_dev *hdmitx_device);
 		int (*setaudmode)(struct hdmitx_dev *hdmitx_device,
 				  struct hdmitx_audpara *audio_param);
@@ -404,7 +394,6 @@ struct hdmitx_dev {
 	u32 hdcp_max_exceed_cnt;
 	u8 force_audio_flag;
 	u8 mux_hpd_if_pin_high_flag;
-	int auth_process_timer;
 	struct hdmitx_info hdmi_info;
 	u8 tmp_buf[HDMI_TMP_BUF_SIZE];
 	u32 log;
@@ -607,10 +596,6 @@ struct hdmitx_dev {
 #define HDMI_AUDIO_CONTENT_PROTECTION   5
 #define HDMI_PACKET_HBR         6
 #define HDMI_PACKET_DRM		0x86
-
-#define HDMI_PROCESS_DELAY  msleep(10)
-/* reduce a little time, previous setting is 4000/10 */
-#define AUTH_PROCESS_TIME   (1000 / 100)
 
 struct hdmitx_dev *get_hdmitx21_device(void);
 
@@ -875,6 +860,5 @@ enum hdmi_tf_type hdmitx21_get_cur_hdr10p_st(void);
 bool hdmitx21_hdr_en(void);
 bool hdmitx21_dv_en(void);
 bool hdmitx21_hdr10p_en(void);
-bool hdmitx_find_vendor(struct hdmitx_dev *hdev);
 
 #endif

@@ -54,13 +54,7 @@ struct ksv_lists_ {
 
 static struct ksv_lists_ tmp_ksv_lists;
 
-static void hdmitx_set_packet(int type, u8 *DB, u8 *HB);
-static void hdmitx_disable_packet(int type);
-static void hdmitx_set_datapacket(int type,
-				  u8 *DB,
-				  u8 *HB);
-static void hdmitx_setaudioinfoframe(u8 *AUD_DB,
-				     u8 *CHAN_STAT_BUF);
+static void hdmitx_set_infoframe(int type, u8 *DB, u8 *HB);
 static int hdmitx_set_dispmode(struct hdmitx_dev *hdev);
 static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 			      struct hdmitx_audpara *audio_param);
@@ -136,7 +130,6 @@ static int hdcp_topo_st = -1;
 static int hdcp22_susflag;
 int hdmitx21_hdcp_opr(u32 val)
 {
-	return 0;
 	struct arm_smccc_res res;
 
 	if (val == 1) { /* HDCP14_ENABLE */
@@ -211,27 +204,7 @@ void hdmitx21_set_avi_vic(enum hdmi_vic vic)
 
 static int read_avmute(void)
 {
-	int val;
-	int ret = 0;
-
-	val = 0;
-
-	switch (val) {
-	case 2:
-		ret = 1;
-		break;
-	case 1:
-		ret = -1;
-		break;
-	case 0:
-		ret = 0;
-		break;
-	default:
-		ret = 3;
-		break;
-	}
-
-	return ret;
+	return 0;
 }
 
 static void config_video_mapping(enum hdmi_color_space cs,
@@ -427,10 +400,7 @@ int hdmitx21_uboot_audio_en(void)
 
 void hdmitx21_meson_init(struct hdmitx_dev *hdev)
 {
-	hdev->hwop.setpacket = hdmitx_set_packet;
-	hdev->hwop.setdatapacket = hdmitx_set_datapacket;
-	hdev->hwop.disablepacket = hdmitx_disable_packet;
-	hdev->hwop.setaudioinfoframe = hdmitx_setaudioinfoframe;
+	hdev->hwop.setinfoframe = hdmitx_set_infoframe;
 	hdev->hwop.setdispmode = hdmitx_set_dispmode;
 	hdev->hwop.setaudmode = hdmitx_set_audmode;
 	hdev->hwop.setupirq = hdmitx_setupirq;
@@ -769,6 +739,10 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	u32 data32;
 	enum hdmi_vic vic = para->timing.vic;
 
+	/* TODO */
+	if (!vic)
+		enc_sel = 1;
+
 	hdmitx21_venc_en(0);
 	if (enc_sel == 0)
 		enable_crt_video_encp(1, 0);
@@ -947,33 +921,19 @@ static bool hdmitx_vsif_en(void)
 enum hdmi_tf_type hdmitx21_get_cur_dv_st(void)
 {
 	enum hdmi_tf_type type = HDMI_NONE;
-	u32 ieee_code = 0;
-	u32 size = hdmitx21_rd_reg(0);
-	u32 cs = hdmitx21_rd_reg(0) & 0x3;
 
 	if (!hdmitx_vsif_en())
 		return type;
 
-	if ((ieee_code == HDMI_IEEEOUI && size == 0x18) ||
-	    (ieee_code == DOVI_IEEEOUI && size == 0x1b)) {
-		if (cs == 0x1) /* Y422 */
-			type = HDMI_DV_VSIF_LL;
-		if (cs == 0x0) /* RGB */
-			type = HDMI_DV_VSIF_STD;
-	}
 	return type;
 }
 
 enum hdmi_tf_type hdmitx21_get_cur_hdr10p_st(void)
 {
 	enum hdmi_tf_type type = HDMI_NONE;
-	u32 ieee_code = 0;
 
 	if (!hdmitx_vsif_en())
 		return type;
-
-	if (ieee_code == HDR10PLUS_IEEEOUI)
-		type = HDMI_HDR10P_DV_VSIF;
 
 	return type;
 }
@@ -993,20 +953,22 @@ bool hdmitx21_hdr10p_en(void)
 	return (hdmitx21_get_cur_hdr10p_st() & HDMI_HDR10P_TYPE) == HDMI_HDR10P_TYPE;
 }
 
-static void hdmitx_set_packet(int type, u8 *DB, u8 *HB)
+static void hdmitx_set_infoframe(int type, u8 *hb, u8 *db)
 {
 	int pkt_data_len = 0;
 
+	pr_info("%s[%d] type = %d\n", __func__, __LINE__, type);
 	switch (type) {
 	case HDMI_PACKET_AVI:
+		hdmitx_infoframe_send(IF_AVI, hb, db);
 		break;
 	case HDMI_PACKET_VEND:
+		hdmitx_infoframe_send(IF_VSIF, hb, db);
 		break;
 	case HDMI_PACKET_DRM:
 		pkt_data_len = 26;
-		if (!DB || !HB)
+		if (!hb || !db)
 			return;
-		/* Ignore HB[0] */
 		break;
 	case HDMI_AUDIO_INFO:
 		pkt_data_len = 9;
@@ -1017,43 +979,6 @@ static void hdmitx_set_packet(int type, u8 *DB, u8 *HB)
 	default:
 		break;
 	}
-}
-
-static void hdmitx_disable_packet(int type)
-{
-	switch (type) {
-	case HDMI_PACKET_AVI:
-		break;
-	case HDMI_PACKET_VEND:
-		/* disable VSI packet */
-		break;
-	case HDMI_PACKET_DRM:
-		break;
-	case HDMI_AUDIO_INFO:
-		break;
-	case HDMI_SOURCE_DESCRIPTION:
-		break;
-	default:
-		break;
-	}
-}
-
-static void hdmitx_set_datapacket(int type, u8 *DB,
-				  u8 *HB)
-{
-	switch (type) {
-	case HDMI_PACKET_VEND:
-		if (!DB || !HB)
-			return;
-		break;
-	default:
-		break;
-	}
-}
-
-static void hdmitx_setaudioinfoframe(u8 *AUD_DB,
-				     u8 *CHAN_STAT_BUF)
-{
 }
 
 static void set_aud_chnls(struct hdmitx_dev *hdev,
@@ -1190,47 +1115,6 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 
 	pr_info(HW "hdmitx tx_aud_src = %d\n", hdev->tx_aud_src);
 
-/* config IP */
-/* Configure audio */
-	/* I2S Sampler config */
-	data32 = 0;
-/* [  3] fifo_empty_mask: 0=enable int; 1=mask int. */
-	data32 |= (1 << 3);
-/* [  2] fifo_full_mask: 0=enable int; 1=mask int. */
-	data32 |= (1 << 2);
-
-	data32 = 0;
-/* [  4] fifo_overrun_mask: 0=enable int; 1=mask int.
- * Enable it later when audio starts.
- */
-	data32 |= (1 << 4);
-/* [  5] 0=select SPDIF; 1=select I2S. */
-	data32 = 0;
-	data32 |= (0 << 7);  /* [  7] sw_audio_fifo_rst */
-	data32 |= (hdev->tx_aud_src << 5);
-	data32 |= (0 << 0);  /* [3:0] i2s_in_en: enable it later in test.c */
-/* if enable it now, fifo_overrun will happen, because packet don't get sent
- * out until initial DE detected.
- */
-
-	data32 = 0;
-	data32 |= (0 << 5);  /* [7:5] i2s_mode: 0=standard I2S mode */
-	data32 |= (24 << 0);  /* [4:0] i2s_width */
-
-	data32 = 0;
-	data32 |= (0 << 1);  /* [  1] NLPCM */
-	data32 |= (0 << 0);  /* [ 0] HBR */
-
-	/* spdif sampler config */
-/* [  2] SPDIF fifo_full_mask: 0=enable int; 1=mask int. */
-/* [  3] SPDIF fifo_empty_mask: 0=enable int; 1=mask int. */
-	data32 = 0;
-	data32 |= (1 << 3);
-	data32 |= (1 << 2);
-	/* [  4] SPDIF fifo_overrun_mask: 0=enable int; 1=mask int. */
-	data32 = 0;
-	data32 |= (0 << 4);
-
 	data32 = 0;
 	data32 |= (0 << 7);  /* [  7] sw_audio_fifo_rst */
 
@@ -1245,8 +1129,6 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		/* Wait for 40 us for TX I2S decoder to settle */
 		msleep(20);
 	}
-	data32 = hdmitx21_rd_reg(0);
-	pr_info(HW "[0x10e3] = 0x%x\n", data32);
 	set_aud_fifo_rst();
 	usleep_range(9, 11);
 	/* double confirm that ACR packet is enabled
@@ -1332,15 +1214,6 @@ static int hdmitx_cntl(struct hdmitx_dev *hdev, u32 cmd,
 	return 0;
 }
 
-static void hdmitx_print_info(struct hdmitx_dev *hdev, int pr_info_flag)
-{
-	pr_info(HW "------------------\nHdmitx driver version: ");
-	pr_info(HW "%s\n", HDMITX_VER);
-	pr_info(HW "%spowerdown when unplug\n",
-		hdev->unplug_powerdown ? "" : "do not ");
-	pr_info("------------------\n");
-}
-
 #define DUMP_CVREG_SECTION(_start, _end) \
 do { \
 	typeof(_start) start = (_start); \
@@ -1388,6 +1261,9 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 	int ret;
 	unsigned long adr = 0;
 	unsigned long value = 0;
+
+	if (!buf)
+		return;
 
 	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ')) {
 		tmpbuf[i] = buf[i];
@@ -1507,32 +1383,6 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 				cec_adr, cec_val);
 		}
 		return;
-	} else if (strncmp(tmpbuf, "log", 3) == 0) {
-		if (strncmp(tmpbuf + 3, "hdcp", 4) == 0) {
-			static u32 i = 1;
-
-			if (i & 1)
-				hdev->log |= HDMI_LOG_HDCP;
-			else
-				hdev->log &= ~HDMI_LOG_HDCP;
-			i++;
-		}
-		return;
-	} else if (strncmp(tmpbuf, "hdmiaudio", 9) == 0) {
-		ret = kstrtoul(tmpbuf + 9, 16, &value);
-		if (value == 1)
-			hdev->hdmi_audio_off_flag = 0;
-		else if (value == 0)
-			;
-		return;
-	} else if (strncmp(tmpbuf, "cfgreg", 6) == 0) {
-		ret = kstrtoul(tmpbuf + 6, 16, &adr);
-		ret = kstrtoul(buf + i + 1, 16, &value);
-		return;
-	} else if ((tmpbuf[0] == 'v') &&
-			   (strncmp(tmpbuf, "vsif_info", 9) != 0)) {
-		hdmitx_print_info(hdev, 1);
-		return;
 	} else if (tmpbuf[0] == 'w') {
 		unsigned long read_back = 0;
 
@@ -1552,9 +1402,9 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			value = hdmitx21_rd_reg(adr);
 		pr_info(HW "%s reg[%lx]=%lx\n", "HDMI", adr, value);
 	} else if (strncmp(tmpbuf, "prbs", 4) == 0) {
-		u32 phy_cntl1;
-		u32 phy_cntl4;
-		u32 phy_status;
+		u32 phy_cntl1 = ANACTRL_HDMIPHY_CTRL1;
+		u32 phy_cntl4 = ANACTRL_HDMIPHY_CTRL4;
+		u32 phy_status = ANACTRL_HDMIPHY_STS;
 
 		switch (hdev->data->chip_type) {
 		case MESON_CPU_ID_T7:
@@ -1582,7 +1432,7 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 					hd21_read_reg(phy_status));
 		}
 	} else if (strncmp(tmpbuf, "stop_vsif", 9) == 0) {
-		hdmitx_disable_packet(HDMI_PACKET_VEND);
+		hdmitx_set_infoframe(HDMI_PACKET_VEND, NULL, NULL);
 	}
 }
 
@@ -1978,9 +1828,8 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 
 static int hdmitx_get_hdmi_dvi_config(struct hdmitx_dev *hdev)
 {
-	int value = 0;
-
-	return (value == 0) ? DVI_MODE : HDMI_MODE;
+	/* TODO */
+	return HDMI_MODE;
 }
 
 static int hdmitx_cntl_config(struct hdmitx_dev *hdev, u32 cmd,
@@ -2228,7 +2077,6 @@ static void hdmi_phy_wakeup(struct hdmitx_dev *hdev)
 static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 {
 	struct hdmi_format_para *para = hdev->para;
-	u8 pixel_repeat = 0;
 	u8 color_depth = COLORDEPTH_24B; // Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit.
 	// Pixel format: 0=RGB444; 1=YCbCr422; 2=YCbCr444; 3=YCbCr420.
 	u8 input_color_format = COLORSPACE_YUV444;
@@ -2242,9 +2090,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	u8 scrambler_en = 0;
 	u8 tmds_clk_div4 = 0;
 	u32 aud_n = 6144; // ACR N
-	u8 i2s_spdif = 0; // 0=SPDIF; 1=I2S.
 	// 0=I2S 2-channel; 1=I2S 4 x 2-channel; 2=channel 0/1, 4/5 valid.
-	u8 i2s_8chan = 0;
 	// 2=audio sample packet; 7=one bit audio; 8=DST audio packet; 9=HBR audio packet.
 	u8 audio_packet_type = 2;
 	u32 data32;
@@ -2252,13 +2098,17 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	u8 csc_en;
 	u8 dp_color_depth = 0;
 
+	vic = para->timing.vic;
+	if (vic)
+		audio_packet_type = 2;
+	else
+		audio_packet_type = 9;
 	if (para->timing.pixel_freq > 340000) {
 		para->scrambler_en = 1;
 		para->tmds_clk_div40 = 1;
 	}
 	color_depth = para->cd;
 	output_color_format = para->cs;
-	vic = para->timing.vic;
 	active_pixels = para->timing.h_active;
 	active_lines = para->timing.v_active;
 	scrambler_en = para->scrambler_en;
@@ -2315,16 +2165,6 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	data32 |= (7 << 12);
 	data32 |= (0 << 0);
 	hdmitx21_wr_reg(HDMITX_TOP_HPD_FILTER,    data32);
-
-	//--------------------------------------------------------------------------
-	// Configure video
-	//--------------------------------------------------------------------------
-
-	if ((input_color_format == COLORSPACE_YUV420 ||
-	     output_color_format == COLORSPACE_YUV420) &&
-	    (input_color_format != output_color_format ||
-	     input_color_range != output_color_range))
-		pr_info("hdmitx input/output color combination unsupported!\n");
 
 	//-------------
 	//config video
@@ -2457,8 +2297,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	hdmitx21_wr_reg(ASRC_IVCTX, 0x00); //ASRC
 	hdmitx21_wr_reg(VP_INPUT_SYNC_ADJUST_CONFIG_IVCTX, 0x01); //vp__
 
-	data32 = (audio_packet_type == HDMI_AUDIO_PACKET_HBR) ? (0 << 1) :
-		  ((i2s_spdif == 1) && (i2s_8chan != 0)) ? (1 << 1) : (0 << 1);
+	data32 = 0;
 	//AUDP_TXCTRL : [1] layout; [7] aud_mute_en
 	hdmitx21_wr_reg(AUDP_TXCTRL_IVCTX, data32 & 0xff);
 	//ACR_CTRL  bit[3]:reg_no_mclk_ctsgen_sel_pclk. bit[0]: make hw_cts_hw_sw_sel = 0
@@ -2477,7 +2316,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	data32 |= (0 << 4);
 	hdmitx21_wr_reg(TPI_AUD_CONFIG_IVCTX,    data32);
 
-	if (i2s_spdif) {
+	if (0) { /* i2s_spdif */
 		hdmitx21_wr_reg(I2S_IN_MAP_IVCTX, 0xE4); //I2S_IN_MAP
 		hdmitx21_wr_reg(I2S_IN_CTRL_IVCTX, 0x20); //I2S_IN_CTRL [5] reg_cbit_order TODO
 		hdmitx21_wr_reg(I2S_IN_SIZE_IVCTX, 0x0b); //I2S_IN_SIZE
@@ -2494,7 +2333,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	//[  1] SPID_EN  Enable later in test.c, otherwise initial junk data will be sent
 	//[ 0] PKT_EN
 	data32 = 0;
-	data32 |= ((i2s_8chan & i2s_spdif ? 0xf : i2s_spdif ? 0x1 : 0x0) << 4);
+	data32 |= (0 << 4);
 	data32 |= (0 << 3);
 	data32 |= ((audio_packet_type == HDMI_AUDIO_PACKET_HBR) << 2);
 	data32 |= (0 << 1);
@@ -2514,54 +2353,6 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	hdmitx21_wr_reg(TPI_INFO_B6_IVCTX, 0x00);              //byte3
 	hdmitx21_wr_reg(TPI_INFO_B7_IVCTX, 0x00);              //byte4
 	hdmitx21_wr_reg(TPI_INFO_EN_IVCTX, 0xff);         //TPI Info enable
-	if (0) { // set out AVI by TPI_AVI, another way
-		hdmitx21_wr_reg(TPI_AVI_CHSUM_IVCTX, 0xa7);
-		hdmitx21_wr_reg(TPI_AVI_BYTE1_IVCTX, 0x10);
-		hdmitx21_wr_reg(TPI_AVI_BYTE2_IVCTX, 0xa8);
-		hdmitx21_wr_reg(TPI_AVI_BYTE3_IVCTX, 0x00);
-		hdmitx21_wr_reg(TPI_AVI_BYTE4_IVCTX, 0x10);  // vic
-		hdmitx21_wr_reg(TPI_AVI_BYTE5_IVCTX, 0x00);
-		hdmitx21_wr_reg(TPI_AVI_BYTE6_IVCTX, 0x00);
-		hdmitx21_wr_reg(TPI_AVI_BYTE7_IVCTX, 0x00);
-		hdmitx21_wr_reg(TPI_AVI_BYTE8_IVCTX, 0x00);
-		hdmitx21_wr_reg(TPI_AVI_BYTE9_IVCTX, 0x00);
-		hdmitx21_wr_reg(TPI_AVI_BYTE10_IVCTX, 0x00);
-		hdmitx21_wr_reg(TPI_AVI_BYTE11_IVCTX, 0x00);
-		hdmitx21_wr_reg(TPI_AVI_BYTE12_IVCTX, 0x00);
-		hdmitx21_wr_reg(TPI_AVI_BYTE13_IVCTX, 0x00);
-	}
-
-	//==== AVI infoFrame PACKET==========
-	hdmitx21_wr_reg(TPI_INFO_FSEL_IVCTX, 0x00); //AVI sel
-	hdmitx21_wr_reg(TPI_INFO_B0_IVCTX, 0x82); //AVI infoFrame byte0,header type
-	hdmitx21_wr_reg(TPI_INFO_B1_IVCTX, 0x02); //AVI infoFrame byte1,version
-	hdmitx21_wr_reg(TPI_INFO_B2_IVCTX, 0x0d); //AVI infoFrame byte2,length
-	hdmitx21_wr_reg(TPI_INFO_B3_IVCTX, 0x87 - vic); //AVI infoFrame byte3,checksum PB0
-
-	data32 = 0;
-	data32 |= (output_color_format & 0x03) << 5 ; //[6:5]:data format
-	hdmitx21_wr_reg(TPI_INFO_B4_IVCTX, 0x40); //AVI infoFrame byte4,PB1
-
-	hdmitx21_wr_reg(TPI_INFO_B5_IVCTX, 0xa8); //AVI infoFrame byte5,PB2
-	hdmitx21_wr_reg(TPI_INFO_B6_IVCTX, 0x00); //AVI infoFrame byte6,PB3
-	hdmitx21_wr_reg(TPI_INFO_B7_IVCTX, vic); //AVI infoFrame byte7,PB4
-
-	data32 = 0;
-	data32 |= (pixel_repeat & 0x0f) << 0; //[3:0]: pixel repeat
-
-	hdmitx21_wr_reg(TPI_INFO_B8_IVCTX, 0x00); //AVI infoFrame byte8,PB5
-
-	hdmitx21_wr_reg(TPI_INFO_B9_IVCTX, 0x00); //AVI infoFrame byte9,PB6
-	hdmitx21_wr_reg(TPI_INFO_B10_IVCTX, 0x00); //AVI infoFrame byte10
-	hdmitx21_wr_reg(TPI_INFO_B11_IVCTX, 0x00); //AVI infoFrame byte11
-	hdmitx21_wr_reg(TPI_INFO_B12_IVCTX, 0x00); //AVI infoFrame byte12
-	hdmitx21_wr_reg(TPI_INFO_B13_IVCTX, 0x00); //AVI infoFrame byte13
-	hdmitx21_wr_reg(TPI_INFO_B14_IVCTX, 0x00); //AVI infoFrame byte14
-	hdmitx21_wr_reg(TPI_INFO_B15_IVCTX, 0x00); //AVI infoFrame byte15
-	hdmitx21_wr_reg(TPI_INFO_B16_IVCTX, 0x00); //AVI infoFrame byte16
-	hdmitx21_wr_reg(TPI_INFO_B17_IVCTX, 0x00); //AVI infoFrame byte17
-	hdmitx21_wr_reg(TPI_INFO_B18_IVCTX, 0x00); //AVI infoFrame byte18
-	hdmitx21_wr_reg(TPI_INFO_EN_IVCTX, 0xff); //TPI Info enable
 
 	//======audio infoFrame packet============
 	//---aif config en----
@@ -2574,7 +2365,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	hdmitx21_wr_reg(TPI_INFO_B3_IVCTX, 0x3D); //content -- PB0 checksum
 
 	data32 = 0;
-	data32 |= i2s_8chan ? 0x07 : 0x01;
+	data32 |= 0x01;
 	//content -- PB1 CT,CC.coding type,channel num
 	hdmitx21_wr_reg(TPI_INFO_B4_IVCTX, data32 & 0xff);
 	hdmitx21_wr_reg(TPI_INFO_B5_IVCTX, 0x00); //content -- PB2 SS,SF TODO

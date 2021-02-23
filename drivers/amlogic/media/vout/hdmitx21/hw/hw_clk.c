@@ -110,7 +110,6 @@ void hdmitx21_set_default_clk(void)
 	data32 |= (1 << 8); // [    8] clk_en for cts_hdmitx_prif_clk
 	hd21_write_reg(CLKCTRL_HTX_CLK_CTRL0, data32);
 
-	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, 0, 0, 8);
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 0, 0, 5);
 
 	// Enable hdmitx_aud_clk
@@ -363,15 +362,15 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_24[] = {
 	{{HDMI_18_720x576p50_16x9, HDMI_17_720x576p50_4x3,
 	  HDMI_3_720x480p60_16x9, HDMI_2_720x480p60_4x3,
 	  HDMI_VIC_END},
-		4324320, 4, 4, 1, VID_PLL_DIV_5, 1, 2, 2, -1},
+		4324320, 4, 4, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
 	{{HDMI_19_1280x720p50_16x9,
 	  HDMI_4_1280x720p60_16x9,
 	  HDMI_VIC_END},
-		5940000, 4, 2, 1, VID_PLL_DIV_5, 1, 2, 2, -1},
+		5940000, 4, 2, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
 	{{HDMI_5_1920x1080i60_16x9,
 	  HDMI_20_1920x1080i50_16x9,
 	  HDMI_VIC_END},
-		5940000, 4, 2, 1, VID_PLL_DIV_5, 1, 2, 2, -1},
+		5940000, 4, 2, 2, VID_PLL_DIV_5, 1, 1, 1, -1},
 	{{HDMI_16_1920x1080p60_16x9,
 	  HDMI_31_1920x1080p50_16x9,
 	  HDMI_VIC_END},
