@@ -3080,7 +3080,7 @@ static void hdmirx_shutdown(struct platform_device *pdev)
 	rx_pr("%s- success\n", __func__);
 }
 
-#ifdef CONFIG_HIBERNATION
+#ifdef CONFIG_PM
 static int hdmirx_restore(struct device *dev)
 {
 	/* queue_delayed_work(eq_wq, &eq_dwork, msecs_to_jiffies(5)); */
@@ -3121,7 +3121,7 @@ static struct platform_driver hdmirx_driver = {
 	.name   = TVHDMI_DRIVER_NAME,
 	.owner	= THIS_MODULE,
 	.of_match_table = hdmirx_dt_match,
-#ifdef CONFIG_HIBERNATION
+#ifdef CONFIG_PM
 	.pm     = &hdmirx_pm,
 #endif
 	}
