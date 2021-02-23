@@ -188,18 +188,12 @@
 			0xffff  0x0>; /* ending flag */
 	};
 
-	dvb_cxd2856 {
-		compatible = "amlogic sc2, dvb";
-		dev_name = "dvb";
+	dvb-extern {
+		compatible = "amlogic, dvb-extern";
+		dev_name = "dvb-extern";
 		status = "disable";
 
-		reg = <0x0 0xfe000000 0x0 0x480000>;
-
-		dmxdev_num = <4>;
-
-		tsn_from = "demod";
-
-		fe0_mode = "external";
+		fe_num = <2>;
 		fe0_demod = "cxd2856";
 		fe0_i2c_adap_id = <&i2c2>;
 		fe0_demod_i2c_addr = <0xD8>;
@@ -208,17 +202,10 @@
 		fe0_reset_dir = <1>; /* 0: out, 1: in. */
 		fe0_ant_poweron_value = <0>;
 		fe0_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-		fe0_dtv_demod = <0>;
 		fe0_ts  = <0>;
-		fe0_dev = <0>;
+		fe0_tuner0 = <0>; /* T/C */
+		fe0_tuner1 = <1>; /* S */
 
-		/*single demod setting */
-		ts0_sid = <0x20>;
-		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
-		ts0_control = <0x0>;
-		ts0_invert = <0>;
-
-		fe1_mode = "external";
 		fe1_demod = "cxd2856";
 		fe1_i2c_adap_id = <&i2c2>;
 		fe1_demod_i2c_addr = <0xCA>;
@@ -227,9 +214,31 @@
 		fe1_reset_dir = <1>; /* 0: out, 1: in. */
 		fe1_ant_poweron_value = <0>;
 		fe1_ant_power_gpio = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-		fe1_dtv_demod = <1>;
 		fe1_ts  = <1>;
-		fe1_dev = <1>;
+		fe1_tuner0 = <0>; /* T/C */
+		fe1_tuner1 = <1>; /* S */
+
+		tuner_num = <2>; /* for extern demod use tuner */
+		tuner0_name = "r836_tuner";
+		tuner1_name = "av2018_tuner";
+	};
+
+	dvb-demux {
+		compatible = "amlogic sc2, dvb-demux";
+		dev_name = "dvb-demux";
+		status = "disable";
+
+		reg = <0x0 0xfe000000 0x0 0x480000>;
+
+		dmxdev_num = <4>;
+
+		tsn_from = "demod";
+
+		/*single demod setting */
+		ts0_sid = <0x20>;
+		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
+		ts0_control = <0x0>;
+		ts0_invert = <0>;
 
 		ts1_sid = <0x21>;
 		ts1 = "serial-4wire";
