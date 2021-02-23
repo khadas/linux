@@ -419,7 +419,7 @@ static inline void reset_rdma_table(u32 vpp_index)
 						 &request_item, 8);
 				j++;
 				for (k = 0; k < trace_num; k++) {
-					if (osd_hw.rdma_trace_reg[k] & 0x10000)
+					if (osd_hw.rdma_trace_reg[k] & 0x10000) {
 						pr_info("recovery -- 0x%04x:0x%08x, mask:0x%08x\n",
 							rdma_table[vpp_index][i].addr,
 							rdma_table[vpp_index][i].val,
@@ -428,6 +428,7 @@ static inline void reset_rdma_table(u32 vpp_index)
 							i,
 							item_count[vpp_index],
 							old_count);
+					}
 				}
 				rdma_recovery_count[vpp_index]++;
 			}
@@ -583,7 +584,7 @@ retry:
 	update_recovery_item(addr, val);
 	osd_rdma_mem_cpy(&rdma_table[vpp_index][item_count[vpp_index] - 1], &request_item, 8);
 	item_count[vpp_index]++;
-	paddr = table_paddr[vpp_index] + item_count[vpp_index] * 8 - 1;
+	paddr = table_paddr[vpp_index] + item_count[vpp_index] * 8;
 	if (!osd_rdma_status_is_reject(vpp_index)) {
 		rdma_end_addr_update(vpp_index, paddr, 0);
 	} else if (!irq_mode) {
@@ -1440,15 +1441,15 @@ static void osd_rdma_irq(void *arg)
 		return;
 
 	rdma_status = osd_reg_read(RDMA_STATUS);
-	debug_rdma_status[0] = rdma_status;
+	debug_rdma_status[VIU1] = rdma_status;
 	OSD_RDMA_STATUS_CLEAR_REJECT;
 	osd_update_vsync_hit();
-	reset_rdma_table(0);
+	reset_rdma_table(VIU1);
 	osd_update_scan_mode();
 	osd_update_3d_mode();
-	osd_hw_reset();
-	rdma_irq_count[0]++;
-	osd_rdma_done[0] = true;
+	osd_hw_reset(VIU1);
+	rdma_irq_count[VIU1]++;
+	osd_rdma_done[VIU1] = true;
 	{
 		/*This is a memory barrier*/
 		wmb();
@@ -1463,14 +1464,14 @@ static void osd_rdma_vpp1_irq(void *arg)
 		return;
 
 	rdma_status = osd_reg_read(RDMA_STATUS);
-	debug_rdma_status[1] = rdma_status;
+	debug_rdma_status[VIU2] = rdma_status;
 	OSD_RDMA_VPP1_STATUS_CLEAR_REJECT;
 	//osd_update_vsync_hit();
-	reset_rdma_table(1);
+	reset_rdma_table(VIU2);
 	//osd_update_scan_mode();
-	//osd_hw_reset();
-	rdma_irq_count[1]++;
-	osd_rdma_done[1] = true;
+	osd_hw_reset(VIU2);
+	rdma_irq_count[VIU2]++;
+	osd_rdma_done[VIU2] = true;
 	{
 		/*This is a memory barrier*/
 		wmb();
@@ -1484,14 +1485,14 @@ static void osd_rdma_vpp2_irq(void *arg)
 	if (osd_rdma_handle[2] == -1)
 		return;
 	rdma_status = osd_reg_read(RDMA_STATUS);
-	debug_rdma_status[2] = rdma_status;
+	debug_rdma_status[VIU3] = rdma_status;
 	OSD_RDMA_VPP2_STATUS_CLEAR_REJECT;
 	//osd_update_vsync_hit();
-	reset_rdma_table(2);
+	reset_rdma_table(VIU3);
 	//osd_update_scan_mode();
-	//osd_hw_reset();
-	rdma_irq_count[2]++;
-	osd_rdma_done[2] = true;
+	osd_hw_reset(VIU3);
+	rdma_irq_count[VIU3]++;
+	osd_rdma_done[VIU3] = true;
 	{
 		/*This is a memory barrier*/
 		wmb();
@@ -1775,7 +1776,7 @@ int osd_rdma_enable(u32 vpp_index, u32 enable)
 }
 EXPORT_SYMBOL(osd_rdma_enable);
 
-int osd_rdma_reset_and_flush(u32 reset_bit)
+int osd_rdma_reset_and_flush(u32 output_index, u32 reset_bit)
 {
 	int i, ret = 0;
 	unsigned long flags = 0;
@@ -1783,9 +1784,8 @@ int osd_rdma_reset_and_flush(u32 reset_bit)
 	u32 base;
 	u32 addr;
 	u32 value;
-	u32 vpp_index = 0;
 
-	spin_lock_irqsave_vpp(0, &flags);
+	spin_lock_irqsave_vpp(output_index, &flags);
 	reset_reg_mask = reset_bit;
 	reset_reg_mask &= ~HW_RESET_OSD1_REGS;
 	if (disable_osd_rdma_reset != 0) {
@@ -1794,9 +1794,9 @@ int osd_rdma_reset_and_flush(u32 reset_bit)
 	}
 
 	if (reset_reg_mask) {
-		wrtie_reg_internal(0, VIU_SW_RESET,
+		wrtie_reg_internal(output_index, VIU_SW_RESET,
 				   reset_reg_mask);
-		wrtie_reg_internal(0, VIU_SW_RESET, 0);
+		wrtie_reg_internal(output_index, VIU_SW_RESET, 0);
 	}
 
 	/* same bit, but gxm only reset hardware, not top reg*/
@@ -1808,7 +1808,7 @@ int osd_rdma_reset_and_flush(u32 reset_bit)
 	while ((reset_bit & HW_RESET_OSD1_REGS) &&
 	       (i < OSD_REG_BACKUP_COUNT)) {
 		addr = osd_reg_backup[i];
-		wrtie_reg_internal(0, addr, osd_backup[addr - base]);
+		wrtie_reg_internal(output_index, addr, osd_backup[addr - base]);
 		i++;
 	}
 	i = 0;
@@ -1819,7 +1819,7 @@ int osd_rdma_reset_and_flush(u32 reset_bit)
 		value = osd_afbc_backup[addr - base];
 		if (addr == OSD1_AFBCD_ENABLE)
 			value |=  0x100;
-		wrtie_reg_internal(0, addr, value);
+		wrtie_reg_internal(output_index, addr, value);
 		i++;
 	}
 
@@ -1837,10 +1837,9 @@ int osd_rdma_reset_and_flush(u32 reset_bit)
 				i++) {
 				addr = mali_afbc_reg_backup[i];
 				value = mali_afbc_backup[addr - base];
-				wrtie_reg_internal(0, addr, value);
+				wrtie_reg_internal(output_index, addr, value);
 			}
 		}
-		wrtie_reg_internal(0, VPU_MAFBC_COMMAND, 1);
 	}
 	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
 	    osd_dev_hw.multi_afbc_core) {
@@ -1861,14 +1860,13 @@ int osd_rdma_reset_and_flush(u32 reset_bit)
 					i++) {
 					addr = mali_afbc_reg_t7_backup[i];
 					value = mali_afbc_t7_backup[addr - base];
-					wrtie_reg_internal(0, addr, value);
+					wrtie_reg_internal(output_index, addr, value);
 				}
 			}
-			wrtie_reg_internal(0, VPU_MAFBC_COMMAND, 1);
 		}
 		afbc_reset = HW_RESET_MALI_AFBCD1_REGS;
 		afbc_reset &= ~HW_RESET_MALI_AFBCD_ARB;
-		if (reset_bit & HW_RESET_MALI_AFBCD1_REGS) {
+		if (reset_bit & afbc_reset) {
 			/* restore mali afbcd regs */
 			if (osd_hw.afbc_regs_backup) {
 				int i;
@@ -1880,14 +1878,13 @@ int osd_rdma_reset_and_flush(u32 reset_bit)
 					i++) {
 					addr = mali_afbc1_reg_t7_backup[i];
 					value = mali_afbc1_t7_backup[addr - base];
-					wrtie_reg_internal(0, addr, value);
+					wrtie_reg_internal(output_index, addr, value);
 				}
 			}
-			wrtie_reg_internal(0, VPU_MAFBC1_COMMAND, 1);
 		}
 		afbc_reset = HW_RESET_MALI_AFBCD2_REGS;
 		afbc_reset &= ~HW_RESET_MALI_AFBCD_ARB;
-		if (reset_bit & HW_RESET_MALI_AFBCD2_REGS) {
+		if (reset_bit & afbc_reset) {
 			/* restore mali afbcd regs */
 			if (osd_hw.afbc_regs_backup) {
 				int i;
@@ -1899,42 +1896,42 @@ int osd_rdma_reset_and_flush(u32 reset_bit)
 					i++) {
 					addr = mali_afbc2_reg_t7_backup[i];
 					value = mali_afbc2_t7_backup[addr - base];
-					wrtie_reg_internal(0, addr, value);
+					wrtie_reg_internal(output_index, addr, value);
 				}
 			}
-			wrtie_reg_internal(0, VPU_MAFBC2_COMMAND, 1);
 		}
 	}
+
 	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
 	    osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE &&
 	    !osd_dev_hw.multi_afbc_core)
-		wrtie_reg_internal(0, VPU_MAFBC_COMMAND, 1);
+		wrtie_reg_internal(output_index, VPU_MAFBC_COMMAND, 1);
 
-	if (item_count[vpp_index] < 500) {
-		if (support_64bit_addr) {
-			#ifdef CONFIG_ARM64
-			osd_reg_write(END_ADDR,
-				      (table_paddr[vpp_index] +
-				      item_count[vpp_index] * 8 - 1) & 0xffffffff);
-			osd_reg_write(END_ADDR_MSB,
-				      ((table_paddr[vpp_index] +
-				      item_count[vpp_index] * 8 - 1) >> 32) & 0xffffffff);
-			#endif
-		} else {
-			osd_reg_write(END_ADDR,
-				      (table_paddr[vpp_index] +
-				      item_count[vpp_index] * 8 - 1) & 0xffffffff);
-		}
+	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
+	    osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE &&
+	    osd_dev_hw.multi_afbc_core) {
+		if (reset_bit & HW_RESET_MALI_AFBCD_REGS)
+			wrtie_reg_internal(output_index, VPU_MAFBC_COMMAND, 1);
+		if (reset_bit & HW_RESET_MALI_AFBCD1_REGS)
+			wrtie_reg_internal(output_index, VPU_MAFBC1_COMMAND, 1);
+		if (reset_bit & HW_RESET_MALI_AFBCD2_REGS)
+			wrtie_reg_internal(output_index, VPU_MAFBC2_COMMAND, 1);
+	}
+
+	if (item_count[output_index] < 500) {
+		rdma_end_addr_update(output_index,
+				     table_paddr[output_index],
+				     item_count[output_index]);
 	} else {
 		pr_info("%s item overflow %d\n",
-			__func__, item_count[vpp_index]);
+			__func__, item_count[output_index]);
 		ret = -1;
 	}
 	if (dump_reg_trigger > 0) {
-		for (i = 0; i < item_count[vpp_index]; i++)
+		for (i = 0; i < item_count[output_index]; i++)
 			pr_info("dump rdma reg[%d]:0x%x, data:0x%x\n",
-				i, rdma_table[vpp_index][i].addr,
-				rdma_table[vpp_index][i].val);
+				i, rdma_table[output_index][i].addr,
+				rdma_table[output_index][i].val);
 		dump_reg_trigger--;
 	}
 
@@ -1944,7 +1941,7 @@ int osd_rdma_reset_and_flush(u32 reset_bit)
 		HW_RESET_OSD1_REGS);
 #endif
 
-	spin_unlock_irqrestore_vpp(0, flags);
+	spin_unlock_irqrestore_vpp(output_index, flags);
 	return ret;
 }
 EXPORT_SYMBOL(osd_rdma_reset_and_flush);
@@ -1988,7 +1985,7 @@ static irqreturn_t osd_rdma_isr(int irq, void *dev_id)
 		osd_update_3d_mode();
 		osd_mali_afbc_start();
 		osd_update_vsync_hit();
-		osd_hw_reset();
+		osd_hw_reset(VIU1);
 		rdma_irq_count++;
 		{
 			/*This is a memory barrier*/

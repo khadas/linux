@@ -163,6 +163,14 @@ enum osd_index_e {
 	OSD_MAX,
 };
 
+/* osd table for viux */
+#define OSD_TABLE_1   (0xffff0000 | (OSD4 << 12) | (OSD3 << 8) | (OSD2 << 4) | OSD1)
+#define OSD_TABLE_2_1 (0xfffff000 | (OSD4 << 8) | (OSD2 << 4) | OSD1)
+#define OSD_TABLE_2_2 (0xfffffff0 | OSD3)
+#define OSD_TABLE_3_1 (0xffffff00 | (OSD2 << 4) | OSD1)
+#define OSD_TABLE_3_2 (0xfffffff0 | OSD3)
+#define OSD_TABLE_3_3 (0xfffffff0 | OSD4)
+
 enum osd_enable_e {
 	DISABLE = 0,
 	ENABLE
@@ -391,6 +399,7 @@ enum vpp_vsync_type {
 	VPU_VPP0,
 	VPU_VPP1,
 	VPU_VPP2,
+	VPU_VPP_MAX
 };
 
 enum render_cmd_type {
@@ -682,6 +691,15 @@ struct vpp1_blend_reg_s {
 	u32 osd2_v_end;
 };
 
+struct hw_vppx_blend_reg_s {
+	u32 vpp_bld_din1_hscope;
+	u32 vpp_bld_din1_vscope;
+	u32 vpp_bld_out_size;
+	u32 vpp_bld_ctrl;
+	u32 vpp_bld_dummy_data;
+	u32 vpp_bld_dummy_alpha;
+};
+
 struct layer_blend_s {
 	u8 input1;
 	u8 input2;
@@ -903,5 +921,6 @@ struct hw_para_s {
 	int in_fd[HW_OSD_COUNT];
 	struct osd_fence_fun_s osd_fence[VIU_COUNT][2];
 	struct osd_rdma_fun_s osd_rdma_func[VIU_COUNT];
+	u32 viu_osd_table[VIU_COUNT];
 };
 #endif /* _OSD_H_ */

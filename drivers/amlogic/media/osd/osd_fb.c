@@ -350,9 +350,11 @@ static int osd_shutdown_flag;
 
 unsigned int osd_log_level;
 unsigned int osd_log_module = 1;
+static int display_dev_cnt = 1;
 
 int int_viu_vsync = -ENXIO;
 int int_viu2_vsync = -ENXIO;
+int int_viu3_vsync = -ENXIO;
 int int_rdma = INT_RDMA;
 struct osd_fb_dev_s *gp_fbdev_list[OSD_COUNT] = {};
 static u32 fb_memsize[HW_OSD_COUNT + 1];
@@ -368,6 +370,7 @@ int ion_fd[OSD_COUNT][OSD_MAX_BUF_NUM];
 
 static int osd_cursor(struct fb_info *fbi, struct fb_cursor *var);
 static void *map_virt_from_phys(phys_addr_t phys, unsigned long total_size);
+static void config_osd_table(u32 display_device_cnt);
 
 phys_addr_t get_fb_rmem_paddr(int index)
 {
@@ -789,7 +792,7 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	s32 osd_dst_axis[4] = {0};
 	u32 hwc_enable;
 	int ret = -1;
-	s32 vsync_timestamp;
+	s32 vsync_timestamp = 0;
 	s64 vsync_timestamp_64;
 	int out_fen_fd;
 	int xoffset, yoffset;
@@ -799,6 +802,7 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	struct fb_cursor *cursor;
 #endif
 	struct do_hwc_cmd_s *do_hwc_cmd;
+	u32 output_index = VIU1;
 
 	mutex_lock(&fbdev->lock);
 	switch (cmd) {
@@ -907,17 +911,29 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		kfree(sync_request);
 		break;
 	case FBIO_WAITFORVSYNC:
-		if (info->node < osd_meson_dev.viu1_osd_count)
+		output_index = get_output_device_id(info->node);
+		if (output_index == VIU1)
 			vsync_timestamp = (s32)osd_wait_vsync_event();
-		else
+		else if (output_index == VIU2)
 			vsync_timestamp = (s32)osd_wait_vsync_event_viu2();
+		else if (output_index == VIU3)
+			vsync_timestamp = (s32)osd_wait_vsync_event_viu3();
+		else
+			osd_log_err("timestamp, cannot get output_index\n");
+
 		ret = copy_to_user(argp, &vsync_timestamp, sizeof(s32));
 		break;
 	case FBIO_WAITFORVSYNC_64:
-		if (info->node < osd_meson_dev.viu1_osd_count)
-			vsync_timestamp_64 = osd_wait_vsync_event();
+		output_index = get_output_device_id(info->node);
+		if (output_index == VIU1)
+			vsync_timestamp_64 = (s32)osd_wait_vsync_event();
+		else if (output_index == VIU2)
+			vsync_timestamp_64 = (s32)osd_wait_vsync_event_viu2();
+		else if (output_index == VIU3)
+			vsync_timestamp_64 = (s32)osd_wait_vsync_event_viu3();
 		else
-			vsync_timestamp_64 = osd_wait_vsync_event_viu2();
+			osd_log_err("timestamp64, cannot get output_index\n");
+
 		ret = copy_to_user(argp, &vsync_timestamp_64, sizeof(s64));
 		break;
 	case FBIOGET_OSD_SCALE_AXIS:
@@ -2541,8 +2557,9 @@ static ssize_t store_debug(struct device *device,
 			   const char *buf, size_t count)
 {
 	int ret = -EINVAL;
+	struct fb_info *fb_info = dev_get_drvdata(device);
 
-	ret = osd_set_debug_hw(buf);
+	ret = osd_set_debug_hw(fb_info->node, buf);
 	if (ret == 0)
 		ret = count;
 
@@ -2611,6 +2628,39 @@ static ssize_t store_log_level(struct device *device,
 	ret = kstrtoint(buf, 0, &res);
 	osd_log_info("log_level: %d->%d\n", osd_log_level, res);
 	osd_log_level = res;
+	return count;
+}
+
+static ssize_t show_display_dev_cnt(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	int i, len = 0;
+
+	len += snprintf(buf, 40, "device cnt: %d\n", display_dev_cnt);
+	for (i = 0; i < display_dev_cnt; i++)
+		len += snprintf(buf + len, 40, "osd table%d:0x%x\n", i,
+				osd_hw.viu_osd_table[i]);
+
+	return len;
+}
+
+static ssize_t store_display_dev_cnt(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int res = 1;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret < 0) {
+		osd_log_err("display dev cnt error(%d)\n", res);
+		res = 1;
+	}
+
+	osd_log_info("set display device cnt: %d->%d\n", display_dev_cnt, res);
+	config_osd_table(res);
+
 	return count;
 }
 
@@ -3845,7 +3895,8 @@ static struct device_attribute osd_attrs[] = {
 	       show_osd_display_fb, store_osd_display_fb),
 	__ATTR(osd_sc_depend, 0644,
 	       show_osd_sc_depend, store_osd_sc_depend),
-
+	__ATTR(display_dev_cnt, 0644,
+	       show_display_dev_cnt, store_display_dev_cnt),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
@@ -4519,6 +4570,47 @@ static const struct of_device_id meson_fb_dt_match[] = {
 	{},
 };
 
+static void config_osd_table(u32 display_device_cnt)
+{
+	int i;
+
+	display_dev_cnt = display_device_cnt;
+	/* 1. mark all osd in table */
+	for (i = 0; i < VIU_COUNT; i++)
+		osd_hw.viu_osd_table[i] = 0xffffffff;
+
+	/* 2. set viu osd table */
+	if (osd_dev_hw.t7_display) {
+		switch (display_device_cnt) {
+		case 1:
+			osd_hw.viu_osd_table[VIU1] = OSD_TABLE_1;
+			break;
+		case 2:
+			osd_hw.viu_osd_table[VIU1] = OSD_TABLE_2_1;
+			osd_hw.viu_osd_table[VIU2] = OSD_TABLE_2_2;
+			break;
+		case 3:
+			osd_hw.viu_osd_table[VIU1] = OSD_TABLE_3_1;
+			osd_hw.viu_osd_table[VIU2] = OSD_TABLE_3_2;
+			osd_hw.viu_osd_table[VIU3] = OSD_TABLE_3_3;
+			break;
+		default:
+			osd_log_err("wrong display_device_cnt(%d)\n", display_device_cnt);
+			break;
+		};
+	} else {
+		for (i = 0; i < osd_meson_dev.viu1_osd_count; i++) {
+			osd_hw.viu_osd_table[VIU1] &= ~(0xf << (i * 4));
+			osd_hw.viu_osd_table[VIU1] |= i << (i * 4);
+		}
+
+		if (osd_meson_dev.has_viu2) {
+			osd_hw.viu_osd_table[VIU2] &= ~0xf;
+			osd_hw.viu_osd_table[VIU2] |= osd_meson_dev.viu2_index;
+		}
+	}
+}
+
 static int __init osd_probe(struct platform_device *pdev)
 {
 	struct fb_info *fbi = NULL;
@@ -4536,6 +4628,7 @@ static int __init osd_probe(struct platform_device *pdev)
 	#endif
 	int i;
 	int ret = 0;
+	int display_device_cnt = 1;
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
@@ -4575,7 +4668,7 @@ static int __init osd_probe(struct platform_device *pdev)
 	} else {
 		osd_log_info("viu vsync irq: %d\n", int_viu_vsync);
 	}
-	if (osd_meson_dev.has_viu2) {
+	if (osd_meson_dev.has_viu2 || osd_meson_dev.has_vpp1) {
 		int_viu2_vsync = platform_get_irq_byname(pdev, "viu2-vsync");
 		if (int_viu2_vsync  == -ENXIO) {
 			osd_log_err("cannot get viu2 irq resource\n");
@@ -4584,6 +4677,16 @@ static int __init osd_probe(struct platform_device *pdev)
 			osd_log_info("viu2 vsync irq: %d\n", int_viu2_vsync);
 		}
 	}
+	if (osd_meson_dev.has_vpp2) {
+		int_viu3_vsync = platform_get_irq_byname(pdev, "viu3-vsync");
+		if (int_viu3_vsync  == -ENXIO) {
+			osd_log_err("cannot get viu2 irq resource\n");
+			goto failed1;
+		} else {
+			osd_log_info("viu3 vsync irq: %d\n", int_viu3_vsync);
+		}
+	}
+
 	if (osd_meson_dev.has_rdma) {
 		int_rdma = platform_get_irq_byname(pdev, "rdma");
 		if (int_rdma  == -ENXIO) {
@@ -4591,7 +4694,7 @@ static int __init osd_probe(struct platform_device *pdev)
 			goto failed1;
 		}
 	}
-	if (osd_meson_dev.has_viu2) {
+	if (osd_meson_dev.has_viu2 && !osd_dev_hw.t7_display) {
 		osd_meson_dev.vpu_clkc = devm_clk_get(&pdev->dev, "vpu_clkc");
 		if (IS_ERR(osd_meson_dev.vpu_clkc)) {
 			osd_log_err("cannot get vpu_clkc\n");
@@ -4606,6 +4709,12 @@ static int __init osd_probe(struct platform_device *pdev)
 		osd_meson_dev.viu1_osd_count--;
 		osd_meson_dev.viu2_index = osd_meson_dev.viu1_osd_count;
 	}
+
+	prop = of_get_property(pdev->dev.of_node, "display_device_cnt", NULL);
+	if (prop)
+		display_device_cnt = of_read_ulong(prop, 1);
+
+	config_osd_table(display_device_cnt);
 
 	ret = osd_io_remap(osd_meson_dev.osd_ver == OSD_SIMPLE);
 	if (!ret) {

@@ -158,7 +158,7 @@ static ssize_t debug_write_file(struct file *file, const char __user *userbuf,
 	if (copy_from_user(buf, userbuf, count))
 		return -EFAULT;
 	buf[count] = 0;
-	osd_set_debug_hw(buf);
+	osd_set_debug_hw(VIU1, buf);
 	return count;
 }
 
@@ -834,9 +834,9 @@ void osd_drm_vsync_isr_handler(void)
 		/* go through update list */
 		walk_through_update_list();
 		osd_update_3d_mode();
-		osd_mali_afbc_start();
+		osd_mali_afbc_start(VIU1);
 		osd_update_vsync_hit();
-		osd_hw_reset();
+		osd_hw_reset(VIU1);
 	} else {
 		if (osd_hw.osd_meson_dev.cpu_id != __MESON_CPU_MAJOR_ID_AXG) {
 			osd_update_vsync_timestamp();
@@ -848,7 +848,7 @@ void osd_drm_vsync_isr_handler(void)
 			walk_through_update_list();
 			osd_update_3d_mode();
 			osd_update_vsync_hit();
-			osd_hw_reset();
+			osd_hw_reset(VIU1);
 		}
 	}
 }

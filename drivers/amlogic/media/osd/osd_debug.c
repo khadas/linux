@@ -263,7 +263,8 @@ static void osd_debug_dump_register_all(void)
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		reg = VPP_OSD2_MATRIX_EN_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		if (!osd_hw.powered[count - 1])
+		/* avoid crash for reading viu2 osd regs */
+		if (!osd_hw.powered[count - 1] && osd_hw.osd_meson_dev.has_viu2)
 			count--;
 	}
 	if (osd_hw.osd_meson_dev.osd_ver == OSD_NORMAL) {
@@ -450,24 +451,46 @@ static void osd_debug_dump_register_all(void)
 		osd_log_info("reg[0x%x]: 0x%08x\n",
 			     reg, osd_reg_read(reg));
 	}
+
+	if (osd_dev_hw.t7_display) {
+		for (reg = VPP1_BLD_CTRL; reg <= VPP1_BLD_DIN2_VSCOPE; reg++)
+			osd_log_info("reg[0x%x]: 0x%08x\n",
+				     reg, osd_reg_read(reg));
+		reg = VPP1_BLEND_BLEND_DUMMY_DATA;
+			osd_log_info("reg[0x%x]: 0x%08x\n",
+				     reg, osd_reg_read(reg));
+		reg = VPP1_BLEND_DUMMY_ALPHA;
+			osd_log_info("reg[0x%x]: 0x%08x\n\n",
+				     reg, osd_reg_read(reg));
+
+		for (reg = VPP2_BLD_CTRL; reg <= VPP2_BLD_DIN2_VSCOPE; reg++)
+			osd_log_info("reg[0x%x]: 0x%08x\n",
+				     reg, osd_reg_read(reg));
+		reg = VPP2_BLEND_BLEND_DUMMY_DATA;
+			osd_log_info("reg[0x%x]: 0x%08x\n",
+				     reg, osd_reg_read(reg));
+		reg = VPP2_BLEND_DUMMY_ALPHA;
+			osd_log_info("reg[0x%x]: 0x%08x\n",
+				     reg, osd_reg_read(reg));
+	}
 }
 
 static void osd_debug_dump_register_region(u32 start, u32 end)
 {
 	u32 reg = 0;
 
-	for (reg = start; reg <= end; reg += 4)
+	for (reg = start; reg <= end; reg += 1)
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 }
 
-static void osd_debug_dump_register(int argc, char **argv)
+static void osd_debug_dump_register(u32 output_index, int argc, char **argv)
 {
 	int reg_start, reg_end;
 	int ret;
 
 	if (!(osd_hw.osd_meson_dev.osd_ver == OSD_SIMPLE) &&
 	    osd_hw.hw_rdma_en)
-		read_rdma_table(VPU_VPP0);
+		read_rdma_table(output_index);
 	if (argc == 3 && argv[1] && argv[2]) {
 		ret = kstrtoint(argv[1], 16, &reg_start);
 		ret = kstrtoint(argv[2], 16, &reg_end);
@@ -713,12 +736,13 @@ char *osd_get_debug_hw(void)
 	return osd_debug_help;
 }
 
-int osd_set_debug_hw(const char *buf)
+int osd_set_debug_hw(u32 index, const char *buf)
 {
 	int argc;
 	char *buffer, *p, *para;
 	char *argv[4];
 	char cmd;
+	u32 output_index = get_output_device_id(index);
 
 	buffer = kstrdup(buf, GFP_KERNEL);
 	p = buffer;
@@ -740,7 +764,7 @@ int osd_set_debug_hw(const char *buf)
 		osd_debug_dump_value();
 		break;
 	case 'd':
-		osd_debug_dump_register(argc, argv);
+		osd_debug_dump_register(output_index, argc, argv);
 		break;
 	case 'r':
 		osd_debug_read_register(argc, argv);

@@ -81,7 +81,7 @@ MODULE_PARM_DESC(mali_afbc2_t7_backup, "\n mali afbc2 register t7 backup\n");
 
 /* 0: not backup */
 static u32 backup_enable;
-module_param(backup_enable, uint, 0444);
+module_param(backup_enable, uint, 0644);
 void update_backup_reg(u32 addr, u32 value)
 {
 	u32 base = OSD1_AFBCD_ENABLE;

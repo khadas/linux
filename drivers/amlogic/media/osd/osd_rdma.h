@@ -115,7 +115,7 @@ enum {
 int rdma_watchdog_setting(int flag);
 int read_rdma_table(u32 vpp_index);
 int osd_rdma_enable(u32 vpp_index, u32 enable);
-int osd_rdma_reset_and_flush(u32 reset_bit);
+int osd_rdma_reset_and_flush(u32 output_index, u32 reset_bit);
 void osd_rdma_interrupt_done_clear(u32 vpp_index);
 int osd_rdma_uninit(void);
 void set_reset_rdma_trigger_line(void);
