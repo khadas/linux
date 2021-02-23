@@ -36,6 +36,7 @@
 #include <linux/random.h>
 #include <linux/gpio/consumer.h>
 #include <linux/sched/clock.h>
+#include <linux/debugfs.h>
 
 struct mmc_gpio {
 	struct gpio_desc *ro_gpio;
@@ -1900,23 +1901,9 @@ static void update_all_line_eyetest(struct mmc_host *mmc)
 	}
 }
 
-ssize_t emmc_eyetest_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
+int emmc_clktest(struct mmc_host *mmc)
 {
-	struct meson_host *host = dev_get_drvdata(dev);
-	struct mmc_host *mmc = host->mmc;
-
-	mmc_claim_host(mmc);
-	update_all_line_eyetest(mmc);
-	mmc_release_host(mmc);
-	return sprintf(buf, "%s\n", "Emmc all lines eyetest.\n");
-}
-
-ssize_t emmc_clktest_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
-{
-	struct meson_host *host = dev_get_drvdata(dev);
-	struct mmc_host *mmc = host->mmc;
+	struct meson_host *host = mmc_priv(mmc);
 	u32 intf3 = readl(host->regs + SD_EMMC_INTF3);
 	u32 clktest = 0, delay_cell = 0, clktest_log = 0, count = 0;
 	u32 vcfg = readl(host->regs + SD_EMMC_CFG);
@@ -2463,6 +2450,55 @@ static void meson_mmc_read_resp(struct mmc_host *mmc, struct mmc_command *cmd)
 	}
 }
 
+void aml_host_bus_fsm_show(struct mmc_host *mmc, int status)
+{
+	int fsm_val = 0;
+
+	fsm_val = (status & BUS_FSM_MASK) >> __ffs(BUS_FSM_MASK);
+	switch (fsm_val) {
+	case BUS_FSM_IDLE:
+		pr_err("%s: err: idle, bus_fsm:0x%x\n",
+				mmc_hostname(mmc), fsm_val);
+		break;
+	case BUS_FSM_SND_CMD:
+		pr_err("%s: err: send cmd, bus_fsm:0x%x\n",
+				mmc_hostname(mmc), fsm_val);
+		break;
+	case BUS_FSM_CMD_DONE:
+		pr_err("%s: err: wait for cmd done, bus_fsm:0x%x\n",
+				mmc_hostname(mmc), fsm_val);
+		break;
+	case BUS_FSM_RESP_START:
+		pr_err("%s: err: resp start, bus_fsm:0x%x\n",
+				mmc_hostname(mmc), fsm_val);
+		break;
+	case BUS_FSM_RESP_DONE:
+		pr_err("%s: err: wait for resp done, bus_fsm:0x%x\n",
+				mmc_hostname(mmc), fsm_val);
+		break;
+	case BUS_FSM_DATA_START:
+		pr_err("%s: err: data start, bus_fsm:0x%x\n",
+				mmc_hostname(mmc), fsm_val);
+		break;
+	case BUS_FSM_DATA_DONE:
+		pr_err("%s: err: wait for data done, bus_fsm:0x%x\n",
+				mmc_hostname(mmc), fsm_val);
+		break;
+	case BUS_FSM_DESC_WRITE_BACK:
+		pr_err("%s: err: wait for desc write back, bus_fsm:0x%x\n",
+				mmc_hostname(mmc), fsm_val);
+		break;
+	case BUS_FSM_IRQ_SERVICE:
+		pr_err("%s: err: wait for irq service, bus_fsm:0x%x\n",
+				mmc_hostname(mmc), fsm_val);
+		break;
+	default:
+		pr_err("%s: err: unknown err, bus_fsm:0x%x\n",
+				mmc_hostname(mmc), fsm_val);
+		break;
+	}
+}
+
 static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 {
 	struct meson_host *host = dev_id;
@@ -2552,6 +2588,9 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 		ret = IRQ_WAKE_THREAD;
 		goto out;
 	}
+
+	if (status & (IRQ_CRC_ERR | IRQ_TIMEOUTS))
+		aml_host_bus_fsm_show(host->mmc, status);
 
 	meson_mmc_read_resp(host->mmc, cmd);
 
@@ -3172,27 +3211,6 @@ static irqreturn_t meson_mmc_cd_detect_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-ssize_t emmc_hs200_show(struct device *dev,
-			struct device_attribute *attr, char *buf)
-{
-	struct meson_host *host = dev_get_drvdata(dev);
-	struct mmc_host *mmc = host->mmc;
-	u32 opcode;
-
-	mmc_claim_host(mmc);
-	if (aml_card_type_mmc(host))
-		opcode = MMC_SEND_TUNING_BLOCK_HS200;
-	else
-		opcode = MMC_SEND_TUNING_BLOCK;
-	host->is_tuning = 1;
-#ifndef SD_EMMC_FIXED_ADJ_HS200
-	meson_mmc_clk_phase_tuning(mmc, opcode);
-#endif
-	host->is_tuning = 0;
-	mmc_release_host(mmc);
-	return 1;
-}
-
 static void scan_emmc_tx_win(struct mmc_host *mmc)
 {
 	struct meson_host *host = mmc_priv(mmc);
@@ -3242,27 +3260,12 @@ static void scan_emmc_tx_win(struct mmc_host *mmc)
 	emmc_show_cmd_window(str, repeat_times);
 }
 
-ssize_t emmc_scan_tx_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
+void emmc_eyetestlog(struct mmc_host *mmc)
 {
-	struct meson_host *host = dev_get_drvdata(dev);
-	struct mmc_host *mmc = host->mmc;
-
-	mmc_claim_host(mmc);
-	scan_emmc_tx_win(mmc);
-	mmc_release_host(mmc);
-	return sprintf(buf, "%s\n", "Emmc scan command window.\n");
-}
-
-ssize_t emmc_eyetestlog_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
-{
-	struct meson_host *host = dev_get_drvdata(dev);
-	struct mmc_host *mmc = host->mmc;
+	struct meson_host *host = mmc_priv(mmc);
 	u32 dly, dly1_bak, dly2_bak;
 	int i = 0;
 
-	mmc_claim_host(mmc);
 	dly1_bak = readl(host->regs + SD_EMMC_DELAY1);
 	dly2_bak = readl(host->regs + SD_EMMC_DELAY2);
 	for (i = 0; i < 64; i++) {
@@ -3273,8 +3276,6 @@ ssize_t emmc_eyetestlog_show(struct device *dev,
 	}
 	writel(dly1_bak, host->regs + SD_EMMC_DELAY1);
 	writel(dly2_bak, host->regs + SD_EMMC_DELAY2);
-	mmc_release_host(mmc);
-	return sprintf(buf, "%s\n", "Emmc all lines eyetest log.\n");
 }
 
 //static int meson_mmc_clk_set_delay(struct clk_hw *hw, int degrees)
@@ -3313,18 +3314,6 @@ ssize_t emmc_eyetestlog_show(struct device *dev,
 //	return sprintf(buf, "%s\n", "Emmc tx delay.\n");
 //}
 
-ssize_t emmc_cmd_rx_win_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
-{
-	struct meson_host *host = dev_get_drvdata(dev);
-	struct mmc_host *mmc = host->mmc;
-
-	mmc_claim_host(mmc);
-	scan_emmc_cmd_win(mmc, 0);
-	mmc_release_host(mmc);
-	return sprintf(buf, "%s\n", "Emmc scan cmd rx win done.\n");
-}
-
 static const struct mmc_host_ops meson_mmc_ops = {
 	.request	= meson_mmc_request,
 	.set_ios	= meson_mmc_set_ios,
@@ -3338,16 +3327,74 @@ static const struct mmc_host_ops meson_mmc_ops = {
 	.start_signal_voltage_switch = meson_mmc_voltage_switch,
 };
 
-DEVICE_ATTR_RO(emmc_eyetest);
-DEVICE_ATTR_RO(emmc_clktest);
-DEVICE_ATTR_RO(emmc_scan_tx);
-DEVICE_ATTR_RO(emmc_hs200);
-DEVICE_ATTR_RO(emmc_eyetestlog);
-DEVICE_ATTR_RO(emmc_cmd_rx_win);
+static int mmc_clktest_show(struct seq_file *s, void *data)
+{
+	struct mmc_host	*host = s->private;
+	int count = 0;
+
+	mmc_claim_host(host);
+	count = emmc_clktest(host);
+	mmc_release_host(host);
+
+	seq_puts(s, "mmc clktest done\n");
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(mmc_clktest);
+
+static int mmc_eyetest_show(struct seq_file *s, void *data)
+{
+	struct mmc_host	*host = s->private;
+
+	mmc_claim_host(host);
+	update_all_line_eyetest(host);
+	mmc_release_host(host);
+
+	seq_puts(s, "mmc eyetest done\n");
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(mmc_eyetest);
+
+static int mmc_tx_win_show(struct seq_file *s, void *data)
+{
+	struct mmc_host	*host = s->private;
+
+	mmc_claim_host(host);
+	scan_emmc_tx_win(host);
+	mmc_release_host(host);
+
+	seq_puts(s, "mmc tx win done\n");
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(mmc_tx_win);
+
+static int mmc_cmd_rx_win_show(struct seq_file *s, void *data)
+{
+	struct mmc_host	*host = s->private;
+
+	mmc_claim_host(host);
+	scan_emmc_cmd_win(host, 0);
+	mmc_release_host(host);
+
+	seq_puts(s, "mmc cmd rx win done\n");
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(mmc_cmd_rx_win);
+
+static int mmc_eyetestlog_show(struct seq_file *s, void *data)
+{
+	struct mmc_host	*host = s->private;
+
+	mmc_claim_host(host);
+	emmc_eyetestlog(host);
+	mmc_release_host(host);
+
+	seq_puts(s, "mmc eyetestlog done\n");
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(mmc_eyetestlog);
 
 static int meson_mmc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct meson_host *host;
 	struct mmc_host *mmc;
 	int ret;
@@ -3399,15 +3446,15 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	host->regs = devm_ioremap_resource(&pdev->dev, res);
+	host->res[0] = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	host->regs = devm_ioremap_resource(&pdev->dev, host->res[0]);
 	if (IS_ERR(host->regs)) {
 		ret = PTR_ERR(host->regs);
 		goto free_host;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	host->clk_tree_base = ioremap(res->start, resource_size(res));
+	host->res[1] = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	host->clk_tree_base = ioremap(host->res[1]->start, resource_size(host->res[1]));
 	if (IS_ERR(host->clk_tree_base)) {
 		ret = PTR_ERR(host->clk_tree_base);
 		goto free_host;
@@ -3420,8 +3467,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		val &= ~EMMC_SDIO_CLOCK_FELD;
 	writel(val, host->clk_tree_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	host->pin_mux_base = ioremap(res->start, resource_size(res));
+	host->res[2] = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	host->pin_mux_base = ioremap(host->res[2]->start, resource_size(host->res[2]));
 	if (IS_ERR(host->pin_mux_base)) {
 		ret = PTR_ERR(host->pin_mux_base);
 		goto free_host;
@@ -3525,7 +3572,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		 */
 		host->bounce_buf_size = SD_EMMC_SRAM_DATA_BUF_LEN;
 		host->bounce_buf = host->regs + SD_EMMC_SRAM_DATA_BUF_OFF;
-		host->bounce_dma_addr = res->start + SD_EMMC_SRAM_DATA_BUF_OFF;
+		host->bounce_dma_addr = host->res[0]->start + SD_EMMC_SRAM_DATA_BUF_OFF;
 	} else {
 		/* data bounce buffer */
 		host->bounce_buf_size = mmc->max_req_size;
@@ -3590,34 +3637,22 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		sdio_host = mmc;
 	}
 
-	ret = device_create_file(&pdev->dev, &dev_attr_emmc_eyetest);
-	if (ret)
-		dev_warn(mmc_dev(host->mmc),
-			 "Unable to creat sysfs attributes\n");
-	ret = device_create_file(&pdev->dev, &dev_attr_emmc_clktest);
-	if (ret)
-		dev_warn(mmc_dev(host->mmc),
-			 "Unable to creat sysfs attributes\n");
-//	ret = device_create_file(&pdev->dev, &dev_attr_emmc_txdelay_test);
-//	if (ret)
-//		dev_warn(mmc_dev(host->mmc),
-//			 "Unable to creat sysfs attributes\n");
-	ret = device_create_file(&pdev->dev, &dev_attr_emmc_hs200);
-	if (ret)
-		dev_warn(mmc_dev(host->mmc),
-			 "Unable to creat sysfs attributes\n");
-	ret = device_create_file(&pdev->dev, &dev_attr_emmc_scan_tx);
-	if (ret)
-		dev_warn(mmc_dev(host->mmc),
-			 "Unable to creat sysfs attributes\n");
-	ret = device_create_file(&pdev->dev, &dev_attr_emmc_cmd_rx_win);
-	if (ret)
-		dev_warn(mmc_dev(host->mmc),
-			 "Unable to creat sysfs attributes\n");
-	ret = device_create_file(&pdev->dev, &dev_attr_emmc_eyetestlog);
-	if (ret)
-		dev_warn(mmc_dev(host->mmc),
-			 "Unable to creat sysfs attributes\n");
+	if (mmc->debugfs_root && aml_card_type_mmc(host)) {
+		host->debugfs_root = debugfs_create_dir(dev_name(&pdev->dev), mmc->debugfs_root);
+		if (IS_ERR_OR_NULL(host->debugfs_root))
+			goto err_bounce_buf;
+
+		debugfs_create_file("clktest", 0400, host->debugfs_root, mmc,
+				&mmc_clktest_fops);
+		debugfs_create_file("eyetest", 0400, host->debugfs_root, mmc,
+				&mmc_eyetest_fops);
+		debugfs_create_file("eyetestlog", 0400, host->debugfs_root, mmc,
+				&mmc_eyetestlog_fops);
+		debugfs_create_file("tx_win", 0400, host->debugfs_root, mmc,
+				&mmc_tx_win_fops);
+		debugfs_create_file("cmd_rx_win", 0400, host->debugfs_root, mmc,
+				&mmc_cmd_rx_win_fops);
+	}
 
 	host->blk_test = devm_kzalloc(host->dev,
 				      512 * CALI_BLK_CNT, GFP_KERNEL);

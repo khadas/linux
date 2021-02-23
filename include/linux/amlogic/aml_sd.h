@@ -73,6 +73,18 @@ struct meson_mmc_data {
 	u8 latching_mode;
 };
 
+enum aml_host_bus_fsm { /* Host bus fsm status */
+	BUS_FSM_IDLE,           /* 0, idle */
+	BUS_FSM_SND_CMD,        /* 1, send cmd */
+	BUS_FSM_CMD_DONE,       /* 2, wait for cmd done */
+	BUS_FSM_RESP_START,     /* 3, resp start */
+	BUS_FSM_RESP_DONE,      /* 4, wait for resp done */
+	BUS_FSM_DATA_START,     /* 5, data start */
+	BUS_FSM_DATA_DONE,      /* 6, wait for data done */
+	BUS_FSM_DESC_WRITE_BACK,/* 7, wait for desc write back */
+	BUS_FSM_IRQ_SERVICE,    /* 8, wait for irq service */
+};
+
 struct sd_emmc_desc {
 	u32 cmd_cfg;
 	u32 cmd_arg;
@@ -124,6 +136,7 @@ struct meson_host {
 	void __iomem *regs;
 	void __iomem *pin_mux_base;
 	void __iomem *clk_tree_base;
+	struct resource *res[3];
 	struct clk *core_clk;
 	struct clk *tx_clk;
 	struct clk *mmc_clk;
@@ -185,12 +198,14 @@ struct meson_host {
 	int run_pxp_flag;
 	bool ignore_desc_busy;
 	bool use_intf3_tuning;
+	struct dentry *debugfs_root;
 };
 
 int sdio_reset_comm(struct mmc_card *card);
 void sdio_reinit(void);
 const char *get_wifi_inf(void);
 int sdio_get_vendor(void);
+void aml_host_bus_fsm_show(struct mmc_host *mmc, int status);
 
 #define   DRIVER_NAME "meson-gx-mmc"
 
@@ -295,6 +310,7 @@ int sdio_get_vendor(void);
 #define   IRQ_RESP_STATUS BIT(14)
 #define   IRQ_SDIO BIT(15)
 #define   CFG_CMD_SETUP BIT(17)
+#define   BUS_FSM_MASK GENMASK(29, 26)
 #define   IRQ_EN_MASK \
 	(IRQ_CRC_ERR | IRQ_TIMEOUTS | IRQ_END_OF_CHAIN | IRQ_RESP_STATUS |\
 	 IRQ_SDIO)
