@@ -62,6 +62,8 @@ modules.order
 /Module.markers
 /modules.builtin.modinfo
 
+/customer
+
 #
 # RPM spec file (make rpm-pkg)
 #

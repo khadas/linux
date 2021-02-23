@@ -491,6 +491,16 @@ KBUILD_LDFLAGS :=
 GCC_PLUGINS_CFLAGS :=
 CLANG_FLAGS :=
 
+# customer directory support
+mesondefconfig := $(wildcard $(srctree)/arch/$(SRCARCH)/configs/*defconfig)
+mesondefconfig := $(notdir $(mesondefconfig))
+
+mesondtb := $(wildcard $(srctree)/arch/$(SRCARCH)/boot/dts/amlogic/*.dts)
+mesondtb := $(notdir $(mesondtb))
+mesondtb := $(mesondtb:%.dts=%.dtb)
+
+export mesondefconfig mesondtb
+
 export ARCH SRCARCH CONFIG_SHELL BASH HOSTCC KBUILD_HOSTCFLAGS CROSS_COMPILE LD CC
 export CPP AR NM STRIP OBJCOPY OBJDUMP OBJSIZE READELF PAHOLE LEX YACC AWK INSTALLKERNEL
 export PERL PYTHON PYTHON3 CHECK CHECKFLAGS MAKE UTS_MACHINE HOSTCXX
@@ -1349,7 +1359,9 @@ ifneq ($(dtstree),)
 
 ifdef CONFIG_AMLOGIC_MODIFY
 %.dtb: include/config/kernel.release scripts_dtc
-	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/amlogic/$@
+	$(if $(filter $@,$(mesondtb)),\
+	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/amlogic/$@,\
+	$(Q)$(MAKE) $(build)=customer/$(dtstree) customer/$(dtstree)/$@)
 else
 %.dtb: include/config/kernel.release scripts_dtc
 	$(Q)$(MAKE) $(build)=$(dtstree) $(dtstree)/$@
@@ -1359,6 +1371,9 @@ PHONY += dtbs dtbs_install dtbs_check
 dtbs: include/config/kernel.release scripts_dtc
 ifdef CONFIG_AMLOGIC_MODIFY
 	$(Q)$(MAKE) $(build)=$(dtstree)/amlogic
+ifeq ($(srctree)/customer, $(wildcard $(srctree)/customer))
+	$(Q)$(MAKE) $(build)=customer/$(dtstree)
+endif
 else
 	$(Q)$(MAKE) $(build)=$(dtstree)
 endif
@@ -1561,7 +1576,7 @@ distclean: mrproper
 # Brief documentation of the typical targets used
 # ---------------------------------------------------------------------------
 
-boards := $(wildcard $(srctree)/arch/$(SRCARCH)/configs/*_defconfig)
+boards := $(wildcard $(srctree)/arch/$(SRCARCH)/configs/*_defconfig $(srctree)/customer/arch/$(SRCARCH)/configs/*_defconfig)
 boards := $(sort $(notdir $(boards)))
 board-dirs := $(dir $(wildcard $(srctree)/arch/$(SRCARCH)/configs/*/*_defconfig))
 board-dirs := $(sort $(notdir $(board-dirs:/=)))
