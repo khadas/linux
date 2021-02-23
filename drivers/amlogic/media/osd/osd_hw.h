@@ -22,6 +22,7 @@
 
 extern int int_viu_vsync;
 extern int int_viu2_vsync;
+extern int int_viu3_vsync;
 extern struct hw_para_s osd_hw;
 extern struct osd_device_hw_s osd_dev_hw;
 extern int enable_vd_zorder;
@@ -121,6 +122,7 @@ int osd_sync_request_render(u32 index, u32 yres,
 int osd_sync_do_hwc(u32 output_index, struct do_hwc_cmd_s *hwc_cmd);
 s64 osd_wait_vsync_event(void);
 s64 osd_wait_vsync_event_viu2(void);
+s64 osd_wait_vsync_event_viu3(void);
 void osd_cursor_hw(u32 index, s16 x, s16 y,
 		   s16 xstart, s16 ystart,
 		   u32 osd_w, u32 osd_h);
@@ -139,7 +141,7 @@ int osd_get_logo_index(void);
 int osd_get_init_hw_flag(void);
 void osd_get_hw_para(struct hw_para_s **para);
 void osd_get_blending_para(struct hw_osd_blending_s **para);
-int osd_set_debug_hw(const char *buf);
+int osd_set_debug_hw(u32 index, const char *buf);
 char *osd_get_debug_hw(void);
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void enable_rdma(int enable_flag);
@@ -167,8 +169,8 @@ void osd_update_scan_mode(void);
 void osd_update_3d_mode(void);
 void osd_update_vsync_hit(void);
 void osd_update_vsync_timestamp(void);
-void osd_hw_reset(void);
-void osd_mali_afbc_start(void);
+void osd_hw_reset(u32 output_index);
+void osd_mali_afbc_start(u32 output_index);
 int logo_work_init(void);
 int get_logo_loaded(void);
 void set_logo_loaded(void);
