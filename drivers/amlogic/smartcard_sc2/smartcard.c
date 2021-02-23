@@ -667,12 +667,14 @@ static ssize_t debug_store(struct class *class,
 
 	switch (buf[0]) {
 	case '2':
-		smc_debug_level++;
 	case '1':{
 			void *p =
 			    krealloc((const void *)dbuf, DBUF_SIZE, GFP_KERNEL);
 
 			smc_debug_level++;
+			if (buf[0] == '2')
+				smc_debug_level++;
+
 			if (p) {
 				dbuf = (char *)p;
 				smc_debug = smc_debug_level;

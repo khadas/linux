@@ -359,12 +359,6 @@ struct smc_dev {
 #define SMC_CLASS_NAME  "smc-class"
 #define SMC_DEV_COUNT	1
 
-#define WRITE_CBUS_REG(_r, _v)   aml_write_cbus(_r, _v)
-#define READ_CBUS_REG(_r)        aml_read_cbus(_r)
-
-#define SMC_READ_REG(a)          READ_MPEG_REG(SMARTCARD_##a)
-#define SMC_WRITE_REG(a, b)      WRITE_MPEG_REG(SMARTCARD_##a, b)
-
 static struct mutex smc_lock;
 static int smc_major;
 static struct smc_dev smc_dev[SMC_DEV_COUNT];
@@ -433,6 +427,51 @@ static ssize_t smc_gpio_pull_show(struct device *dev,
 		return sprintf(buf, "%s\n", "disable GPIO pull low");
 }
 
+static void *p_smc_hw_base;
+
+static void write_smc(unsigned int reg, unsigned int val)
+{
+	void *ptr = (void *)(p_smc_hw_base + reg);
+
+	writel(val, ptr);
+	pr_dbg("write addr:%lx, org v:0x%0x, ret v:0x%0x\n",
+	       (unsigned long)ptr, val, readl(ptr));
+}
+
+static int read_smc(unsigned int reg)
+{
+	void *addr = p_smc_hw_base + reg;
+	int ret = 0;
+
+	ret = readl(addr);
+	pr_dbg("read addr:%lx, value:0x%0x\n", (unsigned long)addr, ret);
+	return ret;
+}
+
+static int smc_addr(struct platform_device *pdev)
+{
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		pr_error("%s fail\n", __func__);
+		return -1;
+	}
+
+	p_smc_hw_base = devm_ioremap_nocache(&pdev->dev, res->start,
+					     resource_size(res));
+	if (!p_smc_hw_base) {
+		pr_error("%s base addr error\n", __func__);
+		return -1;
+	}
+	return 0;
+}
+
+#define WRITE_CBUS_REG(_r, _v)   write_smc((_r), _v)
+#define READ_CBUS_REG(_r)        read_smc((_r))
+
+#define SMC_READ_REG(a)          READ_CBUS_REG(SMARTCARD_##a)
+#define SMC_WRITE_REG(a, b)      WRITE_CBUS_REG(SMARTCARD_##a, b)
 static ssize_t smc_gpio_pull_store(struct device *dev,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
@@ -2316,6 +2355,12 @@ static int smc_probe(struct platform_device *pdev)
 	int i, ret;
 
 	mutex_lock(&smc_lock);
+
+	if (smc_addr(pdev) != 0) {
+		dev_err(&pdev->dev, "get smartcard reg map fail\n");
+		mutex_unlock(&smc_lock);
+		return -1;
+	}
 
 	for (i = 0; i < SMC_DEV_COUNT; i++) {
 		if (!smc_dev[i].init) {

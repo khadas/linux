@@ -1846,6 +1846,16 @@
 		};
 	};
 
+	sd_iso7816_pins:sd_iso7816_pins {
+		mux {
+			groups = "iso7816_clk_h",
+				"iso7816_data_h";
+			function = "iso7816";
+			input-enable;
+			bias-pull-down;
+		};
+	};
+
 	sdio_pins: sdio_pins {
 		mux {
 			groups = "sdio_d0",

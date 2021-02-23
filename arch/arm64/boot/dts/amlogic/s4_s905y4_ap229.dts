@@ -261,6 +261,41 @@
 		pinctrl-0 = <&dvb_s_ts0_pins>;
 	};
 
+    /* SMC */
+	smartcard {
+		compatible = "amlogic,smartcard-sc2";
+		dev_name = "smartcard";
+		status = "okay";
+
+		reg = <0x0 0xfe000000 0x0 0x480000>;
+		irq_trigger_type = "GPIO_IRQ_LOW";
+
+		reset_pin-gpios = <&gpio GPIOH_10 GPIO_ACTIVE_HIGH>;
+		detect_pin-gpios = <&gpio GPIOH_11 GPIO_ACTIVE_HIGH>;
+		enable_5v3v_pin-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		enable_pin-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+
+		interrupts = <0 174 1>;
+		interrupt-names = "smc0_irq";
+		/*
+		 *Smc clock source, if change this,
+		 *you must adjust clk and divider in smartcard.c
+		 */
+		smc0_clock_source = <0>;
+		/*0: high voltage on detect pin indicates card in.*/
+		smc0_det_invert = <0>;
+		smc0_5v3v_level = <0>;
+		/*Ordinarily,smartcard controller needs a enable pin.*/
+		smc_need_enable_pin = "yes";
+		reset_level = <0>;
+		smc0_enable_level = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_iso7816_pins>;
+		clocks = <&clkc CLKID_SC_CLK_GATE>;
+		clock-names = "smartcard";
+	};
+
 	ionvideo {
 		compatible = "amlogic, ionvideo";
 		dev_name = "ionvideo";
@@ -1479,7 +1514,7 @@
 };
 
 &i2c1 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins2>;
 
