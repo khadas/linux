@@ -1251,6 +1251,7 @@ void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf)
 	/*VPP_VADJ_CTRL bit 1 off for contrast adj*/
 	vdj1_ctl = READ_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1);
 	if (is_meson_gxtvbb_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
 			if (!vdj1_ctl)
 				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 1, 1, 1);
@@ -1258,6 +1259,7 @@ void vpp_vd_adj1_contrast(signed int cont_val, struct vframe_s *vf)
 			if (vdj1_ctl)
 				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ_CTRL, 0, 1, 1);
 		}
+#endif
 	}
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		vd1_contrast = (READ_VPP_REG(VPP_VADJ1_Y_2) & 0x7ff00) |
@@ -1396,12 +1398,14 @@ static void vd1_brightness_contrast(signed int brightness,
 	gc4 = ((g22 <<  0) & 0x00001fff);
 	/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
 	if (is_meson_gxtvbb_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		a01 = ((ao0 << 16) & 0x0fff0000) |
 				((ao1 <<  0) & 0x00000fff);
 		a_2 = ((ao2 <<  0) & 0x00000fff);
 		p01 = ((po0 << 16) & 0x0fff0000) |
 				((po1 <<  0) & 0x00000fff);
 		p_2 = ((po2 <<  0) & 0x00000fff);
+#endif
 	} else {
 		/* #else */
 		a01 = ((ao0 << 16) & 0x07ff0000) |

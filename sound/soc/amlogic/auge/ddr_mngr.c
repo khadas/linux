@@ -1953,17 +1953,9 @@ struct toddr_src_conf toddr_srcs_v3[] = {
 	{ /* sentinel */ }
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct ddr_chipinfo axg_ddr_chipinfo = {
 	.int_start_same_addr   = true,
-	.asrc_only_left_j      = true,
-	.wakeup                = 1,
-	.fifo_num              = 3,
-	.fifo_depth            = FIFO_DEPTH_1K,
-	.to_srcs               = &toddr_srcs_v1[0],
-};
-
-static struct ddr_chipinfo g12a_ddr_chipinfo = {
-	.same_src_fn           = true,
 	.asrc_only_left_j      = true,
 	.wakeup                = 1,
 	.fifo_num              = 3,
@@ -1980,6 +1972,26 @@ static struct ddr_chipinfo tl1_ddr_chipinfo = {
 	.fifo_num              = 4,
 	.fifo_depth            = FIFO_DEPTH_1K,
 	.to_srcs               = &toddr_srcs_v2[0],
+};
+
+static struct ddr_chipinfo a1_ddr_chipinfo = {
+	.same_src_fn           = true,
+	.src_sel_ctrl          = true,
+	.asrc_src_sel_ctrl     = true,
+	.wakeup                = 2,
+	.fifo_num              = 2,
+	.fifo_depth            = FIFO_DEPTH_512,
+	.to_srcs               = &toddr_srcs_v2[0],
+};
+#endif
+
+static struct ddr_chipinfo g12a_ddr_chipinfo = {
+	.same_src_fn           = true,
+	.asrc_only_left_j      = true,
+	.wakeup                = 1,
+	.fifo_num              = 3,
+	.fifo_depth            = FIFO_DEPTH_1K,
+	.to_srcs               = &toddr_srcs_v1[0],
 };
 
 static struct ddr_chipinfo sm1_ddr_chipinfo = {
@@ -2006,16 +2018,6 @@ static struct ddr_chipinfo tm2_revb_ddr_chipinfo = {
 	.to_srcs               = &toddr_srcs_v2[0],
 };
 
-static struct ddr_chipinfo a1_ddr_chipinfo = {
-	.same_src_fn           = true,
-	.src_sel_ctrl          = true,
-	.asrc_src_sel_ctrl     = true,
-	.wakeup                = 2,
-	.fifo_num              = 2,
-	.fifo_depth            = FIFO_DEPTH_512,
-	.to_srcs               = &toddr_srcs_v2[0],
-};
-
 static struct ddr_chipinfo t5_ddr_chipinfo = {
 	.same_src_fn           = true,
 	.ugt                   = true,
@@ -2030,17 +2032,23 @@ static struct ddr_chipinfo t5_ddr_chipinfo = {
 };
 
 static const struct of_device_id aml_ddr_mngr_device_id[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, axg-audio-ddr-manager",
 		.data       = &axg_ddr_chipinfo,
 	},
 	{
-		.compatible = "amlogic, g12a-audio-ddr-manager",
-		.data       = &g12a_ddr_chipinfo,
-	},
-	{
 		.compatible = "amlogic, tl1-audio-ddr-manager",
 		.data       = &tl1_ddr_chipinfo,
+	},
+	{
+		.compatible = "amlogic, a1-audio-ddr-manager",
+		.data       = &a1_ddr_chipinfo,
+	},
+#endif
+	{
+		.compatible = "amlogic, g12a-audio-ddr-manager",
+		.data       = &g12a_ddr_chipinfo,
 	},
 	{
 		.compatible = "amlogic, sm1-audio-ddr-manager",
@@ -2049,10 +2057,6 @@ static const struct of_device_id aml_ddr_mngr_device_id[] = {
 	{
 		.compatible = "amlogic, tm2-revb-audio-ddr-manager",
 		.data       = &tm2_revb_ddr_chipinfo,
-	},
-	{
-		.compatible = "amlogic, a1-audio-ddr-manager",
-		.data       = &a1_ddr_chipinfo,
 	},
 	{
 		.compatible = "amlogic, t5-audio-ddr-manager",

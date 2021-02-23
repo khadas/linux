@@ -2532,6 +2532,7 @@ static u32 osd_get_hw_reset_flag(void)
 
 	/* check hw version */
 	switch (osd_hw.osd_meson_dev.cpu_id) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case __MESON_CPU_MAJOR_ID_GXTVBB:
 		if (osd_hw.osd_afbcd[OSD1].enable)
 			hw_reset_flag |= HW_RESET_AFBCD_REGS;
@@ -2573,6 +2574,7 @@ static u32 osd_get_hw_reset_flag(void)
 		}
 #endif
 		break;
+#endif
 	case __MESON_CPU_MAJOR_ID_G12A:
 	case __MESON_CPU_MAJOR_ID_G12B:
 	case __MESON_CPU_MAJOR_ID_TL1:
@@ -2649,11 +2651,13 @@ void osd_hw_reset(void)
 	    !(backup_mask & HW_RESET_OSD1_REGS))
 		reset_bit &= ~HW_RESET_OSD1_REGS;
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB &&
 	     osd_hw.osd_meson_dev.afbc_type == MESON_AFBC) &&
 	    (reset_bit & HW_RESET_AFBCD_REGS) &&
 	    !(backup_mask & HW_RESET_AFBCD_REGS))
 		reset_bit &= ~HW_RESET_AFBCD_REGS;
+#endif
 
 	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
 	    reset_bit & HW_RESET_MALI_AFBCD_REGS &&
@@ -6386,6 +6390,7 @@ static void osd_update_color_mode(u32 index)
 		data32 |= osd_hw.color_info[index]->hw_colormat << 2;
 
 		/* Todo: what about osd3 */
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (osd_hw.osd_meson_dev.cpu_id <
 		    __MESON_CPU_MAJOR_ID_GXTVBB &&
 		    index == OSD1) {
@@ -6393,6 +6398,7 @@ static void osd_update_color_mode(u32 index)
 				COLOR_INDEX_YUV_422)
 				data32 |= 1 << 7; /* yuv enable */
 		}
+#endif
 		if (osd_hw.osd_meson_dev.cpu_id !=
 		    __MESON_CPU_MAJOR_ID_GXTVBB &&
 		    index == OSD2) {
@@ -11411,12 +11417,18 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		       osd_hw.osd_meson_dev.osd_count);
 	}
 	if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_GXTVBB) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		backup_regs_init(HW_RESET_AFBCD_REGS);
+#endif
 	} else if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_GXM) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		backup_regs_init(HW_RESET_OSD1_REGS);
+#endif
 	} else if ((osd_meson->cpu_id >= __MESON_CPU_MAJOR_ID_GXL) &&
 		 osd_meson->cpu_id <= __MESON_CPU_MAJOR_ID_TXL) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		backup_regs_init(HW_RESET_OSD1_REGS);
+#endif
 	} else if (osd_meson->cpu_id >= __MESON_CPU_MAJOR_ID_G12A) {
 		if (osd_dev_hw.multi_afbc_core)
 			backup_regs_init(HW_RESET_MALI_AFBCD_REGS |

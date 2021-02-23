@@ -1165,10 +1165,12 @@ int tvafe_avin_detect_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 struct meson_avin_data tl1_data = {
 	.cpu_id = AVIN_CPU_TYPE_TL1,
 	.name = "meson-tl1-avin-detect",
 };
+#endif
 
 struct meson_avin_data tm2_data = {
 	.cpu_id = AVIN_CPU_TYPE_TM2,
@@ -1186,11 +1188,13 @@ struct meson_avin_data t5d_data = {
 };
 
 static const struct of_device_id tvafe_avin_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{	.compatible = "amlogic, tvafe_avin_detect",
 	},
 	{	.compatible = "amlogic, tl1_tvafe_avin_detect",
 		.data = &tl1_data,
 	},
+#endif
 	{	.compatible = "amlogic, tm2_tvafe_avin_detect",
 		.data = &tm2_data,
 	},

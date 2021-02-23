@@ -212,9 +212,11 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 		viu_mux = 0x4;
 	}
 	if (is_meson_gxbb_cpu() || is_meson_gxm_cpu() || is_meson_gxl_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (devp->parm.v_active == 2160 && devp->parm.frame_rate > 30)
 			/* 1/2 down scaling */
 			wr_viu(VPU_VIU2VDIN_HDN_CTRL, 0x40f00);
+#endif
 	} else {
 		wr_bits_viu(VPU_VIU2VDIN_HDN_CTRL, devp->parm.h_active, 0, 14);
 	}

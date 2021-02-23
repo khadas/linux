@@ -549,10 +549,12 @@ int card_add_effect_v2_kcontrols(struct snd_soc_card *card)
 	return 0;
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct effect_chipinfo tl1_effect_chipinfo = {
 	.version = VERSION2,
 	.reserved_frddr = true,
 };
+#endif
 
 static struct effect_chipinfo sm1_effect_chipinfo = {
 	.version = VERSION3,
@@ -569,10 +571,12 @@ static const struct of_device_id effect_device_id[] = {
 	{
 		.compatible = "amlogic, snd-effect-v1"
 	},
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, snd-effect-v2",
 		.data       = &tl1_effect_chipinfo,
 	},
+#endif
 	{
 		.compatible = "amlogic, snd-effect-v3",
 		.data       = &sm1_effect_chipinfo,

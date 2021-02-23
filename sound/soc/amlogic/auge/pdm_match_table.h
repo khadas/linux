@@ -11,10 +11,12 @@ static struct pdm_chipinfo g12a_pdm_chipinfo = {
 	.truncate_data   = false,
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct pdm_chipinfo tl1_pdm_chipinfo = {
 	.mute_fn         = true,
 	.truncate_data   = false,
 };
+#endif
 
 static struct pdm_chipinfo sm1_pdm_chipinfo = {
 	.mute_fn         = true,
@@ -38,16 +40,18 @@ static struct pdm_chipinfo sc2_pdm_chipinfo = {
 };
 
 static const struct of_device_id aml_pdm_device_id[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, axg-snd-pdm",
 	},
 	{
-		.compatible = "amlogic, g12a-snd-pdm",
-		.data       = &g12a_pdm_chipinfo,
-	},
-	{
 		.compatible = "amlogic, tl1-snd-pdm",
 		.data       = &tl1_pdm_chipinfo,
+	},
+#endif
+	{
+		.compatible = "amlogic, g12a-snd-pdm",
+		.data       = &g12a_pdm_chipinfo,
 	},
 	{
 		.compatible = "amlogic, sm1-snd-pdm",

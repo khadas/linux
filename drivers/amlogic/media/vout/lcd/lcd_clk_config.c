@@ -2768,6 +2768,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path1 = {
 	.prbs_clk_config = NULL,
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct lcd_clk_data_s lcd_clk_data_tl1 = {
 	.pll_od_fb = PLL_OD_FB_TL1,
 	.pll_m_max = PLL_M_MAX,
@@ -2812,6 +2813,7 @@ static struct lcd_clk_data_s lcd_clk_data_tl1 = {
 	.clk_config_print = lcd_clk_config_print_dft,
 	.prbs_clk_config = lcd_prbs_config_clk_tl1,
 };
+#endif
 
 static struct lcd_clk_data_s lcd_clk_data_tm2 = {
 	.pll_od_fb = PLL_OD_FB_TL1,
@@ -2966,9 +2968,11 @@ static void lcd_clk_config_chip_init(struct lcd_clk_config_s *cconf)
 		else
 			cconf->data = &lcd_clk_data_g12b_path0;
 		break;
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case LCD_CHIP_TL1:
 		cconf->data = &lcd_clk_data_tl1;
 		break;
+#endif
 	case LCD_CHIP_TM2:
 	case LCD_CHIP_T5:
 		cconf->data = &lcd_clk_data_tm2;

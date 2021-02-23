@@ -89,6 +89,7 @@ void adc_set_ddemod_default(enum fe_delivery_system delsys)
 
 	if (is_meson_txl_cpu() || is_meson_txlx_cpu() ||
 	    is_meson_gxlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		HIU_WR(HHI_DADC_CNTL, 0x00102038);
 		HIU_WR(HHI_DADC_CNTL2, 0x00000406);
 		HIU_WR(HHI_DADC_CNTL3, 0x00082183);
@@ -98,7 +99,7 @@ void adc_set_ddemod_default(enum fe_delivery_system delsys)
 		/* remove vdac reg write, make sure it write in vdac driver,
 		 * because multi module use it
 		 */
-
+#endif
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		switch (devp->plat_data->chip_id) {
 		case ADC_CHIP_T5D:
@@ -311,6 +312,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			do {
 				if (is_meson_txl_cpu() ||
 				    is_meson_txlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 					HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
 					HIU_WR(HHI_ADC_PLL_CNTL, 0x30f14250);
 					HIU_WR(HHI_ADC_PLL_CNTL1, 0x22000442);
@@ -327,6 +329,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 					HIU_WR(HHI_DADC_CNTL, 0x00102038);
 					HIU_WR(HHI_DADC_CNTL2, 0x00000406);
 					HIU_WR(HHI_DADC_CNTL3, 0x00082183);
+#endif
 				} else {
 					HIU_WR(HHI_ADC_PLL_CNTL3, 0xca2a2110);
 					HIU_WR(HHI_ADC_PLL_CNTL4, 0x2933800);
@@ -395,6 +398,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			do {
 				if (is_meson_txl_cpu() ||
 				    is_meson_txlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 					HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
 					HIU_WR(HHI_ADC_PLL_CNTL, 0x30f14250);
 					HIU_WR(HHI_ADC_PLL_CNTL1, 0x22000442);
@@ -409,6 +413,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 					HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
 					HIU_WR(HHI_CADC_CNTL, 0x02000A08);
 					HIU_WR(HHI_CADC_CNTL2, 0x04007B05);
+#endif
 				} else {
 					HIU_WR(HHI_ADC_PLL_CNTL3, 0xca2a2110);
 					HIU_WR(HHI_ADC_PLL_CNTL4, 0x2933800);
@@ -474,6 +479,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 				break;
 			}
 		} else if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			do {
 				HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
 				HIU_WR(HHI_ADC_PLL_CNTL,  0x5d414260);
@@ -497,12 +503,14 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 
 			} while (!hiu_rd_bits(HHI_ADC_PLL_CNTL, 31, 1) &&
 				 (adc_pll_lock_cnt < 10));
-
+#endif
 		} else if (is_meson_gxlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			HIU_WR(HHI_ADC_PLL_CNTL1, 0x22000442);
 			HIU_WR(HHI_ADC_PLL_CNTL5, 0x00034a00);
 			HIU_WR(HHI_ADC_PLL_CNTL6, 0x00005000);
 			adc_pll_lock_cnt = 1;
+#endif
 		}
 
 		devp->pll_flg |= ADC_DTV_DEMOD;
@@ -530,6 +538,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		mutex_lock(&devp->pll_mutex);
 
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			do {
 				/* reset */
 				HIU_WR(HHI_ADC_PLL_CNTL3, 0xca6a2110);
@@ -553,11 +562,13 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 
 			} while (!hiu_rd_bits(HHI_ADC_PLL_CNTL, 31, 1) &&
 				 (adc_pll_lock_cnt < 10));
-
+#endif
 		} else if (is_meson_gxlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			HIU_WR(HHI_DEMOD_CLK_CNTL, 0x1000502);
 
 			adc_pll_lock_cnt = 1;
+#endif
 		}  else {
 			/*is_meson_gxtvbb_cpu()*/
 			HIU_WR(HHI_ADC_PLL_CNTL3, 0x8a2a2110);/*reset*/
