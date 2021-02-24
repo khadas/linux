@@ -602,10 +602,15 @@ void demod_config_in(u8 port, u8 wire_type)
 		data |= (0x1 << FEC_S2P_3WIRE);
 		if (port == DEMOD_FEC_B)
 			data |= DEMOD_1_SERIAL << TS_S_OR_P_SEL1;
+		else if (port == DEMOD_FEC_A)
+			data |= DEMOD_1_SERIAL << TS_S_OR_P_SEL1;
+
 	} else if (wire_type == DEMOD_4WIRE) {
 		data |= 1 << FEC_S2P_SEL;
 		data |= (0 << FEC_S2P_3WIRE);
 		if (port == DEMOD_FEC_B)
+			data |= DEMOD_1_SERIAL << TS_S_OR_P_SEL1;
+		else if (port == DEMOD_FEC_A)
 			data |= DEMOD_1_SERIAL << TS_S_OR_P_SEL1;
 	} else {
 		if (port == DEMOD_FEC_B)
