@@ -4409,6 +4409,13 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 		hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, 0xe7);
 		hdmitx_wr_reg(HDMITX_DWC_AUD_N1,
 			      hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
+		 /* twice again */
+		hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, 0xe7);
+		hdmitx_wr_reg(HDMITX_DWC_AUD_N1,
+			      hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
+		hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, 0xe7);
+		hdmitx_wr_reg(HDMITX_DWC_AUD_N1,
+			      hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
 		break;
 	default:
 		break;
