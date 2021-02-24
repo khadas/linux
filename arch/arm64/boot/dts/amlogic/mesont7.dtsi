@@ -296,6 +296,12 @@
 		#clock-cells = <0>;
 	};
 
+	cpu_info {
+		compatible = "amlogic, cpuinfo";
+		status = "okay";
+		cpuinfo_cmd = <0x82000044>;
+	};
+
 	pwrdm: power-domains {
 		compatible = "amlogic,t7-power-domain";
 		#power-domain-cells = <1>;
