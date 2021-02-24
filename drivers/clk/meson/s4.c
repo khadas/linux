@@ -625,8 +625,6 @@ static int s4_sys_pll_notifier_cb(struct notifier_block *nb,
 		 *                   \- xtal/fclk_div2/fclk_div3
 		 */
 
-		udelay(100);
-
 		return NOTIFY_OK;
 
 	case POST_RATE_CHANGE:
@@ -638,8 +636,6 @@ static int s4_sys_pll_notifier_cb(struct notifier_block *nb,
 		/* Configure cpu_clk to use sys_pll */
 		clk_hw_set_parent(nb_data->cpu_clk,
 				  nb_data->sys_pll);
-
-		udelay(100);
 
 		/* new path :
 		 * cpu_clk
@@ -900,6 +896,7 @@ static struct clk_fixed_factor s4_mpll_prediv = {
 };
 
 static const struct reg_sequence s4_mpll0_init_regs[] = {
+	{ .reg = ANACTRL_MPLL_CTRL0, .def = 0x00000543 }, /*write one time for mpll0/1/2/3*/
 	{ .reg = ANACTRL_MPLL_CTRL2, .def = 0x40000033 }
 };
 
@@ -4932,7 +4929,6 @@ static int meson_s4_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(s4_pll_clk_regmaps); i++)
 		s4_pll_clk_regmaps[i]->map = pll_map;
-	regmap_write(pll_map, ANACTRL_MPLL_CTRL0, 0x00000543);
 
 	for (i = 0; i < s4_hw_onecell_data.num; i++) {
 		/* array might be sparse */
