@@ -53,49 +53,28 @@
 static struct tvin_adc_dev *adc_devp;
 static bool probe_finish;
 
-static int adc_wr_afe(unsigned int reg, unsigned int val)
+static int adc_afe_reg_write(unsigned int reg, unsigned int val)
 {
 	if (!probe_finish || !adc_devp)
 		return -1;
 
-	writel(val, (adc_devp->vir_addr[MAP_ADDR_AFE] + (reg << 2)));
+	writel(val, (adc_devp->afe_vir_addr + (reg << 2)));
 	return 0;
 }
 
-static int adc_wr_hiu(unsigned int reg, unsigned int val)
-{
-	if (!probe_finish || !adc_devp)
-		return -1;
-
-	writel(val, (adc_devp->vir_addr[MAP_ADDR_HIU] + (reg << 2)));
-	return 0;
-}
-
-static unsigned int adc_rd_hiu(unsigned int reg)
-{
-	unsigned int tmp;
-
-	if (!probe_finish || !adc_devp)
-		return -1;
-
-	tmp = readl(adc_devp->vir_addr[MAP_ADDR_HIU] + (reg << 2));
-
-	return tmp;
-}
-
-static unsigned int adc_rd_hiu_bits(u32 reg, const u32 start, const u32 len)
+static unsigned int hiu_rd_bits(u32 reg, const u32 start, const u32 len)
 {
 	u32 val;
 
-	val = ((adc_rd_hiu(reg) >> (start)) & ((1L << (len)) - 1));
+	val = ((aml_read_hiubus(reg) >> (start)) & ((1L << (len)) - 1));
 
 	return val;
 }
 
-static void adc_wr_hiu_bits(u32 reg, const u32 value,
+static void adc_hiu_wr_bits(u32 reg, const u32 value,
 			    const u32 start, const u32 len)
 {
-	adc_wr_hiu(reg, ((adc_rd_hiu(reg) &
+	aml_write_hiubus(reg, ((aml_read_hiubus(reg) &
 			     ~(((1L << (len)) - 1) << (start))) |
 			    (((value) & ((1L << (len)) - 1)) << (start))));
 }
@@ -110,9 +89,9 @@ void adc_set_ddemod_default(enum fe_delivery_system delsys)
 
 	if (is_meson_txl_cpu() || is_meson_txlx_cpu() ||
 	    is_meson_gxlx_cpu()) {
-		adc_wr_hiu(HHI_DADC_CNTL, 0x00102038);
-		adc_wr_hiu(HHI_DADC_CNTL2, 0x00000406);
-		adc_wr_hiu(HHI_DADC_CNTL3, 0x00082183);
+		HIU_WR(HHI_DADC_CNTL, 0x00102038);
+		HIU_WR(HHI_DADC_CNTL2, 0x00000406);
+		HIU_WR(HHI_DADC_CNTL3, 0x00082183);
 
 		/*W_HIU_REG(HHI_VDAC_CNTL0, 0x00000200);*/
 		/*W_HIU_BIT(HHI_VDAC_CNTL0, 1, 9, 1);*/
@@ -126,50 +105,43 @@ void adc_set_ddemod_default(enum fe_delivery_system delsys)
 			switch (delsys) {
 			case SYS_DVBT:
 			case SYS_DVBT2:
-				adc_wr_afe(AFE_VAFE_CTRL0, 0x00050710);
-				adc_wr_afe(AFE_VAFE_CTRL1, 0x3000);
-				adc_wr_afe(AFE_VAFE_CTRL2, 0x1fe09e31);
-				adc_wr_hiu(HHI_DADC_CNTL, 0x0030303c);
-				adc_wr_hiu(HHI_DADC_CNTL2, 0x00003440);
-				adc_wr_hiu(HHI_DADC_CNTL3, 0x08300b93);
-				adc_wr_hiu(HHI_DADC_CNTL4, 0xc00);
+				adc_afe_reg_write(AFE_VAFE_CTRL0, 0x00050710);
+				adc_afe_reg_write(AFE_VAFE_CTRL1, 0x3000);
+				adc_afe_reg_write(AFE_VAFE_CTRL2, 0x1fe09e31);
+				HIU_WR(HHI_DADC_CNTL, 0x0030303c);
+				HIU_WR(HHI_DADC_CNTL2, 0x00003440);
+				HIU_WR(HHI_DADC_CNTL3, 0x08300b93);
+				HIU_WR(HHI_DADC_CNTL4, 0xc00);
 				break;
 
 			case SYS_DVBS2:
-				adc_wr_hiu(HHI_S2_DADC_CNTL, 0x4100900f);
-				adc_wr_hiu(HHI_DADC_CNTL4, 0x0);
+				HIU_WR(HHI_S2_DADC_CNTL, 0x4100900f);
+				HIU_WR(HHI_DADC_CNTL4, 0x0);
 				/* only for debug to clkmsr(id:149) */
-				/* adc_wr_hiu(HHI_DADC_CNTL3, 0x08300b8f); */
+				/* HIU_WR(HHI_DADC_CNTL3, 0x08300b8f); */
 				break;
 
 			default:
-				adc_wr_afe(AFE_VAFE_CTRL0, 0x000d0710);
-				adc_wr_afe(AFE_VAFE_CTRL1, 0x3000);
-				adc_wr_afe(AFE_VAFE_CTRL2, 0x1fe09e31);
-				adc_wr_hiu(HHI_DADC_CNTL, 0x00303044);
-				adc_wr_hiu(HHI_DADC_CNTL2, 0x00003480);
-				adc_wr_hiu(HHI_DADC_CNTL3, 0x08300b83);
-				adc_wr_hiu(HHI_DADC_CNTL4, 0x0);
+				adc_afe_reg_write(AFE_VAFE_CTRL0, 0x000d0710);
+				adc_afe_reg_write(AFE_VAFE_CTRL1, 0x3000);
+				adc_afe_reg_write(AFE_VAFE_CTRL2, 0x1fe09e31);
+				HIU_WR(HHI_DADC_CNTL, 0x00303044);
+				HIU_WR(HHI_DADC_CNTL2, 0x00003480);
+				HIU_WR(HHI_DADC_CNTL3, 0x08300b83);
+				HIU_WR(HHI_DADC_CNTL4, 0x0);
 				break;
 			}
 
-			adc_wr_hiu(HHI_S2_DADC_CNTL2, 0x00000582);
-			break;
-
-		case ADC_CHIP_S4:
-			/* enable bandgap */
-			adc_wr_hiu_bits(0xb0, 1, 11, 1);
-			adc_wr_hiu(0xd1, 0x582);
-			adc_wr_hiu(0xd0, 0x41209007);
+			HIU_WR(HHI_S2_DADC_CNTL2, 0x00000582);
 			break;
 
 		default:
-			adc_wr_afe(AFE_VAFE_CTRL0, 0x000d0710);
-			adc_wr_afe(AFE_VAFE_CTRL1, 0x3000);
-			adc_wr_afe(AFE_VAFE_CTRL2, 0x1fe09e31);
-			adc_wr_hiu(HHI_DADC_CNTL, 0x00303044);
-			adc_wr_hiu(HHI_DADC_CNTL2, 0x00003480);
-			adc_wr_hiu(HHI_DADC_CNTL3, 0x08300b83);
+			adc_afe_reg_write(AFE_VAFE_CTRL0, 0x000d0710);
+			adc_afe_reg_write(AFE_VAFE_CTRL1, 0x3000);
+			adc_afe_reg_write(AFE_VAFE_CTRL2, 0x1fe09e31);
+			HIU_WR(HHI_DADC_CNTL, 0x00303044);
+			HIU_WR(HHI_DADC_CNTL2, 0x00003480);
+			HIU_WR(HHI_DADC_CNTL3, 0x08300b83);
 			break;
 		}
 	}
@@ -179,64 +151,39 @@ EXPORT_SYMBOL(adc_set_ddemod_default);
 static void adc_set_dtvdemod_pll_by_clk(struct tvin_adc_dev *devp,
 					struct dfe_adcpll_para *p_dtv_para)
 {
-	unsigned int reg_offset = 0;
-	enum adc_chip_ver chip = devp->plat_data->chip_id;
-
-	if (chip == ADC_CHIP_S4)
-		reg_offset = 0x10;
-
 	switch (p_dtv_para->adc_clk) {
 	case ADC_CLK_24M:
-		if (chip == ADC_CHIP_S4) {
-			adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1 + reg_offset, 0x0105047d);
-			//adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1 + reg_offset, 0x312004e0);
-			adc_wr_hiu(HHI_ADC_PLL_CNTL1_TL1 + reg_offset, 0x03c00000);
-
-			/* enable bandgap */
-			adc_wr_hiu_bits(HHI_VDAC_CNTL0_T5, 1, 11, 1);
-			adc_wr_hiu(HHI_ADC_PLL_CNTL2_TL1 + reg_offset, 0x01800000);
-			adc_wr_hiu(HHI_ADC_PLL_CNTL3_TL1 + reg_offset, 0x08691d00);
-			adc_wr_hiu(HHI_ADC_PLL_CNTL4_TL1 + reg_offset, 0x33771291);
-			adc_wr_hiu(HHI_ADC_PLL_CNTL5_TL1 + reg_offset, 0x39270000);
-
-			adc_wr_hiu(HHI_ADC_PLL_CNTL6_TL1 + reg_offset, 0x50540000);
-			adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1 + reg_offset, 0x1105047d);
+		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x012004e0);
+		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x312004e0);
+		HIU_WR(HHI_ADC_PLL_CNTL1_TL1, 0x05400000);
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_T5) {
+			adc_hiu_wr_bits(HHI_VDAC_CNTL0_T5, 1, 11, 1);
+			HIU_WR(HHI_ADC_PLL_CNTL2_TL1, 0xe1800000);
 		} else {
-			adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1 + reg_offset, 0x012004e0);
-			adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1 + reg_offset, 0x312004e0);
-			adc_wr_hiu(HHI_ADC_PLL_CNTL1_TL1 + reg_offset, 0x05400000);
-
-			/* enable bandgap */
-			if (chip == ADC_CHIP_T5 || chip == ADC_CHIP_T5D)
-				adc_wr_hiu_bits(HHI_VDAC_CNTL0_T5, 1, 11, 1);
-
-			if (chip >= ADC_CHIP_T5D)
-				adc_wr_hiu(HHI_ADC_PLL_CNTL2_TL1 + reg_offset, 0xe1800000);
-			else
-				adc_wr_hiu(HHI_ADC_PLL_CNTL2_TL1, 0xe0800000);
-
-			adc_wr_hiu(HHI_ADC_PLL_CNTL3_TL1 + reg_offset, 0x48681c00);
-			adc_wr_hiu(HHI_ADC_PLL_CNTL4_TL1 + reg_offset, 0x88770290);
-
-			if (chip >= ADC_CHIP_T5D)
-				adc_wr_hiu_bits(HHI_ADC_PLL_CNTL5_TL1 + reg_offset, 1, 0, 16);
-			else
-				adc_wr_hiu(HHI_ADC_PLL_CNTL5_TL1, 0x39272000);
-
-			adc_wr_hiu(HHI_ADC_PLL_CNTL6_TL1 + reg_offset, 0x56540000);
-			adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1 + reg_offset, 0x111104e0);
+			HIU_WR(HHI_ADC_PLL_CNTL2_TL1, 0xe0800000);
 		}
+
+		HIU_WR(HHI_ADC_PLL_CNTL3_TL1, 0x48681c00);
+		HIU_WR(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
+
+		if (devp->plat_data->chip_id == ADC_CHIP_T5D)
+			adc_hiu_wr_bits(HHI_ADC_PLL_CNTL5_TL1, 1, 0, 16);
+		else
+			HIU_WR(HHI_ADC_PLL_CNTL5_TL1, 0x39272000);
+
+		HIU_WR(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
+		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x111104e0);
 		break;
 
 	case ADC_CLK_25M:
-		adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1 + reg_offset, 0x001104c8);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1 + reg_offset, 0x301104c8);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL1_TL1 + reg_offset, 0x03000000);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL2_TL1 + reg_offset, 0xe1800000);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL3_TL1 + reg_offset, 0x48681c00);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL4_TL1 + reg_offset, 0x88770290);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL6_TL1 + reg_offset, 0x56540000);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1 + reg_offset, 0x101104c8);
+		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x001104c8);
+		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x301104c8);
+		HIU_WR(HHI_ADC_PLL_CNTL1_TL1, 0x03000000);
+		HIU_WR(HHI_ADC_PLL_CNTL2_TL1, 0xe1800000);
+		HIU_WR(HHI_ADC_PLL_CNTL3_TL1, 0x48681c00);
+		HIU_WR(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
+		HIU_WR(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
+		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x101104c8);
 		break;
 
 	default:
@@ -250,27 +197,31 @@ static void adc_set_dtvdemod_pll_by_delsys(struct tvin_adc_dev *devp,
 	switch (p_dtv_para->delsys) {
 	case SYS_DVBT:
 	case SYS_DVBT2:
-		adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x200504b4);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x300504b4);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL1_TL1, 0x01400000);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL2_TL1, 0x0);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL3_TL1, 0x48681f00);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL5_TL1, 0x3927a000);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x100504b4);
+		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x200504b4);
+		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x300504b4);
+		HIU_WR(HHI_ADC_PLL_CNTL1_TL1, 0x01400000);
+		HIU_WR(HHI_ADC_PLL_CNTL2_TL1, 0x0);
+		HIU_WR(HHI_ADC_PLL_CNTL3_TL1, 0x48681f00);
+		HIU_WR(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
+		HIU_WR(HHI_ADC_PLL_CNTL5_TL1, 0x3927a000);
+		HIU_WR(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
+		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x100504b4);
+		dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL1 << 2,
+				       0x704);
 		break;
 
 	case SYS_DVBS2:
-		adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x20050487);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x30050487);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL1_TL1, 0x00800000);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL2_TL1, 0x0);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL3_TL1, 0x48681f00);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL5_TL1, 0x3927a000);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
-		adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x10050487);
+		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x20050487);
+		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x30050487);
+		HIU_WR(HHI_ADC_PLL_CNTL1_TL1, 0x00800000);
+		HIU_WR(HHI_ADC_PLL_CNTL2_TL1, 0x0);
+		HIU_WR(HHI_ADC_PLL_CNTL3_TL1, 0x48681f00);
+		HIU_WR(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
+		HIU_WR(HHI_ADC_PLL_CNTL5_TL1, 0x3927a000);
+		HIU_WR(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
+		HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x10050487);
+		dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL1 << 2,
+				       0x702);
 		break;
 
 	default:
@@ -323,76 +274,76 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			do {
 				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_T5) {
-					adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x210504a0);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x310504a0);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL1_TL1, 0x03c00000);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL2_TL1, 0x00000000);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3_TL1, 0x48681f00);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL5_TL1, 0x39272000);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
-					adc_wr_hiu_bits(HHI_VDAC_CNTL0_T5, 1, 11, 1);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x110504a0);
+					HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x210504a0);
+					HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x310504a0);
+					HIU_WR(HHI_ADC_PLL_CNTL1_TL1, 0x03c00000);
+					HIU_WR(HHI_ADC_PLL_CNTL2_TL1, 0x00000000);
+					HIU_WR(HHI_ADC_PLL_CNTL3_TL1, 0x48681f00);
+					HIU_WR(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
+					HIU_WR(HHI_ADC_PLL_CNTL5_TL1, 0x39272000);
+					HIU_WR(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
+					adc_hiu_wr_bits(HHI_VDAC_CNTL0_T5, 1, 11, 1);
+					HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x110504a0);
 					if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) {
-						adc_wr_hiu(HHI_S2_DADC_CNTL2, 0x00000582);
-						adc_wr_hiu(HHI_DADC_CNTL4, 0x0);
+						HIU_WR(HHI_S2_DADC_CNTL2, 0x00000582);
+						HIU_WR(HHI_DADC_CNTL4, 0x0);
 					}
 				} else {
-					adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x01200490);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x31200490);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL1_TL1, 0x06c00000);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL2_TL1, 0xe1800000);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3_TL1, 0x48681c00);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL5_TL1, 0x39272000);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x11010490);
+					HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x01200490);
+					HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x31200490);
+					HIU_WR(HHI_ADC_PLL_CNTL1_TL1, 0x06c00000);
+					HIU_WR(HHI_ADC_PLL_CNTL2_TL1, 0xe1800000);
+					HIU_WR(HHI_ADC_PLL_CNTL3_TL1, 0x48681c00);
+					HIU_WR(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
+					HIU_WR(HHI_ADC_PLL_CNTL5_TL1, 0x39272000);
+					HIU_WR(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
+					HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x11010490);
 				}
 				/** DADC CNTL for LIF signal input **/
-				adc_wr_hiu(HHI_DADC_CNTL, 0x00303044);
-				adc_wr_hiu(HHI_DADC_CNTL2, 0x00003480);
-				adc_wr_hiu(HHI_DADC_CNTL3, 0x08300b83);
+				HIU_WR(HHI_DADC_CNTL, 0x00303044);
+				HIU_WR(HHI_DADC_CNTL2, 0x00003480);
+				HIU_WR(HHI_DADC_CNTL3, 0x08300b83);
 				usleep_range(100, 101);
 				adc_pll_lock_cnt++;
-			} while (!adc_rd_hiu_bits(HHI_ADC_PLL_CNTL0_TL1, 31, 1) &&
+			} while (!hiu_rd_bits(HHI_ADC_PLL_CNTL0_TL1, 31, 1) &&
 				(adc_pll_lock_cnt < 10));
 		} else {
 			do {
 				if (is_meson_txl_cpu() ||
 				    is_meson_txlx_cpu()) {
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL, 0x30f14250);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL1, 0x22000442);
+					HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+					HIU_WR(HHI_ADC_PLL_CNTL, 0x30f14250);
+					HIU_WR(HHI_ADC_PLL_CNTL1, 0x22000442);
 					/* 0x5ba00380 from pll;0x5ba00384 clk */
 					/* from crystal */
-					adc_wr_hiu(HHI_ADC_PLL_CNTL2, 0x5ba00384);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL4, 0x02913004);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL5, 0x00034a00);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL6, 0x00005000);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0xca6a2110);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+					HIU_WR(HHI_ADC_PLL_CNTL2, 0x5ba00384);
+					HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+					HIU_WR(HHI_ADC_PLL_CNTL4, 0x02913004);
+					HIU_WR(HHI_ADC_PLL_CNTL5, 0x00034a00);
+					HIU_WR(HHI_ADC_PLL_CNTL6, 0x00005000);
+					HIU_WR(HHI_ADC_PLL_CNTL3, 0xca6a2110);
+					HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
 					/** DADC CNTL for LIF signal input **/
-					adc_wr_hiu(HHI_DADC_CNTL, 0x00102038);
-					adc_wr_hiu(HHI_DADC_CNTL2, 0x00000406);
-					adc_wr_hiu(HHI_DADC_CNTL3, 0x00082183);
+					HIU_WR(HHI_DADC_CNTL, 0x00102038);
+					HIU_WR(HHI_DADC_CNTL2, 0x00000406);
+					HIU_WR(HHI_DADC_CNTL3, 0x00082183);
 				} else {
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0xca2a2110);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL4, 0x2933800);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL, 0xe0644220);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
+					HIU_WR(HHI_ADC_PLL_CNTL3, 0xca2a2110);
+					HIU_WR(HHI_ADC_PLL_CNTL4, 0x2933800);
+					HIU_WR(HHI_ADC_PLL_CNTL, 0xe0644220);
+					HIU_WR(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
+					HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
 					/** DADC CNTL for LIF signal input **/
-					adc_wr_hiu(HHI_DADC_CNTL, 0x1411036);
-					adc_wr_hiu(HHI_DADC_CNTL2, 0x0);
-					adc_wr_hiu(HHI_DADC_CNTL3, 0x430036);
-					adc_wr_hiu(HHI_DADC_CNTL4, 0x80600240);
+					HIU_WR(HHI_DADC_CNTL, 0x1411036);
+					HIU_WR(HHI_DADC_CNTL2, 0x0);
+					HIU_WR(HHI_DADC_CNTL3, 0x430036);
+					HIU_WR(HHI_DADC_CNTL4, 0x80600240);
 					/* TVFE reset */
-					adc_wr_hiu_bits(RESET1_REGISTER, 1, 7, 1);
+					adc_hiu_wr_bits(RESET1_REGISTER, 1, 7, 1);
 				}
 			usleep_range(100, 101);
 			adc_pll_lock_cnt++;
-			} while (!adc_rd_hiu_bits(HHI_ADC_PLL_CNTL, 31, 1) &&
+			} while (!hiu_rd_bits(HHI_ADC_PLL_CNTL, 31, 1) &&
 				(adc_pll_lock_cnt < 10));
 		}
 		devp->pll_flg |= ADC_ATV_DEMOD;
@@ -411,66 +362,66 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		mutex_lock(&devp->pll_mutex);
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			do {
-				adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x01200490);
-				adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x31200490);
-				adc_wr_hiu(HHI_ADC_PLL_CNTL1_TL1, 0x06c00000);
+				HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x01200490);
+				HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x31200490);
+				HIU_WR(HHI_ADC_PLL_CNTL1_TL1, 0x06c00000);
 				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_T5)
-					adc_wr_hiu(HHI_ADC_PLL_CNTL2_TL1,
+					HIU_WR(HHI_ADC_PLL_CNTL2_TL1,
 					       0xe1800000);
 				else
-					adc_wr_hiu(HHI_ADC_PLL_CNTL2_TL1,
+					HIU_WR(HHI_ADC_PLL_CNTL2_TL1,
 					       0xe0800000);
 				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) {
-					adc_wr_hiu(HHI_S2_DADC_CNTL2, 0x00000582);
-					adc_wr_hiu(HHI_DADC_CNTL4, 0x0);
+					HIU_WR(HHI_S2_DADC_CNTL2, 0x00000582);
+					HIU_WR(HHI_DADC_CNTL4, 0x0);
 				}
-				adc_wr_hiu(HHI_ADC_PLL_CNTL3_TL1, 0x48681c00);
-				adc_wr_hiu(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
-				adc_wr_hiu(HHI_ADC_PLL_CNTL5_TL1, 0x39272000);
-				adc_wr_hiu(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
+				HIU_WR(HHI_ADC_PLL_CNTL3_TL1, 0x48681c00);
+				HIU_WR(HHI_ADC_PLL_CNTL4_TL1, 0x88770290);
+				HIU_WR(HHI_ADC_PLL_CNTL5_TL1, 0x39272000);
+				HIU_WR(HHI_ADC_PLL_CNTL6_TL1, 0x56540000);
 				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_T5)
-					adc_wr_hiu_bits(HHI_VDAC_CNTL0_T5,
+					adc_hiu_wr_bits(HHI_VDAC_CNTL0_T5,
 							1, 11, 1);
-				adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1, 0x11010490);
+				HIU_WR(HHI_ADC_PLL_CNTL0_TL1, 0x11010490);
 
 				usleep_range(100, 101);
 				adc_pll_lock_cnt++;
-			} while (!adc_rd_hiu_bits(HHI_ADC_PLL_CNTL0_TL1, 31, 1) &&
+			} while (!hiu_rd_bits(HHI_ADC_PLL_CNTL0_TL1, 31, 1) &&
 				(adc_pll_lock_cnt < 10));
-			adc_wr_hiu(HHI_DADC_CNTL, 0x00303044);
-			adc_wr_hiu(HHI_DADC_CNTL2, 0x00003400);
-			adc_wr_hiu(HHI_DADC_CNTL3, 0x08300b83);
+			HIU_WR(HHI_DADC_CNTL, 0x00303044);
+			HIU_WR(HHI_DADC_CNTL2, 0x00003400);
+			HIU_WR(HHI_DADC_CNTL3, 0x08300b83);
 		} else {
 			do {
 				if (is_meson_txl_cpu() ||
 				    is_meson_txlx_cpu()) {
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL, 0x30f14250);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL1, 0x22000442);
+					HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+					HIU_WR(HHI_ADC_PLL_CNTL, 0x30f14250);
+					HIU_WR(HHI_ADC_PLL_CNTL1, 0x22000442);
 					/* 0x5ba00380 from pll;0x5ba00384 clk */
 					/* from crystal */
-					adc_wr_hiu(HHI_ADC_PLL_CNTL2, 0x5ba00384);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL4, 0x02913004);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL5, 0x00034a00);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL6, 0x00005000);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0xca6a2110);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-					adc_wr_hiu(HHI_CADC_CNTL, 0x02000A08);
-					adc_wr_hiu(HHI_CADC_CNTL2, 0x04007B05);
+					HIU_WR(HHI_ADC_PLL_CNTL2, 0x5ba00384);
+					HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+					HIU_WR(HHI_ADC_PLL_CNTL4, 0x02913004);
+					HIU_WR(HHI_ADC_PLL_CNTL5, 0x00034a00);
+					HIU_WR(HHI_ADC_PLL_CNTL6, 0x00005000);
+					HIU_WR(HHI_ADC_PLL_CNTL3, 0xca6a2110);
+					HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+					HIU_WR(HHI_CADC_CNTL, 0x02000A08);
+					HIU_WR(HHI_CADC_CNTL2, 0x04007B05);
 				} else {
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0xca2a2110);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL4, 0x2933800);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL, 0xe0644220);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
-					adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
+					HIU_WR(HHI_ADC_PLL_CNTL3, 0xca2a2110);
+					HIU_WR(HHI_ADC_PLL_CNTL4, 0x2933800);
+					HIU_WR(HHI_ADC_PLL_CNTL, 0xe0644220);
+					HIU_WR(HHI_ADC_PLL_CNTL2, 0x34e0bf84);
+					HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a2a2110);
 					/* TVFE reset */
-					adc_wr_hiu_bits(RESET1_REGISTER,
+					adc_hiu_wr_bits(RESET1_REGISTER,
 							1, 7, 1);
 				}
 				usleep_range(100, 101);
 				adc_pll_lock_cnt++;
-			} while (!adc_rd_hiu_bits(HHI_ADC_PLL_CNTL, 31, 1) &&
+			} while (!hiu_rd_bits(HHI_ADC_PLL_CNTL, 31, 1) &&
 				(adc_pll_lock_cnt < 10));
 		}
 		devp->pll_flg |= ADC_TVAFE;
@@ -495,7 +446,6 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			do {
 				switch (devp->plat_data->chip_id) {
 				case ADC_CHIP_T5D:
-				case ADC_CHIP_S4:
 					adc_set_dtvdemod_pll_by_delsys(devp, p_dtv_para);
 					break;
 
@@ -506,39 +456,52 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 
 				usleep_range(100, 101);
 				adc_pll_lock_cnt++;
-			} while (!adc_rd_hiu_bits(HHI_ADC_PLL_CNTL0_TL1, 31, 1) &&
+			} while (!hiu_rd_bits(HHI_ADC_PLL_CNTL0_TL1, 31, 1) &&
 				(adc_pll_lock_cnt < 10));
 
-			adc_wr_hiu(0xf3, 0x00800000);
+			HIU_WR(0xf3, 0x00800000);
+
+			switch (p_dtv_para->delsys) {
+			case SYS_ISDBT:
+				if (devp->plat_data->chip_id == ADC_CHIP_T5D)
+					dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x507);
+				else
+					dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
+				break;
+
+			default:
+				dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
+				break;
+			}
 		} else if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 			do {
-				adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-				adc_wr_hiu(HHI_ADC_PLL_CNTL,  0x5d414260);
-				adc_wr_hiu(HHI_ADC_PLL_CNTL1, 0x22000442);
+				HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+				HIU_WR(HHI_ADC_PLL_CNTL,  0x5d414260);
+				HIU_WR(HHI_ADC_PLL_CNTL1, 0x22000442);
 
 				if (is_meson_txl_cpu())
-					adc_wr_hiu(HHI_ADC_PLL_CNTL2, 0x5ba00384);
+					HIU_WR(HHI_ADC_PLL_CNTL2, 0x5ba00384);
 				else
-					adc_wr_hiu(HHI_ADC_PLL_CNTL2, 0x5ba00385);
+					HIU_WR(HHI_ADC_PLL_CNTL2, 0x5ba00385);
 
-				adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
-				adc_wr_hiu(HHI_ADC_PLL_CNTL4, 0x02913004);
-				adc_wr_hiu(HHI_ADC_PLL_CNTL5, 0x00034a00);
-				adc_wr_hiu(HHI_ADC_PLL_CNTL6, 0x00005000);
+				HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+				HIU_WR(HHI_ADC_PLL_CNTL4, 0x02913004);
+				HIU_WR(HHI_ADC_PLL_CNTL5, 0x00034a00);
+				HIU_WR(HHI_ADC_PLL_CNTL6, 0x00005000);
 				/* reset */
-				adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0xca6a2110);
-				adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+				HIU_WR(HHI_ADC_PLL_CNTL3, 0xca6a2110);
+				HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
 
 				usleep_range(100, 101);
 				adc_pll_lock_cnt++;
 
-			} while (!adc_rd_hiu_bits(HHI_ADC_PLL_CNTL, 31, 1) &&
+			} while (!hiu_rd_bits(HHI_ADC_PLL_CNTL, 31, 1) &&
 				 (adc_pll_lock_cnt < 10));
 
 		} else if (is_meson_gxlx_cpu()) {
-			adc_wr_hiu(HHI_ADC_PLL_CNTL1, 0x22000442);
-			adc_wr_hiu(HHI_ADC_PLL_CNTL5, 0x00034a00);
-			adc_wr_hiu(HHI_ADC_PLL_CNTL6, 0x00005000);
+			HIU_WR(HHI_ADC_PLL_CNTL1, 0x22000442);
+			HIU_WR(HHI_ADC_PLL_CNTL5, 0x00034a00);
+			HIU_WR(HHI_ADC_PLL_CNTL6, 0x00005000);
 			adc_pll_lock_cnt = 1;
 		}
 
@@ -569,38 +532,38 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 			do {
 				/* reset */
-				adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0xca6a2110);
-				adc_wr_hiu(HHI_ADC_PLL_CNTL, p_dtv_para->adcpllctl);
+				HIU_WR(HHI_ADC_PLL_CNTL3, 0xca6a2110);
+				HIU_WR(HHI_ADC_PLL_CNTL, p_dtv_para->adcpllctl);
 				if (p_dtv_para->atsc) {
-					adc_wr_hiu(HHI_DEMOD_CLK_CNTL, 0x507);
+					HIU_WR(HHI_DEMOD_CLK_CNTL, 0x507);
 				} else {
 					/* bugzilla 139044 */
 					if (is_meson_txl_cpu())
-						adc_wr_hiu(HHI_DEMOD_CLK_CNTL,
+						HIU_WR(HHI_DEMOD_CLK_CNTL,
 						       0x301);
 					else
-						adc_wr_hiu(HHI_DEMOD_CLK_CNTL,
+						HIU_WR(HHI_DEMOD_CLK_CNTL,
 						       0x502);
 				}
 
-				adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
+				HIU_WR(HHI_ADC_PLL_CNTL3, 0x4a6a2110);
 
 				usleep_range(100, 101);
 				adc_pll_lock_cnt++;
 
-			} while (!adc_rd_hiu_bits(HHI_ADC_PLL_CNTL, 31, 1) &&
+			} while (!hiu_rd_bits(HHI_ADC_PLL_CNTL, 31, 1) &&
 				 (adc_pll_lock_cnt < 10));
 
 		} else if (is_meson_gxlx_cpu()) {
-			adc_wr_hiu(HHI_DEMOD_CLK_CNTL, 0x1000502);
+			HIU_WR(HHI_DEMOD_CLK_CNTL, 0x1000502);
 
 			adc_pll_lock_cnt = 1;
 		}  else {
 			/*is_meson_gxtvbb_cpu()*/
-			adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x8a2a2110);/*reset*/
-			adc_wr_hiu(HHI_ADC_PLL_CNTL,  p_dtv_para->adcpllctl);
-			adc_wr_hiu(HHI_DEMOD_CLK_CNTL, p_dtv_para->demodctl);
-			adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x0a2a2110);
+			HIU_WR(HHI_ADC_PLL_CNTL3, 0x8a2a2110);/*reset*/
+			HIU_WR(HHI_ADC_PLL_CNTL,  p_dtv_para->adcpllctl);
+			HIU_WR(HHI_DEMOD_CLK_CNTL, p_dtv_para->demodctl);
+			HIU_WR(HHI_ADC_PLL_CNTL3, 0x0a2a2110);
 
 			adc_pll_lock_cnt = 1;
 		}
@@ -628,8 +591,8 @@ void adc_pll_down(void)
 		return;
 
 	if (!adc_devp->pll_flg && is_meson_tl1_cpu() &&
-	    adc_rd_hiu_bits(HHI_ADC_PLL_CNTL0_TL1, 28, 1)) {
-		adc_wr_hiu_bits(HHI_ADC_PLL_CNTL0_TL1, 0, 28, 1);
+	    hiu_rd_bits(HHI_ADC_PLL_CNTL0_TL1, 28, 1)) {
+		adc_hiu_wr_bits(HHI_ADC_PLL_CNTL0_TL1, 0, 28, 1);
 	}
 }
 EXPORT_SYMBOL(adc_pll_down);
@@ -869,16 +832,8 @@ static const struct adc_platform_data_s adc_data_tm2 = {
 	.chip_id = ADC_CHIP_TM2,
 };
 
-static const struct adc_platform_data_s adc_data_t5 = {
-	.chip_id = ADC_CHIP_T5,
-};
-
 static const struct adc_platform_data_s adc_data_t5d = {
 	.chip_id = ADC_CHIP_T5D,
-};
-
-static const struct adc_platform_data_s adc_data_s4 = {
-	.chip_id = ADC_CHIP_S4,
 };
 
 static const struct of_device_id adc_dt_match[] = {
@@ -903,16 +858,8 @@ static const struct of_device_id adc_dt_match[] = {
 		.data = &adc_data_tm2,
 	},
 	{
-		.compatible = "amlogic, adc-t5",
-		.data = &adc_data_t5,
-	},
-	{
 		.compatible = "amlogic, adc-t5d",
 		.data = &adc_data_t5d,
-	},
-	{
-		.compatible = "amlogic, adc-s4",
-		.data = &adc_data_s4,
 	},
 	{}
 };
@@ -926,7 +873,6 @@ static int adc_probe(struct platform_device *pdev)
 	int r;
 	int size = 0;
 	struct resource *res = 0;
-	unsigned int i;
 
 	devp = devm_kzalloc(&pdev->dev, sizeof(struct tvin_adc_dev),
 			    GFP_KERNEL);
@@ -978,19 +924,17 @@ static int adc_probe(struct platform_device *pdev)
 		devp->plat_data = (struct adc_platform_data_s *)of_id->data;
 	}
 
-	for (i = 0; i < MAP_ADDR_NUM; i++) {
-		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
-		if (!res) {
-			pr_err("%s: res %d is faile\n", __func__, i);
-			ret = -ENOMEM;
-			goto fail_get_resource_mem;
-		}
-		size = resource_size(res);
-		devp->phy_addr[i].size = size;
-		devp->phy_addr[i].phy_addr = res->start;
-		devp->vir_addr[i] = devm_ioremap_nocache(&pdev->dev, res->start, size);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		ret = -ENOMEM;
+		goto fail_get_resource_mem;
 	}
+	size = resource_size(res);
+	devp->afe_phy_size = size;
+	devp->afe_phy_addr = res->start;
 
+	devp->afe_vir_addr = devm_ioremap_nocache(&pdev->dev,
+						res->start, size);
 	mutex_init(&devp->ioctl_mutex);
 	mutex_init(&devp->pll_mutex);
 	probe_finish = true;

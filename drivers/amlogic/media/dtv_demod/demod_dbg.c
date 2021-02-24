@@ -394,8 +394,7 @@ static void info_show(void)
 	int strength = 0;
 	struct amldtvdemod_device_s *devp = dtvdd_devp;
 
-	pr_info("cur chip: %d, delsys: %s\n", devp->data->hw_ver,
-		dtvdemod_get_cur_delsys(devp->last_delsys));
+	pr_info("cur delsys: %s\n", dtvdemod_get_cur_delsys(devp->last_delsys));
 	dvbfe = aml_get_fe();
 
 	switch (devp->last_delsys) {
@@ -737,12 +736,6 @@ static ssize_t attr_store(struct class *cls,
 			devp->print_on = val;
 	} else if (!strcmp(parm[0], "strength_limit")) {
 		if (parm[1] && (kstrtoint(parm[1], 10, &devp->tuner_strength_limit)) == 0)
-			;
-	} else if (!strcmp(parm[0], "debug_on")) {
-		if (parm[1] && (kstrtoint(parm[1], 10, &devp->debug_on)) == 0)
-			;
-	} else if (!strcmp(parm[0], "dvbc_sel")) {
-		if (parm[1] && (kstrtoint(parm[1], 10, &devp->dvbc_sel)) == 0)
 			;
 	}
 

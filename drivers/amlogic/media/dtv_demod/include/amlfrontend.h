@@ -11,21 +11,18 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/02/08: for s4 bringup"
+#define DTVDEMOD_VER	"2021/01/04: workaround for T/T2 weak signal"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
 #define THRD_TUNER_STRENTH_J83 (-76)
 /* tested on BTC, sensertivity of demod is -100dBm */
-#define THRD_TUNER_STRENTH_DVBT (-101)
+#define THRD_TUNER_STRENTH_DVBT (-102)
 #define THRD_TUNER_STRENTH_DVBS (-76)
 
 #define TIMEOUT_ATSC		2000
 #define TIMEOUT_DVBT		2000
 #define TIMEOUT_DVBS		2000
-
-#define HHI_DEMOD_CLK_CNTL	0x74
-#define HHI_DEMOD_CLK_CNTL1	0x75
 
 enum Gxtv_Demod_Tuner_If {
 	SI2176_5M_IF = 5,
@@ -82,7 +79,6 @@ struct ss_reg_vt {
 struct ddemod_reg_off {
 	unsigned int off_demod_top;
 	unsigned int off_dvbc;
-	unsigned int off_dvbc_2;
 	unsigned int off_dtmb;
 	unsigned int off_dvbt_isdbt;
 	unsigned int off_dvbt_t2;
@@ -101,7 +97,6 @@ enum dtv_demod_hw_ver_e {
 	DTVDEMOD_HW_TM2_B,
 	DTVDEMOD_HW_T5,
 	DTVDEMOD_HW_T5D,
-	DTVDEMOD_HW_S4,
 };
 
 struct meson_ddemod_data {
@@ -232,12 +227,8 @@ struct amldtvdemod_device_s {
 	struct pinctrl_state *diseqc_pin_st;/*diseqc pin state*/
 	struct mutex mutex_tx_msg;/*pretect tx cec msg*/
 	unsigned int print_on;
-	unsigned int bw;
+	unsigned int dvbt_bw;
 	int tuner_strength_limit;
-	unsigned int plp_id;
-	unsigned int debug_on;
-	/* select dvbc module for s4 */
-	unsigned int dvbc_sel;
 };
 
 extern struct amldtvdemod_device_s *dtvdd_devp;
@@ -267,12 +258,6 @@ static inline void __iomem *gbase_dvbc(void)
 {
 	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v + dtvdd_devp->data->regoff.off_dvbc;
 }
-
-static inline void __iomem *gbase_dvbc_2(void)
-{
-	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v + dtvdd_devp->data->regoff.off_dvbc_2;
-}
-
 static inline void __iomem *gbase_dtmb(void)
 {
 	return dtvdd_devp->reg_v[ES_MAP_ADDR_DEMOD].v + dtvdd_devp->data->regoff.off_dtmb;

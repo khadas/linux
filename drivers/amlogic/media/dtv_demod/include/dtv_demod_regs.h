@@ -18,8 +18,6 @@
 #define DC_ARB_EN_BIT		30
 #define DC_ARB_EN_WID		1
 
-#define TEST_BUS_VLD		(0x3b)
-
 /* j.83b fec */
 #define J83B_FEC_TS_CLK		(0x84)
 #define PARALLEL_CLK_DIV_BIT	16

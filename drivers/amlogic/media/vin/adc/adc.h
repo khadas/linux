@@ -8,6 +8,8 @@
 
 #define TVDIN_ADC_VER "2020/06/16 improve robustness for probe fail"
 
+#define HIU_WR aml_write_hiubus
+
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000
 
@@ -45,14 +47,9 @@
 #define HHI_ADC_PLL_CNTL6	0x9f
 
 #define HHI_DEMOD_CLK_CNTL	0x74
+#define HHI_DEMOD_CLK_CNTL1	0x75
 
 #define RESET1_REGISTER		0x1102
-
-enum adc_map_addr {
-	MAP_ADDR_AFE,
-	MAP_ADDR_HIU,
-	MAP_ADDR_NUM
-};
 
 enum adc_chip_ver {
 	ADC_CHIP_GXL = 0,
@@ -66,14 +63,7 @@ enum adc_chip_ver {
 	ADC_CHIP_SM1,
 	ADC_CHIP_TL1,
 	ADC_CHIP_TM2,
-	ADC_CHIP_T5,
 	ADC_CHIP_T5D,
-	ADC_CHIP_S4,
-};
-
-struct adc_reg_phy {
-	unsigned int phy_addr;
-	unsigned int size;
 };
 
 struct adc_platform_data_s {
@@ -93,9 +83,13 @@ struct tvin_adc_dev {
 	struct mutex pll_mutex; /* protect pll setting for multi modules */
 	unsigned int pll_flg;
 	unsigned int print_en;
-	struct adc_reg_phy phy_addr[MAP_ADDR_NUM];
-	void __iomem *vir_addr[MAP_ADDR_NUM];
+	unsigned int afe_phy_addr;
+	unsigned int afe_phy_size;
+	void __iomem *afe_vir_addr;
 };
+
+int dd_tvafe_hiu_reg_write(unsigned int reg, unsigned int val);
+unsigned int dd_tvafe_hiu_reg_read(unsigned int addr);
 
 #endif
 

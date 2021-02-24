@@ -349,5 +349,4 @@ void dtvdemod_get_plp_dbg(void);
 void dtvdemod_set_plpid(char id);
 void dvbt_reg_initial(unsigned int bw);
 void dtvdemod_reset_fw(void);
-void dvbt2_info(void);
 #endif

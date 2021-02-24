@@ -9,6 +9,40 @@
 #include "demod_func.h"
 #include "dvbc_func.h"
 
+/*#define dprintk(a ...)	aml_dbgdvbc_reg(a)*/
+
+
+#if 0
+void qam_write_reg(int reg_addr, int reg_data)
+{
+	if (!get_dtvpll_init_flag())
+		return;
+
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu())
+		demod_set_demod_reg(reg_data, TXLX_QAM_BASE + (reg_addr << 2));
+	else if (is_meson_gxlx_cpu())
+		demod_set_demod_reg(reg_data, GXLX_QAM_BASE + (reg_addr << 2));
+	else
+		demod_set_demod_reg(reg_data, ddemod_reg_base + QAM_BASE
+						+ (reg_addr << 2));
+}
+
+unsigned long qam_read_reg(int reg_addr)
+{
+	if (!get_dtvpll_init_flag())
+		return 0;
+	if (is_meson_txlx_cpu() || is_meson_txhd_cpu())
+		return demod_read_demod_reg(TXLX_QAM_BASE + (reg_addr << 2));
+	else if (is_meson_gxlx_cpu())
+		return demod_read_demod_reg(GXLX_QAM_BASE + (reg_addr << 2));
+	else
+		return demod_read_demod_reg(ddemod_reg_base + QAM_BASE
+						+ (reg_addr << 2));
+}
+
+#endif
+
+
 u32 dvbc_get_status(void)
 {
 /*      PR_DVBC("c4 is %x\n",dvbc_read_reg(QAM_BASE+0xc4));*/
@@ -248,6 +282,7 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 	symb_rate = demod_sta->symb_rate;	/* k/sec */
 	PR_DVBC("ch_if is %d,  %d,  %d,  %d, %d %d\n",
 		ch_if, ch_mode, ch_freq, ch_bw, symb_rate, adc_freq);
+/*    ch_mode=4;*/
 	/* disable irq */
 	qam_write_reg(0x34, 0);
 
@@ -332,8 +367,6 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 
 	/* modified 0x44 0x48 */
 	qam_write_reg(0x11, (symb_rate & 0xffff) * 256);
-	/* support CI+ card */
-	qam_write_bits(0x11, 0x98, 24, 8);
 	/* blind search, configure max symbol_rate      for 7218  fb=3.6M */
 	/*dvbc_write_reg(QAM_BASE+0x048, 3600*256);*/
 	/* // configure min symbol_rate fb = 6.95M*/
