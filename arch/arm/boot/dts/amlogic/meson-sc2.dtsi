@@ -1612,7 +1612,7 @@
 		compatible = "amlogic, aml-wifi";
 		status = "disabled";
 		irq_trigger_type = "GPIO_IRQ_LOW";
-		/* dhd_static_buf; */ /* if use bcm wifi, config dhd_static_buf */
+		dhd_static_buf;  /* if use bcm wifi, config dhd_static_buf */
 		//pinctrl-0 = <&pwm_e_pins>;
 		//pinctrl-names = "default";
 		pwm_config = <&wifi_pwm_conf>;
