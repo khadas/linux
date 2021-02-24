@@ -616,7 +616,7 @@
 			pll-setting-1 = <0x09400414>;
 			pll-setting-2 = <0x927E0000>;
 			pll-setting-3 = <0xac5f69e5>;
-			pll-setting-4 = <0xfe18>;
+			pll-setting-4 = <0xbe18>;
 			pll-setting-5 = <0x7>;
 			pll-setting-6 = <0x78000>;
 			pll-setting-7 = <0xe0004>;
