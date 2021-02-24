@@ -96,6 +96,7 @@ static struct fun_symbol common_func[] __initdata = {
 	{"__kmalloc",			1},
 	{"cma_alloc",			1},
 	{"dma_alloc_from_contiguous",	1},
+	{"dma_alloc_contiguous",	1},
 	{"alloc_slab_page",		1},
 	{"aml_cma_alloc_post_hook",	1},
 #ifdef CONFIG_ARM
@@ -118,11 +119,13 @@ static struct fun_symbol common_func[] __initdata = {
 	{"kmalloc_large_node",		1},
 	{"kmem_cache_alloc_node",	1},
 	{"__kmalloc_node",		1},
+	{"kvmalloc_node",		1},
 	{"alloc_pages_vma",		1},
 #endif
 #ifdef CONFIG_SLUB	/* for some static symbols not exported in headfile */
 	{"new_slab",			0},
 	{"slab_alloc",			0},
+	{"allocate_slab",		1},
 #endif
 	{}		/* tail */
 };
