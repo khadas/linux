@@ -871,18 +871,12 @@ static int meson_sar_adc_get_sample(struct iio_dev *indio_dev,
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 	if (iio_buffer_enabled(indio_dev)) {
-		if (priv->param->has_chnl_regs) {
-			ret = meson_sar_adc_read_raw_sample_from_chnl(indio_dev,
-								      chan,
-								      val);
-			meson_sar_adc_unlock(indio_dev);
-
-			return (ret == 0) ? IIO_VAL_INT : ret;
-		}
-
+		ret = meson_sar_adc_read_raw_sample_from_chnl(indio_dev,
+							      chan,
+							      val);
 		meson_sar_adc_unlock(indio_dev);
 
-		return -EBUSY;
+		return (ret == 0) ? IIO_VAL_INT : ret;
 	}
 
 	if (meson_sar_adc_pm_runtime_supported(indio_dev)) {
@@ -2251,7 +2245,10 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-	if (priv->param->has_chnl_regs) {
+	ret = of_property_read_bool(pdev->dev.of_node,
+				    "amlogic,enable-continuous-sampling");
+
+	if (priv->param->has_chnl_regs && ret) {
 		meson_sar_adc_chan_spec_update(indio_dev);
 
 		ret = of_property_read_u32(pdev->dev.of_node,
