@@ -3894,10 +3894,13 @@ static void check_read_ksv_list_st(void)
 static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned int cmd,
 			   unsigned long argv)
 {
+	struct hdcp_obs_val *obs;
 	int i = 0;
+	int ret = 0;
 	unsigned char *tmp_char = NULL;
 	struct hdcprp14_topo *topo14 = NULL;
 	unsigned int val;
+	unsigned char tmp[5];
 
 	if ((cmd & CMD_DDC_OFFSET) != CMD_DDC_OFFSET) {
 		pr_err(HW "ddc: invalid cmd 0x%x\n", cmd);
@@ -3905,6 +3908,36 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned int cmd,
 	}
 
 	switch (cmd) {
+	case DDC_HDCP14_SAVE_OBS:
+		obs = (struct hdcp_obs_val *)hdev;
+		ret = 0;
+		tmp[0] = hdmitx_rd_reg(HDMITX_DWC_A_HDCPOBS0) & 0xff;
+		tmp[1] = hdmitx_rd_reg(HDMITX_DWC_A_HDCPOBS1) & 0xff;
+		tmp[2] = hdmitx_rd_reg(HDMITX_DWC_A_HDCPOBS2) & 0xff;
+		tmp[3] = hdmitx_rd_reg(HDMITX_DWC_A_HDCPOBS3) & 0xff;
+		tmp[4] = hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT) & 0xff;
+		/* if current status is not equal last obs, then return 1 */
+		if (obs->obs0 != tmp[0]) {
+			obs->obs0 = tmp[0];
+			ret |= (1 << 0);
+		}
+		if (obs->obs1 != tmp[1]) {
+			obs->obs1 = tmp[1];
+			ret |= (1 << 1);
+		}
+		if (obs->obs2 != tmp[2]) {
+			obs->obs2 = tmp[2];
+			ret |= (1 << 2);
+		}
+		if (obs->obs3 != tmp[3]) {
+			obs->obs3 = tmp[3];
+			ret |= (1 << 3);
+		}
+		if (obs->intstat != tmp[4]) {
+			obs->intstat = tmp[4];
+			ret |= (1 << 4);
+		}
+		return ret;
 	case DDC_RESET_EDID:
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_SOFTRSTZ, 0);
 		memset(hdev->tmp_edid_buf, 0, ARRAY_SIZE(hdev->tmp_edid_buf));

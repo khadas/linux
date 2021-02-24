@@ -1512,3 +1512,8 @@ void hdmitx_debugfs_init(void)
 				hdmitx_dbg_files[i].name);
 	}
 }
+
+struct dentry *hdmitx_get_dbgfsdentry(void)
+{
+	return hdmitx_dbgfs;
+}

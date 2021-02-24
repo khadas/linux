@@ -281,13 +281,6 @@ struct hdmitx_clk_tree_s {
 	struct clk *venci_1_gate;
 };
 
-/* 2kB should be enough to record */
-#define HDCP_LOG_SIZE (1024 * 2)
-struct hdcplog_buf {
-	int idx;
-	unsigned char buf[HDCP_LOG_SIZE + 64]; /* padding 8 bytes */
-};
-
 /*drm hpd*/
 typedef void (*drm_hpd_cb)(void *data);
 
