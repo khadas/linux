@@ -70,6 +70,11 @@ static int ddr_get_cur_state(struct thermal_cooling_device *cdev,
 static int ddr_set_cur_state(struct thermal_cooling_device *cdev,
 			     unsigned long state)
 {
+	struct ddr_cooling_device *ddr_device = cdev->devdata;
+
+	if (WARN_ON(state >= ddr_device->ddr_status))
+		return -EINVAL;
+
 	state = 0;
 	return state;
 }

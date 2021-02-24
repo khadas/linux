@@ -142,6 +142,9 @@ static int gpucore_set_cur_state(struct thermal_cooling_device *cdev,
 	struct gpucore_cooling_device *gpucore_device = cdev->devdata;
 	int set_max_num;
 
+	if (WARN_ON(state >= gpucore_device->max_gpu_core_num))
+		return -EINVAL;
+
 	mutex_lock(&cooling_gpucore_lock);
 	if (gpucore_device->stop_flag) {
 		mutex_unlock(&cooling_gpucore_lock);

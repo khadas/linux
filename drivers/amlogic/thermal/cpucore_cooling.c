@@ -131,6 +131,9 @@ static int cpucore_set_cur_state(struct thermal_cooling_device *cdev,
 	struct cpucore_cooling_device *cpucore_device = cdev->devdata;
 	int set_max_num, id;
 
+	if (WARN_ON(state >= cpucore_device->max_cpu_core_num))
+		return -EINVAL;
+
 	mutex_lock(&cooling_cpucore_lock);
 	if (cpucore_device->stop_flag) {
 		mutex_unlock(&cooling_cpucore_lock);
