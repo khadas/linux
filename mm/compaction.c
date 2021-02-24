@@ -751,7 +751,11 @@ isolate_freepages_range(struct compact_control *cc,
 /* Similar to reclaim, but different enough that they don't share logic */
 static bool too_many_isolated(pg_data_t *pgdat)
 {
+#ifdef CONFIG_AMLOGIC_CMA
+	signed long active, inactive, isolated;
+#else
 	unsigned long active, inactive, isolated;
+#endif
 
 	inactive = node_page_state(pgdat, NR_INACTIVE_FILE) +
 			node_page_state(pgdat, NR_INACTIVE_ANON);
@@ -760,6 +764,13 @@ static bool too_many_isolated(pg_data_t *pgdat)
 	isolated = node_page_state(pgdat, NR_ISOLATED_FILE) +
 			node_page_state(pgdat, NR_ISOLATED_ANON);
 
+#ifdef CONFIG_AMLOGIC_CMA
+	isolated -= global_zone_page_state(NR_CMA_ISOLATED);
+	WARN_ONCE(isolated > (inactive + active) / 2,
+		  "isolated:%ld, cma:%ld, inactive:%ld, active:%ld\n",
+		  isolated, global_zone_page_state(NR_CMA_ISOLATED),
+		  inactive, active);
+#endif /* CONFIG_AMLOGIC_CMA */
 	return isolated > (inactive + active) / 2;
 }
 

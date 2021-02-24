@@ -195,7 +195,11 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 {
 	unsigned long pfn;
 	unsigned long undo_pfn;
+#ifdef CONFIG_AMLOGIC_CMA
+	struct page *page = NULL;		/* avoid compile error */
+#else
 	struct page *page;
+#endif /* CONFIG_AMLOGIC_CMA */
 	int nr_isolate_pageblock = 0;
 
 	BUG_ON(!IS_ALIGNED(start_pfn, pageblock_nr_pages));
@@ -212,6 +216,11 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 			}
 			nr_isolate_pageblock++;
 		}
+#ifdef CONFIG_AMLOGIC_CMA
+	if (migratetype == MIGRATE_CMA && page)
+		mod_zone_page_state(page_zone(page), NR_CMA_ISOLATED,
+				    end_pfn - start_pfn);
+#endif /* CONFIG_AMLOGIC_CMA */
 	}
 	return nr_isolate_pageblock;
 undo:
@@ -234,7 +243,11 @@ void undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 			    unsigned migratetype)
 {
 	unsigned long pfn;
+#ifdef CONFIG_AMLOGIC_CMA
+	struct page *page = NULL;		/* avoid compile error */
+#else
 	struct page *page;
+#endif
 
 	BUG_ON(!IS_ALIGNED(start_pfn, pageblock_nr_pages));
 	BUG_ON(!IS_ALIGNED(end_pfn, pageblock_nr_pages));
@@ -247,6 +260,11 @@ void undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 			continue;
 		unset_migratetype_isolate(page, migratetype);
 	}
+#ifdef CONFIG_AMLOGIC_CMA
+	if (migratetype == MIGRATE_CMA && page)
+		mod_zone_page_state(page_zone(page), NR_CMA_ISOLATED,
+				    start_pfn - end_pfn);
+#endif /* CONFIG_AMLOGIC_CMA */
 }
 /*
  * Test all pages in the range is free(means isolated) or not.
