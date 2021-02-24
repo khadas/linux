@@ -292,6 +292,7 @@ static u32 frame_detect_receive_count;
 static u32 frame_detect_drop_count;
 
 static u32 vpp_hold_setting_cnt;
+static u32 blend_conflict_cnt;
 
 #ifdef FIQ_VSYNC
 #define BRIDGE_IRQ INT_TIMER_C
@@ -4996,6 +4997,52 @@ void set_alpha_scpxn(struct video_layer_s *layer,
 	set_alpha(layer, win_en, &alpha_win);
 }
 
+static void blend_reg_conflict_detect(void)
+{
+	u32 r1, r2, r3;
+	u32 blend_en = 0;
+
+	if (!legacy_vpp) {
+		r1 = READ_VCBUS_REG(VD1_BLEND_SRC_CTRL);
+		if (r1 & 0xfff)
+			blend_en = 1;
+	} else {
+		r1 = READ_VCBUS_REG(VPP_MISC);
+		if (r1 & VPP_VD1_POSTBLEND)
+			blend_en = 1;
+	}
+	r2 = READ_VCBUS_REG(vd_layer[0].vd_afbc_reg.afbc_enable);
+	r3 = READ_VCBUS_REG(vd_layer[0].vd_mif_reg.vd_if0_gen_reg);
+	if (r2 == 0 && r3 == 0 && blend_en)
+		blend_conflict_cnt++;
+
+	blend_en = 0;
+	if (!legacy_vpp) {
+		r1 = READ_VCBUS_REG(VD2_BLEND_SRC_CTRL);
+		if (r1 & 0xfff)
+			blend_en = 1;
+	} else {
+		r1 = READ_VCBUS_REG(VPP_MISC);
+		if (r1 & VPP_VD2_POSTBLEND)
+			blend_en = 1;
+	}
+	r2 = READ_VCBUS_REG(vd_layer[1].vd_afbc_reg.afbc_enable);
+	r3 = READ_VCBUS_REG(vd_layer[1].vd_mif_reg.vd_if0_gen_reg);
+	if (r2 == 0 && r3 == 0 && blend_en)
+		blend_conflict_cnt++;
+
+	blend_en = 0;
+	if (cur_dev->max_vd_layers == 3) {
+		r1 = READ_VCBUS_REG(VD3_BLEND_SRC_CTRL);
+		if (r1 & 0xfff)
+			blend_en = 1;
+		r2 = READ_VCBUS_REG(vd_layer[2].vd_afbc_reg.afbc_enable);
+		r3 = READ_VCBUS_REG(vd_layer[2].vd_mif_reg.vd_if0_gen_reg);
+		if (r2 == 0 && r3 == 0 && blend_en)
+			blend_conflict_cnt++;
+	}
+}
+
 #ifdef FIQ_VSYNC
 void vsync_fisr_in(void)
 #else
@@ -5038,6 +5085,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	enum vframe_signal_fmt_e fmt;
 	int i, j = 0;
 
+	blend_reg_conflict_detect();
 	if (video_suspend && video_suspend_cycle >= 1) {
 		if (log_out)
 			pr_info("video suspend, vsync exit\n");
@@ -13409,6 +13457,12 @@ static ssize_t vd_attach_vpp_store
 	return strnlen(buf, count);
 }
 
+static ssize_t blend_conflict_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "blend_conflict_cnt: %d\n", blend_conflict_cnt);
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -13745,7 +13799,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       vd_attach_vpp_show,
 	       vd_attach_vpp_store),
-
+	__ATTR_RO(blend_conflict),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
