@@ -298,12 +298,9 @@
 		cpuinfo_cmd = <0x82000044>;
 	};
 
-	rtc{
-		compatible = "amlogic, aml_vrtc";
-		alarm_reg_addr = <0xff8000a8>;
-		timer_e_addr = <0xffd0f188>;
-		init_date = "2020/01/01";
-		status = "disabled";
+	vrtc: rtc@0xfe010288 {
+		compatible = "amlogic,meson-vrtc";
+		reg = <0x0 0xff8000a8 0x0 0x4>;
 	};
 
 	reboot {
