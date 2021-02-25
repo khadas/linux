@@ -171,6 +171,12 @@
 			<0x0 0xfe01037c 0x0 0x4>; /*SYSCTRL_SEC_STATUS_REG31*/
 	};
 
+	cpu_info {
+		compatible = "amlogic, cpuinfo";
+		status = "okay";
+		cpuinfo_cmd = <0x82000044>;
+	};
+
 	aml_reboot {
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
