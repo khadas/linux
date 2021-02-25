@@ -1856,6 +1856,11 @@
 		status = "okay";
 	};
 
+	meson_videotunnel{
+		compatible = "amlogic, meson_videotunnel";
+		status = "okay";
+	};
+
 	video_composer {
 		compatible = "amlogic, video_composer";
 		dev_name = "video_composer";

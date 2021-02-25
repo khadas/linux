@@ -343,6 +343,11 @@
 		status = "disabled";
 	};
 
+	meson_videotunnel{
+		compatible = "amlogic, meson_videotunnel";
+		status = "okay";
+	};
+
 	ethmac: ethernet@ff3f0000 {
 		compatible = "amlogic,meson-axg-dwmac",
 			     "snps,dwmac-3.70a",
