@@ -24,7 +24,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2021/0226: clean log"
+#define VLOCK_VER "Ref.2021/0118: clean code for multi max 3 enc"
 
 #define VLOCK_REG_NUM	33
 
@@ -59,6 +59,12 @@ enum vlock_regmap_e {
 	REG_MAP_HIU,
 	REG_MAP_ANACTRL,/*enc*/
 	REG_MAP_END,
+};
+
+enum vlock_enc_num_e {
+	VLOCK_ENC0 = 0,
+	VLOCK_ENC1,
+	VLOCK_ENC2,
 };
 
 struct vlk_reg_map_tab {
@@ -111,6 +117,42 @@ struct stvlock_sig_sts {
 
 	u32 start_chk_ph;
 	u32 all_lock_cnt;
+
+	enum vlock_enc_num_e idx;
+	u32 offset_encl;	/*enc0,enc1,enc2 address offset*/
+	u32 offset_vlck;	/*vlock0,vlock1,vlock2 address offset*/
+
+	u32 m_update_cnt;
+	u32 f_update_cnt;
+	u32 enable_cnt;
+	u32 enable_auto_enc_cnt;
+	/*monitor*/
+	u32 pre_line;
+	u32 pre_pixel;
+
+	/*check lock sts*/
+	u32 chk_lock_sts_rstflag;
+	u32 chk_lock_sts_cnt;
+	u32 chk_lock_sts_vs_in;
+	u32 chk_lock_sts_vs_out;
+
+	u32 hhi_pll_reg_m;
+	u32 hhi_pll_reg_frac;
+	u32 pre_hiu_reg_m;
+	u32 pre_hiu_reg_frac;
+
+	u32 enc_max_line_addr;
+	u32 enc_max_pixel_addr;
+	u32 pre_enc_max_pixel;
+	u32 pre_enc_max_line;
+	u32 org_enc_line_num;
+	u32 org_enc_pixel_num;
+	u32 enc_video_mode_addr;
+	u32 enc_video_mode_adv_addr;
+	u32 enc_max_line_switch_addr;
+
+	u32 last_i_vsync;
+	u32 err_accum;
 };
 
 enum vlock_change {
@@ -124,11 +166,11 @@ enum vlock_change {
 	typeof(b) _b = b; \
 	(((_a) > (_b)) ? ((_a) - (_b)) : ((_b) - (_a))); })
 
-void amve_vlock_process(struct vframe_s *vf);
-void amve_vlock_resume(void);
+//void amve_vlock_process(struct vframe_s *vf);
+//void amve_vlock_resume(void);
 void vlock_param_set(unsigned int val, enum vlock_param_e sel);
-void vlock_status(void);
-void vlock_reg_dump(void);
+void vlock_status(struct stvlock_sig_sts *pvlock);
+void vlock_reg_dump(struct stvlock_sig_sts *pvlock);
 void vlock_log_start(void);
 void vlock_log_stop(void);
 void vlock_log_print(void);
@@ -201,11 +243,10 @@ enum vlock_pll_sel {
 	vlock_pll_sel_disable = 0xf,
 };
 
-#define VLOCK_START_CNT		50
-#define VLOCK_WORK_CNT	(VLOCK_START_CNT + 10)
+#define VLOCK_START_CNT		2
 
-#define VLOCK_UPDATE_M_CNT	8
-#define VLOCK_UPDATE_F_CNT	4
+#define VLOCK_UPDATE_M_CNT	2
+#define VLOCK_UPDATE_F_CNT	2
 
 #define XTAL_VLOCK_CLOCK   24000000/*vlock use xtal clock*/
 
@@ -229,7 +270,8 @@ enum vlock_pll_sel {
 #define VLOCK_DEBUG_ENC_PIXEL_ADJ_DIS (0x8)
 #define VLOCK_DEBUG_AUTO_MODE_LOG_EN (0x10)
 #define VLOCK_DEBUG_PLL2ENC_DIS (0x20)
-#define VLOCK_DEBUG_FSM_DIS (0x40)
+#define VLOCK_DEBUG_FSM_PAUSE (0x40)
+#define VLOCK_DEBUG_FORCE_ON (0x80)
 #define VLOCK_DEBUG_INFO_ERR	(BIT(15))
 
 /* 0:enc;1:pll;2:manual pll */
@@ -258,8 +300,8 @@ int vlock_notify_callback(struct notifier_block *block,
 void vlock_status_init(void);
 void vlock_dt_match_init(struct vecm_match_data_s *pdata);
 void vlock_set_en(bool en);
-void vlock_set_phase(u32 percent);
-void vlock_set_phase_en(u32 en);
+void vlock_set_phase(struct stvlock_sig_sts *vlock, u32 percent);
+void vlock_set_phase_en(struct stvlock_sig_sts *vlock, u32 en);
 
 void lcd_vlock_m_update(unsigned int vlock_m);
 void lcd_vlock_frac_update(unsigned int vlock_frac);
