@@ -143,12 +143,6 @@
 		dev_name = "codec_mm";
 		status = "okay";
 	};
-	cma_shrinker {
-		compatible = "amlogic, cma-shrinker";
-		status = "disable";
-		adj  = <0 100 200 250 900 950>;
-		free = <8192 12288 16384 24576 28672 32768>;
-	};
 	amdolby_vision {
 		compatible = "amlogic, dolby_vision_sc2";
 		dev_name = "aml_amdolby_vision_driver";
@@ -1543,4 +1537,8 @@
 &uart_E {
 	status = "okay";
 	uart-has-rtscts;
+};
+
+&cma_shrinker {
+	free = <7680 24288 28528 32600 32768 36624>;
 };

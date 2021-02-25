@@ -304,6 +304,13 @@
 		clear_range = <0x05100000 0x200000>;
 	};
 
+	cma_shrinker: cma_shrinker {
+		compatible = "amlogic, cma-shrinker";
+		status = "okay";
+		adj  = <0 100 200 250 900 950>;
+		free = <8192 12288 16384 24576 28672 32768>;
+	};
+
 	xtal: xtal-clk {
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;

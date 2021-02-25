@@ -1810,3 +1810,7 @@
 	status = "okay";
 	power_on-gpios  = <&gpio_ao       GPIOD_2       GPIO_ACTIVE_HIGH>;
 };
+
+&cma_shrinker {
+	free = <7680 24288 28528 32600 32768 36624>;
+};

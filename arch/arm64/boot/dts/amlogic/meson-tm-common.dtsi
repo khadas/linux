@@ -56,11 +56,11 @@
 		cpuinfo_cmd = <0x82000044>;
 	};
 
-	cma_shrinker {
+	cma_shrinker: cma_shrinker {
 		compatible = "amlogic, cma-shrinker";
 		status = "okay";
 		adj  = <0 100 200 250 900 950>;
-		free = <18432 23040 27648 32256 36864 46080>;
+		free = <8192 12288 16384 24576 28672 32768>;
 	};
 
 	meson_uvm {
