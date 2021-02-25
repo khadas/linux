@@ -9,9 +9,9 @@
 #include <linux/amlogic/meson_uvm_core.h>
 
 #define VDIN_DEV_VER		0x20201003
-#define VDIN_DEV_VER2		"support v4l nvm mode"
+#define VDIN_DEV_VER2		"change video dev number"
 #define VDIN_V4L_DV_NAME	"videovdin"
-#define VDIN_VD_NUMBER		(50)
+#define VDIN_VD_NUMBER		(70)
 
 #define NUM_PLANES_YUYV		1
 #define NUM_PLANES_NV21		2
