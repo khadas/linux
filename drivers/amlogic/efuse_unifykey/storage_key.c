@@ -27,6 +27,11 @@
 #undef pr_fmt
 #define pr_fmt(fmt) "unifykey: " fmt
 
+#define SECUREKEY_SIZE		SECUESTORAGE_WHOLE_SIZE
+
+static DEFINE_MUTEX(securekey_lock);
+u8 *securekey_prebuf;
+
 struct storagekey_info_t {
 	u8  *buffer;
 	u32 size;
@@ -143,6 +148,20 @@ _out:
 	return ret;
 }
 
+int securekey_prebuf_init(void)
+{
+	securekey_prebuf = kmalloc(SECUREKEY_SIZE, GFP_KERNEL);
+	if (!securekey_prebuf)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void securekey_prebuf_deinit(void)
+{
+	kfree(securekey_prebuf);
+}
+
 static u32 _amlkey_exsit(const u8 *name)
 {
 	unsigned long ret = 0;
@@ -248,15 +267,24 @@ static ssize_t _amlkey_write(const u8 *name, u8 *buffer,
 		goto _out;
 	}
 
-	buf = kmalloc(storagekey_info.size, GFP_KERNEL);
-	if (!buf) {
-		retval = 0;
-		goto _out;
+	if (!securekey_prebuf)
+		return 0;
+
+	if (storagekey_info.size > SECUREKEY_SIZE) {
+		pr_err("%s() %d: pre alloc buffer[0x%x] is too small, need size[0x%x].\n",
+			__func__, __LINE__, SECUREKEY_SIZE, storagekey_info.size);
+		return 0;
 	}
+
+	mutex_lock(&securekey_lock);
+	memset(securekey_prebuf, 0, SECUREKEY_SIZE);
+	buf = securekey_prebuf;
+
 	memcpy(buf, storagekey_info.buffer, storagekey_info.size);
 	if (!uk_type->ops->write) {
 		pr_err("the write fun for current unifykey type is NULL\n");
 		retval = 0;
+		mutex_unlock(&securekey_lock);
 		goto _out;
 	}
 	if (uk_type->ops->write(buf, storagekey_info.size, &actual_length)) {
@@ -264,8 +292,9 @@ static ssize_t _amlkey_write(const u8 *name, u8 *buffer,
 		retval = 0;
 	}
 
+	mutex_unlock(&securekey_lock);
+
 _out:
-	kfree(buf);
 	return retval;
 }
 
@@ -453,6 +482,11 @@ int normal_key_init(struct platform_device *pdev)
 	return 0;
 }
 
+void normal_key_deinit(void)
+{
+	kfree(normal_block);
+}
+
 enum amlkey_if_type {
 	IFTYPE_SECURE_STORAGE,
 	IFTYPE_NORMAL_STORAGE,
@@ -489,6 +523,7 @@ int __init amlkey_if_init(struct platform_device *pdev)
 	ret = security_key_init(pdev);
 	if (ret != -EOPNOTSUPP) {
 		amlkey_if = &amlkey_ifs[IFTYPE_SECURE_STORAGE];
+		ret = securekey_prebuf_init();
 		return ret;
 	}
 
@@ -497,4 +532,11 @@ int __init amlkey_if_init(struct platform_device *pdev)
 	amlkey_if = &amlkey_ifs[IFTYPE_NORMAL_STORAGE];
 
 	return ret;
+}
+
+void amlkey_if_deinit(void)
+{
+	securekey_prebuf_deinit();
+
+	normal_key_deinit();
 }

@@ -55,5 +55,6 @@ static inline s32 amlkey_hash(const u8 *name, u8 *hash)
 }
 
 int amlkey_if_init(struct platform_device *pdev);
+void amlkey_if_deinit(void);
 #endif
 

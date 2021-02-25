@@ -1316,6 +1316,7 @@ error2:
 error1:
 	devm_kfree(&pdev->dev, ukdev);
 out:
+	amlkey_if_deinit();
 	return ret;
 }
 
@@ -1331,6 +1332,7 @@ static int aml_unifykeys_remove(struct platform_device *pdev)
 	cdev_del(&ukdev->cdev);
 	class_unregister(&ukdev->cls);
 	platform_set_drvdata(pdev, NULL);
+	amlkey_if_deinit();
 
 	return 0;
 }
