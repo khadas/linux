@@ -23,6 +23,7 @@ static void __iomem *sharemem_out_base;
 static long phy_in_base;
 static long phy_out_base;
 static unsigned long secmon_start_virt;
+static unsigned int secmon_size;
 
 #ifdef CONFIG_ARM64
 #define IN_SIZE	0x1000
@@ -51,7 +52,7 @@ int within_secmon_region(unsigned long addr)
 		return 0;
 
 	if (addr >= secmon_start_virt &&
-	    addr <= (secmon_start_virt + RESERVE_MEM_SIZE))
+	    addr <= (secmon_start_virt + secmon_size))
 		return 1;
 
 	return 0;
@@ -62,7 +63,6 @@ static int secmon_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	unsigned int id;
 	int ret;
-	int mem_size;
 	struct page *page;
 
 	if (!of_property_read_u32(np, "in_base_func", &id))
@@ -71,11 +71,11 @@ static int secmon_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(np, "out_base_func", &id))
 		phy_out_base = get_sharemem_info(id);
 
-	if (of_property_read_u32(np, "reserve_mem_size", &mem_size)) {
+	if (of_property_read_u32(np, "reserve_mem_size", &secmon_size)) {
 		pr_err("can't get reserve_mem_size, use default value\n");
-		mem_size = RESERVE_MEM_SIZE;
+		secmon_size = RESERVE_MEM_SIZE;
 	} else {
-		pr_info("reserve_mem_size:0x%x\n", mem_size);
+		pr_info("reserve_mem_size:0x%x\n", secmon_size);
 	}
 
 	ret = of_reserved_mem_device_init(&pdev->dev);
@@ -84,7 +84,7 @@ static int secmon_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	page = dma_alloc_from_contiguous(&pdev->dev, mem_size >> PAGE_SHIFT, 0, 0);
+	page = dma_alloc_from_contiguous(&pdev->dev, secmon_size >> PAGE_SHIFT, 0, 0);
 	if (!page) {
 		pr_err("alloc page failed, ret:%p\n", page);
 		return -ENOMEM;

@@ -298,11 +298,15 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
 	 * not [unambiguously] associated with a struct page, so there is
 	 * no correct value to return for them.
 	 */
+#ifndef CONFIG_AMLOGIC_MODIFY
 	WARN_ON_ONCE(pud_bad(*pud));
+#endif
 	if (pud_none(*pud) || pud_bad(*pud))
 		return NULL;
 	pmd = pmd_offset(pud, addr);
+#ifndef CONFIG_AMLOGIC_MODIFY
 	WARN_ON_ONCE(pmd_bad(*pmd));
+#endif
 	if (pmd_none(*pmd) || pmd_bad(*pmd))
 		return NULL;
 

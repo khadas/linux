@@ -205,6 +205,89 @@ void die(const char *str, struct pt_regs *regs, int err)
 		do_exit(SIGSEGV);
 }
 
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+static long get_user_pfn(struct mm_struct *mm, unsigned long addr)
+{
+	long pfn = -1;
+	pgd_t *pgd;
+
+	if (!mm || addr >= VMALLOC_START)
+		mm = &init_mm;
+
+	pgd = pgd_offset(mm, addr);
+
+	do {
+		pud_t *pud;
+		pmd_t *pmd;
+		pte_t *pte;
+
+		if (pgd_none(*pgd) || pgd_bad(*pgd))
+			break;
+
+		pud = pud_offset(pgd, addr);
+		if (pud_none(*pud) || pud_bad(*pud))
+			break;
+
+		pmd = pmd_offset(pud, addr);
+		if (pmd_none(*pmd) || pmd_bad(*pmd))
+			break;
+
+		pte = pte_offset_map(pmd, addr);
+		pfn = pte_pfn(*pte);
+		pte_unmap(pte);
+	} while (0);
+
+	return pfn;
+}
+
+void show_all_pfn(struct task_struct *task, struct pt_regs *regs)
+{
+	int i;
+	long pfn1, far;
+	char s1[10];
+	int top;
+
+	if (compat_user_mode(regs))
+		top = 15;
+	else
+		top = 31;
+	pr_info("reg              value       pfn  ");
+	pr_cont("reg              value       pfn\n");
+	for (i = 0; i < top; i++) {
+		pfn1 = get_user_pfn(task->mm, regs->regs[i]);
+		if (pfn1 >= 0)
+			sprintf(s1, "%8lx", pfn1);
+		else
+			sprintf(s1, "--------");
+		if (i % 2 == 1)
+			pr_cont("r%-2d:  %016llx  %s\n", i, regs->regs[i], s1);
+		else
+			pr_info("r%-2d:  %016llx  %s  ", i, regs->regs[i], s1);
+	}
+	pr_cont("\n");
+	pfn1 = get_user_pfn(task->mm, regs->pc);
+	if (pfn1 >= 0)
+		sprintf(s1, "%8lx", pfn1);
+	else
+		sprintf(s1, "--------");
+	pr_info("pc :  %016llx  %s\n", regs->pc, s1);
+	pfn1 = get_user_pfn(task->mm, regs->sp);
+	if (pfn1 >= 0)
+		sprintf(s1, "%8lx", pfn1);
+	else
+		sprintf(s1, "--------");
+	pr_info("sp :  %016llx  %s\n", regs->sp, s1);
+
+	far = read_sysreg(far_el1);
+	pfn1 = get_user_pfn(task->mm, far);
+	if (pfn1 >= 0)
+		sprintf(s1, "%8lx", pfn1);
+	else
+		sprintf(s1, "--------");
+	pr_info("unused :  %016lx  %s\n", far, s1);
+}
+#endif /* CONFIG_AMLOGIC_USER_FAULT */
+
 static void arm64_show_signal(int signo, const char *str)
 {
 	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL,
@@ -227,6 +310,9 @@ static void arm64_show_signal(int signo, const char *str)
 	print_vma_addr(KERN_CONT " in ", regs->pc);
 	pr_cont("\n");
 	__show_regs(regs);
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	show_all_pfn(current, regs);
+#endif
 }
 
 void arm64_force_sig_fault(int signo, int code, void __user *addr,
@@ -794,6 +880,9 @@ asmlinkage void bad_mode(struct pt_regs *regs, int reason, unsigned int esr)
 		handler[reason], smp_processor_id(), esr,
 		esr_get_class_string(esr));
 
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	show_all_pfn(current, regs);
+#endif /* CONFIG_AMLOGIC_USER_FAULT */
 	local_daif_mask();
 	panic("bad mode");
 }
@@ -808,6 +897,10 @@ asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 
 	current->thread.fault_address = 0;
 	current->thread.fault_code = esr;
+
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	show_all_pfn(current, regs);
+#endif /* CONFIG_AMLOGIC_USER_FAULT */
 
 	arm64_force_sig_fault(SIGILL, ILL_ILLOPC, pc,
 			      "Bad EL0 synchronous exception");
