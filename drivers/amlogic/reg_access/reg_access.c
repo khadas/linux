@@ -69,9 +69,10 @@ static ssize_t paddr_read_file(struct file *file, char __user *userbuf,
 	char buf[80];
 	unsigned int val = 0;
 	ssize_t len;
-	int ret;
+	int ret = -1;
 
-	ret = indio_dev->debugfs_reg_access(indio_dev,
+	if (indio_dev->debugfs_reg_access)
+		ret = indio_dev->debugfs_reg_access(indio_dev,
 					   indio_dev->cached_reg_addr,
 					   0, &val);
 	if (ret)
