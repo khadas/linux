@@ -26,7 +26,8 @@
 
 extern bool super_scaler;
 extern struct sr_info_s sr_info;
-#define VPP_FLAG_WIDEMODE_MASK      0x0000000F
+#define VPP_FLAG_WIDEMODE_MASK      0x1F000000
+#define VPP_WIDEMODE_BITS           24
 #define VPP_FLAG_INTERLACE_OUT      0x00000010
 #define VPP_FLAG_INTERLACE_IN       0x00000020
 #define VPP_FLAG_CBCR_SEPARATE      0x00000040
@@ -35,8 +36,8 @@ extern struct sr_info_s sr_info;
 #define VPP_FLAG_AR_BITS            8
 #define VPP_FLAG_PORTRAIT_MODE      0x00040000
 #define VPP_FLAG_VSCALE_DISABLE     0x00080000
-#define VPP_FLAG_MORE_LOG     0x00100000
-#define VPP_FLAG_FORCE_NO_COMPRESS     0x00200000
+#define VPP_FLAG_MORE_LOG           0x00100000
+#define VPP_FLAG_FORCE_NO_COMPRESS  0x00200000
 
 #define IDX_H           (2 << 8)
 #define IDX_V_Y         BIT(13)
@@ -175,6 +176,7 @@ struct disp_info_s {
 	u32 proc_3d_type;
 	bool vpp_3d_scale;
 	u32 nonlinear_factor;
+	u32 nonlinear_t_factor;
 
 	u32 wide_mode;
 	u32 zoom_ratio;
@@ -331,8 +333,9 @@ int vpp_set_filters
 	bool bypass_sr, u32 op_flag);
 
 s32 vpp_set_nonlinear_factor(struct disp_info_s *info, u32 f);
-
 u32 vpp_get_nonlinear_factor(struct disp_info_s *info);
+s32 vpp_set_nonlinear_t_factor(struct disp_info_s *info, u32 f);
+u32 vpp_get_nonlinear_t_factor(struct disp_info_s *info);
 
 void vpp_disp_info_init(struct disp_info_s *info, u8 id);
 

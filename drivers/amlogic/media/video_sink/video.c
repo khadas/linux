@@ -10227,11 +10227,11 @@ static ssize_t video_screen_mode_show(struct class *cla,
 {
 	struct disp_info_s *layer = &glayer_info[0];
 	static const char * const wide_str[] = {
-		"normal", "full stretch", "4-3", "16-9", "non-linear",
+		"normal", "full stretch", "4-3", "16-9", "non-linear-V",
 		"normal-noscaleup",
 		"4-3 ignore", "4-3 letter box", "4-3 pan scan", "4-3 combined",
 		"16-9 ignore", "16-9 letter box", "16-9 pan scan",
-		"16-9 combined", "Custom AR", "AFD"
+		"16-9 combined", "Custom AR", "AFD", "non-linear-T"
 	};
 
 	if (layer->wide_mode < ARRAY_SIZE(wide_str)) {
@@ -10851,6 +10851,36 @@ static ssize_t video_nonlinear_factor_store(struct class *cla,
 		return -EINVAL;
 
 	if (vpp_set_nonlinear_factor(layer, factor) == 0)
+		vd_layer[0].property_changed = true;
+
+	return count;
+}
+
+static ssize_t video_nonlinear_t_factor_show(struct class *cla,
+					   struct class_attribute *attr,
+					   char *buf)
+{
+	u32 factor;
+	struct disp_info_s *layer = &glayer_info[0];
+
+	factor = vpp_get_nonlinear_t_factor(layer);
+
+	return sprintf(buf, "%d\n", factor);
+}
+
+static ssize_t video_nonlinear_t_factor_store(struct class *cla,
+					    struct class_attribute *attr,
+					    const char *buf, size_t count)
+{
+	int r;
+	u32 factor;
+	struct disp_info_s *layer = &glayer_info[0];
+
+	r = kstrtoint(buf, 0, &factor);
+	if (r < 0)
+		return -EINVAL;
+
+	if (vpp_set_nonlinear_t_factor(layer, factor) == 0)
 		vd_layer[0].property_changed = true;
 
 	return count;
@@ -13564,6 +13594,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0644,
 	       video_nonlinear_factor_show,
 	       video_nonlinear_factor_store),
+	__ATTR(nonlinear_t_factor,
+	       0644,
+	       video_nonlinear_t_factor_show,
+	       video_nonlinear_t_factor_store),
 	__ATTR(freerun_mode,
 	       0644,
 	       video_freerun_mode_show,

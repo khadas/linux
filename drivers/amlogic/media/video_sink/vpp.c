@@ -37,6 +37,7 @@
 #include "video_priv.h"
 
 #define MAX_NONLINEAR_FACTOR    0x40
+#define MAX_NONLINEAR_T_FACTOR    100
 
 /* vpp filter coefficients */
 #define COEF_BICUBIC         0
@@ -738,10 +739,51 @@ static void f2v_get_vertical_phase(u32 zoom_ratio,
 	}
 }
 
+/* Trapezoid non-linear mode */
+/* nonlinear_factor: 0x40: 1 : 1 */
+static void calculate_non_linear_ratio_T
+	(unsigned int nonlinear_t_factor,
+	unsigned int width_in,
+	unsigned int width_out,
+	struct vpp_frame_par_s *next_frame_par)
+{
+	u32 ratio, r2_ratio, r1_ratio;
+	u32 region2_hsize_B_max;
+	u32 region2_hsize_A, region2_hsize_B;
+	u32 region1_hsize;
+	u32 phase_step, phase_slope;
+	struct vppfilter_mode_s *vpp_filter =
+		&next_frame_par->vpp_filter;
+
+	ratio = (width_in << 18) / width_out;
+	r2_ratio = (ratio * MAX_NONLINEAR_T_FACTOR /
+		nonlinear_t_factor) << 6;
+	if (r2_ratio < ratio) {
+		pr_info("nonlinear_t_factor(%d) is too large!\n",
+		nonlinear_t_factor);
+		return;
+	}
+	region2_hsize_B_max = (((2 * width_in << 18) / r2_ratio) << 6) - width_out;
+	region2_hsize_B = region2_hsize_B_max;
+	region2_hsize_A = (region2_hsize_B * (r2_ratio >> 6)) >> 18;
+	region1_hsize = (width_out - region2_hsize_B) / 2;
+	r1_ratio = (((width_in - region2_hsize_A) << 18) /
+		(width_out - region2_hsize_B)) << 6;
+	phase_step = 2 * r1_ratio - r2_ratio;
+	phase_slope = (r2_ratio - phase_step) / region1_hsize;
+	vpp_filter->vpp_hf_start_phase_step = phase_step;
+	vpp_filter->vpp_hf_start_phase_slope = phase_slope;
+	vpp_filter->vpp_hf_end_phase_slope =
+	vpp_filter->vpp_hf_start_phase_slope | 0x1000000;
+	next_frame_par->VPP_hsc_linear_startp = region1_hsize - 1;
+	next_frame_par->VPP_hsc_linear_endp =
+		region1_hsize + region2_hsize_B - 1;
+}
+
 /*
  * V-shape non-linear mode
  */
-static void calculate_non_linear_ratio
+static void calculate_non_linear_ratio_V
 	(unsigned int nonlinear_factor,
 	unsigned int middle_ratio,
 	unsigned int width_out,
@@ -757,7 +799,6 @@ static void calculate_non_linear_ratio
 	vpp_filter->vpp_hf_end_phase_slope =
 		vpp_filter->vpp_hf_start_phase_slope | 0x1000000;
 }
-
 /*
  *We find that the minimum line the video can be scaled
  * down without skip line for different modes as below:
@@ -1191,7 +1232,7 @@ static int vpp_set_filters_internal
 	s32 video_layer_global_offset_x, video_layer_global_offset_y;
 	u32 video_source_crop_top, video_source_crop_left;
 	u32 video_source_crop_bottom, video_source_crop_right;
-	u32 vpp_zoom_ratio, nonlinear_factor;
+	u32 vpp_zoom_ratio, nonlinear_factor, nonlinear_t_factor;
 	u32 speed_check_width, speed_check_height;
 	s32 video_layer_top, video_layer_left;
 	s32 video_layer_width, video_layer_height;
@@ -1242,6 +1283,7 @@ static int vpp_set_filters_internal
 	speed_check_width = input->speed_check_width;
 	speed_check_height = input->speed_check_height;
 	nonlinear_factor = input->nonlinear_factor;
+	nonlinear_t_factor = input->nonlinear_t_factor;
 	video_layer_global_offset_x = input->global_offset_x;
 	video_layer_global_offset_y = input->global_offset_y;
 
@@ -1326,7 +1368,7 @@ RESTART_ALL:
 RESTART:
 	aspect_factor = (vpp_flags & VPP_FLAG_AR_MASK) >> VPP_FLAG_AR_BITS;
 	/* don't use input->wide_mode */
-	wide_mode = vpp_flags & VPP_FLAG_WIDEMODE_MASK;
+	wide_mode = (vpp_flags & VPP_FLAG_WIDEMODE_MASK) >> VPP_WIDEMODE_BITS;
 
 	if ((vpp_flags & VPP_FLAG_AR_MASK) == VPP_FLAG_AR_MASK) {
 		ext_sar = true;
@@ -1350,7 +1392,8 @@ RESTART:
 
 	/* speical mode did not use ext sar mode */
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
-	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP)
+	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP ||
+	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T)
 		ext_sar = false;
 
 	/* keep 8 bits resolution for aspect conversion */
@@ -1411,7 +1454,8 @@ RESTART:
 
 	if (aspect_factor == 0 ||
 	    wide_mode == VIDEO_WIDEOPTION_FULL_STRETCH ||
-	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR) {
+	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
+	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T) {
 		aspect_factor = 0x100;
 		height_after_ratio = h_in;
 	} else if (ext_sar) {
@@ -1812,17 +1856,21 @@ RESTART:
 
 		next_frame_par->VPP_hsc_endp = end;
 	}
-
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR &&
 	    end > start) {
-		calculate_non_linear_ratio
+		calculate_non_linear_ratio_V
 			(nonlinear_factor,
 			ratio_x, end - start,
 			next_frame_par);
 		next_frame_par->VPP_hsc_linear_startp =
 		next_frame_par->VPP_hsc_linear_endp = (start + end) / 2;
 	}
-
+	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T &&
+	    end > start) {
+		calculate_non_linear_ratio_T(nonlinear_t_factor,
+			w_in, end - start + 1,
+			next_frame_par);
+	}
 	/*
 	 *check the painful bandwidth limitation and see
 	 * if we need skip half resolution on source side for progressive
@@ -2439,7 +2487,8 @@ static void vpp_set_super_scaler
 	}
 	/* step2: judge core0&core1 horizontal enable or disable*/
 	if (hor_sc_multiple_num >= 2 &&
-	    vpp_wide_mode != VIDEO_WIDEOPTION_NONLINEAR) {
+	    ((vpp_wide_mode != VIDEO_WIDEOPTION_NONLINEAR) &&
+	    (vpp_wide_mode != VIDEO_WIDEOPTION_NONLINEAR_T))) {
 		if (src_width > sr->core0_v_disable_width_max ||
 		    (src_width > sr->core0_v_enable_width_max &&
 		     next_frame_par->supsc0_vert_ratio) ||
@@ -3252,7 +3301,7 @@ RESTART_ALL:
 
 RESTART:
 	/* don't use input->wide_mode */
-	wide_mode = vpp_flags & VPP_FLAG_WIDEMODE_MASK;
+	wide_mode = (vpp_flags & VPP_FLAG_WIDEMODE_MASK) >> VPP_WIDEMODE_BITS;
 
 	/*
 	 *if we have ever set a cropped display area for video layer
@@ -3750,7 +3799,8 @@ int vpp_set_filters(struct disp_info_s *input,
 
 	/* don't restore the wide mode */
 	/* input->wide_mode = wide_mode; */
-	vpp_flags |= wide_mode | (aspect_ratio << VPP_FLAG_AR_BITS);
+	vpp_flags |= (wide_mode << VPP_WIDEMODE_BITS) |
+		(aspect_ratio << VPP_FLAG_AR_BITS);
 
 	if (vinfo->field_height != vinfo->height)
 		vpp_flags |= VPP_FLAG_INTERLACE_OUT;
@@ -3832,11 +3882,26 @@ u32 vpp_get_nonlinear_factor(struct disp_info_s *info)
 	return info->nonlinear_factor;
 }
 
+s32 vpp_set_nonlinear_t_factor(struct disp_info_s *info, u32 f)
+{
+	if (f < MAX_NONLINEAR_T_FACTOR) {
+		info->nonlinear_t_factor = f;
+		return 0;
+	}
+	return -1;
+}
+
+u32 vpp_get_nonlinear_t_factor(struct disp_info_s *info)
+{
+	return info->nonlinear_t_factor;
+}
+
 void vpp_disp_info_init(struct disp_info_s *info, u8 id)
 {
 	if (info) {
 		memset(info, 0, sizeof(struct disp_info_s));
 		info->nonlinear_factor = MAX_NONLINEAR_FACTOR / 2;
+		info->nonlinear_t_factor = MAX_NONLINEAR_T_FACTOR - 10;
 		info->zoom_ratio = 100;
 		info->speed_check_width = 1800;
 		info->speed_check_height = 1400;
