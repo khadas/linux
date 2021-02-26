@@ -375,7 +375,7 @@ static void lcd_mlvds_phy_set_t5(struct lcd_config_s *pconf, int status)
 
 static void lcd_p2p_phy_set_tl1(struct lcd_config_s *pconf, int status)
 {
-	unsigned int vswing, preem;
+	unsigned int vswing, preem, p2p_type;
 	unsigned int data32 = 0, size;
 	struct p2p_config_s *p2p_conf;
 
@@ -389,7 +389,8 @@ static void lcd_p2p_phy_set_tl1(struct lcd_config_s *pconf, int status)
 		if (lcd_debug_print_flag)
 			LCDPR("vswing=0x%x, prrem=0x%x\n", vswing, preem);
 
-		switch (p2p_conf->p2p_type) {
+		p2p_type = p2p_conf->p2p_type & 0x1f;
+		switch (p2p_type) {
 		case P2P_CEDS:
 		case P2P_CMPI:
 		case P2P_ISP:
@@ -417,7 +418,7 @@ static void lcd_p2p_phy_set_tl1(struct lcd_config_s *pconf, int status)
 				preem = 0x1;
 			}
 			data32 = p2p_low_common_phy_preem_tl1[preem];
-			if (p2p_conf->p2p_type == P2P_CHPI) {
+			if (p2p_type == P2P_CHPI) {
 				/* weakly pull down */
 				data32 &= ~((1 << 19) | (1 << 3));
 			}
@@ -426,8 +427,7 @@ static void lcd_p2p_phy_set_tl1(struct lcd_config_s *pconf, int status)
 			lcd_phy_cntl_set_tl1(status, data32, 1, 0);
 			break;
 		default:
-			LCDERR("%s: invalid p2p_type %d\n",
-				__func__, p2p_conf->p2p_type);
+			LCDERR("%s: invalid p2p_type %d\n", __func__, p2p_type);
 			break;
 		}
 	} else {
@@ -437,7 +437,7 @@ static void lcd_p2p_phy_set_tl1(struct lcd_config_s *pconf, int status)
 
 static void lcd_p2p_phy_set_t5(struct lcd_config_s *pconf, int status)
 {
-	unsigned int vswing, preem;
+	unsigned int vswing, preem, p2p_type, vcm_flag;
 	unsigned int data32 = 0, size;
 	struct p2p_config_s *p2p_conf;
 
@@ -451,7 +451,9 @@ static void lcd_p2p_phy_set_t5(struct lcd_config_s *pconf, int status)
 		if (lcd_debug_print_flag)
 			LCDPR("vswing=0x%x, prrem=0x%x\n", vswing, preem);
 
-		switch (p2p_conf->p2p_type) {
+		p2p_type = p2p_conf->p2p_type & 0x1f;
+		vcm_flag = (p2p_conf->p2p_type >> 5) & 0x1;
+		switch (p2p_type) {
 		case P2P_CEDS:
 		case P2P_CMPI:
 		case P2P_ISP:
@@ -479,17 +481,22 @@ static void lcd_p2p_phy_set_t5(struct lcd_config_s *pconf, int status)
 				preem = 0x1;
 			}
 			data32 = p2p_low_common_phy_preem_tl1[preem];
-			if (p2p_conf->p2p_type == P2P_CHPI) {
+			if (p2p_type == P2P_CHPI) {
 				/* weakly pull down */
 				data32 &= ~((1 << 19) | (1 << 3));
 			}
 
-			lcd_ana_write(HHI_DIF_CSI_PHY_CNTL14, 0xfe60027f);
+			if (vcm_flag) { /* 580mV */
+				lcd_ana_write(HHI_DIF_CSI_PHY_CNTL14,
+					      0xe0600272);
+			} else {
+				lcd_ana_write(HHI_DIF_CSI_PHY_CNTL14,
+					      0xfe60027f);
+			} /* default 385mV */
 			lcd_phy_cntl_set_t5(status, data32, 1, 0, 0);
 			break;
 		default:
-			LCDERR("%s: invalid p2p_type %d\n",
-			       __func__, p2p_conf->p2p_type);
+			LCDERR("%s: invalid p2p_type %d\n", __func__, p2p_type);
 			break;
 		}
 	} else {

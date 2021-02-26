@@ -1311,14 +1311,15 @@ static irqreturn_t lcd_vbyone_interrupt_handler(int irq, void *dev_id)
 static void lcd_p2p_control_set(struct lcd_config_s *pconf)
 {
 	unsigned int reg_cntl0, reg_cntl1;
-	unsigned int phy_div;
+	unsigned int phy_div, p2p_type;
 	unsigned int channel_sel0, channel_sel1;
 
 	if (lcd_debug_print_flag)
 		LCDPR("%s\n", __func__);
 
 	/* phy_div: 0=div6, 1=div 7, 2=div8, 3=div10 */
-	switch (pconf->lcd_control.p2p_config->p2p_type) {
+	p2p_type = pconf->lcd_control.p2p_config->p2p_type & 0x1f;
+	switch (p2p_type) {
 	case P2P_CHPI: /* 8/10 coding */
 	case P2P_USIT:
 		phy_div = 3;
@@ -1516,7 +1517,7 @@ static void lcd_mlvds_config_set(struct lcd_config_s *pconf)
 
 static void lcd_p2p_config_set(struct lcd_config_s *pconf)
 {
-	unsigned int bit_rate, pclk;
+	unsigned int bit_rate, pclk, p2p_type;
 	unsigned int lcd_bits, lane_num;
 
 	if (lcd_debug_print_flag)
@@ -1525,7 +1526,8 @@ static void lcd_p2p_config_set(struct lcd_config_s *pconf)
 	lcd_bits = pconf->lcd_basic.lcd_bits;
 	lane_num = pconf->lcd_control.p2p_config->lane_num;
 	pclk = pconf->lcd_timing.lcd_clk / 1000;
-	switch (pconf->lcd_control.p2p_config->p2p_type) {
+	p2p_type = pconf->lcd_control.p2p_config->p2p_type & 0x1f;
+	switch (p2p_type) {
 	case P2P_CEDS:
 		if (pclk >= 600000)
 			bit_rate = pclk * 3 * lcd_bits / lane_num;

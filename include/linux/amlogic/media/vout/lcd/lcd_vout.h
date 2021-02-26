@@ -359,7 +359,7 @@ enum p2p_type_e {
 };
 
 struct p2p_config_s {
-	unsigned int p2p_type;
+	unsigned int p2p_type; /* bit[4:0] for type, bit[5] for vcm flag */
 	unsigned int lane_num;
 	unsigned int channel_sel0;
 	unsigned int channel_sel1;

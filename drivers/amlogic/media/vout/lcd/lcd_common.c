@@ -455,7 +455,7 @@ void lcd_p2p_pinmux_set(int status)
 {
 	struct aml_lcd_drv_s *lcd_drv = aml_lcd_get_driver();
 	struct lcd_config_s *pconf;
-	unsigned int index;
+	unsigned int index, p2p_type;
 
 	if (!lcd_drv)
 		return;
@@ -463,7 +463,8 @@ void lcd_p2p_pinmux_set(int status)
 		LCDPR("%s: %d\n", __func__, status);
 
 	pconf = lcd_drv->lcd_config;
-	if (pconf->lcd_control.p2p_config->p2p_type == P2P_USIT)
+	p2p_type = pconf->lcd_control.p2p_config->p2p_type & 0x1f;
+	if (p2p_type == P2P_USIT)
 		index = (status) ? 1 : 2;
 	else
 		index = (status) ? 0 : 2;
