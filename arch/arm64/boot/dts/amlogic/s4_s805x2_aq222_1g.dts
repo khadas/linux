@@ -54,9 +54,9 @@
 		logo_reserved:linux,meson-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x800000>;
+			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x3f800000 0x0 0x800000>;
+			alloc-ranges = <0x0 0x3fc00000 0x0 0x400000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -1399,9 +1399,9 @@
 
 &fb {
 	status = "okay";
-	display_size_default = <1920 1080 1920 2160 32>;
-	mem_size = <0x00800000 0x1980000 0x100000>;
-	logo_addr = "0x3f800000";
+	display_size_default = <1280 720 1280 2160 32>;
+	mem_size = <0x00400000 0x00b00000 0x100000>;
+	logo_addr = "0x3fc00000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
