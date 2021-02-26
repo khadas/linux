@@ -47,8 +47,8 @@
  * 4:manual pll;	VLOCK_MODE_MANUAL_PLL
  * 8:manual_enc mode(only support lvds/vx1)
  */
-enum VLOCK_MD vlock_mode = VLOCK_MODE_MANUAL_PLL;
-unsigned int vlock_en = 1;
+enum VLOCK_MD vlock_mode = VLOCK_MODE_MANUAL_ENC;
+unsigned int vlock_en;
 /*
  *0:only support 50->50;60->60;24->24;30->30;
  *1:support 24/30/50/60/100/120 mix,such as 50->60;
@@ -2700,7 +2700,7 @@ void vlock_process(struct vframe_s *vf,
 		return;
 	}
 
-	if (!hw_clk_ok)
+	if (!hw_clk_ok && (vlock_debug & VLOCK_DEBUG_INFO))
 		pr_info("hw clk not config\n");
 
 	//if (vlock_chk_is_small_win(cur_video_sts)) {
