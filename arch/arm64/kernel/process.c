@@ -272,9 +272,6 @@ void __show_regs(struct pt_regs *regs)
 	if (system_uses_irq_prio_masking())
 		printk("pmr_save: %08llx\n", regs->pmr_save);
 
-#ifdef CONFIG_AMLOGIC_DEBUG
-	printk("sp : %016llx pstate : %08llx\n", sp, regs->pstate);
-#endif
 	i = top_reg;
 
 	while (i >= 0) {
