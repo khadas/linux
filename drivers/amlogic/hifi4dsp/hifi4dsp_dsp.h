@@ -141,6 +141,8 @@ struct hifi4dsp_dsp {
 	struct device *pd_dsp;
 	enum dsp_start_mode start_mode;
 	u32 dspstarted;
+	u32 dsphang;
+	void __iomem *status_reg;
 
 	void *info;
 	void *priv;

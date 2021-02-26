@@ -55,6 +55,10 @@ static struct mutex hifi4dsp_flock;
 static struct reserved_mem hifi4_rmem;
 
 struct hifi4dsp_priv *hifi4dsp_p[HIFI4DSP_MAX_CNT];
+struct delayed_work dsp_status_work;
+struct workqueue_struct *dsp_status_wq;
+static unsigned long dsp_online;
+static unsigned int dsp_monitor_period_ms = 2000;
 
 #define MASK_BF(x, mask, shift)			((((x) & (mask)) << (shift)))
 
@@ -423,9 +427,105 @@ static int hifi4dsp_driver_dsp_boot(struct hifi4dsp_dsp *dsp)
 	return 0;
 }
 
+enum dsp_online_status {
+	DSP_NONE,
+	DSPA_ONLINE = 1,
+	DSPB_ONLINE,
+	DSPAB_ONLINE
+};
+
+enum dsp_health {
+	DSP_GOOD,
+	DSPA_HANG = 1,
+	DSPB_HANG,
+	DSPAB_HANG
+};
+
+enum dsp_index {
+	DSPA = 0,
+	DSPB
+};
+static enum dsp_health get_dsp_health_status(unsigned long online)
+{
+	enum dsp_health ret = DSP_GOOD;
+	static u32 last_cnt[HIFI4DSP_MAX_CNT] = {0};
+	u32 this_cnt[HIFI4DSP_MAX_CNT];
+
+	switch (online & 0x03) {
+	case DSP_NONE:
+		break;
+	case DSPA_ONLINE:
+		this_cnt[DSPA] = readl(hifi4dsp_p[DSPA]->dsp->status_reg);
+		pr_debug("[%s]dspa[%u %u]\n", __func__, last_cnt[DSPA], this_cnt[DSPA]);
+		if (this_cnt[DSPA] == last_cnt[DSPA])
+			ret = DSPA_HANG;
+		last_cnt[DSPA] = this_cnt[DSPA];
+		break;
+	case DSPB_ONLINE:
+		this_cnt[DSPB] = readl(hifi4dsp_p[DSPB]->dsp->status_reg);
+		pr_debug("[%s]dspb[%u %u]\n", __func__, last_cnt[DSPB], this_cnt[DSPB]);
+		if (this_cnt[DSPB] == last_cnt[DSPB])
+			ret = DSPB_HANG;
+		last_cnt[DSPB] = this_cnt[DSPB];
+		break;
+	case DSPAB_ONLINE:
+		this_cnt[DSPA] = readl(hifi4dsp_p[DSPA]->dsp->status_reg);
+		this_cnt[DSPB] = readl(hifi4dsp_p[DSPB]->dsp->status_reg);
+		pr_debug("[%s]dspa[%u %u]dspb[%u %u]\n", __func__,
+			last_cnt[DSPA], this_cnt[DSPA], last_cnt[DSPB], this_cnt[DSPB]);
+		if (this_cnt[DSPA] == last_cnt[DSPA] && this_cnt[DSPB] == last_cnt[DSPB])
+			ret = DSPAB_HANG;
+		else if (this_cnt[DSPA] == last_cnt[DSPA])
+			ret = DSPA_HANG;
+		else if (this_cnt[DSPB] == last_cnt[DSPB])
+			ret = DSPB_HANG;
+		last_cnt[DSPA] = this_cnt[DSPA];
+		last_cnt[DSPB] = this_cnt[DSPB];
+		break;
+	}
+	return ret;
+}
+
+static void dsp_health_monitor(struct work_struct *work)
+{
+	char data[20], *envp[] = { data, NULL };
+
+	switch (get_dsp_health_status(dsp_online)) {
+	case DSP_GOOD:
+		hifi4dsp_p[DSPA]->dsp->dsphang = 0;
+		hifi4dsp_p[DSPB]->dsp->dsphang = 0;
+		break;
+	case DSPA_HANG:
+		snprintf(data, sizeof(data), "ACTION=DSP_WTD_A");
+		hifi4dsp_p[DSPA]->dsp->dsphang = 1;
+		hifi4dsp_p[DSPB]->dsp->dsphang = 0;
+		kobject_uevent_env(&hifi4dsp_p[DSPA]->dsp->dev->kobj, KOBJ_CHANGE, envp);
+		pr_debug("[%s][DSPA_HANG]\n", __func__);
+		break;
+	case DSPB_HANG:
+		snprintf(data, sizeof(data), "ACTION=DSP_WTD_B");
+		hifi4dsp_p[DSPA]->dsp->dsphang = 0;
+		hifi4dsp_p[DSPB]->dsp->dsphang = 1;
+		kobject_uevent_env(&hifi4dsp_p[DSPB]->dsp->dev->kobj, KOBJ_CHANGE, envp);
+		pr_debug("[%s][DSPB_HANG]\n", __func__);
+		break;
+	case DSPAB_HANG:
+		snprintf(data, sizeof(data), "ACTION=DSP_WTD_WHOLE");
+		hifi4dsp_p[DSPA]->dsp->dsphang = 1;
+		hifi4dsp_p[DSPB]->dsp->dsphang = 1;
+		kobject_uevent_env(&hifi4dsp_p[DSPA]->dsp->dev->kobj, KOBJ_CHANGE, envp);
+		pr_debug("[%s][DSPAB_HANG]\n", __func__);
+		break;
+	}
+
+	queue_delayed_work(dsp_status_wq, &dsp_status_work,
+		msecs_to_jiffies(dsp_monitor_period_ms));
+}
+
 static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp)
 {
 	struct  hifi4dsp_info_t *info;
+	char wq_name[10];
 
 	pr_debug("%s\n", __func__);
 	info = (struct  hifi4dsp_info_t *)dsp->info;
@@ -449,6 +549,19 @@ static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp)
 
 	dsp->info = NULL;
 	dsp->dspstarted = 1;
+	set_bit(dsp->id, &dsp_online);
+	pr_warn("[%s]dsp_online=0x%lx\n", __func__, dsp_online);
+	if (hifi4dsp_p[dsp->id]->dsp->status_reg && !work_busy(&dsp_status_work.work)) {
+		snprintf(wq_name, sizeof(wq_name), "dsp%u_wq", dsp->id);
+		dsp_status_wq = create_freezable_workqueue(wq_name);
+		if (!dsp_status_wq) {
+			pr_err("create %s failed.\n", wq_name);
+			return -EINVAL;
+		}
+		INIT_DEFERRABLE_WORK(&dsp_status_work, dsp_health_monitor);
+		queue_delayed_work(dsp_status_wq, &dsp_status_work,
+			msecs_to_jiffies(dsp_monitor_period_ms));
+	}
 
 	return 0;
 }
@@ -473,13 +586,20 @@ static int hifi4dsp_driver_dsp_stop(struct hifi4dsp_dsp *dsp)
 	strcpy(message, "SCPI_CMD_HIFI4STOP");
 
 	if (dsp->dspstarted == 1) {
-		scpi_send_data(message, sizeof(message), info->id ? SCPI_DSPB : SCPI_DSPA,
-			SCPI_CMD_HIFI4STOP, NULL, 0);
+		if (!dsp->dsphang)
+			scpi_send_data(message, sizeof(message), info->id ? SCPI_DSPB : SCPI_DSPA,
+				SCPI_CMD_HIFI4STOP, NULL, 0);
 		msleep(50);
 		soc_dsp_poweroff(info->id);
 		hifi4dsp_driver_dsp_clk_off(dsp);
 		dsp->dspstarted = 0;
 		dsp->info = NULL;
+		clear_bit(dsp->id, &dsp_online);
+		pr_warn("[%s]dsp_online=0x%lx\n", __func__, dsp_online);
+		if (!dsp_online && work_busy(&dsp_status_work.work)) {
+			cancel_delayed_work(&dsp_status_work);
+			destroy_workqueue(dsp_status_wq);
+		}
 	}
 	return 0;
 }
@@ -775,6 +895,22 @@ void get_dsp_baseaddr(struct platform_device *pdev)
 	g_regbases.hiu_addr = ioremap_nocache(res->start, resource_size(res));
 }
 
+void get_dsp_statusreg(struct platform_device *pdev, int dsp_cnt,
+	struct hifi4dsp_priv **hifi4dsp_p)
+{
+	struct resource *res;
+	int i;
+
+	for (i = 0; i < dsp_cnt; i++) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 2 + i);
+		if (!res) {
+			dev_err(&pdev->dev, "failed to get dsp%d status register.\n", i);
+			return;
+		}
+		hifi4dsp_p[i]->dsp->status_reg = devm_ioremap_resource(&pdev->dev, res);
+	}
+}
+
 static struct hifi4dsp_pdata dsp_pdatas[] = {/*ARRAY_SIZE(dsp_pdatas)*/
 	{
 		.name = "hifi4dsp0",
@@ -872,6 +1008,10 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		goto err1;
 	}
 	pr_debug("%s of read dspboffset=0x%08x\n", __func__, dspboffset);
+
+	ret = of_property_read_u32(np, "dsp-monitor-period-ms", &dsp_monitor_period_ms);
+	if (ret < 0)
+		dev_err(&pdev->dev, "Can't retrieve dsp-monitor-period-ms\n");
 
 	/*boot from DDR or SRAM or ...*/
 	ret = of_property_read_u32(np, "bootlocation", &bootlocation);
@@ -1089,6 +1229,7 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		dsp->dsp_dev = priv->dsp_dev;
 		dsp->ops = priv->dsp_dev->ops;
 		dsp->start_mode = startmode;
+		dsp->dsphang = 0;
 		priv->dsp = dsp;
 
 		hifi4dsp_p[i] = priv;
@@ -1101,6 +1242,7 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		}
 		pr_info("register dsp-%d done\n", id);
 	}
+	get_dsp_statusreg(pdev, dsp_cnt, hifi4dsp_p);
 	pr_info("%s done\n", __func__);
 	return 0;
 
