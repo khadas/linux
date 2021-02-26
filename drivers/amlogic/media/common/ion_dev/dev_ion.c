@@ -15,15 +15,12 @@
 #include <linux/dma-buf.h>
 #include <linux/cma.h>
 #include <linux/ion.h>
+#include <linux/amlogic/tee.h>
 #include "dev_ion.h"
 
 //MODULE_DESCRIPTION("AMLOGIC ION driver");
 //MODULE_LICENSE("GPL v2");
 //MODULE_AUTHOR("Amlogic SH");
-
-#define DION_ERROR(fmt, args ...)	pr_err("ion_dev: " fmt, ## args)
-#define DION_INFO(fmt, args ...)	pr_info("ion_dev: " fmt, ## args)
-#define DION_DEBUG(fmt, args ...)	pr_debug("ion_dev: " fmt, ## args)
 
 #define MESON_MAX_ION_HEAP 8
 
@@ -49,6 +46,7 @@ static struct heap_type_desc {
 struct device *ion_dev;
 static int num_heaps;
 static struct ion_cma_heap *heaps[MESON_MAX_ION_HEAP];
+static struct ion_heap *secure_heap;
 
 struct device *meson_ion_get_dev(void)
 {
@@ -114,6 +112,16 @@ unsigned int meson_ion_codecmm_heap_id_get(void)
 }
 EXPORT_SYMBOL(meson_ion_codecmm_heap_id_get);
 
+unsigned int meson_ion_secure_heap_id_get(void)
+{
+	unsigned int id = 0;
+
+	if (secure_heap)
+		id = secure_heap->id;
+	return id;
+}
+EXPORT_SYMBOL(meson_ion_secure_heap_id_get);
+
 static int __meson_ion_add_heap(struct ion_heap *heap,
 				struct heap_type_desc *desc)
 {
@@ -157,7 +165,6 @@ static int meson_ion_add_heap(struct cma *cma, void *data)
 		heap = kzalloc(sizeof(*heap), GFP_KERNEL);
 		if (!heap)
 			return -ENOMEM;
-
 		ret = __meson_ion_add_heap(&heap->heap, desc);
 		if (!ret)
 			heap->is_added = true;
@@ -176,6 +183,11 @@ static int dev_ion_probe(struct platform_device *pdev)
 	int ret;
 	int nr = 0;
 
+	ret = of_reserved_mem_device_init_by_idx(&pdev->dev,
+		pdev->dev.of_node, 1);
+	if (ret != 0)
+		DION_INFO("failed get secure memory\n");
+
 	ret = cma_for_each_area(meson_ion_add_heap, &nr);
 	if (ret) {
 		for (nr = 0; nr < num_heaps && heaps[nr]; nr++) {
@@ -191,6 +203,8 @@ static int dev_ion_probe(struct platform_device *pdev)
 
 static int dev_ion_remove(struct platform_device *pdev)
 {
+	if (secure_heap)
+		ion_secure_heap_destroy(secure_heap);
 	return 0;
 }
 
@@ -208,6 +222,50 @@ static struct platform_driver ion_driver = {
 		.of_match_table = amlogic_ion_dev_dt_match
 	}
 };
+
+static int ion_secure_mem_init(struct reserved_mem *rmem, struct device *dev)
+{
+	#ifdef CONFIG_AMLOGIC_TEE
+	u32 secure_heap_handle;
+	#endif
+	int ret;
+
+	secure_heap = ion_secure_heap_create(rmem->base, rmem->size);
+	ret = ion_device_add_heap(secure_heap);
+	if (ret)
+		DION_ERROR("%s fail\n", __func__);
+	else
+		DION_INFO("%s,secure_heap->name=%s secure_heap->id=%d\n",
+			  __func__, secure_heap->name, secure_heap->id);
+	#ifdef CONFIG_AMLOGIC_TEE
+	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_GPU,
+				      (u32)rmem->base,
+				      (u32)rmem->size,
+				      &secure_heap_handle);
+	if (ret)
+		DION_ERROR("tee protect gpu mem fail!\n");
+	else
+		DION_INFO("tee protect gpu mem done\n");
+	#endif
+	DION_INFO("ion secure_mem_init size=0x%pa, paddr=0x%pa\n",
+		  &rmem->size, &rmem->base);
+	return 0;
+}
+
+static const struct reserved_mem_ops rmem_ion_secure_ops = {
+	.device_init = ion_secure_mem_init,
+};
+
+static int __init ion_secure_mem_setup(struct reserved_mem *rmem)
+{
+	rmem->ops = &rmem_ion_secure_ops;
+	DION_DEBUG("ion secure mem setup\n");
+	return 0;
+}
+
+RESERVEDMEM_OF_DECLARE(ion_secure_mem,
+					"amlogic, ion-secure-mem",
+					ion_secure_mem_setup);
 
 int __init ion_init(void)
 {

@@ -13,7 +13,12 @@
  * CUSTOM IOCTL - CMD
  */
 
+#define DION_ERROR(fmt, args ...)	pr_err("ion_dev: " fmt, ## args)
+#define DION_INFO(fmt, args ...)	pr_info("ion_dev: " fmt, ## args)
+#define DION_DEBUG(fmt, args ...)	pr_debug("ion_dev: " fmt, ## args)
+
 #define ION_IOC_MESON_PHYS_ADDR             8
+#define ION_FLAG_EXTEND_MESON_HEAP_SECURE   BIT(29)
 #define ION_FLAG_EXTEND_MESON_HEAP          BIT(30)
 #define ION_FLAG_EXTEND_PROTECTED           BIT(31)
 
@@ -47,6 +52,10 @@ void meson_ion_buffer_to_phys(struct ion_buffer *buffer,
 			      phys_addr_t *addr, size_t *len);
 unsigned int meson_ion_cma_heap_id_get(void);
 unsigned int meson_ion_codecmm_heap_id_get(void);
+struct ion_heap *ion_secure_heap_create(phys_addr_t base,
+						 unsigned long size);
+void ion_secure_heap_destroy(struct ion_heap *heap);
+
 
 extern struct ion_heap_ops codec_mm_heap_ops;
 extern struct ion_heap_ops ion_cma_ops;
