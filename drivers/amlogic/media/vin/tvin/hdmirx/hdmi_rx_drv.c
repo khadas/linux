@@ -738,6 +738,42 @@ int hdmirx_get_connect_info(void)
 }
 EXPORT_SYMBOL(hdmirx_get_connect_info);
 
+/*
+ * hdmirx_set_cec_cfg - cec set sts
+ * 0: cec off
+ * 1: cec on, auto power_on is off
+ * 2: cec on, auto power_on is on
+ */
+int hdmirx_set_cec_cfg(u32 cfg)
+{
+	switch (cfg) {
+	case 1:
+		hdmi_cec_en = 1;
+		if (rx.boot_flag)
+			rx_force_hpd_rxsense_cfg(1);
+		break;
+	case 2:
+		hdmi_cec_en = 1;
+		tv_auto_power_on = 1;
+		if (rx.boot_flag)
+			rx_force_hpd_rxsense_cfg(1);
+		break;
+	case 0:
+	default:
+		hdmi_cec_en = 0;
+		/* fix source can't get edid if cec off */
+		if (rx.boot_flag) {
+			if (hpd_low_cec_off == 0)
+				rx_force_hpd_rxsense_cfg(1);
+		}
+		break;
+	}
+	rx.boot_flag = false;
+	rx_pr("cec cfg = %d\n", cfg);
+	return 0;
+}
+EXPORT_SYMBOL(hdmirx_set_cec_cfg);
+
 /* see CEA-861-F table-12 and chapter 5.1:
  * By default, RGB pixel data values should be assumed to have
  * the limited range when receiving a CE video format, and the
