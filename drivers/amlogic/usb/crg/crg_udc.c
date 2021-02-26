@@ -1950,7 +1950,7 @@ crg_udc_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 	struct crg_gadget_dev *crg_udc;
 	int status;
 	unsigned long flags = 0;
-	int dma_data_dir;
+	int dma_data_dir = 0;
 
 	CRG_DEBUG("%s\n", __func__);
 
@@ -1958,8 +1958,16 @@ crg_udc_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 		return -EINVAL;
 
 	udc_req_ptr = container_of(_req, struct crg_udc_request, usb_req);
+	if (!udc_req_ptr)
+		return -EINVAL;
+
 	udc_ep_ptr = container_of(_ep, struct crg_udc_ep, usb_ep);
+	if (!udc_ep_ptr)
+		return -EINVAL;
+
 	crg_udc = udc_ep_ptr->crg_udc;
+	if (!crg_udc)
+		return -EINVAL;
 
 	spin_lock_irqsave(&crg_udc->udc_lock, flags);
 
@@ -2001,16 +2009,10 @@ crg_udc_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 				_req->length == 0) {
 		crg_udc->setup_status = STATUS_STAGE_XFER;
 		status = -EINPROGRESS;
-		if (udc_req_ptr) {
-			CRG_DEBUG("udc_req_ptr = 0x%p\n", udc_req_ptr);
+		CRG_DEBUG("udc_req_ptr = 0x%p\n", udc_req_ptr);
 
-			build_ep0_status(&crg_udc->udc_ep[0], false, status,
-					udc_req_ptr, 0, 0);
-		} else {
-			CRG_DEBUG("udc_req_ptr = NULL\n");
-			build_ep0_status(&crg_udc->udc_ep[0],
-				true, status, NULL, 0, 0);
-		}
+		build_ep0_status(&crg_udc->udc_ep[0], false, status,
+			udc_req_ptr, 0, 0);
 		CRG_DEBUG("act status request for control endpoint\n");
 		spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
 		return 0;
@@ -2057,10 +2059,8 @@ crg_udc_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 		/* push the request to the transfer ring if possible. */
 		status = crg_udc_build_td(udc_ep_ptr, udc_req_ptr);
 	}
-	if (!status) {
-		if (udc_req_ptr)
-			list_add_tail(&udc_req_ptr->queue, &udc_ep_ptr->queue);
-	}
+	if (!status)
+		list_add_tail(&udc_req_ptr->queue, &udc_ep_ptr->queue);
 
 	spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
 
@@ -2280,8 +2280,8 @@ static void crg_ep_struct_setup(struct crg_gadget_dev *crg_udc,
 
 	ep->DCI = DCI;
 
-	if (DCI > 1) {
-		strcpy(ep->name, name);
+	if (ep->DCI > 1) {
+		strncpy(ep->name, name, sizeof(ep->name) - 1);
 		ep->usb_ep.name = ep->name;
 		ep->usb_ep.maxpacket = 1024;
 		ep->usb_ep.max_streams = 16;
@@ -2296,20 +2296,18 @@ static void crg_ep_struct_setup(struct crg_gadget_dev *crg_udc,
 		ep->usb_ep.caps.type_bulk = 1;
 		ep->usb_ep.caps.type_int = 1;
 		ep->usb_ep.caps.type_control = 1;
-		if (DCI % 2)
+		if (ep->DCI % 2)
 			ep->usb_ep.caps.dir_out = 1;
 		else
 			ep->usb_ep.caps.dir_in = 1;
 		usb_ep_set_maxpacket_limit(&ep->usb_ep, MAX_PACKET_SIZE);
-	} else if (DCI == 0) {
+	} else {
 		strcpy(ep->name, "ep0");
 		ep->usb_ep.name = ep->name;
 		ep->usb_ep.maxpacket = 512;
 		ep->usb_ep.caps.type_control = 1;
 		ep->usb_ep.caps.dir_in = 1;
 		ep->usb_ep.caps.dir_out = 1;
-	} else {
-		return;
 	}
 
 	CRG_DEBUG("ep = 0x%p, ep name = %s maxpacket = %d DCI=%d\n",
@@ -2318,7 +2316,7 @@ static void crg_ep_struct_setup(struct crg_gadget_dev *crg_udc,
 	ep->crg_udc = crg_udc;
 
 	INIT_LIST_HEAD(&ep->queue);
-	if (DCI > 1)
+	if (ep->DCI > 1)
 		list_add_tail(&ep->usb_ep.ep_list, &crg_udc->gadget.ep_list);
 }
 
@@ -2943,10 +2941,6 @@ static int crg_gadget_start(struct usb_gadget *g,
 	g_dnl_board_usb_cable_connected();
 
 	return 0;
-
-	crg_vbus_detect(crg_udc, 1);
-
-	return 0;
 }
 
 static void crg_reg_dump(struct crg_gadget_dev *crg_udc)
@@ -3048,6 +3042,9 @@ void getstatusrequest(struct crg_gadget_dev *crg_udc,
 	struct crg_udc_ep *udc_ep_ptr;
 	struct crg_udc_request *udc_req_ptr = crg_udc->status_req;
 
+	if (!udc_req_ptr)
+		return;
+
 	udc_req_ptr->usb_req.buf = kzalloc(sizeof(u16), GFP_ATOMIC);
 	CRG_DEBUG("udc_req_ptr->usb_req.buf = 0x%p\n", udc_req_ptr->usb_req.buf);
 	if (!udc_req_ptr->usb_req.buf)
@@ -3085,10 +3082,7 @@ void getstatusrequest(struct crg_gadget_dev *crg_udc,
 
 	} else if ((RequestType & USB_RECIP_MASK) == USB_RECIP_INTERFACE) {
 		CRG_DEBUG("Get status request Interface request\n");
-		if (crg_udc->gadget.speed >= USB_SPEED_SUPER)
-			status_val = 0;
-		else
-			status_val = 0;
+		status_val = 0;
 	} else if ((RequestType & USB_RECIP_MASK) == USB_RECIP_ENDPOINT) {
 		u32 DCI;
 
@@ -3164,10 +3158,8 @@ get_status_error:
 
 	CRG_DEBUG("getstatus databuf eqpt = 0x%p\n", udc_ep_ptr->enq_pt);
 
-	if (!status) {
-		if (udc_req_ptr)
-			list_add_tail(&udc_req_ptr->queue, &udc_ep_ptr->queue);
-	}
+	if (!status)
+		list_add_tail(&udc_req_ptr->queue, &udc_ep_ptr->queue);
 }
 
 void set_address_cmpl(struct crg_gadget_dev *crg_udc)
@@ -3247,6 +3239,9 @@ void setselrequest(struct crg_gadget_dev *crg_udc,
 	struct crg_udc_request *udc_req_ptr = crg_udc->status_req;
 	struct crg_udc_ep *udc_ep_ptr = &crg_udc->udc_ep[0];
 
+	if (!udc_req_ptr)
+		return;
+
 	if (crg_udc->device_state == USB_STATE_DEFAULT)
 		status = -EINVAL;
 
@@ -3275,10 +3270,8 @@ void setselrequest(struct crg_gadget_dev *crg_udc,
 
 	status = crg_udc_build_td(udc_ep_ptr, udc_req_ptr);
 
-	if (!status) {
-		if (udc_req_ptr)
-			list_add_tail(&udc_req_ptr->queue, &udc_ep_ptr->queue);
-	}
+	if (!status)
+		list_add_tail(&udc_req_ptr->queue, &udc_ep_ptr->queue);
 }
 
 void set_test_mode_cmpl(struct crg_gadget_dev *crg_udc)
@@ -3391,7 +3384,11 @@ bool setfeaturesrequest(struct crg_gadget_dev *crg_udc,
 				tmp |= (set_feat <<
 					CRG_U3DC_U3PORTPM_U1IEN_SHIFT);
 #endif
-				timeout_val = set_feat ? U1_TIMEOUT_VAL : 0;
+				if (U12_FORBIDDEN == 0)
+					timeout_val = set_feat ? U1_TIMEOUT_VAL : 0;
+				else
+					timeout_val = 0;
+
 				tmp = SETF_VAR(CRG_U3DC_U3PORTPM_U1TMOUT,
 					tmp, timeout_val);
 
@@ -3404,7 +3401,11 @@ bool setfeaturesrequest(struct crg_gadget_dev *crg_udc,
 				tmp |= (set_feat <<
 					CRG_U3DC_U3PORTPM_U2IEN_SHIFT);
 #endif
-				timeout_val = set_feat ? U2_TIMEOUT_VAL : 0;
+				if (U12_FORBIDDEN == 0)
+					timeout_val = set_feat ? U1_TIMEOUT_VAL : 0;
+				else
+					timeout_val = 0;
+
 				tmp = SETF_VAR(CRG_U3DC_U3PORTPM_U2TMOUT,
 					tmp, timeout_val);
 
@@ -3845,8 +3846,6 @@ int g_dnl_board_usb_cable_connected(void)
 	u32 tmp;
 
 	crg_udc = &crg_udc_dev;
-	if (!crg_udc)
-		return -EOPNOTSUPP;
 
 	uccr = crg_udc->uccr;
 	tmp = reg_read(&uccr->portsc);
@@ -4074,6 +4073,12 @@ int crg_handle_port_status(struct crg_gadget_dev *crg_udc)
 			tmp = SETF_VAR(CRG_U3DC_PORTSC_PLS, tmp, 0x0);
 			reg_write(&uccr->portsc, tmp);
 			CRG_DEBUG("pls to 0, write portsc 0x%x\n", tmp);
+		}  else if (CRG_U3DC_PORTSC_PLS_GET(tmp) == 0x3) {
+			if (crg_udc->gadget_driver->disconnect) {
+				spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
+				crg_udc->gadget_driver->disconnect(&crg_udc->gadget);
+				spin_lock_irqsave(&crg_udc->udc_lock, flags);
+			}
 		}
 	}
 
