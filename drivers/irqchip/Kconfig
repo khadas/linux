@@ -523,6 +523,19 @@ config SIFIVE_PLIC
 
 	   If you don't know what to do here, say Y.
 
+config NUCLEI_PLIC
+	bool "Nuclei Platform-Level Interrupt Controller"
+	depends on RISCV
+	select IRQ_DOMAIN_HIERARCHY
+	help
+	   This enables support for the PLIC chip found in Nuclei (and
+	   potentially other) RISC-V systems.  The PLIC controls devices
+	   interrupts and connects them to each core's local interrupt
+	   controller.  Aside from timer and software interrupts, all other
+	   interrupt sources are subordinate to the PLIC.
+
+	   If you don't know what to do here, say Y.
+
 config EXYNOS_IRQ_COMBINER
 	bool "Samsung Exynos IRQ combiner support" if COMPILE_TEST
 	depends on (ARCH_EXYNOS && ARM) || COMPILE_TEST
