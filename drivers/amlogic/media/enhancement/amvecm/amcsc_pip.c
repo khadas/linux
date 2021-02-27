@@ -666,7 +666,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 						/* other layer output HDR */
 						/* sdr *->hdr */
 						sdr_process_mode[vd_path] = PROC_SDR_TO_HDR;
-						target_format[vd_path] = BT2020_PQ;
+						target_format[vd_path] = target_format[oth_path];
 					} else if (target_format[oth_path] == BT2020_HLG) {
 						/* other layer on and not sdr */
 						/* sdr *->hlg */
