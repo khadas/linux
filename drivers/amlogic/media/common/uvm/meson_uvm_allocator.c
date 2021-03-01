@@ -37,9 +37,6 @@ module_param(mua_debug_level, int, 0644);
 			pr_info("MUA: " fmt, ## arg); \
 	} while (0)
 
-#define V4L2_DECODER_BUFFER_MAX_WIDTH       3840
-#define V4L2_DECODER_BUFFER_MAX_HEIGHT      2304
-
 static void mua_handle_free(struct uvm_buf_obj *obj)
 {
 	struct mua_buffer *buffer;
@@ -112,11 +109,12 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		MUA_PRINTK(0, "gpu_realloc: screen cap should not access the uvm buffer.\n");
 		return -ENODEV;
 	}
+
 	dmabuf->size = buffer->size * scalar * scalar;
 	MUA_PRINTK(1, "buffer->size:%zu realloc dmabuf->size=%zu\n",
 			buffer->size, dmabuf->size);
 	if (!buffer->idmabuf[1]) {
-		idmabuf = ion_alloc(buffer->size * scalar * scalar,
+		idmabuf = ion_alloc(dmabuf->size,
 				    (1 << ION_HEAP_TYPE_CUSTOM), ION_FLAG_EXTEND_MESON_HEAP);
 		if (IS_ERR(idmabuf)) {
 			MUA_PRINTK(0, "%s: ion_alloc fail.\n", __func__);
@@ -142,7 +140,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		return -ENODEV;
 	}
 	src_sgt = buffer->sg_table;
-	num_pages = PAGE_ALIGN(buffer->size * scalar * scalar) / PAGE_SIZE;
+	num_pages = PAGE_ALIGN(dmabuf->size) / PAGE_SIZE;
 	tmp = vmalloc(sizeof(struct page *) * num_pages);
 	page_array = tmp;
 
@@ -263,7 +261,7 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 	return 0;
 }
 
-static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data)
+static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data, int alloc_buf_size)
 {
 	struct mua_buffer *buffer;
 	struct uvm_alloc_info info;
@@ -273,7 +271,7 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data)
 
 	memset(&info, 0, sizeof(info));
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
-	buffer->size = data->size;
+	buffer->size = alloc_buf_size;
 	buffer->dev = mdev;
 	buffer->byte_stride = data->byte_stride;
 	buffer->width = data->width;
@@ -285,7 +283,7 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data)
 
 	if (data->flags & MUA_IMM_ALLOC) {
 		ion_flags |= ION_FLAG_EXTEND_MESON_HEAP;
-		idmabuf = ion_alloc(data->size,
+		idmabuf = ion_alloc(alloc_buf_size,
 				    (1 << ION_HEAP_TYPE_CUSTOM), ion_flags);
 		if (IS_ERR(idmabuf)) {
 			MUA_PRINTK(0, "%s: ion_alloc fail.\n", __func__);
@@ -301,7 +299,7 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data)
 		info.sgt = ibuffer->sg_table;
 		info.obj = &buffer->base;
 		info.flags = data->flags;
-		info.size = data->size;
+		info.size = alloc_buf_size;
 		info.scalar = data->scalar;
 		info.gpu_realloc = mua_process_gpu_realloc;
 		info.free = mua_handle_free;
@@ -392,9 +390,9 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int pid;
 	int ret = 0;
 	int fd = 0;
-	int buf_scalar = 1;
+	int alloc_buf_size = 0;
+
 	md = file->private_data;
-	int v4l2_decoder_max_buf_size = 0;
 
 	if (_IOC_SIZE(cmd) > sizeof(data))
 		return -EINVAL;
@@ -407,22 +405,25 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		MUA_PRINTK(1, "%s. original buf size:%d width:%d height:%d\n",
 					__func__, data.alloc_data.size,
 					data.alloc_data.width, data.alloc_data.height);
-		v4l2_decoder_max_buf_size =
-			(V4L2_DECODER_BUFFER_MAX_WIDTH * V4L2_DECODER_BUFFER_MAX_HEIGHT) * 3 / 2;
-		buf_scalar = data.alloc_data.scalar;
-		if (buf_scalar > 1)
-			data.alloc_data.size =
-				v4l2_decoder_max_buf_size / (buf_scalar * buf_scalar);
+
 		data.alloc_data.size = PAGE_ALIGN(data.alloc_data.size);
-		MUA_PRINTK(1, "%s. buf_scalar=%d After PAGE_ALIGN size=%d\n",
-					__func__, buf_scalar, data.alloc_data.size);
-		dmabuf = uvm_alloc_dmabuf(data.alloc_data.size,
+		data.alloc_data.scaled_buf_size =
+				PAGE_ALIGN(data.alloc_data.scaled_buf_size);
+		if (data.alloc_data.scalar > 1)
+			alloc_buf_size = data.alloc_data.scaled_buf_size;
+		else
+			alloc_buf_size = data.alloc_data.size;
+		MUA_PRINTK(1, "%s. buf_scalar=%d size=%d\n",
+					__func__, data.alloc_data.scalar,
+					data.alloc_data.scaled_buf_size);
+
+		dmabuf = uvm_alloc_dmabuf(alloc_buf_size,
 					  data.alloc_data.align,
 					  data.alloc_data.flags);
 		if (IS_ERR(dmabuf))
 			return -ENOMEM;
 
-		ret = mua_handle_alloc(dmabuf, &data.alloc_data);
+		ret = mua_handle_alloc(dmabuf, &data.alloc_data, alloc_buf_size);
 		if (ret < 0) {
 			dma_buf_put(dmabuf);
 			return -ENOMEM;
