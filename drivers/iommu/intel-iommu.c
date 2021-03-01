@@ -3814,7 +3814,7 @@ bounce_sync_single(struct device *dev, dma_addr_t addr, size_t size,
 
 	tlb_addr = intel_iommu_iova_to_phys(&domain->domain, addr);
 	if (is_swiotlb_buffer(tlb_addr))
-		swiotlb_tbl_sync_single(dev, tlb_addr, size, dir, target);
+		swiotlb_sync_single_for_cpu(dev, tlb_addr, size, dir);
 }
 
 static dma_addr_t
