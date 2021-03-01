@@ -29,6 +29,7 @@
 #include "vad.h"
 #include "extn.h"
 #include "frhdmirx_hw.h"
+#include "earc.h"
 
 #define DRV_NAME "audio-ddr-manager"
 
@@ -484,11 +485,8 @@ void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt)
 	if (to->chipinfo && to->chipinfo->chnum_sync) {
 		bool chsync_enable = true;
 
-		if (to->src == EARCRX_DMAC &&
-		    fmt->ch_num > 2) {
+		if (to->src == EARCRX_DMAC && !get_earcrx_chnum_mult_mode() && fmt->ch_num > 2)
 			chsync_enable = false;
-		}
-
 		aml_toddr_chsync_enable(to->fifo_id,
 					fmt->ch_num - 1,
 					chsync_enable);
@@ -1947,6 +1945,7 @@ struct toddr_src_conf toddr_srcs_v3[] = {
 	TODDR_SRC_CONFIG("tdmin_lb", 6, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	TODDR_SRC_CONFIG("loopback_a", 7, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	TODDR_SRC_CONFIG("frhdmirx", 8, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
+	TODDR_SRC_CONFIG("earc_rx_dmac", 11, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f), /* for t7 earcrx */
 	TODDR_SRC_CONFIG("frhdmirx_pao", 12, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	TODDR_SRC_CONFIG("resample_a", 13, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	TODDR_SRC_CONFIG("resample_b", 14, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),

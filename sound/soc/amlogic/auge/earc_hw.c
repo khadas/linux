@@ -16,6 +16,7 @@ void earcrx_pll_refresh(struct regmap *top_map,
 			enum pll_rst_src rst_src,
 			bool level)
 {
+	pr_info("%s, level %d\n", __func__, level);
 	if (rst_src == RST_BY_SELF) {
 		/* pll tdc mode */
 		mmio_update_bits(top_map, EARCRX_PLL_CTRL3,
@@ -71,16 +72,15 @@ void earcrx_cmdc_init(struct regmap *top_map, bool en, bool rx_dmac_sync_int, bo
 		mmio_write(top_map, EARCRX_ANA_CTRL0,
 			   en  << 31 | /* earcrx_en_d2a */
 			   0x10 << 25 | /* earcrx_cmdcrx_reftrim */
-			   0x8  << 20 | /* earcrx_idr_trim */
+			   0x10  << 20 | /* earcrx_idr_trim */
 			   0x10 << 15 | /* earcrx_rterm_trim */
 			   0x4  << 12 | /* earcrx_cmdctx_ack_hystrim */
 			   0x10 << 7  | /* earcrx_cmdctx_ack_reftrim */
 			   0x1  << 4  | /* earcrx_cmdcrx_rcfilter_sel */
 			   0x4  << 0    /* earcrx_cmdcrx_hystrim */
 			  );
-		mmio_update_bits(top_map, EARCRX_ANA_CTRL1,
-				 0x1 << 10,
-				 0x1 << 10);
+		mmio_write(top_map, EARCRX_ANA_CTRL1,
+				 0x1 << 11 | 0x1 << 10 | 0x8 << 4 | 0x8 << 0);
 	} else {
 		mmio_write(top_map, EARCRX_ANA_CTRL0,
 			   en  << 31 | /* earcrx_en_d2a */
@@ -105,18 +105,16 @@ void earcrx_cmdc_init(struct regmap *top_map, bool en, bool rx_dmac_sync_int, bo
 		   0x1 << 23 | /* earcrx_pll_dmacrx_sqout_rstn_sel */
 		   0x1 << 10   /* earcrx_pll_n */
 		  );
-
-	if (rx_dmac_sync_int) {
-		mmio_update_bits(top_map,
-				 EARCRX_PLL_CTRL2,
-				 0x3,
-				 0x2);
-
-		mmio_update_bits(top_map,
-				 EARCRX_PLL_CTRL3,
-				 0x3 << 28,
-				 0x3 << 28);
-	}
+	mmio_write(top_map,
+		EARCRX_PLL_CTRL1,
+		0x1410a8);
+	mmio_update_bits(top_map,
+		EARCRX_PLL_CTRL2,
+		0x3,
+		0x2);
+	mmio_write(top_map,
+		EARCRX_PLL_CTRL3,
+		0x20046000);
 }
 
 void earcrx_cmdc_arc_connect(struct regmap *cmdc_map, bool init)
@@ -176,8 +174,10 @@ void earcrx_dmac_sync_int_enable(struct regmap *top_map, int enable)
 
 void earcrx_dmac_init(struct regmap *top_map,
 		      struct regmap *dmac_map,
-		      bool rx_dmac_sync_int)
+		      bool unstable_tick_sel,
+		      bool chnum_mult_mode)
 {
+	/* can't open bit 5 as it will cause stuck on t7 chips */
 	mmio_update_bits(top_map, EARCRX_DMAC_INT_MASK,
 			 0x3FFFF,
 			 (0x1 << 17) | /* earcrx_ana_rst c_new_format_set */
@@ -192,7 +192,7 @@ void earcrx_dmac_init(struct regmap *top_map,
 			 (0x0 << 8)	| /* arcrx_biphase_decode c_chst_mute_clr */
 			 (0x1 << 7)	| /* arcrx_biphase_decode c_find_papb */
 			 (0x1 << 6)	| /* arcrx_biphase_decode c_valid_change */
-			 (0x1 << 5)	| /* arcrx_biphase_decode c_find_nonpcm2pcm */
+			 (0x0 << 5)	| /* arcrx_biphase_decode c_find_nonpcm2pcm */
 			 (0x1 << 4)	| /* arcrx_biphase_decode c_pcpd_change */
 			 (0x1 << 3)	| /* arcrx_biphase_decode c_ch_status_change */
 			 (0x1 << 2)	| /* arcrx_biphase_decode sample_mod_change */
@@ -212,6 +212,14 @@ void earcrx_dmac_init(struct regmap *top_map,
 		   (29 << 0)	/* reg_data_bit */
 		  );
 	mmio_write(dmac_map, EARCRX_ANA_RST_CTRL0, 1 << 31 | 2000 << 0);
+	if (chnum_mult_mode)
+		mmio_update_bits(dmac_map, EARCRX_SPDIFIN_CTRL6, 0x1 << 27, 0x1 << 27);
+	if (unstable_tick_sel) {
+		mmio_update_bits(top_map, EARCRX_DMAC_INT_MASK, 0x1 << 28, 0x1 << 28);
+		mmio_write(dmac_map, EARCRX_DMAC_SYNC_CTRL3, 0x1 << 19 | 0x2 << 16 | 0x64 << 0);
+		mmio_write(dmac_map, EARCRX_DMAC_SYNC_CTRL4, 0x1 << 19 | 0x2 << 16 | 0x32 << 0);
+		mmio_write(dmac_map, EARCRX_DMAC_SYNC_CTRL5, 0x1 << 19 | 0x2 << 16 | 0x32 << 0);
+	}
 }
 
 void earcrx_arc_init(struct regmap *dmac_map)

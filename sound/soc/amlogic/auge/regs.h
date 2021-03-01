@@ -1227,6 +1227,17 @@ struct register_table {
 #define EARCRX_ERR_CORRECT_STAT0           0x017
 #define EARCRX_ANA_RST_CTRL0               0x018
 #define EARCRX_ANA_RST_CTRL1               0x019
+#define EARCRX_SPDIFIN_CTRL4               0x020
+#define EARCRX_SPDIFIN_CTRL5               0x021
+#define EARCRX_SPDIFIN_CTRL6               0x022
+#define EARCRX_DMAC_SYNC_CTRL1             0x023
+#define EARCRX_SPDIFIN_SAMPLE_CTRL6        0x024
+#define EARCRX_DMAC_SYNC_CTRL3             0x025
+#define EARCRX_DMAC_SYNC_CTRL4             0x026
+#define EARCRX_DMAC_SYNC_CTRL5             0x027
+#define EARCRX_DMAC_SYNC_STAT1             0x028
+#define EARCRX_DMAC_SYNC_STAT2             0x029
+#define EARCRX_DMAC_SYNC_STAT3             0x02a
 /* eARC TX DMAC */
 #define EARCTX_DMAC_TOP_CTRL0              0x000
 #define EARCTX_MUTE_VAL                    0x001

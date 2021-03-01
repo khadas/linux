@@ -252,7 +252,8 @@ void earcrx_cmdc_hpd_detect(struct regmap *cmdc_map, bool st);
 void earcrx_dmac_sync_int_enable(struct regmap *top_map, int enable);
 void earcrx_dmac_init(struct regmap *top_map,
 		      struct regmap *dmac_map,
-		      bool rx_dmac_sync_int);
+		      bool unstable_tick_sel,
+		      bool chnum_mult_mode);
 void earcrx_arc_init(struct regmap *dmac_map);
 unsigned int earcrx_get_cs_iec958(struct regmap *dmac_map);
 unsigned int earcrx_get_cs_ca(struct regmap *dmac_map);
