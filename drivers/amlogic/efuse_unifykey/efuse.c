@@ -25,6 +25,7 @@ static struct aml_efuse_key efuse_key = {
 };
 
 struct aml_efuse_cmd efuse_cmd;
+unsigned int efuse_pattern_size;
 
 #define  DEFINE_EFUEKEY_SHOW_ATTR(keyname)	\
 	static ssize_t  keyname##_show(struct class *cla, \
@@ -574,10 +575,10 @@ static ssize_t amlogic_set_store(struct class *cla,
 	ssize_t ret;
 	char *op = NULL;
 
-	if (count != EFUSE_PATTERN_SIZE) {
+	if (count != efuse_pattern_size) {
 		ret = -EINVAL;
 		pr_err("efuse: bad pattern size, only support size %d!\n",
-		       EFUSE_PATTERN_SIZE);
+		       efuse_pattern_size);
 		goto exit;
 	}
 
@@ -764,14 +765,13 @@ static int efuse_probe(struct platform_device *pdev)
 
 	efuse_clk = devm_clk_get(&pdev->dev, "efuse_clk");
 	if (IS_ERR(efuse_clk)) {
-		ret = -EINVAL;
-		dev_err(&pdev->dev, "failed to get efuse clk gate\n");
-		goto error1;
-	}
-	ret = clk_prepare_enable(efuse_clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable efuse clk gate\n");
-		goto error1;
+		dev_err(&pdev->dev, "can't get efuse clk gate, use default clk\n");
+	} else {
+		ret = clk_prepare_enable(efuse_clk);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to enable efuse clk gate\n");
+			goto error1;
+		}
 	}
 
 	of_node_get(np);
@@ -806,6 +806,17 @@ static int efuse_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "failed to mem_out_base_cmd\n");
 		goto error1;
+	}
+
+	ret = of_property_read_u32(np, "efuse_pattern_size",
+				   &efuse_pattern_size);
+	if (ret) {
+		efuse_pattern_size = EFUSE_PATTERN_SIZE;
+		pr_err("can't get efuse_pattern_size, use default size0x%x\n",
+			efuse_pattern_size);
+	} else {
+		pr_info("efuse_pattern_size:0x%x\n",
+			efuse_pattern_size);
 	}
 
 	get_efusekey_info(np);
