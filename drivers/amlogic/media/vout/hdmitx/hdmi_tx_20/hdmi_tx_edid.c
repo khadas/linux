@@ -1330,7 +1330,7 @@ static int edid_y420cmdb_fill_all_vic(struct hdmitx_dev *hdmitx_device)
 		memset(&info->y420cmdb_bitmap[0], 0xff, a);
 
 	if (b != 0 && a < Y420CMDB_MAX)
-		info->y420cmdb_bitmap[a] = (((1 << b) - 1) << (8 - b));
+		info->y420cmdb_bitmap[a] = (1 << b) - 1;
 
 	info->bitmap_length = (b == 0) ? a : (a + 1);
 	info->bitmap_valid = (info->bitmap_length != 0) ? 1 : 0;
@@ -1867,10 +1867,11 @@ static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 {
 	struct rx_cap *prxcap = &hdmitx_device->rxcap;
 
-	prxcap->VIC_count = 0x3;
+	prxcap->VIC_count = 0x4;
 	prxcap->VIC[0] = HDMI_720x480p60_16x9;
 	prxcap->VIC[1] = HDMI_1280x720p60_16x9;
-	prxcap->VIC[2] = HDMI_1920x1080p60_16x9;
+	prxcap->VIC[2] = HDMI_1920x1080i60_16x9;
+	prxcap->VIC[3] = HDMI_1920x1080p60_16x9;
 	prxcap->native_VIC = HDMI_720x480p60_16x9;
 	hdmitx_device->vic_count = prxcap->VIC_count;
 	pr_info(EDID "set default vic\n");

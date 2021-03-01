@@ -2840,6 +2840,9 @@ static void audio_mute_op(bool flag)
 	}
 }
 
+struct hdmitx_audpara hdmiaud_config_data;
+struct hdmitx_audpara hsty_hdmiaud_config_data[8];
+unsigned int hsty_hdmiaud_config_loc, hsty_hdmiaud_config_num;
 static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 			      struct hdmitx_audpara *audio_param)
 {
@@ -2850,6 +2853,18 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	if (!audio_param)
 		return 0;
 	pr_info(HW "set audio\n");
+
+	memcpy(&hdmiaud_config_data,
+		   audio_param, sizeof(struct hdmitx_audpara));
+	if (hsty_hdmiaud_config_loc > 7)
+		hsty_hdmiaud_config_loc = 0;
+	memcpy(&hsty_hdmiaud_config_data[hsty_hdmiaud_config_loc++],
+	       &hdmiaud_config_data, sizeof(struct hdmitx_audpara));
+	if (hsty_hdmiaud_config_num < 0xfffffff0)
+		hsty_hdmiaud_config_num++;
+	else
+		hsty_hdmiaud_config_num = 8;
+
 	audio_mute_op(hdev->tx_aud_cfg);
 	/* PCM & multi channel use I2S */
 	if (audio_param->type == CT_PCM &&

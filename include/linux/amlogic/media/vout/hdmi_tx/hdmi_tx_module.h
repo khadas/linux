@@ -661,6 +661,10 @@ const char *hdmitx_edid_get_native_VIC(struct hdmitx_dev *hdmitx_device);
 bool hdmitx_check_edid_all_zeros(unsigned char *buf);
 bool hdmitx_edid_notify_ng(unsigned char *buf);
 
+extern struct hdmitx_audpara hdmiaud_config_data;
+extern struct hdmitx_audpara hsty_hdmiaud_config_data[8];
+extern unsigned int hsty_hdmiaud_config_loc, hsty_hdmiaud_config_num;
+
 /* VSIF: Vendor Specific InfoFrame
  * It has multiple purposes:
  * 1. HDMI1.4 4K, HDMI_VIC=1/2/3/4, 2160p30/25/24hz, smpte24hz, AVI.VIC=0
