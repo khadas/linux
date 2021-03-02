@@ -65,7 +65,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "ver:2021-0223: hdmi 4k,viuloop capture flashing line"
+#define VDIN_VER "ver:2021-0301: buffer recycle is not right"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -723,6 +723,7 @@ struct vframe_provider_s *vf_get_provider_by_name(const
 						  char *provider_name);
 char *vf_get_receiver_name(const char *provider_name);
 int start_tvin_service(int no, struct vdin_parm_s *para);
+int start_tvin_capture_ex(int dev_num, int port, struct vdin_parm_s  *para);
 int stop_tvin_service(int no);
 int vdin_reg_v4l2(struct vdin_v4l2_ops_s *v4l2_ops);
 void vdin_unreg_v4l2(void);

@@ -2060,6 +2060,7 @@ start_chk:
 
 		param.fmt = TVIN_SIG_FMT_MAX;
 		devp->flags |= VDIN_FLAG_V4L2_DEBUG;
+		param.reserved |= PARAM_STATE_HISTGRAM;
 		/* param.scan_mode = TVIN_SCAN_MODE_PROGRESSIVE; */
 		/*start the vdin hardware*/
 		start_tvin_service(devp->index, &param);

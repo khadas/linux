@@ -814,6 +814,7 @@ struct vdin_v4l2_ops_s {
 	int (*tvin_fe_func)(int no, struct fe_arg_s *arg); /* for isp command */
 	int (*tvin_vdin_func)(int no, struct vdin_arg_s *arg);
 	void *private;
+	int (*start_tvin_service_ex)(int devnum, int port, struct vdin_parm_s *para);
 };
 
 /*

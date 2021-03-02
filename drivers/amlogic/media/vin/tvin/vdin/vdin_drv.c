@@ -1267,8 +1267,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	mutex_unlock(&devp->fe_lock);
 	return 0;
 }
-
-/*EXPORT_SYMBOL(start_tvin_service);*/
+EXPORT_SYMBOL(start_tvin_service);
 
 /*
  *call vdin_stop_dec to stop the frontend
@@ -1329,7 +1328,31 @@ int stop_tvin_service(int no)
 	mutex_unlock(&devp->fe_lock);
 	return 0;
 }
-EXPORT_SYMBOL(stop_tvin_service);
+
+/*
+ * dev_num: 0:vdin0 1:vdin1
+ * port 0: capure_osd_plus_video = 0
+ * port 1: capure_only_video
+ */
+int start_tvin_capture_ex(int dev_num, int port, struct vdin_parm_s  *para)
+{
+	unsigned int loop_port;
+	unsigned int vdin_dev;
+
+	if (port == 1)/*only video*/
+		loop_port = TVIN_PORT_VIU1_WB0_VD1;
+	else if (port == 0)/*osd + video*/
+		loop_port = TVIN_PORT_VIU1_WB0_VPP;
+	else
+		loop_port = TVIN_PORT_VIU1_WB0_VD1;
+	para->port = loop_port;
+
+	if (dev_num == 0)
+		vdin_dev = 0;
+	else
+		vdin_dev = 1;
+	return start_tvin_service(vdin_dev, para);
+}
 
 void get_tvin_canvas_info(int *start, int *num)
 {
@@ -1481,6 +1504,7 @@ static struct vdin_v4l2_ops_s vdin_4v4l2_ops = {
 	.set_tvin_canvas_info = NULL,
 	.tvin_fe_func         = vdin_ioctl_fe,
 	.tvin_vdin_func	      = vdin_func,
+	.start_tvin_service_ex = start_tvin_capture_ex,
 };
 
 /*call vdin_hw_disable to pause hw*/
@@ -1750,13 +1774,22 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 	int ret = 0;
 	int ret_v4l = 0;
 	enum vdin_vf_put_md md = work_md;
+	struct vf_entry *vfe_tmp;
 
 	/*for debug*/
 	if (vdin_frame_work_mode == VDIN_VF_RECYCLE)
 		md = VDIN_VF_RECYCLE;
 
 	/*force recycle one frame*/
-	if (devp->frame_cnt < vdin_drop_num || md == VDIN_VF_RECYCLE) {
+	if (devp->frame_cnt <= vdin_drop_num) {
+		if (vfe)
+			receiver_vf_put(&vfe->vf, devp->vfp);
+		ret = -1;
+	} else if (md == VDIN_VF_RECYCLE) {
+		vfe_tmp = receiver_vf_get(devp->vfp);
+		if (vfe_tmp)
+			receiver_vf_put(&vfe_tmp->vf, devp->vfp);
+
 		if (vfe)
 			receiver_vf_put(&vfe->vf, devp->vfp);
 		ret = -1;
@@ -2495,16 +2528,6 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	/*check vs is valid base on the time during continuous vs*/
 	vdin_check_cycle(devp);
 
-/* remove for m6&m8 camera function,
- * may cause hardware disable bug on kernel 3.10
- */
-/* #if MESON_CPU_TYPE < MESON_CPU_TYPE_MESON8 */
-/* if (devp->flags & VDIN_FLAG_DEC_STOP_ISR){ */
-/* vdin_hw_disable(devp); */
-/* devp->flags &= ~VDIN_FLAG_DEC_STOP_ISR; */
-/* goto irq_handled; */
-/* } */
-/* #endif */
 	/* ignore invalid vs base on the continuous fields
 	 * different cnt to void screen flicker
 	 */
@@ -3400,13 +3423,12 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			pr_info("TVIN_IOC_S_VDIN_V4L2START cann't be used at vdin0\n");
 			break;
 		}
-		if (devp->flags & VDIN_FLAG_ISR_REQ) {
-			free_irq(devp->irq, (void *)devp);
-
-			if (vdin_dbg_en)
-				pr_info("%s vdin.%d free_irq\n", __func__,
-					devp->index);
-		}
+		//if (devp->flags & VDIN_FLAG_ISR_REQ) {
+		//	free_irq(devp->irq, (void *)devp);
+		//	if (vdin_dbg_en)
+		//		pr_info("%s vdin.%d free_irq\n", __func__,
+		//			devp->index);
+		//}
 
 		if (copy_from_user(&vdin_v4l2_param, argp,
 				   sizeof(struct vdin_v4l2_param_s))) {
@@ -4123,7 +4145,7 @@ static const struct match_data_s vdin_dt_sc2 = {
 	.hw_ver = VDIN_HW_SC2,
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
-	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
+	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
 };
 
 static const struct match_data_s vdin_dt_t5 = {
