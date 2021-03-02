@@ -336,25 +336,6 @@
 		reg = <0x00 0xfe026000 0x00 0x48>;
 	};
 
-	hifi4dsp: hifi4dsp {
-		compatible = "amlogic, hifi4dsp";
-		memory-region = <&dsp_fw_reserved>;
-		reg = <0 0xfe340000 0 0x114>;   /*dspa base address*/
-		clocks = <&clkc CLKID_DSPA_CLK>;
-		clock-names = "dspa_clk";
-//		power-domains = <&pwrdm PDID_SC2_DSP>;
-		dspa_clkfreq = <500000000>;
-		dsp-start-mode = <1>; /*0:scpi start mode,1:smc start mode*/
-		dsp-cnt = <1>;
-		dspaoffset = <0>;
-		dspboffset = <0xa00000>;
-		reservesize = <0x800000>;
-		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
-		boot_sram_addr = <0xfff00000>;
-		boot_sram_size = <0x80000>;
-		status = "disabled";
-	};
-
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;

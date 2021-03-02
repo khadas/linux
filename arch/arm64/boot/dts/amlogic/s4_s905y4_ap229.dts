@@ -124,13 +124,6 @@
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
 		};
-		dsp_fw_reserved:linux,dsp_fw {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x00800000>;
-			alignment = <0x0 0x00400000>;
-			alloc-ranges = <0x0 0x3400000 0x0 0x00800000>;
-		};
 	};
 	codec_mm {
 		compatible = "amlogic, codec, mm";
