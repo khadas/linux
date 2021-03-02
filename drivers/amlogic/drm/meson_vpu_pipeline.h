@@ -224,8 +224,6 @@ struct meson_vpu_video_layer_info {
 	u32 plane_index;
 	u32 enable;
 	u32 ratio_x;/*input_w/output_w*/
-	u32 afbc_inter_format;
-	u32 afbc_en;
 	u32 fb_size[2];
 	u32 pixel_blend;
 	struct vframe_s *vf;
