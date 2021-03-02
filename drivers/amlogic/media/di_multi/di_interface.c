@@ -360,6 +360,8 @@ static void cfg_ch_set(struct di_ch_s *pch)
 		cfggch(pch, IOUT_FMT));
 	PR_INF("\talloc_sct[%d],4K[%d]\n", cfggch(pch, ALLOC_SCT),
 		cfggch(pch, 4K));
+	PR_INF("\ttvp:%d\n",
+	       parm->output_format & DI_OUTPUT_TVP ? 1 : 0);
 }
 
 /**********************************************************

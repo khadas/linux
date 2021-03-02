@@ -2480,13 +2480,17 @@ static void check_tvp_state(struct di_ch_s *pch)
 	struct provider_state_req_s req;
 	char *provider_name;// = vf_get_provider_name(pch->vfm.name);
 
+	ch = pch->ch_id;
 	if (!dip_itf_is_vfm(pch)) {
-		PR_WARN("%s:not vfm:\n", __func__);
-		set_flag_tvp(pch->ch_id, 1); //tmp;
+		set_flag_secure_pre(ch, 0);
+		set_flag_secure_pst(ch, 0);
+		if (pch->itf.u.dinst.parm.output_format & DI_OUTPUT_TVP)
+			set_flag_tvp(pch->ch_id, 2);
+		else
+			set_flag_tvp(pch->ch_id, 1);
 		return;
 	}
 
-	ch = pch->ch_id;
 	set_flag_tvp(ch, 0);
 	set_flag_secure_pre(ch, 0);
 	set_flag_secure_pst(ch, 0);
