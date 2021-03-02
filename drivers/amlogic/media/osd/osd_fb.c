@@ -1127,6 +1127,12 @@ static int malloc_osd_memory(struct fb_info *info)
 	phys_addr_t base = 0;
 	unsigned long size = 0;
 	unsigned long fb_memsize_total  = 0;
+
+#ifdef CONFIG_AMLOGIC_ION
+	struct dma_buf *dmabuf = NULL;
+	size_t len;
+#endif
+
 #ifdef CONFIG_CMA
 	struct cma *cma = NULL;
 #endif
@@ -1237,11 +1243,19 @@ static int malloc_osd_memory(struct fb_info *info)
 			pr_info("OSD%d as afbcd mode,afbc_type=%d\n",
 				fb_index, osd_meson_dev.afbc_type);
 			for (j = 0; j < OSD_MAX_BUF_NUM; j++) {
-				ion_fd[fb_index][j] = dma_buf_fd
-				(ion_alloc(PAGE_ALIGN(fb_memsize[fb_index + 1] /
-					  OSD_MAX_BUF_NUM),
+				len = PAGE_ALIGN(fb_memsize[fb_index + 1] /
+						 OSD_MAX_BUF_NUM);
+				dmabuf = ion_alloc(len,
 					  (1 << meson_ion_cma_heap_id_get()),
-					  ION_FLAG_EXTEND_MESON_HEAP), O_CLOEXEC);
+					  ION_FLAG_EXTEND_MESON_HEAP);
+				if (IS_ERR(dmabuf)) {
+					osd_log_err("%s: size=%x, FAILED\n",
+						    __func__,
+						    fb_memsize[fb_index + 1]);
+					return -ENOMEM;
+				}
+
+				ion_fd[fb_index][j] = dma_buf_fd(dmabuf, O_CLOEXEC);
 				if (ion_fd[fb_index][j] < 0) {
 					osd_log_err("%s: size=%x, FAILED.\n",
 						    __func__,
@@ -1290,10 +1304,17 @@ static int malloc_osd_memory(struct fb_info *info)
 			fb_rmem_size[fb_index] =
 				fb_rmem_afbc_size[fb_index][0];
 		} else {
-			ion_fd[fb_index][0] = dma_buf_fd
-				(ion_alloc(fb_memsize[fb_index + 1],
-					  (1 << meson_ion_cma_heap_id_get()),
-					  ION_FLAG_EXTEND_MESON_HEAP), O_CLOEXEC);
+			dmabuf = ion_alloc(fb_memsize[fb_index + 1],
+					(1 << meson_ion_cma_heap_id_get()),
+					ION_FLAG_EXTEND_MESON_HEAP);
+			if (IS_ERR(dmabuf)) {
+				osd_log_err("%s: size=%x, FAILED\n",
+						__func__,
+						fb_memsize[fb_index + 1]);
+				return -ENOMEM;
+			}
+			ion_fd[fb_index][0] = dma_buf_fd(dmabuf
+					  , O_CLOEXEC);
 			if (ion_fd[fb_index][0] < 0) {
 				osd_log_err("%s: size=%x, FAILED.\n",
 					    __func__, fb_memsize[fb_index + 1]);
