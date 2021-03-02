@@ -9,6 +9,7 @@
 #include <dt-bindings/clock/amlogic,t3-clkc.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-t3-gpio.h>
+#include <dt-bindings/power/t3-pd.h>
 / {
 	cpus:cpus {
 		#address-cells = <2>;
@@ -151,6 +152,12 @@
 		clock-frequency = <24000000>;
 		clock-output-names = "xtal";
 		#clock-cells = <0>;
+	};
+
+	pwrdm: power-domains {
+		compatible = "amlogic,t3-power-domain";
+		#power-domain-cells = <1>;
+		status = "okay";
 	};
 
 	soc {

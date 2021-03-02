@@ -13,6 +13,7 @@
 #include <dt-bindings/power/t5-pd.h>
 #include <dt-bindings/power/t7-pd.h>
 #include <dt-bindings/power/s4-pd.h>
+#include <dt-bindings/power/t3-pd.h>
 #include <linux/kallsyms.h>
 
 struct sec_pm_private_domain {
@@ -286,6 +287,44 @@ static struct sec_pm_domain_data s4_pm_domain_data = {
 	.domains_count = ARRAY_SIZE(s4_pm_domains),
 };
 
+static struct sec_pm_private_domain t3_pm_domains[] = {
+	[PDID_T3_DSPA] = POWER_DOMAIN(dspa, PDID_T3_DSPA, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_DOS_HCODEC] = POWER_DOMAIN(hcodec, PDID_T3_DOS_HCODEC, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_T3_DOS_HEVC, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_T3_DOS_VDEC, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_VPU_HDMI] = POWER_DOMAIN(vpu, PDID_T3_VPU_HDMI, DOMAIN_INIT_ON,
+					  GENPD_FLAG_ALWAYS_ON),
+	[PDID_T3_USB_COMB] = POWER_DOMAIN(usb, PDID_T3_USB_COMB, DOMAIN_INIT_ON,
+					  GENPD_FLAG_ALWAYS_ON),
+	[PDID_T3_PCIE] = POWER_DOMAIN(pcie, PDID_T3_PCIE, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_GE2D] = POWER_DOMAIN(ge2d, PDID_T3_GE2D, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_SRAMA] = POWER_DOMAIN(srama, PDID_T3_SRAMA, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T3_HDMIRX] = POWER_DOMAIN(hdmirx, PDID_T3_HDMIRX, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_VI_CLK1] = POWER_DOMAIN(vi_clk1, PDID_T3_VI_CLK1,
+					 DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T3_VI_CLK2] = POWER_DOMAIN(vi_clk2, PDID_T3_VI_CLK2,
+					 DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T3_ETH] = POWER_DOMAIN(eth, PDID_T3_ETH, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_NNA] = POWER_DOMAIN(nna, PDID_T3_NNA, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_DEMOD] = POWER_DOMAIN(demod, PDID_T3_DEMOD, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_FRCTOP] = POWER_DOMAIN(frctop, PDID_T3_FRCTOP, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_FRCME] = POWER_DOMAIN(frcme, PDID_T3_FRCME, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_FRCMC] = POWER_DOMAIN(frcmc, PDID_T3_FRCMC, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_SDEMMC_B] = POWER_DOMAIN(sdemmc_b, PDID_T3_SDEMMC_B, DOMAIN_INIT_ON, 0),
+	[PDID_T3_SDEMMC_C] = POWER_DOMAIN(sdemmc_c, PDID_T3_SDEMMC_C, DOMAIN_INIT_ON, 0),
+	[PDID_T3_NOC_DEV] = POWER_DOMAIN(noc_dev, PDID_T3_NOC_DEV, DOMAIN_INIT_ON, 0),
+	[PDID_T3_NOC_VPU] = POWER_DOMAIN(noc_vpu, PDID_T3_NOC_VPU, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_SPICC0] = POWER_DOMAIN(spicc0, PDID_T3_SPICC0, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_SPICC1] = POWER_DOMAIN(spicc1, PDID_T3_SPICC1, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_SPICC2] = POWER_DOMAIN(spicc2, PDID_T3_SPICC2, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_AUDIO] = POWER_DOMAIN(audio, PDID_T3_AUDIO, DOMAIN_INIT_OFF, 0),
+};
+
+static struct sec_pm_domain_data t3_pm_domain_data = {
+	.domains = t3_pm_domains,
+	.domains_count = ARRAY_SIZE(t3_pm_domains),
+};
+
 static int sec_pd_probe(struct platform_device *pdev)
 {
 	int ret, i;
@@ -326,10 +365,8 @@ static int sec_pd_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 #endif
-
 	for (i = 0; i < match->domains_count; i++) {
 		private_pd = &match->domains[i];
-
 		/* array might be sparse */
 		if (!private_pd->name)
 			continue;
@@ -407,6 +444,10 @@ static const struct of_device_id pd_match_table[] = {
 	{
 		.compatible = "amlogic,s4-power-domain",
 		.data = &s4_pm_domain_data,
+	},
+	{
+		.compatible = "amlogic,t3-power-domain",
+		.data = &t3_pm_domain_data,
 	},
 	{}
 };
