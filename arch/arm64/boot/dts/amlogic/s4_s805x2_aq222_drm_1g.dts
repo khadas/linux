@@ -36,7 +36,7 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x000000 0x0 0x40000000>;
+		linux,usable-memory = <0x0 0x0 0x0 0x40000000>;
 	};
 
 	reserved-memory {
@@ -63,7 +63,7 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x8000000>;
+			size = <0x0 0x1000000>;
 			alignment = <0x0 0x400000>;
 		};
 		/*di CMA pool */
@@ -124,13 +124,6 @@
 			 */
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
-		};
-		dsp_fw_reserved:linux,dsp_fw {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x00800000>;
-			alignment = <0x0 0x00400000>;
-			alloc-ranges = <0x0 0x3400000 0x0 0x00800000>;
 		};
 	};
 	codec_mm {
