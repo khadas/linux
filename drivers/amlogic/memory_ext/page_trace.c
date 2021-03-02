@@ -108,24 +108,27 @@ static struct fun_symbol common_func[] __initdata = {
 	{"__kmalloc_track_caller",	1},
 	{"kmem_cache_alloc_trace",	1},
 	{"alloc_pages_exact",		1},
+	{"alloc_pages_exact_nid",	1},
 	{"get_zeroed_page",		1},
 	{"__vmalloc_node_range",	1},
+	{"__vmalloc_area_node",	1},
 	{"vzalloc",			1},
 	{"vmalloc",			1},
-	{"kmalloc_order",		0},
+	{"kvmalloc_node",		1},
+	{"kmalloc_order",		1},
+	{"kmalloc_order_trace",		1},
+	{"aml_slub_alloc_large",	1},
 #ifdef CONFIG_NUMA
 	{"alloc_pages_current",		1},
 	{"alloc_page_interleave",	1},
 	{"kmalloc_large_node",		1},
-	{"kmem_cache_alloc_node",	1},
 	{"__kmalloc_node",		1},
-	{"kvmalloc_node",		1},
 	{"alloc_pages_vma",		1},
 #endif
 #ifdef CONFIG_SLUB	/* for some static symbols not exported in headfile */
 	{"new_slab",			0},
-	{"slab_alloc",			0},
-	{"allocate_slab",		1},
+	{"___slab_alloc",		0},
+	{"allocate_slab",		0},
 #endif
 	{}		/* tail */
 };
