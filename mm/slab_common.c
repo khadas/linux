@@ -1324,6 +1324,57 @@ void __init create_kmalloc_caches(slab_flags_t flags)
 }
 #endif /* !CONFIG_SLOB */
 
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+#include <linux/amlogic/page_trace.h>
+#endif
+
+static inline void *aml_slub_alloc_large(size_t size, gfp_t flags, int order)
+{
+	struct page *page, *p;
+
+	flags &= ~__GFP_COMP;
+	page = alloc_pages(flags, order);
+	if (page) {
+		unsigned long used_pages = PAGE_ALIGN(size) / PAGE_SIZE;
+		unsigned long total_pages = 1 << order;
+		unsigned long saved = 0;
+		unsigned long fun = 0;
+		int i;
+
+		/* record how many pages in first page*/
+		__SetPageHead(page);
+		SetPageOwnerPriv1(page);	/* special flag */
+
+	#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+		fun = get_page_trace(page);
+	#endif
+
+		for (i = 1; i < used_pages; i++) {
+			p = page + i;
+			set_compound_head(p, page);
+		#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+			set_page_trace(page, 0, flags, (void *)fun);
+		#endif
+		}
+		page->index = used_pages;
+		split_page(page, order);
+		p = page + used_pages;
+		while (used_pages < total_pages) {
+			__free_pages(p, 0);
+			used_pages++;
+			p++;
+			saved++;
+		}
+		pr_debug("%s, page:%p, all:%5ld, size:%5ld, save:%5ld, f:%ps\n",
+			__func__, page_address(page), total_pages * PAGE_SIZE,
+			(long)size, saved * PAGE_SIZE, (void *)fun);
+		return page;
+	}
+	return NULL;
+}
+#endif
+
 /*
  * To avoid unnecessary overhead, we pass through large allocation requests
  * directly to the page allocator. We use __GFP_COMP, because we will need to
@@ -1335,11 +1386,22 @@ void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
 	struct page *page;
 
 	flags |= __GFP_COMP;
-	page = alloc_pages(flags, order);
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	if (size < (PAGE_SIZE * (1 << order)))
+		page = aml_slub_alloc_large(size, flags, order);
+	else
+#endif
+		page = alloc_pages(flags, order);
+
 	if (likely(page)) {
 		ret = page_address(page);
+		#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
+				    PAGE_ALIGN(size) / PAGE_SIZE);
+		#else
 		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
 				    1 << order);
+		#endif
 	}
 	ret = kasan_kmalloc_large(ret, size, flags);
 	/* As ret might get tagged, call kmemleak hook after KASAN. */

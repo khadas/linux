@@ -1020,7 +1020,16 @@ done_merging:
 		add_to_free_area_random(page, &zone->free_area[order],
 				migratetype);
 	else
+	#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && defined(CONFIG_KASAN)
+		/*
+		 * always put freed page to tail of buddy system, in order to increase
+		 *  probability of use-after-free for KASAN check.
+		 */
+		add_to_free_area_tail(page, &zone->free_area[order], migratetype);
+	#else
 		add_to_free_area(page, &zone->free_area[order], migratetype);
+	#endif
+
 
 }
 
@@ -3186,7 +3195,15 @@ static void free_unref_page_commit(struct page *page, unsigned long pfn)
 	}
 
 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
+	#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && defined(CONFIG_KASAN)
+	/*
+	 * always put freed page to tail of buddy system, in  order to
+	 * increase probability of use-after-free for KASAN check.
+	 */
+	list_add_tail(&page->lru, &pcp->lists[migratetype]);
+	#else
 	list_add(&page->lru, &pcp->lists[migratetype]);
+	#endif
 	pcp->count++;
 	if (pcp->count >= pcp->high) {
 		unsigned long batch = READ_ONCE(pcp->batch);

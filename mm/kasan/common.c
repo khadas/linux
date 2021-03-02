@@ -545,6 +545,11 @@ void * __must_check kasan_kmalloc_large(const void *ptr, size_t size,
 				KASAN_SHADOW_SCALE_SIZE);
 	redzone_end = (unsigned long)ptr + page_size(page);
 
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	if (PageOwnerPriv1(page)) { /* end of this page was freed */
+		redzone_end = (unsigned long)ptr + PAGE_ALIGN(size);
+	}
+#endif
 	kasan_unpoison_shadow(ptr, size);
 	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
 		KASAN_PAGE_REDZONE);
