@@ -2671,9 +2671,10 @@ out:
 		/* Stop desc in case of errors */
 		u32 start = readl(host->regs + SD_EMMC_START);
 
-		start &= ~START_DESC_BUSY;
-		if (!host->ignore_desc_busy)
+		if (!host->ignore_desc_busy && (start & START_DESC_BUSY)) {
+			start &= ~START_DESC_BUSY;
 			writel(start, host->regs + SD_EMMC_START);
+		}
 	}
 
 	if (ret == IRQ_HANDLED) {
