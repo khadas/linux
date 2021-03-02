@@ -1310,6 +1310,8 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 			tsync_get_demux_pcr(&cur_pcr);
 			cur_checkin_vpts = get_last_checkin_pts(PTS_TYPE_VIDEO);
 			if (cur_checkin_vpts != 0xffffffff &&
+				(cur_pcr != 0xffffffff) &&
+				(cur_pcr != 0) &&
 				(abs(cur_pcr - cur_checkin_vpts) >
 				PLAY_PCR_INVALID_THRESHOLD) &&
 				(tsync_pcr_inited_flag & complete_init_flag) &&
