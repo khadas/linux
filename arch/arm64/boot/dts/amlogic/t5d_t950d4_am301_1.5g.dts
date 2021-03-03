@@ -499,6 +499,8 @@
 		&clkc CLKID_AHB_ARB0
 		&clkc CLKID_PARSER0>;
 		clock-names = "demux", "ahbarb0", "parser_top";
+		pinctrl-names = "p_ts2";
+		pinctrl-0 = <&dvb_p_ts2_pins>;
 	};
 	dvbci {
 		compatible = "amlogic, dvbci";
