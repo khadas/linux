@@ -479,7 +479,7 @@
 };
 
 &i2c2 {
-	status = "okay";
+	status = "disabled";
 	i2c-scl-rising-time-ns = <600>;
 	i2c-scl-falling-time-ns = <20>;
 };
@@ -748,12 +748,68 @@
 		compatible = "khadas-mcu";
 		reg = <0x18>;
 	};
+
+	bq25703:bq25703@6b {
+
+		status = "okay";
+
+		compatible = "ti,bq25703";
+		reg = <0x6b>;
+		extcon = <&fusb0>, <&fusb1>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PC7 IRQ_TYPE_LEVEL_LOW>; /* GPIO1_C7 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&charger_ok>;
+		ti,charge-current = <1500000>;
+		ti,max-charge-voltage = <8500000>;
+		ti,max-input-voltage = <20000000>;
+		ti,max-input-current = <6000000>;
+		ti,input-current-sdp = <500000>;
+		ti,input-current-dcp = <2000000>;
+		ti,input-current-cdp = <2000000>;
+		ti,input-current-dc = <2000000>;
+		ti,minimum-sys-voltage = <7400000>;
+		ti,otg-voltage = <5000000>;
+		ti,otg-current = <500000>;
+		ti,input-current = <500000>;
+		pd-charge-only = <0>;
+
+	};
+
+	cw2015: cw2015@62 {
+		status = "okay";
+		compatible = "cw201x";
+		reg = <0x62>;
+		bat_config_info = <0x15 0x7F 0x6E 0x66 0x65 0x5C 0x5B 0x59
+				0x58 0x57 0x57 0x54 0x53 0x51 0x4B 0x48
+				0x40 0x33 0x2A 0x26 0x23 0x25 0x2A 0x34
+				0x45 0x4F 0x0C 0xCD 0x44 0x68 0x67 0x68
+				0x6E 0x6F 0x6C 0x68 0x3A 0x10 0x8A 0x01
+				0x01 0x54 0x52 0x87 0x8F 0x91 0x94 0x52
+				0x82 0x8C 0x92 0x96 0x82 0xFF 0xFF 0xCB
+				0x2F 0x7D 0x64 0xA5 0xB5 0x13 0x58 0x09>;
+		monitor_sec = <5>;
+		virtual_power = <0>;
+		divider_res1 = <200>;
+		divider_res2 = <200>;
+		dc_det_gpio = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
+	};
+
 };
 
 &i2s2 {
 	#sound-dai-cells = <0>;
 	status = "okay";
 };
+
+&i2s0 {
+	status = "disabled";
+	rockchip,i2s-broken-burst-len;
+	rockchip,playback-channels = <8>;
+	rockchip,capture-channels = <8>;
+	#sound-dai-cells = <0>;
+};
+
 
 &io_domains {
 	status = "okay";
@@ -1091,4 +1147,20 @@
 				<2 27 RK_FUNC_GPIO &pcfg_pull_none>; /* GPIO2_D3 */
 		};
 	};
+
+	charger {
+		charger_ok: charge-ok {
+			rockchip,pins = <1 RK_PC7 RK_FUNC_GPIO &pcfg_pull_up>; /* GPIO1_C7 */
+		};
+	};
 };
+
+
+&spi3 {
+	status = "disabled";
+
+	cs-gpios = <&gpio1 17 GPIO_ACTIVE_LOW>, <&gpio1 16 GPIO_ACTIVE_LOW>;
+	max-freq = <48000000>;
+
+};
+

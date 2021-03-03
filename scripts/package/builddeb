@@ -153,7 +153,7 @@ BUILD_DEBUG="$(grep -s '^CONFIG_DEBUG_INFO=y' $KCONFIG_CONFIG || true)"
 # Setup the directory structure
 rm -rf "$tmpdir" "$fwdir" "$kernel_headers_dir" "$libc_headers_dir" "$dbg_dir" "$dtb_dir" $objtree/debian/files
 mkdir -m 755 -p "$dtb_dir/DEBIAN"
-mkdir -p "$dtb_dir/boot/dtb-$version" "$dtb_dir/usr/share/doc/$dtb_packagename"
+mkdir -p $dtb_dir/boot/dtb-$version/overlays/{captain,edgev} "$dtb_dir/usr/share/doc/$dtb_packagename"
 mkdir -m 755 -p "$tmpdir/DEBIAN"
 mkdir -p "$tmpdir/lib" "$tmpdir/boot"
 mkdir -p "$fwdir/lib/firmware/$version/"
@@ -209,8 +209,10 @@ if grep -q '^CONFIG_MODULES=y' $KCONFIG_CONFIG ; then
 fi
 
 if grep -q '^CONFIG_ARM64=y' $KCONFIG_CONFIG ; then
-	mkdir -p "$tmpdir/boot/dtb-""$version"
+    mkdir -p "$tmpdir/boot/dtb-""$version"/overlays/{captain,edgev}
 	cp $objtree/arch/$SRCARCH/boot/dts/rockchip/*.dtb $dtb_dir/boot/dtb-$version
+    cp $objtree/arch/$SRCARCH/boot/dts/rockchip/overlays/captain/*.dtbo $dtb_dir/boot/dtb-$version/overlays/captain
+    cp $objtree/arch/$SRCARCH/boot/dts/rockchip/overlays/edgev/*.dtbo $dtb_dir/boot/dtb-$version/overlays/edgev
 fi
 
 

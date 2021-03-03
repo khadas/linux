@@ -1302,6 +1302,14 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 		}
 	}
 
+	/* Khadas devices - XMOS based USB DAC */
+	if ( USB_ID_VENDOR(chip->usb_id) == 0x3353 ) {
+		//usb_audio_warn(chip,"KHADAS AUDIO - %d %llu %u %u\n",
+		//    fp->altsetting, fp->formats, fp->fmt_type, sample_bytes);
+		if (fp->altsetting == 3)
+		return SNDRV_PCM_FMTBIT_DSD_U32_BE;
+	}
+
 	/* XMOS based USB DACs */
 	switch (chip->usb_id) {
 	case USB_ID(0x20b1, 0x3008): /* iFi Audio micro/nano iDSD */
