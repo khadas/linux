@@ -31,6 +31,8 @@
 #include <linux/signal.h>
 #include <linux/sysfs.h>
 
+#include <linux/amlogic/secmon.h>
+
 #include "aml_aucpu.h"
 
 #define AUCPU_PLATFORM_DEVICE_NAME "aml_aucpu"
@@ -40,8 +42,6 @@
 #ifndef VM_RESERVED	/*for kernel up to 3.7.0 version*/
 #define VM_RESERVED (VM_DONTEXPAND | VM_DONTDUMP)
 #endif
-
-#define TEMP_FW_LOAD
 
 #define MHz (1000000)
 
@@ -93,6 +93,8 @@ static s32 dbg_level = AUCPU_LOG_ERR;
 #define RESP_SEQ_ADDR		(0x80)
 #define RESP_TYPE_ADDR		(0x84)
 #define RESP_RST_ADDR		(0x88)
+
+#define VERSION_ADDR		(0xA8)
 
 #define DBG_REG_WRPTR		(0xC0)
 #define DBG_REG_STAGE		(0xE8)
@@ -604,51 +606,36 @@ static void do_polling_work(struct work_struct *work)
 	}
 }
 
-#ifdef TEMP_FW_LOAD
 #define AUCPU_FW_PATH "/lib/firmware/aucpu_fw.bin"
 #define AUCPU_MAX_FW_SZ		(48 * SZ_1K)
 #include <linux/fs.h>
 #include <linux/firmware.h>
 #include <linux/arm-smccc.h>
 
-/* rw: 0 read, 1 write */
-#define AUCPU_MON_RW			(0x8200004A)
-#define AUCPU_SRAM_START		(0x10000000)
-#define DMA_BASE			(0xFE09E400)
-#define P_AUCPU_CPU_CTRL1		(0xFE09E004)
-#define P_RESETCTRL_SEC_RESET0_LEVEL	(0xFE002180)
-#define PWRCTL_MEM_PD11			(0xFE00C06C)
+#define FID_FW_LOAD (0x82000077)
+#define   FW_TYPE_AUCPU (0)
+#define   FW_TYPE_AUCPU_STOP (1)
 
-#define DMA_T0   (u32)(DMA_BASE + 0x00)
-#define DMA_STS0 (u32)(DMA_BASE + 0x20)
-
-struct dma_aucpu_dsc_t {
-	union {
-		u32 d32;
-		struct {
-		    unsigned length:17;
-		    unsigned irq:1;
-		    unsigned eoc:1;
-		    unsigned loop:1;
-		    unsigned mode:4;
-		    unsigned begin:1;
-		    unsigned end:1;
-		    unsigned op_mode:2;
-		    unsigned enc_sha_only:1;
-		    unsigned block:1;
-		    unsigned error:1;
-		    unsigned owner:1;
-		} b;
-	} dsc_cfg;
-	u32 src_addr;
-	u32 tgt_addr;
-};
-
-unsigned long sec_register_rw(unsigned long addr, unsigned long value, int rw)
+unsigned long sec_fw_cmd(u32 type, void *fw, size_t size)
 {
 	struct arm_smccc_res smccc;
+	void __iomem *sharemem_input_base;
+	long sharemem_phy_input_base;
 
-	arm_smccc_smc(AUCPU_MON_RW, addr, value, rw, 0, 0, 0, 0, &smccc);
+	sharemem_input_base = get_meson_sm_input_base();
+	sharemem_phy_input_base = get_secmon_phy_input_base();
+	if (!sharemem_input_base || !sharemem_phy_input_base)
+		return -1;
+
+	meson_sm_mutex_lock();
+	if (size)
+		memcpy(sharemem_input_base,
+			(const void *)fw, size);
+
+	//asm __volatile__("" : : : "memory");
+
+	arm_smccc_smc(FID_FW_LOAD, type, size, 0, 0, 0, 0, 0, &smccc);
+	meson_sm_mutex_unlock();
 
 	return smccc.a0;
 }
@@ -656,186 +643,42 @@ unsigned long sec_register_rw(unsigned long addr, unsigned long value, int rw)
 static int load_start_aucpu_fw(struct device *device)
 {
 	const struct firmware *my_fw = NULL;
-	struct dma_aucpu_dsc_t *desc;
 	char *fw;
 
-	ulong expires, done_val;
 	int result = 0;
-
 	unsigned int length = 0;
-	char *buf = NULL;
-	dma_addr_t dma_addr_fw = 0;
 
-	// MEM POWER control
-	done_val = sec_register_rw(PWRCTL_MEM_PD11, 0, 0);
-	done_val &= ~(0x3 << 4);
-	sec_register_rw(PWRCTL_MEM_PD11, done_val, 1);
-	done_val = sec_register_rw(PWRCTL_MEM_PD11, 0, 0);
-	aucpu_pr(LOG_ALL, " MEM POWER final 0x%lx\n", done_val);
+	aucpu_pr(LOG_DEBUG, "FW\n");
 
-	done_val = ReadAucpuRegister(RESP_SEQ_ADDR);
-	if (done_val != 0) {
-		aucpu_pr(LOG_DEBUG, "Aucpu already running cmdseq %ld\n",
-			 done_val);
-	}
-
-	buf = kmalloc(AUCPU_MAX_FW_SZ, GFP_KERNEL);
-	if (!buf) {
-		aucpu_pr(LOG_ERROR, "[%s] fail to allocate mem %d\n",
-			 __func__, AUCPU_MAX_FW_SZ);
-		result = AUCPU_DRVERR_MEM_ALLOC;
-		return result;
-	}
-	desc = (struct dma_aucpu_dsc_t *)buf;
-	fw = buf + sizeof(struct dma_aucpu_dsc_t);
-	aucpu_pr(LOG_DEBUG, "FW desc @ 0x%lx  fw @ 0x%lx\n", (ulong)desc,
-		 (ulong)fw);
-
-	request_firmware_into_buf(&my_fw, "aucpu_fw.bin", device, fw,
-				  AUCPU_MAX_FW_SZ -
-				  sizeof(struct dma_aucpu_dsc_t));
+	request_firmware(&my_fw, "aucpu_fw.bin", device);
 	if (!my_fw) {
 		aucpu_pr(LOG_ERROR, "load aucpu_fw.bin fail\n");
-		kfree(buf);
 		result = AUCPU_ERROR_NOT_IMPLEMENTED;
 		return result;
 	}
+
+	fw = (char *)my_fw->data;
 	length = my_fw->size;
-	release_firmware(my_fw);
 
 	aucpu_pr(LOG_INFO, "FW read size %d data 0x%x-%x-%x-%x\n", length,
 		 fw[0], fw[1], fw[2], fw[3]);
 
-	length += sizeof(struct dma_aucpu_dsc_t);
+	result = sec_fw_cmd(FW_TYPE_AUCPU, fw, length);
 
-	dma_addr_fw = dma_map_single(device, buf, length, DMA_TO_DEVICE);
-
-	if (dma_mapping_error(device, dma_addr_fw)) {
-		aucpu_pr(LOG_ERROR, "error mapping dma_addr_key\n");
-		kfree(buf);
-		result = AUCPU_DRVERR_MEM_MAP;
-		return result;
-	}
-	//config DMA descriptor
-	desc->src_addr = (u32)dma_addr_fw + sizeof(struct dma_aucpu_dsc_t);
-	desc->tgt_addr = AUCPU_SRAM_START;
-	desc->dsc_cfg.d32 = 0; // clear the config first
-	desc->dsc_cfg.b.op_mode = 0;
-	desc->dsc_cfg.b.mode = 0; // copy
-	desc->dsc_cfg.b.length = length - sizeof(struct dma_aucpu_dsc_t);
-	desc->dsc_cfg.b.owner = 1;
-	desc->dsc_cfg.b.eoc = 1;
-
-	dma_sync_single_for_device(device, dma_addr_fw, length, DMA_TO_DEVICE);
-
-	sec_register_rw(DMA_STS0, 0xf, 1);
-
-	done_val = sec_register_rw(DMA_STS0, 0, 0);
-	done_val = (ulong)dma_addr_fw | 2;
-	sec_register_rw(DMA_T0, done_val, 1);
-
-	aucpu_pr(LOG_INFO, "DMADES 0x%lx wr 0x%lx fw@0x%x length %d to 0x%x\n",
-		 (ulong)dma_addr_fw, done_val, desc->src_addr,
-		 desc->dsc_cfg.b.length, desc->tgt_addr);
-
-	done_val = sec_register_rw(DMA_T0, 0, 0);
-	aucpu_pr(LOG_INFO, "start download fw to AUCPU read val 0x%lx\n",
-		 done_val);
-	//wait DMA finish
-	expires = jiffies + HZ / 10;
-	do {
-		//if (readl(DMA_STS0) != 0)
-		done_val = sec_register_rw(DMA_STS0, 0, 0);
-		if (done_val != 0) {
-			aucpu_pr(LOG_INFO, "download fw  finish %lx\n",
-				 done_val);
-			break;
-		}
-		if (time_after(jiffies, expires)) {
-			aucpu_pr(LOG_ERROR,
-				 "AUCPU Command load FW timeout\n");
-			result = AUCPU_DRVERR_CMD_TIMEOUT;
-			break;
-		}
-		usleep_range(100, 2000);
-	} while (1);
-
-	dma_unmap_single(device, dma_addr_fw, length, DMA_TO_DEVICE);
-	kfree(buf);
+	release_firmware(my_fw);
 
 	aucpu_pr(LOG_INFO, "download fw success reset start AUCPU\n");
-
-	done_val = sec_register_rw(P_RESETCTRL_SEC_RESET0_LEVEL, 0, 0);
-	done_val &= ~(0xf << 9);
-	sec_register_rw(P_RESETCTRL_SEC_RESET0_LEVEL, done_val, 1);
-	done_val = sec_register_rw(P_RESETCTRL_SEC_RESET0_LEVEL, 0, 0);
-	aucpu_pr(LOG_INFO, "RESET0_LEVEL clear value: 0x%lx\n", done_val);
-
-	done_val |= (0xf << 9);
-	sec_register_rw(P_RESETCTRL_SEC_RESET0_LEVEL, done_val, 1);
-	done_val = sec_register_rw(P_RESETCTRL_SEC_RESET0_LEVEL, 0, 0);
-	aucpu_pr(LOG_INFO, "RESET0_LEVEL Set value: 0x%lx\n", done_val);
-
-	//enable clock
-	done_val = sec_register_rw(P_AUCPU_CPU_CTRL1, 0, 0);
-	done_val |= (1 << 0);
-	sec_register_rw(P_AUCPU_CPU_CTRL1, done_val, 1);
-	done_val = sec_register_rw(P_AUCPU_CPU_CTRL1, 0, 0);
-	aucpu_pr(LOG_INFO, "P_AUCPU_CPU_CTRL1 final value 0x%lx\n", done_val);
-
-	expires = jiffies + HZ / 10;
-	length = 0;
-	do {
-		done_val = ReadAucpuRegister(RESP_SEQ_ADDR + length);
-		if (done_val == 0xdeadface) {
-			aucpu_pr(LOG_INFO, "AUCPU hello @ %d\n", length);
-			break;
-		}
-		if (time_after(jiffies, expires)) {
-			aucpu_pr(LOG_ERROR, "AUCPU Command load FW timeout\n");
-			result = AUCPU_DRVERR_CMD_TIMEOUT;
-			break;
-		}
-
-		aucpu_pr(LOG_ALL, "Current resp %d value 0x%lx\n",
-			 length, done_val);
-
-		length += 4;
-		if (length >= 128) {
-			length = 0;
-			usleep_range(200, 10000);
-		}
-	} while (1);
-
 	aucpu_pr(LOG_INFO, "[%s] done  result %d\n", __func__, result);
 	return result;
 }
 
 static void stop_aucpu_fw(struct device *device)
 {
-	ulong done_val;
-	//disable clock
-	done_val = sec_register_rw(P_AUCPU_CPU_CTRL1, 0, 0);
-	aucpu_pr(LOG_INFO, "origin CTL1 val: 0x%lx\n", done_val);
-	done_val &= ~(1 << 0);
-	aucpu_pr(LOG_INFO, "Set CTL1 val: 0x%lx\n", done_val);
-	sec_register_rw(P_AUCPU_CPU_CTRL1, done_val, 1);
+	int result = 0;
 
-	done_val = sec_register_rw(P_AUCPU_CPU_CTRL1, 0, 0);
-	aucpu_pr(LOG_INFO, "P_AUCPU_CPU_CTRL1 final value 0x%lx\n", done_val);
-	// OFF MEM POWER control
-	done_val = sec_register_rw(PWRCTL_MEM_PD11, 0, 0);
-	aucpu_pr(LOG_ALL, "ORIGINAL MEM POWER read 0x%lx\n", done_val);
-	done_val |= (0x3 << 4);
-	aucpu_pr(LOG_ALL, " MEM POWER to set 0x%lx\n", done_val);
-	sec_register_rw(PWRCTL_MEM_PD11, done_val, 1);
-	done_val = sec_register_rw(PWRCTL_MEM_PD11, 0, 0);
-	aucpu_pr(LOG_ALL, " MEM POWER final 0x%lx\n", done_val);
+	result = sec_fw_cmd(FW_TYPE_AUCPU_STOP, NULL, 0);
+	aucpu_pr(LOG_INFO, "[%s] done  result %d\n", __func__, result);
 }
-#else
-#define load_start_aucpu_fw(x)
-#define stop_aucpu_fw(x)
-#endif
 
 s32 aml_aucpu_strm_create(struct aml_aucpu_strm_buf *src,
 			  struct aml_aucpu_strm_buf *dst,
@@ -1480,6 +1323,9 @@ static s32 aucpu_probe(struct platform_device *pdev)
 		aucpu_pr(LOG_ERROR, "load start_aucpu_fw fail\n");
 		goto ERROR_PROVE_DEVICE;
 	}
+	aucpu_pr(LOG_INFO, "aucpu fw version: 0x%x\n",
+			ReadAucpuRegister(VERSION_ADDR));
+
 	mutex_init(&pctx->mutex);
 	/*setup  the DEBUG buffer */
 	setup_debug_polling();
