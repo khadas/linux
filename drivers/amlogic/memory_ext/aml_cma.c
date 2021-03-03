@@ -1008,7 +1008,8 @@ retry:
 			    tasksize <= selected_tasksize)
 				continue;
 		}
-		if (!strcmp(p->comm, "k.glbenchmark27"))
+		if (!strcmp(p->comm, "k.glbenchmark27") ||
+			!strcmp(p->comm, "ten.setupwraith"))
 			continue;
 
 		selected = p;
