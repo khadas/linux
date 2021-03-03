@@ -1153,6 +1153,9 @@ const char * const vmstat_text[] = {
 	"nr_unevictable",
 	"nr_slab_reclaimable",
 	"nr_slab_unreclaimable",
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	"nr_slab_unreclaimable_o",
+#endif
 	"nr_isolated_anon",
 	"nr_isolated_file",
 	"workingset_nodes",

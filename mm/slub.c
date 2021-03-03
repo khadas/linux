@@ -3841,6 +3841,8 @@ static void aml_slub_free_large(struct page *page, const void *obj)
 		nr_pages = page->index;
 		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
 			-(nr_pages));
+		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE_O,
+			-(nr_pages));
 		pr_debug("%s, page:%p, pages:%d, obj:%p\n",
 			__func__, page_address(page), nr_pages, obj);
 		for (i = 0; i < nr_pages; i++)  {

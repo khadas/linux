@@ -1398,6 +1398,8 @@ void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
 		#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
 				    PAGE_ALIGN(size) / PAGE_SIZE);
+		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE_O,
+				    PAGE_ALIGN(size) / PAGE_SIZE);
 		#else
 		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
 				    1 << order);
