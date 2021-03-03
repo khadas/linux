@@ -339,6 +339,7 @@ struct video_layer_s {
 	bool do_switch;
 	u8 vpp_index;
 	u8 vppx_blend_en;
+	bool vd1_vd2_mux;
 };
 
 enum {
@@ -355,6 +356,7 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_T5D_,
 	MESON_CPU_MAJOR_ID_T7_,
 	MESON_CPU_MAJOR_ID_S4_,
+	MESON_CPU_MAJOR_ID_T5D_REVB_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -400,6 +402,7 @@ extern int pre_hscaler_ntap[MAX_VD_LAYER];
 extern int pre_vscaler_ntap_enable[MAX_VD_LAYER];
 extern int pre_vscaler_ntap_set[MAX_VD_LAYER];
 extern int pre_vscaler_ntap[MAX_VD_LAYER];
+extern bool vd1_vd2_mux;
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);
 bool is_dolby_vision_stb_mode(void);
@@ -580,6 +583,7 @@ bool video_is_meson_sc2_cpu(void);
 bool video_is_meson_t5d_cpu(void);
 bool video_is_meson_t7_cpu(void);
 bool video_is_meson_s4_cpu(void);
+bool video_is_meson_t5d_revb_cpu(void);
 void set_alpha(struct video_layer_s *layer,
 	       u32 win_en,
 	       struct pip_alpha_scpxn_s *alpha_win);
@@ -606,6 +610,7 @@ void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf);
 s32 pip_render_frame(struct video_layer_s *layer);
 void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf);
 s32 pip2_render_frame(struct video_layer_s *layer);
+void di_used_vd1_afbc(bool di_used);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void vsync_rdma_process(void);

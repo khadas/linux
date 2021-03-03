@@ -426,10 +426,15 @@ static struct vpu_dev_s *vpu_prime_dolby_ram;
 				WRITE_VCBUS_REG( \
 					VD1_BLEND_SRC_CTRL + \
 					vd_layer[0].misc_reg_offt, 0); \
-			WRITE_VCBUS_REG( \
-				vd_layer[0].vd_afbc_reg.afbc_enable, 0); \
-			WRITE_VCBUS_REG( \
-				vd_layer[0].vd_mif_reg.vd_if0_gen_reg, 0); \
+			if (!vd_layer[0].vd1_vd2_mux) { \
+				WRITE_VCBUS_REG( \
+					vd_layer[0].vd_afbc_reg.afbc_enable, 0); \
+				WRITE_VCBUS_REG( \
+					vd_layer[0].vd_mif_reg.vd_if0_gen_reg, 0); \
+			} else { \
+				WRITE_VCBUS_REG( \
+					vd_layer[1].vd_mif_reg.vd_if0_gen_reg, 0); \
+			} \
 		} \
 		VIDEO_LAYER_OFF(); \
 		VD1_MEM_POWER_OFF(); \
@@ -500,8 +505,9 @@ static struct vpu_dev_s *vpu_prime_dolby_ram;
 			WRITE_VCBUS_REG( \
 				VD1_BLEND_SRC_CTRL + \
 				vd_layer[0].misc_reg_offt, 0); \
-		WRITE_VCBUS_REG( \
-			vd_layer[0].vd_afbc_reg.afbc_enable, 0); \
+		if (!vd_layer[0].vd1_vd2_mux) \
+			WRITE_VCBUS_REG( \
+				vd_layer[0].vd_afbc_reg.afbc_enable, 0); \
 		WRITE_VCBUS_REG( \
 			vd_layer[0].vd_mif_reg.vd_if0_gen_reg, \
 			0); \
@@ -973,7 +979,7 @@ static void vd1_path_select(struct video_layer_s *layer,
 	if (cur_dev->t7_display)
 		return;
 
-	if (!legacy_vpp) {
+	if (!legacy_vpp && !layer->vd1_vd2_mux) {
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(VD1_AFBCD0_MISC_CTRL,
 			/* go field sel */
@@ -1235,6 +1241,16 @@ static void vd_set_blk_mode(struct video_layer_s *layer, u8 block_mode)
 		9);
 }
 
+static void set_vd1_vd2_mux(void)
+{
+	VSYNC_WR_MPEG_REG(VPP_INPUT_CTRL, 0x280);
+}
+
+static void set_vd1_vd2_unmux(void)
+{
+	VSYNC_WR_MPEG_REG(VPP_INPUT_CTRL, 0x440);
+}
+
 static void vd1_set_dcu(struct video_layer_s *layer,
 			struct vpp_frame_par_s *frame_par,
 			struct vframe_s *vf)
@@ -1266,6 +1282,14 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 
 	pr_debug("%s for vd%d %p, type:0x%x\n",
 		 __func__, layer->layer_id, vf, type);
+	if (layer->vd1_vd2_mux) {
+		vd_mif_reg = &vd_layer[1].vd_mif_reg;
+		vd_afbc_reg = &vd_layer[1].vd_afbc_reg;
+		set_vd1_vd2_mux();
+	} else {
+		set_vd1_vd2_unmux();
+	}
+
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	if (is_di_post_mode(vf) && is_di_post_on())
 		di_post = true;
@@ -1494,8 +1518,9 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		vd1_path_select(layer, false, false, di_post);
 		if (is_mvc)
 			vdx_path_select(layer, false, false);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd_afbc_reg->afbc_enable, 0);
+		if (!layer->vd1_vd2_mux)
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_afbc_reg->afbc_enable, 0);
 	}
 
 	r = (3 << VDIF_URGENT_BIT) |
@@ -3778,8 +3803,15 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 			&vf_local, &local_pip,
 			gvideo_recv[0] ? &gvideo_recv[0]->local_buf : NULL,
 			gvideo_recv[1] ? &gvideo_recv[1]->local_buf : NULL);
-	cur_dev->rdma_func[vpp_index].rdma_wr(layer->vd_afbc_reg.afbc_enable, 0);
-	cur_dev->rdma_func[vpp_index].rdma_wr(layer->vd_mif_reg.vd_if0_gen_reg, 0);
+	if (layer->vd1_vd2_mux) {
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(layer->vd_mif_reg.vd_if0_gen_reg, 0);
+	} else {
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(layer->vd_afbc_reg.afbc_enable, 0);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(layer->vd_mif_reg.vd_if0_gen_reg, 0);
+	}
 
 	if (is_dolby_vision_enable()) {
 		if (is_meson_txlx_cpu() ||
@@ -6511,6 +6543,7 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 	bool update_mif = true;
 	u8 vpp_index;
 	u8 layer_id;
+	struct hw_vd_reg_s *vd_mif_reg;
 
 	layer_id = layer->layer_id;
 	if (layer_id >= MAX_VD_LAYER)
@@ -6518,8 +6551,13 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 
 	if ((vf->type & VIDTYPE_MVC) && layer_id == 0)
 		is_mvc = true;
+	vd_mif_reg = &vd_layer[layer_id].vd_mif_reg;
 
 	vpp_index = layer->vpp_index;
+	if (layer_id == 0 && layer->vd1_vd2_mux) {
+		/* vd2 replaced vd1 mif reg */
+		vd_mif_reg = &vd_layer[1].vd_mif_reg;
+	}
 
 	cur_canvas_id = layer->cur_canvas_id;
 	cur_canvas_tbl =
@@ -6614,7 +6652,7 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 			}
 		}
 		cur_dev->rdma_func[vpp_index].rdma_wr
-			(layer->vd_mif_reg.vd_if0_canvas0,
+			(vd_mif_reg->vd_if0_canvas0,
 			layer->disp_canvas[cur_canvas_id][0]);
 
 		if (is_mvc)
@@ -6624,7 +6662,7 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 		if (cur_frame_par &&
 		    cur_frame_par->vpp_2pic_mode == 1) {
 			cur_dev->rdma_func[vpp_index].rdma_wr
-				(layer->vd_mif_reg.vd_if0_canvas1,
+				(vd_mif_reg->vd_if0_canvas1,
 				layer->disp_canvas[cur_canvas_id][0]);
 			if (is_mvc)
 				cur_dev->rdma_func[vpp_index].rdma_wr
@@ -6632,7 +6670,7 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 					layer->disp_canvas[cur_canvas_id][0]);
 		} else {
 			cur_dev->rdma_func[vpp_index].rdma_wr
-				(layer->vd_mif_reg.vd_if0_canvas1,
+				(vd_mif_reg->vd_if0_canvas1,
 				layer->disp_canvas[cur_canvas_id][1]);
 			if (is_mvc)
 				cur_dev->rdma_func[vpp_index].rdma_wr
@@ -6644,10 +6682,10 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 		    (disp_info->proc_3d_type & MODE_3D_TO_2D_R) &&
 		    cur_frame_par->vpp_2pic_mode == VPP_SELECT_PIC1) {
 			cur_dev->rdma_func[vpp_index].rdma_wr
-				(layer->vd_mif_reg.vd_if0_canvas0,
+				(vd_mif_reg->vd_if0_canvas0,
 				layer->disp_canvas[cur_canvas_id][1]);
 			cur_dev->rdma_func[vpp_index].rdma_wr
-				(layer->vd_mif_reg.vd_if0_canvas1,
+				(vd_mif_reg->vd_if0_canvas1,
 				layer->disp_canvas[cur_canvas_id][1]);
 			if (is_mvc) {
 				cur_dev->rdma_func[vpp_index].rdma_wr
@@ -7748,6 +7786,14 @@ void video_secure_set(void)
 #endif
 }
 
+void di_used_vd1_afbc(bool di_used)
+{
+	if (di_used)
+		WRITE_VCBUS_REG_BITS(VD1_AFBCD0_MISC_CTRL, 1, 1, 1);
+	else
+		WRITE_VCBUS_REG_BITS(VD1_AFBCD0_MISC_CTRL, 0, 1, 1);
+}
+
 int video_hw_init(void)
 {
 	u32 cur_hold_line, ofifo_size;
@@ -7803,6 +7849,18 @@ int video_hw_init(void)
 			WRITE_VCBUS_REG(VD3_PPS_DUMMY_DATA, 0x4080200);
 		}
 	}
+	/* select afbcd output to di pre */
+	if (video_is_meson_t5d_revb_cpu()) {
+		/* default false */
+		vd1_vd2_mux = false;
+		vd_layer[0].vd1_vd2_mux = false;
+		di_used_vd1_afbc(false);
+	} else {
+		vd1_vd2_mux = false;
+		vd_layer[0].vd1_vd2_mux = false;
+		di_used_vd1_afbc(false);
+	}
+
 	/* temp: enable VPU arb mem */
 	vd1_vpu_dev = vpu_dev_register(VPU_VIU_VD1, "VD1");
 	afbc_vpu_dev = vpu_dev_register(VPU_AFBC_DEC, "VD1_AFBC");

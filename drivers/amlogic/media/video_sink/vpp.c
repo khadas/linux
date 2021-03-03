@@ -1253,6 +1253,7 @@ static int vpp_set_filters_internal
 	int is_larger_4k50hz = 0;
 	u32 cur_super_debug = 0;
 	u32 src_width_max, src_height_max;
+	bool afbc_support;
 
 	if (!input)
 		return vppfilter_fail;
@@ -1916,9 +1917,13 @@ RESTART:
 	    !(vf->type & VIDTYPE_NO_DW) &&
 	    vf->canvas0Addr != 0 &&
 	    !next_frame_par->nocomp) {
+		if (vd1_vd2_mux)
+			afbc_support = 0;
+		else
+			afbc_support = input->afbc_support;
 		if ((vpp_flags & VPP_FLAG_FORCE_NO_COMPRESS) ||
 		    next_frame_par->vscale_skip_count > 1 ||
-		    !input->afbc_support ||
+		    !afbc_support ||
 		    force_no_compress)
 			no_compress = true;
 	} else {
@@ -3236,6 +3241,7 @@ static int vpp_set_filters_no_scaler_internal
 	u32 crop_left, crop_right, crop_top, crop_bottom;
 	bool no_compress = false;
 	u32 cur_super_debug = 0;
+	bool afbc_support;
 
 	if (!input)
 		return vppfilter_fail;
@@ -3580,9 +3586,13 @@ RESTART:
 	    !(vf->type & VIDTYPE_NO_DW) &&
 	    vf->canvas0Addr != 0 &&
 	    !next_frame_par->nocomp) {
+		if (vd1_vd2_mux)
+			afbc_support = false;
+		else
+			afbc_support = input->afbc_support;
 		if ((vpp_flags & VPP_FLAG_FORCE_NO_COMPRESS) ||
 		    next_frame_par->vscale_skip_count > 1 ||
-		    !input->afbc_support ||
+		    !afbc_support ||
 		    force_no_compress)
 			no_compress = true;
 	} else {

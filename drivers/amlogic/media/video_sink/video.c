@@ -406,6 +406,8 @@ static int last_mode_3d;
 
 bool reverse;
 u32  mirror;
+bool vd1_vd2_mux;
+
 bool get_video_reverse(void)
 {
 	return reverse;
@@ -4748,7 +4750,12 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 			update_vd2 = true;
 		}
 #endif
-		vd_mif_setting(layer, &layer->mif_setting);
+		if (layer->vd1_vd2_mux) {
+			layer->mif_setting.p_vd_mif_reg = &vd_layer[1].vd_mif_reg;
+			vd_mif_setting(&vd_layer[1], &layer->mif_setting);
+		} else {
+			vd_mif_setting(layer, &layer->mif_setting);
+		}
 		if (update_vd2)
 			vd_mif_setting(&vd_layer[1], &local_vd2_mif);
 		fgrain_config(layer,
@@ -13624,6 +13631,34 @@ static ssize_t blend_conflict_show(struct class *cla,
 	return sprintf(buf, "blend_conflict_cnt: %d\n", blend_conflict_cnt);
 }
 
+static ssize_t vd1_vd2_mux_show(struct class *cla,
+				struct class_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, 40, "vd1_vd2_mux:%d(for t5d revb)\n", vd1_vd2_mux);
+}
+
+static ssize_t vd1_vd2_mux_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	vd1_vd2_mux = res;
+	vd_layer[0].vd1_vd2_mux = res;
+	if (vd1_vd2_mux)
+		di_used_vd1_afbc(true);
+	else
+		di_used_vd1_afbc(false);
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -13965,6 +14000,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       vd_attach_vpp_show,
 	       vd_attach_vpp_store),
 	__ATTR_RO(blend_conflict),
+	__ATTR(vd1_vd2_mux,
+	       0664,
+	       vd1_vd2_mux_show,
+	       vd1_vd2_mux_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -14601,6 +14640,53 @@ static struct amvideo_device_data_s amvideo_s4 = {
 	.max_vd_layers = 2,
 };
 
+static struct amvideo_device_data_s amvideo_t5d_revb = {
+	.cpu_type = MESON_CPU_MAJOR_ID_T5D_REVB_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.layer_support[2] = 0,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 0,
+	.afbc_support[2] = 0,
+	.pps_support[0] = 1,
+	.pps_support[1] = 1,
+	.pps_support[2] = 0,
+	.alpha_support[0] = 0,
+	.alpha_support[1] = 0,
+	.alpha_support[2] = 0,
+	.dv_support = 0,
+	.sr0_support = 0,
+	.sr1_support = 1,
+	.core_v_disable_width_max[0] = 1024,
+	.core_v_disable_width_max[1] = 2048,
+	.core_v_enable_width_max[0] = 1024,
+	.core_v_enable_width_max[1] = 1024,
+	.supscl_path = PPS_CORE1_CM,
+	.fgrain_support[0] = 0,
+	.fgrain_support[1] = 0,
+	.fgrain_support[2] = 0,
+	.has_hscaler_8tap[0] = 1,
+	.has_hscaler_8tap[1] = 0,
+	.has_hscaler_8tap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 1,
+	.has_pre_hscaler_ntap[1] = 0,
+	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[0] = 1,
+	.has_pre_vscaler_ntap[1] = 0,
+	.has_pre_vscaler_ntap[2] = 0,
+	.src_width_max[0] = 2048,
+	.src_width_max[1] = 2048,
+	.src_height_max[0] = 1080,
+	.src_height_max[1] = 1080,
+	.ofifo_size = 0x77f,
+	.afbc_conv_lbuf_len = 0x80,
+	.mif_linear = 0,
+	.t7_display = 0,
+	.max_vd_layers = 2,
+};
+
 static const struct of_device_id amlogic_amvideom_dt_match[] = {
 	{
 		.compatible = "amlogic, amvideom",
@@ -14629,6 +14715,10 @@ static const struct of_device_id amlogic_amvideom_dt_match[] = {
 	{
 		.compatible = "amlogic, amvideom-s4",
 		.data = &amvideo_s4,
+	},
+	{
+		.compatible = "amlogic, amvideom-t5d-revb",
+		.data = &amvideo_t5d_revb,
 	},
 	{}
 };
@@ -14673,6 +14763,15 @@ bool video_is_meson_s4_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
 		MESON_CPU_MAJOR_ID_S4_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_meson_t5d_revb_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_T5D_REVB_)
 		return true;
 	else
 		return false;
