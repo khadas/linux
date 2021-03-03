@@ -15,15 +15,21 @@
 #include <dt-bindings/power/s4-pd.h>
 #include <linux/kallsyms.h>
 
-struct sec_pm_domain {
-	struct generic_pm_domain base;
+struct sec_pm_private_domain {
+	const char *name;
+	unsigned int flags;
 	int pd_index;
 	bool pd_status;
 	int pd_parent;
 };
 
+struct sec_pm_domain {
+	struct generic_pm_domain base;
+	struct sec_pm_private_domain *private_domain;
+};
+
 struct sec_pm_domain_data {
-	struct sec_pm_domain *domains;
+	struct sec_pm_private_domain *domains;
 	unsigned int domains_count;
 };
 
@@ -37,7 +43,7 @@ static int sec_pm_domain_power_off(struct generic_pm_domain *genpd)
 {
 	struct sec_pm_domain *pd = to_sec_pm_domain(genpd);
 
-	pwr_ctrl_psci_smc(pd->pd_index, PWR_OFF);
+	pwr_ctrl_psci_smc(pd->private_domain->pd_index, PWR_OFF);
 
 	return 0;
 }
@@ -46,19 +52,15 @@ static int sec_pm_domain_power_on(struct generic_pm_domain *genpd)
 {
 	struct sec_pm_domain *pd = to_sec_pm_domain(genpd);
 
-	pwr_ctrl_psci_smc(pd->pd_index, PWR_ON);
+	pwr_ctrl_psci_smc(pd->private_domain->pd_index, PWR_ON);
 
 	return 0;
 }
 
 #define TOP_DOMAIN(_name, index, status, flag, parent)		\
 {					\
-		.base = {					\
-			.name = #_name,				\
-			.power_off = sec_pm_domain_power_off,	\
-			.power_on = sec_pm_domain_power_on,	\
-			.flags = flag, \
-		},						\
+		.name = #_name,					\
+		.flags = flag,					\
 		.pd_index = index,				\
 		.pd_status = status,				\
 		.pd_parent = parent,				\
@@ -67,7 +69,7 @@ static int sec_pm_domain_power_on(struct generic_pm_domain *genpd)
 #define POWER_DOMAIN(_name, index, status, flag)	\
 	TOP_DOMAIN(_name, index, status, flag, 0)
 
-static struct sec_pm_domain a1_pm_domains[] = {
+static struct sec_pm_private_domain a1_pm_domains[] = {
 	[PDID_A1_CPU_PWR0] = POWER_DOMAIN(cpu_pwr0, PDID_A1_CPU_PWR0, DOMAIN_INIT_ON,
 		    GENPD_FLAG_ALWAYS_ON),
 	[PDID_A1_CPU_CORE0] = POWER_DOMAIN(cpu_core0, PDID_A1_CPU_CORE0, DOMAIN_INIT_ON,
@@ -102,7 +104,7 @@ static struct sec_pm_domain_data a1_pm_domain_data = {
 	.domains_count = ARRAY_SIZE(a1_pm_domains),
 };
 
-static struct sec_pm_domain c1_pm_domains[] = {
+static struct sec_pm_private_domain c1_pm_domains[] = {
 	[PDID_C1_CPU_PWR0] = POWER_DOMAIN(cpu_pwr0, PDID_C1_CPU_PWR0, DOMAIN_INIT_ON,
 					GENPD_FLAG_ALWAYS_ON),
 	[PDID_C1_CPU_CORE0] = POWER_DOMAIN(cpu_core0, PDID_C1_CPU_CORE0, DOMAIN_INIT_ON,
@@ -151,7 +153,7 @@ static struct sec_pm_domain_data c1_pm_domain_data = {
 	.domains_count = ARRAY_SIZE(c1_pm_domains),
 };
 
-static struct sec_pm_domain sc2_pm_domains[] = {
+static struct sec_pm_private_domain sc2_pm_domains[] = {
 	[PDID_SC2_DSP] = POWER_DOMAIN(dsp, PDID_SC2_DSP, DOMAIN_INIT_OFF, 0),
 	[PDID_SC2_DOS_HCODEC] = POWER_DOMAIN(hcodec, PDID_SC2_DOS_HCODEC, DOMAIN_INIT_OFF, 0),
 	[PDID_SC2_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_SC2_DOS_HEVC, DOMAIN_INIT_OFF, 0),
@@ -172,7 +174,7 @@ static struct sec_pm_domain_data sc2_pm_domain_data = {
 	.domains_count = ARRAY_SIZE(sc2_pm_domains),
 };
 
-static struct sec_pm_domain t5_pm_domains[] = {
+static struct sec_pm_private_domain t5_pm_domains[] = {
 	[PDID_T5_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_T5_DOS_HEVC, DOMAIN_INIT_OFF, 0),
 	[PDID_T5_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_T5_DOS_VDEC, DOMAIN_INIT_OFF, 0),
 	[PDID_T5_VPU_HDMI] = POWER_DOMAIN(vpu, PDID_T5_VPU_HDMI, DOMAIN_INIT_ON,
@@ -185,7 +187,7 @@ static struct sec_pm_domain_data t5_pm_domain_data = {
 	.domains_count = ARRAY_SIZE(t5_pm_domains),
 };
 
-static struct sec_pm_domain t7_pm_domains[] = {
+static struct sec_pm_private_domain t7_pm_domains[] = {
 	[PDID_T7_DSPA] = POWER_DOMAIN(dspa, PDID_T7_DSPA, DOMAIN_INIT_OFF, 0),
 	[PDID_T7_DSPB] = POWER_DOMAIN(dspb, PDID_T7_DSPB, DOMAIN_INIT_OFF, 0),
 	[PDID_T7_DOS_HCODEC] = TOP_DOMAIN(hcodec, PDID_T7_DOS_HCODEC, DOMAIN_INIT_OFF, 0,
@@ -266,7 +268,7 @@ static struct sec_pm_domain_data t7_pm_domain_data = {
 	.domains_count = ARRAY_SIZE(t7_pm_domains),
 };
 
-static struct sec_pm_domain s4_pm_domains[] = {
+static struct sec_pm_private_domain s4_pm_domains[] = {
 	[PDID_S4_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_S4_DOS_HEVC, DOMAIN_INIT_OFF, 0),
 	[PDID_S4_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_S4_DOS_VDEC, DOMAIN_INIT_OFF, 0),
 	[PDID_S4_VPU_HDMI] = POWER_DOMAIN(vpu, PDID_S4_VPU_HDMI, DOMAIN_INIT_ON,
@@ -287,6 +289,7 @@ static struct sec_pm_domain_data s4_pm_domain_data = {
 static int sec_pd_probe(struct platform_device *pdev)
 {
 	int ret, i;
+	struct sec_pm_private_domain *private_pd;
 	struct sec_pm_domain *pd;
 	int init_status;
 	const struct sec_pm_domain_data *match;
@@ -305,8 +308,14 @@ static int sec_pd_probe(struct platform_device *pdev)
 	sec_pd_onecell_data->domains = devm_kcalloc(&pdev->dev, match->domains_count,
 						    sizeof(*sec_pd_onecell_data->domains),
 						    GFP_KERNEL);
+	if (!sec_pd_onecell_data->domains)
+		return -ENOMEM;
 
 	sec_pd_onecell_data->num_domains = match->domains_count;
+
+	pd = devm_kcalloc(&pdev->dev, match->domains_count, sizeof(*pd), GFP_KERNEL);
+	if (!pd)
+		return -ENOMEM;
 
 #ifdef MODULE
 	struct dev_power_governor *aon_gov;
@@ -319,37 +328,43 @@ static int sec_pd_probe(struct platform_device *pdev)
 #endif
 
 	for (i = 0; i < match->domains_count; i++) {
-		pd = &match->domains[i];
+		private_pd = &match->domains[i];
 
 		/* array might be sparse */
-		if (!pd->base.name)
+		if (!private_pd->name)
 			continue;
 
-		init_status = pwr_ctrl_status_psci_smc(pd->pd_index);
+		pd[i].base.name = private_pd->name;
+		pd[i].base.power_on = sec_pm_domain_power_on;
+		pd[i].base.power_off = sec_pm_domain_power_off;
+		pd[i].base.flags = private_pd->flags;
+		pd[i].private_domain = private_pd;
 
-		if (init_status == -1 || pd->base.flags == GENPD_FLAG_ALWAYS_ON)
-			init_status = pd->pd_status;
+		init_status = pwr_ctrl_status_psci_smc(private_pd->pd_index);
+
+		if (init_status == -1 || pd[i].base.flags == GENPD_FLAG_ALWAYS_ON)
+			init_status = private_pd->pd_status;
 
 		/* Initialize based on pd_status */
 		if (pd->base.flags & GENPD_FLAG_ALWAYS_ON)
 #ifdef MODULE
-			pm_genpd_init(&pd->base, aon_gov, init_status);
+			pm_genpd_init(&pd[i].base, aon_gov, init_status);
 #else
-			pm_genpd_init(&pd->base, &pm_domain_always_on_gov, init_status);
+			pm_genpd_init(&pd[i].base, &pm_domain_always_on_gov, init_status);
 #endif
 		else
-			pm_genpd_init(&pd->base, NULL, init_status);
+			pm_genpd_init(&pd[i].base, NULL, init_status);
 
-		sec_pd_onecell_data->domains[i] = &pd->base;
+		sec_pd_onecell_data->domains[i] = &pd[i].base;
 	}
 
 	for (i = 0; i < match->domains_count; i++) {
-		pd = &match->domains[i];
+		private_pd = &match->domains[i];
 
-		if (!pd->pd_parent)
+		if (!private_pd->pd_parent)
 			continue;
 
-		pm_genpd_add_subdomain(&match->domains[pd->pd_parent].base, &pd->base);
+		pm_genpd_add_subdomain(&pd[private_pd->pd_parent].base, &pd[i].base);
 	}
 
 	pd_dev_create_file(&pdev->dev, 0, sec_pd_onecell_data->num_domains,
