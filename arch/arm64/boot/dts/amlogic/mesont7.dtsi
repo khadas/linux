@@ -1320,7 +1320,7 @@
 				<&clkc CLKID_SD_EMMC_C_CLK_MUX>,
 				 <&clkc CLKID_SD_EMMC_C_CLK>,
 				 <&xtal>,
-				 <&clkc CLKID_FCLK_DIV2>,
+				 <&clkc CLKID_GP0_PLL>,
 				 <&clkc CLKID_GP0_PLL>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1", "clkin2";

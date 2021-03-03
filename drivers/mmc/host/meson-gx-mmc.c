@@ -263,7 +263,7 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 					dev_err(host->dev, "set parent error\n");
 					return ret;
 				}
-				if (host->src_clk_rate != 0 && !aml_card_type_mmc(host)) {
+				if (host->src_clk_rate != 0) {
 					dev_notice(host->dev, "set src rate to:%u\n",
 								host->src_clk_rate);
 					ret = clk_set_rate(host->clk[1], host->src_clk_rate);
@@ -3022,23 +3022,16 @@ static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct meson_host *host = mmc_priv(mmc);
 	int err = 0;
-	u32 intf3 = 0;
 
 	host->is_tuning = 1;
 	if (host->use_intf3_tuning)
 		err = mmc_intf3_win_tuning(mmc, opcode);
-	else if (!(mmc->caps2 & MMC_CAP2_HS400_1_8V)) {
+	else
 #ifndef SD_EMMC_FIXED_ADJ_HS200
 		err = meson_mmc_clk_phase_tuning(mmc, opcode);
 #else
 		err = meson_mmc_fixadj_tuning(mmc, opcode);
 #endif
-	} else {
-		intf3 = readl(host->regs + SD_EMMC_INTF3);
-		intf3 |= (1 << 22);
-		writel(intf3, (host->regs + SD_EMMC_INTF3));
-		err = 0;
-	}
 
 	host->is_tuning = 0;
 
