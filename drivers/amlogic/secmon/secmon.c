@@ -26,9 +26,9 @@ static unsigned long secmon_start_virt;
 static unsigned int secmon_size;
 
 #ifdef CONFIG_ARM64
-#define IN_SIZE	0x1000
+#define IN_SIZE	0x6000
 #else
- #define IN_SIZE	0x1000
+ #define IN_SIZE	0x6000
 #endif
  #define OUT_SIZE 0x1000
 static DEFINE_MUTEX(sharemem_mutex);
@@ -195,6 +195,7 @@ long get_secmon_phy_input_base(void)
 {
 	return phy_in_base;
 }
+EXPORT_SYMBOL(get_secmon_phy_input_base);
 
 long get_secmon_phy_output_base(void)
 {
