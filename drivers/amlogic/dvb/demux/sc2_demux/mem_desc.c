@@ -67,6 +67,200 @@ static struct file *input_dump_fp;
 
 #define INPUT_DUMP_FILE   "/data/input_dump.ts"
 
+struct mem_cache {
+	unsigned long start_virt;
+	unsigned long start_phys;
+	unsigned char elem_count;
+	unsigned int elem_size;
+	unsigned int used_count;
+	char flag_arry[64];
+};
+
+#define FIRST_CACHE_ELEM_COUNT    64
+
+#define SECOND_CACHE_ELEM_COUNT    48
+#define SECOND_CACHE_ELEM_SIZE     (188 * 500)
+
+static int cache0_count_max = FIRST_CACHE_ELEM_COUNT;
+static int cache1_count_max = SECOND_CACHE_ELEM_COUNT;
+
+static struct mem_cache *first_cache;
+static struct mem_cache *second_cache;
+
+static int cache_init(int cache_level)
+{
+	int total_size = 0;
+	int flags = 0;
+	int buf_page_num = 0;
+
+	if (cache_level == 0 && !first_cache) {
+		first_cache = vmalloc(sizeof(*first_cache));
+		if (!first_cache)
+			return -1;
+
+		memset(first_cache, 0, sizeof(struct mem_cache));
+		first_cache->elem_size = sizeof(union mem_desc);
+		first_cache->elem_count = cache0_count_max;
+		total_size = sizeof(union mem_desc) * cache0_count_max;
+		first_cache->start_virt =
+			(unsigned long)kmalloc(total_size, GFP_KERNEL);
+		if (!first_cache->start_virt) {
+			vfree(first_cache);
+			first_cache = NULL;
+			dprint("%s first cache fail\n", __func__);
+			return -1;
+		}
+		first_cache->start_phys =
+		(unsigned long)virt_to_phys((void *)first_cache->start_virt);
+	} else if (cache_level == 1 && !second_cache) {
+		second_cache = vmalloc(sizeof(*second_cache));
+		if (!second_cache)
+			return -1;
+
+		memset(second_cache, 0, sizeof(struct mem_cache));
+		second_cache->elem_size = SECOND_CACHE_ELEM_SIZE;
+		second_cache->elem_count = cache1_count_max;
+		total_size = cache1_count_max * SECOND_CACHE_ELEM_SIZE;
+
+		flags = CODEC_MM_FLAGS_DMA_CPU;
+		buf_page_num = PAGE_ALIGN(total_size) / PAGE_SIZE;
+
+		second_cache->start_phys =
+		    codec_mm_alloc_for_dma("dmx_cache", buf_page_num,
+					4 + PAGE_SHIFT, flags);
+		if (!second_cache->start_phys) {
+			vfree(second_cache);
+			second_cache = NULL;
+			dprint("%s second cache fail\n", __func__);
+			return -1;
+		}
+		second_cache->start_virt =
+		(unsigned long)codec_mm_phys_to_virt(second_cache->start_phys);
+	}
+	return 0;
+}
+
+static void cache_destroy(int cache_level)
+{
+	if (cache_level == 0 && first_cache) {
+		kfree((void *)first_cache->start_virt);
+		vfree(first_cache);
+		first_cache = NULL;
+		dprint_i("clear first cache done\n");
+	} else if (cache_level == 1 && second_cache) {
+		codec_mm_free_for_dma("dmx_cache", second_cache->start_phys);
+		vfree(second_cache);
+		second_cache = NULL;
+		dprint_i("clear second cache done\n");
+	}
+}
+
+static int cache_get_block(struct mem_cache *cache,
+	unsigned long *p_virt, unsigned long *p_phys)
+{
+	int i = 0;
+
+	for (i = 0; i < cache->elem_count; i++) {
+		if (cache->flag_arry[i] == 0)
+			break;
+	}
+
+	if (i == cache->elem_count) {
+		dprint_i("dmx cache full\n");
+		return -1;
+	}
+	if (p_virt)
+		*p_virt = cache->start_virt + i * cache->elem_size;
+	if (p_phys)
+		*p_phys = cache->start_phys + i * cache->elem_size;
+
+	cache->flag_arry[i] = 1;
+	cache->used_count++;
+	return 0;
+}
+
+static int cache_free_block(struct mem_cache *cache, unsigned long phys_mem)
+{
+	int i = 0;
+
+	if (phys_mem >= cache->start_phys &&
+		phys_mem <= cache->start_phys +
+			(cache->elem_count - 1) * cache->elem_size) {
+		for (i = 0; i < cache->elem_count; i++) {
+			if (phys_mem ==
+					cache->start_phys +
+					i * cache->elem_size) {
+				cache->flag_arry[i] = 0;
+				cache->used_count--;
+				return 0;
+			}
+		}
+	}
+	return -1;
+}
+
+static int cache_malloc(int len, unsigned long *p_virt, unsigned long *p_phys)
+{
+//	dprint("%s, len:%d\n", __func__, len);
+	if (!first_cache) {
+		if (cache_init(0) != 0)
+			return -1;
+	}
+	if (!second_cache) {
+		if (cache_init(1) != 0)
+			return -1;
+	}
+
+	if (len <= first_cache->elem_size)
+		return cache_get_block(first_cache, p_virt, p_phys);
+	else if (len <= second_cache->elem_size)
+		return cache_get_block(second_cache, p_virt, p_phys);
+
+	return -1;
+}
+
+static int cache_free(int len, unsigned long phys_mem)
+{
+	int iret  = -1;
+
+	if (first_cache && len <= first_cache->elem_size)
+		iret = cache_free_block(first_cache, phys_mem);
+	else if (second_cache && len <= second_cache->elem_size)
+		iret = cache_free_block(second_cache, phys_mem);
+
+	return iret;
+}
+
+int cache_clear(void)
+{
+	if (first_cache && first_cache->used_count == 0)
+		cache_destroy(0);
+	if (second_cache && second_cache->used_count == 0)
+		cache_destroy(1);
+	return 0;
+}
+
+int cache_adjust(int cache0_count, int cache1_count)
+{
+	if (cache0_count > 64 || cache1_count > 64) {
+		dprint_i("cache count can't bigger than 64\n");
+		return -1;
+	}
+	dprint_i("cache0 count:%d, cache1 count:%d\n",
+		cache0_count, cache1_count);
+	cache0_count_max = cache0_count;
+	cache1_count_max = cache1_count;
+
+	if (first_cache && first_cache->used_count == 0)
+		cache_destroy(0);
+	if (second_cache && second_cache->used_count == 0)
+		cache_destroy(1);
+
+	cache_init(0);
+	cache_init(1);
+	return 0;
+}
+
 static void dump_file_open(char *path)
 {
 	if (input_dump_fp)
@@ -110,15 +304,77 @@ static void dump_file_close(void)
 	}
 }
 
+int cache_status_info(char *buf)
+{
+	int r, total = 0;
+
+	if (first_cache) {
+		r = sprintf(buf, "first cache:\n");
+		buf += r;
+		total += r;
+
+		r = sprintf(buf, "total size:%d, block count:%d, ",
+		    first_cache->elem_count * first_cache->elem_size,
+			first_cache->elem_count);
+		buf += r;
+		total += r;
+
+		r = sprintf(buf, "block size:%d, used count:%d\n",
+			first_cache->elem_size,
+			first_cache->used_count);
+		buf += r;
+		total += r;
+	} else {
+		r = sprintf(buf, "first cache:no\n");
+		buf += r;
+		total += r;
+	}
+
+	if (second_cache) {
+		r = sprintf(buf, "second cache:\n");
+		buf += r;
+		total += r;
+
+		r = sprintf(buf, "total size:%d, block count:%d, ",
+		    second_cache->elem_count * second_cache->elem_size,
+			second_cache->elem_count);
+		buf += r;
+		total += r;
+
+		r = sprintf(buf, "block size:%d, used count:%d\n",
+			second_cache->elem_size,
+			second_cache->used_count);
+		buf += r;
+		total += r;
+	} else {
+		r = sprintf(buf, "second cache:no\n");
+		buf += r;
+		total += r;
+	}
+	return total;
+}
+
 int _alloc_buff(unsigned int len, int sec_level,
 		unsigned long *vir_mem, unsigned long *phy_mem,
 		unsigned int *handle)
 {
 	int flags = 0;
 	int buf_page_num = 0;
-	unsigned long buf_start;
-	unsigned long buf_start_virt;
+	unsigned long buf_start = 0;
+	unsigned long buf_start_virt = 0;
 	u32 ret;
+	int iret = 0;
+
+	iret = cache_malloc(len, &buf_start_virt, &buf_start);
+	if (iret == 0) {
+		ret = tee_protect_mem_by_type(TEE_MEM_TYPE_DEMUX,
+				buf_start, len, handle);
+		pr_dbg("%s, protect 0x%lx, len:%d, ret:0x%x\n",
+				__func__, buf_start, len, ret);
+		*vir_mem = buf_start_virt;
+		*phy_mem = buf_start;
+		return 0;
+	}
 
 	if (len < BEN_LEVEL_SIZE)
 		flags = CODEC_MM_FLAGS_DMA_CPU;
@@ -151,10 +407,16 @@ int _alloc_buff(unsigned int len, int sec_level,
 void _free_buff(unsigned long buf, unsigned int len, int sec_level,
 		unsigned int handle)
 {
+	int iret = 0;
+
 	if (sec_level) {
 		tee_unprotect_mem(handle);
 		pr_dbg("%s, unprotect handle:%d\n", __func__, handle);
 	}
+
+	iret = cache_free(len, buf);
+	if (iret == 0)
+		return;
 
 	codec_mm_free_for_dma("dmx", buf);
 }
@@ -427,8 +689,7 @@ int SC2_bufferid_set_mem(struct chan_id *pchan,
 			 unsigned int mem_size, int sec_level)
 {
 	pr_dbg("%s mem_size:%d,sec_level:%d\n", __func__, mem_size, sec_level);
-	_bufferid_malloc_desc_mem(pchan, mem_size, sec_level);
-	return 0;
+	return _bufferid_malloc_desc_mem(pchan, mem_size, sec_level);
 }
 
 /**

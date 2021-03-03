@@ -154,4 +154,7 @@ int _alloc_buff(unsigned int len, int sec_level,
 void _free_buff(unsigned long buf, unsigned int len, int sec_level,
 		unsigned int handle);
 
+int cache_status_info(char *buf);
+int cache_clear(void);
+int cache_adjust(int cache0_count, int cache1_count);
 #endif

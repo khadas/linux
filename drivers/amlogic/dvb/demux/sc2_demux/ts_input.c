@@ -94,9 +94,12 @@ struct in_elem *ts_input_open(int id, int sec_level)
 	elem = &ts_input_table[id];
 
 	if (SC2_bufferid_set_mem(elem->pchan,
-				 TS_INPUT_BUFF_SIZE, sec_level) != 0)
+				 TS_INPUT_BUFF_SIZE, sec_level) != 0) {
+		SC2_bufferid_dealloc(ts_input_table[id].pchan);
+		ts_input_table[id].used = 0;
 		dprint("input id:%d, malloc fail\n", id);
-
+		return NULL;
+	}
 	pr_dbg("%s line:%d\n", __func__, __LINE__);
 	return elem;
 }
@@ -111,7 +114,8 @@ int ts_input_close(struct in_elem *elem)
 {
 	if (elem && elem->pchan)
 		SC2_bufferid_dealloc(elem->pchan);
-	elem->used = 0;
+	if (elem)
+		elem->used = 0;
 	return 0;
 }
 
@@ -127,12 +131,10 @@ int ts_input_write(struct in_elem *elem, const char *buf, int count)
 {
 	int ret = 0;
 
-	pr_dbg("%s line:%d\n", __func__, __LINE__);
+	pr_dbg("%s count:%d\n", __func__, count);
 
-	if (elem && elem->mem_level && count > TS_INPUT_DESC_MAX_SIZE)
+	if (!elem)
 		return -1;
-
-	pr_dbg("%s line:%d\n", __func__, __LINE__);
 
 	if (!elem->pchan || !buf) {
 		pr_dbg("%s invalid parameter line:%d\n", __func__, __LINE__);
