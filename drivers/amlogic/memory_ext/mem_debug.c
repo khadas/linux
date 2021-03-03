@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <linux/errno.h>
