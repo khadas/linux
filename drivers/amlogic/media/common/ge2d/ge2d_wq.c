@@ -1886,6 +1886,7 @@ int ge2d_context_config_ex(struct ge2d_context_s *context,
 	/* context->config.src1_data.ddr_burst_size_cb = 3; */
 	/* context->config.src1_data.ddr_burst_size_cr = 3; */
 	/* context->config.src2_dst_data.ddr_burst_size= 3; */
+	context->config.mem_sec = ge2d_config->mem_sec;
 
 	return  0;
 }

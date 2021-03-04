@@ -1003,6 +1003,8 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 	int rate_w = 10, rate_h = 10;
 	/* expand src region with one line. */
 	unsigned int src1_y_end = cfg->src1_y_end + 1;
+	struct ge2d_queue_item_s *queue_item = NULL;
+	unsigned int mem_secure = 0;
 
 	while ((ge2d_reg_read(GE2D_STATUS0) & (1 << 1)))
 		;
@@ -1366,7 +1368,15 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 	 */
 	if (ge2d_meson_dev.hang_flag == 1)
 		ge2d_reg_set_bits(GE2D_GEN_CTRL4, cfg->hang_flag, 0, 1);
+
+	/* memory security setting */
+	queue_item = container_of(cfg, struct ge2d_queue_item_s, cmd);
+	if (ge2d_meson_dev.chip_type >= MESON_CPU_MAJOR_ID_SC2)
+		mem_secure = queue_item->config.mem_sec;
+	ge2d_log_dbg("secure mode:%d\n", mem_secure);
+
 	ge2d_reg_write(GE2D_CMD_CTRL,
+		       (mem_secure << 28) |
 		       (src2_x_interp_ctrl << 14) |
 		       (src2_x_repeat << 12) |
 		       (src2_y_repeat << 10) |
