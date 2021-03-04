@@ -1930,6 +1930,7 @@ void dim_tmode_preset(void)
 
 	/*EDIM_TMODE_1_PW_VFM*/
 	cnt = min_t(size_t, DI_CHANNEL_NUB, cfgg(TMODE_1));
+	cnt = min_t(size_t, DIM_K_VFM_IN_LIMIT, cnt);
 	for (ch = 0; ch < cnt; ch++)
 		pbm->tmode_pre[ch] = EDIM_TMODE_1_PW_VFM;
 

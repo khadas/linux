@@ -174,6 +174,16 @@ int di_write(struct di_buffer *buffer, struct composer_dst *dst);
  *
  * @return      0 for success, or fail type if < 0
  */
-//int di_release_keep_buf(struct di_buffer *buffer);
+int di_release_keep_buf(struct di_buffer *buffer);
+
+/**
+ * @brief  di_get_buffer_num  get output buffer num
+ *
+ * @param[in]  index   instance index
+ * @param[in]  buffer  Pointer of buffer structure
+ *
+ * @return      number or fail type
+ */
+int di_get_buffer_num(int index);
 
 #endif	/*__DI_INTERLACE_H__*/
