@@ -115,7 +115,6 @@ static struct clk_regmap t5d_gpu_p0_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_names = t5d_gpu_parent_names,
 		.num_parents = 8,
-		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -148,7 +147,7 @@ static struct clk_regmap t5d_gpu_p0_gate = {
 			&t5d_gpu_p0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT
 	},
 };
 
@@ -195,7 +194,7 @@ static struct clk_regmap t5d_gpu_p1_gate = {
 			&t5d_gpu_p1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+		.flags = CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT
 	},
 };
 
@@ -213,7 +212,7 @@ static struct clk_regmap t5d_gpu_mux = {
 			&t5d_gpu_p1_gate.hw
 		},
 		.num_parents = 2,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_UNGATE
+		.flags = CLK_SET_RATE_PARENT
 	},
 };
 
