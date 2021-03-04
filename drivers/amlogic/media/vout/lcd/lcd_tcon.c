@@ -666,7 +666,7 @@ int lcd_tcon_core_update(void)
 	if (ret)
 		return -1;
 
-	lcd_tcon_core_reg_update(lcd_tcon_conf, &tcon_mm_table);
+	lcd_tcon_core_reg_set(lcd_tcon_conf, &tcon_mm_table);
 
 	return 0;
 }

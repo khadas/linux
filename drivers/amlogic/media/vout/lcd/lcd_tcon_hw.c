@@ -17,64 +17,89 @@
 #include "lcd_reg.h"
 #include "lcd_tcon.h"
 
-static inline void lcd_tcon_od_check_byte(struct lcd_tcon_config_s *tcon_conf,
-					  unsigned char *table)
+static void lcd_tcon_core_reg_pre_od(struct lcd_tcon_config_s *tcon_conf,
+				     struct tcon_mem_map_table_s *mm_table)
 {
 	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
+	unsigned char *table8;
+	unsigned int *table32;
 	unsigned int reg, bit, en = 0;
 
+	if (!mm_table || !mm_table->core_reg_table) {
+		LCDERR("%s: table is NULL\n", __func__);
+		return;
+	}
 	if (tcon_conf->reg_core_od == REG_LCD_TCON_MAX)
 		return;
 
 	reg = tcon_conf->reg_core_od;
 	bit = tcon_conf->bit_od_en;
-	if (((table[reg] >> bit) & 1) == 0)
-		return;
 
-	if (!tcon_rmem) {
-		en = 0;
-	} else {
-		if (tcon_rmem->flag == 0)
+	if (tcon_conf->core_reg_width == 8) {
+		table8 = mm_table->core_reg_table;
+		if (((table8[reg] >> bit) & 1) == 0)
+			return;
+		if (!tcon_rmem) {
 			en = 0;
-		else
-			en = 1;
-	}
-	if (en == 0) {
-		table[reg] &= ~(1 << bit);
-		LCDPR("%s: invalid buf, disable od function\n", __func__);
+		} else {
+			if (tcon_rmem->flag == 0)
+				en = 0;
+			else
+				en = 1;
+		}
+		if (en == 0) {
+			table8[reg] &= ~(1 << bit);
+			LCDPR("%s: invalid buf, disable od function\n",
+			      __func__);
+		}
+	} else {
+		table32 = (unsigned int *)mm_table->core_reg_table;
+		if (((table32[reg] >> bit) & 1) == 0)
+			return;
+		if (!tcon_rmem) {
+			en = 0;
+		} else {
+			if (tcon_rmem->flag == 0)
+				en = 0;
+			else
+				en = 1;
+		}
+		if (en == 0) {
+			table32[reg] &= ~(1 << bit);
+			LCDPR("%s: invalid buf, disable od function\n",
+			      __func__);
+		}
 	}
 }
 
-static inline void lcd_tcon_od_check(struct lcd_tcon_config_s *tcon_conf,
-				     unsigned int *table)
+static void lcd_tcon_core_reg_pre_dis_od(struct lcd_tcon_config_s *tcon_conf,
+					 struct tcon_mem_map_table_s *mm_table)
 {
-	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
-	unsigned int reg, bit, en = 0;
+	unsigned char *table8;
+	unsigned int *table32;
+	unsigned int reg, bit;
 
+	if (!mm_table || !mm_table->core_reg_table) {
+		LCDERR("%s: table is NULL\n", __func__);
+		return;
+	}
 	if (tcon_conf->reg_core_od == REG_LCD_TCON_MAX)
 		return;
 
 	reg = tcon_conf->reg_core_od;
 	bit = tcon_conf->bit_od_en;
-	if (((table[reg] >> bit) & 1) == 0)
-		return;
 
-	if (!tcon_rmem) {
-		en = 0;
+	if (tcon_conf->core_reg_width == 8) {
+		table8 = mm_table->core_reg_table;
+		table8[reg] &= ~(1 << bit);
 	} else {
-		if (tcon_rmem->flag == 0)
-			en = 0;
-		else
-			en = 1;
-	}
-	if (en == 0) {
-		table[reg] &= ~(1 << bit);
-		LCDPR("%s: invalid buf, disable od function\n", __func__);
+		table32 = (unsigned int *)mm_table->core_reg_table;
+		table32[reg] &= ~(1 << bit);
 	}
 }
 
-void lcd_tcon_core_reg_update(struct lcd_tcon_config_s *tcon_conf,
-			      struct tcon_mem_map_table_s *mm_table)
+void lcd_tcon_core_reg_set(struct lcd_tcon_config_s *tcon_conf,
+			   struct tcon_mem_map_table_s *mm_table)
 {
 	unsigned char *table8;
 	unsigned int *table32;
@@ -94,24 +119,21 @@ void lcd_tcon_core_reg_update(struct lcd_tcon_config_s *tcon_conf,
 	offset = tcon_conf->core_reg_start;
 	if (tcon_conf->core_reg_width == 8) {
 		table8 = mm_table->core_reg_table;
-		lcd_tcon_od_check_byte(tcon_conf, table8);
 		for (i = offset; i < len; i++)
 			lcd_tcon_write_byte(i, table8[i]);
 	} else {
 		if (tcon_conf->reg_table_width == 32) {
 			table32 = (unsigned int *)mm_table->core_reg_table;
 			len /= 4;
-			lcd_tcon_od_check(tcon_conf, table32);
 			for (i = offset; i < len; i++)
 				lcd_tcon_write(i, table32[i]);
 		} else {
 			table8 = mm_table->core_reg_table;
-			lcd_tcon_od_check_byte(tcon_conf, table8);
 			for (i = offset; i < len; i++)
 				lcd_tcon_write(i, table8[i]);
 		}
 	}
-	LCDPR("tcon core regs update\n");
+	LCDPR("%s\n", __func__);
 }
 
 static void lcd_tcon_axi_rmem_set(struct lcd_tcon_config_s *tcon_conf)
@@ -135,8 +157,10 @@ static void lcd_tcon_axi_rmem_set(struct lcd_tcon_config_s *tcon_conf)
 	for (i = 0; i < tcon_conf->axi_bank; i++) {
 		paddr = tcon_rmem->axi_rmem[i].mem_paddr;
 		lcd_tcon_write(tcon_conf->axi_reg[i], paddr);
-		if (lcd_debug_print_flag)
-			LCDPR("set tcon axi_mem[%d] paddr: 0x%08x\n", i, paddr);
+		if (lcd_debug_print_flag) {
+			LCDPR("set tcon axi_mem[%d] reg: 0x%08x, paddr: 0x%08x\n",
+			      i, tcon_conf->axi_reg[i], paddr);
+		}
 	}
 }
 
@@ -1042,7 +1066,8 @@ int lcd_tcon_enable_tl1(struct lcd_config_s *pconf)
 	lcd_tcon_top_set_tl1(pconf);
 
 	/* step 2: tcon_core_reg_update */
-	lcd_tcon_core_reg_update(tcon_conf, mm_table);
+	lcd_tcon_core_reg_pre_od(tcon_conf, mm_table);
+	lcd_tcon_core_reg_set(tcon_conf, mm_table);
 	if (pconf->lcd_basic.lcd_type == LCD_P2P) {
 		switch (pconf->lcd_control.p2p_config->p2p_type) {
 		case P2P_CHPI:
@@ -1101,7 +1126,8 @@ int lcd_tcon_enable_t5(struct lcd_config_s *pconf)
 	lcd_tcon_top_set_t5(pconf);
 
 	/* step 2: tcon_core_reg_update */
-	lcd_tcon_core_reg_update(tcon_conf, mm_table);
+	lcd_tcon_core_reg_pre_dis_od(tcon_conf, mm_table);
+	lcd_tcon_core_reg_set(tcon_conf, mm_table);
 
 	/* step 3: set axi rmem, must before tcon data */
 	lcd_tcon_axi_rmem_set(tcon_conf);

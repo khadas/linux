@@ -158,7 +158,7 @@ struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);
 #define LCD_TCON_CORE_REG_WIDTH_T5D       32
 #define LCD_TCON_TABLE_WIDTH_T5D          32
 #define LCD_TCON_TABLE_LEN_T5D            0x102c /* 0x40b*4 */
-#define LCD_TCON_AXI_BANK_T5D             2
+#define LCD_TCON_AXI_BANK_T5D             1
 
 #define BIT_TOP_EN_T5D                    4
 
@@ -181,8 +181,8 @@ int lcd_tcon_gamma_pattern_tl1(unsigned int bit_width, unsigned int gamma_r,
 			       unsigned int gamma_g, unsigned int gamma_b);
 int lcd_tcon_gamma_pattern_t5(unsigned int bit_width, unsigned int gamma_r,
 			      unsigned int gamma_g, unsigned int gamma_b);
-void lcd_tcon_core_reg_update(struct lcd_tcon_config_s *tcon_conf,
-			      struct tcon_mem_map_table_s *mm_table);
+void lcd_tcon_core_reg_set(struct lcd_tcon_config_s *tcon_conf,
+			   struct tcon_mem_map_table_s *mm_table);
 int lcd_tcon_enable_tl1(struct lcd_config_s *pconf);
 int lcd_tcon_enable_t5(struct lcd_config_s *pconf);
 
