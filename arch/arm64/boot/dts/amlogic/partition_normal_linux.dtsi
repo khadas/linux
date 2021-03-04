@@ -1,0 +1,125 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Amlogic partition set for normal
+ *
+ * Copyright (c) 2017-2017 Amlogic Ltd
+ *
+ * This file is licensed under a dual GPLv2 or BSD license.
+ *
+ */
+
+#include "firmware_system.dtsi"
+
+/ {
+    partitions: partitions{
+		parts = <15>;
+		part-0 = <&logo>;
+		part-1 = <&recovery>;
+		part-2 = <&misc>;
+		part-3 = <&cri_data>;
+		part-4 = <&param>;
+		part-5 = <&boot>;
+		part-6 = <&rsv>;
+		part-7 = <&tee>;
+		part-8 = <&factory>;
+		part-9 = <&vendor>;
+		part-10 = <&odm>;
+		part-11 = <&system>;
+		part-12 = <&product>;
+		part-13 = <&cache>;
+		part-14 = <&data>;
+
+		logo:logo{
+			pname = "logo";
+			size = <0x0 0x800000>;
+			mask = <1>;
+		};
+		recovery:recovery{
+			pname = "recovery";
+			size = <0x0 0x1800000>;
+			mask = <1>;
+		};
+		misc:misc{
+			pname = "misc";
+			size = <0x0 0x800000>;
+			mask = <1>;
+		};
+		cri_data:cri_data
+		{
+			pname = "cri_data";
+			size = <0x0 0x800000>;
+			mask = <2>;
+		};
+		rsv:rsv{
+			pname = "rsv";
+			size = <0x0 0x1000000>;
+			mask = <0x11>;
+		};
+		param:param{
+			pname = "param";
+			size = <0x0 0x1000000>;
+			mask = <2>;
+		};
+		boot:boot
+		{
+			pname = "boot";
+			size = <0x0 0x4000000>;
+			mask = <1>;
+		};
+		tee:tee{
+			pname = "tee";
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		factory:factory{
+			pname = "factory";
+			size = <0x0 0x800000>;
+			mask = <0x11>;
+		};
+		vendor:vendor
+		{
+			pname = "vendor";
+			size = <0x0 0x1C000000>;
+			mask = <1>;
+		};
+		odm:odm
+		{
+			pname = "odm";
+			size = <0x0 0x8000000>;
+			mask = <1>;
+		};
+		system:system
+		{
+			pname = "system";
+			size = <0x0 0x40000000>;
+			mask = <1>;
+		};
+		product:product{
+			pname = "product";
+			size = <0x0 0x8000000>;
+			mask = <1>;
+		};
+		cache:cache
+		{
+			pname = "cache";
+			size = <0x0 0x46000000>;
+			mask = <2>;
+		};
+		data:data
+		{
+			pname = "data";
+			size = <0xffffffff 0xffffffff>;
+			mask = <4>;
+		};
+	};
+
+	provisionkey {
+		compatible = "amlogic, provisionkey";
+		status = "okay";
+		key-permit-default = "write";
+		//new key not need add dts if started with KEY_PROVISION_
+		KEY_PROVISION_XXX { };
+		//test_my_added_keyname { };
+	};//End provisionkey
+
+};/* end of / */
