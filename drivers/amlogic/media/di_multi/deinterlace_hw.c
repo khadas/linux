@@ -938,6 +938,12 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	else
 		sc2_tfbf = 0;
 
+	/*
+	 * the bit define is not same with before ,
+	 * from sc2 DI_PRE_CTRL 0x1700,
+	 * bit5/6/8/9/10/11/12
+	 */
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (madi_en) {
 			if (DIM_IS_IC_EF(T7) && opl1()->pre_ma_mif_set)
@@ -958,36 +964,62 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 		else
 			DIM_RDMA_WR_BITS(DI_PRE_GL_THD,
 					 dimp_get(edi_mp_pre_hold_line), 16, 6);
-		if (dimp_get(edi_mp_pre_ctrl))
+		if (dimp_get(edi_mp_pre_ctrl)) {
 			DIM_RDMA_WR_BITS(DI_PRE_CTRL,
 					 dimp_get(edi_mp_pre_ctrl), 0, 29);
-		else
-			DIM_RDMA_WR(DI_PRE_CTRL,
-				    1			| /* nr wr en */
-				    (madi_en << 1)	| /* mtn en */
-				    (madi_en << 2)	| /* check3:2pulldown*/
-				    (madi_en << 3)	| /* check2:2pulldown*/
-				    (1 << 4)		|
-				    (madi_en << 5)	| /*hist check enable*/
-				/* hist check  use chan2. */
-				    (madi_en << 6)	|
-				/*hist check use data before noise reduction.*/
-				    ((chan2_disable ? 0 : 1) << 8) |
-				/* chan 2 enable for 2:2 pull down check.*/
-				/* line buffer 2 enable */
-				    ((chan2_disable ? 0 : 1) << 9) |
-				    (0 << 10)		| /* pre drop first. */
-				    //(1 << 11)		| /* nrds mif enable */
-				    (sc2_tfbf << 11)	| /* nrds mif enable */
-				    (0 << 12)		| /* pre viu link */
-				    (pre_vdin_link << 13)	   |
-				/* pre go line link */
-				    (pre_vdin_link << 14)	   |
-				    (1 << 21)		| /*invertNRfield num*/
-				    (1 << 22)		| /* MTN after NR. */
-				    (0 << 25)		| /* contrd en */
-				    ((mem_bypass ? 1 : 0) << 28)   |
-				    pre_field_num << 29);
+		} else {
+			if (DIM_IS_IC_EF(SC2))
+				DIM_RDMA_WR(DI_PRE_CTRL,
+					    1 | /* nr wr en */
+					    (madi_en << 1) | /* mtn en */
+					    (madi_en << 2) |
+					    /*check3:2pulldown*/
+					    (madi_en << 3) |
+					    /*check2:2pulldown*/
+					    (1 << 4)	 |
+					    (madi_en << 5) |
+					    /*hist check enable*/
+					    (1 << 6)	| /* MTN after NR. */
+					    (1 << 8) | /* mem en. */
+						/* chan 2 enable */
+					    ((chan2_disable ? 0 : 1) << 9) |
+					    (sc2_tfbf << 11)	|
+					    /* nrds mif enable */
+					    (pre_vdin_link << 13)	   |
+					/* pre go line link */
+					    (pre_vdin_link << 14)	   |
+					    (0 << 25)   |
+					    /* contrd en */
+					    ((mem_bypass ? 1 : 0) << 28)   |
+					    pre_field_num << 29);
+			else
+				DIM_RDMA_WR(DI_PRE_CTRL,
+					    1			| /* nr wr en */
+					    (madi_en << 1)	| /* mtn en */
+					    (madi_en << 2)	| /* check3:2pulldown*/
+					    (madi_en << 3)	| /* check2:2pulldown*/
+					    (1 << 4)		|
+					    (madi_en << 5)	| /*hist check enable*/
+					/* hist check  use chan2. */
+					    (madi_en << 6)	|
+					/*hist check use data before noise reduction.*/
+					    ((chan2_disable ? 0 : 1) << 8) |
+					/* chan 2 enable for 2:2 pull down check.*/
+					/* line buffer 2 enable */
+					    ((chan2_disable ? 0 : 1) << 9) |
+					    (0 << 10)		| /* pre drop first. */
+					    //(1 << 11)		| /* nrds mif enable */
+					    (sc2_tfbf << 11)	| /* nrds mif enable */
+					    (0 << 12)		| /* pre viu link */
+					    (pre_vdin_link << 13)	   |
+					/* pre go line link */
+					    (pre_vdin_link << 14)	   |
+					    (1 << 21)		| /*invertNRfield num*/
+					    (1 << 22)		| /* MTN after NR. */
+					    (0 << 25)		| /* contrd en */
+					    ((mem_bypass ? 1 : 0) << 28)   |
+					    pre_field_num << 29);
+		}
 	} else {
 		if (madi_en) {
 			set_ma_pre_mif(di_mtnwr_mif,
