@@ -731,8 +731,8 @@ void earctx_cmdc_init(struct regmap *top_map, bool en, bool rterm_on)
 		mmio_write(top_map, EARCTX_ANA_CTRL0,
 			   en << 31   |  /* earctx_en_d2a */
 			   0x1 << 28  |  /* earctx_cmdcrx_rcfilter_sel */
-			   0x4 << 26  |  /* earctx_cmdcrx_hystrim */
-			   0x8 << 19  |  /* earctx_idr_trim */
+			   0x4 << 24  |  /* earctx_cmdcrx_hystrim */
+			   0x10 << 19 |  /* earctx_idr_trim */
 			   0x1 << 17  |  /* earctx_rterm_on */
 			   0x10 << 12 |  /* earctx_rterm_trim */
 			   0x4 << 8   |  /* earctx_dmac_slew_con */
@@ -743,7 +743,7 @@ void earctx_cmdc_init(struct regmap *top_map, bool en, bool rterm_on)
 		mmio_write(top_map, EARCTX_ANA_CTRL0,
 			   en << 31   |  /* earctx_en_d2a */
 			   0x1 << 28  |  /* earctx_cmdcrx_rcfilter_sel */
-			   0x4 << 26  |  /* earctx_cmdcrx_hystrim */
+			   0x4 << 24  |  /* earctx_cmdcrx_hystrim */
 			   0x8 << 20  |  /* earctx_idr_trim */
 			   0x10 << 12 |  /* earctx_rterm_trim */
 			   0x4 << 8   |  /* earctx_dmac_slew_con */
