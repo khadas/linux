@@ -116,9 +116,13 @@ int aml_nand_parse_env(char *cmd)
 
 	boot_entry = general_boot_layout.boot_entry;
 	p = strchr(p, ':');
+	if (!p)
+		return 1;
 	pr_info("%s\n", p + 1);
 	boot_entry[BOOT_AREA_BL2E].size = memparse(p + 1, NULL);
 	p = strchr(p, ',');
+	if (!p)
+		return 1;
 	pr_info("%s\n", p + 1);
 	boot_entry[BOOT_AREA_BL2X].size = memparse(p + 1, NULL);
 	pr_info("bl2e_size(0x%llx) bl2x_size(0x%llx)\n",
