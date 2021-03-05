@@ -1436,7 +1436,7 @@
 					reg = <0 0 0 0x400>;
 
 					clkc: clock-controller {
-						compatible = "amlogic,g12a-clkc";
+						compatible = "amlogic,sm1-clkc";
 						#clock-cells = <1>;
 						clocks = <&xtal>;
 						clock-names = "xtal";
