@@ -3087,7 +3087,7 @@ int sdio_get_vendor(void)
 {
 	int vendor = 0;
 
-	if (sdio_host)
+	if (sdio_host && sdio_host->card)
 		vendor = sdio_host->card->cis.vendor;
 
 	pr_info("sdio vendor is 0x%x\n", vendor);
