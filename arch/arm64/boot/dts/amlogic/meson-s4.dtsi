@@ -760,6 +760,12 @@
 						"usb1";
 		};
 
+		dolby_fw: dolby_fw {
+			compatible = "amlogic, dolby_fw";
+			mem_size = <0x100000>;
+			status = "okay";
+		};
+
 		pcie: pcie@f5000000 {
 			compatible = "amlogic, amlogic-pcie-v2", "snps,dw-pcie";
 			reg = <0x0 0xf5000000 0x0 0x400000
