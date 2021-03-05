@@ -1442,6 +1442,7 @@ static void meson_mmc_desc_chain_transfer(struct mmc_host *mmc, u32 cmd_cfg,
 			FIELD_PREP(CMD_CFG_TIMEOUT_MASK, 0xc);
 		desc[data->sg_count].cmd_cfg |= CMD_CFG_OWNER;
 		desc[data->sg_count].cmd_cfg |= CMD_CFG_RESP_NUM;
+		desc[data->sg_count].cmd_cfg |= CMD_CFG_R1B;
 		desc[data->sg_count].cmd_resp = 0;
 		desc[data->sg_count].cmd_data = 0;
 		j++;

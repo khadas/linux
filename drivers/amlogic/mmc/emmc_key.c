@@ -88,9 +88,12 @@ int32_t emmc_write_one_key(void *buffer, int valid_flag)
 	unsigned char *src = NULL;
 	struct mmc_card *card = mmc_card_key;
 	int bit = card->csd.read_blkbits;
-	char *checksum_info;
+	unsigned char *checksum_info;
 
 	checksum_info = kmalloc(512, GFP_KERNEL);
+	if (!checksum_info)
+		return -1;
+
 	memset(checksum_info, 0, 512);
 	key_glb_offset = get_reserve_partition_off_from_tbl() + EMMCKEY_RESERVE_OFFSET;
 	blk = (key_glb_offset + (valid_flag % 2) * EMMC_KEYAREA_SIZE) >> bit;
@@ -103,7 +106,7 @@ int32_t emmc_write_one_key(void *buffer, int valid_flag)
 		if (ret) {
 			pr_err("%s [%d] mmc_write_internal error\n",
 				__func__, __LINE__);
-			return ret;
+			goto exit_err;
 		}
 		blk += EMMC_BLOCK_SIZE;
 		cnt -= EMMC_BLOCK_SIZE;
@@ -114,10 +117,12 @@ int32_t emmc_write_one_key(void *buffer, int valid_flag)
 	blk = ((key_glb_offset + 2 * (EMMC_KEYAREA_SIZE)) >> bit) + (valid_flag % 2);
 	ret = mmc_write_internal(card, blk, 1, checksum_info);
 	if (ret)
-		pr_err("%s: block # %#llx, cnt # %#llx ERROR!\n", __func__, blk, cnt);
+		pr_err("%s: block # %#llx, ERROR!\n", __func__, blk);
 
 	pr_info("%s:%d, write %s\n", __func__, __LINE__, (ret) ? "error" : "ok");
 	mmc_release_host(card->host);
+
+exit_err:
 	kfree(checksum_info);
 	return ret;
 }
@@ -495,7 +500,7 @@ int emmc_key_init(struct mmc_card *card)
 	err = aml_emmc_key_check();
 	if (err) {
 		pr_info("%s:%d,emmc key check fail\n", __func__, __LINE__);
-	goto exit_err;
+		goto exit_err1;
 	}
 
 	uk_type->storage_type = UNIFYKEY_STORAGE_TYPE_EMMC;
