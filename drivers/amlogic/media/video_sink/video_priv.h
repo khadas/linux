@@ -105,6 +105,10 @@ enum vd_path_id {
 	VFM_PATH_VIDEO_RENDER1 = 3,
 	VFM_PATH_PIP2 = 4,
 	VFM_PATH_VIDEO_RENDER2 = 5,
+	VFM_PATH_VIDEO_RENDER3 = 6,
+	VFM_PATH_VIDEO_RENDER4 = 7,
+	VFM_PATH_VIDEO_RENDER5 = 8,
+	VFM_PATH_VIDEO_RENDER6 = 9,
 	VFM_PATH_AUTO = 0xfe,
 	VFM_PATH_INVALID = 0xff
 };
@@ -477,15 +481,14 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo);
 void vppx_vd_blend_setting(struct video_layer_s *layer, struct blend_setting_s *setting);
 void vppx_blend_update(const struct vinfo_s *vinfo, u32 vpp_index);
 int get_layer_display_canvas(u8 layer_id);
-int set_layer_display_canvas(u8 layer_id,
+int set_layer_display_canvas(struct video_layer_s *layer,
 			     struct vframe_s *vf,
 			     struct vpp_frame_par_s *cur_frame_par,
 			     struct disp_info_s *disp_info);
 u32 *get_canvase_tbl(u8 layer_id);
-s32 layer_swap_frame(struct vframe_s *vf, u8 layer_id,
+s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     bool force_toggle,
 		     const struct vinfo_s *vinfo);
-
 int detect_vout_type(const struct vinfo_s *vinfo);
 int calc_hold_line(void);
 u32 get_cur_enc_line(void);
@@ -494,6 +497,7 @@ int vpp_crc_check(u32 vpp_crc_en, u8 vpp_index);
 void enable_vpp_crc_viu2(u32 vpp_crc_en);
 int vpp_crc_viu2_check(u32 vpp_crc_en);
 void dump_pps_coefs_info(u8 layer_id, u8 bit9_mode, u8 coef_type);
+struct video_layer_s *get_layer_by_layer_id(u8 layer_id);
 
 int video_hw_init(void);
 int video_early_init(struct amvideo_device_data_s *p_amvideo);
@@ -527,9 +531,12 @@ extern u32 last_el_status;
 extern u32 video_prop_status;
 extern u32 force_blackout;
 extern atomic_t video_unreg_flag;
+extern atomic_t video_unreg_flag_vpp[2];
 extern atomic_t video_inirq_flag;
+extern atomic_t video_inirq_flag_vpp[2];
 extern uint load_pps_coef;
-extern struct video_recv_s *gvideo_recv[5];
+extern struct video_recv_s *gvideo_recv[3];
+extern struct video_recv_s *gvideo_recv_vpp[2];
 extern uint load_pps_coef;
 extern atomic_t gafbc_request;
 extern atomic_t video_unreg_flag;
@@ -598,6 +605,7 @@ void set_alpha_scpxn(struct video_layer_s *layer,
 void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf);
 s32 pip_render_frame(struct video_layer_s *layer);
 void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf);
+s32 pip2_render_frame(struct video_layer_s *layer);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void vsync_rdma_process(void);

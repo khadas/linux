@@ -21,6 +21,8 @@ void vsync_rdma_vpp1_config_pre(void);
 void vsync_rdma_vpp2_config(void);
 void vsync_rdma_vpp2_config_pre(void);
 bool is_vsync_rdma_enable(void);
+bool is_vsync_vpp1_rdma_enable(void);
+bool is_vsync_vpp2_rdma_enable(void);
 void start_rdma(void);
 void enable_rdma_log(int flag);
 void enable_rdma(int enable_flag);

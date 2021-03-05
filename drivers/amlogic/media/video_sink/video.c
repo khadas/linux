@@ -340,7 +340,8 @@ static int vpts_chase_pts_diff;
 static int step_enable;
 static int step_flag;
 
-struct video_recv_s *gvideo_recv[5] = {NULL, NULL, NULL, NULL, NULL};
+struct video_recv_s *gvideo_recv[3] = {NULL, NULL, NULL};
+struct video_recv_s *gvideo_recv_vpp[2] = {NULL, NULL};
 /*seek values on.video_define.h*/
 int debug_flag;
 int get_video_debug_flags(void)
@@ -3584,7 +3585,7 @@ static int dvel_swap_frame(struct vframe_s *vf)
 		if (dvel_size != new_dvel_w)
 			dvel_changed = true;
 		ret = set_layer_display_canvas
-			(1, vf, layer->cur_frame_par,
+			(layer, vf, layer->cur_frame_par,
 			layer_info);
 		dvel_status = true;
 	} else if (dvel_status) {
@@ -3983,12 +3984,24 @@ void _set_video_crop(struct disp_info_s *layer, int *p)
 		} else if (layer->layer_id == 1) {
 			if (vd_layer[1].vpp_index == VPP0)
 				vd_layer[1].property_changed = true;
-			else if (vd_layer_vpp[0].vpp_index != VPP0)
+			/* vpp1 case */
+			else if (vd_layer_vpp[0].layer_id == layer->layer_id &&
+				vd_layer_vpp[0].vpp_index == VPP1)
 				vd_layer_vpp[0].property_changed = true;
+			/* vpp2 case */
+			else if (vd_layer_vpp[1].layer_id == layer->layer_id &&
+				vd_layer_vpp[1].vpp_index == VPP2)
+				vd_layer_vpp[1].property_changed = true;
 		} else if (layer->layer_id == 2) {
 			if (vd_layer[2].vpp_index == VPP0)
 				vd_layer[2].property_changed = true;
-			else if (vd_layer_vpp[1].vpp_index != VPP0)
+			/* vpp1 case */
+			else if (vd_layer_vpp[0].layer_id == layer->layer_id &&
+				vd_layer_vpp[0].vpp_index == VPP1)
+				vd_layer_vpp[0].property_changed = true;
+			/* vpp2 case */
+			else if (vd_layer_vpp[1].layer_id == layer->layer_id &&
+				vd_layer_vpp[1].vpp_index == VPP2)
 				vd_layer_vpp[1].property_changed = true;
 		}
 	}
@@ -4095,12 +4108,24 @@ void _set_video_window(struct disp_info_s *layer, int *p)
 		} else if (layer->layer_id == 1) {
 			if (vd_layer[1].vpp_index == VPP0)
 				vd_layer[1].property_changed = true;
-			else if (vd_layer_vpp[0].vpp_index != VPP0)
+			/* vpp1 case */
+			else if (vd_layer_vpp[0].layer_id == layer->layer_id &&
+				vd_layer_vpp[0].vpp_index == VPP1)
 				vd_layer_vpp[0].property_changed = true;
+			/* vpp2 case */
+			else if (vd_layer_vpp[1].layer_id == layer->layer_id &&
+				vd_layer_vpp[1].vpp_index == VPP2)
+				vd_layer_vpp[1].property_changed = true;
 		} else if (layer->layer_id == 2) {
 			if (vd_layer[2].vpp_index == VPP0)
 				vd_layer[2].property_changed = true;
-			else if (vd_layer_vpp[1].vpp_index != VPP0)
+			/* vpp1 case */
+			else if (vd_layer_vpp[0].layer_id == layer->layer_id &&
+				vd_layer_vpp[0].vpp_index == VPP1)
+				vd_layer_vpp[0].property_changed = true;
+			/* vpp2 case */
+			else if (vd_layer_vpp[1].layer_id == layer->layer_id &&
+				vd_layer_vpp[1].vpp_index == VPP2)
 				vd_layer_vpp[1].property_changed = true;
 		}
 	}
@@ -4128,10 +4153,29 @@ void set_video_zorder_ext(int layer_index, int zorder)
 		layer->zorder = zorder;
 		if (layer->layer_id == 0)
 			vd_layer[0].property_changed = true;
-		else if (layer->layer_id == 1)
-			vd_layer[1].property_changed = true;
-		else if (layer->layer_id == 2)
-			vd_layer[2].property_changed = true;
+		else if (layer->layer_id == 1) {
+			if (vd_layer[1].vpp_index == VPP0)
+				vd_layer[1].property_changed = true;
+			/* vpp1 case */
+			else if (vd_layer_vpp[0].layer_id == layer->layer_id &&
+				vd_layer_vpp[0].vpp_index == VPP1)
+				vd_layer_vpp[0].property_changed = true;
+			/* vpp2 case */
+			else if (vd_layer_vpp[1].layer_id == layer->layer_id &&
+				vd_layer_vpp[1].vpp_index == VPP2)
+				vd_layer_vpp[1].property_changed = true;
+		} else if (layer->layer_id == 2) {
+			if (vd_layer[2].vpp_index == VPP0)
+				vd_layer[2].property_changed = true;
+			/* vpp1 case */
+			else if (vd_layer_vpp[0].layer_id == layer->layer_id &&
+				vd_layer_vpp[0].vpp_index == VPP1)
+				vd_layer_vpp[0].property_changed = true;
+			/* vpp2 case */
+			else if (vd_layer_vpp[1].layer_id == layer->layer_id &&
+				vd_layer_vpp[1].vpp_index == VPP2)
+				vd_layer_vpp[1].property_changed = true;
+		}
 	}
 }
 
@@ -4169,7 +4213,7 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf)
 	}
 
 	ret = layer_swap_frame
-		(vf, layer->layer_id, false, vinfo);
+		(vf, layer, false, vinfo);
 
 	/* FIXME: free correct keep frame */
 	if (!is_local_vf(layer->dispbuf)) {
@@ -4185,7 +4229,7 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf)
 		layer->new_vpp_setting = false;
 }
 
-static s32 pip2_render_frame(struct video_layer_s *layer)
+s32 pip2_render_frame(struct video_layer_s *layer)
 {
 	struct vpp_frame_par_s *frame_par;
 	u32 zoom_start_y, zoom_end_y;
@@ -4264,6 +4308,9 @@ static s32 pip2_render_frame(struct video_layer_s *layer)
 		(layer, &layer->bld_setting);
 	vd_blend_setting
 		(layer, &layer->bld_setting);
+	if (layer->vpp_index != VPP0)
+		vppx_vd_blend_setting
+		(layer, &layer->bld_setting);
 	fgrain_setting(layer,
 		       &layer->fgrain_setting,
 		       layer->dispbuf);
@@ -4305,7 +4352,7 @@ void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf)
 	}
 
 	ret = layer_swap_frame
-		(vf, layer->layer_id, false, vinfo);
+		(vf, layer, false, vinfo);
 
 	/* FIXME: free correct keep frame */
 	if (!is_local_vf(layer->dispbuf)) {
@@ -4397,6 +4444,9 @@ s32 pip_render_frame(struct video_layer_s *layer)
 	config_vd_blend
 		(layer, &layer->bld_setting);
 	vd_blend_setting
+		(layer, &layer->bld_setting);
+	if (layer->vpp_index != VPP0)
+		vppx_vd_blend_setting
 		(layer, &layer->bld_setting);
 	fgrain_setting(layer,
 		       &layer->fgrain_setting,
@@ -4509,7 +4559,7 @@ static void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1
 	/* switch buffer */
 	post_canvas = vf->canvas0Addr;
 	ret = layer_swap_frame
-		(vf, layer->layer_id, force_toggle, vinfo);
+		(vf, layer, force_toggle, vinfo);
 	if (ret >= vppfilter_success) {
 		amlog_mask
 			(LOG_MASK_FRAMEINFO,
@@ -6952,6 +7002,7 @@ SET_FILTER:
 		}
 		if (new_frame2 || gvideo_recv[2]->cur_buf)
 			vd_layer[1].dispbuf_mapping = &gvideo_recv[2]->cur_buf;
+		pr_info("new_frame2=%p\n", new_frame2);
 		cur_blackout = 1;
 	} else if (vd2_path_id == VFM_PATH_AMVIDEO) {
 		/* priamry display in VD2 */
@@ -7558,12 +7609,11 @@ static void vsync_fiq_up(void)
 	    amvideo_meson_dev.has_vpp1)
 		r = request_irq(video_vsync_viu2, &vsync_isr_viu2,
 				IRQF_SHARED, "vsync_viu2",
-				NULL);
-
+				(void *)video_dev_id);
 	if (amvideo_meson_dev.has_vpp2)
 		r = request_irq(video_vsync_viu3, &vsync_isr_viu3,
 				IRQF_SHARED, "vsync_viu3",
-				NULL);
+				(void *)video_dev_id);
 
 #ifdef CONFIG_MESON_TRUSTZONE
 	if (num_online_cpus() > 1)
@@ -7580,9 +7630,9 @@ static void vsync_fiq_down(void)
 	free_irq(video_vsync, (void *)video_dev_id);
 	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_SC2_ ||
 	   amvideo_meson_dev.has_vpp1)
-		free_irq(video_vsync_viu2, NULL);
+		free_irq(video_vsync_viu2, (void *)video_dev_id);
 	if (amvideo_meson_dev.has_vpp2)
-		free_irq(video_vsync_viu3, NULL);
+		free_irq(video_vsync_viu3, (void *)video_dev_id);
 #endif
 }
 
@@ -7985,6 +8035,16 @@ static struct vframe_s *get_dispbuf(u8 layer_id)
 		if (gvideo_recv[2] &&
 		    gvideo_recv[2]->cur_buf)
 			dispbuf = gvideo_recv[2]->cur_buf;
+		break;
+	case VFM_PATH_VIDEO_RENDER5:
+		if (gvideo_recv_vpp[0] &&
+		    gvideo_recv_vpp[0]->cur_buf)
+			dispbuf = gvideo_recv_vpp[0]->cur_buf;
+		break;
+	case VFM_PATH_VIDEO_RENDER6:
+		if (gvideo_recv_vpp[1] &&
+		    gvideo_recv_vpp[1]->cur_buf)
+			dispbuf = gvideo_recv_vpp[1]->cur_buf;
 		break;
 	default:
 		break;
@@ -8853,15 +8913,43 @@ void video_set_global_output(u32 index, u32 val)
 		else
 			vd_layer[0].global_output = 0;
 	} else if (index == 1) {
-		if (val != 0)
-			vd_layer[1].global_output = 1;
-		else
-			vd_layer[1].global_output = 0;
+		if (vd_layer[1].vpp_index == VPP0) {
+			if (val != 0)
+				vd_layer[1].global_output = 1;
+			else
+				vd_layer[1].global_output = 0;
+		} else if (vd_layer_vpp[0].layer_id == index &&
+			vd_layer_vpp[0].vpp_index == VPP1) {
+			if (val != 0)
+				vd_layer_vpp[0].global_output = 1;
+			else
+				vd_layer_vpp[0].global_output = 0;
+		} else if (vd_layer_vpp[1].layer_id == index &&
+			vd_layer_vpp[1].vpp_index == VPP2) {
+			if (val != 0)
+				vd_layer_vpp[1].global_output = 1;
+			else
+				vd_layer_vpp[1].global_output = 0;
+		}
 	} else if (index == 2) {
-		if (val != 0)
-			vd_layer[2].global_output = 1;
-		else
-			vd_layer[2].global_output = 0;
+		if (vd_layer[2].vpp_index == VPP0) {
+			if (val != 0)
+				vd_layer[2].global_output = 1;
+			else
+				vd_layer[2].global_output = 0;
+		} else if (vd_layer_vpp[0].layer_id == index &&
+			vd_layer_vpp[0].vpp_index == VPP1) {
+			if (val != 0)
+				vd_layer_vpp[0].global_output = 1;
+			else
+				vd_layer_vpp[0].global_output = 0;
+		} else if (vd_layer_vpp[1].layer_id == index &&
+			vd_layer_vpp[1].vpp_index == VPP2) {
+			if (val != 0)
+				vd_layer_vpp[1].global_output = 1;
+			else
+				vd_layer_vpp[1].global_output = 0;
+		}
 	}
 	pr_info("VID: VD%d set global output as %d\n",
 		index + 1, (val != 0) ? 1 : 0);
@@ -12279,6 +12367,38 @@ static ssize_t hist_test_store(struct class *cla,
 	return strnlen(buf, count);
 }
 
+struct video_layer_s *get_layer_by_layer_id(u8 layer_id)
+{
+	struct video_layer_s *layer = NULL;
+
+	if (layer_id == 0) {
+		layer = &vd_layer[0];
+	} else if (layer_id == 1) {
+		if (vd_layer[layer_id].vpp_index == VPP0)
+			layer = &vd_layer[1];
+		/* vpp1 case */
+		else if (vd_layer_vpp[0].layer_id == layer_id &&
+			vd_layer_vpp[0].vpp_index == VPP1)
+			layer = &vd_layer_vpp[0];
+		/* vpp2 case */
+		else if (vd_layer_vpp[1].layer_id == layer_id &&
+			vd_layer_vpp[1].vpp_index == VPP2)
+			layer = &vd_layer_vpp[1];
+	} else if (layer_id == 2) {
+		if (vd_layer[layer_id].vpp_index == VPP0)
+			layer = &vd_layer[2];
+		/* vpp1 case */
+		else if (vd_layer_vpp[0].layer_id == layer_id &&
+			vd_layer_vpp[0].vpp_index == VPP1)
+			layer = &vd_layer_vpp[0];
+		/* vpp2 case */
+		else if (vd_layer_vpp[1].layer_id == layer_id &&
+			vd_layer_vpp[1].vpp_index == VPP2)
+			layer = &vd_layer_vpp[1];
+	}
+	return layer;
+}
+
 int _videopip_set_disable(u32 index, u32 val)
 {
 	struct video_layer_s *layer = NULL;
@@ -12286,10 +12406,7 @@ int _videopip_set_disable(u32 index, u32 val)
 	if (val > VIDEO_DISABLE_FORNEXT)
 		return -EINVAL;
 
-	if (index == 1)
-		layer = &vd_layer[1];
-	else if (index == 2)
-		layer = &vd_layer[2];
+	layer = get_layer_by_layer_id(index);
 
 	if (!layer)
 		return -EINVAL;
@@ -12921,7 +13038,7 @@ s32 set_video_path_select(const char *recv_name, u8 layer_id)
 		return -1;
 
 	layer_info = &glayer_info[layer_id];
-	layer = &vd_layer[layer_id];
+	layer = get_layer_by_layer_id(layer_id);
 	new_path_id = layer_info->display_path_id;
 	if (!strcmp(recv_name, "default"))
 		new_path_id = VFM_PATH_DEF;
@@ -12937,6 +13054,10 @@ s32 set_video_path_select(const char *recv_name, u8 layer_id)
 		new_path_id = VFM_PATH_VIDEO_RENDER1;
 	else if (!strcmp(recv_name, "video_render.2"))
 		new_path_id = VFM_PATH_VIDEO_RENDER2;
+	else if (!strcmp(recv_name, "video_render.5"))
+		new_path_id = VFM_PATH_VIDEO_RENDER5;
+	else if (!strcmp(recv_name, "video_render.6"))
+		new_path_id = VFM_PATH_VIDEO_RENDER6;
 	else if (!strcmp(recv_name, "auto"))
 		new_path_id = VFM_PATH_AUTO;
 	else if (!strcmp(recv_name, "invalid"))
@@ -13478,14 +13599,21 @@ static ssize_t vd_attach_vpp_store
 	int parsed[2];
 	int layer_id = 0;
 
+	/* parsed[0]: layer_id */
+	/* parsed[1]: vpp index */
 	if (likely(parse_para(buf, 2, parsed) == 2)) {
 		if (parsed[0] < MAX_VD_LAYER)
 			layer_id = parsed[0];
 		vd_layer[layer_id].vpp_index = parsed[1];
-		if (layer_id == 1)
-			vd_layer_vpp[0].vpp_index = parsed[1];
-		if (layer_id == 2)
-			vd_layer_vpp[1].vpp_index = parsed[1];
+		if (layer_id >= 1) {
+			if (parsed[1] == VPP1) {
+				vd_layer_vpp[0].vpp_index = VPP1;
+				vd_layer_vpp[0].layer_id = layer_id;
+			} else if (parsed[1] == VPP2) {
+				vd_layer_vpp[1].vpp_index = VPP2;
+				vd_layer_vpp[1].layer_id = layer_id;
+			}
+		}
 	}
 	return strnlen(buf, count);
 }
@@ -14768,7 +14896,6 @@ int __init video_init(void)
 	 *ulong clk = clk_get_rate(clk_get_sys("clk_misc_pll", NULL));
 	 *#endif
 	 */
-
 #ifdef CONFIG_ARCH_MESON1
 	no to here ulong clk =
 		clk_get_rate(clk_get_sys("clk_other_pll", NULL));
@@ -14871,6 +14998,11 @@ int __init video_init(void)
 		("video_render.1", VFM_PATH_VIDEO_RENDER1);
 	gvideo_recv[2] = create_video_receiver
 		("video_render.2", VFM_PATH_VIDEO_RENDER2);
+	/* for multi vpp */
+	gvideo_recv_vpp[0] = create_video_receiver
+		("video_render.5", VFM_PATH_VIDEO_RENDER5);
+	gvideo_recv_vpp[1] = create_video_receiver
+		("video_render.6", VFM_PATH_VIDEO_RENDER6);
 
 	vsync_fiq_up();
 
@@ -14938,6 +15070,13 @@ void __exit video_exit(void)
 	if (gvideo_recv[2])
 		destroy_video_receiver(gvideo_recv[2]);
 	gvideo_recv[2] = NULL;
+	/* for multi vpp */
+	if (gvideo_recv_vpp[0])
+		destroy_video_receiver(gvideo_recv_vpp[0]);
+	gvideo_recv_vpp[0] = NULL;
+	if (gvideo_recv_vpp[1])
+		destroy_video_receiver(gvideo_recv_vpp[1]);
+	gvideo_recv_vpp[1] = NULL;
 
 	device_destroy(amvideo_class, MKDEV(AMVIDEO_MAJOR, 0));
 	device_destroy(amvideo_poll_class, MKDEV(amvideo_poll_major, 0));

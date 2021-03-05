@@ -136,15 +136,30 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	ulong flags;
 	bool layer1_used = false;
 	bool layer2_used = false;
+	bool layer3_used = false;
 	int i;
+	bool vpp1_used = false, vpp2_used = false;
 
 	if (!ins)
 		return;
-
+	if (!strcmp(ins->recv_name, "video_render.5"))
+		vpp1_used = true;
+	if (!strcmp(ins->recv_name, "video_render.6"))
+		vpp1_used = true;
 	/* FIXME: remove the global variable */
 	atomic_inc(&video_unreg_flag);
+	if (vpp1_used)
+		atomic_inc(&video_unreg_flag_vpp[0]);
+	if (vpp2_used)
+		atomic_inc(&video_unreg_flag_vpp[1]);
 	while (atomic_read(&video_inirq_flag) > 0)
 		schedule();
+	if (vpp1_used)
+		while (atomic_read(&video_inirq_flag_vpp[0]) > 0)
+			schedule();
+	if (vpp2_used)
+		while (atomic_read(&video_inirq_flag_vpp[1]) > 0)
+			schedule();
 
 	spin_lock_irqsave(&ins->lock, flags);
 	ins->buf_to_put_num = 0;
@@ -165,9 +180,28 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 		== &ins->cur_buf) {
 		layer1_used = true;
 	}
-	if (vd_layer[1].dispbuf_mapping
-		== &ins->cur_buf) {
-		layer2_used = true;
+	if (vd_layer_vpp[0].vpp_index != VPP0 && vd_layer_vpp[0].layer_id == 1) {
+		if (vd_layer_vpp[0].dispbuf_mapping
+			== &ins->cur_buf) {
+			layer2_used = true;
+		}
+	} else {
+		if (vd_layer[1].dispbuf_mapping
+			== &ins->cur_buf) {
+			layer2_used = true;
+		}
+	}
+
+	if (vd_layer_vpp[1].vpp_index != VPP0 && vd_layer_vpp[1].layer_id == 2) {
+		if (vd_layer_vpp[0].dispbuf_mapping
+			== &ins->cur_buf) {
+			layer3_used = true;
+		}
+	} else {
+		if (vd_layer[2].dispbuf_mapping
+			== &ins->cur_buf) {
+			layer3_used = true;
+		}
 	}
 
 	if (layer1_used) {
@@ -182,32 +216,53 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 		safe_switch_videolayer(0, false, false);
 	if (layer2_used)
 		safe_switch_videolayer(1, false, false);
+	if (layer3_used)
+		safe_switch_videolayer(2, false, false);
 
-	pr_info("%s %s: vd1 used: %s, vd2 used: %s, black_out:%d, cur_buf:%p\n",
+	pr_info("%s %s: vd1 used: %s, vd2 used: %s, vd3 used: %s, black_out:%d, cur_buf:%p\n",
 		__func__,
 		ins->recv_name,
 		layer1_used ? "true" : "false",
 		layer2_used ? "true" : "false",
+		layer3_used ? "true" : "false",
 		ins->blackout | force_blackout,
 		ins->cur_buf);
 
 	ins->active = false;
 	atomic_dec(&video_unreg_flag);
+	if (vpp1_used)
+		atomic_dec(&video_unreg_flag_vpp[0]);
+	if (vpp2_used)
+		atomic_dec(&video_unreg_flag_vpp[1]);
 }
 
 static void common_vf_light_unreg_provider(struct video_recv_s *ins)
 {
 	ulong flags;
 	int i;
+	bool vpp1_used = false, vpp2_used = false;
 
 	if (!ins)
 		return;
 
+	if (!strcmp(ins->recv_name, "video_render.5"))
+		vpp1_used = true;
+	if (!strcmp(ins->recv_name, "video_render.6"))
+		vpp1_used = true;
 	/* FIXME: remove the global variable */
 	atomic_inc(&video_unreg_flag);
+	if (vpp1_used)
+		atomic_inc(&video_unreg_flag_vpp[0]);
+	if (vpp2_used)
+		atomic_inc(&video_unreg_flag_vpp[1]);
 	while (atomic_read(&video_inirq_flag) > 0)
 		schedule();
-
+	if (vpp1_used)
+		while (atomic_read(&video_inirq_flag_vpp[0]) > 0)
+			schedule();
+	if (vpp2_used)
+		while (atomic_read(&video_inirq_flag_vpp[1]) > 0)
+			schedule();
 	spin_lock_irqsave(&ins->lock, flags);
 	ins->buf_to_put_num = 0;
 	for (i = 0; i < DISPBUF_TO_PUT_MAX; i++)
@@ -221,6 +276,10 @@ static void common_vf_light_unreg_provider(struct video_recv_s *ins)
 	spin_unlock_irqrestore(&ins->lock, flags);
 
 	atomic_dec(&video_unreg_flag);
+	if (vpp1_used)
+		atomic_dec(&video_unreg_flag_vpp[0]);
+	if (vpp2_used)
+		atomic_dec(&video_unreg_flag_vpp[1]);
 }
 
 static int common_receiver_event_fun(int type,
