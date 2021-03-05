@@ -514,7 +514,7 @@ int fill_vframe_black(struct ge2d_composer_para *ge2d_comp_para)
 		ge2d_comp_para->buffer_w;
 	ge2d_comp_para->ge2d_config->dst_para.height =
 		ge2d_comp_para->buffer_h;
-
+	ge2d_comp_para->ge2d_config->mem_sec = ge2d_comp_para->is_tvp;
 	if (ge2d_context_config_ex(ge2d_comp_para->context,
 				   ge2d_comp_para->ge2d_config) < 0) {
 		VIDEOCOM_ERR("++ge2d configing error.\n");
@@ -685,6 +685,7 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 		ge2d_comp_para->buffer_w;
 	ge2d_comp_para->ge2d_config->dst_para.height =
 		ge2d_comp_para->buffer_h;
+	ge2d_comp_para->ge2d_config->mem_sec = ge2d_comp_para->is_tvp;
 
 	if (ge2d_context_config_ex(ge2d_comp_para->context,
 				   ge2d_comp_para->ge2d_config) < 0) {

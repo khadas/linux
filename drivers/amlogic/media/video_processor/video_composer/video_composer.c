@@ -210,7 +210,7 @@ static void video_timeline_increase(struct composer_dev *dev,
 		 dev->fence_release_count);
 }
 
-static int video_composer_init_buffer(struct composer_dev *dev)
+static int video_composer_init_buffer(struct composer_dev *dev, bool is_tvp)
 {
 	int i, ret = 0;
 	u32 buf_width, buf_height;
@@ -253,15 +253,18 @@ static int video_composer_init_buffer(struct composer_dev *dev)
 	buf_size = PAGE_ALIGN(buf_size);
 	dev->composer_buf_w = buf_width;
 	dev->composer_buf_h = buf_height;
+	if (is_tvp)
+		flags = CODEC_MM_FLAGS_TVP | CODEC_MM_FLAGS_DMA;
 
 	for (i = 0; i < BUFFER_LEN; i++) {
 		if (dev->dst_buf[i].phy_addr == 0)
 			dev->dst_buf[i].phy_addr =
-				codec_mm_alloc_for_dma("video_composer",
+				codec_mm_alloc_for_dma(ports[dev->index].name,
 						       buf_size / PAGE_SIZE,
 						       0, flags);
 		vc_print(dev->index, PRINT_OTHER,
-			 "video_composer: cma memory is %x , size is  %x\n",
+			 "%s: cma memory is %x , size is  %x\n",
+			 ports[dev->index].name,
 			 (unsigned int)dev->dst_buf[i].phy_addr,
 			 (unsigned int)buf_size);
 
@@ -276,6 +279,7 @@ static int video_composer_init_buffer(struct composer_dev *dev)
 		dev->dst_buf[i].buf_w = buf_width;
 		dev->dst_buf[i].buf_h = buf_height;
 		dev->dst_buf[i].buf_size = buf_size;
+		dev->dst_buf[i].is_tvp = is_tvp;
 		if (!kfifo_put(&dev->free_q, &dev->dst_buf[i].frame))
 			vc_print(dev->index, PRINT_ERROR,
 				 "init buffer free_q is full\n");
@@ -306,9 +310,10 @@ static void video_composer_uninit_buffer(struct composer_dev *dev)
 	dev->buffer_status = UNINITIAL;
 	for (i = 0; i < BUFFER_LEN; i++) {
 		if (dev->dst_buf[i].phy_addr != 0) {
-			pr_info("video_composer: cma free addr is %x\n",
+			pr_info("%s: cma free addr is %x\n",
+				ports[dev->index].name,
 				(unsigned int)dev->dst_buf[i].phy_addr);
-			codec_mm_free_for_dma("video_composer",
+			codec_mm_free_for_dma(ports[dev->index].name,
 					      dev->dst_buf[i].phy_addr);
 			dev->dst_buf[i].phy_addr = 0;
 		}
@@ -543,6 +548,28 @@ static struct vframe_s *get_dst_vframe_buffer(struct composer_dev *dev)
 		return NULL;
 	}
 	return dst_vf;
+}
+
+static u32 need_switch_buffer(u32 buf_addr, int size, bool is_tvp, int index)
+{
+	int flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
+	u32 buffer_addr = 0;
+
+	if (is_tvp)
+		flags = CODEC_MM_FLAGS_TVP | CODEC_MM_FLAGS_DMA;
+
+	if (buf_addr > 0) {
+		pr_info("vc: %s free %s buffer %x\n",
+			__func__, is_tvp ? "non tvp" : "tvp", buf_addr);
+		codec_mm_free_for_dma(ports[index].name, buf_addr);
+	}
+
+	buffer_addr = codec_mm_alloc_for_dma(ports[index].name,
+					     size / PAGE_SIZE, 0, flags);
+	pr_info("vc: %s alloc %s buffer %x\n",
+		__func__, is_tvp ? "tvp" : "non tvp", buffer_addr);
+
+	return buffer_addr;
 }
 
 static void check_window_change(struct composer_dev *dev,
@@ -805,16 +832,21 @@ static void vframe_composer(struct composer_dev *dev)
 	struct src_data_para src_data;
 	u32 drop_count = 0;
 	unsigned long addr = 0;
+	u32 switch_buffer = 0;
 	struct output_axis dst_axis;
 	int min_left = 0, min_top = 0;
 	int max_right = 0, max_bottom = 0;
 	struct componser_info_t *componser_info;
 	bool is_dec_vf = false, is_v4l_vf = false;
+	bool is_tvp = false;
 
 	do_gettimeofday(&begin_time);
 
+	if (!kfifo_peek(&dev->receive_q, &received_frames_tmp))
+		return;
+	is_tvp = received_frames_tmp->is_tvp;
 	dev->ge2d_para.ge2d_config = &ge2d_config;
-	ret = video_composer_init_buffer(dev);
+	ret = video_composer_init_buffer(dev, is_tvp);
 	if (ret != 0) {
 		vc_print(dev->index, PRINT_ERROR, "vc: init buffer failed!\n");
 		video_composer_uninit_buffer(dev);
@@ -848,7 +880,21 @@ static void vframe_composer(struct composer_dev *dev)
 	frames_info = &received_frames->frames_info;
 	count = frames_info->frame_count;
 	check_window_change(dev, &received_frames->frames_info);
-
+	is_tvp = received_frames->is_tvp;
+	if (is_tvp != dst_buf->is_tvp) {
+		switch_buffer = need_switch_buffer(dst_buf->phy_addr,
+						   dst_buf->buf_size,
+						   is_tvp, dev->index);
+		if (switch_buffer == 0) {
+			vc_print(dev->index, PRINT_ERROR,
+				 "switch buffer from %s to %s failed\n",
+				 dst_buf->is_tvp ? "tvp" : "non tvp",
+				 is_tvp ? "tvp" : "non tvp");
+			return;
+		}
+		dst_buf->phy_addr = switch_buffer;
+		dst_buf->is_tvp = is_tvp;
+	}
 	if (composer_use_444) {
 		dev->ge2d_para.format = GE2D_FORMAT_S24_YUV444;
 		dev->ge2d_para.plane_num = 1;
@@ -856,6 +902,7 @@ static void vframe_composer(struct composer_dev *dev)
 		dev->ge2d_para.format = GE2D_FORMAT_M24_NV21;
 		dev->ge2d_para.plane_num = 2;
 	}
+	dev->ge2d_para.is_tvp = is_tvp;
 	dev->ge2d_para.phy_addr[0] = dst_buf->phy_addr;
 	dev->ge2d_para.buffer_w = dst_buf->buf_w;
 	dev->ge2d_para.buffer_h = dst_buf->buf_h;
@@ -1011,7 +1058,8 @@ static void vframe_composer(struct composer_dev *dev)
 			| VIDTYPE_VIU_SINGLE_PLANE
 			| VIDTYPE_VIU_FIELD;
 	}
-
+	if (is_tvp)
+		dst_vf->flag |= VFRAME_FLAG_VIDEO_SECURE;
 	if (debug_axis_pip) {
 		dst_vf->axis[0] = 0;
 		dst_vf->axis[1] = 0;
@@ -1667,6 +1715,7 @@ static void set_frames_info(struct composer_dev *dev,
 	bool is_dec_vf = false, is_v4l_vf = false;
 	s32 sideband_type = -1;
 	int channel = -1;
+	bool is_tvp = false;
 
 	if (debug_vd_layer)
 		channel = choose_video_layer[dev->index] - 1;
@@ -1897,7 +1946,12 @@ static void set_frames_info(struct composer_dev *dev,
 				 "unsupport type=%d\n",
 				 frames_info->frame_info[j].type);
 		}
+		if (!is_tvp && (is_dec_vf || is_v4l_vf)) {
+			if (vf->flag & VFRAME_FLAG_VIDEO_SECURE)
+				is_tvp = true;
+		}
 	}
+	dev->received_frames[i].is_tvp = is_tvp;
 	atomic_set(&dev->received_frames[i].on_use, true);
 
 	dev->received_count++;

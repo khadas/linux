@@ -61,6 +61,7 @@ struct ge2d_composer_para {
 	struct ge2d_context_s *context;
 	struct config_para_ex_s *ge2d_config;
 	int angle;
+	bool is_tvp;
 };
 
 struct src_data_para {

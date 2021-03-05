@@ -140,6 +140,7 @@ struct dst_buf_t {
 	u32 buf_w;
 	u32 buf_h;
 	u32 buf_size;
+	bool is_tvp;
 };
 
 struct output_axis {
@@ -157,6 +158,7 @@ struct received_frames_t {
 	struct file *file_vf[MXA_LAYER_COUNT];
 	unsigned long phy_addr[MXA_LAYER_COUNT];
 	u64 time_us64;
+	bool is_tvp;
 };
 
 struct composer_dev {
