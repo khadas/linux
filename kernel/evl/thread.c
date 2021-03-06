@@ -32,7 +32,6 @@
 #include <evl/thread.h>
 #include <evl/memory.h>
 #include <evl/file.h>
-#include <evl/factory.h>
 #include <evl/monitor.h>
 #include <evl/mutex.h>
 #include <evl/poll.h>
