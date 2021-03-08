@@ -11046,6 +11046,19 @@ static ssize_t video_test_screen_show(struct class *cla,
 	return sprintf(buf, "0x%x\n", test_screen);
 }
 
+/* [24]    Flag: enable/disable auto background color */
+/* [23:16] Y */
+/* [15: 8] Cb */
+/* [ 7: 0] Cr */
+static ssize_t video_background_show(struct class *cla,
+				      struct class_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "channel_bg(0x%x) no_channel_bg(0x%x)\n",
+		       vd_layer[0].video_en_bg_color,
+		       vd_layer[0].video_dis_bg_color);
+}
+
 static ssize_t video_rgb_screen_show(struct class *cla,
 				     struct class_attribute *attr,
 				     char *buf)
@@ -11314,6 +11327,30 @@ static ssize_t video_test_screen_store(struct class *cla,
 		pr_info("%s write(VPP_MISC,%x) write(VPP_DUMMY_DATA1, %x)\n",
 			__func__, data, test_screen & 0x00ffffff);
 	}
+
+	return count;
+}
+
+/* [24]    Flag: enable/disable auto background color */
+/* [23:16] Y */
+/* [15: 8] Cb */
+/* [ 7: 0] Cr */
+static ssize_t video_background_store(struct class *cla,
+				       struct class_attribute *attr,
+				       const char *buf, size_t count)
+{
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		pr_info("video bg color, channel(0x%x) no_channel(0x%x)\n",
+			 parsed[0], parsed[1]);
+		vd_layer[0].video_en_bg_color = parsed[0];
+		vd_layer[0].video_dis_bg_color = parsed[1];
+	} else {
+		pr_err("video_background: wrong input params\n");
+		return -EINVAL;
+	}
+
 	return count;
 }
 
@@ -14235,6 +14272,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0644,
 	       vpp_saturation_hue_show,
 	       vpp_saturation_hue_store),
+	__ATTR(video_background,
+	       0644,
+	       video_background_show,
+	       video_background_store),
 	__ATTR(test_screen,
 	       0644,
 	       video_test_screen_show,

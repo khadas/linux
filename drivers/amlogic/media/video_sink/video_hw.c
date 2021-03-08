@@ -5315,6 +5315,28 @@ static int vpp_zorder_check_t7(void)
 	return force_flush;
 }
 
+static void post_blend_dummy_data_update(u32 vpp_index)
+{
+	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
+	u32 bg_color;
+
+	if (vd_layer[0].enabled)
+		bg_color = vd_layer[0].video_en_bg_color;
+	else
+		bg_color = vd_layer[0].video_dis_bg_color;
+
+	/* for channel background setting
+	 * no auto flag, return
+	 */
+	if (!(bg_color & VIDEO_AUTO_POST_BLEND_DUMMY))
+		return;
+
+	if (!legacy_vpp)
+		rdma_wr(VPP_POST_BLEND_BLEND_DUMMY_DATA, bg_color & 0x00ffffff);
+	else
+		rdma_wr(VPP_DUMMY_DATA1, bg_color & 0x00ffffff);
+}
+
 void vpp_blend_update(const struct vinfo_s *vinfo)
 {
 	static u32 vd1_enabled;
@@ -5751,6 +5773,8 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 			vpp_misc_set);
 	}
 	vpp_misc_set_save = vpp_misc_set;
+
+	post_blend_dummy_data_update(vpp_index);
 
 	if ((vd_layer[1].dispbuf && video2_off_req) ||
 	    (!vd_layer[1].dispbuf &&
