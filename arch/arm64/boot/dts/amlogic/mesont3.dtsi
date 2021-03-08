@@ -6,7 +6,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset/amlogic,meson-t3-reset.h>
-#include <dt-bindings/clock/amlogic,t3-clkc.h>
+#include <dt-bindings/clock/t3-clkc.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-t3-gpio.h>
 #include <dt-bindings/power/t3-pd.h>
@@ -182,9 +182,9 @@
 			clkc: clock-controller {
 				compatible = "amlogic,t3-clkc";
 				#clock-cells = <1>;
-				reg = <0x0 0x0 0x0 0x49c>,
-				      <0x0 0x8000 0x0 0x2d0>,
-				      <0x0 0xe140 0x0 0xbc>;
+				reg = <0x0 0x0 0x0 0x230>,
+				      <0x0 0x8000 0x0 0x3e4>,
+				      <0x0 0xe140 0x0 0x20>;
 				reg-names = "basic", "pll",
 					    "cpu_clk";
 				clocks = <&xtal>;

@@ -125,6 +125,7 @@
 #define CLKCTRL_NNA_CLK_CNTL                       (0x0088  << 2)
 #define CLKCTRL_ME_CLK_CNTL                        (0x0089  << 2)
 #define CLKCTRL_FRC_CLK_CNTL                       (0x008a  << 2)
+#define CLKCTRL_USB_CLK_CNTL                       (0x008b  << 2)
 #define CLKCTRL_TIMESTAMP_CTRL                     (0x0100  << 2)
 #define CLKCTRL_TIMESTAMP_CTRL1                    (0x0101  << 2)
 #define CLKCTRL_TIMESTAMP_CTRL2                    (0x0103  << 2)
