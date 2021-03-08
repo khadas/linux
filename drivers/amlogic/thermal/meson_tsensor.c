@@ -28,6 +28,7 @@
 #include <linux/cpu_cooling.h>
 
 #include "../../thermal/thermal_core.h"
+#include "../../thermal/thermal_hwmon.h"
 
 //#define MESON_G12_PTM
 
@@ -737,6 +738,9 @@ static int meson_tsensor_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to request irq: %d\n", data->irq);
 		goto err_thermal;
 	}
+
+	if (thermal_add_hwmon_sysfs(data->tzd))
+		dev_warn(&pdev->dev, "failed to add hwmon sysfs attributes\n");
 
 	meson_tsensor_control(pdev, true);
 	return 0;
