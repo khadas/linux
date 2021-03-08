@@ -831,6 +831,7 @@ static int aml_card_parse_gpios(struct device_node *node,
 	priv->spk_mute_gpio = gpio;
 
 	if (gpio_is_valid(gpio)) {
+		int  ret;
 		active_low = !!(flags & OF_GPIO_ACTIVE_LOW);
 		flags = active_low ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
 		priv->spk_mute_active_low = active_low;
@@ -850,7 +851,10 @@ static int aml_card_parse_gpios(struct device_node *node,
 					GPIOF_OUT_INIT_LOW);
 		}
 
-		devm_gpio_request_one(dev, gpio, flags, "spk_mute");
+		ret = devm_gpio_request_one(dev, gpio, flags, "spk_mute");
+		if (ret < 0) {
+			dev_err(dev, "spk_mute get gpio error!\n");
+		}
 	}
 	if (IS_ERR_OR_NULL(priv->avout_mute_desc)) {
 		priv->avout_mute_desc = gpiod_get(dev,
