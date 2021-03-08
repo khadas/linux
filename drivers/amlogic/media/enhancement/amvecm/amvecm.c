@@ -442,12 +442,9 @@ static int amvecm_set_contrast2(int val)
 
 static int amvecm_set_brightness2(int val)
 {
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y,
 				   val, 8, 9);
-#endif
-	}
 	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y_2,
 				   val, 8, 11);
@@ -487,12 +484,10 @@ static ssize_t video_adj1_brightness_show(struct class *cla,
 	s32 val = 0;
 
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		val = (READ_VPP_REG(VPP_VADJ1_Y) >> 8) & 0x1ff;
 		val = (val << 23) >> 23;
 
 		return sprintf(buf, "%d\n", val);
-#endif
 	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		val = (READ_VPP_REG(VPP_VADJ1_Y_2) >> 8) & 0x7ff;
 		val = (val << 21) >> 21;
@@ -575,12 +570,10 @@ static ssize_t video_adj2_brightness_show(struct class *cla,
 	s32 val = 0;
 
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		val = (READ_VPP_REG(VPP_VADJ2_Y) >> 8) & 0x1ff;
 		val = (val << 23) >> 23;
 
 		return sprintf(buf, "%d\n", val);
-#endif
 	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		val = (READ_VPP_REG(VPP_VADJ2_Y_2) >> 8) & 0x7ff;
 		val = (val << 21) >> 21;
@@ -1617,11 +1610,10 @@ int amvecm_on_vs(struct vframe_s *vf,
 	/* add some flag to trigger */
 	if (vf) {
 		/*gxlx sharpness adaptive setting*/
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_gxlx_cpu())
 			amve_sharpness_adaptive_setting(vf,
 							sps_h_en, sps_v_en);
-#endif
+
 		amvecm_bricon_process(vd1_brightness,
 				      vd1_contrast + vd1_contrast_offset, vf);
 
@@ -4613,7 +4605,6 @@ static ssize_t amvecm_dump_reg_show(struct class *cla,
 		pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
 			(base_reg + (addr << 2)), addr,
 				READ_VPP_REG_EX(addr, 0));
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 		for (addr = 0x3265;
 			addr <= 0x3272; addr++)
@@ -4628,14 +4619,12 @@ static ssize_t amvecm_dump_reg_show(struct class *cla,
 				(base_reg + (addr << 2)), addr,
 					READ_VPP_REG_EX(addr, 0));
 	}
-#endif
 	pr_info("----dump sharpness1 reg----\n");
 	for (addr = (0x3200 + 0x80);
 		addr <= (0x3264 + 0x80); addr++)
 		pr_info("[0x%x]vcbus[0x%04x]=0x%08x\n",
 			(base_reg + (addr << 2)), addr,
 				READ_VPP_REG_EX(addr, 0));
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 		for (addr = (0x3265 + 0x80);
 			addr <= (0x3272 + 0x80); addr++)
@@ -4650,7 +4639,6 @@ static ssize_t amvecm_dump_reg_show(struct class *cla,
 				(base_reg + (addr << 2)), addr,
 					READ_VPP_REG_EX(addr, 0));
 	}
-#endif
 	pr_info("----dump cm reg----\n");
 	for (addr = 0x200; addr <= 0x21e; addr++) {
 		WRITE_VPP_REG_EX(VPP_CHROMA_ADDR_PORT, addr, 0);
@@ -5716,7 +5704,6 @@ static void amvecm_pq_enable(int enable)
 					   1, 28, 3);
 		}
 		/*sr4 drtlpf theta/ debanding en*/
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
 			WRITE_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN,
 					   7, 4, 3);
@@ -5739,7 +5726,6 @@ static void amvecm_pq_enable(int enable)
 			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL,
 					   1, 23, 1);
 		}
-#endif
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
@@ -5840,7 +5826,6 @@ static void amvecm_pq_enable(int enable)
 				, 0, 28, 3);
 		}
 		/*sr4 drtlpf theta/ debanding en*/
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_txlx_cpu()) {
 			WRITE_VPP_REG_BITS(SRSHARP0_SR3_DRTLPF_EN
 				, 0, 4, 3);
@@ -5863,7 +5848,6 @@ static void amvecm_pq_enable(int enable)
 			WRITE_VPP_REG_BITS(SRSHARP1_DB_FLT_CTRL,
 					   0, 23, 1);
 		}
-#endif
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 			WRITE_VPP_REG_BITS(SRSHARP0_SR7_DRTLPF_EN,
@@ -8477,10 +8461,8 @@ tvchip_pq_setting:
 		WRITE_VPP_REG(SRSHARP1_SHARP_SR2_CBIC_VCOEF0,
 			      0x4000);
 	}
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_gxlx_cpu())
 		amve_sharpness_init();
-#endif
 
 	/*dnlp alg parameters init*/
 	dnlp_alg_param_init();
@@ -8745,7 +8727,6 @@ static const struct vecm_match_data_s vecm_dt_xxx = {
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct vecm_match_data_s vecm_dt_tl1 = {
 	.vlk_chip = vlock_chip_tl1,
 	.vlk_support = true,
@@ -8754,7 +8735,6 @@ static const struct vecm_match_data_s vecm_dt_tl1 = {
 	.vlk_phlock_en = true,
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
-#endif
 
 static const struct vecm_match_data_s vecm_dt_sm1 = {
 	.vlk_chip = vlock_chip_sm1,
@@ -8815,12 +8795,10 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 		.compatible = "amlogic, vecm",
 		.data = &vecm_dt_xxx,
 	},
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, vecm-tl1",
 		.data = &vecm_dt_tl1,
 	},
-#endif
 	{
 		.compatible = "amlogic, vecm-sm1",
 		.data = &vecm_dt_sm1,
@@ -9070,13 +9048,11 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	vpp_get_hist_en();
 
 	if (is_meson_txlx_cpu()) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		vpp_set_12bit_datapath2();
 		/*post matrix 12bit yuv2rgb*/
 		/* mtx_sel_dbg |= 1 << VPP_MATRIX_2; */
 		/* amvecm_vpp_mtx_debug(mtx_sel_dbg, 1);*/
 		WRITE_VPP_REG(VPP_MATRIX_PROBE_POS, 0x1fff1fff);
-#endif
 	} else if (is_meson_txhd_cpu()) {
 		vpp_set_10bit_datapath1();
 	} else if (is_meson_g12a_cpu() || is_meson_g12b_cpu()) {
@@ -9087,13 +9063,11 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	/* box sdr_mode:auto, tv sdr_mode:off */
 	/* disable contrast and saturation adjustment for HDR on TV */
 	/* disable SDR to HDR convert on TV */
-	if (is_meson_gxl_cpu() || is_meson_gxm_cpu()) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+	if (is_meson_gxl_cpu() || is_meson_gxm_cpu())
 		hdr_flag = (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3);
-#endif
-	} else {
+	else
 		hdr_flag = (1 << 0) | (1 << 1) | (0 << 2) | (0 << 3) | (1 << 4);
-	}
+
 	hdr_init(&amvecm_dev.hdr_d);
 	aml_vecm_dt_parse(pdev);
 

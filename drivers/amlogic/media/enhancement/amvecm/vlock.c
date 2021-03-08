@@ -571,12 +571,9 @@ void vlock_reset(u32 onoff)
  */
 static void vlock_enable(bool enable)
 {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	unsigned int tmp_value;
-#endif
 
 	if (is_meson_gxtvbb_cpu()) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (vlock_mode & VLOCK_MODE_MANUAL_PLL) {
 			amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL6, &tmp_value);
 			vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL6, 0, 20, 1);
@@ -592,16 +589,13 @@ static void vlock_enable(bool enable)
 			vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL6,
 						  enable, 20, 1);
 		}
-#endif
 	} else if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (vlock_mode & VLOCK_MODE_MANUAL_PLL)
 			vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL5,
 						  0, 3, 1);
 		else
 			vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL5,
 						  enable, 3, 1);
-#endif
 	} else if (vlock.dtdata->vlk_hwver >= vlock_hw_ver2) {
 		/*reset*/
 		if (!(vlock_mode & VLOCK_MODE_MANUAL_PLL)) {
@@ -705,12 +699,10 @@ static void vlock_setting(struct vframe_s *vf,
 		/* enable to adjust enc */
 		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 30, 1);
 		if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			/*clear accum1 value*/
 			WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 2, 1);
 			/*clear accum0 value*/
 			WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 1, 5, 1);
-#endif
 		}
 		/*@20180314 new add*/
 		/*
@@ -721,14 +713,11 @@ static void vlock_setting(struct vframe_s *vf,
 		if ((vf->type_original & VIDTYPE_TYPEMASK) &&
 		    !(vlock_mode & VLOCK_MODE_MANUAL_SOFT_ENC)) {
 			/*tl1 fix i problem*/
-			if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+			if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1)
 				input_hz = input_hz >> 1;
-#endif
-			} else {
+			else
 				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
 						   1, 28, 1);
-			}
 		} else {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 				if (input_hz > 0 && output_hz > 0 &&
@@ -793,14 +782,11 @@ static void vlock_setting(struct vframe_s *vf,
 		 *bit8~15:output freq
 		 */
 		if (vf->type_original & VIDTYPE_TYPEMASK) {
-			if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+			if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1)
 				input_hz = input_hz >> 1;
-#endif
-			} else {
+			else
 				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL,
 						   1, 28, 1);
-			}
 		} else {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 				if (input_hz > 0 && output_hz > 0 &&
@@ -1060,9 +1046,7 @@ static void vlock_disable_step1(void)
 
 static bool vlock_disable_step2(void)
 {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	unsigned int temp_val;
-#endif
 	bool ret = false;
 
 	/* need delay to disable follow regs(vlsi suggest!!!) */
@@ -1082,14 +1066,12 @@ static bool vlock_disable_step2(void)
 		/* disable vid_lock_en */
 		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 0, 31, 1);
 		vlock_state = VLOCK_STATE_DISABLE_STEP2_DONE;
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_gxtvbb_cpu()) {
 			amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL6, &temp_val);
 			if (((temp_val >> 21) & 0x3) != 0)
 				vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL6,
 							  0, 21, 2);
 		}
-#endif
 
 		vlock_reset(1);
 		WRITE_VPP_REG_BITS(VPU_VLOCK_CTRL, 0, 0, 2);
@@ -1511,13 +1493,11 @@ static void vlock_enable_step3_pll(void)
 	 *on gxtvbb this load signal will effect SSG,
 	 *which may result in flashes black
 	 */
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_gxtvbb_cpu()) {
 		amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL6, &tmp_value);
 		if (((tmp_value >> 21) & 0x3) != 2)
 			vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL6, 2, 21, 2);
 	}
-#endif
 
 	/* add delta count check
 	 *for interlace input need div 2
@@ -3151,14 +3131,12 @@ ssize_t vlock_debug_store(struct class *cla,
 
 	if (!buf)
 		return count;
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (!is_meson_gxtvbb_cpu() &&
 	    !is_meson_gxbb_cpu() &&
 		(get_cpu_type() < MESON_CPU_MAJOR_ID_GXL)) {
 		pr_info("\n chip does not support vlock process!!!\n");
 		return count;
 	}
-#endif
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	vlock_parse_param(buf_orig, (char **)&parm);

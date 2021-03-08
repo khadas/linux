@@ -102,7 +102,6 @@ static struct loopback_chipinfo g12a_loopbacka_chipinfo = {
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct loopback_chipinfo tl1_loopbacka_chipinfo = {
 	.id      = LOOPBACKA,
 	.ch_ctrl = true,
@@ -118,7 +117,6 @@ static struct loopback_chipinfo tl1_loopbackb_chipinfo = {
 	.srcs	  = &lb_srcs_v1[0],
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
-#endif
 
 static struct loopback_chipinfo sm1_loopbacka_chipinfo = {
 	.id      = LOOPBACKA,
@@ -178,7 +176,6 @@ static struct loopback_chipinfo t5_loopbacka_chipinfo = {
 };
 
 static const struct of_device_id loopback_device_id[] = {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, snd-loopback",
 		.data		= &g12a_loopbacka_chipinfo,
@@ -188,17 +185,16 @@ static const struct of_device_id loopback_device_id[] = {
 		.data       = &g12a_loopbacka_chipinfo,
 	},
 	{
+		.compatible = "amlogic, g12a-loopback",
+		.data       = &g12a_loopbacka_chipinfo,
+	},
+	{
 		.compatible = "amlogic, tl1-loopbacka",
 		.data		= &tl1_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, tl1-loopbackb",
 		.data		= &tl1_loopbackb_chipinfo,
-	},
-#endif
-	{
-		.compatible = "amlogic, g12a-loopback",
-		.data       = &g12a_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, sm1-loopbacka",

@@ -3892,8 +3892,7 @@ int signal_type_changed(struct vframe_s *vf,
 	    vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
 	    vf->source_type == VFRAME_SOURCE_TYPE_COMP ||
 	    vf->source_type == VFRAME_SOURCE_TYPE_HDMI) {
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
 			default_signal_type =
 				/* default 709 full */
 				  (1 << 29)	/* video available */
@@ -3903,8 +3902,7 @@ int signal_type_changed(struct vframe_s *vf,
 				| (1 << 16)	/* bt709 */
 				| (1 << 8)	/* bt709 */
 				| (1 << 0);	/* bt709 */
-#endif
-		} else {
+		else
 			default_signal_type =
 				/* default 709 limit */
 				  (1 << 29)	/* video available */
@@ -3914,7 +3912,6 @@ int signal_type_changed(struct vframe_s *vf,
 				| (1 << 16)	/* bt709 */
 				| (1 << 8)	/* bt709 */
 				| (1 << 0);	/* bt709 */
-		}
 	} else { /* for local play */
 		if (vf->height >= 720)
 			default_signal_type =
@@ -4578,16 +4575,13 @@ enum vpp_matrix_csc_e prepare_customer_matrix(u32 (*s)[3][2],/* src prim */
 	s64 prmy_src[4][2];
 	s64 prmy_dst[4][2];
 	s64 out[3][3];
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	int i, j;
-#endif
 	int ret;
 
 	ret = VPP_MATRIX_BT2020YUV_BT2020RGB;
 
 	if (customer_matrix_en &&
 	    get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		for (i = 0; i < 3; i++) {
 			m->pre_offset[i] = customer_matrix_param[i];
 			for (j = 0; j < 3; j++)
@@ -4597,7 +4591,6 @@ enum vpp_matrix_csc_e prepare_customer_matrix(u32 (*s)[3][2],/* src prim */
 		}
 		m->right_shift = customer_matrix_param[15];
 		ret = VPP_MATRIX_BT2020RGB_CUSRGB;
-#endif
 	} else {
 		if (inverse_flag) {
 			if (check_primaries(s, w, v, &prmy_src, &prmy_dst)) {
@@ -5031,7 +5024,6 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 				       CSC_ON);
 	}
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		/* turn vd1 matrix on */
 		vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
 			       csc_type, NULL);
@@ -5052,7 +5044,6 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709);
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
-#endif
 	}
 	/*vpp matrix mux write*/
 	vpp_set_mtx_en_write();
@@ -5317,7 +5308,6 @@ static int hlg_process(enum vpp_matrix_csc_e csc_type,
 				       CSC_ON);
 	}
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		/* turn vd1 matrix on */
 		vpp_set_matrix(VPP_MATRIX_VD1, CSC_ON,
 			       csc_type, NULL);
@@ -5338,7 +5328,6 @@ static int hlg_process(enum vpp_matrix_csc_e csc_type,
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709);
 		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
-#endif
 	}
 	/*vpp matrix mux write*/
 	vpp_set_mtx_en_write();
@@ -5676,21 +5665,19 @@ static void bypass_hdr_process(enum vpp_matrix_csc_e csc_type,
 		if (sdr_process_mode[vd_path] &&
 		    csc_type < VPP_MATRIX_BT2020YUV_BT2020RGB &&
 		    ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
-		    (get_cpu_type() == MESON_CPU_MAJOR_ID_TXL))) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+		    (get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)))
 			set_vpp_lut(VPP_LUT_INV_EOTF,
 				    NULL,
 				    NULL,
 				    NULL,
 				    CSC_ON);
-#endif
-		} else {
+		else
 			set_vpp_lut(VPP_LUT_INV_EOTF,
 				    NULL,
 				    NULL,
 				    NULL,
 				    CSC_OFF);
-		}
+
 		/* eotf lut bypass */
 		set_vpp_lut(VPP_LUT_EOTF,
 			    NULL, /* R */
@@ -5769,13 +5756,10 @@ static void bypass_hdr_process(enum vpp_matrix_csc_e csc_type,
 		/* other cases */
 		/* xvyccc matrix3: bypass */
 		if (vinfo->mode != VMODE_LCD &&
-		    get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+		    get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709);
-#endif
-		} else {
+		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
-		}
 	}
 	/*vpp matrix mux write*/
 	vpp_set_mtx_en_write();
@@ -6006,21 +5990,19 @@ static void set_bt2020csc_process(enum vpp_matrix_csc_e csc_type,
 		if (sdr_process_mode[vd_path] &&
 		    csc_type < VPP_MATRIX_BT2020YUV_BT2020RGB &&
 		    (get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB ||
-		     get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+		     get_cpu_type() == MESON_CPU_MAJOR_ID_TXL))
 			set_vpp_lut(VPP_LUT_INV_EOTF,
 				    NULL,
 				    NULL,
 				    NULL,
 				    CSC_ON);
-#endif
-		} else {
+		else
 			set_vpp_lut(VPP_LUT_INV_EOTF,
 				    NULL,
 				    NULL,
 				    NULL,
 				    CSC_OFF);
-		}
+
 		/* eotf lut bypass */
 		set_vpp_lut(VPP_LUT_EOTF,
 			    NULL, /* R */
@@ -6090,13 +6072,10 @@ static void set_bt2020csc_process(enum vpp_matrix_csc_e csc_type,
 		/* other cases */
 		/* xvyccc matrix3: bypass */
 		if (vinfo->mode != VMODE_LCD &&
-		    get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+		    get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709);
-#endif
-		} else {
+		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
-		}
 	}
 	/*vpp matrix mux write*/
 	vpp_set_mtx_en_write();
@@ -6373,13 +6352,10 @@ static void hlg_hdr_process(enum vpp_matrix_csc_e csc_type,
 		/* other cases */
 		/* xvyccc matrix3: bypass */
 		if (vinfo->mode != VMODE_LCD &&
-		    get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+		    get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709);
-#endif
-		} else {
+		else
 			vpp_set_matrix3(CSC_OFF, VPP_MATRIX_NULL);
-		}
 	}
 	/*vpp matrix mux write*/
 	vpp_set_mtx_en_write();
@@ -6627,15 +6603,12 @@ static void hdr_support_process(struct vinfo_s *vinfo, enum vd_path_e vd_path)
 			sdr_process_mode[vd_path] = PROC_SDR_TO_HDR;
 		else if (vinfo->mode == VMODE_LCD &&
 			 ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
-			 (get_cpu_type() == MESON_CPU_MAJOR_ID_TXL))) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+			 (get_cpu_type() == MESON_CPU_MAJOR_ID_TXL)))
 			/*tv sdr->hdr*/
 			sdr_process_mode[vd_path] = PROC_SDR_TO_HDR;
-#endif
-		} else {
+		else
 			/* sdr->sdr*/
 			sdr_process_mode[vd_path] = PROC_BYPASS;
-		}
 	} else {
 		/* force sdr->hdr */
 		sdr_process_mode[vd_path] = sdr_mode;
@@ -7468,14 +7441,11 @@ static void video_process(struct vframe_s *vf,
 	}
 	if (need_adjust_contrast_saturation & 1) {
 		if (lut_289_en &&
-		    get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+		    get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
 			vd1_contrast_offset = 0;
-#endif
-		} else {
+		else
 			vd1_contrast_offset =
 			calculate_contrast_adj(p->luminance[0] / 10000);
-		}
 		vecm_latch_flag |= FLAG_VADJ1_CON;
 	} else {
 		vd1_contrast_offset = 0;
@@ -7486,13 +7456,10 @@ static void video_process(struct vframe_s *vf,
 	} else {
 		if ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB ||
 		     get_cpu_type() == MESON_CPU_MAJOR_ID_TXL) &&
-		    sdr_process_mode[vd_path] == PROC_SDR_TO_HDR) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+		    sdr_process_mode[vd_path] == PROC_SDR_TO_HDR)
 			saturation_offset = sdr_saturation_offset;
-#endif
-		} else {
+		else
 			saturation_offset = 0;
-		}
 		vecm_latch_flag |= FLAG_VADJ1_COLOR;
 	}
 	if (cur_csc_type[vd_path] != csc_type) {
@@ -7791,7 +7758,6 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		    hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_SDR)
 			hdr10_plus_process_update(0, vd_path);
 	} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (hdr_process_mode[vd_path] == PROC_MATCH &&
 		    csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB &&
 			!(get_hdr_type() & HLG_FLAG))
@@ -7799,7 +7765,6 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		if (hdr10p_meta_updated &&
 		    hdr10_plus_process_mode[vd_path] == PROC_MATCH)
 			hdr10_plus_process_update(0, vd_path);
-#endif
 	}
 
 	/* eye protection mode */

@@ -590,10 +590,16 @@ static int new_resample_init(struct audioresample *p_resample)
 	return 0;
 }
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct resample_chipinfo axg_resample_chipinfo = {
 	.num        = 1,
 	.id         = RESAMPLE_A,
+	.resample_version = AXG_RESAMPLE,
+};
+
+static struct resample_chipinfo g12a_resample_chipinfo = {
+	.num        = 1,
+	.id         = RESAMPLE_A,
+	.dividor_fn = true,
 	.resample_version = AXG_RESAMPLE,
 };
 
@@ -607,14 +613,6 @@ static struct resample_chipinfo tl1_resample_a_chipinfo = {
 static struct resample_chipinfo tl1_resample_b_chipinfo = {
 	.num        = 2,
 	.id         = RESAMPLE_B,
-	.dividor_fn = true,
-	.resample_version = AXG_RESAMPLE,
-};
-#endif
-
-static struct resample_chipinfo g12a_resample_chipinfo = {
-	.num        = 1,
-	.id         = RESAMPLE_A,
 	.dividor_fn = true,
 	.resample_version = AXG_RESAMPLE,
 };
@@ -672,10 +670,13 @@ static struct resample_chipinfo t5_resample_b_chipinfo = {
 };
 
 static const struct of_device_id resample_device_id[] = {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, axg-resample",
 		.data = &axg_resample_chipinfo,
+	},
+	{
+		.compatible = "amlogic, g12a-resample",
+		.data = &g12a_resample_chipinfo,
 	},
 	{
 		.compatible = "amlogic, tl1-resample-a",
@@ -684,11 +685,6 @@ static const struct of_device_id resample_device_id[] = {
 	{
 		.compatible = "amlogic, tl1-resample-b",
 		.data = &tl1_resample_b_chipinfo,
-	},
-#endif
-	{
-		.compatible = "amlogic, g12a-resample",
-		.data = &g12a_resample_chipinfo,
 	},
 	{
 		.compatible = "amlogic, sm1-resample-a",
