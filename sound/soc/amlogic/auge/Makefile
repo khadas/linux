@@ -4,6 +4,7 @@ $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-a1.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-sc2.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-t5.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-t7.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/clk-t3.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/audio_clks.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/audio_controller.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/audio_io.o
