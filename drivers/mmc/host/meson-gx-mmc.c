@@ -701,7 +701,7 @@ static int meson_mmc_find_tuning_point(unsigned long *test, u8 clk_div)
 #endif
 
 static int find_best_win(struct mmc_host *mmc,
-		char *buf, int num, int *b_s, int *b_sz)
+		char *buf, int num, int *b_s, int *b_sz, bool wrap_f)
 {
 	struct meson_host *host = mmc_priv(mmc);
 	int wrap_win_start = -1, wrap_win_size = 0;
@@ -757,7 +757,7 @@ static int find_best_win(struct mmc_host *mmc,
 		if (best_win_start < 0) {
 			best_win_start = curr_win_start;
 			best_win_size = curr_win_size;
-		} else if (wrap_win_size > 0) {
+		} else if ((wrap_win_size > 0) && wrap_f) {
 			/* Wrap around case */
 			if (curr_win_size + wrap_win_size > best_win_size) {
 				best_win_start = curr_win_start;
@@ -1114,7 +1114,7 @@ tuning:
 	len += sprintf(adj_print + len, ">\n");
 	pr_info("%s", host->adj_win);
 
-	find_best_win(mmc, rx_adj, clk_div, &best_s, &best_sz);
+	find_best_win(mmc, rx_adj, clk_div, &best_s, &best_sz, true);
 
 	if (best_sz <= 0) {
 		if ((tuning_num++ > MAX_TUNING_RETRY) || clk_div >= 10) {
@@ -2964,8 +2964,8 @@ static int intf3_scan(struct mmc_host *mmc, u32 opcode)
 		}
 	}
 	host->cmd_retune = 1;
-	find_best_win(mmc, rx_r, 64, &best_s1, &best_sz1);
-	find_best_win(mmc, rx_f, 64, &best_s2, &best_sz2);
+	find_best_win(mmc, rx_r, 64, &best_s1, &best_sz1, false);
+	find_best_win(mmc, rx_f, 64, &best_s2, &best_sz2, false);
 	if (host->debug_flag) {
 		emmc_show_cmd_window(rx_r, 1);
 		emmc_show_cmd_window(rx_f, 1);
