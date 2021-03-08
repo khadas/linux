@@ -136,7 +136,6 @@ static void meson_uart_shutdown(struct uart_port *port)
 
 	if (port->line == 0)
 		return;
-	free_irq(port->irq, port);
 
 	spin_lock_irqsave(&port->lock, flags);
 
@@ -308,8 +307,6 @@ static int meson_uart_startup(struct uart_port *port)
 	val = (AML_UART_RECV_IRQ(1) | AML_UART_XMIT_IRQ(port->fifosize / 2));
 	writel_relaxed(val, port->membase + AML_UART_MISC);
 
-	ret = request_irq(port->irq, meson_uart_interrupt, 0,
-			  port->name, port);
 
 	return ret;
 }
@@ -458,6 +455,8 @@ static void meson_uart_release_port(struct uart_port *port)
 
 static int meson_uart_request_port(struct uart_port *port)
 {
+	int ret = 0;
+
 	if (!devm_request_mem_region(port->dev, port->mapbase, port->mapsize,
 				     dev_name(port->dev))) {
 		dev_err(port->dev, "Memory region busy\n");
@@ -469,7 +468,9 @@ static int meson_uart_request_port(struct uart_port *port)
 	if (!port->membase)
 		return -ENOMEM;
 
-	return 0;
+	ret = request_irq(port->irq, meson_uart_interrupt, 0, port->name, port);
+
+	return ret;
 }
 
 static void meson_uart_config_port(struct uart_port *port, int flags)
