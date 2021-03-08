@@ -21,13 +21,13 @@ core_param(cfi_no_warn, cfi_no_warn, uint, 0644);
 #endif
 
 /* Compiler-defined handler names */
-#ifdef CONFIG_CFI_PERMISSIVE
+#ifdef CONFIG_AMLOGIC_CFI_PERMISSIVE
 #define cfi_failure_handler	__ubsan_handle_cfi_check_fail
 #define cfi_slowpath_handler	__cfi_slowpath_diag
 #else /* enforcing */
 #define cfi_failure_handler	__ubsan_handle_cfi_check_fail_abort
 #define cfi_slowpath_handler	__cfi_slowpath
-#endif /* CONFIG_CFI_PERMISSIVE */
+#endif /* CONFIG_AMLOGIC_CFI_PERMISSIVE */
 
 static inline void handle_cfi_failure(void *ptr)
 {
@@ -35,14 +35,14 @@ static inline void handle_cfi_failure(void *ptr)
 	if (cfi_no_warn)
 		return;
 #endif
-	if (IS_ENABLED(CONFIG_CFI_PERMISSIVE))
+	if (IS_ENABLED(CONFIG_AMLOGIC_CFI_PERMISSIVE))
 		WARN_RATELIMIT(1, "CFI failure (target: %pS):\n", ptr);
 	else
 		panic("CFI failure (target: %pS)\n", ptr);
 }
 
 #ifdef CONFIG_MODULES
-#ifdef CONFIG_CFI_CLANG_SHADOW
+#ifdef CONFIG_AMLOGIC_CFI_CLANG_SHADOW
 struct shadow_range {
 	/* Module address range */
 	unsigned long mod_min_addr;
@@ -252,7 +252,7 @@ static inline cfi_check_fn ptr_to_check_fn(const struct cfi_shadow __rcu *s,
 
 	return (cfi_check_fn)shadow_to_ptr(s, index);
 }
-#endif /* CONFIG_CFI_CLANG_SHADOW */
+#endif /* CONFIG_AMLOGIC_CFI_CLANG_SHADOW */
 
 static inline cfi_check_fn find_module_cfi_check(void *ptr)
 {
@@ -277,7 +277,7 @@ static inline cfi_check_fn find_cfi_check(void *ptr)
 	if (!rcu)
 		rcu_nmi_enter();
 
-#ifdef CONFIG_CFI_CLANG_SHADOW
+#ifdef CONFIG_AMLOGIC_CFI_CLANG_SHADOW
 	/* Look up the __cfi_check function to use */
 	rcu_read_lock_sched();
 	f = ptr_to_check_fn(rcu_dereference_sched(cfi_shadow),
@@ -291,7 +291,7 @@ static inline cfi_check_fn find_cfi_check(void *ptr)
 	 * Fall back to find_module_cfi_check, which works also for a larger
 	 * module address space, but is slower.
 	 */
-#endif /* CONFIG_CFI_CLANG_SHADOW */
+#endif /* CONFIG_AMLOGIC_CFI_CLANG_SHADOW */
 
 	f = find_module_cfi_check(ptr);
 

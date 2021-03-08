@@ -159,7 +159,7 @@ static unsigned long kallsyms_sym_address(int idx)
 	return kallsyms_relative_base - 1 - kallsyms_offsets[idx];
 }
 
-#if defined(CONFIG_CFI_CLANG) && defined(CONFIG_THINLTO)
+#if defined(CONFIG_AMLOGIC_CFI_CLANG) && defined(CONFIG_THINLTO)
 /*
  * LLVM appends a hash to static function names when ThinLTO and CFI are
  * both enabled, which causes confusion and potentially breaks user space

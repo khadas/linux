@@ -792,7 +792,7 @@ void __weak bpf_jit_free_exec(void *addr)
 	module_memfree(addr);
 }
 
-#if IS_ENABLED(CONFIG_BPF_JIT) && IS_ENABLED(CONFIG_CFI_CLANG)
+#if IS_ENABLED(CONFIG_BPF_JIT) && IS_ENABLED(CONFIG_AMLOGIC_CFI_CLANG)
 bool __weak arch_bpf_jit_check_func(const struct bpf_prog *prog)
 {
 	return true;

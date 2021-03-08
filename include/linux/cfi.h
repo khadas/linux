@@ -9,7 +9,7 @@
 
 #include <linux/stringify.h>
 
-#ifdef CONFIG_CFI_CLANG
+#ifdef CONFIG_AMLOGIC_CFI_CLANG
 #ifdef CONFIG_MODULES
 
 typedef void (*cfi_check_fn)(uint64_t id, void *ptr, void *diag);
@@ -20,7 +20,7 @@ typedef void (*cfi_check_fn)(uint64_t id, void *ptr, void *diag);
 
 extern void CFI_CHECK_FN(uint64_t id, void *ptr, void *diag);
 
-#ifdef CONFIG_CFI_CLANG_SHADOW
+#ifdef CONFIG_AMLOGIC_CFI_CLANG_SHADOW
 extern void cfi_module_add(struct module *mod, unsigned long min_addr,
 	unsigned long max_addr);
 
@@ -36,9 +36,9 @@ static inline void cfi_module_remove(struct module *mod, unsigned long min_addr,
 	unsigned long max_addr)
 {
 }
-#endif /* CONFIG_CFI_CLANG_SHADOW */
+#endif /* CONFIG_AMLOGIC_CFI_CLANG_SHADOW */
 
 #endif /* CONFIG_MODULES */
-#endif /* CONFIG_CFI_CLANG */
+#endif /* CONFIG_AMLOGIC_CFI_CLANG */
 
 #endif /* _LINUX_CFI_H */

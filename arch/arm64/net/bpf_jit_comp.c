@@ -977,7 +977,7 @@ void bpf_jit_free_exec(void *addr)
 	return vfree(addr);
 }
 
-#ifdef CONFIG_CFI_CLANG
+#ifdef CONFIG_AMLOGIC_CFI_CLANG
 bool arch_bpf_jit_check_func(const struct bpf_prog *prog)
 {
 	const uintptr_t func = (const uintptr_t)prog->bpf_func;

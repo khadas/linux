@@ -367,7 +367,7 @@ struct module {
 	const s32 *crcs;
 	unsigned int num_syms;
 
-#ifdef CONFIG_CFI_CLANG
+#ifdef CONFIG_AMLOGIC_CFI_CLANG
 	cfi_check_fn cfi_check;
 #endif
 

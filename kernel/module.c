@@ -4365,7 +4365,7 @@ int module_kallsyms_on_each_symbol(int (*fn)(void *, const char *,
 
 static void cfi_init(struct module *mod)
 {
-#ifdef CONFIG_CFI_CLANG
+#ifdef CONFIG_AMLOGIC_CFI_CLANG
 	rcu_read_lock_sched();
 	mod->cfi_check = (cfi_check_fn)find_kallsyms_symbol_value(mod,
 						CFI_CHECK_FN_NAME);
@@ -4376,7 +4376,7 @@ static void cfi_init(struct module *mod)
 
 static void cfi_cleanup(struct module *mod)
 {
-#ifdef CONFIG_CFI_CLANG
+#ifdef CONFIG_AMLOGIC_CFI_CLANG
 	cfi_module_remove(mod, module_addr_min, module_addr_max);
 #endif
 }
