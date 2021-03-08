@@ -633,7 +633,7 @@ void aml_phy_offset_cal_t5(void)
 	usleep_range(1000, 1100);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0,
 		CDR_EQ_RSTB, 3);
-	usleep_range(1000, 11000);
+	usleep_range(1000, 1100);
 
 	rx_pr("ofst cal\n");
 }
@@ -1794,7 +1794,7 @@ bool aml_get_tmds_valid_t5(void)
 	/* it is not necessary and T7 has not it */
 	/* tmds_valid = hdmirx_rd_dwc(DWC_HDMI_PLL_LCK_STS) & 0x01; */
 	sqofclk = hdmirx_rd_top(TOP_MISC_STAT0) & 0x1;
-	tmdsclk_valid = aml_phy_pll_lock();
+	tmdsclk_valid = is_tmds_clk_stable();
 	tmds_align = hdmirx_rd_top(TOP_TMDS_ALIGN_STAT) & 0x3f000000;
 	if (sqofclk && tmdsclk_valid && tmds_align == 0x3f000000) {
 		ret = 1;

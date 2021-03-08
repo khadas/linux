@@ -2781,6 +2781,7 @@ static void rx_sig_sync_monitor(void)
 {
 	bool avi_unnormal = avi_rcv_unnormal_chk();
 
+	avi_unnormal = false;
 	if (avi_unnormal && rx.hdcp.hdcp_source) {
 		rx_send_hpd_pulse();
 		rx_pr("###no correct avi pkt during %d frames\n",

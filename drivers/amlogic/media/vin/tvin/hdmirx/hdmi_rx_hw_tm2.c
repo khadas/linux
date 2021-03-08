@@ -1263,7 +1263,7 @@ bool aml_get_tmds_valid_tm2(void)
 		sqofclk = rx.aml_phy.force_sqo;
 	else
 		sqofclk = hdmirx_rd_top(TOP_MISC_STAT0) & 0x1;
-	tmdsclk_valid = aml_phy_pll_lock();
+	tmdsclk_valid = is_tmds_clk_stable();
 	tmds_align = hdmirx_rd_top(TOP_TMDS_ALIGN_STAT) & 0x3f000000;
 	if (sqofclk && tmdsclk_valid && tmds_align == 0x3f000000) {
 		ret = 1;

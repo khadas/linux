@@ -3122,8 +3122,8 @@ void cor_init(void)
 	data8 |= (0 << 0);// [1:0] input_pixel_rate
 	hdmirx_wr_cor(RX_VP_INPUT_FORMAT_HI, data8);
 
-	//===
-	hdmirx_wr_cor(RX_SW_HDMI_MODE_PWD_IVCRX, 0x00);//register address: 0x1022
+	//===hdcp 1.4 needed
+	hdmirx_wr_cor(RX_SW_HDMI_MODE_PWD_IVCRX, 0x04);//register address: 0x1022
 
 	//[0] reg_ext_mclk_en; 1 select external mclk; 0: select internal dacr mclk
 	hdmirx_wr_cor(EXT_MCLK_SEL_PWD_IVCRX, 0x01);//register address: 0x10c6
@@ -3273,7 +3273,7 @@ void cor_init(void)
 
 	//----clear ksv fifo rdy --------
 	data8  =  0;
-	data8 |= (0 << 0);//bit[2:0] reg_fifordy_clr_en
+	data8 |= (7 << 0);//bit[2:0] reg_fifordy_clr_en
 	data8 |= (1 << 3);//bit[  3] reg_hdmi_clr_en
 	hdmirx_wr_cor(RX_RPT_RDY_CTRL_PWD_IVCRX, data8);//register address: 0x1010 (0x0f)
 

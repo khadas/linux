@@ -20,8 +20,8 @@
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 
-/* fix t7 repeatition error */
-#define RX_VER0 "ver.2021/02/04"
+/* hdcp14 cts 2c-03/04 fail */
+#define RX_VER0 "ver.2021/03/08"
 
 /*print type*/
 #define	LOG_EN		0x01

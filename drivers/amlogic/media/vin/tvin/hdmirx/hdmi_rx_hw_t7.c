@@ -770,8 +770,9 @@ void get_eq_val_t7(void)
 void aml_eq_cfg_t7(void)
 {
 	/* dont need to run eq if no sqo_clk or pll not lock */
-	if (!aml_phy_pll_lock())
-		return;
+	/* if (!aml_phy_pll_lock())
+	 *	return;
+	 */
 	/* step10 */
 	/* cdr_lkdet_en(0xe5[28])dfe_rstb(0xe7[26])), */
 	/* eq_adp_stg<1:0>(0xe5[9:8])b01, cdr_rstb(0xe5[25]), */
