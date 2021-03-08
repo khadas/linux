@@ -619,6 +619,33 @@ int pts_checkin_wrptr(u8 type, u32 ptr, u32 val)
 }
 EXPORT_SYMBOL(pts_checkin_wrptr);
 
+int pts_checkin_wrptr_pts33(u8 type, u32 ptr, u64 pts_val)
+{
+	u32 offset, cur_offset = 0, page = 0, page_no;
+	u64 us;
+
+	if (type >= PTS_TYPE_MAX)
+		return -EINVAL;
+
+	if (tsync_get_new_arch())
+		return -EINVAL;
+
+	offset = ptr - pts_table[type].buf_start;
+	get_wrpage_offset(type, &page, &cur_offset);
+
+	page_no = (offset > cur_offset) ? (page - 1) : page;
+
+	if (type == PTS_TYPE_VIDEO)
+		pts_val += tsync_get_vpts_adjust();
+	us = div64_u64(pts_val * 100, 9);
+
+	return pts_checkin_offset_inline(type,
+			pts_table[type].buf_size * page_no + offset,
+			(u32)pts_val,
+			us);
+}
+EXPORT_SYMBOL(pts_checkin_wrptr_pts33);
+
 int pts_checkin(u8 type, u32 val)
 {
 	u32 page = 0;
