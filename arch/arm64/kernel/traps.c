@@ -897,17 +897,20 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned int esr)
 	}
 }
 
-int ignore_serror = 1;
+#ifdef CONFIG_AMLOGIC_MODIFY
+int ignore_serror;
 core_param(ignore_serror, ignore_serror, int, 0664);
+#endif
 
 asmlinkage void do_serror(struct pt_regs *regs, unsigned int esr)
 {
 	const bool was_in_nmi = in_nmi();
-
+#ifdef CONFIG_AMLOGIC_MODIFY
 	if (ignore_serror) {
 		pr_crit("\nSerror:%s,%d,\n", __func__, __LINE__);
 		return;
 	}
+#endif
 	if (!was_in_nmi)
 		nmi_enter();
 
