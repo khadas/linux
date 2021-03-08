@@ -94,6 +94,8 @@
 #define CANVAS_TABLE_CNT 1
 #endif
 
+#define VIDEO_AUTO_POST_BLEND_DUMMY BIT(24)
+
 #define DISPBUF_TO_PUT_MAX 3
 
 #define IS_DI_PROCESSED(vftype) ((vftype) & (VIDTYPE_PRE_INTERLACE | VIDTYPE_DI_PW))
@@ -360,6 +362,8 @@ struct video_layer_s {
 	u8 vpp_index;
 	u8 vppx_blend_en;
 	bool vd1_vd2_mux;
+	u32 video_en_bg_color;
+	u32 video_dis_bg_color;
 };
 
 enum {
