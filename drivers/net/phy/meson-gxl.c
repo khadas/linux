@@ -145,11 +145,9 @@ static int meson_gxl_config_init(struct phy_device *phydev)
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 /*tx_amp*/
-unsigned int tx_amp_res;
 static int custom_internal_config(struct phy_device *phydev)
 {
 	unsigned int efuse_valid = 0;
-	unsigned int env_valid = 0;
 	unsigned int efuse_amp = 0;
 	unsigned int setup_amp = 0;
 
@@ -179,16 +177,9 @@ static int custom_internal_config(struct phy_device *phydev)
 	efuse_valid = ((efuse_amp >> 4) & 0x3);
 	efuse_amp = efuse_amp & 0xf;
 #endif
-//	env_valid = (tx_amp >> 7);
-	if (env_valid || efuse_valid) {
-		/*env valid use env tx_amp*/
-		if (env_valid) {
-			/*debug mode use env tx_amp*/
-			setup_amp = tx_amp_res & (~0x80);
-		} else {
-			/* efuse is valid but env not*/
-			setup_amp = efuse_amp;
-		}
+	if (efuse_valid) {
+		/* efuse is valid but env not*/
+		setup_amp = efuse_amp;
 		/*Enable Analog and DSP register Bank access by*/
 		phy_write(phydev, 0x14, 0x0000);
 		phy_write(phydev, 0x14, 0x0400);
