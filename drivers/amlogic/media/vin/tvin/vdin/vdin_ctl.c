@@ -1357,7 +1357,17 @@ void vdin_set_cutwin(struct vdin_dev_s *devp)
 /*adjust the brightness for txhd hardware snow*/
 void vdin_adjust_tvafesnow_brightness(void)
 {
-	wr(0, VDIN_MATRIX_CTRL, 0x7);
+	enum vdin_matrix_sel_e maxsel;
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+		maxsel = VDIN_SEL_MATRIX1;/*VDIN_SEL_MATRIXHDR*/
+	else
+		maxsel = VDIN_SEL_MATRIX0;
+
+	if (maxsel == VDIN_SEL_MATRIX0)
+		wr(0, VDIN_MATRIX_CTRL, 0x7);
+	else
+		wr(0, VDIN_MATRIX_CTRL, 0x6);
 
 	/*post offset*/
 	wr(0, VDIN_MATRIX_OFFSET0_1, 0x200);
