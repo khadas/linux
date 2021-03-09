@@ -1782,16 +1782,16 @@ static void emmc_show_cmd_window(char *str, int repeat_times)
 			status = -1;
 		if (i != 0 && pre_status != status) {
 			if (pre_status == 1 && single == 1)
-				pr_info(">>cmd delay [ 0x%x ] is ok\n",
+				pr_info(">>cmd delay [ %d ] is ok\n",
 					i - 1);
 			else if (pre_status == 1 && single != 1)
-				pr_info(">>cmd delay [ 0x%x -- 0x%x ] is ok\n",
+				pr_info(">>cmd delay [ %d -- %d ] is ok\n",
 					start, i - 1);
 			else if (pre_status != 1 &&	 single == 1)
-				pr_info(">>cmd delay [ 0x%x ] is nok\n",
+				pr_info(">>cmd delay [ %d ] is nok\n",
 					i - 1);
 			else if (pre_status != 1 && single != 1)
-				pr_info(">>cmd delay [ 0x%x -- 0x%x ] is nok\n",
+				pr_info(">>cmd delay [ %d -- %d ] is nok\n",
 					start, i - 1);
 			start = i;
 			single = 1;
@@ -1800,15 +1800,15 @@ static void emmc_show_cmd_window(char *str, int repeat_times)
 		}
 		if (i == 63) {
 			if (status == 1 && pre_status == 1)
-				pr_info(">>cmd delay [ 0x%x -- 0x%x ] is ok\n",
+				pr_info(">>cmd delay [ %d -- %d ] is ok\n",
 					start, i);
 			else if (status != 1 && pre_status == -1)
-				pr_info(">>cmd delay [ 0x%x -- 0x%x ] is nok\n",
+				pr_info(">>cmd delay [ %d -- %d ] is nok\n",
 					start, i);
 			else if (status == 1 && pre_status != 1)
-				pr_info(">>cmd delay [ 0x%x ] is ok\n", i);
+				pr_info(">>cmd delay [ %d ] is ok\n", i);
 			else if (status != 1 && pre_status == 1)
-				pr_info(">>cmd delay [ 0x%x ] is nok\n", i);
+				pr_info(">>cmd delay [ %d ] is nok\n", i);
 		}
 		pre_status = status;
 	}
@@ -3274,7 +3274,8 @@ static void scan_emmc_tx_win(struct mmc_host *mmc)
 	u32 dly1 = readl(host->regs + SD_EMMC_DELAY1);
 	u32 dly2 = readl(host->regs + SD_EMMC_DELAY2);
 	u32 intf3 = readl(host->regs + SD_EMMC_INTF3);
-	u32 clk_bak = vclk;
+	u32 clk_bak = vclk, dly1_bak = dly1, dly2_bak = dly2;
+	u32 intf3_bak = intf3;
 	u32 i, j, err;
 	u8 tx_delay = (vclk & CLK_V3_TX_DELAY_MASK) >>
 		__ffs(CLK_V3_TX_DELAY_MASK);
@@ -3282,16 +3283,19 @@ static void scan_emmc_tx_win(struct mmc_host *mmc)
 	char str[64] = {0};
 
 	aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
-			    host->blk_test, 512, 40, MMC_PATTERN_NAME);
+			    host->blk_test, 512, 40, MMC_RANDOM_NAME);
 	host->is_tuning = 1;
 	tx_delay = 0;
 	vclk &= ~CLK_V3_TX_DELAY_MASK;
 	vclk |= tx_delay << __ffs(CLK_V3_TX_DELAY_MASK);
 	writel(vclk, host->regs + SD_EMMC_CLOCK);
 	for (i = tx_delay; i < 64; i++) {
-		aml_emmc_hs400_tl1(mmc);
+		writel(0, host->regs + SD_EMMC_DELAY1);
+		writel(0, host->regs + SD_EMMC_DELAY2);
+		writel(SD_INTF3, host->regs + SD_EMMC_INTF3);
+		aml_get_ctrl_ver(mmc);
 		for (j = 0; j < repeat_times; j++) {
-			err = mmc_write_internal(mmc->card, MMC_PATTERN_OFFSET,
+			err = mmc_write_internal(mmc->card, MMC_RANDOM_OFFSET,
 						 40, host->blk_test);
 			if (!err)
 				str[i]++;
@@ -3308,9 +3312,9 @@ static void scan_emmc_tx_win(struct mmc_host *mmc)
 	host->is_tuning = 0;
 
 	writel(clk_bak, host->regs + SD_EMMC_CLOCK);
-	writel(dly1, host->regs + SD_EMMC_DELAY1);
-	writel(dly2, host->regs + SD_EMMC_DELAY2);
-	writel(intf3, host->regs + SD_EMMC_INTF3);
+	writel(dly1_bak, host->regs + SD_EMMC_DELAY1);
+	writel(dly2_bak, host->regs + SD_EMMC_DELAY2);
+	writel(intf3_bak, host->regs + SD_EMMC_INTF3);
 	emmc_search_cmd_delay(str, repeat_times);
 	pr_info(">>>>>>>>>>>>>>>>>>>>this is tx window>>>>>>>>>>>>>>>>>>>>>>\n");
 	emmc_show_cmd_window(str, repeat_times);
