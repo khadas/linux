@@ -1907,7 +1907,7 @@
 		};
 	};
 
-	sd_to_ao_uart_clr_pins:sd_to_ao_uart_clr_pins {
+	sd_to_ao_uart_clr_pins: sd_to_ao_uart_clr_pins {
 		mux {
 			groups = "GPIOD_0",
 				   "GPIOD_1";
@@ -1915,7 +1915,7 @@
 		};
 	};
 
-	sdcard_pins: sdcard {
+	sdcard_pins: sdcard_pins {
 		mux {
 			groups = "sdcard_d0_c",
 				 "sdcard_d1_c",
@@ -1924,12 +1924,12 @@
 				 "sdcard_clk_c",
 				 "sdcard_cmd_c";
 			function = "sdcard";
-			bias-disable;
+			bias-pull-up;
 			drive-strength-microamp = <4000>;
 		};
 	};
 
-	ao_to_sd_uart_pins:ao_to_sd_uart_pins {
+	ao_to_sd_uart_pins: ao_to_sd_uart_pins {
 		mux {
 			groups = "uart_b_tx_c",
 				"uart_b_rx_c";
@@ -1939,7 +1939,7 @@
 		};
 	};
 
-	ao_uart_pins:ao__uart_pins {
+	ao_uart_pins: ao_uart_pins {
 		mux {
 			groups = "uart_b_tx_d",
 				"uart_b_rx_d";
@@ -1949,7 +1949,7 @@
 		};
 	};
 
-	sd_clr_all_pins:sd_clr_all_pins {
+	sd_clr_all_pins: sd_clr_all_pins {
 		mux {
 			groups = "GPIOC_0",
 				   "GPIOC_1",
@@ -1966,7 +1966,7 @@
 		};
 	};
 
-	sd_clr_noall_pins:sd_clr_noall_pins {
+	sd_clr_noall_pins: sd_clr_noall_pins {
 		mux {
 			groups = "GPIOC_0",
 				   "GPIOC_1",
@@ -1977,18 +1977,18 @@
 		};
 	};
 
-	sd_1bit_pins: sdcard {
+	sd_1bit_pins: sd_1bit_pins {
 		mux {
 			groups = "sdcard_d0_c",
 				 "sdcard_clk_c",
 				 "sdcard_cmd_c";
 			function = "sdcard";
-			bias-disable;
+			bias-pull-up;
 			drive-strength-microamp = <4000>;
 		};
 	};
 
-	sdcard_clk_gate_pins: sdio_clk_gate {
+	sdcard_clk_gate_pins: sdio_clk_gate_pins {
 		mux {
 			groups = "GPIOC_4";
 			function = "gpio_periphs";

@@ -1368,7 +1368,7 @@
 	pinctrl-1 = <&sdcard_clk_gate_pins>;
 	pinctrl-2 = <&sd_1bit_pins>;
 	pinctrl-3 = <&sd_to_ao_uart_clr_pins
-		&sdcard_clk_gate_pins &ao_to_sd_uart_pins>;
+		&sdcard_pins &ao_to_sd_uart_pins>;
 	pinctrl-4 = <&sd_to_ao_uart_clr_pins
 		&sd_1bit_pins &ao_to_sd_uart_pins>;
 	pinctrl-5 = <&sdcard_pins &ao_uart_pins>;
