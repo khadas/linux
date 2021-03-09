@@ -1786,6 +1786,31 @@
 			size = <16>;
 		};
 	};
+
+	gpu_opp_table: gpu_opp_table {
+		compatible = "operating-points-v2";
+
+		opp-285 {
+			opp-hz = /bits/ 64 <285714281>;
+			opp-microvolt = <1150>;
+		};
+		opp-400 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1150>;
+		};
+		opp-500 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <1150>;
+		};
+		opp-666 {
+			opp-hz = /bits/ 64 <666666666>;
+			opp-microvolt = <1150>;
+		};
+		opp-846 {
+			opp-hz = /bits/ 64 <846000000>;
+			opp-microvolt = <1150>;
+		};
+	};
 };
 
 &periphs_pinctrl {
@@ -2592,6 +2617,7 @@
 };
 
 &gpu{
+	operating-points-v2 = <&gpu_opp_table>;
 	reg =   <0 0xFE400000 0 0x04000>, /*mali APB bus base address*/
 		<0 0xFE002000 0 0x01000>, /*reset register*/
 		<0 0xFF800000 0 0x01000>, /*aobus TODO update*/

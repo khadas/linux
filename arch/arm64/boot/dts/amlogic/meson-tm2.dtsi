@@ -945,9 +945,35 @@
 		mem_size = <0x100000>;
 		status = "okay";
 	};
+
+	gpu_opp_table: gpu_opp_table {
+		compatible = "operating-points-v2";
+
+		opp-285 {
+			opp-hz = /bits/ 64 <285714281>;
+			opp-microvolt = <1150>;
+		};
+		opp-400 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1150>;
+		};
+		opp-500 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <1150>;
+		};
+		opp-666 {
+			opp-hz = /bits/ 64 <666666666>;
+			opp-microvolt = <1150>;
+		};
+		opp-800 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <1150>;
+		};
+	};
 };
 
 &gpu{
+	operating-points-v2 = <&gpu_opp_table>;
 	tbl =  <&dvfs285_cfg
 		&dvfs400_cfg
 		&dvfs500_cfg
