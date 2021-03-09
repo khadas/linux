@@ -1138,6 +1138,7 @@
 
 #define VPP_POST_MATRIX_SAT				0x32c1
 
+/* vpp post2 matrix */
 #define VPP_POST2_MATRIX_COEF00_01	    0x39a0
 #define VPP_POST2_MATRIX_COEF02_10	    0x39a1
 #define VPP_POST2_MATRIX_COEF11_12	    0x39a2
@@ -1152,6 +1153,38 @@
 #define VPP_POST2_MATRIX_PRE_OFFSET0_1	0x39ab
 #define VPP_POST2_MATRIX_PRE_OFFSET2	0x39ac
 #define VPP_POST2_MATRIX_EN_CTRL	    0x39ad
+
+/* vpp1 post2 POST2_MATRIX */
+#define VPP1_POST2_MATRIX_COEF00_01                      0x5990
+#define VPP1_POST2_MATRIX_COEF02_10                      0x5991
+#define VPP1_POST2_MATRIX_COEF11_12                      0x5992
+#define VPP1_POST2_MATRIX_COEF20_21                      0x5993
+#define VPP1_POST2_MATRIX_COEF22                         0x5994
+#define VPP1_POST2_MATRIX_COEF13_14                      0x5995
+#define VPP1_POST2_MATRIX_COEF23_24                      0x5996
+#define VPP1_POST2_MATRIX_COEF15_25                      0x5997
+#define VPP1_POST2_MATRIX_CLIP                           0x5998
+#define VPP1_POST2_MATRIX_OFFSET0_1                      0x5999
+#define VPP1_POST2_MATRIX_OFFSET2                        0x599a
+#define VPP1_POST2_MATRIX_PRE_OFFSET0_1                  0x599b
+#define VPP1_POST2_MATRIX_PRE_OFFSET2                    0x599c
+#define VPP1_POST2_MATRIX_EN_CTRL                        0x599d
+
+/* vpp2 post2 POST2_MATRIX */
+#define VPP2_POST2_MATRIX_COEF00_01                      0x59d0
+#define VPP2_POST2_MATRIX_COEF02_10                      0x59d1
+#define VPP2_POST2_MATRIX_COEF11_12                      0x59d2
+#define VPP2_POST2_MATRIX_COEF20_21                      0x59d3
+#define VPP2_POST2_MATRIX_COEF22                         0x59d4
+#define VPP2_POST2_MATRIX_COEF13_14                      0x59d5
+#define VPP2_POST2_MATRIX_COEF23_24                      0x59d6
+#define VPP2_POST2_MATRIX_COEF15_25                      0x59d7
+#define VPP2_POST2_MATRIX_CLIP                           0x59d8
+#define VPP2_POST2_MATRIX_OFFSET0_1                      0x59d9
+#define VPP2_POST2_MATRIX_OFFSET2                        0x59da
+#define VPP2_POST2_MATRIX_PRE_OFFSET0_1                  0x59db
+#define VPP2_POST2_MATRIX_PRE_OFFSET2                    0x59dc
+#define VPP2_POST2_MATRIX_EN_CTRL                        0x59dd
 
 #define VPP_LUT3D_CTRL					0x39d0
 #define VPP_LUT3D_CBUS2RAM_CTRL			0x39d1

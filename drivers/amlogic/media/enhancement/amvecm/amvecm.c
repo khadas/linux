@@ -1308,6 +1308,33 @@ static int vpp_mtx_update(struct vpp_mtx_info_s *mtx_info)
 		matrix_pre_offset2 = VPP_POST_MATRIX_PRE_OFFSET2;
 		matrix_en_ctrl = VPP_POST_MATRIX_EN_CTRL;
 		break;
+	case VPP1_POST2_MTX:
+		matrix_coef00_01 = VPP1_POST2_MATRIX_COEF00_01;
+		matrix_coef02_10 = VPP1_POST2_MATRIX_COEF02_10;
+		matrix_coef11_12 = VPP1_POST2_MATRIX_COEF11_12;
+		matrix_coef20_21 = VPP1_POST2_MATRIX_COEF20_21;
+		matrix_coef22 = VPP1_POST2_MATRIX_COEF22;
+		matrix_clip = VPP1_POST2_MATRIX_CLIP;
+		matrix_offset0_1 = VPP1_POST2_MATRIX_OFFSET0_1;
+		matrix_offset2 = VPP1_POST2_MATRIX_OFFSET2;
+		matrix_pre_offset0_1 = VPP1_POST2_MATRIX_PRE_OFFSET0_1;
+		matrix_pre_offset2 = VPP1_POST2_MATRIX_PRE_OFFSET2;
+		matrix_en_ctrl = VPP1_POST2_MATRIX_EN_CTRL;
+		break;
+	case VPP2_POST2_MTX:
+		matrix_coef00_01 = VPP2_POST2_MATRIX_COEF00_01;
+		matrix_coef02_10 = VPP2_POST2_MATRIX_COEF02_10;
+		matrix_coef11_12 = VPP2_POST2_MATRIX_COEF11_12;
+		matrix_coef20_21 = VPP2_POST2_MATRIX_COEF20_21;
+		matrix_coef22 = VPP2_POST2_MATRIX_COEF22;
+		matrix_clip = VPP2_POST2_MATRIX_CLIP;
+		matrix_offset0_1 = VPP2_POST2_MATRIX_OFFSET0_1;
+		matrix_offset2 = VPP2_POST2_MATRIX_OFFSET2;
+		matrix_pre_offset0_1 = VPP2_POST2_MATRIX_PRE_OFFSET0_1;
+		matrix_pre_offset2 = VPP2_POST2_MATRIX_PRE_OFFSET2;
+		matrix_en_ctrl = VPP2_POST2_MATRIX_EN_CTRL;
+		break;
+
 	case MTX_NULL:
 	default:
 		break;

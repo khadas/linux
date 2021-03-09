@@ -6505,19 +6505,19 @@ static int vpp_eye_protection_process(enum vpp_matrix_csc_e csc_type,
 	/* yuv2rgb for eye protect mode */
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_G12A)
 			mtx_setting(POST2_MTX, MATRIX_YUV709_RGB,
-				    MTX_OFF);
+				MTX_OFF);
 		else
 			set_vpp_matrix(VPP_MATRIX_POST,
-				       bypass_coeff,
-				       CSC_ON);
+				bypass_coeff,
+				CSC_ON);
 	} else {/* matrix yuv2rgb for LCD */
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_G12A)
 			mtx_setting(POST2_MTX, MATRIX_YUV709_RGB,
-				    MTX_ON);
+				MTX_ON);
 		else
 			set_vpp_matrix(VPP_MATRIX_POST,
-				       YUV709l_to_RGB709_coeff,
-				       CSC_ON);
+				YUV709l_to_RGB709_coeff,
+				CSC_ON);
 	}
 
 	/* xvycc matrix bypass */
@@ -6541,11 +6541,11 @@ static int vpp_eye_protection_process(enum vpp_matrix_csc_e csc_type,
 	} else {/* matrix yuv2rgb for LCD */
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_G12A)
 			mtx_setting(POST_MTX, MATRIX_RGB_YUV709,
-				    MTX_OFF);
+				MTX_OFF);
 		else
 			set_vpp_matrix(VPP_MATRIX_XVYCC,
-				       bypass_coeff,
-				       CSC_ON);
+				bypass_coeff,
+				CSC_ON);
 	}
 
 	vpp_set_mtx_en_write();
@@ -7404,6 +7404,10 @@ static void video_process(struct vframe_s *vf,
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		if (vinfo->mode != VMODE_LCD) {
 			mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
+			if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7) {
+				mtx_setting(VPP1_POST2_MTX, MATRIX_NULL, MTX_OFF);
+				mtx_setting(VPP2_POST2_MTX, MATRIX_NULL, MTX_OFF);
+			}
 		} else {
 			if (vf && vf->type & VIDTYPE_RGB_444 &&
 			    source_type[vd_path] == HDRTYPE_SDR) {
@@ -7411,11 +7415,23 @@ static void video_process(struct vframe_s *vf,
 				WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 0, 1, 1);
 				mtx_setting(POST2_MTX,
 					    MATRIX_YUV709F_RGB, MTX_ON);
+				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7) {
+					mtx_setting(VPP1_POST2_MTX,
+						MATRIX_YUV709F_RGB, MTX_ON);
+					mtx_setting(VPP2_POST2_MTX,
+						MATRIX_YUV709F_RGB, MTX_ON);
+				}
 			} else {
 				WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);
 				WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);
 				mtx_setting(POST2_MTX,
+					(enum mtx_csc_e)csc_type, MTX_ON);
+				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7) {
+					mtx_setting(VPP1_POST2_MTX,
 					    (enum mtx_csc_e)csc_type, MTX_ON);
+					mtx_setting(VPP2_POST2_MTX,
+					    (enum mtx_csc_e)csc_type, MTX_ON);
+				}
 			}
 		}
 	}

@@ -1135,6 +1135,14 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 		0
 	};
 
+	int vpp_sel;
+
+	if (module_sel == OSD2_HDR &&
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = 1;
+	else
+		vpp_sel = 0;
+
 	if (module_sel == VD1_HDR) {
 		MATRIXI_COEF00_01 = VD1_HDR2_MATRIXI_COEF00_01;
 		MATRIXI_COEF00_01 = VD1_HDR2_MATRIXI_COEF00_01;
@@ -1557,8 +1565,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 	if (!hdr_mtx_param)
 		return;
 
-	VSYNC_WRITE_VPP_REG_BITS(hdr_ctrl,
-				 hdr_mtx_param->mtx_on, 13, 1);
+	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
+				 hdr_mtx_param->mtx_on, 13, 1, vpp_sel);
 
 	if (mtx_sel == HDR_IN_MTX) {
 		for (i = 0; i < MTX_NUM_PARAM; i++)
@@ -1584,41 +1592,41 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 #endif
 		if (hdr_mtx_param->mtx_only == MTX_ONLY &&
 		    !hdr_mtx_param->mtx_on)
-			VSYNC_WRITE_VPP_REG(MATRIXI_EN_CTRL, 1);
+			VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_EN_CTRL, 1, vpp_sel);
 		else
-			VSYNC_WRITE_VPP_REG(MATRIXI_EN_CTRL,
-					    hdr_mtx_param->mtx_on);
-		VSYNC_WRITE_VPP_REG_BITS(hdr_ctrl,
-					 hdr_mtx_param->mtx_on, 4, 1);
-		VSYNC_WRITE_VPP_REG_BITS(hdr_ctrl,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_EN_CTRL,
+					    hdr_mtx_param->mtx_on, vpp_sel);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
+					 hdr_mtx_param->mtx_on, 4, 1, vpp_sel);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
 					 hdr_mtx_param->mtx_only,
-			16, 1);
-		VSYNC_WRITE_VPP_REG_BITS(hdr_ctrl, 1, 14, 1);
+			16, 1, vpp_sel);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl, 1, 14, 1, vpp_sel);
 
-		VSYNC_WRITE_VPP_REG(MATRIXI_COEF00_01,
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_COEF00_01,
 				    (in_mtx[0 * 3 + 0] << 16) |
-				    (in_mtx[0 * 3 + 1] & 0x1FFF));
-		VSYNC_WRITE_VPP_REG(MATRIXI_COEF02_10,
+				    (in_mtx[0 * 3 + 1] & 0x1FFF), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_COEF02_10,
 				    (in_mtx[0 * 3 + 2] << 16) |
-				    (in_mtx[1 * 3 + 0] & 0x1FFF));
-		VSYNC_WRITE_VPP_REG(MATRIXI_COEF11_12,
+				    (in_mtx[1 * 3 + 0] & 0x1FFF), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_COEF11_12,
 				    (in_mtx[1 * 3 + 1] << 16) |
-				    (in_mtx[1 * 3 + 2] & 0x1FFF));
-		VSYNC_WRITE_VPP_REG(MATRIXI_COEF20_21,
+				    (in_mtx[1 * 3 + 2] & 0x1FFF), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_COEF20_21,
 				    (in_mtx[2 * 3 + 0] << 16) |
-				    (in_mtx[2 * 3 + 1] & 0x1FFF));
-		VSYNC_WRITE_VPP_REG(MATRIXI_COEF22,
-				    in_mtx[2 * 3 + 2]);
-		VSYNC_WRITE_VPP_REG(MATRIXI_OFFSET0_1,
+				    (in_mtx[2 * 3 + 1] & 0x1FFF), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_COEF22,
+				    in_mtx[2 * 3 + 2], vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_OFFSET0_1,
 				    (hdr_mtx_param->mtxi_pos_offset[0] << 16) |
-				    (hdr_mtx_param->mtxi_pos_offset[1] & 0xFFF));
-		VSYNC_WRITE_VPP_REG(MATRIXI_OFFSET2,
-				    hdr_mtx_param->mtxi_pos_offset[2]);
-		VSYNC_WRITE_VPP_REG(MATRIXI_PRE_OFFSET0_1,
+				    (hdr_mtx_param->mtxi_pos_offset[1] & 0xFFF), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_OFFSET2,
+				    hdr_mtx_param->mtxi_pos_offset[2], vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_PRE_OFFSET0_1,
 				    (hdr_mtx_param->mtxi_pre_offset[0] << 16) |
-				    (hdr_mtx_param->mtxi_pre_offset[1] & 0xFFF));
-		VSYNC_WRITE_VPP_REG(MATRIXI_PRE_OFFSET2,
-				    hdr_mtx_param->mtxi_pre_offset[2]);
+				    (hdr_mtx_param->mtxi_pre_offset[1] & 0xFFF), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_PRE_OFFSET2,
+				    hdr_mtx_param->mtxi_pre_offset[2], vpp_sel);
 	} else if (mtx_sel == HDR_GAMUT_MTX) {
 		for (i = 0; i < 9; i++)
 			gmut_coef[i / 3][i % 3] =
@@ -1769,53 +1777,53 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 		/*gamut mode: 1->gamut before ootf*/
 					/*2->gamut after ootf*/
 					/*other->disable gamut*/
-		VSYNC_WRITE_VPP_REG_BITS(hdr_ctrl,
-					 hdr_mtx_param->mtx_gamut_mode, 6, 2);
-		VSYNC_WRITE_VPP_REG(GMUT_CTRL, gmut_shift);
-		VSYNC_WRITE_VPP_REG(GMUT_COEF0,
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
+					 hdr_mtx_param->mtx_gamut_mode, 6, 2, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_CTRL, gmut_shift, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COEF0,
 				    (gmut_coef[0][1] & 0xffff) << 16 |
-				    (gmut_coef[0][0] & 0xffff));
-		VSYNC_WRITE_VPP_REG(GMUT_COEF1,
+				    (gmut_coef[0][0] & 0xffff), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COEF1,
 				    (gmut_coef[1][0] & 0xffff) << 16 |
-				    (gmut_coef[0][2] & 0xffff));
-		VSYNC_WRITE_VPP_REG(GMUT_COEF2,
+				    (gmut_coef[0][2] & 0xffff), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COEF2,
 				    (gmut_coef[1][2] & 0xffff) << 16 |
-				    (gmut_coef[1][1] & 0xffff));
-		VSYNC_WRITE_VPP_REG(GMUT_COEF3,
+				    (gmut_coef[1][1] & 0xffff), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COEF3,
 				    (gmut_coef[2][1] & 0xffff) << 16 |
-				    (gmut_coef[2][0] & 0xffff));
-		VSYNC_WRITE_VPP_REG(GMUT_COEF4,
-				    gmut_coef[2][2] & 0xffff);
+				    (gmut_coef[2][0] & 0xffff), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(GMUT_COEF4,
+				    gmut_coef[2][2] & 0xffff, vpp_sel);
 
-		VSYNC_WRITE_VPP_REG(CGAIN_COEF0,
+		VSYNC_WRITE_VPP_REG_VPP_SEL(CGAIN_COEF0,
 				    c_gain_lim_coef[1] << 16 |
-				    c_gain_lim_coef[0]);
-		VSYNC_WRITE_VPP_REG_BITS(CGAIN_COEF1,
-					 c_gain_lim_coef[2],	0, 12);
+				    c_gain_lim_coef[0], vpp_sel);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(CGAIN_COEF1,
+					 c_gain_lim_coef[2],	0, 12, vpp_sel);
 
-		VSYNC_WRITE_VPP_REG(ADPS_CTRL,
+		VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_CTRL,
 				    adpscl_bypass[2] << 6 |
 				    adpscl_bypass[1] << 5 |
 				    adpscl_bypass[0] << 4 |
-				    adpscl_mode);
-		VSYNC_WRITE_VPP_REG(ADPS_ALPHA0,
-				    adpscl_alpha[1] << 16 | adpscl_alpha[0]);
-		VSYNC_WRITE_VPP_REG(ADPS_ALPHA1,
+				    adpscl_mode, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_ALPHA0,
+				    adpscl_alpha[1] << 16 | adpscl_alpha[0], vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_ALPHA1,
 				    adpscl_shift[0] << 24 |
 				    adpscl_shift[1] << 20 |
 				    adpscl_shift[2] << 16 |
-				    adpscl_alpha[2]);
-		VSYNC_WRITE_VPP_REG(ADPS_BETA0,
-				    adpscl_beta_s[0] << 20 | adpscl_beta[0]);
-		VSYNC_WRITE_VPP_REG(ADPS_BETA1,
-				    adpscl_beta_s[1] << 20 | adpscl_beta[1]);
-		VSYNC_WRITE_VPP_REG(ADPS_BETA2,
-				    adpscl_beta_s[2] << 20 | adpscl_beta[2]);
-		VSYNC_WRITE_VPP_REG(ADPS_COEF0,
+				    adpscl_alpha[2], vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_BETA0,
+				    adpscl_beta_s[0] << 20 | adpscl_beta[0], vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_BETA1,
+				    adpscl_beta_s[1] << 20 | adpscl_beta[1], vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_BETA2,
+				    adpscl_beta_s[2] << 20 | adpscl_beta[2], vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_COEF0,
 				    adpscl_ys_coef[1] << 16 |
-				    adpscl_ys_coef[0]);
-		VSYNC_WRITE_VPP_REG(ADPS_COEF1,
-				    adpscl_ys_coef[2]);
+				    adpscl_ys_coef[0], vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(ADPS_COEF1,
+				    adpscl_ys_coef[2], vpp_sel);
 	} else if (mtx_sel == HDR_OUT_MTX) {
 		for (i = 0; i < MTX_NUM_PARAM; i++)
 			out_mtx[i] = hdr_mtx_param->mtx_out[i];
@@ -1837,38 +1845,38 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			(hdr_mtx_param->mtxo_pos_offset[0] << 16) |
 			(hdr_mtx_param->mtxo_pos_offset[1] & 0xFFF));
 #endif
-		VSYNC_WRITE_VPP_REG(CGAIN_OFFT,
-				    (rgb2yuvpos[2] << 16) | rgb2yuvpos[1]);
-		VSYNC_WRITE_VPP_REG(MATRIXO_EN_CTRL,
-				    hdr_mtx_param->mtx_on);
-		VSYNC_WRITE_VPP_REG_BITS(hdr_ctrl, 0, 17, 1);
-		VSYNC_WRITE_VPP_REG_BITS(hdr_ctrl, 1, 15, 1);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(CGAIN_OFFT,
+				    (rgb2yuvpos[2] << 16) | rgb2yuvpos[1], vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXO_EN_CTRL,
+				    hdr_mtx_param->mtx_on, vpp_sel);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl, 0, 17, 1, vpp_sel);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl, 1, 15, 1, vpp_sel);
 
-		VSYNC_WRITE_VPP_REG(MATRIXO_COEF00_01,
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXO_COEF00_01,
 				    (out_mtx[0 * 3 + 0] << 16) |
-				    (out_mtx[0 * 3 + 1] & 0x1FFF));
-		VSYNC_WRITE_VPP_REG(MATRIXO_COEF02_10,
+				    (out_mtx[0 * 3 + 1] & 0x1FFF), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXO_COEF02_10,
 				    (out_mtx[0 * 3 + 2] << 16) |
-				    (out_mtx[1 * 3 + 0] & 0x1FFF));
-		VSYNC_WRITE_VPP_REG(MATRIXO_COEF11_12,
+				    (out_mtx[1 * 3 + 0] & 0x1FFF), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXO_COEF11_12,
 				    (out_mtx[1 * 3 + 1] << 16) |
-				    (out_mtx[1 * 3 + 2] & 0x1FFF));
-		VSYNC_WRITE_VPP_REG(MATRIXO_COEF20_21,
+				    (out_mtx[1 * 3 + 2] & 0x1FFF), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXO_COEF20_21,
 				    (out_mtx[2 * 3 + 0] << 16) |
-				    (out_mtx[2 * 3 + 1] & 0x1FFF));
-		VSYNC_WRITE_VPP_REG(MATRIXO_COEF22,
-				    out_mtx[2 * 3 + 2]);
+				    (out_mtx[2 * 3 + 1] & 0x1FFF), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXO_COEF22,
+				    out_mtx[2 * 3 + 2], vpp_sel);
 
-		VSYNC_WRITE_VPP_REG(MATRIXO_OFFSET0_1,
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXO_OFFSET0_1,
 				    (hdr_mtx_param->mtxo_pos_offset[0] << 16) |
-				    (hdr_mtx_param->mtxo_pos_offset[1] & 0xFFF));
-		VSYNC_WRITE_VPP_REG(MATRIXO_OFFSET2,
-				    hdr_mtx_param->mtxo_pos_offset[2]);
-		VSYNC_WRITE_VPP_REG(MATRIXO_PRE_OFFSET0_1,
+				    (hdr_mtx_param->mtxo_pos_offset[1] & 0xFFF), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXO_OFFSET2,
+				    hdr_mtx_param->mtxo_pos_offset[2], vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXO_PRE_OFFSET0_1,
 				    (hdr_mtx_param->mtxo_pre_offset[0] << 16) |
-				    (hdr_mtx_param->mtxo_pre_offset[1] & 0xFFF));
-		VSYNC_WRITE_VPP_REG(MATRIXO_PRE_OFFSET2,
-				    hdr_mtx_param->mtxo_pre_offset[2]);
+				    (hdr_mtx_param->mtxo_pre_offset[1] & 0xFFF), vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXO_PRE_OFFSET2,
+				    hdr_mtx_param->mtxo_pre_offset[2], vpp_sel);
 	}
 }
 
@@ -1880,6 +1888,14 @@ void set_eotf_lut(enum hdr_module_sel module_sel,
 	unsigned int eotf_lut_data_port = 0;
 	unsigned int hdr_ctrl = 0;
 	unsigned int i = 0;
+	int vpp_sel;
+
+	if (module_sel == OSD2_HDR &&
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = 1;
+	else
+		vpp_sel = 0;
+
 
 	if (module_sel == VD1_HDR) {
 		eotf_lut_addr_port = VD1_EOTF_LUT_ADDR_PORT;
@@ -1918,14 +1934,14 @@ void set_eotf_lut(enum hdr_module_sel module_sel,
 	for (i = 0; i < HDR2_EOTF_LUT_SIZE; i++)
 		lut[i] = hdr_lut_param->eotf_lut[i];
 
-	VSYNC_WRITE_VPP_REG_BITS(hdr_ctrl, hdr_lut_param->lut_on, 3, 1);
+	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl, hdr_lut_param->lut_on, 3, 1, vpp_sel);
 
 	if (!hdr_lut_param->lut_on)
 		return;
 
-	VSYNC_WRITE_VPP_REG(eotf_lut_addr_port, 0x0);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(eotf_lut_addr_port, 0x0, vpp_sel);
 	for (i = 0; i < HDR2_EOTF_LUT_SIZE; i++)
-		VSYNC_WRITE_VPP_REG(eotf_lut_data_port, lut[i]);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(eotf_lut_data_port, lut[i], vpp_sel);
 }
 
 void set_ootf_lut(enum hdr_module_sel module_sel,
@@ -1936,6 +1952,13 @@ void set_ootf_lut(enum hdr_module_sel module_sel,
 	unsigned int ootf_lut_data_port = 0;
 	unsigned int hdr_ctrl = 0;
 	unsigned int i = 0;
+	int vpp_sel;
+
+	if (module_sel == OSD2_HDR &&
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = 1;
+	else
+		vpp_sel = 0;
 
 	if (module_sel == VD1_HDR) {
 		ootf_lut_addr_port = VD1_OGAIN_LUT_ADDR_PORT;
@@ -1975,17 +1998,17 @@ void set_ootf_lut(enum hdr_module_sel module_sel,
 	for (i = 0; i < HDR2_OOTF_LUT_SIZE; i++)
 		lut[i] = hdr_lut_param->ogain_lut[i];
 
-	VSYNC_WRITE_VPP_REG_BITS(hdr_ctrl, hdr_lut_param->lut_on, 1, 1);
+	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl, hdr_lut_param->lut_on, 1, 1, vpp_sel);
 
 	if (!hdr_lut_param->lut_on)
 		return;
 
-	VSYNC_WRITE_VPP_REG(ootf_lut_addr_port, 0x0);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut_addr_port, 0x0, vpp_sel);
 	for (i = 0; i < HDR2_OOTF_LUT_SIZE / 2; i++)
-		VSYNC_WRITE_VPP_REG(ootf_lut_data_port,
+		VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut_data_port,
 				    (lut[i * 2 + 1] << 16) +
-			lut[i * 2]);
-	VSYNC_WRITE_VPP_REG(ootf_lut_data_port, lut[148]);
+			lut[i * 2], vpp_sel);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut_data_port, lut[148], vpp_sel);
 }
 
 void set_oetf_lut(enum hdr_module_sel module_sel,
@@ -1996,6 +2019,13 @@ void set_oetf_lut(enum hdr_module_sel module_sel,
 	unsigned int oetf_lut_data_port = 0;
 	unsigned int hdr_ctrl = 0;
 	unsigned int i = 0;
+	int vpp_sel;
+
+	if (module_sel == OSD2_HDR &&
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = 1;
+	else
+		vpp_sel = 0;
 
 	if (module_sel == VD1_HDR) {
 		oetf_lut_addr_port = VD1_OETF_LUT_ADDR_PORT;
@@ -2035,26 +2065,26 @@ void set_oetf_lut(enum hdr_module_sel module_sel,
 	for (i = 0; i < HDR2_OETF_LUT_SIZE; i++)
 		lut[i] = hdr_lut_param->oetf_lut[i];
 
-	VSYNC_WRITE_VPP_REG_BITS(hdr_ctrl, hdr_lut_param->lut_on, 2, 1);
+	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl, hdr_lut_param->lut_on, 2, 1, vpp_sel);
 
 	if (!hdr_lut_param->lut_on)
 		return;
 
-	VSYNC_WRITE_VPP_REG(oetf_lut_addr_port, 0x0);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(oetf_lut_addr_port, 0x0, vpp_sel);
 	for (i = 0; i < HDR2_OETF_LUT_SIZE / 2; i++) {
 		if (hdr_lut_param->bitdepth == 10)
-			VSYNC_WRITE_VPP_REG(oetf_lut_data_port,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(oetf_lut_data_port,
 					    ((lut[i * 2 + 1] >> 2) << 16) +
-				(lut[i * 2] >> 2));
+				(lut[i * 2] >> 2), vpp_sel);
 		else
-			VSYNC_WRITE_VPP_REG(oetf_lut_data_port,
+			VSYNC_WRITE_VPP_REG_VPP_SEL(oetf_lut_data_port,
 					    (lut[i * 2 + 1] << 16) +
-				lut[i * 2]);
+				lut[i * 2], vpp_sel);
 	}
 	if (hdr_lut_param->bitdepth == 10)
-		VSYNC_WRITE_VPP_REG(oetf_lut_data_port, lut[148] >> 2);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(oetf_lut_data_port, lut[148] >> 2, vpp_sel);
 	else
-		VSYNC_WRITE_VPP_REG(oetf_lut_data_port, lut[148]);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(oetf_lut_data_port, lut[148], vpp_sel);
 }
 
 void set_c_gain(enum hdr_module_sel module_sel,
@@ -2066,6 +2096,14 @@ void set_c_gain(enum hdr_module_sel module_sel,
 	unsigned int hdr_ctrl = 0;
 	unsigned int cgain_coef1 = 0;
 	unsigned int i = 0;
+	int vpp_sel;
+
+	if (module_sel == OSD2_HDR &&
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = 1;
+	else
+		vpp_sel = 0;
+
 
 	if (module_sel == VD1_HDR) {
 		cgain_lut_addr_port = VD1_CGAIN_LUT_ADDR_PORT;
@@ -2115,28 +2153,28 @@ void set_c_gain(enum hdr_module_sel module_sel,
 
 	/*cgain mode: 0->y domin*/
 	/*cgain mode: 1->rgb domin, use r/g/b max*/
-	VSYNC_WRITE_VPP_REG_BITS(hdr_ctrl,
-				 0, 12, 1);
-	VSYNC_WRITE_VPP_REG_BITS(hdr_ctrl,
-				 hdr_lut_param->cgain_en, 0, 1);
+	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
+				 0, 12, 1, vpp_sel);
+	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
+				 hdr_lut_param->cgain_en, 0, 1, vpp_sel);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_SM1)) {
 		if (hdr_lut_param->bitdepth == 10)
-			VSYNC_WRITE_VPP_REG_BITS(cgain_coef1,
-						 0x400, 16, 13);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(cgain_coef1,
+						 0x400, 16, 13, vpp_sel);
 		else if (hdr_lut_param->bitdepth == 12)
-			VSYNC_WRITE_VPP_REG_BITS(cgain_coef1,
-						 0x1000, 16, 13);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(cgain_coef1,
+						 0x1000, 16, 13, vpp_sel);
 	}
 
 	if (!hdr_lut_param->cgain_en)
 		return;
 
-	VSYNC_WRITE_VPP_REG(cgain_lut_addr_port, 0x0);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(cgain_lut_addr_port, 0x0, vpp_sel);
 	for (i = 0; i < HDR2_CGAIN_LUT_SIZE / 2; i++)
-		VSYNC_WRITE_VPP_REG(cgain_lut_data_port,
-				    (lut[i * 2 + 1] << 16) + lut[i * 2]);
-	VSYNC_WRITE_VPP_REG(cgain_lut_data_port, lut[64]);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(cgain_lut_data_port,
+				    (lut[i * 2 + 1] << 16) + lut[i * 2], vpp_sel);
+	VSYNC_WRITE_VPP_REG_VPP_SEL(cgain_lut_data_port, lut[64], vpp_sel);
 }
 
 u32 hdr_hist[NUM_HDR_HIST][128];
@@ -2331,6 +2369,13 @@ void hdr_hist_config(enum hdr_module_sel module_sel,
 	unsigned int hist_ctrl;
 	unsigned int hist_hs_he;
 	unsigned int hist_vs_ve;
+	int vpp_sel;
+
+	if (module_sel == OSD2_HDR &&
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = 1;
+	else
+		vpp_sel = 0;
 
 	if (module_sel == VD1_HDR) {
 		hist_ctrl = VD1_HDR2_HIST_CTRL;
@@ -2365,13 +2410,13 @@ void hdr_hist_config(enum hdr_module_sel module_sel,
 		return;
 
 	if (hdr_lut_param->hist_en) {
-		VSYNC_WRITE_VPP_REG(hist_ctrl, 0);
-		VSYNC_WRITE_VPP_REG(hist_hs_he, 0xeff);
-		VSYNC_WRITE_VPP_REG(hist_vs_ve, 0x86f);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_ctrl, 0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_hs_he, 0xeff, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_vs_ve, 0x86f, vpp_sel);
 	} else {
-		VSYNC_WRITE_VPP_REG(hist_ctrl, 0x5510);
-		VSYNC_WRITE_VPP_REG(hist_hs_he, 0x10000);
-		VSYNC_WRITE_VPP_REG(hist_vs_ve, 0x0);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_ctrl, 0x5510, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_hs_he, 0x10000, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(hist_vs_ve, 0x0, vpp_sel);
 	}
 }
 
@@ -2397,11 +2442,18 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	int *oft_pre_out = bypass_pre;
 	int *oft_post_out = bypass_pos;
 	bool always_full_func = false;
+	int vpp_sel;
 
 	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T7 &&
-		(module_sel == OSD2_HDR ||
-		module_sel == VD3_HDR))
+	    (module_sel == OSD2_HDR ||
+	    module_sel == VD3_HDR))
 		return hdr_process_select;
+
+	if (module_sel == OSD2_HDR &&
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = 1;
+	else
+		vpp_sel = 0;
 
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
@@ -2409,7 +2461,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	if ((module_sel == OSD1_HDR || module_sel == OSD2_HDR) &&
 	    cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/* turn off OSD mtx and use HDR for g12, sm1, tl1 */
-		VSYNC_WRITE_VPP_REG(VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(VPP_WRAP_OSD1_MATRIX_EN_CTRL, 0, vpp_sel);
 		if (!is_dolby_vision_on())
 			hdr_process_select |= RGB_OSD;
 
@@ -3486,6 +3538,16 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 	unsigned int matrix_pre_offset0_1 = 0;
 	unsigned int matrix_pre_offset2 = 0;
 	unsigned int matrix_en_ctrl = 0;
+	int vpp_sel;
+
+	if (mtx_sel == VPP2_POST2_MTX &&
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = 2;
+	else if (mtx_sel == VPP1_POST2_MTX &&
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = 1;
+	else
+		vpp_sel = 0;
 
 	if (mtx_sel == VD1_MTX) {
 		matrix_coef00_01 = VPP_VD1_MATRIX_COEF00_01;
@@ -3503,7 +3565,7 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 		matrix_pre_offset2 = VPP_VD1_MATRIX_PRE_OFFSET2;
 		matrix_en_ctrl = VPP_VD1_MATRIX_EN_CTRL;
 
-		VSYNC_WRITE_VPP_REG_BITS(VPP_VD1_MATRIX_EN_CTRL, mtx_on, 0, 1);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_VD1_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_sel);
 	} else if (mtx_sel == POST2_MTX) {
 		matrix_coef00_01 = VPP_POST2_MATRIX_COEF00_01;
 		matrix_coef02_10 = VPP_POST2_MATRIX_COEF02_10;
@@ -3520,7 +3582,7 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 		matrix_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2;
 		matrix_en_ctrl = VPP_POST2_MATRIX_EN_CTRL;
 
-		VSYNC_WRITE_VPP_REG_BITS(VPP_POST2_MATRIX_EN_CTRL, mtx_on, 0, 1);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_POST2_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_sel);
 	} else if (mtx_sel == POST_MTX) {
 		matrix_coef00_01 = VPP_POST_MATRIX_COEF00_01;
 		matrix_coef02_10 = VPP_POST_MATRIX_COEF02_10;
@@ -3537,7 +3599,41 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 		matrix_pre_offset2 = VPP_POST_MATRIX_PRE_OFFSET2;
 		matrix_en_ctrl = VPP_POST_MATRIX_EN_CTRL;
 
-		VSYNC_WRITE_VPP_REG_BITS(VPP_POST_MATRIX_EN_CTRL, mtx_on, 0, 1);
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP_POST_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_sel);
+	} else if (mtx_sel == VPP1_POST2_MTX) {
+		matrix_coef00_01 = VPP1_POST2_MATRIX_COEF00_01;
+		matrix_coef02_10 = VPP1_POST2_MATRIX_COEF02_10;
+		matrix_coef11_12 = VPP1_POST2_MATRIX_COEF11_12;
+		matrix_coef20_21 = VPP1_POST2_MATRIX_COEF20_21;
+		matrix_coef22 = VPP1_POST2_MATRIX_COEF22;
+		matrix_coef13_14 = VPP1_POST2_MATRIX_COEF13_14;
+		matrix_coef23_24 = VPP1_POST2_MATRIX_COEF23_24;
+		matrix_coef15_25 = VPP1_POST2_MATRIX_COEF15_25;
+		matrix_clip = VPP1_POST2_MATRIX_CLIP;
+		matrix_offset0_1 = VPP1_POST2_MATRIX_OFFSET0_1;
+		matrix_offset2 = VPP1_POST2_MATRIX_OFFSET2;
+		matrix_pre_offset0_1 = VPP1_POST2_MATRIX_PRE_OFFSET0_1;
+		matrix_pre_offset2 = VPP1_POST2_MATRIX_PRE_OFFSET2;
+		matrix_en_ctrl = VPP1_POST2_MATRIX_EN_CTRL;
+
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP1_POST2_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_sel);
+	} else if (mtx_sel == VPP2_POST2_MTX) {
+		matrix_coef00_01 = VPP2_POST2_MATRIX_COEF00_01;
+		matrix_coef02_10 = VPP2_POST2_MATRIX_COEF02_10;
+		matrix_coef11_12 = VPP2_POST2_MATRIX_COEF11_12;
+		matrix_coef20_21 = VPP2_POST2_MATRIX_COEF20_21;
+		matrix_coef22 = VPP2_POST2_MATRIX_COEF22;
+		matrix_coef13_14 = VPP2_POST2_MATRIX_COEF13_14;
+		matrix_coef23_24 = VPP2_POST2_MATRIX_COEF23_24;
+		matrix_coef15_25 = VPP2_POST2_MATRIX_COEF15_25;
+		matrix_clip = VPP2_POST2_MATRIX_CLIP;
+		matrix_offset0_1 = VPP2_POST2_MATRIX_OFFSET0_1;
+		matrix_offset2 = VPP2_POST2_MATRIX_OFFSET2;
+		matrix_pre_offset0_1 = VPP2_POST2_MATRIX_PRE_OFFSET0_1;
+		matrix_pre_offset2 = VPP2_POST2_MATRIX_PRE_OFFSET2;
+		matrix_en_ctrl = VPP2_POST2_MATRIX_EN_CTRL;
+
+		VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(VPP2_POST2_MATRIX_EN_CTRL, mtx_on, 0, 1, vpp_sel);
 	}
 
 	if (!mtx_on)
@@ -3545,37 +3641,37 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 
 	switch (mtx_csc) {
 	case MATRIX_RGB_YUV709:
-		VSYNC_WRITE_VPP_REG(matrix_coef00_01, 0x00bb0275);
-		VSYNC_WRITE_VPP_REG(matrix_coef02_10, 0x003f1f99);
-		VSYNC_WRITE_VPP_REG(matrix_coef11_12, 0x1ea601c2);
-		VSYNC_WRITE_VPP_REG(matrix_coef20_21, 0x01c21e67);
-		VSYNC_WRITE_VPP_REG(matrix_coef22, 0x00001fd7);
-		VSYNC_WRITE_VPP_REG(matrix_offset0_1, 0x00400200);
-		VSYNC_WRITE_VPP_REG(matrix_offset2, 0x00000200);
-		VSYNC_WRITE_VPP_REG(matrix_pre_offset0_1, 0x0);
-		VSYNC_WRITE_VPP_REG(matrix_pre_offset2, 0x0);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef00_01, 0x00bb0275, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef02_10, 0x003f1f99, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12, 0x1ea601c2, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef20_21, 0x01c21e67, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef22, 0x00001fd7, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset0_1, 0x00400200, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset2, 0x00000200, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset0_1, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset2, 0x0, vpp_sel);
 		break;
 	case MATRIX_YUV709_RGB:
-		VSYNC_WRITE_VPP_REG(matrix_coef00_01, 0x04A80000);
-		VSYNC_WRITE_VPP_REG(matrix_coef02_10, 0x072C04A8);
-		VSYNC_WRITE_VPP_REG(matrix_coef11_12, 0x1F261DDD);
-		VSYNC_WRITE_VPP_REG(matrix_coef20_21, 0x04A80876);
-		VSYNC_WRITE_VPP_REG(matrix_coef22, 0x0);
-		VSYNC_WRITE_VPP_REG(matrix_offset0_1, 0x0);
-		VSYNC_WRITE_VPP_REG(matrix_offset2, 0x0);
-		VSYNC_WRITE_VPP_REG(matrix_pre_offset0_1, 0x7c00600);
-		VSYNC_WRITE_VPP_REG(matrix_pre_offset2, 0x00000600);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef00_01, 0x04A80000, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef02_10, 0x072C04A8, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12, 0x1F261DDD, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef20_21, 0x04A80876, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef22, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset0_1, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset2, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset0_1, 0x7c00600, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset2, 0x00000600, vpp_sel);
 		break;
 	case MATRIX_YUV709F_RGB:/*full to full*/
-		VSYNC_WRITE_VPP_REG(matrix_coef00_01, 0x04000000);
-		VSYNC_WRITE_VPP_REG(matrix_coef02_10, 0x064D0400);
-		VSYNC_WRITE_VPP_REG(matrix_coef11_12, 0x1F411E21);
-		VSYNC_WRITE_VPP_REG(matrix_coef20_21, 0x0400076D);
-		VSYNC_WRITE_VPP_REG(matrix_coef22, 0x0);
-		VSYNC_WRITE_VPP_REG(matrix_offset0_1, 0x0);
-		VSYNC_WRITE_VPP_REG(matrix_offset2, 0x0);
-		VSYNC_WRITE_VPP_REG(matrix_pre_offset0_1, 0x0000600);
-		VSYNC_WRITE_VPP_REG(matrix_pre_offset2, 0x00000600);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef00_01, 0x04000000, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef02_10, 0x064D0400, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12, 0x1F411E21, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef20_21, 0x0400076D, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef22, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset0_1, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset2, 0x0, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset0_1, 0x0000600, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset2, 0x00000600, vpp_sel);
 		break;
 	default:
 		break;
