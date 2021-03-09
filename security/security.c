@@ -904,11 +904,13 @@ int security_move_mount(const struct path *from_path, const struct path *to_path
 	return call_int_hook(move_mount, 0, from_path, to_path);
 }
 
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 int security_path_notify(const struct path *path, u64 mask,
-				unsigned int obj_type)
+			unsigned int obj_type)
 {
 	return call_int_hook(path_notify, 0, path, mask, obj_type);
 }
+#endif
 
 int security_inode_alloc(struct inode *inode)
 {

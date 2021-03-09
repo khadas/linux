@@ -311,8 +311,11 @@ int security_dentry_create_files_as(struct dentry *dentry, int mode,
 					struct qstr *name,
 					const struct cred *old,
 					struct cred *new);
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 int security_path_notify(const struct path *path, u64 mask,
-					unsigned int obj_type);
+			unsigned int obj_type);
+#endif
+
 int security_inode_alloc(struct inode *inode);
 void security_inode_free(struct inode *inode);
 int security_inode_init_security(struct inode *inode, struct inode *dir,
@@ -440,6 +443,7 @@ int security_ismaclabel(const char *name);
 int security_secid_to_secctx(u32 secid, char **secdata, u32 *seclen);
 int security_secctx_to_secid(const char *secdata, u32 seclen, u32 *secid);
 void security_release_secctx(char *secdata, u32 seclen);
+
 void security_inode_invalidate_secctx(struct inode *inode);
 int security_inode_notifysecctx(struct inode *inode, void *ctx, u32 ctxlen);
 int security_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen);
@@ -679,11 +683,13 @@ static inline int security_move_mount(const struct path *from_path,
 	return 0;
 }
 
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 static inline int security_path_notify(const struct path *path, u64 mask,
 				unsigned int obj_type)
 {
 	return 0;
 }
+#endif
 
 static inline int security_inode_alloc(struct inode *inode)
 {

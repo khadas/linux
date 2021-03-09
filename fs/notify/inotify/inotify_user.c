@@ -30,7 +30,9 @@
 #include <linux/poll.h>
 #include <linux/wait.h>
 #include <linux/memcontrol.h>
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 #include <linux/security.h>
+#endif
 
 #include "inotify.h"
 #include "../fdinfo.h"
@@ -332,8 +334,13 @@ static const struct file_operations inotify_fops = {
 /*
  * find_inode - resolve a user-given path to a specific inode
  */
-static int inotify_find_inode(const char __user *dirname, struct path *path,
-						unsigned int flags, __u64 mask)
+#ifdef CONFIG_AMLOGIC_ANDROIDP
+
+static int inotify_find_inode(const char __user *dirname, struct path *path, unsigned int flags)
+#else
+static int inotify_find_inode(const char __user *dirname, struct path *path, unsigned int flags,
+				 __u64 mask)
+#endif
 {
 	int error;
 
@@ -346,11 +353,12 @@ static int inotify_find_inode(const char __user *dirname, struct path *path,
 		path_put(path);
 		return error;
 	}
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 	error = security_path_notify(path, mask,
-				FSNOTIFY_OBJ_TYPE_INODE);
+			FSNOTIFY_OBJ_TYPE_INODE);
 	if (error)
 		path_put(path);
-
+#endif
 	return error;
 }
 
@@ -743,9 +751,12 @@ SYSCALL_DEFINE3(inotify_add_watch, int, fd, const char __user *, pathname,
 		flags |= LOOKUP_FOLLOW;
 	if (mask & IN_ONLYDIR)
 		flags |= LOOKUP_DIRECTORY;
-
+#ifdef CONFIG_AMLOGIC_ANDROIDP
+	ret = inotify_find_inode(pathname, &path, flags);
+#else
 	ret = inotify_find_inode(pathname, &path, flags,
-			(mask & IN_ALL_EVENTS));
+				(mask & IN_ALL_EVENTS));
+#endif
 	if (ret)
 		goto fput_and_out;
 

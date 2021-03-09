@@ -2,13 +2,25 @@
 #include <linux/capability.h>
 #include <linux/socket.h>
 
+#ifdef CONFIG_AMLOGIC_ANDROIDP
 #define COMMON_FILE_SOCK_PERMS "ioctl", "read", "write", "create", \
-    "getattr", "setattr", "lock", "relabelfrom", "relabelto", "append", "map"
+	"getattr", "setattr", "lock", "relabelfrom", "relabelto", "append"
+#else
+#define COMMON_FILE_SOCK_PERMS "ioctl", "read", "write", "create", \
+	"getattr", "setattr", "lock", "relabelfrom", "relabelto", "append", "map"
+#endif
+
+#ifdef CONFIG_AMLOGIC_ANDROIDP
+#define COMMON_FILE_PERMS COMMON_FILE_SOCK_PERMS, "unlink", "link", \
+	"rename", "execute", "quotaon", "mounton", "audit_access", \
+	"open", "execmod"
+#else
 
 #define COMMON_FILE_PERMS COMMON_FILE_SOCK_PERMS, "unlink", "link", \
-    "rename", "execute", "quotaon", "mounton", "audit_access", \
+	"rename", "execute", "quotaon", "mounton", "audit_access", \
 	"open", "execmod", "watch", "watch_mount", "watch_sb", \
 	"watch_with_perm", "watch_reads"
+#endif
 
 #define COMMON_SOCK_PERMS COMMON_FILE_SOCK_PERMS, "bind", "connect", \
     "listen", "accept", "getopt", "setopt", "shutdown", "recvfrom",  \
@@ -58,10 +70,18 @@ struct security_class_mapping secclass_map[] = {
 	    "syslog_console", "module_request", "module_load", NULL } },
 	{ "capability",
 	  { COMMON_CAP_PERMS, NULL } },
+#ifdef CONFIG_AMLOGIC_ANDROIDP
 	{ "filesystem",
 	  { "mount", "remount", "unmount", "getattr",
 	    "relabelfrom", "relabelto", "associate", "quotamod",
-	    "quotaget", "watch", NULL } },
+	    "quotaget", NULL } },
+#else
+	{ "filesystem",
+	  { "mount", "remount", "unmount", "getattr",
+	    "relabelfrom", "relabelto", "associate", "quotamod",
+		"quotaget", "watch", NULL } },
+
+#endif
 	{ "file",
 	  { COMMON_FILE_PERMS,
 	    "execute_no_trans", "entrypoint", NULL } },

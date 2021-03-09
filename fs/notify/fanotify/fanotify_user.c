@@ -527,9 +527,14 @@ static const struct file_operations fanotify_fops = {
 	.llseek		= noop_llseek,
 };
 
+#ifdef CONFIG_AMLOGIC_ANDROIDP
+static int fanotify_find_path(int dfd, const char __user *filename,
+			      struct path *path, unsigned int flags)
+#else
 static int fanotify_find_path(int dfd, const char __user *filename,
 			      struct path *path, unsigned int flags, __u64 mask,
-			      unsigned int obj_type)
+				unsigned int obj_type)
+#endif
 {
 	int ret;
 
@@ -572,10 +577,11 @@ static int fanotify_find_path(int dfd, const char __user *filename,
 		path_put(path);
 		goto out;
 	}
-
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 	ret = security_path_notify(path, mask, obj_type);
 	if (ret)
 		path_put(path);
+#endif
 
 out:
 	return ret;
@@ -955,7 +961,9 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 	__kernel_fsid_t __fsid, *fsid = NULL;
 	u32 valid_mask = FANOTIFY_EVENTS | FANOTIFY_EVENT_FLAGS;
 	unsigned int mark_type = flags & FANOTIFY_MARK_TYPE_BITS;
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 	unsigned int obj_type;
+#endif
 	int ret;
 
 	pr_debug("%s: fanotify_fd=%d flags=%x dfd=%d pathname=%p mask=%llx\n",
@@ -970,13 +978,19 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 
 	switch (mark_type) {
 	case FAN_MARK_INODE:
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 		obj_type = FSNOTIFY_OBJ_TYPE_INODE;
 		break;
+#endif
 	case FAN_MARK_MOUNT:
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 		obj_type = FSNOTIFY_OBJ_TYPE_VFSMOUNT;
 		break;
+#endif
 	case FAN_MARK_FILESYSTEM:
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 		obj_type = FSNOTIFY_OBJ_TYPE_SB;
+#endif
 		break;
 	default:
 		return -EINVAL;
@@ -1044,8 +1058,12 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		goto fput_and_out;
 	}
 
+#ifdef CONFIG_AMLOGIC_ANDROIDP
+	ret = fanotify_find_path(dfd, pathname, &path, flags);
+#else
 	ret = fanotify_find_path(dfd, pathname, &path, flags,
 			(mask & ALL_FSNOTIFY_EVENTS), obj_type);
+#endif
 	if (ret)
 		goto fput_and_out;
 

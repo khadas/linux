@@ -89,8 +89,10 @@
 #include <linux/kernfs.h>
 #include <linux/stringhash.h>	/* for hashlen_string() */
 #include <uapi/linux/mount.h>
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 #include <linux/fsnotify.h>
 #include <linux/fanotify.h>
+#endif
 
 #include "avc.h"
 #include "objsec.h"
@@ -3293,8 +3295,9 @@ static int selinux_inode_removexattr(struct dentry *dentry, const char *name)
 	return -EACCES;
 }
 
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 static int selinux_path_notify(const struct path *path, u64 mask,
-						unsigned int obj_type)
+				unsigned int obj_type)
 {
 	int ret;
 	u32 perm;
@@ -3315,7 +3318,7 @@ static int selinux_path_notify(const struct path *path, u64 mask,
 	case FSNOTIFY_OBJ_TYPE_SB:
 		perm = FILE__WATCH_SB;
 		ret = superblock_has_perm(current_cred(), path->dentry->d_sb,
-						FILESYSTEM__WATCH, &ad);
+				FILESYSTEM__WATCH, &ad);
 		if (ret)
 			return ret;
 		break;
@@ -3325,7 +3328,6 @@ static int selinux_path_notify(const struct path *path, u64 mask,
 	default:
 		return -EINVAL;
 	}
-
 	/* blocking watches require the file:watch_with_perm permission */
 	if (mask & (ALL_FSNOTIFY_PERM_EVENTS))
 		perm |= FILE__WATCH_WITH_PERM;
@@ -3336,6 +3338,7 @@ static int selinux_path_notify(const struct path *path, u64 mask,
 
 	return path_has_perm(current_cred(), path, perm);
 }
+#endif
 
 /*
  * Copy the inode security context value to the user.
@@ -3709,6 +3712,7 @@ static int selinux_mmap_addr(unsigned long addr)
 static int selinux_mmap_file(struct file *file, unsigned long reqprot,
 			     unsigned long prot, unsigned long flags)
 {
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 	struct common_audit_data ad;
 	int rc;
 
@@ -3716,11 +3720,12 @@ static int selinux_mmap_file(struct file *file, unsigned long reqprot,
 		ad.type = LSM_AUDIT_DATA_FILE;
 		ad.u.file = file;
 		rc = inode_has_perm(current_cred(), file_inode(file),
-				    FILE__MAP, &ad);
+				FILE__MAP, &ad);
 		if (rc)
 			return rc;
 	}
 
+#endif
 	if (selinux_state.checkreqprot)
 		prot = reqprot;
 
@@ -6963,8 +6968,9 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(inode_getsecid, selinux_inode_getsecid),
 	LSM_HOOK_INIT(inode_copy_up, selinux_inode_copy_up),
 	LSM_HOOK_INIT(inode_copy_up_xattr, selinux_inode_copy_up_xattr),
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 	LSM_HOOK_INIT(path_notify, selinux_path_notify),
-
+#endif
 	LSM_HOOK_INIT(kernfs_init_security, selinux_kernfs_init_security),
 
 	LSM_HOOK_INIT(file_permission, selinux_file_permission),

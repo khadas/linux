@@ -13,7 +13,9 @@
 #include <linux/sched/signal.h>
 #include <linux/dnotify.h>
 #include <linux/init.h>
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 #include <linux/security.h>
+#endif
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/fdtable.h>
@@ -279,7 +281,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		error = -ENOTDIR;
 		goto out_err;
 	}
-
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 	/*
 	 * convert the userspace DN_* "arg" to the internal FS_*
 	 * defined in fsnotify
@@ -290,6 +292,8 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 			FSNOTIFY_OBJ_TYPE_INODE);
 	if (error)
 		goto out_err;
+
+#endif
 
 	/* expect most fcntl to add new rather than augment old */
 	dn = kmem_cache_alloc(dnotify_struct_cache, GFP_KERNEL);
@@ -305,6 +309,10 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 		goto out_err;
 	}
 
+#ifdef CONFIG_AMLOGIC_ANDROIDP
+	/* convert the userspace DN_* "arg" to the internal FS_* defines in fsnotify */
+	mask = convert_arg(arg);
+#endif
 	/* set up the new_fsn_mark and new_dn_mark */
 	new_fsn_mark = &new_dn_mark->fsn_mark;
 	fsnotify_init_mark(new_fsn_mark, dnotify_group);
