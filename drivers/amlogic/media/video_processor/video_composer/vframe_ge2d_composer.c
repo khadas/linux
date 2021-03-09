@@ -28,6 +28,12 @@
 #include <linux/mm.h>
 #include <linux/file.h>
 #include <linux/delay.h>
+#include <linux/amlogic/media/codec_mm/codec_mm.h>
+
+static int dump_src_count;
+static int dump_before_dst_count;
+static int dump_dst_count;
+static int dump_black_count;
 
 static unsigned int ge2d_com_debug;
 MODULE_PARM_DESC(ge2d_com_debug, "\n ge2d_com_debug\n");
@@ -304,10 +310,120 @@ int uninit_ge2d_composer(struct ge2d_composer_para *ge2d_comp_para)
 	return 0;
 }
 
+static int copy_phybuf_to_file(struct canvas_config_s *config,
+			       struct file *fp, loff_t pos)
+{
+	u32 span = SZ_1M;
+	u8 *p;
+	int remain_size = 0;
+	ssize_t ret;
+	ulong phys;
+
+	if (IS_ERR_OR_NULL(config))
+		return -1;
+
+	phys = config->phy_addr;
+	remain_size = config->width * config->height;
+	while (remain_size > 0) {
+		if (remain_size < span)
+			span = remain_size;
+		p = codec_mm_vmap(phys, PAGE_ALIGN(span));
+		if (!p) {
+			VIDEOCOM_ERR("vmap failed\n");
+			return -1;
+		}
+		codec_mm_dma_flush(p, span, DMA_FROM_DEVICE);
+		ret = vfs_write(fp, (char *)p, span, &pos);
+		if (ret <= 0)
+			VIDEOCOM_ERR("vfs write failed!\n");
+		phys += span;
+		codec_mm_unmap_phyaddr(p);
+		remain_size -= span;
+
+		VIDEOCOM_INFO("pos: %lld, phys: %lx, remain_size: %d\n",
+			     pos, phys, remain_size);
+	}
+	return 0;
+}
+
+static bool dump_data(struct dump_param *para, enum buffer_data type)
+{
+	struct file *filp_dst = NULL;
+	char dst_path[64];
+	struct canvas_config_s *dump_config;
+	int result = 0;
+	int offset = 0;
+	mm_segment_t old_fs;
+	bool ret = false;
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	offset = 0;
+	if (type == BLACK_BUFFER)
+		sprintf(dst_path, "/data/temp/black_%d", dump_black_count++);
+	else if (type == SCR_BUFFER)
+		sprintf(dst_path, "/data/temp/scr_%d", dump_src_count++);
+	else if (type == DST_EMPTY_BUFFER)
+		sprintf(dst_path,
+			"/data/temp/before_dst_%d",
+			dump_before_dst_count++);
+	else if (type == DST_BUFFER_DATA)
+		sprintf(dst_path, "/data/temp/dst_%d", dump_dst_count++);
+	filp_dst = filp_open(dst_path, O_RDWR | O_CREAT, 0666);
+	if (IS_ERR(filp_dst)) {
+		VIDEOCOM_ERR("open %s failed\n", dst_path);
+		ret = false;
+	} else {
+		dump_config = &para->canvas0_config[0];
+		result = copy_phybuf_to_file(dump_config, filp_dst, 0);
+		if (result < 0) {
+			VIDEOCOM_ERR("write %s failed\n", dst_path);
+			ret = false;
+			goto end;
+		}
+		if (para->plane_num >= 2) {
+			offset = dump_config->width *
+				dump_config->height;
+			dump_config = &para->canvas0_config[1];
+			result =
+			copy_phybuf_to_file(dump_config,
+					    filp_dst, offset);
+			if (result < 0) {
+				VIDEOCOM_ERR("#1 write %s failed\n",
+					     dst_path);
+				ret = false;
+				goto end;
+			}
+		}
+		if (para->plane_num >= 3) {
+			offset += dump_config->width *
+				dump_config->height;
+			dump_config = &para->canvas0_config[2];
+			result =
+			copy_phybuf_to_file(dump_config,
+					    filp_dst, offset);
+			if (result < 0) {
+				VIDEOCOM_ERR("#2 write %s failed\n",
+					     dst_path);
+				ret = false;
+				goto end;
+			}
+		}
+		vfs_fsync(filp_dst, 0);
+		filp_close(filp_dst, NULL);
+		set_fs(old_fs);
+		ret = true;
+	}
+end:
+	return ret;
+}
+
 int fill_vframe_black(struct ge2d_composer_para *ge2d_comp_para)
 {
 	struct canvas_config_s dst_canvas0_config[3];
 	u32 dst_plane_num;
+	struct dump_param para;
+	bool ret = false;
 
 	memset(dst_canvas0_config, 0, sizeof(dst_canvas0_config));
 	memset(ge2d_comp_para->ge2d_config, 0, sizeof(struct config_para_ex_s));
@@ -408,6 +524,16 @@ int fill_vframe_black(struct ge2d_composer_para *ge2d_comp_para)
 		 ge2d_comp_para->buffer_w,
 		 ge2d_comp_para->buffer_h,
 		 0x008080ff);
+	if (ge2d_com_debug & 2) {
+		para.canvas0_config[0] = dst_canvas0_config[0];
+		para.canvas0_config[1] = dst_canvas0_config[1];
+		para.canvas0_config[2] = dst_canvas0_config[2];
+		para.plane_num = dst_plane_num;
+		ret = dump_data(&para, BLACK_BUFFER);
+		if (ret)
+			VIDEOCOM_INFO("dump black buffer successful.\n");
+	}
+
 	return 0;
 }
 
@@ -421,6 +547,8 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 	int input_width, input_height;
 	int position_left, position_top;
 	int position_width, position_height;
+	struct dump_param para;
+	bool result = false;
 
 	memset(ge2d_comp_para->ge2d_config,
 	       0, sizeof(struct config_para_ex_s));
@@ -563,6 +691,24 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 		VIDEOCOM_ERR("++ge2d configing error.\n");
 		return -1;
 	}
+	if (ge2d_com_debug & 4) {
+		para.canvas0_config[0] = scr_data->canvas0_config[0];
+		para.canvas0_config[1] = scr_data->canvas0_config[1];
+		para.canvas0_config[2] = scr_data->canvas0_config[2];
+		para.plane_num = scr_data->plane_num;
+		result = dump_data(&para, SCR_BUFFER);
+		if (result)
+			VIDEOCOM_INFO("dump scr buffer successful.\n");
+	}
+	if (ge2d_com_debug & 8) {
+		para.canvas0_config[0] = dst_canvas0_config[0];
+		para.canvas0_config[1] = dst_canvas0_config[1];
+		para.canvas0_config[2] = dst_canvas0_config[2];
+		para.plane_num = dst_plane_num;
+		result = dump_data(&para, DST_EMPTY_BUFFER);
+		if (result)
+			VIDEOCOM_INFO("dump dst empty buffer successful.\n");
+	}
 
 	position_left = ge2d_comp_para->position_left;
 	position_top = ge2d_comp_para->position_top;
@@ -586,6 +732,16 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 			      position_top,
 			      position_width,
 			      position_height);
+	if (ge2d_com_debug & 16) {
+		para.canvas0_config[0] = dst_canvas0_config[0];
+		para.canvas0_config[1] = dst_canvas0_config[1];
+		para.canvas0_config[2] = dst_canvas0_config[2];
+		para.plane_num = dst_plane_num;
+		result = dump_data(&para, DST_BUFFER_DATA);
+		if (result)
+			VIDEOCOM_INFO("dump dst data successful.\n");
+	}
+
 	return 0;
 }
 

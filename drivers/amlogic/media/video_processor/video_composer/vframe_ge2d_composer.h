@@ -77,6 +77,19 @@ struct src_data_para {
 	bool is_vframe;
 };
 
+struct dump_param {
+	u32 plane_num;
+	struct canvas_config_s canvas0_config[3];
+};
+
+enum buffer_data {
+	BLACK_BUFFER = 0,
+	SCR_BUFFER,
+	DST_EMPTY_BUFFER,
+	DST_BUFFER_DATA,
+	OTHER_BUFFER,
+};
+
 int init_ge2d_composer(struct ge2d_composer_para *ge2d_comp_para);
 
 int uninit_ge2d_composer(struct ge2d_composer_para *ge2d_comp_para);

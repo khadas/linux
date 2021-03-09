@@ -1078,7 +1078,7 @@ static void vframe_composer(struct composer_dev *dev)
 		dst_vf->canvas0_config[1].phy_addr = dst_buf->phy_addr
 			+ dst_vf->width * dst_vf->height;
 		dst_vf->canvas0_config[1].width = dst_vf->width;
-		dst_vf->canvas0_config[1].height = dst_vf->height;
+		dst_vf->canvas0_config[1].height = dst_vf->height >> 1;
 		dst_vf->canvas0_config[1].block_mode = 0;
 		dst_vf->plane_num = 2;
 	}
