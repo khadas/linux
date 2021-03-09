@@ -445,6 +445,7 @@ struct hdmitx_dev {
 	unsigned int allm_mode; /* allm_mode: 1/on 0/off */
 	unsigned int ct_mode; /* 0/off 1/game, 2/graphcis, 3/photo, 4/cinema */
 	unsigned int sspll;
+	unsigned int hdmi_rext; /* Rext resistor */
 	/* if HDMI plugin even once time, then set 1 */
 	/* if never hdmi plugin, then keep as 0 */
 	unsigned int already_used;

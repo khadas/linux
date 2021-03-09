@@ -6199,6 +6199,12 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 			hdmitx_device.data->chip_type,
 			hdmitx_device.data->chip_name);
 
+		/* Get hdmi_rext information */
+		ret = of_property_read_u32(pdev->dev.of_node, "hdmi_rext", &val);
+		hdmitx_device.hdmi_rext = val;
+		if (!ret)
+			pr_info(SYS "hdmi_rext: %d\n", val);
+
 		/* Get dongle_mode information */
 		ret = of_property_read_u32(pdev->dev.of_node, "dongle_mode",
 					   &dongle_mode);

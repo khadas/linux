@@ -351,6 +351,8 @@ void hdmitx_phy_bandgap_en_sc2(void)
 
 void set_phy_by_mode_sc2(unsigned int mode)
 {
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
 	switch (mode) {
 	case HDMI_PHYPARA_6G: /* 5.94/4.5/3.7Gbps */
 	case HDMI_PHYPARA_4p5G:
@@ -358,6 +360,9 @@ void set_phy_by_mode_sc2(unsigned int mode)
 		hd_write_reg(P_ANACTRL_HDMIPHY_CTRL0, 0x37eb65c4);
 		hd_write_reg(P_ANACTRL_HDMIPHY_CTRL3, 0x2ab0ff3b);
 		hd_write_reg(P_ANACTRL_HDMIPHY_CTRL5, 0x0000080b);
+		/* for hdmi_rext use the 1.3k resistor */
+		if (mode == HDMI_PHYPARA_6G && hdev->hdmi_rext == 1300)
+			hd_write_reg(P_ANACTRL_HDMIPHY_CTRL0, 0x37eb6584);
 		break;
 	case HDMI_PHYPARA_3G: /* 2.97Gbps */
 		hd_write_reg(P_ANACTRL_HDMIPHY_CTRL0, 0x33eb42a2);
