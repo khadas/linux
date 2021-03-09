@@ -3864,6 +3864,11 @@ static int load_module(struct load_info *info, const char __user *uargs,
 
 	if (blacklisted(info->name)) {
 		err = -EPERM;
+#ifdef CONFIG_AMLOGIC_MODIFY
+		/* return success or andorid R will fail to boot */
+		pr_info("module_blacklist: %s\n", info->name);
+		err = 0;
+#endif
 		goto free_copy;
 	}
 
