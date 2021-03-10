@@ -595,10 +595,11 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 	do_div(phase_step_h, width_out);
 	phase_step_h <<= (OSD_ZOOM_TOTAL_BITS - OSD_ZOOM_WIDTH_BITS);
 	/*check coef*/
-	if (scan_mode_out && width_out <= 720) {
-		coef_h = osd_scaler_filter_table[COEFS_4POINT_TRIANGLE];
-		coef_v = osd_scaler_filter_table[COEFS_4POINT_TRIANGLE];
-	} else if (vsc_double_line_mode == 1) {
+
+	if (vsc_double_line_mode == 1) {
+		coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
+		coef_v = osd_scaler_filter_table[COEFS_2POINT_BINILEAR];
+	} else if (scan_mode_out && width_out <= 720) {
 		coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
 		coef_v = osd_scaler_filter_table[COEFS_2POINT_BINILEAR];
 	} else {
