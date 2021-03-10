@@ -177,13 +177,12 @@ void iec_get_cnsmr_cs_info(struct iec_cnsmr_cs *cs_info,
 	} else if (coding_type == AUDIO_CODING_TYPE_MULTICH_8CH_LPCM) {
 		cs_info->fmt = 0;
 		/* fs as 4 * clk */
-		if (rate == 44100) {
-			cs_info->sampling_freq =
-				IEC958_AES3_CON_FS_176400;
-		} else if (rate == 48000) {
-			cs_info->sampling_freq =
-				IEC958_AES3_CON_FS_192000;
-		}
+		if (rate == 44100)
+			cs_info->sampling_freq = IEC958_AES3_CON_FS_176400;
+		else if (rate == 48000)
+			cs_info->sampling_freq = IEC958_AES3_CON_FS_192000;
+		else if (rate == 192000)
+			cs_info->sampling_freq = IEC958_AES3_CON_FS_768000;
 	} else {
 		cs_info->fmt = 0;
 		/* default : laser optical product*/
