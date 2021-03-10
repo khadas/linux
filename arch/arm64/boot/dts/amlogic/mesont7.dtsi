@@ -459,6 +459,8 @@
 		dsp-cnt = <2>;
 		dspaoffset = <0xa0000>;
 		dspboffset = <0x8a0000>;
+		dspshmoffset = <0x820000>;
+		dspshmsize = <0x80000>;
 		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
 		boot_sram_addr = <0xfff00000>;
 		boot_sram_size = <0x80000>;

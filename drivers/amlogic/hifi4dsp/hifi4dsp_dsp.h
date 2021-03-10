@@ -208,5 +208,6 @@ struct hifi4dsp_dsp *hifi4dsp_dsp_new(struct hifi4dsp_priv *priv,
 
 void create_hifi4_syslog(void);
 void hifi4_syslog_reomve(void);
+struct hifi4dsp_addr *hifi4dsp_get_share_memory(void);
 
 #endif /*_HIFI4DSP_DSP_H*/

@@ -116,6 +116,16 @@ static int hifi4dsp_miscdev_release(struct inode *inode, struct file *fp)
 	return 0;
 }
 
+struct hifi4dsp_addr *hifi4dsp_get_share_memory(void)
+{
+	if (!hifi4dsp_p[0] || !hifi4dsp_p[0]->dsp) {
+		pr_err("%s failed.\n", __func__);
+		return NULL;
+	}
+	return &hifi4dsp_p[0]->dsp->addr;
+}
+EXPORT_SYMBOL(hifi4dsp_get_share_memory);
+
 static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 					    unsigned long arg)
 {
@@ -787,11 +797,11 @@ static struct miscdevice hifi4dsp_miscdev[] = {
 	}
 };
 
-static void *mm_vmap(phys_addr_t phys, unsigned long size)
+static void *mm_vmap(phys_addr_t phys, unsigned long size, pgprot_t pgprotattr)
 {
 	u32 offset, npages;
 	struct page **pages = NULL;
-	pgprot_t pgprot = PAGE_KERNEL;
+	pgprot_t pgprot = pgprotattr;
 	void *vaddr;
 	int i;
 
@@ -963,6 +973,8 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	struct hifi4dsp_miscdev_t *p_dsp_miscdev;
 	struct miscdevice *pmscdev;
 	enum dsp_start_mode startmode;
+	u32 dspshmoffset;
+	u32 dspshmsize;
 
 	phys_addr_t hifi4base;
 	int hifi4size;
@@ -1012,6 +1024,19 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(np, "dsp-monitor-period-ms", &dsp_monitor_period_ms);
 	if (ret < 0)
 		dev_err(&pdev->dev, "Can't retrieve dsp-monitor-period-ms\n");
+
+	/*share mem*/
+	ret = of_property_read_u32(np, "dspshmoffset", &dspshmoffset);
+	if (ret < 0)
+		dev_err(&pdev->dev, "Can't retrieve sharememoffset\n");
+	else
+		pr_debug("of read dspshmoffset=0x%08x\n", dspshmoffset);
+
+	ret = of_property_read_u32(np, "dspshmsize", &dspshmsize);
+	if (ret < 0)
+		dev_err(&pdev->dev, "Can't retrieve sharememsize\n");
+	else
+		pr_debug("of read dspshmsize=0x%08x\n", dspshmsize);
 
 	/*boot from DDR or SRAM or ...*/
 	ret = of_property_read_u32(np, "bootlocation", &bootlocation);
@@ -1117,6 +1142,13 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		goto err3;
 	pr_info("cma alloc hifi4 mem region success!\n");
 
+	dsp->addr.smem_paddr = hifi4_rmem.base + dspshmoffset;
+	dsp->addr.smem_size = dspshmsize;
+	dsp->addr.smem = mm_vmap(dsp->addr.smem_paddr, dsp->addr.smem_size,
+		pgprot_dmacoherent(PAGE_KERNEL));
+	pr_info("sharemem map phys:0x%lx-->virt:0x%lx\n",
+		(unsigned long)dsp->addr.smem_paddr, (unsigned long)dsp->addr.smem);
+
 	if (dsp_cnt > 1) {
 		platform_set_drvdata(pdev, dsp);
 		ret = hifi4dsp_attach_pd(&pdev->dev, dsp_cnt);
@@ -1144,19 +1176,13 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 				       dspboffset);
 		hifi4size =
 			(id == 0 ?
-			(dspboffset - dspaoffset) :
+			(dspboffset - dspaoffset - dspshmsize) :
 			((unsigned long)hifi4_rmem.size - dspboffset));
-		if (!PageHighMem(cma_pages)) {
-			fw_addr = phys_to_virt(hifi4base);
-			pr_info("kernel addr map1 phys:0x%lx->virt:0x%lx\n",
-				(unsigned long)hifi4base,
-				(unsigned long)fw_addr);
-		} else {
-			fw_addr = mm_vmap(hifi4base, hifi4size);
-			pr_info("kernel addr map2 phys:0x%lx->virt:0x%lx\n",
-				(unsigned long)hifi4base,
-				(unsigned long)fw_addr);
-		}
+
+		fw_addr = mm_vmap(hifi4base, hifi4size, pgprot_dmacoherent(PAGE_KERNEL));
+		pr_info("kernel addr map phys:0x%lx->virt:0x%lx\n",
+			(unsigned long)hifi4base,
+			(unsigned long)fw_addr);
 
 		pr_debug("hifi4dsp%d, firmware :base:0x%llx, size:0x%x, virt:%lx\n",
 			 id,
