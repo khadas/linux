@@ -47,6 +47,8 @@
 #define LCD_TCON_DATA_BLOCK_HEADER_SIZE         64
 #define LCD_TCON_DATA_BLOCK_NAME_SIZE           36
 #define LCD_TCON_DATA_PART_NAME_SIZE            48
+#define LCD_TCON_INIT_BIN_NAME_SIZE             28
+#define LCD_TCON_INIT_BIN_VERSION_SIZE          8
 
 struct lcd_tcon_init_block_header_s {
 	unsigned int crc32;
@@ -58,7 +60,8 @@ struct lcd_tcon_init_block_header_s {
 	unsigned char reserved2[5];
 	unsigned char data_byte_width;
 	unsigned short chipid;
-	unsigned char name[LCD_TCON_DATA_BLOCK_NAME_SIZE];
+	unsigned char name[LCD_TCON_INIT_BIN_NAME_SIZE];
+	char version[LCD_TCON_INIT_BIN_VERSION_SIZE];
 };
 
 struct lcd_tcon_data_block_header_s {

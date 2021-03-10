@@ -38,9 +38,7 @@ static struct lcd_tcon_config_s *lcd_tcon_conf;
 static struct tcon_rmem_s tcon_rmem;
 static struct tcon_mem_map_table_s tcon_mm_table;
 static struct delayed_work lcd_tcon_delayed_work;
-#ifdef CONFIG_AMLOGIC_TEE_TODO
-static struct lcd_tcon_local_setting_s tcon_local_setting;
-#endif
+static struct lcd_tcon_local_cfg_s tcon_local_cfg;
 
 /* **********************************
  * tcon common function
@@ -406,6 +404,7 @@ int lcd_tcon_info_print(char *buf, int offset)
 			"\ntcon info:\n"
 			"core_reg_width:         %d\n"
 			"reg_table_len:          %d\n"
+			"tcon_bin_ver:           %s\n"
 			"tcon_rmem_flag:         %d\n"
 			"tcon_data_flag:         %d\n"
 			"reserved_mem paddr:     0x%lx\n"
@@ -427,6 +426,7 @@ int lcd_tcon_info_print(char *buf, int offset)
 			"acc_lut_mem size:       0x%x\n\n",
 			lcd_tcon_conf->core_reg_width,
 			lcd_tcon_conf->reg_table_len,
+			tcon_local_cfg.bin_ver,
 			tcon_rmem.flag,
 			tcon_mm_table.tcon_data_flag,
 			(unsigned long)tcon_rmem.rsv_mem_paddr,
@@ -464,6 +464,7 @@ int lcd_tcon_info_print(char *buf, int offset)
 			"\ntcon info:\n"
 			"core_reg_width:         %d\n"
 			"reg_table_len:          %d\n"
+			"tcon_bin_ver:           %s\n"
 			"tcon_rmem_flag:         %d\n"
 			"tcon_data_flag:         %d\n"
 			"reserved_mem paddr:     0x%lx\n"
@@ -473,6 +474,7 @@ int lcd_tcon_info_print(char *buf, int offset)
 			"bin_path_mem_size:      0x%x\n\n",
 			lcd_tcon_conf->core_reg_width,
 			lcd_tcon_conf->reg_table_len,
+			tcon_local_cfg.bin_ver,
 			tcon_rmem.flag,
 			tcon_mm_table.tcon_data_flag,
 			(unsigned long)tcon_rmem.rsv_mem_paddr,
@@ -512,6 +514,8 @@ int lcd_tcon_info_print(char *buf, int offset)
 			(mem_vaddr[18] << 16) |
 			(mem_vaddr[19] << 24);
 		if (size < (32 + 256 * cnt))
+			return len;
+		if (cnt > 32)
 			return len;
 		n = lcd_debug_info_len(len + offset);
 		len += snprintf((buf + len), n, "\n");
@@ -1109,7 +1113,7 @@ lcd_tcon_data_load_next:
 static int lcd_tcon_bin_path_update(unsigned int size)
 {
 	unsigned char *mem_vaddr;
-	unsigned int data_size;
+	unsigned int data_size, block_cnt;
 	unsigned int data_crc32, temp_crc32;
 
 	if (!tcon_rmem.bin_path_rmem.mem_vaddr) {
@@ -1121,8 +1125,16 @@ static int lcd_tcon_bin_path_update(unsigned int size)
 		(mem_vaddr[5] << 8) |
 		(mem_vaddr[6] << 16) |
 		(mem_vaddr[7] << 24);
-	if (data_size < 4) {
+	if (data_size < 32) { /* header size */
 		LCDERR("%s: tcon_bin_path data_size error\n", __func__);
+		return -1;
+	}
+	block_cnt = mem_vaddr[16] |
+		(mem_vaddr[17] << 8) |
+		(mem_vaddr[18] << 16) |
+		(mem_vaddr[19] << 24);
+	if (block_cnt > 32) {
+		LCDERR("%s: tcon_bin_path block_cnt error\n", __func__);
 		return -1;
 	}
 	data_crc32 = mem_vaddr[0] |
@@ -1143,10 +1155,7 @@ static int lcd_tcon_bin_path_update(unsigned int size)
 		(mem_vaddr[13] << 8) |
 		(mem_vaddr[14] << 16) |
 		(mem_vaddr[15] << 24);
-	tcon_mm_table.block_cnt = mem_vaddr[16] |
-		(mem_vaddr[17] << 8) |
-		(mem_vaddr[18] << 16) |
-		(mem_vaddr[19] << 24);
+	tcon_mm_table.block_cnt = block_cnt;
 
 	return 0;
 }
@@ -1353,22 +1362,51 @@ static void lcd_tcon_axi_mem_config_t5(void)
 	}
 }
 
+static void lcd_tcon_axi_mem_config_t5d(void)
+{
+	unsigned int size = 0x00500000;
+	unsigned int reg = 0x261;
+
+	if (size > tcon_rmem.axi_mem_size) {
+		LCDERR("%s: tcon axi_mem size 0x%x is not enough, need 0x%x\n",
+			__func__, tcon_rmem.axi_mem_size, size);
+		return;
+	}
+
+	tcon_rmem.axi_rmem =
+		kzalloc(sizeof(struct tcon_rmem_config_s), GFP_KERNEL);
+	if (!tcon_rmem.axi_rmem)
+		return;
+
+	lcd_tcon_conf->axi_reg = kzalloc(sizeof(unsigned int), GFP_KERNEL);
+	if (!lcd_tcon_conf->axi_reg) {
+		kfree(tcon_rmem.axi_rmem);
+		return;
+	}
+
+	tcon_rmem.axi_rmem->mem_paddr = tcon_rmem.axi_mem_paddr;
+	tcon_rmem.axi_rmem->mem_vaddr = NULL;
+	tcon_rmem.axi_rmem->mem_size = size;
+
+	*lcd_tcon_conf->axi_reg = reg;
+}
+
 static void lcd_tcon_axi_mem_secure_tl1(void)
 {
 #ifdef CONFIG_AMLOGIC_TEE_TODO
 	int ret;
 
-	tcon_local_setting.secure_cfg.handle = 0;
+	tcon_local_cfg.secure_cfg.handle = 0;
 	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_TCON,
 				      tcon_rmem.axi_mem_paddr,
 				      tcon_rmem.axi_mem_size,
-				      &tcon_local_setting.secure_cfg.handle);
+				      &tcon_local_cfg.secure_cfg.handle);
 	if (ret) {
-		tcon_local_setting.secure_cfg.protect = 0;
+		tcon_local_cfg.secure_cfg.protect = 0;
 		LCDERR("%s: the tcon secure mem failed! protect status is:%d\n",
-		       __func__, tcon_local_setting.secure_cfg.protect);
+		       __func__, tcon_local_cfg.secure_cfg.protect);
 	} else {
-		tcon_local_setting.secure_cfg.protect = 1;
+		tcon_local_cfg.secure_cfg.protect = 1;
 	}
 #endif
 }
@@ -1379,17 +1417,20 @@ static void lcd_tcon_axi_mem_secure_t5(void)
 #ifdef CONFIG_AMLOGIC_TEE_TODO
 	int ret;
 
-	tcon_local_setting.secure_cfg.handle = 0;
+	if (!tcon_rmem.axi_rmem)
+		return;
+
+	tcon_local_cfg.secure_cfg.handle = 0;
 	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_TCON,
 				      tcon_rmem.axi_rmem[0].mem_paddr,
 				      tcon_rmem.axi_rmem[0].mem_size,
-				      &tcon_local_setting.secure_cfg.handle);
+				      &tcon_local_cfg.secure_cfg.handle);
 	if (ret) {
-		tcon_local_setting.secure_cfg.protect = 0;
+		tcon_local_cfg.secure_cfg.protect = 0;
 		LCDERR("%s: the tcon secure mem failed! protect status is:%d\n",
-		       __func__, tcon_local_setting.secure_cfg.protect);
+		       __func__, tcon_local_cfg.secure_cfg.protect);
 	} else {
-		tcon_local_setting.secure_cfg.protect = 1;
+		tcon_local_cfg.secure_cfg.protect = 1;
 	}
 #endif
 }
@@ -1414,8 +1455,10 @@ static int lcd_tcon_mem_config(void)
 		LCDPR("%s: axi_mem paddr: 0x%08x, size: 0x%x\n",
 		      __func__, (unsigned int)tcon_rmem.axi_mem_paddr,
 		      tcon_rmem.axi_mem_size);
-	lcd_tcon_conf->tcon_axi_mem_config();
-	lcd_tcon_conf->tcon_axi_mem_secure();
+	if (lcd_tcon_conf->tcon_axi_mem_config)
+		lcd_tcon_conf->tcon_axi_mem_config();
+	if (lcd_tcon_conf->tcon_axi_mem_secure)
+		lcd_tcon_conf->tcon_axi_mem_secure();
 
 	tcon_rmem.bin_path_rmem.mem_size = lcd_tcon_conf->bin_path_size;
 	tcon_rmem.bin_path_rmem.mem_paddr =
@@ -1443,16 +1486,16 @@ static int lcd_tcon_mem_config(void)
 #ifdef CONFIG_AMLOGIC_TEE_TODO
 int lcd_tcon_mem_tee_get_status(void)
 {
-	return tcon_local_setting.secure_cfg.protect;
+	return tcon_local_cfg.secure_cfg.protect;
 }
 
 int lcd_tcon_mem_tee_unprotect(void)
 {
-	if (tcon_local_setting.secure_cfg.protect) {
-		tee_unprotect_mem(tcon_local_setting.secure_cfg.handle);
-		tcon_local_setting.secure_cfg.protect = 0;
+	if (tcon_local_cfg.secure_cfg.protect) {
+		tee_unprotect_mem(tcon_local_cfg.secure_cfg.handle);
+		tcon_local_cfg.secure_cfg.protect = 0;
 	}
-	return tcon_local_setting.secure_cfg.protect;
+	return tcon_local_cfg.secure_cfg.protect;
 }
 #endif
 
@@ -1546,6 +1589,7 @@ static int lcd_tcon_load_init_data_from_unifykey(void)
 	if (key_len != data_len)
 		goto lcd_tcon_load_init_data_err;
 
+	memset(tcon_local_cfg.bin_ver, 0, TCON_BIN_VER_LEN);
 	LCDPR("tcon: load init data len: %d\n", data_len);
 	return 0;
 
@@ -1584,6 +1628,9 @@ static int lcd_tcon_load_init_data_from_unifykey_new(void)
 		LCDPR("chipid            = %d\n", data_header->chipid);
 		LCDPR("name              = %s\n", data_header->name);
 	}
+	memcpy(tcon_local_cfg.bin_ver, data_header->version,
+	       LCD_TCON_INIT_BIN_VERSION_SIZE);
+	tcon_local_cfg.bin_ver[TCON_BIN_VER_LEN - 1] = '\0';
 
 	data_len = tcon_mm_table.core_reg_table_size;
 	tcon_mm_table.core_reg_table =
@@ -1594,7 +1641,8 @@ static int lcd_tcon_load_init_data_from_unifykey_new(void)
 	memcpy(tcon_mm_table.core_reg_table, p, data_len);
 	kfree(buf);
 
-	LCDPR("tcon: load init data len: %d\n", data_len);
+	LCDPR("tcon: load init data len: %d, ver: %s\n",
+	      data_len, tcon_local_cfg.bin_ver);
 	return 0;
 
 lcd_tcon_load_init_data_new_err:
@@ -1743,8 +1791,8 @@ static struct lcd_tcon_config_s tcon_data_t5d = {
 
 	.axi_bank = LCD_TCON_AXI_BANK_T5D,
 
-	.rsv_mem_size    = 0x00c00000, /* 12M */
-	.axi_mem_size    = 0x00a00000, /* 10M */
+	.rsv_mem_size    = 0x00800000, /* 8M */
+	.axi_mem_size    = 0x00500000, /* 5M */
 	.bin_path_size   = 0x00002800, /* 10K */
 	.vac_size        = 0,
 	.demura_set_size = 0,
@@ -1752,7 +1800,7 @@ static struct lcd_tcon_config_s tcon_data_t5d = {
 	.acc_lut_size    = 0,
 
 	.axi_reg = NULL,
-	.tcon_axi_mem_config = lcd_tcon_axi_mem_config_t5,
+	.tcon_axi_mem_config = lcd_tcon_axi_mem_config_t5d,
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t5,
 	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t5,

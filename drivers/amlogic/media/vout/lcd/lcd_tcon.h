@@ -103,8 +103,10 @@ struct tcon_mem_secure_config_s {
 	bool protect;
 };
 
-struct lcd_tcon_local_setting_s {
+#define TCON_BIN_VER_LEN    9
+struct lcd_tcon_local_cfg_s {
 	struct tcon_mem_secure_config_s secure_cfg;
+	char bin_ver[TCON_BIN_VER_LEN];
 };
 
 #ifdef CONFIG_AMLOGIC_TEE
