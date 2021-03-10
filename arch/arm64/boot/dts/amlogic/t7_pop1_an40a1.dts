@@ -222,6 +222,15 @@
 		pps-enable = <1>;
 	};
 
+	provisionkey {
+		compatible = "amlogic, provisionkey";
+		status = "okay";
+		key-permit-default = "write";
+		//new key not need add dts if started with KEY_PROVISION_
+		KEY_PROVISION_XXX { };
+		//test_my_added_keyname { };
+	};//End provisionkey
+
 	unifykey{
 		compatible = "amlogic,unifykey";
 		status = "okay";
