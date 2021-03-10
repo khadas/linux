@@ -502,12 +502,6 @@ static int meson_plane_atomic_set_property(struct drm_plane *plane,
 	return -EINVAL;
 }
 
-static void meson_plane_reset(struct drm_plane *plane)
-{
-	drm_atomic_helper_plane_reset(plane);
-	plane->state->pixel_blend_mode = DRM_MODE_BLEND_COVERAGE;
-}
-
 static struct drm_plane_state *
 meson_plane_duplicate_state(struct drm_plane *plane)
 {
@@ -519,8 +513,7 @@ meson_plane_duplicate_state(struct drm_plane *plane)
 	DRM_DEBUG("%s (%s)\n", __func__, plane->name);
 
 	old_plane_state = to_am_meson_plane_state(plane->state);
-	meson_plane_state = kmemdup(old_plane_state,
-				    sizeof(*meson_plane_state), GFP_KERNEL);
+	meson_plane_state = kzalloc(sizeof(*meson_plane_state), GFP_KERNEL);
 	if (!meson_plane_state)
 		return NULL;
 
@@ -533,11 +526,28 @@ meson_plane_duplicate_state(struct drm_plane *plane)
 static void meson_plane_destroy_state(struct drm_plane *plane,
 				      struct drm_plane_state *state)
 {
-	struct am_meson_plane_state *amps;
+	struct am_meson_plane_state *meson_plane_state;
 
-	amps = to_am_meson_plane_state(state);
-	__drm_atomic_helper_plane_destroy_state(state);
-	kfree(amps);
+	meson_plane_state = to_am_meson_plane_state(state);
+	__drm_atomic_helper_plane_destroy_state(&meson_plane_state->base);
+	kfree(meson_plane_state);
+}
+
+static void meson_plane_reset(struct drm_plane *plane)
+{
+	struct am_meson_plane_state *meson_plane_state;
+
+	if (plane->state) {
+		meson_plane_destroy_state(plane, plane->state);
+		plane->state = NULL;
+	}
+
+	meson_plane_state = kzalloc(sizeof(*meson_plane_state), GFP_KERNEL);
+	if (!meson_plane_state)
+		return;
+
+	__drm_atomic_helper_plane_reset(plane, &meson_plane_state->base);
+	meson_plane_state->base.pixel_blend_mode = DRM_MODE_BLEND_COVERAGE;
 }
 
 bool am_meson_vpu_check_format_mod(struct drm_plane *plane,
@@ -639,7 +649,7 @@ static const struct drm_plane_funcs am_video_plane_funs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
 	.destroy		= drm_plane_cleanup,
-	.reset			= drm_atomic_helper_plane_reset,
+	.reset			= meson_plane_reset,
 	.atomic_duplicate_state = meson_plane_duplicate_state,
 	.atomic_destroy_state	= meson_plane_destroy_state,
 	.atomic_set_property = meson_plane_atomic_set_property,

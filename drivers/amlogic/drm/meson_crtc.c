@@ -37,8 +37,7 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 
 	old_crtc_state = to_am_meson_crtc_state(crtc->state);
 
-	meson_crtc_state = kmemdup(old_crtc_state, sizeof(*old_crtc_state),
-				   GFP_KERNEL);
+	meson_crtc_state = kzalloc(sizeof(*meson_crtc_state), GFP_KERNEL);
 	if (!meson_crtc_state)
 		return NULL;
 
@@ -46,6 +45,23 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 
 	meson_crtc_state->uboot_mode_init = 0;
 	return &meson_crtc_state->base;
+}
+
+static void meson_crtc_reset(struct drm_crtc *crtc)
+{
+	struct am_meson_crtc_state *meson_crtc_state;
+
+	if (crtc->state) {
+		meson_crtc_destroy_state(crtc, crtc->state);
+		crtc->state = NULL;
+	}
+
+	meson_crtc_state = kzalloc(sizeof(*meson_crtc_state), GFP_KERNEL);
+	if (!meson_crtc_state)
+		return;
+
+	crtc->state = &meson_crtc_state->base;
+	crtc->state->crtc = crtc;
 }
 
 static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
@@ -124,7 +140,7 @@ static const struct drm_crtc_funcs am_meson_crtc_funcs = {
 	.atomic_duplicate_state = meson_crtc_duplicate_state,
 	.destroy		= drm_crtc_cleanup,
 	.page_flip		= drm_atomic_helper_page_flip,
-	.reset			= drm_atomic_helper_crtc_reset,
+	.reset			= meson_crtc_reset,
 	.set_config             = meson_crtc_set_mode,
 	.atomic_get_property = meson_crtc_atomic_get_property,
 	.atomic_set_property = meson_crtc_atomic_set_property,
