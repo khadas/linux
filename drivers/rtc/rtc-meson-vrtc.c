@@ -16,28 +16,29 @@
 /*
  * Seconds sinc epoch time
  */
-static unsigned long long vrtc_init_date;
+static u64 vrtc_init_date;
+static u64 last_jiffies;
 #endif
 
 struct meson_vrtc_data {
 	void __iomem *io_alarm;
 	struct rtc_device *rtc;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	s64 alarm_time;
+	struct timer_list alarm;
+#else
 	unsigned long alarm_time;
+#endif
 	bool enabled;
 };
 
 static int meson_vrtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct timespec64 time;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	u32 vrtc_val;
-#endif
 
 	dev_dbg(dev, "%s\n", __func__);
 #ifdef CONFIG_AMLOGIC_MODIFY
-	ktime_get_boottime_ts64(&time);
-	if (scpi_get_vrtc(&vrtc_val) == 0)
-		time.tv_sec += vrtc_val;
+	time.tv_sec = ktime_get_real_seconds() + vrtc_init_date;
 #else
 	ktime_get_raw_ts64(&time);
 #endif
@@ -51,13 +52,11 @@ static int meson_vrtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned long time;
 	struct timespec64 boot_time;
-	u32 vrtc_val;
 
 	rtc_tm_to_time(tm, &time);
 	ktime_get_boottime_ts64(&boot_time);
-	vrtc_val = time - boot_time.tv_sec;
 
-	scpi_set_vrtc(vrtc_val);
+	vrtc_init_date = time - boot_time.tv_sec;
 	return 0;
 }
 #endif
@@ -71,19 +70,68 @@ static void meson_vrtc_set_wakeup_time(struct meson_vrtc_data *vrtc,
 static int meson_vrtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct meson_vrtc_data *vrtc = dev_get_drvdata(dev);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	u64 expires;
 
+	del_timer(&vrtc->alarm);
+	if (alarm->enabled) {
+		vrtc->alarm_time = rtc_tm_to_time64(&alarm->time)
+			- ktime_get_real_seconds() - vrtc_init_date;
+		last_jiffies = jiffies;
+		expires = vrtc->alarm_time * HZ + jiffies;
+		vrtc->alarm.expires = expires;
+		add_timer(&vrtc->alarm);
+	} else {
+		vrtc->alarm_time = 0;
+	}
+
+	dev_dbg(dev, "%s: alarm->enabled=%d alarm=0x%llx vrtc=0x%llx\n", __func__,
+		alarm->enabled, rtc_tm_to_time64(&alarm->time), vrtc->alarm_time);
+#else
 	dev_dbg(dev, "%s: alarm->enabled=%d\n", __func__, alarm->enabled);
 	if (alarm->enabled)
 		vrtc->alarm_time = rtc_tm_to_time64(&alarm->time);
 	else
 		vrtc->alarm_time = 0;
+#endif
 
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int meson_vrtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
+{
+	struct meson_vrtc_data *vrtc = dev_get_drvdata(dev);
+	time64_t alrm;
+
+	alrm = vrtc->alarm_time - div64_u64(jiffies - last_jiffies, HZ)
+		+ vrtc_init_date + ktime_get_real_seconds();
+	rtc_time64_to_tm(alrm, &alarm->time);
+
+	alarm->enabled = vrtc->enabled;
+	dev_dbg(dev, "%s: alarm->enabled=%d alarm=0x%llx\n", __func__, alarm->enabled, alrm);
+
+	return 0;
+}
+
+static void meson_vrtc_alarm_handler(struct timer_list *t)
+{
+	struct meson_vrtc_data *vrtc = from_timer(vrtc, t, alarm);
+
+	rtc_update_irq(vrtc->rtc, 1, RTC_AF | RTC_IRQF);
+}
+#endif
+
 static int meson_vrtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct meson_vrtc_data *vrtc = dev_get_drvdata(dev);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (enabled)
+		add_timer(&vrtc->alarm);
+	else
+		del_timer(&vrtc->alarm);
+#endif
 
 	vrtc->enabled = enabled;
 	return 0;
@@ -93,6 +141,7 @@ static const struct rtc_class_ops meson_vrtc_ops = {
 	.read_time = meson_vrtc_read_time,
 #ifdef CONFIG_AMLOGIC_MODIFY
 	.set_time = meson_vrtc_set_time,
+	.read_alarm = meson_vrtc_read_alarm,
 #endif
 	.set_alarm = meson_vrtc_set_alarm,
 	.alarm_irq_enable = meson_vrtc_alarm_irq_enable,
@@ -123,16 +172,20 @@ static int meson_vrtc_probe(struct platform_device *pdev)
 		return PTR_ERR(vrtc->rtc);
 
 	vrtc->rtc->ops = &meson_vrtc_ops;
-	ret = rtc_register_device(vrtc->rtc);
-	if (ret)
-		return ret;
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 	if (scpi_get_vrtc(&vrtc_val) == 0)
 		vrtc_init_date = vrtc_val;
 	else
 		vrtc_init_date = 0;
+
+	timer_setup(&vrtc->alarm, meson_vrtc_alarm_handler, 0);
+	vrtc->alarm.expires = 0;
 #endif
+
+	ret = rtc_register_device(vrtc->rtc);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -144,22 +197,37 @@ static int __maybe_unused meson_vrtc_suspend(struct device *dev)
 	dev_dbg(dev, "%s\n", __func__);
 	if (vrtc->alarm_time) {
 		unsigned long local_time;
+#ifndef CONFIG_AMLOGIC_MODIFY
 		long alarm_secs;
+#endif
 		struct timespec64 time;
 
 		ktime_get_raw_ts64(&time);
 		local_time = time.tv_sec;
 
-		dev_dbg(dev, "alarm_time = %lus, local_time=%lus\n",
+#ifdef CONFIG_AMLOGIC_MODIFY
+		vrtc->alarm_time = vrtc->alarm_time - div64_u64(jiffies - last_jiffies, HZ);
+#endif
+
+		dev_info(dev, "alarm_time = %llus, local_time=%lus\n",
 			vrtc->alarm_time, local_time);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+		if (vrtc->alarm_time > 0) {
+			meson_vrtc_set_wakeup_time(vrtc, vrtc->alarm_time);
+#else
 		alarm_secs = vrtc->alarm_time - local_time;
 		if (alarm_secs > 0) {
 			meson_vrtc_set_wakeup_time(vrtc, alarm_secs);
-			dev_dbg(dev, "system will wakeup in %lds.\n",
-				alarm_secs);
+#endif
 		} else {
+#ifdef CONFIG_AMLOGIC_MODIFY
+			dev_err(dev, "alarm time already passed: %llds.\n",
+				vrtc->alarm_time);
+#else
 			dev_err(dev, "alarm time already passed: %lds.\n",
 				alarm_secs);
+#endif
 		}
 	}
 
