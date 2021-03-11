@@ -1467,10 +1467,10 @@
 		status = "okay";
 	};
 
-	vpu_security{
-		compatible = "amlogic, meson-sc2, vpu_security";
+	vpu_security {
+		compatible = "amlogic, meson-s4, vpu_security";
 		dev_name = "amlogic-vpu-security";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 220 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vpu_security";
 	};

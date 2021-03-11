@@ -80,7 +80,10 @@
 #define VIU_OSD2_FIFO_CTRL_STAT     0x1a4b
 #define VIU_OSD2_TEST_RDDATA        0x1a4c
 #define VIU_OSD2_PROT_CTRL          0x1a4e
-#define VIU_DATA_SEC    0x1a50
+
+#define VIU_DATA_SEC                0x1a50
+#define VPU_SEC_INT_STAT            0x1a8f
+
 #define VD1_IF0_GEN_REG             0x1a50
 #define VD1_IF0_CANVAS0             0x1a51
 #define VD1_IF0_CANVAS1             0x1a52

@@ -33,6 +33,9 @@
 #include <linux/amlogic/media/registers/regs/viu_regs.h>
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>
 #include <linux/amlogic/media/video_sink/video_signal_notify.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
+#include <linux/amlogic/media/registers/regs/vpp_regs.h>
+#include <linux/amlogic/media/utils/vdec_reg.h>
 
 #include "vpu_security.h"
 
@@ -42,9 +45,46 @@
 static struct vpu_security_device_info vpu_security_info;
 static struct sec_dev_data_s sec_meson_dev;
 static u32 secure_cfg;
+static u32 log_level;
+
+static struct vpu_sec_reg_s reg_v1[] = {
+	{VIU_DATA_SEC, 1, 0, 1}, /* 00. OSD1 */
+	{VIU_DATA_SEC, 1, 1, 1}, /* 01. OSD2 */
+	{VIU_DATA_SEC, 1, 2, 1}, /* 02. VD1 */
+	{VIU_DATA_SEC, 1, 3, 1}, /* 03. VD2 */
+	{VIU_DATA_SEC, 1, 4, 1}, /* 04. OSD3 */
+	{VIU_DATA_SEC, 1, 5, 1}, /* 05. VD AFBC, not used */
+	{VIU_DATA_SEC, 1, 6, 1}, /* 06. DV */
+	{VIU_DATA_SEC, 1, 7, 1}, /* 07. OSD AFBC */
+	{VIU_DATA_SEC, 1, 8, 1}  /* 08. VPP_TOP */
+};
+
+static struct vpu_sec_reg_s reg_v2[] = {
+	{MALI_AFBCD_TOP_CTRL,  1, 17, 1}, /* 00. OSD1 */
+	{MALI_AFBCD_TOP_CTRL,  1, 22, 1}, /* 01. OSD2 */
+	{VPP_VD1_DSC_CTRL,     1, 6,  1}, /* 02. VD1 */
+	{VPP_VD2_DSC_CTRL,     1, 6,  1}, /* 03. VD2 */
+	{MALI_AFBCD1_TOP_CTRL, 1, 22, 1}, /* 04. OSD3 */
+	{0,                    1, 0,  1}, /* 05. VD AFBC, not used */
+	{VPP_VD1_DSC_CTRL,     1, 7,  1}, /* 06. DV */
+	{MALI_AFBCD_TOP_CTRL,  1, 18, 1}, /* 07. OSD AFBC */
+	{VIU_FRM_CTRL,	       1, 26, 1}, /* 08. VPP_TOP */
+	{MALI_AFBCD2_TOP_CTRL, 1, 22, 1}, /* 09. OSD4 */
+	{VPP_VD3_DSC_CTRL,     1, 6,  1}, /* 10. VD3 */
+	{VIU1_FRM_CTRL,        1, 26, 1}, /* 11. VPP_TOP1 */
+	{VIU2_FRM_CTRL,        1, 26, 1}  /* 12. VPP_TOP2 */
+};
 
 static struct sec_dev_data_s vpu_security_sc2 = {
-	.cpu_type = MESON_CPU_MAJOR_ID_SC2_,
+	.version = VPU_SEC_V1,
+};
+
+static struct sec_dev_data_s vpu_security_s4 = {
+	.version = VPU_SEC_V1,
+};
+
+static struct sec_dev_data_s vpu_security_t7 = {
+	.version = VPU_SEC_V2,
 };
 
 static const struct of_device_id vpu_security_dt_match[] = {
@@ -52,32 +92,25 @@ static const struct of_device_id vpu_security_dt_match[] = {
 		.compatible = "amlogic, meson-sc2, vpu_security",
 		.data = &vpu_security_sc2,
 	},
+	{
+		.compatible = "amlogic, meson-s4, vpu_security",
+		.data = &vpu_security_s4,
+	},
+	{
+		.compatible = "amlogic, meson-t7, vpu_security",
+		.data = &vpu_security_t7,
+	},
 	{}
 };
 
-static bool is_meson_sc2_cpu(void)
+static bool is_vpu_secure_support(void)
 {
-	if (sec_meson_dev.cpu_type ==
-		MESON_CPU_MAJOR_ID_SC2_)
-		return true;
-	else
-		return false;
+	return sec_meson_dev.version ? true : false;
 }
 
-static int check_secure_enable(enum secure_module_e module)
+static u32 vpu_secure_version(void)
 {
-	int i, secure_enable = 0;
-	struct vpu_security_device_info *info = &vpu_security_info;
-	struct vpu_secure_ins *ins = NULL;
-
-	for (i = 0; i < MODULE_NUM; i++) {
-		if (i == module)
-			continue;
-		ins = &info->ins[i];
-		if (ins->secure_enable)
-			secure_enable = 1;
-	}
-	return secure_enable;
+	return sec_meson_dev.version;
 }
 
 bool get_secure_state(enum module_port_e port)
@@ -93,10 +126,15 @@ bool get_secure_state(enum module_port_e port)
 		if (secure_cfg & VD2_INPUT_SECURE)
 			secure_enable = true;
 		break;
+	case VD3_OUT:
+		if (secure_cfg & VD3_INPUT_SECURE)
+			secure_enable = true;
+		break;
 	case OSD1_VPP_OUT:
 		if ((secure_cfg & OSD1_INPUT_SECURE) ||
 		    (secure_cfg & OSD2_INPUT_SECURE) ||
-		    (secure_cfg & OSD3_INPUT_SECURE))
+		    (secure_cfg & OSD3_INPUT_SECURE) ||
+		    (secure_cfg & OSD4_INPUT_SECURE))
 			secure_enable = true;
 		break;
 	case OSD2_VPP_OUT:
@@ -105,45 +143,100 @@ bool get_secure_state(enum module_port_e port)
 		if (secure_cfg)
 			secure_enable = true;
 		break;
+	default:
+		break;
 	}
 	return secure_enable;
 }
 
+static void secure_reg_update(struct vpu_secure_ins *ins,
+			      struct vpu_sec_bit_s *change,
+			      u32 vpp_index)
+{
+	enum vpu_security_version_e version;
+	int i, en = 0, reg_val = 0;
+
+	if (!is_vpu_secure_support())
+		return;
+
+	if (!ins->reg_wr_op[vpp_index]) {
+		pr_err("%s, reg_wr_op is NULL\n", __func__);
+		return;
+	}
+
+	version = vpu_secure_version();
+	if (version == VPU_SEC_V1) {
+		/* write all bits together */
+		ins->reg_wr_op[vpp_index](reg_v1[0].reg,
+					  change->current_val,
+					  0, ARRAY_SIZE(reg_v1));
+	} else if (version == VPU_SEC_V2) {
+		/* work through the array and write bit(s) */
+		for (i = 0; i < ARRAY_SIZE(reg_v2); i++) {
+			if (BIT(i) & change->bit_changed) {
+				en = BIT(i) & change->current_val;
+				reg_val = en ? reg_v2[i].en : (!reg_v2[i].en);
+				if (!reg_v2[i].reg)
+					continue;
+				ins->reg_wr_op[vpp_index](reg_v2[i].reg,
+							  reg_val,
+							  reg_v2[i].start,
+							  reg_v2[i].len);
+			}
+		}
+	} else {
+		pr_err("%s, wrong version\n", __func__);
+		return;
+	}
+}
+
 u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			    enum secure_module_e module,
-			    u32 secure_src)
+			    u32 secure_src, u32 vpp_index)
 {
 	static u32 osd_secure, video_secure;
-	static int value_save = -1;
+	static bool osd_secure_en[VPP_TOP_MAX] = {0,};
+	static bool video_secure_en[VPP_TOP_MAX] = {0,};
+	static int value_save;
 	u32 value = 0;
 	int secure_update = 0;
 	struct vd_secure_info_s vd_secure[MAX_SECURE_OUT];
+	bool vpp_top_en = 0;
+	struct vpu_sec_bit_s change;
 
-	if (is_meson_sc2_cpu()) {
-		if (check_secure_enable(module) || secure_src)
-			secure_src |= VPP_OUTPUT_SECURE;
+	if (is_vpu_secure_support()) {
 		switch (module) {
 		case OSD_MODULE:
 			if ((secure_src & OSD1_INPUT_SECURE) ||
 			    (secure_src & OSD2_INPUT_SECURE) ||
 			    (secure_src & OSD3_INPUT_SECURE) ||
+			    (secure_src & OSD4_INPUT_SECURE) ||
 			    (secure_src & MALI_AFBCD_SECURE)) {
+				/* for T7 revA */
+				if (is_meson_t7_cpu() && is_meson_rev_a() &&
+				    (secure_src & (OSD1_INPUT_SECURE |
+						   OSD2_INPUT_SECURE)))
+					secure_src |= OSD4_INPUT_SECURE;
+
 				/* OSD module secure */
 				osd_secure = secure_src;
 				value = osd_secure | video_secure;
 				ins->secure_enable = 1;
 				ins->secure_status = value;
+				osd_secure_en[vpp_index] = 1;
 			} else {
 				/* OSD none secure */
 				osd_secure = secure_src;
 				value = osd_secure | video_secure;
 				ins->secure_enable = 0;
 				ins->secure_status = value;
+				osd_secure_en[vpp_index] = 0;
 			}
 			break;
 		case VIDEO_MODULE:
 			if ((secure_src & DV_INPUT_SECURE) ||
 			    (secure_src & AFBCD_INPUT_SECURE) ||
+			    (secure_src & VD3_INPUT_SECURE) ||
 			    (secure_src & VD2_INPUT_SECURE) ||
 			    (secure_src & VD1_INPUT_SECURE)) {
 				/* video module secure */
@@ -151,30 +244,63 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 				value = video_secure | osd_secure;
 				ins->secure_enable = 1;
 				ins->secure_status = value;
+				video_secure_en[vpp_index] = 1;
 			} else {
 				/* video module secure */
 				video_secure = secure_src;
 				value = video_secure | osd_secure;
 				ins->secure_enable = 0;
 				ins->secure_status = value;
+				video_secure_en[vpp_index] = 0;
 			}
 			break;
 		case DI_MODULE:
 			break;
 		case VDIN_MODULE:
 			break;
+		default:
+			break;
 		}
+
+		vpp_top_en = osd_secure_en[vpp_index] ||
+			     video_secure_en[vpp_index];
+		if (vpp_index == 0) {
+			if (vpp_top_en)
+				value |= VPP_OUTPUT_SECURE;
+			else
+				value &= ~VPP_OUTPUT_SECURE;
+		}
+		if (vpp_index == 1) {
+			if (vpp_top_en)
+				value |= VPP1_OUTPUT_SECURE;
+			else
+				value &= ~VPP1_OUTPUT_SECURE;
+		}
+		if (vpp_index == 2) {
+			if (vpp_top_en)
+				value |= VPP2_OUTPUT_SECURE;
+			else
+				value &= ~VPP2_OUTPUT_SECURE;
+		}
+
 		if (module == OSD_MODULE ||
 			module == VIDEO_MODULE ||
 			module == DI_MODULE) {
-			if (ins->reg_wr_op && value_save != value) {
-				ins->reg_wr_op(VIU_DATA_SEC, value);
+			if (value_save != value) {
+				/* record changed bit and current val */
+				change.bit_changed = value ^ value_save;
+				change.current_val = value;
+				secure_reg_update(ins, &change, vpp_index);
 				secure_update = 1;
 			}
 			value_save = value;
 		}
 	}
-	secure_cfg = (osd_secure | video_secure) & (~VPP_OUTPUT_SECURE);
+
+	if (log_level >= 2)
+		pr_info("vpu secure bit 0x%x\n", value);
+
+	secure_cfg = value;
 	if (secure_update) {
 		int i;
 
@@ -191,14 +317,15 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 
 int secure_register(enum secure_module_e module,
 		    int config_delay,
-		    void *reg_op,
+		    void **reg_op,
 		    void *cb)
 {
 	struct vpu_security_device_info *info = &vpu_security_info;
 	struct vpu_secure_ins *ins = NULL;
 	struct mutex *lock = NULL;
+	int i;
 
-	if (!is_meson_sc2_cpu())
+	if (!is_vpu_secure_support())
 		return -1;
 	if (!info->probed)
 		return -1;
@@ -212,7 +339,8 @@ int secure_register(enum secure_module_e module,
 		mutex_lock(lock);
 		ins->registered = 1;
 		ins->config_delay = config_delay;
-		ins->reg_wr_op = reg_op;
+		for (i = 0; i < VPP_TOP_MAX; i++)
+			ins->reg_wr_op[i] = reg_op[i];
 		ins->secure_cb = cb;
 		mutex_unlock(lock);
 	}
@@ -225,8 +353,9 @@ int secure_unregister(enum secure_module_e module)
 	struct vpu_security_device_info *info = &vpu_security_info;
 	struct vpu_secure_ins *ins = NULL;
 	struct mutex *lock = NULL;
+	int i;
 
-	if (!is_meson_sc2_cpu())
+	if (!is_vpu_secure_support())
 		return -1;
 	if (!info->probed)
 		return -1;
@@ -238,14 +367,15 @@ int secure_unregister(enum secure_module_e module)
 		mutex_lock(lock);
 		ins->registered = 0;
 		ins->config_delay = 0;
-		ins->reg_wr_op = NULL;
+		for (i = 0; i < VPP_TOP_MAX; i++)
+			ins->reg_wr_op[i] = NULL;
 		ins->secure_cb = NULL;
 		mutex_unlock(lock);
 	}
 	return 0;
 }
 
-int secure_config(enum secure_module_e module, int secure_src)
+int secure_config(enum secure_module_e module, int secure_src, u32 vpp_index)
 {
 	struct vpu_security_device_info *info = &vpu_security_info;
 	struct vpu_secure_ins *ins = NULL;
@@ -255,7 +385,8 @@ int secure_config(enum secure_module_e module, int secure_src)
 		return -1;
 	ins = &info->ins[module];
 	if (ins->registered)
-		reg_value = set_vpu_module_security(ins, module, secure_src);
+		reg_value = set_vpu_module_security(ins, module, secure_src,
+						    vpp_index);
 	return 0;
 }
 
@@ -268,9 +399,30 @@ static ssize_t vpu_security_info_show(struct class *cla,
 		info->mismatch_cnt);
 }
 
+static ssize_t log_level_show(struct class *cla,
+			      struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 40, "%d\n", log_level);
+}
+
+static ssize_t log_level_store(struct class *cla,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	pr_info("log_level: %d->%d\n", log_level, res);
+	log_level = res;
+	return count;
+}
+
 static struct class_attribute vpu_security_attrs[] = {
 	__ATTR(security_info, 0444,
 	       vpu_security_info_show, NULL),
+	__ATTR(log_level, 0644,
+	       log_level_show, log_level_store),
 };
 
 irqreturn_t vpu_security_isr(int irq, void *dev_id)
@@ -278,8 +430,27 @@ irqreturn_t vpu_security_isr(int irq, void *dev_id)
 	struct vpu_security_device_info *info = &vpu_security_info;
 	struct vpu_secure_ins *ins = NULL;
 	int i;
+	enum vpu_security_version_e version;
+	u32 error_bit = 0;
+
+	version = vpu_secure_version();
 
 	info->mismatch_cnt++;
+	if (version == VPU_SEC_V1) {
+		if (log_level >= 1)
+			pr_err("sec: mismatch(%d)\n", info->mismatch_cnt);
+	} else if (version == VPU_SEC_V2) {
+		error_bit = READ_VCBUS_REG(VPU_SEC_INT_STAT);
+		for (i = 0; i < VPP_TOP_MAX; i++) {
+			if (error_bit & BIT(i)) {
+				if (log_level >= 1)
+					pr_err("sec: VPP_TOP%x mismatch\n", i);
+				/* clear interrupt bit */
+				WRITE_VCBUS_REG_BITS(VPU_SEC_INT_STAT, 1, i, 1);
+			}
+		}
+	}
+
 	for (i = 0; i < MODULE_NUM; i++) {
 		ins = &info->ins[i];
 		if (ins->registered) {

@@ -7783,9 +7783,11 @@ void video_secure_set(void)
 				secure_src |= VD1_INPUT_SECURE;
 			else if (layer->layer_id == 1)
 				secure_src |= VD2_INPUT_SECURE;
+			else if (layer->layer_id == 2)
+				secure_src |= VD3_INPUT_SECURE;
 		}
 	}
-	secure_config(VIDEO_MODULE, secure_src);
+	secure_config(VIDEO_MODULE, secure_src, VPP0);
 #endif
 }
 
@@ -7802,6 +7804,11 @@ int video_hw_init(void)
 	u32 cur_hold_line, ofifo_size;
 	struct vpu_dev_s *arb_vpu_dev;
 	int i;
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	void *video_secure_op[VPP_TOP_MAX] = {VSYNC_WR_MPEG_REG_BITS,
+					       VSYNC_WR_MPEG_REG_BITS_VPP1,
+					       VSYNC_WR_MPEG_REG_BITS_VPP2};
+#endif
 
 	if (!legacy_vpp) {
 		if (vpp_ofifo_size == 0xff)
@@ -7950,8 +7957,7 @@ int video_hw_init(void)
 			fgrain_init(i, FGRAIN_TBL_SIZE);
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-	secure_register(VIDEO_MODULE, 0,
-		VSYNC_WR_MPEG_REG, vpp_secure_cb);
+	secure_register(VIDEO_MODULE, 0, video_secure_op, vpp_secure_cb);
 #endif
 	return 0;
 }

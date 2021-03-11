@@ -475,6 +475,10 @@
 #define VPP_VD3_DSC_CTRL                           0x1a85
 #define PATH_START_SEL                             0x1a8a
 
+#define VIU_FRM_CTRL                               0x1a51
+#define VIU1_FRM_CTRL                              0x1a8d
+#define VIU2_FRM_CTRL                              0x1a8e
+
 #define VPU_VENC_CTRL                              0x1cef
 #define VPU1_VENC_CTRL                             0x22ef
 #define VPU2_VENC_CTRL                             0x24ef

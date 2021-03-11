@@ -10348,7 +10348,7 @@ static int osd_setting_order(u32 output_index)
 	set_blend_reg(blending);
 	save_blend_reg(blending);
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
-	secure_config(OSD_MODULE, secure_src);
+	secure_config(OSD_MODULE, secure_src, output_index);
 #endif
 	/* append RDMA_DETECT_REG at last and detect if rdma missed some regs */
 	rdma_dt_cnt++;
@@ -11382,6 +11382,11 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 {
 	u32 idx, data32;
 	int err_num = 0;
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	void *osd_secure_op[VPP_TOP_MAX] = {VSYNCOSD_WR_MPEG_REG_BITS,
+					    VSYNCOSD_WR_MPEG_REG_BITS_VPP1,
+					    VSYNCOSD_WR_MPEG_REG_BITS_VPP2};
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 	int i = 0;
 
@@ -11785,7 +11790,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	secure_register(OSD_MODULE, 0,
-			VSYNCOSD_WR_MPEG_REG, osd_secure_cb);
+			osd_secure_op,
+			osd_secure_cb);
 #endif
 
 	osd_log_out = 1;

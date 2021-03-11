@@ -6,14 +6,15 @@
 #ifndef VPU_SECURITY_H_
 #define VPU_SECURITY_H_
 
-#define MODULE_NUM  6
+#include <linux/amlogic/media/vpu_secure/vpu_secure.h>
+
 struct vpu_secure_ins {
 	struct mutex secure_lock;/*vpu secure mutex*/
 	unsigned char registered;
 	unsigned char secure_enable;
 	unsigned char secure_status;
 	unsigned char config_delay;
-	int (*reg_wr_op)(u32 addr, u32 val);
+	int (*reg_wr_op[VPP_TOP_MAX])(u32 addr, u32 val, u32 start, u32 len);
 	void (*secure_cb)(u32 arg);
 };
 
@@ -26,13 +27,25 @@ struct vpu_security_device_info {
 	struct vpu_secure_ins ins[MODULE_NUM];
 };
 
-enum cpu_type_e {
-	MESON_CPU_MAJOR_ID_SC2_ = 0x1,
-	MESON_CPU_MAJOR_ID_UNKNOWN,
+enum vpu_security_version_e {
+	VPU_SEC_V1 = 1,
+	VPU_SEC_V2
+};
+
+struct vpu_sec_reg_s {
+	u32 reg;
+	u32 en;
+	u32 start;
+	u32 len;
+};
+
+struct vpu_sec_bit_s {
+	u32 bit_changed; /* the changed src bit */
+	u32 current_val; /* reg val after being chagned */
 };
 
 struct sec_dev_data_s {
-	enum cpu_type_e cpu_type;
+	enum vpu_security_version_e version;
 };
 
 #endif
