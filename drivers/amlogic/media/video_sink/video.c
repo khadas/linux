@@ -8728,8 +8728,8 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 #if PARSE_MD_IN_ADVANCE
 			if (vf->src_fmt.md_buf && vf->src_fmt.comp_buf) {
 				if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
-					pr_info("parse vf %p, sei %p, size %d\n",
-						vf, sei, size);
+					pr_info("parse vf %p, sei %p, size %d, md_buf %p\n",
+						vf, sei, size, vf->src_fmt.md_buf);
 				ret = parse_sei_and_meta_ext
 					(vf, sei, size,
 					 &vf->src_fmt.comp_size,
