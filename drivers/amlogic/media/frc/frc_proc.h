@@ -1,0 +1,29 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+#ifndef __FRC_PROC_H__
+#define __FRC_PROC_H__
+
+#define ON	1
+#define OFF	0
+
+#define DISABLE_FRC_FW	1
+
+irqreturn_t frc_input_isr(int irq, void *dev_id);
+irqreturn_t frc_output_isr(int irq, void *dev_id);
+
+void frc_input_tasklet_pro(unsigned long arg);
+void frc_output_tasklet_pro(unsigned long arg);
+
+void frc_hw_initial(struct frc_dev_s *frc_devp);
+
+void frc_scene_detect_input(struct frc_dev_s *frc_devp);
+void frc_scene_detect_output(struct frc_dev_s *frc_devp);
+
+void frc_change_to_state(enum frc_state_e state);
+void frc_state_handle(struct frc_dev_s *devp);
+void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
+					struct vpp_frame_par_s *cur_video_sts);
+
+#endif

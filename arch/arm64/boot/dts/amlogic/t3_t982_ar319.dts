@@ -89,6 +89,20 @@
 			alignment = <0x0 0x0>;
 			linux,contiguous-region;
 		};
+
+		frc_cma_reserved:linux,frc_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* frc:size need 4M alignment
+			 * 1080P 16 buffer:88Mhz (0x5800000)
+			 * 4k 16 buffer:336Mhz (0x15000000)
+			 */
+			size = <0x0 0x15000000>;
+			alignment = <0x0 0x400000>;
+			linux,contiguous-region;
+			/*alloc-ranges = <0x0 0x0 0x0 0x3f800000>;*/
+		};
+
 	};
 	codec_mm {
 		compatible = "amlogic, codec, mm";
@@ -522,6 +536,28 @@
 		};
 	};
 	/* Audio Related end */
+
+	aml_frc {
+		compatible = "amlogic, t3_frc";
+		dev_name = "aml_frc";
+		status = "okay";
+		frc_en = <1>;/*1:enabel ;0:disable*/
+		frc_hw_pos = <0>;/*0:before postblend; 1:after postblend*/
+		interrupts = <GIC_SPI 286 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 287 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 271 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "irq_frc_in", "irq_frc_out", "irq_frc_rdma";
+		memory-region = <&frc_cma_reserved>;
+		clocks = <&clkc CLKID_FRC>, <&clkc CLKID_ME>;
+		power-domains = <&pwrdm PDID_T3_FRCTOP>, <&pwrdm PDID_T3_FRCME>,
+				<&pwrdm PDID_T3_FRCMC>;
+		power-domain-names = "frc-top","frc-me","frc-mc";
+		clock-names = "clk_frc", "clk_me";
+		reg = <0x0 0xFF050000 0x0 0x30000 /*frc reg*/
+		       0x0 0xFE000000 0x0 0x300
+		       0x0 0xFF000000 0x0 0x10000>; /*frc clk reg*/
+		reg-names = "frc_reg","frc_clk_reg","vpu_reg";
+	};
 }; /* end of / */
 
 &ethmac {

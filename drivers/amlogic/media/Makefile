@@ -35,3 +35,5 @@ include drivers/amlogic/media/atv_demod/Makefile
 include drivers/amlogic/media/dtv_demod/Makefile
 
 include drivers/amlogic/media/avsync/Makefile
+
+include drivers/amlogic/media/frc/Makefile
