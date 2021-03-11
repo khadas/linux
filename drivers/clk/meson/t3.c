@@ -1192,7 +1192,6 @@ static struct clk_fixed_factor t3_mpll_prediv = {
 };
 
 static const struct reg_sequence t3_mpll0_init_regs[] = {
-	{ .reg = ANACTRL_MPLL_CTRL0, .def = 0x00000543 },
 	{ .reg = ANACTRL_MPLL_CTRL2, .def = 0x40000033 }
 };
 
@@ -1256,7 +1255,6 @@ static struct clk_regmap t3_mpll0 = {
 };
 
 static const struct reg_sequence t3_mpll1_init_regs[] = {
-	{ .reg = ANACTRL_MPLL_CTRL0, .def = 0x00000543 },
 	{ .reg = ANACTRL_MPLL_CTRL4, .def = 0x40000033 }
 };
 
@@ -1320,7 +1318,6 @@ static struct clk_regmap t3_mpll1 = {
 };
 
 static const struct reg_sequence t3_mpll2_init_regs[] = {
-	{ .reg = ANACTRL_MPLL_CTRL0, .def = 0x00000543 },
 	{ .reg = ANACTRL_MPLL_CTRL6, .def = 0x40000033 }
 };
 
@@ -1383,7 +1380,6 @@ static struct clk_regmap t3_mpll2 = {
 };
 
 static const struct reg_sequence t3_mpll3_init_regs[] = {
-	{ .reg = ANACTRL_MPLL_CTRL0, .def = 0x00000543 },
 	{ .reg = ANACTRL_MPLL_CTRL8, .def = 0x40000033 }
 };
 
@@ -6703,6 +6699,7 @@ static int meson_t3_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(t3_pll_clk_regmaps); i++)
 		t3_pll_clk_regmaps[i]->map = pll_map;
+	regmap_write(pll_map, ANACTRL_MPLL_CTRL0, 0x00000543);
 
 	for (i = 0; i < t3_hw_onecell_data.num; i++) {
 		/* array might be sparse */
