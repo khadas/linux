@@ -8097,8 +8097,9 @@ void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
 	u32 min_lum = 50;
 	int primaries_type = 0;
 
-	if (primary_debug == 1 || (dolby_vision_flags & FLAG_CERTIFICAION) ||
-	    !strcasecmp(cfg_info[cur_pic_mode].pic_mode_name, "hdr10_dark")) {
+	if (get_primary_policy() == PRIMARIES_NATIVE ||
+		primary_debug == 1 ||
+		(dolby_vision_flags & FLAG_CERTIFICAION)) {
 		p_hdr10_param->min_display_mastering_luminance =
 			min_lum;
 		p_hdr10_param->max_display_mastering_luminance =
@@ -8114,7 +8115,8 @@ void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
 		p_hdr10_param->max_content_light_level = 0;
 		p_hdr10_param->max_pic_average_light_level = 0;
 		return;
-	} else if (primary_debug == 2) {
+	}  else if (get_primary_policy() == PRIMARIES_AUTO ||
+		primary_debug == 2) {
 		p_hdr10_param->min_display_mastering_luminance =
 			min_lum;
 		p_hdr10_param->max_display_mastering_luminance =
