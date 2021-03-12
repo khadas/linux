@@ -579,6 +579,66 @@ static void cma_debug_show_areas(struct cma *cma)
 static inline void cma_debug_show_areas(struct cma *cma) { }
 #endif
 
+#if defined(CONFIG_AMLOGIC_CMA) && defined(CONFIG_AMLOGIC_PAGE_TRACE)
+#include <linux/amlogic/page_trace.h>
+#define POOL_SIZE		128
+struct cma_owner {
+	unsigned long ip;
+	unsigned long cnt;
+};
+
+static int find_cma_owner(struct cma_owner *c, unsigned long ip)
+{
+	int i;
+
+	if (!ip)
+		return -1;
+
+	for (i = 0; i < POOL_SIZE; i++) {
+		if (!c[i].ip)
+			c[i].ip = ip;
+
+		if (c[i].ip == ip) {
+			c[i].cnt++;
+			return i;
+		}
+	}
+	return -1;
+}
+
+static void show_cma_usage(struct cma *cma)
+{
+	struct cma_owner *c;
+	unsigned long free = 0, ip;
+	struct page *page;
+	int i;
+
+	if (!cma || !cma->count)
+		return;
+
+	c = kzalloc(sizeof(*c) * POOL_SIZE, GFP_KERNEL);
+	if (!c)
+		return;
+
+	page = pfn_to_page(cma->base_pfn);
+	for (i = 0; i < cma->count; i++) {
+		ip = get_page_trace(page);
+		if (find_cma_owner(c, ip) < 0)
+			free++;
+		page++;
+	}
+	for (i = 0; i < POOL_SIZE; i++) {
+		if (!c[i].ip)
+			break;
+		pr_info("%s, count:%5ld, func:%ps\n",
+			__func__, c[i].cnt, (void *)c[i].ip);
+	}
+	pr_info("%s, free pages:%ld, pool:%ld, base:%lx\n",
+		__func__, free, cma->count, cma->base_pfn);
+	kfree(c);
+}
+#endif
+
 /**
  * cma_alloc() - allocate pages from contiguous area
  * @cma:   Contiguous memory region for which the allocation is performed.
@@ -628,6 +688,12 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 	bitmap_maxno = cma_bitmap_maxno(cma);
 	bitmap_count = cma_bitmap_pages_to_bits(cma, count);
 
+#ifdef CONFIG_AMLOGIC_CMA
+	if (bitmap_count > bitmap_maxno) { /* debug */
+		pr_err("input too large, count:%ld, cma base:%lx, size:%lx, %s\n",
+		       (unsigned long)count, cma->base_pfn, cma->count, cma->name);
+	}
+#endif
 	if (bitmap_count > bitmap_maxno)
 		return NULL;
 
@@ -641,6 +707,9 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 				offset);
 		if (bitmap_no >= bitmap_maxno) {
 			mutex_unlock(&cma->lock);
+			#if defined(CONFIG_AMLOGIC_CMA) && defined(CONFIG_AMLOGIC_PAGE_TRACE)
+			show_cma_usage(cma);
+			#endif
 			break;
 		}
 		bitmap_set(cma->bitmap, bitmap_no, bitmap_count);
