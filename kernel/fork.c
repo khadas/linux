@@ -104,6 +104,10 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
+#ifdef CONFIG_AMLOGIC_VMAP
+#include <linux/amlogic/vmap_stack.h>
+#endif
+
 #include <trace/events/sched.h>
 
 #define CREATE_TRACE_POINTS
@@ -256,6 +260,9 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 	}
 	return stack;
 #else
+#ifdef CONFIG_AMLOGIC_VMAP
+	return aml_stack_alloc(node, tsk);
+#else /* CONFIG_AMLOGIC_VMAP */
 	struct page *page = alloc_pages_node(node, THREADINFO_GFP,
 					     THREAD_SIZE_ORDER);
 
@@ -264,11 +271,15 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
 		return tsk->stack;
 	}
 	return NULL;
+#endif /* CONFIG_AMLOGIC_VMAP */
 #endif
 }
 
 static inline void free_thread_stack(struct task_struct *tsk)
 {
+#ifdef CONFIG_AMLOGIC_VMAP
+	aml_stack_free(tsk);
+#else /* CONFIG_AMLOGIC_VMAP */
 #ifdef CONFIG_VMAP_STACK
 	struct vm_struct *vm = task_stack_vm_area(tsk);
 
@@ -297,6 +308,7 @@ static inline void free_thread_stack(struct task_struct *tsk)
 #endif
 
 	__free_pages(virt_to_page(tsk->stack), THREAD_SIZE_ORDER);
+#endif /* CONFIG_AMLOGIC_VMAP */
 }
 # else
 static struct kmem_cache *thread_stack_cache;
@@ -371,6 +383,9 @@ void vm_area_free(struct vm_area_struct *vma)
 
 static void account_kernel_stack(struct task_struct *tsk, int account)
 {
+#ifdef CONFIG_AMLOGIC_VMAP
+	aml_account_task_stack(tsk, account);
+#else
 	void *stack = task_stack_page(tsk);
 	struct vm_struct *vm = task_stack_vm_area(tsk);
 
@@ -399,6 +414,7 @@ static void account_kernel_stack(struct task_struct *tsk, int account)
 		mod_memcg_obj_state(stack, MEMCG_KERNEL_STACK_KB,
 				    account * (THREAD_SIZE / 1024));
 	}
+#endif
 }
 
 static int memcg_charge_kernel_stack(struct task_struct *tsk)
@@ -857,7 +873,9 @@ void set_task_stack_end_magic(struct task_struct *tsk)
 	unsigned long *stackend;
 
 	stackend = end_of_stack(tsk);
+#ifndef CONFIG_AMLOGIC_VMAP
 	*stackend = STACK_END_MAGIC;	/* for overflow detection */
+#endif
 }
 
 static struct task_struct *dup_task_struct(struct task_struct *orig, int node)

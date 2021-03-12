@@ -64,3 +64,10 @@ android_fstrace_get_pathname(char *buf, int buflen, struct inode *inode)
 	return path;
 }
 #endif
+
+#ifdef CONFIG_AMLOGIC_VMAP
+void trace_android_fs_datawrite_wrap(struct inode *inode,
+				     loff_t pos, unsigned int len);
+void trace_android_fs_dataread_wrap(struct inode *inode,
+				    loff_t pos, unsigned int len);
+#endif

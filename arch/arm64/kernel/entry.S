@@ -258,7 +258,11 @@ alternative_else_nop_endif
 	*/
 	.endm
 
+#ifdef CONFIG_AMLOGIC_VMAP
+	.macro	kernel_exit, el, swap = 0
+#else
 	.macro	kernel_exit, el
+#endif /* CONFIG_AMLOGIC_VMAP */
 	.if	\el != 0
 	disable_daif
 
@@ -372,6 +376,18 @@ alternative_else_nop_endif
 	ldp	x26, x27, [sp, #16 * 13]
 	ldp	x28, x29, [sp, #16 * 14]
 	ldr	lr, [sp, #S_LR]
+#ifdef CONFIG_AMLOGIC_VMAP
+	/* restore context sp and per-cpu vmap stack */
+	.if	\swap == 1
+	stp	x19, x20, [sp]
+	mov	x20, sp
+	add	x19, x20, #S_FRAME_SIZE
+	msr	DBGWVR3_EL1, x19
+	mrs	x19, DBGWVR2_EL1
+	mov	sp,  x19
+	ldp	x19, x20, [x20]
+	.endif
+#endif /* CONFIG_AMLOGIC_VMAP */
 	add	sp, sp, #S_FRAME_SIZE		// restore sp
 
 	.if	\el == 0
@@ -599,6 +615,26 @@ ENDPROC(el1_error_invalid)
  */
 	.align	6
 el1_sync:
+#ifdef CONFIG_AMLOGIC_VMAP
+	/*
+	 * register using:
+	 * DBGWVR2_EL1: temp register and back up for sp_el1 of exception
+	 * DBGWVR3_EL1: always point to per-cpu vmap stack
+	 * switch sp_el1 to per-cpu vmap stack and using DBGWVR2_EL1
+	 * to back up sp_el1 under exception
+	 */
+	msr	DBGWVR2_EL1, x29
+	mrs	x29, DBGWVR3_EL1
+	sub	x29, x29, #S_FRAME_SIZE
+	msr	DBGWVR3_EL1, x29
+	stp	x19, x20, [x29]
+	mov	x19, sp
+	mrs	x20, DBGWVR2_EL1
+	msr	DBGWVR2_EL1, x19
+	mov	sp,  x29
+	mov	x29, x20
+	ldp	x19, x20, [sp]
+#endif /* CONFIG_AMLOGIC_VMAP */
 	kernel_entry 1
 	mrs	x1, esr_el1			// read the syndrome register
 	lsr	x24, x1, #ESR_ELx_EC_SHIFT	// exception class
@@ -624,6 +660,39 @@ el1_da:
 	/*
 	 * Data abort handling
 	 */
+#ifdef CONFIG_AMLOGIC_VMAP
+	/*
+	 * first handle vmap page fault, if result is not ok(eg, fault address
+	 * is not in vmap range), then do normal data abort
+	 */
+	mrs	x0, far_el1
+	mov	x2, sp
+	stp	x29, x30, [sp, #-16]!	/* add a stack frame for backtrace */
+	mov	x29, sp
+	bl	handle_vmap_fault
+	ldp	x29, x22, [sp], #16
+	cmp	x0, #0
+	b.ne	888888f
+	kernel_exit 1, 1		/* exit for vmap fault */
+888888:
+	/*
+	 * Not a vmap fault, copy context saved in per-cpu vmap stack
+	 * to task stack, then switch stack back to task stack under
+	 * exception
+	 */
+	mrs	x0, DBGWVR2_EL1
+	mov	x1, sp
+	mov	x2, #S_FRAME_SIZE
+	bl	memcpy
+	add	x17, x0, #S_FRAME_SIZE
+	str	x17, [x0, #S_SP]
+	mrs	x1, esr_el1	/* rebuild parameter for normal handler */
+	mrs	x16, DBGWVR3_EL1
+	add	x16, x16, #S_FRAME_SIZE
+	msr	DBGWVR3_EL1, x16
+	mov	sp, x0
+	add     x29, sp, #S_STACKFRAME
+#endif /* CONFIG_AMLOGIC_VMAP */
 	mrs	x3, far_el1
 	inherit_daif	pstate=x23, tmp=x2
 	untagged_addr	x0, x3
@@ -643,6 +712,21 @@ el1_pc:
 	bl	do_sp_pc_abort
 	ASM_BUG()
 el1_undef:
+#ifdef CONFIG_AMLOGIC_VMAP
+	/* switch back to task stack pointer */
+	mrs	x0, DBGWVR2_EL1
+	mov	x1, sp
+	mov	x2, #S_FRAME_SIZE
+	bl	memcpy
+	add	x17, x0, #S_FRAME_SIZE
+	str	x17, [x0, #S_SP]
+	mrs	x1, esr_el1	/* rebuild parameter for normal handler */
+	mrs	x16, DBGWVR3_EL1
+	add	x16, x16, #S_FRAME_SIZE
+	msr	DBGWVR3_EL1, x16
+	mov	sp, x0
+	add     x29, sp, #S_STACKFRAME
+#endif /* CONFIG_AMLOGIC_VMAP */
 	/*
 	 * Undefined instruction
 	 */
@@ -651,6 +735,21 @@ el1_undef:
 	bl	do_undefinstr
 	kernel_exit 1
 el1_dbg:
+#ifdef CONFIG_AMLOGIC_VMAP
+	/* switch back to task stack pointer */
+	mrs	x0, DBGWVR2_EL1
+	mov	x1, sp
+	mov	x2, #S_FRAME_SIZE
+	bl	memcpy
+	add	x17, x0, #S_FRAME_SIZE
+	str	x17, [x0, #S_SP]
+	mrs	x1, esr_el1	/* rebuild parameter for normal handler */
+	mrs	x16, DBGWVR3_EL1
+	add	x16, x16, #S_FRAME_SIZE
+	msr	DBGWVR3_EL1, x16
+	mov	sp, x0
+	add     x29, sp, #S_STACKFRAME
+#endif /* CONFIG_AMLOGIC_VMAP */
 	/*
 	 * Debug exception handling
 	 */
@@ -674,7 +773,37 @@ ENDPROC(el1_sync)
 
 	.align	6
 el1_irq:
+#ifdef CONFIG_AMLOGIC_VMAP
+	/* switch stack to avoid ELR lost if el1_da
+	 * happen when saving context
+	 */
+	msr	DBGWVR2_EL1, x29
+	mrs	x29, DBGWVR3_EL1
+	sub	x29, x29, #S_FRAME_SIZE
+	msr	DBGWVR3_EL1, x29
+	stp	x19, x20, [x29]
+	mov	x19, sp
+	mrs	x20, DBGWVR2_EL1
+	msr	DBGWVR2_EL1, x19
+	mov	sp,  x29
+	mov	x29, x20
+	ldp	x19, x20, [sp]
+#endif /* CONFIG_AMLOGIC_VMAP */
 	kernel_entry 1
+#ifdef CONFIG_AMLOGIC_VMAP
+	/* switch back to task stack pointer */
+	mrs	x0, DBGWVR2_EL1
+	mov	x1, sp
+	mov	x2, #S_FRAME_SIZE
+	mov	sp, x0
+	bl	memcpy
+	add	x17, sp, #S_FRAME_SIZE
+	str	x17, [sp, #S_SP]
+	mrs	x16, DBGWVR3_EL1
+	add	x16, x16, #S_FRAME_SIZE
+	msr	DBGWVR3_EL1, x16
+	add     x29, sp, #S_STACKFRAME
+#endif /* CONFIG_AMLOGIC_VMAP */
 	gic_prio_irq_setup pmr=x20, tmp=x1
 	enable_da_f
 
@@ -1375,3 +1504,20 @@ alternative_else_nop_endif
 ENDPROC(__sdei_asm_handler)
 NOKPROBE(__sdei_asm_handler)
 #endif /* CONFIG_ARM_SDE_INTERFACE */
+
+#ifdef CONFIG_AMLOGIC_VMAP
+ENTRY(__setup_vmap_stack)
+	ldr		x10, =vmap_stack
+	add		x10, x10, x0
+	mov		x0, x10
+	mov		x1, #0
+	mov		x2, #THREAD_SIZE
+	mov		x17, lr
+	bl		memset			/* clear stack buffer */
+	mov		lr, x17
+	mov		x0, #THREAD_START_SP
+	add		x10, x10, x0		/* set stack top */
+	msr		DBGWVR3_EL1, x10
+	ret
+ENDPROC(__setup_vmap_stack)
+#endif /* CONFIG_AMLOGIC_VMAP */

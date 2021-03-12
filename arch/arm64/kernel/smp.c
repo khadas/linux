@@ -53,6 +53,9 @@
 #ifdef CONFIG_AMLOGIC_CPUIDLE
 #include <linux/amlogic/aml_cpuidle.h>
 #endif
+#ifdef CONFIG_AMLOGIC_VMAP
+#include <linux/amlogic/vmap_stack.h>
+#endif
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ipi.h>
@@ -209,6 +212,9 @@ asmlinkage notrace void secondary_start_kernel(void)
 
 	cpu = task_cpu(current);
 	set_my_cpu_offset(per_cpu_offset(cpu));
+#ifdef CONFIG_AMLOGIC_VMAP
+	__setup_vmap_stack(my_cpu_offset);
+#endif
 
 	/*
 	 * All kernel threads share the same mm context; grab a
@@ -436,6 +442,9 @@ void __init smp_cpus_done(unsigned int max_cpus)
 void __init smp_prepare_boot_cpu(void)
 {
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
+#ifdef CONFIG_AMLOGIC_VMAP
+	__setup_vmap_stack(my_cpu_offset);
+#endif
 	cpuinfo_store_boot_cpu();
 
 	/*

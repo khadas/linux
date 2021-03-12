@@ -52,10 +52,36 @@ static const char *handler[]= {
 
 int show_unhandled_signals = 0;
 
+#ifdef CONFIG_AMLOGIC_VMAP
+static void dump_backtrace_entry(unsigned long ip, unsigned long fp,
+				 unsigned long low)
+{
+	unsigned long fp_size = 0;
+	unsigned long high;
+
+	high = low + THREAD_SIZE;
+
+	/*
+	 * Since the target process may be rescheduled again,
+	 * we have to add necessary validation checking for fp.
+	 * The checking condition is borrowed from unwind_frame
+	 */
+	if (on_irq_stack(fp, NULL) ||
+	    (fp >= low && fp <= high)) {
+		fp_size = *((unsigned long *)fp) - fp;
+		/* fp cross IRQ or vmap stack */
+		if (fp_size >= THREAD_SIZE)
+			fp_size = 0;
+	}
+	pr_info("[%016lx+%4ld][<%016lx>] %pS\n",
+		fp, fp_size, (unsigned long)ip, (void *)ip);
+}
+#else
 static void dump_backtrace_entry(unsigned long where)
 {
 	printk(" %pS\n", (void *)where);
 }
+#endif
 
 static void dump_kernel_instr(const char *lvl, struct pt_regs *regs)
 {
@@ -118,7 +144,12 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	do {
 		/* skip until specified stack frame */
 		if (!skip) {
+		#ifdef CONFIG_AMLOGIC_VMAP
+			dump_backtrace_entry(frame.pc, frame.fp,
+					     (unsigned long)tsk->stack);
+		#else
 			dump_backtrace_entry(frame.pc);
+		#endif
 		} else if (frame.fp == regs->regs[29]) {
 			skip = 0;
 			/*
@@ -128,7 +159,12 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 			 * at which an exception has taken place, use regs->pc
 			 * instead.
 			 */
+		#ifdef CONFIG_AMLOGIC_VMAP
+			dump_backtrace_entry(regs->pc, frame.fp,
+					     (unsigned long)tsk->stack);
+		#else
 			dump_backtrace_entry(regs->pc);
+		#endif
 		}
 	} while (!unwind_frame(tsk, &frame));
 

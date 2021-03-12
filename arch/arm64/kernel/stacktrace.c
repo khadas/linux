@@ -17,6 +17,10 @@
 #include <asm/stack_pointer.h>
 #include <asm/stacktrace.h>
 
+#ifdef CONFIG_AMLOGIC_VMAP
+#include <linux/amlogic/vmap_stack.h>
+#endif
+
 /*
  * AArch64 PCS assigns the frame pointer to x29.
  *
