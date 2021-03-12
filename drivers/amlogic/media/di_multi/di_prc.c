@@ -299,7 +299,10 @@ void di_cfg_top_dts(void)
 	}
 	//PR_INF("%s end\n", __func__);
 	if (cfgg(4K) &&
-	    (DIM_IS_IC_BF(TM2) || DIM_IS_IC(T5D) || DIM_IS_IC(S4))) {
+	    (DIM_IS_IC_BF(TM2)	||
+	     DIM_IS_IC(T5D)	||
+	     DIM_IS_IC(T5DB)	||
+	     DIM_IS_IC(S4))) {
 		cfgs(4K, 0);
 		PR_WARN("not support 4k\n");
 	}
@@ -1865,6 +1868,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 				dpre_init();
 				dpost_init();
 				di_reg_setting(ch, vframe);
+				di_reg_setting_working(pch, vframe);
 			}
 			/*this will cause first local buf not alloc*/
 			/*dim_bypass_first_frame(ch);*/
@@ -2547,14 +2551,11 @@ void dim_polic_prob(void)
 			pp->std = DIM_POLICY_STD;
 		else
 			pp->std = DIM_POLICY_STD_OLD;
-	} else if (DIM_IS_IC(T5D)) {
+	} else if (DIM_IS_IC(T5D) || DIM_IS_IC(T5DB)) {
 #ifdef TEST_DISABLE_BYPASS_P
 		pp->std = DIM_POLICY_NOT_LIMIT;
 #else
-		if (de_devp->clkb_max_rate >= 334000000)
 			pp->std = DIM_POLICY_STD;
-		else
-			pp->std = DIM_POLICY_STD_OLD;
 #endif
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 #ifdef TEST_DISABLE_BYPASS_P

@@ -388,5 +388,7 @@ bool dim_dbg_cfg_disable_arb(void);
 void dbg_vfm_w(struct vframe_s *vfm, unsigned int dbgid);
 bool dbg_is_trig_eos(unsigned int ch);
 void pre_inp_mif_w(struct DI_MIF_S *di_mif, struct vframe_s *vf);
+void di_reg_setting_working(struct di_ch_s *pch,
+			    struct vframe_s *vfm);
 
 #endif	/*__DI_PRC_H__*/

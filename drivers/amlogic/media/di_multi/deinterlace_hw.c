@@ -507,6 +507,7 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_sm1_cpu()	||
 	    is_meson_tm2_cpu()	||
 	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)) {
 		dim_top_gate_control(true, true);
 	} else if (DIM_IS_IC_EF(SC2)) {
@@ -529,6 +530,7 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_tl1_cpu()	||
 	    is_meson_tm2_cpu()	||
 	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)) {
 		/* vpp fifo max size on txl :128*3=384[0x180] */
 		/* di fifo max size on txl :96*3=288[0x120] */
@@ -573,6 +575,7 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_tl1_cpu()	||
 	    is_meson_tm2_cpu()	||
 	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)) {
 		dim_pre_gate_control(true, true);
 		dim_post_gate_control(true);
@@ -600,6 +603,7 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	    is_meson_tl1_cpu()	||
 	    is_meson_tm2_cpu()	||
 	    DIM_IS_IC(T5)	||
+	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)) {
 		dim_pre_gate_control(false, true);
 		dim_post_gate_control(false);
@@ -3947,7 +3951,7 @@ static bool di_pre_idle(void)
 {
 	bool ret = false;
 
-	if (DIM_IS_IC(T5)) {
+	if (DIM_IS_IC(T5) || DIM_IS_IC(T5D) || DIM_IS_IC(T5DB)) {
 		if ((DIM_RDMA_RD(DI_ARB_DBG_STAT_L1C1) &
 			PRE_ID_MASK_T5) == PRE_ID_MASK_T5)
 			ret = true;

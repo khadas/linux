@@ -284,8 +284,9 @@ static u32 check_dnr_dm_ctrl(u32 org_val, unsigned short width,
 		return org_val;
 
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-	    IS_IC(dil_get_cpuver_flag(), T5) ||
-	    IS_IC(dil_get_cpuver_flag(), T5D)) {
+	    IS_IC(dil_get_cpuver_flag(), T5)	||
+	    IS_IC(dil_get_cpuver_flag(), T5D)	||
+	    IS_IC(dil_get_cpuver_flag(), T5DB)) {
 		/* disable dm chroma when > 720p */
 		if (width > 1280)
 			org_val &= ~(1 << 8);
@@ -328,16 +329,18 @@ static void dnr_config(struct DNR_PARM_s *dnr_parm_p,
 	DI_Wr_reg_bits(DNR_CTRL, dnr_en ? 1 : 0, 16, 1);
 	/* dm for sd, hd will slower */
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-	    IS_IC(dil_get_cpuver_flag(), T5) ||
-	    IS_IC(dil_get_cpuver_flag(), T5D) ||
+	    IS_IC(dil_get_cpuver_flag(), T5)	||
+	    IS_IC(dil_get_cpuver_flag(), T5D)	||
+	    IS_IC(dil_get_cpuver_flag(), T5DB)	||
 	    (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)))//from vlsi feijun
 		DI_Wr(DNR_CTRL, 0x1df00 | (0x03 << 18)); //5 line
 	else
 		DI_Wr(DNR_CTRL, 0x1df00);
 
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-	    IS_IC(dil_get_cpuver_flag(), T5) ||
-	    IS_IC(dil_get_cpuver_flag(), T5D)) {
+	    IS_IC(dil_get_cpuver_flag(), T5)	||
+	    IS_IC(dil_get_cpuver_flag(), T5D)	||
+	    IS_IC(dil_get_cpuver_flag(), T5DB)) {
 		if (width > 1280)
 			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 8, 1);
 		else
@@ -421,8 +424,9 @@ static void nr2_config(unsigned short width, unsigned short height)
 	if (is_meson_txlx_cpu() || is_meson_g12a_cpu() ||
 		is_meson_g12b_cpu() || is_meson_tl1_cpu() ||
 		is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
-		IS_IC(dil_get_cpuver_flag(), T5) ||
-		IS_IC(dil_get_cpuver_flag(), T5D) ||
+		IS_IC(dil_get_cpuver_flag(), T5)	||
+		IS_IC(dil_get_cpuver_flag(), T5D)	||
+		IS_IC(dil_get_cpuver_flag(), T5DB)	||
 		cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
 		DI_Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 2, 1);
 		DI_Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 15, 1);
@@ -491,8 +495,9 @@ void nr_all_config(unsigned short width, unsigned short height,
 	if (is_meson_txlx_cpu() || is_meson_g12a_cpu() ||
 		is_meson_g12b_cpu() || is_meson_tl1_cpu() ||
 		is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
-		IS_IC(dil_get_cpuver_flag(), T5) ||
-		IS_IC(dil_get_cpuver_flag(), T5D) ||
+		IS_IC(dil_get_cpuver_flag(), T5)	||
+		IS_IC(dil_get_cpuver_flag(), T5D)	||
+		IS_IC(dil_get_cpuver_flag(), T5DB)	||
 		cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
 		linebuffer_config(width);
 		nr4_config(nr_param.pnr4_parm, width, height);
@@ -763,8 +768,9 @@ static void dnr_process(struct DNR_PARM_s *pDnrPrm)
 	int ll, lr;
 
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-	    IS_IC(dil_get_cpuver_flag(), T5) ||
-	    IS_IC(dil_get_cpuver_flag(), T5D)) {
+	    IS_IC(dil_get_cpuver_flag(), T5)	||
+	    IS_IC(dil_get_cpuver_flag(), T5D)	||
+	    IS_IC(dil_get_cpuver_flag(), T5DB)) {
 		ll = Rd(DNR_RO_GBS_STAT_LR);
 		lr = Rd(DNR_RO_GBS_STAT_LL);
 	} else {
@@ -1073,8 +1079,9 @@ void nr_process_in_irq(void)
 	if (is_meson_txlx_cpu() || is_meson_g12a_cpu()
 		|| is_meson_g12a_cpu() || is_meson_tl1_cpu() ||
 		is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
-		IS_IC(dil_get_cpuver_flag(), T5) ||
-		IS_IC(dil_get_cpuver_flag(), T5D) ||
+		IS_IC(dil_get_cpuver_flag(), T5)	||
+		IS_IC(dil_get_cpuver_flag(), T5D)	||
+		IS_IC(dil_get_cpuver_flag(), T5DB)	||
 		cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
 		noise_meter_process(nr_param.pnr4_parm, nr_param.frame_count);
 		luma_enhancement_process(nr_param.pnr4_parm,
@@ -1432,8 +1439,9 @@ void nr_hw_init(void)
 
 	nr_gate_control(true);
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-	    IS_IC(dil_get_cpuver_flag(), T5) ||
-	    IS_IC(dil_get_cpuver_flag(), T5D) ||
+	    IS_IC(dil_get_cpuver_flag(), T5)	||
+	    IS_IC(dil_get_cpuver_flag(), T5D)	||
+	    IS_IC(dil_get_cpuver_flag(), T5DB)	||
 	    (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)))
 		DI_Wr(DNR_CTRL, 0x1df00 | (0x03 << 18));//5 line
 	else
@@ -1452,8 +1460,10 @@ void nr_gate_control(bool gate)
 	if (!is_meson_txlx_cpu() && !is_meson_g12a_cpu() &&
 		!is_meson_g12b_cpu() && !is_meson_sm1_cpu() &&
 		!is_meson_tl1_cpu() && !is_meson_tm2_cpu() &&
-		!IS_IC(dil_get_cpuver_flag(), T5) &&
-		!IS_IC(dil_get_cpuver_flag(), T5D))
+		!IS_IC(dil_get_cpuver_flag(), T5)	&&
+		!IS_IC(dil_get_cpuver_flag(), T5D)	&&
+		!IS_IC(dil_get_cpuver_flag(), T5DB)
+		)
 		return;
 	if (gate) {
 		/* enable nr auto gate */

@@ -978,6 +978,25 @@ static const struct afbc_fb_s cafbc_v4_tm2 = {
 	.if2_dec = 0,
 };
 
+/* t5d vb afbcd as tm2 */
+static const struct afbc_fb_s cafbc_v4_t5dvb = {
+	.ver = AFBCD_V4,
+	.sp.b.inp		= 1,
+	.sp.b.mem		= 0,
+	.sp.b.chan2		= 0,
+	.sp.b.if0		= 0,
+	.sp.b.if1		= 0,
+	.sp.b.if2		= 0,
+	.sp.b.enc_nr		= 0,
+	.sp.b.enc_wr		= 0,
+	.pre_dec = EAFBC_DEC0,
+	.mem_dec = 0,
+	.ch2_dec = 0,
+	.if0_dec = 0,
+	.if1_dec = 0,
+	.if2_dec = 0
+};
+
 static const struct afbc_fb_s cafbc_v3_tl1 = {
 	.ver = AFBCD_V3,
 	.sp.b.inp		= 1,
@@ -993,7 +1012,7 @@ static const struct afbc_fb_s cafbc_v3_tl1 = {
 	.ch2_dec = 0,
 	.if0_dec = 0,
 	.if1_dec = 0,
-	.if2_dec = 0,
+	.if2_dec = 0
 };
 
 static const union afbc_blk_s cafbc_cfg_mode[] = {
@@ -1274,6 +1293,10 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 		memcpy(&pafd_ctr->fb, &cafbc_v5_sc2, sizeof(pafd_ctr->fb));
 		pafd_ctr->fb.mode = AFBC_WK_P;
 		//AFBC_WK_6D_ALL;//AFBC_WK_IN;//
+	} else if (IS_IC_EF(cid, T5DB)) {
+		//afbc_cfg = 0;
+		memcpy(&pafd_ctr->fb, &cafbc_v4_t5dvb, sizeof(pafd_ctr->fb));
+		pafd_ctr->fb.mode = AFBC_WK_IN;
 	} else if (IS_IC_EF(cid, T5D)) { //unsupport afbc
 		pafd_ctr->fb.ver = AFBCD_NONE;
 		pafd_ctr->fb.sp.b.inp = 0;
@@ -1739,7 +1762,9 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 	compbits_yuv = (vf->bitdepth & BITDEPTH_MASK) >> BITDEPTH_Y_SHIFT;
 	compbits_eq8 = (compbits_yuv == 0);
 
-	if (pafd_ctr->fb.ver <= AFBCD_V4) {
+	/* 2021-03-09 from tm2 vb, set 128 or 256 */
+	//if (pafd_ctr->fb.ver <= AFBCD_V4 && !DIM_IS_IC(T5D)) { //for t5d tmp
+	if (pafd_ctr->fb.ver <= AFBCD_V3) {
 		conv_lbuf_len = 256;
 	} else {
 		if ((w_aligned > 1024 && fmt_mode == 0 &&
@@ -1806,7 +1831,8 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 	 * different with from dos
 	 */
 		if (!(vf->type & VIDTYPE_VIU_422) &&
-		    (dec == EAFBC_DEC2_DI))
+		    ((dec == EAFBC_DEC2_DI) ||
+		     (dec == EAFBC_DEC0)))
 		    /* ary note: frame afbce, set 0*/
 			r |= (1 << 19); /* dos_uncomp */
 
@@ -1889,7 +1915,7 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 	reg_wr(reg[EAFBC_VD_CFMT_H], /*out_height*/cvfm_h);
 
 	reg_wr(reg[EAFBC_SIZE_IN], (vf->height) | w_aligned << 16);
-	di_print("%s:size:%d\n", __func__, vf->height);
+	di_print("\t:size:%d\n", vf->height);
 	if (pafd_ctr->fb.ver <= AFBCD_V4)
 		reg_wr(reg[EAFBC_SIZE_OUT], out_height | w_aligned << 16);
 
@@ -2067,8 +2093,8 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 			else
 				afbc_tm2_sw_mem(false);
 
-		if (pafd_ctr->en_set.b.enc_nr)
-			afbce_tm2_sw(true);
+			if (pafd_ctr->en_set.b.enc_nr)
+				afbce_tm2_sw(true);
 			else
 				afbce_tm2_sw(false);
 		}
@@ -2423,6 +2449,13 @@ static u32 afbc_pst_set(struct vframe_s *if0_vf,
 /* only for tm2, sc2 is chang*/
 static void afbc_tm2_sw_inp(bool on)
 {
+	if (DIM_IS_IC(T5DB)) {
+		if (on)
+			reg_wrb(VIUB_MISC_CTRL0, 1, 16, 1);
+		else
+			reg_wrb(VIUB_MISC_CTRL0, 0, 16, 1);
+		return;
+	}
 	if (on)
 		reg_wrb(DI_AFBCE_CTRL, 0x03, 10, 2);
 	else
@@ -2432,6 +2465,8 @@ static void afbc_tm2_sw_inp(bool on)
 /* only for tm2, sc2 is chang*/
 static void afbc_tm2_sw_mem(bool on)
 {
+	if (DIM_IS_IC(T5DB))
+		return;
 	if (on)
 		reg_wrb(DI_AFBCE_CTRL, 0x03, 12, 2);
 	else
@@ -2451,6 +2486,7 @@ static void afbce_tm2_sw(bool on)
 		reg_wrb(DI_AFBCE_CTRL, 0x01, 4, 1);
 	}
 
+	/*for t5 is afbce ram enable, must set 1 if use afbce*/
 	if (DIM_IS_IC(T5)) {
 		if (on)
 			reg_wrb(DI_AFBCE_CTRL, 0x01, 30, 1);
@@ -2772,8 +2808,20 @@ static void afbc_reg_sw(bool on)
 	if (on) {
 		if (pafd_ctr->fb.ver <= AFBCD_V3)
 			afbc_power_sw(true);
-		else if (pafd_ctr->fb.ver == AFBCD_V4)
+		else if (pafd_ctr->fb.ver == AFBCD_V4) {
 			reg_wrb(DI_AFBCE_CTRL, 0x01, 4, 1);
+			if (DIM_IS_IC(T5DB) && afbc_is_supported()) {
+				/* afbcd is shared */
+				reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 22, 1);
+				reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 10, 1);
+				reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 12, 1);
+				reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 1, 1);
+				dbg_reg("%s:t5d vb on\n 0x%x,0x%x\n",
+					__func__,
+					VD1_AFBCD0_MISC_CTRL,
+					reg_rd(VD1_AFBCD0_MISC_CTRL));
+			}
+		}
 	}
 	if (!on) {
 		if (pafd_ctr->fb.ver <= AFBCD_V3) {

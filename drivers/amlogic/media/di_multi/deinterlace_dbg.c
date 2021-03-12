@@ -515,6 +515,7 @@ static int dump_di_post_stru_seq(struct seq_file *seq, void *v,
 void dim_dump_crc_state(void)
 {
 	if (IS_IC(dil_get_cpuver_flag(), T5) ||
+	    DIM_IS_IC(T5DB)	||
 	    IS_IC(dil_get_cpuver_flag(), T5D)) {
 		pr_info("CRC_NRWR=0x%x\n", RD(DI_T5_RO_CRC_NRWR));
 		pr_info("CRC_MTNWR=0x%x\n", RD(DI_T5_RO_CRC_MTNWR));
@@ -525,6 +526,7 @@ void dim_dump_crc_state(void)
 void dim_dump_pulldown_state(void)
 {
 	if (IS_IC(dil_get_cpuver_flag(), T5) ||
+	    DIM_IS_IC(T5DB)	||
 	    IS_IC(dil_get_cpuver_flag(), T5D)) {
 		pr_info("SUM_P=0x%x\n", RD(DI_T5_PD_RO_SUM_P));
 		pr_info("SUM_N=0x%x\n", RD(DI_T5_PD_RO_SUM_N));

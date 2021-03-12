@@ -1344,6 +1344,35 @@
 		interrupt-names = "vsync";
 	};
 
+	multi-di {
+		compatible = "amlogic, dim-t5dvb";
+		status = "okay";
+		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
+		flag_cma = <4>;//t5d unsupport 4K,di 1CH need 42M
+		en_4k = <0>;
+		keep_dec_vf = <0>;
+		po_fmt = <0>;
+		post_nub = <7>;
+		//memory-region = <&di_reserved>;
+		//memory-region = <&di_cma_reserved>;
+		interrupts = <0 46 1
+				0 40 1>;
+		interrupt-names = "pre_irq", "post_irq";
+		clocks = <&peripheral_clkc CLKID_VPU_CLKB_TMP_GATE>,
+			<&peripheral_clkc CLKID_VPU_CLKB_GATE>;
+		clock-names = "t5_vpu_clkb_tmp_gate",
+			"t5_vpu_clkb_gate";
+		clock-range = <334 334>;
+		/* buffer-size = <3621952>;(yuv422 8bit) */
+		buffer-size = <4074560>;/*yuv422 fullpack*/
+		/* reserve-iomap = "true"; */
+		/* if enable nr10bit, set nr10bit-support to 1 */
+		post-wr-support = <1>;
+		nr10bit-support = <1>;
+		nrds-enable = <1>;
+		pps-enable = <1>;
+	};
+
 	ionvideo {
 		compatible = "amlogic, ionvideo";
 		status = "okay";
