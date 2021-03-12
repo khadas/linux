@@ -367,10 +367,12 @@ int _alloc_buff(unsigned int len, int sec_level,
 
 	iret = cache_malloc(len, &buf_start_virt, &buf_start);
 	if (iret == 0) {
-		ret = tee_protect_mem_by_type(TEE_MEM_TYPE_DEMUX,
+		if (sec_level) {
+			ret = tee_protect_mem_by_type(TEE_MEM_TYPE_DEMUX,
 				buf_start, len, handle);
-		pr_dbg("%s, protect 0x%lx, len:%d, ret:0x%x\n",
+			pr_dbg("%s, protect 0x%lx, len:%d, ret:0x%x\n",
 				__func__, buf_start, len, ret);
+		}
 		*vir_mem = buf_start_virt;
 		*phy_mem = buf_start;
 		return 0;
