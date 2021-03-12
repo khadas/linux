@@ -6421,7 +6421,7 @@ int set_layer_display_canvas(u8 layer_id,
 					canvas_read(cur_canvas_tbl[3], &cs0);
 					canvas_read(cur_canvas_tbl[4], &cs1);
 					canvas_read(cur_canvas_tbl[5], &cs2);
-					set_vd_mif_linear_cs(layer,
+					set_vd_mif_linear_cs(&vd_layer[1],
 						&cs0, &cs1, &cs2,
 						vf);
 				}
@@ -6431,7 +6431,7 @@ int set_layer_display_canvas(u8 layer_id,
 					vf->plane_num,
 					&cur_canvas_tbl[3]);
 				if (cur_dev->mif_linear) {
-					set_vd_mif_linear(layer,
+					set_vd_mif_linear(&vd_layer[1],
 						&vf->canvas1_config[0],
 						vf->plane_num,
 						vf);
