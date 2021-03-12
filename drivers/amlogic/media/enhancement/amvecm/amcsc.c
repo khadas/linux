@@ -423,6 +423,13 @@ static uint cur_hdr_policy = 0xff;
 module_param(hdr_policy, uint, 0664);
 MODULE_PARM_DESC(hdr_policy, "\n current hdr_policy\n");
 
+/* 0: source: use src meta */
+/* 1: Auto: 601/709=709 P3/2020=P3 */
+/* 2: Native: 601/709=off P3/2020=2020 */
+static uint primary_policy;
+static uint cur_primary_policy;
+module_param(primary_policy, uint, 0664);
+MODULE_PARM_DESC(primary_policy, "\n current primary_policy\n");
 int boot_hdr_policy(char *str)
 {
 	if (strncmp("1", str, 1) == 0) {
@@ -450,6 +457,12 @@ __setup("hdr_policy=", boot_hdr_policy);
 static uint force_output; /* 0: no force */
 module_param(force_output, uint, 0664);
 MODULE_PARM_DESC(force_output, "\n current force_output\n");
+
+int get_primary_policy(void)
+{
+	return primary_policy;
+}
+EXPORT_SYMBOL(get_primary_policy);
 
 int get_hdr_policy(void)
 {
@@ -7667,6 +7680,13 @@ static int vpp_matrix_update(struct vframe_s *vf,
 			signal_change_flag |= SIG_HDR_MODE;
 		}
 
+		if (get_primary_policy() != cur_primary_policy) {
+			pr_csc(4, "primary policy changed from %d to %d.\n",
+			       cur_primary_policy,
+			       get_primary_policy());
+			signal_change_flag |= SIG_HDR_MODE;
+		}
+
 		source_format[VD1_PATH] = get_source_type(VD1_PATH);
 		source_format[VD2_PATH] = get_source_type(VD2_PATH);
 		source_format[VD3_PATH] = get_source_type(VD3_PATH);
@@ -7803,6 +7823,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 
 #endif
 		cur_hdr_policy = get_hdr_policy();
+		cur_primary_policy = get_primary_policy();
 	}
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&

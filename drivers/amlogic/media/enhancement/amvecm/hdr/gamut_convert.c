@@ -350,6 +350,16 @@ static u32 std_bt2020_white_point[2] = {
 	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
 };
 
+static u32 std_p3_primaries[3][2] = {
+	{0.265 * NORM + 0.5, 0.69 * NORM + 0.5},	/* G */
+	{0.15 * NORM + 0.5, 0.06 * NORM + 0.5},		/* B */
+	{0.68 * NORM + 0.5, 0.32 * NORM + 0.5},		/* R */
+};
+
+static u32 std_p3_white_point[2] = {
+	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
+};
+
 static u32 std_bt709_prmy[3][2] = {
 	{0.30 * NORM + 0.5, 0.60 * NORM + 0.5},	/* G */
 	{0.15 * NORM + 0.5, 0.06 * NORM + 0.5},	/* B */
@@ -405,15 +415,29 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 	} else if ((source_type[vd_path] == HDRTYPE_HDR10) ||
 		(source_type[vd_path] == HDRTYPE_HLG) ||
 		(source_type[vd_path] == HDRTYPE_HDR10PLUS)) {
-		for (i = 0; i < 3; i++)
-			for (j = 0; j < 2; j++) {
-				src_prmy[i][j] =
-					std_bt2020_prmy[(i + 2) % 3][j];
-				src_prmy[3][j] = std_bt2020_white_point[j];
-			}
+		if (get_primary_policy() == PRIMARIES_AUTO) {
+			for (i = 0; i < 3; i++)
+				for (j = 0; j < 2; j++) {
+					src_prmy[i][j] =
+						std_p3_primaries
+						[(i + 2) % 3][j];
+					src_prmy[3][j] =
+						std_p3_white_point
+						[j];
+				}
+		} else {
+			for (i = 0; i < 3; i++)
+				for (j = 0; j < 2; j++) {
+					src_prmy[i][j] =
+						std_bt2020_prmy[(i + 2) % 3][j];
+					src_prmy[3][j] =
+						std_bt2020_white_point[j];
+				}
+		}
 	}
 
-	if (vinfo->master_display_info.present_flag) {
+	if (vinfo->master_display_info.present_flag &&
+		(get_primary_policy() == PRIMARIES_SOURCE)) {
 		p = &vinfo->master_display_info;
 		for (i = 0; i < 3; i++)
 			for (j = 0; j < 2; j++) {

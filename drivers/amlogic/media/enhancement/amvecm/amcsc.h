@@ -153,7 +153,15 @@ extern int video_rgb_ogo_xvy_mtx;
 extern int tx_op_color_primary;
 extern uint cur_csc_type[VD_PATH_MAX];
 
+/* 0: source: use src meta */
+/* 1: Auto: 601/709=709 P3/2020=P3 */
+/* 2: Native: 601/709=off P3/2020=2020 */
+#define PRIMARIES_SOURCE	0
+#define PRIMARIES_AUTO		1
+#define PRIMARIES_NATIVE	2
+
 int get_hdr_policy(void);
+int get_primary_policy(void);
 void set_cur_hdr_policy(uint policy);
 enum output_format_e get_force_output(void);
 void set_force_output(enum output_format_e output);
