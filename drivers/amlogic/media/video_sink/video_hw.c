@@ -3815,10 +3815,13 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 
 	if (is_dolby_vision_enable()) {
 		if (is_meson_txlx_cpu() ||
-		    is_meson_gxm_cpu())
+		    is_meson_gxm_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(VIU_MISC_CTRL1 + misc_off,
 				3, 16, 2); /* bypass core1 */
+#endif
+		}
 		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(DOLBY_PATH_CTRL + misc_off,
@@ -7818,6 +7821,7 @@ int video_hw_init(void)
 	WRITE_VCBUS_REG(VPP_PREBLEND_VD1_H_START_END, 4096);
 	WRITE_VCBUS_REG(VPP_BLEND_VD2_H_START_END, 4096);
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 		/* fifo max size on txl :128*3=384[0x180]  */
 		WRITE_VCBUS_REG
@@ -7827,9 +7831,11 @@ int video_hw_init(void)
 			(vd_layer[1].vd_mif_reg.vd_if0_luma_fifo_size,
 			0x180);
 	}
+#endif
 
 	/* default 10bit setting for gxm */
 	if (is_meson_gxm_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		WRITE_VCBUS_REG_BITS(VIU_MISC_CTRL1, 0xff, 16, 8);
 		WRITE_VCBUS_REG(VPP_DOLBY_CTRL, 0x22000);
 		/*
@@ -7840,6 +7846,7 @@ int video_hw_init(void)
 		 */
 		WRITE_VCBUS_REG(VPP_DUMMY_DATA1, 0x1020080);
 		WRITE_VCBUS_REG(VPP_DUMMY_DATA, 0x42020);
+#endif
 	} else if (is_meson_txlx_cpu() ||
 		cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/*black 10bit*/

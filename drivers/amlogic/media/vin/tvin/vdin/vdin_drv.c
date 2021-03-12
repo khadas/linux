@@ -709,10 +709,12 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	 *gxtvbb/txl use vpu clk for process 4k
 	 *g12a use vpu clk for process 4K input buf can't output 4k
 	 */
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_gxl_cpu() || is_meson_gxm_cpu() || is_meson_gxbb_cpu() ||
 	    is_meson_txhd_cpu())
 		vdin_vpu_clk_gate_on_off(devp, 1);
 		/*switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_ON);*/
+#endif
 
 	/*enable clk*/
 	vdin_clk_onoff(devp, true);
@@ -4108,6 +4110,7 @@ static const struct match_data_s vdin_dt_xxx = {
 	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 const struct match_data_s vdin_dt_tl1 = {
 	.name = "vdin",
 	.hw_ver = VDIN_HW_ORG,
@@ -4115,6 +4118,7 @@ const struct match_data_s vdin_dt_tl1 = {
 	.de_tunnel_tunnel = 0,		.ipt444_to_422_12bit = 0,
 	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
 };
+#endif
 
 const struct match_data_s vdin_dt_sm1 = {
 	.name = "vdin",
@@ -4185,10 +4189,12 @@ static const struct of_device_id vdin_dt_match[] = {
 		.compatible = "amlogic, vdin",
 		.data = &vdin_dt_xxx,
 	},
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, vdin-tl1",
 		.data = &vdin_dt_tl1,
 	},
+#endif
 	{
 		.compatible = "amlogic, vdin-sm1",
 		.data = &vdin_dt_sm1,
@@ -4600,6 +4606,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 
 	/* vdin measure clock */
 	if (is_meson_gxbb_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		struct clk *clk;
 
 		clk = clk_get(&pdev->dev, "xtal");
@@ -4614,6 +4621,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 			pr_info("%s: vdin msr clock is %d MHZ\n", __func__,
 				vdevp->msr_clk_val / 1000000);
 		}
+#endif
 	} else {
 		struct clk *fclk_div5;
 		unsigned int clk_rate;

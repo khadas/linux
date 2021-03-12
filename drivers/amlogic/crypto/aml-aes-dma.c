@@ -876,24 +876,6 @@ static int aml_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
 #endif
 }
 
-static int aml_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
-			  unsigned int keylen)
-{
-	struct aml_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
-
-	if (keylen != AES_KEYSIZE_128 && keylen != AES_KEYSIZE_192 &&
-	    keylen != AES_KEYSIZE_256) {
-		crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		pr_err("aml-aes:invalid keysize: %d\n", keylen);
-		return -EINVAL;
-	}
-
-	memcpy(ctx->key, key, keylen);
-	ctx->keylen = keylen;
-	ctx->kte = -1;
-
-	return 0;
-}
 
 static int aml_aes_kl_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 			     unsigned int keylen)
@@ -987,6 +969,7 @@ static int aml_aes_ctr_decrypt(struct ablkcipher_request *req)
 			AES_FLAGS_ENCRYPT | AES_FLAGS_CTR);
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static int aml_aes_cra_init(struct crypto_tfm *tfm)
 {
 	struct aml_aes_ctx *ctx = crypto_tfm_ctx(tfm);
@@ -999,6 +982,25 @@ static int aml_aes_cra_init(struct crypto_tfm *tfm)
 
 static void aml_aes_cra_exit(struct crypto_tfm *tfm)
 {
+}
+
+static int aml_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+			  unsigned int keylen)
+{
+	struct aml_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+
+	if (keylen != AES_KEYSIZE_128 && keylen != AES_KEYSIZE_192 &&
+	    keylen != AES_KEYSIZE_256) {
+		crypto_ablkcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+		pr_err("aml-aes:invalid keysize: %d\n", keylen);
+		return -EINVAL;
+	}
+
+	memcpy(ctx->key, key, keylen);
+	ctx->keylen = keylen;
+	ctx->kte = -1;
+
+	return 0;
 }
 
 static struct crypto_alg aes_algs[] = {
@@ -1066,6 +1068,7 @@ static struct crypto_alg aes_algs[] = {
 		}
 	}
 };
+#endif
 
 static int aml_aes_lite_cra_init(struct crypto_tfm *tfm)
 {
@@ -1235,10 +1238,12 @@ static struct crypto_alg aes_lite_algs[] = {
 	}
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 struct aml_aes_info aml_gxl_aes = {
 	.algs = aes_algs,
 	.num_algs = ARRAY_SIZE(aes_algs),
 };
+#endif
 
 struct aml_aes_info aml_aes_lite = {
 	.algs = aes_lite_algs,
@@ -1247,9 +1252,11 @@ struct aml_aes_info aml_aes_lite = {
 
 #ifdef CONFIG_OF
 static const struct of_device_id aml_aes_dt_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{	.compatible = "amlogic,aes_dma",
 		.data = &aml_gxl_aes,
 	},
+#endif
 	{	.compatible = "amlogic,aes_g12a_dma",
 		.data = &aml_aes_lite,
 	},

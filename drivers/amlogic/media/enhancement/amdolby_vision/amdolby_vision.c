@@ -378,7 +378,9 @@ static int core3_switch;
 static bool force_set_lut;
 
 /*core reg must be set at first time. bit0 is for core2, bit1 is for core3*/
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static u32 first_reseted;
+#endif
 
 static char *ko_info;
 static char total_chip_name[20];
@@ -3469,10 +3471,12 @@ static int dolby_core1_set
 	else
 		count = lut_count;
 	if (count && (set_lut || reset)) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_gxm() &&
 		(dolby_vision_flags & FLAG_CLKGATE_WHEN_LOAD_LUT))
 			VSYNC_WR_DV_REG_BITS(DOLBY_CORE1A_CLKGATE_CTRL,
 					     2, 2, 2);
+#endif
 
 		VSYNC_WR_DV_REG(DOLBY_CORE1A_DMA_CTRL, 0x1401);
 		if (copy_core1a_to_core1b)
@@ -3525,10 +3529,12 @@ static int dolby_core1_set
 							p_core1_lut[i]);
 			}
 		}
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_gxm() &&
 		(dolby_vision_flags & FLAG_CLKGATE_WHEN_LOAD_LUT))
 			VSYNC_WR_DV_REG_BITS(DOLBY_CORE1A_CLKGATE_CTRL,
 					     0, 2, 2);
+#endif
 	}
 
 	if (dolby_vision_on_count
@@ -3776,10 +3782,12 @@ static int dolby_core2c_set
 		reset = true;
 
 	if (is_meson_gxm()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if ((first_reseted & 0x1) == 0) {
 			first_reseted = (first_reseted | 0x1);
 			reset = true;
 		}
+#endif
 	} else {
 		if (dolby_vision_on_count == 0)
 			reset = true;
@@ -3868,10 +3876,12 @@ static int dolby_core2c_set
 	else
 		count = lut_count;
 	if (count && (set_lut || reset || force_set_lut)) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_gxm() &&
 		(dolby_vision_flags & FLAG_CLKGATE_WHEN_LOAD_LUT))
 			VSYNC_WR_DV_REG_BITS(DOLBY_CORE2C_CLKGATE_CTRL,
 				2, 2, 2);
+#endif
 		VSYNC_WR_DV_REG(DOLBY_CORE2C_DMA_CTRL, 0x1401);
 		if (lut_endian)
 			for (i = 0; i < count; i += 4) {
@@ -3889,10 +3899,12 @@ static int dolby_core2c_set
 				VSYNC_WR_DV_REG(DOLBY_CORE2C_DMA_PORT,
 					p_core2_lut[i]);
 		/* core2 lookup table program done */
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_gxm() &&
 		(dolby_vision_flags & FLAG_CLKGATE_WHEN_LOAD_LUT))
 			VSYNC_WR_DV_REG_BITS
 				(DOLBY_CORE2C_CLKGATE_CTRL, 0, 2, 2);
+#endif
 	}
 	force_set_lut = false;
 
@@ -3932,10 +3944,12 @@ static int dolby_core2a_set
 		reset = true;
 
 	if (is_meson_gxm()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if ((first_reseted & 0x1) == 0) {
 			first_reseted = (first_reseted | 0x1);
 			reset = true;
 		}
+#endif
 	} else {
 		if (dolby_vision_on_count == 0)
 			reset = true;
@@ -4029,10 +4043,12 @@ static int dolby_core2a_set
 	else
 		count = lut_count;
 	if (count && (set_lut || reset || force_set_lut)) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_gxm() &&
 		(dolby_vision_flags & FLAG_CLKGATE_WHEN_LOAD_LUT))
 			VSYNC_WR_DV_REG_BITS(DOLBY_CORE2A_CLKGATE_CTRL,
 				2, 2, 2);
+#endif
 		VSYNC_WR_DV_REG(DOLBY_CORE2A_DMA_CTRL, 0x1401);
 
 		if (lut_endian) {
@@ -4053,10 +4069,12 @@ static int dolby_core2a_set
 			}
 		}
 		/* core2 lookup table program done */
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_gxm() &&
 		(dolby_vision_flags & FLAG_CLKGATE_WHEN_LOAD_LUT))
 			VSYNC_WR_DV_REG_BITS
 				(DOLBY_CORE2A_CLKGATE_CTRL, 0, 2, 2);
+#endif
 	}
 	force_set_lut = false;
 
@@ -4152,10 +4170,12 @@ static int dolby_core3_set
 		reset = true;
 
 	if (is_meson_gxm()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if ((first_reseted & 0x2) == 0) {
 			first_reseted = (first_reseted | 0x2);
 			reset = true;
 		}
+#endif
 	} else {
 		if (dolby_vision_on_count == 0)
 			reset = true;
@@ -4675,6 +4695,7 @@ static void osd_bypass(int bypass)
 	}
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static u32 viu_eotf_ctrl_backup;
 static u32 xvycc_lut_ctrl_backup;
 static u32 inv_lut_ctrl_backup;
@@ -4684,6 +4705,7 @@ static u32 vpp_vadj_backup;
 static u32 vpp_gainoff_backup;
 static u32 vpp_ve_enable_ctrl_backup;
 static u32 xvycc_vd1_rgb_ctrst_backup;
+#endif
 static bool is_video_effect_bypass;
 
 static void video_effect_bypass(int bypass)
@@ -4715,6 +4737,7 @@ static void video_effect_bypass(int bypass)
 	if (bypass) {
 		if (!is_video_effect_bypass) {
 			if (is_meson_txlx()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 				viu_eotf_ctrl_backup =
 					VSYNC_RD_DV_REG(VIU_EOTF_CTL);
 				xvycc_lut_ctrl_backup =
@@ -4729,10 +4752,12 @@ static void video_effect_bypass(int bypass)
 					VSYNC_RD_DV_REG(VPP_VE_ENABLE_CTRL);
 				vpp_gainoff_backup =
 					VSYNC_RD_DV_REG(VPP_GAINOFF_CTRL0);
+#endif
 			}
 			is_video_effect_bypass = true;
 		}
 		if (is_meson_txlx()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			VSYNC_WR_DV_REG(VIU_EOTF_CTL, 0);
 			VSYNC_WR_DV_REG(XVYCC_LUT_CTL, 0);
 			VSYNC_WR_DV_REG(XVYCC_INV_LUT_CTL, 0);
@@ -4740,6 +4765,7 @@ static void video_effect_bypass(int bypass)
 			VSYNC_WR_DV_REG(XVYCC_VD1_RGB_CTRST, 0);
 			VSYNC_WR_DV_REG(VPP_VE_ENABLE_CTRL, 0);
 			VSYNC_WR_DV_REG(VPP_GAINOFF_CTRL0, 0);
+#endif
 		} else {
 			if ((dolby_vision_flags & FLAG_CERTIFICAION) ||
 			    bypass_all_vpp_pq || is_meson_tvmode())
@@ -4749,6 +4775,7 @@ static void video_effect_bypass(int bypass)
 		}
 	} else if (is_video_effect_bypass) {
 		if (is_meson_txlx()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			VSYNC_WR_DV_REG
 				(VIU_EOTF_CTL,
 				 viu_eotf_ctrl_backup);
@@ -4770,6 +4797,7 @@ static void video_effect_bypass(int bypass)
 			VSYNC_WR_DV_REG
 				(VPP_GAINOFF_CTRL0,
 				vpp_gainoff_backup);
+#endif
 		} else {
 			dv_pq_ctl(DV_PQ_REC);
 		}
@@ -4926,8 +4954,10 @@ static u32 dolby_ctrl_backup = 0x22000;
 static u32 viu_misc_ctrl_backup;
 static u32 vpp_matrix_backup;
 static u32 vpp_dummy1_backup;
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static u32 vpp_data_conv_para0_backup;
 static u32 vpp_data_conv_para1_backup;
+#endif
 void enable_dolby_vision(int enable)
 {
 	u32 size = 0;
@@ -4946,11 +4976,13 @@ void enable_dolby_vision(int enable)
 			vpp_dummy1_backup =
 				VSYNC_RD_DV_REG(VPP_DUMMY_DATA1);
 			if (is_meson_txlx()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 				vpp_data_conv_para0_backup =
 					VSYNC_RD_DV_REG(VPP_DAT_CONV_PARA0);
 				vpp_data_conv_para1_backup =
 					VSYNC_RD_DV_REG(VPP_DAT_CONV_PARA1);
 				setting_update_count = 0;
+#endif
 			}
 			if (is_meson_tvmode() && !force_stb_mode) {
 				if (efuse_mode == 1) {
@@ -5074,6 +5106,7 @@ void enable_dolby_vision(int enable)
 					/* bypass all video effect */
 					video_effect_bypass(1);
 					if (is_meson_txlx_tvmode()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 						/* 12 bit unsigned to sign*/
 						/*   before vadj1 */
 						/* 12 bit sign to unsign*/
@@ -5084,6 +5117,7 @@ void enable_dolby_vision(int enable)
 						/*   10->12 after gainoff */
 						VSYNC_WR_DV_REG
 							(VPP_DAT_CONV_PARA1, 0x20002000);
+#endif
 					}
 					WRITE_VPP_DV_REG(DOLBY_TV_DIAG_CTRL,
 							 0xb);
@@ -5093,6 +5127,7 @@ void enable_dolby_vision(int enable)
 					    FLAG_BYPASS_VPP)
 						video_effect_bypass(1);
 					if (is_meson_txlx_tvmode()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 						/* 12->10 before vadj1*/
 						/*   10->12 before post blend */
 						VSYNC_WR_DV_REG
@@ -5103,6 +5138,7 @@ void enable_dolby_vision(int enable)
 					VSYNC_WR_DV_REG
 						(VPP_DAT_CONV_PARA1,
 						 0x20002000);
+#endif
 					}
 				}
 				VSYNC_WR_DV_REG
@@ -6003,6 +6039,7 @@ void enable_dolby_vision(int enable)
 			VSYNC_WR_DV_REG(VIU_SW_RESET, 3 << 9);
 			VSYNC_WR_DV_REG(VIU_SW_RESET, 0);
 			if (is_meson_txlx()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 				VSYNC_WR_DV_REG(VPP_DAT_CONV_PARA0,
 						vpp_data_conv_para0_backup);
 				VSYNC_WR_DV_REG(VPP_DAT_CONV_PARA1,
@@ -6015,6 +6052,7 @@ void enable_dolby_vision(int enable)
 						0x414);
 				VSYNC_WR_DV_REG(DOLBY_TV_AXI2DMA_CTRL0,
 						0x01000042);
+#endif
 			}
 			if (is_meson_box() || is_meson_tm2_stbmode() || is_meson_t7_stbmode()) {
 				VSYNC_WR_DV_REG(DOLBY_CORE1A_CLKGATE_CTRL,
@@ -6028,12 +6066,15 @@ void enable_dolby_vision(int enable)
 					(0x3ff << 20) | (0x3ff << 10) | 0x3ff);
 			VSYNC_WR_DV_REG(VPP_VD1_CLIP_MISC1, 0);
 			video_effect_bypass(0);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			if (is_meson_gxm())
 				VSYNC_WR_DV_REG(VPP_DOLBY_CTRL,
 						dolby_ctrl_backup);
+#endif
 			/* always vd2 to vpp and bypass core 1 */
 			viu_misc_ctrl_backup |=
 				(VSYNC_RD_DV_REG(VIU_MISC_CTRL1) & 2);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			if (is_meson_gxm()) {
 				if ((VSYNC_RD_DV_REG(VIU_MISC_CTRL1) &
 					(0xff << 8)) != 0) {
@@ -6045,6 +6086,7 @@ void enable_dolby_vision(int enable)
 						 0xFFFF90FF) | 0x9000);
 				}
 			}
+#endif
 			VSYNC_WR_DV_REG(VIU_MISC_CTRL1,
 					viu_misc_ctrl_backup | (3 << 16));
 			VSYNC_WR_DV_REG(VPP_MATRIX_CTRL,
@@ -6347,6 +6389,7 @@ static void dump_setting
 		p = (u32 *)&setting->comp_reg;
 		for (i = 0; i < 173; i++)
 			pr_info("%08x\n", p[i]);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_gxm()) {
 			pr_info("core1 swap\n");
 			for (i = DOLBY_CORE1A_CLKGATE_CTRL;
@@ -6378,6 +6421,7 @@ static void dump_setting
 				pr_info("[0x%4x] = 0x%x\n",
 					i, READ_VPP_DV_REG(i));
 		}
+#endif
 	}
 
 	if ((debug_flag & 0x20) && dump_enable) {
@@ -12882,10 +12926,12 @@ static int get_chip_name(void)
 
 	if (is_meson_g12())
 		snprintf(chip_name, sizeof("g12"), "%s", "g12");
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	else if (is_meson_txlx())
 		snprintf(chip_name, sizeof("txlx"), "%s", "txlx");
 	else if (is_meson_gxm())
 		snprintf(chip_name, sizeof("gxm"), "%s", "gxm");
+#endif
 	else if (is_meson_tm2())
 		snprintf(chip_name, sizeof("tm2"), "%s", "tm2");
 	else if (is_meson_sc2())
@@ -13048,8 +13094,10 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		    is_meson_tm2_stbmode() || is_meson_t7_stbmode() ||
 		    is_meson_sc2() || force_stb_mode)
 			dolby_vision_run_mode_delay = 0;
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		else if (is_meson_gxm())
 			dolby_vision_run_mode_delay = RUN_MODE_DELAY_GXM;
+#endif
 		else
 			dolby_vision_run_mode_delay = RUN_MODE_DELAY;
 
@@ -14186,6 +14234,7 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR_NULL
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct dv_device_data_s dolby_vision_gxm = {
 	.cpu_id = _CPU_MAJOR_ID_GXM,
 };
@@ -14193,6 +14242,7 @@ static struct dv_device_data_s dolby_vision_gxm = {
 static struct dv_device_data_s dolby_vision_txlx = {
 	.cpu_id = _CPU_MAJOR_ID_TXLX,
 };
+#endif
 
 static struct dv_device_data_s dolby_vision_g12 = {
 	.cpu_id = _CPU_MAJOR_ID_G12,
@@ -14215,6 +14265,7 @@ static struct dv_device_data_s dolby_vision_t7 = {
 };
 
 static const struct of_device_id amlogic_dolby_vision_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, dolby_vision_gxm",
 		.data = &dolby_vision_gxm,
@@ -14223,6 +14274,7 @@ static const struct of_device_id amlogic_dolby_vision_match[] = {
 		.compatible = "amlogic, dolby_vision_txlx",
 		.data = &dolby_vision_txlx,
 	},
+#endif
 	{
 		.compatible = "amlogic, dolby_vision_g12a",
 		.data = &dolby_vision_g12,

@@ -2108,6 +2108,7 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 	return 0;
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static int emmc_data_alignment(struct mmc_host *mmc, int best_size)
 {
 	struct meson_host *host = mmc_priv(mmc);
@@ -2182,6 +2183,7 @@ static int emmc_data_alignment(struct mmc_host *mmc, int best_size)
 	host->is_tuning = 0;
 	return 0;
 }
+#endif
 
 static void set_emmc_cmd_delay(struct mmc_host *mmc, int send_status)
 {
@@ -2195,6 +2197,7 @@ static void set_emmc_cmd_delay(struct mmc_host *mmc, int send_status)
 	writel(delay2, host->regs + SD_EMMC_DELAY2);
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static void __attribute__((unused)) aml_emmc_hs400_revb(struct mmc_host *mmc)
 {
 	struct meson_host *host = mmc_priv(mmc);
@@ -2211,6 +2214,7 @@ static void __attribute__((unused)) aml_emmc_hs400_revb(struct mmc_host *mmc)
 	emmc_data_alignment(mmc, win_size);
 	set_emmc_cmd_delay(mmc, 0);
 }
+#endif
 
 static void aml_emmc_hs400_tl1(struct mmc_host *mmc)
 {
@@ -2826,6 +2830,7 @@ static int meson_mmc_voltage_switch(struct mmc_host *mmc, struct mmc_ios *ios)
 	return -EINVAL;
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 int __attribute__((unused)) aml_emmc_hs200_tl1(struct mmc_host *mmc)
 {
 	struct meson_host *host = mmc_priv(mmc);
@@ -2918,6 +2923,7 @@ retry1:
 		__func__, __LINE__, readl(host->regs + SD_EMMC_CLOCK));
 	return 0;
 }
+#endif
 
 static int intf3_scan(struct mmc_host *mmc, u32 opcode)
 {

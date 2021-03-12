@@ -2313,7 +2313,9 @@ static int gxtv_demod_dtmb_read_status_old
 	unsigned char s = 0;
 
 	if (is_meson_gxtvbb_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		dtmb_check_status_gxtv(fe);
+#endif
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 		dtmb_bch_check();
 		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
@@ -2453,8 +2455,10 @@ int Gxtv_Demod_Dtmb_Init(struct amldtvdemod_device_s *dev)
 	demod_status.delsys = SYS_DTMB;
 
 	if (is_meson_gxtvbb_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		sys.adc_clk = ADC_CLK_25M;
 		sys.demod_clk = DEMOD_CLK_200M;
+#endif
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 		if (is_meson_txl_cpu()) {
 			sys.adc_clk = ADC_CLK_25M;
@@ -3184,6 +3188,7 @@ static int leave_mode(enum fe_delivery_system delsys)
 	return 0;
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 /* when can't get ic_config by dts, use this*/
 const struct meson_ddemod_data  data_gxtvbb = {
 	.regoff = {
@@ -3204,6 +3209,7 @@ const struct meson_ddemod_data  data_txlx = {
 	},
 	.hw_ver = DTVDEMOD_HW_TXLX,
 };
+#endif
 
 const struct meson_ddemod_data  data_tl1 = {
 	.regoff = {
@@ -3241,6 +3247,7 @@ const struct meson_ddemod_data  data_t5d = {
 };
 
 static const struct of_device_id meson_ddemod_match[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, ddemod-gxtvbb",
 		.data		= &data_gxtvbb,
@@ -3259,7 +3266,9 @@ static const struct of_device_id meson_ddemod_match[] = {
 	}, {
 		.compatible = "amlogic, ddemod-tl1",
 		.data		= &data_tl1,
-	}, {
+	},
+#endif
+	{
 		.compatible = "amlogic, ddemod-tm2",
 		.data		= &data_tl1,
 	}, {
@@ -4777,6 +4786,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 	fe = &devp->frontend;
 
 	switch (ic_version) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case MESON_CPU_MAJOR_ID_GXTVBB:
 	case MESON_CPU_MAJOR_ID_TXL:
 		aml_dtvdm_ops.delsys[0] = SYS_DVBC_ANNEX_A;
@@ -4813,6 +4823,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 		break;
 
 	case MESON_CPU_MAJOR_ID_TL1:
+#endif
 	case MESON_CPU_MAJOR_ID_TM2:
 		aml_dtvdm_ops.delsys[0] = SYS_DVBC_ANNEX_A;
 		aml_dtvdm_ops.delsys[1] = SYS_DVBC_ANNEX_B;
@@ -4821,10 +4832,13 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
 		aml_dtvdm_ops.delsys[4] = SYS_ANALOG;
 #endif
-		if (ic_version == MESON_CPU_MAJOR_ID_TL1)
+		if (ic_version == MESON_CPU_MAJOR_ID_TL1) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			strcpy(aml_dtvdm_ops.info.name, "amlogic dtv demod tl1");
-		else
+#endif
+		} else {
 			strcpy(aml_dtvdm_ops.info.name, "amlogic dtv demod tm2");
+		}
 		break;
 
 	case MESON_CPU_MAJOR_ID_T5:

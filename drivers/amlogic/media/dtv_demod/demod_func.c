@@ -575,10 +575,12 @@ void demod_set_mode_ts(enum fe_delivery_system delsys)
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			cfg0.b.ts_sel = 2;
 			cfg0.b.mode = 7;
 			cfg0.b.adc_format = 1;
 			cfg0.b.adc_regout = 0;
+#endif
 		} else {
 			cfg0.b.ts_sel = 1<<3;
 			cfg0.b.mode = 1<<3;

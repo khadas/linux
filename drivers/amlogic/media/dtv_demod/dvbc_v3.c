@@ -411,6 +411,7 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 		case SYS_ATSC:
 		case SYS_ATSCMH:
 		case SYS_DVBC_ANNEX_B:
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			if (is_meson_txlx_cpu()) {
 				/*j83b filter para*/
 				qam_write_reg(0x40, 0x3f010201);
@@ -433,6 +434,7 @@ void dvbc_reg_initial(struct aml_demod_sta *demod_sta)
 				qam_write_reg(0x54, 0x606050d);
 				qam_write_reg(0x52, 0x346dc);
 			}
+#endif
 			break;
 		default:
 			break;

@@ -2031,8 +2031,10 @@ int atvdemod_init(struct atv_demod_priv *priv)
 void atvdemod_uninit(void)
 {
 	/* mute atv audio output */
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_txl_cpu())
 		atv_dmd_wr_long(APB_BLOCK_ADDR_MONO_PROC, 0x50, 0);
+#endif
 
 	atv_dmd_non_std_set(false);
 }

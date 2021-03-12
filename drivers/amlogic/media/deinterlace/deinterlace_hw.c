@@ -441,6 +441,7 @@ static void pre_hold_block_mode_config(void)
 		/* go field after 2 lines */
 		DI_Wr(DI_PRE_GL_CTRL, (0x80000000|line_num_pre_frst));
 	} else if (is_meson_txlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		/* setup pre process ratio to 66.6%*/
 		DI_Wr(DI_PRE_HOLD, (1 << 31) | (1 << 16) | 3);
 		/* block len, after block insert null req to balance reqs */
@@ -450,6 +451,7 @@ static void pre_hold_block_mode_config(void)
 		DI_Wr_reg_bits(DI_IF1_GEN_REG3, 0, 4, 3);
 		DI_Wr_reg_bits(DI_IF2_GEN_REG3, 0, 4, 3);
 		DI_Wr_reg_bits(VD1_IF0_GEN_REG3, 0, 4, 3);
+#endif
 	} else {
 		DI_Wr(DI_PRE_HOLD, (1 << 31) | (31 << 16) | 31);
 	}
@@ -486,9 +488,11 @@ void di_hw_init(bool pd_enable, bool mc_enable)
 		|| is_meson_tl1_cpu() || is_meson_sm1_cpu() ||
 		is_meson_tm2_cpu())
 		di_top_gate_control(true, true);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	else if (is_meson_gxl_cpu()	|| is_meson_gxm_cpu()
 		|| is_meson_gxlx_cpu())
 		DI_Wr(DI_CLKG_CTRL, 0xffff0001);
+#endif
 	else
 		DI_Wr(DI_CLKG_CTRL, 0x1); /* di no clock gate */
 
@@ -2636,6 +2640,7 @@ void di_patch_post_update_mc_sw(unsigned int cmd, bool on)
 	unsigned int l_flg = di_mc_update;
 
 	switch (cmd) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case DI_MC_SW_IC:
 		if (is_meson_gxtvbb_cpu()   ||
 			is_meson_txl_cpu()  ||
@@ -2644,6 +2649,7 @@ void di_patch_post_update_mc_sw(unsigned int cmd, bool on)
 			di_mc_update |= DI_MC_SW_IC;
 		}
 		break;
+#endif
 	case DI_MC_SW_REG:
 		if (on) {
 			di_mc_update |= cmd;

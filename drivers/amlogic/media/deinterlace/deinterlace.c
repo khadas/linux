@@ -1623,11 +1623,13 @@ static void dis2_di(void)
 	di_uninit_buf(0);
 	if (get_blackout_policy()) {
 		DI_Wr(DI_CLKG_CTRL, 0x2);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
 			enable_di_post_mif(GATE_OFF);
 			di_post_gate_control(false);
 			di_top_gate_control(false, false);
 		}
+#endif
 	}
 
 	if (post_wr_en && post_wr_support)
@@ -5104,10 +5106,12 @@ static irqreturn_t de_irq(int irq, void *dev_instance)
 
 		if (mcpre_en) {
 			get_mcinfo_from_reg_in_irq();
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			if ((is_meson_gxlx_cpu() &&
 				di_pre_stru.field_count_for_cont >= 4) ||
 				is_meson_txhd_cpu())
 				mc_pre_mv_irq();
+#endif
 			calc_lmv_base_mcinfo((di_pre_stru.cur_height>>1),
 				di_pre_stru.di_wr_buf->mcinfo_vaddr);
 		}
@@ -5432,8 +5436,9 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 	unsigned char mc_pre_flag = 0;
 	bool invert_mv = false;
 	static int post_index = -1;
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	unsigned char tmp_idx = 0;
-
+#endif
 	post_cnt++;
 	if (di_post_stru.vscale_skip_flag)
 		return 0;
@@ -5711,6 +5716,7 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 		di_buf->di_buf_dup_p[0]->vframe == NULL)
 		return 0;
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_txl_cpu() && overturn && di_buf->di_buf_dup_p[2]) {
 		/*sync from kernel 3.14 txl*/
 		if (post_blend == PULL_DOWN_BLEND_2)
@@ -5718,6 +5724,7 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 		else if (post_blend == PULL_DOWN_BLEND_0)
 			post_blend = PULL_DOWN_BLEND_2;
 	}
+#endif
 
 	switch (post_blend) {
 	case PULL_DOWN_BLEND_0:
@@ -5735,6 +5742,7 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 		di_post_stru.di_mtnprd_mif.canvas_num =
 			di_buf->di_buf_dup_p[2]->mtn_canvas_idx;
 		//mc_pre_flag = is_meson_txl_cpu()?2:(overturn?0:1);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_txl_cpu() && overturn) {
 			/* swap if1&if2 mean negation of mv for normal di*/
 			tmp_idx = di_post_stru.di_buf1_mif.canvas0_addr0;
@@ -5742,6 +5750,7 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 				di_post_stru.di_buf2_mif.canvas0_addr0;
 			di_post_stru.di_buf2_mif.canvas0_addr0 = tmp_idx;
 		}
+#endif
 		mc_pre_flag = overturn?0:1;
 		if (di_buf->pd_config.global_mode == PULL_DOWN_NORMAL) {
 			post_blend_mode = 3;
@@ -5756,9 +5765,10 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 				mc_pre_flag = 1;
 			post_blend_mode = 1;
 		}
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_txl_cpu() && overturn)
 			mc_pre_flag = 1;
-
+#endif
 		if (mcpre_en) {
 			di_post_stru.di_mcvecrd_mif.canvas_num =
 				di_buf->di_buf_dup_p[2]->mcvec_canvas_idx;
@@ -5781,10 +5791,12 @@ de_post_process(void *arg, unsigned int zoom_start_x_lines,
 			di_buf->di_buf_dup_p[0]->nr_canvas_idx;
 		di_post_stru.di_mtnprd_mif.canvas_num =
 			di_buf->di_buf_dup_p[2]->mtn_canvas_idx;
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (is_meson_txl_cpu() && overturn) {
 			di_post_stru.di_buf1_mif.canvas0_addr0 =
 			di_post_stru.di_buf2_mif.canvas0_addr0;
 		}
+#endif
 		if (mcpre_en) {
 			di_post_stru.di_mcvecrd_mif.canvas_num =
 				di_buf->di_buf_dup_p[2]->mcvec_canvas_idx;

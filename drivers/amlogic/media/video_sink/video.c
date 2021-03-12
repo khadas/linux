@@ -1626,9 +1626,11 @@ static u32 freerun_mode;
 static u32 slowsync_repeat_enable;
 static bool dmc_adjust = true;
 module_param_named(dmc_adjust, dmc_adjust, bool, 0644);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static u32 dmc_config_state;
 static u32 last_toggle_count;
 static u32 toggle_same_count;
+#endif
 static int hdmin_delay_start;
 static int hdmin_delay_start_time;
 static int hdmin_delay_duration;
@@ -3758,6 +3760,7 @@ static int dolby_vision_drop_frame(void)
 }
 #endif
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 /* patch for 4k2k bandwidth issue, skiw mali and vpu mif */
 static void dmc_adjust_for_mali_vpu(unsigned int width,
 				    unsigned int height,
@@ -3864,6 +3867,7 @@ static void dmc_adjust_for_mali_vpu(unsigned int width,
 		dmc_config_state = 2;
 	}
 }
+#endif
 
 int hdmi_in_start_check(struct vframe_s *vf)
 {
@@ -5391,6 +5395,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	if (enc_line > vsync_enter_line_max)
 		vsync_enter_line_max = enc_line;
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_txlx_cpu() && dmc_adjust) {
 		bool force_adjust = false;
 		u32 vf_width = 0, vf_height = 0;
@@ -5425,6 +5430,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				(0, 0, force_adjust);
 		}
 	}
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	vsync_rdma_config_pre();
 
@@ -10455,13 +10461,15 @@ static ssize_t video_brightness_store(struct class *cla,
 	if (r < 0 || val < -255 || val > 255)
 		return -EINVAL;
 
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		WRITE_VCBUS_REG_BITS(VPP_VADJ1_Y +
 			cur_dev->vpp_off, val, 8, 9);
-	else
+#endif
+	} else {
 		WRITE_VCBUS_REG_BITS(VPP_VADJ1_Y +
 			cur_dev->vpp_off, val << 1, 8, 10);
-
+	}
 	WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ1_EN);
 
 	return count;
@@ -10516,13 +10524,15 @@ static ssize_t vpp_brightness_store(struct class *cla,
 	if (r < 0 || val < -255 || val > 255)
 		return -EINVAL;
 
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		WRITE_VCBUS_REG_BITS(VPP_VADJ2_Y +
 			cur_dev->vpp_off, val, 8, 9);
-	else
+#endif
+	} else {
 		WRITE_VCBUS_REG_BITS(VPP_VADJ2_Y +
 			cur_dev->vpp_off, val << 1, 8, 10);
-
+	}
 	WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ2_EN);
 
 	return count;
@@ -10637,6 +10647,7 @@ static ssize_t video_rgb_screen_show(struct class *cla,
 
 #define SCALE 6
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static short R_Cr[] = { -11484, -11394, -11305, -11215, -11125,
 -11036, -10946, -10856, -10766, -10677, -10587, -10497, -10407,
 -10318, -10228, -10138, -10049, -9959, -9869, -9779, -9690, -9600,
@@ -10772,6 +10783,7 @@ static u32 yuv2rgb(u32 yuv)
 
 	return  (r << 16) | (g << 8) | b;
 }
+#endif
 
 /* 8bit convert to 10bit */
 static u32 eight2ten(u32 yuv)
@@ -10837,6 +10849,7 @@ static ssize_t video_test_screen_store(struct class *cla,
 		WRITE_VCBUS_REG
 			(VPP_POST_BLEND_BLEND_DUMMY_DATA,
 			test_screen & 0x00ffffff);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	else if (is_meson_gxm_cpu() ||
 		 (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX))
 		/* bit width change to 10bit in gxm, 10/12 in txlx*/
@@ -10856,6 +10869,7 @@ static ssize_t video_test_screen_store(struct class *cla,
 			WRITE_VCBUS_REG
 				(VPP_DUMMY_DATA1,
 				yuv2rgb(test_screen & 0x00ffffff));
+#endif
 	else
 		WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
 				test_screen & 0x00ffffff);
@@ -10909,8 +10923,10 @@ static ssize_t video_rgb_screen_store(struct class *cla,
 			(VPP_POST_BLEND_BLEND_DUMMY_DATA,
 			yuv_eight & 0x00ffffff);
 	} else if (is_meson_gxtvbb_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
 				rgb_screen & 0x00ffffff);
+#endif
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 		WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
 				eight2ten(yuv_eight & 0x00ffffff));

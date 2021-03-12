@@ -992,15 +992,18 @@ static struct reg_item misc_recovery_table_t7[] = {
 
 static void recovery_regs_init_old(void)
 {
-	int i = 0, j;
+	int i = 0;
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+	int j;
 	int cpu_id = osd_hw.osd_meson_dev.cpu_id;
-
+#endif
 	gRecovery[i].base_addr = VIU_OSD1_CTRL_STAT;
 	gRecovery[i].size = sizeof(osd1_recovery_table)
 		/ sizeof(struct reg_item);
 	gRecovery[i].table =
 		(struct reg_item *)&osd1_recovery_table[0];
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (cpu_id == __MESON_CPU_MAJOR_ID_TXLX ||
 	    cpu_id == __MESON_CPU_MAJOR_ID_TXL ||
 	    cpu_id == __MESON_CPU_MAJOR_ID_TXHD) {
@@ -1012,6 +1015,7 @@ static void recovery_regs_init_old(void)
 			}
 		}
 	}
+#endif
 	i++;
 	gRecovery[i].base_addr = OSD1_AFBCD_ENABLE;
 	gRecovery[i].size = sizeof(osd_afbcd_recovery_table)

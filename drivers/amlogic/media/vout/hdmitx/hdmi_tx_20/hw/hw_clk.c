@@ -210,11 +210,13 @@ static void set_hpll_clk_out(unsigned int clk)
 	pr_info("config HPLL = %d frac_rate = %d\n", clk, frac_rate);
 
 	switch (hdev->data->chip_type) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case MESON_CPU_ID_GXL:
 	case MESON_CPU_ID_GXM:
 	case MESON_CPU_ID_TXLX:
 		set_gxl_hpll_clk_out(frac_rate, clk);
 		break;
+#endif
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
@@ -244,6 +246,7 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 	case MESON_CPU_ID_TM2B:
 		set_hpll_sspll_g12a(vic);
 		break;
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case MESON_CPU_ID_GXBB:
 		break;
 	case MESON_CPU_ID_GXTVBB:
@@ -252,6 +255,7 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 	case MESON_CPU_ID_GXM:
 		set_hpll_sspll_gxl(vic);
 		break;
+#endif
 	case MESON_CPU_ID_SC2:
 		set_hpll_sspll_sc2(vic);
 		break;
@@ -265,6 +269,7 @@ static void set_hpll_od1(unsigned int div)
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	switch (hdev->data->chip_type) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case MESON_CPU_ID_GXBB:
 	case MESON_CPU_ID_GXTVBB:
 		switch (div) {
@@ -288,6 +293,7 @@ static void set_hpll_od1(unsigned int div)
 	case MESON_CPU_ID_GXM:
 		set_hpll_od1_gxl(div);
 		break;
+#endif
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
@@ -299,7 +305,6 @@ static void set_hpll_od1(unsigned int div)
 		set_hpll_od1_sc2(div);
 		break;
 	default:
-		set_hpll_od1_gxl(div);
 		break;
 	}
 }
@@ -309,6 +314,7 @@ static void set_hpll_od2(unsigned int div)
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	switch (hdev->data->chip_type) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case MESON_CPU_ID_GXBB:
 	case MESON_CPU_ID_GXTVBB:
 		switch (div) {
@@ -332,6 +338,7 @@ static void set_hpll_od2(unsigned int div)
 	case MESON_CPU_ID_GXM:
 		set_hpll_od2_gxl(div);
 		break;
+#endif
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
@@ -343,7 +350,6 @@ static void set_hpll_od2(unsigned int div)
 		set_hpll_od2_sc2(div);
 		break;
 	default:
-		set_hpll_od2_gxl(div);
 		break;
 	}
 }
@@ -353,6 +359,7 @@ static void set_hpll_od3(unsigned int div)
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	switch (hdev->data->chip_type) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case MESON_CPU_ID_GXBB:
 	case MESON_CPU_ID_GXTVBB:
 		switch (div) {
@@ -376,6 +383,7 @@ static void set_hpll_od3(unsigned int div)
 	case MESON_CPU_ID_GXM:
 		set_hpll_od3_gxl(div);
 		break;
+#endif
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
@@ -391,7 +399,6 @@ static void set_hpll_od3(unsigned int div)
 		hd_set_reg_bits(P_HHI_LVDS_TX_PHY_CNTL1, 1, 29, 1);
 		break;
 	default:
-		set_hpll_od3_gxl(div);
 		break;
 	}
 }

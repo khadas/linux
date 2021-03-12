@@ -107,6 +107,7 @@ int hdmitx_hpd_hw_op(enum hpd_op cmd)
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	switch (hdev->data->chip_type) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case MESON_CPU_ID_GXBB:
 		return !!hdmitx_hpd_hw_op_gxbb(cmd);
 	case MESON_CPU_ID_GXTVBB:
@@ -115,6 +116,7 @@ int hdmitx_hpd_hw_op(enum hpd_op cmd)
 	case MESON_CPU_ID_GXM:
 		return !!hdmitx_hpd_hw_op_gxl(cmd);
 	case MESON_CPU_ID_TXLX:
+#endif
 	case MESON_CPU_ID_TM2:
 	case MESON_CPU_ID_TM2B:
 		return !!hdmitx_hpd_hw_op_txlx(cmd);
@@ -134,6 +136,7 @@ int read_hpd_gpio(void)
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	switch (hdev->data->chip_type) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case MESON_CPU_ID_GXBB:
 		return read_hpd_gpio_gxbb();
 	case MESON_CPU_ID_GXTVBB:
@@ -142,6 +145,7 @@ int read_hpd_gpio(void)
 	case MESON_CPU_ID_GXM:
 		return read_hpd_gpio_gxl();
 	case MESON_CPU_ID_TXLX:
+#endif
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
@@ -160,6 +164,7 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	switch (hdev->data->chip_type) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case MESON_CPU_ID_GXBB:
 		return hdmitx_ddc_hw_op_gxbb(cmd);
 	case MESON_CPU_ID_GXTVBB:
@@ -169,6 +174,7 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 		return hdmitx_ddc_hw_op_gxl(cmd);
 	case MESON_CPU_ID_TXLX:
 		return hdmitx_ddc_hw_op_txlx(cmd);
+#endif
 	case MESON_CPU_ID_G12A:
 	case MESON_CPU_ID_G12B:
 	case MESON_CPU_ID_SM1:
@@ -1999,6 +2005,7 @@ static void set_phy_by_mode(unsigned int mode)
 	case MESON_CPU_ID_TM2B:
 		set_phy_by_mode_tm2(mode);
 		break;
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case MESON_CPU_ID_M8B:
 	case MESON_CPU_ID_GXBB:
 	case MESON_CPU_ID_GXTVBB:
@@ -2011,8 +2018,10 @@ static void set_phy_by_mode(unsigned int mode)
 	case MESON_CPU_ID_AXG:
 	case MESON_CPU_ID_GXLX:
 	case MESON_CPU_ID_TXHD:
-	default:
 		set_phy_by_mode_gxl(mode);
+		break;
+#endif
+	default:
 		break;
 	}
 }

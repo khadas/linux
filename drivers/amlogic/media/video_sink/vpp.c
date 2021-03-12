@@ -510,8 +510,10 @@ static uint coeff(uint *settings, uint ratio, uint phase,
 	/* TODO: add future TV chips */
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu() ||
 	    is_meson_txlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (coeff_type == COEF_BICUBIC_SHARP)
 			coeff_type = COEF_BICUBIC;
+#endif
 	} else {
 		/*
 		 *gxtvbb use dejaggy in SR0 to reduce intelace combing
@@ -2307,12 +2309,15 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 	}
 	/* core1 config */
 	if (sr_support & SUPER_CORE1_SUPPORT) {
-		if (is_meson_gxtvbb_cpu())
+		if (is_meson_gxtvbb_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			tmp_data = sharpness1_sr2_ctrl_32d7;
-		else
+#endif
+		} else {
 			tmp_data = VSYNC_RD_MPEG_REG
 			(SRSHARP1_SHARP_SR2_CTRL
 			+ sr_reg_offt2); /*0xc80*/
+		}
 		if (is_meson_gxtvbb_cpu() ||
 		    (((tmp_data >> 5) & 0x1) !=
 		     (reg_srscl1_vert_ratio & 0x1)) ||
@@ -2360,8 +2365,10 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 		if (is_meson_gxtvbb_cpu() || tmp_data != tmp_data2) {
 			VSYNC_WR_MPEG_REG
 			(SRSHARP1_SHARP_HVSIZE + sr_reg_offt2, tmp_data);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			if (is_meson_gxtvbb_cpu())
 				sharpness1_sr2_ctrl_3280 = tmp_data;
+#endif
 		}
 	}
 
@@ -2412,6 +2419,7 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 	else
 		data_path_chose = 5;
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_TXHD) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (scaler_path_sel == CORE0_PPS_CORE1 ||
 			scaler_path_sel == CORE1_BEFORE_PPS ||
 			scaler_path_sel == CORE0_BEFORE_PPS) {
@@ -2421,6 +2429,7 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 			VSYNC_WR_MPEG_REG_BITS(VPP_VE_ENABLE_CTRL,
 					       1, data_path_chose, 1);
 		}
+#endif
 	}
 	if (super_scaler == 0) {
 		VSYNC_WR_MPEG_REG(VPP_SRSHARP0_CTRL, 0);
@@ -2578,6 +2587,7 @@ static void vpp_set_super_scaler
 	if (scaler_path_sel >= SCALER_PATH_MAX) {
 		if (sr->supscl_path == 0xff) {
 			if (is_meson_gxlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 				if (next_frame_par->supsc1_hori_ratio &&
 				    next_frame_par->supsc1_vert_ratio)
 					next_frame_par->supscl_path =
@@ -2585,6 +2595,7 @@ static void vpp_set_super_scaler
 				else
 					next_frame_par->supscl_path =
 						CORE1_AFTER_PPS;
+#endif
 			} else if (is_meson_txhd_cpu() ||
 				is_meson_g12a_cpu() ||
 				is_meson_g12b_cpu() ||
@@ -3842,6 +3853,7 @@ int vpp_set_filters(struct disp_info_s *input,
 		bypass_sr1 = true;
 	}
 	/*config super scaler after set next_frame_par is calc ok for pps*/
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_tl1_cpu()) {
 		/* disable sr0 when afbc, width >1920 and crop more than half */
 		if ((vf->type & VIDTYPE_COMPRESS) &&
@@ -3852,6 +3864,7 @@ int vpp_set_filters(struct disp_info_s *input,
 		    vf->compWidth))
 			bypass_sr0 = true;
 	}
+#endif
 	if (local_input.layer_id == 0) {
 		vpp_set_super_scaler
 			(wide_mode,
@@ -3924,13 +3937,20 @@ void vpp_disp_info_init(struct disp_info_s *info, u8 id)
 void vpp_bypass_ratio_config(void)
 {
 	if (is_meson_gxbb_cpu() || is_meson_gxl_cpu() ||
-	    is_meson_gxm_cpu())
+	    is_meson_gxm_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		bypass_ratio = 125;
-	else if (is_meson_txlx_cpu())
+#endif
+	} else if (is_meson_txlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		/*change from 247 to 210 for bandwidth @20180627*/
 		bypass_ratio = 210;
-	else if (is_meson_txl_cpu())
+#endif
+	} else if (is_meson_txl_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		bypass_ratio = 247;/*0x110 * (100/110)=0xf7*/
-	else
+#endif
+	} else {
 		bypass_ratio = 205;
+	}
 }

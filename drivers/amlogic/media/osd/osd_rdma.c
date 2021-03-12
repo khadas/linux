@@ -1432,10 +1432,6 @@ static void osd_reset_rdma_func(u32 reset_bit)
 	}
 }
 
-static void osd_reset_rdma_irq(void *arg)
-{
-}
-
 static void osd_rdma_irq(void *arg)
 {
 	u32 rdma_status;
@@ -1502,10 +1498,16 @@ static void osd_rdma_vpp2_irq(void *arg)
 	}
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+static void osd_reset_rdma_irq(void *arg)
+{
+}
+
 static struct rdma_op_s osd_reset_rdma_op = {
 	osd_reset_rdma_irq,
 	NULL
 };
+#endif
 
 static struct rdma_op_s osd_rdma_op = {
 	osd_rdma_irq,
@@ -2080,6 +2082,7 @@ static int osd_rdma_init(void)
 	osd_reg_write(OSD_RDMA_FLAG_REG_VPP2, 0x0);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (osd_hw.osd_meson_dev.cpu_id >= __MESON_CPU_MAJOR_ID_GXL &&
 	    osd_hw.osd_meson_dev.cpu_id <= __MESON_CPU_MAJOR_ID_TXL) {
 		osd_reset_rdma_op.arg = osd_rdma_dev;
@@ -2088,6 +2091,7 @@ static int osd_rdma_init(void)
 		pr_info("%s:osd reset rdma handle = %d.\n", __func__,
 			osd_reset_rdma_handle);
 	}
+#endif
 	osd_rdma_op.arg = osd_rdma_dev;
 	osd_rdma_handle[0] = rdma_register(&osd_rdma_op,
 					NULL, PAGE_SIZE);

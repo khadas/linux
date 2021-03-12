@@ -198,6 +198,7 @@ void dimh_init_field_mode(unsigned short height)
 	DIM_DI_WR_REG_BITS(DI_MC_22LVL0, 256, 0, 16);
 }
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static void mc_pd22_check_irq(void)
 {
 	int cls_2_stl_thd = 1, cls_2_stl = 0;
@@ -239,13 +240,16 @@ static void mc_pd22_check_irq(void)
 		}
 	}
 }
+#endif
 
 void dimh_mc_pre_mv_irq(void)
 {
 	unsigned int val1;
 
 	if (dimp_get(edi_mp_pd22_flg_calc_en) && is_meson_gxlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		mc_pd22_check_irq();
+#endif
 	} else {
 		val1 = DIM_RDMA_RD(MCDI_RO_PD_22_FLG);
 		DIM_RDMA_WR(MCDI_PD_22_CHK_FLG_CNT, val1);
@@ -515,7 +519,9 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	} else if (is_meson_gxl_cpu()	||
 		 is_meson_gxm_cpu()	||
 		 is_meson_gxlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		DIM_DI_WR(DI_CLKG_CTRL, 0xffff0001);
+#endif
 	} else {
 		DIM_DI_WR(DI_CLKG_CTRL, 0x1); /* di no clock gate */
 	}
@@ -613,8 +619,10 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 		dim_post_gate_control_sc2(false);
 		dim_top_gate_control_sc2(false, false);
 	} else if (is_meson_txl_cpu() || is_meson_gxlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		/* di clock div enable for pq load */
 		DIM_DI_WR(DI_CLKG_CTRL, 0x80000000);
+#endif
 	} else {
 		DIM_DI_WR(DI_CLKG_CTRL, 0x2); /* di clock gate all */
 	}
@@ -1101,8 +1109,10 @@ void dimh_enable_mc_di_pre(struct DI_MC_MIF_s *di_mcinford_mif,
 	unsigned int ctrl_mode = 0;
 
 	DIM_RDMA_WR_BITS(DI_MTN_CTRL1, (mcdi_en ? 3 : 0), 12, 2);
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_gxlx_cpu() || is_meson_txhd_cpu())
 		me_auto_en = false;
+#endif
 
 	ctrl_mode = (me_auto_en ? 0x1bfff7ff : 0x1bfe37ff);
 	DIM_RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? ctrl_mode : 0));
@@ -2419,6 +2429,7 @@ void dimh_patch_post_update_mc_sw(unsigned int cmd, bool on)
 	unsigned int l_flg = di_mc_update;
 
 	switch (cmd) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	case DI_MC_SW_IC:
 		if (is_meson_gxtvbb_cpu()	||
 		    is_meson_txl_cpu()		||
@@ -2427,6 +2438,7 @@ void dimh_patch_post_update_mc_sw(unsigned int cmd, bool on)
 			di_mc_update |= DI_MC_SW_IC;
 		}
 		break;
+#endif
 	case DI_MC_SW_REG:
 		if (on) {
 			di_mc_update |= cmd;

@@ -952,8 +952,11 @@ static void vdin_set_meas_mux(unsigned int offset, enum tvin_port_e port_,
 		break;
 	case 0x02: /* bt656 , txl and txlx do not support bt656 */
 		if ((is_meson_gxbb_cpu() || is_meson_gxtvbb_cpu()) &&
-		    bt_path == BT_PATH_GPIO_B)
+		    bt_path == BT_PATH_GPIO_B) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			meas_mux = MEAS_MUX_656_B;
+#endif
+		}
 		else if ((is_meson_gxl_cpu() || is_meson_gxm_cpu() ||
 			cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) &&
 			(bt_path == BT_PATH_GPIO))
@@ -1062,9 +1065,11 @@ void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 	case 0x02: /* bt656 ,txl and txlx do not support bt656 */
 		if ((is_meson_gxbb_cpu() || is_meson_gxtvbb_cpu()) &&
 		    bt_path == BT_PATH_GPIO_B) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			vdin_mux = VDIN_MUX_656_B;
 			wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
 				VDI9_ASFIFO_CTRL_BIT, VDI_ASFIFO_CTRL_WID);
+#endif
 		} else if ((is_meson_gxm_cpu() || is_meson_gxl_cpu() ||
 			cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) &&
 			(bt_path == BT_PATH_GPIO)) {
@@ -1369,13 +1374,16 @@ EXPORT_SYMBOL(vdin_adjust_tvafesnow_brightness);
 
 void vdin_set_config(struct vdin_dev_s *devp)
 {
-	if (is_meson_gxbb_cpu() || is_meson_gxm_cpu() || is_meson_gxl_cpu())
+	if (is_meson_gxbb_cpu() || is_meson_gxm_cpu() || is_meson_gxl_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		/* max pixel clk of vdin for gxbb/gxm/gxl */
 		devp->vdin_max_pixelclk =
 			VDIN_PIXELCLK_4K_30HZ; /* 2160p30hz*/
-	else
+#endif
+	} else {
 		devp->vdin_max_pixelclk =
 			VDIN_PIXELCLK_4K_60HZ; /* 2160p60hz*/
+	}
 }
 
 void vdin_change_matrix0(u32 offset, u32 matrix_csc)

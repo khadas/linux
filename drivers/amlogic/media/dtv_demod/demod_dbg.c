@@ -160,9 +160,12 @@ static ssize_t adc_clk_show(struct file *file,
 
 static void adc_clk_set(unsigned int clk)
 {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	int nco_rate = 0;
+#endif
 
 	if (is_meson_tl1_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (clk == 24) {
 			dd_tvafe_hiu_reg_write(ADC_PLL_CNTL0_TL1, 0x012004e0);
 			dd_tvafe_hiu_reg_write(ADC_PLL_CNTL0_TL1, 0x312004e0);
@@ -192,6 +195,7 @@ static void adc_clk_set(unsigned int clk)
 		if (nco_rate != 0)
 			front_write_bits(AFIFO_ADC, nco_rate,
 					 AFIFO_NCO_RATE_BIT, AFIFO_NCO_RATE_WID);
+#endif
 	} else {
 		PR_ERR("only TL1 has this functionality\n");
 	}
@@ -497,8 +501,10 @@ static void dtvdemod_dump_regs(struct amldtvdemod_device_s *devp)
 	case SYS_ATSCMH:
 		pr_info("atsc start\n");
 		if (is_meson_txlx_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			for (reg_start = 0; reg_start <= 0xfff; reg_start++)
 				pr_info("[0x%x] = 0x%x\n", reg_start, atsc_read_reg(reg_start));
+#endif
 		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			for (reg_start = 0; reg_start <= 0xff; reg_start++)
 				pr_info("[0x%x] = 0x%x\n", reg_start, atsc_read_reg_v4(reg_start));

@@ -707,9 +707,11 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 
 	/* add for audio system control */
 	if (is_meson_txlx_cpu() || is_meson_txhd_cpu()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		dev->audio_reg_base = ioremap(round_down(0xffd0d340, 0x3), 4);
 
 		pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
+#endif
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		dev->audio_reg_base = ioremap(round_down(0xff60074c, 0x3), 4);
 

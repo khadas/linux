@@ -36,6 +36,7 @@ struct spdif_chipinfo {
 	unsigned int spdifout_lane_mask;
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 struct spdif_chipinfo axg_spdif_chipinfo = {
 	.id               = SPDIF_A,
 	.irq_no_papb      = true,
@@ -43,6 +44,7 @@ struct spdif_chipinfo axg_spdif_chipinfo = {
 	.pcpd_separated   = true,
 	.spdifout_lane_mask = SPDIFOUT_LANE_MASK_V1,
 };
+#endif
 
 struct spdif_chipinfo g12a_spdif_a_chipinfo = {
 	.id             = SPDIF_A,
@@ -62,6 +64,7 @@ struct spdif_chipinfo g12a_spdif_b_chipinfo = {
 	.spdifout_lane_mask = SPDIFOUT_LANE_MASK_V1,
 };
 
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 struct spdif_chipinfo tl1_spdif_a_chipinfo = {
 	.id           = SPDIF_A,
 	.chnum_en     = true,
@@ -79,6 +82,7 @@ struct spdif_chipinfo tl1_spdif_b_chipinfo = {
 	.async_fifo   = true,
 	.spdifout_lane_mask = SPDIFOUT_LANE_MASK_V1,
 };
+#endif
 
 struct spdif_chipinfo sm1_spdif_a_chipinfo = {
 	.id           = SPDIF_A,
