@@ -2561,6 +2561,7 @@ static const struct file_operations tsync_fops = {
 int __init tsync_module_init(void)
 {
 	int r;
+	int chip = -1;
 
 	r = class_register(&tsync_class);
 
@@ -2612,7 +2613,10 @@ int __init tsync_module_init(void)
 	video_pid_valid = 0;
 	demux_pcrscr_valid = 0;
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2)
+	chip = get_cpu_type();
+	if (chip == MESON_CPU_MAJOR_ID_SC2 ||
+	    chip == MESON_CPU_MAJOR_ID_S4 ||
+	    chip == MESON_CPU_MAJOR_ID_T7)
 		new_arch = true;
 	else
 		new_arch = false;
