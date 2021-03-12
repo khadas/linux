@@ -463,8 +463,9 @@
 		memory-region = <&dsp_fw_reserved>;
 		reg = <0 0xfe340018 0 0x114>,   /*dspa base address*/
 			  <0 0xfe350018 0 0x114>,   /*dspb base address*/
-			  <0 0xfe010258 0 0x4>,
-			  <0 0xfe01025c 0 0x4>;
+			  <0 0xfe010258 0 0x4>,     /*dspa status counter*/
+			  <0 0xfe01025c 0 0x4>,     /*dspb status counter*/
+			  <0 0x40820000 0 0x80000>; /*dsp shm region*/
 		dsp-monitor-period-ms = <1000>;
 		reg-names = "dspa_top_reg", "dspb_top_reg";
 		clocks = <&clkc CLKID_DSPA_CLK>, <&clkc CLKID_DSPB_CLK>;
@@ -473,11 +474,11 @@
 		dsp-cnt = <2>;
 		dspaoffset = <0xa0000>;
 		dspboffset = <0x8a0000>;
-		dspshmoffset = <0x820000>;
-		dspshmsize = <0x80000>;
 		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
 		boot_sram_addr = <0xfff00000>;
 		boot_sram_size = <0x80000>;
+		//dspsrambase = <0xf7100000>;
+		//dspsramsize = <0x100000>;
 		power-domains = <&pwrdm PDID_T7_DSPA>,
 						<&pwrdm PDID_T7_DSPB>;
 		power-domain-names = "dspa", "dspb";

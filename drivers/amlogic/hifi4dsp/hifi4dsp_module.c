@@ -53,6 +53,7 @@ static unsigned int bootlocation;
 static struct mutex hifi4dsp_flock;
 
 static struct reserved_mem hifi4_rmem;
+static struct reserved_mem hifi_shmem;
 
 struct hifi4dsp_priv *hifi4dsp_p[HIFI4DSP_MAX_CNT];
 struct delayed_work dsp_status_work;
@@ -961,6 +962,102 @@ static int hifi4dsp_attach_pd(struct device *dev, int dsp_cnt)
 	return 0;
 }
 
+static int get_hifi_reserved_mem(struct reserved_mem *fwmem, struct reserved_mem *shmem,
+	struct platform_device *pdev)
+{
+	int ret = -1;
+	struct device_node *mem_node;
+	struct reserved_mem *tmp = NULL;
+	struct page *cma_pages = NULL;
+	u32 dspsrambase = 0, dspsramsize = 0;
+	struct resource *dsp_shm_res;
+
+	/*parse shmem*/
+	dsp_shm_res = platform_get_resource(pdev, IORESOURCE_MEM, 4);
+	if (!dsp_shm_res) {
+		dev_err(&pdev->dev, "failed to get dsp share memory resource.\n");
+		goto parse_cma;
+	}
+	shmem->base = dsp_shm_res->start;
+	shmem->size = resource_size(dsp_shm_res);
+	pr_info("of read shmem phys = [0x%lx 0x%lx]\n",
+		(unsigned long)shmem->base, (unsigned long)shmem->size);
+
+	/*parse sram fwmem*/
+	ret = of_property_read_u32(pdev->dev.of_node, "dspsrambase", &dspsrambase);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Can't retrieve srambase\n");
+		goto parse_cma;
+	}
+	pr_debug("of read dspsrambase=0x%08x\n", dspsrambase);
+
+	ret = of_property_read_u32(pdev->dev.of_node, "dspsramsize", &dspsramsize);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Can't retrieve dspsramsize\n");
+		goto parse_cma;
+	}
+	pr_debug("of read dspsramsize=0x%08x\n", dspsramsize);
+
+	fwmem->size = dspsramsize;
+	fwmem->base = dspsrambase;
+	fwmem->priv = "sram";
+	pr_info("of get sram memory region success[0x%lx 0x%lx]\n",
+		(unsigned long)fwmem->base, (unsigned long)fwmem->size);
+	return 0;
+
+	/*parse ddr fwmem*/
+parse_cma:
+	ret = of_reserved_mem_device_init(&pdev->dev);
+	if (ret) {
+		pr_debug("reserved memory init fail:%d\n", ret);
+		goto out;
+	}
+	mem_node = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
+	if (!mem_node) {
+		ret = -1;
+		goto out;
+	}
+	tmp = of_reserved_mem_lookup(mem_node);
+	of_node_put(mem_node);
+	if (tmp) {
+		fwmem->size = tmp->size;
+		cma_pages = cma_alloc(dev_get_cma_area(&pdev->dev),
+		      PAGE_ALIGN(fwmem->size) >> PAGE_SHIFT, 0, false);
+		if (cma_pages) {
+			fwmem->base = page_to_phys(cma_pages);
+			fwmem->priv = "ddr";
+			pr_info("of read fwmem phys = [0x%lx 0x%lx]\n",
+				(unsigned long)fwmem->base, (unsigned long)fwmem->size);
+		}
+	} else {
+		ret = -1;
+		dev_err(&pdev->dev, "Can't retrieve reserve memory region\n");
+	}
+out:
+	return ret;
+}
+
+static void hifi_rmem_update(int dsp_id, phys_addr_t *base, int *size)
+{
+	if (!strcmp(hifi4_rmem.priv, "sram")) {
+		*base = hifi4_rmem.base + (dsp_id == 0 ? 0 : hifi4_rmem.size >> 1);
+		*size = hifi4_rmem.size >> 1;
+	}
+}
+
+static void *hifi_rmem_map(phys_addr_t base, int size)
+{
+	if (!strcmp(hifi4_rmem.priv, "sram"))
+		return ioremap_nocache(base, size);
+	else
+		return mm_vmap(base, size, pgprot_dmacoherent(PAGE_KERNEL));
+}
+
+void *get_hifi_rmem_type(void)
+{
+	return hifi4_rmem.priv;
+}
+
 static int hifi4dsp_platform_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -973,8 +1070,6 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	struct hifi4dsp_miscdev_t *p_dsp_miscdev;
 	struct miscdevice *pmscdev;
 	enum dsp_start_mode startmode;
-	u32 dspshmoffset;
-	u32 dspshmsize;
 
 	phys_addr_t hifi4base;
 	int hifi4size;
@@ -983,12 +1078,10 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	struct hifi4dsp_firmware *dsp_firmware;
 	struct firmware *fw = NULL;
 
-	struct device_node *np, *mem_node;
+	struct device_node *np;
 	struct clk *dsp_clk = NULL;
 
 	struct hifi4dsp_info_t *hifi_info = NULL;
-	struct page *cma_pages = NULL;
-	struct reserved_mem *rmem = NULL;
 
 	np = pdev->dev.of_node;
 
@@ -1024,19 +1117,6 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(np, "dsp-monitor-period-ms", &dsp_monitor_period_ms);
 	if (ret < 0)
 		dev_err(&pdev->dev, "Can't retrieve dsp-monitor-period-ms\n");
-
-	/*share mem*/
-	ret = of_property_read_u32(np, "dspshmoffset", &dspshmoffset);
-	if (ret < 0)
-		dev_err(&pdev->dev, "Can't retrieve sharememoffset\n");
-	else
-		pr_debug("of read dspshmoffset=0x%08x\n", dspshmoffset);
-
-	ret = of_property_read_u32(np, "dspshmsize", &dspshmsize);
-	if (ret < 0)
-		dev_err(&pdev->dev, "Can't retrieve sharememsize\n");
-	else
-		pr_debug("of read dspshmsize=0x%08x\n", dspshmsize);
 
 	/*boot from DDR or SRAM or ...*/
 	ret = of_property_read_u32(np, "bootlocation", &bootlocation);
@@ -1112,38 +1192,12 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 
 	/*get regbase*/
 	get_dsp_baseaddr(pdev);
-	/*get reserve memory*/
-	ret = of_reserved_mem_device_init(&pdev->dev);
-	if (ret) {
-		pr_err("reserved memory init fail:%d\n", ret);
-		ret = -ENOMEM;
-		goto err3;
-	}
-	mem_node = of_parse_phandle(np, "memory-region", 0);
-	if (!mem_node)
-		goto err3;
-	rmem = of_reserved_mem_lookup(mem_node);
-	of_node_put(mem_node);
-	if (rmem) {
-		hifi4_rmem.size = rmem->size;
-		pr_debug("of read reservememsize=0x%lx\n",
-			 (unsigned long)hifi4_rmem.size);
-	} else {
-		dev_err(&pdev->dev, "Can't retrieve reservesize\n");
-		goto err3;
-	}
 
-	cma_pages = cma_alloc(dev_get_cma_area(&pdev->dev),
-			      PAGE_ALIGN(hifi4_rmem.size) >> PAGE_SHIFT,
-			      0, false);
-	if (cma_pages)
-		hifi4_rmem.base = page_to_phys(cma_pages);
-	else
+	if (get_hifi_reserved_mem(&hifi4_rmem, &hifi_shmem, pdev))
 		goto err3;
-	pr_info("cma alloc hifi4 mem region success!\n");
 
-	dsp->addr.smem_paddr = hifi4_rmem.base + dspshmoffset;
-	dsp->addr.smem_size = dspshmsize;
+	dsp->addr.smem_paddr = hifi_shmem.base;
+	dsp->addr.smem_size = hifi_shmem.size;
 	dsp->addr.smem = mm_vmap(dsp->addr.smem_paddr, dsp->addr.smem_size,
 		pgprot_dmacoherent(PAGE_KERNEL));
 	pr_info("sharemem map phys:0x%lx-->virt:0x%lx\n",
@@ -1176,15 +1230,11 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 				       dspboffset);
 		hifi4size =
 			(id == 0 ?
-			(dspboffset - dspaoffset - dspshmsize) :
+			(dspboffset - dspaoffset - hifi_shmem.size) :
 			((unsigned long)hifi4_rmem.size - dspboffset));
-
-		fw_addr = mm_vmap(hifi4base, hifi4size, pgprot_dmacoherent(PAGE_KERNEL));
-		pr_info("kernel addr map phys:0x%lx->virt:0x%lx\n",
-			(unsigned long)hifi4base,
-			(unsigned long)fw_addr);
-
-		pr_debug("hifi4dsp%d, firmware :base:0x%llx, size:0x%x, virt:%lx\n",
+		hifi_rmem_update(id, &hifi4base, &hifi4size);
+		fw_addr = hifi_rmem_map(hifi4base, hifi4size);
+		pr_info("hifi4dsp%d, firmware :base:0x%llx, size:0x%x, virt:%lx\n",
 			 id,
 			 (unsigned long long)hifi4base,
 			 hifi4size,
