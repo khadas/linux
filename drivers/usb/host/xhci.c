@@ -17,6 +17,9 @@
 #include <linux/slab.h>
 #include <linux/dmi.h>
 #include <linux/dma-mapping.h>
+#ifdef CONFIG_AMLOGIC_USB
+#include <linux/amlogic/cpu_version.h>
+#endif
 
 #include "xhci.h"
 #include "xhci-trace.h"
@@ -1514,44 +1517,47 @@ static int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 
 #ifdef CONFIG_AMLOGIC_USB
 	if (xhci->quirks & XHCI_CRG_HOST) {
-		if (((long)urb->transfer_dma) & 0xf) {
-			if (urb->transfer_buffer_length > CRG_MAX_ALIGN_BUFFER_LENGTH) {
-				if ((urb->pipe & USB_DIR_IN) == 0) {
-					xhci_warn(xhci, "transfer buffer is not align\n");
-					xhci_warn(xhci, "OUT DIR\n");
-					xhci_warn(xhci, "transfer buffer length is %d, overflow\n",
-						urb->transfer_buffer_length);
+		if (((is_meson_t5_cpu()) && (is_meson_rev_a())) ||
+			((is_meson_t5d_cpu()) && (is_meson_rev_a()))) {
+			if (((long)urb->transfer_dma) & 0xf) {
+				if (urb->transfer_buffer_length > CRG_MAX_ALIGN_BUFFER_LENGTH) {
+					if ((urb->pipe & USB_DIR_IN) == 0) {
+						xhci_warn(xhci, "transfer buffer is not align\n");
+						xhci_warn(xhci, "OUT DIR\n");
+						xhci_warn(xhci, "transfer buffer length is %d, overflow\n",
+							urb->transfer_buffer_length);
+					}
 				}
 			}
-		}
 
-		if (((urb->pipe & USB_DIR_IN) == 0) &&
-			(urb->transfer_buffer_length <= CRG_MAX_ALIGN_BUFFER_LENGTH) &&
-				(((long)urb->transfer_dma) & 0xf)) {
-			align_addr = (char *)
-				(((unsigned long)urb_priv->transfer_data + 0xf) & (~0xf));
-			memcpy(align_addr, urb->transfer_buffer,
-				urb->transfer_buffer_length);
-			dma_unmap_single(hcd->self.controller, urb->transfer_dma,
-				urb->transfer_buffer_length, DMA_TO_DEVICE);
-			urb->transfer_dma = dma_map_single
-				(hcd->self.controller, align_addr,
-				urb->transfer_buffer_length, DMA_TO_DEVICE);
-		}
+			if (((urb->pipe & USB_DIR_IN) == 0) &&
+				urb->transfer_buffer_length <= CRG_MAX_ALIGN_BUFFER_LENGTH &&
+					(((long)urb->transfer_dma) & 0xf)) {
+				align_addr = (char *)
+					(((unsigned long)urb_priv->transfer_data + 0xf) & (~0xf));
+				memcpy(align_addr, urb->transfer_buffer,
+					urb->transfer_buffer_length);
+				dma_unmap_single(hcd->self.controller, urb->transfer_dma,
+					urb->transfer_buffer_length, DMA_TO_DEVICE);
+				urb->transfer_dma = dma_map_single
+					(hcd->self.controller, align_addr,
+					urb->transfer_buffer_length, DMA_TO_DEVICE);
+			}
 
-		if ((urb->transfer_flags & URB_SETUP_MAP_SINGLE) &&
-			(((long)urb->setup_dma) & 0xf) &&
-			((urb->pipe & USB_DIR_IN) == 0)) {
-			align_addr = (char *)
-				(((unsigned long)urb_priv->setup_data + 0xf) & (~0xf));
-			memcpy(align_addr, urb->setup_packet,
-				sizeof(struct usb_ctrlrequest));
-			dma_unmap_single(hcd->self.controller, urb->setup_dma,
-				sizeof(struct usb_ctrlrequest), DMA_TO_DEVICE);
-			urb->setup_dma = dma_map_single(hcd->self.controller,
-					align_addr,
-					sizeof(struct usb_ctrlrequest),
-					DMA_TO_DEVICE);
+			if ((urb->transfer_flags & URB_SETUP_MAP_SINGLE) &&
+				(((long)urb->setup_dma) & 0xf) &&
+				((urb->pipe & USB_DIR_IN) == 0)) {
+				align_addr = (char *)
+					(((unsigned long)urb_priv->setup_data + 0xf) & (~0xf));
+				memcpy(align_addr, urb->setup_packet,
+					sizeof(struct usb_ctrlrequest));
+				dma_unmap_single(hcd->self.controller, urb->setup_dma,
+					sizeof(struct usb_ctrlrequest), DMA_TO_DEVICE);
+				urb->setup_dma = dma_map_single(hcd->self.controller,
+						align_addr,
+						sizeof(struct usb_ctrlrequest),
+						DMA_TO_DEVICE);
+			}
 		}
 	}
 #endif

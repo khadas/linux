@@ -2198,6 +2198,13 @@ static inline struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
  */
 static inline bool xhci_urb_suitable_for_idt(struct urb *urb)
 {
+#ifdef CONFIG_AMLOGIC_USB
+	struct usb_hcd	*hcd = bus_to_hcd(urb->dev->bus);
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+
+	if (xhci->quirks & XHCI_CRG_HOST)
+		return false;
+#endif
 	if (!usb_endpoint_xfer_isoc(&urb->ep->desc) && usb_urb_dir_out(urb) &&
 	    usb_endpoint_maxp(&urb->ep->desc) >= TRB_IDT_MAX_SIZE &&
 	    urb->transfer_buffer_length <= TRB_IDT_MAX_SIZE &&
