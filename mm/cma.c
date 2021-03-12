@@ -697,8 +697,13 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 	}
 
 	if (ret && !no_warn) {
+#ifdef CONFIG_AMLOGIC_CMA
+		pr_err("%s: alloc failed, req-size: %zu pages, ret: %d from:%lx, %s\n",
+			__func__, count, ret, cma->base_pfn, cma->name);
+#else
 		pr_err("%s: alloc failed, req-size: %zu pages, ret: %d\n",
 			__func__, count, ret);
+#endif
 		cma_debug_show_areas(cma);
 	}
 
