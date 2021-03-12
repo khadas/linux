@@ -1152,12 +1152,25 @@ void video_post_process(struct vframe_s *vf,
 		    is_dolby_vision_stb_mode()) {
 			hdr_proc(vf, VD2_HDR, SDR_IPT, vinfo, NULL);
 		} else if (sdr_process_mode[vd_path] == PROC_BYPASS) {
+			if (gamut_conv_enable)
+				gamut_convert_process(
+					vinfo, source_type, vd_path, &m, 10);
 			if (vd_path == VD1_PATH)
-				hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, NULL);
+				hdr_proc(vf, VD1_HDR,
+				gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,
+				vinfo,
+				gamut_conv_enable ? &m : NULL);
 			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, HDR_BYPASS, vinfo, NULL);
-			else
-				hdr_proc(vf, VD3_HDR, HDR_BYPASS, vinfo, NULL);
+				hdr_proc(vf, VD2_HDR,
+				gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,
+				vinfo,
+				gamut_conv_enable ? &m : NULL);
+			else if (vd_path == VD3_PATH)
+				hdr_proc(vf, VD3_HDR,
+				gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,
+				vinfo,
+				gamut_conv_enable ? &m : NULL);
+
 			if ((vd_path == VD1_PATH &&
 			     !is_video_layer_on(VD2_PATH)) ||
 			     (vd_path == VD2_PATH &&

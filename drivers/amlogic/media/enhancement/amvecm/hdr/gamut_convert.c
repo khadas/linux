@@ -40,7 +40,19 @@ static unsigned int scale_factor =
 			pr_info("gmt_convert: " fmt, ## args);\
 	} while (0)\
 
-static void xyz_inv(s64 (*in)[3], s64 (*out)[3],
+#define NORM 50000
+#define BL		16
+static s64 ma[3][3] = {
+	{0.8951 * NORM, 0.2664 * NORM, -0.1614 * NORM},
+	{-0.7502 * NORM, 1.7135 * NORM, 0.0367 * NORM},
+	{0.0389 * NORM, -0.0685 * NORM, 1.0296 * NORM}
+};
+static s64 ma_inv[3][3] = {
+	{0.9869929 * NORM, -0.1470543 * NORM, 0.1599627 * NORM},
+	{0.4323053 * NORM, 0.5183603 * NORM, 0.0492912 * NORM},
+	{-0.0085287 * NORM, 0.0400428 * NORM, 0.9684867 * NORM}
+};
+static void mtx_inv(s64 (*in)[3], s64 (*out)[3],
 		    s32 norm, s32 obl)
 {
 	int i, j;
@@ -74,10 +86,11 @@ static void xyz_inv(s64 (*in)[3], s64 (*out)[3],
 			out[i][j] = div64_s64(tmp, determinant);
 		}
 	}
+	pr_gmt("%s: done\n", __func__);
 }
 
 static void rgb_xyz(s64 (*prmy)[2], s64 (*tout)[3],
-		    s32 norm, s32 obl)
+	s32 norm, s32 obl, s64 *cone)
 {
 	int i, j;
 	s64 mtx_prmy[4][2];
@@ -134,7 +147,7 @@ static void rgb_xyz(s64 (*prmy)[2], s64 (*tout)[3],
 	m_w[1] = yw;
 	m_w[2] = zw;
 
-	xyz_inv(mtx_temp, mtx_temp_inv, norm, obl);
+	mtx_inv(mtx_temp, mtx_temp_inv, norm, obl);
 
 	for (i = 0; i < 3; i++) {
 		for (j = 0; j < 3; j++)
@@ -142,6 +155,13 @@ static void rgb_xyz(s64 (*prmy)[2], s64 (*tout)[3],
 
 		tmp = m_s[i] + (norm >> 1);
 		m_s[i] = div64_s64(tmp, norm);
+	}
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 3; j++)
+			cone[i] += ma[i][j] * m_w[j];
+		tmp = cone[i] + (norm >> 1);
+		cone[i] = div64_s64(tmp, norm);
+		pr_gmt("cone[%d] = %lld\n", i, cone[i]);
 	}
 
 	for (i = 0; i < 3; i++)
@@ -153,29 +173,74 @@ static void rgb_xyz(s64 (*prmy)[2], s64 (*tout)[3],
 			tout[i][j] = mtx_temp[i][j] * mtx_s[i][j];
 			tmp = tout[i][j] + (norm >> 1);
 			tout[i][j] = div64_s64(tmp, norm);
-			pr_gmt("Tout[%d][%d] = 0x%llx\n", i, j, tout[i][j]);
+			pr_gmt("Tout[%d][%d] = %lld\n", i, j, tout[i][j]);
 		}
+	pr_gmt("%s: done\n", __func__);
 }
 
-static void cal_mtx_out(s64 (*mtx_src)[3],
-			s64 (*mtx_dest_inv)[3],
-			s64 (*out)[3],
-			s32 norm)
+static void xyzs_xyzd_conv(s64 *cone_s, s64 *cone_d, s64 (*m_xyz)[3], s32 norm, s32 obl)
+{
+	s64 a[3][3] = {0};
+	s64 b[3][3];
+	int i, j, k;
+	s64 tmp;
+	a[0][0] = div64_s64(cone_d[0] * (1 << obl), cone_s[0]);
+	a[1][1] = div64_s64(cone_d[1] * (1 << obl), cone_s[1]);
+	a[2][2] = div64_s64(cone_d[2] * (1 << obl), cone_s[2]);
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 3; j++) {
+			b[i][j] = 0;
+			for (k = 0; k < 3; k++)
+				b[i][j] += ma_inv[i][k] * a[k][j];
+			tmp = b[i][j] + (norm >> 1);
+			b[i][j] = div64_s64(tmp, norm);
+			pr_gmt("b[%d][%d] = %lld\n", i, j, b[i][j]);
+		}
+	}
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 3; j++) {
+			m_xyz[i][j] = 0;
+			for (k = 0; k < 3; k++)
+				m_xyz[i][j] += b[i][k] * ma[k][j];
+			tmp = m_xyz[i][j] + (norm >> 1);
+			m_xyz[i][j] = div64_s64(tmp, norm);
+			pr_gmt("m_xyz[%d][%d] = %lld\n", i, j, m_xyz[i][j]);
+		}
+	}
+	pr_gmt("%s: done\n", __func__);
+}
+static void cal_mtx_out(s64 (*m_xyz)[3],
+	s64 (*mtx_src)[3],
+	s64 (*mtx_dest_inv)[3],
+	s64 (*out)[3],
+	s32 norm)
 {
 	int i, j, k;
 	s64 tmp;
+	s64 mtx_tmp[3][3];
 
 	pr_gmt("%s\n", __func__);
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 3; j++) {
+			mtx_tmp[i][j] = 0;
+			for (k = 0; k < 3; k++)
+				mtx_tmp[i][j] += m_xyz[i][k] * mtx_src[k][j];
+			tmp = mtx_tmp[i][j] + (norm >> 1);
+			mtx_tmp[i][j] = div64_s64(tmp, norm);
+			pr_gmt("mtx_tmp[%d][%d] = %lld\n", i, j, mtx_tmp[i][j]);
+		}
+	}
 	for (i = 0; i < 3; i++)
 		for (j = 0; j < 3; j++) {
 			out[i][j] = 0;
 			for (k = 0; k < 3; k++)
-				out[i][j] += mtx_dest_inv[i][k] * mtx_src[k][j];
+				out[i][j] += mtx_dest_inv[i][k] * mtx_tmp[k][j];
 
 			tmp = out[i][j] + (norm >> 1);
 			out[i][j] = div64_s64(tmp, norm);
 			pr_gmt("out[%d][%d] = 0x%llx\n", i, j, out[i][j]);
 		}
+	pr_gmt("%s: done\n", __func__);
 }
 
 static void gamut_proc(s64 (*src_prmy)[2], s64 (*dst_prmy)[2],
@@ -184,11 +249,22 @@ static void gamut_proc(s64 (*src_prmy)[2], s64 (*dst_prmy)[2],
 	s64 tsrc[3][3];
 	s64 tdst[3][3];
 	s64 out[3][3];
+	s64 cone_s[3] = {0};
+	s64 cone_d[3] = {0};
+	s64 m_xyz[3][3];
 
-	rgb_xyz(src_prmy, tsrc, norm, obl);
-	rgb_xyz(dst_prmy, tdst, norm, obl);
-	xyz_inv(tdst, out, 1 << obl, obl);
-	cal_mtx_out(tsrc, out, tout, 1 << obl);
+	pr_gmt("src_primary: %lld, %lld, %lld, %lld, %lld, %lld, %lld, %lld\n",
+		src_prmy[0][0], src_prmy[0][1], src_prmy[1][0], src_prmy[1][1],
+		src_prmy[2][0], src_prmy[2][1], src_prmy[3][0], src_prmy[3][1]);
+
+	pr_gmt("dst_primary: %lld, %lld, %lld, %lld, %lld, %lld, %lld, %lld\n",
+		dst_prmy[0][0], dst_prmy[0][1], dst_prmy[1][0], dst_prmy[1][1],
+		dst_prmy[2][0], dst_prmy[2][1], dst_prmy[3][0], dst_prmy[3][1]);
+	rgb_xyz(src_prmy, tsrc, norm, obl, cone_s);
+	rgb_xyz(dst_prmy, tdst, norm, obl, cone_d);
+	xyzs_xyzd_conv(cone_s, cone_d, m_xyz, norm, obl);
+	mtx_inv(tdst, out, 1 << obl, obl);
+	cal_mtx_out(m_xyz, tsrc, out, tout, 1 << obl);
 }
 
 static void apply_scale_factor(s64 (*in)[3], s32 *rs)
@@ -264,8 +340,6 @@ static void cal_mtx_seting(s64 (*in)[3],
 }
 
 unsigned int gmt_mtx[3][3];
-#define NORM 50000
-#define BL		16
 static u32 std_bt2020_prmy[3][2] = {
 	{0.17 * NORM + 0.5, 0.797 * NORM + 0.5},	/* G */
 	{0.131 * NORM + 0.5, 0.046 * NORM + 0.5},	/* B */
@@ -286,6 +360,26 @@ static u32 std_bt709_white_point[2] = {
 	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
 };
 
+uint force_primay;
+module_param(force_primay, uint, 0664);
+MODULE_PARM_DESC(force_primay, "\n force_primay\n");
+uint num_force_primary = 8;
+static u32 force_src_primary[8] = {
+	0.708 * NORM + 0.5, 0.292 * NORM + 0.5,	/* R */
+	0.17 * NORM + 0.5, 0.797 * NORM + 0.5,	/* G */
+	0.131 * NORM + 0.5, 0.046 * NORM + 0.5,	/* B */
+	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
+};
+module_param_array(force_src_primary, uint, &num_force_primary, 0664);
+MODULE_PARM_DESC(force_src_primary, "\n force_src_primary\n");
+static u32 force_dst_primary[8] = {
+	0.64 * NORM + 0.5, 0.33 * NORM + 0.5,	/* R */
+	0.30 * NORM + 0.5, 0.60 * NORM + 0.5,	/* G */
+	0.15 * NORM + 0.5, 0.06 * NORM + 0.5,	/* B */
+	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
+};
+module_param_array(force_dst_primary, uint, &num_force_primary, 0664);
+MODULE_PARM_DESC(force_dst_primary, "\n force_src_primary\n");
 int gamut_convert_process(struct vinfo_s *vinfo,
 			  enum hdr_type_e *source_type,
 			  enum vd_path_e vd_path,
@@ -335,6 +429,18 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 			}
 	}
 
+	if (force_primay) {
+		for (i = 0; i < 4; i++)
+			for (j = 0; j < 2; j++) {
+				src_prmy[i][j] =
+					force_src_primary[i * 2 + j];
+			}
+		for (i = 0; i < 4; i++)
+			for (j = 0; j < 2; j++) {
+				dest_prmy[i][j] =
+					force_dst_primary[i * 2 + j];
+			}
+	}
 	gamut_proc(src_prmy, dest_prmy, out, NORM, BL);
 	cal_mtx_seting(out, BL, BL, mtx, mtx_depth);
 

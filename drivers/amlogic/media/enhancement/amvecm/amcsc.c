@@ -68,6 +68,7 @@ uint gamut_conv_enable;
 module_param(gamut_conv_enable, uint, 0664);
 MODULE_PARM_DESC(gamut_conv_enable, "\n gamut_conv_enable\n");
 
+static uint pre_gamut_conv_en;
 signed int vd1_contrast_offset;
 
 signed int saturation_offset;
@@ -4121,6 +4122,13 @@ int signal_type_changed(struct vframe_s *vf,
 
 	if (rgb_type_proc[vd_path] == FORCE_RGB_PROCESS)
 		change_flag |= SIG_SRC_CHG;
+	if (gamut_conv_enable != pre_gamut_conv_en) {
+		change_flag |= SIG_CS_CHG;
+		pre_gamut_conv_en = gamut_conv_enable;
+		pr_csc(
+			1, "gamut convert changed = 0x%x\n",
+			gamut_conv_enable);
+	}
 
 	return change_flag;
 }
