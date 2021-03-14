@@ -36,4 +36,12 @@ void hdmitx21_ext_set_i2s_mask(char ch_num, char ch_msk);
  */
 char hdmitx21_ext_get_i2s_mask(void);
 
+struct aud_para {
+	enum hdmi_audio_type type;
+	enum hdmi_audio_fs rate;
+	enum hdmi_audio_sampsize size;
+	enum hdmi_audio_chnnum chs;
+	bool fifo_rst;
+};
+
 #endif

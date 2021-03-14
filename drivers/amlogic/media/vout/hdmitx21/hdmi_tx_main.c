@@ -44,6 +44,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ddc.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_config.h>
+#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
 #include "hdmi_tx.h"
 
 #include <linux/amlogic/gki_module.h>
@@ -4479,13 +4480,10 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	int i, audio_check = 0;
 	struct hdmitx_dev *hdev = get_hdmitx_dev();
 	struct rx_cap *prxcap = &hdev->rxcap;
-	struct snd_pcm_substream *substream =
-		(struct snd_pcm_substream *)para;
-	struct hdmitx_audpara *audio_param =
-		&hdev->cur_audio_param;
-	enum hdmi_audio_fs n_rate = aud_samp_rate_map(substream->runtime->rate);
-	enum hdmi_audio_sampsize n_size =
-		aud_size_map(substream->runtime->sample_bits);
+	struct aud_para *aud_param = (struct aud_para *)para;
+	struct hdmitx_audpara *audio_param = &hdev->cur_audio_param;
+	enum hdmi_audio_fs n_rate = aud_samp_rate_map(aud_param->rate);
+	enum hdmi_audio_sampsize n_size = aud_size_map(aud_param->size);
 
 	hdev->audio_param_update_flag = 0;
 	hdev->audio_notify_flag = 0;
@@ -4497,9 +4495,9 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 
 	if (audio_param->type != cmd) {
 		audio_param->type = cmd;
-	pr_info("aout notify format %s\n",
-		aud_type_string[audio_param->type & 0xff]);
-	hdev->audio_param_update_flag = 1;
+		pr_info("aout notify format %s\n",
+			aud_type_string[audio_param->type & 0xff]);
+		hdev->audio_param_update_flag = 1;
 	}
 
 	if (audio_param->sample_size != n_size) {
@@ -4507,10 +4505,8 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 		hdev->audio_param_update_flag = 1;
 	}
 
-	if (audio_param->channel_num !=
-		(substream->runtime->channels - 1)) {
-		audio_param->channel_num =
-		substream->runtime->channels - 1;
+	if (audio_param->channel_num != (aud_param->chs - 1)) {
+		audio_param->channel_num = aud_param->chs - 1;
 		hdev->audio_param_update_flag = 1;
 	}
 	if (hdev->tx_aud_cfg == 2) {
@@ -4534,21 +4530,21 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	else
 		hdev->audio_notify_flag = 1;
 
-	if ((!(hdev->hdmi_audio_off_flag)) &&
-	    hdev->audio_param_update_flag) {
+	if ((!(hdev->hdmi_audio_off_flag)) && hdev->audio_param_update_flag) {
 		/* plug-in & update audio param */
 		if (hdev->hpd_state == 1) {
 			hdmitx21_set_audio(hdev,
 					 &hdev->cur_audio_param);
-		if (hdev->audio_notify_flag == 1 ||
-		    hdev->audio_step == 1) {
-			hdev->audio_notify_flag = 0;
-			hdev->audio_step = 0;
+			if (hdev->audio_notify_flag == 1 || hdev->audio_step == 1) {
+				hdev->audio_notify_flag = 0;
+				hdev->audio_step = 0;
+			}
+			hdev->audio_param_update_flag = 0;
+			pr_info("set audio param\n");
 		}
-		hdev->audio_param_update_flag = 0;
-		pr_info("set audio param\n");
 	}
-	}
+	if (aud_param->fifo_rst)
+		; /* hdev->hwop.cntlmisc(hdev, MISC_AUDIO_RESET, 1); */
 
 	return 0;
 }
