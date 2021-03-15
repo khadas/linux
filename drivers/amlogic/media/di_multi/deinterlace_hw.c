@@ -961,7 +961,7 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (madi_en) {
-			if (DIM_IS_IC_EF(T7) && opl1()->pre_ma_mif_set)
+			if (DIM_IS_IC_EF(T7))
 				opl1()->pre_ma_mif_set(ppre,
 					dimp_get(edi_mp_pre_urgent));
 			else
@@ -3921,7 +3921,7 @@ void dim_post_gate_control_sc2(bool gate)
 
 static void di_async_reset(void)/*2019-01-17 add for debug*/
 {
-	if (DIM_IS_IC_EF(T7)) {
+	if (DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) {
 		DIM_RDMA_WR_BITS(VIUB_SW_RESET, 1, 4, 1);
 		DIM_RDMA_WR_BITS(VIUB_SW_RESET, 0, 4, 1);
 	} else {

@@ -4501,7 +4501,7 @@ void dim_pre_de_process(unsigned int channel)
 	}
 
 	if (dimp_get(edi_mp_mcpre_en)) {
-		if (DIM_IS_IC_EF(T7) && opl1()->pre_enable_mc)
+		if (DIM_IS_IC_EF(T7))
 			opl1()->pre_enable_mc(&ppre->di_mcinford_mif,
 						  &ppre->di_mcinfowr_mif,
 						  &ppre->di_mcvecwr_mif,
@@ -11548,6 +11548,7 @@ void dim_set_di_flag(void)
 	    DIM_IS_IC(T5DB)	||
 	    DIM_IS_IC(T5D)	||
 	    DIM_IS_IC(T7) ||
+	    DIM_IS_IC(T3)	||
 	    DIM_IS_IC(S4))
 		di_cfg_set(ECFG_DIM_BYPASS_P, 0);//for t5 enable p
 

@@ -306,9 +306,9 @@ void di_cfg_top_dts(void)
 		cfgs(4K, 0);
 		PR_WARN("not support 4k\n");
 	}
-	if (DIM_IS_IC(T7)) {
+	if (DIM_IS_IC_EF(T7)) {
 		cfgs(LINEAR, 1);
-		PR_INF("t7 linear mode\n");
+		PR_INF("from t7 linear mode\n");
 	}
 	if (DIM_IS_IC(S4) && (cfgg(POUT_FMT) == 3)) {
 		cfgs(POUT_FMT, 0);
@@ -320,7 +320,8 @@ void di_cfg_top_dts(void)
 	pt = &di_cfg_top_ctr[EDI_CFG_DAT];
 	if (DIM_IS_IC(TM2B)	||
 	    DIM_IS_IC(SC2) || DIM_IS_IC(T5) ||
-	    DIM_IS_IC(T7)) {
+	    DIM_IS_IC(T7) ||
+	    DIM_IS_IC(T3)) {
 		if (!pd->b.dts_have) {
 			pd->b.val_c = 0x3;
 			//pd->b.val_c = 0x0;//test
@@ -4872,7 +4873,7 @@ void dip_init_pq_ops(void)
 
 	/* hw l1 ops*/
 	if (IS_IC_EF(ic_id, SC2)) {
-		if (IS_IC(ic_id, T7))
+		if (IS_IC_EF(ic_id, T7))
 			get_datal()->hop_l1 = &dim_ops_l1_v4;
 		else
 			get_datal()->hop_l1 = &dim_ops_l1_v3;

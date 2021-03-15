@@ -1403,7 +1403,7 @@ static unsigned int set_afbce_cfg_v1(int index,
 		((hblksize_buf & 0x1fff) << 16) |  // out blk hsize
 		((vblksize_buf & 0x1fff) << 0)    // out blk vsize
 		);
-	if (DIM_IS_IC(T7))
+	if (DIM_IS_IC_EF(T7))
 		op->wr(reg[AFBCEX_HEAD_BADDR], afbce->head_baddr >> 4);
 	else
 		op->wr(reg[AFBCEX_HEAD_BADDR], afbce->head_baddr);
@@ -1451,7 +1451,7 @@ static unsigned int set_afbce_cfg_v1(int index,
 
 //ary temp	cur_mmu_used += op->rd(AFBCE_MMU_NUM);
 //4k addr have used in every frame;
-	if (DIM_IS_IC(T7))
+	if (DIM_IS_IC_EF(T7))
 		op->wr(reg[AFBCEX_MMU_RMIF_CTRL4], afbce->mmu_info_baddr >> 4);
 	else
 		op->wr(reg[AFBCEX_MMU_RMIF_CTRL4], afbce->mmu_info_baddr);
@@ -3780,7 +3780,8 @@ void set_di_memcpy_rot(struct mem_cpy_s *cfg)
 		/* post_frm_sel   =top_post_ctrl[3];//0:viu  1:internal */
 		(1		<< 30));
 
-	if (DIM_IS_IC_EF(T7) && (!IS_ERR_OR_NULL(in_afbcd))) {
+	if ((DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) &&
+	    (!IS_ERR_OR_NULL(in_afbcd))) {
 		if (in_afbcd->index == EAFBC_DEC_IF0) {
 			//op->bwr(AFBCDM_IF0_CTRL0,cfg->b.is_if0_4k,14,1);
 			//reg_use_4kram
@@ -5035,7 +5036,7 @@ void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg)
 		  DI_TOP_PRE_CTRL,
 		  val);
 	op->wr(DI_TOP_PRE_CTRL, val);
-	if (DIM_IS_IC(T7)) {
+	if (DIM_IS_IC_EF(T7)) {
 		op->bwr(AFBCDM_INP_CTRL0, cfg->b.is_inp_4k,  14, 1);
 		//reg_use_4kram
 		op->bwr(AFBCDM_INP_CTRL0, cfg->b.afbc_inp, 13, 1);
@@ -5186,7 +5187,7 @@ void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg)
 		  "DI_TOP_POST_CTRL",
 		  DI_TOP_POST_CTRL,
 		  val);
-	if (DIM_IS_IC(T7)) {
+	if (DIM_IS_IC_EF(T7)) {
 		op->bwr(AFBCDM_IF0_CTRL0, cfg->b.is_if0_4k, 14, 1);
 		//reg_use_4kram
 		op->bwr(AFBCDM_IF0_CTRL0, cfg->b.afbc_if0, 13, 1);
