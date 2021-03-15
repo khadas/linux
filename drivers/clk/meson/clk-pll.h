@@ -55,6 +55,9 @@ struct meson_clk_pll_data {
 	/* for 32bit dco overflow */
 	struct parm od;
 #endif
+	/*for pcie*/
+	struct parm pcie_hcsl;
+	struct parm pcie_exen;
 	const struct reg_sequence *init_regs;
 	unsigned int init_count;
 	const struct pll_params_table *table;

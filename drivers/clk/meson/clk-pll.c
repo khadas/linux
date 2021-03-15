@@ -450,14 +450,34 @@ static int meson_clk_pll_is_enabled(struct clk_hw *hw)
 
 static int meson_clk_pcie_pll_enable(struct clk_hw *hw)
 {
-	int retry = 10;
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+	int retry = 10, ret = 10;
 
 	do {
 		meson_clk_pll_init(hw);
-		if (!meson_clk_pll_wait_lock(hw))
-			return 0;
+		if (!meson_clk_pll_wait_lock(hw)) {
+			if (!MESON_PARM_APPLICABLE(&pll->pcie_hcsl))
+				return 0;
+			break;
+		}
 		pr_info("%s:%d retry = %d\n", __func__, __LINE__, retry);
 	} while (retry--);
+
+	if (retry <= 0)
+		return -EIO;
+
+	/*pcie pll clk share use for usb phy, so add this operiaton from ASIC*/
+	do {
+		if (meson_parm_read(clk->map, &pll->pcie_hcsl)) {
+			meson_parm_write(clk->map, &pll->pcie_exen, 0);
+			return 0;
+		}
+		udelay(1);
+	} while (ret--);
+
+	if (ret <= 0)
+		pr_info("%s:%d pcie reg1 clear bit29 failed\n", __func__, __LINE__);
 
 	return -EIO;
 }

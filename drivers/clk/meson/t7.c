@@ -1190,6 +1190,16 @@ static struct clk_regmap t7_pcie_pll_dco = {
 			.shift   = 31,
 			.width   = 1,
 		},
+		.pcie_hcsl = {
+			.reg_off = ANACTRL_PCIEPLL_CTRL0,
+			.shift   = 30,
+			.width   = 1,
+		},
+		.pcie_exen = {
+			.reg_off = ANACTRL_PCIEPLL_CTRL1,
+			.shift   = 29,
+			.width   = 1,
+		},
 		.rst = {
 			.reg_off = ANACTRL_PCIEPLL_CTRL0,
 			.shift   = 29,
