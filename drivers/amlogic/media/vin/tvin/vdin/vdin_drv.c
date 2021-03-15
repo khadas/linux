@@ -2674,8 +2674,8 @@ static void vdin_vlock_dwork(struct work_struct *work)
 		return;
 	}
 
-	vdin_vlock_input_sel(devp->curr_field_type,
-			     devp->curr_wr_vfe->vf.source_type);
+	//vdin_vlock_input_sel(devp->curr_field_type,
+	//		     devp->curr_wr_vfe->vf.source_type);
 #endif
 	cancel_delayed_work(&devp->vlock_dwork);
 }

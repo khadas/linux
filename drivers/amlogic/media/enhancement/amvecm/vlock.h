@@ -24,9 +24,10 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2021/0118: clean code for multi max 3 enc"
+#define VLOCK_VER "Ref.2021/0315: t7 vlock for enc2"
 
 #define VLOCK_REG_NUM	33
+#define VLOCK_ALL_LOCK_CNT	400
 
 struct vdin_sts {
 	unsigned int lcnt_sts;
@@ -61,11 +62,29 @@ enum vlock_regmap_e {
 	REG_MAP_END,
 };
 
+enum vlock_src_in_e {
+	VLOCK_SRC_UNUSE = 0,
+	VLOCK_SRC_HDMI = 1,
+	VLOCK_SRC_TV_DEC = 2,
+	VLOCK_SRC_DVIN0 = 3,
+	VLOCK_SRC_DVIN1 = 4,
+	VLOCK_SRC_BT656 = 5,
+};
+
+enum vlock_out_goes_e {
+	VLOCK_OUT_ENCL = 0,
+	VLOCK_OUT_ENCP = 1,
+	VLOCK_OUT_ENCI = 2,
+};
+
 enum vlock_enc_num_e {
 	VLOCK_ENC0 = 0,
 	VLOCK_ENC1,
 	VLOCK_ENC2,
+	VLOCK_ENC_MAX,
 };
+
+//#define VLOCK_DEBUG_ENC_IDX	VLOCK_ENC2
 
 struct vlk_reg_map_tab {
 	unsigned int base;
@@ -287,7 +306,7 @@ void lcd_ss_enable(bool flag);
 unsigned int lcd_ss_status(void);
 int amvecm_hiu_reg_read(unsigned int reg, unsigned int *val);
 int amvecm_hiu_reg_write(unsigned int reg, unsigned int val);
-void vdin_vlock_input_sel(unsigned int type,
+void vdin_vlock_input_sel(struct stvlock_sig_sts *vlock, unsigned int type,
 			  enum vframe_source_type_e source_type);
 void vlock_param_config(struct device_node *node);
 #ifdef CONFIG_AMLOGIC_LCD
