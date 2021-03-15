@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/deinterlace/deinterlace.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #include <linux/version.h>
@@ -2471,7 +2484,10 @@ static void di_patch_mov_ini(void)
 	}
 	pmov->en_support = true;
 	pmov->mode = -1;
-	pmov->nub = 0;
+	pmov->nub = 3;
+	pmov->reg_addr[0] = DI_NR_CTRL1;
+	pmov->reg_addr[1] = DI_NR_CTRL2;
+	pmov->reg_addr[2] = NR4_TOP_CTRL;
 }
 
 bool di_patch_mov_db(unsigned int addr, unsigned int val)
@@ -3687,6 +3703,7 @@ static void pre_de_done_buf_config(void)
 		if (post_wr_buf) {
 			post_wr_buf->vframe->di_pulldown = 0;
 			post_wr_buf->vframe->di_gmv = 0;
+			post_wr_buf->vframe->di_cm_cnt = 0;
 		}
 
 		if (post_wr_buf && !di_pre_stru.cur_prog_flag) {
@@ -3702,7 +3719,9 @@ static void pre_de_done_buf_config(void)
 
 			}
 			post_wr_buf->vframe->di_pulldown |= 0x08;
+
 			post_wr_buf->vframe->di_gmv = glb_frame_mot_num;
+			post_wr_buf->vframe->di_cm_cnt = di_rd_mcdi_fldcnt();
 			if (di_pre_stru.combing_fix_en)
 				cur_lev = adaptive_combing_fixing(
 				di_pre_stru.mtn_status,
@@ -4042,6 +4061,7 @@ static unsigned char pre_de_buf_config(void)
 	u32 afbc_busy;
 	u32 is_afbc_mode = 0;
 	bool flg_1080i = false;
+	bool flg_480i = false;
 
 	if (di_blocking || !atomic_read(&de_devp->mem_flag))
 		return 0;
@@ -4547,6 +4567,9 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 			if ((di_buf->vframe->width >= 1920) &&
 				(di_buf->vframe->height >= 1080))
 				flg_1080i = true;
+			else if ((di_buf->vframe->width == 720) &&
+				 (di_buf->vframe->height == 480))
+				flg_480i = true;
 
 		/*********************************/
 			if (di_pre_stru.di_chan2_buf_dup_p == NULL) {
@@ -4741,6 +4764,8 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 	if (di_pre_stru.combing_fix_en) {
 		if (flg_1080i)
 			com_patch_pre_sw_set(1);
+		else if (flg_480i)
+			com_patch_pre_sw_set(2);
 		else
 			com_patch_pre_sw_set(0);
 	}

@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/deinterlace/pulldown_drv.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #include <linux/types.h>
@@ -390,6 +403,8 @@ static struct pd_param_s pd_params[] = {
 	  &(pd_param.flm22_en)      },
 	{ "flm32_en",
 	     &(pd_param.flm32_en)   },
+	{ "flm22_force",
+	     &pd_param.flm22_force   },
 	{ "flm22_flag",
 	  &(pd_param.flm22_flag)    },
 	{ "flm22_avg_flag",
@@ -442,6 +457,7 @@ static ssize_t pd_parm_store(struct device *dev,
 		}
 	}
 
+	kfree(buf_orig);
 	return count;
 }
 

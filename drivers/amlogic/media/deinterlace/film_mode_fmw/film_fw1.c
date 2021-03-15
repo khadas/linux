@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/deinterlace/film_mode_fmw/film_fw1.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #include <linux/kernel.h>
@@ -46,6 +59,7 @@ UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar)
 	pPar->cmb22_nocmb_num = 30;
 	pPar->flm22_en = 1;
 	pPar->flm32_en = 1;
+	pPar->flm22_force = 0;
 	pPar->flm22_flag = 1;
 	pPar->flm22_avg_flag = 0;
 	pPar->flm2224_flag = 1;
@@ -246,8 +260,6 @@ static int dif02_ratio = 20;
 module_param(dif02_ratio,  int, 0644);
 MODULE_PARM_DESC(dif02_ratio, "dif02_ratio");
 
-static int flm22_force;
-
 int comsum;
 
 int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
@@ -293,6 +305,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	int flm2224_flag = pPar->flm2224_flag;
 	int flm22_comth = pPar->flm22_comth;
 	int flm22_avg_flag = pPar->flm22_avg_flag;
+	int flm22_force =  pPar->flm22_force;
 	int comdif = 0;
 	int dif01avg = 0;
 
@@ -581,7 +594,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		 * 01: 2-2 film, 10: 2-3 film, 11:-others
 		 */
 		*rFlmPstMod = 1;
-		nS1 = 135;
+		nS1 = 300; /*increase flm22_force level from vlsi-yanling*/
 	}
 	pre_fld_motnum = glb_field_mot_num;
 
@@ -844,6 +857,7 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 		nFlgChk4 =  nDif02[HISDIFNUM - 1] - nDif02[HISDIFNUM - 6];
 		if (nFlgChk4 < 0)
 			nFlgChk4 = -nFlgChk4;
+		//nFlgChk4 = nFlgChk4;
 		nMean = (nDif02[HISDIFNUM - 1] + nDif01[HISDIFNUM - 6]) / 2;
 		nFlgChk4 = nflagch4_ratio * nFlgChk4 / nMean;
 	} else {
@@ -1330,6 +1344,8 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	int iHeight = pRDat->iHeight;
 	int nFlm22Lvl = 0;
 	int nSIZE = iWidth * iHeight + 1;
+	int max_diff;
+	int ratio;
 
 	prt_flg = ((pr_pd >> 3) & 0x1);
 	if (prt_flg)
@@ -1692,15 +1708,25 @@ int Flm22DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 	}
 	/* ---------------------- */
 	/*DI:PQ patch fix 480i error into pulldown22(by yanling)*/
+	max_diff = max(abs(nDif01[HISDIFNUM - 1] - nDif01[HISDIFNUM - 3]),
+		       abs(nDif01[HISDIFNUM - 2] - nDif01[HISDIFNUM - 4]));
+	if (max_diff > (1 << 15))
+		ratio = 2;
+	else
+		ratio = 3;
 	flm22_min = nDif01[HISDIFNUM-1] > nDif01[HISDIFNUM-2]
 		? nDif01[HISDIFNUM-2] : nDif01[HISDIFNUM-1];
-	flm22_th = min(flm22_min / 2, 1 << 16);
+	flm22_th = max(flm22_min / ratio, 1 << 17);
 	dif_flag = abs(nDif01[HISDIFNUM-1]-nDif01[HISDIFNUM-2])
 		> flm22_th ? 1:0;
-	dif_flag =
+	/*the small diff01 bigger*/
+	dif_flag = (flm22_min > max((3 << 17), nDif02[HISDIFNUM - 1])) ? 0 :
 		max(nDif01[HISDIFNUM-1], nDif01[HISDIFNUM-2]) > (1<<16) ?
 		dif_flag : 0;
-	if (flm22_flag && dif_flag) {
+	if (pr_pd)
+		pr_info("max_diff = %d, dif_flag = %d, flm22_th = %d, flm22_min = %d\n",
+			max_diff, dif_flag, flm22_th, flm22_min);
+	if (flm22_flag && dif_flag && (max_diff < (5 << 14))) {
 	/* ---------------------- */
 		if (pFlg[HISDETNUM-1] == 3
 				|| pFlg[HISDETNUM-1] == 1) {

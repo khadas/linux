@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/deinterlace/film_mode_fmw/vof_soft_top.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #include <linux/kernel.h>
@@ -498,59 +511,75 @@ int VOFSftTop(UINT8 *rFlmPstGCm, UINT8 *rFlmSltPre, UINT8 *rFlmPstMod,
 
 	/* film-mode: pMod22[5-mDly] or pMod32[5-mDly] */
 	if ((*rFlmPstMod == 1) || (*rFlmPstMod == 2)) {
-		/* weaver with pre-field */
-		if (*rFlmSltPre == 1) {
-			/* Interpolation method:0-mtn,1-with-buffer,2-ei,3-di */
-			rPstCYWnd0[0] = CWND[HISDETNUM - 1 - mDly][0];/* bgn */
-			rPstCYWnd0[1] = CWND[HISDETNUM - 1 - mDly][1];/* end */
-			rPstCYWnd0[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
-
-			rPstCYWnd1[0] = CWND[HISDETNUM - 1 - mDly][2];/* bgn */
-			rPstCYWnd1[1] = CWND[HISDETNUM - 1 - mDly][3];/* end */
-			rPstCYWnd1[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
-
-			rPstCYWnd2[0] = CWND[HISDETNUM - 1 - mDly][4];/* bgn */
-			rPstCYWnd2[1] = CWND[HISDETNUM - 1 - mDly][5];/* end */
-			rPstCYWnd2[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
-
-			rPstCYWnd3[0] = CWND[HISDETNUM - 1 - mDly][6];/* bgn */
-			rPstCYWnd3[1] = CWND[HISDETNUM - 1 - mDly][7];/* end */
-			rPstCYWnd3[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
-
-			/* pFMReg->rFlmPstGCm = WGlb[5-mDly]; */
-			*rFlmPstGCm = WGlb[HISDETNUM - 1 - mDly];
-
-			if (prt_flg) {
-				sprintf(debug_str + strlen(debug_str),
-					"rFlmPstGCm-5=%d\n", *rFlmPstGCm);
-				sprintf(debug_str + strlen(debug_str),
-					"pFlg32=%d, pFlg22=%d\n",
-					pFlg32[HISDETNUM - 1 - mDly],
-					pFlg22[HISDETNUM - 1 - mDly]);
-			}
+		/*fix jira SWPL-34426,common issue,suggest from vlsi yanling*/
+		if (nWCmb >= 200) {
+			rPstCYWnd0[0] = 0;	/* bgn */
+			rPstCYWnd0[1] = 0;	/* end */
+			rPstCYWnd0[2] = 3;	/* 0-mtn,1-with-buffer,2-ei,3-di */
+			rPstCYWnd1[0] = 0;	/* bgn */
+			rPstCYWnd1[1] = 0;	/* end */
+			rPstCYWnd1[2] = 3;	/* 0-mtn,1-with-buffer,2-ei,3-di */
+			rPstCYWnd2[0] = 0;	/* bgn */
+			rPstCYWnd2[1] = 0;	/* end */
+			rPstCYWnd2[2] = 3;	/* 0-mtn,1-with-buffer,2-ei,3-di */
+			rPstCYWnd3[0] = 0;	/* bgn */
+			rPstCYWnd3[1] = 0;	/* end */
+			rPstCYWnd3[2] = 3;	/* 0-mtn,1-with-buffer,2-ei,3-di */
 		} else {
-			/* weaver with nxt-field */
-			/* Interpolation method: 0-EI,1-MTN,2-MA,3-Weaver */
-			rPstCYWnd0[0] = CWND[HISDETNUM - mDly][0];/* bgn */
-			rPstCYWnd0[1] = CWND[HISDETNUM - mDly][1];/* end */
-			rPstCYWnd0[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
-			rPstCYWnd1[0] = CWND[HISDETNUM - mDly][2];/* bgn */
-			rPstCYWnd1[1] = CWND[HISDETNUM - mDly][3];/* end */
-			rPstCYWnd1[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
-			rPstCYWnd2[0] = CWND[HISDETNUM - mDly][4];/* bgn */
-			rPstCYWnd2[1] = CWND[HISDETNUM - mDly][5];/* end */
-			rPstCYWnd2[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
-			rPstCYWnd3[0] = CWND[HISDETNUM - mDly][6];/* bgn */
-			rPstCYWnd3[1] = CWND[HISDETNUM - mDly][7];/* end */
-			rPstCYWnd3[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
-			*rFlmPstGCm = WGlb[HISDETNUM - mDly];
-			if (prt_flg) {
-				sprintf(debug_str + strlen(debug_str),
-					"rFlmPstGCm-6=%d\n", *rFlmPstGCm);
-				sprintf(debug_str + strlen(debug_str),
-					"pFlg32=%d, pFlg22=%d\n",
-					pFlg32[HISDETNUM - 1 - mDly],
-					pFlg22[HISDETNUM - 1 - mDly]);
+		/* weaver with pre-field */
+			if (*rFlmSltPre == 1) {
+				/* Interpolation method:0-mtn,1-with-buffer,2-ei,3-di */
+				rPstCYWnd0[0] = CWND[HISDETNUM - 1 - mDly][0];/* bgn */
+				rPstCYWnd0[1] = CWND[HISDETNUM - 1 - mDly][1];/* end */
+				rPstCYWnd0[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
+
+				rPstCYWnd1[0] = CWND[HISDETNUM - 1 - mDly][2];/* bgn */
+				rPstCYWnd1[1] = CWND[HISDETNUM - 1 - mDly][3];/* end */
+				rPstCYWnd1[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
+
+				rPstCYWnd2[0] = CWND[HISDETNUM - 1 - mDly][4];/* bgn */
+				rPstCYWnd2[1] = CWND[HISDETNUM - 1 - mDly][5];/* end */
+				rPstCYWnd2[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
+
+				rPstCYWnd3[0] = CWND[HISDETNUM - 1 - mDly][6];/* bgn */
+				rPstCYWnd3[1] = CWND[HISDETNUM - 1 - mDly][7];/* end */
+				rPstCYWnd3[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
+
+				/* pFMReg->rFlmPstGCm = WGlb[5-mDly]; */
+				*rFlmPstGCm = WGlb[HISDETNUM - 1 - mDly];
+
+				if (prt_flg) {
+					sprintf(debug_str + strlen(debug_str),
+						"rFlmPstGCm-5=%d\n", *rFlmPstGCm);
+					sprintf(debug_str + strlen(debug_str),
+						"pFlg32=%d, pFlg22=%d\n",
+						pFlg32[HISDETNUM - 1 - mDly],
+						pFlg22[HISDETNUM - 1 - mDly]);
+				}
+			} else {
+				/* weaver with nxt-field */
+				/* Interpolation method: 0-EI,1-MTN,2-MA,3-Weaver */
+				rPstCYWnd0[0] = CWND[HISDETNUM - mDly][0];/* bgn */
+				rPstCYWnd0[1] = CWND[HISDETNUM - mDly][1];/* end */
+				rPstCYWnd0[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
+				rPstCYWnd1[0] = CWND[HISDETNUM - mDly][2];/* bgn */
+				rPstCYWnd1[1] = CWND[HISDETNUM - mDly][3];/* end */
+				rPstCYWnd1[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
+				rPstCYWnd2[0] = CWND[HISDETNUM - mDly][4];/* bgn */
+				rPstCYWnd2[1] = CWND[HISDETNUM - mDly][5];/* end */
+				rPstCYWnd2[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
+				rPstCYWnd3[0] = CWND[HISDETNUM - mDly][6];/* bgn */
+				rPstCYWnd3[1] = CWND[HISDETNUM - mDly][7];/* end */
+				rPstCYWnd3[2] = 3;/* 0-mtn,1-with-buffer,2-ei,3-di */
+				*rFlmPstGCm = WGlb[HISDETNUM - mDly];
+				if (prt_flg) {
+					sprintf(debug_str + strlen(debug_str),
+						"rFlmPstGCm-6=%d\n", *rFlmPstGCm);
+					sprintf(debug_str + strlen(debug_str),
+						"pFlg32=%d, pFlg22=%d\n",
+						pFlg32[HISDETNUM - 1 - mDly],
+						pFlg22[HISDETNUM - 1 - mDly]);
+				}
 			}
 		}
 	} else {

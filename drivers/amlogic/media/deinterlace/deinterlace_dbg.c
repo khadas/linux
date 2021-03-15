@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/deinterlace/deinterlace_dbg.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #include <linux/version.h>
@@ -869,6 +882,7 @@ void dump_vframe(struct vframe_s *vf)
 		vf->pixel_ratio, &vf->list);
 	pr_info("di_pulldown 0x%x\n", vf->di_pulldown);
 	pr_info("di_gmv 0x%x\n", vf->di_gmv);
+	pr_info("di_mc_cnt 0x%x\n", vf->di_cm_cnt);
 }
 
 void print_di_buf(struct di_buf_s *di_buf, int format)

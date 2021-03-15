@@ -1,6 +1,19 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/deinterlace/deinterlace_hw.h
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #ifndef _DI_HW_H
@@ -110,6 +123,7 @@ struct di_pq_parm_s {
 extern u32 afbc_disable_flag;
 void read_pulldown_info(unsigned int *glb_frm_mot_num,
 	unsigned int *glb_fid_mot_num);
+unsigned int di_rd_mcdi_fldcnt(void);
 void read_new_pulldown_info(struct FlmModReg_t *pFMRegp);
 void pulldown_info_clear_g12a(void);
 void combing_pd22_window_config(unsigned int width, unsigned int height);

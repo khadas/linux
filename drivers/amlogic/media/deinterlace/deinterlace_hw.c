@@ -1,6 +1,19 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * drivers/amlogic/media/deinterlace/deinterlace_hw.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
  */
 
 #include <linux/string.h>
@@ -178,10 +191,12 @@ void init_field_mode(unsigned short height)
 	DI_Wr(DIPD_COMB_CTRL2, 0x41041008);
 	DI_Wr(DIPD_COMB_CTRL3, 0x00008053);
 	DI_Wr(DIPD_COMB_CTRL4, 0x20070002);
-	if (height > 288)
+	if (height > 288) {
 		DI_Wr(DIPD_COMB_CTRL5, 0x04041020);
-	else
-		DI_Wr(DIPD_COMB_CTRL5, 0x04040804);
+	} else {
+		/*adjust flm_smp_mtn_thd from vlsi-yanling*/
+		DI_Wr(DIPD_COMB_CTRL5, 0x04040805);
+	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
 		DI_Wr(DIPD_COMB_CTRL6, 0x00107064);
 	DI_Wr_reg_bits(DI_MC_32LVL0, 16, 0, 8);
@@ -606,7 +621,7 @@ static void set_ma_pre_mif_g12(struct DI_SIM_MIF_s *mtnwr_mif,
 	RDMA_WR_BITS(CONTRD_SCOPE_X, contprd_mif->end_x, 16, 13);
 	RDMA_WR_BITS(CONTRD_SCOPE_Y, contprd_mif->start_y, 0, 13);
 	RDMA_WR_BITS(CONTRD_SCOPE_Y, contprd_mif->end_y, 16, 13);
-	RDMA_WR_BITS(CONTRD_CTRL1, contprd_mif->canvas_num, 16, 8);
+	RDMA_WR_BITS(CONTRD_CTRL1, contp2rd_mif->canvas_num, 16, 8);
 	RDMA_WR_BITS(CONTRD_CTRL1, 2, 8, 2);
 	RDMA_WR_BITS(CONTRD_CTRL1, 0, 0, 3);
 
@@ -614,7 +629,7 @@ static void set_ma_pre_mif_g12(struct DI_SIM_MIF_s *mtnwr_mif,
 	RDMA_WR_BITS(CONT2RD_SCOPE_X, contp2rd_mif->end_x, 16, 13);
 	RDMA_WR_BITS(CONT2RD_SCOPE_Y, contp2rd_mif->start_y, 0, 13);
 	RDMA_WR_BITS(CONT2RD_SCOPE_Y, contp2rd_mif->end_y, 16, 13);
-	RDMA_WR_BITS(CONT2RD_CTRL1, contp2rd_mif->canvas_num, 16, 8);
+	RDMA_WR_BITS(CONT2RD_CTRL1, contprd_mif->canvas_num, 16, 8);
 	RDMA_WR_BITS(CONT2RD_CTRL1, 2, 8, 2);
 	RDMA_WR_BITS(CONT2RD_CTRL1, 0, 0, 3);
 
@@ -3166,6 +3181,11 @@ void read_pulldown_info(unsigned int *glb_frm_mot_num,
 	*glb_fid_mot_num = (Rd(DI_INFO_DATA)&0xffffff);
 }
 
+unsigned int di_rd_mcdi_fldcnt(void)
+{
+	return RDMA_RD(MCDI_RO_FLD_MTN_CNT);
+}
+
 void read_new_pulldown_info(struct FlmModReg_t *pFMReg)
 {
 	int i = 0;
@@ -3959,7 +3979,7 @@ void di_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		}
 		if (table_name & nr_table)
 			ctrl_reg_flag = set_nr_ctrl_reg_table(addr, value);
-		if (table_name & TABLE_NAME_DI)
+		if (table_name & (TABLE_NAME_DI | TABLE_NAME_NR))
 			mov_flg = di_patch_mov_db(addr, value);
 		if (!ctrl_reg_flag && !mov_flg)
 			DI_Wr(addr, value);
@@ -4042,18 +4062,6 @@ struct reg_t {
 	char *bname;
 	char *info;
 };
-
-#ifdef MARK_SC2
-struct reg_acc {
-	void (*wr)(unsigned int adr, unsigned int val);
-	unsigned int (*rd)(unsigned int adr);
-	unsigned int (*bwr)(unsigned int adr, unsigned int val,
-			unsigned int start, unsigned int len);
-	unsigned int (*brd)(unsigned int adr, unsigned int start,
-			unsigned int len);
-
-};
-#endif
 
 static unsigned int get_reg_bits(unsigned int val, unsigned int bstart,
 			unsigned int bw)
