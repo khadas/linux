@@ -14,6 +14,7 @@
 #include <dt-bindings/input/meson_ir.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
+#include <dt-bindings/clock/amlogic,tm2-audio-clk.h>
 #include "meson-ir-map.dtsi"
 #include "mesong12a-bifrost.dtsi"
 #include <dt-bindings/reset/amlogic,meson-dos-reset.h>
@@ -68,11 +69,151 @@
 		status = "okay";
 	};
 
+	audio_data: audio_data {
+		compatible = "amlogic, audio_data";
+		mem_in_base_cmd = <0x82000020>;
+		query_licence_cmd = <0x82000050>;
+		status = "okay";
+	};
+
+	dummy_codec:dummy {
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml_dummy_codec";
+		status = "okay";
+	};
+
+	tl1_codec:codec {
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, tm2_revb_acodec";
+		status = "okay";
+		reg = <0x0 0xff632000 0x0 0x1c>;
+		tdmout_index = <0>;
+		tdmin_index = <0>;
+		dat1_ch_sel = <1>;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		audiobus: audiobus@0xff600000 {
+			compatible = "amlogic, audio-controller", "simple-bus";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			reg = <0x0 0xff600000 0x0 0x3000>;
+			ranges = <0x0 0x0 0x0 0xff600000 0x0 0x3000>;
+
+			clkaudio:audio_clocks {
+				compatible = "amlogic, tm2-audio-clocks";
+				#clock-cells = <1>;
+				reg = <0x0 0x0 0x0 0xb0>;
+			};
+
+			ddr_manager {
+				compatible =
+					"amlogic, tm2-revb-audio-ddr-manager";
+				interrupts = <
+					GIC_SPI 148 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 149 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 150 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 48 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 152 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 153 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 154 IRQ_TYPE_EDGE_RISING
+					GIC_SPI 49 IRQ_TYPE_EDGE_RISING
+				>;
+				interrupt-names =
+					"toddr_a", "toddr_b", "toddr_c",
+					"toddr_d",
+					"frddr_a", "frddr_b", "frddr_c",
+					"frddr_d";
+			};
+		};/* end of audiobus*/
+
+		/* eARC */
+		audio_earc: bus@ff603000 {
+			compatible = "simple-bus";
+			reg = <0x0 0xff603000 0x0 0x1000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0xff603000 0x0 0x1000>;
+
+			earc: earc@0 {
+				compatible = "amlogic, tm2-revb-snd-earc";
+				#sound-dai-cells = <0>;
+
+				status = "disabled";
+
+				reg = <0x0 0x0 0x0 0x400>,
+					<0x0 0x400 0x0 0x200>,
+					<0x0 0x600 0x0 0x200>,
+					<0x0 0x800 0x0 0x400>,
+					<0x0 0xc00 0x0 0x200>,
+					<0x0 0xe00 0x0 0x200>;
+				reg-names = "tx_cmdc",
+					"tx_dmac",
+					"tx_top",
+					"rx_cmdc",
+					"rx_dmac",
+					"rx_top";
+
+				clocks = < &clkaudio CLKID_EARCRX_CMDC
+					&clkaudio CLKID_EARCRX_DMAC
+					&clkc CLKID_FCLK_DIV4
+					&clkc CLKID_FCLK_DIV4
+					&clkaudio CLKID_EARCTX_CMDC
+					&clkaudio CLKID_EARCTX_DMAC
+					&clkc CLKID_FCLK_DIV4
+					&clkc CLKID_MPLL1
+					>;
+				clock-names =
+					"rx_cmdc",
+					"rx_dmac",
+					"rx_cmdc_srcpll",
+					"rx_dmac_srcpll",
+					"tx_cmdc",
+					"tx_dmac",
+					"tx_cmdc_srcpll",
+					"tx_dmac_srcpll";
+
+				interrupts = <
+					GIC_SPI 232 IRQ_TYPE_LEVEL_HIGH
+					GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "earc_rx", "earc_tx";
+			};
+		};
+
+		/* Sound iomap */
+		aml_snd_iomap {
+			compatible = "amlogic, snd-iomap";
+			status = "okay";
+			#address-cells=<2>;
+			#size-cells=<2>;
+			ranges;
+			pdm_bus {
+				reg = <0x0 0xFF601000 0x0 0x400>;
+			};
+			audiobus_base {
+				reg = <0x0 0xFF600000 0x0 0x1000>;
+			};
+			audiolocker_base {
+				reg = <0x0 0xFF601400 0x0 0x400>;
+			};
+			eqdrc_base {
+				reg = <0x0 0xFF602000 0x0 0x1000>;
+			};
+			vad_base {
+				reg = <0x0 0xFF601800 0x0 0x400>;
+			};
+			resampleA_base {
+				reg = <0x0 0xFF601C00 0x0 0x104>;
+			};
+			resampleB_base {
+				reg = <0x0 0xFF604000 0x0 0x104>;
+			};
+		};
 
 		ethmac: ethernet@ff3f0000 {
 			compatible = "amlogic, g12a-eth-dwmac","snps,dwmac-4.00";

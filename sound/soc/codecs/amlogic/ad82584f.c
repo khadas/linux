@@ -674,38 +674,6 @@ static int ad82584f_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	return 0;
 }
 
-static int ad82584f_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *params,
-	struct snd_soc_dai *dai)
-{
-	unsigned int rate;
-
-	rate = params_rate(params);
-	pr_debug("rate: %u\n", rate);
-
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S24_LE:
-	case SNDRV_PCM_FORMAT_S24_BE:
-		pr_debug("24bit\n");
-	/* go through */
-	case SNDRV_PCM_FORMAT_S32_LE:
-	case SNDRV_PCM_FORMAT_S20_3LE:
-	case SNDRV_PCM_FORMAT_S20_3BE:
-		pr_debug("20bit\n");
-
-		break;
-	case SNDRV_PCM_FORMAT_S16_LE:
-	case SNDRV_PCM_FORMAT_S16_BE:
-		pr_debug("16bit\n");
-
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int ad82584f_set_bias_level(struct snd_soc_component *component,
 	enum snd_soc_bias_level level)
 {
@@ -732,7 +700,6 @@ static int ad82584f_set_bias_level(struct snd_soc_component *component,
 }
 
 static const struct snd_soc_dai_ops ad82584f_dai_ops = {
-	.hw_params  = ad82584f_hw_params,
 	.set_sysclk = ad82584f_set_dai_sysclk,
 	.set_fmt    = ad82584f_set_dai_fmt,
 };
