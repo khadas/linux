@@ -835,6 +835,19 @@ next:
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t vsync_intr_handler(int irq, void *dev)
+{
+	struct hdmitx_dev *hdev = (struct hdmitx_dev *)dev;
+
+	if (hdev->vid_mute_op != VIDEO_NONE_OP) {
+		hdev->hwop.cntlconfig(hdev,
+			CONF_VIDEO_MUTE_OP, hdev->vid_mute_op);
+		hdev->vid_mute_op = VIDEO_NONE_OP;
+	}
+
+	return IRQ_HANDLED;
+}
+
 static unsigned long modulo(unsigned long a, unsigned long b)
 {
 	if (a >= b)
@@ -2977,6 +2990,13 @@ static void hdmitx_setupirq(struct hdmitx_dev *phdev)
 	r = request_irq(phdev->irq_hpd, &intr_handler,
 			IRQF_SHARED, "hdmitx",
 			(void *)phdev);
+	if (r != 0)
+		pr_info(SYS "can't request hdmitx irq\n");
+	r = request_irq(phdev->irq_viu1_vsync, &vsync_intr_handler,
+			IRQF_SHARED, "hdmi_vsync",
+			(void *)phdev);
+	if (r != 0)
+		pr_info(SYS "can't request viu1_vsync irq\n");
 }
 
 static void hdmitx_uninit(struct hdmitx_dev *phdev)

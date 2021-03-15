@@ -1145,8 +1145,9 @@
 			"hdmi_vapb_clk",
 			"hdmi_vpu_clk";
 		/* refer to sc2-system-registers.docx */
-		interrupts = <0 204 1>;
-		interrupt-names = "hdmitx_hpd";
+		interrupts = <0 204 1
+			0 197 1>;
+		interrupt-names = "hdmitx_hpd", "viu1_vsync";
 		/* refer to hdmi_tx_module.h */
 		ic_type = <15>;
 		reg =	<0x0 0x00000000 0x0 0x000>, /* reserved */

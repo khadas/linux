@@ -408,8 +408,9 @@
 			"venci_1_gate",
 			"hdmi_vapb_clk",
 			"hdmi_vpu_clk";
-		interrupts = <0 7 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "hdmitx_hpd";
+		interrupts = <0 7 IRQ_TYPE_EDGE_RISING
+			0 3 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "hdmitx_hpd", "viu1_vsync";
 		/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
 		/* 0:M8B   1:GXBB 2:GXTVBB 3:GXL  4:GXM
 		 * 5:TXL   6:TXLX 7:AXG    8:GXLX 9:TXHD

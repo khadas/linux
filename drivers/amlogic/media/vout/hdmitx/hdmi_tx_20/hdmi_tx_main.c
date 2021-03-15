@@ -141,7 +141,10 @@ static struct hdmitx_dev hdmitx_device = {
 
 static const struct dv_info dv_dummy;
 static int log_level;
-static int hdr_mute_frame = 3;
+/* for SONY-KD-55A8F TV, need to mute more frames
+ * when switch DV(LL)->HLG
+ */
+static int hdr_mute_frame = 20;
 static unsigned int res_1080p;
 
 struct vout_device_s hdmitx_vdev = {
@@ -1342,12 +1345,15 @@ EXPORT_SYMBOL(hdmitx_audio_mute_op);
 
 void hdmitx_video_mute_op(unsigned int flag)
 {
-	if (flag == 0)
-		hdmitx_device.hwop.cntlconfig(&hdmitx_device,
-			CONF_VIDEO_MUTE_OP, VIDEO_MUTE);
-	else
-		hdmitx_device.hwop.cntlconfig(&hdmitx_device,
-			CONF_VIDEO_MUTE_OP, VIDEO_UNMUTE);
+	if (flag == 0) {
+		/* hdmitx_device.hwop.cntlconfig(&hdmitx_device, */
+			/* CONF_VIDEO_MUTE_OP, VIDEO_MUTE); */
+		hdmitx_device.vid_mute_op = VIDEO_MUTE;
+	} else {
+		/* hdmitx_device.hwop.cntlconfig(&hdmitx_device, */
+			/* CONF_VIDEO_MUTE_OP, VIDEO_UNMUTE); */
+		hdmitx_device.vid_mute_op = VIDEO_UNMUTE;
+	}
 }
 EXPORT_SYMBOL(hdmitx_video_mute_op);
 
@@ -6113,7 +6119,7 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 	if (!hdmitx_device.topo_info)
 		pr_info("failed to alloc hdcp topo info\n");
 	hdmitx_init_parameters(&hdmitx_device.hdmi_info);
-
+	hdmitx_device.vid_mute_op = VIDEO_NONE_OP;
 	return 0;
 }
 
@@ -6287,13 +6293,13 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 	}
 
 #else
-		hdmi_pdata = pdev->dev.platform_data;
-		if (!hdmi_pdata) {
-			pr_info(SYS "not get platform data\n");
-			r = -ENOENT;
-		} else {
-			pr_info(SYS "get hdmi platform data\n");
-		}
+	hdmi_pdata = pdev->dev.platform_data;
+	if (!hdmi_pdata) {
+		pr_info(SYS "not get platform data\n");
+		r = -ENOENT;
+	} else {
+		pr_info(SYS "get hdmi platform data\n");
+	}
 #endif
 	hdmitx_device.irq_hpd = platform_get_irq_byname(pdev, "hdmitx_hpd");
 	if (hdmitx_device.irq_hpd == -ENXIO) {
@@ -6302,6 +6308,15 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 			return -ENXIO;
 	}
 	pr_info(SYS "hpd irq = %d\n", hdmitx_device.irq_hpd);
+
+	hdmitx_device.irq_viu1_vsync =
+		platform_get_irq_byname(pdev, "viu1_vsync");
+	if (hdmitx_device.irq_viu1_vsync == -ENXIO) {
+		pr_err("%s: ERROR: viu1_vsync irq No not found\n",
+		       __func__);
+		return -ENXIO;
+	}
+	pr_info(SYS "viu1_vsync irq = %d\n", hdmitx_device.irq_viu1_vsync);
 
 	return ret;
 }
