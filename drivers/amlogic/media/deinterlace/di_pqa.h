@@ -161,8 +161,9 @@ bool di_attach_ops_mtn(const struct mtn_op_s **ops);
 #define DI_IC_ID_T5D		(0x21)// same with tm2b
 #define DI_IC_ID_T5DB		(0x22)
 #define DI_IC_ID_SC2		(0x25)
-#define DI_IC_ID_T7		(0x2a)
-#define DI_IC_ID_S4		(0x30)
+#define DI_IC_ID_S4		(0x2a)
+#define DI_IC_ID_T7		(0x30)
+#define DI_IC_ID_T3		(0x35)
 
 #define DI_IC_ID_DEINTERLACE		(0xFF)
 

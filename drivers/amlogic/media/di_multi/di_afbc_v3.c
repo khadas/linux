@@ -3506,7 +3506,7 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 	       ((hblksize_out & 0x1fff) << 16) |
 	       ((vblksize_out & 0x1fff) << 0)
 	);
-	if (DIM_IS_IC_EF(T7))
+	if (DIM_IS_IC_EF(T7) || DIM_IS_IC(S4))
 		op->wr(reg[EAFBCE_HEAD_BADDR], cfg->head_baddr >> 4);
 	else
 	/*head addr of compressed data*/
@@ -3573,7 +3573,7 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 	/*4k addr have used in every frame;*/
 	/*cur_mmu_used += Rd(DI_AFBCE_MMU_NUM);*/
 
-	if (DIM_IS_IC_EF(T7))
+	if (DIM_IS_IC_EF(T7) || DIM_IS_IC(S4))
 		op->wr(reg[EAFBCE_MMU_RMIF_CTRL4], cfg->mmu_info_baddr >> 4);
 	else
 		op->wr(reg[EAFBCE_MMU_RMIF_CTRL4], cfg->mmu_info_baddr);
@@ -3827,7 +3827,7 @@ static void afbce_update_level1(struct vframe_s *vf,
 	vf_set_for_com(di_buf);
 
 	//head addr of compressed data
-	if (DIM_IS_IC_EF(T7)) {
+	if (DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) {
 		op->wr(reg[EAFBCE_HEAD_BADDR], di_buf->afbc_adr >> 4);
 		op->wr(reg[EAFBCE_MMU_RMIF_CTRL4], di_buf->afbct_adr >> 4);
 
