@@ -71,6 +71,9 @@ static int cistpl_manfid(struct mmc_card *card, struct sdio_func *func,
 			 const unsigned char *buf, unsigned size)
 {
 	unsigned int vendor, device;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	int i;
+#endif
 
 	/* TPLMID_MANF */
 	vendor = buf[0] | (buf[1] << 8);
@@ -86,6 +89,14 @@ static int cistpl_manfid(struct mmc_card *card, struct sdio_func *func,
 		card->cis.device = device;
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	for (i = 0; i < ARRAY_SIZE(aWifi_clk); i++) {
+		if (aWifi_clk[i].m_device_id == device) {
+			aWifi_clk[i].m_use_flag = 1;
+			break;
+		}
+	}
+#endif
 	return 0;
 }
 
