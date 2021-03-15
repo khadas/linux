@@ -842,9 +842,9 @@
 			dspa,reset = <&dspa_pd_rst>;
 			dspb,reset = <&dspb_pd_rst>;
 			demod,reset = <&demod_pd_rst>;
-//			vdec,reset = <&vdec_pd_rst>;
-//			hcodec,reset = <&hcodec_pd_rst>;
-//			hevc,reset = <&hevc_pd_rst>;
+			vdec,reset = <&vdec_pd_rst>;
+			hcodec,reset = <&hcodec_pd_rst>;
+			hevc,reset = <&hevc_pd_rst>;
 			audio,reset = <&audio_pd_rst>;
 			emmcb,reset = <&emmcb_pd_rst>;
 			emmcc,reset = <&emmcc_pd_rst>;
@@ -946,7 +946,6 @@
 			reset-names = "demod";
 		};
 
-/*
 		vdec_pd_rst: vdec_rst {
 			resets = <&codec_dos_reset RESET0_VDEC1_MDEC_CBUS>,
 				<&codec_dos_reset RESET0_VDEC1_MDEC_VLD0>,
@@ -1020,7 +1019,7 @@
 				"hevc_bit17", "hevc_bit18", "hevc_bit19",
 				"hevc_bit24";
 		};
-*/
+
 		audio_pd_rst: audio_rst {
 			resets = <&reset RESET_AUDIO>;
 			reset-names = "audio";
