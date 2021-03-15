@@ -1266,25 +1266,27 @@ void earctx_enable(struct regmap *top_map,
 	enum attend_type type = earctx_cmdc_get_attended_type(cmdc_map);
 
 	if (enable) {
-		int offset, mask;
+		int offset, mask, val;
 
 		if (rterm_on) {
 			offset = 19;
 			mask = 0x1f;
+			val = 0x10;
 		} else {
 			offset = 20;
 			mask = 0xf;
+			val = 0x8;
 		}
 		if (type == ATNDTYP_ARC) {
 			mmio_update_bits(top_map,
 					 EARCTX_ANA_CTRL0,
 					 mask << offset,
-					 9 << offset);
+					 (val + 1) << offset);
 		} else if (type == ATNDTYP_EARC) {
 			mmio_update_bits(top_map,
 					 EARCTX_ANA_CTRL0,
 					 mask << offset,
-					 8 << offset);
+					 val << offset);
 		}
 
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
