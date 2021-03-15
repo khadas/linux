@@ -369,6 +369,7 @@ bool ge2d_multi_process_flag;
 	bool could_suspend;
 	struct completion suspend_sema;
 #endif
+int vdin_port_ext;
 };
 
 struct amlvideo2_fh {
@@ -3799,6 +3800,23 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 	if (i_ret == 0 || node->vidq.task_running == 0) {
 		if (node->pflag)
 			complete(&node->plug_sema);
+		if (amlvideo2_dbg_en & 2) {
+			if (node->vid == 0) {
+				if (!vf_peek(node->recv.name))
+					pr_info("amlvideo2.0 peek vf NULL\n");
+				if (!node->provide_ready)
+					pr_info("amlvideo2.0 no ready\n");
+				if (node->vidq.task_running == 0)
+					pr_info("amlvideo2.0 no running\n");
+			} else {
+				if (!vf_peek(node->recv.name))
+					pr_info("amlvideo2.1 peek vf NULL\n");
+				if (!node->provide_ready)
+					pr_info("amlvideo2.1 no ready\n");
+				if (node->vidq.task_running == 0)
+					pr_info("amlvideo2.1 no running\n");
+			}
+		}
 		return 0;
 	}
 
@@ -4985,11 +5003,22 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 		pr_info("node->vdin_device_num = %d .\n",
 			node->vdin_device_num);
 	}
-	if (!(vops->start_tvin_service)) {
-		pr_info("start_tvin_service is NULL.\n");
-		return -1;
+	if (node->vdin_port_ext < 0) {
+		if (IS_ERR_OR_NULL(vops->start_tvin_service)) {
+			pr_info("%s amlvideo2 start_tvin_service is NULL\n",
+				__func__);
+			return -1;
+		}
+		vops->start_tvin_service(node->vdin_device_num, &para);
+	} else {
+		if (!(vops->start_tvin_service_ex)) {
+			pr_info("start_tvin_service_ex is NULL.\n");
+			return -1;
+		}
+		vops->start_tvin_service_ex(node->vdin_device_num,
+					    node->vdin_port_ext, &para);
 	}
-	vops->start_tvin_service(node->vdin_device_num, &para);
+
 #endif
 start: node->frame_inittime = 1;
 	/* frameinv_adjust = 0; */
@@ -5275,7 +5304,31 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		pr_info("node->vdin_device_num = %d .\n",
 			node->vdin_device_num);
 	}
-	vops->start_tvin_service(node->vdin_device_num, &para);
+	if (IS_ERR_OR_NULL(vops)) {
+		pr_info("%s amlvideo2 vdin ops is NULL\n", __func__);
+		return 0;
+	}
+	if (node->vdin_port_ext < 0) {
+		if (IS_ERR_OR_NULL(vops->start_tvin_service)) {
+			pr_info("%s amlvideo2 vdin start_tvin_service is NULL\n",
+				__func__);
+			return 0;
+		}
+		ret = vops->start_tvin_service(node->vdin_device_num, &para);
+	} else {
+		if (IS_ERR_OR_NULL(vops->start_tvin_service_ex)) {
+			pr_info("%s amlvideo2 vdin start_tvin_service_ex is NULL\n",
+				__func__);
+			return 0;
+		}
+		ret = vops->start_tvin_service_ex(node->vdin_device_num,
+						  node->vdin_port_ext, &para);
+	}
+	if (ret < 0) {
+		pr_info("%s amlvideo2 vdin start_tvin_service_ex fail\n",
+			__func__);
+		return 0;
+	}
 #endif
 start: node->frame_inittime = 1;
 	fh->is_streamed_on = 1;
@@ -5318,7 +5371,20 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 		if (amlvideo2_dbg_en)
 			pr_info("stop tvin service .\n");
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
-		vops->stop_tvin_service(node->vdin_device_num);
+		if (IS_ERR_OR_NULL(vops)) {
+			pr_info("%s amlvideo2 vdin ops is NULL\n", __func__);
+			return 0;
+		}
+		if (IS_ERR_OR_NULL(vops->stop_tvin_service)) {
+			pr_info("%s amlvideo2 vdin stop_tvin_service is NULL\n", __func__);
+			return 0;
+		}
+
+		ret = vops->stop_tvin_service(node->vdin_device_num);
+		if (ret < 0) {
+			pr_err("%s amlvideo2 vdin stop failed\n", __func__);
+			return 0;
+		}
 #endif
 	}
 	if (node->r_type == AML_RECEIVER_NONE)
@@ -5443,11 +5509,24 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	node->vdin_device_num = (i >> 24) & 1;
 	node->ge2d_multi_process_flag = (i >> 16) & 1;
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
-	node->porttype = (i & 0xffff);
-
+	if ((i & 0xffff) == 1) {
+		node->vdin_port_ext = 0;
+		node->porttype = TVIN_PORT_VIU1_WB0_VPP;
+	} else if ((i & 0xffff) == 0) {
+		node->vdin_port_ext = 1;
+		node->porttype = TVIN_PORT_VIU1_WB0_VD1;
+	} else {
+		node->vdin_port_ext = -1;
+		node->porttype = i & 0xffff;
+	}
 	if (amlvideo2_dbg_en) {
-		pr_info("porttype:%x ,start_vdin_flag = %d.\n",
-			node->porttype, node->start_vdin_flag);
+		if (node->vdin_port_ext < 0)
+			pr_info("porttype:%x ,start_vdin_flag = %d.\n",
+				node->porttype, node->start_vdin_flag);
+		else
+			pr_info("data: %s ,start_vdin_flag = %d.\n",
+				node->vdin_port_ext ? "video" : "video + osd",
+				node->start_vdin_flag);
 		pr_info("%s, vdin_device_num = %d\n",
 			__func__, node->vdin_device_num);
 		pr_info("%s, ge2d_multi_process_flag = %d\n",
