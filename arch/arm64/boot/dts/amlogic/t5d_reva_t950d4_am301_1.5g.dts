@@ -90,9 +90,9 @@
 			 * codec 208M + DI 160M + amlvideo2 24M + decontour 10M = 402M
 			 * 402M + 2M(for 4M alignment) = 404M
 			 * if, close 4k close decontour
-			 * codec 208M + DI 48M  = 196M
+			 * codec 80M + DI 64M  = 144M
 			 */
-			size = <0x0 0xc400000>;
+			size = <0x0 0x9000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
