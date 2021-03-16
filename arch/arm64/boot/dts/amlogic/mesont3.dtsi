@@ -180,6 +180,15 @@
 				#reset-cells = <1>;
 			};
 
+			watchdog@2100 {
+				compatible = "amlogic,meson-sc2-wdt";
+				status = "okay";
+				/* 0:userspace, 1:kernel */
+				amlogic,feed_watchdog_mode = <1>;
+				reg = <0x0 0x2100 0x0 0x10>;
+				clocks = <&xtal>;
+			};
+
 			clkc: clock-controller {
 				compatible = "amlogic,t3-clkc";
 				#clock-cells = <1>;
