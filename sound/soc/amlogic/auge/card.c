@@ -29,6 +29,7 @@
 #include "iomap.h"
 #include "regs.h"
 #include "../common/misc.h"
+#include "../common/audio_uevent.h"
 //#include <linux/amlogic/media/sound/debug.h>
 
 /*the same as audio hal type define!*/
@@ -108,6 +109,7 @@ struct aml_card_data {
 	int hp_gpio_det;
 	int hp_detect_flag;
 	bool hp_det_enable;
+	enum of_gpio_flags hp_det_flags;
 	bool micphone_last_state;
 	bool micphone_cur_state;
 	bool micphone_det_status;
@@ -147,55 +149,6 @@ static const unsigned int microphone_cable[] = {
 
 struct extcon_dev *audio_extcon_headphone;
 struct extcon_dev *audio_extcon_microphone;
-
-enum audio_event {
-	AUDIO_NONE_EVENT = 0,
-	AUDIO_SPDIF_FMT_EVENT
-};
-
-#define MAX_UEVENT_LEN 64
-struct audio_uevent {
-	const enum audio_event type;
-	int state;
-	const char *env;
-};
-
-static struct audio_uevent audio_events[] = {
-	{
-		.type = AUDIO_SPDIF_FMT_EVENT,
-		.env = "AUDIO_FORMAT=",
-	},
-	{
-		.type = AUDIO_NONE_EVENT,
-	}
-};
-
-int audio_send_uevent(struct snd_soc_card *card,
-		enum audio_event type, int val)
-{
-	char env[MAX_UEVENT_LEN];
-	struct audio_uevent *event = audio_events;
-	char *envp[2];
-	int ret = -1;
-
-	for (event = audio_events; event->type != AUDIO_NONE_EVENT; event++) {
-		if (type == event->type)
-			break;
-	}
-
-	if (event->type == AUDIO_NONE_EVENT)
-		return ret;
-
-	event->state = val;
-	memset(env, 0, sizeof(env));
-	envp[0] = env;
-	envp[1] = NULL;
-	snprintf(env, MAX_UEVENT_LEN, "%s%d", event->env, val);
-
-	ret = kobject_uevent_env(&card->dev->kobj, KOBJ_CHANGE, envp);
-	pr_info("%s[%d] %s %d\n", __func__, __LINE__, env, ret);
-	return ret;
-}
 
 static const struct soc_enum audio_hal_format_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_format),
@@ -332,19 +285,27 @@ static void jack_work_func(struct work_struct *work)
 		flag = jack_audio_hp_detect(card_data);
 		if (flag == -1)
 			return;
+
 		if (card_data->hp_detect_flag != flag) {
 			card_data->hp_detect_flag = flag;
+
+			if (card_data->hp_det_flags == OF_GPIO_ACTIVE_LOW)
+				flag = (flag) ? 0 : 1;
 
 			if (flag) {
 				extcon_set_state_sync(audio_extcon_headphone,
 					EXTCON_JACK_HEADPHONE, 1);
 				snd_soc_jack_report(&card_data->hp_jack.jack,
 					status, SND_JACK_HEADPHONE);
+				audio_send_uevent(&card_data->snd_card,
+					HEADPHONE_DETECTION_EVENT, 1);
 			} else {
 				extcon_set_state_sync(audio_extcon_headphone,
 					EXTCON_JACK_HEADPHONE, 0);
 				snd_soc_jack_report(&card_data->hp_jack.jack, 0,
-						SND_JACK_HEADPHONE);
+					SND_JACK_HEADPHONE);
+				audio_send_uevent(&card_data->snd_card,
+					HEADPHONE_DETECTION_EVENT, 0);
 			}
 		}
 	}
@@ -360,11 +321,15 @@ static void jack_work_func(struct work_struct *work)
 					EXTCON_JACK_MICROPHONE, 1);
 				snd_soc_jack_report(&card_data->mic_jack.jack,
 					status, SND_JACK_MICROPHONE);
+				audio_send_uevent(&card_data->snd_card,
+					MICROPHONE_DETECTION_EVENT, 1);
 			} else {
 				extcon_set_state_sync(audio_extcon_microphone,
 					EXTCON_JACK_MICROPHONE, 0);
 				snd_soc_jack_report(&card_data->mic_jack.jack,
 					0, SND_JACK_MICROPHONE);
+				audio_send_uevent(&card_data->snd_card,
+					MICROPHONE_DETECTION_EVENT, 0);
 			}
 		}
 	}
@@ -376,7 +341,7 @@ static int aml_card_init_jack(struct snd_soc_card *card,
 {
 	struct aml_card_data *priv = aml_card_to_priv(card);
 	struct device *dev = card->dev;
-	enum of_gpio_flags flags;
+	enum of_gpio_flags flags = 0;
 	char prop[128];
 	char *pin_name;
 	char *gpio_name;
@@ -391,7 +356,7 @@ static int aml_card_init_jack(struct snd_soc_card *card,
 		gpio_name	= "Headphone detection";
 		mask		= SND_JACK_HEADPHONE;
 
-		det = of_get_named_gpio_flags(dev->of_node, prop, 0, &flags);
+		det = of_get_named_gpio_flags(dev->of_node, prop, 0, &priv->hp_det_flags);
 		if (det < 0) {
 			priv->hp_det_enable = 0;
 			return -1;
