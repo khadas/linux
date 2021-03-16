@@ -82,9 +82,9 @@ static bool is_cur_tmds_div40(struct hdmitx_dev *hdev);
 static void hdmitx_resend_div40(struct hdmitx_dev *hdev);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
-static struct vinfo_s *hdmitx_get_current_vinfo(void);
+static struct vinfo_s *hdmitx_get_current_vinfo(void *data);
 #else
-static struct vinfo_s *hdmitx_get_current_vinfo(void)
+static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
 {
 	return NULL;
 }
@@ -318,7 +318,7 @@ static int hdmitx_is_hdmi_vmode(char *mode_name)
 
 static void hdmitx_late_resume(struct early_suspend *h)
 {
-	const struct vinfo_s *info = hdmitx_get_current_vinfo();
+	const struct vinfo_s *info = hdmitx_get_current_vinfo(NULL);
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)h->param;
 
 	if (info && (hdmitx_is_hdmi_vmode(info->name) == 1))
@@ -474,7 +474,7 @@ static void hdmi_physical_size_update(struct hdmitx_dev *hdev)
 	unsigned int width, height;
 	struct vinfo_s *info = NULL;
 
-	info = hdmitx_get_current_vinfo();
+	info = hdmitx_get_current_vinfo(NULL);
 	if (!info || !info->name) {
 		pr_info(SYS "cann't get valid mode\n");
 		return;
@@ -553,7 +553,7 @@ static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev)
 	struct vinfo_s *info = NULL;
 
 	/* get current vinfo */
-	info = hdmitx_get_current_vinfo();
+	info = hdmitx_get_current_vinfo(NULL);
 	if (!info || !info->name)
 		return;
 
@@ -576,7 +576,7 @@ static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev)
 	struct vinfo_s *info = NULL;
 
 	/* get current vinfo */
-	info = hdmitx_get_current_vinfo();
+	info = hdmitx_get_current_vinfo(NULL);
 	if (!info || !info->name)
 		return;
 
@@ -598,7 +598,7 @@ static int set_disp_mode_auto(void)
 	hdev->ready = 0;
 
 	/* get current vinfo */
-	info = hdmitx_get_current_vinfo();
+	info = hdmitx_get_current_vinfo(NULL);
 	if (!info || !info->name)
 		return -1;
 
@@ -1397,7 +1397,7 @@ static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 unsigned int hdmitx_get_frame_duration(void)
 {
 	unsigned int frame_duration;
-	struct vinfo_s *vinfo = hdmitx_get_current_vinfo();
+	struct vinfo_s *vinfo = hdmitx_get_current_vinfo(NULL);
 
 	if (!vinfo || !vinfo->sync_duration_num)
 		return 0;
@@ -1713,7 +1713,7 @@ static void update_current_para(struct hdmitx_dev *hdev)
 	struct vinfo_s *info = NULL;
 	unsigned char mode[32];
 
-	info = hdmitx_get_current_vinfo();
+	info = hdmitx_get_current_vinfo(NULL);
 	if (!info)
 		return;
 
@@ -5351,7 +5351,7 @@ static DEVICE_ATTR_RO(hdmitx_drm_flag);
 static DEVICE_ATTR_RW(hdr_mute_frame);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
-static struct vinfo_s *hdmitx_get_current_vinfo(void)
+static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
 {
 	return hdmitx_device.vinfo;
 }
@@ -5397,13 +5397,13 @@ static void recalc_vinfo_sync_duration(struct vinfo_s *info, unsigned int frac)
 		info->sync_duration_num, info->sync_duration_den, info->frac);
 }
 
-static int hdmitx_set_current_vmode(enum vmode_e mode)
+static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 {
 	struct vinfo_s *vinfo;
 
 	pr_info("%s[%d]\n", __func__, __LINE__);
 	/* get current vinfo and refesh */
-	vinfo = hdmitx_get_current_vinfo();
+	vinfo = hdmitx_get_current_vinfo(NULL);
 	if (vinfo && vinfo->name)
 		recalc_vinfo_sync_duration(vinfo,
 					   hdmitx_device.frac_rate_policy);
@@ -5417,7 +5417,8 @@ static int hdmitx_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac)
+static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac,
+					  void *data)
 {
 	struct vinfo_s *info = hdmi_get_valid_vinfo(mode);
 
@@ -5446,7 +5447,7 @@ static enum vmode_e hdmitx_validate_vmode(char *mode, unsigned int frac)
 	return VMODE_MAX;
 }
 
-static int hdmitx_vmode_is_supported(enum vmode_e mode)
+static int hdmitx_vmode_is_supported(enum vmode_e mode, void *data)
 {
 	if ((mode & VMODE_MODE_BIT_MASK) == VMODE_HDMI)
 		return true;
@@ -5454,7 +5455,7 @@ static int hdmitx_vmode_is_supported(enum vmode_e mode)
 		return false;
 }
 
-static int hdmitx_module_disable(enum vmode_e cur_vmod)
+static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
@@ -5463,7 +5464,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod)
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdmitx_disable_clk(hdev);
 	hdev->para = hdmi_get_fmt_name("invalid", hdev->fmt_attr);
-	hdmitx_validate_vmode("null", 0);
+	hdmitx_validate_vmode("null", 0, NULL);
 	if (hdev->cedst_policy)
 		cancel_delayed_work(&hdev->work_cedst);
 	if (hdev->rxsense_policy)
@@ -5473,25 +5474,25 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod)
 }
 
 static int hdmitx_vout_state;
-static int hdmitx_vout_set_state(int index)
+static int hdmitx_vout_set_state(int index, void *data)
 {
 	hdmitx_vout_state |= (1 << index);
 	return 0;
 }
 
-static int hdmitx_vout_clr_state(int index)
+static int hdmitx_vout_clr_state(int index, void *data)
 {
 	hdmitx_vout_state &= ~(1 << index);
 	return 0;
 }
 
-static int hdmitx_vout_get_state(void)
+static int hdmitx_vout_get_state(void *data)
 {
 	return hdmitx_vout_state;
 }
 
 /* if cs/cd/frac_rate is changed, then return 0 */
-static int hdmitx_check_same_vmodeattr(char *name)
+static int hdmitx_check_same_vmodeattr(char *name, void *data)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
@@ -5501,12 +5502,12 @@ static int hdmitx_check_same_vmodeattr(char *name)
 	return 0;
 }
 
-static int hdmitx_vout_get_disp_cap(char *buf)
+static int hdmitx_vout_get_disp_cap(char *buf, void *data)
 {
 	return disp_cap_show(NULL, NULL, buf);
 }
 
-static void hdmitx_set_bist(unsigned int num)
+static void hdmitx_set_bist(unsigned int num, void *data)
 {
 	if (hdmitx_device.hwop.debug_bist)
 		hdmitx_device.hwop.debug_bist(&hdmitx_device, num);
@@ -5533,6 +5534,7 @@ static struct vout_server_s hdmitx_vout_server = {
 		.vout_resume = NULL,
 #endif
 	},
+	.data = NULL,
 };
 #endif
 
@@ -5558,6 +5560,7 @@ static struct vout_server_s hdmitx_vout2_server = {
 		.vout_resume = NULL,
 #endif
 	},
+	.data = NULL,
 };
 #endif
 
@@ -5855,7 +5858,7 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		rx_set_receive_hdcp(bksv_buf, 1, 1, 0, 0);
 	}
 
-	info = hdmitx_get_current_vinfo();
+	info = hdmitx_get_current_vinfo(NULL);
 	if (info && info->mode == VMODE_HDMI)
 		hdmitx_set_audio(hdev, &hdev->cur_audio_param);
 	if (plugout_mute_flg) {
@@ -5902,7 +5905,7 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 
 static void clear_rx_vinfo(struct hdmitx_dev *hdev)
 {
-	struct vinfo_s *info = hdmitx_get_current_vinfo();
+	struct vinfo_s *info = hdmitx_get_current_vinfo(NULL);
 
 	if (info) {
 		memset(&info->hdr_info, 0, sizeof(info->hdr_info));

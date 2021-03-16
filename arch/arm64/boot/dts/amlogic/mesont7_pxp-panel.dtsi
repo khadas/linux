@@ -7,13 +7,22 @@
 	lcd {
 		compatible = "amlogic, lcd-t7";
 		status = "okay";
+		index = <0>;
 		mode = "tablet";
 		pxp = <1>;
 		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
+		reg = <0x0 0xfe018000 0x0 0x60     /* combo dphy */
+			0x0 0xfe0b0000 0x0 0x10b0  /* edp_a host */
+			0x0 0xfe074000 0x0 0x400   /* mipi_dsi_a host */
+			0x0 0xfe014000 0x0 0x200   /* mipi_dsi_a phy */
+			0x0 0xfe002000 0x0 0xa0    /* reset */
+			0x0 0xfe004000 0x0 0x70>;  /* periphs */
 		interrupts = <0 197 1
+			0 194 1
+			0 82 1
 			0 282 1>;
-		interrupt-names = "vsync","vbyone";
+		interrupt-names = "vsync","vsync2","vsync3","vbyone";
 		pinctrl-names = "vbyone","vbyone_off";
 		pinctrl_version = <2>; /* for uboot */
 

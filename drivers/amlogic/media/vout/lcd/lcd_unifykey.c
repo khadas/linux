@@ -91,12 +91,12 @@ int lcd_unifykey_check(char *key_name)
 	key_len = 0;
 	ret = key_unify_query(get_ukdev(), key_name, &key_exist, &keypermit);
 	if (ret < 0) {
-		if (lcd_debug_print_flag)
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDUKEYERR("%s query exist error\n", key_name);
 		return -1;
 	}
 	if (key_exist == 0) {
-		if (lcd_debug_print_flag)
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDUKEYERR("%s is not exist\n", key_name);
 		return -1;
 	}
@@ -107,11 +107,11 @@ int lcd_unifykey_check(char *key_name)
 		return -1;
 	}
 	if (key_len == 0) {
-		if (lcd_debug_print_flag)
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDUKEY("%s size is zero\n", key_name);
 		return -1;
 	}
-	if (lcd_debug_print_flag)
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDUKEY("%s size: %d\n", key_name, key_len);
 
 	buf = kzalloc((sizeof(unsigned char) * key_len), GFP_KERNEL);
@@ -134,7 +134,7 @@ lcd_unifykey_check_read:
 	}
 	lcd_unifykey_header_check(buf, &key_header);
 	if (key_len != key_header.data_len) {  /* length check */
-		if (lcd_debug_print_flag) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 			LCDUKEYERR("data_len %d is not match key_len %d\n",
 				   key_header.data_len, key_len);
 		}
@@ -147,7 +147,7 @@ lcd_unifykey_check_read:
 		goto lcd_unifykey_check_err;
 	}
 	key_crc32 = cal_crc32(0, &buf[4], (key_len - 4)); /* except crc32 */
-	if (lcd_debug_print_flag) {
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDUKEY("crc32: 0x%08x, header_crc32: 0x%08x\n",
 			key_crc32, key_header.crc32);
 	}
@@ -188,12 +188,12 @@ static int lcd_unifykey_check_tcon(char *key_name)
 	key_len = 0;
 	ret = key_unify_query(get_ukdev(), key_name, &key_exist, &keypermit);
 	if (ret < 0) {
-		if (lcd_debug_print_flag)
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDUKEYERR("%s query exist error\n", key_name);
 		return -1;
 	}
 	if (key_exist == 0) {
-		if (lcd_debug_print_flag)
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDUKEYERR("%s is not exist\n", key_name);
 		return -1;
 	}
@@ -204,11 +204,11 @@ static int lcd_unifykey_check_tcon(char *key_name)
 		return -1;
 	}
 	if (key_len == 0) {
-		if (lcd_debug_print_flag)
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDUKEY("%s size is zero\n", key_name);
 		return -1;
 	}
-	if (lcd_debug_print_flag)
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDUKEY("%s size: %d\n", key_name, key_len);
 
 	buf = kzalloc((sizeof(unsigned char) * key_len), GFP_KERNEL);
@@ -232,7 +232,7 @@ lcd_unifykey_check_tcon_read:
 	data_size = (buf[8] | (buf[9] << 8) |
 		     (buf[10] << 16) | (buf[11] << 24));
 	if (key_len != data_size) {  /* length check */
-		if (lcd_debug_print_flag) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 			LCDUKEYERR("data_len %d is not match key_len %d\n",
 				   data_size, key_len);
 		}
@@ -246,7 +246,7 @@ lcd_unifykey_check_tcon_read:
 	}
 	raw_crc32 = (buf[0] | (buf[1] << 8) | (buf[2] << 16) | (buf[3] << 24));
 	key_crc32 = cal_crc32(0, &buf[4], (key_len - 4)); /* except crc32 */
-	if (lcd_debug_print_flag) {
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDUKEY("crc32: 0x%08x, header_crc32: 0x%08x\n",
 			key_crc32, raw_crc32);
 	}
@@ -329,12 +329,12 @@ int lcd_unifykey_check_no_header(char *key_name)
 	key_len = 0;
 	ret = key_unify_query(get_ukdev(), key_name, &key_exist, &keypermit);
 	if (ret < 0) {
-		if (lcd_debug_print_flag)
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDUKEYERR("%s query exist error\n", key_name);
 		return -1;
 	}
 	if (key_exist == 0) {
-		if (lcd_debug_print_flag)
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDUKEYERR("%s is not exist\n", key_name);
 		return -1;
 	}
@@ -345,11 +345,11 @@ int lcd_unifykey_check_no_header(char *key_name)
 		return -1;
 	}
 	if (key_len == 0) {
-		if (lcd_debug_print_flag)
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			LCDUKEY("%s size is zero\n", key_name);
 		return -1;
 	}
-	if (lcd_debug_print_flag)
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDUKEY("%s size: %d\n", key_name, key_len);
 
 	return 0;

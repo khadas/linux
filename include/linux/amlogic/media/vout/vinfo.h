@@ -357,7 +357,7 @@ struct vinfo_s {
 	enum vinfo_3d_e info_3d;
 	enum vout_fr_adj_type_e fr_adj_type;
 	enum color_fmt_e viu_color_fmt;
-	enum viu_mux_e viu_mux;
+	unsigned int viu_mux; /*bit[3:0]: venc_sel; bit[7:4]: venc_index*/
 	struct master_display_info_s master_display_info;
 	struct hdr_info hdr_info;
 	struct rx_av_latency rx_latency;

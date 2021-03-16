@@ -28,7 +28,7 @@ struct vout_module_s *vout_func_get_vout2_module(void);
 struct vout_module_s *vout_func_get_vout3_module(void);
 #endif
 
-void vout_venc_mux_update(int index, unsigned int mux_sel);
+void vout_viu_mux_update(int index, unsigned int mux_sel);
 
 void vout_func_set_state(int index, enum vmode_e mode);
 void vout_func_update_viu(int index);

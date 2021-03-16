@@ -3022,9 +3022,10 @@ void vdin_vlock_input_sel(struct stvlock_sig_sts *vlock, unsigned int type,
 #define VLOCK_LCD_RETRY_MAX    100
 void vlock_lcd_param_work(struct work_struct *p_work)
 {
-	unsigned int param[LCD_VLOCK_PARAM_NUM] = {0};
+	unsigned int param[LCD_VLOCK_PARAM_NUM + 1] = {0};
 	int i = 0;
 
+	param[LCD_VLOCK_PARAM_NUM] = 0; /* for lcd_index(venc index) */
 	while (i++ < VLOCK_LCD_RETRY_MAX) {
 		aml_lcd_notifier_call_chain(LCD_EVENT_VLOCK_PARAM, &param);
 		if (param[0] & LCD_VLOCK_PARAM_BIT_UPDATE) {

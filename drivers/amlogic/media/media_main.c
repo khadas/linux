@@ -65,7 +65,7 @@ static int __init media_main_init(void)
 	call_sub_init(aml_vclk_init_module);
 	call_sub_init(amcanvas_init);
 	call_sub_init(amrdma_init);
-	call_sub_init(vout_venc_init);
+	call_sub_init(vout_mux_init);
 	call_sub_init(amhdmitx21_init);
 	call_sub_init(amhdmitx_init);
 	call_sub_init(aml_vdac_init);

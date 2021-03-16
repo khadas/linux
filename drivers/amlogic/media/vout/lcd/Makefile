@@ -8,7 +8,8 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_phy_config.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_unifykey.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_tcon.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_tcon_hw.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_init_test.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_venc.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD) += vout/lcd/lcd_vbyone.o
 
 include drivers/amlogic/media/vout/lcd/lcd_tv/Makefile
 

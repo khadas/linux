@@ -1382,6 +1382,22 @@
 			function = "tdm";
 		};
 	};
+
+	lcd_edp_a_off_pins: lcd_edp_a_off_pin {
+		mux {
+			groups = "GPIOY_10";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
+	bl_pwm_off_pins:bl_pwm_off_pin {
+		mux {
+			groups = "GPIOD_5";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
 };
 
 &pinctrl_audio {
@@ -1670,6 +1686,10 @@
 &pwmao_cd {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm_ao_d_pins>;
+	status = "okay";
+};
+
+&pwmao_gh {
 	status = "okay";
 };
 

@@ -213,7 +213,7 @@ struct class_attribute class_CVBS_attr_wss = __ATTR(wss, 0644,
 			aml_CVBS_attr_wss_show, aml_CVBS_attr_wss_store);
 #endif /*CONFIG_AMLOGIC_WSS*/
 
-static void cvbs_bist_test(unsigned int bist);
+static void cvbs_bist_test(unsigned int bist, void *data);
 
 /* static int get_cpu_minor(void)
  * {
@@ -612,7 +612,7 @@ const struct vinfo_s *get_valid_vinfo(char  *mode)
 }
 EXPORT_SYMBOL(get_valid_vinfo);
 
-static struct vinfo_s *cvbs_get_current_info(void)
+static struct vinfo_s *cvbs_get_current_info(void *data)
 {
 	return cvbs_drv->vinfo;
 }
@@ -623,7 +623,7 @@ enum cvbs_mode_e get_local_cvbs_mode(void)
 }
 EXPORT_SYMBOL(get_local_cvbs_mode);
 
-int cvbs_set_current_vmode(enum vmode_e mode)
+int cvbs_set_current_vmode(enum vmode_e mode, void *data)
 {
 	enum vmode_e tvmode;
 
@@ -655,7 +655,8 @@ int cvbs_set_current_vmode(enum vmode_e mode)
 }
 EXPORT_SYMBOL(cvbs_set_current_vmode);
 
-static enum vmode_e cvbs_validate_vmode(char *mode, unsigned int frac)
+static enum vmode_e cvbs_validate_vmode(char *mode, unsigned int frac,
+					void *data)
 {
 	const struct vinfo_s *info = get_valid_vinfo(mode);
 
@@ -667,19 +668,19 @@ static enum vmode_e cvbs_validate_vmode(char *mode, unsigned int frac)
 	return VMODE_MAX;
 }
 
-static int cvbs_check_same_vmodeattr(char *mode)
+static int cvbs_check_same_vmodeattr(char *mode, void *data)
 {
 	return 1;
 }
 
-static int cvbs_vmode_is_supported(enum vmode_e mode)
+static int cvbs_vmode_is_supported(enum vmode_e mode, void *data)
 {
 	if ((mode & VMODE_MODE_BIT_MASK) == VMODE_CVBS)
 		return true;
 	return false;
 }
 
-static int cvbs_module_disable(enum vmode_e cur_vmod)
+static int cvbs_module_disable(enum vmode_e cur_vmod, void *data)
 {
 	cvbs_drv->flag &= ~CVBS_FLAG_EN_ENCI;
 
@@ -695,24 +696,24 @@ static int cvbs_module_disable(enum vmode_e cur_vmod)
 }
 
 static int cvbs_vout_state;
-static int cvbs_vout_set_state(int index)
+static int cvbs_vout_set_state(int index, void *data)
 {
 	cvbs_vout_state |= (1 << index);
 	return 0;
 }
 
-static int cvbs_vout_clr_state(int index)
+static int cvbs_vout_clr_state(int index, void *data)
 {
 	cvbs_vout_state &= ~(1 << index);
 	return 0;
 }
 
-static int cvbs_vout_get_state(void)
+static int cvbs_vout_get_state(void *data)
 {
 	return cvbs_vout_state;
 }
 
-static int cvbs_vout_get_disp_cap(char *buf)
+static int cvbs_vout_get_disp_cap(char *buf, void *data)
 {
 	int ret = 0, i;
 
@@ -722,7 +723,7 @@ static int cvbs_vout_get_disp_cap(char *buf)
 }
 
 #ifdef CONFIG_PM
-static int cvbs_suspend(void)
+static int cvbs_suspend(void *data)
 {
 	/* TODO */
 	/* video_dac_disable(); */
@@ -731,11 +732,11 @@ static int cvbs_suspend(void)
 	return 0;
 }
 
-static int cvbs_resume(void)
+static int cvbs_resume(void *data)
 {
 	/* TODO */
 	/* video_dac_enable(0xff); */
-	cvbs_set_current_vmode(cvbs_drv->vinfo->mode);
+	cvbs_set_current_vmode(cvbs_drv->vinfo->mode, NULL);
 	return 0;
 }
 #endif
@@ -761,6 +762,7 @@ static struct vout_server_s cvbs_vout_server = {
 		.vout_resume = cvbs_resume,
 #endif
 	},
+	.data = NULL,
 };
 
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
@@ -784,6 +786,7 @@ static struct vout_server_s cvbs_vout2_server = {
 		.vout_resume = cvbs_resume,
 #endif
 	},
+	.data = NULL,
 };
 #endif
 
@@ -816,7 +819,7 @@ static char *cvbs_out_bist_str[] = {
 	"Black",
 };
 
-static void cvbs_bist_test(unsigned int bist)
+static void cvbs_bist_test(unsigned int bist, void *data)
 {
 	switch (bist) {
 	case 1:
@@ -1294,7 +1297,7 @@ static void cvbs_debug_store(const char *buf)
 			pr_info("cvbs: invalid bist\n");
 			goto DEBUG_END;
 		}
-		cvbs_bist_test(bist);
+		cvbs_bist_test(bist, NULL);
 
 		break;
 

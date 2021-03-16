@@ -176,7 +176,7 @@ void am_cvbs_encoder_enable(struct drm_encoder *encoder,
 		vmode |= VMODE_INIT_BIT_MASK;
 
 	set_vout_mode_pre_process(vmode);
-	cvbs_set_current_vmode(vmode);
+	cvbs_set_current_vmode(vmode, NULL);
 	set_vout_mode_post_process(vmode);
 }
 

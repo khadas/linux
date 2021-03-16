@@ -9,15 +9,15 @@
 #define __AML_LCD_TV_H__
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 
-void lcd_tv_config_update(struct lcd_config_s *pconf);
-void lcd_tv_driver_init_pre(void);
-void lcd_tv_driver_disable_post(void);
-int lcd_tv_driver_init(void);
-void lcd_tv_driver_disable(void);
-int lcd_tv_driver_change(void);
+void lcd_tv_config_update(struct aml_lcd_drv_s *pdrv);
+void lcd_tv_driver_init_pre(struct aml_lcd_drv_s *pdrv);
+void lcd_tv_driver_disable_post(struct aml_lcd_drv_s *pdrv);
+int lcd_tv_driver_init(struct aml_lcd_drv_s *pdrv);
+void lcd_tv_driver_disable(struct aml_lcd_drv_s *pdrv);
+int lcd_tv_driver_change(struct aml_lcd_drv_s *pdrv);
 
-void lcd_vbyone_wait_stable(void);
-int lcd_vbyone_interrupt_up(void);
-void lcd_vbyone_interrupt_down(void);
+void lcd_vbyone_wait_stable(struct aml_lcd_drv_s *pdrv);
+int lcd_vbyone_interrupt_up(struct aml_lcd_drv_s *pdrv);
+void lcd_vbyone_interrupt_down(struct aml_lcd_drv_s *pdrv);
 
 #endif

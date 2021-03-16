@@ -48,10 +48,11 @@ struct lcd_tcon_config_s {
 	unsigned int *axi_reg;
 	void (*tcon_axi_mem_config)(void);
 	void (*tcon_axi_mem_secure)(void);
-	int (*tcon_gamma_pattern)(unsigned int bit_width, unsigned int gamma_r,
+	int (*tcon_gamma_pattern)(struct aml_lcd_drv_s *pdrv,
+				  unsigned int bit_width, unsigned int gamma_r,
 				  unsigned int gamma_g, unsigned int gamma_b);
-	int (*tcon_enable)(struct lcd_config_s *pconf);
-	int (*tcon_disable)(struct lcd_config_s *pconf);
+	int (*tcon_enable)(struct aml_lcd_drv_s *pdrv);
+	int (*tcon_disable)(struct aml_lcd_drv_s *pdrv);
 };
 
 struct tcon_rmem_config_s {
@@ -179,19 +180,22 @@ struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);
 int lcd_tcon_valid_check(void);
 struct tcon_rmem_s *get_lcd_tcon_rmem(void);
 struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);
-int lcd_tcon_gamma_pattern_tl1(unsigned int bit_width, unsigned int gamma_r,
+int lcd_tcon_gamma_pattern_tl1(struct aml_lcd_drv_s *pdrv,
+			       unsigned int bit_width, unsigned int gamma_r,
 			       unsigned int gamma_g, unsigned int gamma_b);
-int lcd_tcon_gamma_pattern_t5(unsigned int bit_width, unsigned int gamma_r,
+int lcd_tcon_gamma_pattern_t5(struct aml_lcd_drv_s *pdrv,
+			      unsigned int bit_width, unsigned int gamma_r,
 			      unsigned int gamma_g, unsigned int gamma_b);
-void lcd_tcon_core_reg_set(struct lcd_tcon_config_s *tcon_conf,
+void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
+			   struct lcd_tcon_config_s *tcon_conf,
 			   struct tcon_mem_map_table_s *mm_table);
-int lcd_tcon_enable_tl1(struct lcd_config_s *pconf);
-int lcd_tcon_enable_t5(struct lcd_config_s *pconf);
+int lcd_tcon_enable_tl1(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv);
 
 /* common */
 int lcd_tcon_data_load(void);
 void lcd_tcon_reg_table_print(void);
-void lcd_tcon_reg_readback_print(void);
+void lcd_tcon_reg_readback_print(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_info_print(char *buf, int offset);
 void lcd_tcon_axi_rmem_lut_load(unsigned int index, unsigned char *buf,
 				unsigned int size);

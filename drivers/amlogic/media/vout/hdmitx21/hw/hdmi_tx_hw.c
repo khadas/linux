@@ -618,11 +618,10 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 
 	if (enc_sel == 0) {
 		hd21_write_reg(VPU_VENC_CTRL + (0 << 2), 0); // sel enci timming
-		hd21_write_reg(VPU_VIU_VENC_MUX_CTRL, (2 << 4) | (1 << 2) | (0 << 0));
 	} else { //enc_sel==2
 		hd21_write_reg(VPU_VENC_CTRL + (0x800 << 2), 1); // sel encp timming
-		hd21_write_reg(VPU_VIU_VENC_MUX_CTRL, (0 << 4) | (1 << 2) | (2 << 0));
-		hd21_write_reg(SYSCTRL_VPU_SECURE_REG0, 0x10000);   // Enable VENC2 to HDMITX path
+		// Enable VENC2 to HDMITX path
+		hd21_set_reg_bits(SYSCTRL_VPU_SECURE_REG0, 1, 16, 1);
 	}
 	// --------------------------------------------------------
 	// Set TV encoder for HDMI

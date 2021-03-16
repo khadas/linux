@@ -324,7 +324,7 @@ static void dummy_encp_vinfo_update(void)
 	dummy_encp_vinfo[0].viu_color_fmt = vinfo->viu_color_fmt;
 }
 
-static struct vinfo_s *dummy_encp_get_current_info(void)
+static struct vinfo_s *dummy_encp_get_current_info(void *data)
 {
 	if (dummy_encp_index > 1)
 		return NULL;
@@ -332,7 +332,7 @@ static struct vinfo_s *dummy_encp_get_current_info(void)
 	return &dummy_encp_vinfo[dummy_encp_index];
 }
 
-static int dummy_encp_set_current_vmode(enum vmode_e mode)
+static int dummy_encp_set_current_vmode(enum vmode_e mode, void *data)
 {
 	if (dummy_encp_index > 1)
 		return -1;
@@ -357,7 +357,8 @@ static int dummy_encp_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static enum vmode_e dummy_encp_validate_vmode(char *name, unsigned int frac)
+static enum vmode_e dummy_encp_validate_vmode(char *name, unsigned int frac,
+					      void *data)
 {
 	enum vmode_e vmode = VMODE_MAX;
 	int i;
@@ -376,7 +377,7 @@ static enum vmode_e dummy_encp_validate_vmode(char *name, unsigned int frac)
 	return vmode;
 }
 
-static int dummy_encp_vmode_is_supported(enum vmode_e mode)
+static int dummy_encp_vmode_is_supported(enum vmode_e mode, void *data)
 {
 	if ((mode & VMODE_MODE_BIT_MASK) == VMODE_DUMMY_ENCP)
 		return true;
@@ -384,7 +385,7 @@ static int dummy_encp_vmode_is_supported(enum vmode_e mode)
 	return false;
 }
 
-static int dummy_encp_disable(enum vmode_e cur_vmod)
+static int dummy_encp_disable(enum vmode_e cur_vmod, void *data)
 {
 	dummy_encp_drv->status = 0;
 	dummy_encp_drv->vout_valid = 0;
@@ -403,7 +404,7 @@ static int dummy_encp_disable(enum vmode_e cur_vmod)
 	return 0;
 }
 
-static int dummy_encp_suspend(void)
+static int dummy_encp_suspend(void *data)
 {
 	dummy_encp_drv->status = 0;
 
@@ -420,22 +421,22 @@ static int dummy_encp_suspend(void)
 	return 0;
 }
 
-static int dummy_encp_resume(void)
+static int dummy_encp_resume(void *data)
 {
-	dummy_encp_set_current_vmode(VMODE_DUMMY_ENCP);
+	dummy_encp_set_current_vmode(VMODE_DUMMY_ENCP, NULL);
 	VOUTPR("%s finished\n", __func__);
 	return 0;
 }
 
 static int dummy_encp_vout_state;
-static int dummy_encp_vout_set_state(int bit)
+static int dummy_encp_vout_set_state(int bit, void *data)
 {
 	dummy_encp_vout_state |= (1 << bit);
 	dummy_encp_drv->viu_sel = bit;
 	return 0;
 }
 
-static int dummy_encp_vout_clr_state(int bit)
+static int dummy_encp_vout_clr_state(int bit, void *data)
 {
 	dummy_encp_vout_state &= ~(1 << bit);
 	if (dummy_encp_drv->viu_sel == bit)
@@ -443,7 +444,7 @@ static int dummy_encp_vout_clr_state(int bit)
 	return 0;
 }
 
-static int dummy_encp_vout_get_state(void)
+static int dummy_encp_vout_get_state(void *data)
 {
 	return dummy_encp_vout_state;
 }
@@ -465,6 +466,7 @@ static struct vout_server_s dummy_encp_vout_server = {
 		.vout_resume        = NULL,
 #endif
 	},
+	.data = NULL,
 };
 
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
@@ -485,6 +487,7 @@ static struct vout_server_s dummy_encp_vout2_server = {
 		.vout_resume        = NULL,
 #endif
 	},
+	.data = NULL,
 };
 #endif
 
@@ -654,12 +657,12 @@ static void dummy_enci_clk_gate_switch(int flag)
 		VOUTERR("%s: ret=0x%x\n", __func__, ret);
 }
 
-static struct vinfo_s *dummy_enci_get_current_info(void)
+static struct vinfo_s *dummy_enci_get_current_info(void *data)
 {
 	return &dummy_enci_vinfo;
 }
 
-static int dummy_enci_set_current_vmode(enum vmode_e mode)
+static int dummy_enci_set_current_vmode(enum vmode_e mode, void *data)
 {
 #ifdef CONFIG_AMLOGIC_VPU
 	vpu_dev_clk_request(dummy_enci_drv->vpu_dev,
@@ -679,7 +682,8 @@ static int dummy_enci_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static enum vmode_e dummy_enci_validate_vmode(char *name, unsigned int frac)
+static enum vmode_e dummy_enci_validate_vmode(char *name, unsigned int frac,
+					      void *data)
 {
 	enum vmode_e vmode = VMODE_MAX;
 
@@ -692,7 +696,7 @@ static enum vmode_e dummy_enci_validate_vmode(char *name, unsigned int frac)
 	return vmode;
 }
 
-static int dummy_enci_vmode_is_supported(enum vmode_e mode)
+static int dummy_enci_vmode_is_supported(enum vmode_e mode, void *data)
 {
 	if ((mode & VMODE_MODE_BIT_MASK) == VMODE_DUMMY_ENCI)
 		return true;
@@ -700,7 +704,7 @@ static int dummy_enci_vmode_is_supported(enum vmode_e mode)
 	return false;
 }
 
-static int dummy_enci_disable(enum vmode_e cur_vmod)
+static int dummy_enci_disable(enum vmode_e cur_vmod, void *data)
 {
 	dummy_enci_drv->status = 0;
 	dummy_enci_drv->vout_valid = 0;
@@ -720,31 +724,30 @@ static int dummy_enci_disable(enum vmode_e cur_vmod)
 }
 
 #ifdef CONFIG_PM
-static int dummy_enci_suspend(void)
+static int dummy_enci_suspend(void *data)
 {
-	dummy_enci_disable(VMODE_DUMMY_ENCI);
+	dummy_enci_disable(VMODE_DUMMY_ENCI, NULL);
 	VOUTPR("%s finished\n", __func__);
 	return 0;
 }
 
-static int dummy_enci_resume(void)
+static int dummy_enci_resume(void *data)
 {
-	dummy_enci_set_current_vmode(VMODE_DUMMY_ENCI);
+	dummy_enci_set_current_vmode(VMODE_DUMMY_ENCI, NULL);
 	VOUTPR("%s finished\n", __func__);
 	return 0;
 }
-
 #endif
 
 static int dummy_enci_vout_state;
-static int dummy_enci_vout_set_state(int bit)
+static int dummy_enci_vout_set_state(int bit, void *data)
 {
 	dummy_enci_vout_state |= (1 << bit);
 	dummy_enci_drv->viu_sel = bit;
 	return 0;
 }
 
-static int dummy_enci_vout_clr_state(int bit)
+static int dummy_enci_vout_clr_state(int bit, void *data)
 {
 	dummy_enci_vout_state &= ~(1 << bit);
 	if (dummy_enci_drv->viu_sel == bit)
@@ -752,7 +755,7 @@ static int dummy_enci_vout_clr_state(int bit)
 	return 0;
 }
 
-static int dummy_enci_vout_get_state(void)
+static int dummy_enci_vout_get_state(void *data)
 {
 	return dummy_enci_vout_state;
 }
@@ -774,6 +777,7 @@ static struct vout_server_s dummy_enci_vout_server = {
 		.vout_resume        = NULL,
 #endif
 	},
+	.data = NULL,
 };
 
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
@@ -794,6 +798,7 @@ static struct vout_server_s dummy_enci_vout2_server = {
 		.vout_resume        = NULL,
 #endif
 	},
+	.data = NULL,
 };
 #endif
 
@@ -939,12 +944,12 @@ static void dummy_encl_clk_gate_switch(int flag)
 		VOUTERR("%s: ret=0x%x\n", __func__, ret);
 }
 
-static struct vinfo_s *dummy_encl_get_current_info(void)
+static struct vinfo_s *dummy_encl_get_current_info(void *data)
 {
 	return &dummy_encl_vinfo;
 }
 
-static int dummy_encl_set_current_vmode(enum vmode_e mode)
+static int dummy_encl_set_current_vmode(enum vmode_e mode, void *data)
 {
 #ifdef CONFIG_AMLOGIC_VPU
 	vpu_dev_clk_request(dummy_encl_drv->vpu_dev,
@@ -964,7 +969,8 @@ static int dummy_encl_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static enum vmode_e dummy_encl_validate_vmode(char *name, unsigned int frac)
+static enum vmode_e dummy_encl_validate_vmode(char *name, unsigned int frac,
+					      void *data)
 {
 	enum vmode_e vmode = VMODE_MAX;
 
@@ -977,7 +983,7 @@ static enum vmode_e dummy_encl_validate_vmode(char *name, unsigned int frac)
 	return vmode;
 }
 
-static int dummy_encl_vmode_is_supported(enum vmode_e mode)
+static int dummy_encl_vmode_is_supported(enum vmode_e mode, void *data)
 {
 	if ((mode & VMODE_MODE_BIT_MASK) == VMODE_DUMMY_ENCL)
 		return true;
@@ -985,7 +991,7 @@ static int dummy_encl_vmode_is_supported(enum vmode_e mode)
 	return false;
 }
 
-static int dummy_encl_disable(enum vmode_e cur_vmod)
+static int dummy_encl_disable(enum vmode_e cur_vmod, void *data)
 {
 	dummy_encl_drv->status = 0;
 	dummy_encl_drv->vout_valid = 0;
@@ -1005,31 +1011,30 @@ static int dummy_encl_disable(enum vmode_e cur_vmod)
 }
 
 #ifdef CONFIG_PM
-static int dummy_encl_suspend(void)
+static int dummy_encl_suspend(void *data)
 {
-	dummy_encl_disable(VMODE_DUMMY_ENCL);
+	dummy_encl_disable(VMODE_DUMMY_ENCL, NULL);
 	VOUTPR("%s finished\n", __func__);
 	return 0;
 }
 
-static int dummy_encl_resume(void)
+static int dummy_encl_resume(void *data)
 {
-	dummy_encl_set_current_vmode(VMODE_DUMMY_ENCL);
+	dummy_encl_set_current_vmode(VMODE_DUMMY_ENCL, NULL);
 	VOUTPR("%s finished\n", __func__);
 	return 0;
 }
-
 #endif
 
 static int dummy_encl_vout_state;
-static int dummy_encl_vout_set_state(int bit)
+static int dummy_encl_vout_set_state(int bit, void *data)
 {
 	dummy_encl_vout_state |= (1 << bit);
 	dummy_encl_drv->viu_sel = bit;
 	return 0;
 }
 
-static int dummy_encl_vout_clr_state(int bit)
+static int dummy_encl_vout_clr_state(int bit, void *data)
 {
 	dummy_encl_vout_state &= ~(1 << bit);
 	if (dummy_encl_drv->viu_sel == bit)
@@ -1037,7 +1042,7 @@ static int dummy_encl_vout_clr_state(int bit)
 	return 0;
 }
 
-static int dummy_encl_vout_get_state(void)
+static int dummy_encl_vout_get_state(void *data)
 {
 	return dummy_encl_vout_state;
 }
@@ -1059,6 +1064,7 @@ static struct vout_server_s dummy_encl_vout_server = {
 		.vout_resume        = NULL,
 #endif
 	},
+	.data = NULL,
 };
 
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
@@ -1079,6 +1085,7 @@ static struct vout_server_s dummy_encl_vout2_server = {
 		.vout_resume        = NULL,
 #endif
 	},
+	.data = NULL,
 };
 #endif
 
@@ -1109,7 +1116,7 @@ static int dummy_venc_vout_mode_update(void)
 		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
 	else if (dummy_encp_drv->viu_sel == 2)
 		vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
-	dummy_encp_set_current_vmode(mode);
+	dummy_encp_set_current_vmode(mode, NULL);
 	if (dummy_encp_drv->viu_sel == 1)
 		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
 	else if (dummy_encp_drv->viu_sel == 2)
@@ -1621,11 +1628,11 @@ static int dummy_venc_remove(struct platform_device *pdev)
 static int dummy_venc_resume(struct platform_device *pdev)
 {
 	if (dummy_encp_drv && dummy_encp_drv->vout_valid)
-		dummy_encp_resume();
+		dummy_encp_resume(NULL);
 	if (dummy_enci_drv && dummy_enci_drv->vout_valid)
-		dummy_enci_resume();
+		dummy_enci_resume(NULL);
 	if (dummy_encl_drv && dummy_encl_drv->vout_valid)
-		dummy_encl_resume();
+		dummy_encl_resume(NULL);
 
 	return 0;
 }
@@ -1633,11 +1640,11 @@ static int dummy_venc_resume(struct platform_device *pdev)
 static int dummy_venc_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	if (dummy_encp_drv && dummy_encp_drv->status)
-		dummy_encp_suspend();
+		dummy_encp_suspend(NULL);
 	if (dummy_enci_drv && dummy_enci_drv->status)
-		dummy_enci_suspend();
+		dummy_enci_suspend(NULL);
 	if (dummy_encl_drv && dummy_encl_drv->status)
-		dummy_encl_suspend();
+		dummy_encl_suspend(NULL);
 
 	return 0;
 }
@@ -1647,17 +1654,17 @@ static void dummy_venc_shutdown(struct platform_device *pdev)
 	if (!dummy_encp_drv)
 		return;
 	if (dummy_encp_drv->status)
-		dummy_encp_disable(VMODE_DUMMY_ENCP);
+		dummy_encp_disable(VMODE_DUMMY_ENCP, NULL);
 
 	if (!dummy_enci_drv)
 		return;
 	if (dummy_enci_drv->status)
-		dummy_enci_disable(VMODE_DUMMY_ENCI);
+		dummy_enci_disable(VMODE_DUMMY_ENCI, NULL);
 
 	if (!dummy_encl_drv)
 		return;
 	if (dummy_encl_drv->status)
-		dummy_encl_disable(VMODE_DUMMY_ENCL);
+		dummy_encl_disable(VMODE_DUMMY_ENCL, NULL);
 }
 
 static struct platform_driver dummy_venc_platform_driver = {

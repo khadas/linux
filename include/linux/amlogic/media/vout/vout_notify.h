@@ -22,38 +22,42 @@ struct vframe_match_s {
 };
 
 struct vout_op_s {
-	struct vinfo_s *(*get_vinfo)(void);
-	int (*set_vmode)(enum vmode_e vmode);
-	enum vmode_e (*validate_vmode)(char *name, unsigned int frac);
-	int (*check_same_vmodeattr)(char *name);
-	int (*vmode_is_supported)(enum vmode_e vmode);
-	int (*disable)(enum vmode_e vmode);
-	int (*set_state)(int state);
-	int (*clr_state)(int state);
-	int (*get_state)(void);
-	int (*get_disp_cap)(char *buf);
-	int (*set_vframe_rate_hint)(int policy);
-	int (*get_vframe_rate_hint)(void);
-	void (*set_bist)(unsigned int num);
-	int (*vout_suspend)(void);
-	int (*vout_resume)(void);
-	int (*vout_shutdown)(void);
+	struct vinfo_s *(*get_vinfo)(void *data);
+	int (*set_vmode)(enum vmode_e vmode, void *data);
+	enum vmode_e (*validate_vmode)(char *name, unsigned int frac,
+				       void *data);
+	int (*check_same_vmodeattr)(char *name, void *data);
+	int (*vmode_is_supported)(enum vmode_e vmode, void *data);
+	int (*disable)(enum vmode_e vmode, void *data);
+	int (*set_state)(int state, void *data);
+	int (*clr_state)(int state, void *data);
+	int (*get_state)(void *data);
+	int (*get_disp_cap)(char *buf, void *data);
+	int (*set_vframe_rate_hint)(int policy, void *data);
+	int (*get_vframe_rate_hint)(void *data);
+	void (*set_bist)(unsigned int num, void *data);
+	int (*vout_suspend)(void *data);
+	int (*vout_resume)(void *data);
+	int (*vout_shutdown)(void *data);
 };
 
 struct vout_server_s {
 	struct list_head list;
 	char *name;
 	struct vout_op_s op;
+	void *data;
 };
 
 struct vout_module_s {
 	struct list_head vout_server_list;
 	struct vout_server_s *curr_vout_server;
+	struct vout_server_s *next_vout_server;
 	unsigned int init_flag;
 	/* fr_policy: 0=disable, 1=nearby, 2=force */
 	unsigned int fr_policy;
 };
 
+#ifdef CONFIG_AMLOGIC_VOUT_SERVE
 int vout_register_client(struct notifier_block *p);
 int vout_unregister_client(struct notifier_block *p);
 int vout_notifier_call_chain(unsigned int long, void *p);
@@ -68,6 +72,73 @@ int get_vframe_rate_hint(void);
 int set_vframe_rate_policy(int policy);
 int get_vframe_rate_policy(void);
 void set_vout_bist(unsigned int bist);
+#else
+static inline int vout_register_client(struct notifier_block *p)
+{
+	return 0;
+}
+
+static inline int vout_unregister_client(struct notifier_block *p)
+{
+	return 0;
+}
+
+static inline int vout_notifier_call_chain(unsigned int long, void *p)
+{
+	return 0;
+}
+
+static inline int vout_register_server(struct vout_server_s *p)
+{
+	return 0;
+}
+
+static inline int vout_unregister_server(struct vout_server_s *p)
+{
+	return 0;
+}
+
+static inline int get_vout_disp_cap(char *buf)
+{
+	return 0;
+}
+
+static inline struct vinfo_s *get_current_vinfo(void)
+{
+	return NULL;
+}
+
+static inline enum vmode_e get_current_vmode(void)
+{
+	return 0;
+}
+
+static inline int set_vframe_rate_hint(int duration)
+{
+	return 0;
+}
+
+static inline int get_vframe_rate_hint(void)
+{
+	return 0;
+}
+
+static inline int set_vframe_rate_policy(int policy)
+{
+	return 0;
+}
+
+static inline int get_vframe_rate_policy(void)
+{
+	return 0;
+}
+
+static inline void set_vout_bist(unsigned int bist)
+{
+	/*return;*/
+}
+
+#endif
 
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 int vout2_register_client(struct notifier_block *p);
