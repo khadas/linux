@@ -183,6 +183,7 @@ struct composer_dev {
 	struct task_struct *kthread;
 	struct received_frames_t received_frames[FRAMES_INFO_POOL_SIZE];
 	unsigned long long received_count;
+	unsigned long long received_new_count;
 	unsigned long long fence_creat_count;
 	unsigned long long fence_release_count;
 	unsigned long long fput_count;

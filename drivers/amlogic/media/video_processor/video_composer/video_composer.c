@@ -66,6 +66,7 @@ static unsigned int force_composer_pip;
 static unsigned int transform;
 static unsigned int vidc_debug;
 static unsigned int vidc_pattern_debug;
+static int last_index[MAX_VD_LAYERS][MXA_LAYER_COUNT];
 static u32 print_flag;
 static u32 full_axis = 1;
 static u32 print_close;
@@ -79,10 +80,13 @@ static u32 close_black;
 static u32 debug_axis_pip;
 static u32 debug_crop_pip;
 static u32 composer_use_444;
+static u32 reset_drop;
 static u32 drop_cnt;
 static u32 drop_cnt_pip;
 static u32 receive_count;
 static u32 receive_count_pip;
+static u32 receive_new_count;
+static u32 receive_new_count_pip;
 static u32 total_get_count;
 static u32 total_put_count;
 static u32 debug_vd_layer;
@@ -204,8 +208,9 @@ static void video_timeline_increase(struct composer_dev *dev,
 	aml_sync_inc_timeline(dev->video_timeline, value);
 	dev->fence_release_count += value;
 	vc_print(dev->index, PRINT_FENCE,
-		 "receive_cnt=%lld,fen_creat_cnt=%lld,fen_release_cnt=%lld\n",
+		 "receive_cnt=%lld,new_cnt=%lld,fen_creat_cnt=%lld,fen_release_cnt=%lld\n",
 		 dev->received_count,
+		 dev->received_new_count,
 		 dev->fence_creat_count,
 		 dev->fence_release_count);
 }
@@ -1703,6 +1708,7 @@ static void set_frames_info(struct composer_dev *dev,
 	u32 fence_fd;
 	int i = 0;
 	int j = 0;
+	int type = -1;
 	struct file *file_vf = NULL;
 	struct vframe_s *vf = NULL;
 	struct timeval time1;
@@ -1715,7 +1721,8 @@ static void set_frames_info(struct composer_dev *dev,
 	bool is_dec_vf = false, is_v4l_vf = false;
 	s32 sideband_type = -1;
 	int channel = -1;
-	bool is_tvp = false;
+	bool is_tvp = false, is_used = false;
+	bool is_repeat = true;
 
 	if (debug_vd_layer)
 		channel = choose_video_layer[dev->index] - 1;
@@ -1870,33 +1877,89 @@ static void set_frames_info(struct composer_dev *dev,
 		}
 		total_get_count++;
 		dev->received_frames[i].file_vf[j] = file_vf;
+		type = frames_info->frame_info[j].type;
 		is_dec_vf =
 		is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
 		is_v4l_vf =
 		is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
-		if (frames_info->frame_info[j].type == 0) {
-			if (is_dec_vf || is_v4l_vf) {
-				vf = get_vf_from_file(dev, file_vf);
+
+		if (type == 0 || type == 1) {
+			vc_print(dev->index, PRINT_FENCE,
+				 "received_cnt=%lld,new_cnt=%lld,i=%d,z=%d,DMA_fd=%d\n",
+				 dev->received_count + 1,
+				 dev->received_new_count + 1,
+				 i,
+				 frames_info->frame_info[j].zorder,
+				 frames_info->frame_info[j].fd);
+			if (!(is_dec_vf || is_v4l_vf)) {
+				if (type == 0) {
+					vc_print(dev->index, PRINT_ERROR,
+						 "%s type is %d but not vf\n",
+						 __func__, type);
+					return;
+				}
+				dev->received_frames[i].phy_addr[j] =
+				get_dma_phy_addr(frames_info->frame_info[j].fd,
+						 dev->index);
 				vc_print(dev->index, PRINT_OTHER,
-					 "%s type is 0 and get vf\n",
-					 __func__);
+					 "%s dma buffer not vf\n", __func__);
+				continue;
 			}
+			vf = get_vf_from_file(dev, file_vf);
+			vc_print(dev->index, PRINT_OTHER,
+				 "%s type is %d and get vf\n",
+				 __func__, type);
+
 			if (!vf) {
 				vc_print(dev->index, PRINT_ERROR,
 					 "received NULL vf!!\n");
 				return;
 			}
+			if (((reset_drop >> dev->index) & 1) ||
+			    last_index[dev->index][j] > vf->omx_index) {
+				dev->received_new_count = vf->omx_index;
+				dev->received_count = vf->omx_index;
+				reset_drop ^= 1 << dev->index;
+				vc_print(dev->index, PRINT_PATTERN,
+					 "drop cnt reset!!\n");
+			}
+			if (is_repeat &&
+			    last_index[dev->index][j] != vf->omx_index)
+				is_repeat = false;
+			last_index[dev->index][j] = vf->omx_index;
 			if (dev->index == 0) {
-				drop_cnt = vf->omx_index - dev->received_count;
-				receive_count = dev->received_count;
+				if (!is_repeat) {
+					if (!is_used) {
+						dev->received_new_count++;
+						is_used = true;
+					}
+					drop_cnt = vf->omx_index + 1
+						- dev->received_new_count;
+					receive_new_count =
+						dev->received_new_count;
+				}
+				receive_count = dev->received_count + 1;
 			} else if (dev->index == 1) {
-				drop_cnt_pip = vf->omx_index
-					- dev->received_count;
-				receive_count_pip = dev->received_count;
+				if (!is_repeat) {
+					if (!is_used) {
+						dev->received_new_count++;
+						is_used = true;
+					}
+					drop_cnt_pip = vf->omx_index + 1
+						- dev->received_new_count;
+					receive_new_count_pip =
+						dev->received_new_count;
+				}
+				receive_count_pip = dev->received_count + 1;
+			}
+			if (!is_tvp) {
+				if (vf->flag & VFRAME_FLAG_VIDEO_SECURE)
+					is_tvp = true;
 			}
 			vc_print(dev->index, PRINT_FENCE | PRINT_PATTERN,
-				 "received_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d,pts=%lld\n",
+				 "received_cnt=%lld,new_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d,pts=%lld\n",
 				 dev->received_count + 1,
+				 dev->received_new_count,
 				 i,
 				 frames_info->frame_info[j].zorder,
 				 vf->omx_index,
@@ -1907,54 +1970,16 @@ static void set_frames_info(struct composer_dev *dev,
 #ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
 			ATRACE_COUNTER("video_composer", vf->index_disp);
 #endif
-		} else if (frames_info->frame_info[j].type == 1) {
-			if (is_dec_vf || is_v4l_vf) {
-				vf = get_vf_from_file(dev, file_vf);
-				vc_print(dev->index, PRINT_OTHER,
-					 "%s dma buffer is vf\n",
-					 __func__);
-				if (!vf) {
-					vc_print(dev->index, PRINT_ERROR,
-						 "received NULL vf!!\n");
-					return;
-				}
-				if (dev->index == 0) {
-					drop_cnt = vf->omx_index
-						- dev->received_count;
-					receive_count = dev->received_count;
-				} else if (dev->index == 1) {
-					drop_cnt_pip = vf->omx_index
-						- dev->received_count;
-					receive_count_pip =
-						dev->received_count;
-				}
-			} else {
-				dev->received_frames[i].phy_addr[j] =
-				get_dma_phy_addr(frames_info->frame_info[j].fd,
-						 dev->index);
-				vc_print(dev->index, PRINT_OTHER,
-					 "%s dma buffer not vf\n", __func__);
-			}
-			vc_print(dev->index, PRINT_FENCE,
-				 "received_cnt=%lld,i=%d,z=%d,DMA_fd=%d\n",
-				 dev->received_count + 1,
-				 i,
-				 frames_info->frame_info[j].zorder,
-				 frames_info->frame_info[j].fd);
 		} else {
 			vc_print(dev->index, PRINT_ERROR,
 				 "unsupport type=%d\n",
 				 frames_info->frame_info[j].type);
 		}
-		if (!is_tvp && (is_dec_vf || is_v4l_vf)) {
-			if (vf->flag & VFRAME_FLAG_VIDEO_SECURE)
-				is_tvp = true;
-		}
 	}
 	dev->received_frames[i].is_tvp = is_tvp;
 	atomic_set(&dev->received_frames[i].on_use, true);
-
 	dev->received_count++;
+
 	if (!kfifo_put(&dev->receive_q, &dev->received_frames[i]))
 		vc_print(dev->index, PRINT_ERROR, "put ready fail\n");
 	wake_up_interruptible(&dev->wq);
@@ -2187,7 +2212,7 @@ static int video_composer_release_path(struct composer_dev *dev)
 static int video_composer_init(struct composer_dev *dev)
 {
 	int ret;
-	int i, channel = -1;
+	int i, channel = -1, j;
 	char render_layer[16] = "";
 
 	if (!dev)
@@ -2208,6 +2233,7 @@ static int video_composer_init(struct composer_dev *dev)
 		kfifo_put(&dev->dma_free_q, &dev->dma_vf[i]);
 
 	dev->received_count = 0;
+	dev->received_new_count = 0;
 	dev->fence_creat_count = 0;
 	dev->fence_release_count = 0;
 	dev->fput_count = 0;
@@ -2218,6 +2244,10 @@ static int video_composer_init(struct composer_dev *dev)
 	dev->last_file = NULL;
 	dev->select_path_done = false;
 	init_completion(&dev->task_done);
+	for (i = 0; i < MAX_VD_LAYERS; i++) {
+		for (j = 0; j < MXA_LAYER_COUNT; j++)
+			last_index[i][j] = -1;
+	}
 	if (debug_vd_layer)
 		channel = choose_video_layer[dev->index] - 1;
 
@@ -2296,8 +2326,9 @@ static int video_composer_uninit(struct composer_dev *dev)
 			 dev->fence_release_count,
 			 dev->fence_creat_count);
 		vc_print(dev->index, PRINT_ERROR,
-			 "uninit: received=%lld, fput=%lld, drop=%d\n",
+			 "uninit: received=%lld, new_cnt=%lld, fput=%lld, drop=%d\n",
 			 dev->received_count,
+			 dev->received_new_count,
 			 dev->fput_count,
 			 dev->drop_frame_count);
 	}
@@ -2899,17 +2930,40 @@ static ssize_t debug_vd_layer_store(struct class *class,
 	return count;
 }
 
+static ssize_t reset_drop_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "reset_drop: %d\n", reset_drop);
+}
+
+static ssize_t reset_drop_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+	reset_drop = val;
+	return count;
+}
+
 static ssize_t drop_cnt_show(struct class *class,
 			     struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", drop_cnt);
+	return sprintf(buf, "rec_cnt: %d, rec_new_cnt: %d, drop_cnt: %d\n",
+		       receive_count, receive_new_count, drop_cnt);
 }
 
 static ssize_t drop_cnt_pip_show(struct class *class,
 				 struct class_attribute *attr,
 				 char *buf)
 {
-	return sprintf(buf, "%d\n", drop_cnt_pip);
+	return sprintf(buf,
+		       "pip_cnt: %d, pip_new_cnt: %d, drop_cnt_pip: %d\n",
+		       receive_count_pip, receive_new_count_pip, drop_cnt_pip);
 }
 
 static ssize_t receive_count_show(struct class *class,
@@ -2923,6 +2977,19 @@ static ssize_t receive_count_pip_show(struct class *class,
 				      char *buf)
 {
 	return sprintf(buf, "%d\n", receive_count_pip);
+}
+
+static ssize_t receive_new_count_show(struct class *class,
+				      struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", receive_new_count);
+}
+
+static ssize_t receive_new_count_pip_show(struct class *class,
+					  struct class_attribute *attr,
+					  char *buf)
+{
+	return sprintf(buf, "%d\n", receive_new_count_pip);
 }
 
 static ssize_t total_get_count_show(struct class *class,
@@ -2958,10 +3025,13 @@ static CLASS_ATTR_RW(rotate_height);
 static CLASS_ATTR_RW(close_black);
 static CLASS_ATTR_RW(composer_use_444);
 static CLASS_ATTR_RW(debug_vd_layer);
+static CLASS_ATTR_RW(reset_drop);
 static CLASS_ATTR_RO(drop_cnt);
 static CLASS_ATTR_RO(drop_cnt_pip);
 static CLASS_ATTR_RO(receive_count);
 static CLASS_ATTR_RO(receive_count_pip);
+static CLASS_ATTR_RO(receive_new_count);
+static CLASS_ATTR_RO(receive_new_count_pip);
 static CLASS_ATTR_RO(total_get_count);
 static CLASS_ATTR_RO(total_put_count);
 
@@ -2985,10 +3055,13 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_close_black.attr,
 	&class_attr_composer_use_444.attr,
 	&class_attr_debug_vd_layer.attr,
+	&class_attr_reset_drop.attr,
 	&class_attr_drop_cnt.attr,
 	&class_attr_drop_cnt_pip.attr,
 	&class_attr_receive_count.attr,
 	&class_attr_receive_count_pip.attr,
+	&class_attr_receive_new_count.attr,
+	&class_attr_receive_new_count_pip.attr,
 	&class_attr_total_get_count.attr,
 	&class_attr_total_put_count.attr,
 	NULL
