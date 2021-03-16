@@ -74,9 +74,9 @@ static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev);
 static void update_current_para(struct hdmitx_dev *hdev);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
-static struct vinfo_s *hdmitx_get_current_vinfo(void);
+static struct vinfo_s *hdmitx_get_current_vinfo(void *data);
 #else
-static struct vinfo_s *hdmitx_get_current_vinfo(void)
+static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
 {
 	return NULL;
 }
@@ -245,7 +245,7 @@ static int hdmitx_is_hdmi_vmode(char *mode_name)
 
 static void hdmitx_late_resume(struct early_suspend *h)
 {
-	const struct vinfo_s *info = hdmitx_get_current_vinfo();
+	const struct vinfo_s *info = hdmitx_get_current_vinfo(NULL);
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)h->param;
 
 	if (info && info->name && (hdmitx_is_hdmi_vmode(info->name) == 1))
@@ -382,7 +382,7 @@ static void hdmi_physcial_size_update(struct hdmitx_dev *hdev)
 	u32 width, height;
 	struct vinfo_s *info = NULL;
 
-	info = hdmitx_get_current_vinfo();
+	info = hdmitx_get_current_vinfo(NULL);
 	if (!info || !info->name) {
 		pr_info("cann't get valid mode\n");
 		return;
@@ -459,7 +459,7 @@ static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev)
 	struct vinfo_s *info = NULL;
 
 	/* get current vinfo */
-	info = hdmitx_get_current_vinfo();
+	info = hdmitx_get_current_vinfo(NULL);
 	if (!info || !info->name)
 		return;
 
@@ -480,7 +480,7 @@ static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev)
 	struct vinfo_s *info = NULL;
 
 	/* get current vinfo */
-	info = hdmitx_get_current_vinfo();
+	info = hdmitx_get_current_vinfo(NULL);
 	if (!info || !info->name)
 		return;
 
@@ -502,7 +502,7 @@ static int set_disp_mode_auto(void)
 	hdev->ready = 0;
 
 	/* get current vinfo */
-	info = hdmitx_get_current_vinfo();
+	info = hdmitx_get_current_vinfo(NULL);
 	if (!info || !info->name)
 		return -1;
 	pr_info("get current mode: %s\n", info->name);
@@ -1445,7 +1445,7 @@ static void update_current_para(struct hdmitx_dev *hdev)
 	struct vinfo_s *info = NULL;
 	u8 mode[32];
 
-	info = hdmitx_get_current_vinfo();
+	info = hdmitx_get_current_vinfo(NULL);
 	if (!info)
 		return;
 
@@ -3849,7 +3849,7 @@ static DEVICE_ATTR_RW(ready);
 static DEVICE_ATTR_RO(support_3d);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
-static struct vinfo_s *hdmitx_get_current_vinfo(void)
+static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_dev();
 
@@ -3899,13 +3899,13 @@ static void recalc_vinfo_sync_duration(struct vinfo_s *info, u32 frac)
 		info->sync_duration_num, info->sync_duration_den, info->frac);
 }
 
-static int hdmitx_set_current_vmode(enum vmode_e mode)
+static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 {
 	struct vinfo_s *vinfo;
 	struct hdmitx_dev *hdev = get_hdmitx_dev();
 
 	/* get current vinfo and refesh */
-	vinfo = hdmitx_get_current_vinfo();
+	vinfo = hdmitx_get_current_vinfo(NULL);
 	if (vinfo && vinfo->name)
 		recalc_vinfo_sync_duration(vinfo,
 					   hdev->frac_rate_policy);
@@ -3919,7 +3919,7 @@ static int hdmitx_set_current_vmode(enum vmode_e mode)
 	return 0;
 }
 
-static enum vmode_e hdmitx_validate_vmode(char *_mode, u32 frac)
+static enum vmode_e hdmitx_validate_vmode(char *_mode, u32 frac, void *data)
 {
 	struct hdmi_format_para *para = NULL;
 	struct hdmitx_dev *hdev = get_hdmitx_dev();
@@ -3944,7 +3944,7 @@ static enum vmode_e hdmitx_validate_vmode(char *_mode, u32 frac)
 	return VMODE_MAX;
 }
 
-static int hdmitx_vmode_is_supported(enum vmode_e mode)
+static int hdmitx_vmode_is_supported(enum vmode_e mode, void *data)
 {
 	if ((mode & VMODE_MODE_BIT_MASK) == VMODE_HDMI)
 		return true;
@@ -3952,7 +3952,7 @@ static int hdmitx_vmode_is_supported(enum vmode_e mode)
 		return false;
 }
 
-static int hdmitx_module_disable(enum vmode_e cur_vmod)
+static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_dev();
 
@@ -3961,7 +3961,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod)
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdmitx21_disable_clk(hdev);
 	hdev->para = hdmi21_get_fmt_name("invalid", hdev->fmt_attr);
-	hdmitx_validate_vmode("null", 0);
+	hdmitx_validate_vmode("null", 0, NULL);
 	if (hdev->cedst_policy)
 		cancel_delayed_work(&hdev->work_cedst);
 	if (hdev->rxsense_policy)
@@ -3971,25 +3971,25 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod)
 }
 
 static int hdmitx_vout_state;
-static int hdmitx_vout_set_state(int index)
+static int hdmitx_vout_set_state(int index, void *data)
 {
 	hdmitx_vout_state |= (1 << index);
 	return 0;
 }
 
-static int hdmitx_vout_clr_state(int index)
+static int hdmitx_vout_clr_state(int index, void *data)
 {
 	hdmitx_vout_state &= ~(1 << index);
 	return 0;
 }
 
-static int hdmitx_vout_get_state(void)
+static int hdmitx_vout_get_state(void *data)
 {
 	return hdmitx_vout_state;
 }
 
 /* if cs/cd/frac_rate is changed, then return 0 */
-static int hdmitx_check_same_vmodeattr(char *name)
+static int hdmitx_check_same_vmodeattr(char *name, void *data)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_dev();
 
@@ -4001,12 +4001,12 @@ static int hdmitx_check_same_vmodeattr(char *name)
 	return 0;
 }
 
-static int hdmitx_vout_get_disp_cap(char *buf)
+static int hdmitx_vout_get_disp_cap(char *buf, void *data)
 {
 	return disp_cap_show(NULL, NULL, buf);
 }
 
-static void hdmitx_set_bist(u32 num)
+static void hdmitx_set_bist(u32 num, void *data)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_dev();
 
@@ -4035,6 +4035,7 @@ static struct vout_server_s hdmitx_vout_server = {
 		.vout_resume = NULL,
 #endif
 	},
+	.data = NULL,
 };
 #endif
 
@@ -4060,6 +4061,7 @@ static struct vout_server_s hdmitx_vout2_server = {
 		.vout_resume = NULL,
 #endif
 	},
+	.data = NULL,
 };
 #endif
 
@@ -4339,7 +4341,7 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		rx_set_receive_hdcp(bksv_buf, 1, 1, 0, 0);
 	}
 
-	info = hdmitx_get_current_vinfo();
+	info = hdmitx_get_current_vinfo(NULL);
 	if (info && info->mode == VMODE_HDMI)
 		hdmitx21_set_audio(hdev, &hdev->cur_audio_param);
 	hdev->hpd_state = 1;
@@ -4356,7 +4358,7 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 
 static void clear_rx_vinfo(struct hdmitx_dev *hdev)
 {
-	struct vinfo_s *info = hdmitx_get_current_vinfo();
+	struct vinfo_s *info = hdmitx_get_current_vinfo(NULL);
 
 	if (info) {
 		memset(&info->hdr_info, 0, sizeof(info->hdr_info));

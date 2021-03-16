@@ -527,11 +527,8 @@ struct dsi_vid_s {
 #define DSI_CMD_READ_VALID
 
 void mipi_dsi_print_info(struct lcd_config_s *pconf);
-int lcd_mipi_dsi_init_table_detect(struct device_node *m_node,
-				   struct dsi_config_s *dconf, int on_off);
-void lcd_mipi_dsi_config_set(struct lcd_config_s *pconf);
-void lcd_mipi_dsi_config_post(struct lcd_config_s *pconf);
-void mipi_dsi_link_off(struct lcd_config_s *pconf);
-void lcd_mipi_control_set(struct lcd_config_s *pconf, int status);
+void lcd_mipi_dsi_config_post(struct aml_lcd_drv_s *pdrv);
+void mipi_dsi_link_off(struct aml_lcd_drv_s *pdrv);
+void mipi_dsi_tx_ctrl(struct aml_lcd_drv_s *pdrv, int status);
 
 #endif

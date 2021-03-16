@@ -127,12 +127,12 @@ static inline int aml_vclk_init_module(void)
 #endif
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
-int vout_venc_init(void);
+int vout_mux_init(void);
 int dummy_venc_init(void);
 int vout_init_module(void);
 int vout_sys_serve_init(void);
 #else
-static inline int vout_venc_init(void)
+static inline int vout_mux_init(void)
 {
 	return 0;
 }

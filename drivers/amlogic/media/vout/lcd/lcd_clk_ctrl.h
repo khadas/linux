@@ -109,9 +109,19 @@
 #define ENCL_CLK_IN_MAX_T5D         (400 * 1000)
 
 /* **********************************
+ * T7
+ * **********************************
+ */
+#define LCD_PLL_OD3_T7               23
+#define LCD_PLL_OD2_T7               21
+#define LCD_PLL_OD1_T7               19
+#define LCD_PLL_LOCK_T7              31
+
+/* **********************************
  * Spread Spectrum
  * **********************************
  */
+#define LCD_SS_STEP_BASE            500 /* ppm */
 
 static char *lcd_ss_level_table_tl1[] = {
 	"0, disable",
@@ -203,21 +213,21 @@ static unsigned int pll_ss_reg_tl1[][2] = {
  * **********************************
  */
 struct lcd_clk_ctrl_s pll_ctrl_table_g12a_path0[] = {
-	/* flag             reg                 bit                    len*/
-	{LCD_CLK_CTRL_EN,   HHI_HDMI_PLL_CNTL,  LCD_PLL_EN_HPLL_G12A,   1},
-	{LCD_CLK_CTRL_RST,  HHI_HDMI_PLL_CNTL,  LCD_PLL_RST_HPLL_G12A,  1},
-	{LCD_CLK_CTRL_M,    HHI_HDMI_PLL_CNTL,  LCD_PLL_M_HPLL_G12A,    8},
-	{LCD_CLK_CTRL_FRAC, HHI_HDMI_PLL_CNTL2,                     0, 19},
-	{LCD_CLK_CTRL_END,  LCD_CLK_REG_END,                        0,  0},
+	/* flag             reg                  bit                    len*/
+	{LCD_CLK_CTRL_EN,   HHI_HDMI_PLL_CNTL0,  LCD_PLL_EN_HPLL_G12A,   1},
+	{LCD_CLK_CTRL_RST,  HHI_HDMI_PLL_CNTL0,  LCD_PLL_RST_HPLL_G12A,  1},
+	{LCD_CLK_CTRL_M,    HHI_HDMI_PLL_CNTL0,  LCD_PLL_M_HPLL_G12A,    8},
+	{LCD_CLK_CTRL_FRAC, HHI_HDMI_PLL_CNTL1,                      0, 19},
+	{LCD_CLK_CTRL_END,  LCD_CLK_REG_END,                         0,  0},
 };
 
 struct lcd_clk_ctrl_s pll_ctrl_table_g12a_path1[] = {
-	/* flag             reg                     bit                   len*/
-	{LCD_CLK_CTRL_EN,   HHI_GP0_PLL_CNTL0_G12A, LCD_PLL_EN_GP0_G12A,   1},
-	{LCD_CLK_CTRL_RST,  HHI_GP0_PLL_CNTL0_G12A, LCD_PLL_RST_GP0_G12A,  1},
-	{LCD_CLK_CTRL_M,    HHI_GP0_PLL_CNTL0_G12A, LCD_PLL_M_GP0_G12A,    8},
-	{LCD_CLK_CTRL_FRAC, HHI_GP0_PLL_CNTL1_G12A,                    0, 19},
-	{LCD_CLK_CTRL_END,  LCD_CLK_REG_END,                           0,  0},
+	/* flag             reg                bit                   len*/
+	{LCD_CLK_CTRL_EN,   HHI_GP0_PLL_CNTL0, LCD_PLL_EN_GP0_G12A,   1},
+	{LCD_CLK_CTRL_RST,  HHI_GP0_PLL_CNTL0, LCD_PLL_RST_GP0_G12A,  1},
+	{LCD_CLK_CTRL_M,    HHI_GP0_PLL_CNTL0, LCD_PLL_M_GP0_G12A,    8},
+	{LCD_CLK_CTRL_FRAC, HHI_GP0_PLL_CNTL1,                    0, 19},
+	{LCD_CLK_CTRL_END,  LCD_CLK_REG_END,                      0,  0},
 };
 
 struct lcd_clk_ctrl_s pll_ctrl_table_tl1[] = {
@@ -227,6 +237,15 @@ struct lcd_clk_ctrl_s pll_ctrl_table_tl1[] = {
 	{LCD_CLK_CTRL_M,    HHI_TCON_PLL_CNTL0, LCD_PLL_M_TL1,    8},
 	{LCD_CLK_CTRL_FRAC, HHI_TCON_PLL_CNTL1,               0, 17},
 	{LCD_CLK_CTRL_END,  LCD_CLK_REG_END,                  0,  0},
+};
+
+struct lcd_clk_ctrl_s pll_ctrl_table_t7[] = {
+	/* flag             reg                      bit              len*/
+	{LCD_CLK_CTRL_EN,   ANACTRL_TCON_PLL0_CNTL0, LCD_PLL_EN_TL1,   1},
+	{LCD_CLK_CTRL_RST,  ANACTRL_TCON_PLL0_CNTL0, LCD_PLL_RST_TL1,  1},
+	{LCD_CLK_CTRL_M,    ANACTRL_TCON_PLL0_CNTL0, LCD_PLL_M_TL1,    8},
+	{LCD_CLK_CTRL_FRAC, ANACTRL_TCON_PLL0_CNTL1,               0, 17},
+	{LCD_CLK_CTRL_END,  LCD_CLK_REG_END,                       0,  0},
 };
 
 /* **********************************
@@ -244,13 +263,29 @@ struct lcd_clk_ctrl_s pll_ctrl_table_tl1[] = {
 /* divider */
 #define CRT_VID_DIV_MAX             255
 
-static const unsigned int od_fb_table[2] = {1, 2};
+#define DIV_PRE_SEL_MAX             6
+#define EDP_DIV0_SEL_MAX            15
+#define EDP_DIV1_SEL_MAX            8
 
-static const unsigned int od_table[6] = {
-	1, 2, 4, 8, 16, 32
+static const unsigned int od_fb_table[2] = {1, 2};
+static const unsigned int od_table[6] = {1, 2, 4, 8, 16, 32};
+static const unsigned int tcon_div_table[5] = {1, 2, 4, 8, 16};
+static unsigned int tcon_div[5][3] = {
+	/* div_mux, div2/4_sel, div4_bypass */
+	{1, 0, 1},  /* div1 */
+	{0, 0, 1},  /* div2 */
+	{0, 1, 1},  /* div4 */
+	{0, 0, 0},  /* div8 */
+	{0, 1, 0},  /* div16 */
 };
 
-static const unsigned int tcon_div_table[5] = {1, 2, 4, 8, 16};
+static unsigned int edp_div0_table[15] = {
+	1, 2, 3, 4, 5, 7, 8, 9, 11, 13, 17, 19, 23, 29, 31
+};
+
+static unsigned int edp_div1_table[10] = {
+	1, 2, 3, 4, 5, 6, 7, 8, 9, 13
+};
 
 static char *lcd_clk_div_sel_table[] = {
 	"1",

@@ -56,11 +56,13 @@ struct vinfo_s *get_current_vinfo(void)
 {
 	struct vinfo_s *vinfo = NULL;
 	struct vout_module_s *p_module = NULL;
+	void *data;
 
 	p_module = vout_func_get_vout_module();
 	if (!IS_ERR_OR_NULL(p_module->curr_vout_server)) {
+		data = p_module->curr_vout_server->data;
 		if (p_module->curr_vout_server->op.get_vinfo)
-			vinfo = p_module->curr_vout_server->op.get_vinfo();
+			vinfo = p_module->curr_vout_server->op.get_vinfo(data);
 	}
 	if (!vinfo) /* avoid crash mistake */
 		vinfo = get_invalid_vinfo(1, p_module->init_flag);
@@ -86,11 +88,13 @@ enum vmode_e get_current_vmode(void)
 	const struct vinfo_s *vinfo;
 	struct vout_module_s *p_module = NULL;
 	enum vmode_e mode = VMODE_MAX;
+	void *data;
 
 	p_module = vout_func_get_vout_module();
 	if (!IS_ERR_OR_NULL(p_module->curr_vout_server)) {
+		data = p_module->curr_vout_server->data;
 		if (p_module->curr_vout_server->op.get_vinfo) {
-			vinfo = p_module->curr_vout_server->op.get_vinfo();
+			vinfo = p_module->curr_vout_server->op.get_vinfo(data);
 			if (vinfo)
 				mode = vinfo->mode;
 		}
@@ -105,11 +109,13 @@ const char *get_name_by_vmode(enum vmode_e mode)
 	const char *str = NULL;
 	const struct vinfo_s *vinfo = NULL;
 	struct vout_module_s *p_module = NULL;
+	void *data;
 
 	p_module = vout_func_get_vout_module();
 	if (!IS_ERR_OR_NULL(p_module->curr_vout_server)) {
+		data = p_module->curr_vout_server->data;
 		if (p_module->curr_vout_server->op.get_vinfo)
-			vinfo = p_module->curr_vout_server->op.get_vinfo();
+			vinfo = p_module->curr_vout_server->op.get_vinfo(data);
 	}
 	if (!vinfo)
 		vinfo = get_invalid_vinfo(1, p_module->init_flag);

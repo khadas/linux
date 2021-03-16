@@ -8,6 +8,12 @@
 #ifndef _INC_AML_LCD_COMMON_H_
 #define _INC_AML_LCD_COMMON_H_
 
+#define LCD_GPIO_MAX                    0xff
+#define LCD_GPIO_OUTPUT_LOW             0
+#define LCD_GPIO_OUTPUT_HIGH            1
+#define LCD_GPIO_INPUT                  2
+#define LCD_CPU_GPIO_NAME_MAX           15
+
 #define LCD_EXT_I2C_BUS_0          0  /* A */
 #define LCD_EXT_I2C_BUS_1          1  /* B */
 #define LCD_EXT_I2C_BUS_2          2  /* C */

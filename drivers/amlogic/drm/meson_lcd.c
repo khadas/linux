@@ -96,8 +96,8 @@ static int am_lcd_connector_get_modes(struct drm_connector *connector)
 	DRM_DEBUG("am_drm_lcd: %s: drm mode [%s] display size: %d x %d\n",
 		__func__, mode->name, mode->hdisplay, mode->vdisplay);
 	DRM_DEBUG("am_drm_lcd: %s: lcd config size: %d x %d\n",
-		__func__, lcd->lcd_drv->lcd_config->lcd_basic.h_active,
-		lcd->lcd_drv->lcd_config->lcd_basic.v_active);
+		__func__, lcd->lcd_drv->config.basic.h_active,
+		lcd->lcd_drv->config.basic.v_active);
 
 	drm_mode_probed_add(connector, mode);
 	count = 1;
@@ -121,12 +121,12 @@ enum drm_mode_status am_lcd_connector_mode_valid(struct drm_connector *connector
 	DRM_DEBUG("am_drm_lcd: %s: mode [%s] display size: %d x %d\n",
 		__func__, mode->name, mode->hdisplay, mode->vdisplay);
 	DRM_DEBUG("am_drm_lcd: %s: lcd config size: %d x %d\n",
-		__func__, lcd->lcd_drv->lcd_config->lcd_basic.h_active,
-		lcd->lcd_drv->lcd_config->lcd_basic.v_active);
+		__func__, lcd->lcd_drv->config.basic.h_active,
+		lcd->lcd_drv->config.basic.v_active);
 
-	if (mode->hdisplay != lcd->lcd_drv->lcd_config->lcd_basic.h_active)
+	if (mode->hdisplay != lcd->lcd_drv->config.basic.h_active)
 		return MODE_BAD_WIDTH;
-	if (mode->vdisplay != lcd->lcd_drv->lcd_config->lcd_basic.v_active)
+	if (mode->vdisplay != lcd->lcd_drv->config.basic.v_active)
 		return MODE_BAD_WIDTH;
 
 	DRM_DEBUG("am_drm_lcd: %s %d: check mode OK\n", __func__, __LINE__);
@@ -240,24 +240,26 @@ static void am_lcd_encoder_enable(struct drm_encoder *encoder,
 
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &vmode);
-	mutex_lock(&lcd->lcd_drv->power_mutex);
-	aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, NULL);
-	aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, NULL);
+	mutex_lock(&lcd_power_mutex);
+	aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, (void *)lcd->lcd_drv);
+	aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)lcd->lcd_drv);
 
-	lcd->lcd_drv->lcd_config->retry_enable_cnt = 0;
-	while (lcd->lcd_drv->lcd_config->retry_enable_flag) {
-		if (lcd->lcd_drv->lcd_config->retry_enable_cnt++ >=
+	lcd->lcd_drv->config.retry_enable_cnt = 0;
+	while (lcd->lcd_drv->config.retry_enable_flag) {
+		if (lcd->lcd_drv->config.retry_enable_cnt++ >=
 			LCD_ENABLE_RETRY_MAX)
 			break;
 		DRM_DEBUG("am_drm_lcd: retry enable...%d\n",
-			lcd->lcd_drv->lcd_config->retry_enable_cnt);
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF, NULL);
+			lcd->lcd_drv->config.retry_enable_cnt);
+		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF,
+					    (void *)lcd->lcd_drv);
 		msleep(1000);
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, NULL);
+		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON,
+					    (void *)lcd->lcd_drv);
 	}
-	lcd->lcd_drv->lcd_config->retry_enable_cnt = 0;
+	lcd->lcd_drv->config.retry_enable_cnt = 0;
 
-	mutex_unlock(&lcd->lcd_drv->power_mutex);
+	mutex_unlock(&lcd_power_mutex);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &vmode);
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 }
@@ -273,10 +275,10 @@ static void am_lcd_encoder_disable(struct drm_encoder *encoder,
 		return;
 
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
-	mutex_lock(&lcd->lcd_drv->power_mutex);
-	aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, NULL);
-	aml_lcd_notifier_call_chain(LCD_EVENT_UNPREPARE, NULL);
-	mutex_unlock(&lcd->lcd_drv->power_mutex);
+	mutex_lock(&lcd_power_mutex);
+	aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)lcd->lcd_drv);
+	aml_lcd_notifier_call_chain(LCD_EVENT_UNPREPARE, (void *)lcd->lcd_drv);
+	mutex_unlock(&lcd_power_mutex);
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 }
 
@@ -308,9 +310,9 @@ static int am_lcd_disable(struct drm_panel *panel)
 	if (!lcd->lcd_drv)
 		return -ENODEV;
 
-	mutex_lock(&lcd->lcd_drv->power_mutex);
-	aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, NULL);
-	mutex_unlock(&lcd->lcd_drv->power_mutex);
+	mutex_lock(&lcd_power_mutex);
+	aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)lcd->lcd_drv);
+	mutex_unlock(&lcd_power_mutex);
 
 	return 0;
 }
@@ -324,9 +326,9 @@ static int am_lcd_unprepare(struct drm_panel *panel)
 	if (!lcd->lcd_drv)
 		return -ENODEV;
 
-	mutex_lock(&lcd->lcd_drv->power_mutex);
-	aml_lcd_notifier_call_chain(LCD_EVENT_UNPREPARE, NULL);
-	mutex_unlock(&lcd->lcd_drv->power_mutex);
+	mutex_lock(&lcd_power_mutex);
+	aml_lcd_notifier_call_chain(LCD_EVENT_UNPREPARE, (void *)lcd->lcd_drv);
+	mutex_unlock(&lcd_power_mutex);
 
 	return 0;
 }
@@ -340,9 +342,9 @@ static int am_lcd_prepare(struct drm_panel *panel)
 	if (!lcd->lcd_drv)
 		return -ENODEV;
 
-	mutex_lock(&lcd->lcd_drv->power_mutex);
-	aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, NULL);
-	mutex_unlock(&lcd->lcd_drv->power_mutex);
+	mutex_lock(&lcd_power_mutex);
+	aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, (void *)lcd->lcd_drv);
+	mutex_unlock(&lcd_power_mutex);
 
 	return 0;
 }
@@ -358,9 +360,9 @@ static int am_lcd_enable(struct drm_panel *panel)
 
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
-	mutex_lock(&lcd->lcd_drv->power_mutex);
-	aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, NULL);
-	mutex_unlock(&lcd->lcd_drv->power_mutex);
+	mutex_lock(&lcd_power_mutex);
+	aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)lcd->lcd_drv);
+	mutex_unlock(&lcd_power_mutex);
 
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
@@ -390,10 +392,10 @@ static int am_lcd_get_modes(struct drm_panel *panel)
 
 	drm_mode_probed_add(connector, mode);
 
-	pconf = lcd->lcd_drv->lcd_config;
-	connector->display_info.bpc = pconf->lcd_basic.lcd_bits * 3;
-	connector->display_info.width_mm = pconf->lcd_basic.screen_width;
-	connector->display_info.height_mm = pconf->lcd_basic.screen_height;
+	pconf = &lcd->lcd_drv->config;
+	connector->display_info.bpc = pconf->basic.lcd_bits * 3;
+	connector->display_info.width_mm = pconf->basic.screen_width;
+	connector->display_info.height_mm = pconf->basic.screen_height;
 
 	connector->display_info.bus_flags = DRM_BUS_FLAG_DE_HIGH;
 
@@ -445,7 +447,7 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
-	pconf = lcd->lcd_drv->lcd_config;
+	pconf = &lcd->lcd_drv->config;
 	vout_mode = get_vout_mode_internal();
 
 	lcd->mode = &am_lcd_mode;
@@ -460,57 +462,57 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 		else
 			lcd->connector.connector_type = DRM_MODE_CONNECTOR_LVDS;
 	}
-	lcd->mode->clock = pconf->lcd_timing.lcd_clk / 1000;
-	lcd->mode->hdisplay = pconf->lcd_basic.h_active;
-	tmp = pconf->lcd_basic.h_period - pconf->lcd_basic.h_active -
-			pconf->lcd_timing.hsync_bp;
-	lcd->mode->hsync_start = pconf->lcd_basic.h_active + tmp -
-			pconf->lcd_timing.hsync_width;
-	lcd->mode->hsync_end = pconf->lcd_basic.h_active + tmp;
-	lcd->mode->htotal = pconf->lcd_basic.h_period;
-	lcd->mode->vdisplay = pconf->lcd_basic.v_active;
-	tmp = pconf->lcd_basic.v_period - pconf->lcd_basic.v_active -
-			pconf->lcd_timing.vsync_bp;
-	lcd->mode->vsync_start = pconf->lcd_basic.v_active + tmp -
-			pconf->lcd_timing.vsync_width;
-	lcd->mode->vsync_end = pconf->lcd_basic.v_active + tmp;
-	lcd->mode->vtotal = pconf->lcd_basic.v_period;
-	lcd->mode->width_mm = pconf->lcd_basic.screen_width;
-	lcd->mode->height_mm = pconf->lcd_basic.screen_height;
-	lcd->mode->vrefresh = pconf->lcd_timing.sync_duration_num /
-				pconf->lcd_timing.sync_duration_den;
+	lcd->mode->clock = pconf->timing.lcd_clk / 1000;
+	lcd->mode->hdisplay = pconf->basic.h_active;
+	tmp = pconf->basic.h_period - pconf->basic.h_active -
+			pconf->timing.hsync_bp;
+	lcd->mode->hsync_start = pconf->basic.h_active + tmp -
+			pconf->timing.hsync_width;
+	lcd->mode->hsync_end = pconf->basic.h_active + tmp;
+	lcd->mode->htotal = pconf->basic.h_period;
+	lcd->mode->vdisplay = pconf->basic.v_active;
+	tmp = pconf->basic.v_period - pconf->basic.v_active -
+			pconf->timing.vsync_bp;
+	lcd->mode->vsync_start = pconf->basic.v_active + tmp -
+			pconf->timing.vsync_width;
+	lcd->mode->vsync_end = pconf->basic.v_active + tmp;
+	lcd->mode->vtotal = pconf->basic.v_period;
+	lcd->mode->width_mm = pconf->basic.screen_width;
+	lcd->mode->height_mm = pconf->basic.screen_height;
+	lcd->mode->vrefresh = pconf->timing.sync_duration_num /
+				pconf->timing.sync_duration_den;
 
-	lcd->timing->pixelclock.min = pconf->lcd_timing.lcd_clk;
-	lcd->timing->pixelclock.typ = pconf->lcd_timing.lcd_clk;
-	lcd->timing->pixelclock.max = pconf->lcd_timing.lcd_clk;
-	lcd->timing->hactive.min = pconf->lcd_basic.h_active;
-	lcd->timing->hactive.typ = pconf->lcd_basic.h_active;
-	lcd->timing->hactive.max = pconf->lcd_basic.h_active;
-	tmp = pconf->lcd_basic.h_period - pconf->lcd_basic.h_active -
-		pconf->lcd_timing.hsync_bp - pconf->lcd_timing.hsync_width;
+	lcd->timing->pixelclock.min = pconf->timing.lcd_clk;
+	lcd->timing->pixelclock.typ = pconf->timing.lcd_clk;
+	lcd->timing->pixelclock.max = pconf->timing.lcd_clk;
+	lcd->timing->hactive.min = pconf->basic.h_active;
+	lcd->timing->hactive.typ = pconf->basic.h_active;
+	lcd->timing->hactive.max = pconf->basic.h_active;
+	tmp = pconf->basic.h_period - pconf->basic.h_active -
+		pconf->timing.hsync_bp - pconf->timing.hsync_width;
 	lcd->timing->hfront_porch.min = tmp;
 	lcd->timing->hfront_porch.typ = tmp;
 	lcd->timing->hfront_porch.max = tmp;
-	lcd->timing->hback_porch.min = pconf->lcd_timing.hsync_bp;
-	lcd->timing->hback_porch.typ = pconf->lcd_timing.hsync_bp;
-	lcd->timing->hback_porch.max = pconf->lcd_timing.hsync_bp;
-	lcd->timing->hsync_len.min = pconf->lcd_timing.hsync_width;
-	lcd->timing->hsync_len.typ = pconf->lcd_timing.hsync_width;
-	lcd->timing->hsync_len.max = pconf->lcd_timing.hsync_width;
-	lcd->timing->vactive.min = pconf->lcd_basic.v_active;
-	lcd->timing->vactive.typ = pconf->lcd_basic.v_active;
-	lcd->timing->vactive.max = pconf->lcd_basic.v_active;
-	tmp = pconf->lcd_basic.v_period - pconf->lcd_basic.v_active -
-		pconf->lcd_timing.vsync_bp - pconf->lcd_timing.vsync_width;
+	lcd->timing->hback_porch.min = pconf->timing.hsync_bp;
+	lcd->timing->hback_porch.typ = pconf->timing.hsync_bp;
+	lcd->timing->hback_porch.max = pconf->timing.hsync_bp;
+	lcd->timing->hsync_len.min = pconf->timing.hsync_width;
+	lcd->timing->hsync_len.typ = pconf->timing.hsync_width;
+	lcd->timing->hsync_len.max = pconf->timing.hsync_width;
+	lcd->timing->vactive.min = pconf->basic.v_active;
+	lcd->timing->vactive.typ = pconf->basic.v_active;
+	lcd->timing->vactive.max = pconf->basic.v_active;
+	tmp = pconf->basic.v_period - pconf->basic.v_active -
+		pconf->timing.vsync_bp - pconf->timing.vsync_width;
 	lcd->timing->vfront_porch.min = tmp;
 	lcd->timing->vfront_porch.typ = tmp;
 	lcd->timing->vfront_porch.max = tmp;
-	lcd->timing->vback_porch.min = pconf->lcd_timing.vsync_bp;
-	lcd->timing->vback_porch.typ = pconf->lcd_timing.vsync_bp;
-	lcd->timing->vback_porch.max = pconf->lcd_timing.vsync_bp;
-	lcd->timing->vsync_len.min = pconf->lcd_timing.vsync_width;
-	lcd->timing->vsync_len.typ = pconf->lcd_timing.vsync_width;
-	lcd->timing->vsync_len.max = pconf->lcd_timing.vsync_width;
+	lcd->timing->vback_porch.min = pconf->timing.vsync_bp;
+	lcd->timing->vback_porch.typ = pconf->timing.vsync_bp;
+	lcd->timing->vback_porch.max = pconf->timing.vsync_bp;
+	lcd->timing->vsync_len.min = pconf->timing.vsync_width;
+	lcd->timing->vsync_len.typ = pconf->timing.vsync_width;
+	lcd->timing->vsync_len.max = pconf->timing.vsync_width;
 
 	DRM_DEBUG("am_drm_lcd: %s: lcd config:\n"
 		"lcd_clk             %d\n"
@@ -521,13 +523,13 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 		"sync_duration_den   %d\n"
 		"sync_duration_num   %d\n",
 		__func__,
-		lcd->lcd_drv->lcd_config->lcd_timing.lcd_clk,
-		lcd->lcd_drv->lcd_config->lcd_basic.h_active,
-		lcd->lcd_drv->lcd_config->lcd_basic.v_active,
-		lcd->lcd_drv->lcd_config->lcd_basic.screen_width,
-		lcd->lcd_drv->lcd_config->lcd_basic.screen_height,
-		lcd->lcd_drv->lcd_config->lcd_timing.sync_duration_den,
-		lcd->lcd_drv->lcd_config->lcd_timing.sync_duration_num);
+		lcd->lcd_drv->config.timing.lcd_clk,
+		lcd->lcd_drv->config.basic.h_active,
+		lcd->lcd_drv->config.basic.v_active,
+		lcd->lcd_drv->config.basic.screen_width,
+		lcd->lcd_drv->config.basic.screen_height,
+		lcd->lcd_drv->config.timing.sync_duration_den,
+		lcd->lcd_drv->config.timing.sync_duration_num);
 	DRM_DEBUG("am_drm_lcd: %s: display mode:\n"
 		"clock       %d\n"
 		"hdisplay    %d\n"
@@ -557,7 +559,7 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 int am_drm_lcd_notify_callback(struct notifier_block *block, unsigned long cmd,
 			       void *para)
 {
-	am_drm_lcd->lcd_drv = aml_lcd_get_driver();
+	am_drm_lcd->lcd_drv = aml_lcd_get_driver(0);
 	if (!am_drm_lcd->lcd_drv) {
 		DRM_ERROR("invalid lcd driver, exit\n");
 		return -ENODEV;
@@ -598,7 +600,7 @@ static int am_meson_lcd_bind(struct device *dev, struct device *master,
 
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
-	am_drm_lcd->lcd_drv = aml_lcd_get_driver();
+	am_drm_lcd->lcd_drv = aml_lcd_get_driver(0);
 	if (!am_drm_lcd->lcd_drv) {
 		pr_err("invalid lcd driver, exit\n");
 		return -ENODEV;

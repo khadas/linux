@@ -7,6 +7,7 @@
 
 #ifndef _INC_LCD_MIPI_H
 #define _INC_LCD_MIPI_H
+#include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 
 /* **********************************
  * mipi-dsi read/write api
@@ -28,7 +29,7 @@
 			DT_DCS_RD_0
  * Return:              command number
  */
-int dsi_write_cmd(unsigned char *payload);
+int dsi_write_cmd(struct aml_lcd_drv_s *pdrv, unsigned char *payload);
 
 /* *************************************************************
  * Function: dsi_read_single
@@ -37,9 +38,7 @@ int dsi_write_cmd(unsigned char *payload);
  * Return:              data count
 			0 for not support
  */
-int dsi_read_single(unsigned char *payload, unsigned char *rd_data,
-		    unsigned int rd_byte_len);
-
-int dsi_set_operation_mode(unsigned char op_mode);
+int dsi_read_single(struct aml_lcd_drv_s *pdrv, unsigned char *payload,
+		    unsigned char *rd_data, unsigned int rd_byte_len);
 
 #endif

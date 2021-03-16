@@ -53,10 +53,6 @@
 #define LCD_EVENT_GAMMA_UPDATE      BIT(10)
 #define LCD_EVENT_EXTERN_SEL        BIT(11)
 
-/* lcd frame rate change occurred */
-#define LCD_EVENT_FRAME_RATE_ADJUST BIT(12)
-/* lcd config change occurred */
-#define LCD_EVENT_CONFIG_UPDATE     BIT(13)
 /* lcd bist pattern test occurred */
 #define LCD_EVENT_TEST_PATTERN      BIT(14)
 

@@ -80,7 +80,7 @@ static struct vinfo_s nulldisp_vinfo[] = {
 		.vtotal            = 1125,
 		.fr_adj_type       = VOUT_FR_ADJ_NONE,
 		.viu_color_fmt     = COLOR_FMT_RGB444,
-		.viu_mux           = VIU_MUX_MAX,
+		.viu_mux           = ((3 << 4) | VIU_MUX_MAX),
 		.vout_device       = NULL,
 	},
 	{
@@ -99,12 +99,12 @@ static struct vinfo_s nulldisp_vinfo[] = {
 		.vtotal            = 1125,
 		.fr_adj_type       = VOUT_FR_ADJ_NONE,
 		.viu_color_fmt     = COLOR_FMT_RGB444,
-		.viu_mux           = VIU_MUX_MAX,
+		.viu_mux           = ((3 << 4) | VIU_MUX_MAX),
 		.vout_device       = NULL,
 	}
 };
 
-static struct vinfo_s *nulldisp_get_current_info(void)
+static struct vinfo_s *nulldisp_get_current_info(void *data)
 {
 	if (nulldisp_index >= ARRAY_SIZE(nulldisp_vinfo))
 		return NULL;
@@ -112,12 +112,13 @@ static struct vinfo_s *nulldisp_get_current_info(void)
 	return &nulldisp_vinfo[nulldisp_index];
 }
 
-static int nulldisp_set_current_vmode(enum vmode_e mode)
+static int nulldisp_set_current_vmode(enum vmode_e mode, void *data)
 {
 	return 0;
 }
 
-static enum vmode_e nulldisp_validate_vmode(char *name, unsigned int frac)
+static enum vmode_e nulldisp_validate_vmode(char *name, unsigned int frac,
+					    void *data)
 {
 	enum vmode_e vmode = VMODE_MAX;
 	int i;
@@ -136,7 +137,7 @@ static enum vmode_e nulldisp_validate_vmode(char *name, unsigned int frac)
 	return vmode;
 }
 
-static int nulldisp_vmode_is_supported(enum vmode_e mode)
+static int nulldisp_vmode_is_supported(enum vmode_e mode, void *data)
 {
 	int i;
 
@@ -147,25 +148,25 @@ static int nulldisp_vmode_is_supported(enum vmode_e mode)
 	return false;
 }
 
-static int nulldisp_disable(enum vmode_e cur_vmod)
+static int nulldisp_disable(enum vmode_e cur_vmod, void *data)
 {
 	return 0;
 }
 
 static int nulldisp_vout_state;
-static int nulldisp_vout_set_state(int bit)
+static int nulldisp_vout_set_state(int bit, void *data)
 {
 	nulldisp_vout_state |= (1 << bit);
 	return 0;
 }
 
-static int nulldisp_vout_clr_state(int bit)
+static int nulldisp_vout_clr_state(int bit, void *data)
 {
 	nulldisp_vout_state &= ~(1 << bit);
 	return 0;
 }
 
-static int nulldisp_vout_get_state(void)
+static int nulldisp_vout_get_state(void *data)
 {
 	return nulldisp_vout_state;
 }
@@ -183,6 +184,7 @@ static struct vout_server_s nulldisp_vout3_server = {
 		.get_state          = nulldisp_vout_get_state,
 		.set_bist           = NULL,
 	},
+	.data = NULL,
 };
 
 /* ********************************************************** */
@@ -448,7 +450,7 @@ static ssize_t vout3_vinfo_show(struct class *class,
 		"    vtotal:                %d\n"
 		"    video_clk:             %d\n"
 		"    viu_color_fmt:         %d\n"
-		"    viu_mux:               %d\n\n",
+		"    viu_mux:               0x%x\n\n",
 		info->name, info->mode, info->frac,
 		info->width, info->height, info->field_height,
 		info->aspect_ratio_num, info->aspect_ratio_den,

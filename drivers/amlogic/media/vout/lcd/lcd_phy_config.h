@@ -7,13 +7,17 @@
 
 #ifndef __AML_LCD_PHY_CONFIG_H__
 #define __AML_LCD_PHY_CONFIG_H__
+#include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 
 struct lcd_phy_ctrl_s {
-	void (*phy_set_lvds)(struct lcd_config_s *pconf, int status);
-	void (*phy_set_vx1)(struct lcd_config_s *pconf, int status);
-	void (*phy_set_mlvds)(struct lcd_config_s *pconf, int status);
-	void (*phy_set_p2p)(struct lcd_config_s *pconf, int status);
-	void (*phy_set_mipi)(struct lcd_config_s *pconf, int status);
+	unsigned int lane_lock;
+	unsigned int ctrl_bit_on;
+	void (*phy_set_lvds)(struct aml_lcd_drv_s *pdrv, int status);
+	void (*phy_set_vx1)(struct aml_lcd_drv_s *pdrv, int status);
+	void (*phy_set_mlvds)(struct aml_lcd_drv_s *pdrv, int status);
+	void (*phy_set_p2p)(struct aml_lcd_drv_s *pdrv, int status);
+	void (*phy_set_mipi)(struct aml_lcd_drv_s *pdrv, int status);
+	void (*phy_set_edp)(struct aml_lcd_drv_s *pdrv, int status);
 };
 
 /* -------------------------- */
