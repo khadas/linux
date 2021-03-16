@@ -3,8 +3,10 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+#ifndef _TAS5805_H
+#define _TAS5805_H
+
 #include <linux/regmap.h>
-//#define TAS5805_REGISTER_COUNT 1879
 
 static const int tas5805m_reset[][2] = {
 //RESET
@@ -1175,3 +1177,4 @@ struct tas5805m_platform_data {
 	int reset_pin;
 };
 
+#endif
