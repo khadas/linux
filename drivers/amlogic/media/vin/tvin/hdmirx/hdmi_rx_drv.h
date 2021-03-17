@@ -39,8 +39,8 @@
 #define IRQ_LOG		0x2000
 #define COR_LOG		0x4000
 
-/* fix suspend panic issue */
-#define RX_VER1 "ver.2021/02/23"
+/* add new resolution */
+#define RX_VER1 "ver.2021/03/17"
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 

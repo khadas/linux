@@ -1850,7 +1850,8 @@ static int DWC_init(void)
 	data32 |= 7     << 8;   /* [10:8]   htot32_clk_ith */
 	data32 |= 1     << 5;   /* [5]      vs_act_time */
 	data32 |= 3     << 3;   /* [4:3]    hs_act_time */
-	data32 |= 0     << 0;   /* [1:0]    h_start_pos */
+	/* bit[1:0] default setting should be 2 */
+	data32 |= 2     << 0;   /* [1:0]    h_start_pos */
 	hdmirx_wr_dwc(DWC_MD_HCTRL2, data32);
 
 	data32 = 0;

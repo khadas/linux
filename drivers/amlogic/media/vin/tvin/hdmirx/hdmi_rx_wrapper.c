@@ -1042,7 +1042,8 @@ static const struct freq_ref_s freq_ref[] = {
 	{0,	0,	0,	1680,	1050,	HDMI_1680_1050},
 	{0,	0,	0,	1920,	1200,	HDMI_1920_1200},
 	{0,	0,	0,	1152,	864,	HDMI_1152_864},
-	{0,	0,	0,	1152,	864,	HDMI_3840_600},
+	{0,	0,	0,	3840,	600,	HDMI_3840_600},
+	{0, 0,	0,	2688,	1520,	HDMI_2688_1520},
 	/* 4k2k mode */
 	{0,	0,	0,	3840,	2160,	HDMI_2160p24_16x9},
 	{0,	0,	0,	4096,	2160,	HDMI_4096p24_256x135},
@@ -1295,6 +1296,9 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 	case HDMI_720_400:
 		fmt = TVIN_SIG_FMT_HDMI_720X400_00HZ;
 		break;
+	case HDMI_720_350:
+		fmt = TVIN_SIG_FMT_HDMI_720X350_00HZ;
+		break;
 	case HDMI_1280_768:
 		fmt = TVIN_SIG_FMT_HDMI_1280X768_00HZ;
 		break;
@@ -1335,8 +1339,10 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 		fmt = TVIN_SIG_FMT_HDMI_1152X864_00HZ;
 		break;
 	case HDMI_3840_600:
-		fmt = TVIN_SIG_FMT_HDMI_1152X864_00HZ;
-		//fmt = TVIN_SIG_FMT_HDMI_3840X600_00HZ;
+		fmt = TVIN_SIG_FMT_HDMI_3840X600_00HZ;
+		break;
+	case HDMI_2688_1520:
+		fmt = TVIN_SIG_FMT_HDMI_2688X1520_00HZ;
 		break;
 	case HDMI_2160p24_16x9:
 	case HDMI_2160p25_16x9:
