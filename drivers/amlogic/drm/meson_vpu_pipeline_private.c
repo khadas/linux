@@ -393,16 +393,13 @@ meson_vpu_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
 {
 	struct meson_vpu_pipeline_state *state;
 	struct meson_vpu_pipeline *pipeline = priv_to_pipeline(obj);
+	struct meson_vpu_pipeline_state *cur_state = priv_to_pipeline_state(obj->state);
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	#ifdef MESON_DRM_VERSION_V0
-	memcpy(state, &last_mvps, sizeof(*state));
-	#endif
+	memcpy(state, cur_state, sizeof(struct meson_vpu_pipeline_state));
+
 	state->pipeline = pipeline;
-
-	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->obj);
 	state->global_afbc = 0;
-
 	return &state->obj;
 }
 
