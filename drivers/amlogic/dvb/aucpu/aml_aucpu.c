@@ -694,7 +694,12 @@ static int load_start_aucpu_fw(struct device *device)
 	request_firmware_into_buf(&my_fw, "aucpu_fw.bin", device, fw,
 				  AUCPU_MAX_FW_SZ -
 				  sizeof(struct dma_aucpu_dsc_t));
-
+	if (!my_fw) {
+		aucpu_pr(LOG_ERROR, "load aucpu_fw.bin fail\n");
+		kfree(buf);
+		result = AUCPU_ERROR_NOT_IMPLEMENTED;
+		return result;
+	}
 	length = my_fw->size;
 	release_firmware(my_fw);
 
@@ -1471,7 +1476,10 @@ static s32 aucpu_probe(struct platform_device *pdev)
 	}
 	/* load FW and start AUCPU */
 	load_firmware_status = load_start_aucpu_fw(&pdev->dev /*aucpu_dev */);
-
+	if (load_firmware_status) {
+		aucpu_pr(LOG_ERROR, "load start_aucpu_fw fail\n");
+		goto ERROR_PROVE_DEVICE;
+	}
 	mutex_init(&pctx->mutex);
 	/*setup  the DEBUG buffer */
 	setup_debug_polling();
