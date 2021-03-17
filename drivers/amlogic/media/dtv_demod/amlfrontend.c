@@ -4294,6 +4294,15 @@ static __maybe_unused int dtv_demod_pm_suspend(struct device *dev)
 
 static __maybe_unused int dtv_demod_pm_resume(struct device *dev)
 {
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	if (unlikely(!devp)) {
+		PR_ERR("%s, devp is NULL\n", __func__);
+		return -1;
+	}
+
+	/* download fw again after STR in case sram was power down */
+	devp->fw_wr_done = 0;
 	PR_INFO("%s OK.\n", __func__);
 
 	return 0;
