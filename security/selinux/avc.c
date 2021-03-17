@@ -497,7 +497,11 @@ static struct avc_node *avc_alloc_node(struct selinux_avc *avc)
 {
 	struct avc_node *node;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	node = kmem_cache_zalloc(avc_node_cachep, GFP_NOWAIT | __GFP_NOWARN);
+#else
 	node = kmem_cache_zalloc(avc_node_cachep, GFP_NOWAIT);
+#endif
 	if (!node)
 		goto out;
 
