@@ -389,9 +389,6 @@ struct hdmitx_dev {
 	u8 hpd_event; /* 1, plugin; 2, plugout */
 	u8 hpd_state; /* 1, connect; 0, disconnect */
 	u8 drm_mode_setting; /* 1, setting; 0, keeping */
-	u8 rhpd_state; /* For repeater use only, no delay */
-	u8 hdcp_max_exceed_state;
-	u32 hdcp_max_exceed_cnt;
 	u8 force_audio_flag;
 	u8 mux_hpd_if_pin_high_flag;
 	struct hdmitx_info hdmi_info;
@@ -565,7 +562,6 @@ struct hdmitx_dev {
 	#define SET_AVMUTE	0x2
 #define MISC_HPLL_FAKE			(CMD_MISC_OFFSET + 0x0c)
 #define MISC_ESM_RESET		(CMD_MISC_OFFSET + 0x0d)
-#define MISC_HDCP_CLKDIS	(CMD_MISC_OFFSET + 0x0e)
 #define MISC_TMDS_RXSENSE	(CMD_MISC_OFFSET + 0x0f)
 #define MISC_I2C_REACTIVE       (CMD_MISC_OFFSET + 0x10) /* For gxl */
 #define MISC_I2C_RESET		(CMD_MISC_OFFSET + 0x11) /* For g12 */

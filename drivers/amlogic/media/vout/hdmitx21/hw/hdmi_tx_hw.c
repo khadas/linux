@@ -454,7 +454,6 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	if (dat_top & (1 << 1)) {
 		hdev->hdmitx_event |= HDMI_TX_HPD_PLUGIN;
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
-		hdev->rhpd_state = 1;
 		hdmitx_phy_bandgap_en(hdev);
 		queue_delayed_work(hdev->hdmi_wq,
 				   &hdev->work_hpd_plugin, HZ / 2);
@@ -465,7 +464,6 @@ static irqreturn_t intr_handler(int irq, void *dev)
 				   &hdev->work_aud_hpd_plug, 2 * HZ);
 		hdev->hdmitx_event |= HDMI_TX_HPD_PLUGOUT;
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
-		hdev->rhpd_state = 0;
 		queue_delayed_work(hdev->hdmi_wq,
 			&hdev->work_hpd_plugout, 0);
 	}
@@ -1751,8 +1749,6 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, u32 cmd,
 			hdmitx21_hdcp_opr(6);
 		break;
 	case DDC_HDCP_OP:
-		hdev->hdcp_max_exceed_state = 0;
-		hdev->hdcp_max_exceed_cnt = 0;
 		ksv_sha_matched = 0;
 		memset(&tmp_ksv_lists, 0, sizeof(tmp_ksv_lists));
 		del_timer(&hdev->hdcp_timer);
@@ -1927,8 +1923,6 @@ static int hdmitx_tmds_cedst(struct hdmitx_dev *hdev)
 static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 			    u32 argv)
 {
-	static int st;
-
 	if ((cmd & CMD_MISC_OFFSET) != CMD_MISC_OFFSET) {
 		pr_err(HW "misc: w: invalid cmd 0x%x\n", cmd);
 		return -1;
@@ -1974,12 +1968,6 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 		break;
 	case MISC_READ_AVMUTE_OP:
 		return read_avmute();
-	case MISC_HDCP_CLKDIS:
-		if (st != !!argv) {
-			st = !!argv;
-			pr_info("set hdcp clkdis: %d\n", !!argv);
-		}
-		break;
 	case MISC_I2C_RESET:
 		hdmitx21_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 9, 1);
 		usleep_range(1000, 2000);

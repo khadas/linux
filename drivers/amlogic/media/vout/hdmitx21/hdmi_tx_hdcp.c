@@ -75,15 +75,6 @@ int hdcpksv_valid(u8 *dat)
 
 static void _hdcp_do_work(struct work_struct *work)
 {
-	struct hdmitx_dev *hdev =
-		container_of(work, struct hdmitx_dev, work_do_hdcp.work);
-
-	if (hdev->hdcp_mode == 2) {
-		/* hdev->hwop.cntlmisc(hdev, MISC_HDCP_CLKDIS, 1); */
-		/* schedule_delayed_work(&hdev->work_do_hdcp, HZ / 50); */
-	} else {
-		hdev->hwop.cntlmisc(hdev, MISC_HDCP_CLKDIS, 0);
-	}
 }
 
 void hdmitx22_hdcp_do_work(struct hdmitx_dev *hdev)
