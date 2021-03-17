@@ -330,7 +330,7 @@ void aml_host_bus_fsm_show(struct mmc_host *mmc, int status);
 
 #define SD_EMMC_SRAM_DATA_BUF_LEN 1536
 #define SD_EMMC_SRAM_DATA_BUF_OFF 0x200
-#define SD_EMMC_MAX_SEGS 1024
+#define SD_EMMC_MAX_SEGS 256
 #define SD_EMMC_MAX_REQ_SIZE (128 * 1024)
 
 #define SD_EMMC_CFG_BLK_SIZE 512 /* internal buffer max: 512 bytes */
