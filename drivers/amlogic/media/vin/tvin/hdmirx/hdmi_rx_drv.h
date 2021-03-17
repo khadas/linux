@@ -20,8 +20,8 @@
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 
-/* hdcp14 cts 2c-03/04 fail */
-#define RX_VER0 "ver.2021/03/08"
+/* removed pixel clk */
+#define RX_VER0 "ver.2021/03/17"
 
 /*print type*/
 #define	LOG_EN		0x01

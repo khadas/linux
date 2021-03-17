@@ -4592,26 +4592,16 @@ bool is_tmds_clk_stable(void)
 {
 	bool ret = true;
 	u32 cableclk;
-	u32 pixel_clk;
 
 	if (rx.phy.clk_rate)
 		cableclk = rx.phy.cable_clk * 4;
 	else
 		cableclk = rx.phy.cable_clk;
 
-	if (rx.chip_id >= CHIP_ID_TL1 &&
-		rx.chip_id <= CHIP_ID_T5D) {
-		pixel_clk = meson_clk_measure(29);
-	} else if (rx.chip_id >= CHIP_ID_T7) {
-		pixel_clk = meson_clk_measure(43);
-	} else {
-		pixel_clk = meson_clk_measure(29);
-	}
-	if (abs(cableclk - pixel_clk) > clock_lock_th * MHz) {
+	if (abs(cableclk - rx.phy.tmds_clk) > clock_lock_th * MHz) {
 		if (log_level & VIDEO_LOG)
-			rx_pr("cableclk=%d,tmdsclk=%d,pixelclk=%d\n",
-			      cableclk / MHz, rx.phy.tmds_clk / MHz,
-			      pixel_clk / MHz);
+			rx_pr("cableclk=%d,tmdsclk=%d,\n",
+			      cableclk / MHz, rx.phy.tmds_clk / MHz);
 		ret = false;
 	} else {
 		ret = true;
