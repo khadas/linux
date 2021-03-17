@@ -1533,6 +1533,24 @@ keep:
 	return nr_reclaimed;
 }
 
+#ifdef CONFIG_AMLOGIC_CMA
+#define ACTIVE_MIGRATE		3
+#define INACTIVE_MIGRATE	(ACTIVE_MIGRATE * 4)
+static int filecache_need_migrate(struct page *page)
+{
+	if (PageActive(page) && page_mapcount(page) >= ACTIVE_MIGRATE)
+		return 1;
+
+	if (!PageActive(page) && page_mapcount(page) >= INACTIVE_MIGRATE)
+		return 1;
+
+	if (PageUnevictable(page))
+		return 0;
+
+	return 0;
+}
+#endif
+
 unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 					    struct list_head *page_list)
 {
@@ -1545,18 +1563,44 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 	unsigned long ret;
 	struct page *page, *next;
 	LIST_HEAD(clean_pages);
+#ifdef CONFIG_AMLOGIC_CMA
+	LIST_HEAD(high_active_pages);
+	unsigned long nr_high_active = 0;
+	unsigned long nr_normal_pages = 0;
+#endif
 
 	list_for_each_entry_safe(page, next, page_list, lru) {
 		if (page_is_file_cache(page) && !PageDirty(page) &&
 		    !__PageMovable(page) && !PageUnevictable(page)) {
+		#ifdef CONFIG_AMLOGIC_CMA
+			if (filecache_need_migrate(page)) {
+				/*
+				 * leaving pages with high map count to migrate
+				 * instead of reclaimed. This can help to avoid
+				 * file cache jolt if reclaim large cma size
+				 */
+				list_move(&page->lru, &high_active_pages);
+				nr_high_active++;
+			} else {
+				ClearPageActive(page);
+				list_move(&page->lru, &clean_pages);
+				nr_normal_pages++;
+			}
+		#else
 			ClearPageActive(page);
 			list_move(&page->lru, &clean_pages);
+		#endif
 		}
 	}
 
 	ret = shrink_page_list(&clean_pages, zone->zone_pgdat, &sc,
 			TTU_IGNORE_ACCESS, &dummy_stat, true);
 	list_splice(&clean_pages, page_list);
+#ifdef CONFIG_AMLOGIC_CMA
+	list_splice(&high_active_pages, page_list);
+	pr_debug("high_active:%4ld, normal:%4ld, reclaimed:%4ld\n",
+		nr_high_active, nr_normal_pages, ret);
+#endif
 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, -ret);
 	return ret;
 }
