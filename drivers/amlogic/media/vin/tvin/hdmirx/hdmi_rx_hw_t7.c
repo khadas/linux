@@ -170,7 +170,7 @@ void aml_pll_bw_cfg_t7(void)
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, EQ_EN, 1);
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_HOLD, 0);
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, CDR_FR_EN, 0);
-		usleep_range(1000, 1100);
+		usleep_range(100, 110);
 		/* 0x09 */
 		hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL0, phy_dcha_t7[idx][0]);
 		/* 0x0b */
@@ -243,13 +243,13 @@ void aml_pll_bw_cfg_t7(void)
 		data |= M;
 		data |= (N << 10);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, data | 0x20000000);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, data | 0x30000000);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL1, 0x00000000);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL2, 0x00001118);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		if (idx <= PHY_BW_2)
 			/* sz sast dvd flashing screen issue,*/
 			/* There is a large jitter between 1MHz*/
@@ -262,19 +262,19 @@ void aml_pll_bw_cfg_t7(void)
 		data2 = 0x080130c0;
 		data2 |= (od << 24);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL4, data2);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		/*apll_vctrl_mon_en*/
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL4, data2 | 0x00800000);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, data | 0x34000000);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, data | 0x14000000);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 
 		/* bit'5: force lock bit'2: improve phy ldo voltage */
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL2, 0x0000301c);
 
-		usleep_range(1000, 1100);
+		usleep_range(100, 110);
 		if (pll_rst_cnt++ > pll_rst_max) {
 			if (log_level & VIDEO_LOG)
 				rx_pr("pll rst error\n");
@@ -345,7 +345,7 @@ bool is_dfe_sts_ok_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x2);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap2 = data32 & 0xf;
 	dfe1_tap2 = (data32 >> 8) & 0xf;
@@ -358,7 +358,7 @@ bool is_dfe_sts_ok_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x3);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap3 = data32 & 0x7;
 	dfe1_tap3 = (data32 >> 8) & 0x7;
@@ -371,7 +371,7 @@ bool is_dfe_sts_ok_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x4);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap4 = data32 & 0x7;
 	dfe1_tap4 = (data32 >> 8) & 0x7;
@@ -384,7 +384,7 @@ bool is_dfe_sts_ok_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x5);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap5 = data32 & 0x7;
 	dfe1_tap5 = (data32 >> 8) & 0x7;
@@ -397,7 +397,7 @@ bool is_dfe_sts_ok_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x6);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap6 = data32 & 0x7;
 	dfe1_tap6 = (data32 >> 8) & 0x7;
@@ -410,7 +410,7 @@ bool is_dfe_sts_ok_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x7);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap7 = data32 & 0x7;
 	dfe0_tap8 = (data32 >> 4) & 0x7;
@@ -441,7 +441,7 @@ void aml_phy_long_cable_det_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x2);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	tap2_0 = get_tap2_t7(data32 & 0x1f);
 	tap2_1 = get_tap2_t7(((data32 >> 8) & 0x1f));
@@ -455,7 +455,7 @@ void aml_phy_long_cable_det_t7(void)
 	}
 	if ((tap2_0 + tap2_1 + tap2_2) >= tap2_max) {
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL1, EQ_BYP_VAL1, 0x12);
-		usleep_range(1000, 11000);
+		usleep_range(10, 20);
 		rx_pr("long cable\n");
 	}
 }
@@ -471,7 +471,7 @@ void aml_hyper_gain_tuning_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x0);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 
 	tap0 = data32 & 0xff;
@@ -502,7 +502,7 @@ void aml_eq_retry_t7(void)
 	if (rx.phy.phy_bw >= PHY_BW_3) {
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x3);
-		usleep_range(1000, 1100);
+		usleep_range(100, 110);
 		data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 		eq_boost0 = data32 & 0x1f;
 		eq_boost1 = (data32 >> 8)  & 0x1f;
@@ -513,9 +513,9 @@ void aml_eq_retry_t7(void)
 			rx_pr("eq_retry:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
 			hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, EQ_EN, 1);
 			hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, CDR_EQ_RSTB, 0x2);
-			usleep_range(1000, 1100);
+			usleep_range(100, 110);
 			hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, CDR_EQ_RSTB, 3);
-			usleep_range(1000, 101000);
+			usleep_range(10000, 10100);
 			if (rx.aml_phy.eq_hold)
 				hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, EQ_EN, 0);
 		}
@@ -531,10 +531,10 @@ void aml_dfe_en_t7(void)
 		if (rx.aml_phy.eq_retry)
 			aml_eq_retry_t7();
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_RSTB, 0);
-		usleep_range(1000, 1010);
+		usleep_range(10, 20);
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2,
 				      DFE_RSTB, 1);
-		usleep_range(1000, 11000);
+		usleep_range(10, 20);
 		if (rx.aml_phy.dfe_hold)
 			hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2,
 					      DFE_HOLD, 1);
@@ -550,7 +550,7 @@ void aml_phy_offset_cal_t7(void)
 
 	data32 = phy_misci_t7[idx][0];
 	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, data32);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 
 	data32 = phy_misci_t7[idx][1];
 	/* todo */
@@ -606,34 +606,34 @@ void aml_phy_offset_cal_t7(void)
 
 	/* PLL */
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, 0x200904f8);
-	usleep_range(1000, 1010);
+	usleep_range(10, 20);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, 0x300904f8);
-	usleep_range(1000, 1010);
+	usleep_range(10, 20);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL1, 0x00000000);
-	usleep_range(1000, 1010);
+	usleep_range(10, 20);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL2, 0x00001108);
-	usleep_range(1000, 1010);
+	usleep_range(10, 20);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL3, 0x10058f30);
-	usleep_range(1000, 1010);
+	usleep_range(10, 20);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL4, 0x0b0100c0);
-	usleep_range(1000, 1010);
+	usleep_range(10, 20);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL4, 0x0b8100c0);
-	usleep_range(1000, 1010);
+	usleep_range(10, 20);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, 0x340904f8);
-	usleep_range(1000, 1010);
+	usleep_range(10, 20);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, 0x140904f8);
-	usleep_range(1000, 1010);
+	usleep_range(10, 20);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL2, 0x00000308);
-	usleep_range(1000, 11000);
+	usleep_range(10, 20);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHA_CNTL1,
 			      DFE_OFSETCAL_START, 1);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL1,
 			      OFST_CAL_START, 1);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0,
 		CDR_EQ_RSTB, 3);
-	usleep_range(1000, 11000);
+	usleep_range(10, 20);
 
 	rx_pr("ofst cal\n");
 }
@@ -652,7 +652,7 @@ void aml_eq_eye_monitor_t7(void)
 	/* hold dfe tap1~tap8 */
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2,
 			      DFE_HOLD, 1);
-	usleep_range(1000, 1010);
+	usleep_range(10, 20);
 	/* disable hw scan mode */
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4,
 			      EYE_EN_HW_SCAN, 0);
@@ -675,7 +675,7 @@ void aml_eq_eye_monitor_t7(void)
 			      EYE_EN_HW_SCAN, 1);
 
 	/* wait for scan done */
-	usleep_range(1000, (1000 + rx.aml_phy.eye_delay));
+	usleep_range(rx.aml_phy.eye_delay, rx.aml_phy.eye_delay + 100);
 
 	/* Check status */
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4,
@@ -732,7 +732,7 @@ void aml_eq_eye_monitor_t7(void)
 			      EYE_MONITOR_EN, 0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHA_CNTL2,
 			      EYE_MONITOR_EN1, 0);
-	usleep_range(1000, 1010);
+	usleep_range(10, 20);
 	/* release dfe */
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2,
 			      DFE_HOLD, 0);
@@ -759,7 +759,7 @@ void get_eq_val_t7(void)
 
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x3);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	eq_boost0 = data32 & 0x1f;
 	eq_boost1 = (data32 >> 8)  & 0x1f;
@@ -770,9 +770,8 @@ void get_eq_val_t7(void)
 void aml_eq_cfg_t7(void)
 {
 	/* dont need to run eq if no sqo_clk or pll not lock */
-	/* if (!aml_phy_pll_lock())
-	 *	return;
-	 */
+	if (!aml_phy_pll_lock())
+		return;
 	/* step10 */
 	/* cdr_lkdet_en(0xe5[28])dfe_rstb(0xe7[26])), */
 	/* eq_adp_stg<1:0>(0xe5[9:8])b01, cdr_rstb(0xe5[25]), */
@@ -783,13 +782,13 @@ void aml_eq_cfg_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, EQ_EN, 1);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_HOLD, 0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, CDR_FR_EN, 0);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, CDR_EQ_RSTB, 3);
 	if (rx.aml_phy.cdr_fr_en) {
 		udelay(rx.aml_phy.cdr_fr_en);
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, CDR_FR_EN, 1);
 	}
-	usleep_range(1000, 101000);
+	usleep_range(10000, 10100);
 	get_eq_val_t7();
 	/*if (rx.aml_phy.eq_retry)*/
 		/*aml_eq_retry_t7();*/
@@ -830,7 +829,7 @@ void aml_eq_cfg_t7(void)
 	/*enable HYPER_GAIN calibration for 3G/1.5G/27M*/
 	if (rx.phy.phy_bw <= PHY_BW_3) {
 		aml_hyper_gain_tuning_t7();
-		usleep_range(1000, 1100);
+		usleep_range(100, 110);
 	}
 	/*tmds valid det*/
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, CDR_LKDET_EN, 1);
@@ -848,13 +847,13 @@ void aml_phy_cfg_t7(void)
 			aml_phy_offset_cal_t7();
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL1,
 				      OFST_CAL_START, 0);
-		usleep_range(1000, 1100);
+		usleep_range(100, 110);
 		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHA_CNTL1,
 				      DFE_OFSETCAL_START, 0);
-		usleep_range(1000, 1020);
+		usleep_range(20, 30);
 		data32 = phy_misci_t7[idx][0];
 		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, data32);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 
 		data32 = phy_misci_t7[idx][1];
 		/* todo */
@@ -894,7 +893,7 @@ void aml_phy_cfg_t7(void)
 		data32 &= ~(1 << 11);
 	data32 |= ((1 << rx.port) << 6);
 	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL3, data32);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	/*step4 sq_rst 0xe1[11]=1*/
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_MISC_CNTL3, _BIT(11), 1);
 
@@ -906,7 +905,7 @@ void aml_phy_cfg_t7(void)
 	data32 &= ~(disable_port_num & 0x07);
 	/* terminal en */
 	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, data32);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	/* res cali block[10] reset */
 	/* step4:data channel[7:9] */
 	data32 |= 0x1 << 10;
@@ -928,9 +927,9 @@ void aml_phy_cfg_t7(void)
 void aml_phy_init_t7(void)
 {
 	aml_phy_cfg_t7();
-	usleep_range(1000, 1010);
+	usleep_range(10, 20);
 	aml_pll_bw_cfg_t7();
-	usleep_range(1000, 1010);
+	usleep_range(10, 20);
 	aml_eq_cfg_t7();
 }
 
@@ -1032,20 +1031,20 @@ void dump_aml_phy_sts_t7(void)
 	/* status-1 t7:todo*/
 	terminal = (hdmirx_rd_amlphy(HHI_RX_PHY_MISC_CNTL1) >> 12) & 0xf;
 	//terminal = count_one_bits_t7(data32);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 
 	/* status-2 t7:todo*/
 	data32 = (hdmirx_rd_amlphy(HHI_RX_PHY_DCHA_CNTL0) & 0xfff);
 	ch0_vga = graytodecimal_t7(data32 & 0xf);
 	ch1_vga = graytodecimal_t7((data32 >> 4) & 0xf);
 	ch2_vga = graytodecimal_t7((data32 >> 8) & 0xf);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 
 	/* status-3 */
 	/* disable eye monitor debug function */
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x3);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	ch0_eq_boost1 = data32 & 0x1f;
 	ch1_eq_boost1 = (data32 >> 8)  & 0x1f;
@@ -1058,7 +1057,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x0);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap0 = data32 & 0xff;
 	dfe1_tap0 = (data32 >> 8) & 0xff;
@@ -1067,7 +1066,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x1);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap1 = data32 & 0x3f;
 	dfe1_tap1 = (data32 >> 8) & 0x3f;
@@ -1076,7 +1075,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x2);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap2 = data32 & 0x1f;
 	dfe1_tap2 = (data32 >> 8) & 0x1f;
@@ -1085,7 +1084,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x3);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap3 = data32 & 0xf;
 	dfe1_tap3 = (data32 >> 8) & 0xf;
@@ -1094,7 +1093,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x4);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap4 = data32 & 0xf;
 	dfe1_tap4 = (data32 >> 8) & 0xf;
@@ -1103,7 +1102,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x5);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap5 = data32 & 0xf;
 	dfe1_tap5 = (data32 >> 8) & 0xf;
@@ -1112,7 +1111,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x6);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap6 = data32 & 0xf;
 	dfe1_tap6 = (data32 >> 8) & 0xf;
@@ -1121,7 +1120,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x7);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	dfe0_tap7 = data32 & 0xf;
 	dfe0_tap8 = (data32 >> 4) & 0xf;
@@ -1133,7 +1132,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, _BIT(22), 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x2);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	cdr0_code = data32 & 0x7f;
 	cdr0_lock = (data32 >> 7) & 0x1;
@@ -1145,7 +1144,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, _BIT(22), 0x1);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x2);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	cdr0_init = (data32 & 0x7f);
 	cdr1_init = (data32 >> 8) & 0x7f;
@@ -1161,7 +1160,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x1);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x0);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	sli0_ofst0 = data32 & 0x3f;
 	sli1_ofst0 = (data32 >> 8) & 0x3f;
@@ -1171,7 +1170,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x1);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x1);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	sli0_ofst1 = data32 & 0x3f;
 	sli1_ofst1 = (data32 >> 8) & 0x3f;
@@ -1181,7 +1180,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x1);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x2);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	sli0_ofst2 = data32 & 0x3f;
 	sli1_ofst2 = (data32 >> 8) & 0x3f;
@@ -1191,7 +1190,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x1);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x3);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	sli0_ofst3 = data32 & 0x3f;
 	sli1_ofst3 = (data32 >> 8) & 0x3f;
@@ -1201,7 +1200,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x1);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x4);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	sli0_ofst4 = data32 & 0x3f;
 	sli1_ofst4 = (data32 >> 8) & 0x3f;
@@ -1211,7 +1210,7 @@ void dump_aml_phy_sts_t7(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x1);
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x5);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
 	sli0_ofst5 = data32 & 0x3f;
 	sli1_ofst5 = (data32 >> 8) & 0x3f;
@@ -1264,74 +1263,74 @@ void aml_phy_short_bist_t7(void)
 		rx_pr("t7 short bist start\n");
 	for (port = 0; port < 3; port++) {
 		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, 0x4003f07f);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, 0x4003f3ff);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		if (rx.aml_phy.long_bist_en)
 			hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL1, 0x000c01ce);
 		else
 			hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL1, 0x000c0fc0);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL2, 0x00000000);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		data32 = 0;
 		/*selector clock to digital from data ch*/
 		data32 |= (1 << port) << 3;
 		data32 |= 0x7 << 0;
 		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL3, data32);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		data32 |= 1 << 11;
 		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL3, data32);
-		rx_pr("\nport=%x\n", rd_reg_hhi(HHI_RX_PHY_MISC_CNTL3));
-		usleep_range(1000, 1005);
+		rx_pr("\nport=%x\n", hdmirx_rd_amlphy(HHI_RX_PHY_MISC_CNTL3));
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL0, 0x10210fff);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL1, 0x45ff4b58);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL2, 0x01ff2a21);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL3, 0x00001080);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL0, 0xe0372913);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL1, 0x40000000);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL2, 0x09422222);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL3, 0x10000000);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL4, 0x00000001);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, 0x200904f8);
-		usleep_range(1000, 1100);
+		usleep_range(100, 110);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, 0x300904f8);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL1, 0x00000000);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL2, 0x00001108);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL3, 0x10058f30);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL4, 0x090100c0);
-		usleep_range(1000, 1100);
+		usleep_range(100, 110);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL4, 0x098100c0);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, 0x340904f8);
-		usleep_range(1000, 1100);
+		usleep_range(100, 110);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, 0x140904f8);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_APLL_CNTL2, 0x00003008);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL0, 0xf3372913);
-		usleep_range(1000, 1005);
-		usleep_range(10000, 11000);
+		usleep_range(5, 10);
+		usleep_range(1000, 1100);
 		/* Reset */
 		data32	= 0x0;
 		data32	|=	1 << 8;
 		data32	|=	1 << 7;
 		/* Configure BIST analyzer before BIST path out of reset */
 		hdmirx_wr_top(TOP_SW_RESET, data32);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		// Configure BIST analyzer before BIST path out of reset
 		data32 = 0;
 		// [23:22] prbs_ana_ch2_prbs_mode:
@@ -1368,14 +1367,14 @@ void aml_phy_short_bist_t7(void)
 		// [	1] prbs_ana_ch0_bit_reverse
 		data32	|=	1 << 1;
 		hdmirx_wr_top(TOP_PRBS_ANA_0,  data32);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		data32			= 0;
 		// [19: 8] prbs_ana_time_window
 		data32	|=	255 << 8;
 		// [ 7: 0] prbs_ana_err_thr
 		data32	|=	0;
 		hdmirx_wr_top(TOP_PRBS_ANA_1,  data32);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		// Configure channel switch
 		data32			= 0;
 		data32	|=	2 << 28;// [29:28] source_2
@@ -1392,7 +1391,7 @@ void aml_phy_short_bist_t7(void)
 		data32	|=	0 << 4;// [    4] polarity_0
 		data32	|=	0;// [	  0] enable
 		hdmirx_wr_top(TOP_CHAN_SWITCH_0, data32);
-		usleep_range(1000, 1005);
+		usleep_range(5, 10);
 		// Configure BIST generator
 		data32		   = 0;
 		data32	|=	0 << 8;// [    8] bist_loopback
@@ -1402,14 +1401,14 @@ void aml_phy_short_bist_t7(void)
 		data32	|=	3 << 1;// [ 2: 1] prbs_gen_width:3=10-bit.
 		data32	|=	0;// [	 0] prbs_gen_enable
 		hdmirx_wr_top(TOP_PRBS_GEN, data32);
-		usleep_range(10000, 11000);
+		usleep_range(1000, 1100);
 		/* Reset */
 		data32	= 0x0;
 		data32	&=	~(1 << 8);
 		data32	&=	~(1 << 7);
 		/* Configure BIST analyzer before BIST path out of reset */
 		hdmirx_wr_top(TOP_SW_RESET, data32);
-		usleep_range(1000, 1100);
+		usleep_range(100, 110);
 		// Configure channel switch
 		data32 = 0;
 		data32	|=	2 << 28;// [29:28] source_2
@@ -1444,12 +1443,12 @@ void aml_phy_short_bist_t7(void)
 
 		/* PRBS analyzer control */
 		hdmirx_wr_top(TOP_PRBS_ANA_0, 0xf6f6f6);
-		usleep_range(1000, 1100);
+		usleep_range(100, 110);
 		hdmirx_wr_top(TOP_PRBS_ANA_0, 0xf2f2f2);
 
 		//if ((hdmirx_rd_top(TOP_PRBS_GEN) & data32) != 0)
 			//return;
-		usleep_range(10000, 15000);
+		usleep_range(5000, 5050);
 
 		/* Check BIST analyzer BER counters */
 		if (port == 0)
@@ -1486,7 +1485,7 @@ void aml_phy_short_bist_t7(void)
 			else
 				rx_pr("ch2 NG\n");
 		}
-		usleep_range(10000, 11000);
+		usleep_range(1000, 1100);
 	}
 	lock_sts = ch0_lock | (ch1_lock << 2) | (ch2_lock << 4);
 	if (lock_sts == 0x15)/* lock_sts == b'010101' is PASS*/
@@ -1513,7 +1512,7 @@ void aml_phy_get_cdr_int_avr_t7(u32 cdr_ed_mode, u32 *ch0, u32 *ch1, u32 *ch2)
 	int flag_127 = 0;
 
 	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL1, cdr_ed_mode);//clk0
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	//for(10 times)
 	for (; i < 10; i++) {
 		data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
@@ -1531,7 +1530,7 @@ void aml_phy_get_cdr_int_avr_t7(u32 cdr_ed_mode, u32 *ch0, u32 *ch1, u32 *ch2)
 		rx_pr("cdr_code[%d]=[%d,%d,%d]\n",
 				i, cdr0_code[i], cdr1_code[i], cdr2_code[i]);
 		rx_pr("flag:%d-%d\n", flag_32, flag_127);
-		usleep_range(1000, 1010);
+		usleep_range(10, 20);
 	}
 
 	for (i = 0; i < 10; i++) {
@@ -1579,65 +1578,65 @@ void aml_phy_iq_skew_monitor_t7(void)
 	int iq_skew;
 
 	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, 0x4003707f);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, 0x400373ff);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL1, 0x000401ce);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL2, 0x00000000);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL3, 0x00000017);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL3, 0x00000817);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL0, 0x10210fff);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL1, 0x45ff4b58);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL2, 0x01ff2a21);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_DCHA_CNTL3, 0x00001080);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL0, 0xe0b72900);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL1, 0x70000000);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL2, 0x09422222);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL3, 0x10000000);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL4, 0x00003001);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, 0x200904f8);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, 0x300904f8);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL1, 0x00000000);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL2, 0x00001108);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL3, 0x10058f30);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL4, 0x090100c0);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL4, 0x098100c0);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, 0x340904f8);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL0, 0x140904f8);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_APLL_CNTL2, 0x00003008);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	hdmirx_wr_amlphy(HHI_RX_PHY_DCHD_CNTL0, 0xf3b72900);
-	usleep_range(1000, 1005);
-	usleep_range(10000, 11000);
+	usleep_range(5, 10);
+	usleep_range(1000, 1100);
 	/* Reset */
 	data32	= 0x0;
 	data32	|=	1 << 8;
 	data32	|=	1 << 7;
 	/* Configure BIST analyzer before BIST path out of reset */
 	hdmirx_wr_top(TOP_SW_RESET, data32);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	// Configure BIST analyzer before BIST path out of reset
 	data32 = 0;
 	// [23:22] prbs_ana_ch2_prbs_mode:
@@ -1674,14 +1673,14 @@ void aml_phy_iq_skew_monitor_t7(void)
 	// [	1] prbs_ana_ch0_bit_reverse
 	data32	|=	1 << 1;
 	hdmirx_wr_top(TOP_PRBS_ANA_0,  data32);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	data32			= 0;
 	// [19: 8] prbs_ana_time_window
 	data32	|=	255 << 8;
 	// [ 7: 0] prbs_ana_err_thr
 	data32	|=	0;
 	hdmirx_wr_top(TOP_PRBS_ANA_1,  data32);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	// Configure channel switch
 	data32			= 0;
 	data32	|=	2 << 28;// [29:28] source_2
@@ -1698,7 +1697,7 @@ void aml_phy_iq_skew_monitor_t7(void)
 	data32	|=	0 << 4;// [    4] polarity_0
 	data32	|=	0;// [	  0] enable
 	hdmirx_wr_top(TOP_CHAN_SWITCH_0, data32);
-	usleep_range(1000, 1005);
+	usleep_range(5, 10);
 	// Configure BIST generator
 	data32		   = 0;
 	data32	|=	3 << 9;// [ 10:9] shift pattern en
@@ -1710,14 +1709,14 @@ void aml_phy_iq_skew_monitor_t7(void)
 	data32	|=	0;// [	 0] prbs_gen_enable
 	hdmirx_wr_top(TOP_PRBS_GEN, data32);
 	hdmirx_wr_top(TOP_SHIFT_PTTN_012, 0xcccccccc);
-	usleep_range(10000, 11000);
+	usleep_range(1000, 1100);
 	/* Reset */
 	data32	= 0x0;
 	data32	&=	~(1 << 8);
 	data32	&=	~(1 << 7);
 	/* Configure BIST analyzer before BIST path out of reset */
 	hdmirx_wr_top(TOP_SW_RESET, data32);
-	usleep_range(1000, 1100);
+	usleep_range(100, 110);
 	// Configure channel switch
 	data32 = 0;
 	data32	|=	2 << 28;// [29:28] source_2
@@ -1750,7 +1749,7 @@ void aml_phy_iq_skew_monitor_t7(void)
 	/* [	0] prbs_gen_enable */
 	data32	|=	1;
 	hdmirx_wr_top(TOP_PRBS_GEN, data32);
-	usleep_range(10000, 11000);
+	usleep_range(1000, 1100);
 
 	//read cdr_code 10 times, record the average value.
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
