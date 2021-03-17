@@ -569,7 +569,6 @@ extern bool video_suspend;
 extern u32 video_suspend_cycle;
 extern int log_out;
 extern int debug_flag;
-extern const struct vinfo_s *vinfo;
 extern bool bypass_pps;
 extern bool rdma_enable_pre;
 extern struct vpp_frame_par_s *curpip_frame_par;
@@ -627,11 +626,13 @@ void _set_video_window(struct disp_info_s *layer, int *p);
 void _set_video_crop(struct disp_info_s *layer, int *p);
 void set_alpha_scpxn(struct video_layer_s *layer,
 			   struct componser_info_t *componser_info);
-void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf);
-s32 pip_render_frame(struct video_layer_s *layer);
-void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf);
-s32 pip2_render_frame(struct video_layer_s *layer);
 void di_used_vd1_afbc(bool di_used);
+void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
+		    const struct vinfo_s *vinfo);
+s32 pip_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo);
+void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
+		     const struct vinfo_s *vinfo);
+s32 pip2_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void vsync_rdma_process(void);

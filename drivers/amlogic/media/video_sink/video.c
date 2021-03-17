@@ -4194,7 +4194,8 @@ void set_video_zorder_ext(int layer_index, int zorder)
 	}
 }
 
-void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf)
+void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
+			   const struct vinfo_s *vinfo)
 {
 	struct disp_info_s *layer_info = NULL;
 	int axis[4];
@@ -4244,7 +4245,7 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf)
 		layer->new_vpp_setting = false;
 }
 
-s32 pip2_render_frame(struct video_layer_s *layer)
+s32 pip2_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 {
 	struct vpp_frame_par_s *frame_par;
 	u32 zoom_start_y, zoom_end_y;
@@ -4333,7 +4334,8 @@ s32 pip2_render_frame(struct video_layer_s *layer)
 	return 1;
 }
 
-void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf)
+void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
+			  const struct vinfo_s *vinfo)
 {
 	struct disp_info_s *layer_info = NULL;
 	int axis[4];
@@ -4381,7 +4383,7 @@ void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf)
 		layer->new_vpp_setting = false;
 }
 
-s32 pip_render_frame(struct video_layer_s *layer)
+s32 pip_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 {
 	struct vpp_frame_par_s *frame_par;
 	u32 zoom_start_y, zoom_end_y;
@@ -7141,10 +7143,10 @@ SET_FILTER:
 	if (!new_frame2 &&
 	    vd_layer[1].dispbuf &&
 	    vd_layer[1].property_changed) {
-		pip_swap_frame(&vd_layer[1], vd_layer[1].dispbuf);
+		pip_swap_frame(&vd_layer[1], vd_layer[1].dispbuf, vinfo);
 		need_disable_vd2 = false;
 	} else if (new_frame2) {
-		pip_swap_frame(&vd_layer[1], new_frame2);
+		pip_swap_frame(&vd_layer[1], new_frame2, vinfo);
 		need_disable_vd2 = false;
 	}
 
@@ -7400,10 +7402,10 @@ SET_FILTER:
 		if (!new_frame3 &&
 		    vd_layer[2].dispbuf &&
 		    vd_layer[2].property_changed) {
-			pip2_swap_frame(&vd_layer[2], vd_layer[2].dispbuf);
+			pip2_swap_frame(&vd_layer[2], vd_layer[2].dispbuf, vinfo);
 			need_disable_vd3 = false;
 		} else if (new_frame3) {
-			pip2_swap_frame(&vd_layer[2], new_frame3);
+			pip2_swap_frame(&vd_layer[2], new_frame3, vinfo);
 			need_disable_vd3 = false;
 		}
 
@@ -7449,8 +7451,8 @@ SET_FILTER:
 
 	/* filter setting management */
 	frame_par_di_set = primary_render_frame(&vd_layer[0]);
-	pip_render_frame(&vd_layer[1]);
-	pip2_render_frame(&vd_layer[2]);
+	pip_render_frame(&vd_layer[1], vinfo);
+	pip2_render_frame(&vd_layer[2], vinfo);
 	video_secure_set();
 
 	if (vd_layer[0].dispbuf &&

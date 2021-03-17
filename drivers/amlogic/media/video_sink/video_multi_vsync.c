@@ -111,34 +111,35 @@ static bool is_vsync_vppx_rdma_enable(u8 vpp_index)
 }
 #endif
 
-static void pipx_render_frame(u8 vpp_index)
+static void pipx_render_frame(u8 vpp_index, const struct vinfo_s *vinfo)
 {
 	u8 vpp_id = 0;
 
 	vpp_id = vpp_index - VPP1;
 	if (vpp_id < VPP2) {
 		if (vpp_index == VPP1)
-			pip_render_frame(&vd_layer_vpp[vpp_id]);
+			pip_render_frame(&vd_layer_vpp[vpp_id], vinfo);
 		else if (vpp_index == VPP2)
-			pip2_render_frame(&vd_layer_vpp[vpp_id]);
+			pip2_render_frame(&vd_layer_vpp[vpp_id], vinfo);
 	}
 }
 
-static void pipx_swap_frame(u8 vpp_index, struct vframe_s *vf)
+static void pipx_swap_frame(u8 vpp_index, struct vframe_s *vf,
+				  const struct vinfo_s *vinfo)
 {
 	u8 vpp_id = 0;
 
 	vpp_id = vpp_index - VPP1;
 	if (vpp_id < VPP2) {
 		if (vpp_index == VPP1)
-			pip_swap_frame(&vd_layer_vpp[vpp_id], vf);
+			pip_swap_frame(&vd_layer_vpp[vpp_id], vf, vinfo);
 		else if (vpp_index == VPP2)
-			pip2_swap_frame(&vd_layer_vpp[vpp_id], vf);
+			pip2_swap_frame(&vd_layer_vpp[vpp_id], vf, vinfo);
 	}
 }
 #define MAX_LOG_CNT 10
 
-irqreturn_t vsync_isr_viux(u8 vpp_index)
+irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 {
 	int hold_line;
 	int enc_line;
@@ -174,7 +175,7 @@ irqreturn_t vsync_isr_viux(u8 vpp_index)
 	if (cur_vd_path_id == 0xff)
 		cur_vd_path_id = vd_path_id;
 
-	vout_type = detect_vout_type(vinfo);
+	vout_type = detect_vout_type(info);
 	hold_line = calc_hold_line();
 
 	glayer_info[layer_id].need_no_compress = false;
@@ -300,13 +301,13 @@ irqreturn_t vsync_isr_viux(u8 vpp_index)
 	if (!new_frame &&
 	    vd_layer_vpp[vpp_id].dispbuf &&
 	    vd_layer_vpp[vpp_id].property_changed) {
-		pipx_swap_frame(vpp_index, vd_layer_vpp[vpp_id].dispbuf);
+		pipx_swap_frame(vpp_index, vd_layer_vpp[vpp_id].dispbuf, info);
 		if (layer_id == 1)
 			need_disable_vd2 = false;
 		else if (layer_id == 2)
 			need_disable_vd3 = false;
 	} else if (new_frame) {
-		pipx_swap_frame(vpp_index, new_frame);
+		pipx_swap_frame(vpp_index, new_frame, info);
 		if (layer_id == 1)
 			need_disable_vd2 = false;
 		else if (layer_id == 2)
@@ -345,7 +346,7 @@ irqreturn_t vsync_isr_viux(u8 vpp_index)
 		safe_switch_videolayer(layer_id, false, true);
 
 	/* filter setting management */
-	pipx_render_frame(vpp_index);
+	pipx_render_frame(vpp_index, info);
 	/* video_secure_set(); */
 
 	if (vd_layer_vpp[vpp_id].dispbuf &&
@@ -355,7 +356,7 @@ irqreturn_t vsync_isr_viux(u8 vpp_index)
 	/* all frames has been renderred, so reset new frame flag */
 	vd_layer_vpp[vpp_id].new_frame = false;
 exit:
-	vppx_blend_update(vinfo, vpp_index);
+	vppx_blend_update(info, vpp_index);
 	if (gvideo_recv_vpp[recv_id])
 		gvideo_recv_vpp[recv_id]->func->late_proc(gvideo_recv_vpp[recv_id]);
 
@@ -378,9 +379,13 @@ exit:
 irqreturn_t vsync_isr_viu2(int irq, void *dev_id)
 {
 	irqreturn_t ret;
+	const struct vinfo_s *info = NULL;
 
 	atomic_set(&video_inirq_flag_vpp[0], 1);
-	ret = vsync_isr_viux(VPP1);
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	info = get_current_vinfo2();
+#endif
+	ret = vsync_isr_viux(VPP1, info);
 	atomic_set(&video_inirq_flag_vpp[0], 0);
 	return ret;
 }
@@ -388,9 +393,13 @@ irqreturn_t vsync_isr_viu2(int irq, void *dev_id)
 irqreturn_t vsync_isr_viu3(int irq, void *dev_id)
 {
 	irqreturn_t ret;
+	const struct vinfo_s *info = NULL;
 
 	atomic_set(&video_inirq_flag_vpp[1], 1);
-	ret = vsync_isr_viux(VPP2);
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	info = get_current_vinfo3();
+#endif
+	ret = vsync_isr_viux(VPP2, info);
 	atomic_set(&video_inirq_flag_vpp[1], 0);
 	return ret;
 }

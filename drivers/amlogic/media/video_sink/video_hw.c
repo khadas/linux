@@ -6510,12 +6510,14 @@ void vpp2_blend_update(u32 vpp_index)
 void vppx_blend_update(const struct vinfo_s *vinfo, u32 vpp_index)
 {
 	if (vinfo) {
-		u32 read_value = cur_dev->rdma_func[vpp_index].rdma_rd
-			(vppx_blend_reg_array[vpp_index].vpp_bld_out_size);
+		u32 read_value;
+
+		read_value = cur_dev->rdma_func[vpp_index].rdma_rd
+			(vppx_blend_reg_array[vpp_index - VPP1].vpp_bld_out_size);
 		if (((vinfo->field_height << 16) | vinfo->width)
 			!= read_value)
 			cur_dev->rdma_func[vpp_index].rdma_wr
-				(vppx_blend_reg_array[vpp_index].vpp_bld_out_size,
+				(vppx_blend_reg_array[vpp_index - VPP1].vpp_bld_out_size,
 				((vinfo->field_height << 16) | vinfo->width));
 	}
 
