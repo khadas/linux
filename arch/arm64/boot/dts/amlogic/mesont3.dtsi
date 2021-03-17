@@ -431,6 +431,25 @@
 			};
 		};
 
+		vclk_serve: vclk_serve {
+			compatible = "amlogic, vclk_serve";
+			status = "okay";
+			reg = <0x0 0xfe008000 0x0 0x300    /* ana reg */
+				0x0 0xfe000000 0x0 0x4a0>; /* clk reg */
+		};
+
+		vout: vout {
+			compatible = "amlogic, vout";
+			status = "okay";
+
+			/* fr_policy:
+			 *    0: disable
+			 *    1: nearby (only for 60->59.94 and 30->29.97)
+			 *    2: force (60/50/30/24/59.94/23.97)
+			 */
+			fr_policy = <2>;
+		};
+
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
