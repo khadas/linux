@@ -4907,12 +4907,12 @@ void aml_exp_attach(struct aml_exp_func *afe)
 }
 EXPORT_SYMBOL_GPL(aml_exp_attach);
 
-#ifndef MODULE
-fs_initcall(aml_dtvdemod_init);
-module_exit(aml_dtvdemod_exit);
+//#ifndef MODULE
+//fs_initcall(aml_dtvdemod_init);
+//module_exit(aml_dtvdemod_exit);
 
-MODULE_VERSION(AMLDTVDEMOD_VER);
-MODULE_DESCRIPTION("gxtv_demod DVB-T/DVB-C/DTMB Demodulator driver");
-MODULE_AUTHOR("RSJ");
-MODULE_LICENSE("GPL");
-#endif
+//MODULE_VERSION(AMLDTVDEMOD_VER);
+//MODULE_DESCRIPTION("gxtv_demod DVB-T/DVB-C/DTMB Demodulator driver");
+//MODULE_AUTHOR("RSJ");
+//MODULE_LICENSE("GPL");
+//#endif
