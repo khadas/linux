@@ -248,7 +248,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	const struct vinfo_s *info = hdmitx_get_current_vinfo();
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)h->param;
 
-	if (info && (hdmitx_is_hdmi_vmode(info->name) == 1))
+	if (info && info->name && (hdmitx_is_hdmi_vmode(info->name) == 1))
 		hdev->hwop.cntlmisc(hdev, MISC_HPLL_FAKE, 0);
 
 	hdev->hpd_lock = 0;
