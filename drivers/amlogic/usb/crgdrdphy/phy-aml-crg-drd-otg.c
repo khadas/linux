@@ -44,9 +44,9 @@ module_param_named(otg_device, crg_force_device_mode,
 static char otg_mode_string[2] = "0";
 static int force_otg_mode(char *s)
 {
-	if (!s)
+	if (s)
 		sprintf(otg_mode_string, "%s", s);
-	if (strcmp(otg_mode_string, "0") == 0)
+	if (strncmp(otg_mode_string, "0", 1) == 0)
 		crg_force_device_mode = 0;
 	else
 		crg_force_device_mode = 1;
