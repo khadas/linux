@@ -12,6 +12,9 @@
 #include <linux/spinlock.h>
 #include <linux/miscdevice.h>
 #include <linux/highmem.h>
+#ifdef CONFIG_AMLOGIC_TEE
+#include <linux/amlogic/tee.h>
+#endif
 #include "system_gdc_io.h"
 #include "gdc_api.h"
 #include "gdc_dmabuf.h"
@@ -1095,18 +1098,39 @@ static inline void gdc_start_flag_write(u8 data, u32 dev_type)
 		system_gdc_write_32(0x64L, val);
 	} else {
 		if (data) {
+			/* secure mem access */
+			u32 sec_bit = system_gdc_read_32(ISP_DWAP_TOP_CTRL0) &
+				      (1 << 5);
 			u32 val = 0;
 
-			val = 1 << 30 | /* reg_sw_rst */
+			val = sec_bit |
+			      1 << 30 | /* reg_sw_rst */
 			      0 << 16 | /* reg_stdly_num */
 			      1 << 2  ; /* reg_hs_sel */
 			system_gdc_write_32(ISP_DWAP_TOP_CTRL0, val);
 
-			val = 0;
-			val = 1 << 31 | 1 << 2;  /* reg_frm_rst */
+			val = sec_bit | 1 << 31 | 1 << 2;  /* reg_frm_rst */
 			system_gdc_write_32(ISP_DWAP_TOP_CTRL0, val);
 		}
 	}
+}
+
+static inline void gdc_secure_set(u8 data, u32 dev_type)
+{
+	if (dev_type == ARM_GDC) {
+		#ifdef CONFIG_AMLOGIC_TEE
+		tee_config_device_state(DMC_DEV_ID_GDC, data);
+		#endif
+	} else {
+		u32 val = system_gdc_read_32(ISP_DWAP_TOP_CTRL0);
+
+		if (data)
+			val |= 1 << 5;
+		else
+			val &= ~(1 << 5);
+		system_gdc_write_32(ISP_DWAP_TOP_CTRL0, val);
+	}
+	gdc_log(LOG_DEBUG, "secure mode:%d, dev_type:%d\n", data, dev_type);
 }
 
 static inline uint8_t gdc_start_flag_read(void)

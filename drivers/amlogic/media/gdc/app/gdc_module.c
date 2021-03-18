@@ -1277,6 +1277,7 @@ int gdc_process_phys(struct gdc_context_s *context,
 	gdc_cmd->gdc_config.config_addr = gs->config_paddr;
 	gdc_cmd->gdc_config.config_size = gs->config_size;
 	gdc_cmd->outplane = gs->out_plane_num;
+	gdc_cmd->use_sec_mem = gs->use_sec_mem;
 
 	/* output_addr */
 	plane_number = gs->out_plane_num;

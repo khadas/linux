@@ -46,6 +46,10 @@ int gdc_init(struct gdc_cmd_s *gdc_cmd)
 	}
 	//stop gdc
 	gdc_start_flag_write(0, dev_type);
+
+	// secure mem access
+	gdc_secure_set(gdc_cmd->use_sec_mem, dev_type);
+
 	//set the configuration address and size to the gdc block
 	gdc_config_addr_write(gdc_cmd->gdc_config.config_addr, dev_type);
 	gdc_config_size_write(gdc_cmd->gdc_config.config_size, dev_type);

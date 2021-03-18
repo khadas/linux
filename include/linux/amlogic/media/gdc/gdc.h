@@ -101,6 +101,8 @@ struct gdc_cmd_s {
 	unsigned char wait_done_flag;
 	/* ARM_GDC or AML_GDC */
 	u32 dev_type;
+	/* secure mem access */
+	u32 use_sec_mem;
 };
 
 struct gdc_context_s {
@@ -148,6 +150,7 @@ struct gdc_phy_setting {
 	u32 config_paddr;
 	u32 config_size; /* in 32bit */
 	u32 use_builtin_fw;
+	u32 use_sec_mem; /* secure mem access */
 	char config_name[CONFIG_PATH_LENG];
 };
 
