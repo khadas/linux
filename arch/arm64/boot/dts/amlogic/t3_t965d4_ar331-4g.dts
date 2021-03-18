@@ -92,6 +92,13 @@
 			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
 		};
+		ion_fb_reserved:linux,ion-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1920x1080x4x3 round up 4M align */
+			size = <0x0 0x1c00000>;
+			alignment = <0x0 0x400000>;
+		};
 
 		/*  vdin0 CMA pool */
 		/*vdin0_cma_reserved:linux,vdin0_cma {*/

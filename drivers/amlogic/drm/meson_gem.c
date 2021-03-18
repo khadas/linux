@@ -25,7 +25,7 @@ static int am_meson_gem_alloc_ion_buff(struct am_meson_gem_object *
 {
 	size_t len;
 	u32 bscatter = 0;
-	struct dma_buf *dmabuf;
+	struct dma_buf *dmabuf = NULL;
 	struct ion_buffer *buffer;
 	unsigned int id;
 
@@ -41,18 +41,26 @@ static int am_meson_gem_alloc_ion_buff(struct am_meson_gem_object *
 	 */
 	if (((flags & (MESON_USE_SCANOUT | MESON_USE_CURSOR)) != 0) || flags == 0) {
 		id = meson_ion_cma_heap_id_get();
-		dmabuf = ion_alloc(meson_gem_obj->base.size, (1 << id),
+		if (id)
+			dmabuf = ion_alloc(meson_gem_obj->base.size, (1 << id),
 						   ION_FLAG_EXTEND_MESON_HEAP);
+		if (IS_ERR_OR_NULL(dmabuf) && meson_ion_fb_heap_id_get()) {
+			id = meson_ion_fb_heap_id_get();
+			dmabuf = ion_alloc(meson_gem_obj->base.size, (1 << id),
+						   ION_FLAG_EXTEND_MESON_HEAP);
+		}
 	} else if (flags & MESON_USE_VIDEO_PLANE) {
 		meson_gem_obj->is_uvm = true;
 		id = meson_ion_codecmm_heap_id_get();
-		dmabuf = ion_alloc(meson_gem_obj->base.size, (1 << id),
+		if (id)
+			dmabuf = ion_alloc(meson_gem_obj->base.size, (1 << id),
 						   ION_FLAG_EXTEND_MESON_HEAP);
 	} else if (flags & MESON_USE_VIDEO_AFBC) {
 		meson_gem_obj->is_uvm = true;
 		meson_gem_obj->is_afbc = true;
 		id = meson_ion_codecmm_heap_id_get();
-		dmabuf = ion_alloc(meson_gem_obj->base.size, (1 << id),
+		if (id)
+			dmabuf = ion_alloc(meson_gem_obj->base.size, (1 << id),
 						   ION_FLAG_EXTEND_MESON_HEAP);
 	} else {
 		dmabuf = ion_alloc(meson_gem_obj->base.size,

@@ -1528,7 +1528,8 @@
 
 	ion_dev {
 		compatible = "amlogic, ion_dev";
-		memory-region = <&ion_cma_reserved>;
+		memory-region = <&ion_cma_reserved
+				&ion_fb_reserved>;
 	};
 
 	meson_uvm {
