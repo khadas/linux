@@ -92,11 +92,11 @@ static void t7_dmc_range_config(struct ddr_bandwidth *db, int channel,
 	int i;
 	void *io;
 
+	start >>= 12;
+	end   >>= 12;
 	for (i = 0; i < 2; i++) {
 		io  = i ? db->ddr_reg2 : db->ddr_reg1;
 		off = DMC_MON0_STA + channel * 16;
-		start >>= 12;
-		end   >>= 12;
 		writel(start, io + off);	/* DMC_MON*_STA */
 		writel(end, io + off + 4);	/* DMC_MON*_EDA */
 	}
@@ -148,8 +148,8 @@ static unsigned long t7_get_dmc_freq_quick(struct ddr_bandwidth *db)
 
 static void t7_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 {
-	writel((0x01 << 31), db->ddr_reg1 + DMC_MON_CTRL0);
 	writel((0x01 << 31), db->ddr_reg2 + DMC_MON_CTRL0);
+	writel((0x01 << 31), db->ddr_reg1 + DMC_MON_CTRL0);
 }
 
 static void t7_dmc_bandwidth_init(struct ddr_bandwidth *db)
@@ -179,22 +179,20 @@ static int t7_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	for (d = 0; d < 2; d++) {
 		io  = d ? db->ddr_reg2 : db->ddr_reg1;
 		val = readl(io + DMC_MON_CTRL0);
-		if (val & DMC_QOS_IRQ) {
-			/*
-			 * get total bytes by each channel, each cycle 16 bytes;
-			 */
-			dg->all_grant    += readl(io + DMC_MON_ALL_BW);
-			dg->all_grant16  += readl(io + DMC_MON_ALL16_BW);
-			for (i = 0; i < db->channels; i++) {
-				off = i * 16 + DMC_MON0_BW;
-				dg->channel_grant[i] += readl(io + off);
-			}
-			/* clear irq flags */
-			writel(val, io + DMC_MON_CTRL0);
-			t7_dmc_bandwidth_enable(db);
-
-			ret = 0;
+		/*
+		 * get total bytes by each channel, each cycle 16 bytes;
+		 */
+		dg->all_grant    += readl(io + DMC_MON_ALL_BW);
+		dg->all_grant16  += readl(io + DMC_MON_ALL16_BW);
+		for (i = 0; i < db->channels; i++) {
+			off = i * 16 + DMC_MON0_BW;
+			dg->channel_grant[i] += readl(io + off);
 		}
+		/* clear irq flags */
+		writel(val, io + DMC_MON_CTRL0);
+		writel((0x01 << 31), io + DMC_MON_CTRL0);
+
+		ret = 0;
 	}
 	/* each register */
 	dg->all_grant   *= 16;

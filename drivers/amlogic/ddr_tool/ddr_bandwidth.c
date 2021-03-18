@@ -23,6 +23,13 @@
 
 static struct ddr_bandwidth *aml_db;
 
+static int dual_dmc(struct ddr_bandwidth *db)
+{
+	if (db && (db->soc_feature & DUAL_DMC))
+		return 1;
+	return 0;
+}
+
 static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 {
 	u64 mul, mbw; /* avoid overflow */
@@ -61,6 +68,8 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	do_div(mul, db->bytes_per_cycle);
 	cnt  = db->clock_count;
 	do_div(mul, cnt);
+	if (dual_dmc(db))		// div 2 for dual dma
+		mul = mul / 2;
 	db->cur_sample.total_usage = mul;
 	if (freq) {
 		/* calculate in KB */
@@ -147,13 +156,6 @@ static char *find_port_name(int id)
 			return aml_db->port_desc[i].port_name;
 	}
 	return NULL;
-}
-
-static int dual_dmc(struct ddr_bandwidth *db)
-{
-	if (db && (db->soc_feature & DUAL_DMC))
-		return 1;
-	return 0;
 }
 
 static void clear_bandwidth_statistics(void)
