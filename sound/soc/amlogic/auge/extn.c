@@ -40,6 +40,8 @@
 #define DRV_NAME "EXTN"
 #define MAX_INT    0x7ffffff
 
+#define MAX_AUDIO_EDID_LENGTH 30
+
 /*
  * TXLX_ARC: hdmirx arc from spdif
  * TL1_ARC: hdmirx arc from spdifA/spdifB
@@ -97,6 +99,11 @@ struct extn {
 	int audio_type;
 	struct snd_aes_iec958 iec;
 	int frhdmirx_version;
+
+	char default_edid[MAX_AUDIO_EDID_LENGTH];
+	int default_edid_size;
+	char user_setting_edid[MAX_AUDIO_EDID_LENGTH];
+	int user_setting_edid_size;
 };
 
 #define EXTN_BUFFER_BYTES (512 * 1024)
@@ -785,6 +792,72 @@ static int hdmirx_audio_type_get_enum(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
+
+int aml_get_audio_edid(struct snd_kcontrol *kcontrol,
+		       unsigned int __user *bytes,
+		       unsigned int size)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct extn *p_extn = dev_get_drvdata(component->dev);
+	struct snd_ctl_tlv *tlv;
+	char *val = (char *)bytes + sizeof(*tlv);
+	int res;
+
+	if (p_extn->default_edid_size == 0 &&
+			p_extn->user_setting_edid_size == 0) {
+		p_extn->default_edid_size =
+			(int)rx_edid_get_aud_sad(p_extn->default_edid);
+		memcpy(p_extn->user_setting_edid, p_extn->default_edid,
+		       p_extn->default_edid_size);
+	}
+
+	res = copy_to_user(val, p_extn->user_setting_edid,
+			   MAX_AUDIO_EDID_LENGTH);
+
+	return 0;
+}
+
+int aml_set_audio_edid(struct snd_kcontrol *kcontrol,
+		       const unsigned int __user *bytes,
+		       unsigned int size)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct extn *p_extn = dev_get_drvdata(component->dev);
+	struct snd_ctl_tlv *tlv;
+	char *val = (char *)bytes + sizeof(*tlv);
+	int res, edid_size = size - sizeof(*tlv);
+
+	pr_info("%s edid_size = %d\n", __func__, edid_size);
+	if ((edid_size % 3) != 0 || edid_size > (MAX_AUDIO_EDID_LENGTH - 3))
+		return -EFAULT;
+
+	if (edid_size == 0) {
+		/* restore the default edid */
+		p_extn->default_edid_size =
+			(int)rx_edid_get_aud_sad(p_extn->default_edid);
+		memset(p_extn->user_setting_edid, 0, MAX_AUDIO_EDID_LENGTH);
+		memcpy(p_extn->user_setting_edid, p_extn->default_edid,
+		       p_extn->default_edid_size);
+		rx_edid_set_aud_sad(NULL, 0);
+		pr_info("%s default_edid_size = %d\n", __func__,
+			p_extn->default_edid_size);
+	} else {
+		/* update user setting edid */
+		/* first 3 bytes for pcm, don't update. */
+		memset(p_extn->user_setting_edid + 3, 0,
+		       MAX_AUDIO_EDID_LENGTH - 3);
+		res = copy_from_user(p_extn->user_setting_edid + 3,
+				     val, edid_size);
+		if (res)
+			return -EFAULT;
+
+		rx_edid_set_aud_sad(p_extn->user_setting_edid, edid_size + 3);
+	}
+	p_extn->user_setting_edid_size = edid_size;
+
+	return 0;
+}
+
 #endif
 
 int aml_get_hdmiin_audio_bitwidth(struct snd_kcontrol *kcontrol,
@@ -891,6 +964,7 @@ static const struct snd_kcontrol_new extn_controls[] = {
 		     aml_get_hdmiin_audio_bitwidth,
 		     NULL),
 
+	/* normally use "HDMIIN AUDIO EDID" to update audio edid*/
 	SOC_SINGLE_BOOL_EXT("HDMI ATMOS EDID Switch",
 		0,
 		aml_get_atmos_audio_edid,
@@ -900,6 +974,11 @@ static const struct snd_kcontrol_new extn_controls[] = {
 		hdmirx_audio_type_enum,
 		hdmirx_audio_type_get_enum,
 		NULL),
+
+	SND_SOC_BYTES_TLV("HDMIIN AUDIO EDID",
+		MAX_AUDIO_EDID_LENGTH,
+		aml_get_audio_edid,
+		aml_set_audio_edid),
 #endif
 
 };
