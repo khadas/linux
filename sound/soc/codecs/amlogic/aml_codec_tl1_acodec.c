@@ -528,8 +528,10 @@ static int tl1_acodec_dai_set_bias_level
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (component->dapm.bias_level == SND_SOC_BIAS_OFF)
+		if (component->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			snd_soc_component_cache_sync(component);
+			snd_soc_component_write(component, ACODEC_0, tl1_acodec_init_list[0].def);
+		}
 		break;
 
 	case SND_SOC_BIAS_OFF:
