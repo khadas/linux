@@ -1812,7 +1812,9 @@
 
 &aml_bt {
 	status = "okay";
+	power_down_disable = <1>;
 	reset-gpios = <&gpio_ao       GPIOD_3       GPIO_ACTIVE_HIGH>;
+	btwakeup-gpios = <&gpio      GPIOB_13       GPIO_ACTIVE_HIGH>;
 };
 
 &aml_wifi{
