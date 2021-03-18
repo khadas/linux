@@ -1266,9 +1266,16 @@ static int malloc_osd_memory(struct fb_info *info)
 			for (j = 0; j < OSD_MAX_BUF_NUM; j++) {
 				len = PAGE_ALIGN(fb_memsize[fb_index + 1] /
 						 OSD_MAX_BUF_NUM);
-				dmabuf = ion_alloc(len,
+				if (meson_ion_cma_heap_id_get())
+					dmabuf = ion_alloc(len,
 					  (1 << meson_ion_cma_heap_id_get()),
 					  ION_FLAG_EXTEND_MESON_HEAP);
+				if (IS_ERR_OR_NULL(dmabuf) &&
+					meson_ion_fb_heap_id_get()) {
+					dmabuf = ion_alloc(len,
+					(1 << meson_ion_fb_heap_id_get()),
+					ION_FLAG_EXTEND_MESON_HEAP);
+				}
 				if (IS_ERR(dmabuf)) {
 					osd_log_err("%s: size=%x, FAILED\n",
 						    __func__,
@@ -1325,9 +1332,16 @@ static int malloc_osd_memory(struct fb_info *info)
 			fb_rmem_size[fb_index] =
 				fb_rmem_afbc_size[fb_index][0];
 		} else {
-			dmabuf = ion_alloc(fb_memsize[fb_index + 1],
+			if (meson_ion_cma_heap_id_get())
+				dmabuf = ion_alloc(fb_memsize[fb_index + 1],
 					(1 << meson_ion_cma_heap_id_get()),
 					ION_FLAG_EXTEND_MESON_HEAP);
+			if (IS_ERR_OR_NULL(dmabuf) &&
+				meson_ion_fb_heap_id_get()) {
+				dmabuf = ion_alloc(fb_memsize[fb_index + 1],
+					(1 << meson_ion_fb_heap_id_get()),
+					ION_FLAG_EXTEND_MESON_HEAP);
+			}
 			if (IS_ERR(dmabuf)) {
 				osd_log_err("%s: size=%x, FAILED\n",
 						__func__,

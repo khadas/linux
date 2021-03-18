@@ -51,6 +51,7 @@ int meson_ion_share_fd_to_phys(int fd, phys_addr_t *addr, size_t *len);
 void meson_ion_buffer_to_phys(struct ion_buffer *buffer,
 			      phys_addr_t *addr, size_t *len);
 unsigned int meson_ion_cma_heap_id_get(void);
+unsigned int meson_ion_fb_heap_id_get(void);
 unsigned int meson_ion_codecmm_heap_id_get(void);
 struct ion_heap *ion_secure_heap_create(phys_addr_t base,
 						 unsigned long size);

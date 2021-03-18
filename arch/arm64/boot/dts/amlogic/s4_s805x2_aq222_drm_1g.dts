@@ -73,6 +73,13 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
+			size = <0x0 0x000000>;
+			alignment = <0x0 0x400000>;
+		};
+		ion_fb_reserved:linux,ion-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1280x720x4x4 round up 4M align */
 			size = <0x0 0x1000000>;
 			alignment = <0x0 0x400000>;
 		};
@@ -1450,7 +1457,7 @@
 	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000>;
-	logo_addr = "0x3f800000";
+	logo_addr = "0x3fc00000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };

@@ -41,6 +41,11 @@ static struct heap_type_desc {
 		.heap_type = ION_HEAP_TYPE_DMA,
 		.ops = &ion_cma_ops,
 	},
+	{
+		.name = "ion-fb",
+		.heap_type = ION_HEAP_TYPE_DMA,
+		.ops = &ion_cma_ops,
+	},
 };
 
 struct device *ion_dev;
@@ -105,6 +110,12 @@ unsigned int meson_ion_cma_heap_id_get(void)
 	return meson_ion_heap_id_get("ion-dev");
 }
 EXPORT_SYMBOL(meson_ion_cma_heap_id_get);
+
+unsigned int meson_ion_fb_heap_id_get(void)
+{
+	return meson_ion_heap_id_get("ion-fb");
+}
+EXPORT_SYMBOL(meson_ion_fb_heap_id_get);
 
 unsigned int meson_ion_codecmm_heap_id_get(void)
 {

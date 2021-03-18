@@ -116,7 +116,15 @@
 			 *        |      |      |NUM_FRAMEBUFFER_SURFACE_BUFFERS := 3
 			 * size = 1920 * 1080 * 3 * 4(RGBA: 4 bytes/pixel) + 4M(10% * afbc)
 			 */
-			size = <0x0 0x01c00000>;
+			size = <0x0 0x00000000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f000000>;
+		};
+		ion_fb_reserved:linux,ion-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1920x1080x4x3 round up 4M align */
+			size = <0x0 0x1c00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0x3f000000>;
 		};
