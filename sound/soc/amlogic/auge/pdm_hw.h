@@ -25,7 +25,7 @@ void pdm_force_sysclk_to_oscin(bool force);
 void pdm_set_channel_ctrl(int sample_count);
 void aml_pdm_arb_config(struct aml_audio_controller *actrl);
 int aml_pmd_set_HPF_filter_parameters(void *array);
-void aml_pdm_filter_ctrl(int osr, int set);
+void aml_pdm_filter_ctrl(int pdm_gain_index, int osr, int set);
 void pdm_enable(int is_enable);
 void pdm_fifo_reset(void);
 int pdm_get_mute_value(void);

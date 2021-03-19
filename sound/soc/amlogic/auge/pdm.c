@@ -27,6 +27,7 @@
 #include "regs.h"
 #include "ddr_mngr.h"
 #include "vad.h"
+#include "pdm_hw_coeff.h"
 
 #define DRV_NAME "snd_pdm"
 #define PDM_BUFFER_BYTES (512 * 1024)
@@ -272,7 +273,7 @@ static void pdm_set_lowpower_mode(struct aml_pdm *p_pdm, bool islowpower)
 			osr = 192;
 
 		filter_mode = p_pdm->islowpower ? 4 : p_pdm->filter_mode;
-		aml_pdm_filter_ctrl(osr, filter_mode);
+		aml_pdm_filter_ctrl(p_pdm->pdm_gain_index, osr, filter_mode);
 
 		/* update sample count */
 		pdm_set_channel_ctrl(pdm_get_sample_count(p_pdm->islowpower, dclk_idx));
@@ -365,35 +366,32 @@ static int pdm_train_set_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-/* set pdm and loopback gain */
-static int pdm_to_loopback_gain = 1;
-
-static int pdm_gain_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+/* set pdm gain index. */
+static int pdm_gain_get_enum(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct aml_pdm *p_pdm = dev_get_drvdata(component->dev);
 
-	ucontrol->value.integer.value[0] = p_pdm->pdm_input_vol;
+	ucontrol->value.integer.value[0] = p_pdm->pdm_gain_index;
+
 	return 0;
 }
 
-static int pdm_gain_set(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+static int pdm_gain_set_enum(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct aml_pdm *p_pdm = dev_get_drvdata(component->dev);
+	int value = ucontrol->value.integer.value[0];
 
-	p_pdm->pdm_input_vol = ucontrol->value.integer.value[0];
-	if (p_pdm->pdm_input_vol > 0xff)
-		p_pdm->pdm_input_vol = 0xff;
-	pdm_to_loopback_gain = p_pdm->pdm_input_vol;
+	if (value < 0 || value > (NUM_PDM_GAIN_INDEX - 1)) {
+		pr_info("%s, invalid value: %d [Range:0~48]", __func__, value);
+		return 0;
+	}
+
+	p_pdm->pdm_gain_index = value;
+
 	return 0;
 }
-
-int get_pdm_gain_loopback(void)
-{
-	return pdm_to_loopback_gain;
-}
-EXPORT_SYMBOL(get_pdm_gain_loopback);
 
 static const struct snd_kcontrol_new snd_pdm_controls[] = {
 	/* which set */
@@ -427,8 +425,13 @@ static const struct snd_kcontrol_new snd_pdm_controls[] = {
 		     pdm_bypass_enum,
 		     pdm_bypass_get_enum,
 		     pdm_bypass_set_enum),
-	SOC_SINGLE_EXT("pdm gain", SND_SOC_NOPM, 0, 0xff, 0,
-		       pdm_gain_get, pdm_gain_set),
+
+	/* index of pdm_gain_table[49], index: 0~48 */
+	SOC_SINGLE_EXT("PDM Gain",
+		     SND_SOC_NOPM, 0,
+		     (NUM_PDM_GAIN_INDEX - 1), 0,
+		     pdm_gain_get_enum,
+		     pdm_gain_set_enum),
 };
 
 static irqreturn_t aml_pdm_isr_handler(int irq, void *data)
@@ -578,48 +581,6 @@ static int aml_pdm_mmap(struct snd_pcm_substream *substream,
 	return snd_pcm_lib_default_mmap(substream, vma);
 }
 
-static int pdm_copy(struct snd_pcm_substream *substream, int channel,
-		    unsigned long pos,
-		    void __user *buf, unsigned long bytes)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct aml_pdm *p_pdm = runtime->private_data;
-	char *hwbuf = runtime->dma_area + pos;
-	int i = 0, j = 0;
-	int ch = runtime->channels;
-	int pdm_input_vol = p_pdm->pdm_input_vol;
-	snd_pcm_uframes_t count = bytes_to_frames(runtime, bytes);
-
-	if (ch > 8)
-		ch = 8;
-	if (pdm_input_vol != 1) {
-		if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
-			short *sample = (short *)hwbuf;
-			int   temp;
-
-			for (i = 0; i < count; i++) {
-				for (j = 0; j < ch; j++) {
-					temp = sample[i * ch + j];
-					sample[i * ch + j] = (short)(temp * pdm_input_vol);
-				}
-			}
-		} else {
-			int  *sample = (int *)hwbuf;
-			int   temp;
-
-			for (i = 0; i < count; i++) {
-				for (j = 0; j < ch; j++) {
-					temp = sample[i * ch + j];
-					sample[i * ch + j] = temp * pdm_input_vol;
-				}
-			}
-		}
-	}
-	if (copy_to_user(buf, hwbuf, bytes))
-		return -EFAULT;
-	return 0;
-}
-
 static struct snd_pcm_ops aml_pdm_ops = {
 	.open = aml_pdm_open,
 	.close = aml_pdm_close,
@@ -629,7 +590,6 @@ static struct snd_pcm_ops aml_pdm_ops = {
 	.prepare = aml_pdm_prepare,
 	.pointer = aml_pdm_pointer,
 	.mmap = aml_pdm_mmap,
-	.copy_user      = pdm_copy,
 };
 
 static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
@@ -723,7 +683,7 @@ static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
 	info.sample_count = pdm_get_sample_count(p_pdm->islowpower, dclk_idx);
 
 	aml_pdm_ctrl(&info);
-	aml_pdm_filter_ctrl(osr, filter_mode);
+	aml_pdm_filter_ctrl(p_pdm->pdm_gain_index, osr, filter_mode);
 
 	if (p_pdm->chipinfo && p_pdm->chipinfo->truncate_data)
 		pdm_init_truncate_data(runtime->rate);
@@ -1070,7 +1030,6 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 
 	/*config ddr arb */
 	aml_pdm_arb_config(p_pdm->actrl);
-	p_pdm->pdm_input_vol = 1;
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &aml_pdm_component,

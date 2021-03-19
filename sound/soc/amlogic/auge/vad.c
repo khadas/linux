@@ -37,6 +37,8 @@
 #include "vad_hw_coeff.h"
 #include "vad_hw.h"
 #include "vad.h"
+#include "pdm.h"
+#include "pdm_hw.h"
 
 #define DRV_NAME "VAD"
 
@@ -103,6 +105,9 @@ struct vad {
 
 	int (*callback)(char *buf, int frames, int rate,
 			int channels, int bitdepth);
+
+	void *mic_src;
+	int wakeup_sample_rate;
 
 #ifdef __VAD_DUMP_DATA__
 	struct file *fp;
@@ -707,6 +712,18 @@ void vad_enable(bool enable)
 		int len_de = ARRAY_SIZE(vad_de_coeff);
 		int *p_win_coeff = vad_ram_coeff;
 		int len_ram = ARRAY_SIZE(vad_ram_coeff);
+		struct aml_pdm *pdm = (struct aml_pdm *)p_vad->mic_src;
+		int gain_index = 0;
+		int osr = 0;
+
+		if (pdm)
+			gain_index = pdm->pdm_gain_index;
+		osr = pdm_get_ors(0, p_vad->wakeup_sample_rate);
+
+		aml_pdm_filter_ctrl(gain_index, osr, 1);
+		p_vad->tddr->fmt.rate = p_vad->wakeup_sample_rate;
+		pr_info("%s, gain_index = %d, osr = %d, vad_sample_rate = %d\n",
+			__func__, gain_index, osr, p_vad->tddr->fmt.rate);
 
 		vad_set_enable(true);
 		vad_set_ram_coeff(len_ram, p_win_coeff);
@@ -914,6 +931,8 @@ static int vad_platform_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *node_prt = NULL;
 	struct platform_device *pdev_parent;
+	struct device_node *np_src = NULL;
+	struct platform_device *dev_src = NULL;
 	struct device *dev = &pdev->dev;
 	struct aml_audio_controller *actrl = NULL;
 	struct vad *p_vad = NULL;
@@ -922,6 +941,23 @@ static int vad_platform_probe(struct platform_device *pdev)
 	p_vad = devm_kzalloc(&pdev->dev, sizeof(struct vad), GFP_KERNEL);
 	if (!p_vad)
 		return -ENOMEM;
+
+	np_src = of_parse_phandle(node, "mic-src", 0);
+	if (np_src) {
+		dev_src = of_find_device_by_node(np_src);
+		of_node_put(np_src);
+		p_vad->mic_src = platform_get_drvdata(dev_src);
+		pr_info("%s, mic-src found\n", __func__);
+	}
+
+	ret = of_property_read_u32(node,
+		"wakeup_sample_rate",
+		&p_vad->wakeup_sample_rate);
+	if (ret < 0) {
+		pr_err("%s, failed to get vad wakeup sample rate\n", __func__);
+		p_vad->wakeup_sample_rate = DEFAULT_WAKEUP_SAMPLERATE;
+	}
+	pr_info("%s, vad wakeup sample rate = %d\n", __func__, p_vad->wakeup_sample_rate);
 
 	p_vad->dev = dev;
 	dev_set_drvdata(dev, p_vad);

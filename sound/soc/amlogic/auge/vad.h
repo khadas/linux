@@ -19,6 +19,8 @@ enum vad_src {
 	VAD_SRC_LOOPBACK_A,
 };
 
+#define DEFAULT_WAKEUP_SAMPLERATE 16000
+
 void vad_update_buffer(bool isvadbuf);
 int vad_transfer_chunk_data(unsigned long data, int frames);
 bool vad_tdm_is_running(int tdm_idx);

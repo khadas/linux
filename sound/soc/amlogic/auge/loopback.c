@@ -287,54 +287,6 @@ static int loopback_mmap(struct snd_pcm_substream *substream,
 	return snd_pcm_lib_default_mmap(substream, vma);
 }
 
-static int loopback_copy(struct snd_pcm_substream *substream, int channel,
-			 unsigned long pos,
-			 void __user *buf, unsigned long bytes)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct loopback *p_loopback = runtime->private_data;
-	char *hwbuf = runtime->dma_area + pos;
-	int i = 0, j = 0;
-	int ch = runtime->channels;
-	int pdm_input_vol;
-	snd_pcm_uframes_t count = bytes_to_frames(runtime, bytes);
-
-	pdm_input_vol = get_pdm_gain_loopback();
-		/* apply volume control to original  PDM input channel*/
-	if (p_loopback->datain_chnum  > ch || ch < 2) {
-		pr_err("input channel should be bigger than output channel\n");
-		return -EFAULT;
-	}
-	if (p_loopback->datain_src == DATAIN_PDM) {
-		if (pdm_input_vol != 1) {
-			if (runtime->format == SNDRV_PCM_FORMAT_S16_LE) {
-				short *sample = (short *)hwbuf;
-				int   temp;
-
-				for (i = 0; i < count; i++) {
-					for (j = 0; j < ch; j++) {
-						temp = sample[i * ch + j];
-						sample[i * ch + j] = (short)(temp * pdm_input_vol);
-					}
-				}
-			} else {
-				int  *sample = (int *)hwbuf;
-				int   temp;
-
-				for (i = 0; i < count; i++) {
-					for (j = 0; j < ch; j++) {
-						temp = sample[i * ch + j];
-						sample[i * ch + j] = temp * pdm_input_vol;
-					}
-				}
-			}
-		}
-	}
-	if (copy_to_user(buf, hwbuf, bytes))
-		return -EFAULT;
-	return 0;
-}
-
 static struct snd_pcm_ops loopback_ops = {
 	.open      = loopback_open,
 	.close     = loopback_close,
@@ -344,7 +296,6 @@ static struct snd_pcm_ops loopback_ops = {
 	.prepare   = loopback_prepare,
 	.pointer   = loopback_pointer,
 	.mmap      = loopback_mmap,
-	.copy_user      = loopback_copy,
 };
 
 static int datain_pdm_startup(struct loopback *p_loopback)
@@ -615,6 +566,11 @@ static void datatin_pdm_cfg(struct snd_pcm_runtime *runtime,
 	unsigned int bit_depth = snd_pcm_format_width(runtime->format);
 	unsigned int osr;
 	struct pdm_info info;
+	struct aml_pdm *pdm = (struct aml_pdm *)p_loopback->mic_src;
+	int gain_index = 0;
+
+	if (pdm)
+		gain_index = pdm->pdm_gain_index;
 
 	info.bitdepth	  = bit_depth;
 	info.channels	  = p_loopback->datain_chnum;
@@ -627,7 +583,7 @@ static void datatin_pdm_cfg(struct snd_pcm_runtime *runtime,
 	/* filter for pdm */
 	osr = pdm_get_ors(p_loopback->dclk_idx, runtime->rate);
 
-	aml_pdm_filter_ctrl(osr, 1);
+	aml_pdm_filter_ctrl(gain_index, osr, 1);
 }
 
 static int loopback_dai_prepare(struct snd_pcm_substream *ss,

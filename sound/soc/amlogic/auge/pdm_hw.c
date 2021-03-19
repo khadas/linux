@@ -154,13 +154,12 @@ void aml_pdm_arb_config(struct aml_audio_controller *actrl)
 }
 
 /* config for hcic, lpf1,2,3, hpf */
-static void aml_pdm_filters_config(int osr,
+static void aml_pdm_filters_config(int pdm_gain_index, int osr,
 	int lpf1_len, int lpf2_len, int lpf3_len)
 {
 	s32 hcic_dn_rate;
 	s32 hcic_tap_num;
 	s32 hcic_gain;
-	s32 hcic_shift;
 	s32 f1_tap_num;
 	s32 f2_tap_num;
 	s32 f3_tap_num;
@@ -178,54 +177,44 @@ static void aml_pdm_filters_config(int osr,
 	switch (osr) {
 	case 32:
 		hcic_dn_rate = 0x4;
-		hcic_gain	 = 0x80;
-		hcic_shift	 = 0xe;
+		hcic_gain	 = pdm_gain_table[pdm_gain_index][PDM_OSR_32];
 		break;
 	case 40:
 		hcic_dn_rate = 0x5;
-		hcic_gain	 = 0x6b;
-		hcic_shift	 = 0x10;
+		hcic_gain	 = pdm_gain_table[pdm_gain_index][PDM_OSR_40];
 		break;
 	case 48:
 		hcic_dn_rate = 0x6;
-		hcic_gain	 = 0x78;
-		hcic_shift	 = 0x12;
+		hcic_gain	 = pdm_gain_table[pdm_gain_index][PDM_OSR_48];
 		break;
 	case 56:
 		hcic_dn_rate = 0x7;
-		hcic_gain	 = 0x51;
-		hcic_shift	 = 0x13;
+		hcic_gain	 = pdm_gain_table[pdm_gain_index][PDM_OSR_56];
 		break;
 	case 64:
 		hcic_dn_rate = 0x0008;
-		hcic_gain	 = 0x80;
-		hcic_shift	 = 0x15;
+		hcic_gain	 = pdm_gain_table[pdm_gain_index][PDM_OSR_64];
 		break;
 	case 96:
 		hcic_dn_rate = 0x000c;
-		hcic_gain	 = 0x78;
-		hcic_shift	 = 0x19;
+		hcic_gain	 = pdm_gain_table[pdm_gain_index][PDM_OSR_96];
 		break;
 	case 128:
 		hcic_dn_rate = 0x0010;
-		hcic_gain	 = 0x80;
-		hcic_shift	 = 0x1c;
+		hcic_gain	 = pdm_gain_table[pdm_gain_index][PDM_OSR_128];
 		break;
 	case 192:
 		hcic_dn_rate = 0x0018;
-		hcic_gain	 = 0x78;
-		hcic_shift	 = 0x20;
+		hcic_gain	 = pdm_gain_table[pdm_gain_index][PDM_OSR_192];
 		break;
 	case 384:
 		hcic_dn_rate = 0x0030;
-		hcic_gain	 = 0x78;
-		hcic_shift	 = 0x27;
+		hcic_gain	 = pdm_gain_table[pdm_gain_index][PDM_OSR_384];
 		break;
 	default:
 		pr_info("Not support osr:%d, translate to :192\n", osr);
 		hcic_dn_rate = 0x0018;
-		hcic_gain	 = 0x78;
-		hcic_shift	 = 0x20;
+		hcic_gain	 = pdm_gain_table[pdm_gain_index][PDM_OSR_192];
 		break;
 	}
 
@@ -249,8 +238,7 @@ static void aml_pdm_filters_config(int osr,
 		(0x80000000 |
 		hcic_tap_num |
 		(hcic_dn_rate << 4) |
-		(hcic_gain << 16) |
-		(hcic_shift << 24))
+		(hcic_gain << 16))
 		);
 
 	/* lpf */
@@ -336,7 +324,7 @@ static void aml_pdm_LPF_coeff(int lpf1_len, const int *lpf1_coeff,
 
 }
 
-void aml_pdm_filter_ctrl(int osr, int mode)
+void aml_pdm_filter_ctrl(int pdm_gain_index, int osr, int mode)
 {
 	int lpf1_len, lpf2_len, lpf3_len;
 	const int *lpf1_coeff, *lpf2_coeff, *lpf3_coeff;
@@ -358,6 +346,7 @@ void aml_pdm_filter_ctrl(int osr, int mode)
 	 */
 
 	switch (osr) {
+	case 32:
 	case 64:
 		lpf2_coeff = lpf2_osr64;
 		break;
@@ -376,10 +365,6 @@ void aml_pdm_filter_ctrl(int osr, int mode)
 	case 384:
 		lpf2_coeff = lpf2_osr384;
 		break;
-	case 32:
-	case 40:
-	case 48:
-	case 56:
 	default:
 		pr_info("osr :%d , lpf2 uses default parameters with osr64\n",
 			osr);
@@ -434,7 +419,8 @@ void aml_pdm_filter_ctrl(int osr, int mode)
 	}
 
 	/* config filter */
-	aml_pdm_filters_config(osr,
+	aml_pdm_filters_config(pdm_gain_index,
+		osr,
 		lpf1_len,
 		lpf2_len,
 		lpf3_len);
@@ -567,12 +553,12 @@ int pdm_get_ors(int dclk_idx, int sample_rate)
 	} else {
 		if (sample_rate == 96000)
 			osr = 32;
-		else if (sample_rate == 64000)
-			osr = 48;
 		else if (sample_rate == 48000)
 			osr = 64;
 		else if (sample_rate == 32000)
 			osr = 96;
+		else if (sample_rate == 24000)
+			osr = 128;
 		else if (sample_rate == 16000)
 			osr = 192;
 		else if (sample_rate == 8000)

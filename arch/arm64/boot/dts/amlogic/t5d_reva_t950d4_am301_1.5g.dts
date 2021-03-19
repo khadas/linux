@@ -1449,6 +1449,9 @@
 		 */
 		level = <1>;
 
+		mic-src = <&pdm>;
+		wakeup_sample_rate = <16000>;
+
 		status = "okay";
 	};
 
@@ -1503,6 +1506,9 @@
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
+
+		/* define loopack with pdm mic. */
+		mic-src = <&pdm>;
 
 		status = "okay";
 	};

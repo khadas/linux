@@ -94,12 +94,11 @@ struct aml_pdm {
 	/* whether vad buffer is used, for xrun */
 	bool vad_buf_occupation;
 	bool vad_buf_recovery;
-	int pdm_input_vol;
+	int pdm_gain_index;
 
 	int train_sample_count;
 };
 
-int get_pdm_gain_loopback(void);
 int pdm_get_train_sample_count_from_dts(void);
 int pdm_get_train_version(void);
 #endif /*__AML_PDM_H__*/
