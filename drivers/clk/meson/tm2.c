@@ -1210,7 +1210,7 @@ static struct clk_regmap tm2_clk81 = {
 			&tm2_mpeg_clk_div.hw
 		},
 		.num_parents = 1,
-		.flags = (CLK_SET_RATE_PARENT | CLK_IS_CRITICAL),
+		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -1632,7 +1632,6 @@ static struct clk_regmap tm2_vdec_1_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = tm2_vdec_parent_hws,
 		.num_parents = ARRAY_SIZE(tm2_vdec_parent_hws),
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1682,7 +1681,6 @@ static struct clk_regmap tm2_vdec_hevcf_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = tm2_vdec_parent_hws,
 		.num_parents = ARRAY_SIZE(tm2_vdec_parent_hws),
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -1732,7 +1730,6 @@ static struct clk_regmap tm2_vdec_hevc_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = tm2_vdec_parent_hws,
 		.num_parents = ARRAY_SIZE(tm2_vdec_parent_hws),
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3206,7 +3203,6 @@ static struct clk_regmap tm2_vdec_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = tm2_vdec_mux_parent_hws,
 		.num_parents = ARRAY_SIZE(tm2_vdec_mux_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3226,7 +3222,6 @@ static struct clk_regmap tm2_hevc_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = tm2_hevc_mux_parent_hws,
 		.num_parents = ARRAY_SIZE(tm2_hevc_mux_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3246,7 +3241,6 @@ static struct clk_regmap tm2_hevcf_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = tm2_hevcf_mux_parent_hws,
 		.num_parents = ARRAY_SIZE(tm2_hevcf_mux_parent_hws),
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 

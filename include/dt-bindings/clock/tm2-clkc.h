@@ -288,7 +288,7 @@
 #define CLKID_DSU_CLK_FINAL			(CPU_BASE + 25)
 #define CLKID_DSU_CLK				(CPU_BASE + 26)
 /* Media clocks */
-#define MEDIA_BASE				(CPU_BASE + 18)
+#define MEDIA_BASE				(CPU_BASE + 27)
 #define CLKID_DSI_MEAS_MUX			(MEDIA_BASE + 0)
 #define CLKID_DSI_MEAS_DIV			(MEDIA_BASE + 1)
 #define CLKID_DSI_MEAS				(MEDIA_BASE + 2)
