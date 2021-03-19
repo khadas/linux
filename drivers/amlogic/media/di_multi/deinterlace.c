@@ -3228,6 +3228,7 @@ bool dim_post_keep_release_one_check(unsigned int ch, unsigned int di_buf_index)
 	}
 
 	mm->sts.flg_realloc++;
+	dbg_mem2("%s:stsflg_realloc[%d]\n", __func__, mm->sts.flg_realloc);
 	mem_release_one_inused(pch, ndis->c.blk);
 	ndis_move_keep2idle(pch, ndis);
 	return true;
@@ -9134,6 +9135,8 @@ static void recycle_vframe_type_post(struct di_buf_s *di_buf,
 			di_que_in(channel, QUE_PST_NO_BUF, di_buf);
 			release_flg = true;
 			mm->sts.flg_realloc++;
+			dbg_mem2("%s:stsflg_realloc[%d]\n", __func__,
+				 mm->sts.flg_realloc);
 		} else if (di_buf->blk_buf->flg.b.typ == EDIM_BLK_TYP_PSCT) {
 			if (di_buf->blk_buf->sct) {
 				qsct_used_some_to_recycle(pch,
@@ -10166,6 +10169,7 @@ void di_unreg_setting(void)
 				     dimp_get(edi_mp_clock_low_ratio));
 		#endif
 	}
+	dbg_pl("%s:end\n", __func__);
 }
 
 void di_unreg_variable(unsigned int channel)
@@ -10177,6 +10181,7 @@ void di_unreg_variable(unsigned int channel)
 	struct di_ch_s *pch = get_chdata(channel);
 	enum EDI_CMA_ST cma_st;
 	struct mtsk_cmd_s blk_cmd;
+	struct div2_mm_s *mm = dim_mm_get(channel);
 
 #if (defined ENABLE_SPIN_LOCK_ALWAYS)
 //	ulong flags = 0;
@@ -10190,6 +10195,7 @@ void di_unreg_variable(unsigned int channel)
 	pch->itf.op_m_unreg(pch);
 	dim_sumx_clear(channel);
 	dim_polic_unreg(pch);
+	mm->sts.flg_realloc = 0;
 	dim_recycle_post_back(channel);// ?
 	/*mirror_disable = get_blackout_policy();*/
 	if ((cfgg(KEEP_CLEAR_AUTO) == 2) || dip_itf_is_ins_exbuf(pch))
@@ -10245,9 +10251,9 @@ void di_unreg_variable(unsigned int channel)
 	pch->sum_pst = 0;
 	pch->sum_ext_buf_in = 0;
 	pch->sum_ext_buf_in2 = 0;
-	dbg_reg("ndis_used[%d], nout[%d]\n",
+	dbg_reg("ndis_used[%d], nout[%d],flg_realloc[%d]\n",
 		ndis_cnt(pch, QBF_NDIS_Q_USED),
-		ndrd_cnt(pch));
+		ndrd_cnt(pch), mm->sts.flg_realloc);
 	dbg_reg("%s:end\n", __func__);
 }
 

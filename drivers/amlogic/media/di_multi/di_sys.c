@@ -537,6 +537,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 	unsigned int length;
 	struct div2_mm_s *mm;
 	unsigned int size_p;
+	enum EDI_TOP_STATE chst;
 
 	//struct di_dev_s *de_devp = get_dim_de_devp();
 
@@ -723,8 +724,9 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 		break;
 	case ECMD_BLK_ALLOC:
 		/* alloc */
-		dbg_mem2("%s:ch[%d] alloc:nub[%d],size[0x%x]\n",
-			 __func__, ch, cmd->nub, size_p);
+		chst = dip_chst_get(ch);
+		dbg_mem2("%s:ch[%d] alloc:nub[%d],size[0x%x],top_sts[%d]\n",
+			 __func__, ch, cmd->nub, size_p, chst);
 		cnt = 0;
 		for (i = 0; i < cmd->nub; i++) {
 			if (qbuf_is_empty(pbufq, QBF_BLK_Q_IDLE))
