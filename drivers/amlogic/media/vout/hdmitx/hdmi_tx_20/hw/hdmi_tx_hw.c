@@ -30,6 +30,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_info_global.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ddc.h>
+#include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ext.h>
 #include <linux/reset.h>
 #include <linux/compiler.h>
 #include "mach_reg.h"
@@ -90,9 +91,6 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 			    unsigned int  argv);
 static enum hdmi_vic get_vic_from_pkt(void);
 
-typedef void (*pf_callback)(bool st);
-static pf_callback earc_hdmitx_hpdst;
-
 #define EDID_RAM_ADDR_SIZE	 (8)
 
 /* HSYNC polarity: active high */
@@ -105,6 +103,14 @@ static pf_callback earc_hdmitx_hpdst;
 #define TX_INPUT_COLOR_RANGE	0
 /* Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit. */
 #define TX_COLOR_DEPTH		 COLORDEPTH_24B
+
+static pf_callback earc_hdmitx_hpdst;
+
+pf_callback *hdmitx_earc_hpdst(void)
+{
+	return &earc_hdmitx_hpdst;
+}
+
 int hdmitx_hpd_hw_op(enum hpd_op cmd)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();
@@ -190,19 +196,6 @@ int hdmitx_ddc_hw_op(enum ddc_op cmd)
 	return 0;
 }
 EXPORT_SYMBOL(hdmitx_ddc_hw_op);
-
-int register_earcrx_callback(pf_callback callback)
-{
-	earc_hdmitx_hpdst = callback;
-	return 0;
-}
-EXPORT_SYMBOL(register_earcrx_callback);
-
-void unregister_earcrx_callback(void)
-{
-	earc_hdmitx_hpdst = NULL;
-}
-EXPORT_SYMBOL(unregister_earcrx_callback);
 
 static int hdcp_topo_st = -1;
 static int hdcp22_susflag;

@@ -6,6 +6,22 @@
 #ifndef __HDMI_TX_EXT_H__
 #define __HDMI_TX_EXT_H__
 
+#include "hdmi_common.h"
+
+typedef void (*pf_callback)(bool st);
+
+#ifdef CONFIG_AMLOGIC_HDMITX
+	pf_callback *hdmitx_earc_hpdst(void);
+#else
+	#define hdmitx_earc_hpdst NULL
+#endif
+
+#ifdef CONFIG_AMLOGIC_HDMITX21
+	pf_callback *hdmitx21_earc_hpdst(void);
+#else
+	#define hdmitx21_earc_hpdst NULL
+#endif
+
 void direct_hdcptx14_start(void);
 void direct_hdcptx14_stop(void);
 

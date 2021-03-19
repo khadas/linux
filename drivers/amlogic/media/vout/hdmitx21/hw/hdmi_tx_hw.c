@@ -30,6 +30,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_info_global.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ddc.h>
+#include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ext.h>
 #include <linux/reset.h>
 #include <linux/compiler.h>
 #include <linux/arm-smccc.h>
@@ -85,6 +86,13 @@ static enum hdmi_vic get_vic_from_pkt(void);
 #define TX_INPUT_COLOR_RANGE	0
 /* Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit. */
 #define TX_COLOR_DEPTH		 COLORDEPTH_24B
+
+static pf_callback earc_hdmitx_hpdst;
+
+pf_callback *hdmitx21_earc_hpdst(void)
+{
+	return &earc_hdmitx_hpdst;
+}
 
 int hdmitx21_hpd_hw_op(enum hpd_op cmd)
 {
@@ -453,6 +461,8 @@ static irqreturn_t intr_handler(int irq, void *dev)
 		hdev->hdmitx_event |= HDMI_TX_HPD_PLUGIN;
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
 		hdmitx_phy_bandgap_en(hdev);
+		if (earc_hdmitx_hpdst)
+			earc_hdmitx_hpdst(true);
 		queue_delayed_work(hdev->hdmi_wq,
 				   &hdev->work_hpd_plugin, HZ / 2);
 	}
@@ -462,6 +472,8 @@ static irqreturn_t intr_handler(int irq, void *dev)
 				   &hdev->work_aud_hpd_plug, 2 * HZ);
 		hdev->hdmitx_event |= HDMI_TX_HPD_PLUGOUT;
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
+		if (earc_hdmitx_hpdst)
+			earc_hdmitx_hpdst(false);
 		queue_delayed_work(hdev->hdmi_wq,
 			&hdev->work_hpd_plugout, 0);
 	}
