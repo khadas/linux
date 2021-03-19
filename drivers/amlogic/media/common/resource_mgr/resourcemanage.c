@@ -1192,6 +1192,31 @@ beach:
 	return r;
 }
 
+static int resman_estimate_tvp_available(void)
+{
+	int tvp_enable = codec_mm_video_tvp_enabled();
+	int codec_mm_free_size = codec_mm_get_free_size();
+	int tvp_fhd, tvp_uhd, fhd_uhd_deviation;
+	int mode = 0;
+
+	codec_mm_get_default_tvp_size(&tvp_fhd, &tvp_uhd);
+	fhd_uhd_deviation = tvp_uhd - tvp_fhd;
+	if (tvp_enable > 0) {
+		if (tvp_enable >= 2)
+			mode = 2;
+		else if (tvp_enable == 1 && codec_mm_free_size >= fhd_uhd_deviation)
+			mode = 2;
+		else
+			mode = 1;
+	} else {
+		if (codec_mm_free_size >= tvp_uhd)
+			mode = 2;
+		else if (codec_mm_free_size >= tvp_fhd)
+			mode = 1;
+	}
+	return mode;
+}
+
 static long resman_ioctl_query(struct resman_session *sess, unsigned long para)
 {
 	long r = 0;
@@ -1222,6 +1247,9 @@ static long resman_ioctl_query(struct resman_session *sess, unsigned long para)
 			case RESMAN_TYPE_CODEC_MM:
 				resman.v.query.avail =
 						resource->d.codec_mm.total;
+				break;
+			case RESMAN_TYPE_TVP:
+				resman.v.query.avail = resman_estimate_tvp_available();
 				break;
 			default:
 				break;
