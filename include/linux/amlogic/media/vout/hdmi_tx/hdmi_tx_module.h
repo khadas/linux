@@ -285,7 +285,6 @@ struct hdmitx_clk_tree_s {
 typedef void (*drm_hpd_cb)(void *data);
 
 #define EDID_MAX_BLOCK              4
-#define HDMI_TMP_BUF_SIZE           1024
 struct hdmitx_dev {
 	struct cdev cdev; /* The cdev structure */
 	dev_t hdmitx_id;
@@ -420,7 +419,6 @@ struct hdmitx_dev {
 	unsigned char mux_hpd_if_pin_high_flag;
 	int auth_process_timer;
 	struct hdmitx_info hdmi_info;
-	unsigned char tmp_buf[HDMI_TMP_BUF_SIZE];
 	unsigned int log;
 	unsigned int tx_aud_cfg; /* 0, off; 1, on */
 	/* For some un-well-known TVs, no edid at all */

@@ -2552,10 +2552,6 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 
 	edid_save_checkvalue(EDID_buf, blockcount + 1, prxcap);
 
-	i = hdmitx_edid_dump(hdmitx_device, (char *)(hdmitx_device->tmp_buf),
-			     HDMI_TMP_BUF_SIZE);
-	hdmitx_device->tmp_buf[i] = 0;
-
 	if (!hdmitx_edid_check_valid_blocks(&EDID_buf[0])) {
 		prxcap->ieeeoui = HDMI_IEEEOUI;
 		pr_info(EDID "Invalid edid, consider RX as HDMI device\n");

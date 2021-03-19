@@ -274,7 +274,6 @@ struct hdcplog_buf {
 };
 
 #define EDID_MAX_BLOCK              4
-#define HDMI_TMP_BUF_SIZE           1024
 struct hdmitx_dev {
 	struct cdev cdev; /* The cdev structure */
 	dev_t hdmitx_id;
@@ -392,7 +391,6 @@ struct hdmitx_dev {
 	u8 force_audio_flag;
 	u8 mux_hpd_if_pin_high_flag;
 	struct hdmitx_info hdmi_info;
-	u8 tmp_buf[HDMI_TMP_BUF_SIZE];
 	u32 log;
 	u32 tx_aud_cfg; /* 0, off; 1, on */
 	u32 hpd_lock;
