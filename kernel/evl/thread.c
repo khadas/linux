@@ -1361,27 +1361,6 @@ void evl_notify_thread(struct evl_thread *thread,
 }
 EXPORT_SYMBOL_GPL(evl_notify_thread);
 
-#ifdef CONFIG_MMU
-
-static inline int commit_process_memory(void)
-{
-	struct task_struct *p = current;
-
-	if (!(p->mm->def_flags & VM_LOCKED))
-		return -EINVAL;
-
-	return force_commit_memory();
-}
-
-#else /* !CONFIG_MMU */
-
-static inline int commit_process_memory(void)
-{
-	return 0;
-}
-
-#endif /* !CONFIG_MMU */
-
 int evl_killall(int mask)
 {
 	int nrkilled = 0, nrthreads, count;
@@ -2321,13 +2300,13 @@ static const struct file_operations thread_fops = {
 
 static int map_uthread_self(struct evl_thread *thread)
 {
+	struct mm_struct *mm = current->mm;
 	struct evl_user_window *u_window;
 	struct cred *newcap;
-	int ret;
 
-	ret = commit_process_memory();
-	if (ret)
-		return ret;
+	/* mlockall(MCL_FUTURE) required. */
+	if (!(mm->def_flags & VM_LOCKED))
+		return -EINVAL;
 
 	u_window = evl_zalloc_chunk(&evl_shared_heap, sizeof(*u_window));
 	if (u_window == NULL)
