@@ -75,17 +75,8 @@ const unsigned int vdin_canvas_ids[2][VDIN_CANVAS_MAX_CNT] = {
 	},
 };
 
-#define TEE_MEM_TYPE_VDIN	0x7
+//#define TEE_MEM_TYPE_VDIN	0x7
 
-uint32_t __attribute__((weak))
-tee_protect_mem_by_type(u32 type, u32 start, u32 size, u32 *handle)
-{
-	return 0;
-}
-
-void __attribute__((weak)) tee_unprotect_mem(u32 handle)
-{
-}
 /*function:
  *	1.set canvas_max_w & canvas_max_h
  *	2.set canvas_max_size & canvas_max_num
