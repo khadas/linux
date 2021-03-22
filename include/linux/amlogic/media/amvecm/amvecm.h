@@ -128,6 +128,13 @@ void dolby_vision_set_toggle_flag(int flag);
 #define SDR_SOURCE			6
 #define MVC_SOURCE           7
 
+#define DNLP_PARAM_RD_UPDATE 0x1
+#define DNLP_CV_RD_UPDATE 0x2
+#define WB_PARAM_RD_UPDATE 0x4
+#define LC_CUR_RD_UPDATE 0x8
+#define LC_PARAM_RD_UPDATE 0x10
+#define LC_CUR2_RD_UPDATE 0x20
+
 enum cm_hist_e {
 	CM_HUE_HIST = 0,
 	CM_SAT_HIST,
