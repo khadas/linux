@@ -5094,11 +5094,25 @@ void rx_get_error_cnt(u32 *ch0, u32 *ch1, u32 *ch2)
 {
 	u32 val;
 
-	val = hdmirx_rd_top(TOP_CHAN01_ERRCNT);
-	*ch0 = val & 0xffff;
-	*ch1 = (val >> 16) & 0xffff;
-	val = hdmirx_rd_top(TOP_CHAN2_ERRCNT);
-	*ch2 = val & 0xffff;
+	if (rx.chip_id == CHIP_ID_T7) {
+		/* t7 top 0x41/0x42 can not shadow IP's periodical error counter */
+		/* use cor register to get err cnt,t3 fix it */
+		hdmirx_wr_bits_cor(DPLL_CTRL0_DPLL_IVCRX, MSK(3, 0), 0x0);
+		*ch0 = hdmirx_rd_cor(SCDCS_CED0_L_SCDC_IVCRX) |
+			((hdmirx_rd_cor(SCDCS_CED0_H_SCDC_IVCRX & 0x7f) << 8));
+		*ch1 = hdmirx_rd_cor(SCDCS_CED1_L_SCDC_IVCRX) |
+			((hdmirx_rd_cor(SCDCS_CED1_H_SCDC_IVCRX & 0x7f) << 8));
+		*ch2 = hdmirx_rd_cor(SCDCS_CED2_L_SCDC_IVCRX) |
+			((hdmirx_rd_cor(SCDCS_CED2_H_SCDC_IVCRX & 0x7f) << 8));
+		udelay(1);
+		hdmirx_wr_bits_cor(DPLL_CTRL0_DPLL_IVCRX, MSK(3, 0), 0x7);
+	} else {
+		val = hdmirx_rd_top(TOP_CHAN01_ERRCNT);
+		*ch0 = val & 0xffff;
+		*ch1 = (val >> 16) & 0xffff;
+		val = hdmirx_rd_top(TOP_CHAN2_ERRCNT);
+		*ch2 = val & 0xffff;
+	}
 }
 
 /*
