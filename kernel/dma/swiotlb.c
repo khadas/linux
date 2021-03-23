@@ -82,12 +82,10 @@ setup_io_tlb_npages(char *str)
 	}
 	if (*str == ',')
 		++str;
-	if (!strcmp(str, "force")) {
+	if (!strcmp(str, "force"))
 		swiotlb_force = SWIOTLB_FORCE;
-	} else if (!strcmp(str, "noforce")) {
+	else if (!strcmp(str, "noforce"))
 		swiotlb_force = SWIOTLB_NO_FORCE;
-		default_nslabs = 1;
-	}
 
 	return 0;
 }
@@ -173,6 +171,9 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 	struct io_tlb_mem *mem;
 	size_t alloc_size;
 
+	if (swiotlb_force == SWIOTLB_NO_FORCE)
+		return 0;
+
 	/* protect against double initialization */
 	if (WARN_ON_ONCE(io_tlb_default_mem))
 		return -ENOMEM;
@@ -212,6 +213,9 @@ swiotlb_init(int verbose)
 	size_t bytes = PAGE_ALIGN(default_nslabs << IO_TLB_SHIFT);
 	void *tlb;
 
+	if (swiotlb_force == SWIOTLB_NO_FORCE)
+		return;
+
 	/* Get IO TLB memory from the low pages */
 	tlb = memblock_alloc_low(bytes, PAGE_SIZE);
 	if (!tlb)
@@ -240,6 +244,9 @@ swiotlb_late_init_with_default_size(size_t default_size)
 	unsigned char *vstart = NULL;
 	unsigned int order;
 	int rc = 0;
+
+	if (swiotlb_force == SWIOTLB_NO_FORCE)
+		return 0;
 
 	/*
 	 * Get IO TLB memory from the low pages
@@ -276,6 +283,9 @@ swiotlb_late_init_with_tbl(char *tlb, unsigned long nslabs)
 {
 	unsigned long bytes = nslabs << IO_TLB_SHIFT, i;
 	struct io_tlb_mem *mem;
+
+	if (swiotlb_force == SWIOTLB_NO_FORCE)
+		return 0;
 
 	/* protect against double initialization */
 	if (WARN_ON_ONCE(io_tlb_default_mem))
