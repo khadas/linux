@@ -52,6 +52,9 @@
 			       __stringify(_new) );				\
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define _ANDROID_KABI_REPLACE(_orig, _new)		_orig
+#else
 #ifdef __GENKSYMS__
 
 #define _ANDROID_KABI_REPLACE(_orig, _new)		_orig
@@ -69,6 +72,8 @@
 
 #endif /* __GENKSYMS__ */
 
+#endif /* CONFIG_AMLOGIC_MODIFY */
+
 #define _ANDROID_KABI_RESERVE(n)		u64 android_kabi_reserved##n
 
 
@@ -83,7 +88,11 @@
  *   number: the "number" of the padding variable in the structure.  Start with
  *   1 and go up.
  */
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define ANDROID_KABI_RESERVE(number)
+#else
 #define ANDROID_KABI_RESERVE(number)	_ANDROID_KABI_RESERVE(number)
+#endif /* CONFIG_AMLOGIC_MODIFY */
 
 
 /*
