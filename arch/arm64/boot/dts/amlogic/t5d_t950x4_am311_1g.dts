@@ -79,7 +79,6 @@
 			reusable;
 			size = <0x0 0x00800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x3f400000 0x0 0x00800000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
