@@ -112,15 +112,21 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 				DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
 
 			mode->vdisplay = timing->v_active;
-			mode->vsync_start = timing->v_active + timing->v_front;
-			mode->vsync_end = timing->v_active + timing->v_front + timing->v_sync;
+			if (hdmi_para->hdmitx_vinfo.field_height !=
+				hdmi_para->hdmitx_vinfo.height) {
+				/* follow general rule       to use full vidsplay while
+				 * amlogic vout use half value.
+				 */
+				mode->vdisplay = mode->vdisplay << 1;
+				mode->flags |= DRM_MODE_FLAG_INTERLACE;
+			}
+
+			mode->vsync_start = mode->vdisplay + timing->v_front;
+			mode->vsync_end = mode->vdisplay + timing->v_front + timing->v_sync;
 			mode->vtotal = timing->v_total;
 			mode->vscan = 0;
 			mode->flags |= timing->vsync_polarity ?
 				DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
-
-			if (hdmi_para->hdmitx_vinfo.field_height != hdmi_para->hdmitx_vinfo.height)
-				mode->flags |= DRM_MODE_FLAG_INTERLACE;
 
 			/*for recovery ui*/
 			if (hdmitx_set_smaller_pref && !set_pref) {
