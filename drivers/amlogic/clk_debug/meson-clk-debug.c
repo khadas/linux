@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 #include <linux/clk-provider.h>
 #include <linux/uaccess.h>
 #include <linux/amlogic/clk_measure.h>
@@ -112,20 +113,24 @@ static ssize_t enable_write(struct file *file, const char __user *buffer,
 			    size_t count, loff_t *ppos)
 {
 	int ret;
-	char input[3];
+	char *input;
 	unsigned int enable;
 
-	if (count >= sizeof(input))
-		return -EINVAL;
-
-	if (copy_from_user(input, buffer, count))
+	input = kzalloc(count, GFP_KERNEL);
+	if (!input) {
+		kfree(input);
+		return -ENOMEM;
+	}
+	if (copy_from_user(input, buffer, count)) {
+		kfree(input);
 		return -EFAULT;
-
-	input[count] = '\0';
+	}
 
 	ret = kstrtouint(input, 0, &enable);
-	if (ret)
+	if (ret) {
+		kfree(input);
 		return -EINVAL;
+	}
 
 	if (enable != 0)
 		clk_prepare_enable(debug_clk);
@@ -153,25 +158,30 @@ static ssize_t rate_write(struct file *file, const char __user *buffer,
 			  size_t count, loff_t *ppos)
 {
 	int ret;
-	char input[24];
+	char *input;
 	unsigned long rate;
 
-	if (count >= sizeof(input))
-		return -EINVAL;
+	input = kzalloc(count, GFP_KERNEL);
+	if (!input) {
+		kfree(input);
+		return -ENOMEM;
+	}
 
-	if (copy_from_user(input, buffer, count))
+	if (copy_from_user(input, buffer, count)) {
+		kfree(input);
 		return -EFAULT;
-
-	input[count] = '\0';
-
+	}
 	ret = kstrtoul(input, 0, &rate);
-	if (ret)
+	if (ret) {
+		kfree(input);
 		return -EINVAL;
+	}
 	pr_info("input rate = %lu, old rate = %lu\n", rate,
 		clk_get_rate(debug_clk));
 
 	ret = clk_set_rate(debug_clk, rate);
 	if (ret) {
+		kfree(input);
 		pr_err("failed to set rate,ret =%d\n", ret);
 		return ret;
 	}
