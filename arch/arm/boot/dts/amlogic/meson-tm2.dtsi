@@ -514,6 +514,31 @@
 		reg = <0xff940000 0x10000>;
 	};
 
+	multi-di {
+		compatible = "amlogic, dim-tm2vb";
+		status = "okay";
+		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
+		flag_cma = <4>;
+		//memory-region = <&di_reserved>;
+		memory-region = <&di_cma_reserved>;
+		interrupts = <0 46 1
+				0 40 1>;
+		interrupt-names = "pre_irq", "post_irq";
+		clocks = <&clkc CLKID_VPU_CLKB
+			&clkc CLKID_VPU>;
+		clock-names = "vpu_clkb",
+			"vpu_mux";
+		clock-range = <334 667>;
+		/* buffer-size = <3621952>;(yuv422 8bit) */
+		buffer-size = <4074560>;/*yuv422 fullpack*/
+		/* reserve-iomap = "true"; */
+		/* if enable nr10bit, set nr10bit-support to 1 */
+		post-wr-support = <1>;
+		nr10bit-support = <1>;
+		nrds-enable = <1>;
+		pps-enable = <1>;
+	};
+
 	meson-amvideom {
 		compatible = "amlogic, amvideom-tm2-revb";
 		dev_name = "amvideom";
