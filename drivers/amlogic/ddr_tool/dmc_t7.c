@@ -101,7 +101,7 @@ static size_t t7_dmc_dump_reg(char *buf)
 
 		for (i = 0; i < 4; i++) {
 			val = dmc_rw(base + DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
-			sz += sprintf(buf + sz, "DMC_VIO_ADDR%zu:%lx\n", i, val);
+			sz += sprintf(buf + sz, "DMC_VIO_ADDR%d:%lx\n", i, val);
 		}
 	}
 	return sz;

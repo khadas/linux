@@ -118,7 +118,7 @@ void dmc_monitor_exit(void)
 #ifdef CONFIG_AMLOGIC_USER_FAULT
 void set_dump_dmc_func(void *f);
 #else
-void set_dump_dmc_func(void *f) {}
+void __weak set_dump_dmc_func(void *f) {}
 #endif /* CONFIG_AMLOGIC_USER_FAULT */
 
 #endif /* __DMC_MONITOR_H__ */
