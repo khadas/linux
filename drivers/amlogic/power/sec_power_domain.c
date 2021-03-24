@@ -70,7 +70,8 @@ static int sec_pm_domain_power_on(struct generic_pm_domain *genpd)
 #define POWER_DOMAIN(_name, index, status, flag)	\
 	TOP_DOMAIN(_name, index, status, flag, 0)
 
-static struct sec_pm_private_domain a1_pm_domains[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+static struct sec_pm_private_domain a1_pm_domains[] __initdata = {
 	[PDID_A1_CPU_PWR0] = POWER_DOMAIN(cpu_pwr0, PDID_A1_CPU_PWR0, DOMAIN_INIT_ON,
 		    GENPD_FLAG_ALWAYS_ON),
 	[PDID_A1_CPU_CORE0] = POWER_DOMAIN(cpu_core0, PDID_A1_CPU_CORE0, DOMAIN_INIT_ON,
@@ -100,12 +101,12 @@ static struct sec_pm_private_domain a1_pm_domains[] = {
 	[PDID_A1_RSA] = POWER_DOMAIN(rsa, PDID_A1_RSA, DOMAIN_INIT_OFF, 0),
 };
 
-static struct sec_pm_domain_data a1_pm_domain_data = {
+static struct sec_pm_domain_data a1_pm_domain_data __initdata = {
 	.domains = a1_pm_domains,
 	.domains_count = ARRAY_SIZE(a1_pm_domains),
 };
 
-static struct sec_pm_private_domain c1_pm_domains[] = {
+static struct sec_pm_private_domain c1_pm_domains[] __initdata = {
 	[PDID_C1_CPU_PWR0] = POWER_DOMAIN(cpu_pwr0, PDID_C1_CPU_PWR0, DOMAIN_INIT_ON,
 					GENPD_FLAG_ALWAYS_ON),
 	[PDID_C1_CPU_CORE0] = POWER_DOMAIN(cpu_core0, PDID_C1_CPU_CORE0, DOMAIN_INIT_ON,
@@ -149,12 +150,13 @@ static struct sec_pm_private_domain c1_pm_domains[] = {
 	[PDID_C1_SPICC_B] = POWER_DOMAIN(spicc_b, PDID_C1_SPICC_B, DOMAIN_INIT_OFF, 0),
 };
 
-static struct sec_pm_domain_data c1_pm_domain_data = {
+static struct sec_pm_domain_data c1_pm_domain_data __initdata = {
 	.domains = c1_pm_domains,
 	.domains_count = ARRAY_SIZE(c1_pm_domains),
 };
+#endif
 
-static struct sec_pm_private_domain sc2_pm_domains[] = {
+static struct sec_pm_private_domain sc2_pm_domains[] __initdata = {
 	[PDID_SC2_DSP] = POWER_DOMAIN(dsp, PDID_SC2_DSP, DOMAIN_INIT_OFF, 0),
 	[PDID_SC2_DOS_HCODEC] = POWER_DOMAIN(hcodec, PDID_SC2_DOS_HCODEC, DOMAIN_INIT_OFF, 0),
 	[PDID_SC2_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_SC2_DOS_HEVC, DOMAIN_INIT_OFF, 0),
@@ -170,12 +172,12 @@ static struct sec_pm_private_domain sc2_pm_domains[] = {
 	[PDID_SC2_AUDIO] = POWER_DOMAIN(audio, PDID_SC2_AUDIO, DOMAIN_INIT_OFF, 0),
 };
 
-static struct sec_pm_domain_data sc2_pm_domain_data = {
+static struct sec_pm_domain_data sc2_pm_domain_data __initdata = {
 	.domains = sc2_pm_domains,
 	.domains_count = ARRAY_SIZE(sc2_pm_domains),
 };
 
-static struct sec_pm_private_domain t5_pm_domains[] = {
+static struct sec_pm_private_domain t5_pm_domains[] __initdata = {
 	[PDID_T5_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_T5_DOS_HEVC, DOMAIN_INIT_OFF, 0),
 	[PDID_T5_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_T5_DOS_VDEC, DOMAIN_INIT_OFF, 0),
 	[PDID_T5_VPU_HDMI] = POWER_DOMAIN(vpu, PDID_T5_VPU_HDMI, DOMAIN_INIT_ON,
@@ -183,12 +185,12 @@ static struct sec_pm_private_domain t5_pm_domains[] = {
 	[PDID_T5_DEMOD] = POWER_DOMAIN(demod, PDID_T5_DEMOD, DOMAIN_INIT_OFF, 0),
 };
 
-static struct sec_pm_domain_data t5_pm_domain_data = {
+static struct sec_pm_domain_data t5_pm_domain_data __initdata = {
 	.domains = t5_pm_domains,
 	.domains_count = ARRAY_SIZE(t5_pm_domains),
 };
 
-static struct sec_pm_private_domain t7_pm_domains[] = {
+static struct sec_pm_private_domain t7_pm_domains[] __initdata = {
 	[PDID_T7_DSPA] = POWER_DOMAIN(dspa, PDID_T7_DSPA, DOMAIN_INIT_OFF, 0),
 	[PDID_T7_DSPB] = POWER_DOMAIN(dspb, PDID_T7_DSPB, DOMAIN_INIT_OFF, 0),
 	[PDID_T7_DOS_HCODEC] = TOP_DOMAIN(hcodec, PDID_T7_DOS_HCODEC, DOMAIN_INIT_OFF, 0,
@@ -264,12 +266,12 @@ static struct sec_pm_private_domain t7_pm_domains[] = {
 	[PDID_T7_AUDIO] = POWER_DOMAIN(audio, PDID_T7_AUDIO, DOMAIN_INIT_OFF, 0),
 };
 
-static struct sec_pm_domain_data t7_pm_domain_data = {
+static struct sec_pm_domain_data t7_pm_domain_data __initdata = {
 	.domains = t7_pm_domains,
 	.domains_count = ARRAY_SIZE(t7_pm_domains),
 };
 
-static struct sec_pm_private_domain s4_pm_domains[] = {
+static struct sec_pm_private_domain s4_pm_domains[] __initdata = {
 	[PDID_S4_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_S4_DOS_HEVC, DOMAIN_INIT_OFF, 0),
 	[PDID_S4_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_S4_DOS_VDEC, DOMAIN_INIT_OFF, 0),
 	[PDID_S4_VPU_HDMI] = POWER_DOMAIN(vpu, PDID_S4_VPU_HDMI, DOMAIN_INIT_ON,
@@ -282,7 +284,7 @@ static struct sec_pm_private_domain s4_pm_domains[] = {
 	[PDID_S4_AUDIO] = POWER_DOMAIN(audio, PDID_S4_AUDIO, DOMAIN_INIT_OFF, 0),
 };
 
-static struct sec_pm_domain_data s4_pm_domain_data = {
+static struct sec_pm_domain_data s4_pm_domain_data __initdata = {
 	.domains = s4_pm_domains,
 	.domains_count = ARRAY_SIZE(s4_pm_domains),
 };
@@ -332,7 +334,7 @@ static struct sec_pm_domain_data t3_pm_domain_data = {
 static int sec_pd_probe(struct platform_device *pdev)
 {
 	int ret, i;
-	struct sec_pm_private_domain *private_pd;
+	struct sec_pm_private_domain *private_pd, *pri_pd;
 	struct sec_pm_domain *pd;
 	int init_status;
 	const struct sec_pm_domain_data *match;
@@ -359,6 +361,9 @@ static int sec_pd_probe(struct platform_device *pdev)
 	pd = devm_kcalloc(&pdev->dev, match->domains_count, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return -ENOMEM;
+	pri_pd = devm_kcalloc(&pdev->dev, match->domains_count, sizeof(*private_pd), GFP_KERNEL);
+	if (!pd)
+		return -ENOMEM;
 
 #ifdef MODULE
 	struct dev_power_governor *aon_gov;
@@ -379,7 +384,10 @@ static int sec_pd_probe(struct platform_device *pdev)
 		pd[i].base.power_on = sec_pm_domain_power_on;
 		pd[i].base.power_off = sec_pm_domain_power_off;
 		pd[i].base.flags = private_pd->flags;
-		pd[i].private_domain = private_pd;
+		pd[i].private_domain = &pri_pd[i];
+		pri_pd[i].pd_index = private_pd->pd_index;
+		pri_pd[i].pd_status = private_pd->pd_status;
+		pri_pd[i].pd_parent = private_pd->pd_parent;
 
 		init_status = pwr_ctrl_status_psci_smc(private_pd->pd_index);
 
@@ -425,6 +433,7 @@ out:
 }
 
 static const struct of_device_id pd_match_table[] = {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic,a1-power-domain",
 		.data = &a1_pm_domain_data,
@@ -433,6 +442,7 @@ static const struct of_device_id pd_match_table[] = {
 		.compatible = "amlogic,c1-power-domain",
 		.data = &c1_pm_domain_data,
 	},
+#endif
 	{
 		.compatible = "amlogic,sc2-power-domain",
 		.data = &sc2_pm_domain_data,

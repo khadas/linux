@@ -70,6 +70,11 @@ struct aml_tdes_reqctx {
 	unsigned long mode;
 };
 
+struct aml_tdes_info {
+	struct crypto_alg *algs;
+	u32 num_algs;
+};
+
 struct aml_tdes_dev {
 	struct list_head	list;
 
@@ -109,16 +114,12 @@ struct aml_tdes_dev {
 	dma_addr_t	dma_descript_tab;
 
 	u32 fast_nents;
+	struct aml_tdes_info *info;
 };
 
 struct aml_tdes_drv {
 	struct list_head	dev_list;
 	spinlock_t		lock; /* spinlock for device list */
-};
-
-struct aml_tdes_info {
-	struct crypto_alg *algs;
-	u32 num_algs;
 };
 
 static struct aml_tdes_drv aml_tdes = {
@@ -1335,7 +1336,7 @@ static irqreturn_t aml_tdes_irq(int irq, void *dev_id)
 }
 #endif
 static void aml_tdes_unregister_algs(struct aml_tdes_dev *dd,
-				     const struct aml_tdes_info *tdes_info)
+				     struct aml_tdes_info *tdes_info)
 {
 	int i;
 
@@ -1344,7 +1345,7 @@ static void aml_tdes_unregister_algs(struct aml_tdes_dev *dd,
 }
 
 static int aml_tdes_register_algs(struct aml_tdes_dev *dd,
-				  const struct aml_tdes_info *tdes_info)
+				  struct aml_tdes_info *tdes_info)
 {
 	int err, i, j;
 
@@ -1363,12 +1364,12 @@ err_tdes_algs:
 	return err;
 }
 
-struct aml_tdes_info aml_des_tdes = {
+struct aml_tdes_info aml_des_tdes __initdata = {
 	.algs = des_tdes_algs,
 	.num_algs = ARRAY_SIZE(des_tdes_algs),
 };
 
-struct aml_tdes_info aml_tdes_lite = {
+struct aml_tdes_info aml_tdes_lite __initdata = {
 	.algs = tdes_lite_algs,
 	.num_algs = ARRAY_SIZE(tdes_lite_algs),
 };
@@ -1392,8 +1393,7 @@ static int aml_tdes_probe(struct platform_device *pdev)
 	struct aml_tdes_dev *tdes_dd;
 	struct device *dev = &pdev->dev;
 	int err = -EPERM;
-	const struct of_device_id *match;
-	const struct aml_tdes_info *tdes_info = NULL;
+	struct aml_tdes_info *tdes_info = NULL, *match;
 
 	tdes_dd = devm_kzalloc(dev, sizeof(struct aml_tdes_dev), GFP_KERNEL);
 	if (!tdes_dd) {
@@ -1401,14 +1401,18 @@ static int aml_tdes_probe(struct platform_device *pdev)
 		goto tdes_dd_err;
 	}
 
-	match = of_match_device(aml_tdes_dt_match, &pdev->dev);
+	match = (struct aml_tdes_info *)
+		of_device_get_match_data(&pdev->dev);
 	if (!match) {
 		dev_err(dev, "%s: cannot find match dt\n", __func__);
 		err = -EINVAL;
 		goto tdes_dd_err;
 	}
 
-	tdes_info = match->data;
+	tdes_info = devm_kzalloc(dev, sizeof(*tdes_info), GFP_KERNEL);
+	tdes_info->algs = match->algs;
+	tdes_info->num_algs = match->num_algs;
+	tdes_dd->info = tdes_info;
 	tdes_dd->dev = dev;
 	tdes_dd->dma = dev_get_drvdata(dev->parent);
 	tdes_dd->thread = tdes_dd->dma->thread;
@@ -1488,21 +1492,13 @@ tdes_dd_err:
 static int aml_tdes_remove(struct platform_device *pdev)
 {
 	static struct aml_tdes_dev *tdes_dd;
-	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
-	const struct aml_tdes_info *tdes_info = NULL;
+	struct aml_tdes_info *tdes_info = NULL;
 
 	tdes_dd = platform_get_drvdata(pdev);
 	if (!tdes_dd)
 		return -ENODEV;
 
-	match = of_match_device(aml_tdes_dt_match, &pdev->dev);
-	if (!match) {
-		dev_err(dev, "%s: cannot find match dt\n", __func__);
-		return -EINVAL;
-	}
-
-	tdes_info = match->data;
+	tdes_info = tdes_dd->info;
 	spin_lock(&aml_tdes.lock);
 	list_del(&tdes_dd->list);
 	spin_unlock(&aml_tdes.lock);

@@ -199,7 +199,7 @@ struct meson_spicc_device {
 #ifdef CONFIG_AMLOGIC_MODIFY
 	struct clk			*async_clk;
 	struct clk			*clk;
-	const struct meson_spicc_data	*data;
+	struct meson_spicc_data	*data;
 	unsigned int			speed_hz;
 	struct				class cls;
 	bool				using_dma;
@@ -1157,6 +1157,7 @@ static void meson_spicc_hw_clk_restore(struct meson_spicc_device *spicc)
 static int meson_spicc_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
+	struct meson_spicc_data *match;
 	struct meson_spicc_device *spicc;
 	int ret, irq, rate;
 
@@ -1179,8 +1180,13 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	}
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-	spicc->data = (const struct meson_spicc_data *)
+	match = (struct meson_spicc_data *)
 		of_device_get_match_data(&pdev->dev);
+	spicc->data = devm_kzalloc(&pdev->dev, sizeof(*match), GFP_KERNEL);
+	spicc->data->max_speed_hz = match->max_speed_hz;
+	spicc->data->has_linear_div = match->has_linear_div;
+	spicc->data->has_oen = match->has_oen;
+	spicc->data->has_async_clk = match->has_async_clk;
 
 	meson_spicc_hw_init(spicc);
 #else
@@ -1378,18 +1384,18 @@ static const struct dev_pm_ops meson_spicc_pm_ops = {
 };
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
-static const struct meson_spicc_data meson_spicc_gx_data = {
+static struct meson_spicc_data meson_spicc_gx_data __initdata = {
 	.max_speed_hz = 30000000,
 };
 
-static const struct meson_spicc_data meson_spicc_axg_data = {
+static struct meson_spicc_data meson_spicc_axg_data __initdata = {
 	.max_speed_hz = 80000000,
 	.has_linear_div = true,
 	.has_oen = true,
 };
 #endif
 
-static const struct meson_spicc_data meson_spicc_g12_data = {
+static struct meson_spicc_data meson_spicc_g12_data __initdata = {
 	.max_speed_hz = 124000000,
 	.has_linear_div = true,
 	.has_oen = true,
