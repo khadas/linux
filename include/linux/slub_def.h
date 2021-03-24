@@ -79,6 +79,37 @@ struct kmem_cache_order_objects {
 	unsigned int x;
 };
 
+#ifdef CONFIG_AMLOGIC_SLAB_TRACE
+struct memcg_cache_array {
+	struct rcu_head rcu;
+	struct kmem_cache *entries[0];
+};
+
+struct memcg_cache_params {
+	struct kmem_cache *root_cache;
+	union {
+		struct {
+			struct memcg_cache_array __rcu *memcg_caches;
+			struct list_head __root_caches_node;
+			struct list_head children;
+			bool dying;
+		};
+		struct {
+			struct mem_cgroup *memcg;
+			struct list_head children_node;
+			struct list_head kmem_caches_node;
+			struct percpu_ref refcnt;
+
+			void (*work_fn)(struct kmem_cache *);
+			union {
+				struct rcu_head rcu_head;
+				struct work_struct work;
+			};
+		};
+	};
+};
+#endif
+
 /*
  * Slab cache management.
  */
@@ -141,7 +172,9 @@ struct kmem_cache {
 
 	unsigned int useroffset;	/* Usercopy region offset */
 	unsigned int usersize;		/* Usercopy region size */
-
+#ifdef CONFIG_AMLOGIC_SLAB_TRACE
+	struct slab_trace_group *trace_group;
+#endif
 	struct kmem_cache_node *node[MAX_NUMNODES];
 };
 

@@ -32,6 +32,7 @@ struct kmem_cache {
 
 #else /* !CONFIG_SLOB */
 
+#ifndef CONFIG_AMLOGIC_SLAB_TRACE
 struct memcg_cache_array {
 	struct rcu_head rcu;
 	struct kmem_cache *entries[0];
@@ -93,6 +94,7 @@ struct memcg_cache_params {
 		};
 	};
 };
+#endif
 #endif /* CONFIG_SLOB */
 
 #ifdef CONFIG_SLAB

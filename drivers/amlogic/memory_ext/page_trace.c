@@ -1040,8 +1040,9 @@ static const struct file_operations pagetrace_file_ops = {
 #ifdef CONFIG_AMLOGIC_SLAB_TRACE
 /*---------------- part 2 for slab trace ---------------------*/
 #include <linux/jhash.h>
+#include <linux/slub_def.h>
 
-#define SLAB_TRACE_FLAG		(__GFP_ZERO | __GFP_REPEAT | GFP_ATOMIC)
+#define SLAB_TRACE_FLAG		(__GFP_ZERO | __GFP_NOFAIL | GFP_ATOMIC)
 
 static LIST_HEAD(st_root);
 static int slab_trace_en __read_mostly;
@@ -1078,7 +1079,7 @@ int __init slab_trace_init(void)
 		return -EINVAL;
 
 	for (i = 0; i <= KMALLOC_SHIFT_HIGH; i++) {
-		cache = kmalloc_caches[i];
+		cache = kmalloc_caches[KMALLOC_NORMAL][i];
 		if (!cache || cache->size >= PAGE_SIZE)
 			continue;
 
@@ -1306,7 +1307,7 @@ int slab_trace_mark_object(void *object, unsigned long ip,
 	struct slab_trace_group *group;
 	unsigned long addr, flags, index;
 	unsigned long stack[SLAB_STACK_DEP] = {0};
-	unsigned int hash;
+	unsigned int hash, len;
 
 	if (!slab_trace_en || !object || !s || !s->trace_group)
 		return -EINVAL;
@@ -1319,13 +1320,14 @@ int slab_trace_mark_object(void *object, unsigned long ip,
 	if (!trace)
 		return -ENODEV;
 
+	len  = sizeof(stack);
+	len /= sizeof(int);
 	group->total_obj_size += s->size;
 	index = (addr - trace->s_addr) / s->size;
 	WARN_ON(index >= trace->object_count);
 	if (save_obj_stack(stack, SLAB_STACK_DEP))
 		return -EINVAL;
-	hash = jhash2((unsigned int *)stack,
-		      sizeof(stack) / sizeof(int), 0x9747b28c);
+	hash = jhash2((unsigned int *)stack, len, 0x9747b28c);
 	record_stack(hash, stack);
 	trace->object_ip[index] = hash;
 	pr_debug("%s, mk object:%p,%lx, idx:%ld, trace:%p, group:%p,%ld, %ps\n",
@@ -1569,7 +1571,7 @@ static int __init page_trace_module_init(void)
 		d_slabtrace = proc_create("slabtrace", 0444,
 					  NULL, &slabtrace_file_ops);
 	if (IS_ERR_OR_NULL(d_slabtrace)) {
-		pr_err("%s, create sysfs failed\n", __func__);
+		pr_err("%s, create slab sysfs failed\n", __func__);
 		return -1;
 	}
 #endif
