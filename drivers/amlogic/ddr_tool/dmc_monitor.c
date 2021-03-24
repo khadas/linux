@@ -492,6 +492,10 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 		#endif
 		break;
 
+	case DMC_TYPE_SC2:
+		mon->ops = &tm2_dmc_mon_ops;
+		break;
+
 	case DMC_TYPE_T5:
 	case DMC_TYPE_T5D:
 		mon->ops = &tm2_dmc_mon_ops;
@@ -677,6 +681,10 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-s4",
 		.data = (void *)DMC_TYPE_S4,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-sc2",
+		.data = (void *)DMC_TYPE_SC2,
 	},
 	{}
 };

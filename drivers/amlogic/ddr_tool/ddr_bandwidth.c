@@ -1015,6 +1015,10 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 		.compatible = "amlogic,ddr-bandwidth-s4",
 		.data = (void *)DMC_TYPE_S4,
 	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-sc2",
+		.data = (void *)DMC_TYPE_SC2,
+	},
 	{}
 };
 #endif

@@ -678,6 +678,42 @@ static struct ddr_port_desc ddr_port_desc_s4[] __initdata = {
 	{ .port_id = 47, .port_name = "DEMOD"         }
 };
 
+static struct ddr_port_desc ddr_port_desc_sc2[] __initdata = {
+	{ .port_id =  0, .port_name = "ARM"           },
+	{ .port_id =  1, .port_name = "MALI"          },
+	{ .port_id =  2, .port_name = "PCIE"          },
+	{ .port_id =  3, .port_name = "HDCP"          },
+	{ .port_id =  4, .port_name = "HEVC FRONT"    },
+	{ .port_id =  5, .port_name = "TEST"          },
+	{ .port_id =  6, .port_name = "USB3.0"        },
+	{ .port_id =  7, .port_name = "DEVICE"        },
+	{ .port_id =  8, .port_name = "HEVC BACK"     },
+	{ .port_id =  9, .port_name = "H265ENC"       },
+	{ .port_id = 11, .port_name = "DEMUX"         },
+	{ .port_id = 12, .port_name = "DSPA"          },
+	{ .port_id = 16, .port_name = "VPU READ1"     },
+	{ .port_id = 17, .port_name = "VPU READ2"     },
+	{ .port_id = 18, .port_name = "VPU READ3"     },
+	{ .port_id = 19, .port_name = "VPU WRITE1"    },
+	{ .port_id = 20, .port_name = "VPU WRITE2"    },
+	{ .port_id = 21, .port_name = "VDEC"          },
+	{ .port_id = 22, .port_name = "HCODEC"        },
+	{ .port_id = 23, .port_name = "GE2D"          },
+	/* start of each device */
+	{ .port_id = 32, .port_name = "SPICC1"        },
+	{ .port_id = 33, .port_name = "USB0"          },
+	{ .port_id = 34, .port_name = "DMA"           },
+	{ .port_id = 36, .port_name = "SD_EMMC_B"     },
+	{ .port_id = 37, .port_name = "USB1"          },
+	{ .port_id = 38, .port_name = "AUDIO"         },
+	{ .port_id = 39, .port_name = "AIFIFO"        },
+	{ .port_id = 40, .port_name = "SD_EMMC_A"     },
+	{ .port_id = 42, .port_name = "AUDMA"         },
+	{ .port_id = 43, .port_name = "SD_EMMC_C"     },
+	{ .port_id = 44, .port_name = "SPICC2"        },
+	{ .port_id = 45, .port_name = "ETHERNET"      }
+};
+
 static struct ddr_port_desc *chip_ddr_port;
 static unsigned int chip_ddr_port_num __initdata;
 
@@ -787,6 +823,11 @@ int __init ddr_find_port_desc(int cpu_type, struct ddr_port_desc **desc)
 	case DMC_TYPE_S4:
 		*desc = ddr_port_desc_s4;
 		desc_size = ARRAY_SIZE(ddr_port_desc_s4);
+		break;
+
+	case DMC_TYPE_SC2:
+		*desc = ddr_port_desc_sc2;
+		desc_size = ARRAY_SIZE(ddr_port_desc_sc2);
 		break;
 
 	default:
