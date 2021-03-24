@@ -20,8 +20,8 @@
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 
-/* removed pixel clk */
-#define RX_VER0 "ver.2021/03/17"
+/* add aud param interface */
+#define RX_VER0 "ver.2021/03/25"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -500,6 +500,7 @@ struct aud_info_s {
 	int real_sample_size;
 	int real_sr;
 	u32 aud_clk;
+	u8 ch_sts[7];
 };
 
 struct phy_sts {

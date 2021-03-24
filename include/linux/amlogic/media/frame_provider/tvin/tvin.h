@@ -583,6 +583,7 @@ struct rx_audio_stat_s {
 	 * all others [all of 8ch]
 	 */
 	int aud_alloc;
+	u8 ch_sts[7];
 };
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC

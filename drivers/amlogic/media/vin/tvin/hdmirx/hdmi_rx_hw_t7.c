@@ -1923,3 +1923,12 @@ void rx_set_irq_t7(bool en)
 	//hdmirx_wr_cor(RX_DEPACK2_INTR0_MASK_DP0B_IVCRX, 0x0c);//interrupt mask
 	//hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, 0x20);//interrupt mask   [5] acr
 }
+
+void rx_set_aud_output(u32 param)
+{
+	if (param)
+		hdmirx_wr_cor(AAC_MCLK_SEL_AUD_IVCRX, 0x90); //TDM
+	else
+		hdmirx_wr_cor(AAC_MCLK_SEL_AUD_IVCRX, 0x80); //I2S/SPDIF
+}
+

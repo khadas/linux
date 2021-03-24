@@ -1238,28 +1238,50 @@ void hdmirx_top_irq_en(bool flag)
  */
 void rx_get_audinfo(struct aud_info_s *audio_info)
 {
-	audio_info->coding_type =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CODING_TYPE);
-	audio_info->channel_count =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CHANNEL_COUNT);
-
-	audio_info->sample_frequency =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, SAMPLE_FREQ);
-	audio_info->sample_size =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, SAMPLE_SIZE);
-	audio_info->coding_extension =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, AIF_DATA_BYTE_3);
-	audio_info->auds_ch_alloc =
-		hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CH_SPEAK_ALLOC);
-	audio_info->auds_layout =
-		hdmirx_rd_bits_dwc(DWC_PDEC_STS, PD_AUD_LAYOUT);
-	audio_info->aud_hbr_rcv =
-		hdmirx_rd_dwc(DWC_PDEC_AUD_STS) & AUDS_HBR_RCV;
-	audio_info->aud_packet_received =
-			hdmirx_rd_dwc(DWC_PDEC_AUD_STS);
-	audio_info->cts = hdmirx_rd_dwc(DWC_PDEC_ACR_CTS);
-
-	audio_info->n = hdmirx_rd_dwc(DWC_PDEC_ACR_N);
+	/* refer to hdmi spec. CT = 0 */
+	audio_info->coding_type = 0;
+	/* refer to hdmi spec. SS = 0 */
+	audio_info->sample_size = 0;
+	/* refer to hdmi spec. SF = 0*/
+	audio_info->sample_frequency = 0;
+	if (rx.chip_id >= CHIP_ID_T7) {
+		audio_info->n = hdmirx_rd_top(TOP_ACR_N_STAT);
+		audio_info->cts = hdmirx_rd_top(TOP_ACR_CTS_STAT);
+		//audio_info->channel_count =
+			//hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CHANNEL_COUNT);
+		//audio_info->coding_extension =
+			//hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, AIF_DATA_BYTE_3);
+		//audio_info->auds_ch_alloc =
+			//hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CH_SPEAK_ALLOC);
+		//audio_info->auds_layout =
+			//hdmirx_rd_bits_dwc(DWC_PDEC_STS, PD_AUD_LAYOUT);
+		//audio_info->aud_hbr_rcv =
+			//hdmirx_rd_dwc(DWC_PDEC_AUD_STS) & AUDS_HBR_RCV;
+		audio_info->aud_packet_received = 1;
+				//hdmirx_rd_dwc(DWC_PDEC_AUD_STS);
+		audio_info->ch_sts[0] = hdmirx_rd_cor(RX_CHST1_AUD_IVCRX);
+		audio_info->ch_sts[1] = hdmirx_rd_cor(RX_CHST2_AUD_IVCRX);
+		audio_info->ch_sts[2] = hdmirx_rd_cor(RX_CHST3a_AUD_IVCRX);
+		audio_info->ch_sts[3] = hdmirx_rd_cor(RX_CHST4_AUD_IVCRX);
+		audio_info->ch_sts[4] = hdmirx_rd_cor(RX_CHST5_AUD_IVCRX);
+		audio_info->ch_sts[5] = hdmirx_rd_cor(RX_CHST6_AUD_IVCRX);
+		audio_info->ch_sts[6] = hdmirx_rd_cor(RX_CHST7_AUD_IVCRX);
+	} else {
+		audio_info->channel_count =
+			hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CHANNEL_COUNT);
+		audio_info->coding_extension =
+			hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, AIF_DATA_BYTE_3);
+		audio_info->auds_ch_alloc =
+			hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CH_SPEAK_ALLOC);
+		audio_info->auds_layout =
+			hdmirx_rd_bits_dwc(DWC_PDEC_STS, PD_AUD_LAYOUT);
+		audio_info->aud_hbr_rcv =
+			hdmirx_rd_dwc(DWC_PDEC_AUD_STS) & AUDS_HBR_RCV;
+		audio_info->aud_packet_received =
+				hdmirx_rd_dwc(DWC_PDEC_AUD_STS);
+		audio_info->cts = hdmirx_rd_dwc(DWC_PDEC_ACR_CTS);
+		audio_info->n = hdmirx_rd_dwc(DWC_PDEC_ACR_N);
+	}
 	if (audio_info->cts != 0) {
 		audio_info->arc =
 			(rx_measure_clock(MEASURE_CLK_TMDS) / audio_info->cts) *
@@ -1279,15 +1301,22 @@ void rx_get_audio_status(struct rx_audio_stat_s *aud_sts)
 	    rx.pre.sw_vic != HDMI_UNKNOWN &&
 	    rx.pre.sw_vic != HDMI_UNSUPPORT &&
 	    rx.avmute_skip == 0) {
-		aud_sts->aud_alloc = rx.aud_info.auds_ch_alloc;
-		aud_sts->aud_sr = rx.aud_info.real_sr;
-		aud_sts->aud_channel_cnt = rx.aud_info.channel_count;
-		aud_sts->aud_type = rx.aud_info.coding_type;
-		aud_sts->afifo_thres_pass =
-			((hdmirx_rd_dwc(DWC_AUD_FIFO_STS) &
-			 THS_PASS_STS) == 0) ? false : true;
-		aud_sts->aud_rcv_packet = rx.aud_info.aud_packet_received;
-		aud_sts->aud_stb_flag = aud_sts->afifo_thres_pass;
+		if (rx.chip_id < CHIP_ID_T7) {
+			aud_sts->aud_alloc = rx.aud_info.auds_ch_alloc;
+			aud_sts->aud_sr = rx.aud_info.real_sr;
+			aud_sts->aud_channel_cnt = rx.aud_info.channel_count;
+			aud_sts->aud_type = rx.aud_info.coding_type;
+			aud_sts->afifo_thres_pass =
+				((hdmirx_rd_dwc(DWC_AUD_FIFO_STS) &
+				 THS_PASS_STS) == 0) ? false : true;
+			aud_sts->aud_rcv_packet = rx.aud_info.aud_packet_received;
+			aud_sts->aud_stb_flag = aud_sts->afifo_thres_pass;
+		} else {
+			aud_sts->aud_rcv_packet = 1;
+			aud_sts->aud_stb_flag = true;
+			aud_sts->aud_sr = rx.aud_info.real_sr;
+			memcpy(aud_sts->ch_sts, &rx.aud_info.ch_sts, 7);
+		}
 	} else {
 		memset(aud_sts, 0, sizeof(struct rx_audio_stat_s));
 	}
@@ -1300,7 +1329,11 @@ EXPORT_SYMBOL(rx_get_audio_status);
 
 int rx_set_audio_param(u32 param)
 {
-	hbr_force_8ch = param & 1;
+	if (rx.chip_id < CHIP_ID_T7)
+		hbr_force_8ch = param & 1;
+	else
+		rx_set_aud_output(param);
+
 	return 1;
 }
 EXPORT_SYMBOL(rx_set_audio_param);
@@ -3301,6 +3334,10 @@ void cor_init(void)
 	//hdmirx_wr_cor(RX_KSV_SHA_start2_HDCP1X_IVCRX, 0x00);//[9:8]
 	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x12);//SRST = 1
 	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x00);//SRST = 0
+
+	/* TDM cfg */
+	hdmirx_wr_cor(RX_TDM_CTRL1_AUD_IVCRX, 0x0f);
+	hdmirx_wr_cor(RX_TDM_CTRL2_AUD_IVCRX, 0xff);
 }
 
 void hdcp_init_t7(void)
@@ -3475,6 +3512,9 @@ void rx_aud_pll_ctl(bool en)
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		if (rx.chip_id == CHIP_ID_T7) {
 			if (en) {
+				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+				tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
+				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
 				/* AUD_CLK=N/CTS*TMDS_CLK */
 				hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL_T7, 0x40001540);
 				/* use mpll */
@@ -3493,6 +3533,9 @@ void rx_aud_pll_ctl(bool en)
 			} else {
 				/* disable pll, into reset mode */
 				hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL_T7, 0x0);
+				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+				tmp &= ~(1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
+				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
 			}
 		} else {
 			if (en) {
@@ -3916,7 +3959,8 @@ void hdmirx_config_video(void)
 void hdmirx_config_audio(void)
 {
 	if (rx.chip_id == CHIP_ID_T7) {
-		/* TODO */
+		/* set MCLK for I2S/SPDIF */
+		hdmirx_wr_cor(AAC_MCLK_SEL_AUD_IVCRX, 0x80);
 	} else {
 		/* if audio layout bit = 1, set audio channel map
 		 * according to audio speaker allocation, if layout
