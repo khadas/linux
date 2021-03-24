@@ -18,7 +18,7 @@
  * couple of levels more, from EVL_CORE_MIN_PRIO to EVL_CORE_MAX_PRIO.
  */
 #define EVL_FIFO_MIN_PRIO  1
-#define EVL_FIFO_MAX_PRIO  (MAX_USER_RT_PRIO - 1)
+#define EVL_FIFO_MAX_PRIO  (MAX_RT_PRIO - 1)
 
 extern struct evl_sched_class evl_sched_fifo;
 
