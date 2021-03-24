@@ -59,7 +59,7 @@ void osd_setup_hw(u32 index,
 		  u32 disp_start_y,
 		  u32 disp_end_x,
 		  u32 disp_end_y,
-		  u32 fbmem,
+		  phys_addr_t fbmem,
 		  phys_addr_t *afbc_fbmem,
 		  const struct color_bit_define_s *color);
 void osd_set_order_hw(u32 index, u32 order);

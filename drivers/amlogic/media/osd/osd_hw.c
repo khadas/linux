@@ -3577,7 +3577,7 @@ void osd_setup_hw(u32 index,
 		  u32 disp_start_y,
 		  u32 disp_end_x,
 		  u32 disp_end_y,
-		  u32 fbmem,
+		  phys_addr_t fbmem,
 		  phys_addr_t *afbc_fbmem,
 		  const struct color_bit_define_s *color)
 {
@@ -3623,9 +3623,10 @@ void osd_setup_hw(u32 index,
 			osd_hw.osd_afbcd[index].frame_height = yres;
 			for (i = 0; i < OSD_MAX_BUF_NUM; i++)
 				osd_hw.osd_afbcd[index].addr[i] =
-					(u32)afbc_fbmem[i];
+					afbc_fbmem[i];
 			osd_hw.osd_afbcd[index].phy_addr =
 				osd_hw.osd_afbcd[index].addr[0];
+
 			/* we need update geometry
 			 * and color mode for afbc mode
 			 * update_geometry = 1;
