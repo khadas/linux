@@ -159,11 +159,11 @@ struct wdt_params {
 	u8 rst_shift;
 };
 
-static const struct wdt_params sc2_params = {
+static const struct wdt_params sc2_params __initconst = {
 	.rst_shift = 22,
 };
 
-static const struct wdt_params gxbb_params = {
+static const struct wdt_params gxbb_params __initconst = {
 	.rst_shift = 21,
 };
 #endif
