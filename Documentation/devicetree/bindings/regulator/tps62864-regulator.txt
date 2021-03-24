@@ -1,0 +1,35 @@
+TPS62864 Voltage regulators
+
+Required properties:
+- compatible: Must be one of the following.
+	"ti,tps62864"
+	"ti,tps62866",
+- reg: I2C slave address
+
+Optional properties:
+
+- ti,enable-vout-discharge: Enable output discharge. This is boolean value.
+
+- ti,vout-reg-id: 0 ~ 1. VOUT register number.
+  TPS628640AYCG, TPS628660AYCG:
+  	VSET/VID:
+  		ti,vout-reg-id = <0> if this pin is pulled low
+  		ti,vout-reg-id = <1> if this pin is pulled high
+  TPS628640BYCG, TPS628660BYCG, TPS628640DYCG, TPS628660DYCG
+  	VSET/PG:  ti,vout-reg-id = <0>
+
+Any property defined as part of the core regulator binding, defined in
+regulator.txt, can also be used.
+
+Example:
+
+	tps62864: tps62864@40 {
+		compatible = "ti,tps62864";
+		reg =  <0x40>;
+		regulator-name = "tps62864-regulator";
+		regulator-min-microvolt = <400000>;
+		regulator-max-microvolt = <1675000>;
+		regulator-boot-on;
+		ti,vout-reg-id = <0>;
+		ti,enable-vout-discharge;
+	};
