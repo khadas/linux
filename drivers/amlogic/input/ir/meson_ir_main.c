@@ -640,6 +640,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	input_set_drvdata(dev->input_device, dev);
 	spin_lock_init(&dev->keylock);
 	dev->wait_next_repeat = 0;
+	dev->enable = 1;
 
 	mutex_init(&chip->file_lock);
 	spin_lock_init(&chip->slock);

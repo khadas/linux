@@ -157,6 +157,44 @@ static ssize_t debug_enable_store(struct device *dev,
 	return count;
 }
 
+static ssize_t enable_show(struct device *dev,
+			   struct device_attribute *attr, char *buf)
+{
+	struct meson_ir_chip *chip = dev_get_drvdata(dev);
+	struct meson_ir_dev  *r_dev = chip->r_dev;
+
+	return sprintf(buf, "%d\n", r_dev->enable);
+}
+
+static ssize_t enable_store(struct device *dev,
+			    struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct meson_ir_chip *chip = dev_get_drvdata(dev);
+	struct meson_ir_dev  *r_dev = chip->r_dev;
+	unsigned int val;
+	int enable;
+	int ret;
+	int id;
+
+	ret = kstrtoint(buf, 0, &enable);
+	if (ret != 0 || (enable != 0 && enable != 1))
+		return -EINVAL;
+
+	for (id = 0; id < (ENABLE_LEGACY_IR(chip->protocol) ? 2 : 1); id++) {
+		if (enable) {
+			regmap_read(chip->ir_contr[id].base, REG_FRAME, &val);
+			regmap_update_bits(chip->ir_contr[id].base, REG_REG1,
+					   BIT(15), BIT(15));
+		} else {
+			regmap_update_bits(chip->ir_contr[id].base, REG_REG1,
+					   BIT(15), 0);
+		}
+	}
+	r_dev->enable = enable;
+
+	return count;
+}
 static ssize_t map_tables_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -327,6 +365,7 @@ DEVICE_ATTR_RW(led_blink);
 DEVICE_ATTR_RW(protocol);
 DEVICE_ATTR_RW(keymap);
 DEVICE_ATTR_RW(debug_enable);
+DEVICE_ATTR_RW(enable);
 DEVICE_ATTR_RO(map_tables);
 
 static struct attribute *meson_ir_sysfs_attrs[] = {
@@ -334,6 +373,7 @@ static struct attribute *meson_ir_sysfs_attrs[] = {
 	&dev_attr_map_tables.attr,
 	&dev_attr_keymap.attr,
 	&dev_attr_debug_enable.attr,
+	&dev_attr_enable.attr,
 	&dev_attr_led_blink.attr,
 	&dev_attr_led_frq.attr,
 	&dev_attr_ir_learning.attr,
