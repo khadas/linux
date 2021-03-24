@@ -10,6 +10,8 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_connector.h>
+#include <drm/drm_hdcp.h>
+
 
 #include <linux/component.h>
 #include <linux/irq.h>
@@ -172,7 +174,7 @@ enum drm_mode_status am_hdmi_tx_check_mode(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-static struct drm_encoder *am_hdmi_connector_best_encoder
+static struct drm_encoder *am_hdmitx_connector_best_encoder
 	(struct drm_connector *connector)
 {
 	struct am_hdmi_tx *am_hdmi = connector_to_am_hdmi(connector);
@@ -180,7 +182,7 @@ static struct drm_encoder *am_hdmi_connector_best_encoder
 	return &am_hdmi->encoder;
 }
 
-static enum drm_connector_status am_hdmi_connector_detect
+static enum drm_connector_status am_hdmitx_connector_detect
 	(struct drm_connector *connector, bool force)
 {
 	int hpdstat = drm_hdmitx_detect_hpd();
@@ -190,36 +192,24 @@ static enum drm_connector_status am_hdmi_connector_detect
 		connector_status_connected : connector_status_disconnected;
 }
 
-static int am_hdmi_connector_atomic_set_property
+static int am_hdmitx_connector_atomic_set_property
 	(struct drm_connector *connector,
 	struct drm_connector_state *state,
 	struct drm_property *property, uint64_t val)
 {
+	struct am_hdmitx_connector_state *hdmitx_state =
+		to_am_hdmitx_connector_state(state);
 	struct am_hdmi_tx *am_hdmi = connector_to_am_hdmi(connector);
-	enum vmode_e vmode;
 
 	if (property == am_hdmi->update_attr_prop) {
-		if (val == 1) {
-			vmode = get_current_vmode();
-			if (vmode == VMODE_HDMI) {
-				DRM_INFO("UPDATE attr\n");
-			} else {
-				DRM_INFO("enable fail! vmode:%d\n", vmode);
-				return 0;
-			}
-			DRM_DEBUG("set update prop to update vmode.\n");
-			vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &vmode);
-			set_vout_vmode(vmode);
-			vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &vmode);
-			msleep(1000);
-		}
+		hdmitx_state->update = true;
 		return 0;
 	}
 
 	return -EINVAL;
 }
 
-static int am_hdmi_connector_atomic_get_property
+static int am_hdmitx_connector_atomic_get_property
 	(struct drm_connector *connector,
 	const struct drm_connector_state *state,
 	struct drm_property *property, uint64_t *val)
@@ -234,28 +224,88 @@ static int am_hdmi_connector_atomic_get_property
 	return -EINVAL;
 }
 
-static void am_hdmi_connector_destroy(struct drm_connector *connector)
+static void am_hdmitx_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 }
 
-static const
-struct drm_connector_helper_funcs am_hdmi_connector_helper_funcs = {
+int am_hdmitx_atomic_check(struct drm_connector *connector,
+	struct drm_atomic_state *state)
+{
+	struct am_hdmitx_connector_state *new_hdmitx_state, *old_hdmitx_state;
+	struct drm_crtc_state *new_crtc_state;
+
+	old_hdmitx_state = to_am_hdmitx_connector_state
+		(drm_atomic_get_old_connector_state(state, connector));
+	new_hdmitx_state = to_am_hdmitx_connector_state
+		(drm_atomic_get_new_connector_state(state, connector));
+	new_crtc_state = drm_atomic_get_new_crtc_state(state,
+							   connector->state->crtc);
+
+	if (new_hdmitx_state->update)
+		new_crtc_state->connectors_changed = true;
+
+	return 0;
+}
+
+struct drm_connector_state *am_hdmitx_atomic_duplicate_state
+	(struct drm_connector *connector)
+{
+	struct am_hdmitx_connector_state *hdmitx_state;
+
+	hdmitx_state = kzalloc(sizeof(*hdmitx_state), GFP_KERNEL);
+	if (!hdmitx_state)
+		return NULL;
+
+	__drm_atomic_helper_connector_duplicate_state(connector, &hdmitx_state->base);
+	hdmitx_state->update = false;
+
+	return &hdmitx_state->base;
+}
+
+void am_hdmitx_atomic_destroy_state(struct drm_connector *connector,
+				 struct drm_connector_state *state)
+{
+	struct am_hdmitx_connector_state *hdmitx_state;
+
+	hdmitx_state = to_am_hdmitx_connector_state(state);
+	__drm_atomic_helper_connector_destroy_state(&hdmitx_state->base);
+	kfree(hdmitx_state);
+}
+
+/*similar to drm_atomic_helper_connector_reset*/
+void am_hdmitx_reset(struct drm_connector *connector)
+{
+	struct am_hdmitx_connector_state *hdmitx_state;
+
+	hdmitx_state = kzalloc(sizeof(*hdmitx_state), GFP_KERNEL);
+	if (!hdmitx_state)
+		return;
+
+	if (connector->state)
+		__drm_atomic_helper_connector_destroy_state(connector->state);
+	kfree(connector->state);
+
+	__drm_atomic_helper_connector_reset(connector, &hdmitx_state->base);
+}
+
+static const struct drm_connector_helper_funcs am_hdmi_connector_helper_funcs = {
 	.get_modes = am_hdmi_tx_get_modes,
 	.mode_valid = am_hdmi_tx_check_mode,
-	.best_encoder = am_hdmi_connector_best_encoder,
+	.atomic_check	= am_hdmitx_atomic_check,
+	.best_encoder = am_hdmitx_connector_best_encoder,
 };
 
 static const struct drm_connector_funcs am_hdmi_connector_funcs = {
-	.detect			= am_hdmi_connector_detect,
+	.detect			= am_hdmitx_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
-	.atomic_set_property	= am_hdmi_connector_atomic_set_property,
-	.atomic_get_property	= am_hdmi_connector_atomic_get_property,
-	.destroy		= am_hdmi_connector_destroy,
-	.reset			= drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state	= drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state	= drm_atomic_helper_connector_destroy_state,
+	.atomic_set_property	= am_hdmitx_connector_atomic_set_property,
+	.atomic_get_property	= am_hdmitx_connector_atomic_get_property,
+	.destroy		= am_hdmitx_connector_destroy,
+	.reset			= am_hdmitx_reset,
+	.atomic_duplicate_state	= am_hdmitx_atomic_duplicate_state,
+	.atomic_destroy_state	= am_hdmitx_atomic_destroy_state,
 };
 
 void am_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
@@ -286,23 +336,10 @@ void am_hdmi_encoder_atomic_enable(struct drm_encoder *encoder,
 	/* msleep(1000); */
 }
 
-void am_hdmi_encoder_atomic_disable(struct drm_encoder *encoder,
-	struct drm_atomic_state *state)
-{
-}
-
-static int am_hdmi_encoder_atomic_check(struct drm_encoder *encoder,
-	struct drm_crtc_state *crtc_state,
-	struct drm_connector_state *conn_state)
-{
-	return 0;
-}
 
 static const struct drm_encoder_helper_funcs am_hdmi_encoder_helper_funcs = {
 	.atomic_mode_set = am_hdmi_encoder_atomic_mode_set,
 	.atomic_enable = am_hdmi_encoder_atomic_enable,
-	.atomic_disable = am_hdmi_encoder_atomic_disable,
-	.atomic_check = am_hdmi_encoder_atomic_check,
 };
 
 static const struct drm_encoder_funcs am_hdmi_encoder_funcs = {
@@ -373,8 +410,6 @@ static int am_meson_hdmi_bind(struct device *dev,
 		dev_err(priv->dev, "Failed to init hdmi tx connector\n");
 		return ret;
 	}
-	am_meson_hdmi_connector_init_property(drm, am_hdmi);
-
 	connector->interlace_allowed = 1;
 
 	/* Encoder */
@@ -390,6 +425,9 @@ static int am_meson_hdmi_bind(struct device *dev,
 
 	/*hpd irq moved to amhdmitx, registe call back */
 	drm_hdmitx_register_hpd_cb(am_meson_hdmi_hpd_cb, (void *)am_hdmi);
+
+	/*TODO: amlogic private prop*/
+	am_meson_hdmi_connector_init_property(drm, am_hdmi);
 
 	DRM_INFO("[%s] out\n", __func__);
 	return 0;

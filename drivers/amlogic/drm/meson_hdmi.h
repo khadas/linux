@@ -29,18 +29,6 @@ struct am_hdmi_data {
 	unsigned int VIC[VIC_MAX_NUM];
 };
 
-struct am_hdmi_i2c {
-	struct i2c_adapter adap;
-	struct mutex lock;/*for i2c*/
-	struct completion cmp;
-	u8 ddc_addr;
-	u8 segment_addr;
-	u8 slave_reg;
-	u8 stat;
-	u8 is_regaddr;
-	u8 is_segment;
-};
-
 struct am_hdmi_tx {
 	struct device *dev;
 	struct drm_encoder	encoder;
@@ -72,6 +60,12 @@ struct am_hdmi_tx {
 	struct drm_property *update_attr_prop;
 };
 
+struct am_hdmitx_connector_state {
+	struct drm_connector_state base;
+	bool update : 1;
+};
+
+#define to_am_hdmitx_connector_state(x)	container_of(x, struct am_hdmitx_connector_state, base)
 #define connector_to_am_hdmi(x)	container_of(x, struct am_hdmi_tx, connector)
 #define encoder_to_am_hdmi(x)	container_of(x, struct am_hdmi_tx, encoder)
 
