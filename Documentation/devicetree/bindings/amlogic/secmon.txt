@@ -1,0 +1,22 @@
+Amlogic Secmon
+
+This driver can be used to configure secure monitor.
+
+Required properties:
+ - compatible: must be "amlogic,secmon"
+ - memory-region: refer to node<secmon_reserved>
+ - reserve_men_size: reserved memory size
+ - in_base_func: sip function id
+ - out_base_func: sip function id
+ - clear_range: bl31 used region
+
+Examples:
+
+	secmom{
+		compatible = "amlogic,secmon";
+		memory-region = <&secmon_reserved>;
+		reserve_mem_size = <0x00300000>;
+                in_base_func = <0x82000020>;
+                out_base_func = <0x82000021>;
+                clear_range = <0x05100000 0x200000>;
+	};
