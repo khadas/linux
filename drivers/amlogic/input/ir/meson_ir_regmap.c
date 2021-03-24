@@ -63,7 +63,7 @@ static struct meson_ir_reg_map regs_default_xmp_1[] = {
 	{ REG_LDR_REPEAT,   0},
 	{ REG_BIT_0,        (52 << 16) | (45 << 0)},
 	{ REG_REG0,         ((7 << 28) | (0x5DC << 12) | (0x13))},
-	{ REG_STATUS,       (87 << 20) | (80 << 10)},
+	{ REG_STATUS,       (86 << 20) | (80 << 10)},
 	{ REG_REG1,         0x9f00},
 	{ REG_REG2,         0xa90e},
 	/*n=10,758+137*10=2128us,2128/20= 106*/
