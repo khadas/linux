@@ -3529,8 +3529,10 @@ static ssize_t show_osd_rdma_delayed(struct device *device,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d\n",
-		osd_hw.rdma_delayed_cnt);
+	return snprintf(buf, PAGE_SIZE, "%d, %d, %d\n",
+		osd_hw.rdma_delayed_cnt1,
+		osd_hw.rdma_delayed_cnt2,
+		osd_hw.rdma_delayed_cnt3);
 }
 
 static ssize_t show_osd_reg_check(struct device *device,

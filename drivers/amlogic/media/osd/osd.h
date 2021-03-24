@@ -891,7 +891,9 @@ struct hw_para_s {
 	u32 osd_v_skip[HW_OSD_COUNT];
 	u32 secure_enable[HW_OSD_COUNT];
 	u32 secure_src;
-	u32 rdma_delayed_cnt;
+	u32 rdma_delayed_cnt1;
+	u32 rdma_delayed_cnt2;
+	u32 rdma_delayed_cnt3;
 	u32 osd_reg_check;
 	u32 mif_linear;
 	u32 vpp_num;
