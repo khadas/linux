@@ -49,6 +49,7 @@ static struct dummy_venc_data_s *dummy_venc_data;
 struct dummy_venc_driver_s {
 	struct device *dev;
 	unsigned char status;
+	unsigned char vout_valid;
 	unsigned char viu_sel;
 
 	unsigned char clk_gate_state;
@@ -350,6 +351,7 @@ static int dummy_encp_set_current_vmode(enum vmode_e mode)
 	dummy_encp_venc_set();
 
 	dummy_encp_drv->status = 1;
+	dummy_encp_drv->vout_valid = 1;
 	VOUTPR("%s finished\n", __func__);
 
 	return 0;
@@ -385,6 +387,7 @@ static int dummy_encp_vmode_is_supported(enum vmode_e mode)
 static int dummy_encp_disable(enum vmode_e cur_vmod)
 {
 	dummy_encp_drv->status = 0;
+	dummy_encp_drv->vout_valid = 0;
 	dummy_encp_index = 0xff;
 
 	vout_vcbus_write(ENCP_VIDEO_EN, 0); /* disable encp */
@@ -397,12 +400,10 @@ static int dummy_encp_disable(enum vmode_e cur_vmod)
 #endif
 
 	VOUTPR("%s finished\n", __func__);
-
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int dummy_encp_lcd_suspend(void)
+static int dummy_encp_suspend(void)
 {
 	dummy_encp_drv->status = 0;
 
@@ -415,15 +416,16 @@ static int dummy_encp_lcd_suspend(void)
 	vpu_dev_clk_release(dummy_encp_drv->vpu_dev);
 #endif
 
+	VOUTPR("%s finished\n", __func__);
 	return 0;
 }
 
-static int dummy_encp_lcd_resume(void)
+static int dummy_encp_resume(void)
 {
 	dummy_encp_set_current_vmode(VMODE_DUMMY_ENCP);
+	VOUTPR("%s finished\n", __func__);
 	return 0;
 }
-#endif
 
 static int dummy_encp_vout_state;
 static int dummy_encp_vout_set_state(int bit)
@@ -459,8 +461,8 @@ static struct vout_server_s dummy_encp_vout_server = {
 		.get_state          = dummy_encp_vout_get_state,
 		.set_bist           = NULL,
 #ifdef CONFIG_PM
-		.vout_suspend       = dummy_encp_lcd_suspend,
-		.vout_resume        = dummy_encp_lcd_resume,
+		.vout_suspend       = NULL,
+		.vout_resume        = NULL,
 #endif
 	},
 };
@@ -479,8 +481,8 @@ static struct vout_server_s dummy_encp_vout2_server = {
 		.get_state          = dummy_encp_vout_get_state,
 		.set_bist           = NULL,
 #ifdef CONFIG_PM
-		.vout_suspend       = dummy_encp_lcd_suspend,
-		.vout_resume        = dummy_encp_lcd_resume,
+		.vout_suspend       = NULL,
+		.vout_resume        = NULL,
 #endif
 	},
 };
@@ -671,6 +673,7 @@ static int dummy_enci_set_current_vmode(enum vmode_e mode)
 	dummy_enci_venc_set();
 
 	dummy_enci_drv->status = 1;
+	dummy_enci_drv->vout_valid = 1;
 	VOUTPR("%s finished\n", __func__);
 
 	return 0;
@@ -700,6 +703,7 @@ static int dummy_enci_vmode_is_supported(enum vmode_e mode)
 static int dummy_enci_disable(enum vmode_e cur_vmod)
 {
 	dummy_enci_drv->status = 0;
+	dummy_enci_drv->vout_valid = 0;
 
 	vout_vcbus_write(ENCI_VIDEO_EN, 0); /* disable encp */
 	dummy_enci_clk_ctrl(0);
@@ -716,15 +720,17 @@ static int dummy_enci_disable(enum vmode_e cur_vmod)
 }
 
 #ifdef CONFIG_PM
-static int dummy_enci_lcd_suspend(void)
+static int dummy_enci_suspend(void)
 {
 	dummy_enci_disable(VMODE_DUMMY_ENCI);
+	VOUTPR("%s finished\n", __func__);
 	return 0;
 }
 
-static int dummy_enci_lcd_resume(void)
+static int dummy_enci_resume(void)
 {
 	dummy_enci_set_current_vmode(VMODE_DUMMY_ENCI);
+	VOUTPR("%s finished\n", __func__);
 	return 0;
 }
 
@@ -764,8 +770,8 @@ static struct vout_server_s dummy_enci_vout_server = {
 		.get_state          = dummy_enci_vout_get_state,
 		.set_bist           = NULL,
 #ifdef CONFIG_PM
-		.vout_suspend       = dummy_enci_lcd_suspend,
-		.vout_resume        = dummy_enci_lcd_resume,
+		.vout_suspend       = NULL,
+		.vout_resume        = NULL,
 #endif
 	},
 };
@@ -784,8 +790,8 @@ static struct vout_server_s dummy_enci_vout2_server = {
 		.get_state          = dummy_enci_vout_get_state,
 		.set_bist           = NULL,
 #ifdef CONFIG_PM
-		.vout_suspend       = dummy_enci_lcd_suspend,
-		.vout_resume        = dummy_enci_lcd_resume,
+		.vout_suspend       = NULL,
+		.vout_resume        = NULL,
 #endif
 	},
 };
@@ -859,9 +865,11 @@ static void dummy_encl_venc_set(void)
 
 static void dummy_encl_clk_ctrl(int flag)
 {
+	pr_info("******evoke: %s: %d\n", __func__, __LINE__);
 	if (!dummy_venc_data)
 		return;
 
+	pr_info("******evoke: %s: flag=%d\n", __func__, flag);
 	if (flag) {
 		/* clk source sel: fckl_div5 */
 		vout_clk_setb(dummy_venc_data->vid2_clk_div_reg,
@@ -897,6 +905,15 @@ static void dummy_encl_clk_ctrl(int flag)
 		vout_clk_setb(dummy_venc_data->vid2_clk_div_reg,
 			      0, VCLK2_XD_EN, 1);
 	}
+	pr_info("0x%x=0x%08x\n"
+		"0x%x=0x%08x\n"
+		"0x%x=0x%08x\n",
+		dummy_venc_data->vid2_clk_ctrl_reg,
+		vout_clk_read(dummy_venc_data->vid2_clk_ctrl_reg),
+		dummy_venc_data->vid2_clk_div_reg,
+		vout_clk_read(dummy_venc_data->vid2_clk_div_reg),
+		dummy_venc_data->vid_clk_ctrl2_reg,
+		vout_clk_read(dummy_venc_data->vid_clk_ctrl2_reg));
 }
 
 static void dummy_encl_clk_gate_switch(int flag)
@@ -952,6 +969,7 @@ static int dummy_encl_set_current_vmode(enum vmode_e mode)
 	dummy_encl_venc_set();
 
 	dummy_encl_drv->status = 1;
+	dummy_encl_drv->vout_valid = 1;
 	VOUTPR("%s finished\n", __func__);
 
 	return 0;
@@ -981,6 +999,7 @@ static int dummy_encl_vmode_is_supported(enum vmode_e mode)
 static int dummy_encl_disable(enum vmode_e cur_vmod)
 {
 	dummy_encl_drv->status = 0;
+	dummy_encl_drv->vout_valid = 0;
 
 	vout_vcbus_write(ENCL_VIDEO_EN, 0);
 	dummy_encl_clk_ctrl(0);
@@ -997,15 +1016,17 @@ static int dummy_encl_disable(enum vmode_e cur_vmod)
 }
 
 #ifdef CONFIG_PM
-static int dummy_encl_lcd_suspend(void)
+static int dummy_encl_suspend(void)
 {
 	dummy_encl_disable(VMODE_DUMMY_ENCL);
+	VOUTPR("%s finished\n", __func__);
 	return 0;
 }
 
-static int dummy_encl_lcd_resume(void)
+static int dummy_encl_resume(void)
 {
 	dummy_encl_set_current_vmode(VMODE_DUMMY_ENCL);
+	VOUTPR("%s finished\n", __func__);
 	return 0;
 }
 
@@ -1045,8 +1066,8 @@ static struct vout_server_s dummy_encl_vout_server = {
 		.get_state          = dummy_encl_vout_get_state,
 		.set_bist           = NULL,
 #ifdef CONFIG_PM
-		.vout_suspend       = dummy_encl_lcd_suspend,
-		.vout_resume        = dummy_encl_lcd_resume,
+		.vout_suspend       = NULL,
+		.vout_resume        = NULL,
 #endif
 	},
 };
@@ -1065,8 +1086,8 @@ static struct vout_server_s dummy_encl_vout2_server = {
 		.get_state          = dummy_encl_vout_get_state,
 		.set_bist           = NULL,
 #ifdef CONFIG_PM
-		.vout_suspend       = dummy_encl_lcd_suspend,
-		.vout_resume        = dummy_encl_lcd_resume,
+		.vout_suspend       = NULL,
+		.vout_resume        = NULL,
 #endif
 	},
 };
@@ -1608,6 +1629,30 @@ static int dummy_venc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int dummy_venc_resume(struct platform_device *pdev)
+{
+	if (dummy_encp_drv && dummy_encp_drv->vout_valid)
+		dummy_encp_resume();
+	if (dummy_enci_drv && dummy_enci_drv->vout_valid)
+		dummy_enci_resume();
+	if (dummy_encl_drv && dummy_encl_drv->vout_valid)
+		dummy_encl_resume();
+
+	return 0;
+}
+
+static int dummy_venc_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	if (dummy_encp_drv && dummy_encp_drv->status)
+		dummy_encp_suspend();
+	if (dummy_enci_drv && dummy_enci_drv->status)
+		dummy_enci_suspend();
+	if (dummy_encl_drv && dummy_encl_drv->status)
+		dummy_encl_suspend();
+
+	return 0;
+}
+
 static void dummy_venc_shutdown(struct platform_device *pdev)
 {
 	if (!dummy_encp_drv)
@@ -1629,6 +1674,8 @@ static void dummy_venc_shutdown(struct platform_device *pdev)
 static struct platform_driver dummy_venc_platform_driver = {
 	.probe = dummy_venc_probe,
 	.remove = dummy_venc_remove,
+	.suspend = dummy_venc_suspend,
+	.resume = dummy_venc_resume,
 	.shutdown = dummy_venc_shutdown,
 	.driver = {
 		.name = "dummy_venc",
