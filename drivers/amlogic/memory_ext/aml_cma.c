@@ -1009,7 +1009,8 @@ retry:
 				continue;
 		}
 		if (!strcmp(p->comm, "k.glbenchmark27") ||
-			!strcmp(p->comm, "ten.setupwraith"))
+			!strcmp(p->comm, "ten.setupwraith") ||
+			!strcmp(p->comm, "rapps.simpleapp"))
 			continue;
 
 		selected = p;
