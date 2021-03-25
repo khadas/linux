@@ -115,7 +115,7 @@
 			 *        |      |      |NUM_FRAMEBUFFER_SURFACE_BUFFERS := 3
 			 * size = 1920 * 1080 * 3 * 4(RGBA: 4 bytes/pixel) + 4M(10% * afbc)
 			 */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x01000000>;
 			alignment = <0x0 0x400000>;
 		};
 
