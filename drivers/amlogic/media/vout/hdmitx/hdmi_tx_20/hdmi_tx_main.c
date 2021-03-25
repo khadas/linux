@@ -6675,6 +6675,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 static int amhdmitx_suspend(struct platform_device *pdev,
 			    pm_message_t state)
 {
+	hdmitx_device.hwop.cntlmisc(&hdmitx_device, MISC_DIS_HPLL, 0);
 	hdmitx_device.hwop.cntlddc(&hdmitx_device,
 		DDC_RESET_HDCP, 0);
 	pr_info("amhdmitx: suspend and reset hdcp\n");
