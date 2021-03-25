@@ -135,6 +135,7 @@ void codec_mm_dma_flush(void *vaddr, int size, enum dma_data_direction dir);
 
 int codec_mm_get_total_size(void);
 int codec_mm_get_free_size(void);
+int codec_mm_get_tvp_free_size(void);
 int codec_mm_get_reserved_size(void);
 int codec_mm_enough_for_size(int size, int with_wait);
 int codec_mm_disable_tvp(void);
