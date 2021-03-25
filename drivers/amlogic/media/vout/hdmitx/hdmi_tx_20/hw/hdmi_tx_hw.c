@@ -3044,21 +3044,6 @@ static int hdmitx_cntl(struct hdmitx_dev *hdev, unsigned int cmd,
 		return 0;
 	} else if (cmd == HDMITX_EARLY_SUSPEND_RESUME_CNTL) {
 		if (argv == HDMITX_EARLY_SUSPEND) {
-			unsigned int pll_cntl = P_HHI_HDMI_PLL_CNTL;
-
-			/* RESET set as 1, delay 50us, Enable set as 0 */
-			/* G12A reset/enable bit position is different */
-			if (hdev->data->chip_type >= MESON_CPU_ID_SC2)
-				pll_cntl = P_ANACTRL_HDMIPLL_CTRL0;
-			if (hdev->data->chip_type >= MESON_CPU_ID_G12A) {
-				hd_set_reg_bits(pll_cntl, 1, 29, 1);
-				usleep_range(49, 51);
-				hd_set_reg_bits(pll_cntl, 0, 28, 1);
-			} else {
-				hd_set_reg_bits(pll_cntl, 1, 28, 1);
-				usleep_range(49, 51);
-				hd_set_reg_bits(pll_cntl, 0, 30, 1);
-			}
 			hdmi_phy_suspend();
 		}
 		if (argv == HDMITX_LATE_RESUME) {
@@ -4360,6 +4345,7 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 			    unsigned int argv)
 {
 	static int st;
+	unsigned int pll_cntl = P_HHI_HDMI_PLL_CNTL;
 
 	if ((cmd & CMD_MISC_OFFSET) != CMD_MISC_OFFSET) {
 		pr_err(HW "misc: w: invalid cmd 0x%x\n", cmd);
@@ -4461,6 +4447,21 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 		hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, 0xe7);
 		hdmitx_wr_reg(HDMITX_DWC_AUD_N1,
 			      hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
+		break;
+	case MISC_DIS_HPLL:
+		/* RESET set as 1, delay 50us, Enable set as 0 */
+		/* G12A reset/enable bit position is different */
+		if (hdev->data->chip_type >= MESON_CPU_ID_SC2)
+			pll_cntl = P_ANACTRL_HDMIPLL_CTRL0;
+		if (hdev->data->chip_type >= MESON_CPU_ID_G12A) {
+			hd_set_reg_bits(pll_cntl, 1, 29, 1);
+			usleep_range(49, 51);
+			hd_set_reg_bits(pll_cntl, 0, 28, 1);
+		} else {
+			hd_set_reg_bits(pll_cntl, 1, 28, 1);
+			usleep_range(49, 51);
+			hd_set_reg_bits(pll_cntl, 0, 30, 1);
+		}
 		break;
 	default:
 		break;
