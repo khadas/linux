@@ -222,6 +222,7 @@ static void usb_power_control(int is_power, int shift)
 			set_wifi_power(is_power);
 			WIFI_INFO("Set %s power on !\n",
 				  (shift ? "WiFi" : "BT"));
+			msleep(200);
 			sdio_reinit();
 		}
 		usb_power |= (1 << shift);
@@ -231,6 +232,7 @@ static void usb_power_control(int is_power, int shift)
 		usb_power &= ~(1 << shift);
 		if (!usb_power) {
 			set_wifi_power(is_power);
+			msleep(200);
 			WIFI_INFO("Set %s power down\n",
 				  (shift ? "WiFi" : "BT"));
 		}
@@ -339,9 +341,7 @@ void pci_remove_reinit(unsigned int vid, unsigned int pid, unsigned int del_bus)
 	}
 
 	set_usb_wifi_power(0);
-	msleep(200);
 	set_usb_wifi_power(1);
-	msleep(200);
 
 	pci_lock_rescan_remove();
 	while ((bus = pci_find_next_bus(bus)) != NULL) {
@@ -369,7 +369,6 @@ static long wifi_power_ioctl(struct file *filp,
 	switch (cmd) {
 	case USB_POWER_UP:
 		set_usb_wifi_power(0);
-		msleep(200);
 		set_usb_wifi_power(1);
 		WIFI_INFO(KERN_INFO "ioctl Set usb_sdio wifi power up!\n");
 		break;
@@ -380,9 +379,7 @@ static long wifi_power_ioctl(struct file *filp,
 	case WIFI_POWER_UP:
 		pci_remove();
 		set_usb_wifi_power(0);
-		msleep(200);
 		set_usb_wifi_power(1);
-		msleep(200);
 		pci_reinit();
 		WIFI_INFO("Set sdio wifi power up!\n");
 		break;
@@ -439,9 +436,7 @@ static ssize_t power_store(struct class *cls,
 	case 1:
 		pci_reinit();
 		set_usb_wifi_power(0);
-		msleep(200);
 		set_usb_wifi_power(1);
-		msleep(200);
 		pci_reinit();
 		WIFI_INFO("set wifi power up!\n");
 		break;
