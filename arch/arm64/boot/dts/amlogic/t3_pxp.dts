@@ -39,6 +39,13 @@
 			clear-map;
 		};
 
+		ion_cma_reserved:linux,ion-dev {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x9800000>;
+			alignment = <0x0 0x400000>;
+		};
+
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;

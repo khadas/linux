@@ -70,14 +70,18 @@ struct codecio_device_data_s {
 	enum meson_cpuid_type_e cpu_id;
 };
 
-extern struct codecio_device_data_s codecio_meson_dev;
-
 int meson_cpu_version_init(void);
+int get_cpu_type_from_media(void);
 
 unsigned char get_meson_cpu_version(int level);
 
 static inline int get_cpu_type(void)
 {
+	int cpu_id_from_media = 0;
+
+	cpu_id_from_media = get_cpu_type_from_media();
+	if (cpu_id_from_media)
+		return cpu_id_from_media;
 	return get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR);
 }
 

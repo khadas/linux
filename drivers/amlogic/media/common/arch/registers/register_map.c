@@ -21,6 +21,8 @@
 /* media module used media/registers/cpu_version.h since kernel 5.4 */
 #include <linux/amlogic/media/registers/cpu_version.h>
 
+void set_cpu_type_from_media(int cpu_id);
+
 static u32 regs_cmd_debug;
 
 struct codecio_device_data_s codecio_meson_dev;
@@ -783,7 +785,6 @@ static int __init codec_io_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 	}
-	pr_info("%s dst match,cpu_type=0x%x\n", __func__, get_cpu_type());
 
 	for (i = CODECIO_CBUS_BASE; i < CODECIO_BUS_MAX; i++) {
 		if (of_address_to_resource(pdev->dev.of_node, i, &res)) {
@@ -815,7 +816,10 @@ static int __init codec_io_probe(struct platform_device *pdev)
 			vpp_base = codecio_reg_map[i];
 
 	}
-	pr_info("%s success. %d mapped\n", __func__, i);
+
+	set_cpu_type_from_media(codecio_meson_dev.cpu_id);
+	pr_info("%s success, cpu_type=0x%x\n", __func__, get_cpu_type());
+
 	return 0;
 }
 

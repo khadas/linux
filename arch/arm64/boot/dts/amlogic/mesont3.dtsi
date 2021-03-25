@@ -540,6 +540,23 @@
 		version = <2>;
 	};
 
+	canvas: canvas {
+		compatible = "amlogic, meson, canvas";
+		status = "okay";
+		reg = <0x0 0xfe036048 0x0 0x2000>;
+	};
+
+	rdma {
+		compatible = "amlogic, meson-t7, rdma";
+		status = "okay";
+		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "rdma";
+		/* after sc2 */
+		reset-names = "rdma";
+		resets = <&reset RESET_RDMA>;
+		rdma_table_page_count = <16>;
+	};
+
 	codec_io: codec_io {
 		compatible = "amlogic, meson-t3, codec-io";
 		status = "okay";
@@ -560,6 +577,11 @@
 			    "vcbus",
 			    "dmcbus",
 			    "efusebus";
+	};
+
+	ion_dev {
+		compatible = "amlogic, ion_dev";
+		memory-region = <&ion_cma_reserved>;
 	};
 
 	mesonstream {
