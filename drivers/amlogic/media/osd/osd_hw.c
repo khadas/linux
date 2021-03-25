@@ -777,6 +777,189 @@ struct hw_osd_reg_s hw_osd_reg_array_t7[HW_OSD_COUNT] = {
 	},
 };
 
+struct hw_osd_reg_s hw_osd_reg_array_t3[HW_OSD_COUNT] = {
+	{
+		VIU_OSD1_CTRL_STAT,
+		VIU_OSD1_CTRL_STAT2,
+		VIU_OSD1_COLOR_ADDR,
+		VIU_OSD1_COLOR,
+		VIU_OSD1_TCOLOR_AG0,
+		VIU_OSD1_TCOLOR_AG1,
+		VIU_OSD1_TCOLOR_AG2,
+		VIU_OSD1_TCOLOR_AG3,
+		VIU_OSD1_BLK0_CFG_W0,
+		VIU_OSD1_BLK0_CFG_W1,
+		VIU_OSD1_BLK0_CFG_W2,
+		VIU_OSD1_BLK0_CFG_W3,
+		VIU_OSD1_BLK0_CFG_W4,
+		VIU_OSD1_BLK1_CFG_W4,
+		VIU_OSD1_BLK2_CFG_W4,
+		VIU_OSD1_FIFO_CTRL_STAT,
+		VIU_OSD1_TEST_RDDATA,
+		VIU_OSD1_PROT_CTRL,
+		VIU_OSD1_MALI_UNPACK_CTRL,
+		VIU_OSD1_DIMM_CTRL,
+		VPP_WRAP_OSD1_MATRIX_EN_CTRL,
+
+		T7_VPP_OSD_SCALE_COEF_IDX,
+		T7_VPP_OSD_SCALE_COEF,
+		T7_VPP_OSD_VSC_PHASE_STEP,
+		T7_VPP_OSD_VSC_INI_PHASE,
+		T7_VPP_OSD_VSC_CTRL0,
+		T7_VPP_OSD_HSC_PHASE_STEP,
+		T7_VPP_OSD_HSC_INI_PHASE,
+		T7_VPP_OSD_HSC_CTRL0,
+		T7_VPP_OSD_SC_DUMMY_DATA,
+		T7_VPP_OSD_SC_CTRL0,
+		T7_VPP_OSD_SCI_WH_M1,
+		T7_VPP_OSD_SCO_H_START_END,
+		T7_VPP_OSD_SCO_V_START_END,
+		OSD_DB_FLT_CTRL,
+		VPU_MAFBC_HEADER_BUF_ADDR_LOW_S0,
+		VPU_MAFBC_HEADER_BUF_ADDR_HIGH_S0,
+		VPU_MAFBC_FORMAT_SPECIFIER_S0,
+		VPU_MAFBC_BUFFER_WIDTH_S0,
+		VPU_MAFBC_BUFFER_HEIGHT_S0,
+		VPU_MAFBC_BOUNDING_BOX_X_START_S0,
+		VPU_MAFBC_BOUNDING_BOX_X_END_S0,
+		VPU_MAFBC_BOUNDING_BOX_Y_START_S0,
+		VPU_MAFBC_BOUNDING_BOX_Y_END_S0,
+		VPU_MAFBC_OUTPUT_BUF_ADDR_LOW_S0,
+		VPU_MAFBC_OUTPUT_BUF_ADDR_HIGH_S0,
+		VPU_MAFBC_OUTPUT_BUF_STRIDE_S0,
+		VPU_MAFBC_PREFETCH_CFG_S0,
+
+		VIU_OSD1_PATH_CTRL,
+		VPU_MAFBC_IRQ_MASK,
+		VPU_MAFBC_SURFACE_CFG,
+		VPU_MAFBC_COMMAND,
+		VPU_MAFBC_IRQ_RAW_STATUS,
+		VPU_MAFBC_IRQ_CLEAR,
+
+		VIU_OSD1_PATH_CTRL,
+	},
+	{
+		VIU_OSD2_CTRL_STAT,
+		VIU_OSD2_CTRL_STAT2,
+		VIU_OSD2_COLOR_ADDR,
+		VIU_OSD2_COLOR,
+		VIU_OSD2_TCOLOR_AG0,
+		VIU_OSD2_TCOLOR_AG1,
+		VIU_OSD2_TCOLOR_AG2,
+		VIU_OSD2_TCOLOR_AG3,
+		VIU_OSD2_BLK0_CFG_W0,
+		VIU_OSD2_BLK0_CFG_W1,
+		VIU_OSD2_BLK0_CFG_W2,
+		VIU_OSD2_BLK0_CFG_W3,
+		VIU_OSD2_BLK0_CFG_W4,
+		VIU_OSD2_BLK1_CFG_W4,
+		VIU_OSD2_BLK2_CFG_W4,
+		VIU_OSD2_FIFO_CTRL_STAT,
+		VIU_OSD2_TEST_RDDATA,
+		VIU_OSD2_PROT_CTRL,
+		VIU_OSD2_MALI_UNPACK_CTRL,
+		VIU_OSD2_DIMM_CTRL,
+		VPP_WRAP_OSD2_MATRIX_EN_CTRL,
+
+		T7_OSD2_SCALE_COEF_IDX,
+		T7_OSD2_SCALE_COEF,
+		T7_OSD2_VSC_PHASE_STEP,
+		T7_OSD2_VSC_INI_PHASE,
+		T7_OSD2_VSC_CTRL0,
+		T7_OSD2_HSC_PHASE_STEP,
+		T7_OSD2_HSC_INI_PHASE,
+		T7_OSD2_HSC_CTRL0,
+		T7_OSD2_SC_DUMMY_DATA,
+		T7_OSD2_SC_CTRL0,
+		T7_OSD2_SCI_WH_M1,
+		T7_OSD2_SCO_H_START_END,
+		T7_OSD2_SCO_V_START_END,
+		OSD2_DB_FLT_CTRL,
+		VPU_MAFBC_HEADER_BUF_ADDR_LOW_S1,
+		VPU_MAFBC_HEADER_BUF_ADDR_HIGH_S1,
+		VPU_MAFBC_FORMAT_SPECIFIER_S1,
+		VPU_MAFBC_BUFFER_WIDTH_S1,
+		VPU_MAFBC_BUFFER_HEIGHT_S1,
+		VPU_MAFBC_BOUNDING_BOX_X_START_S1,
+		VPU_MAFBC_BOUNDING_BOX_X_END_S1,
+		VPU_MAFBC_BOUNDING_BOX_Y_START_S1,
+		VPU_MAFBC_BOUNDING_BOX_Y_END_S1,
+		VPU_MAFBC_OUTPUT_BUF_ADDR_LOW_S1,
+		VPU_MAFBC_OUTPUT_BUF_ADDR_HIGH_S1,
+		VPU_MAFBC_OUTPUT_BUF_STRIDE_S1,
+		VPU_MAFBC_PREFETCH_CFG_S1,
+
+		VIU_OSD2_PATH_CTRL,
+		VPU_MAFBC_IRQ_MASK,
+		VPU_MAFBC_SURFACE_CFG,
+		VPU_MAFBC_COMMAND,
+		VPU_MAFBC_IRQ_RAW_STATUS,
+		VPU_MAFBC_IRQ_CLEAR,
+
+		VIU_OSD2_PATH_CTRL,
+	},
+	{
+		VIU_OSD3_CTRL_STAT,
+		VIU_OSD3_CTRL_STAT2,
+		VIU_OSD3_COLOR_ADDR,
+		VIU_OSD3_COLOR,
+		VIU_OSD3_TCOLOR_AG0,
+		VIU_OSD3_TCOLOR_AG1,
+		VIU_OSD3_TCOLOR_AG2,
+		VIU_OSD3_TCOLOR_AG3,
+		VIU_OSD3_BLK0_CFG_W0,
+		VIU_OSD3_BLK0_CFG_W1,
+		VIU_OSD3_BLK0_CFG_W2,
+		VIU_OSD3_BLK0_CFG_W3,
+		VIU_OSD3_BLK0_CFG_W4,
+		VIU_OSD3_BLK1_CFG_W4,
+		VIU_OSD3_BLK2_CFG_W4,
+		VIU_OSD3_FIFO_CTRL_STAT,
+		VIU_OSD3_TEST_RDDATA,
+		VIU_OSD3_PROT_CTRL,
+		VIU_OSD3_MALI_UNPACK_CTRL,
+		VIU_OSD3_DIMM_CTRL,
+		VPP_WRAP_OSD3_MATRIX_EN_CTRL,
+
+		T7_OSD34_SCALE_COEF_IDX,
+		T7_OSD34_SCALE_COEF,
+		T7_OSD34_VSC_PHASE_STEP,
+		T7_OSD34_VSC_INI_PHASE,
+		T7_OSD34_VSC_CTRL0,
+		T7_OSD34_HSC_PHASE_STEP,
+		T7_OSD34_HSC_INI_PHASE,
+		T7_OSD34_HSC_CTRL0,
+		T7_OSD34_SC_DUMMY_DATA,
+		T7_OSD34_SC_CTRL0,
+		T7_OSD34_SCI_WH_M1,
+		T7_OSD34_SCO_H_START_END,
+		T7_OSD34_SCO_V_START_END,
+		OSD34_DB_FLT_CTRL,
+		VPU_MAFBC1_HEADER_BUF_ADDR_LOW_S2,
+		VPU_MAFBC1_HEADER_BUF_ADDR_HIGH_S2,
+		VPU_MAFBC1_FORMAT_SPECIFIER_S2,
+		VPU_MAFBC1_BUFFER_WIDTH_S2,
+		VPU_MAFBC1_BUFFER_HEIGHT_S2,
+		VPU_MAFBC1_BOUNDING_BOX_X_START_S2,
+		VPU_MAFBC1_BOUNDING_BOX_X_END_S2,
+		VPU_MAFBC1_BOUNDING_BOX_Y_START_S2,
+		VPU_MAFBC1_BOUNDING_BOX_Y_END_S2,
+		VPU_MAFBC1_OUTPUT_BUF_ADDR_LOW_S2,
+		VPU_MAFBC1_OUTPUT_BUF_ADDR_HIGH_S2,
+		VPU_MAFBC1_OUTPUT_BUF_STRIDE_S2,
+		VPU_MAFBC1_PREFETCH_CFG_S2,
+
+		VIU_OSD3_PATH_CTRL,
+		VPU_MAFBC1_IRQ_MASK,
+		VPU_MAFBC1_SURFACE_CFG,
+		VPU_MAFBC1_COMMAND,
+		VPU_MAFBC1_IRQ_RAW_STATUS,
+		VPU_MAFBC1_IRQ_CLEAR,
+
+		VIU_OSD3_PATH_CTRL,
+	},
+};
+
 #define VIU2_OSD_REG_NUM    13
 static u32 viu2_osd_table[VIU2_OSD_REG_NUM];
 static struct viu2_osd_reg_item viu2_osd_reg_table[VIU2_OSD_REG_NUM] = {
@@ -2755,6 +2938,7 @@ static u32 osd_get_hw_reset_flag(u32 output_index)
 		}
 		break;
 	case __MESON_CPU_MAJOR_ID_T7:
+	case __MESON_CPU_MAJOR_ID_T3:
 		{
 		int i, afbc_enable = 0;
 		u32 mali_afbc_reset;
@@ -11217,14 +11401,20 @@ static void osd_basic_update_disp_geometry(u32 index)
 
 			/* osd switch to mali */
 			if (osd_dev_hw.multi_afbc_core) {
-				if (index == OSD1)
+				if (osd_dev_hw.path_ctrl_independ) {
 					osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
-						(osd_reg->mali_afbcd_top_ctrl,
-						 0x1, 16, 1);
-				else
-					osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
-						(osd_reg->mali_afbcd_top_ctrl,
-						 0x1, 21, 1);
+							(osd_reg->mali_afbcd_top_ctrl,
+							 0x1, 31, 1);
+				} else {
+					if (index == OSD1)
+						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+							(osd_reg->mali_afbcd_top_ctrl,
+							 0x1, 16, 1);
+					else
+						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+							(osd_reg->mali_afbcd_top_ctrl,
+							 0x1, 21, 1);
+				}
 			} else {
 				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 					(OSD_PATH_MISC_CTRL,
@@ -11272,14 +11462,20 @@ static void osd_basic_update_disp_geometry(u32 index)
 		} else {
 			/* osd switch to mali */
 			if (osd_dev_hw.multi_afbc_core) {
-				if (index == OSD1)
+				if (osd_dev_hw.path_ctrl_independ) {
 					osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
-						(osd_reg->mali_afbcd_top_ctrl,
-						 0x0, 16, 1);
-				else
-					osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
-						(osd_reg->mali_afbcd_top_ctrl,
-						 0x0, 21, 1);
+							(osd_reg->mali_afbcd_top_ctrl,
+							 0x0, 31, 1);
+				} else {
+					if (index == OSD1)
+						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+							(osd_reg->mali_afbcd_top_ctrl,
+							 0x0, 16, 1);
+					else
+						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+							(osd_reg->mali_afbcd_top_ctrl,
+							 0x0, 21, 1);
+				}
 			} else {
 				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 					(OSD_PATH_MISC_CTRL, 0x0, (index + 4), 1);
@@ -11787,6 +11983,7 @@ static void set_vpp_osd2_rgb2yuv(bool on)
 
 static void fix_vpu_clk2_default_regs(void)
 {
+	/* t7 eco default setting */
 	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T7) {
 		 /* default: osd byp osd_blend */
 		osd_reg_set_bits(VPP_OSD1_SCALE_CTRL, 0x2, 0, 3);
@@ -11812,6 +12009,41 @@ static void fix_vpu_clk2_default_regs(void)
 		osd_reg_set_bits(MALI_AFBCD1_TOP_CTRL, 0x0, 20, 1);
 		osd_reg_set_bits(MALI_AFBCD1_TOP_CTRL, 0x0, 20, 1);
 	}
+}
+
+static void independ_path_default_regs(void)
+{
+	/* default: osd1_bld_din_sel -- do not osd_data_byp osd_blend */
+	osd_reg_set_bits(VIU_OSD1_PATH_CTRL, 0x0, 4, 1);
+	osd_reg_set_bits(VIU_OSD2_PATH_CTRL, 0x0, 4, 1);
+	osd_reg_set_bits(VIU_OSD3_PATH_CTRL, 0x0, 4, 1);
+
+	/* default: osd1_sc_path_sel -- before osd_blend or after hdr */
+	osd_reg_set_bits(VIU_OSD1_PATH_CTRL, 0x0, 0, 1);
+	osd_reg_set_bits(VIU_OSD2_PATH_CTRL, 0x1, 0, 1);
+	osd_reg_set_bits(VIU_OSD3_PATH_CTRL, 0x1, 0, 1);
+
+	/* default: osd byp dolby */
+	osd_reg_set_bits(VIU_VD1_PATH_CTRL, 0x1, 16, 1);
+	osd_reg_set_bits(VIU_VD2_PATH_CTRL, 0x1, 16, 1);
+	osd_reg_set_bits(VIU_OSD1_PATH_CTRL, 0x1, 16, 1);
+	osd_reg_set_bits(VIU_OSD2_PATH_CTRL, 0x1, 16, 1);
+	osd_reg_set_bits(VIU_OSD3_PATH_CTRL, 0x1, 16, 1);
+
+	/* default: osd 12bit path */
+	osd_reg_set_bits(VIU_VD1_PATH_CTRL, 0x0, 17, 1);
+	osd_reg_set_bits(VIU_VD2_PATH_CTRL, 0x0, 17, 1);
+	osd_reg_set_bits(VIU_OSD1_PATH_CTRL, 0x0, 17, 1);
+	osd_reg_set_bits(VIU_OSD2_PATH_CTRL, 0x0, 17, 1);
+	osd_reg_set_bits(VIU_OSD3_PATH_CTRL, 0x0, 17, 1);
+}
+
+static void multi_afbc_default_path_setting(void)
+{
+	if (osd_dev_hw.path_ctrl_independ)
+		independ_path_default_regs();
+	else
+		fix_vpu_clk2_default_regs();
 }
 
 static void osd_set_vpp_path_default(u32 osd_index, u32 vpp_index)
@@ -11905,8 +12137,13 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		       sizeof(struct hw_osd_reg_s) *
 		       osd_hw.osd_meson_dev.osd_count);
 	} else if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_T7) {
-		/* 4 OSD */
+		/* 4 or 3 OSD, multi_afbc_core */
 		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_t7[0],
+		       sizeof(struct hw_osd_reg_s) *
+		       osd_hw.osd_meson_dev.osd_count);
+	} else if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_T3) {
+		/* 4 or 3 OSD, multi_afbc_core */
+		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_t3[0],
 		       sizeof(struct hw_osd_reg_s) *
 		       osd_hw.osd_meson_dev.osd_count);
 	} else {
@@ -11965,8 +12202,9 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 	}
 	/* here we will init default value ,these value only set once . */
 	if (!logo_loaded) {
-		/* t7 eco default setting */
-		fix_vpu_clk2_default_regs();
+		if (osd_dev_hw.multi_afbc_core)
+			multi_afbc_default_path_setting();
+
 		/* init vpu fifo control register */
 		data32 = osd_reg_read(VPP_OFIFO_SIZE);
 		if (osd_hw.osd_meson_dev.osd_ver >= OSD_HIGH_ONE) {

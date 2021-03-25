@@ -290,6 +290,7 @@ enum cpuid_type_e {
 	__MESON_CPU_MAJOR_ID_T5D,
 	__MESON_CPU_MAJOR_ID_T7,
 	__MESON_CPU_MAJOR_ID_S4,
+	__MESON_CPU_MAJOR_ID_T3,
 	__MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -566,6 +567,7 @@ struct osd_device_hw_s {
 	u32 multi_afbc_core;
 	u32 has_multi_vpp;
 	u32 new_blend_bypass;
+	u32 path_ctrl_independ;
 };
 
 struct hw_osd_reg_s {

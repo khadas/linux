@@ -1787,6 +1787,11 @@
 #define VPU_VENC_CTRL                              0x1cef
 #define VPU1_VENC_CTRL                             0x22ef
 #define VPU2_VENC_CTRL                             0x24ef
+#define VIU_VD1_PATH_CTRL                          0x1a73
+#define VIU_VD2_PATH_CTRL                          0x1a74
+#define VIU_OSD1_PATH_CTRL                         0x1a76
+#define VIU_OSD2_PATH_CTRL                         0x1a77
+#define VIU_OSD3_PATH_CTRL                         0x1a78
 
 #define VPP1_BLD_CTRL                              0x5985
 #define VPP1_BLD_OUT_SIZE                          0x5986
