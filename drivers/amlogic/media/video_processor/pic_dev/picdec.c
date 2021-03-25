@@ -232,6 +232,31 @@ static int get_unused_picdec_index(void)
 	return -1;
 }
 
+/* refer to is_vmalloc_addr() and is_vmalloc_or_module_addr() */
+#ifdef CONFIG_MMU
+static int _is_vmalloc_or_module_addr(const void *x)
+{
+	/*
+	 * ARM, x86-64 and sparc64 put modules in a special place,
+	 * and fall back on vmalloc() if that fails. Others
+	 * just put it in the vmalloc space.
+	 */
+	unsigned long addr = (unsigned long)x;
+
+#if defined(CONFIG_MODULES) && defined(MODULES_VADDR)
+	if (addr >= MODULES_VADDR && addr < MODULES_END)
+		return 1;
+#endif
+
+	return addr >= VMALLOC_START && addr < VMALLOC_END;
+}
+#else
+static inline int _is_vmalloc_or_module_addr(const void *x)
+{
+	return 0;
+}
+#endif
+
 static u8 __iomem *map_virt_from_phys(phys_addr_t phys,
 				      unsigned long total_size)
 {
@@ -240,6 +265,9 @@ static u8 __iomem *map_virt_from_phys(phys_addr_t phys,
 	pgprot_t pgprot;
 	u8 __iomem *vaddr;
 	int i;
+
+	if (!PageHighMem(phys_to_page(phys)))
+		return phys_to_virt(phys);
 
 	npages = PAGE_ALIGN(total_size) / PAGE_SIZE;
 	offset = phys & (~PAGE_MASK);
@@ -269,7 +297,7 @@ static u8 __iomem *map_virt_from_phys(phys_addr_t phys,
 
 static void unmap_virt_from_phys(u8 __iomem *vaddr)
 {
-	if (vaddr) {
+	if (_is_vmalloc_or_module_addr(vaddr)) {
 		/* unmap prevois vaddr */
 		vunmap(vaddr);
 		vaddr = NULL;
@@ -638,7 +666,7 @@ MODULE_PARM_DESC(print_ifmt, "print input format\n");
 
 /* fill the RGB user buffer to physical buffer */
 
-static void dma_flush(u32 buf_start, u32 buf_size)
+static void dma_flush(ulong buf_start, u32 buf_size)
 {
 	dma_sync_single_for_device(&picdec_device.pdev->dev, buf_start,
 				   buf_size, DMA_TO_DEVICE);
@@ -1245,9 +1273,9 @@ int picdec_cma_buf_init(void)
 			}
 		}
 
-		aml_pr_info(0, "cma memory is %x , size is  %x\n",
-			    (unsigned int)picdec_device.buffer_start,
-			    (unsigned int)picdec_device.buffer_size);
+		aml_pr_info(0, "cma memory is 0x%pa, size is 0x%x\n",
+			    &picdec_device.buffer_start,
+			    picdec_device.buffer_size);
 		if (picdec_device.buffer_start == 0) {
 			picdec_buffer_status = 2;
 			aml_pr_info(0, "cma memory allocate fail\n");
@@ -1353,7 +1381,7 @@ int picdec_buffer_init(void)
 
 		for (i = 0; i < MAX_VF_POOL_SIZE; i++) {
 			canvas_config(canvas_table[i],
-				      (unsigned int)(buf_start + offset),
+				      buf_start + offset,
 				      canvas_width * 3,
 				      canvas_height,
 				      CANVAS_ADDR_NOWRAP,
@@ -1379,14 +1407,14 @@ int picdec_buffer_init(void)
 			pr_info("%d addr is %x################\n",
 				i, (unsigned int)(buf_start + offset));
 			canvas_config(canvas_table[2 * i],
-				      (unsigned int)(buf_start + offset),
+				      buf_start + offset,
 				      canvas_width,
 				      canvas_height,
 				      CANVAS_ADDR_NOWRAP,
 				      CANVAS_BLKMODE_LINEAR);
 			offset += canvas_width * canvas_height;
 			canvas_config(canvas_table[2 * i + 1],
-				      (unsigned int)(buf_start + offset),
+				      buf_start + offset,
 				      canvas_width,
 				      canvas_height / 2,
 				      CANVAS_ADDR_NOWRAP,
