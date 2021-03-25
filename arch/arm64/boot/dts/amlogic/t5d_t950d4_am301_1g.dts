@@ -103,7 +103,7 @@
 			size = <0x0 0x0>;
 			/*alignment = <0x0 0x100000>;*/
 			//no-map;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f000000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -115,7 +115,7 @@
 			 *        |      |      |NUM_FRAMEBUFFER_SURFACE_BUFFERS := 3
 			 * size = 1920 * 1080 * 3 * 4(RGBA: 4 bytes/pixel) + 4M(10% * afbc)
 			 */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x01c00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0x3f000000>;
 		};
@@ -1080,7 +1080,7 @@
 		status = "disabled";
 		//interrupt_pin = <&gpio       GPIOC_12       GPIO_ACTIVE_HIGH>;
 		irq_trigger_type = "GPIO_IRQ_LOW";
-		dhd_static_buf;    //dhd_static_buf support
+		//dhd_static_buf;    //dhd_static_buf support
 		power_on_pin = <&gpio_ao       GPIOD_2       GPIO_ACTIVE_HIGH>;
 		//pinctrl-names = "default";
 		//pinctrl-0 = <&pwm_b_pins1>;

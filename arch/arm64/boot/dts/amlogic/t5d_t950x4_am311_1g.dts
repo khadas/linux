@@ -103,7 +103,7 @@
 			size = <0x0 0x0>;
 			/*alignment = <0x0 0x100000>;*/
 			//no-map;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -117,6 +117,7 @@
 			 */
 			size = <0x0 0x01000000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -135,6 +136,7 @@
 			/* 1920x1080x2x4  =16 M */
 			size = <0x0 0x1400000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
 		};
 
 		/* demod_reserved:linux,demod {
@@ -152,6 +154,7 @@
 			/* 8M */
 			size = <0x0 0x0800000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
 		};
 
 		/*di CMA pool */
@@ -1057,7 +1060,7 @@
 		status = "disabled";
 		//interrupt_pin = <&gpio       GPIOC_12       GPIO_ACTIVE_HIGH>;
 		irq_trigger_type = "GPIO_IRQ_LOW";
-		dhd_static_buf;    //dhd_static_buf support
+		//dhd_static_buf;    //dhd_static_buf support
 		power_on_pin = <&gpio_ao       GPIOD_2       GPIO_ACTIVE_HIGH>;
 		//pinctrl-names = "default";
 		//pinctrl-0 = <&pwm_b_pins1>;

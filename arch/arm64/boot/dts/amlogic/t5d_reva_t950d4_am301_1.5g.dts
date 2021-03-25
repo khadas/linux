@@ -78,9 +78,9 @@
 		lcd_tcon_reserved:linux,lcd_tcon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x00400000>;
+			size = <0x0 0x00800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x3f000000 0x0 0x00800000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -104,7 +104,7 @@
 			size = <0x0 0x0>;
 			/*alignment = <0x0 0x100000>;*/
 			//no-map;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f000000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -118,7 +118,7 @@
 			 */
 			size = <0x0 0x01C00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -137,7 +137,7 @@
 			/* 1920x1080x2x4  =16 M */
 			size = <0x0 0x1400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f000000>;
 		};
 
 		/* demod_reserved:linux,demod {
@@ -155,7 +155,7 @@
 			/* 40M */
 			size = <0x0 0x02800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f000000>;
 		};
 
 		/*di CMA pool */
@@ -883,18 +883,20 @@
 
 	amlvideo2_0 {
 		compatible = "amlogic, amlvideo2";
+		memory-region = <&amlvideo2_cma_reserved>;
 		dev_name = "amlvideo2";
 		status = "okay";
 		amlvideo2_id = <0>;
-		cma_mode = <1>;
+		cma_mode = <0>;
 	};
 
 	amlvideo2_1 {
 		compatible = "amlogic, amlvideo2";
+		memory-region = <&amlvideo2_cma_reserved>;
 		dev_name = "amlvideo2";
 		status = "okay";
 		amlvideo2_id = <1>;
-		cma_mode = <1>;
+		cma_mode = <0>;
 	};
 
 	hdmirx {

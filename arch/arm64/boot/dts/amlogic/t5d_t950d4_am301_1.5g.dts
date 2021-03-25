@@ -115,7 +115,7 @@
 			 *        |      |      |NUM_FRAMEBUFFER_SURFACE_BUFFERS := 3
 			 * size = 1920 * 1080 * 3 * 4(RGBA: 4 bytes/pixel) + 4M(10% * afbc)
 			 */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x01C00000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0x3f000000>;
 		};
@@ -881,18 +881,20 @@
 
 	amlvideo2_0 {
 		compatible = "amlogic, amlvideo2";
+		memory-region = <&amlvideo2_cma_reserved>;
 		dev_name = "amlvideo2";
 		status = "okay";
 		amlvideo2_id = <0>;
-		cma_mode = <1>;
+		cma_mode = <0>;
 	};
 
 	amlvideo2_1 {
 		compatible = "amlogic, amlvideo2";
+		memory-region = <&amlvideo2_cma_reserved>;
 		dev_name = "amlvideo2";
 		status = "okay";
 		amlvideo2_id = <1>;
-		cma_mode = <1>;
+		cma_mode = <0>;
 	};
 
 	hdmirx {
