@@ -56,6 +56,7 @@ enum meson_cpuid_type_e {
 	MESON_CPU_MAJOR_ID_T5D = 0x35,
 	MESON_CPU_MAJOR_ID_T7 = 0x36,
 	MESON_CPU_MAJOR_ID_S4 = 0x37,
+	MESON_CPU_MAJOR_ID_T3 = 0x38,
 	MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -69,14 +70,18 @@ struct codecio_device_data_s {
 	enum meson_cpuid_type_e cpu_id;
 };
 
-extern struct codecio_device_data_s codecio_meson_dev;
-
 int meson_cpu_version_init(void);
+int get_cpu_type_from_media(void);
 
 unsigned char get_meson_cpu_version(int level);
 
 static inline int get_cpu_type(void)
 {
+	int cpu_id_from_media = 0;
+
+	cpu_id_from_media = get_cpu_type_from_media();
+	if (cpu_id_from_media)
+		return cpu_id_from_media;
 	return get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR);
 }
 
@@ -242,6 +247,11 @@ static inline bool is_meson_t7_cpu(void)
 static inline bool is_meson_s4_cpu(void)
 {
 	return get_cpu_type() == MESON_CPU_MAJOR_ID_S4;
+}
+
+static inline bool is_meson_t3_cpu(void)
+{
+	return get_cpu_type() == MESON_CPU_MAJOR_ID_T3;
 }
 
 static inline bool cpu_after_eq(unsigned int id)

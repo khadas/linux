@@ -20,6 +20,23 @@
 #define AO_SEC_SOCINFO_OFFSET	AO_SEC_SD_CFG8
 static unsigned char cpu_version[MESON_CPU_VERSION_LVL_MAX + 1];
 static int init_done;
+static int cpu_id_from_media;
+
+int get_cpu_type_from_media(void)
+{
+	return cpu_id_from_media;
+}
+EXPORT_SYMBOL(get_cpu_type_from_media);
+
+void set_cpu_type_from_media(int cpu_id)
+{
+	if (cpu_id <= 0) {
+		pr_err("wrong cpu id from media driver 0x%x.\n", cpu_id);
+		return;
+	}
+	cpu_id_from_media = cpu_id;
+}
+EXPORT_SYMBOL(set_cpu_type_from_media);
 
 unsigned char get_meson_cpu_version(int level)
 {
