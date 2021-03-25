@@ -52,8 +52,8 @@ static unsigned int boot_sram_addr, boot_sram_size;
 static unsigned int bootlocation;
 static struct mutex hifi4dsp_flock;
 
-static struct reserved_mem hifi4_rmem;
-static struct reserved_mem hifi_shmem;
+static struct reserved_mem hifi4_rmem; /*dsp firmware memory*/
+static struct reserved_mem hifi_shmem; /*dsp share memory*/
 
 struct hifi4dsp_priv *hifi4dsp_p[HIFI4DSP_MAX_CNT];
 struct delayed_work dsp_status_work;
@@ -919,6 +919,8 @@ void get_dsp_statusreg(struct platform_device *pdev, int dsp_cnt,
 			return;
 		}
 		hifi4dsp_p[i]->dsp->status_reg = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(hifi4dsp_p[i]->dsp->status_reg))
+			hifi4dsp_p[i]->dsp->status_reg = NULL;
 	}
 }
 
@@ -962,26 +964,13 @@ static int hifi4dsp_attach_pd(struct device *dev, int dsp_cnt)
 	return 0;
 }
 
-static int get_hifi_reserved_mem(struct reserved_mem *fwmem, struct reserved_mem *shmem,
-	struct platform_device *pdev)
+static int get_hifi_firmware_mem(struct reserved_mem *fwmem, struct platform_device *pdev)
 {
 	int ret = -1;
 	struct device_node *mem_node;
 	struct reserved_mem *tmp = NULL;
 	struct page *cma_pages = NULL;
 	u32 dspsrambase = 0, dspsramsize = 0;
-	struct resource *dsp_shm_res;
-
-	/*parse shmem*/
-	dsp_shm_res = platform_get_resource(pdev, IORESOURCE_MEM, 4);
-	if (!dsp_shm_res) {
-		dev_err(&pdev->dev, "failed to get dsp share memory resource.\n");
-		goto parse_cma;
-	}
-	shmem->base = dsp_shm_res->start;
-	shmem->size = resource_size(dsp_shm_res);
-	pr_info("of read shmem phys = [0x%lx 0x%lx]\n",
-		(unsigned long)shmem->base, (unsigned long)shmem->size);
 
 	/*parse sram fwmem*/
 	ret = of_property_read_u32(pdev->dev.of_node, "dspsrambase", &dspsrambase);
@@ -1037,7 +1026,25 @@ out:
 	return ret;
 }
 
-static void hifi_rmem_update(int dsp_id, phys_addr_t *base, int *size)
+static int get_hifi_share_mem(struct reserved_mem *shmem, struct platform_device *pdev)
+{
+	struct resource *dsp_shm_res;
+
+	/*parse shmem*/
+	dsp_shm_res = platform_get_resource(pdev, IORESOURCE_MEM, 4);
+	if (!dsp_shm_res) {
+		dev_err(&pdev->dev, "failed to get dsp share memory resource.\n");
+		return -1;
+	}
+	shmem->base = dsp_shm_res->start;
+	shmem->size = resource_size(dsp_shm_res);
+	pr_info("of read shmem phys = [0x%lx 0x%lx]\n",
+		(unsigned long)shmem->base, (unsigned long)shmem->size);
+
+	return 0;
+}
+
+static void hifi_fw_mem_update(int dsp_id, phys_addr_t *base, int *size)
 {
 	if (!strcmp(hifi4_rmem.priv, "sram")) {
 		*base = hifi4_rmem.base + (dsp_id == 0 ? 0 : hifi4_rmem.size >> 1);
@@ -1045,7 +1052,7 @@ static void hifi_rmem_update(int dsp_id, phys_addr_t *base, int *size)
 	}
 }
 
-static void *hifi_rmem_map(phys_addr_t base, int size)
+static void *hifi_fw_mem_map(phys_addr_t base, int size)
 {
 	if (!strcmp(hifi4_rmem.priv, "sram"))
 		return ioremap_nocache(base, size);
@@ -1053,7 +1060,7 @@ static void *hifi_rmem_map(phys_addr_t base, int size)
 		return mm_vmap(base, size, pgprot_dmacoherent(PAGE_KERNEL));
 }
 
-void *get_hifi_rmem_type(void)
+void *get_hifi_fw_mem_type(void)
 {
 	return hifi4_rmem.priv;
 }
@@ -1193,15 +1200,16 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	/*get regbase*/
 	get_dsp_baseaddr(pdev);
 
-	if (get_hifi_reserved_mem(&hifi4_rmem, &hifi_shmem, pdev))
+	if (get_hifi_firmware_mem(&hifi4_rmem, pdev))
 		goto err3;
-
-	dsp->addr.smem_paddr = hifi_shmem.base;
-	dsp->addr.smem_size = hifi_shmem.size;
-	dsp->addr.smem = mm_vmap(dsp->addr.smem_paddr, dsp->addr.smem_size,
-		pgprot_dmacoherent(PAGE_KERNEL));
-	pr_info("sharemem map phys:0x%lx-->virt:0x%lx\n",
-		(unsigned long)dsp->addr.smem_paddr, (unsigned long)dsp->addr.smem);
+	if (!get_hifi_share_mem(&hifi_shmem, pdev)) {
+		dsp->addr.smem_paddr = hifi_shmem.base;
+		dsp->addr.smem_size = hifi_shmem.size;
+		dsp->addr.smem = mm_vmap(dsp->addr.smem_paddr, dsp->addr.smem_size,
+			pgprot_dmacoherent(PAGE_KERNEL));
+		pr_info("sharemem map phys:0x%lx-->virt:0x%lx\n",
+			(unsigned long)dsp->addr.smem_paddr, (unsigned long)dsp->addr.smem);
+	}
 
 	if (dsp_cnt > 1) {
 		platform_set_drvdata(pdev, dsp);
@@ -1232,8 +1240,8 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 			(id == 0 ?
 			(dspboffset - dspaoffset - hifi_shmem.size) :
 			((unsigned long)hifi4_rmem.size - dspboffset));
-		hifi_rmem_update(id, &hifi4base, &hifi4size);
-		fw_addr = hifi_rmem_map(hifi4base, hifi4size);
+		hifi_fw_mem_update(id, &hifi4base, &hifi4size);
+		fw_addr = hifi_fw_mem_map(hifi4base, hifi4size);
 		pr_info("hifi4dsp%d, firmware :base:0x%llx, size:0x%x, virt:%lx\n",
 			 id,
 			 (unsigned long long)hifi4base,

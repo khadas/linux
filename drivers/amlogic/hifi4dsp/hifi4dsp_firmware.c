@@ -143,7 +143,7 @@ int hifi4dsp_fw_copy_to_ddr(const struct firmware *fw,
 	//mb();
 
 	/*cache clean*/
-	if (strcmp(get_hifi_rmem_type(), "sram"))
+	if (strcmp(get_hifi_fw_mem_type(), "sram"))
 		dma_sync_single_for_device(dsp_fw->dsp->dev,
 				   dsp_fw->paddr,
 				   dsp_fw->size,
