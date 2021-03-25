@@ -1396,28 +1396,34 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	}
 
 	if (ret != len) {
-		if (pout->pchan->r_offset != 0)
-			return -1;
+//		if (pout->pchan->r_offset != 0)
+//			return -1;
 
 		/*if loop back , read one time */
 		len = es_params->header.len - es_params->data_len;
 		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, flag);
-		es_params->data_len += ret;
+		if (ret != 0) {
+			es_params->data_len += ret;
 
-		if (pout->dump_file.file_fp) {
-			if (flag) {
-				enforce_flush_cache(ptmp, ret);
-				dump_file_write(ptmp - pout->pchan->mem_phy +
-					pout->pchan->mem, ret,
-					&pout->dump_file);
-			} else {
-				dump_file_write(ptmp, ret,
-					&pout->dump_file);
+			if (pout->dump_file.file_fp) {
+				if (flag) {
+					enforce_flush_cache(ptmp, ret);
+					dump_file_write(ptmp - pout->pchan->mem_phy +
+						pout->pchan->mem, ret,
+						&pout->dump_file);
+				} else {
+					dump_file_write(ptmp, ret,
+						&pout->dump_file);
+				}
 			}
+			if (ret != len)
+				dprint("get es data error2, req:%d, actual:%d\n",
+					es_params->header.len, es_params->data_len);
+		} else {
+			len = es_params->data_len;
+			dprint("get es data error1, req:%d, actual:%d\n",
+				es_params->header.len, es_params->data_len);
 		}
-
-		if (ret != len)
-			return -1;
 	}
 	memset(&sec_es_data, 0, sizeof(struct dmx_sec_es_data));
 	sec_es_data.pts_dts_flag = es_params->header.pts_dts_flag;
@@ -1439,11 +1445,11 @@ static int write_sec_video_es_data(struct out_elem *pout,
 			sec_es_data.data_start, sec_es_data.data_end,
 			(sec_es_data.data_end - sec_es_data.data_start));
 	else
-		pr_err("video data start:0x%x,data end:0x%x\n",
+		pr_dbg("video data start:0x%x,data end:0x%x\n",
 				sec_es_data.data_start, sec_es_data.data_end);
 
 	if (sec_es_data.data_start > sec_es_data.buf_end)
-		pr_err("video data start:0x%x, buf end:0x%x\n",
+		pr_dbg("video data start:0x%x, buf end:0x%x\n",
 			sec_es_data.data_start, sec_es_data.buf_end);
 
 	pr_dbg("video pid:0x%0x pdts_flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
