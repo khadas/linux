@@ -638,7 +638,7 @@
 
 &pcie_A {
 	reset-gpio = <&gpio_ao GPIOAO_4 GPIO_ACTIVE_HIGH>;
-	status = "okay";
+	status = "disable";
 };
 
 &pcie_B {
@@ -1265,8 +1265,8 @@
 
 &usb3_phy_v2 {
 	status = "okay";
-	portnum = <1>;
-	portconfig-30 = <0>;
+	portnum = <2>;
+	portconfig-30 = <1>;
 	portconfig-31 = <1>;
 };
 
