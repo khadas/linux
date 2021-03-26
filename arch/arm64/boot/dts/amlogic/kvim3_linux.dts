@@ -1452,3 +1452,8 @@
 	        &gpio_expander 1 GPIO_ACTIVE_HIGH>;
 	lcd_cpu_gpio_names = "GPIO_EXPANDER_0","GPIO_EXPANDER_1";
 };
+
+&wdt {
+	reset_watchdog_method = <0>; /* 0:sysfs,1:kernel */
+	status = "disabled";
+};

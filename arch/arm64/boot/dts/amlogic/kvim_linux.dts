@@ -1224,3 +1224,8 @@
 &uart_AO_B {
 	status = "disabled";
 };
+
+&wdt {
+	reset_watchdog_method = <0>; /* 0:sysfs,1:kernel */
+	status = "disabled";
+};
