@@ -194,7 +194,7 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	if (!phy)
 		return -ENOMEM;
 
-	if (controller_type == USB_OTG && crg_force_device_mode == 0)
+	if (controller_type == USB_OTG)
 		otg = 1;
 
 	dev_info(&pdev->dev, "controller_type is %d\n", controller_type);
