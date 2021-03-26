@@ -54,6 +54,7 @@ obj-$(CONFIG_AMLOGIC_USB)               += usb/
 obj-$(CONFIG_AMLOGIC_DVB_DMX)		+= dvb/
 obj-$(CONFIG_DOLBY_FW) += dolby_fw/
 obj-$(CONFIG_AMLOGIC_CPU_INFO)          += cpu_info/
+obj-$(CONFIG_AMLOGIC_SOC_INFO) 		+= soc_info/
 
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)
 

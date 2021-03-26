@@ -210,6 +210,13 @@
 		cpuinfo_cmd = <0x82000044>;
 	};
 
+	soc_info {
+		compatible = "amlogic, socdata";
+		reg= <0x0 0xfe010000 0x0 0x8 0x0 0xfe010180 0x0 0x4>;
+		read_nocsdata_cmd =<0x82000039>;
+		write_nocsdata_cmd=<0x82000038>;
+	};
+
 	aml_reboot {
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
