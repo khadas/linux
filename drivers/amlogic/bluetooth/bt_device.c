@@ -480,7 +480,7 @@ static int bt_probe(struct platform_device *pdev)
 			pr_warn("not get btwakeup-gpios\n");
 			pdata->gpio_btwakeup = 0;
 		} else {
-			pdata->gpio_hostwake = of_get_named_gpio_flags
+			pdata->gpio_btwakeup = of_get_named_gpio_flags
 							(pdev->dev.of_node,
 							"btwakeup-gpios",
 							0, NULL);
