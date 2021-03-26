@@ -465,7 +465,11 @@ static const unsigned int pwm_f_a11_pins[]		= { GPIOA_11 };
 static const unsigned int clk12_24_z_pins[]		= { GPIOZ_13 };
 #endif
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static struct meson_pmx_group meson_g12a_periphs_groups[] __initdata = {
+#else
 static struct meson_pmx_group meson_g12a_periphs_groups[] = {
+#endif
 	GPIO_GROUP(GPIOZ_0),
 	GPIO_GROUP(GPIOZ_1),
 	GPIO_GROUP(GPIOZ_2),
@@ -931,7 +935,11 @@ static const unsigned int remote_out_ao9_pins[]		= { GPIOAO_9 };
 static const unsigned int pwm_a_e2_pins[]		= { GPIOE_2 };
 #endif
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static struct meson_pmx_group meson_g12a_aobus_groups[] __initdata = {
+#else
 static struct meson_pmx_group meson_g12a_aobus_groups[] = {
+#endif
 	GPIO_GROUP(GPIOAO_0),
 	GPIO_GROUP(GPIOAO_1),
 	GPIO_GROUP(GPIOAO_2),
@@ -1384,7 +1392,11 @@ static const char * const pwm_a_gpioe_groups[] = {
 };
 #endif
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static struct meson_pmx_func meson_g12a_periphs_functions[] __initdata = {
+#else
 static struct meson_pmx_func meson_g12a_periphs_functions[] = {
+#endif
 	FUNCTION(gpio_periphs),
 	FUNCTION(emmc),
 	FUNCTION(nor),
@@ -1431,7 +1443,11 @@ static struct meson_pmx_func meson_g12a_periphs_functions[] = {
 #endif
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static struct meson_pmx_func meson_g12a_aobus_functions[] __initdata = {
+#else
 static struct meson_pmx_func meson_g12a_aobus_functions[] = {
+#endif
 	FUNCTION(gpio_aobus),
 	FUNCTION(uart_ao_a),
 	FUNCTION(uart_ao_b),
@@ -1520,7 +1536,11 @@ static int meson_g12a_aobus_parse_dt_extra(struct meson_pinctrl *pc)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static struct meson_pinctrl_data meson_g12a_periphs_pinctrl_data __refdata = {
+#else
 static struct meson_pinctrl_data meson_g12a_periphs_pinctrl_data = {
+#endif
 	.name		= "periphs-banks",
 	.pins		= meson_g12a_periphs_pins,
 	.groups		= meson_g12a_periphs_groups,
@@ -1534,7 +1554,11 @@ static struct meson_pinctrl_data meson_g12a_periphs_pinctrl_data = {
 	.pmx_data	= &meson_g12a_periphs_pmx_banks_data,
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static struct meson_pinctrl_data meson_g12a_aobus_pinctrl_data __refdata = {
+#else
 static struct meson_pinctrl_data meson_g12a_aobus_pinctrl_data = {
+#endif
 	.name		= "aobus-banks",
 	.pins		= meson_g12a_aobus_pins,
 	.groups		= meson_g12a_aobus_groups,

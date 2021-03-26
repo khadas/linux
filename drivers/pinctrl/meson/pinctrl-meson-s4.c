@@ -397,7 +397,7 @@ static const unsigned int s2_demod_gpio0_pins[]		= { GPIOZ_12 };
 static const unsigned int gen_clk_z9_pins[]		= { GPIOZ_9 };
 static const unsigned int gen_clk_z12_pins[]		= { GPIOZ_12 };
 
-static struct meson_pmx_group meson_s4_periphs_groups[] = {
+static struct meson_pmx_group meson_s4_periphs_groups[] __initdata = {
 	GPIO_GROUP(GPIOE_0),
 	GPIO_GROUP(GPIOE_1),
 
@@ -1058,7 +1058,7 @@ static const char * const s2_demod_groups[] = {
 	"s2_demod_gpio3", "s2_demod_gpio2", "s2_demod_gpio1", "s2_demod_gpio0"
 };
 
-static struct meson_pmx_func meson_s4_periphs_functions[] = {
+static struct meson_pmx_func meson_s4_periphs_functions[] __initdata = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(i2c0),
 	FUNCTION(i2c1),
@@ -1151,7 +1151,7 @@ static struct meson_axg_pmx_data meson_s4_periphs_pmx_banks_data = {
 	.num_pmx_banks	= ARRAY_SIZE(meson_s4_periphs_pmx_banks),
 };
 
-static struct meson_pinctrl_data meson_s4_periphs_pinctrl_data = {
+static struct meson_pinctrl_data meson_s4_periphs_pinctrl_data __refdata = {
 	.name		= "periphs-banks",
 	.pins		= meson_s4_periphs_pins,
 	.groups		= meson_s4_periphs_groups,
