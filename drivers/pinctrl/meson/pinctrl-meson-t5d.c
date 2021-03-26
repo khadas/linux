@@ -14,7 +14,7 @@ static const struct pinctrl_pin_desc meson_t5d_analog_pins[] = {
 	MESON_PIN(CVBS1)
 };
 
-static struct meson_pmx_group meson_t5d_analog_groups[] = {
+static struct meson_pmx_group meson_t5d_analog_groups[] __initdata = {
 	GPIO_GROUP(CDAC_IOUT),
 	GPIO_GROUP(CVBS0),
 	GPIO_GROUP(CVBS1)
@@ -24,7 +24,7 @@ static const char * const gpio_analog_groups[] = {
 	"CDAC_IOUT", "CVBS0", "CVBS1"
 };
 
-static struct meson_pmx_func meson_t5d_analog_functions[] = {
+static struct meson_pmx_func meson_t5d_analog_functions[] __initdata = {
 	FUNCTION(gpio_analog)
 };
 
@@ -101,7 +101,7 @@ static const unsigned int demod_uart_rx_d3_pins[] = {GPIOD_3};
 static const unsigned int cicam_ao_waitn_pins[] = {GPIOD_0};
 static const unsigned int cicam_ao_irqn_pins[] = {GPIOD_1};
 
-static struct meson_pmx_group meson_t5d_aobus_groups[] = {
+static struct meson_pmx_group meson_t5d_aobus_groups[] __initdata = {
 	GPIO_GROUP(GPIOD_0),
 	GPIO_GROUP(GPIOD_1),
 	GPIO_GROUP(GPIOD_2),
@@ -268,7 +268,7 @@ static const char * const demod_uart_groups[] = {
 	"demod_uart_rx_d3"
 };
 
-static struct meson_pmx_func meson_t5d_aobus_functions[] = {
+static struct meson_pmx_func meson_t5d_aobus_functions[] __initdata = {
 	FUNCTION(gpio_aobus),
 	FUNCTION(uart_ao_b),
 	FUNCTION(uart_ao_c),
@@ -727,7 +727,7 @@ static const unsigned int uart_c_rts_m_pins[] = {GPIOM_22};
 static const unsigned int pwm_f_m_pins[] = {GPIOM_23};
 static const unsigned int pwm_d_m_pins[] = {GPIOM_24};
 
-static struct meson_pmx_group meson_t5d_periphs_groups[] = {
+static struct meson_pmx_group meson_t5d_periphs_groups[] __initdata = {
 	GPIO_GROUP(GPIOB_0),
 	GPIO_GROUP(GPIOB_1),
 	GPIO_GROUP(GPIOB_2),
@@ -1332,7 +1332,7 @@ static const char * const s2_demod_groups[] = {
 	"s2_demod_gpio5", "s2_demod_gpio6", "s2_demod_gpio7"
 };
 
-static struct meson_pmx_func meson_t5d_periphs_functions[] = {
+static struct meson_pmx_func meson_t5d_periphs_functions[] __initdata = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(emmc),
 	FUNCTION(nand),
@@ -1437,7 +1437,7 @@ static struct meson_axg_pmx_data meson_t5d_aobus_pmx_banks_data = {
 	.num_pmx_banks	= ARRAY_SIZE(meson_t5d_aobus_pmx_banks),
 };
 
-static struct meson_pinctrl_data meson_t5d_periphs_pinctrl_data = {
+static struct meson_pinctrl_data meson_t5d_periphs_pinctrl_data __refdata = {
 	.name		= "periphs-banks",
 	.pins		= meson_t5d_periphs_pins,
 	.groups		= meson_t5d_periphs_groups,
@@ -1451,7 +1451,7 @@ static struct meson_pinctrl_data meson_t5d_periphs_pinctrl_data = {
 	.pmx_data	= &meson_t5d_periphs_pmx_banks_data,
 };
 
-static struct meson_pinctrl_data meson_t5d_aobus_pinctrl_data = {
+static struct meson_pinctrl_data meson_t5d_aobus_pinctrl_data __refdata = {
 	.name		= "aobus-banks",
 	.pins		= meson_t5d_aobus_pins,
 	.groups		= meson_t5d_aobus_groups,
@@ -1466,7 +1466,7 @@ static struct meson_pinctrl_data meson_t5d_aobus_pinctrl_data = {
 	.parse_dt	= meson_g12a_aobus_parse_dt_extra,
 };
 
-static struct meson_pinctrl_data meson_t5d_analog_pinctrl_data = {
+static struct meson_pinctrl_data meson_t5d_analog_pinctrl_data __refdata = {
 	.name		= "analog-banks",
 	.pins		= meson_t5d_analog_pins,
 	.groups		= meson_t5d_analog_groups,

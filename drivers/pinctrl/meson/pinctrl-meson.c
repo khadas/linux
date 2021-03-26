@@ -56,6 +56,26 @@
 #include "../pinctrl-utils.h"
 #include "pinctrl-meson.h"
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int meson_memory_duplicate(struct platform_device *pdev, void **addr,
+				  size_t n, size_t size)
+{
+	void *mem;
+
+	if (!(*addr))
+		return -EINVAL;
+
+	mem = devm_kzalloc(&pdev->dev, size * n, GFP_KERNEL);
+	if (!mem)
+		return -ENOMEM;
+
+	memcpy(mem, *addr, size * n);
+	*addr = mem;
+
+	return 0;
+};
+#endif
+
 static const unsigned int meson_bit_strides[] = {
 	1, 1, 1, 1, 1, 2, 1
 };
@@ -831,7 +851,17 @@ int meson_pinctrl_probe(struct platform_device *pdev)
 	ret = meson_pinctrl_parse_dt(pc, dev->of_node);
 	if (ret)
 		return ret;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	ret = meson_memory_duplicate(pdev, (void **)&pc->data->groups, pc->data->num_groups,
+				     sizeof(struct meson_pmx_group));
+	if (ret)
+		return ret;
 
+	ret = meson_memory_duplicate(pdev, (void **)&pc->data->funcs, pc->data->num_funcs,
+				     sizeof(struct meson_pmx_func));
+	if (ret)
+		return ret;
+#endif
 	pc->desc.name		= "pinctrl-meson";
 	pc->desc.owner		= THIS_MODULE;
 	pc->desc.pctlops	= &meson_pctrl_ops;

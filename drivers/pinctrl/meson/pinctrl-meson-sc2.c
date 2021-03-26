@@ -467,7 +467,7 @@ static const unsigned int pdm_dclk_a_pins[]		= { GPIOA_15 };
 /*bank A func7 */
 static const unsigned int gen_clk_a_pins[]		= { GPIOA_15 };
 
-static struct meson_pmx_group meson_sc2_periphs_groups[] = {
+static struct meson_pmx_group meson_sc2_periphs_groups[] __initdata = {
 	GPIO_GROUP(GPIOD_0),
 	GPIO_GROUP(GPIOD_1),
 	GPIO_GROUP(GPIOD_2),
@@ -1225,7 +1225,7 @@ static const char * const hdmitx_groups[] = {
 	"hdmitx_sda", "hdmitx_sck", "hdmitx_hpd_in",
 };
 
-static struct meson_pmx_func meson_sc2_periphs_functions[] = {
+static struct meson_pmx_func meson_sc2_periphs_functions[] __initdata = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(uart_a),
 	FUNCTION(uart_b),
@@ -1323,7 +1323,7 @@ static struct meson_axg_pmx_data meson_sc2_periphs_pmx_banks_data = {
 	.num_pmx_banks	= ARRAY_SIZE(meson_sc2_periphs_pmx_banks),
 };
 
-static struct meson_pinctrl_data meson_sc2_periphs_pinctrl_data = {
+static struct meson_pinctrl_data meson_sc2_periphs_pinctrl_data __refdata = {
 	.name		= "periphs-banks",
 	.pins		= meson_sc2_periphs_pins,
 	.groups		= meson_sc2_periphs_groups,

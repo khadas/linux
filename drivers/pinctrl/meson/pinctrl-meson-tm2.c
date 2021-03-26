@@ -578,7 +578,7 @@ static const unsigned int wifi_beacon_z_pins[] = {GPIOZ_4};
 static const unsigned int cec_a_pins[] = {GPIOH_15};
 static const unsigned int cec_b_pins[] = {GPIOH_15};
 
-static struct meson_pmx_group meson_tm2_periphs_groups[] = {
+static struct meson_pmx_group meson_tm2_periphs_groups[] __initdata = {
 	GPIO_GROUP(GPIOZ_0),
 	GPIO_GROUP(GPIOZ_1),
 	GPIO_GROUP(GPIOZ_2),
@@ -1125,7 +1125,7 @@ static const unsigned int tdmc_fs_ao_pins[] = {GPIOAO_8};
 static const unsigned int tdmc_dout1_ao_pins[] = {GPIOAO_9};
 static const unsigned int tdmc_sclk_ao_pins[] = {GPIOAO_11};
 
-static struct meson_pmx_group meson_tm2_aobus_groups[] = {
+static struct meson_pmx_group meson_tm2_aobus_groups[] __initdata = {
 	GPIO_GROUP(GPIOAO_0),
 	GPIO_GROUP(GPIOAO_1),
 	GPIO_GROUP(GPIOAO_2),
@@ -1633,7 +1633,7 @@ static const char * const tdmc_ao_groups[] = {
 	"tdmc_dout0_ao", "tdmc_fs_ao", "tdmc_dout1_ao", "tdmc_sclk_ao",
 };
 
-static struct meson_pmx_func meson_tm2_periphs_functions[] = {
+static struct meson_pmx_func meson_tm2_periphs_functions[] __initdata = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(emmc),
 	FUNCTION(nor),
@@ -1689,7 +1689,7 @@ static struct meson_pmx_func meson_tm2_periphs_functions[] = {
 	FUNCTION(wifi_beacon),
 };
 
-static struct meson_pmx_func meson_tm2_aobus_functions[] = {
+static struct meson_pmx_func meson_tm2_aobus_functions[] __initdata = {
 	FUNCTION(gpio_aobus),
 	FUNCTION(uart_ao_a),
 	FUNCTION(uart_ao_b),
@@ -1767,7 +1767,7 @@ static struct meson_axg_pmx_data meson_tm2_aobus_pmx_banks_data = {
 	.num_pmx_banks	= ARRAY_SIZE(meson_tm2_aobus_pmx_banks),
 };
 
-static struct meson_pinctrl_data meson_tm2_periphs_pinctrl_data = {
+static struct meson_pinctrl_data meson_tm2_periphs_pinctrl_data __refdata = {
 	.name		= "periphs-banks",
 	.pins		= meson_tm2_periphs_pins,
 	.groups		= meson_tm2_periphs_groups,
@@ -1781,7 +1781,7 @@ static struct meson_pinctrl_data meson_tm2_periphs_pinctrl_data = {
 	.pmx_data	= &meson_tm2_periphs_pmx_banks_data,
 };
 
-static struct meson_pinctrl_data meson_tm2_aobus_pinctrl_data = {
+static struct meson_pinctrl_data meson_tm2_aobus_pinctrl_data __refdata = {
 	.name		= "aobus-banks",
 	.pins		= meson_tm2_aobus_pins,
 	.groups		= meson_tm2_aobus_groups,
