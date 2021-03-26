@@ -171,6 +171,7 @@ struct composer_dev {
 	DECLARE_KFIFO(free_q, struct vframe_s *, BUFFER_LEN);
 	DECLARE_KFIFO(display_q, struct vframe_s *, COMPOSER_READY_POOL_SIZE);
 	DECLARE_KFIFO(dma_free_q, struct vframe_s *, BUFFER_LEN);
+	DECLARE_KFIFO(vc_private_q, struct video_composer_private *, COMPOSER_READY_POOL_SIZE);
 	char vf_provider_name[VCOM_PROVIDER_NAME_SIZE];
 	char vfm_map_id[VCOM_MAP_STRUCT_SIZE];
 	char vfm_map_chain[VCOM_MAP_STRUCT_SIZE];
@@ -208,6 +209,7 @@ struct composer_dev {
 	bool need_empty_ready;
 	struct vframe_s fake_vf;
 	struct vframe_s fake_back_vf;
+	struct video_composer_private vc_private[COMPOSER_READY_POOL_SIZE];
 	bool select_path_done;
 	bool composer_enabled;
 	bool thread_need_stop;
