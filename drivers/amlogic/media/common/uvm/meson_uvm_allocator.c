@@ -400,20 +400,19 @@ static int mua_attach(int fd, int type, char *buf)
 	info.arg = NULL;
 	info.acquire_fence = NULL;
 
-//	switch (type) {
-//	case PROCESS_NN:
-//		info = attach_nn_hook_mod_info();
-//		break;
-//	case PROCESS_GRALLOC:
-//		ret = attach_gr_hook_mod_info(buf, &info);
-//		break;
-//	default:
-//		UVM_PRINTK(0, "mod_type is not valid.\n");
-//	}
-//	if (ret) {
-//		UVM_PRINTK(0, "get hook_mod_info failed\n");
-//	return -EINVAL;
-//	}
+	switch (type) {
+	case PROCESS_NN:
+		ret = attach_nn_hook_mod_info(fd, buf, &info);
+		if (ret)
+			return -EINVAL;
+		break;
+	default:
+		MUA_PRINTK(0, "mod_type is not valid.\n");
+	}
+	if (ret) {
+		MUA_PRINTK(0, "get hook_mod_info failed\n");
+		return -EINVAL;
+	}
 
 	MUA_PRINTK(1, "core_attach: type:%d buf:%s.\n",
 		type, buf);
@@ -487,6 +486,8 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			MUA_PRINTK(1, "mua_attach fail.\n");
 			return -EINVAL;
 		}
+		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
+			return -EFAULT;
 		break;
 	case UVM_IOC_DETATCH:
 		MUA_PRINTK(1, "mua_ioctl_DETATCH: shared_fd=%d, mode_type=%d\n",
@@ -504,7 +505,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 						data.hook_data.mode_type,
 						data.hook_data.data_buf);
 		if (ret < 0) {
-			MUA_PRINTK(0, "meson_uvm_getinfo fail.\n");
+			MUA_PRINTK(1, "meson_uvm_getinfo fail.\n");
 			return -EINVAL;
 		}
 		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))

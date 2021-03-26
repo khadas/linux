@@ -426,6 +426,49 @@ struct hf_info_t {
 	u32 buffer_h;
 };
 
+enum nn_status_e {
+	NN_INVALID = -1,
+	NN_WAIT_DOING = 0,
+	NN_START_DOING = 1,
+	NN_DONE = 2,
+	NN_DISPLAYED = 3
+};
+
+enum nn_mode_e {
+	NN_MODE_2X2 = 1,
+	NN_MODE_3X3 = 2,
+	NN_MODE_4X4 = 3,
+};
+
+struct vf_nn_sr_t {
+	int nn_out_fd;
+	struct dma_buf *nn_out_dma_buf;
+	u64 nn_out_phy_addr;
+	struct file *nn_out_file;
+	u32 nn_out_file_count;
+	u32 nn_out_width;
+	u32 nn_out_height;
+	struct dma_fence *fence;
+	int shared_fd;
+	u32 hf_phy_addr;
+	u32 hf_width;
+	u32 hf_height;
+	u32 hf_align_w;
+	u32 hf_align_h;
+	u32 nn_status;
+	u32 nn_index;
+	u32 nn_mode;
+	struct timeval start_time;
+};
+
+#define VC_FLAG_AI_SR	0x1
+
+struct video_composer_private {
+	u32 index;
+	u32 flag; /*if  & VC_FLAG_AI_SR, and VPP will get AI_SR_out*/
+	struct vf_nn_sr_t *srout_data;
+};
+
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
@@ -504,6 +547,7 @@ struct vframe_s {
 			   unsigned int zoom_end_y_lines, struct vframe_s *vf);
 	struct hf_info_t *hf_info;	/* hg data*/
 	void *private_data;
+	struct video_composer_private *vc_private;
 	/* vframe properties */
 	struct vframe_prop_s prop;
 	struct list_head list;

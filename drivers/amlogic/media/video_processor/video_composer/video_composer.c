@@ -90,6 +90,9 @@ static u32 receive_new_count_pip;
 static u32 total_get_count;
 static u32 total_put_count;
 static u32 debug_vd_layer;
+static u64 nn_need_time = 15000;
+static u64 nn_margin_time = 9000;
+
 
 #define PRINT_ERROR		0X0
 #define PRINT_QUEUE_STATUS	0X0001
@@ -99,6 +102,8 @@ static u32 debug_vd_layer;
 #define PRINT_INDEX_DISP	0X0010
 #define PRINT_PATTERN	        0X0020
 #define PRINT_OTHER		0X0040
+#define PRINT_NN_TIME		0X0080
+
 
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
@@ -373,6 +378,37 @@ static struct file_private_data *vc_get_file_private(struct composer_dev *dev,
 	return file_private_data;
 }
 
+static struct vf_nn_sr_t *vc_get_hfout_data(struct composer_dev *dev,
+						     struct file *file_vf)
+{
+	struct vf_nn_sr_t *srout_data;
+	struct uvm_hook_mod *uhmod;
+
+	if (!file_vf) {
+		pr_err("vc: vc get hfout data fail\n");
+		return NULL;
+	}
+
+	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
+				 PROCESS_NN);
+	if (!uhmod) {
+		vc_print(dev->index, PRINT_OTHER,
+			 "dma file file_private_data is NULL 1\n");
+		return NULL;
+	}
+
+	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "dma file file_private_data is NULL 2\n");
+		return NULL;
+	}
+	srout_data = uhmod->arg;
+	uvm_put_hook_mod((struct dma_buf *)(file_vf->private_data),
+			 PROCESS_NN);
+
+	return srout_data;
+}
+
 static void frames_put_file(struct composer_dev *dev,
 			    struct received_frames_t *current_frames)
 {
@@ -410,6 +446,57 @@ static void vf_pop_display_q(struct composer_dev *dev, struct vframe_s *vf)
 			break;
 		}
 	}
+}
+
+static void vc_private_q_init(struct composer_dev *dev)
+{
+	int i;
+	int len;
+
+	INIT_KFIFO(dev->vc_private_q);
+	kfifo_reset(&dev->vc_private_q);
+
+	for (i = 0; i < COMPOSER_READY_POOL_SIZE; i++) {
+		dev->vc_private[i].index = i;
+		dev->vc_private[i].flag = 0;
+		dev->vc_private[i].srout_data = NULL;
+		if (!kfifo_put(&dev->vc_private_q, &dev->vc_private[i]))
+			vc_print(dev->index, PRINT_ERROR,
+				"q_init: vc_private_q is full!\n");
+	}
+	len = kfifo_len(&dev->vc_private_q);
+}
+
+static void vc_private_q_recycle(struct composer_dev *dev,
+	struct video_composer_private *vc_private)
+{
+	int len;
+
+	if (!vc_private)
+		return;
+
+	vc_private->flag = 0;
+	vc_private->srout_data = NULL;
+	if (!kfifo_put(&dev->vc_private_q, vc_private))
+		vc_print(dev->index, PRINT_ERROR,
+			"vc_private_q is full!\n");
+	len = kfifo_len(&dev->vc_private_q);
+}
+
+static struct video_composer_private *vc_private_q_pop(struct composer_dev *dev)
+{
+	struct video_composer_private *vc_private = NULL;
+
+	if (!kfifo_get(&dev->vc_private_q, &vc_private)) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "task: get vc_private_q failed\n");
+		vc_private = NULL;
+	} else {
+		vc_private->flag = 0;
+		vc_private->srout_data = NULL;
+	}
+
+	return vc_private;
 }
 
 static void display_q_uninit(struct composer_dev *dev)
@@ -801,6 +888,7 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 		dmabuf_get_vframe((struct dma_buf *)(file_vf->private_data));
 		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME))
 			vf = vf->vf_ext;
+		dmabuf_put_vframe((struct dma_buf *)(file_vf->private_data));
 		vc_print(dev->index, PRINT_OTHER, "vf is from decoder\n");
 	} else {
 		file_private_data = vc_get_file_private(dev, file_vf);
@@ -1222,6 +1310,23 @@ static void video_wait_decode_fence(struct composer_dev *dev,
 	}
 }
 
+static void video_wait_sr_fence(struct composer_dev *dev,
+				    struct dma_fence *fence)
+{
+	if (fence) {
+		u64 timestamp = local_clock();
+		s32 ret = dma_fence_wait_timeout(fence, false, 2000);
+
+		vc_print(dev->index, PRINT_FENCE,
+			 "%s, sr fence %lx, state: %d, wait cost time: %lld ns\n",
+			 __func__, (ulong)fence, ret,
+			 local_clock() - timestamp);
+	} else {
+		vc_print(dev->index, PRINT_FENCE,
+			 "sr fence is NULL\n");
+	}
+}
+
 static void video_composer_task(struct composer_dev *dev)
 {
 	struct vframe_s *vf = NULL;
@@ -1238,6 +1343,8 @@ static void video_composer_task(struct composer_dev *dev)
 	u32 pic_w;
 	u32 pic_h;
 	bool is_dec_vf = false, is_v4l_vf = false;
+	struct vf_nn_sr_t *srout_data = NULL;
+	struct video_composer_private *vc_private;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -1316,6 +1423,7 @@ static void video_composer_task(struct composer_dev *dev)
 				memset(vf, 0, sizeof(struct vframe_s));
 			}
 		}
+
 		if (!kfifo_get(&dev->receive_q, &received_frames)) {
 			vc_print(dev->index, PRINT_ERROR,
 				 "task: get failed\n");
@@ -1477,6 +1585,22 @@ static void video_composer_task(struct composer_dev *dev)
 				 vf->repeat_count[dev->index],
 				 vf->omx_index);
 		} else {
+			if (is_dec_vf || is_v4l_vf) {
+				if (vf->hf_info)
+					srout_data = vc_get_hfout_data(dev, file_vf);
+				if (srout_data)
+					video_wait_sr_fence(dev, srout_data->fence);
+				vc_private = vc_private_q_pop(dev);
+				if (srout_data && vc_private && vf->hf_info) {
+					if (vf->hf_info->phy_addr != 0 &&
+						vf->hf_info->width != 0 &&
+						vf->hf_info->height != 0) {
+						vc_private->srout_data = srout_data;
+						vc_private->flag |= VC_FLAG_AI_SR;
+					}
+				}
+				vf->vc_private = vc_private;
+			}
 			dev->last_file = file_vf;
 			vf->repeat_count[dev->index] = 0;
 			if (!kfifo_put(&dev->ready_q,
@@ -2003,6 +2127,10 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	struct timeval time2;
 	u64 time_vsync;
 	int interval_time;
+	struct timeval now_time;
+	struct timeval nn_start_time;
+	u64 nn_used_time;
+	bool canbe_peek = true;
 
 	/*apk/sf drop 0/3 4; vc receive 1 2 5 in one vsync*/
 	/*apk queue 5 and wait 1, it will fence timeout*/
@@ -2029,6 +2157,56 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 				return NULL;
 			}
 		}
+		if (!vf)
+			return NULL;
+
+		if (!vf->vc_private) {
+			vc_print(dev->index, PRINT_OTHER,
+				"peek: vf->vc_private is NULL\n");
+			return vf;
+		}
+
+		if ((vf->vc_private->flag & VC_FLAG_AI_SR) == 0)
+			return vf;
+
+		vc_print(dev->index, PRINT_NN_TIME,
+			"peek:nn_status=%d, nn_index=%d, nn_mode=%d, PHY=%llx, nn out:%d*%d, hf:%d*%d,hf_align:%d*%d\n",
+			vf->vc_private->srout_data->nn_status,
+			vf->vc_private->srout_data->nn_index,
+			vf->vc_private->srout_data->nn_mode,
+			vf->vc_private->srout_data->nn_out_phy_addr,
+			vf->vc_private->srout_data->nn_out_width,
+			vf->vc_private->srout_data->nn_out_height,
+			vf->vc_private->srout_data->hf_width,
+			vf->vc_private->srout_data->hf_height,
+			vf->vc_private->srout_data->hf_align_w,
+			vf->vc_private->srout_data->hf_align_h);
+		if (vf->vc_private->srout_data->nn_status != NN_DONE) {
+			if (vf->vc_private->srout_data->nn_status == NN_WAIT_DOING) {
+				vc_print(dev->index, PRINT_FENCE | PRINT_NN_TIME,
+					"peek: nn wait doing, nn_index =%d, omx_index=%d, nn_status=%d\n",
+					vf->vc_private->srout_data->nn_index,
+					vf->omx_index,
+					vf->vc_private->srout_data->nn_status);
+				return NULL;
+			}
+			do_gettimeofday(&now_time);
+			nn_start_time = vf->vc_private->srout_data->start_time;
+			nn_used_time = (u64)1000000 * (now_time.tv_sec - nn_start_time.tv_sec)
+					+ now_time.tv_usec - nn_start_time.tv_usec;
+			if ((nn_need_time - nn_used_time) > nn_margin_time)
+				canbe_peek = false;
+			vc_print(dev->index, PRINT_FENCE | PRINT_NN_TIME,
+				"peek: nn not done, nn_index =%d, omx_index=%d, nn_status=%d, nn_used_time=%lld canbe_peek=%d\n",
+				vf->vc_private->srout_data->nn_index,
+				vf->omx_index,
+				vf->vc_private->srout_data->nn_status,
+				nn_used_time,
+				canbe_peek);
+			if (!canbe_peek)
+				return NULL;
+		}
+
 		return vf;
 	} else {
 		return NULL;
@@ -2099,6 +2277,16 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 		vc_print(dev->index, PRINT_OTHER,
 			 "put: fake frame\n");
 		return;
+	}
+
+	if (vf->vc_private && vf->vc_private->srout_data) {
+		if (vf->vc_private->srout_data->nn_status == NN_DONE)
+			vf->vc_private->srout_data->nn_status = NN_DISPLAYED;
+	}
+
+	if (vf->vc_private) {
+		vc_private_q_recycle(dev, vf->vc_private);
+		vf->vc_private = NULL;
 	}
 
 	vc_print(dev->index, PRINT_FENCE,
@@ -2235,6 +2423,8 @@ static int video_composer_init(struct composer_dev *dev)
 
 	for (i = 0; i < DMA_BUF_COUNT; i++)
 		kfifo_put(&dev->dma_free_q, &dev->dma_vf[i]);
+
+	vc_private_q_init(dev);
 
 	dev->received_count = 0;
 	dev->received_new_count = 0;
@@ -3010,6 +3200,46 @@ static ssize_t total_put_count_show(struct class *class,
 	return sprintf(buf, "%d\n", total_put_count);
 }
 
+static ssize_t nn_need_time_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "nn_need_time: %lld\n", nn_need_time);
+}
+
+static ssize_t nn_need_time_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+	nn_need_time = val;
+	return count;
+}
+
+static ssize_t nn_margin_time_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "nn_margin_time: %lld\n", nn_margin_time);
+}
+
+static ssize_t nn_margin_time_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+	nn_margin_time = val;
+	return count;
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -3038,6 +3268,8 @@ static CLASS_ATTR_RO(receive_new_count);
 static CLASS_ATTR_RO(receive_new_count_pip);
 static CLASS_ATTR_RO(total_get_count);
 static CLASS_ATTR_RO(total_put_count);
+static CLASS_ATTR_RW(nn_need_time);
+static CLASS_ATTR_RW(nn_margin_time);
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -3068,6 +3300,8 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_receive_new_count_pip.attr,
 	&class_attr_total_get_count.attr,
 	&class_attr_total_put_count.attr,
+	&class_attr_nn_need_time.attr,
+	&class_attr_nn_margin_time.attr,
 	NULL
 };
 
