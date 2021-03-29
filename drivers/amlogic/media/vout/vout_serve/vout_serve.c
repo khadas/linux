@@ -59,6 +59,7 @@ static struct vout_cdev_s *vout_cdev;
 static struct device *vout_dev;
 
 static bool disable_modesysfs;
+static bool enable_debugmode;
 
 /* **********************************************************
  * null display support
@@ -361,11 +362,11 @@ static ssize_t vout_mode_store(struct class *class,
 	char mode[VMODE_NAME_LEN_MAX];
 
 	mutex_lock(&vout_serve_mutex);
-	if (!disable_modesysfs) {
+	if (!disable_modesysfs || enable_debugmode) {
 		snprintf(mode, VMODE_NAME_LEN_MAX, "%s", buf);
 		set_vout_mode(mode);
 	} else {
-		VOUTPR("voutmode set skipped\n");
+		VOUTPR("enable display/debug to set voutmode.\n");
 	}
 	mutex_unlock(&vout_serve_mutex);
 	return count;
@@ -562,13 +563,32 @@ static ssize_t vout_vinfo_show(struct class *class,
 static ssize_t vout_cap_show(struct class *class,
 			     struct class_attribute *attr, char *buf)
 {
+	return sprintf(buf, "null\n");
+}
+
+static ssize_t vout_debug_mode_show(struct class *class,
+			     struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", enable_debugmode);
+}
+
+static ssize_t vout_debug_mode_store(struct class *class,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
 	int ret;
+	int debug;
 
-	ret = get_vout_disp_cap(buf);
-	if (!ret)
-		return sprintf(buf, "null\n");
+	ret = kstrtoint(buf, 10, &debug);
+	if (ret)
+		return -EINVAL;
 
-	return ret;
+	if (debug > 0)
+		enable_debugmode = 1;
+	else
+		enable_debugmode = 0;
+
+	return count;
 }
 
 static struct class_attribute vout_class_attrs[] = {
@@ -578,7 +598,8 @@ static struct class_attribute vout_class_attrs[] = {
 	__ATTR(fr_hint,   0644, vout_fr_hint_show, vout_fr_hint_store),
 	__ATTR(bist,      0644, vout_bist_show, vout_bist_store),
 	__ATTR(vinfo,     0444, vout_vinfo_show, NULL),
-	__ATTR(cap,       0644, vout_cap_show, NULL)
+	__ATTR(cap,       0644, vout_cap_show, NULL),
+	__ATTR(debug,       0644, vout_debug_mode_show, vout_debug_mode_store),
 };
 
 static int vout_attr_create(void)
