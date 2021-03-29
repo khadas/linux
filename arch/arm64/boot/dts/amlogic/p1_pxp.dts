@@ -517,7 +517,7 @@
 				<&clkc CLKID_MCLK_1>;
 		clock-names = "mclk_0","mclk_1";
 		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
-		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		//reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
@@ -1319,14 +1319,14 @@
 	status = "disabled";
 	portnum = <1>;
 	gpio-vbus-power = "GPIOM_8";
-	gpios = <&gpio GPIOM_8 GPIO_ACTIVE_HIGH>;
+	//gpios = <&gpio GPIOM_8 GPIO_ACTIVE_HIGH>;
 };
 
 &crg_phy_21 {
 	status = "disabled";
 	portnum = <1>;
 	gpio-vbus-power = "GPIOM_9";
-	gpios = <&gpio GPIOM_9 GPIO_ACTIVE_HIGH>;
+	//gpios = <&gpio GPIOM_9 GPIO_ACTIVE_HIGH>;
 };
 
 &crg3_phy_20 {

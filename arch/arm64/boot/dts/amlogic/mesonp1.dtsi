@@ -9,7 +9,7 @@
 #include <dt-bindings/power/t7-pd.h>
 #include <dt-bindings/clock/amlogic,t7-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/gpio/meson-t7-gpio.h>
+#include <dt-bindings/gpio/meson-p1-gpio.h>
 #include <dt-bindings/reset/amlogic,meson-t7-reset.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
@@ -641,20 +641,35 @@
 				clocks = <&xtal>;
 			};
 
-			periphs_pinctrl: pinctrl@4000 {
-				compatible = "amlogic,meson-t7-periphs-pinctrl";
+			periphs_pinctrl: pinctrl@4008 {
+				compatible = "amlogic,meson-p1-periphs-pinctrl";
 				#address-cells = <2>;
 				#size-cells = <2>;
 				ranges;
-				status = "disabled";
 
-				gpio: bank@4000 {
-					reg = <0x0 0x4000 0x0 0x0064>,
-					      <0x0 0x40c0 0x0 0x0220>;
+				gpio: bank@4008 {
+					reg = <0x0 0x4008 0x0 0x008c>,
+					      <0x0 0x4200 0x0 0x035c>;
 					reg-names = "mux", "gpio";
 					gpio-controller;
 					#gpio-cells = <2>;
-					gpio-ranges = <&periphs_pinctrl 0 0 157>;
+					gpio-ranges = <&periphs_pinctrl 0 0 218>;
+				};
+			};
+
+			storage_pinctrl: pinctrl@86000 {
+				compatible = "amlogic,meson-p1-storage-pinctrl";
+				#address-cells = <2>;
+				#size-cells = <2>;
+				ranges;
+
+				gpio_sto: bank@86000 {
+					reg = <0x0 0x86000 0x0 0x8>,
+					      <0x0 0x86380 0x0 0x020>;
+					reg-names = "mux", "gpio";
+					gpio-controller;
+					#gpio-cells = <2>;
+					gpio-ranges = <&periphs_pinctrl 0 0 13>;
 				};
 			};
 
