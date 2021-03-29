@@ -120,7 +120,10 @@ enum uvm_hook_mod_type {
 	VF_PROCESS_V4LVIDEO,
 	VF_PROCESS_DI,
 	VF_PROCESS_VIDEOCOMPOSER,
-	VF_PROCESS_DECODER
+	VF_PROCESS_DECODER,
+	PROCESS_NN,
+	PROCESS_GRALLOC,
+	PROCESS_INVALID
 };
 
 /**
@@ -138,6 +141,8 @@ struct uvm_hook_mod {
 	enum uvm_hook_mod_type type;
 	void *arg;
 	void (*free)(void *arg);
+	int (*getinfo)(void *arg, char *buf);
+	int (*setinfo)(void *arg, char *buf);
 	struct sync_fence *acquire_fence;
 	struct list_head list;
 };
@@ -146,6 +151,8 @@ struct uvm_hook_mod_info {
 	enum uvm_hook_mod_type type;
 	void *arg;
 	void (*free)(void *arg);
+	int (*getinfo)(void *arg, char *buf);
+	int (*setinfo)(void *arg, char *buf);
 	struct sync_fence *acquire_fence;
 };
 
@@ -176,6 +183,13 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 			struct uvm_hook_mod_info *info);
 int uvm_detach_hook_mod(struct dma_buf *dmabuf,
 			int type);
+
+int meson_uvm_core_attach(int fd,
+			int type, char *buf);
+int meson_uvm_getinfo(int shared_fd,
+			int mode_type, char *buf);
+int meson_uvm_setinfo(int shared_fd,
+			int mode_type, char *buf);
 
 struct uvm_hook_mod *uvm_get_hook_mod(struct dma_buf *dmabuf,
 				      int type);
