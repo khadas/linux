@@ -579,8 +579,8 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 		   pvfm->flag & VFRAME_FLAG_DOUBLE_FRAM);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);
-	seq_printf(seq, "%-15s:0x%x\n", "compHeadAddr", pvfm->compHeadAddr);
-	seq_printf(seq, "%-15s:0x%x\n", "compBodyAddr", pvfm->compBodyAddr);
+	seq_printf(seq, "%-15s:0x%lx\n", "compHeadAddr", pvfm->compHeadAddr);
+	seq_printf(seq, "%-15s:0x%lx\n", "compBodyAddr", pvfm->compBodyAddr);
 	seq_printf(seq, "%-15s:%d\n", "plane_num", pvfm->plane_num);
 
 	seq_printf(seq, "%-15s:%d\n", "bufWidth", pvfm->bufWidth);
