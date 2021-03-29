@@ -6242,6 +6242,17 @@ static void hdmitx_rxsense_process(struct work_struct *work)
 	queue_delayed_work(hdev->rxsense_wq, &hdev->work_rxsense, HZ);
 }
 
+static u16 ced_ch0_cnt;
+static u16 ced_ch1_cnt;
+static u16 ced_ch2_cnt;
+
+MODULE_PARM_DESC(ced_ch0_cnt, "\n ced_ch0_cnt\n");
+module_param(ced_ch0_cnt, ushort, 0444);
+MODULE_PARM_DESC(ced_ch1_cnt, "\n ced_ch1_cnt\n");
+module_param(ced_ch1_cnt, ushort, 0444);
+MODULE_PARM_DESC(ced_ch2_cnt, "\n ced_ch2_cnt\n");
+module_param(ced_ch2_cnt, ushort, 0444);
+
 static void hdmitx_cedst_process(struct work_struct *work)
 {
 	int ced;
@@ -6249,10 +6260,14 @@ static void hdmitx_cedst_process(struct work_struct *work)
 		struct hdmitx_dev, work_cedst);
 
 	ced = hdev->hwop.cntlmisc(hdev, MISC_TMDS_CEDST, 0);
-	/* firstly send as 0, then real ced, A trigger signal */
-	hdmitx_set_uevent(HDMITX_CEDST_EVENT, 0);
-	hdmitx_set_uevent(HDMITX_CEDST_EVENT, ced);
-	queue_delayed_work(hdev->cedst_wq, &hdev->work_cedst, HZ);
+	if (ced) {
+		ced_ch0_cnt = hdev->ced_cnt.ch0_cnt;
+		ced_ch1_cnt = hdev->ced_cnt.ch1_cnt;
+		ced_ch2_cnt = hdev->ced_cnt.ch2_cnt;
+		/* firstly send as 0, then real ced, A trigger signal */
+		hdmitx_set_uevent(HDMITX_CEDST_EVENT, 0);
+		hdmitx_set_uevent(HDMITX_CEDST_EVENT, 1);
+	}
 	queue_delayed_work(hdev->cedst_wq, &hdev->work_cedst, HZ);
 }
 
