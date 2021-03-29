@@ -1875,7 +1875,7 @@ static u32 scan_emmc_cmd_win(struct mmc_host *mmc, int send_status)
 				err = single_read_scan(mmc,
 						       MMC_READ_SINGLE_BLOCK,
 						       host->blk_test, 512, 1,
-						       offset + (j * 512));
+						       offset);
 			if (!err)
 				str[i]++;
 			else
