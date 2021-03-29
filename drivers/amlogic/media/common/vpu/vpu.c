@@ -2154,7 +2154,7 @@ static struct vpu_data_s vpu_data_t3 = {
 	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
 	.mem_pd_reg_flag = 1,
 
-	.pwrctrl_id_table = vpu_pwrctrl_id_table_t7,
+	.pwrctrl_id_table = vpu_pwrctrl_id_table_t3,
 
 	.power_table = NULL,
 	.iso_table = NULL,

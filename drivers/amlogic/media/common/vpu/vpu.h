@@ -41,6 +41,11 @@ enum vpu_chip_e {
 #define PM_VI_CLK1_T7           13
 #define PM_VI_CLK2_T7           14
 
+#define PM_VPU_HDMI_T3          4
+#define PM_VI_CLK1_T3           10
+#define PM_VI_CLK2_T3           11
+#define PM_NOC_VPU_T3           21
+
 struct fclk_div_s {
 	unsigned int fclk_id;
 	unsigned int fclk_mux;
