@@ -2449,7 +2449,7 @@ static void get_pre_hscaler_para(u8 layer_id, int *ds_ratio, int *flt_num)
 {
 	switch (pre_hscaler_ntap[layer_id]) {
 	case PRE_HSCALER_2TAP:
-		*ds_ratio = 0;
+		*ds_ratio = 1;
 		*flt_num = 2;
 		break;
 	case PRE_HSCALER_4TAP:
@@ -2457,11 +2457,11 @@ static void get_pre_hscaler_para(u8 layer_id, int *ds_ratio, int *flt_num)
 		*flt_num = 4;
 		break;
 	case PRE_HSCALER_6TAP:
-		*ds_ratio = 2;
+		*ds_ratio = 1;
 		*flt_num = 6;
 		break;
 	case PRE_HSCALER_8TAP:
-		*ds_ratio = 3;
+		*ds_ratio = 1;
 		*flt_num = 8;
 		break;
 	}
@@ -5957,8 +5957,9 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 			} else {
 				vd_layer[1].pre_blend_en = 1;
 			}
-			vpp_misc_set |= (vd_layer[1].layer_alpha
-				<< VPP_VD2_ALPHA_BIT);
+			if (!cur_dev->vd2_indepentd_blend_ctrl)
+				vpp_misc_set |= (vd_layer[1].layer_alpha
+					<< VPP_VD2_ALPHA_BIT);
 		}
 	}
 	if (vd_layer[2].vpp_index == VPP0) {
@@ -6122,9 +6123,11 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 		if ((!vd_layer[0].post_blend_en &&
 		    vd_layer[1].post_blend_en) ||
 		    vd_layer[1].pre_blend_en) {
-			vpp_misc_set &= ~(0x1ff << VPP_VD2_ALPHA_BIT);
-			vpp_misc_set |= (vd_layer[1].layer_alpha
-				<< VPP_VD2_ALPHA_BIT);
+			if (!cur_dev->vd2_indepentd_blend_ctrl) {
+				vpp_misc_set &= ~(0x1ff << VPP_VD2_ALPHA_BIT);
+				vpp_misc_set |= (vd_layer[1].layer_alpha
+					<< VPP_VD2_ALPHA_BIT);
+			}
 		}
 
 		vpp_misc_save &=
@@ -6160,10 +6163,17 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 			port_val[0] |= (1 << 16);
 
 			/* vd2 path sel */
-			if (vd_layer[1].post_blend_en)
-				port_val[1] |= (1 << 20);
-			else
-				port_val[1] &= ~(1 << 20);
+			if (vd_layer[1].post_blend_en) {
+				if (cur_dev->vd2_indepentd_blend_ctrl)
+					port_val[1] |= (1 << 17);
+				else
+					port_val[1] |= (1 << 20);
+			} else {
+				if (cur_dev->vd2_indepentd_blend_ctrl)
+					port_val[1] &= ~(1 << 17);
+				else
+					port_val[1] &= ~(1 << 20);
+			}
 
 			/* vd3 path sel */
 			if (vd_layer[2].post_blend_en)
@@ -6184,14 +6194,20 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 				port_val[0] &= ~0xff;
 			}
 
-			if (vd_layer[1].post_blend_en)
+			if (vd_layer[1].post_blend_en) {
 				 /* post src */
 				port_val[vd2_port] |= (2 << 8);
-			else if (vd_layer[1].pre_blend_en)
+				 /* vd2 alpha*/
+				if (cur_dev->vd2_indepentd_blend_ctrl)
+					port_val[1] |= vd_layer[1].layer_alpha << 20;
+			} else if (vd_layer[1].pre_blend_en) {
 				port_val[1] |=
 					((1 << 4) | /* pre bld premult*/
 					(2 << 0)); /* pre bld src 1 */
-
+				 /* vd2 alpha*/
+				if (cur_dev->vd2_indepentd_blend_ctrl)
+					port_val[1] |= vd_layer[1].layer_alpha << 20;
+			}
 			if (vd_layer[2].post_blend_en)
 				 /* post src */
 				port_val[vd3_port] |= (3 << 8);
@@ -8292,7 +8308,9 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	cur_dev->mif_linear = p_amvideo->mif_linear;
 	cur_dev->t7_display = p_amvideo->t7_display;
 	cur_dev->max_vd_layers = p_amvideo->max_vd_layers;
-	if (video_is_meson_t7_cpu()) {
+	cur_dev->vd2_indepentd_blend_ctrl =
+		p_amvideo->dev_property.vd2_indepentd_blend_ctrl;
+	if (cur_dev->t7_display) {
 		for (i = 0; i < cur_dev->max_vd_layers; i++) {
 			memcpy(&vd_layer[i].vd_afbc_reg,
 			       &vd_afbc_reg_t7_array[i],

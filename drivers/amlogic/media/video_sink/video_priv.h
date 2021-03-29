@@ -158,6 +158,7 @@ struct video_dev_s {
 	int mif_linear;
 	int t7_display;
 	int max_vd_layers;
+	int vd2_indepentd_blend_ctrl;
 	struct rdma_fun_s rdma_func[VPP_NUM];
 };
 
@@ -381,7 +382,12 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_T7_,
 	MESON_CPU_MAJOR_ID_S4_,
 	MESON_CPU_MAJOR_ID_T5D_REVB_,
+	MESON_CPU_MAJOR_ID_T3_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
+};
+
+struct video_device_hw_s {
+	u32 vd2_indepentd_blend_ctrl;
 };
 
 struct amvideo_device_data_s {
@@ -412,6 +418,7 @@ struct amvideo_device_data_s {
 	u8 max_vd_layers;
 	u8 has_vpp1;
 	u8 has_vpp2;
+	struct video_device_hw_s dev_property;
 };
 
 /* from video_hw.c */
@@ -609,6 +616,7 @@ bool video_is_meson_t5d_cpu(void);
 bool video_is_meson_t7_cpu(void);
 bool video_is_meson_s4_cpu(void);
 bool video_is_meson_t5d_revb_cpu(void);
+bool video_is_meson_t3_cpu(void);
 void set_alpha(struct video_layer_s *layer,
 	       u32 win_en,
 	       struct pip_alpha_scpxn_s *alpha_win);
