@@ -19,6 +19,7 @@
 #include <linux/dma-buf.h>
 #include <linux/pagemap.h>
 #include <linux/amlogic/meson_uvm_core.h>
+#include "meson_uvm_nn_processor.h"
 
 static int uvm_debug_level;
 module_param(uvm_debug_level, int, 0644);
@@ -42,20 +43,6 @@ static void uvm_handle_destroy(struct kref *kref)
 	kfree(handle->ua);
 
 	kfree(handle);
-}
-
-static int meson_uvm_attach(struct dma_buf *dmabuf,
-			    struct dma_buf_attachment *attach)
-{
-	UVM_PRINTK(1, "%s called, %s.\n", __func__, current->comm);
-	return 0;
-}
-
-static void meson_uvm_detach(struct dma_buf *dmabuf,
-			     struct dma_buf_attachment *attach)
-{
-	UVM_PRINTK(1, "%s called, %s.\n", __func__, current->comm);
-	/* TODO */
 }
 
 static struct sg_table
@@ -159,6 +146,20 @@ static int meson_uvm_end_cpu_access(struct dma_buf *dmabuf,
 {
 	UVM_PRINTK(1, "%s called.\n", __func__);
 	return 0;
+}
+
+static int meson_uvm_attach(struct dma_buf *dmabuf,
+			    struct dma_buf_attachment *attach)
+{
+	UVM_PRINTK(1, "%s called, %s.\n", __func__, current->comm);
+	return 0;
+}
+
+static void meson_uvm_detach(struct dma_buf *dmabuf,
+			     struct dma_buf_attachment *attach)
+{
+	UVM_PRINTK(1, "%s called, %s.\n", __func__, current->comm);
+	/* TODO */
 }
 
 static void *meson_uvm_vmap(struct dma_buf *dmabuf)
@@ -522,6 +523,8 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 	kref_init(&uhmod->ref);
 	uhmod->type = info->type;
 	uhmod->arg = info->arg;
+	uhmod->getinfo = info->getinfo;
+	uhmod->setinfo = info->setinfo;
 	uhmod->free = info->free;
 	uhmod->acquire_fence = info->acquire_fence;
 
@@ -531,11 +534,112 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 	handle->mod_attached_mask |= 1 << (uhmod->type);
 	mutex_unlock(&handle->lock);
 
-	UVM_PRINTK(1, "%s called, type-%d.\n", __func__, info->type);
+	UVM_PRINTK(1, "info->type:%d attach ok! dmabuf =%p, handle=%p\n",
+				info->type, dmabuf, handle);
 
 	return 0;
 }
 EXPORT_SYMBOL(uvm_attach_hook_mod);
+
+int meson_uvm_core_attach(int fd, int type, char *buf)
+{
+	struct uvm_hook_mod_info info;
+	int ret = 0;
+	struct dma_buf *dmabuf = NULL;
+
+	memset(&info, 0, sizeof(struct uvm_hook_mod_info));
+	info.type = PROCESS_INVALID;
+	info.arg = NULL;
+	info.acquire_fence = NULL;
+
+//	switch (type) {
+//	case PROCESS_NN:
+//		info = attach_nn_hook_mod_info();
+//		break;
+//	case PROCESS_GRALLOC:
+//		ret = attach_gr_hook_mod_info(buf, &info);
+//		break;
+//	default:
+//		UVM_PRINTK(0, "mod_type is not valid.\n");
+//	}
+//	if (ret) {
+//		UVM_PRINTK(0, "get hook_mod_info failed\n");
+///		return -EINVAL;
+//	}
+
+	UVM_PRINTK(1, "core_attach: type:%d buf:%s.\n",
+		type, buf);
+	dmabuf = dma_buf_get(fd);
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
+		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+		return -EINVAL;
+	}
+	if (info.type >= VF_SRC_DECODER && info.type < PROCESS_INVALID)
+		ret = uvm_attach_hook_mod(dmabuf, &info);
+
+	dma_buf_put(dmabuf);
+	return ret;
+}
+EXPORT_SYMBOL(meson_uvm_attach);
+
+int meson_uvm_getinfo(int shared_fd, int mode_type, char *buf)
+{
+	struct uvm_handle *handle;
+	struct uvm_hook_mod *uhmod = NULL;
+	struct dma_buf *dmabuf = NULL;
+	int ret = 0;
+
+	UVM_PRINTK(1, "uvm_getinfo: shared_fd=%d, mode_type=%d\n", shared_fd, mode_type);
+	dmabuf = dma_buf_get(shared_fd);
+
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
+		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+		return -EINVAL;
+	}
+
+	handle = dmabuf->priv;
+
+	uhmod = uvm_find_hook_mod(handle, mode_type);
+	if (uhmod) {
+		ret = uhmod->getinfo(uhmod->arg, buf);
+		dma_buf_put(dmabuf);
+		if (ret < 0)
+			return -EINVAL;
+		return 0;
+	}
+	UVM_PRINTK(1, "%s %px, %d.\n", __func__, uhmod, mode_type);
+	dma_buf_put(dmabuf);
+	return -EINVAL;
+}
+EXPORT_SYMBOL(meson_uvm_getinfo);
+
+int meson_uvm_setinfo(int shared_fd, int mode_type, char *buf)
+{
+	struct uvm_handle *handle;
+	struct uvm_hook_mod *uhmod = NULL;
+	struct dma_buf *dmabuf = NULL;
+	int ret = 0;
+
+	dmabuf = dma_buf_get(shared_fd);
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
+		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+		return -EINVAL;
+	}
+
+	handle = dmabuf->priv;
+	uhmod = uvm_find_hook_mod(handle, mode_type);
+	if (uhmod) {
+		ret = uhmod->setinfo(uhmod->arg, buf);
+		dma_buf_put(dmabuf);
+		if (ret < 0)
+			return -EINVAL;
+		return 0;
+	}
+	dma_buf_put(dmabuf);
+	UVM_PRINTK(1, "%s %px, %d.\n", __func__, uhmod, mode_type);
+	return -EINVAL;
+}
+EXPORT_SYMBOL(meson_uvm_setinfo);
 
 int uvm_detach_hook_mod(struct dma_buf *dmabuf, int type)
 {
@@ -620,4 +724,3 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 	else
 		return -EINVAL;
 }
-EXPORT_SYMBOL(uvm_put_hook_mod);

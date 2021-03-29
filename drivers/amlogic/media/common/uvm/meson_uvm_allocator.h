@@ -28,7 +28,6 @@
 #define ION_FLAG_PROTECTED   BIT(31)
 #define META_DATA_SIZE       (256)
 
-
 struct mua_device;
 struct mua_buffer;
 
@@ -86,11 +85,18 @@ struct uvm_meta_data {
 	u8 data[META_DATA_SIZE];
 };
 
+struct uvm_hook_data {
+	enum uvm_hook_mod_type mode_type;
+	int shared_fd;
+	char data_buf[META_DATA_SIZE + 1];
+};
+
 union uvm_ioctl_arg {
 	struct uvm_alloc_data alloc_data;
 	struct uvm_pid_data pid_data;
 	struct uvm_fd_data fd_data;
 	struct uvm_meta_data meta_data;
+	struct uvm_hook_data hook_data;
 };
 
 #define UVM_IOC_MAGIC 'U'
@@ -104,5 +110,11 @@ union uvm_ioctl_arg {
 				struct uvm_fd_data)
 #define UVM_IOC_GET_METADATA _IOWR(UVM_IOC_MAGIC, 4, \
 				struct uvm_meta_data)
+#define UVM_IOC_ATTATCH _IOWR(UVM_IOC_MAGIC, 5, \
+				struct uvm_hook_data)
+#define UVM_IOC_GET_INFO _IOWR(UVM_IOC_MAGIC, 6, \
+				struct uvm_hook_data)
+#define UVM_IOC_SET_INFO _IOWR(UVM_IOC_MAGIC, 7, \
+				struct uvm_hook_data)
 #endif
 

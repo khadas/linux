@@ -401,6 +401,35 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -EFAULT;
 
 	switch (cmd) {
+	case UVM_IOC_ATTATCH:
+		ret = meson_uvm_core_attach(data.hook_data.shared_fd,
+						data.hook_data.mode_type,
+						data.hook_data.data_buf);
+		if (ret < 0) {
+			MUA_PRINTK(1, "get meta data fail.\n");
+			return -EINVAL;
+		}
+		break;
+	case UVM_IOC_GET_INFO:
+		ret = meson_uvm_getinfo(data.hook_data.shared_fd,
+						data.hook_data.mode_type,
+						data.hook_data.data_buf);
+		if (ret < 0) {
+			MUA_PRINTK(0, "meson_uvm_getinfo fail.\n");
+			return -EINVAL;
+		}
+		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
+			return -EFAULT;
+		break;
+	case UVM_IOC_SET_INFO:
+		ret = meson_uvm_setinfo(data.hook_data.shared_fd,
+						data.hook_data.mode_type,
+						data.hook_data.data_buf);
+		if (ret < 0) {
+			MUA_PRINTK(0, "get meta data fail.\n");
+			return -EINVAL;
+		}
+		break;
 	case UVM_IOC_ALLOC:
 		MUA_PRINTK(1, "%s. original buf size:%d width:%d height:%d\n",
 					__func__, data.alloc_data.size,
@@ -413,7 +442,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			alloc_buf_size = data.alloc_data.scaled_buf_size;
 		else
 			alloc_buf_size = data.alloc_data.size;
-		MUA_PRINTK(1, "%s. buf_scalar=%d size=%d\n",
+		MUA_PRINTK(1, "%s. buf_scalar=%d scaled_buf_size=%d\n",
 					__func__, data.alloc_data.scalar,
 					data.alloc_data.scaled_buf_size);
 
