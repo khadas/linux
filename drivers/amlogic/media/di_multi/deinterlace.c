@@ -9004,7 +9004,7 @@ static void post_ready_buf_set(unsigned int ch, struct di_buf_s *di_buf)
 			#endif
 			PR_INF("\t:cmp[%d,%d]\n", di_buf->vframe->compWidth,
 				di_buf->vframe->compHeight);
-			PR_INF("\t:0x%x,0x%x\n",
+			PR_INF("\t:0x%lx,0x%lx\n",
 				di_buf->vframe->compBodyAddr,
 				di_buf->vframe->compHeadAddr);
 		}

@@ -519,9 +519,9 @@ void vfm_dump_one(const char *name)
 			pbuf += sprintf(pbuf, "vf->pts=%d\n", vf->pts);
 			pbuf += sprintf(pbuf, "vf->type=%d\n", vf->type);
 			if (vf->type & VIDTYPE_COMPRESS) {
-				pbuf += sprintf(pbuf, "vf compHeadAddr=%x\n",
+				pbuf += sprintf(pbuf, "vf compHeadAddr=%lx\n",
 						vf->compHeadAddr);
-				pbuf += sprintf(pbuf, "vf compBodyAddr =%x\n",
+				pbuf += sprintf(pbuf, "vf compBodyAddr =%lx\n",
 						vf->compBodyAddr);
 			} else {
 				pbuf += sprintf(pbuf, "vf canvas0Addr=%x\n",

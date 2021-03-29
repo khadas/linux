@@ -437,8 +437,8 @@ struct vframe_s {
 
 	u32 canvas0Addr;
 	u32 canvas1Addr;
-	u32 compHeadAddr;
-	u32 compBodyAddr;
+	ulong compHeadAddr;
+	ulong compBodyAddr;
 
 	u32 plane_num;
 	struct canvas_config_s canvas0_config[3];

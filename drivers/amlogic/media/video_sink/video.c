@@ -11540,10 +11540,10 @@ static ssize_t vframe_states_show(struct class *cla,
 				vf->type_original);
 			if (vf->type & VIDTYPE_COMPRESS) {
 				ret += sprintf(buf + ret,
-					"vf compHeadAddr=%x\n",
+					"vf compHeadAddr=%lx\n",
 						vf->compHeadAddr);
 				ret += sprintf(buf + ret,
-					"vf compBodyAddr =%x\n",
+					"vf compBodyAddr =%lx\n",
 						vf->compBodyAddr);
 			} else {
 				ret += sprintf(buf + ret,
