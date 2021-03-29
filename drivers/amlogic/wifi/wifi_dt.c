@@ -36,10 +36,11 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <linux/pwm.h>
 #include <linux/pci.h>
+#ifdef CONFIG_AMLOGIC_PWM_32K
+#include <linux/pwm.h>
 #include <linux/amlogic/pwm-meson.h>
-
+#endif
 #include "../../gpio/gpiolib-of.h"
 #define OWNER_NAME "sdio_wifi"
 
@@ -55,6 +56,7 @@ static const struct pcie_wifi_chip pcie_wifi[] = {
 int wifi_power_gpio;
 int wifi_power_gpio2;
 
+#ifdef CONFIG_AMLOGIC_PWM_32K
 /*
  *there are two pwm channel outputs using one gpio
  *for gxtvbb and the follows soc
@@ -74,6 +76,7 @@ struct pwm_single_data {
 	struct pwm_device *pwm;
 	unsigned int duty_cycle;
 };
+#endif
 
 struct wifi_plat_info {
 	int interrupt_pin;
@@ -93,8 +96,10 @@ struct wifi_plat_info {
 	int plat_info_valid;
 	struct pinctrl *p;
 	struct device		*dev;
+#ifdef CONFIG_AMLOGIC_PWM_32K
 	struct pwm_double_datas ddata;
 	struct pwm_single_data sdata;
+#endif
 };
 
 #define WIFI_POWER_MODULE_NAME	"wifi_power"
@@ -549,6 +554,7 @@ static void wifi_teardown_dt(void)
 		gpio_free(wifi_info.interrupt_pin);
 }
 
+#ifdef CONFIG_AMLOGIC_PWM_32K
 /*
  * for gxb ,m8b soc
  * single pwm channel
@@ -683,6 +689,7 @@ int pwm_double_channel_conf(struct wifi_plat_info *plat)
 
 	return 0;
 }
+#endif
 
 static int wifi_dev_probe(struct platform_device *pdev)
 {
@@ -774,20 +781,23 @@ static int wifi_dev_probe(struct platform_device *pdev)
 							0, NULL);
 		}
 
-		if (of_get_property(pdev->dev.of_node, "single_pwm", NULL)) {
-			WIFI_INFO("use single channel\n");
-			ret = pwm_single_channel_conf(plat);
-			if (ret)
-				pr_err("pwm config err\n");
-		} else {
-			WIFI_INFO("use double channel\n");
-			ret = pwm_double_channel_conf_dt(plat);
-			if (!ret)
-				pwm_double_channel_conf(plat);
-			else if (ret == -EPROBE_DEFER)
-				goto out;
+#ifdef CONFIG_AMLOGIC_PWM_32K
+		if (!of_get_property(pdev->dev.of_node, "disable-wifi-32k", NULL)) {
+			if (of_get_property(pdev->dev.of_node, "single_pwm", NULL)) {
+				WIFI_INFO("use single channel\n");
+				ret = pwm_single_channel_conf(plat);
+				if (ret)
+					pr_err("pwm config err\n");
+			} else {
+				WIFI_INFO("use double channel\n");
+				ret = pwm_double_channel_conf_dt(plat);
+				if (!ret)
+					pwm_double_channel_conf(plat);
+				else if (ret == -EPROBE_DEFER)
+					goto out;
+			}
 		}
-
+#endif
 		if (of_get_property(pdev->dev.of_node,
 				    "dhd_static_buf", NULL)) {
 			WIFI_INFO("dhd_static_buf setup\n");
