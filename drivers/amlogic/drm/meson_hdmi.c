@@ -88,7 +88,10 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 
 			mode = drm_mode_create(connector->dev);
 			strcpy(mode->name, hdmi_para->hdmitx_vinfo.name);
-
+			/* remove _4x3 suffix, in case misunderstand */
+			strp = strstr(mode->name, "_4x3");
+			if (strp)
+				*strp = '\0';
 			/*
 			 * filter 4k420 mode, 4k420 mode end with "420"
 			 * 2160p60hz420 to 2160p60hz
