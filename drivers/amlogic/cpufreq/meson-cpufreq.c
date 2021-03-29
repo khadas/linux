@@ -324,6 +324,7 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 			return PTR_ERR(opp);
 		}
 		volt_new = dev_pm_opp_get_voltage(opp);
+		dev_pm_opp_put(opp);
 		volt_old = meson_regulator_get_volate(cpu_reg);
 		volt_tol = volt_new * cpufreq_data->volt_tol / 100;
 		pr_debug("Found OPP: %lu kHz, %u, tolerance: %u\n",
