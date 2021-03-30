@@ -13,6 +13,7 @@
 #include <dt-bindings/power/t3-pd.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
+#include "mesong12a-bifrost.dtsi"
 / {
 	cpus:cpus {
 		#address-cells = <2>;
@@ -1104,5 +1105,54 @@
 			groups = "pwm_d_hiz_d";
 			function = "pwm_d_hiz";
 		};
+	};
+};
+
+&gpu{
+	reg =   <0 0xFE400000 0 0x04000>, /*mali APB bus base address*/
+		<0 0xFE002000 0 0x01000>, /*reset register*/
+		<0 0xFF800000 0 0x01000>, /*aobus TODO update*/
+		<0 0xFE000000 0 0x01000>, /*hiubus for clk cntl*/
+		<0 0xFE002000 0 0x01000>; /*reset register*/
+
+	interrupts = <0 144 4>, <0 145 4>, <0 146 4>;
+	interrupt-names = "GPU", "MMU", "JOB";
+	num_of_pp = <2>;
+	system-coherency = <31>;
+	clocks = <&clkc CLKID_MALI>;
+	clock-names = "gpu_mux";
+
+	/*
+	 * Mali clocking is provided by two identical clock paths
+	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
+	 * free mux to safely change frequency while running.
+	 */
+	assigned-clocks = <&clkc CLKID_MALI_0_SEL>,
+			  <&clkc CLKID_MALI_0>,
+			  <&clkc CLKID_MALI>; /* Glitch free mux */
+	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
+				 <0>, /* Do Nothing */
+				 <&clkc CLKID_MALI_0>;
+	assigned-clock-rates = <0>, /* Do Nothing */
+			       <800000000>,
+			       <0>; /* Do Nothing */
+
+	tbl =  <&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg>;
+
+	reset_cfg:reset_cfg {
+		reg_level = <0x11>;
+		reg_mask = <0x21>;
+		reg_bit = <2>;
+	};
+
+	capb_reset:capb_reset {
+		reg_level = <0x11>;
+		reg_mask = <0x21>;
+		reg_bit = <1>;
 	};
 };
