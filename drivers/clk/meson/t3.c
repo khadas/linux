@@ -111,7 +111,9 @@ static struct clk_regmap t3_sys_pll_dco = {
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll_dco",
 		.ops = &meson_secure_pll_v2_ops,
-		.parent_names = (const char *[]){ "xtal" },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
 		.num_parents = 1,
 		/*
 		 * This clock feeds the CPU, avoid disabling it
@@ -164,7 +166,9 @@ static struct clk_regmap t3_sys1_pll_dco = {
 	.hw.init = &(struct clk_init_data){
 		.name = "sys1_pll_dco",
 		.ops = &meson_secure_pll_v2_ops,
-		.parent_names = (const char *[]){ "xtal" },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
 		.num_parents = 1,
 		/*
 		 * Register has the risk of being directly operated
@@ -312,7 +316,9 @@ static struct clk_regmap t3_fixed_pll_dco = {
 	.hw.init = &(struct clk_init_data){
 		.name = "fixed_pll_dco",
 		.ops = &meson_clk_pll_ro_ops,
-		.parent_names = (const char *[]){ "xtal" },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
 		.num_parents = 1,
 		/*
 		 * This clock feeds the sysytem, avoid disabling it
@@ -640,7 +646,9 @@ static struct clk_regmap t3_gp0_pll_dco = {
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll_dco",
 		.ops = &meson_clk_pll_ops,
-		.parent_names = (const char *[]){ "xtal" },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
 		.num_parents = 1,
 		/*
 		 * Register has the risk of being directly operated
@@ -803,6 +811,13 @@ static const struct cpu_dyn_table t3_cpu_dyn_table[] = {
 	CPU_LOW_PARAMS(1000000000, 1, 0, 0),
 };
 
+static const struct clk_parent_data t3_cpu_dyn_clk_sel[] __initconst = {
+	{ .fw_name = "xtal", },
+	{ .hw = &t3_fclk_div2.hw },
+	{ .hw = &t3_fclk_div3.hw },
+	{ .hw = &t3_fclk_div2p5.hw },
+};
+
 static struct clk_regmap t3_cpu_dyn_clk = {
 	.data = &(struct meson_sec_cpu_dyn_data){
 		.table = t3_cpu_dyn_table,
@@ -813,13 +828,8 @@ static struct clk_regmap t3_cpu_dyn_clk = {
 	.hw.init = &(struct clk_init_data){
 		.name = "cpu_dyn_clk",
 		.ops = &meson_sec_cpu_dyn_ops,
-		.parent_data = (const struct clk_parent_data []) {
-			{ .fw_name = "xtal", },
-			{ .hw = &t3_fclk_div2.hw },
-			{ .hw = &t3_fclk_div3.hw },
-			{ .hw = &t3_fclk_div2p5.hw }
-		},
-		.num_parents = 4,
+		.parent_data = t3_cpu_dyn_clk_sel,
+		.num_parents = ARRAY_SIZE(t3_cpu_dyn_clk_sel),
 	},
 };
 
@@ -856,6 +866,13 @@ static const struct cpu_dyn_table t3_dsu_dyn_table[] = {
 	CPU_LOW_PARAMS(1500000000, 3, 0, 0),
 };
 
+static const struct clk_parent_data t3_dsu_dyn_clk_sel[] __initconst = {
+	{ .fw_name = "xtal", },
+	{ .hw = &t3_fclk_div2.hw },
+	{ .hw = &t3_fclk_div3.hw },
+	{ .hw = &t3_gp1_pll.hw },
+};
+
 static struct clk_regmap t3_dsu_dyn_clk = {
 	.data = &(struct meson_sec_cpu_dyn_data){
 		.table = t3_dsu_dyn_table,
@@ -866,13 +883,8 @@ static struct clk_regmap t3_dsu_dyn_clk = {
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_dyn_clk",
 		.ops = &meson_sec_cpu_dyn_ops,
-		.parent_data = (const struct clk_parent_data []) {
-			{ .fw_name = "xtal", },
-			{ .hw = &t3_fclk_div2.hw },
-			{ .hw = &t3_fclk_div3.hw },
-			{ .hw = &t3_gp1_pll.hw }
-		},
-		.num_parents = 4,
+		.parent_data = t3_dsu_dyn_clk_sel,
+		.num_parents = ARRAY_SIZE(t3_dsu_dyn_clk_sel),
 	},
 };
 
@@ -1053,7 +1065,9 @@ static struct clk_regmap t3_hifi_pll_dco = {
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll_dco",
 		.ops = &meson_clk_pll_ops,
-		.parent_names = (const char *[]){ "xtal" },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
 		.num_parents = 1,
 		/*
 		 * Register has the risk of being directly operated
@@ -1158,7 +1172,9 @@ static struct clk_regmap t3_pcie_pll_dco = {
 	.hw.init = &(struct clk_init_data){
 		.name = "pcie_pll_dco",
 		.ops = &meson_clk_pcie_pll_ops,
-		.parent_names = (const char *[]){ "xtal" },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
 		.num_parents = 1,
 		/*
 		 * Register has the risk of being directly operated
@@ -1256,6 +1272,11 @@ static struct clk_fixed_factor t3_mpll_50m_div = {
 	},
 };
 
+static const struct clk_parent_data t3_mpll_50m_sel[] __initconst = {
+	{ .fw_name = "xtal", },
+	{ .hw = &t3_mpll_50m_div.hw }
+};
+
 static struct clk_regmap t3_mpll_50m = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = ANACTRL_FIXPLL_CTRL3,
@@ -1265,11 +1286,8 @@ static struct clk_regmap t3_mpll_50m = {
 	.hw.init = &(struct clk_init_data){
 		.name = "mpll_50m",
 		.ops = &clk_regmap_mux_ro_ops,
-		.parent_data = (const struct clk_parent_data []) {
-			{ .fw_name = "xtal", },
-			{ .hw = &t3_mpll_50m_div.hw },
-		},
-		.num_parents = 2,
+		.parent_data = t3_mpll_50m_sel,
+		.num_parents = ARRAY_SIZE(t3_mpll_50m_sel),
 	},
 };
 
@@ -1576,7 +1594,9 @@ static struct clk_regmap t3_rtc_32k_clkin = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "rtc_32k_clkin",
 		.ops = &clk_regmap_gate_ops,
-		.parent_names = (const char *[]){ "xtal" },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
 		.num_parents = 1,
 	},
 };
@@ -1624,7 +1644,9 @@ static struct clk_regmap t3_rtc_32k_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "rtc_32k_div",
 		.ops = &meson_clk_dualdiv_ops,
-		.parent_names = (const char *[]){ "rtc_32k_clkin" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_rtc_32k_clkin.hw
+		},
 		.num_parents = 1,
 	},
 };
@@ -1637,7 +1659,9 @@ static struct clk_regmap t3_rtc_32k_xtal = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "rtc_32k_xtal",
 		.ops = &clk_regmap_gate_ops,
-		.parent_names = (const char *[]){ "rtc_32k_clkin" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_rtc_32k_clkin.hw
+		},
 		.num_parents = 1,
 	},
 };
@@ -1647,10 +1671,6 @@ static struct clk_regmap t3_rtc_32k_xtal = {
  * pad is from where?
  */
 static u32 rtc_32k_sel[] = {0, 1};
-static const char * const rtc_32k_sel_parent_names[] = {
-	"rtc_32k_xtal", "rtc_32k_div", "pad"
-};
-
 static struct clk_regmap t3_rtc_32k_sel = {
 	.data = &(struct clk_regmap_mux_data) {
 		.offset = CLKCTRL_RTC_CTRL,
@@ -1662,7 +1682,10 @@ static struct clk_regmap t3_rtc_32k_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "rtc_32k_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_names = rtc_32k_sel_parent_names,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_rtc_32k_xtal.hw,
+			&t3_rtc_32k_div.hw
+		},
 		.num_parents = 2,
 		/*
 		 * rtc 32k is directly used in other modules, and the
@@ -1680,7 +1703,9 @@ static struct clk_regmap t3_rtc_clk = {
 	.hw.init = &(struct clk_init_data){
 		.name = "rtc_clk",
 		.ops = &clk_regmap_gate_ops,
-		.parent_names = (const char *[]){ "rtc_32k_sel" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_rtc_32k_sel.hw
+		},
 		.num_parents = 1,
 		/*
 		 * rtc 32k is directly used in other modules, and the
@@ -1692,10 +1717,13 @@ static struct clk_regmap t3_rtc_clk = {
 
 /* sys clk */
 static u32 mux_table_sys_ab_clk_sel[] = { 0, 1, 2, 3, 4, 7 };
-/* TODO: need add axi_clk_frcpu */
-static const char * const sys_ab_clk_parent_names[] = {
-	"xtal", "fclk_div2", "fclk_div3", "fclk_div4",
-	"fclk_div5", "rtc_clk"
+static const struct clk_parent_data t3_table_sys_ab_clk_sel[] __initconst = {
+	{ .fw_name = "xtal", },
+	{ .hw = &t3_fclk_div2.hw },
+	{ .hw = &t3_fclk_div3.hw },
+	{ .hw = &t3_fclk_div4.hw },
+	{ .hw = &t3_fclk_div5.hw },
+	{ .hw = &t3_rtc_clk.hw }
 };
 
 static struct clk_regmap t3_sysclk_1_sel = {
@@ -1708,8 +1736,8 @@ static struct clk_regmap t3_sysclk_1_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "sysclk_1_sel",
 		.ops = &clk_regmap_mux_ro_ops,
-		.parent_names = sys_ab_clk_parent_names,
-		.num_parents = ARRAY_SIZE(sys_ab_clk_parent_names),
+		.parent_data = t3_table_sys_ab_clk_sel,
+		.num_parents = ARRAY_SIZE(t3_table_sys_ab_clk_sel),
 	},
 };
 
@@ -1722,7 +1750,9 @@ static struct clk_regmap t3_sysclk_1_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "sysclk_1_div",
 		.ops = &clk_regmap_divider_ro_ops,
-		.parent_names = (const char *[]){ "sysclk_1_sel" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_sysclk_1_sel.hw
+		},
 		.num_parents = 1,
 		.flags = CLK_GET_RATE_NOCACHE,
 	},
@@ -1736,7 +1766,9 @@ static struct clk_regmap t3_sysclk_1 = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "sysclk_1",
 		.ops = &clk_regmap_gate_ro_ops,
-		.parent_names = (const char *[]){ "sysclk_1_div" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_sysclk_1_div.hw
+		},
 		.num_parents = 1,
 	},
 };
@@ -1751,8 +1783,8 @@ static struct clk_regmap t3_sysclk_0_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "sysclk_0_sel",
 		.ops = &clk_regmap_mux_ro_ops,
-		.parent_names = sys_ab_clk_parent_names,
-		.num_parents = ARRAY_SIZE(sys_ab_clk_parent_names),
+		.parent_data = t3_table_sys_ab_clk_sel,
+		.num_parents = ARRAY_SIZE(t3_table_sys_ab_clk_sel),
 	},
 };
 
@@ -1765,7 +1797,9 @@ static struct clk_regmap t3_sysclk_0_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "sysclk_0_div",
 		.ops = &clk_regmap_divider_ro_ops,
-		.parent_names = (const char *[]){ "sysclk_0_sel" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_sysclk_0_sel.hw
+		},
 		.num_parents = 1,
 		.flags = CLK_GET_RATE_NOCACHE,
 	},
@@ -1779,13 +1813,12 @@ static struct clk_regmap t3_sysclk_0 = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "sysclk_0",
 		.ops = &clk_regmap_gate_ro_ops,
-		.parent_names = (const char *[]){ "sysclk_0_div" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_sysclk_0_div.hw
+		},
 		.num_parents = 1,
 	},
 };
-
-static const char * const sys_clk_parent_names[] = {
-	"sysclk_0", "sysclk_1"};
 
 static struct clk_regmap t3_sys_clk = {
 	.data = &(struct clk_regmap_mux_data){
@@ -1796,8 +1829,11 @@ static struct clk_regmap t3_sys_clk = {
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_clk",
 		.ops = &clk_regmap_mux_ro_ops,
-		.parent_names = sys_clk_parent_names,
-		.num_parents = ARRAY_SIZE(sys_clk_parent_names),
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_sysclk_0.hw,
+			&t3_sysclk_1.hw,
+		},
+		.num_parents = 2,
 		.flags = CLK_IS_CRITICAL,
 	},
 };
@@ -1811,7 +1847,9 @@ static struct clk_regmap t3_cecb_32k_clkin = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "cecb_32k_clkin",
 		.ops = &clk_regmap_gate_ops,
-		.parent_names = (const char *[]){ "xtal" },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
 		.num_parents = 1,
 	},
 };
@@ -1848,7 +1886,9 @@ static struct clk_regmap t3_cecb_32k_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "cecb_32k_div",
 		.ops = &meson_clk_dualdiv_ops,
-		.parent_names = (const char *[]){ "cecb_32k_clkin" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_cecb_32k_clkin.hw
+		},
 		.num_parents = 1,
 	},
 };
@@ -1863,8 +1903,10 @@ static struct clk_regmap t3_cecb_32k_sel_pre = {
 	.hw.init = &(struct clk_init_data){
 		.name = "cecb_32k_sel_pre",
 		.ops = &clk_regmap_mux_ops,
-		.parent_names = (const char *[]){ "cecb_32k_div",
-						"cecb_32k_clkin" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_cecb_32k_div.hw,
+			&t3_cecb_32k_clkin.hw
+		},
 		.num_parents = 2,
 		.flags = CLK_SET_RATE_PARENT,
 	},
@@ -1880,8 +1922,10 @@ static struct clk_regmap t3_cecb_32k_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "cecb_32k_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_names = (const char *[]){ "cecb_32k_sel_pre",
-						"rtc_clk" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_cecb_32k_sel_pre.hw,
+			&t3_rtc_clk.hw
+		},
 		.num_parents = 2,
 		.flags = CLK_SET_RATE_PARENT,
 	},
@@ -1895,13 +1939,15 @@ static struct clk_regmap t3_cecb_32k_clkout = {
 	.hw.init = &(struct clk_init_data){
 		.name = "cecb_32k_clkout",
 		.ops = &clk_regmap_gate_ops,
-		.parent_names = (const char *[]){ "cecb_32k_sel" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_cecb_32k_sel.hw
+		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static const struct clk_parent_data t3_sc_parent_data[] = {
+static const struct clk_parent_data t3_sc_parent_data[] __initconst = {
 	{ .hw = &t3_fclk_div4.hw },
 	{ .hw = &t3_fclk_div3.hw },
 	{ .hw = &t3_fclk_div5.hw },
@@ -1957,7 +2003,7 @@ static struct clk_regmap t3_sc_clk = {
 };
 
 /*dspa_clk*/
-static const struct clk_parent_data t3_dsp_parent_hws[] = {
+static const struct clk_parent_data t3_dsp_parent_hws[] __initconst = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div2p5.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -2089,7 +2135,9 @@ static struct clk_regmap t3_24m_clk_gate = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "24m_clk_gate",
 		.ops = &clk_regmap_gate_ops,
-		.parent_names = (const char *[]){ "xtal" },
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
 		.num_parents = 1,
 	},
 };
@@ -2100,7 +2148,9 @@ static struct clk_fixed_factor t3_24m_div2 = {
 	.hw.init = &(struct clk_init_data){
 		.name = "24m_div2",
 		.ops = &clk_fixed_factor_ops,
-		.parent_names = (const char *[]){ "24m_clk_gate" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_24m_clk_gate.hw
+		},
 		.num_parents = 1,
 	},
 };
@@ -2113,7 +2163,9 @@ static struct clk_regmap t3_12m_clk = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "12m_clk",
 		.ops = &clk_regmap_gate_ops,
-		.parent_names = (const char *[]){ "24m_div2" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_24m_div2.hw
+		},
 		.num_parents = 1,
 	},
 };
@@ -2127,7 +2179,9 @@ static struct clk_regmap t3_25m_clk_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "25m_clk_div",
 		.ops = &clk_regmap_divider_ops,
-		.parent_names = (const char *[]){ "fclk_div2" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_fclk_div2.hw
+		},
 		.num_parents = 1,
 	},
 };
@@ -2140,7 +2194,9 @@ static struct clk_regmap t3_25m_clk = {
 	.hw.init = &(struct clk_init_data){
 		.name = "25m_clk",
 		.ops = &clk_regmap_gate_ops,
-		.parent_names = (const char *[]){ "25m_clk_div" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_25m_clk_div.hw
+		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
@@ -2692,7 +2748,7 @@ static struct clk_regmap t3_hdmi_tx = {
  */
 static u32 mux_table_mali[] = { 0, 3, 4, 5, 6, 7};
 
-static const struct clk_parent_data t3_mali_0_1_parent_data[] = {
+static const struct clk_parent_data t3_mali_0_1_parent_data[] __initconst = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div2p5.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -2819,7 +2875,7 @@ static struct clk_regmap t3_mali = {
 	},
 };
 
-static const struct clk_parent_data t3_hdmirx_sys_parent_data[] = {
+static const struct clk_parent_data t3_hdmirx_sys_parent_data[] __initconst = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div4.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -3158,7 +3214,7 @@ static struct clk_regmap t3_vid_lock_clk  = {
 };
 
 /* cts_vdec_clk */
-static const struct clk_parent_data t3_dec_parent_hws[] = {
+static const struct clk_parent_data t3_dec_parent_hws[] __initconst = {
 	{ .hw = &t3_fclk_div2p5.hw },
 	{ .hw = &t3_fclk_div3.hw },
 	{ .hw = &t3_fclk_div4.hw },
@@ -4098,7 +4154,7 @@ static struct clk_regmap t3_ge2d_gate = {
 };
 
 /* cts_vdin_meas_clk */
-static const struct clk_parent_data t3_vdin_parent_hws[] = {
+static const struct clk_parent_data t3_vdin_parent_hws[] __initconst = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div4.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -4155,7 +4211,7 @@ static struct clk_regmap t3_vdin_meas = {
 	},
 };
 
-static const struct clk_parent_data t3_sd_emmc_clk0_parent_data[] = {
+static const struct clk_parent_data t3_sd_emmc_clk0_parent_data[] __initconst = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div2.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -4311,13 +4367,6 @@ static struct clk_regmap t3_sd_emmc_b_clk0 = {
 };
 
 /*bt656_clk*/
-static const struct clk_parent_data t3_bt_656_parent_data[] = {
-	{ .hw = &t3_fclk_div2.hw },
-	{ .hw = &t3_fclk_div3.hw },
-	{ .hw = &t3_fclk_div5.hw },
-	{ .hw = &t3_fclk_div7.hw },
-};
-
 static struct clk_regmap t3_bt_656_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_BT656_CLK_CTRL,
@@ -4327,8 +4376,13 @@ static struct clk_regmap t3_bt_656_sel = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "bt_656_clk_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = t3_bt_656_parent_data,
-		.num_parents = ARRAY_SIZE(t3_bt_656_parent_data),
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_fclk_div2.hw,
+			&t3_fclk_div3.hw,
+			&t3_fclk_div5.hw,
+			&t3_fclk_div7.hw
+		},
+		.num_parents = 4,
 		.flags = CLK_GET_RATE_NOCACHE
 	},
 };
@@ -4367,7 +4421,7 @@ static struct clk_regmap t3_bt_656 = {
 };
 
 /*cts_cdac_clk*/
-static const struct clk_parent_data t3_cdac_parent_data[] = {
+static const struct clk_parent_data t3_cdac_parent_data[] __initconst = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div5.hw },
 };
@@ -4421,7 +4475,7 @@ static struct clk_regmap t3_cdac = {
 };
 
 /*spicc clk*/
-static const struct clk_parent_data t3_spicc_parent_hws[] = {
+static const struct clk_parent_data t3_spicc_parent_hws[] __initconst = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_sys_clk.hw },
 	{ .hw = &t3_fclk_div4.hw },
@@ -4575,7 +4629,7 @@ static struct clk_regmap t3_spicc2 = {
 
 /* pwm clk */
 /* TODO: need add t3_vid_pll */
-static const struct clk_parent_data t3_pwm_parent_data[] = {
+static const struct clk_parent_data t3_pwm_parent_data[] __initconst = {
 	{ .fw_name = "xtal", },
 	/*{ .hw = &t3_vid_pll.hw },*/
 	{ .hw = &t3_fclk_div4.hw },
@@ -5062,6 +5116,11 @@ static struct clk_regmap t3_pwm_j = {
 	},
 };
 
+static const struct clk_parent_data t3_saradc_sel_clk_sel[] __initconst = {
+	{ .fw_name = "xtal", },
+	{ .hw = &t3_sys_clk.hw },
+};
+
 /*saradc clk*/
 static struct clk_regmap t3_saradc_sel = {
 	.data = &(struct clk_regmap_mux_data) {
@@ -5072,11 +5131,8 @@ static struct clk_regmap t3_saradc_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "saradc_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = (const struct clk_parent_data []) {
-			{ .fw_name = "xtal", },
-			{ .hw = &t3_sys_clk.hw },
-		},
-		.num_parents = 2,
+		.parent_data = t3_saradc_sel_clk_sel,
+		.num_parents = ARRAY_SIZE(t3_saradc_sel_clk_sel),
 	},
 };
 
@@ -5117,10 +5173,20 @@ static struct clk_regmap t3_saradc = {
 static u32 t3_gen_clk_mux_table[] = { 0, 5, 6, 7, 19, 21, 22,
 				23, 24, 25, 26, 27, 28 };
 
-static const char * const t3_gen_clk_parent_names[] = {
-	"xtal", "gp0_pll", "sys1_pll", "hifi_pll", "fclk_div2", "fclk_div3",
-	"fclk_div4", "fclk_div5", "fclk_div7", "mpll0", "mpll1",
-	"mpll2", "mpll3"
+static const struct clk_parent_data t3_gen_sel_clk_sel[] __initconst = {
+	{ .fw_name = "xtal", },
+	{ .hw = &t3_gp0_pll.hw },
+	{ .hw = &t3_sys1_pll.hw },
+	{ .hw = &t3_hifi_pll.hw },
+	{ .hw = &t3_fclk_div2.hw },
+	{ .hw = &t3_fclk_div3.hw },
+	{ .hw = &t3_fclk_div4.hw },
+	{ .hw = &t3_fclk_div5.hw },
+	{ .hw = &t3_fclk_div7.hw },
+	{ .hw = &t3_mpll0.hw },
+	{ .hw = &t3_mpll1.hw },
+	{ .hw = &t3_mpll2.hw },
+	{ .hw = &t3_mpll3.hw }
 };
 
 static struct clk_regmap t3_gen_sel = {
@@ -5133,8 +5199,8 @@ static struct clk_regmap t3_gen_sel = {
 	.hw.init = &(struct clk_init_data){
 		.name = "gen_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_names = t3_gen_clk_parent_names,
-		.num_parents = ARRAY_SIZE(t3_gen_clk_parent_names),
+		.parent_data = t3_gen_sel_clk_sel,
+		.num_parents = ARRAY_SIZE(t3_gen_sel_clk_sel),
 	},
 };
 
@@ -5147,7 +5213,9 @@ static struct clk_regmap t3_gen_div = {
 	.hw.init = &(struct clk_init_data){
 		.name = "gen_div",
 		.ops = &clk_regmap_divider_ops,
-		.parent_names = (const char *[]){ "gen_sel" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_gen_sel.hw
+		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
@@ -5161,7 +5229,9 @@ static struct clk_regmap t3_gen = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "gen",
 		.ops = &clk_regmap_gate_ops,
-		.parent_names = (const char *[]){ "gen_div" },
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_gen_div.hw
+		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
@@ -5279,7 +5349,7 @@ static struct clk_regmap t3_ts_clk = {
 };
 
 /*adc extclk in clkl*/
-static const struct clk_parent_data t3_adc_extclk_parent_data[] = {
+static const struct clk_parent_data t3_adc_extclk_parent_data[] __initconst = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div4.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -5338,7 +5408,7 @@ static struct clk_regmap t3_adc_extclk = {
 };
 
 /*cts demod core*/
-static const struct clk_parent_data t3_cts_demod_core_parent_data[] = {
+static const struct clk_parent_data t3_cts_demod_core_parent_data[] __initconst = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div7.hw },
 	{ .hw = &t3_fclk_div4.hw },
@@ -5441,7 +5511,7 @@ static struct clk_regmap t3_cts_demod_core_t2_clk = {
 };
 
 /*cts tcon pll clk*/
-static const struct clk_parent_data t3_cts_tcon_pll_clk_parent_data[] = {
+static const struct clk_parent_data t3_cts_tcon_pll_clk_parent_data[] __initconst = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div5.hw },
 	{ .hw = &t3_fclk_div4.hw },
@@ -5498,16 +5568,6 @@ static struct clk_regmap t3_cts_tcon_pll_clk = {
 };
 
 /*cts nna axi clk*/
-static const struct clk_parent_data t3_cts_nna_axi_clk_parent_data[] = {
-	{ .hw = &t3_fclk_div4.hw },
-	{ .hw = &t3_fclk_div3.hw },
-	{ .hw = &t3_fclk_div5.hw },
-	{ .hw = &t3_fclk_div2.hw },
-	{ .hw = &t3_mpll1.hw },
-	{ .hw = &t3_sys1_pll.hw },
-	{ .hw = &t3_fclk_div2p5.hw },
-};
-
 static u32 t3_cts_nna_axi_clk_table[] = {0, 1, 2, 3, 4, 6, 7};
 static struct clk_regmap t3_cts_nna_axi_clk_sel = {
 	.data = &(struct clk_regmap_mux_data){
@@ -5519,8 +5579,16 @@ static struct clk_regmap t3_cts_nna_axi_clk_sel = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "cts_nna_axi_clk_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = t3_cts_nna_axi_clk_parent_data,
-		.num_parents = ARRAY_SIZE(t3_cts_nna_axi_clk_parent_data),
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_fclk_div4.hw,
+			&t3_fclk_div3.hw,
+			&t3_fclk_div5.hw,
+			&t3_fclk_div2.hw,
+			&t3_mpll1.hw,
+			&t3_sys1_pll.hw,
+			&t3_fclk_div2p5.hw
+		},
+		.num_parents = 7,
 	},
 };
 
@@ -5568,8 +5636,16 @@ static struct clk_regmap t3_cts_nna_core_clk_sel = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "cts_nna_core_clk_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = t3_cts_nna_axi_clk_parent_data,
-		.num_parents = ARRAY_SIZE(t3_cts_nna_axi_clk_parent_data),
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_fclk_div4.hw,
+			&t3_fclk_div3.hw,
+			&t3_fclk_div5.hw,
+			&t3_fclk_div2.hw,
+			&t3_mpll1.hw,
+			&t3_sys1_pll.hw,
+			&t3_fclk_div2p5.hw
+		},
+		.num_parents = 7,
 	},
 };
 
@@ -5871,14 +5947,6 @@ static struct clk_regmap t3_frc = {
 };
 
 /*cts pcie 400m*/
-static const struct clk_parent_data t3_cts_pcie_400m_parent_data[] = {
-	{ .hw = &t3_fclk_div4.hw },
-	{ .hw = &t3_fclk_div3.hw },
-	{ .hw = &t3_fclk_div5.hw },
-	{ .hw = &t3_fclk_div2.hw },
-	{ .hw = &t3_mpll1.hw },
-};
-
 static struct clk_regmap t3_cts_pcie_400m_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_USB_CLK_CNTL,
@@ -5888,8 +5956,14 @@ static struct clk_regmap t3_cts_pcie_400m_sel = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "cts_pcie_400m_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = t3_cts_pcie_400m_parent_data,
-		.num_parents = ARRAY_SIZE(t3_cts_pcie_400m_parent_data),
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_fclk_div4.hw,
+			&t3_fclk_div3.hw,
+			&t3_fclk_div5.hw,
+			&t3_fclk_div2.hw,
+			&t3_mpll1.hw
+		},
+		.num_parents = 5,
 	},
 };
 
@@ -5927,14 +6001,6 @@ static struct clk_regmap t3_cts_pcie_400m = {
 };
 
 /*cts usb2 250*/
-static const struct clk_parent_data t3_cts_usb2_250m_parent_data[] = {
-	{ .hw = &t3_fclk_div4.hw },
-	{ .hw = &t3_fclk_div3.hw },
-	{ .hw = &t3_fclk_div5.hw },
-	{ .hw = &t3_fclk_div2.hw },
-	{ .hw = &t3_mpll1.hw },
-};
-
 static struct clk_regmap t3_cts_usb2_250m_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_USB_CLK_CNTL,
@@ -5944,8 +6010,14 @@ static struct clk_regmap t3_cts_usb2_250m_sel = {
 	.hw.init = &(struct clk_init_data) {
 		.name = "cts_usb2_250m_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = t3_cts_usb2_250m_parent_data,
-		.num_parents = ARRAY_SIZE(t3_cts_usb2_250m_parent_data),
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_fclk_div4.hw,
+			&t3_fclk_div3.hw,
+			&t3_fclk_div5.hw,
+			&t3_fclk_div2.hw,
+			&t3_mpll1.hw
+		},
+		.num_parents = 5,
 	},
 };
 
