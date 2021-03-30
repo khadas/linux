@@ -81,7 +81,7 @@ struct sync_session {
 	/* mutext for event handling */
 	struct mutex session_mutex;
 	struct class session_class;
-	char name[10];
+	char name[16];
 
 	/* target mode */
 	enum av_sync_mode mode;
@@ -141,6 +141,9 @@ struct sync_session {
 	struct timer_list start_timer;
 	bool timer_on;
 	bool start_posted;
+
+	/* debug */
+	bool debug_freerun;
 };
 
 struct msync {
@@ -184,6 +187,11 @@ enum {
 
 static struct msync sync;
 static int log_level;
+
+static u32 abs_diff(u32 a, u32 b)
+{
+	return (int)(a - b) > 0 ? a - b : b - a;
+}
 
 static void session_set_wall_clock(struct sync_session *session, u32 clock)
 {
@@ -235,30 +243,32 @@ int msync_vsync_update(void)
 }
 EXPORT_SYMBOL(msync_vsync_update);
 
+static void msync_update_mode(void)
+{
+	u32 inc;
+	unsigned long flags;
+	const struct vinfo_s *info;
+
+	info = get_current_vinfo();
+	/* pre-calculate vsync_pts_inc in 90k unit */
+	inc = 90000 * info->sync_duration_den /
+		info->sync_duration_num;
+	sync.vsync_pts_inc = inc;
+	spin_lock_irqsave(&sync.lock, flags);
+	sync.sync_duration_den = info->sync_duration_den;
+	sync.sync_duration_num = info->sync_duration_num;
+	spin_unlock_irqrestore(&sync.lock, flags);
+	msync_dbg(0, "vsync_pts_inc %d %d/%d\n", inc,
+		sync.sync_duration_den, sync.sync_duration_num);
+}
+
 static int msync_notify_callback(struct notifier_block *block,
 		unsigned long cmd, void *para)
 {
-	const struct vinfo_s *info;
-
 	switch (cmd) {
 	case VOUT_EVENT_MODE_CHANGE:
-	{
-		u32 inc;
-		unsigned long flags;
-
-		info = get_current_vinfo();
-		/* pre-calculate vsync_pts_inc in 90k unit */
-		inc = 90000 * info->sync_duration_den /
-			info->sync_duration_num;
-		sync.vsync_pts_inc = inc;
-		spin_lock_irqsave(&sync.lock, flags);
-		sync.sync_duration_den = info->sync_duration_den;
-		sync.sync_duration_num = info->sync_duration_num;
-		spin_unlock_irqrestore(&sync.lock, flags);
-		msync_dbg(0, "vsync_pts_inc %d %d/%d\n", inc,
-			sync.sync_duration_den, sync.sync_duration_num);
+		msync_update_mode();
 		break;
-	}
 	default:
 		break;
 	}
@@ -323,6 +333,8 @@ static void use_pcr_clock(struct sync_session *session, bool enable, u32 pts)
 		session->use_pcr = true;
 		session->clock_start = false;
 		session_set_wall_clock(session, session->pcr_clock);
+		msync_dbg(LOG_INFO, "[%d]%s clock stop\n",
+			session->id, __func__);
 	} else {
 		/* use wall clock as reference */
 		session->use_pcr = false;
@@ -419,9 +431,9 @@ static void pcr_set(struct sync_session *session)
 	if (VALID_PTS(cur_pcr) && VALID_PTS(cur_vpts) && VALID_PTS(cur_apts)) {
 		u32 gap_pa, gap_pv, gap_av;
 
-		gap_pa = abs(cur_pcr - cur_apts);
-		gap_av = abs(cur_apts - cur_vpts);
-		gap_pv = abs(cur_pcr - cur_vpts);
+		gap_pa = abs_diff(cur_pcr, cur_apts);
+		gap_av = abs_diff(cur_apts, cur_vpts);
+		gap_pv = abs_diff(cur_pcr, cur_vpts);
 		if (gap_pa > MAX_GAP && gap_pv > MAX_GAP) {
 			if (gap_av > MAX_GAP)
 				ref_pcr = cur_vpts;
@@ -450,7 +462,7 @@ static void pcr_set(struct sync_session *session)
 
 	if (VALID_PTS(cur_pcr) && VALID_PTS(min_pts)) {
 		session->pcr_init_flag |= INITCHECK_PCR;
-		if (abs(cur_pcr - cur_vpts) > PCR_INVALID_THRES) {
+		if (abs_diff(cur_pcr, cur_vpts) > PCR_INVALID_THRES) {
 			if (VALID_PTS(session->first_vpts.pts))
 				ref_pcr = session->first_vpts.pts;
 			else
@@ -462,7 +474,7 @@ static void pcr_set(struct sync_session *session)
 		} else if (((cur_pcr > min_pts) &&
 			   (cur_pcr - min_pts) > (UNIT90K / 2)) ||
 			   session->use_pcr) {
-			if (abs(cur_apts - cur_vpts) > MAX_GAP) {
+			if (abs_diff(cur_apts, cur_vpts) > MAX_GAP) {
 				if (VALID_PTS(session->first_vpts.pts))
 					ref_pcr = session->first_vpts.pts;
 				else
@@ -748,7 +760,7 @@ static void session_video_disc_iptv(struct sync_session *session, u32 pts)
 	if (VALID_PTS(session->pcr_clock))
 		wall = session->pcr_clock;
 	if (VALID_PTS(session->pcr_clock) &&
-		abs(pts - last_pts) > session->disc_thres_min) {
+		abs_diff(pts, last_pts) > session->disc_thres_min) {
 		session->v_disc = true;
 		if (session->a_disc) {
 			session->v_disc = false;
@@ -763,7 +775,7 @@ static void session_video_disc_iptv(struct sync_session *session, u32 pts)
 		}
 		goto exit;
 	}
-	if (abs(pts - last_pts) > session->disc_thres_min)
+	if (abs_diff(pts, last_pts) > session->disc_thres_min)
 		session->v_disc = true;
 exit:
 	mutex_unlock(&session->session_mutex);
@@ -844,7 +856,7 @@ static void session_update_vpts(struct sync_session *session)
 
 		if (pts > p->delay)
 			pts -= p->delay;
-		if (abs(pts - session->wall_clock) >=
+		if (abs_diff(pts, session->wall_clock) >=
 			session->wall_adj_thres) {
 			unsigned long flags;
 
@@ -865,18 +877,20 @@ static void session_update_apts(struct sync_session *session)
 		struct pts_tri *p = &session->last_apts;
 		u32 pts = p->pts;
 
+		if (session->debug_freerun)
+			return;
 		if (pts > p->delay)
 			pts -= p->delay;
-		if (abs(pts - session->wall_clock) >=
+		if (abs_diff(pts, session->wall_clock) >=
 			session->wall_adj_thres) {
 			unsigned long flags;
 
 			/* correct wall with apts */
+			msync_dbg(LOG_WARN, "[%d]a reset wall %u --> %u\n",
+				session->id, session->wall_clock, pts);
 			spin_lock_irqsave(&sync.lock, flags);
 			session->wall_clock = pts;
 			spin_unlock_irqrestore(&sync.lock, flags);
-			msync_dbg(LOG_WARN, "[%d]a reset wall %u\n",
-				session->id, pts);
 		}
 	}
 }
@@ -893,7 +907,7 @@ static void pcr_check(struct sync_session *session)
 		if (VALID_PTS(checkin_apts) &&
 			VALID_PTS(session->last_check_apts)) {
 			/* apts timeout */
-			if (abs(session->last_check_apts - checkin_apts)
+			if (abs_diff(session->last_check_apts, checkin_apts)
 				> 2 * UNIT90K) {
 				session->pcr_disc_flag |= AUDIO_DISC;
 				msync_dbg(LOG_DEBUG, "[%d] adisc\n", __LINE__);
@@ -921,7 +935,7 @@ static void pcr_check(struct sync_session *session)
 		if (VALID_PTS(checkin_vpts) &&
 			VALID_PTS(session->last_check_vpts)) {
 			/* vpts timeout */
-			if (abs(session->last_check_vpts - checkin_vpts)
+			if (abs_diff(session->last_check_vpts, checkin_vpts)
 				> 2 * UNIT90K)
 				session->pcr_disc_flag |= VIDEO_DISC;
 			if (session->last_check_vpts == checkin_vpts) {
@@ -945,7 +959,7 @@ static void pcr_check(struct sync_session *session)
 		if (VALID_PTS(session->pcr_clock) &&
 			VALID_PTS(session->last_check_pcr_clock)) {
 			/* pcr timeout */
-			pcr_diff = abs(session->pcr_clock -
+			pcr_diff = abs_diff(session->pcr_clock,
 				session->last_check_pcr_clock);
 			if (pcr_diff > PCR_DISC_THRES &&
 				session->pcr_init_flag >= INITCHECK_PCR) {
@@ -953,7 +967,7 @@ static void pcr_check(struct sync_session *session)
 				session->pcr_disc_clock = session->pcr_clock;
 				msync_dbg(LOG_WARN, "[%d] pdisc", __LINE__);
 			} else if (PCR_DISC_SET(session->pcr_disc_flag)) {
-				if (abs(session->pcr_clock -
+				if (abs_diff(session->pcr_clock,
 					session->pcr_disc_clock) >
 					(4 * UNIT90K)) {
 					/* to pause the pcr check */
@@ -992,7 +1006,7 @@ static void pcr_check(struct sync_session *session)
 			VALID_PTS(checkin_apts) &&
 			VALID_PTS(checkin_vpts)) {
 #if 0 //none sense not used anywhere
-			if (abs(checkin_apts - checkin_vpts) > MAX_GAP)
+			if (abs_diff(checkin_apts, checkin_vpts) > MAX_GAP)
 				ref_pcr = checkin_vpts;
 			else
 				ref_pcr = min(checkin_vpts, checkin_apts);
@@ -1005,7 +1019,7 @@ static void pcr_check(struct sync_session *session)
 
 	if (VALID_PTS(session->pcr_clock) &&
 		VALID_PTS(session->last_check_pcr_clock)) {
-		pcr_diff = abs(session->pcr_clock -
+		pcr_diff = abs_diff(session->pcr_clock,
 				session->last_check_pcr_clock);
 		if (pcr_diff > PCR_DISC_THRES) {
 			session->last_check_pcr_clock = session->pcr_clock;
@@ -1016,7 +1030,7 @@ static void pcr_check(struct sync_session *session)
 			session->pcr_disc_cnt = 0;
 			session->last_check_pcr_clock = session->pcr_clock;
 			if (!session->use_pcr &&
-				abs(session->pcr_clock - checkin_vpts) <
+				abs_diff(session->pcr_clock, checkin_vpts) <
 				session->disc_thres_min &&
 				session->pcr_cont_cnt > 10) {
 				use_pcr_clock(session, true, 0);
@@ -1232,7 +1246,10 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 
 		wall.interval = sync.vsync_pts_inc;
 		if (session->mode != AVS_MODE_PCR_MASTER) {
-			wall.wall_clock = session->wall_clock;
+			if (session->clock_start)
+				wall.wall_clock = session->wall_clock;
+			else
+				wall.wall_clock = AVS_INVALID_PTS;
 		} else {
 			if (session->use_pcr)
 				wall.wall_clock = session->pcr_clock;
@@ -1451,10 +1468,33 @@ static ssize_t disc_thres_max_store(struct class *cla,
 	return count;
 }
 
+static ssize_t session_free_run_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	struct sync_session *session;
+
+	session = container_of(cla, struct sync_session, session_class);
+	return sprintf(buf, "%u", session->debug_freerun);
+}
+
+static ssize_t session_free_run_store(struct class *cla,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	struct sync_session *session;
+	size_t r;
+
+	session = container_of(cla, struct sync_session, session_class);
+	r = kstrtobool(buf, &session->debug_freerun);
+	if (r != 0)
+		return -EINVAL;
+	return count;
+}
+
 static struct class_attribute session_attrs[] = {
 	__ATTR_RO(session_stat),
 	__ATTR_RW(disc_thres_min),
 	__ATTR_RW(disc_thres_max),
+	__ATTR_RW(session_free_run),
 	__ATTR_NULL
 };
 
@@ -1462,6 +1502,7 @@ static struct attribute *session_class_attrs[] = {
 	&session_attrs[0].attr,
 	&session_attrs[1].attr,
 	&session_attrs[2].attr,
+	&session_attrs[3].attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(session_class);
@@ -1511,7 +1552,7 @@ static int create_session(u32 id)
 	init_waitqueue_head(&session->poll_wait);
 	session->rate = 1000;
 	session->stat = AVS_STAT_INIT;
-	strncpy(session->name, "default", sizeof(session->name));
+	strncpy(session->name, current->comm, sizeof(session->name));
 	session->first_vpts.pts = AVS_INVALID_PTS;
 	session->last_vpts.pts = AVS_INVALID_PTS;
 	session->first_apts.pts = AVS_INVALID_PTS;
@@ -1707,6 +1748,16 @@ static ssize_t log_level_store(struct class *cla,
 	return count;
 }
 
+static ssize_t vout_mode_show(struct class *cla,
+		struct class_attribute *attr,
+		char *buf)
+{
+	return sprintf(buf, "den %d num %d inc %d\n",
+			sync.sync_duration_den,
+			sync.sync_duration_num,
+			sync.vsync_pts_inc);
+}
+
 static ssize_t list_session_show(struct class *cla,
 		struct class_attribute *attr, char *buf)
 {
@@ -1737,12 +1788,14 @@ static struct class_attribute msync_attrs[] = {
 		log_level_show,
 		log_level_store),
 	__ATTR_RO(list_session),
+	__ATTR_RO(vout_mode),
 	__ATTR_NULL
 };
 
 static struct attribute *msync_class_attrs[] = {
 	&msync_attrs[0].attr,
 	&msync_attrs[1].attr,
+	&msync_attrs[2].attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(msync_class);
@@ -1788,6 +1841,7 @@ int __init msync_init(void)
 	}
 	sync.lock = __SPIN_LOCK_UNLOCKED(sync.lock);
 	INIT_LIST_HEAD(&sync.head);
+	msync_update_mode();
 	sync.msync_notifier.notifier_call = msync_notify_callback;
 	vout_register_client(&sync.msync_notifier);
 	sync.ready = true;
