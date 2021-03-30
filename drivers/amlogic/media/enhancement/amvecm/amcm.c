@@ -202,7 +202,7 @@ void am_set_regmap(struct am_regs_s *p)
 				VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
 						  val);
 			} else {
-				temp = VSYNC_RD_MPEG_REG(VPP_CHROMA_DATA_PORT);
+				temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 				VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT,
 						  addr);
 				VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
@@ -258,7 +258,7 @@ void am_set_regmap(struct am_regs_s *p)
 						val = val & 0xffffffef;
 				}
 				if (pq_reg_wr_rdma) {
-					temp = VSYNC_RD_MPEG_REG(addr);
+					temp = READ_VPP_REG(addr);
 					VSYNC_WR_MPEG_REG(addr,
 							  (temp & (~mask)) |
 					       (val & mask));
