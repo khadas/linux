@@ -2447,13 +2447,15 @@ void hdcp_22_on(void)
 	} else {
 		hdcp22_kill_esm = 0;
 		/* switch_set_state(&rx.hpd_sdev, 0x0); */
-		//extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0);
+		/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0); */
+		rx_hdcp22_send_uevent(0);
 		hdcp22_clk_en(1);
 		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
 		/* rx_hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1); */
 		/* hdmirx_hw_config(); */
 		/* switch_set_state(&rx.hpd_sdev, 0x1); */
-		//extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1);
+		/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1); */
+		rx_hdcp22_send_uevent(1);
 		hpd_to_esm = 1;
 		/* dont need to delay 900ms to wait sysctl start hdcp_rx22,*/
 		/*sysctl is userspace it wakes up later than driver */
@@ -4173,7 +4175,8 @@ void rx_debug_load22key(void)
 			msleep(20);
 		}
 		hdcp22_kill_esm = 0;
-		//extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0);
+		/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0); */
+		rx_hdcp22_send_uevent(0);
 		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x0);
 		/* if key_a is already exist on platform,*/
 		/*need to set valid bit to 0 before burning key_b,*/
@@ -4185,7 +4188,8 @@ void rx_debug_load22key(void)
 		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
 		/* rx_hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1); */
 		hdcp22_clk_en(1);
-		//extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1);
+		/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1); */
+		rx_hdcp22_send_uevent(1);
 		mdelay(100);
 		hdmi_rx_top_edid_update();
 		hdmirx_hw_config();

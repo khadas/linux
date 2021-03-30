@@ -227,9 +227,11 @@ int rx_set_receiver_edid(const char *data, int len)
 void rx_hdcp14_resume(void)
 {
 	hdcp22_kill_esm = 0;
-	//extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0);
+	/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0); */
+	rx_hdcp22_send_uevent(0);
 	hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
-	//extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1);
+	/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1); */
+	rx_hdcp22_send_uevent(1);
 	hpd_to_esm = 1;
 	rx_pr("hdcp14 on\n");
 }

@@ -524,36 +524,6 @@ static int hdmi_dec_callmaster(enum tvin_port_e port,
 	return status;
 }
 
-int hdmirx_set_uevent(enum hdmirx_event type, int val)
-{
-	/*
-	 * char env[MAX_UEVENT_LEN];
-	 * struct hdmitx_uevent *event = hdmi_events;
-	 * struct hdmitx_dev *hdev = &hdmitx_device;
-	 * char *envp[2];
-	 * int ret = -1;
-
-	 * for (event = hdmi_events; event->type != HDMITX_NONE_EVENT; event++) {
-	 * if (type == event->type)
-	 * break;
-	 * }
-	 * if (event->type == HDMITX_NONE_EVENT)
-	 * return ret;
-	 * if (event->state == val)
-	 * return ret;
-	 *
-	 *
-	 * event->state = val;
-	 * memset(env, 0, sizeof(env));
-	 * envp[0] = env;
-	 * envp[1] = NULL;
-	 * snprintf(env, MAX_UEVENT_LEN, "%s%d", event->env, val);
-
-	 * ret = kobject_uevent_env(&hdev->hdtx_dev->kobj, KOBJ_CHANGE, envp);
-	 */
-	return 0;
-}
-
 static struct tvin_decoder_ops_s hdmirx_dec_ops = {
 	.support    = hdmirx_dec_support,
 	.open       = hdmirx_dec_open,
@@ -2226,6 +2196,31 @@ void rx_emp_resource_allocate(struct device *dev)
 	}
 }
 
+int rx_hdcp22_send_uevent(int val)
+{
+	char env[MAX_UEVENT_LEN];
+	char *envp[2];
+	int ret = 0;
+	static int val_pre = 2;
+
+	if (val == val_pre)
+		return ret;
+	val_pre = val;
+	if (log_level & HDCP_LOG)
+		rx_pr("rx22 new event-%d\n", val);
+	if (!hdmirx_dev) {
+		rx_pr("no hdmirx_dev\n");
+		return -1;
+	}
+
+	memset(env, 0, sizeof(env));
+	envp[0] = env;
+	envp[1] = NULL;
+	snprintf(env, MAX_UEVENT_LEN, "rx22=%d", val);
+
+	ret = kobject_uevent_env(&hdmirx_dev->kobj, KOBJ_CHANGE, envp);
+	return ret;
+}
 void rx_tmds_resource_allocate(struct device *dev)
 {
 	/*u32 *src_v_addr;*/
@@ -2662,7 +2657,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 		 "hdmirx%d-irq", hdevp->index);
 	rx_pr("hdevpd irq: %d, %d\n", hdevp->index,
 	      hdevp->irq);
-	//hdmirx_extcon_register(pdev, hdevp->dev);
 	if (request_irq(hdevp->irq,
 			&irq_handler,
 			IRQF_SHARED,

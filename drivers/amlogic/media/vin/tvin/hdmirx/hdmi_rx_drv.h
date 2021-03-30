@@ -50,8 +50,8 @@
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
 
-/* update err cnt logic */
-#define RX_VER2 "ver.2021/03/22"
+/* update uevent api for rx22 */
+#define RX_VER2 "ver.2021/03/30"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
@@ -731,4 +731,6 @@ void hdmirx_fill_key_buf(const char *buf, int size);
 /* for other modules */
 int rx_is_hdcp22_support(void);
 int hdmirx_get_connect_info(void);
+int rx_hdcp22_send_uevent(int val);
+
 #endif

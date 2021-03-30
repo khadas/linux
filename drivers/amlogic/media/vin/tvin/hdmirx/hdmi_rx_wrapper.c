@@ -368,11 +368,13 @@ void rx_hpd_to_esm_handle(struct work_struct *work)
 {
 	cancel_delayed_work(&esm_dwork);
 	/* switch_set_state(&rx.hpd_sdev, 0x0); */
-	//extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0);
+	/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0); */
+	rx_hdcp22_send_uevent(0);
 	rx_pr("esm_hpd-0\n");
-	mdelay(80);
+	msleep(80);
 	/* switch_set_state(&rx.hpd_sdev, 0x01); */
-	//extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1);
+	/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1); */
+	rx_hdcp22_send_uevent(1);
 	rx_pr("esm_hpd-1\n");
 }
 
@@ -2499,7 +2501,7 @@ void hdmirx_open_port(enum tvin_port_e port)
 	sm_pause = fsmst;
 	if (rx.phy_ver >= PHY_VER_TM2)
 		rx.aml_phy.pre_int = 1;
-	//extcon_set_state_sync(rx.rx_excton_open, EXTCON_DISP_HDMI, 1);
+	/* extcon_set_state_sync(rx.rx_excton_open, EXTCON_DISP_HDMI, 1); */
 	rx_pr("%s:%d\n", __func__, rx.port);
 }
 
@@ -2511,7 +2513,7 @@ void hdmirx_close_port(void)
 	/* when exit hdmi, disable termination & hpd of specific port */
 	if (disable_port_en)
 		rx_set_port_hpd(disable_port_num, 0);
-	//extcon_set_state_sync(rx.rx_excton_open, EXTCON_DISP_HDMI, 0);
+	/* extcon_set_state_sync(rx.rx_excton_open, EXTCON_DISP_HDMI, 0); */
 	/* after port close, stop count DE/AVI infoframe */
 	rx.var.de_stable = false;
 	rx.var.de_cnt = 0;
@@ -3630,11 +3632,11 @@ int hdmirx_debug(const char *buf, int size)
 	} else if (strncmp(tmpbuf, "load22key", 9) == 0) {
 		rx_debug_load22key();
 	} else if (strncmp(tmpbuf, "esm0", 4) == 0) {
-		/*switch_set_state(&rx.hpd_sdev, 0x00);*/
-		extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0);
+		rx_hdcp22_send_uevent(0);
 	} else if (strncmp(tmpbuf, "esm1", 4) == 0) {
 		/*switch_set_state(&rx.hpd_sdev, 0x01);*/
-		extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1);
+		/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1); */
+		rx_hdcp22_send_uevent(1);
 	} else if (strncmp(input[0], "pktinfo", 7) == 0) {
 		rx_debug_pktinfo(input);
 	} else if (strncmp(tmpbuf, "parse_edid", 10) == 0) {
