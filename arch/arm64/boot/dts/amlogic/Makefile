@@ -3,6 +3,7 @@ dtb-y += sm1_s905x3_ac213.dtb
 dtb-y += sm1_s905x3_ac214.dtb
 dtb-y += meson-a1-ad401.dtb
 dtb-y += tm2_t962e2_ab311.dtb
+dtb-y += tm2_t962e2_ab311_drm.dtb
 dtb-y += t7_pxp.dtb
 dtb-y += t7_a311d2_an400.dtb
 dtb-y += t7_a311d2_an400_8g.dtb
