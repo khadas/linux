@@ -188,6 +188,10 @@
 
 #define VPP_VD1_CLIP_MISC0                0x1de1
 #define VPP_VD1_CLIP_MISC1                0x1de2
+#define VPP_VD2_CLIP_MISC0                0x1de3
+#define VPP_VD2_CLIP_MISC1                0x1de4
+#define VPP_VD3_CLIP_MISC0                0x1de5
+#define VPP_VD3_CLIP_MISC1                0x1de6
 
 #define VPP2_MISC                         0x1e26
 #define VPP2_OFIFO_SIZE                   0x1e27

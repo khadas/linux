@@ -139,6 +139,7 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	bool layer3_used = false;
 	int i;
 	bool vpp1_used = false, vpp2_used = false;
+	bool wait = false;
 
 	if (!ins)
 		return;
@@ -209,15 +210,21 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 		atomic_set(&cur_primary_src_fmt, VFRAME_SIGNAL_FMT_INVALID);
 	}
 
-	if (!layer1_used && !layer2_used)
+	if (!layer1_used && !layer2_used) {
 		ins->cur_buf = NULL;
+	} else {
+		ins->request_exit = true;
+		ins->do_exit = false;
+		ins->exited = false;
+		wait = true;
+	}
 
 	if (layer1_used)
-		safe_switch_videolayer(0, false, false);
+		safe_switch_videolayer(0, false, true);
 	if (layer2_used)
-		safe_switch_videolayer(1, false, false);
+		safe_switch_videolayer(1, false, true);
 	if (layer3_used)
-		safe_switch_videolayer(2, false, false);
+		safe_switch_videolayer(2, false, true);
 
 	pr_info("%s %s: vd1 used: %s, vd2 used: %s, vd3 used: %s, black_out:%d, cur_buf:%p\n",
 		__func__,
@@ -234,6 +241,9 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 		atomic_dec(&video_unreg_flag_vpp[0]);
 	if (vpp2_used)
 		atomic_dec(&video_unreg_flag_vpp[1]);
+
+	while (wait && (!ins->exited || ins->request_exit))
+		schedule();
 }
 
 static void common_vf_light_unreg_provider(struct video_recv_s *ins)
@@ -302,6 +312,9 @@ static int common_receiver_event_fun(int type,
 		common_vf_light_unreg_provider(ins);
 		ins->drop_vf_cnt = 0;
 		ins->active = true;
+		ins->request_exit = false;
+		ins->do_exit = false;
+		ins->exited = false;
 	}
 	return 0;
 }
@@ -419,6 +432,10 @@ static s32 recv_common_early_process(struct video_recv_s *ins, u32 op)
 		}
 		ins->buf_to_put_num = 0;
 	}
+	if (ins->do_exit) {
+		ins->exited = true;
+		ins->do_exit = false;
+	}
 	return 0;
 }
 
@@ -436,6 +453,11 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins)
 		return NULL;
 	}
 
+	if (ins->request_exit) {
+		ins->do_exit = true;
+		ins->exited = false;
+		ins->request_exit = false;
+	}
 	vf = common_vf_peek(ins);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (glayer_info[0].display_path_id == ins->path_id &&

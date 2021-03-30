@@ -46,6 +46,9 @@ struct video_recv_s {
 	bool switch_vf;
 	bool last_switch_state;
 	bool active;
+	bool request_exit;
+	bool do_exit;
+	bool exited;
 
 	u32 notify_flag;
 	u32 blackout;
