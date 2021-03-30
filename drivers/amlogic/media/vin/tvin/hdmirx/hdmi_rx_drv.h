@@ -20,8 +20,8 @@
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 
-/* add aud param interface */
-#define RX_VER0 "ver.2021/03/25"
+/* tm2 dts enable */
+#define RX_VER0 "ver.2021/03/30"
 
 /*print type*/
 #define	LOG_EN		0x01
