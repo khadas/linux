@@ -24,6 +24,7 @@
 #define HHI_DADC_CNTL2		0x28
 #define HHI_DADC_CNTL3		0x2a
 #define HHI_DADC_CNTL4		0x2b
+#define HHI_VDAC_CNTL1_T5	0xbc
 
 #define HHI_ADC_PLL_CNTL3	0xac
 #define HHI_ADC_PLL_CNTL	0xaa
@@ -32,6 +33,7 @@
 #define HHI_ADC_PLL_CNTL4	0xad
 #define HHI_ADC_PLL_CNTL5	0x9e
 #define HHI_ADC_PLL_CNTL6	0x9f
+#define HHI_ADC_PLL_CNTL0_TL1	0xb0
 
 #define HHI_DEMOD_CLK_CNTL	0x74
 

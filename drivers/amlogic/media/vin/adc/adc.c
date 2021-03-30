@@ -684,6 +684,13 @@ void adc_pll_down(void)
 	    adc_rd_hiu_bits(pll_addr->adc_pll_cntl_0, 28, 1)) {
 		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0, 0, 28, 1);
 	}
+
+	if (!adc_devp->pll_flg && (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T5D)) {
+		adc_wr_hiu_bits(HHI_VDAC_CNTL1_T5, 0, 3, 1);
+		adc_wr_hiu_bits(HHI_DADC_CNTL3, 0, 0, 2);
+		adc_wr_hiu_bits(HHI_ADC_PLL_CNTL0_TL1, 0, 28, 1);
+	}
 }
 EXPORT_SYMBOL(adc_pll_down);
 

@@ -616,6 +616,7 @@ void tvafe_enable_module(bool enable)
 		W_APB_BIT(TVFE_VAFE_CTRL2, 0, 28, 1);
 		/*disable afe buffer*/
 		W_APB_BIT(TVFE_VAFE_CTRL2, 0, 0, 1);
+		W_APB_BIT(TVFE_VAFE_CTRL2, 0, 21, 1);
 
 		/* tvfe power down */
 		W_APB_BIT(TVFE_TOP_CTRL, 0, COMP_CLK_ENABLE_BIT,
