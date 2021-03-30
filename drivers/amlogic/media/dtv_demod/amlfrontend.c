@@ -3296,6 +3296,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 		if (demod->act_dtmb) {
 			dtmb_poll_stop(demod); /*polling mode*/
 			/* close arbit */
+			demod_top_write_reg(DEMOD_TOP_REG0, 0x0);
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x0);
 			demod->act_dtmb = false;
 		}
@@ -4384,6 +4385,10 @@ static __maybe_unused int dtv_demod_pm_suspend(struct device *dev)
 			(struct amldtvdemod_device_s *)platform_get_drvdata(pdev);
 
 	ret = dtvdemod_leave_mode(devp);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ADC
+	adc_pll_down();
+#endif
 
 	PR_INFO("%s ret %d, OK.\n", __func__, ret);
 
