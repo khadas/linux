@@ -5654,7 +5654,8 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		#else
 		in_buf_num = nins_cnt_used_all(pch);
 		#endif
-		if (in_buf_num > BYPASS_GET_MAX_BUF_NUM) {
+		if (dip_itf_is_vfm(pch) &&
+		    in_buf_num > BYPASS_GET_MAX_BUF_NUM) {
 #ifdef DET3D
 			if (ppre->vframe_interleave_flag == 0)
 #endif

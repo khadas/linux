@@ -1581,7 +1581,7 @@ enum QBF_NINS_Q_TYPE {
 	QBF_NINS_Q_NUB,
 };
 
-#define DIM_NINS_NUB	(11) /* buf number*/
+#define DIM_NINS_NUB	(16) /* buf number*/
 
 struct dsub_nins_s {
 	void *ori;
