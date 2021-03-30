@@ -4497,6 +4497,7 @@ static void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1
 
 	if ((vf->flag & (VFRAME_FLAG_VIDEO_COMPOSER |
 	    VFRAME_FLAG_VIDEO_DRM)) &&
+	    !(vf->flag & VFRAME_FLAG_FAKE_FRAME) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
 		axis[0] = vf->axis[0];
 		axis[1] = vf->axis[1];
@@ -6730,10 +6731,22 @@ SET_FILTER:
 		cur_blackout = blackout | force_blackout;
 	} else if (vd1_path_id == VFM_PATH_AUTO) {
 		new_frame = path0_new_frame;
+
+		if (path2_new_frame &&
+			(path2_new_frame->flag & VFRAME_FLAG_FAKE_FRAME)) {
+			new_frame = path2_new_frame;
+			pr_info("vsync: auto path2 get a fake\n");
+		}
+
 		if (!new_frame) {
 			if (cur_dispbuf == &vf_local)
 				vd_layer[0].dispbuf = cur_dispbuf;
 		}
+
+		if (gvideo_recv[0]->cur_buf &&
+			gvideo_recv[0]->cur_buf->flag & VFRAME_FLAG_FAKE_FRAME)
+			vd_layer[0].dispbuf = gvideo_recv[0]->cur_buf;
+
 		if (new_frame || cur_dispbuf)
 			vd_layer[0].dispbuf_mapping = &cur_dispbuf;
 		cur_blackout = blackout | force_blackout;
@@ -6784,6 +6797,7 @@ SET_FILTER:
 	if (vd_layer[0].dispbuf &&
 	    (vd_layer[0].dispbuf->flag & (VFRAME_FLAG_VIDEO_COMPOSER |
 		VFRAME_FLAG_VIDEO_DRM)) &&
+	    !(vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
 		axis[0] = vd_layer[0].dispbuf->axis[0];
 		axis[1] = vd_layer[0].dispbuf->axis[1];
@@ -7426,8 +7440,37 @@ SET_FILTER:
 	video_secure_set();
 
 	if (vd_layer[0].dispbuf &&
-	    (vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME))
-		safe_switch_videolayer(0, false, true);
+		(vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME)) {
+		if ((vd_layer[0].force_black &&
+			!(debug_flag & DEBUG_FLAG_NO_CLIP_SETTING)) ||
+			!vd_layer[0].force_black) {
+			if (vd_layer[0].dispbuf->type & VIDTYPE_RGB_444) {
+				/* RGB */
+				vd_layer[0].clip_setting.clip_max =
+					(0x0 << 20) | (0x0 << 10) | 0;
+				vd_layer[0].clip_setting.clip_min =
+					vd_layer[0].clip_setting.clip_max;
+			} else {
+				/* YUV */
+				vd_layer[0].clip_setting.clip_max =
+					(0x0 << 20) | (0x200 << 10) | 0x200;
+				vd_layer[0].clip_setting.clip_min =
+					vd_layer[0].clip_setting.clip_max;
+			}
+			vd_layer[0].clip_setting.clip_done = false;
+		}
+		if (!vd_layer[0].force_black) {
+			pr_debug("vsync: vd1 force black\n");
+			vd_layer[0].force_black = true;
+		}
+	} else if (vd_layer[0].force_black) {
+		pr_debug("vsync: vd1 black to normal\n");
+		vd_layer[0].clip_setting.clip_max =
+			(0x3ff << 20) | (0x3ff << 10) | 0x3ff;
+		vd_layer[0].clip_setting.clip_min = 0;
+		vd_layer[0].clip_setting.clip_done = false;
+		vd_layer[0].force_black = false;
+	}
 
 	if (vd_layer[1].dispbuf &&
 	    (vd_layer[1].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME))
@@ -7514,6 +7557,12 @@ exit:
 #if defined(PTS_LOGGING) || defined(PTS_TRACE_DEBUG)
 	pts_trace++;
 #endif
+
+	vd_clip_setting(0, &vd_layer[0].clip_setting);
+	vd_clip_setting(1, &vd_layer[1].clip_setting);
+	if (cur_dev->max_vd_layers == 3)
+		vd_clip_setting(2, &vd_layer[2].clip_setting);
+
 	vpp_blend_update(vinfo);
 
 	if (gvideo_recv[0])

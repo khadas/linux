@@ -3916,6 +3916,48 @@ static void disable_vd3_blend(struct video_layer_s *layer)
 	layer->new_vframe_count = 0;
 }
 
+static void vd1_clip_setting(struct clip_setting_s *setting)
+{
+	u32 misc_off;
+
+	if (!setting)
+		return;
+
+	misc_off = setting->misc_reg_offt;
+	VSYNC_WR_MPEG_REG(VPP_VD1_CLIP_MISC0 + misc_off,
+		setting->clip_max);
+	VSYNC_WR_MPEG_REG(VPP_VD1_CLIP_MISC1 + misc_off,
+		setting->clip_min);
+}
+
+static void vd2_clip_setting(struct clip_setting_s *setting)
+{
+	u32 misc_off;
+
+	if (!setting)
+		return;
+
+	misc_off = setting->misc_reg_offt;
+	VSYNC_WR_MPEG_REG(VPP_VD2_CLIP_MISC0 + misc_off,
+		setting->clip_max);
+	VSYNC_WR_MPEG_REG(VPP_VD2_CLIP_MISC1 + misc_off,
+		setting->clip_min);
+}
+
+static void vd3_clip_setting(struct clip_setting_s *setting)
+{
+	u32 misc_off;
+
+	if (!setting)
+		return;
+
+	misc_off = setting->misc_reg_offt;
+	VSYNC_WR_MPEG_REG(VPP_VD3_CLIP_MISC0 + misc_off,
+		setting->clip_max);
+	VSYNC_WR_MPEG_REG(VPP_VD3_CLIP_MISC1 + misc_off,
+		setting->clip_min);
+}
+
 /*********************************************************
  * DV EL APIs
  *********************************************************/
@@ -5016,6 +5058,21 @@ void vd_scaler_setting(struct video_layer_s *layer,
 		vdx_scaler_setting(layer, setting);
 }
 
+void vd_clip_setting(u8 layer_id,
+	struct clip_setting_s *setting)
+{
+	if (setting->clip_done)
+		return;
+
+	if (layer_id == 0)
+		vd1_clip_setting(setting);
+	else if (layer_id == 1)
+		vd2_clip_setting(setting);
+	else if (layer_id == 2)
+		vd3_clip_setting(setting);
+	setting->clip_done = true;
+}
+
 void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,
 				 struct vpp_frame_par_s *frame_par,
 				 struct vframe_s *vf)
@@ -5480,7 +5537,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 			<< VPP_VD2_ALPHA_BIT);
 	}
 
-	if (vd_layer[0].global_output == 0 ||
+	if ((vd_layer[0].global_output == 0 && !vd_layer[0].force_black) ||
 	    black_threshold_check(0)) {
 		vd_layer[0].enabled = 0;
 		/* preblend need disable together */
@@ -5931,7 +5988,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 			}
 		}
 	}
-	if (vd_layer[0].global_output == 0 ||
+	if ((vd_layer[0].global_output == 0 && !vd_layer[0].force_black) ||
 	    black_threshold_check(0)) {
 		vd_layer[0].enabled = 0;
 		/* preblend need disable together */
@@ -8111,6 +8168,14 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 		vd_layer[i].keep_frame_id = 0xff;
 		vd_layer[i].disable_video = VIDEO_DISABLE_FORNEXT;
 		vd_layer[i].vpp_index = VPP0;
+
+		/* clip config */
+		vd_layer[i].clip_setting.id = i;
+		vd_layer[i].clip_setting.misc_reg_offt = cur_dev->vpp_off;
+		vd_layer[i].clip_setting.clip_max = 0x3fffffff;
+		vd_layer[i].clip_setting.clip_min = 0;
+		vd_layer[i].clip_setting.clip_done = true;
+
 		vpp_disp_info_init(&glayer_info[i], i);
 		memset(&gpic_info[i], 0, sizeof(struct vframe_pic_mode_s));
 		glayer_info[i].wide_mode = 1;

@@ -49,6 +49,7 @@
 #define DEBUG_FLAG_OMX_DV_DROP_FRAME        0x8000000
 #define DEBUG_FLAG_COMPOSER_NO_DROP_FRAME     0x10000000
 #define DEBUG_FLAG_AXIS_NO_UPDATE     0x20000000
+#define DEBUG_FLAG_NO_CLIP_SETTING    0x40000000
 
 #define VOUT_TYPE_TOP_FIELD 0
 #define VOUT_TYPE_BOT_FIELD 1
@@ -241,6 +242,16 @@ struct blend_setting_s {
 	struct vpp_frame_par_s *frame_par;
 };
 
+struct clip_setting_s {
+	u32 id;
+	u32 misc_reg_offt;
+
+	u32 clip_max;
+	u32 clip_min;
+
+	bool clip_done;
+};
+
 struct pip_alpha_scpxn_s {
 	u32 scpxn_bgn_h[MAX_PIP_WINDOW];
 	u32 scpxn_end_h[MAX_PIP_WINDOW];
@@ -310,6 +321,7 @@ struct video_layer_s {
 	struct scaler_setting_s sc_setting;
 	struct blend_setting_s bld_setting;
 	struct fgrain_setting_s fgrain_setting;
+	struct clip_setting_s clip_setting;
 
 	u32 new_vframe_count;
 
@@ -337,6 +349,7 @@ struct video_layer_s {
 
 	bool need_switch_vf;
 	bool do_switch;
+	bool force_black;
 	u8 vpp_index;
 	u8 vppx_blend_en;
 	bool vd1_vd2_mux;
@@ -475,6 +488,8 @@ void vd_scaler_setting(struct video_layer_s *layer,
 		       struct scaler_setting_s *setting);
 void vd_blend_setting(struct video_layer_s *layer,
 		      struct blend_setting_s *setting);
+void vd_clip_setting(u8 layer_id,
+		     struct clip_setting_s *setting);
 void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,
 				 struct vpp_frame_par_s *frame_par,
 				 struct vframe_s *vf);
