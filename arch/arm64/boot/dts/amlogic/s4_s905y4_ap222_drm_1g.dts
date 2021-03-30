@@ -73,7 +73,7 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x2000000>;
+			size = <0x0 0x1C00000>;
 			alignment = <0x0 0x400000>;
 		};
 		/*di CMA pool */
@@ -102,7 +102,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x1b000000>;
+			size = <0x0 0xd000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
