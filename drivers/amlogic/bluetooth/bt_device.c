@@ -380,11 +380,10 @@ static void bt_lateresume(struct early_suspend *h)
 static int bt_suspend(struct platform_device *pdev,
 		      pm_message_t state)
 {
-	struct bt_dev_data *pdata = platform_get_drvdata(pdev);
-
+	struct bt_dev_runtime_data *prdata = platform_get_drvdata(pdev);
 	btwake_evt = 0;
 	pr_info("bt suspend\n");
-	disable_irq(pdata->irqno_wakeup);
+	disable_irq(prdata->pdata->irqno_wakeup);
 
 	return 0;
 }
@@ -392,10 +391,9 @@ static int bt_suspend(struct platform_device *pdev,
 static int bt_resume(struct platform_device *pdev)
 {
 	int event = 0;
-	struct bt_dev_data *pdata = platform_get_drvdata(pdev);
-
+	struct bt_dev_runtime_data *prdata = platform_get_drvdata(pdev);
 	pr_info("bt resume\n");
-	enable_irq(pdata->irqno_wakeup);
+	enable_irq(prdata->pdata->irqno_wakeup);
 	btwake_evt = 0;
 
 	if ((get_resume_method() == RTC_WAKEUP) ||
@@ -409,12 +407,12 @@ static int bt_resume(struct platform_device *pdev)
 	event = sdio_get_vendor();
 	pr_info("event = %d\n", event);
 	if (event != 625 && get_resume_method() == BT_WAKEUP) {
-		input_event(pdata->input_dev,
+		input_event(prdata->pdata->input_dev,
 			EV_KEY, KEY_POWER, 1);
-		input_sync(pdata->input_dev);
-		input_event(pdata->input_dev,
+		input_sync(prdata->pdata->input_dev);
+		input_event(prdata->pdata->input_dev,
 			EV_KEY, KEY_POWER, 0);
-		input_sync(pdata->input_dev);
+		input_sync(prdata->pdata->input_dev);
 	}
 
 	return 0;
@@ -570,8 +568,6 @@ static int bt_probe(struct platform_device *pdev)
 	bt_early_suspend.param = pdev;
 	register_early_suspend(&bt_early_suspend);
 #endif
-
-	platform_set_drvdata(pdev, pdata);
 
 	/*1.Set BT_WAKE_HOST to the input state;*/
 	/*2.Get interrupt number(irqno_wakeup).*/
