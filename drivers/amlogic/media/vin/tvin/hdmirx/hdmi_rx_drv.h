@@ -20,8 +20,8 @@
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 
-/* tm2 dts enable */
-#define RX_VER0 "ver.2021/03/30"
+/* modified SDA I/F clk */
+#define RX_VER0 "ver.2021/03/31"
 
 /*print type*/
 #define	LOG_EN		0x01
