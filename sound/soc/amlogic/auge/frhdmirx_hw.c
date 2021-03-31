@@ -145,7 +145,7 @@ void frhdmirx_ctrl(int channels, int src, int version)
 	}
 	/* nonpcm2pcm_th */
 	if (version == T7_FRHDMIRX)
-		audiobus_write(EE_AUDIO_FRHDMIRX_CTRL0, 0xff << 12);
+		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL0, 0xff << 12, 0xff << 12);
 	else
 		audiobus_write(EE_AUDIO_FRHDMIRX_CTRL1, 0xff << 20);
 
@@ -194,10 +194,20 @@ void frhdmirx_clr_SPDIF_irq_bits(void)
 void frhdmirx_clr_SPDIF_irq_bits_for_t7_version(void)
 {
 	unsigned int value = audiobus_read(EE_AUDIO_FRHDMIRX_STAT0) & 0xff;
+	unsigned int clr_mask = (audiobus_read(EE_AUDIO_FRHDMIRX_CTRL6) >> 16) & 0xff;
+	unsigned int reg = 0;
 
-	audiobus_write(EE_AUDIO_FRHDMIRX_CTRL6, value << 16);
-	audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL6, 0xf << 24, 0xf << 24);
-	audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL6, 0xf << 24, 0 << 24);
+	reg = clr_mask | value;
+	audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL6, 0xff << 16, reg << 16);
+
+	reg = clr_mask & (~value);
+	audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL6, 0xff << 16, reg << 16);
+
+	if (value & 0x20) {
+		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL6, 0xf << 24, 0xf << 24);
+		audiobus_update_bits(EE_AUDIO_FRHDMIRX_CTRL6, 0xf << 24, 0 << 24);
+		pr_info("t7 raw to pcm change: irq status:%x\n", value);
+	}
 }
 
 /*
