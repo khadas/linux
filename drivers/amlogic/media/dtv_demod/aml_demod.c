@@ -65,8 +65,7 @@ const char aml_demod_dev_id[] = "aml_demod";
  * extern struct aml_demod_sta demod_sta;
  * #endif
  *******************************/
-
-static struct aml_demod_sta demod_sta;
+unsigned int demod_id;
 
 static DECLARE_WAIT_QUEUE_HEAD(lock_wq);
 
@@ -123,14 +122,26 @@ static long aml_demod_ioctl(struct file *file,
 			    unsigned int cmd, unsigned long arg)
 {
 	int strength = 0;
-	struct dvb_frontend *dvbfe;
-	struct aml_tuner_sys  tuner_para = {0};
-	struct aml_demod_reg  arg_t;
+	struct aml_tuner_sys tuner_para = {0};
+	struct aml_demod_reg arg_t;
 	unsigned int val;
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
 
 	if (!devp) {
 		pr_err("%s devp is NULL\n", __func__);
+		return -EFAULT;
+	}
+
+	list_for_each_entry(tmp, &devp->demod_list, list) {
+		if (tmp->id == demod_id) {
+			demod = tmp;
+			break;
+		}
+	}
+
+	if (!demod) {
+		pr_err("%s get demod [id %d] is NULL.\n", __func__, demod_id);
 		return -EFAULT;
 	}
 
@@ -157,7 +168,7 @@ static long aml_demod_ioctl(struct file *file,
 		break;
 
 	case AML_DEMOD_GET_RSSI:
-		strength = tuner_get_ch_power2();
+		strength = tuner_get_ch_power2(&demod->frontend);
 
 		if (strength < 0)
 			strength = 0 - strength;
@@ -170,13 +181,6 @@ static long aml_demod_ioctl(struct file *file,
 		break;
 
 	case AML_DEMOD_SET_TUNER:
-		dvbfe = aml_get_fe();
-
-		if (dvbfe == NULL) {
-			PR_ERR("point fe is NULL\n");
-			return -EINVAL;
-		}
-
 		if (copy_from_user(&tuner_para, (void __user *)arg,
 			sizeof(struct aml_tuner_sys))) {
 			PR_ERR("copy error AML_DEMOD_SET_TUNER\n");
@@ -184,21 +188,21 @@ static long aml_demod_ioctl(struct file *file,
 			if (tuner_para.mode <= FE_ISDBT) {
 				PR_INFO("set tuner md = %d\n",
 					tuner_para.mode);
-				dvbfe->ops.info.type = tuner_para.mode;
+				demod->frontend.ops.info.type = tuner_para.mode;
 			} else {
 				PR_ERR("wrong md: %d\n", tuner_para.mode);
 			}
 
-			dvbfe->dtv_property_cache.frequency =
+			demod->frontend.dtv_property_cache.frequency =
 				tuner_para.ch_freq;
-			dvbfe->ops.tuner_ops.set_config(dvbfe, NULL);
-			tuner_set_params(dvbfe);
+			demod->frontend.ops.tuner_ops.set_config(&demod->frontend, NULL);
+			tuner_set_params(&demod->frontend);
 		}
 		break;
 
 	case AML_DEMOD_SET_SYS:
 		pr_dbg("Ioctl Demod Set System\n");
-		demod_set_sys(devp, &demod_sta, (struct aml_demod_sys *)arg);
+		demod_set_sys(demod, (struct aml_demod_sys *)arg);
 		break;
 
 	case AML_DEMOD_GET_SYS:
@@ -209,17 +213,16 @@ static long aml_demod_ioctl(struct file *file,
 
 	case AML_DEMOD_DVBC_SET_CH:
 		pr_dbg("Ioctl DVB-C Set Channel.\n");
-		dvbc_set_ch(&demod_sta, (struct aml_demod_dvbc *)arg);
+		dvbc_set_ch(demod, (struct aml_demod_dvbc *)arg);
 		break;
 
 	case AML_DEMOD_DVBC_GET_CH:
-		dvbc_status(&demod_sta, (struct aml_demod_sts *)arg);
+		dvbc_status(demod, (struct aml_demod_sts *)arg);
 		break;
 
 	case AML_DEMOD_DVBT_SET_CH:
 		pr_dbg("Ioctl DVB-T Set Channel\n");
-		dvbt_isdbt_set_ch(&demod_sta, /*&demod_i2c,*/
-			    (struct aml_demod_dvbt *)arg);
+		dvbt_isdbt_set_ch(demod, (struct aml_demod_dvbt *)arg);
 		break;
 
 	case AML_DEMOD_DVBT_GET_CH:
@@ -229,13 +232,11 @@ static long aml_demod_ioctl(struct file *file,
 		break;
 
 	case AML_DEMOD_DTMB_SET_CH:
-		dtmb_set_ch(&demod_sta, /*&demod_i2c,*/
-			    (struct aml_demod_dtmb *)arg);
+		dtmb_set_ch(demod, (struct aml_demod_dtmb *)arg);
 		break;
 
 	case AML_DEMOD_ATSC_SET_CH:
-		atsc_set_ch(&demod_sta, /*&demod_i2c,*/
-			    (struct aml_demod_atsc *)arg);
+		atsc_set_ch(demod, (struct aml_demod_atsc *)arg);
 		break;
 
 	case AML_DEMOD_ATSC_GET_CH:
@@ -247,7 +248,7 @@ static long aml_demod_ioctl(struct file *file,
 			sizeof(struct aml_demod_reg))) {
 			pr_dbg("copy error AML_DEMOD_SET_REG\n");
 		} else
-			demod_set_reg(&arg_t);
+			demod_set_reg(demod, &arg_t);
 
 		break;
 
@@ -256,7 +257,7 @@ static long aml_demod_ioctl(struct file *file,
 			sizeof(struct aml_demod_reg)))
 			pr_dbg("copy error AML_DEMOD_GET_REG\n");
 		else
-			demod_get_reg(&arg_t);
+			demod_get_reg(demod, &arg_t);
 
 		if (copy_to_user((void __user *)arg, &arg_t,
 			sizeof(struct aml_demod_reg))) {
@@ -285,11 +286,19 @@ static long aml_demod_ioctl(struct file *file,
 		break;
 
 	case AML_DEMOD_GET_CAPTURE_ADDR:
-		val = dtvdd_devp->mem_start;
+		val = devp->mem_start;
 
 		if (copy_to_user((void __user *)arg, &val,
 				 sizeof(unsigned int)))
 			pr_dbg("copy_to_user error AML_DEMOD_GET_CAPTURE_ADDR\n");
+		break;
+
+	case AML_DEMOD_SET_ID:
+		if (copy_from_user(&demod_id, (void __user *)arg,
+			sizeof(demod_id)))
+			pr_dbg("copy error AML_DEMOD_SET_ID\n");
+		else
+			pr_dbg("set demod_id %d.\n", demod_id);
 		break;
 
 	default:

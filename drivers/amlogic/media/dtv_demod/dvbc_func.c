@@ -286,55 +286,53 @@ void dvbc_kill_cci_task(void)
 #endif
 
 
-int dvbc_set_ch(struct aml_demod_sta *demod_sta, struct aml_demod_dvbc *demod_dvbc)
+int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc)
 {
 	int ret = 0;
 	u16 symb_rate;
 	u8 mode;
 	u32 ch_freq;
 
-	PR_DVBC("f=%d, s=%d, q=%d\n", demod_dvbc->ch_freq, demod_dvbc->symb_rate, demod_dvbc->mode);
+	PR_DVBC("[id %d] f=%d, s=%d, q=%d\n", demod->id, demod_dvbc->ch_freq,
+			demod_dvbc->symb_rate, demod_dvbc->mode);
 	mode = demod_dvbc->mode;
 	symb_rate = demod_dvbc->symb_rate;
 	ch_freq = demod_dvbc->ch_freq;
 	if (mode > 4) {
-		PR_DVBC("Error: Invalid QAM mode option %d\n", mode);
+		PR_DVBC("[id %d] Error: Invalid QAM mode option %d\n", demod->id, mode);
 		mode = 4;
 		ret = -1;
 	}
 
 	if (symb_rate < 1000 || symb_rate > 7000) {
-		PR_DVBC("Error: Invalid Symbol Rate option %d\n", symb_rate);
+		PR_DVBC("[id %d] Error: Invalid Symbol Rate option %d\n", demod->id, symb_rate);
 		symb_rate = 5361;
 		ret = -1;
 	}
 
 	if (ch_freq < 1000 || ch_freq > 900000) {
-		PR_DVBC("Error: Invalid Channel Freq option %d\n", ch_freq);
+		PR_DVBC("[id %d] Error: Invalid Channel Freq option %d\n", demod->id, ch_freq);
 		ch_freq = 474000;
 		ret = -1;
 	}
 
-	demod_sta->ch_mode = mode;
+	demod->demod_status.ch_mode = mode;
 	/* 0:16, 1:32, 2:64, 3:128, 4:256 */
-	demod_sta->agc_mode = 1;
+	demod->demod_status.agc_mode = 1;
 	/* 0:NULL, 1:IF, 2:RF, 3:both */
-	demod_sta->ch_freq = ch_freq;
-	demod_sta->ch_bw = 8000;
-	if (demod_sta->ch_if == 0)
-		demod_sta->ch_if = 5000;
-	demod_sta->symb_rate = symb_rate;
+	demod->demod_status.ch_freq = ch_freq;
+	demod->demod_status.ch_bw = 8000;
+	if (demod->demod_status.ch_if == 0)
+		demod->demod_status.ch_if = 5000;
+	demod->demod_status.symb_rate = symb_rate;
 
 	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
-		demod_sta->adc_freq = demod_dvbc->dat0;
+		demod->demod_status.adc_freq = demod_dvbc->dat0;
 
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
-		dvbc_reg_initial_old(demod_sta);
+		dvbc_reg_initial_old(demod);
 	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX) && !is_meson_txhd_cpu())
-		dvbc_reg_initial(demod_sta);
+		dvbc_reg_initial(demod);
 
 	return ret;
 }
-
-
-

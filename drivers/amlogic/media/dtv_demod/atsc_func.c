@@ -582,8 +582,7 @@ void atsc_initial(struct aml_demod_sta *demod_sta)
 				fs, fc, cr, ck);
 }
 
-int atsc_set_ch(struct aml_demod_sta *demod_sta,
-		/*struct aml_demod_i2c *demod_i2c,*/
+int atsc_set_ch(struct aml_dtvdemod *demod,
 		struct aml_demod_atsc *demod_atsc)
 {
 	int ret = 0;
@@ -597,10 +596,10 @@ int atsc_set_ch(struct aml_demod_sta *demod_sta,
 	agc_mode = demod_atsc->agc_mode;
 	ch_freq = demod_atsc->ch_freq;
 	demod_mode = demod_atsc->dat0;
-	demod_sta->ch_mode = demod_atsc->mode;	/* TODO */
-	demod_sta->agc_mode = agc_mode;
-	demod_sta->ch_freq = ch_freq;
-	demod_sta->ch_bw = (8 - bw) * 1000;
+	demod->demod_status.ch_mode = demod_atsc->mode; /* TODO */
+	demod->demod_status.agc_mode = agc_mode;
+	demod->demod_status.ch_freq = ch_freq;
+	demod->demod_status.ch_bw = (8 - bw) * 1000;
 	/*atsc_initial(demod_sta);*/
 	set_cr_ck_rate();
 	atsc_reset();

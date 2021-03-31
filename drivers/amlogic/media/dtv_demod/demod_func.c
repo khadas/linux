@@ -297,7 +297,6 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *dem
 	}
 
 	debug_adc_pll();
-
 }
 
 void demod_set_adc_core_clk(int adc_clk, int sys_clk, struct aml_demod_sta *demod_sta)
@@ -558,8 +557,7 @@ void demod_set_mode_ts(enum fe_delivery_system delsys)
 	demod_top_write_reg(DEMOD_TOP_REG0, cfg0.d32);
 }
 
-void clocks_set_sys_defaults(struct dvb_frontend *fe, struct aml_demod_sta *demod_sta,
-				unsigned int adc_clk)
+void clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 {
 	union demod_cfg2 cfg2;
 	int sts_pll = 0;
@@ -570,11 +568,11 @@ void clocks_set_sys_defaults(struct dvb_frontend *fe, struct aml_demod_sta *demo
 	demod_power_switch(PWR_ON);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
-	adc_set_ddemod_default(demod_sta->delsys);
+	adc_set_ddemod_default(demod->demod_status.delsys);
 #endif
 	demod_set_demod_default();
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
-	ddemod_pll.delsys = demod_sta->delsys;
+	ddemod_pll.delsys = demod->demod_status.delsys;
 	ddemod_pll.adc_clk = adc_clk;
 	sts_pll = adc_set_pll_cntl(1, ADC_DTV_DEMOD, &ddemod_pll);
 #endif
@@ -583,12 +581,11 @@ void clocks_set_sys_defaults(struct dvb_frontend *fe, struct aml_demod_sta *demo
 		PR_ERR("%s:set pll default fail! please check!\n", __func__);
 	}
 
-	demod_set_mode_ts(demod_sta->delsys);
+	demod_set_mode_ts(demod->demod_status.delsys);
 	cfg2.b.biasgen_en = 1;
 	cfg2.b.en_adc = 1;
 	demod_top_write_reg(DEMOD_TOP_REG8, cfg2.d32);
 	debug_check_reg_val(REG_M_DEMOD, DEMOD_TOP_REG0);
-
 }
 
 void dtmb_write_reg(int reg_addr, int reg_data)
@@ -949,22 +946,21 @@ static void download_fw_to_sram(struct amldtvdemod_device_s *devp)
 	}
 }
 
-int demod_set_sys(struct amldtvdemod_device_s *devp, struct aml_demod_sta *demod_sta,
-		  struct aml_demod_sys *demod_sys)
+int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 {
 	unsigned int clk_adc, clk_dem;
 	int nco_rate;
-	struct dvb_frontend *fe = aml_get_fe();
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
 	clk_adc = demod_sys->adc_clk;
 	clk_dem = demod_sys->demod_clk;
 	nco_rate = (clk_adc * 256) / clk_dem + 2;
-	PR_DBG("%s,clk_adc is %d,clk_demod is %d\n", __func__, clk_adc, clk_dem);
-	clocks_set_sys_defaults(fe, demod_sta, clk_adc);
+	PR_DBG("%s: clk_adc is %d, clk_demod is %d.\n", __func__, clk_adc, clk_dem);
+	clocks_set_sys_defaults(demod, clk_adc);
 	/* set adc clk */
-	demod_set_adc_core_clk(clk_adc, clk_dem, demod_sta);
+	demod_set_adc_core_clk(clk_adc, clk_dem, &demod->demod_status);
 
-	switch (demod_sta->delsys) {
+	switch (demod->demod_status.delsys) {
 	case SYS_DTMB:
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
@@ -985,7 +981,7 @@ int demod_set_sys(struct amldtvdemod_device_s *devp, struct aml_demod_sta *demod
 	case SYS_ISDBT:
 		if (is_meson_txlx_cpu()) {
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x8);
-		} else if (dtvdd_devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+		} else if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x10);
 			usleep_range(1000, 1001);
@@ -1054,7 +1050,7 @@ int demod_set_sys(struct amldtvdemod_device_s *devp, struct aml_demod_sta *demod
 			front_write_reg(0x22, 0x7200a06);
 			front_write_reg(0x2f, 0x0);
 
-			if (demod_sta->delsys == SYS_DVBT2) {
+			if (demod->demod_status.delsys == SYS_DVBT2) {
 				front_write_reg(0x39, 0xc0002000);
 				front_write_reg(TEST_BUS_VLD, 0x80000000);
 				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
@@ -1068,7 +1064,7 @@ int demod_set_sys(struct amldtvdemod_device_s *devp, struct aml_demod_sta *demod
 
 			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 
-			if (demod_sta->delsys == SYS_DVBT2) {
+			if (demod->demod_status.delsys == SYS_DVBT2) {
 				if (!devp->fw_wr_done)
 					download_fw_to_sram(devp);
 
@@ -1096,36 +1092,32 @@ int demod_set_sys(struct amldtvdemod_device_s *devp, struct aml_demod_sta *demod
 		break;
 	}
 
-	demod_sta->adc_freq = clk_adc;
-	demod_sta->clk_freq = clk_dem;
 	return 0;
 }
 
 /*TL1*/
-void set_j83b_filter_reg_v4(void)
+void set_j83b_filter_reg_v4(struct aml_dtvdemod *demod)
 {
 	//j83_1
-	qam_write_reg(0x40, 0x36333c0d);
-	qam_write_reg(0x41, 0xa110d01);
-	qam_write_reg(0x42, 0xf0e4ea7a);
-	qam_write_reg(0x43, 0x3c0010);
-	qam_write_reg(0x44, 0x7e0065);
-
+	qam_write_reg(demod, 0x40, 0x36333c0d);
+	qam_write_reg(demod, 0x41, 0xa110d01);
+	qam_write_reg(demod, 0x42, 0xf0e4ea7a);
+	qam_write_reg(demod, 0x43, 0x3c0010);
+	qam_write_reg(demod, 0x44, 0x7e0065);
 
 	//j83_2
-	qam_write_reg(0x45, 0xb3a1905);
-	qam_write_reg(0x46, 0x1c396e07);
-	qam_write_reg(0x47, 0x3801cc08);
-	qam_write_reg(0x48, 0x10800a2);
+	qam_write_reg(demod, 0x45, 0xb3a1905);
+	qam_write_reg(demod, 0x46, 0x1c396e07);
+	qam_write_reg(demod, 0x47, 0x3801cc08);
+	qam_write_reg(demod, 0x48, 0x10800a2);
 
-
-	qam_write_reg(0x49, 0x53b1f03);
-	qam_write_reg(0x4a, 0x18377407);
-	qam_write_reg(0x4b, 0x3401cf0b);
-	qam_write_reg(0x4c, 0x10d00a1);
+	qam_write_reg(demod, 0x49, 0x53b1f03);
+	qam_write_reg(demod, 0x4a, 0x18377407);
+	qam_write_reg(demod, 0x4b, 0x3401cf0b);
+	qam_write_reg(demod, 0x4c, 0x10d00a1);
 }
 
-void demod_set_reg(struct aml_demod_reg *demod_reg)
+void demod_set_reg(struct aml_dtvdemod *demod, struct aml_demod_reg *demod_reg)
 {
 	if (fpga_version == 1) {
 #if defined DEMOD_FPGA_VERSION
@@ -1175,7 +1167,7 @@ void demod_set_reg(struct aml_demod_reg *demod_reg)
 			break;
 
 		case REG_MODE_DVBC_J83B:
-			qam_write_reg(demod_reg->addr, demod_reg->val);
+			qam_write_reg(demod, demod_reg->addr, demod_reg->val);
 			break;
 
 		case REG_MODE_FRONT:
@@ -1206,7 +1198,7 @@ void demod_set_reg(struct aml_demod_reg *demod_reg)
 	}
 }
 
-void demod_get_reg(struct aml_demod_reg *demod_reg)
+void demod_get_reg(struct aml_dtvdemod *demod, struct aml_demod_reg *demod_reg)
 {
 	if (fpga_version == 1) {
 		#if defined DEMOD_FPGA_VERSION
@@ -1243,7 +1235,7 @@ void demod_get_reg(struct aml_demod_reg *demod_reg)
 			break;
 
 		case REG_MODE_DVBC_J83B:
-			demod_reg->val = qam_read_reg(demod_reg->addr);
+			demod_reg->val = qam_read_reg(demod, demod_reg->addr);
 			break;
 
 		case REG_MODE_FRONT:
@@ -1603,9 +1595,10 @@ unsigned int isdbt_read_reg_v4(unsigned int addr)
 }
 
 /*dvbc v3:*/
-void qam_write_reg(unsigned int reg_addr, unsigned int reg_data)
+void qam_write_reg(struct aml_dtvdemod *demod,
+		unsigned int reg_addr, unsigned int reg_data)
 {
-	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
 	if (!get_dtvpll_init_flag())
 		return;
@@ -1614,27 +1607,23 @@ void qam_write_reg(unsigned int reg_addr, unsigned int reg_data)
 		return;
 
 	mutex_lock(&mp);
-	if (devp->dvbc_sel)
+	if (demod->dvbc_sel)
 		writel(reg_data, gbase_dvbc_2() + (reg_addr << 2));
 	else
 		writel(reg_data, gbase_dvbc() + (reg_addr << 2));
 
 	mutex_unlock(&mp);
-
 }
 
-unsigned int qam_read_reg(unsigned int reg_addr)
+unsigned int qam_read_reg(struct aml_dtvdemod *demod, unsigned int reg_addr)
 {
-
 	unsigned int tmp;
-	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 
 	if (!get_dtvpll_init_flag())
 		return 0;
 
-
 	mutex_lock(&mp);
-	if (devp->dvbc_sel)
+	if (demod->dvbc_sel)
 		tmp = readl(gbase_dvbc_2() + (reg_addr << 2));
 	else
 		tmp = readl(gbase_dvbc() + (reg_addr << 2));
@@ -1642,14 +1631,14 @@ unsigned int qam_read_reg(unsigned int reg_addr)
 	mutex_unlock(&mp);
 
 	return tmp;
-
 }
 
-void qam_write_bits(u32 reg_addr, const u32 reg_data,
-		    const u32 start, const u32 len)
+void qam_write_bits(struct aml_dtvdemod *demod,
+		u32 reg_addr, const u32 reg_data,
+		const u32 start, const u32 len)
 {
 	unsigned int val;
-	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
 	if (!get_dtvpll_init_flag())
 		return;
@@ -1659,7 +1648,7 @@ void qam_write_bits(u32 reg_addr, const u32 reg_data,
 
 	mutex_lock(&mp);
 
-	if (devp->dvbc_sel)
+	if (demod->dvbc_sel)
 		val = readl(gbase_dvbc_2() + (reg_addr << 2));
 	else
 		val = readl(gbase_dvbc() + (reg_addr << 2));
@@ -1667,13 +1656,12 @@ void qam_write_bits(u32 reg_addr, const u32 reg_data,
 	val &= ~(((1L << (len)) - 1) << (start));
 	val |= (((reg_data) & ((1L << (len)) - 1)) << (start));
 
-	if (devp->dvbc_sel)
+	if (demod->dvbc_sel)
 		writel(val, gbase_dvbc_2() + (reg_addr << 2));
 	else
 		writel(val, gbase_dvbc() + (reg_addr << 2));
 
 	mutex_unlock(&mp);
-
 }
 
 int dd_tvafe_hiu_reg_write(unsigned int reg, unsigned int val)

@@ -180,7 +180,7 @@
 		dvb_power_value = <1>;
 		dvb_power_dir = <0>; /* 0: out, 1: in. */
 
-		fe_num = <3>;
+		fe_num = <3>; /* interal 2 * dvb-c, extern 1 * dvb-s */
 		fe0_demod = "internal";
 		fe0_tuner0 = <0>; /* use tuner0 */
 

@@ -105,7 +105,7 @@ static void dtmb_25m_coeff(void)
 		| 0x274217));
 }
 
-void dtmb_all_reset(void)
+void dtmb_all_reset(struct aml_dtvdemod *demod)
 {
 	int temp_data = 0;
 	unsigned int reg_val;
@@ -158,12 +158,12 @@ void dtmb_all_reset(void)
 		dtmb_write_reg(DTMB_CHE_EQ_CONFIG, 0x1b027719);
 #endif
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-		if (demod_get_adc_clk() == ADC_CLK_24M) {
+		if (demod_get_adc_clk(demod) == ADC_CLK_24M) {
 			dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x6aaaaa);
 			dtmb_write_reg(DTMB_FRONT_SRC_CONFIG1, 0x13196596);
 			dtmb_write_reg(0x5b, 0x50a30a25);
 			dtmb_24m_coeff();
-		} else if (demod_get_adc_clk() == ADC_CLK_25M) {
+		} else if (demod_get_adc_clk(demod) == ADC_CLK_25M) {
 			dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x62c1a5);
 			dtmb_write_reg(DTMB_FRONT_SRC_CONFIG1, 0x131a747d);
 			dtmb_write_reg(0x5b, 0x4d6a0a25);
@@ -250,13 +250,13 @@ void dtmb_all_reset(void)
 		(dtmb_read_reg(DTMB_SYNC_TRACK_CFO_MAX) & ~0xff) | 0x1f);
 }
 
-void dtmb_initial(struct aml_demod_sta *demod_sta)
+void dtmb_initial(struct aml_dtvdemod *demod)
 {
 /* dtmb_write_reg(0x049, memstart);		//only for init */
 	/*dtmb_spectrum = 1; no use */
-	dtmb_spectrum = demod_sta->spectrum;
+	dtmb_spectrum = demod->demod_status.spectrum;
 	dtmb_register_reset();
-	dtmb_all_reset();
+	dtmb_all_reset(demod);
 }
 
 int check_dtmb_fec_lock(void)
@@ -278,20 +278,15 @@ int check_dtmb_mobile_det(void)
 	int mobile_det = 0;
 
 	mobile_det = (dtmb_read_reg(DTMB_TOP_CTRL_SYS_OFDM_CNT) >> 8) & 0x7ffff;
-	return mobile_det;
 
+	return mobile_det;
 }
 
-
-int dtmb_information(void)
+int dtmb_information(struct aml_dtvdemod *demod)
 {
 	int tps, snr, fec_lock, fec_bch_add, fec_ldpc_unc_acc, fec_ldpc_it_avg,
-	    /*tmp,*/ che_snr;
-
-
+	/*tmp,*/ che_snr;
 	unsigned int buf[3]; /**/
-
-	struct dvb_frontend *fe = aml_get_fe();
 
 	tps = dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT);
 
@@ -349,7 +344,7 @@ int dtmb_information(void)
 	PR_DTMB
 	    ("------------------------------------------------------------\n");
 
-	tuner_get_ch_power(fe);
+	tuner_get_ch_power(&demod->frontend);
 
 	return 0;
 }
@@ -490,17 +485,18 @@ int dtmb_v3_soft_sync(int cfo_init)
 
 int dtmb_check_status_gxtv(struct dvb_frontend *fe)
 {
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	int local_state;
 	int time_cnt;/* cci_det, src_config;*/
 	int cfo_init, count;
 
-	dtmb_information();
+	dtmb_information(demod);
 	time_cnt = 0;
 	local_state = 0;
 	cfo_init = 0;
 	if (check_dtmb_fec_lock() != 1) {
 		dtmb_register_reset();
-		dtmb_all_reset();
+		dtmb_all_reset(demod);
 		count = 15;
 		while ((count) &&
 		((dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0)&0xf) < 0x6)) {
@@ -526,7 +522,7 @@ int dtmb_check_status_gxtv(struct dvb_frontend *fe)
 			msleep(demod_timeout);
 			time_cnt++;
 			local_state = AMLOGIC_DTMB_STEP3;
-			dtmb_information();
+			dtmb_information(demod);
 			dtmb_check_cci();
 			if (time_cnt > 8)
 				PR_DTMB
@@ -565,15 +561,16 @@ int dtmb_check_status_gxtv(struct dvb_frontend *fe)
 
 int dtmb_check_status_txl(struct dvb_frontend *fe)
 {
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	int time_cnt;
 
 	time_cnt = 0;
-	dtmb_information();
+	dtmb_information(demod);
 	if (check_dtmb_fec_lock() != 1) {
 		while ((time_cnt < 10) && (check_dtmb_fec_lock() != 1)) {
 			msleep(demod_timeout);
 			time_cnt++;
-			dtmb_information();
+			dtmb_information(demod);
 			if (((dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT)
 				>> 21) & 0x1) == 0x1) {
 				PR_DTMB("4qam-nr,need set spectrum\n");
@@ -594,7 +591,7 @@ int dtmb_check_status_txl(struct dvb_frontend *fe)
 		if (time_cnt >= 10 && (check_dtmb_fec_lock() != 1)) {
 			time_cnt = 0;
 			dtmb_register_reset();
-			dtmb_all_reset();
+			dtmb_all_reset(demod);
 			if	(dtmb_spectrum == 0)
 				dtmb_spectrum = 1;
 			else
@@ -631,20 +628,19 @@ void dtmb_no_signal_check_v3(void)
 	}
 
 }
-void dtmb_no_signal_check_finishi_v3(void)
+
+void dtmb_no_signal_check_finishi_v3(struct aml_dtvdemod *demod)
 {
 	dtmb_register_reset();
-	dtmb_all_reset();
+	dtmb_all_reset(demod);
 	if	(dtmb_spectrum == 0)
 		dtmb_spectrum = 1;
 	else
 		dtmb_spectrum = 0;
 
 }
-
-
-
 #endif
+
 void dtmb_reset(void)
 {
 	union DTMB_TOP_CTRL_SW_RST_BITS sw_rst;
@@ -667,8 +663,7 @@ void dtmb_register_reset(void)
 	dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
 }
 
-int dtmb_set_ch(struct aml_demod_sta *demod_sta,
-		/*struct aml_demod_i2c *demod_i2c,*/
+int dtmb_set_ch(struct aml_dtvdemod *demod,
 		struct aml_demod_dtmb *demod_dtmb)
 {
 	int ret = 0;
@@ -682,11 +677,11 @@ int dtmb_set_ch(struct aml_demod_sta *demod_sta,
 	agc_mode = demod_dtmb->agc_mode;
 	ch_freq = demod_dtmb->ch_freq;
 	demod_mode = demod_dtmb->dat0;
-	demod_sta->ch_mode = demod_dtmb->mode;	/* TODO */
-	demod_sta->agc_mode = agc_mode;
-	demod_sta->ch_freq = ch_freq;
-	demod_sta->ch_bw = (8 - bw) * 1000;
-	dtmb_initial(demod_sta);
+	demod->demod_status.ch_mode = demod_dtmb->mode;	/* TODO */
+	demod->demod_status.agc_mode = agc_mode;
+	demod->demod_status.ch_freq = ch_freq;
+	demod->demod_status.ch_bw = (8 - bw) * 1000;
+	dtmb_initial(demod);
 	PR_DTMB("DTMB mode\n");
 	return ret;
 }

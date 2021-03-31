@@ -208,23 +208,23 @@
 		dvb_power_value = <1>;
 		dvb_power_dir = <0>; /* 0: out, 1: in. */
 
-		fe_num = <2>; /* now use interal 1 *  demod */
+		fe_num = <3>; /* interal 2 * dvb-c, extern 1 * dvb-s */
 		fe0_demod = "internal";
 		fe0_tuner0 = <0>; /* use tuner0 */
 
-		fe2_demod = "internal";
-		fe2_tuner0 = <0>; /* use tuner1 */
+		fe1_demod = "internal";
+		fe1_tuner0 = <0>; /* use tuner1 */
 
-		fe1_demod = "cxd2856";
-		fe1_i2c_adap_id = <&i2c4>;
-		fe1_demod_i2c_addr = <0xD8>;
-		fe1_reset_value = <0>;
-		fe1_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
-		fe1_reset_dir = <0>; /* 0: out, 1: in. */
-		fe1_ant_poweron_value = <0>;
-		fe1_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
-		fe1_ts = <0>;
-		fe1_tuner1 = <3>; /* use tuner3, only S. */
+		fe2_demod = "cxd2856";
+		fe2_i2c_adap_id = <&i2c4>;
+		fe2_demod_i2c_addr = <0xD8>;
+		fe2_reset_value = <0>;
+		fe2_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
+		fe2_reset_dir = <0>; /* 0: out, 1: in. */
+		fe2_ant_poweron_value = <0>;
+		fe2_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
+		fe2_ts = <0>;
+		fe2_tuner1 = <3>; /* use tuner3, only S. */
 
 		tuner_num = <4>; /* tuner number, multi tuner support */
 		tuner0_name = "r836_tuner";
