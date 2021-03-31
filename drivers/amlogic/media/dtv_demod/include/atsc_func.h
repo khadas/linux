@@ -32,8 +32,7 @@ enum atsc_performance {
 
 /* atsc */
 
-int atsc_set_ch(struct aml_demod_sta *demod_sta,
-		/*struct aml_demod_i2c *demod_i2c,*/
+int atsc_set_ch(struct aml_dtvdemod *demod,
 		struct aml_demod_atsc *demod_atsc);
 int check_atsc_fsm_status(void);
 

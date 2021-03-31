@@ -12,10 +12,6 @@
 
 /*#define dprintk(a ...)	aml_dbgdvbc_reg(a)*/
 
-static struct task_struct *cci_task;
-int cciflag;
-
-
 void enable_qam_int(int idx)
 {
 	unsigned long mask;
@@ -44,25 +40,27 @@ int dvbc_cci_task(void *data)
 	int maxCCI_p, re, im, j, i, times, maxCCI, sum, sum1, reg_0xf0, tmp1,
 	    tmp, tmp2, reg_0xa8, reg_0xac;
 	int reg_0xa8_t, reg_0xac_t;
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)data;
 
 	count = 100;
 	while (1) {
 		msleep(200);
 		if ((((dvbc_read_reg(0x18)) & 0x1) == 1)) {
-			PR_DVBC("[cci]lock ");
-			if (cciflag == 0) {
+			PR_DVBC("demod [id %d] [cci]lock ", demod->id);
+			if (demod->cciflag == 0) {
 				dvbc_write_reg(0xa8, 0);
 				dvbc_write_reg(0xac, 0);
-				PR_DVBC("no cci ");
-				cciflag = 0;
+				PR_DVBC("demod [id %d] no cci ", demod->id);
+				demod->cciflag = 0;
 			}
 			PR_DVBC("\n");
 			msleep(500);
 			continue;
 		}
 
-		if (cciflag == 1) {
-			PR_DVBC("[cci]cciflag is 1,wait 20\n");
+		if (demod->cciflag == 1) {
+			PR_DVBC("demod [id %d] [cci] cciflag is 1, wait 20\n",
+					demod->id);
 			msleep(20000);
 		}
 		times = 300;
@@ -121,7 +119,7 @@ int dvbc_cci_task(void *data)
 			}
 
 			if ((sum < 24) && (maxCCI_p > 0))
-				break;	/* stop CCI detect. */
+				break; /* stop CCI detect. */
 		}
 
 		if (maxCCI_p > 0) {
@@ -131,55 +129,60 @@ int dvbc_cci_task(void *data)
 			/* enable CCI */
 			/*     if(dvbc.mode == 4) // 256QAM */
 			dvbc_write_reg(0x54, 0xa25705fa);
-			/**/ cciflag = 1;
+			/**/ demod->cciflag = 1;
 			msleep(1000);
 		} else {
-			cciflag = 0;
+			demod->cciflag = 0;
 		}
 
-		PR_DVBC("[cci][%s]--------------------------\n", __func__);
+		PR_DVBC("%s demod [id %d] [cci] cciflag is %d.\n",
+				__func__, demod->id, demod->cciflag);
 	}
+
 	return 0;
 }
 
-int dvbc_get_cci_task(void)
+int dvbc_get_cci_task(struct aml_dtvdemod *demod)
 {
-	if (cci_task)
+	if (demod->cci_task)
 		return 0;
 	else
 		return 1;
 }
 
-void dvbc_create_cci_task(void)
+void dvbc_create_cci_task(struct aml_dtvdemod *demod)
 {
 	int ret;
 
 	/*dvbc_write_reg(QAM_BASE+0xa8, 0x42b2ebe3); // enable CCI */
-	/* dvbc_write_reg(QAM_BASE+0xac, 0x42b2ebe3); // enable CCI */
-/*     if(dvbc.mode == 4) // 256QAM*/
-	/* dvbc_write_reg(QAM_BASE+0x54, 0xa25705fa); // */
+	/*dvbc_write_reg(QAM_BASE+0xac, 0x42b2ebe3); // enable CCI */
+	/*if(dvbc.mode == 4) // 256QAM*/
+	/*dvbc_write_reg(QAM_BASE+0x54, 0xa25705fa); // */
 	ret = 0;
-	cci_task = kthread_create(dvbc_cci_task, NULL, "cci_task");
+	demod->cci_task = kthread_create(dvbc_cci_task, (void *)demod,
+			"cci_task%d", demod->id);
 	if (ret != 0) {
-		PR_DVBC("[%s]Create cci kthread error!\n", __func__);
-		cci_task = NULL;
+		PR_DVBC("[%s] demod [id %d] Create cci kthread error!\n",
+				__func__, demod->id);
+		demod->cci_task = NULL;
 		return;
 	}
-	wake_up_process(cci_task);
-	PR_DVBC("[%s]Create cci kthread and wake up!\n", __func__);
+
+	wake_up_process(demod->cci_task);
+
+	PR_DVBC("[%s] demod [id %d] Create cci kthread and wake up!\n",
+			__func__, demod->id);
 }
 
-void dvbc_kill_cci_task(void)
+void dvbc_kill_cci_task(struct aml_dtvdemod *demod)
 {
-	if (cci_task) {
-		kthread_stop(cci_task);
-		cci_task = NULL;
-		PR_DVBC("[%s]kill cci kthread !\n", __func__);
+	if (demod->cci_task) {
+		kthread_stop(demod->cci_task);
+		demod->cci_task = NULL;
+		PR_DVBC("[%s] demod [id %d] kill cci kthread !\n",
+				__func__, demod->id);
 	}
 }
-
-
-
 
 u32 dvbc_set_qam_mode(unsigned char mode)
 {
@@ -384,10 +387,7 @@ u32 dvbc_set_qam_mode(unsigned char mode)
 	return 0;
 }
 
-
-
-
-void dvbc_reg_initial_old(struct aml_demod_sta *demod_sta)
+void dvbc_reg_initial_old(struct aml_dtvdemod *demod)
 {
 	u32 clk_freq;
 	u32 adc_freq;
@@ -402,16 +402,16 @@ void dvbc_reg_initial_old(struct aml_demod_sta *demod_sta)
 	int afifo_ctr;
 	int max_frq_off, tmp;
 
-	clk_freq = demod_sta->clk_freq; /* kHz */
-	adc_freq = demod_sta->adc_freq; /* kHz */
-/*	  adc_freq	= 25414;*/
-	/*ary  no use tuner = demod_sta->tuner;*/
-	ch_mode = demod_sta->ch_mode;
-	agc_mode = demod_sta->agc_mode;
-	ch_freq = demod_sta->ch_freq;	/* kHz */
-	ch_if = demod_sta->ch_if;	/* kHz */
-	ch_bw = demod_sta->ch_bw;	/* kHz */
-	symb_rate = demod_sta->symb_rate;	/* k/sec */
+	clk_freq = demod->demod_status.clk_freq; /* kHz */
+	adc_freq = demod->demod_status.adc_freq; /* kHz */
+	/* adc_freq = 25414;*/
+	/*ary  no use tuner = demod->demod_status.tuner;*/
+	ch_mode = demod->demod_status.ch_mode;
+	agc_mode = demod->demod_status.agc_mode;
+	ch_freq = demod->demod_status.ch_freq;	/* kHz */
+	ch_if = demod->demod_status.ch_if;	/* kHz */
+	ch_bw = demod->demod_status.ch_bw;	/* kHz */
+	symb_rate = demod->demod_status.symb_rate;	/* k/sec */
 	PR_DVBC("ch_if is %d,  %d,	%d,  %d, %d\n",
 		ch_if, ch_mode, ch_freq, ch_bw, symb_rate);
 /*	  ch_mode=4;*/
@@ -785,14 +785,9 @@ void dvbc_reg_initial_old(struct aml_demod_sta *demod_sta)
 	/* enable irq */
 	dvbc_write_reg(0xd0, 0x7fff << 3);
 
-/*auto track*/
-	/*		dvbc_set_auto_symtrack(); */
+	/*auto track*/
+	/*dvbc_set_auto_symtrack(demod); */
 }
-
-
-
-
-
 
 void dvbc_disable_irq(int dvbc_irq)
 {

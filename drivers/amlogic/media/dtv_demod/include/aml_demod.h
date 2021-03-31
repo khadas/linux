@@ -184,6 +184,7 @@ struct fpga_m1_sdio {
 #define AML_DEMOD_GET_RSSI		_IOR('D', 6, struct aml_tuner_sys)
 #define AML_DEMOD_GET_PLL_INIT		_IOR('D', 7, u32_t)
 #define AML_DEMOD_GET_CAPTURE_ADDR	_IOR('D', 8, u32_t)
+#define AML_DEMOD_SET_ID		_IOW('D', 9, u32_t)
 
 #define AML_DEMOD_DVBC_SET_CH		_IOW('D', 10, struct aml_demod_dvbc)
 #define AML_DEMOD_DVBC_GET_CH		_IOR('D', 11, struct aml_demod_dvbc)
@@ -211,5 +212,7 @@ struct fpga_m1_sdio {
 extern unsigned int get_symbol_rate(void);
 extern unsigned int get_ch_freq(void);
 extern unsigned int get_modu(void);
+
+extern unsigned int demod_id;
 
 #endif				/* AML_DEMOD_H */
