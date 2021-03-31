@@ -251,7 +251,7 @@
 		compatible = "amlogic, ddemod-t5d-revB";
 		dev_name = "aml_dtv_demod";
 		status = "okay";
-		/*diseqc_name = "sgm_41286";*/
+		diseqc_name = "sgm_41286";
 		pinctrl-names="dtvdemod_agc_pins", "diseqc";
 		pinctrl-0=<&dtvdemod_agc_pins>;
 		pinctrl-1=<&diseqc_out>;
