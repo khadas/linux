@@ -1,0 +1,13 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&aml_sound>;
+
+		__overlay__ {
+			pinctrl-names = "audio_i2s";
+			pinctrl-0 = <&audio_i2s_pins>;
+		};
+	};
+};
