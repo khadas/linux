@@ -550,7 +550,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-i2s";
+			suffix-name = "alsaPORT-i2s2hdmi";
 			cpu {
 				sound-dai = <&tdmb>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -567,7 +567,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				sound-dai = <&amlogic_codec /*&ad82584f_62*/>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -584,7 +584,7 @@
 			//bitclock-master = <&tdmccodec>;
 			//frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-i2s2hdmi";
+			suffix-name = "alsaPORT-i2s";
 			cpu {
 				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -594,7 +594,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&amlogic_codec /*&ad82584f_62*/>;
 			};
 		};
 
@@ -814,17 +814,30 @@
 		compatible = "amlogic, t5-snd-tdmb";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <0 1 0 0>;
-		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-				&clkaudio CLKID_AUDIO_MCLK_PAD0
-				&clkc CLKID_MPLL1
+				&clkc CLKID_MPLL1>;
+		clock-names = "mclk", "clk_srcpll";
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = </*&tdmb_mclk &tdmout_b &tdmin_b*/>;
+
+		i2s2hdmi = <1>;
+		status = "okay";
+	};
+
+	tdmc: tdm@2 {
+		compatible = "amlogic, t5-snd-tdmc";
+		#sound-dai-cells = <0>;
+		dai-tdm-lane-slot-mask-in = <1>;
+		dai-tdm-lane-slot-mask-out = <1>;
+		dai-tdm-clk-sel = <2>;
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkc CLKID_MPLL2
 				&clkc CLKID_MPLL0
 				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll",
 			"samesource_srcpll", "samesource_clk";
-		pinctrl-names = "tdm_pins";
-		pinctrl-0 = </*&tdmb_mclk &tdmout_b &tdmin_b*/>;
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -840,18 +853,6 @@
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
 
-		status = "okay";
-	};
-
-	tdmc: tdm@2 {
-		compatible = "amlogic, t5-snd-tdmc";
-		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
-		dai-tdm-clk-sel = <2>;
-		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
-				&clkc CLKID_MPLL2>;
-		clock-names = "mclk", "clk_srcpll";
-		i2s2hdmi = <1>;
 		status = "okay";
 	};
 

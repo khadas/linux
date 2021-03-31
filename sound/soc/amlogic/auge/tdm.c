@@ -989,7 +989,8 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		enum frddr_dest dst;
 		unsigned int fifo_id;
 
-		if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
+		if (p_tdm->samesource_sel != SHAREBUFFER_NONE &&
+			spdif_get_codec() != AUD_CODEC_TYPE_MULTI_LPCM)
 			tdm_sharebuffer_prepare(substream, p_tdm);
 
 		/* i2s source to hdmix */
