@@ -2295,8 +2295,7 @@ void get_hist(enum vd_path_e vd_path, enum hdr_hist_sel hist_sel)
 		hdr2_hist_rd = VD3_HDR2_HIST_RD_2;
 	}
 
-	if ((get_cpu_type() < MESON_CPU_MAJOR_ID_G12A) ||
-	    (get_cpu_type() == MESON_CPU_MAJOR_ID_SC2))
+	if (get_cpu_type() < MESON_CPU_MAJOR_ID_G12A)
 		return;
 
 	/*no vd2 in TL1*/
