@@ -754,28 +754,27 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 		vt_instance_get(instance);
 	}
 
+	mutex_lock(&instance->lock);
 	if (data->role == VT_ROLE_PRODUCER) {
 		if (instance->producer &&
 		    instance->producer != session) {
+			mutex_unlock(&instance->lock);
 			vt_instance_put(instance);
 			pr_err("Connect to vt [%d] err, already has producer\n",
 			       id);
 			return -EINVAL;
 		}
-		mutex_lock(&instance->lock);
 		instance->producer = session;
-		mutex_unlock(&instance->lock);
 	} else if (data->role == VT_ROLE_CONSUMER) {
 		if (instance->consumer &&
 		    instance->consumer != session) {
+			mutex_unlock(&instance->lock);
 			vt_instance_put(instance);
 			pr_err("Connect to vt [%d] err, already has consumer\n",
 			       id);
 			return -EINVAL;
 		}
-		mutex_lock(&instance->lock);
 		instance->consumer = session;
-		mutex_unlock(&instance->lock);
 	}
 	session->cid = vt_get_connected_id();
 	session->role = data->role;
@@ -785,6 +784,7 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 		 data->role == VT_ROLE_PRODUCER ? "producer" : "consumer",
 		 session->pid,
 		 atomic_read(&instance->ref.refcount.refs));
+	mutex_unlock(&instance->lock);
 
 	return ret;
 }
@@ -820,14 +820,16 @@ static int vt_disconnect_process(struct vt_ctrl_data *data,
 		vt_session_trim_lock(session, instance);
 		instance->consumer = NULL;
 	}
-	mutex_unlock(&instance->lock);
 
-	vt_debug(VT_DEBUG_USER, "vt [%d] %s-%d disconnect, instance ref %d\n",
+	vt_debug(VT_DEBUG_USER, "vt [%d] %s-%d disconnect, instance ref %d, fcount %d\n",
 		 instance->id,
 		 data->role == VT_ROLE_PRODUCER ? "producer" : "consumer",
 		 session->pid,
-		 atomic_read(&instance->ref.refcount.refs));
+		 atomic_read(&instance->ref.refcount.refs),
+		 instance->fcount);
+	mutex_unlock(&instance->lock);
 	vt_instance_put(instance);
+
 	session->cid = -1;
 
 	return 0;
@@ -1255,6 +1257,8 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 	for (i = 0; i < data->buffer_size; i++) {
 		item = &data->buffers[i];
 		if (item->buffer_fd < 0) {
+			pr_err("vt [%d] releasebuffer error buffer:%d\n",
+			      instance->id, item->buffer_fd);
 			mutex_unlock(&instance->lock);
 			return -EINVAL;
 		}
@@ -1262,6 +1266,8 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 		buffer = vt_buffer_get_locked(instance, item->buffer_fd);
 
 		if (!buffer) {
+			pr_err("vt [%d] releasebuffer cann't find buffer:%d\n",
+			      instance->id, item->buffer_fd);
 			mutex_unlock(&instance->lock);
 			return -EINVAL;
 		}
@@ -1275,7 +1281,7 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 				 "vt [%d] releasebuffer fence file is null\n",
 				 instance->id);
 		else
-			vt_debug(VT_DEBUG_FILE,
+			vt_debug(VT_DEBUG_BUFFERS,
 				"vt [%d] releasebuffer fence file(%p) fence fd(%d)\n",
 				instance->id, buffer->file_fence, item->fence_fd);
 
