@@ -63,6 +63,144 @@
 		lcd_1{
 			model_name = "TS050";
 			interface = "mipi";
+		lcd_2{
+			model_name = "mipi2vga";/* mipi2vga */
+			interface = "mipi";
+			basic_setting = <1280 720 /*h_active, v_active*/
+				1650 750 /*h_period, v_period*/
+				8 /*lcd_bits*/
+				16 9>; /*screen_widht, screen_height*/
+			lcd_timing = <40 145  0 /*hs_width,hs_bp,hs_pol*/
+				5 10 0>; /*vs_width,vs_bp,vs_pol*/
+			clk_attr = <0 /*fr_adj_type(0=clock,1=htotal,2=vtotal)*/
+				0 /*clk_ss_level*/
+				1 /*clk_auto_generate*/
+				74250000>; /*pixel_clk(unit in Hz)*/
+			mipi_attr = <4 /*lane_num*/
+				500 /*bit_rate_max(MHz)*/
+				0 /*factor(*100, default 0 for auto)*/
+				1 /*operation_mode_init(0=video, 1=command)*/
+				0 /*operation_mode_display(0=video, 1=command)*/
+				2 /*
+				   *video_mode_type
+				   *(0=sync_pulse,1=sync_event,2=burst)
+				   */
+				1 /*clk_always_hs(0=disable,1=enable)*/
+				0>; /*phy_switch(0=auto,1=standard,2=slow)*/
+				/* dsi_init: data_type, num, data... */
+			dsi_init_on = <0xff 0xff>; /* ending flag */
+			dsi_init_off = <0xff 0xff>; /* ending flag */
+				/* extern_init: 0xff for invalid */
+			extern_init = <2>;
+				/* power step: type,index,value,delay(ms) */
+			power_on_step = <
+					0 0 1 10
+					0 1 0 100
+					0 0 0 200
+					0 1 1 100
+					2 0 0 100
+					0xff 0 0 0>;
+			power_off_step = <
+					2 0 0 0
+					0 1 0 100
+					0 0 1 100
+					0xff 0 0 0>;
+			backlight_index = <0>;
+		};
+		lcd_3{
+			model_name = "ICN6211_1080p";
+			interface = "mipi";
+			basic_setting = <1920 1080
+				2200 1125
+				0x8
+				16 9>;
+			lcd_timing = <84 148 0 11 30 0>;
+			clk_attr = <0 0 1 0x8d9ee20>;
+			mipi_attr = <0x4 0x3c0 0 1 0 2 1 0>;
+			dsi_init_on = <0xff 0xff>;
+			dsi_init_off = <0xff 0xff>;
+			extern_init = <3>;
+			power_on_step = <
+					2 0 0 0
+					3 7 0 0
+					0xff 0 0 0>;
+			power_off_step = <
+					2 0 0 0
+					3 7 0 0
+					0xff 0 0 0>;
+			backlight_index = <0xff>;
+		};
+		extern_2{
+			index = <2>;
+			extern_name = "mipi2vga720p"; /* mipi2vga */
+			status = "okay";
+			type = <2>; /* 0=i2c, 1=spi, 2=mipi */
+			cmd_size = <0xff>;
+			init_on = <
+				0x23 2 0x7A 0xC1
+				0x23 2 0x20 0x00
+				0x23 2 0x21 0xD0
+				0x23 2 0x22 0x25
+				0x23 2 0x23 0x91
+				0x23 2 0x24 0x28
+				0x23 2 0x25 0xB9
+				0x23 2 0x26 0x00
+				0x23 2 0x27 0x0A
+				0x23 2 0x28 0x05
+				0x23 2 0x29 0x0F
+				0x23 2 0x34 0x80
+				0x23 2 0x36 0x91
+				0x23 2 0xB5 0xA0
+				0x23 2 0x5C 0xFF
+				0x23 2 0x2A 0x01
+				0x23 2 0x56 0x90
+				0x23 2 0x6B 0x51
+				0x23 2 0x69 0x2E
+				0x23 2 0x10 0x55
+				0x23 2 0x11 0x88
+				0x23 2 0xB6 0x20
+				0x23 2 0x51 0x20
+				0x23 2 0x09 0x10
+				0xff 40
+				0xff 0xff>; /*ending*/
+			init_off = <
+				0xff 200      /* delay 50ms */
+				0xff 0xff>; /*ending*/
+		};
+		extern_3{
+			index = <3>;
+			extern_name = "mipi2vga1080p"; /* ICN6211 mipi 1080p*/
+			status = "okay";
+			type = <2>; /* 0=i2c, 1=spi, 2=mipi */
+			cmd_size = <0xff>;
+			init_on = <
+				0x23 2 0x7A 0xC1
+				0x23 2 0x20 0x80
+				0x23 2 0x21 0x38
+				0x23 2 0x22 0x47
+				0x23 2 0x23 0x58
+				0x23 2 0x24 0x2C
+				0x23 2 0x25 0x94
+				0x23 2 0x26 0x00
+				0x23 2 0x27 0x04
+				0x23 2 0x28 0x05
+				0x23 2 0x29 0x24
+				0x23 2 0x34 0x80
+				0x23 2 0x36 0x58
+				0x23 2 0xB5 0xA0
+				0x23 2 0x5C 0xFF
+				0x23 2 0x2A 0x01
+				0x23 2 0x56 0x92
+				0x23 2 0x6B 0x33
+				0x23 2 0x69 0x20
+				0x23 2 0x10 0x40
+				0x23 2 0x11 0xA8
+				0x23 2 0xB6 0x20
+				0x23 2 0x51 0x20
+				0x23 2 0x09 0x10
+				0xff 0xff>; /*ending*/
+			init_off = <0xff 0xff>; /*ending*/
+		};
 			basic_setting = <1080 1920 /*h_active, v_active*/
 				1120 1933 /*h_period, v_period*/
 				8 /*lcd_bits*/
