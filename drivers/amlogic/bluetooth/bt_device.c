@@ -53,6 +53,7 @@ static struct early_suspend bt_early_suspend;
 #endif
 
 #define BT_RFKILL "bt_rfkill"
+#define MODULE_ID 0x271
 
 char bt_addr[18] = "";
 char *btmac;
@@ -65,6 +66,19 @@ static int flag_n;
 static int flag_p;
 static int cnt;
 static int rfk_reg = 1;
+
+static int distinguish_module(void)
+{
+	int vendor_id = 0;
+
+	vendor_id = sdio_get_vendor();
+	pr_info("vendor_id = 0x%x\n", vendor_id);
+
+	if (vendor_id == MODULE_ID)
+		return 0;
+
+	return 1;
+}
 
 static ssize_t value_show(struct class *cls,
 	struct class_attribute *attr, char *_buf)
@@ -115,6 +129,10 @@ struct bt_dev_runtime_data {
 
 static void bt_device_off(struct bt_dev_data *pdata)
 {
+	if (!distinguish_module()) {
+		return;
+	}
+
 	if (pdata->power_down_disable == 0) {
 		if (btpower_evt == 1 && pdata->gpio_reset > 0) {
 			if (pdata->power_on_pin_OD &&
@@ -390,7 +408,6 @@ static int bt_suspend(struct platform_device *pdev,
 
 static int bt_resume(struct platform_device *pdev)
 {
-	int event = 0;
 	struct bt_dev_runtime_data *prdata = platform_get_drvdata(pdev);
 	pr_info("bt resume\n");
 	enable_irq(prdata->pdata->irqno_wakeup);
@@ -404,9 +421,7 @@ static int bt_resume(struct platform_device *pdev)
 		flag_p = 0;
 		cnt = 0;
 	}
-	event = sdio_get_vendor();
-	pr_info("event = %d\n", event);
-	if (event != 625 && get_resume_method() == BT_WAKEUP) {
+	if (distinguish_module() && get_resume_method() == BT_WAKEUP) {
 		input_event(prdata->pdata->input_dev,
 			EV_KEY, KEY_POWER, 1);
 		input_sync(prdata->pdata->input_dev);
