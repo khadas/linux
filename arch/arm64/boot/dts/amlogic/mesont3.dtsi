@@ -476,6 +476,11 @@
 			compatible = "amlogic, aml_dummy_codec";
 			status = "okay";
 		};
+		video_composer {
+			compatible = "amlogic, video_composer";
+			dev_name = "video_composer";
+			status = "okay";
+		};
 		acodec:codec {
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, tm2_revb_acodec";

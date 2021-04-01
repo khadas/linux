@@ -74,6 +74,20 @@
 			alignment = <0x0 0x100000>;
 			//no-map;
 		};
+
+		/* POST PROCESS MANAGER */
+		ppmgr_reserved:linux,ppmgr {
+			compatible = "amlogic, ppmgr_memory";
+			size = <0x0 0x0>;
+		};
+
+		picdec_cma_reserved:linux,picdec {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x0>;
+			alignment = <0x0 0x0>;
+			linux,contiguous-region;
+		};
 	};
 	codec_mm {
 		compatible = "amlogic, codec, mm";
@@ -81,6 +95,39 @@
 		dev_name = "codec_mm";
 		status = "okay";
 	};
+	picdec {
+		compatible = "amlogic, picdec";
+		memory-region = <&picdec_cma_reserved>;
+		dev_name = "picdec";
+		status = "okay";
+	};
+	ppmgr {
+		compatible = "amlogic, ppmgr";
+		memory-region = <&ppmgr_reserved>;
+		status = "okay";
+	};
+	vdetect {
+		compatible = "amlogic, vdetect";
+		dev_name = "vdetect";
+		status = "disabled";
+	};
+
+	amlvideo2_0 {
+		compatible = "amlogic, amlvideo2";
+		dev_name = "amlvideo2";
+		status = "okay";
+		amlvideo2_id = <0>;
+		cma_mode = <1>;
+	};
+
+	amlvideo2_1 {
+		compatible = "amlogic, amlvideo2";
+		dev_name = "amlvideo2";
+		status = "okay";
+		amlvideo2_id = <1>;
+		cma_mode = <1>;
+	};
+
 	unifykey {
 		compatible = "amlogic,unifykey";
 		status = "okay";
