@@ -35,4 +35,7 @@
 #endif /* CONFIG_AMLOGIC_MODIFY */
 
 
+#define ANDROID_OEM_DATA(n)		u64 android_oem_data##n
+#define ANDROID_OEM_DATA_ARRAY(n, s)	u64 android_oem_data##n[s]
+
 #endif /* _ANDROID_VENDOR_H */
