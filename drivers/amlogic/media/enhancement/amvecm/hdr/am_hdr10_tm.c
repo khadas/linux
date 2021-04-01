@@ -476,13 +476,14 @@ int hdr10_tm_dynamic_proc(struct vframe_master_display_colour_s *p)
 		anchor[i] = P_init[i] << 2;
 
 	pre_tmo_reg = tmo_fw_param_get();
-	if (is_hdr_tmo_support() && pre_tmo_reg->pre_hdr10_tmo_alg) {
-		/*default new hdr10 alg*/
-		pr_hdr_tm("used new hdr_alg.\n");
-		hdr10_tm_sel = 2;
-	} else {
-		/* after sm1 or insmod hdr_tmo ko failed*/
-		pr_hdr_tm("IC is before sm1 or insmod hdr_tmo ko failed.\n");
+
+	if (!is_hdr_tmo_support() || !pre_tmo_reg->pre_hdr10_tmo_alg) {
+		/*used old hdr alg*/
+		pr_hdr_tm("used old hdr alg - ");
+		if (!pre_tmo_reg->pre_hdr10_tmo_alg)
+			pr_hdr_tm("hdr alg ko insmod failed.\n");
+		else
+			pr_hdr_tm("the chip is not support.\n");
 		hdr10_tm_sel = 1;
 	}
 
