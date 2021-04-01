@@ -774,12 +774,6 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	// --------------------------------------------------------
 	pr_info("configure hdmitx video format timing\n");
 
-	// Due to 444->420 line buffer latency, the active line output from 444->420 conversion
-	// will be delayed by 1 line. So for 420 mode, we need to delay Vsync by 1 line as well,
-	// to meet the VESA display timing spec.
-	adjust_encp_for_hdmi(enc_sel, &para->timing,
-		(TX_INPUT_COLOR_FORMAT == COLORSPACE_YUV420) ? 1 : 0);
-
 	// [ 1: 0] hdmi_vid_fmt. 0=444; 1=convert to 422; 2=convert to 420.
 	// [ 3: 2] chroma_dnsmp_h. 0=use pixel 0; 1=use pixel 1; 2=use average.
 	// [    4] dith_en. 1=enable dithering before HDMI TX input.
