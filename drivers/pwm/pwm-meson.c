@@ -495,11 +495,11 @@ static const struct pwm_ops meson_pwm_ops = {
 };
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
-static const char * const pwm_meson8b_parent_names[] = {
+static char *pwm_meson8b_parent_names[] __initdata = {
 	"xtal", "vid_pll", "fclk_div4", "fclk_div3"
 };
 
-static const struct meson_pwm_data pwm_meson8b_data = {
+static struct meson_pwm_data pwm_meson8b_data __refdata = {
 	.parent_names = pwm_meson8b_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_meson8b_parent_names),
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -507,11 +507,11 @@ static const struct meson_pwm_data pwm_meson8b_data = {
 #endif
 };
 
-static const char * const pwm_gxbb_parent_names[] = {
+static char *pwm_gxbb_parent_names[] __initdata = {
 	"xtal", "hdmi_pll", "fclk_div4", "fclk_div3"
 };
 
-static const struct meson_pwm_data pwm_gxbb_data = {
+static struct meson_pwm_data pwm_gxbb_data __refdata = {
 	.parent_names = pwm_gxbb_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_gxbb_parent_names),
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -523,11 +523,11 @@ static const struct meson_pwm_data pwm_gxbb_data = {
  * Only the 2 first inputs of the GXBB AO PWMs are valid
  * The last 2 are grounded
  */
-static const char * const pwm_gxbb_ao_parent_names[] = {
+static char *pwm_gxbb_ao_parent_names[] __initdata = {
 	"xtal", "clk81"
 };
 
-static const struct meson_pwm_data pwm_gxbb_ao_data = {
+static struct meson_pwm_data pwm_gxbb_ao_data __refdata = {
 	.parent_names = pwm_gxbb_ao_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_gxbb_ao_parent_names),
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -535,11 +535,11 @@ static const struct meson_pwm_data pwm_gxbb_ao_data = {
 #endif
 };
 
-static const char * const pwm_axg_ee_parent_names[] = {
+static char *pwm_axg_ee_parent_names[] __initdata = {
 	"xtal", "fclk_div5", "fclk_div4", "fclk_div3"
 };
 
-static const struct meson_pwm_data pwm_axg_ee_data = {
+static struct meson_pwm_data pwm_axg_ee_data __refdata = {
 	.parent_names = pwm_axg_ee_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_axg_ee_parent_names),
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -547,11 +547,11 @@ static const struct meson_pwm_data pwm_axg_ee_data = {
 #endif
 };
 
-static const char * const pwm_axg_ao_parent_names[] = {
+static char *pwm_axg_ao_parent_names[] __initdata = {
 	"aoclk81", "xtal", "fclk_div4", "fclk_div5"
 };
 
-static const struct meson_pwm_data pwm_axg_ao_data = {
+static struct meson_pwm_data pwm_axg_ao_data __refdata = {
 	.parent_names = pwm_axg_ao_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_axg_ao_parent_names),
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -560,11 +560,11 @@ static const struct meson_pwm_data pwm_axg_ao_data = {
 };
 #endif
 
-static const char * const pwm_g12a_ao_ab_parent_names[] = {
+static char *pwm_g12a_ao_ab_parent_names[] __initdata = {
 	"xtal", "aoclk81", "fclk_div4", "fclk_div5"
 };
 
-static const struct meson_pwm_data pwm_g12a_ao_ab_data = {
+static struct meson_pwm_data pwm_g12a_ao_ab_data __refdata = {
 	.parent_names = pwm_g12a_ao_ab_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_g12a_ao_ab_parent_names),
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -572,11 +572,11 @@ static const struct meson_pwm_data pwm_g12a_ao_ab_data = {
 #endif
 };
 
-static const char * const pwm_g12a_ao_cd_parent_names[] = {
+static char *pwm_g12a_ao_cd_parent_names[] __initdata = {
 	"xtal", "aoclk81",
 };
 
-static const struct meson_pwm_data pwm_g12a_ao_cd_data = {
+static struct meson_pwm_data pwm_g12a_ao_cd_data __refdata = {
 	.parent_names = pwm_g12a_ao_cd_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_g12a_ao_cd_parent_names),
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -584,11 +584,11 @@ static const struct meson_pwm_data pwm_g12a_ao_cd_data = {
 #endif
 };
 
-static const char * const pwm_g12a_ee_parent_names[] = {
+static char *pwm_g12a_ee_parent_names[] __initdata = {
 	"xtal", "hdmi_pll", "fclk_div4", "fclk_div3"
 };
 
-static const struct meson_pwm_data pwm_g12a_ee_data = {
+static struct meson_pwm_data pwm_g12a_ee_data __refdata = {
 	.parent_names = pwm_g12a_ee_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_g12a_ee_parent_names),
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -597,17 +597,17 @@ static const struct meson_pwm_data pwm_g12a_ee_data = {
 };
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-static const char * const pwm_t5d_parent_names[] = {
+static  char *pwm_t5d_parent_names[] __initdata = {
 	"xtal", "clk81", "fclk_div4", "fclk_div5"
 };
 
-static const struct meson_pwm_data pwm_t5d_data = {
+static struct meson_pwm_data pwm_t5d_data __refdata = {
 	.parent_names = pwm_t5d_parent_names,
 	.num_parents = ARRAY_SIZE(pwm_t5d_parent_names),
 	.double_channel = true,
 };
 
-static const struct meson_pwm_data pwm_v2_data = {
+static struct meson_pwm_data pwm_v2_data __initdata = {
 	.double_channel = true,
 	.extern_clk = true,
 };
@@ -690,7 +690,7 @@ static int meson_pwm_init_channels(struct meson_pwm *meson)
 		init.name = name;
 		init.ops = &clk_mux_ops;
 		init.flags = 0;
-		init.parent_names = meson->data->parent_names;
+		init.parent_names = (const char *const *)meson->data->parent_names;
 		init.num_parents = meson->data->num_parents;
 
 		channel->mux.reg = meson->base + REG_MISC_AB;
@@ -750,11 +750,16 @@ static struct regmap_config meson_pwm_regmap_config = {
 static int meson_pwm_probe(struct platform_device *pdev)
 {
 	struct meson_pwm *meson;
+	struct meson_pwm_data *match;
 	struct resource *regs;
 	int err;
+	int i;
 
 	meson = devm_kzalloc(&pdev->dev, sizeof(*meson), GFP_KERNEL);
 	if (!meson)
+		return -ENOMEM;
+	meson->data = devm_kzalloc(&pdev->dev, sizeof(*meson->data), GFP_KERNEL);
+	if (!meson->data)
 		return -ENOMEM;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -774,7 +779,19 @@ static int meson_pwm_probe(struct platform_device *pdev)
 	meson->chip.dev = &pdev->dev;
 	meson->chip.ops = &meson_pwm_ops;
 	meson->chip.base = -1;
-	meson->data = of_device_get_match_data(&pdev->dev);
+	match = (struct meson_pwm_data *)of_device_get_match_data(&pdev->dev);
+	meson->data->num_parents = match->num_parents;
+	meson->data->double_channel = match->double_channel;
+	meson->data->extern_clk = match->extern_clk;
+	meson->data->parent_names = devm_kzalloc(&pdev->dev, sizeof(char *) * (match->num_parents),
+			GFP_KERNEL);
+	if (!meson->data)
+		return -ENOMEM;
+
+	for (i = 0; i < match->num_parents; i++)
+		meson->data->parent_names[i] = devm_kstrdup(&pdev->dev, match->parent_names[i],
+				GFP_KERNEL);
+
 #ifndef CONFIG_AMLOGIC_MODIFY
 	meson->chip.npwm = MESON_NUM_PWMS;
 #else
