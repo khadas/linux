@@ -1071,8 +1071,18 @@ static int do_cpu_down(unsigned int cpu, enum cpuhp_state target)
 	return err;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int cpu0_down_forbidden = 1;
+core_param(cpu0_down_forbidden, cpu0_down_forbidden, int, 0644);
+#endif
+
 int cpu_down(unsigned int cpu)
 {
+#ifdef CONFIG_AMLOGIC_MODIF
+	if (cpu == 0 && cpu0_down_forbidden)
+		return -EBUSY;
+#endif
+
 	return do_cpu_down(cpu, CPUHP_OFFLINE);
 }
 EXPORT_SYMBOL(cpu_down);
