@@ -102,7 +102,7 @@ struct meson_pwm_variant {
  * extern_clk = true , clk div, gate, mux in clktree
  */
 struct meson_pwm_data {
-	const char * const *parent_names;
+	char **parent_names;
 	unsigned int num_parents;
 	unsigned int double_channel;
 	unsigned int extern_clk;
@@ -120,7 +120,7 @@ struct meson_pwm_channel {
 
 struct meson_pwm {
 	struct pwm_chip chip;
-	const struct meson_pwm_data *data;
+	struct meson_pwm_data *data;
 	struct meson_pwm_channel channels[MESON_DOUBLE_NUM_PWMS];
 	struct meson_pwm_variant variant;
 	void __iomem *base;
