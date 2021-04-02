@@ -2126,7 +2126,6 @@ static void kill_kprobe(struct kprobe *p)
 	 */
 	if (kprobe_ftrace(p) && !kprobe_disabled(p) && !kprobes_all_disarmed)
 		disarm_kprobe_ftrace(p);
-#endif
 }
 
 /* Disable one kprobe */
