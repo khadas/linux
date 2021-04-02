@@ -865,11 +865,9 @@ static void dummy_encl_venc_set(void)
 
 static void dummy_encl_clk_ctrl(int flag)
 {
-	pr_info("******evoke: %s: %d\n", __func__, __LINE__);
 	if (!dummy_venc_data)
 		return;
 
-	pr_info("******evoke: %s: flag=%d\n", __func__, flag);
 	if (flag) {
 		/* clk source sel: fckl_div5 */
 		vout_clk_setb(dummy_venc_data->vid2_clk_div_reg,
@@ -905,15 +903,6 @@ static void dummy_encl_clk_ctrl(int flag)
 		vout_clk_setb(dummy_venc_data->vid2_clk_div_reg,
 			      0, VCLK2_XD_EN, 1);
 	}
-	pr_info("0x%x=0x%08x\n"
-		"0x%x=0x%08x\n"
-		"0x%x=0x%08x\n",
-		dummy_venc_data->vid2_clk_ctrl_reg,
-		vout_clk_read(dummy_venc_data->vid2_clk_ctrl_reg),
-		dummy_venc_data->vid2_clk_div_reg,
-		vout_clk_read(dummy_venc_data->vid2_clk_div_reg),
-		dummy_venc_data->vid_clk_ctrl2_reg,
-		vout_clk_read(dummy_venc_data->vid_clk_ctrl2_reg));
 }
 
 static void dummy_encl_clk_gate_switch(int flag)
