@@ -381,12 +381,13 @@ canvas_pool_map_show(struct class *class,
 			test_bit(i, pool->canvas_map),
 			info.fixed_onwer, o1, o2, info.alloc_time);
 		size += snprintf(buf + size, PAGE_SIZE - size,
-				"\taddr=%08x,\ts=%d X %d,\trap=%d,\tmod=%d\n",
+				"\taddr=%08x,\ts=%d X %d,\trap=%d,\tmod=%d,\tend=%d\n",
 				(unsigned int)canvas.addr,
 				(int)canvas.width,
 				(int)canvas.height,
 				(int)canvas.wrap,
-				(int)canvas.blkmode);
+				(int)canvas.blkmode,
+				(int)canvas.endian);
 	}
 	pool->next_dump_index = i;
 	if (pool->next_dump_index >= pool->canvas_max)

@@ -1329,16 +1329,18 @@ static unsigned int vf_keep_current_locked(struct vframe_s *cur_buf,
 		return 0;
 	}
 
-	if (cur_buf->type & VIDTYPE_PRE_INTERLACE) {
+	if (IS_DI_PROCESSED(cur_buf->type)) {
+		ret = 2;
 		if (cur_buf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
 			ret = video_keeper_frame_keep_locked
 				(cur_buf->vf_ext,
 				cur_buf_el);
 			pr_info("keep di_dec buffer\n");
-			return ret;
 		}
-		pr_info("keep exit is di\n");
-		return 2;
+		pr_info("keep exit is di %s\n",
+			IS_DI_POSTWRTIE(cur_buf->type) ?
+			"post write" : "post");
+		return ret;
 	}
 
 	if (cur_buf->source_type == VFRAME_SOURCE_TYPE_PPMGR) {

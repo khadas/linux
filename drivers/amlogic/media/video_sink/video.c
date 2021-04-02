@@ -5621,8 +5621,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		}
 		if (recycle_cnt[i] > 0 && _cur_dispbuf != _local_vf) {
 			for (j = 0; j < recycle_cnt[i]; j++) {
-				if (recycle_buf[i][j] &&
-				    _cur_dispbuf != recycle_buf[i][j]) {
+				if ((recycle_buf[i][j] &&
+				    _cur_dispbuf != recycle_buf[i][j]) &&
+				    (recycle_buf[i][j]->flag & VFRAME_FLAG_DI_PW_VFM)) {
 					if (i == 0)
 						di_release_count++;
 					dim_post_keep_cmd_release2(recycle_buf[i][j]);
@@ -7764,7 +7765,8 @@ static void release_di_buffer(int inst)
 
 	for (i = 0; i < recycle_cnt[inst]; i++) {
 		if (recycle_buf[inst][i] &&
-		    (recycle_buf[inst][i]->type & VIDTYPE_DI_PW)) {
+		    (recycle_buf[inst][i]->type & VIDTYPE_DI_PW) &&
+		    (recycle_buf[inst][i]->flag & VFRAME_FLAG_DI_PW_VFM)) {
 			di_release_count++;
 			dim_post_keep_cmd_release2(recycle_buf[inst][i]);
 		}
