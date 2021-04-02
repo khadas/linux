@@ -500,6 +500,7 @@ void demod_power_switch(int pwr_cntl)
 void demod_set_mode_ts(enum fe_delivery_system delsys)
 {
 	union demod_cfg0 cfg0;
+	unsigned int dvbt_mode = 0x11;
 
 	cfg0.b.adc_format = 1;
 	cfg0.b.adc_regout = 1;
@@ -550,11 +551,22 @@ void demod_set_mode_ts(enum fe_delivery_system delsys)
 		}
 		break;
 
+	case SYS_DVBT:
+	case SYS_DVBT2:
+		dvbt_mode = 0x110011;
+		break;
+
+	case SYS_DVBS:
+	case SYS_DVBS2:
+		dvbt_mode = 0x220011;
+		break;
+
 	default:
 		break;
 	}
 
 	demod_top_write_reg(DEMOD_TOP_REG0, cfg0.d32);
+	demod_top_write_reg(DEMOD_TOP_REGC, dvbt_mode);
 }
 
 void clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
@@ -564,7 +576,6 @@ void clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
 	struct dfe_adcpll_para ddemod_pll;
 #endif
-
 	demod_power_switch(PWR_ON);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
@@ -931,21 +942,6 @@ void demod_init_mutex(void)
 	mutex_init(&mp);
 }
 
-static void download_fw_to_sram(struct amldtvdemod_device_s *devp)
-{
-	unsigned int i;
-
-	for (i = 0; i < 10; i++) {
-		if (write_riscv_ram()) {
-			PR_ERR("write fw err %d\n", i);
-		} else {
-			devp->fw_wr_done = 1;
-			PR_INFO("download fw to sram done.\n");
-			break;
-		}
-	}
-}
-
 int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 {
 	unsigned int clk_adc, clk_dem;
@@ -1037,40 +1033,6 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 
 	case SYS_DVBT:
 	case SYS_DVBT2:
-		if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
-			nco_rate = 0x80;
-			demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
-			demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
-			demod_top_write_reg(DEMOD_TOP_REGC, 0x110010);
-			usleep_range(1000, 1001);
-			demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
-			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
-			front_write_bits(AFIFO_ADC, nco_rate, AFIFO_NCO_RATE_BIT,
-					 AFIFO_NCO_RATE_WID);
-			front_write_reg(0x22, 0x7200a06);
-			front_write_reg(0x2f, 0x0);
-
-			if (demod->demod_status.delsys == SYS_DVBT2) {
-				front_write_reg(0x39, 0xc0002000);
-				front_write_reg(TEST_BUS_VLD, 0x80000000);
-				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
-				riscv_ctl_write_reg(0x30, 5);
-				riscv_ctl_write_reg(0x30, 4);
-				/* t2 top test bus addr */
-				dvbt_t2_wr_word_bits(0x38, 0, 16, 4);
-			} else {
-				front_write_reg(0x39, 0x40001000);
-			}
-
-			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-
-			if (demod->demod_status.delsys == SYS_DVBT2) {
-				if (!devp->fw_wr_done)
-					download_fw_to_sram(devp);
-
-				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
-			}
-		}
 		break;
 
 	case SYS_DVBS:

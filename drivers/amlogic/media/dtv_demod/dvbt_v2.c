@@ -207,6 +207,13 @@ static int coef[] = {
 	0xfc00, 0xfc00, 0x0000, 0x0000, 0x0400, 0x0b00, 0x0000, 0x0000
 };
 
+const unsigned int minimum_snr_x10[4][6] = {
+	{4, 16, 25, 35, 41, 46},	/* QPSK */
+	{56, 70, 84, 95, 103, 108},	/* QAM16 */
+	{100, 118, 131, 146, 157, 163},	/* QAM64 */
+	{139, 163, 177, 197, 212, 219}	/* QAM256 */
+};
+
 void tfd_filter_coff_ini(void)
 {
 	int i = 0;
@@ -856,6 +863,7 @@ void dvbt2_init(struct aml_dtvdemod *demod)
 	dvbt_t2_wrb(0x08f0, 0x0c);
 	dvbt_t2_wrb(0x1590, 0x80);
 	dvbt_t2_wrb(0x1593, 0x80);
+	/* fepath_gain 0x20 */
 	dvbt_t2_wrb(0x15e0, 0x09);
 	dvbt_t2_wrb(0x2754, 0x40);
 	dvbt_t2_wrb(0x80c, 0xff);
@@ -1011,13 +1019,49 @@ unsigned int write_riscv_ram(void)
 		addr += 4;
 	}
 
-	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-
 	return ret;
 }
 
-static void dvbt2_riscv_init(struct aml_dtvdemod *demod)
+static void download_fw_to_sram(struct amldtvdemod_device_s *devp)
 {
+	unsigned int i;
+
+	for (i = 0; i < 10; i++) {
+		if (write_riscv_ram()) {
+			PR_ERR("write fw err %d\n", i);
+		} else {
+			devp->fw_wr_done = 1;
+			PR_INFO("download fw to sram done.\n");
+			break;
+		}
+	}
+}
+
+void dvbt2_riscv_init(struct aml_dtvdemod *demod)
+{
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x110010);
+	usleep_range(1000, 1001);
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
+	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+	front_write_bits(AFIFO_ADC, 0x80, AFIFO_NCO_RATE_BIT,
+			 AFIFO_NCO_RATE_WID);
+	front_write_reg(0x22, 0x7200a06);
+	front_write_reg(0x2f, 0x0);
+	front_write_reg(0x39, 0xc0002000);
+	front_write_reg(TEST_BUS_VLD, 0x80000000);
+	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
+	riscv_ctl_write_reg(0x30, 5);
+	riscv_ctl_write_reg(0x30, 4);
+	/* t2 top test bus addr */
+	dvbt_t2_wr_word_bits(0x38, 0, 16, 4);
+
+	if (!devp->fw_wr_done)
+		download_fw_to_sram(devp);
+
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 	dvbt2_init(demod);
 
@@ -1042,25 +1086,8 @@ static void dvbt2_riscv_init(struct aml_dtvdemod *demod)
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 }
 
-void dtvdemod_reset_fw(struct aml_dtvdemod *demod)
+void dvbt2_reset(struct aml_dtvdemod *demod)
 {
-	demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
-	demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
-	demod_top_write_reg(DEMOD_TOP_REGC, 0x110010);
-	usleep_range(1000, 1001);
-	demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
-	front_write_bits(AFIFO_ADC, 0x80, AFIFO_NCO_RATE_BIT,
-			 AFIFO_NCO_RATE_WID);
-	front_write_reg(0x22, 0x7200a06);
-	front_write_reg(0x2f, 0x0);
-	front_write_reg(0x39, 0xc0002000);
-	front_write_reg(TEST_BUS_VLD, 0x80000000);
-	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
-	riscv_ctl_write_reg(0x30, 5);
-	riscv_ctl_write_reg(0x30, 4);
-	/* t2 top test bus addr */
-	dvbt_t2_wr_word_bits(0x38, 0, 16, 4);
-	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 	dvbt2_riscv_init(demod);
 }
 
@@ -1074,6 +1101,18 @@ void dvbt_reg_initial(unsigned int bw)
 	/* 24M */
 	s_r = 54;
 	if_tuner_freq = 49;
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x110010);
+	usleep_range(1000, 1001);
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
+	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+	front_write_bits(AFIFO_ADC, 0x80, AFIFO_NCO_RATE_BIT,
+			 AFIFO_NCO_RATE_WID);
+	front_write_reg(0x22, 0x7200a06);
+	front_write_reg(0x2f, 0x0);
+	front_write_reg(0x39, 0x40001000);
+	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 
 	switch (bw) {
 	case BANDWIDTH_8_MHZ:
@@ -1382,9 +1421,9 @@ void dtvdemod_get_plp(struct dtv_property *tvp)
 	/* char plp_type[MAX_PLP_NUM]; */
 	unsigned int val;
 
-	/* val[30-24]:0x805, plp num */
+	/* val[29-24]:0x805, plp num */
 	val = front_read_reg(0x3e);
-	plp_num = (val >> 24) & 0x7f;
+	plp_num = (val >> 24) & 0x3f;
 
 	/* miso_mode = (dvbt_t2_rdb(0x871) >> 4) & 0x7; */
 	/* plp_num = dvbt_t2_rdb(0x805); */

@@ -140,6 +140,7 @@ void adc_set_ddemod_default(enum fe_delivery_system delsys)
 				adc_wr_afe(AFE_VAFE_CTRL2, 0x1fe09e31);
 				adc_wr_hiu(HHI_DADC_CNTL, 0x0030303c);
 				adc_wr_hiu(HHI_DADC_CNTL2, 0x00003440);
+				/* bit[1:0] adc en/dis, 00:dis, 11:en */
 				adc_wr_hiu(HHI_DADC_CNTL3, 0x08300b93);
 				adc_wr_hiu(HHI_DADC_CNTL4, 0xc00);
 				break;

@@ -341,6 +341,7 @@ enum ldpc_ite_md {
 #define CHC_CIR_SNR0	0x2a08
 #define CHC_CIR_SNR1	0x2a09
 
+extern const unsigned int minimum_snr_x10[4][6];
 void dvbt2_init(struct aml_dtvdemod *demod);
 unsigned int dtvdemod_calcul_get_field(unsigned int memory_base, unsigned int nb_bits_shift,
 					unsigned int var_size);
@@ -348,7 +349,8 @@ void dtvdemod_get_plp(struct dtv_property *tvp);
 void dtvdemod_get_plp_dbg(void);
 void dtvdemod_set_plpid(char id);
 void dvbt_reg_initial(unsigned int bw);
-void dtvdemod_reset_fw(struct aml_dtvdemod *demod);
+void dvbt2_reset(struct aml_dtvdemod *demod);
+void dvbt2_riscv_init(struct aml_dtvdemod *demod);
 void dvbt2_info(struct seq_file *seq);
 void dvbt_info(struct aml_dtvdemod *demod, struct seq_file *seq);
 #endif
