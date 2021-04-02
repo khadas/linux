@@ -16,7 +16,13 @@ static struct edid_venddat_t vendor_6g[] = {
 	/* Add new vendor data here */
 };
 
-bool hdmitx_find_vendor(struct hdmitx_dev *hdev)
+static struct edid_venddat_t vendor_ratio[] = {
+	/* Mi L55M2-AA */
+	{ {0x61, 0xA4, 0x03, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x19} }
+	/* Add new vendor data here */
+};
+
+bool hdmitx_find_vendor_6g(struct hdmitx_dev *hdev)
 {
 	int i;
 
@@ -27,3 +33,17 @@ bool hdmitx_find_vendor(struct hdmitx_dev *hdev)
 	}
 	return false;
 }
+
+/* need to forcely change clk raito for such TV when suspend/resume box */
+bool hdmitx_find_vendor_ratio(struct hdmitx_dev *hdev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(vendor_ratio); i++) {
+		if (memcmp(&hdev->edid_ptr[8], vendor_ratio[i].data,
+			   sizeof(vendor_ratio[i].data)) == 0)
+			return true;
+	}
+	return false;
+}
+
