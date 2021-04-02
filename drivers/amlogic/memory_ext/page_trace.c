@@ -112,9 +112,14 @@ static struct fun_symbol common_func[] __initdata = {
 	{"alloc_pages_exact_nid",	1, 0},
 	{"get_zeroed_page",		1, 0},
 	{"__vmalloc_node_range",	1, 0},
-	{"__vmalloc_area_node",	1, 0},
+	{"__vmalloc_area_node",		1, 0},
+	{"sk_prot_alloc",		1, 0},
+	{"__alloc_skb",			1, 0},
+	{"__vmalloc_node_flags",	0, 0},
 	{"vzalloc",			1, 0},
 	{"vmalloc",			1, 0},
+	{"kzalloc",			1, 0},
+	{"kstrdup_const",		1, 0},
 	{"kvmalloc_node",		1, 0},
 	{"kmalloc_order",		1, 0},
 	{"kmalloc_order_trace",		1, 0},
@@ -693,8 +698,8 @@ static int __init page_trace_pre_work(unsigned long size)
 #endif
 
 /*--------------------------sysfs node -------------------------------*/
-#define LARGE	512
-#define SMALL	128
+#define LARGE	1024
+#define SMALL	256
 
 /* caller for unmovalbe are max */
 #define MT_UNMOVABLE_IDX	0                            /* 0,UNMOVABLE   */
@@ -740,17 +745,14 @@ static unsigned long find_ip_base(unsigned long ip)
 		return ip;
 }
 
-static int find_page_ip(struct page_trace *trace,
-			struct page_summary *sum, int *o,
-			int range, int *mt_cnt, int size,
-			struct rb_root *root)
+static int find_page_ip(struct page_trace *trace, struct page_summary *sum,
+			int range, int *mt_cnt, struct rb_root *root)
 {
 	int order;
 	unsigned long ip;
 	struct rb_node **link, *parent = NULL;
 	struct page_summary *tmp;
 
-	*o = 0;
 	ip = unpack_ip(trace);
 	if (!ip || !trace->ip_data)	/* invalid ip */
 		return 0;
@@ -761,8 +763,7 @@ static int find_page_ip(struct page_trace *trace,
 		parent = *link;
 		tmp = rb_entry(parent, struct page_summary, entry);
 		if (ip == tmp->ip) { /* match */
-			tmp->cnt += ((1 << order) * size);
-			*o = order;
+			tmp->cnt++;
 			return 0;
 		} else if (ip < tmp->ip) {
 			link = &tmp->entry.rb_left;
@@ -775,8 +776,7 @@ static int find_page_ip(struct page_trace *trace,
 		return -ERANGE;
 	tmp       = &sum[mt_cnt[trace->migrate_type]];
 	tmp->ip   = ip;
-	tmp->cnt += ((1 << order) * size);
-	*o        = order;
+	tmp->cnt++;
 	mt_cnt[trace->migrate_type]++;
 	rb_link_node(&tmp->entry, parent, link);
 	rb_insert_color(&tmp->entry, root);
@@ -881,7 +881,6 @@ static int update_page_trace(struct seq_file *m, struct zone *zone,
 	unsigned long start_pfn = zone->zone_start_pfn;
 	unsigned long end_pfn = zone_end_pfn(zone);
 	int    ret = 0, mt;
-	int    order;
 	struct page_trace *trace;
 	struct page_summary *p;
 	struct rb_root root[MIGRATE_TYPES];
@@ -891,7 +890,6 @@ static int update_page_trace(struct seq_file *m, struct zone *zone,
 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
 		struct page *page;
 
-		order = 0;
 		if (!pfn_valid(pfn))
 			continue;
 
@@ -913,16 +911,13 @@ static int update_page_trace(struct seq_file *m, struct zone *zone,
 
 		mt = trace->migrate_type;
 		p  = sum + mt_offset[mt];
-		ret = find_page_ip(trace, p, &order,
-				   mt_offset[mt + 1] - mt_offset[mt],
-				   mt_cnt, 1, &root[mt]);
+		ret = find_page_ip(trace, p, mt_offset[mt + 1] - mt_offset[mt],
+				   mt_cnt, &root[mt]);
 		if (ret) {
 			pr_err("mt type:%d, out of range:%d\n",
 			       mt, mt_offset[mt + 1] - mt_offset[mt]);
 			break;
 		}
-		if (order)
-			pfn += ((1 << order) - 1);
 	}
 	if (merge_function)
 		merge_same_function(sum, mt_cnt);
