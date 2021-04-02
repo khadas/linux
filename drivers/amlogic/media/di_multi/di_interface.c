@@ -722,14 +722,14 @@ int di_release_keep_buf(struct di_buffer *buffer)
 EXPORT_SYMBOL(di_release_keep_buf);
 
 /**********************************************************
- * @brief  di_get_buffer_num  get output buffer num
+ * @brief  di_get_output_buffer_num  get output buffer num
  *
  * @param[in]  index   instance index
  * @param[in]  buffer  Pointer of buffer structure
  *
  * @return      number or fail type
  *********************************************************/
-int di_get_buffer_num(int index)
+int di_get_output_buffer_num(int index)
 {
 	struct dim_itf_s *pintf;
 	unsigned int ch = 0;
@@ -750,5 +750,36 @@ int di_get_buffer_num(int index)
 	PR_INF("%s:end\n", __func__);
 	return ret;
 }
-EXPORT_SYMBOL(di_get_buffer_num);
+EXPORT_SYMBOL(di_get_output_buffer_num);
+
+/**********************************************************
+ * @brief  di_get_input_buffer_num  get inptut buffer num
+ *
+ * @param[in]  index   instance index
+ * @param[in]  buffer  Pointer of buffer structure
+ *
+ * @return      number or fail type
+ *********************************************************/
+int di_get_input_buffer_num(int index)
+{
+	struct dim_itf_s *pintf;
+	unsigned int ch = 0;
+	struct di_ch_s *pch;
+	int ret = -1;
+
+	PR_INF("%s:\n", __func__);
+	ch = index_2_ch(index);
+	if (ch == ERR_INDEX) {
+		PR_ERR("%s:index overflow\n", __func__);
+		return DI_ERR_INDEX_OVERFLOW;
+	}
+
+	pch = get_chdata(ch);
+	pintf = &pch->itf;
+	if (pintf->tmode == EDIM_TMODE_3_PW_LOCAL)
+		ret = DIM_NINS_NUB;
+	PR_INF("%s:end\n", __func__);
+	return ret;
+}
+EXPORT_SYMBOL(di_get_input_buffer_num);
 

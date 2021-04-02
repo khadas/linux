@@ -94,6 +94,12 @@
 #endif
 
 #define DISPBUF_TO_PUT_MAX 3
+
+#define IS_DI_PROCESSED(vftype) ((vftype) & (VIDTYPE_PRE_INTERLACE | VIDTYPE_DI_PW))
+#define IS_DI_POST(vftype) \
+	(((vftype) & (VIDTYPE_PRE_INTERLACE | VIDTYPE_DI_PW)) \
+	 == VIDTYPE_PRE_INTERLACE)
+#define IS_DI_POSTWRTIE(vftype) ((vftype) & VIDTYPE_DI_PW)
 #define MAX_PIP_WINDOW    16
 #define VPP_FILER_COEFS_NUM   33
 #define VPP_NUM 3

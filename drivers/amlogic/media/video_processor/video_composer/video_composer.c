@@ -799,6 +799,8 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 	if (is_dec_vf) {
 		vf =
 		dmabuf_get_vframe((struct dma_buf *)(file_vf->private_data));
+		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME))
+			vf = vf->vf_ext;
 		vc_print(dev->index, PRINT_OTHER, "vf is from decoder\n");
 	} else {
 		file_private_data = vc_get_file_private(dev, file_vf);
@@ -807,6 +809,8 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 				 "invalid fd: no uvm, no v4lvideo!!\n");
 		} else {
 			vf = &file_private_data->vf;
+			if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME))
+				vf = vf->vf_ext;
 			vc_print(dev->index, PRINT_OTHER,
 				 "vf is from v4lvideo\n");
 		}

@@ -178,13 +178,23 @@ int di_write(struct di_buffer *buffer, struct composer_dst *dst);
 int di_release_keep_buf(struct di_buffer *buffer);
 
 /**
- * @brief  di_get_buffer_num  get output buffer num
+ * @brief  di_get_output_buffer_num  get output buffer num
  *
  * @param[in]  index   instance index
  * @param[in]  buffer  Pointer of buffer structure
  *
  * @return      number or fail type
  */
-int di_get_buffer_num(int index);
+int di_get_output_buffer_num(int index);
+
+/**
+ * @brief  di_get_input_buffer_num  get input buffer num
+ *
+ * @param[in]  index   instance index
+ * @param[in]  buffer  Pointer of buffer structure
+ *
+ * @return      number or fail type
+ */
+int di_get_input_buffer_num(int index);
 
 #endif	/*__DI_INTERLACE_H__*/

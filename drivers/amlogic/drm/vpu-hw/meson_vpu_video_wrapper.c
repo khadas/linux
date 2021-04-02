@@ -190,6 +190,8 @@ static void video_set_state(struct meson_vpu_block *vblk,
 
 	if (mvvs->is_uvm) {
 		vf = mvvs->vf;
+		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME))
+			vf = mvvs->vf->vf_ext;
 		vf->axis[0] = mvvs->dst_x;
 		vf->axis[1] = mvvs->dst_y;
 		vf->axis[2] = mvvs->dst_x + mvvs->dst_w - 1;

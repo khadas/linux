@@ -9353,6 +9353,7 @@ static bool dim_pst_vfm_bypass(struct di_ch_s *pch, struct di_buf_s *ready_buf)
 	di_buf->di_buf_dup_p[2] = NULL;
 	di_buf->process_fun_index =	PROCESS_FUN_NULL;
 	di_buf->is_nbypass = p->is_nbypass;
+	di_buf->is_eos = p->is_eos;
 	//dbg_bypass("%s:4\n", __func__);
 	di_que_in(ch, QUE_POST_DOING, di_buf);
 	//dbg_bypass("%s:5\n", __func__);

@@ -4601,6 +4601,7 @@ static bool ndrd_m1_fill_ready_bypass(struct di_ch_s *pch, struct di_buf_s *di_b
 	struct dim_nins_s *nins;
 	//void *in_ori;
 	struct vframe_s *dec_vfm;
+	bool is_eos;
 
 	if (!di_buf->is_nbypass)
 		return false;
@@ -4642,6 +4643,7 @@ static bool ndrd_m1_fill_ready_bypass(struct di_ch_s *pch, struct di_buf_s *di_b
 	//ibuf->c.in = NULL;
 	queue_in(pch->ch_id, ibuf, QUEUE_RECYCLE);
 
+	is_eos = di_buf->is_eos;
 	di_buf_clear(pch, di_buf);
 	di_que_in(pch->ch_id, QUE_PST_NO_BUF, di_buf);
 	di_buf_clear(pch, buf_pst);
@@ -4654,7 +4656,7 @@ static bool ndrd_m1_fill_ready_bypass(struct di_ch_s *pch, struct di_buf_s *di_b
 		dim_print("%s:vfm:0x%px, %d\n", __func__, dec_vfm, dec_vfm->index);
 
 	buffer_o->flag |= DI_FLAG_BUF_BY_PASS;
-	if (di_buf->is_eos)
+	if (is_eos)
 		buffer_o->flag |= DI_FLAG_EOS;
 
 	ndrd_qin(pch, buffer_o);
