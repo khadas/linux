@@ -158,5 +158,6 @@
 #define VPU_422T0444_CTRL1		0x274c
 #define VPU_422T0444_CTRL2		0x274d
 #define VPU_422T0444_RST		0x274a
+#define VPP_TOP_VTRL		    0x2749
 
 #endif
