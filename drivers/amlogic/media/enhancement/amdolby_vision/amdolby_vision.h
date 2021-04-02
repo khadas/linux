@@ -51,6 +51,7 @@
 #define TUNINGMODE_EL_FORCEDDISABLE      0x20
 
 #define VPP_VD1_DSC_CTRL                           0x1a83
+#define VIU_VD1_PATH_CTRL                          0x1a73
 #define VPP_VD2_DSC_CTRL                           0x1a84
 #define VPP_VD3_DSC_CTRL                           0x1a85
 #define DOLBY_PATH_SWAP_CTRL1                      0x1a70
@@ -737,6 +738,7 @@ enum cpuID_e {
 	_CPU_MAJOR_ID_TM2_REVB,
 	_CPU_MAJOR_ID_SC2,
 	_CPU_MAJOR_ID_T7,
+	_CPU_MAJOR_ID_T3,
 	_CPU_MAJOR_ID_UNKNOWN,
 };
 
