@@ -1456,6 +1456,12 @@ static void aml_set_spdifclk(struct aml_spdif *p_spdif)
 		}
 		mpll_freq = p_spdif->sysclk_freq * mul;
 
+		if (raw_is_4x_clk2(p_spdif->codec_type))
+			mpll_freq = mpll_freq * 4;
+
+		if (raw_is_16x_clk(p_spdif->codec_type))
+			mpll_freq = mpll_freq * 16;
+
 		clk_set_rate(p_spdif->sysclk, mpll_freq);
 		/*
 		 * clk_set_rate(p_spdif->clk_spdifout, p_spdif->sysclk_freq);
