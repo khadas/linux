@@ -254,6 +254,26 @@ bool raw_is_4x_clk(enum aud_codec_types codec_type)
 	return is_4x;
 }
 
+bool raw_is_4x_clk2(enum aud_codec_types codec_type)
+{
+	bool is_4x = false;
+
+	if (codec_type == AUD_CODEC_TYPE_EAC3)
+		is_4x = true;
+
+	return is_4x;
+}
+
+bool raw_is_16x_clk(enum aud_codec_types codec_type)
+{
+	bool is_16x = false;
+
+	if (codec_type == AUD_CODEC_TYPE_AC3)
+		is_16x = true;
+
+	return is_16x;
+}
+
 void iec_get_channel_status_info(struct iec958_chsts *chsts,
 	enum aud_codec_types codec_type,
 	unsigned int rate)
