@@ -12,7 +12,7 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/03/31: support multiple attach for s4"
+#define DTVDEMOD_VER	"2021/16/Apr: change timeout to 3s to fix t2 miss channel randomly"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
@@ -22,7 +22,7 @@
 #define THRD_TUNER_STRENTH_DVBS (-76)
 
 #define TIMEOUT_ATSC		2000
-#define TIMEOUT_DVBT		2000
+#define TIMEOUT_DVBT		3000
 #define TIMEOUT_DVBS		2000
 
 #define HHI_DEMOD_CLK_CNTL	0x74
@@ -202,10 +202,6 @@ struct aml_dtvdemod {
 	enum fe_status atsc_dbg_lst_status;
 
 	unsigned int t_cnt;
-	unsigned int t2_cnt;
-
-	unsigned int t2_timeout_cnt;
-	unsigned int t2_prt_sts_cnt;
 
 	/* select dvbc module for s4 */
 	unsigned int dvbc_sel;
