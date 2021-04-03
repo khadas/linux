@@ -667,6 +667,8 @@ int dvb_tuner_ops_add(struct tuner_ops *ops)
 		return -ENODEV;
 	}
 
+	ops->cfg.name = ops->module->name;
+
 	list_add_tail(&ops->list, &tuner->list);
 
 	mutex_unlock(&dvb_tuners_mutex);
