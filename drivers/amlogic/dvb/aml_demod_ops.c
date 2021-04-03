@@ -384,6 +384,7 @@ int dvb_demod_ops_add(struct demod_ops *ops)
 		return -ENODEV;
 	}
 
+	ops->cfg.name = ops->module->name;
 	ops->external = (ops->cfg.id != AM_DTV_DEMOD_AMLDTV);
 
 	list_add_tail(&ops->list, &demod->list);
