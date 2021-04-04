@@ -165,10 +165,18 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 	if (0)
 		vpp_osd2_blend_scope_set(reg, scope);
 
-	if (amc->blank_enable)
+	if (amc->blank_enable) {
 		vpp_osd1_postblend_mux_set(postblend->reg, VPP_NULL);
-	else
+	} else {
+		/*dout switch config*/
+		osd1_blend_switch_set(postblend->reg, VPP_POSTBLEND);
+		osd2_blend_switch_set(postblend->reg, VPP_POSTBLEND);
+		/*vpp input config*/
+		vpp_osd1_preblend_mux_set(postblend->reg, VPP_NULL);
+		vpp_osd2_preblend_mux_set(postblend->reg, VPP_NULL);
 		vpp_osd1_postblend_mux_set(postblend->reg, VPP_OSD1);
+		vpp_osd2_postblend_mux_set(postblend->reg, VPP_NULL);
+	}
 
 	osd1_blend_premult_set(reg);
 	if (0)
@@ -235,14 +243,6 @@ static void postblend_hw_init(struct meson_vpu_block *vblk)
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
 
 	postblend->reg = &postblend_reg;
-	/*dout switch config*/
-	osd1_blend_switch_set(postblend->reg, VPP_POSTBLEND);
-	osd2_blend_switch_set(postblend->reg, VPP_POSTBLEND);
-	/*vpp input config*/
-	vpp_osd1_preblend_mux_set(postblend->reg, VPP_NULL);
-	vpp_osd2_preblend_mux_set(postblend->reg, VPP_NULL);
-	vpp_osd1_postblend_mux_set(postblend->reg, VPP_OSD1);
-	vpp_osd2_postblend_mux_set(postblend->reg, VPP_NULL);
 	DRM_DEBUG("%s hw_init called.\n", postblend->base.name);
 }
 

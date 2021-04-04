@@ -6,6 +6,8 @@
 #ifndef _MESON_OSD_AFBC_H_
 #define _MESON_OSD_AFBC_H_
 
+#include "meson_vpu_pipeline.h"
+
 /*VPU_MAFBC_FORMAT_SPECIFIER_S0 define as follow*/
 #define AFBC_EN			BIT(31)
 #define TILED_HEADER_EN		BIT(18)
@@ -128,5 +130,8 @@ enum afbc_pix_format_e {
 	YUV422_8B = 11,
 	YUV422_10B = 14,
 };
+
+void arm_fbc_start(struct meson_vpu_pipeline_state *pipeline_state);
+void arm_fbc_check_error(void);
 
 #endif

@@ -569,7 +569,10 @@ static void osdblend_hw_init(struct meson_vpu_block *vblk)
 
 	/*dummy data/alpha config*/
 	osd_blend_dummy_data_set(osdblend->reg, dummy_data);
-	meson_vpu_write_reg(VIU_OSD_BLEND_DUMMY_ALPHA, 0);
+	meson_vpu_write_reg(osdblend->reg->viu_osd_blend_dummy_data0, 0);
+
+	/*reset blend ctrl hold line*/
+	meson_vpu_write_reg_bits(osdblend->reg->viu_osd_blend_ctrl, 0, 29, 3);
 
 	DRM_DEBUG("%s hw_init called.\n", osdblend->base.name);
 }

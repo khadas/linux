@@ -543,6 +543,8 @@ int vpu_pipeline_check_osdblend(u32 *out_port, int num_planes,
 					struct drm_atomic_state *state);
 int vpu_video_pipeline_check_block(struct meson_vpu_pipeline_state *mvps,
 				   struct drm_atomic_state *state);
+void vpu_pipeline_check_finish_reg(void);
+
 extern struct meson_vpu_block_ops video_ops;
 extern struct meson_vpu_block_ops osd_ops;
 extern struct meson_vpu_block_ops afbc_ops;

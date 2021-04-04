@@ -7,6 +7,8 @@
 #include "meson_vpu_reg.h"
 #include "meson_vpu_util.h"
 #include "meson_osd_scaler.h"
+#include "meson_osd_afbc.h"
+
 
 static int osdscaler_force_update;
 module_param(osdscaler_force_update, int, 0664);
@@ -741,8 +743,8 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_pipeline *pipeline = scaler->base.pipeline;
 
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
-	if (mvps->global_afbc)
-		meson_vpu_write_reg(0x3a05, 1);
+	/*todo:move afbc start to afbc block.*/
+	arm_fbc_start(mvps);
 
 	if (!scaler_state) {
 		DRM_DEBUG("scaler or scaler_state is NULL!!\n");
@@ -765,10 +767,7 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 static void scaler_hw_enable(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
-	struct osd_scaler_reg_s *reg = scaler->reg;
 
-	osd_sc_en_set(reg, 1);
-	osd_sc_path_en_set(reg, 1);
 	DRM_DEBUG("%s enable done.\n", scaler->base.name);
 }
 
@@ -778,8 +777,7 @@ static void scaler_hw_disable(struct meson_vpu_block *vblk)
 	struct osd_scaler_reg_s *reg = scaler->reg;
 
 	/*disable sc*/
-	osd_sc_en_set(reg, 0);
-	osd_sc_path_en_set(reg, 0);
+	meson_vpu_write_reg(reg->vpp_osd_sc_ctrl0, 0);
 	DRM_DEBUG("%s disable called.\n", scaler->base.name);
 }
 
@@ -839,6 +837,7 @@ static void scaler_hw_init(struct meson_vpu_block *vblk)
 	scaler->reg = &osd_scaler_reg[vblk->index];
 	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
 	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
+	scaler_hw_disable(vblk);
 	DRM_DEBUG("%s hw_init called.\n", scaler->base.name);
 }
 
