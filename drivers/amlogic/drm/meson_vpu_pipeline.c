@@ -17,7 +17,9 @@
 #define MAX_LINKS 5
 #define MAX_PORTS 6
 #define MAX_PORT_ID 32
+#define RDMA_DETECT_REG VIU_OSD2_TCOLOR_AG2
 
+static u32 drm_rdma_dt_cnt;
 static struct meson_vpu_block **vpu_blocks;
 
 struct meson_vpu_link_para {
@@ -351,6 +353,21 @@ int vpu_pipeline_video_check(struct meson_vpu_pipeline *pipeline,
 	return 0;
 }
 
+void vpu_pipeline_append_finish_reg(void)
+{
+	drm_rdma_dt_cnt++;
+	meson_vpu_write_reg(RDMA_DETECT_REG, drm_rdma_dt_cnt);
+}
+
+void vpu_pipeline_check_finish_reg(void)
+{
+	u32  val;
+
+	val = meson_vpu_read_reg(RDMA_DETECT_REG);
+	if (val != drm_rdma_dt_cnt)
+		DRM_ERROR("request drm_rdma_dt_cnt [%d] current [%d]\n", drm_rdma_dt_cnt, val);
+}
+
 int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
 		       struct drm_atomic_state *state)
 {
@@ -462,6 +479,8 @@ int vpu_pipeline_osd_update(struct meson_vpu_pipeline *pipeline,
 	}
 #endif
 
+	vpu_pipeline_append_finish_reg();
+
 	return 0;
 }
 
@@ -480,6 +499,7 @@ int vpu_pipeline_update(struct meson_vpu_pipeline *pipeline,
 
 	old_mvps = meson_vpu_pipeline_get_state(pipeline, old_state);
 	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
+	new_mvps->global_afbc = 0;
 
 	DRM_DEBUG("old_enable_blocks: 0x%llx - %p, new_enable_blocks: 0x%llx - %p.\n",
 		  old_mvps->enable_blocks, old_mvps,
@@ -507,6 +527,8 @@ int vpu_pipeline_update(struct meson_vpu_pipeline *pipeline,
 			meson_vpu_write_reg(overwrite_reg[i], overwrite_val[i]);
 	}
 #endif
+
+	vpu_pipeline_append_finish_reg();
 
 	return 0;
 }

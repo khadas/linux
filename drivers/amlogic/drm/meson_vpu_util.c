@@ -9,6 +9,8 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
 #endif
+#include "vpu-hw/meson_osd_afbc.h"
+#include "meson_vpu_pipeline.h"
 
 /*****drm reg access by rdma*****/
 /*one item need two u32 = 8byte,total 512 item is enough for vpu*/
@@ -24,6 +26,9 @@ static void meson_vpu_vsync_rdma_irq(void *arg)
 {
 	if (meson_vpu_reg_handle == -1)
 		return;
+
+	vpu_pipeline_check_finish_reg();
+	arm_fbc_check_error();
 }
 
 static struct rdma_op_s meson_vpu_vsync_rdma_op = {
@@ -74,7 +79,7 @@ static int meson_vpu_get_active_begin_line(u32 viu_index)
 	return active_line_begin;
 }
 
-static int meson_vpu_get_enter_encp_line(int viu_index)
+int meson_vpu_get_enter_encp_line(int viu_index)
 {
 	int enc_line = 0;
 	unsigned int reg = 0;

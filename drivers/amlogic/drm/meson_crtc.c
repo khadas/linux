@@ -409,17 +409,17 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	meson_vpu_line_check(crtc->index, crtc->mode.vdisplay, crtc->mode.vrefresh);
 #endif
+	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	vpu_pipeline_update(pipeline, old_atomic_state);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	meson_vpu_reg_vsync_config();
 #endif
 
 	if (crtc->state->event) {
-		spin_lock_irqsave(&crtc->dev->event_lock, flags);
 		amcrtc->event = crtc->state->event;
-		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 		crtc->state->event = NULL;
 	}
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 }
 
 static const struct drm_crtc_helper_funcs am_crtc_helper_funcs = {
