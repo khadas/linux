@@ -1052,37 +1052,6 @@
 		/*default:0x88188832;r840 on haier:0x48188832*/
 	};
 
-	bt-dev{
-		compatible = "amlogic, bt-dev";
-		status = "disabled";
-		gpio_en = <&gpio_ao       GPIOD_3       GPIO_ACTIVE_HIGH>;
-	};
-
-	wifi{
-		compatible = "amlogic, aml_wifi";
-		status = "disabled";
-		//interrupt_pin = <&gpio       GPIOC_12       GPIO_ACTIVE_HIGH>;
-		irq_trigger_type = "GPIO_IRQ_LOW";
-		//dhd_static_buf;    //dhd_static_buf support
-		power_on_pin = <&gpio_ao       GPIOD_2       GPIO_ACTIVE_HIGH>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&pwm_b_pins1>;
-		//pwm_config = <&wifi_pwm_conf>;
-	};
-
-	wifi_pwm_conf:wifi_pwm_conf{
-		pwm_channel1_conf {
-			pwms = <&pwm_ab MESON_PWM_1 30550 0>;
-			duty-cycle = <15270>;
-			times = <8>;
-		};
-		pwm_channel2_conf {
-			pwms = <&pwm_ab MESON_PWM_3 30500 0>;
-			duty-cycle = <15250>;
-			times = <12>;
-		};
-	};
-
 /*
  *	sd_emmc_b: sdio@ffe05000 {
  *		status = "disabled";
@@ -1831,7 +1800,6 @@
 	status = "okay";
 	power_down_disable = <1>;
 	reset-gpios = <&gpio_ao       GPIOD_3       GPIO_ACTIVE_HIGH>;
-	btwakeup-gpios = <&gpio      GPIOB_13       GPIO_ACTIVE_HIGH>;
 };
 
 &aml_wifi{
