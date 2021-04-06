@@ -749,6 +749,7 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 	case DMC_TYPE_TL1:
 	case DMC_TYPE_TM2:
 	case DMC_TYPE_C1:
+	case DMC_TYPE_SC2:
 		band->ops = &g12_ddr_bw_ops;
 		band->channels = 4;
 		if (cpu == DMC_TYPE_C1) {
