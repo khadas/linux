@@ -188,6 +188,22 @@
 						<1 &osd_blend_block>;
 					num_out_links = <0x0>;
 				};
+				video1_block: block@13 {
+					id = /bits/ 8 <VIDEO1_BLOCK>;
+					index = /bits/ 8  <0>;
+					type = /bits/ 8  <7>;
+					block_name = "video1_block";
+					num_in_links = /bits/ 8  <0x0>;
+					num_out_links = /bits/ 8  <0x0>;
+				};
+				video2_block: block@14 {
+					id = /bits/ 8 <VIDEO2_BLOCK>;
+					index = /bits/ 8  <1>;
+					type = /bits/ 8  <7>;
+					block_name = "video2_block";
+					num_in_links = /bits/ 8  <0x0>;
+					num_out_links = /bits/ 8  <0x0>;
+				};
 			};
 		};
 
