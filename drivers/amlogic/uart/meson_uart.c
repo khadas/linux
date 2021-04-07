@@ -468,7 +468,8 @@ static int meson_uart_request_port(struct uart_port *port)
 	if (!port->membase)
 		return -ENOMEM;
 
-	ret = request_irq(port->irq, meson_uart_interrupt, 0, port->name, port);
+	ret = devm_request_irq(port->dev, port->irq, meson_uart_interrupt,
+							IRQF_SHARED, port->name, port);
 
 	return ret;
 }
