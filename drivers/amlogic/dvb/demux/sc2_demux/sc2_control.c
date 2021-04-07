@@ -627,7 +627,7 @@ void demod_config_in(u8 port, u8 wire_type)
 		else if (port == DEMOD_FEC_A)
 			data |= DEMOD_1_SERIAL << TS_S_OR_P_SEL1;
 	} else {
-		if (port == DEMOD_FEC_B)
+		if (port == DEMOD_FEC_B || port == DEMOD_FEC_C)
 			data |= DEMOD_1_PARALLEL << TS_S_OR_P_SEL1;
 		else
 			return;
