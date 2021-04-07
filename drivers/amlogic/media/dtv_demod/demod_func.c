@@ -30,7 +30,7 @@ module_param(demod_mobile_power, int, 0644);
 static struct mutex mp;
 static struct mutex dtvpll_init_lock;
 static int dtvpll_init;
-/*static int dtmb_spectrum = 2;*/
+
 #if defined DEMOD_FPGA_VERSION
 static int fpga_version = 1;
 #else
@@ -87,6 +87,7 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *dem
 	adc_pll_cntl2.d32 = 0;
 	adc_pll_cntl3.d32 = 0;
 	adc_pll_cntl4.d32 = 0;
+	dig_clk_cfg.d32 = 0;
 
 	PR_DBG("target clk_a %d  clk_b %d\n", clk_a, clk_b);
 
@@ -597,6 +598,8 @@ void clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 	cfg2.b.en_adc = 1;
 	demod_top_write_reg(DEMOD_TOP_REG8, cfg2.d32);
 	debug_check_reg_val(REG_M_DEMOD, DEMOD_TOP_REG0);
+
+	PR_ERR("%s:done!\n", __func__);
 }
 
 void dtmb_write_reg(int reg_addr, int reg_data)
@@ -1053,6 +1056,8 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 	default:
 		break;
 	}
+
+	PR_ERR("%s:done!\n", __func__);
 
 	return 0;
 }

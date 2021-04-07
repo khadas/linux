@@ -1427,24 +1427,27 @@ static void tvafe_delete_device(int minor)
 
 void __iomem *tvafe_reg_base;
 void __iomem *ana_addr;
+static void __iomem *hiu_reg_base;
 
 int tvafe_reg_read(unsigned int reg, unsigned int *val)
 {
-	*val = readl(tvafe_reg_base + reg);
+	if (tvafe_reg_base)
+		*val = readl(tvafe_reg_base + reg);
 	return 0;
 }
 EXPORT_SYMBOL(tvafe_reg_read);
 
 int tvafe_reg_write(unsigned int reg, unsigned int val)
 {
-	writel(val, (tvafe_reg_base + reg));
+	if (tvafe_reg_base)
+		writel(val, (tvafe_reg_base + reg));
 	return 0;
 }
 EXPORT_SYMBOL(tvafe_reg_write);
 
 int tvafe_vbi_reg_read(unsigned int reg, unsigned int *val)
 {
-	if (tvafe_clk_status)
+	if (tvafe_clk_status && tvafe_reg_base)
 		*val = readl(tvafe_reg_base + reg);
 	else
 		return -1;
@@ -1464,14 +1467,18 @@ EXPORT_SYMBOL(tvafe_vbi_reg_write);
 
 int tvafe_hiu_reg_read(unsigned int reg, unsigned int *val)
 {
-	*val =  aml_read_hiubus(reg);
+	if (hiu_reg_base)
+		*val = readl(hiu_reg_base + (reg << 2));
+	//*val =  aml_read_hiubus(reg);
 	return 0;
 }
 EXPORT_SYMBOL(tvafe_hiu_reg_read);
 
 int tvafe_hiu_reg_write(unsigned int reg, unsigned int val)
 {
-	aml_write_hiubus(reg, val);
+	if (hiu_reg_base)
+		writel(val, hiu_reg_base + (reg << 2));
+	//aml_write_hiubus(reg, val);
 	return 0;
 }
 EXPORT_SYMBOL(tvafe_hiu_reg_write);
@@ -1778,7 +1785,7 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	size_io_reg = resource_size(res);
-	tvafe_pr_info("%s:tvafe reg base=%p,size=%x\n",
+	tvafe_pr_info("%s:tvafe reg base=%p,size=0x%x\n",
 		__func__, (void *)res->start, size_io_reg);
 	if (!devm_request_mem_region(&pdev->dev,
 				res->start, size_io_reg, pdev->name)) {
@@ -1791,8 +1798,26 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "tvafe ioremap failed\n");
 		return -ENOMEM;
 	}
-	tvafe_pr_info("%s: tvafe maped reg_base =%p, size=%x\n",
+	tvafe_pr_info("%s: tvafe maped reg_base =%p, size=0x%x\n",
 			__func__, tvafe_reg_base, size_io_reg);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (res) {
+		size_io_reg = resource_size(res);
+		tvafe_pr_info("%s: hiu reg base=0x%p,size=0x%x\n",
+			__func__, (void *)res->start, size_io_reg);
+		hiu_reg_base =
+			devm_ioremap_nocache(&pdev->dev, res->start, size_io_reg);
+		if (!hiu_reg_base) {
+			dev_err(&pdev->dev, "hiu ioremap failed\n");
+			return -ENOMEM;
+		}
+		tvafe_pr_info("%s: hiu maped reg_base =0x%p, size=0x%x\n",
+			__func__, hiu_reg_base, size_io_reg);
+	} else {
+		dev_err(&pdev->dev, "missing hiu memory resource\n");
+		hiu_reg_base = NULL;
+	}
 
 	tvafe_user_parameters_config(pdev->dev.of_node);
 

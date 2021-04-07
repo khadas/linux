@@ -898,6 +898,9 @@ static ssize_t attr_store(struct class *cls,
 			break;
 
 		case SYS_DTMB:
+			fe->dtv_property_cache.modulation = QAM_AUTO;
+			fe->dtv_property_cache.delivery_system = SYS_DTMB;
+			fe->dtv_property_cache.frequency = 80000000;
 			break;
 
 		case SYS_DVBC_ANNEX_A:
@@ -1334,11 +1337,9 @@ void aml_demod_dbg_init(void)
 void aml_demod_dbg_exit(void)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
-
-	dtvdemod_get_dev();
 	struct dentry *root_entry = devp->demod_root;
 
-	if (devp && root_entry)
+	if (root_entry)
 		debugfs_remove_recursive(root_entry);
 }
 
