@@ -8,7 +8,6 @@
 
 #include "demod_func.h"
 
-static int dtmb_spectrum = 2;
 MODULE_PARM_DESC(demod_enable_performance, "\n\t\t demod_enable_performance information");
 static int demod_enable_performance = 1;
 module_param(demod_enable_performance, int, 0644);
@@ -184,11 +183,11 @@ void dtmb_all_reset(struct aml_dtvdemod *demod)
 
 		reg_val = dtmb_read_reg(DTMB_TOP_CTRL_TPS);
 		/* for Task 19:Switch mode and modulation parameters test
-		 * dtmb_spectrum: 0=normal, 1=inverted
+		 * spectrum: 0=normal, 1=inverted
 		 */
-		if (dtmb_spectrum == 0)
+		if (demod->demod_status.spectrum == 0)
 			reg_val |= 0x4;
-		else if (dtmb_spectrum == 1)
+		else if (demod->demod_status.spectrum == 1)
 			reg_val &= ~0x4;
 		dtmb_write_reg(DTMB_TOP_CTRL_TPS, reg_val);
 	} else {
@@ -198,14 +197,14 @@ void dtmb_all_reset(struct aml_dtvdemod *demod)
 		dtmb_write_reg(DTMB_CHE_FD_TD_COEFF, 0x0);
 		dtmb_write_reg(DTMB_CHE_EQ_CONFIG, 0x9dc59);
 		/*0x2 is auto,0x406 is  invert spectrum*/
-		if (dtmb_spectrum == 0)
+		if (demod->demod_status.spectrum == 0)
 			dtmb_write_reg(DTMB_TOP_CTRL_TPS, 0x406);
-		else if (dtmb_spectrum == 1)
+		else if (demod->demod_status.spectrum == 1)
 			dtmb_write_reg(DTMB_TOP_CTRL_TPS, 0x402);
 		else
 			dtmb_write_reg(DTMB_TOP_CTRL_TPS, 0x2);
 
-		PR_DTMB("dtmb_spectrum is %d\n", dtmb_spectrum);
+		PR_DTMB("spectrum is %d\n", demod->demod_status.spectrum);
 		dtmb_write_reg(DTMB_TOP_CTRL_FEC, 0x41444400);
 		dtmb_write_reg(DTMB_TOP_CTRL_INTLV_TIME, 0x180300);
 		dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x662ca0);
@@ -252,9 +251,7 @@ void dtmb_all_reset(struct aml_dtvdemod *demod)
 
 void dtmb_initial(struct aml_dtvdemod *demod)
 {
-/* dtmb_write_reg(0x049, memstart);		//only for init */
-	/*dtmb_spectrum = 1; no use */
-	dtmb_spectrum = demod->demod_status.spectrum;
+	/* dtmb_write_reg(0x049, memstart);		//only for init */
 	dtmb_register_reset();
 	dtmb_all_reset(demod);
 }
@@ -574,10 +571,10 @@ int dtmb_check_status_txl(struct dvb_frontend *fe)
 			if (((dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT)
 				>> 21) & 0x1) == 0x1) {
 				PR_DTMB("4qam-nr,need set spectrum\n");
-				if (dtmb_spectrum == 1) {
+				if (demod->demod_status.spectrum == 1) {
 					dtmb_write_reg
 					(DTMB_TOP_CTRL_TPS, 0x1010406);
-				} else if (dtmb_spectrum == 0) {
+				} else if (demod->demod_status.spectrum == 0) {
 					dtmb_write_reg
 					(DTMB_TOP_CTRL_TPS, 0x1010402);
 				} else {
@@ -592,10 +589,10 @@ int dtmb_check_status_txl(struct dvb_frontend *fe)
 			time_cnt = 0;
 			dtmb_register_reset();
 			dtmb_all_reset(demod);
-			if	(dtmb_spectrum == 0)
-				dtmb_spectrum = 1;
+			if (demod->demod_status.spectrum == 0)
+				demod->demod_status.spectrum = 1;
 			else
-				dtmb_spectrum = 0;
+				demod->demod_status.spectrum = 0;
 			PR_DTMB("*all reset,timeout is %d\n", demod_timeout);
 		}
 	} else {
@@ -609,16 +606,16 @@ int dtmb_check_status_txl(struct dvb_frontend *fe)
 
 
 
-void dtmb_no_signal_check_v3(void)
+void dtmb_no_signal_check_v3(struct aml_dtvdemod *demod)
 {
 
 	if (((dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT)
 		>> 21) & 0x1) == 0x1) {
 		PR_DTMB("4qam-nr,need set spectrum\n");
-		if (dtmb_spectrum == 1) {
+		if (demod->demod_status.spectrum == 1) {
 			dtmb_write_reg
 			(DTMB_TOP_CTRL_TPS, 0x1010406);
-		} else if (dtmb_spectrum == 0) {
+		} else if (demod->demod_status.spectrum == 0) {
 			dtmb_write_reg
 			(DTMB_TOP_CTRL_TPS, 0x1010402);
 		} else {
@@ -633,10 +630,10 @@ void dtmb_no_signal_check_finishi_v3(struct aml_dtvdemod *demod)
 {
 	dtmb_register_reset();
 	dtmb_all_reset(demod);
-	if	(dtmb_spectrum == 0)
-		dtmb_spectrum = 1;
+	if (demod->demod_status.spectrum == 0)
+		demod->demod_status.spectrum = 1;
 	else
-		dtmb_spectrum = 0;
+		demod->demod_status.spectrum = 0;
 
 }
 #endif

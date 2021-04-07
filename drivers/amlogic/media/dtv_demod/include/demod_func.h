@@ -345,7 +345,7 @@ unsigned int dtmb_reg_r_bch(void);
 int check_dtmb_fec_lock(void);
 int dtmb_constell_check(void);
 
-void dtmb_no_signal_check_v3(void);
+void dtmb_no_signal_check_v3(struct aml_dtvdemod *demod);
 void dtmb_no_signal_check_finishi_v3(struct aml_dtvdemod *demod);
 unsigned int dtmb_detect_first(void);
 

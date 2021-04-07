@@ -1276,6 +1276,9 @@ int dvbt_isdbt_Init(struct aml_dtvdemod *demod)
 	sys.adc_clk = ADC_CLK_24M;
 	sys.demod_clk = DEMOD_CLK_60M;
 	demod->demod_status.ch_if = SI2176_5M_IF * 1000;
+	demod->demod_status.adc_freq = sys.adc_clk;
+	demod->demod_status.clk_freq = sys.demod_clk;
+
 	if (devp->data->hw_ver == DTVDEMOD_HW_T5D)
 		dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x507);
 	else
@@ -1306,6 +1309,9 @@ static unsigned int dvbt_init(struct aml_dtvdemod *demod)
 	sys.adc_clk = ADC_CLK_54M;
 	sys.demod_clk = DEMOD_CLK_216M;
 	demod->demod_status.ch_if = SI2176_5M_IF * 1000;
+	demod->demod_status.adc_freq = sys.adc_clk;
+	demod->demod_status.clk_freq = sys.demod_clk;
+
 	dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL1 << 2, 0x704);
 	dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
 	demod_set_sys(demod, &sys);
@@ -1327,6 +1333,9 @@ static unsigned int dtvdemod_dvbt2_init(struct aml_dtvdemod *demod)
 	sys.adc_clk = ADC_CLK_54M;
 	sys.demod_clk = DEMOD_CLK_216M;
 	demod->demod_status.ch_if = SI2176_5M_IF * 1000;
+	demod->demod_status.adc_freq = sys.adc_clk;
+	demod->demod_status.clk_freq = sys.demod_clk;
+
 	dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL1 << 2, 0x704);
 	dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
 	demod_set_sys(demod, &sys);
@@ -2273,6 +2282,9 @@ static int dtvdemod_atsc_init(struct aml_dtvdemod *demod)
 
 	demod->demod_status.ch_if = 5000;
 	demod->demod_status.tmp = ADC_MODE;
+	demod->demod_status.adc_freq = sys.adc_clk;
+	demod->demod_status.clk_freq = sys.demod_clk;
+
 	if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
 		dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
 	demod_set_sys(demod, &sys);
@@ -2484,7 +2496,7 @@ void dtmb_poll_v3(struct aml_dtvdemod *demod)
 
 	/*no siganel check process */
 	if (pollm->crrcnt < DTMBM_POLL_CNT_NO_SIGNAL) {
-		dtmb_no_signal_check_v3();
+		dtmb_no_signal_check_v3(demod);
 		pollm->crrcnt++;
 
 		dtmb_set_delay(demod, DTMBM_POLL_DELAY_NO_SIGNAL);
@@ -2716,6 +2728,8 @@ int Gxtv_Demod_Dtmb_Init(struct aml_dtvdemod *demod)
 	demod->demod_status.ch_if = SI2176_5M_IF;
 	demod->demod_status.tmp = ADC_MODE;
 	demod->demod_status.spectrum = devp->spectrum;
+	demod->demod_status.adc_freq = sys.adc_clk;
+	demod->demod_status.clk_freq = sys.demod_clk;
 
 	if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
 		dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
@@ -3089,8 +3103,9 @@ static int dtvdemod_dvbs2_init(struct aml_dtvdemod *demod)
 	sys.adc_clk = ADC_CLK_135M;
 	sys.demod_clk = DEMOD_CLK_270M;
 	demod->demod_status.tmp = CRY_MODE;
-
 	demod->demod_status.ch_if = SI2176_5M_IF * 1000;
+	demod->demod_status.adc_freq = sys.adc_clk;
+	demod->demod_status.clk_freq = sys.demod_clk;
 	PR_DBG("[%s]adc_clk is %d,demod_clk is %d\n", __func__, sys.adc_clk,
 	       sys.demod_clk);
 	demod->auto_flags_trig = 0;
@@ -3441,6 +3456,18 @@ const struct meson_ddemod_data  data_tl1 = {
 		.off_atsc = 0x0c00,
 		.off_front = 0x3800,
 	},
+	.hw_ver = DTVDEMOD_HW_TL1,
+};
+
+const struct meson_ddemod_data data_tm2 = {
+	.regoff = {
+		.off_demod_top = 0x3c00,
+		.off_dvbc = 0x1000,
+		.off_dtmb = 0x0000,
+		.off_atsc = 0x0c00,
+		.off_front = 0x3800,
+	},
+	.hw_ver = DTVDEMOD_HW_TM2,
 };
 
 const struct meson_ddemod_data  data_t5 = {
@@ -3517,7 +3544,7 @@ static const struct of_device_id meson_ddemod_match[] = {
 #endif
 	{
 		.compatible = "amlogic, ddemod-tm2",
-		.data		= &data_tl1,
+		.data		= &data_tm2,
 	}, {
 		.compatible = "amlogic, ddemod-t5",
 		.data		= &data_t5,
