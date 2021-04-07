@@ -264,6 +264,12 @@
 			<0xff80023c 0x4>; /*SYSCTRL_SEC_STATUS_REG31*/
 	};
 
+	 vrtc: rtc@0xfe010288 {
+		compatible = "amlogic,meson-vrtc";
+		reg = <0xff8000a8 0x4>;
+		status = "okay";
+	};
+
 	reboot {
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
