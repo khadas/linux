@@ -115,6 +115,7 @@ struct work_struct aml_lcd_vlock_param_work;
 
 static struct amvecm_dev_s amvecm_dev;
 static struct resource *res_viu2_vsync_irq;
+static struct resource *res_lc_curve_irq;
 static struct workqueue_struct *aml_cabc_queue;
 static struct work_struct cabc_proc_work;
 static struct work_struct cabc_bypass_work;
@@ -1694,6 +1695,13 @@ static irqreturn_t amvecm_viu2_vsync_isr(int irq, void *dev_id)
 {
 	if (vpp_get_encl_viu_mux() == 2)
 		ve_lcd_gamma_process();
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t amvecm_lc_curve_isr(int irq, void *dev_id)
+{
+	if (use_lc_curve_isr)
+		lc_read_region(8, 12);
 	return IRQ_HANDLED;
 }
 
@@ -8134,6 +8142,10 @@ static ssize_t amvecm_lc_store(struct class *cls,
 		if (kstrtoul(parm[1], 16, &val) < 0)
 			goto free_buf;
 		amlc_debug = val;
+	} else if (!strcmp(parm[0], "lc_curve_isr")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto free_buf;
+		use_lc_curve_isr = val;
 	} else if (!strcmp(parm[0], "lc_demo_mode")) {
 		if (!strcmp(parm[1], "enable"))
 			lc_demo_mode = 1;
@@ -9107,6 +9119,8 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 
 	res_viu2_vsync_irq =
 		platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync2");
+	res_lc_curve_irq =
+		platform_get_resource_byname(pdev, IORESOURCE_IRQ, "lc_curve");
 }
 
 #ifdef CONFIG_AMLOGIC_LCD
@@ -9141,6 +9155,22 @@ static int aml_vecm_viu2_vsync_irq_init(void)
 			pr_err("can't request amvecm_vsync2_irq\n");
 		} else {
 			pr_info("request amvecm_vsync2_irq successful\n");
+		}
+	}
+
+	return 0;
+}
+
+static int aml_vecm_lc_curve_irq_init(void)
+{
+	if (res_lc_curve_irq) {
+		if (request_irq(res_lc_curve_irq->start,
+				amvecm_lc_curve_isr, IRQF_SHARED,
+				"lc_curve_isr", (void *)"lc_curve_isr")) {
+			pr_err("can't request res_lc_curve_irq\n");
+		} else {
+			lc_curve_isr_defined = 1;
+			pr_info("request res_lc_curve_irq successful\n");
 		}
 	}
 
@@ -9228,6 +9258,9 @@ static int aml_vecm_probe(struct platform_device *pdev)
 
 	init_pq_setting();
 	aml_vecm_viu2_vsync_irq_init();
+	lc_curve_isr_defined = 0;
+	aml_vecm_lc_curve_irq_init();
+
 
 	aml_cabc_queue = create_workqueue("cabc workqueue");
 	if (!aml_cabc_queue) {

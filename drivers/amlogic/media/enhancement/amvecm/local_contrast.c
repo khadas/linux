@@ -47,6 +47,8 @@ int amlc_debug;
 
 int lc_en = 1;
 int lc_bitdepth = 10;
+int lc_curve_isr_defined;
+int use_lc_curve_isr = 1;
 int lc_demo_mode;
 int lc_en_chflg = 0xff;
 static int lc_flag = 0xff;
@@ -1644,7 +1646,7 @@ stop_curvefresh:
 		lc_szcurve[i] = curve_nodes_cur[i];/*output*/
 }
 
-static void lc_read_region(int blk_vnum, int blk_hnum)
+void lc_read_region(int blk_vnum, int blk_hnum)
 {
 	int i, j, k;
 	int data32;
@@ -1865,14 +1867,14 @@ void lc_init(int bitdepth)
 		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_6_7, 0x00e00100);
 		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_8_9, 0x01200140);
 		WRITE_VPP_REG(LC_CURVE_YMINVAL_LMT_10_11, 0x01600190);
-	}
 
-	WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_0_1, 0x004400b4);
-	WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_2_3, 0x00fb0123);
-	WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_4_5, 0x015901a2);
-	WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_6_7, 0x01d90208);
-	WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_8_9, 0x02400280);
-	WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_10_11, 0x02d70310);
+		WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_0_1, 0x004400b4);
+		WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_2_3, 0x00fb0123);
+		WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_4_5, 0x015901a2);
+		WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_6_7, 0x01d90208);
+		WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_8_9, 0x02400280);
+		WRITE_VPP_REG(LC_CURVE_YPKBV_YMAXVAL_LMT_10_11, 0x02d70310);
+	}
 
 	for (i = 0; i < 31 ; i++) {
 		tmp1 = *(lc_satur_off + 2 * i);
@@ -1934,7 +1936,9 @@ void lc_process(struct vframe_s *vf,
 	}
 
 	/*get hist & curve node*/
-	lc_read_region(blk_vnum, blk_hnum);
+	if (!use_lc_curve_isr || !lc_curve_isr_defined)
+		lc_read_region(blk_vnum, blk_hnum);
+
 	/*do time domain iir*/
 	lc_fw_curve_iir(vf, lc_hist,
 			lc_szcurve, blk_vnum, blk_hnum);
