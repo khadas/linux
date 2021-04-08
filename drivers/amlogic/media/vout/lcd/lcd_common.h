@@ -102,7 +102,6 @@ void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv);
 /* lcd debug */
 int lcd_debug_info_len(int num);
 void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num);
-void lcd_mute_setting(unsigned char flag);
 int lcd_debug_probe(struct aml_lcd_drv_s *pdrv);
 int lcd_debug_remove(struct aml_lcd_drv_s *pdrv);
 

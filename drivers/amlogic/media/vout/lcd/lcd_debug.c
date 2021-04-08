@@ -549,13 +549,15 @@ static int lcd_info_print(struct aml_lcd_drv_s *pdrv,
 	len += snprintf((buf + len), n,
 		"driver version: %s\n"
 		"panel_type: %s, chip: %d, mode: %s, status: %d\n"
-		"viu_sel: %d, resume_type: %d, fr_auto_policy: %d\n"
+		"viu_sel: %d, isr_cnt: %d, mute_flag: 0x%x, test_flag: 0x%x\n"
+		"resume_type: %d, fr_auto_policy: %d\n"
 		"key_valid: %d, config_load: %d\n"
 		"fr_mode: %d, fr_duration: %d\n",
 		LCD_DRV_VERSION,
 		pconf->propname, pdrv->data->chip_type,
-		lcd_mode_mode_to_str(pdrv->mode),
-		pdrv->status, pdrv->viu_sel,
+		lcd_mode_mode_to_str(pdrv->mode), pdrv->status,
+		pdrv->viu_sel, pdrv->vsync_cnt,
+		pdrv->mute_flag, pdrv->test_flag,
 		pdrv->resume_type, pdrv->fr_auto_policy,
 		pdrv->key_valid, pdrv->config_load,
 		pdrv->fr_mode, pdrv->fr_duration);
@@ -707,6 +709,38 @@ static int lcd_reg_print_ttl(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 
 static int lcd_reg_print_lvds(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
+	unsigned int reg;
+	int n, len = 0;
+
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n, "\nlvds regs:\n");
+
+	n = lcd_debug_info_len(len + offset);
+	reg = LVDS_PACK_CNTL_ADDR;
+	len += snprintf((buf + len), n,
+		"LVDS_PACK_CNTL  [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = LVDS_GEN_CNTL;
+	len += snprintf((buf + len), n,
+		"LVDS_GEN_CNTL   [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = P2P_CH_SWAP0;
+	len += snprintf((buf + len), n,
+		"P2P_CH_SWAP0    [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = P2P_CH_SWAP1;
+	len += snprintf((buf + len), n,
+		"P2P_CH_SWAP1    [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+
+	return len;
+}
+
+static int lcd_reg_print_lvds_t7(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
 	unsigned int reg, reg_offset;
 	int n, len = 0;
 
@@ -716,24 +750,34 @@ static int lcd_reg_print_lvds(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	len += snprintf((buf + len), n, "\nlvds regs:\n");
 
 	n = lcd_debug_info_len(len + offset);
-	reg = LVDS_PACK_CNTL_ADDR + reg_offset;
+	reg = LVDS_SER_EN_T7 + reg_offset;
+	len += snprintf((buf + len), n,
+		"LVDS_SER_EN     [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = LVDS_PACK_CNTL_ADDR_T7 + reg_offset;
 	len += snprintf((buf + len), n,
 		"LVDS_PACK_CNTL  [0x%04x] = 0x%08x\n",
 		reg, lcd_vcbus_read(reg));
 	n = lcd_debug_info_len(len + offset);
-	reg = LVDS_GEN_CNTL + reg_offset;
+	reg = LVDS_GEN_CNTL_T7 + reg_offset;
 	len += snprintf((buf + len), n,
 		"LVDS_GEN_CNTL   [0x%04x] = 0x%08x\n",
 		reg, lcd_vcbus_read(reg));
 	n = lcd_debug_info_len(len + offset);
-	reg = P2P_CH_SWAP0 + reg_offset;
+	reg = P2P_CH_SWAP0_T7 + reg_offset;
 	len += snprintf((buf + len), n,
 		"P2P_CH_SWAP0    [0x%04x] = 0x%08x\n",
 		reg, lcd_vcbus_read(reg));
 	n = lcd_debug_info_len(len + offset);
-	reg = P2P_CH_SWAP1 + reg_offset;
+	reg = P2P_CH_SWAP1_T7 + reg_offset;
 	len += snprintf((buf + len), n,
 		"P2P_CH_SWAP1    [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = P2P_BIT_REV_T7 + reg_offset;
+	len += snprintf((buf + len), n,
+		"P2P_BIT_REV     [0x%04x] = 0x%08x\n",
 		reg, lcd_vcbus_read(reg));
 
 	return len;
@@ -1063,7 +1107,7 @@ static int lcd_reg_print_tcon(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	return len;
 }
 
-static void lcd_reg_print_serializer(char *buf, int offset)
+static int lcd_reg_print_dphy(char *buf, int offset)
 {
 	unsigned int reg0, reg1;
 	int n, len = 0;
@@ -1072,14 +1116,14 @@ static void lcd_reg_print_serializer(char *buf, int offset)
 	reg1 = HHI_LVDS_TX_PHY_CNTL1;
 
 	n = lcd_debug_info_len(len + offset);
-	len += snprintf((buf + len), n, "\nserializer regs:\n");
-	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
 		"HHI_LVDS_TX_PHY_CNTL0    [0x%04x] = 0x%08x\n",
 		reg0, lcd_ana_read(reg0));
 	len += snprintf((buf + len), n,
 		"HHI_LVDS_TX_PHY_CNTL1    [0x%04x] = 0x%08x\n",
 		reg1, lcd_ana_read(reg1));
+
+	return len;
 }
 
 static int lcd_reg_print_phy_analog(struct aml_lcd_drv_s *pdrv,
@@ -1088,7 +1132,8 @@ static int lcd_reg_print_phy_analog(struct aml_lcd_drv_s *pdrv,
 	unsigned int reg;
 	int n, len = 0;
 
-	lcd_reg_print_serializer((buf + len), (len + offset));
+	len += lcd_reg_print_dphy((buf + len), (len + offset));
+
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n, "\nphy analog regs:\n");
 
@@ -1181,7 +1226,7 @@ static int lcd_reg_print_phy_analog(struct aml_lcd_drv_s *pdrv,
 	return len;
 }
 
-static void lcd_reg_print_dphy_t7(struct aml_lcd_drv_s *pdrv,
+static int lcd_reg_print_dphy_t7(struct aml_lcd_drv_s *pdrv,
 				  char *buf, int offset)
 {
 	unsigned int reg0, reg1;
@@ -1205,7 +1250,7 @@ static void lcd_reg_print_dphy_t7(struct aml_lcd_drv_s *pdrv,
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
-		"COMBO_DPHY_CNTL0    [0x%04x] = 0x%08x\n",
+		"\nCOMBO_DPHY_CNTL0    [0x%04x] = 0x%08x\n",
 		COMBO_DPHY_CNTL0, lcd_combo_dphy_read(pdrv, COMBO_DPHY_CNTL0));
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
@@ -1218,6 +1263,8 @@ static void lcd_reg_print_dphy_t7(struct aml_lcd_drv_s *pdrv,
 	len += snprintf((buf + len), n,
 		"COMBO_DPHY_EDP_LVDS_TX_PHY_CNTL1    [0x%04x] = 0x%08x\n",
 		reg1, lcd_combo_dphy_read(pdrv, reg1));
+
+	return len;
 }
 
 static int lcd_reg_print_phy_analog_t7(struct aml_lcd_drv_s *pdrv,
@@ -1226,7 +1273,8 @@ static int lcd_reg_print_phy_analog_t7(struct aml_lcd_drv_s *pdrv,
 	unsigned int reg;
 	int n, len = 0;
 
-	lcd_reg_print_dphy_t7(pdrv, (buf + len), (len + offset));
+	len += lcd_reg_print_dphy_t7(pdrv, (buf + len), (len + offset));
+
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n, "\nphy analog regs:\n");
 
@@ -1237,7 +1285,7 @@ static int lcd_reg_print_phy_analog_t7(struct aml_lcd_drv_s *pdrv,
 	n = lcd_debug_info_len(len + offset);
 	reg = ANACTRL_DIF_PHY_CNTL2;
 	len += snprintf((buf + len), n,
-		"PHY_CNTL2  [0x%02x] = 0x%08x\n\n",
+		"PHY_CNTL2  [0x%02x] = 0x%08x\n",
 		reg, lcd_ana_read(reg));
 	n = lcd_debug_info_len(len + offset);
 	reg = ANACTRL_DIF_PHY_CNTL3;
@@ -1277,7 +1325,7 @@ static int lcd_reg_print_phy_analog_t7(struct aml_lcd_drv_s *pdrv,
 	n = lcd_debug_info_len(len + offset);
 	reg = ANACTRL_DIF_PHY_CNTL10;
 	len += snprintf((buf + len), n,
-		"PHY_CNTL10  [0x%02x] = 0x%08x\n",
+		"PHY_CNTL10 [0x%02x] = 0x%08x\n",
 		reg, lcd_ana_read(reg));
 	n = lcd_debug_info_len(len + offset);
 	reg = ANACTRL_DIF_PHY_CNTL11;
@@ -1365,8 +1413,7 @@ static int lcd_reg_print_mipi_phy_analog(struct aml_lcd_drv_s *pdrv,
 	return len;
 }
 
-static int lcd_reg_print(struct aml_lcd_drv_s *pdrv,
-			 char *buf, int offset)
+static int lcd_reg_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	int i, n, len = 0;
 	struct lcd_config_s *pconf;
@@ -1560,51 +1607,56 @@ void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num)
 		LCDPR("disable test pattern\n");
 }
 
-void lcd_mute_setting(unsigned char flag)
+static void lcd_mute_setting(struct aml_lcd_drv_s *pdrv, unsigned char flag)
 {
+	unsigned int offset;
+
+	offset = pdrv->data->offset_venc[pdrv->index];
+
 	if (flag) {
-		lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL, 3);
-		lcd_vcbus_write(ENCL_TST_MDSEL, 0);
-		lcd_vcbus_write(ENCL_TST_Y, 0);
-		lcd_vcbus_write(ENCL_TST_CB, 0);
-		lcd_vcbus_write(ENCL_TST_CR, 0);
-		lcd_vcbus_write(ENCL_TST_EN, 1);
-		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV, 0, 3, 1);
+		lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, 3);
+		lcd_vcbus_write(ENCL_TST_MDSEL + offset, 0);
+		lcd_vcbus_write(ENCL_TST_Y + offset, 0);
+		lcd_vcbus_write(ENCL_TST_CB + offset, 0);
+		lcd_vcbus_write(ENCL_TST_CR + offset, 0);
+		lcd_vcbus_write(ENCL_TST_EN + offset, 1);
+		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 0, 3, 1);
 	} else {
-		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV, 1, 3, 1);
-		lcd_vcbus_write(ENCL_TST_EN, 0);
+		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 1, 3, 1);
+		lcd_vcbus_write(ENCL_TST_EN + offset, 0);
 	}
 }
 
 static void lcd_screen_restore(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned int h_active, video_on_pixel;
+	unsigned int h_active, video_on_pixel, offset;
 	unsigned int num;
 
 	num = pdrv->test_state;
 	num = (num >= LCD_ENC_TST_NUM_MAX) ? 0 : num;
+	offset = pdrv->data->offset_venc[pdrv->index];
 
 	lcd_queue_work(&pdrv->test_check_work);
 
 	h_active = pdrv->config.basic.h_active;
 	video_on_pixel = pdrv->config.timing.video_on_pixel;
 
-	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL, lcd_enc_tst[num][6]);
-	lcd_vcbus_write(ENCL_TST_MDSEL, lcd_enc_tst[num][0]);
-	lcd_vcbus_write(ENCL_TST_Y, lcd_enc_tst[num][1]);
-	lcd_vcbus_write(ENCL_TST_CB, lcd_enc_tst[num][2]);
-	lcd_vcbus_write(ENCL_TST_CR, lcd_enc_tst[num][3]);
-	lcd_vcbus_write(ENCL_TST_CLRBAR_STRT, video_on_pixel);
-	lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH, (h_active / 9));
-	lcd_vcbus_write(ENCL_TST_EN, lcd_enc_tst[num][4]);
-	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV, lcd_enc_tst[num][5], 3, 1);
+	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, lcd_enc_tst[num][6]);
+	lcd_vcbus_write(ENCL_TST_MDSEL + offset, lcd_enc_tst[num][0]);
+	lcd_vcbus_write(ENCL_TST_Y + offset, lcd_enc_tst[num][1]);
+	lcd_vcbus_write(ENCL_TST_CB + offset, lcd_enc_tst[num][2]);
+	lcd_vcbus_write(ENCL_TST_CR + offset, lcd_enc_tst[num][3]);
+	lcd_vcbus_write(ENCL_TST_CLRBAR_STRT + offset, video_on_pixel);
+	lcd_vcbus_write(ENCL_TST_CLRBAR_WIDTH + offset, (h_active / 9));
+	lcd_vcbus_write(ENCL_TST_EN + offset, lcd_enc_tst[num][4]);
+	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, lcd_enc_tst[num][5], 3, 1);
 	if (num > 0)
 		LCDPR("show test pattern: %s\n", lcd_enc_tst_str[num]);
 }
 
 static void lcd_screen_black(struct aml_lcd_drv_s *pdrv)
 {
-	lcd_mute_setting(1);
+	lcd_mute_setting(pdrv, 1);
 }
 
 #define CLK_CHK_MAX    2000000  /*Hz*/
@@ -5921,6 +5973,8 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 			lcd_debug_info_reg = &lcd_debug_info_reg_t7_0;
 			break;
 		}
+		lcd_debug_info_if_lvds.reg_dump_interface =
+			lcd_reg_print_lvds_t7;
 		lcd_debug_info_if_lvds.reg_dump_phy =
 			lcd_reg_print_phy_analog_t7;
 		lcd_debug_info_if_vbyone.reg_dump_phy =

@@ -272,7 +272,7 @@
 				0 1 0 10
 				0 0 0 100
 				0xff 0 0 0>; /*ending*/
-			backlight_index = <0x0>;
+			backlight_index = <0x1>;
 		};
 		mipi_1{
 			model_name = "SLT_720P";
@@ -361,6 +361,25 @@
 				200 200>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_E";
 			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positvie)*/
+				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
+				100 25>; /*duty_max(%), duty_min(%)*/
+			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
+				10 10>; /*pwm_on_delay(ms), pwm_off_delay(ms)*/
+			en_sequence_reverse = <0>; /* 1 for reverse */
+		};
+
+		backlight_1{
+			index = <1>;
+			bl_name = "backlight_pwm";
+			bl_level_default_uboot_kernel = <255 255>;
+			bl_level_attr = <255 10 /*max, min*/
+				128 128>; /*mid, mid_mapping*/
+			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo*/
+			bl_power_attr = <0 /*en_gpio_index*/
+				1 0 /*on_value, off_value*/
+				200 200>; /*on_delay(ms), off_delay(ms)*/
+			bl_pwm_port = "PWM_E";
+			bl_pwm_attr = <0 /*pwm_method(0=negative, 1=positvie)*/
 				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
@@ -628,16 +647,16 @@
 			/* power step: type, index, value, delay(ms) */
 			power_on_step = <
 				0 0 1 100
-				0 2 0 10
-				0 2 1 20
+				0 1 0 10
+				0 1 1 20
 				2 0 0 0
 				0xff 0 0 0>; /*ending*/
 			power_off_step = <
 				2 0 0 50
-				0 2 0 10
+				0 1 0 10
 				0 0 0 100
 				0xff 0 0 0>; /*ending*/
-			backlight_index = <0x0>;
+			backlight_index = <0x1>;
 		};
 		mipi_1{
 			model_name = "SLT_720P";
@@ -726,6 +745,25 @@
 				200 200>; /*on_delay(ms), off_delay(ms)*/
 			bl_pwm_port = "PWM_F";
 			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positvie)*/
+				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
+				100 25>; /*duty_max(%), duty_min(%)*/
+			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
+				10 10>; /*pwm_on_delay(ms), pwm_off_delay(ms)*/
+			en_sequence_reverse = <0>; /* 1 for reverse */
+		};
+
+		backlight_1{
+			index = <1>;
+			bl_name = "backlight_pwm";
+			bl_level_default_uboot_kernel = <255 255>;
+			bl_level_attr = <255 10 /*max, min*/
+				128 128>; /*mid, mid_mapping*/
+			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo*/
+			bl_power_attr = <0 /*en_gpio_index*/
+				1 0 /*on_value, off_value*/
+				200 200>; /*on_delay(ms), off_delay(ms)*/
+			bl_pwm_port = "PWM_F";
+			bl_pwm_attr = <0 /*pwm_method(0=negative, 1=positvie)*/
 				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				100 25>; /*duty_max(%), duty_min(%)*/
 			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/

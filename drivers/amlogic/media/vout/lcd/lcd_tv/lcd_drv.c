@@ -55,61 +55,62 @@ static void lcd_lvds_clk_util_set(struct aml_lcd_drv_s *pdrv)
 	unsigned int bit_data_in_lvds, bit_data_in_edp, bit_lane_sel;
 	unsigned int phy_div, val_lane_sel, len_lane_sel;
 
-	switch (pdrv->index) {
-	case 0:
-		reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0;
-		reg_phy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1;
-		bit_data_in_lvds = 0;
-		bit_data_in_edp = 1;
-		bit_lane_sel = 0;
-		val_lane_sel = 0x155;
-		len_lane_sel = 10;
-		break;
-	case 1:
-		reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL0;
-		reg_phy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL1;
-		bit_data_in_lvds = 2;
-		bit_data_in_edp = 3;
-		bit_lane_sel = 10;
-		val_lane_sel = 0x155;
-		len_lane_sel = 10;
-		break;
-	case 2:
-		reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY2_CNTL0;
-		reg_phy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY2_CNTL1;
-		bit_data_in_lvds = 4;
-		bit_data_in_edp = 0xff;
-		if (pdrv->config.control.lvds_cfg.dual_port) {
-			bit_lane_sel = 20;
-			val_lane_sel = 0x55555;
-			len_lane_sel = 20;
-		} else {
-			bit_lane_sel = 10;
-			val_lane_sel = 0x155;
-			len_lane_sel = 10;
-		}
-		break;
-	default:
-		LCDERR("[%d]: %s: invalid drv_index\n", pdrv->index, __func__);
-		return;
-	}
-
 	if (pdrv->config.control.lvds_cfg.dual_port)
 		phy_div = 2;
 	else
 		phy_div = 1;
 
 	if (pdrv->data->chip_type == LCD_CHIP_T7) {
+		switch (pdrv->index) {
+		case 0:
+			reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0;
+			reg_phy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1;
+			bit_data_in_lvds = 0;
+			bit_data_in_edp = 1;
+			bit_lane_sel = 0;
+			val_lane_sel = 0x155;
+			len_lane_sel = 10;
+			break;
+		case 1:
+			reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL0;
+			reg_phy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL1;
+			bit_data_in_lvds = 2;
+			bit_data_in_edp = 3;
+			bit_lane_sel = 10;
+			val_lane_sel = 0x155;
+			len_lane_sel = 10;
+			break;
+		case 2:
+			reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY2_CNTL0;
+			reg_phy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY2_CNTL1;
+			bit_data_in_lvds = 4;
+			bit_data_in_edp = 0xff;
+			if (pdrv->config.control.lvds_cfg.dual_port) {
+				bit_lane_sel = 10;
+				val_lane_sel = 0xaaaaa;
+				len_lane_sel = 20;
+			} else {
+				bit_lane_sel = 20;
+				val_lane_sel = 0x2aa;
+				len_lane_sel = 10;
+			}
+			break;
+		default:
+			LCDERR("[%d]: %s: invalid drv_index\n",
+			       pdrv->index, __func__);
+			return;
+		}
+
 		// sel dphy data_in
 		if (bit_data_in_edp < 0xff) {
-			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0,
-					    0, bit_data_in_edp, 1);
+			lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0, 0,
+					    bit_data_in_edp, 1);
 		}
-		lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0,
-				    1, bit_data_in_lvds, 1);
+		lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0, 1,
+				    bit_data_in_lvds, 1);
 		// sel dphy lane
-		lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1,
-				    val_lane_sel, bit_lane_sel, len_lane_sel);
+		lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL1, val_lane_sel,
+				    bit_lane_sel, len_lane_sel);
 
 		/* set fifo_clk_sel: div 7 */
 		lcd_combo_dphy_write(pdrv, reg_phy_tx_ctrl0, (1 << 5));
@@ -139,12 +140,13 @@ static void lcd_lvds_clk_util_set(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_lvds_control_set(struct aml_lcd_drv_s *pdrv)
 {
+	unsigned int reg_lvds_pack_ctrl, reg_lvds_gen_ctrl;
 	unsigned int bit_num, pn_swap, port_swap, lane_reverse;
 	unsigned int dual_port, fifo_mode, lvds_repack;
 	unsigned int offset;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("%s\n", __func__);
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
 	lcd_lvds_clk_util_set(pdrv);
 
@@ -172,7 +174,16 @@ static void lcd_lvds_control_set(struct aml_lcd_drv_s *pdrv)
 	else
 		fifo_mode = 0x1;
 
-	lcd_vcbus_write(LVDS_PACK_CNTL_ADDR + offset,
+	if (pdrv->data->chip_type == LCD_CHIP_T7) {
+		reg_lvds_pack_ctrl = LVDS_PACK_CNTL_ADDR_T7 + offset;
+		reg_lvds_gen_ctrl = LVDS_GEN_CNTL_T7 + offset;
+		lcd_vcbus_write(LVDS_SER_EN_T7 + offset, 0xfff);
+	} else {
+		reg_lvds_pack_ctrl = LVDS_PACK_CNTL_ADDR;
+		reg_lvds_gen_ctrl = LVDS_GEN_CNTL;
+	}
+
+	lcd_vcbus_write(reg_lvds_pack_ctrl,
 			(lvds_repack << 0) | /* repack //[1:0] */
 			(0 << 3) |	/* reserve */
 			(0 << 4) |	/* lsb first */
@@ -293,11 +304,11 @@ static void lcd_lvds_control_set(struct aml_lcd_drv_s *pdrv)
 		break;
 	}
 
-	lcd_vcbus_write(LVDS_GEN_CNTL + offset,
-			(lcd_vcbus_read(LVDS_GEN_CNTL + offset) |
+	lcd_vcbus_write(reg_lvds_gen_ctrl,
+			(lcd_vcbus_read(reg_lvds_gen_ctrl) |
 			(1 << 4) | (fifo_mode << 0)));
 
-	lcd_vcbus_setb(LVDS_GEN_CNTL + offset, 1, 3, 1);
+	lcd_vcbus_setb(reg_lvds_gen_ctrl, 1, 3, 1);
 }
 
 static void lcd_lvds_disable(struct aml_lcd_drv_s *pdrv)
@@ -326,7 +337,7 @@ static void lcd_lvds_disable(struct aml_lcd_drv_s *pdrv)
 		offset = pdrv->data->offset_venc_if[pdrv->index];
 
 		/* disable lvds fifo */
-		lcd_vcbus_setb(LVDS_GEN_CNTL + offset, 0, 3, 1);
+		lcd_vcbus_setb(LVDS_GEN_CNTL_T7 + offset, 0, 3, 1);
 		/* disable fifo */
 		lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl1, 0, 6, 2);
 		/* disable lane */
@@ -357,7 +368,7 @@ static void lcd_vbyone_clk_util_set(struct aml_lcd_drv_s *pdrv)
 	unsigned int bit_data_in_lvds, bit_data_in_edp, bit_lane_sel;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("%s\n", __func__);
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
 	switch (pdrv->index) {
 	case 0:
