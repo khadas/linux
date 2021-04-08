@@ -4,6 +4,7 @@
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  */
 
+#include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/module.h>
 #include <linux/arm-smccc.h>
@@ -158,6 +159,11 @@ static int meson_sec_cpu_dyn_set_rate(struct clk_hw *hw, unsigned long rate,
 			table = &table[i];
 	}
 	nrate = table->rate;
+
+	/* For set more than 1G, need to set additional parent frequency */
+	if (nrate > 1000000000)
+		clk_set_rate(clk_hw_get_parent_by_index(hw, 3)->clk, nrate);
+
 	arm_smccc_smc(SECURE_CPU_CLK, data->secid_dyn,
 			table->dyn_pre_mux, table->dyn_post_mux, table->dyn_div,
 			0, 0, 0, &res);
