@@ -2037,6 +2037,21 @@
 		#thermal-sensor-cells = <1>;
 	};
 
+	vpu_tsensor: vpu_tsensor@fe098000 {
+		compatible = "amlogic, r1p1-tsensor";
+		status = "okay";
+		reg = <0x0 0xfe098000 0x0 0x50>;
+		tsensor_id = <6>;
+		cal_type = <0x11>;
+		cal_coeff = <324 424 3159 9411>;
+		rtemp = <115000>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CLKID_TS_CLK_GATE>;
+		clock-names = "ts_comp";
+		power-domains = <&pwrdm PDID_T7_VPU_HDMI>;
+		#thermal-sensor-cells = <1>;
+	};
+
 	meson_cooldev: meson-cooldev@0 {
 		status = "okay";
 		compatible = "amlogic, meson-cooldev";
@@ -2189,6 +2204,29 @@
 					type = "passive";
 				};
 				hevccritical: trip-point@2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
+		vpu_thermal: vpu_thermal {
+			polling-delay = <2000>;
+			polling-delay-passive = <1000>;
+			sustainable-power = <3550>;
+			thermal-sensors = <&vpu_tsensor 5>;
+			trips {
+				vpuswitch_on: trip-point@0 {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				vpucontrol: trip-point@1 {
+					temperature = <95000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				vpucritical: trip-point@2 {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";

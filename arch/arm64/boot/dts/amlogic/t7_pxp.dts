@@ -44,6 +44,7 @@
 		tsensor2 = &gpu_tsensor;
 		tsensor3 = &nna_tsensor;
 		tsensor4 = &hevc_tsensor;
+		tsensor5 = &vpu_tsensor;
 	};
 
 	memory@00000000 {
