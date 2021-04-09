@@ -938,14 +938,20 @@ static void dump_clk_registers(void)
 		if (!cvbs_data)
 			return;
 		/* hiu 104a, 104b*/
-
+	pr_info("----ana----\n");
+	pr_info("vid_pll_div[0x%x]:0x%x", cvbs_data->reg_vid_pll_clk_div,
+			cvbs_out_vid_pll_read(cvbs_data->reg_vid_pll_clk_div));
 	pr_info("----hiu----\n");
-	pr_info("0x%x", cvbs_out_vid_pll_read(cvbs_data->reg_vid_pll_clk_div));
-	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid_clk_div));
-	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid_clk_ctrl));
-	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid2_clk_div));
-	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid2_clk_ctrl));
-	pr_info("0x%x", cvbs_out_hiu_read(cvbs_data->reg_vid_clk_ctrl2));
+	pr_info("vid_clk_div[0x%x]:0x%x", cvbs_data->reg_vid_clk_div,
+			cvbs_out_hiu_read(cvbs_data->reg_vid_clk_div));
+	pr_info("vid_clk_ctrl[0x%x]:0x%x", cvbs_data->reg_vid_clk_ctrl,
+			cvbs_out_hiu_read(cvbs_data->reg_vid_clk_ctrl));
+	pr_info("vid2_clk_div[0x%x]:0x%x", cvbs_data->reg_vid2_clk_div,
+			cvbs_out_hiu_read(cvbs_data->reg_vid2_clk_div));
+	pr_info("vid2_clk_ctrl[0x%x]:0x%x", cvbs_data->reg_vid2_clk_ctrl,
+			cvbs_out_hiu_read(cvbs_data->reg_vid2_clk_ctrl));
+	pr_info("vid_clk_ctrl2[0x%x]:0x%x", cvbs_data->reg_vid_clk_ctrl2,
+			cvbs_out_hiu_read(cvbs_data->reg_vid_clk_ctrl2));
 	pr_info("----hiu----\n");
 
 	pr_info("------------------------\n");
@@ -1724,6 +1730,21 @@ struct meson_cvbsout_data meson_s4_cvbsout_data = {
 	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
 };
 
+struct meson_cvbsout_data meson_t3_cvbsout_data = {
+	.cpu_id = CVBS_CPU_TYPE_T3,
+	.name = "meson-t3-cvbsout",
+
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x5c,
+
+	.reg_vid_pll_clk_div = HHI_VID_PLL_CLK_DIV_T3,
+	.reg_vid_clk_div = CLKCTRL_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = CLKCTRL_VID_CLK_CTRL,
+	.reg_vid2_clk_div = CLKCTRL_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = CLKCTRL_VIID_CLK_CTRL,
+	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
+};
+
 static const struct of_device_id meson_cvbsout_dt_match[] = {
 	{
 		.compatible = "amlogic, cvbsout-g12a",
@@ -1756,6 +1777,9 @@ static const struct of_device_id meson_cvbsout_dt_match[] = {
 	}, {
 		.compatible = "amlogic, cvbsout-s4",
 		.data		= &meson_s4_cvbsout_data,
+	}, {
+		.compatible = "amlogic, cvbsout-t3",
+		.data		= &meson_t3_cvbsout_data,
 	},
 	{}
 };
@@ -1855,7 +1879,8 @@ static int cvbsout_probe(struct platform_device *pdev)
 		cvbs_drv->cvbs_data->cpu_id, cvbs_drv->cvbs_data->name);
 
 	if (cvbs_drv->cvbs_data->cpu_id != CVBS_CPU_TYPE_SC2 &&
-	    cvbs_drv->cvbs_data->cpu_id != CVBS_CPU_TYPE_S4)
+	    cvbs_drv->cvbs_data->cpu_id != CVBS_CPU_TYPE_S4 &&
+	    cvbs_drv->cvbs_data->cpu_id != CVBS_CPU_TYPE_T3)
 		cvbsout_clktree_probe(&pdev->dev);
 
 	cvbsout_get_config(&pdev->dev);

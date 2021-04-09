@@ -311,6 +311,28 @@ void set_vmode_clk(void)
 		if (ret)
 			pr_info("[error]:tl1 tcon_pll lock failed\n");
 		cvbs_out_ana_setb(HHI_LVDS_TX_PHY_CNTL1_TL1, 0, 29, 1);
+	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_T3) {
+		cvbs_out_ana_write(ANACTRL_TCON_PLL0_CNTL0,	0x202f04f7);
+		usleep_range(100, 110);
+		cvbs_out_ana_write(ANACTRL_TCON_PLL0_CNTL0,	0x302f04f7);
+		usleep_range(100, 110);
+		cvbs_out_ana_write(ANACTRL_TCON_PLL0_CNTL1,	0x10110000);
+		cvbs_out_ana_write(ANACTRL_TCON_PLL0_CNTL2,	0x00001108);
+		cvbs_out_ana_write(ANACTRL_TCON_PLL0_CNTL3,	0x10051400);
+		cvbs_out_ana_write(ANACTRL_TCON_PLL0_CNTL4,	0x010100c0);
+		usleep_range(100, 110);
+		cvbs_out_ana_write(ANACTRL_TCON_PLL0_CNTL4,	0x038300c0);
+		usleep_range(100, 110);
+		cvbs_out_ana_write(ANACTRL_TCON_PLL0_CNTL0,	0x342f04f7);
+		usleep_range(100, 110);
+		cvbs_out_ana_write(ANACTRL_TCON_PLL0_CNTL0,	0x142f04f7);
+		usleep_range(100, 110);
+		cvbs_out_ana_write(ANACTRL_TCON_PLL0_CNTL2,	0x00003008);
+		usleep_range(100, 110);
+		ret = pll_wait_lock(ANACTRL_TCON_PLL0_STS, 31);
+		if (ret)
+			pr_info("[error]:tl1 tcon_pll lock failed\n");
+		cvbs_out_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL1, 0, 29, 1);
 	} else {
 		pr_info("config eqafter gxl hdmi pll\n");
 		cvbs_out_ana_write(HHI_HDMI_PLL_CNTL, 0x4000027b);
@@ -378,7 +400,8 @@ void disable_vmode_clk(void)
 		else
 			cvbs_out_ana_setb(HHI_HDMI_PLL_CNTL, 0, 28, 1);
 	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_SC2 ||
-		   cvbs_cpu_type() == CVBS_CPU_TYPE_S4) {
+		   cvbs_cpu_type() == CVBS_CPU_TYPE_S4 ||
+		   cvbs_cpu_type() == CVBS_CPU_TYPE_T3) {
 		disable_vid2_clk_out();
 		/* disable pll */
 		cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL0, 0, 28, 1);
@@ -393,7 +416,8 @@ void cvbs_out_vid_pll_set(unsigned int _reg, unsigned int _value,
 			  unsigned int _start, unsigned int _len)
 {
 	if (cvbs_cpu_type() == CVBS_CPU_TYPE_T5 ||
-	    cvbs_cpu_type() == CVBS_CPU_TYPE_T5D)
+	    cvbs_cpu_type() == CVBS_CPU_TYPE_T5D ||
+	    cvbs_cpu_type() == CVBS_CPU_TYPE_T3)
 		cvbs_out_ana_setb(_reg, _value, _start, _len);
 	else
 		cvbs_out_hiu_setb(_reg, _value, _start, _len);
@@ -402,7 +426,8 @@ void cvbs_out_vid_pll_set(unsigned int _reg, unsigned int _value,
 unsigned int cvbs_out_vid_pll_read(unsigned int _reg)
 {
 	if (cvbs_cpu_type() == CVBS_CPU_TYPE_T5 ||
-	    cvbs_cpu_type() == CVBS_CPU_TYPE_T5D)
+	    cvbs_cpu_type() == CVBS_CPU_TYPE_T5D ||
+	    cvbs_cpu_type() == CVBS_CPU_TYPE_T3)
 		return cvbs_out_ana_read(_reg);
 	else
 		return cvbs_out_hiu_read(_reg);

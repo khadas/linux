@@ -111,6 +111,8 @@
 #define HHI_EDP_APB_CLK_CNTL_M8M2                  0x82
 #define HHI_EDP_TX_PHY_CNTL0                       0x9c
 #define HHI_EDP_TX_PHY_CNTL1                       0x9d
+
+#define HHI_VID_PLL_CLK_DIV_T3                        0xf8
 /* m8b */
 #define HHI_VID_PLL_CNTL                           0xc8
 #define HHI_VID_PLL_CNTL2                          0xc9
@@ -134,6 +136,15 @@
 #define HHI_TCON_PLL_CNTL2                         0x022
 #define HHI_TCON_PLL_CNTL3                         0x023
 #define HHI_TCON_PLL_CNTL4                         0x0df
+
+/* T3 */
+#define ANACTRL_TCON_PLL0_CNTL0			   0x00e0
+#define ANACTRL_TCON_PLL0_CNTL1			   0x00e1
+#define ANACTRL_TCON_PLL0_CNTL2			   0x00e2
+#define ANACTRL_TCON_PLL0_CNTL3			   0x00e3
+#define ANACTRL_TCON_PLL0_CNTL4			   0x00e4
+#define ANACTRL_TCON_PLL0_STS                      0x00ef
+#define ANACTRL_LVDS_TX_PHY_CNTL1		   0x00f5
 
 #define HHI_GP0_PLL_CNTL0						   0x10
 #define HHI_GP0_PLL_CNTL1						   0x11
