@@ -10,14 +10,14 @@
 //gdc api functions
 #include "gdc_api.h"
 
-int gdc_run(struct gdc_cmd_s *g)
+int gdc_run(struct gdc_cmd_s *g, struct gdc_dma_cfg_t *dma_cfg)
 {
 	gdc_stop(g);
 
 	gdc_log(LOG_DEBUG, "Done gdc load..\n");
 
 	//initialise the gdc by the first configuration
-	if (gdc_init(g) != 0) {
+	if (gdc_init(g, dma_cfg) != 0) {
 		gdc_log(LOG_ERR, "Failed to initialise GDC block");
 		return -1;
 	}
@@ -26,25 +26,25 @@ int gdc_run(struct gdc_cmd_s *g)
 
 	switch (g->gdc_config.format) {
 	case NV12:
-		gdc_process(g, g->y_base_addr, g->uv_base_addr);
+		gdc_process(g, g->y_base_addr, g->uv_base_addr, dma_cfg);
 	break;
 	case YV12:
 		gdc_process_yuv420p(g, g->y_base_addr,
 				    g->u_base_addr,
-				    g->v_base_addr);
+				    g->v_base_addr, dma_cfg);
 	break;
 	case Y_GREY:
-		gdc_process_y_grey(g, g->y_base_addr);
+		gdc_process_y_grey(g, g->y_base_addr, dma_cfg);
 	break;
 	case YUV444_P:
 		gdc_process_yuv444p(g, g->y_base_addr,
 				    g->u_base_addr,
-				    g->v_base_addr);
+				    g->v_base_addr, dma_cfg);
 	break;
 	case RGB444_P:
 		gdc_process_rgb444p(g, g->y_base_addr,
 				    g->u_base_addr,
-				g->v_base_addr);
+				g->v_base_addr, dma_cfg);
 	break;
 	default:
 		gdc_log(LOG_ERR, "Error config format\n");

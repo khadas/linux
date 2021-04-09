@@ -193,7 +193,7 @@ static int gdc_process_work_queue(struct gdc_context_s *wq)
 		block_mode = pitem->cmd.wait_done_flag;
 		if (trace_mode_enable >= 1)
 			start_time = ktime_get();
-		ret = gdc_run(&pitem->cmd);
+		ret = gdc_run(&pitem->cmd, &pitem->dma_cfg);
 		if (ret < 0)
 			gdc_log(LOG_ERR, "gdc process failed ret = %d\n", ret);
 		timeout = wait_for_completion_timeout
@@ -203,6 +203,8 @@ static int gdc_process_work_queue(struct gdc_context_s *wq)
 			if (pitem->cmd.dev_type == ARM_GDC)
 				gdc_log(LOG_ERR, "gdc timeout, status = 0x%x\n",
 					gdc_status_read());
+			else
+				gdc_log(LOG_ERR, "aml gdc timeout\n");
 			/*soft_rst(); */
 			if (trace_mode_enable >= 2) {
 				/* dump regs */

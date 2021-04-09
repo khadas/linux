@@ -46,17 +46,18 @@ static int kthread_created;
 
 static struct gdc_device_data_s arm_gdc_clk2 = {
 	.dev_type = ARM_GDC,
-	.clk_type = CORE_AXI
+	.clk_type = CORE_AXI,
 };
 
 static struct gdc_device_data_s arm_gdc = {
 	.dev_type = ARM_GDC,
-	.clk_type = MUXGATE_MUXSEL_GATE
+	.clk_type = MUXGATE_MUXSEL_GATE,
+	.ext_msb_8g = 1
 };
 
 static struct gdc_device_data_s aml_gdc = {
 	.dev_type = AML_GDC,
-	.clk_type = MUXGATE_MUXSEL_GATE
+	.clk_type = MUXGATE_MUXSEL_GATE,
 };
 
 static const struct of_device_id gdc_dt_match[] = {
@@ -741,13 +742,25 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 				cfg->fd);
 			return -EINVAL;
 		}
+
 		if (plane_number == 1) {
+			int j;
+
+			/* set MSB val */
+			for (j = 0; j < GDC_MAX_PLANE; j++)
+				context->dma_cfg.input_cfg[j].paddr_8g_msb =
+							(u64)addr >> 32;
+
 			ret = meson_gdc_set_input_addr(addr, gdc_cmd);
 			if (ret != 0) {
 				gdc_log(LOG_ERR, "set input addr err\n");
 				goto dma_buf_unmap;
 			}
 		} else {
+			/* set MSB val */
+			context->dma_cfg.input_cfg[i].paddr_8g_msb =
+							(u64)addr >> 32;
+
 			size = gdc_set_input_addr(i, addr, gdc_cmd);
 			if (size < 0) {
 				gdc_log(LOG_ERR, "set input addr err\n");
@@ -816,10 +829,22 @@ static int gdc_process_output_dma_info(struct gdc_context_s *context,
 				cfg->fd);
 			return -EINVAL;
 		}
+
 		if (plane_number == 1) {
+			int j;
+
+			/* set MSB val */
+			for (j = 0; j < GDC_MAX_PLANE; j++)
+				context->dma_cfg.output_cfg[j].paddr_8g_msb =
+							(u64)addr >> 32;
+
 			gdc_cmd->buffer_addr = addr;
 			gdc_cmd->current_addr = gdc_cmd->buffer_addr;
 		} else {
+			/* set MSB val */
+			context->dma_cfg.output_cfg[i].paddr_8g_msb =
+							(u64)addr >> 32;
+
 			ret = gdc_set_output_addr(i, addr, gdc_cmd);
 			if (ret < 0) {
 				gdc_log(LOG_ERR, "set input addr err\n");
@@ -888,6 +913,9 @@ static int gdc_process_ex_info(struct gdc_context_s *context,
 		ret = -EINVAL;
 		goto unlock_return;
 	}
+	/* set MSB val */
+	context->dma_cfg.config_cfg.paddr_8g_msb = (u64)addr >> 32;
+
 	gdc_cmd->gdc_config.config_addr = addr;
 	gdc_log(LOG_DEBUG, "%s, config addr=%lx\n", __func__, addr);
 
@@ -948,7 +976,7 @@ static void release_config_firmware(struct fw_info_s *fw_info,
 
 static int load_firmware_by_name(struct fw_info_s *fw_info,
 				 struct gdc_config_s *gdc_config,
-				 u32 dev_type)
+				 u32 dev_type, phys_addr_t *fw_paddr)
 {
 	int ret = -1;
 	const struct firmware *fw = NULL;
@@ -1001,6 +1029,9 @@ static int load_firmware_by_name(struct fw_info_s *fw_info,
 	gdc_config->config_addr = phys_addr;
 	gdc_config->config_size = fw->size / 4;
 	fw_info->virt_addr = virt_addr;
+
+	if (fw_paddr)
+		*fw_paddr = phys_addr;
 
 	gdc_log(LOG_DEBUG,
 		"current firmware virt_addr: 0x%p, fw->data: 0x%p.\n",
@@ -1171,7 +1202,7 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 	}
 	ret = load_firmware_by_name(&gs_with_fw->fw_info,
 				    &gs_with_fw->gdc_config,
-				    context->cmd.dev_type);
+				    context->cmd.dev_type, NULL);
 	if (ret <= 0) {
 		gdc_log(LOG_ERR, "line %d,load FW %s failed\n",
 			__LINE__, gs_with_fw->fw_info.fw_name);
@@ -1289,9 +1320,20 @@ int gdc_process_phys(struct gdc_context_s *context,
 
 	for (i = 0; i < plane_number; i++) {
 		if (plane_number == 1) {
+			int j;
+
+			/* set MSB val */
+			for (j = 0; j < GDC_MAX_PLANE; j++)
+				context->dma_cfg.output_cfg[j].paddr_8g_msb =
+						(u64)gs->out_paddr[0] >> 32;
+
 			gdc_cmd->buffer_addr = gs->out_paddr[0];
 			gdc_cmd->current_addr = gdc_cmd->buffer_addr;
 		} else {
+			/* set MSB val */
+			context->dma_cfg.output_cfg[i].paddr_8g_msb =
+						(u64)gs->out_paddr[i] >> 32;
+
 			ret = gdc_set_output_addr(i, gs->out_paddr[i], gdc_cmd);
 			if (ret < 0) {
 				gdc_log(LOG_ERR, "set input addr err\n");
@@ -1299,7 +1341,7 @@ int gdc_process_phys(struct gdc_context_s *context,
 				return -EINVAL;
 			}
 		}
-		gdc_log(LOG_DEBUG, "plane[%d] get output paddr=0x%x\n",
+		gdc_log(LOG_DEBUG, "plane[%d] get output paddr=0x%lx\n",
 			i, gs->out_paddr[i]);
 	}
 
@@ -1312,6 +1354,13 @@ int gdc_process_phys(struct gdc_context_s *context,
 	}
 	for (i = 0; i < plane_number; i++) {
 		if (plane_number == 1) {
+			int j;
+
+			/* set MSB val */
+			for (j = 0; j < GDC_MAX_PLANE; j++)
+				context->dma_cfg.input_cfg[j].paddr_8g_msb =
+						(u64)gs->in_paddr[0] >> 32;
+
 			ret = meson_gdc_set_input_addr(gs->in_paddr[0],
 						       gdc_cmd);
 			if (ret != 0) {
@@ -1320,6 +1369,10 @@ int gdc_process_phys(struct gdc_context_s *context,
 				return -EINVAL;
 			}
 		} else {
+			/* set MSB val */
+			context->dma_cfg.input_cfg[i].paddr_8g_msb =
+						(u64)gs->in_paddr[i] >> 32;
+
 			ret = gdc_set_input_addr(i, gs->in_paddr[i], gdc_cmd);
 			if (ret < 0) {
 				gdc_log(LOG_ERR, "set input addr err\n");
@@ -1327,21 +1380,30 @@ int gdc_process_phys(struct gdc_context_s *context,
 				return -EINVAL;
 			}
 		}
-		gdc_log(LOG_DEBUG, "plane[%d] get input addr=0x%x\n",
+		gdc_log(LOG_DEBUG, "plane[%d] get input addr=0x%lx\n",
 			i, gs->in_paddr[i]);
 	}
 
 	/* config_addr */
 	if (gs->use_builtin_fw) {
+		phys_addr_t fw_paddr;
+
 		fw_info.fw_name = gs->config_name;
 		ret = load_firmware_by_name(&fw_info, &gdc_cmd->gdc_config,
-					    context->cmd.dev_type);
+					    context->cmd.dev_type, &fw_paddr);
 		if (ret <= 0) {
 			gdc_log(LOG_ERR, "line %d,load FW %s failed\n",
 				__LINE__, fw_info.fw_name);
 			mutex_unlock(&context->d_mutext);
 			return -EINVAL;
 		}
+		/* set MSB val */
+		context->dma_cfg.config_cfg.paddr_8g_msb =
+							(u64)fw_paddr >> 32;
+	} else {
+		/* set MSB val */
+		context->dma_cfg.config_cfg.paddr_8g_msb =
+						(u64)gs->config_paddr >> 32;
 	}
 
 	/* set block mode */
@@ -1890,6 +1952,7 @@ static int gdc_platform_probe(struct platform_device *pdev)
 	gdc_dev->config_out_file = config_out_file;
 	gdc_dev->clk_type = gdc_data->clk_type;
 	gdc_dev->pdev = pdev;
+	gdc_dev->ext_msb_8g = gdc_data->ext_msb_8g;
 
 	gdc_dev->misc_dev.minor = MISC_DYNAMIC_MINOR;
 	gdc_dev->misc_dev.name = drv_name;
@@ -1958,6 +2021,10 @@ static int gdc_platform_probe(struct platform_device *pdev)
 				drv_name, rc / 1000000);
 		}
 	}
+
+	/* 8g memory support */
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 
 	rc = devm_request_irq(&pdev->dev, gdc_dev->irq,
 			      gdc_interrupt_handler,

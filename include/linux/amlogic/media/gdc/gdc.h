@@ -34,6 +34,7 @@ struct aml_dma_cfg {
 
 struct gdc_dmabuf_cfg_s {
 	int dma_used;
+	u32 paddr_8g_msb;
 	struct aml_dma_cfg dma_cfg;
 };
 
@@ -145,9 +146,9 @@ struct gdc_phy_setting {
 	u32 out_height;
 	u32 in_plane_num;
 	u32 out_plane_num;
-	u32 in_paddr[GDC_MAX_PLANE];
-	u32 out_paddr[GDC_MAX_PLANE];
-	u32 config_paddr;
+	ulong in_paddr[GDC_MAX_PLANE];
+	ulong out_paddr[GDC_MAX_PLANE];
+	ulong config_paddr;
 	u32 config_size; /* in 32bit */
 	u32 use_builtin_fw;
 	u32 use_sec_mem; /* secure mem access */

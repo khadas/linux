@@ -32,7 +32,7 @@
  *   @return 0 - success
  *	 -1 - fail.
  */
-int gdc_init(struct gdc_cmd_s *gdc_cmd)
+int gdc_init(struct gdc_cmd_s *gdc_cmd, struct gdc_dma_cfg_t *dma_cfg)
 {
 	u32 dev_type = gdc_cmd->dev_type;
 
@@ -51,7 +51,8 @@ int gdc_init(struct gdc_cmd_s *gdc_cmd)
 	gdc_secure_set(gdc_cmd->use_sec_mem, dev_type);
 
 	//set the configuration address and size to the gdc block
-	gdc_config_addr_write(gdc_cmd->gdc_config.config_addr, dev_type);
+	gdc_config_addr_write(dma_cfg->config_cfg.paddr_8g_msb,
+			      gdc_cmd->gdc_config.config_addr, dev_type);
 	gdc_config_size_write(gdc_cmd->gdc_config.config_size, dev_type);
 
 	//set the gdc input resolution
@@ -92,6 +93,45 @@ void gdc_start(struct gdc_cmd_s *gdc_cmd)
 	gdc_cmd->is_waiting_gdc = 1;
 }
 
+static void set_ext_8g_msb(struct gdc_dma_cfg_t *dma_cfg, u32 format_plane)
+{
+	u32 i, in_msb, out_msb, config_msb, curr;
+
+	struct gdc_dmabuf_cfg_s *input_cfg = &dma_cfg->input_cfg[0];
+	struct gdc_dmabuf_cfg_s *output_cfg = &dma_cfg->output_cfg[0];
+	struct gdc_dmabuf_cfg_s *config_cfg = &dma_cfg->config_cfg;
+
+	in_msb = input_cfg[0].paddr_8g_msb;
+	out_msb = output_cfg[0].paddr_8g_msb;
+	config_msb = config_cfg->paddr_8g_msb;
+
+	/* check in/out/config MSB
+	 * in/out MSB of every plane should be same as config MSB
+	 */
+	if (in_msb != out_msb || config_msb != out_msb) {
+		gdc_log(LOG_ERR, "in_msb:%d out_msb:%d config_msb:%d, not same\n",
+			in_msb, out_msb, config_msb);
+		return;
+	}
+	for (i = 0; i < format_plane; i++) {
+		if (input_cfg[i].paddr_8g_msb != in_msb ||
+		    output_cfg[i].paddr_8g_msb != out_msb) {
+			gdc_log(LOG_ERR, "Plane%d in_msb:%d out_msb:%d\n", i,
+				input_cfg[i].paddr_8g_msb,
+				output_cfg[i].paddr_8g_msb);
+			return;
+		}
+	}
+
+	/* write ext_8g_msb reg
+	 * SYSCTRL_BUS_CFG1 bit[15:14] extadr_gdc
+	 */
+	curr = system_ext_8g_msb_read_32();
+	curr &= ~(3 << 14);
+	curr |= in_msb << 14;
+	system_ext_8g_msb_write_32(curr);
+}
+
 /**
  *   This function points gdc to its input resolution
  *
@@ -111,7 +151,8 @@ void gdc_start(struct gdc_cmd_s *gdc_cmd)
  *	 -1 - no interrupt from GDC.
  */
 int gdc_process(struct gdc_cmd_s *gdc_cmd,
-		u32 y_base_addr, u32 uv_base_addr)
+		u32 y_base_addr, u32 uv_base_addr,
+		struct gdc_dma_cfg_t *dma_cfg)
 {
 	u32 gdc_out_base_addr = gdc_cmd->current_addr;
 	u32 output_height = gdc_cmd->gdc_config.output_height;
@@ -132,15 +173,18 @@ int gdc_process(struct gdc_cmd_s *gdc_cmd,
 	gdc_log(LOG_DEBUG, "starting GDC process.\n");
 
 	//input y plane
-	gdc_data1in_addr_write(y_base_addr, dev_type);
+	gdc_data1in_addr_write(dma_cfg->input_cfg[0].paddr_8g_msb,
+			       y_base_addr, dev_type);
 	gdc_data1in_line_offset_write(i_y_line_offset, dev_type);
 
 	//input uv plane
-	gdc_data2in_addr_write(uv_base_addr, dev_type);
+	gdc_data2in_addr_write(dma_cfg->input_cfg[1].paddr_8g_msb,
+			       uv_base_addr, dev_type);
 	gdc_data2in_line_offset_write(i_uv_line_offset, dev_type);
 
 	//gdc y output
-	gdc_data1out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data1out_addr_write(dma_cfg->output_cfg[0].paddr_8g_msb,
+				gdc_out_base_addr, dev_type);
 	gdc_data1out_line_offset_write(o_y_line_offset, dev_type);
 
 	//gdc uv output
@@ -148,8 +192,12 @@ int gdc_process(struct gdc_cmd_s *gdc_cmd,
 		gdc_out_base_addr += output_height * o_y_line_offset;
 	else
 		gdc_out_base_addr = gdc_cmd->uv_out_base_addr;
-	gdc_data2out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data2out_addr_write(dma_cfg->output_cfg[1].paddr_8g_msb,
+				gdc_out_base_addr, dev_type);
 	gdc_data2out_line_offset_write(o_uv_line_offset, dev_type);
+
+	if (GDC_DEV_T(dev_type)->ext_msb_8g)
+		set_ext_8g_msb(dma_cfg, 2);
 
 	gdc_start(gdc_cmd);
 
@@ -175,7 +223,8 @@ int gdc_process(struct gdc_cmd_s *gdc_cmd,
  *	 -1 - no interrupt from GDC.
  */
 int gdc_process_yuv420p(struct gdc_cmd_s *gdc_cmd,
-			u32 y_base_addr, u32 u_base_addr, u32 v_base_addr)
+			u32 y_base_addr, u32 u_base_addr, u32 v_base_addr,
+			struct gdc_dma_cfg_t *dma_cfg)
 {
 	struct gdc_config_s  *gc = &gdc_cmd->gdc_config;
 	u32 gdc_out_base_addr = gdc_cmd->current_addr;
@@ -202,19 +251,23 @@ int gdc_process_yuv420p(struct gdc_cmd_s *gdc_cmd,
 	u32 output_v_stride = gc->output_c_stride;
 
 	//input y plane
-	gdc_data1in_addr_write(y_base_addr, dev_type);
+	gdc_data1in_addr_write(dma_cfg->input_cfg[0].paddr_8g_msb,
+			       y_base_addr, dev_type);
 	gdc_data1in_line_offset_write(input_stride, dev_type);
 
 	//input u plane
-	gdc_data2in_addr_write(u_base_addr, dev_type);
+	gdc_data2in_addr_write(dma_cfg->input_cfg[1].paddr_8g_msb,
+			       u_base_addr, dev_type);
 	gdc_data2in_line_offset_write(input_u_stride, dev_type);
 
 	//input v plane
-	gdc_data3in_addr_write(v_base_addr, dev_type);
+	gdc_data3in_addr_write(dma_cfg->input_cfg[2].paddr_8g_msb,
+			       v_base_addr, dev_type);
 	gdc_data3in_line_offset_write(input_v_stride, dev_type);
 
 	//gdc y output
-	gdc_data1out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data1out_addr_write(dma_cfg->output_cfg[0].paddr_8g_msb,
+				gdc_out_base_addr, dev_type);
 	gdc_data1out_line_offset_write(output_stride, dev_type);
 
 	//gdc u output
@@ -222,7 +275,8 @@ int gdc_process_yuv420p(struct gdc_cmd_s *gdc_cmd,
 		gdc_out_base_addr += output_height * output_stride;
 	else
 		gdc_out_base_addr = gdc_cmd->u_out_base_addr;
-	gdc_data2out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data2out_addr_write(dma_cfg->output_cfg[1].paddr_8g_msb,
+				gdc_out_base_addr, dev_type);
 	gdc_data2out_line_offset_write(output_u_stride, dev_type);
 
 	//gdc v output
@@ -230,8 +284,13 @@ int gdc_process_yuv420p(struct gdc_cmd_s *gdc_cmd,
 		gdc_out_base_addr += output_height * output_u_stride / 2;
 	else
 		gdc_out_base_addr = gdc_cmd->v_out_base_addr;
-	gdc_data3out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data3out_addr_write(dma_cfg->output_cfg[2].paddr_8g_msb,
+				gdc_out_base_addr, dev_type);
 	gdc_data3out_line_offset_write(output_v_stride, dev_type);
+
+	if (GDC_DEV_T(dev_type)->ext_msb_8g)
+		set_ext_8g_msb(dma_cfg, 3);
+
 	gdc_start(gdc_cmd);
 
 	return 0;
@@ -254,7 +313,8 @@ int gdc_process_yuv420p(struct gdc_cmd_s *gdc_cmd,
  *	 -1 - no interrupt from GDC.
  */
 int gdc_process_y_grey(struct gdc_cmd_s *gdc_cmd,
-		       u32 y_base_addr)
+		       u32 y_base_addr,
+		       struct gdc_dma_cfg_t *dma_cfg)
 {
 	struct gdc_config_s  *gc = &gdc_cmd->gdc_config;
 	u32 gdc_out_base_addr = gdc_cmd->current_addr;
@@ -273,12 +333,17 @@ int gdc_process_y_grey(struct gdc_cmd_s *gdc_cmd,
 	gdc_log(LOG_DEBUG, "starting GDC process.\n");
 
 	//input y plane
-	gdc_data1in_addr_write(y_base_addr, dev_type);
+	gdc_data1in_addr_write(dma_cfg->input_cfg[0].paddr_8g_msb,
+			       y_base_addr, dev_type);
 	gdc_data1in_line_offset_write(input_stride, dev_type);
 
 	//gdc y output
-	gdc_data1out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data1out_addr_write(dma_cfg->output_cfg[0].paddr_8g_msb,
+				gdc_out_base_addr, dev_type);
 	gdc_data1out_line_offset_write(output_stride, dev_type);
+
+	if (GDC_DEV_T(dev_type)->ext_msb_8g)
+		set_ext_8g_msb(dma_cfg, 1);
 
 	gdc_start(gdc_cmd);
 
@@ -304,7 +369,8 @@ int gdc_process_y_grey(struct gdc_cmd_s *gdc_cmd,
  *	 -1 - no interrupt from GDC.
  */
 int gdc_process_yuv444p(struct gdc_cmd_s *gdc_cmd,
-			u32 y_base_addr, u32 u_base_addr, u32 v_base_addr)
+			u32 y_base_addr, u32 u_base_addr, u32 v_base_addr,
+			struct gdc_dma_cfg_t *dma_cfg)
 {
 	struct gdc_config_s  *gc = &gdc_cmd->gdc_config;
 	u32 gdc_out_base_addr = gdc_cmd->current_addr;
@@ -328,19 +394,23 @@ int gdc_process_yuv444p(struct gdc_cmd_s *gdc_cmd,
 	gdc_log(LOG_DEBUG, "starting GDC process.\n");
 
 	//input y plane
-	gdc_data1in_addr_write(y_base_addr, dev_type);
+	gdc_data1in_addr_write(dma_cfg->input_cfg[0].paddr_8g_msb,
+			       y_base_addr, dev_type);
 	gdc_data1in_line_offset_write(input_stride, dev_type);
 
 	//input u plane
-	gdc_data2in_addr_write(u_base_addr, dev_type);
+	gdc_data2in_addr_write(dma_cfg->input_cfg[1].paddr_8g_msb,
+			       u_base_addr, dev_type);
 	gdc_data2in_line_offset_write(input_u_stride, dev_type);
 
 	//input v plane
-	gdc_data3in_addr_write(v_base_addr, dev_type);
+	gdc_data3in_addr_write(dma_cfg->input_cfg[2].paddr_8g_msb,
+			       v_base_addr, dev_type);
 	gdc_data3in_line_offset_write(input_v_stride, dev_type);
 
 	//gdc y output
-	gdc_data1out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data1out_addr_write(dma_cfg->output_cfg[0].paddr_8g_msb,
+				gdc_out_base_addr, dev_type);
 	gdc_data1out_line_offset_write(output_stride, dev_type);
 
 	//gdc u output
@@ -348,7 +418,8 @@ int gdc_process_yuv444p(struct gdc_cmd_s *gdc_cmd,
 		gdc_out_base_addr += output_height * output_stride;
 	else
 		gdc_out_base_addr = gdc_cmd->u_out_base_addr;
-	gdc_data2out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data2out_addr_write(dma_cfg->output_cfg[1].paddr_8g_msb,
+				gdc_out_base_addr, dev_type);
 	gdc_data2out_line_offset_write(output_u_stride, dev_type);
 
 	//gdc v output
@@ -356,8 +427,13 @@ int gdc_process_yuv444p(struct gdc_cmd_s *gdc_cmd,
 		gdc_out_base_addr += output_height * output_u_stride;
 	else
 		gdc_out_base_addr = gdc_cmd->v_out_base_addr;
-	gdc_data3out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data3out_addr_write(dma_cfg->output_cfg[2].paddr_8g_msb,
+				gdc_out_base_addr, dev_type);
 	gdc_data3out_line_offset_write(output_v_stride, dev_type);
+
+	if (GDC_DEV_T(dev_type)->ext_msb_8g)
+		set_ext_8g_msb(dma_cfg, 3);
+
 	gdc_start(gdc_cmd);
 
 	return 0;
@@ -384,7 +460,8 @@ int gdc_process_yuv444p(struct gdc_cmd_s *gdc_cmd,
  *	 -1 - no interrupt from GDC.
  */
 int gdc_process_rgb444p(struct gdc_cmd_s *gdc_cmd,
-			u32 y_base_addr, u32 u_base_addr, u32 v_base_addr)
+			u32 y_base_addr, u32 u_base_addr, u32 v_base_addr,
+			struct gdc_dma_cfg_t *dma_cfg)
 {
 	struct gdc_config_s  *gc = &gdc_cmd->gdc_config;
 	u32 gdc_out_base_addr = gdc_cmd->current_addr;
@@ -408,19 +485,23 @@ int gdc_process_rgb444p(struct gdc_cmd_s *gdc_cmd,
 	gdc_log(LOG_DEBUG, "starting GDC process.\n");
 
 	//input y plane
-	gdc_data1in_addr_write(y_base_addr, dev_type);
+	gdc_data1in_addr_write(dma_cfg->input_cfg[0].paddr_8g_msb,
+			       y_base_addr, dev_type);
 	gdc_data1in_line_offset_write(input_stride, dev_type);
 
 	//input u plane
-	gdc_data2in_addr_write(u_base_addr, dev_type);
+	gdc_data2in_addr_write(dma_cfg->input_cfg[1].paddr_8g_msb,
+			       u_base_addr, dev_type);
 	gdc_data2in_line_offset_write(input_u_stride, dev_type);
 
 	//input v plane
-	gdc_data3in_addr_write(v_base_addr, dev_type);
+	gdc_data3in_addr_write(dma_cfg->input_cfg[2].paddr_8g_msb,
+			       v_base_addr, dev_type);
 	gdc_data3in_line_offset_write(input_v_stride, dev_type);
 
 	//gdc y output
-	gdc_data1out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data1out_addr_write(dma_cfg->output_cfg[0].paddr_8g_msb,
+				gdc_out_base_addr, dev_type);
 	gdc_data1out_line_offset_write(output_stride, dev_type);
 
 	//gdc u output
@@ -428,7 +509,8 @@ int gdc_process_rgb444p(struct gdc_cmd_s *gdc_cmd,
 		gdc_out_base_addr += output_height * output_stride;
 	else
 		gdc_out_base_addr = gdc_cmd->u_out_base_addr;
-	gdc_data2out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data2out_addr_write(dma_cfg->output_cfg[1].paddr_8g_msb,
+				gdc_out_base_addr, dev_type);
 	gdc_data2out_line_offset_write(output_u_stride, dev_type);
 
 	//gdc v output
@@ -436,8 +518,13 @@ int gdc_process_rgb444p(struct gdc_cmd_s *gdc_cmd,
 		gdc_out_base_addr += output_height * output_u_stride;
 	else
 		gdc_out_base_addr = gdc_cmd->v_out_base_addr;
-	gdc_data3out_addr_write(gdc_out_base_addr, dev_type);
+	gdc_data3out_addr_write(dma_cfg->output_cfg[2].paddr_8g_msb,
+				gdc_out_base_addr, dev_type);
 	gdc_data3out_line_offset_write(output_v_stride, dev_type);
+
+	if (GDC_DEV_T(dev_type)->ext_msb_8g)
+		set_ext_8g_msb(dma_cfg, 3);
+
 	gdc_start(gdc_cmd);
 
 	return 0;
