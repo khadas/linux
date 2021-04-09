@@ -5607,11 +5607,13 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 	if (di_que_list_count(channel, QUE_IN_FREE) < 1)
 		return 2;
 
-	if ((di_que_list_count(channel, QUE_IN_FREE) < 2	&&
-	     !ppre->di_inp_buf_next)				||
-	    (((ppre->sgn_lv != EDI_SGN_4K) && (!pch->ponly)) &&
-	     (queue_empty(channel, QUEUE_LOCAL_FREE))))
+	if (di_que_list_count(channel, QUE_IN_FREE) < 2	&&
+	    !ppre->di_inp_buf_next)
 		return 3;
+	if (ppre->sgn_lv != EDI_SGN_4K &&
+	    !pch->ponly		&&
+	    queue_empty(channel, QUEUE_LOCAL_FREE))
+		return 35;
 
 	if (di_que_list_count(channel, QUE_PRE_READY) >= DI_PRE_READY_LIMIT)
 		return 4;

@@ -1192,6 +1192,7 @@ struct dim_sum_s {
 	unsigned int b_pst_free;
 	unsigned int b_display;
 	unsigned int b_nin;
+	unsigned int b_in_free;
 };
 
 struct dim_bypass_s {
