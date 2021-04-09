@@ -74,6 +74,7 @@ enum phy_ver_e {
 	PHY_VER_TM2,
 	PHY_VER_T5,
 	PHY_VER_T7,
+	PHY_VER_T3,
 };
 
 struct meson_hdmirx_data {

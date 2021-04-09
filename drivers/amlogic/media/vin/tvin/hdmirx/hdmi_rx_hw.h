@@ -3323,4 +3323,19 @@ unsigned int rx_sec_hdcp_cfg_t7(void);
 void dump_vsi_reg_t7(void);
 void rx_set_irq_t7(bool en);
 void rx_set_aud_output(u32 param);
+
+void dump_reg_phy_t3(void);
+void aml_phy_init_t3(void);
+void dump_aml_phy_sts_t3(void);
+void aml_eq_eye_monitor_t3(void);
+void aml_phy_offset_cal_t3(void);
+void aml_phy_short_bist_t3(void);
+void aml_phy_iq_skew_monitor_t3(void);
+bool aml_get_tmds_valid_t3(void);
+void aml_phy_power_off_t3(void);
+void aml_phy_switch_port_t3(void);
+unsigned int rx_sec_hdcp_cfg_t3(void);
+void dump_vsi_reg_t3(void);
+void rx_set_irq_t3(bool en);
+
 #endif

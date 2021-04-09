@@ -162,6 +162,11 @@ static struct notifier_block aml_hdcp22_pm_notifier = {
 	.notifier_call = aml_hdcp22_pm_notify,
 };
 
+static struct meson_hdmirx_data rx_t3_data = {
+	.chip_id = CHIP_ID_T3,
+	.phy_ver = PHY_VER_T3,
+};
+
 static struct meson_hdmirx_data rx_t7_data = {
 	.chip_id = CHIP_ID_T7,
 	.phy_ver = PHY_VER_T7,
@@ -215,6 +220,10 @@ static struct meson_hdmirx_data rx_gxtvbb_data = {
 #endif
 
 static const struct of_device_id hdmirx_dt_match[] = {
+	{
+		.compatible		= "amlogic, hdmirx_t3",
+		.data			= &rx_t3_data
+	},
 	{
 		.compatible     = "amlogic, hdmirx_t7",
 		.data           = &rx_t7_data
@@ -2710,7 +2719,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (IS_ERR(hdevp->cfg_clk)) {
 		rx_pr("get cfg_clk err\n");
 	} else {
-		if (rx.chip_id == CHIP_ID_T7)
+		if (rx.chip_id >= CHIP_ID_T7)
 			ret = clk_set_rate(hdevp->cfg_clk, 50000000);
 		else
 			ret = clk_set_rate(hdevp->cfg_clk, 133333333);
@@ -2788,7 +2797,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		hdevp->cts_hdmirx_5m_clk = clk_get(&pdev->dev, "cts_hdmirx_5m_clk");
 		if (IS_ERR(hdevp->cts_hdmirx_5m_clk)) {
 			rx_pr("get cts_hdmirx_5m_clk err\n");

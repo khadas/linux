@@ -914,7 +914,7 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 		rx_pr("[isr] enc rise\n");
 	if (hdmirx_top_intr_stat & (1 << 16))
 		rx_pr("[isr] enc fall\n");
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		if (hdmirx_top_intr_stat & (1 << 2))
 			if (log_level & COR_LOG)
 				rx_pr("[isr] phy dig\n");
@@ -3349,6 +3349,8 @@ static void dump_phy_status(void)
 		dump_aml_phy_sts_t5();
 	else if (rx.phy_ver == PHY_VER_T7)
 		dump_aml_phy_sts_t7();
+	else if (rx.phy_ver == PHY_VER_T3)
+		dump_aml_phy_sts_t3();
 	else
 		dump_aml_phy_sts_tl1();
 }

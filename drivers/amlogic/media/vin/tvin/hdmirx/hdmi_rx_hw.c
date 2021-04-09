@@ -305,7 +305,7 @@ unsigned int hdmirx_rd_top(unsigned int addr)
 
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		spin_lock_irqsave(&reg_rw_lock, flags);
-		if (rx.chip_id == CHIP_ID_T7)
+		if (rx.chip_id >= CHIP_ID_T7)
 			dev_offset = rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 		else
 			dev_offset = TOP_DWC_BASE_OFFSET +
@@ -354,7 +354,7 @@ void hdmirx_wr_top(unsigned int addr, unsigned int data)
 
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		spin_lock_irqsave(&reg_rw_lock, flags);
-		if (rx.chip_id == CHIP_ID_T7)
+		if (rx.chip_id >= CHIP_ID_T7)
 			dev_offset = rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 		else
 			dev_offset = TOP_DWC_BASE_OFFSET +
@@ -402,7 +402,7 @@ unsigned int hdmirx_rd_amlphy(unsigned int addr)
 	unsigned int dev_offset = 0;
 	u32 base_ofst = 0;
 
-	if (rx.chip_id == CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		base_ofst = TOP_AMLPHY_BASE_OFFSET_T7;
 	else
 		base_ofst = TOP_AMLPHY_BASE_OFFSET_T5;
@@ -437,7 +437,7 @@ void hdmirx_wr_amlphy(unsigned int addr, unsigned int data)
 	unsigned long dev_offset = 0;
 	u32 base_ofst = 0;
 
-	if (rx.chip_id == CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		base_ofst = TOP_AMLPHY_BASE_OFFSET_T7;
 	else
 		base_ofst = TOP_AMLPHY_BASE_OFFSET_T5;
@@ -1364,7 +1364,7 @@ unsigned int rx_get_scdc_clkrate_sts(void)
 	if (rx.chip_id == CHIP_ID_TXHD ||
 	    rx.chip_id == CHIP_ID_T5D)
 		clk_rate = 0;
-	else if (rx.chip_id == CHIP_ID_T7)
+	else if (rx.chip_id >= CHIP_ID_T7)
 		clk_rate = (hdmirx_rd_cor(SCDCS_TMDS_CONFIG_SCDC_IVCRX) >> 1) & 1;
 	else
 		clk_rate = (hdmirx_rd_dwc(DWC_SCDC_REGS0) >> 17) & 1;
@@ -1498,6 +1498,7 @@ void set_scdc_cfg(int hpdlow, int pwrprovided)
 			(hpdlow << 1) | (pwrprovided << 0));
 		break;
 	case CHIP_ID_T7:
+	case CHIP_ID_T3:
 	default:
 		hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, pwrprovided);
 		break;
@@ -2284,7 +2285,7 @@ void control_reset(void)
 
 void rx_esm_tmdsclk_en(bool en)
 {
-	if (rx.chip_id == CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		return;
 	hdmirx_wr_bits_top(TOP_CLK_CNTL, HDCP22_TMDSCLK_EN, en);
 	if (hdcp22_on && hdcp_hpd_ctrl_en)
@@ -2301,7 +2302,7 @@ void hdcp22_clk_en(bool en)
 {
 	u32 data32;
 
-	if (rx.chip_id == CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		return;
 	if (en) {
 		if (rx.chip_id >= CHIP_ID_T5)
@@ -2362,7 +2363,7 @@ void hdcp22_clk_en(bool en)
  */
 void hdmirx_hdcp22_esm_rst(void)
 {
-	if (rx.chip_id == CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		return;
 
 	/* For TL1,the sw_reset_hdcp22 bit is top reg 0x0,bit'12 */
@@ -2404,7 +2405,7 @@ int rx_is_hdcp22_support(void)
  */
 void hdmirx_hdcp22_hpd(bool value)
 {
-	if (rx.chip_id == CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		return;
 	unsigned long data32 = hdmirx_rd_dwc(DWC_HDCP22_CONTROL);
 
@@ -2420,7 +2421,7 @@ void hdmirx_hdcp22_hpd(bool value)
  */
 void hdcp_22_off(void)
 {
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		//TODO..
 	} else {
 		/* note: can't pull down hpd before enter suspend */
@@ -2442,7 +2443,7 @@ void hdcp_22_off(void)
  */
 void hdcp_22_on(void)
 {
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		//TODO..
 	} else {
 		hdcp22_kill_esm = 0;
@@ -2587,7 +2588,7 @@ void clk_init_dwc(void)
 
 void clk_init(void)
 {
-	if (rx.chip_id == CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		clk_init_cor();
 	else
 		clk_init_dwc();
@@ -2893,6 +2894,8 @@ void aml_phy_offset_cal(void)
 {
 	if (rx.phy_ver == PHY_VER_T7)
 		aml_phy_offset_cal_t7();
+	else if (rx.phy_ver == PHY_VER_T3)
+		aml_phy_offset_cal_t3();
 	else if (rx.phy_ver == PHY_VER_T5)
 		aml_phy_offset_cal_t5();
 }
@@ -3048,7 +3051,7 @@ void rx_sw_reset(int level)
 {
 	unsigned long data32 = 0;
 
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		//TODO..
 	} else {
 		if (level == 1) {
@@ -3377,7 +3380,7 @@ void hdmirx_hw_config(void)
 {
 	rx_pr("%s port:%d\n", __func__, rx.port);
 	hdmirx_top_sw_reset();
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		cor_init();
 	} else {
 		control_reset();
@@ -3414,7 +3417,7 @@ void hdmirx_hw_probe(void)
 	clk_init();
 	TOP_init();
 	hdmirx_top_sw_reset();
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		cor_init();
 	} else {
 		control_reset();
@@ -3436,7 +3439,7 @@ void hdmirx_hw_probe(void)
 		aml_phy_offset_cal();
 	else
 		hdmirx_phy_init();
-	if (rx.chip_id == CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		hdcp_init_t7();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
@@ -3522,7 +3525,7 @@ void rx_aud_pll_ctl(bool en)
 	/*unsigned int od, od2;*/
 
 	if (rx.chip_id >= CHIP_ID_TL1) {
-		if (rx.chip_id == CHIP_ID_T7) {
+		if (rx.chip_id >= CHIP_ID_T7) {
 			if (en) {
 				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
 				tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
@@ -3606,7 +3609,7 @@ bool rx_get_dvi_mode(void)
 {
 	u32 ret;
 
-	if (rx.chip_id == CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		ret = hdmirx_rd_cor(RX_AUDP_STAT_DP2_IVCRX) & 1;
 	else
 		ret = !hdmirx_rd_bits_dwc(DWC_PDEC_STS, DVIDET);
@@ -3620,7 +3623,7 @@ u8 rx_get_hdcp_type(void)
 {
 	u32 tmp;
 
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		if (rx.cur.hdcp_type == HDCP_VER_14)
 			rx.cur.hdcp14_state = hdmirx_rd_cor(COR_HDCP14_STS) & 2;
 		else if (rx.cur.hdcp_type == HDCP_VER_22)
@@ -3642,7 +3645,7 @@ void rx_get_avi_params(void)
 {
 	u8 data8, data8_lo, data8_up;
 
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		/*byte 1*/
 		data8 = hdmirx_rd_cor(AVIRX_DBYTE1_DP2_IVCRX);
 		/*byte1:bit[7:5]*/
@@ -3737,7 +3740,7 @@ void rx_get_colordepth(void)
 {
 	u8 tmp;
 
-	if (rx.chip_id == CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		tmp = hdmirx_rd_cor(COR_VININ_STS);
 	else
 		tmp = hdmirx_rd_bits_dwc(DWC_HDMI_STS, DCM_CURRENT_MODE);
@@ -3762,7 +3765,7 @@ void rx_get_framerate(void)
 	u32 tmp;
 	u32 clk;
 
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		tmp = (hdmirx_rd_cor(COR_FRAME_RATE_HI) << 16) |
 			(hdmirx_rd_cor(COR_FRAME_RATE_MI) << 8) |
 			(hdmirx_rd_cor(COR_FRAME_RATE_LO));
@@ -3784,7 +3787,7 @@ void rx_get_interlaced(void)
 {
 	u8 tmp;
 
-	if (rx.chip_id == CHIP_ID_T7)
+	if (rx.chip_id >= CHIP_ID_T7)
 		tmp = hdmirx_rd_cor(COR_FDET_STS) & _BIT(2);
 	else
 		tmp = hdmirx_rd_bits_dwc(DWC_MD_STS, ILACE);
@@ -3848,7 +3851,7 @@ void rx_get_video_info(void)
 void hdmirx_set_video_mute(bool mute)
 {
 	/* bluescreen cfg */
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		/* TODO */
 	} else {
 		if (rx.pre.colorspace == E_COLOR_RGB) {
@@ -3970,7 +3973,7 @@ void hdmirx_config_video(void)
  */
 void hdmirx_config_audio(void)
 {
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		/* set MCLK for I2S/SPDIF */
 		hdmirx_wr_cor(AAC_MCLK_SEL_AUD_IVCRX, 0x80);
 	} else {
@@ -4280,7 +4283,7 @@ void dump_reg(void)
 		dump_reg_phy();
 	}
 
-	if (rx.chip_id != CHIP_ID_T7) {
+	if (rx.chip_id <= CHIP_ID_T7) {
 		rx_pr("\n**Controller registers**\n");
 		rx_pr("[addr ]  addr + 0x0,");
 		rx_pr("addr + 0x4,  addr + 0x8,");
@@ -4303,6 +4306,8 @@ void dump_reg_phy(void)
 		dump_reg_phy_t5();
 	else if (rx.phy_ver == PHY_VER_T7)
 		dump_reg_phy_t7();
+	else if (rx.phy_ver == PHY_VER_T3)
+		dump_reg_phy_t3();
 	else
 		dump_reg_phy_tl1_tm2();
 }
@@ -4679,6 +4684,8 @@ void aml_phy_init_handler(struct work_struct *work)
 		aml_phy_init_t5();
 	else if (rx.phy_ver == PHY_VER_T7)
 		aml_phy_init_t7();
+	else if (rx.phy_ver == PHY_VER_T3)
+		aml_phy_init_t3();
 	eq_sts = E_EQ_FINISH;
 }
 
@@ -4707,8 +4714,10 @@ void rx_phy_short_bist(void)
 		aml_phy_short_bist_tm2();
 	else if (rx.phy_ver == PHY_VER_T5)
 		aml_phy_short_bist_t5();
-	else if (rx.chip_id == CHIP_ID_T7)
+	else if (rx.phy_ver == PHY_VER_T7)
 		aml_phy_short_bist_t7();
+	else if (rx.phy_ver == PHY_VER_T3)
+		aml_phy_short_bist_t3();
 }
 
 unsigned int aml_phy_pll_lock_tm2(void)
@@ -4759,6 +4768,8 @@ unsigned int aml_phy_tmds_valid(void)
 		return aml_get_tmds_valid_t5();
 	else if (rx.phy_ver == PHY_VER_T7)
 		return aml_get_tmds_valid_t7();
+	else if (rx.phy_ver == PHY_VER_T3)
+		return aml_get_tmds_valid_t3();
 	else
 		return false;
 }
@@ -4787,6 +4798,9 @@ void aml_phy_power_off(void)
 	} else if (rx.phy_ver == PHY_VER_T7) {
 		/* pll power down */
 		aml_phy_power_off_t7();
+	} else if (rx.phy_ver == PHY_VER_T3) {
+		/* pll power down */
+		aml_phy_power_off_t3();
 	}
 	if (log_level & VIDEO_LOG)
 		rx_pr("%s\n", __func__);
@@ -4807,18 +4821,22 @@ void rx_phy_power_on(unsigned int onoff)
 
 void aml_phy_iq_skew_monitor(void)
 {
-	if (rx.chip_id == CHIP_ID_T5)
+	if (rx.phy_ver == PHY_VER_T5)
 		aml_phy_iq_skew_monitor_t5();
-	else if (rx.chip_id == CHIP_ID_T7)
+	else if (rx.phy_ver == PHY_VER_T7)
 		aml_phy_iq_skew_monitor_t7();
+	else if (rx.phy_ver == PHY_VER_T3)
+		aml_phy_iq_skew_monitor_t3();
 }
 
 void aml_eq_eye_monitor(void)
 {
-	if (rx.chip_id == CHIP_ID_T5)
+	if (rx.phy_ver == PHY_VER_T5)
 		aml_eq_eye_monitor_t5();
-	else if (rx.chip_id == CHIP_ID_T7)
+	else if (rx.phy_ver == PHY_VER_T7)
 		aml_eq_eye_monitor_t7();
+	else if (rx.phy_ver == PHY_VER_T3)
+		aml_eq_eye_monitor_t3();
 }
 
 void rx_emp_to_ddr_init(void)
@@ -5108,7 +5126,7 @@ void rx_get_error_cnt(u32 *ch0, u32 *ch1, u32 *ch2)
 {
 	u32 val;
 
-	if (rx.chip_id == CHIP_ID_T7) {
+	if (rx.chip_id >= CHIP_ID_T7) {
 		/* t7 top 0x41/0x42 can not shadow IP's periodical error counter */
 		/* use cor register to get err cnt,t3 fix it */
 		hdmirx_wr_bits_cor(DPLL_CTRL0_DPLL_IVCRX, MSK(3, 0), 0x0);
