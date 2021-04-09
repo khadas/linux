@@ -16,7 +16,8 @@
 /* 20200827: add tm2 support*/
 /* 20201116: add t5,t5d,t7 support*/
 /* 20210222: add multi driver support*/
-#define LCD_DRV_VERSION    "20210222"
+/* 20210409: update lvds & vbyone regs for t7*/
+#define LCD_DRV_VERSION    "20210409"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -68,6 +69,10 @@ int lcd_phy_probe(struct aml_lcd_drv_s *pdrv);
 int lcd_phy_config_init(struct aml_lcd_drv_s *pdrv);
 
 /*lcd vbyone*/
+void lcd_vbyone_control_set_dft(struct aml_lcd_drv_s *pdrv);
+void lcd_vbyone_disable_dft(struct aml_lcd_drv_s *pdrv);
+void lcd_vbyone_control_set_t7(struct aml_lcd_drv_s *pdrv);
+void lcd_vbyone_disable_t7(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_link_maintain_clear(void);
 void lcd_vbyone_sw_reset(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_wait_timing_stable(struct aml_lcd_drv_s *pdrv);
@@ -77,7 +82,6 @@ void lcd_vbyone_power_on_wait_stable(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_wait_stable(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_hw_filter(struct aml_lcd_drv_s *pdrv, int flag);
 void lcd_vbyone_interrupt_enable(struct aml_lcd_drv_s *pdrv, int flag);
-int lcd_vbyone_vsync_handler(struct aml_lcd_drv_s *pdrv);
 int lcd_vbyone_interrupt_up(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_interrupt_down(struct aml_lcd_drv_s *pdrv);
 

@@ -415,8 +415,10 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 	if (!pdrv)
 		return;
 
-	if (pdrv->config.basic.lcd_type == LCD_VBYONE)
-		lcd_vbyone_vsync_handler(pdrv);
+	if (pdrv->config.basic.lcd_type == LCD_VBYONE) {
+		if (pdrv->vbyone_vsync_handler)
+			pdrv->vbyone_vsync_handler(pdrv);
+	}
 
 #ifdef CONFIG_AMLOGIC_LCD_TABLET
 	if (pdrv->config.control.mipi_cfg.dread) {

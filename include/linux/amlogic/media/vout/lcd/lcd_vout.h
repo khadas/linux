@@ -593,6 +593,7 @@ struct aml_lcd_drv_s {
 	void (*power_ctrl)(struct aml_lcd_drv_s *pdrv, int status);
 	void (*phy_set)(struct aml_lcd_drv_s *pdrv, int status);
 	void (*fr_adjust)(struct aml_lcd_drv_s *pdrv, int duration);
+	int (*vbyone_vsync_handler)(struct aml_lcd_drv_s *pdrv);
 
 	struct work_struct config_probe_work;
 	struct work_struct tcon_config_work;

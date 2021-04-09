@@ -2551,10 +2551,6 @@ static void lcd_clk_set_tl1(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_clk_set_t7(struct aml_lcd_drv_s *pdrv)
 {
-#ifdef CONFIG_AML_LCD_PXP
-	return;
-#endif
-
 	lcd_set_pll_t7(pdrv);
 	lcd_set_phy_dig_div_t7(pdrv);
 	lcd_set_vid_pll_div_t7(pdrv);

@@ -844,6 +844,67 @@ static int lcd_reg_print_vbyone(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 	return len;
 }
 
+static int lcd_reg_print_vbyone_t7(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	unsigned int reg, reg_offset;
+	int n, len = 0;
+
+	reg_offset = pdrv->data->offset_venc_if[pdrv->index];
+
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n, "\nvbyone regs:\n");
+
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_STATUS_L_T7 + reg_offset;
+	len += snprintf((buf + len), n,
+		"VX1_STATUS                   [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_INFILTER_CTRL_H_T7 + reg_offset;
+	len += snprintf((buf + len), n,
+		"VBO_INFILTER_CTRL_H          [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_INFILTER_CTRL_T7 + reg_offset;
+	len += snprintf((buf + len), n,
+		"VBO_INFILTER_CTRL            [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_INSGN_CTRL_T7 + reg_offset;
+	len += snprintf((buf + len), n,
+		"VBO_INSGN_CTRL               [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_FSM_HOLDER_L_T7 + reg_offset;
+	len += snprintf((buf + len), n,
+		"VX1_FSM_HOLDER_L             [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_FSM_HOLDER_H_T7 + reg_offset;
+	len += snprintf((buf + len), n,
+		"VX1_FSM_HOLDER_H             [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_INTR_STATE_CTRL_T7 + reg_offset;
+	len += snprintf((buf + len), n,
+		"VX1_INTR_STATE_CTRL          [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_INTR_UNMASK_T7 + reg_offset;
+	len += snprintf((buf + len), n,
+		"VX1_INTR_UNMASK              [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+	n = lcd_debug_info_len(len + offset);
+	reg = VBO_INTR_STATE_T7 + reg_offset;
+	len += snprintf((buf + len), n,
+		"VX1_INTR_STATE               [0x%04x] = 0x%08x\n",
+		reg, lcd_vcbus_read(reg));
+
+	return len;
+}
+
 static int lcd_reg_print_mipi(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	unsigned int reg;
@@ -5980,6 +6041,8 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 			lcd_reg_print_lvds_t7;
 		lcd_debug_info_if_lvds.reg_dump_phy =
 			lcd_reg_print_phy_analog_t7;
+		lcd_debug_info_if_vbyone.reg_dump_interface =
+			lcd_reg_print_vbyone_t7;
 		lcd_debug_info_if_vbyone.reg_dump_phy =
 			lcd_reg_print_phy_analog_t7;
 		lcd_debug_info_if_mipi.reg_dump_phy =

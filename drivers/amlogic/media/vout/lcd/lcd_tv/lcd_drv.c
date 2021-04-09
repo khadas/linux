@@ -352,15 +352,6 @@ static void lcd_lvds_disable(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
-static void lcd_vbyone_sync_pol(unsigned int offset, int hsync_pol, int vsync_pol)
-{
-	lcd_vcbus_setb(VBO_VIN_CTRL + offset, hsync_pol, 4, 1);
-	lcd_vcbus_setb(VBO_VIN_CTRL + offset, vsync_pol, 5, 1);
-
-	lcd_vcbus_setb(VBO_VIN_CTRL + offset, hsync_pol, 6, 1);
-	lcd_vcbus_setb(VBO_VIN_CTRL + offset, vsync_pol, 7, 1);
-}
-
 static void lcd_vbyone_clk_util_set(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int lcd_bits, div_sel, phy_div;
@@ -369,26 +360,6 @@ static void lcd_vbyone_clk_util_set(struct aml_lcd_drv_s *pdrv)
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
-
-	switch (pdrv->index) {
-	case 0:
-		reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0;
-		reg_phy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1;
-		bit_data_in_lvds = 0;
-		bit_data_in_edp = 1;
-		bit_lane_sel = 0;
-		break;
-	case 1:
-		reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL0;
-		reg_phy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL1;
-		bit_data_in_lvds = 2;
-		bit_data_in_edp = 3;
-		bit_lane_sel = 16;
-		break;
-	default:
-		LCDERR("[%d]: %s: invalid drv_index\n", pdrv->index, __func__);
-		return;
-	}
 
 	phy_div = pdrv->config.control.vbyone_cfg.phy_div;
 	lcd_bits = pdrv->config.basic.lcd_bits;
@@ -406,6 +377,27 @@ static void lcd_vbyone_clk_util_set(struct aml_lcd_drv_s *pdrv)
 	}
 
 	if (pdrv->data->chip_type == LCD_CHIP_T7) {
+		switch (pdrv->index) {
+		case 0:
+			reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0;
+			reg_phy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1;
+			bit_data_in_lvds = 0;
+			bit_data_in_edp = 1;
+			bit_lane_sel = 0;
+			break;
+		case 1:
+			reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL0;
+			reg_phy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL1;
+			bit_data_in_lvds = 2;
+			bit_data_in_edp = 3;
+			bit_lane_sel = 16;
+			break;
+		default:
+			LCDERR("[%d]: %s: invalid drv_index\n",
+			       pdrv->index, __func__);
+			return;
+		}
+
 		// sel dphy data_in
 		lcd_combo_dphy_setb(pdrv, COMBO_DPHY_CNTL0,
 				    0, bit_data_in_edp, 1);
@@ -441,160 +433,32 @@ static void lcd_vbyone_clk_util_set(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
-static int lcd_vbyone_lanes_set(unsigned int offset, int lane_num,
-				int byte_mode, int region_num,
-				int hsize, int vsize)
-{
-	int sublane_num;
-	int region_size[4];
-	int tmp;
-
-	switch (lane_num) {
-	case 1:
-	case 2:
-	case 4:
-	case 8:
-		break;
-	default:
-		return -1;
-	}
-	switch (region_num) {
-	case 1:
-	case 2:
-	case 4:
-		break;
-	default:
-		return -1;
-	}
-	if (lane_num % region_num)
-		return -1;
-	switch (byte_mode) {
-	case 3:
-	case 4:
-		break;
-	default:
-		return -1;
-	}
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("byte_mode=%d, lane_num=%d, region_num=%d\n",
-		      byte_mode, lane_num, region_num);
-	}
-
-	sublane_num = lane_num / region_num; /* lane num in each region */
-	lcd_vcbus_setb(VBO_LANES + offset, (lane_num - 1), 0, 3);
-	lcd_vcbus_setb(VBO_LANES + offset, (region_num - 1), 4, 2);
-	lcd_vcbus_setb(VBO_LANES + offset, (sublane_num - 1), 8, 3);
-	lcd_vcbus_setb(VBO_LANES + offset, (byte_mode - 1), 11, 2);
-
-	if (region_num > 1) {
-		region_size[3] = (hsize / lane_num) * sublane_num;
-		tmp = (hsize % lane_num);
-		region_size[0] = region_size[3] + (((tmp / sublane_num) > 0) ?
-			sublane_num : (tmp % sublane_num));
-		region_size[1] = region_size[3] + (((tmp / sublane_num) > 1) ?
-			sublane_num : (tmp % sublane_num));
-		region_size[2] = region_size[3] + (((tmp / sublane_num) > 2) ?
-			sublane_num : (tmp % sublane_num));
-		lcd_vcbus_write(VBO_REGION_00 + offset, region_size[0]);
-		lcd_vcbus_write(VBO_REGION_01 + offset, region_size[1]);
-		lcd_vcbus_write(VBO_REGION_02 + offset, region_size[2]);
-		lcd_vcbus_write(VBO_REGION_03 + offset, region_size[3]);
-	}
-	lcd_vcbus_write(VBO_ACT_VSIZE + offset, vsize);
-	/* different from FBC code!!! */
-	/* lcd_vcbus_setb(VBO_CTRL_H + offset,0x80,11,5); */
-	/* different from simulation code!!! */
-	lcd_vcbus_setb(VBO_CTRL_H + offset, 0x0, 0, 4);
-	lcd_vcbus_setb(VBO_CTRL_H + offset, 0x1, 9, 1);
-	/* lcd_vcbus_setb(VBO_CTRL_L + offset,enable,0,1); */
-
-	return 0;
-}
-
 static void lcd_vbyone_control_set(struct aml_lcd_drv_s *pdrv)
 {
-	int lane_count, byte_mode, region_num, hsize, vsize;
-	/* int color_fmt; */
-	int vin_color, vin_bpp;
-	unsigned int offset;
-
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("%s\n", __func__);
-
-	offset = pdrv->data->offset_venc_if[pdrv->index];
-
-	hsize = pdrv->config.basic.h_active;
-	vsize = pdrv->config.basic.v_active;
-	lane_count = pdrv->config.control.vbyone_cfg.lane_count; /* 8 */
-	region_num = pdrv->config.control.vbyone_cfg.region_num; /* 2 */
-	byte_mode = pdrv->config.control.vbyone_cfg.byte_mode; /* 4 */
-	/* color_fmt = pdrv->config.control.vbyone_cfg.color_fmt; // 4 */
-
-	vin_color = 4; /* fixed RGB */
-	switch (pdrv->config.basic.lcd_bits) {
-	case 6:
-		vin_bpp = 2; /* 18bbp 4:4:4 */
-		break;
-	case 8:
-		vin_bpp = 1; /* 24bbp 4:4:4 */
-		break;
-	case 10:
-	default:
-		vin_bpp = 0; /* 30bbp 4:4:4 */
-		break;
-	}
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
 	lcd_vbyone_clk_util_set(pdrv);
 
-	/* set Vbyone vin color format */
-	lcd_vcbus_setb(VBO_VIN_CTRL + offset, vin_color, 8, 3);
-	lcd_vcbus_setb(VBO_VIN_CTRL + offset, vin_bpp, 11, 2);
-
-	lcd_vbyone_lanes_set(offset, lane_count, byte_mode, region_num, hsize, vsize);
-	/*set hsync/vsync polarity to let the polarity is low active*/
-	/*inside the VbyOne */
-	lcd_vbyone_sync_pol(offset, 0, 0);
-
-	/* below line copy from simulation */
-	/* gate the input when vsync asserted */
-	lcd_vcbus_setb(VBO_VIN_CTRL + offset, 1, 0, 2);
-	/* lcd_vcbus_write(VBO_VBK_CTRL_0 + offset,0x13);
-	 * lcd_vcbus_write(VBO_VBK_CTRL_1 + offset,0x56);
-	 * lcd_vcbus_write(VBO_HBK_CTRL + offset,0x3478);
-	 * lcd_vcbus_setb(VBO_PXL_CTRL + offset,0x2,0,4);
-	 * lcd_vcbus_setb(VBO_PXL_CTRL + offset,0x3,VBO_PXL_CTR1_BIT,VBO_PXL_CTR1_WID);
-	 * set_vbyone_ctlbits(1,0,0);
-	 */
-	/* VBO_RGN_GEN clk always on */
-	lcd_vcbus_setb(VBO_GCLK_MAIN + offset, 2, 2, 2);
-
-	/* PAD select: */
-	if (lane_count == 1 || lane_count == 2)
-		lcd_vcbus_setb(LCD_PORT_SWAP + offset, 1, 9, 2);
-	else if (lane_count == 4)
-		lcd_vcbus_setb(LCD_PORT_SWAP + offset, 2, 9, 2);
-	else
-		lcd_vcbus_setb(LCD_PORT_SWAP + offset, 0, 9, 2);
-	/* lcd_vcbus_setb(LCD_PORT_SWAP + offset, 1, 8, 1);//reverse lane output order */
-
-	lcd_vbyone_hw_filter(pdrv, 1);
-	lcd_vcbus_setb(VBO_INSGN_CTRL + offset, 0, 2, 2);
-
-	lcd_vcbus_setb(VBO_CTRL_L + offset, 1, 0, 1);
-
-	lcd_vbyone_wait_timing_stable(pdrv);
-	lcd_vbyone_sw_reset(pdrv);
-
-	/* training hold */
-	if (pdrv->config.control.vbyone_cfg.ctrl_flag & 0x4)
-		lcd_vbyone_cdr_training_hold(pdrv, 1);
+	switch (pdrv->data->chip_type) {
+	case LCD_CHIP_T7:
+		lcd_vbyone_control_set_t7(pdrv);
+		break;
+	default:
+		lcd_vbyone_control_set_dft(pdrv);
+		break;
+	}
 }
 
 static void lcd_vbyone_disable(struct aml_lcd_drv_s *pdrv)
 {
-	unsigned int reg_dphy_tx_ctrl0, reg_dphy_tx_ctrl1, offset;
+	unsigned int reg_dphy_tx_ctrl0, reg_dphy_tx_ctrl1;
 
-	if (pdrv->data->chip_type == LCD_CHIP_T7) {
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+
+	switch (pdrv->data->chip_type) {
+	case LCD_CHIP_T7:
 		switch (pdrv->index) {
 		case 0:
 			reg_dphy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0;
@@ -606,30 +470,23 @@ static void lcd_vbyone_disable(struct aml_lcd_drv_s *pdrv)
 			break;
 		default:
 			LCDERR("[%d]: %s: invalid drv_index\n",
-			       pdrv->index, __func__);
+				pdrv->index, __func__);
 			return;
 		}
-		offset = pdrv->data->offset_venc_if[pdrv->index];
 
-		lcd_vcbus_setb(VBO_CTRL_L + offset, 0, 0, 1);
-		/* clear insig setting */
-		lcd_vcbus_setb(VBO_INSGN_CTRL + offset, 0, 2, 1);
-		lcd_vcbus_setb(VBO_INSGN_CTRL + offset, 0, 0, 1);
-
+		lcd_vbyone_disable_t7(pdrv);
 		/* disable fifo */
 		lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl1, 0, 6, 2);
 		/* disable lane */
 		lcd_combo_dphy_setb(pdrv, reg_dphy_tx_ctrl0, 0, 16, 8);
-	} else {
-		lcd_vcbus_setb(VBO_CTRL_L, 0, 0, 1);
-		/* clear insig setting */
-		lcd_vcbus_setb(VBO_INSGN_CTRL, 0, 2, 1);
-		lcd_vcbus_setb(VBO_INSGN_CTRL, 0, 0, 1);
-
+		break;
+	default:
+		lcd_vbyone_disable_dft(pdrv);
 		/* disable fifo */
 		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL1, 0, 30, 2);
 		/* disable lane */
 		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 0, 16, 12);
+		break;
 	}
 }
 
