@@ -953,6 +953,8 @@ static int goodix_read_config(struct goodix_ts_device *dev,
 		goto exit;
 	}
 
+	r = config_len;
+
 	ts_info("success read config, len:%d\n", config_len);
 	/* clear command */
 	goodix_cmds_init(&ts_cmd, TS_CMD_REG_READY, 0, cmd_reg);

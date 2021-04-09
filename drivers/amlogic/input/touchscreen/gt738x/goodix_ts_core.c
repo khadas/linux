@@ -1024,6 +1024,8 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 				 touch_data->coords[i].y);
 		input_report_abs(dev, ABS_MT_TOUCH_MAJOR,
 				 touch_data->coords[i].w);
+		input_report_abs(dev, ABS_MT_PRESSURE,
+				 touch_data->coords[i].w);
 	}
 
 	/* report panel key */
@@ -1350,6 +1352,9 @@ static void goodix_ts_set_input_params(struct input_dev *input_dev,
 			     0, ts_bdata->panel_max_y, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
 			     0, ts_bdata->panel_max_w, 0, 0);
+
+	input_set_abs_params(input_dev, ABS_MT_PRESSURE, 0,
+			     ts_bdata->panel_max_w, 0, 0);
 
 	if (ts_bdata->panel_max_key) {
 		for (i = 0; i < ts_bdata->panel_max_key; i++)
