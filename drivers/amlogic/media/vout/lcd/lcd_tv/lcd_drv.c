@@ -442,15 +442,15 @@ static void lcd_vbyone_control_set(struct aml_lcd_drv_s *pdrv)
 
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T7:
-		lcd_vbyone_control_set_t7(pdrv);
+		lcd_vbyone_enable_t7(pdrv);
 		break;
 	default:
-		lcd_vbyone_control_set_dft(pdrv);
+		lcd_vbyone_enable_dft(pdrv);
 		break;
 	}
 }
 
-static void lcd_vbyone_disable(struct aml_lcd_drv_s *pdrv)
+static void lcd_vbyone_control_off(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int reg_dphy_tx_ctrl0, reg_dphy_tx_ctrl1;
 
@@ -760,7 +760,7 @@ void lcd_tv_driver_disable(struct aml_lcd_drv_s *pdrv)
 		lcd_vbyone_interrupt_enable(pdrv, 0);
 		lcd_phy_set(pdrv, 0);
 		lcd_vbyone_pinmux_set(pdrv, 0);
-		lcd_vbyone_disable(pdrv);
+		lcd_vbyone_control_off(pdrv);
 		break;
 	case LCD_MLVDS:
 		lcd_mlvds_disable(pdrv);

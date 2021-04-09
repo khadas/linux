@@ -44,7 +44,7 @@ void lcd_wait_vsync(struct aml_lcd_drv_s *pdrv)
 		if (line_cnt < line_cnt_previous)
 			break;
 		line_cnt_previous = line_cnt;
-		lcd_delay_us(2);
+		udelay(2);
 	}
 	/*LCDPR("line_cnt=%d, line_cnt_previous=%d, i=%d\n",
 	 *	line_cnt, line_cnt_previous, i);
@@ -232,26 +232,11 @@ void lcd_set_venc(struct aml_lcd_drv_s *pdrv)
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
+	offset = pdrv->data->offset_venc[pdrv->index];
 	hstart = pconf->timing.video_on_pixel;
 	hend = pconf->basic.h_active + hstart - 1;
 	vstart = pconf->timing.video_on_line;
 	vend = pconf->basic.v_active + vstart - 1;
-	offset = pdrv->data->offset_venc[pdrv->index];
-	switch (pdrv->index) {
-	case 0:
-		reg_disp_viu_ctrl = VPU_DISP_VIU0_CTRL;
-		break;
-	case 1:
-		reg_disp_viu_ctrl = VPU_DISP_VIU1_CTRL;
-		break;
-	case 2:
-		reg_disp_viu_ctrl = VPU_DISP_VIU2_CTRL;
-		break;
-	default:
-		LCDERR("[%d]: %s: invalid drv_index\n",
-		       pdrv->index, __func__);
-		return;
-	}
 
 	lcd_vcbus_write(ENCL_VIDEO_EN + offset, 0);
 
@@ -325,6 +310,22 @@ void lcd_set_venc(struct aml_lcd_drv_s *pdrv)
 
 	lcd_vcbus_write(ENCL_VIDEO_EN + offset, 1);
 	if (pdrv->data->chip_type == LCD_CHIP_T7) {
+		switch (pdrv->index) {
+		case 0:
+			reg_disp_viu_ctrl = VPU_DISP_VIU0_CTRL;
+			break;
+		case 1:
+			reg_disp_viu_ctrl = VPU_DISP_VIU1_CTRL;
+			break;
+		case 2:
+			reg_disp_viu_ctrl = VPU_DISP_VIU2_CTRL;
+			break;
+		default:
+			LCDERR("[%d]: %s: invalid drv_index\n",
+			pdrv->index, __func__);
+			return;
+		}
+
 		/*
 		 * bit31: lvds enable
 		 * bit30: vx1 enable
@@ -354,8 +355,8 @@ void lcd_set_venc(struct aml_lcd_drv_s *pdrv)
 		default:
 			break;
 		}
+		lcd_vcbus_setb(VPU_VENC_CTRL + offset, 2, 0, 2);
 	}
-	lcd_vcbus_write(VPU_VENC_CTRL + offset, 2);
 
 	lcd_set_encl_tcon(pdrv);
 	lcd_gamma_init(pdrv);

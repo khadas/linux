@@ -69,9 +69,9 @@ int lcd_phy_probe(struct aml_lcd_drv_s *pdrv);
 int lcd_phy_config_init(struct aml_lcd_drv_s *pdrv);
 
 /*lcd vbyone*/
-void lcd_vbyone_control_set_dft(struct aml_lcd_drv_s *pdrv);
+void lcd_vbyone_enable_dft(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_disable_dft(struct aml_lcd_drv_s *pdrv);
-void lcd_vbyone_control_set_t7(struct aml_lcd_drv_s *pdrv);
+void lcd_vbyone_enable_t7(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_disable_t7(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_link_maintain_clear(void);
 void lcd_vbyone_sw_reset(struct aml_lcd_drv_s *pdrv);

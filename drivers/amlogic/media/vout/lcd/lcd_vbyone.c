@@ -165,7 +165,7 @@ static int lcd_vbyone_lanes_set(struct aml_lcd_drv_s *pdrv, int lane_num,
 	return 0;
 }
 
-void lcd_vbyone_control_set_dft(struct aml_lcd_drv_s *pdrv)
+void lcd_vbyone_enable_dft(struct aml_lcd_drv_s *pdrv)
 {
 	int lane_count, byte_mode, region_num, hsize, vsize;
 	/* int color_fmt; */
@@ -244,7 +244,7 @@ void lcd_vbyone_disable_dft(struct aml_lcd_drv_s *pdrv)
 	lcd_vcbus_setb(VBO_INSGN_CTRL, 0, 0, 1);
 }
 
-void lcd_vbyone_control_set_t7(struct aml_lcd_drv_s *pdrv)
+void lcd_vbyone_enable_t7(struct aml_lcd_drv_s *pdrv)
 {
 	int lane_count, byte_mode, region_num, hsize, vsize;
 	/* int color_fmt; */
@@ -360,11 +360,11 @@ void lcd_vbyone_sw_reset(struct aml_lcd_drv_s *pdrv)
 
 		/* force PHY to 0 */
 		lcd_combo_dphy_setb(pdrv, reg_phy_tx_ctrl0, 3, 8, 2);
-		lcd_vcbus_write(reg_rst + offset, 0x1ff);
+		lcd_vcbus_write(reg_rst, 0x1ff);
 		udelay(5);
 		/* realease PHY */
 		lcd_combo_dphy_setb(pdrv, reg_phy_tx_ctrl0, 0, 8, 2);
-		lcd_vcbus_write(reg_rst + offset, 0);
+		lcd_vcbus_write(reg_rst, 0);
 	} else {
 		/* force PHY to 0 */
 		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 3, 8, 2);
@@ -593,32 +593,32 @@ void lcd_vbyone_hw_filter(struct aml_lcd_drv_s *pdrv, int flag)
 		else
 			period = tick_period[period];
 		temp = period & 0xffff;
-		lcd_vcbus_write(reg_filter_l + offset, temp);
+		lcd_vcbus_write(reg_filter_l, temp);
 		temp = (period >> 16) & 0xf;
-		lcd_vcbus_write(reg_filter_h + offset, temp);
+		lcd_vcbus_write(reg_filter_h, temp);
 		/* hpd */
 		temp = vx1_conf->hw_filter_cnt & 0xff;
 		if (temp == 0xff) {
-			lcd_vcbus_setb(reg_ctrl + offset, 0, 8, 4);
+			lcd_vcbus_setb(reg_ctrl, 0, 8, 4);
 		} else {
 			temp = (temp == 0) ? 0x7 : temp;
-			lcd_vcbus_setb(reg_ctrl + offset, temp, 8, 4);
+			lcd_vcbus_setb(reg_ctrl, temp, 8, 4);
 		}
 		/* lockn */
 		temp = (vx1_conf->hw_filter_cnt >> 8) & 0xff;
 		if (temp == 0xff) {
-			lcd_vcbus_setb(reg_ctrl + offset, 0, 12, 4);
+			lcd_vcbus_setb(reg_ctrl, 0, 12, 4);
 		} else {
 			temp = (temp == 0) ? 0x7 : temp;
-			lcd_vcbus_setb(reg_ctrl + offset, temp, 12, 4);
+			lcd_vcbus_setb(reg_ctrl, temp, 12, 4);
 		}
 	} else {
 		temp = (vx1_conf->hw_filter_time >> 8) & 0x1;
 		if (temp) {
-			lcd_vcbus_write(reg_filter_l + offset, 0xff);
-			lcd_vcbus_write(reg_filter_h + offset, 0x0);
-			lcd_vcbus_setb(reg_ctrl + offset, 0, 8, 4);
-			lcd_vcbus_setb(reg_ctrl + offset, 0, 12, 4);
+			lcd_vcbus_write(reg_filter_l, 0xff);
+			lcd_vcbus_write(reg_filter_h, 0x0);
+			lcd_vcbus_setb(reg_ctrl, 0, 8, 4);
+			lcd_vcbus_setb(reg_ctrl, 0, 12, 4);
 			LCDPR("[%d]: %s: %d disable for debug\n",
 			      pdrv->index, __func__, flag);
 		}
