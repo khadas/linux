@@ -624,6 +624,33 @@ static int meson_of_sensor_conf(struct platform_device *pdev,
 	return 0;
 }
 
+static void of_thermal_destroy_one_zone(int id)
+{
+	struct device_node *np, *child;
+
+	np = of_find_node_by_name(NULL, "thermal-zones");
+	if (!np) {
+		pr_debug("unable to find thermal zones\n");
+		return;
+	}
+
+	for_each_available_child_of_node(np, child) {
+		struct thermal_zone_device *zone;
+
+		zone = thermal_zone_get_zone_by_name(child->name);
+		if (IS_ERR(zone))
+			continue;
+
+		if (zone->id == id - 1) {
+			thermal_zone_device_unregister(zone);
+			kfree(zone->tzp);
+			kfree(zone->ops);
+			kfree(zone->devdata);
+		}
+	}
+		of_node_put(np);
+}
+
 static int meson_map_dt_data(struct platform_device *pdev)
 {
 	struct meson_tsensor_data *data = platform_get_drvdata(pdev);
@@ -694,6 +721,13 @@ static int meson_map_dt_data(struct platform_device *pdev)
 			return -EINVAL;
 		}
 		memcpy(&data->trim_info, (const void *)sharemem_outbuf_base, 4);
+		if ((data->trim_info & 0x80000000)  == 0) {
+			dev_warn(&pdev->dev, "temp sensor not cali, unregister thermal zone%d.\n",
+				 pdata->tsensor_id - 1);
+			of_thermal_destroy_one_zone(pdata->tsensor_id);
+			return -EINVAL;
+		}
+		pr_info("trim info = %x\n", data->trim_info);
 	}
 
 	data->pdata = pdata;
