@@ -65,7 +65,7 @@
 /* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
  *                 vpp also should support this function
  */
-#define VDIN_VER "ver:2021-0301: buffer recycle is not right"
+#define VDIN_VER "ver:2021-0409: bringup for t3"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -108,6 +108,12 @@ enum vdin_hw_ver_e {
 	 * 3.buff 2k		4.post matrix (hdr matrix)
 	 */
 	VDIN_HW_S4,
+	/*
+	 * t3 removed canvas
+	 * no DV meta data slicer
+	 * dv 422 to 444, and to 10 bit 422 (fix shrink issue)
+	 */
+	VDIN_HW_T3,
 };
 
 enum vdin_irq_flg_e {
