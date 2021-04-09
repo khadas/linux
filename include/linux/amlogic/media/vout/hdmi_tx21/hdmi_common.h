@@ -6,6 +6,7 @@
 #ifndef __HDMI_COMMON_H__
 #define __HDMI_COMMON_H__
 
+#include <linux/hdmi.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 
 /* HDMI VIC definitions */
@@ -20,10 +21,12 @@
 #define HDMITX_VIC_MASK			0xff
 
 /* Refer to http://standards-oui.ieee.org/oui/oui.txt */
-#define HDMI_IEEEOUI		0x000C03
-#define HF_IEEEOUI		0xC45DD8
 #define DOVI_IEEEOUI		0x00D046
 #define HDR10PLUS_IEEEOUI	0x90848B
+
+#define GET_OUI_BYTE0(oui)	((oui) & 0xff) /* Little Endian */
+#define GET_OUI_BYTE1(oui)	(((oui) >> 8) & 0xff)
+#define GET_OUI_BYTE2(oui)	(((oui) >> 16) & 0xff)
 
 enum hdmi_tf_type {
 	HDMI_NONE = 0,
@@ -41,10 +44,6 @@ enum hdmi_tf_type {
 	HDMI_HDR10P_TYPE = 0x30,
 	HDMI_HDR10P_DV_VSIF	= HDMI_HDR10P_TYPE | 1,
 };
-
-#define GET_OUI_BYTE0(oui)	((oui) & 0xff) /* Little Endian */
-#define GET_OUI_BYTE1(oui)	(((oui) >> 8) & 0xff)
-#define GET_OUI_BYTE2(oui)	(((oui) >> 16) & 0xff)
 
 enum hdmi_vic {
 	/* Refer to CEA 861-D */
@@ -288,14 +287,6 @@ enum hdmi_color_depth {
 	COLORDEPTH_RESERVED,
 };
 
-enum hdmi_color_space {
-	COLORSPACE_RGB444 = 0,
-	COLORSPACE_YUV422 = 1,
-	COLORSPACE_YUV444 = 2,
-	COLORSPACE_YUV420 = 3,
-	COLORSPACE_RESERVED,
-};
-
 enum hdmi_color_range {
 	COLORRANGE_LIM,
 	COLORRANGE_FUL,
@@ -320,7 +311,7 @@ enum hdmi_3d_type {
 
 struct hdmi_format_para {
 	enum hdmi_color_depth cd; /* cd8, cd10 or cd12 */
-	enum hdmi_color_space cs; /* rgb, y444, y422, y420 */
+	enum hdmi_colorspace cs; /* rgb, y444, y422, y420 */
 	enum hdmi_color_range cr; /* limit, full */
 	u32 scrambler_en:1;
 	u32 tmds_clk_div40:1;
@@ -328,34 +319,6 @@ struct hdmi_format_para {
 	struct hdmi_timing timing;
 	struct vinfo_s hdmitx_vinfo;
 };
-
-/* Refer to HDMI Spec */
-/* HDMI Packet Type Definitions */
-#define PKT_NULL		0x00
-#define PKT_ACR			0x01
-#define PKT_AUDSAMP		0x02
-#define PKT_GCP			0x03
-#define PKT_ACP			0x04
-#define PKT_ISRC1		0x05
-#define PKT_ISRC2		0x06
-#define PKT_ONEBITAUDSAMP	0x07
-#define PKT_DSTAUD		0x08
-#define PKT_HBRAUD		0x09
-#define PKT_GAMUTMETADATA	0x0A
-#define PKT_3DAUDSAMP		0x0B
-#define PKT_ONEBIT3DAUDSAMP	0x0C
-#define PKT_AUDMETADATA		0x0D
-#define PKT_MULTISTREAMAUDSAMP	0x0E
-#define PKT_ONEBITMULTISTREAM	0x0F
-#define PKT_EMP			0x7f
-/* Infoframe Packet */
-#define IF_VSIF			0x81
-#define IF_AVI			0x82
-#define IF_SPD			0x83
-#define IF_AUD			0x84
-//#define IF_MPEGSRC		0x85
-//#define IF_NTSCVBI		0x86
-#define IF_DRM			0x87
 
 struct hdmi_csc_coef_table {
 	u8 input_format;
@@ -581,7 +544,7 @@ struct parse_cd {
 };
 
 struct parse_cs {
-	enum hdmi_color_space cs;
+	enum hdmi_colorspace cs;
 	const char *name;
 };
 

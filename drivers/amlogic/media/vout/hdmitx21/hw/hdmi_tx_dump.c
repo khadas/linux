@@ -65,7 +65,7 @@ void dump_hdmitx_reg(void)
 	// ((0x2451 << 2) + 0xff000000) ~ ((0x24fc << 2) + 0xff000000)
 	dump32(VENC2_DVI_SETTING_MORE, VPU2_VENCL_DITH_LUT_12);
 	// ((0x2701 << 2) + 0xff000000) ~ ((0x24fc << 2) + 0xff000000)
-	dump32(VPU_CRC_CTRL, VPU2_VENCL_DITH_LUT_12);
+	dump32(VPU_CRC_CTRL, VPUCTRL_REG_ADDR(0x27fd));
 	// 0xfe300000 ~ 0xfe300000 + (0x041 << 2)
 	dumptop(HDMITX_TOP_SW_RESET, HDMITX_TOP_SECURE_DATA);
 	// 0x00000000 - 0x00000018

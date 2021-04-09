@@ -78,7 +78,8 @@ struct rx_cap {
 	/*video*/
 	u32 VIC[VIC_MAX_NUM];
 	u32 VIC_count;
-	u32 native_VIC;
+	u32 native_vic;
+	u32 native_vic2; /* some Rx has two native mode, normally only one */
 	enum hdmi_vic vesa_timing[VESA_MAX_TIMING]; /* Max 64 */
 	/*audio*/
 	struct rx_audiocap RxAudioCap[AUD_MAX_NUM];
@@ -322,7 +323,6 @@ struct hdmitx_dev {
 	u32 div40;
 	u32 lstore;
 	struct {
-		void (*setinfoframe)(int type, u8 *hb, u8 *db);
 		int (*setdispmode)(struct hdmitx_dev *hdmitx_device);
 		int (*setaudmode)(struct hdmitx_dev *hdmitx_device,
 				  struct hdmitx_audpara *audio_param);
@@ -355,6 +355,14 @@ struct hdmitx_dev {
 		void (*am_hdmitx_hdcp_result)(u32 *exe_type,
 					      u32 *result_type);
 	} hwop;
+	struct {
+		u32 enable;
+		union hdmi_infoframe vend;
+		union hdmi_infoframe avi;
+		union hdmi_infoframe spd;
+		union hdmi_infoframe aud;
+		union hdmi_infoframe drm;
+	} infoframes;
 	struct {
 		u32 hdcp14_en;
 		u32 hdcp14_rslt;
@@ -494,20 +502,7 @@ struct hdmitx_dev {
 #define CONF_HDMI_DVI_MODE      (CMD_CONF_OFFSET + 0x02)
 #define HDMI_MODE           0x1
 #define DVI_MODE            0x2
-#define CONF_AVI_BT2020		(CMD_CONF_OFFSET + 0X2000 + 0x00)
-	#define CLR_AVI_BT2020	0x0
-	#define SET_AVI_BT2020	0x1
 /* set value as COLORSPACE_RGB444, YUV422, YUV444, YUV420 */
-#define CONF_AVI_RGBYCC_INDIC	(CMD_CONF_OFFSET + 0X2000 + 0x01)
-#define CONF_AVI_Q01		(CMD_CONF_OFFSET + 0X2000 + 0x02)
-	#define RGB_RANGE_DEFAULT	0
-	#define RGB_RANGE_LIM		1
-	#define RGB_RANGE_FUL		2
-	#define RGB_RANGE_RSVD		3
-#define CONF_AVI_YQ01		(CMD_CONF_OFFSET + 0X2000 + 0x03)
-	#define YCC_RANGE_LIM		0
-	#define YCC_RANGE_FUL		1
-	#define YCC_RANGE_RSVD		2
 #define CONF_CT_MODE		(CMD_CONF_OFFSET + 0X2000 + 0x04)
 	#define SET_CT_OFF		0
 	#define SET_CT_GAME		1
@@ -582,15 +577,6 @@ struct hdmitx_dev {
 /* HDMI LOG */
 #define HDMI_LOG_HDCP           BIT(0)
 
-#define HDMI_SOURCE_DESCRIPTION 0
-#define HDMI_PACKET_VEND        1
-#define HDMI_MPEG_SOURCE_INFO   2
-#define HDMI_PACKET_AVI         3
-#define HDMI_AUDIO_INFO         4
-#define HDMI_AUDIO_CONTENT_PROTECTION   5
-#define HDMI_PACKET_HBR         6
-#define HDMI_PACKET_DRM		0x86
-
 struct hdmitx_dev *get_hdmitx21_device(void);
 
 /***********************************************************************
@@ -602,18 +588,15 @@ int check21_dvi_hdmi_edid_valid(u8 *buf);
 enum hdmi_vic hdmitx21_edid_get_VIC(struct hdmitx_dev *hdmitx_device,
 				  const char *disp_mode,
 				  char force_flag);
-int hdmitx21_edid_VIC_support(enum hdmi_vic vic);
 
 int hdmitx21_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		     int buffer_len);
 bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 				  struct hdmi_format_para *para);
-const char *hdmitx21_edid_vic_tab_map_string(enum hdmi_vic vic);
 const char *hdmitx21_edid_vic_to_string(enum hdmi_vic vic);
 void hdmitx21_edid_clear(struct hdmitx_dev *hdmitx_device);
 void hdmitx21_edid_ram_buffer_clear(struct hdmitx_dev *hdmitx_device);
 void hdmitx21_edid_buf_compare_print(struct hdmitx_dev *hdmitx_device);
-const char *hdmitx21_edid_get_native_VIC(struct hdmitx_dev *hdmitx_device);
 
 /* VSIF: Vendor Specific InfoFrame
  * It has multiple purposes:

@@ -27,6 +27,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_info_global.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_module.h>
 #include "hw/common.h"
+#include "hdmi_tx.h"
 
 #define CEA_DATA_BLOCK_COLLECTION_ADDR_1STP 0x04
 #define VIDEO_TAG 0x40
@@ -402,9 +403,9 @@ static int edid_parse_check_hdmi_vsdb(struct hdmitx_dev *hdev,
 	if (temp_addr >= VSpecificBoundary) {
 		ret = -1;
 	} else {
-		if (buff[blockaddr + 1] != GET_OUI_BYTE0(HDMI_IEEEOUI) ||
-		    buff[blockaddr + 2] != GET_OUI_BYTE1(HDMI_IEEEOUI) ||
-		    buff[blockaddr + 3] != GET_OUI_BYTE2(HDMI_IEEEOUI))
+		if (buff[blockaddr + 1] != GET_OUI_BYTE0(HDMI_IEEE_OUI) ||
+		    buff[blockaddr + 2] != GET_OUI_BYTE1(HDMI_IEEE_OUI) ||
+		    buff[blockaddr + 3] != GET_OUI_BYTE2(HDMI_IEEE_OUI))
 			ret = -1;
 	}
 	return ret;
@@ -1595,7 +1596,7 @@ static void hdmitx21_edid_parse_hdmi14(struct rx_cap *prxcap,
 {
 	int idx = 0, tmp = 0;
 
-	prxcap->ieeeoui = HDMI_IEEEOUI;
+	prxcap->ieeeoui = HDMI_IEEE_OUI;
 	prxcap->ColorDeepSupport =
 	(count > 5) ? blockbuf[offset + 5] : 0;
 	set_vsdb_dc_cap(prxcap);
@@ -1656,7 +1657,8 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	prxcap->native_Mode = blockbuf[3];
 	prxcap->number_of_dtd += blockbuf[3] & 0xf;
 
-	prxcap->native_VIC = 0xff;
+	prxcap->native_vic = 0;
+	prxcap->native_vic2 = 0;
 	prxcap->AUD_count = 0;
 
 	edid_y420cmdb_reset(&hdev->hdmi_info);
@@ -1691,8 +1693,12 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 
 				VIC = blockbuf[offset + i] & (~0x80);
 				prxcap->VIC[prxcap->VIC_count] = VIC;
-				if (blockbuf[offset + i] & 0x80)
-					prxcap->native_VIC = VIC;
+				if (blockbuf[offset + i] & 0x80) {
+					if (prxcap->native_vic && !prxcap->native_vic2)
+						prxcap->native_vic2 = VIC;
+					if (!prxcap->native_vic)
+						prxcap->native_vic = VIC;
+				}
 				prxcap->VIC_count++;
 			}
 			offset += count;
@@ -1708,7 +1714,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 			} else if ((blockbuf[offset] == 0xd8) &&
 				(blockbuf[offset + 1] == 0x5d) &&
 				(blockbuf[offset + 2] == 0xc4)) {
-				prxcap->hf_ieeeoui = HF_IEEEOUI;
+				prxcap->hf_ieeeoui = HDMI_FORUM_IEEE_OUI;
 				prxcap->Max_TMDS_Clock2 = blockbuf[offset + 4];
 				prxcap->scdc_present =
 					!!(blockbuf[offset + 5] & (1 << 7));
@@ -1836,7 +1842,7 @@ static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 	prxcap->VIC[0] = HDMI_3_720x480p60_16x9;
 	prxcap->VIC[1] = HDMI_4_1280x720p60_16x9;
 	prxcap->VIC[2] = HDMI_16_1920x1080p60_16x9;
-	prxcap->native_VIC = HDMI_3_720x480p60_16x9;
+	prxcap->native_vic = HDMI_3_720x480p60_16x9;
 	hdmitx_device->vic_count = prxcap->VIC_count;
 	pr_info(EDID "set default vic\n");
 }
@@ -2144,7 +2150,7 @@ static void edid_descriptor_pmt(struct rx_cap *prxcap,
 	t->vblank = data[6] + ((data[7] & 0xf) << 8);
 	para = hdmi21_get_vesa_paras(t);
 	if (para && (para->timing.vic < (HDMI_107_3840x2160p60_64x27 + 1))) {
-		prxcap->native_VIC = para->timing.vic;
+		prxcap->native_vic = para->timing.vic;
 		pr_info("hdmitx: get PMT vic: %d\n", para->timing.vic);
 	}
 	if (para && para->timing.vic >= HDMITX_VESA_OFFSET)
@@ -2357,9 +2363,9 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 		if ((checksum & 0xff) == 0)
 			hdmitx_device->rxcap.ieeeoui = 0;
 		else
-			hdmitx_device->rxcap.ieeeoui = HDMI_IEEEOUI;
+			hdmitx_device->rxcap.ieeeoui = HDMI_IEEE_OUI;
 		if (zero_numbers > 120)
-			hdmitx_device->rxcap.ieeeoui = HDMI_IEEEOUI;
+			hdmitx_device->rxcap.ieeeoui = HDMI_IEEE_OUI;
 
 		return 0; /* do nothing. */
 	}
@@ -2371,7 +2377,7 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 		hdmitx_device->rxcap.VIC[0] = HDMI_3_720x480p60_16x9;
 		hdmitx_device->rxcap.VIC[1] = HDMI_4_1280x720p60_16x9;
 		hdmitx_device->rxcap.VIC[2] = HDMI_16_1920x1080p60_16x9;
-		hdmitx_device->rxcap.native_VIC = HDMI_3_720x480p60_16x9;
+		hdmitx_device->rxcap.native_vic = HDMI_3_720x480p60_16x9;
 		hdmitx_device->vic_count = hdmitx_device->rxcap.VIC_count;
 		pr_info(EDID "set default vic\n");
 		return 0;
@@ -2468,14 +2474,14 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 	}
 
 	if (hdmitx_edid_search_IEEEOUI(&EDID_buf[128])) {
-		prxcap->ieeeoui = HDMI_IEEEOUI;
+		prxcap->ieeeoui = HDMI_IEEE_OUI;
 		pr_info(EDID "find IEEEOUT\n");
 	} else {
 		prxcap->ieeeoui = 0x0;
 		pr_info(EDID "not find IEEEOUT\n");
 	}
 
-	if (prxcap->ieeeoui != HDMI_IEEEOUI || prxcap->ieeeoui == 0x0 ||
+	if (prxcap->ieeeoui != HDMI_IEEE_OUI || prxcap->ieeeoui == 0x0 ||
 	    prxcap->VIC_count == 0)
 		hdmitx_edid_set_default_vic(hdmitx_device);
 
@@ -2486,10 +2492,10 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 		prxcap->ieeeoui = 0x0;
 		pr_info(EDID "sink is DVI device\n");
 	} else {
-		prxcap->ieeeoui = HDMI_IEEEOUI;
+		prxcap->ieeeoui = HDMI_IEEE_OUI;
 	}
 	if (edid_zero_data(EDID_buf))
-		prxcap->ieeeoui = HDMI_IEEEOUI;
+		prxcap->ieeeoui = HDMI_IEEE_OUI;
 
 	if (!prxcap->AUD_count && !prxcap->ieeeoui)
 		hdmitx_edid_set_default_aud(hdmitx_device);
@@ -2497,7 +2503,7 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 	edid_save_checkvalue(EDID_buf, blockcount + 1, prxcap);
 
 	if (!hdmitx_edid_check_valid_blocks(&EDID_buf[0])) {
-		prxcap->ieeeoui = HDMI_IEEEOUI;
+		prxcap->ieeeoui = HDMI_IEEE_OUI;
 		pr_info(EDID "Invalid edid, consider RX as HDMI device\n");
 	}
 	dv = &prxcap->dv_info;
@@ -2518,128 +2524,29 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 	return 0;
 }
 
-static struct dispmode_vic dispmode_vic_tab[] = {
-	{"480i60hz_4x3", HDMI_6_720x480i60_4x3},
-	{"480p60hz_4x3", HDMI_2_720x480p60_4x3},
-	{"576i50hz_4x3", HDMI_21_720x576i50_4x3},
-	{"576p50hz_4x3", HDMI_17_720x576p50_4x3},
-	{"480i60hz", HDMI_7_720x480i60_16x9},
-	{"480p60hz", HDMI_3_720x480p60_16x9},
-	{"576i50hz", HDMI_22_720x576i50_16x9},
-	{"576p50hz", HDMI_18_720x576p50_16x9},
-	{"720p50hz", HDMI_19_1280x720p50_16x9},
-	{"720p60hz", HDMI_4_1280x720p60_16x9},
-	{"1080i50hz", HDMI_20_1920x1080i50_16x9},
-	{"1080i60hz", HDMI_5_1920x1080i60_16x9},
-	{"1080p50hz", HDMI_31_1920x1080p50_16x9},
-	{"1080p30hz", HDMI_34_1920x1080p30_16x9},
-	{"1080p25hz", HDMI_33_1920x1080p25_16x9},
-	{"1080p24hz", HDMI_32_1920x1080p24_16x9},
-	{"1080p60hz", HDMI_16_1920x1080p60_16x9},
-	{"1080p120hz", HDMI_63_1920x1080p120_16x9},
-	{"2560x1080p50hz", HDMI_89_2560x1080p50_64x27},
-	{"2560x1080p60hz", HDMI_90_2560x1080p60_64x27},
-	{"2160p30hz", HDMI_95_3840x2160p30_16x9},
-	{"2160p25hz", HDMI_94_3840x2160p25_16x9},
-	{"2160p24hz", HDMI_93_3840x2160p24_16x9},
-	{"smpte24hz", HDMI_98_4096x2160p24_256x135},
-	{"smpte25hz", HDMI_99_4096x2160p25_256x135},
-	{"smpte30hz", HDMI_100_4096x2160p30_256x135},
-	{"smpte50hz420", HDMI_101_4096x2160p50_256x135},
-	{"smpte60hz420", HDMI_102_4096x2160p60_256x135},
-	{"2160p60hz420", HDMI_97_3840x2160p60_16x9},
-	{"2160p50hz420", HDMI_96_3840x2160p50_16x9},
-	{"smpte50hz", HDMI_101_4096x2160p50_256x135},
-	{"smpte60hz", HDMI_102_4096x2160p60_256x135},
-	{"2160p60hz", HDMI_97_3840x2160p60_16x9},
-	{"2160p50hz", HDMI_96_3840x2160p50_16x9},
-	{"640x480p60hz", HDMIV_640x480p60hz},
-	{"800x480p60hz", HDMIV_800x480p60hz},
-	{"800x600p60hz", HDMIV_800x600p60hz},
-	{"852x480p60hz", HDMIV_852x480p60hz},
-	{"854x480p60hz", HDMIV_854x480p60hz},
-	{"1024x600p60hz", HDMIV_1024x600p60hz},
-	{"1024x768p60hz", HDMIV_1024x768p60hz},
-	{"1152x864p75hz", HDMIV_1152x864p75hz},
-	{"1280x600p60hz", HDMIV_1280x600p60hz},
-	{"1280x768p60hz", HDMIV_1280x768p60hz},
-	{"1280x800p60hz", HDMIV_1280x800p60hz},
-	{"1280x960p60hz", HDMIV_1280x960p60hz},
-	{"1280x1024p60hz", HDMIV_1280x1024p60hz},
-	{"1280x1024", HDMIV_1280x1024p60hz}, /* alias of "1280x1024p60hz" */
-	{"1360x768p60hz", HDMIV_1360x768p60hz},
-	{"1366x768p60hz", HDMIV_1366x768p60hz},
-	{"1400x1050p60hz", HDMIV_1400x1050p60hz},
-	{"1440x900p60hz", HDMIV_1440x900p60hz},
-	{"1440x2560p60hz", HDMIV_1440x2560p60hz},
-	{"1600x900p60hz", HDMIV_1600x900p60hz},
-	{"1600x1200p60hz", HDMIV_1600x1200p60hz},
-	{"1680x1050p60hz", HDMIV_1680x1050p60hz},
-	{"1920x1200p60hz", HDMIV_1920x1200p60hz},
-	{"2160x1200p90hz", HDMIV_2160x1200p90hz},
-	{"2560x1080p60hz", HDMIV_2560x1080p60hz},
-	{"2560x1440p60hz", HDMIV_2560x1440p60hz},
-	{"2560x1600p60hz", HDMIV_2560x1600p60hz},
-	{"3440x1440p60hz", HDMIV_3440x1440p60hz},
-	{"2400x1200p90hz", HDMIV_2400x1200p90hz},
-};
-
-int hdmitx21_edid_VIC_support(enum hdmi_vic vic)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(dispmode_vic_tab); i++) {
-		if (vic == dispmode_vic_tab[i].VIC)
-			return 1;
-	}
-
-	return 0;
-}
-
 enum hdmi_vic hdmitx21_edid_vic_tab_map_vic(const char *disp_mode)
 {
+	struct hdmi_timing *timing = NULL;
 	enum hdmi_vic vic = HDMI_UNKNOWN;
-	int i;
 
-	for (i = 0; i < ARRAY_SIZE(dispmode_vic_tab); i++) {
-		if (strncmp(disp_mode, dispmode_vic_tab[i].disp_mode,
-			    strlen(dispmode_vic_tab[i].disp_mode)) == 0) {
-			vic = dispmode_vic_tab[i].VIC;
-			break;
-		}
-	}
-
-	if (vic == HDMI_UNKNOWN)
-		pr_info(EDID "not find mapped vic\n");
+	timing = hdmitx21_gettiming_from_name(disp_mode);
+	if (timing)
+		vic = timing->vic;
 
 	return vic;
 }
 
-const char *hdmitx21_edid_vic_tab_map_string(enum hdmi_vic vic)
-{
-	int i;
-	const char *disp_str = NULL;
-
-	for (i = 0; i < ARRAY_SIZE(dispmode_vic_tab); i++) {
-		if (vic == dispmode_vic_tab[i].VIC) {
-			disp_str = dispmode_vic_tab[i].disp_mode;
-			break;
-		}
-	}
-
-	return disp_str;
-}
-
 const char *hdmitx21_edid_vic_to_string(enum hdmi_vic vic)
 {
-	int i;
+	struct hdmi_timing *timing = NULL;
 	const char *disp_str = NULL;
 
-	for (i = 0; i < ARRAY_SIZE(dispmode_vic_tab); i++) {
-		if (vic == dispmode_vic_tab[i].VIC) {
-			disp_str = dispmode_vic_tab[i].disp_mode;
-			break;
-		}
+	timing = hdmitx21_gettiming_from_vic(vic);
+	if (timing) {
+		if (timing->sname)
+			disp_str = timing->sname;
+		else
+			disp_str = timing->name;
 	}
 
 	return disp_str;
@@ -2647,6 +2554,7 @@ const char *hdmitx21_edid_vic_to_string(enum hdmi_vic vic)
 
 static bool is_rx_support_y420(struct hdmitx_dev *hdev)
 {
+	// TODO
 	enum hdmi_vic vic = HDMI_UNKNOWN;
 
 	vic = hdmitx21_edid_get_VIC(hdev, "2160p60hz420", 0);
@@ -2699,14 +2607,14 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	case HDMI_102_4096x2160p60_256x135:
 	case HDMI_106_3840x2160p50_64x27:
 	case HDMI_107_3840x2160p60_64x27:
-		if (para->cs == COLORSPACE_RGB444 ||
-		    para->cs == COLORSPACE_YUV444)
+		if (para->cs == HDMI_COLORSPACE_RGB ||
+		    para->cs == HDMI_COLORSPACE_YUV444)
 			if (para->cd != COLORDEPTH_24B)
 				return 0;
 		break;
 	case HDMI_7_720x480i60_16x9:
 	case HDMI_22_720x576i50_16x9:
-		if (para->cs == COLORSPACE_YUV422)
+		if (para->cs == HDMI_COLORSPACE_YUV422)
 			return 0;
 	default:
 		break;
@@ -2715,7 +2623,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	prxcap = &hdev->rxcap;
 
 	/* DVI case, only 8bit */
-	if (prxcap->ieeeoui != HDMI_IEEEOUI) {
+	if (prxcap->ieeeoui != HDMI_IEEE_OUI) {
 		if (para->cd != COLORDEPTH_24B)
 			return 0;
 	}
@@ -2739,9 +2647,9 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	}
 
 	calc_tmds_clk = para->tmds_clk;
-	if (para->cs == COLORSPACE_YUV420)
+	if (para->cs == HDMI_COLORSPACE_YUV420)
 		calc_tmds_clk = calc_tmds_clk / 2;
-	if (para->cs != COLORSPACE_YUV422) {
+	if (para->cs != HDMI_COLORSPACE_YUV422) {
 		switch (para->cd) {
 		case COLORDEPTH_30B:
 			calc_tmds_clk = calc_tmds_clk * 5 / 4;
@@ -2766,7 +2674,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	else
 		return 0;
 
-	if (para->cs == COLORSPACE_YUV444) {
+	if (para->cs == HDMI_COLORSPACE_YUV444) {
 		/* Rx may not support Y444 */
 		if (!(prxcap->native_Mode & (1 << 5)))
 			return 0;
@@ -2782,7 +2690,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 			valid = 0;
 		return valid;
 	}
-	if (para->cs == COLORSPACE_YUV422) {
+	if (para->cs == HDMI_COLORSPACE_YUV422) {
 		/* Rx may not support Y422 */
 		if (!(prxcap->native_Mode & (1 << 4)))
 			return 0;
@@ -2797,7 +2705,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 			valid = 0;
 		return valid;
 	}
-	if (para->cs == COLORSPACE_RGB444) {
+	if (para->cs == HDMI_COLORSPACE_RGB) {
 		/* Always assume RX supports RGB444 */
 		if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1)
 			rx_rgb_max_dc = COLORDEPTH_30B;
@@ -2809,7 +2717,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 			valid = 0;
 		return valid;
 	}
-	if (para->cs == COLORSPACE_YUV420) {
+	if (para->cs == HDMI_COLORSPACE_YUV420) {
 		if (!is_rx_support_y420(hdev))
 			return 0;
 		if (prxcap->dc_30bit_420)
@@ -2868,13 +2776,6 @@ enum hdmi_vic hdmitx21_edid_get_VIC(struct hdmitx_dev *hdev,
 	return vic;
 }
 
-const char *hdmitx21_edid_get_native_VIC(struct hdmitx_dev *hdmitx_device)
-{
-	struct rx_cap *prxcap = &hdmitx_device->rxcap;
-
-	return hdmitx21_edid_vic_to_string(prxcap->native_VIC);
-}
-
 /* Clear HDMI Hardware Module EDID RAM and EDID Buffer */
 void hdmitx21_edid_ram_buffer_clear(struct hdmitx_dev *hdmitx_device)
 {
@@ -2901,7 +2802,7 @@ void hdmitx21_edid_clear(struct hdmitx_dev *hdmitx_device)
 	/* Note: in most cases, we think that rx is tv and the default
 	 * IEEEOUI is HDMI Identifier
 	 */
-	prxcap->ieeeoui = HDMI_IEEEOUI;
+	prxcap->ieeeoui = HDMI_IEEE_OUI;
 
 	hdmitx_device->vic_count = 0;
 	memset(&hdmitx_device->EDID_hash[0], 0,
@@ -3049,9 +2950,10 @@ int hdmitx21_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		hdmitx_device->hdmi_info.vsdb_phy_addr.c,
 		hdmitx_device->hdmi_info.vsdb_phy_addr.d);
 
+	// TODO native_vic2
 	pos += snprintf(buffer + pos, buffer_len - pos,
 		"native Mode %x, VIC (native %d):\n",
-		prxcap->native_Mode, prxcap->native_VIC);
+		prxcap->native_Mode, prxcap->native_vic);
 
 	pos += snprintf(buffer + pos, buffer_len - pos,
 		"ColorDeepSupport %x\n", prxcap->ColorDeepSupport);

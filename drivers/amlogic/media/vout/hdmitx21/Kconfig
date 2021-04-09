@@ -4,6 +4,7 @@
 menu "Amlogic HDMITX Module"
 
 config AMLOGIC_HDMITX21
+	select HDMI
 	bool "AMLOGIC HDMITX21 driver"
 	default n
 	help
