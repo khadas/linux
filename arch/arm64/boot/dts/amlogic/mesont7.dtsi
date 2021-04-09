@@ -2427,7 +2427,8 @@
 		#size-cells=<2>;
 		status = "okay";
 		compatible = "amlogic, arm-gdc";
-		reg = <0 0xfe08e000 0 0x0000100>;
+		reg = <0 0xfe08e000 0 0x0000100
+			0 0xfe0104c4 0 0x4>;
 		interrupts = <GIC_SPI 223 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "gdc";
 		clocks = <&clkc CLKID_GDCCLK_0>,

@@ -30,6 +30,8 @@ enum {
 struct gdc_device_data_s {
 	int dev_type;
 	int clk_type;
+	/* use independ reg to set 8g addr MSB */
+	int ext_msb_8g;
 };
 
 struct meson_gdc_dev_t {
@@ -47,6 +49,7 @@ struct meson_gdc_dev_t {
 		struct clk *clk_gate;
 	};
 	struct clk *clk_axi; /* not used for clk_gate only cases */
+	int ext_msb_8g;
 };
 
 struct gdc_event_s {
@@ -197,45 +200,46 @@ static inline u32 gdc_id_revision_read(void)
 #define GDC_CONFIG_ADDR_OFFSET (0x10)
 #define GDC_CONFIG_ADDR_MASK (0xffffffff)
 
-static inline void gdc_coef_addr_write(u32 data)
+static inline void gdc_coef_addr_write(ulong data)
 {
-	gdc_log(LOG_DEBUG, "coef paddr: 0x%x\n", data);
+	gdc_log(LOG_DEBUG, "coef paddr: 0x%lx\n", data);
 	system_gdc_write_32(ISP_DWAP_TOP_COEF_CTRL0, data >> 4);
 	system_gdc_write_32(ISP_DWAP_TOP_COEF_CTRL1, AML_GDC_COEF_SIZE);
 }
 
-static inline void gdc_aml_cfg_addr_write(u32 data)
+static inline void gdc_aml_cfg_addr_write(ulong data)
 {
 	u32 curr = system_gdc_read_32(ISP_DWAP_TOP_CMD_CTRL1);
 
-	gdc_log(LOG_DEBUG, " cfg paddr: 0x%x\n", data);
+	gdc_log(LOG_DEBUG, " cfg paddr: 0x%lx\n", data);
 	system_gdc_write_32(ISP_DWAP_TOP_CMD_CTRL0, data >> 4);
 	system_gdc_write_32(ISP_DWAP_TOP_CMD_CTRL1, AML_GDC_CFG_STRIDE | curr);
 }
 
-static inline void gdc_mesh_addr_write(u32 data)
+static inline void gdc_mesh_addr_write(ulong data)
 {
-	gdc_log(LOG_DEBUG, "mesh paddr: 0x%x\n", data);
+	gdc_log(LOG_DEBUG, "mesh paddr: 0x%lx\n", data);
 	system_gdc_write_32(ISP_DWAP_TOP_MESH_CTRL0, data >> 4);
 }
 
 // args: data (32-bit)
-static inline void gdc_config_addr_write(u32 data, u32 dev_type)
+static inline void gdc_config_addr_write(u32 msb, u32 data, u32 dev_type)
 {
 	if (dev_type == ARM_GDC) {
 		system_gdc_write_32(0x10L, data);
 	} else {
-		struct page *page = phys_to_page(data);
+		ulong fw_addr = ((u64)msb << 32) + data;
+		struct page *page = phys_to_page(fw_addr);
 		void *vaddr = kmap(page);
 		u32 coef_size = *(u32 *)vaddr;
 		u32 mesh_size = *((u32 *)vaddr + 1);
 		u32 fw_offset = *((u32 *)vaddr + 2);
 
-		data += fw_offset;
+		fw_addr += fw_offset;
 
-		gdc_coef_addr_write(data);
-		gdc_mesh_addr_write(data + coef_size);
-		gdc_aml_cfg_addr_write(data + coef_size + mesh_size);
+		gdc_coef_addr_write(fw_addr);
+		gdc_mesh_addr_write(fw_addr + coef_size);
+		gdc_aml_cfg_addr_write(fw_addr + coef_size + mesh_size);
 
 		kunmap(page);
 
@@ -360,12 +364,13 @@ static inline uint16_t gdc_datain_height_read(void)
 #define GDC_DATA1IN_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data1in_addr_write(u32 data, u32 dev_type)
+static inline void gdc_data1in_addr_write(u32 msb, u32 data, u32 dev_type)
 {
 	if (dev_type == ARM_GDC)
 		system_gdc_write_32(0x28L, data);
 	else
-		system_gdc_write_32(ISP_DWAP_TOP_SRC_Y_CTRL0, data >> 4);
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_Y_CTRL0,
+				    (((u64)msb << 32) + data) >> 4);
 }
 
 static inline u32 gdc_data1in_addr_read(void)
@@ -420,12 +425,13 @@ static inline u32 gdc_data1in_line_offset_read(void)
 #define GDC_DATA2IN_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data2in_addr_write(u32 data, u32 dev_type)
+static inline void gdc_data2in_addr_write(u32 msb, u32 data, u32 dev_type)
 {
 	if (dev_type == ARM_GDC)
 		system_gdc_write_32(0x30L, data);
 	else
-		system_gdc_write_32(ISP_DWAP_TOP_SRC_U_CTRL0, data >> 4);
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_U_CTRL0,
+				    (((u64)msb << 32) + data) >> 4);
 }
 
 static inline u32 gdc_data2in_addr_read(void)
@@ -480,12 +486,13 @@ static inline u32 gdc_data2in_line_offset_read(void)
 #define GDC_DATA3IN_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data3in_addr_write(u32 data, u32 dev_type)
+static inline void gdc_data3in_addr_write(u32 msb, u32 data, u32 dev_type)
 {
 	if (dev_type == ARM_GDC)
 		system_gdc_write_32(0x38L, data);
 	else
-		system_gdc_write_32(ISP_DWAP_TOP_SRC_V_CTRL0, data >> 4);
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_V_CTRL0,
+				    (((u64)msb << 32) + data) >> 4);
 }
 
 static inline u32 gdc_data3in_addr_read(void)
@@ -607,12 +614,13 @@ static inline uint16_t gdc_dataout_height_read(void)
 #define GDC_DATA1OUT_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data1out_addr_write(u32 data, u32 dev_type)
+static inline void gdc_data1out_addr_write(u32 msb, u32 data, u32 dev_type)
 {
 	if (dev_type == ARM_GDC)
 		system_gdc_write_32(0x48L, data);
 	else
-		system_gdc_write_32(ISP_DWAP_TOP_DST_Y_CTRL0, data >> 4);
+		system_gdc_write_32(ISP_DWAP_TOP_DST_Y_CTRL0,
+				    (((u64)msb << 32) + data) >> 4);
 }
 
 static inline u32 gdc_data1out_addr_read(void)
@@ -666,12 +674,13 @@ static inline u32 gdc_data1out_line_offset_read(void)
 #define GDC_DATA2OUT_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data2out_addr_write(u32 data, u32 dev_type)
+static inline void gdc_data2out_addr_write(u32 msb, u32 data, u32 dev_type)
 {
 	if (dev_type == ARM_GDC)
 		system_gdc_write_32(0x50L, data);
 	else
-		system_gdc_write_32(ISP_DWAP_TOP_DST_U_CTRL0, data >> 4);
+		system_gdc_write_32(ISP_DWAP_TOP_DST_U_CTRL0,
+				    (((u64)msb << 32) + data) >> 4);
 }
 
 static inline u32 gdc_data2out_addr_read(void)
@@ -725,12 +734,13 @@ static inline u32 gdc_data2out_line_offset_read(void)
 #define GDC_DATA3OUT_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data3out_addr_write(u32 data, u32 dev_type)
+static inline void gdc_data3out_addr_write(u32 msb, u32 data, u32 dev_type)
 {
 	if (dev_type == ARM_GDC)
 		system_gdc_write_32(0x58L, data);
 	else
-		system_gdc_write_32(ISP_DWAP_TOP_DST_V_CTRL0, data >> 4);
+		system_gdc_write_32(ISP_DWAP_TOP_DST_V_CTRL0,
+				    (((u64)msb << 32) + data) >> 4);
 }
 
 static inline u32 gdc_data3out_addr_read(void)

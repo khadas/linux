@@ -26,5 +26,6 @@ u32 system_gdc_read_32(u32 addr);
  *   @param data - data to be written
  */
 void system_gdc_write_32(u32 addr, u32 data);
-
+u32 system_ext_8g_msb_read_32(void);
+void system_ext_8g_msb_write_32(u32 data);
 #endif /* __SYSTEM_GDC_IO_H__ */
