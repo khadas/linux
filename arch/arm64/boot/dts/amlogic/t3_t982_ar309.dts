@@ -1,0 +1,922 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include "mesont3.dtsi"
+#include "mesont3_pxp-panel.dtsi"
+#include "mesong12a-bifrost.dtsi"
+
+/ {
+	model = "Amlogic";
+	amlogic-dt-id = "t3_t982_ar309";
+	compatible = "amlogic, t3";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial0 = &uart_B;
+	};
+
+	memory@00000000 {
+		device_type = "memory";
+		linux,usable-memory = <0x0 0x000000 0x0 0x80000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		secmon_reserved:linux,secmon {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x400000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
+			clear-map;
+		};
+
+		logo_reserved:linux,meson-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x800000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x3f800000 0x0 0x800000>;
+		};
+
+		ion_cma_reserved:linux,ion-dev {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x9800000>;
+			alignment = <0x0 0x400000>;
+		};
+
+		codec_mm_cma:linux,codec_mm_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* ion_codec_mm max can alloc size 80M*/
+			size = <0x0 0xd000000>;
+			alignment = <0x0 0x400000>;
+			linux,contiguous-region;
+		};
+
+		/* codec shared reserved */
+		codec_mm_reserved:linux,codec_mm_reserved {
+			compatible = "amlogic, codec-mm-reserved";
+			size = <0x0 0x0>;
+			alignment = <0x0 0x100000>;
+			//no-map;
+		};
+	};
+	codec_mm {
+		compatible = "amlogic, codec, mm";
+		memory-region = <&codec_mm_cma &codec_mm_reserved>;
+		dev_name = "codec_mm";
+		status = "okay";
+	};
+	unifykey {
+		compatible = "amlogic,unifykey";
+		status = "okay";
+
+		unifykey-num = <24>;
+		unifykey-index-0 = <&keysn_0>;
+		unifykey-index-1 = <&keysn_1>;
+		unifykey-index-2 = <&keysn_2>;
+		unifykey-index-3 = <&keysn_3>;
+		unifykey-index-4 = <&keysn_4>;
+		unifykey-index-5 = <&keysn_5>;
+		unifykey-index-6 = <&keysn_6>;
+		unifykey-index-7 = <&keysn_7>;
+		unifykey-index-8 = <&keysn_8>;
+		unifykey-index-9 = <&keysn_9>;
+		unifykey-index-10= <&keysn_10>;
+		unifykey-index-11 = <&keysn_11>;
+		unifykey-index-12 = <&keysn_12>;
+		unifykey-index-13 = <&keysn_13>;
+		unifykey-index-14 = <&keysn_14>;
+		unifykey-index-15 = <&keysn_15>;
+		unifykey-index-16 = <&keysn_16>;
+		unifykey-index-17 = <&keysn_17>;
+		unifykey-index-18 = <&keysn_18>;
+		unifykey-index-19 = <&keysn_19>;
+		unifykey-index-20 = <&keysn_20>;
+		unifykey-index-21 = <&keysn_21>;
+		unifykey-index-22 = <&keysn_22>;
+		unifykey-index-23 = <&keysn_23>;
+
+		keysn_0: key_0{
+			key-name = "usid";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_1:key_1{
+			key-name = "mac";
+			key-device  = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_2:key_2{
+			key-name = "hdcp";
+			key-device = "secure";
+			key-type  = "sha1";
+			key-permit = "read","write","del";
+		};
+		keysn_3:key_3{
+			key-name = "secure_boot_set";
+			key-device = "efuse";
+			key-permit = "write";
+		};
+		keysn_4:key_4{
+			key-name = "mac_bt";
+			key-device = "normal";
+			key-permit = "read","write","del";
+			key-type  = "mac";
+		};
+		keysn_5:key_5{
+			key-name = "mac_wifi";
+			key-device = "normal";
+			key-permit = "read","write","del";
+			key-type  = "mac";
+		};
+		keysn_6:key_6{
+			key-name = "hdcp2_tx";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_7:key_7{
+			key-name = "hdcp2_rx";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_8:key_8{
+			key-name = "widevinekeybox";
+			key-device = "secure";
+			key-type = "sha1";
+			key-permit = "read","write","del";
+		};
+		keysn_9:key_9{
+			key-name = "deviceid";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_10:key_10{
+			key-name = "hdcp22_fw_private";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_11:key_11{
+			key-name = "hdcp22_rx_private";
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_12:key_12{
+			key-name = "hdcp22_rx_fw";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_13:key_13{
+			key-name = "hdcp14_rx";
+			key-device = "normal";
+			key-type  = "sha1";
+			key-permit = "read","write","del";
+		};
+		keysn_14:key_14{
+			key-name = "prpubkeybox";// PlayReady
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_15:key_15{
+			key-name = "prprivkeybox";// PlayReady
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_16:key_16{
+			key-name = "lcd";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_17:key_17{
+			key-name = "lcd_extern";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_18:key_18{
+			key-name = "backlight";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_19:key_19{
+			key-name = "lcd_tcon";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_20:key_20{
+			key-name = "attestationkeybox";// attestation key
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_21:key_21{
+			key-name = "lcd_tcon_spi";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_22:key_22{
+			key-name = "attestationdevidbox";// attest dev id box
+			key-device = "secure";
+			key-permit = "read","write","del";
+		};
+		keysn_23:key_23{
+			key-name = "oemkey";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+	}; /* End unifykey */
+
+	/* Audio Related start */
+	auge_sound {
+		compatible = "amlogic, auge-sound-card";
+		aml-audio-card,name = "AML-AUGESOUND";
+
+		/*avout mute gpio*/
+		//avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		//spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
+
+		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "audio_exception64";
+
+		status = "okay";
+
+		aml-audio-card,dai-link@0 {
+			format = "i2s";
+			mclk-fs = <256>;
+			//continuous-clock;
+			//bitclock-inversion;
+			//frame-inversion;
+			/* master mode */
+			bitclock-master = <&tdma>;
+			frame-master = <&tdma>;
+			/* slave mode */
+			/*
+			 * bitclock-master = <&tdmacodec>;
+			 * frame-master = <&tdmacodec>;
+			 */
+			/* suffix-name, sync with android audio hal used for */
+			suffix-name = "alsaPORT-i2s";
+			cpu {
+				sound-dai = <&tdma>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			tdmacodec: codec {
+				sound-dai = <&dummy_codec>;
+				//prefix-names = "AMP", "AMP1";
+				//sound-dai = <&ad82584f &ad82584f1 &tl1_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@1 {
+			format = "i2s";
+			mclk-fs = <256>;
+			//continuous-clock;
+			//bitclock-inversion;
+			//frame-inversion;
+			/* master mode */
+			bitclock-master = <&tdmb>;
+			frame-master = <&tdmb>;
+			/* slave mode */
+			//bitclock-master = <&tdmbcodec>;
+			//frame-master = <&tdmbcodec>;
+			/* suffix-name, sync with android audio hal used for */
+			suffix-name = "alsaPORT-pcm";
+			cpu {
+				sound-dai = <&tdmb>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				/*
+				 * dai-tdm-slot-tx-mask =
+				 *	<1 1 1 1 1 1 1 1>;
+				 * dai-tdm-slot-rx-mask =
+				 *	<1 1 1 1 1 1 1 1>;
+				 * dai-tdm-slot-num = <8>;
+				 */
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			tdmbcodec: codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@2 {
+			format = "i2s";
+			mclk-fs = <256>;
+			//continuous-clock;
+			//bitclock-inversion;
+			//frame-inversion;
+			/* master mode */
+			bitclock-master = <&tdmc>;
+			frame-master = <&tdmc>;
+			/* slave mode */
+			//bitclock-master = <&tdmccodec>;
+			//frame-master = <&tdmccodec>;
+			/* suffix-name, sync with android audio hal used for */
+			//suffix-name = "alsaPORT-tdm";
+			cpu {
+				sound-dai = <&tdmc>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			tdmccodec: codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@3 {
+			mclk-fs = <64>;
+			/* suffix-name, sync with android audio hal used for */
+			suffix-name = "alsaPORT-pdm";
+			cpu {
+				sound-dai = <&pdm>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@4 {
+			mclk-fs = <128>;
+			continuous-clock;
+			/* suffix-name, sync with android audio hal used for */
+			suffix-name = "alsaPORT-spdif";
+			cpu {
+				sound-dai = <&spdifa>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@5 {
+			mclk-fs = <128>;
+			suffix-name = "alsaPORT-spdifb";
+			cpu {
+				sound-dai = <&spdifb>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@6 {
+			mclk-fs = <256>;
+			suffix-name = "alsaPORT-tv";
+			cpu {
+				sound-dai = <&extn>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+#if 0
+		aml-audio-card,dai-link@7 {
+			mclk-fs = <256>;
+			suffix-name = "alsaPORT-earc";
+			cpu {
+				sound-dai = <&earc>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+#endif
+		aml-audio-card,dai-link@8 {
+			mclk-fs = <256>;
+			continuous-clock;
+			suffix-name = "alsaPORT-loopback";
+			cpu {
+				sound-dai = <&loopbacka>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+	};
+	/* Audio Related end */
+}; /* end of / */
+
+&fb {
+	status = "okay";
+	display_size_default = <1920 1080 1920 2160 32>;
+	mem_size = <0x00800000 0x1980000 0x100000 0x100000>;
+	logo_addr = "0x3f800000";
+	mem_alloc = <0>;
+	pxp_mode = <1>; /** 0:normal mode 1:pxp mode */
+};
+
+&audiobus {
+	tdma:tdm@0 {
+		compatible = "amlogic, t5-snd-tdma";
+		#sound-dai-cells = <0>;
+
+		dai-tdm-lane-slot-mask-in = <1 0>;
+		dai-tdm-lane-slot-mask-out = <0 1>;
+		dai-tdm-clk-sel = <0>;
+
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
+				&clkaudio CLKID_AUDIO_MCLK_PAD0
+				&clkc CLKID_MPLL0
+				&clkc CLKID_MPLL1
+				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
+		clock-names = "mclk", "mclk_pad", "clk_srcpll",
+			"samesource_srcpll", "samesource_clk";
+
+		//pinctrl-names = "tdm_pins";
+		//pinctrl-0 = <&tdm_a>;
+
+		/*
+		 * 0: tdmout_a;
+		 * 1: tdmout_b;
+		 * 2: tdmout_c;
+		 * 3: spdifout;
+		 * 4: spdifout_b;
+		 */
+		samesource_sel = <3>;
+
+		/* In for ACODEC_ADC */
+		acodec_adc = <1>;
+		/*enable default mclk(12.288M), before extern codec start*/
+		start_clk_enable = <1>;
+
+		/*tdm clk tuning enable*/
+		clk_tuning_enable = <1>;
+		status = "okay";
+
+		/* !!!For --TV platform-- ONLY */
+		Channel_Mask {
+			/*i2s has 4 pins, 8channel, mux output*/
+			Spdif_samesource_Channel_Mask = "i2s_2/3";
+		};
+	};
+
+	tdmb:tdm@1 {
+		compatible = "amlogic, t5-snd-tdmb";
+		#sound-dai-cells = <0>;
+
+		dai-tdm-lane-slot-mask-in = <1 0 0 0>;
+		dai-tdm-lane-slot-mask-out = <0 1 0 0>;
+		dai-tdm-clk-sel = <1>;
+
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+				&clkc CLKID_MPLL1>;
+		clock-names = "mclk", "clk_srcpll";
+
+		status = "okay";
+	};
+
+	tdmc:tdm@2 {
+		compatible = "amlogic, t5-snd-tdmc";
+		#sound-dai-cells = <0>;
+
+		dai-tdm-lane-slot-mask-in = <1 0 0 0>;
+		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
+		dai-tdm-clk-sel = <2>;
+
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkc CLKID_MPLL2>;
+		clock-names = "mclk", "clk_srcpll";
+		status = "okay";
+	};
+
+	pdm:pdm {
+		compatible = "amlogic, tm2-snd-pdm";
+		#sound-dai-cells = <0>;
+
+		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
+			&clkc CLKID_FCLK_DIV3
+			&clkc CLKID_MPLL3
+			&clkaudio CLKID_AUDIO_PDMIN0
+			&clkaudio CLKID_AUDIO_PDMIN1>;
+		clock-names = "gate",
+			"sysclk_srcpll",
+			"dclk_srcpll",
+			"pdm_dclk",
+			"pdm_sysclk";
+
+		//pinctrl-names = "pdm_pins";
+		//pinctrl-0 = <&pdmin>;
+
+		/* mode 0~4, defalut:1 */
+		filter_mode = <1>;
+
+		status = "okay";
+	};
+
+	spdifa:spdif@0 {
+		compatible = "amlogic, tm2-revb-snd-spdif-a";
+		#sound-dai-cells = <0>;
+
+		clocks = <&clkc CLKID_MPLL0
+				&clkc CLKID_FCLK_DIV4
+				&clkaudio CLKID_AUDIO_GATE_SPDIFIN
+				&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_A
+				&clkaudio CLKID_AUDIO_SPDIFIN
+				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
+		clock-names = "sysclk", "fixed_clk", "gate_spdifin",
+				"gate_spdifout", "clk_spdifin", "clk_spdifout";
+		interrupts =
+				<GIC_SPI 35 IRQ_TYPE_EDGE_RISING>;
+
+		interrupt-names = "irq_spdifin";
+		//pinctrl-names = "spdif_pins", "spdif_pins_mute";
+		//pinctrl-0 = <&spdifout>;
+		//pinctrl-1 = <&spdifout_a_mute>;
+
+		samesource_sel = <4>;
+
+		/*spdif clk tuning enable*/
+		clk_tuning_enable = <1>;
+		status = "okay";
+	};
+
+	spdifb:spdif@1 {
+		compatible = "amlogic, tm2-revb-snd-spdif-b";
+		#sound-dai-cells = <0>;
+
+		clocks = <&clkc CLKID_MPLL2 /*CLKID_HIFI_PLL*/
+				&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_B
+				&clkaudio CLKID_AUDIO_SPDIFOUT_B>;
+		clock-names = "sysclk",
+				"gate_spdifout", "clk_spdifout";
+
+		status = "okay";
+	};
+
+	extn:extn {
+		compatible = "amlogic, tm2-snd-extn";
+		#sound-dai-cells = <0>;
+
+		interrupts =
+				<GIC_SPI 42 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "irq_frhdmirx";
+
+		status = "okay";
+	};
+
+	aed:effect {
+		compatible = "amlogic, snd-effect-v4";
+		#sound-dai-cells = <0>;
+
+		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
+			&clkc CLKID_FCLK_DIV5
+			&clkaudio CLKID_AUDIO_EQDRC>;
+		clock-names = "gate", "srcpll", "eqdrc";
+
+		/*
+		 * 0:tdmout_a
+		 * 1:tdmout_b
+		 * 2:tdmout_c
+		 * 3:spdifout
+		 * 4:spdifout_b
+		 */
+		eqdrc_module = <0>;
+		/* max 0xf, each bit for one lane, usually one lane */
+		lane_mask = <0x1>;
+		/* max 0xff, each bit for one channel */
+		channel_mask = <0xff>;
+
+		status = "okay";
+	};
+#if 0
+	asrca:resample@0 {
+		compatible = "amlogic, t5-resample-a";
+		clocks = <&clkc CLKID_MPLL1
+			&clkaudio CLKID_AUDIO_MCLK_B
+			&clkaudio CLKID_AUDIO_RESAMPLE_A>;
+		clock-names = "resample_pll", "resample_src", "resample_clk";
+
+		/*same with toddr_src
+		 *	TDMIN_A,    0
+		 *	TDMIN_B,    1
+		 *	TDMIN_C,    2
+		 *	SPDIFIN,    3
+		 *	PDMIN,      4
+		 *	FRATV,      5
+		 *	TDMIN_LB,   6
+		 *	LOOPBACK_A, 7
+		 *	FRHDMIRX,   8
+		 *	LOOPBACK_B, 9
+		 *	SPDIFIN_LB, 10
+		 *	EARC_RX,    11
+		 */
+		resample_module = <8>;
+
+		status = "okay";
+	};
+
+	asrcb:resample@1 {
+		compatible = "amlogic, t5-resample-b";
+		clocks = <&clkc CLKID_MPLL3
+			&clkaudio CLKID_AUDIO_MCLK_F
+			&clkaudio CLKID_AUDIO_RESAMPLE_B>;
+		clock-names = "resample_pll", "resample_src", "resample_clk";
+
+		/*this resample is only used for loopback_A.*/
+
+		status = "okay";
+	};
+#endif
+	vad:vad {
+		compatible = "amlogic, snd-vad";
+		#sound-dai-cells = <0>;
+
+		clocks = <&clkaudio CLKID_AUDIO_GATE_TOVAD
+			&clkc CLKID_FCLK_DIV5
+			&clkaudio CLKID_AUDIO_VAD>;
+		clock-names = "gate", "pll", "clk";
+
+		interrupts = <GIC_SPI 39 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 44 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "irq_wakeup", "irq_frame_sync";
+
+		/*
+		 * Data src sel:
+		 * 0: tdmin_a;
+		 * 1: tdmin_b;
+		 * 2: tdmin_c;
+		 * 3: spdifin;
+		 * 4: pdmin;
+		 * 5: loopback_b;
+		 * 6: tdmin_lb;
+		 * 7: loopback_a;
+		 */
+		src = <4>;
+
+		/*
+		 * deal with hot word in user space or kernel space
+		 * 0: in user space
+		 * 1: in kernel space
+		 */
+		level = <1>;
+
+		status = "okay";
+	};
+
+	loopbacka:loopback@0 {
+		compatible = "amlogic, t5-loopbacka";
+		#sound-dai-cells = <0>;
+
+		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
+			&clkc CLKID_FCLK_DIV3
+			&clkc CLKID_MPLL3
+			&clkaudio CLKID_AUDIO_PDMIN0
+			&clkaudio CLKID_AUDIO_PDMIN1
+			&clkc CLKID_MPLL0
+			&clkaudio CLKID_AUDIO_MCLK_A>;
+		clock-names = "pdm_gate",
+			"pdm_sysclk_srcpll",
+			"pdm_dclk_srcpll",
+			"pdm_dclk",
+			"pdm_sysclk",
+			"tdminlb_mpll",
+			"tdminlb_mclk";
+
+		/* datain src
+		 * 0: tdmin_a;
+		 * 1: tdmin_b;
+		 * 2: tdmin_c;
+		 * 3: spdifin;
+		 * 4: pdmin;
+		 */
+		datain_src = <4>;
+		datain_chnum = <4>;
+		datain_chmask = <0xf>;
+		/* config which data pin for loopback */
+		datain-lane-mask-in = <1 0 1 0>;
+
+		/* calc mclk for datalb */
+		mclk-fs = <256>;
+
+		/* tdmin_lb src
+		 * 0: tdmoutA
+		 * 1: tdmoutB
+		 * 2: tdmoutC
+		 * 3: PAD_TDMINA_DIN*, refer to core pinmux
+		 * 4: PAD_TDMINB_DIN*, refer to core pinmux
+		 * 5: PAD_TDMINC_DIN*, refer to core pinmux
+		 * 6: PAD_TDMINA_D*, oe, refer to core pinmux
+		 * 7: PAD_TDMINB_D*, oe, refer to core pinmux
+		 */
+		/* if tdmin_lb >= 3, use external loopback */
+		datalb_src = <0>;
+		datalb_chnum = <2>;
+		datalb_chmask = <0x3>;
+		/* config which data pin as loopback */
+		datalb-lane-mask-in = <1 0 0 0>;
+
+		status = "okay";
+	};
+
+	loopbackb:loopback@1 {
+		compatible = "amlogic, t5-loopbackb";
+		#sound-dai-cells = <0>;
+
+		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
+			&clkc CLKID_FCLK_DIV3
+			&clkc CLKID_MPLL3
+			&clkaudio CLKID_AUDIO_PDMIN0
+			&clkaudio CLKID_AUDIO_PDMIN1
+			&clkc CLKID_MPLL0
+			&clkaudio CLKID_AUDIO_MCLK_A>;
+		clock-names = "pdm_gate",
+			"pdm_sysclk_srcpll",
+			"pdm_dclk_srcpll",
+			"pdm_dclk",
+			"pdm_sysclk",
+			"tdminlb_mpll",
+			"tdminlb_mclk";
+
+		/* calc mclk for datain_lb */
+		mclk-fs = <256>;
+
+		/* datain src
+		 * 0: tdmin_a;
+		 * 1: tdmin_b;
+		 * 2: tdmin_c;
+		 * 3: spdifin;
+		 * 4: pdmin;
+		 */
+		datain_src = <4>;
+		datain_chnum = <4>;
+		datain_chmask = <0xf>;
+		/* config which data pin for loopback */
+		datain-lane-mask-in = <1 0 1 0>;
+
+		/* tdmin_lb src
+		 * 0: tdmoutA
+		 * 1: tdmoutB
+		 * 2: tdmoutC
+		 * 3: PAD_TDMINA_DIN*, refer to core pinmux
+		 * 4: PAD_TDMINB_DIN*, refer to core pinmux
+		 * 5: PAD_TDMINC_DIN*, refer to core pinmux
+		 * 6: PAD_TDMINA_D*, oe, refer to core pinmux
+		 * 7: PAD_TDMINB_D*, oe, refer to core pinmux
+		 */
+		/* if tdmin_lb >= 3, use external loopback */
+		datalb_src = <1>;
+		datalb_chnum = <2>;
+		datalb_chmask = <0x3>;
+		/* config which data pin as loopback */
+		datalb-lane-mask-in = <1 0 0 0>;
+
+		status = "disabled";
+	};
+}; /* end of audiobus */
+
+&earc {
+	status = "disabled";
+};
+
+&audio_data {
+	status = "disabled";
+};
+
+&uart_B {
+	status = "okay";
+};
+
+/* SDIO */
+//&sd_emmc_a {
+//	status = "disabled";
+//	pinctrl-0 = <&sdio_pins>;
+//	pinctrl-1 = <&sdio_clk_gate_pins>;
+//	pinctrl-names = "default", "clk-gate";
+//	#address-cells = <1>;
+//	#size-cells = <0>;
+//
+//	bus-width = <4>;
+//	cap-sd-highspeed;
+//	sd-uhs-sdr50;
+//	sd_uhs-sdr104;
+//	max-frequency = <200000000>;
+//
+//	non-removable;
+//	disable-wp;
+//
+//	//vmmc-supply = <&vddao_3v3>;
+//	//vqmmc-supply = <&vddio_ao1v8>;
+//
+//	brcmf: wifi@1 {
+//		reg = <1>;
+//		compatible = "brcm,bcm4329-fmac";
+//	};
+//};
+
+/* SD card */
+&sd_emmc_b {
+	status = "okay";
+	pinctrl-0 = <&sd_all_pins>;
+	pinctrl-1 = <&sd_1bit_pins>;
+	pinctrl-2 = <&sd_clk_gate_pins>;
+	pinctrl-names = "sd_default",
+			"sd_1bit_pins",
+			"clk-gate";
+	bus-width = <4>;
+	cap-sd-highspeed;
+//	sd-uhs-sdr12;
+//	sd-uhs-sdr25;
+//	sd-uhs-sdr50;
+//	sd_uhs-sdr104;
+	max-frequency = <200000000>;
+
+	non-removable;
+	disable-wp;
+
+	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
+	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
+	//vmmc-supply = <&vddao_3v3>;
+	//vqmmc-supply = <&emmc_1v8>;
+};
+
+&sd_emmc_c {
+	status = "okay";
+	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
+	pinctrl-1 = <&emmc_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
+
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	//mmc-ddr-1_8v;
+	//mmc-hs200-1_8v;
+	//mmc-hs400-1_8v;
+	max-frequency = <200000000>;
+	non-removable;
+	disable-wp;
+
+//	mmc-pwrseq = <&emmc_pwrseq>;
+//	vmmc-supply = <&vddao_3v3>;
+//	vqmmc-supply = <&vddao_1v8>;
+};
+
+&gpu{
+	reg =   <0 0xFE400000 0 0x04000>, /*mali APB bus base address*/
+		<0 0xFE002000 0 0x01000>, /*reset register*/
+		<0 0xFF800000 0 0x01000>, /*aobus TODO update*/
+		<0 0xFE000000 0 0x01000>, /*hiubus for clk cntl*/
+		<0 0xFE002000 0 0x01000>; /*reset register*/
+
+	interrupts = <0 144 4>, <0 145 4>, <0 146 4>;
+	interrupt-names = "GPU", "MMU", "JOB";
+	num_of_pp = <2>;
+	clocks = <&clkc CLKID_MALI>;
+	clock-names = "gpu_mux";
+	system-coherency = <31>;
+
+	/*
+	 * Mali clocking is provided by two identical clock paths
+	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
+	 * free mux to safely change frequency while running.
+	 */
+	assigned-clocks = <&clkc CLKID_MALI_0_SEL>,
+			  <&clkc CLKID_MALI_0>,
+			  <&clkc CLKID_MALI>; /* Glitch free mux */
+	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
+				 <0>, /* Do Nothing */
+				 <&clkc CLKID_MALI_0>;
+	assigned-clock-rates = <0>, /* Do Nothing */
+			       <800000000>,
+			       <0>; /* Do Nothing */
+
+	tbl =  <&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg>;
+
+	reset_cfg:reset_cfg {
+		reg_level = <0x11>;
+		reg_mask = <0x21>;
+		reg_bit = <2>;
+	};
+
+	capb_reset:capb_reset {
+		reg_level = <0x11>;
+		reg_mask = <0x21>;
+		reg_bit = <1>;
+	};
+};
