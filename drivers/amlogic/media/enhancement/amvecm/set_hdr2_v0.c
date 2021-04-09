@@ -650,6 +650,10 @@ static uint hdr2_debug;
 module_param(hdr2_debug, uint, 0664);
 MODULE_PARM_DESC(hdr2_debug, "\n hdr2_debug\n");
 
+static uint clip_func = 0xff;
+module_param(clip_func, uint, 0664);
+MODULE_PARM_DESC(clip_func, "\n clip_func_debug\n");
+
 /* gamut 3x3 matrix*/
 /*standard 2020rgb->709rgb*/
 int ncl_2020_709[9] = {
@@ -2451,6 +2455,44 @@ void hdr_hist_config(enum hdr_module_sel module_sel,
 	}
 }
 
+void clip_func_after_ootf(int mtx_gamut_mode,
+			enum hdr_module_sel module_sel)
+{
+	int clip_en = 0;
+	int clip_max = 0;
+	unsigned int adps_ctrl;
+
+	/* if Dynamic TMO+ enable : clip_en = 1 clip_max = 524288
+	 * (hdr_process_select is HDR_SDR or HDR10P_SDR);
+	 * else if mtx_gamut_mode = 1 : clip_en = 0/1 clip_max = 524288;
+	 * else if  mtx_gamut_mode == 2 : clip_en = 1 clip_max = 393216;
+	 * else : clip_en = 0 clip_max = 524288;
+	 */
+	if (module_sel == VD1_HDR)
+		adps_ctrl = VD1_HDR2_ADPS_CTRL;
+	else if (module_sel == VD2_HDR)
+		adps_ctrl = VD2_HDR2_ADPS_CTRL;
+	else if (module_sel == OSD1_HDR)
+		adps_ctrl = OSD1_HDR2_ADPS_CTRL;
+	else
+		return;
+
+	if (mtx_gamut_mode == 1) {
+		clip_max = 524288 >> 14;
+	} else if (mtx_gamut_mode == 2) {
+		clip_en = 1;
+		clip_max = 393216 >> 14;
+	} else {
+		clip_en = 0;
+		clip_max = 524288 >> 14;
+	}
+
+	VSYNC_WRITE_VPP_REG_BITS(adps_ctrl,
+		clip_en, 7, 1);
+	VSYNC_WRITE_VPP_REG_BITS(adps_ctrl,
+		clip_max, 8, 6);
+}
+
 struct hdr_proc_lut_param_s hdr_lut_param;
 
 enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
@@ -2522,7 +2564,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	if (is_meson_tl1_cpu() ||
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
-	    is_meson_s4_cpu())
+	    is_meson_s4_cpu() ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
 		bit_depth = 10;
 
 	/*lut parameters*/
@@ -3191,6 +3234,11 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	set_c_gain(module_sel, &hdr_lut_param);
 
 	hdr_hist_config(module_sel, &hdr_lut_param);
+
+	if (clip_func == 0xff) {
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
+			clip_func_after_ootf(hdr_mtx_param.mtx_gamut_mode, module_sel);
+	}
 
 	return hdr_process_select;
 }
