@@ -1231,8 +1231,9 @@ void dim_sumx_set(struct di_ch_s *pch)
 	psumx->b_recyc		= list_count(ch, QUEUE_RECYCLE);
 	psumx->b_display	= list_count(ch, QUEUE_DISPLAY);
 	psumx->b_nin		= nins_cnt(pch, QBF_NINS_Q_CHECK);
+	psumx->b_in_free	= di_que_list_count(ch, QUE_IN_FREE);
 
-	if (psumx->b_nin && psumx->b_pst_free)
+	if (psumx->b_nin && psumx->b_pst_free && psumx->b_in_free >= 2)
 		bset(&pch->self_trig_need, 0);
 	else
 		bclr(&pch->self_trig_need, 0);

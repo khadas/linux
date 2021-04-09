@@ -761,7 +761,7 @@ void di_vf_l_put(struct vframe_s *vf, unsigned char channel)
 			LCMD2(ECMD_RL_KEEP,
 			     channel,
 			     ndis1->header.index));
-	task_send_ready();
+	//task_send_ready();
 }
 
 #endif

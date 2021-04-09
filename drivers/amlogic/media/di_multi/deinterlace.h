@@ -63,7 +63,7 @@
 #define BYPASS_GET_MAX_BUF_NUM			9//4
 
 /* buffer management related */
-#define MAX_IN_BUF_NUM				(10)	/*change 4 to 8*/
+#define MAX_IN_BUF_NUM				(15)	/*change 4 to 8*/
 #define MAX_LOCAL_BUF_NUM			(7)
 #define MAX_POST_BUF_NUM			(20)//(11)	/*(5)*/ /* 16 */
 #define POST_BUF_NUM				(11)
