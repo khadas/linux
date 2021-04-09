@@ -363,7 +363,7 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_24[] = {
 	{{HDMI_7_720x480i60_16x9, HDMI_6_720x480i60_4x3,
 	  HDMI_22_720x576i50_16x9, HDMI_21_720x576i50_4x3,
 	  HDMI_VIC_END},
-		4324320, 4, 4, 1, VID_PLL_DIV_5, 1, 2, -1, 2},
+		4324320, 8, 2, 2, VID_PLL_DIV_5, 1, 1, -1, 1},
 	{{HDMI_18_720x576p50_16x9, HDMI_17_720x576p50_4x3,
 	  HDMI_3_720x480p60_16x9, HDMI_2_720x480p60_4x3,
 	  HDMI_VIC_END},
@@ -634,11 +634,11 @@ static void hdmitx21_set_clk_(struct hdmitx_dev *hdev)
 	int j = 0;
 	struct hw_enc_clk_val_group *p_enc = NULL;
 	enum hdmi_vic vic = hdev->para->timing.vic;
-	enum hdmi_color_space cs = hdev->para->cs;
+	enum hdmi_colorspace cs = hdev->para->cs;
 	enum hdmi_color_depth cd = hdev->para->cd;
 
 	/* YUV 422 always use 24B mode */
-	if (cs == COLORSPACE_YUV422)
+	if (cs == HDMI_COLORSPACE_YUV422)
 		cd = COLORDEPTH_24B;
 pr_info("%s[%d] cs %d cd %d\n", __func__, __LINE__, cs, cd);
 	if (hdev->flag_3dfp) {

@@ -67,7 +67,7 @@ enum hdmi_slacing {
 
 struct hdmi_videoinfo {
 	enum hdmi_vic VIC;
-	enum hdmi_color_space color;
+	enum hdmi_colorspace color;
 	enum hdmi_color_depth color_depth;
 	enum hdmi_barinfo bar_info;
 	enum hdmi_pixel_repeat repeat_time;

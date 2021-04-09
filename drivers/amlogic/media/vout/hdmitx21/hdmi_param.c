@@ -95,7 +95,7 @@ struct hdmi_format_para *hdmi21_tst_fmt_name(char const *name, char const *attr)
 	return &para;
 }
 
-static struct hdmi_timing *search_mode_in_allpara(char *mode)
+struct hdmi_timing *hdmitx21_gettiming_from_name(const char *mode)
 {
 	int i;
 
@@ -119,7 +119,7 @@ static struct hdmi_timing *search_mode_in_allpara(char *mode)
 	return NULL;
 }
 
-struct hdmi_timing *hdmitx21_gettiming(enum hdmi_vic vic)
+struct hdmi_timing *hdmitx21_gettiming_from_vic(enum hdmi_vic vic)
 {
 	struct hdmi_timing *timing = NULL;
 	int i;
@@ -140,10 +140,10 @@ struct hdmi_format_para *hdmitx21_get_fmtpara(char *mode)
 	struct hdmi_timing *timing;
 	struct vinfo_s *tx_vinfo = &hdev->para->hdmitx_vinfo;
 
-	timing = search_mode_in_allpara(mode);
+	timing = hdmitx21_gettiming_from_name(mode);
 	if (timing) {
 		hdev->para->timing = *timing;
-		hdev->para->cs = COLORSPACE_YUV444;
+		hdev->para->cs = HDMI_COLORSPACE_YUV444;
 		hdev->para->cd = COLORDEPTH_24B;
 		/* manually assign hdmitx_vinfo from timing */
 		tx_vinfo->name = timing->sname ? timing->sname : timing->name;
@@ -613,9 +613,9 @@ static const u8 coef_yc444_rgb_24bit_709[] = {
 };
 
 static const struct hdmi_csc_coef_table hdmi_csc_coef[] = {
-	{COLORSPACE_YUV444, COLORSPACE_RGB444, COLORDEPTH_24B, 0,
+	{HDMI_COLORSPACE_YUV444, HDMI_COLORSPACE_RGB, COLORDEPTH_24B, 0,
 		sizeof(coef_yc444_rgb_24bit_601), coef_yc444_rgb_24bit_601},
-	{COLORSPACE_YUV444, COLORSPACE_RGB444, COLORDEPTH_24B, 1,
+	{HDMI_COLORSPACE_YUV444, HDMI_COLORSPACE_RGB, COLORDEPTH_24B, 1,
 		sizeof(coef_yc444_rgb_24bit_709), coef_yc444_rgb_24bit_709},
 };
 

@@ -55,7 +55,6 @@ struct ksv_lists_ {
 
 static struct ksv_lists_ tmp_ksv_lists;
 
-static void hdmitx_set_infoframe(int type, u8 *DB, u8 *HB);
 static int hdmitx_set_dispmode(struct hdmitx_dev *hdev);
 static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 			      struct hdmitx_audpara *audio_param);
@@ -82,7 +81,7 @@ static enum hdmi_vic get_vic_from_pkt(void);
 /* VSYNC polarity: active high */
 #define VSYNC_POLARITY	 1
 /* Pixel format: 0=RGB444; 1=YCbCr444; 2=Rsrv; 3=YCbCr422. */
-#define TX_INPUT_COLOR_FORMAT   COLORSPACE_YUV444
+#define TX_INPUT_COLOR_FORMAT   HDMI_COLORSPACE_YUV444
 /* Pixel range: 0=16-235/240; 1=16-240; 2=1-254; 3=0-255. */
 #define TX_INPUT_COLOR_RANGE	0
 /* Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit. */
@@ -215,14 +214,14 @@ static int read_avmute(void)
 	return 0;
 }
 
-static void config_video_mapping(enum hdmi_color_space cs,
+static void config_video_mapping(enum hdmi_colorspace cs,
 				 enum hdmi_color_depth cd)
 {
 	u32 val = 0;
 
 	pr_info("config: cs = %d cd = %d\n", cs, cd);
 	switch (cs) {
-	case COLORSPACE_RGB444:
+	case HDMI_COLORSPACE_RGB:
 		switch (cd) {
 		case COLORDEPTH_24B:
 			val = 0x1;
@@ -240,8 +239,8 @@ static void config_video_mapping(enum hdmi_color_space cs,
 			break;
 		}
 		break;
-	case COLORSPACE_YUV444:
-	case COLORSPACE_YUV420:
+	case HDMI_COLORSPACE_YUV444:
+	case HDMI_COLORSPACE_YUV420:
 		switch (cd) {
 		case COLORDEPTH_24B:
 			val = 0x9;
@@ -259,7 +258,7 @@ static void config_video_mapping(enum hdmi_color_space cs,
 			break;
 		}
 		break;
-	case COLORSPACE_YUV422:
+	case HDMI_COLORSPACE_YUV422:
 		switch (cd) {
 		case COLORDEPTH_24B:
 			val = 0x16;
@@ -408,7 +407,6 @@ int hdmitx21_uboot_audio_en(void)
 
 void hdmitx21_meson_init(struct hdmitx_dev *hdev)
 {
-	hdev->hwop.setinfoframe = hdmitx_set_infoframe;
 	hdev->hwop.setdispmode = hdmitx_set_dispmode;
 	hdev->hwop.setaudmode = hdmitx_set_audmode;
 	hdev->hwop.setupirq = hdmitx_setupirq;
@@ -753,12 +751,14 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	if (!vic)
 		enc_sel = 1;
 
-	hdmitx21_venc_en(0);
+	hdmitx21_venc_en(0, 0);
 	if (enc_sel == 0)
 		enable_crt_video_encp(1, 0);
 	else
 		enable_crt_video_encp2(1, 0);
-	enable_crt_video_hdmi(1, (TX_INPUT_COLOR_FORMAT == COLORSPACE_YUV420) ? 1 : 0, enc_sel);
+	enable_crt_video_hdmi(1,
+			      (TX_INPUT_COLOR_FORMAT == HDMI_COLORSPACE_YUV420) ? 1 : 0,
+			      enc_sel);
 
 	// --------------------------------------------------------
 	// Enable viu vsync interrupt, enable hdmitx interrupt, enable htx_hdcp22 interrupt
@@ -776,7 +776,15 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	// --------------------------------------------------------
 	pr_info("configure venc\n");
 	//              enc_index   output_type enable)
-	set_tv_encp_new(enc_sel, vic, 1);
+	// only 480i / 576i use the ENCI
+	if (para->timing.pi_mode == 0 &&
+	    (para->timing.v_active == 480 || para->timing.v_active == 576)) {
+		hd21_write_reg(VPU_VENC_CTRL + (0 << 2), 0); // sel enci timming
+		set_tv_enci_new(enc_sel, vic, 1);
+	} else {
+		hd21_write_reg(VPU_VENC_CTRL + (0 << 2), 1); // sel encp timming
+		set_tv_encp_new(enc_sel, vic, 1);
+	}
 
 	// --------------------------------------------------------
 	// Configure video format timing for HDMI:
@@ -796,8 +804,8 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	// [23:22] chroma_dnsmp_v. 0=use line 0; 1=use line 1; 2=use average.
 	// [27:24] pix_repeat
 	data32 = 0;
-	data32 = (((para->cs == COLORSPACE_YUV420) ? 2 :
-		  (para->cs == COLORSPACE_YUV422) ? 1 : 0) << 0) |
+	data32 = (((para->cs == HDMI_COLORSPACE_YUV420) ? 2 :
+		  (para->cs == HDMI_COLORSPACE_YUV422) ? 1 : 0) << 0) |
 		  (2 << 2) |
 		  (0 << 4) |
 		  (0 << 5) |
@@ -868,10 +876,10 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		 (para->timing.h_pol << 2) |
 		 (para->timing.v_pol << 3) |
 		 (0 << 4) |
-		 (((TX_INPUT_COLOR_FORMAT == COLORSPACE_YUV420) ? 4 : 0) << 5) |
+		 (((TX_INPUT_COLOR_FORMAT == HDMI_COLORSPACE_YUV420) ? 4 : 0) << 5) |
 		 (0 << 8) |
 		 (0 << 12) |
-		 (((TX_INPUT_COLOR_FORMAT == COLORSPACE_RGB444) ? 0 : 3) << 16) |
+		 (((TX_INPUT_COLOR_FORMAT == HDMI_COLORSPACE_RGB) ? 0 : 3) << 16) |
 		 (0 << 20) |
 		 (0 << 24);
 	hd21_write_reg(VPU_HDMI_SETTING, data32);
@@ -905,38 +913,108 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 	hdmitx21_set_clk(hdev);
 
 	hdmitx_set_hw(hdev);
-	hdmitx21_venc_en(1);
+	if (para->timing.pi_mode == 0 &&
+	    (para->timing.v_active == 480 || para->timing.v_active == 576))
+		hdmitx21_venc_en(1, 0);
+	else
+		hdmitx21_venc_en(1, 1);
 	hdmitx_set_phy(hdev);
 	return 0;
 }
 
 enum hdmi_tf_type hdmitx21_get_cur_hdr_st(void)
 {
-	enum hdmi_tf_type type = HDMI_NONE;
-	return type;
+	int ret;
+	u8 body[31] = {0};
+	enum hdmi_tf_type mytype = HDMI_NONE;
+	enum hdmi_eotf type = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
+	union hdmi_infoframe info;
+	struct hdmi_drm_infoframe *drm = &info.drm;
+
+	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_DRM, body);
+	if (ret == -1 || ret == 0) {
+		type = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
+	} else {
+		ret = hdmi_infoframe_unpack(&info, body, sizeof(body));
+		if (ret == 0)
+			type = drm->eotf;
+	}
+	if (type == HDMI_EOTF_SMPTE_ST2084)
+		mytype = HDMI_HDR_SMPTE_2084;
+	if (type == HDMI_EOTF_BT_2100_HLG)
+		mytype = HDMI_HDR_HLG;
+
+	return mytype;
 }
 
-static bool hdmitx_vsif_en(void)
+static bool hdmitx_vsif_en(u8 *body)
 {
-	return 1;
+	int ret;
+
+	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	if (ret != -1 || ret != 0)
+		return 0;
+	else
+		return 1;
 }
 
 enum hdmi_tf_type hdmitx21_get_cur_dv_st(void)
 {
+	int ret;
+	u8 body[31] = {0};
 	enum hdmi_tf_type type = HDMI_NONE;
+	union hdmi_infoframe info;
+	struct hdmi_vendor_infoframe *vend = (struct hdmi_vendor_infoframe *)&info;
+	struct hdmi_avi_infoframe *avi = (struct hdmi_avi_infoframe *)&info;
+	unsigned int ieee_code = 0;
+	unsigned int size = 0;
+	enum hdmi_colorspace cs = 0;
 
-	if (!hdmitx_vsif_en())
+	if (!hdmitx_vsif_en(body))
 		return type;
 
+	ret = hdmi_infoframe_unpack(&info, body, sizeof(body));
+	if (ret)
+		return type;
+	ieee_code = vend->oui;
+	size = vend->length;
+
+	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_AVI, body);
+	if (ret <= 0)
+		return type;
+	ret = hdmi_infoframe_unpack(&info, body, sizeof(body));
+	if (ret)
+		return type;
+	cs = avi->colorspace;
+
+	if ((ieee_code == HDMI_IEEE_OUI && size == 0x18) ||
+	    (ieee_code == DOVI_IEEEOUI && size == 0x1b)) {
+		if (cs == HDMI_COLORSPACE_YUV422) /* Y422 */
+			type = HDMI_DV_VSIF_LL;
+		if (cs == HDMI_COLORSPACE_RGB) /* RGB */
+			type = HDMI_DV_VSIF_STD;
+	}
 	return type;
 }
 
 enum hdmi_tf_type hdmitx21_get_cur_hdr10p_st(void)
 {
+	int ret;
+	unsigned int ieee_code = 0;
+	u8 body[31] = {0};
 	enum hdmi_tf_type type = HDMI_NONE;
+	union hdmi_infoframe info;
+	struct hdmi_vendor_infoframe *vend = (struct hdmi_vendor_infoframe *)&info;
 
-	if (!hdmitx_vsif_en())
+	if (!hdmitx_vsif_en(body))
 		return type;
+
+	ret = hdmi_infoframe_unpack(&info, body, sizeof(body));
+	if (ret)
+		return type;
+	ieee_code = vend->oui;
+	if (ieee_code == HDR10PLUS_IEEEOUI)
+		type = HDMI_HDR10P_DV_VSIF;
 
 	return type;
 }
@@ -954,34 +1032,6 @@ bool hdmitx21_dv_en(void)
 bool hdmitx21_hdr10p_en(void)
 {
 	return (hdmitx21_get_cur_hdr10p_st() & HDMI_HDR10P_TYPE) == HDMI_HDR10P_TYPE;
-}
-
-static void hdmitx_set_infoframe(int type, u8 *hb, u8 *db)
-{
-	int pkt_data_len = 0;
-
-	pr_info("%s[%d] type = %d\n", __func__, __LINE__, type);
-	switch (type) {
-	case HDMI_PACKET_AVI:
-		hdmitx_infoframe_send(IF_AVI, hb, db);
-		break;
-	case HDMI_PACKET_VEND:
-		hdmitx_infoframe_send(IF_VSIF, hb, db);
-		break;
-	case HDMI_PACKET_DRM:
-		pkt_data_len = 26;
-		if (!hb || !db)
-			return;
-		break;
-	case HDMI_AUDIO_INFO:
-		hdmitx_infoframe_send(IF_AUD, hb, db);
-		break;
-	case HDMI_SOURCE_DESCRIPTION:
-		pkt_data_len = 25;
-		break;
-	default:
-		break;
-	}
 }
 
 static void set_aud_chnls(struct hdmitx_dev *hdev,
@@ -1031,7 +1081,7 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	u32 aud_n_para;
 	u32 char_rate = 0; /* TODO */
 
-	if (hdev->para->cs == COLORSPACE_YUV422)
+	if (hdev->para->cs == HDMI_COLORSPACE_YUV422)
 		aud_n_para = hdmi21_get_aud_n_paras(audio_param->sample_rate,
 						  COLORDEPTH_24B, char_rate);
 	else
@@ -1299,8 +1349,7 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			return;
 		}
 		hdev->bist_lock = 1;
-		hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
-			hdev->para->cs);
+		hdmi_avi_infoframe_config(CONF_AVI_CS, hdev->para->cs);
 		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
 		hd21_write_reg(VENC_VIDEO_TST_EN, 1);
 		if (strncmp(tmpbuf + 4, "line", 4) == 0) {
@@ -1436,8 +1485,6 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 				pr_info("prbs clk :%x\n",
 					hd21_read_reg(phy_status));
 		}
-	} else if (strncmp(tmpbuf, "stop_vsif", 9) == 0) {
-		hdmitx_set_infoframe(HDMI_PACKET_VEND, NULL, NULL);
 	}
 }
 
@@ -1824,7 +1871,7 @@ static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 				  u32 dvi_mode)
 {
 	if (dvi_mode == 1)
-		hdmitx_csc_config(TX_INPUT_COLOR_FORMAT, COLORSPACE_RGB444, hdev->para->cd);
+		hdmitx_csc_config(TX_INPUT_COLOR_FORMAT, HDMI_COLORSPACE_RGB, hdev->para->cd);
 
 	return 0;
 }
@@ -1882,12 +1929,6 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, u32 cmd,
 	case CONF_AVI_BT2020:
 		break;
 	case CONF_CLR_DV_VS10_SIG:
-		break;
-	case CONF_AVI_RGBYCC_INDIC:
-		break;
-	case CONF_AVI_Q01:
-		break;
-	case CONF_AVI_YQ01:
 		break;
 	case CONF_CT_MODE:
 		break;
@@ -2050,9 +2091,9 @@ static void hdmi_phy_wakeup(struct hdmitx_dev *hdev)
 #define HDMI_COLOR_DEPTH_48B            7
 
 #define HDMI_COLOR_FORMAT_RGB 0
-#define COLORSPACE_YUV422           1
+#define HDMI_COLORSPACE_YUV422           1
 #define HDMI_COLOR_FORMAT_444           2
-#define COLORSPACE_YUV420           3
+#define HDMI_COLORSPACE_YUV420           3
 
 #define HDMI_COLOR_RANGE_LIM 0
 #define HDMI_COLOR_RANGE_FUL            1
@@ -2074,10 +2115,10 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	struct hdmi_format_para *para = hdev->para;
 	u8 color_depth = COLORDEPTH_24B; // Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit.
 	// Pixel format: 0=RGB444; 1=YCbCr422; 2=YCbCr444; 3=YCbCr420.
-	u8 input_color_format = COLORSPACE_YUV444;
+	u8 input_color_format = HDMI_COLORSPACE_YUV444;
 	u8 input_color_range = COLORRANGE_LIM; // Pixel range: 0=limited; 1=full.
 	// Pixel format: 0=RGB444; 1=YCbCr422; 2=YCbCr444; 3=YCbCr420.
-	u8 output_color_format = COLORSPACE_YUV444;
+	u8 output_color_format = HDMI_COLORSPACE_YUV444;
 	u8 output_color_range = COLORRANGE_LIM; // Pixel range: 0=limited; 1=full.
 	u8 vic = 16; // Video format identification code
 	u32 active_pixels = 1920; // Number of active pixels per line
@@ -2108,7 +2149,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	active_lines = para->timing.v_active;
 	scrambler_en = para->scrambler_en;
 	tmds_clk_div4 = para->tmds_clk_div40;
-	dp_color_depth = (output_color_format == COLORSPACE_YUV422) ?
+	dp_color_depth = (output_color_format == HDMI_COLORSPACE_YUV422) ?
 				COLORDEPTH_24B : color_depth;
 
 	pr_info("configure hdmitx21\n");
@@ -2207,12 +2248,12 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 
 	//444 to 422
 	if (input_color_format == HDMI_COLOR_FORMAT_444 &&
-	    output_color_format == COLORSPACE_YUV422) {
+	    output_color_format == HDMI_COLORSPACE_YUV422) {
 		hdmitx21_wr_reg(VP_CMS_CSC1_C444_C422_CONFIG_IVCTX, 0x01); //444-422
 	}
 
 	// Output 422
-	if (output_color_format == COLORSPACE_YUV422) {
+	if (output_color_format == HDMI_COLORSPACE_YUV422) {
 		// [11: 9] select_cr: 0=y; 1=cb; 2=Cr; 3={cr[11:4],cb[7:4]};
 		//                    4={cr[3:0],y[3:0],cb[3:0]}; 5={y[3:0],cr[3:0],cb[3:0]};
 		//                    6={cb[3:0],y[3:0],cr[3:0]}; 7={y[3:0],cb[3:0],cr[3:0]}.
@@ -2277,7 +2318,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 
 	//444 to 420
 	if (input_color_format == HDMI_COLOR_FORMAT_444 &&
-	    output_color_format == COLORSPACE_YUV420) {
+	    output_color_format == HDMI_COLORSPACE_YUV420) {
 		hdmitx21_wr_reg(VP_CMS_CSC1_C444_C422_CONFIG_IVCTX, 0x01);  //444-422
 		hdmitx21_wr_reg(VP_CMS_CSC1_C422_C420_CONFIG_IVCTX, 0x01); //422-420
 		hdmitx21_wr_reg(VP_OUTPUT_FORMAT_IVCTX, 0x00);
@@ -2407,12 +2448,12 @@ static void hdmitx_csc_config(u8 input_color_format,
 	unsigned long csc_coeff_c1, csc_coeff_c2, csc_coeff_c3, csc_coeff_c4;
 	unsigned long data32;
 
-	conv_en = (((input_color_format  == COLORSPACE_RGB444) ||
-		(output_color_format == COLORSPACE_RGB444)) &&
+	conv_en = (((input_color_format  == HDMI_COLORSPACE_RGB) ||
+		(output_color_format == HDMI_COLORSPACE_RGB)) &&
 		(input_color_format  != output_color_format)) ? 1 : 0;
 
 	if (conv_en) {
-		if (output_color_format == COLORSPACE_RGB444) {
+		if (output_color_format == HDMI_COLORSPACE_RGB) {
 			csc_coeff_a1 = 0x2000;
 			csc_coeff_a2 = 0x6926;
 			csc_coeff_a3 = 0x74fd;
@@ -2436,7 +2477,7 @@ static void hdmitx_csc_config(u8 input_color_format,
 			(color_depth == COLORDEPTH_36B) ? 0x63a6 :
 			(color_depth == COLORDEPTH_48B) ? 0x63a6 : 0x7e3b;
 		csc_scale = 1;
-	} else { /* input_color_format == COLORSPACE_RGB444 */
+	} else { /* input_color_format == HDMI_COLORSPACE_RGB */
 		csc_coeff_a1 = 0x2591;
 		csc_coeff_a2 = 0x1322;
 		csc_coeff_a3 = 0x074b;
@@ -2480,16 +2521,16 @@ static void hdmitx_csc_config(u8 input_color_format,
 	/* set csc in video path */
 	/* set rgb_ycc indicator */
 	switch (output_color_format) {
-	case COLORSPACE_RGB444:
+	case HDMI_COLORSPACE_RGB:
 		rgb_ycc_indicator = 0x0;
 		break;
-	case COLORSPACE_YUV422:
+	case HDMI_COLORSPACE_YUV422:
 		rgb_ycc_indicator = 0x1;
 		break;
-	case COLORSPACE_YUV420:
+	case HDMI_COLORSPACE_YUV420:
 		rgb_ycc_indicator = 0x3;
 		break;
-	case COLORSPACE_YUV444:
+	case HDMI_COLORSPACE_YUV444:
 	default:
 		rgb_ycc_indicator = 0x2;
 		break;
