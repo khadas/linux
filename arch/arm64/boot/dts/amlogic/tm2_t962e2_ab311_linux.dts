@@ -239,6 +239,7 @@
 		arc_port = <1>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
+		/* hdcp_tee_path = <1>; */
 		/* MAP_ADDR_MODULE_CBUS */
 		/* MAP_ADDR_MODULE_HIU */
 		/* MAP_ADDR_MODULE_HDMIRX_CAPB3 */
@@ -1529,7 +1530,7 @@
 };
 
 &fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x800000>;
 	logo_addr = "0x7f800000";
@@ -1588,6 +1589,24 @@
 
 &lut_dma {
 	status = "okay";
+};
+
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x7f800000";
+};
+
+&drm_amhdmitx {
+	status = "okay";
+	hdcp = "disabled";
+};
+
+&drm_amcvbsout {
+	status = "okay";
+};
+
+&drm_lcd {
+	status = "disabled";
 };
 
 &aml_bt {
