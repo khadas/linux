@@ -568,7 +568,7 @@ static void remote_function(void *data)
 
 	mhz = cpu_speed_test();
 
-	trace_printk("cpu[%d] cpu_mhz=%d\n", smp_processor_id(), mhz);
+	//trace_printk("cpu[%d] cpu_mhz=%d\n", smp_processor_id(), mhz);
 	if (test_mhz_console)
 		pr_info("cpu[%d] cpu_mhz=%d\n", smp_processor_id(), mhz);
 }
@@ -593,7 +593,7 @@ static enum hrtimer_restart test_mhz_hrtimer_func(struct hrtimer *timer)
 	cur_cpu = smp_processor_id();
 	cur_cluster = topology_physical_package_id(cur_cpu);
 
-	trace_printk("cpu[%d] cpu_mhz=%d\n", cur_cpu, mhz);
+	//trace_printk("cpu[%d] cpu_mhz=%d\n", cur_cpu, mhz);
 	if (test_mhz_console)
 		pr_info("cpu[%d] cpu_mhz=%d\n", cur_cpu, mhz);
 
