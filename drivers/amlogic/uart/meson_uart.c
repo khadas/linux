@@ -511,6 +511,7 @@ static int meson_uart_request_port(struct uart_port *port)
 	ret = devm_request_irq(port->dev, port->irq, meson_uart_interrupt,
 							IRQF_SHARED, port->name, port);
 	return 0;
+
 }
 
 static void meson_uart_config_port(struct uart_port *port, int flags)
