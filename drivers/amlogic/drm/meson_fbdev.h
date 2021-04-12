@@ -36,6 +36,7 @@ struct meson_drm_fbdev {
 	struct drm_plane *plane;
 	//struct am_meson_fb * fb;
 	struct drm_gem_object *fb_gem;
+	struct drm_mode_set modeset;
 	u32 zorder;
 	bool blank;
 };

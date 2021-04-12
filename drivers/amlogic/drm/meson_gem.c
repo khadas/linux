@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/dma-buf.h>
+#include <linux/ion.h>
 #include <linux/meson_ion.h>
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
@@ -203,7 +204,6 @@ int am_meson_gem_object_mmap(struct am_meson_gem_object *obj,
 {
 	int ret = 0;
 	struct ion_buffer *buffer = obj->ionbuffer;
-	struct dma_buf *dmabuf = obj->dmabuf;
 	struct ion_heap *heap = buffer->heap;
 
 	/*
@@ -217,15 +217,7 @@ int am_meson_gem_object_mmap(struct am_meson_gem_object *obj,
 	if (obj->base.import_attach) {
 		DRM_ERROR("Not support import buffer from other driver.\n");
 	} else {
-		if (!heap->buf_ops.mmap) {
-			DRM_DEBUG("heap does not define map to userspace\n");
-			if (!dmabuf->ops) {
-				DRM_ERROR("dmabuf->ops is NULL\n");
-				ret = -EINVAL;
-			} else {
-				ret = dmabuf->ops->mmap(dmabuf, vma);
-			}
-		}
+		ret = ion_heap_map_user(heap, buffer, vma);
 	}
 
 	if (ret) {
