@@ -464,6 +464,15 @@ static inline int aml_bl_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_DI_V4L
+int di_v4l_init(void);
+#else
+static inline int di_v4l_init(void)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 int dil_init(void);
 int di_module_init(void);

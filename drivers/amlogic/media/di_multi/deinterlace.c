@@ -3669,8 +3669,15 @@ void dim_pre_de_process(unsigned int channel)
 					      ppre->mcdi_enable);
 	}
 
-	if (dim_is_slt_mode())
-		DIM_DI_WR(0x2dff, 0xbeffc); //crc test
+	if (dim_is_slt_mode()) {
+		if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB) ||
+		    DIM_IS_IC(T5D)) {
+			DIM_DI_WR(0x2dff, 0x3e03c); //crc test for nr//0xbeffc
+		} else if (DIM_IS_IC_EF(SC2)) {
+			DIM_DI_WR(0x2dff, 0xbeffc); //crc test for nr
+			DIM_DI_WR(0x2d00, 0x0);
+		}
+	}
 	ppre->field_count_for_cont++;
 
 	if (ppre->field_count_for_cont >= 5)
@@ -3803,6 +3810,7 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 	unsigned int field_motnum = 0;
 	unsigned int pd_info = 0;
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
+	struct di_dev_s *de_devp = get_dim_de_devp();
 	struct di_ch_s *pch;
 	//struct di_buf_s *bufn;
 	//bool crc_right;
@@ -4164,6 +4172,27 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 		}
 	}
 	dim_ddbg_mod_save(EDI_DBG_MOD_PRE_DONEE, channel, ppre->in_seq);/*dbg*/
+
+	if (dimp_get(edi_mp_pstcrc_ctrl) == 1) {
+		if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB) ||
+		    DIM_IS_IC(T5D)) {
+			de_devp->di_pre_nrcrc[de_devp->setcrccount] =
+				RD(DI_T5_RO_CRC_NRWR);
+		} else if (DIM_IS_IC_EF(SC2)) {
+			de_devp->di_pre_nrcrc[de_devp->setcrccount] =
+				RD(DI_RO_CRC_NRWR);
+			DIM_DI_WR_REG_BITS(DI_CRC_CHK0,
+					   0x1, 31, 1);
+		}
+
+		dbg_post_ref("NRWR ==ch[=0x%x],index=%d\n",
+			     de_devp->di_pre_nrcrc[de_devp->setcrccount],
+			     de_devp->setcrccount);
+		if (de_devp->setcrccount < MAX_CRC_COUNT_NUM - 1)
+			de_devp->setcrccount++;
+		else
+			de_devp->setcrccount = 0;
+	}
 
 	dim_dbg_pre_cnt(channel, "d2");
 }
@@ -8445,7 +8474,7 @@ void dim_post_de_done_buf_config(unsigned int channel)
 	//2020-12-07	di_unlock_irqfiq_restore(irq_flag2);
 	dim_tr_ops.post_ready(di_buf->vframe->index_disp);
 	if (dimp_get(edi_mp_pstcrc_ctrl) == 1) {
-		if (DIM_IS_IC(T5) ||
+		if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB) ||
 		    DIM_IS_IC(T5D)) {
 			datacrc = RD(DI_T5_RO_CRC_DEINT);
 			//test crc DIM_DI_WR_REG_BITS(DI_T5_CRC_CHK0,
@@ -8458,6 +8487,14 @@ void dim_post_de_done_buf_config(unsigned int channel)
 		dbg_post_ref("DEINT ==ch[=0x%x]\n", datacrc);
 		//dbg_post_ref("irq p= 0x%p\n",ppost->cur_post_buf);
 		ppost->cur_post_buf->datacrc = datacrc;
+		ppost->cur_post_buf->nrcrc =
+			de_devp->di_pre_nrcrc[de_devp->getcrccount];
+		dbg_post_ref("DEINT ==ch[=0x%x],NRWR ==ch[=0x%x]\n",
+		     datacrc, ppost->cur_post_buf->nrcrc);
+		if (de_devp->getcrccount < MAX_CRC_COUNT_NUM - 1)
+			de_devp->getcrccount++;
+		else
+			de_devp->getcrccount = 0;
 	}
 	pch->itf.op_fill_ready(pch, ppost->cur_post_buf);
 	mtask_wake_m();
@@ -9607,6 +9644,8 @@ void di_unreg_variable(unsigned int channel)
 	pch->ponly	= 0;
 	dim_uninit_buf(mirror_disable, channel);
 	ndrd_reset(pch);
+	de_devp->getcrccount = 0;
+	de_devp->setcrccount = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (di_pre_rdma_enable)
 		rdma_clear(de_devp->rdma_handle);

@@ -78,6 +78,7 @@ source "drivers/amlogic/media/atv_demod/Kconfig"
 source "drivers/amlogic/media/avsync/Kconfig"
 source "drivers/amlogic/media/dtv_demod/Kconfig"
 source "drivers/amlogic/media/frc/Kconfig"
+source "drivers/amlogic/media/di_v4l/Kconfig"
 endif
 endmenu
 

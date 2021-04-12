@@ -201,5 +201,6 @@
 #define AMSYNC_MAJOR		(24 + (AML_BASE))
 #define AMSYNC_SESSION_MAJOR	(25 + (AML_BASE))
 #define VIDEOQUEUE_MAJOR    (26 + (AML_BASE))
+#define DI_V4L_MAJOR            (27 + (AML_BASE))
 
 #endif

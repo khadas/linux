@@ -4710,8 +4710,9 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 			else
 				dis->c.dbuff.flag |= DI_FLAG_P;
 			dis->c.dbuff.crcout = di_buf->datacrc;
-			//dbg_post_ref("00%s: %d\n", __func__, di_buf->datacrc);
-			//dbg_post_ref("fill p= 0x%p\n",di_buf);
+			dis->c.dbuff.nrcrcout = di_buf->nrcrc;
+			dbg_post_ref("00%s: %x\n", __func__, di_buf->datacrc);
+			dbg_post_ref("01%s: %x\n", __func__, di_buf->nrcrc);
 			ndrd_qin(pch, &dis->c.dbuff);
 			dim_tr_ops.post_get(dis->c.dbuff.vf->index_disp);
 		} else {
@@ -4733,8 +4734,10 @@ static bool ndis_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 			//di_buf->vframe, sizeof(*dis->c.pbuff->vf));
 			dis->c.pbuff->private_data = dis;
 			dis->c.pbuff->caller_data = pch->itf.u.dinst.parm.caller_data;
-			//dbg_post_ref("%s: %d\n", __func__, di_buf->datacrc);
+			dbg_post_ref("02%s: %x\n", __func__, di_buf->datacrc);
+			dbg_post_ref("03%s: %x\n", __func__, di_buf->nrcrc);
 			dis->c.dbuff.crcout = di_buf->datacrc;
+			dis->c.dbuff.nrcrcout = di_buf->nrcrc;
 			ndrd_qin(pch, &dis->c.pbuff);
 		}
 	}
@@ -4872,7 +4875,8 @@ static bool ndrd_m1_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 	else
 		buffer->flag |= DI_FLAG_P;
 	buffer->crcout = di_buf->datacrc;
-	dbg_post_ref("%s: %d\n", __func__, di_buf->datacrc);
+	buffer->nrcrcout = di_buf->nrcrc;
+	dbg_post_ref("%s: %x, %x\n", __func__, di_buf->datacrc, di_buf->nrcrc);
 	di_buf_clear(pch, di_buf);
 	di_que_in(pch->ch_id, QUE_PST_NO_BUF_WAIT, di_buf);
 	ndrd_qin(pch, buffer);
