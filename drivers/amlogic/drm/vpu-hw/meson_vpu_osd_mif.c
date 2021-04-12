@@ -17,6 +17,10 @@
 #include "meson_vpu_reg.h"
 #include "meson_vpu_util.h"
 
+static int osd_hold_line = 8;
+module_param(osd_hold_line, int, 0664);
+MODULE_PARM_DESC(osd_hold_line, "osd_hold_line");
+
 static struct osd_mif_reg_s osd_mif_reg[HW_OSD_MIF_NUM] = {
 	{
 		VIU_OSD1_CTRL_STAT,
@@ -264,6 +268,18 @@ static u8 meson_drm_format_alpha_replace(u32 format, bool afbc_en)
 
 	info = meson_drm_format_info(format, afbc_en);
 	return info ? info->alpha_replace : 0;
+}
+
+/*osd hold line config*/
+void ods_hold_line_config(struct osd_mif_reg_s *reg, int hold_line)
+{
+	u32 data = 0, value = 0;
+
+	data = meson_drm_read_reg(reg->viu_osd_fifo_ctrl_stat);
+	value = (data >> 5) & 0x1f;
+	if (value != hold_line)
+		meson_vpu_write_reg_bits(reg->viu_osd_fifo_ctrl_stat,
+					 hold_line & 0x1f, 5, 5);
 }
 
 /*osd input size config*/
@@ -518,24 +534,39 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	char name_buf[64];
 	struct drm_crtc *crtc;
 	struct am_meson_crtc *amc;
-	struct meson_vpu_osd *osd = to_osd_block(vblk);
-	struct meson_vpu_osd_state *mvos = to_osd_state(state);
+	struct meson_vpu_osd *osd;
+	struct meson_vpu_osd_state *mvos;
 	u32 pixel_format, canvas_index, src_h, byte_stride;
 	struct osd_scope_s scope_src = {0, 1919, 0, 1079};
-	struct osd_mif_reg_s *reg = osd->reg;
+	struct osd_mif_reg_s *reg;
 	bool alpha_div_en = 0, reverse_x, reverse_y, afbc_en;
 	bool bflg = false;
 	void *buff = NULL;
 	u64 phy_addr;
 	u16 global_alpha = 256; /*range 0~256*/
 
-	crtc = vblk->pipeline->crtc;
-	amc = to_am_meson_crtc(crtc);
 
-	if (!vblk) {
+	if (!vblk || !state) {
 		DRM_DEBUG("set_state break for NULL.\n");
 		return;
 	}
+
+	osd = to_osd_block(vblk);
+	mvos = to_osd_state(state);
+
+	reg = osd->reg;
+	if (!reg) {
+		DRM_DEBUG("set_state break for NULL OSD mixer reg.\n");
+		return;
+	}
+
+	crtc = vblk->pipeline->crtc;
+	if (!crtc) {
+		DRM_DEBUG("set_state break for NULL crtc.\n");
+		return;
+	}
+
+	amc = to_am_meson_crtc(crtc);
 
 	DRM_DEBUG("%s - %d %s called.\n", osd->base.name, vblk->index, __func__);
 
@@ -571,6 +602,7 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	osd_afbc_config(reg, vblk->index, afbc_en);
 	osd_premult_enable(reg, alpha_div_en);
 	osd_global_alpha_set(reg, global_alpha);
+	ods_hold_line_config(reg, osd_hold_line);
 
 	DRM_DEBUG("plane_index=%d,HW-OSD=%d\n",
 		  mvos->plane_index, vblk->index);
