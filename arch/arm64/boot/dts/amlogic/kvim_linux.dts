@@ -845,7 +845,7 @@
 		reg = <0x0 0xc8832000 0x0 0x14>;
 		status = "okay";
 	};
-	aml_sound_meson {
+	aml_sound: aml_sound_meson {
 		compatible = "aml, meson-snd-card";
 		status = "okay";
 		aml-sound-card,format = "i2s";
@@ -856,8 +856,6 @@
 
 		hp_disable;
 		hp_paraments = <800 300 0 5 1>;
-		pinctrl-names = "audio_i2s";
-		pinctrl-0 = <&audio_i2s_pins>;
 		cpu_list = <&cpudai0 &cpudai1 &cpudai2>;
 		codec_list = <&codec0 &codec1 &codec2>;
 		plat_list = <&i2s_plat &i2s_plat &pcm_plat>;
@@ -1222,5 +1220,10 @@
 };
 
 &uart_AO_B {
+	status = "disabled";
+};
+
+&wdt {
+	reset_watchdog_method = <0>; /* 0:sysfs,1:kernel */
 	status = "disabled";
 };

@@ -263,7 +263,7 @@
 		interrupts = <GIC_PPI 9 0xf04>;
 	};
 
-	watchdog {
+	wdt: watchdog {
 		compatible = "amlogic, meson-wdt";
 		status = "okay";
 		default_timeout=<10>;

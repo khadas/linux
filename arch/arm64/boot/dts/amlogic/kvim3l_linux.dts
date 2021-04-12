@@ -618,11 +618,11 @@
 		status = "okay";
 	};
 
-	auge_sound {
+	aml_sound: auge_sound {
 		compatible = "amlogic, g12a-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
-		aml-audio-card,dai-link@0 {
+		aml-audio-card,dai-link@1 {
 			mclk-fs = <128>;
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
@@ -637,7 +637,7 @@
 			};
 		};
 
-		aml-audio-card,dai-link@1 {
+		aml-audio-card,dai-link@2 {
 			format = "dsp_a";
 			mclk-fs = <512>;
 			//continuous-clock;
@@ -664,43 +664,6 @@
 			};
 			tdmacodec: codec {
 				sound-dai = <&dummy_codec>;
-			};
-		};
-
-		aml-audio-card,dai-link@2 {
-			format = "i2s";// "dsp_a";
-			mclk-fs = <256>;
-			//continuous-clock;
-			//bitclock-inversion;
-			//frame-inversion;
-			/* master mode */
-			bitclock-master = <&tdmb>;
-			frame-master = <&tdmb>;
-			/* slave mode */
-			//bitclock-master = <&tdmbcodec>;
-			//frame-master = <&tdmbcodec>;
-			/* suffix-name, sync with android audio hal
-			 * what's the dai link used for
-			 */
-			suffix-name = "alsaPORT-i2s";
-			cpu {
-				sound-dai = <&tdmb>;
-				dai-tdm-slot-tx-mask = <1 1>;
-				dai-tdm-slot-rx-mask = <1 1>;
-				dai-tdm-slot-num = <2>;
-				/*
-				 * dai-tdm-slot-tx-mask =
-				 *	<1 1 1 1 1 1 1 1>;
-				 * dai-tdm-slot-rx-mask =
-				 *	<1 1 1 1 1 1 1 1>;
-				 * dai-tdm-slot-num = <8>;
-				 */
-				dai-tdm-slot-width = <32>;
-				system-clock-frequency = <12288000>;
-			};
-			tdmbcodec: codec {
-				sound-dai = <&dummy_codec &dummy_codec
-				&amlogic_codec>;
 			};
 		};
 
@@ -1188,7 +1151,7 @@
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	tdmc: tdm@2 {
@@ -1833,4 +1796,9 @@
 		spi-max-frequency = <100000000>;
 		reg = <0>;
 	};
+};
+
+&wdt {
+	reset_watchdog_method = <0>; /* 0:sysfs,1:kernel */
+	status = "disabled";
 };
