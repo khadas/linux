@@ -792,6 +792,148 @@
 			GIC_SPI 194 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vsync", "vsync_viu2";
 	};
+
+	cpu_tsensor: cpu_tsensor@fe022000 {
+		compatible = "amlogic, r1p1-tsensor";
+		status = "okay";
+		reg = <0x0 0xfe022000 0x0 0x50>;
+		tsensor_id = <1>;
+		cal_type = <0x11>;
+		cal_coeff = <324 424 3159 9411>;
+		rtemp = <115000>;
+		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CLKID_TS_CLK>;
+		clock-names = "ts_comp";
+		#thermal-sensor-cells = <1>;
+	};
+
+	nna_tsensor: a53_tsensor@fe020000 {
+		compatible = "amlogic, r1p1-tsensor";
+		status = "okay";
+		reg = <0x0 0xfe020000 0x0 0x50>;
+		tsensor_id = <2>;
+		cal_type = <0x11>;
+		cal_coeff = <324 424 3159 9411>;
+		rtemp = <115000>;
+		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CLKID_TS_CLK>;
+		clock-names = "ts_comp";
+		#thermal-sensor-cells = <1>;
+	};
+
+	vpu_tsensor: gpu_tsensor@fe01c000 {
+		compatible = "amlogic, r1p1-tsensor";
+		status = "okay";
+		reg = <0x0 0xfe01c000 0x0 0x50>;
+		tsensor_id = <3>;
+		cal_type = <0x11>;
+		cal_coeff = <324 424 3159 9411>;
+		rtemp = <115000>;
+		interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CLKID_TS_CLK>;
+		clock-names = "ts_comp";
+		#thermal-sensor-cells = <1>;
+	};
+
+//	meson_cooldev: meson-cooldev@0 {
+//		status = "okay";
+//		compatible = "amlogic, meson-cooldev";
+//		cooling_devices {
+//			cpucore_cool_cluster0 {
+//				cluster_id = <0>;
+//				node_name = "cpucore_cool0";
+//				device_type = "cpucore";
+//			};
+//			cpucore_cool_cluster1 {
+//				cluster_id = <1>;
+//				node_name = "cpucore_cool1";
+//				device_type = "cpucore";
+//			};
+//			gpufreq_cool {
+//				dyn_coeff = <358>;
+//				node_name = "bifrost";
+//				device_type = "gpufreq";
+//			};
+//		};
+//		cpucore_cool0:cpucore_cool0 {
+//			#cooling-cells = <2>;
+//		};
+//		cpucore_cool1:cpucore_cool1 {
+//			#cooling-cells = <2>;
+//		};
+//	};/*meson cooling devices end*/
+
+	thermal-zones {
+		soc_thermal: soc_thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			sustainable-power = <5160>;
+			thermal-sensors = <&cpu_tsensor 0>;
+			trips {
+				cpuswitch_on: trip-point@0 {
+					temperature = <80000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				cpucontrol: trip-point@1 {
+					temperature = <90000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				cpucritical: trip-point@2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
+		nna_thermal: nna_thermal {
+			polling-delay = <2000>;
+			polling-delay-passive = <1000>;
+			sustainable-power = <960>;
+			thermal-sensors = <&nna_tsensor 1>;
+			trips {
+				nnaswitch_on: trip-point@0 {
+					temperature = <90000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				nnacontrol: trip-point@1 {
+					temperature = <100000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				nnacritical: trip-point@2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
+		vpu_thermal: vpu_thermal {
+			polling-delay = <2000>;
+			polling-delay-passive = <1000>;
+			sustainable-power = <400>;
+			thermal-sensors = <&vpu_tsensor 2>;
+			trips {
+				vpuswitch_on: trip-point@0 {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				vpucontrol: trip-point@1 {
+					temperature = <95000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				vpucritical: trip-point@2 {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
+	};/*thermal zone end*/
 };
 
 &periphs_pinctrl {

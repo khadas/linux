@@ -19,6 +19,9 @@
 
 	aliases {
 		serial0 = &uart_B;
+		tsensor0 = &cpu_tsensor;
+		tsensor1 = &nna_tsensor;
+		tsensor2 = &vpu_tsensor;
 	};
 
 	memory@00000000 {
