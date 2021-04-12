@@ -194,7 +194,7 @@
 	secmon {
 		compatible = "amlogic,meson-gxbb-sm";
 		memory-region = <&secmon_reserved>;
-		reserve_mem_size = <0x03300000>;
+		reserve_mem_size = <0x00300000>;
 	};
 
 	xtal: xtal-clk {
@@ -530,7 +530,7 @@
 			eth_phy: mdio-multiplexer@28000 {
 				compatible = "amlogic,g12a-mdio-mux";
 				reg = <0x0 0x28000 0x0 0xa4>;
-
+				status = "disabled";
 				clocks = <&clkc CLKID_ETHPHY>,
 					 <&xtal>,
 					 <&clkc CLKID_MPLL_50M>;
@@ -1196,7 +1196,7 @@
 
 	codec_io: codec_io {
 		compatible = "amlogic, meson-t7, codec-io";
-		status = "okay";
+		status = "disabled";
 		#address-cells=<2>;
 		#size-cells=<2>;
 		ranges;
@@ -1261,7 +1261,7 @@
 	};
 	vpu: vpu {
 		compatible = "amlogic, vpu-t7";
-		status = "okay";
+		status = "disabled";
 		reg =	<0x0 0xfe000000 0x0 0x100    /* clk */
 			 0x0 0xfe00c000 0x0 0x70     /* pwrctrl */
 			 0x0 0xff000000 0x0 0xa000>; /* vcbus */
@@ -1282,7 +1282,7 @@
 
 	rdma{
 		compatible = "amlogic, meson-t7, rdma";
-		status = "okay";
+		status = "disabled";
 		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "rdma";
 		/* after sc2 */
@@ -1304,7 +1304,7 @@
 
 	vout: vout {
 		compatible = "amlogic, vout";
-		status = "okay";
+		status = "disabled";
 
 		/* fr_policy:
 		 *    0: disable

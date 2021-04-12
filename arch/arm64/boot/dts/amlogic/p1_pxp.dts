@@ -8,7 +8,7 @@
 #include "mesonp1.dtsi"
 #include "partition_mbox.dtsi"
 #include <dt-bindings/input/input.h>
-#include "mesont7_pxp-panel.dtsi"
+//#include "mesont7_pxp-panel.dtsi"
 
 / {
 	model = "Amlogic";
@@ -48,9 +48,9 @@
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x3400000>;
+			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x05000000 0x0 0x3400000>;
+			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -917,7 +917,7 @@
 
 /* SD card */
 &sd_emmc_b {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&sd_all_pins>;
 	pinctrl-1 = <&sd_1bit_pins>;
 	pinctrl-2 = <&sd_clk_gate_pins>;
@@ -942,7 +942,7 @@
 };
 
 &sd_emmc_c {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -996,7 +996,7 @@
 };
 
 &fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x100000>;
 	logo_addr = "0x3f800000";
