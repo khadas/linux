@@ -4429,6 +4429,53 @@ static struct clk_regmap t3_spicc1 = {
 	},
 };
 
+static struct clk_regmap t3_spicc2_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = CLKCTRL_SPICC_CLK_CTRL1,
+		.mask = 0x7,
+		.shift = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "spicc2_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = t3_spicc_parent_hws,
+		.num_parents = ARRAY_SIZE(t3_spicc_parent_hws),
+	},
+};
+
+static struct clk_regmap t3_spicc2_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = CLKCTRL_SPICC_CLK_CTRL1,
+		.shift = 0,
+		.width = 6,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "spicc2_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_spicc2_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap t3_spicc2 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_SPICC_CLK_CTRL1,
+		.bit_idx = 6,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "spicc2",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_spicc2_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 /* pwm clk */
 /* TODO: need add t3_vid_pll */
 static const struct clk_parent_data t3_pwm_parent_data[] = {
@@ -6083,6 +6130,9 @@ static struct clk_hw_onecell_data t3_hw_onecell_data = {
 		[CLKID_SPICC1_SEL]			= &t3_spicc1_sel.hw,
 		[CLKID_SPICC1_DIV]			= &t3_spicc1_div.hw,
 		[CLKID_SPICC1]				= &t3_spicc1.hw,
+		[CLKID_SPICC2_SEL]			= &t3_spicc2_sel.hw,
+		[CLKID_SPICC2_DIV]			= &t3_spicc2_div.hw,
+		[CLKID_SPICC2]				= &t3_spicc2.hw,
 		[CLKID_PWM_A_SEL]			= &t3_pwm_a_sel.hw,
 		[CLKID_PWM_A_DIV]			= &t3_pwm_a_div.hw,
 		[CLKID_PWM_A]				= &t3_pwm_a.hw,
@@ -6404,6 +6454,9 @@ static struct clk_regmap *const t3_clk_regmaps[] = {
 	&t3_spicc1_sel,
 	&t3_spicc1_div,
 	&t3_spicc1,
+	&t3_spicc2_sel,
+	&t3_spicc2_div,
+	&t3_spicc2,
 	&t3_pwm_a_sel,
 	&t3_pwm_a_div,
 	&t3_pwm_a,
