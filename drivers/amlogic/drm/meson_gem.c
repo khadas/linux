@@ -584,6 +584,7 @@ struct dma_buf *am_meson_drm_gem_prime_export(struct drm_gem_object *obj,
 			info.obj = &meson_gem_obj->ubo;
 			info.free = am_meson_drm_gem_unref_uvm;
 			dmabuf_bind_uvm_alloc(dmabuf, &info);
+			drm_gem_object_get(obj);
 
 			if (meson_gem_obj->is_afbc ||
 			    meson_gem_obj->is_secure) {
