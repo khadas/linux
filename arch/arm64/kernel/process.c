@@ -321,6 +321,16 @@ static void show_user_data(unsigned long addr, int nbytes, const char *name)
 	if (!access_ok((void *)addr, nbytes))
 		return;
 
+#ifdef CONFIG_AMLOGIC_SEC
+	/*
+	 * filter out secure monitor region
+	 */
+	if (within_secmon_region(addr)) {
+		pr_info("\n%s: %#lx S\n", name, addr);
+		return;
+	}
+#endif
+
 	pr_info("\n%s: %#lx:\n", name, addr);
 
 	/*
