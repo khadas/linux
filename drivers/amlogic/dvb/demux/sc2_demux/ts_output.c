@@ -1448,12 +1448,9 @@ static int write_sec_video_es_data(struct out_elem *pout,
 		pr_dbg("video data start:0x%x,data end:0x%x\n",
 				sec_es_data.data_start, sec_es_data.data_end);
 
-	if (sec_es_data.data_start > sec_es_data.buf_end)
-		pr_dbg("video data start:0x%x, buf end:0x%x\n",
-			sec_es_data.data_start, sec_es_data.buf_end);
-
-	pr_dbg("video pid:0x%0x pdts_flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
+	pr_dbg("video pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
 			pout->es_pes->pid,
+			pout->sid,
 			sec_es_data.pts_dts_flag,
 			(unsigned long)sec_es_data.pts,
 			(unsigned long)sec_es_data.dts,
