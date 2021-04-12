@@ -1519,6 +1519,10 @@ static int ge2d_probe(struct platform_device *pdev)
 
 	if (ge2d_meson_dev.has_self_pwr)
 		pm_runtime_enable(&pdev->dev);
+
+	/* 8g memory support */
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 failed1:
 	return ret;
 }
