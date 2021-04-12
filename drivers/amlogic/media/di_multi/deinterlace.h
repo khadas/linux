@@ -74,6 +74,8 @@
 
 #define DI_POST_GET_LIMIT			8
 #define DI_PRE_READY_LIMIT			4
+/* nrcrc count for slt */
+#define MAX_CRC_COUNT_NUM				(10)
 /*vframe define*/
 #define vframe_t struct vframe_s
 
@@ -304,6 +306,7 @@ struct di_buf_s {
 	unsigned int rev2	: 16;
 	struct dsub_bufv_s	c;
 	unsigned int datacrc;
+	unsigned int nrcrc;
 	bool hf_irq;
 };
 
@@ -418,6 +421,9 @@ struct di_dev_s {
 	struct vpu_dev_s *dim_vpu_pd_dec1;
 	struct vpu_dev_s *dim_vpu_pd_vd1;
 	struct vpu_dev_s *dim_vpu_pd_post;
+	unsigned int di_pre_nrcrc[MAX_CRC_COUNT_NUM];
+	unsigned int getcrccount;
+	unsigned int setcrccount;
 };
 
 struct di_pre_stru_s {

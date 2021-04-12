@@ -18099,6 +18099,13 @@ L:	linux-mm@kvack.org
 S:	Maintained
 F:	mm/zswap.c
 
+AMLOGIC DI V4L
+M:	Jintao.Xu <jintao.xu@amlogic.com>
+F:	drivers/amlogic/media/di_v4l/Kconfig
+F:	drivers/amlogic/media/di_v4l/Makefile
+F:	drivers/amlogic/media/di_v4l/di_v4l.c
+F:	drivers/amlogic/media/di_v4l/di_v4l.h
+
 THE REST
 M:	Linus Torvalds <torvalds@linux-foundation.org>
 L:	linux-kernel@vger.kernel.org

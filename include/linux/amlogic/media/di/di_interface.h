@@ -48,6 +48,7 @@ struct di_buffer {
 	void *caller_data; /*from di_init_parm.caller_data*/
 	u32 flag;
 	unsigned int crcout;
+	unsigned int nrcrcout;
 };
 
 enum DI_FLAG {

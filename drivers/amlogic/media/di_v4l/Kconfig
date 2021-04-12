@@ -1,0 +1,19 @@
+#
+# Amlogic v4lvideo device configuration
+#
+
+menu "Amlogic di v4l support"
+
+config AMLOGIC_DI_V4L
+	tristate "Amlogic di v4l device support"
+	depends on VIDEO_DEV
+	depends on VIDEO_V4L2
+	depends on VIDEOBUF2_CORE
+	depends on VIDEOBUF2_MEMOPS
+	depends on DMA_SHARED_BUFFER
+	default n
+
+	help
+		Select to enable "Amlogic di v4l device support.
+
+endmenu
