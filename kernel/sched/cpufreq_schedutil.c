@@ -14,6 +14,11 @@
 #include <trace/events/power.h>
 #include <trace/hooks/sched.h>
 
+#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_CPUFREQ
+#include <trace/events/meson_atrace.h>
+#endif
+
 #define IOWAIT_BOOST_MIN	(SCHED_CAPACITY_SCALE / 8)
 
 struct sugov_tunables {
@@ -461,6 +466,9 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	unsigned long util, max;
 	unsigned int next_f;
 	bool busy;
+#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+	char atrace_name[20];
+#endif
 
 	sugov_iowait_boost(sg_cpu, time, flags);
 	sg_cpu->last_update = time;
@@ -475,6 +483,10 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 
 	util = sugov_get_util(sg_cpu);
 	max = sg_cpu->max;
+#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+	snprintf(atrace_name, sizeof(atrace_name), "cpu%d_util_single", sg_cpu->cpu);
+	ATRACE_COUNTER(atrace_name, util * 100 / max);
+#endif
 	util = sugov_iowait_apply(sg_cpu, time, util, max);
 	next_f = get_next_freq(sg_policy, util, max);
 	/*
@@ -508,6 +520,10 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 	struct cpufreq_policy *policy = sg_policy->policy;
 	unsigned long util = 0, max = 1;
 	unsigned int j;
+#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+	unsigned int next_freq;
+	char atrace_name[20];
+#endif
 
 	for_each_cpu(j, policy->cpus) {
 		struct sugov_cpu *j_sg_cpu = &per_cpu(sugov_cpu, j);
@@ -517,13 +533,26 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 		j_max = j_sg_cpu->max;
 		j_util = sugov_iowait_apply(j_sg_cpu, time, j_util, j_max);
 
+#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+		//get cpu number
+		snprintf(atrace_name, sizeof(atrace_name), "cpu%d_util", j);
+		ATRACE_COUNTER(atrace_name, j_util * 100 / j_max);
+#endif
 		if (j_util * max > j_max * util) {
 			util = j_util;
 			max = j_max;
 		}
 	}
 
+#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+	ATRACE_COUNTER("util_max", util * 100 / max);
+	next_freq = get_next_freq(sg_policy, util, max);
+	ATRACE_COUNTER("target_freq", next_freq / 1000);
+
+	return next_freq;
+#else
 	return get_next_freq(sg_policy, util, max);
+#endif
 }
 
 static void
