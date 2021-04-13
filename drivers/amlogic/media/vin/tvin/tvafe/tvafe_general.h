@@ -15,6 +15,7 @@
 /* ************************************ */
 
 #define HHI_ANA_CLK_BASE	0xff6463cc
+#define ATV_DMD_SYS_CLK_CNTL    0xfe000218
 
 /* reg need in tvafe_general.c */
 #define HHI_VDAC_CNTL0			0xbd
@@ -138,6 +139,7 @@ enum tvafe_cpu_type {
 	TVAFE_CPU_TYPE_TM2_B  = 5,
 	TVAFE_CPU_TYPE_T5  = 6,
 	TVAFE_CPU_TYPE_T5D  = 7,
+	TVAFE_CPU_TYPE_T3  = 8,
 	TVAFE_CPU_TYPE_MAX,
 };
 

@@ -10,6 +10,7 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 
+#define ANACTRL_CVBS_DETECT_CNTL 0x9f
 #define HHI_CVBS_DETECT_CNTL	0x2e
 #define AFE_DETECT_RSV3_BIT		31
 #define AFE_DETECT_RSV3_WIDTH	1
@@ -124,6 +125,7 @@ enum avin_cpu_type {
 	AVIN_CPU_TYPE_TM2   = 4,
 	AVIN_CPU_TYPE_T5    = 5,
 	AVIN_CPU_TYPE_T5D   = 6,
+	AVIN_CPU_TYPE_T3   = 7,
 	AVIN_CPU_TYPE_MAX,
 };
 

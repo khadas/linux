@@ -1618,6 +1618,14 @@ static struct meson_tvafe_data meson_t5d_tvafe_data = {
 	.rf_pq_conf = NULL,
 };
 
+static struct meson_tvafe_data meson_t3_tvafe_data = {
+	.cpu_id = TVAFE_CPU_TYPE_T3,
+	.name = "meson-t3-tvafe",
+
+	.cvbs_pq_conf = NULL,
+	.rf_pq_conf = NULL,
+};
+
 static const struct of_device_id meson_tvafe_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -1637,6 +1645,9 @@ static const struct of_device_id meson_tvafe_dt_match[] = {
 	}, {
 		.compatible = "amlogic, tvafe-t5d",
 		.data		= &meson_t5d_tvafe_data,
+	}, {
+		.compatible = "amlogic, tvafe-t3",
+		.data		= &meson_t3_tvafe_data,
 	},
 	{}
 };
@@ -1652,6 +1663,7 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	/*int offset, size, mem_size_m;*/
 	struct resource *res;
 	const struct of_device_id *match;
+	unsigned int sys_clk_reg_base = HHI_ANA_CLK_BASE;
 	/* struct tvin_frontend_s * frontend; */
 
 	match = of_match_device(meson_tvafe_dt_match, &pdev->dev);
@@ -1821,7 +1833,12 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 
 	tvafe_user_parameters_config(pdev->dev.of_node);
 
-	ana_addr = ioremap_nocache(HHI_ANA_CLK_BASE, 0x5);
+	if ((tvafe_cpu_type() == TVAFE_CPU_TYPE_T5) ||
+	    (tvafe_cpu_type() == TVAFE_CPU_TYPE_T5D))
+		sys_clk_reg_base = HHI_ANA_CLK_BASE;
+	else if (tvafe_cpu_type() == TVAFE_CPU_TYPE_T3)
+		sys_clk_reg_base = ATV_DMD_SYS_CLK_CNTL;
+	ana_addr = ioremap_nocache(sys_clk_reg_base, 0x5);
 	if (!ana_addr) {
 		tvafe_pr_err("ana ioremap failure\n");
 		return -ENOMEM;

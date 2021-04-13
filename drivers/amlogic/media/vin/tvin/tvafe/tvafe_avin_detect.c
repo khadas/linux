@@ -99,6 +99,8 @@ static struct tvafe_avin_det_s *avdev;
 static struct meson_avin_data *meson_data;
 static DECLARE_WAIT_QUEUE_HEAD(tvafe_avin_waitq);
 
+static unsigned int cvbs_detect_cntl = HHI_CVBS_DETECT_CNTL;
+
 static int tvafe_avin_dts_parse(struct platform_device *pdev)
 {
 	int ret;
@@ -209,11 +211,11 @@ void tvafe_avin_detect_ch1_anlog_enable(bool enable)
 
 	/*txlx,txhd,tl1 the same bit:0 for ch1 en detect*/
 	if (enable) {
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1,
+		W_HIU_BIT(cvbs_detect_cntl, 1,
 			AFE_CH1_EN_DETECT_BIT, AFE_CH1_EN_DETECT_WIDTH);
 		avin_detect_flag |= AVIN_DETECT_CH1_EN;
 	} else {
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0,
+		W_HIU_BIT(cvbs_detect_cntl, 0,
 			AFE_CH1_EN_DETECT_BIT, AFE_CH1_EN_DETECT_WIDTH);
 		avin_detect_flag &= ~AVIN_DETECT_CH1_EN;
 	}
@@ -240,18 +242,18 @@ void tvafe_avin_detect_ch2_anlog_enable(bool enable)
 
 	if (enable) {
 		if (meson_data)
-			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1,
+			W_HIU_BIT(cvbs_detect_cntl, 1,
 			AFE_TL_CH2_EN_DETECT_BIT, AFE_TL_CH2_EN_DETECT_WIDTH);
 		else
-			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1,
+			W_HIU_BIT(cvbs_detect_cntl, 1,
 			AFE_CH2_EN_DETECT_BIT, AFE_CH2_EN_DETECT_WIDTH);
 		avin_detect_flag |= AVIN_DETECT_CH2_EN;
 	} else {
 		if (meson_data)
-			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0,
+			W_HIU_BIT(cvbs_detect_cntl, 0,
 			AFE_TL_CH2_EN_DETECT_BIT, AFE_TL_CH2_EN_DETECT_WIDTH);
 		else
-			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0,
+			W_HIU_BIT(cvbs_detect_cntl, 0,
 			AFE_CH2_EN_DETECT_BIT, AFE_CH2_EN_DETECT_WIDTH);
 		avin_detect_flag &= ~AVIN_DETECT_CH2_EN;
 	}
@@ -278,14 +280,14 @@ void tvafe_cha1_SYNCTIP_close_config(void)
 		tvafe_pr_info("%s\n", __func__);
 
 	if (meson_data) {
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0, AFE_CH1_EN_DC_BIAS_BIT,
+		W_HIU_BIT(cvbs_detect_cntl, 0, AFE_CH1_EN_DC_BIAS_BIT,
 			AFE_CH1_EN_DC_BIAS_WIDTH);
 	} else {
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0, AFE_CH1_EN_SYNC_TIP_BIT,
+		W_HIU_BIT(cvbs_detect_cntl, 0, AFE_CH1_EN_SYNC_TIP_BIT,
 			AFE_CH1_EN_SYNC_TIP_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, avplay_sync_level,
+		W_HIU_BIT(cvbs_detect_cntl, avplay_sync_level,
 		AFE_CH1_SYNC_LEVEL_ADJ_BIT, AFE_CH1_SYNC_LEVEL_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1,
+		W_HIU_BIT(cvbs_detect_cntl, 1,
 			AFE_CH1_SYNC_HYS_ADJ_BIT, AFE_CH1_SYNC_HYS_ADJ_WIDTH);
 	}
 	avin_detect_flag &= ~AVIN_DETECT_CH1_SYNC_TIP;
@@ -311,14 +313,14 @@ void tvafe_cha2_SYNCTIP_close_config(void)
 		tvafe_pr_info("%s\n", __func__);
 
 	if (meson_data) {
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0, AFE_CH2_EN_DC_BIAS_BIT,
+		W_HIU_BIT(cvbs_detect_cntl, 0, AFE_CH2_EN_DC_BIAS_BIT,
 			AFE_CH2_EN_DC_BIAS_WIDTH);
 	} else {
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0, AFE_CH2_EN_SYNC_TIP_BIT,
+		W_HIU_BIT(cvbs_detect_cntl, 0, AFE_CH2_EN_SYNC_TIP_BIT,
 			AFE_CH2_EN_SYNC_TIP_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, avplay_sync_level,
+		W_HIU_BIT(cvbs_detect_cntl, avplay_sync_level,
 		AFE_CH2_SYNC_LEVEL_ADJ_BIT, AFE_CH2_SYNC_LEVEL_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0,
+		W_HIU_BIT(cvbs_detect_cntl, 0,
 			AFE_CH2_SYNC_HYS_ADJ_BIT, AFE_CH2_SYNC_HYS_ADJ_WIDTH);
 	}
 	avin_detect_flag &= ~AVIN_DETECT_CH2_SYNC_TIP;
@@ -346,14 +348,14 @@ void tvafe_cha1_detect_restart_config(void)
 		tvafe_pr_info("%s\n", __func__);
 
 	if (meson_data) {
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH1_EN_DC_BIAS_BIT,
+		W_HIU_BIT(cvbs_detect_cntl, 1, AFE_CH1_EN_DC_BIAS_BIT,
 			AFE_CH1_EN_DC_BIAS_WIDTH);
 	} else {
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH1_EN_SYNC_TIP_BIT,
+		W_HIU_BIT(cvbs_detect_cntl, 1, AFE_CH1_EN_SYNC_TIP_BIT,
 			AFE_CH1_EN_SYNC_TIP_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, sync_level,
+		W_HIU_BIT(cvbs_detect_cntl, sync_level,
 		AFE_CH1_SYNC_LEVEL_ADJ_BIT, AFE_CH1_SYNC_LEVEL_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, sync_hys_adj,
+		W_HIU_BIT(cvbs_detect_cntl, sync_hys_adj,
 			AFE_CH1_SYNC_HYS_ADJ_BIT, AFE_CH1_SYNC_HYS_ADJ_WIDTH);
 	}
 	avin_detect_flag |= AVIN_DETECT_CH1_SYNC_TIP;
@@ -379,14 +381,14 @@ void tvafe_cha2_detect_restart_config(void)
 		tvafe_pr_info("%s\n", __func__);
 
 	if (meson_data) {
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH2_EN_DC_BIAS_BIT,
+		W_HIU_BIT(cvbs_detect_cntl, 1, AFE_CH2_EN_DC_BIAS_BIT,
 			AFE_CH2_EN_DC_BIAS_WIDTH);
 	} else {
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH2_EN_SYNC_TIP_BIT,
+		W_HIU_BIT(cvbs_detect_cntl, 1, AFE_CH2_EN_SYNC_TIP_BIT,
 			AFE_CH2_EN_SYNC_TIP_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, sync_level,
+		W_HIU_BIT(cvbs_detect_cntl, sync_level,
 		AFE_CH2_SYNC_LEVEL_ADJ_BIT, AFE_CH2_SYNC_LEVEL_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, sync_hys_adj,
+		W_HIU_BIT(cvbs_detect_cntl, sync_hys_adj,
 			AFE_CH2_SYNC_HYS_ADJ_BIT, AFE_CH2_SYNC_HYS_ADJ_WIDTH);
 	}
 	avin_detect_flag |= AVIN_DETECT_CH2_SYNC_TIP;
@@ -430,58 +432,58 @@ static void tvafe_avin_detect_anlog_config(void)
 {
 	if (meson_data) {
 		/*ch1 config*/
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, dc_level_adj,
+		W_HIU_BIT(cvbs_detect_cntl, dc_level_adj,
 			AFE_CH1_DC_LEVEL_ADJ_BIT, AFE_CH1_DC_LEVEL_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, comp_level_adj,
+		W_HIU_BIT(cvbs_detect_cntl, comp_level_adj,
 		AFE_CH1_COMP_LEVEL_ADJ_BIT, AFE_CH1_COMP_LEVEL_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0,
+		W_HIU_BIT(cvbs_detect_cntl, 0,
 			AFE_CH1_COMP_HYS_ADJ_BIT, AFE_CH1_COMP_HYS_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH1_EN_DC_BIAS_BIT,
+		W_HIU_BIT(cvbs_detect_cntl, 1, AFE_CH1_EN_DC_BIAS_BIT,
 			AFE_CH1_EN_DC_BIAS_WIDTH);
 
 		/*ch2 config*/
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, dc_level_adj,
+		W_HIU_BIT(cvbs_detect_cntl, dc_level_adj,
 			AFE_CH2_DC_LEVEL_ADJ_BIT, AFE_CH2_DC_LEVEL_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, comp_level_adj,
+		W_HIU_BIT(cvbs_detect_cntl, comp_level_adj,
 		AFE_CH2_COMP_LEVEL_ADJ_BIT, AFE_CH2_COMP_LEVEL_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0,
+		W_HIU_BIT(cvbs_detect_cntl, 0,
 			AFE_CH2_COMP_HYS_ADJ_BIT, AFE_CH2_COMP_HYS_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH2_EN_DC_BIAS_BIT,
+		W_HIU_BIT(cvbs_detect_cntl, 1, AFE_CH2_EN_DC_BIAS_BIT,
 			AFE_CH2_EN_DC_BIAS_WIDTH);
 	} else {
 		if (detect_mode == 0) {
 			/*for ch1*/
-			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0,
+			W_HIU_BIT(cvbs_detect_cntl, 0,
 				AFE_DETECT_RSV1_BIT, AFE_DETECT_RSV1_WIDTH);
 			/*for ch2*/
-			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 0,
+			W_HIU_BIT(cvbs_detect_cntl, 0,
 				AFE_DETECT_RSV3_BIT, AFE_DETECT_RSV3_WIDTH);
 		} else {
-			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1,
+			W_HIU_BIT(cvbs_detect_cntl, 1,
 				AFE_DETECT_RSV1_BIT, AFE_DETECT_RSV1_WIDTH);
-			W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1,
+			W_HIU_BIT(cvbs_detect_cntl, 1,
 				AFE_DETECT_RSV3_BIT, AFE_DETECT_RSV3_WIDTH);
 		}
 
 		/*ch1 config*/
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, sync_level,
+		W_HIU_BIT(cvbs_detect_cntl, sync_level,
 		AFE_CH1_SYNC_LEVEL_ADJ_BIT, AFE_CH1_SYNC_LEVEL_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, sync_hys_adj,
+		W_HIU_BIT(cvbs_detect_cntl, sync_hys_adj,
 			AFE_CH1_SYNC_HYS_ADJ_BIT, AFE_CH1_SYNC_HYS_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, vdc_level,
+		W_HIU_BIT(cvbs_detect_cntl, vdc_level,
 			AFE_DETECT_RSV0_BIT, AFE_DETECT_RSV0_WIDTH);
 		/*after adc and afe is enable,this bit must be set to "0"*/
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH1_EN_SYNC_TIP_BIT,
+		W_HIU_BIT(cvbs_detect_cntl, 1, AFE_CH1_EN_SYNC_TIP_BIT,
 			AFE_CH1_EN_SYNC_TIP_WIDTH);
 
 		/***ch2 config***/
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, sync_level,
+		W_HIU_BIT(cvbs_detect_cntl, sync_level,
 		AFE_CH2_SYNC_LEVEL_ADJ_BIT, AFE_CH2_SYNC_LEVEL_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, sync_hys_adj,
+		W_HIU_BIT(cvbs_detect_cntl, sync_hys_adj,
 			AFE_CH2_SYNC_HYS_ADJ_BIT, AFE_CH2_SYNC_HYS_ADJ_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, vdc_level,
+		W_HIU_BIT(cvbs_detect_cntl, vdc_level,
 			AFE_DETECT_RSV2_BIT, AFE_DETECT_RSV2_WIDTH);
-		W_HIU_BIT(HHI_CVBS_DETECT_CNTL, 1, AFE_CH2_EN_SYNC_TIP_BIT,
+		W_HIU_BIT(cvbs_detect_cntl, 1, AFE_CH2_EN_SYNC_TIP_BIT,
 			AFE_CH2_EN_SYNC_TIP_WIDTH);
 	}
 	avin_detect_flag |= AVIN_DETECT_CH1_SYNC_TIP;
@@ -621,7 +623,7 @@ static void tvafe_avin_detect_state(struct tvafe_avin_det_s *avdev)
 		avdev->report_data_s[1].status);
 	tvafe_pr_info("avin_detect_flag: 0x%02x\n", avin_detect_flag);
 	tvafe_pr_info("avin_detect_reg:  0x%02x=0x%08x\n",
-		HHI_CVBS_DETECT_CNTL, R_HIU_REG(HHI_CVBS_DETECT_CNTL));
+		cvbs_detect_cntl, R_HIU_REG(cvbs_detect_cntl));
 	tvafe_pr_info("\t*****global param*****\n");
 	tvafe_pr_info("dc_level_adj: %d\n", dc_level_adj);
 	tvafe_pr_info("comp_level_adj: %d\n", comp_level_adj);
@@ -718,10 +720,10 @@ static ssize_t debug_store(struct device *dev,
 					__func__);
 				goto tvafe_avin_detect_store_err;
 			} else {
-				W_HIU_BIT(HHI_CVBS_DETECT_CNTL, dc_level_adj,
+				W_HIU_BIT(cvbs_detect_cntl, dc_level_adj,
 					  AFE_CH1_DC_LEVEL_ADJ_BIT,
 					  AFE_CH1_DC_LEVEL_ADJ_WIDTH);
-				W_HIU_BIT(HHI_CVBS_DETECT_CNTL, dc_level_adj,
+				W_HIU_BIT(cvbs_detect_cntl, dc_level_adj,
 					  AFE_CH2_DC_LEVEL_ADJ_BIT,
 					  AFE_CH2_DC_LEVEL_ADJ_WIDTH);
 			}
@@ -735,10 +737,10 @@ static ssize_t debug_store(struct device *dev,
 					__func__);
 				goto tvafe_avin_detect_store_err;
 			} else {
-				W_HIU_BIT(HHI_CVBS_DETECT_CNTL, comp_level_adj,
+				W_HIU_BIT(cvbs_detect_cntl, comp_level_adj,
 					  AFE_CH1_COMP_LEVEL_ADJ_BIT,
 					  AFE_CH1_COMP_LEVEL_ADJ_WIDTH);
-				W_HIU_BIT(HHI_CVBS_DETECT_CNTL, comp_level_adj,
+				W_HIU_BIT(cvbs_detect_cntl, comp_level_adj,
 					  AFE_CH2_COMP_LEVEL_ADJ_BIT,
 					  AFE_CH2_COMP_LEVEL_ADJ_WIDTH);
 			}
@@ -906,18 +908,18 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 
 	if (avdev->dts_param.device_mask == TVAFE_AVIN_CH1_MASK) {
 		avdev->irq_counter[0] = aml_read_cbus(CVBS_IRQ0_COUNTER);
-		if (!R_HIU_BIT(HHI_CVBS_DETECT_CNTL,
+		if (!R_HIU_BIT(cvbs_detect_cntl,
 			AFE_CH1_EN_DETECT_BIT, AFE_CH1_EN_DETECT_WIDTH)) {
 			goto TIMER;
 		}
 	} else if (avdev->dts_param.device_mask == TVAFE_AVIN_CH2_MASK) {
 		avdev->irq_counter[0] = aml_read_cbus(CVBS_IRQ1_COUNTER);
 		if (meson_data) {
-			if (!R_HIU_BIT(HHI_CVBS_DETECT_CNTL,
+			if (!R_HIU_BIT(cvbs_detect_cntl,
 			AFE_TL_CH2_EN_DETECT_BIT, AFE_TL_CH2_EN_DETECT_WIDTH))
 				goto TIMER;
 		} else {
-			if (!R_HIU_BIT(HHI_CVBS_DETECT_CNTL,
+			if (!R_HIU_BIT(cvbs_detect_cntl,
 				AFE_CH2_EN_DETECT_BIT, AFE_CH2_EN_DETECT_WIDTH))
 				goto TIMER;
 		}
@@ -925,15 +927,15 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 		avdev->irq_counter[0] = aml_read_cbus(CVBS_IRQ0_COUNTER);
 		avdev->irq_counter[1] = aml_read_cbus(CVBS_IRQ1_COUNTER);
 		if (meson_data) {
-			if (!R_HIU_BIT(HHI_CVBS_DETECT_CNTL,
+			if (!R_HIU_BIT(cvbs_detect_cntl,
 			AFE_CH1_EN_DETECT_BIT, AFE_CH1_EN_DETECT_WIDTH) ||
-				!R_HIU_BIT(HHI_CVBS_DETECT_CNTL,
+				!R_HIU_BIT(cvbs_detect_cntl,
 			AFE_TL_CH2_EN_DETECT_BIT, AFE_TL_CH2_EN_DETECT_WIDTH))
 				goto TIMER;
 		} else {
-			if (!R_HIU_BIT(HHI_CVBS_DETECT_CNTL,
+			if (!R_HIU_BIT(cvbs_detect_cntl,
 			AFE_CH1_EN_DETECT_BIT, AFE_CH1_EN_DETECT_WIDTH) ||
-				!R_HIU_BIT(HHI_CVBS_DETECT_CNTL,
+				!R_HIU_BIT(cvbs_detect_cntl,
 				AFE_CH2_EN_DETECT_BIT, AFE_CH2_EN_DETECT_WIDTH))
 				goto TIMER;
 		}
@@ -1091,6 +1093,9 @@ static int tvafe_avin_detect_probe(struct platform_device *pdev)
 	}
 	dev_set_drvdata(avdev->config_dev, avdev);
 
+	if (meson_data->cpu_id == AVIN_CPU_TYPE_T3)
+		cvbs_detect_cntl = ANACTRL_CVBS_DETECT_CNTL;
+
 	/*config analog part setting*/
 	tvafe_avin_detect_anlog_config();
 	/*config digital part setting*/
@@ -1187,6 +1192,11 @@ struct meson_avin_data t5d_data = {
 	.name = "meson-t5d-avin-detect",
 };
 
+struct meson_avin_data t3_data = {
+	.cpu_id = AVIN_CPU_TYPE_T3,
+	.name = "meson-t3-avin-detect",
+};
+
 static const struct of_device_id tvafe_avin_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{	.compatible = "amlogic, tvafe_avin_detect",
@@ -1203,6 +1213,9 @@ static const struct of_device_id tvafe_avin_dt_match[] = {
 	},
 	{	.compatible = "amlogic, t5d_tvafe_avin_detect",
 		.data = &t5d_data,
+	},
+	{	.compatible = "amlogic, t3_tvafe_avin_detect",
+		.data = &t3_data,
 	},
 	{},
 };
