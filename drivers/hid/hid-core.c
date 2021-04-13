@@ -57,7 +57,6 @@ struct customer_device {
 
 static struct customer_device cus_hid[] = {
 	{0x046d, 0xb30b},
-	{0x054c, 0x05c4},
 	{0x000d, 0x0000},
 	{0x0000, 0x0000}
 };
