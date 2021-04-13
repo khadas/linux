@@ -10,7 +10,7 @@
 #include <dt-bindings/clock/amlogic,t7-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-p1-gpio.h>
-#include <dt-bindings/reset/amlogic,meson-t7-reset.h>
+#include <dt-bindings/reset/amlogic,meson-p1-reset.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
 #include <dt-bindings/input/input.h>
@@ -983,9 +983,8 @@
 			};
 
 			reset: reset-controller@2000 {
-				compatible = "amlogic,meson-t7-reset";
-				status = "disable";
-				reg = <0x0 0x2000 0x0 0x98>;
+				compatible = "amlogic,meson-p1-reset";
+				reg = <0x0 0x2000 0x0 0xa0>;
 				#reset-cells = <1>;
 			};
 
@@ -1954,8 +1953,8 @@
 		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "rdma";
 		/* after sc2 */
-		reset-names = "rdma";
-		resets = <&reset RESET_RDMA>;
+		//reset-names = "rdma";
+		//resets = <&reset RESET_RDMA>;
 		rdma_table_page_count = <16>;
 	};
 
