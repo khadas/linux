@@ -1512,6 +1512,61 @@ int aml_check_unsupport_cmd(struct mmc_host *mmc, struct mmc_request *mrq)
 	return 0;
 }
 
+static void meson_mmc_quirk_transfer(struct mmc_host *mmc, u32 cmd_cfg,
+					  struct mmc_command *cmd)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	struct sd_emmc_desc *desc = host->descs;
+	struct mmc_data *data = host->cmd->data;
+	u32 start, data_len;
+
+	if (data->blocks > 1) {
+		cmd_cfg |= CMD_CFG_BLOCK_MODE;
+		meson_mmc_set_blksz(mmc, data->blksz);
+		data_len = data->blocks;
+	} else {
+		data_len = data->blksz;
+	}
+
+	if (mmc_op_multi(cmd->opcode) && cmd->mrq->sbc) {
+		desc->cmd_cfg = 0;
+		desc->cmd_cfg |= FIELD_PREP(CMD_CFG_CMD_INDEX_MASK,
+					      MMC_SET_BLOCK_COUNT);
+		desc->cmd_cfg |= FIELD_PREP(CMD_CFG_TIMEOUT_MASK, 0xc);
+		desc->cmd_cfg |= CMD_CFG_OWNER;
+		desc->cmd_cfg |= CMD_CFG_RESP_NUM;
+		desc->cmd_arg = cmd->mrq->sbc->arg;
+		desc->cmd_resp = 0;
+		desc->cmd_data = 0;
+		desc++;
+	}
+
+	desc->cmd_cfg = cmd_cfg;
+	desc->cmd_cfg |= FIELD_PREP(CMD_CFG_LENGTH_MASK, data_len);
+	desc->cmd_arg = host->cmd->arg;
+	desc->cmd_resp = 0;
+	desc->cmd_data = host->bounce_dma_addr;
+
+	if (mmc_op_multi(cmd->opcode) && !cmd->mrq->sbc) {
+		desc++;
+		desc->cmd_cfg = 0;
+		desc->cmd_cfg |= FIELD_PREP(CMD_CFG_CMD_INDEX_MASK,
+				   MMC_STOP_TRANSMISSION);
+		desc->cmd_cfg |= FIELD_PREP(CMD_CFG_TIMEOUT_MASK, 0xc);
+		desc->cmd_cfg |= CMD_CFG_OWNER;
+		desc->cmd_cfg |= CMD_CFG_RESP_NUM;
+		desc->cmd_cfg |= CMD_CFG_R1B;
+		desc->cmd_resp = 0;
+		desc->cmd_data = 0;
+	}
+
+	desc->cmd_cfg |= CMD_CFG_END_OF_CHAIN;
+
+	dma_wmb(); /* ensure descriptor is written before kicked */
+	start = host->descs_dma_addr | START_DESC_BUSY | CMD_DATA_SRAM;
+	writel(start, host->regs + SD_EMMC_START);
+}
+
 static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 {
 	struct meson_host *host = mmc_priv(mmc);
@@ -1566,6 +1621,11 @@ static void meson_mmc_start_cmd(struct mmc_host *mmc, struct mmc_command *cmd)
 		}
 
 		cmd_data = host->bounce_dma_addr & CMD_DATA_MASK;
+
+		if (host->dram_access_quirk) {
+			meson_mmc_quirk_transfer(mmc, cmd_cfg, cmd);
+			return;
+		}
 	} else {
 		cmd_cfg |= FIELD_PREP(CMD_CFG_TIMEOUT_MASK,
 				      ilog2(SD_EMMC_CMD_TIMEOUT));
@@ -3633,6 +3693,10 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		host->bounce_buf_size = SD_EMMC_SRAM_DATA_BUF_LEN;
 		host->bounce_buf = host->regs + SD_EMMC_SRAM_DATA_BUF_OFF;
 		host->bounce_dma_addr = host->res[0]->start + SD_EMMC_SRAM_DATA_BUF_OFF;
+
+		host->descs = host->regs + SD_EMMC_SRAM_DESC_BUF_OFF;
+		host->descs_dma_addr = host->res[0]->start + SD_EMMC_SRAM_DESC_BUF_OFF;
+
 	} else {
 		/* data bounce buffer */
 		host->bounce_buf_size = mmc->max_req_size;
@@ -3644,20 +3708,20 @@ static int meson_mmc_probe(struct platform_device *pdev)
 			ret = -ENOMEM;
 			goto err_free_irq;
 		}
+
+		host->descs = dma_alloc_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
+			      &host->descs_dma_addr, GFP_KERNEL);
+		if (!host->descs) {
+			ret = -ENOMEM;
+			goto err_bounce_buf;
+		}
+
 	}
 
 	host->adj_win = devm_kzalloc(host->dev, sizeof(u8) * ADJ_WIN_PRINT_MAXLEN, GFP_KERNEL);
 	if (!host->adj_win) {
 		ret = -ENOMEM;
 		goto err_free_irq;
-	}
-
-	host->descs = dma_alloc_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
-		      &host->descs_dma_addr, GFP_KERNEL);
-	if (!host->descs) {
-		dev_err(host->dev, "Allocating descriptor DMA buffer failed\n");
-		ret = -ENOMEM;
-		goto err_bounce_buf;
 	}
 
 	if (aml_card_type_sdio(host)) {

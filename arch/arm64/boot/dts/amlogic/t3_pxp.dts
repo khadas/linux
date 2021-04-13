@@ -845,6 +845,7 @@
 
 	non-removable;
 	disable-wp;
+	amlogic,dram-access-quirk;
 
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
 	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
@@ -866,6 +867,7 @@
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
+	amlogic,dram-access-quirk;
 
 //	mmc-pwrseq = <&emmc_pwrseq>;
 //	vmmc-supply = <&vddao_3v3>;
