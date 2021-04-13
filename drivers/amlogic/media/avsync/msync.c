@@ -1666,6 +1666,7 @@ static long msync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		spin_unlock_irqrestore(&sync.lock, flags);
 
 		destroy_session(id);
+		vfree(file->private_data);
 		file->private_data = NULL;
 		break;
 	}
@@ -1695,7 +1696,7 @@ static int msync_open(struct inode *inode, struct file *file)
 static int msync_release(struct inode *inode, struct file *file)
 {
 	struct msync_priv *priv = file->private_data;
-	int id;
+	int id = MAX_SESSION_NUM;
 	unsigned long flags;
 
 	if (!priv)
@@ -1714,7 +1715,8 @@ static int msync_release(struct inode *inode, struct file *file)
 	spin_unlock_irqrestore(&sync.lock, flags);
 
 	destroy_session(id);
-	file->private_data = (void *)-1;
+	vfree(priv);
+	file->private_data = NULL;
 	return 0;
 }
 
