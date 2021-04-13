@@ -843,6 +843,11 @@
 			};
 		};
 	}; /*thermal zone end*/
+	cpu_version {
+		compatible = "amlogic,meson-gx-ao-secure", "syscon";
+		reg=<0x0 0x10220 0x0 0x140>;
+		amlogic,has-chip-id;
+	};
 
 	aml_bt: aml_bt {
 		compatible = "amlogic, aml-bt";
