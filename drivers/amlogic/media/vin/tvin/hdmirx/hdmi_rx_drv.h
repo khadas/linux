@@ -50,8 +50,8 @@
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
 
-/* update uevent api for rx22 */
-#define RX_VER2 "ver.2021/03/30"
+/* enable tee path */
+#define RX_VER2 "ver.2021/04/13"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
