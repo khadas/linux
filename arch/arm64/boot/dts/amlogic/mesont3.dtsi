@@ -195,6 +195,14 @@
 		#mbox-cells = <1>;
 	};
 
+	adc: adc {
+		compatible = "amlogic, adc-t3";
+		status = "okay";
+		reg = <0x0 0xfe072000 0x0 0x2000/* afe reg base */
+			0x0 0xfe008000 0x0 0x2000/* hiu base */
+			>;
+	};
+
 	vddcpu0: pwm_b-regulator {
 		compatible = "pwm-regulator";
 		pwms = <&pwm_ab MESON_PWM_1 1500 0>;

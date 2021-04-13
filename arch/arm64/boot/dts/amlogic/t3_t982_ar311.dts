@@ -121,6 +121,14 @@
 			/*alloc-ranges = <0x0 0x0 0x0 0x3f800000>;*/
 		};
 
+		demod_cma_reserved:linux,demod_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 40M */
+			size = <0x0 0x02800000>;
+			alignment = <0x0 0x400000>;
+			linux,contiguous-region;
+		};
 	};
 	codec_mm {
 		compatible = "amlogic, codec, mm";
@@ -416,6 +424,97 @@
 			0x0 0xfe000000 0x0 0x1fff>;
 	};
 
+	atv-demod {
+		compatible = "amlogic, atv-demod";
+		status = "disabled";
+		btsc_sap_mode = <1>;
+		interrupts = <0 236 1>;
+		/* pinctrl-names="atvdemod_agc_pins"; */
+		/* pinctrl-0=<&atvdemod_agc_pins>; */
+		reg = <0x0 0xfe0be000 0x0 0x2000 /* demod reg */
+				0x0 0xfe008000 0x0 0x2000 /* hiu reg */
+				0x0 0x0 0x0 0x0 /* periphs reg */
+				0x0 0xfe0bc000 0x0 0x2000>; /* adec reg */
+		reg_23cf = <0x88188832>;
+		/*default:0x88188832;r840 on haier:0x48188832*/
+	};
+
+	dvb-extern {
+		compatible = "amlogic, dvb-extern";
+		dev_name = "dvb-extern";
+		status = "okay";
+
+		fe_num = <1>;
+		fe0_demod = "internal";
+
+		tuner_num = <2>; /* tuner number, multi tuner support */
+		tuner0_name = "r842_tuner";
+		tuner0_i2c_adap = <&i2c0>;
+		tuner0_i2c_addr = <0xF6>; /* 8 bits */
+		tuner0_xtal = <1>; /* 0: 16MHz, 1: 24MHz */
+		tuner0_xtal_mode = <3>;
+					/* NO_SHARE_XTAL(0)
+					 * SLAVE_XTAL_SHARE(3)
+					 */
+		tuner0_xtal_cap = <38>;
+
+		tuner1_name = "rt710_tuner";
+		tuner1_i2c_adap = <&i2c0>;
+		tuner1_i2c_addr = <0xF4>;  /* 8 bits */
+		tuner1_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
+		tuner1_xtal_mode = <0>;
+					/* NO_SHARE_XTAL(0)
+					 * SLAVE_XTAL_SHARE(3)
+					 */
+		tuner1_xtal_cap = <30>;
+	};
+
+	dvb-demux {
+		compatible = "amlogic sc2, dvb-demux"; /* same as sc2 */
+		dev_name = "dvb-demux";
+		status = "okay";
+
+		reg = <0x0 0xfe000000 0x0 0x480000>;
+
+		dmxdev_num = <4>;
+
+		tsn_from = "demod";
+
+		/*single demod setting */
+		ts2_sid = <0x22>;
+		ts2 = "parallel";
+		ts2_control = <0x0>;
+		ts2_invert = <0>;
+	};
+
+	aml_dtv_demod {
+		compatible = "amlogic, ddemod-t3";
+		dev_name = "aml_dtv_demod";
+		status = "okay";
+		//diseqc_name = "sgm_41286";
+		//pinctrl-names="dtvdemod_agc_pins", "diseqc";
+		//pinctrl-0=<&dtvdemod_agc_pins>;
+		//pinctrl-1=<&diseqc_out>;
+		//lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>;
+		//lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>;
+		//interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
+		//interrupt-names = "demod_isr";
+		power-domains = <&pwrdm PDID_T3_DEMOD>;
+		//clocks = <&clkc CLKID_DAC_CLK>;
+		//clock-names = "vdac_clk_gate";
+		reg = <0x0 0xfe360000 0x0 0x10000	/*dtv demod base*/
+			   0x0 0xfe000000 0x0 0x2000	/*hiu reg base*/
+			   0x0 0xff800000 0x0 0x1000	/*io_aobus_base*/
+			   0x0 0xfe002000 0x0 0x2000	/*reset*/
+			>;
+
+		dtv_demod0_mem = <0>;	// need move to aml_dtv_demod ?
+		spectrum = <1>;
+		cma_flag = <1>;
+		cma_mem_size = <8>;
+		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
+	};
+
 	/* Audio Related start */
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
@@ -621,6 +720,13 @@
 		reg-names = "frc_reg","frc_clk_reg","vpu_reg";
 	};
 }; /* end of / */
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <300000>;
+	pinctrl-names="default";
+	pinctrl-0=<&i2c0_pins1>;
+};
 
 &ethmac {
 	status = "okay";

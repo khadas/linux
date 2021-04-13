@@ -624,6 +624,7 @@ static int Gxtv_Demod_Dvbc_Init(struct aml_dtvdemod *demod, int mode)
 {
 	struct aml_demod_sys sys;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct ddemod_dig_clk_addr *dig_clk = &devp->data->dig_clk;
 
 	memset(&sys, 0, sizeof(sys));
 
@@ -660,9 +661,9 @@ static int Gxtv_Demod_Dvbc_Init(struct aml_dtvdemod *demod, int mode)
 
 	/* sys clk div */
 	if (devp->data->hw_ver == DTVDEMOD_HW_S4)
-		dd_tvafe_hiu_reg_write(0x80 << 2, 0x501);
+		dd_hiu_reg_write(0x80, 0x501);
 	else if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
-		dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 
 	demod_set_sys(demod, &sys);
 
@@ -709,12 +710,8 @@ static int gxtv_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 
 	tuner_set_params(fe);/*aml_fe_analog_set_frontend(fe);*/
 	dvbc_set_ch(demod, &param);
+
 	/*0xf33 dvbc mode, 0x10f33 j.83b mode*/
-	#if 0
-	if (is_meson_txlx_cpu() || is_meson_gxlx_cpu())
-		/*qam_write_reg(demod, 0x7, 0xf33);*/
-		dvbc_init_reg_ext(demod);
-	#endif
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX) && !is_meson_txhd_cpu())
 		dvbc_init_reg_ext(demod);
 
@@ -1265,6 +1262,7 @@ int dvbt_isdbt_Init(struct aml_dtvdemod *demod)
 {
 	struct aml_demod_sys sys;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct ddemod_dig_clk_addr *dig_clk = &devp->data->dig_clk;
 
 	PR_DBG("AML Demod DVB-T/isdbt init\r\n");
 
@@ -1279,10 +1277,10 @@ int dvbt_isdbt_Init(struct aml_dtvdemod *demod)
 	demod->demod_status.adc_freq = sys.adc_clk;
 	demod->demod_status.clk_freq = sys.demod_clk;
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_T5D)
-		dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x507);
+	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D)
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x507);
 	else
-		dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 
 	demod_set_sys(demod, &sys);
 
@@ -1293,6 +1291,7 @@ static unsigned int dvbt_init(struct aml_dtvdemod *demod)
 {
 	struct aml_demod_sys sys;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct ddemod_dig_clk_addr *dig_clk = &devp->data->dig_clk;
 
 	if (!devp) {
 		pr_err("%s devp is NULL\n", __func__);
@@ -1312,8 +1311,8 @@ static unsigned int dvbt_init(struct aml_dtvdemod *demod)
 	demod->demod_status.adc_freq = sys.adc_clk;
 	demod->demod_status.clk_freq = sys.demod_clk;
 
-	dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL1 << 2, 0x704);
-	dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
+	dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x704);
+	dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 	demod_set_sys(demod, &sys);
 
 	return 0;
@@ -1322,6 +1321,8 @@ static unsigned int dvbt_init(struct aml_dtvdemod *demod)
 static unsigned int dtvdemod_dvbt2_init(struct aml_dtvdemod *demod)
 {
 	struct aml_demod_sys sys;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct ddemod_dig_clk_addr *dig_clk = &devp->data->dig_clk;
 
 	PR_DBG("AML Demod DVB-T2 init\r\n");
 
@@ -1336,8 +1337,8 @@ static unsigned int dtvdemod_dvbt2_init(struct aml_dtvdemod *demod)
 	demod->demod_status.adc_freq = sys.adc_clk;
 	demod->demod_status.clk_freq = sys.demod_clk;
 
-	dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL1 << 2, 0x704);
-	dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
+	dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x704);
+	dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 	demod_set_sys(demod, &sys);
 
 	return 0;
@@ -1536,6 +1537,7 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct ddemod_dig_clk_addr *dig_clk = &devp->data->dig_clk;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_demod_atsc param_atsc;
 	struct aml_demod_dvbc param_j83b;
@@ -1571,10 +1573,10 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 					 AFIFO_NCO_RATE_BIT, AFIFO_NCO_RATE_WID);
 			front_write_reg(SFIFO_OUT_LENS, 0x5);
 			/* sys clk = 167M */
-			dd_tvafe_hiu_reg_write(D_HHI_DEMOD_CLK_CNTL, 0x502);
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x502);
 		} else {
 			/* txlx j.83b set sys clk to 222M */
-			dd_tvafe_hiu_reg_write(D_HHI_DEMOD_CLK_CNTL, 0x502);
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x502);
 		}
 
 		demod_set_mode_ts(SYS_DVBC_ANNEX_A);
@@ -1641,7 +1643,7 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 			usleep_range(5000, 5001);
 		} else {
 			/*demod_set_demod_reg(0x507, TXLX_ADC_REG6);*/
-			dd_tvafe_hiu_reg_write(D_HHI_DEMOD_CLK_CNTL, 0x507);
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x507);
 			demod_set_mode_ts(delsys);
 			param_atsc.ch_freq = c->frequency / 1000;
 			param_atsc.mode = c->modulation;
@@ -2021,8 +2023,6 @@ static int dvbt_isdbt_tune(struct dvb_frontend *fe, bool re_tune,
 
 	*delay = HZ/2;
 
-	/*PR_ATSC("%s:\n", __func__);*/
-#if 1
 	if (re_tune) {
 
 		timer_begain(demod, D_TIMER_DETECT);
@@ -2033,7 +2033,7 @@ static int dvbt_isdbt_tune(struct dvb_frontend *fe, bool re_tune,
 		dvbt_isdbt_read_status(fe, status);
 		return 0;
 	}
-#endif
+
 	if (!demod->en_detect) {
 		PR_DBGL("[id %d] tune:not enable\n", demod->id);
 		return 0;
@@ -2266,6 +2266,7 @@ static int dtvdemod_atsc_init(struct aml_dtvdemod *demod)
 	struct aml_demod_sys sys;
 	struct dtv_frontend_properties *c = &demod->frontend.dtv_property_cache;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct ddemod_dig_clk_addr *dig_clk = &devp->data->dig_clk;
 
 	PR_DBG("%s\n", __func__);
 
@@ -2286,7 +2287,7 @@ static int dtvdemod_atsc_init(struct aml_dtvdemod *demod)
 	demod->demod_status.clk_freq = sys.demod_clk;
 
 	if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
-		dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 	demod_set_sys(demod, &sys);
 
 	return 0;
@@ -2692,6 +2693,7 @@ int Gxtv_Demod_Dtmb_Init(struct aml_dtvdemod *demod)
 {
 	struct aml_demod_sys sys;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct ddemod_dig_clk_addr *dig_clk = &devp->data->dig_clk;
 
 	if (!devp) {
 		pr_err("%s devp is NULL\n", __func__);
@@ -2732,7 +2734,7 @@ int Gxtv_Demod_Dtmb_Init(struct aml_dtvdemod *demod)
 	demod->demod_status.clk_freq = sys.demod_clk;
 
 	if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
-		dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 
 	demod_set_sys(demod, &sys);
 
@@ -3095,6 +3097,7 @@ static int dtvdemod_dvbs2_init(struct aml_dtvdemod *demod)
 {
 	struct aml_demod_sys sys;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct ddemod_dig_clk_addr *dig_clk = &devp->data->dig_clk;
 
 	PR_DBG("%s\n", __func__);
 	memset(&sys, 0, sizeof(sys));
@@ -3109,8 +3112,8 @@ static int dtvdemod_dvbs2_init(struct aml_dtvdemod *demod)
 	PR_DBG("[%s]adc_clk is %d,demod_clk is %d\n", __func__, sys.adc_clk,
 	       sys.demod_clk);
 	demod->auto_flags_trig = 0;
-	dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL1 << 2, 0x702);
-	dd_tvafe_hiu_reg_write(HHI_DEMOD_CLK_CNTL << 2, 0x501);
+	dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x702);
+	dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 	demod_set_sys(demod, &sys);
 	aml_dtv_demode_isr_en(devp, 1);
 	/*enable diseqc irq*/
@@ -3428,6 +3431,10 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 /* when can't get ic_config by dts, use this*/
 const struct meson_ddemod_data  data_gxtvbb = {
+	.dig_clk = {
+		.demod_clk_ctl = 0x74,
+		.demod_clk_ctl_1 = 0x75,
+	},
 	.regoff = {
 		.off_demod_top = 0xc00,
 		.off_dvbc = 0x400,
@@ -3436,6 +3443,10 @@ const struct meson_ddemod_data  data_gxtvbb = {
 };
 
 const struct meson_ddemod_data  data_txlx = {
+	.dig_clk = {
+		.demod_clk_ctl = 0x74,
+		.demod_clk_ctl_1 = 0x75,
+	},
 	.regoff = {
 		.off_demod_top = 0xf00,
 		.off_dvbc = 0xc00,
@@ -3449,6 +3460,10 @@ const struct meson_ddemod_data  data_txlx = {
 #endif
 
 const struct meson_ddemod_data  data_tl1 = {
+	.dig_clk = {
+		.demod_clk_ctl = 0x74,
+		.demod_clk_ctl_1 = 0x75,
+	},
 	.regoff = {
 		.off_demod_top = 0x3c00,
 		.off_dvbc = 0x1000,
@@ -3460,6 +3475,10 @@ const struct meson_ddemod_data  data_tl1 = {
 };
 
 const struct meson_ddemod_data data_tm2 = {
+	.dig_clk = {
+		.demod_clk_ctl = 0x74,
+		.demod_clk_ctl_1 = 0x75,
+	},
 	.regoff = {
 		.off_demod_top = 0x3c00,
 		.off_dvbc = 0x1000,
@@ -3471,6 +3490,10 @@ const struct meson_ddemod_data data_tm2 = {
 };
 
 const struct meson_ddemod_data  data_t5 = {
+	.dig_clk = {
+		.demod_clk_ctl = 0x74,
+		.demod_clk_ctl_1 = 0x75,
+	},
 	.regoff = {
 		.off_demod_top = 0x3c00,
 		.off_dvbc = 0x1000,
@@ -3481,6 +3504,10 @@ const struct meson_ddemod_data  data_t5 = {
 };
 
 const struct meson_ddemod_data  data_t5d = {
+	.dig_clk = {
+		.demod_clk_ctl = 0x74,
+		.demod_clk_ctl_1 = 0x75,
+	},
 	.regoff = {
 		.off_demod_top = 0xf000,
 		.off_dvbc = 0x1000,
@@ -3496,6 +3523,10 @@ const struct meson_ddemod_data  data_t5d = {
 };
 
 const struct meson_ddemod_data  data_s4 = {
+	.dig_clk = {
+		.demod_clk_ctl = 0x74,
+		.demod_clk_ctl_1 = 0x75,
+	},
 	.regoff = {
 		.off_demod_top = 0xf000,
 		.off_front = 0x3800,
@@ -3506,6 +3537,10 @@ const struct meson_ddemod_data  data_s4 = {
 };
 
 const struct meson_ddemod_data  data_t5d_revb = {
+	.dig_clk = {
+		.demod_clk_ctl = 0x74,
+		.demod_clk_ctl_1 = 0x75,
+	},
 	.regoff = {
 		.off_demod_top = 0xf000,
 		.off_dvbc = 0x1000,
@@ -3518,6 +3553,25 @@ const struct meson_ddemod_data  data_t5d_revb = {
 		.off_dvbt_t2 = 0x0000,
 	},
 	.hw_ver = DTVDEMOD_HW_T5D_B,
+};
+
+const struct meson_ddemod_data  data_t3 = {
+	.dig_clk = {
+		.demod_clk_ctl = 0x82,
+		.demod_clk_ctl_1 = 0x83,
+	},
+	.regoff = {
+		.off_demod_top = 0xf000,
+		.off_dvbc = 0x1000,
+		.off_dtmb = 0x0000,
+		.off_atsc = 0x0c00,
+		.off_isdbt = 0x800,
+		.off_front = 0x3800,
+		.off_dvbs = 0x2000,
+		.off_dvbt_isdbt = 0x800,
+		.off_dvbt_t2 = 0x0000,
+	},
+	.hw_ver = DTVDEMOD_HW_T3,
 };
 
 static const struct of_device_id meson_ddemod_match[] = {
@@ -3557,6 +3611,9 @@ static const struct of_device_id meson_ddemod_match[] = {
 	}, {
 		.compatible = "amlogic, ddemod-t5d-revB",
 		.data		= &data_t5d_revb,
+	}, {
+		.compatible = "amlogic, ddemod-t3",
+		.data		= &data_t3,
 	},
 	/* DO NOT remove, to avoid scan err of KASAN */
 	{}
@@ -3965,7 +4022,7 @@ static void vdac_clk_gate_ctrl(int status)
 			return;
 		}
 
-		if (IS_ERR(devp->vdac_clk_gate))
+		if (IS_ERR_OR_NULL(devp->vdac_clk_gate))
 			PR_ERR("error: %s: vdac_clk_gate\n", __func__);
 		else
 			clk_prepare_enable(devp->vdac_clk_gate);
@@ -3977,7 +4034,7 @@ static void vdac_clk_gate_ctrl(int status)
 			return;
 		}
 
-		if (IS_ERR(devp->vdac_clk_gate))
+		if (IS_ERR_OR_NULL(devp->vdac_clk_gate))
 			PR_ERR("error: %s: vdac_clk_gate\n", __func__);
 		else
 			clk_disable_unprepare(devp->vdac_clk_gate);
@@ -5445,6 +5502,24 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 			aml_dtvdm_ops.delsys[2] = SYS_ANALOG;
 #endif
 			strcpy(aml_dtvdm_ops.info.name, "amlogic DVB-C dtv demod s4");
+			break;
+
+		case DTVDEMOD_HW_T3:
+			/* max delsys is 8, index: 0~7 */
+			aml_dtvdm_ops.delsys[0] = SYS_DVBC_ANNEX_A;
+			aml_dtvdm_ops.delsys[1] = SYS_ATSC;
+			aml_dtvdm_ops.delsys[2] = SYS_DVBS2;
+			aml_dtvdm_ops.delsys[3] = SYS_ISDBT;
+			aml_dtvdm_ops.delsys[4] = SYS_DVBS;
+			aml_dtvdm_ops.delsys[5] = SYS_DVBT2;
+			aml_dtvdm_ops.delsys[6] = SYS_DVBT;
+			aml_dtvdm_ops.delsys[7] = SYS_DVBC_ANNEX_B;
+			aml_dtvdm_ops.delsys[8] = SYS_DTMB;
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+			aml_dtvdm_ops.delsys[9] = SYS_ANALOG;
+#endif
+			strcpy(aml_dtvdm_ops.info.name,
+					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT/DTMB ddemod t3");
 			break;
 
 		default:
