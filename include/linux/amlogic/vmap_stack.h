@@ -36,9 +36,9 @@
 					 __GFP_ATOMIC | __GFP_REPEAT)
 
 #ifdef CONFIG_KASAN
-#define VMAP_CACHE_PAGE_ORDER		7
+#define VMAP_CACHE_PAGE_ORDER		8
 #else
-#define VMAP_CACHE_PAGE_ORDER		5
+#define VMAP_CACHE_PAGE_ORDER		6
 #endif
 #define VMAP_CACHE_PAGE			BIT(VMAP_CACHE_PAGE_ORDER)
 #define CACHE_MAINTAIN_DELAY		(HZ / 2)
@@ -50,7 +50,6 @@ struct aml_vmap {
 	struct vm_struct *root_vm;
 	unsigned long *bitmap;
 	struct list_head list;
-	struct delayed_work mwork;
 	spinlock_t page_lock;		/* for cached pages */
 };
 
