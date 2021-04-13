@@ -1349,10 +1349,6 @@ void video_post_process(struct vframe_s *vf,
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		if (vinfo->mode != VMODE_LCD) {
 			mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
-			if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7) {
-				mtx_setting(VPP1_POST2_MTX, MATRIX_NULL, MTX_OFF);
-				mtx_setting(VPP2_POST2_MTX, MATRIX_NULL, MTX_OFF);
-			}
 		} else {
 			if ((vf && vf->type & VIDTYPE_RGB_444) &&
 			    source_type[vd_path] == HDRTYPE_SDR &&
@@ -1361,23 +1357,11 @@ void video_post_process(struct vframe_s *vf,
 				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 0, 1, 1);
 				mtx_setting(POST2_MTX,
 					MATRIX_YUV709F_RGB, MTX_ON);
-				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7) {
-					mtx_setting(VPP1_POST2_MTX,
-						MATRIX_YUV709F_RGB, MTX_ON);
-					mtx_setting(VPP2_POST2_MTX,
-						MATRIX_YUV709F_RGB, MTX_ON);
-				}
 			} else {
 				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);
 				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);
 				mtx_setting(POST2_MTX,
 					    MATRIX_YUV709_RGB, MTX_ON);
-				if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7) {
-					mtx_setting(VPP1_POST2_MTX,
-						MATRIX_YUV709_RGB, MTX_ON);
-					mtx_setting(VPP2_POST2_MTX,
-						MATRIX_YUV709_RGB, MTX_ON);
-				}
 			}
 		}
 	}

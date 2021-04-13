@@ -5054,16 +5054,25 @@ int osd_get_capbility(u32 index)
 	u32 afbc = osd_hw.osd_meson_dev.afbc_type;
 
 	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
+		u32 output_index = get_output_device_id(index);
+		u32 vpp_top = 0;
+
+		if (output_index == VIU2)
+			vpp_top = OSD_VIU2;
+		else if (output_index == VIU3)
+			vpp_top = OSD_VIU3;
+		else
+			vpp_top = OSD_VIU1 | OSD_ZORDER;
+
 		if (index == OSD1)
 			capbility |= OSD_LAYER_ENABLE | OSD_FREESCALE
-				| OSD_UBOOT_LOGO | OSD_ZORDER | OSD_VIU1
+				| OSD_UBOOT_LOGO | vpp_top
 				| OSD_PRIMARY | (afbc ? OSD_AFBC : 0);
 		else if (index < osd_hw.osd_meson_dev.viu1_osd_count)
 			capbility |= OSD_LAYER_ENABLE | OSD_FREESCALE |
-				OSD_ZORDER | OSD_VIU1 |
-				(afbc ? OSD_AFBC : 0);
+				     vpp_top | (afbc ? OSD_AFBC : 0);
 		else if (index == osd_hw.osd_meson_dev.viu2_index)
-			capbility |= OSD_LAYER_ENABLE | OSD_VIU2;
+			capbility |= OSD_LAYER_ENABLE | vpp_top;
 	} else if (osd_hw.osd_meson_dev.osd_ver == OSD_NORMAL) {
 		if (index == OSD1)
 			capbility |= OSD_LAYER_ENABLE | OSD_FREESCALE
@@ -6049,8 +6058,13 @@ static void _osd_pan_display_layers_fence
 		start_index = 0;
 		backup_en = 1;
 	} else if (output_index == VIU2) {
-		start_index = osd_hw.osd_meson_dev.viu2_index;
-		osd_count = start_index + 1;
+		if (osd_dev_hw.t7_display) {
+			osd_count = osd_hw.osd_meson_dev.viu1_osd_count;
+			start_index = 0;
+		} else {
+			start_index = osd_hw.osd_meson_dev.viu2_index;
+			osd_count = start_index + 1;
+		}
 		backup_en = 0;
 	} else {
 		osd_log_err("invalid output_index=%d\n", output_index);
@@ -6073,6 +6087,8 @@ static void _osd_pan_display_layers_fence
 		clear_backup_info();
 	osd_hw.hdr_used = fence_map->hdr_mode;
 	for (i = start_index; i < osd_count; i++) {
+		if (!validate_osd(i, output_index))
+			continue;
 		layer_map = &fence_map->layer_map[i];
 		if (i != layer_map->fb_index) {
 			osd_hw.screen_base[i] = 0;
@@ -10845,6 +10861,12 @@ static void osd_setting_viux(u32 output_index)
 		osd_rdma_wr_bits_op rdma_wr_bits = rdma_func->osd_rdma_wr_bits;
 		int free_scaler_reg = VPP_OSD3_SCALE_CTRL;
 
+		/* enable free_scale */
+		osd_hw.free_scale_enable[index] = 0x10001;
+		osd_hw.free_scale[index].h_enable = 1;
+		osd_hw.free_scale[index].v_enable = 1;
+		osd_hw.free_scale_mode[index] = 1;
+
 		osd_hw.free_src_data[index].x_start =
 			osd_hw.src_data[index].x;
 		osd_hw.free_src_data[index].x_end =
@@ -12175,7 +12197,7 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		sync_render_layers_fence;
 	osd_hw.osd_fence[VIU1][ENABLE].toggle_buffer_handler =
 		osd_toggle_buffer_layers;
-	if (osd_hw.osd_meson_dev.has_viu2) {
+	if (osd_hw.osd_meson_dev.has_viu2 || osd_hw.osd_meson_dev.has_vpp1) {
 		osd_hw.osd_fence[VIU2][DISABLE].sync_fence_handler =
 			sync_render_single_fence;
 		osd_hw.osd_fence[VIU2][DISABLE].toggle_buffer_handler =
