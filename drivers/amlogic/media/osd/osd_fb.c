@@ -804,7 +804,9 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	struct do_hwc_cmd_s *do_hwc_cmd;
 	u32 output_index = VIU1;
 
-	mutex_lock(&fbdev->lock);
+	if (!(cmd == FBIO_WAITFORVSYNC ||
+		cmd == FBIO_WAITFORVSYNC_64))
+		mutex_lock(&fbdev->lock);
 	switch (cmd) {
 	case  FBIOPUT_OSD_SRCKEY_ENABLE:
 		ret = copy_from_user(&srckey_enable, argp, sizeof(u32));
@@ -1062,7 +1064,9 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 		mutex_unlock(&fbdev->lock);
 		return -1;
 	}
-	mutex_unlock(&fbdev->lock);
+	if (!(cmd == FBIO_WAITFORVSYNC ||
+		cmd == FBIO_WAITFORVSYNC_64))
+		mutex_unlock(&fbdev->lock);
 	return  ret;
 }
 
