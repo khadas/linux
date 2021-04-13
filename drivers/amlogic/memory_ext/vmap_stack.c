@@ -19,6 +19,7 @@
 #include <linux/vmalloc.h>
 #include <linux/arm-smccc.h>
 #include <linux/memcontrol.h>
+#include <linux/kthread.h>
 #include <linux/amlogic/vmap_stack.h>
 #include <linux/highmem.h>
 #include <linux/delay.h>
@@ -43,6 +44,7 @@ static atomic_t vmap_stack_size;
 static atomic_t vmap_fault_count;
 static atomic_t vmap_pre_handle_count;
 static struct aml_vmap *avmap;
+static atomic_t vmap_cache_flag;
 
 #ifdef CONFIG_ARM64
 DEFINE_PER_CPU(unsigned long [THREAD_SIZE / sizeof(long)], vmap_stack)
@@ -471,7 +473,7 @@ static void check_sp_fault_again(struct pt_regs *regs)
 
 		/* cache is not enough */
 		if (cache <= (VMAP_CACHE_PAGE / 2))
-			mod_delayed_work(system_highpri_wq, &avmap->mwork, 0);
+			atomic_inc(&vmap_cache_flag);
 
 		D("map page:%5lx for addr:%lx\n", page_to_pfn(page), addr);
 		atomic_inc(&vmap_pre_handle_count);
@@ -553,7 +555,7 @@ int handle_vmap_fault(unsigned long addr, unsigned int esr,
 
 	/* cache is not enough */
 	if (cache <= (VMAP_CACHE_PAGE / 2))
-		mod_delayed_work(system_highpri_wq, &avmap->mwork, 0);
+		atomic_inc(&vmap_cache_flag);
 
 	atomic_inc(&vmap_fault_count);
 	D("map page:%5lx for addr:%lx\n", page_to_pfn(page), addr);
@@ -710,14 +712,14 @@ static void check_and_map_stack_shadow(unsigned long addr)
 	shadow = (unsigned long)kasan_mem_to_shadow((void *)addr);
 	page   = check_pte_exist(shadow);
 	if (page) {
-		WARN(page_address(page) == (void *)kasan_zero_page,
+		WARN(page_address(page) == (void *)kasan_early_shadow_page,
 		     "bad pte, page:%px, %lx, addr:%lx\n",
 		     page_address(page), page_to_pfn(page), addr);
 		return;
 	}
 	shadow = shadow & PAGE_MASK;
 	page   = alloc_page(GFP_KERNEL | __GFP_HIGHMEM |
-			    __GFP_ZERO | __GFP_REPEAT);
+			    __GFP_ZERO | __GFP_HIGH);
 	if (!page) {
 		WARN(!page,
 		     "alloc page for addr:%lx, shadow:%lx fail\n",
@@ -828,42 +830,58 @@ void aml_stack_free(struct task_struct *tsk)
 	spin_unlock_irqrestore(&avmap->vmap_lock, flags);
 }
 
-static void page_cache_maintain_work(struct work_struct *work)
+/*
+ * page cache maintain task for vmap
+ */
+static int vmap_task(void *data)
 {
 	struct page *page;
 	struct list_head head;
 	int i, cnt;
 	unsigned long flags;
+	struct aml_vmap *v = (struct aml_vmap *)data;
 
-	spin_lock_irqsave(&avmap->page_lock, flags);
-	cnt = avmap->cached_pages;
-	spin_unlock_irqrestore(&avmap->page_lock, flags);
-	if (cnt >= VMAP_CACHE_PAGE) {
-		D("cache full cnt:%d\n", cnt);
-		schedule_delayed_work(&avmap->mwork, CACHE_MAINTAIN_DELAY);
-		return;
-	}
-
-	INIT_LIST_HEAD(&head);
-	for (i = 0; i < VMAP_CACHE_PAGE - cnt; i++) {
-		page = alloc_page(GFP_KERNEL | __GFP_HIGHMEM |  __GFP_ZERO);
-		if (!page) {
-			E("get page failed, allocated:%d, cnt:%d\n", i, cnt);
+	set_user_nice(current, -19);
+	while (1) {
+		if (kthread_should_stop())
 			break;
+
+		if (!atomic_read(&vmap_cache_flag)) {
+			msleep(20);
+			continue;
 		}
-		list_add(&page->lru, &head);
+		spin_lock_irqsave(&v->page_lock, flags);
+		cnt = v->cached_pages;
+		spin_unlock_irqrestore(&v->page_lock, flags);
+		if (cnt >= VMAP_CACHE_PAGE) {
+			D("cache full cnt:%d\n", cnt);
+			continue;
+		}
+
+		INIT_LIST_HEAD(&head);
+		for (i = 0; i < VMAP_CACHE_PAGE - cnt; i++) {
+			page = alloc_page(GFP_KERNEL | __GFP_HIGHMEM |
+					  __GFP_ZERO | __GFP_HIGH);
+			if (!page) {
+				E("get page failed, allocated:%d, cnt:%d\n",
+				  i, cnt);
+				break;
+			}
+			list_add(&page->lru, &head);
+		}
+		spin_lock_irqsave(&v->page_lock, flags);
+		list_splice(&head, &v->list);
+		v->cached_pages += i;
+		spin_unlock_irqrestore(&v->page_lock, flags);
+		atomic_set(&vmap_cache_flag, 0);
+		E("add %d pages, cnt:%d\n", i, cnt);
 	}
-	spin_lock_irqsave(&avmap->page_lock, flags);
-	list_splice(&head, &avmap->list);
-	avmap->cached_pages += i;
-	spin_unlock_irqrestore(&avmap->page_lock, flags);
-	D("add %d pages, cnt:%d\n", i, cnt);
-	schedule_delayed_work(&avmap->mwork, CACHE_MAINTAIN_DELAY);
+	return 0;
 }
 
 int __init start_thread_work(void)
 {
-	schedule_delayed_work(&avmap->mwork, CACHE_MAINTAIN_DELAY);
+	kthread_run(vmap_task, avmap, "vmap_thread");
 	return 0;
 }
 arch_initcall(start_thread_work);
@@ -938,7 +956,6 @@ void __init thread_stack_cache_init(void)
 		page++;
 	}
 	avmap->cached_pages = VMAP_CACHE_PAGE;
-	INIT_DELAYED_WORK(&avmap->mwork, page_cache_maintain_work);
 
 #ifdef CONFIG_ARM64
 	for_each_possible_cpu(i) {

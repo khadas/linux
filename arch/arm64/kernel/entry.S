@@ -1513,7 +1513,11 @@ ENTRY(__setup_vmap_stack)
 	mov		x1, #0
 	mov		x2, #THREAD_SIZE
 	mov		x17, lr
+#ifdef CONFIG_KASAN
+	bl		__memset		/* clear stack buffer */
+#else
 	bl		memset			/* clear stack buffer */
+#endif
 	mov		lr, x17
 	mov		x0, #THREAD_START_SP
 	add		x10, x10, x0		/* set stack top */

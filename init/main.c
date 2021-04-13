@@ -702,6 +702,13 @@ asmlinkage __visible void __init start_kernel(void)
 	add_latent_entropy();
 	add_device_randomness(command_line, strlen(command_line));
 	boot_init_stack_canary();
+#if defined(CONFIG_AMLOGIC_MODIFY) && defined(CONFIG_KASAN)
+	/*
+	 * if kasan opened, vmap fault will happen before vmap
+	 * init, so move thread_stack_cache_init here
+	 */
+	thread_stack_cache_init();
+#endif
 
 	time_init();
 	perf_event_init();
@@ -763,7 +770,9 @@ asmlinkage __visible void __init start_kernel(void)
 	if (efi_enabled(EFI_RUNTIME_SERVICES))
 		efi_enter_virtual_mode();
 #endif
+#if !defined(CONFIG_AMLOGIC_MODIFY) || !defined(CONFIG_KASAN)
 	thread_stack_cache_init();
+#endif
 	cred_init();
 	fork_init();
 	proc_caches_init();
