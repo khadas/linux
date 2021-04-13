@@ -4222,8 +4222,10 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 			ret = -ENOMEM;
 
 		/* delayed workqueue for dvbt2 fw downloading */
-		INIT_DELAYED_WORK(&devp->fw_dwork, dtvdemod_fw_dwork);
-		schedule_delayed_work(&devp->fw_dwork, 10 * HZ);
+		if (dtvdd_devp->data->hw_ver != DTVDEMOD_HW_S4) {
+			INIT_DELAYED_WORK(&devp->fw_dwork, dtvdemod_fw_dwork);
+			schedule_delayed_work(&devp->fw_dwork, 10 * HZ);
+		}
 
 		/* workqueue for dvbs blind scan process */
 		INIT_WORK(&devp->blind_scan_work, dvbs_blind_scan_work);
