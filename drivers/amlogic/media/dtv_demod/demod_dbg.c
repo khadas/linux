@@ -124,125 +124,6 @@ static ssize_t dvbc_fast_search_store(struct file *file,
 	return count;
 }
 
-static int adc_clk_open(struct inode *inode, struct file *file)
-{
-	PR_INFO("adc clk Open\n");
-	return 0;
-}
-
-static int adc_clk_release(struct inode *inode,
-	struct file *file)
-{
-	PR_INFO("adc clk Release\n");
-	return 0;
-}
-
-#define BUFFER_SIZE 100
-static unsigned int adc_clk;
-static ssize_t adc_clk_show(struct file *file,
-	char __user *userbuf, size_t count, loff_t *ppos)
-{
-	char buf[BUFFER_SIZE];
-	unsigned int len;
-	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
-	struct aml_dtvdemod *demod = NULL;
-
-	list_for_each_entry(demod, &devp->demod_list, list) {
-		len = snprintf(buf, BUFFER_SIZE, "demod [id %d] adc clk sys setting %dM, dbg %dM\n",
-				demod->id, demod_get_adc_clk(demod) / 1000, adc_clk);
-		/*len += snprintf(buf + len, BUFFER_SIZE - len, "");*/
-	}
-
-	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
-}
-
-static void adc_clk_set(struct aml_dtvdemod *demod, unsigned int clk)
-{
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-	int nco_rate = 0;
-#endif
-
-	if (is_meson_tl1_cpu()) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-		if (clk == 24) {
-			dd_tvafe_hiu_reg_write(ADC_PLL_CNTL0_TL1, 0x012004e0);
-			dd_tvafe_hiu_reg_write(ADC_PLL_CNTL0_TL1, 0x312004e0);
-			dd_tvafe_hiu_reg_write(ADC_PLL_CNTL1_TL1, 0x05400000);
-			dd_tvafe_hiu_reg_write(ADC_PLL_CNTL2_TL1, 0xe0800000);
-			dd_tvafe_hiu_reg_write(ADC_PLL_CNTL0_TL1, 0x111104e0);
-			dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x6aaaaa);
-			dtmb_write_reg(DTMB_FRONT_SRC_CONFIG1, 0x13196596);
-			dtmb_write_reg(0x5b, 0x50a30a25);
-			nco_rate = (24000 * 256) / demod_get_sys_clk(demod) + 2;
-			adc_clk = 24;
-		} else if (clk == 25) {
-			dd_tvafe_hiu_reg_write(ADC_PLL_CNTL0_TL1, 0x001104c8);
-			dd_tvafe_hiu_reg_write(ADC_PLL_CNTL0_TL1, 0x301104c8);
-			dd_tvafe_hiu_reg_write(ADC_PLL_CNTL1_TL1, 0x03000000);
-			dd_tvafe_hiu_reg_write(ADC_PLL_CNTL2_TL1, 0xe1800000);
-			dd_tvafe_hiu_reg_write(ADC_PLL_CNTL0_TL1, 0x101104c8);
-			dtmb_write_reg(DTMB_FRONT_DDC_BYPASS, 0x62c1a5);
-			dtmb_write_reg(DTMB_FRONT_SRC_CONFIG1, 0x131a747d);
-			dtmb_write_reg(0x5b, 0x4d6a0a25);
-			nco_rate = (25000 * 256) / demod_get_sys_clk(demod) + 2;
-			adc_clk = 25;
-		} else {
-			PR_ERR("wrong setting : adc clk\n");
-		}
-
-		if (nco_rate != 0)
-			front_write_bits(AFIFO_ADC, nco_rate,
-					 AFIFO_NCO_RATE_BIT, AFIFO_NCO_RATE_WID);
-#endif
-	} else {
-		PR_ERR("only TL1 has this functionality\n");
-	}
-}
-
-static ssize_t adc_clk_store(struct file *file,
-		const char __user *userbuf, size_t count, loff_t *ppos)
-{
-	char buf[80];
-	char cmd[80], para[80];
-	int ret;
-	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
-	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
-
-	count = min_t(size_t, count, (sizeof(buf)-1));
-	if (copy_from_user(buf, userbuf, count))
-		return -EFAULT;
-
-	buf[count] = 0;
-
-	ret = sscanf(buf, "%s %s", cmd, para);
-
-	list_for_each_entry(tmp, &devp->demod_list, list) {
-		if (tmp->id == 0) {
-			demod = tmp;
-			break;
-		}
-	}
-
-	if (!demod)
-		return 0;
-
-	if (!strcmp(cmd, "adc_clk")) {
-		PR_INFO("set adc clk = ");
-
-		if (!strcmp(para, "24")) {
-			PR_INFO("24M\n");
-			adc_clk_set(demod, 24);
-		} else if (!strcmp(para, "25")) {
-			PR_INFO("25M\n");
-			adc_clk_set(demod, 25);
-		} else {
-			PR_INFO("Unsupport adc_clk: %s\n", para);
-		}
-	}
-
-	return count;
-}
-
 #define DEFINE_SHOW_STORE_DEMOD(__name) \
 static const struct file_operations __name ## _fops = {	\
 	.owner = THIS_MODULE,		\
@@ -255,8 +136,6 @@ static const struct file_operations __name ## _fops = {	\
 /*echo fast_search on > /sys/kernel/debug/demod/dvbc_channel_fast*/
 DEFINE_SHOW_STORE_DEMOD(dvbc_fast_search);
 
-/*echo adc_clk 24 > /sys/kernel/debug/demod/adc_clk*/
-DEFINE_SHOW_STORE_DEMOD(adc_clk);
 static void seq_dump_regs(struct seq_file *seq)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
@@ -488,7 +367,6 @@ DEFINE_SHOW_DEMOD(demod_dump_info);
 static struct demod_debugfs_files_t demod_debug_files[] = {
 	{"dump_info", S_IFREG | 0644, &demod_dump_info_fops},
 	{"dvbc_channel_fast", S_IFREG | 0644, &dvbc_fast_search_fops},
-	{"adc_clk", S_IFREG | 0644, &adc_clk_fops},
 };
 
 static void dtv_dmd_parse_param(char *buf_orig, char **parm)
@@ -849,7 +727,8 @@ static ssize_t attr_store(struct class *cls,
 		}
 	}
 
-	if (!demod || !parm[0])
+	//if (!demod || !parm[0])
+	if (!parm[0])
 		goto fail_exec_cmd;
 
 	if (!strcmp(parm[0], "symb_rate")) {

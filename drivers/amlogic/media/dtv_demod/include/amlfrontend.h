@@ -25,9 +25,6 @@
 #define TIMEOUT_DVBT		3000
 #define TIMEOUT_DVBS		2000
 
-#define HHI_DEMOD_CLK_CNTL	0x74
-#define HHI_DEMOD_CLK_CNTL1	0x75
-
 enum Gxtv_Demod_Tuner_If {
 	SI2176_5M_IF = 5,
 	SI2176_6M_IF = 6
@@ -104,9 +101,16 @@ enum dtv_demod_hw_ver_e {
 	DTVDEMOD_HW_T5D,
 	DTVDEMOD_HW_S4,
 	DTVDEMOD_HW_T5D_B,
+	DTVDEMOD_HW_T3,
+};
+
+struct ddemod_dig_clk_addr {
+	unsigned int demod_clk_ctl;
+	unsigned int demod_clk_ctl_1;
 };
 
 struct meson_ddemod_data {
+	struct ddemod_dig_clk_addr dig_clk;
 	struct ddemod_reg_off regoff;
 	enum dtv_demod_hw_ver_e hw_ver;
 };

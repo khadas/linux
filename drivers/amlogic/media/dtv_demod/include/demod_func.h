@@ -36,28 +36,11 @@
 #define DEMOD_CFG_BASE			(0xC00)	/* is offset */
 
 /* adc */
-#define D_HHI_DADC_CNTL				(0x27 << 2)
-#define D_HHI_DADC_CNTL2			(0x28 << 2)
 #define D_HHI_DADC_RDBK0_I			(0x29 << 2)
-#define D_HHI_DADC_CNTL3			(0x2a << 2)
 #define D_HHI_DADC_CNTL4			(0x2b << 2)
 
-#define D_HHI_VDAC_CNTL0			(0xbd << 2)
-
-/* PLL */
-#define D_HHI_ADC_PLL_CNTL5			(0x9e << 2)
-#define D_HHI_ADC_PLL_CNTL6			(0x9f << 2)
-#define D_HHI_ADC_PLL_CNTL			(0xaa << 2)
-#define D_HHI_ADC_PLL_CNTL2			(0xab << 2)
-#define D_HHI_ADC_PLL_CNTL3			(0xac << 2)
-#define D_HHI_ADC_PLL_CNTL4			(0xad << 2)
-#define D_HHI_ADC_PLL_CNTL1			(0xaf << 2)
-
-/**/
-#define D_HHI_HDMI_CLK_CNTL			(0x73 << 2)
-#define D_HHI_DEMOD_CLK_CNTL			(0x74 << 2)
 /*redefine*/
-#define HHI_DEMOD_MEM_PD_REG		(0x43 << 2)
+#define HHI_DEMOD_MEM_PD_REG		(0x43)
 /*redefine*/
 #define RESET_RESET0_LEVEL			(0x80)
 
@@ -213,13 +196,6 @@ enum {
 	DTMB_PM_INIT_READY = 8,
 	DTMB_CHE_INIT_READY = 9,
 	DTMB_FEC_READY = 10
-};
-
-enum {
-	REG_M_DEMOD = 0,
-	/*REG_M_TVAFE,*/
-	REG_M_HIU,
-	REG_M_NONE
 };
 
 enum dtv_demod_reg_access_mode_e {
@@ -616,8 +592,8 @@ void front_write_bits(u32 reg_addr, const u32 reg_data,
 unsigned int front_read_reg(unsigned int addr);
 unsigned int isdbt_read_reg_v4(unsigned int addr);
 void  isdbt_write_reg_v4(unsigned int addr, unsigned int data);
-int dd_tvafe_hiu_reg_write(unsigned int reg, unsigned int val);
-unsigned int dd_tvafe_hiu_reg_read(unsigned int addr);
+int dd_hiu_reg_write(unsigned int reg, unsigned int val);
+unsigned int dd_hiu_reg_read(unsigned int addr);
 void dtvdemod_dmc_reg_write(unsigned int reg, unsigned int val);
 unsigned int dtvdemod_dmc_reg_read(unsigned int addr);
 int reset_reg_write(unsigned int reg, unsigned int val);
@@ -627,8 +603,6 @@ void clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk);
 void demod_set_demod_default(void);
 unsigned int demod_get_adc_clk(struct aml_dtvdemod *demod);
 unsigned int demod_get_sys_clk(struct aml_dtvdemod *demod);
-void debug_adc_pll(void);
-void debug_check_reg_val(unsigned int reg_mode, unsigned int reg);
 
 /*register access api new*/
 void dvbt_isdbt_wr_reg(unsigned int addr, unsigned int data);
