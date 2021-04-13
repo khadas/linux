@@ -4129,8 +4129,10 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 		if (!dtvdd_devp->fw_buf)
 			ret = -ENOMEM;
 
-		INIT_DELAYED_WORK(&dtvdd_devp->fw_dwork, dtvdemod_fw_dwork);
-		schedule_delayed_work(&dtvdd_devp->fw_dwork, 10 * HZ);
+		if (dtvdd_devp->data->hw_ver != DTVDEMOD_HW_S4) {
+			INIT_DELAYED_WORK(&dtvdd_devp->fw_dwork, dtvdemod_fw_dwork);
+			schedule_delayed_work(&dtvdd_devp->fw_dwork, 10 * HZ);
+		}
 	}
 
 	PR_INFO("[amldtvdemod.] : version: %s (%s), probe ok.\n",
