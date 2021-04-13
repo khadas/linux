@@ -504,6 +504,45 @@
 					<10 11 12 13 14 15 16 17 18 19 20 21>;
 			};
 
+			spicc0: spi@50000 {
+				compatible = "amlogic,meson-g12-spicc";
+				reg = <0x0 0x50000 0x0 0x44>;
+				interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clkc CLKID_SYS_CLK_SPICC0>,
+					 <&clkc CLKID_SPICC0>;
+				clock-names = "core", "async";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				power-domains = <&pwrdm PDID_T3_SPICC0>;
+				status = "disabled";
+			};
+
+			spicc1: spi@52000 {
+				compatible = "amlogic,meson-g12-spicc";
+				reg = <0x0 0x52000 0x0 0x44>;
+				interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clkc CLKID_SYS_CLK_SPICC1>,
+					 <&clkc CLKID_SPICC1>;
+				clock-names = "core", "async";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				power-domains = <&pwrdm PDID_T3_SPICC1>;
+				status = "disabled";
+			};
+
+			spicc2: spi@54000 {
+				compatible = "amlogic,meson-g12-spicc";
+				reg = <0x0 0x54000 0x0 0x44>;
+				interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clkc CLKID_SYS_CLK_SPICC2>,
+					 <&clkc CLKID_SPICC2>;
+				clock-names = "core", "async";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				power-domains = <&pwrdm PDID_T3_SPICC2>;
+				status = "disabled";
+			};
+
 			pwm_ab: pwm@58000 {
 				compatible = "amlogic,meson-v2-pwm";
 				reg = <0x0 0x58000 0x0 0x24>;
@@ -2458,6 +2497,61 @@
 			groups = "diseqc_out_z0";
 			function = "diseqc_out";
 			bias-pull-down;
+		};
+	};
+
+	spicc0_pins_h: spicc0_pins_h {
+		mux {
+			groups = "spi_a_mosi_h10",
+				 "spi_a_miso_h9",
+				 //"spi_a_ss0_h8",used as GPIOH_8
+				 "spi_a_clk_h11";
+			function = "spi_a";
+			drive-strength = <2>;
+		};
+	};
+
+	spicc0_pins_m: spicc0_pins_m {
+		mux {
+			groups = "spi_a_mosi_m",
+				 "spi_a_miso_m",
+				 //"spi_a_ss0_m",used as GPIOM_22
+				 "spi_a_clk_m";
+			function = "spi_a";
+			drive-strength = <2>;
+		};
+	};
+
+	spicc0_pins_z: spicc0_pins_z {
+		mux {
+			groups = "spi_a_mosi_z1",
+				 "spi_a_miso_z0",
+				 //"spi_a_ss0_z3",used as GPIOZ_3
+				 "spi_a_clk_z2";
+			function = "spi_a";
+			drive-strength = <2>;
+		};
+	};
+
+	spicc1_pins: spicc1_pins {
+		mux {
+			groups = "spi_b_mosi_h",
+				 "spi_b_miso_h",
+				 //"spi_b_ss0_h",used as GPIOH_24
+				 "spi_b_clk_h";
+			function = "spi_b";
+			drive-strength = <2>;
+		};
+	};
+
+	spicc2_pins: spicc2_pins {
+		mux {
+			groups = "spi_c_mosi",
+				 "spi_c_miso",
+				 //"spi_c_ss0",used as GPIOC_3
+				 "spi_c_clk";
+			function = "spi_c";
+			drive-strength = <2>;
 		};
 	};
 };

@@ -25,6 +25,9 @@
 		tsensor0 = &cpu_tsensor;
 		tsensor1 = &nna_tsensor;
 		tsensor2 = &vpu_tsensor;
+		spi1 = &spicc0;
+		spi2 = &spicc1;
+		spi3 = &spicc2;
 	};
 
 	memory@00000000 {
@@ -1487,4 +1490,25 @@
 &aml_bt {
 	status = "okay";
 	reset-gpios = <&gpio  GPIOC_13  GPIO_ACTIVE_HIGH>;
+};
+
+&spicc0 {	//for TCON
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc0_pins_h>;
+	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
+};
+
+&spicc1 {	//for UWB/LocalDimm
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc1_pins>;
+	cs-gpios = <&gpio GPIOH_24 GPIO_ACTIVE_HIGH>;
+};
+
+&spicc2 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc2_pins>;
+	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
 };

@@ -4412,7 +4412,7 @@ static const struct clk_parent_data t3_spicc_parent_hws[] = {
 	{ .hw = &t3_fclk_div2.hw },
 	{ .hw = &t3_fclk_div5.hw },
 	{ .hw = &t3_fclk_div7.hw },
-	{ .hw = &t3_gp0_pll.hw }
+	//{ .hw = &t3_gp0_pll.hw }
 };
 
 static struct clk_regmap t3_spicc0_sel = {
