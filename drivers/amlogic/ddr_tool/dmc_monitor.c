@@ -503,6 +503,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 #endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_T7
 	case DMC_TYPE_T7:
+	case DMC_TYPE_T3:
 		mon->ops = &t7_dmc_mon_ops;
 		mon->configs |= DUAL_DMC;
 		mon->configs |= POLICY_INCLUDE;
@@ -681,6 +682,10 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-t7",
 		.data = (void *)DMC_TYPE_T7,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-t3",
+		.data = (void *)DMC_TYPE_T3,
 	},
 	{
 		.compatible = "amlogic,dmc_monitor-s4",

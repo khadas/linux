@@ -164,6 +164,27 @@
 		#clock-cells = <0>;
 	};
 
+	ddr_bandwidth {
+		compatible = "amlogic,ddr-bandwidth-t3";
+		status = "okay";
+		reg = <0 0xfe036000 0 0x400
+		       0 0xfe034000 0 0x400
+		       0 0xfe0a0000 0 0x100>;
+		interrupts = <0 332 IRQ_TYPE_EDGE_RISING
+			      0 336 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "ddr_bandwidth";
+	};
+
+	dmc_monitor {
+		compatible = "amlogic,dmc_monitor-t3";
+		status = "okay";
+		reg = <0 0xfe036000 0 0x400
+		       0 0xfe034000 0 0x400>;
+		reg_base = <0xfe036000>;
+		interrupts = <0 333 IRQ_TYPE_EDGE_RISING
+			      0 337 IRQ_TYPE_EDGE_RISING>;
+	};
+
 	pwrdm: power-domains {
 		compatible = "amlogic,t3-power-domain";
 		#power-domain-cells = <1>;

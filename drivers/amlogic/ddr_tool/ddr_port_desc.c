@@ -647,6 +647,46 @@ static struct ddr_port_desc ddr_port_desc_t7[] __initdata = {
 	{ .port_id = 82, .port_name = "VPU2"          }
 };
 
+static struct ddr_port_desc ddr_port_desc_t3[] __initdata = {
+	{ .port_id =  2, .port_name = "ARM_A55"       },
+	{ .port_id =  4, .port_name = "MALI"          },
+	/* NoC_dev */
+	{ .port_id = 16, .port_name = "HDMI_RX"       },
+	{ .port_id = 17, .port_name = "USB2"          },
+	{ .port_id = 18, .port_name = "USB3"          },
+	{ .port_id = 19, .port_name = "PCIE"          },
+	{ .port_id = 20, .port_name = "TVFE"          },
+	{ .port_id = 21, .port_name = "USB2_DEVICE"   },
+	{ .port_id = 27, .port_name = "SDEMMCB"       },
+	{ .port_id = 28, .port_name = "SDEMMCC"       },
+	{ .port_id = 34, .port_name = "ETHERNET"      },
+	{ .port_id = 35, .port_name = "AFIFO"         },
+	{ .port_id = 36, .port_name = "AUDMA"         },
+	{ .port_id = 37, .port_name = "SPICC0"        },
+	{ .port_id = 38, .port_name = "SPICC1"        },
+	{ .port_id = 39, .port_name = "SPICC2"        },
+	/* NoC_dos */
+	{ .port_id = 48, .port_name = "GE2D"          },
+	{ .port_id = 51, .port_name = "VDEC"          },
+	{ .port_id = 52, .port_name = "HEVC_F"        },
+	{ .port_id = 53, .port_name = "HEVC_B"        },
+	{ .port_id = 54, .port_name = "HCODEC"        },
+	/* NoC_sys */
+	{ .port_id = 63, .port_name = "DEMUX"         },
+	{ .port_id = 68, .port_name = "DSP"           },
+	{ .port_id = 70, .port_name = "AOCPU"         },
+	{ .port_id = 71, .port_name = "JTAG"          },
+	{ .port_id = 72, .port_name = "AUDIO"         },
+	{ .port_id = 73, .port_name = "DMA"           },
+	/* NoC_vpu */
+	{ .port_id = 80, .port_name = "VPU0"          },
+	{ .port_id = 81, .port_name = "VPU1"          },
+	{ .port_id = 82, .port_name = "VPU2"          },
+	{ .port_id = 83, .port_name = "FRC0"          },
+	{ .port_id = 84, .port_name = "FRC1"          },
+	{ .port_id = 85, .port_name = "FRC2"          }
+};
+
 static struct ddr_port_desc ddr_port_desc_s4[] __initdata = {
 	{ .port_id =  0, .port_name = "ARM"           },
 	{ .port_id =  1, .port_name = "MALI"          },
@@ -818,6 +858,11 @@ int __init ddr_find_port_desc(int cpu_type, struct ddr_port_desc **desc)
 	case DMC_TYPE_T7:
 		*desc = ddr_port_desc_t7;
 		desc_size = ARRAY_SIZE(ddr_port_desc_t7);
+		break;
+
+	case DMC_TYPE_T3:
+		*desc = ddr_port_desc_t3;
+		desc_size = ARRAY_SIZE(ddr_port_desc_t3);
 		break;
 
 	case DMC_TYPE_S4:

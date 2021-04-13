@@ -45,14 +45,14 @@
 
 #define DMC_PROT_IRQ_CTRL_STS		(0x00ec << 2)
 
-#define DMC_VIO_PROT_RANGE0	BIT(17)
-#define DMC_VIO_PROT_RANGE1	BIT(18)
+#define DMC_VIO_PROT_RANGE0		BIT(17)
+#define DMC_VIO_PROT_RANGE1		BIT(18)
 
-#define DMC_SEC_STATUS                           (0x051a << 2)
-#define DMC_VIO_ADDR0                            (0x051b << 2)
-#define DMC_VIO_ADDR1                            (0x051c << 2)
-#define DMC_VIO_ADDR2                            (0x051d << 2)
-#define DMC_VIO_ADDR3                            (0x051e << 2)
+#define DMC_SEC_STATUS			(0x051a << 2)
+#define DMC_VIO_ADDR0			(0x051b << 2)
+#define DMC_VIO_ADDR1			(0x051c << 2)
+#define DMC_VIO_ADDR2			(0x051d << 2)
+#define DMC_VIO_ADDR3			(0x051e << 2)
 
 static size_t t7_dmc_dump_reg(char *buf)
 {
