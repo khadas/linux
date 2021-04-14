@@ -3346,6 +3346,11 @@ static struct bl_data_s bl_data_t7 = {
 	.chip_name = "t7",
 };
 
+static struct bl_data_s bl_data_t3 = {
+	.chip_type = LCD_CHIP_T3,
+	.chip_name = "t3",
+};
+
 static const struct of_device_id bl_dt_match_table[] = {
 	{
 		.compatible = "amlogic, backlight-g12a",
@@ -3380,6 +3385,10 @@ static const struct of_device_id bl_dt_match_table[] = {
 	{
 		.compatible = "amlogic, backlight-t7",
 		.data = &bl_data_t7,
+	},
+	{
+		.compatible = "amlogic, backlight-t3",
+		.data = &bl_data_t3,
 	},
 	{}
 };

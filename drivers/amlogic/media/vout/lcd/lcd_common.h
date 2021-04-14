@@ -17,7 +17,8 @@
 /* 20201116: add t5,t5d,t7 support*/
 /* 20210222: add multi driver support*/
 /* 20210409: update lvds & vbyone regs for t7*/
-#define LCD_DRV_VERSION    "20210409"
+/* 20210412: add t3 support*/
+#define LCD_DRV_VERSION    "20210412"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;

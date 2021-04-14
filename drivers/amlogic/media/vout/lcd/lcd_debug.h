@@ -157,6 +157,17 @@ static unsigned int lcd_reg_dump_clk_t7_2[] = {
 	LCD_DEBUG_REG_END
 };
 
+static unsigned int lcd_reg_dump_pll_t3_0[] = {
+	ANACTRL_TCON_PLL0_CNTL0,
+	ANACTRL_TCON_PLL0_CNTL1,
+	ANACTRL_TCON_PLL0_CNTL2,
+	ANACTRL_TCON_PLL0_CNTL3,
+	ANACTRL_TCON_PLL0_CNTL4,
+	ANACTRL_TCON_PLL0_STS,
+	ANACTRL_VID_PLL_CLK_DIV,
+	LCD_DEBUG_REG_END
+};
+
 static unsigned int lcd_reg_dump_encl_dft[] = {
 	VPU_VIU_VENC_MUX_CTRL,
 	ENCL_VIDEO_EN,
@@ -316,6 +327,12 @@ static unsigned int lcd_reg_dump_pinmux_t5[] = {
 
 static unsigned int lcd_reg_dump_pinmux_t7[] = {
 	PADCTRL_PIN_MUX_REGK,
+	LCD_DEBUG_REG_END
+};
+
+static unsigned int lcd_reg_dump_pinmux_t3[] = {
+	PADCTRL_PIN_MUX_REG7,
+	PADCTRL_PIN_MUX_REG8,
 	LCD_DEBUG_REG_END
 };
 

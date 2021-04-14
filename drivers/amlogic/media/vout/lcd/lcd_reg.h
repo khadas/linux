@@ -271,6 +271,13 @@
 #define ANACTRL_TCON_PLL1_STS                      0x00f0
 #define ANACTRL_TCON_PLL2_STS                      0x00f1
 
+/*T3*/
+#define ANACTRL_LVDS_TX_PHY_CNTL0                  0x00f4
+#define ANACTRL_LVDS_TX_PHY_CNTL1                  0x00f5
+#define ANACTRL_LVDS_TX_PHY_CNTL2                  0x00f6
+#define ANACTRL_LVDS_TX_PHY_CNTL3                  0x00f7
+#define ANACTRL_VID_PLL_CLK_DIV                    0x00f8
+
 #define COMBO_DPHY_CNTL0                           0x0000
 #define COMBO_DPHY_CNTL1                           0x0001
 #define COMBO_DPHY_VID_PLL0_DIV                    0x0002

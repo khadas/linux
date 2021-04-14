@@ -1582,6 +1582,10 @@ static struct lcd_data_s lcd_data_t3 = {
 	.chip_type = LCD_CHIP_T3,
 	.chip_name = "t3",
 	.reg_map_table = &lcd_reg_tl1[0],
+	.drv_max = 2,
+	.offset_venc = {0x0, 0x600, 0x0},
+	.offset_venc_if = {0x0, 0x500, 0x0},
+	.offset_venc_data = {0x0, 0x100, 0x0},
 };
 
 static const struct of_device_id lcd_dt_match_table[] = {

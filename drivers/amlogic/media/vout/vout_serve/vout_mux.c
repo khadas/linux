@@ -119,6 +119,35 @@ static void vout_viu_mux_update_t7(int index, unsigned int mux_sel)
 	 */
 }
 
+static void vout_viu_mux_update_t3(int index, unsigned int mux_sel)
+{
+	unsigned int viu_bit = 0xff, venc_idx;
+
+	switch (index) {
+	case 1:
+		viu_bit = 0;
+		break;
+	case 2:
+		viu_bit = 2;
+		break;
+	default:
+		VOUTERR("%s: invalid index %d\n", __func__, index);
+		return;
+	}
+	venc_idx = (mux_sel >> 4) & 0xf;
+
+	/* viu_mux: viu0_sel: 0=venc0, 1=venc1, 2=venc2, 3=invalid */
+	if (viu_bit != 0xff)
+		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, venc_idx, viu_bit, 2);
+
+	/*VOUTPR("%s: index=%d, mux_sel=0x%x, venc_idx=%d\n",
+	 *	__func__, index, mux_sel, venc_idx);
+	 *VOUTPR("%s: 0x%04x=0x%08x\n",
+	 *	__func__, VPU_VIU_VENC_MUX_CTRL,
+	 *	vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL));
+	 */
+}
+
 void vout_viu_mux_update(int index, unsigned int mux_sel)
 {
 	/* for default case */
@@ -141,6 +170,10 @@ static struct vout_mux_data_s vout_mux_match_data_t7 = {
 	.update_viu_mux = vout_viu_mux_update_t7,
 };
 
+static struct vout_mux_data_s vout_mux_match_data_t3 = {
+	.update_viu_mux = vout_viu_mux_update_t3,
+};
+
 static const struct of_device_id vout_mux_dt_match_table[] = {
 	{
 		.compatible = "amlogic, vout_mux",
@@ -149,6 +182,10 @@ static const struct of_device_id vout_mux_dt_match_table[] = {
 	{
 		.compatible = "amlogic, vout_mux-t7",
 		.data = &vout_mux_match_data_t7,
+	},
+	{
+		.compatible = "amlogic, vout_mux-t3",
+		.data = &vout_mux_match_data_t3,
 	},
 	{}
 };

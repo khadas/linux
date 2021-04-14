@@ -119,7 +119,8 @@ static void lcd_set_encl_tcon(struct aml_lcd_drv_s *pdrv)
 	unsigned int reg_hsync_hs, reg_hsync_he, reg_hsync_vs, reg_hsync_ve;
 	unsigned int reg_vsync_hs, reg_vsync_he, reg_vsync_vs, reg_vsync_ve;
 
-	if (pdrv->data->chip_type == LCD_CHIP_T7) {
+	if (pdrv->data->chip_type == LCD_CHIP_T7 ||
+	    pdrv->data->chip_type == LCD_CHIP_T3) {
 		offset_data = pdrv->data->offset_venc_data[pdrv->index];
 		offset_if = pdrv->data->offset_venc_if[pdrv->index];
 		reg_rgb_base = LCD_RGB_BASE_ADDR + offset_data;
@@ -296,6 +297,11 @@ void lcd_set_venc(struct aml_lcd_drv_s *pdrv)
 				(5 << 13) | (pconf->basic.h_active - 1));
 		lcd_vcbus_write(ENCL_INBUF_CNTL0 + offset, 0x200);
 		break;
+	case LCD_CHIP_T3:
+		lcd_vcbus_write(ENCL_INBUF_CNTL1 + offset,
+				(4 << 13) | (pconf->basic.h_active - 1));
+		lcd_vcbus_write(ENCL_INBUF_CNTL0 + offset, 0x200);
+		break;
 	default:
 		break;
 	}
@@ -309,7 +315,8 @@ void lcd_set_venc(struct aml_lcd_drv_s *pdrv)
 	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 0, 3, 1);
 
 	lcd_vcbus_write(ENCL_VIDEO_EN + offset, 1);
-	if (pdrv->data->chip_type == LCD_CHIP_T7) {
+	if (pdrv->data->chip_type == LCD_CHIP_T7 ||
+	    pdrv->data->chip_type == LCD_CHIP_T3) {
 		switch (pdrv->index) {
 		case 0:
 			reg_disp_viu_ctrl = VPU_DISP_VIU0_CTRL;
