@@ -42,3 +42,5 @@ dtb-y += t3_t965d4_ar331.dtb
 dtb-y += t3_t982_ar301.dtb
 dtb-y += t3_t982_ar309.dtb
 dtb-y += t3_t965d4_ar321.dtb
+dtb-y += t3_t982_ar301_1g.dtb
+dtb-y += t3_t982_ar309_1g.dtb
