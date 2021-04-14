@@ -1302,6 +1302,24 @@ static struct ge2d_device_data_s ge2d_t7 = {
 	.blk_stride_mode = 1,
 };
 
+static struct ge2d_device_data_s ge2d_t3 = {
+	.ge2d_rate = 667000000,
+	.src2_alp = 1,
+	.canvas_status = 2,
+	.deep_color = 1,
+	.hang_flag = 1,
+	.fifo = 1,
+	.has_self_pwr = 1,
+	.poweron_table = &runtime_poweron_table,
+	.poweroff_table = &runtime_poweroff_table,
+	.chip_type = MESON_CPU_MAJOR_ID_T3,
+	.adv_matrix = 1,
+	.src2_repeat = 1,
+	.dst_repeat = 1,
+	.dst_sign_mode = 1,
+	.blk_stride_mode = 1,
+};
+
 static struct ge2d_device_data_s ge2d_s4 = {
 	.ge2d_rate = 500000000,
 	.src2_alp = 1,
@@ -1367,6 +1385,10 @@ static const struct of_device_id ge2d_dt_match[] = {
 	{
 		.compatible = "amlogic, ge2d-t7",
 		.data = &ge2d_t7,
+	},
+	{
+		.compatible = "amlogic, ge2d-t3",
+		.data = &ge2d_t3,
 	},
 	{
 		.compatible = "amlogic, ge2d-s4",
