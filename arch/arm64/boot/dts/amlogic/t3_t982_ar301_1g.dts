@@ -12,7 +12,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "t3_t982_ar301";
+	amlogic-dt-id = "t3_t982_ar301-1g";
 	compatible = "amlogic, t3";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
@@ -429,7 +429,7 @@
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000>;
 	logo_addr = "0x3f800000";
 	mem_alloc = <0>;
-	pxp_mode = <1>; /** 0:normal mode 1:pxp mode */
+	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
 &audiobus {
