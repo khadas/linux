@@ -1052,3 +1052,6 @@
 	pinctrl-names = "default";
 };
 
+&saradc {
+	status = "okay";
+};

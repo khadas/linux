@@ -1029,3 +1029,7 @@
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
 };
+
+&saradc {
+	status = "okay";
+};
