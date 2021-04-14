@@ -211,9 +211,12 @@ static void session_vsync_update(struct sync_session *session)
 		u32 r = 0;
 		u32 den = sync.sync_duration_den;
 
-		den = den * session->rate / 1000;
+		/* both den and num * 20 to handle
+		 * speed with multiple of 0.05
+		 */
+		den = den * 20 * session->rate / 1000;
 		spin_lock_irqsave(&session->lock, flags);
-		temp = div_u64_rem(90000ULL * den, sync.sync_duration_num, &r);
+		temp = div_u64_rem(90000ULL * den, sync.sync_duration_num * 20, &r);
 		session->wall_clock += temp;
 		session->wall_clock_inc_remainer += r;
 		if (session->wall_clock_inc_remainer >= sync.sync_duration_num) {
@@ -554,6 +557,8 @@ static void session_video_start(struct sync_session *session, u32 pts)
 				session->clock_start = true;
 				session->stat = AVS_STAT_STARTED;
 				del_timer_sync(&session->start_timer);
+				/* use video pts as starting point */
+				session_set_wall_clock(session, pts);
 				session->timer_on = false;
 				session->start_posted = true;
 				wait_up_poll(session);
@@ -1179,6 +1184,9 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		struct pts_tri ts;
 
 		if (!copy_from_user(&ts, argp, sizeof(ts))) {
+			if (!VALID_PTS(session->last_vpts.pts))
+				msync_dbg(LOG_DEBUG, "session[%d] first vpts %d\n",
+					session->id, ts.pts);
 			session->last_vpts = ts;
 			session_update_vpts(session);
 		}
