@@ -706,22 +706,42 @@ static int lcd_power_load_from_dts(struct aml_lcd_drv_s *pdrv,
 		while (i < LCD_PWR_STEP_MAX) {
 			power_step->power_on_step_max = i;
 			j = 4 * i;
-			ret = of_property_read_u32_index(child, "power_on_step",
-							 j, &val);
+			ret = of_property_read_u32_index(child, "power_on_step", j, &val);
+			if (ret) {
+				LCDPR("[%d]: failed to get power_on_step %d\n",
+				      pdrv->index, i);
+				power_step->power_on_step[i].type = 0xff;
+				break;
+			}
 			power_step->power_on_step[i].type = (unsigned char)val;
 			if (val == 0xff) /* ending */
 				break;
 			j = 4 * i + 1;
-			ret = of_property_read_u32_index(child,
-				"power_on_step", j, &val);
+			ret = of_property_read_u32_index(child, "power_on_step", j, &val);
+			if (ret) {
+				LCDPR("[%d]: failed to get power_on_step %d\n",
+				      pdrv->index, i);
+				power_step->power_on_step[i].type = 0xff;
+				break;
+			}
 			power_step->power_on_step[i].index = val;
 			j = 4 * i + 2;
-			ret = of_property_read_u32_index(child,
-				"power_on_step", j, &val);
+			ret = of_property_read_u32_index(child, "power_on_step", j, &val);
+			if (ret) {
+				LCDPR("[%d]: failed to get power_on_step %d\n",
+				      pdrv->index, i);
+				power_step->power_on_step[i].type = 0xff;
+				break;
+			}
 			power_step->power_on_step[i].value = val;
 			j = 4 * i + 3;
-			ret = of_property_read_u32_index(child,
-				"power_on_step", j, &val);
+			ret = of_property_read_u32_index(child, "power_on_step", j, &val);
+			if (ret) {
+				LCDPR("[%d]: failed to get power_on_step %d\n",
+				      pdrv->index, i);
+				power_step->power_on_step[i].type = 0xff;
+				break;
+			}
 			power_step->power_on_step[i].delay = val;
 
 			/* gpio/extern probe */
@@ -770,22 +790,42 @@ static int lcd_power_load_from_dts(struct aml_lcd_drv_s *pdrv,
 		while (i < LCD_PWR_STEP_MAX) {
 			power_step->power_off_step_max = i;
 			j = 4 * i;
-			ret = of_property_read_u32_index(child,
-				"power_off_step", j, &val);
+			ret = of_property_read_u32_index(child, "power_off_step", j, &val);
+			if (ret) {
+				LCDPR("[%d]: failed to get power_off_step %d\n",
+				      pdrv->index, i);
+				power_step->power_off_step[i].type = 0xff;
+				break;
+			}
 			power_step->power_off_step[i].type = (unsigned char)val;
 			if (val == 0xff) /* ending */
 				break;
 			j = 4 * i + 1;
-			ret = of_property_read_u32_index(child,
-				"power_off_step", j, &val);
+			ret = of_property_read_u32_index(child, "power_off_step", j, &val);
+			if (ret) {
+				LCDPR("[%d]: failed to get power_off_step %d\n",
+				      pdrv->index, i);
+				power_step->power_off_step[i].type = 0xff;
+				break;
+			}
 			power_step->power_off_step[i].index = val;
 			j = 4 * i + 2;
-			ret = of_property_read_u32_index(child,
-				"power_off_step", j, &val);
+			ret = of_property_read_u32_index(child, "power_off_step", j, &val);
+			if (ret) {
+				LCDPR("[%d]: failed to get power_off_step %d\n",
+				      pdrv->index, i);
+				power_step->power_off_step[i].type = 0xff;
+				break;
+			}
 			power_step->power_off_step[i].value = val;
 			j = 4 * i + 3;
-			ret = of_property_read_u32_index(child,
-				"power_off_step", j, &val);
+			ret = of_property_read_u32_index(child, "power_off_step", j, &val);
+			if (ret) {
+				LCDPR("[%d]: failed to get power_off_step %d\n",
+				      pdrv->index, i);
+				power_step->power_off_step[i].type = 0xff;
+				break;
+			}
 			power_step->power_off_step[i].delay = val;
 
 			/* gpio/extern probe */

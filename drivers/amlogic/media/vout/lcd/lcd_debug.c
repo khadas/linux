@@ -1719,6 +1719,9 @@ static void aml_lcd_prbs_test(struct aml_lcd_drv_s *pdrv,
 	unsigned int clk_err_cnt = 0;
 	int i, j, ret;
 
+	if (!cconf)
+		return;
+
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_G12A:
 	case LCD_CHIP_G12B:

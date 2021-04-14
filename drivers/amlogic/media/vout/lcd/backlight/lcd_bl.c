@@ -3160,7 +3160,11 @@ static int bl_cdev_add(struct aml_bl_drv_s *bdrv, struct device *parent)
 	dev_t devno;
 	int ret = 0;
 
-	if (!bl_cdev || !bdrv) {
+	if (!bdrv) {
+		BLERR("%s: bdrv is null\n", __func__);
+		return -1;
+	}
+	if (!bl_cdev) {
 		ret = 1;
 		goto bl_cdev_add_failed;
 	}
