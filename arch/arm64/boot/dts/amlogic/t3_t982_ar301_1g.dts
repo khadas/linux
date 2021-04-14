@@ -854,6 +854,8 @@
 	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 	//vmmc-supply = <&vddao_3v3>;
 	//vqmmc-supply = <&emmc_1v8>;
+
+	amlogic,dram-access-quirk;
 };
 
 &sd_emmc_c {
@@ -874,6 +876,8 @@
 //	mmc-pwrseq = <&emmc_pwrseq>;
 //	vmmc-supply = <&vddao_3v3>;
 //	vqmmc-supply = <&vddao_1v8>;
+
+	amlogic,dram-access-quirk;
 };
 
 &gpu{
