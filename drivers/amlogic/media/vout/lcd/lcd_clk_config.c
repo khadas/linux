@@ -3331,6 +3331,9 @@ int lcd_ss_enable(int index, unsigned int flag)
 	unsigned long flags = 0;
 	int ret = -1;
 
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s\n", index, __func__);
+
 	spin_lock_irqsave(&lcd_clk_lock, flags);
 
 	pdrv = aml_lcd_get_driver(index);
@@ -3354,8 +3357,6 @@ int lcd_ss_enable(int index, unsigned int flag)
 lcd_ss_enable_end:
 	spin_unlock_irqrestore(&lcd_clk_lock, flags);
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 	return ret;
 }
 

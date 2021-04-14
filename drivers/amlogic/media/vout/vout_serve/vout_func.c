@@ -211,7 +211,7 @@ void vout_func_set_state(int index, enum vmode_e mode)
 			if (p_server->op.get_state) {
 				state = p_server->op.get_state(data);
 				if (state & (1 << index)) {
-					if (!p_server->op.disable)
+					if (p_server->op.disable)
 						p_server->op.disable(mode, data);
 				}
 			}

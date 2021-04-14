@@ -909,7 +909,11 @@ static int lcd_cdev_add(struct aml_lcd_drv_s *pdrv, struct device *parent)
 	dev_t devno;
 	int ret = 0;
 
-	if (!lcd_cdev || !pdrv) {
+	if (!pdrv) {
+		LCDERR("%s: pdrv is null\n", __func__);
+		return -1;
+	}
+	if (!lcd_cdev) {
 		ret = 1;
 		goto lcd_cdev_add_failed;
 	}
@@ -1726,7 +1730,7 @@ static int lcd_remove(struct platform_device *pdev)
 
 	lcd_global_remove_once();
 
-	LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	LCDPR("[%d]: %s\n", index, __func__);
 	return 0;
 }
 
