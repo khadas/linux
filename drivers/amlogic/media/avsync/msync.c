@@ -602,6 +602,8 @@ static u32 session_audio_start(struct sync_session *session,
 			!VALID_PTS(session->first_vpts.pts)) {
 			msync_dbg(LOG_INFO, "[%d]%d audio start %u deferred\n",
 					session->id, __LINE__, pts);
+			if (session->timer_on)
+				del_timer_sync(&session->start_timer);
 			session->start_timer.function = wait_timer_func;
 			session->start_timer.expires = jiffies + CHECK_INTERVAL;
 			add_timer(&session->start_timer);
@@ -635,6 +637,8 @@ static u32 session_audio_start(struct sync_session *session,
 			/* transition start from V to A master */
 			session->stat = AVS_STAT_TRANSITION;
 			/* enter grace period */
+			if (session->timer_on)
+				del_timer_sync(&session->start_timer);
 			session->start_timer.function = transit_timer_func;
 			session->start_timer.expires = jiffies + TRANSIT_INTERVAL;
 			add_timer(&session->start_timer);
@@ -1146,6 +1150,8 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			session->use_pcr = true;
 			session->pcr_init_mode = INIT_PRIORITY_PCR;
 
+			if (session->pcr_timer_added)
+				del_timer_sync(&session->pcr_timer);
 			session->pcr_timer.function = pcr_timer_func;
 			session->pcr_timer.expires = jiffies;
 
