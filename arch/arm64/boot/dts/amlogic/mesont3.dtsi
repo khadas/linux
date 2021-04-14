@@ -1313,6 +1313,20 @@
 		};
 	};
 
+	spdifout_z: spdifout_z {
+		mux { /* GPIOZ_19 */
+			groups = "spdif_out_z19";
+			function = "spdif_out";
+		};
+	};
+
+	spdifout_z_mute: spdifout_z_mute {
+		 mux { /* GPIOZ_19 */
+			groups = "GPIOZ_19";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
 };
 
 &gpu{
