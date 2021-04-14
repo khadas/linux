@@ -19,12 +19,19 @@
 #ifndef __TEE_H__
 #define __TEE_H__
 
+/* memory align used by tee_protect_mem_by_type() */
+#define TEE_MEM_ALIGN_SIZE                                 0x10000
+
 /* memory type used by tee_protect_mem_by_type() */
+#define TEE_MEM_TYPE_STREAM_OUTPUT                         0x5
 #define TEE_MEM_TYPE_GPU                                   0x6
 #define TEE_MEM_TYPE_VDIN                                  0x7
 #define TEE_MEM_TYPE_HCODEC                                0x8
 #define TEE_MEM_TYPE_GE2D                                  0x9
 #define TEE_MEM_TYPE_DEMUX                                 0xa
+#define TEE_MEM_TYPE_TCON                                  0xb
+#define TEE_MEM_TYPE_PCIE                                  0xc
+#define TEE_MEM_TYPE_INVALID                               0xff
 
 /* device ID used by tee_config_device_state() */
 #define DMC_DEV_ID_GPU                                     1
