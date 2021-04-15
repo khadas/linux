@@ -140,8 +140,8 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 		r0.b.PHY_SEL = 0;
 		r0.b.U3_HOST_PHY = 1;
 		r0.b.PCIE_CLKSEL = 0;
-		r0.b.U3_SSRX_SEL = 0;
-		r0.b.U3_SSTX_SEL = 0;
+		r0.b.U3_SSRX_SEL = 1;
+		r0.b.U3_SSTX_SEL = 1;
 		r0.b.REFPAD_EXT_100M_EN = 0;
 		r0.b.TX_ENABLE_N = 1;
 		r0.b.TX_SE0 = 0;
