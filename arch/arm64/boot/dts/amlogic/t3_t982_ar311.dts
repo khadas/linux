@@ -1178,8 +1178,6 @@
 	status = "okay";
 	portnum = <0>;
 	otg = <0>;
-	gpio-vbus-power = "GPIOD_6";
-	gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
 };
 
 &usb2_m31_phy {
