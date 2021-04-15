@@ -157,6 +157,8 @@ struct vpp_frame_par_s {
 	u32 video_input_h;
 	u32 cm_input_w;
 	u32 cm_input_h;
+	u32 nnhf_input_w;
+	u32 nnhf_input_h;
 	u32 clk_in_pps;
 
 	bool nocomp;
@@ -357,5 +359,9 @@ int vpp_set_super_scaler_regs
 	int reg_srscl1_vert_ratio,
 	int vpp_postblend_out_width,
 	int vpp_postblend_out_height);
-
+void aisr_set_filters(u32 ratio_x, u32 ratio_y,
+			u32 dst_w, u32 dst_h,
+			struct vpp_frame_par_s *aisr_frame_par,
+			struct vframe_s *vf);
+void aisr_sr1_nn_enable(u32 enable);
 #endif /* VPP_H */

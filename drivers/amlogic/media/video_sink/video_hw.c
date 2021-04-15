@@ -2546,6 +2546,9 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 		u32 sc_misc_val;
 
 		sc_misc_val = VPP_SC_TOP_EN | VPP_SC_V1OUT_EN;
+		/* enable seprate luma chroma coef */
+		if (cur_dev->scaler_sep_coef_en)
+			sc_misc_val |= VPP_HF_SEP_COEF_4SRNET_EN;
 		if (setting->sc_h_enable) {
 			if (has_pre_hscaler_ntap(0)) {
 				/* for sc2/t5 support hscaler 8 tap */
@@ -2645,6 +2648,41 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 					vpp_filter->vpp_horz_coeff[i + 2 +
 					VPP_FILER_COEFS_NUM * 3]);
 				}
+				if (cur_dev->scaler_sep_coef_en) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef_idx,
+						VPP_SEP_COEF_HORZ_CHROMA |
+						VPP_SEP_COEF |
+						VPP_COEF_9BIT);
+					for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+						cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef,
+						vpp_filter->vpp_horz_coeff[i + 2]);
+					}
+					for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+						cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef,
+						vpp_filter->vpp_horz_coeff[i + 2 +
+						VPP_FILER_COEFS_NUM]);
+					}
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef_idx,
+						VPP_SEP_COEF_HORZ_CHROMA_PARTB |
+						VPP_SEP_COEF |
+						VPP_COEF_9BIT);
+					for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+						cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef,
+						vpp_filter->vpp_horz_coeff[i + 2 +
+						VPP_FILER_COEFS_NUM * 2]);
+					}
+					for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+						cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef,
+						vpp_filter->vpp_horz_coeff[i + 2 +
+						VPP_FILER_COEFS_NUM * 3]);
+					}
+				}
 			} else {
 				cur_dev->rdma_func[vpp_index].rdma_wr(vd_pps_reg->vd_scale_coef_idx,
 						  VPP_COEF_HORZ);
@@ -2661,6 +2699,27 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 					(vd_pps_reg->vd_scale_coef,
 					vpp_filter->vpp_horz_coeff[i + 2 +
 					VPP_FILER_COEFS_NUM]);
+				}
+				if (cur_dev->scaler_sep_coef_en) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef_idx,
+						VPP_SEP_COEF_HORZ_CHROMA |
+						VPP_SEP_COEF);
+					for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+						cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef,
+						vpp_filter->vpp_horz_coeff[i + 2]);
+					}
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef_idx,
+						VPP_SEP_COEF_HORZ_CHROMA_PARTB |
+						VPP_SEP_COEF);
+					for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+						cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef,
+						vpp_filter->vpp_horz_coeff[i + 2 +
+						VPP_FILER_COEFS_NUM]);
+					}
 				}
 			}
 		} else {
@@ -2681,6 +2740,26 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 					vpp_filter->vpp_horz_coeff[i + 2 +
 					VPP_FILER_COEFS_NUM]);
 				}
+				if (cur_dev->scaler_sep_coef_en) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef_idx,
+						VPP_SEP_COEF_HORZ_CHROMA |
+						VPP_SEP_COEF |
+						VPP_COEF_9BIT);
+					for (i = 0; i <
+						(vpp_filter->vpp_horz_coeff[1]
+						& 0xff); i++) {
+						cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef,
+						vpp_filter->vpp_horz_coeff[i + 2]);
+					}
+					for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+						cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef,
+						vpp_filter->vpp_horz_coeff[i + 2 +
+						VPP_FILER_COEFS_NUM]);
+					}
+				}
 			} else {
 				cur_dev->rdma_func[vpp_index].rdma_wr
 					(vd_pps_reg->vd_scale_coef_idx,
@@ -2690,6 +2769,18 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 					cur_dev->rdma_func[vpp_index].rdma_wr
 					(vd_pps_reg->vd_scale_coef,
 					vpp_filter->vpp_horz_coeff[i + 2]);
+				}
+				if (cur_dev->scaler_sep_coef_en) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef_idx,
+						VPP_SEP_COEF_HORZ_CHROMA |
+						VPP_SEP_COEF);
+					for (i = 0; i < (vpp_filter->vpp_horz_coeff[1]
+						& 0xff); i++) {
+						cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef,
+						vpp_filter->vpp_horz_coeff[i + 2]);
+					}
 				}
 			}
 		}
@@ -2970,6 +3061,25 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 					vpp_filter->vpp_vert_coeff[i + 2 +
 					VPP_FILER_COEFS_NUM]);
 			}
+			if (cur_dev->scaler_sep_coef_en) {
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(vd_pps_reg->vd_scale_coef_idx,
+					VPP_SEP_COEF_VERT_CHROMA |
+					VPP_SEP_COEF |
+					VPP_COEF_9BIT);
+				for (i = 0; i < (vpp_filter->vpp_vert_coeff[1]
+					& 0xff); i++) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef,
+						vpp_filter->vpp_vert_coeff[i + 2]);
+				}
+				for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef,
+						vpp_filter->vpp_vert_coeff[i + 2 +
+						VPP_FILER_COEFS_NUM]);
+				}
+			}
 		} else {
 			cur_dev->rdma_func[vpp_index].rdma_wr
 				(vd_pps_reg->vd_scale_coef_idx,
@@ -2979,6 +3089,18 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 				cur_dev->rdma_func[vpp_index].rdma_wr
 					(vd_pps_reg->vd_scale_coef,
 					vpp_filter->vpp_vert_coeff[i + 2]);
+			}
+			if (cur_dev->scaler_sep_coef_en) {
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(vd_pps_reg->vd_scale_coef_idx,
+					VPP_SEP_COEF_VERT_CHROMA |
+					VPP_SEP_COEF);
+				for (i = 0; i < (vpp_filter->vpp_vert_coeff[1]
+					& 0xff); i++) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_pps_reg->vd_scale_coef,
+						vpp_filter->vpp_vert_coeff[i + 2]);
+				}
 			}
 		}
 		/* vertical chroma filter settings */
@@ -5957,7 +6079,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 			} else {
 				vd_layer[1].pre_blend_en = 1;
 			}
-			if (!cur_dev->vd2_indepentd_blend_ctrl)
+			if (!cur_dev->vd2_independ_blend_ctrl)
 				vpp_misc_set |= (vd_layer[1].layer_alpha
 					<< VPP_VD2_ALPHA_BIT);
 		}
@@ -6123,7 +6245,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 		if ((!vd_layer[0].post_blend_en &&
 		    vd_layer[1].post_blend_en) ||
 		    vd_layer[1].pre_blend_en) {
-			if (!cur_dev->vd2_indepentd_blend_ctrl) {
+			if (!cur_dev->vd2_independ_blend_ctrl) {
 				vpp_misc_set &= ~(0x1ff << VPP_VD2_ALPHA_BIT);
 				vpp_misc_set |= (vd_layer[1].layer_alpha
 					<< VPP_VD2_ALPHA_BIT);
@@ -6164,12 +6286,12 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 
 			/* vd2 path sel */
 			if (vd_layer[1].post_blend_en) {
-				if (cur_dev->vd2_indepentd_blend_ctrl)
+				if (cur_dev->vd2_independ_blend_ctrl)
 					port_val[1] |= (1 << 17);
 				else
 					port_val[1] |= (1 << 20);
 			} else {
-				if (cur_dev->vd2_indepentd_blend_ctrl)
+				if (cur_dev->vd2_independ_blend_ctrl)
 					port_val[1] &= ~(1 << 17);
 				else
 					port_val[1] &= ~(1 << 20);
@@ -6198,14 +6320,14 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 				 /* post src */
 				port_val[vd2_port] |= (2 << 8);
 				 /* vd2 alpha*/
-				if (cur_dev->vd2_indepentd_blend_ctrl)
+				if (cur_dev->vd2_independ_blend_ctrl)
 					port_val[1] |= vd_layer[1].layer_alpha << 20;
 			} else if (vd_layer[1].pre_blend_en) {
 				port_val[1] |=
 					((1 << 4) | /* pre bld premult*/
 					(2 << 0)); /* pre bld src 1 */
 				 /* vd2 alpha*/
-				if (cur_dev->vd2_indepentd_blend_ctrl)
+				if (cur_dev->vd2_independ_blend_ctrl)
 					port_val[1] |= vd_layer[1].layer_alpha << 20;
 			}
 			if (vd_layer[2].post_blend_en)
@@ -7800,6 +7922,734 @@ void fgrain_update_table(struct video_layer_s *layer,
 }
 #endif
 
+void aisr_update_frame_info(struct video_layer_s *layer,
+			 struct vframe_s *vf)
+{
+	/* update layer->aisr_mif_setting */
+}
+
+void aisr_reshape_cfg(struct aisr_setting_s *aisr_mif_setting)
+{
+#ifdef AISR
+	u32 aisr_hsize = 0;
+	u32 aisr_vsize = 0;
+	u32 baddr[4][4];
+	ulong baddr_base = aisr_mif_setting->phy_addr;
+
+	if (!aisr_mif_setting->aisr_enable) {
+		cur_dev->rdma_func[VPP0].rdma_wr_bits
+			(aisr_reshape_reg.aisr_post_ctrl,
+			0,
+			13, 1);
+		cur_dev->scaler_sep_coef_en = 0;
+		return;
+	}
+	cur_dev->scaler_sep_coef_en = 1;
+	aisr_hsize = aisr_mif_setting->x_end - aisr_mif_setting->x_start + 1;
+	aisr_vsize = aisr_mif_setting->y_end - aisr_mif_setting->y_start + 1;
+	switch (aisr_mif_setting->in_ratio) {
+	case MODE_2X2:
+		baddr[0][0] = baddr_base;
+		baddr[0][1] = baddr_base + aisr_hsize * aisr_vsize;
+		baddr[0][2] = 0;
+		baddr[0][3] = 0;
+		baddr[1][0] = baddr_base + aisr_hsize * aisr_vsize * 2;
+		baddr[1][1] = baddr_base + aisr_hsize * aisr_vsize * 3;
+		baddr[1][2] = 0;
+		baddr[1][3] = 0;
+		baddr[2][0] = 0;
+		baddr[2][1] = 0;
+		baddr[2][2] = 0;
+		baddr[2][3] = 0;
+		baddr[3][0] = 0;
+		baddr[3][1] = 0;
+		baddr[3][2] = 0;
+		baddr[3][3] = 0;
+		break;
+	case MODE_3X3:
+		baddr[0][0] = baddr_base;
+		baddr[0][1] = baddr_base + aisr_hsize * aisr_vsize;
+		baddr[0][2] = baddr_base + aisr_hsize * aisr_vsize * 2;
+		baddr[0][3] = 0;
+		baddr[1][0] = baddr_base + aisr_hsize * aisr_vsize * 3;
+		baddr[1][1] = baddr_base + aisr_hsize * aisr_vsize * 4;
+		baddr[1][2] = baddr_base + aisr_hsize * aisr_vsize * 5;
+		baddr[1][3] = 0;
+		baddr[2][0] = 0;
+		baddr[2][1] = baddr_base + aisr_hsize * aisr_vsize * 6;
+		baddr[2][2] = baddr_base + aisr_hsize * aisr_vsize * 7;
+		baddr[2][3] = baddr_base + aisr_hsize * aisr_vsize * 8;
+		baddr[3][0] = 0;
+		baddr[3][1] = 0;
+		baddr[3][2] = 0;
+		baddr[3][3] = 0;
+		break;
+	case MODE_4X4:
+		baddr[0][0] = baddr_base;
+		baddr[0][1] = baddr_base + aisr_hsize * aisr_vsize;
+		baddr[0][2] = baddr_base + aisr_hsize * aisr_vsize * 2;
+		baddr[0][3] = baddr_base + aisr_hsize * aisr_vsize * 3;
+		baddr[1][0] = baddr_base + aisr_hsize * aisr_vsize * 4;
+		baddr[1][1] = baddr_base + aisr_hsize * aisr_vsize * 5;
+		baddr[1][2] = baddr_base + aisr_hsize * aisr_vsize * 6;
+		baddr[1][3] = baddr_base + aisr_hsize * aisr_vsize * 7;
+		baddr[2][0] = baddr_base + aisr_hsize * aisr_vsize * 8;
+		baddr[2][1] = baddr_base + aisr_hsize * aisr_vsize * 9;
+		baddr[2][2] = baddr_base + aisr_hsize * aisr_vsize * 10;
+		baddr[2][3] = baddr_base + aisr_hsize * aisr_vsize * 11;
+		baddr[3][0] = baddr_base + aisr_hsize * aisr_vsize * 12;
+		baddr[3][1] = baddr_base + aisr_hsize * aisr_vsize * 13;
+		baddr[3][2] = baddr_base + aisr_hsize * aisr_vsize * 14;
+		baddr[3][3] = baddr_base + aisr_hsize * aisr_vsize * 15;
+		break;
+	default:
+		pr_err("invalid mode=%d\n", aisr_mif_setting->in_ratio);
+		break;
+	}
+	cur_dev->rdma_func[VPP0].rdma_wr_bits
+		(aisr_reshape_reg.aisr_reshape_ctrl0,
+		aisr_mif_setting->swap_64bit, 7, 1);
+	cur_dev->rdma_func[VPP0].rdma_wr_bits
+		(aisr_reshape_reg.aisr_reshape_ctrl0,
+		aisr_mif_setting->little_endian, 6, 1);
+	cur_dev->rdma_func[VPP0].rdma_wr_bits
+		(aisr_reshape_reg.aisr_reshape_ctrl0,
+		1, 0, 3);
+	cur_dev->rdma_func[VPP0].rdma_wr_bits
+		(aisr_reshape_reg.aisr_reshape_ctrl1,
+		aisr_mif_setting->in_ratio << 4 |
+		aisr_mif_setting->in_ratio,
+		20, 7);
+	cur_dev->rdma_func[VPP0].rdma_wr_bits
+		(aisr_reshape_reg.aisr_reshape_ctrl1,
+		((aisr_hsize * 8 + 511) >> 9) << 2,
+		0, 13);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_scope_x,
+		(aisr_mif_setting->x_end << 16) |
+		aisr_mif_setting->x_start);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_scope_y,
+		(aisr_mif_setting->y_end << 16) |
+		aisr_mif_setting->y_start);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr00,
+		baddr[0][0]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr01,
+		baddr[0][1]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr02,
+		baddr[0][2]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr03,
+		baddr[0][3]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr10,
+		baddr[1][0]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr11,
+		baddr[1][1]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr12,
+		baddr[1][2]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr13,
+		baddr[1][3]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr20,
+		baddr[2][0]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr21,
+		baddr[2][1]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr22,
+		baddr[2][2]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr23,
+		baddr[2][3]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr30,
+		baddr[3][0]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr31,
+		baddr[3][1]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr32,
+		baddr[3][2]);
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_reshape_baddr33,
+		baddr[3][3]);
+
+	cur_dev->rdma_func[VPP0].rdma_wr
+		(aisr_reshape_reg.aisr_post_size,
+		((aisr_vsize * (aisr_mif_setting->in_ratio + 1)) << 16) |
+		(aisr_hsize * (aisr_mif_setting->in_ratio + 1)));
+	cur_dev->rdma_func[VPP0].rdma_wr_bits
+		(aisr_reshape_reg.aisr_post_ctrl,
+		aisr_mif_setting->aisr_enable,
+		13, 1);
+#endif
+}
+
+void aisr_pps_cfg(struct aisr_setting_s *aisr_mif_setting,
+		     struct scaler_setting_s *setting,
+		     struct scaler_setting_s *aisr_setting,
+		     struct vframe_s *vf)
+{
+#ifdef AISR
+	u32 src_w = aisr_mif_setting->src_w;
+	u32 src_h = aisr_mif_setting->src_h;
+	u32 reshape_scaler = aisr_mif_setting->in_ratio + 1;
+	u32 dst_w = setting->frame_par->nnhf_input_w;
+	u32 dst_h = setting->frame_par->nnhf_input_h;
+	struct vpp_frame_par_s *aisr_frame_par = NULL;
+	u32 ratio_x = 0;
+	u32 ratio_y = 0;
+
+	src_w = src_w * reshape_scaler;
+	src_h = src_h * reshape_scaler;
+	if (src_w == dst_w && src_h == dst_h) {
+		aisr_setting->sc_top_enable = false;
+		setting->sc_h_enable = false;
+		setting->sc_v_enable = false;
+	} else {
+		aisr_setting->sc_top_enable = true;
+		setting->sc_h_enable = true;
+		setting->sc_v_enable = true;
+	}
+	aisr_setting->support = true;
+	aisr_setting->last_line_fix = true;
+	aisr_setting->frame_par = &cur_dev->aisr_frame_parms;
+	aisr_frame_par = aisr_setting->frame_par;
+
+	/* calc pps phase step */
+	ratio_x = (src_w << 18) / dst_w;
+	ratio_y = (src_h << 18) / dst_h;
+	aisr_set_filters(ratio_x, ratio_y, dst_w, dst_h, aisr_frame_par, vf);
+#endif
+}
+
+void aisr_scaler_setting(struct video_layer_s *layer,
+			     struct scaler_setting_s *setting)
+{
+#ifdef AISR
+	u32 i;
+	u32 r1, r2, r3;
+	struct vpp_frame_par_s *frame_par;
+	struct vppfilter_mode_s *vpp_filter;
+	u32 hsc_rpt_p0_num0 = 1;
+	u32 hsc_init_rev_num0 = 4;
+	struct hw_pps_reg_s *aisr_pps_reg;
+	u32 bit9_mode = 0, s11_mode = 0;
+	u8 vpp_index, layer_id;
+	u32 aisr_enable = layer->aisr_mif_setting.aisr_enable;
+
+	if (!setting || !setting->frame_par)
+		return;
+	if (!aisr_enable) {
+		aisr_sr1_nn_enable(0);
+		return;
+	}
+	layer_id = layer->layer_id;
+	frame_par = setting->frame_par;
+	vpp_filter = &frame_par->vpp_filter;
+	aisr_pps_reg = &cur_dev->aisr_pps_reg;
+	vpp_index = layer->vpp_index;
+
+	if (setting->sc_top_enable) {
+		u32 sc_misc_val;
+
+		sc_misc_val = VPP_SC_TOP_EN | VPP_SC_V1OUT_EN;
+		if (setting->sc_h_enable) {
+			if (has_pre_hscaler_ntap(layer_id)) {
+				if (pre_hscaler_ntap_enable[layer_id]) {
+					sc_misc_val |=
+					(((vpp_filter->vpp_pre_hsc_en & 1)
+					<< VPP_SC_PREHORZ_EN_BIT)
+					| VPP_SC_HORZ_EN);
+				} else {
+					sc_misc_val |=
+					(((vpp_filter->vpp_pre_hsc_en & 1)
+					<< VPP_SC_PREHORZ_EN_BIT_OLD)
+					| VPP_SC_HORZ_EN);
+				}
+			} else {
+				sc_misc_val |=
+					(((vpp_filter->vpp_pre_hsc_en & 1)
+					<< VPP_SC_PREHORZ_EN_BIT)
+					| VPP_SC_HORZ_EN);
+			}
+			if (hscaler_8tap_enable[layer_id])
+				sc_misc_val |=
+					((vpp_filter->vpp_horz_coeff[0] & 0xf)
+					<< VPP_SC_HBANK_LENGTH_BIT);
+			else
+				sc_misc_val |=
+					((vpp_filter->vpp_horz_coeff[0] & 7)
+					<< VPP_SC_HBANK_LENGTH_BIT);
+		}
+
+		if (setting->sc_v_enable) {
+			sc_misc_val |= (((vpp_filter->vpp_pre_vsc_en & 1)
+				<< VPP_SC_PREVERT_EN_BIT)
+				| VPP_SC_VERT_EN);
+			sc_misc_val |= ((vpp_filter->vpp_pre_vsc_en & 1)
+				<< VPP_LINE_BUFFER_EN_BIT);
+			sc_misc_val |= ((vpp_filter->vpp_vert_coeff[0] & 7)
+				<< VPP_SC_VBANK_LENGTH_BIT);
+		}
+
+		if (setting->last_line_fix)
+			sc_misc_val |= VPP_PPS_LAST_LINE_FIX;
+
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(aisr_pps_reg->vd_sc_misc,
+			sc_misc_val);
+	} else {
+		setting->sc_v_enable = false;
+		setting->sc_h_enable = false;
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(aisr_pps_reg->vd_sc_misc,
+			0, VPP_SC_TOP_EN_BIT,
+			VPP_SC_TOP_EN_WID);
+	}
+
+	/* horitontal filter settings */
+	if (setting->sc_h_enable) {
+		bit9_mode = vpp_filter->vpp_horz_coeff[1] & 0x8000;
+		s11_mode = vpp_filter->vpp_horz_coeff[1] & 0x4000;
+		if (s11_mode && cur_dev->t7_display)
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits(aisr_pps_reg->vd_pre_scale_ctrl,
+					       0x199, 12, 9);
+		else
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits(aisr_pps_reg->vd_pre_scale_ctrl,
+					       0x77, 12, 9);
+		if (hscaler_8tap_enable[layer_id]) {
+			if (bit9_mode || s11_mode) {
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef_idx,
+					VPP_COEF_HORZ | VPP_COEF_9BIT);
+				for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_horz_coeff[i + 2]);
+				}
+				for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_horz_coeff[i + 2 +
+					VPP_FILER_COEFS_NUM]);
+				}
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef_idx,
+					VPP_COEF_HORZ |
+					VPP_COEF_VERT_CHROMA |
+					VPP_COEF_9BIT);
+				for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_horz_coeff[i + 2 +
+					VPP_FILER_COEFS_NUM * 2]);
+				}
+				for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_horz_coeff[i + 2 +
+					VPP_FILER_COEFS_NUM * 3]);
+				}
+			} else {
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef_idx,
+					VPP_COEF_HORZ);
+				for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_horz_coeff[i + 2]);
+				}
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef_idx,
+					VPP_COEF_HORZ |
+					VPP_COEF_VERT_CHROMA);
+				for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_horz_coeff[i + 2 +
+					VPP_FILER_COEFS_NUM]);
+				}
+			}
+		} else {
+			if (bit9_mode || s11_mode) {
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef_idx,
+					VPP_COEF_HORZ | VPP_COEF_9BIT);
+				for (i = 0; i < (vpp_filter->vpp_horz_coeff[1]
+					& 0xff); i++) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_horz_coeff[i + 2]);
+				}
+				for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_horz_coeff[i + 2 +
+					VPP_FILER_COEFS_NUM]);
+				}
+			} else {
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef_idx,
+					VPP_COEF_HORZ);
+				for (i = 0; i < (vpp_filter->vpp_horz_coeff[1]
+					& 0xff); i++) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_horz_coeff[i + 2]);
+				}
+			}
+		}
+		r1 = frame_par->VPP_hsc_linear_startp
+			- frame_par->VPP_hsc_startp;
+		r2 = frame_par->VPP_hsc_linear_endp
+			- frame_par->VPP_hsc_startp;
+		r3 = frame_par->VPP_hsc_endp
+			- frame_par->VPP_hsc_startp;
+
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(aisr_pps_reg->vd_hsc_phase_ctrl,
+			frame_par->VPP_hf_ini_phase_,
+			VPP_HSC_TOP_INI_PHASE_BIT,
+			VPP_HSC_TOP_INI_PHASE_WID);
+		if (has_pre_hscaler_ntap(layer_id)) {
+			int ds_ratio = 1;
+			int flt_num = 4;
+			int pre_hscaler_table[4] = {
+				0x0, 0x0, 0xf8, 0x48};
+
+			get_pre_hscaler_para(layer_id, &ds_ratio, &flt_num);
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(aisr_pps_reg->vd_hsc_phase_ctrl1,
+				frame_par->VPP_hf_ini_phase_,
+				VPP_HSC_TOP_INI_PHASE_BIT,
+				VPP_HSC_TOP_INI_PHASE_WID);
+			if (hscaler_8tap_enable[layer_id]) {
+				hsc_rpt_p0_num0 = 3;
+				hsc_init_rev_num0 = 8;
+			} else {
+				hsc_init_rev_num0 = 4;
+				hsc_rpt_p0_num0 = 1;
+			}
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(aisr_pps_reg->vd_hsc_phase_ctrl,
+				hsc_init_rev_num0,
+				VPP_HSC_INIRCV_NUM_BIT,
+				VPP_HSC_INIRCV_NUM_WID);
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(aisr_pps_reg->vd_hsc_phase_ctrl,
+				hsc_rpt_p0_num0,
+				VPP_HSC_INIRPT_NUM_BIT_8TAP,
+				VPP_HSC_INIRPT_NUM_WID_8TAP);
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(aisr_pps_reg->vd_hsc_phase_ctrl1,
+				hsc_init_rev_num0,
+				VPP_HSC_INIRCV_NUM_BIT,
+				VPP_HSC_INIRCV_NUM_WID);
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(aisr_pps_reg->vd_hsc_phase_ctrl1,
+				hsc_rpt_p0_num0,
+				VPP_HSC_INIRPT_NUM_BIT_8TAP,
+				VPP_HSC_INIRPT_NUM_WID_8TAP);
+			if (has_pre_hscaler_8tap(layer_id)) {
+				/* 8 tap */
+				get_pre_hscaler_coef(layer_id, pre_hscaler_table);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_prehsc_coef,
+					pre_hscaler_table[0],
+					VPP_PREHSC_8TAP_COEF0_BIT,
+					VPP_PREHSC_8TAP_COEF0_WID);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_prehsc_coef,
+					pre_hscaler_table[1],
+					VPP_PREHSC_8TAP_COEF1_BIT,
+					VPP_PREHSC_8TAP_COEF1_WID);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_prehsc_coef1,
+					pre_hscaler_table[2],
+					VPP_PREHSC_8TAP_COEF2_BIT,
+					VPP_PREHSC_8TAP_COEF2_WID);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_prehsc_coef1,
+					pre_hscaler_table[3],
+					VPP_PREHSC_8TAP_COEF3_BIT,
+					VPP_PREHSC_8TAP_COEF3_WID);
+			} else {
+				/* 2,4 tap */
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_prehsc_coef,
+					pre_hscaler_table[0],
+					VPP_PREHSC_COEF0_BIT,
+					VPP_PREHSC_COEF0_WID);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_prehsc_coef,
+					pre_hscaler_table[1],
+					VPP_PREHSC_COEF1_BIT,
+					VPP_PREHSC_COEF1_WID);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_prehsc_coef,
+					pre_hscaler_table[2],
+					VPP_PREHSC_COEF2_BIT,
+					VPP_PREHSC_COEF2_WID);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_prehsc_coef,
+					pre_hscaler_table[3],
+					VPP_PREHSC_COEF3_BIT,
+					VPP_PREHSC_COEF3_WID);
+			}
+			if (has_pre_vscaler_ntap(layer_id)) {
+				/* T5, T7 */
+				if (has_pre_hscaler_8tap(layer_id)) {
+					/* T7 */
+					cur_dev->rdma_func[vpp_index].rdma_wr_bits
+						(aisr_pps_reg->vd_pre_scale_ctrl,
+						flt_num,
+						VPP_PREHSC_FLT_NUM_BIT_T7,
+						VPP_PREHSC_FLT_NUM_WID_T7);
+					cur_dev->rdma_func[vpp_index].rdma_wr_bits
+						(aisr_pps_reg->vd_pre_scale_ctrl,
+						ds_ratio,
+						VPP_PREHSC_DS_RATIO_BIT_T7,
+						VPP_PREHSC_DS_RATIO_WID_T7);
+				} else {
+					/* T5 */
+					cur_dev->rdma_func[vpp_index].rdma_wr_bits
+						(aisr_pps_reg->vd_pre_scale_ctrl,
+						flt_num,
+						VPP_PREHSC_FLT_NUM_BIT_T5,
+						VPP_PREHSC_FLT_NUM_WID_T5);
+					cur_dev->rdma_func[vpp_index].rdma_wr_bits
+						(aisr_pps_reg->vd_pre_scale_ctrl,
+						ds_ratio,
+						VPP_PREHSC_DS_RATIO_BIT_T5,
+						VPP_PREHSC_DS_RATIO_WID_T5);
+				}
+			} else {
+				/* SC2 */
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_pre_scale_ctrl,
+					flt_num,
+					VPP_PREHSC_FLT_NUM_BIT,
+					VPP_PREHSC_FLT_NUM_WID);
+			}
+		}
+		if (has_pre_vscaler_ntap(layer_id)) {
+			int ds_ratio = 1;
+			int flt_num = 4;
+
+			if (has_pre_hscaler_8tap(layer_id)) {
+				int pre_vscaler_table[2] = {0xc0, 0x40};
+
+				if (!pre_vscaler_ntap_enable[(layer_id)]) {
+					pre_vscaler_table[0] = 0x100;
+					pre_vscaler_table[1] = 0x0;
+					flt_num = 2;
+				}
+				/* T7 */
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_prevsc_coef,
+					pre_vscaler_table[0],
+					VPP_PREVSC_COEF0_BIT_T7,
+					VPP_PREVSC_COEF0_WID_T7);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_prevsc_coef,
+					pre_vscaler_table[1],
+					VPP_PREVSC_COEF1_BIT_T7,
+					VPP_PREVSC_COEF1_WID_T7);
+
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_pre_scale_ctrl,
+					flt_num,
+					VPP_PREVSC_FLT_NUM_BIT_T7,
+					VPP_PREVSC_FLT_NUM_WID_T7);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_pre_scale_ctrl,
+					ds_ratio,
+					VPP_PREVSC_DS_RATIO_BIT_T7,
+					VPP_PREVSC_DS_RATIO_WID_T7);
+
+			} else {
+				int pre_vscaler_table[2] = {0xf8, 0x48};
+
+				if (!pre_vscaler_ntap_enable[(layer_id)]) {
+					pre_vscaler_table[0] = 0;
+					pre_vscaler_table[1] = 0x40;
+					flt_num = 2;
+				}
+				/* T5 */
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_prevsc_coef,
+					pre_vscaler_table[0],
+					VPP_PREVSC_COEF0_BIT,
+					VPP_PREVSC_COEF0_WID);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_prevsc_coef,
+					pre_vscaler_table[1],
+					VPP_PREVSC_COEF1_BIT,
+					VPP_PREVSC_COEF1_WID);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_pre_scale_ctrl,
+					flt_num,
+					VPP_PREVSC_FLT_NUM_BIT_T5,
+					VPP_PREVSC_FLT_NUM_WID_T5);
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+					(aisr_pps_reg->vd_pre_scale_ctrl,
+					ds_ratio,
+					VPP_PREVSC_DS_RATIO_BIT_T5,
+					VPP_PREVSC_DS_RATIO_WID_T5);
+			}
+		}
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(aisr_pps_reg->vd_hsc_region12_startp,
+			(0 << VPP_REGION1_BIT) |
+			((r1 & VPP_REGION_MASK)
+			<< VPP_REGION2_BIT));
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(aisr_pps_reg->vd_hsc_region34_startp,
+			((r2 & VPP_REGION_MASK)
+			<< VPP_REGION3_BIT) |
+			((r3 & VPP_REGION_MASK)
+			<< VPP_REGION4_BIT));
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(aisr_pps_reg->vd_hsc_region4_endp, r3);
+
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(aisr_pps_reg->vd_hsc_start_phase_step,
+			vpp_filter->vpp_hf_start_phase_step);
+
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(aisr_pps_reg->vd_hsc_region1_phase_slope,
+			vpp_filter->vpp_hf_start_phase_slope);
+
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(aisr_pps_reg->vd_hsc_region3_phase_slope,
+			vpp_filter->vpp_hf_end_phase_slope);
+	}
+
+	/* vertical filter settings */
+	if (setting->sc_v_enable) {
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(aisr_pps_reg->vd_vsc_phase_ctrl,
+			(vpp_filter->vpp_vert_coeff[0] == 2) ? 1 : 0,
+			VPP_PHASECTL_DOUBLELINE_BIT,
+			VPP_PHASECTL_DOUBLELINE_WID);
+		bit9_mode = vpp_filter->vpp_vert_coeff[1] & 0x8000;
+		s11_mode = vpp_filter->vpp_vert_coeff[1] & 0x4000;
+		if (s11_mode && cur_dev->t7_display)
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits(aisr_pps_reg->vd_pre_scale_ctrl,
+					       0x199, 12, 9);
+		else
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits(aisr_pps_reg->vd_pre_scale_ctrl,
+					       0x77, 12, 9);
+		if (bit9_mode || s11_mode) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(aisr_pps_reg->vd_scale_coef_idx,
+				VPP_COEF_VERT |
+				VPP_COEF_9BIT);
+			for (i = 0; i < (vpp_filter->vpp_vert_coeff[1]
+				& 0xff); i++) {
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_vert_coeff[i + 2]);
+			}
+			for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_vert_coeff[i + 2 +
+					VPP_FILER_COEFS_NUM]);
+			}
+		} else {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(aisr_pps_reg->vd_scale_coef_idx,
+				VPP_COEF_VERT);
+			for (i = 0; i < (vpp_filter->vpp_vert_coeff[1]
+				& 0xff); i++) {
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef,
+					vpp_filter->vpp_vert_coeff[i + 2]);
+			}
+		}
+
+		/* vertical chroma filter settings */
+		if (vpp_filter->vpp_vert_chroma_filter_en) {
+			const u32 *pcoeff = vpp_filter->vpp_vert_chroma_coeff;
+
+			bit9_mode = pcoeff[1] & 0x8000;
+			s11_mode = pcoeff[1] & 0x4000;
+			if (s11_mode && cur_dev->t7_display)
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(aisr_pps_reg->vd_pre_scale_ctrl,
+				0x199, 12, 9);
+			else
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(aisr_pps_reg->vd_pre_scale_ctrl,
+				0x77, 12, 9);
+			if (bit9_mode || s11_mode) {
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef_idx,
+					VPP_COEF_VERT_CHROMA | VPP_COEF_SEP_EN);
+				for (i = 0; i < pcoeff[1]; i++)
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(aisr_pps_reg->vd_scale_coef,
+						pcoeff[i + 2]);
+				for (i = 0; i < VPP_FILER_COEFS_NUM; i++) {
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(aisr_pps_reg->vd_scale_coef,
+						pcoeff[i + 2 +
+						VPP_FILER_COEFS_NUM]);
+				}
+			} else {
+				cur_dev->rdma_func[vpp_index].rdma_wr
+					(aisr_pps_reg->vd_scale_coef_idx,
+					VPP_COEF_VERT_CHROMA | VPP_COEF_SEP_EN);
+				for (i = 0; i < pcoeff[1]; i++)
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(aisr_pps_reg->vd_scale_coef,
+						pcoeff[i + 2]);
+			}
+		}
+
+		r1 = frame_par->VPP_vsc_endp
+			- frame_par->VPP_vsc_startp;
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(aisr_pps_reg->vd_vsc_region12_startp, 0);
+
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(aisr_pps_reg->vd_vsc_region34_startp,
+			((r1 & VPP_REGION_MASK)
+			<< VPP_REGION3_BIT) |
+			((r1 & VPP_REGION_MASK)
+			<< VPP_REGION4_BIT));
+
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(aisr_pps_reg->vd_vsc_region4_endp, r1);
+
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(aisr_pps_reg->vd_vsc_start_phase_step,
+			vpp_filter->vpp_vsc_start_phase_step);
+	}
+	aisr_sr1_nn_enable(1);
+#endif
+}
+
+#ifdef aisr_test
+static void aisr_hw_enable(struct aisr_setting_s *mif_setting)
+{
+	cur_dev->rdma_func[VPP0].rdma_wr_bits
+		(aisr_reshape_reg.aisr_post_ctrl,
+		mif_setting->aisr_enable,
+		13, 1);
+	aisr_sr1_nn_enable(mif_setting->aisr_enable);
+}
+#endif
+
 /*********************************************************
  * Init APIs
  *********************************************************/
@@ -8007,7 +8857,9 @@ int video_hw_init(void)
 	/*disable sr default when power up*/
 	WRITE_VCBUS_REG(VPP_SRSHARP0_CTRL, 0);
 	WRITE_VCBUS_REG(VPP_SRSHARP1_CTRL, 0);
-
+	/* disable aisr_sr1_nn func */
+	if (cur_dev->aisr_support)
+		aisr_sr1_nn_enable(0);
 	cur_hold_line = READ_VCBUS_REG(VPP_HOLD_LINES + cur_dev->vpp_off);
 	cur_hold_line = cur_hold_line & 0xff;
 
@@ -8308,8 +9160,9 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	cur_dev->mif_linear = p_amvideo->mif_linear;
 	cur_dev->t7_display = p_amvideo->t7_display;
 	cur_dev->max_vd_layers = p_amvideo->max_vd_layers;
-	cur_dev->vd2_indepentd_blend_ctrl =
-		p_amvideo->dev_property.vd2_indepentd_blend_ctrl;
+	cur_dev->vd2_independ_blend_ctrl =
+		p_amvideo->dev_property.vd2_independ_blend_ctrl;
+	cur_dev->aisr_support = p_amvideo->dev_property.aisr_support;
 	if (cur_dev->t7_display) {
 		for (i = 0; i < cur_dev->max_vd_layers; i++) {
 			memcpy(&vd_layer[i].vd_afbc_reg,
@@ -8331,6 +9184,10 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 			       &vpp_blend_reg_t7_array[i],
 			       sizeof(struct hw_vpp_blend_reg_s));
 		}
+		if (cur_dev->aisr_support)
+			memcpy(&cur_dev->aisr_pps_reg,
+			       &pps_reg_t7_array[3],
+			       sizeof(struct hw_pps_reg_s));
 	} else if (video_is_meson_sc2_cpu() ||
 			video_is_meson_s4_cpu()) {
 		for (i = 0; i < cur_dev->max_vd_layers; i++) {

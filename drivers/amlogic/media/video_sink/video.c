@@ -4924,6 +4924,7 @@ static void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1
 			video_keeper_new_frame_notify();
 	}
 	fgrain_update_table(layer, vf);
+	aisr_update_frame_info(layer, vf);
 	if (stop_update)
 		layer->new_vpp_setting = false;
 	ATRACE_COUNTER(__func__,  0);
@@ -5067,6 +5068,11 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 			      &layer->mif_setting,
 			      &layer->fgrain_setting,
 			      layer->dispbuf);
+		/* aisr mif setting */
+		aisr_reshape_cfg(&layer->aisr_mif_setting);
+		/* aisr pps config */
+		aisr_pps_cfg(&layer->aisr_mif_setting, &layer->sc_setting,
+			&layer->aisr_sc_setting, layer->dispbuf);
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -5111,6 +5117,7 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 #endif
 
 	vd_scaler_setting(layer, &layer->sc_setting);
+	aisr_scaler_setting(layer, &layer->aisr_sc_setting);
 	vd_blend_setting(layer, &layer->bld_setting);
 
 	if (update_vd2) {
@@ -15255,12 +15262,12 @@ static struct amvideo_device_data_s amvideo_t3 = {
 	.alpha_support[2] = 0,
 	.dv_support = 1,
 	.sr0_support = 1,
-	.sr1_support = 0,
+	.sr1_support = 1,
 	.core_v_disable_width_max[0] = 4096,
 	.core_v_disable_width_max[1] = 4096,
 	.core_v_enable_width_max[0] = 2048,
 	.core_v_enable_width_max[1] = 2048,
-	.supscl_path = CORE0_BEFORE_PPS,
+	.supscl_path = CORE0_PPS_CORE1,
 	.fgrain_support[0] = 1,
 	.fgrain_support[1] = 1,
 	.fgrain_support[2] = 0,
@@ -15289,11 +15296,13 @@ static struct amvideo_device_data_s amvideo_t3 = {
 };
 
 static struct video_device_hw_s legcy_dev_property = {
-	.vd2_indepentd_blend_ctrl = 0,
+	.vd2_independ_blend_ctrl = 0,
+	.aisr_support = 0,
 };
 
 static struct video_device_hw_s t3_dev_property = {
-	.vd2_indepentd_blend_ctrl = 1,
+	.vd2_independ_blend_ctrl = 1,
+	.aisr_support = 1,
 };
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {

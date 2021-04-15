@@ -183,6 +183,32 @@ struct hw_vpp_path_size_s {
 	u32 blend_vd3_v_start_end;
 };
 
+struct hw_aisr_reshape_reg_s {
+	u32 aisr_reshape_ctrl0;
+	u32 aisr_reshape_ctrl1;
+	u32 aisr_reshape_scope_x;
+	u32 aisr_reshape_scope_y;
+	u32 aisr_reshape_baddr00;
+	u32 aisr_reshape_baddr01;
+	u32 aisr_reshape_baddr02;
+	u32 aisr_reshape_baddr03;
+	u32 aisr_reshape_baddr10;
+	u32 aisr_reshape_baddr11;
+	u32 aisr_reshape_baddr12;
+	u32 aisr_reshape_baddr13;
+	u32 aisr_reshape_baddr20;
+	u32 aisr_reshape_baddr21;
+	u32 aisr_reshape_baddr22;
+	u32 aisr_reshape_baddr23;
+	u32 aisr_reshape_baddr30;
+	u32 aisr_reshape_baddr31;
+	u32 aisr_reshape_baddr32;
+	u32 aisr_reshape_baddr33;
+	u32 aisr_post_ctrl;
+	u32 aisr_post_size;
+	u32 aisr_sr1_nn_post_top;
+};
+
 extern struct hw_vd_reg_s vd_mif_reg_legacy_array[MAX_VD_LAYER_G12];
 extern struct hw_vd_reg_s vd_mif_reg_g12_array[MAX_VD_LAYER_G12];
 extern struct hw_vd_reg_s vd_mif_reg_sc2_array[MAX_VD_LAYER_G12];
@@ -198,9 +224,11 @@ extern struct hw_vd_reg_s vd_mif_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_vd_linear_reg_s vd_mif_linear_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_afbc_reg_s vd_afbc_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_fg_reg_s fg_reg_t7_array[MAX_VD_LAYER_T7];
-extern struct hw_pps_reg_s pps_reg_t7_array[MAX_VD_LAYER_T7];
+extern struct hw_pps_reg_s pps_reg_t7_array[MAX_VD_LAYER_T7 + 1];
 extern struct hw_vpp_blend_reg_s vpp_blend_reg_t7_array[MAX_VD_LAYER_T7];
 extern struct hw_vpp_path_size_s vpp_path_size_reg;
 extern struct hw_viu_misc_reg_s viu_misc_reg;
 extern struct hw_vppx_blend_reg_s vppx_blend_reg_array[MAX_VPP_NUM - 1];
+
+extern struct hw_aisr_reshape_reg_s aisr_reshape_reg;
 #endif

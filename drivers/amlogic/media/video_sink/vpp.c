@@ -2204,6 +2204,130 @@ RESTART:
 	return ret;
 }
 
+void aisr_set_filters(u32 ratio_x, u32 ratio_y,
+			u32 dst_w, u32 dst_h,
+			struct vpp_frame_par_s *aisr_frame_par,
+			struct vframe_s *vf)
+{
+	u32 vpp_flags = 0;
+	s32 start, end;
+	s32 ini_vphase;
+	u32 vert_chroma_filter;
+	u32 layer_id = 0;
+	struct vppfilter_mode_s *filter = NULL;
+
+	filter = &aisr_frame_par->vpp_filter;
+	/* vertical */
+	ini_vphase = 0; /* vpp_zoom_center_y & 0xff; */
+
+	start = 0;
+	end = dst_h - 1;
+	aisr_frame_par->VPP_vsc_startp =
+		(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
+		(start >> 1) : start;
+	aisr_frame_par->VPP_vsc_endp =
+		(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
+		(end >> 1) : end;
+
+	/* set filter co-efficients */
+	filter->vpp_vsc_start_phase_step = ratio_y << 6;
+
+	f2v_get_vertical_phase(ratio_y, ini_vphase,
+			       aisr_frame_par->VPP_vf_ini_phase_,
+			       vpp_flags & VPP_FLAG_INTERLACE_OUT);
+
+	/* horizontal */
+	aisr_frame_par->VPP_hsc_startp = 0;
+	aisr_frame_par->VPP_hsc_endp = dst_w - 1;
+	filter->vpp_hf_start_phase_slope = 0;
+	filter->vpp_hf_end_phase_slope = 0;
+	filter->vpp_hf_start_phase_step = ratio_x << 6;
+
+	aisr_frame_par->VPP_hsc_linear_startp = aisr_frame_par->VPP_hsc_startp;
+	aisr_frame_par->VPP_hsc_linear_endp = aisr_frame_par->VPP_hsc_endp;
+
+	filter->vpp_hsc_start_phase_step = ratio_x << 6;
+
+	aisr_frame_par->VPP_hf_ini_phase_ = ini_vphase;
+
+	/* coeff selection before skip and apply pre_scaler */
+	filter->vpp_vert_filter =
+		coeff(vert_coeff_settings,
+		      filter->vpp_vsc_start_phase_step,
+		      1,
+		      ((vf->type_original & VIDTYPE_TYPEMASK)
+			!= VIDTYPE_PROGRESSIVE),
+		      vf->combing_cur_lev);
+
+	filter->vpp_vert_coeff =
+		filter_table[filter->vpp_vert_filter];
+
+	/* when local interlace or AV or ATV */
+	/* TODO: add 420 check for local */
+	if (vert_chroma_filter_force_en ||
+	    (vert_chroma_filter_en &&
+	    ((vf->source_type == VFRAME_SOURCE_TYPE_OTHERS &&
+	     (((vf->type_original & VIDTYPE_TYPEMASK) !=
+		VIDTYPE_PROGRESSIVE) ||
+		dst_h < vert_chroma_filter_limit)) ||
+	      vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+	      vf->source_type == VFRAME_SOURCE_TYPE_TUNER))) {
+		vert_chroma_filter =
+			chroma_filter_table[filter->vpp_vert_filter];
+		filter->vpp_vert_chroma_coeff =
+			filter_table[vert_chroma_filter];
+		filter->vpp_vert_chroma_filter_en = true;
+	} else {
+		vert_chroma_filter = COEF_NULL;
+		filter->vpp_vert_chroma_filter_en = false;
+	}
+
+	/* avoid hscaler fitler adjustion affect on picture shift*/
+	if (hscaler_8tap_enable[layer_id])
+		filter->vpp_horz_filter =
+			coeff_sc2(hert_coeff_settings_sc2,
+				  filter->vpp_hf_start_phase_step);
+	else
+		filter->vpp_horz_filter =
+			coeff(horz_coeff_settings,
+			      filter->vpp_hf_start_phase_step,
+			      aisr_frame_par->VPP_hf_ini_phase_,
+			      ((vf->type_original & VIDTYPE_TYPEMASK)
+			       != VIDTYPE_PROGRESSIVE),
+			      vf->combing_cur_lev);
+
+	if (hscaler_8tap_enable[layer_id]) {
+		/* hscaler 8 tap */
+		filter->vpp_horz_coeff =
+			hscaler_8tap_filter_table
+			[filter->vpp_horz_filter];
+	} else {
+		filter->vpp_horz_coeff =
+			filter_table[filter->vpp_horz_filter];
+	}
+
+	/* for aisr vpp_pre_vsc_en/vpp_pre_hsc_en disable */
+	filter->vpp_pre_vsc_en = 0;
+	filter->vpp_pre_hsc_en = 0;
+}
+
+void aisr_sr1_nn_enable(u32 enable)
+{
+	struct sr_info_s *sr;
+	u32 sr_reg_offt2;
+
+	sr = &sr_info;
+	sr_reg_offt2 = sr->sr_reg_offt2;
+	if (enable)
+		cur_dev->rdma_func[VPP0].rdma_wr
+			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
+			0x6080);
+	else
+		cur_dev->rdma_func[VPP0].rdma_wr
+			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
+			0x80);
+}
+
 /*
  *VPP_SRSHARP0_CTRL:0x1d91
  *[0]srsharp0 enable for sharpness module reg r/w
@@ -2268,6 +2392,8 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 			VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP1_CTRL, 1, 1, 1);
 		if ((tmp_data & 0x1) != 1)
 			VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP1_CTRL, 1, 0, 1);
+		if (cur_dev->aisr_support)
+			VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP1_CTRL, 3, 8, 2);
 	}
 	/* core0 config */
 	tmp_data = VSYNC_RD_MPEG_REG
@@ -2354,7 +2480,12 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 		VSYNC_WR_MPEG_REG
 		(SRSHARP0_SHARP_HVSIZE + sr_reg_offt,
 		tmp_data);
-
+	if (cur_dev->aisr_support) {
+		tmp_data2 = VSYNC_RD_MPEG_REG(VPP_SR0_IN_SIZE);
+		if (tmp_data != tmp_data2)
+			VSYNC_WR_MPEG_REG
+			(VPP_SR0_IN_SIZE, tmp_data);
+	}
 	tmp_data = ((reg_srscl1_hsize & 0x1fff) << 16) |
 		(reg_srscl1_vsize & 0x1fff);
 
@@ -2370,6 +2501,12 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 				sharpness1_sr2_ctrl_3280 = tmp_data;
 #endif
 		}
+	}
+	if (cur_dev->aisr_support) {
+		tmp_data2 = VSYNC_RD_MPEG_REG(VPP_SR1_IN_SIZE);
+		if (tmp_data != tmp_data2)
+			VSYNC_WR_MPEG_REG
+			(VPP_SR1_IN_SIZE, tmp_data);
 	}
 
 	/*ve input size setting*/
@@ -2872,6 +3009,8 @@ static void vpp_set_super_scaler
 				next_frame_par->VPP_vsc_endp -
 				next_frame_par->VPP_vsc_startp + 1;
 		}
+		next_frame_par->nnhf_input_w = next_frame_par->cm_input_w;
+		next_frame_par->nnhf_input_h = next_frame_par->cm_input_h;
 	} else if (sr->core_support == ONLY_CORE0) {
 		if (sr_path == CORE0_BEFORE_PPS)
 			next_frame_par->sr0_position = 1;
@@ -2988,6 +3127,9 @@ static void vpp_set_super_scaler
 			next_frame_par->cm_input_h,
 			next_frame_par->sr0_position,
 			next_frame_par->sr1_position);
+		pr_info("layer0: nnhf_input_w=%u, nnhf_input_h=%u\n",
+			next_frame_par->nnhf_input_w,
+			next_frame_par->nnhf_input_h);
 	}
 }
 
