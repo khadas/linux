@@ -1190,6 +1190,28 @@
 			    "dmcbus",
 			    "efusebus";
 	};
+	amvenc_avc{
+		compatible = "amlogic, amvenc_avc";
+		dev_name = "amvenc_avc";
+		status = "okay";
+		clocks = <&clkc CLKID_HCODEC>;
+		clock-names = "cts_hcodec_aclk";
+		interrupts = <0 93 1>;
+		interrupt-names = "mailbox_2";
+		reset-names = "hcodec_rst";
+		//resets = <&reset RESET_BRG_HCODEC_PIPL0>;
+	};
+	jpegenc{
+		compatible = "amlogic, jpegenc";
+		dev_name = "jpegenc";
+		status = "okay";
+		clocks = <&clkc CLKID_HCODEC>;
+		clock-names = "clk_jpeg_enc";
+		interrupts = <0 93 1>;
+		interrupt-names = "mailbox_2";
+		reset-names = "jpegenc_rst";
+		//resets = <&reset RESET_BRG_HCODEC_PIPL0>;
+	};
 
 	ion_dev {
 		compatible = "amlogic, ion_dev";
@@ -1288,9 +1310,10 @@
 			"mailbox_2",
 			"parser_b";
 		power-domains = <&pwrdm PDID_T3_DOS_VDEC>,
-			<&pwrdm PDID_T3_DOS_HEVC>;
+			<&pwrdm PDID_T3_DOS_HEVC>,
+			<&pwrdm PDID_T3_DOS_HCODEC>;
 		power-domain-names = "pwrc-vdec",
-			"pwrc-hevc";
+			"pwrc-hevc", "pwrc-hcodec";
 	};
 	vdec_cpu_ver: cpu_ver_name {
 		compatible = "amlogic, cpu-major-id-t3";

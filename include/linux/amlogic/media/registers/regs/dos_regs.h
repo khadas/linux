@@ -152,6 +152,11 @@
 #define MDEC_CAV_LUT_ADDR            0x09ec
 #define MDEC_CAV_CFG0                0x09ed
 
+#define HCODEC_MDEC_CAV_LUT_DATAL    0x09ea
+#define HCODEC_MDEC_CAV_LUT_DATAH    0x09eb
+#define HCODEC_MDEC_CAV_LUT_ADDR     0x09ec
+#define HCODEC_MDEC_CAV_CFG0         0x09ed
+
 /**/
 #define DBLK_RST                     0x0950
 #define DBLK_CTRL                    0x0951
