@@ -76,7 +76,7 @@ u32 READ_FRC_BITS(u32 reg, const u32 start, const u32 len)
 	u32 val = 0;
 
 #ifndef FRC_DISABLE_REG_RD_WR
-	val = ((READ_FRC_REG(reg << 2) >> (start)) & ((1L << (len)) - 1));
+	val = ((READ_FRC_REG(reg) >> (start)) & ((1L << (len)) - 1));
 #endif
 	return val;
 }

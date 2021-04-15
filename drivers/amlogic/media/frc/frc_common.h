@@ -961,6 +961,8 @@ struct frc_top_type_s {
 };
 
 //-----------------------------------------------------------frc top cfg end
+#define MONITOR_REG_MAX	6
+#define DBG_REG_BUFF	4096
 
 struct frc_fw_data_s {
 	/*scene*/
@@ -1018,6 +1020,34 @@ struct tool_debug_s {
 struct dbg_dump_tab {
 	u8 *name;
 	u32 addr;
+	u32 start;
+	u32 len;
 };
 
+enum frc_mtx_e {
+	FRC_INPUT_CSC = 1,
+	FRC_OUTPUT_CSC,
+};
+
+enum frc_mtx_csc_e {
+	CSC_OFF = 0,
+	RGB_YUV709L,
+	RGB_YUV709F,
+	YUV709L_RGB,
+	YUV709F_RGB,
+};
+
+struct crc_parm_s {
+	u32 crc_en;
+	u32 crc_done_flag;
+	u32 crc_data_cmp[2];/*3cmp*/
+};
+
+struct frc_crc_data_s {
+	u32 frc_crc_read;
+	u32 frc_crc_pr;
+	struct crc_parm_s me_wr_crc;
+	struct crc_parm_s me_rd_crc;
+	struct crc_parm_s mc_wr_crc;
+};
 #endif

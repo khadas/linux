@@ -61,7 +61,7 @@
 
 static struct frc_dev_s *frc_dev;
 
-int frc_dbg_en = 0;
+int frc_dbg_en;
 module_param(frc_dbg_en, int, 0664);
 MODULE_PARM_DESC(frc_dbg_en, "frc debug level");
 
@@ -122,8 +122,9 @@ ssize_t frc_debug_show(struct class *class,
 	struct class_attribute *attr,
 	char *buf)
 {
-	pr_frc(0, "set frc debug level\n");
-	return 0;
+	struct frc_dev_s *devp = get_frc_devp();
+
+	return frc_debug_if_help(devp, buf);
 }
 
 ssize_t frc_debug_store(struct class *class,
@@ -171,6 +172,9 @@ static long frc_ioctl(struct file *file,
 
 	devp = file->private_data;
 	if (!devp)
+		return -EFAULT;
+
+	if (!devp->probe_ok)
 		return -EFAULT;
 
 	switch (cmd) {
@@ -237,7 +241,7 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp,
 {
 	struct device_node *of_node;
 	unsigned int val;
-	int ret;
+	int ret = 0;
 	const struct of_device_id *of_id;
 	struct platform_device *pdev = frc_devp->pdev;
 	struct resource *res;
@@ -354,7 +358,6 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp,
 	if (ret) {
 		pr_frc(0, "resource undefined !\n");
 		frc_devp->buf.cma_mem_size = 0;
-		return -1;
 	}
 	frc_devp->buf.cma_mem_size = dma_get_cma_size_int_byte(&pdev->dev);
 	pr_frc(0, "cma_mem_size=0x%x\n", frc_devp->buf.cma_mem_size);
@@ -368,7 +371,8 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp,
 	}
 
 	frc_attach_pd(frc_devp);
-	return 0;
+
+	return ret;
 }
 
 #ifdef CONFIG_COMPAT
@@ -411,6 +415,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 {
 	struct vinfo_s *vinfo = get_current_vinfo();
 	struct frc_fw_data_s *fw_data;
+	u32 i;
 
 	pr_frc(0, "%s\n", __func__);
 	if (!devp)
@@ -418,11 +423,23 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 
 	devp->frc_sts.state = FRC_STATE_BYPASS;
 	devp->frc_sts.new_state = FRC_STATE_BYPASS;
+
+	/*0:before postblend; 1:after postblend*/
+	devp->frc_hw_pos = 1;/*for test*/
+	devp->frc_fw_pause = 1;
 	devp->frc_sts.frame_cnt = 0;
 	devp->dbg_force_en = 0;
-	devp->dbg_in_out_ratio = 0x0101;
+
+	devp->dbg_in_out_ratio = FRC_RATIO_1_1;/*enum frc_ratio_mode_type frc_ratio_mode*/
 	devp->dbg_input_hsize = vinfo->width;
 	devp->dbg_input_vsize = vinfo->height;
+	devp->dbg_reg_monitor_i = 0;
+	devp->dbg_reg_monitor_o = 0;
+	for (i = 0; i < MONITOR_REG_MAX; i++) {
+		devp->dbg_in_reg[i] = 0;
+		devp->dbg_out_reg[i] = 0;
+	}
+	devp->dbg_buf_len = 0;
 
 	devp->loss_en = 0;
 	devp->loss_ratio = 0;
@@ -438,6 +455,8 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	fw_data->holdline_parm.inp_hold_line = 4;
 	fw_data->holdline_parm.reg_post_dly_vofst = 0;/*fixed*/
 	fw_data->holdline_parm.reg_mc_dly_vofst0 = 1;/*fixed*/
+
+	memset(&devp->frc_crc_data, 0, sizeof(struct frc_crc_data_s));
 }
 
 void get_vout_info(struct frc_dev_s *frc_devp)
@@ -515,19 +534,28 @@ static int frc_probe(struct platform_device *pdev)
 
 	frc_data = (struct frc_data_s *)frc_devp->data;
 	fw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
-	ret = frc_dts_parse(frc_devp, &frc_data->match_data);
+	frc_dts_parse(frc_devp, &frc_data->match_data);
+	if (ret < 0)
+		goto fail_dev_create;
 
+	//frc_devp->dbg_buf = kmalloc(DBG_REG_BUFF, GFP_KERNEL);
+	//if (IS_ERR_OR_NULL(frc_devp->dbg_buf))
+	//	pr_frc(0, "dbg_buf err\n");
+	//else
+	//	memset((void*)frc_devp->dbg_buf, 0, DBG_REG_BUFF);
 	tasklet_init(&frc_devp->input_tasklet, frc_input_tasklet_pro, (unsigned long)frc_devp);
 	tasklet_init(&frc_devp->output_tasklet, frc_output_tasklet_pro, (unsigned long)frc_devp);
+	/*register a notify*/
+	vout_register_client(&frc_notifier_nb);
 
-	frc_devp->frc_wq = create_workqueue("frc workqueue");
+	//frc_devp->frc_wq = create_workqueue("frc workqueue");
 	//INIT_WORK(&frc_devp->frc_work, frc_wq_proc);
 
 	/*driver internal data initial*/
 	frc_drv_initial(frc_devp);
 	frc_clk_init(frc_devp);
-	/*register a notify*/
-	vout_register_client(&frc_notifier_nb);
+	frc_init_config(frc_devp);
+
 	/*buffer config*/
 	frc_buf_alloc(frc_devp);
 	frc_buf_calculate(frc_devp);
@@ -540,9 +568,9 @@ static int frc_probe(struct platform_device *pdev)
 		enable_irq(frc_devp->in_irq);
 	if (frc_devp->out_irq > 0)
 		enable_irq(frc_devp->out_irq);
-
 	frc_devp->probe_ok = true;
-	PR_FRC("%s probe ok", __func__);
+
+	PR_FRC("%s probe st:%d", __func__, frc_devp->probe_ok);
 	return ret;
 fail_dev_create:
 	cdev_del(&frc_devp->cdev);
@@ -577,8 +605,10 @@ static int frc_remove(struct platform_device *pdev)
 	cdev_del(&frc_devp->cdev);
 	class_destroy(frc_devp->clsp);
 	unregister_chrdev_region(frc_dev->devno, FRC_DEVNO);
-	destroy_workqueue(frc_devp->frc_wq);
+	//destroy_workqueue(frc_devp->frc_wq);
 	set_frc_clk_disable();
+	//if (frc_devp->dbg_buf)
+	//	kfree(frc_devp->dbg_buf);
 	kfree(frc_dev->data);
 	frc_dev->data = NULL;
 	kfree(frc_dev);
@@ -598,8 +628,10 @@ static void frc_shutdown(struct platform_device *pdev)
 	cdev_del(&frc_devp->cdev);
 	class_destroy(frc_devp->clsp);
 	unregister_chrdev_region(frc_dev->devno, FRC_DEVNO);
-	destroy_workqueue(frc_devp->frc_wq);
+	//destroy_workqueue(frc_devp->frc_wq);
 	set_frc_clk_disable();
+	//if (frc_devp->dbg_buf)
+	//	kfree(frc_devp->dbg_buf);
 	kfree(frc_dev->data);
 	frc_dev->data = NULL;
 	kfree(frc_dev);

@@ -42,10 +42,10 @@ extern void __iomem *frc_clk_base;
 extern void __iomem *vpu_base;
 void frc_clk_init(struct frc_dev_s *frc_devp);
 void set_frc_clk_disable(void);
-void frc_init_config(void);
+void frc_init_config(struct frc_dev_s *devp);
 void set_frc_enable(u32 en);
 void set_frc_bypass(u32 en);
-void frc_test_pattern_cfg(u32 en);
+void frc_pattern_on(u32 en);
 void frc_top_init(struct frc_dev_s *frc_devp);
 void frc_inp_init(u32 frc_fb_num, u32 film_hwfw_sel);
 void config_phs_lut(enum frc_ratio_mode_type frc_ratio_mode,
@@ -64,5 +64,8 @@ void cfg_mc_loss(u32 mc_loss_en);
 void recfg_memc_mif_base_addr(u32 base_ofst);
 void frc_internal_initial(void);
 void frc_dump_reg_tab(void);
-
+void frc_mtx_set(struct frc_dev_s *frc_devp);
+void frc_crc_enable(struct frc_dev_s *frc_devp);
+void frc_me_crc_read(struct frc_dev_s *frc_devp);
+void frc_mc_crc_read(struct frc_dev_s *frc_devp);
 #endif

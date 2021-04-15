@@ -50,7 +50,8 @@ extern int frc_dbg_en;
 #define FRC_SLICER_NUM			4
 
 		/*down scaler config*/
-#define FRC_ME_SD_RATE			4
+#define FRC_ME_SD_RATE_HD		2
+#define FRC_ME_SD_RATE_4K		4
 #define FRC_LOGO_SD_RATE		1
 #define FRC_HME_SD_RATE			4
 
@@ -208,6 +209,7 @@ struct frc_dev_s {
 	unsigned int frc_en;		/*0:frc disabled in dts; 1:frc enable in dts*/
 	unsigned int frc_hw_pos;	/*0:before postblend; 1:after postblend*/
 	unsigned int frc_test_ptn;
+	unsigned int frc_fw_pause;
 	u32 probe_ok;
 	struct frc_data_s *data;
 	void *fw_data;
@@ -236,6 +238,12 @@ struct frc_dev_s {
 	u32 dbg_in_out_ratio;
 	u32 dbg_input_hsize;
 	u32 dbg_input_vsize;
+	u32 dbg_reg_monitor_i;
+	u32 dbg_in_reg[MONITOR_REG_MAX];
+	u32 dbg_reg_monitor_o;
+	u32 dbg_out_reg[MONITOR_REG_MAX];
+	char *dbg_buf;
+	u32 dbg_buf_len;
 
 	u32 loss_en;
 	u32 loss_ratio;
@@ -247,8 +255,8 @@ struct frc_dev_s {
 	struct tasklet_struct input_tasklet;
 	struct tasklet_struct output_tasklet;
 
-	struct workqueue_struct *frc_wq;
-	struct work_struct frc_work;
+	//struct workqueue_struct *frc_wq;
+	//struct work_struct frc_work;
 
 	struct st_frc_sts frc_sts;
 	struct st_frc_in_sts in_sts;
@@ -257,6 +265,7 @@ struct frc_dev_s {
 	struct st_frc_buf buf;
 
 	struct tool_debug_s tool_dbg;
+	struct frc_crc_data_s frc_crc_data;
 };
 
 struct frc_dev_s *get_frc_devp(void);

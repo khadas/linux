@@ -50,6 +50,7 @@
 #include "frc_me.h"
 #include "frc_mc.h"
 #include "frc_hw.h"
+#include "frc_reg.h"
 
 void frc_fw_initial(struct frc_dev_s *devp)
 {
@@ -58,21 +59,22 @@ void frc_fw_initial(struct frc_dev_s *devp)
 
 	devp->in_sts.vs_cnt = 0;
 	devp->in_sts.vs_tsk_cnt = 0;
+	devp->in_sts.vs_timestamp = sched_clock();
+
 	devp->out_sts.vs_cnt = 0;
 	devp->out_sts.vs_tsk_cnt = 0;
+	devp->out_sts.vs_timestamp = sched_clock();
+
 	devp->frc_sts.vs_cnt = 0;
 
 	devp->vs_timestamp = sched_clock();
-	devp->in_sts.vs_timestamp = sched_clock();
-	devp->out_sts.vs_timestamp = sched_clock();
 }
 
 void frc_hw_initial(struct frc_dev_s *devp)
 {
 	frc_fw_initial(devp);
-
-//	frc_top_init(devp);
-
+	frc_mtx_set(devp);
+	frc_top_init(devp);
 	//  me param init
 	frc_me_param_init(devp);
 	//  vp param init
@@ -88,19 +90,74 @@ void frc_hw_initial(struct frc_dev_s *devp)
 	pr_frc(0, "%s ok\n", __func__);
 }
 
+void frc_in_reg_monitor(struct frc_dev_s *devp)
+{
+	u32 i;
+	u32 reg;
+	//char *buf = devp->dbg_buf;
+
+	for (i = 0; i < MONITOR_REG_MAX; i++) {
+		reg = devp->dbg_in_reg[i];
+		if (reg != 0 && reg < 0x3fff) {
+			if (devp->dbg_buf_len > 300/*(DBG_REG_BUFF - 100)*/)
+				return;
+			devp->dbg_buf_len++;
+			//devp->dbg_buf_len += sprintf(buf + devp->dbg_buf_len,
+			//			     "ivs:%d 0x%x=0x%08x\n", devp->in_sts.vs_cnt,
+			//			     reg, READ_FRC_REG(reg));
+			pr_info("ivs:%d 0x%x=0x%08x\n", devp->out_sts.vs_cnt,
+				reg, READ_FRC_REG(reg));
+		}
+	}
+}
+
+void frc_out_reg_monitor(struct frc_dev_s *devp)
+{
+	u32 i;
+	u32 reg;
+	//char *buf = devp->dbg_buf;
+
+	for (i = 0; i < MONITOR_REG_MAX; i++) {
+		reg = devp->dbg_out_reg[i];
+		if (reg != 0 && reg < 0x3fff) {
+			if (devp->dbg_buf_len > 300/*(DBG_REG_BUFF - 100)*/)
+				return;
+			devp->dbg_buf_len++;
+			//devp->dbg_buf_len += sprintf(buf + devp->dbg_buf_len,
+			//			     "\t\t\tovs:%d 0x%x=0x%08x\n",
+			//			     devp->in_sts.vs_cnt,
+			//			     reg, READ_FRC_REG(reg));
+			pr_info("\t\t\t\tovs:%d 0x%x=0x%08x\n", devp->out_sts.vs_cnt,
+				reg, READ_FRC_REG(reg));
+		}
+	}
+}
+
+void frc_dump_monitor_data(struct frc_dev_s *devp)
+{
+	//char *buf = devp->dbg_buf;
+
+	//pr_info("%d, %s\n", devp->dbg_buf_len, buf);
+	devp->dbg_buf_len = 0;
+}
+
 irqreturn_t frc_input_isr(int irq, void *dev_id)
 {
 	struct frc_dev_s *devp = (struct frc_dev_s *)dev_id;
 	u64 timestamp = sched_clock();
 
-	/*update vs time*/
 	devp->in_sts.vs_cnt++;
+	/*update vs time*/
 	devp->in_sts.vs_duration = timestamp - devp->in_sts.vs_timestamp;
 	devp->in_sts.vs_timestamp = timestamp;
 
+	if (devp->dbg_reg_monitor_i)
+		frc_in_reg_monitor(devp);
+
 	tasklet_schedule(&devp->input_tasklet);
 
-	queue_work(devp->frc_wq, &devp->frc_work);
+	frc_me_crc_read(devp);
+
 	return IRQ_HANDLED;
 }
 
@@ -109,12 +166,16 @@ void frc_input_tasklet_pro(unsigned long arg)
 	struct frc_dev_s *devp = (struct frc_dev_s *)arg;
 
 	devp->in_sts.vs_tsk_cnt++;
-#ifndef DISABLE_FRC_FW
-	frc_scene_detect_input(devp);
-	frc_film_detect_ctrl(devp);
-	frc_bbd_ctrl(devp);
-	frc_iplogo_ctrl(devp);
-#endif
+
+	if (!devp->probe_ok)
+		return;
+
+	if (!devp->frc_fw_pause) {
+		frc_scene_detect_input(devp);
+		frc_film_detect_ctrl(devp);
+		frc_bbd_ctrl(devp);
+		frc_iplogo_ctrl(devp);
+	}
 }
 
 irqreturn_t frc_output_isr(int irq, void *dev_id)
@@ -127,7 +188,12 @@ irqreturn_t frc_output_isr(int irq, void *dev_id)
 	devp->out_sts.vs_duration = timestamp - devp->out_sts.vs_timestamp;
 	devp->out_sts.vs_timestamp = timestamp;
 
+	if (devp->dbg_reg_monitor_o)
+		frc_out_reg_monitor(devp);
+
 	tasklet_schedule(&devp->output_tasklet);
+
+	frc_mc_crc_read(devp);
 
 	return IRQ_HANDLED;
 }
@@ -139,14 +205,18 @@ void frc_output_tasklet_pro(unsigned long arg)
 
 	devp->out_sts.vs_tsk_cnt++;
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;
-#ifndef DISABLE_FRC_FW
-	frc_scene_detect_output(devp);
-	frc_me_ctrl(devp);
-	if (fw_data->g_stvpctrl_para.vp_en == 1)
-		frc_vp_ctrl(devp);
-	frc_mc_ctrl(devp);
-	frc_melogo_ctrl(devp);
-#endif
+
+	if (!devp->probe_ok)
+		return;
+
+	if (!devp->frc_fw_pause) {
+		frc_scene_detect_output(devp);
+		frc_me_ctrl(devp);
+		if (fw_data->g_stvpctrl_para.vp_en == 1)
+			frc_vp_ctrl(devp);
+		frc_mc_ctrl(devp);
+		frc_melogo_ctrl(devp);
+	}
 }
 
 void frc_change_to_state(enum frc_state_e state)
@@ -204,6 +274,18 @@ void frc_update_in_sts(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts,
 enum chg_flag frc_in_sts_check(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts)
 {
 	enum chg_flag ret = FRC_CHG_NONE;
+	struct st_frc_in_sts *in_stsp;
+
+	in_stsp = &devp->in_sts;
+	/* check change */
+
+	/*back up*/
+	in_stsp->vf_type = frc_in_sts->vf_type;
+	in_stsp->duration = frc_in_sts->duration;
+	in_stsp->signal_type = frc_in_sts->signal_type;
+	in_stsp->source_type = frc_in_sts->source_type;
+	in_stsp->in_hsize = frc_in_sts->in_hsize;
+	in_stsp->in_vsize = frc_in_sts->in_vsize;
 
 	return ret;
 }
@@ -216,7 +298,6 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					struct vpp_frame_par_s *cur_video_sts)
 {
 	struct st_frc_in_sts cur_in_sts;
-	struct st_frc_in_sts *in_stsp;
 	u32 no_input = 0;
 	enum chg_flag chg;
 
@@ -228,15 +309,9 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 
 	cur_in_sts.vf_sts = no_input ? 0 : 1;
 	frc_update_in_sts(devp, &cur_in_sts, vf, cur_video_sts);
-	in_stsp = &devp->in_sts;
 
 	/* check input is change */
 	chg = frc_in_sts_check(devp, &cur_in_sts);
-	/*local play*/
-	if (cur_in_sts.source_type == VFRAME_SOURCE_TYPE_OTHERS)
-		devp->in_out_ratio = 0x0101;	/*1:1*/
-
-	memcpy(in_stsp, &cur_in_sts, sizeof(cur_in_sts));
 
 	/*need disable and bypass frc*/
 	//if (no_input && devp->dbg_force_en == FRC_STATE_DISABLE)
@@ -251,7 +326,6 @@ void frc_state_handle(struct frc_dev_s *devp)
 	u32 frame_cnt = 0;
 	u32 log = 2;
 
-	devp->frc_sts.vs_cnt++;
 	cur_state = devp->frc_sts.state;
 	new_state = devp->frc_sts.new_state;
 	frame_cnt = devp->frc_sts.frame_cnt;

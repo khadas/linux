@@ -32,6 +32,7 @@
 #include "frc_dbg.h"
 #include "frc_buf.h"
 #include "frc_hw.h"
+#include "frc_proc.h"
 
 static void frc_debug_parse_param(char *buf_orig, char **parm)
 {
@@ -58,6 +59,7 @@ void frc_status(struct frc_dev_s *devp)
 
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	pr_frc(0, "%s\n", FRC_FW_VER);
+	pr_frc(0, "probe_ok sts:%d\n", devp->probe_ok);
 	pr_frc(0, "frs state:%d (%s) new:%d\n", devp->frc_sts.state,
 	       frc_state_ary[devp->frc_sts.state], devp->frc_sts.new_state);
 	pr_frc(0, "vf in_hsize=%d in_vsize=%d\n", devp->in_sts.in_hsize, devp->in_sts.in_vsize);
@@ -71,14 +73,16 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "mem_alloced:%d size:0x%x\n", devp->buf.cma_mem_alloced,
 	       devp->buf.cma_mem_size);
 
-	pr_frc(0, "vpu int duration:%d timestamp:%ld\n",
+	pr_frc(0, "vpu int vs_duration:%d timestamp:%ld\n",
 	       devp->vs_duration, (ulong)devp->vs_timestamp);
-	pr_frc(0, "frc in duration:%d timestamp:%ld\n",
+	pr_frc(0, "frc in vs_duration:%d timestamp:%ld\n",
 	       devp->in_sts.vs_duration, (ulong)devp->in_sts.vs_timestamp);
-	pr_frc(0, "frc out duration:%d timestamp:%ld\n",
+	pr_frc(0, "frc out vs_duration:%d timestamp:%ld\n",
 	       devp->out_sts.vs_duration, (ulong)devp->out_sts.vs_timestamp);
-	pr_frc(0, "in vs_cnt:%d, vs_tsk_cnt:%d\n", devp->in_sts.vs_cnt, devp->in_sts.vs_tsk_cnt);
-	pr_frc(0, "out vs_cnt:%d, vs_tsk_cnt:%d\n", devp->out_sts.vs_cnt, devp->out_sts.vs_tsk_cnt);
+	pr_frc(0, "int in vs_cnt:%d, vs_tsk_cnt:%d\n",
+		devp->in_sts.vs_cnt, devp->in_sts.vs_tsk_cnt);
+	pr_frc(0, "int out vs_cnt:%d, vs_tsk_cnt:%d\n",
+		devp->out_sts.vs_cnt, devp->out_sts.vs_tsk_cnt);
 	pr_frc(0, "frc_st vs_cnt:%d\n", devp->frc_sts.vs_cnt);
 
 	pr_frc(0, "loss_en = %d\n", devp->loss_en);
@@ -102,6 +106,34 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "inp_hold_line = %d\n", fw_data->holdline_parm.inp_hold_line);
 	pr_frc(0, "reg_post_dly_vofst = %d\n", fw_data->holdline_parm.reg_post_dly_vofst);
 	pr_frc(0, "reg_mc_dly_vofst0 = %d\n", fw_data->holdline_parm.reg_mc_dly_vofst0);
+}
+
+ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf)
+{
+	ssize_t len = 0;
+
+	len += sprintf(buf + len, "status\t: print frc internal status\n");
+	len += sprintf(buf + len, "dbg_level\t: set frc debug log level (0, 1, 2 ..)\n");
+	len += sprintf(buf + len, "bufinfo\t: dump buf address, size\n");
+	len += sprintf(buf + len, "dumplink\t: dump link buffer data\n");
+	len += sprintf(buf + len, "dbg_mode\t: 0:disable 1:enable 2:bypass\n");
+	len += sprintf(buf + len, "dbg_ratio\t: set debug input ratio\n");
+	len += sprintf(buf + len, "dbg_force\t: force debug mode\n");
+	len += sprintf(buf + len, "test_pattern disable or enable\t:\n");
+	len += sprintf(buf + len, "dump_init_reg\t: dump initial table\n");
+	len += sprintf(buf + len, "dump_buf_reg\t: dump buffer register\n");
+	len += sprintf(buf + len, "frc_pos 0,1\t: 0:before postblend; 1:after postblend\n");
+	len += sprintf(buf + len, "dump_buf_reg\t: dump buffer register\n");
+	len += sprintf(buf + len, "dump_data addr size\t: dump cma buf data\n");
+	len += sprintf(buf + len, "monitor_ireg idx reg_addr\t: monitor frc register (max 6)\n");
+	len += sprintf(buf + len, "monitor_oreg idx reg_addr\t: monitor frc register (max 6)\n");
+	len += sprintf(buf + len, "crc_read 0/1\t: 0: disable crc read, 1: enable crc read\n");
+	len += sprintf(buf + len, "crc_en 0/1 0/1 0/1 0/1\t: mewr/merd/mcwr/vs_print crc enable\n");
+	len += sprintf(buf + len, "ratio val\t: 0:112 1:213 2:2-5 3:5-6 6:1-1\n");
+	len += sprintf(buf + len, "film_mode val\t: 0:video 1:22 2:32 3:3223 4:2224\n");
+	len += sprintf(buf + len, " \t\t 5:32322 6:44\n");
+
+	return len;
 }
 
 void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
@@ -161,13 +193,77 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			devp->frc_test_ptn = 1;
 		else if (!strcmp(parm[1], "disable"))
 			devp->frc_test_ptn = 0;
-		frc_test_pattern_cfg(devp->frc_test_ptn);
+		frc_pattern_on(devp->frc_test_ptn);
 	} else if (!strcmp(parm[0], "dump_init_reg")) {
 		frc_dump_reg_tab();
 	} else if (!strcmp(parm[0], "dump_buf_reg")) {
 		frc_dump_buf_reg();
+	} else if (!strcmp(parm[0], "dump_data")) {
+		if (kstrtol(parm[1], 16, &val1))
+			goto exit;
+		if (kstrtol(parm[2], 16, &val2))
+			goto exit;
+		frc_dump_buf_data(devp, (u32)val1, (u32)val2);
+	} else if (!strcmp(parm[0], "frc_pos")) {
+		if (kstrtol(parm[1], 10, &val1) == 0)
+			devp->frc_hw_pos = (u32)val1;
+		frc_init_config(devp);
+		pr_frc(0, "frc_hw_pos:0x%x (0:before 1:after)\n", devp->frc_hw_pos);
+	} else if (!strcmp(parm[0], "frc_pos")) {
+		if (kstrtol(parm[1], 10, &val1) == 0)
+			devp->frc_fw_pause = (u32)val1;
+	} else if (!strcmp(parm[0], "monitor_ireg")) {
+		if (kstrtol(parm[1], 10, &val1) == 0) {
+			if (val1 < MONITOR_REG_MAX) {
+				if (kstrtol(parm[2], 16, &val2) == 0) {
+					if (val1 < 0x3fff) {
+						devp->dbg_in_reg[val1] = val2;
+						devp->dbg_reg_monitor_i = 1;
+					}
+				}
+			} else {
+				devp->dbg_reg_monitor_i = 0;
+			}
+		}
+	} else if (!strcmp(parm[0], "monitor_oreg")) {
+		if (kstrtol(parm[1], 10, &val1) == 0) {
+			if (val1 < MONITOR_REG_MAX) {
+				if (kstrtol(parm[2], 16, &val2) == 0) {
+					if (val1 < 0x3fff) {
+						devp->dbg_out_reg[val1] = val2;
+						devp->dbg_reg_monitor_o = 1;
+					}
+				}
+			} else {
+				devp->dbg_reg_monitor_o = 0;
+			}
+		}
+	} else if (!strcmp(parm[0], "monitor_dump")) {
+		frc_dump_monitor_data(devp);
+	} else if (!strcmp(parm[0], "crc_read")) {
+		if (kstrtol(parm[1], 10, &val1) == 0)
+			devp->frc_crc_data.frc_crc_read = val1;
+	} else if (!strcmp(parm[0], "crc_en")) {
+		if (!parm[4])
+			goto exit;
+		if (kstrtol(parm[1], 10, &val1) == 0)
+			devp->frc_crc_data.me_wr_crc.crc_en = val1;
+		if (kstrtol(parm[2], 10, &val1) == 0)
+			devp->frc_crc_data.me_rd_crc.crc_en = val1;
+		if (kstrtol(parm[3], 10, &val1) == 0)
+			devp->frc_crc_data.mc_wr_crc.crc_en = val1;
+		if (kstrtol(parm[4], 10, &val1) == 0)
+			devp->frc_crc_data.frc_crc_pr = val1;
+		frc_crc_enable(devp);
+	} else if (!strcmp(parm[0], "ratio")) {
+		if (kstrtol(parm[1], 10, &val1) == 0)
+			devp->in_out_ratio = val1;
+	} else if (!strcmp(parm[0], "film_mode")) {
+		if (kstrtol(parm[1], 10, &val1) == 0)
+			devp->film_mode = val1;
 	}
 
+exit:
 	kfree(buf_orig);
 }
 
