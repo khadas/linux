@@ -98,8 +98,8 @@ static void config_tv_enc_calc(enum hdmi_vic vic)
 	//set vsync
 	hd21_write_reg(ENCP_VIDEO_VSO_BEGIN, 0);
 	hd21_write_reg(ENCP_VIDEO_VSO_END, 0);
-	hd21_write_reg(ENCP_VIDEO_VSO_BLINE, de_v_begin);
-	hd21_write_reg(ENCP_VIDEO_VSO_ELINE, de_v_end);
+	hd21_write_reg(ENCP_VIDEO_VSO_BLINE, vsync_st);
+	hd21_write_reg(ENCP_VIDEO_VSO_ELINE, vsync_st + tp->v_sync);
 
 	//set vtotal & htotal
 	hd21_write_reg(ENCP_VIDEO_MAX_PXCNT, tp->h_total - 1);
