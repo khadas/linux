@@ -504,6 +504,11 @@
 					};
 				};
 			};
+
+			cpu_version {
+				compatible = "amlogic,meson-gx-ao-secure", "syscon";
+				reg=<0x0 0x10220 0x0 0x140>;
+			};
 		};
 
 		ethmac: ethernet@fdc00000 {
@@ -1278,6 +1283,11 @@
 		status = "disabled";
 	};
 
+	cpu_info {
+		compatible = "amlogic, cpuinfo";
+		status = "okay";
+		cpuinfo_cmd = <0x82000044>;
+	};
 };
 
 &periphs_pinctrl {
