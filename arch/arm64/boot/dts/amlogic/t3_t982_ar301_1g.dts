@@ -470,6 +470,13 @@
 	/* Audio Related end */
 }; /* end of / */
 
+&ethmac {
+	status = "okay";
+	phy-handle = <&internal_ephy>;
+	phy-mode = "rmii";
+	mc_val = <0x4be04>;
+};
+
 &fb {
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;
