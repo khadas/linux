@@ -364,6 +364,7 @@ static ssize_t store_fan_mode(struct class *cls, struct class_attribute *attr,
 	return count;
 }
 
+
 static ssize_t show_fan_level(struct class *cls,
 			 struct class_attribute *attr, char *buf)
 {
@@ -399,6 +400,96 @@ static ssize_t show_fan_temp(struct class *cls,
 
 	return sprintf(buf, "cpu_temp:%d\nFan trigger temperature: level0:%d level1:%d level2:%d\n", temp, g_mcu_data->fan_data.trig_temp_level0, g_mcu_data->fan_data.trig_temp_level1, g_mcu_data->fan_data.trig_temp_level2);
 }
+
+
+void fan_level_set(struct mcu_data *ug_mcu_data){
+
+	struct mcu_fan_data *fan_data = &g_mcu_data->fan_data;
+	int temp = -EINVAL; 
+    
+    if ((KHADAS_BOARD_VIM1 == ug_mcu_data->board) ||
+        (KHADAS_BOARD_VIM2 == ug_mcu_data->board))
+        temp = get_cpu_temp(); 
+    else if (KHADAS_BOARD_VIM3 == ug_mcu_data->board)
+        temp = meson_get_temperature();
+    
+    if(temp != -EINVAL){
+        if(temp < ug_mcu_data->fan_data.trig_temp_level0 ) {
+            mcu_fan_level_set(fan_data, 0);
+        }else if(temp < ug_mcu_data->fan_data.trig_temp_level1 ) {
+            mcu_fan_level_set(fan_data, 1);
+        }else if(temp < ug_mcu_data->fan_data.trig_temp_level2 ) {
+            mcu_fan_level_set(fan_data, 2);
+        }else{
+            mcu_fan_level_set(fan_data, 3);
+        }
+    }
+}
+
+
+static ssize_t show_fan_trigger_low(struct class *cls,
+		struct class_attribute *attr, char *buf){
+
+	return sprintf(buf, "Fan trigger low speed temperature:%d\n", g_mcu_data->fan_data.trig_temp_level0);
+}
+
+static ssize_t store_fan_trigger_low(struct class *cls, struct class_attribute *attr,
+		const char *buf, size_t count){
+
+	int trigger;
+
+	if (kstrtoint(buf, 0, &trigger))
+		return -EINVAL;
+
+	g_mcu_data->fan_data.trig_temp_level0 = trigger;
+
+	fan_level_set(g_mcu_data);
+
+	return count;
+}
+
+static ssize_t show_fan_trigger_mid(struct class *cls,
+		struct class_attribute *attr, char *buf){
+
+	return sprintf(buf, "Fan trigger mid speed temperature:%d\n", g_mcu_data->fan_data.trig_temp_level1);
+}
+
+static ssize_t store_fan_trigger_mid(struct class *cls, struct class_attribute *attr,
+		const char *buf, size_t count){
+
+	int trigger;
+
+	if (kstrtoint(buf, 0, &trigger))
+		return -EINVAL;
+
+	g_mcu_data->fan_data.trig_temp_level1 = trigger;
+
+	fan_level_set(g_mcu_data);
+
+	return count;
+}
+
+static ssize_t show_fan_trigger_high(struct class *cls,
+		struct class_attribute *attr, char *buf){
+
+	return sprintf(buf, "Fan trigger high speed temperature:%d\n", g_mcu_data->fan_data.trig_temp_level2);
+}
+
+static ssize_t store_fan_trigger_high(struct class *cls, struct class_attribute *attr,
+		const char *buf, size_t count){
+
+	int trigger;
+
+	if (kstrtoint(buf, 0, &trigger))
+		return -EINVAL;
+
+	g_mcu_data->fan_data.trig_temp_level2 = trigger;
+
+	fan_level_set(g_mcu_data);
+
+	return count;
+}
+
 
 static ssize_t store_wol_enable(struct class *cls, struct class_attribute *attr,
 		        const char *buf, size_t count)
@@ -525,6 +616,9 @@ static struct class_attribute fan_class_attrs[] = {
 	__ATTR(enable, 0644, show_fan_enable, store_fan_enable),
 	__ATTR(mode, 0644, show_fan_mode, store_fan_mode),
 	__ATTR(level, 0644, show_fan_level, store_fan_level),
+	__ATTR(trigger_temp_low, 0644, show_fan_trigger_low, store_fan_trigger_low),
+	__ATTR(trigger_temp_mid, 0644, show_fan_trigger_mid, store_fan_trigger_mid),
+	__ATTR(trigger_temp_high, 0644, show_fan_trigger_high, store_fan_trigger_high),
 	__ATTR(temp, 0644, show_fan_temp, NULL),
 };
 
