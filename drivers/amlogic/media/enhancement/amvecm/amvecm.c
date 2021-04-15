@@ -249,7 +249,7 @@ unsigned int vecm_latch_flag2;
 module_param(vecm_latch_flag2, uint, 0664);
 MODULE_PARM_DESC(vecm_latch_flag2, "\n vecm_latch_flag2\n");
 
-unsigned int pq_load_en = 1;/* load pq table enable/disable */
+unsigned int pq_load_en;/* load pq table enable/disable */
 module_param(pq_load_en, uint, 0664);
 MODULE_PARM_DESC(pq_load_en, "\n pq_load_en\n");
 
@@ -8524,7 +8524,8 @@ void init_pq_setting(void)
 		is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
-		get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
 		goto tvchip_pq_setting;
 	else if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
 		 is_meson_sm1_cpu() ||
@@ -8561,7 +8562,8 @@ tvchip_pq_setting:
 		if (is_meson_tl1_cpu())
 			bitdepth = 10;
 		else if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
-			 get_cpu_type() == MESON_CPU_MAJOR_ID_T5D)
+			     get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
+			     get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
 			bitdepth = 10;
 		else if (is_meson_tm2_cpu())
 			bitdepth = 12;
@@ -8951,6 +8953,15 @@ static const struct vecm_match_data_s vecm_dt_t7 = {
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
 
+static const struct vecm_match_data_s vecm_dt_t3 = {
+	.vlk_chip = vlock_chip_t7,
+	.vlk_support = true,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_tm2verb,
+	.vlk_phlock_en = true,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
+};
+
 static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm",
@@ -8985,6 +8996,10 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm-t7",
 		.data = &vecm_dt_t7,
+	},
+	{
+		.compatible = "amlogic, vecm-t3",
+		.data = &vecm_dt_t3,
 	},
 	{},
 };

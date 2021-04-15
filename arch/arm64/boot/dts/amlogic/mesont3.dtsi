@@ -809,6 +809,13 @@
 		power-domains = <&pwrdm PDID_T3_GE2D>;
 	};
 
+	amlvecm: amlvecm {
+		compatible = "amlogic, vecm-t3";
+		dev_name = "aml_vecm";
+		clocks = <&clkc CLKID_VID_LOCK>;
+		clock-names = "cts_vid_lock_clk";
+	};
+
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
 		dev_name = "mesonstream";
