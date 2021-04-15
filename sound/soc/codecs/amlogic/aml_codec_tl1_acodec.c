@@ -39,6 +39,7 @@ struct tl1_acodec_chipinfo {
 	bool is_adc_phase_differ_exist;
 	int mclk_sel;
 	bool separate_toacodec_en;
+	int data_sel_shift;
 };
 
 struct tl1_acodec_priv {
@@ -85,6 +86,7 @@ static struct tl1_acodec_chipinfo tl1_acodec_cinfo = {
 	//0 :disable; 1: enable;
 	//.mclk_sel = 1,
 	.separate_toacodec_en = false,
+	.data_sel_shift = DATA_SEL_SHIFT_VERSION0,
 };
 
 static struct tl1_acodec_chipinfo tm2_revb_acodec_cinfo = {
@@ -99,6 +101,22 @@ static struct tl1_acodec_chipinfo tm2_revb_acodec_cinfo = {
 	//0 :disable; 1: enable;
 	//.mclk_sel = 1,
 	.separate_toacodec_en = true,
+	.data_sel_shift = DATA_SEL_SHIFT_VERSION0,
+};
+
+static struct tl1_acodec_chipinfo t3_acodec_cinfo = {
+	.id = 0,
+	.is_bclk_cap_inv = true,	//default  true
+	.is_bclk_o_inv = false,		//default  false
+	.is_lrclk_inv = false,
+
+	.is_dac_phase_differ_exist = false,
+	.is_adc_phase_differ_exist = true,
+	//if is_adc_phase_differ=true,modified tdmin_in_rev_ws,revert ws(lrclk);
+	//0 :disable; 1: enable;
+	//.mclk_sel = 1,
+	.separate_toacodec_en = true,
+	.data_sel_shift = DATA_SEL_SHIFT_VERSION1,
 };
 
 static int tl1_acodec_reg_init(struct snd_soc_component *component)
@@ -768,10 +786,18 @@ static int tl1_acodec_set_toacodec(struct tl1_acodec_priv *aml_acodec)
 	if (aml_acodec->chipinfo->is_lrclk_inv)
 		update_bits |= (0x1 << 10);
 
-	dat0_sel = (aml_acodec->tdmout_index << 2) + aml_acodec->dat0_ch_sel;
-	dat0_sel = dat0_sel << 16;
-	dat1_sel = (aml_acodec->tdmout_index << 2) + aml_acodec->dat1_ch_sel;
-	dat1_sel = dat1_sel << 20;
+	if (aml_acodec->chipinfo->data_sel_shift == DATA_SEL_SHIFT_VERSION0) {
+		dat0_sel = (aml_acodec->tdmout_index << 2) + aml_acodec->dat0_ch_sel;
+		dat0_sel = dat0_sel << 16;
+		dat1_sel = (aml_acodec->tdmout_index << 2) + aml_acodec->dat1_ch_sel;
+		dat1_sel = dat1_sel << 20;
+	} else {
+		dat0_sel = (aml_acodec->tdmout_index << 3) + aml_acodec->dat0_ch_sel;
+		dat0_sel = dat0_sel << 16;
+		dat1_sel = (aml_acodec->tdmout_index << 3) + aml_acodec->dat1_ch_sel;
+		dat1_sel = dat1_sel << 22;
+	}
+
 	lrclk_sel = (aml_acodec->tdmout_index) << 12;
 	bclk_sel = (aml_acodec->tdmout_index) << 4;
 
@@ -911,6 +937,10 @@ static const struct of_device_id aml_tl1_acodec_dt_match[] = {
 	{
 		.compatible = "amlogic, tm2_revb_acodec",
 		.data = &tm2_revb_acodec_cinfo,
+	},
+	{
+		.compatible = "amlogic, t3_acodec",
+		.data = &t3_acodec_cinfo,
 	},
 	{},
 };

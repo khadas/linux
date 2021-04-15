@@ -363,7 +363,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/
-		//avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		avout_mute-gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
 		//spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
 
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
@@ -432,7 +432,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&acodec>;
 			};
 		};
 
@@ -608,8 +608,10 @@
 				&clkc CLKID_MPLL1>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
 
-		//pinctrl-names = "tdm_pins";
-		//pinctrl-0 = <&tdm_a>;
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&tdm_b_pins
+			&tdm_d0_pins
+			&tdm_clk_pins>;
 
 		/*
 		 * 0: tdmout_a;
@@ -1139,4 +1141,31 @@
 &pcie {
 	reset-gpio = <&gpio GPIOH_22 GPIO_ACTIVE_HIGH>;
 	status = "disable";
+};
+
+&periphs_pinctrl {
+    tdm_b_pins: tdm_b_pin {
+		mux { /* GPIOH_16, GPIOH_15, GPIOH_17 */
+			groups = "tdm_sclk1",
+				"tdm_fs1",
+				"tdm_d0";
+			function = "tdm";
+		};
+	};
+};
+
+&pinctrl_audio {
+	tdm_d0_pins: tdm_d0_pin {
+		mux {
+			groups = "tdm_d0";
+			function = "tdmoutb_lane1";
+		};
+	};
+
+	tdm_clk_pins: tdm_clk_pin {
+		mux {
+			groups = "tdm_sclk1", "tdm_lrclk1";
+			function = "tdm_clk_outb";
+		};
+	};
 };
