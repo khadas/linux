@@ -136,11 +136,10 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int *vics;
 	int count = 0, i = 0, len = 0;
-	struct drm_display_mode *mode;
+	struct drm_display_mode *mode, *pref_mode = NULL;
 	struct hdmi_format_para *hdmi_para;
 	struct hdmi_cea_timing *timing;
 	char *strp = NULL;
-	bool set_pref = false;
 
 	edid = (struct edid *)drm_hdmitx_get_raw_edid();
 	drm_connector_update_edid_property(connector, edid);
@@ -157,7 +156,12 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 			}
 
 			mode = drm_mode_create(connector->dev);
-			strcpy(mode->name, hdmi_para->hdmitx_vinfo.name);
+			if (!mode) {
+				DRM_ERROR("drm mode create failed.\n");
+				continue;
+			}
+
+			strncpy(mode->name, hdmi_para->hdmitx_vinfo.name, DRM_DISPLAY_MODE_LEN);
 			/* remove _4x3 suffix, in case misunderstand */
 			strp = strstr(mode->name, "_4x3");
 			if (strp)
@@ -204,11 +208,21 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 				DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
 
 			/*for recovery ui*/
-			if (hdmitx_set_smaller_pref && !set_pref) {
-				if ((mode->hdisplay == 1920 && mode->vdisplay == 1080) ||
-					(mode->hdisplay == 1280 && mode->vdisplay == 720)) {
-					mode->type |= DRM_MODE_TYPE_PREFERRED;
-					set_pref = true;
+			if (hdmitx_set_smaller_pref) {
+				/*
+				 * select 1080P mode with hightest refresh rate first,
+				 * if not find then select 720p mode as pref mode
+				 */
+				if (!(mode->flags & DRM_MODE_FLAG_INTERLACE) &&
+					((mode->hdisplay == 1920 && mode->vdisplay == 1080) ||
+					(mode->hdisplay == 1280 && mode->vdisplay == 720))) {
+					if (!pref_mode)
+						pref_mode = mode;
+					else if (pref_mode->hdisplay < mode->hdisplay)
+						pref_mode = mode;
+					else if (pref_mode->hdisplay == mode->hdisplay &&
+							pref_mode->vrefresh < mode->vrefresh)
+						pref_mode = mode;
 				}
 			}
 
@@ -216,6 +230,9 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 
 			DRM_INFO("add mode [%s]\n", mode->name);
 		}
+
+		if (pref_mode)
+			pref_mode->type |= DRM_MODE_TYPE_PREFERRED;
 
 		kfree(vics);
 	} else {
