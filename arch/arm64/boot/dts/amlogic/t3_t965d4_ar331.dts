@@ -20,6 +20,9 @@
 
 	aliases {
 		serial0 = &uart_B;
+		serial1 = &uart_A;
+		serial2 = &uart_C;
+		serial3 = &uart_D;
 		tsensor0 = &cpu_tsensor;
 		tsensor1 = &nna_tsensor;
 		tsensor2 = &vpu_tsensor;

@@ -532,6 +532,51 @@
 			};
 		};
 
+		uart_A: serial@fe078000 {
+			compatible = "amlogic,meson-uart";
+			reg = <0x0 0xfe078000 0x0 0x18>;
+			interrupts = <0 168 1>;
+			status = "disabled";
+			clocks = <&xtal
+						&clkc CLKID_SYS_CLK_UART_A>;
+			clock-names = "clk_uart",
+						"clk_gate";
+			xtal_tick_en = <2>;
+			fifosize = < 64 >;
+			pinctrl-names = "default";
+			pinctrl-0 = <&a_uart_pins1>;
+		};
+
+		uart_C: serial@fe07c000 {
+			compatible = "amlogic,meson-uart";
+			reg = <0x0 0xfe07c000 0x0 0x18>;
+			interrupts = <0 170 1>;
+			status = "disabled";
+			clocks = <&xtal
+						&clkc CLKID_SYS_CLK_UART_C>;
+			clock-names = "clk_uart",
+						"clk_gate";
+			xtal_tick_en = <2>;
+			fifosize = < 64 >;
+			pinctrl-names = "default";
+			pinctrl-0 = <&c_uart_pins1>;
+		};
+
+		uart_D: serial@fe07e000 {
+			compatible = "amlogic,meson-uart";
+			reg = <0x0 0xfe07e000 0x0 0x18>;
+			interrupts = <0 171 1>;
+			status = "disabled";
+			clocks = <&xtal
+						&clkc CLKID_SYS_CLK_UART_D>;
+			clock-names = "clk_uart",
+						"clk_gate";
+			xtal_tick_en = <2>;
+			fifosize = < 64 >;
+			pinctrl-names = "default";
+			pinctrl-0 = <&d_uart_pins1>;
+		};
+
 		sd_emmc_c: mmc@fe08c000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0x0 0xfe08c000 0x0 0x800>,
@@ -1806,6 +1851,82 @@
 			function = "i2c4";
 			drive-strength-microamp = <3000>;
 			bias-disable;
+		};
+	};
+
+	a_uart_pins1:a_uart1 {
+		mux {
+			groups = "uart_a_tx_c",
+				"uart_a_rx_c",
+				"uart_a_cts_c",
+				"uart_a_rts_c";
+			function = "uart_a";
+		};
+	};
+
+	a_uart_pins2:a_uart2 {
+		mux {
+			groups = "uart_a_tx_z",
+				"uart_a_rx_z",
+				"uart_a_cts_z",
+				"uart_a_rts_z";
+			function = "uart_a";
+		};
+	};
+
+	c_uart_pins1:c_uart1 {
+		mux {
+			groups = "uart_c_tx_d",
+				"uart_c_rx_d";
+			function = "uart_c";
+		};
+	};
+
+	c_uart_pins2:c_uart2 {
+		mux {
+			groups = "uart_c_tx_h1",
+				"uart_c_rx_h2";
+			function = "uart_c";
+		};
+	};
+
+	c_uart_pins3:c_uart3 {
+		mux {
+			groups = "uart_c_tx_h22",
+				"uart_c_rx_h23";
+			function = "uart_c";
+		};
+	};
+
+	c_uart_pins4:c_uart4 {
+		mux {
+			groups = "uart_c_tx_h18",
+				"uart_c_rx_h19";
+			function = "uart_c";
+		};
+	};
+
+	c_uart_pins5:c_uart5 {
+		mux {
+			groups = "uart_c_tx_m",
+				"uart_c_rx_m";
+			function = "uart_c";
+		};
+	};
+
+	d_uart_pins1:d_uart1 {
+		mux {
+			groups = "uart_d_tx_z",
+				"uart_d_rx_z";
+			function = "uart_d";
+		};
+	};
+
+	d_uart_pins2:d_uart2 {
+		mux {
+			groups = "uart_d_tx_m",
+				"uart_d_rx_m";
+			function = "uart_d";
 		};
 	};
 
