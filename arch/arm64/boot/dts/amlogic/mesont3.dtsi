@@ -741,6 +741,11 @@
 		reg = <0x0 0xfe036048 0x0 0x2000>;
 	};
 
+	meson_videotunnel{
+		compatible = "amlogic, meson_videotunnel";
+		status = "okay";
+	};
+
 	rdma {
 		compatible = "amlogic, meson-t7, rdma";
 		status = "okay";
