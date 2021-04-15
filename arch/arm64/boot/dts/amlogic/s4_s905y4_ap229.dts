@@ -666,7 +666,7 @@
 			//bitclock-master = <&tdmccodec>;
 			//frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-i2s2hdmi";
+			suffix-name = "alsaPORT-i2s";
 			cpu {
 				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
