@@ -161,9 +161,15 @@ static int meson_sec_cpu_dyn_set_rate(struct clk_hw *hw, unsigned long rate,
 	nrate = table->rate;
 
 	/* For set more than 1G, need to set additional parent frequency */
-	if (nrate > 1000000000)
+	if (!strcmp(clk_hw_get_name(hw), "dsu_dyn_clk") && nrate > 1000000000) {
+		if (clk_get_rate(hw->clk) > 1000000000) {
+			/* switch dsu to fix div2 */
+			arm_smccc_smc(SECURE_CPU_CLK, data->secid_dyn,
+				1, 0, 0, 0, 0, 0, &res);
+			/* udelay(50); */
+		}
 		clk_set_rate(clk_hw_get_parent_by_index(hw, 3)->clk, nrate);
-
+	}
 	arm_smccc_smc(SECURE_CPU_CLK, data->secid_dyn,
 			table->dyn_pre_mux, table->dyn_post_mux, table->dyn_div,
 			0, 0, 0, &res);
