@@ -192,7 +192,8 @@ enum {
 #define VPP_LINE_BUFFER_EN_BIT          21
 #define VPP_SC_PREHORZ_EN_BIT           20
 #define VPP_SC_PREVERT_EN_BIT           19
-#define VPP_PPS_LAST_LINE_FIX      BIT(24)
+#define VPP_HF_SEP_COEF_4SRNET_EN   BIT(25)
+#define VPP_PPS_LAST_LINE_FIX       BIT(24)
 #define VPP_LINE_BUFFER_EN          BIT(21)
 #define VPP_SC_PREHORZ_EN           BIT(20)
 #define VPP_SC_PREVERT_EN           BIT(19)
@@ -285,6 +286,7 @@ enum {
 #define VPP_OFIFO_SIZE_MASK         0xfff
 #define VPP_OFIFO_SIZE_BIT          0
 
+#define VPP_SEP_COEF            BIT(16)
 #define VPP_COEF_IDXINC         BIT(15)
 #define VPP_COEF_RD_CBUS        BIT(14)
 #define VPP_COEF_SEP_EN	        BIT(13)
@@ -295,6 +297,15 @@ enum {
 #define VPP_COEF_HORZ           BIT(8)
 #define VPP_COEF_INDEX_MASK     0x7f
 #define VPP_COEF_INDEX_BIT      0
+
+enum {
+	VPP_SEP_COEF_VERT_LUMA = 0x000 << 17,
+	VPP_SEP_COEF_VERT_CHROMA = 0x001 << 17,
+	VPP_SEP_COEF_HORZ_LUMA = 0x010 << 17,
+	VPP_SEP_COEF_HORZ_LUMA_PARTB = 0x011 << 17,
+	VPP_SEP_COEF_HORZ_CHROMA = 0x101 << 17,
+	VPP_SEP_COEF_HORZ_CHROMA_PARTB = 0x110 << 17,
+};
 
 #define AMVIDEO_UPDATE_OSD_MODE	0x00000001
 #define AMVIDEO_UPDATE_PREBLEND_MODE	0x00000002

@@ -142,6 +142,12 @@ enum vpp_type_e {
 	VPP2,
 };
 
+enum reshape_mode_e {
+	MODE_2X2 = 1,
+	MODE_3X3 = 2,
+	MODE_4X4 = 3,
+};
+
 typedef u32 (*rdma_rd_op)(u32 reg);
 typedef int (*rdma_wr_op)(u32 reg, u32 val);
 typedef int (*rdma_wr_bits_op)(u32 reg, u32 val, u32 start, u32 len);
@@ -158,7 +164,11 @@ struct video_dev_s {
 	int mif_linear;
 	int t7_display;
 	int max_vd_layers;
-	int vd2_indepentd_blend_ctrl;
+	int vd2_independ_blend_ctrl;
+	int aisr_support;
+	int scaler_sep_coef_en;
+	struct hw_pps_reg_s aisr_pps_reg;
+	struct vpp_frame_par_s aisr_frame_parms;
 	struct rdma_fun_s rdma_func[VPP_NUM];
 };
 
@@ -286,6 +296,20 @@ struct fgrain_setting_s {
 	u32 table_size;
 };
 
+struct aisr_setting_s {
+	u32 aisr_enable;
+	u32 in_ratio; /* 1:2x2  2:3x3 3:4x4 */
+	u32 src_w;
+	u32 src_h;
+	u32 x_start;
+	u32 x_end;
+	u32 y_start;
+	u32 y_end;
+	u32 little_endian;
+	u32 swap_64bit;
+	ulong phy_addr;
+};
+
 enum mode_3d_e {
 	mode_3d_disable = 0,
 	mode_3d_enable,
@@ -332,6 +356,8 @@ struct video_layer_s {
 	struct blend_setting_s bld_setting;
 	struct fgrain_setting_s fgrain_setting;
 	struct clip_setting_s clip_setting;
+	struct aisr_setting_s aisr_mif_setting;
+	struct scaler_setting_s aisr_sc_setting;
 
 	u32 new_vframe_count;
 
@@ -387,7 +413,8 @@ enum cpu_type_e {
 };
 
 struct video_device_hw_s {
-	u32 vd2_indepentd_blend_ctrl;
+	u32 vd2_independ_blend_ctrl;
+	u32 aisr_support;
 };
 
 struct amvideo_device_data_s {
@@ -646,7 +673,15 @@ s32 pip_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo);
 void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		     const struct vinfo_s *vinfo);
 s32 pip2_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo);
-
+void aisr_update_frame_info(struct video_layer_s *layer,
+			 struct vframe_s *vf);
+void aisr_reshape_cfg(struct aisr_setting_s *aisr_mif_setting);
+void aisr_pps_cfg(struct aisr_setting_s *aisr_mif_setting,
+		     struct scaler_setting_s *setting,
+		     struct scaler_setting_s *aisr_setting,
+		     struct vframe_s *vf);
+void aisr_scaler_setting(struct video_layer_s *layer,
+				    struct scaler_setting_s *setting);
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void vsync_rdma_process(void);
 #endif

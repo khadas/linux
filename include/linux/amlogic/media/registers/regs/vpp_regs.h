@@ -208,6 +208,7 @@
 #define SRSHARP1_SHARP_PK_NR_ENABLE       0x32a7
 #define SRSHARP1_SHARP_DNLP_EN            0x32c5
 #define SRSHARP1_SHARP_SR2_CTRL           0x32d7
+#define SRSHARP1_NN_POST_TOP              0x3402
 
 #define VPP_POST_MATRIX_SAT               0x32c1
 
@@ -312,6 +313,38 @@
 #define VD3_PRE_SCALE_CTRL                         0x591e
 #define VD3_PREVSC_COEF                            0x591f
 #define VD3_PREHSC_COEF1                           0x5920
+
+/* t3 aisr pps */
+#define SCHN_SCALE_COEF_IDX                        0x2e70
+#define SCHN_SCALE_COEF                            0x2e71
+#define SCHN_VSC_REGION12_STARTP                   0x2e72
+#define SCHN_VSC_REGION34_STARTP                   0x2e73
+#define SCHN_VSC_REGION4_ENDP                      0x2e74
+#define SCHN_VSC_START_PHASE_STEP                  0x2e75
+#define SCHN_VSC_REGION0_PHASE_SLOPE               0x2e76
+#define SCHN_VSC_REGION1_PHASE_SLOPE               0x2e77
+#define SCHN_VSC_REGION3_PHASE_SLOPE               0x2e78
+#define SCHN_VSC_REGION4_PHASE_SLOPE               0x2e79
+#define SCHN_VSC_PHASE_CTRL                        0x2e7a
+#define SCHN_VSC_INI_PHASE                         0x2e7b
+#define SCHN_HSC_REGION12_STARTP                   0x2e7c
+#define SCHN_HSC_REGION34_STARTP                   0x2e7d
+#define SCHN_HSC_REGION4_ENDP                      0x2e7e
+#define SCHN_HSC_START_PHASE_STEP                  0x2e7f
+#define SCHN_HSC_REGION0_PHASE_SLOPE               0x2e80
+#define SCHN_HSC_REGION1_PHASE_SLOPE               0x2e81
+#define SCHN_HSC_REGION3_PHASE_SLOPE               0x2e82
+#define SCHN_HSC_REGION4_PHASE_SLOPE               0x2e83
+#define SCHN_HSC_PHASE_CTRL                        0x2e84
+#define SCHN_SC_MISC                               0x2e85
+#define SCHN_SCO_FIFO_CTRL                         0x2e86
+#define SCHN_HSC_PHASE_CTRL1                       0x2e87
+#define SCHN_HSC_INI_PAT_CTRL                      0x2e88
+#define SCHN_SC_GCLK_CTRL                          0x2e89
+#define SCHN_PREHSC_COEF                           0x2e8a
+#define SCHN_PREVSC_COEF                           0x2e8b
+#define SCHN_PRE_SCALE_CTRL                        0x2e8c
+#define SCHN_PREHSC_COEF1                          0x2e8d
 
 #define VD1_BLEND_SRC_CTRL                0x1dfb
 #define VD2_BLEND_SRC_CTRL                0x1dfc
@@ -508,5 +541,34 @@
 #define VPP2_BLD_DIN2_VSCOPE                       0x59cc
 #define VPP2_BLEND_BLEND_DUMMY_DATA                0x59e9
 #define VPP2_BLEND_DUMMY_ALPHA                     0x59ea
+
+/* aisr */
+#define AISR_RESHAP_CTRL0                          0x2e40
+#define AISR_RESHAP_CTRL1                          0x2e41
+#define AISR_RESHAP_CTRL2                          0x2e42
+#define AISR_RESHAP_SCOPE_X                        0x2e43
+#define AISR_RESHAP_SCOPE_Y                        0x2e44
+#define AISR_RESHAP_BADDR00                        0x2e45
+#define AISR_RESHAP_BADDR01                        0x2e46
+#define AISR_RESHAP_BADDR02                        0x2e47
+#define AISR_RESHAP_BADDR03                        0x2e48
+#define AISR_RESHAP_BADDR10                        0x2e49
+#define AISR_RESHAP_BADDR11                        0x2e4a
+#define AISR_RESHAP_BADDR12                        0x2e4b
+#define AISR_RESHAP_BADDR13                        0x2e4c
+#define AISR_RESHAP_BADDR20                        0x2e4d
+#define AISR_RESHAP_BADDR21                        0x2e4e
+#define AISR_RESHAP_BADDR22                        0x2e4f
+#define AISR_RESHAP_BADDR23                        0x2e50
+#define AISR_RESHAP_BADDR30                        0x2e51
+#define AISR_RESHAP_BADDR31                        0x2e52
+#define AISR_RESHAP_BADDR32                        0x2e53
+#define AISR_RESHAP_BADDR33                        0x2e54
+#define AISR_RESHAP_MISC                           0x2e55
+#define AISR_POST_CTRL                             0x2e5a
+#define AISR_POST_SIZE                             0x2e5b
+
+#define VPP_SR0_IN_SIZE                            0x1d97
+#define VPP_SR1_IN_SIZE                            0x1d98
 #endif
 
