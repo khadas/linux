@@ -972,3 +972,44 @@
 		reg_bit = <1>;
 	};
 };
+
+&crg20 {
+	status = "okay";
+};
+
+&crg30 {
+	status = "okay";
+};
+
+&usb2_phy_v2 {
+	status = "okay";
+	portnum = <3>;
+};
+
+&usb3_phy_v2 {
+	status = "okay";
+	portnum = <0>;
+	otg = <0>;
+	gpio-vbus-power = "GPIOD_6";
+	gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
+};
+
+&usb2_m31_phy {
+	status = "okay";
+};
+
+&usb3_m31_phy {
+	status = "okay";
+	portnum = <1>;
+};
+
+&dwc2_a {
+	status = "okay";
+	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
+	controller-type = <1>;
+};
+
+&pcie {
+	reset-gpio = <&gpio GPIOH_22 GPIO_ACTIVE_HIGH>;
+	status = "disable";
+};

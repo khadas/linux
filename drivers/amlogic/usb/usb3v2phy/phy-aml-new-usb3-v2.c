@@ -96,7 +96,9 @@ static void amlogic_new_usb3phy_shutdown(struct usb_phy *x)
 
 void aml_new_usb_v2_init(void)
 {
+	struct u2p_aml_regs_v2 u2p_aml_regs;
 	union usb_r5_v2 r5 = {.d32 = 0};
+	union u2p_r2_v2 reg2;
 	unsigned long reg_addr;
 	int id_gpio_status;
 
@@ -119,13 +121,26 @@ void aml_new_usb_v2_init(void)
 			amlogic_new_set_vbus_power(g_phy_v2, 0);
 		}
 	} else {
-		r5.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[5]);
-		//printk(KERN_ERR"<%s><%u>id=%u\n",
-		//	   __func__, __LINE__, r5.b.iddig_curr);
-		if (r5.b.iddig_curr == 0) {
-			amlogic_new_set_vbus_power(g_phy_v2, 1);
-			aml_new_usb_notifier_call(0);
-			set_mode(reg_addr, HOST_MODE);
+		if (!g_phy_v2->version) {
+			r5.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[5]);
+			//printk(KERN_ERR"<%s><%u>id=%u\n",
+			//	   __func__, __LINE__, r5.b.iddig_curr);
+			if (r5.b.iddig_curr == 0) {
+				amlogic_new_set_vbus_power(g_phy_v2, 1);
+				aml_new_usb_notifier_call(0);
+				set_mode(reg_addr, HOST_MODE);
+			}
+		} else {
+			u2p_aml_regs.u2p_r_v2[2] = (void __iomem	*)
+				((unsigned long)reg_addr + PHY_REGISTER_SIZE + 0x8);
+			reg2.d32 = readl(u2p_aml_regs.u2p_r_v2[2]);
+			//printk(KERN_ERR"<%s><%u>id=%u\n",
+			//	   __func__, __LINE__, r5.b.iddig_curr);
+			if (reg2.b.iddig_curr == 0) {
+				amlogic_new_set_vbus_power(g_phy_v2, 1);
+				aml_new_usb_notifier_call(0);
+				set_mode(reg_addr, HOST_MODE);
+			}
 		}
 	}
 }
@@ -133,13 +148,27 @@ EXPORT_SYMBOL(aml_new_usb_v2_init);
 
 int aml_new_usb_get_mode(void)
 {
+	struct u2p_aml_regs_v2 u2p_aml_regs;
 	union usb_r5_v2 r5 = {.d32 = 0};
+	union u2p_r2_v2 reg2;
+	unsigned long reg_addr = ((unsigned long)g_phy_v2->usb2_phy_cfg);
 
-	r5.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[5]);
-	if (r5.b.iddig_curr == 0)
-		return 0;
-	else
-		return 1;
+	if (!g_phy_v2->version) {
+		r5.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[5]);
+		if (r5.b.iddig_curr == 0)
+			return 0;
+		else
+			return 1;
+	} else {
+		u2p_aml_regs.u2p_r_v2[2] = (void __iomem	*)
+			((unsigned long)reg_addr + PHY_REGISTER_SIZE + 0x8);
+		reg2.d32 = readl(u2p_aml_regs.u2p_r_v2[2]);
+
+		if (reg2.b.iddig_curr == 0)
+			return 0;
+		else
+			return 1;
+	}
 }
 EXPORT_SYMBOL(aml_new_usb_get_mode);
 
@@ -264,6 +293,8 @@ static void cr_bus_write(unsigned int addr, unsigned int data)
 static int amlogic_new_usb3_init(struct usb_phy *x)
 {
 	struct amlogic_usb_v2 *phy = phy_to_amlusb(x);
+	struct u2p_aml_regs_v2 u2p_aml_regs;
+	union u2p_r2_v2 reg2;
 	union usb_r1_v2 r1 = {.d32 = 0};
 	union usb_r2_v2 r2 = {.d32 = 0};
 	union usb_r3_v2 r3 = {.d32 = 0};
@@ -272,6 +303,7 @@ static int amlogic_new_usb3_init(struct usb_phy *x)
 	union phy3_r1 p3_r1 = {.d32 = 0};
 	int i = 0;
 	u32 data = 0;
+	unsigned long reg_addr = ((unsigned long)phy->usb2_phy_cfg);
 
 	if (phy->suspend_flag) {
 		if (phy->phy.flags == AML_USB3_PHY_ENABLE)
@@ -289,11 +321,21 @@ static int amlogic_new_usb3_init(struct usb_phy *x)
 	r1.b.u3h_fladj_30mhz_reg = 0x20;
 	writel(r1.d32, usb_new_aml_regs_v2.usb_r_v2[1]);
 
-	r5.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[5]);
-	r5.b.iddig_en0 = 1;
-	r5.b.iddig_en1 = 1;
-	r5.b.iddig_th = 255;
-	writel(r5.d32, usb_new_aml_regs_v2.usb_r_v2[5]);
+	if (!phy->version) {
+		r5.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[5]);
+		r5.b.iddig_en0 = 1;
+		r5.b.iddig_en1 = 1;
+		r5.b.iddig_th = 255;
+		writel(r5.d32, usb_new_aml_regs_v2.usb_r_v2[5]);
+	} else {
+		u2p_aml_regs.u2p_r_v2[2] = (void __iomem	*)
+			((unsigned long)reg_addr + PHY_REGISTER_SIZE + 0x8);
+		reg2.d32 = readl(u2p_aml_regs.u2p_r_v2[2]);
+		reg2.b.iddig_en0 = 1;
+		reg2.b.iddig_en1 = 1;
+		reg2.b.iddig_th = 255;
+		writel(reg2.d32, u2p_aml_regs.u2p_r_v2[2]);
+	}
 
 	/* config usb3 phy */
 	if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
@@ -437,36 +479,66 @@ static void amlogic_gxl_work(struct work_struct *work)
 {
 	struct amlogic_usb_v2 *phy =
 		container_of(work, struct amlogic_usb_v2, work.work);
+	struct u2p_aml_regs_v2 u2p_aml_regs;
 	union usb_r5_v2 r5 = {.d32 = 0};
+	union u2p_r2_v2 reg2;
 	unsigned long reg_addr = ((unsigned long)phy->usb2_phy_cfg);
 
-	r5.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[5]);
-	if (r5.b.iddig_curr == 0) {
-		amlogic_new_set_vbus_power(phy, 1);
-		aml_new_usb_notifier_call(0);
-		set_mode(reg_addr, HOST_MODE);
+	if (!phy->version) {
+		r5.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[5]);
+		if (r5.b.iddig_curr == 0) {
+			amlogic_new_set_vbus_power(phy, 1);
+			aml_new_usb_notifier_call(0);
+			set_mode(reg_addr, HOST_MODE);
+		} else {
+			set_mode(reg_addr, DEVICE_MODE);
+			aml_new_usb_notifier_call(1);
+			amlogic_new_set_vbus_power(phy, 0);
+		}
+		r5.b.usb_iddig_irq = 0;
+		writel(r5.d32, usb_new_aml_regs_v2.usb_r_v2[5]);
 	} else {
-		set_mode(reg_addr, DEVICE_MODE);
-		aml_new_usb_notifier_call(1);
-		amlogic_new_set_vbus_power(phy, 0);
+		u2p_aml_regs.u2p_r_v2[2] = (void __iomem	*)
+			((unsigned long)reg_addr + PHY_REGISTER_SIZE + 0x8);
+		reg2.d32 = readl(u2p_aml_regs.u2p_r_v2[2]);
+		if (reg2.b.iddig_curr == 0) {
+			amlogic_new_set_vbus_power(phy, 1);
+			aml_new_usb_notifier_call(0);
+			set_mode(reg_addr, HOST_MODE);
+		} else {
+			set_mode(reg_addr, DEVICE_MODE);
+			aml_new_usb_notifier_call(1);
+			amlogic_new_set_vbus_power(phy, 0);
+		}
+		reg2.b.usb_iddig_irq = 0;
+		writel(reg2.d32, usb_new_aml_regs_v2.usb_r_v2[5]);
 	}
-	r5.b.usb_iddig_irq = 0;
-	writel(r5.d32, usb_new_aml_regs_v2.usb_r_v2[5]);
 }
 
 static irqreturn_t amlogic_botg_detect_irq(int irq, void *dev)
 {
 	struct amlogic_usb_v2 *phy = (struct amlogic_usb_v2 *)dev;
 	union usb_r5_v2 r5 = {.d32 = 0};
+	union u2p_r2_v2 reg2;
+	struct u2p_aml_regs_v2 u2p_aml_regs;
+	unsigned long reg_addr = ((unsigned long)phy->usb2_phy_cfg);
 
 	if (!usb_new_aml_regs_v2.usb_r_v2[5]) {
 		pr_err("This otg port maybe type-A port!\n");
 		return IRQ_HANDLED;
 	}
 
-	r5.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[5]);
-	r5.b.usb_iddig_irq = 0;
-	writel(r5.d32, usb_new_aml_regs_v2.usb_r_v2[5]);
+	if (!phy->version) {
+		r5.d32 = readl(usb_new_aml_regs_v2.usb_r_v2[5]);
+			r5.b.usb_iddig_irq = 0;
+		writel(r5.d32, usb_new_aml_regs_v2.usb_r_v2[5]);
+	} else {
+		u2p_aml_regs.u2p_r_v2[2] = (void __iomem	*)
+			((unsigned long)reg_addr + PHY_REGISTER_SIZE + 0x8);
+		reg2.d32 = readl(u2p_aml_regs.u2p_r_v2[2]);
+		reg2.b.usb_iddig_irq = 0;
+		writel(reg2.d32, u2p_aml_regs.u2p_r_v2[2]);
+	}
 
 	schedule_delayed_work(&phy->work, msecs_to_jiffies(10));
 
@@ -579,6 +651,7 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 	int otg = 0;
 	int ret;
 	struct device_node *tsi_pci;
+	unsigned int phy_version = 0;
 
 	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
 	if (gpio_name) {
@@ -594,6 +667,13 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 
 	if (!portnum)
 		dev_err(&pdev->dev, "This phy has no usb port\n");
+
+	prop = of_get_property(dev->of_node, "version", NULL);
+	if (prop)
+		phy_version = of_read_ulong(prop, 1);
+
+	if (!phy_version)
+		dev_err(&pdev->dev, "This is normal phy\n");
 
 	tsi_pci = of_find_node_by_type(NULL, "pci");
 	if (tsi_pci) {
@@ -695,6 +775,7 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 	phy->vbus_power_pin = gpio_vbus_power_pin;
 	phy->usb_gpio_desc = usb_gd;
 	phy->otg = otg;
+	phy->version = phy_version;
 
 	/* set the phy from pcie to usb3 */
 	if (phy->portnum > 0) {

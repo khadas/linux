@@ -141,8 +141,212 @@ union phy_r6 {
 	} b;
 };
 
+union pcie_phy_m31_r0 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned PHY_SSCG_ON:1;
+		unsigned PHY_CTLE_OFF:1;
+		unsigned REFPAD_EXT_100M_EN:1;
+		unsigned CLKPADEN:1;
+		unsigned U3_SSRX_SEL:1;
+		unsigned U3_SSTX_SEL:1;
+		unsigned PCIE_XTLSEL:1;
+		unsigned USB_XTLSEL:3;
+		unsigned U3_HOST_PHY:1;
+		unsigned USB_CLKSEL:1;
+		unsigned PCIE_CLKSEL:2;
+		unsigned OSCOUTEN:1;
+		unsigned PLL_EN:1;
+		unsigned LPM_ALIVE:1;
+		unsigned PHY_SEL:2;
+		unsigned p_datawidth:1;
+		unsigned u_datawidth:1;
+		unsigned p_rx_termination:1;
+		unsigned FSLSSERIALMODE:1;
+		unsigned TX_SE0:1;
+		unsigned TX_DAT:1;
+		unsigned TX_ENABLE_N:1;
+		unsigned TXBITSTUFFENABLEH:1;
+		unsigned TXBITSTUFFENABLE:1;
+		unsigned UTMI_VCONTROLLOADM:1;
+		unsigned RESERVED:3;
+	} b;
+};
+
+union pcie_phy_m31_r1 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned U31_INTERNALLOOPBACK:1;
+		unsigned BIST_TXDEMPH_SEL:2;
+		unsigned LS_EN:1;
+		unsigned HS_BIST_MODE:1;
+		unsigned LFPSRX_EN:1;
+		unsigned VCONTROL:6;
+		unsigned debug_sel:7;
+		unsigned RESERVED:13;
+	} b;
+};
+
+union pcie_phy_m31_r2 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned CC_RP_0D9_EN:1;
+		unsigned CC_RP_1D5_EN:2;
+		unsigned CC_RP_3D0_EN:1;
+		unsigned CC_HOST_EN:1;
+		unsigned CC_EN:1;
+		unsigned bist_bypass_sel:1;
+		unsigned RESERVED:25;
+	} b;
+};
+
+union pcie_phy_m31_r3 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned phy_ref_clk_ctrl:2;
+		unsigned clean_st:1;
+		unsigned bist_bypass_cfg:29;
+	} b;
+};
+
+union pcie_phy_m31_r4 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned bypass_sel:16;
+		unsigned bypass_cfg:16;
+	} b;
+};
+
+union pcie_phy_m31_r5 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned REFCLK_OFF_REQ_qre:1;
+		unsigned PCLK_OFF_P1_REQ_pre:1;
+		unsigned SQ_OFF_P1_REQ_pre:1;
+		unsigned TX_OFF_P1_REQ_pre:1;
+		unsigned PMCLK_EN_pre:1;
+		unsigned REFCLK_OFF_ST:1;
+		unsigned PCLK_OFF_P1_ST:1;
+		unsigned SQ_OFF_P1_ST:1;
+		unsigned TX_OFF_P1_ST:1;
+		unsigned CAL_FB_VAL_L0_pre:1;
+		unsigned pm_st:4;
+		unsigned BIST_OK:1;
+		unsigned BIST_OK_U2:1;
+		unsigned pcie_rx_elecidle:1;
+		unsigned linestate:2;
+		unsigned usb_rx_elecidle:1;
+		unsigned RESERVED:12;
+	} b;
+};
+
+union pcie_phy_m31_r6 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned CAL_PARAM_OUT_sync_low:32;
+	} b;
+};
+
+union pcie_phy_m31_r7 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned CAL_PARAM_OUT_sync_middle:32;
+	} b;
+};
+
+union pcie_phy_m31_r8 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned CAL_PARAM_OUT_sync_high:14;
+		unsigned RESERVED:18;
+	} b;
+};
+
+union pcie_phy_m31_r9 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned CAL_FB_IN_L0_pre_low:32;
+	} b;
+};
+
+union pcie_phy_m31_r10 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned CAL_FB_IN_L0_pre_middle:32;
+	} b;
+};
+
+union pcie_phy_m31_r11 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned CAL_FB_IN_L0_pre_high:14;
+		unsigned RESERVED:18;
+	} b;
+};
+
+union pcie_phy_m31_r12 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned bypass_cal_fb_low:32;
+	} b;
+};
+
+union pcie_phy_m31_r13 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned bypass_cal_fb_middle:32;
+	} b;
+};
+
+union pcie_phy_m31_r14 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned bypass_cal_fb_high:14;
+		unsigned RESERVED:18;
+	} b;
+};
+
+union pcie_phy_m31_r15 {
+	/** raw register data */
+	u32 d32;
+	/** register bits */
+	struct {
+		unsigned m31phy_debug_out:32;
+	} b;
+};
+
 struct pcie_phy_aml_regs {
-	void __iomem    *pcie_phy_r[7];
+	void __iomem    *pcie_phy_r[16];
 };
 
 struct pcie_phy {
@@ -155,5 +359,6 @@ struct pcie_phy {
 	u32 pcie_hhi_mem_pd_mask;
 	u32 pcie_ctrl_iso_shift;
 	u32 pcie_hhi_mem_pd_shift;
+	u32 phy_type;
 };
 #endif
