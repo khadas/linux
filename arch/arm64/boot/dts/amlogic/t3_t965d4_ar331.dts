@@ -7,7 +7,7 @@
 
 #include "mesont3.dtsi"
 #include "partition_mbox.dtsi"
-#include "mesont3_pxp-panel.dtsi"
+#include "mesont3_ar301-panel.dtsi"
 
 / {
 	model = "Amlogic";
@@ -1268,6 +1268,27 @@
 //	mmc-pwrseq = <&emmc_pwrseq>;
 //	vmmc-supply = <&vddao_3v3>;
 //	vqmmc-supply = <&vddao_1v8>;
+};
+
+&periphs_pinctrl {
+	/*backlight*/
+	bl_pwm_vs_on_pins:bl_pwm_vs_on_pin {
+		mux {
+			groups = "pwm_d_h12";
+			function = "pwm_vs";
+		};
+	};
+	bl_pwm_off_pins:bl_pwm_off_pin {
+		mux {
+			groups = "GPIOH_12";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
+};
+
+&pwm_cd {
+	status = "okay";
 };
 
 &ir {
