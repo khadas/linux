@@ -45,6 +45,8 @@
 #define REG_FULL_MASK		GENMASK(31, 0)
 /* keep the same with I2C_TIMEOUT_MS */
 #define MESON_I2C_PM_TIMEOUT	500
+#define	DIV_FACTOR		3
+#define DELAY_ADJUST		15
 #endif
 
 #define I2C_TIMEOUT_MS		500
@@ -63,13 +65,6 @@ enum {
 	STATE_IDLE,
 	STATE_READ,
 	STATE_WRITE,
-};
-
-struct meson_i2c_data {
-	unsigned char div_factor;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	unsigned char  delay_ajust;
-#endif
 };
 
 /**
@@ -114,7 +109,6 @@ struct meson_i2c {
 	int retain_fastmode;
 	int irq;
 #endif
-	const struct meson_i2c_data *data;
 };
 
 static void meson_i2c_set_mask(struct meson_i2c *i2c, int reg, u32 mask,
@@ -165,7 +159,7 @@ static void meson_i2c_set_clk_div_std(struct meson_i2c *i2c)
 	unsigned int div_temp;
 
 	div_temp = DIV_ROUND_UP(clk_rate, i2c->frequency);
-	div_h = DIV_ROUND_UP(div_temp, 2) - i2c->data->delay_ajust;
+	div_h = DIV_ROUND_UP(div_temp, 2) - DELAY_ADJUST;
 	div_l = DIV_ROUND_UP(div_temp, 4);
 
 	/* clock divider has 12 bits */
@@ -211,7 +205,7 @@ static void meson_i2c_set_clk_div_fast(struct meson_i2c *i2c)
 	unsigned int div_temp;
 
 	div_temp = DIV_ROUND_UP(clk_rate * 2, i2c->frequency * 5);
-	div_h = div_temp - i2c->data->delay_ajust;
+	div_h = div_temp - DELAY_ADJUST;
 	div_l = DIV_ROUND_UP(clk_rate * 3, i2c->frequency * 10);
 	/* clock divider has 12 bits */
 	if (div_h >= (1 << 12)) {
@@ -258,7 +252,7 @@ static void meson_i2c_set_clk_div(struct meson_i2c *i2c, unsigned int freq)
 	unsigned long clk_rate = clk_get_rate(i2c->clk);
 	unsigned int div;
 
-	div = DIV_ROUND_UP(clk_rate, freq * i2c->data->div_factor);
+	div = DIV_ROUND_UP(clk_rate, freq * DIV_FACTOR);
 
 	/* clock divider has 12 bits */
 	if (div >= (1 << 12)) {
@@ -566,9 +560,6 @@ static int meson_i2c_probe(struct platform_device *pdev)
 	spin_lock_init(&i2c->lock);
 	init_completion(&i2c->done);
 
-	i2c->data = (const struct meson_i2c_data *)
-		of_device_get_match_data(&pdev->dev);
-
 	i2c->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(i2c->clk)) {
 		dev_err(&pdev->dev, "can't get device clock\n");
@@ -735,46 +726,8 @@ static const struct dev_pm_ops meson_i2c_pm_ops = {
 };
 #endif
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-static const struct meson_i2c_data i2c_meson6_data = {
-	.div_factor = 4,
-#ifdef CONFIG_AMLOGIC_MODIFY
-	.delay_ajust = 15,
-#endif
-};
-
-static const struct meson_i2c_data i2c_gxbb_data = {
-	.div_factor = 4,
-#ifdef CONFIG_AMLOGIC_MODIFY
-	.delay_ajust = 15,
-#endif
-};
-
-static const struct meson_i2c_data i2c_axg_data = {
-	.div_factor = 3,
-#ifdef CONFIG_AMLOGIC_MODIFY
-	.delay_ajust = 15,
-#endif
-};
-#endif
-
-#ifdef CONFIG_AMLOGIC_MODIFY
-/* for the stable i2c controller, div_factor=3*/
-static const struct meson_i2c_data i2c_meson_data = {
-	.div_factor = 3,
-	.delay_ajust = 15,
-};
-#endif
-
 static const struct of_device_id meson_i2c_match[] = {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-	{ .compatible = "amlogic,meson6-i2c", .data = &i2c_meson6_data },
-	{ .compatible = "amlogic,meson-gxbb-i2c", .data = &i2c_gxbb_data },
-	{ .compatible = "amlogic,meson-axg-i2c", .data = &i2c_axg_data },
-#endif
-#ifdef CONFIG_AMLOGIC_MODIFY
-	{ .compatible = "amlogic,meson-i2c", .data = &i2c_meson_data },
-#endif
+	{ .compatible = "amlogic,meson-i2c" },
 	{},
 };
 
