@@ -398,6 +398,10 @@ static unsigned int disable_dv_drop;
 MODULE_PARM_DESC(disable_dv_drop, "\n disable_dv_drop\n");
 module_param(disable_dv_drop, uint, 0664);
 
+static u32 vdin_frame_skip_cnt;
+MODULE_PARM_DESC(vdin_frame_skip_cnt, "\n vdin_frame_skip_cnt\n");
+module_param(vdin_frame_skip_cnt, uint, 0664);
+
 static unsigned int video_3d_format;
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 static unsigned int mvc_flag;
@@ -488,6 +492,8 @@ static DEFINE_SPINLOCK(lock);
 #if ENABLE_UPDATE_HDR_FROM_USER
 static DEFINE_SPINLOCK(omx_hdr_lock);
 #endif
+static DEFINE_SPINLOCK(hdmi_avsync_lock);
+
 static u32 vpts_remainder;
 static u32 video_notify_flag;
 static int enable_video_discontinue_report = 1;
@@ -1637,7 +1643,22 @@ static u32 toggle_same_count;
 static int hdmin_delay_start;
 static int hdmin_delay_start_time;
 static int hdmin_delay_duration;
+static int hdmin_delay_max_ms = 128;
+static int hdmin_delay_done = true;
+static int hdmin_need_drop_count;
 static int vframe_walk_delay;
+static int last_required_total_delay;
+static int hdmi_vframe_count;
+static bool hdmi_delay_first_check;
+static u8 hdmi_delay_normal_check; /* 0xff: always check, n: check n times */
+static u32 hdmin_delay_count_debug;
+/* 0xff: always check, n: check n times after first check */
+static u8 enable_hdmi_delay_normal_check = 1;
+
+#define HDMI_DELAY_FIRST_CHECK_COUNT 60
+#define HDMI_DELAY_NORMAL_CHECK_COUNT 300
+#define HDMI_VIDEO_MIN_DELAY 3
+
 /* video_inuse */
 u32 video_inuse;
 
@@ -2546,12 +2567,148 @@ static u64 func_div(u64 number, u32 divid)
 	return tmp;
 }
 
+static void update_process_hdmi_avsync_flag(bool flag)
+{
+	char *provider_name = vf_get_provider_name(RECEIVER_NAME);
+	unsigned long flags;
+
+	/*enable hdmi delay process only when audio have required*/
+	if (last_required_total_delay <= 0)
+		return;
+
+	while (provider_name) {
+		if (!vf_get_provider_name(provider_name))
+			break;
+		provider_name =
+			vf_get_provider_name(provider_name);
+	}
+	if (provider_name && (!strcmp(provider_name, "dv_vdin") ||
+		!strcmp(provider_name, "vdin0"))) {
+		spin_lock_irqsave(&hdmi_avsync_lock, flags);
+		hdmi_delay_first_check = flag;
+		hdmi_vframe_count = 0;
+		hdmin_delay_count_debug = 0;
+		if (enable_hdmi_delay_normal_check && flag)
+			hdmi_delay_normal_check = enable_hdmi_delay_normal_check;
+		else
+			hdmi_delay_normal_check = 0;
+		pr_info("update hdmi_delay_check %d\n", flag);
+		spin_unlock_irqrestore(&hdmi_avsync_lock, flags);
+	}
+}
+
+static inline bool is_valid_drop_count(int drop_count)
+{
+	if (drop_count > 0 && drop_count < 8)
+		return true;
+	return false;
+}
+
+static void process_hdmi_video_sync(struct vframe_s *vf)
+{
+	char *provider_name = vf_get_provider_name(RECEIVER_NAME);
+	int update_value = 0;
+	unsigned long flags;
+	int vsync_dur = 16;
+	int need_drop = 0;
+	int hdmin_delay_min_ms = vsync_dur * HDMI_VIDEO_MIN_DELAY;
+
+	if ((!hdmi_delay_first_check && !hdmi_delay_normal_check &&
+	     hdmin_delay_start == 0) || !vf || last_required_total_delay <= 0)
+		return;
+
+	hdmin_delay_duration = 0;
+	while (provider_name) {
+		if (!vf_get_provider_name(provider_name))
+			break;
+		provider_name =
+			vf_get_provider_name(provider_name);
+	}
+	if (provider_name && (!strcmp(provider_name, "dv_vdin") ||
+		!strcmp(provider_name, "vdin0"))) {
+		if (vf->duration > 0) {
+			vsync_dur = (int)(vf->duration / 96);
+			hdmin_delay_min_ms = vsync_dur *
+				HDMI_VIDEO_MIN_DELAY;
+		}
+		spin_lock_irqsave(&hdmi_avsync_lock, flags);
+
+		if (last_required_total_delay > vframe_walk_delay) { /*delay video*/
+			vframe_walk_delay = (int)div_u64(((jiffies_64 -
+			vf->ready_jiffies64) * 1000), HZ);
+			/*check hdmi max delay*/
+			if (last_required_total_delay > hdmin_delay_max_ms) {
+				if (hdmin_delay_max_ms > vframe_walk_delay)
+					update_value = hdmin_delay_max_ms -
+					vframe_walk_delay;
+			} else {
+				update_value = last_required_total_delay -
+					vframe_walk_delay;
+			}
+			/*set only if delay bigger than half vsync*/
+			if (update_value > vsync_dur / 2) {
+				hdmin_delay_duration = update_value;
+				hdmin_delay_start_time = -1;
+				hdmin_delay_count_debug++;
+				hdmin_delay_done = false;
+				hdmin_need_drop_count = 0;
+			}
+		} else { /*drop video*/
+			/*check hdmi min delay*/
+			if (last_required_total_delay >= hdmin_delay_min_ms)
+				update_value = vframe_walk_delay -
+					last_required_total_delay;
+			else
+				update_value = vframe_walk_delay -
+					hdmin_delay_min_ms;
+
+			/*drop only if diff bigger than half vsync*/
+			if (update_value > vsync_dur / 2) {
+				need_drop = update_value / vsync_dur;
+				/*check if drop need_drop + 1 is closer to*/
+				/*required than need_drop*/
+				if ((update_value - need_drop * vsync_dur) >
+					vsync_dur / 2) {
+					if ((vframe_walk_delay -
+						(need_drop + 1) * vsync_dur) >=
+						hdmin_delay_min_ms)
+						need_drop = need_drop + 1;
+				}
+				hdmin_delay_duration = -update_value;
+				hdmin_delay_done = true;
+				if (is_valid_drop_count(need_drop))
+					hdmin_need_drop_count = need_drop;
+			}
+		}
+		//if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+			pr_info("required delay:%d, current %d, extra %d, delay %s, drop cnt %d, normal_check:0x%02x\n",
+				last_required_total_delay,
+				vframe_walk_delay,
+				hdmin_delay_duration,
+				hdmin_delay_done ? "false" : "true",
+				need_drop, hdmi_delay_normal_check);
+
+		/* retry n times after vfm path reg and first check */
+		if (hdmi_delay_normal_check > 0 &&
+		    hdmi_delay_normal_check != 0xff &&
+		    !hdmi_delay_first_check)
+			hdmi_delay_normal_check--;
+
+		/* retry n times after audio require new delay and no more check */
+		if (hdmin_delay_start && hdmi_delay_normal_check == 0)
+			hdmi_delay_normal_check = enable_hdmi_delay_normal_check;
+		spin_unlock_irqrestore(&hdmi_avsync_lock, flags);
+	}
+}
+
 static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 {
 	static u32 last_pts;
 	u32 diff_pts;
 	u32 first_picture = 0;
 	long long *clk_array;
+	static long long clock_vdin_last;
+	static long long clock_last;
 
 	ATRACE_COUNTER(__func__,  line);
 	if (!vf)
@@ -2743,14 +2900,20 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 #endif
 		if (debug_flag & DEBUG_FLAG_LATENCY) {
 			vf->ready_clock[3] = sched_clock();
-			pr_info("video toggle latency %lld ms, video get latency %lld ms, vdin put latency %lld ms, first %lld ms.\n",
+			pr_info("video toggle latency %lld us, diff %lld, get latency %lld us, vdin put latency %lld us, first %lld us, diff %lld.\n",
 				func_div(vf->ready_clock[3], 1000),
+				func_div(vf->ready_clock[3] - clock_last, 1000),
 				func_div(vf->ready_clock[2], 1000),
 				func_div(vf->ready_clock[1], 1000),
-				func_div(vf->ready_clock[0], 1000));
+				func_div(vf->ready_clock[0], 1000),
+				func_div(vf->ready_clock[0] -
+				clock_vdin_last, 1000));
+
+			clock_vdin_last = vf->ready_clock[0];
+			clock_last = vf->ready_clock[3];
 			cur_dispbuf->ready_clock[4] = sched_clock();
 			clk_array = cur_dispbuf->ready_clock;
-			pr_info("video put latency %lld ms, video toggle latency %lld ms, video get latency %lld ms, vdin put latency %lld ms, first %lld ms.\n",
+			pr_info("video put latency %lld us, video toggle latency %lld us, video get latency %lld us, vdin put latency %lld us, first %lld us.\n",
 				func_div(*(clk_array + 4), 1000),
 				func_div(*(clk_array + 3), 1000),
 				func_div(*(clk_array + 2), 1000),
@@ -2766,6 +2929,11 @@ static struct vframe_s *vsync_toggle_frame(struct vframe_s *vf, int line)
 			vf->width, vf->height, vf->pts);
 	vframe_walk_delay = (int)div_u64(((jiffies_64 -
 		vf->ready_jiffies64) * 1000), HZ);
+
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("toggle vf %p, ready_jiffies64 %d, walk_delay %d\n",
+			vf, jiffies_to_msecs(vf->ready_jiffies64),
+			vframe_walk_delay);
 
 	/* set video PTS */
 	if (cur_dispbuf != vf) {
@@ -3314,6 +3482,10 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 		expired = (int)(timestamp_pcrscr_get() +
 				vsync_pts_align - pts) >= 0;
 
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("vf/next %p/%p, pcr %d, pts %d, expired %d\n",
+			cur_vf, next_vf, timestamp_pcrscr_get(), pts, expired);
+
 #ifdef PTS_THROTTLE
 	if (expired && next_vf && next_vf->next_vf_pts_valid &&
 	    vsync_slow_factor == 1 &&
@@ -3457,7 +3629,34 @@ static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
 	if (req.disp_mode == VFRAME_DISP_MODE_OK ||
 		req.disp_mode == VFRAME_DISP_MODE_NULL)
 		return false;
-	/*whether need to check pts??*/
+
+	/*set video vpts*/
+	if (cur_dispbuf != vf) {
+		if (vf->pts != 0) {
+			amlog_mask(LOG_MASK_TIMESTAMP,
+				   "vpts to vf->pts:0x%x,scr:0x%x,abs_scr: 0x%x\n",
+			vf->pts, timestamp_pcrscr_get(),
+			READ_MPEG_REG(SCR_HIU));
+			timestamp_vpts_set(vf->pts);
+		} else if (cur_dispbuf) {
+			amlog_mask(LOG_MASK_TIMESTAMP,
+				   "vpts inc:0x%x,scr: 0x%x, abs_scr: 0x%x\n",
+			timestamp_vpts_get() +
+			DUR2PTS(cur_dispbuf->duration),
+			timestamp_pcrscr_get(),
+			READ_MPEG_REG(SCR_HIU));
+			timestamp_vpts_inc(DUR2PTS(cur_dispbuf->duration));
+
+			vpts_remainder +=
+				DUR2PTS_RM(cur_dispbuf->duration);
+			if (vpts_remainder >= 0xf) {
+				vpts_remainder -= 0xf;
+				timestamp_vpts_inc(-1);
+			}
+		}
+	}
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("video %p disp_mode %d\n", vf, req.disp_mode);
 	if (video_vf_put(vf) < 0)
 		check_dispbuf(vf, true);
 	return true;
@@ -3481,6 +3680,24 @@ static enum vframe_disp_mode_e video_vf_disp_mode_get(struct vframe_s *vf)
 		vf_notify_provider_by_name(provider_name,
 			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
 	return req.disp_mode;
+}
+
+static int video_vdin_buf_info_get(void)
+{
+	char *provider_name = vf_get_provider_name(RECEIVER_NAME);
+	int max_buf_cnt = -1;
+
+	while (provider_name) {
+		if (!vf_get_provider_name(provider_name))
+			break;
+		provider_name =
+			vf_get_provider_name(provider_name);
+	}
+	if (provider_name && (!strcmp(provider_name, "dv_vdin") ||
+		!strcmp(provider_name, "vdin0")))
+		vf_notify_provider_by_name(provider_name,
+			VFRAME_EVENT_RECEIVER_BUF_COUNT, (void *)&max_buf_cnt);
+	return max_buf_cnt;
 }
 
 static inline bool video_vf_dirty_put(struct vframe_s *vf)
@@ -3878,36 +4095,107 @@ static void dmc_adjust_for_mali_vpu(unsigned int width,
 }
 #endif
 
-int hdmi_in_start_check(struct vframe_s *vf)
+/*ret = 0: no need delay*/
+/*ret = 1: need to delay*/
+static int hdmi_in_delay_check(struct vframe_s *vf)
 {
 	int expire;
 	int vsync_duration = 0;
 	u64 pts;
 	u64 us;
+	unsigned long flags;
+	int expire_align = 0;
 
-	if (hdmin_delay_start == 0)
+	char *provider_name = vf_get_provider_name(RECEIVER_NAME);
+
+	if (hdmin_delay_done)
 		return 0;
+
 	if (!vf || vf->duration == 0)
 		return 0;
-	if (hdmin_delay_duration < 0)
-		hdmin_delay_duration = 300;
+
+	while (provider_name) {
+		if (!vf_get_provider_name(provider_name))
+			break;
+		provider_name =
+			vf_get_provider_name(provider_name);
+	}
+	if (!provider_name || (strcmp(provider_name, "dv_vdin") &&
+		strcmp(provider_name, "vdin0"))) {
+		return 0;
+	}
+
+	spin_lock_irqsave(&hdmi_avsync_lock, flags);
+
+	/* update duration */
+	vsync_duration = (int)(vf->duration / 96);
+
 	if (hdmin_delay_start_time == -1) {
-		/* update duration */
-		vsync_duration = (int)(vf->duration / 96);
 		hdmin_delay_start_time = jiffies_to_msecs(jiffies);
-		hdmin_delay_start_time -= vsync_duration * 2;
+		/*this funtcion lead to one vsync delay */
+		/*hdmin_delay_start_time -= vsync_duration;*/
+
+		if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+			pr_info("vsync_duration %d, hdmin_delay_start_time %d\n",
+				vsync_duration, hdmin_delay_start_time);
+		spin_unlock_irqrestore(&hdmi_avsync_lock, flags);
 		return 1;
 	}
+
 	expire = jiffies_to_msecs(jiffies) -
 		hdmin_delay_start_time;
-	if (expire < hdmin_delay_duration)
+
+	if (last_required_total_delay >= hdmin_delay_max_ms) {
+		/*when required more than hdmin_delay_max_ms, */
+		expire_align = -vsync_duration;
+	} else {
+		/*delay one more vsync? select the one that closer to required*/
+		expire_align = -vsync_duration / 2;
+	}
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("expire %d, hdmin_delay_duration %d, expire_align %d\n",
+			expire, hdmin_delay_duration, expire_align);
+
+	if (expire - hdmin_delay_duration <= expire_align) {
+		spin_unlock_irqrestore(&hdmi_avsync_lock, flags);
 		return 1;
-	hdmin_delay_start = 0;
-	timestamp_vpts_set(timestamp_pcrscr_get());
-	pts = (u64)timestamp_pcrscr_get();
+	}
+	hdmin_delay_done = true;
+
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("hdmi video delay done! expire %d\n", expire);
+
+	/*reset vpts=pcr will lead vpts_expire delay 1 vsync - vsync_pts_align*/
+	timestamp_vpts_set(timestamp_pcrscr_get() - (DUR2PTS(vf->duration) - vsync_pts_align));
+	timestamp_vpts_set_u64((u64)(timestamp_pcrscr_get() -
+		(DUR2PTS(vf->duration) - vsync_pts_align)));
+	pts = (u64)timestamp_pcrscr_get_u64();
+	pts = pts - (DUR2PTS(vf->duration) - vsync_pts_align);
 	us = div64_u64(pts * 100, 9);
 	timestamp_vpts_set_u64(us);
+	spin_unlock_irqrestore(&hdmi_avsync_lock, flags);
+
 	return 0;
+}
+
+static void hdmi_in_drop_frame(void)
+{
+	struct vframe_s *vf;
+
+	while (hdmin_need_drop_count > 0) {
+		vf = video_vf_get();
+		if (!vf) { /*no video frame, drop done*/
+			/*hdmi_need_drop_count = 0;*/
+			break;
+		}
+		if (video_vf_put(vf) < 0)
+			check_dispbuf(vf, true);
+
+		if (debug_flag & DEBUG_FLAG_PRINT_DROP_FRAME)
+			pr_info("#line %d: drop %p\n", __LINE__, vf);
+		video_drop_vf_cnt++;
+		--hdmin_need_drop_count;
+	}
 }
 
 #if ENABLE_UPDATE_HDR_FROM_USER
@@ -5403,6 +5691,22 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	toggle_cnt = 0;
 	vsync_count++;
 	timer_count++;
+	if (display_frame_count == 0 && vf &&
+	    (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+	    vf->source_type == VFRAME_SOURCE_TYPE_CVBS)) {
+		int buf_cnt = video_vdin_buf_info_get();
+
+		if (buf_cnt > 2) {
+			struct vinfo_s *video_info;
+
+			video_info = get_current_vinfo();
+			if (video_info->sync_duration_num > 0)
+				hdmin_delay_max_ms = 1000 *
+				video_info->sync_duration_den /
+				video_info->sync_duration_num
+				* (buf_cnt - 2);
+		}
+	}
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	vlock_process(vf, cur_frame_par);/*need call every vsync*/
@@ -5783,11 +6087,45 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		}
 	}
 
+	vf = video_vf_peek();
+
+	/*process hdmi in video sync*/
+	if (vf) {
+		/*step 1: audio required*/
+		if (hdmin_delay_start > 0) {
+			process_hdmi_video_sync(vf);
+			hdmin_delay_start = 0;
+			hdmi_vframe_count = 0;
+		}
+		/*step 2: recheck video sync after hdmi-in start*/
+		if (hdmi_delay_first_check) {
+			hdmi_vframe_count++;
+			if (hdmi_vframe_count > HDMI_DELAY_FIRST_CHECK_COUNT) {
+				process_hdmi_video_sync(vf);
+				hdmi_vframe_count = 0;
+				hdmi_delay_first_check = false;
+			}
+		/*step 3: re-check video sync every 5s by n times */
+		} else if (hdmi_delay_normal_check) {
+			hdmi_vframe_count++;
+			if (hdmi_vframe_count > HDMI_DELAY_NORMAL_CHECK_COUNT) {
+				process_hdmi_video_sync(vf);
+				hdmi_vframe_count = 0;
+			}
+		}
+
+		/* HDMI-IN AV SYNC Control, delay video*/
+		if (!hdmin_delay_done) {
+			if (hdmi_in_delay_check(vf) > 0)
+				goto exit;
+		}
+		/*HDMI-IN AV SYNC Control, drop video*/
+		if (hdmin_need_drop_count > 0)
+			hdmi_in_drop_frame();
+	}
+
 	/* buffer switch management */
 	vf = video_vf_peek();
-	/* Blanche HDMI-IN AV SYNC Control */
-	if (vf && (hdmi_in_start_check(vf) > 0))
-		goto exit;
 
 	/*debug info for skip & repeate vframe case*/
 	if (!vf) {
@@ -5958,8 +6296,10 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			if (vf &&
 			    (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
 			     vf->source_type == VFRAME_SOURCE_TYPE_CVBS) &&
-			    video_vf_disp_mode_check(vf))
+			    video_vf_disp_mode_check(vf)) {
+				vdin_frame_skip_cnt++;
 				break;
+			}
 			force_blackout = 0;
 			if (vf) {
 				if (last_mode_3d !=
@@ -8167,6 +8507,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		if (is_dolby_vision_enable())
 			dv_vf_light_unreg_provider();
 #endif
+		update_process_hdmi_avsync_flag(false);
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
 		video_vf_light_unreg_provider(1);
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG) {
@@ -8214,6 +8555,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		if (is_dolby_vision_enable())
 			dv_vf_light_reg_provider();
 #endif
+		update_process_hdmi_avsync_flag(true);
 	} else if (type == VFRAME_EVENT_PROVIDER_FORCE_BLACKOUT) {
 		force_blackout = 1;
 		if (debug_flag & DEBUG_FLAG_BLACKOUT) {
@@ -10711,6 +11053,35 @@ static ssize_t video_rgb_screen_show(struct class *cla,
 	return sprintf(buf, "0x%x\n", rgb_screen);
 }
 
+static ssize_t enable_hdmi_delay_check_show(struct class *cla,
+				      struct class_attribute *attr,
+					  char *buf)
+{
+	return sprintf(buf, "%d\n", enable_hdmi_delay_normal_check);
+}
+
+static ssize_t enable_hdmi_delay_check_store(struct class *cla,
+				      struct class_attribute *attr,
+				      const char *buf,
+					  size_t count)
+{
+	int r;
+	int value;
+
+	r = kstrtoint(buf, 0, &value);
+	if (r < 0)
+		return -EINVAL;
+
+	enable_hdmi_delay_normal_check = value >= 0 ? (u8)value : 0;
+	return count;
+}
+
+static ssize_t hdmi_delay_debug_show(struct class *cla,
+				      struct class_attribute *attr,
+					  char *buf)
+{
+	return sprintf(buf, "%d\n", hdmin_delay_count_debug);
+}
 #define SCALE 6
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -11278,27 +11649,32 @@ static ssize_t hdmin_delay_start_store(struct class *class,
 {
 	int r;
 	int value;
+	unsigned long flags;
 
 	r = kstrtoint(buf, 0, &value);
 	if (r < 0)
 		return -EINVAL;
+
+	spin_lock_irqsave(&hdmi_avsync_lock, flags);
 	hdmin_delay_start = value;
 	hdmin_delay_start_time = -1;
 	pr_info("[%s] hdmin_delay_start:%d\n", __func__, value);
+	spin_unlock_irqrestore(&hdmi_avsync_lock, flags);
+
 	return count;
 }
 
-static ssize_t hdmin_delay_duration_show(struct class *class,
-					 struct class_attribute *attr,
-					 char *buf)
+static ssize_t hdmin_delay_max_ms_show(struct class *class,
+				      struct class_attribute *attr,
+				      char *buf)
 {
-	return sprintf(buf, "%d\n", hdmin_delay_duration);
+	return sprintf(buf, "%d\n", hdmin_delay_max_ms);
 }
 
-static ssize_t hdmin_delay_duration_store(struct class *class,
-					  struct class_attribute *attr,
-					  const char *buf,
-					  size_t count)
+static ssize_t hdmin_delay_max_ms_store(struct class *class,
+				       struct class_attribute *attr,
+				       const char *buf,
+				       size_t count)
 {
 	int r;
 	int value;
@@ -11306,9 +11682,43 @@ static ssize_t hdmin_delay_duration_store(struct class *class,
 	r = kstrtoint(buf, 0, &value);
 	if (r < 0)
 		return -EINVAL;
-	hdmin_delay_duration = value;
-	pr_info("[%s] hdmin_delay_duration:%d\n",
-		__func__, hdmin_delay_duration);
+	hdmin_delay_max_ms = value;
+	pr_info("[%s] hdmin_delay_max_ms:%d\n", __func__, value);
+	return count;
+}
+
+static ssize_t hdmin_delay_duration_show(struct class *class,
+					 struct class_attribute *attr,
+					 char *buf)
+{
+	return sprintf(buf, "%d\n", last_required_total_delay);
+}
+
+/*set video total delay*/
+static ssize_t hdmin_delay_duration_store(struct class *class,
+					  struct class_attribute *attr,
+					  const char *buf,
+					  size_t count)
+{
+	int r;
+	int value;
+	unsigned long flags;
+
+	r = kstrtoint(buf, 0, &value);
+	if (r < 0)
+		return -EINVAL;
+
+	if (value < 0) { /*not support*/
+		pr_info("[%s] invalid delay: %d\n", __func__, value);
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&hdmi_avsync_lock, flags);
+	last_required_total_delay = value;
+	spin_unlock_irqrestore(&hdmi_avsync_lock, flags);
+
+	pr_info("[%s]current delay %d, total require %d\n",
+		__func__, vframe_walk_delay, last_required_total_delay);
 	return count;
 }
 
@@ -11317,6 +11727,13 @@ static ssize_t vframe_walk_delay_show(struct class *class,
 				      char *buf)
 {
 	return sprintf(buf, "%d\n", vframe_walk_delay);
+}
+
+static ssize_t last_required_total_delay_show(struct class *class,
+				      struct class_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "%d\n", last_required_total_delay);
 }
 
 static ssize_t frame_canvas_width_show(struct class *cla,
@@ -13895,9 +14312,16 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       hdmin_delay_duration_show,
 	       hdmin_delay_duration_store),
+	__ATTR(hdmin_delay_max_ms,
+	       0664,
+	       hdmin_delay_max_ms_show,
+	       hdmin_delay_max_ms_store),
 	__ATTR(vframe_walk_delay,
 	       0664,
 	       vframe_walk_delay_show, NULL),
+	__ATTR(last_required_total_delay,
+	       0664,
+	       last_required_total_delay_show, NULL),
 	__ATTR(free_cma_buffer,
 	       0664, NULL,
 	       free_cma_buffer_store),
@@ -14082,6 +14506,14 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       vd_attach_vpp_show,
 	       vd_attach_vpp_store),
 	__ATTR_RO(blend_conflict),
+	__ATTR(enable_hdmi_delay_normal_check,
+	       0664,
+	       enable_hdmi_delay_check_show,
+	       enable_hdmi_delay_check_store),
+	__ATTR(hdmin_delay_count_debug,
+	       0664,
+	       hdmi_delay_debug_show,
+	       NULL),
 	__ATTR(vd1_vd2_mux,
 	       0664,
 	       vd1_vd2_mux_show,
