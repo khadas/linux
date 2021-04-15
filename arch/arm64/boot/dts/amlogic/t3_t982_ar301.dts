@@ -991,11 +991,10 @@
 //	sd_uhs-sdr104;
 	max-frequency = <200000000>;
 
-	non-removable;
 	disable-wp;
-	amlogic,dram-access-quirk;
+//	amlogic,dram-access-quirk;
 
-	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
+	cd-gpios = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
 	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 	//vmmc-supply = <&vddao_3v3>;
 	//vqmmc-supply = <&emmc_1v8>;
@@ -1009,13 +1008,13 @@
 
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	//mmc-ddr-1_8v;
-	//mmc-hs200-1_8v;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
 	//mmc-hs400-1_8v;
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
-	amlogic,dram-access-quirk;
+//	amlogic,dram-access-quirk;
 
 //	mmc-pwrseq = <&emmc_pwrseq>;
 //	vmmc-supply = <&vddao_3v3>;
