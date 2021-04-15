@@ -25,6 +25,7 @@
 
 #define HOST_MODE	0
 #define DEVICE_MODE	1
+#define XHCI_PORT_A_MEM_SIZE 0X4
 
 struct usb_aml_regs_v2 usb_new_aml_regs_v2;
 struct amlogic_usb_v2	*g_phy_v2;
@@ -92,6 +93,15 @@ static void amlogic_new_usb3phy_shutdown(struct usb_phy *x)
 		clk_disable_unprepare(phy->clk);
 
 	phy->suspend_flag = 1;
+}
+
+void force_disable_xhci_port_a(void)
+{
+	if (!g_phy_v2)
+		return;
+
+	if (g_phy_v2->xhci_port_a_addr)
+		writel(0xa0, g_phy_v2->xhci_port_a_addr);
 }
 
 void aml_new_usb_v2_init(void)
@@ -434,6 +444,13 @@ static void set_mode(unsigned long reg_addr, int mode)
 	union usb_r0_v2 r0 = {.d32 = 0};
 	union usb_r4_v2 r4 = {.d32 = 0};
 
+	if (g_phy_v2->xhci_port_a_addr) {
+		if (mode == DEVICE_MODE)
+			writel(0xa0, g_phy_v2->xhci_port_a_addr);
+		else
+			writel(0x2a0, g_phy_v2->xhci_port_a_addr);
+	}
+
 	u2p_aml_regs.u2p_r_v2[0] = (void __iomem	*)
 				((unsigned long)reg_addr + PHY_REGISTER_SIZE);
 
@@ -641,6 +658,8 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 	void __iomem *usb2_phy_base;
 	unsigned int usb2_phy_mem;
 	unsigned int usb2_phy_mem_size = 0;
+	void __iomem *xhci_port_a_base;
+	unsigned int xhci_port_a_mem;
 	const char *gpio_name = NULL;
 	struct gpio_desc *usb_gd = NULL;
 	const void *prop;
@@ -719,10 +738,23 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	usb2_phy_base = devm_ioremap_nocache
-				(&(pdev->dev), (resource_size_t)usb2_phy_mem,
+				(&pdev->dev, (resource_size_t)usb2_phy_mem,
 				(unsigned long)usb2_phy_mem_size);
 	if (!usb2_phy_base)
 		return -ENOMEM;
+
+	retval = of_property_read_u32
+				(dev->of_node, "xhci-port-a-reg", &xhci_port_a_mem);
+	if (retval < 0) {
+		xhci_port_a_mem = 0;
+		xhci_port_a_base = NULL;
+	} else {
+		xhci_port_a_base = devm_ioremap_nocache
+				(&pdev->dev, (resource_size_t)xhci_port_a_mem,
+				(unsigned long)XHCI_PORT_A_MEM_SIZE);
+		if (!xhci_port_a_base)
+			return -ENOMEM;
+	}
 
 	phy = devm_kzalloc(&pdev->dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
@@ -755,6 +787,7 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 	phy->regs		= phy_base;
 	phy->phy3_cfg	= phy3_base;
 	phy->usb2_phy_cfg	= usb2_phy_base;
+	phy->xhci_port_a_addr = xhci_port_a_base;
 	phy->phy3_cfg_r1 = (void __iomem *)
 			((unsigned long)phy->phy3_cfg + 4 * 1);
 	phy->phy3_cfg_r2 = (void __iomem *)

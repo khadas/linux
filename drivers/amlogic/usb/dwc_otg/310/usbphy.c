@@ -64,6 +64,8 @@ static void set_device_mode_v2(struct platform_device *pdev,
 	union usb_r1_v2 r1 = {.d32 = 0};
 	union usb_r4_v2 r4 = {.d32 = 0};
 
+	force_disable_xhci_port_a();
+
 	u2p_aml_regs.u2p_r_v2[0] = (void __iomem	*)
 				((unsigned long)reg_addr + PHY_REGISTER_SIZE);
 	usb_aml_regs.usb_r_v2[0] = (void __iomem *)

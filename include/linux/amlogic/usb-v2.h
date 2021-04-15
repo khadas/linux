@@ -222,6 +222,7 @@ struct amlogic_usb_v2 {
 	void __iomem	*phy31_cfg_r4;
 	void __iomem	*phy31_cfg_r5;
 	void __iomem	*usb2_phy_cfg;
+	void __iomem	*xhci_port_a_addr;
 	u32 pll_setting[8];
 	int phy_cfg_state[4];
 	/* Set VBus Power though GPIO */
@@ -532,4 +533,5 @@ int amlogic_crg_device_usb2_init(u32 phy_id);
 void aml_new_otg_init(void);
 #endif
 
+void force_disable_xhci_port_a(void);
 #endif
