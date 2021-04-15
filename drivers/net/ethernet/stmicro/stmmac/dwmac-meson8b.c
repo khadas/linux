@@ -339,6 +339,7 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 	struct resource *res = NULL;
 	unsigned int internal_phy = 0;
 	unsigned int cali_val = 0;
+	unsigned int mc_val = 0;
 
 	/*get tx amp setting from tx_amp_src*/
 	pr_info("aml_cust_setting\n");
@@ -365,6 +366,15 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 	/*internal_phy 1:inphy;2:exphy; 0 as default*/
 	if (internal_phy == 2)
 		writel(cali_val, dwmac->regs + PRG_ETH1);
+
+	/*invole mc_val since special bit which not
+	 *in normal flow
+	 *T3 must set special reg to run ethernet
+	 */
+	if (of_property_read_u32(np, "mc_val", &mc_val) == 0) {
+		pr_info("cover mc_val as 0x%x\n", mc_val);
+		writel(mc_val, dwmac->regs + PRG_ETH0);
+	}
 
 	return 0;
 }
