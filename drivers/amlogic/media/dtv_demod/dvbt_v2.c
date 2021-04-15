@@ -884,6 +884,11 @@ void dvbt2_init(struct aml_dtvdemod *demod)
 	/* T5D revA:0,revB:1, select workaround in fw to init sram */
 	dvbt_t2_wrb(0x807, 1);
 
+	/* T2-MI ts unlock issue
+	 * immediate output of every packet or every frame as soon as they are ready
+	 */
+	dvbt_t2_wr_byte_bits(0x570, 1, 0, 1);
+
 	/* DDR addr */
 	dvbt_t2_wrb(0x360c, devp->mem_start & 0xff);
 	dvbt_t2_wrb(0x360d, (devp->mem_start >> 8) & 0xff);
