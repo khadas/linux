@@ -1255,10 +1255,12 @@ void rx_get_audinfo(struct aud_info_s *audio_info)
 			//hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CH_SPEAK_ALLOC);
 		//audio_info->auds_layout =
 			//hdmirx_rd_bits_dwc(DWC_PDEC_STS, PD_AUD_LAYOUT);
-		//audio_info->aud_hbr_rcv =
-			//hdmirx_rd_dwc(DWC_PDEC_AUD_STS) & AUDS_HBR_RCV;
-		audio_info->aud_packet_received = 1;
-				//hdmirx_rd_dwc(DWC_PDEC_AUD_STS);
+		audio_info->aud_hbr_rcv =
+			(hdmirx_rd_cor(RX_AUDP_STAT_DP2_IVCRX) >> 6) & 1;
+		if (audio_info->aud_hbr_rcv)
+			audio_info->aud_packet_received = 8;
+		else
+			audio_info->aud_packet_received = 1;
 		audio_info->ch_sts[0] = hdmirx_rd_cor(RX_CHST1_AUD_IVCRX);
 		audio_info->ch_sts[1] = hdmirx_rd_cor(RX_CHST2_AUD_IVCRX);
 		audio_info->ch_sts[2] = hdmirx_rd_cor(RX_CHST3a_AUD_IVCRX);
@@ -1312,7 +1314,7 @@ void rx_get_audio_status(struct rx_audio_stat_s *aud_sts)
 			aud_sts->aud_rcv_packet = rx.aud_info.aud_packet_received;
 			aud_sts->aud_stb_flag = aud_sts->afifo_thres_pass;
 		} else {
-			aud_sts->aud_rcv_packet = 1;
+			aud_sts->aud_rcv_packet = rx.aud_info.aud_packet_received;
 			aud_sts->aud_stb_flag = true;
 			aud_sts->aud_sr = rx.aud_info.real_sr;
 			memcpy(aud_sts->ch_sts, &rx.aud_info.ch_sts, 7);
@@ -1331,9 +1333,10 @@ int rx_set_audio_param(u32 param)
 {
 	if (rx.chip_id < CHIP_ID_T7)
 		hbr_force_8ch = param & 1;
+	else if (rx.chip_id == CHIP_ID_T7)
+		rx_set_aud_output_t7(param);
 	else
-		rx_set_aud_output(param);
-
+		rx_set_aud_output_t3(param);
 	return 1;
 }
 EXPORT_SYMBOL(rx_set_audio_param);
@@ -3348,11 +3351,13 @@ void cor_init(void)
 	//hdmirx_wr_cor(RX_KSV_SHA_start1_HDCP1X_IVCRX, 0x00);//[7:0]
 	//hdmirx_wr_cor(RX_KSV_SHA_start2_HDCP1X_IVCRX, 0x00);//[9:8]
 	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x12);//SRST = 1
-	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x00);//SRST = 0
+	/* BIT0 AUTO RST AUD FIFO when fifo err */
+	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x01);//SRST = 0
 
 	/* TDM cfg */
-	hdmirx_wr_cor(RX_TDM_CTRL1_AUD_IVCRX, 0x0f);
-	hdmirx_wr_cor(RX_TDM_CTRL2_AUD_IVCRX, 0xff);
+	hdmirx_wr_cor(RX_TDM_CTRL1_AUD_IVCRX, 0x00);
+	hdmirx_wr_cor(RX_TDM_CTRL2_AUD_IVCRX, 0x10);
+
 }
 
 void hdcp_init_t7(void)
@@ -3506,6 +3511,8 @@ bool is_aud_pll_error(void)
 	u32 aud_128fs = rx.aud_info.real_sr * 128;
 	u32 aud_512fs = rx.aud_info.real_sr * 512;
 
+	if (rx.chip_id >= CHIP_ID_T7)
+		return false;
 	if (rx.aud_info.real_sr == 0)
 		return false;
 	if (abs(clk - aud_128fs) < AUD_PLL_THRESHOLD ||
@@ -3624,11 +3631,8 @@ u8 rx_get_hdcp_type(void)
 	u32 tmp;
 
 	if (rx.chip_id >= CHIP_ID_T7) {
-		if (rx.cur.hdcp_type == HDCP_VER_14)
-			rx.cur.hdcp14_state = hdmirx_rd_cor(COR_HDCP14_STS) & 2;
-		else if (rx.cur.hdcp_type == HDCP_VER_22)
-			// unfinished
-			rx.cur.hdcp22_state = (hdmirx_rd_cor(COR_HDCP2X_GEN_STS) >> 4) & 3;
+		rx.cur.hdcp14_state = (hdmirx_rd_cor(RX_HDCP_STAT_HDCP1X_IVCRX) >> 4) & 3;
+		rx.cur.hdcp22_state = (hdmirx_rd_cor(COR_HDCP2X_GEN_STS) >> 4) & 3;
 	} else {
 		if (hdcp22_on) {
 			tmp = hdmirx_rd_dwc(DWC_HDCP22_STATUS);
@@ -4468,30 +4472,35 @@ int rx_debug_rd_reg(const char *buf, char *tmpbuf)
 int rx_get_aud_pll_err_sts(void)
 {
 	int ret = E_AUDPLL_OK;
-	u32 req_clk = rx_measure_clock(MEASURE_CLK_MPLL);
-	u32 aud_clk = rx.aud_info.aud_clk;
-	u32 phy_pll_rate = (hdmirx_rd_phy(PHY_MAINFSM_STATUS1) >> 9) & 0x3;
-	u32 aud_pll_cntl = (rd_reg_hhi(HHI_AUD_PLL_CNTL6) >> 28) & 0x3;
+	u32 req_clk = 0;//rx_measure_clock(MEASURE_CLK_MPLL);
+	u32 aud_clk = 0;//rx.aud_info.aud_clk;
+	u32 phy_pll_rate = 0;//(hdmirx_rd_phy(PHY_MAINFSM_STATUS1) >> 9) & 0x3;
+	u32 aud_pll_cntl = 0;//(rd_reg_hhi(HHI_AUD_PLL_CNTL6) >> 28) & 0x3;
 
-	if (rx.chip_id >= CHIP_ID_TL1) {
-		/* need to do something ...*/
-	} else {
-		if (req_clk > PHY_REQUEST_CLK_MAX ||
-		    req_clk < PHY_REQUEST_CLK_MIN) {
-			ret = E_REQUESTCLK_ERR;
-			if (log_level & AUDIO_LOG)
-				rx_pr("request clk err:%d\n", req_clk);
-		} else if (phy_pll_rate != aud_pll_cntl) {
-			ret = E_PLLRATE_CHG;
-			if (log_level & AUDIO_LOG)
-				rx_pr("pll rate chg,phy=%d,pll=%d\n",
-				      phy_pll_rate, aud_pll_cntl);
-		} else if (aud_clk == 0) {
-			ret = E_AUDCLK_ERR;
-			if (log_level & AUDIO_LOG)
-				rx_pr("aud_clk=0\n");
-		}
+	if (rx.chip_id >= CHIP_ID_TL1)
+		return ret;
+
+	req_clk = rx_measure_clock(MEASURE_CLK_MPLL);
+	aud_clk = rx.aud_info.aud_clk;
+	phy_pll_rate = (hdmirx_rd_phy(PHY_MAINFSM_STATUS1) >> 9) & 0x3;
+	aud_pll_cntl = (rd_reg_hhi(HHI_AUD_PLL_CNTL6) >> 28) & 0x3;
+
+	if (req_clk > PHY_REQUEST_CLK_MAX ||
+	    req_clk < PHY_REQUEST_CLK_MIN) {
+		ret = E_REQUESTCLK_ERR;
+		if (log_level & AUDIO_LOG)
+			rx_pr("request clk err:%d\n", req_clk);
+	} else if (phy_pll_rate != aud_pll_cntl) {
+		ret = E_PLLRATE_CHG;
+		if (log_level & AUDIO_LOG)
+			rx_pr("pll rate chg,phy=%d,pll=%d\n",
+			      phy_pll_rate, aud_pll_cntl);
+	} else if (aud_clk == 0) {
+		ret = E_AUDCLK_ERR;
+		if (log_level & AUDIO_LOG)
+			rx_pr("aud_clk=0\n");
 	}
+
 	return ret;
 }
 

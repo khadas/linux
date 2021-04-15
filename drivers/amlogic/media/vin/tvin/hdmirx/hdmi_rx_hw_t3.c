@@ -1901,7 +1901,7 @@ void rx_set_irq_t3(bool en)
 	hdmirx_wr_cor(RX_INTR1_MASK_PWD_IVCRX, 0x03);//register_address: 0x1050
 	hdmirx_wr_cor(RX_INTR2_MASK_PWD_IVCRX, 0x00);//register_address: 0x1051
 	hdmirx_wr_cor(RX_INTR3_MASK_PWD_IVCRX, 0x00);//register_address: 0x1052
-	hdmirx_wr_cor(RX_INTR4_MASK_PWD_IVCRX, 0x00);//register_address: 0x1053
+	hdmirx_wr_cor(RX_INTR4_MASK_PWD_IVCRX, 0x03);//register_address: 0x1053
 	hdmirx_wr_cor(RX_INTR5_MASK_PWD_IVCRX, 0x00);//register_address: 0x1054
 	hdmirx_wr_cor(RX_INTR6_MASK_PWD_IVCRX, 0x00);//register_address: 0x1055
 	hdmirx_wr_cor(RX_INTR7_MASK_PWD_IVCRX, 0x00);//register_address: 0x1056
@@ -1918,8 +1918,41 @@ void rx_set_irq_t3(bool en)
 	//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3);
 	//hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02);// int
 	//hdmirx_wr_cor(RX_PWD_INT_CTRL, 0x00);//[1] reg_intr_polarity, default = 1
-	//hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, 0x85);//interrupt mask
+	hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, 0x2);//interrupt mask
 	//hdmirx_wr_cor(RX_DEPACK_INTR4_MASK_DP2_IVCRX, 0x00);//interrupt mask
 	//hdmirx_wr_cor(RX_DEPACK2_INTR0_MASK_DP0B_IVCRX, 0x0c);//interrupt mask
 	//hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, 0x20);//interrupt mask   [5] acr
+
+	//HDCP irq
+	// encrypted sts changed
+	hdmirx_wr_cor(RX_HDCP1X_INTR0_MASK_HDCP1X_IVCRX, 1);
+	// AKE init received
+	hdmirx_wr_cor(CP2PAX_INTR1_MASK_HDCP2X_IVCRX, 4);
 }
+
+/*
+ * 0 SPDIF
+ * 1  I2S
+ * 2  TDM
+ */
+void rx_set_aud_output_t3(u32 param)
+{
+	if (param == 2) {
+		hdmirx_wr_cor(RX_TDM_CTRL1_AUD_IVCRX, 0x0f);
+		hdmirx_wr_cor(RX_TDM_CTRL2_AUD_IVCRX, 0xff);
+		hdmirx_wr_cor(AAC_MCLK_SEL_AUD_IVCRX, 0x90); //TDM
+	} else if (param == 1) {
+		hdmirx_wr_cor(RX_TDM_CTRL1_AUD_IVCRX, 0x00);
+		hdmirx_wr_cor(RX_TDM_CTRL2_AUD_IVCRX, 0x10);
+		hdmirx_wr_cor(AAC_MCLK_SEL_AUD_IVCRX, 0x80); //I2S
+		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(15), 0);
+		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(4), 1);
+	} else {
+		hdmirx_wr_cor(RX_TDM_CTRL1_AUD_IVCRX, 0x00);
+		hdmirx_wr_cor(RX_TDM_CTRL2_AUD_IVCRX, 0x10);
+		hdmirx_wr_cor(AAC_MCLK_SEL_AUD_IVCRX, 0x80); //SPDIF
+		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(15), 1);
+		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(4), 0);
+	}
+}
+

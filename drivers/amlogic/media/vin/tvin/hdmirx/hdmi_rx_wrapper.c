@@ -717,6 +717,9 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	u8 rx_depack2_intr1;
 	u8 rx_depack2_intr2;
 	u8 grp_intr1;
+	u8 rx_hdcp1x_intr0;
+	u8 rx_hdcp2x_intr0;
+	u8 rx_hdcp2x_intr1;
 	//bool vsi_handle_flag = false;
 	//bool drm_handle_flag = false;
 	//bool emp_handle_flag = false;
@@ -774,6 +777,48 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	if (rx_depack2_intr2 != 0)
 		hdmirx_wr_cor(RX_DEPACK2_INTR2_DP0B_IVCRX, rx_depack2_intr2);
 
+	//hdcp1x
+	rx_hdcp1x_intr0 = hdmirx_rd_cor(RX_HDCP1X_INTR0_HDCP1X_IVCRX);
+	if (rx_hdcp1x_intr0 != 0)
+		hdmirx_wr_cor(RX_HDCP1X_INTR0_HDCP1X_IVCRX, rx_hdcp1x_intr0);
+
+	//hdcp2x
+	rx_hdcp2x_intr0 = hdmirx_rd_cor(CP2PAX_INTR0_HDCP2X_IVCRX);
+	if (rx_hdcp2x_intr0 != 0)
+		hdmirx_wr_cor(CP2PAX_INTR0_HDCP2X_IVCRX, rx_hdcp2x_intr0);
+
+	rx_hdcp2x_intr1 = hdmirx_rd_cor(CP2PAX_INTR1_HDCP2X_IVCRX);
+	if (rx_hdcp2x_intr1 != 0)
+		hdmirx_wr_cor(CP2PAX_INTR1_HDCP2X_IVCRX, rx_hdcp2x_intr0);
+
+	if (rx_hdcp1x_intr0) {
+		if (log_level & IRQ_LOG)
+			rx_pr("irq_hdcp1-%x\n", rx_hdcp1x_intr0);
+		if (rx_get_bits(rx_hdcp1x_intr0, _BIT(0))) {
+			rx.hdcp.hdcp_version = HDCP_VER_14;
+			rx.hdcp.hdcp_source = true;
+			rx_pr("14\n");
+		}
+	}
+
+	if (rx_hdcp2x_intr0) {
+		if (log_level & IRQ_LOG)
+			rx_pr("irq_hdcp2-%x\n", rx_hdcp2x_intr0);
+		if (rx_get_bits(rx_hdcp2x_intr0, _BIT(0)))
+			hdcp22_auth_sts = HDCP22_AUTH_STATE_SUCCESS;
+		if (rx_get_bits(rx_hdcp2x_intr0, _BIT(1)))
+			hdcp22_auth_sts = HDCP22_AUTH_STATE_FAILED;
+	}
+
+	if (rx_hdcp2x_intr1) {
+		if (log_level & IRQ_LOG)
+			rx_pr("irq1_hdcp2-%x\n", rx_hdcp2x_intr1);
+		if (rx_get_bits(rx_hdcp2x_intr1, _BIT(2))) {
+			rx.hdcp.hdcp_version = HDCP_VER_22;
+			rx.hdcp.hdcp_source = true;
+			rx_pr("22\n");
+		}
+	}
 	if (intr_2) {
 		if (log_level & IRQ_LOG)
 			rx_pr("irq2-%x\n", intr_2);
@@ -3469,22 +3514,13 @@ static void dump_hdcp_status(void)
 		      hdmirx_rd_dwc(DWC_HDCP22_STATUS));
 		rx_pr("sts81c = %x",
 		      hdmirx_rd_dwc(DWC_HDCP22_CONTROL));
-	}
-
-	rx_pr("ESM clock = %d\n",
+		rx_pr("ESM clock = %d\n",
 	      rx_measure_clock(MEASURE_CLK_ESM));
-	rx_pr("HDCP debug value=0x%x\n",
-	      hdmirx_rd_dwc(DWC_HDCP_DBG));
+	}
 	rx_pr("HDCP14 state:%d\n",
 	      rx.cur.hdcp14_state);
 	rx_pr("HDCP22 state:%d\n",
 	      rx.cur.hdcp22_state);
-	rx_pr("\n hdcp-seed = %d ",
-	      rx.hdcp.seed);
-	/* KSV CONFIDENTIAL */
-	rx_pr("hdcp-bksv = %x---%x\n",
-	      hdmirx_rd_dwc(DWC_HDCP_BKSV1),
-	      hdmirx_rd_dwc(DWC_HDCP_BKSV0));
 }
 
 void dump_state(int enable)

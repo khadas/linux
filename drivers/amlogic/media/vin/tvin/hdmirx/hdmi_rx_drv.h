@@ -20,8 +20,8 @@
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 
-/* modified SDA I/F clk */
-#define RX_VER0 "ver.2021/03/31"
+/* add audio hbr sts/hdcp irq */
+#define RX_VER0 "ver.2021/04/14"
 
 /*print type*/
 #define	LOG_EN		0x01

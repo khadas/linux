@@ -3322,7 +3322,7 @@ void aml_phy_switch_port_t7(void);
 unsigned int rx_sec_hdcp_cfg_t7(void);
 void dump_vsi_reg_t7(void);
 void rx_set_irq_t7(bool en);
-void rx_set_aud_output(u32 param);
+void rx_set_aud_output_t7(u32 param);
 
 void dump_reg_phy_t3(void);
 void aml_phy_init_t3(void);
@@ -3337,5 +3337,6 @@ void aml_phy_switch_port_t3(void);
 unsigned int rx_sec_hdcp_cfg_t3(void);
 void dump_vsi_reg_t3(void);
 void rx_set_irq_t3(bool en);
+void rx_set_aud_output_t3(u32 param);
 
 #endif
