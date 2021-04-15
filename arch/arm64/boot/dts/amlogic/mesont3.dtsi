@@ -850,6 +850,11 @@
 		reg = <0x0 0xfe036048 0x0 0x2000>;
 	};
 
+	meson_uvm {
+		compatible = "amlogic, meson_uvm";
+		status = "okay";
+	};
+
 	meson_videotunnel{
 		compatible = "amlogic, meson_videotunnel";
 		status = "okay";
