@@ -35,6 +35,7 @@ enum cec_chip_ver {
 	CEC_CHIP_T5D,	/*only have cecb, first bringup at 4.9-dev*/
 	CEC_CHIP_T7,
 	CEC_CHIP_S4,/*base on sc2*/
+	CEC_CHIP_T3,	/* only have cecb */
 };
 
 enum cecaver {
