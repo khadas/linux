@@ -1860,6 +1860,13 @@
 		};
 	};
 
+	mclk_1_pins: mclk_1_pin {
+	     mux { /* GPIOH_14 */
+			groups = "mclk_1_h";
+			function = "mclk";
+		};
+	};
+
 	i2c0_pins1:i2c0_pins1 {
 		mux {
 			groups = "i2c0_sda_z",

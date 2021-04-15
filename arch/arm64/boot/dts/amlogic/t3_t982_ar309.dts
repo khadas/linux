@@ -576,8 +576,6 @@
 			};
 			tdmacodec: codec {
 				sound-dai = <&dummy_codec>;
-				//prefix-names = "AMP", "AMP1";
-				//sound-dai = <&ad82584f &ad82584f1 &tl1_codec>;
 			};
 		};
 
@@ -611,7 +609,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				sound-dai = <&acodec>;
+				prefix-names = "AMP";
+				sound-dai = <&tas5805 &acodec>;
 			};
 		};
 
@@ -833,7 +832,8 @@
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
 
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdm_b_pins
+		pinctrl-0 = <&mclk_1_pins
+			&tdm_b_pins
 			&tdm_d0_pins
 			&tdm_clk_pins>;
 
@@ -967,7 +967,7 @@
 		 * 3:spdifout
 		 * 4:spdifout_b
 		 */
-		eqdrc_module = <0>;
+		eqdrc_module = <1>;
 		/* max 0xf, each bit for one lane, usually one lane */
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
@@ -1391,12 +1391,27 @@
 	status = "disable";
 };
 
+&i2c1 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c1_pins1>;
+
+	tas5805: tas5805@2e {
+		compatible = "ti,tas5805";
+		#sound-dai-cells = <0>;
+		codec_name = "tas5805";
+		reg = <0x2e>;
+		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
 &periphs_pinctrl {
     tdm_b_pins: tdm_b_pin {
 		mux { /* GPIOH_16, GPIOH_15, GPIOH_17 */
-			groups = "tdm_sclk1",
-				"tdm_fs1",
-				"tdm_d0";
+			groups = "tdm_sclk1_h16",
+				"tdm_fs1_h15",
+				"tdm_d0_h17";
 			function = "tdm";
 		};
 	};
@@ -1406,13 +1421,13 @@
 	tdm_d0_pins: tdm_d0_pin {
 		mux {
 			groups = "tdm_d0";
-			function = "tdmoutb_lane1";
+			function = "tdmoutb_lane0";
 		};
 	};
 
 	tdm_clk_pins: tdm_clk_pin {
 		mux {
-			groups = "tdm_sclk1", "tdm_lrclk1";
+			groups = "tdm_sclk0", "tdm_lrclk0";
 			function = "tdm_clk_outb";
 		};
 	};
