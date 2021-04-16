@@ -93,15 +93,22 @@ static int am_lcd_connector_get_modes(struct drm_connector *connector)
 		lcd->mode->hdisplay, lcd->mode->vdisplay);
 
 	mode = drm_mode_duplicate(connector->dev, lcd->mode);
-	DRM_DEBUG("am_drm_lcd: %s: drm mode [%s] display size: %d x %d\n",
-		__func__, mode->name, mode->hdisplay, mode->vdisplay);
+	if (mode) {
+		DRM_DEBUG("am_drm_lcd: %s: drm mode [%s] display size: %d x %d\n",
+			__func__, mode->name, mode->hdisplay, mode->vdisplay);
+	}
 	DRM_DEBUG("am_drm_lcd: %s: lcd config size: %d x %d\n",
 		__func__, lcd->lcd_drv->config.basic.h_active,
 		lcd->lcd_drv->config.basic.v_active);
 
-	drm_mode_probed_add(connector, mode);
-	count = 1;
-	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	if (mode) {
+		drm_mode_probed_add(connector, mode);
+		count = 1;
+		DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
+	} else {
+		DRM_ERROR("am_drm_lcd: %s %d: drm_display_mode is null\n",
+			  __func__, __LINE__);
+	}
 	DRM_DEBUG("***************************************************\n");
 
 	return count;

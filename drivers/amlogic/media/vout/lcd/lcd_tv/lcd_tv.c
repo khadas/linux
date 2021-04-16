@@ -848,22 +848,16 @@ static void lcd_config_init(struct aml_lcd_drv_s *pdrv)
 	lcd_vmode_init(pdrv);
 	lcd_tv_config_update(pdrv);
 	lcd_clk_generate_parameter(pdrv);
-	if (cconf->data) {
+
+	if (cconf && cconf->data) {
 		temp = pdrv->config.timing.ss_level & 0xff;
-		cconf->ss_level = (temp >= cconf->data->ss_level_max) ?
-					0 : temp;
+		cconf->ss_level = (temp >= cconf->data->ss_level_max) ? 0 : temp;
 		temp = (pdrv->config.timing.ss_level >> 8) & 0xff;
 		temp = (temp >> LCD_CLK_SS_BIT_FREQ) & 0xf;
 		cconf->ss_freq = (temp >= cconf->data->ss_freq_max) ? 0 : temp;
 		temp = (pdrv->config.timing.ss_level >> 8) & 0xff;
 		temp = (temp >> LCD_CLK_SS_BIT_MODE) & 0xf;
 		cconf->ss_mode = (temp >= cconf->data->ss_mode_max) ? 0 : temp;
-	} else {
-		LCDERR("[%d]: %s: clk config data is null\n",
-		       pdrv->index, __func__);
-		cconf->ss_level = 0;
-		cconf->ss_freq = 0;
-		cconf->ss_mode = 0;
 	}
 }
 
