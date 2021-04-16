@@ -7657,7 +7657,7 @@ static int fgrain_init(u8 layer_id, u32 table_size)
 		channel = FILM_GRAIN2_CHAN;
 	lut_dma_set.channel = channel;
 	lut_dma_set.dma_dir = LUT_DMA_WR;
-	lut_dma_set.irq_source = ENCP_GO_FEILD;
+	lut_dma_set.irq_source = VIU1_VSYNC;
 	lut_dma_set.mode = LUT_DMA_MANUAL;
 	lut_dma_set.table_size = table_size;
 	ret = lut_dma_register(&lut_dma_set);
@@ -7707,8 +7707,7 @@ static int fgrain_write(u32 layer_id, ulong fgs_table_addr)
 
 static int get_viu_irq_source(u8 vpp_index)
 {
-	u32 venc_mux = 3, viu = 0;
-	u32 venc_addr = VPU_VENC_CTRL;
+	u32 venc_mux = 3;
 	u32 irq_source = ENCP_GO_FEILD;
 
 	venc_mux = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
@@ -7717,25 +7716,14 @@ static int get_viu_irq_source(u8 vpp_index)
 
 	switch (venc_mux) {
 	case 0:
-		venc_addr = VPU_VENC_CTRL;
+		/* venc0 */
+		irq_source = VENC0_GO_FEILD;
 		break;
 	case 1:
-		venc_addr = VPU1_VENC_CTRL;
+		irq_source = VENC1_GO_FEILD;
 		break;
 	case 2:
-		venc_addr = VPU2_VENC_CTRL;
-		break;
-	}
-	viu = READ_VCBUS_REG(venc_addr) & 0x3;
-	switch (viu) {
-	case 0:
-		irq_source = ENCI_GO_FEILD;
-		break;
-	case 1:
-		irq_source = ENCP_GO_FEILD;
-		break;
-	case 2:
-		irq_source = ENCL_GO_FEILD;
+		irq_source = VENC2_GO_FEILD;
 		break;
 	}
 	return irq_source;
