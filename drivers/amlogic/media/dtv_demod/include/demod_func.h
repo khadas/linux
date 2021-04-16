@@ -215,18 +215,9 @@ struct aml_demod_reg {
 	u32_t bit_width;
 };
 
-enum st_chip_regsize_t {
-	STCHIP_REGSIZE_8 = 1, /*  8 bits */
-	STCHIP_REGSIZE_16 = 2, /* 16 bits */
-	STCHIP_REGSIZE_24 = 3, /* 24 bits */
-	STCHIP_REGSIZE_32 = 4, /* 32 bits */
-	STCHIP_REGSIZE_64 = 8  /* 64 bits */
-};
-
 struct stchip_register_t {
 	unsigned short addr;     /* Address */
 	char value;    /* Current value */
-	enum st_chip_regsize_t size;	         /* register size         */
 };
 
 void st_dvbs2_init(void);
@@ -622,8 +613,6 @@ void dvbs_write_bits(u32 reg_addr, const u32 reg_data,
 		    const u32 start, const u32 len);
 void dvbs_wr_byte(unsigned int addr, char data);
 char dvbs_rd_byte(unsigned int addr);
-void dvbs_write_reg(unsigned int addr, unsigned int data);
-unsigned int dvbs_read_reg(unsigned int addr);
 int aml_demod_init(void);
 void aml_demod_exit(void);
 unsigned int write_riscv_ram(void);

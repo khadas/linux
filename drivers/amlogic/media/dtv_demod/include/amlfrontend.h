@@ -12,14 +12,14 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/16/Apr: change timeout to 3s to fix t2 miss channel randomly"
+#define DTVDEMOD_VER	"2021/04/21: dvbs blind scan"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
 #define THRD_TUNER_STRENTH_J83 (-76)
 /* tested on BTC, sensertivity of demod is -100dBm */
 #define THRD_TUNER_STRENTH_DVBT (-101)
-#define THRD_TUNER_STRENTH_DVBS (-76)
+#define THRD_TUNER_STRENTH_DVBS (-79)
 
 #define TIMEOUT_ATSC		2000
 #define TIMEOUT_DVBT		3000
@@ -252,8 +252,6 @@ struct amldtvdemod_device_s {
 #endif
 	/*agc pin mux*/
 	struct pinctrl *pin;	/*agc pintrcl*/
-	const char *pin_name;	/*agc pin name*/
-	struct pinctrl_state *pin_agc_st;/*agc pin state*/
 
 #if 1 /*move to aml_dtv_demod*/
 	/*for mem reserved*/
@@ -286,6 +284,8 @@ struct amldtvdemod_device_s {
 	char firmware_path[PATH_MAX_LEN];
 	char *fw_buf;
 
+	struct work_struct blind_scan_work;
+
 	/* diseqc */
 	const char *diseqc_name;
 	unsigned int demod_irq_num;
@@ -298,6 +298,14 @@ struct amldtvdemod_device_s {
 
 	unsigned int demod_thread;
 	unsigned int fw_wr_done;
+	unsigned int blind_min_fre;
+	unsigned int blind_max_fre;
+	unsigned int blind_min_srate;
+	unsigned int blind_max_srate;
+	unsigned int blind_fre_range;
+	unsigned int blind_fre_step;
+	unsigned int blind_timeout;
+	unsigned int blind_scan_stop;
 
 	bool vdac_enable;
 	bool agc_pin_enable;

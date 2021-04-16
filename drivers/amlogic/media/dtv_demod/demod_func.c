@@ -830,34 +830,6 @@ void dvbs_write_bits(u32 reg_addr, const u32 reg_data,
 	/*mutex_unlock(&mp);*/
 }
 
-void dvbs_write_reg(unsigned int addr, unsigned int data)
-{
-	if (!get_dtvpll_init_flag())
-		return;
-
-	/*mutex_lock(&mp);*/
-
-	writel(data, gbase_dvbs() + (addr << 2));
-
-	/*mutex_unlock(&mp);*/
-}
-
-unsigned int dvbs_read_reg(unsigned int addr)
-{
-	unsigned int tmp;
-
-	if (!get_dtvpll_init_flag())
-		return 0;
-
-	/*mutex_lock(&mp);*/
-
-	tmp = readl(gbase_dvbs() + (addr << 2));
-
-	/*mutex_unlock(&mp);*/
-
-	return tmp;
-}
-
 void atsc_write_reg(unsigned int reg_addr, unsigned int reg_data)
 {
 	unsigned int data;
