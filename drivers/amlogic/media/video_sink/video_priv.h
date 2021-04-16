@@ -106,6 +106,7 @@
 #define MAX_PIP_WINDOW    16
 #define VPP_FILER_COEFS_NUM   33
 #define VPP_NUM 3
+#define RDMA_INTERFACE_NUM 4
 
 enum vd_path_id {
 	VFM_PATH_DEF = -1,
@@ -169,7 +170,7 @@ struct video_dev_s {
 	int scaler_sep_coef_en;
 	struct hw_pps_reg_s aisr_pps_reg;
 	struct vpp_frame_par_s aisr_frame_parms;
-	struct rdma_fun_s rdma_func[VPP_NUM];
+	struct rdma_fun_s rdma_func[RDMA_INTERFACE_NUM];
 };
 
 struct video_layer_s;
@@ -415,6 +416,7 @@ enum cpu_type_e {
 struct video_device_hw_s {
 	u32 vd2_independ_blend_ctrl;
 	u32 aisr_support;
+	u32 frc_support;
 };
 
 struct amvideo_device_data_s {

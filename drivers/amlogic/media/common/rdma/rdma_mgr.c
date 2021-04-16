@@ -1192,6 +1192,11 @@ static struct rdma_device_data_s rdma_t7 = {
 	.trigger_mask_len = 24,
 };
 
+static struct rdma_device_data_s rdma_t3 = {
+	.cpu_type = CPU_T7,
+	.rdma_ver = RDMA_VER_4,
+	.trigger_mask_len = 25,
+};
 static const struct of_device_id rdma_dt_match[] = {
 	{
 		.compatible = "amlogic, meson, rdma",
@@ -1217,7 +1222,10 @@ static const struct of_device_id rdma_dt_match[] = {
 		.compatible = "amlogic, meson-t7, rdma",
 		.data = &rdma_t7,
 	},
-
+	{
+		.compatible = "amlogic, meson-t3, rdma",
+		.data = &rdma_t3,
+	},
 	{},
 };
 
@@ -1556,6 +1564,10 @@ static int __init rdma_probe(struct platform_device *pdev)
 			info->rdma_ins[i].rdma_regadr = &rdma_regadr_t7[i];
 			support_64bit_addr = 1;
 			has_multi_vpp = 1;
+		}  else if (rdma_meson_dev.rdma_ver == RDMA_VER_4) {
+			info->rdma_ins[i].rdma_regadr = &rdma_regadr_t7[i];
+			support_64bit_addr = 1;
+			has_multi_vpp = 1;
 		} else {
 			info->rdma_ins[i].rdma_regadr = &rdma_regadr[i];
 		}
@@ -1609,7 +1621,9 @@ static int __init rdma_probe(struct platform_device *pdev)
 		handle = rdma_register(get_rdma_ops(VSYNC_RDMA_VPP2),
 				       NULL, RDMA_TABLE_SIZE);
 		set_rdma_handle(VSYNC_RDMA_VPP2, handle);
-
+		handle = rdma_register(get_rdma_ops(PRE_VSYNC_RDMA),
+				       NULL, RDMA_TABLE_SIZE);
+		set_rdma_handle(PRE_VSYNC_RDMA, handle);
 	} else {
 		handle = rdma_register(get_rdma_ops(VSYNC_RDMA_READ),
 				       NULL, RDMA_TABLE_SIZE);
