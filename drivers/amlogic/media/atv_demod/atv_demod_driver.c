@@ -14,6 +14,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/aml_atvdemod.h>
 #include <linux/amlogic/aml_tuner.h>
@@ -52,7 +53,8 @@
 /* 2020/09/24 --- V2.26 --- Bringup t5 */
 /* 2020/11/03 --- V2.27 --- Bringup t5d. */
 /* 2020/11/23 --- V2.28 --- Adapter multi tuner switch. */
-#define AMLATVDEMOD_VER "V2.28"
+/* 2021/04/15 --- V2.29 --- Bringup t3. */
+#define AMLATVDEMOD_VER "V2.29"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -126,16 +128,31 @@ static ssize_t atvdemod_debug_store(struct class *class,
 			update_btsc_mode(1, &stereo_flag, &sap_flag);
 			pr_info("get signal_audmode done ....\n");
 		}
-	} else if (!strncmp(parm[0], "clk", 3)) {
+	} else if (!strncmp(parm[0], "adc_pll", 7)) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
-		adc_set_pll_cntl(1, 0x1, NULL);
+		if (kstrtoul(parm[1], 16, &tmp) == 0)
+			val = tmp;
+		else
+			val = 1;
+
+		adc_set_pll_cntl(!!val, ADC_ATV_DEMOD, NULL);
 #endif
+		pr_info("adc_pll %s done ....\n", val ? "ON" : "OFF");
+	} else if (!strncmp(parm[0], "vdac", 4)) {
+#ifdef CONFIG_AMLOGIC_VDAC
+		if (kstrtoul(parm[1], 16, &tmp) == 0)
+			val = tmp;
+		else
+			val = 1;
+
+		vdac_enable(!!val, VDAC_MODULE_AVOUT_ATV);
+#endif
+		pr_info("vdac %s done ....\n", val ? "ON" : "OFF");
+	} else if (!strncmp(parm[0], "clock", 5)) {
 		atvdemod_clk_init();
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 			aud_demod_clk_gate(1);
 		pr_info("atvdemod_clk_init done ....\n");
-	} else if (!strncmp(parm[0], "tune", 4)) {
-		/* val  = simple_strtol(parm[1], NULL, 10); */
 	} else if (!strncmp(parm[0], "set", 3)) {
 		if (!strncmp(parm[1], "avout_gain", 10)) {
 			if (kstrtoul(buf + strlen("avout_offset") + 1,
@@ -419,12 +436,15 @@ static ssize_t atvdemod_debug_show(struct class *class,
 	unsigned int audio_power = 0;
 	int data = 0;
 	int len = 0;
+	const char *patch = "/sys/class/aml_atvdemod/atvdemod_debug";
 
-	pr_info("\n ATV Demod Usage:\n");
-	pr_info("[atvdemod_status] echo atvdemod_status > /sys/class/amlatvdemod/atvdemod_debug\n");
-	pr_info("[init/uninit atvdemod] echo init/uninit > /sys/class/amlatvdemod/atvdemod_debug\n");
-	pr_info("[reinit atvdemod] echo reinit > /sys/class/amlatvdemod/atvdemod_debug\n");
-	pr_info("[tune] echo tune vstd astd freq > /sys/class/amlatvdemod/atvdemod_debug\n");
+	len += sprintf(buff + len, "\nATV Demod Usage:\n");
+	len += sprintf(buff + len, "[atvdemod_status]\n\techo atvdemod_status > %s\n", patch);
+	len += sprintf(buff + len, "[init/uninit atvdemod]\n\techo init/uninit > %s\n", patch);
+	len += sprintf(buff + len, "[reinit atvdemod]\n\techo reinit > %s\n", patch);
+	len += sprintf(buff + len, "[tune]\n\techo tune vstd astd freq > %s\n", patch);
+	len += sprintf(buff + len, "[adc_pll]\n\techo adc_pll on_off > %s\n", patch);
+	len += sprintf(buff + len, "[vdac\n\techo vdac on_off > %s\n", patch);
 
 	len += sprintf(buff + len, "ATV Demod Status:\n");
 	if (priv->state == ATVDEMOD_STATE_WORK) {
@@ -676,9 +696,9 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 		dev->periphs_reg_base = devm_ioremap_nocache(
 				&pdev->dev, res->start, size_io_reg);
 		if (!dev->periphs_reg_base) {
-			ret = -ENXIO;
+			/* ret = -ENXIO; */
 			pr_err("periphs ioremap failed.\n");
-			goto fail_get_resource;
+			/* goto fail_get_resource; */
 		}
 
 		pr_info("periphs start = 0x%p, size = 0x%x, base = 0x%p.\n",
@@ -712,6 +732,10 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 
 		pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
 #endif
+	} else if (is_meson_t3_cpu()) {
+		dev->audio_reg_base = ioremap(round_down(0xfe33074c, 0x3), 4);
+
+		pr_info("audio_reg_base = 0x%p.\n", dev->audio_reg_base);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		dev->audio_reg_base = ioremap(round_down(0xff60074c, 0x3), 4);
 

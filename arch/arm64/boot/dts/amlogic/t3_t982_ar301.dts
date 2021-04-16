@@ -447,13 +447,13 @@
 
 	atv-demod {
 		compatible = "amlogic, atv-demod";
-		status = "disabled";
+		status = "okay";
 		btsc_sap_mode = <1>;
 		interrupts = <0 236 1>;
 		/* pinctrl-names="atvdemod_agc_pins"; */
 		/* pinctrl-0=<&atvdemod_agc_pins>; */
 		reg = <0x0 0xfe0be000 0x0 0x2000 /* demod reg */
-				0x0 0xfe008000 0x0 0x2000 /* hiu reg */
+				0x0 0xfe000000 0x0 0x2000 /* hiu reg */
 				0x0 0x0 0x0 0x0 /* periphs reg */
 				0x0 0xfe0bc000 0x0 0x2000>; /* adec reg */
 		reg_23cf = <0x88188832>;
@@ -478,16 +478,6 @@
 					 * SLAVE_XTAL_SHARE(3)
 					 */
 		tuner0_xtal_cap = <8>;
-
-		/* tuner0_name = "rt710_tuner"; */
-		/* tuner0_i2c_adap = <&i2c0>; */
-		/* tuner0_i2c_addr = <0xF4>; */ /* 8 bits */
-		/* tuner0_xtal = <0>;  */ /* 0: 16MHz, 1: 24MHz */
-		/* tuner0_xtal_mode = <0>; */
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(3)
-					 */
-		/* tuner0_xtal_cap = <30>; */
 	};
 
 	dvb-demux {

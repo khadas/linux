@@ -1691,10 +1691,14 @@ int atvdemod_clk_init(void)
 	/* now set pll in tvafe_general.c */
 
 	/* bit[25-16]: tvafe, bit[9-0]: atv demod. */
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
-		W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x1800080);
-	else
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+		if (is_meson_t3_cpu())
+			W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL_T3, 0x1800080);
+		else
+			W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x1800080);
+	} else {
 		W_HIU_REG(HHI_ATV_DMD_SYS_CLK_CNTL, 0x80);
+	}
 
 	/* read_version_register(); */
 

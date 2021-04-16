@@ -14,10 +14,6 @@
 #include <tuner-i2c.h>
 #include <dvb_frontend.h>
 
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AFE
-#include "tvafe_general.h"
-#endif
-
 #include "atvdemod_func.h"
 #include "atvauddemod_func.h"
 #include "atv_demod_debug.h"
@@ -157,8 +153,8 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 		}
 	}
 
-#if defined(CONFIG_AMLOGIC_MEDIA_ADC) && defined(CONFIG_AMLOGIC_MEDIA_TVIN_AFE)
-	err_code = adc_set_pll_cntl(1, ADC_EN_ATV_DEMOD, NULL);
+#ifdef CONFIG_AMLOGIC_MEDIA_ADC
+	err_code = adc_set_pll_cntl(1, ADC_ATV_DEMOD, NULL);
 	if (err_code) {
 		pr_dbg("%s: adc set pll error %d.\n", __func__, err_code);
 
@@ -194,8 +190,8 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 
 	atvdemod_power_switch(false);
 
-#if defined(CONFIG_AMLOGIC_MEDIA_ADC) && defined(CONFIG_AMLOGIC_MEDIA_TVIN_AFE)
-	adc_set_pll_cntl(0, ADC_EN_ATV_DEMOD, NULL);
+#ifdef CONFIG_AMLOGIC_MEDIA_ADC
+	adc_set_pll_cntl(0, ADC_ATV_DEMOD, NULL);
 #endif
 
 	pr_dbg("%s: error, vdac is not enabled.\n", __func__);
@@ -250,8 +246,8 @@ int atv_demod_leave_mode(struct dvb_frontend *fe)
 #ifdef CONFIG_AMLOGIC_VDAC
 	vdac_enable(0, VDAC_MODULE_AVOUT_ATV);
 #endif
-#if defined(CONFIG_AMLOGIC_MEDIA_ADC) && defined(CONFIG_AMLOGIC_MEDIA_TVIN_AFE)
-	adc_set_pll_cntl(0, ADC_EN_ATV_DEMOD, NULL);
+#ifdef CONFIG_AMLOGIC_MEDIA_ADC
+	adc_set_pll_cntl(0, ADC_ATV_DEMOD, NULL);
 #endif
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		aud_demod_clk_gate(0);

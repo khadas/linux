@@ -195,6 +195,11 @@
 		#mbox-cells = <1>;
 	};
 
+	vdac {
+		compatible = "amlogic, vdac-t3";
+		status = "okay";
+	};
+
 	adc: adc {
 		compatible = "amlogic, adc-t3";
 		status = "okay";
@@ -2078,6 +2083,19 @@
 		};
 	};
 
+	atvdemod_agc_pins: atvdemod_agc_pins {
+		mux {
+			groups = "atv_if_agc_z6";
+			function = "atv_if_agc";
+		};
+	};
+
+	dtvdemod_agc_pins: dtvdemod_agc_pins {
+		mux {
+			groups = "dtv_if_agc_z6";
+			function = "dtv_if_agc";
+		};
+	};
 };
 
 &gpu{

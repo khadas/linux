@@ -545,7 +545,7 @@ void vdac_enable(bool on, unsigned int module_sel)
 		break;
 	}
 
-	if (s_vdac_data->cpu_id == VDAC_CPU_S4) {
+	if (s_vdac_data->cpu_id == VDAC_CPU_S4 || s_vdac_data->cpu_id == VDAC_CPU_T3) {
 		if (!vdac_ana_reg_getb(s_vdac_data->reg_cntl0, 11, 1))
 			vdac_ana_reg_setb(s_vdac_data->reg_cntl0, 1, 11, 1);
 	}

@@ -12,6 +12,7 @@ struct atv_demod_priv;
 #define AUIDO_CARRIER_POWER_MIN    150
 
 #define HHI_ATV_DMD_SYS_CLK_CNTL		0x10f3
+#define HHI_ATV_DMD_SYS_CLK_CNTL_T3		0x1086
 
 extern unsigned int reg_23cf; /* IIR filter */
 extern int broad_std_except_pal_m;
