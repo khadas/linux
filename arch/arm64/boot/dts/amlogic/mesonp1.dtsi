@@ -629,9 +629,9 @@
 			};
 
 			meson_clk_msr@48000 {
-				compatible = "amlogic,meson-t7-clk-measure";
+				compatible = "amlogic,meson-p1-clk-measure";
 				reg = <0x0 0x48000 0x0 0x1c>;
-				status = "disabled";
+				status = "okay";
 			};
 
 			watchdog@2100 {
