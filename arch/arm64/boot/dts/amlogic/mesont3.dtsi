@@ -1409,6 +1409,11 @@
 		status = "okay";
 		cpuinfo_cmd = <0x82000044>;
 	};
+
+	lut_dma:lut_dma {
+		compatible = "amlogic, meson-t7, lut_dma";
+		status = "okay";
+	};
 };
 
 &periphs_pinctrl {
