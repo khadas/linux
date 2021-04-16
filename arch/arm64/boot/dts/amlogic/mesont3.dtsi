@@ -2204,12 +2204,12 @@
 			       <800000000>,
 			       <0>; /* Do Nothing */
 
-	tbl =  <&dvfs500_cfg
+	tbl =  <&dvfs250_cfg
+		&dvfs400_cfg
 		&dvfs500_cfg
-		&dvfs500_cfg
-		&dvfs500_cfg
-		&dvfs500_cfg
-		&dvfs500_cfg>;
+		&dvfs666_cfg
+		&dvfs800_cfg
+		&dvfs800_cfg>;
 
 	reset_cfg:reset_cfg {
 		reg_level = <0x11>;
