@@ -1779,14 +1779,29 @@
 
 	lcd_vbyone_a_pins: lcd_vbyone_a_pin {
 		mux {
-			groups = "vx1_lockn","vx1_htpdn";
-			function = "vx1";
+			groups = "vx1_a_lockn","vx1_a_htpdn";
+			function = "vx1_a";
 		};
 	};
 
 	lcd_vbyone_a_off_pins: lcd_vbyone_a_off_pin {
 		mux {
 			groups = "GPIOH_0","GPIOH_8";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
+	lcd_vbyone_b_pins: lcd_vbyone_b_pin {
+		mux {
+			groups = "vx1_b_lockn","vx1_b_htpdn";
+			function = "vx1_b";
+		};
+	};
+
+	lcd_vbyone_b_off_pins: lcd_vbyone_b_off_pin {
+		mux {
+			groups = "GPIOH_9","GPIOH_10";
 			function = "gpio_periphs";
 			input-enable;
 		};

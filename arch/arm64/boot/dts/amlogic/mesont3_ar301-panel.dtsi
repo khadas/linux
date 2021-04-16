@@ -166,7 +166,7 @@
 				2 0 0 10 /*signal disable*/
 				0 0 0 500   /*panel power*/
 				0xff 0 0 0>; /*ending*/
-			backlight_index = <0xff>;
+			backlight_index = <0>;
 		};
 		vbyone_1{
 			model_name = "public_1region";
@@ -211,7 +211,7 @@
 				2 0 0 10  /*signal disable*/
 				0 0 0 500   /*panel power*/
 				0xff 0 0 0>; /*ending*/
-			backlight_index = <0xff>;
+			backlight_index = <0>;
 		};
 	};
 
@@ -277,14 +277,78 @@
 
 	};
 
+	lcd1 {
+		compatible = "amlogic, lcd-t3";
+		status = "okay";
+		index = <1>;
+		mode = "tv";
+		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
+		key_valid = <0>;
+		reg = <0x0 0xfe3b0000 0x0 0xd000    /* tcon */
+			0x0 0xfe004000 0x0 0x70>;  /* periphs */
+		interrupts = <0 197 1
+			0 194 1
+			0 282 1>;
+		interrupt-names = "vsync","vsync2","vbyone";
+		pinctrl-names = "vbyone","vbyone_off";
+		pinctrl-0 = <&lcd_vbyone_b_pins>;
+		pinctrl-1 = <&lcd_vbyone_b_off_pins>;
+		pinctrl_version = <2>; /* for uboot */
+
+		/* power type:(0=cpu_gpio, 2=signal, 3=extern, 0xff=ending) */
+		/* power index:(gpios_index, or extern_index, 0xff=invalid) */
+		/* power value:(0=output low, 1=output high, 2=input) */
+		/* power delay:(unit in ms) */
+
+		vbyone_0{
+			model_name = "fhd_1region";
+			interface = "vbyone"; /*lcd_interface(lvds, vbyone)*/
+			basic_setting = <
+				1920 1080 /*h_active, v_active*/
+				2200 1125 /*h_period, v_period*/
+				10     /*lcd_bits */
+				16 9>; /*screen_widht, screen_height*/
+			range_setting = <
+				2080 2720 /*h_period min, max*/
+				1100 1380 /*v_period min, max*/
+				133940000 156000000>; /*pclk_min, max*/
+			lcd_timing = <
+				44 148 0   /*hs_width, hs_bp, hs_pol*/
+				5  30  0>; /*vs_width, vs_bp, vs_pol*/
+			clk_attr = <
+				2 /*fr_adj_type
+				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
+				   * 4=hdmi_mode)
+				   */
+				0 /*clk_ss_level*/
+				1 /*clk_auto_generate*/
+				0>; /*pixel_clk(unit in Hz)*/
+			vbyone_attr = <
+				4 /*lane_count*/
+				1 /*region_num*/
+				4 /*byte_mode*/
+				4>; /*color_fmt*/
+			vbyone_intr_enable = <
+				1 /*vbyone_intr_enable */
+				3>; /*vbyone_vsync_intr_enable*/
+			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
+
+			/* power step: type, index, value, delay(ms) */
+			power_on_step = <
+				2 0 0 10  /*signal enable*/
+				0xff 0 0 0>; /*ending*/
+			power_off_step = <
+				2 0 0 10 /*signal disable*/
+				0xff 0 0 0>; /*ending*/
+			backlight_index = <0xff>;
+		};
+	};
+
 	bl_pwm_conf:bl_pwm_conf{
 		pwm_channel_0 {
-			pwm_port_index = <2>;
-			pwms = <&pwm_cd MESON_PWM_0 30040 0>;
-		};
-		pwm_channel_1 {
-			pwm_port_index = <5>;
-			pwms = <&pwm_ef MESON_PWM_1 30040 0>;
+			pwm_port = "PWM_D";
+			pwms = <&pwm_cd MESON_PWM_1 30040 0>;
 		};
 	};
 }; /* end of / */

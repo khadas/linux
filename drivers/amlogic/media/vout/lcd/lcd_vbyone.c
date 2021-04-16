@@ -1180,8 +1180,8 @@ int lcd_vbyone_interrupt_up(struct aml_lcd_drv_s *pdrv)
 	timer_setup(&pdrv->pll_mnt_timer, &lcd_pll_monitor_timer_handler, 0);
 	/* vx1_hpll_timer.data = NULL; */
 	pdrv->pll_mnt_timer.expires = jiffies + VX1_HPLL_INTERVAL;
-	add_timer(&pdrv->pll_mnt_timer);
-	LCDPR("[%d]: add vbyone hpll timer handler\n", pdrv->index);
+	/*add_timer(&pdrv->pll_mnt_timer);*/
+	/*LCDPR("[%d]: add vbyone hpll timer handler\n", pdrv->index);*/
 
 	return 0;
 }
