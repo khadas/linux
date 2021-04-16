@@ -1387,3 +1387,24 @@
 		};
 	};
 };
+
+&pwm_ef {
+	pinctrl-0 = <&pwm_f_pins1>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&uart_A {
+	status = "okay";
+	uart-has-rtscts;
+};
+
+&aml_wifi{
+	status = "okay";
+	power_on-gpios = <&gpio   GPIOC_11  GPIO_ACTIVE_HIGH>;
+};
+
+&aml_bt {
+	status = "okay";
+	reset-gpios = <&gpio  GPIOC_13  GPIO_ACTIVE_HIGH>;
+};

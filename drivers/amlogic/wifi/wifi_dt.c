@@ -87,6 +87,7 @@ struct wifi_plat_info {
 	int power_on_pin_level;
 	int power_on_pin_OD;
 	int power_on_pin2;
+	int chip_en_pin;
 	int power_init_off;
 
 	int clock_32k_pin;
@@ -439,7 +440,7 @@ static ssize_t power_store(struct class *cls,
 	WIFI_INFO("wifi power ctrl: cmd = %d\n", (int)cmd);
 	switch (cmd) {
 	case 1:
-		pci_reinit();
+		pci_remove();
 		set_usb_wifi_power(0);
 		set_usb_wifi_power(1);
 		pci_reinit();
@@ -499,6 +500,17 @@ static int wifi_setup_dt(void)
 	}
 
 	/* setup power */
+	if (wifi_info.chip_en_pin) {
+		ret = gpio_request(wifi_info.chip_en_pin, OWNER_NAME);
+		if (ret)
+			WIFI_INFO("chip_en_pin request failed(%d)\n", ret);
+		else
+			ret = gpio_direction_output(wifi_info.chip_en_pin, 1);
+		if (ret)
+			WIFI_INFO("chip_en_pin output failed(%d)\n", ret);
+		SHOW_PIN_OWN("chip_en_pin", wifi_info.chip_en_pin);
+	}
+
 	if (wifi_info.power_on_pin) {
 		ret = gpio_request(wifi_info.power_on_pin, OWNER_NAME);
 		if (ret)
@@ -778,6 +790,18 @@ static int wifi_dev_probe(struct platform_device *pdev)
 			plat->power_on_pin2 = of_get_named_gpio_flags
 							(pdev->dev.of_node,
 							"power_on_2-gpios",
+							0, NULL);
+		}
+
+		ret = of_property_read_string(pdev->dev.of_node,
+					      "chip_en-gpios", &value);
+		if (ret) {
+			WIFI_INFO("no chip_en_pin");
+			plat->chip_en_pin = 0;
+		} else {
+			plat->chip_en_pin = of_get_named_gpio_flags
+							(pdev->dev.of_node,
+							"chip_en-gpios",
 							0, NULL);
 		}
 

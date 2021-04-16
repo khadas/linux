@@ -945,6 +945,32 @@
 				reg = <0x0 0xFE334000 0x0 0x104>;
 			};
 		};
+
+		aml_bt: aml_bt {
+			compatible = "amlogic, aml-bt";
+			status = "disabled";
+		};
+
+		aml_wifi: aml_wifi {
+			compatible = "amlogic, aml-wifi";
+			status = "disabled";
+			irq_trigger_type = "GPIO_IRQ_LOW";
+			dhd_static_buf;
+			pwm_config = <&wifi_pwm_conf>;
+		};
+
+		wifi_pwm_conf:wifi_pwm_conf{
+			pwm_channel1_conf {
+				pwms = <&pwm_ef 0 30550 0>;
+				duty-cycle = <15270>;
+				times = <8>;
+			};
+			pwm_channel2_conf {
+				pwms = <&pwm_ef 2 30500 0>;
+				duty-cycle = <15250>;
+				times = <12>;
+			};
+		};
 	};
 
 	aocec: aocec {
@@ -1825,6 +1851,7 @@
 		mux {
 			groups = "pwm_f_c";
 			function = "pwm_f";
+			drive-strength-microamp = <500>;
 		};
 	};
 
