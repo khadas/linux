@@ -88,6 +88,8 @@ enum diseq_irq_flag {
 #define DVBS_REG_ACRPRESC	0x31E
 #define DVBS_REG_ACRDIV		0x31F
 
+#define DSTATUS		0x934
+
 void dvbs2_diseqc_send_msg(unsigned int len, unsigned char *msg);
 void dvbs2_diseqc_read_msg(unsigned int *len, unsigned char *msg);
 unsigned int dvbs2_diseqc_irq_check(void);

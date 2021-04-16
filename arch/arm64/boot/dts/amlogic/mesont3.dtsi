@@ -2416,10 +2416,25 @@
 		};
 	};
 
-	dtvdemod_agc_pins: dtvdemod_agc_pins {
+	dtvdemod_if_agc_pins: dtvdemod_agc_pins {
 		mux {
 			groups = "dtv_if_agc_z6";
 			function = "dtv_if_agc";
+		};
+	};
+
+	dtvdemod_rf_agc_pins: dtvdemod_agc_pins {
+		mux {
+			groups = "dtv_rf_agc_z6";
+			function = "dtv_rf_agc";
+		};
+	};
+
+	diseqc_out: diseqc_out {
+		mux {/*only use out, don't support */
+			groups = "diseqc_out_z0";
+			function = "diseqc_out";
+			bias-pull-down;
 		};
 	};
 };

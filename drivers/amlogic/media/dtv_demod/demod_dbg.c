@@ -727,8 +727,21 @@ static ssize_t attr_store(struct class *cls,
 		}
 	}
 
-	//if (!demod || !parm[0])
-	if (!parm[0])
+	if (!demod) {
+		fe = aml_dtvdm_attach(&config);
+		if (!fe) {
+			pr_err("delsys, fe is NULL\n");
+		} else {
+			list_for_each_entry(tmp, &devp->demod_list, list) {
+				if (tmp->id == 0) {
+					demod = tmp;
+					break;
+				}
+			}
+		}
+	}
+
+	if (!demod || !parm[0])
 		goto fail_exec_cmd;
 
 	if (!strcmp(parm[0], "symb_rate")) {
@@ -754,12 +767,6 @@ static ssize_t attr_store(struct class *cls,
 	} else if (!strcmp(parm[0], "state")) {
 		info_show();
 	} else if (!strcmp(parm[0], "delsys")) {
-		fe = aml_dtvdm_attach(&config);
-		if (!fe) {
-			pr_err("delsys, fe is NULL\n");
-			goto fail_exec_cmd;
-		}
-
 		tvp.cmd = DTV_DELIVERY_SYSTEM;
 
 		/* ref include/uapi/linux/dvb/frontend.h */
@@ -971,6 +978,10 @@ static ssize_t attr_store(struct class *cls,
 	} else if (!strcmp(parm[0], "demod_id")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &val)) == 0)
 			demod_id = val;
+	} else if (!strcmp(parm[0], "blind_stop")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &val)) == 0)
+			devp->blind_scan_stop = val;
+		PR_INFO("set blind scan to %d\n", devp->blind_scan_stop);
 	}
 
 fail_exec_cmd:

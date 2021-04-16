@@ -2375,9 +2375,16 @@
 		};
 	};
 
-	dtvdemod_agc_pins: dtvdemod_agc_pins {
+	dtvdemod_if_agc_pins: dtvdemod_agc_pins {
 		mux {
-			groups = "dtv_if_agc";
+			groups = "dtv_if_agc_z6";
+			function = "dtv";
+		};
+	};
+
+	dtvdemod_rf_agc_pins: dtvdemod_agc_pins {
+		mux {
+			groups = "dtv_rf_agc_z6";
 			function = "dtv";
 		};
 	};
