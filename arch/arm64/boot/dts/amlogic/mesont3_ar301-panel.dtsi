@@ -215,6 +215,47 @@
 		};
 	};
 
+	lcd_extern{
+		compatible = "amlogic, lcd_extern";
+		status = "okay";
+		index = <0>;
+		key_valid = <0>;
+		i2c_bus = "i2c_bus_1";
+
+		extern_0{
+			index = <0>;
+			extern_name = "ext_default";
+			status = "okay";
+			type = <0>; /*0=i2c, 1=spi, 2=mipi*/
+			i2c_address = <0x33>; /*7bit i2c_addr*/
+			i2c_address2 = <0xff>;
+			cmd_size = <0xff>; /*dynamic cmd_size*/
+
+			/* init on/off:
+			 *  fixed cmd_size: (type, value...);
+			 *                  cmd_size include all data.
+			 *  dynamic cmd_size: (type, cmd_size, value...);
+			 *                    cmd_size include value.
+			 */
+			/* type: 0x00=cmd with delay(bit[3:0]=1 for address2),
+			 *       0xc0=cmd(bit[3:0]=1 for address2),
+			 *       0xf0=gpio,
+			 *       0xfd=delay,
+			 *       0xff=ending
+			 */
+			/* value: i2c or spi cmd, or gpio index & level */
+			/* delay: unit ms */
+			init_on = <
+				0xc0 43 0x00
+					0x48 0x19 0xa4 0x00 0x00 0x23 0xfc 0x66 0xfb 0x2b 0x28 0x00
+					0x10 0x10 0x07 0x07 0x3e 0xc3 0xd3 0x33 0xa2 0xde 0x2b 0x02
+					0x3d 0x21 0xa1 0xbf 0x1a 0x71 0x33 0x0f 0xd0 0xa1 0x01 0x70
+					0x0e 0x1a 0x11 0xb5 0xcd 0xf9
+				0xff 0>; /*ending*/
+			init_off = <0xff 0>; /*ending*/
+		};
+	};
+
 	backlight{
 		compatible = "amlogic, backlight-t3";
 		status = "okay";

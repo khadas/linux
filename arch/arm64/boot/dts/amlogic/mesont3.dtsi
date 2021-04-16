@@ -2007,7 +2007,7 @@
 	i2c2_pins2:i2c2_pins2 {
 		mux {
 			groups = "i2c2_sda_h21",
-				"i2c2_sck_h21";
+				"i2c2_sck_h20";
 			function = "i2c2";
 			drive-strength-microamp = <3000>;
 			bias-disable;
