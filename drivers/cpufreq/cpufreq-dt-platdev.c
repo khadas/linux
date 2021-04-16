@@ -142,6 +142,7 @@ static const struct of_device_id blacklist[] __initconst = {
 	{ .compatible = "amlogic,t5d", },
 	{ .compatible = "amlogic, t7", },
 	{ .compatible = "amlogic, s4", },
+	{ .compatible = "amlogic, t3", },
 	{ }
 };
 

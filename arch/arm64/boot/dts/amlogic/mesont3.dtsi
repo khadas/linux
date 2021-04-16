@@ -30,13 +30,18 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-//			clocks = <&clkc CLKID_CPU_CLK>,
-//				<&clkc CLKID_CPU_DYN_CLK>,
-//				<&clkc CLKID_SYS1_PLL>;
-//			clock-names = "core_clk",
-//				"low_freq_clk_parent",
-//				"high_freq_clk_parent";
-//			operating-points-v2 = <&cpu_opp_table1>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_DYN_CLK>,
+				<&clkc CLKID_SYS_PLL>,
+				<&clkc CLKID_DSU_CLK>,
+				<&clkc CLKID_DSU_PRE_CLK>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent",
+				"dsu_clk",
+				"dsu_pre_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			dynamic-power-coefficient = <230>;
@@ -49,13 +54,18 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-//			clocks = <&clkc CLKID_CPU_CLK>,
-//				<&clkc CLKID_CPU_DYN_CLK>,
-//				<&clkc CLKID_SYS1_PLL>;
-//			clock-names = "core_clk",
-//				"low_freq_clk_parent",
-//				"high_freq_clk_parent";
-//			operating-points-v2 = <&cpu_opp_table1>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_DYN_CLK>,
+				<&clkc CLKID_SYS_PLL>,
+				<&clkc CLKID_DSU_CLK>,
+				<&clkc CLKID_DSU_PRE_CLK>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent",
+				"dsu_clk",
+				"dsu_pre_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			dynamic-power-coefficient = <230>;
@@ -68,13 +78,18 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-//			clocks = <&clkc CLKID_CPU_CLK>,
-//				<&clkc CLKID_CPU_DYN_CLK>,
-//				<&clkc CLKID_SYS1_PLL>;
-//			clock-names = "core_clk",
-//				"low_freq_clk_parent",
-//				"high_freq_clk_parent";
-//			operating-points-v2 = <&cpu_opp_table1>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_DYN_CLK>,
+				<&clkc CLKID_SYS_PLL>,
+				<&clkc CLKID_DSU_CLK>,
+				<&clkc CLKID_DSU_PRE_CLK>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent",
+				"dsu_clk",
+				"dsu_pre_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			dynamic-power-coefficient = <230>;
@@ -87,13 +102,18 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-//			clocks = <&clkc CLKID_CPU_CLK>,
-//				<&clkc CLKID_CPU_DYN_CLK>,
-//				<&clkc CLKID_SYS1_PLL>;
-//			clock-names = "core_clk",
-//				"low_freq_clk_parent",
-//				"high_freq_clk_parent";
-//			operating-points-v2 = <&cpu_opp_table1>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_DYN_CLK>,
+				<&clkc CLKID_SYS_PLL>,
+				<&clkc CLKID_DSU_CLK>,
+				<&clkc CLKID_DSU_PRE_CLK>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent",
+				"dsu_clk",
+				"dsu_pre_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 		};
@@ -275,7 +295,70 @@
 				<709000 95>,
 				<699000 98>,
 				<689000 100>;
-		status = "disabled";
+		status = "okay";
+	};
+
+	cpu_opp_table0: cpu_opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <789000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <789000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <789000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <667000000>;
+			opp-microvolt = <789000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <789000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <809000>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <1404000000>;
+			opp-microvolt = <819000>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <829000>;
+		};
+		opp08 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <879000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <929000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <979000>;
+		};
+		opp11 {
+			opp-hz = /bits/ 64 <1920000000>;
+			opp-microvolt = <1029000>;
+		};
+		opp12 {
+			opp-hz = /bits/ 64 <2016000000>;
+			opp-microvolt = <1049000>;
+		};
+	};
+
+	cpufreq-meson {
+		compatible = "amlogic, cpufreq-meson";
+		status = "okay";
 	};
 
 	saradc: saradc@fe026000 {
@@ -401,7 +484,7 @@
 				clocks = <&clkc CLKID_PWM_A>,
 						<&clkc CLKID_PWM_B>;
 				clock-names = "clkin0", "clkin1";
-				status = "disabled";
+				status = "okay";
 			};
 
 			pwm_cd: pwm@5a000 {
