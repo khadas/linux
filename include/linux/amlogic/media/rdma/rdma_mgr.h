@@ -15,6 +15,7 @@ struct rdma_op_s {
 #define RDMA_TRIGGER_LINE_INPUT  BIT(5)
 #define RDMA_TRIGGER_VPP1_VSYNC_INPUT BIT(9)
 #define RDMA_TRIGGER_VPP2_VSYNC_INPUT BIT(19)
+#define RDMA_TRIGGER_PRE_VSYNC_INPUT  BIT(24)
 #define RDMA_TRIGGER_MANUAL	     0x100
 #define RDMA_TRIGGER_DEBUG1      0x101
 #define RDMA_TRIGGER_DEBUG2      0x102
@@ -29,6 +30,7 @@ enum rdma_ver_e {
 	RDMA_VER_1,
 	RDMA_VER_2,
 	RDMA_VER_3,
+	RDMA_VER_4,
 };
 
 enum cpu_ver_e {

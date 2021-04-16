@@ -142,6 +142,7 @@ u32 osd_preblend_en;
 int video_vsync = -ENXIO;
 int video_vsync_viu2 = -ENXIO;
 int video_vsync_viu3 = -ENXIO;
+int video_pre_vsync = -ENXIO;
 
 static u32 cur_omx_index;
 
@@ -8016,6 +8017,11 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 }
 #endif
 
+static irqreturn_t vsync_pre_vsync_isr(int irq, void *dev_id)
+{
+	irqreturn_t ret = 0;
+	return ret;
+}
 /*********************************************************
  * FIQ Routines
  *********************************************************/
@@ -8037,7 +8043,10 @@ static void vsync_fiq_up(void)
 		r = request_irq(video_vsync_viu3, &vsync_isr_viu3,
 				IRQF_SHARED, "vsync_viu3",
 				(void *)video_dev_id);
-
+	if (amvideo_meson_dev.dev_property.frc_support)
+		r = request_irq(video_pre_vsync, &vsync_pre_vsync_isr,
+				IRQF_SHARED, "pre_vsync",
+				(void *)video_dev_id);
 #ifdef CONFIG_MESON_TRUSTZONE
 	if (num_online_cpus() > 1)
 		irq_set_affinity(INT_VIU_VSYNC, cpumask_of(1));
@@ -8056,6 +8065,8 @@ static void vsync_fiq_down(void)
 		free_irq(video_vsync_viu2, (void *)video_dev_id);
 	if (amvideo_meson_dev.has_vpp2)
 		free_irq(video_vsync_viu3, (void *)video_dev_id);
+	if (amvideo_meson_dev.dev_property.frc_support)
+		free_irq(video_pre_vsync, (void *)video_dev_id);
 #endif
 }
 
@@ -15298,11 +15309,13 @@ static struct amvideo_device_data_s amvideo_t3 = {
 static struct video_device_hw_s legcy_dev_property = {
 	.vd2_independ_blend_ctrl = 0,
 	.aisr_support = 0,
+	.frc_support = 0,
 };
 
 static struct video_device_hw_s t3_dev_property = {
 	.vd2_independ_blend_ctrl = 1,
 	.aisr_support = 1,
+	.frc_support = 1,
 };
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {
@@ -15524,6 +15537,12 @@ static void set_rdma_func_handler(void)
 		VSYNC_WR_MPEG_REG_VPP2;
 	cur_dev->rdma_func[2].rdma_wr_bits =
 		VSYNC_WR_MPEG_REG_BITS_VPP2;
+	cur_dev->rdma_func[3].rdma_rd =
+		PRE_VSYNC_RD_MPEG_REG;
+	cur_dev->rdma_func[3].rdma_wr =
+		PRE_VSYNC_WR_MPEG_REG;
+	cur_dev->rdma_func[3].rdma_wr_bits =
+		PRE_VSYNC_WR_MPEG_REG_BITS;
 }
 
 static int amvideom_probe(struct platform_device *pdev)
@@ -15597,6 +15616,14 @@ static int amvideom_probe(struct platform_device *pdev)
 		else
 			pr_info("amvideom vsync viu3 irq: %d\n",
 				video_vsync_viu3);
+	}
+	if (t3_dev_property.frc_support) {
+		video_pre_vsync = platform_get_irq_byname(pdev, "pre_vsync");
+		if (video_pre_vsync  == -ENXIO)
+			pr_info("cannot get amvideom video_pre_vsync irq resource\n");
+		else
+			pr_info("amvideom video pre vsync: %d\n",
+				video_pre_vsync);
 	}
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&video_early_suspend_handler);

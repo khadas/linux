@@ -36,7 +36,7 @@
 #define Wr_reg_bits(adr, val, start, len) \
 			WRITE_VCBUS_REG_BITS(adr, val, start, len)
 
-#define RDMA_NUM  3
+#define RDMA_NUM  4
 static int second_rdma_feature;
 static int vsync_rdma_handle[RDMA_NUM];
 static int irq_count[RDMA_NUM];
@@ -52,6 +52,7 @@ static bool rdma_done[RDMA_NUM];
 static void vsync_rdma_irq(void *arg);
 static void vsync_rdma_vpp1_irq(void *arg);
 static void vsync_rdma_vpp2_irq(void *arg);
+static void pre_vsync_rdma_irq(void *arg);
 static void line_n_int_rdma_irq(void *arg);
 static void vsync_rdma_read_irq(void *arg);
 
@@ -67,6 +68,11 @@ struct rdma_op_s vsync_rdma_vpp1_op = {
 
 struct rdma_op_s vsync_rdma_vpp2_op = {
 	vsync_rdma_vpp2_irq,
+	NULL
+};
+
+struct rdma_op_s pre_vsync_rdma_op = {
+	pre_vsync_rdma_irq,
 	NULL
 };
 
@@ -163,6 +169,9 @@ void _vsync_rdma_config(int rdma_type)
 				} else if (rdma_type == VSYNC_RDMA_VPP2) {
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
 							  RDMA_TRIGGER_VPP2_VSYNC_INPUT);
+				} else if (rdma_type == PRE_VSYNC_RDMA) {
+					iret = rdma_config(vsync_rdma_handle[rdma_type],
+							  RDMA_TRIGGER_PRE_VSYNC_INPUT);
 				}
 			} else {
 				if (rdma_type == VSYNC_RDMA) {
@@ -228,6 +237,11 @@ void vsync_rdma_vpp2_config(void)
 }
 EXPORT_SYMBOL(vsync_rdma_vpp2_config);
 
+void pre_vsync_rdma_config(void)
+{
+	_vsync_rdma_config(PRE_VSYNC_RDMA);
+}
+EXPORT_SYMBOL(pre_vsync_rdma_config);
 void _vsync_rdma_config_pre(int rdma_type)
 {
 	int enable_ = cur_enable[rdma_type] & 0xf;
@@ -264,6 +278,11 @@ void vsync_rdma_vpp2_config_pre(void)
 }
 EXPORT_SYMBOL(vsync_rdma_vpp2_config_pre);
 
+void pre_vsync_rdma_config_pre(void)
+{
+	_vsync_rdma_config_pre(PRE_VSYNC_RDMA);
+}
+EXPORT_SYMBOL(pre_vsync_rdma_config_pre);
 static void vsync_rdma_irq(void *arg)
 {
 	int iret;
@@ -272,7 +291,7 @@ static void vsync_rdma_irq(void *arg)
 	if (enable_ == 1) {
 		/*triggered by next vsync*/
 		iret = rdma_config(vsync_rdma_handle[VSYNC_RDMA],
-				   RDMA_TRIGGER_VSYNC_INPUT);
+				   RDMA_TRIGGER_PRE_VSYNC_INPUT);
 		if (iret)
 			vsync_cfg_count[VSYNC_RDMA]++;
 	} else {
@@ -334,6 +353,28 @@ static void vsync_rdma_vpp2_irq(void *arg)
 		force_rdma_config[VSYNC_RDMA_VPP2] = 0;
 	rdma_done[VSYNC_RDMA_VPP2] = true;
 	irq_count[VSYNC_RDMA_VPP2]++;
+}
+
+static void pre_vsync_rdma_irq(void *arg)
+{
+	int iret;
+	int enable_ = cur_enable[PRE_VSYNC_RDMA] & 0xf;
+
+	if (enable_ == 1) {
+		iret = rdma_config(vsync_rdma_handle[PRE_VSYNC_RDMA],
+				   RDMA_TRIGGER_PRE_VSYNC_INPUT);
+		if (iret)
+			vsync_cfg_count[PRE_VSYNC_RDMA]++;
+	} else {
+		iret = rdma_config(vsync_rdma_handle[PRE_VSYNC_RDMA], 0);
+	}
+	pre_enable_[PRE_VSYNC_RDMA] = enable_;
+	if (!iret || enable_ != 1)
+		force_rdma_config[PRE_VSYNC_RDMA] = 1;
+	else
+		force_rdma_config[PRE_VSYNC_RDMA] = 0;
+	rdma_done[PRE_VSYNC_RDMA] = true;
+	irq_count[PRE_VSYNC_RDMA]++;
 }
 
 static void line_n_int_rdma_irq(void *arg)
@@ -457,6 +498,16 @@ u32 VSYNC_RD_MPEG_REG_VPP2(u32 adr)
 }
 EXPORT_SYMBOL(VSYNC_RD_MPEG_REG_VPP2);
 
+u32 PRE_VSYNC_RD_MPEG_REG(u32 adr)
+{
+	int enable_ = cur_enable[PRE_VSYNC_RDMA] & 0xf;
+	u32 read_val = Rd(adr);
+
+	if (enable_ != 0 && vsync_rdma_handle[PRE_VSYNC_RDMA] > 0)
+		read_val = rdma_read_reg(vsync_rdma_handle[PRE_VSYNC_RDMA], adr);
+	return read_val;
+}
+EXPORT_SYMBOL(PRE_VSYNC_RD_MPEG_REG);
 int VSYNC_WR_MPEG_REG(u32 adr, u32 val)
 {
 	int enable_ = cur_enable[VSYNC_RDMA] & 0xf;
@@ -466,7 +517,7 @@ int VSYNC_WR_MPEG_REG(u32 adr, u32 val)
 	} else {
 		Wr(adr, val);
 		if (debug_flag[VSYNC_RDMA] & 1)
-			pr_info("VSYNC_WR(%x)<=%x\n", adr, val);
+			pr_info("VSYNC_WR(%x)=%x\n", adr, val);
 	}
 	return 0;
 }
@@ -481,7 +532,7 @@ int VSYNC_WR_MPEG_REG_VPP1(u32 adr, u32 val)
 	} else {
 		Wr(adr, val);
 		if (debug_flag[VSYNC_RDMA_VPP1] & 1)
-			pr_info("VSYNC_VPP1_WR(%x)<=%x\n", adr, val);
+			pr_info("VSYNC_VPP1_WR(%x)=%x\n", adr, val);
 	}
 	return 0;
 }
@@ -496,11 +547,25 @@ int VSYNC_WR_MPEG_REG_VPP2(u32 adr, u32 val)
 	} else {
 		Wr(adr, val);
 		if (debug_flag[VSYNC_RDMA_VPP2] & 1)
-			pr_info("VSYNC_VPP2_WR(%x)<=%x\n", adr, val);
+			pr_info("VSYNC_VPP2_WR(%x)=%x\n", adr, val);
 	}
 	return 0;
 }
 EXPORT_SYMBOL(VSYNC_WR_MPEG_REG_VPP2);
+int PRE_VSYNC_WR_MPEG_REG(u32 adr, u32 val)
+{
+	int enable_ = cur_enable[PRE_VSYNC_RDMA] & 0xf;
+
+	if (enable_ != 0 && vsync_rdma_handle[PRE_VSYNC_RDMA] > 0) {
+		rdma_write_reg(vsync_rdma_handle[PRE_VSYNC_RDMA], adr, val);
+	} else {
+		Wr(adr, val);
+		if (debug_flag[PRE_VSYNC_RDMA] & 1)
+			pr_info("PRE_VSYNC_RDMA_WR(%x)=%x\n", adr, val);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(PRE_VSYNC_WR_MPEG_REG);
 
 int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 {
@@ -516,7 +581,7 @@ int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 			| ((unsigned int)(val) << (start));
 		Wr(adr, write_val);
 		if (debug_flag[VSYNC_RDMA] & 1)
-			pr_info("VSYNC_WR(%x)<=%x\n", adr, write_val);
+			pr_info("VSYNC_WR(%x)=%x\n", adr, write_val);
 	}
 	return 0;
 }
@@ -536,7 +601,7 @@ int VSYNC_WR_MPEG_REG_BITS_VPP1(u32 adr, u32 val, u32 start, u32 len)
 			| ((unsigned int)(val) << (start));
 		Wr(adr, write_val);
 		if (debug_flag[VSYNC_RDMA_VPP1] & 1)
-			pr_info("VSYNC_VPP1_WR(%x)<=%x\n", adr, write_val);
+			pr_info("VSYNC_VPP1_WR(%x)=%x\n", adr, write_val);
 	}
 	return 0;
 }
@@ -556,11 +621,30 @@ int VSYNC_WR_MPEG_REG_BITS_VPP2(u32 adr, u32 val, u32 start, u32 len)
 			| ((unsigned int)(val) << (start));
 		Wr(adr, write_val);
 		if (debug_flag[VSYNC_RDMA_VPP2] & 1)
-			pr_info("VSYNC_VPP2_WR(%x)<=%x\n", adr, write_val);
+			pr_info("VSYNC_VPP2_WR(%x)=%x\n", adr, write_val);
 	}
 	return 0;
 }
 EXPORT_SYMBOL(VSYNC_WR_MPEG_REG_BITS_VPP2);
+int PRE_VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
+{
+	int enable_ = cur_enable[PRE_VSYNC_RDMA] & 0xf;
+
+	if (enable_ != 0 && vsync_rdma_handle[PRE_VSYNC_RDMA] > 0) {
+		rdma_write_reg_bits(vsync_rdma_handle[PRE_VSYNC_RDMA],
+				    adr, val, start, len);
+	} else {
+		u32 read_val = Rd(adr);
+		u32 write_val = (read_val &
+				 ~(((1L << (len)) - 1) << (start)))
+			| ((unsigned int)(val) << (start));
+		Wr(adr, write_val);
+		if (debug_flag[PRE_VSYNC_RDMA] & 1)
+			pr_info("PRE_VSYNC_VPP2_WR(%x)=%x\n", adr, write_val);
+	}
+	return 0;
+}
+EXPORT_SYMBOL(PRE_VSYNC_WR_MPEG_REG_BITS);
 
 u32 _VSYNC_RD_MPEG_REG(u32 adr)
 {
@@ -594,7 +678,7 @@ int _VSYNC_WR_MPEG_REG(u32 adr, u32 val)
 		} else {
 			Wr(adr, val);
 			if (debug_flag[LINE_N_INT_RDMA] & 1)
-				pr_info("VSYNC_WR(%x)<=%x\n", adr, val);
+				pr_info("VSYNC_WR(%x)=%x\n", adr, val);
 		}
 	} else {
 		VSYNC_WR_MPEG_REG(adr, val);
@@ -659,13 +743,23 @@ bool is_vsync_vpp2_rdma_enable(void)
 }
 EXPORT_SYMBOL(is_vsync_vpp2_rdma_enable);
 
+bool is_pre_vsync_rdma_enable(void)
+{
+	bool ret;
+	int enable_ = cur_enable[PRE_VSYNC_RDMA] & 0xf;
+
+	ret = (enable_ != 0);
+	return ret;
+}
+EXPORT_SYMBOL(is_pre_vsync_rdma_enable);
 void enable_rdma_log(int flag)
 {
 	if (flag) {
 		debug_flag[VSYNC_RDMA] |= 0x1;
 		if (has_multi_vpp) {
 			debug_flag[VSYNC_RDMA_VPP1] |= 0x1;
-			debug_flag[VSYNC_RDMA_VPP1] |= 0x1;
+			debug_flag[VSYNC_RDMA_VPP2] |= 0x1;
+			debug_flag[PRE_VSYNC_RDMA] |= 0x1;
 		} else {
 			debug_flag[LINE_N_INT_RDMA] |= 0x1;
 			debug_flag[VSYNC_RDMA_READ] |= 0x1;
@@ -674,7 +768,8 @@ void enable_rdma_log(int flag)
 		debug_flag[VSYNC_RDMA] &= (~0x1);
 		if (has_multi_vpp) {
 			debug_flag[VSYNC_RDMA_VPP1] &= (~0x1);
-			debug_flag[VSYNC_RDMA_VPP1] &= (~0x1);
+			debug_flag[VSYNC_RDMA_VPP2] &= (~0x1);
+			debug_flag[PRE_VSYNC_RDMA] &= (~0x1);
 		} else {
 			debug_flag[LINE_N_INT_RDMA] &= (~0x1);
 			debug_flag[VSYNC_RDMA_READ] &= (~0x1);
@@ -689,6 +784,7 @@ void enable_rdma(int enable_flag)
 	if (has_multi_vpp) {
 		enable[VSYNC_RDMA_VPP1] = enable_flag;
 		enable[VSYNC_RDMA_VPP2] = enable_flag;
+		enable[PRE_VSYNC_RDMA] = enable_flag;
 	} else {
 		enable[LINE_N_INT_RDMA] = enable_flag;
 		enable[VSYNC_RDMA_READ] = enable_flag;
@@ -705,6 +801,8 @@ struct rdma_op_s *get_rdma_ops(int rdma_type)
 			return &vsync_rdma_vpp1_op;
 		else if (rdma_type == VSYNC_RDMA_VPP2)
 			return &vsync_rdma_vpp2_op;
+		else if (rdma_type == PRE_VSYNC_RDMA)
+			return &pre_vsync_rdma_op;
 		else
 			return NULL;
 	} else {
@@ -798,17 +896,23 @@ static ssize_t enable_show(struct class *class,
 			   struct class_attribute *attr,
 			   char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d %d\n", enable[0], enable[1]);
+	return snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
+			enable[0], enable[1],
+			enable[2], enable[3]);
 }
 
 static ssize_t enable_store(struct class *class,
 			    struct class_attribute *attr,
 			    const char *buf, size_t count)
 {
-	if (likely(parse_para(buf, 2, enable) == 2))
-		pr_info("enalbe: %d, %d\n", enable[0], enable[1]);
-	else
+	int i = 0;
+
+	if (likely(parse_para(buf, RDMA_NUM, enable) == RDMA_NUM)) {
+		for (i = 0; i < RDMA_NUM; i++)
+			pr_info("enalbe[%d]: %d\n", i, enable[i]);
+	} else {
 		pr_err("set enable error\n");
+	}
 	return count;
 }
 
@@ -816,17 +920,23 @@ static ssize_t show_irq_count(struct class *class,
 			      struct class_attribute *attr,
 			      char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d %d\n", irq_count[0], irq_count[1]);
+	return snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
+			irq_count[0], irq_count[1],
+			irq_count[2], irq_count[3]);
 }
 
 static ssize_t store_irq_count(struct class *class,
 			       struct class_attribute *attr,
 			       const char *buf, size_t count)
 {
-	if (likely(parse_para(buf, 2, irq_count) == 2))
-		pr_info("enalbe: %d, %d\n", irq_count[0], irq_count[1]);
-	else
+	int i = 0;
+
+	if (likely(parse_para(buf, RDMA_NUM, irq_count) == RDMA_NUM)) {
+		for (i = 0; i < RDMA_NUM; i++)
+			pr_info("enalbe[%d]: %d\n", i, irq_count[i]);
+	} else {
 		pr_err("set irq_count error\n");
+	}
 	return count;
 }
 
@@ -834,18 +944,23 @@ static ssize_t show_debug_flag(struct class *class,
 			       struct class_attribute *attr,
 			       char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d %d\n",
-			debug_flag[0], debug_flag[1]);
+	return snprintf(buf, PAGE_SIZE, "%d %d, %d, %d\n",
+			debug_flag[0], debug_flag[1],
+			debug_flag[2], debug_flag[3]);
 }
 
 static ssize_t store_debug_flag(struct class *class,
 				struct class_attribute *attr,
 				const char *buf, size_t count)
 {
-	if (likely(parse_para(buf, 2, debug_flag) == 2))
-		pr_info("debug_flag: %d, %d\n", debug_flag[0], debug_flag[1]);
-	else
+	int i = 0;
+
+	if (likely(parse_para(buf, RDMA_NUM, debug_flag) == RDMA_NUM)) {
+		for (i = 0; i < RDMA_NUM; i++)
+			pr_info("debug_flag[%d]: %d\n", i, debug_flag[i]);
+	} else {
 		pr_err("set debug_flag error\n");
+	}
 	return count;
 }
 
@@ -853,19 +968,24 @@ static ssize_t show_vsync_cfg_count(struct class *class,
 				    struct class_attribute *attr,
 				    char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d %d\n",
-			vsync_cfg_count[0], vsync_cfg_count[1]);
+	return snprintf(buf, PAGE_SIZE, "%d %d, %d, %d\n",
+			vsync_cfg_count[0], vsync_cfg_count[1],
+			vsync_cfg_count[2], vsync_cfg_count[3]);
 }
 
 static ssize_t store_vsync_cfg_count(struct class *class,
 				     struct class_attribute *attr,
 				     const char *buf, size_t count)
 {
-	if (likely(parse_para(buf, 2, vsync_cfg_count) == 2))
-		pr_info("vsync_cfg_count: %d, %d\n",
-			vsync_cfg_count[0], vsync_cfg_count[1]);
-	else
+	int i = 0;
+
+	if (likely(parse_para(buf, RDMA_NUM, vsync_cfg_count) == RDMA_NUM)) {
+		for (i = 0; i < RDMA_NUM; i++)
+			pr_info("vsync_cfg_count[%d]: %d\n",
+				i, vsync_cfg_count[i]);
+	} else {
 		pr_err("set vsync_cfg_count error\n");
+	}
 	return count;
 }
 
@@ -873,19 +993,24 @@ static ssize_t show_force_rdma_config(struct class *class,
 				      struct class_attribute *attr,
 				      char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%d %d\n",
-			force_rdma_config[0], force_rdma_config[1]);
+	return snprintf(buf, PAGE_SIZE, "%d %d, %d, %d\n",
+			force_rdma_config[0], force_rdma_config[1],
+			force_rdma_config[2], force_rdma_config[3]);
 }
 
 static ssize_t store_force_rdma_config(struct class *class,
 				       struct class_attribute *attr,
 				       const char *buf, size_t count)
 {
-	if (likely(parse_para(buf, 2, force_rdma_config) == 2))
-		pr_info("force_rdma_config: %d, %d\n",
-			force_rdma_config[0], force_rdma_config[1]);
-	else
+	int i = 0;
+
+	if (likely(parse_para(buf, RDMA_NUM, force_rdma_config) == RDMA_NUM)) {
+		for (i = 0; i < RDMA_NUM; i++)
+			pr_info("force_rdma_config[%d]: %d\n",
+				i, force_rdma_config[i]);
+	} else {
 		pr_err("set force_rdma_config error\n");
+	}
 	return count;
 }
 
@@ -951,9 +1076,12 @@ int rdma_init(void)
 		enable[VSYNC_RDMA_VPP1] = 1;
 		force_rdma_config[VSYNC_RDMA_VPP1] = 1;
 
-		cur_enable[VSYNC_RDMA_VPP1] = 0;
-		enable[VSYNC_RDMA_VPP1] = 1;
-		force_rdma_config[VSYNC_RDMA_VPP1] = 1;
+		cur_enable[VSYNC_RDMA_VPP2] = 0;
+		enable[VSYNC_RDMA_VPP2] = 1;
+		force_rdma_config[VSYNC_RDMA_VPP2] = 1;
+		cur_enable[PRE_VSYNC_RDMA] = 0;
+		enable[PRE_VSYNC_RDMA] = 1;
+		force_rdma_config[PRE_VSYNC_RDMA] = 1;
 	} else {
 		cur_enable[VSYNC_RDMA_READ] = 0;
 		enable[VSYNC_RDMA_READ] = 1;

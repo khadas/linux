@@ -9,6 +9,7 @@ enum {
 	VSYNC_RDMA = 0,      /* for write */
 	VSYNC_RDMA_VPP1 = 1,
 	VSYNC_RDMA_VPP2 = 2,
+	PRE_VSYNC_RDMA = 3,
 	LINE_N_INT_RDMA = 1,
 	VSYNC_RDMA_READ = 2, /* for read */
 };
@@ -20,9 +21,12 @@ void vsync_rdma_vpp1_config(void);
 void vsync_rdma_vpp1_config_pre(void);
 void vsync_rdma_vpp2_config(void);
 void vsync_rdma_vpp2_config_pre(void);
+void pre_vsync_rdma_config(void);
+void pre_vsync_rdma_config_pre(void);
 bool is_vsync_rdma_enable(void);
 bool is_vsync_vpp1_rdma_enable(void);
 bool is_vsync_vpp2_rdma_enable(void);
+bool is_pre_vsync_rdma_enable(void);
 void start_rdma(void);
 void enable_rdma_log(int flag);
 void enable_rdma(int enable_flag);
