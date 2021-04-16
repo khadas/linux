@@ -756,7 +756,7 @@
 	aml_frc {
 		compatible = "amlogic, t3_frc";
 		dev_name = "aml_frc";
-		status = "okay";
+		status = "disabled";
 		frc_en = <1>;/*1:enabel ;0:disable*/
 		frc_hw_pos = <0>;/*0:before postblend; 1:after postblend*/
 		interrupts = <GIC_SPI 286 IRQ_TYPE_EDGE_RISING
