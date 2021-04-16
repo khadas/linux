@@ -2056,7 +2056,10 @@ void vpp_lut3d_table_init(int r, int g, int b)
 	if (!plut3d)
 		return;
 
-	if (is_meson_tl1_cpu())
+	if (is_meson_tl1_cpu() ||
+	    is_meson_t5d_cpu() ||
+	    is_meson_t5_cpu() ||
+	    is_meson_t3_cpu())
 		max_val = 1023;
 
 	step = (max_val + 1) / 16;
