@@ -288,7 +288,7 @@ static ssize_t fan_trigger_low_store(struct class *cls, struct class_attribute *
 	if (kstrtoint(buf, 0, &trigger))
 		return -EINVAL;
 
-	if (trigger >= g_mcu_data->fan_data.trig_temp_level1){
+	if (trigger >= fan_data->trig_temp_level1){
 		pr_err("Invalid parameter\n");
 		return -EINVAL;
 	}
@@ -314,7 +314,7 @@ static ssize_t fan_trigger_mid_store(struct class *cls, struct class_attribute *
 	if (kstrtoint(buf, 0, &trigger))
 		return -EINVAL;
 
-	if (trigger >= g_mcu_data->fan_data.trig_temp_level2 || trigger <= g_mcu_data->fan_data.trig_temp_level0){
+	if (trigger >= fan_data->trig_temp_level2 || trigger <= fan_data->trig_temp_level0){
 		pr_err("Invalid parameter\n");
 		return -EINVAL;
 	}
@@ -340,7 +340,7 @@ static ssize_t fan_trigger_high_store(struct class *cls, struct class_attribute 
 	if (kstrtoint(buf, 0, &trigger))
 		return -EINVAL;
 
-	if (trigger <= g_mcu_data->fan_data.trig_temp_level1){
+	if (trigger <= fan_data->trig_temp_level1){
 		pr_err("Invalid parameter\n");
 		return -EINVAL;
 	}
