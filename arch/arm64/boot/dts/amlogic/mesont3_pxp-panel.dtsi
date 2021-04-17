@@ -7,10 +7,13 @@
 	lcd {
 		compatible = "amlogic, lcd-t3";
 		status = "okay";
+		index = <0>;
 		mode = "tv";
 		pxp = <1>;
 		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
+		reg = <0x0 0xfe3b0000 0x0 0xd000    /* tcon */
+			0x0 0xfe004000 0x0 0x70>;  /* periphs */
 		interrupts = <0 178 1
 			0 282 1>;
 		interrupt-names = "vsync","vbyone";

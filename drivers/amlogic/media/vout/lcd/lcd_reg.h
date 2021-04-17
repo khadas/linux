@@ -166,6 +166,8 @@
 #define CLKCTRL_VIID_CLK2_CTRL                     0x007c
 #define CLKCTRL_MIPIDSI_PHY_CLK_CTRL               0x0041
 #define CLKCTRL_MIPI_DSI_MEAS_CLK_CTRL             0x0080
+/* T3 */
+#define CLKCTRL_TCON_CLK_CNTL                      0x0087
 
 /* g12A */
 #define HHI_HDMI_PLL_CNTL0                         0xc8

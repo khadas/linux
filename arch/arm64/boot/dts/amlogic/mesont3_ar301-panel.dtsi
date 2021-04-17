@@ -413,7 +413,7 @@
 		status = "okay";
 		index = <0>;
 		key_valid = <0>;
-		i2c_bus = "i2c_bus_1";
+		i2c_bus = "i2c_bus_2";
 
 		extern_0{
 			index = <0>;
@@ -515,7 +515,7 @@
 		compatible = "amlogic, lcd-t3";
 		status = "okay";
 		index = <1>;
-		mode = "tv";
+		mode = "tablet";
 		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
 		reg = <0x0 0xfe3b0000 0x0 0xd000    /* tcon */

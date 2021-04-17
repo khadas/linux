@@ -815,6 +815,27 @@
 	pinctrl-0=<&i2c0_pins1>;
 };
 
+&i2c2 {
+	status = "okay";
+	clock-frequency = <100000>;
+	pinctrl-names="default";
+	pinctrl-0=<&i2c2_pins2>;
+
+	lcd_extern_i2c0: lcd_extern_i2c@29 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_HV650LS";
+		reg = <0x29>;
+		status = "okay";
+	};
+
+	lcd_extern_i2c1: lcd_extern_i2c@33 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_CS602";
+		reg = <0x33>;
+		status = "okay";
+	};
+};
+
 &ethmac {
 	status = "okay";
 	phy-handle = <&internal_ephy>;
@@ -1298,6 +1319,27 @@
 //	mmc-pwrseq = <&emmc_pwrseq>;
 //	vmmc-supply = <&vddao_3v3>;
 //	vqmmc-supply = <&vddao_1v8>;
+};
+
+&periphs_pinctrl {
+	/*backlight*/
+	bl_pwm_vs_on_pins:bl_pwm_vs_on_pin {
+		mux {
+			groups = "pwm_d_h12";
+			function = "pwm_vs";
+		};
+	};
+	bl_pwm_off_pins:bl_pwm_off_pin {
+		mux {
+			groups = "GPIOH_12";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
+};
+
+&pwm_cd {
+	status = "okay";
 };
 
 &ir {

@@ -1529,7 +1529,7 @@ static void lcd_set_tcon_clk_tl1(struct aml_lcd_drv_s *pdrv)
 	struct lcd_config_s *pconf = &pdrv->config;
 	unsigned int freq, val;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_CLK)
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("%s\n", __func__);
 	cconf = get_lcd_clk_config(pdrv);
 	if (!cconf)
@@ -1541,6 +1541,46 @@ static void lcd_set_tcon_clk_tl1(struct aml_lcd_drv_s *pdrv)
 		lcd_ana_setb(HHI_TCON_PLL_CNTL1, (val & 0xf), 24, 4);
 		lcd_ana_setb(HHI_TCON_PLL_CNTL4, ((val >> 4) & 0xf), 28, 4);
 		lcd_ana_setb(HHI_TCON_PLL_CNTL4, ((val >> 8) & 0xf), 24, 4);
+
+		/* tcon_clk */
+		if (pconf->timing.lcd_clk >= 100000000) /* 25M */
+			freq = 25000000;
+		else /* 12.5M */
+			freq = 12500000;
+		if (!IS_ERR_OR_NULL(cconf->clktree.tcon_clk)) {
+			clk_set_rate(cconf->clktree.tcon_clk, freq);
+			clk_prepare_enable(cconf->clktree.tcon_clk);
+		}
+		break;
+	case LCD_P2P:
+		if (!IS_ERR_OR_NULL(cconf->clktree.tcon_clk)) {
+			clk_set_rate(cconf->clktree.tcon_clk, 50000000);
+			clk_prepare_enable(cconf->clktree.tcon_clk);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+static void lcd_set_tcon_clk_t3(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_clk_config_s *cconf;
+	struct lcd_config_s *pconf = &pdrv->config;
+	unsigned int freq, val;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("%s\n", __func__);
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf)
+		return;
+
+	switch (pconf->basic.lcd_type) {
+	case LCD_MLVDS:
+		val = pconf->control.mlvds_cfg.clk_phase & 0xfff;
+		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL1, (val & 0xf), 24, 4);
+		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL4, ((val >> 4) & 0xf), 28, 4);
+		lcd_ana_setb(ANACTRL_TCON_PLL0_CNTL4, ((val >> 8) & 0xf), 24, 4);
 
 		/* tcon_clk */
 		if (pconf->timing.lcd_clk >= 100000000) /* 25M */
@@ -2691,6 +2731,8 @@ static void lcd_clk_set_t7(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_clk_set_t3(struct aml_lcd_drv_s *pdrv)
 {
+	if (pdrv->index == 0) /* tcon_clk invalid for lcd1 */
+		lcd_set_tcon_clk_t3(pdrv);
 	lcd_set_pll_t3(pdrv);
 	lcd_set_vid_pll_div_t3(pdrv);
 }
@@ -3066,6 +3108,37 @@ static void lcd_clktree_probe_t7(struct aml_lcd_drv_s *pdrv)
 	LCDPR("lcd_clktree_probe\n");
 }
 
+static void lcd_clktree_probe_t3(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_clk_config_s *cconf;
+	struct clk *temp_clk;
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf)
+		return;
+	if (pdrv->index > 0) /* tcon_clk invalid for lcd1 */
+		return;
+
+	cconf->clktree.clk_gate_state = 0;
+
+	cconf->clktree.tcon_gate = devm_clk_get(pdrv->dev, "tcon_gate");
+	if (IS_ERR_OR_NULL(cconf->clktree.tcon_gate))
+		LCDERR("%s: get tcon_gate error\n", __func__);
+
+	temp_clk = devm_clk_get(pdrv->dev, "fclk_div5");
+	if (IS_ERR_OR_NULL(temp_clk)) {
+		LCDERR("%s: clk fclk_div5\n", __func__);
+		return;
+	}
+	cconf->clktree.tcon_clk = devm_clk_get(pdrv->dev, "clk_tcon");
+	if (IS_ERR_OR_NULL(cconf->clktree.tcon_clk))
+		LCDERR("%s: clk clk_tcon\n", __func__);
+	else
+		clk_set_parent(cconf->clktree.tcon_clk, temp_clk);
+
+	LCDPR("lcd_clktree_probe\n");
+}
+
 static void lcd_clktree_remove_g12a(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
@@ -3124,6 +3197,24 @@ static void lcd_clktree_remove_t7(struct aml_lcd_drv_s *pdrv)
 		devm_clk_put(pdrv->dev, cconf->clktree.dsi_phy_gate);
 	if (!IS_ERR_OR_NULL(cconf->clktree.dsi_meas))
 		devm_clk_put(pdrv->dev, cconf->clktree.dsi_meas);
+}
+
+static void lcd_clktree_remove_t3(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_clk_config_s *cconf;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("lcd_clktree_remove\n");
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf)
+		return;
+	if (pdrv->index > 0) /* tcon_clk invalid for lcd1 */
+		return;
+
+	if (!IS_ERR_OR_NULL(cconf->clktree.tcon_clk))
+		devm_clk_put(pdrv->dev, cconf->clktree.tcon_clk);
+	if (IS_ERR_OR_NULL(cconf->clktree.tcon_gate))
+		devm_clk_put(pdrv->dev, cconf->clktree.tcon_gate);
 }
 
 static void lcd_clk_config_init_print_dft(struct aml_lcd_drv_s *pdrv)
@@ -4223,9 +4314,9 @@ static struct lcd_clk_data_s lcd_clk_data_t3 = {
 	.vclk_crt_set = lcd_set_vclk_crt_t7,
 	.clk_disable = lcd_clk_disable_t7,
 	.clk_gate_switch = lcd_clk_gate_switch_t7,
-	.clk_gate_optional_switch = NULL,
-	.clktree_probe = lcd_clktree_probe_t7,
-	.clktree_remove = lcd_clktree_remove_t7,
+	.clk_gate_optional_switch = lcd_clk_gate_optional_switch_tl1,
+	.clktree_probe = lcd_clktree_probe_t3,
+	.clktree_remove = lcd_clktree_remove_t3,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
 	.prbs_clk_config = lcd_prbs_config_clk_t7,

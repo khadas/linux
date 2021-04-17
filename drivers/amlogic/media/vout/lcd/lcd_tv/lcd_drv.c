@@ -716,8 +716,8 @@ static void lcd_p2p_control_set(struct aml_lcd_drv_s *pdrv)
 		/* fifo write enable[31] */
 		lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL1, 1, 31, 1);
 
-		channel_sel0 = pdrv->config.control.mlvds_cfg.channel_sel0;
-		channel_sel1 = pdrv->config.control.mlvds_cfg.channel_sel1;
+		channel_sel0 = pdrv->config.control.p2p_cfg.channel_sel0;
+		channel_sel1 = pdrv->config.control.p2p_cfg.channel_sel1;
 		lcd_vcbus_write(P2P_CH_SWAP0_T7, channel_sel0);
 		lcd_vcbus_write(P2P_CH_SWAP1_T7, channel_sel1);
 		break;

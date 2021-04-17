@@ -1035,7 +1035,7 @@ static void lcd_p2p_phy_set_t3(struct aml_lcd_drv_s *pdrv, int status)
 			data32 = lvds_vx1_p2p_phy_preem_tl1[preem];
 			lcd_ana_write(ANACTRL_DIF_PHY_CNTL14,
 				      0xff2027a0 | vswing);
-			lcd_phy_cntl_set_t5(status, data32, 1, 1, 0);
+			lcd_phy_cntl_set_t3(status, data32, 1, 1, 0);
 			break;
 		case P2P_CHPI: /* low common mode */
 		case P2P_CSPI:
@@ -1073,8 +1073,10 @@ static void lcd_p2p_phy_set_t3(struct aml_lcd_drv_s *pdrv, int status)
 
 void lcd_phy_set(struct aml_lcd_drv_s *pdrv, int status)
 {
-	if (!pdrv->phy_set)
+	if (!pdrv->phy_set) {
+		LCDPR("[%d]: %s: phy_set is null\n", pdrv->index, __func__);
 		return;
+	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
@@ -1134,6 +1136,7 @@ struct lcd_phy_ctrl_s lcd_phy_ctrl_t3 = {
 int lcd_phy_probe(struct aml_lcd_drv_s *pdrv)
 {
 	if (pdrv->lcd_pxp) {
+		LCDPR("[%d]: %s: lcd_pxp bypass\n", pdrv->index, __func__);
 		pdrv->phy_set = NULL;
 		return 0;
 	}
