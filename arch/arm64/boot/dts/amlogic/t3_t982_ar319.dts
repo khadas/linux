@@ -166,6 +166,8 @@
 	ppmgr {
 		compatible = "amlogic, ppmgr";
 		memory-region = <&ppmgr_reserved>;
+		interrupts = <0 285 1>;
+		interrupt-names = "decontour_pre";
 		status = "okay";
 	};
 	vdetect {

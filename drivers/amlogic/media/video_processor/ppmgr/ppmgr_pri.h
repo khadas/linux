@@ -39,6 +39,7 @@ int ppmgr_buffer_init(int vout_mode, int secure_mode);
 int ppmgr_buffer_uninit(void);
 void vf_ppmgr_reset(int type);
 int ppmgr_register(void);
+irqreturn_t decontour_pre_isr(int irq, void *dev_id);
 
 /* for thread of tb detect. */
 int start_tb_task(void);
