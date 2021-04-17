@@ -789,7 +789,7 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 
 	rx_hdcp2x_intr1 = hdmirx_rd_cor(CP2PAX_INTR1_HDCP2X_IVCRX);
 	if (rx_hdcp2x_intr1 != 0)
-		hdmirx_wr_cor(CP2PAX_INTR1_HDCP2X_IVCRX, rx_hdcp2x_intr0);
+		hdmirx_wr_cor(CP2PAX_INTR1_HDCP2X_IVCRX, rx_hdcp2x_intr1);
 
 	if (rx_hdcp1x_intr0) {
 		if (log_level & IRQ_LOG)

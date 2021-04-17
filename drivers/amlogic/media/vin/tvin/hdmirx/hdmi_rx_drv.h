@@ -51,7 +51,8 @@
 #define var_to_str(var) (#var)
 
 /* enable tee path */
-#define RX_VER2 "ver.2021/04/13"
+/* update hdcp2.2 irq clear logic */
+#define RX_VER2 "ver.2021/04/17"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368

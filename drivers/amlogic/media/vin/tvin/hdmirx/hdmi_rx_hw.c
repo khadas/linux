@@ -5135,7 +5135,7 @@ void rx_get_error_cnt(u32 *ch0, u32 *ch1, u32 *ch2)
 {
 	u32 val;
 
-	if (rx.chip_id >= CHIP_ID_T7) {
+	if (rx.chip_id == CHIP_ID_T7) {
 		/* t7 top 0x41/0x42 can not shadow IP's periodical error counter */
 		/* use cor register to get err cnt,t3 fix it */
 		hdmirx_wr_bits_cor(DPLL_CTRL0_DPLL_IVCRX, MSK(3, 0), 0x0);
