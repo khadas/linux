@@ -34,6 +34,7 @@
 #include <linux/amlogic/media/utils/amports_config.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
+#include <linux/of_irq.h>
 #endif
 #include "ppmgr_log.h"
 #include "ppmgr_pri.h"
@@ -996,6 +997,102 @@ static ssize_t secure_mode_store(struct class *cla,
 	return count;
 }
 
+static ssize_t dump_grid_show(struct class *cla,
+					struct class_attribute *attr, char *buf)
+{
+	int dump_grid = ppmgr_device.tb_detect_init_mute;
+
+	return snprintf(buf, 80, "dump_grid %d\n",
+		dump_grid);
+}
+
+#define Rd(adr) aml_read_vcbus(adr)
+static ssize_t dump_grid_store(struct class *cla,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned long tmp;
+	int ret = kstrtoul(buf, 0, &tmp);
+
+	if (ret != 0) {
+		PPMGRDRV_ERR("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	ppmgr_device.dump_grid = tmp;
+	return count;
+}
+
+static ssize_t bypass_decontour_show(struct class *cla,
+					struct class_attribute *attr, char *buf)
+{
+	int  bypass_decontour = ppmgr_device.bypass_decontour;
+
+	return snprintf(buf, 80, " bypass_decontour %d\n",
+		 bypass_decontour);
+}
+
+static ssize_t  bypass_decontour_store(struct class *cla,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned long tmp;
+	int ret = kstrtoul(buf, 0, &tmp);
+
+	if (ret != 0) {
+		PPMGRDRV_ERR("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	ppmgr_device.bypass_decontour = tmp;
+	return count;
+}
+
+static ssize_t debug_decontour_show(struct class *cla,
+					struct class_attribute *attr, char *buf)
+{
+	int debug_decontour = ppmgr_device.debug_decontour;
+
+	return snprintf(buf, 80, " bypass_decontour %d\n",
+		 debug_decontour);
+}
+
+static ssize_t  debug_decontour_store(struct class *cla,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned long tmp;
+	int ret = kstrtoul(buf, 0, &tmp);
+
+	if (ret != 0) {
+		PPMGRDRV_ERR("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	ppmgr_device.debug_decontour = tmp;
+	return count;
+}
+
+static ssize_t i_do_decontour_show(struct class *cla,
+					struct class_attribute *attr, char *buf)
+{
+	int i_do_decontour = ppmgr_device.i_do_decontour;
+
+	return snprintf(buf, 80, " i_do_decontour %d\n",
+		 i_do_decontour);
+}
+
+static ssize_t  i_do_decontour_store(struct class *cla,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned long tmp;
+	int ret = kstrtoul(buf, 0, &tmp);
+
+	if (ret != 0) {
+		PPMGRDRV_ERR("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	ppmgr_device.i_do_decontour = tmp;
+	return count;
+}
 static ssize_t mirror_show(struct class *cla, struct class_attribute *attr,
 			   char *buf)
 {
@@ -1091,6 +1188,11 @@ static CLASS_ATTR_RO(ppmgr_vframe_states);
 static CLASS_ATTR_RW(tb_detect_len);
 static CLASS_ATTR_RW(tb_detect_mute);
 static CLASS_ATTR_RO(tb_status);
+static CLASS_ATTR_RW(dump_grid);
+static CLASS_ATTR_RW(bypass_decontour);
+static CLASS_ATTR_RW(debug_decontour);
+static CLASS_ATTR_RW(i_do_decontour);
+
 static struct attribute *ppmgr_class_attrs[] = {
 	&class_attr_ppmgr_info.attr,
 	&class_attr_angle.attr,
@@ -1122,6 +1224,10 @@ static struct attribute *ppmgr_class_attrs[] = {
 	&class_attr_tb_detect_len.attr,
 	&class_attr_tb_detect_mute.attr,
 	&class_attr_tb_status.attr,
+	&class_attr_dump_grid.attr,
+	&class_attr_bypass_decontour.attr,
+	&class_attr_debug_decontour.attr,
+	&class_attr_i_do_decontour.attr,
 	NULL
 };
 
@@ -1356,6 +1462,8 @@ static struct platform_device *ppmgr_dev0;
 static int ppmgr_driver_probe(struct platform_device *pdev)
 {
 	s32 r;
+	int ret;
+	int irq;
 
 	r = of_reserved_mem_device_init(&pdev->dev);
 	ppmgr_device.pdev = pdev;
@@ -1364,6 +1472,19 @@ static int ppmgr_driver_probe(struct platform_device *pdev)
 	if (r == 0)
 		PPMGRDRV_INFO("%s done\n", __func__);
 
+	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	pr_info("ppmgr driver probe: irq:%d\n", irq);
+
+	ppmgr_device.reg_dct_irq_success = false;
+	if (irq != 0) {
+		ret = request_irq(irq, &decontour_pre_isr,
+			IRQF_SHARED, "decontour_pre", (void *)"ppmgr-dev");
+		if (ret >= 0)
+			ppmgr_device.reg_dct_irq_success = true;
+		pr_info("ppmgr driver probe:request_irq: ret:%d\n", ret);
+	}
+
+	ppmgr_device.i_do_decontour = true;
 	return r;
 }
 

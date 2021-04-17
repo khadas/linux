@@ -206,6 +206,11 @@ const struct vframe_receiver_op_s *vf_ppmgr_reg_provider(void);
 
 /* extern u32 timestamp_pcrscr_enable_state(void); */
 
+bool is_valid_ppframe(struct ppframe_s *pp_vf)
+{
+	return ((pp_vf >= &vfp_pool[0]) && (pp_vf <= &vfp_pool[VF_POOL_SIZE - 1]));
+}
+
 /* ***********************************************
  *
  *   Canvas helpers.
@@ -228,10 +233,913 @@ u32 index2canvas(u32 index)
 	return ppmgr_canvas_tab[index];
 }
 
-static inline bool is_valid_ppframe(struct ppframe_s *pp_vf)
+#include "decontour.h"
+
+#define DCNTR_POOL_SIZE VF_POOL_SIZE
+
+static s8 ppmgr_check_tvp_state(void)
 {
-	return (pp_vf >= &vfp_pool[0] &&
-		pp_vf <= &vfp_pool[VF_POOL_SIZE - 1]);
+	struct provider_state_req_s req;
+	s8 ret = -1;
+	char *provider_name = vf_get_provider_name(PROVIDER_NAME);
+
+	while (provider_name) {
+		if (!vf_get_provider_name(provider_name))
+			break;
+		provider_name =
+			vf_get_provider_name(provider_name);
+	}
+	if (provider_name) {
+		req.vf = NULL;
+		req.req_type = REQ_STATE_SECURE;
+		req.req_result[0] = 0xffffffff;
+		vf_notify_provider_by_name(provider_name,
+			VFRAME_EVENT_RECEIVER_REQ_STATE,
+			(void *)&req);
+		if (req.req_result[0] == 0)
+			ret = 0;
+		else if (req.req_result[0] != 0xffffffff)
+			ret = 1;
+	}
+	return ret;
+}
+
+#define Rd(adr) aml_read_vcbus(adr)
+#define Wr(adr, val) aml_write_vcbus(adr, val)
+
+struct dcntr_mem_s dcntr_mem_info[DCNTR_POOL_SIZE];
+struct dcntr_mem_s dcntr_mem_info_last;
+
+static struct completion isr_done;
+static int isr_received;
+static u32 last_w;
+static u32 last_h;
+static u32 last_type;
+
+#define DCT_PRINT_INFO       0X1
+#define DCT_BYPASS           0X2
+#define DCT_USE_DS_SCALE     0X4
+#define DCT_DUMP_REG         0X8
+#define DCT_PROCESS_I        0X10
+#define DCT_REWRITE_REG      0X20
+
+void wr_bits(unsigned int adr,
+	unsigned int val,
+	unsigned int start,
+	unsigned int len)
+{
+	unsigned int mask = ((1 << len) - 1) << start;
+
+	return aml_vcbus_update_bits(adr, mask, val << start);
+}
+
+int dc_print(const char *fmt, ...)
+{
+	if (ppmgr_device.debug_decontour & DCT_PRINT_INFO) {
+		unsigned char buf[256];
+		int len = 0;
+		va_list args;
+
+		va_start(args, fmt);
+		len = sprintf(buf, "dc:[%d]", 0);
+		vsnprintf(buf + len, 256 - len, fmt, args);
+		pr_info("%s", buf);
+		va_end(args);
+	}
+	return 0;
+}
+
+static bool is_decontour_supported(void)
+{
+	bool ret = false;
+
+	if (ppmgr_device.reg_dct_irq_success)
+		ret = true;
+
+	return ret;
+}
+
+static void decontour_init(void)
+{
+	int mem_flags;
+	int grd_size = SZ_512K;             /*(81*8*16 byte)*45 = 455K*/
+	int yds_size = SZ_512K + SZ_32K;    /*960 * 576 = 540K*/
+	int cds_size = yds_size / 2;        /*960 * 576 / 2= 270K*/
+	int total_size = grd_size + yds_size + cds_size;
+	int buffer_count = DCNTR_POOL_SIZE;
+	int i;
+	bool is_tvp = false;
+
+	if (ppmgr_device.decontour_addr)
+		return;
+
+	mem_flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
+	if (ppmgr_check_tvp_state() == 1) {
+		mem_flags |= CODEC_MM_FLAGS_TVP;
+		is_tvp = true;
+	}
+	ppmgr_device.decontour_addr = codec_mm_alloc_for_dma("ppmgr-decontour",
+				buffer_count * total_size / PAGE_SIZE, 0, mem_flags);
+	if (ppmgr_device.decontour_addr == 0)
+		pr_err("decontour: alloc fail\n");
+
+	dc_print("decontour:alloc success %d, is_tvp=%d\n",
+		 ppmgr_device.decontour_addr, is_tvp);
+
+	for (i = 0; i < DCNTR_POOL_SIZE; i++) {
+		dcntr_mem_info[i].index = i;
+		dcntr_mem_info[i].grd_addr = 0;
+		dcntr_mem_info[i].yds_addr = 0;
+		dcntr_mem_info[i].cds_addr = 0;
+		dcntr_mem_info[i].grd_size = 0;
+		dcntr_mem_info[i].yds_size = 0;
+		dcntr_mem_info[i].cds_size = 0;
+		dcntr_mem_info[i].yds_canvas_mode = 0;
+		dcntr_mem_info[i].yds_canvas_mode = 0;
+		dcntr_mem_info[i].ds_ratio = 0;
+		dcntr_mem_info[i].free = false;
+		dcntr_mem_info[i].use_org = true;
+		dcntr_mem_info[i].pre_out_fmt = VIDTYPE_VIU_NV21;
+		dcntr_mem_info[i].grd_swap_64bit = false;
+		dcntr_mem_info[i].yds_swap_64bit = false;
+		dcntr_mem_info[i].cds_swap_64bit = false;
+		dcntr_mem_info[i].grd_little_endian = true;
+		dcntr_mem_info[i].yds_little_endian = true;
+		dcntr_mem_info[i].cds_little_endian = true;
+	}
+
+	for (i = 0; i < buffer_count; i++) {
+		dcntr_mem_info[i].grd_addr = ppmgr_device.decontour_addr + i * total_size;
+		dcntr_mem_info[i].yds_addr = dcntr_mem_info[i].grd_addr + grd_size;
+		dcntr_mem_info[i].cds_addr = dcntr_mem_info[i].yds_addr + yds_size;
+		dcntr_mem_info[i].grd_size = grd_size;
+		dcntr_mem_info[i].yds_size = yds_size;
+		dcntr_mem_info[i].cds_size = cds_size;
+		dcntr_mem_info[i].free = true;
+
+		dc_print("i=%d, grd_addr=%x, yds_addr=%x,cds_addr=%x, %d, %d, %d\n",
+			i,
+			dcntr_mem_info[i].grd_addr,
+			dcntr_mem_info[i].yds_addr,
+			dcntr_mem_info[i].cds_addr,
+			grd_size,
+			yds_size,
+			cds_size);
+	}
+	init_completion(&isr_done);
+	last_w = 0;
+	last_h = 0;
+	last_type = 0;
+	dc_print("decontour: init\n");
+}
+
+static void decontour_buf_reset(void)
+{
+	int i;
+
+	if (ppmgr_device.decontour_addr == 0)
+		return;
+
+	pr_info("decontour buf reset\n");
+	for (i = 0; i < DCNTR_POOL_SIZE; i++)
+		dcntr_mem_info[i].free = true;
+}
+
+static void decontour_uninit(void)
+{
+	if (ppmgr_device.decontour_addr)
+		codec_mm_free_for_dma("ppmgr-decontour",
+			ppmgr_device.decontour_addr);
+	ppmgr_device.decontour_addr = 0;
+	dc_print("decontour: uninit\n");
+}
+
+irqreturn_t decontour_pre_isr(int irq, void *dev_id)
+{
+	isr_received = 1;
+	complete(&isr_done);
+	dc_print("decontour: isr\n");
+	return IRQ_HANDLED;
+}
+
+static void decontour_dump_reg(void)
+{
+	u32 value;
+	int i;
+
+	for (i = 0x4a00; i < 0x4a12; i++) {
+		value = Rd(i);
+		pr_info("reg=%x, value= %x\n", i, value);
+	}
+	value = Rd(DCNTR_GRD_WMIF_CTRL1);
+	dc_print("cds: DCNTR_GRD_WMIF_CTRL1: %x\n", value);
+	value = Rd(DCNTR_GRD_WMIF_CTRL3);
+	dc_print("cds: DCNTR_GRD_WMIF_CTRL3: %x\n", value);
+	value = Rd(DCNTR_GRD_WMIF_CTRL4);
+	dc_print("cds: DCNTR_GRD_WMIF_CTRL4: %x\n", value);
+	value = Rd(DCNTR_GRD_WMIF_SCOPE_X);
+	dc_print("cds: DCNTR_GRD_WMIF_SCOPE_X: %x\n", value);
+	value = Rd(DCNTR_GRD_WMIF_SCOPE_Y);
+	dc_print("cds: DCNTR_GRD_WMIF_SCOPE_Y: %x\n", value);
+
+	value = Rd(DCNTR_YDS_WMIF_CTRL1);
+	dc_print("grd: DCNTR_YDS_WMIF_CTRL1: %x\n", value);
+	value = Rd(DCNTR_YDS_WMIF_CTRL3);
+	dc_print("grd: DCNTR_YDS_WMIF_CTRL3: %x\n", value);
+	value = Rd(DCNTR_YDS_WMIF_CTRL4);
+	dc_print("grd: DCNTR_YDS_WMIF_CTRL4: %x\n", value);
+	value = Rd(DCNTR_YDS_WMIF_SCOPE_X);
+	dc_print("grd: DCNTR_YDS_WMIF_SCOPE_X: %x\n", value);
+	value = Rd(DCNTR_YDS_WMIF_SCOPE_Y);
+	dc_print("grd: DCNTR_YDS_WMIF_SCOPE_Y: %x\n", value);
+
+	value = Rd(DCNTR_CDS_WMIF_CTRL1);
+	dc_print("yds: DCNTR_CDS_WMIF_CTRL1: %x\n", value);
+	value = Rd(DCNTR_CDS_WMIF_CTRL3);
+	dc_print("yds: DCNTR_CDS_WMIF_CTRL3: %x\n", value);
+	value = Rd(DCNTR_CDS_WMIF_CTRL4);
+	dc_print("yds: DCNTR_CDS_WMIF_CTRL4: %x\n", value);
+	value = Rd(DCNTR_CDS_WMIF_SCOPE_X);
+	dc_print("yds: DCNTR_CDS_WMIF_SCOPE_X: %x\n", value);
+	value = Rd(DCNTR_CDS_WMIF_SCOPE_Y);
+	dc_print("yds: DCNTR_CDS_WMIF_SCOPE_Y: %x\n", value);
+
+	value = Rd(DCNTR_PRE_ARB_MODE);
+	dc_print("DCNTR_PRE_ARB_MODE: %x\n", value);
+	value = Rd(DCNTR_PRE_ARB_REQEN_SLV);
+	dc_print("DCNTR_PRE_ARB_REQEN_SLV: %x\n", value);
+	value = Rd(DCNTR_PRE_ARB_WEIGH0_SLV);
+	dc_print("DCNTR_PRE_ARB_WEIGH0_SLV: %x\n", value);
+	value = Rd(DCNTR_PRE_ARB_WEIGH1_SLV);
+	dc_print("DCNTR_PRE_ARB_WEIGH1_SLV: %x\n", value);
+	value = Rd(DCNTR_PRE_ARB_UGT);
+	dc_print("DCNTR_PRE_ARB_UGT: %x\n", value);
+	value = Rd(DCNTR_PRE_ARB_LIMT0);
+	dc_print("DCNTR_PRE_ARB_LIMT0: %x\n", value);
+
+	value = Rd(DCNTR_PRE_ARB_STATUS);
+	dc_print("DCNTR_PRE_ARB_STATUS: %x\n", value);
+	value = Rd(DCNTR_PRE_ARB_DBG_CTRL);
+	dc_print("DCNTR_PRE_ARB_DBG_CTRL: %x\n", value);
+	value = Rd(DCNTR_PRE_ARB_PROT);
+	dc_print("DCNTR_PRE_ARB_PROT: %x\n", value);
+
+	value = Rd(DCTR_BGRID_TOP_FSIZE);
+	dc_print("DCTR_BGRID_TOP_FSIZE: %x\n", value);
+	value = Rd(DCTR_BGRID_TOP_HDNUM);
+	dc_print("DCTR_BGRID_TOP_HDNUM: %x\n", value);
+	value = Rd(DCTR_BGRID_TOP_CTRL0);
+	dc_print("DCTR_BGRID_TOP_CTRL0: %x\n", value);
+	value = Rd(DCTR_BGRID_TOP_FMT);
+	dc_print("DCTR_BGRID_TOP_FMT: %x\n", value);
+	value = Rd(DCTR_BGRID_TOP_GCLK);
+	dc_print("DCTR_BGRID_TOP_GCLK: %x\n", value);
+	value = Rd(DCTR_BGRID_TOP_HOLD);
+	dc_print("DCTR_BGRID_TOP_HOLD: %x\n", value);
+
+	value = Rd(DCNTR_GRID_GEN_REG); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_GEN_REG=%x\n", value);
+	value = Rd(DCNTR_GRID_GEN_REG2); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_GEN_REG2=%x\n", value);
+	value = Rd(DCNTR_GRID_CANVAS0); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_CANVAS0=%x\n", value);
+	value = Rd(DCNTR_GRID_LUMA_X0); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_LUMA_X0=%x\n", value);
+	value = Rd(DCNTR_GRID_LUMA_Y0); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_LUMA_Y0=%x\n", value);
+	value = Rd(DCNTR_GRID_RPT_LOOP); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_RPT_LOOP=%x\n", value);
+	value = Rd(DCNTR_GRID_LUMA0_RPT_PAT); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_LUMA0_RPT_PAT=%x\n", value);
+	value = Rd(DCNTR_GRID_CHROMA0_RPT_PAT); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_CHROMA0_RPT_PAT=%x\n", value);
+	value = Rd(DCNTR_GRID_DUMMY_PIXEL); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_DUMMY_PIXEL=%x\n", value);
+
+	value = Rd(DCNTR_GRID_LUMA_FIFO_SIZE); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_LUMA_FIFO_SIZE=%x\n", value);
+
+	value = Rd(DCNTR_GRID_RANGE_MAP_Y); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_RANGE_MAP_Y=%x\n", value);
+	value = Rd(DCNTR_GRID_RANGE_MAP_CB); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_RANGE_MAP_CB=%x\n", value);
+	value = Rd(DCNTR_GRID_RANGE_MAP_CR); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_RANGE_MAP_CR=%x\n", value);
+	value = Rd(DCNTR_GRID_URGENT_CTRL); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_URGENT_CTRL=%x\n", value);
+
+	value = Rd(DCNTR_GRID_GEN_REG3); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_GEN_REG3=%x\n", value);
+	value = Rd(DCNTR_GRID_AXI_CMD_CNT); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_AXI_CMD_CNT=%x\n", value);
+	value = Rd(DCNTR_GRID_AXI_RDAT_CNT); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_AXI_RDAT_CNT=%x\n", value);
+	value = Rd(DCNTR_GRID_FMT_CTRL); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_FMT_CTRL=%x\n", value);
+	value = Rd(DCNTR_GRID_FMT_W); //grd_num_use
+	dc_print("decontour: DCNTR_GRID_FMT_W=%x\n", value);
+
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_T5)
+		return;
+
+	value = Rd(DCNTR_GRID_BADDR_Y);
+	dc_print("decontour: DCNTR_GRID_BADDR_Y=%x\n", value);
+	value = Rd(DCNTR_GRID_BADDR_CB);
+	dc_print("decontour: DCNTR_GRID_BADDR_CB=%x\n", value);
+	value = Rd(DCNTR_GRID_BADDR_CR);
+	dc_print("decontour: DCNTR_GRID_BADDR_CR=%x\n", value);
+
+	value = Rd(DCNTR_GRID_STRIDE_0);
+	dc_print("decontour: DCNTR_GRID_STRIDE_0=%x\n", value);
+	value = Rd(DCNTR_GRID_STRIDE_1);
+	dc_print("decontour: DCNTR_GRID_STRIDE_1=%x\n", value);
+
+	value = Rd(DCNTR_GRID_BADDR_Y_F1);
+	dc_print("decontour: DCNTR_GRID_BADDR_Y_F1=%x\n", value);
+	value = Rd(DCNTR_GRID_BADDR_CB_F1);
+	dc_print("decontour: DCNTR_GRID_BADDR_CB_F1=%x\n", value);
+	value = Rd(DCNTR_GRID_BADDR_CR_F1);
+	dc_print("decontour: DCNTR_GRID_BADDR_CR_F1=%x\n", value);
+	value = Rd(DCNTR_GRID_STRIDE_0_F1);
+	dc_print("decontour: DCNTR_GRID_STRIDE_0_F1=%x\n", value);
+	value = Rd(DCNTR_GRID_STRIDE_1_F1);
+	dc_print("decontour: DCNTR_GRID_STRIDE_1_F1=%x\n", value);
+}
+
+static void decontour_print_parm(struct dcntr_mem_s *dcntr_mem)
+{
+	dc_print("i=%d,grd_addr=%x,y_addr=%x,c_addr=%x,g_size=%d,y_size=%d,c_size=%d,ratio=%d\n",
+		dcntr_mem->index,
+		dcntr_mem->grd_addr,
+		dcntr_mem->yds_addr,
+		dcntr_mem->cds_addr,
+		dcntr_mem->grd_size,
+		dcntr_mem->yds_size,
+		dcntr_mem->cds_size,
+		dcntr_mem->ds_ratio);
+	dc_print("pre_out_fmt=%d,yflt_wrmif_length=%d,cflt_wrmif_length=%d,use_org=%d\n",
+		dcntr_mem->pre_out_fmt,
+		dcntr_mem->yflt_wrmif_length,
+		dcntr_mem->cflt_wrmif_length,
+		dcntr_mem->use_org);
+
+	dc_print("grd_swap=%d,yds_swap=%x,cds_swap=%x,grd_endian=%x,yds_endian=%d,cds_endian=%dn",
+		dcntr_mem->grd_swap_64bit,
+		dcntr_mem->yds_swap_64bit,
+		dcntr_mem->cds_swap_64bit,
+		dcntr_mem->grd_little_endian,
+		dcntr_mem->yds_little_endian,
+		dcntr_mem->cds_little_endian);
+
+	dc_print("yds_canvas_mode=%d,cds_canvas_mode=%d\n",
+		dcntr_mem->yds_canvas_mode,
+		dcntr_mem->cds_canvas_mode);
+}
+
+static int decontour_dump_output(u32 w, u32 h, struct dcntr_mem_s *dcntr_mem, int skip)
+{
+	struct file *fp;
+	mm_segment_t fs;
+	loff_t pos;
+	char name_buf[32];
+	int write_size;
+	u8 *data;
+
+	if (w == 0 || h == 0)
+		return -7;
+	write_size = dcntr_mem->grd_size;
+	dc_print("addr =%x, size=%d\n", dcntr_mem->grd_addr, write_size);
+	snprintf(name_buf, sizeof(name_buf), "/data/tmp/%d-%d.grid",
+		w, h);
+	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
+
+	if (IS_ERR(fp))
+		return -1;
+	dc_print("decontour:dump_2: name_buf=%s\n", name_buf);
+	data = codec_mm_vmap(dcntr_mem->grd_addr, write_size);
+	dc_print("(ulong)data =%lx\n", (ulong)data);
+	if (!data)
+		return -2;
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+	pos = 0;
+	vfs_write(fp, data, write_size, &pos);
+	vfs_fsync(fp, 0);
+	dc_print("decontour: write %u size to addr%p\n", write_size, data);
+	codec_mm_unmap_phyaddr(data);
+	filp_close(fp, NULL);
+	set_fs(fs);
+
+	dc_print("decontour:dump_2.0/2");
+	write_size = w * h;
+	dc_print("decontour:dump_4:yds_addr =%x, write_size=%d\n",
+		dcntr_mem->yds_addr, write_size);
+	dc_print("decontour:dump_4:cds_addr =%x\n", dcntr_mem->cds_addr);
+	snprintf(name_buf, sizeof(name_buf), "/data/tmp/ds_out.yuv");
+
+	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
+	if (IS_ERR(fp)) {
+		pr_err("decontour: create %s fail.\n", name_buf);
+		return -4;
+	}
+	dc_print("decontour:dump_4: name_buf=%s\n", name_buf);
+
+	data = codec_mm_vmap(dcntr_mem->yds_addr, dcntr_mem->yds_size);
+	dc_print("decontour:dump_3\n");
+	if (!data)
+		return -5;
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+	pos = 0;
+	vfs_write(fp, data, write_size, &pos);
+	vfs_fsync(fp, 0);
+	dc_print("decontour: write %u size to file.addr%p\n", write_size, data);
+	codec_mm_unmap_phyaddr(data);
+	pos = write_size;
+
+	write_size = w * h / 2;
+	data = codec_mm_vmap(dcntr_mem->cds_addr, dcntr_mem->cds_size);
+	dc_print("decontour:dump_4\n");
+	if (!data)
+		return -6;
+	vfs_write(fp, data, write_size, &pos);
+	vfs_fsync(fp, 0);
+	dc_print("decontour: write %u size to file.addr%p\n", write_size, data);
+	codec_mm_unmap_phyaddr(data);
+	filp_close(fp, NULL);
+	set_fs(fs);
+	return 0;
+}
+
+static int decontour_pre_process(struct vframe_s *vf)
+{
+	int mif_read_width; /*grid read mif input*/
+	int mif_read_height;
+	int mif_out_width;  /*grid read mif output; also dct input*/
+	int mif_out_height;
+	u32 ds_out_width = 0; /*dct ds output*/
+	u32 ds_out_height = 0;
+	int canvas_width;
+	int canvas_height;
+	u32 vf_org_width;
+	u32 vf_org_height;
+	u32 grd_num;
+	u32 reg_grd_xnum;
+	u32 reg_grd_ynum;
+	u32 grd_xsize;
+	u32 grd_ysize;
+	u32 grid_wrmif_length;
+	u32 yflt_wrmif_length;
+	u32 cflt_wrmif_length;
+	int ds_ratio = 0;/*0:(1:1)  1:(1:2)  2:(1:4)*/
+	u32 phy_addr_0, phy_addr_1, phy_addr_2;
+	struct canvas_s src_cs0, src_cs1, src_cs2;
+	int canvas_id_0, canvas_id_1, canvas_id_2;
+	int src_fmt = 2; /*default 420*/
+	struct dcntr_mem_s *dcntr_mem;
+	int timeout = 0;
+	int i;
+	int mif_reverse;
+	int swap_64bit;
+	int ret;
+	int skip = 0;
+	u32 pic_struct;
+	u32 h_avg;
+	u32 bit_mode;
+	bool need_ds = false;
+	u32 burst_len = 2;
+	bool format_changed = false;
+	bool unsupported_resolution = false;
+	u32 is_interlace = 0;
+	u32 block_mode;
+	u32 endian;
+	u32 pic_32byte_aligned = 0;
+	bool support_canvas = false;
+
+	if (!vf)
+		return -1;
+
+	vf->decontour_pre = NULL;
+
+	if (ppmgr_device.bypass_decontour == 1)
+		return 0;
+
+	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_T5)
+		support_canvas = true;
+
+	if (vf->type & VIDTYPE_INTERLACE)
+		if (!ppmgr_device.i_do_decontour)
+			return 0;
+
+	if (vf->type & VIDTYPE_COMPRESS) {
+		if ((vf->type & VIDTYPE_NO_DW) || vf->canvas0Addr == 0) {
+			dc_print("is afbc, but no dw\n");
+			return 0;
+		}
+	}
+
+	if (vf->width == 0 || vf->height == 0) {
+		dc_print("w*h =%d*%d\n", vf->width, vf->height);
+		return 0;
+	}
+
+	if ((vf->width * vf->height) < (160 * 120))
+		return 0;
+
+	if ((vf->type & VIDTYPE_VIU_422) && !(vf->type & 0x10000000)) {
+		src_fmt = 0;
+		need_ds = true;/*422 is one plane, post not support, need pre out nv21*/
+	} else if ((vf->type & VIDTYPE_VIU_NV21) ||
+		(vf->type & 0x10000000)) {/*hdmi in dw is nv21 VIDTYPE_DW_NV21*/
+		src_fmt = 2;
+	} else {
+		dc_print("not support format vf->type =%x\n", vf->type);
+		return 0; /*current one support 422 nv21*/
+	}
+
+	if (vf->type & VIDTYPE_COMPRESS) {
+		vf_org_width = vf->compWidth;
+		vf_org_height = vf->compHeight;
+	} else {
+		vf_org_width = vf->width;
+		vf_org_height = vf->height;
+	}
+
+	if (ppmgr_device.decontour_addr == 0)
+		decontour_init();
+
+	if (ppmgr_device.decontour_addr == 0)
+		return 0;
+
+	pic_struct = 0;
+	h_avg = 0;
+	mif_out_width = vf->width;
+	mif_out_height = vf->height;
+	mif_read_width = vf->width;
+	mif_read_height = vf->height;
+
+	if (vf->type & VIDTYPE_INTERLACE) {
+		is_interlace = 1;
+		if (src_fmt == 2) {/*decoder output, top in odd rows*/
+			if ((vf->type & VIDTYPE_INTERLACE_BOTTOM) == 0x3)
+				pic_struct = 6;/*4 line read 1*/
+			else
+				pic_struct = 5;/*4 line read 1*/
+			h_avg = 1;
+			skip = 1;
+			mif_out_width = vf->width >> 1;
+			mif_out_height = vf->height >> 2;
+		} else if (src_fmt == 0) {/*hdmiin output, In the first half of the line*/
+			mif_out_width = vf->width;
+			mif_out_height = vf->height >> 1;
+			mif_read_height = vf->height >> 1;
+			need_ds = 1;
+			if (mif_out_width > 960 || mif_out_height > 540)
+				ds_ratio = 1;
+		}
+	} else {
+		if (vf->width > 1920 || vf->height > 1080) {
+			ds_ratio = 1;
+			skip = 1;
+			mif_out_width = vf->width >> 1;
+			mif_out_height = vf->height >> 1;
+		} else if (vf->width > 960 || vf->height > 540) {
+			if ((ppmgr_device.debug_decontour & DCT_USE_DS_SCALE) ||
+				src_fmt == 0) { /*hdmi in always use ds*/
+				ds_ratio = 1;
+			} else {
+				ds_ratio = 0; /*decoder use mif skip for save ddr*/
+				skip = 1;
+				dc_print("1080p use mif skip\n");
+				mif_out_width = vf->width >> 1;
+				mif_out_height = vf->height >> 1;
+			}
+		}
+
+		if (skip && src_fmt == 2) {
+			pic_struct = 4;
+			h_avg = 1;
+		}
+	}
+
+	ds_out_width = mif_out_width >> ds_ratio;
+	ds_out_height = mif_out_height >> ds_ratio;
+
+	if (ds_out_width < 16 || ds_out_height < 120) {
+		dc_print("not supported: vf:%d * %d", vf->width, vf->height);
+		return 0;
+	}
+
+	dc_print("src_fmt=%d, pic_struct=%d, h_avg =%d, bitdepth=%x\n",
+		 src_fmt, pic_struct, h_avg, vf->bitdepth);
+
+	dc_print("vf:%d * %d; mif_read:%d*%d;mif_out:%d * %d; ds_ratio=%d, skip=%d;ds_out:%d*%d\n",
+		vf->width, vf->height,
+		mif_read_width, mif_read_height,
+		mif_out_width, mif_out_height,
+		ds_ratio, skip,
+		ds_out_width, ds_out_height);
+
+	for (i = 0; i < DCNTR_POOL_SIZE; i++) {
+		if (dcntr_mem_info[i].free) {
+			dcntr_mem_info[i].free = false;
+			break;
+		}
+	}
+	if (i == DCNTR_POOL_SIZE) {
+		pr_err("decontour: no free mem\n");
+		return -1;
+	}
+	dcntr_mem = &dcntr_mem_info[i];
+
+	dcntr_mem->use_org = true;
+	dcntr_mem->ds_ratio = 0;
+
+	if (ds_ratio || skip || need_ds)
+		dcntr_mem->use_org = false;
+
+	if (!dcntr_mem->use_org) {
+		dcntr_mem->ds_ratio = ds_ratio;
+		if (skip)
+			dcntr_mem->ds_ratio = dcntr_mem->ds_ratio + 1;
+
+		if (need_ds && (vf->type & VIDTYPE_COMPRESS))
+			dcntr_mem->ds_ratio = (vf->compWidth / vf->width) >> 1;
+	}
+
+	if (dcntr_mem->use_org) {
+		if (vf->type & VIDTYPE_COMPRESS) {
+			if ((vf->compWidth / vf->width) * vf->width != vf->compWidth)
+				unsupported_resolution = true;
+			if ((vf->compHeight / vf->height) * vf->height != vf->compHeight)
+				unsupported_resolution = true;
+		}
+	} else {
+		if ((ds_out_width << dcntr_mem->ds_ratio) != vf_org_width)
+			unsupported_resolution = true;
+		if ((ds_out_height << dcntr_mem->ds_ratio) != (vf_org_height >> is_interlace))
+			unsupported_resolution = true;
+	}
+	if (unsupported_resolution) {
+		dcntr_mem->free = true;
+		dc_print("unsupported resolution %d*%d, com %d*%d, ds_ratio=%d\n",
+			vf->width, vf->height,
+			vf->compWidth, vf->compHeight,
+			dcntr_mem->ds_ratio);
+		return 0;
+	}
+
+	vf->decontour_pre = (void *)dcntr_mem;
+
+	isr_received = 0;
+
+	if (vf->canvas0Addr == (u32)-1) {
+		phy_addr_0 = vf->canvas0_config[0].phy_addr;
+		phy_addr_1 = vf->canvas0_config[1].phy_addr;
+		phy_addr_2 = vf->canvas0_config[2].phy_addr;
+		canvas_config_config(PPMGR_CANVAS_INDEX,
+			&vf->canvas0_config[0]);
+		canvas_config_config(PPMGR_CANVAS_INDEX + 1,
+			&vf->canvas0_config[1]);
+		canvas_config_config(PPMGR_CANVAS_INDEX + 2,
+			&vf->canvas0_config[2]);
+		canvas_id_0 = PPMGR_CANVAS_INDEX;
+		canvas_id_1 = PPMGR_CANVAS_INDEX + 1;
+		canvas_id_2 = PPMGR_CANVAS_INDEX + 2;
+		canvas_width = vf->canvas0_config[0].width;
+		canvas_height = vf->canvas0_config[0].height;
+		block_mode = vf->canvas0_config[0].block_mode;
+		endian = vf->canvas0_config[0].endian;
+	} else {
+		dc_print("source is canvas\n");
+		canvas_read(vf->canvas0Addr & 0xff, &src_cs0);
+		canvas_read(vf->canvas0Addr >> 8 & 0xff, &src_cs1);
+		canvas_read(vf->canvas0Addr >> 16 & 0xff, &src_cs2);
+		phy_addr_0 = src_cs0.addr;
+		phy_addr_1 = src_cs1.addr;
+		phy_addr_2 = src_cs2.addr;
+		canvas_id_0 = vf->canvas0Addr & 0xff;
+		canvas_id_1 = vf->canvas0Addr >> 8 & 0xff;
+		canvas_id_2 = vf->canvas0Addr >> 16 & 0xff;
+		canvas_width = src_cs0.width;
+		canvas_height = src_cs0.height;
+		block_mode = src_cs0.blkmode;
+		endian = src_cs0.endian;
+	}
+	dc_print("block_mode=%d, endian=%d\n", block_mode, endian);
+
+	if (last_w != vf->width ||
+		last_h != vf->height ||
+		last_type != vf->type ||
+		(ppmgr_device.debug_decontour & DCT_REWRITE_REG))
+		format_changed = true;
+
+	if (!format_changed) {
+		dcntr_mem->grd_swap_64bit = dcntr_mem_info_last.grd_swap_64bit;
+		dcntr_mem->yds_swap_64bit = dcntr_mem_info_last.yds_swap_64bit;
+		dcntr_mem->cds_swap_64bit = dcntr_mem_info_last.cds_swap_64bit;
+		dcntr_mem->grd_little_endian = dcntr_mem_info_last.grd_little_endian;
+		dcntr_mem->yds_little_endian = dcntr_mem_info_last.yds_little_endian;
+		dcntr_mem->cds_little_endian = dcntr_mem_info_last.cds_little_endian;
+		dcntr_mem->yflt_wrmif_length = dcntr_mem_info_last.yflt_wrmif_length;
+		dcntr_mem->cflt_wrmif_length = dcntr_mem_info_last.cflt_wrmif_length;
+		goto SET_ADDR;
+	}
+	last_w = vf->width;
+	last_h = vf->height;
+	last_type = vf->type;
+
+	ini_dcntr_pre(mif_out_width, mif_out_height, 2, ds_ratio);
+	grd_num = Rd(DCTR_BGRID_PARAM3_PRE);
+	reg_grd_xnum = (grd_num >> 16) & (0x3ff);
+	reg_grd_ynum = grd_num & (0x3ff);
+
+	grd_xsize = reg_grd_xnum << 3;
+	grd_ysize = reg_grd_ynum;
+
+	grid_wrmif_length = 81 * 46 * 8;
+	yflt_wrmif_length = ds_out_width;
+	cflt_wrmif_length = ds_out_width;
+
+	dc_print("canvas_width=%d, canvas_height=%d\n", canvas_width, canvas_height);
+
+	if (canvas_width % 32)
+		burst_len = 0;
+	else if (canvas_width % 64)
+		burst_len = 1;
+
+	if (block_mode && !support_canvas)
+		burst_len = block_mode;
+
+	dcntr_grid_rdmif(canvas_id_0,         /*int canvas_id0,*/
+		canvas_id_1,         /*int canvas_id1,*/
+		canvas_id_2,         /*int canvas_id2,*/
+		phy_addr_0,  /*int canvas_baddr0,*/
+		phy_addr_1,           /*int canvas_baddr1,*/
+		phy_addr_2,           /*int canvas_baddr2,*/
+		canvas_width,   /*int src_hsize,*/
+		canvas_height,   /*int src_vsize,*/
+		src_fmt, /*1 = RGB/YCBCR(3 bytes/pixel), 0=422 (2 bytes/pixel) 2:420 (two canvas)*/
+		0,           /*int mif_x_start,*/
+		mif_read_width - 1, /*int mif_x_end  ,*/
+		0,           /*int mif_y_start,*/
+		mif_read_height - 1, /*int mif_y_end  ,*/
+		0,            /*int mif_reverse  // 0 : no reverse*/
+		pic_struct,/*0 : frame; 2:top_field; 3:bot_field; 4:y skip, uv no skip;*/
+				/*5:top_field 1/4; 6 bot_field 1/4*/
+		h_avg);    /*0 : no avg 1:y_avg  2:c_avg  3:y&c avg*/
+
+	mif_reverse = 1;
+	swap_64bit = 0;
+	if (mif_reverse == 1) {
+		dcntr_mem->grd_swap_64bit = false;
+		dcntr_mem->yds_swap_64bit = false;
+		dcntr_mem->cds_swap_64bit = false;
+		dcntr_mem->grd_little_endian = true;
+		dcntr_mem->yds_little_endian = true;
+		dcntr_mem->cds_little_endian = true;
+	}
+	dcntr_grid_wrmif(1,  /*int mif_index,  //0:cds  1:grd   2:yds*/
+		0,  /*int mem_mode,  //0:linear address mode  1:canvas mode*/
+		5,  /*int src_fmt ,  //0:4bit 1:8bit 2:16bit 3:32bit 4:64bit 5:128bit*/
+		PPMGR_CANVAS_INDEX + 3,  /*int canvas_id*/
+		0,  /*int mif_x_start*/
+		grd_xsize - 1,  /*int mif_x_end*/
+		0,  /*int mif_y_start*/
+		grd_ysize - 1,  /*int mif_y_end*/
+		swap_64bit,
+		mif_reverse,  /*int mif_reverse, /0 : no reverse*/
+		dcntr_mem->grd_addr,  /*int linear_baddr*/
+		grd_xsize);  /*int linear_length // DDR read length = linear_length*128 bits*/
+
+	if (ds_ratio || skip || need_ds) {
+		yflt_wrmif_length = yflt_wrmif_length * 8 / 128;
+		cflt_wrmif_length = cflt_wrmif_length * 8 / 128;
+		dcntr_mem->yflt_wrmif_length = yflt_wrmif_length;
+		dcntr_mem->cflt_wrmif_length = cflt_wrmif_length;
+
+		dcntr_grid_wrmif(2,  /*int mif_index,  //0:cds  1:grd   2:yds*/
+			0,  /*int mem_mode,  //0:linear address mode  1:canvas mode*/
+			1,  /*int src_fmt,  //0:4bit 1:8bit 2:16bit 3:32bit 4:64bit 5:128bit*/
+			PPMGR_CANVAS_INDEX + 4,  /*int canvas_id*/
+			0,  /*int mif_x_start*/
+			ds_out_width - 1,  /*int mif_x_end*/
+			0,  /*int mif_y_start*/
+			ds_out_height - 1,  /*int mif_y_end*/
+			swap_64bit,
+			mif_reverse,  /*int mif_reverse   ,  //0 : no reverse*/
+			dcntr_mem->yds_addr,  /*int linear_baddr*/
+			yflt_wrmif_length); /*DDR read length = linear_length*128 bits*/
+
+		dcntr_grid_wrmif(0,  /*int mif_index,  //0:cds  1:grd   2:yds*/
+			0,  /*int mem_mode,  //0:linear address mode  1:canvas mode*/
+			2,  /*int src_fmt,  //0:4bit 1:8bit 2:16bit 3:32bit 4:64bit 5:128bit*/
+			PPMGR_CANVAS_INDEX + 5,  /*int canvas_id*/
+			0,  /*int mif_x_start*/
+			(ds_out_width >> 1) - 1,  /*int mif_x_end*/
+			0,  /*int mif_y_start*/
+			(ds_out_height >> 1) - 1,  /*int mif_y_end*/
+			swap_64bit,
+			mif_reverse,  /*int mif_reverse   ,  //0 : no reverse*/
+			dcntr_mem->cds_addr,  /*int linear_baddr*/
+			cflt_wrmif_length); /*DDR read length = linear_length*128 bits*/
+	}
+
+	wr_bits(DCTR_BGRID_TOP_CTRL0, 1, 2, 2);/*reg_din_sel: 1:dos 2:vdin  0/3:disable*/
+
+	if (ds_ratio || skip || need_ds) {
+		wr_bits(DCTR_BGRID_TOP_CTRL0, 1, 1, 1);/*reg_ds_mif_en: 1=on 0=off*/
+		wr_bits(DCTR_BGRID_TOP_FMT, 2, 19, 2); /*reg_fmt_mode, 2=420, 1=422, 0=444*/
+
+		if (ds_ratio == 0)
+			wr_bits(DCTR_BGRID_PATH_PRE, 1, 4, 1); /*reg_grd_path 0=ds 1=ori*/
+		else
+			wr_bits(DCTR_BGRID_PATH_PRE, 0, 4, 1); /*reg_grd_path 0=ds 1=ori*/
+
+		if (ds_ratio == 1)
+			wr_bits(DCTR_DS_PRE, 0x5, 0, 4); /*reg_ds_rate_xy*/
+		else if (ds_ratio == 0)
+			wr_bits(DCTR_DS_PRE, 0x0, 0, 4); /*reg_ds_rate_xy*/
+	} else {
+		wr_bits(DCTR_BGRID_TOP_CTRL0, 0, 1, 1); /*reg_ds_mif_en: 1=on 0=off*/
+		wr_bits(DCTR_BGRID_PATH_PRE, 1, 4, 1); /*reg_grd_path 0=ds 1=ori*/
+		wr_bits(DCTR_DS_PRE, 0x0, 0, 4);	   /*reg_ds_rate_xy*/
+	}
+
+	if (src_fmt == 0 && (vf->bitdepth & BITDEPTH_Y10) &&
+		((vf->type & VIDTYPE_COMPRESS) == 0)) {/*all dw is 8bit*/
+		if (vf->bitdepth & FULL_PACK_422_MODE)
+			bit_mode = 3;
+		else
+			bit_mode = 1;
+		wr_bits(DCNTR_GRID_GEN_REG3, bit_mode, 8, 2);/*0->8bit; 1->10bit422; 2->10bit444*/
+		wr_bits(DCNTR_GRID_GEN_REG3, 0x3, 4, 3); /*cntl_blk_len: vd1 default is 3*/
+	}
+	wr_bits(DCNTR_GRID_GEN_REG3, (burst_len & 0x3), 1, 2);
+	dcntr_mem_info_last = *dcntr_mem;
+
+SET_ADDR:
+	if (support_canvas) {
+		Wr(DCNTR_GRID_CANVAS0,
+			(canvas_id_2 << 16) |
+			(canvas_id_1 << 8) |
+			(canvas_id_0 << 0));
+		Wr(DCNTR_GRD_WMIF_CTRL4, dcntr_mem->grd_addr);
+		Wr(DCNTR_YDS_WMIF_CTRL4, dcntr_mem->yds_addr);
+		Wr(DCNTR_CDS_WMIF_CTRL4, dcntr_mem->cds_addr);
+	} else {
+		Wr(DCNTR_GRID_BADDR_Y, phy_addr_0 >> 4);
+		Wr(DCNTR_GRID_BADDR_CB, phy_addr_1 >> 4);
+		Wr(DCNTR_GRID_BADDR_CR, phy_addr_2 >> 4);
+
+		Wr(DCNTR_GRD_WMIF_CTRL4, dcntr_mem->grd_addr >> 4);
+		Wr(DCNTR_YDS_WMIF_CTRL4, dcntr_mem->yds_addr >> 4);
+		Wr(DCNTR_CDS_WMIF_CTRL4, dcntr_mem->cds_addr >> 4);
+
+		wr_bits(DCNTR_GRID_GEN_REG3, block_mode, 12, 2);
+		wr_bits(DCNTR_GRID_GEN_REG3, block_mode, 14, 2);
+		if (block_mode)
+			pic_32byte_aligned = 7;
+		wr_bits(DCNTR_GRID_GEN_REG3,
+			(pic_32byte_aligned << 7) |
+			(block_mode << 4) |
+			(block_mode << 2) |
+			(block_mode << 0),
+			18, 9);
+		if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR) {
+			wr_bits(DCNTR_GRID_GEN_REG3, 0, 0, 1);
+			dc_print("LINEAR:flag=%x\n", vf->flag);
+		} else {
+			wr_bits(DCNTR_GRID_GEN_REG3, 1, 0, 1);
+			dc_print("block_mode:flag=%x\n", vf->flag);
+		}
+	}
+
+	if (ppmgr_device.debug_decontour & DCT_DUMP_REG)
+		decontour_dump_reg();
+
+	dc_print("decontour:start_1\n");
+	wr_bits(DCTR_BGRID_TOP_CTRL0, 1, 31, 1);
+	dc_print("decontour:start_2\n");
+
+	timeout = wait_for_completion_timeout(&isr_done,
+		msecs_to_jiffies(200));
+	if (!timeout)
+		pr_err("decontour:wait isr timeout\n");
+
+	if (ppmgr_device.dump_grid) {
+		ret = decontour_dump_output(ds_out_width, ds_out_height,
+			dcntr_mem, skip);
+		if (ret)
+			pr_err("decontour_dump_output error, ret=%d\n", ret);
+		ppmgr_device.dump_grid = 0;
+	}
+
+	if (ppmgr_device.debug_decontour & DCT_PRINT_INFO)
+		decontour_print_parm(dcntr_mem);
+
+	dc_print("decontour:ok index=%d\n", vf->omx_index);
+	return 0;
 }
 
 /************************************************
@@ -708,6 +1616,9 @@ void vf_ppmgr_unreg_provider(void)
 	/*ppmgr_device.use_prot = 0;*/
 
 	mutex_unlock(&ppmgr_mutex);
+
+	if (is_decontour_supported())
+		decontour_uninit();
 }
 
 /*skip the second reset request*/
@@ -790,14 +1701,17 @@ static inline struct vframe_s *ppmgr_vf_get_dec(void)
 #ifdef CONFIG_AMLOGIC_MEDIA_VFM
 	vf = vf_get(RECEIVER_NAME);
 #endif
-	if (vf)
+	if (vf) {
 		ppmgr_device.get_dec_count++;
+		vf->decontour_pre = NULL;
+	}
 	return vf;
 #endif
 }
 
 void ppmgr_vf_put_dec(struct vframe_s *vf)
 {
+	struct dcntr_mem_s *dcntr_mem;
 #ifdef DDD
 	struct vframe_provider_s *vfp;
 
@@ -806,10 +1720,14 @@ void ppmgr_vf_put_dec(struct vframe_s *vf)
 		return;
 	vfp->ops->put(vf, vfp->op_arg);
 #else
-#ifdef CONFIG_AMLOGIC_MEDIA_VFM
+	if (vf->decontour_pre) {
+		dcntr_mem = (struct dcntr_mem_s *)vf->decontour_pre;
+		dcntr_mem->free = true;
+		vf->decontour_pre = NULL;
+	}
 	vf_put(vf, RECEIVER_NAME);
 	ppmgr_device.put_dec_count++;
-#endif
+
 #endif
 }
 
@@ -1327,6 +2245,11 @@ static void process_vf_rotate(struct vframe_s *vf,
 			dumpfirstframe = 2;
 	}
 	if (pp_vf->dec_frame) {
+		if (is_decontour_supported()) {
+			ret = decontour_pre_process(vf);
+			if (ret != 0)
+				dc_print("pre process fail ret=%d\n", ret);
+		}
 		/* bypass mode */
 		*new_vf = *vf;
 		vfq_push(&q_ready, new_vf);
@@ -2878,6 +3801,8 @@ SKIP_DETECT:
 			usleep_range(4000, 5000);
 			vf_reg_provider(&ppmgr_vf_prov);
 			vf_local_init();
+			if (is_decontour_supported())
+				decontour_buf_reset();
 			ppmgr_blocking = false;
 			up(&ppmgr_device.ppmgr_sem);
 			PPMGRVPP_WARN("ppmgr rebuild light-unregister_2\n");

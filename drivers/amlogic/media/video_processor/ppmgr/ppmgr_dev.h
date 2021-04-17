@@ -85,6 +85,12 @@ struct ppmgr_device_t {
 	char dump_path[32];
 	struct semaphore ppmgr_sem;
 	struct semaphore tb_sem;
+	unsigned int decontour_addr;
+	int dump_grid;
+	int bypass_decontour;
+	int debug_decontour;
+	int i_do_decontour;
+	bool reg_dct_irq_success;
 };
 
 struct ppmgr_dev_reg_s {
