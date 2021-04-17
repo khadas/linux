@@ -251,10 +251,114 @@ static ssize_t fan_temp_store(struct device *dev, struct device_attribute *attr,
 }
 #endif
 
+static void fan_set_func(struct khadas_fan_data *fan_data)
+{
+    int temp = -EINVAL;
+
+    temp = get_cpu_temp();
+
+    if(temp != -EINVAL){
+        if(temp < fan_data->trig_temp_level0 ){
+            khadas_fan_level_set(fan_data,0);
+
+        }else if(temp < fan_data->trig_temp_level1 ){
+            khadas_fan_level_set(fan_data,1);
+
+        }else if(temp < fan_data->trig_temp_level2 ){
+            khadas_fan_level_set(fan_data,2);
+
+        }else{
+            khadas_fan_level_set(fan_data,3);
+        }
+    }
+
+}
+
+static ssize_t fan_trigger_low_show(struct class *cls,
+			struct class_attribute *attr, char *buf){
+
+	return sprintf(buf, "Fan trigger low speed temperature:%d\n", fan_data->trig_temp_level0);
+}
+
+static ssize_t fan_trigger_low_store(struct class *cls, struct class_attribute *attr,
+			const char *buf, size_t count){
+
+	int trigger;
+
+	if (kstrtoint(buf, 0, &trigger))
+		return -EINVAL;
+
+	if (trigger >= g_mcu_data->fan_data.trig_temp_level1){
+		pr_err("Invalid parameter\n");
+		return -EINVAL;
+	}
+
+	fan_data->trig_temp_level0 = trigger;
+
+	fan_set_func(fan_data);
+
+	return count;
+}
+
+static ssize_t fan_trigger_mid_show(struct class *cls,
+			struct class_attribute *attr, char *buf){
+
+	return sprintf(buf, "Fan trigger mid speed temperature:%d\n", fan_data->trig_temp_level1);
+}
+
+static ssize_t fan_trigger_mid_store(struct class *cls, struct class_attribute *attr,
+			const char *buf, size_t count){
+
+	int trigger;
+
+	if (kstrtoint(buf, 0, &trigger))
+		return -EINVAL;
+
+	if (trigger >= g_mcu_data->fan_data.trig_temp_level2 || trigger <= g_mcu_data->fan_data.trig_temp_level0){
+		pr_err("Invalid parameter\n");
+		return -EINVAL;
+	}
+
+	fan_data->trig_temp_level1 = trigger;
+
+	fan_set_func(fan_data);
+	
+	return count;
+}
+
+static ssize_t fan_trigger_high_show(struct class *cls,
+			struct class_attribute *attr, char *buf){
+
+	return sprintf(buf, "Fan trigger high speed temperature:%d\n", fan_data->trig_temp_level2);
+}
+
+static ssize_t fan_trigger_high_store(struct class *cls, struct class_attribute *attr,
+			const char *buf, size_t count){
+
+	int trigger;
+
+	if (kstrtoint(buf, 0, &trigger))
+		return -EINVAL;
+
+	if (trigger <= g_mcu_data->fan_data.trig_temp_level1){
+		pr_err("Invalid parameter\n");
+		return -EINVAL;
+	}
+
+	fan_data->trig_temp_level2 = trigger;
+
+	fan_set_func(fan_data);
+	
+	return count;
+}
+
 static struct class_attribute fan_class_attrs[] = {
 	__ATTR(enable, 0644, fan_enable_show, fan_enable_store),
 	__ATTR(mode, 0644, fan_mode_show, fan_mode_store),
 	__ATTR(level, 0644, fan_level_show, fan_level_store),
+	__ATTR(trigger_low, 0644, fan_trigger_low_show, fan_trigger_low_store),
+	__ATTR(trigger_mid, 0644, fan_trigger_mid_show, fan_trigger_mid_store),
+	__ATTR(trigger_high, 0644, fan_trigger_high_show, fan_trigger_high_store),
 	__ATTR(temp, 0644, fan_temp_show, NULL),
 };
 
