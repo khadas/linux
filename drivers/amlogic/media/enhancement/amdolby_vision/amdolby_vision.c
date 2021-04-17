@@ -292,6 +292,8 @@ int get_dv_support_info(void)
 }
 EXPORT_SYMBOL(get_dv_support_info);
 
+char cur_crc[32] = "invalid";
+
 static uint dolby_vision_on_count;
 static bool dolby_vision_el_disable;
 
@@ -472,6 +474,9 @@ static unsigned int dolby_vision_graphics_priority;
 module_param(dolby_vision_graphics_priority, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_graphics_priority, "\n dolby_vision_graphics_priority\n");
 
+/*1:HDR10, 2:HLG, 3: DV LL*/
+static int force_hdmin_fmt;
+
 static unsigned int atsc_sei;
 module_param(atsc_sei, uint, 0664);
 MODULE_PARM_DESC(atsc_sei, "\n atsc_sei\n");
@@ -555,6 +560,11 @@ static unsigned int ambient_test_mode;
 module_param(ambient_test_mode, uint, 0664);
 MODULE_PARM_DESC(ambient_test_mode, "\n ambient_test_mode\n");
 
+static int content_fps = 24;
+static int gd_rf_adjust;
+static int enable_vf_check;
+static u32 last_vf_valid_crc;
+
 #define MAX_DV_PICTUREMODES 40
 struct pq_config_s *bin_to_cfg;
 
@@ -605,7 +615,7 @@ static DEFINE_SPINLOCK(cfg_lock);
 #ifdef V1_6_1
 #define AMBIENT_CFG_FRAMES 46
 struct ambient_cfg_s ambient_test_cfg[AMBIENT_CFG_FRAMES] = {
-	/* update_flag, ambient, front, rear, x, y */
+	/* update_flag, ambient, rear, front, whitex, whitey */
 	{ 12, 65536, 0, 0, 0, 0 },
 	{ 4, 0, 0, 0, 32768, 0 },
 	{ 4, 0, 0, 0, 0, 32768 },
@@ -615,41 +625,41 @@ struct ambient_cfg_s ambient_test_cfg[AMBIENT_CFG_FRAMES] = {
 	{ 3, 0, 5, 0, 0, 0 },
 	{ 1, 0, 0, 30000, 0, 0 },
 	{ 8, 0, 0, 0, 0, 0 },
-	{ 8, 655360, 0, 0, 0, 0 },
-	{ 15, 571146, 2204, 23229, 589, 30638 },
+	{ 8, 65536, 0, 0, 0, 0 },
+	{ 7, 0, 2204, 23229, 589, 30638 },
 	{ 0, 0, 0, 0, 0, 0 },
-	{ 8, 257884, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0 },
 	{ 1, 0, 0, 24942, 0, 0 },
-	{ 15, 112525, 4646, 25899, 31686, 9764 },
-	{ 8, 645988, 0, 0, 0, 0 },
+	{ 7, 0, 4646, 25899, 31686, 9764 },
+	{ 0, 0, 0, 0, 0, 0 },
 	{ 4, 0, 0, 0, 491, 30113 },
-	{ 12, 240058, 0, 0, 11632, 13402 },
+	{ 4, 0, 0, 0, 11632, 13402 },
 	{ 4, 0, 0, 0, 22282, 31162 },
-	{ 14, 586612, 6276, 0, 98, 16056 },
-	{ 14, 279117, 5276, 0, 8454, 6946 },
+	{ 6, 0, 6276, 0, 98, 16056 },
+	{ 6, 0, 5276, 0, 8454, 6946 },
 	{ 2, 0, 6558, 0, 0, 0 },
 	{ 2, 0, 355, 0, 0, 0 },
-	{ 15, 317194, 6898, 9651, 30539, 17104 },
-	{ 11, 592707, 5558, 838, 0, 0 },
+	{ 7, 0, 6898, 9651, 30539, 17104 },
+	{ 3, 0, 5558, 838, 0, 0 },
 	{ 5, 0, 0, 8462, 7438, 655 },
 	{ 8, 0, 0, 0, 0, 0 },
 	{ 0, 0, 0, 0, 0, 0 },
 	{ 0, 0, 0, 0, 0, 0 },
 	{ 9, 65536, 0, 12792, 0, 0 },
-	{ 12, 138739, 0, 0, 30179, 14909 },
-	{ 11, 561971, 1287, 16711, 0, 0 },
+	{ 4, 0, 0, 0, 30179, 14909 },
+	{ 3, 0, 1287, 16711, 0, 0 },
 	{ 7, 0, 991, 9667, 14450, 9699 },
 	{ 4, 0, 0, 0, 12746, 5636 },
 	{ 2, 0, 1382, 0, 0, 0 },
 	{ 1, 0, 0, 14647, 0, 0 },
 	{ 2, 0, 9080, 0, 0, 0 },
-	{ 12, 247791, 0, 0, 21921, 16056 },
+	{ 4, 0, 0, 0, 21921, 16056 },
 	{ 3, 0, 6840, 13834, 0, 0 },
 	{ 5, 0, 0, 21597, 25755, 26673 },
 	{ 0, 0, 0, 0, 0, 0 },
 	{ 5, 0, 0, 19217, 17825, 17989 },
-	{ 14, 114425, 2185, 0, 13828, 5406 },
-	{ 10, 591855, 3587, 0, 0, 0 },
+	{ 6, 0, 2185, 0, 13828, 5406 },
+	{ 2, 0, 3587, 0, 0, 0 },
 	{ 5, 0, 0, 17788, 3571, 28508 },
 	{ 4, 0, 0, 0, 32636, 5799 }
 };
@@ -764,29 +774,27 @@ struct TargetDisplayConfig def_tgt_display_cfg = {
 			{122, -791, 4765}
 		},
 		12, /* lms2RgbMatScale */
-		{0, 0, 0, 0} /* reserved[4] */
+		{0, 0, 0}, /* whitePoint[3] */
+		0, /*whitePointScale*/
+		{0, 0, 0}
 	}, /* TgtOutCscCfg */
 	4096, /* brightnessPreservation */
 	1, /* num_total_viewing_modes */
 	1, /* viewing_mode_valid */
-	{
+	{50, 100, 300, 500, 800, 1000, 2000, 3000}, /*ambientFrontLux*/
+	{65536, 65536, 65536, 65536, 65536, 65536, 65536, 65536},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0},
+	0,
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	} /* padding[128] */
+	0, 0, 0, 0} /* padding */
 };
 
 struct TargetDisplayConfig def_tgt_display_cfg_bestpq = {
@@ -896,29 +904,27 @@ struct TargetDisplayConfig def_tgt_display_cfg_bestpq = {
 			{155, -605, 4546}
 		},
 		12, /* lms2RgbMatScale */
-		{0, 0, 0, 0} /* reserved[4] */
+		{0, 0, 0}, /* whitePoint[3] */
+		0, /*whitePointScale*/
+		{0, 0, 0}
 	}, /* TgtOutCscCfg */
 	4096, /* brightnessPreservation */
 	1, /* num_total_viewing_modes */
 	1, /* viewing_mode_valid */
-	{
+	{50, 100, 300, 500, 800, 1000, 2000, 3000}, /*ambientFrontLux*/
+	{65536, 65536, 65536, 65536, 65536, 65536, 65536, 65536},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0},
+	0,
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	} /* padding[128] */
+	0, 0, 0, 0} /* padding */
 };
 
 /*cfg_0.001_6300_POWER_2.4_YUV_NARROW_v2.txt	  --tid 2*/
@@ -1030,29 +1036,27 @@ struct TargetDisplayConfig def_tgt_display_cfg_ll = {
 			{257, -562, 4401}
 		},
 		12, /* lms2RgbMatScale */
-		{0, 0, 0, 0} /* reserved[4] */
+		{0, 0, 0}, /* whitePoint[3] */
+		0, /*whitePointScale*/
+		{0, 0, 0} /*reserved[3]*/
 	}, /* TgtOutCscCfg */
 	4096, /* brightnessPreservation */
 	1, /* num_total_viewing_modes */
 	1, /* viewing_mode_valid */
-	{
+	{50, 100, 300, 500, 800, 1000, 2000, 3000}, /*ambientFrontLux*/
+	{65536, 65536, 65536, 65536, 65536, 65536, 65536, 65536},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0},
+	0,
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	} /* padding[128] */
+	0, 0, 0, 0} /* padding */
 };
 
 /*cfg_0.034_890_BT1886_2.2_YUV_NARROW_v2.txt --tid 2*/
@@ -1164,29 +1168,27 @@ struct TargetDisplayConfig def_tgt_display_cfg_ll_1 = {
 			{81, -650, 4665}
 		},
 		12, /* lms2RgbMatScale */
-		{0, 0, 0, 0} /* reserved[4] */
+		{0, 0, 0}, /* whitePoint[3] */
+		0, /*whitePointScale*/
+		{0, 0, 0} /*reserved[3]*/
 	}, /* TgtOutCscCfg */
 	4096, /* brightnessPreservation */
 	1, /* num_total_viewing_modes */
 	1, /* viewing_mode_valid */
-	{
+	{50, 100, 300, 500, 800, 1000, 2000, 3000}, /*ambientFrontLux*/
+	{65536, 65536, 65536, 65536, 65536, 65536, 65536, 65536},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0},
+	0,
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	} /* padding[128] */
+	0, 0, 0, 0} /* padding */
 };
 
 /*cfg_0.01_700_POWER_2.4_YUV_NARROW_v1-12.txt --tid2*/
@@ -1298,29 +1300,27 @@ struct TargetDisplayConfig def_tgt_display_cfg_ll_2 = {
 			{155, -605, 4546}
 		},
 		12, /* lms2RgbMatScale */
-		{0, 0, 0, 0} /* reserved[4] */
+		{0, 0, 0}, /* whitePoint[3] */
+		0, /*whitePointScale*/
+		{0, 0, 0} /*reserved[3]*/
 	}, /* TgtOutCscCfg */
 	4096, /* brightnessPreservation */
 	1, /* num_total_viewing_modes */
 	1, /* viewing_mode_valid */
-	{
+	{50, 100, 300, 500, 800, 1000, 2000, 3000}, /*ambientFrontLux*/
+	{65536, 65536, 65536, 65536, 65536, 65536, 65536, 65536},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0},
+	0,
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0},
+	{0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	} /* padding[128] */
+	0, 0, 0, 0} /* padding */
 };
 
 #else
@@ -5907,6 +5907,7 @@ void enable_dolby_vision(int enable)
 				dolby_vision_core1_on = false;
 				dolby_vision_core1_on_cnt = 0;
 				frame_count = 0;
+				last_vf_valid_crc = 0;
 				pr_dolby_dbg("Dolby Vision core1 turn off\n");
 			}
 		}
@@ -6208,6 +6209,7 @@ void enable_dolby_vision(int enable)
 					vpp_dummy1_backup);
 		}
 		frame_count = 0;
+		last_vf_valid_crc = 0;
 		core1_disp_hsize = 0;
 		core1_disp_vsize = 0;
 		dolby_vision_on = false;
@@ -9217,6 +9219,52 @@ int vsem_unpack(unsigned char *control_data, unsigned char *vsem_payload)
 	return rv;
 }
 
+/*for hdmi cert: not run cp when vf not change*/
+/*sometimes  even if frame is same but  frame crc changed, maybe ucd or rx not stable,*/
+/*so need to check  few more frames*/
+bool check_vf_changed(struct vframe_s *vf)
+{
+#define MAX_VF_CRC_CHECK_CUONT 4
+
+	static u32 new_vf_crc;
+	static u32 vf_crc_repeat_cnt;
+	bool changed = false;
+
+	if (!vf)
+		return true;
+
+	if (debug_dolby & 1)
+		pr_dolby_dbg("vf %p, crc %x, last valid crc %x, rpt %d\n",
+				vf, vf->crc, last_vf_valid_crc,
+				vf_crc_repeat_cnt);
+
+	if (vf->crc == 0) {
+		/*invalid crc, maybe vdin dropped last frame*/
+		return changed;
+	}
+	if (last_vf_valid_crc == 0) {
+		last_vf_valid_crc = vf->crc;
+		changed = true;
+		pr_dolby_dbg("first frame\n");
+	} else if (vf->crc != last_vf_valid_crc) {
+		if (vf->crc != new_vf_crc)
+			vf_crc_repeat_cnt = 0;
+		else
+			++vf_crc_repeat_cnt;
+
+		if (vf_crc_repeat_cnt >= MAX_VF_CRC_CHECK_CUONT) {
+			vf_crc_repeat_cnt = 0;
+			last_vf_valid_crc = vf->crc;
+			changed = true;
+			pr_dolby_dbg("new frame\n");
+		}
+	} else {
+		vf_crc_repeat_cnt = 0;
+	}
+	new_vf_crc = vf->crc;
+	return changed;
+}
+
 static u32 last_total_md_size;
 static u32 last_total_comp_size;
 /* toggle mode: 0: not toggle; 1: toggle frame; 2: use keep frame */
@@ -9270,6 +9318,8 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 	struct timeval start;
 	struct timeval end;
 	int dump_size = 100;
+	bool run_control_path = true;
+	bool vf_changed = true;
 
 	memset(&req, 0, (sizeof(struct provider_aux_req_s)));
 	memset(&el_req, 0, (sizeof(struct provider_aux_req_s)));
@@ -9297,6 +9347,10 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 					   VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
 					   (void *)&req);
 		input_mode = INPUT_MODE_HDMI;
+
+		if ((dolby_vision_flags & FLAG_CERTIFICAION) && enable_vf_check)
+			vf_changed = check_vf_changed(vf);
+
 		/* meta */
 		if ((dolby_vision_flags & FLAG_RX_EMP_VSEM) &&
 			vf->emp.size > 0) {
@@ -9438,7 +9492,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			if (vf->type & VIDTYPE_VIU_422)
 				src_chroma_format = 1;
 			p_mdc =	&vf->prop.master_display_colour;
-			if (is_hdr10_frame(vf)) {
+			if (is_hdr10_frame(vf) || force_hdmin_fmt == 1) {
 				src_format = FORMAT_HDR10;
 				/* prepare parameter from hdmi for hdr10 */
 				p_mdc->luminance[0] *= 10000;
@@ -9451,7 +9505,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			if (is_meson_tm2_tvmode() || is_meson_t7_tvmode() ||
 				is_meson_t3_tvmode()) {
 				if (src_format != FORMAT_DOVI &&
-					is_hlg_frame(vf)) {
+					(is_hlg_frame(vf) || force_hdmin_fmt == 2)) {
 					src_format = FORMAT_HLG;
 					src_bdp = 12;
 				}
@@ -9872,7 +9926,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			if (toggle_mode == 2)
 				src_format = dovi_setting.src_format;
 
-			if (is_hdr10_frame(vf)) {
+			if (is_hdr10_frame(vf) || force_hdmin_fmt == 1) {
 				src_format = FORMAT_HDR10;
 				p_mdc =	&vf->prop.master_display_colour;
 				if (p_mdc->present_flag)
@@ -9880,7 +9934,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 				prepare_hdr10_param(p_mdc, &hdr10_param);
 			}
 
-			if (is_hlg_frame(vf))
+			if (is_hlg_frame(vf) || force_hdmin_fmt == 2)
 				src_format = FORMAT_HLG;
 
 			if (is_hdr10plus_frame(vf))
@@ -9994,7 +10048,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 #endif
 		}
 		if (!pq_config_set_flag) {
-			if (debug_dolby & 1)
+			if (debug_dolby & 2)
 				pr_dolby_dbg("update def_tgt_display_cfg\n");
 			if (!load_bin_config) {
 				if ((dolby_vision_flags & FLAG_FORCE_DOVI_LL) ||
@@ -10102,6 +10156,9 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 				tv_dovi_setting->src_format, src_format,
 				tv_dovi_setting->video_width, w,
 				tv_dovi_setting->video_height, h);
+			/*for hdmi in cert*/
+			if (dolby_vision_flags & FLAG_CERTIFICAION)
+				vf_changed = true;
 #ifdef V1_6_1
 			if (p_funcs_tv && p_funcs_tv->tv_control_path)
 				p_funcs_tv->tv_control_path
@@ -10146,98 +10203,147 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 		} else {
 			memset(tv_input_info, 0, sizeof(brightness_off));
 		}
-#ifdef V1_6_1
+
+		/*config source fps and gd_rf_adjust, dmcfg_id*/
+		tv_input_info->content_fps = content_fps * (1 << 16);
+		tv_input_info->gd_rf_adjust = gd_rf_adjust;
+
 		if (debug_dolby & 0x400)
 			do_gettimeofday(&start);
-		flag = p_funcs_tv->tv_control_path
-			(src_format, input_mode,
-			comp_buf[current_id],
-			(src_format == FORMAT_DOVI) ? total_comp_size : 0,
-			md_buf[current_id],
-			(src_format == FORMAT_DOVI) ? total_md_size : 0,
-			src_bdp,
-			src_chroma_format,
-			SIG_RANGE_SMPTE, /* bit/chroma/range */
-			(struct pq_config_s *)pq_config_fake, &menu_param,
-			(!el_flag) ||
-			(dolby_vision_flags & FLAG_DISABLE_COMPOSER),
-			&hdr10_param,
-			tv_dovi_setting,
-			vsem_if_buf, vsem_if_size,
-			(ambient_test_mode != 0 && toggle_mode == 1 &&
-			frame_count < AMBIENT_CFG_FRAMES) ?
-			&ambient_test_cfg[frame_count] :
-			(struct ambient_cfg_s *)NULL,
-			tv_input_info);
 
-		if (debug_dolby & 0x400) {
-			do_gettimeofday(&end);
-			time_use = (end.tv_sec - start.tv_sec) * 1000000 +
-				(end.tv_usec - start.tv_usec);
-
-			pr_info("controlpath time: %5ld us\n", time_use);
+		/*for hdmi in cert, only run control_path for different frame*/
+		if ((dolby_vision_flags & FLAG_CERTIFICAION) &&
+		    !vf_changed && input_mode == INPUT_MODE_HDMI) {
+			run_control_path = false;
 		}
-#else
-		flag = p_funcs_tv->tv_control_path
-			(src_format, input_mode,
-			comp_buf[current_id],
-			(src_format == FORMAT_DOVI) ? total_comp_size : 0,
-			md_buf[current_id],
-			(src_format == FORMAT_DOVI) ? total_md_size : 0,
-			src_bdp,
-			src_chroma_format,
-			SIG_RANGE_SMPTE, /* bit/chroma/range */
-			(struct pq_config_s *)pq_config_fake, &menu_param,
-			(!el_flag) ||
-			(dolby_vision_flags & FLAG_DISABLE_COMPOSER),
-			&hdr10_param,
-			tv_dovi_setting);
-#endif
-		if (flag >= 0) {
-			if (input_mode == INPUT_MODE_HDMI) {
-				if (h > 1080)
-					tv_dovi_setting->core1_reg_lut[1] =
-						0x0000000100000043;
-				else
-					tv_dovi_setting->core1_reg_lut[1] =
-						0x0000000100000042;
-				if (get_video_reverse() &&
-				(src_format == FORMAT_DOVI ||
-				src_format == FORMAT_DOVI_LL)) {
-					u32 coeff[3][3];
-					u64 *p =
-						&tv_dovi_setting->core1_reg_lut[9];
+		if (run_control_path) {
+			flag = p_funcs_tv->tv_control_path
+				(src_format, input_mode,
+				comp_buf[current_id],
+				(src_format == FORMAT_DOVI) ? total_comp_size : 0,
+				md_buf[current_id],
+				(src_format == FORMAT_DOVI) ? total_md_size : 0,
+				src_bdp,
+				src_chroma_format,
+				SIG_RANGE_SMPTE, /* bit/chroma/range */
+				(struct pq_config_s *)pq_config_fake, &menu_param,
+				(!el_flag) ||
+				(dolby_vision_flags & FLAG_DISABLE_COMPOSER),
+				&hdr10_param,
+				tv_dovi_setting,
+				vsem_if_buf, vsem_if_size,
+				(ambient_test_mode != 0 && toggle_mode == 1 &&
+				frame_count < AMBIENT_CFG_FRAMES) ?
+				&ambient_test_cfg[frame_count] :
+				(struct ambient_cfg_s *)NULL,
+				tv_input_info);
 
-					coeff[0][1] = (p[0] >> 16) & 0xffff;
-					coeff[0][2] = p[1] & 0xffff;
-					coeff[1][1] = p[2] & 0xffff;
-					coeff[1][2] = (p[2] >> 16) & 0xffff;
-					coeff[2][1] = (p[3] >> 16) & 0xffff;
-					coeff[2][2] = p[4] & 0xffff;
+			if (debug_dolby & 0x400) {
+				do_gettimeofday(&end);
+				time_use = (end.tv_sec - start.tv_sec) * 1000000 +
+					(end.tv_usec - start.tv_usec);
 
-					p[0] = (p[0] & 0xffffffff0000ffff) |
-						(coeff[0][2] << 16);
-					p[1] = (p[1] & 0xffffffffffff0000) |
-						coeff[0][1];
-					p[2] = (p[2] & 0xffffffff00000000) |
-						(coeff[1][1] << 16) |
-						coeff[1][2];
-					p[3] = (p[3] & 0xffffffff0000ffff) |
-						(coeff[2][2] << 16);
-					p[4] = (p[4] & 0xffffffffffff0000) |
-						coeff[2][1];
-				}
-			} else {
-				if (src_format == FORMAT_HDR10)
-					tv_dovi_setting->core1_reg_lut[1] =
-						0x000000010000404c;
-				else if (el_halfsize_flag)
-					tv_dovi_setting->core1_reg_lut[1] =
-						0x000000010000004c;
-				else
-					tv_dovi_setting->core1_reg_lut[1] =
-						0x0000000100000044;
+				pr_info("controlpath time: %5ld us\n", time_use);
 			}
+
+			if (flag >= 0) {
+				if (input_mode == INPUT_MODE_HDMI) {
+					if (h > 1080)
+						tv_dovi_setting->core1_reg_lut[1] =
+							0x0000000100000043;
+					else
+						tv_dovi_setting->core1_reg_lut[1] =
+							0x0000000100000042;
+					if (get_video_reverse() &&
+					(src_format == FORMAT_DOVI ||
+					src_format == FORMAT_DOVI_LL)) {
+						u32 coeff[3][3];
+						u64 *p =
+							&tv_dovi_setting->core1_reg_lut[9];
+
+						coeff[0][1] = (p[0] >> 16) & 0xffff;
+						coeff[0][2] = p[1] & 0xffff;
+						coeff[1][1] = p[2] & 0xffff;
+						coeff[1][2] = (p[2] >> 16) & 0xffff;
+						coeff[2][1] = (p[3] >> 16) & 0xffff;
+						coeff[2][2] = p[4] & 0xffff;
+
+						p[0] = (p[0] & 0xffffffff0000ffff) |
+							(coeff[0][2] << 16);
+						p[1] = (p[1] & 0xffffffffffff0000) |
+							coeff[0][1];
+						p[2] = (p[2] & 0xffffffff00000000) |
+							(coeff[1][1] << 16) |
+							coeff[1][2];
+						p[3] = (p[3] & 0xffffffff0000ffff) |
+							(coeff[2][2] << 16);
+						p[4] = (p[4] & 0xffffffffffff0000) |
+							coeff[2][1];
+					}
+				} else {
+					if (src_format == FORMAT_HDR10)
+						tv_dovi_setting->core1_reg_lut[1] =
+							0x000000010000404c;
+					else if (el_halfsize_flag)
+						tv_dovi_setting->core1_reg_lut[1] =
+							0x000000010000004c;
+					else
+						tv_dovi_setting->core1_reg_lut[1] =
+							0x0000000100000044;
+				}
+				/* enable CRC */
+				if ((dolby_vision_flags & FLAG_CERTIFICAION) &&
+					!(dolby_vision_flags & FLAG_DISABLE_CRC))
+					tv_dovi_setting->core1_reg_lut[3] =
+						0x000000ea00000001;
+				tv_dovi_setting->src_format = src_format;
+				tv_dovi_setting->el_flag = el_flag;
+				tv_dovi_setting
+					->el_halfsize_flag = el_halfsize_flag;
+				tv_dovi_setting->video_width = w;
+				tv_dovi_setting->video_height = h;
+				tv_dovi_setting
+					->input_mode = input_mode;
+				tv_dovi_setting_change_flag = true;
+				dovi_setting_video_flag = video_frame;
+
+				if (debug_dolby & 1) {
+					if (el_flag)
+						pr_dolby_dbg
+					("tv setting %s-%d:flag=%x,md=%d,comp=%d\n",
+						 input_mode == INPUT_MODE_HDMI ?
+						 "hdmi" : "ott",
+						 src_format,
+						 flag,
+						 total_md_size,
+						 total_comp_size);
+					else
+						pr_dolby_dbg
+						("tv setting %s-%d:flag=%x,md=%d\n",
+						 input_mode == INPUT_MODE_HDMI ?
+						 "hdmi" : "ott",
+						 src_format,
+						 flag,
+						 total_md_size);
+				}
+				dump_tv_setting(tv_dovi_setting,
+					frame_count, debug_dolby);
+				el_mode = el_flag;
+				mel_mode = mel_flag;
+				ret = 0; /* setting updated */
+			} else {
+				tv_dovi_setting->video_width = 0;
+				tv_dovi_setting->video_height = 0;
+				pr_dolby_error("tv_control_path() failed\n");
+			}
+		} else { /*for cert: vf no change, not run cp*/
+			if (h > 1080)
+				tv_dovi_setting->core1_reg_lut[1] =
+					0x0000000100000043;
+			else
+				tv_dovi_setting->core1_reg_lut[1] =
+					0x0000000100000042;
+
 			/* enable CRC */
 			if ((dolby_vision_flags & FLAG_CERTIFICAION) &&
 				!(dolby_vision_flags & FLAG_DISABLE_CRC))
@@ -10253,35 +10359,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 				->input_mode = input_mode;
 			tv_dovi_setting_change_flag = true;
 			dovi_setting_video_flag = video_frame;
-
-			if (debug_dolby & 1) {
-				if (el_flag)
-					pr_dolby_dbg
-				("tv setting %s-%d:flag=%x,md=%d,comp=%d\n",
-					 input_mode == INPUT_MODE_HDMI ?
-					 "hdmi" : "ott",
-					 src_format,
-					 flag,
-					 total_md_size,
-					 total_comp_size);
-				else
-					pr_dolby_dbg
-					("tv setting %s-%d:flag=%x,md=%d\n",
-					 input_mode == INPUT_MODE_HDMI ?
-					 "hdmi" : "ott",
-					 src_format,
-					 flag,
-					 total_md_size);
-			}
-			dump_tv_setting(tv_dovi_setting,
-				frame_count, debug_dolby);
-			el_mode = el_flag;
-			mel_mode = mel_flag;
-			ret = 0; /* setting updated */
-		} else {
-			tv_dovi_setting->video_width = 0;
-			tv_dovi_setting->video_height = 0;
-			pr_dolby_error("tv_control_path() failed\n");
+			ret = 0;
 		}
 		return ret;
 	}
@@ -10757,9 +10835,6 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 			!(dolby_vision_flags & FLAG_DISABLE_CRC)) {
 			if (ott_mode)
 				return 1;
-			else if (is_meson_tm2_tvmode() || is_meson_t7_tvmode() ||
-				is_meson_t3_tvmode()) /*tv hdmi mode*/
-				return 1;
 		}
 	}
 
@@ -11202,11 +11277,14 @@ int dolby_vision_process(struct vframe_s *vf,
 					crc_read_delay = 0;
 				} else if (is_meson_tm2_tvmode() || is_meson_t7_tvmode() ||
 					is_meson_t3_tvmode()) {
-					/*tm2 hdmi mode*/
-					/*u32 crc =*/
-					/*READ_VPP_DV_REG(*/
-					/*DOLBY_TV_OUTPUT_DM_CRC);*/
-					/*pr_dolby_dbg("crc = 0x%08x\n", crc);*/
+					/* hdmi mode*/
+					if (READ_VPP_DV_REG(DOLBY_TV_DIAG_CTRL) == 0xb) {
+						u32 crc =
+						READ_VPP_DV_REG
+						(DOLBY_TV_OUTPUT_DM_CRC);
+						/*pr_dolby_dbg("crc = 0x%08x\n", crc);*/
+						snprintf(cur_crc, sizeof(cur_crc), "0x%08x", crc);
+					}
 					crc_count++;
 					crc_read_delay = 0;
 				}
@@ -11256,7 +11334,8 @@ int dolby_vision_process(struct vframe_s *vf,
 				reverse_changed ? "reverse_changed" : "");
 	}
 	if (sink_changed || policy_changed || format_changed ||
-	    video_status == 1 || (graphic_status & 2) ||
+	    (video_status == 1 && !(dolby_vision_flags & FLAG_CERTIFICAION)) ||
+	    (graphic_status & 2) ||
 	    (dolby_vision_flags & FLAG_FORCE_HDMI_PKT) ||
 	    need_update_cfg || reverse_changed) {
 		if (debug_dolby & 1)
@@ -11937,6 +12016,13 @@ static void update_cp_cfg(void)
 {
 	unsigned long lockflags;
 	struct TargetDisplayConfig *tdc;
+
+	if (cur_pic_mode >= num_picture_mode || num_picture_mode == 0 ||
+	    !bin_to_cfg) {
+		pr_info("%s, invalid para %d/%d, bin_to_cfg %p",
+			__func__, cur_pic_mode, num_picture_mode, bin_to_cfg);
+		return;
+	}
 
 	memcpy(pq_config_fake,
 	       &bin_to_cfg[cur_pic_mode],
@@ -13365,6 +13451,7 @@ void tv_dolby_vision_crc_clear(int flag)
 	pr_info("clear crc_output_buf\n");
 	if (crc_output_buf)
 		memset(crc_output_buf, 0, CRC_BUFF_SIZE);
+	strcpy(cur_crc, "invalid");
 }
 
 char *tv_dolby_vision_get_crc(u32 *len)
@@ -13593,6 +13680,7 @@ static long amdolby_vision_ioctl(struct file *file,
 			set_pic_mode(mode_id);
 			if (debug_dolby & 0x200)
 				pr_info("[DV]: set mode %d\n", mode_id);
+			set_pic_mode(mode_id);
 		} else {
 			ret = -EFAULT;
 		}
@@ -13737,6 +13825,10 @@ static const char *amdolby_vision_debug_usage_str = {
 	"echo bypass_all_vpp_pq 1 > /sys/class/amdolby_vision/debug; force bypass vpp pq in cert mode\n"
 	"echo enable_vpu_probe 1 > /sys/class/amdolby_vision/debug; enable vpu probe\n"
 	"echo ko_info > /sys/class/amdolby_vision/debug; query ko info\n"
+	"echo enable_vf_check 1 > /sys/class/amdolby_vision/debug;\n"
+	"echo enable_vf_check 0 > /sys/class/amdolby_vision/debug;\n"
+	"echo force_hdmin_fmt value > /sys/class/amdolby_vision/debug; 1:HDR10 2:HLG 3:DV LL\n"
+
 };
 
 static ssize_t  amdolby_vision_debug_show
@@ -13845,6 +13937,20 @@ static ssize_t amdolby_vision_debug_store
 	} else if (!strcmp(parm[0], "ko_info")) {
 		if (ko_info)
 			pr_info("ko info: %s\n", ko_info);
+	} else if (!strcmp(parm[0], "enable_vf_check")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		if (val == 0)
+			enable_vf_check = 0;
+		else
+			enable_vf_check = 1;
+		pr_info("set enable_vf_check %d\n",
+			enable_vf_check);
+	} else if (!strcmp(parm[0], "force_hdmin_fmt")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		force_hdmin_fmt = val;
+		pr_info("set force_hdmin_fmt %d\n", force_hdmin_fmt);
 	} else {
 		pr_info("unsupport cmd\n");
 	}
@@ -13954,6 +14060,54 @@ static ssize_t	amdolby_vision_dv_provider_show
 	struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", dv_provider);
+}
+
+static ssize_t	amdolby_vision_content_fps_show
+	(struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "content_fps: %d\n", content_fps);
+}
+
+static ssize_t amdolby_vision_content_fps_store
+	(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	size_t r;
+
+	if (!buf)
+		return count;
+
+	r = kstrtoint(buf, 0, &content_fps);
+	if (r != 0)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t	amdolby_vision_gd_rf_adjust_show
+	(struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "gd_rf_adjust: %d\n", gd_rf_adjust);
+}
+
+static ssize_t amdolby_vision_gd_rf_adjust_store
+	(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	size_t r;
+
+	if (!buf)
+		return count;
+
+	r = kstrtoint(buf, 0, &gd_rf_adjust);
+	if (r != 0)
+		return -EINVAL;
+
+	return count;
 }
 
 /* supported mode: IPT_TUNNEL/HDR10/SDR10 */
@@ -14394,6 +14548,12 @@ static ssize_t amdolby_vision_core2_sel_store
 	return count;
 }
 
+static ssize_t  amdolby_vision_crc_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%s\n", cur_crc);
+}
+
 static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(debug, 0644,
 	amdolby_vision_debug_show, amdolby_vision_debug_store),
@@ -14432,6 +14592,15 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	       amdolby_vision_core2_sel_store),
 	__ATTR(dv_provider, 0644,
 	       amdolby_vision_dv_provider_show,
+	       NULL),
+	__ATTR(content_fps, 0644,
+	       amdolby_vision_content_fps_show,
+	       amdolby_vision_content_fps_store),
+	__ATTR(gd_rf_adjust, 0644,
+	       amdolby_vision_gd_rf_adjust_show,
+	       amdolby_vision_gd_rf_adjust_store),
+	__ATTR(cur_crc, 0644,
+	       amdolby_vision_crc_show,
 	       NULL),
 	__ATTR_NULL
 };

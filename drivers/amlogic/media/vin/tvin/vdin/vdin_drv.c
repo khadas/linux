@@ -80,6 +80,10 @@
 #include "vdin_dv.h"
 #include <linux/amlogic/gki_module.h>
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#endif
+
 #define VDIN_DRV_NAME		"vdin"
 #define VDIN_DEV_NAME		"vdin"
 #define VDIN_CLS_NAME		"vdin"
@@ -189,6 +193,13 @@ struct vpu_dev_s *vpu_dev_mem_pd_afbce;
 static void vdin_backup_histgram(struct vframe_s *vf, struct vdin_dev_s *devp);
 
 char *vf_get_receiver_name(const char *provider_name);
+
+#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+bool for_dolby_vision_certification(void)
+{
+	return false;
+}
+#endif
 
 static int vdin_get_video_reverse(char *str)
 {
@@ -1915,6 +1926,10 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		vdin_drop_frame_info(devp, "no frontend");
 		return IRQ_HANDLED;
 	}
+
+	if (for_dolby_vision_certification())
+		vdin_set_crc_pulse(devp);
+
 	sm_ops = devp->frontend->sm_ops;
 
 	if (sm_ops && sm_ops->get_sig_property) {
@@ -2271,6 +2286,12 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	vdin_set_drm_data(devp, curr_wr_vf);
 	vdin_set_vframe_prop_info(curr_wr_vf, devp);
+
+	if (for_dolby_vision_certification()) {
+		vdin_get_crc_val(curr_wr_vf, devp);
+		/*pr_info("vdin_isr get vf %p, crc %x\n", curr_wr_vf, curr_wr_vf->crc);*/
+	}
+
 	vdin_backup_histgram(curr_wr_vf, devp);
 	#ifdef CONFIG_AML_LOCAL_DIMMING
 	/*vdin_backup_histgram_ldim(curr_wr_vf, devp);*/

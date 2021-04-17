@@ -41,7 +41,10 @@
 #define LUT_DIM          17
 #define GM_LUT_SIZE      (3 * LUT_DIM * LUT_DIM * LUT_DIM * 2)
 #define BACLIGHT_LUT_SIZE 4096
+#define BLU_LUT_SIZE 5
+#define AMB_LUT_SIZE 8
 #define TUNING_LUT_ENTRIES 14
+#define DM4_TUNING_LUT_ENTRIES 7
 
 #define TUNINGMODE_FORCE_ABSOLUTE        0x1
 #define TUNINGMODE_EXTLEVEL1_DISABLE     0x2
@@ -88,13 +91,13 @@ enum core_type {
 struct TgtOutCscCfg {
 	s32   lms2RgbMat[3][3]; /**<@brief  LMS to RGB matrix */
 	s32   lms2RgbMatScale;  /**<@brief  LMS 2 RGB matrix scale */
-#ifdef V1_6_1
-	s32   reserved[4];
-#else
+//#ifdef V1_6_1
+//	s32   reserved[4];
+//#else
 	u8   whitePoint[3];    /**<@brief  White point */
 	u8   whitePointScale;  /**<@brief  White point scale */
 	s32   reserved[3];
-#endif
+//#endif
 };
 #pragma pack(pop)
 
@@ -127,7 +130,7 @@ struct TgtGDCfg {
 	s16   gdRiseWeight;      /*Back light rise weight signed Q3.12 */
 	s16   gdFallWeight;      /*Back light fall weight signed Q3.12 */
 	u32  gdDelayMilliSec_ll;/*Back light delay for LL case */
-	u32  gdContrast;        /*GD Contrast DM 4 only */
+	u32  gdContrast;
 	u32  reserved[3];
 #else
 #ifdef V1_5
@@ -141,10 +144,10 @@ struct TgtGDCfg {
 #pragma pack(pop)
 
 #ifdef V1_6_1
-#define AMBIENT_UPD_FRONT     (uint32_t)(1 << 0)
-#define AMBIENT_UPD_REAR      (uint32_t)(1 << 1)
-#define AMBIENT_UPD_WHITEXY   (uint32_t)(1 << 2)
-#define AMBIENT_UPD_MODE      (uint32_t)(1 << 3)
+#define AMBIENT_UPD_FRONT     (u32)(1 << 0)
+#define AMBIENT_UPD_REAR      (u32)(1 << 1)
+#define AMBIENT_UPD_WHITEXY   (u32)(1 << 2)
+#define AMBIENT_UPD_MODE      (u32)(1 << 3)
 
 struct ambient_cfg_s {
 	u32 update_flag;
@@ -230,7 +233,16 @@ struct TargetDisplayConfig {
 	s16  brightnessPreservation; /*Brightness preservation */
 	u8  num_total_viewing_modes;/*Num of total viewing modes in cfg*/
 	u8  viewing_mode_valid;     /*1 if the viewing mode is valid*/
-	s16  padding[128];
+	u32 ambientFrontLux[AMB_LUT_SIZE];
+	u32 ambientCompLevel[AMB_LUT_SIZE];
+	s16  midPQBiasLut[TUNING_LUT_ENTRIES];       /**<@brief  Mid PQ Bias Lut */
+	s16  slopeBiasLut[TUNING_LUT_ENTRIES];       /**<@brief  Slope Bias Lut */
+	s16  backlightBiasLut[TUNING_LUT_ENTRIES];   /**<@brief  Backlight Bias Lut */
+	s16  userBrightnessUIlut[DM4_TUNING_LUT_ENTRIES];
+	s16  padding2;
+	s16  bluPwm[BLU_LUT_SIZE];
+	s16  bluLight[BLU_LUT_SIZE];
+	s16  padding[36];
 };
 
 #pragma pack(pop)
@@ -699,7 +711,9 @@ struct dv_pq_range_s {
 
 struct tv_input_info_s {
 	s16 brightness_off[8][2];
-	s32 debug_buf[500];
+	s32 content_fps;
+	s32 gd_rf_adjust;
+	s32 debug_buf[498];
 };
 
 #ifdef V1_6_1
