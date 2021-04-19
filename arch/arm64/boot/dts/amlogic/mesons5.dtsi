@@ -2019,8 +2019,8 @@
 		memory-region = <&di_cma_reserved>;
 		interrupts = <0 122 1
 				0 123 1
-				0 128 1>;
-		interrupt-names = "pre_irq", "post_irq", "dct_irq";
+				0 278 1>;
+		interrupt-names = "pre_irq", "post_irq", "aisr_irq";
 		clocks = <&clkc CLKID_VPU_CLKB>,
 			<&clkc CLKID_VPU>;
 		clock-names = "vpu_clkb",
