@@ -249,7 +249,7 @@ unsigned int vecm_latch_flag2;
 module_param(vecm_latch_flag2, uint, 0664);
 MODULE_PARM_DESC(vecm_latch_flag2, "\n vecm_latch_flag2\n");
 
-unsigned int pq_load_en;/* load pq table enable/disable */
+unsigned int pq_load_en = 1;/* load pq table enable/disable */
 module_param(pq_load_en, uint, 0664);
 MODULE_PARM_DESC(pq_load_en, "\n pq_load_en\n");
 
