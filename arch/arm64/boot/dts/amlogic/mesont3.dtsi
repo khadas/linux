@@ -29,7 +29,7 @@
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
-//			#cooling-cells = <2>;
+			#cooling-cells = <2>;
 			clocks = <&clkc CLKID_CPU_CLK>,
 				<&clkc CLKID_CPU_DYN_CLK>,
 				<&clkc CLKID_SYS_PLL>,
@@ -53,7 +53,7 @@
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
-//			#cooling-cells = <2>;
+			#cooling-cells = <2>;
 			clocks = <&clkc CLKID_CPU_CLK>,
 				<&clkc CLKID_CPU_DYN_CLK>,
 				<&clkc CLKID_SYS_PLL>,
@@ -77,7 +77,7 @@
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
-//			#cooling-cells = <2>;
+			#cooling-cells = <2>;
 			clocks = <&clkc CLKID_CPU_CLK>,
 				<&clkc CLKID_CPU_DYN_CLK>,
 				<&clkc CLKID_SYS_PLL>,
@@ -101,7 +101,7 @@
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
-//			#cooling-cells = <2>;
+			#cooling-cells = <2>;
 			clocks = <&clkc CLKID_CPU_CLK>,
 				<&clkc CLKID_CPU_DYN_CLK>,
 				<&clkc CLKID_SYS_PLL>,
@@ -116,6 +116,7 @@
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
+			dynamic-power-coefficient = <230>;
 		};
 
 		idle-states {
@@ -1336,33 +1337,25 @@
 		#thermal-sensor-cells = <1>;
 	};
 
-//	meson_cooldev: meson-cooldev@0 {
-//		status = "okay";
-//		compatible = "amlogic, meson-cooldev";
-//		cooling_devices {
-//			cpucore_cool_cluster0 {
-//				cluster_id = <0>;
-//				node_name = "cpucore_cool0";
-//				device_type = "cpucore";
-//			};
-//			cpucore_cool_cluster1 {
-//				cluster_id = <1>;
-//				node_name = "cpucore_cool1";
-//				device_type = "cpucore";
-//			};
-//			gpufreq_cool {
-//				dyn_coeff = <358>;
-//				node_name = "bifrost";
-//				device_type = "gpufreq";
-//			};
-//		};
-//		cpucore_cool0:cpucore_cool0 {
-//			#cooling-cells = <2>;
-//		};
-//		cpucore_cool1:cpucore_cool1 {
-//			#cooling-cells = <2>;
-//		};
-//	};/*meson cooling devices end*/
+	meson_cooldev: meson-cooldev@0 {
+		status = "okay";
+		compatible = "amlogic, meson-cooldev";
+		cooling_devices {
+			cpucore_cool_cluster0 {
+				cluster_id = <0>;
+				node_name = "cpucore_cool0";
+				device_type = "cpucore";
+			};
+			gpufreq_cool {
+				dyn_coeff = <358>;
+				node_name = "bifrost";
+				device_type = "gpufreq";
+			};
+		};
+		cpucore_cool0:cpucore_cool0 {
+			#cooling-cells = <2>;
+		};
+	};/*meson cooling devices end*/
 
 	thermal-zones {
 		soc_thermal: soc_thermal {
@@ -1385,6 +1378,18 @@
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
+				};
+			};
+			cooling-maps {
+				cpufreq_cooling_map {
+					trip = <&cpucontrol>;
+					cooling-device = <&CPU0 0 8>;
+					contribution = <1024>;
+				};
+				gpufreq_cooling_map {
+					trip = <&cpucontrol>;
+					cooling-device = <&gpu 0 3>;
+					contribution = <1024>;
 				};
 			};
 		};
