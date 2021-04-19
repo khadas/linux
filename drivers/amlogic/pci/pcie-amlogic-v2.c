@@ -840,14 +840,9 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 			pcie_aml_regs_v2.pcie_phy_r[j] = (void __iomem *)
 				((unsigned long)amlogic_pcie->phy->phy_base
 					 + 4*j);
-		if (amlogic_pcie->phy->phy_type == 1) {
-			r0.d32 = readl(pcie_aml_regs_v2.pcie_phy_r[0]);
-			r0.b.FSLSSERIALMODE = 0;
-			r0.b.TX_SE0 = 0;
-			writel(r0.d32, pcie_aml_regs_v2.pcie_phy_r[0]);
-		} else {
+		if (!amlogic_pcie->phy->phy_type)
 			writel(0x1c, pcie_aml_regs_v2.pcie_phy_r[0]);
-		}
+
 		amlogic_pcie->phy->power_state = 1;
 	}
 
@@ -951,6 +946,14 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 			writel(val, amlogic_pcie->phy->reset_base);
 		}
 		mdelay(1);
+	}
+
+	if (amlogic_pcie->phy->phy_type == 1) {
+		r0.d32 = readl(pcie_aml_regs_v2.pcie_phy_r[0]);
+		r0.b.PHY_SEL = 1;
+		r0.b.TX_ENABLE_N = 0;
+		r0.b.FSLSSERIALMODE = 0;
+		writel(r0.d32, pcie_aml_regs_v2.pcie_phy_r[0]);
 	}
 
 	amlogic_pcie->phy->reset_state = 1;

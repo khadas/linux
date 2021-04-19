@@ -1569,7 +1569,7 @@
 		pcie-ctrl-a-rst-bit = <12>;
 		pwr-ctl = <0>;
 		phy-type = <1>;
-		//power-domains = <&pwrdm PDID_T3_PCIE>;
+		power-domains = <&pwrdm PDID_T3_PCIE>;
 		pcie-ctrl-sleep-shift = <15>;
 		pcie-hhi-mem-pd-shift = <26>;
 		pcie-hhi-mem-pd-mask = <0xf>;
