@@ -43,6 +43,8 @@ struct session_sync_stat {
 	uint32_t a_active;
 	/* enum av_sync_mode */
 	uint32_t mode;
+	/* valid in aligned sync */
+	uint32_t v_timeout;
 };
 
 enum avs_event {
