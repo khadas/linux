@@ -123,6 +123,7 @@ struct vpp_frame_par_s {
 	u32 VPP_hsc_endp;
 
 	u32 VPP_hf_ini_phase_;
+	u32 VPP_vf_init_phase;
 	struct f2v_vphase_s VPP_vf_ini_phase_[9];
 
 	u32 VPP_pic_in_height_;
@@ -164,6 +165,11 @@ struct vpp_frame_par_s {
 	u32 cm_input_h;
 	u32 nnhf_input_w;
 	u32 nnhf_input_h;
+	u32 reshape_output_w;
+	u32 reshape_output_h;
+	u32 reshape_scaler_w;
+	u32 reshape_scaler_h;
+	u32 aisr_enable;
 	u32 clk_in_pps;
 
 	bool nocomp;
@@ -171,6 +177,12 @@ struct vpp_frame_par_s {
 	u8 sr0_position;
 	u8 sr1_position;
 	u8 sr_core_support;
+	u32 hsc_rpt_p0_num0;
+	u32 vsc_top_rpt_l0_num;
+	long h_phase[3];
+	long v_phase[3];
+	u32 crop_top;
+	u32 crop_bottom;
 };
 
 struct disp_info_s {
@@ -364,9 +376,11 @@ int vpp_set_super_scaler_regs
 	int reg_srscl1_vert_ratio,
 	int vpp_postblend_out_width,
 	int vpp_postblend_out_height);
-void aisr_set_filters(u32 ratio_x, u32 ratio_y,
-			u32 dst_w, u32 dst_h,
-			struct vpp_frame_par_s *aisr_frame_par,
-			struct vframe_s *vf);
 void aisr_sr1_nn_enable(u32 enable);
+void aisr_reshape_output(u32 enable);
+void aisr_set_filters(struct disp_info_s *input,
+			struct vpp_frame_par_s *next_frame_par,
+			struct vframe_s *vf,
+			const struct vinfo_s *vinfo,
+			u32 vpp_flags);
 #endif /* VPP_H */

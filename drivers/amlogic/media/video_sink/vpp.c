@@ -60,6 +60,7 @@
 #define COEF_LANCZOS_8TAP_A4          3
 #define COEF_MITCHELL_NETRAVALI_8TAP  4
 #define COEF_BSPLINE_8TAP             5
+#define COEF_BILINEAR_8TAP            6
 
 #define VPP_SPEED_FACTOR 0x110ULL
 #define SUPER_SCALER_V_FACTOR  100
@@ -413,13 +414,36 @@ const u32 vpp_filter_coeff_bspline_8tap[] = {
 	0x3d030000
 };
 
+const u32 vpp_filter_coeff_bilinear_8tap[] = {
+	8,
+	33,
+	0x80, 0x7e, 0x7c, 0x7a,
+	0x78, 0x76, 0x74, 0x72,
+	0x70, 0x6e, 0x6c, 0x6a,
+	0x68, 0x66, 0x64, 0x62,
+	0x60, 0x5e, 0x5c, 0x5a,
+	0x58, 0x56, 0x54, 0x52,
+	0x50, 0x4e, 0x4c, 0x4a,
+	0x48, 0x46, 0x44, 0x42,
+	0x40,
+	0x0, 0x2000000, 0x4000000, 0x6000000,
+	0x8000000, 0xa000000, 0xc000000, 0xe000000,
+	0x10000000, 0x12000000, 0x14000000, 0x16000000,
+	0x18000000, 0x1a000000, 0x1c000000, 0x1e000000,
+	0x20000000, 0x22000000, 0x24000000, 0x26000000,
+	0x28000000, 0x2a000000, 0x2c000000, 0x2e000000,
+	0x30000000, 0x32000000, 0x34000000, 0x36000000,
+	0x38000000, 0x3a000000, 0x3c000000, 0x3e000000,
+	0x40000000
+};
 static const u32 *hscaler_8tap_filter_table[] = {
 	vpp_filter_coeff_bicubic_8tap,
 	vpp_filter_coeff_lanczos_8tap_a2,
 	vpp_filter_coeff_lanczos_8tap_a3,
 	vpp_filter_coeff_lanczos_8tap_a4,
 	vpp_filter_coeff_mitchell_netravali_8tap,
-	vpp_filter_coeff_bspline_8tap
+	vpp_filter_coeff_bspline_8tap,
+	vpp_filter_coeff_bilinear_8tap,
 };
 
 static unsigned int sharpness1_sr2_ctrl_32d7 = 0x00181008;
@@ -435,7 +459,7 @@ MODULE_PARM_DESC(vpp_filter_fix, "vpp_filter_fix");
 module_param(vpp_filter_fix, uint, 0664);
 
 #define MAX_COEFF_LEVEL 5
-#define MAX_COEFF_LEVEL_SC2 6
+#define MAX_COEFF_LEVEL_SC2 7
 static uint num_coeff_level = MAX_COEFF_LEVEL;
 static uint vert_coeff_settings[MAX_COEFF_LEVEL] = {
 	/* in:out */
@@ -486,6 +510,7 @@ static uint hert_coeff_settings_sc2[MAX_COEFF_LEVEL_SC2] = {
 	COEF_MITCHELL_NETRAVALI_8TAP,
 	/* reserved */
 	COEF_BSPLINE_8TAP,
+	COEF_BILINEAR_8TAP,
 	/* reserved */
 };
 
@@ -859,8 +884,14 @@ static unsigned int hscaler_input_h_threshold = 60;
 MODULE_PARM_DESC(hscaler_input_h_threshold, "hscaler_input_height_threshold");
 module_param(hscaler_input_h_threshold, uint, 0664);
 
+static int force_reshape_vskip_cnt;
+MODULE_PARM_DESC(force_reshape_vskip_cnt, "\n force_reshape_vskip_cnt\n");
+module_param(force_reshape_vskip_cnt, uint, 0664);
 static unsigned int screen_ar_threshold = 3;
 
+static unsigned int aisr_debug_flag;
+MODULE_PARM_DESC(aisr_debug_flag, "aisr_debug_flag");
+module_param(aisr_debug_flag, uint, 0664);
 /*
  *test on txlx:
  *Time_out = (V_out/V_screen_total)/FPS_out;
@@ -1703,6 +1734,8 @@ RESTART:
 	if (v_crop_enable) {
 		next_frame_par->VPP_vd_start_lines_ += crop_top;
 		next_frame_par->VPP_vd_end_lines_ += crop_top;
+		next_frame_par->crop_top = crop_top;
+		next_frame_par->crop_bottom = crop_bottom;
 	}
 
 	if (vpp_flags & VPP_FLAG_INTERLACE_IN)
@@ -2229,30 +2262,396 @@ RESTART:
 	return ret;
 }
 
-void aisr_set_filters(u32 ratio_x, u32 ratio_y,
-			u32 dst_w, u32 dst_h,
-			struct vpp_frame_par_s *aisr_frame_par,
-			struct vframe_s *vf)
+static s64 s3_to_s64(s64 data)
 {
-	u32 vpp_flags = 0;
-	s32 ini_vphase;
-	u32 vert_chroma_filter;
-	u32 layer_id = 0;
-	struct vppfilter_mode_s *filter = NULL;
+	s64 conver_data = -1;
 
+	if (data & 0x4)
+		conver_data = (conver_data & (~0x3)) | (data & 0x3);
+	else
+		conver_data = data;
+	return conver_data;
+}
+
+static void vd_hphase_ctrl_adjust(struct vpp_frame_par_s *frame_par)
+{
+	if (!cur_dev->aisr_support ||
+	    !cur_dev->pps_auto_calc)
+		return;
+	while (frame_par->h_phase[1] < 0) {
+		frame_par->h_phase[1] += (1 << 24);
+		frame_par->hsc_rpt_p0_num0++;
+	}
+	frame_par->VPP_hf_ini_phase_ = (u32)((frame_par->h_phase[1] + 128) >> 8) & 0xffff;
+	if (aisr_debug_flag)
+		pr_info("frame_par->VPP_hf_ini_phase_=0x%x, hsc_rpt_p0_num0=%x\n",
+			frame_par->VPP_hf_ini_phase_,
+			frame_par->hsc_rpt_p0_num0);
+}
+
+static void vd_vphase_ctrl_adjust(struct vpp_frame_par_s *frame_par)
+{
+	if (!cur_dev->aisr_support ||
+	    !cur_dev->pps_auto_calc)
+		return;
+	while (frame_par->v_phase[1] < 0) {
+		frame_par->v_phase[1] += (1 << 24);
+		frame_par->vsc_top_rpt_l0_num++;
+	}
+	frame_par->VPP_vf_init_phase = (u32)((frame_par->v_phase[1] + 128) >> 8) & 0xffff;
+	if (aisr_debug_flag)
+		pr_info("frame_par->VPP_vf_init_phase=0x%x, vsc_top_rpt_l0_num=%x\n",
+			frame_par->VPP_vf_init_phase,
+			frame_par->vsc_top_rpt_l0_num);
+}
+
+static void sr_pps_step_phase_id(struct vpp_frame_par_s *next_frame_par)
+{
+	s64 cascade_h_size[4];
+	s64 cascade_v_size[4];
+
+	cascade_h_size[0] = next_frame_par->spsc0_w_in;
+	cascade_h_size[1] = cascade_h_size[0] * (next_frame_par->supsc0_hori_ratio + 1);
+	cascade_h_size[2] = next_frame_par->spsc1_w_in;
+	cascade_h_size[3] = (s64)next_frame_par->spsc1_w_in *
+		(next_frame_par->supsc1_hori_ratio + 1);
+	cascade_v_size[0] = next_frame_par->spsc0_h_in;
+	cascade_v_size[1] = cascade_v_size[0] * (next_frame_par->supsc0_vert_ratio + 1);
+	cascade_v_size[2] = next_frame_par->spsc1_h_in;
+	cascade_v_size[3] = (s64)next_frame_par->spsc1_h_in *
+		(next_frame_par->supsc1_vert_ratio + 1);
+	next_frame_par->h_phase[1] = div_s64((cascade_h_size[0] << 25),
+					    cascade_h_size[3]);
+	next_frame_par->h_phase[1] = (next_frame_par->h_phase[1] >> 1) - (1 << 24);
+	next_frame_par->v_phase[1] = div_s64((cascade_v_size[0] << 25),
+					    cascade_v_size[3]);
+	next_frame_par->v_phase[1] = (next_frame_par->v_phase[1] >> 1) - (1 << 24);
+	next_frame_par->h_phase[1] -= next_frame_par->h_phase[0];
+	next_frame_par->v_phase[1] -= next_frame_par->v_phase[0];
+	next_frame_par->h_phase[1] -= div_s64((s64)next_frame_par->h_phase[2] *
+					     cascade_h_size[0],
+					     cascade_h_size[2]);
+	next_frame_par->v_phase[1] -= div_s64((s64)next_frame_par->v_phase[2] *
+					     cascade_v_size[0],
+					     cascade_v_size[2]);
+	next_frame_par->h_phase[1] = div_s64(next_frame_par->h_phase[1] *
+					    cascade_h_size[1],
+					    cascade_h_size[0]);
+	next_frame_par->h_phase[1] = (next_frame_par->h_phase[1] + 1) >> 1;
+	next_frame_par->v_phase[1] = div_s64(next_frame_par->v_phase[1] *
+					    cascade_v_size[1],
+					    cascade_v_size[0]);
+	next_frame_par->v_phase[1] = (next_frame_par->v_phase[1] + 1) >> 1;
+	if (aisr_debug_flag) {
+		pr_info("cascade h_size[0]=0x%llx, h_size[1]=0x%llx,h_size[2]=0x%llx,h_size[3]=0x%llx\n",
+			cascade_h_size[0],
+			cascade_h_size[1],
+			cascade_h_size[2],
+			cascade_h_size[3]);
+		pr_info("cascade v_size[0]=0x%llx, v_size[1]=0x%llx,v_size[2]=0x%llx,v_size[3]=0x%llx\n",
+			cascade_v_size[0],
+			cascade_v_size[1],
+			cascade_v_size[2],
+			cascade_v_size[3]);
+		pr_info("h_phase[1]=0x%lx, v_phase[1]=0x%lx\n",
+			next_frame_par->h_phase[1], next_frame_par->v_phase[1]);
+	}
+}
+
+static void sr_pps_phase_auto_calculation(struct vpp_frame_par_s *next_frame_par)
+{
+	struct sr_info_s *sr;
+	u32 sr0_sharp_sr2_ctrl;
+	u32 sr1_sharp_sr2_ctrl;
+	u32 sr0_sharp_sr2_ctrl2;
+	u32 sr1_sharp_sr2_ctrl2;
+	s64 sr0_bic_init_hphase_y;
+	s64 sr0_bic_init_vphase_y;
+	s64 sr0_bic_init_hphase_c;
+	s64 sr0_bic_init_vphase_c;
+	s64 sr1_bic_init_hphase_y;
+	s64 sr1_bic_init_vphase_y;
+	s64 sr1_bic_init_hphase_c;
+	s64 sr1_bic_init_vphase_c;
+	u32 sr0_sr2_vert_outphs;
+	u32 sr0_sr2_horz_outphs;
+	u32 sr1_sr2_vert_outphs;
+	u32 sr1_sr2_horz_outphs;
+
+	if (!cur_dev->aisr_support ||
+	    !cur_dev->pps_auto_calc)
+		return;
+	if (!cur_dev->aisr_enable)
+		return;
+	sr = &sr_info;
+	sr0_sharp_sr2_ctrl =
+		cur_dev->rdma_func[VPP0].rdma_rd
+			(SRSHARP0_SHARP_SR2_CTRL + sr->sr_reg_offt);
+	sr0_sr2_vert_outphs = (sr0_sharp_sr2_ctrl & 0x80) >> 7;
+	sr0_sr2_horz_outphs = (sr0_sharp_sr2_ctrl & 0x40) >> 6;
+	sr1_sharp_sr2_ctrl =
+		cur_dev->rdma_func[VPP0].rdma_rd
+			(SRSHARP1_SHARP_SR2_CTRL + sr->sr_reg_offt2);
+	sr1_sr2_vert_outphs = (sr1_sharp_sr2_ctrl & 0x80) >> 7;
+	sr1_sr2_horz_outphs = (sr1_sharp_sr2_ctrl & 0x40) >> 6;
+	sr0_sharp_sr2_ctrl2 =
+		cur_dev->rdma_func[VPP0].rdma_rd
+			(SRSHARP0_SHARP_SR2_CTRL2 + sr->sr_reg_offt);
+	sr0_bic_init_hphase_y = s3_to_s64((sr0_sharp_sr2_ctrl2 & 0x7fff) >> 12);
+	sr0_bic_init_vphase_y = s3_to_s64((sr0_sharp_sr2_ctrl2 & 0x7ff) >> 8);
+	sr0_bic_init_hphase_c = s3_to_s64((sr0_sharp_sr2_ctrl2 & 0x7f) >> 4);
+	sr0_bic_init_vphase_c = s3_to_s64(sr0_sharp_sr2_ctrl2 & 0x7);
+	sr1_sharp_sr2_ctrl2 =
+		cur_dev->rdma_func[VPP0].rdma_rd
+			(SRSHARP1_SHARP_SR2_CTRL2 + sr->sr_reg_offt2);
+	sr1_bic_init_hphase_y = s3_to_s64((sr1_sharp_sr2_ctrl2 & 0x7fff) >> 12);
+	sr1_bic_init_vphase_y = s3_to_s64((sr1_sharp_sr2_ctrl2 & 0x7ff) >> 8);
+	sr1_bic_init_hphase_c = s3_to_s64((sr1_sharp_sr2_ctrl2 & 0x7f) >> 4);
+	sr1_bic_init_vphase_c = s3_to_s64(sr1_sharp_sr2_ctrl2 & 0x7);
+	if (next_frame_par->supsc0_enable) {
+		next_frame_par->h_phase[0] =
+			(sr0_bic_init_hphase_y +
+			sr0_sr2_horz_outphs * 2);
+		next_frame_par->v_phase[0] =
+			(sr0_bic_init_vphase_y +
+			sr0_sr2_vert_outphs * 2);
+	} else {
+		next_frame_par->h_phase[0] = 0;
+		next_frame_par->v_phase[0] = 0;
+	}
+	if (next_frame_par->supsc1_enable) {
+		next_frame_par->h_phase[2] =
+			(sr1_bic_init_hphase_y +
+			sr1_sr2_horz_outphs * 2);
+		next_frame_par->v_phase[2] =
+			(sr1_bic_init_vphase_y +
+			sr1_sr2_vert_outphs * 2);
+	} else {
+		next_frame_par->h_phase[2] = 0;
+		next_frame_par->v_phase[2] = 0;
+	}
+	next_frame_par->h_phase[0] <<= (25 - 2);
+	next_frame_par->v_phase[0] <<= (25 - 2);
+
+	next_frame_par->h_phase[2] <<= (25 - 2);
+	next_frame_par->v_phase[2] <<= (25 - 2);
+	if (aisr_debug_flag)
+		pr_info("%s:h_phase[0]=0x%lx, v_phase[0]=0x%lx,h_phase[2]=0x%lx,v_phase[2]=0x%lx\n",
+			__func__,
+			next_frame_par->h_phase[0],
+			next_frame_par->v_phase[0],
+			next_frame_par->h_phase[2],
+			next_frame_par->v_phase[2]);
+	sr_pps_step_phase_id(next_frame_par);
+	if (hscaler_8tap_enable[0])
+		next_frame_par->hsc_rpt_p0_num0 = 3;
+	else
+		next_frame_par->hsc_rpt_p0_num0 = 1;
+	next_frame_par->vsc_top_rpt_l0_num = 1;
+	vd_hphase_ctrl_adjust(next_frame_par);
+	if (next_frame_par->hsc_rpt_p0_num0 >= 15)
+		next_frame_par->hsc_rpt_p0_num0 = 15;
+	vd_vphase_ctrl_adjust(next_frame_par);
+	if (next_frame_par->vsc_top_rpt_l0_num >= 3)
+		next_frame_par->vsc_top_rpt_l0_num = 3;
+}
+
+static void dnn_pps_phase_auto_calculation(struct vpp_frame_par_s *aisr_frame_par)
+{
+	s64 h_pps_ratio = 0;
+	s64 v_pps_ratio = 0;
+	s64 h_pps_phase = 0;
+	s64 v_pps_phase = 0;
+
+	if (!cur_dev->aisr_support ||
+	    !cur_dev->pps_auto_calc)
+		return;
+	h_pps_ratio = div_s64(((s64)aisr_frame_par->nnhf_input_w << 25),
+			      (s64)aisr_frame_par->reshape_output_w);
+	h_pps_ratio = (h_pps_ratio + 1) >> 1;
+	v_pps_ratio = div_s64(((s64)aisr_frame_par->nnhf_input_h << 25),
+			      (s64)aisr_frame_par->reshape_output_h);
+	v_pps_ratio = (v_pps_ratio + 1) >> 1;
+	h_pps_phase = div_s64(((s64)1 << 49), h_pps_ratio * 2);
+	h_pps_phase = (h_pps_phase - (1 << 24) + 1) >> 1;
+	v_pps_phase = div_s64(((s64)1 << 49), v_pps_ratio * 2);
+	v_pps_phase = (v_pps_phase - (1 << 24) + 1) >> 1;
+	aisr_frame_par->h_phase[1] = h_pps_phase;
+	aisr_frame_par->v_phase[1] = v_pps_phase;
+	if (hscaler_8tap_enable[0])
+		aisr_frame_par->hsc_rpt_p0_num0 = 3;
+	else
+		aisr_frame_par->hsc_rpt_p0_num0 = 1;
+	aisr_frame_par->vsc_top_rpt_l0_num = 1;
+	vd_hphase_ctrl_adjust(aisr_frame_par);
+	if (aisr_frame_par->hsc_rpt_p0_num0 >= 15)
+		aisr_frame_par->hsc_rpt_p0_num0 = 15;
+	vd_vphase_ctrl_adjust(aisr_frame_par);
+	if (aisr_frame_par->vsc_top_rpt_l0_num >= 3)
+		aisr_frame_par->vsc_top_rpt_l0_num = 3;
+}
+
+static int check_reshape_speed(s32 width_in,
+					s32 height_in,
+					s32 height_out,
+					struct vpp_frame_par_s *aisr_frame_par,
+					const struct vinfo_s *vinfo,
+					u32 vpp_flags)
+{
+	u32 vtotal, clk_in_pps = 0;
+	u32 sync_duration_den = 1;
+	u64 calc_clk = 0;
+	u32 cur_super_debug = 0;
+
+	if (vpp_flags & VPP_FLAG_MORE_LOG)
+		cur_super_debug = super_debug;
+	if (force_reshape_vskip_cnt == 0xff)/*for debug*/
+		return SPEED_CHECK_DONE;
+	if (aisr_frame_par->vscale_skip_count < force_reshape_vskip_cnt)
+		return SPEED_CHECK_VSKIP;
+	if (vinfo->sync_duration_den >  0)
+		sync_duration_den = vinfo->sync_duration_den;
+	if (vinfo->field_height < vinfo->height)
+		vtotal = vinfo->vtotal / 2;
+	else
+		vtotal = vinfo->vtotal;
+	clk_in_pps = vpu_clk_get();
+	calc_clk = div_u64((u64)width_in *
+		(u64)height_in *
+		(u64)vinfo->sync_duration_num *
+		(u64)vtotal,
+		height_out *
+		sync_duration_den);
+	if (cur_super_debug)
+		pr_info("%s, calc_clk=%lld, clk_in_pps=%d\n",
+			__func__,
+			calc_clk, clk_in_pps);
+	if (calc_clk > clk_in_pps)
+		return SPEED_CHECK_VSKIP;
+	return SPEED_CHECK_DONE;
+}
+
+void aisr_set_filters(struct disp_info_s *input,
+			struct vpp_frame_par_s *next_frame_par,
+			struct vframe_s *vf,
+			const struct vinfo_s *vinfo,
+			u32 vpp_flags)
+{
+	s32 start, end;
+	s32 ini_vphase, skip, vskip_step = 1;
+	u32 layer_id = 0;
+	u32 ratio_x = 0;
+	u32 ratio_y = 0;
+	u32 src_w, src_h, dst_w, dst_h;
+	u32 w_in, h_in;
+	u32 video_source_crop_top, video_source_crop_left;
+	u32 video_source_crop_bottom, video_source_crop_right;
+	u32 crop_ratio = 1;
+	u32 crop_left, crop_right, crop_top, crop_bottom;
+	u32 cur_super_debug = 0;
+	struct vppfilter_mode_s *filter = NULL;
+	struct vpp_frame_par_s *aisr_frame_par;
+
+	if (!cur_dev->aisr_enable)
+		return;
+	if (vpp_flags & VPP_FLAG_MORE_LOG)
+		cur_super_debug = super_debug;
+	aisr_frame_par = &cur_dev->aisr_frame_parms;
+	aisr_frame_par->vscale_skip_count = 0;
 	filter = &aisr_frame_par->vpp_filter;
+
+	w_in = aisr_frame_par->video_input_w;
+	h_in = aisr_frame_par->video_input_h;
+
+	video_source_crop_left = input->crop_left;
+	video_source_crop_right = input->crop_right;
+	video_source_crop_top = input->crop_top;
+	video_source_crop_bottom = input->crop_bottom;
+
+	crop_left = video_source_crop_left / crop_ratio;
+	crop_right = video_source_crop_right / crop_ratio;
+	crop_top = video_source_crop_top / crop_ratio;
+	crop_bottom = video_source_crop_bottom / crop_ratio;
+
+	if (likely(w_in >
+		(crop_left + crop_right))) {
+		w_in -= crop_left;
+		w_in -= crop_right;
+	}
+
+	if (likely(h_in >
+		(crop_top + crop_bottom))) {
+		h_in -= crop_top;
+		h_in -= crop_bottom;
+	}
+	aisr_frame_par->crop_top = crop_top;
+	aisr_frame_par->crop_bottom = crop_bottom;
+	aisr_frame_par->video_input_w = w_in;
+	aisr_frame_par->video_input_h = h_in;
+	aisr_frame_par->reshape_output_w = w_in * aisr_frame_par->reshape_scaler_w;
+	aisr_frame_par->reshape_output_h = h_in * aisr_frame_par->reshape_scaler_h;
+	if (cur_super_debug)
+		pr_info("%s:after crop video_input_w=%d, video_input_h=%d, reshape_output_w=%d, reshape_output_h=%d\n",
+			__func__,
+			w_in,
+			h_in,
+			aisr_frame_par->reshape_output_w,
+			aisr_frame_par->reshape_output_h);
+
+	src_w = aisr_frame_par->reshape_output_w;
+	src_h = aisr_frame_par->reshape_output_h;
+	dst_w = next_frame_par->nnhf_input_w;
+	dst_h = next_frame_par->nnhf_input_h;
+RESTART:
+	skip = check_reshape_speed(src_w,
+				  src_h,
+				  dst_h,
+				  aisr_frame_par,
+				  vinfo,
+				  vpp_flags);
+
+	aisr_frame_par->aisr_enable = 1;
+
+	if (skip == SPEED_CHECK_VSKIP) {
+		u32 next_vskip =
+			aisr_frame_par->vscale_skip_count + vskip_step;
+		if (next_vskip < aisr_frame_par->reshape_scaler_h) {
+			aisr_frame_par->vscale_skip_count = next_vskip;
+			src_h = aisr_frame_par->video_input_h *
+				(aisr_frame_par->reshape_scaler_h -
+				aisr_frame_par->vscale_skip_count);
+			goto RESTART;
+		} else {
+			pr_info("close aisr: aisr_enable=%d\n",
+				aisr_frame_par->aisr_enable);
+			aisr_frame_par->aisr_enable = 0;
+		}
+	}
+	src_h = aisr_frame_par->video_input_h *
+		(aisr_frame_par->reshape_scaler_h -
+		aisr_frame_par->vscale_skip_count);
+	aisr_frame_par->reshape_output_h = src_h;
+	aisr_frame_par->nnhf_input_w = dst_w;
+	aisr_frame_par->nnhf_input_h = dst_h;
+	ratio_x = (src_w << 18) / dst_w;
+	ratio_y = (src_h << 18) / dst_h;
+	if (cur_super_debug)
+		pr_info("after adjust: vscale_skip_count=%d, src_w=%d,src_h=%d,dst_w=%d, dst_h=%d\n",
+			aisr_frame_par->vscale_skip_count,
+			src_w,
+			src_h,
+			dst_w,
+			dst_h);
 	/* vertical */
 	ini_vphase = 0; /* vpp_zoom_center_y & 0xff; */
 
-	aisr_frame_par->VPP_vsc_startp = 0;
-	aisr_frame_par->VPP_vsc_endp = dst_h - 1;
+	start = 0;
+	end = dst_h - 1;
+	aisr_frame_par->VPP_vsc_startp = start;
+	aisr_frame_par->VPP_vsc_endp = end;
 
 	/* set filter co-efficients */
 	filter->vpp_vsc_start_phase_step = ratio_y << 6;
-
-	f2v_get_vertical_phase(ratio_y, ini_vphase,
-			       aisr_frame_par->VPP_vf_ini_phase_,
-			       vpp_flags & VPP_FLAG_INTERLACE_OUT);
 
 	/* horizontal */
 	aisr_frame_par->VPP_hsc_startp = 0;
@@ -2269,50 +2668,35 @@ void aisr_set_filters(u32 ratio_x, u32 ratio_y,
 	aisr_frame_par->VPP_hf_ini_phase_ = ini_vphase;
 
 	/* coeff selection before skip and apply pre_scaler */
-	filter->vpp_vert_filter =
-		coeff(vert_coeff_settings,
+	if (aisr_frame_par->video_input_w >= 960 &&
+	   aisr_frame_par->video_input_h >= 540) {
+		filter->vpp_vert_filter = COEF_BILINEAR;
+		/* avoid hscaler fitler adjustion affect on picture shift*/
+		if (hscaler_8tap_enable[layer_id])
+			filter->vpp_horz_filter = COEF_BILINEAR_8TAP;
+		else
+			filter->vpp_horz_filter = COEF_BILINEAR;
+	} else {
+		filter->vpp_vert_filter = coeff(vert_coeff_settings,
 		      filter->vpp_vsc_start_phase_step,
 		      1,
-		      ((vf->type_original & VIDTYPE_TYPEMASK)
-			!= VIDTYPE_PROGRESSIVE),
+		      0,
 		      vf->combing_cur_lev);
+		if (hscaler_8tap_enable[layer_id])
+			filter->vpp_horz_filter =
+				coeff_sc2(hert_coeff_settings_sc2,
+					  filter->vpp_hf_start_phase_step);
+		else
+			filter->vpp_horz_filter =
+				coeff(horz_coeff_settings,
+				      filter->vpp_hf_start_phase_step,
+				      aisr_frame_par->VPP_hf_ini_phase_,
+				      0,
+				      vf->combing_cur_lev);
+	}
 
 	filter->vpp_vert_coeff =
 		filter_table[filter->vpp_vert_filter];
-
-	/* when local interlace or AV or ATV */
-	/* TODO: add 420 check for local */
-	if (vert_chroma_filter_force_en ||
-	    (vert_chroma_filter_en &&
-	    ((vf->source_type == VFRAME_SOURCE_TYPE_OTHERS &&
-	     (((vf->type_original & VIDTYPE_TYPEMASK) !=
-		VIDTYPE_PROGRESSIVE) ||
-		dst_h < vert_chroma_filter_limit)) ||
-	      vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
-	      vf->source_type == VFRAME_SOURCE_TYPE_TUNER))) {
-		vert_chroma_filter =
-			chroma_filter_table[filter->vpp_vert_filter];
-		filter->vpp_vert_chroma_coeff =
-			filter_table[vert_chroma_filter];
-		filter->vpp_vert_chroma_filter_en = true;
-	} else {
-		vert_chroma_filter = COEF_NULL;
-		filter->vpp_vert_chroma_filter_en = false;
-	}
-
-	/* avoid hscaler fitler adjustion affect on picture shift*/
-	if (hscaler_8tap_enable[layer_id])
-		filter->vpp_horz_filter =
-			coeff_sc2(hert_coeff_settings_sc2,
-				  filter->vpp_hf_start_phase_step);
-	else
-		filter->vpp_horz_filter =
-			coeff(horz_coeff_settings,
-			      filter->vpp_hf_start_phase_step,
-			      aisr_frame_par->VPP_hf_ini_phase_,
-			      ((vf->type_original & VIDTYPE_TYPEMASK)
-			       != VIDTYPE_PROGRESSIVE),
-			      vf->combing_cur_lev);
 
 	if (hscaler_8tap_enable[layer_id]) {
 		/* hscaler 8 tap */
@@ -2327,6 +2711,7 @@ void aisr_set_filters(u32 ratio_x, u32 ratio_y,
 	/* for aisr vpp_pre_vsc_en/vpp_pre_hsc_en disable */
 	filter->vpp_pre_vsc_en = 0;
 	filter->vpp_pre_hsc_en = 0;
+	dnn_pps_phase_auto_calculation(aisr_frame_par);
 }
 
 void aisr_sr1_nn_enable(u32 enable)
@@ -2334,16 +2719,53 @@ void aisr_sr1_nn_enable(u32 enable)
 	struct sr_info_s *sr;
 	u32 sr_reg_offt2;
 
+	if (!cur_dev->aisr_support)
+		return;
 	sr = &sr_info;
 	sr_reg_offt2 = sr->sr_reg_offt2;
 	if (enable)
-		cur_dev->rdma_func[VPP0].rdma_wr
+		cur_dev->rdma_func[VPP0].rdma_wr_bits
 			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
-			0x6080);
+			0x3, 13, 2);
 	else
-		cur_dev->rdma_func[VPP0].rdma_wr
+		cur_dev->rdma_func[VPP0].rdma_wr_bits
 			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
-			0x80);
+			0x0, 13, 2);
+}
+
+void aisr_reshape_output(u32 enable)
+{
+	struct sr_info_s *sr;
+	u32 sr_reg_offt2;
+
+	if (!cur_dev->aisr_support)
+		return;
+	sr = &sr_info;
+	sr_reg_offt2 = sr->sr_reg_offt2;
+	if (enable) {
+		cur_dev->rdma_func[VPP0].rdma_wr_bits
+			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
+			0x5, 9, 4);
+		cur_dev->rdma_func[VPP0].rdma_wr_bits
+			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
+			0xa, 12, 4);
+		cur_dev->rdma_func[VPP0].rdma_wr_bits
+			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
+			0x2, 28, 2);
+		cur_dev->rdma_func[VPP0].rdma_wr_bits
+			(SRSHARP1_SHARP_SR2_CTRL + sr_reg_offt2,
+			0x0, 1, 1);
+	} else {
+		cur_dev->rdma_func[VPP0].rdma_wr_bits
+			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
+			0x0, 9, 4);
+		cur_dev->rdma_func[VPP0].rdma_wr_bits
+			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
+			0x4, 12, 4);
+		cur_dev->rdma_func[VPP0].rdma_wr_bits
+			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
+			0x0, 28, 2);
+		}
 }
 
 /*
@@ -2691,8 +3113,7 @@ static void vpp_set_super_scaler
 
 	/*double check core0 input width for core0_vert_ratio!!!*/
 	if (next_frame_par->supsc0_vert_ratio &&
-	    (width_out >> next_frame_par->supsc0_hori_ratio >
-	     sr->core0_v_enable_width_max)) {
+	    (src_width > sr->core0_v_enable_width_max)) {
 		next_frame_par->supsc0_vert_ratio = 0;
 		if (next_frame_par->supsc0_hori_ratio == 0)
 			next_frame_par->supsc0_enable = 0;
@@ -2700,7 +3121,7 @@ static void vpp_set_super_scaler
 
 	/*double check core1 input width for core1_vert_ratio!!!*/
 	if (next_frame_par->supsc1_vert_ratio &&
-	    (width_out >> next_frame_par->supsc1_hori_ratio >
+	    ((width_out >> next_frame_par->supsc1_hori_ratio) >
 	     sr->core1_v_enable_width_max)) {
 		next_frame_par->supsc1_vert_ratio = 0;
 		if (next_frame_par->supsc1_hori_ratio == 0)
@@ -2731,6 +3152,20 @@ static void vpp_set_super_scaler
 		next_frame_par->supsc0_enable = 0;
 		next_frame_par->supsc0_hori_ratio = 0;
 		next_frame_par->supsc0_vert_ratio = 0;
+	}
+	if (cur_dev->aisr_enable) {
+		next_frame_par->supsc1_enable = 1;
+		next_frame_par->supsc1_hori_ratio = 1;
+		next_frame_par->supsc1_vert_ratio = 1;
+		if (ver_sc_multiple_num >= 2 * SUPER_SCALER_V_FACTOR &&
+		   ver_sc_multiple_num < 4 * SUPER_SCALER_V_FACTOR)
+			next_frame_par->supsc0_vert_ratio = 0;
+		if (hor_sc_multiple_num >= 2 &&
+		    hor_sc_multiple_num < 4)
+			next_frame_par->supsc0_hori_ratio = 0;
+		if (next_frame_par->supsc0_vert_ratio == 0 &&
+		   next_frame_par->supsc0_hori_ratio == 0)
+			next_frame_par->supsc0_enable = 0;
 	}
 
 	if (bypass_sr1 || !(sr_support & SUPER_CORE1_SUPPORT)) {
@@ -4096,6 +4531,8 @@ RERTY:
 				next_frame_par->video_input_h;
 		}
 	}
+	aisr_set_filters(&local_input, next_frame_par, vf, vinfo, vpp_flags);
+	sr_pps_phase_auto_calculation(next_frame_par);
 	return ret;
 }
 

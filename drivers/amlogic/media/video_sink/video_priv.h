@@ -173,7 +173,10 @@ struct video_dev_s {
 	int max_vd_layers;
 	int vd2_independ_blend_ctrl;
 	int aisr_support;
+	int aisr_enable;
 	int scaler_sep_coef_en;
+	int pps_auto_calc;
+	bool di_hf_y_reverse;
 	struct hw_pps_reg_s aisr_pps_reg;
 	struct vpp_frame_par_s aisr_frame_parms;
 	struct rdma_fun_s rdma_func[RDMA_INTERFACE_NUM];
@@ -308,12 +311,16 @@ struct aisr_setting_s {
 	u32 in_ratio; /* 1:2x2  2:3x3 3:4x4 */
 	u32 src_w;
 	u32 src_h;
+	u32 src_align_w;
+	u32 src_align_h;
 	u32 x_start;
 	u32 x_end;
 	u32 y_start;
 	u32 y_end;
 	u32 little_endian;
 	u32 swap_64bit;
+	u32 reverse;
+	u32 vscale_skip_count;
 	ulong phy_addr;
 };
 
@@ -426,6 +433,7 @@ struct video_device_hw_s {
 	u32 vd2_independ_blend_ctrl;
 	u32 aisr_support;
 	u32 frc_support;
+	u32 di_hf_y_reverse;
 };
 
 struct amvideo_device_data_s {
@@ -472,6 +480,7 @@ extern int pre_vscaler_ntap_enable[MAX_VD_LAYER];
 extern int pre_vscaler_ntap_set[MAX_VD_LAYER];
 extern int pre_vscaler_ntap[MAX_VD_LAYER];
 extern bool vd1_vd2_mux;
+extern bool aisr_en;
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);
 bool is_dolby_vision_stb_mode(void);
@@ -690,13 +699,16 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 s32 pip2_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo);
 void aisr_update_frame_info(struct video_layer_s *layer,
 			 struct vframe_s *vf);
-void aisr_reshape_cfg(struct aisr_setting_s *aisr_mif_setting);
-void aisr_pps_cfg(struct aisr_setting_s *aisr_mif_setting,
-		     struct scaler_setting_s *setting,
-		     struct scaler_setting_s *aisr_setting,
-		     struct vframe_s *vf);
+void aisr_reshape_addr_set(struct video_layer_s *layer,
+				  struct aisr_setting_s *aisr_mif_setting);
+void aisr_reshape_cfg(struct video_layer_s *layer,
+		      struct aisr_setting_s *aisr_mif_setting);
 void aisr_scaler_setting(struct video_layer_s *layer,
 				    struct scaler_setting_s *setting);
+s32 config_aisr_pps(struct video_layer_s *layer,
+			 struct scaler_setting_s *aisr_setting);
+s32 config_aisr_position(struct video_layer_s *layer,
+			     struct aisr_setting_s *aisr_mif_setting);
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void vsync_rdma_process(void);
 #endif

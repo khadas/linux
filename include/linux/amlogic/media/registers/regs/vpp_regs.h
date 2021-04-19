@@ -203,12 +203,15 @@
 #define SRSHARP0_SHARP_PK_NR_ENABLE       0x3227
 #define SRSHARP0_SHARP_DNLP_EN            0x3245
 #define SRSHARP0_SHARP_SR2_CTRL           0x3257
+#define SRSHARP0_SHARP_SR2_CTRL2          0x3364
 #define SRSHARP1_SHARP_HVSIZE             0x3280
 #define SRSHARP1_SHARP_HVBLANK_NUM        0x3281
 #define SRSHARP1_SHARP_PK_NR_ENABLE       0x32a7
 #define SRSHARP1_SHARP_DNLP_EN            0x32c5
 #define SRSHARP1_SHARP_SR2_CTRL           0x32d7
+#define SRSHARP1_DEMO_MODE_WINDOW_CTRL0   0x3400
 #define SRSHARP1_NN_POST_TOP              0x3402
+#define SRSHARP1_SHARP_SR2_CTRL2          0x33e4
 
 #define VPP_POST_MATRIX_SAT               0x32c1
 

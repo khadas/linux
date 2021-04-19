@@ -299,12 +299,12 @@ enum {
 #define VPP_COEF_INDEX_BIT      0
 
 enum {
-	VPP_SEP_COEF_VERT_LUMA = 0x000 << 17,
-	VPP_SEP_COEF_VERT_CHROMA = 0x001 << 17,
-	VPP_SEP_COEF_HORZ_LUMA = 0x010 << 17,
-	VPP_SEP_COEF_HORZ_LUMA_PARTB = 0x011 << 17,
-	VPP_SEP_COEF_HORZ_CHROMA = 0x101 << 17,
-	VPP_SEP_COEF_HORZ_CHROMA_PARTB = 0x110 << 17,
+	VPP_SEP_COEF_VERT_LUMA         = 0x0 << 17,
+	VPP_SEP_COEF_VERT_CHROMA       = 0x1 << 17,
+	VPP_SEP_COEF_HORZ_LUMA         = 0x2 << 17,
+	VPP_SEP_COEF_HORZ_LUMA_PARTB   = 0x3 << 17,
+	VPP_SEP_COEF_HORZ_CHROMA       = 0x4 << 17,
+	VPP_SEP_COEF_HORZ_CHROMA_PARTB = 0x5 << 17,
 };
 
 #define AMVIDEO_UPDATE_OSD_MODE	0x00000001
@@ -353,7 +353,7 @@ void set_video_zorder_ext(int layer_index, int zorder);
 s32 set_video_path_select(const char *recv_name, u8 layer_id);
 s32 set_sideband_type(s32 type, u8 layer_id);
 void vpp_probe_en_set(u32 enable);
-
+bool is_di_hf_y_reverse(void);
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 int tsync_set_tunnel_mode(int mode);
 #endif

@@ -426,12 +426,22 @@ static int last_mode_3d;
 bool reverse;
 u32  mirror;
 bool vd1_vd2_mux;
+bool aisr_en;
 
 bool get_video_reverse(void)
 {
 	return reverse;
 }
 EXPORT_SYMBOL(get_video_reverse);
+
+bool is_di_hf_y_reverse(void)
+{
+	if (reverse || mirror == 2)
+		return cur_dev->di_hf_y_reverse;
+	else
+		return false;
+}
+EXPORT_SYMBOL(is_di_hf_y_reverse);
 
 static const char video_dev_id[] = "amvideo-dev";
 
@@ -917,6 +927,10 @@ static void dump_pps_reg(void)
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
+		reg_addr = vd_layer[i].pps_reg.vd_vsc_init_phase;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
 		reg_addr = vd_layer[i].pps_reg.vd_hsc_region12_startp;
 		reg_val = READ_VCBUS_REG(reg_addr);
 		pr_info("[0x%x] = 0x%X\n",
@@ -1030,6 +1044,193 @@ static void dump_fgrain_reg(void)
 	}
 }
 
+static void dump_aisr_reg(void)
+{
+	u32 reg_addr, reg_val = 0;
+
+	pr_info("aisr reshape regs:\n");
+	reg_addr = aisr_reshape_reg.aisr_reshape_ctrl0;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_ctrl1;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_scope_x;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_scope_y;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr00;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr01;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr02;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr03;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr10;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr11;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr12;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr13;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr20;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr21;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr22;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr23;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr30;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr31;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr32;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_reshape_baddr33;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_post_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_post_size;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = aisr_reshape_reg.aisr_sr1_nn_post_top;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	pr_info("aisr pps regs:\n");
+	reg_addr = cur_dev->aisr_pps_reg.vd_vsc_region12_startp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_vsc_region34_startp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_vsc_region4_endp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_vsc_start_phase_step;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_vsc_region1_phase_slope;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_vsc_region3_phase_slope;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_vsc_phase_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_vsc_init_phase;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_hsc_region12_startp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_hsc_region34_startp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_hsc_region4_endp;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_hsc_start_phase_step;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_hsc_region1_phase_slope;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_hsc_region3_phase_slope;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_hsc_phase_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_sc_misc;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_hsc_phase_ctrl1;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_prehsc_coef;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_pre_scale_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = cur_dev->aisr_pps_reg.vd_prevsc_coef;
+	if (reg_addr) {
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+	}
+	reg_addr = cur_dev->aisr_pps_reg.vd_prehsc_coef1;
+	if (reg_addr) {
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+	}
+}
 static void dump_vpp_path_size_reg(void)
 {
 	u32 reg_addr, reg_val = 0;
@@ -5045,7 +5246,6 @@ static void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1
 			video_keeper_new_frame_notify();
 	}
 	fgrain_update_table(layer, vf);
-	aisr_update_frame_info(layer, vf);
 	if (stop_update)
 		layer->new_vpp_setting = false;
 	ATRACE_COUNTER(__func__,  0);
@@ -5173,6 +5373,7 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 		layer->end_y_lines = zoom_end_y;
 		config_vd_position
 			(layer, &layer->mif_setting);
+		config_aisr_position(layer, &layer->aisr_mif_setting);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (is_dolby_vision_on() && cur_dispbuf2) {
 			config_dvel_position
@@ -5204,10 +5405,7 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 			      &layer->fgrain_setting,
 			      dispbuf);
 		/* aisr mif setting */
-		aisr_reshape_cfg(&layer->aisr_mif_setting);
-		/* aisr pps config */
-		aisr_pps_cfg(&layer->aisr_mif_setting, &layer->sc_setting,
-			&layer->aisr_sc_setting, dispbuf);
+		aisr_reshape_cfg(layer, &layer->aisr_mif_setting);
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -5219,6 +5417,9 @@ static s32 primary_render_frame(struct video_layer_s *layer)
 	    frame_par->VPP_pic_in_height_ > 0)
 		frame_par->VPP_pic_in_height_--;
 #endif
+	/* aisr pps config */
+	config_aisr_pps(layer, &layer->aisr_sc_setting);
+
 	config_vd_pps
 		(layer, &layer->sc_setting, vinfo);
 	config_vd_blend
@@ -8235,9 +8436,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 
 static irqreturn_t vsync_pre_vsync_isr(int irq, void *dev_id)
 {
-	irqreturn_t ret = IRQ_HANDLED;
-
-	return ret;
+	return IRQ_HANDLED;
 }
 /*********************************************************
  * FIQ Routines
@@ -13753,6 +13952,79 @@ static ssize_t videopip2_zorder_store(struct class *cla,
 	return count;
 }
 
+static ssize_t aisr_state_show(char *buf)
+{
+	ssize_t len = 0;
+	struct vpp_frame_par_s *_cur_frame_par = NULL;
+	struct vppfilter_mode_s *vpp_filter = NULL;
+	struct aisr_setting_s *aisr_mif_setting = &vd_layer[0].aisr_mif_setting;
+
+	_cur_frame_par = &cur_dev->aisr_frame_parms;
+	if (!_cur_frame_par)
+		return len;
+	if (!aisr_mif_setting->aisr_enable)
+		return len;
+	vpp_filter = &_cur_frame_par->vpp_filter;
+	len += sprintf(buf + len,
+		       "src_w:%u.src_h:%u.\n",
+		       aisr_mif_setting->src_w, aisr_mif_setting->src_h);
+	len += sprintf(buf + len,
+		       "in_ratio:%u.\n",
+		       aisr_mif_setting->in_ratio);
+	len += sprintf(buf + len,
+		       "phy_addr:%ld.\n",
+		       aisr_mif_setting->phy_addr);
+	len += sprintf(buf + len,
+		       "reshape_output_w:%d.\n",
+		       _cur_frame_par->reshape_output_w);
+	len += sprintf(buf + len,
+		       "reshape_output_h:%d.\n",
+		       _cur_frame_par->reshape_output_h);
+	len += sprintf(buf + len,
+		       "nnhf_input_w:%d.\n",
+		       _cur_frame_par->nnhf_input_w);
+	len += sprintf(buf + len,
+		       "nnhf_input_h:%d.\n",
+		       _cur_frame_par->nnhf_input_h);
+	len += sprintf(buf + len,
+		       "crop_top:%d.\n",
+		       _cur_frame_par->crop_top);
+	len += sprintf(buf + len,
+		       "crop_bottom:%d.\n",
+		       _cur_frame_par->crop_bottom);
+	len += sprintf(buf + len,
+		       "vscale_skip_count:%d.\n",
+		       _cur_frame_par->vscale_skip_count);
+	len += sprintf(buf + len,
+		       "hsc_rpt_p0_num0:%d.\n",
+		       _cur_frame_par->hsc_rpt_p0_num0);
+	len += sprintf(buf + len,
+		       "vsc_top_rpt_l0_num:%d.\n",
+		       _cur_frame_par->vsc_top_rpt_l0_num);
+	len += sprintf(buf + len, "hscale phase step 0x%x.\n",
+		       vpp_filter->vpp_hsc_start_phase_step);
+	len += sprintf(buf + len, "vscale phase step 0x%x.\n",
+		       vpp_filter->vpp_vsc_start_phase_step);
+	len += sprintf(buf + len, "pps pre hsc enable %d.\n",
+		       vpp_filter->vpp_pre_hsc_en);
+	len += sprintf(buf + len, "pps pre vsc enable %d.\n",
+		       vpp_filter->vpp_pre_vsc_en);
+	len += sprintf(buf + len, "hscale filter coef %d.\n",
+		       vpp_filter->vpp_horz_filter);
+	len += sprintf(buf + len, "vscale filter coef %d.\n",
+		       vpp_filter->vpp_vert_filter);
+	len += sprintf(buf + len, "vpp_vert_chroma_filter_en %d.\n",
+		       vpp_filter->vpp_vert_chroma_filter_en);
+	len += sprintf(buf + len, "VPP_hsc_startp 0x%x.\n",
+		       _cur_frame_par->VPP_hsc_startp);
+	len += sprintf(buf + len, "VPP_hsc_endp 0x%x.\n",
+		       _cur_frame_par->VPP_hsc_endp);
+	len += sprintf(buf + len, "VPP_vsc_startp 0x%x.\n",
+		       _cur_frame_par->VPP_vsc_startp);
+	len += sprintf(buf + len, "VPP_vsc_endp 0x%x.\n",
+		       _cur_frame_par->VPP_vsc_endp);
+	return len;
+}
 static ssize_t vdx_state_show(u32 index, char *buf)
 {
 	ssize_t len = 0;
@@ -13868,6 +14140,8 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 		       _cur_frame_par->VPP_vsc_startp);
 	len += sprintf(buf + len, "VPP_vsc_endp 0x%x.\n",
 		       _cur_frame_par->VPP_vsc_endp);
+	if (index == 0)
+		len += aisr_state_show(buf + len);
 	return len;
 }
 
@@ -14471,6 +14745,8 @@ static ssize_t reg_dump_store(struct class *cla,
 		dump_vpp_misc_reg();
 		dump_zorder_reg();
 		dump_fgrain_reg();
+		if (cur_dev->aisr_support)
+			dump_aisr_reg();
 	}
 	return count;
 }
@@ -14568,6 +14844,69 @@ static ssize_t vd1_vd2_mux_store(struct class *cla,
 		di_used_vd1_afbc(true);
 	else
 		di_used_vd1_afbc(false);
+	return count;
+}
+
+static ssize_t aisr_en_show(struct class *cla,
+				struct class_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, 40, "aisr en:%d\n", aisr_en);
+}
+
+static ssize_t aisr_en_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	aisr_en = res;
+	aisr_sr1_nn_enable(aisr_en);
+	return count;
+}
+
+static ssize_t reshape_output_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	aisr_reshape_output(res);
+	return count;
+}
+
+static ssize_t pps_auto_calc_show(struct class *cla,
+				struct class_attribute *attr,
+				char *buf)
+{
+	return snprintf(buf, 40, "aisr pps_auto_calc:%d\n", cur_dev->pps_auto_calc);
+}
+
+static ssize_t pps_auto_calc_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	cur_dev->pps_auto_calc = res;
 	return count;
 }
 
@@ -14942,6 +15281,18 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       vd1_vd2_mux_show,
 	       vd1_vd2_mux_store),
+	__ATTR(aisr_en,
+	       0664,
+	       aisr_en_show,
+	       aisr_en_store),
+	__ATTR(reshape_output,
+	       0664,
+	       NULL,
+	       reshape_output_store),
+	__ATTR(aisr_pps_auto_calc,
+	       0664,
+	       pps_auto_calc_show,
+	       pps_auto_calc_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -15689,6 +16040,8 @@ static struct video_device_hw_s t3_dev_property = {
 	.vd2_independ_blend_ctrl = 1,
 	.aisr_support = 1,
 	.frc_support = 1,
+	/* aisr reverse workaround for t3*/
+	.di_hf_y_reverse = 1,
 };
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {
@@ -15943,12 +16296,14 @@ static int amvideom_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 	}
-	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_T3_)
+	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_T3_) {
 		memcpy(&amvideo_meson_dev.dev_property, &t3_dev_property,
 		       sizeof(struct video_device_hw_s));
-	else
+		aisr_en = 1;
+	} else {
 		memcpy(&amvideo_meson_dev.dev_property, &legcy_dev_property,
 		       sizeof(struct video_device_hw_s));
+	}
 
 	set_rdma_func_handler();
 	video_early_init(&amvideo_meson_dev);
