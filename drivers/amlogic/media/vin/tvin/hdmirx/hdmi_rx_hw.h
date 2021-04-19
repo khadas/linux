@@ -37,12 +37,19 @@
 #define HHI_HDCP22_CLK_CNTL		(0x7c * 4)
 #define HHI_GCLK_MPEG2			(0x52 * 4)
 
-/* T7 */
+/* T7 0xfe008280*/
 #define HHI_AUD_PLL_CNTL_T7		(0x20 * 4)
 #define HHI_AUD_PLL_CNTL2_T7		(0x21 * 4)
 #define HHI_AUD_PLL_CNTL3_T7		(0x22 * 4)
 #define HHI_AUD_PLL_CNTL_I_T7		(0x23 * 4)
 #define HHI_AUD_PLL4X_CNTL_T7		(0x24 * 4)
+
+/* T3 move aud pll to analog modules */
+#define ANACTL_AUD_PLL_CNTL		(0xa0 * 4)
+#define ANACTL_AUD_PLL_CNTL2	(0xa1 * 4)
+#define ANACTL_AUD_PLL_CNTL3	(0xa2 * 4)
+#define ANACTL_AUD_PLL_STS		(0xa3 * 4)
+#define ANACTL_AUD_PLL4X_CNTL		(0xa4 * 4)
 
 /* TXLX */
 /* unified_register.h by wujun */

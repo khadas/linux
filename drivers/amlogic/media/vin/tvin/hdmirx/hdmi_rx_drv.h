@@ -52,7 +52,8 @@
 
 /* enable tee path */
 /* update hdcp2.2 irq clear logic */
-#define RX_VER2 "ver.2021/04/17"
+/* update aud pll cntl for t3 */
+#define RX_VER2 "ver.2021/04/19"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
@@ -195,6 +196,7 @@ enum map_addr_module_e {
 	MAP_ADDR_MODULE_APB4,
 	MAP_ADDR_MODULE_TOP,
 	MAP_ADDR_MODULE_CLK_CTRL,
+	MAP_ADDR_MODULE_ANA_CTRL,
 	MAP_ADDR_MODULE_NUM
 };
 

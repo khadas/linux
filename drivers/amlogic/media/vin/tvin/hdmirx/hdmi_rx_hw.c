@@ -525,6 +525,32 @@ void wr_reg_clk_ctl(unsigned int offset, unsigned int val)
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 }
 
+/* For analog modules register rd */
+unsigned int rd_reg_ana_ctl(unsigned int offset)
+{
+	unsigned int ret;
+	unsigned long flags;
+	unsigned int addr;
+
+	spin_lock_irqsave(&reg_rw_lock, flags);
+	addr = offset + rx_reg_maps[MAP_ADDR_MODULE_ANA_CTRL].phy_addr;
+	ret = rd_reg(MAP_ADDR_MODULE_ANA_CTRL, addr);
+	spin_unlock_irqrestore(&reg_rw_lock, flags);
+	return ret;
+}
+
+/* For analog modules register wr */
+void wr_reg_ana_ctl(unsigned int offset, unsigned int val)
+{
+	unsigned long flags;
+	unsigned int addr;
+
+	spin_lock_irqsave(&reg_rw_lock, flags);
+	addr = offset + rx_reg_maps[MAP_ADDR_MODULE_ANA_CTRL].phy_addr;
+	wr_reg(MAP_ADDR_MODULE_ANA_CTRL, addr, val);
+	spin_unlock_irqrestore(&reg_rw_lock, flags);
+}
+
 /*
  * rd_reg_hhi
  * @offset: offset address of hhi physical addr
@@ -3532,7 +3558,7 @@ void rx_aud_pll_ctl(bool en)
 	/*unsigned int od, od2;*/
 
 	if (rx.chip_id >= CHIP_ID_TL1) {
-		if (rx.chip_id >= CHIP_ID_T7) {
+		if (rx.chip_id == CHIP_ID_T7) {
 			if (en) {
 				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
 				tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
@@ -3555,6 +3581,34 @@ void rx_aud_pll_ctl(bool en)
 			} else {
 				/* disable pll, into reset mode */
 				hdmirx_wr_amlphy(HHI_AUD_PLL_CNTL_T7, 0x0);
+				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+				tmp &= ~(1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
+				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+			}
+		} else if (rx.chip_id == CHIP_ID_T3) {
+			if (en) {
+				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+				tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
+				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+				/* AUD_CLK=N/CTS*TMDS_CLK */
+				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x40001540);
+				/* use mpll */
+				tmp = 0;
+				tmp |= 2 << 2; /* 0:tmds_clk 1:ref_clk 2:mpll_clk */
+				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL2, tmp);
+				/* cntl3 2:0 000=1*cts 001=2*cts 010=4*cts 011=8*cts */
+				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3, rx.phy.aud_div);
+				if (log_level & AUDIO_LOG)
+					rx_pr("aud div=%d\n", rd_reg_ana_ctl(ANACTL_AUD_PLL_CNTL3));
+				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x60001540);
+				if (log_level & AUDIO_LOG)
+					/* t3 audio pll lock bit: top reg acr_cntl_stat bit'31 */
+					rx_pr("audio pll lock:0x%x\n",
+						  (hdmirx_rd_top(TOP_ACR_CNTL_STAT) >> 31));
+				rx_audio_pll_sw_update();
+			} else {
+				/* disable pll, into reset mode */
+				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x0);
 				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
 				tmp &= ~(1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
 				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
