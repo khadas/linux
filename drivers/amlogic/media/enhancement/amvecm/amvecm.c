@@ -4215,9 +4215,13 @@ static ssize_t set_gamma_pattern_store(struct class *cls,
 		b_val[i] = gamma[2];
 	}
 
-	amve_write_gamma_table(r_val, H_SEL_R);
-	amve_write_gamma_table(g_val, H_SEL_G);
-	amve_write_gamma_table(b_val, H_SEL_B);
+	if (cpu_after_eq_t7()) {
+		lcd_gamma_api(r_val, g_val, b_val, 0, 0);
+	} else {
+		amve_write_gamma_table(r_val, H_SEL_R);
+		amve_write_gamma_table(g_val, H_SEL_G);
+		amve_write_gamma_table(b_val, H_SEL_B);
+	}
 
 	kfree(buf_orig);
 	return count;
@@ -8644,27 +8648,27 @@ void amvecm_gamma_init(bool en)
 		video_gamma_table_b.data[i] = data[i];
 	}
 
-	if (en) {
-		if (cpu_after_eq_t7()) {
-			lcd_gamma_api(video_gamma_table_r.data,
-				video_gamma_table_g.data,
-				video_gamma_table_b.data,
-				0, 0);
-			vpp_enable_lcd_gamma_table(0, 0);
-		} else {
-			WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
-					0, GAMMA_EN, 1);
-			amve_write_gamma_table(data,
-						H_SEL_R);
-			amve_write_gamma_table(data,
-						H_SEL_G);
-			amve_write_gamma_table(data,
-						H_SEL_B);
-
-			WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
-					1, GAMMA_EN, 1);
-		}
+	if (cpu_after_eq_t7()) {
+		lcd_gamma_api(video_gamma_table_r.data,
+			video_gamma_table_g.data,
+			video_gamma_table_b.data,
+			0, 0);
+	} else {
+		vpp_disable_lcd_gamma_table(0, 0);
+		WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
+				0, GAMMA_EN, 1);
+		amve_write_gamma_table(data,
+					H_SEL_R);
+		amve_write_gamma_table(data,
+					H_SEL_G);
+		amve_write_gamma_table(data,
+					H_SEL_B);
 	}
+
+	if (en)
+		vpp_enable_lcd_gamma_table(0, 0);
+	else
+		vpp_disable_lcd_gamma_table(0, 0);
 }
 
 static void amvecm_wb_init(bool en)
@@ -9116,7 +9120,7 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 	vpp_probe_enable();
 #endif
 	amvecm_wb_init(wb_en);
-	amvecm_gamma_init(0);
+	amvecm_gamma_init(gamma_en);
 	amvecm_3dlut_init(lut3d_en);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (!is_dolby_vision_enable())
