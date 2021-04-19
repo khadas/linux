@@ -141,6 +141,7 @@ struct sync_session {
 	struct timer_list start_timer;
 	bool timer_on;
 	bool start_posted;
+	bool v_timeout;
 
 	/* debug */
 	bool debug_freerun;
@@ -297,6 +298,7 @@ static void wait_up_poll(struct sync_session *session)
 static void transit_timer_func(struct timer_list *t)
 {
 	struct sync_session *session = from_timer(session, t, start_timer);
+	bool wake = false;
 
 	mutex_lock(&session->session_mutex);
 	if (session->timer_on) {
@@ -304,29 +306,35 @@ static void transit_timer_func(struct timer_list *t)
 		session->stat = AVS_STAT_STARTED;
 		session->cur_mode = AVS_MODE_A_MASTER;
 		session->timer_on = false;
-		wait_up_poll(session);
 	}
 	mutex_unlock(&session->session_mutex);
+	if (wake)
+		wait_up_poll(session);
 }
 
 static void wait_timer_func(struct timer_list *t)
 {
 	struct sync_session *session = from_timer(session, t, start_timer);
+	bool wake = false;
 
 	mutex_lock(&session->session_mutex);
 	if (!VALID_PTS(session->first_vpts.pts)) {
 		msync_dbg(LOG_WARN, "[%d]wait video timeout\n",
 			session->id);
 		session->clock_start = true;
+		session->v_timeout = true;
 	}
 	session->timer_on = false;
 
 	if (session->start_policy == AMSYNC_START_ALIGN &&
 			!session->start_posted) {
+		msync_dbg(LOG_DEBUG, "[%d]start posted\n", session->id);
 		session->start_posted = true;
-		wait_up_poll(session);
+		wake = true;
 	}
 	mutex_unlock(&session->session_mutex);
+	if (wake)
+		wait_up_poll(session);
 }
 
 static void use_pcr_clock(struct sync_session *session, bool enable, u32 pts)
@@ -553,12 +561,23 @@ static void session_video_start(struct sync_session *session, u32 pts)
 
 		if (session->start_policy == AMSYNC_START_ALIGN &&
 			VALID_PTS(session->first_apts.pts)) {
-			if (!session->clock_start) {
-				session->clock_start = true;
-				session->stat = AVS_STAT_STARTED;
-				del_timer_sync(&session->start_timer);
+			if (session->clock_start)
+				goto exit;
+			session->stat = AVS_STAT_STARTED;
+			if ((int)(session->first_apts.pts - pts) > 900) {
+				u32 delay = (session->first_apts.pts - pts) / 900;
+
+				msync_dbg(LOG_INFO,
+					"[%d]%d video start %u ad %u\n",
+					session->id, __LINE__, pts, delay * 10);
 				/* use video pts as starting point */
 				session_set_wall_clock(session, pts);
+				session->clock_start = true;
+				mod_timer(&session->start_timer,
+					jiffies + TEN_MS_INTERVAL * delay);
+			} else {
+				session->clock_start = true;
+				del_timer_sync(&session->start_timer);
 				session->timer_on = false;
 				session->start_posted = true;
 				wait_up_poll(session);
@@ -587,6 +606,7 @@ static void session_video_start(struct sync_session *session, u32 pts)
 
 		pcr_set(session);
 	}
+exit:
 	mutex_unlock(&session->session_mutex);
 }
 
@@ -609,21 +629,43 @@ static u32 session_audio_start(struct sync_session *session,
 					session->id, __LINE__, pts);
 			if (session->timer_on)
 				del_timer_sync(&session->start_timer);
-			session->start_timer.function = wait_timer_func;
 			session->start_timer.expires = jiffies + CHECK_INTERVAL;
 			add_timer(&session->start_timer);
 			session->timer_on = true;
 			session->stat = AVS_STAT_STARTING;
 			ret = AVS_START_ASYNC;
 		} else {
-			session->clock_start = true;
-			session->stat = AVS_STAT_STARTED;
-			msync_dbg(LOG_INFO, "[%d]%d audio start %u\n",
-					session->id, __LINE__, pts);
-			if (session->start_policy == AMSYNC_START_ALIGN &&
-					!session->start_posted) {
-				session->start_posted = true;
-				wait_up_poll(session);
+			if (session->start_policy == AMSYNC_START_ALIGN) {
+				u32 vpts = session->first_vpts.pts;
+				u32 delay;
+
+				if ((int)(pts - vpts) <= 900) {
+					/* use audio as start */
+					msync_dbg(LOG_INFO,
+						"[%d]%d audio start %u\n",
+						session->id, __LINE__, pts);
+					session->clock_start = true;
+					session->start_posted = true;
+					session->stat = AVS_STAT_STARTED;
+					wait_up_poll(session);
+					goto exit;
+				}
+				/* use video as start, delay audio start */
+				delay = (pts - vpts) / 900;
+				msync_dbg(LOG_INFO,
+					"[%d]%d audio start %u deferred %ums\n",
+					session->id, __LINE__, pts, delay * 10);
+				session_set_wall_clock(session, vpts);
+				session->clock_start = true;
+				if (session->timer_on)
+					del_timer_sync(&session->start_timer);
+				session->start_timer.expires =
+					jiffies + delay * TEN_MS_INTERVAL;
+				add_timer(&session->start_timer);
+				session->timer_on = true;
+				session->stat = AVS_STAT_STARTING;
+			} else {
+				session->clock_start = true;
 			}
 		}
 	} else if (session->mode == AVS_MODE_IPTV) {
@@ -660,6 +702,7 @@ static u32 session_audio_start(struct sync_session *session,
 		msync_dbg(LOG_INFO, "[%d]%d audio start %u\n",
 			session->id, __LINE__, pts);
 	}
+exit:
 	mutex_unlock(&session->session_mutex);
 	return ret;
 }
@@ -690,6 +733,8 @@ static void session_video_stop(struct sync_session *session)
 	mutex_lock(&session->session_mutex);
 	if (!session->a_active) {
 		session->clock_start = false;
+		session->start_posted = false;
+		session->v_timeout = false;
 		msync_dbg(LOG_INFO, "[%d]%s clock stop\n",
 			session->id, __func__);
 	} else if (session->mode == AVS_MODE_IPTV) {
@@ -720,8 +765,10 @@ static void session_audio_stop(struct sync_session *session)
 	mutex_lock(&session->session_mutex);
 	if (!session->v_active) {
 		session->clock_start = false;
-		msync_dbg(LOG_INFO, "[%d]%s clock stop\n",
-			session->id, __func__);
+		session->start_posted = false;
+		session->v_timeout = false;
+		msync_dbg(LOG_INFO, "[%d]%d clock stop\n",
+			session->id, __LINE__);
 	} else if (session->mode == AVS_MODE_IPTV) {
 		session->cur_mode = AVS_MODE_V_MASTER;
 		session_set_wall_clock(session, session->last_vpts.wall_clock);
@@ -1231,6 +1278,7 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 				session->mode != AVS_MODE_IPTV)
 			return -EINVAL;
 		stat.v_active = session->v_active;
+		stat.v_timeout = session->v_timeout;
 		stat.a_active = session->a_active;
 		stat.mode = session->cur_mode;
 		if (copy_to_user(argp, &stat, sizeof(stat)))
@@ -1580,6 +1628,7 @@ static int create_session(u32 id)
 	session->last_check_vpts = AVS_INVALID_PTS;
 	session->last_check_pcr_clock = AVS_INVALID_PTS;
 	session->pcr_disc_clock = AVS_INVALID_PTS;
+	session->start_timer.function = wait_timer_func;
 
 	mutex_init(&session->session_mutex);
 	spin_lock_irqsave(&sync.lock, flags);
