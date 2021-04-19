@@ -270,6 +270,32 @@
 		pinctrl-0=<&jtag_a_pins>;
 	};
 
+	hifi4dsp: hifi4dsp {
+		compatible = "amlogic, hifi4dsp";
+		memory-region = <&dsp_fw_reserved>;
+		reg = <0 0xfe340018 0 0x114>,   /*dspa base address*/
+			  <0 0xfe350018 0 0x114>,   /*dspb base address*/
+			  <0 0x0 0 0x0>,     /*dspa status counter*/
+			  <0 0x0 0 0x0>,     /*dspb status counter*/
+			  <0 0x30000000 0 0x80000>; /*dsp shm region*/
+		dsp-monitor-period-ms = <1000>;
+		reg-names = "dspa_top_reg", "dspb_top_reg";
+		clocks = <&clkc CLKID_DSPA>;
+		clock-names = "dspa_clk";
+		dsp-start-mode = <1>; /*0:scpi start mode,1:smc start mode*/
+		dsp-cnt = <1>;
+		dspaoffset = <0xa0000>;
+		dspboffset = <0x8a0000>;
+		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
+		boot_sram_addr = <0xfff00000>;
+		boot_sram_size = <0x80000>;
+		//dspsrambase = <0xf7100000>;
+		//dspsramsize = <0x100000>;
+		power-domains = <&pwrdm PDID_T3_DSPA>;
+		power-domain-names = "dspa";
+		status = "okay";
+	};
+
 	vddcpu0: pwm_b-regulator {
 		compatible = "pwm-regulator";
 		pwms = <&pwm_ab MESON_PWM_1 1500 0>;
