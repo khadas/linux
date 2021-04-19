@@ -9,6 +9,7 @@
 int __init earc_init(void);
 int __init audio_clocks_init(void);
 int __init auge_snd_iomap_init(void);
+int __init auge_hdmirx_arc_iomap_init(void);
 int __init audio_controller_init(void);
 int __init audio_pinctrl_init(void);
 int __init aml_card_init(void);
@@ -41,6 +42,7 @@ void __exit aml_card_exit(void);
 void __exit audio_pinctrl_exit(void);
 void __exit audio_controller_exit(void);
 void __exit auge_snd_iomap_exit(void);
+void __exit auge_hdmirx_arc_iomap_exit(void);
 void __exit audio_clocks_exit(void);
 void __exit earc_exit(void);
 #endif

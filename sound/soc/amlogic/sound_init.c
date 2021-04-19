@@ -34,6 +34,7 @@
 
 static int __init sound_soc_init(void)
 {
+	call_sub_init(auge_hdmirx_arc_iomap_init);
 	call_sub_init(auge_snd_iomap_init);
 	call_sub_init(earc_init);
 	call_sub_init(audio_clocks_init);
@@ -76,6 +77,7 @@ static __exit void sound_soc_exit(void)
 	call_sub_exit(audio_clocks_exit);
 	call_sub_exit(earc_exit);
 	call_sub_exit(auge_snd_iomap_exit);
+	call_sub_exit(auge_hdmirx_arc_iomap_exit);
 }
 
 module_init(sound_soc_init);

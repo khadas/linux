@@ -11,6 +11,8 @@
 #include "frhdmirx_hw.h"
 #include "regs.h"
 #include "iomap.h"
+#include "extn.h"
+#include "hdmirx_arc_iomap.h"
 
 void frhdmirx_afifo_reset(void)
 {
@@ -290,25 +292,39 @@ void arc_source_enable(int src, bool enable)
 			       src << 2 | (enable ? 0x1 : 0) << 0);
 }
 
-/* this is used for TM2, arc/earc source select */
+/* this is used from TM2, arc/earc source select */
 void arc_earc_source_select(int src)
 {
+	int version = get_arc_version();
+
 	if (src == SPDIFA_TO_HDMIRX || src == SPDIFB_TO_HDMIRX) {
-		/* spdif_a = 1; spdif_b = 2*/
-		aml_write_hiubus(HHI_HDMIRX_ARC_CNTL, 0xfffffff8 | src);
-		/* analog registers: single mode, about 520mv*/
-		aml_write_hiubus(HHI_HDMIRX_EARCTX_CNTL0, 0x14710490);
-		aml_write_hiubus(HHI_HDMIRX_EARCTX_CNTL1, 0x40011508);
+		if (version == TM2_ARC) {
+			/* spdif_a = 1; spdif_b = 2*/
+			aml_write_hiubus(HHI_HDMIRX_ARC_CNTL, 0xfffffff8 | src);
+			/* analog registers: single mode, about 520mv*/
+			aml_write_hiubus(HHI_HDMIRX_EARCTX_CNTL0, 0x14710490);
+			aml_write_hiubus(HHI_HDMIRX_EARCTX_CNTL1, 0x40011508);
+		} else {
+			hdmirx_arc_write_reg(HDMIRX_ARC_CNTL, 0xfffffff8 | src);
+			hdmirx_arc_write_reg(HDMIRX_EARCTX_CNTL0, 0x94830490);
+			hdmirx_arc_write_reg(HDMIRX_EARCTX_CNTL1, 0x40011508);
+		}
 	} else {
 		/* earctx_spdif*/
-		aml_write_hiubus(HHI_HDMIRX_ARC_CNTL, 0x0);
+		if (version == TM2_ARC)
+			aml_write_hiubus(HHI_HDMIRX_ARC_CNTL, 0x0);
+		else
+			hdmirx_arc_write_reg(HDMIRX_ARC_CNTL, 0x0);
 	}
 }
 
-/* this is used for TM2, arc source enable */
-void arc_enable(bool enable)
+/* this is used from TM2, arc source enable */
+void arc_enable(bool enable, int version)
 {
-	aml_hiubus_update_bits(HHI_HDMIRX_EARCTX_CNTL0, 0x1 << 31,
-			       (enable ? 0x1 : 0) << 31);
+	if (version == TM2_ARC)
+		aml_hiubus_update_bits(HHI_HDMIRX_EARCTX_CNTL0,
+			0x1 << 31, (enable ? 0x1 : 0) << 31);
+	else if (version == T7_ARC)
+		hdmirx_arc_update_reg(HDMIRX_EARCTX_CNTL0, 0x1 << 31, (enable ? 0x1 : 0) << 31);
 }
 

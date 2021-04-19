@@ -1291,6 +1291,17 @@
 			};
 		};
 
+		//hdmirx arc
+		hdmirx_arc {
+			compatible = "amlogic, hdmirx-arc-iomap";
+			reg = <0x0 0xfe39c000 0x0 0x3>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0xfe39c000 0x0 0x3>;
+
+			reg-names = "hdmirx-arc";
+		};
+
 		pcie: pcie@f5000000 {
 			compatible = "amlogic, amlogic-pcie-v2", "snps,dw-pcie";
 			reg = <0x0 0xf5000000 0x0 0x400000

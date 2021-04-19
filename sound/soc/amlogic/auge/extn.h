@@ -7,6 +7,7 @@
 #define __EXTN_H__
 
 int get_hdmirx_mode(void);
+int get_arc_version(void);
 
 #endif
 

@@ -26,9 +26,22 @@ enum {
 	T7_FRHDMIRX = 1,
 };
 
+/*
+ * TXLX_ARC: hdmirx arc from spdif
+ * TL1_ARC: hdmirx arc from spdifA/spdifB
+ * T7_ARC: same with tm2, but register changed
+ *
+ */
+enum {
+	TXLX_ARC = 0,
+	TL1_ARC = 1,
+	TM2_ARC = 2,
+	T7_ARC = 3,
+};
+
 void arc_source_enable(int src, bool enable);
 void arc_earc_source_select(int src);
-void arc_enable(bool enable);
+void arc_enable(bool enable, int version);
 
 void frhdmirx_enable(bool enable, int version);
 void frhdmirx_src_select(int src);

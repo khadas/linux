@@ -42,17 +42,6 @@
 
 #define MAX_AUDIO_EDID_LENGTH 30
 
-/*
- * TXLX_ARC: hdmirx arc from spdif
- * TL1_ARC: hdmirx arc from spdifA/spdifB
- * TM2_ARC: hdmirx arc from spdifA/spdifB/earctx_spdif
- */
-enum {
-	TXLX_ARC = 0,
-	TL1_ARC = 1,
-	TM2_ARC = 2,
-};
-
 struct extn_chipinfo {
 	int arc_version;
 	bool PAO_channel_sync;
@@ -136,7 +125,16 @@ static const struct snd_pcm_hardware extn_hardware = {
 
 int get_hdmirx_mode(void)
 {
-	return s_extn->hdmirx_mode;
+	if (s_extn)
+		return s_extn->hdmirx_mode;
+	return 0;
+}
+
+int get_arc_version(void)
+{
+	if (s_extn)
+		return s_extn->chipinfo->arc_version;
+	return 0;
 }
 
 static void frhdmirx_nonpcm2pcm_clr_reset(struct extn *p_extn)
@@ -419,7 +417,7 @@ static int arc_set_enable(struct snd_kcontrol *kcontrol,
 	if (p_extn->chipinfo && p_extn->chipinfo->arc_version == TL1_ARC)
 		arc_source_enable(p_extn->arc_src, p_extn->arc_en);
 	else if (p_extn->chipinfo && p_extn->chipinfo->arc_version >= TM2_ARC)
-		arc_enable(p_extn->arc_en);
+		arc_enable(p_extn->arc_en, p_extn->chipinfo->arc_version);
 
 	return 0;
 }
@@ -1005,7 +1003,7 @@ struct extn_chipinfo tm2_extn_chipinfo = {
 };
 
 struct extn_chipinfo t7_extn_chipinfo = {
-	.arc_version	= TM2_ARC,
+	.arc_version	= T7_ARC,
 	.PAO_channel_sync = false,
 	.frhdmirx_version = T7_FRHDMIRX,
 };
@@ -1055,7 +1053,8 @@ static int extn_platform_probe(struct platform_device *pdev)
 	p_chipinfo = (struct extn_chipinfo *)of_device_get_match_data(dev);
 	p_extn->frhdmirx_version = 0;
 	if (!p_chipinfo) {
-		dev_warn_once(dev, "check whether to update chipinfo\n");
+		dev_warn_once(dev, "check whether to update chipinfo, exit\n");
+		return -EINVAL;
 	} else {
 		p_extn->chipinfo = p_chipinfo;
 		p_extn->frhdmirx_version = p_chipinfo->frhdmirx_version;

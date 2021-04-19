@@ -1427,4 +1427,9 @@ struct register_table {
 /*HHI bus*/
 #define HHI_AUDIO_MEM_PD_REG0              0x045
 
+/* hdmirx for arc */
+#define HDMIRX_EARCTX_CNTL0                0x040
+#define HDMIRX_EARCTX_CNTL1                0x041
+#define HDMIRX_ARC_CNTL                    0x042
+
 #endif
