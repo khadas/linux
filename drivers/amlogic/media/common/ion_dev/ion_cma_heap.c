@@ -34,7 +34,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	if (!(flags & ION_FLAG_EXTEND_MESON_HEAP))
 		return -ENOMEM;
-	pages = cma_alloc(cma_heap->cma, nr_pages, align, false);
+	pages = cma_alloc(cma_heap->cma, nr_pages, align, true);
 	if (!pages)
 		return -ENOMEM;
 
