@@ -994,23 +994,6 @@
 			};
 		};
 
-		vclk_serve: vclk_serve {
-			compatible = "amlogic, vclk_serve";
-			status = "okay";
-			reg = <0x0 0xfe008000 0x0 0x400    /* ana reg */
-				0x0 0xfe000000 0x0 0x4a0>; /* clk reg */
-		};
-
-		vout_mux: vout_mux {
-			compatible = "amlogic, vout_mux-t3";
-			status = "okay";
-		};
-
-		vout: vout {
-			compatible = "amlogic, vout";
-			status = "okay";
-		};
-
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
@@ -1118,6 +1101,33 @@
 		reg = <0x0 0xfe440788 0x0 0x0c>;
 		quality = /bits/ 16 <1000>;
 		version = <2>;
+	};
+
+	vclk_serve: vclk_serve {
+		compatible = "amlogic, vclk_serve";
+		status = "okay";
+		reg = <0x0 0xfe008000 0x0 0x400    /* ana reg */
+			0x0 0xfe000000 0x0 0x4a0>; /* clk reg */
+	};
+
+	vout_mux: vout_mux {
+		compatible = "amlogic, vout_mux-t3";
+		status = "okay";
+	};
+
+	vout: vout {
+		compatible = "amlogic, vout";
+		status = "okay";
+	};
+
+	vout2: vout2 {
+		compatible = "amlogic, vout2";
+		status = "okay";
+	};
+
+	dummy_venc: dummy_venc {
+		compatible = "amlogic, dummy_venc_t3";
+		status = "okay";
 	};
 
 	canvas: canvas {

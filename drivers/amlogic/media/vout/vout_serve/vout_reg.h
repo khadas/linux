@@ -289,6 +289,12 @@
 #define CLKCTRL_VIID_CLK_DIV                       0x0033
 #define CLKCTRL_VIID_CLK_CTRL                      0x0034
 
+#define CLKCTRL_VID_CLK0_CTRL                      0x0030
+#define CLKCTRL_VID_CLK0_CTRL2                     0x0031
+#define CLKCTRL_VID_CLK0_DIV                       0x0032
+#define CLKCTRL_VIID_CLK0_DIV                      0x0033
+#define CLKCTRL_VIID_CLK0_CTRL                     0x0034
+
 unsigned int vout_clk_read(unsigned int _reg);
 void vout_clk_write(unsigned int _reg, unsigned int _value);
 void vout_clk_setb(unsigned int _reg, unsigned int _value,
