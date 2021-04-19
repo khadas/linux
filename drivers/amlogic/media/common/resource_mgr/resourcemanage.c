@@ -1665,9 +1665,4 @@ void __exit resman_exit(void)
 	dprintk(1, "uninstall sourmanage module\n");
 }
 
-#ifndef MODULE
-device_initcall(resman_init);
-module_exit(resman_exit);
-#endif
-
 MODULE_LICENSE("GPL");
