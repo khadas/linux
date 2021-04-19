@@ -19,7 +19,9 @@
 	unreachable();					\
 } while (0)
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 #define __WARN_FLAGS(flags) __BUG_FLAGS(BUGFLAG_WARNING|(flags))
+#endif
 
 #define HAVE_ARCH_BUG
 

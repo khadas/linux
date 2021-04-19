@@ -16,7 +16,9 @@
 
 #ifdef CONFIG_CMA_DEBUG
 #ifndef DEBUG
+#ifndef CONFIG_AMLOGIC_MODIFY
 #  define DEBUG
+#endif
 #endif
 #endif
 #define CREATE_TRACE_POINTS
