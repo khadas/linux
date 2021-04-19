@@ -45,6 +45,8 @@
 #define AFE_CH2_COMP_LEVEL_ADJ_WIDTH	3
 #define AFE_CH2_EN_DC_BIAS_BIT		18
 #define AFE_CH2_EN_DC_BIAS_WIDTH	1
+#define AFE_T5_CH2_EN_DC_BIAS_BIT	11
+#define AFE_T5_CH2_EN_DC_BIAS_WIDTH	1
 #define AFE_CH2_DETECT_MODE_SELECT_BIT	17
 #define AFE_CH2_DETECT_MODE_SELECT_WIDTH	1
 #define AFE_CH2_COMP_HYS_ADJ_BIT	16
@@ -82,6 +84,12 @@
 #define CVBS_IRQ1_CNTL			0x3c25
 #define CVBS_IRQ0_COUNTER		0x3c26
 #define CVBS_IRQ1_COUNTER		0x3c27
+
+/* add t3 */
+#define IRQCTRL_CVBS_IRQ0_CNTL		0x90
+#define IRQCTRL_CVBS_IRQ1_CNTL		0x91
+#define IRQCTRL_CVBS_IRQ0_COUNTER	0x92
+#define IRQCTRL_CVBS_IRQ1_COUNTER	0x93
 
 enum tvafe_avin_status_e {
 	TVAFE_AVIN_STATUS_IN = 0,
@@ -132,6 +140,13 @@ enum avin_cpu_type {
 struct meson_avin_data {
 	enum avin_cpu_type cpu_id;
 	const char *name;
+	void __iomem *irq_reg_base;
+
+	unsigned int detect_cntl;
+	unsigned int irq0_cntl;
+	unsigned int irq1_cntl;
+	unsigned int irq0_cnt;
+	unsigned int irq1_cnt;
 };
 
 void tvafe_cha1_SYNCTIP_close_config(void);

@@ -1469,7 +1469,8 @@ int tvafe_hiu_reg_read(unsigned int reg, unsigned int *val)
 {
 	if (hiu_reg_base)
 		*val = readl(hiu_reg_base + (reg << 2));
-	//*val =  aml_read_hiubus(reg);
+	else
+		*val =  aml_read_hiubus(reg);
 	return 0;
 }
 EXPORT_SYMBOL(tvafe_hiu_reg_read);
@@ -1478,7 +1479,8 @@ int tvafe_hiu_reg_write(unsigned int reg, unsigned int val)
 {
 	if (hiu_reg_base)
 		writel(val, hiu_reg_base + (reg << 2));
-	//aml_write_hiubus(reg, val);
+	else
+		aml_write_hiubus(reg, val);
 	return 0;
 }
 EXPORT_SYMBOL(tvafe_hiu_reg_write);
