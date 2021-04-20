@@ -341,7 +341,11 @@ static struct avc_xperms_node *avc_xperms_alloc(void)
 {
 	struct avc_xperms_node *xp_node;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	xp_node = kmem_cache_zalloc(avc_xperms_cachep, GFP_NOWAIT | __GFP_NOWARN);
+#else
 	xp_node = kmem_cache_zalloc(avc_xperms_cachep, GFP_NOWAIT);
+#endif
 	if (!xp_node)
 		return xp_node;
 	INIT_LIST_HEAD(&xp_node->xpd_head);
