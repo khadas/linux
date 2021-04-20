@@ -928,11 +928,11 @@ static int osd_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 	case FBIO_WAITFORVSYNC_64:
 		output_index = get_output_device_id(info->node);
 		if (output_index == VIU1)
-			vsync_timestamp_64 = (s32)osd_wait_vsync_event();
+			vsync_timestamp_64 = osd_wait_vsync_event();
 		else if (output_index == VIU2)
-			vsync_timestamp_64 = (s32)osd_wait_vsync_event_viu2();
+			vsync_timestamp_64 = osd_wait_vsync_event_viu2();
 		else if (output_index == VIU3)
-			vsync_timestamp_64 = (s32)osd_wait_vsync_event_viu3();
+			vsync_timestamp_64 = osd_wait_vsync_event_viu3();
 		else
 			osd_log_err("timestamp64, cannot get output_index\n");
 
