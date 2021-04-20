@@ -1024,7 +1024,7 @@
 
 		status = "okay";
 	};
-#if 0
+
 	asrca:resample@0 {
 		compatible = "amlogic, t5-resample-a";
 		clocks = <&clkc CLKID_MPLL1
@@ -1062,7 +1062,7 @@
 
 		status = "okay";
 	};
-#endif
+
 	vad:vad {
 		compatible = "amlogic, snd-vad";
 		#sound-dai-cells = <0>;
