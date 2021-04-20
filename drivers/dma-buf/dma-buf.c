@@ -406,6 +406,9 @@ static void dma_buf_show_fdinfo(struct seq_file *m, struct file *file)
 	/* Don't count the temporary reference taken inside procfs seq_show */
 	seq_printf(m, "count:\t%ld\n", file_count(dmabuf->file) - 1);
 	seq_printf(m, "exp_name:\t%s\n", dmabuf->exp_name);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	seq_printf(m, "ino:\t%lu\n", file_inode(dmabuf->file)->i_ino);
+#endif
 	spin_lock(&dmabuf->name_lock);
 	if (dmabuf->name)
 		seq_printf(m, "name:\t%s\n", dmabuf->name);
