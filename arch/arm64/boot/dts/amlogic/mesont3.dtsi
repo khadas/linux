@@ -359,7 +359,7 @@
 
 	cpufreq-meson {
 		compatible = "amlogic, cpufreq-meson";
-		status = "okay";
+		status = "disabled";
 	};
 
 	saradc: saradc@fe026000 {
