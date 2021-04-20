@@ -1010,9 +1010,10 @@
 			 * bit6 -- afbce for 720p
 			 * bit7 -- afbce for smaller resolution
 			 */
-			afbce_bit_mode = <0x31>;
+			afbce_bit_mode = <0x11>;
 			/* urgent_en; */
 			double_write_en;
+			v4l_support_en;
 		};
 
 		vdin1: vdin1 {/*common define*/

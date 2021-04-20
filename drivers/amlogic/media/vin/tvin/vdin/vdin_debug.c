@@ -1683,7 +1683,7 @@ static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 
 		for (reg = VDIN2_WR_CTRL; reg <= VDIN_TOP_MEAS_RO_PIXB; reg++) {
 			pr_info("0x%04x = 0x%08x\n",
-				(reg + offset), rd(offset, reg));
+				(reg), R_VCBUS(reg));
 		}
 	}
 
@@ -1700,6 +1700,7 @@ static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 	pr_info("\nwrite back reg ---\n");
 	pr_info("0x%04x = 0x%08x\n", 0x271a, R_VCBUS(0x271a));
 	pr_info("0x%04x = 0x%08x\n", 0x1a0d, R_VCBUS(0x1a0d));
+	pr_info("0x%04x = 0x%08x\n", 0x1a51, R_VCBUS(0x1a51));
 	pr_info("0x%04x = 0x%08x\n", 0x1df9, R_VCBUS(0x1df9));
 	pr_info("0x%04x = 0x%08x\n", 0x2783, R_VCBUS(0x2783));
 }
