@@ -567,8 +567,12 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	}
 
 	irq = of_irq_get(node, 0);
-	r = request_irq(irq, dmc_monitor_irq_handler,
-			IRQF_SHARED, "dmc_monitor", dmc_mon->io_mem1);
+	if (dmc_mon->io_mem1)
+		r = request_irq(irq, dmc_monitor_irq_handler,
+				IRQF_SHARED, "dmc_monitor", dmc_mon->io_mem1);
+	else
+		r = request_irq(irq, dmc_monitor_irq_handler,
+				IRQF_SHARED, "dmc_monitor", dmc_mon);
 	if (r < 0) {
 		pr_err("request irq failed:%d, r:%d\n", irq, r);
 		dmc_mon = NULL;

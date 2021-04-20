@@ -103,4 +103,4 @@ static int __init meson_cpuinfo_init(void)
 
 	return  platform_driver_register(&cpuinfo_platform_driver);
 }
-subsys_initcall(meson_cpuinfo_init);
+core_initcall(meson_cpuinfo_init);
