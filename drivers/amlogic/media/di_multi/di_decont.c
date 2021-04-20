@@ -31,6 +31,7 @@
 
 #include "di_data_l.h"
 #include "reg_decontour.h"
+#include "reg_decontour_t3.h"
 #include "register.h"
 #include "di_prc.h"
 
@@ -157,6 +158,38 @@ static const unsigned int reg_mif[DCNTR_NUB_MIF][DCNTR_NUB_REG] = {
 			DCNTR_CFLT_RMIF_CTRL4,
 			DCNTR_CFLT_RMIF_SCOPE_X,
 			DCNTR_CFLT_RMIF_SCOPE_Y
+		},
+};
+
+static const unsigned int reg_mif_t3[DCNTR_NUB_MIF][DCNTR_NUB_REG] = {
+	[ECNTR_MIF_IDX_DIVR] = { //0:divr  1:grid  2:yflt  3:cflt
+			DCNTR_T3_DIVR_RMIF_CTRL1,
+			DCNTR_T3_DIVR_RMIF_CTRL2,
+			DCNTR_T3_DIVR_RMIF_CTRL3,
+			DCNTR_T3_DIVR_RMIF_CTRL4,
+			DCNTR_T3_DIVR_RMIF_SCOPE_X,
+			DCNTR_T3_DIVR_RMIF_SCOPE_Y},
+	[ECNTR_MIF_IDX_GRID] = {
+			DCNTR_T3_GRID_RMIF_CTRL1,
+			DCNTR_T3_GRID_RMIF_CTRL2,
+			DCNTR_T3_GRID_RMIF_CTRL3,
+			DCNTR_T3_GRID_RMIF_CTRL4,
+			DCNTR_T3_GRID_RMIF_SCOPE_X,
+			DCNTR_T3_GRID_RMIF_SCOPE_Y},
+	[ECNTR_MIF_IDX_YFLT] = {
+			DCNTR_T3_YFLT_RMIF_CTRL1,
+			DCNTR_T3_YFLT_RMIF_CTRL2,
+			DCNTR_T3_YFLT_RMIF_CTRL3,
+			DCNTR_T3_YFLT_RMIF_CTRL4,
+			DCNTR_T3_YFLT_RMIF_SCOPE_X,
+			DCNTR_T3_YFLT_RMIF_SCOPE_Y},
+	[ECNTR_MIF_IDX_CFLT] = {
+			DCNTR_T3_CFLT_RMIF_CTRL1,
+			DCNTR_T3_CFLT_RMIF_CTRL2,
+			DCNTR_T3_CFLT_RMIF_CTRL3,
+			DCNTR_T3_CFLT_RMIF_CTRL4,
+			DCNTR_T3_CFLT_RMIF_SCOPE_X,
+			DCNTR_T3_CFLT_RMIF_SCOPE_Y
 		},
 };
 
@@ -429,6 +462,96 @@ static const struct reg_t rtab_t5_dcntr_bits_tab[] = {
 
 };
 
+static const struct reg_t rtab_t3_dcntr_bits_tab[] = {
+	/*--------------------------*/
+	{INTRP_T3_PARAM, 21, 5, 0, "INTRP_PARAM",
+		"intep_phs_x_rtl",
+		"xphase used, could be negtive"},
+	{INTRP_T3_PARAM, 16, 5, 0, "",
+		"intep_phs_x_use",
+		"xphase used, could be negtive"},
+	{INTRP_T3_PARAM, 5, 5, 0, "",
+		"intep_phs_y_rtl",
+		"yphase used, could be negtive"},
+	{INTRP_T3_PARAM, 0, 5, 0, "",
+		"intep_phs_y_use",
+		"yphase used, could be negtive"},
+	/***********************************************/
+	{DCTR_T3_DIVR4, 28, 3, 1, "DCTR_DIVR4",
+		"divrsmap_blk0_sft",
+		"ds block 0"},
+	{DCTR_T3_DIVR4, 24, 3, 2, "",
+		"divrsmap_blk1_sft",
+		"ds block 0"},
+	{DCTR_T3_DIVR4, 20, 3, 3, "",
+		"divrsmap_blk2_sft",
+		"ds block 0"},
+	/***********************************************/
+	{DCTR_T3_SIGFIL, 16, 8, 64, "DCTR_SIGFIL",
+		"reg_sig_thr",
+		"of sigma filtering"},
+	{DCTR_T3_SIGFIL, 8, 7, 2, "",
+		"reg_sig_win_h",
+		"window of sigma filtering"},
+	{DCTR_T3_SIGFIL, 4, 4, 1, "",
+		"reg_sig_win_v",
+		"window of sigma filtering"},
+	{DCTR_T3_SIGFIL, 2, 2, 0, "",
+		"reg_sig_ds_r_x",
+		"ratio for AVG"},
+	{DCTR_T3_SIGFIL, 0, 2, 0, "",
+		"reg_sig_ds_r_y",
+		"ratio for AVG"},
+	/***********************************************/
+	{DCTR_T3_PATH, 25, 1, 0, "DCTR_PATH",
+		"reg_grd_path",
+		"0:DS input, 1: Ori input"},
+	{DCTR_T3_PATH, 16, 2, 2, "",
+		"reg_in_ds_rate_x",
+		"real rate is 2^reg_in_ds_rate"},
+	{DCTR_T3_PATH, 0, 2, 2, "",
+		"reg_in_ds_rate_y",
+		"real rate is 2^reg_in_ds_rate"},
+	/***********************************************/
+	{DCTR_T3_BGRID_PARAM2, 24, 8, 48, "DCTR_BGRID_PARAM2",
+		"reg_grd_xsize",
+		""},
+	{DCTR_T3_BGRID_PARAM2, 16, 8, 48, "",
+		"reg_grd_ysize",
+		""},
+	{DCTR_T3_BGRID_PARAM2, 8, 8, 48, "",
+		"reg_grd_valsz",
+		""},
+	{DCTR_T3_BGRID_PARAM2, 0, 8, 22, "",
+		"reg_grd_vnum",
+		""},
+	/***********************************************/
+	{DCTR_T3_BGRID_PARAM3, 16, 10, 80, "DCTR_BGRID_PARAM3",
+		"reg_grd_xnum_use",
+		""},
+	{DCTR_T3_BGRID_PARAM3, 0, 10, 45, "",
+		"reg_grd_ynum_use",
+		""},
+	/***********************************************/
+	{DCTR_T3_BGRID_PARAM4, 16, 8, 12, "DCTR_BGRID_PARAM4",
+		"reg_grd_xsize_ds",
+		""},
+	{DCTR_T3_BGRID_PARAM4, 0, 8, 12, "",
+		"reg_grd_ysize_ds",
+		""},
+	/***********************************************/
+	{DCTR_T3_BGRID_PARAM5, 0, 17, 0, "DCTR_BGRID_PARAM5",
+		"reg_grd_xidx_div",
+		""},
+	/***********************************************/
+	{DCTR_T3_BGRID_PARAM6, 0, 17, 0, "DCTR_BGRID_PARAM5",
+		"reg_grd_yidx_div",
+		""},
+	/***********************************************/
+	{TABLE_FLG_END, 0, 0, 0, "end", "end", ""},
+
+};
+
 static unsigned int get_mif_addr(unsigned int mif_index,
 				 enum E1INT_RMIF_REG reg_index)
 {
@@ -463,9 +586,12 @@ static void dcntr_post_rdmif(int mif_index, //0:divr  1:grid  2:yflt  3:cflt
 	struct dcntr_mif_s *rdcfg;
 	unsigned int burst;
 	const unsigned int *reg;
+	unsigned int off = 0; //for t3
 
 	if (!pcfg->flg_int || mif_index >= DCNTR_NUB_MIF)
 		return;
+	if (DIM_IS_IC_EF(T3))
+		off = 0x200;
 	rdcfg = &pcfg->pstr[mif_index];
 	reg = pcfg->reg_mif_tab[mif_index];
 
@@ -508,8 +634,8 @@ static void dcntr_post_rdmif(int mif_index, //0:divr  1:grid  2:yflt  3:cflt
 
 	dim_print("%s:0x%x->0x%x\n", "post", reg[EINT_RMIF_CTRL1],
 		  op->rd(reg[EINT_RMIF_CTRL1]));
-	dim_print("rd:0x%x,0x%x\n", DCNTR_GRID_RMIF_CTRL2,
-		  op->rd(DCNTR_GRID_RMIF_CTRL2));
+	dim_print("rd:0x%x,0x%x\n", DCNTR_GRID_RMIF_CTRL2 + off,
+		  op->rd(DCNTR_GRID_RMIF_CTRL2 + off));
 }
 
 static void dt_set_change(void)
@@ -519,9 +645,12 @@ static void dt_set_change(void)
 	struct dcntr_mif_s *pmif;
 	const struct reg_acc *op = &di_pre_regset;
 	struct dcntr_core_s *pcfg = &di_dcnt;
+	unsigned int off = 0; //for t3
 
 	/*************************/
-	grd_num = op->rd(DCTR_BGRID_PARAM3); //grd_num_use
+	if (DIM_IS_IC_EF(T3))
+		off = 0x200;
+	grd_num = op->rd(DCTR_BGRID_PARAM3 + off); //grd_num_use
 	reg_grd_xnum = (grd_num >> 16) & (0x3ff);
 	reg_grd_ynum = grd_num       & (0x3ff);
 
@@ -537,6 +666,9 @@ static void dt_set_change(void)
 		pmif->mem_mode = 1;
 		pmif->canvas_id = pcfg->cvs_y;
 	} else {
+		//if(DIM_IS_IC_EF(T7))
+		//	pmif->linear_baddr = pcfg->in.addr[0] >> 4;
+		//else
 		pmif->linear_baddr = pcfg->in.addr[0];
 	}
 	pmif->linear_length  = pcfg->in.len[0];
@@ -559,6 +691,9 @@ static void dt_set_change(void)
 	pmif->src_fmt = 5;
 	pmif->mif_x_end = grd_xsize - 1;//pcfg->in.grd_x - 1;//
 	pmif->mif_y_end = grd_ysize - 1;//pcfg->in.grd_y - 1;//
+	//if(DIM_IS_IC_EF(T7))
+	//	pmif->linear_baddr = pcfg->in.addr[1] >> 4;
+	//else
 	pmif->linear_baddr = pcfg->in.addr[1];
 	pmif->linear_length  = grd_xsize;
 	pcfg->in.len[1] = grd_xsize;
@@ -577,6 +712,9 @@ static void dt_set_change(void)
 		pmif->mem_mode = 1;
 		pmif->canvas_id = pcfg->cvs_y;
 	} else {
+	//	if(DIM_IS_IC_EF(T7))
+	//		pmif->linear_baddr = pcfg->in.addr[2] >> 4;
+	//	else
 		pmif->linear_baddr = pcfg->in.addr[2];
 	}
 	pmif->linear_length  = pcfg->in.len[2];
@@ -593,6 +731,9 @@ static void dt_set_change(void)
 		pmif->mem_mode = 1;
 		pmif->canvas_id = pcfg->cvs_uv;
 	} else {
+	//	if(DIM_IS_IC_EF(T7))
+	//		pmif->linear_baddr = pcfg->in.addr[3] >> 4;
+	//	else
 		pmif->linear_baddr = pcfg->in.addr[3];
 	}
 	pmif->linear_length  = pcfg->in.len[3];
@@ -665,11 +806,16 @@ static void dcntr_post(void)
 	int32_t reg_grd_xidx_div;
 	int32_t reg_grd_yidx_div;
 	int i;
+	unsigned int off = 0; //for t3
+
 	/****************************************/
 	if (!pcfg->flg_int || !pcfg->n_set)
 		return;
 	op->bwr(VIUB_GCLK_CTRL3, 0x3f, 16, 6);
 	op->bwr(DI_PRE_CTRL, 1, 15, 1);// decontour enable
+
+	if (DIM_IS_IC_EF(T3))
+		off = 0x200;
 	/* int */
 	hsize		= pcfg->in.x_size;
 	vsize		= pcfg->in.y_size;
@@ -719,7 +865,7 @@ static void dcntr_post(void)
 	else
 		intep_phs_y_rtl = intep_phs_y_use;
 
-	op->wr(INTRP_PARAM,
+	op->wr(INTRP_PARAM + off,
 		((intep_phs_x_rtl & 0x1f) << 21)	|
 		((intep_phs_x_use & 0x1f) << 16)	|
 		((intep_phs_y_rtl & 0x1f) << 5)		|
@@ -735,8 +881,8 @@ static void dcntr_post(void)
 	divrsmap_blk1_sft = divrsmap_blk0_sft + 1;
 	divrsmap_blk2_sft = divrsmap_blk0_sft + 2;
 	#endif
-	tmp = op->rd(DCTR_DIVR4) & 0x0fffff;
-	op->wr(DCTR_DIVR4,
+	tmp = op->rd(DCTR_DIVR4 + off) & 0x0fffff;
+	op->wr(DCTR_DIVR4 + off,
 		(divrsmap_blk0_sft << 28) |
 		(divrsmap_blk1_sft << 24) |
 		(divrsmap_blk2_sft << 20) |
@@ -748,7 +894,7 @@ static void dcntr_post(void)
 	#else
 	sig_ds_r = (2 - pcfg->in.DS_RATIO);
 	#endif
-	op->wr(DCTR_SIGFIL,
+	op->wr(DCTR_SIGFIL + off,
 	       (64 << 16) |
 	       (2 << 8)		|
 	       (1 << 4)		|
@@ -777,7 +923,7 @@ static void dcntr_post(void)
 	xds		= (hsize + in_ds_r_x - 1) >> ds_r_sft_x;
 	yds		= (vsize + in_ds_r_y - 1) >> ds_r_sft_y;
 
-	grd_num = op->rd(DCTR_BGRID_PARAM1);
+	grd_num = op->rd(DCTR_BGRID_PARAM1 + off);
 	//= (grd_num>>10) & 0x3ff;
 	reg_grd_xnum = (grd_num_mode == 0) ? 40 :
 			(grd_num_mode == 1) ? 60 : 80;
@@ -807,7 +953,7 @@ static void dcntr_post(void)
 	}
 
 	//Wr(DCTR_PATH,(grd_path<<25));
-	op->wr(DCTR_PATH,
+	op->wr(DCTR_PATH + off,
 	       (grd_path << 25) |
 	       (3  << 29) | /* reg_decontour_enable_0 */
 	       (3  << 27) | /* reg_decontour_enable_1 */
@@ -819,17 +965,17 @@ static void dcntr_post(void)
 	       (reg_in_ds_rate_x << 16) |
 	       (reg_in_ds_rate_y)
 	);
-	op->wr(DCTR_BGRID_PARAM2,
+	op->wr(DCTR_BGRID_PARAM2 + off,
 			(reg_grd_xsize << 24) |
 			(reg_grd_ysize << 16) |
 			(48            << 8) | //valsz
 			(22));//vnum
 
-	op->wr(DCTR_BGRID_PARAM3,
+	op->wr(DCTR_BGRID_PARAM3 + off,
 			(reg_grd_xnum_use << 16)	|
 			(reg_grd_ynum_use));
 
-	op->wr(DCTR_BGRID_PARAM4,
+	op->wr(DCTR_BGRID_PARAM4 + off,
 			(reg_grd_xsize_ds << 16)	|
 			(reg_grd_ysize_ds));
 
@@ -839,18 +985,18 @@ static void dcntr_post(void)
 	//17bits = 7bits for original implement + 10 bit for percision
 	reg_grd_yidx_div = (1 << 17) / (reg_grd_ysize);
 
-	op->wr(DCTR_BGRID_PARAM5, reg_grd_xidx_div);
-	op->wr(DCTR_BGRID_PARAM6, reg_grd_yidx_div);
+	op->wr(DCTR_BGRID_PARAM5 + off, reg_grd_xidx_div);
+	op->wr(DCTR_BGRID_PARAM6 + off, reg_grd_yidx_div);
 
 	for (i = 0; i < DCNTR_NUB_PARA8; i += 2) {
 		tmp = (pcfg->grd_vbin[i] << 16) | pcfg->grd_vbin[i + 1];
-		op->wr(DCTR_BGRID_PARAM8_0 + (i >> 1), tmp);
+		op->wr(DCTR_BGRID_PARAM8_0 + (i >> 1) + off, tmp);
 	}
 	dbg_dct_core_other(pcfg);
 	dt_set_change();
 
 	// cflt 420 to 444
-	op->wr(DCNTR_POST_FMT_CTRL,
+	op->wr(DCNTR_POST_FMT_CTRL + off,
 	       (0 << 31) |    //reg_cfmt_gclk_bit_dis	<= pwdata[31];
 	       (0 << 30) |    //reg_cfmt_soft_rst_bit	<= pwdata[30];
 	       (0 << 28) |    //reg_chfmt_rpt_pix  <= pwdata[28];
@@ -866,17 +1012,17 @@ static void dcntr_post(void)
 	       (0 << 8) |    //reg_cvfmt_ini_phase   <= pwdata[11:8];
 	       (8 << 1) |    //reg_cvfmt_phase_step  <= pwdata[7:1];
 	       (1 << 0));   //reg_cvfmt_en	       <= pwdata[0];
-	op->wr(DCNTR_POST_FMT_W,
+	op->wr(DCNTR_POST_FMT_W + off,
 	       ((xsize >> pcfg->in.DS_RATIO) << 16)	|
 		(xsize >> (pcfg->in.DS_RATIO + 1)));
-	op->wr(DCNTR_POST_FMT_H,
+	op->wr(DCNTR_POST_FMT_H + off,
 	       ((ysize >> pcfg->in.DS_RATIO) << 16)	|
 		(ysize >> (pcfg->in.DS_RATIO + 1)));
 	pcfg->st_set	= 1;
 	//pcfg->st_pause	= 1;
 	pcfg->n_set	= 0;
-	dim_print("rd:0x%x,0x%x\n", DCNTR_GRID_RMIF_CTRL2,
-		  op->rd(DCNTR_GRID_RMIF_CTRL2));
+	dim_print("rd:0x%x,0x%x\n", DCNTR_GRID_RMIF_CTRL2 + off,
+		  op->rd(DCNTR_GRID_RMIF_CTRL2 + off));
 }
 
 static void dcntr_update(void)
@@ -886,9 +1032,12 @@ static void dcntr_update(void)
 //	const unsigned int *reg;
 	unsigned int reg_add;
 	struct dcntr_core_s *pcfg = &di_dcnt;
+	unsigned int off = 0; //for t3
 
 	if (!pcfg->st_set || !pcfg->n_up)
 		return;
+	if (DIM_IS_IC_EF(T3))
+		off = 0x200;
 	if (pcfg->in.use_cvs) {
 		reg_add = get_mif_addr(ECNTR_MIF_IDX_GRID, EINT_RMIF_CTRL4);
 		dim_print("%s:reg:0x%x\n", __func__, reg_add);
@@ -901,7 +1050,7 @@ static void dcntr_update(void)
 	}
 
 	dim_print("rd:0x%x,0x%x\n",
-		  DCNTR_GRID_RMIF_CTRL2, op->rd(DCNTR_GRID_RMIF_CTRL2));
+		  DCNTR_GRID_RMIF_CTRL2 + off, op->rd(DCNTR_GRID_RMIF_CTRL2 + off));
 
 	if ((dbg_dct & DI_BIT0) == 0) {
 		if ((dbg_dct & DI_BIT2) == 0)
@@ -928,11 +1077,14 @@ void dcntr_dynamic_setting(struct dim_rpt_s *rpt)
 	unsigned int target = 256; /*max 256*/
 	struct db_save_s *dbp;
 	const struct reg_acc *op = &di_pre_regset;
+	unsigned int off = 0; //for t3
 
 	if (!rpt || dcntr_dynamic_disable()) {
 		dbg_pq("%s rpt is null or suspend dcntr dynamic.\n", __func__);
 		return;
 	}
+	if (DIM_IS_IC_EF(T3))
+		off = 0x200;
 	/*get val form db*/
 	dbp = &get_datal()->db_save[DIM_DB_SV_DCT_BL2];
 	if (!dbp) {
@@ -983,7 +1135,7 @@ void dcntr_dynamic_setting(struct dim_rpt_s *rpt)
 			pdate[0] = val_db;
 		dbg_pq("case:0, pdate:%x\n", pdate[0]);
 	}
-	op->bwr(DCTR_BLENDING2, pdate[0], 16, 9);
+	op->bwr(DCTR_BLENDING2 + off, pdate[0], 16, 9);
 }
 
 void dcntr_pq_tune(struct dim_rpt_s *rpt)
@@ -991,16 +1143,19 @@ void dcntr_pq_tune(struct dim_rpt_s *rpt)
 	const struct reg_acc *op = &di_pre_regset;
 //	unsigned int tmp[3];
 	struct dcntr_core_s *pcfg = &di_dcnt;
+	unsigned int off = 0; //for t3
 
 	if (!pcfg->n_rp)
 		return;
+	if (DIM_IS_IC_EF(T3))
+		off = 0x200;
 	rpt->spt_bits |= DI_BIT0;
-	rpt->dct_map_0 = op->rd(DCTR_MAP_HIST_0);
-	rpt->dct_map_1 = op->rd(DCTR_MAP_HIST_1);
-	rpt->dct_map_2 = op->rd(DCTR_MAP_HIST_2);
-	rpt->dct_map_3 = op->rd(DCTR_MAP_HIST_3);
-	rpt->dct_map_15 = op->rd(DCTR_MAP_HIST_15);
-	rpt->dct_bld_2 = op->brd(DCTR_BLENDING2, 16, 9);
+	rpt->dct_map_0 = op->rd(DCTR_MAP_HIST_0 + off);
+	rpt->dct_map_1 = op->rd(DCTR_MAP_HIST_1 + off);
+	rpt->dct_map_2 = op->rd(DCTR_MAP_HIST_2 + off);
+	rpt->dct_map_3 = op->rd(DCTR_MAP_HIST_3 + off);
+	rpt->dct_map_15 = op->rd(DCTR_MAP_HIST_15 + off);
+	rpt->dct_bld_2 = op->brd(DCTR_BLENDING2 + off, 16, 9);
 	pcfg->n_rp = 0;
 	dim_print("%s:0x%x\n", __func__, rpt->dct_map_0);
 
@@ -1026,20 +1181,23 @@ void dcntr_set(void)
 	struct dcntr_core_s *pcfg = &di_dcnt;
 	const struct reg_acc *op = &di_pre_regset;
 	unsigned int dval;
+	unsigned int off = 0; //for t3
 
 	if (!pcfg->flg_int || pcfg->st_off)
 		return;
+	if (DIM_IS_IC_EF(T3))
+		off = 0x200;
 	if (pcfg->n_demo) {
-		dval = op->rd(DCTR_DEMO) & 0xfffc0000;
+		dval = op->rd(DCTR_DEMO + off) & 0xfffc0000;
 		if (!pcfg->demo)
-			op->bwr(DCTR_DEMO, 0, 16, 2);
+			op->bwr(DCTR_DEMO + off, 0, 16, 2);
 		else if (pcfg->demo == 1)
-			op->wr(DCTR_DEMO,
+			op->wr(DCTR_DEMO + off,
 			       dval	|
 			       (1	<< 16) |
 			       (pcfg->in.x_size >> 1));
 		else
-			op->wr(DCTR_DEMO,
+			op->wr(DCTR_DEMO + off,
 			       dval	|
 			       (2	<< 16) |
 			       (pcfg->in.x_size >> 1));
@@ -1078,6 +1236,49 @@ static void dbg_pre_cfg(struct dcntr_mem_s *pprecfg)
 		  pprecfg->grd_little_endian);
 }
 
+struct linear_para_s {
+	ulong y_addr;
+	ulong c_addr;
+	unsigned int	y_stride;
+	unsigned int	c_stride;
+	unsigned int	y_cvs_w;
+	unsigned int	c_cvs_w;
+	bool	reg_swap;
+	bool	l_endian;
+	bool	block_mode;
+	bool	cbcr_swap;
+};
+
+static void linear_info_get(struct vframe_s *vfm, struct linear_para_s *opara)
+{
+	if (!vfm || !opara)
+		return;
+	if (!IS_NV21_12(vfm->type)) {
+		PR_ERR("%s:0x%x\n", __func__, vfm->type);
+		return;
+	}
+	opara->y_addr = vfm->canvas0_config[0].phy_addr;
+	opara->c_addr = vfm->canvas0_config[1].phy_addr;
+	opara->y_cvs_w	= vfm->canvas0_config[0].width;
+	opara->c_cvs_w = vfm->canvas0_config[1].width;
+
+	opara->y_stride = (opara->y_cvs_w + 15) >> 4;
+	opara->c_stride = (opara->c_cvs_w + 15) >> 4;
+	if ((vfm->flag & VFRAME_FLAG_VIDEO_LINEAR)) {
+		opara->reg_swap = 0;
+		opara->l_endian = 1;
+
+	} else {
+		opara->reg_swap = 1;
+		opara->l_endian = 0;
+	}
+
+	if (vfm->type & VIDTYPE_VIU_NV12)
+		opara->cbcr_swap = 1;
+	else
+		opara->cbcr_swap = 0;
+}
+
 void dcntr_check(struct vframe_s *vfm)
 {
 	struct dcntr_core_s	*pcfg = &di_dcnt;
@@ -1093,7 +1294,8 @@ void dcntr_check(struct vframe_s *vfm)
 	unsigned int cvs_y, cvs_uv;
 	struct di_cvs_s *cvss;
 	unsigned int cvs_w;
-
+	struct linear_para_s opara;
+	bool check_burst = false;
 	//pdcn = (struct dcntr_mem_s *)vfm->vf_ext;
 	pdcn = (struct dcntr_mem_s *)vfm->decontour_pre;
 
@@ -1131,7 +1333,24 @@ void dcntr_check(struct vframe_s *vfm)
 	if (pdcn->use_org) {
 		ds_x = vfm->width;
 		ds_y = vfm->height;
-		pcfg->in.use_cvs = 1;
+		if (DIM_IS_IC(T5)) {
+			pcfg->in.use_cvs = 1;
+		} else if (cfgg(LINEAR)) {
+			//change in_cfg:
+			linear_info_get(vfm, &opara);
+			pcfg->in_cfg.yds_addr = opara.y_addr;
+			pcfg->in_cfg.cds_addr = opara.c_addr;
+			pcfg->in_cfg.yflt_wrmif_length = opara.y_stride;
+			pcfg->in_cfg.cflt_wrmif_length = opara.c_stride;
+			pcfg->in_cfg.yds_swap_64bit = opara.reg_swap;
+			pcfg->in_cfg.cds_swap_64bit = opara.reg_swap;
+			pcfg->in_cfg.yds_little_endian = opara.l_endian;
+			pcfg->in_cfg.cds_little_endian = opara.l_endian;
+			pcfg->in.use_cvs = 0;
+			ds_addy = opara.y_addr;
+			ds_addc = opara.c_addr;
+			check_burst = true;
+		}
 	} else {
 		ds_x = vfm->width >> pdcn->ds_ratio;
 		ds_y = vfm->height >> pdcn->ds_ratio;
@@ -1237,7 +1456,7 @@ void dcntr_check(struct vframe_s *vfm)
 			  cflt_wrmif_length, pcfg->in_cfg.cflt_wrmif_length);
 	}
 	pcfg->burst = 2;
-	if (pcfg->in.use_cvs) {
+	if (pcfg->in.use_cvs || check_burst) {
 		canvas_config_config((u32)pcfg->cvs_y, &vfm->canvas0_config[0]);
 		canvas_config_config((u32)pcfg->cvs_uv,
 				     &vfm->canvas0_config[1]);
@@ -1257,13 +1476,23 @@ void dcntr_check(struct vframe_s *vfm)
 			  vfm->canvas0_config[0].phy_addr,
 			  vfm->canvas0_config[1].phy_addr);
 		#endif
-	} else {
-		pcfg->in.addr[ECNTR_MIF_IDX_DIVR] = ds_addy;
-		pcfg->in.addr[ECNTR_MIF_IDX_YFLT] = ds_addy;
-		pcfg->in.addr[ECNTR_MIF_IDX_CFLT] = ds_addc;
 	}
 
-	pcfg->in.addr[ECNTR_MIF_IDX_GRID] = grd_add;
+	if (!pcfg->in.use_cvs) {
+		if (DIM_IS_IC_EF(T7)) {
+			pcfg->in.addr[ECNTR_MIF_IDX_DIVR] = ds_addy >> 4;
+			pcfg->in.addr[ECNTR_MIF_IDX_YFLT] = ds_addy >> 4;
+			pcfg->in.addr[ECNTR_MIF_IDX_CFLT] = ds_addc >> 4;
+		} else {
+			pcfg->in.addr[ECNTR_MIF_IDX_DIVR] = ds_addy;
+			pcfg->in.addr[ECNTR_MIF_IDX_YFLT] = ds_addy;
+			pcfg->in.addr[ECNTR_MIF_IDX_CFLT] = ds_addc;
+		}
+	}
+	if (DIM_IS_IC_EF(T7))
+		pcfg->in.addr[ECNTR_MIF_IDX_GRID] = grd_add >> 4;
+	else
+		pcfg->in.addr[ECNTR_MIF_IDX_GRID] = grd_add;
 
 	if (pcfg->n_bypass) {
 		pcfg->n_set	= 0;
@@ -1315,7 +1544,7 @@ void dcntr_prob(void)
 	PR_INF("%s\n", __func__);
 	memset(pcfg, 0, sizeof(*pcfg));
 
-	if (DIM_IS_IC(T5))
+	if (DIM_IS_IC(T5) || DIM_IS_IC(T3))
 		pcfg->support = 1;
 	else
 		pcfg->support = 0;
@@ -1325,11 +1554,18 @@ void dcntr_prob(void)
 
 	for (i = 0; i < 22; i++)
 		pcfg->grd_vbin[i] = 48 + 48 * i;
-	for (i = 0; i < DCNTR_NUB_MIF; i++)
-		pcfg->reg_mif_tab[i] = &reg_mif[i][0];
+	for (i = 0; i < DCNTR_NUB_MIF; i++) {
+		if (DIM_IS_IC_EF(T3))
+			pcfg->reg_mif_tab[i] = &reg_mif_t3[i][0];
+		else
+			pcfg->reg_mif_tab[i] = &reg_mif[i][0];
+	}
 
 	pcfg->reg_mif_bits_tab	= &reg_bits_mif[0];
-	pcfg->reg_contr_bits	= &rtab_t5_dcntr_bits_tab[0];
+	if (DIM_IS_IC_EF(T3))
+		pcfg->reg_contr_bits	= &rtab_t3_dcntr_bits_tab[0];
+	else
+		pcfg->reg_contr_bits	= &rtab_t5_dcntr_bits_tab[0];
 	pcfg->flg_int = 1;
 	PR_INF("%s:end\n", __func__);
 }
