@@ -3869,6 +3869,14 @@ void rx_get_de_sts(void)
 		rx.cur.hactive = tmp;
 		rx.cur.vactive = hdmirx_rd_cor(COR_LINE_CNT_LO) |
 			(hdmirx_rd_cor(COR_LINE_CNT_HI) << 8);
+		rx.cur.htotal = (hdmirx_rd_cor(COR_HSYNC_LOW_COUNT_LO) |
+			(hdmirx_rd_cor(COR_HSYNC_LOW_COUNT_HI) << 8)) +
+			(hdmirx_rd_cor(COR_HSYNC_HIGH_COUNT_LO) |
+			(hdmirx_rd_cor(COR_HSYNC_HIGH_COUNT_HI) << 8));
+		rx.cur.vtotal = (hdmirx_rd_cor(COR_VSYNC_LOW_COUNT_LO) |
+			(hdmirx_rd_cor(COR_VSYNC_LOW_COUNT_HI) << 8)) +
+			(hdmirx_rd_cor(COR_VSYNC_HIGH_COUNT_LO) |
+			(hdmirx_rd_cor(COR_VSYNC_HIGH_COUNT_HI) << 8));
 	} else {
 		rx.cur.vactive = hdmirx_rd_bits_dwc(DWC_MD_VAL, VACT_LIN);
 		rx.cur.vtotal = hdmirx_rd_bits_dwc(DWC_MD_VTL, VTOT_LIN);

@@ -1224,6 +1224,18 @@
 #define COR_LINE_CNT_LO		0x188E
 #define COR_LINE_CNT_HI		0x188F
 
+/* h-sync */
+#define COR_HSYNC_LOW_COUNT_LO      0x1890
+#define COR_HSYNC_LOW_COUNT_HI      0x1891
+#define COR_HSYNC_HIGH_COUNT_LO     0x1892
+#define COR_HSYNC_HIGH_COUNT_HI     0x1893
+
+/* v-sync */
+#define COR_VSYNC_LOW_COUNT_LO      0x1898
+#define COR_VSYNC_LOW_COUNT_HI      0x1899
+#define COR_VSYNC_HIGH_COUNT_LO     0x189A
+#define COR_VSYNC_HIGH_COUNT_HI     0x189B
+
 #define RX_CLK_CTRL			(0x4A << 2)
 #define RX_CLK_CTRL1		(0x4B << 2)
 #define RX_CLK_CTRL2		(0x4C << 2)
