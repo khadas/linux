@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <dt-bindings/display/meson-drm-ids.h>
 
+#include "vpu-hw/meson_osd_afbc.h"
 #include "meson_vpu_pipeline.h"
 #include "meson_drv.h"
 
@@ -536,6 +537,8 @@ int vpu_osd_pipeline_update(struct meson_vpu_pipeline *pipeline,
 	DRM_DEBUG("old_enable_blocks: 0x%llx - %p, new_enable_blocks: 0x%llx - %p.\n",
 		  old_mvps->enable_blocks, old_mvps,
 		  new_mvps->enable_blocks, new_mvps);
+
+	arm_fbc_check_error();
 
 	#ifdef MESON_DRM_VERSION_V0
 	meson_vpu_pipeline_atomic_backup_state(new_mvps);

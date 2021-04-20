@@ -522,7 +522,7 @@ void arm_fbc_check_error(void)
 
 	if (afbc_err_irq_clear) {
 		/*check afbc error*/
-		val = meson_vpu_read_reg(VPU_MAFBC_IRQ_RAW_STATUS);
+		val = meson_drm_read_reg(VPU_MAFBC_IRQ_RAW_STATUS);
 		if (val & 0x3c) {
 			DRM_ERROR("afbc error happened, %x-%x\n", val, global_afbc_mask);
 			afbc_err_cnt++;
