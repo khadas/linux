@@ -28,7 +28,6 @@ static void meson_vpu_vsync_rdma_irq(void *arg)
 		return;
 
 	vpu_pipeline_check_finish_reg();
-	arm_fbc_check_error();
 }
 
 static struct rdma_op_s meson_vpu_vsync_rdma_op = {
