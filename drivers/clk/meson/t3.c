@@ -5608,6 +5608,7 @@ static struct clk_regmap t3_me_0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = t3_me_parent_hws,
 		.num_parents = ARRAY_SIZE(t3_me_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -5636,7 +5637,8 @@ static struct clk_regmap t3_me_0 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &t3_me_0_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT
+				 | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -5651,6 +5653,7 @@ static struct clk_regmap t3_me_1_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = t3_me_parent_hws,
 		.num_parents = ARRAY_SIZE(t3_me_parent_hws),
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -5679,7 +5682,8 @@ static struct clk_regmap t3_me_1 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &t3_me_1_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT
+				 | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -5713,7 +5717,7 @@ static struct clk_regmap t3_me = {
 			&t3_me_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -5736,6 +5740,7 @@ static struct clk_regmap t3_frc_0_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = t3_frc_parent_hws,
 		.num_parents = ARRAY_SIZE(t3_frc_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -5764,7 +5769,8 @@ static struct clk_regmap t3_frc_0 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &t3_frc_0_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT
+				 | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -5779,6 +5785,7 @@ static struct clk_regmap t3_frc_1_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = t3_frc_parent_hws,
 		.num_parents = ARRAY_SIZE(t3_frc_parent_hws),
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -5807,7 +5814,8 @@ static struct clk_regmap t3_frc_1 = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &t3_frc_1_div.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_GATE | CLK_SET_RATE_PARENT
+				 | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -5841,7 +5849,7 @@ static struct clk_regmap t3_frc = {
 			&t3_frc_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
