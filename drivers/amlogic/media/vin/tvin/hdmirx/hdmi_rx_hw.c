@@ -3405,6 +3405,9 @@ void hdcp_init_t7(void)
 	//hdmirx_wr_cor(CP2PAX_GP_CTL_HDCP2X_IVCRX, 0xdb);
 	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x8);
 	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x0);
+
+	//clr gcp wr; disable hw avmute
+	hdmirx_wr_cor(DEC_AV_MUTE_DP2_IVCRX, 0x20);
 }
 
 void hdmirx_hw_config(void)
@@ -5231,6 +5234,19 @@ void rx_get_audio_N_CTS(u32 *N, u32 *CTS)
 	*CTS = hdmirx_rd_top(TOP_ACR_CTS_STAT);
 }
 
+u8 rx_get_avmute_sts(void)
+{
+	u8 ret = 0;
+
+	if (rx.chip_id >= CHIP_ID_T7) {
+		if (hdmirx_rd_cor(RX_GCP_DBYTE0_DP3_IVCRX) & 1)
+			ret = 1;
+	} else {
+		if (hdmirx_rd_dwc(DWC_PDEC_GCP_AVMUTE) & 0x02)
+			ret = 1;
+	}
+	return ret;
+}
 /* termination calibration */
 void rx_phy_rt_cal(void)
 {

@@ -20,8 +20,8 @@
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 
-/* add audio hbr sts/hdcp irq */
-#define RX_VER0 "ver.2021/04/14"
+/* disable hw avmute */
+#define RX_VER0 "ver.2021/04/20"
 
 /*print type*/
 #define	LOG_EN		0x01

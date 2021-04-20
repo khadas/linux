@@ -480,10 +480,10 @@ int hdmirx_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 	if (!rx.var.force_pattern) {
 		/*prevent spurious pops or noise when pw down*/
 		if (rx.state == FSM_SIG_READY) {
-			avmuteflag =
-				hdmirx_rd_dwc(DWC_PDEC_GCP_AVMUTE) & 0x03;
-			if (avmuteflag == 0x02) {
+			avmuteflag = rx_get_avmute_sts();
+			if (avmuteflag == 1) {
 				rx.avmute_skip += 1;
+				skip_frame(1);
 				hdmirx_set_video_mute(1);
 				/* return TVIN_BUF_SKIP; */
 			} else {

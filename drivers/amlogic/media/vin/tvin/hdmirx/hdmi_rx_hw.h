@@ -3323,6 +3323,7 @@ void aml_phy_power_off_t5(void);
 void aml_phy_switch_port_t5(void);
 
 
+u8 rx_get_avmute_sts(void);
 /* T7 */
 u8 hdmirx_rd_cor(u32 addr);
 void hdmirx_wr_cor(u32 addr, u8 data);
