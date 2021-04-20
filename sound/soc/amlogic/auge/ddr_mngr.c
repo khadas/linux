@@ -1454,6 +1454,7 @@ void aml_frddr_enable(struct frddr *fr, bool enable)
 	struct aml_audio_controller *actrl = fr->actrl;
 	unsigned int reg_base = fr->reg_base;
 	unsigned int reg, value;
+	unsigned int reg1, value1;
 
 	reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL0, reg_base);
 
@@ -1464,6 +1465,15 @@ void aml_frddr_enable(struct frddr *fr, bool enable)
 	    (value & 0x80000000))
 		aml_frddr_burst_finished(fr);
 
+	if (enable) {
+		/* before enable frddr, must disable src_sel_en */
+		reg1 = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL2, reg_base);
+		value1 = aml_audiobus_read(actrl, reg1);
+		aml_audiobus_update_bits(actrl,	reg1,
+			0x1 << 20 | 0x1 << 12 | 0x1 << 4,
+			0 << 20 | 0 << 12 | 0 << 4);
+	}
+
 	/* ensure disable before enable frddr */
 	aml_audiobus_update_bits(actrl,	reg, 1 << 31, enable << 31);
 
@@ -1472,10 +1482,12 @@ void aml_frddr_enable(struct frddr *fr, bool enable)
 
 		/* clr src sel and its en */
 		if (fr->chipinfo && fr->chipinfo->src_sel_ctrl) {
-			reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL2,
-				reg_base);
+			reg = calc_frddr_address(EE_AUDIO_FRDDR_A_CTRL2, reg_base);
 			aml_audiobus_write(actrl, reg, 0x0);
 		}
+	} else {
+		/* after enable frddr, enable src_sel_en */
+		aml_audiobus_write(actrl, reg1, value1);
 	}
 }
 

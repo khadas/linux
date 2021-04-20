@@ -15,36 +15,6 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
 #include <linux/amlogic/media/sound/aout_notify.h>
 
-unsigned int aml_spdif_ctrl_read(struct aml_audio_controller *actrl,
-	int stream, int index)
-{
-	unsigned int offset, reg;
-
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		offset = EE_AUDIO_SPDIFOUT_B_CTRL0 - EE_AUDIO_SPDIFOUT_CTRL0;
-		reg = EE_AUDIO_SPDIFOUT_CTRL0 + offset * index;
-	} else {
-		reg = EE_AUDIO_SPDIFIN_CTRL0;
-	}
-
-	return aml_audiobus_read(actrl, reg);
-}
-
-void aml_spdif_ctrl_write(struct aml_audio_controller *actrl,
-	int stream, int index, int val)
-{
-	unsigned int offset, reg;
-
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		offset = EE_AUDIO_SPDIFOUT_B_CTRL0 - EE_AUDIO_SPDIFOUT_CTRL0;
-		reg = EE_AUDIO_SPDIFOUT_CTRL0 + offset * index;
-	} else {
-		reg = EE_AUDIO_SPDIFIN_CTRL0;
-	}
-
-	aml_audiobus_write(actrl, reg, val);
-}
-
 void aml_spdifin_chnum_en(struct aml_audio_controller *actrl,
 	int index, bool is_enable)
 {
@@ -69,6 +39,11 @@ void aml_spdif_enable(struct aml_audio_controller *actrl,
 		offset = EE_AUDIO_SPDIFOUT_B_CTRL0 - EE_AUDIO_SPDIFOUT_CTRL0;
 		reg = EE_AUDIO_SPDIFOUT_CTRL0 + offset * index;
 		aml_audiobus_update_bits(actrl, reg, 1 << 31, is_enable << 31);
+		if (!is_enable) {
+			offset = EE_AUDIO_SPDIFOUT_B_CTRL1 - EE_AUDIO_SPDIFOUT_CTRL1;
+			reg = EE_AUDIO_SPDIFOUT_CTRL1 + offset * index;
+			aml_audiobus_update_bits(actrl, reg, 0x1 << 3, 0x0 << 3);
+		}
 	} else {
 		aml_audiobus_update_bits(actrl,
 			EE_AUDIO_SPDIFIN_CTRL0, 1 << 31, is_enable << 31);
@@ -88,7 +63,16 @@ void aml_spdif_mute(struct aml_audio_controller *actrl,
 
 		offset = EE_AUDIO_SPDIFOUT_B_CTRL0 - EE_AUDIO_SPDIFOUT_CTRL0;
 		reg = EE_AUDIO_SPDIFOUT_CTRL0 + offset * index;
+		if (!is_mute)
+			aml_audiobus_update_bits(actrl, reg, 0x1 << 30, 0x0 << 30);
 		aml_audiobus_update_bits(actrl, reg, 0x3 << 21, mute_lr << 21);
+		if (is_mute) {
+			aml_audiobus_update_bits(actrl, reg, 0x1 << 30, 0x1 << 30);
+
+			offset = EE_AUDIO_SPDIFOUT_B_CTRL1 - EE_AUDIO_SPDIFOUT_CTRL1;
+			reg = EE_AUDIO_SPDIFOUT_CTRL1 + offset * index;
+			aml_audiobus_update_bits(actrl, reg, 0x1 << 3, 0x1 << 3);
+		}
 	} else {
 		aml_audiobus_update_bits(actrl, EE_AUDIO_SPDIFIN_CTRL0,
 					 0x3 << 6, mute_lr << 6);
@@ -105,8 +89,16 @@ void aml_spdifout_mute_without_actrl(int index, bool is_mute)
 
 	offset = EE_AUDIO_SPDIFOUT_B_CTRL0 - EE_AUDIO_SPDIFOUT_CTRL0;
 	reg = EE_AUDIO_SPDIFOUT_CTRL0 + offset * index;
-
+	if (!is_mute)
+		audiobus_update_bits(reg, 0x1 << 30, 0x0 << 30);
 	audiobus_update_bits(reg, 0x3 << 21, mute_lr << 21);
+	if (is_mute) {
+		audiobus_update_bits(reg, 0x1 << 30, 0x1 << 30);
+
+		offset = EE_AUDIO_SPDIFOUT_B_CTRL1 - EE_AUDIO_SPDIFOUT_CTRL1;
+		reg = EE_AUDIO_SPDIFOUT_CTRL1 + offset * index;
+		audiobus_update_bits(reg, 0x1 << 3, 0x1 << 3);
+	}
 }
 
 void aml_spdif_arb_config(struct aml_audio_controller *actrl)
@@ -438,14 +430,16 @@ void spdifout_enable(int spdif_id, bool is_enable, bool reenable)
 		(spdif_id == 0) ? "a" : "b",
 		is_enable ? "enable" : "disable");
 
-	offset = EE_AUDIO_SPDIFOUT_B_CTRL0 - EE_AUDIO_SPDIFOUT_CTRL0;
-	reg = EE_AUDIO_SPDIFOUT_CTRL0 + offset * spdif_id;
-
 	if (!is_enable) {
-		/* share buffer, spdif should be active, so mute it */
-		/*audiobus_update_bits(reg, 0x3 << 21, 0x3 << 21);*/
+		/*
+		 * must set ctrl1 bit 3 = 0 when disable
+		 * share buffer, spdif should be active, so mute it
+		 * audiobus_update_bits(reg, 0x3 << 21, 0x3 << 21);
+		 */
 		return;
 	}
+	offset = EE_AUDIO_SPDIFOUT_B_CTRL0 - EE_AUDIO_SPDIFOUT_CTRL0;
+	reg = EE_AUDIO_SPDIFOUT_CTRL0 + offset * spdif_id;
 
 	/* disable then for reset, to correct channel map */
 	if (reenable)

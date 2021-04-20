@@ -10,13 +10,6 @@
 
 #include "../common/iec_info.h"
 
-unsigned int aml_spdif_ctrl_read(struct aml_audio_controller *actrl,
-				 int stream,
-				 int index);
-void aml_spdif_ctrl_write(struct aml_audio_controller *actrl,
-			  int stream,
-			  int index,
-			  int val);
 void aml_spdifin_chnum_en(struct aml_audio_controller *actrl,
 			  int index,
 			  bool is_enable);
