@@ -953,6 +953,7 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 		r0.b.PHY_SEL = 1;
 		r0.b.TX_ENABLE_N = 0;
 		r0.b.FSLSSERIALMODE = 0;
+		r0.b.PHY_SSCG_ON = 0;
 		writel(r0.d32, pcie_aml_regs_v2.pcie_phy_r[0]);
 	}
 
