@@ -10,7 +10,7 @@
 		index = <0>;
 		mode = "tv";
 		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
-		key_valid = <0>;
+		key_valid = <1>;
 		clocks = <&clkc CLKID_SYS_CLK_TCON
 				&clkc CLKID_FCLK_DIV5
 				&clkc CLKID_CTS_TCON_PLL_CLK>;
