@@ -854,36 +854,19 @@
 				<&clkc CLKID_SD_EMMC_B_CLK_SEL>,
 				 <&clkc CLKID_SD_EMMC_B_CLK>,
 				 <&xtal>,
-				 <&clkc CLKID_FCLK_DIV2>;
+				 <&clkc CLKID_GP0_PLL>,
+				 <&clkc CLKID_GP0_PLL>;
 			clock-names = "core", "mux0", "mux1",
-					"clkin0", "clkin1";
-			card_type = <5>;
+					"clkin0", "clkin1","clkin2";
+		//	card_type = <5>;
+			card_type = <3>;
+			cap-sdio-irq;
+			keep-power-in-suspend;
+			src_clk_rate = <1152000000>;
+			use_intf3_tuning;
 			mmc_debug_flag;
 			//resets = <&reset RESET_SD_EMMC_B>;
 		};
-
-//		sd_emmc_a: sdio@fe088000 {
-//			compatible = "amlogic,meson-axg-mmc";
-//			reg = <0x0 0xfe088000 0x0 0x800>,
-//				<0x0 0xfe00016c 0x0 0x4>,
-//				<0x0 0xfe004008 0x0 0x4>;
-//			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
-//			status = "disabled";
-//			clocks = <&clkc CLKID_SD_EMMC_A>,
-//				<&clkc CLKID_SD_EMMC_A_CLK_MUX>,
-//				 <&clkc CLKID_SD_EMMC_A_CLK>,
-//				 <&xtal>,
-//				 <&clkc CLKID_GP0_PLL>;
-//			clock-names = "core", "mux0", "mux1",
-//					"clkin0", "clkin1";
-//			card_type = <3>;
-//			cap-sdio-irq;
-//			keep-power-in-suspend;
-//			src_clk_rate = <1152000000>;
-//			use_intf3_tuning;
-//			mmc_debug_flag;
-//			//resets = <&reset RESET_SD_EMMC_A>;
-//		};
 
 		dummy_codec:dummy{
 			#sound-dai-cells = <0>;
