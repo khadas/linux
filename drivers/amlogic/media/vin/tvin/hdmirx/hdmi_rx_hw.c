@@ -1747,9 +1747,9 @@ static int TOP_init(void)
 
 	data32 = 0;
 	/* SDA filter internal clk div */
-	data32 |= 2 << 29; /* change to 2 for nvidia pc */
+	data32 |= 1 << 29;
 	/* SDA sampling clk div */
-	data32 |= 0x9 << 16; /* change to 8 for nvidia pc */
+	data32 |= 0x1 << 16;
 	/* SCL filter internal clk div */
 	data32 |= 1 << 13;
 	/* SCL sampling clk div */
@@ -3426,6 +3426,7 @@ void hdmirx_hw_config(void)
 		DWC_init();
 		hdmirx_irq_hdcp_enable(true);
 	}
+	rx_ddc_calibration(false);
 	packet_init();
 	if (rx.chip_id >= CHIP_ID_TL1)
 		aml_phy_switch_port();
@@ -5285,6 +5286,41 @@ todo:
 			return;
 		}
 		j = 0;
+	}
+}
+
+void rx_ddc_calibration(bool en)
+{
+	u32 data32 = 0;
+
+	if (en) {
+		data32 = 0;
+		/* SDA filter internal clk div */
+		data32 |= 2 << 29; /* change to 2 for nvidia pc */
+		/* SDA sampling clk div */
+		data32 |= 0x9 << 16; /* change to 8 for nvidia pc */
+		/* SCL filter internal clk div */
+		data32 |= 1 << 13;
+		/* SCL sampling clk div */
+		data32 |= 1 << 0;
+		hdmirx_wr_top(TOP_INFILTER_I2C0, data32);
+		hdmirx_wr_top(TOP_INFILTER_I2C1, data32);
+		hdmirx_wr_top(TOP_INFILTER_I2C2, data32);
+		hdmirx_wr_top(TOP_INFILTER_I2C3, data32);
+	} else {
+		data32 = 0;
+		/* SDA filter internal clk div */
+		data32 |= 1 << 29; /* change to 2 for nvidia pc */
+		/* SDA sampling clk div */
+		data32 |= 0x1 << 16; /* change to 8 for nvidia pc */
+		/* SCL filter internal clk div */
+		data32 |= 1 << 13;
+		/* SCL sampling clk div */
+		data32 |= 1 << 0;
+		hdmirx_wr_top(TOP_INFILTER_I2C0, data32);
+		hdmirx_wr_top(TOP_INFILTER_I2C1, data32);
+		hdmirx_wr_top(TOP_INFILTER_I2C2, data32);
+		hdmirx_wr_top(TOP_INFILTER_I2C3, data32);
 	}
 }
 

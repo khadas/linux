@@ -20,8 +20,8 @@
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 
-/* disable hw avmute */
-#define RX_VER0 "ver.2021/04/20"
+/* add backup ddc setting */
+#define RX_VER0 "ver.2021/04/22"
 
 /*print type*/
 #define	LOG_EN		0x01

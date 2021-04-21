@@ -3234,6 +3234,7 @@ void hdmirx_config_audio(void);
 void set_dv_ll_mode(bool en);
 void rx_get_audinfo(struct aud_info_s *audio_info);
 bool rx_clkrate_monitor(void);
+void rx_ddc_calibration(bool en);
 unsigned char rx_get_hdcp14_sts(void);
 unsigned int rx_hdcp22_rd_reg_bits(unsigned int addr, unsigned int mask);
 int rx_get_aud_pll_err_sts(void);

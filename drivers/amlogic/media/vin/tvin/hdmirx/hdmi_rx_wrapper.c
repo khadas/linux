@@ -2922,6 +2922,7 @@ void rx_main_state_machine(void)
 			} else {
 				rx.err_code = ERR_NONE;
 				rx.state = FSM_HPD_LOW;
+				rx_ddc_calibration(true);
 				esd_phy_rst_cnt = 0;
 				break;
 			}
