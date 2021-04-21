@@ -715,6 +715,8 @@ static int decontour_pre_process(struct vframe_s *vf)
 	u32 endian;
 	u32 pic_32byte_aligned = 0;
 	bool support_canvas = false;
+	int src_hsize;
+	int src_vsize;
 
 	if (!vf)
 		return -1;
@@ -949,6 +951,13 @@ static int decontour_pre_process(struct vframe_s *vf)
 	last_h = vf->height;
 	last_type = vf->type;
 
+	if (src_fmt == 0) {
+		src_hsize = canvas_width >> 1;
+		src_vsize = canvas_height;
+	} else {
+		src_hsize = canvas_width;
+		src_vsize = canvas_height;
+	}
 	ini_dcntr_pre(mif_out_width, mif_out_height, 2, ds_ratio);
 	grd_num = Rd(DCTR_BGRID_PARAM3_PRE);
 	reg_grd_xnum = (grd_num >> 16) & (0x3ff);
@@ -961,7 +970,9 @@ static int decontour_pre_process(struct vframe_s *vf)
 	yflt_wrmif_length = ds_out_width;
 	cflt_wrmif_length = ds_out_width;
 
-	dc_print("canvas_width=%d, canvas_height=%d\n", canvas_width, canvas_height);
+	dc_print("canvas_width=%d, canvas_height=%d, src_hsize=%d, src_vsize=%d\n",
+		canvas_width, canvas_height,
+		src_hsize, src_vsize);
 
 	if (canvas_width % 32)
 		burst_len = 0;
@@ -977,8 +988,8 @@ static int decontour_pre_process(struct vframe_s *vf)
 		phy_addr_0,  /*int canvas_baddr0,*/
 		phy_addr_1,           /*int canvas_baddr1,*/
 		phy_addr_2,           /*int canvas_baddr2,*/
-		canvas_width,   /*int src_hsize,*/
-		canvas_height,   /*int src_vsize,*/
+		src_hsize,   /*int src_hsize,*/
+		src_vsize,   /*int src_vsize,*/
 		src_fmt, /*1 = RGB/YCBCR(3 bytes/pixel), 0=422 (2 bytes/pixel) 2:420 (two canvas)*/
 		0,           /*int mif_x_start,*/
 		mif_read_width - 1, /*int mif_x_end  ,*/
