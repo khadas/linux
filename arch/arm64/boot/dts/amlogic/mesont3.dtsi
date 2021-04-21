@@ -250,6 +250,14 @@
 			>;
 	};
 
+	jtag {
+		compatible = "amlogic, jtag";
+		status = "okay";
+		select = "disable"; /* disable/jtag_a/jtag_b */
+		pinctrl-names="jtag_a_pins";
+		pinctrl-0=<&jtag_a_pins>;
+	};
+
 	vddcpu0: pwm_b-regulator {
 		compatible = "pwm-regulator";
 		pwms = <&pwm_ab MESON_PWM_1 1500 0>;
@@ -2342,6 +2350,16 @@
 			groups = "uart_c_tx_h18",
 				"uart_c_rx_h19";
 			function = "uart_c";
+		};
+	};
+
+	jtag_a_pins: jtag_a_pin {
+		mux {
+			groups = "jtag_a_tdi",
+				 "jtag_a_tdo",
+				 "jtag_a_clk",
+				 "jtag_a_tms";
+			function = "jtag_a";
 		};
 	};
 

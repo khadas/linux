@@ -205,10 +205,10 @@ static const unsigned int i2c1_sck_d_pins[]		= { GPIOD_2 };
 static const unsigned int i2c1_sda_d_pins[]		= { GPIOD_3 };
 static const unsigned int clk_32k_in_pins[]		= { GPIOD_4 };
 static const unsigned int remote_input_pins[]		= { GPIOD_5 };
-static const unsigned int jtag_1_clk_pins[]		= { GPIOD_6 };
-static const unsigned int jtag_1_tms_pins[]		= { GPIOD_7 };
-static const unsigned int jtag_1_tdi_pins[]		= { GPIOD_8 };
-static const unsigned int jtag_1_tdo_pins[]		= { GPIOD_9 };
+static const unsigned int jtag_a_clk_pins[]		= { GPIOD_6 };
+static const unsigned int jtag_a_tms_pins[]		= { GPIOD_7 };
+static const unsigned int jtag_a_tdi_pins[]		= { GPIOD_8 };
+static const unsigned int jtag_a_tdo_pins[]		= { GPIOD_9 };
 static const unsigned int gen_clk_out_d_pins[]		= { GPIOD_10 };
 
 /* bank D func2 */
@@ -818,10 +818,10 @@ static struct meson_pmx_group meson_t3_periphs_groups[] = {
 	GROUP(i2c1_sda_d,		1),
 	GROUP(clk_32k_in,		1),
 	GROUP(remote_input,		1),
-	GROUP(jtag_1_clk,		1),
-	GROUP(jtag_1_tms,		1),
-	GROUP(jtag_1_tdi,		1),
-	GROUP(jtag_1_tdo,		1),
+	GROUP(jtag_a_clk,		1),
+	GROUP(jtag_a_tms,		1),
+	GROUP(jtag_a_tdi,		1),
+	GROUP(jtag_a_tdo,		1),
 	GROUP(gen_clk_out_d,		1),
 
 	/* bank D func2 */
@@ -1421,8 +1421,8 @@ static const char * const remote_input_groups[] = {
 	"remote_input"
 };
 
-static const char * const jtag_1_groups[] = {
-	"jtag_1_clk", "jtag_1_tms", "jtag_1_tdi", "jtag_1_tdo"
+static const char * const jtag_a_groups[] = {
+	"jtag_a_clk", "jtag_a_tms", "jtag_a_tdi", "jtag_a_tdo"
 };
 
 static const char * const gen_clk_groups[] = {
@@ -1657,7 +1657,7 @@ static struct meson_pmx_func meson_t3_periphs_functions[] = {
 	FUNCTION(pwm_vs),
 	FUNCTION(remote_out),
 	FUNCTION(remote_input),
-	FUNCTION(jtag_1),
+	FUNCTION(jtag_a),
 	FUNCTION(gen_clk),
 	FUNCTION(clk12_24),
 	FUNCTION(clk_32k_in),
