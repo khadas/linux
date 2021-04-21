@@ -25,6 +25,11 @@ struct pts_tri {
 	uint32_t delay;
 };
 
+struct pcr_pair {
+	uint32_t pts;
+	uint64_t mono_clock;
+};
+
 struct pts_wall {
 	uint32_t wall_clock;
 	uint32_t interval;
@@ -61,6 +66,7 @@ enum avs_event {
 enum avs_astart_mode {
 	AVS_START_SYNC = 0,
 	AVS_START_ASYNC,
+	AVS_START_AGAIN,
 	AVS_START_MAX
 };
 
@@ -77,6 +83,12 @@ struct session_event {
 	/* enum avs_event */
 	uint32_t event;
 	uint32_t value;
+};
+
+struct session_debug {
+	uint32_t debug_freerun;
+	uint32_t pcr_init_flag;
+	uint32_t pcr_init_mode;
 };
 
 #define AVS_INVALID_PTS 0xFFFFFFFFUL
@@ -104,8 +116,8 @@ struct session_event {
 #define AMSYNCS_IOC_SEND_EVENT		_IOWR((_A_M_SS), 0x08, struct session_event)
 //For PCR/IPTV mode only
 #define AMSYNCS_IOC_GET_SYNC_STAT	_IOWR((_A_M_SS), 0x09, struct session_sync_stat)
-#define AMSYNCS_IOC_SET_PCR		_IOW((_A_M_SS), 0x0a, unsigned int)
-#define AMSYNCS_IOC_GET_PCR		_IOWR((_A_M_SS), 0x0b, unsigned int)
+#define AMSYNCS_IOC_SET_PCR		_IOW((_A_M_SS), 0x0a, struct pcr_pair)
+#define AMSYNCS_IOC_GET_PCR		_IOWR((_A_M_SS), 0x0b, struct pcr_pair)
 #define AMSYNCS_IOC_GET_WALL		_IOR((_A_M_SS), 0x0c, struct pts_wall)
 #define AMSYNCS_IOC_SET_RATE		_IOW((_A_M_SS), 0x0d, unsigned int)
 #define AMSYNCS_IOC_GET_RATE		_IOR((_A_M_SS), 0x0e, unsigned int)
@@ -114,6 +126,9 @@ struct session_event {
 #define AMSYNCS_IOC_GET_WALL_ADJ_THRES	_IOR((_A_M_SS), 0x11, unsigned int)
 #define AMSYNCS_IOC_GET_CLOCK_START	_IOR((_A_M_SS), 0x12, unsigned int)
 #define AMSYNCS_IOC_AUDIO_START	_IOW((_A_M_SS), 0x13, struct audio_start)
+
+//For debuging
+#define AMSYNCS_IOC_GET_DEBUG_MODE	_IOR((_A_M_SS), 0x100, struct session_debug)
 
 int msync_vsync_update(void);
 
