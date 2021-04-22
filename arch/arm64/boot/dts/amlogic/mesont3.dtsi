@@ -212,6 +212,18 @@
 		status = "okay";
 	};
 
+	vrtc: rtc@0xfe010288 {
+		compatible = "amlogic,meson-vrtc";
+		reg = <0x0 0xfe010288 0x0 0x4>; //SYSCTRL_STATUS_REG2
+	};
+
+	aml_reboot {
+		compatible = "aml, reboot";
+		sys_reset = <0x84000009>;
+		sys_poweroff = <0x84000008>;
+		dis_nb_cpus_in_shutdown;
+	};
+
 	mhu_fifo: mhu@0 {
 		status = "okay";
 		compatible = "amlogic, meson_mhu_fifo";
