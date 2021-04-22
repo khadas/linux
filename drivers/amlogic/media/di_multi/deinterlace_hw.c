@@ -3919,11 +3919,12 @@ void dim_post_gate_control_sc2(bool gate)
 	}
 }
 
+/*from t7 nr writ mif reset bit is 0x17d3 bit22 from vlsi feijun*/
 static void di_async_reset(void)/*2019-01-17 add for debug*/
 {
-	if (DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) {
-		DIM_RDMA_WR_BITS(VIUB_SW_RESET, 1, 4, 1);
-		DIM_RDMA_WR_BITS(VIUB_SW_RESET, 0, 4, 1);
+	if (DIM_IS_IC_EF(T7)) {
+		DIM_RDMA_WR_BITS(DI_TOP_CTRL1, 1, 22, 1);
+		DIM_RDMA_WR_BITS(DI_TOP_CTRL1, 0, 22, 1);
 	} else {
 	/*wrmif async reset*/
 		DIM_RDMA_WR_BITS(VIUB_SW_RESET, 1, 14, 1);
@@ -4616,8 +4617,7 @@ void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		if (table_name & nr_table)
 			ctrl_reg_flag =
 			get_ops_nr()->set_nr_ctrl_reg_table(addr, value);
-		//if (table_name & (TABLE_NAME_NR | TABLE_NAME_SMOOTHPLUS))
-		if (table_name & TABLE_NAME_NR)
+		if (table_name & (TABLE_NAME_NR | TABLE_NAME_SMOOTHPLUS))
 			save_db = pq_save_db(addr, value, mask);
 
 		if (!ctrl_reg_flag && !save_db)

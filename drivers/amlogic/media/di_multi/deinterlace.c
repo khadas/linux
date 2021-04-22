@@ -11368,7 +11368,7 @@ long dim_pq_load_io(unsigned long arg)
 	tab_flag = TABLE_NAME_DI | TABLE_NAME_NR | TABLE_NAME_MCDI |
 		TABLE_NAME_DEBLOCK | TABLE_NAME_DEMOSQUITO;
 
-	//tab_flag |= TABLE_NAME_SMOOTHPLUS;
+	tab_flag |= TABLE_NAME_SMOOTHPLUS;
 	if (tmp_pq_s.table_name & tab_flag) {
 		PR_INF("load 0x%x pq table len %u %s.\n",
 		       tmp_pq_s.table_name, tmp_pq_s.table_len,
