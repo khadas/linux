@@ -772,8 +772,9 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 	}
 
 #ifdef CONFIG_AMLOGIC_CMA
-	WARN_ONCE(!page, "can't alloc from %lx with size:%ld, ret:%d\n",
-		cma->base_pfn, (unsigned long)count, ret);
+	if (!no_warn)
+		WARN_ONCE(!page, "can't alloc from %lx with size:%ld, ret:%d\n",
+			cma->base_pfn, (unsigned long)count, ret);
 	aml_cma_alloc_post_hook(&dummy, count, page);
 	cma_debug(0, NULL, "return page:%lx, tick:%lld\n",
 		  page ? page_to_pfn(page) : 0, sched_clock() - tick);
