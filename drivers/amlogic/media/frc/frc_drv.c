@@ -459,6 +459,9 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	fw_data->holdline_parm.reg_mc_dly_vofst0 = 1;/*fixed*/
 
 	memset(&devp->frc_crc_data, 0, sizeof(struct frc_crc_data_s));
+	memset(&devp->ud_dbg, 0, sizeof(struct frc_ud_s));
+	/*used for force in/out size for frc process*/
+	memset(&devp->force_size, 0, sizeof(struct frc_force_size_s));
 }
 
 void get_vout_info(struct frc_dev_s *frc_devp)

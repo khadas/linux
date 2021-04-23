@@ -246,7 +246,8 @@ void frc_me_crc_read(struct frc_dev_s *frc_devp)
 		if (crc_data->frc_crc_pr) {
 			if (crc_data->me_wr_crc.crc_en && crc_data->me_rd_crc.crc_en)
 				pr_frc(0,
-					"mewr_done_flag = %d, mewr_cmp1 = 0x%x, merd_done_flag = %d, merd_cmp1 = 0x%x, merd_cmp2 = 0x%x\n",
+					"invs_cnt = %d, mewr_done_flag = %d, mewr_cmp1 = 0x%x, merd_done_flag = %d, merd_cmp1 = 0x%x, merd_cmp2 = 0x%x\n",
+					frc_devp->in_sts.vs_cnt,
 					crc_data->me_wr_crc.crc_done_flag,
 					crc_data->me_wr_crc.crc_data_cmp[0],
 					crc_data->me_rd_crc.crc_done_flag,
@@ -254,12 +255,14 @@ void frc_me_crc_read(struct frc_dev_s *frc_devp)
 					crc_data->me_rd_crc.crc_data_cmp[1]);
 			else if (crc_data->me_wr_crc.crc_en)
 				pr_frc(0,
-					"mewr_done_flag = %d, mewr_cmp1 = 0x%x\n",
+					"invs_cnt = %d, mewr_done_flag = %d, mewr_cmp1 = 0x%x\n",
+					frc_devp->in_sts.vs_cnt,
 					crc_data->me_wr_crc.crc_done_flag,
 					crc_data->me_wr_crc.crc_data_cmp[0]);
 			else if (crc_data->me_rd_crc.crc_en)
 				pr_frc(0,
-					"merd_done_flag = %d, merd_cmp1 = 0x%x, merd_cmp2 = 0x%x\n",
+					"invs_cnt = %d, merd_done_flag = %d, merd_cmp1 = 0x%x, merd_cmp2 = 0x%x\n",
+					frc_devp->in_sts.vs_cnt,
 					crc_data->me_rd_crc.crc_done_flag,
 					crc_data->me_rd_crc.crc_data_cmp[0],
 					crc_data->me_rd_crc.crc_data_cmp[1]);
@@ -283,11 +286,41 @@ void frc_mc_crc_read(struct frc_dev_s *frc_devp)
 			crc_data->mc_wr_crc.crc_data_cmp[0] = 0;
 			crc_data->mc_wr_crc.crc_data_cmp[1] = 0;
 		}
-		if (crc_data->frc_crc_pr)
-			pr_frc(0, "mcwr_done_flag = %d, mcwr_cmp1 = 0x%x, mcwr_cmp2 = 0x%x\n",
+		if (crc_data->frc_crc_pr && crc_data->mc_wr_crc.crc_en)
+			pr_frc(0,
+			"outvs_cnt = %d, mcwr_done_flag = %d, mcwr_cmp1 = 0x%x, mcwr_cmp2 = 0x%x\n",
+				frc_devp->out_sts.vs_cnt,
 				crc_data->mc_wr_crc.crc_done_flag,
 				crc_data->mc_wr_crc.crc_data_cmp[0],
 				crc_data->mc_wr_crc.crc_data_cmp[1]);
+	}
+}
+
+void me_undown_read(struct frc_dev_s *frc_devp)
+{
+	u32 val, me_ud_flag;
+
+	if (frc_devp->ud_dbg.meud_dbg_en) {
+		val = READ_FRC_REG(FRC_INP_UE_DBG);
+		me_ud_flag = val & 0x3e;
+		pr_frc(0, "invs_cnt = %d, me_ud_flag = %d\n",
+			frc_devp->in_sts.vs_cnt, me_ud_flag);
+		WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x3e, 1, 5);
+		WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x0, 1, 5);
+	}
+}
+
+void mc_undown_read(struct frc_dev_s *frc_devp)
+{
+	u32 val, mc_ud_flag;
+
+	if (frc_devp->ud_dbg.mcud_dbg_en) {
+		val = READ_FRC_REG(FRC_MC_DBG_MC_WRAP);
+		mc_ud_flag = (val >> 24) & 0x1;
+		pr_frc(0, "outvs_cnt = %d, mc_ud_flag = %d\n",
+			frc_devp->out_sts.vs_cnt, mc_ud_flag);
+		WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 1, 21, 1);
+		WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 0, 21, 1);
 	}
 }
 
@@ -420,15 +453,40 @@ void frc_mtx_set(struct frc_dev_s *frc_devp)
 	}
 }
 
+static void set_vd1_out_size(struct frc_dev_s *frc_devp)
+{
+	unsigned int hsize, vsize;
+
+	if (frc_devp->frc_hw_pos == FRC_POS_BEFORE_POSTBLEND) {
+		if (frc_devp->force_size.force_en) {
+			hsize = frc_devp->force_size.force_hsize - 1;
+			vsize = frc_devp->force_size.force_vsize - 1;
+			vpu_reg_write_bits(VD1_BLEND_SRC_CTRL, 1, 8, 4);
+			vpu_reg_write_bits(VPP_POSTBLEND_VD1_H_START_END, hsize, 0, 13);
+			vpu_reg_write_bits(VPP_POSTBLEND_VD1_V_START_END, vsize, 0, 13);
+		}
+	}
+	pr_frc(1, "hsize = %d, vsize = %d\n", hsize, vsize);
+}
+
 static void frc_input_init(struct frc_dev_s *frc_devp,
 	struct frc_top_type_s *frc_top)
 {
 	pr_frc(1, "%s\n", __func__);
 	if (frc_devp->frc_test_ptn) {
-		frc_top->hsize = frc_devp->out_sts.vout_width;
-		frc_top->vsize = frc_devp->out_sts.vout_height;
-		frc_top->out_hsize = frc_devp->out_sts.vout_width;
-		frc_top->out_vsize = frc_devp->out_sts.vout_height;
+		if (frc_devp->frc_hw_pos == FRC_POS_BEFORE_POSTBLEND &&
+			frc_devp->force_size.force_en) {
+			/*used for set testpattern size, only for debug*/
+			frc_top->hsize = frc_devp->force_size.force_hsize;
+			frc_top->vsize = frc_devp->force_size.force_vsize;
+			frc_top->out_hsize = frc_devp->force_size.force_hsize;
+			frc_top->out_vsize = frc_devp->force_size.force_vsize;
+		} else {
+			frc_top->hsize = frc_devp->out_sts.vout_width;
+			frc_top->vsize = frc_devp->out_sts.vout_height;
+			frc_top->out_hsize = frc_devp->out_sts.vout_width;
+			frc_top->out_vsize = frc_devp->out_sts.vout_height;
+		}
 		frc_top->frc_ratio_mode = frc_devp->in_out_ratio;
 		frc_top->film_mode = frc_devp->film_mode;
 		/*hw film detect*/
@@ -437,6 +495,8 @@ static void frc_input_init(struct frc_dev_s *frc_devp,
 		frc_top->loss_en = 0;
 		frc_top->frc_prot_mode = frc_devp->prot_mode;
 		frc_top->frc_fb_num = FRC_TOTAL_BUF_NUM;
+
+		set_vd1_out_size(frc_devp);
 	} else {
 		if (frc_devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND) {
 			frc_top->hsize = frc_devp->out_sts.vout_width;
@@ -600,6 +660,8 @@ void frc_inp_init(u32 frc_fb_num, u32 film_hwfw_sel)
 	WRITE_FRC_BITS(FRC_REG_TOP_CTRL25               ,0x4080200     ,0 ,31);//aligned padding value
 	WRITE_FRC_BITS(FRC_REG_FILM_PHS_1               ,film_hwfw_sel ,16,1 );
 
+	/*for fw signal latch, should always enable*/
+	WRITE_FRC_BITS(FRC_REG_MODE_OPT, 1, 1, 1);
 	WRITE_FRC_BITS(FRC_ME_E2E_CHK_EN - HME_ME_OFFSET,0         ,24,1 );//todo init hme
 }
 
@@ -1817,10 +1879,10 @@ void frc_dump_reg_tab(void)
 	pr_frc(0, "VPU_FRC_TOP_CTRL (0x%x)->pos_sel val:0x%x (0:after blend)\n",
 		VPU_FRC_TOP_CTRL, (vpu_reg_read(VPU_FRC_TOP_CTRL) >> 4) & 0x1);
 
-	pr_frc(0, "ENCL_FRC_CTRL (0x%x)val:0x%x\n",
+	pr_frc(0, "ENCL_FRC_CTRL (0x%x)->val:0x%x\n",
 		ENCL_FRC_CTRL, vpu_reg_read(ENCL_FRC_CTRL) & 0xffff);
 
-	pr_frc(0, "ENCL_VIDEO_VAVON_BLINE:0x%x\n",
+	pr_frc(0, "ENCL_VIDEO_VAVON_BLINE:0x%x->val: 0x%x\n",
 		ENCL_VIDEO_VAVON_BLINE, vpu_reg_read(ENCL_VIDEO_VAVON_BLINE) & 0xffff);
 
 	while (frc_reg_tab[i].addr < 0x3fff) {

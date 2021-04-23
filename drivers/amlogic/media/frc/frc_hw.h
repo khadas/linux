@@ -69,4 +69,6 @@ void frc_mtx_set(struct frc_dev_s *frc_devp);
 void frc_crc_enable(struct frc_dev_s *frc_devp);
 void frc_me_crc_read(struct frc_dev_s *frc_devp);
 void frc_mc_crc_read(struct frc_dev_s *frc_devp);
+void me_undown_read(struct frc_dev_s *frc_devp);
+void mc_undown_read(struct frc_dev_s *frc_devp);
 #endif

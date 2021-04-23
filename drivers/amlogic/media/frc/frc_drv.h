@@ -267,6 +267,8 @@ struct frc_dev_s {
 
 	struct tool_debug_s tool_dbg;
 	struct frc_crc_data_s frc_crc_data;
+	struct frc_ud_s ud_dbg;
+	struct frc_force_size_s force_size;
 };
 
 struct frc_dev_s *get_frc_devp(void);

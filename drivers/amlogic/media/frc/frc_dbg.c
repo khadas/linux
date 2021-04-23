@@ -108,6 +108,11 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "inp_hold_line = %d\n", fw_data->holdline_parm.inp_hold_line);
 	pr_frc(0, "reg_post_dly_vofst = %d\n", fw_data->holdline_parm.reg_post_dly_vofst);
 	pr_frc(0, "reg_mc_dly_vofst0 = %d\n", fw_data->holdline_parm.reg_mc_dly_vofst0);
+
+	pr_frc(0, "force_en = %d, force_hsize = %d, force_vsize = %d\n",
+		devp->force_size.force_en, devp->force_size.force_hsize,
+		devp->force_size.force_vsize);
+
 }
 
 ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf)
@@ -135,6 +140,8 @@ ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf)
 	len += sprintf(buf + len, "film_mode val\t: 0:video 1:22 2:32 3:3223 4:2224\n");
 	len += sprintf(buf + len, "buf_num val\t: val(1 - 16)\n");
 	len += sprintf(buf + len, " \t\t 5:32322 6:44\n");
+	len += sprintf(buf + len, "force_mode en(0/1) hize vsize\n");
+	len += sprintf(buf + len, "ud_dbg 0/1 0/1\t: meud_en, mcud_en\n");
 
 	return len;
 }
@@ -267,6 +274,22 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 	} else if (!strcmp(parm[0], "buf_num")) {
 		if (kstrtol(parm[1], 10, &val1) == 0)
 			frc_set_buf_num((u32)val1);
+	} else if (!strcmp(parm[0], "force_mode")) {
+		if (!parm[3])
+			goto exit;
+		if (kstrtol(parm[1], 10, &val1) == 0)
+			devp->force_size.force_en = val1;
+		if (kstrtol(parm[2], 10, &val1) == 0)
+			devp->force_size.force_hsize = val1;
+		if (kstrtol(parm[3], 10, &val1) == 0)
+			devp->force_size.force_vsize = val1;
+	} else if (!strcmp(parm[0], "ud_dbg")) {
+		if (!parm[2])
+			goto exit;
+		if (kstrtol(parm[1], 10, &val1) == 0)
+			devp->ud_dbg.meud_dbg_en = val1;
+		if (kstrtol(parm[2], 10, &val1) == 0)
+			devp->ud_dbg.mcud_dbg_en = val1;
 	}
 
 exit:

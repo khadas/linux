@@ -13037,6 +13037,10 @@
 #define ENCL_VIDEO_MAX_LNCNT			0x1cbb
 #define ENCL_VIDEO_MAX_PXCNT			0x1cb0
 
+#define VD1_BLEND_SRC_CTRL   0x1dfb
+#define VPP_POSTBLEND_VD1_H_START_END   0x1d1c
+#define VPP_POSTBLEND_VD1_V_START_END   0x1d1d
+
 extern void __iomem *frc_base;
 
 inline void WRITE_FRC_REG(unsigned int reg, unsigned int val);

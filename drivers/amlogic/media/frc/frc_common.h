@@ -1055,4 +1055,15 @@ struct frc_crc_data_s {
 	struct crc_parm_s me_rd_crc;
 	struct crc_parm_s mc_wr_crc;
 };
+
+struct frc_ud_s {
+	u32 meud_dbg_en;
+	u32 mcud_dbg_en;
+};
+
+struct frc_force_size_s {
+	u32 force_en;
+	u32 force_hsize;
+	u32 force_vsize;
+};
 #endif

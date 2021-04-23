@@ -150,12 +150,12 @@ irqreturn_t frc_input_isr(int irq, void *dev_id)
 	devp->in_sts.vs_duration = timestamp - devp->in_sts.vs_timestamp;
 	devp->in_sts.vs_timestamp = timestamp;
 
+	me_undown_read(devp);
+
 	if (devp->dbg_reg_monitor_i)
 		frc_in_reg_monitor(devp);
 
 	tasklet_schedule(&devp->input_tasklet);
-
-	frc_me_crc_read(devp);
 
 	return IRQ_HANDLED;
 }
@@ -187,12 +187,12 @@ irqreturn_t frc_output_isr(int irq, void *dev_id)
 	devp->out_sts.vs_duration = timestamp - devp->out_sts.vs_timestamp;
 	devp->out_sts.vs_timestamp = timestamp;
 
+	mc_undown_read(devp);
+
 	if (devp->dbg_reg_monitor_o)
 		frc_out_reg_monitor(devp);
 
 	tasklet_schedule(&devp->output_tasklet);
-
-	frc_mc_crc_read(devp);
 
 	return IRQ_HANDLED;
 }
