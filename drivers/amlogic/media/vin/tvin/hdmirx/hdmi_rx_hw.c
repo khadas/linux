@@ -3835,7 +3835,7 @@ void rx_get_framerate(void)
 		if (tmp == 0)
 			rx.cur.frame_rate = 0;
 		else
-			rx.cur.frame_rate = clk / tmp;
+			rx.cur.frame_rate = clk / (tmp / 100);
 	} else {
 		tmp = hdmirx_rd_bits_dwc(DWC_MD_VTC, VTOT_CLK);
 		if (tmp == 0)

@@ -3778,6 +3778,8 @@ int hdmirx_debug(const char *buf, int size)
 		aml_phy_iq_skew_monitor();
 	} else if (strncmp(tmpbuf, "crc", 3) == 0) {
 		rx_sec_hdcp_cfg_t7();
+	} else if (strncmp(tmpbuf, "phyoff", 6) == 0) {
+		aml_phy_power_off();
 	}
 	return 0;
 }

@@ -54,7 +54,8 @@
 /* update hdcp2.2 irq clear logic */
 /* update aud pll cntl for t3 */
 /* modify dv data */
-#define RX_VER2 "ver.2021/04/21"
+/* fix frame rate error issue */
+#define RX_VER2 "ver.2021/04/23"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368

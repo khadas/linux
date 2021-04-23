@@ -3287,6 +3287,7 @@ bool is_tmds_clk_stable(void);
 void rx_phy_short_bist(void);
 void aml_phy_iq_skew_monitor(void);
 void aml_eq_eye_monitor(void);
+void aml_phy_power_off(void);
 
 /* tl1 extern */
 void aml_phy_init_tl1(void);
