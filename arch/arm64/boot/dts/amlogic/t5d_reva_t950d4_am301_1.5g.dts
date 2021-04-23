@@ -601,6 +601,7 @@
 		/*urgent_en*/
 		double_write_en;
 		/* secure_en; */
+		v4l_support_en;
 	};
 
 	vdin@1 {

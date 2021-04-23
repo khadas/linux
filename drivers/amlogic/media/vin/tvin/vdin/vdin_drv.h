@@ -682,6 +682,7 @@ struct vdin_dev_s {
 	spinlock_t qlock; /*v4l qlock*/
 	struct list_head buf_list;	/* buffer list head */
 	struct vdin_vb_buff *cur_buff;	/* vdin video frame buffer */
+	bool v4l_support_en;
 
 	/*struct v4l2_fh fh;*/
 	unsigned int dbg_v4l_pause;

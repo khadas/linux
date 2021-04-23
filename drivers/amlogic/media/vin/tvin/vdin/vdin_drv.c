@@ -4532,6 +4532,9 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	vdevp->urgent_en = of_property_read_bool(pdev->dev.of_node,
 		"urgent_en");
 
+	vdevp->v4l_support_en = of_property_read_bool(pdev->dev.of_node,
+						"v4l_support_en");
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 		vdevp->double_wr_cfg = of_property_read_bool(pdev->dev.of_node,
 							     "double_write_en");
@@ -4614,7 +4617,8 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	vdin_set_config(vdevp);
 
 	/*probe v4l interface*/
-	vdin_v4l2_probe(pdev, vdevp);
+	if (vdevp->v4l_support_en)
+		vdin_v4l2_probe(pdev, vdevp);
 
 	/* vdin measure clock */
 	if (is_meson_gxbb_cpu()) {

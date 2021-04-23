@@ -42,6 +42,7 @@ static void vdin_v4l2_status(struct vdin_dev_s *devp)
 	pr_info("streaming:%d\n", devp->vbqueue.streaming);
 	pr_info("buf_struct_size:%d\n", devp->vbqueue.buf_struct_size);
 	pr_info("min_buffers_needed:%d\n", devp->vbqueue.min_buffers_needed);
+	pr_info("v4l_support_en:%d\n", devp->v4l_support_en);
 	pr_info("dbg_v4l_done_cnt:%d\n", devp->dbg_v4l_done_cnt);
 	pr_info("dbg_v4l_que_cnt:%d\n", devp->dbg_v4l_que_cnt);
 	pr_info("dbg_v4l_dque_cnt:%d\n", devp->dbg_v4l_dque_cnt);
