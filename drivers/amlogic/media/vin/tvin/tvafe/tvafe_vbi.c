@@ -300,10 +300,10 @@ static void vbi_hw_init(struct vbi_dev_s *devp)
 	tvafe_pr_info("%s: vbi hw init done.\n", __func__);
 }
 
-static inline void vbi_get_byte(unsigned char *rdptr, unsigned char retbyte)
+static inline void vbi_get_byte(unsigned char **rdptr_addr, unsigned char *retbyte)
 {
-		retbyte = *rdptr;
-		rdptr += 1;
+		*retbyte = **rdptr_addr;
+		*rdptr_addr = *rdptr_addr + 1;
 }
 
 static ssize_t vbi_ringbuffer_free(struct vbi_ringbuffer_s *rbuf)
@@ -1064,7 +1064,7 @@ static void vbi_slicer_work(struct work_struct *p_work)
 		}
 
 		/* vbi_type & field_id */
-		vbi_get_byte(local_rptr, rbyte);
+		vbi_get_byte(&local_rptr, &rbyte);
 		chlen++;
 		vbi_data.vbi_type = (rbyte >> 1) & 0x7;
 		vbi_data.field_id = rbyte & 1;
@@ -1079,14 +1079,14 @@ static void vbi_slicer_work(struct work_struct *p_work)
 			continue;
 		}
 		/* byte counter */
-		vbi_get_byte(local_rptr, rbyte);
+		vbi_get_byte(&local_rptr, &rbyte);
 		chlen++;
 		vbi_data.nbytes = rbyte;
 		/* line number */
-		vbi_get_byte(local_rptr, rbyte);
+		vbi_get_byte(&local_rptr, &rbyte);
 		chlen++;
 		pre_val = (u16)rbyte;
-		vbi_get_byte(local_rptr, rbyte);
+		vbi_get_byte(&local_rptr, &rbyte);
 		chlen++;
 		pre_val |= ((u16)rbyte & 0x3) << 8;
 		vbi_data.line_num = pre_val;
