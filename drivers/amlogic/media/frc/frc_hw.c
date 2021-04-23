@@ -501,14 +501,12 @@ static void frc_input_init(struct frc_dev_s *frc_devp,
 		if (frc_devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND) {
 			frc_top->hsize = frc_devp->out_sts.vout_width;
 			frc_top->vsize = frc_devp->out_sts.vout_height;
-			frc_top->out_hsize = frc_devp->out_sts.vout_width;
-			frc_top->out_vsize = frc_devp->out_sts.vout_height;
 		} else {
 			frc_top->hsize = frc_devp->in_sts.in_hsize;
 			frc_top->vsize = frc_devp->in_sts.in_vsize;
-			frc_top->out_hsize = frc_devp->in_sts.in_hsize;
-			frc_top->out_vsize = frc_devp->in_sts.in_vsize;
 		}
+		frc_top->out_hsize = frc_devp->out_sts.vout_width;
+		frc_top->out_vsize = frc_devp->out_sts.vout_height;
 		frc_top->frc_ratio_mode = frc_devp->in_out_ratio;
 		frc_top->film_mode = frc_devp->film_mode;
 		/*sw film detect*/
@@ -561,14 +559,17 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	reg_mc_out_line = (frc_top->vfb / 4) * 3;// 3/4 point of front vblank
 	reg_me_dly_vofst = reg_mc_out_line;
 
+	if (frc_top->hsize <= 1920)
+		frc_top->is_me1mc4 = 0;/*me:mc 1:2*/
+	else
+		frc_top->is_me1mc4 = 1;/*me:mc 1:4*/
+
 	if (frc_top->out_hsize == 1920 && frc_top->out_vsize == 1080) {
 		mevp_frm_dly = 130;
 		mc_frm_dly   = 11 ;//inp performace issue, need frc_clk >  enc0_clk
-		frc_top->is_me1mc4 = 0;/*me:mc 1:2*/
 	} else if (frc_top->out_hsize == 3840 && frc_top->out_vsize == 2160) {
 		mevp_frm_dly = 260;
 		mc_frm_dly = 28;
-		frc_top->is_me1mc4 = 1;/*me:mc 1:4*/
 
 		/* MEMC 4K ENCL setting, vlock will change the ENCL_VIDEO_MAX_LNCNT,
 		 * so need dynamic change this register
@@ -588,7 +589,6 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	} else {
 		mevp_frm_dly = 140;
 		mc_frm_dly   = 10 ;//inp performace issue, need frc_clk >  enc0_clk
-		frc_top->is_me1mc4 = 0;
 	}
 
 	//memc_frm_dly
