@@ -602,8 +602,8 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 		coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
 		coef_v = osd_scaler_filter_table[COEFS_2POINT_BINILEAR];
 	} else if (scan_mode_out && width_out <= 720) {
-		coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
-		coef_v = osd_scaler_filter_table[COEFS_2POINT_BINILEAR];
+		coef_h = osd_scaler_filter_table[COEFS_4POINT_TRIANGLE];
+		coef_v = osd_scaler_filter_table[COEFS_4POINT_TRIANGLE];
 	} else {
 		coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
 		coef_v = osd_scaler_filter_table[COEFS_BICUBIC];
