@@ -149,6 +149,15 @@
         gcvFALSE, gcvFALSE                                                     \
         )
 
+#define _STATE_INIT_VALUE_1(reg, value)                                        \
+    _State(\
+        Context, index, \
+        (reg ## _Address >> 2) + 1, \
+        value, \
+        reg ## _Count, \
+        gcvFALSE, gcvFALSE                                                     \
+        )
+
 #define _STATE_INIT_VALUE_BLOCK(reg, value, block, count)                      \
     _State(\
         Context, index, \
@@ -2468,7 +2477,7 @@ _AllocateDelta(
     if (context->maxState > 0)
     {
         /* Compute UINT array size. */
-        gctUINT32 bytes = gcmSIZEOF(gctUINT) * context->maxState;
+        gctSIZE_T bytes = gcmSIZEOF(gctUINT) * context->maxState;
 
         /* Allocate map ID array. */
         gcmkONERROR(gckOS_Allocate(
@@ -2478,7 +2487,7 @@ _AllocateDelta(
         delta->mapEntryID = gcmPTR_TO_UINT64(pointer);
 
         /* Set the map ID size. */
-        delta->mapEntryIDSize = bytes;
+        delta->mapEntryIDSize = (gctUINT32)bytes;
 
         /* Reset the record map. */
         gckOS_ZeroMemory(gcmUINT64_TO_PTR(delta->mapEntryID), bytes);
@@ -3311,10 +3320,11 @@ _InitializeContextBuffer(
     gctBOOL multiCluster;
     gctBOOL smallBatch;
     gctBOOL multiCoreBlockSetCfg2;
-    gctUINT clusterAliveMask;
+    gctUINT clusterAliveMask[2];
     gctBOOL hasPSCSThrottle;
     gctBOOL hasMsaaFragOperation;
     gctBOOL newGPipe;
+    gctBOOL computeOnly;
 #endif
 
     gckHARDWARE hardware;
@@ -3367,10 +3377,12 @@ _InitializeContextBuffer(
     multiCluster = gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_MULTI_CLUSTER);
     smallBatch = gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_SMALL_BATCH) && hardware->options.smallBatch;
     multiCoreBlockSetCfg2 = gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_MULTI_CORE_BLOCK_SET_CONFIG2);
-    clusterAliveMask = hardware->identity.clusterAvailMask & hardware->options.userClusterMask;
+    clusterAliveMask[0] = hardware->identity.clusterAvailMask & hardware->options.userClusterMasks[0];
+    clusterAliveMask[1] = hardware->identity.clusterAvailMask & hardware->options.userClusterMasks[1];
     hasPSCSThrottle = gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_PSCS_THROTTLE);
     hasMsaaFragOperation = gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_MSAA_FRAGMENT_OPERATION);
     newGPipe = gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_NEW_GPIPE);
+    computeOnly = gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_COMPUTE_ONLY);
 
     /* Multi render target. */
     if (Context->hardware->identity.chipModel == gcv880 &&
@@ -3404,6 +3416,7 @@ _InitializeContextBuffer(
                          Context->hardware->identity.chipRevision,
                          halti5,
                          smallBatch,
+                         computeOnly,
                          Context->hardware->identity.numConstants,
                          unifiedUniform,
                          vertexUniforms,
@@ -3428,17 +3441,30 @@ _InitializeContextBuffer(
 
     if (multiCluster)
     {
-        index += _State(Context, index, (0x03910 >> 2) + (0 << 2), ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+        index += _State(Context, index, 0x03910 >> 2, ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  7:0) - (0 ?
  7:0) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ?
  7:0) - (0 ?
  7:0) + 1))))))) << (0 ?
- 7:0))) | (((gctUINT32) ((gctUINT32) (clusterAliveMask) & ((gctUINT32) ((((1 ?
+ 7:0))) | (((gctUINT32) ((gctUINT32) (clusterAliveMask[0]) & ((gctUINT32) ((((1 ?
  7:0) - (0 ?
  7:0) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ?
  7:0) - (0 ? 7:0) + 1))))))) << (0 ? 7:0))), 4, gcvFALSE, gcvFALSE);
+
+        index += _State(Context, index, (0x03910 >> 2) + 1, ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 7:0) - (0 ?
+ 7:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 7:0) - (0 ?
+ 7:0) + 1))))))) << (0 ?
+ 7:0))) | (((gctUINT32) ((gctUINT32) (clusterAliveMask[1]) & ((gctUINT32) ((((1 ?
+ 7:0) - (0 ?
+ 7:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 7:0) - (0 ? 7:0) + 1))))))) << (0 ? 7:0))), 4, gcvFALSE, gcvFALSE);
+
         index += _State(Context, index, 0x03908 >> 2, ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  2:0) - (0 ?
  2:0) + 1) == 32) ?
@@ -4444,7 +4470,16 @@ _InitializeContextBuffer(
     {
         index += _State(Context, index, 0x01780 >> 2, 0x00000000, 8, gcvFALSE, gcvFALSE);
         index += _State(Context, index, 0x016BC >> 2, 0x00000000, 1, gcvFALSE, gcvFALSE);
-        index += _State(Context, index, (0x017A0 >> 2) + 1, 0x00000000, 7, gcvFALSE, gcvFALSE);
+
+        if (gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_TS_FC_VULKAN_SUPPORT))
+        {
+            index += _State(Context, index, 0x017A0 >> 2, 0x00000000, 8, gcvFALSE, gcvFALSE);
+        }
+        else
+        {
+            index += _State(Context, index, (0x017A0 >> 2) + 1, 0x00000000, 7, gcvFALSE, gcvFALSE);
+        }
+
         index += _State(Context, index, (0x017C0 >> 2) + 1, 0x00000000, 7, gcvFALSE, gcvTRUE);
         index += _State(Context, index, (0x017E0 >> 2) + 1, 0x00000000, 7, gcvFALSE, gcvTRUE);
         index += _State(Context, index, (0x01A00 >> 2) + 1, 0x00000000, 7, gcvFALSE, gcvFALSE);
@@ -6553,7 +6588,7 @@ gckCONTEXT_ConstructPrevDelta(
         if (Context && Context->maxState > 0)
         {
             /* Compute UINT array size. */
-            gctUINT bytes = gcmSIZEOF(gctUINT) * Context->maxState;
+            gctSIZE_T bytes = gcmSIZEOF(gctUINT) * Context->maxState;
             gctUINT32 *kMapEntryID = gcvNULL;
             gctUINT32 *kMapEntryIndex = gcvNULL;
 
@@ -6565,7 +6600,7 @@ gckCONTEXT_ConstructPrevDelta(
             Context->prevMapEntryID = (gctUINT32 *)pointer;
 
             /* Set the map ID size. */
-            kDelta->mapEntryIDSize = bytes;
+            kDelta->mapEntryIDSize = (gctUINT32)bytes;
 
             gcmkONERROR(gckKERNEL_OpenUserData(
                 kernel, needCopy,

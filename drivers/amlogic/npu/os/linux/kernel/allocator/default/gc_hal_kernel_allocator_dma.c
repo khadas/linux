@@ -188,6 +188,19 @@ _DmaAlloc(
         gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
     }
 
+#if defined(CONFIG_X86)
+#if gcdENABLE_BUFFERABLE_VIDEO_MEMORY
+    if (set_memory_wc((unsigned long)(mdlPriv->kvaddr), NumPages) != 0)
+    {
+        printk("%s(%d): failed to set_memory_wc\n", __func__, __LINE__);
+    }
+#else
+    if (set_memory_uc((unsigned long)(mdlPriv->kvaddr), NumPages) != 0)
+    {
+        printk("%s(%d): failed to set_memory_uc\n", __func__, __LINE__);
+    }
+#endif
+#endif
     Mdl->priv = mdlPriv;
 
     Mdl->dmaHandle = mdlPriv->dmaHandle;
@@ -322,6 +335,13 @@ _DmaMmap(
     gcmkHEADER_ARG("Allocator=%p Mdl=%p vma=%p", Allocator, Mdl, vma);
 
     gcmkASSERT(skipPages + numPages <= Mdl->numPages);
+
+#if gcdENABLE_BUFFERABLE_VIDEO_MEMORY
+    vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+#else
+    vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+#endif
+
 #if gcdENABLE_BUFFERABLE_VIDEO_MEMORY
     /* map kernel memory to user space.. */
 #if defined CONFIG_MIPS || defined CONFIG_CPU_CSKYV2 || defined CONFIG_PPC

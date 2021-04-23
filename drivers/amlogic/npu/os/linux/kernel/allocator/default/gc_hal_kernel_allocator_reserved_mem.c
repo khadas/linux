@@ -155,7 +155,7 @@ reserved_mem_alloc(
     IN gctUINT32 Flags
     )
 {
-    return gcvSTATUS_NOT_SUPPORTED;
+    return gcvSTATUS_OUT_OF_MEMORY;
 }
 
 static gceSTATUS

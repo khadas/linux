@@ -220,6 +220,9 @@ extern "C" {
 /* Beside gcvSTUCK_DUMP_USER_COMMAND, dump kernel command buffer. */
 #define gcvSTUCK_DUMP_ALL_COMMAND   4
 
+/* Dump all the cores with level 4 dump. */
+#define gcvSTUCK_DUMP_ALL_CORE      5
+
 /*******************************************************************************
 ***** Page table **************************************************************/
 
@@ -551,6 +554,9 @@ struct _gckKERNEL
     gceCORE                     core;
     gctUINT                     chipID;
 
+    /* Brothers */
+    gctPOINTER                  atomBroCoreMask;
+
     /* Main command module, event and context. */
     gckCOMMAND                  command;
     gckEVENT                    eventObj;
@@ -567,10 +573,7 @@ struct _gckKERNEL
     gctPOINTER                  atomClients;
 
 #if VIVANTE_PROFILER
-    /* Enable profiling */
-    gctBOOL                     profileEnable;
-    /* Clear profile register or not*/
-    gctBOOL                     profileCleanRegister;
+    gckPROFILER                 profiler;
 #endif
 
 #ifdef QNX_SINGLE_THREADED_DEBUGGING
@@ -817,7 +820,7 @@ struct _gckCOMMAND
      * Using the final free semaphore, means the ring is full of used ones.
      *
      * 'freeSemaId' + 1 = 'nextSemaId':
-     * Can use 'freeSema' + 1 to 'freeSema'(loop back), means empty ring,
+     * Can use 'freeSema' + 1 to 'nextSema'(loop back), means empty ring,
      * ie, no used one.
      */
 
@@ -1064,7 +1067,8 @@ gceSTATUS
 gckEVENT_Submit(
     IN gckEVENT Event,
     IN gctBOOL Wait,
-    IN gctBOOL FromPower
+    IN gctBOOL FromPower,
+    IN gctBOOL BroadcastCommit
     );
 
 gceSTATUS
@@ -1448,6 +1452,9 @@ typedef struct _gcsDEVICE
 
     /* Mutex for multi-core combine mode command submission */
     gctPOINTER                  commitMutex;
+
+    /* Mutex for per-device power management. */
+    gctPOINTER                  powerMutex;
 
 #if gcdENABLE_SW_PREEMPTION
     gctPOINTER                  atomPriorityID;
@@ -1889,8 +1896,10 @@ gckKERNEL_AllocateVideoMemory(
     );
 
 gceSTATUS
-gckHARDWARE_QchannelPowerOn(
-    IN gckHARDWARE Hardware
+gckHARDWARE_QchannelPowerControl(
+    IN gckHARDWARE Hardware,
+    IN gctBOOL ClockState,
+    IN gctBOOL PowerState
     );
 
 gceSTATUS

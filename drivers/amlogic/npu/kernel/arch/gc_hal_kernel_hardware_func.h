@@ -64,7 +64,7 @@ extern "C" {
 #define gcdFLOP_RESET_PPU       1
 #define gcdFLOP_RESET_NN        1
 #define gcdFLOP_RESET_TP        1
-
+#define gcdFLOP_RESET_DEBUG     0
 /*
  * The following macros are for old FLOP
  * reset path.
@@ -159,6 +159,11 @@ typedef struct _gcsFUNCTION_COMMAND
     /* Function private data */
     gctUINT32                   dataCount;
     gcsFUNCTION_EXECUTION_DATA_PTR data;
+#if gcdFLOP_RESET_DEBUG
+    gctPOINTER                   golden;
+    gctPOINTER                  outlogical;
+    gctUINT32                   outSize;
+#endif
 }
 gcsFUNCTION_COMMAND, *gcsFUNCTION_COMMAND_PTR;
 
@@ -191,7 +196,7 @@ gcsFUNCTION_EXECUTION;
 
 gceSTATUS gckFUNCTION_Construct(IN         gctPOINTER Hardware);
 gceSTATUS gckFUNCTION_Destory(IN    gctPOINTER Hardware);
-
+gceSTATUS gckFUNCTION_CheckCHIPID(IN gcsFUNCTION_EXECUTION_PTR Execution);
 gceSTATUS gckFUNCTION_Validate(IN gcsFUNCTION_EXECUTION_PTR Execution,
                                        IN OUT gctBOOL_PTR Valid);
 gceSTATUS gckFUNCTION_Init(IN gcsFUNCTION_EXECUTION_PTR Execution);

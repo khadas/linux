@@ -55,8 +55,10 @@
 
 #include <gc_hal.h>
 #include <gc_feature_database.h>
-
 #include "gc_hal_kernel_hardware_func_flop_reset.h"
+#include "gc_hal_kernel_hardware_func_flop_reset_config.h"
+
+
 
 /*
  * Flop reset.
@@ -113,7 +115,7 @@ gceFLOP_RESET_PPU_DATA;
 /*
  * NN convolution.
  */
-#define MAX_NN_COMMAND_NUM 64
+#define MAX_NN_COMMAND_NUM 192
 
 #define NN_KERNEL_XSIZE 2
 #define NN_KERNEL_YSIZE 2
@@ -164,6 +166,7 @@ typedef enum _gceFLOP_RESET_TP_DATA {
     gcvFLOP_RESET_TP_DATA_NUM
 }
 gceFLOP_RESET_TP_DATA;
+
 
 static gceSTATUS
 _AllocateVideoMemory(
@@ -480,6 +483,7 @@ OnError:
     return status;
 }
 
+#if gcdENABLE_FLOP_RESET == 0
 static gceSTATUS
 _GetMapIndex(
     gctUINT8 DataType,
@@ -513,6 +517,7 @@ _GetMapIndex(
 OnError:
     return status;
 }
+#endif
 
 static gceSTATUS
 _GetNNDataSize(
@@ -4235,6 +4240,7 @@ _ProgramNNKernel(
     OUT gcsFUNCTION_EXECUTION_DATA *Data
     )
 {
+#if gcdENABLE_FLOP_RESET == 0
     gceSTATUS status = gcvSTATUS_OK;
 
     gctUINT32 filterBytes = 0;
@@ -4467,6 +4473,53 @@ _ProgramNNKernel(
         bytes
         ));
 
+
+#else
+    gceSTATUS status = gcvSTATUS_OK;
+    gckVIDMEM_NODE bufferNode = gcvNULL;
+    gctPOINTER bufferLogical = gcvNULL;
+    gctUINT32 bufferAddress =0;
+    gctSIZE_T bufferBytes;
+    gctSIZE_T bytes = 0;
+    gctUINT32 *buffer = gcvNULL;
+    chipCmdData *cd = gcvNULL;
+
+    /*define bufferbytes*/
+    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
+    if(cd == gcvNULL)
+    {
+        return status;
+    }
+    bufferBytes = cd->NNkerLen;
+    /* hardcode */
+    gcmkONERROR(_AllocateVideoMemory(
+        Hardware->kernel,
+        gcvVIDMEM_TYPE_BITMAP,
+        AllocFlag,
+        Pool,
+        &bufferBytes,
+        &bufferNode,
+        &bufferLogical,
+        &bufferAddress
+        ));
+
+    buffer = (gctUINT32_PTR)bufferLogical;
+
+    /* Fill the data. */
+    gckOS_MemCopy(bufferLogical, cd->NNKer, bufferBytes);
+
+
+    gcmkONERROR(gckVIDMEM_NODE_CleanCache(
+        Hardware->kernel,
+        bufferNode,
+        0,
+        bufferLogical,
+        bufferBytes
+        ));
+    bytes = bufferBytes;
+
+#endif
+
 #if gcdDUMP_IN_KERNEL
     gcmkDUMP(Hardware->os, "#[flop reset: nn kernel]");
     gcmkDUMP_BUFFER(
@@ -4524,7 +4577,7 @@ _ProgramNNInput(
     gctUINT32 i = 0;
     gctUINT32 offset = 0;
     gctUINT32 value[] = {
-        1, /* uint8 */
+        0x33, /* uint8 */
         0x3c00, /* fp16 */
         1, /* int8 */
         1, /* uint16 */
@@ -4685,6 +4738,7 @@ _ProgramNNInstruction(
     OUT gcsFUNCTION_EXECUTION_DATA_PTR Data
     )
 {
+#if gcdENABLE_FLOP_RESET == 0
     gceSTATUS status = gcvSTATUS_OK;
 
     gckOS os = Hardware->os;
@@ -5586,6 +5640,72 @@ _ProgramNNInstruction(
         bytes
         ));
 
+#else
+    gceSTATUS status = gcvSTATUS_OK;
+    gckVIDMEM_NODE bufferNode = gcvNULL;
+    gctPOINTER bufferLogical = gcvNULL;
+    gctUINT32 bufferAddress = 0;
+    gctSIZE_T bufferBytes, bytes;
+    gctUINT32 *command = gcvNULL;
+    chipCmdData *cd = gcvNULL;
+    //v8
+
+    //gctUINT32 i;
+    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
+    if(cd == gcvNULL)
+    {
+        return status;
+    }
+    bufferBytes = bytes = 0x080;
+
+    /* Allocate buffer. */
+    gcmkONERROR(_AllocateVideoMemory(
+        Hardware->kernel,
+        gcvVIDMEM_TYPE_COMMAND,
+        AllocFlag,
+        Pool,
+        &bufferBytes,
+        &bufferNode,
+        &bufferLogical,
+        &bufferAddress
+        ));
+
+    command = (gctUINT32_PTR)bufferLogical;
+    gckOS_MemCopy(command, cd->NNIns, bufferBytes);
+
+    /* Fill the data. */
+    command[5] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 31:26) - (0 ?
+ 31:26) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 31:26) - (0 ?
+ 31:26) + 1))))))) << (0 ?
+ 31:26))) | (((gctUINT32) ((gctUINT32) (((KernelZSize >> 14) & 0x3F)) & ((gctUINT32) ((((1 ?
+ 31:26) - (0 ?
+ 31:26) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 31:26) - (0 ? 31:26) + 1))))))) << (0 ? 31:26)))
+      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 25:0) - (0 ?
+ 25:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 25:0) - (0 ?
+ 25:0) + 1))))))) << (0 ?
+ 25:0))) | (((gctUINT32) ((gctUINT32) ((KernelAddress >> 6)) & ((gctUINT32) ((((1 ?
+ 25:0) - (0 ?
+ 25:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 25:0) - (0 ? 25:0) + 1))))))) << (0 ? 25:0)));
+    command[6] = InImageAddress;
+    command[7] = OutImageAddress;
+
+    gcmkONERROR(gckVIDMEM_NODE_CleanCache(
+        Hardware->kernel,
+        bufferNode,
+        0,
+        bufferLogical,
+        bytes
+        ));
+
+#endif
 #if gcdDUMP_IN_KERNEL
     gcmkDUMP(Hardware->os, "#[flop reset: nn instruction]");
     gcmkDUMP_BUFFER(
@@ -5628,6 +5748,7 @@ _ProgramNNCommand(
     OUT gcsFUNCTION_COMMAND_PTR Command
     )
 {
+#if gcdENABLE_FLOP_RESET == 0
     gceSTATUS status = gcvSTATUS_OK;
 
     gckVIDMEM_NODE bufferNode = gcvNULL;
@@ -6193,6 +6314,103 @@ _ProgramNNCommand(
     Command->endLogical = endLogical;
 
     return gcvSTATUS_OK;
+#else
+    gceSTATUS status = gcvSTATUS_OK;
+    gckVIDMEM_NODE bufferNode = gcvNULL;
+    gctPOINTER bufferLogical = gcvNULL;
+    gctUINT32 bufferAddress = 0;
+    gctSIZE_T bufferBytes = 0;
+    gctUINT32 bytes;
+    gctUINT8_PTR endLogical;
+    gctUINT32 endAddress;
+    gctUINT32 endBytes = 0;
+    gctUINT32 *commands = gcvNULL;
+    chipCmdData *cd = gcvNULL;
+
+    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
+    if(cd == gcvNULL)
+    {
+        return status;
+    }
+    bufferBytes = gcmSIZEOF(gctUINT32) *  MAX_NN_COMMAND_NUM;
+
+    gcmkONERROR(_AllocateVideoMemory(
+        Hardware->kernel,
+        gcvVIDMEM_TYPE_COMMAND,
+        AllocFlag,
+        Pool,
+        &bufferBytes,
+        &bufferNode,
+        &bufferLogical,
+        &bufferAddress
+        ));
+
+    commands = (gctUINT32_PTR)bufferLogical;
+    gckOS_MemCopy(commands, cd->NNCmd, cd->NNCmdLen);
+    commands[cd->NNCmdOffset] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 31:6) - (0 ?
+ 31:6) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 31:6) - (0 ?
+ 31:6) + 1))))))) << (0 ?
+ 31:6))) | (((gctUINT32) ((gctUINT32) ((InstAddress >> 6)) & ((gctUINT32) ((((1 ?
+ 31:6) - (0 ?
+ 31:6) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 31:6) - (0 ? 31:6) + 1))))))) << (0 ? 31:6)))
+                  | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 4:0) - (0 ?
+ 4:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 4:0) - (0 ?
+ 4:0) + 1))))))) << (0 ?
+ 4:0))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
+ 4:0) - (0 ?
+ 4:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 4:0) - (0 ? 4:0) + 1))))))) << (0 ? 4:0)));
+
+    bytes = cd->NNCmdLen;
+
+    endLogical = (gctUINT8_PTR)bufferLogical + bytes;
+    endAddress = bufferAddress + bytes;
+
+    if (Hardware->wlFE)
+    {
+        gcmkONERROR(gckWLFE_End(Hardware, gcvNULL, ~0U, &endBytes));
+        gcmkONERROR(gckWLFE_End(Hardware, endLogical, endAddress, &endBytes));
+    }
+
+    bytes += endBytes;
+
+    gcmkASSERT(bytes <= bufferBytes);
+
+    gcmkONERROR(gckVIDMEM_NODE_CleanCache(
+        Hardware->kernel,
+        bufferNode,
+        0,
+        bufferLogical,
+        bytes
+        ));
+
+    Command->funcVidMem = bufferNode;
+    Command->funcVidMemBytes = bufferBytes;
+    Command->logical = bufferLogical;
+    Command->address = bufferAddress;
+    Command->bytes = bytes;
+    Command->endAddress = endAddress;
+    Command->endLogical = endLogical;
+#if gcdDUMP_IN_KERNEL
+    gcmkDUMP(Hardware->os, "#[flop reset: nn commands]");
+    gcmkDUMP_BUFFER(
+        Hardware->os,
+        gcvDUMP_BUFFER_KERNEL_COMMAND,
+        bufferLogical,
+        bufferAddress,
+        bytes
+        );
+    gcmkPRINT("NN commands dump, commands length:%d, endBytes:%d", bytes, endBytes);
+#endif
+    return gcvSTATUS_OK;
+#endif
 
 OnError:
     if (bufferNode)
@@ -6239,6 +6457,12 @@ gckHARDWARE_ResetFlopWithNN(
     gctUINT32 kernelBurstSize;
     gcsFUNCTION_EXECUTION_DATA_PTR data = gcvNULL;
     gctUINT32 dataCount = 0;
+
+#if gcdENABLE_FLOP_RESET_DEBUG
+    char * golden;
+    gctSIZE_T outBufBytes;
+
+#endif
 
     if (!Command)
     {
@@ -6339,6 +6563,24 @@ gckHARDWARE_ResetFlopWithNN(
         Command
         ));
 
+#if gcdENABLE_FLOP_RESET_DEBUG
+    outBufBytes = outImageXSize * outImageYSize * outImageZSize * itemBytes;
+    gcmkPRINT("outImageXSize : %d,outImageYSize : %d, outImageZSize : %d, itemBytes : %d", outImageXSize, outImageYSize, outImageZSize, itemBytes);
+
+    gcmkONERROR(gckOS_Allocate(Hardware->os, outBufBytes, &Command->golden));
+    gckOS_ZeroMemory(Command->golden, outBufBytes);
+    golden = (char*)Command->golden;
+    for (i = 0; i < outBufBytes; ++i)
+    {
+        golden[i] = '3';
+    }
+
+    gcmkPRINT("when reading NN golden, NN gloden address is %p", Command->golden);
+    gcmkPRINT("NN conv result top 2 bytes: %c, %c", ((char*)Command->golden)[0], ((char*)Command->golden)[1]);
+    Command->outlogical = data[gcvFLOP_RESET_NN_OUTPUT].logical;
+    Command->outSize = outBufBytes;
+#endif
+
     Command->data = data;
     Command->dataCount = dataCount;
 
@@ -6353,6 +6595,13 @@ OnError:
             ));
         Command->funcVidMem = gcvNULL;
     }
+#if gcdENABLE_FLOP_RESET_DEBUG
+        if(Command->golden)
+        {
+            gcmkVERIFY_OK(gckOS_Free(Hardware->os, Command->golden));
+            Command->golden = gcvNULL;
+        }
+#endif
 
     if (data)
     {
@@ -6388,6 +6637,7 @@ _ProgramTPKernel(
     OUT gcsFUNCTION_EXECUTION_DATA *Data
     )
 {
+#if gcdENABLE_FLOP_RESET == 0
     gceSTATUS status = gcvSTATUS_OK;
     gckVIDMEM_NODE bufferNode = gcvNULL;
     gctPOINTER bufferLogical = gcvNULL;
@@ -6434,6 +6684,42 @@ _ProgramTPKernel(
         bufferLogical,
         bufferBytes
         ));
+#else
+    gceSTATUS status = gcvSTATUS_OK;
+    gckVIDMEM_NODE bufferNode = gcvNULL;
+    gctPOINTER bufferLogical = gcvNULL;
+    gctUINT32 bufferAddress = 0;
+    gctSIZE_T bufferBytes = 0;
+    gctUINT32 *buffer = gcvNULL;
+    chipCmdData *cd;
+
+    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
+    bufferBytes = cd->TPkerLen;
+    /* hardcode */
+    gcmkONERROR(_AllocateVideoMemory(
+        Hardware->kernel,
+        gcvVIDMEM_TYPE_BITMAP,
+        AllocFlag,
+        Pool,
+        &bufferBytes,
+        &bufferNode,
+        &bufferLogical,
+        &bufferAddress
+        ));
+
+    buffer = (gctUINT32_PTR)bufferLogical;
+
+    /* Fill the data. */
+    gckOS_MemCopy(bufferLogical, cd->TPKer, bufferBytes);
+
+    gcmkONERROR(gckVIDMEM_NODE_CleanCache(
+        Hardware->kernel,
+        bufferNode,
+        0,
+        bufferLogical,
+        bufferBytes
+        ));
+#endif
 
 #if gcdDUMP_IN_KERNEL
     gcmkDUMP(Hardware->os, "#[flop reset: TP kernel]");
@@ -6492,7 +6778,7 @@ _ProgramTPInput(
     gctUINT32 i = 0;
     gctUINT32 offset = 0;
     gctUINT32 value[] = {
-        0xff, /* uint8, the case set scale = 0.003921569*/
+        0x33, /* uint8, the case set scale = 0.003921569*/
         0x3c00, /* fp16 */
         1, /* int8 */
         1, /* uint16 */
@@ -6594,6 +6880,11 @@ _ProgramTPOutput(
     gcmkONERROR(_GetNNDataSize(DataType, &itemBytes));
 
     bufferBytes = bytes = OutputXSize * OutputYSize * OutputZSize * itemBytes;
+    if(Hardware->identity.customerID == 0x86)
+    {
+        bufferBytes *= 2;
+        bytes *= 2;
+    }
 
     gcmkONERROR(_AllocateVideoMemory(
         Hardware->kernel,
@@ -6652,6 +6943,7 @@ _ProgramTPInstruction(
     OUT gcsFUNCTION_EXECUTION_DATA_PTR Data
     )
 {
+#if gcdENABLE_FLOP_RESET == 0
     gceSTATUS status = gcvSTATUS_OK;
 
     gckVIDMEM_NODE bufferNode = gcvNULL;
@@ -6709,7 +7001,6 @@ _ProgramTPInstruction(
     command[13] = OutImageAddress;
     command[45] = OutImageAddress + 0x16;
     command[77] = OutImageAddress + 0x2b;
-
     gcmkONERROR(gckVIDMEM_NODE_CleanCache(
         Hardware->kernel,
         bufferNode,
@@ -6717,7 +7008,50 @@ _ProgramTPInstruction(
         bufferLogical,
         bytes
         ));
+#else
+    gceSTATUS status = gcvSTATUS_OK;
+    gckVIDMEM_NODE bufferNode = gcvNULL;
+    gctPOINTER bufferLogical = gcvNULL;
+    gctUINT32 bufferAddress = 0;
+    gctSIZE_T bufferBytes;
+    gctUINT32 *command = gcvNULL;
+    gctUINT32 i;
+    gctSIZE_T steps = 1;
+    gctUINT32 KernelAnchor = 0, OutImageAnchor = 0;
+    chipCmdData* cd;
 
+    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
+    bufferBytes = cd->TPInsLen;
+    /* Allocate buffer. */
+    gcmkONERROR(_AllocateVideoMemory(
+        Hardware->kernel,
+        gcvVIDMEM_TYPE_COMMAND,
+        AllocFlag,
+        Pool,
+        &bufferBytes,
+        &bufferNode,
+        &bufferLogical,
+        &bufferAddress
+        ));
+    gckOS_MemCopy(bufferLogical, cd->TPIns, bufferBytes);
+    command = (gctUINT32_PTR)bufferLogical;
+    steps = bufferBytes/128;
+    KernelAnchor = command[11];
+    OutImageAnchor = command[13];
+    for(i = 0; i < steps; ++i)
+    {
+        command[i*32 + 10] = InImageAddress;
+        command[i*32 + 11] = KernelAddress + command[i*32 + 11] - KernelAnchor;
+        command[i*32 + 13] = OutImageAddress + command[i*32 + 13] - OutImageAnchor;
+    }
+    gcmkONERROR(gckVIDMEM_NODE_CleanCache(
+        Hardware->kernel,
+        bufferNode,
+        0,
+        bufferLogical,
+        bufferBytes
+        ));
+#endif
 #if gcdDUMP_IN_KERNEL
     gcmkDUMP(Hardware->os, "#[flop reset: TP instruction]");
     gcmkDUMP_BUFFER(
@@ -6725,7 +7059,7 @@ _ProgramTPInstruction(
         gcvDUMP_BUFFER_KERNEL_COMMAND,
         bufferLogical,
         bufferAddress,
-        bytes
+        bufferBytes
         );
 #endif
 
@@ -6733,7 +7067,7 @@ _ProgramTPInstruction(
     Data->bufVidMemBytes = bufferBytes;
     Data->address = bufferAddress;
     Data->logical = bufferLogical;
-    Data->bytes = bytes;
+    Data->bytes = bufferBytes;
 
     return gcvSTATUS_OK;
 
@@ -6759,6 +7093,7 @@ _ProgramTPCommand(
     OUT gcsFUNCTION_COMMAND_PTR Command
     )
 {
+#if gcdENABLE_FLOP_RESET == 0
     gceSTATUS status = gcvSTATUS_OK;
 
     gckVIDMEM_NODE bufferNode = gcvNULL;
@@ -6816,6 +7151,76 @@ _ProgramTPCommand(
     commands[45] = 0x20;
 
     bytes = 46 * 4;
+    endLogical = (gctUINT8_PTR)bufferLogical + bytes;
+    endAddress = bufferAddress + bytes;
+
+    if (Hardware->wlFE)
+    {
+        gcmkONERROR(gckWLFE_End(Hardware, gcvNULL, ~0U, &endBytes));
+        gcmkONERROR(gckWLFE_End(Hardware, endLogical, endAddress, &endBytes));
+    }
+
+    bytes += endBytes;
+
+    gcmkASSERT(bytes <= bufferBytes);
+    gcmkONERROR(gckVIDMEM_NODE_CleanCache(
+        Hardware->kernel,
+        bufferNode,
+        0,
+        bufferLogical,
+        bytes
+        ));
+    Command->funcVidMem = bufferNode;
+    Command->funcVidMemBytes = bufferBytes;
+    Command->logical = bufferLogical;
+    Command->address = bufferAddress;
+    Command->bytes = bytes;
+    Command->endAddress = endAddress;
+    Command->endLogical = endLogical;
+
+    return gcvSTATUS_OK;
+#else
+    gceSTATUS status = gcvSTATUS_OK;
+    gckVIDMEM_NODE bufferNode = gcvNULL;
+    gctPOINTER bufferLogical = gcvNULL;
+    gctUINT32 bufferAddress = 0;
+    gctSIZE_T bufferBytes;
+    gctUINT32 bytes;
+    gctUINT32 *commands;
+    gctUINT32 startAnchor = 0;
+
+    gctUINT8_PTR endLogical;
+    gctUINT32 endAddress;
+    gctUINT32 endBytes = 0;
+    gctUINT32 i = 0;
+    gctUINT32 k = 1;
+    chipCmdData *cd;
+    bufferBytes = gcmSIZEOF(gctUINT32) * 280;
+    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
+    bytes = cd->TPCmdLen;
+
+
+    gcmkONERROR(_AllocateVideoMemory(
+        Hardware->kernel,
+        gcvVIDMEM_TYPE_COMMAND,
+        AllocFlag,
+        Pool,
+        &bufferBytes,
+        &bufferNode,
+        &bufferLogical,
+        &bufferAddress
+        ));
+
+    commands = (gctUINT32_PTR)bufferLogical;
+    gckOS_MemCopy(commands, cd->TPCmd, bytes);
+    //cannot reverse, only proper when instaddress = *00
+    i = cd->TPInsLen/128;
+    startAnchor = commands[cd->TPCmdOffset[0]];
+    commands[cd->TPCmdOffset[0]] = (cd->TPInsLen / 0x80 == 1)?(InstAddress & 0xffffffC0):((InstAddress & 0xffffffC0) | (0x1));
+    for(k = 1; k < i; k++)
+    {
+        commands[cd->TPCmdOffset[k]] =  commands[cd->TPCmdOffset[0]] + commands[cd->TPCmdOffset[k]] - startAnchor;
+    }
 
     endLogical = (gctUINT8_PTR)bufferLogical + bytes;
     endAddress = bufferAddress + bytes;
@@ -6847,7 +7252,19 @@ _ProgramTPCommand(
     Command->endAddress = endAddress;
     Command->endLogical = endLogical;
 
+#if gcdDUMP_IN_KERNEL
+    gcmkDUMP(Hardware->os, "#[flop reset: TP Command]");
+    gcmkDUMP_BUFFER(
+        Hardware->os,
+        gcvDUMP_BUFFER_KERNEL_COMMAND,
+        bufferLogical,
+        bufferAddress,
+        bytes
+        );
+#endif
+
     return gcvSTATUS_OK;
+#endif
 
 OnError:
     if (bufferNode)
@@ -6896,6 +7313,12 @@ gckHARDWARE_ResetFlopWithTP(
     gctUINT32 itemBytes = 0;
     gcsFUNCTION_EXECUTION_DATA_PTR data = gcvNULL;
     gctUINT32 dataCount = 0;
+
+#if gcdENABLE_FLOP_RESET_DEBUG
+    char *golden;
+    gctSIZE_T outBufBytes;
+
+#endif
 
     if (!Command)
     {
@@ -6989,8 +7412,26 @@ gckHARDWARE_ResetFlopWithTP(
         Command
         ));
 
+#if gcdENABLE_FLOP_RESET_DEBUG
+    outBufBytes = outImageXSize * outImageYSize * outImageZSize * itemBytes;
+    gcmkPRINT("outImageXSize : %d,outImageYSize : %d, outImageZSize : %d, itemBytes : %d", outImageXSize, outImageYSize, outImageZSize, itemBytes);
+    gcmkONERROR(gckOS_Allocate(Hardware->os, outBufBytes, &Command->golden));
+    gckOS_ZeroMemory(Command->golden, outBufBytes);
+    golden = (char*)Command->golden;
+    for(i = 0; i < outBufBytes; ++i)
+    {
+        golden[i] = '3';
+    }
+
+    gcmkPRINT("TP fc result top 3 bytes: %c, %c, %c", ((char*)Command->golden)[0], ((char*)Command->golden)[1], ((char*)Command->golden)[2]);
+
+    Command->outlogical = data[gcvFLOP_RESET_TP_OUTPUT].logical;
+    Command->outSize = outBufBytes;
+#endif
+
     Command->data = data;
     Command->dataCount = dataCount;
+
 
     return gcvSTATUS_OK;
 
@@ -7003,6 +7444,13 @@ OnError:
             ));
         Command->funcVidMem = gcvNULL;
     }
+#if gcdENABLE_FLOP_RESET_DEBUG
+        if(Command->golden)
+        {
+            gcmkVERIFY_OK(gckOS_Free(Hardware->os, Command->golden));
+            Command->golden = gcvNULL;
+        }
+#endif
 
     if (data)
     {

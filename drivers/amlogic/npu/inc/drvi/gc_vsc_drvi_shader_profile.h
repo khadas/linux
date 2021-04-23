@@ -188,7 +188,10 @@ typedef enum SHADER_IO_USAGE
     /* A special usage which means IO is used by general purpose */
     SHADER_IO_USAGE_GENERAL                  = 43,
 
-    /* Add NEW usages here */
+    /* For GPGPU client only */
+    SHADER_IO_USAGE_CLUSTER_ID               = 44,
+
+    /* Add NEW usages before here, and make sure update strUsageName too. */
 
     /* Must be at last!!!!!!! */
     SHADER_IO_USAGE_TOTAL_COUNT,
@@ -200,6 +203,7 @@ SHADER_IO_USAGE;
      ((usage) == SHADER_IO_USAGE_ISFRONTFACE)                                                     || \
      ((usage) == SHADER_IO_USAGE_SAMPLE_MASK)                                                     || \
      ((usage) == SHADER_IO_USAGE_SAMPLE_POSITION)                                                 || \
+     ((usage) == SHADER_IO_USAGE_CLUSTER_ID)                                                      || \
      ((usage) >= SHADER_IO_USAGE_POINT_COORD && (usage) <= SHADER_IO_USAGE_INSTANCING_ID))
 
 #define IS_SHADER_IO_USAGE_SIV(usage)                                                                \
@@ -1003,7 +1007,10 @@ typedef struct SHADER_EXECUTABLE_NATIVE_HINTS
 
         gctUINT                                          texldHint         : 1;
 
-        gctUINT                                          reserved          : 19;
+        /* Active cluster count, 4 bits should be enough. */
+        gctUINT                                          activeClusterCount: 4;
+
+        gctUINT                                          reserved          : 15;
     } globalStates;
 
     union

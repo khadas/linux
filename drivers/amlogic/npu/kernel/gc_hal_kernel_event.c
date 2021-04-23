@@ -234,15 +234,17 @@ _TryToIdleGPU(
     gceSTATUS status;
     gctBOOL empty = gcvFALSE, idle = gcvFALSE;
     gctBOOL powerLocked = gcvFALSE;
-    gckHARDWARE hardware;
+    gckHARDWARE hardware = Event->kernel->hardware;
+#if gcdENABLE_PER_DEVICE_PM
+    gctBOOL devicePowerLocked = gcvFALSE;
+    gckDEVICE device = Event->kernel->device;
+#endif
 
     gcmkHEADER_ARG("Event=0x%x", Event);
 
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Event, gcvOBJ_EVENT);
 
-    /* Grab gckHARDWARE object. */
-    hardware = Event->kernel->hardware;
     gcmkVERIFY_OBJECT(hardware, gcvOBJ_HARDWARE);
 
     /* Check whether the event queue is empty. */
@@ -250,27 +252,141 @@ _TryToIdleGPU(
 
     if (empty)
     {
-        status = gckOS_AcquireMutex(hardware->os, hardware->powerMutex, 0);
-        if (status == gcvSTATUS_TIMEOUT)
+#if gcdENABLE_PER_DEVICE_PM
+        if (hardware->type == gcvHARDWARE_3D ||
+            hardware->type == gcvHARDWARE_3D2D ||
+            hardware->type == gcvHARDWARE_VIP)
         {
-            gcmkFOOTER_NO();
-            return gcvSTATUS_OK;
+            status = gckOS_AcquireMutex(device->os, device->powerMutex, 0);
+            if (status == gcvSTATUS_TIMEOUT)
+            {
+                gcmkFOOTER();
+                return gcvSTATUS_OK;
+            }
+
+            devicePowerLocked = gcvTRUE;
+
+            status = gckOS_AcquireMutex(hardware->os, hardware->powerMutex, 0);
+            if (status == gcvSTATUS_TIMEOUT)
+            {
+                gcmkVERIFY_OK(gckOS_ReleaseMutex(device->os, device->powerMutex));
+                gcmkFOOTER();
+                return gcvSTATUS_OK;
+            }
+
+            powerLocked = gcvTRUE;
+
+            /* Query whether the hardware is idle. */
+            gcmkONERROR(gckHARDWARE_QueryIdle(hardware, &idle));
+
+            gcmkONERROR(gckOS_ReleaseMutex(hardware->os, hardware->powerMutex));
+
+            powerLocked = gcvFALSE;
+
+            if (idle)
+            {
+                gctUINT32 broCoreMask;
+                gckKERNEL kernel;
+                gctUINT i;
+
+                gcmkVERIFY_OK(gckOS_AtomGet(hardware->os, Event->kernel->atomBroCoreMask, (gctINT32_PTR)&broCoreMask));
+
+                /* I am along. */
+                if ((gceCORE)broCoreMask == hardware->core)
+                {
+                    /* Inform the system of idle GPU. */
+                    gcmkONERROR(gckOS_Broadcast(hardware->os,
+                                                hardware,
+                                                gcvBROADCAST_GPU_IDLE));
+
+                    gcmkVERIFY_OK(gckOS_ReleaseMutex(device->os, device->powerMutex));
+                    gcmkFOOTER();
+                    return gcvSTATUS_OK;
+                }
+
+                /* Check all the brother cores. */
+                for (i = 0; i < device->coreNum; i++)
+                {
+                    kernel = device->coreInfoArray[i].kernel;
+                    hardware = kernel->hardware;
+
+                    if (!hardware || ((gceCORE)i == hardware->core))
+                    {
+                        continue;
+                    }
+
+                    if ((1 << i) & broCoreMask)
+                    {
+                        status = gckOS_AcquireMutex(hardware->os, hardware->powerMutex, 0);
+                        if (status == gcvSTATUS_TIMEOUT)
+                        {
+                            gcmkVERIFY_OK(gckOS_ReleaseMutex(device->os, device->powerMutex));
+                            gcmkFOOTER();
+                            return gcvSTATUS_OK;
+                        }
+
+                        powerLocked = gcvTRUE;
+
+                        /* Query whether the hardware is idle. */
+                        gcmkONERROR(gckHARDWARE_QueryIdle(hardware, &idle));
+
+                        gcmkONERROR(gckOS_ReleaseMutex(hardware->os, hardware->powerMutex));
+                        powerLocked = gcvFALSE;
+
+                        if (!idle)
+                        {
+                            /* A brother is not idle, quit. */
+                            gcmkVERIFY_OK(gckOS_ReleaseMutex(device->os, device->powerMutex));
+                            gcmkFOOTER();
+                            return gcvSTATUS_OK;
+                        }
+                    }
+                }
+
+                /* All the brothers are idle. */
+                for (i = 0; i < device->coreNum; i++)
+                {
+                    if ((1 << i) & broCoreMask)
+                    {
+                        kernel = device->coreInfoArray[i].kernel;
+                        hardware = kernel->hardware;
+
+                        /* Inform the system of idle GPU. */
+                        gcmkONERROR(gckOS_Broadcast(hardware->os,
+                                                    hardware,
+                                                    gcvBROADCAST_GPU_IDLE));
+                    }
+                }
+            }
+
+            gcmkONERROR(gckOS_ReleaseMutex(device->os, device->powerMutex));
         }
-
-        powerLocked = gcvTRUE;
-
-        /* Query whether the hardware is idle. */
-        gcmkONERROR(gckHARDWARE_QueryIdle(Event->kernel->hardware, &idle));
-
-        gcmkONERROR(gckOS_ReleaseMutex(hardware->os, hardware->powerMutex));
-        powerLocked = gcvFALSE;
-
-        if (idle)
+        else
+#endif
         {
-            /* Inform the system of idle GPU. */
-            gcmkONERROR(gckOS_Broadcast(Event->os,
-                                        Event->kernel->hardware,
-                                        gcvBROADCAST_GPU_IDLE));
+            status = gckOS_AcquireMutex(hardware->os, hardware->powerMutex, 0);
+            if (status == gcvSTATUS_TIMEOUT)
+            {
+                gcmkFOOTER();
+                return gcvSTATUS_OK;
+            }
+
+            powerLocked = gcvTRUE;
+
+            /* Query whether the hardware is idle. */
+            gcmkONERROR(gckHARDWARE_QueryIdle(Event->kernel->hardware, &idle));
+
+            gcmkONERROR(gckOS_ReleaseMutex(hardware->os, hardware->powerMutex));
+
+            powerLocked = gcvFALSE;
+
+            if (idle)
+            {
+                /* Inform the system of idle GPU. */
+                gcmkONERROR(gckOS_Broadcast(Event->os,
+                                            Event->kernel->hardware,
+                                            gcvBROADCAST_GPU_IDLE));
+            }
         }
     }
 
@@ -278,9 +394,16 @@ _TryToIdleGPU(
     return gcvSTATUS_OK;
 
 OnError:
+#if gcdENABLE_PER_DEVICE_PM
+    if (devicePowerLocked)
+    {
+        gcmkVERIFY_OK(gckOS_ReleaseMutex(device->os, device->powerMutex));
+    }
+#endif
+
     if (powerLocked)
     {
-        gcmkONERROR(gckOS_ReleaseMutex(hardware->os, hardware->powerMutex));
+        gcmkVERIFY_OK(gckOS_ReleaseMutex(hardware->os, hardware->powerMutex));
     }
 
     gcmkFOOTER();
@@ -431,7 +554,7 @@ _SubmitTimerFunction(
     )
 {
     gckEVENT event = (gckEVENT)Data;
-    gcmkVERIFY_OK(gckEVENT_Submit(event, gcvTRUE, gcvFALSE));
+    gcmkVERIFY_OK(gckEVENT_Submit(event, gcvTRUE, gcvFALSE, gcvTRUE));
 }
 
 /******************************************************************************\
@@ -1247,6 +1370,9 @@ OnError:
 **          Determines whether the call originates from inside the power
 **          management or not.
 **
+**      gctBOOL BroadcastCommit
+**          Determines whether broadcast the new commit arrives or not.
+**
 **  OUTPUT:
 **
 **      Nothing.
@@ -1255,7 +1381,8 @@ gceSTATUS
 gckEVENT_Submit(
     IN gckEVENT Event,
     IN gctBOOL Wait,
-    IN gctBOOL FromPower
+    IN gctBOOL FromPower,
+    IN gctBOOL BroadcastCommit
     )
 {
     gceSTATUS status;
@@ -1295,9 +1422,12 @@ gckEVENT_Submit(
     /* Are there event queues? */
     if (Event->queueHead != gcvNULL)
     {
-        /* Acquire the command queue. */
-        gcmkONERROR(gckCOMMAND_EnterCommit(command, FromPower));
-        commitEntered = gcvTRUE;
+        if (BroadcastCommit)
+        {
+            /* Acquire the command queue. */
+            gcmkONERROR(gckCOMMAND_EnterCommit(command, FromPower));
+            commitEntered = gcvTRUE;
+        }
 
         /* Get current commit stamp. */
         commitStamp = command->commitStamp;
@@ -1481,8 +1611,11 @@ gckEVENT_Submit(
 #endif
         }
 
-        /* Release the command queue. */
-        gcmkONERROR(gckCOMMAND_ExitCommit(command, FromPower));
+        if (BroadcastCommit)
+        {
+            /* Release the command queue. */
+            gcmkONERROR(gckCOMMAND_ExitCommit(command, FromPower));
+        }
 
 #if !gcdNULL_DRIVER
         if (!FromPower)
@@ -1588,7 +1721,7 @@ gckEVENT_PreemptCommit(
 
 
     /* Submit the event list. */
-    gcmkONERROR(gckEVENT_Submit(Event, gcvTRUE, gcvFALSE));
+    gcmkONERROR(gckEVENT_Submit(Event, gcvTRUE, gcvFALSE, gcvTRUE));
 
     /* Success */
     gcmkFOOTER_NO();
@@ -1705,7 +1838,7 @@ gckEVENT_Commit(
     }
 
     /* Submit the event list. */
-    gcmkONERROR(gckEVENT_Submit(Event, gcvTRUE, gcvFALSE));
+    gcmkONERROR(gckEVENT_Submit(Event, gcvTRUE, gcvFALSE, gcvTRUE));
 
     /* Success */
     gcmkFOOTER_NO();

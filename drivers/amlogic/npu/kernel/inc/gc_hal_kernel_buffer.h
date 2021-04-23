@@ -238,6 +238,9 @@ struct _gcoQUEUE
     /* Pointer to gcoHARDWARE object. */
     gcoHARDWARE                 hardware;
 
+    /* Brother cores mask in one queue. */
+    gctUINT32                   broCoreMask;
+
 #if gcdENABLE_SW_PREEMPTION
     gctUINT                     priorityID;
     gctBOOL                     topPriority;

@@ -91,6 +91,14 @@ typedef struct _gcoCL_DEVICE_INFO
     gctBOOL             asyncBLT;
     gctBOOL             multiCluster;
 
+    /* cluster info */
+    gctBOOL             clusterSupport;
+    gctUINT32           clusterCount;
+    gctUINT32           clusterAliveMask;
+    gctUINT32           clusterAliveCount;
+    gctUINT32           clusterMinID;
+    gctUINT32           clusterMaxID;
+
     gceCHIPMODEL        chipModel;
     gctUINT32           chipRevision;
 
@@ -827,6 +835,40 @@ gcoCL_ChooseBltEngine(
     IN gcsSURF_NODE_PTR node,
     OUT gceENGINE * engine
     );
+
+gceSTATUS
+gcoCL_IsFeatureAvailable(
+    IN gcoHARDWARE Hardware,
+    IN gceFEATURE Feature
+    );
+
+gceSTATUS
+gcoCL_3dBltLock(
+    IN gcoHARDWARE Hardware,
+    IN gceENGINE Engine,
+    IN gctBOOL forceSingle,
+    IN gctUINT32_PTR * Memory
+    );
+
+gceSTATUS
+gcoCL_3dBltUnlock(
+    IN gcoHARDWARE Hardware,
+    IN gceENGINE Engine,
+    IN gctBOOL forceSingle,
+    IN gctUINT32_PTR * Memory
+    );
+
+gceSTATUS
+gcoCL_SubmitCmdBuffer(
+    gcoHARDWARE Hardware,
+    uint32_t *states,
+    uint32_t count);
+
+
+gctUINT
+gcoCL_coreIdToChip(
+    gcoHARDWARE Hardware,
+    gctUINT coreId);
 
 #ifdef __cplusplus
 }

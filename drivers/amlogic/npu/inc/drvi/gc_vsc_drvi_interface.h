@@ -68,8 +68,10 @@
 /* 0.0.1.45 Add a new enumeration for VIR_SymFlagExt 05/15/2020 */
 /* 0.0.1.46 Add a minimum workGroupSize in VIR_ComputeLayout 05/19/2020 */
 /* 0.0.1.47 Save the HW specific attributes in VIR_Shader 05/26/2020 */
-#define gcdVIR_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 47)
-#define gcdVIR_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 47)
+/* 0.0.1.48 Add a new variable to save the symbol ID of the register spill base address in VIR_Shader 07/13/2020 */
+/* 0.0.1.49 Save the RA instruction ID in VIR_Instruction 08/11/2020 */
+#define gcdVIR_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 49)
+#define gcdVIR_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 49)
 
 #if !defined(gcdTARGETHOST_BIGENDIAN)
 #define gcdTARGETHOST_BIGENDIAN 0  /* default host little endian, to change the
@@ -523,9 +525,16 @@ typedef union _VSC_Image_desc {
         /* the first 4 32-bits are the same as HW imge_desc as of V630 */
         gctUINT   baseAddress;          /* base address of image data */
         gctUINT   row_stride;           /* the row stride (byte) of the image */
+
+#if !gcdENDIAN_BIG
         gctUINT   width          : 16;  /* the width of image (pixels) */
         gctUINT   height         : 16;  /* the height of image (rows) */
+#else
+        gctUINT   height         : 16;  /* the height of image (rows) */
+        gctUINT   width          : 16;  /* the width of image (pixels) */
+#endif
 
+#if !gcdENDIAN_BIG
         gctUINT   shift          : 3;   /* Shift value for index. */
         gctUINT   multiply       : 1;   /* Value to multiply index with. */
         gctUINT   addressing     : 2;   /* Addressing mode for LOAD_IMG and STORE_IMG. */
@@ -542,16 +551,52 @@ typedef union _VSC_Image_desc {
         gctUINT   reserved0      : 1;
         gctUINT   swizzleA       : 3;   /* swizzle for alpha */
         gctUINT   reserved1      : 1;
+#else
+        gctUINT   reserved1      : 1;
+        gctUINT   swizzleA       : 3;   /* swizzle for alpha */
+        gctUINT   reserved0      : 1;
+        gctUINT   swizzleB       : 3;   /* swizzle for blue */
+        gctUINT   imageId2       : 1;   /* ImageID bit2. */
+        gctUINT   swizzleG       : 3;   /* swizzle for green */
+        gctUINT   imageId1       : 1;   /* ImageID bit1. */
+        gctUINT   swizzleR       : 3;   /* swizzle for red */
+        gctUINT   componentCount : 2;   /* Component count. */
+        gctUINT   imageId0       : 1;   /* ImageID bit0. */
+        gctUINT   image1Dor2D    : 1;   /* 1D or 2D image */
+        gctUINT   titling        : 2;   /* titling */
+        gctUINT   conversion     : 4;   /* Conversion format. */
+        gctUINT   addressing     : 2;   /* Addressing mode for LOAD_IMG and STORE_IMG. */
+        gctUINT   multiply       : 1;   /* Value to multiply index with. */
+        gctUINT   shift          : 3;   /* Shift value for index. */
+#endif
 
         /* following data are used by SW to calculate 3D image slice image address
          * and image query data */
         gctUINT   sliceSize;            /* slice size for image 3D */
+
+#if !gcdENDIAN_BIG
         gctUINT   depth_arraySize : 16; /* depth for image 3D, or array_size for image1D/2D array */
         gctUINT   imageType       : 16; /* vscImageValueType: 1D: 0, 1D_buffer: 1, 1D_array: 2, 2D: 3, 2D_array: 4, 3D: 5 */
+#else
+        gctUINT   imageType       : 16; /* vscImageValueType: 1D: 0, 1D_buffer: 1, 1D_array: 2, 2D: 3, 2D_array: 4, 3D: 5 */
+        gctUINT   depth_arraySize : 16; /* depth for image 3D, or array_size for image1D/2D array */
+#endif
+
+#if !gcdENDIAN_BIG
         gctUINT   channelOrder    : 16; /* image channel order */
         gctUINT   channelDataType : 16; /* image channel data type */
+#else
+        gctUINT   channelDataType : 16; /* image channel data type */
+        gctUINT   channelOrder    : 16; /* image channel order */
+#endif
+
+#if !gcdENDIAN_BIG
         gctUINT   imageValueType  : 2;  /* vscImageValueType (float/int/uint), filled by compiler */
         gctUINT   reserved2       : 30;
+#else
+        gctUINT   reserved2       : 30;
+        gctUINT   imageValueType  : 2;  /* vscImageValueType (float/int/uint), filled by compiler */
+#endif
     } sd;  /* structured data */
     gctUINT rawbits[8];
 } VSC_ImageDesc;
@@ -748,7 +793,8 @@ typedef struct _VSC_HW_CONFIG
         gctUINT          hasAtomTimingFix       : 1;
         gctUINT          hasUSCAtomicFix2       : 1;
         gctUINT          hasFloatingMadFix      : 1;
-        gctUINT          reserved1              : 27;
+        gctUINT          hasA0WriteEnableFix    : 1;
+        gctUINT          reserved1              : 26;
 
         /* Last word */
         /* Followings will be removed after shader programming is removed out of VSC */
@@ -779,7 +825,9 @@ typedef struct _VSC_HW_CONFIG
     gctUINT              maxVaryingCount;
     gctUINT              maxAttributeCount;
     gctUINT              maxRenderTargetCount;
+    gctUINT              maxShaderCountPerCore;
     gctUINT              maxGPRCountPerCore;
+    gctUINT              maxGPRCountPerShader;
     gctUINT              maxGPRCountPerThread;
     gctUINT              maxHwNativeTotalInstCount;
     gctUINT              maxTotalInstCount;
@@ -858,8 +906,10 @@ typedef gcsGLSLCaps VSC_GL_API_CONFIG, *PVSC_GL_API_CONFIG;
 #define VSC_COMPILER_OPT_DUAL16                         0x0000000000010000ULL
 #define VSC_COMPILER_OPT_ILF_LINK                       0x0000000000020000ULL
 #define VSC_COMPILER_OPT_LOOP                           0x0000000000040000ULL
+#define VSC_COMPILER_OPT_SCPP                           0x0000000000080000ULL
+#define VSC_COMPILER_OPT_CPF                            0x0000000000100000ULL
 
-#define VSC_COMPILER_OPT_FULL                           0x000000000007FFFFULL
+#define VSC_COMPILER_OPT_FULL                           0x00000000001FFFFFULL
 
 #define VSC_COMPILER_OPT_NO_ALGE_SIMP                   0x0000000100000000ULL
 #define VSC_COMPILER_OPT_NO_GCP                         0x0000000200000000ULL
@@ -880,8 +930,10 @@ typedef gcsGLSLCaps VSC_GL_API_CONFIG, *PVSC_GL_API_CONFIG;
 #define VSC_COMPILER_OPT_NO_DUAL16                      0x0001000000000000ULL
 #define VSC_COMPILER_OPT_NO_ILF_LINK                    0x0002000000000000ULL
 #define VSC_COMPILER_OPT_NO_LOOP                        0x0004000000000000ULL
+#define VSC_COMPILER_OPT_NO_SCPP                        0x0008000000000000ULL
+#define VSC_COMPILER_OPT_NO_CPF                         0x0010000000000000ULL
 
-#define VSC_COMPILER_OPT_NO_OPT                         0x0007FFFF00000000ULL
+#define VSC_COMPILER_OPT_NO_OPT                         0x001FFFFF00000000ULL
 
 /* Compiler flag for special purpose */
 #define VSC_COMPILER_FLAG_COMPILE_TO_HL                0x00000001   /* Compile IR to HL, including doing all opts in HL */
@@ -1022,12 +1074,22 @@ typedef struct _VSC_SHADER_RESOURCE_LAYOUT
     VSC_SHADER_PUSH_CONSTANT_RANGE*   pPushConstantRanges;
 }VSC_SHADER_RESOURCE_LAYOUT;
 
+/* Some special HW settings which are maintained by driver's adapter/device. */
+typedef struct _VSC_SPECIFIC_HW_SETTING
+{
+    /* How many clusters are enabled. */
+    gctUINT32                        activeClusterCount;
+}VSC_SPECIFIC_HW_SETTING;
+
 /* In general, a core system contex is maintained by driver's adapter/device who can
    designate a GPU chip, which means core system contex is GPU wide global context. */
 typedef struct _VSC_CORE_SYS_CONTEXT
 {
     /* Designates a target HW */
     VSC_HW_CONFIG                     hwCfg;
+
+    /* Specific HW setting. */
+    VSC_SPECIFIC_HW_SETTING           specificHwSetting;
 
     /* VSC private data, maintained by vscCreatePrivateData and vscDestroyPrivateData */
     VSC_PRIV_DATA_HANDLE              hPrivData;
@@ -1384,7 +1446,7 @@ VSC_OCLImgLibKind vscGetOCLImgLibKindForHWCfg(
 
 /* Return the max free reg count for this HW config. */
 gctUINT
-vscGetHWMaxFreeRegCount(
+vscGetHWMaxFreeRegCountPerShader(
     IN VSC_HW_CONFIG   *pHwCfg
     );
 

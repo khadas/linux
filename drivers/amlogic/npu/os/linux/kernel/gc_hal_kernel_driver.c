@@ -229,9 +229,18 @@ static uint type = 0;
 module_param(type, uint, 0664);
 MODULE_PARM_DESC(type, "0 - Char Driver (Default), 1 - Misc Driver");
 
-static int userClusterMask = 0;
-module_param(userClusterMask, int, 0644);
-MODULE_PARM_DESC(userClusterMask, "User defined cluster enable mask");
+static uint userClusterMasks[gcdMAX_MAJOR_CORE_COUNT] = {[0 ... gcdMAX_MAJOR_CORE_COUNT - 1] = 0};
+module_param_array(userClusterMasks, uint, NULL, 0644);
+MODULE_PARM_DESC(userClusterMasks, "Array of user defined per-core cluster enable mask");
+
+static uint registerAPB = 0x300000;
+module_param(registerAPB, uint, 0644);
+MODULE_PARM_DESC(registerAPB, "The offset of APB register to the register base address.");
+
+static uint enableNN = 0xFF;
+module_param(enableNN, uint, 0644);
+MODULE_PARM_DESC(enableNN, "How many NN cores will be enabled in one VIP, 0xFF means all enabled, 0 means all disabled, 1 means enable 1 NN core...");
+
 
 /* GPU small batch feature. */
 static int smallBatch = 1;
@@ -315,154 +324,174 @@ static int gpu3DMinClock = 1;
 static int contiguousRequested = 0;
 static ulong bankSize = 0;
 
-
 static gcsMODULE_PARAMETERS moduleParam;
 
-/*==========================some sysfs functions,class begin===================================*/
-static ssize_t show_class_control(struct class *class,struct class_attribute *attr, char *buf)
-{
-    gctUINT32 status = 0;
-    if (platform->ops->getPowerStatus)
-    {
-        platform->ops->getPowerStatus(platform,&status);
-    }
-    return snprintf(buf, PAGE_SIZE, "customid:%d,status:%d\n",galDevice->kernels[0]->hardware->identity.customerID,status);
-}
+
+
 /*============the control format should as: (control-domain:control-value)==========*/
 static int kcmp(const char *buff,const char *token,int lenth)
 {
-    int i = 0;
-    int flag = 0;
-    for (i=0;i<lenth;i++)
-    {
-        if (buff[i] != token[i])
-        {
-            flag = 1;
-            break;
-        }
-    }
-    return flag;
+	int i = 0;
+	int flag = 0;
+	for(i=0;i<lenth;i++)
+	{
+		if(buff[i] != token[i])
+		{
+			flag = 1;
+			break;
+		}
+	}
+	return flag;
 }
 static int findtok(const char *buff,const char token,int lenth)
 {
-    int pos = 0;
-    int i = 0;
-    for (i=0;i<lenth;i++)
-    {
-        if (buff[i] == token)
-        {
-            pos = i;
-            break;
-        }
-    }
-    return pos;
-}
-static ssize_t store_class_control(struct class *class,struct class_attribute *attr, const char *buf, size_t count)
-{
-    gctUINT32 status = 0;
-    int pos = 0;
-    int val = 0;
-    pos = findtok(buf,':',strlen(buf));
-    if (pos == 0)
-    {
-        return count;
-    }
-
-    if (kcmp(buf,"profile",strlen("profile")) == 0)
-    {
-        printk("the control domain is profile\n");
-        if (platform->ops->getPowerStatus)
-        {
-            platform->ops->getPowerStatus(platform,&status);
-        }
-        if (status != POWER_ON)
-        {
-            gckOS_SetGPUPower(galDevice->os, 0, 1, 1);
-        }
-        if (buf[pos+1] == '1')
-        {
-            galDevice->args.gpuProfiler = 1;
-            gckHARDWARE_SetGpuProfiler(galDevice->kernels[0]->hardware, 1);
-        }
-        else
-        {
-            galDevice->args.gpuProfiler = 0;
-            gckHARDWARE_SetGpuProfiler(galDevice->kernels[0]->hardware, 0);
-        }
-    }
-    else if (kcmp(buf,"policy",strlen("policy")) == 0)
-    {
-        printk("the control domain is policy\n");
-        if (platform->ops->setPolicy)
-        {
-            platform->ops->setPolicy(platform,(gctUINT32)(buf[pos+1]-'0'));
-        }
-    }
-    else if (kcmp(buf,"suspend",strlen("suspend")) == 0)
-    {
-        if (kstrtoint(&buf[pos+1], 0, &val) != 0)
-        {
-            printk("kstrtoint return error\n");
-            val = 300;
-        }
-        printk("the control domain is suspend,value is %d\n",val);
-        galDevice->kernels[0]->hardware->powerTimeout = val;
-    }
-    return count;
+	int pos = 0;
+	int i = 0;
+	for(i=0;i<lenth;i++)
+	{
+		if(buff[i] == token)
+		{
+			pos = i;
+			break;
+		}
+	}
+	return pos;
 }
 
-static ssize_t show_class_policy(struct class *class,struct class_attribute *attr, char *buf)
+/*==========================some sysfs functions,class begin===================================*/
+static ssize_t show_class_control(struct class *class,
+		        struct class_attribute *attr, char *buf)
 {
-    return snprintf(buf, PAGE_SIZE, "policy read,just for test\n");
+	gctUINT32 status = 0;
+
+	if(platform->ops->getPowerStatus)
+	{
+		platform->ops->getPowerStatus(platform,&status);
+	}
+	return snprintf(buf, PAGE_SIZE, "customid:%d,status:%d\n",galDevice->kernels[0]->hardware->identity.customerID,status);
+}
+/*============the control format should as: (control-domain:control-value)==========*/
+
+/*============the control format should as: (control-domain:control-value)==========*/
+
+static ssize_t store_class_control(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	gctUINT32 status = 0;
+	int pos = 0;
+	int val = 0;
+	//printk("zxw:store_control,%s\n",buf);
+	pos = findtok(buf,':',strlen(buf));
+	if(pos == 0)
+	{
+		return count;
+	}
+	//printk("pos:%d,val:%c\n",pos,buf[pos+1]);
+	//ret = kstrtoint(&buf[pos+1], 0, &val);
+	if(kcmp(buf,"profile",strlen("profile")) == 0)
+	{
+		printk("the control domain is profile\n");
+		if(platform->ops->getPowerStatus)
+		{
+			platform->ops->getPowerStatus(platform,&status);
+		}
+		if(status != POWER_ON)
+		{
+			gckOS_SetGPUPower(galDevice->os, 0, 1, 1);
+			//platform->ops->getPower(platform);
+		}
+		if(buf[pos+1] == '1')
+		{
+			galDevice->args.gpuProfiler = 1;
+			gckHARDWARE_SetGpuProfiler(galDevice->kernels[0]->hardware, 1);
+		}
+		else
+		{
+			galDevice->args.gpuProfiler = 0;
+			gckHARDWARE_SetGpuProfiler(galDevice->kernels[0]->hardware, 0);
+		}
+	}
+	else if(kcmp(buf,"policy",strlen("policy")) == 0)
+	{
+		printk("the control domain is policy\n");
+		if(platform->ops->setPolicy)
+		{
+			platform->ops->setPolicy(platform,(gctUINT32)(buf[pos+1]-'0'));
+		}
+	}
+	else if(kcmp(buf,"suspend",strlen("suspend")) == 0)
+	{
+		if(kstrtoint(&buf[pos+1], 0, &val) != 0)
+		{
+			printk("kstrtoint return error\n");
+			val = 300;
+		}
+		printk("the control domain is suspend,value is %d\n",val);
+		galDevice->kernels[0]->hardware->powerTimeout = val;
+	}
+	return count;
 }
 
-static ssize_t store_class_policy(struct class *class,struct class_attribute *attr, const char *buf, size_t count)
+static ssize_t show_class_policy(struct class *class,
+		        struct class_attribute *attr, char *buf)
 {
-    ssize_t ret = 0;
-    printk("store_policy,%s\n",buf);
-    return ret;
+	return snprintf(buf, PAGE_SIZE, "policy read,just for test\n");
 }
 
-static ssize_t show_class_status(struct class *class,struct class_attribute *attr, char *buf)
+static ssize_t store_class_policy(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
 {
-    gctUINT32 status = 0;
-    if (platform->ops->getPowerStatus)
-    {
-        platform->ops->getPowerStatus(platform,&status);
-    }
-    return snprintf(buf, PAGE_SIZE, "status:%d",status);
+	ssize_t ret = 0;
+	printk("store_policy,%s\n",buf);
+	return ret;
 }
 
-static ssize_t store_class_status(struct class *class,struct class_attribute *attr, const char *buf, size_t count)
+static ssize_t show_class_status(struct class *class,
+		        struct class_attribute *attr, char *buf)
 {
-    ssize_t ret = 0;
-    printk("store_status,%s\n",buf);
-    return ret;
+	gctUINT32 status = 0;
+	if(platform->ops->getPowerStatus)
+	{
+		platform->ops->getPowerStatus(platform,&status);
+	}
+	return snprintf(buf, PAGE_SIZE, "status:%d",status);
 }
 
-static ssize_t show_class_info(struct class *class,struct class_attribute *attr, char *buf)
+static ssize_t store_class_status(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
 {
-    return snprintf(buf, PAGE_SIZE, "info read,just for test\n");
+	ssize_t ret = 0;
+	printk("store_status,%s\n",buf);
+	return ret;
 }
 
-static ssize_t store_class_info(struct class *class,struct class_attribute *attr, const char *buf, size_t count)
+static ssize_t show_class_info(struct class *class,
+		        struct class_attribute *attr, char *buf)
 {
-    ssize_t ret = 0;
-    printk("store_info,%s\n",buf);
-    return ret;
+	return snprintf(buf, PAGE_SIZE, "info read,just for test\n");
+}
+
+static ssize_t store_class_info(struct class *class,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	ssize_t ret = 0;
+	printk("store_info,%s\n",buf);
+	return ret;
 }
 
 static struct class_attribute gal_class_attrs[] = {
-    __ATTR(control, 0664,
-            show_class_control, store_class_control),
-    __ATTR(policy, 0664,
-            show_class_policy, store_class_policy),
-    __ATTR(status, 0664,
-            show_class_status, store_class_status),
-    __ATTR(info, 0664,
-            show_class_info, store_class_info),
+	__ATTR(control, 0664,
+			show_class_control, store_class_control),
+	__ATTR(policy, 0664,
+			show_class_policy, store_class_policy),
+	__ATTR(status, 0664,
+			show_class_status, store_class_status),
+	__ATTR(info, 0664,
+			show_class_info, store_class_info),
 };
 /*=========================some sysfs functions,class end=======================================*/
+
+
 static void
 _InitModuleParam(
     gcsMODULE_PARAMETERS * ModuleParam
@@ -566,6 +595,11 @@ _InitModuleParam(
 #endif
     }
 
+    for (i = 0; i < gcdMAX_MAJOR_CORE_COUNT; i++)
+    {
+        userClusterMasks[i] = p->userClusterMasks[i];
+    }
+
     p->sRAMRequested = sRAMRequested;
     p->sRAMLoopMode = sRAMLoopMode;
 
@@ -582,7 +616,8 @@ _InitModuleParam(
     p->compression = (compression == -1) ? gcvCOMPRESSION_OPTION_DEFAULT
                    : (gceCOMPRESSION_OPTION)compression;
     p->gpu3DMinClock   = gpu3DMinClock; /* not a module param. */
-    p->userClusterMask = userClusterMask;
+    p->enableNN        = enableNN;
+    p->registerAPB     = registerAPB;
     p->smallBatch      = smallBatch;
 
     p->stuckDump   = stuckDump;
@@ -689,6 +724,11 @@ _SyncModuleParam(
 #endif
     }
 
+    for (i = 0; i < gcdMAX_MAJOR_CORE_COUNT; i++)
+    {
+        userClusterMasks[i] = p->userClusterMasks[i];
+    }
+
     sRAMRequested = p->sRAMRequested;
     sRAMLoopMode  = p->sRAMLoopMode;
 
@@ -703,7 +743,8 @@ _SyncModuleParam(
     fastClear       = p->fastClear;
     compression     = p->compression;
     gpu3DMinClock   = p->gpu3DMinClock; /* not a module param. */
-    userClusterMask = p->userClusterMask;
+    enableNN        = p->enableNN;
+    registerAPB     = p->registerAPB;
     smallBatch      = p->smallBatch;
 
     stuckDump   = p->stuckDump;
@@ -783,10 +824,16 @@ gckOS_DumpParam(
     printk("  physSize          = 0x%08lX\n", physSize);
     printk("  recovery          = %d\n",      recovery);
     printk("  stuckDump         = %d\n",      stuckDump);
-    printk("  gpuProfiler       = %d\n",      gpuProfiler);
-    printk("  userClusterMask   = 0x%x\n",    userClusterMask);
     printk("  GPU smallBatch    = %d\n",      smallBatch);
     printk("  allMapInOne       = %d\n",      allMapInOne);
+    printk("  enableNN          = 0x%x\n",    enableNN);
+
+    printk("  userClusterMasks  = ");
+    for (i = 0; i < gcdMAX_MAJOR_CORE_COUNT; i++)
+    {
+        printk("%x, ", userClusterMasks[i]);
+    }
+    printk("\n");
 
     printk("  irqs              = ");
     for (i = 0; i < gcvCORE_COUNT; i++)
@@ -1441,8 +1488,6 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 		printk("nn is disable,should not do probe continue\n");
 		return ret;
 	}
-
-
     platform->device = pdev;
     galcore_device = &pdev->dev;
 
@@ -1535,13 +1580,13 @@ static int __devinit gpu_probe(struct platform_device *pdev)
         ret = viv_drm_probe(&pdev->dev);
 #endif
     }
-
+	
 	for (i = 0; i < ARRAY_SIZE(gal_class_attrs); i++)
 	{
 		//device_create_file(&pdev->dev, &gal_attrs[i]);
 		ret = class_create_file(gpuClass, &gal_class_attrs[i]);
 	}
-
+	
     if (ret < 0)
     {
         if(platform->ops->putPower)

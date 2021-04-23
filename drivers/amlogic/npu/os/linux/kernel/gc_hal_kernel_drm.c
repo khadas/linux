@@ -254,6 +254,8 @@ static int viv_ioctl_gem_lock(struct drm_device *drm, void *data,
     gckOS_ZeroMemory(&iface, sizeof(iface));
     iface.command = gcvHAL_LOCK_VIDEO_MEMORY;
     iface.hardwareType = gal_dev->device->defaultHwType;
+    iface.u.LockVideoMemory.op = gcvLOCK_VIDEO_MEMORY_OP_LOCK |
+                                 gcvLOCK_VIDEO_MEMORY_OP_MAP;
     iface.u.LockVideoMemory.node = viv_obj->node_handle;
     iface.u.LockVideoMemory.cacheable = args->cacheable;
     gcmkONERROR(gckDEVICE_Dispatch(gal_dev->device, &iface));
@@ -295,6 +297,8 @@ static int viv_ioctl_gem_unlock(struct drm_device *drm, void *data,
     memset(&iface, 0, sizeof(iface));
     iface.command = gcvHAL_UNLOCK_VIDEO_MEMORY;
     iface.hardwareType = gal_dev->device->defaultHwType;
+    iface.u.UnlockVideoMemory.op = gcvLOCK_VIDEO_MEMORY_OP_UNLOCK |
+                                   gcvLOCK_VIDEO_MEMORY_OP_UNMAP;
     iface.u.UnlockVideoMemory.node = (gctUINT64)viv_obj->node_handle;
     iface.u.UnlockVideoMemory.type = gcvVIDMEM_TYPE_GENERIC;
     gcmkONERROR(gckDEVICE_Dispatch(gal_dev->device, &iface));
@@ -583,6 +587,8 @@ static int viv_ioctl_gem_attach_aux(struct drm_device *drm, void *data,
         gckOS_ZeroMemory(&iface, sizeof(iface));
         iface.command = gcvHAL_LOCK_VIDEO_MEMORY;
         iface.hardwareType = gal_dev->device->defaultHwType;
+        iface.u.LockVideoMemory.op = gcvLOCK_VIDEO_MEMORY_OP_LOCK |
+                                     gcvLOCK_VIDEO_MEMORY_OP_MAP;
         iface.u.LockVideoMemory.node = viv_ts_obj->node_handle;
         iface.u.LockVideoMemory.cacheable = viv_ts_obj->cacheable;
         gcmkONERROR(gckDEVICE_Dispatch(gal_dev->device, &iface));
@@ -599,6 +605,8 @@ static int viv_ioctl_gem_attach_aux(struct drm_device *drm, void *data,
         memset(&iface, 0, sizeof(iface));
         iface.command = gcvHAL_UNLOCK_VIDEO_MEMORY;
         iface.hardwareType = gal_dev->device->defaultHwType;
+        iface.u.UnlockVideoMemory.op = gcvLOCK_VIDEO_MEMORY_OP_UNLOCK |
+                                       gcvLOCK_VIDEO_MEMORY_OP_UNMAP;
         iface.u.UnlockVideoMemory.node = (gctUINT64)viv_ts_obj->node_handle;
         iface.u.UnlockVideoMemory.type = gcvSURF_TYPE_UNKNOWN;
         gcmkONERROR(gckDEVICE_Dispatch(gal_dev->device, &iface));

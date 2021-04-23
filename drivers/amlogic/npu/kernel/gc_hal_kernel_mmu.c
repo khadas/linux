@@ -77,6 +77,8 @@ gceMMU_TYPE;
 
 #define gcdVERTEX_START      (128 << 10)
 
+#define gcdMTLB_RESERVED_SIZE (16 << 20)
+
 typedef struct _gcsMMU_STLB_CHUNK *gcsMMU_STLB_CHUNK_PTR;
 
 typedef struct _gcsMMU_STLB_CHUNK
@@ -1825,12 +1827,28 @@ _Construct(
 
         gcmkONERROR(
             gckOS_QueryOption(mmu->os, "physSize", &data));
+
         physSize = (gctSIZE_T)data;
 
         gcmkONERROR(
             gckOS_CPUPhysicalToGPUPhysical(mmu->os, physBase, &gpuPhysical));
 
         gcmkSAFECASTPHYSADDRT(gpuAddress, gpuPhysical);
+
+        if ((gpuAddress < gcdMTLB_RESERVED_SIZE) && physSize)
+        {
+
+            if (gpuAddress + physSize <= gcdMTLB_RESERVED_SIZE)
+            {
+                gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+            }
+
+            gcmkPRINT("Galcore warning: pre-flat mapping base address can't be lower than 0x1000000, adjust it to 0x1000000. ");
+
+            physSize = gpuAddress + physSize - gcdMTLB_RESERVED_SIZE;
+
+            gpuAddress = gcdMTLB_RESERVED_SIZE;
+        }
 
         if (physSize)
         {
@@ -1860,8 +1878,8 @@ _Construct(
 
             /* Store the gpu virtual ranges */
             mmu->gpuAddressRanges[mmu->gpuAddressRangeCount].start = 0;
-            mmu->gpuAddressRanges[mmu->gpuAddressRangeCount].end   = (16 << 20) - 1;
-            mmu->gpuAddressRanges[mmu->gpuAddressRangeCount].size  = (16 << 20);
+            mmu->gpuAddressRanges[mmu->gpuAddressRangeCount].end   = gcdMTLB_RESERVED_SIZE - 1;
+            mmu->gpuAddressRanges[mmu->gpuAddressRangeCount].size  = gcdMTLB_RESERVED_SIZE;
             mmu->gpuAddressRanges[mmu->gpuAddressRangeCount].flag  = gcvFLATMAP_DIRECT;
             mmu->gpuAddressRangeCount++;
         }
@@ -3114,6 +3132,7 @@ gckMMU_IsFlatMapped(
     IN gckMMU Mmu,
     IN gctUINT64 Physical,
     IN gctUINT32 Address,
+    IN gctSIZE_T Bytes,
     OUT gctBOOL *In
     )
 {
@@ -3135,7 +3154,7 @@ gckMMU_IsFlatMapped(
         for (i = 0; i < Mmu->gpuPhysicalRangeCount; i++)
         {
             if ((Physical >= Mmu->gpuPhysicalRanges[i].start) &&
-                (Physical <= Mmu->gpuPhysicalRanges[i].end))
+                (Physical + Bytes - 1 <= Mmu->gpuPhysicalRanges[i].end))
             {
                 inFlatmapping = gcvTRUE;
                 break;
@@ -3148,7 +3167,7 @@ gckMMU_IsFlatMapped(
         for (i = 0; i < Mmu->gpuAddressRangeCount; i++)
         {
             if ((Address >= Mmu->gpuAddressRanges[i].start) &&
-                (Address <= Mmu->gpuAddressRanges[i].end))
+                (Address + Bytes - 1 <= Mmu->gpuAddressRanges[i].end))
             {
                 inFlatmapping = gcvTRUE;
                 break;
@@ -3178,7 +3197,7 @@ gckMMU_SetupSRAM(
     gctUINT32 reservedSize = 0;
     gctUINT i = 0;
     gctUINT j = 0;
-    gceSTATUS status;
+    gceSTATUS status = gcvSTATUS_OK;
     gckKERNEL kernel = Hardware->kernel;
 
     gcmkHEADER_ARG("Mmu=0x%x Hardware=0x%x", Mmu, Hardware);
@@ -3187,7 +3206,8 @@ gckMMU_SetupSRAM(
 
     if (Hardware->mmuVersion == 0)
     {
-        gcmkONERROR(gcvSTATUS_OK);
+        gcmkFOOTER();
+        return status;
     }
 
     if (!Mmu->sRAMMapped)
@@ -3243,8 +3263,8 @@ gckMMU_SetupSRAM(
                 else if (reservedSize && reservedBase == gcvINVALID_PHYSICAL_ADDRESS)
                 {
                     /*
-                     * Reserve the internal SRAM range in first reserved MMU mtlb,
-                     * when CPU physical base address is not specified, which means it is reserve usage.
+                     * Reserve the internal SRAM range in first MMU mtlb and set base to gcdRESERVE_START
+                     * if internal SRAM range is not specified, which means it is reserve usage.
                      */
                     Device->sRAMBaseAddresses[i][j] = (address == gcvINVALID_ADDRESS) ? gcdRESERVE_START :
                                                       address + gcmALIGN(size, gcdRESERVE_ALIGN);
@@ -3359,10 +3379,15 @@ gckMMU_SetupSRAM(
             kernel->extSRAMBaseAddresses[i] = Device->extSRAMBaseAddresses[i];
 
             Hardware->options.extSRAMGPUVirtAddrs[i] = Device->extSRAMBaseAddresses[i];
-            Hardware->options.extSRAMSizes[i]        = Device->extSRAMSizes[i];
             Hardware->options.extSRAMCPUPhysAddrs[i] = Device->extSRAMBases[i];
             Hardware->options.extSRAMGPUPhysAddrs[i] = Device->extSRAMGPUBases[i];
             Hardware->options.extSRAMGPUPhysNames[i] = Device->extSRAMGPUPhysNames[i];
+
+#if gcdEXTERNAL_SRAM_USAGE
+            Hardware->options.extSRAMSizes[i] = 0;
+#else
+            Hardware->options.extSRAMSizes[i] = Device->extSRAMSizes[i];
+#endif
 
             if (Device->showSRAMMapInfo)
             {
@@ -3445,7 +3470,7 @@ gckMMU_GetAreaType(
 
     mtlbIndex = _MtlbOffset(GpuAddress);
 
-    gcmkONERROR(gckMMU_IsFlatMapped(Mmu, gcvINVALID_PHYSICAL_ADDRESS, GpuAddress, &flatMapped));
+    gcmkONERROR(gckMMU_IsFlatMapped(Mmu, gcvINVALID_PHYSICAL_ADDRESS, GpuAddress, 1, &flatMapped));
 
     if (flatMapped)
     {

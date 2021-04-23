@@ -680,6 +680,9 @@ extern "C" {
                               + MODULE_MEMORY_CONTROLLER_DEPTH_COUNTER_NUM + MODULE_HOST_INTERFACE0_COUNTER_NUM + MODULE_HOST_INTERFACE1_COUNTER_NUM \
                               + MODULE_GPUL2_CACHE_COUNTER_NUM)
 
+#define   TOTAL_CL_COUNTER_NUMBER               ((VPNC_FEPROCESSCOUNT - VPNC_FECACHELKCOUNT + 1) + VPNC_TX_COUNT + (VPNC_PS_COUNT - 1) + (VPNC_MCCSH1WRITEBANDWIDTH - VPNC_MCCWRITEREQDEPTHPIPE - (VPNC_MCCSH1WRITEBANDWIDTH - VPNC_MCCFEREADBANDWIDTH + 1)) + (VPNC_HI_COUNT - (VPNC_HIOCBWRITE16BYTE - VPNC_HIOCBREAD16BYTE + 1)) + VPNC_L2_COUNT)
+#define   TOTAL_CL_MODULE_NUMBER                (6)
+
 #define VPNC_NN_LAYER_ID                        (VPNG_NN + 1)
 #define VPNC_NN_LAYER_ID_OVFL                   (VPNG_NN + 2)
 #define VPNC_NN_INSTR_INFO                      (VPNG_NN + 3)
@@ -912,8 +915,9 @@ extern "C" {
         { \
             gctUINT32 i; \
             gctUINT32_PTR Memory = memory; \
-            gctUINT32 total_probe_number = gcoPROFILER_GetProbeNumber(clusterCount, hostInterface1); \
+            gctUINT32 total_probe_number = 0; \
             counter = 0; \
+            gcmONERROR(gcoPROFILER_GetProbeNumber(Hardware, &total_probe_number)); \
             Memory = memory + total_probe_number * CoreId * (1 << clusterIDWidth); \
             for (i = 0; i < (gctUINT32)(1 << clusterIDWidth); i++) \
             { \
@@ -955,7 +959,8 @@ extern "C" {
         { \
             gctUINT32 i; \
             gctUINT32_PTR Memory = memory; \
-            gctUINT32 total_probe_number = gcoPROFILER_GetProbeNumber(clusterCount, hostInterface1); \
+            gctUINT32 total_probe_number = 0; \
+            gcmONERROR(gcoPROFILER_GetProbeNumber(Hardware, &total_probe_number)); \
             Memory = memory + total_probe_number * CoreId * (1 << clusterIDWidth); \
             for (i = 0; i < (gctUINT32)(1 << clusterIDWidth); i++) \
             { \
@@ -1019,6 +1024,7 @@ struct _gcoPROFILER
     gctBOOL                     bHalti4;
     gctBOOL                     psRenderPixelFix;
     gctBOOL                     axiBus128bits;
+    gctBOOL                     bZDP3;
 };
 
 typedef struct _gcsPROBESTATES
@@ -1026,6 +1032,16 @@ typedef struct _gcsPROBESTATES
     gceProbeStatus              status;
     gctUINT32                   probeAddress;
 }gcsPROBESTATES;
+
+typedef struct _gckPROFILER
+{
+    /* Profile mode */
+    gceProfilerMode             profileMode;
+    /* Enable profiling */
+    gctBOOL                     profileEnable;
+    /* Clear profile register or not*/
+    gctBOOL                     profileCleanRegister;
+}gckPROFILER;
 
 /* Construct a Profiler object per context. */
 gceSTATUS
@@ -1073,10 +1089,10 @@ gcoPROFILER_Flush(
     IN gcoPROFILER Profiler
     );
 
-gctUINT32
+gceSTATUS
 gcoPROFILER_GetProbeNumber(
-    IN gctUINT32 clusterCount,
-    IN gctBOOL hostInterface1
+    IN gcoHARDWARE Hardware,
+    OUT gctUINT32 *TotalProbeNumber
     );
 
 #ifdef __cplusplus

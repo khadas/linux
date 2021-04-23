@@ -56,8 +56,8 @@
 #ifndef __gc_hal_driver_shared_h_
 #define __gc_hal_driver_shared_h_
 
-#include "gc_hal_enum.h"
-#include "gc_hal_types.h"
+#include "gc_hal_enum_shared.h"
+#include "gc_hal_types_shared.h"
 
 
 #ifdef __cplusplus
@@ -70,6 +70,8 @@ extern "C" {
 #else
 #define gcdCONTEXT_BUFFER_COUNT 2
 #endif
+
+#define gcdMAX_MAJOR_CORE_COUNT         8
 
 #define gcdRENDER_FENCE_LENGTH          (6 * gcmSIZEOF(gctUINT32))
 #define gcdBLT_FENCE_LENGTH             (10 * gcmSIZEOF(gctUINT32))
@@ -230,6 +232,12 @@ typedef struct _gcsHAL_QUERY_CHIP_IDENTITY
     gctUINT32                   sRAMSizes[gcvSRAM_INTER_COUNT];
 
     gctUINT64                   platformFlagBits;
+
+    /* APB register offset. */
+    gctUINT64                   registerAPB;
+
+    /* Enabled NN clusters number. */
+    gctUINT32                   nnClusterNum;
 }
 gcsHAL_QUERY_CHIP_IDENTITY;
 
@@ -249,6 +257,7 @@ typedef struct _gcsHAL_QUERY_CHIP_OPTIONS
     gctUINT32                   uscL1CacheRatio;
     gctUINT32                   uscAttribCacheRatio;
     gctUINT32                   userClusterMask;
+    gctUINT32                   userClusterMasks[gcdMAX_MAJOR_CORE_COUNT];
 
     /* Internal SRAM. */
     gctUINT32                   sRAMGPUVirtAddrs[gcvSRAM_INTER_COUNT];
@@ -264,10 +273,12 @@ typedef struct _gcsHAL_QUERY_CHIP_OPTIONS
     gctUINT32                   extSRAMCount;
 
     gceSECURE_MODE              secureMode;
-    gctBOOL                     enableNNTPParallel;
-    gctUINT                     enableSwtilingPhase1;
 
     gctBOOL                     hasShader;
+
+    /* NN clusters power control. */
+    gctUINT32                   enableNNClusters;
+    gctUINT32                   configNNPowerControl;
 }
 gcsHAL_QUERY_CHIP_OPTIONS;
 
@@ -421,6 +432,8 @@ typedef struct _gcsHAL_LOCK_VIDEO_MEMORY
     IN gctPOINTER               captureLogical;
     OUT gctSIZE_T               captureSize;
 #endif
+
+    IN gceLOCK_VIDEO_MEMORY_OP  op;
 }
 gcsHAL_LOCK_VIDEO_MEMORY;
 
@@ -445,6 +458,8 @@ typedef struct _gcsHAL_UNLOCK_VIDEO_MEMORY
 #if gcdCAPTURE_ONLY_MODE
     OUT gctPOINTER              captureLogical;
 #endif
+
+    IN gceLOCK_VIDEO_MEMORY_OP  op;
 }
 gcsHAL_UNLOCK_VIDEO_MEMORY;
 
@@ -572,6 +587,9 @@ typedef struct _gcsHAL_EVENT_COMMIT
     /* Event queue in gcsQUEUE. */
     IN gctUINT64                queue;
 
+    /* Brother cores in user device of current commit process. */
+    IN gctUINT32                broCoreMask;
+
 #if gcdENABLE_SW_PREEMPTION
     /* Priority ID. */
     IN gctUINT32                priorityID;
@@ -668,9 +686,16 @@ typedef struct _gcsHAL_COMMIT
     /* Commit stamp of this commit. */
     OUT gctUINT64               commitStamp;
 
+    /* Brother cores in user device of current commit process. */
+    gctUINT32                   broCoreMask;
+
+
 #if gcdENABLE_SW_PREEMPTION
     /* If user need to merge the delta. */
     gctBOOL                     needMerge;
+
+    /* If this commit is pending. */
+    gctBOOL                     pending;
 #endif
 }
 gcsHAL_COMMIT;
@@ -728,6 +753,11 @@ typedef struct _gcsHAL_SIGNAL
 #endif
     /* Event generated from where of pipeline */
     IN gceKERNEL_WHERE          fromWhere;
+
+#if gcdENABLE_SW_PREEMPTION
+    /* If it is a fence signal. */
+    IN gctBOOL                  fenceSignal;
+#endif
 }
 gcsHAL_SIGNAL;
 
@@ -790,12 +820,29 @@ typedef struct _gcsHAL_WRITE_REGISTER_EX
 }
 gcsHAL_WRITE_REGISTER_EX;
 
+/* gcvHAL_APB_AXIFEE_ACCESS */
+typedef struct _gcsHAL_APB_AXIFE_ACCESS
+{
+    /* Logical address of memory to write data to. */
+    IN gctUINT32                address;
+
+    IN gctUINT32                coreSelect;
+
+    IN gctBOOL                  isRead;
+
+    /* Data read. */
+    IN gctUINT32                data;
+}
+gcsHAL_APB_AXIFE_ACCESS;
+
 #if VIVANTE_PROFILER
 /* gcvHAL_GET_PROFILE_SETTING */
 typedef struct _gcsHAL_GET_PROFILE_SETTING
 {
     /* Enable profiling */
     OUT gctBOOL                 enable;
+    /* Profile mode */
+    OUT gceProfilerMode         profileMode;
 }
 gcsHAL_GET_PROFILE_SETTING;
 
@@ -804,6 +851,8 @@ typedef struct _gcsHAL_SET_PROFILE_SETTING
 {
     /* Enable profiling */
     IN gctBOOL                  enable;
+    /* Profile mode */
+    IN gceProfilerMode          profileMode;
 }
 gcsHAL_SET_PROFILE_SETTING;
 
@@ -1209,9 +1258,9 @@ typedef struct _gcsHAL_INTERFACE
         gcsHAL_WRITE_DATA                   WriteData;
         gcsHAL_READ_REGISTER                ReadRegisterData;
         gcsHAL_WRITE_REGISTER               WriteRegisterData;
+        gcsHAL_APB_AXIFE_ACCESS             APBAXIFEAccess;
         gcsHAL_READ_REGISTER_EX             ReadRegisterDataEx;
         gcsHAL_WRITE_REGISTER_EX            WriteRegisterDataEx;
-
         gcsHAL_SET_POWER_MANAGEMENT         SetPowerManagement;
         gcsHAL_QUERY_POWER_MANAGEMENT       QueryPowerManagement;
         gcsHAL_CONFIG_POWER_MANAGEMENT      ConfigPowerManagement;

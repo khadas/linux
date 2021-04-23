@@ -401,7 +401,7 @@ gckKERNEL_ConstructPreemptCommit(
 
         if (context && context->maxState > 0)
         {
-            gctUINT bytes = gcmSIZEOF(gctUINT) * context->maxState;
+            gctSIZE_T bytes = gcmSIZEOF(gctUINT) * context->maxState;
             gctUINT32 *kMapEntryID = gcvNULL;
             gctUINT32 *kMapEntryIndex = gcvNULL;
 
@@ -411,7 +411,7 @@ gckKERNEL_ConstructPreemptCommit(
 
             preemptCommit->mapEntryID = (gctUINT32 *)pointer;
 
-            kDelta->mapEntryIDSize = bytes;
+            kDelta->mapEntryIDSize = (gctUINT32)bytes;
 
             gcmkONERROR(gckKERNEL_OpenUserData(
                 Kernel, needCopy,
@@ -615,6 +615,8 @@ gckKERNEL_PreparePreemptEvent(
     gcsQUEUE_PTR uQueue = Queue;
     gcsQUEUE_PTR kQueue = gcvNULL;
     gcsQUEUE_PTR kQueueHead = gcvNULL;
+    gcsQUEUE_PTR record = gcvNULL;
+    gctSIGNAL signal = gcvNULL;
     gcsQUEUE_PTR kQueueTail = gcvNULL;
     gckPREEMPT_COMMIT preemptCommit = gcvNULL;
 
@@ -698,7 +700,29 @@ gckKERNEL_PreparePreemptEvent(
         }
     }
 
-    preemptCommit->eventQueue  = kQueueHead;
+    preemptCommit->eventQueue = kQueueHead;
+
+    record = preemptCommit->eventQueue;
+
+    while (record != gcvNULL)
+    {
+        signal = gcmUINT64_TO_PTR(record->iface.u.Signal.signal);
+
+        if (record->iface.u.Signal.fenceSignal && gcmUINT64_TO_PTR(record->iface.u.Signal.process))
+        {
+            /* User signal. */
+            gcmkONERROR(gckOS_UserSignal(
+                Kernel->os,
+                signal,
+                gcmUINT64_TO_PTR(record->iface.u.Signal.process)
+                ));
+        }
+
+
+        /* Next record in the queue. */
+        record = gcmUINT64_TO_PTR(record->next);
+    }
+
     preemptCommit->priorityID  = PriorityID;
     preemptCommit->eventOnly   = gcvTRUE;
     preemptCommit->pid         = ProcessID;
@@ -1097,7 +1121,7 @@ gckKERNEL_FullPreemption(
     gcsPRIORITY_QUEUE_PTR queue = gcvNULL;
     gckPREEMPT_COMMIT preemptCommit = gcvNULL;
     gceSTATUS status = gcvSTATUS_OK;
-    gctUINT32 curHighestPriorityID = 0;
+    gctINT32 curHighestPriorityID = 0;
     gctINT id;
 
     for (id = gcdMAX_PRIORITY_QUEUE_NUM - 1; id >= 0; id--)
@@ -1253,8 +1277,9 @@ gckKERNEL_CommandCommitPreemption(
     if (Kernel->preemptionMode == gcvFULLY_PREEMPTIBLE_MODE)
     {
         Commit->needMerge = gcvTRUE;
+        Commit->pending   = gcvFALSE;
 
-        gcmkVERIFY_OK(gckOS_AtomGet(Kernel->os, Kernel->device->atomPriorityID, &curHighestPriorityID));
+        gcmkVERIFY_OK(gckOS_AtomGet(Kernel->os, Kernel->device->atomPriorityID, (gctINT32_PTR)&curHighestPriorityID));
 
         if (SubCommit->topPriority && priorityID != curHighestPriorityID)
         {
@@ -1292,6 +1317,7 @@ gckKERNEL_CommandCommitPreemption(
 
             Commit->commitStamp = Command->commitStamp++;
             Commit->needMerge = gcvFALSE;
+            Commit->pending   = gcvTRUE;
 
             if (priorityID == curHighestPriorityID)
             {
@@ -1355,9 +1381,9 @@ OnError:
 
 /*******************************************************************************
 **
-**  gckKERNEL_CommandCommitPreemption
+**  gckKERNEL_EventCommitPreemption
 **
-**  Commit the command with preemption.
+**  Commit the event with preemption.
 **
 **  INPUT:
 **
@@ -1403,7 +1429,7 @@ gckKERNEL_EventCommitPreemption(
 
     if (Kernel->preemptionMode == gcvFULLY_PREEMPTIBLE_MODE)
     {
-        gcmkVERIFY_OK(gckOS_AtomGet(Kernel->os, Kernel->device->atomPriorityID, &curHighestPriorityID));
+        gcmkVERIFY_OK(gckOS_AtomGet(Kernel->os, Kernel->device->atomPriorityID, (gctINT32_PTR)&curHighestPriorityID));
 
         if (TopPriority && priorityID != curHighestPriorityID)
         {

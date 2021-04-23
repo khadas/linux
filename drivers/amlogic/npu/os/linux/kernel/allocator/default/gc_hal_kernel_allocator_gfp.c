@@ -588,10 +588,17 @@ _GFPAlloc(
 #if defined(CONFIG_X86)
         if (!PageHighMem(mdlPriv->contiguousPages))
         {
+#if gcdENABLE_BUFFERABLE_VIDEO_MEMORY
             if (set_memory_wc((unsigned long)page_address(mdlPriv->contiguousPages), NumPages) != 0)
             {
                 printk("%s(%d): failed to set_memory_wc\n", __func__, __LINE__);
             }
+#else
+            if (set_memory_uc((unsigned long)page_address(mdlPriv->contiguousPages), NumPages) != 0)
+            {
+                printk("%s(%d): failed to set_memory_uc\n", __func__, __LINE__);
+            }
+#endif
         }
 #endif
     }
@@ -657,10 +664,17 @@ _GFPAlloc(
         }
 
 #if defined(CONFIG_X86)
+#if gcdENABLE_BUFFERABLE_VIDEO_MEMORY
         if (set_pages_array_wc(mdlPriv->nonContiguousPages, NumPages))
         {
             printk("%s(%d): failed to set_pages_array_wc\n", __func__, __LINE__);
         }
+#else
+        if (set_pages_array_uc(mdlPriv->nonContiguousPages, NumPages))
+        {
+            printk("%s(%d): failed to set_pages_array_uc\n", __func__, __LINE__);
+        }
+#endif
 #endif
     }
 
