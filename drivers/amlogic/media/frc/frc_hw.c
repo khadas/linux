@@ -175,13 +175,10 @@ void frc_clk_init(struct frc_dev_s *frc_devp)
 void frc_init_config(struct frc_dev_s *devp)
 {
 	/*1: before postblend, 0: after postblend*/
-	if (devp->frc_hw_pos)
+	if (devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND)
 		vpu_reg_write_bits(VPU_FRC_TOP_CTRL, 0, 4, 1);
 	else
 		vpu_reg_write_bits(VPU_FRC_TOP_CTRL, 1, 4, 1);
-
-	/*1: bypass frc, 0: data in frc*/
-	vpu_reg_write_bits(VPU_FRC_TOP_CTRL, 1, 0, 1);
 }
 
 void set_frc_enable(u32 en)
@@ -214,6 +211,12 @@ void frc_crc_enable(struct frc_dev_s *frc_devp)
 
 	en = crc_data->mc_wr_crc.crc_en;
 	WRITE_FRC_BITS(INP_MC_WRMIF_CTRL, en, 31, 1);
+}
+
+void frc_set_buf_num(u32 frc_fb_num)
+{
+	WRITE_FRC_BITS(FRC_FRAME_BUFFER_NUM, frc_fb_num, 0, 5);//set   frc_fb_num
+	WRITE_FRC_BITS(FRC_FRAME_BUFFER_NUM, frc_fb_num, 8, 5);//set   frc_fb_num
 }
 
 void frc_me_crc_read(struct frc_dev_s *frc_devp)
@@ -402,7 +405,7 @@ void frc_mtx_cfg(enum frc_mtx_e mtx_sel, enum frc_mtx_csc_e mtx_csc)
 
 void frc_mtx_set(struct frc_dev_s *frc_devp)
 {
-	if (frc_devp->frc_hw_pos) {
+	if (frc_devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND) {
 		frc_mtx_cfg(FRC_INPUT_CSC, RGB_YUV709F);
 		frc_mtx_cfg(FRC_OUTPUT_CSC, YUV709F_RGB);
 		return;
@@ -433,12 +436,19 @@ static void frc_input_init(struct frc_dev_s *frc_devp,
 		/*no loss*/
 		frc_top->loss_en = 0;
 		frc_top->frc_prot_mode = frc_devp->prot_mode;
-		frc_top->frc_fb_num = FRC_TOTAL_BUF_NUM - 2;
+		frc_top->frc_fb_num = FRC_TOTAL_BUF_NUM;
 	} else {
-		frc_top->hsize = frc_devp->in_sts.in_hsize;
-		frc_top->vsize = frc_devp->in_sts.in_vsize;
-		frc_top->out_hsize = frc_devp->out_sts.vout_width;
-		frc_top->out_vsize = frc_devp->out_sts.vout_height;
+		if (frc_devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND) {
+			frc_top->hsize = frc_devp->out_sts.vout_width;
+			frc_top->vsize = frc_devp->out_sts.vout_height;
+			frc_top->out_hsize = frc_devp->out_sts.vout_width;
+			frc_top->out_vsize = frc_devp->out_sts.vout_height;
+		} else {
+			frc_top->hsize = frc_devp->in_sts.in_hsize;
+			frc_top->vsize = frc_devp->in_sts.in_vsize;
+			frc_top->out_hsize = frc_devp->in_sts.in_hsize;
+			frc_top->out_vsize = frc_devp->in_sts.in_vsize;
+		}
 		frc_top->frc_ratio_mode = frc_devp->in_out_ratio;
 		frc_top->film_mode = frc_devp->film_mode;
 		/*sw film detect*/
@@ -446,8 +456,10 @@ static void frc_input_init(struct frc_dev_s *frc_devp,
 		/*no loss*/
 		frc_top->loss_en = frc_devp->loss_en;
 		frc_top->frc_prot_mode = frc_devp->prot_mode;
-		frc_top->frc_fb_num = FRC_TOTAL_BUF_NUM - 2;
+		frc_top->frc_fb_num = FRC_TOTAL_BUF_NUM;
 	}
+	pr_frc(1, "top in: hsize:%d, vsize:%d\n", frc_top->hsize, frc_top->vsize);
+	pr_frc(1, "top out: hsize:%d, vsize:%d\n", frc_top->out_hsize, frc_top->out_vsize);
 }
 
 void frc_top_init(struct frc_dev_s *frc_devp)
@@ -458,10 +470,8 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	u32 inp_hold_line;
 	u32 reg_post_dly_vofst;//fixed
 	u32 reg_mc_dly_vofst0 ;//fixed
-
 	u32 reg_mc_out_line;
 	u32 reg_me_dly_vofst;
-
 	u32 mevp_frm_dly        ;//Read RO ro_mevp_dly_num
 	u32 mc_frm_dly          ;//Read RO ro_mc2out_dly_num
 	u32 memc_frm_dly        ;//total delay
@@ -487,25 +497,41 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 
 	/*!!!!!!!!! tread de, vpu register*/
 	frc_top->vfb = vpu_reg_read(ENCL_VIDEO_VAVON_BLINE);
-	pr_frc(log, "ENCL_VIDEO_VAVON_BLINE:%d\n", frc_top->vfb);
+	//pr_frc(log, "ENCL_VIDEO_VAVON_BLINE:%d\n", frc_top->vfb);
 	reg_mc_out_line = (frc_top->vfb / 4) * 3;// 3/4 point of front vblank
 	reg_me_dly_vofst = reg_mc_out_line;
 
-	if(frc_top->out_hsize == 1920 && frc_top->out_vsize== 1080) {
+	if (frc_top->out_hsize == 1920 && frc_top->out_vsize == 1080) {
 		mevp_frm_dly = 130;
 		mc_frm_dly   = 11 ;//inp performace issue, need frc_clk >  enc0_clk
 		frc_top->is_me1mc4 = 0;/*me:mc 1:2*/
-	} else if(frc_top->out_hsize == 3840 && frc_top->out_vsize== 2160){
-		mevp_frm_dly = 133;
-		mc_frm_dly   = 14 ;
+	} else if (frc_top->out_hsize == 3840 && frc_top->out_vsize == 2160) {
+		mevp_frm_dly = 260;
+		mc_frm_dly = 28;
 		frc_top->is_me1mc4 = 1;/*me:mc 1:4*/
+
+		/* MEMC 4K ENCL setting, vlock will change the ENCL_VIDEO_MAX_LNCNT,
+		 * so need dynamic change this register
+		 */
+		u32 frc_v_porch = vpu_reg_read(ENCL_FRC_CTRL);/*0x1cdd*/
+		u32 max_lncnt = vpu_reg_read(ENCL_VIDEO_MAX_LNCNT);/*0x1cbb*/
+		u32 max_pxcnt = vpu_reg_read(ENCL_VIDEO_MAX_PXCNT);/*0x1cb0*/
+
+		pr_frc(1, "frc_v_porch=%d max_lncnt=%d max_pxcnt=%d\n",
+			frc_v_porch, max_lncnt, max_pxcnt);
+		vpu_reg_write(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
+		vpu_reg_write(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));
+		vpu_reg_write(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
+		pr_frc(1, "ENCL_SYNC_TO_LINE_EN=0x%x\n", vpu_reg_read(ENCL_SYNC_TO_LINE_EN));
+		pr_frc(1, "ENCL_SYNC_PIXEL_EN=0x%x\n", vpu_reg_read(ENCL_SYNC_PIXEL_EN));
+		pr_frc(1, "ENCL_SYNC_LINE_LENGTH=0x%x\n", vpu_reg_read(ENCL_SYNC_LINE_LENGTH));
 	} else {
 		mevp_frm_dly = 140;
 		mc_frm_dly   = 10 ;//inp performace issue, need frc_clk >  enc0_clk
 		frc_top->is_me1mc4 = 0;
 	}
 
-	////memc_frm_dly
+	//memc_frm_dly
 	memc_frm_dly      = reg_me_dly_vofst + me_hold_line + mevp_frm_dly + mc_frm_dly  + mc_hold_line ;//ref_frm_en before max_cnt_line
 	reg_mc_dly_vofst1 = memc_frm_dly - mc_frm_dly   - mc_hold_line ;
 
@@ -524,6 +550,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	pr_frc(log, "memc_frm_dly      = %d\n", memc_frm_dly);
 	pr_frc(log, "reg_mc_dly_vofst1 = %d\n", reg_mc_dly_vofst1);
 	pr_frc(log, "frc_ratio_mode = %d\n", frc_top->frc_ratio_mode);
+	pr_frc(log, "frc_fb_num = %d\n", frc_top->frc_fb_num);
 
 	WRITE_FRC_BITS(FRC_OUT_HOLD_CTRL  ,me_hold_line, 0   ,8  );
 	WRITE_FRC_BITS(FRC_OUT_HOLD_CTRL  ,mc_hold_line, 8   ,8  );
@@ -539,8 +566,9 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	config_phs_lut(frc_top->frc_ratio_mode, frc_top->film_mode);
 	config_phs_regs(frc_top->frc_ratio_mode, frc_top->film_mode);
 
-    //initial reg get from jitao must config before this function config_me_top_hw_reg/sys_fw_param_frc_init/init_bb_xyxy
-    frc_internal_initial();
+	//initial reg get from jitao must config before this function
+	//config_me_top_hw_reg/sys_fw_param_frc_init/init_bb_xyxy
+	// frc_internal_initial();
 	////config_me_top_hw_reg
 	config_me_top_hw_reg();//have initial config before this function
 	////Config bb
@@ -558,7 +586,6 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 		WRITE_FRC_BITS(FRC_REG_TOP_CTRL9 ,1,24,4);//dly_num =1
 		WRITE_FRC_BITS(FRC_REG_TOP_CTRL17,1,8 ,1);//buf prot open
 	}
-
 }
 
 /*buffer number can dynamic kmalloc,  film_hwfw_sel ????*/
@@ -1752,7 +1779,7 @@ void recfg_memc_mif_base_addr(u32 base_ofst)
 }
 
 static const struct dbg_dump_tab frc_reg_tab[] = {
-	{"FRC_TOP_CTRL", FRC_TOP_CTRL, 0, 0},
+	{"FRC_TOP_CTRL->reg_frc_en_in", FRC_TOP_CTRL, 0, 1},
 	{"FRC_REG_INP_MODULE_EN", FRC_REG_INP_MODULE_EN, 0, 0},
 
 	{"FRC_REG_TOP_CTRL14->post_dly_vofst", FRC_REG_TOP_CTRL14, 0, 16},
@@ -1791,7 +1818,10 @@ void frc_dump_reg_tab(void)
 		VPU_FRC_TOP_CTRL, (vpu_reg_read(VPU_FRC_TOP_CTRL) >> 4) & 0x1);
 
 	pr_frc(0, "ENCL_FRC_CTRL (0x%x)val:0x%x\n",
-		VPU_FRC_TOP_CTRL, vpu_reg_read(ENCL_FRC_CTRL) & 0xffff);
+		ENCL_FRC_CTRL, vpu_reg_read(ENCL_FRC_CTRL) & 0xffff);
+
+	pr_frc(0, "ENCL_VIDEO_VAVON_BLINE:0x%x\n",
+		ENCL_VIDEO_VAVON_BLINE, vpu_reg_read(ENCL_VIDEO_VAVON_BLINE) & 0xffff);
 
 	while (frc_reg_tab[i].addr < 0x3fff) {
 		if (frc_reg_tab[i].addr == 0xffffffff)
@@ -1811,6 +1841,9 @@ void frc_dump_reg_tab(void)
 	}
 }
 
+/*
+ * driver probe call
+ */
 void frc_internal_initial(void)
 {
 	int i;
@@ -1834,7 +1867,16 @@ void frc_internal_initial(void)
 	//internal test pattern speeder
 	WRITE_FRC_BITS(FRC_IP_PAT_RECT_MV, 8, 16, 12);
 	WRITE_FRC_BITS(FRC_IP_PAT_RECT_MV, 4, 0, 12);
+	//move mode
 	WRITE_FRC_BITS(FRC_IP_PAT_RECT_CYCLE, 1, 8, 1);
+	/*film 32 mode*/
+	WRITE_FRC_BITS(FRC_IP_PAT_RECT_CYCLE, 2, 5, 3);
+	WRITE_FRC_BITS(FRC_IP_PAT_RECT_CYCLE, 6, 0, 5);
+
+	/*default 1: bypass frc, 0: data in frc*/
+	vpu_reg_write_bits(VPU_FRC_TOP_CTRL, 1, 0, 1);
+	/* test pattern on */
+	frc_pattern_on(0);
 
 	/**/
 	WRITE_FRC_BITS(FRC_REG_BLK_SIZE_XY, 2/*prm_frc->reg_me_mvx_div_mode*/, 14, 2);

@@ -45,6 +45,7 @@ extern int frc_dbg_en;
 
 #define FRC_TOTAL_BUF_NUM		16
 #define FRC_MEMV_BUF_NUM		6
+#define FRC_MEMV2_BUF_NUM		7
 #define FRC_MEVP_BUF_NUM		2
 
 #define FRC_SLICER_NUM			4
@@ -140,12 +141,12 @@ struct st_frc_buf {
 	/*norm buffer*/
 	u32 norm_hme_data_buf_size[FRC_TOTAL_BUF_NUM];
 	u32 norm_memv_buf_size[FRC_MEMV_BUF_NUM];
-	u32 norm_hmemv_buf_size[FRC_MEMV_BUF_NUM];
+	u32 norm_hmemv_buf_size[FRC_MEMV2_BUF_NUM];
 	u32 norm_mevp_out_buf_size[FRC_MEVP_BUF_NUM];
 
 	u32 norm_hme_data_buf_paddr[FRC_TOTAL_BUF_NUM];
 	u32 norm_memv_buf_paddr[FRC_MEMV_BUF_NUM];
-	u32 norm_hmemv_buf_paddr[FRC_MEMV_BUF_NUM];
+	u32 norm_hmemv_buf_paddr[FRC_MEMV2_BUF_NUM];
 	u32 norm_mevp_out_buf_paddr[FRC_MEVP_BUF_NUM];
 
 	/*logo buffer*/
@@ -207,7 +208,7 @@ struct frc_dev_s {
 	struct platform_device	*pdev;
 
 	unsigned int frc_en;		/*0:frc disabled in dts; 1:frc enable in dts*/
-	unsigned int frc_hw_pos;	/*0:before postblend; 1:after postblend*/
+	enum eFRC_POS frc_hw_pos;	/*0:before postblend; 1:after postblend*/
 	unsigned int frc_test_ptn;
 	unsigned int frc_fw_pause;
 	u32 probe_ok;

@@ -121,8 +121,6 @@ void frc_film_param_init(struct frc_dev_s *frc_devp)
 		g_stfilmdata_item->mm_num_cpre_quit[nT0] = 0;
 	}
 	// mix_mode init end
-	WRITE_FRC_BITS(FRC_FRAME_BUFFER_NUM, FRC_TOTAL_BUF_NUM, 0, 5);
-	WRITE_FRC_BITS(FRC_FRAME_BUFFER_NUM, FRC_TOTAL_BUF_NUM, 8, 5);
 	fb_num = READ_FRC_REG(FRC_FRAME_BUFFER_NUM) & 0x1F;
 	pr_frc(0, "buff num:%d\n", fb_num);
 	g_stfilm_detect_item->input_id_length       = fb_num;

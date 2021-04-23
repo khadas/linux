@@ -59,6 +59,11 @@
 #define FRC_DS_12	1
 #define FRC_DS_14	2
 
+enum eFRC_POS {
+	FRC_POS_BEFORE_POSTBLEND = 0,
+	FRC_POS_AFTER_POSTBLEND = 1,
+};
+
 enum chg_flag {
 	FRC_CHG_NONE = 0,
 	FRC_CHG_HV_SIZE = 0x1,

@@ -133,9 +133,12 @@
 			reusable;
 			/* frc:size need 4M alignment
 			 * 1080P 16 buffer:88Mhz (0x5800000)
-			 * 4k 16 buffer:336Mhz (0x15000000)
+			 * 4k 16 buffer:348Mhz (0x15c00000)
+			 * 400Mhz (0x19000000)
+			 * 384Mhz (0x18000000)
+			 * 368Mhz (0x17000000)
 			 */
-			size = <0x0 0x15000000>;
+			size = <0x0 0x15c00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			/*alloc-ranges = <0x0 0x0 0x0 0x3f800000>;*/
@@ -789,7 +792,7 @@
 	aml_frc {
 		compatible = "amlogic, t3_frc";
 		dev_name = "aml_frc";
-		status = "disabled";
+		status = "okay";
 		frc_en = <1>;/*1:enabel ;0:disable*/
 		frc_hw_pos = <0>;/*0:before postblend; 1:after postblend*/
 		interrupts = <GIC_SPI 286 IRQ_TYPE_EDGE_RISING

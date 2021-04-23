@@ -4231,7 +4231,7 @@
 //
 // synopsys translate_off
 // synopsys translate_on
-#define CLOSS1_OFFSET             0x40 << 2)                    
+#define CLOSS1_OFFSET             (0x40 << 2)
 
 //for RTL
 //Bit 31:20        reserved
@@ -13025,11 +13025,17 @@
 /*mif RO stat, component3 ro crc*/
 
 /*vpu top ctl base addr: 0xff000000*/
-#define VPU_FRC_TOP_CTRL  0x278d
-#define ENCL_FRC_CTRL                              0x1cdd
-#define ENCL_VIDEO_VAVON_BLINE                     0x1cb4
+#define VPU_FRC_TOP_CTRL			0x278d
 
-//Bit 13:0   cfg_frc_st_ln     //R/W, unsigned, default 176
+#define ENCL_SYNC_LINE_LENGTH			0x1c4c
+#define ENCL_SYNC_PIXEL_EN			0x1c4d
+#define ENCL_SYNC_TO_LINE_EN			0x1c4e
+
+#define ENCL_VIDEO_MAX_LNCNT			0x1cbb
+#define ENCL_FRC_CTRL				0x1cdd
+#define ENCL_VIDEO_VAVON_BLINE			0x1cb4
+#define ENCL_VIDEO_MAX_LNCNT			0x1cbb
+#define ENCL_VIDEO_MAX_PXCNT			0x1cb0
 
 extern void __iomem *frc_base;
 

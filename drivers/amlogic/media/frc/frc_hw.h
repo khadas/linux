@@ -46,6 +46,7 @@ void frc_init_config(struct frc_dev_s *devp);
 void set_frc_enable(u32 en);
 void set_frc_bypass(u32 en);
 void frc_pattern_on(u32 en);
+void frc_set_buf_num(u32 frc_fb_num);
 void frc_top_init(struct frc_dev_s *frc_devp);
 void frc_inp_init(u32 frc_fb_num, u32 film_hwfw_sel);
 void config_phs_lut(enum frc_ratio_mode_type frc_ratio_mode,

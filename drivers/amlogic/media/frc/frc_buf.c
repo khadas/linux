@@ -163,7 +163,7 @@ void frc_buf_dump_memory_addr_info(struct frc_dev_s *devp)
 
 	for (i = 0; i < FRC_TOTAL_BUF_NUM; i++)
 		pr_frc(0, "lossy_me_data_buf_paddr[%d]:0x%x size:0x%08x\n", i,
-		       devp->buf.lossy_me_data_buf_paddr[i],
+		       base + devp->buf.lossy_me_data_buf_paddr[i],
 		       devp->buf.lossy_me_data_buf_size[i]);
 
 	/*link buffer*/
@@ -199,7 +199,7 @@ void frc_buf_dump_memory_addr_info(struct frc_dev_s *devp)
 		       base + devp->buf.norm_memv_buf_paddr[i],
 		       devp->buf.norm_memv_buf_size[i]);
 
-	for (i = 0; i < FRC_MEMV_BUF_NUM; i++)
+	for (i = 0; i < FRC_MEMV2_BUF_NUM; i++)
 		pr_frc(0, "norm_hmemv_buf_paddr[%d]:0x%x size:0x%08x\n", i,
 		       base + devp->buf.norm_hmemv_buf_paddr[i],
 		       devp->buf.norm_hmemv_buf_size[i]);
@@ -288,7 +288,7 @@ void frc_buf_dump_memory_size_info(struct frc_dev_s *devp)
 	/*norm hmemv buffer*/
 	pr_frc(log, "norm_hmemv_buf_size=%d , all:%d\n",
 	       devp->buf.norm_hmemv_buf_size[0],
-	       devp->buf.norm_hmemv_buf_size[0] * FRC_MEMV_BUF_NUM);
+	       devp->buf.norm_hmemv_buf_size[0] * FRC_MEMV2_BUF_NUM);
 
 	/*norm mevp buffer*/
 	pr_frc(log, "norm_mevp_out_buf_size=%d , all:%d\n",
@@ -471,7 +471,7 @@ void frc_dump_buf_reg(void)
 		       READ_FRC_REG(i));
 
 	/*norm hmemv buffer*/
-	for (i = FRC_REG_HME_NC_UNI_MV_ADDRX_0; i <= FRC_REG_HME_PC_PHS_MV_ADDR; i++)
+	for (i = FRC_REG_HME_NC_UNI_MV_ADDRX_0; i <= FRC_REG_VP_PF_UNI_MV_ADDR; i++)
 		pr_frc(0, "%s%d (0x%x) val:0x%x\n",
 		       "FRC_REG_HME_NC_UNI_MV_ADDRX_", i - FRC_REG_HME_NC_UNI_MV_ADDRX_0, i,
 		       READ_FRC_REG(i));
@@ -554,6 +554,7 @@ int frc_buf_calculate(struct frc_dev_s *devp)
 	u32 align_vsize;
 	u32 temp;
 	int log = 1;
+	u32 ratio;
 
 	if (!devp)
 		return -1;
@@ -571,12 +572,16 @@ int frc_buf_calculate(struct frc_dev_s *devp)
 	if (devp->out_sts.vout_width > 1920 && devp->out_sts.vout_height > 1080) {
 		devp->buf.me_hsize =
 			roundup(devp->buf.in_align_hsize, FRC_ME_SD_RATE_4K) / FRC_ME_SD_RATE_4K;
+		devp->buf.me_vsize =
+			roundup(devp->buf.in_align_vsize, FRC_ME_SD_RATE_4K) / FRC_ME_SD_RATE_4K;
+		ratio = 32;
 	} else {
 		devp->buf.me_hsize =
 			roundup(devp->buf.in_align_hsize, FRC_ME_SD_RATE_HD) / FRC_ME_SD_RATE_HD;
+		devp->buf.me_vsize =
+			roundup(devp->buf.in_align_vsize, FRC_ME_SD_RATE_HD) / FRC_ME_SD_RATE_HD;
+		ratio = 16;
 	}
-	devp->buf.me_vsize =
-		roundup(devp->buf.in_align_vsize, FRC_ME_SD_RATE_HD) / FRC_ME_SD_RATE_HD;
 
 	devp->buf.logo_hsize =
 		roundup(devp->buf.me_hsize, FRC_LOGO_SD_RATE) / FRC_LOGO_SD_RATE;
@@ -634,12 +639,12 @@ int frc_buf_calculate(struct frc_dev_s *devp)
 	temp = (align_hsize * FRC_MC_BITS_NUM + 511) / 8;
 	/*lossy mc data buffer*/
 	for (i = 0; i < FRC_TOTAL_BUF_NUM; i++) {
-		devp->buf.lossy_mc_y_data_buf_size[i] =
+		devp->buf.lossy_mc_y_data_buf_size[i] = ALIGN_4K * ratio +
 			(temp * align_vsize * FRC_COMPRESS_RATE) / 100;
-		devp->buf.lossy_mc_c_data_buf_size[i] =
+		devp->buf.lossy_mc_c_data_buf_size[i] = ALIGN_4K * ratio +
 			(temp * align_vsize * FRC_COMPRESS_RATE) / 100;
-		devp->buf.lossy_mc_v_data_buf_size[i] =
-			(temp * align_vsize * FRC_COMPRESS_RATE) / 100;
+		devp->buf.lossy_mc_v_data_buf_size[i] = 0;//ALIGN_4K * 4 +
+			//(temp * align_vsize * FRC_COMPRESS_RATE) / 100;
 		devp->buf.total_size += devp->buf.lossy_mc_y_data_buf_size[i] * 2;
 		devp->buf.total_size += devp->buf.lossy_mc_v_data_buf_size[i];
 	}
@@ -650,7 +655,7 @@ int frc_buf_calculate(struct frc_dev_s *devp)
 	temp = (devp->buf.me_hsize * FRC_ME_BITS_NUM + 511) / 8;
 	/*lossy me data buffer*/
 	for (i = 0; i < FRC_TOTAL_BUF_NUM; i++) {
-		devp->buf.lossy_me_data_buf_size[i] =
+		devp->buf.lossy_me_data_buf_size[i] = ALIGN_4K * ratio +
 			(temp * devp->buf.me_vsize * FRC_COMPRESS_RATE) / 100;
 		devp->buf.total_size += devp->buf.lossy_me_data_buf_size[i];
 	}
@@ -663,7 +668,7 @@ int frc_buf_calculate(struct frc_dev_s *devp)
 	for (i = 0; i < FRC_TOTAL_BUF_NUM; i++) {
 		devp->buf.lossy_mc_y_link_buf_size[i] = temp * 1;
 		devp->buf.lossy_mc_c_link_buf_size[i] = temp * 1;
-		devp->buf.lossy_mc_v_link_buf_size[i] = temp * 1;
+		devp->buf.lossy_mc_v_link_buf_size[i] = 0;//temp * 1;
 		devp->buf.total_size += devp->buf.lossy_mc_y_link_buf_size[i] * 2;
 		devp->buf.total_size += devp->buf.lossy_mc_v_link_buf_size[i];
 	}
@@ -693,7 +698,7 @@ int frc_buf_calculate(struct frc_dev_s *devp)
 
 	/*norm memv buffer*/
 	temp = (devp->buf.me_blk_hsize * 64 + 511) / 8;
-	for (i = 0; i < FRC_MEMV_BUF_NUM; i++) {
+	for (i = 0; i < FRC_MEMV_BUF_NUM; i++) {//-----------------may be 5 buffer
 		devp->buf.norm_memv_buf_size[i] = temp * devp->buf.me_blk_vsize;
 		devp->buf.total_size += devp->buf.norm_memv_buf_size[i];
 	}
@@ -703,13 +708,13 @@ int frc_buf_calculate(struct frc_dev_s *devp)
 
 	/*norm hmemv buffer*/
 	temp = (devp->buf.hme_blk_hsize * 64 + 511) / 8;
-	for (i = 0; i < FRC_MEMV_BUF_NUM; i++) {
+	for (i = 0; i < FRC_MEMV2_BUF_NUM; i++) {
 		devp->buf.norm_hmemv_buf_size[i] = temp * devp->buf.hme_blk_vsize;
 		devp->buf.total_size += devp->buf.norm_hmemv_buf_size[i];
 	}
 	pr_frc(log, "norm_hmemv_buf_size=%d ,line buf:%d all:%d\n",
 	       devp->buf.norm_hmemv_buf_size[0], temp,
-	       devp->buf.norm_hmemv_buf_size[0] * FRC_MEMV_BUF_NUM);
+	       devp->buf.norm_hmemv_buf_size[0] * FRC_MEMV2_BUF_NUM);
 
 	/*norm mevp buffer*/
 	temp = (devp->buf.me_blk_hsize * 64 + 511) / 8;
@@ -772,16 +777,16 @@ int frc_buf_distribute(struct frc_dev_s *devp)
 	/*mc y/c/v me info buffer, address 64 bytes align*/
 	devp->buf.lossy_mc_y_info_buf_paddr = paddr;
 	pr_frc(log, "lossy_mc_y_info_buf_paddr:0x%x", paddr);
-	paddr += roundup(devp->buf.lossy_mc_y_info_buf_size, ALIGN_64);
+	paddr += roundup(devp->buf.lossy_mc_y_info_buf_size, ALIGN_4K);
 	devp->buf.lossy_mc_c_info_buf_paddr = paddr;
 	pr_frc(log, "lossy_mc_c_info_buf_paddr:0x%x", paddr);
-	paddr += roundup(devp->buf.lossy_mc_c_info_buf_size, ALIGN_64);
+	paddr += roundup(devp->buf.lossy_mc_c_info_buf_size, ALIGN_4K);
 	devp->buf.lossy_mc_v_info_buf_paddr = paddr;
 	pr_frc(log, "lossy_mc_v_info_buf_paddr:0x%x", paddr);
-	paddr += roundup(devp->buf.lossy_mc_v_info_buf_size, ALIGN_64);
+	paddr += roundup(devp->buf.lossy_mc_v_info_buf_size, ALIGN_4K);
 	devp->buf.lossy_me_x_info_buf_paddr = paddr;
 	pr_frc(log, "lossy_me_x_info_buf_paddr:0x%x", paddr);
-	paddr += roundup(devp->buf.lossy_me_x_info_buf_size, ALIGN_64);
+	paddr += roundup(devp->buf.lossy_me_x_info_buf_size, ALIGN_4K);
 
 	/*lossy lossy_mc_y data buffer*/
 	paddr = roundup(paddr, ALIGN_4K);
@@ -815,28 +820,28 @@ int frc_buf_distribute(struct frc_dev_s *devp)
 
 	paddr = roundup(paddr, ALIGN_4K);
 	/*link buffer*/
-	real_onebuf_size = roundup(devp->buf.lossy_mc_y_link_buf_size[0], ALIGN_64);
+	real_onebuf_size = roundup(devp->buf.lossy_mc_y_link_buf_size[0], ALIGN_4K);
 	for (i = 0; i < FRC_TOTAL_BUF_NUM; i++) {
 		devp->buf.lossy_mc_y_link_buf_paddr[i] = paddr;
 		pr_frc(log, "lossy_mc_y_link_buf_paddr[%d]:0x%x\n", i, paddr);
 		paddr += real_onebuf_size;
 	}
 
-	real_onebuf_size = roundup(devp->buf.lossy_mc_c_link_buf_size[0], ALIGN_64);
+	real_onebuf_size = roundup(devp->buf.lossy_mc_c_link_buf_size[0], ALIGN_4K);
 	for (i = 0; i < FRC_TOTAL_BUF_NUM; i++) {
 		devp->buf.lossy_mc_c_link_buf_paddr[i] = paddr;
 		pr_frc(log, "lossy_mc_c_link_buf_paddr[%d]:0x%x\n", i, paddr);
 		paddr += real_onebuf_size;
 	}
 
-	real_onebuf_size = roundup(devp->buf.lossy_mc_v_link_buf_size[0], ALIGN_64);
+	real_onebuf_size = roundup(devp->buf.lossy_mc_v_link_buf_size[0], ALIGN_4K);
 	for (i = 0; i < FRC_TOTAL_BUF_NUM; i++) {
 		devp->buf.lossy_mc_v_link_buf_paddr[i] = paddr;
 		pr_frc(log, "lossy_mc_v_link_buf_paddr[%d]:0x%x\n", i, paddr);
 		paddr += real_onebuf_size;
 	}
 
-	real_onebuf_size = roundup(devp->buf.lossy_me_link_buf_size[0], ALIGN_64);
+	real_onebuf_size = roundup(devp->buf.lossy_me_link_buf_size[0], ALIGN_4K);
 	for (i = 0; i < FRC_TOTAL_BUF_NUM; i++) {
 		devp->buf.lossy_me_link_buf_paddr[i] = paddr;
 		pr_frc(log, "lossy_me_link_buf_paddr[%d]:0x%x\n", i, paddr);
@@ -852,21 +857,21 @@ int frc_buf_distribute(struct frc_dev_s *devp)
 		paddr += real_onebuf_size;
 	}
 
-	real_onebuf_size = roundup(devp->buf.norm_memv_buf_size[0], ALIGN_64);
+	real_onebuf_size = roundup(devp->buf.norm_memv_buf_size[0], ALIGN_4K);
 	for (i = 0; i < FRC_MEMV_BUF_NUM; i++) {
 		devp->buf.norm_memv_buf_paddr[i] = paddr;
 		pr_frc(log, "norm_memv_buf_paddr[%d]:0x%x\n", i, paddr);
 		paddr += real_onebuf_size;
 	}
 
-	real_onebuf_size = roundup(devp->buf.norm_hmemv_buf_size[0], ALIGN_64);
-	for (i = 0; i < FRC_MEMV_BUF_NUM; i++) {
+	real_onebuf_size = roundup(devp->buf.norm_hmemv_buf_size[0], ALIGN_4K);
+	for (i = 0; i < FRC_MEMV2_BUF_NUM; i++) {
 		devp->buf.norm_hmemv_buf_paddr[i] = paddr;
 		pr_frc(log, "norm_hmemv_buf_paddr[%d]:0x%x\n", i, paddr);
 		paddr += real_onebuf_size;
 	}
 
-	real_onebuf_size = roundup(devp->buf.norm_mevp_out_buf_size[0], ALIGN_64);
+	real_onebuf_size = roundup(devp->buf.norm_mevp_out_buf_size[0], ALIGN_4K);
 	for (i = 0; i < FRC_MEVP_BUF_NUM; i++) {
 		devp->buf.norm_mevp_out_buf_paddr[i] = paddr;
 		pr_frc(log, "norm_mevp_out_buf_paddr[%d]:0x%x\n", i, paddr);
@@ -883,27 +888,29 @@ int frc_buf_distribute(struct frc_dev_s *devp)
 	}
 	/*logo irr*/
 	paddr = roundup(paddr, ALIGN_4K);
-	real_onebuf_size = roundup(devp->buf.norm_logo_irr_buf_size, ALIGN_64);
+	real_onebuf_size = roundup(devp->buf.norm_logo_irr_buf_size, ALIGN_4K);
 	devp->buf.norm_logo_irr_buf_paddr = paddr;
 	pr_frc(log, "norm_logo_irr_buf_paddr:0x%x\n", paddr);
 	paddr += real_onebuf_size;
 
 	/*logo ssc*/
 	paddr = roundup(paddr, ALIGN_4K);
-	real_onebuf_size = roundup(devp->buf.norm_logo_scc_buf_size, ALIGN_64);
+	real_onebuf_size = roundup(devp->buf.norm_logo_scc_buf_size, ALIGN_4K);
 	devp->buf.norm_logo_scc_buf_paddr = paddr;
 	pr_frc(log, "norm_logo_scc_buf_paddr:0x%x\n", paddr);
 	paddr += real_onebuf_size;
 
 	/*melogo*/
 	paddr = roundup(paddr, ALIGN_4K);
-	real_onebuf_size = roundup(devp->buf.norm_melogo_buf_size[0], ALIGN_64);
+	real_onebuf_size = roundup(devp->buf.norm_melogo_buf_size[0], ALIGN_4K);
 	for (i = 0; i < FRC_TOTAL_BUF_NUM; i++) {
 		devp->buf.norm_melogo_buf_paddr[i] = paddr;
 		pr_frc(log, "norm_melogo_buf_paddr[%d]:0x%x\n", i, paddr);
 		paddr += real_onebuf_size;
 	}
 	devp->buf.real_total_size = paddr;
+	if (paddr <= devp->buf.cma_mem_size)
+		pr_frc(0, "buf err: need %d, cur size:%d\n", paddr, devp->buf.cma_mem_size);
 	pr_frc(0, "%s base:0x%x real_total_size:0x%x(%d)\n", __func__, base, paddr, paddr);
 
 	return 0;
@@ -924,6 +931,7 @@ int frc_buf_mapping_tab_init(struct frc_dev_s *devp)
 	u32 data_buf_addr, data_buf_size;
 	u32 link_tab_all_size;
 	u32 log = 1;
+	//u32 *init_start_addr;
 
 	cma_paddr = devp->buf.cma_mem_paddr_start;
 	link_tab_all_size =
@@ -944,6 +952,11 @@ int frc_buf_mapping_tab_init(struct frc_dev_s *devp)
 	pr_frc(0, "map: paddr=0x%lx, vaddr=0x%lx, link tab size=0x%x (%d)\n", (ulong)cma_paddr,
 	       (ulong)cma_vaddr, link_tab_all_size, link_tab_all_size);
 
+	//init_start_addr = (u32 *)(cma_vaddr + vmap_offset_start);
+	//for (i = 0; i < link_tab_all_size; i++) {
+	//	*init_start_addr = cma_paddr + devp->buf.lossy_mc_y_data_buf_paddr[0];
+	//	init_start_addr++;
+	//}
 	memset(cma_vaddr + vmap_offset_start, 0, link_tab_all_size);
 
 	/*split data buffer and fill to link mc buffer: mc y*/
@@ -1069,12 +1082,10 @@ int frc_buf_config(struct frc_dev_s *devp)
 		WRITE_FRC_REG(i,
 			base + devp->buf.lossy_mc_c_link_buf_paddr[i - FRC_REG_MC_CBUF_ADDRX_0]);
 
-	for (i = FRC_REG_MC_VBUF_ADDRX_0; i <= FRC_REG_MC_VBUF_ADDRX_15; i++) {
+	for (i = FRC_REG_MC_VBUF_ADDRX_0; i <= FRC_REG_MC_VBUF_ADDRX_15; i++)
 		WRITE_FRC_REG(i,
 			base + devp->buf.lossy_mc_v_link_buf_paddr[i - FRC_REG_MC_VBUF_ADDRX_0]);
-		pr_frc(log, "wr reg:0x%x val:0x%08X\n", FRC_REG_MC_VBUF_ADDRX_0,
-			base + devp->buf.lossy_mc_v_link_buf_paddr[i - FRC_REG_MC_VBUF_ADDRX_0]);
-	}
+
 	/*lossy me link buffer*/
 	for (i = FRC_REG_ME_BUF_ADDRX_0; i <= FRC_REG_ME_BUF_ADDRX_15; i++)
 		WRITE_FRC_REG(i,
@@ -1091,7 +1102,7 @@ int frc_buf_config(struct frc_dev_s *devp)
 			base + devp->buf.norm_memv_buf_paddr[i - FRC_REG_ME_NC_UNI_MV_ADDRX_0]);
 
 	/*norm hmemv buffer*/
-	for (i = FRC_REG_HME_NC_UNI_MV_ADDRX_0; i <= FRC_REG_HME_PC_PHS_MV_ADDR; i++)
+	for (i = FRC_REG_HME_NC_UNI_MV_ADDRX_0; i <= FRC_REG_VP_PF_UNI_MV_ADDR; i++)
 		WRITE_FRC_REG(i,
 			base + devp->buf.norm_hmemv_buf_paddr[i - FRC_REG_HME_NC_UNI_MV_ADDRX_0]);
 

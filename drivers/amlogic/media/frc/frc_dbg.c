@@ -59,10 +59,11 @@ void frc_status(struct frc_dev_s *devp)
 
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	pr_frc(0, "%s\n", FRC_FW_VER);
-	pr_frc(0, "probe_ok sts:%d\n", devp->probe_ok);
+	pr_frc(0, "probe_ok sts:%d hw_pos:%d (1:after) fw_pause:%d\n", devp->probe_ok,
+		devp->frc_hw_pos, devp->frc_fw_pause);
 	pr_frc(0, "frs state:%d (%s) new:%d\n", devp->frc_sts.state,
 	       frc_state_ary[devp->frc_sts.state], devp->frc_sts.new_state);
-	pr_frc(0, "vf in_hsize=%d in_vsize=%d\n", devp->in_sts.in_hsize, devp->in_sts.in_vsize);
+	pr_frc(0, "input in_hsize=%d in_vsize=%d\n", devp->in_sts.in_hsize, devp->in_sts.in_vsize);
 	pr_frc(0, "dbg en:%d in_out_ratio=0x%x\n", devp->dbg_force_en, devp->dbg_in_out_ratio);
 	pr_frc(0, "dbg hsize=%d vsize=%d\n", devp->dbg_input_hsize, devp->dbg_input_vsize);
 	pr_frc(0, "vf_sts:%d, vf_type:0x%x, signal_type=0x%x, source_type=0x%x\n",
@@ -70,6 +71,7 @@ void frc_status(struct frc_dev_s *devp)
 	       devp->in_sts.vf_type, devp->in_sts.signal_type, devp->in_sts.source_type);
 	pr_frc(0, "duration=%d\n", devp->in_sts.duration);
 	pr_frc(0, "vout hsize:%d vsize:%d\n", devp->out_sts.vout_width, devp->out_sts.vout_height);
+	pr_frc(0, "vout out_framerate:%d\n", devp->out_sts.out_framerate);
 	pr_frc(0, "mem_alloced:%d size:0x%x\n", devp->buf.cma_mem_alloced,
 	       devp->buf.cma_mem_size);
 
@@ -114,23 +116,24 @@ ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf)
 
 	len += sprintf(buf + len, "status\t: print frc internal status\n");
 	len += sprintf(buf + len, "dbg_level\t: set frc debug log level (0, 1, 2 ..)\n");
-	len += sprintf(buf + len, "bufinfo\t: dump buf address, size\n");
-	len += sprintf(buf + len, "dumplink\t: dump link buffer data\n");
 	len += sprintf(buf + len, "dbg_mode\t: 0:disable 1:enable 2:bypass\n");
 	len += sprintf(buf + len, "dbg_ratio\t: set debug input ratio\n");
 	len += sprintf(buf + len, "dbg_force\t: force debug mode\n");
 	len += sprintf(buf + len, "test_pattern disable or enable\t:\n");
+	len += sprintf(buf + len, "dump_bufcfg\t: dump buf address, size\n");
+	len += sprintf(buf + len, "dump_linkbuf\t: dump link buffer data\n");
 	len += sprintf(buf + len, "dump_init_reg\t: dump initial table\n");
 	len += sprintf(buf + len, "dump_buf_reg\t: dump buffer register\n");
-	len += sprintf(buf + len, "frc_pos 0,1\t: 0:before postblend; 1:after postblend\n");
 	len += sprintf(buf + len, "dump_buf_reg\t: dump buffer register\n");
 	len += sprintf(buf + len, "dump_data addr size\t: dump cma buf data\n");
+	len += sprintf(buf + len, "frc_pos 0,1\t: 0:before postblend; 1:after postblend\n");
 	len += sprintf(buf + len, "monitor_ireg idx reg_addr\t: monitor frc register (max 6)\n");
 	len += sprintf(buf + len, "monitor_oreg idx reg_addr\t: monitor frc register (max 6)\n");
 	len += sprintf(buf + len, "crc_read 0/1\t: 0: disable crc read, 1: enable crc read\n");
 	len += sprintf(buf + len, "crc_en 0/1 0/1 0/1 0/1\t: mewr/merd/mcwr/vs_print crc enable\n");
 	len += sprintf(buf + len, "ratio val\t: 0:112 1:213 2:2-5 3:5-6 6:1-1\n");
 	len += sprintf(buf + len, "film_mode val\t: 0:video 1:22 2:32 3:3223 4:2224\n");
+	len += sprintf(buf + len, "buf_num val\t: val(1 - 16)\n");
 	len += sprintf(buf + len, " \t\t 5:32322 6:44\n");
 
 	return len;
@@ -157,10 +160,10 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 		if (kstrtol(parm[1], 10, &val1) == 0)
 			frc_dbg_en = (int)val1;
 		pr_frc(0, "frc_dbg_en=%d\n", frc_dbg_en);
-	} else if (!strcmp(parm[0], "bufinfo")) {
+	} else if (!strcmp(parm[0], "dump_bufcfg")) {
 		frc_buf_dump_memory_size_info(devp);
 		frc_buf_dump_memory_addr_info(devp);
-	} else if (!strcmp(parm[0], "dumplink")) {
+	} else if (!strcmp(parm[0], "dump_linkbuf")) {
 		if (kstrtol(parm[1], 10, &val1) == 0) {
 			if (val1 < 4)
 				frc_buf_dump_link_tab(devp, (u32)val1);
@@ -261,6 +264,9 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 	} else if (!strcmp(parm[0], "film_mode")) {
 		if (kstrtol(parm[1], 10, &val1) == 0)
 			devp->film_mode = val1;
+	} else if (!strcmp(parm[0], "buf_num")) {
+		if (kstrtol(parm[1], 10, &val1) == 0)
+			frc_set_buf_num((u32)val1);
 	}
 
 exit:

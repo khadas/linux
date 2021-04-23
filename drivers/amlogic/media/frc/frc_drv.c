@@ -188,6 +188,8 @@ static long frc_ioctl(struct file *file,
 		if (copy_to_user(argp, &data, sizeof(u32)))
 			ret = -EFAULT;
 		break;
+	case FRC_IOC_SET_FRC_CANDENCE:
+		break;
 	}
 
 	return ret;
@@ -425,7 +427,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->frc_sts.new_state = FRC_STATE_BYPASS;
 
 	/*0:before postblend; 1:after postblend*/
-	devp->frc_hw_pos = 1;/*for test*/
+	devp->frc_hw_pos = FRC_POS_AFTER_POSTBLEND;/*for test*/
 	devp->frc_fw_pause = 1;
 	devp->frc_sts.frame_cnt = 0;
 	devp->dbg_force_en = 0;
@@ -465,6 +467,9 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 
 	frc_devp->out_sts.vout_height = vinfo->height;
 	frc_devp->out_sts.vout_width = vinfo->width;
+
+	frc_devp->out_sts.out_framerate =
+			(vinfo->sync_duration_num * 100) / vinfo->sync_duration_den;
 	pr_frc(1, "vout: %d, %d\n", frc_devp->out_sts.vout_width, frc_devp->out_sts.vout_height);
 }
 

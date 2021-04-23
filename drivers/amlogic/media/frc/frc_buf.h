@@ -6,6 +6,7 @@
 #define __FRC_BUF_H__
 
 #define ALIGN_64	64
+#define ALIGN_1k	0x400
 #define ALIGN_4K	0x1000
 
 extern int frc_in_hsize;

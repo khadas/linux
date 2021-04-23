@@ -99,12 +99,12 @@ void frc_in_reg_monitor(struct frc_dev_s *devp)
 	for (i = 0; i < MONITOR_REG_MAX; i++) {
 		reg = devp->dbg_in_reg[i];
 		if (reg != 0 && reg < 0x3fff) {
-			if (devp->dbg_buf_len > 300/*(DBG_REG_BUFF - 100)*/)
+			if (devp->dbg_buf_len > 300) {
+				devp->dbg_reg_monitor_i = 0;
+				devp->dbg_buf_len = 0;
 				return;
+			}
 			devp->dbg_buf_len++;
-			//devp->dbg_buf_len += sprintf(buf + devp->dbg_buf_len,
-			//			     "ivs:%d 0x%x=0x%08x\n", devp->in_sts.vs_cnt,
-			//			     reg, READ_FRC_REG(reg));
 			pr_info("ivs:%d 0x%x=0x%08x\n", devp->out_sts.vs_cnt,
 				reg, READ_FRC_REG(reg));
 		}
@@ -120,13 +120,12 @@ void frc_out_reg_monitor(struct frc_dev_s *devp)
 	for (i = 0; i < MONITOR_REG_MAX; i++) {
 		reg = devp->dbg_out_reg[i];
 		if (reg != 0 && reg < 0x3fff) {
-			if (devp->dbg_buf_len > 300/*(DBG_REG_BUFF - 100)*/)
+			if (devp->dbg_buf_len > 300) {
+				devp->dbg_reg_monitor_o = 0;
+				devp->dbg_buf_len = 0;
 				return;
+			}
 			devp->dbg_buf_len++;
-			//devp->dbg_buf_len += sprintf(buf + devp->dbg_buf_len,
-			//			     "\t\t\tovs:%d 0x%x=0x%08x\n",
-			//			     devp->in_sts.vs_cnt,
-			//			     reg, READ_FRC_REG(reg));
 			pr_info("\t\t\t\tovs:%d 0x%x=0x%08x\n", devp->out_sts.vs_cnt,
 				reg, READ_FRC_REG(reg));
 		}
@@ -245,29 +244,19 @@ void frc_update_in_sts(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts,
 	frc_in_sts->duration = vf->duration;
 	frc_in_sts->signal_type = vf->signal_type;
 	frc_in_sts->source_type = vf->source_type;
+
 	/* for debug */
 	if (devp->dbg_force_en && devp->dbg_input_hsize && devp->dbg_input_vsize) {
 		frc_in_sts->in_hsize = devp->dbg_input_hsize;
 		frc_in_sts->in_vsize = devp->dbg_input_vsize;
 	} else {
-		//frc_in_sts->in_hsize =
-		//cur_video_sts->VPP_post_blend_vd_h_end_ -
-		//	cur_video_sts->VPP_post_blend_vd_h_start_ + 1;
-		//frc_in_sts->in_vsize  =
-		//cur_video_sts->VPP_post_blend_vd_v_end_ -
-		//	cur_video_sts->VPP_post_blend_vd_v_start_ + 1;
-
-		//pr_frc(2, "vpp post:hsize=%d, vsize=%d\n",
-		//       cur_video_sts->VPP_post_blend_vd_h_start_,
-		//       cur_video_sts->VPP_post_blend_vd_h_end_);
-
-		//frc_in_sts->in_hsize = cur_video_sts->video_input_w;
-		//frc_in_sts->in_vsize = cur_video_sts->video_input_h;
-
-		frc_in_sts->in_hsize =
-			cur_video_sts->VPP_hsc_endp - cur_video_sts->VPP_hsc_startp + 1;
-		frc_in_sts->in_vsize =
-			cur_video_sts->VPP_vsc_endp - cur_video_sts->VPP_vsc_startp + 1;
+		if (devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND) {
+			frc_in_sts->in_hsize = devp->out_sts.vout_width;
+			frc_in_sts->in_vsize = devp->out_sts.vout_height;
+		} else {
+			frc_in_sts->in_hsize = cur_video_sts->nnhf_input_w;
+			frc_in_sts->in_vsize = cur_video_sts->nnhf_input_h;
+		}
 	}
 }
 
@@ -308,6 +297,9 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 		no_input = 1;
 
 	cur_in_sts.vf_sts = no_input ? 0 : 1;
+	if (devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND)
+		cur_in_sts.vf_sts = 1;
+
 	frc_update_in_sts(devp, &cur_in_sts, vf, cur_video_sts);
 
 	/* check input is change */
