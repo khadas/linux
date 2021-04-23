@@ -5989,8 +5989,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		goto exit;
 
 	fmt = atomic_read(&primary_src_fmt);
-	if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
-	    fmt != atomic_read(&cur_primary_src_fmt)) {
+	if (fmt != atomic_read(&cur_primary_src_fmt)) {
 		if (debug_flag & DEBUG_FLAG_TRACE_EVENT) {
 			char *old_str = NULL, *new_str = NULL;
 			enum vframe_signal_fmt_e old_fmt;
@@ -7088,9 +7087,9 @@ SET_FILTER:
 	} else if (vd1_path_id == VFM_PATH_AUTO) {
 		new_frame = path0_new_frame;
 
-		if (path2_new_frame &&
-			(path2_new_frame->flag & VFRAME_FLAG_FAKE_FRAME)) {
-			new_frame = path2_new_frame;
+		if (path3_new_frame &&
+			(path3_new_frame->flag & VFRAME_FLAG_FAKE_FRAME)) {
+			new_frame = path3_new_frame;
 			pr_info("vsync: auto path2 get a fake\n");
 		}
 
@@ -7256,8 +7255,7 @@ SET_FILTER:
 			fmt = src_map[new_src_fmt];
 		else
 			fmt = VFRAME_SIGNAL_FMT_INVALID;
-		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
-		    fmt != atomic_read(&cur_primary_src_fmt)) {
+		if (fmt != atomic_read(&cur_primary_src_fmt)) {
 			/* atomic_set(&primary_src_fmt, fmt); */
 			if (debug_flag & DEBUG_FLAG_TRACE_EVENT) {
 				char *old_str = NULL, *new_str = NULL;
@@ -8228,10 +8226,9 @@ static void video_vf_unreg_provider(void)
 		== &cur_dispbuf)
 		layer3_used = true;
 
-	if (layer1_used) {
+	if (layer1_used || !vd_layer[0].dispbuf_mapping)
 		atomic_set(&primary_src_fmt, VFRAME_SIGNAL_FMT_INVALID);
-		atomic_set(&cur_primary_src_fmt, VFRAME_SIGNAL_FMT_INVALID);
-	}
+
 	if (pip_loop) {
 		vd_layer[1].disable_video =
 			VIDEO_DISABLE_FORNEXT;
@@ -8643,10 +8640,8 @@ static void pip_vf_unreg_provider(void)
 		enabled |= get_videopip_enabled();
 	}
 
-	if (layer1_used) {
+	if (layer1_used || !vd_layer[0].dispbuf_mapping)
 		atomic_set(&primary_src_fmt, VFRAME_SIGNAL_FMT_INVALID);
-		atomic_set(&cur_primary_src_fmt, VFRAME_SIGNAL_FMT_INVALID);
-	}
 
 	if (!layer1_used && !layer2_used && !layer3_used)
 		cur_pipbuf = NULL;
