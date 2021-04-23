@@ -66,6 +66,17 @@ config THERMAL_OF
 	  Say 'Y' here if you need to build thermal infrastructure
 	  based on device tree.
 
+config AMLOGIC_THERMAL
+	tristate "Amlogic Thermal Support"
+	depends on OF
+	default y
+	help
+	  If you say yes here you get support for Amlogic Thermal
+	  for TM2 SoC Family.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called amlogic_thermal.
+
 config THERMAL_WRITABLE_TRIPS
 	bool "Enable writable trip points"
 	help
