@@ -192,6 +192,12 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_LINEAR,
 			0,
 			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_PONLY_MODE]  = {"ponly_mode",
+			/* 0:check the ponly flag in vf */
+			/* 1:check the vf->type in first vf */
+			EDI_CFG_PONLY_MODE,
+			0,
+			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_PONLY_BP_THD]  = {"bp_thd",
 			/**/
 			EDI_CFG_PONLY_BP_THD,
@@ -2737,6 +2743,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 	struct div2_mm_s *mm;
 	enum EDI_SGN sgn;
 	unsigned int post_nub;
+	bool ponly_enable = false;
 
 	dbg_reg("%s:ch[%d]\n", __func__, ch);
 
@@ -2776,7 +2783,16 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		dimp_set(edi_mp_use_2_interlace_buff, 1);
 	}
 	pch->src_type = vframe->source_type;
-	if ((vframe->flag & VFRAME_FLAG_DI_P_ONLY) || bget(&dim_cfg, 1)) {
+	if ((vframe->flag & VFRAME_FLAG_DI_P_ONLY) || bget(&dim_cfg, 1))
+		ponly_enable = true;
+
+	if (!ponly_enable &&
+	    cfggch(pch, PONLY_MODE) == 1 &&
+	    (vframe->type & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE) {
+		ponly_enable = true;
+		PR_INF("%s:enable p-only by first P frame\n", __func__);
+	}
+	if (ponly_enable) {
 		pch->ponly = true;
 		pch->rsc_bypass.b.ponly_fst_cnt = cfggch(pch, PONLY_BP_THD);
 	} else {
