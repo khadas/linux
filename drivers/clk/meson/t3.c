@@ -835,12 +835,7 @@ static struct clk_regmap t3_cpu_clk = {
 
 /* a55 usd_clk, get the table from ucode */
 static const struct cpu_dyn_table t3_dsu_dyn_table[] = {
-	CPU_LOW_PARAMS(24000000, 0, 0, 0),
-	CPU_LOW_PARAMS(100000000, 1, 1, 9),
-	CPU_LOW_PARAMS(250000000, 1, 1, 3),
-	CPU_LOW_PARAMS(333333333, 2, 1, 1),
-	CPU_LOW_PARAMS(500000000, 1, 1, 1),
-	CPU_LOW_PARAMS(666666666, 2, 0, 0),
+	/* For dsu, his parent should always be on fiv_div2 or gp1 pll */
 	CPU_LOW_PARAMS(1000000000, 1, 0, 0),
 	CPU_LOW_PARAMS(1200000000, 3, 0, 0),
 	CPU_LOW_PARAMS(1500000000, 3, 0, 0),
