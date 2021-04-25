@@ -6440,14 +6440,14 @@ sub process {
 		}
 
 # checks for new __setup's
-		if ($rawline =~ /\b__setup\("([^"]*)"/) {
-			my $name = $1;
-
-			if (!grep(/$name/, @setup_docs)) {
-				CHK("UNDOCUMENTED_SETUP",
-				    "__setup appears un-documented -- check Documentation/admin-guide/kernel-parameters.txt\n" . $herecurr);
-			}
-		}
+#		if ($rawline =~ /\b__setup\("([^"]*)"/) {
+#			my $name = $1;
+#
+#			if (!grep(/$name/, @setup_docs)) {
+#				 CHK("UNDOCUMENTED_SETUP",
+#				    "__setup appears un-documented -- check Documentation/admin-guide/kernel-parameters.txt\n" . $herecurr);
+#			}
+#		}
 
 # check for pointless casting of alloc functions
 		if ($line =~ /\*\s*\)\s*$allocFunctions\b/) {
