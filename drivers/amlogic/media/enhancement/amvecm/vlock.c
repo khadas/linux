@@ -458,6 +458,34 @@ void vlock_set_panel_ss(u32 onoff)
 #endif
 }
 
+static void vlock_tune_sync(struct stvlock_sig_sts *pvlock)
+{
+	u32 offset_enc = pvlock->offset_encl;
+
+	if (pvlock->dtdata->vlk_chip == vlock_chip_t3 && pvlock->idx == VLOCK_ENC0) {
+		/* MEMC 4K ENCL setting, vlock will change the ENCL_VIDEO_MAX_LNCNT,
+		 * so need dynamic change this register
+		 */
+		u32 frc_v_porch = pvlock->enc_frc_v_porch;
+		u32 max_lncnt = pvlock->enc_frc_max_line;
+		u32 max_pxcnt = pvlock->enc_frc_max_pixel;
+
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info("frc_v_porch=%d max_lncnt=%d max_pxcnt=%d\n",
+				frc_v_porch, max_lncnt, max_pxcnt);
+		WRITE_VPP_REG(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
+		WRITE_VPP_REG(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));
+		WRITE_VPP_REG(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
+
+		pvlock->enc_frc_max_line =
+			READ_VPP_REG(pvlock->enc_max_line_addr + offset_enc);
+		pvlock->enc_frc_max_pixel =
+			READ_VPP_REG(pvlock->enc_max_pixel_addr + offset_enc);
+		pvlock->enc_frc_v_porch =
+			READ_VPP_REG(pvlock->enc_frc_v_porch_addr + offset_enc);
+	}
+}
+
 static unsigned int vlock_check_input_hz(struct vframe_s *vf)
 {
 	unsigned int ret_hz = 0;
@@ -470,6 +498,15 @@ static unsigned int vlock_check_input_hz(struct vframe_s *vf)
 		 (vlock_support & VLOCK_SUPPORT_HDMI)) {
 		if (duration != 0)
 			ret_hz = (96000 + duration / 2) / duration;
+
+		if (diff(ret_hz, 60) <= 1)
+			ret_hz = 60;
+		else if (diff(ret_hz, 50) <= 1)
+			ret_hz = 50;
+		else if (diff(ret_hz, 30) <= 1)
+			ret_hz = 30;
+		else if (diff(ret_hz, 25) <= 1)
+			ret_hz = 25;
 	} else if (vf->source_type == VFRAME_SOURCE_TYPE_CVBS &&
 		   (vlock_support & VLOCK_SUPPORT_CVBS)) {
 		if (vf->source_mode == VFRAME_SOURCE_MODE_NTSC)
@@ -1145,6 +1182,10 @@ static void vlock_disable_step1(struct stvlock_sig_sts *pvlock)
 		if (vlock_debug & VLOCK_DEBUG_INFO)
 			pr_info("restore hv total:%d %d\n", pvlock->org_enc_line_num,
 				pvlock->org_enc_pixel_num);
+
+		pvlock->enc_frc_max_line = pvlock->org_enc_line_num;
+		pvlock->enc_frc_max_pixel = pvlock->org_enc_pixel_num;
+		vlock_tune_sync(pvlock);
 	}
 	vlock_dis_cnt = vlock_dis_cnt_limit;
 	pre_source_type = VFRAME_SOURCE_TYPE_OTHERS;
@@ -1397,6 +1438,8 @@ static void vlock_enable_step3_enc(struct stvlock_sig_sts *pvlock)
 			pr_info("\t wr addr:0x%x, %d\n",
 				pvlock->enc_max_line_addr + offset_enc, enc_max_line);
 		}
+
+		vlock_tune_sync(pvlock);
 	}
 
 	if (vlock_log_en && vlock_log_cnt < vlock_log_size) {
@@ -1892,6 +1935,7 @@ void vlock_status_init(void)
 			pvlock->enc_video_mode_addr = ENCL_VIDEO_MODE;
 			pvlock->enc_video_mode_adv_addr = ENCL_VIDEO_MODE_ADV;
 			pvlock->enc_max_line_switch_addr = ENCL_MAX_LINE_SWITCH_POINT;
+			pvlock->enc_frc_v_porch_addr  = ENCL_FRC_CTRL;
 			break;
 		/*enc mode not adapt to ENCP and ENCT*/
 		default:
@@ -1900,6 +1944,7 @@ void vlock_status_init(void)
 			pvlock->enc_video_mode_addr = ENCL_VIDEO_MODE;
 			pvlock->enc_video_mode_adv_addr = ENCL_VIDEO_MODE_ADV;
 			pvlock->enc_max_line_switch_addr = ENCL_MAX_LINE_SWITCH_POINT;
+			pvlock->enc_frc_v_porch_addr = ENCL_FRC_CTRL;
 			break;
 		}
 
@@ -1911,7 +1956,12 @@ void vlock_status_init(void)
 		pvlock->org_enc_pixel_num = READ_VPP_REG(pvlock->enc_max_pixel_addr + offset_enc);
 		pvlock->pre_enc_max_line = READ_VPP_REG(pvlock->enc_max_line_addr + offset_enc);
 		pvlock->pre_enc_max_pixel = READ_VPP_REG(pvlock->enc_max_pixel_addr + offset_enc);
-
+		if (pvlock->dtdata->vlk_chip == vlock_chip_t3 && pvlock->idx == VLOCK_ENC0) {
+			pvlock->enc_frc_v_porch =
+				READ_VPP_REG(pvlock->enc_frc_v_porch_addr + offset_enc);
+			pvlock->enc_frc_max_line = pvlock->org_enc_line_num;
+			pvlock->enc_frc_max_pixel = pvlock->org_enc_pixel_num;
+		}
 		pr_info("enc: org Line addr:0x%x val: %d\n", pvlock->enc_max_line_addr + offset_enc,
 			pvlock->org_enc_line_num);
 		pr_info("enc: org Pixel addr:0x%x val: %d\n",

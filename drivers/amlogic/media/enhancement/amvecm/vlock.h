@@ -24,7 +24,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2021/0315: t7 vlock for enc2"
+#define VLOCK_VER "Ref.2021/0425: t3 vlock bringup"
 
 #define VLOCK_REG_NUM	33
 #define VLOCK_ALL_LOCK_CNT	400
@@ -169,6 +169,10 @@ struct stvlock_sig_sts {
 	u32 enc_video_mode_addr;
 	u32 enc_video_mode_adv_addr;
 	u32 enc_max_line_switch_addr;
+	u32 enc_frc_v_porch_addr;
+	u32 enc_frc_v_porch;
+	u32 enc_frc_max_line;
+	u32 enc_frc_max_pixel;
 
 	u32 last_i_vsync;
 	u32 err_accum;
@@ -292,6 +296,11 @@ enum vlock_pll_sel {
 #define VLOCK_DEBUG_FSM_PAUSE (0x40)
 #define VLOCK_DEBUG_FORCE_ON (0x80)
 #define VLOCK_DEBUG_INFO_ERR	(BIT(15))
+
+#define ENCL_SYNC_LINE_LENGTH			0x1c4c
+#define ENCL_SYNC_PIXEL_EN			0x1c4d
+#define ENCL_SYNC_TO_LINE_EN			0x1c4e
+#define ENCL_FRC_CTRL				0x1cdd
 
 /* 0:enc;1:pll;2:manual pll */
 extern unsigned int vlock_mode;
