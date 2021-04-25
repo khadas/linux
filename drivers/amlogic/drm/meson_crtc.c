@@ -410,7 +410,7 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 	meson_vpu_line_check(crtc->index, crtc->mode.vdisplay, crtc->mode.vrefresh);
 #endif
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
-	vpu_pipeline_update(pipeline, old_atomic_state);
+	vpu_osd_pipeline_update(pipeline, old_atomic_state);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	meson_vpu_reg_vsync_config();
 #endif

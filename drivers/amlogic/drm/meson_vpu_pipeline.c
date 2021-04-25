@@ -407,6 +407,9 @@ void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
 	VPU_PIPELINE_HW_INIT(&pipeline->postblend->base);
 }
 
+/*
+ * Start of Roku async update func implement
+ */
 int vpu_pipeline_video_update(struct meson_vpu_pipeline *pipeline,
 			struct drm_atomic_state *old_state)
 {
@@ -484,8 +487,37 @@ int vpu_pipeline_osd_update(struct meson_vpu_pipeline *pipeline,
 	return 0;
 }
 
+//end of Roku async update func implement
+
+int vpu_video_plane_update(struct meson_vpu_pipeline *pipeline,
+			struct drm_atomic_state *old_state, int plane_index)
+{
+	struct meson_vpu_block *mvb;
+	struct meson_vpu_block_state *mvbs;
+	struct meson_vpu_pipeline_state *old_mvps, *new_mvps;
+	struct meson_vpu_video *mvv = pipeline->video[plane_index];
+	unsigned long affected_blocks = 0;
+
+	mvb = &mvv->base;
+	mvbs = priv_to_block_state(mvb->obj.state);
+	old_mvps = meson_vpu_pipeline_get_state(pipeline, old_state);
+	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
+	affected_blocks = old_mvps->enable_blocks | new_mvps->enable_blocks;
+
+	if (affected_blocks & BIT(mvb->id)) {
+		if (new_mvps->enable_blocks & BIT(mvb->id)) {
+			mvb->ops->update_state(mvb, mvbs);
+			mvb->ops->enable(mvb);
+		} else {
+			mvb->ops->disable(mvb);
+		}
+	}
+
+	return 0;
+}
+
 /* maybe use graph traverse is a good choice */
-int vpu_pipeline_update(struct meson_vpu_pipeline *pipeline,
+int vpu_osd_pipeline_update(struct meson_vpu_pipeline *pipeline,
 			struct drm_atomic_state *old_state)
 {
 #ifdef CONFIG_DEBUG_FS
@@ -511,6 +543,9 @@ int vpu_pipeline_update(struct meson_vpu_pipeline *pipeline,
 	affected_blocks = old_mvps->enable_blocks | new_mvps->enable_blocks;
 	for_each_set_bit(id, &affected_blocks, 32) {
 		mvb = vpu_blocks[id];
+		if (mvb->type == MESON_BLK_VIDEO)
+			continue;
+
 		mvbs = priv_to_block_state(mvb->obj.state);
 
 		if (new_mvps->enable_blocks & BIT(id)) {

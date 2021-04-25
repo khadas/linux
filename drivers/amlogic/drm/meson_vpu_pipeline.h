@@ -517,7 +517,9 @@ int vpu_pipeline_osd_update(struct meson_vpu_pipeline *pipeline,
 int vpu_topology_init(struct platform_device *pdev, struct meson_drm *private);
 int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
 		       struct drm_atomic_state *state);
-int vpu_pipeline_update(struct meson_vpu_pipeline *pipeline,
+int vpu_video_plane_update(struct meson_vpu_pipeline *pipeline,
+			struct drm_atomic_state *old_state, int plane_index);
+int vpu_osd_pipeline_update(struct meson_vpu_pipeline *pipeline,
 			struct drm_atomic_state *old_state);
 void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline);
 
