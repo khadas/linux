@@ -836,9 +836,23 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 			vsif_type |= VSIF_TYPE_HDMI14;
 	}
 
+	if (rx_depack2_intr0) {
+		if (log_level & IRQ_LOG)
+			rx_pr("dp2-irq0-%x\n", rx_depack2_intr0);
+		if (rx_get_bits(rx_depack2_intr0, _BIT(2))) {
+			/* parse hdr in EMP pkt */
+			if (log_level & IRQ_LOG)
+				rx_pr("HDR\n");
+		}
+		if (rx_get_bits(rx_depack2_intr0, _BIT(3))) {
+			emp_type |= EMP_TYPE_VTEM;
+			if (log_level & IRQ_LOG)
+				rx_pr("VTEM\n");
+		}
+	}
 	if (rx_depack2_intr2) {
 		if (log_level & IRQ_LOG)
-			rx_pr("dp-irq2-%x\n", rx_depack2_intr2);
+			rx_pr("dp2-irq2-%x\n", rx_depack2_intr2);
 		if (rx_get_bits(rx_depack2_intr2, _BIT(4)))
 			emp_type |= EMP_TYPE_VSIF;
 	}
@@ -926,6 +940,12 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 				if (vsif_type) {
 					rx_pkt_handler(PKT_BUFF_SET_VSI);
 					vsif_type = 0;
+				}
+				if (emp_type & EMP_TYPE_VTEM) {
+					rx.vrr_en = true;
+					emp_type &= (~EMP_TYPE_VTEM);
+				} else {
+					rx.vrr_en = false;
 				}
 				/* t5d 5.4 vdin not enabled 1222*/
 				rx_update_sig_info();
@@ -1710,7 +1730,7 @@ void hdcp_sts_update(void)
 void packet_update(void)
 {
 	/*rx_getaudinfo(&rx.aud_info);*/
-
+	rx_get_vtem_info();
 	rgb_quant_range = rx.cur.rgb_quant_range;
 	yuv_quant_range = rx.cur.yuv_quant_range;
 	it_content = rx.cur.it_content;
@@ -3452,6 +3472,7 @@ static void dump_video_status(void)
 	rx_pr("sw_vic %d,", rx.pre.sw_vic);
 	rx_pr("rx.no_signal=%d,rx.state=%d,",
 	      rx.no_signal, rx.state);
+	rx_pr("VRR en = %d\n", rx.vtem_info.vrr_en);
 	rx_pr("skip frame=%d\n", rx.skip);
 	rx_pr("avmute_skip:0x%x\n", rx.avmute_skip);
 	if (log_level & VSI_LOG) {
@@ -3461,6 +3482,7 @@ static void dump_video_status(void)
 		rx_pr("dolby_vision = %d\n", rx.vs_info_details.dolby_vision);
 		rx_pr("dv ll = %d\n", rx.vs_info_details.low_latency);
 	}
+	rx_pr("VTEM = %d\n", rx.vrr_en);
 	rx_pr("DRM = %d\n", rx_pkt_chk_attach_drm());
 	dump_clk_status();
 	if (rx.phy_ver == PHY_VER_TL1)

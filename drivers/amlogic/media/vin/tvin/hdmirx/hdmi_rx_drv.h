@@ -468,6 +468,15 @@ struct vsi_info_s {
 	u8 timeout;
 };
 
+struct vtem_info_s {
+	u8 vrr_en;
+	u8 m_const;
+	u8 fva_factor_m1;
+	u8 base_vfront;
+	u8 rb;
+	u16 base_framerate;
+};
+
 #define CHANNEL_STATUS_SIZE   24
 
 struct aud_info_s {
@@ -609,6 +618,7 @@ struct rx_s {
 	struct aud_info_s aud_info;
 	struct vsi_info_s vs_info_details;
 	struct tvin_hdr_info_s hdr_info;
+	struct vtem_info_s vtem_info;
 	unsigned char edid_mix_buf[EDID_MIX_MAX_SIZE];
 	unsigned int pwr_sts;
 	/* for debug */
@@ -619,6 +629,7 @@ struct rx_s {
 	enum edid_ver_e edid_ver;
 	bool arc_5vsts;
 	u32 vsync_cnt;
+	bool vrr_en;
 #ifdef CONFIG_AMLOGIC_HDMITX
 	struct notifier_block tx_notify;
 #endif

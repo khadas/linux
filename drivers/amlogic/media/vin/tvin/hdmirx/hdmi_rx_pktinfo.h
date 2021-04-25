@@ -27,6 +27,7 @@
 #define VSIF_TYPE_HDMI14	8
 
 #define EMP_TYPE_VSIF		1
+#define EMP_TYPE_VTEM		2
 
 enum vsi_state_e {
 	E_VSI_NULL,
