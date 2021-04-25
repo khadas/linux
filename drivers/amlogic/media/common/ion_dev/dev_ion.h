@@ -27,8 +27,10 @@ struct ion_cma_heap {
 	struct cma *cma;
 
 	bool is_added;
-	int max_can_alloc_size;
-	int alloced_size;
+	unsigned long max_can_alloc_size;
+	unsigned long alloced_size;
+	/* protect size account */
+	struct mutex mutex;
 };
 
 struct meson_phys_data {
