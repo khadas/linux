@@ -674,7 +674,20 @@ static void meson_plane_cleanup_fb(struct drm_plane *plane,
 static void meson_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
-	DRM_DEBUG("plane atomic_update.\n");
+	DRM_DEBUG("osd plane atomic_update.\n");
+}
+
+static void meson_video_plane_atomic_update(struct drm_plane *plane,
+				      struct drm_plane_state *old_state)
+{
+	struct am_video_plane *video_plane = to_am_video_plane(plane);
+	struct drm_crtc *crtc = plane->state->crtc;
+	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
+	struct meson_vpu_pipeline *pipeline = amcrtc->pipeline;
+	struct drm_atomic_state *old_atomic_state = old_state->state;
+
+	DRM_DEBUG("video plane atomic_update.\n");
+	vpu_video_plane_update(pipeline, old_atomic_state, video_plane->plane_index);
 }
 
 static int meson_plane_atomic_check(struct drm_plane *plane,
@@ -924,7 +937,7 @@ static const struct drm_plane_helper_funcs am_osd_helper_funcs = {
 static const struct drm_plane_helper_funcs am_video_helper_funcs = {
 	.prepare_fb = meson_plane_prepare_fb,
 	.cleanup_fb = meson_plane_cleanup_fb,
-	.atomic_update	= meson_plane_atomic_update,
+	.atomic_update	= meson_video_plane_atomic_update,
 	.atomic_check	= meson_video_plane_atomic_check,
 	.atomic_disable	= meson_video_plane_atomic_disable,
 };
