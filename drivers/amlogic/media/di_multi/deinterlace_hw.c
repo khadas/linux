@@ -957,6 +957,7 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	 * the bit define is not same with before ,
 	 * from sc2 DI_PRE_CTRL 0x1700,
 	 * bit5/6/8/9/10/11/12
+	 * bit21/22 chan2 t/b reverse,check with vlsi feijun
 	 */
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
@@ -1003,6 +1004,8 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 					    (pre_vdin_link << 13)	   |
 					/* pre go line link */
 					    (pre_vdin_link << 14)	   |
+					    (1 << 21)	| /*chan2 t/b reverse*/
+					    (1 << 22)	|
 					    (0 << 25)   |
 					    /* contrd en */
 					    ((mem_bypass ? 1 : 0) << 28)   |
