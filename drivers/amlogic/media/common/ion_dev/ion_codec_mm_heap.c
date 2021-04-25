@@ -30,7 +30,7 @@ static phys_addr_t ion_codec_mm_allocate(struct ion_heap *heap,
 	unsigned long allocflags = CODEC_MM_FLAGS_DMA;
 
 	if (codec_heap->alloced_size + size > codec_heap->max_can_alloc_size)
-		pr_debug("%s failed out size %ld,alloced %d\n",
+		pr_debug("%s failed out size %lu,alloced %lu\n",
 			 __func__,
 			 size,
 			 codec_heap->alloced_size);
@@ -47,7 +47,9 @@ static phys_addr_t ion_codec_mm_allocate(struct ion_heap *heap,
 		pr_err("%s failed out size %d\n", __func__, (int)size);
 		return ION_CODEC_MM_ALLOCATE_FAIL;
 	}
+	mutex_lock(&codec_heap->mutex);
 	codec_heap->alloced_size += size;
+	mutex_unlock(&codec_heap->mutex);
 	return offset;
 }
 
@@ -60,8 +62,10 @@ static void ion_codec_mm_free(struct ion_heap *heap,
 
 	if (addr == ION_CODEC_MM_ALLOCATE_FAIL)
 		return;
-	codec_mm_free_for_dma(CODEC_MM_ION, addr);
-	codec_heap->alloced_size -= size;
+	mutex_lock(&codec_heap->mutex);
+	if (!codec_mm_free_for_dma(CODEC_MM_ION, addr))
+		codec_heap->alloced_size -= size;
+	mutex_unlock(&codec_heap->mutex);
 }
 
 static int ion_codec_mm_heap_allocate(struct ion_heap *heap,

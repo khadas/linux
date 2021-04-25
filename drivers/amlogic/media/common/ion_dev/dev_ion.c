@@ -163,6 +163,7 @@ static int meson_ion_add_heap(struct cma *cma, void *data)
 			heap->is_added = true;
 
 		heap->cma = cma;
+		mutex_init(&heap->mutex);
 		heaps[num_heaps++] = heap;
 		*cma_nr = num_heaps;
 	}
