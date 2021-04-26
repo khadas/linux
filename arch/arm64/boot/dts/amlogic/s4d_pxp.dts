@@ -1484,7 +1484,7 @@
 };
 
 &amhdmitx {
-	status = "disabled";
+	status = "okay";
 };
 
 &vpu {
