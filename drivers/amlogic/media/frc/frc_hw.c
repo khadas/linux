@@ -36,6 +36,7 @@
 #include "frc_drv.h"
 #include "frc_reg.h"
 #include "frc_hw.h"
+#include "frc_regs_table.h"
 
 void __iomem *frc_clk_base;
 void __iomem *vpu_base;
@@ -654,9 +655,9 @@ void frc_inp_init(u32 frc_fb_num, u32 film_hwfw_sel)
 	WRITE_FRC_BITS(FRC_FRAME_BUFFER_NUM             ,frc_fb_num    ,0 ,5 );//set   frc_fb_num
 	WRITE_FRC_BITS(FRC_FRAME_BUFFER_NUM             ,frc_fb_num    ,8 ,5 );//set   frc_fb_num
 	WRITE_FRC_BITS(FRC_MC_PRB_CTRL1                 ,1             ,8 ,1 );//close reg_mc_probe_en
-	WRITE_FRC_BITS(FRC_REG_INP_MODULE_EN            ,0             ,5 ,1 );//close reg_inp_logo_en
-	//WRITE_FRC_BITS(FRC_REG_INP_MODULE_EN            ,0             ,6 ,1 );//close reg_menr_en
-	WRITE_FRC_BITS(FRC_REG_INP_MODULE_EN            ,1             ,8, 1 );//open  reg_inp_logo_en
+	WRITE_FRC_BITS(FRC_REG_INP_MODULE_EN, 1, 5, 1);//close reg_inp_logo_en
+	WRITE_FRC_BITS(FRC_REG_INP_MODULE_EN, 1, 8, 1);//open
+	WRITE_FRC_BITS(FRC_REG_INP_MODULE_EN, 1, 7, 1);//open  bbd en
 	WRITE_FRC_BITS(FRC_REG_TOP_CTRL25               ,0x4080200     ,0 ,31);//aligned padding value
 	WRITE_FRC_BITS(FRC_REG_FILM_PHS_1               ,film_hwfw_sel ,16,1 );
 
@@ -1903,6 +1904,18 @@ void frc_dump_reg_tab(void)
 	}
 }
 
+/*request from xianjun, dump fixed table reg*/
+void frc_dump_fixed_table(void)
+{
+	int i;
+	unsigned int value;
+
+	for (i = 0; i < REG_NUM; i++) {
+		value = READ_FRC_REG(regs_table[i].addr);
+		pr_frc(0, "0x%04x, 0x%08x\n", regs_table[i].addr, value);
+	}
+}
+
 /*
  * driver probe call
  */
@@ -1924,6 +1937,17 @@ void frc_internal_initial(void)
 		0, 0, 0, 0
 	};
 
+	int glb_pos_hi_y_th[22] = {
+		16, 32, 48, 64, 80, 96, 160, 192,
+		320, 384, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0
+	};
+
+	for (i = 0; i < REG_NUM; i++)
+		WRITE_FRC_REG(regs_table[i].addr, regs_table[i].value);
+
+	pr_frc(0, "regs_table[%d] init done\n", REG_NUM);
+	return;
 	//frc_test_pattern_cfg(1);
 	//WRITE_FRC_REG(FRC_AUTO_RST_SEL, 0);
 	//internal test pattern speeder
@@ -2396,6 +2420,159 @@ void frc_internal_initial(void)
 	//prm_hme->reg_smob_rule0_mv_max_similar_th =  16
 	WRITE_FRC_BITS(FRC_MEPP_SMOB_R0_TH, 12/*me->reg_smob_rule0_mv_min_similar_th*/, 8, 8);
 	WRITE_FRC_BITS(FRC_MEPP_SMOB_R0_TH, 16/*me->reg_smob_rule0_mv_max_similar_th*/, 0, 8);
+
+	/*20210425 new add from JT*/
+	WRITE_FRC_BITS(FRC_ME_OBME_MASK_TH,
+		180/*prm_me->reg_obme_mask_mode0_th*/, 24, 8);
+	WRITE_FRC_BITS(FRC_ME_OBME_MASK_TH,
+		32/*prm_me->reg_obme_mask_mode1_th*/, 16, 8);
+	WRITE_FRC_BITS(FRC_ME_OBME_MASK_TH,
+		15/*prm_me->reg_obme_mask_mode2_th*/, 8, 8);
+
+	WRITE_FRC_BITS(FRC_ME_OBME_MASK_RAT,
+		15/*prm_me->reg_obme_mask_xside_thrd*/, 0, 8);
+
+	WRITE_FRC_BITS(FRC_ME_E2E_CHK_EN,
+		0/*prm_me->reg_me_1p2p_nokp*/, 30, 1);
+	WRITE_FRC_BITS(FRC_ME_E2E_CHK_EN,
+		1/*prm_me->reg_me_1p2p_updt*/, 29, 1);
+	WRITE_FRC_BITS(FRC_ME_E2E_CHK_EN,
+		1/*prm_me->reg_me_2p2p_updt*/, 28, 1);
+
+	WRITE_FRC_BITS(FRC_ME_E2E_CHK_EN,
+		30/*prm_me->reg_me_bv_sad_ratio*/, 0, 8);
+
+	WRITE_FRC_BITS(FRC_ME_FS_SRC_1,
+		20/*prm_me->reg_me_fs_src_smooth_gain0*/, 8, 8);
+	WRITE_FRC_BITS(FRC_ME_FS_SRC_1,
+		4/*prm_me->reg_me_fs_src_smooth_thn*/, 4, 4);
+
+	WRITE_FRC_BITS(FRC_ME_FS_SRC_2,
+		1/*prm_me->reg_me_fs_src_smooth_en_2*/, 22, 1);
+	WRITE_FRC_BITS(FRC_ME_FS_SRC_2,
+		1/*prm_me->reg_me_fs_src_smooth_en_1*/, 21, 1);
+
+	WRITE_FRC_BITS(FRC_ME_P0_EN_0,
+		0/*prm_me->reg_me_periodic0_en_0*/, 31, 1);
+	WRITE_FRC_BITS(FRC_ME_P0_EN_1,
+		0/*prm_me->reg_me_periodic0_en_1*/, 31, 1);
+	WRITE_FRC_BITS(FRC_ME_P0_EN_2,
+		0/*prm_me->reg_me_periodic0_en_2*/, 31, 1);
+
+	WRITE_FRC_BITS(FRC_MEPP_SMOB_EN,
+		1/*prm_me->reg_smob_en*/, 31, 1);
+	WRITE_FRC_BITS(FRC_MEPP_SMOB_EN,
+		0/*prm_me->reg_me_pp_mvsft*/, 26, 2);
+
+	WRITE_FRC_BITS(FRC_ME_REGION_RP_PENALTY,
+		2/*prm_me->reg_region_rp_gmvdiff_th0*/, 20, 4);
+	WRITE_FRC_BITS(FRC_ME_REGION_RP_PENALTY,
+		3/*prm_me->reg_region_rp_gmvdiff_th0*/, 16, 4);
+	WRITE_FRC_BITS(FRC_ME_REGION_RP_PENALTY,
+		40/*prm_me->reg_region_rp_penalty_max*/, 0, 8);
+
+	WRITE_FRC_BITS(FRC_ME_RP_PENALTY_GAIN,
+		1/*prm_me->reg_penalty_rp_mvdiff_en_2*/, 30, 1);
+	WRITE_FRC_BITS(FRC_ME_RP_PENALTY_GAIN,
+		1/*prm_me->reg_penalty_rp_mvdiff_en_1*/, 29, 1);
+	WRITE_FRC_BITS(FRC_ME_RP_PENALTY_GAIN,
+		4/*prm_me->reg_me_rp_mvdiff_th0*/, 20, 8);
+	WRITE_FRC_BITS(FRC_ME_RP_PENALTY_GAIN,
+		5/*prm_me->reg_me_rp_mvdiff_thn*/, 16, 4);
+	WRITE_FRC_BITS(FRC_ME_RP_PENALTY_GAIN,
+		1/*prm_me->reg_me_rp_penalty_gain0*/, 8, 8);
+	WRITE_FRC_BITS(FRC_ME_RP_PENALTY_GAIN,
+		1/*prm_me->reg_me_rp_penalty_gain1*/, 0, 8);
+
+	WRITE_FRC_BITS(FRC_ME_PERIODIC2_S1,
+		1/*prm_me->reg_me_periodic2_chk_low_sad_cnt_en*/, 29, 1);
+	WRITE_FRC_BITS(FRC_ME_PERIODIC2_S1,
+		1/*prm_me->reg_me_periodic2_low_sad_th*/, 20, 8);
+	WRITE_FRC_BITS(FRC_ME_PERIODIC2_S1,
+		3/*prm_me->reg_me_periodic2_similar_nearby_mv_th*/, 4, 4);
+
+	WRITE_FRC_BITS(FRC_ME_PERIODIC2_S2,
+		1/*prm_me->reg_me_periodic2_bv0_low_sad_cnt_th*/, 24, 4);
+	WRITE_FRC_BITS(FRC_ME_PERIODIC2_S2,
+		180/*prm_me->reg_me_periodic2_differ_sad_th*/, 12, 12);
+	WRITE_FRC_BITS(FRC_ME_PERIODIC2_S2,
+		30/*prm_me->reg_me_periodic2_high_sad_th*/, 0, 12);
+
+	WRITE_FRC_BITS(FRC_ME_PERIODIC3_S1,
+		1/*prm_me->reg_me_periodic3_mvdiff_th_mode*/, 28, 1);
+	WRITE_FRC_BITS(FRC_ME_PERIODIC3_S1,
+		48/*prm_me->reg_me_periodic3_high_sad_th*/, 4, 12);
+
+	WRITE_FRC_BITS(FRC_ME_PERIODIC3_S2,
+		100/*prm_me->reg_me_periodic3_mvdiff_th_min*/, 22, 10);
+	WRITE_FRC_BITS(FRC_ME_PERIODIC3_S2,
+		200/*prm_me->reg_me_periodic3_mvdiff_th_max*/, 12, 10);
+
+	WRITE_FRC_BITS(FRC_ME_PERIODIC3_S3,
+		1/*prm_me->reg_me_periodic3_gmv_invalid*/, 9, 1);
+	WRITE_FRC_BITS(FRC_ME_PERIODIC3_S3,
+		9/*prm_me->reg_me_periodic3_differ_gmv_th*/, 1, 8);
+
+	WRITE_FRC_BITS(FRC_ME_STAT_ACT_TH,
+		0/*prm_me->reg_me_glb_act_dtl_th*/, 0, 10);
+
+	for (i = 0; i < 22; i++)
+		WRITE_FRC_BITS(FRC_ME_STAT_POS_HI_TH_0 + i, glb_pos_hi_y_th[i], 0, 11);
+
+	WRITE_FRC_BITS(FRC_ME_STAT_T_CONSIS_TH,
+		0/*prm_me->reg_me_glb_t_consis_coring_th*/, 16, 10);
+	WRITE_FRC_BITS(FRC_ME_STAT_RGN_SAD,
+		2/*prm_me->reg_me_region_sad_coring_th*/, 0, 13);
+
+	for (i = 0; i < 12; i++)
+		WRITE_FRC_BITS(FRC_ME_RO_REGION_RP_GMV_0 + i, 0, 29, 1);
+
+	/*prm->hme*/
+	WRITE_FRC_BITS(FRC_ME_RPD_EN - HME_ME_OFFSET,
+		1/*prm_hme->reg_me_rpd_cn_en*/, 31, 1);
+	WRITE_FRC_BITS(FRC_ME_RPD_EN - HME_ME_OFFSET,
+		1/*prm_hme->reg_me_rpd_nc_en*/, 30, 1);
+
+	WRITE_FRC_BITS(FRC_ME_RPD_T1_FLAT - HME_ME_OFFSET,
+		600/*prm_hme->reg_me_rpd_t1_flat_th0*/, 16, 12);
+	WRITE_FRC_BITS(FRC_ME_RPD_T2_FLAT - HME_ME_OFFSET,
+		600/*prm_hme->reg_me_rpd_t2_flat_th0*/, 20, 12);
+	WRITE_FRC_BITS(FRC_ME_RPD_T2_FLAT - HME_ME_OFFSET,
+		400/*prm_hme->reg_me_rpd_t2_flat_th2*/, 0, 12);
+	WRITE_FRC_BITS(FRC_ME_RPD_T3_FLAT - HME_ME_OFFSET,
+		500/*prm_hme->reg_me_rpd_t2_flat_th0*/, 0, 12);
+	WRITE_FRC_BITS(FRC_ME_RPD_AUTO_FLAT - HME_ME_OFFSET,
+		600/*prm_hme->reg_me_rpd_auto_flat_th0*/, 16, 12);
+
+	WRITE_FRC_BITS(FRC_ME_CAD_PRJ_EN - HME_ME_OFFSET,
+		1/*prm_hme->reg_me_add_prj_en*/, 18, 1);
+
+	WRITE_FRC_BITS(FRC_ME_SAD_ACDC_REG1_0 - HME_ME_OFFSET,
+		278/*prm_hme->reg_acdc_sel_sadac_thrd_0*/, 0, 13);
+	WRITE_FRC_BITS(FRC_ME_SAD_ACDC_REG1_1 - HME_ME_OFFSET,
+		278/*prm_hme->reg_acdc_sel_sadac_thrd_1*/, 0, 13);
+	WRITE_FRC_BITS(FRC_ME_SAD_ACDC_REG1_2 - HME_ME_OFFSET,
+		278/*prm_hme->reg_acdc_sel_sadac_thrd_2*/, 0, 13);
+
+	WRITE_FRC_BITS(FRC_ME_E2E_CHK_EN - HME_ME_OFFSET,
+		1/*prm_hme->reg_me_bv_e2e_ref_en*/, 24, 1);
+	WRITE_FRC_BITS(FRC_MEPP_SMOB_R0_TH - HME_ME_OFFSET,
+		16/*prm_hme->reg_smob_rule0_mv_min_diff_th*/, 24, 8);
+	WRITE_FRC_BITS(FRC_MEPP_SMOB_R0_TH - HME_ME_OFFSET,
+		32/*prm_hme->reg_smob_rule0_mv_max_diff_th*/, 16, 8);
+	WRITE_FRC_BITS(FRC_MEPP_SMOB_R0_TH - HME_ME_OFFSET,
+		12/*prm_hme->reg_smob_rule0_mv_min_similar_th*/, 8, 8);
+	WRITE_FRC_BITS(FRC_MEPP_SMOB_R0_TH - HME_ME_OFFSET,
+		16/*prm_hme->reg_smob_rule0_mv_max_similar_th*/, 0, 8);
+
+	WRITE_FRC_BITS(FRC_MELOGO_SMV_HPAN_XY_THD,
+		1/*prm_hme->reg_melogo_smv_pc_enable*/, 29, 1);
+	WRITE_FRC_BITS(FRC_MELOGO_SMV_HPAN_XY_THD,
+		1/*prm_hme->reg_melogo_smv_cp_enable*/, 28, 1);
+	WRITE_FRC_BITS(FRC_MELOGO_BMV_XY_THD,
+		250/*prm_hme->reg_melogo_smv_cp_enable*/, 24, 8);
+
+	/*20210425 new add from JT end*/
 
 	//prm_vp->reg_vp_mvx_div_mode = 2
 	//prm_vp->reg_vp_mvy_div_mode = 2

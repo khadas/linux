@@ -206,6 +206,8 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 		frc_pattern_on(devp->frc_test_ptn);
 	} else if (!strcmp(parm[0], "dump_init_reg")) {
 		frc_dump_reg_tab();
+	} else if (!strcmp(parm[0], "dump_fixed_reg")) {
+		frc_dump_fixed_table();
 	} else if (!strcmp(parm[0], "dump_buf_reg")) {
 		frc_dump_buf_reg();
 	} else if (!strcmp(parm[0], "dump_data")) {
@@ -219,7 +221,7 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			devp->frc_hw_pos = (u32)val1;
 		frc_init_config(devp);
 		pr_frc(0, "frc_hw_pos:0x%x (0:before 1:after)\n", devp->frc_hw_pos);
-	} else if (!strcmp(parm[0], "frc_pos")) {
+	} else if (!strcmp(parm[0], "frc_pause")) {
 		if (kstrtol(parm[1], 10, &val1) == 0)
 			devp->frc_fw_pause = (u32)val1;
 	} else if (!strcmp(parm[0], "monitor_ireg")) {
