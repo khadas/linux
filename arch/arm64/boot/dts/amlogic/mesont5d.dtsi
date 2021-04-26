@@ -526,7 +526,6 @@
 		/** phy-interface: 0x0: amlogic-v1 phy, 0x1: synopsys phy **/
 		/**                0x2: amlogic-v2 phy                    **/
 		phy-interface = <0x2>;
-		phy-otg	= <0x1>;
 		clocks = <&clkc CLKID_USB_GENERAL
 					&clkc CLKID_USB1_TO_DDR>;
 		clock-names = "usb_general",
