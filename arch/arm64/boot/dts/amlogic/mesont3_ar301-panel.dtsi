@@ -9,7 +9,7 @@
 		status = "okay";
 		index = <0>;
 		mode = "tv";
-		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
+		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <1>;
 		clocks = <&clkc CLKID_SYS_CLK_TCON
 				&clkc CLKID_FCLK_DIV5
@@ -35,6 +35,7 @@
 		pinctrl-5 = <&lcd_tcon_mlvds_pins>;
 		pinctrl-6 = <&lcd_tcon_mlvds_off_pins>;
 		pinctrl_version = <2>; /* for uboot */
+		memory-region = <&lcd_tcon_reserved>;
 
 		/* power type:(0=cpu_gpio, 2=signal, 3=extern, 0xff=ending) */
 		/* power index:(gpios_index, or extern_index, 0xff=invalid) */
@@ -516,7 +517,7 @@
 		status = "okay";
 		index = <1>;
 		mode = "tablet";
-		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
+		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
 		reg = <0x0 0xfe3b0000 0x0 0xd000    /* tcon */
 			0x0 0xfe004000 0x0 0x70>;  /* periphs */
