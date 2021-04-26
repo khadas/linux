@@ -44,7 +44,7 @@
 #include "videotunnel.h"
 
 #define DEVICE_NAME "videotunnel"
-#define MAX_VIDEO_INSTANCE_NUM 16
+#define MAX_VIDEO_TUNNEL_ID 64
 #define VT_CMD_FIFO_SIZE 128
 
 static struct vt_dev *vdev;
@@ -221,12 +221,20 @@ static void vt_instance_destroy(struct kref *kref)
 	struct vt_dev *dev = instance->dev;
 	struct vt_buffer *buffer = NULL;
 	struct vt_cmd *vcmd = NULL;
+	int i;
 
 	mutex_lock(&debugfs_mutex);
 	mutex_lock(&dev->instance_lock);
 	rb_erase(&instance->node, &dev->instances);
 	if (idr_find(&dev->instance_idr, instance->id))
 		idr_remove(&dev->instance_idr, instance->id);
+
+	/* remove the null ptr idr instance */
+	for (i = 0; i < instance->id; i++) {
+		/* remove the NULL pointer ID */
+		if (!idr_find(&dev->instance_idr, i))
+			idr_remove(&dev->instance_idr, i);
+	}
 
 	list_del(&instance->entry);
 	vt_debug(VT_DEBUG_USER, "vt [%d] destroy\n", instance->id);
@@ -285,7 +293,7 @@ static int vt_instance_put(struct vt_instance *instance)
 	return kref_put(&instance->ref, vt_instance_destroy);
 }
 
-static struct vt_instance *vt_instance_create(struct vt_dev *dev)
+static struct vt_instance *vt_instance_create_lock(struct vt_dev *dev)
 {
 	struct vt_instance *instance;
 	struct vt_instance *entry;
@@ -329,7 +337,6 @@ static struct vt_instance *vt_instance_create(struct vt_dev *dev)
 		instance->vt_buffers[i].item.buffer_status = VT_BUFFER_FREE;
 
 	/* insert it to dev instances rb tree */
-	mutex_lock(&dev->instance_lock);
 	p = &dev->instances.rb_node;
 	while (*p) {
 		parent = *p;
@@ -344,7 +351,6 @@ static struct vt_instance *vt_instance_create(struct vt_dev *dev)
 	}
 	rb_link_node(&instance->node, parent, p);
 	rb_insert_color(&instance->node, &dev->instances);
-	mutex_unlock(&dev->instance_lock);
 
 	return instance;
 
@@ -581,14 +587,9 @@ static int vt_instance_trim(struct vt_session *session)
 void vt_session_destroy(struct vt_session *session)
 {
 	struct vt_dev *dev = session->dev;
-	struct vt_instance *instance = NULL, *tmp = NULL;
 
 	vt_debug(VT_DEBUG_USER, "vt session %s destroy\n",
 		 session->display_name);
-
-	/* videotunnel instances cleanup */
-	list_for_each_entry_safe(instance, tmp, &session->instances_head, entry)
-		vt_instance_put(instance);
 
 	/* release dev session rb tree node */
 	down_write(&dev->session_lock);
@@ -646,36 +647,66 @@ static long vt_get_connected_id(void)
 static int vt_alloc_id_process(struct vt_alloc_id_data *data,
 			       struct vt_session *session)
 {
+	int i;
 	int ret = 0;
 	char name[64];
 	struct vt_dev *dev = session->dev;
-	struct vt_instance *instance = vt_instance_create(session->dev);
-
-	if (IS_ERR(instance))
-		return PTR_ERR(instance);
+	struct vt_instance *instance =  NULL;
+	struct rb_node *n = NULL;
 
 	mutex_lock(&dev->instance_lock);
-	ret = idr_alloc(&dev->instance_idr, instance, 0, 0, GFP_KERNEL);
-	instance->id = ret;
-	mutex_unlock(&dev->instance_lock);
+	/* find an unused vt instance */
+	for (n = rb_first(&dev->instances); n; n = rb_next(n)) {
+		instance = rb_entry(n, struct vt_instance, node);
+		mutex_lock(&instance->lock);
+		if (!instance->consumer && !instance->producer) {
+			data->tunnel_id = instance->id;
+			vt_debug(VT_DEBUG_USER, "vt alloc find instance [%d], ref %d\n",
+				 instance->id,
+				 atomic_read(&instance->ref.refcount.refs));
+			mutex_unlock(&instance->lock);
+			mutex_unlock(&dev->instance_lock);
+			return 0;
+		}
+		mutex_unlock(&instance->lock);
+	}
+
+	/* not find, create one */
+	instance = vt_instance_create_lock(session->dev);
+	if (IS_ERR(instance)) {
+		mutex_unlock(&dev->instance_lock);
+		return PTR_ERR(instance);
+	}
+
+	for (i = 0; i < MAX_VIDEO_TUNNEL_ID; i++) {
+		/* remove the NULL pointer ID */
+		if (!idr_find(&dev->instance_idr, i))
+			idr_remove(&dev->instance_idr, i);
+	}
+	ret = idr_alloc(&dev->instance_idr, instance, 0, MAX_VIDEO_TUNNEL_ID, GFP_KERNEL);
+	/* allocate ID failed */
 	if (ret < 0) {
+		mutex_unlock(&dev->instance_lock);
+		vt_debug(VT_DEBUG_USER, "vt alloc instance [%d] idr alloc failed ret %d\n",
+			instance->id, ret);
 		vt_instance_put(instance);
 		return ret;
 	}
 
+	instance->id = ret;
 	snprintf(name, 64, "instance-%d", instance->id);
 	instance->debug_root =
 		debugfs_create_file(name, 0664, dev->debug_root,
 				    instance, &debug_instance_fops);
-
 	list_add_tail(&session->instances_head, &instance->entry);
-
 	data->tunnel_id = instance->id;
+	mutex_unlock(&dev->instance_lock);
+
 	vt_debug(VT_DEBUG_USER, "vt alloc instance [%d], ref %d\n",
 		 instance->id,
 		 atomic_read(&instance->ref.refcount.refs));
 
-	return ret;
+	return 0;
 }
 
 static int vt_free_id_process(struct vt_alloc_id_data *data,
@@ -713,29 +744,31 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 	int ret = 0;
 	char name[64];
 
+	mutex_lock(&dev->instance_lock);
 	instance = idr_find(&dev->instance_idr, id);
 	if (!instance) {
 		while ((ret = idr_alloc(&dev->instance_idr,
 					NULL, 0,
-					MAX_VIDEO_TUNNEL, GFP_KERNEL))
+					MAX_VIDEO_TUNNEL_ID, GFP_KERNEL))
 				<= id) {
 			if (ret == id)
 				break;
-			else if (ret < 0)
+			else if (ret < 0) {
+				mutex_unlock(&dev->instance_lock);
 				return ret;
-			vt_debug(VT_DEBUG_USER,
-				 "connect alloc instance id:%d\n", ret);
+			}
 		}
 
-		instance = vt_instance_create(dev);
-		if (IS_ERR(instance))
+		instance = vt_instance_create_lock(dev);
+		if (IS_ERR(instance)) {
+			mutex_unlock(&dev->instance_lock);
 			return PTR_ERR(instance);
+		}
 
-		mutex_lock(&dev->instance_lock);
 		replace = idr_replace(&dev->instance_idr, instance, id);
-		mutex_unlock(&dev->instance_lock);
 
 		if (IS_ERR(replace)) {
+			mutex_unlock(&dev->instance_lock);
 			vt_instance_put(instance);
 			return PTR_ERR(replace);
 		}
@@ -753,6 +786,7 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 	} else {
 		vt_instance_get(instance);
 	}
+	mutex_unlock(&dev->instance_lock);
 
 	mutex_lock(&instance->lock);
 	if (data->role == VT_ROLE_PRODUCER) {
@@ -786,7 +820,7 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 		 atomic_read(&instance->ref.refcount.refs));
 	mutex_unlock(&instance->lock);
 
-	return ret;
+	return 0;
 }
 
 static int vt_disconnect_process(struct vt_ctrl_data *data,
@@ -928,7 +962,7 @@ static int vt_ctrl_process(struct vt_ctrl_data *data,
 	int id = data->tunnel_id;
 	int ret = 0;
 
-	if (id < 0 || id > MAX_VIDEO_INSTANCE_NUM)
+	if (id < 0 || id > MAX_VIDEO_TUNNEL_ID)
 		return -EINVAL;
 	if (data->role == VT_ROLE_INVALID)
 		return -EINVAL;
