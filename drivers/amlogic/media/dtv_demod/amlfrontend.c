@@ -5429,6 +5429,7 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 			struct dtv_property *tvp)
 {
+	char v;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
@@ -5437,6 +5438,13 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 	switch (tvp->cmd) {
 	case DTV_DELIVERY_SYSTEM:
 		tvp->u.data = demod->last_delsys;
+		if (demod->last_delsys == SYS_DVBS || demod->last_delsys == SYS_DVBS2) {
+			v = dvbs_rd_byte(0x932) & 0x60;//bit5.6
+			if (v == 0x40)//bit6=1.bit5=0 means S2
+				tvp->u.data = SYS_DVBS2;
+			else if (v == 0x60)//bit6=1.bit5=1 means S
+				tvp->u.data = SYS_DVBS;
+		}
 		PR_INFO("[id %d] get delivery system : %d\n", demod->id, tvp->u.data);
 		break;
 
