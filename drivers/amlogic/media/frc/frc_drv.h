@@ -24,7 +24,7 @@
 #include "frc_common.h"
 #include "frc_interface.h"
 
-#define FRC_FW_VER			"t3 driver bringup 2021-0426, add init frc setting"
+#define FRC_FW_VER			"t3 driver bringup 2021-0427 fix 4k flashing issue"
 
 #define PR_ERR(fmt, args ...)		pr_info("frc_Err: " fmt, ##args)
 #define PR_FRC(fmt, args ...)		pr_info("frc: " fmt, ##args)
@@ -179,6 +179,8 @@ struct st_frc_in_sts {
 	u32 in_vsize;
 	u32 signal_type;
 	u32 source_type;	/*enum vframe_source_type_e*/
+	struct vframe_s *vf;
+	u32 vf_repeat_cnt;
 
 	u32 vs_cnt;
 	u32 vs_tsk_cnt;
@@ -243,8 +245,8 @@ struct frc_dev_s {
 	u32 dbg_in_reg[MONITOR_REG_MAX];
 	u32 dbg_reg_monitor_o;
 	u32 dbg_out_reg[MONITOR_REG_MAX];
-	char *dbg_buf;
 	u32 dbg_buf_len;
+	u32 dbg_vf_monitor;
 
 	u32 loss_en;
 	u32 loss_ratio;

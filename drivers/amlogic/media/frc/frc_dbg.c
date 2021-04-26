@@ -74,7 +74,6 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "vout out_framerate:%d\n", devp->out_sts.out_framerate);
 	pr_frc(0, "mem_alloced:%d size:0x%x\n", devp->buf.cma_mem_alloced,
 	       devp->buf.cma_mem_size);
-
 	pr_frc(0, "vpu int vs_duration:%d timestamp:%ld\n",
 	       devp->vs_duration, (ulong)devp->vs_timestamp);
 	pr_frc(0, "frc in vs_duration:%d timestamp:%ld\n",
@@ -85,8 +84,8 @@ void frc_status(struct frc_dev_s *devp)
 		devp->in_sts.vs_cnt, devp->in_sts.vs_tsk_cnt);
 	pr_frc(0, "int out vs_cnt:%d, vs_tsk_cnt:%d\n",
 		devp->out_sts.vs_cnt, devp->out_sts.vs_tsk_cnt);
-	pr_frc(0, "frc_st vs_cnt:%d\n", devp->frc_sts.vs_cnt);
-
+	pr_frc(0, "frc_st vs_cnt:%d vf_repeat_cnt:%d\n", devp->frc_sts.vs_cnt,
+		devp->in_sts.vf_repeat_cnt);
 	pr_frc(0, "loss_en = %d\n", devp->loss_en);
 	pr_frc(0, "loss_ratio = %d\n", devp->loss_ratio);
 	pr_frc(0, "frc_prot_mode = %d\n", devp->prot_mode);
@@ -132,8 +131,11 @@ ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf)
 	len += sprintf(buf + len, "dump_buf_reg\t: dump buffer register\n");
 	len += sprintf(buf + len, "dump_data addr size\t: dump cma buf data\n");
 	len += sprintf(buf + len, "frc_pos 0,1\t: 0:before postblend; 1:after postblend\n");
+	len += sprintf(buf + len, "frc_pause 0/1 \t: 0: fw work 1:fw not work\n");
 	len += sprintf(buf + len, "monitor_ireg idx reg_addr\t: monitor frc register (max 6)\n");
 	len += sprintf(buf + len, "monitor_oreg idx reg_addr\t: monitor frc register (max 6)\n");
+	len += sprintf(buf + len, "monitor_dump\n");
+	len += sprintf(buf + len, "monitor_vf\t: monitor current vf\n");
 	len += sprintf(buf + len, "crc_read 0/1\t: 0: disable crc read, 1: enable crc read\n");
 	len += sprintf(buf + len, "crc_en 0/1 0/1 0/1 0/1\t: mewr/merd/mcwr/vs_print crc enable\n");
 	len += sprintf(buf + len, "ratio val\t: 0:112 1:213 2:2-5 3:5-6 6:1-1\n");
@@ -189,11 +191,7 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			devp->dbg_input_vsize = (u32)val2;
 	} else if (!strcmp(parm[0], "dbg_ratio")) {
 		if (kstrtol(parm[1], 10, &val1) == 0)
-			devp->dbg_in_out_ratio =
-			((devp->dbg_in_out_ratio & (~0xff00))) | ((val1 << 8) & 0xff00);
-		if (kstrtol(parm[2], 10, &val2) == 0)
-			devp->dbg_in_out_ratio =
-			((devp->dbg_in_out_ratio & (~0xff))) | ((val1 << 8) & 0xff);
+			devp->dbg_in_out_ratio = val1;
 		pr_frc(0, "dbg_in_out_ratio:0x%x\n", devp->dbg_in_out_ratio);
 	} else if (!strcmp(parm[0], "dbg_force")) {
 		if (kstrtol(parm[1], 10, &val1) == 0)
@@ -249,6 +247,11 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			} else {
 				devp->dbg_reg_monitor_o = 0;
 			}
+		}
+	} else if (!strcmp(parm[0], "monitor_vf")) {
+		if (kstrtol(parm[1], 10, &val1) == 0) {
+			devp->dbg_vf_monitor = val1;
+			devp->dbg_buf_len = 0;
 		}
 	} else if (!strcmp(parm[0], "monitor_dump")) {
 		frc_dump_monitor_data(devp);

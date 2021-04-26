@@ -536,6 +536,9 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	u32 memc_frm_dly        ;//total delay
 	u32 reg_mc_dly_vofst1   ;
 	u32 log = 1;
+	u32 frc_v_porch;
+	u32 frc_vporch_cal;
+	u32 frc_porch_delta;
 
 	struct frc_fw_data_s *fw_data;
 	struct frc_top_type_s *frc_top;
@@ -556,7 +559,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 
 	/*!!!!!!!!! tread de, vpu register*/
 	frc_top->vfb = vpu_reg_read(ENCL_VIDEO_VAVON_BLINE);
-	//pr_frc(log, "ENCL_VIDEO_VAVON_BLINE:%d\n", frc_top->vfb);
+	pr_frc(log, "ENCL_VIDEO_VAVON_BLINE:%d\n", frc_top->vfb);
 	reg_mc_out_line = (frc_top->vfb / 4) * 3;// 3/4 point of front vblank
 	reg_me_dly_vofst = reg_mc_out_line;
 
@@ -571,37 +574,48 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	} else if (frc_top->out_hsize == 3840 && frc_top->out_vsize == 2160) {
 		mevp_frm_dly = 260;
 		mc_frm_dly = 28;
-
-		/* MEMC 4K ENCL setting, vlock will change the ENCL_VIDEO_MAX_LNCNT,
-		 * so need dynamic change this register
-		 */
-		u32 frc_v_porch = vpu_reg_read(ENCL_FRC_CTRL);/*0x1cdd*/
-		u32 max_lncnt = vpu_reg_read(ENCL_VIDEO_MAX_LNCNT);/*0x1cbb*/
-		u32 max_pxcnt = vpu_reg_read(ENCL_VIDEO_MAX_PXCNT);/*0x1cb0*/
-
-		pr_frc(1, "frc_v_porch=%d max_lncnt=%d max_pxcnt=%d\n",
-			frc_v_porch, max_lncnt, max_pxcnt);
-		vpu_reg_write(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
-		vpu_reg_write(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));
-		vpu_reg_write(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
-		pr_frc(1, "ENCL_SYNC_TO_LINE_EN=0x%x\n", vpu_reg_read(ENCL_SYNC_TO_LINE_EN));
-		pr_frc(1, "ENCL_SYNC_PIXEL_EN=0x%x\n", vpu_reg_read(ENCL_SYNC_PIXEL_EN));
-		pr_frc(1, "ENCL_SYNC_LINE_LENGTH=0x%x\n", vpu_reg_read(ENCL_SYNC_LINE_LENGTH));
 	} else {
 		mevp_frm_dly = 140;
 		mc_frm_dly   = 10 ;//inp performace issue, need frc_clk >  enc0_clk
 	}
 
 	//memc_frm_dly
-	memc_frm_dly      = reg_me_dly_vofst + me_hold_line + mevp_frm_dly + mc_frm_dly  + mc_hold_line ;//ref_frm_en before max_cnt_line
+	memc_frm_dly      = reg_me_dly_vofst + me_hold_line + mevp_frm_dly +
+				mc_frm_dly  + mc_hold_line ;//ref_frm_en before max_cnt_line
 	reg_mc_dly_vofst1 = memc_frm_dly - mc_frm_dly   - mc_hold_line ;
+	frc_vporch_cal    = memc_frm_dly - reg_mc_out_line;
 
-	vpu_reg_write_bits(ENCL_FRC_CTRL, memc_frm_dly - reg_mc_out_line, 0, 16);
-	//WRITE_FRC_BITS(ENCL_FRC_CTRL, memc_frm_dly - reg_mc_out_line, 0, 16);
-	WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, reg_post_dly_vofst, 0, 16);
-	WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, reg_me_dly_vofst, 16, 16);
-	WRITE_FRC_BITS(FRC_REG_TOP_CTRL15, reg_mc_dly_vofst0, 0, 16);
-	WRITE_FRC_BITS(FRC_REG_TOP_CTRL15, reg_mc_dly_vofst1, 16,  16);
+	if (frc_top->out_hsize > 1920 && frc_top->out_vsize > 1080) {
+		/*
+		 * MEMC 4K ENCL setting, vlock will change the ENCL_VIDEO_MAX_LNCNT,
+		 * so need dynamic change this register
+		 */
+		//u32 frc_v_porch = vpu_reg_read(ENCL_FRC_CTRL);/*0x1cdd*/
+		u32 max_lncnt   = vpu_reg_read(ENCL_VIDEO_MAX_LNCNT);/*0x1cbb*/
+		u32 max_pxcnt   = vpu_reg_read(ENCL_VIDEO_MAX_PXCNT);/*0x1cb0*/
+
+		pr_frc(log, "max_lncnt=%d max_pxcnt=%d\n", max_lncnt, max_pxcnt);
+
+		//max_lncnt - frc_v_porch  < 2047;
+		//set max_lncnt - frc_v_porch = 2000;
+		frc_v_porch     = max_lncnt > 1800 ? max_lncnt - 1800 : frc_vporch_cal;
+		vpu_reg_write(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
+		vpu_reg_write(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
+		vpu_reg_write(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));
+
+		pr_frc(log, "ENCL_SYNC_TO_LINE_EN=0x%x\n", vpu_reg_read(ENCL_SYNC_TO_LINE_EN));
+		pr_frc(log, "ENCL_SYNC_PIXEL_EN=0x%x\n", vpu_reg_read(ENCL_SYNC_PIXEL_EN));
+		pr_frc(log, "ENCL_SYNC_LINE_LENGTH=0x%x\n", vpu_reg_read(ENCL_SYNC_LINE_LENGTH));
+	} else {
+		frc_v_porch = frc_vporch_cal;
+	}
+	frc_porch_delta = frc_v_porch - frc_vporch_cal;
+	pr_frc(log, "frc_v_porch=%d frc_porch_delta=%d\n", frc_v_porch, frc_porch_delta);
+	vpu_reg_write_bits(ENCL_FRC_CTRL, frc_v_porch, 0, 16);
+	WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, (reg_post_dly_vofst + frc_porch_delta), 0, 16);
+	WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, (reg_me_dly_vofst  + frc_porch_delta), 16, 16);
+	WRITE_FRC_BITS(FRC_REG_TOP_CTRL15, (reg_mc_dly_vofst0 + frc_porch_delta), 0, 16);
+	WRITE_FRC_BITS(FRC_REG_TOP_CTRL15, (reg_mc_dly_vofst1 + frc_porch_delta), 16, 16);
 
 	pr_frc(log, "reg_mc_out_line   = %d\n", reg_mc_out_line);
 	pr_frc(log, "me_hold_line      = %d\n", me_hold_line);
@@ -613,8 +627,8 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	pr_frc(log, "frc_ratio_mode = %d\n", frc_top->frc_ratio_mode);
 	pr_frc(log, "frc_fb_num = %d\n", frc_top->frc_fb_num);
 
-	WRITE_FRC_BITS(FRC_OUT_HOLD_CTRL  ,me_hold_line, 0   ,8  );
-	WRITE_FRC_BITS(FRC_OUT_HOLD_CTRL  ,mc_hold_line, 8   ,8  );
+	WRITE_FRC_BITS(FRC_OUT_HOLD_CTRL, me_hold_line, 0, 8);
+	WRITE_FRC_BITS(FRC_OUT_HOLD_CTRL, mc_hold_line, 8, 8);
 
 	WRITE_FRC_BITS(FRC_INP_HOLD_CTRL, inp_hold_line, 0, 13);//default 6
 

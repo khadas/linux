@@ -437,6 +437,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->dbg_input_vsize = vinfo->height;
 	devp->dbg_reg_monitor_i = 0;
 	devp->dbg_reg_monitor_o = 0;
+	devp->dbg_vf_monitor = 0;
 	for (i = 0; i < MONITOR_REG_MAX; i++) {
 		devp->dbg_in_reg[i] = 0;
 		devp->dbg_out_reg[i] = 0;

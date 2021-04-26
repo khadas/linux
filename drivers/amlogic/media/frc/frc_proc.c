@@ -60,13 +60,13 @@ void frc_fw_initial(struct frc_dev_s *devp)
 	devp->in_sts.vs_cnt = 0;
 	devp->in_sts.vs_tsk_cnt = 0;
 	devp->in_sts.vs_timestamp = sched_clock();
+	devp->in_sts.vf_repeat_cnt = 0;
 
 	devp->out_sts.vs_cnt = 0;
 	devp->out_sts.vs_tsk_cnt = 0;
 	devp->out_sts.vs_timestamp = sched_clock();
 
 	devp->frc_sts.vs_cnt = 0;
-
 	devp->vs_timestamp = sched_clock();
 }
 
@@ -109,6 +109,16 @@ void frc_in_reg_monitor(struct frc_dev_s *devp)
 				reg, READ_FRC_REG(reg));
 		}
 	}
+}
+
+void frc_vf_monitor(struct frc_dev_s *devp)
+{
+	if (devp->dbg_buf_len > 300) {
+		devp->dbg_vf_monitor = 0;
+		return;
+	}
+	devp->dbg_buf_len++;
+	pr_info("ivs:%d 0x%lx\n", devp->frc_sts.vs_cnt, (ulong)devp->in_sts.vf);
 }
 
 void frc_out_reg_monitor(struct frc_dev_s *devp)
@@ -234,16 +244,17 @@ const char * const frc_state_ary[] = {
 	"FRC_STATE_BYPASS",
 };
 
-void frc_update_in_sts(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts,
+int frc_update_in_sts(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts,
 				struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts)
 {
 	if (!vf || !cur_video_sts)
-		return;
+		return -1;
 
 	frc_in_sts->vf_type = vf->type;
 	frc_in_sts->duration = vf->duration;
 	frc_in_sts->signal_type = vf->signal_type;
 	frc_in_sts->source_type = vf->source_type;
+	frc_in_sts->vf = vf;
 
 	/* for debug */
 	if (devp->dbg_force_en && devp->dbg_input_hsize && devp->dbg_input_vsize) {
@@ -258,23 +269,29 @@ void frc_update_in_sts(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts,
 			frc_in_sts->in_vsize = cur_video_sts->nnhf_input_h;
 		}
 	}
+
+	return 0;
 }
 
 enum chg_flag frc_in_sts_check(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts)
 {
 	enum chg_flag ret = FRC_CHG_NONE;
-	struct st_frc_in_sts *in_stsp;
 
-	in_stsp = &devp->in_sts;
 	/* check change */
 
 	/*back up*/
-	in_stsp->vf_type = frc_in_sts->vf_type;
-	in_stsp->duration = frc_in_sts->duration;
-	in_stsp->signal_type = frc_in_sts->signal_type;
-	in_stsp->source_type = frc_in_sts->source_type;
-	in_stsp->in_hsize = frc_in_sts->in_hsize;
-	in_stsp->in_vsize = frc_in_sts->in_vsize;
+	devp->in_sts.vf_type = frc_in_sts->vf_type;
+	devp->in_sts.duration = frc_in_sts->duration;
+	devp->in_sts.signal_type = frc_in_sts->signal_type;
+	devp->in_sts.source_type = frc_in_sts->source_type;
+	devp->in_sts.in_hsize = frc_in_sts->in_hsize;
+	devp->in_sts.in_vsize = frc_in_sts->in_vsize;
+	if (devp->in_sts.vf == frc_in_sts->vf)
+		devp->in_sts.vf_repeat_cnt++;
+	devp->in_sts.vf = frc_in_sts->vf;
+
+	if (devp->dbg_vf_monitor)
+		frc_vf_monitor(devp);
 
 	return ret;
 }
@@ -289,6 +306,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	struct st_frc_in_sts cur_in_sts;
 	u32 no_input = 0;
 	enum chg_flag chg;
+	u32 ret;
 
 	if (!devp)
 		return;
@@ -300,7 +318,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	if (devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND)
 		cur_in_sts.vf_sts = 1;
 
-	frc_update_in_sts(devp, &cur_in_sts, vf, cur_video_sts);
+	ret = frc_update_in_sts(devp, &cur_in_sts, vf, cur_video_sts);
 
 	/* check input is change */
 	chg = frc_in_sts_check(devp, &cur_in_sts);

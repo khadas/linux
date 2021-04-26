@@ -24,5 +24,6 @@ void frc_state_handle(struct frc_dev_s *devp);
 void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					struct vpp_frame_par_s *cur_video_sts);
 void frc_dump_monitor_data(struct frc_dev_s *devp);
+void frc_vf_monitor(struct frc_dev_s *devp);
 
 #endif
