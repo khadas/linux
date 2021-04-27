@@ -1678,21 +1678,22 @@ static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 static void lcd_tcon_get_config_work(struct work_struct *work)
 {
 	struct aml_lcd_drv_s *pdrv;
-	int key_init_flag = 0;
+	bool is_init;
 	int i = 0;
 
 	pdrv = container_of(work, struct aml_lcd_drv_s, tcon_config_work);
 
-	key_init_flag = key_unify_get_init_flag();
-	while (key_init_flag == 0) {
+	is_init = lcd_unifykey_init_get();
+	while (!is_init) {
 		if (i++ >= LCD_UNIFYKEY_WAIT_TIMEOUT)
 			break;
 		msleep(LCD_UNIFYKEY_RETRY_INTERVAL);
-		key_init_flag = key_unify_get_init_flag();
+		is_init = lcd_unifykey_init_get();
 	}
-	LCDPR("tcon: key_init_flag=%d, i=%d\n", key_init_flag, i);
-	if (key_init_flag)
+	if (is_init)
 		lcd_tcon_get_config(pdrv);
+	else
+		LCDPR("tcon: key_init_flag=%d, i=%d\n", is_init, i);
 }
 
 /* **********************************
@@ -1819,7 +1820,6 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
 {
 	struct cma *cma;
 	unsigned int mem_size;
-	int key_init_flag = 0;
 	int ret = 0;
 
 	lcd_tcon_conf = NULL;
@@ -1890,8 +1890,7 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
 
 	INIT_WORK(&pdrv->tcon_config_work, lcd_tcon_get_config_work);
 
-	key_init_flag = key_unify_get_init_flag();
-	if (key_init_flag)
+	if (lcd_unifykey_init_get())
 		ret = lcd_tcon_get_config(pdrv);
 	else
 		lcd_queue_work(&pdrv->tcon_config_work);

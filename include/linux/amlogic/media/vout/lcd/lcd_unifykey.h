@@ -241,6 +241,7 @@ struct aml_lcd_unifykey_header_s {
  * API
  * *********************************
  */
+bool lcd_unifykey_init_get(void);
 int lcd_unifykey_len_check(int key_len, int len);
 int lcd_unifykey_check(char *key_name);
 int lcd_unifykey_header_check(unsigned char *buf,

@@ -35,7 +35,6 @@
 typedef int (*key_unify_dev_init)(struct key_info_t *uk_info,
 				  char *buf, unsigned int len);
 
-static int unifykey_initialized;
 static struct aml_uk_dev *ukdev_global;
 
 /*
@@ -460,7 +459,9 @@ EXPORT_SYMBOL(key_unify_encrypt);
 
 int key_unify_get_init_flag(void)
 {
-	return unifykey_initialized;
+	if (ukdev_global)
+		return ukdev_global->init_flag;
+	return 0;
 }
 EXPORT_SYMBOL(key_unify_get_init_flag);
 
@@ -1304,7 +1305,6 @@ static int __init aml_unifykeys_probe(struct platform_device *pdev)
 	devp->platform_data = get_unifykeys_drv_data(pdev);
 
 	pr_info("device %s created ok\n", UNIFYKEYS_DEVICE_NAME);
-	unifykey_initialized = 1;
 	return 0;
 
 error4:

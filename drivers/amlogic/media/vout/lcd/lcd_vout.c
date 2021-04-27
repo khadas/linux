@@ -1240,22 +1240,21 @@ static void lcd_vout_server_remove(struct aml_lcd_drv_s *pdrv)
 static void lcd_config_probe_work(struct work_struct *work)
 {
 	struct aml_lcd_drv_s *pdrv;
-	int key_init_flag = 0;
+	bool is_init;
 	int i = 0;
 	int ret;
 
 	pdrv = container_of(work, struct aml_lcd_drv_s, config_probe_work);
 
-	key_init_flag = key_unify_get_init_flag();
-	while (key_init_flag == 0) {
+	is_init = lcd_unifykey_init_get();
+	while (!is_init) {
 		if (i++ >= LCD_UNIFYKEY_WAIT_TIMEOUT)
 			break;
 		lcd_delay_ms(LCD_UNIFYKEY_RETRY_INTERVAL);
-		key_init_flag = key_unify_get_init_flag();
+		is_init = lcd_unifykey_init_get();
 	}
-	LCDPR("[%d]: key_init_flag=%d, i=%d\n", pdrv->index, key_init_flag, i);
-
-	if (key_init_flag == 0) {
+	LCDPR("[%d]: key_init_flag=%d, i=%d\n", pdrv->index, is_init, i);
+	if (!is_init) {
 		ret = 1;
 		goto lcd_config_probe_work_failed;
 	}

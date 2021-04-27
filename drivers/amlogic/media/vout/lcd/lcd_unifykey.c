@@ -51,6 +51,13 @@ unsigned int cal_crc32(unsigned int crc, const unsigned char *buf,
 	return ~crcu32;
 }
 
+bool lcd_unifykey_init_get(void)
+{
+	if (key_unify_get_init_flag())
+		return true;
+	return false;
+}
+
 int lcd_unifykey_len_check(int key_len, int len)
 {
 	if (key_len < len) {
@@ -464,6 +471,11 @@ exit_print_backlight:
 
 #else
 /* dummy driver */
+bool lcd_unifykey_init_get(void)
+{
+	return false;
+}
+
 int lcd_unifykey_len_check(int key_len, int len)
 {
 	LCDUKEYERR("Don't support unifykey\n");

@@ -1620,7 +1620,8 @@ static int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pde
 {
 	unsigned int temp;
 	char key_name[15];
-	int load_id = 0;
+	int load_id = 0, i;
+	bool is_init;
 	int ret = 0;
 
 	if (!bdrv->dev->of_node) {
@@ -1642,11 +1643,25 @@ static int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pde
 			sprintf(key_name, "backlight");
 		else
 			sprintf(key_name, "backlight%d", bdrv->index);
-		ret = lcd_unifykey_check(key_name);
-		if (ret < 0)
+
+		is_init = lcd_unifykey_init_get();
+		i = 0;
+		while (!is_init) {
+			if (i++ >= LCD_UNIFYKEY_WAIT_TIMEOUT)
+				break;
+			lcd_delay_ms(LCD_UNIFYKEY_RETRY_INTERVAL);
+			is_init = lcd_unifykey_init_get();
+		}
+		if (is_init) {
+			ret = lcd_unifykey_check(key_name);
+			if (ret < 0)
+				load_id = 0;
+			else
+				load_id = 1;
+		} else {
 			load_id = 0;
-		else
-			load_id = 1;
+			BLERR("[%d]: key_init_flag=%d\n", bdrv->index, is_init);
+		}
 	}
 	if (load_id) {
 		BLPR("[%d]: %s from unifykey\n", bdrv->index, __func__);
