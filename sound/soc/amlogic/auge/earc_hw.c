@@ -794,9 +794,11 @@ void earctx_cmdc_hpd_detect(struct regmap *top_map,
 
 	/* select hdmi_hpd mux */
 	mmio_update_bits(top_map, EARCTX_TOP_CTRL0,
-			 0xf << 8,
-			 0x1 << 11 |    /* hdmi_hpd invent */
-			 earc_port << 8 /* hdmi_hpd mux, port 0/1/2 */
+			 0x1 << 11 | 0x3 << 8 | 0x3 << 4,
+			 0x1 << 11 |       /* hdmi_hpd invent */
+			 earc_port << 8 |  /* hdmi_hpd mux, port 0/1/2 */
+			 /* earctx_hd_hdp mux,3:register value 2:gpiow_5 1:gpiow_9 0:gpiow_1 */
+			 earc_port << 4
 			);
 
 	if (st) {
