@@ -415,11 +415,11 @@
 
 	bl_pwm_conf:bl_pwm_conf{
 		pwm_channel_0 {
-			pwm_port_index = <4>;
+			pwm_port = "PWM_E";
 			pwms = <&pwm_ef MESON_PWM_0 30040 0>;
 		};
 		pwm_channel_1 {
-			pwm_port_index = <5>;
+			pwm_port = "PWM_F";
 			pwms = <&pwm_ef MESON_PWM_1 30040 0>;
 		};
 	};
