@@ -966,6 +966,70 @@ struct frc_top_type_s {
 };
 
 //-----------------------------------------------------------frc top cfg end
+struct st_cadence_table_item {
+	u8	film_mode;
+	u32	mask_value;
+	u32	match_data;
+	u8	cadence_cnt;
+	u8	cadence_diff_cnt;
+	u8	small_frm_cnt;
+	u8	min_cadence_num;
+	u8	no_use_lastfrm;
+};
+
+struct st_phase_table_item {
+	u8 	gen_phase_table;
+	u8	gen_phase_fallback_table;
+
+	u8	input_n;
+	u8	output_m;
+	u8	film_mode;
+	u8	buf_num;
+	u8	cadence_length;
+	u8	cadence_cnt;
+	u8	table_cnt;
+	u8	mode_cnt;
+
+	//for M%n!=0
+	u8	gen_one_mode;
+	u8 	ip_phase_rb;
+	u8	mode_shift;
+	u8	frc_phase_shift;
+	u8	phase_out_div2;		//reserve for SG out
+	u8	film_offset;
+	u8	frc_offset;
+
+	u8	Frm_delay_mode;
+	u8	A1A2_change_flag[65];
+	u8 	AB_change_flag[65];
+	u8	last_frm_flag[65];
+
+	u8	film_phase[65];
+	u8	frc_phase[65];
+	u8	me_phase_step[65];
+	u8	mc_phase_step[65];
+	u8 	N_diff[65];
+	u8	C_diff[65];
+	u8	P_diff[65];
+	u8	table_start[65];
+	u8	me_start[65];
+	u8	me_end[65];
+	u8	lr_bit[65];
+	u8	me_periodic_det[65];
+	u8	me_scan_inverse[65];
+	u32	ip_film_end;	//for logo detection use
+	u8	logo_p_diff[65];
+	u8	logo_c_diff[65];
+};
+
+enum e_delay_mode {
+	EN_DELAY_LESS_1=0,
+	EN_DELAY_NORMAL,
+	EN_DELAY_MORE_1
+};
+
+//-----------------------------------------------------------frc candence end
+
 #define MONITOR_REG_MAX	6
 #define DBG_REG_BUFF	4096
 

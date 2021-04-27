@@ -32,6 +32,7 @@
 #include "frc_drv.h"
 #include "frc_film.h"
 #include "frc_buf.h"
+#include "frc_phase_table.h"
 
 static const struct st_film_table_item g_stfilmtable[] =
 {
@@ -285,8 +286,8 @@ void frc_film_detect_ctrl(struct frc_dev_s *frc_devp)
 
 	if(mode != mode_pre) {
 	    	//xil_printf("t:mod/pre=%d,%d\n\r",mode,mode_pre);
-	        //phase_table_core(g_stfilm_detect_item->input_n, g_stfilm_detect_item->output_m,
-	        //		   g_stfilm_detect_item->frame_buf_num,mode);
+	        phase_table_core(g_stfilm_detect_item->input_n, g_stfilm_detect_item->output_m,
+	        		   g_stfilm_detect_item->frame_buf_num,mode);
 	}
 
 	mode_pre = mode;
