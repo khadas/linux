@@ -2115,6 +2115,13 @@ char *di_cfgx_get_name(enum EDI_CFGX_IDX idx);
 bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx);
 void di_cfgx_set(unsigned int ch, enum EDI_CFGX_IDX idx, bool en);
 
+/****************************************
+ *bit control
+ ****************************************/
+void bset(unsigned int *p, unsigned int bitn);
+void bclr(unsigned int *p, unsigned int bitn);
+bool bget(unsigned int *p, unsigned int bitn);
+
 static inline struct di_data_l_s *get_datal(void)
 {
 	return (struct di_data_l_s *)get_dim_de_devp()->data_l;
@@ -2279,7 +2286,7 @@ static inline bool get_reg_flag(unsigned char ch)
 	unsigned int flg = get_bufmng()->reg_flg_ch;
 	bool ret = false;
 
-	if (di_ch2mask_table[ch] & flg)
+	if (bget(&flg, ch))
 		ret = true;
 
 	/*dim_print("%s:%d\n", __func__, ret);*/
@@ -2293,12 +2300,10 @@ static inline unsigned int get_reg_flag_all(void)
 
 static inline void set_reg_flag(unsigned char ch, bool on)
 {
-	unsigned int flg = get_bufmng()->reg_flg_ch;
-
 	if (on)
-		get_bufmng()->reg_flg_ch = flg | di_ch2mask_table[ch];
+		bset(&get_bufmng()->reg_flg_ch, ch);
 	else
-		get_bufmng()->reg_flg_ch = flg & (~di_ch2mask_table[ch]);
+		bclr(&get_bufmng()->reg_flg_ch, ch);
 	/*dim_print("%s:%d\n", __func__, get_bufmng()->reg_flg_ch);*/
 }
 
@@ -2309,12 +2314,10 @@ static inline unsigned int get_reg_setting_all(void)
 
 static inline void set_reg_setting(unsigned char ch, bool on)
 {
-	unsigned int flg = get_bufmng()->reg_setting_ch;
-
 	if (on)
-		get_bufmng()->reg_setting_ch = flg | di_ch2mask_table[ch];
+		bset(&get_bufmng()->reg_setting_ch, ch);
 	else
-		get_bufmng()->reg_setting_ch = flg & (~di_ch2mask_table[ch]);
+		bclr(&get_bufmng()->reg_setting_ch, ch);
 	/*dim_print("%s:%d\n", __func__, get_bufmng()->reg_flg_ch);*/
 }
 
