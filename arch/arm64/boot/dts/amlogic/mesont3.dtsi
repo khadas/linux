@@ -569,6 +569,24 @@
 				status = "disabled";
 			};
 
+			spifc: spi@56000 {
+				compatible = "amlogic,meson-spifc";
+				status = "disabled";
+				reg = <0x0 0x56000 0x0 0x80>;
+				clock-names = "default";
+				clocks = <&clkc CLKID_SYS_CLK_SPIFC>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&spifc_all_pins>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				spi-nor@0 {
+					compatible = "jedec,spi-nor";
+					status = "disabled";
+					reg = <0>;
+					spi-max-frequency = <16000000>;
+				};
+			};
+
 			pwm_ab: pwm@58000 {
 				compatible = "amlogic,meson-v2-pwm";
 				reg = <0x0 0x58000 0x0 0x24>;
@@ -2533,7 +2551,7 @@
 				 //"spi_a_ss0_h8",used as GPIOH_8
 				 "spi_a_clk_h11";
 			function = "spi_a";
-			drive-strength = <2>;
+			drive-strength-microamp = <2000>;
 		};
 	};
 
@@ -2544,7 +2562,7 @@
 				 //"spi_a_ss0_m",used as GPIOM_22
 				 "spi_a_clk_m";
 			function = "spi_a";
-			drive-strength = <2>;
+			drive-strength-microamp = <2000>;
 		};
 	};
 
@@ -2555,7 +2573,7 @@
 				 //"spi_a_ss0_z3",used as GPIOZ_3
 				 "spi_a_clk_z2";
 			function = "spi_a";
-			drive-strength = <2>;
+			drive-strength-microamp = <2000>;
 		};
 	};
 
@@ -2566,7 +2584,7 @@
 				 //"spi_b_ss0_h",used as GPIOH_24
 				 "spi_b_clk_h";
 			function = "spi_b";
-			drive-strength = <2>;
+			drive-strength-microamp = <2000>;
 		};
 	};
 
@@ -2577,7 +2595,20 @@
 				 //"spi_c_ss0",used as GPIOC_3
 				 "spi_c_clk";
 			function = "spi_c";
-			drive-strength = <2>;
+			drive-strength-microamp = <2000>;
+		};
+	};
+
+	spifc_all_pins: spifc_all_pins {
+		mux {
+			groups = "spif_hold",
+				"spif_mo",
+				"spif_mi",
+				"spif_clk",
+				"spif_wp",
+				"spif_cs";
+			function = "spif";
+			drive-strength-microamp = <3000>;
 		};
 	};
 };
