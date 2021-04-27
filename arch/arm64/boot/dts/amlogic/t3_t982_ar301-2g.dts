@@ -11,7 +11,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "t3_t982_ar301";
+	amlogic-dt-id = "t3_t982_ar301-2g";
 	compatible = "amlogic, t3";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;

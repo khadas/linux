@@ -11,7 +11,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "t3_t982_ar311";
+	amlogic-dt-id = "t3_t965d4_ar331-4g";
 	compatible = "amlogic, t3";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
@@ -170,7 +170,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 40M */
-			size = <0x0 0x00800000>;
+			size = <0x0 0x02800000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -553,7 +553,7 @@
 
 		tuner1_name = "rt710_tuner";
 		tuner1_i2c_adap = <&i2c0>;
-		tuner1_i2c_addr = <0xF4>;  /* 8 bits */
+		tuner1_i2c_addr = <0xF4>; /* 8 bits */
 		tuner1_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
 		tuner1_xtal_mode = <0>;
 					/* NO_SHARE_XTAL(0)
@@ -1320,7 +1320,7 @@
 //};
 /* SD Wifi*/
 /*
- *&sd_emmc_b {
+ * &sd_emmc_b {
  *	status = "okay";
  *	pinctrl-0 = <&sd_all_pins>;
  * //	pinctrl-1 = <&sd_1bit_pins>;

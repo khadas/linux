@@ -11,7 +11,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "t3_t965d4_ar321";
+	amlogic-dt-id = "t3_t982_ar311-4g";
 	compatible = "amlogic, t3";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
@@ -33,7 +33,7 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x000000 0x0 0x80000000>;
+		linux,usable-memory = <0x0 0x000000 0x0 0xf0000000>;
 	};
 
 	reserved-memory {
@@ -170,7 +170,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 40M */
-			size = <0x0 0x02800000>;
+			size = <0x0 0x00800000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -522,8 +522,8 @@
 		status = "okay";
 		btsc_sap_mode = <1>;
 		interrupts = <0 236 1>;
-		/* pinctrl-names="atvdemod_agc_pins"; */
-		/* pinctrl-0=<&atvdemod_agc_pins>; */
+		pinctrl-names="atvdemod_agc_pins";
+		pinctrl-0=<&atvdemod_agc_pins>;
 		reg = <0x0 0xfe0be000 0x0 0x2000 /* demod reg */
 				0x0 0xfe000000 0x0 0x2000 /* hiu reg */
 				0x0 0x0 0x0 0x0 /* periphs reg */
@@ -541,12 +541,15 @@
 		fe0_demod = "internal";
 
 		tuner_num = <2>; /* tuner number, multi tuner support */
-		tuner0_name = "si2151_tuner";
+		tuner0_name = "r842_tuner";
 		tuner0_i2c_adap = <&i2c0>;
-		tuner0_i2c_addr = <0x60>; /* 7 bits */
-		/* tuner0_xtal = <1>; */ /* unuse for si2151 */
-		/* tuner0_xtal_mode = <0>; */
-		/* tuner0_xtal_cap = <8>; */
+		tuner0_i2c_addr = <0xF6>; /* 8 bits */
+		tuner0_xtal = <1>; /* 0: 16MHz, 1: 24MHz */
+		tuner0_xtal_mode = <3>;
+					/* NO_SHARE_XTAL(0)
+					 * SLAVE_XTAL_SHARE(3)
+					 */
+		tuner0_xtal_cap = <38>;
 
 		tuner1_name = "rt710_tuner";
 		tuner1_i2c_adap = <&i2c0>;
@@ -581,15 +584,15 @@
 		compatible = "amlogic, ddemod-t3";
 		dev_name = "aml_dtv_demod";
 		status = "okay";
-		diseqc_name = "sgm_41286";
+		//diseqc_name = "sgm_41286";
 		pinctrl-names="if_agc_pins", "diseqc", "rf_agc_pins";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
 		pinctrl-1=<&diseqc_out>;
 		pinctrl-2=<&dtvdemod_rf_agc_pins>;
-		lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>;
-		lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>;
-		interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "demod_isr";
+		//lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>;
+		//lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>;
+		//interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
+		//interrupt-names = "demod_isr";
 		power-domains = <&pwrdm PDID_T3_DEMOD>;
 		//clocks = <&clkc CLKID_DAC_CLK>;
 		//clock-names = "vdac_clk_gate";
@@ -1289,42 +1292,69 @@
 	status = "okay";
 };
 
-/* SD wifi */
-&sd_emmc_b {
-	status = "okay";
-	pinctrl-0 = <&sd_all_pins>;
-//	pinctrl-1 = <&sd_1bit_pins>;
-	pinctrl-1 = <&sd_clk_gate_pins>;
-	pinctrl-names = "default",
-	//		"sd_1bit_pins",
-			"clk-gate";
-	bus-width = <4>;
-	cap-sd-highspeed;
-	sd-uhs-sdr12;
-	sd-uhs-sdr25;
-	sd-uhs-sdr50;
-	sd-uhs-sdr104;
-	max-frequency = <200000000>;
-
-	non-removable;
-	disable-wp;
-//	amlogic,dram-access-quirk;
-
-//	cd-gpios = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
-	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-	//vmmc-supply = <&vddao_3v3>;
-	//vqmmc-supply = <&emmc_1v8>;
-
+/* SDIO */
+//&sd_emmc_a {
+//	status = "disabled";
+//	pinctrl-0 = <&sdio_pins>;
+//	pinctrl-1 = <&sdio_clk_gate_pins>;
+//	pinctrl-names = "default", "clk-gate";
+//	#address-cells = <1>;
+//	#size-cells = <0>;
+//
+//	bus-width = <4>;
+//	cap-sd-highspeed;
+//	sd-uhs-sdr50;
+//	sd_uhs-sdr104;
+//	max-frequency = <200000000>;
+//
+//	non-removable;
+//	disable-wp;
+//
+//	//vmmc-supply = <&vddao_3v3>;
+//	//vqmmc-supply = <&vddio_ao1v8>;
+//
 //	brcmf: wifi@1 {
 //		reg = <1>;
 //		compatible = "brcm,bcm4329-fmac";
 //	};
-
-};
-
+//};
+/* SD Wifi*/
+/*
+ *&sd_emmc_b {
+ *	status = "okay";
+ *	pinctrl-0 = <&sd_all_pins>;
+ * //	pinctrl-1 = <&sd_1bit_pins>;
+ *	pinctrl-1 = <&sd_clk_gate_pins>;
+ *	pinctrl-names = "default",
+ *	//		"sd_1bit_pins",
+ *			"clk-gate";
+ *	bus-width = <4>;
+ *	cap-sd-highspeed;
+ *	sd-uhs-sdr12;
+ *	sd-uhs-sdr25;
+ *	sd-uhs-sdr50;
+ *	sd-uhs-sdr104;
+ *	max-frequency = <200000000>;
+ *
+ *	non-removable;
+ *	disable-wp;
+ * //	amlogic,dram-access-quirk;
+ *
+ * //	cd-gpios = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
+ *	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
+ *	//vmmc-supply = <&vddao_3v3>;
+ *	//vqmmc-supply = <&emmc_1v8>;
+ *
+ * //	brcmf: wifi@1 {
+ * //		reg = <1>;
+ * //		compatible = "brcm,bcm4329-fmac";
+ * //	};
+ *
+ *};
+ */
 
 /* SD card */
-/*&sd_emmc_b {
+&sd_emmc_b {
 	status = "okay";
 	pinctrl-0 = <&sd_all_pins>;
 	pinctrl-1 = <&sd_1bit_pins>;
@@ -1348,8 +1378,6 @@
 	//vmmc-supply = <&vddao_3v3>;
 	//vqmmc-supply = <&emmc_1v8>;
 };
-*/
-
 
 &sd_emmc_c {
 	status = "okay";
@@ -1517,22 +1545,22 @@
 &pwm_ef {
 	pinctrl-0 = <&pwm_f_pins1>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 };
 
 &uart_A {
-	status = "okay";
+	status = "disabled";
 	uart-has-rtscts;
 };
 
 &aml_wifi{
 	status = "okay";
 	power_on-gpios = <&gpio   GPIOC_11  GPIO_ACTIVE_HIGH>;
+	disable-wifi-32k;
 };
 
 &aml_bt {
 	status = "okay";
-	reset-gpios = <&gpio  GPIOC_13  GPIO_ACTIVE_HIGH>;
 };
 
 &spicc0 {	//for TCON
