@@ -4090,11 +4090,13 @@ static const struct clk_parent_data t3_vdin_parent_hws[] = {
 	{ .hw = &t3_fclk_div5.hw },
 };
 
+static u32 t3_vdin_meas_table[] = {0, 1, 2, 3};
 static struct clk_regmap t3_vdin_meas_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_VDIN_MEAS_CLK_CTRL,
-		.mask = 0x3,
+		.mask = 0x7,
 		.shift = 9,
+		.table = t3_vdin_meas_table,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "vdin_meas_sel",
