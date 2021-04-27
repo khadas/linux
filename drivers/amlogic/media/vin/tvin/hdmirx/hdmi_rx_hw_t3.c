@@ -1956,3 +1956,13 @@ void rx_set_aud_output_t3(u32 param)
 	}
 }
 
+void rx_sw_reset_t3(int level)
+{
+	u8 data8 = 0;
+
+	data8 |= 1 << 4;     //deep color fifo
+	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, data8);
+	udelay(1);
+	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0);
+	//TODO..
+}

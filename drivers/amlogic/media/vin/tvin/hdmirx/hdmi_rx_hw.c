@@ -3081,7 +3081,7 @@ void rx_sw_reset(int level)
 	unsigned long data32 = 0;
 
 	if (rx.chip_id >= CHIP_ID_T7) {
-		//TODO..
+		rx_sw_reset_t7(level);
 	} else {
 		if (level == 1) {
 			data32 |= 0 << 7;	/* [7]vid_enable */
@@ -4036,6 +4036,8 @@ void hdmirx_config_video(void)
 	data8 &= (~0x7);
 	data8 |= ((rx.cur.repeat & 0x3) << 0);
 	hdmirx_wr_cor(RX_VP_INPUT_FORMAT_HI, data8);
+
+	rx_sw_reset_t7(2);
 }
 
 /*
