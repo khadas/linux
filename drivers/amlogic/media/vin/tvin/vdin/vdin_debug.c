@@ -1121,7 +1121,7 @@ static int seq_file_vdin_state_show(struct seq_file *seq, void *v)
 		   devp->prop.pre_he, devp->prop.he,
 		   devp->prop.pre_vs, devp->prop.vs,
 		   devp->prop.pre_ve, devp->prop.ve);
-	seq_printf(seq, "frontend_fps:%d\n", devp->prop.fps);
+	seq_printf(seq, "frontend_fps:%d parm fps:%d\n", devp->prop.fps, devp->parm.info.fps);
 	seq_printf(seq, "frontend_colordepth:%d\n", devp->prop.colordepth);
 	seq_printf(seq, "source_bitdepth:%d\n", devp->source_bitdepth);
 	seq_printf(seq, "color_depth_config:0x%x\n", devp->color_depth_config);

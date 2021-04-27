@@ -715,7 +715,6 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 		vdin_vpu_clk_gate_on_off(devp, 1);
 		/*switch_vpu_clk_gate_vmod(VPU_VPU_CLKB, VPU_CLK_GATE_ON);*/
 #endif
-
 	/*enable clk*/
 	vdin_clk_onoff(devp, true);
 	vdin_set_default_regmap(devp);
@@ -4276,9 +4275,9 @@ static void vdin_event_work(struct work_struct *work)
 		 devp->pre_event_info.event_sts, signal_sts);
 
 	if (devp->index == 0)
-		devp->dev->kobj.name = "vdin0_extcon";
+		devp->dev->kobj.name = "vdin0event";
 	else
-		devp->dev->kobj.name = "vdin1_extcon";
+		devp->dev->kobj.name = "vdin1event";
 
 	ret = kobject_uevent_env(&devp->dev->kobj, KOBJ_CHANGE, envp);
 }

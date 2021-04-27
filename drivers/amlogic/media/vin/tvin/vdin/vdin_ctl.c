@@ -3626,8 +3626,8 @@ bool vdin_write_done_check(unsigned int offset, struct vdin_dev_s *devp)
 
 void vdin_get_duration_by_fps(struct vdin_dev_s *devp)
 {
-	if (devp->prop.fps && IS_HDMI_SRC(devp->parm.port))
-		devp->duration = 96000 / (devp->prop.fps);
+	if (devp->parm.info.fps && IS_HDMI_SRC(devp->parm.port))
+		devp->duration = 96000 / (devp->parm.info.fps);
 	else
 		devp->duration = devp->fmt_info_p->duration;
 }
