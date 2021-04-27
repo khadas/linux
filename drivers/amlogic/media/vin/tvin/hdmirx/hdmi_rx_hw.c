@@ -487,12 +487,19 @@ void hdmirx_wr_cor(u32 addr, u8 data)
 {
 	ulong flags;
 	u32 dev_offset = 0;
+	bool need_wr_twice = false;
 
+	/* addr bit[8:15] is 0x1d or 0x1e need write twice */
+	need_wr_twice = ((((addr >> 8) & 0xff) == 0x1d) ||
+		(((addr >> 8) & 0xff) == 0x1e));
 	dev_offset = TOP_COR_BASE_OFFSET_T7 +
 		rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 	spin_lock_irqsave(&reg_rw_lock, flags);
 	wr_reg_b(MAP_ADDR_MODULE_TOP,
 	       addr + dev_offset, data);
+	if (need_wr_twice)
+		wr_reg_b(MAP_ADDR_MODULE_TOP,
+			addr + dev_offset, data);
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 }
 

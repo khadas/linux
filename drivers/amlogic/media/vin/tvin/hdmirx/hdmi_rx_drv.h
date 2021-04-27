@@ -39,8 +39,8 @@
 #define IRQ_LOG		0x2000
 #define COR_LOG		0x4000
 
-/* fix deep color fifo error */
-#define RX_VER1 "ver.2021/04/26"
+/* fix write HDCP2X reg fail */
+#define RX_VER1 "ver.2021/04/27"
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 
