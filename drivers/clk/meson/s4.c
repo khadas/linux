@@ -4200,6 +4200,251 @@ static struct clk_regmap s4_gen = {
 	},
 };
 
+/*demod clk*/
+static struct clk_regmap s4_demod_core_clk_mux = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = CLKCTRL_DEMOD_CLK_CTRL,
+		.mask = 0x3,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "demod_core_clk_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = (const struct clk_parent_data []) {
+			{ .fw_name = "xtal", },
+			{ .hw = &s4_fclk_div7.hw },
+			{ .hw = &s4_fclk_div4.hw },
+		},
+		.num_parents = 3,
+	},
+};
+
+static struct clk_regmap s4_demod_core_clk_div = {
+	.data = &(struct clk_regmap_div_data) {
+		.offset = CLKCTRL_DEMOD_CLK_CTRL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "demod_core_clk_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s4_demod_core_clk_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap s4_demod_core_clk_gate = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = CLKCTRL_DEMOD_CLK_CTRL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "demod_core_clk",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s4_demod_core_clk_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap s4_adc_extclk_in_mux = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = CLKCTRL_DEMOD_CLK_CTRL,
+		.mask = 0x3,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "adc_extclk_in_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = (const struct clk_parent_data []) {
+			{ .fw_name = "xtal", },
+			{ .hw = &s4_fclk_div7.hw },
+			{ .hw = &s4_fclk_div4.hw },
+		},
+		.num_parents = 3,
+	},
+};
+
+static struct clk_regmap s4_adc_extclk_in_div = {
+	.data = &(struct clk_regmap_div_data) {
+		.offset = CLKCTRL_DEMOD_CLK_CTRL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "adc_extclk_in_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s4_adc_extclk_in_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap s4_adc_extclk_in_gate = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = CLKCTRL_DEMOD_CLK_CTRL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "adc_extclk_in",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s4_adc_extclk_in_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap s4_demod_core_t2_clk_mux = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = CLKCTRL_DEMOD_CLK_CTRL1,
+		.mask = 0x3,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "demod_core_t2_clk_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = (const struct clk_parent_data []) {
+			{ .fw_name = "xtal", },
+			{ .hw = &s4_fclk_div7.hw },
+			{ .hw = &s4_fclk_div4.hw },
+		},
+		.num_parents = 3,
+	},
+};
+
+static struct clk_regmap s4_demod_core_t2_clk_div = {
+	.data = &(struct clk_regmap_div_data) {
+		.offset = CLKCTRL_DEMOD_CLK_CTRL1,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "demod_core_t2_clk_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s4_demod_core_t2_clk_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap s4_demod_core_t2_clk_gate = {
+	.data = &(struct clk_regmap_gate_data) {
+		.offset = CLKCTRL_DEMOD_CLK_CTRL1,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "demod_core_t2_clk",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s4_demod_core_t2_clk_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+/*
+ *demod 32k clock
+ */
+static struct clk_regmap s4d_demod_32k_clkin = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_DEMOD_32K_CTRL0,
+		.bit_idx = 31,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "demod_32k_clkin",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "xtal" },
+		.num_parents = 1,
+	},
+};
+
+static const struct meson_clk_dualdiv_param s4d_32k_div_table[] = {
+	{
+		.dual	= 1,
+		.n1	= 733,
+		.m1	= 8,
+		.n2	= 732,
+		.m2	= 11,
+	},
+	{}
+};
+
+static struct clk_regmap s4d_demod_32k_div = {
+	.data = &(struct meson_clk_dualdiv_data){
+		.n1 = {
+			.reg_off = CLKCTRL_DEMOD_32K_CTRL0,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.n2 = {
+			.reg_off = CLKCTRL_DEMOD_32K_CTRL0,
+			.shift   = 12,
+			.width   = 12,
+		},
+		.m1 = {
+			.reg_off = CLKCTRL_DEMOD_32K_CTRL1,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.m2 = {
+			.reg_off = CLKCTRL_DEMOD_32K_CTRL1,
+			.shift   = 12,
+			.width   = 12,
+		},
+		.dual = {
+			.reg_off = CLKCTRL_DEMOD_32K_CTRL0,
+			.shift   = 28,
+			.width   = 1,
+		},
+		.table = s4d_32k_div_table,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "demod_32k_div",
+		.ops = &meson_clk_dualdiv_ops,
+		.parent_names = (const char *[]){ "demod_32k_clkin" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap s4d_demod_32k_xtal = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_DEMOD_32K_CTRL1,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "demod_32k_xtal",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "demod_32k_clkin" },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap s4d_demod_32k_clk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_RTC_BY_OSCIN_CTRL0,
+		.bit_idx = 30,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "demod_32k_clk",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "demod_32k_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 #define MESON_SC2_SYS_GATE(_name, _reg, _bit)				\
 struct clk_regmap _name = {						\
 	.data = &(struct clk_regmap_gate_data) {			\
@@ -4862,6 +5107,20 @@ static struct clk_hw_onecell_data s4d_hw_onecell_data = {
 		[CLKID_HDCP22_SKPCLK_DIV]	= &s4_hdcp22_skpclk_div.hw,
 		[CLKID_HDCP22_SKPCLK_GATE]	= &s4_hdcp22_skpclk_gate.hw,
 
+		[CLKID_DEMOD_CORE_CLK_MUX]	= &s4_demod_core_clk_mux.hw,
+		[CLKID_DEMOD_CORE_CLK_DIV]	= &s4_demod_core_clk_div.hw,
+		[CLKID_DEMOD_CORE_CLK_GATE]	= &s4_demod_core_clk_gate.hw,
+		[CLKID_ADC_EXTCLK_IN_MUX]	= &s4_adc_extclk_in_mux.hw,
+		[CLKID_ADC_EXTCLK_IN_DIV]	= &s4_adc_extclk_in_div.hw,
+		[CLKID_ADC_EXTCLK_IN_GATE]	= &s4_adc_extclk_in_gate.hw,
+		[CLKID_DEMOD_CORE_T2_CLK_MUX]	= &s4_demod_core_t2_clk_mux.hw,
+		[CLKID_DEMOD_CORE_T2_CLK_DIV]	= &s4_demod_core_t2_clk_div.hw,
+		[CLKID_DEMOD_CORE_T2_CLK_GATE]	= &s4_demod_core_t2_clk_gate.hw,
+		[CLKID_DEMOD_32K_CLKIN]		= &s4d_demod_32k_clkin.hw,
+		[CLKID_DEMOD_32K_DIV]		= &s4d_demod_32k_div.hw,
+		[CLKID_DEMOD_32K_XTAL]		= &s4d_demod_32k_xtal.hw,
+		[CLKID_DEMOD_32K_CLK]		= &s4d_demod_32k_clk.hw,
+
 		[NR_CLKS]			= NULL
 	},
 	.num = NR_CLKS,
@@ -5102,7 +5361,20 @@ static struct clk_regmap *const s4_clk_regmaps[] = {
 	&s4_pwm_cd,
 	&s4_pwm_ef,
 	&s4_pwm_gh,
-	&s4_pwm_ij
+	&s4_pwm_ij,
+	&s4_demod_core_clk_mux,
+	&s4_demod_core_clk_div,
+	&s4_demod_core_clk_gate,
+	&s4_adc_extclk_in_mux,
+	&s4_adc_extclk_in_div,
+	&s4_adc_extclk_in_gate,
+	&s4_demod_core_t2_clk_mux,
+	&s4_demod_core_t2_clk_div,
+	&s4_demod_core_t2_clk_gate,
+	&s4d_demod_32k_clkin,
+	&s4d_demod_32k_div,
+	&s4d_demod_32k_xtal,
+	&s4d_demod_32k_clk
 };
 
 static struct clk_regmap *const s4_cpu_clk_regmaps[] = {
@@ -5237,7 +5509,7 @@ static int meson_s4_probe(struct platform_device *pdev)
 			continue;
 		/*
 		 * dev_err(dev, "register %d  %s\n",i,
-		 *	hw_onecell_data->hws[i]->init->name);
+		 *      hw_onecell_data->hws[i]->init->name);
 		 */
 		ret = devm_clk_hw_register(dev, hw_onecell_data->hws[i]);
 		if (ret) {
