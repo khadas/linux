@@ -180,6 +180,12 @@
 		status = "okay";
 	};
 
+	ionvideo {
+		compatible = "amlogic, ionvideo";
+		dev_name = "ionvideo";
+		status = "okay";
+	};
+
 	picdec {
 		compatible = "amlogic, picdec";
 		memory-region = <&picdec_cma_reserved>;
