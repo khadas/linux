@@ -90,6 +90,9 @@ static unsigned char __nosavedata edid_checkvalue[4] = {0};
 static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf);
 static void Edid_DTD_parsing(struct rx_cap *prxcap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev);
+char hdmimodepropname[20] = "null";
+
+
 
 static int xtochar(int num, unsigned char *checksum)
 {
@@ -1579,7 +1582,6 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	unsigned char *vfpdb_offset = NULL;
 	struct rx_cap *prxcap = &hdev->rxcap;
 	unsigned int aud_flag = 0;
-
 	if (blockbuf[0] != 0x02)
 		return -1; /* not a CEA BLOCK. */
 	end = blockbuf[2]; /* CEA description. */
@@ -1818,7 +1820,6 @@ static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev)
 static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 {
 	struct rx_cap *prxcap = &hdmitx_device->rxcap;
-
 	prxcap->VIC_count = 0x4;
 	prxcap->VIC[0] = HDMI_720x480p60_16x9;
 	prxcap->VIC[1] = HDMI_1280x720p60_16x9;
@@ -1826,8 +1827,26 @@ static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 	prxcap->VIC[3] = HDMI_1920x1080p60_16x9;
 	prxcap->native_VIC = HDMI_720x480p60_16x9;
 	hdmitx_device->vic_count = prxcap->VIC_count;
-	pr_info(EDID "set default vic\n");
+    if(strncmp(hdmimodepropname, "800x480p60hz", 12) == 0) {
+	    prxcap->VIC_count = 0x1;
+        prxcap->VIC[0] = HDMIV_800x480p60hz;
+		prxcap->native_VIC = HDMIV_800x480p60hz;
+	    pr_info(EDID "jason 800x480p60hz set default vic\n");
+	}
 }
+
+static int __init hdmimode_setup(char *str)
+{
+       if (str != NULL)
+               sprintf(hdmimodepropname, "%s", str);
+
+       return 0;
+}
+
+__setup("hdmimode=", hdmimode_setup);
+
+
+
 
 #if 0
 #define PRINT_HASH(hash)	\
@@ -2077,6 +2096,7 @@ static void Edid_DTD_parsing(struct rx_cap *prxcap, unsigned char *data)
 	t->v_sync_offset = (((data[11] >> 2) & 0x3) << 4) +
 		((data[10] >> 4) & 0xf);
 	t->v_sync = (((data[11] >> 0) & 0x3) << 4) + ((data[10] >> 0) & 0xf);
+
 /*
  * Special handling of 1080i60hz, 1080i50hz
  */
@@ -2085,6 +2105,7 @@ static void Edid_DTD_parsing(struct rx_cap *prxcap, unsigned char *data)
 		t->v_active = t->v_active / 2;
 		t->v_blank = t->v_blank / 2;
 	}
+
 /*
  * Special handling of 480i60hz, 576i50hz
  */
