@@ -185,8 +185,10 @@ ssize_t tsn_source_store(struct class *class,
 //	pr_dbg("tsn_in:%d, tsn_out:%d\n", tsn_in_reg, tsn_out);
 	advb->dsc_pipeline = tsn_in_reg;
 	//set demod/local
+#ifdef CONFIG_AMLOGIC_TEE
 	tee_demux_config_pipeline(tsn_in_reg, tsn_out);
 
+#endif
 	mutex_unlock(&advb->mutex);
 	return count;
 }
@@ -434,9 +436,11 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	class_register(&aml_stb_class);
 	dmx_regist_dmx_class();
 
+#ifdef CONFIG_AMLOGIC_TEE
 	ret = tee_demux_get(TEE_DMX_GET_SECURITY_ENABLE,
 			NULL, 0, &is_security_dmx, sizeof(is_security_dmx));
 
+#endif
 	dprint("probe dvb done, ret:%d, is_security_dmx:%d\n",
 			ret, is_security_dmx);
 
