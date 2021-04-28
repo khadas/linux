@@ -264,6 +264,9 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
 	usleep_range(10000, 10010);
 	pr_info(SYS "HDMITX: Early Suspend\n");
+	/* if (hdev->hdcp_ctl_lvl > 0 && */
+		/* hdev->hwop.am_hdmitx_hdcp_disable) */
+		/* hdev->hwop.am_hdmitx_hdcp_disable(); */
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
 	hdev->cur_VIC = HDMI_UNKNOWN;
@@ -3900,6 +3903,8 @@ static ssize_t hdcp_lstore_store(struct device *dev,
 				 const char *buf, size_t count)
 {
 	pr_info("hdcp: set lstore as %s\n", buf);
+	if (strncmp(buf, "-1", 2) == 0)
+		hdmitx_device.lstore = 0x0;
 	if (strncmp(buf, "0", 1) == 0)
 		hdmitx_device.lstore = 0x10;
 	if (strncmp(buf, "11", 2) == 0)
@@ -3990,6 +3995,7 @@ static ssize_t hdcp_mode_show(struct device *dev,
 			      char *buf)
 {
 	int pos = 0;
+	unsigned int hdcp_ret = 0;
 
 	switch (hdmitx_device.hdcp_mode) {
 	case 1:
@@ -4001,6 +4007,15 @@ static ssize_t hdcp_mode_show(struct device *dev,
 	default:
 		pos += snprintf(buf + pos, PAGE_SIZE, "off");
 		break;
+	}
+	if (hdmitx_device.hdcp_ctl_lvl > 0 &&
+	    hdmitx_device.hdcp_mode > 0) {
+		hdcp_ret = hdmitx_device.hwop.cntlddc(&hdmitx_device,
+						      DDC_HDCP_GET_AUTH, 0);
+		if (hdcp_ret == 1)
+			pos += snprintf(buf + pos, PAGE_SIZE, ": succeed\n");
+		else
+			pos += snprintf(buf + pos, PAGE_SIZE, ": fail\n");
 	}
 
 	return pos;
@@ -4356,6 +4371,45 @@ static ssize_t sysctrl_enable_store(struct device *dev,
 	if (strncmp(buf, "1", 1) == 0)
 		hdmitx_device.systemcontrol_on = true;
 	return count;
+}
+
+static ssize_t hdcp_ctl_lvl_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\r\n",
+		hdmitx_device.hdcp_ctl_lvl);
+	return pos;
+}
+
+static ssize_t hdcp_ctl_lvl_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long ctl_lvl = 0xf;
+
+	pr_info("set hdcp_ctl_lvl: %s\n", buf);
+	if (kstrtoul(buf, 10, &ctl_lvl) == 0) {
+		if (ctl_lvl >= 0 && ctl_lvl <= 2)
+			hdmitx_device.hdcp_ctl_lvl = ctl_lvl;
+	}
+	return count;
+}
+
+static ssize_t hdmitx_drm_flag_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	int flag = 0;
+
+	/* notify hdcp_tx22: use flow of drm */
+	if (hdmitx_device.hdcp_ctl_lvl > 0)
+		flag = 1;
+	else
+		flag = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d", flag);
+	return pos;
 }
 
 void print_drm_config_data(void)
@@ -5031,6 +5085,9 @@ static DEVICE_ATTR_RO(hdmi_config_info);
 static DEVICE_ATTR_RO(hdmirx_info);
 static DEVICE_ATTR_RO(hdmi_hsty_config);
 static DEVICE_ATTR_RW(sysctrl_enable);
+static DEVICE_ATTR_RW(hdcp_ctl_lvl);
+static DEVICE_ATTR_RO(hdmitx_drm_flag);
+
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
@@ -5954,72 +6011,6 @@ void hdmitx_hdcp_status(int hdmi_authenticated)
 	hdmitx_set_uevent(HDMITX_HDCP_EVENT, hdmi_authenticated);
 }
 
-/*************DRM connector API**************/
-int drm_hdmitx_detect_hpd(void)
-{
-	return hdmitx_device.hpd_state;
-}
-EXPORT_SYMBOL(drm_hdmitx_detect_hpd);
-
-int drm_hdmitx_register_hpd_cb(drm_hpd_cb cb, void *data)
-{
-	mutex_lock(&setclk_mutex);
-	hdmitx_device.drm_cb = cb;
-	hdmitx_device.drm_data = data;
-	mutex_unlock(&setclk_mutex);
-	return 0;
-}
-EXPORT_SYMBOL(drm_hdmitx_register_hpd_cb);
-
-int drm_hdmitx_get_vic_list(int **vics)
-{
-	enum hdmi_vic vic;
-	char mode_tmp[32];
-	int len = sizeof(disp_mode_t) / sizeof(char *);
-	int i;
-	int count = 0;
-	int *viclist = 0;
-
-	if (hdmitx_device.tv_no_edid)
-		return 0;
-
-	viclist = kmalloc_array(len, sizeof(int), GFP_KERNEL);
-	for (i = 0; disp_mode_t[i]; i++) {
-		memset(mode_tmp, 0, sizeof(mode_tmp));
-		strncpy(mode_tmp, disp_mode_t[i], 31);
-		if (hdmitx_limited_1080p() && is_4k_fmt(mode_tmp))
-			continue;
-		vic = hdmitx_edid_get_VIC(&hdmitx_device, mode_tmp, 0);
-		/* Handling only 4k420 mode */
-		if (vic == HDMI_UNKNOWN && is_4k50_fmt(mode_tmp)) {
-			strcat(mode_tmp, "420");
-			vic = hdmitx_edid_get_VIC(&hdmitx_device,
-						  mode_tmp, 0);
-		}
-
-		if (vic != HDMI_UNKNOWN) {
-			viclist[count] = vic;
-			count++;
-		}
-	}
-
-	if (count == 0)
-		kfree(viclist);
-	else
-		*vics = viclist;
-
-	return count;
-}
-EXPORT_SYMBOL(drm_hdmitx_get_vic_list);
-
-unsigned char *drm_hdmitx_get_raw_edid(void)
-{
-	return hdmitx_device.EDID_buf;
-}
-EXPORT_SYMBOL(drm_hdmitx_get_raw_edid);
-
-/*************DRM connector API**************/
-
 static void hdmitx_init_parameters(struct hdmitx_info *info)
 {
 	memset(info, 0, sizeof(struct hdmitx_info));
@@ -6289,7 +6280,13 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 			if (ret)
 				pr_info(SYS "not find pwr_ctl\n");
 		}
-
+		/* hdcp ctrl 0:sysctrl, 1: drv, 2: linux app */
+		ret = of_property_read_u32(pdev->dev.of_node, "hdcp_ctl_lvl",
+					   &hdmitx_device.hdcp_ctl_lvl);
+		if (ret)
+			hdmitx_device.hdcp_ctl_lvl = 0;
+		if (hdmitx_device.hdcp_ctl_lvl > 0)
+			hdmitx_device.systemcontrol_on = true;
 		/* Get drm feature information */
 		amhdmitx_get_drm_info();
 
@@ -6495,6 +6492,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdmirx_info);
 	ret = device_create_file(dev, &dev_attr_hdmi_hsty_config);
 	ret = device_create_file(dev, &dev_attr_sysctrl_enable);
+	ret = device_create_file(dev, &dev_attr_hdcp_ctl_lvl);
+	ret = device_create_file(dev, &dev_attr_hdmitx_drm_flag);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -6665,6 +6664,8 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdmirx_info);
 	device_remove_file(dev, &dev_attr_hdmi_hsty_config);
 	device_remove_file(dev, &dev_attr_sysctrl_enable);
+	device_remove_file(dev, &dev_attr_hdcp_ctl_lvl);
+	device_remove_file(dev, &dev_attr_hdmitx_drm_flag);
 
 	cdev_del(&hdmitx_device.cdev);
 
@@ -6680,6 +6681,9 @@ static int amhdmitx_remove(struct platform_device *pdev)
 static int amhdmitx_suspend(struct platform_device *pdev,
 			    pm_message_t state)
 {
+	/* drm tx22 enters AUTH_STOP, don't do hdcp22 IP reset */
+	if (hdmitx_device.hdcp_ctl_lvl > 0)
+		return 0;
 	hdmitx_device.hwop.cntlmisc(&hdmitx_device, MISC_DIS_HPLL, 0);
 	hdmitx_device.hwop.cntlddc(&hdmitx_device,
 		DDC_RESET_HDCP, 0);
@@ -6690,6 +6694,12 @@ static int amhdmitx_suspend(struct platform_device *pdev,
 static int amhdmitx_resume(struct platform_device *pdev)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	/* may resume after start hdcp22, i2c
+	 * reactive will force mux to hdcp14
+	 */
+	if (hdmitx_device.hdcp_ctl_lvl > 0)
+		return 0;
 
 	pr_info("amhdmitx: I2C_REACTIVE\n");
 	hdev->hwop.cntlmisc(hdev, MISC_I2C_REACTIVE, 0);
@@ -6897,3 +6907,255 @@ __setup("hdmichecksum=", get_hdmi_checksum);
 
 MODULE_PARM_DESC(log_level, "\n log_level\n");
 module_param(log_level, int, 0644);
+
+/*************DRM connector API**************/
+int drm_hdmitx_detect_hpd(void)
+{
+	return hdmitx_device.hpd_state;
+}
+EXPORT_SYMBOL(drm_hdmitx_detect_hpd);
+
+int drm_hdmitx_register_hpd_cb(drm_hpd_cb cb, void *data)
+{
+	mutex_lock(&setclk_mutex);
+	hdmitx_device.drm_cb = cb;
+	hdmitx_device.drm_data = data;
+	mutex_unlock(&setclk_mutex);
+	return 0;
+}
+EXPORT_SYMBOL(drm_hdmitx_register_hpd_cb);
+
+int drm_hdmitx_get_vic_list(int **vics)
+{
+	enum hdmi_vic vic;
+	char mode_tmp[32];
+	int len = sizeof(disp_mode_t) / sizeof(char *);
+	int i;
+	int count = 0;
+	int *viclist = 0;
+
+	if (hdmitx_device.tv_no_edid)
+		return 0;
+
+	viclist = kmalloc_array(len, sizeof(int), GFP_KERNEL);
+	for (i = 0; disp_mode_t[i]; i++) {
+		memset(mode_tmp, 0, sizeof(mode_tmp));
+		strncpy(mode_tmp, disp_mode_t[i], 31);
+		if (hdmitx_limited_1080p() && is_4k_fmt(mode_tmp))
+			continue;
+		vic = hdmitx_edid_get_VIC(&hdmitx_device, mode_tmp, 0);
+		/* Handling only 4k420 mode */
+		if (vic == HDMI_UNKNOWN && is_4k50_fmt(mode_tmp)) {
+			strcat(mode_tmp, "420");
+			vic = hdmitx_edid_get_VIC(&hdmitx_device,
+						  mode_tmp, 0);
+		}
+
+		if (vic != HDMI_UNKNOWN) {
+			viclist[count] = vic;
+			count++;
+		}
+	}
+
+	if (count == 0)
+		kfree(viclist);
+	else
+		*vics = viclist;
+
+	return count;
+}
+EXPORT_SYMBOL(drm_hdmitx_get_vic_list);
+
+unsigned char *drm_hdmitx_get_raw_edid(void)
+{
+	if (hdmitx_device.edid_ptr)
+		return hdmitx_device.edid_ptr;
+	else
+		return hdmitx_device.EDID_buf;
+}
+EXPORT_SYMBOL(drm_hdmitx_get_raw_edid);
+
+/* bit[1]: hdcp22, bit[0]: hdcp14 */
+int drm_hdmitx_get_hdcp_cap(void)
+{
+	if (hdmitx_device.lstore < 0x10) {
+		hdmitx_device.lstore = 0;
+		if (hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_14_LSTORE, 0))
+			hdmitx_device.lstore += 1;
+		if (hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_22_LSTORE, 0) &&
+		    !hdmitx_limited_hdcp14())
+			hdmitx_device.lstore += 2;
+	}
+	return hdmitx_device.lstore & 0x3;
+}
+EXPORT_SYMBOL(drm_hdmitx_get_hdcp_cap);
+
+/* bit[1]: hdcp22, bit[0]: hdcp14 */
+unsigned int drm_get_rx_hdcp_cap(void)
+{
+	unsigned int ver = 0x0;
+
+	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
+	if (hdmitx_device.hwop.cntlddc(&hdmitx_device,
+		DDC_HDCP_22_LSTORE, 0) == 0)
+		return 0x1;
+
+	/* Detect RX support HDCP22 */
+	mutex_lock(&getedid_mutex);
+	ver = hdcp_rd_hdcp22_ver();
+	mutex_unlock(&getedid_mutex);
+	/* Here, must assume RX support HDCP14, otherwise affect 1A-03 */
+	if (ver)
+		return 0x3;
+	else
+		return 0x1;
+}
+EXPORT_SYMBOL(drm_get_rx_hdcp_cap);
+
+/* after TEE hdcp key valid, do hdcp22 init before tx22 start */
+void drm_hdmitx_hdcp22_init(void)
+{
+	hdmitx_hdcp_do_work(&hdmitx_device);
+	hdmitx_device.hwop.cntlddc(&hdmitx_device,
+		DDC_HDCP_MUX_INIT, 2);
+}
+EXPORT_SYMBOL(drm_hdmitx_hdcp22_init);
+
+/* echo 1/2 > hdcp_mode */
+int drm_hdmitx_hdcp_enable(unsigned int content_type)
+{
+	enum hdmi_vic vic =
+		hdmitx_device.hwop.getstate(&hdmitx_device, STAT_VIDEO_VIC, 0);
+
+	hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_GET_AUTH, 0);
+
+	if (content_type == 1) {
+		hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_MUX_INIT, 1);
+		if (vic == HDMI_576p50 || vic == HDMI_576p50_16x9)
+			usleep_range(500000, 500010);
+		hdmitx_device.hdcp_mode = 1;
+		hdmitx_hdcp_do_work(&hdmitx_device);
+		hdmitx_device.hwop.cntlddc(&hdmitx_device,
+			DDC_HDCP_OP, HDCP14_ON);
+	} else if (content_type == 2) {
+		hdmitx_device.hdcp_mode = 2;
+		hdmitx_hdcp_do_work(&hdmitx_device);
+		/* for drm hdcp_tx22, esm init only once
+		 * don't do HDCP22 IP reset after init done!
+		 */
+		hdmitx_device.hwop.cntlddc(&hdmitx_device,
+			DDC_HDCP_MUX_INIT, 3);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_hdmitx_hdcp_enable);
+
+/* echo -1 > hdcp_mode;echo stop14/22 > hdcp_ctrl */
+int drm_hdmitx_hdcp_disable(unsigned int content_type)
+{
+	hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_MUX_INIT, 1);
+	hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_GET_AUTH, 0);
+
+	if (content_type == 1) {
+		hdmitx_device.hwop.cntlddc(&hdmitx_device,
+			DDC_HDCP_OP, HDCP14_OFF);
+	} else if (content_type == 2) {
+		hdmitx_device.hwop.cntlddc(&hdmitx_device,
+			DDC_HDCP_OP, HDCP22_OFF);
+	}
+
+	hdmitx_device.hdcp_mode = 0;
+	hdmitx_hdcp_do_work(&hdmitx_device);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_hdmitx_hdcp_disable);
+
+int drm_get_hdcp_auth_sts(void)
+{
+	return hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_GET_AUTH, 0);
+}
+EXPORT_SYMBOL(drm_get_hdcp_auth_sts);
+
+void drm_hdmitx_avmute(unsigned char mute)
+{
+	int cmd = OFF_AVMUTE;
+
+	if (mute == 0)
+		cmd = CLR_AVMUTE;
+	else
+		cmd = SET_AVMUTE;
+	hdmitx_device.hwop.cntlmisc(&hdmitx_device, MISC_AVMUTE_OP, cmd);
+}
+EXPORT_SYMBOL(drm_hdmitx_avmute);
+
+void drm_hdmitx_set_phy(unsigned char en)
+{
+	int cmd = TMDS_PHY_ENABLE;
+
+	if (en == 0)
+		cmd = TMDS_PHY_DISABLE;
+	else
+		cmd = TMDS_PHY_ENABLE;
+	hdmitx_device.hwop.cntlmisc(&hdmitx_device, MISC_TMDS_PHY_OP, cmd);
+}
+EXPORT_SYMBOL(drm_hdmitx_set_phy);
+
+void amhdmitx_setup_attr(const char *buf)
+{
+	char attr[16] = {0};
+
+	memcpy(attr, buf, sizeof(attr));
+	memcpy(hdmitx_device.fmt_attr, attr, sizeof(hdmitx_device.fmt_attr));
+}
+EXPORT_SYMBOL(amhdmitx_setup_attr);
+
+void amhdmitx_get_attr(char attr[16])
+{
+	memcpy(attr, hdmitx_device.fmt_attr, sizeof(hdmitx_device.fmt_attr));
+}
+EXPORT_SYMBOL(amhdmitx_get_attr);
+
+bool drm_chk_mode_attr_sup(char *mode, char *attr)
+{
+	struct hdmi_format_para *para = NULL;
+	bool valid = false;
+
+	if (!mode || !attr)
+		return valid;
+
+	valid = pre_process_str(attr);
+	if (!valid)
+		return valid;
+	para = hdmi_tst_fmt_name(mode, attr);
+
+	if (para) {
+		pr_info(SYS "sname = %s\n", para->sname);
+		pr_info(SYS "char_clk = %d\n", para->tmds_clk);
+		pr_info(SYS "cd = %d\n", para->cd);
+		pr_info(SYS "cs = %d\n", para->cs);
+	}
+
+	valid = hdmitx_edid_check_valid_mode(&hdmitx_device, para);
+
+	return valid;
+}
+EXPORT_SYMBOL(drm_chk_mode_attr_sup);
+
+bool drm_chk_hdmi_mode(const char *mode)
+{
+	enum hdmi_vic vic = HDMI_UNKNOWN;
+
+	if (!mode)
+		return false;
+
+	vic = hdmitx_edid_get_VIC(&hdmitx_device, mode, 1);
+	if (vic == HDMI_UNKNOWN)
+		return false;
+	return true;
+}
+EXPORT_SYMBOL(drm_chk_hdmi_mode);
+
+/*************DRM connector API end**************/
+

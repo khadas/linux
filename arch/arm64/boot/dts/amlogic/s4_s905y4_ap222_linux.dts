@@ -1482,6 +1482,8 @@
 };
 &amhdmitx {
 	status = "okay";
+	/* hdcp ctrl 0: sysctrl, 1: drv, 2: linux app */
+	hdcp_ctl_lvl = <1>;
 };
 
 &drm_amhdmitx {

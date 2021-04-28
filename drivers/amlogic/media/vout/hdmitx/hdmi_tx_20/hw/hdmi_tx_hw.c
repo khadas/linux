@@ -3405,6 +3405,25 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		}
 	} else if (strncmp(tmpbuf, "stop_vsif", 9) == 0) {
 		hdmitx_disable_packet(HDMI_PACKET_VEND);
+	} else if (strncmp(tmpbuf, "hdcp_mode", 9) == 0) {
+		ret = kstrtoul(tmpbuf + 9, 16, &value);
+		if (value >= 0 && value <= 3 &&
+			hdev->hwop.am_hdmitx_set_hdcp_mode)
+			hdev->hwop.am_hdmitx_set_hdcp_mode(value);
+	} else if (strncmp(tmpbuf, "drm_set_hdmi", 12) == 0) {
+		if (hdev->hwop.am_hdmitx_set_hdmi_mode)
+			hdev->hwop.am_hdmitx_set_hdmi_mode();
+	} else if (strncmp(tmpbuf, "drm_set_out", 11) == 0) {
+		if (hdev->hwop.am_hdmitx_set_out_mode)
+			hdev->hwop.am_hdmitx_set_out_mode();
+	} else if (strncmp(tmpbuf, "drm_hdcp_op", 11) == 0) {
+		ret = kstrtoul(tmpbuf + 11, 16, &value);
+		if (value == 0 && hdev->hwop.am_hdmitx_hdcp_disable)
+			hdev->hwop.am_hdmitx_hdcp_disable();
+		else if (value == 1 && hdev->hwop.am_hdmitx_hdcp_enable)
+			hdev->hwop.am_hdmitx_hdcp_enable();
+		else if (value == 2 && hdev->hwop.am_hdmitx_hdcp_disconnect)
+			hdev->hwop.am_hdmitx_hdcp_disconnect();
 	}
 }
 
@@ -4021,11 +4040,24 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned int cmd,
 			hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_MASK, 0);
 			hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_MUTE, 0);
 			set_pkf_duk_nonce();
-		}
-		if (argv == 1)
+		} else if (argv == 1) {
 			hdmitx_hdcp_opr(6);
-		if (argv == 3)
-			hdmitx_set_reg_bits(HDMITX_DWC_HDCP22REG_CTRL, 1, 2, 1);
+		} else if (argv == 3) {
+			if (hdev->data->chip_type >= MESON_CPU_ID_SC2)
+				hd_write_reg(P_CLKCTRL_HDCP22_CLK_CTRL,
+					     0x01000100);
+			else
+				hd_write_reg(P_HHI_HDCP22_CLK_CNTL, 0x01000100);
+			hdmitx_ddc_hw_op(DDC_MUX_DDC);
+			if (hdev->data->chip_type >= MESON_CPU_ID_SC2)
+				hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS_SC2,
+						    1, 6, 1);
+			else
+				hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS,
+						    1, 6, 1);
+			udelay(5);
+			hdmitx_set_reg_bits(HDMITX_DWC_HDCP22REG_CTRL, 3, 1, 2);
+		}
 		break;
 	case DDC_HDCP_OP:
 		hdev->hdcp_max_exceed_state = 0;

@@ -25,6 +25,8 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_common.h>
+#include <linux/amlogic/media/vout/hdmi_tx/meson_drm_hdmitx.h>
+#include <linux/miscdevice.h>
 
 #include "meson_hdmi.h"
 #include "meson_hdcp.h"
@@ -32,9 +34,10 @@
 #include "meson_crtc.h"
 
 #define DEVICE_NAME "amhdmitx"
-struct am_hdmi_tx am_hdmi_info;
+static struct am_hdmi_tx am_hdmi_info;
+
 /*for hw limitiation, limit to 1080p/720p for recovery ui.*/
-bool hdmitx_set_smaller_pref = true;
+static bool hdmitx_set_smaller_pref = true;
 
 /*TODO:will remove later.*/
 static struct drm_display_mode dummy_mode = {
@@ -55,6 +58,73 @@ static struct drm_display_mode dummy_mode = {
 	.vrefresh = 50,
 	.flags =  DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 };
+
+static const struct drm_prop_enum_list am_color_space_enum_names[] = {
+	{ COLORSPACE_RGB444, "rgb" },
+	{ COLORSPACE_YUV422, "422" },
+	{ COLORSPACE_YUV444, "444" },
+	{ COLORSPACE_YUV420, "420" },
+	{ COLORSPACE_RESERVED, "reserved" },
+};
+
+static const struct drm_prop_enum_list am_color_depth_enum_names[] = {
+	{ COLORDEPTH_24B, "8bit" },
+	{ COLORDEPTH_30B, "10bit" },
+	{ COLORDEPTH_36B, "12bit" },
+	{ COLORDEPTH_48B, "16bit" },
+	{ COLORDEPTH_RESERVED, "reserved" },
+};
+
+/* this is prior selected list of
+ * 4k2k50hz, 4k2k60hz smpte50hz, smpte60hz
+ */
+static char *color_attr_list1[] = {
+	COLOR_YCBCR420_10BIT,
+	COLOR_YCBCR422_12BIT,
+	COLOR_YCBCR420_8BIT,
+	COLOR_YCBCR444_8BIT,
+	COLOR_RGB_8BIT,
+};
+
+/* this is prior selected list of other display mode */
+static char *color_attr_list2[] = {
+	COLOR_YCBCR444_10BIT,
+	COLOR_YCBCR422_12BIT,
+	COLOR_RGB_10BIT,
+	COLOR_YCBCR444_8BIT,
+	COLOR_RGB_8BIT,
+};
+
+static void get_def_color_attr(char *outputmode, char *colorattr)
+{
+	int length = 0;
+	char **color_list = NULL;
+	int i;
+
+	if (!outputmode || !colorattr)
+		return;
+
+	/* filter some color value options, aimed at some modes. */
+	if (!strcmp(outputmode, MODE_4K2K60HZ) ||
+	    !strcmp(outputmode, MODE_4K2K50HZ) ||
+	    !strcmp(outputmode, MODE_4K2KSMPTE60HZ) ||
+	    !strcmp(outputmode, MODE_4K2KSMPTE50HZ)) {
+		color_list = color_attr_list1;
+		length = ARRAY_SIZE(color_attr_list1);
+	} else {
+		color_list = color_attr_list2;
+		length = ARRAY_SIZE(color_attr_list2);
+	}
+
+	for (i = 0; i < length; i++) {
+		if (drm_chk_mode_attr_sup(outputmode, color_list[i])) {
+			memcpy(colorattr, color_list[i], DRM_ATTR_LEN_MAX);
+			break;
+		}
+	}
+	if (i == length)
+		memcpy(colorattr, COLOR_RGB_8BIT, sizeof(COLOR_RGB_8BIT));
+}
 
 char *am_meson_hdmi_get_voutmode(struct drm_display_mode *mode)
 {
@@ -315,34 +385,107 @@ void am_hdmi_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	struct drm_crtc_state *crtc_state,
 	struct drm_connector_state *conn_state)
 {
+	struct am_hdmi_tx *am_hdmi = &am_hdmi_info;
+	bool support = false;
+	char mode_tmp[DRM_MODE_LEN_MAX];
+	char attr_tmp[DRM_ATTR_LEN_MAX];
+	struct hdmitx_dev *hdmitx_dev = get_hdmitx_device();
+
+	am_hdmi_info.hdcp_ctl_lvl = hdmitx_dev->hdcp_ctl_lvl;
+	/* android should not use this interface */
+	if (am_hdmi_info.hdcp_ctl_lvl == 0)
+		return;
+	if (!crtc_state)
+		return;
+
+	memset(mode_tmp, 0, sizeof(mode_tmp));
+	memset(attr_tmp, 0, sizeof(attr_tmp));
+	/* get attr from ubootenv */
+	amhdmitx_get_attr(attr_tmp);
+
+	DRM_INFO("new mode name :%s, current attr: %s\n",
+		crtc_state->mode.name, attr_tmp);
+	if (!drm_chk_hdmi_mode(crtc_state->mode.name))
+		return;
+
+	memcpy(mode_tmp, crtc_state->mode.name, DRM_MODE_LEN_MAX);
+
+	support = drm_chk_mode_attr_sup(mode_tmp, attr_tmp);
+	if (support)
+		DRM_INFO("mode & current attr supported\n");
+	/* else { */
+	if (am_hdmi->color_depth == COLORDEPTH_RESERVED ||
+	    am_hdmi->color_space == COLORSPACE_RESERVED) {
+		memset(attr_tmp, 0, sizeof(attr_tmp));
+		get_def_color_attr(mode_tmp, attr_tmp);
+		amhdmitx_setup_attr(attr_tmp);
+		DRM_INFO("select default colorattr:[%s]\n",
+			 attr_tmp);
+	}
+	/* } */
+
+	am_hdmi->color_depth = COLORDEPTH_RESERVED;
+	am_hdmi->color_space = COLORSPACE_RESERVED;
 }
 
 void am_hdmi_encoder_atomic_enable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
+
 {
 	enum vmode_e vmode = get_current_vmode();
 	struct am_meson_crtc_state *meson_crtc_state = to_am_meson_crtc_state(encoder->crtc->state);
+	struct hdmitx_dev *hdmitx_dev = get_hdmitx_device();
+
+	am_hdmi_info.hdcp_ctl_lvl = hdmitx_dev->hdcp_ctl_lvl;
 
 	if (vmode == VMODE_HDMI) {
-		DRM_INFO("enable\n");
+		DRM_INFO("[%s]\n", __func__);
 	} else {
-		DRM_INFO("enable fail! vmode:%d\n", vmode);
+		DRM_INFO("[%s] fail! vmode:%d\n", __func__, vmode);
 		return;
 	}
 
 	if (meson_crtc_state->uboot_mode_init == 1)
 		vmode |= VMODE_INIT_BIT_MASK;
-
+	/* todo: need set avmute before switch mode
+	 * (no need when boot up && hdmi output
+	 * enabled under uboot already)
+	 */
+	if (am_hdmi_info.hdcp_ctl_lvl == 1) {
+		if ((vmode & VMODE_INIT_BIT_MASK) !=
+			VMODE_INIT_BIT_MASK) {
+			drm_hdmitx_avmute(1);
+			msleep(100);
+		}
+		am_hdcp_disable(&am_hdmi_info);
+	}
 	set_vout_mode_pre_process(vmode);
 	set_vout_vmode(vmode);
 	set_vout_mode_post_process(vmode);
 	/* msleep(1000); */
+	/* todo: clear avmute */
+	if (am_hdmi_info.hdcp_ctl_lvl == 1) {
+		drm_hdmitx_avmute(0);
+		am_hdcp_enable(&am_hdmi_info);
+	}
 }
 
+void am_hdmi_encoder_atomic_disable(struct drm_encoder *encoder,
+	struct drm_atomic_state *state)
+{
+	struct am_hdmi_tx *am_hdmi = encoder_to_am_hdmi(encoder);
+	struct drm_connector_state *conn_state = am_hdmi->connector.state;
 
-static const struct drm_encoder_helper_funcs am_hdmi_encoder_helper_funcs = {
-	.atomic_mode_set = am_hdmi_encoder_atomic_mode_set,
-	.atomic_enable = am_hdmi_encoder_atomic_enable,
+	/* to be test: move hdcp disable here */
+	conn_state->content_protection = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
+	DRM_INFO("[%s]\n", __func__);
+}
+
+static const struct drm_encoder_helper_funcs
+	am_hdmi_encoder_helper_funcs = {
+	.atomic_mode_set	= am_hdmi_encoder_atomic_mode_set,
+	.atomic_enable		= am_hdmi_encoder_atomic_enable,
+	.atomic_disable		= am_hdmi_encoder_atomic_disable,
 };
 
 static const struct drm_encoder_funcs am_hdmi_encoder_funcs = {
@@ -380,6 +523,10 @@ static void am_meson_hdmi_hpd_cb(void *data)
 	struct am_hdmi_tx *am_hdmi = (struct am_hdmi_tx *)data;
 
 	DRM_INFO("drm hdmitx hpd notify\n");
+	if (drm_hdmitx_detect_hpd() == 0 &&
+		am_hdmi->hdcp_ctl_lvl > 0)
+		am_hdcp_disconnect(am_hdmi);
+
 	drm_helper_hpd_irq_event(am_hdmi->connector.dev);
 }
 
@@ -395,7 +542,6 @@ static int am_meson_hdmi_bind(struct device *dev,
 
 	DRM_INFO("[%s] in\n", __func__);
 	am_hdmi = &am_hdmi_info;
-	memset(am_hdmi, 0, sizeof(*am_hdmi));
 
 	DRM_INFO("drm hdmitx init and version:%s\n", DRM_HDMITX_VER);
 	am_hdmi->priv = priv;
@@ -413,6 +559,8 @@ static int am_meson_hdmi_bind(struct device *dev,
 		dev_err(priv->dev, "Failed to init hdmi tx connector\n");
 		return ret;
 	}
+	am_meson_hdmi_connector_init_property(drm, am_hdmi);
+
 	connector->interlace_allowed = 1;
 
 	/* Encoder */
@@ -428,9 +576,8 @@ static int am_meson_hdmi_bind(struct device *dev,
 
 	/*hpd irq moved to amhdmitx, registe call back */
 	drm_hdmitx_register_hpd_cb(am_meson_hdmi_hpd_cb, (void *)am_hdmi);
-
-	/*TODO: amlogic private prop*/
-	am_meson_hdmi_connector_init_property(drm, am_hdmi);
+	/*hdcp prop*/
+	drm_connector_attach_content_protection_property(connector, true);
 
 	DRM_INFO("[%s] out\n", __func__);
 	return 0;
@@ -448,14 +595,119 @@ static const struct component_ops am_meson_hdmi_ops = {
 	.unbind	= am_meson_hdmi_unbind,
 };
 
+/***** debug interface begin *****/
+static void am_hdmitx_set_hdcp_mode(unsigned int user_type)
+{
+	am_hdmi_info.hdcp_user_type = user_type;
+	DRM_INFO("set_hdcp_mode: %d manually\n", user_type);
+}
+
+static void am_hdmitx_set_hdmi_mode(void)
+{
+	enum vmode_e vmode = get_current_vmode();
+
+	if (vmode == VMODE_HDMI) {
+		DRM_INFO("set_hdmi_mode manually\n");
+	} else {
+		DRM_INFO("set_hdmi_mode manually fail! vmode:%d\n", vmode);
+		return;
+	}
+
+	set_vout_mode_pre_process(vmode);
+	set_vout_vmode(vmode);
+	set_vout_mode_post_process(vmode);
+}
+
+/* set hdmi+hdcp mode */
+static void am_hdmitx_set_out_mode(void)
+{
+	enum vmode_e vmode = get_current_vmode();
+	struct hdmitx_dev *hdmitx_dev = get_hdmitx_device();
+
+	am_hdmi_info.hdcp_ctl_lvl = hdmitx_dev->hdcp_ctl_lvl;
+
+	if (vmode == VMODE_HDMI) {
+		DRM_INFO("set_out_mode\n");
+	} else {
+		DRM_INFO("set_out_mode fail! vmode:%d\n", vmode);
+		return;
+	}
+
+	if (am_hdmi_info.hdcp_ctl_lvl > 0) {
+		drm_hdmitx_avmute(1);
+		msleep(100);
+		am_hdcp_disable(&am_hdmi_info);
+	}
+	set_vout_mode_pre_process(vmode);
+	set_vout_vmode(vmode);
+	set_vout_mode_post_process(vmode);
+	/* msleep(1000); */
+	if (am_hdmi_info.hdcp_ctl_lvl > 0) {
+		drm_hdmitx_avmute(0);
+		am_hdcp_enable(&am_hdmi_info);
+	}
+}
+
+static void am_hdmitx_hdcp_disable(void)
+{
+	struct hdmitx_dev *hdmitx_dev = get_hdmitx_device();
+
+	am_hdmi_info.hdcp_ctl_lvl = hdmitx_dev->hdcp_ctl_lvl;
+	if (am_hdmi_info.hdcp_ctl_lvl >= 1)
+		am_hdcp_disable(&am_hdmi_info);
+	DRM_INFO("hdcp disable manually\n");
+}
+
+static void am_hdmitx_hdcp_enable(void)
+{
+	struct hdmitx_dev *hdmitx_dev = get_hdmitx_device();
+
+	am_hdmi_info.hdcp_ctl_lvl = hdmitx_dev->hdcp_ctl_lvl;
+	if (am_hdmi_info.hdcp_ctl_lvl >= 1)
+		am_hdcp_enable(&am_hdmi_info);
+	DRM_INFO("hdcp enable manually\n");
+}
+
+static void am_hdmitx_hdcp_disconnect(void)
+{
+	struct hdmitx_dev *hdmitx_dev = get_hdmitx_device();
+
+	am_hdmi_info.hdcp_ctl_lvl = hdmitx_dev->hdcp_ctl_lvl;
+	if (am_hdmi_info.hdcp_ctl_lvl >= 1)
+		am_hdcp_disconnect(&am_hdmi_info);
+	DRM_INFO("hdcp disconnect manually\n");
+}
+
+/***** debug interface end *****/
+
 static int am_meson_hdmi_probe(struct platform_device *pdev)
 {
+	struct hdmitx_dev *hdmitx_dev;
+
 	DRM_INFO("[%s] in\n", __func__);
+	memset(&am_hdmi_info, 0, sizeof(am_hdmi_info));
+	hdcp_comm_init(&am_hdmi_info);
+	hdmitx_dev = get_hdmitx_device();
+	/* hdcp auth control owner:
+	 * 0: by android sysctrl
+	 * 1: by drm driver
+	 * 2: by linux app
+	 */
+	am_hdmi_info.hdcp_ctl_lvl = hdmitx_dev->hdcp_ctl_lvl;
+	am_hdmi_info.color_depth = COLORDEPTH_RESERVED;
+	am_hdmi_info.color_space = COLORSPACE_RESERVED;
+	hdmitx_dev->hwop.am_hdmitx_set_hdcp_mode = am_hdmitx_set_hdcp_mode;
+	hdmitx_dev->hwop.am_hdmitx_set_hdmi_mode = am_hdmitx_set_hdmi_mode;
+	hdmitx_dev->hwop.am_hdmitx_set_out_mode = am_hdmitx_set_out_mode;
+	hdmitx_dev->hwop.am_hdmitx_hdcp_disable = am_hdmitx_hdcp_disable;
+	hdmitx_dev->hwop.am_hdmitx_hdcp_enable = am_hdmitx_hdcp_enable;
+	hdmitx_dev->hwop.am_hdmitx_hdcp_disconnect = am_hdmitx_hdcp_disconnect;
 	return component_add(&pdev->dev, &am_meson_hdmi_ops);
 }
 
 static int am_meson_hdmi_remove(struct platform_device *pdev)
 {
+	hdcp_comm_exit(&am_hdmi_info);
 	component_del(&pdev->dev, &am_meson_hdmi_ops);
 	return 0;
 }
