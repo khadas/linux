@@ -16,6 +16,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vpu/vpu.h>
+#include <linux/amlogic/media/vout/hdmi_tx/meson_drm_hdmitx.h>
 
 #define DEVICE_NAME "amhdmitx"
 
@@ -281,9 +282,6 @@ struct hdmitx_clk_tree_s {
 	struct clk *venci_1_gate;
 };
 
-/*drm hpd*/
-typedef void (*drm_hpd_cb)(void *data);
-
 #define EDID_MAX_BLOCK              4
 struct hdmitx_dev {
 	struct cdev cdev; /* The cdev structure */
@@ -371,10 +369,12 @@ struct hdmitx_dev {
 				unsigned int cmd, unsigned int arg);
 		int (*cntl)(struct hdmitx_dev *hdmitx_device, unsigned int cmd,
 			    unsigned int arg); /* Other control */
+		void (*am_hdmitx_set_hdcp_mode)(unsigned int user_type);
+		void (*am_hdmitx_set_hdmi_mode)(void);
+		void (*am_hdmitx_set_out_mode)(void);
 		void (*am_hdmitx_hdcp_disable)(void);
 		void (*am_hdmitx_hdcp_enable)(void);
-		void (*am_hdmitx_hdcp_result)(unsigned int *exe_type,
-					      unsigned int *result_type);
+		void (*am_hdmitx_hdcp_disconnect)(void);
 	} hwop;
 	struct {
 		unsigned int hdcp14_en;
@@ -486,6 +486,7 @@ struct hdmitx_dev {
 	void *drm_data;
 	bool systemcontrol_on;
 	unsigned char vid_mute_op;
+	unsigned int hdcp_ctl_lvl;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
@@ -926,12 +927,5 @@ bool hdmitx_dv_en(void);
 bool hdmitx_hdr10p_en(void);
 bool LGAVIErrorTV(struct rx_cap *prxcap);
 bool hdmitx_find_vendor(struct hdmitx_dev *hdev);
-
-/*DRM connector API*/
-int drm_hdmitx_detect_hpd(void);
-int drm_hdmitx_register_hpd_cb(drm_hpd_cb cb, void *data);
-int drm_hdmitx_get_vic_list(int **vics);
-unsigned char *drm_hdmitx_get_raw_edid(void);
-/*DRM connector API end*/
 int hdmitx_uboot_already_display(int type);
 #endif

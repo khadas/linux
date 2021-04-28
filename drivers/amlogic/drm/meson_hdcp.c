@@ -20,391 +20,307 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/arm-smccc.h>
-
+#include <linux/workqueue.h>
+#include "meson_drv.h"
 #include "meson_hdmi.h"
 #include "meson_hdcp.h"
 
-static int hdcp_topo_st = -1;
-static int hdmitx_hdcp_opr(unsigned int val)
-{
-	struct arm_smccc_res res;
+/* ioctl numbers */
+enum {
+	TEE_HDCP_START,
+	TEE_HDCP_END,
+	HDCP_DAEMON_LOAD_END,
+	HDCP_DAEMON_REPORT,
+	HDCP_EXE_VER_SET,
+	HDCP_TX_VER_REPORT,
+	HDCP_DOWNSTR_VER_REPORT,
+	HDCP_EXE_VER_REPORT
+};
 
-	if (val == 1) { /* HDCP14_ENABLE */
-		arm_smccc_smc(0x82000010, 0, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 2) { /* HDCP14_RESULT */
-		arm_smccc_smc(0x82000011, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0) & 0xffffffff);
-	}
-	if (val == 0) { /* HDCP14_INIT */
-		arm_smccc_smc(0x82000012, 0, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 3) { /* HDCP14_EN_ENCRYPT */
-		arm_smccc_smc(0x82000013, 0, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 4) { /* HDCP14_OFF */
-		arm_smccc_smc(0x82000014, 0, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 5) {	/* HDCP_MUX_22 */
-		arm_smccc_smc(0x82000015, 0, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 6) {	/* HDCP_MUX_14 */
-		arm_smccc_smc(0x82000016, 0, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 7) { /* HDCP22_RESULT */
-		arm_smccc_smc(0x82000017, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0) & 0xffffffff);
-	}
-	if (val == 0xa) { /* HDCP14_KEY_LSTORE */
-		arm_smccc_smc(0x8200001a, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0) & 0xffffffff);
-	}
-	if (val == 0xb) { /* HDCP22_KEY_LSTORE */
-		arm_smccc_smc(0x8200001b, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0) & 0xffffffff);
-	}
-	if (val == 0xc) { /* HDCP22_KEY_SET_DUK */
-		arm_smccc_smc(0x8200001c, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0) & 0xffffffff);
-	}
-	if (val == 0xd) { /* HDCP22_SET_TOPO */
-		arm_smccc_smc(0x82000083, hdcp_topo_st, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 0xe) { /* HDCP22_GET_TOPO */
-		arm_smccc_smc(0x82000084, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0) & 0xffffffff);
-	}
-	return -1;
+#define TEE_HDCP_IOC_START    _IOW('P', TEE_HDCP_START, int)
+#define TEE_HDCP_IOC_END    _IOW('P', TEE_HDCP_END, int)
+
+#define HDCP_DAEMON_IOC_LOAD_END    _IOW('P', HDCP_DAEMON_LOAD_END, int)
+#define HDCP_DAEMON_IOC_REPORT    _IOR('P', HDCP_DAEMON_REPORT, int)
+
+#define HDCP_EXE_VER_IOC_SET    _IOW('P', HDCP_EXE_VER_SET, int)
+#define HDCP_TX_VER_IOC_REPORT    _IOR('P', HDCP_TX_VER_REPORT, int)
+#define HDCP_DOWNSTR_VER_IOC_REPORT    _IOR('P', HDCP_DOWNSTR_VER_REPORT, int)
+#define HDCP_EXE_VER_IOC_REPORT    _IOR('P', HDCP_EXE_VER_REPORT, int)
+
+static unsigned int get_hdcp_downstream_ver(struct am_hdmi_tx *am_hdmi)
+{
+	unsigned int hdcp_downstream_type = drm_get_rx_hdcp_cap();
+
+	DRM_INFO("downstream support hdcp14: %d\n",
+		 hdcp_downstream_type & 0x1);
+	DRM_INFO("downstream support hdcp22: %d\n",
+		 (hdcp_downstream_type & 0x2) >> 1);
+
+	return hdcp_downstream_type;
 }
 
-static void get_hdcp_bstatus(void)
+static unsigned int get_hdcp_hdmitx_version(struct am_hdmi_tx *am_hdmi)
 {
-	int ret1 = 0;
-	int ret2 = 0;
+	unsigned int hdcp_tx_type = drm_hdmitx_get_hdcp_cap();
 
-	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 1, 0, 1);
-	hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HZ);
-	ret1 = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_0);
-	ret2 = hdmitx_rd_reg(HDMITX_DWC_HDCP_BSTATUS_1);
-	hdmitx_set_reg_bits(HDMITX_DWC_A_KSVMEMCTRL, 0, 0, 1);
-	DRM_INFO("BSTATUS0 = 0x%x   BSTATUS1 = 0x%x\n", ret1, ret2);
+	DRM_INFO("hdmitx support hdcp14: %d\n",
+		 hdcp_tx_type & 0x1);
+	DRM_INFO("hdmitx support hdcp22: %d\n",
+		 (hdcp_tx_type & 0x2) >> 1);
+	return hdcp_tx_type;
 }
 
-static void hdcp14_events_handle(struct timer_list *t)
+static int am_get_hdcp_exe_type(struct am_hdmi_tx *am_hdmi)
 {
-	struct am_hdmi_tx *am_hdmi = from_timer(am_hdmi, t, hdcp_timer);
-	unsigned int bcaps_6_rp;
-	static unsigned int st_flag = -1;
+	int type;
 
-	bcaps_6_rp = !!(hdmitx_rd_reg(HDMITX_DWC_A_HDCPOBS3) & (1 << 6));
-	if (st_flag != hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT)) {
-		st_flag = hdmitx_rd_reg(HDMITX_DWC_A_APIINTSTAT);
-		DRM_INFO("hdcp14: instat: 0x%x\n", st_flag);
+	am_hdmi->hdcp_tx_type = get_hdcp_hdmitx_version(am_hdmi);
+	DRM_INFO("%s usr_type: %d, tx_type: %d\n",
+		 __func__, am_hdmi->hdcp_user_type, am_hdmi->hdcp_tx_type);
+	if (am_hdmi->hdcp_user_type == 0)
+		return HDCP_NULL;
+	if (/* !am_hdmi->hdcp_downstream_type && */
+		am_hdmi->hdcp_tx_type)
+		am_hdmi->hdcp_downstream_type =
+			get_hdcp_downstream_ver(am_hdmi);
+	switch (am_hdmi->hdcp_tx_type & 0x3) {
+	case 0x3:
+		if ((am_hdmi->hdcp_downstream_type & 0x2) &&
+			(am_hdmi->hdcp_user_type & 0x2))
+			type = HDCP_MODE22;
+		else if ((am_hdmi->hdcp_downstream_type & 0x1) &&
+			 (am_hdmi->hdcp_user_type & 0x1))
+			type = HDCP_MODE14;
+		else
+			type = HDCP_NULL;
+		break;
+	case 0x2:
+		if ((am_hdmi->hdcp_downstream_type & 0x2) &&
+			(am_hdmi->hdcp_user_type & 0x2))
+			type = HDCP_MODE22;
+		else
+			type = HDCP_NULL;
+		break;
+	case 0x1:
+		if ((am_hdmi->hdcp_downstream_type & 0x1) &&
+			(am_hdmi->hdcp_user_type & 0x1))
+			type = HDCP_MODE14;
+		else
+			type = HDCP_NULL;
+		break;
+	default:
+		type = HDCP_NULL;
+		DRM_INFO("[%s]: TX no hdcp key\n", __func__);
+		break;
 	}
-	if (st_flag & (1 << 7)) {
-		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, 1 << 7);
-		hdmitx_hdcp_opr(3);
-		get_hdcp_bstatus();
-	}
-
-	if (st_flag & (1 << 1)) {
-		hdmitx_wr_reg(HDMITX_DWC_A_APIINTCLR, (1 << 1));
-		hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x1);
-		hdmitx_poll_reg(HDMITX_DWC_A_KSVMEMCTRL, (1 << 1), 2 * HZ);
-		if (hdmitx_rd_reg(HDMITX_DWC_A_KSVMEMCTRL) & (1 << 1)) {
-			;//hdcp_ksv_sha1_calc(hdev); todo
-		} else {
-			DRM_INFO("hdcptx14: KSV List memory access denied\n");
-			return;
-		}
-		hdmitx_wr_reg(HDMITX_DWC_A_KSVMEMCTRL, 0x4);
-	}
-
-	if (am_hdmi->hdcp_try_times)
-		mod_timer(&am_hdmi->hdcp_timer, jiffies + HZ / 100);
-	else
-		return;
-	am_hdmi->hdcp_try_times--;
-}
-
-static void hdcp14_start_timer(struct am_hdmi_tx *am_hdmi)
-{
-	static int init_flag;
-
-	if (!init_flag) {
-		init_flag = 1;
-		timer_setup(&am_hdmi->hdcp_timer, hdcp14_events_handle, 0);
-		am_hdmi->hdcp_timer.expires = jiffies + HZ / 100;
-		add_timer(&am_hdmi->hdcp_timer);
-		am_hdmi->hdcp_try_times = 500;
-		return;
-	}
-	am_hdmi->hdcp_try_times = 500;
-	am_hdmi->hdcp_timer.expires = jiffies + HZ / 100;
-	mod_timer(&am_hdmi->hdcp_timer, jiffies + HZ / 100);
-}
-
-static int am_hdcp14_enable(struct am_hdmi_tx *am_hdmi)
-{
-	am_hdmi->hdcp_mode = HDCP_MODE14;
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
-	hdmitx_hdcp_opr(6);
-	hdmitx_hdcp_opr(1);
-	hdcp14_start_timer(am_hdmi);
-	return 0;
-}
-
-static int am_hdcp14_disable(struct am_hdmi_tx *am_hdmi)
-{
-	hdmitx_hdcp_opr(4);
-	return 0;
-}
-
-static void set_pkf_duk_nonce(void)
-{
-	static int nonce_mode = 1; /* 1: use HW nonce   0: use SW nonce */
-
-	/* Configure duk/pkf */
-	hdmitx_hdcp_opr(0xc);
-	if (nonce_mode == 1) {
-		hdmitx_wr_reg(HDMITX_TOP_SKP_CNTL_STAT, 0xf);
-	} else {
-		hdmitx_wr_reg(HDMITX_TOP_SKP_CNTL_STAT, 0xe);
-/* Configure nonce[127:0].
- * MSB must be written the last to assert nonce_vld signal.
- */
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_0,  0x32107654);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_1,  0xba98fedc);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_2,  0xcdef89ab);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_3,  0x45670123);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_0,  0x76543210);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_1,  0xfedcba98);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_2,  0x89abcdef);
-		hdmitx_wr_reg(HDMITX_TOP_NONCE_3,  0x01234567);
-	}
-	usleep_range(9, 11);
-}
-
-static void am_sysfs_hdcp_event(struct drm_device *dev, unsigned int flag)
-{
-	char *envp1[2] = {  "HDCP22=1", NULL };
-	char *envp0[2] = {  "HDCP22=0", NULL };
-
-	DRM_INFO("generating hdcp22: %d\n  event\n", flag);
-	if (flag)
-		kobject_uevent_env(&dev->primary->kdev->kobj,
-				   KOBJ_CHANGE, envp1);
-	else
-		kobject_uevent_env(&dev->primary->kdev->kobj,
-				   KOBJ_CHANGE, envp0);
-}
-
-static int am_hdcp22_enable(struct am_hdmi_tx *am_hdmi)
-{
-	am_hdmi->hdcp_mode = HDCP_MODE22;
-	hdmitx_ddc_hw_op(DDC_MUX_DDC);
-	hdmitx_set_reg_bits(HDMITX_DWC_MC_CLKDIS, 1, 6, 1);
-	usleep_range(4, 6);
-	hdmitx_set_reg_bits(HDMITX_DWC_HDCP22REG_CTRL, 3, 1, 2);
-	hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 5, 1);
-	usleep_range(9, 11);
-	hdmitx_set_reg_bits(HDMITX_TOP_SW_RESET, 0, 5, 1);
-	usleep_range(9, 11);
-	hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_MASK, 0);
-	hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_MUTE, 0);
-	set_pkf_duk_nonce();
-
-	/*uevent to open hdcp_tx22*/
-	am_sysfs_hdcp_event(am_hdmi->connector.dev, 1);
-	return 0;
-}
-
-static int am_hdcp22_disable(struct am_hdmi_tx *am_hdmi)
-{
-	hdmitx_hdcp_opr(6);
-	/*uevent to close hdcp_tx22*/
-	am_sysfs_hdcp_event(am_hdmi->connector.dev, 0);
-	return 0;
+	return type;
 }
 
 void am_hdcp_disable(struct am_hdmi_tx *am_hdmi)
 {
-	if (am_hdmi->hdcp_mode == HDCP_MODE22)
-		am_hdcp22_disable(am_hdmi);
-	else if (am_hdmi->hdcp_mode == HDCP_MODE14)
-		am_hdcp14_disable(am_hdmi);
+	DRM_INFO("[%s]: %d\n", __func__, am_hdmi->hdcp_execute_type);
+	/* TODO: whether to keep exe type */
+	/* if (am_hdmi->hdcp_execute_type == HDCP_MODE22) { */
+		am_hdmi->hdcp_report = HDCP_TX22_DISCONNECT;
+		/* wait for tx22 to enter unconnected state */
+		msleep(200);
+		am_hdmi->hdcp_report = HDCP_TX22_STOP;
+		/* wakeup hdcp_tx22 to stop hdcp22 */
+		wake_up(&am_hdmi->hdcp_comm_queue);
+		/* wait for hdcp_tx22 stop hdcp22 done */
+		msleep(200);
+		drm_hdmitx_hdcp_disable(HDCP_MODE22);
+	/* } else if (am_hdmi->hdcp_execute_type  == HDCP_MODE14) { */
+		drm_hdmitx_hdcp_disable(HDCP_MODE14);
+	/* } */
+	am_hdmi->hdcp_execute_type = HDCP_NULL;
+	am_hdmi->hdcp_result = 0;
+	am_hdmi->hdcp_en = 0;
 }
-EXPORT_SYMBOL(am_hdcp_disable);
 
-static int is_hdcp_hdmirx_supported(struct am_hdmi_tx *am_hdmi)
+void am_hdcp_disconnect(struct am_hdmi_tx *am_hdmi)
 {
-	unsigned int hdcp_rx_type = 0x1;
-	int st;
+	/* if (am_hdmi->hdcp_execute_type == HDCP_MODE22) */
+		/* drm_hdmitx_hdcp_disable(HDCP_MODE22); */
+	/* else if (am_hdmi->hdcp_execute_type  == HDCP_MODE14) */
+		/* drm_hdmitx_hdcp_disable(HDCP_MODE14); */
+	am_hdmi->hdcp_report = HDCP_TX22_DISCONNECT;
+	am_hdmi->hdcp_downstream_type = 0;
+	/* TODO: for suspend/resume, need to stop/start hdcp22
+	 * need to keep exe type
+	 */
+	am_hdmi->hdcp_execute_type = HDCP_NULL;
+	am_hdmi->hdcp_result = 0;
+	am_hdmi->hdcp_en = 0;
+	DRM_INFO("[%s]: HDCP_TX22_DISCONNECT\n", __func__);
+	wake_up(&am_hdmi->hdcp_comm_queue);
+}
 
-	/*if tx has hdcp22, then check if rx support hdcp22*/
-	if (am_hdmi->hdcp_tx_type & 0x2) {
-		hdmitx_ddc_hw_op(DDC_MUX_DDC);
-		//mutex_lock(&am_hdmi->hdcp_mutex);
-		hdmitx_wr_reg(HDMITX_DWC_I2CM_SLAVE, HDCP_SLAVE);
-		hdmitx_wr_reg(HDMITX_DWC_I2CM_ADDRESS, HDCP2_VERSION);
-		hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 0);
-		mdelay(2);
-		if (hdmitx_rd_reg(HDMITX_DWC_IH_I2CM_STAT0) & (1 << 0)) {
-			st = 0;
-			DRM_INFO("ddc rd8b error 0x%02x 0x%02x\n",
-				 HDCP_SLAVE, HDCP2_VERSION);
-		} else {
-			st = 1;
-		}
-		hdmitx_wr_reg(HDMITX_DWC_IH_I2CM_STAT0, 0x7);
-		if (hdmitx_rd_reg(HDMITX_DWC_I2CM_DATAI) & (1 << 2))
-			hdcp_rx_type = 0x3;
-		//mutex_unlock(&am_hdmi->hdcp_mutex);
-	} else {
-	/*if tx has hdcp14 or no key, then rx support hdcp14 acquiescently*/
-		hdcp_rx_type = 0x1;
+void am_hdcp_enable(struct am_hdmi_tx *am_hdmi)
+{
+	/* hdcp enabled, but may not start auth as key not ready */
+	am_hdmi->hdcp_en = 1;
+	am_hdmi->hdcp_execute_type = am_get_hdcp_exe_type(am_hdmi);
+
+	if (am_hdmi->hdcp_execute_type == HDCP_MODE22) {
+		drm_hdmitx_hdcp_enable(2);
+		am_hdmi->hdcp_report = HDCP_TX22_START;
+		msleep(50);
+		wake_up(&am_hdmi->hdcp_comm_queue);
+	} else if (am_hdmi->hdcp_execute_type == HDCP_MODE14) {
+		drm_hdmitx_hdcp_enable(1);
 	}
-	am_hdmi->hdcp_rx_type = hdcp_rx_type;
-
-	DRM_INFO("hdmirx support hdcp14: %d\n", hdcp_rx_type & 0x1);
-	DRM_INFO("hdmirx support hdcp22: %d\n", (hdcp_rx_type & 0x2) >> 1);
-	return hdcp_rx_type;
+	DRM_INFO("[%s]: report=%d, use_type=%u, execute=%u\n",
+		 __func__, am_hdmi->hdcp_report,
+		 am_hdmi->hdcp_user_type, am_hdmi->hdcp_execute_type);
 }
 
-int am_hdcp14_auth(struct am_hdmi_tx *am_hdmi)
+static long hdcp_comm_ioctl(struct file *file,
+			    unsigned int cmd,
+			    unsigned long arg)
 {
-	return hdmitx_hdcp_opr(0x2);
-}
+	int rtn_val;
+	unsigned int out_size;
+	struct miscdevice *phdcp_comm_device;
+	struct am_hdmi_tx *am_hdmi;
 
-int am_hdcp22_auth(struct am_hdmi_tx *am_hdmi)
-{
-	return hdmitx_hdcp_opr(0x7);
-}
+	phdcp_comm_device = file->private_data;
+	am_hdmi = container_of(phdcp_comm_device,
+			       struct am_hdmi_tx,
+			       hdcp_comm_device);
 
-/*firstly,check the hdmirx key
- *if hdmirx has hdcp22 key, start hdcp22. check auth status,
- *if failure,then start hdcp14
- *if hdmirx has hdcp14 key, start hdcp 14
- */
-int am_hdcp_work(void *data)
-{
-	struct am_hdmi_tx *am_hdmi = data;
-	struct drm_connector *conn = &am_hdmi->connector;
-	int hdcp_fsm = HDCP_READY;
-	int hdcp_feature = 0;
-
-	DRM_INFO("start hdcp work CP=%u\n", conn->state->content_protection);
-	is_hdcp_hdmirx_supported(am_hdmi);
-	if ((am_hdmi->hdcp_tx_type & 0x2) &&
-	    (am_hdmi->hdcp_rx_type & 0x2))
-		hdcp_feature = HDCP22_ENABLE;
-	else
-		hdcp_feature = HDCP14_ENABLE;
-
-	do {
-		/* The state ptr will update pre atomic commit */
-		if (conn->state->content_protection ==
-				DRM_MODE_CONTENT_PROTECTION_UNDESIRED) {
-			if (hdcp_fsm != HDCP_READY) {
-				hdcp_fsm = HDCP_READY;
-				DRM_INFO("HDCP status reset!\n");
-			}
-		} else if (hdcp_fsm == HDCP_READY) {
-			hdcp_fsm = hdcp_feature;
+	switch (cmd) {
+	case TEE_HDCP_IOC_START:
+		/* notify by TEE, hdcp key ready, echo 2 > hdcp_mode */
+		rtn_val = 0;
+		am_hdmi->hdcp_tx_type = get_hdcp_hdmitx_version(am_hdmi);
+		if (am_hdmi->hdcp_tx_type & 0x2)
+			drm_hdmitx_hdcp22_init();
+		DRM_INFO("hdcp key load ready\n");
+		break;
+	case TEE_HDCP_IOC_END:
+		rtn_val = 0;
+		break;
+	case HDCP_DAEMON_IOC_LOAD_END:
+		/* hdcp_tx22 load ready (after TEE key ready) */
+		DRM_INFO("IOC_LOAD_END %d, %d\n",
+			 am_hdmi->hdcp_report, am_hdmi->hdcp_poll_report);
+		if (am_hdmi->hdcp_en && am_hdmi->hdcp_execute_type == 0) {
+			am_hdcp_enable(am_hdmi);
+			DRM_INFO("hdcp start before key ready, restart: %d\n",
+				 am_hdmi->hdcp_execute_type);
 		}
-		if (hdcp_fsm == HDCP_QUIT)
-			conn->state->content_protection =
-				DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
-
-		switch (hdcp_fsm) {
-		case HDCP_READY:
-			/* wait for content_protection change. */
-			msleep_interruptible(5000);
-			break;
-		case HDCP22_ENABLE:
-			am_hdcp22_enable(am_hdmi);
-			DRM_INFO("hdcp22 work after 10s\n");
-			/*this time is used to debug*/
-			msleep_interruptible(10000);
-			hdcp_fsm = HDCP22_AUTH;
-			break;
-		case HDCP22_AUTH:
-			if (am_hdcp22_auth(am_hdmi))
-				hdcp_fsm = HDCP22_SUCCESS;
-			else
-				hdcp_fsm = HDCP22_FAIL;
-			break;
-		case HDCP22_SUCCESS:
-			conn->state->content_protection =
-				DRM_MODE_CONTENT_PROTECTION_ENABLED;
-			hdcp_fsm = HDCP22_AUTH;
-			msleep_interruptible(200);
-			break;
-		case HDCP22_FAIL:
-			am_hdcp22_disable(am_hdmi);
-			DRM_INFO("hdcp22 failure and start hdcp14\n");
-			hdcp_fsm = HDCP14_ENABLE;
-			msleep_interruptible(2000);
-			break;
-		case HDCP14_ENABLE:
-			if ((am_hdmi->hdcp_tx_type & 0x1) == 0) {
-				hdcp_fsm = HDCP_QUIT;
-				break;
-			}
-			DRM_INFO("hdcp14 work start");
-			am_hdcp14_enable(am_hdmi);
-			msleep_interruptible(500);
-			hdcp_fsm = HDCP14_AUTH;
-			break;
-		case HDCP14_AUTH:
-			if (am_hdcp14_auth(am_hdmi))
-				hdcp_fsm = HDCP14_SUCCESS;
-			else
-				hdcp_fsm = HDCP14_FAIL;
-			break;
-		case HDCP14_SUCCESS:
-			conn->state->content_protection =
-				DRM_MODE_CONTENT_PROTECTION_ENABLED;
-			hdcp_fsm = HDCP14_AUTH;
-			msleep_interruptible(200);
-			break;
-		case HDCP14_FAIL:
-			am_hdcp14_disable(am_hdmi);
-			DRM_INFO("hdcp14 failure\n");
-			hdcp_fsm = HDCP_QUIT;
-			break;
-		case HDCP_QUIT:
-		default:
-			break;
+		am_hdmi->hdcp_poll_report = am_hdmi->hdcp_report;
+		rtn_val = 0;
+		break;
+	case HDCP_DAEMON_IOC_REPORT:
+		rtn_val = copy_to_user((void __user *)arg,
+				       (void *)&am_hdmi->hdcp_report,
+				       sizeof(am_hdmi->hdcp_report));
+		if (rtn_val != 0) {
+			out_size = sizeof(am_hdmi->hdcp_report);
+			DRM_INFO("out_size: %u, leftsize: %u\n",
+				 out_size, rtn_val);
+			rtn_val = -1;
 		}
-	} while (!kthread_should_stop());
-	DRM_INFO("hdcp worker stopped\n");
-	return 0;
+		break;
+	case HDCP_EXE_VER_IOC_SET:
+		if (arg > 2) {
+			rtn_val = -1;
+		} else {
+			am_hdmi->hdcp_user_type = arg;
+			rtn_val = 0;
+			if (hdmitx_hpd_hw_op(HPD_READ_HPD_GPIO)) {
+				am_hdcp_disable(am_hdmi);
+				am_hdcp_enable(am_hdmi);
+			}
+		}
+		break;
+	case HDCP_TX_VER_IOC_REPORT:
+		rtn_val = copy_to_user((void __user *)arg,
+				       (void *)&am_hdmi->hdcp_tx_type,
+				       sizeof(am_hdmi->hdcp_tx_type));
+		if (rtn_val != 0) {
+			out_size = sizeof(am_hdmi->hdcp_tx_type);
+			DRM_INFO("out_size: %u, leftsize: %u\n",
+				 out_size, rtn_val);
+			rtn_val = -1;
+		}
+		break;
+	case HDCP_DOWNSTR_VER_IOC_REPORT:
+		rtn_val = copy_to_user((void __user *)arg,
+				       (void *)&am_hdmi->hdcp_downstream_type,
+				       sizeof(am_hdmi->hdcp_downstream_type));
+		if (rtn_val != 0) {
+			out_size = sizeof(am_hdmi->hdcp_downstream_type);
+			DRM_INFO("out_size: %u, leftsize: %u\n",
+				 out_size, rtn_val);
+			rtn_val = -1;
+		}
+		break;
+	case HDCP_EXE_VER_IOC_REPORT:
+		rtn_val = copy_to_user((void __user *)arg,
+				       (void *)&am_hdmi->hdcp_execute_type,
+				       sizeof(am_hdmi->hdcp_execute_type));
+		if (rtn_val != 0) {
+			out_size = sizeof(am_hdmi->hdcp_execute_type);
+			DRM_INFO("out_size: %u, leftsize: %u\n",
+				 out_size, rtn_val);
+			rtn_val = -1;
+		}
+		break;
+	default:
+		rtn_val = -EPERM;
+	}
+	return rtn_val;
 }
-EXPORT_SYMBOL(am_hdcp_work);
 
-int am_hdcp_init(struct am_hdmi_tx *am_hdmi)
+static unsigned int hdcp_comm_poll(struct file *file, poll_table *wait)
 {
-	int ret;
-	struct drm_connector *connector = &am_hdmi->connector;
+	struct miscdevice *phdcp_comm_device;
+	struct am_hdmi_tx *am_hdmi;
+	unsigned int mask = 0;
 
-	ret = drm_connector_attach_content_protection_property(connector, 0);
-	if (ret)
-		return ret;
-	return 0;
+	phdcp_comm_device = file->private_data;
+	am_hdmi = container_of(phdcp_comm_device,
+			       struct am_hdmi_tx,
+			       hdcp_comm_device);
+	DRM_INFO("hdcp_poll %d, %d\n", am_hdmi->hdcp_report, am_hdmi->hdcp_poll_report);
+	poll_wait(file, &am_hdmi->hdcp_comm_queue, wait);
+	if (am_hdmi->hdcp_report != am_hdmi->hdcp_poll_report) {
+		mask = POLLIN | POLLRDNORM;
+		am_hdmi->hdcp_poll_report = am_hdmi->hdcp_report;
+	}
+	return mask;
 }
-EXPORT_SYMBOL(am_hdcp_init);
 
-/*bit0:hdcp14 bit 1:hdcp22*/
-int is_hdcp_hdmitx_supported(struct am_hdmi_tx *am_hdmi)
+static const struct file_operations hdcp_comm_file_operations = {
+	.owner = THIS_MODULE,
+	.unlocked_ioctl = hdcp_comm_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = hdcp_comm_ioctl,
+#endif
+	.poll = hdcp_comm_poll,
+};
+
+void hdcp_comm_init(struct am_hdmi_tx *am_hdmi)
 {
-	unsigned int hdcp_tx_type = 0;
+	int ret = 0;
 
-	hdcp_tx_type |= hdmitx_hdcp_opr(0xa);
-	hdcp_tx_type |= ((hdmitx_hdcp_opr(0xb)) << 1);
-	am_hdmi->hdcp_tx_type = hdcp_tx_type;
-	DRM_INFO("hdmitx support hdcp14: %d\n", hdcp_tx_type & 0x1);
-	DRM_INFO("hdmitx support hdcp22: %d\n", (hdcp_tx_type & 0x2) >> 1);
-	return hdcp_tx_type;
+	am_hdmi->hdcp_user_type = 0x3;
+	am_hdmi->hdcp_report = HDCP_TX22_DISCONNECT;
+	init_waitqueue_head(&am_hdmi->hdcp_comm_queue);
+	am_hdmi->hdcp_comm_device.minor = MISC_DYNAMIC_MINOR;
+	am_hdmi->hdcp_comm_device.name = "tee_comm_hdcp";
+	am_hdmi->hdcp_comm_device.fops = &hdcp_comm_file_operations;
+	ret = misc_register(&am_hdmi->hdcp_comm_device);
+	if (ret < 0)
+		DRM_ERROR("%s [ERROR] misc_register fail\n", __func__);
 }
-EXPORT_SYMBOL(is_hdcp_hdmitx_supported);
+
+void hdcp_comm_exit(struct am_hdmi_tx *am_hdmi)
+{
+	misc_deregister(&am_hdmi->hdcp_comm_device);
+}
+
