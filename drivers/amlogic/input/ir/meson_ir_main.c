@@ -27,9 +27,23 @@
 #include <linux/pm_wakeirq.h>
 #include <linux/amlogic/pm.h>
 #include "meson_ir_main.h"
+#include <linux/amlogic/gki_module.h>
 
 static void meson_ir_tasklet(unsigned long data);
 DECLARE_TASKLET_DISABLED(tasklet, meson_ir_tasklet, 0);
+
+static int disable_ir;
+static int get_irenv(char *str)
+{
+	int ret;
+
+	ret = kstrtouint(str, 10, &disable_ir);
+	if (ret)
+		return -EINVAL;
+	return 0;
+}
+
+__setup("disable_ir=", get_irenv);
 
 int meson_ir_pulses_malloc(struct meson_ir_chip *chip)
 {
@@ -623,6 +637,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	struct meson_ir_dev *dev;
 	struct meson_ir_chip *chip;
 	int ret;
+	int id;
 
 	chip = devm_kzalloc(&pdev->dev, sizeof(struct meson_ir_chip),
 			    GFP_KERNEL);
@@ -686,6 +701,12 @@ static int meson_ir_probe(struct platform_device *pdev)
 	if (MULTI_IR_SOFTWARE_DECODE(dev->rc_type))
 		meson_ir_raw_event_register(dev);
 
+	if (disable_ir) {
+		for (id = 0; id < (ENABLE_LEGACY_IR(chip->protocol) ? 2 : 1); id++) {
+			regmap_update_bits(chip->ir_contr[id].base, REG_REG1,
+					BIT(15), 0);
+		}
+	}
 	return 0;
 }
 
