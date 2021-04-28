@@ -2614,9 +2614,14 @@ int __init tsync_module_init(void)
 	demux_pcrscr_valid = 0;
 
 	chip = get_cpu_type();
-	if (chip == MESON_CPU_MAJOR_ID_SC2 ||
-	    chip == MESON_CPU_MAJOR_ID_S4 ||
-	    chip == MESON_CPU_MAJOR_ID_T7)
+	/*
+	 *"new_arch" is true means X4 demux was used.
+	 we use the conditions "chip type >= sc2 and exclude some
+	 X2 demux chip typs, such as: such as T5/T5D".
+	 */
+	if (chip >= MESON_CPU_MAJOR_ID_SC2 &&
+	    chip != MESON_CPU_MAJOR_ID_T5 &&
+	    chip != MESON_CPU_MAJOR_ID_T5D)
 		new_arch = true;
 	else
 		new_arch = false;
