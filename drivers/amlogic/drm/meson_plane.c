@@ -825,8 +825,11 @@ static void meson_video_plane_atomic_disable(struct drm_plane *plane,
 					     struct drm_plane_state *old_state)
 {
 	struct am_video_plane *video_plane = to_am_video_plane(plane);
+	struct meson_vpu_pipeline *pipeline = video_plane->pipeline;
+	struct drm_atomic_state *old_atomic_state = old_state->state;
 
 	DRM_DEBUG("%s video %d.\n", __func__, video_plane->plane_index);
+	vpu_video_plane_update(pipeline, old_atomic_state, video_plane->plane_index);
 }
 
 /*add async check & atomic funs*/
@@ -1016,6 +1019,7 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 	video_plane->plane_index = i;
 
 	video_plane->plane_type = VIDEO_PLANE;
+	video_plane->pipeline = priv->pipeline;
 	zpos = video_plane->plane_index + min_zpos;
 
 	plane = &video_plane->base;
