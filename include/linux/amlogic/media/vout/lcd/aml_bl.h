@@ -66,7 +66,7 @@ enum bl_pwm_port_e {
 	BL_PWM_H,
 	BL_PWM_I,
 	BL_PWM_J,
-	BL_PWM_AO_A = 0x100,
+	BL_PWM_AO_A = 0x50,
 	BL_PWM_AO_B,
 	BL_PWM_AO_C,
 	BL_PWM_AO_D,
@@ -74,8 +74,8 @@ enum bl_pwm_port_e {
 	BL_PWM_AO_F,
 	BL_PWM_AO_G,
 	BL_PWM_AO_H,
-	BL_PWM_VS = 0x200,
-	BL_PWM_MAX,
+	BL_PWM_VS = 0xa0,
+	BL_PWM_MAX = 0xff,
 };
 
 enum bl_off_policy_e {
