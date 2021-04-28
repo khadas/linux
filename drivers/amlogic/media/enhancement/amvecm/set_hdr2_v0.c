@@ -3418,7 +3418,8 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 	if (is_meson_tl1_cpu() ||
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
-	    is_meson_s4_cpu())
+	    is_meson_s4_cpu() ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
 		bit_depth = 10;
 
 	/*lut parameters*/
@@ -3594,6 +3595,11 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 	set_c_gain(module_sel, &hdr_lut_param);
 
 	hdr_hist_config(module_sel, &hdr_lut_param);
+
+	if (clip_func == 0xff) {
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
+			clip_func_after_ootf(hdr_mtx_param.mtx_gamut_mode, module_sel);
+	}
 
 	return hdr_process_select;
 }
