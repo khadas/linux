@@ -162,7 +162,7 @@ static struct clk_regmap t3_sys1_pll_dco = {
 		/*
 		 * Register has the risk of being directly operated
 		 */
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -5489,13 +5489,17 @@ static const struct clk_parent_data t3_cts_nna_axi_clk_parent_data[] = {
 	{ .hw = &t3_fclk_div5.hw },
 	{ .hw = &t3_fclk_div2.hw },
 	{ .hw = &t3_mpll1.hw },
+	{ .hw = &t3_sys1_pll.hw },
+	{ .hw = &t3_fclk_div2p5.hw },
 };
 
+static u32 t3_cts_nna_axi_clk_table[] = {0, 1, 2, 3, 4, 6, 7};
 static struct clk_regmap t3_cts_nna_axi_clk_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_NNA_CLK_CNTL,
 		.mask = 0x7,
 		.shift = 25,
+		.table = t3_cts_nna_axi_clk_table,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "cts_nna_axi_clk_sel",
@@ -5544,6 +5548,7 @@ static struct clk_regmap t3_cts_nna_core_clk_sel = {
 		.offset = CLKCTRL_NNA_CLK_CNTL,
 		.mask = 0x7,
 		.shift = 9,
+		.table = t3_cts_nna_axi_clk_table,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "cts_nna_core_clk_sel",
