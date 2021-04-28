@@ -1336,6 +1336,13 @@
 		clock-names = "cts_vid_lock_clk";
 	};
 
+	amdolby_vision {
+		compatible = "amlogic, dolby_vision_t3";
+		dev_name = "aml_amdolby_vision_driver";
+		status = "okay";
+		tv_mode = <1>;/*1:enabel ;0:disable*/
+	};
+
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
 		dev_name = "mesonstream";
