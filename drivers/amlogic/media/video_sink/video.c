@@ -6005,9 +6005,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			old_fmt = atomic_read(&cur_primary_src_fmt);
 			if (old_fmt != VFRAME_SIGNAL_FMT_INVALID)
 				old_str = (char *)src_fmt_str[old_fmt];
-			new_str = (char *)src_fmt_str[fmt];
+			if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+				new_str = (char *)src_fmt_str[fmt];
 			pr_info("VD1 src fmt changed: %s->%s.\n",
-				old_str ? old_str : "invalid", new_str);
+				old_str ? old_str : "invalid",
+				new_str ? new_str : "invalid");
 		}
 		atomic_set(&cur_primary_src_fmt, fmt);
 		video_prop_status |= VIDEO_PROP_CHANGE_FMT;
@@ -7275,13 +7277,16 @@ SET_FILTER:
 				old_fmt = atomic_read(&cur_primary_src_fmt);
 				if (old_fmt != VFRAME_SIGNAL_FMT_INVALID)
 					old_str = (char *)src_fmt_str[old_fmt];
-				new_str = (char *)src_fmt_str[fmt];
-				pr_info("VD1 src fmt changed: %s->%s. vf: %p, signal_typ:0x%x\n",
-					old_str ? old_str : "invalid", new_str,
+				if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+					new_str = (char *)src_fmt_str[fmt];
+				pr_info("VD1 src fmt changed: %s->%s. vf: %p, signal_type:0x%x\n",
+					old_str ? old_str : "invalid",
+					new_str ? new_str : "invalid",
 					vd_layer[0].dispbuf,
 					vd_layer[0].dispbuf->signal_type);
 			}
 			atomic_set(&cur_primary_src_fmt, fmt);
+			atomic_set(&primary_src_fmt, fmt);
 			video_prop_status |= VIDEO_PROP_CHANGE_FMT;
 		}
 	}
