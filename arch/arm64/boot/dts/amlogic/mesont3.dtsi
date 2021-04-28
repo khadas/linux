@@ -1424,6 +1424,22 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
+		/***************************************************
+		 * t3 support 4k ,same with t7 ,no canvas,
+		 * post_nub---default is 11
+		 *            (T7/T3/SC2/S4 new path)post 11*5222400 = 56M,local 7*4075520 = 28m
+		 * flag_cma---0: use reserved; 1:use cma; 2:use cma as reserved 4:use codec mem
+		 * en_4k :en_4k---0: not support 4K;  1: enable 4K
+		 *                2: dynamic: vdin: 4k enable, other source 4k disable
+		 *                8: when 4k,output with a resolution is below 1080p
+		 * keep_dec_vf---0:not keep; 1: keep dec vf for p;
+		 *               2: dynamic keep dec vf for p,other is disable
+		 * po_fmt---1: NV21/8;  2: nv12/8;  3: AFBC 422/10BIT;
+		 *          4: dynamic(4K AFBC,10/422);
+		 *          6: dynamic(from decoder 4K source,out is AFBC,10/420),other is 422/10BIT
+		 * bypass_mem---0:nr not bypass,  1: nr bypass;2: when 4k input ,nr is bypass;
+		 *              3: bypass nr for 4k,but not from vdin;
+		 ***************************************************/
 	};
 
 	cpu_tsensor: cpu_tsensor@fe022000 {
