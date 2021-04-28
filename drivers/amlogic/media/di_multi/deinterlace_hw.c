@@ -1005,7 +1005,6 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 					/* pre go line link */
 					    (pre_vdin_link << 14)	   |
 					    (1 << 21)	| /*chan2 t/b reverse*/
-					    (1 << 22)	|
 					    (0 << 25)   |
 					    /* contrd en */
 					    ((mem_bypass ? 1 : 0) << 28)   |
