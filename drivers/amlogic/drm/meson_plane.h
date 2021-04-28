@@ -48,6 +48,7 @@ struct am_video_plane {
 	struct dentry *plane_debugfs_dir;
 	int plane_index;
 	int plane_type;
+	struct meson_vpu_pipeline *pipeline;
 
 	/*video exted*/
 };
