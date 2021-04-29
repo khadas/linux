@@ -2612,16 +2612,19 @@ static void osd_update_interlace_mode(int index)
 	unsigned int fb0_cfg_w0 = 0, fb1_cfg_w0 = 0;
 	unsigned int scan_line_number = 0;
 	unsigned int odd_even;
-	u32 output_index = get_output_device_id(index);
+	u32 output_index = VIU1;
 
 	spin_lock_irqsave(&osd_lock, lock_flags);
-	if ((index & (1 << OSD1)) == (1 << OSD1))
+	if ((index & (1 << OSD1)) == (1 << OSD1)) {
+		output_index = get_output_device_id(OSD1);
 		fb0_cfg_w0 = osd_hw.osd_rdma_func[output_index].osd_rdma_rd
 			(hw_osd_reg_array[OSD1].osd_blk0_cfg_w0);
-	if ((index & (1 << OSD2)) == (1 << OSD2))
+	}
+	if ((index & (1 << OSD2)) == (1 << OSD2)) {
+		output_index = get_output_device_id(OSD2);
 		fb1_cfg_w0 = osd_hw.osd_rdma_func[output_index].osd_rdma_rd
 			(hw_osd_reg_array[OSD2].osd_blk0_cfg_w0);
-
+	}
 	if (osd_reg_read(ENCP_VIDEO_MODE) & (1 << 12)) {
 		/* 1080I */
 		scan_line_number = ((osd_reg_read(ENCP_INFO_READ))
@@ -2661,19 +2664,24 @@ static void osd_update_interlace_mode(int index)
 	fb0_cfg_w0 |= odd_even;
 	fb1_cfg_w0 |= odd_even;
 	if ((index & (1 << OSD1)) == (1 << OSD1)) {
+		output_index = get_output_device_id(OSD1);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_irq
 			(hw_osd_reg_array[OSD1].osd_blk0_cfg_w0, fb0_cfg_w0);
 		if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
-			if ((osd_hw.osd_meson_dev.viu1_osd_count - 1) == OSD3)
+			if ((osd_hw.osd_meson_dev.viu1_osd_count - 1) == OSD3) {
+				output_index = get_output_device_id(OSD3);
 				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_irq
 				(hw_osd_reg_array[OSD3].osd_blk0_cfg_w0,
 				fb0_cfg_w0);
+			}
 		}
 	}
-	if ((index & (1 << OSD2)) == (1 << OSD2))
+	if ((index & (1 << OSD2)) == (1 << OSD2)) {
+		output_index = get_output_device_id(OSD2);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_irq
 			(hw_osd_reg_array[OSD2].osd_blk0_cfg_w0,
 			fb1_cfg_w0);
+	}
 
 	spin_unlock_irqrestore(&osd_lock, lock_flags);
 }
