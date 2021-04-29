@@ -2193,16 +2193,19 @@ void set_gamma_regs(int en, int sel)
 			WRITE_VPP_REG(VPP_GAMMA_BIN_DATA,
 				      (((gamma_lut[i * 2 + 1] << 2) & 0xffff) << 16 |
 				      ((gamma_lut[i * 2] << 2) & 0xffff)));
-		WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL, 0x1, 0, 1);
+		WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL, 0x3, 0, 2);
 	}
 }
 
 void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb)
 {
 	int i;
+	int en;
 
 	if (!pre_gma_tb)
 		return;
+
+	en = ((pre_gma_tb->en & 0x1) << 1) | (pre_gma_tb->en & 0x1);
 
 	VSYNC_WRITE_VPP_REG(VPP_GAMMA_BIN_ADDR, 0);
 	for (i = 0; i < 32; i++)
@@ -2221,7 +2224,7 @@ void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb)
 				    ((pre_gma_tb->lut_b[i * 2] << 2) & 0xffff)));
 	VSYNC_WRITE_VPP_REG(VPP_GAMMA_BIN_DATA, (pre_gma_tb->lut_b[64] << 2) & 0xffff);
 
-	VSYNC_WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL, pre_gma_tb->en, 0, 1);
+	VSYNC_WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL, en, 0, 2);
 }
 
 void vpp_pst_hist_sta_config(int en,

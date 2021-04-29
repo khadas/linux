@@ -54,6 +54,9 @@ struct cabc_param_s {
 	int cabc_sc_hist_diff_thd;
 	int cabc_sc_apl_diff_thd;
 	int cabc_en;
+	int cabc_bl_map_mode;
+	int cabc_bl_map_en;
+	int *o_bl_cv;
 };
 
 struct pre_gam_param_s {

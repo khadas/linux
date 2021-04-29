@@ -20,6 +20,12 @@
 #include <linux/workqueue.h>
 #include <linux/amlogic/media/amvecm/cabc_addc_alg.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
+#ifdef CONFIG_AMLOGIC_LCD
+#include <linux/amlogic/media/vout/lcd/lcd_notify.h>
+#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#endif
 #include "cabc_aadc_fw.h"
 #include "../amve.h"
 
@@ -146,6 +152,11 @@ static int pre_gamma[3][65] = {
 	}
 };
 
+static int o_bl_mapping[13] = {
+	1984, 1984, 3292, 3292, 3292, 3292, 3292,
+	3292, 3592, 4096, 4096, 4096, 4096
+};
+
 static struct pre_gamma_table_s pre_gam;
 static int sensor_rgb[3] = {243, 256, 314};
 static struct aad_param_s aad_parm = {
@@ -186,11 +197,14 @@ static struct cabc_param_s cabc_parm = {
 	.cabc_init_bl_min = 0x80,
 	.cabc_init_bl_max = 0xfff,
 	.cabc_tf_alpha = 0x20,
-	.cabc_tf_en = 0,
+	.cabc_tf_en = 1,
 	.cabc_sc_flag = 1,
 	.cabc_sc_hist_diff_thd = 1920 * 1080 / 3,
 	.cabc_sc_apl_diff_thd = 24 << (LED_BL_BW - PSTHIST_NRM),
 	.cabc_en = 1,
+	.cabc_bl_map_mode = 0,
+	.cabc_bl_map_en = 1,
+	.o_bl_cv = o_bl_mapping,
 };
 
 static struct pre_gam_param_s pre_gam_parm = {
@@ -213,6 +227,7 @@ static struct aad_debug_param_s aad_dbg_parm = {
 
 static char aad_ver[32] = "aad_v1_20201016";
 int cur_o_gain[3] = {4096, 4096, 4096};
+static u32 pre_backlight;
 struct aad_fw_param_s fw_aad_parm = {
 	.fw_aad_en = 0,
 	.fw_aad_status = 0,
@@ -224,7 +239,7 @@ struct aad_fw_param_s fw_aad_parm = {
 	.aad_alg = NULL,
 };
 
-static char cabc_ver[32] = "cabc_v1_20201016";
+static char cabc_ver[32] = "cabc_v1_20210508";
 struct cabc_fw_param_s fw_cabc_parm = {
 	.fw_cabc_en = 1,
 	.fw_cabc_status = 0,
@@ -298,8 +313,37 @@ int fw_en_get(void)
 	return cabc_aad_en;
 }
 
+void backlight_update_ctrl(u32 en)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_dolby_vision_on())
+		return;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD
+		aml_lcd_atomic_notifier_call_chain(LCD_EVENT_BACKLIGHT_DV_SEL,
+			&en);
+#endif
+}
+
+static void backlight_setting_update(u32 backlight)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_dolby_vision_on())
+		return;
+#endif
+#ifdef CONFIG_AMLOGIC_LCD
+	if (pre_backlight != backlight) {
+		aml_lcd_atomic_notifier_call_chain(LCD_EVENT_BACKLIGHT_DV_DIM,
+			&backlight);
+		pre_backlight = backlight;
+	}
+#endif
+}
+
 void aml_cabc_alg_process(struct work_struct *work)
 {
+	u32 backlight;
+
 	if (!fw_aad_parm.aad_alg) {
 		if (pr_cabc_aad & AAD_DEBUG)
 			pr_cabc_aad_dbg("%s: aad alg func is NULL\n", __func__);
@@ -312,6 +356,9 @@ void aml_cabc_alg_process(struct work_struct *work)
 			pr_cabc_aad_dbg("%s: cabc alg func is NULL\n", __func__);
 	} else {
 		fw_cabc_parm.cabc_alg(&fw_cabc_parm, cabc_final_gain);
+		backlight = fw_cabc_parm.tgt_bl >> 4;
+		backlight_setting_update(backlight);
+
 	}
 
 	if (!fw_pre_gma_parm.pre_gamma_proc) {
@@ -369,6 +416,13 @@ int cabc_alg_state(void)
 		fw_cabc_param->cabc_param->cabc_sc_apl_diff_thd);
 	pr_info("cabc_en = %d\n",
 		fw_cabc_param->cabc_param->cabc_en);
+	pr_info("fw_cabc_bl_map_mode = %d\n",
+		fw_cabc_param->cabc_param->cabc_bl_map_mode);
+	pr_info("fw_cabc_bl_map_en = %d\n",
+		fw_cabc_param->cabc_param->cabc_bl_map_en);
+
+	for (i = 0; i < 13; i++)
+		pr_info("o_bl_mapping[%d] = %d\n", i, fw_cabc_param->cabc_param->o_bl_cv[i]);
 
 	pr_info("\n--------fw vpp y hist-------\n");
 	if (fw_cabc_param->i_hist) {
@@ -627,9 +681,11 @@ int cabc_aad_debug(char **param)
 
 	if (!strcmp(param[0], "enable")) {/*module en/disable*/
 		cabc_aad_en = 1;
+		backlight_update_ctrl(cabc_aad_en);
 		pr_info("enable aad\n");
 	} else if (!strcmp(param[0], "disable")) {
 		cabc_aad_en = 0;
+		backlight_update_ctrl(cabc_aad_en);
 		pr_info("disable aad\n");
 	} else if (!strcmp(param[0], "aad_enable")) {/*debug aad*/
 		fw_aad_param->fw_aad_en = 1;
@@ -957,6 +1013,35 @@ int cabc_aad_debug(char **param)
 			goto error;
 		fw_cabc_param->cabc_param->cabc_en = val;
 		pr_info("cabc_en = %d\n", (int)val);
+	} else if (!strcmp(param[0], "cabc_bl_map_mode")) {
+		if (!fw_cabc_param->cabc_param)
+			goto error;
+		if (kstrtoul(param[1], 10, &val) < 0)
+			goto error;
+		fw_cabc_param->cabc_param->cabc_bl_map_mode = val;
+		pr_info("cabc_bl_map_mode = %d\n", (int)val);
+	} else if (!strcmp(param[0], "cabc_bl_map_en")) {
+		if (!fw_cabc_param->cabc_param)
+			goto error;
+		if (kstrtoul(param[1], 10, &val) < 0)
+			goto error;
+		fw_cabc_param->cabc_param->cabc_bl_map_en = val;
+		pr_info("cabc_bl_map_en = %d\n", (int)val);
+	} else if (!strcmp(param[0], "o_bl_cv")) {
+		if (!fw_cabc_param->cabc_param)
+			goto error;
+		if (param[2]) {
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			i = (int)val;
+			if (i >= 13)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->o_bl_cv[i] = (int)val;
+			pr_info("o_bl_cv[%d] = %d\n",
+				i, fw_cabc_param->cabc_param->o_bl_cv[i]);
+		}
 	} else if (!strcmp(param[0], "cabc_debug_mode")) {
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
