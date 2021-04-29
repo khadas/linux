@@ -523,6 +523,8 @@ static int earc_open(struct snd_pcm_substream *substream)
 		dev, EARC_BUFFER_BYTES / 2, EARC_BUFFER_BYTES);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		/* select hdmirx arc source from earctx spdif */
+		arc_earc_source_select(EARCTX_SPDIF_TO_HDMIRX);
 		p_earc->fddr = aml_audio_register_frddr(dev,
 			p_earc->actrl,
 			earc_ddr_isr, substream, false);
@@ -2284,9 +2286,6 @@ static int earc_platform_probe(struct platform_device *pdev)
 	}
 
 	s_earc = p_earc;
-
-	/* select hdmirx arc source from earctx spdif */
-	arc_earc_source_select(EARCTX_SPDIF_TO_HDMIRX);
 
 	/* RX */
 	if (!IS_ERR(p_earc->rx_top_map)) {
