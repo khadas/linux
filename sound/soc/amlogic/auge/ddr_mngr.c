@@ -909,10 +909,7 @@ static void aml_check_resample(struct toddr *to, bool enable)
 				aml_toddr_select_src(to, RESAMPLEA);
 			}
 
-			/*if disable toddr, disable attached resampler*/
-			if (p_attach_resample->enable)
-				aml_resample_enable(to, p_attach_resample,
-						    enable);
+			aml_resample_enable(to, p_attach_resample, p_attach_resample->enable);
 		}
 		p_attach_resample = &attach_resample_b;
 	}
