@@ -258,7 +258,7 @@ static u64 mbox_irqstatus(struct mhu_ctlr *ctlr)
 	} else {
 		status = readl(mbox_irq_base + IRQ_STS_OFFSET(irqctlr));
 	}
-
+	pr_info("irq status = %llu\n", status);
 	return status;
 }
 
@@ -288,6 +288,7 @@ static irqreturn_t mbox_handler(int irq, void *p)
 		outcnt--;
 		WARN_ON(!outcnt);
 	}
+	pr_info("in mbox handler\n");
 	return IRQ_HANDLED;
 }
 

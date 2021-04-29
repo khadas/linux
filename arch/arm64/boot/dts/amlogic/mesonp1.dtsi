@@ -2496,13 +2496,13 @@
 	};
 
 	mhu_fifo: mhu@0 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, meson_mhu_fifo";
 		reg = <0x0 0xfe006000 0x0 0x1000>,  /* mhu wr fifo */
-		      <0x0 0xfe007180 0x0 0x80>,   /* mhu set reg */
-		      <0x0 0xfe007200 0x0 0x80>,   /* mhu clr reg */
-		      <0x0 0xfe007280 0x0 0x80>,   /* mhu sts reg */
-		      <0x0 0xfe007040 0x0 0xc0>;   /* mhu irqctrl reg */
+		      <0x0 0xfe00719C 0x0 0x80>,   /* mhu set reg */
+		      <0x0 0xfe00721C 0x0 0x80>,   /* mhu clr reg */
+		      <0x0 0xfe00729C 0x0 0x80>,   /* mhu sts reg */
+		      <0x0 0xfe007044 0x0 0xc0>;   /* mhu irqctrl reg */
 		interrupts = <0 248 1>;   /* irq top */
 		mbox-irqmax = <64>;
 		mbox-irqctlr = <0>;
