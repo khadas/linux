@@ -887,66 +887,6 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	return 0;
 }
 
-static int dvbt2_check_ldpc_ite_max(unsigned int val)
-{
-	unsigned int ldpc_ite_max;
-	unsigned int ret = 0;
-	unsigned int ldpc_ite_val;
-
-	/* val[6-2]:0x8c3 */
-	switch ((val >> 2) & 0x1f) {
-	case QPSK_1_2:
-	case QPSK_3_4:
-	case QPSK_4_5:
-	case QAM16_1_2:
-	case QAM16_3_4:
-	case QAM64_1_2:
-	case QAM64_3_4:
-	case QAM256_1_2:
-	case QAM256_3_4:
-		ldpc_ite_max = 0x23;
-		break;
-
-	case QPSK_3_5:
-	case QAM16_3_5:
-	case QAM64_3_5:
-	case QAM256_3_5:
-		ldpc_ite_max = 0x1b;
-		break;
-
-	case QPSK_2_3:
-	case QAM16_2_3:
-	case QAM64_2_3:
-	case QAM256_2_3:
-		ldpc_ite_max = 0x24;
-		break;
-
-	case QPSK_5_6:
-	case QAM16_5_6:
-	case QAM64_5_6:
-	case QAM256_5_6:
-		ldpc_ite_max = 0x21;
-		break;
-
-	case QAM16_4_5:
-	case QAM64_4_5:
-	case QAM256_4_5:
-		ldpc_ite_max = 0x22;
-		break;
-
-	default:
-		ldpc_ite_max = 0x24;
-		break;
-	}
-
-	/* val[12-7]:0xa50 */
-	ldpc_ite_val = (val >> 7) & 0x3f;
-	if (ldpc_ite_val >= ldpc_ite_max)
-		ret = 1;
-
-	return ret;
-}
-
 static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	int ilock;
@@ -2133,7 +2073,7 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-	static unsigned int cnt, l1_post_lock_cnt, l1_post_unlock_cnt;
+	static unsigned int cnt;
 	static unsigned int prt_sts_cnt;
 	unsigned int val, snr;
 	unsigned int modulation, code_rate;
@@ -2159,8 +2099,6 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 		/* return directly, cnt increase 1 */
 		cnt = 1;
 		prt_sts_cnt = 1;
-		l1_post_lock_cnt = 0;
-		l1_post_unlock_cnt = 0;
 		return 0;
 	}
 
@@ -2195,50 +2133,6 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 		PR_INFO("modulation:%d, code_rate: %d\n", modulation, code_rate);
 		PR_INFO("snr*10 = %d, snr_min_x10dB=%d, 839[3] = %d,LDPC: %d\n",
 			snr * 10, snr_min_x10db, ((val >> 30) & 0x01), ((val >> 7) & 0x3f));
-	}
-
-	if ((val >> 30) & 0x01)
-		l1_post_unlock_cnt = 0;
-	else
-		l1_post_lock_cnt = 0;
-
-	/* check snr after L1 POST lock 500ms */
-	if (((snr * 10 < snr_min_x10db) && ++l1_post_lock_cnt == 4) ||
-	    ++l1_post_unlock_cnt == 8) {
-		dvbt2_reset(demod);
-		cnt = 1;
-		l1_post_lock_cnt = 0;
-		l1_post_unlock_cnt = 0;
-		PR_INFO("rst demod snr abnormal, LDPC: %d, snr: %ddb\n", ((val >> 7) & 0x3f), snr);
-		return 0;
-	}
-
-	/* LDPC = 1 and deinterleave has error
-	 * val[30]:0x839[3],[29-24]:0x805,[23-21]:0x2a09,[20-13]:0x2a08,[12:7]:0xa50
-	 * val[6-2]:0x8c3,[1]:0x361b[7],[0]:0x581[7],
-	 */
-	if ((((val >> 7) & 0x3f) == 1)) {
-		if ((val >> 1) & 1) {
-			dvbt2_reset(demod);
-			l1_post_lock_cnt = 0;
-			l1_post_unlock_cnt = 0;
-			PR_INFO("rst demod, LDPC: %d, snr: %ddb\n", ((val >> 7) & 0x3f), snr);
-		}
-
-		cnt = 1;
-		return 0;
-	}
-
-	/* 500ms interval to check err */
-	if ((cnt++) <= 4)
-		return 0;
-
-	if (dvbt2_check_ldpc_ite_max(val)) {
-		dvbt2_reset(demod);
-		cnt = 1;
-		l1_post_lock_cnt = 0;
-		l1_post_unlock_cnt = 0;
-		PR_INFO("rst demod, LDPC: %d, snr: %ddb\n", ((val >> 7) & 0x3f), snr);
 	}
 
 	return 0;
@@ -3684,9 +3578,24 @@ static int dds_init_reg_map(struct platform_device *pdev)
 		pv[i].v = devm_ioremap_nocache(&pdev->dev, res->start, size);
 	}
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+	switch (devp->data->hw_ver) {
+	case DTVDEMOD_HW_T5D:
 		devp->dmc_phy_addr = 0xff638000;
 		devp->dmc_v_addr = devm_ioremap_nocache(&pdev->dev, 0xff638000, 0x2000);
+		devp->ddr_phy_addr = 0xff63c000;
+		devp->ddr_v_addr = devm_ioremap_nocache(&pdev->dev, 0xff63c000, 0x2000);
+		break;
+
+	case DTVDEMOD_HW_T5D_B:
+		devp->ddr_phy_addr = 0xff63c000;
+		devp->ddr_v_addr = devm_ioremap_nocache(&pdev->dev, 0xff63c000, 0x2000);
+		break;
+
+	case DTVDEMOD_HW_T3:
+		break;
+
+	default:
+		break;
 	}
 
 	return ret;

@@ -1625,6 +1625,20 @@ unsigned int dtvdemod_dmc_reg_read(unsigned int addr)
 	return tmp;
 }
 
+void dtvdemod_ddr_reg_write(unsigned int reg, unsigned int val)
+{
+	writel(val, gbase_ddr() + reg);
+}
+
+unsigned int dtvdemod_ddr_reg_read(unsigned int addr)
+{
+	unsigned int tmp;
+
+	tmp = readl(gbase_ddr() + addr);
+
+	return tmp;
+}
+
 void demod_set_demod_default(void)
 {
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))

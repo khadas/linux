@@ -844,7 +844,7 @@ void dvbt2_init(struct aml_dtvdemod *demod)
 	dvbt_t2_wrb(0x6, 0x00);
 	dvbt_t2_wrb(0x7, 0x00);
 	dvbt_t2_wrb(0x8, 0x00);
-	dvbt_t2_wrb(0x9, 0x40);
+	dvbt_t2_wrb(0x9, 0x60);
 
 	for (i = 1; i <= (sizeof(reset368_dvbt2_val) / sizeof(struct st_chip_register_t)); i++)
 		dvbt_t2_wrb(reset368_dvbt2_val[i - 1].addr, reset368_dvbt2_val[i - 1].value);
@@ -1042,8 +1042,10 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod)
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
 	demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
-	demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
-	demod_top_write_reg(DEMOD_TOP_REGC, 0x110010);
+	usleep_range(1000, 1001);
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x000010);
+
+	demod_top_write_reg(DEMOD_TOP_REGC, 0x000011);
 	usleep_range(1000, 1001);
 	demod_top_write_reg(DEMOD_TOP_REGC, 0x110011);
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
@@ -1081,8 +1083,25 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod)
 		dvbt_t2_wrb(0x2835, 0x0e);
 		break;
 	}
+
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
 	riscv_ctl_write_reg(0x30, 0);
+
+	switch (devp->data->hw_ver) {
+	case DTVDEMOD_HW_T5D:
+	case DTVDEMOD_HW_T5D_B:
+		dtvdemod_ddr_reg_write(0x148, dtvdemod_ddr_reg_read(0x148) & 0xefffffff);
+		usleep_range(5000, 5001);
+		dtvdemod_ddr_reg_write(0x148, dtvdemod_ddr_reg_read(0x148) | 0x10000000);
+		break;
+
+	case DTVDEMOD_HW_T3:
+		break;
+
+	default:
+		break;
+	}
+
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 }
 

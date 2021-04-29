@@ -12,7 +12,7 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/04/21: dvbs blind scan"
+#define DTVDEMOD_VER	"2021/04/May: dvbt2 miss channel(root cause)"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
@@ -22,7 +22,7 @@
 #define THRD_TUNER_STRENTH_DVBS (-79)
 
 #define TIMEOUT_ATSC		2000
-#define TIMEOUT_DVBT		3000
+#define TIMEOUT_DVBT		2000
 #define TIMEOUT_DVBS		2000
 
 enum Gxtv_Demod_Tuner_If {
@@ -238,9 +238,10 @@ struct amldtvdemod_device_s {
 	struct ss_reg_phy reg_p[ES_MAP_ADDR_NUM];
 	struct ss_reg_vt reg_v[ES_MAP_ADDR_NUM];
 	unsigned int dmc_phy_addr;
-	unsigned int dmc_size;
 	unsigned int dmc_saved;
 	void __iomem *dmc_v_addr;
+	unsigned int ddr_phy_addr;
+	void __iomem *ddr_v_addr;
 
 	struct ddemod_reg_off ireg;
 	struct meson_ddemod_data *data;
@@ -418,6 +419,13 @@ static inline void __iomem *gbase_dmc(void)
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 
 	return devp->dmc_v_addr;
+}
+
+static inline void __iomem *gbase_ddr(void)
+{
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	return devp->ddr_v_addr;
 }
 
 static inline unsigned int gphybase_demod(void)
