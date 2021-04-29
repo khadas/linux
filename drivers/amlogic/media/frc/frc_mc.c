@@ -41,6 +41,7 @@ void frc_mc_param_init(struct frc_dev_s *frc_devp)
 	g_stsrch_rng_dym_para = &frc_data->g_stsrch_rng_dym_para;
 	g_stpixlpf_para = &frc_data->g_stpixlpf_para;
 
+	g_stsrch_rng_dym_para->mclbuf_mode_en = 1;
 	g_stsrch_rng_dym_para->srch_rng_mvy_th = 1000;
 	g_stsrch_rng_dym_para->force_luma_srch_rng_en = 0;
 	g_stsrch_rng_dym_para->force_chrm_srch_rng_en = 0;
@@ -72,6 +73,7 @@ void frc_mc_param_init(struct frc_dev_s *frc_devp)
 	g_stsrch_rng_dym_para->chrm_asym_vect_th     =   40;
 	g_stsrch_rng_dym_para->chrm_gred_vect_th     =   40;
 
+	g_stpixlpf_para->pixlpf_en = 1;
 	g_stpixlpf_para->osd_ctrl_pixlpf_en = 0;
 	g_stpixlpf_para->osd_ctrl_pixlpf_th = 0;
 	g_stpixlpf_para->detail_ctrl_pixlpf_en = 0;
@@ -292,7 +294,18 @@ void pixlpf_ctrl(struct frc_dev_s *frc_devp)
 
 void frc_mc_ctrl(struct frc_dev_s *frc_devp)
 {
-	pixlpf_ctrl(frc_devp);
-	dynamic_mclbuf_mode(frc_devp);
+	struct frc_fw_data_s *frc_data;
+	struct st_pixel_lpf_para *g_stpixlpf_para;
+	struct st_search_range_dynamic_para *g_stsrch_rng_dym_para;
+
+	frc_data = (struct frc_fw_data_s *)frc_devp->fw_data;
+	g_stsrch_rng_dym_para = &frc_data->g_stsrch_rng_dym_para;
+	g_stpixlpf_para = &frc_data->g_stpixlpf_para;
+
+	if (g_stpixlpf_para->pixlpf_en == 1)
+		pixlpf_ctrl(frc_devp);
+
+	if (g_stsrch_rng_dym_para->mclbuf_mode_en == 1)
+		dynamic_mclbuf_mode(frc_devp);
 }
 

@@ -43,21 +43,21 @@ static const struct st_film_table_item g_stfilmtable[] =
 	{1,       1,   1,    0x1,    1,   20,  1,  0x1,		4096, 0, 1 , 0, 0, 0},
 	{22,      2,   16,   0x2,    5,   20,  10, 0x3,		2040, 1, 1 , 0, 0, 1},
 	{32,      5,   15,   0x14,   2,   20,  15, 0x1f,	810,  0, 2 , 0, 0, 0},
-	{3223,    10,  20,   0x2A4,  2,   10,  10, 0x3ff,	810,  0, 2 , 0, 0, 0},
-	{2224,    10,  20,   0x2A8,  1,   10,  20, 0x3ff,	810,  0, 3 , 0, 0, 2},
-	{32322,   12,  24,   0xA94,  1,   12,  24, 0xfff,	810,  0, 2 , 0, 0, 0},
-	{44,      4,   20,   0x8,    2,   12,  16, 0xf,		810,  0, 3 , 0, 0, 3},
-	{21111,   6,   12,   0x3E,   1,   12,  12, 0x3f,	810,  0, 1 , 0, 0, 0},
-	{23322,   12,  12,   0xAA4,  1,   24,  12, 0xfff,	810,  0, 2 , 0, 0, 0},
-	{2111,    5,   10,   0x1E,   1,   10,  10, 0x1f,	810,  0, 1 , 0, 0, 0},
-	{22224,   12,  24,   0xAA8,  1,   12,  24, 0xfff,	810,  0, 3 , 0, 0, 2},
-	{33,      3,   250,  0x4,    2,   12,  6, 0x7,		810,  0, 2 , 0, 0, 0},
-	{334,     10,  20,   0x248,  1,   10,  10, 0x3ff,	810,  0, 3 , 0, 0, 0},
-	{55,      5,   90,   0x10,   2,   10,  10, 0x1f,	810,  0, 4 , 0, 0, 1},
-	{64,      10,  20,   0x220,  1,   10,  10, 0x3ff,	810,  0, 5 , 0, 0, 2},
-	{66,      6,   18,   0x20,   2,   12,  12, 0x3f,	810,  0, 5 , 1, 8, 1},
-	{87,      15,  15,   0x4080, 1,   15,  15, 0x7fff,	810,  0, 7 , 1, 1, 1},
-	{212,     5,   15,   0x1A,   1,   10,  10, 0x1f,	810,  0, 1 , 0, 0, 0},
+	//{3223,    10,  20,   0x2A4,  2,   10,  10, 0x3ff,	810,  0, 2 , 0, 0, 0},
+	//{2224,    10,  20,   0x2A8,  1,   10,  20, 0x3ff,	810,  0, 3 , 0, 0, 2},
+	//{32322,   12,  24,   0xA94,  1,   12,  24, 0xfff,	810,  0, 2 , 0, 0, 0},
+	//{44,      4,   20,   0x8,    2,   12,  16, 0xf,		810,  0, 3 , 0, 0, 3},
+	//{21111,   6,   12,   0x3E,   1,   12,  12, 0x3f,	810,  0, 1 , 0, 0, 0},
+	//{23322,   12,  12,   0xAA4,  1,   24,  12, 0xfff,	810,  0, 2 , 0, 0, 0},
+	//{2111,    5,   10,   0x1E,   1,   10,  10, 0x1f,	810,  0, 1 , 0, 0, 0},
+	//{22224,   12,  24,   0xAA8,  1,   12,  24, 0xfff,	810,  0, 3 , 0, 0, 2},
+	//{33,      3,   250,  0x4,    2,   12,  6, 0x7,		810,  0, 2 , 0, 0, 0},
+	//{334,     10,  20,   0x248,  1,   10,  10, 0x3ff,	810,  0, 3 , 0, 0, 0},
+	//{55,      5,   90,   0x10,   2,   10,  10, 0x1f,	810,  0, 4 , 0, 0, 1},
+	//{64,      10,  20,   0x220,  1,   10,  10, 0x3ff,	810,  0, 5 , 0, 0, 2},
+	//{66,      6,   18,   0x20,   2,   12,  12, 0x3f,	810,  0, 5 , 1, 8, 1},
+	//{87,      15,  15,   0x4080, 1,   15,  15, 0x7fff,	810,  0, 7 , 1, 1, 1},
+	//{212,     5,   15,   0x1A,   1,   10,  10, 0x1f,	810,  0, 1 , 0, 0, 0},
 };
 
 void frc_film_param_init(struct frc_dev_s *frc_devp)
@@ -282,7 +282,7 @@ void frc_film_detect_ctrl(struct frc_dev_s *frc_devp)
 
 	frc_film_check_mode(frc_devp, flmGDif, flmW6Dif, flmW12Dif1/*from yanling, flmW12Dif2*/);
 
-	frc_film_badedit_ctrl(frc_devp, flmGDif, mode);
+	//frc_film_badedit_ctrl(frc_devp, flmGDif, mode);
 
 	if(mode != mode_pre) {
 	    	//xil_printf("t:mod/pre=%d,%d\n\r",mode,mode_pre);
@@ -304,7 +304,7 @@ void frc_film_check_mode(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[
 {
 	static u8 mode_pre = 0;
 	static u8 mix_mod_pre = 0;
-	static u8 all_film_cnt = 0;
+	//static u8 all_film_cnt = 0;
 	struct frc_fw_data_s *frc_data;
 	struct st_film_detect_item *g_stfilm_detect_item;
 	struct st_film_data_item *g_stfilmdata_item;
@@ -320,7 +320,7 @@ void frc_film_check_mode(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[
 	u8  AB_change[MAX_CYCLE];
 	u32 sumGdif, max_dif,min_dif;                             //sum of global dif
 	u32 match_value = 0;
-	u32 mem = 0;
+	//u32 mem = 0;
 
 	u8 *Mode_cnt    = g_stfilmdata_item->ModCount;             //mod count
 	u8 *phase       = g_stfilmdata_item->phase;                //phase
@@ -431,32 +431,6 @@ void frc_film_check_mode(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[
         	mix_mod_pre = mix_mod;
 	}
 
-	// control clear_vbuffer by phase_err_flag
-	if (g_stfilm_detect_item->phase_error_flag == 1) {
-		UPDATE_FRC_REG_BITS(FRC_ME_GCV_EN, 0, 1 << 23);     //Bit 23  reg_me_glb_clr_gmv_eq0_en
-		//UPDATE_FRC_REG_BITS(FRC_ME_GCV_EN, 0, 1<<16);   //Bit 16  reg_me_glb_clr_top_en
-		all_film_cnt=0;
-	} else {
-		// control clear_vbuffer by glb_mot_all_film_cnt statistic
-		mem  = READ_FRC_REG(FRC_FD_DIF_GL_FILM);  //Bit 31: 0    ro_fd_glb_mot_all_film
-
-		if (mem < 2000)
-			all_film_cnt++;
-		else
-			all_film_cnt = 0;
-
-		if (all_film_cnt >= 5)
-			UPDATE_FRC_REG_BITS(FRC_ME_GCV_EN, 1 << 23, 1 << 23);//reg_me_glb_clr_gmv_eq0_en
-		else
-			UPDATE_FRC_REG_BITS(FRC_ME_GCV_EN, 0, 1 << 23);
-
-		if (all_film_cnt > 20)
-			all_film_cnt = 20;
-
-		//all_film_cnt=MIN(20,MAX(all_film_cnt,0));
-		//UPDATE_FRC_REG_BITS(FRC_ME_GCV_EN, 1<<23, 1<<23);
-		//UPDATE_FRC_REG_BITS(FRC_ME_GCV_EN, 1<<16, 1<<16);
-	}
 	//xil_printf("phs_err=%d\n\r", g_stfilm_detect_item->phase_error_flag);
 	//xil_printf("all_flm=%d\n\r", mem);
 	//xil_printf("all_flm_cnt=%d\n\r", all_film_cnt);

@@ -492,8 +492,6 @@ static void frc_input_init(struct frc_dev_s *frc_devp,
 		frc_top->film_mode = frc_devp->film_mode;
 		/*hw film detect*/
 		frc_top->film_hwfw_sel = frc_devp->film_mode_det;
-		/*no loss*/
-		frc_top->loss_en = 0;
 		frc_top->frc_prot_mode = frc_devp->prot_mode;
 		frc_top->frc_fb_num = FRC_TOTAL_BUF_NUM;
 
@@ -512,11 +510,12 @@ static void frc_input_init(struct frc_dev_s *frc_devp,
 		frc_top->film_mode = frc_devp->film_mode;
 		/*sw film detect*/
 		frc_top->film_hwfw_sel = frc_devp->film_mode_det;
-		/*no loss*/
-		frc_top->loss_en = frc_devp->loss_en;
 		frc_top->frc_prot_mode = frc_devp->prot_mode;
 		frc_top->frc_fb_num = FRC_TOTAL_BUF_NUM;
 	}
+	/*no loss*/
+	frc_top->mc_loss_en = 0;
+	frc_top->me_loss_en = 0;
 	pr_frc(1, "top in: hsize:%d, vsize:%d\n", frc_top->hsize, frc_top->vsize);
 	pr_frc(1, "top out: hsize:%d, vsize:%d\n", frc_top->out_hsize, frc_top->out_vsize);
 }
@@ -651,9 +650,8 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	init_bb_xyxy     (frc_top->hsize,frc_top->vsize);
 
 	//loss ena or disable, default is disable
-	cfg_me_loss(frc_top->loss_en);
-	cfg_mc_loss(frc_top->loss_en);
-
+	cfg_me_loss(frc_top->me_loss_en);
+	cfg_mc_loss(frc_top->mc_loss_en);
 
 	/*protect mode, enable: memc delay 2 frame*/
 	/*disable: memc delay n frame, n depend on candence, for debug*/
@@ -673,7 +671,7 @@ void frc_inp_init(u32 frc_fb_num, u32 film_hwfw_sel)
 	WRITE_FRC_BITS(FRC_REG_INP_MODULE_EN, 1, 8, 1);//open
 	WRITE_FRC_BITS(FRC_REG_INP_MODULE_EN, 1, 7, 1);//open  bbd en
 	WRITE_FRC_BITS(FRC_REG_TOP_CTRL25               ,0x4080200     ,0 ,31);//aligned padding value
-	WRITE_FRC_BITS(FRC_REG_FILM_PHS_1               ,film_hwfw_sel ,16,1 );
+	//WRITE_FRC_BITS(FRC_REG_FILM_PHS_1               ,film_hwfw_sel ,16,1 );
 
 	/*for fw signal latch, should always enable*/
 	WRITE_FRC_BITS(FRC_REG_MODE_OPT, 1, 1, 1);
@@ -1531,7 +1529,7 @@ void sys_fw_param_frc_init(u32 frm_hsize, u32 frm_vsize, u32 is_me1mc4)
 //inpRalM.ro_frc_input_ful_idx = option->start_no; // latest input frame idx from the input sequence
 //`ifdef BBD_TEST
 //`ifndef CFG_FPGA_REGS_FILE
-	fw_param_bbd_init(frm_hsize, frm_vsize);
+//fw_param_bbd_init(frm_hsize, frm_vsize);
 //`endif
 
 	//if(ME_MC_RATIO==0) {

@@ -24,7 +24,7 @@
 #include "frc_common.h"
 #include "frc_interface.h"
 
-#define FRC_FW_VER			"t3 driver bringup 2021-0427 fix 4k flashing issue"
+#define FRC_FW_VER			"t3 driver bringup 2021-0429 update vlsi svn 578"
 
 #define PR_ERR(fmt, args ...)		pr_info("frc_Err: " fmt, ##args)
 #define PR_FRC(fmt, args ...)		pr_info("frc: " fmt, ##args)
@@ -34,9 +34,10 @@
 #define FRC_CLASS_NAME	"frc"
 
 extern int frc_dbg_en;
+
 #define pr_frc(level, fmt, arg...)			\
 	do {						\
-		if (frc_dbg_en >= (level))		\
+		if ((frc_dbg_en >= (level) && frc_dbg_en < 3) || frc_dbg_en == level)	\
 			pr_info("frc: " fmt, ## arg);	\
 	} while (0)
 
@@ -165,8 +166,10 @@ struct st_frc_buf {
 };
 
 struct st_frc_sts {
+	u32 auto_ctrl;
 	enum frc_state_e state;
 	enum frc_state_e new_state;
+	u32 state_transing;
 	u32 frame_cnt;
 	u32 vs_cnt;
 };
@@ -248,7 +251,7 @@ struct frc_dev_s {
 	u32 dbg_buf_len;
 	u32 dbg_vf_monitor;
 
-	u32 loss_en;
+	//u32 loss_en;
 	u32 loss_ratio;
 
 	u32 prot_mode;/*0:memc prefetch acorrding mode frame 1:memc prefetch 1 frame*/

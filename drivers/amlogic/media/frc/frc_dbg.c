@@ -86,7 +86,8 @@ void frc_status(struct frc_dev_s *devp)
 		devp->out_sts.vs_cnt, devp->out_sts.vs_tsk_cnt);
 	pr_frc(0, "frc_st vs_cnt:%d vf_repeat_cnt:%d\n", devp->frc_sts.vs_cnt,
 		devp->in_sts.vf_repeat_cnt);
-	pr_frc(0, "loss_en = %d\n", devp->loss_en);
+	pr_frc(0, "mc_loss_en = %d me_loss_en = %d\n", fw_data->frc_top_type.mc_loss_en,
+		fw_data->frc_top_type.me_loss_en);
 	pr_frc(0, "loss_ratio = %d\n", devp->loss_ratio);
 	pr_frc(0, "frc_prot_mode = %d\n", devp->prot_mode);
 	pr_frc(0, "film_mode = %d\n", devp->film_mode);
@@ -144,6 +145,9 @@ ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf)
 	len += sprintf(buf + len, " \t\t 5:32322 6:44\n");
 	len += sprintf(buf + len, "force_mode en(0/1) hize vsize\n");
 	len += sprintf(buf + len, "ud_dbg 0/1 0/1\t: meud_en, mcud_en\n");
+	len += sprintf(buf + len, "auto_ctrl 0/1 \t: frc auto on off work mode\n");
+	len += sprintf(buf + len, "mc_lossy 0/1 \t: 0:off 1:on\n");
+	len += sprintf(buf + len, "me_lossy 0/1 \t: 0:off 1:on\n");
 
 	return len;
 }
@@ -153,6 +157,9 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 	char *buf_orig, *parm[47] = {NULL};
 	ulong val1;
 	ulong val2;
+	struct frc_fw_data_s *fw_data;
+
+	fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	if (!buf)
 		return;
@@ -295,6 +302,15 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			devp->ud_dbg.meud_dbg_en = val1;
 		if (kstrtol(parm[2], 10, &val1) == 0)
 			devp->ud_dbg.mcud_dbg_en = val1;
+	} else if (!strcmp(parm[0], "auto_ctrl")) {
+		if (kstrtol(parm[1], 10, &val1) == 0)
+			devp->frc_sts.auto_ctrl = val1;
+	} else if (!strcmp(parm[0], "me_lossy")) {
+		if (kstrtol(parm[1], 10, &val1) == 0)
+			fw_data->frc_top_type.me_loss_en  = val1;
+	} else if (!strcmp(parm[0], "mc_lossy")) {
+		if (kstrtol(parm[1], 10, &val1) == 0)
+			fw_data->frc_top_type.mc_loss_en  = val1;
 	}
 
 exit:

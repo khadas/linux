@@ -45,6 +45,7 @@ void frc_bbd_param_init(struct frc_dev_s *frc_devp)
 
 	// BBD FW
 	//for fw
+	search_final_line_para->bbd_en = 1;
 	//1bit 0:close, using bb_mode_switch, 1: open, detect more than zeros in img, bbd off;
 	search_final_line_para->pattern_detect_en	 = 1;	     //  u8,
 	search_final_line_para->pattern_dect_ratio	 = 109;      //  u8,	 7bit 85% ratio/128
@@ -1691,6 +1692,15 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 				    oob_h_detail_xyxy[2] << 16, 0xFFFF0000);
 		UPDATE_FRC_REG_BITS(FRC_BBD_OOB_DETAIL_WIN_RIT_BOT,
 				    oob_h_detail_xyxy[3], 0x0000FFFF);
+
+		//  BBD ME
+		UPDATE_FRC_REG_BITS(FRC_REG_BLACKBAR_XYXY_ME_ST, blackbar_xyxy_me[0] << 16,
+				    0xFFFF0000);
+		UPDATE_FRC_REG_BITS(FRC_REG_BLACKBAR_XYXY_ME_ST, blackbar_xyxy_me[1],
+				    0x0000FFFF);
+		UPDATE_FRC_REG_BITS(FRC_REG_BLACKBAR_XYXY_ME_ED, blackbar_xyxy_me[2] << 16,
+				    0xFFFF0000);
+		UPDATE_FRC_REG_BITS(FRC_REG_BLACKBAR_XYXY_ME_ED, blackbar_xyxy_me[3], 0x0000FFFF);
 
 		// for down sample img
 		if ((g_stfrc_rd->input_fid % 2) == 1) {

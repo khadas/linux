@@ -61,7 +61,7 @@
 
 static struct frc_dev_s *frc_dev;
 
-int frc_dbg_en;
+int frc_dbg_en;/*enum dbg_level*/
 module_param(frc_dbg_en, int, 0664);
 MODULE_PARM_DESC(frc_dbg_en, "frc debug level");
 
@@ -388,6 +388,7 @@ static long frc_campat_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 int frc_notify_callback(struct notifier_block *block, unsigned long cmd, void *para)
 {
+	pr_frc(1, "%s cmd: 0x%lx\n", __func__, cmd);
 	switch (cmd) {
 		/*temp add*/
 		case VOUT_EVENT_MODE_CHANGE_PRE:
@@ -428,8 +429,10 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 
 	/*0:before postblend; 1:after postblend*/
 	devp->frc_hw_pos = FRC_POS_AFTER_POSTBLEND;/*for test*/
-	devp->frc_fw_pause = 1;
+	devp->frc_fw_pause = false;
 	devp->frc_sts.frame_cnt = 0;
+	devp->frc_sts.state_transing = false;
+	devp->frc_sts.auto_ctrl = true;
 	devp->dbg_force_en = 0;
 
 	devp->dbg_in_out_ratio = FRC_RATIO_1_1;/*enum frc_ratio_mode_type frc_ratio_mode*/
@@ -444,7 +447,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	}
 	devp->dbg_buf_len = 0;
 
-	devp->loss_en = 0;
+	//devp->loss_en = true;
 	devp->loss_ratio = 0;
 	devp->prot_mode = 1;
 

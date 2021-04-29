@@ -59,6 +59,17 @@
 #define FRC_DS_12	1
 #define FRC_DS_14	2
 
+enum dbg_level {
+	dbg_frc = 0,
+	dbg_bbd = 10,
+	dbg_film = 11,
+	dbg_logo = 12,
+	dbg_me = 13,
+	dbg_mc = 14,
+	dbg_scene = 15,
+	dbg_vp = 16,
+};
+
 enum eFRC_POS {
 	FRC_POS_BEFORE_POSTBLEND = 0,
 	FRC_POS_AFTER_POSTBLEND = 1,
@@ -430,6 +441,7 @@ struct st_mc_rd {
 struct st_search_final_line_para {
 	// BBD FW
 	//for fw
+	u8 bbd_en;
 	u8 pattern_detect_en; // 1;	//  u1,     0:close, using bb_mode_switch,
 					//1: open, detect more than zeros in img, bbd off;
 	u8 pattern_dect_ratio; // 109;	//  u7,     85% ratio/128
@@ -606,7 +618,7 @@ struct st_melogo_ctrl_para {
 
 //----------------------------------------------------------file detect start
 
-#define FLMMODNUM	18
+#define FLMMODNUM	3
 #define HISDIFNUM	30
 #define MAX_CYCLE	25
 #define PHS_FRAC_BIT	7
@@ -896,9 +908,11 @@ struct st_search_range_dynamic_para {
 	u8 chrm_sing_vect_max_th;//  =   48;        //  u8
 	u8 chrm_asym_vect_th;//      =   32;        //  u8
 	u8 chrm_gred_vect_th;//      =   48;        //  u8
+	u8 mclbuf_mode_en;
 };
 
 struct st_pixel_lpf_para {
+	u8  pixlpf_en;
 	u8  osd_ctrl_pixlpf_en;// = 0;
 	u16 osd_ctrl_pixlpf_th;// = 0;
 	u8  detail_ctrl_pixlpf_en;// = 0;
@@ -958,7 +972,8 @@ struct frc_top_type_s {
 	enum en_film_mode    film_mode;//film_mode
 	u32       film_hwfw_sel;//0:hw 1:fw
 	u32       is_me1mc4;//1: me:mc=1/4, 0 : me:mc=1/2, default 0
-	u32       loss_en;//default 0
+	u32       me_loss_en;//default 0
+	u32       mc_loss_en;//default 0
 	u32       frc_prot_mode;//0:memc prefetch acorrding mode frame 1:memc prefetch 1 frame
 	/*output*/
 	u32 out_hsize;

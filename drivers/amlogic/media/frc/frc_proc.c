@@ -173,7 +173,9 @@ irqreturn_t frc_input_isr(int irq, void *dev_id)
 void frc_input_tasklet_pro(unsigned long arg)
 {
 	struct frc_dev_s *devp = (struct frc_dev_s *)arg;
+	struct frc_fw_data_s *fw_data;
 
+	fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	devp->in_sts.vs_tsk_cnt++;
 
 	if (!devp->probe_ok)
@@ -182,7 +184,8 @@ void frc_input_tasklet_pro(unsigned long arg)
 	if (!devp->frc_fw_pause) {
 		frc_scene_detect_input(devp);
 		frc_film_detect_ctrl(devp);
-		frc_bbd_ctrl(devp);
+		if (fw_data->search_final_line_para.bbd_en == 1)
+			frc_bbd_ctrl(devp);
 		frc_iplogo_ctrl(devp);
 	}
 }
@@ -220,11 +223,11 @@ void frc_output_tasklet_pro(unsigned long arg)
 
 	if (!devp->frc_fw_pause) {
 		frc_scene_detect_output(devp);
-		frc_me_ctrl(devp);
-		if (fw_data->g_stvpctrl_para.vp_en == 1)
-			frc_vp_ctrl(devp);
+		//frc_me_ctrl(devp);
+		//if (fw_data->g_stvpctrl_para.vp_en == 1)
+			//frc_vp_ctrl(devp);
 		frc_mc_ctrl(devp);
-		frc_melogo_ctrl(devp);
+		//frc_melogo_ctrl(devp);
 	}
 }
 
@@ -232,8 +235,11 @@ void frc_change_to_state(enum frc_state_e state)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
-	if (devp->frc_sts.state != state) {
+	if (devp->frc_sts.state_transing) {
+		pr_frc(0, "%s state_transing busy!\n", __func__);
+	} else if (devp->frc_sts.state != state) {
 		devp->frc_sts.new_state = state;
+		devp->frc_sts.state_transing = true;
 		pr_frc(1, "%s %d->%d\n", __func__, devp->frc_sts.state, state);
 	}
 }
@@ -328,6 +334,12 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	//	frc_change_to_state(FRC_STATE_BYPASS);
 }
 
+void frc_state_change_finish(struct frc_dev_s *devp)
+{
+	devp->frc_sts.state = devp->frc_sts.new_state;
+	devp->frc_sts.state_transing = false;
+}
+
 void frc_state_handle(struct frc_dev_s *devp)
 {
 	enum frc_state_e cur_state;
@@ -351,7 +363,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 				devp->frc_sts.frame_cnt = 0;
 				pr_frc(log, "sm state change %s -> %s\n",
 				       frc_state_ary[cur_state], frc_state_ary[new_state]);
-				devp->frc_sts.state = devp->frc_sts.new_state;
+				frc_state_change_finish(devp);
 			} else if (new_state == FRC_STATE_ENABLE) {
 				frc_hw_initial(devp);
 				//first : set bypass off
@@ -361,7 +373,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 				devp->frc_sts.frame_cnt = 0;
 				pr_frc(log, "sm state change %s -> %s\n",
 					frc_state_ary[cur_state], frc_state_ary[new_state]);
-				devp->frc_sts.state = devp->frc_sts.new_state;
+				frc_state_change_finish(devp);
 			} else {
 				pr_frc(0, "err new state %d\n", new_state);
 			}
@@ -374,7 +386,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 				devp->frc_sts.frame_cnt = 0;
 				pr_frc(log, "sm state change %s -> %s\n",
 					frc_state_ary[cur_state], frc_state_ary[new_state]);
-				devp->frc_sts.state = devp->frc_sts.new_state;
+				frc_state_change_finish(devp);
 			} else if (new_state == FRC_STATE_BYPASS) {
 				//first frame set enable off
 				if (devp->frc_sts.frame_cnt == 0) {
@@ -387,7 +399,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 					devp->frc_sts.frame_cnt = 0;
 					pr_frc(log, "sm state change %s -> %s\n",
 					       frc_state_ary[cur_state], frc_state_ary[new_state]);
-					devp->frc_sts.state = devp->frc_sts.new_state;
+					frc_state_change_finish(devp);
 				}
 			} else {
 				pr_frc(0, "err new state %d\n", new_state);
@@ -403,7 +415,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 				devp->frc_sts.frame_cnt = 0;
 				pr_frc(log, "sm state change %s -> %s\n",
 				       frc_state_ary[cur_state], frc_state_ary[new_state]);
-				devp->frc_sts.state = devp->frc_sts.new_state;
+				frc_state_change_finish(devp);
 			} else if (new_state == FRC_STATE_ENABLE) {
 				if (devp->frc_sts.frame_cnt == 0) {
 					//first frame set bypass off
@@ -417,7 +429,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 					devp->frc_sts.frame_cnt = 0;
 					pr_frc(log, "sm state change %s -> %s\n",
 					       frc_state_ary[cur_state], frc_state_ary[new_state]);
-					devp->frc_sts.state = devp->frc_sts.new_state;
+					frc_state_change_finish(devp);
 				}
 			} else {
 				pr_frc(0, "err new state %d\n", new_state);
