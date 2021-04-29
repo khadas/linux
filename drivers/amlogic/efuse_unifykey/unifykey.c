@@ -461,6 +461,7 @@ int key_unify_get_init_flag(void)
 {
 	if (ukdev_global)
 		return ukdev_global->init_flag;
+	pr_info("%s: ukdev_global is null\n", __func__);
 	return 0;
 }
 EXPORT_SYMBOL(key_unify_get_init_flag);

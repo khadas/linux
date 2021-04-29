@@ -187,8 +187,10 @@ struct aml_bl_drv_s {
 	struct bl_config_s        bconf;
 	struct cdev               cdev;
 	struct bl_data_s          *data;
+	struct platform_device    *pdev;
 	struct device             *dev;
 	struct backlight_device   *bldev;
+	struct work_struct        config_probe_work;
 	struct delayed_work       delayed_on_work;
 	struct resource *res_ldim_vsync_irq;
 	struct resource *res_vsync_irq[3];

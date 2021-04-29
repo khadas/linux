@@ -3466,6 +3466,71 @@ static void bl_init_status_update(struct aml_bl_drv_s *bdrv)
 	}
 }
 
+static void aml_bl_config_probe_work(struct work_struct *work)
+{
+	struct aml_bl_drv_s *bdrv;
+	struct backlight_properties props;
+	struct backlight_device *bldev;
+	char bl_name[10];
+	int index;
+	int ret;
+
+	bdrv = container_of(work, struct aml_bl_drv_s, config_probe_work);
+
+	index = bdrv->index;
+	bdrv->pinmux_flag = 0xff;
+	bdrv->bconf.level_default = 128;
+	bdrv->bconf.level_mid = 128;
+	bdrv->bconf.level_mid_mapping = 128;
+	bdrv->bconf.level_min = 10;
+	bdrv->bconf.level_max = 255;
+	bdrv->bconf.power_on_delay = 100;
+	bdrv->bconf.power_off_delay = 30;
+	bdrv->bconf.method = BL_CTRL_MAX;
+	ret = bl_config_load(bdrv, bdrv->pdev);
+	if (ret)
+		goto err;
+
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.type = BACKLIGHT_RAW;
+	props.power = FB_BLANK_UNBLANK; /* full on */
+	props.max_brightness = (bdrv->bconf.level_max > 0 ?
+				bdrv->bconf.level_max : BL_LEVEL_MAX);
+	props.brightness = bdrv->level_init_on;
+
+	if (index == 0)
+		sprintf(bl_name, "aml-bl");
+	else
+		sprintf(bl_name, "aml-bl%d", index);
+	bldev = backlight_device_register(bl_name, &bdrv->pdev->dev,
+					  bdrv, &aml_bl_ops, &props);
+	if (IS_ERR(bldev)) {
+		BLERR("[%d]: failed to register backlight\n", index);
+		ret = PTR_ERR(bldev);
+		goto err;
+	}
+	bdrv->bldev = bldev;
+
+	/* init workqueue */
+	INIT_DELAYED_WORK(&bdrv->delayed_on_work, bl_delayd_on);
+
+	bl_debug_file_creat(bdrv);
+
+	bl_vsync_irq_init(bdrv);
+	bl_init_status_update(bdrv);
+
+	BLPR("[%d]: %s: ok\n", index, __func__);
+	return;
+
+err:
+	/* free drvdata */
+	platform_set_drvdata(bdrv->pdev, NULL);
+	/* free drv */
+	kfree(bdrv);
+	bl_drv[index] = NULL;
+	BLPR("[%d]: %s: failed\n", index, __func__);
+}
+
 int aml_bl_index_add(int drv_index, int conf_index)
 {
 	if (drv_index >= LCD_MAX_DRV) {
@@ -3485,9 +3550,6 @@ static int aml_bl_probe(struct platform_device *pdev)
 {
 	struct aml_bl_drv_s *bdrv;
 	const struct of_device_id *match;
-	struct backlight_properties props;
-	struct backlight_device *bldev;
-	char bl_name[10];
 	int index = 0;
 	int ret;
 
@@ -3531,59 +3593,13 @@ static int aml_bl_probe(struct platform_device *pdev)
 	/* set drvdata */
 	platform_set_drvdata(pdev, bdrv);
 	bl_cdev_add(bdrv, &pdev->dev);
+	bdrv->pdev = pdev;
 
-	bdrv->pinmux_flag = 0xff;
-	bdrv->bconf.level_default = 128;
-	bdrv->bconf.level_mid = 128;
-	bdrv->bconf.level_mid_mapping = 128;
-	bdrv->bconf.level_min = 10;
-	bdrv->bconf.level_max = 255;
-	bdrv->bconf.power_on_delay = 100;
-	bdrv->bconf.power_off_delay = 30;
-	bdrv->bconf.method = BL_CTRL_MAX;
-	ret = bl_config_load(bdrv, pdev);
-	if (ret)
-		goto err;
-
-	memset(&props, 0, sizeof(struct backlight_properties));
-	props.type = BACKLIGHT_RAW;
-	props.power = FB_BLANK_UNBLANK; /* full on */
-	props.max_brightness = (bdrv->bconf.level_max > 0 ?
-				bdrv->bconf.level_max : BL_LEVEL_MAX);
-	props.brightness = bdrv->level_init_on;
-
-	if (index == 0)
-		sprintf(bl_name, "aml-bl");
-	else
-		sprintf(bl_name, "aml-bl%d", index);
-	bldev = backlight_device_register(bl_name, &pdev->dev,
-					  bdrv, &aml_bl_ops, &props);
-	if (IS_ERR(bldev)) {
-		BLERR("[%d]: failed to register backlight\n", index);
-		ret = PTR_ERR(bldev);
-		goto err;
-	}
-	bdrv->bldev = bldev;
-
-	/* init workqueue */
-	INIT_DELAYED_WORK(&bdrv->delayed_on_work, bl_delayd_on);
-
-	bl_debug_file_creat(bdrv);
-
-	bl_vsync_irq_init(bdrv);
-	bl_init_status_update(bdrv);
+	INIT_WORK(&bdrv->config_probe_work, aml_bl_config_probe_work);
+	lcd_queue_work(&bdrv->config_probe_work);
 
 	BLPR("[%d]: probe OK, init_state:0x%x\n", index, bl_drv_init_state);
 	return 0;
-
-err:
-	/* free drvdata */
-	platform_set_drvdata(pdev, NULL);
-	/* free drv */
-	kfree(bdrv);
-	bl_drv[index] = NULL;
-	BLPR("[%d]: probe failed\n", index);
-	return -1;
 }
 
 static int __exit aml_bl_remove(struct platform_device *pdev)
