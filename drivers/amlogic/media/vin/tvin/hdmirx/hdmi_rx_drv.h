@@ -39,8 +39,8 @@
 #define IRQ_LOG		0x2000
 #define COR_LOG		0x4000
 
-/* fix write HDCP2X reg fail */
-#define RX_VER1 "ver.2021/04/27"
+/* fix allm mode data error */
+#define RX_VER1 "ver.2021/04/29"
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 

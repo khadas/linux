@@ -1042,12 +1042,12 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 			pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
 			pkt->ieee = IEEE_VSI21;
 			pkt->sbpkt.vsi_st_21.ver = 1;
-			tmp = hdmirx_rd_cor(RX_UNREC_BYTE10_DP2_IVCRX);
+			tmp = hdmirx_rd_cor(RX_UNREC_BYTE9_DP2_IVCRX);
 			pkt->sbpkt.vsi_st_21.valid_3d = tmp & 1;
 			pkt->sbpkt.vsi_st_21.allm_mode = (tmp >> 1) & 1;
 			pkt->sbpkt.vsi_st_21.ccbpc = (tmp >> 4) & 0x0f;
 			for (i = 0; i < 21; i++) {
-				tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE11_DP3_IVCRX + i);
+				tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE10_DP3_IVCRX + i);
 				pkt->sbpkt.vsi_st_21.data[i] = tmp;
 			}
 		}

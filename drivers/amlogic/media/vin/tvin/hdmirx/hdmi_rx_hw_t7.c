@@ -1918,7 +1918,6 @@ void rx_set_irq_t7(bool en)
 	//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3);
 	//hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02);// int
 	//hdmirx_wr_cor(RX_PWD_INT_CTRL, 0x00);//[1] reg_intr_polarity, default = 1
-	hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, 0x2);//interrupt mask
 	//hdmirx_wr_cor(RX_DEPACK_INTR4_MASK_DP2_IVCRX, 0x00);//interrupt mask
 	//hdmirx_wr_cor(RX_DEPACK2_INTR0_MASK_DP0B_IVCRX, 0x0c);//interrupt mask
 	//hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, 0x20);//interrupt mask   [5] acr
