@@ -587,6 +587,8 @@ int dd_hiu_reg_write(unsigned int reg, unsigned int val);
 unsigned int dd_hiu_reg_read(unsigned int addr);
 void dtvdemod_dmc_reg_write(unsigned int reg, unsigned int val);
 unsigned int dtvdemod_dmc_reg_read(unsigned int addr);
+void dtvdemod_ddr_reg_write(unsigned int reg, unsigned int val);
+unsigned int dtvdemod_ddr_reg_read(unsigned int addr);
 int reset_reg_write(unsigned int reg, unsigned int val);
 unsigned int reset_reg_read(unsigned int addr);
 
