@@ -570,5 +570,13 @@
 
 #define VPP_SR0_IN_SIZE                            0x1d97
 #define VPP_SR1_IN_SIZE                            0x1d98
+
+#define VIU_VD1_PATH_CTRL                          0x1a73
+#define VIU_VD2_PATH_CTRL                          0x1a74
+#define VIU_VD3_PATH_CTRL                          0x1a75
+#define VIU_OSD1_PATH_CTRL                         0x1a76
+#define VIU_OSD2_PATH_CTRL                         0x1a77
+#define VIU_OSD3_PATH_CTRL                         0x1a78
+#define VIU_OSD4_PATH_CTRL                         0x1a79
 #endif
 

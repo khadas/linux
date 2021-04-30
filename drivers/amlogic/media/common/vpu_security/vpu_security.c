@@ -75,6 +75,22 @@ static struct vpu_sec_reg_s reg_v2[] = {
 	{VIU2_FRM_CTRL,        1, 26, 1}  /* 12. VPP_TOP2 */
 };
 
+static struct vpu_sec_reg_s reg_v3[] = {
+	{VIU_OSD1_PATH_CTRL,   1, 28, 1}, /* 00. OSD1 */
+	{VIU_OSD2_PATH_CTRL,   1, 28, 1}, /* 01. OSD2 */
+	{VIU_VD1_PATH_CTRL,    1, 28, 1}, /* 02. VD1 */
+	{VIU_VD2_PATH_CTRL,    1, 28, 1}, /* 03. VD2 */
+	{VIU_OSD3_PATH_CTRL,   1, 28, 1}, /* 04. OSD3 */
+	{0,                    1,  0, 1}, /* 05. VD AFBC, not used */
+	{VIU_VD1_PATH_CTRL,    1, 29, 1}, /* 06. DV */
+	{VIU_OSD4_PATH_CTRL,   1, 28, 1}, /* 07. OSD AFBC */
+	{VIU_FRM_CTRL,	       1, 26, 1}, /* 08. VPP_TOP */
+	{0,                    1, 0,  1}, /* 09. OSD4, not used */
+	{VIU_VD3_PATH_CTRL,    1, 28, 1}, /* 10. VD3 */
+	{VIU_FRM_CTRL,         1, 26, 1}, /* 11. VPP_TOP1 */
+	{VIU_FRM_CTRL,         1, 26, 1}  /* 12. VPP_TOP2 */
+};
+
 static struct sec_dev_data_s vpu_security_sc2 = {
 	.version = VPU_SEC_V1,
 };
@@ -85,6 +101,10 @@ static struct sec_dev_data_s vpu_security_s4 = {
 
 static struct sec_dev_data_s vpu_security_t7 = {
 	.version = VPU_SEC_V2,
+};
+
+static struct sec_dev_data_s vpu_security_t3 = {
+	.version = VPU_SEC_V3,
 };
 
 static const struct of_device_id vpu_security_dt_match[] = {
@@ -99,6 +119,10 @@ static const struct of_device_id vpu_security_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-t7, vpu_security",
 		.data = &vpu_security_t7,
+	},
+	{
+		.compatible = "amlogic, meson-t3, vpu_security",
+		.data = &vpu_security_t3,
 	},
 	{}
 };
@@ -155,6 +179,8 @@ static void secure_reg_update(struct vpu_secure_ins *ins,
 {
 	enum vpu_security_version_e version;
 	int i, en = 0, reg_val = 0;
+	int reg_size = 0;
+	struct vpu_sec_reg_s *reg_item = NULL;
 
 	if (!is_vpu_secure_support())
 		return;
@@ -170,18 +196,27 @@ static void secure_reg_update(struct vpu_secure_ins *ins,
 		ins->reg_wr_op[vpp_index](reg_v1[0].reg,
 					  change->current_val,
 					  0, ARRAY_SIZE(reg_v1));
-	} else if (version == VPU_SEC_V2) {
+	} else if (version >= VPU_SEC_V2 && version < VPU_SEC_MAX) {
+		if (version == VPU_SEC_V2) {
+			reg_size = ARRAY_SIZE(reg_v2);
+			reg_item = &reg_v2[0];
+		} else if (version == VPU_SEC_V3) {
+			reg_size = ARRAY_SIZE(reg_v3);
+			reg_item = &reg_v3[0];
+		}
+
 		/* work through the array and write bit(s) */
-		for (i = 0; i < ARRAY_SIZE(reg_v2); i++) {
+		for (i = 0; i < reg_size; i++) {
 			if (BIT(i) & change->bit_changed) {
 				en = BIT(i) & change->current_val;
-				reg_val = en ? reg_v2[i].en : (!reg_v2[i].en);
-				if (!reg_v2[i].reg)
+				reg_val = en ? reg_item[i].en :
+					  (!reg_item[i].en);
+				if (!reg_item[i].reg)
 					continue;
-				ins->reg_wr_op[vpp_index](reg_v2[i].reg,
+				ins->reg_wr_op[vpp_index](reg_item[i].reg,
 							  reg_val,
-							  reg_v2[i].start,
-							  reg_v2[i].len);
+							  reg_item[i].start,
+							  reg_item[i].len);
 			}
 		}
 	} else {

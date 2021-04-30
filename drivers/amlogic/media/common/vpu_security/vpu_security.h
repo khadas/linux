@@ -29,7 +29,9 @@ struct vpu_security_device_info {
 
 enum vpu_security_version_e {
 	VPU_SEC_V1 = 1,
-	VPU_SEC_V2
+	VPU_SEC_V2,
+	VPU_SEC_V3,
+	VPU_SEC_MAX
 };
 
 struct vpu_sec_reg_s {
