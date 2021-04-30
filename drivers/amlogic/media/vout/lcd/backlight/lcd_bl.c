@@ -54,7 +54,6 @@ static unsigned int bl_drv_init_state;
 static struct aml_bl_drv_s *bl_drv[LCD_MAX_DRV];
 static int bl_index_lut[LCD_MAX_DRV] = {0xff, 0xff, 0xff};
 static unsigned int bl_level[LCD_MAX_DRV];
-static unsigned int bl_off_policy[LCD_MAX_DRV];
 
 static DEFINE_MUTEX(bl_status_mutex);
 static DEFINE_MUTEX(bl_power_mutex);
@@ -369,12 +368,6 @@ static void bl_power_on(struct aml_bl_drv_s *bdrv)
 
 	if (aml_bl_check_driver(bdrv))
 		return;
-
-	/* bl_off_policy */
-	if (bl_off_policy[bdrv->index] != BL_OFF_POLICY_NONE) {
-		BLPR("bl_off_policy=%d for bl_off\n", bl_off_policy[bdrv->index]);
-		return;
-	}
 
 	mutex_lock(&bl_power_mutex);
 
@@ -3291,24 +3284,6 @@ static void bl_global_remove_once(void)
 #ifdef CONFIG_PM
 static int aml_bl_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct aml_bl_drv_s *bdrv = platform_get_drvdata(pdev);
-
-	switch (bl_off_policy[bdrv->index]) {
-	case BL_OFF_POLICY_ONCE:
-		bdrv->off_policy_cnt += 1;
-		break;
-	default:
-		break;
-	}
-
-	if (bdrv->off_policy_cnt == 2) {
-		bdrv->off_policy_cnt = 0;
-		bl_off_policy[bdrv->index] = BL_OFF_POLICY_NONE;
-		BLPR("change bl_off_policy: %d\n", bl_off_policy[bdrv->index]);
-	}
-
-	BLPR("%s: bl_off_policy=%d, bdrv->off_policy_cnt=%d\n",
-	     __func__, bl_off_policy[bdrv->index], bdrv->off_policy_cnt);
 	return 0;
 }
 
@@ -3675,26 +3650,6 @@ void __exit aml_bl_exit(void)
 {
 	platform_driver_unregister(&aml_bl_driver);
 }
-
-static int aml_bl_boot_para_setup(char *s)
-{
-	char bl_off_policy_str[10] = "none";
-
-	bl_off_policy[0] = BL_OFF_POLICY_NONE;
-	if (s)
-		sprintf(bl_off_policy_str, "%s", s);
-
-	if (strncmp(bl_off_policy_str, "none", 2) == 0)
-		bl_off_policy[0] = BL_OFF_POLICY_NONE;
-	else if (strncmp(bl_off_policy_str, "always", 2) == 0)
-		bl_off_policy[0] = BL_OFF_POLICY_ALWAYS;
-	else if (strncmp(bl_off_policy_str, "once", 2) == 0)
-		bl_off_policy[0] = BL_OFF_POLICY_ONCE;
-	BLPR("bl_off_policy: %s\n", bl_off_policy_str);
-
-	return 0;
-}
-__setup("bl_off=", aml_bl_boot_para_setup);
 
 static int aml_bl_level_setup(char *str)
 {
