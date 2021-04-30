@@ -111,6 +111,9 @@ struct meson_pwm_data {
 struct meson_pwm_channel {
 	unsigned int hi;
 	unsigned int lo;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int clk_rate;
+#endif
 	u8 pre_div;
 
 	struct clk *clk_parent;

@@ -189,6 +189,10 @@ static int meson_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		return err;
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	channel->clk_rate = clk_get_rate(channel->clk);
+#endif
+
 	return pwm_set_chip_data(pwm, channel);
 }
 
@@ -213,7 +217,13 @@ static int meson_pwm_calc(struct meson_pwm *meson, struct pwm_device *pwm,
 	if (state->polarity == PWM_POLARITY_INVERSED)
 		duty = period - duty;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/*get_clk_rate()not use in Interrupt context*/
+	fin_freq = channel->clk_rate;
+#else
 	fin_freq = clk_get_rate(channel->clk);
+#endif
+
 	if (fin_freq == 0) {
 		dev_err(meson->chip.dev, "invalid source clock frequency\n");
 		return -EINVAL;
