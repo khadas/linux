@@ -869,26 +869,6 @@ static ssize_t attr_store(struct class *cls,
 			aml_def_set_lnb_sel(val);
 	} else if (!strcmp(parm[0], "diseqc_reg")) {
 		demod_dump_reg_diseqc();
-	} else if (!strcmp(parm[0], "dvbsw")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
-				dvbs_wr_byte(addr, val);
-				PR_INFO("dvbs wr addr:0x%x, val:0x%x\n", addr, val);
-			}
-		}
-	} else if (!strcmp(parm[0], "dvbsr")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			val = dvbs_rd_byte(addr);
-			PR_INFO("dvds rd addr:0x%x, val:0x%x\n", addr, val);
-		}
-	} else if (!strcmp(parm[0], "dvbsd")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
-			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
-				for (i = addr; i < (addr + val); i++)
-					PR_INFO("dvds rd addr:0x%x, val:0x%x\n",
-						i, dvbs_rd_byte(i));
-			}
-		}
 	} else if (!strcmp(parm[0], "diseqc_dbg")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
 			aml_diseqc_dbg_en(val);
@@ -924,6 +904,26 @@ static ssize_t attr_store(struct class *cls,
 	} else if (!strcmp(parm[0], "dvbc_sel")) {
 		if (parm[1] && (kstrtoint(parm[1], 10, &demod->dvbc_sel)) == 0)
 			;
+	} else if (!strcmp(parm[0], "dvbsw")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
+			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+				dvbs_wr_byte(addr, val);
+				PR_INFO("dvbs wr addr:0x%x, val:0x%x\n", addr, val);
+			}
+		}
+	} else if (!strcmp(parm[0], "dvbsr")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
+			val = dvbs_rd_byte(addr);
+			PR_INFO("dvds rd addr:0x%x, val:0x%x\n", addr, val);
+		}
+	} else if (!strcmp(parm[0], "dvbsd")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
+			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+				for (i = addr; i < (addr + val); i++)
+					PR_INFO("dvds rd addr:0x%x, val:0x%x\n",
+						i, dvbs_rd_byte(i));
+			}
+		}
 	} else if (!strcmp(parm[0], "dvbtr")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
 			val = dvbt_t2_rdb(addr);
@@ -969,6 +969,18 @@ static ssize_t attr_store(struct class *cls,
 		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
 			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
 				atsc_write_reg_v4(addr, val);
+				PR_INFO("atsc wr addr:0x%x, val:0x%x\n", addr, val);
+			}
+		}
+	} else if (!strcmp(parm[0], "dvbcr")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
+			val = qam_read_reg(demod, addr);
+			PR_INFO("dvbc rd addr:0x%x, val:0x%x\n", addr, val);
+		}
+	} else if (!strcmp(parm[0], "dvbcw")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
+			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+				qam_write_reg(demod, addr, val);
 				PR_INFO("atsc wr addr:0x%x, val:0x%x\n", addr, val);
 			}
 		}

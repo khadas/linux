@@ -298,10 +298,11 @@ int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc)
 	mode = demod_dvbc->mode;
 	symb_rate = demod_dvbc->symb_rate;
 	ch_freq = demod_dvbc->ch_freq;
+
 	if (mode > 4) {
-		PR_DVBC("[id %d] Error: Invalid QAM mode option %d\n", demod->id, mode);
-		mode = 4;
-		ret = -1;
+		/* auto QAM mode, force to QAM64 */
+		mode = 2;
+		PR_DVBC("[id %d] QAM mode option %d\n", demod->id, mode);
 	}
 
 	if (symb_rate < 1000 || symb_rate > 7000) {
