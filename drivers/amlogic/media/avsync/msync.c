@@ -1752,7 +1752,7 @@ static long msync_compat_ioctl(struct file *filp, u32 cmd, ulong arg)
 
 static int msync_open(struct inode *inode, struct file *file)
 {
-	file->private_data = (void *)-1;
+	file->private_data = NULL;
 	return 0;
 }
 
