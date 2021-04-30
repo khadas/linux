@@ -82,7 +82,7 @@ static u32 dvbc_get_per(struct aml_dtvdemod *demod)
 	return acc_rs_per_times;
 }
 
-static u32 dvbc_get_symb_rate(struct aml_dtvdemod *demod)
+u32 dvbc_get_symb_rate(struct aml_dtvdemod *demod)
 {
 	u32 tmp;
 	u32 adc_freq;
@@ -95,9 +95,8 @@ static u32 dvbc_get_symb_rate(struct aml_dtvdemod *demod)
 		symb_rate = 0;
 	else
 		symb_rate = 10 * (adc_freq << 12) / (tmp >> 15);
-	/* 1e4 */
 
-	return symb_rate;
+	return symb_rate / 10;
 }
 
 static int dvbc_get_freq_off(struct aml_dtvdemod *demod)
@@ -435,6 +434,16 @@ u32 dvbc_set_auto_symtrack(struct aml_dtvdemod *demod)
 
 int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts)
 {
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+
+	if (unlikely(!devp)) {
+		PR_ERR("devp is NULL, return\n");
+		return -1;
+	}
+
+	if (!devp->debug_on)
+		return 0;
+
 	demod_sts->ch_sts = qam_read_reg(demod, 0x6);
 	demod_sts->ch_pow = dvbc_get_ch_power(demod);
 	demod_sts->ch_snr = dvbc_get_snr(demod);

@@ -462,6 +462,7 @@ void demod_dvbc_set_fast_search(unsigned int en);
 unsigned int dtvdemod_get_atsc_lock_sts(struct aml_dtvdemod *demod);
 const char *dtvdemod_get_cur_delsys(enum fe_delivery_system delsys);
 void aml_dtv_demode_isr_en(struct amldtvdemod_device_s *devp, u32 en);
+u32 dvbc_get_symb_rate(struct aml_dtvdemod *demod);
 
 #ifdef MODULE
 struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config);

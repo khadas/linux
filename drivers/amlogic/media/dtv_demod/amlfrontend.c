@@ -128,6 +128,35 @@ const char *dtvdemod_get_cur_delsys(enum fe_delivery_system delsys)
 		return "invalid delsys";
 }
 
+static void dvbc_get_qam_name(enum qam_md_e qam_mode, char *str)
+{
+	switch (qam_mode) {
+	case QAM_MODE_64:
+		strcpy(str, "QAM_MODE_64");
+		break;
+
+	case QAM_MODE_256:
+		strcpy(str, "QAM_MODE_256");
+		break;
+
+	case QAM_MODE_16:
+		strcpy(str, "QAM_MODE_16");
+		break;
+
+	case QAM_MODE_32:
+		strcpy(str, "QAM_MODE_32");
+		break;
+
+	case QAM_MODE_128:
+		strcpy(str, "QAM_MODE_128");
+		break;
+
+	default:
+		strcpy(str, "QAM_MODE UNKNOWN");
+		break;
+	}
+}
+
 static void dtvdemod_vdac_enable(bool on);
 static int dtvdemod_leave_mode(struct amldtvdemod_device_s *devp);
 
@@ -454,6 +483,12 @@ static int gxtv_demod_dvbc_read_status_timer
 	struct aml_demod_sts demod_sts;
 	int strenth = 0;
 	int ilock = 0;
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	if (unlikely(!devp)) {
+		PR_ERR("dvbt2_tune, devp is NULL\n");
+		return -1;
+	}
 
 	/*check tuner*/
 	if (!timer_tuner_not_enough(demod)) {
@@ -670,13 +705,17 @@ static int gxtv_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 	struct aml_demod_dvbc param;    /*mode 0:16, 1:32, 2:64, 3:128, 4:256*/
 	struct aml_demod_sts demod_sts;
 	int ret = 0;
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	if (unlikely(!devp)) {
+		PR_ERR("dvbt2_tune, devp is NULL\n");
+		return -1;
+	}
 
 	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d.\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
 			c->bandwidth_hz, c->modulation, c->inversion);
 
-	/*timer_set_max(demod, D_TIMER_DETECT, 4000);*/
-	/*timer_begain(demod, D_TIMER_DETECT);*/
 	memset(&param, 0, sizeof(param));
 	param.ch_freq = c->frequency / 1000;
 	param.mode = amdemod_qam(c->modulation);
@@ -2115,6 +2154,10 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 	}
 
+	/* test bus definition
+	 * val[30]:0x839[3],[29-24]:0x805,[23-21]:0x2a09,[20-13]:0x2a08,[12:7]:0xa50
+	 * val[6-2]:0x8c3,[1]:0x361b[7],[0]:0x581[7]
+	 */
 	val = front_read_reg(0x3e);
 	snr = val >> 13;
 	snr &= 0x7ff;
@@ -2639,18 +2682,62 @@ void demod_dvbc_fsm_reset(struct aml_dtvdemod *demod)
 	qam_write_reg(demod, 0x3a, 0x4);
 }
 
+static enum qam_md_e dvbc_switch_qam(enum qam_md_e qam_mode)
+{
+	enum qam_md_e ret;
+
+	switch (qam_mode) {
+	case QAM_MODE_16:
+		ret = QAM_MODE_32;
+		break;
+
+	case QAM_MODE_32:
+		ret = QAM_MODE_128;
+		break;
+
+	case QAM_MODE_64:
+		ret = QAM_MODE_256;
+		break;
+
+	case QAM_MODE_128:
+		ret = QAM_MODE_64;
+		break;
+
+	case QAM_MODE_256:
+		ret = QAM_MODE_16;
+		break;
+
+	default:
+		ret = QAM_MODE_64;
+		break;
+	}
+
+	return ret;
+}
+
 //return val : 0=no signal,1=has signal,2=waiting
 unsigned int demod_dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool re_tune)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	unsigned int sr_actual, i;
+	char qam_name[20];
+
+	for (i = 0; i < 3; i++) {
+		sr_actual = dvbc_get_symb_rate(demod);
+		PR_DVBC("srate : %d\n", sr_actual);
+		qam_write_bits(demod, 0xd, sr_actual & 0xffff, 0, 16);
+		msleep(30);
+	}
 
 	if (re_tune) {
 		/*avoid that the previous channel has not been locked/unlocked*/
 		/*the next channel is set again*/
 		/*the wait time is too long,then miss channel*/
 		demod->auto_no_sig_cnt = 0;
-		demod->auto_times = 0;
-		demod->auto_qam_mode = QAM_MODE_16;
+		demod->auto_times = 1;
+		demod->auto_qam_mode = QAM_MODE_64;
+		demod_dvbc_set_qam(demod, demod->auto_qam_mode);
+		demod_dvbc_fsm_reset(demod);
 		PR_DVBC("fast search : retune reset\n");
 		return 2;
 	}
@@ -2659,13 +2746,16 @@ unsigned int demod_dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, 
 		demod->auto_no_sig_cnt = 0;
 		demod->auto_times = 0;
 		*delay = HZ / 4;
-		demod->auto_qam_mode = QAM_MODE_16;
+		demod->auto_qam_mode = QAM_MODE_64;
 		return 0;
 	}
-	demod->auto_times++;
-	PR_DVBC("fast search : times = %d\n", demod->auto_times);
-	if (demod->auto_times < 15)
+
+	dvbc_get_qam_name(demod->auto_qam_mode, qam_name);
+	PR_DVBC("fast search : times = %d, %s\n", demod->auto_times, qam_name);
+	if (demod->auto_times < 8)
 		*delay = HZ / 8;//125ms
+	else if (demod->auto_times <= 10)
+		*delay = HZ / 4;//250ms
 	else
 		*delay = HZ / 2;//500ms
 
@@ -2676,30 +2766,28 @@ unsigned int demod_dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, 
 			demod->auto_no_sig_cnt = 0;
 			demod->auto_times = 0;
 			*delay = HZ / 4;
-			demod->auto_qam_mode = QAM_MODE_16;
+			demod->auto_qam_mode = QAM_MODE_64;
 			return 0;
 		}
 	} else if ((qam_read_reg(demod, 0x31) & 0xf) == 5) {
 		demod->auto_no_sig_cnt = 0;
 		demod->auto_times = 0;
 		*delay = HZ / 4;
-		demod->auto_qam_mode = QAM_MODE_16;
+		demod->auto_qam_mode = QAM_MODE_64;
 		return 1;
 	}
 
-	if (demod->auto_times == 35) {
+	if (demod->auto_times == 15) {
 		demod->auto_times = 0;
 		demod->auto_no_sig_cnt = 0;
 		*delay = HZ / 4;
-		demod->auto_qam_mode = QAM_MODE_16;
+		demod->auto_qam_mode = QAM_MODE_64;
 		return 0;
 	}
 
+	demod->auto_times++;
 	/* loop from 16 to 256 */
-	if (demod->auto_qam_mode++ >= QAM_MODE_NUM)
-		demod->auto_qam_mode = QAM_MODE_16;
-
-	PR_DVBC("fast search : qam mode = %d\n", demod->auto_qam_mode);
+	demod->auto_qam_mode = dvbc_switch_qam(demod->auto_qam_mode);
 	demod_dvbc_set_qam(demod, demod->auto_qam_mode);
 	demod_dvbc_fsm_reset(demod);
 
@@ -2779,10 +2867,8 @@ static int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 			qam_write_reg(demod, 0xae, (qam_read_reg(demod, 0xae)
 				& (~0xff000000)) | 0x8000000);
 
-			if (fe->dtv_property_cache.modulation == QAM_AUTO) {
-				demod_dvbc_set_qam(demod, QAM_MODE_16);
+			if (fe->dtv_property_cache.modulation == QAM_AUTO)
 				demod_dvbc_auto_fast(fe, delay, re_tune);
-			}
 		} else
 			qam_write_reg(demod, 0x65, 0x800c);
 

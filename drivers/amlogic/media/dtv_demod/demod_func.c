@@ -984,14 +984,14 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 			if (devp->data->hw_ver == DTVDEMOD_HW_S4) {
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x10);
-				usleep_range(1000, 1001);
+				usleep_range(1000, 2000);
 				demod_top_write_reg(DEMOD_TOP_REGC, 0xcc0011);
 				front_write_bits(0x6c, nco_rate, AFIFO_NCO_RATE_BIT,
 						 AFIFO_NCO_RATE_WID);
 			} else {
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x10);
-				usleep_range(1000, 1001);
+				usleep_range(1000, 2000);
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 				front_write_bits(AFIFO_ADC, nco_rate, AFIFO_NCO_RATE_BIT,
 						 AFIFO_NCO_RATE_WID);
@@ -1511,7 +1511,6 @@ void qam_write_reg(struct aml_dtvdemod *demod,
 		writel(reg_data, gbase_dvbc_2() + (reg_addr << 2));
 	else
 		writel(reg_data, gbase_dvbc() + (reg_addr << 2));
-
 	mutex_unlock(&mp);
 }
 
@@ -1527,7 +1526,6 @@ unsigned int qam_read_reg(struct aml_dtvdemod *demod, unsigned int reg_addr)
 		tmp = readl(gbase_dvbc_2() + (reg_addr << 2));
 	else
 		tmp = readl(gbase_dvbc() + (reg_addr << 2));
-
 	mutex_unlock(&mp);
 
 	return tmp;
