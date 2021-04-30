@@ -103,13 +103,13 @@ u32 codec_mm_get_keep_debug_mode(void)
 }
 EXPORT_SYMBOL(codec_mm_get_keep_debug_mode);
 
-static int default_tvp_size;
-static int default_tvp_4k_size;
-static int default_cma_res_size;
-static int default_tvp_pool_segment_size[4];
-static int default_tvp_pool_size_0;
-static int default_tvp_pool_size_1;
-static int default_tvp_pool_size_2;
+static u32 default_tvp_size;
+static u32 default_tvp_4k_size;
+static u32 default_cma_res_size;
+static u32 default_tvp_pool_segment_size[4];
+static u32 default_tvp_pool_size_0;
+static u32 default_tvp_pool_size_1;
+static u32 default_tvp_pool_size_2;
 static u32 tvp_dynamic_increase_disable;
 
 #define TVP_POOL_SEGMENT_MAX_USED 4
