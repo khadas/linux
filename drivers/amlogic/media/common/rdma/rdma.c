@@ -291,7 +291,7 @@ static void vsync_rdma_irq(void *arg)
 	if (enable_ == 1) {
 		/*triggered by next vsync*/
 		iret = rdma_config(vsync_rdma_handle[VSYNC_RDMA],
-				   RDMA_TRIGGER_PRE_VSYNC_INPUT);
+				   RDMA_TRIGGER_VSYNC_INPUT);
 		if (iret)
 			vsync_cfg_count[VSYNC_RDMA]++;
 	} else {

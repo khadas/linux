@@ -15620,7 +15620,7 @@ static int amvideom_probe(struct platform_device *pdev)
 			pr_info("amvideom vsync viu3 irq: %d\n",
 				video_vsync_viu3);
 	}
-	if (t3_dev_property.frc_support) {
+	if (amvideo_meson_dev.dev_property.frc_support) {
 		video_pre_vsync = platform_get_irq_byname(pdev, "pre_vsync");
 		if (video_pre_vsync  == -ENXIO)
 			pr_info("cannot get amvideom video_pre_vsync irq resource\n");
