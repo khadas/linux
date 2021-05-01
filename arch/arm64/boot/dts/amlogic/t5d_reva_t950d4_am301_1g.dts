@@ -86,13 +86,10 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* ion_codec_mm max can alloc size 80M
-			 * codec 208M + DI 160M + amlvideo2 24M + decontour 10M = 402M
-			 * 402M + 2M(for 4M alignment) = 404M
-			 * if, close 4k close decontour
-			 * codec 80M + DI 64M  = 144M
+			/* yuv420(32x3)96M + di(7x4,10x5)78M + workbuf(12M)
+			 * the sum with align 4M then is equal to 188M
 			 */
-			size = <0x0 0x9000000>;
+			size = <0x0 0xbc00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
