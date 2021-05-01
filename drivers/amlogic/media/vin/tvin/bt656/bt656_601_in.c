@@ -1100,6 +1100,11 @@ struct meson_bt656in_data meson_tm2_bt656in_data = {
 	.name = "meson-tm2-bt656in",
 };
 
+struct meson_bt656in_data meson_t3_bt656in_data = {
+	.cpu_id = BT656_CPU_TYPE_T3,
+	.name = "meson-t3-bt656in",
+};
+
 static const struct of_device_id meson_bt656in_dt_match[] = {
 	{
 		.compatible = "amlogic, bt656in-g12a",
@@ -1120,6 +1125,9 @@ static const struct of_device_id meson_bt656in_dt_match[] = {
 	}, {
 		.compatible = "amlogic, bt656in-tm2",
 		.data		= &meson_tm2_bt656in_data,
+	}, {
+		.compatible = "amlogic, bt656in-t3",
+		.data		= &meson_t3_bt656in_data,
 	},
 	{},
 };
@@ -1182,7 +1190,8 @@ static int amvdec_656in_probe(struct platform_device *pdev)
 	    bt656_cpu_type() == BT656_CPU_TYPE_G12B ||
 	    bt656_cpu_type() == BT656_CPU_TYPE_TL1  ||
 	    bt656_cpu_type() == BT656_CPU_TYPE_SM1  ||
-	    bt656_cpu_type() == BT656_CPU_TYPE_TM2) {
+	    bt656_cpu_type() == BT656_CPU_TYPE_TM2  ||
+	    bt656_cpu_type() == BT656_CPU_TYPE_T3) {
 		hw_cnt = 1;
 	} else {
 		hw_cnt = 0;
@@ -1286,8 +1295,6 @@ static int amvdec_656in_probe(struct platform_device *pdev)
 		if (IS_ERR(devp->gate_bt656)) {
 			BT656ERR("%s: cannot get clk_gate_bt656 !!!\n",
 				 __func__);
-			ret = -ENOENT;
-			goto fail_get_clktree;
 		}
 
 		devp->gate_bt656_pclk = clk_get(&pdev->dev,
@@ -1295,8 +1302,6 @@ static int amvdec_656in_probe(struct platform_device *pdev)
 		if (IS_ERR(devp->gate_bt656_pclk)) {
 			BT656ERR("%s: cannot get clk_gate_bt656_pclk1 !!!\n",
 				 __func__);
-			//ret = -ENOENT;
-			//goto fail_get_clktree;
 		}
 		/* set regmap */
 		BT656PR("%s: bt656[%d] start get ioremap .\n",
@@ -1446,7 +1451,7 @@ static struct platform_driver amvdec_656in_driver = {
 	}
 };
 
-int amvdec_656in_init_module(void)
+int __init amvdec_656in_init_module(void)
 {
 	int ret = 0;
 
@@ -1459,7 +1464,7 @@ int amvdec_656in_init_module(void)
 	return 0;
 }
 
-void amvdec_656in_exit_module(void)
+void __exit amvdec_656in_exit_module(void)
 {
 	platform_driver_unregister(&amvdec_656in_driver);
 }

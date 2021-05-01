@@ -520,6 +520,15 @@ static int tvafe_avin_detect_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_BT656
+int __init amvdec_656in_init_module(void);
+#else
+static int amvdec_656in_init_module(void)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 int vdin_drv_init(void);
 #else

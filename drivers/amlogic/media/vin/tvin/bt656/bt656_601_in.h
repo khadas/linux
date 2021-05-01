@@ -288,6 +288,7 @@ enum bt656_cpu_type {
 	BT656_CPU_TYPE_TL1    = 3,
 	BT656_CPU_TYPE_SM1    = 4,
 	BT656_CPU_TYPE_TM2    = 5,
+	BT656_CPU_TYPE_T3     = 6,
 };
 
 struct meson_bt656in_data {
