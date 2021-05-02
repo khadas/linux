@@ -1198,8 +1198,6 @@
 #define COR_AUD_PATH_STS	0x1627
 /* bit 2 */
 #define COR_HDCP14_STS		0x1071
-/* bit4 or bit 6 */
-#define COR_HDCP2X_GEN_STS	0x0f06
 /* */
 #define COR_VININ_STS		0x1027
 /* 24bit */
@@ -3324,7 +3322,7 @@ unsigned int hdmirx_rd_amlphy(unsigned int addr);
 void aml_phy_power_off_t5(void);
 void aml_phy_switch_port_t5(void);
 
-
+void hdmirx_irq_hdcp_enable(bool enable);
 u8 rx_get_avmute_sts(void);
 /* T7 */
 void rx_get_vtem_info(void);

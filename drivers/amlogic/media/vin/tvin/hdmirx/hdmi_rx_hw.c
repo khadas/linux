@@ -1201,25 +1201,43 @@ void rx_irq_en(bool enable)
  */
 void hdmirx_irq_hdcp_enable(bool enable)
 {
-	if (enable) {
-		/* hdcp2.2 */
-		if (hdcp22_on)
-			hdmirx_wr_dwc(DWC_HDMI2_IEN_SET, 0x1f);
-		/* hdcp1.4 */
-		hdmirx_wr_dwc(DWC_HDMI_IEN_SET, AKSV_RCV);
-	} else {
-		/* hdcp2.2 */
-		if (hdcp22_on) {
+	if (rx.chip_id >= CHIP_ID_T7) {
+		if (enable) {
+			/* encrypted sts changed en */
+			//hdmirx_wr_cor(RX_HDCP1X_INTR0_MASK_HDCP1X_IVCRX, 1);
+			/* AKE init received en */
+			hdmirx_wr_cor(CP2PAX_INTR1_MASK_HDCP2X_IVCRX, 4);
+		} else {
 			/* clear enable */
-			hdmirx_wr_dwc(DWC_HDMI2_IEN_CLR, ~0);
+			hdmirx_wr_cor(RX_HDCP1X_INTR0_MASK_HDCP1X_IVCRX, 0);
 			/* clear status */
-			hdmirx_wr_dwc(DWC_HDMI2_ICLR, ~0);
+			hdmirx_wr_cor(RX_HDCP1X_INTR0_HDCP1X_IVCRX, 0xff);
+			/* clear enable */
+			hdmirx_wr_cor(CP2PAX_INTR1_MASK_HDCP2X_IVCRX, 0);
+			/* clear status */
+			hdmirx_wr_cor(CP2PAX_INTR1_HDCP2X_IVCRX, 0xff);
 		}
-		/* hdcp1.4 */
-		/* clear enable */
-		hdmirx_wr_dwc(DWC_HDMI_IEN_CLR, ~0);
-		/* clear status */
-		hdmirx_wr_dwc(DWC_HDMI_ICLR, ~0);
+	} else {
+		if (enable) {
+			/* hdcp2.2 */
+			if (hdcp22_on)
+				hdmirx_wr_dwc(DWC_HDMI2_IEN_SET, 0x1f);
+			/* hdcp1.4 */
+			hdmirx_wr_dwc(DWC_HDMI_IEN_SET, AKSV_RCV);
+		} else {
+			/* hdcp2.2 */
+			if (hdcp22_on) {
+				/* clear enable */
+				hdmirx_wr_dwc(DWC_HDMI2_IEN_CLR, ~0);
+				/* clear status */
+				hdmirx_wr_dwc(DWC_HDMI2_ICLR, ~0);
+			}
+			/* hdcp1.4 */
+			/* clear enable */
+			hdmirx_wr_dwc(DWC_HDMI_IEN_CLR, ~0);
+			/* clear status */
+			hdmirx_wr_dwc(DWC_HDMI_ICLR, ~0);
+		}
 	}
 }
 
@@ -3431,8 +3449,8 @@ void hdmirx_hw_config(void)
 		if (rx.chip_id != CHIP_ID_TXHD)
 			hdmirx_20_init();
 		DWC_init();
-		hdmirx_irq_hdcp_enable(true);
 	}
+	hdmirx_irq_hdcp_enable(false);
 	rx_ddc_calibration(false);
 	packet_init();
 	if (rx.chip_id >= CHIP_ID_TL1)
@@ -3721,10 +3739,13 @@ bool rx_get_dvi_mode(void)
 u8 rx_get_hdcp_type(void)
 {
 	u32 tmp;
+	u8 data_dec, data_auth;
 
 	if (rx.chip_id >= CHIP_ID_T7) {
+		data_auth = hdmirx_rd_cor(CP2PAX_AUTH_STAT_HDCP2X_IVCRX);
+		data_dec = hdmirx_rd_cor(RX_HDCP_STATUS_PWD_IVCRX);
 		rx.cur.hdcp14_state = (hdmirx_rd_cor(RX_HDCP_STAT_HDCP1X_IVCRX) >> 4) & 3;
-		rx.cur.hdcp22_state = (hdmirx_rd_cor(COR_HDCP2X_GEN_STS) >> 4) & 3;
+		rx.cur.hdcp22_state = ((data_dec & 1) << 1) | (data_auth & 1);
 	} else {
 		if (hdcp22_on) {
 			tmp = hdmirx_rd_dwc(DWC_HDCP22_STATUS);

@@ -39,8 +39,8 @@
 #define IRQ_LOG		0x2000
 #define COR_LOG		0x4000
 
-/* modify reset deep color fifo method */
-#define RX_VER1 "ver.2021/05/10"
+/* add irq enable and disable function */
+#define RX_VER1 "ver.2021/05/12"
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 

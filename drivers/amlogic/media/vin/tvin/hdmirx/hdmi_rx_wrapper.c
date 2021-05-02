@@ -2928,6 +2928,7 @@ void rx_main_state_machine(void)
 			rx_pr("clk stable=%d\n", rx.phy.cable_clk);
 			rx.err_code = ERR_NONE;
 			rx.var.de_stable = false;
+			hdmirx_irq_hdcp_enable(true);
 		} else {
 			clk_stable_cnt = 0;
 			if (clk_unstable_cnt < clk_unstable_max) {
