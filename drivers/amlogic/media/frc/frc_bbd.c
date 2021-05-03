@@ -2142,8 +2142,15 @@ void frc_bbd_add_7_seg(void)
 
 void frc_bbd_ctrl(struct frc_dev_s *frc_devp)
 {
+	struct frc_fw_data_s *fw_data;
+	struct st_search_final_line_para *search_final_line_para;
+
+	fw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
+	search_final_line_para = &fw_data->search_final_line_para;
+
 	frc_bbd_choose_final_line(frc_devp);
 	frc_bbd_window_ctrl();
-	frc_bbd_add_7_seg();
+	if (search_final_line_para->bbd_7_seg_en)
+		frc_bbd_add_7_seg();
 }
 

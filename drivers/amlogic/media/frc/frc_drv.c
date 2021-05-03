@@ -61,7 +61,7 @@
 
 static struct frc_dev_s *frc_dev;
 
-int frc_dbg_en;/*enum dbg_level*/
+int frc_dbg_en;
 module_param(frc_dbg_en, int, 0664);
 MODULE_PARM_DESC(frc_dbg_en, "frc debug level");
 
@@ -143,6 +143,19 @@ static struct class_attribute frc_class_attrs[] = {
 	__ATTR(debug, 0644, frc_debug_show, frc_debug_store),
 	__ATTR(reg, 0644, frc_reg_show, frc_reg_store),
 	__ATTR(tool_debug, 0644, frc_tool_debug_show, frc_tool_debug_store),
+	__ATTR(final_line_param, 0644, frc_bbd_final_line_param_show,
+		frc_bbd_final_line_param_store),
+	__ATTR(vp_ctrl_param, 0644, frc_vp_ctrl_param_show, frc_vp_ctrl_param_store),
+	__ATTR(iplogo_ctrl_param, 0644, frc_iplogo_ctrl_param_show, frc_iplogo_ctrl_param_store),
+	__ATTR(melogo_ctrl_param, 0644, frc_melogo_ctrl_param_show, frc_melogo_ctrl_param_store),
+	__ATTR(sence_chg_detect_param, 0644, frc_sence_chg_detect_param_show,
+		frc_sence_chg_detect_param_store),
+	__ATTR(fb_ctrl_param, 0644, frc_fb_ctrl_param_show, frc_fb_ctrl_param_store),
+	__ATTR(me_ctrl_param, 0644, frc_me_ctrl_param_show, frc_me_ctrl_param_store),
+	__ATTR(search_rang_param, 0644, frc_search_rang_param_show, frc_search_rang_param_store),
+	__ATTR(pixel_lpf_param, 0644, frc_pixel_lpf_param_show, frc_pixel_lpf_param_store),
+	__ATTR(me_rule_param, 0644, frc_me_rule_param_show, frc_me_rule_param_store),
+	__ATTR(film_detect_item, 0644, frc_film_detect_item_show, frc_film_detect_item_store),
 	__ATTR_NULL
 };
 
@@ -429,11 +442,17 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 
 	/*0:before postblend; 1:after postblend*/
 	devp->frc_hw_pos = FRC_POS_AFTER_POSTBLEND;/*for test*/
+	devp->frc_sts.auto_ctrl = 0;
 	devp->frc_fw_pause = false;
 	devp->frc_sts.frame_cnt = 0;
 	devp->frc_sts.state_transing = false;
-	devp->frc_sts.auto_ctrl = true;
+	devp->frc_sts.re_cfg_cnt = 0;
+	devp->in_sts.vf_sts = 0;/*initial to no*/
 	devp->dbg_force_en = 0;
+
+	/*input sts initial*/
+	devp->in_sts.have_vf_cnt = 0;
+	devp->in_sts.no_vf_cnt = 0;
 
 	devp->dbg_in_out_ratio = FRC_RATIO_1_1;/*enum frc_ratio_mode_type frc_ratio_mode*/
 	devp->dbg_input_hsize = vinfo->width;
@@ -447,7 +466,6 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	}
 	devp->dbg_buf_len = 0;
 
-	//devp->loss_en = true;
 	devp->loss_ratio = 0;
 	devp->prot_mode = 1;
 

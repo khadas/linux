@@ -123,7 +123,6 @@ void frc_film_param_init(struct frc_dev_s *frc_devp)
 	}
 	// mix_mode init end
 	fb_num = READ_FRC_REG(FRC_FRAME_BUFFER_NUM) & 0x1F;
-	pr_frc(0, "buff num:%d\n", fb_num);
 	g_stfilm_detect_item->input_id_length       = fb_num;
 	g_stfilm_detect_item->frame_buf_num         = fb_num;
 	g_stfilm_detect_item->mode_change_adjust_en = 1;
@@ -291,8 +290,8 @@ void frc_film_detect_ctrl(struct frc_dev_s *frc_devp)
 	}
 
 	mode_pre = mode;
-
-	frc_film_add_7_seg(frc_devp);
+	if (g_stfilm_detect_item->film_7_seg_en)
+		frc_film_add_7_seg(frc_devp);
 
 	//xil_printf("mod=%d,phs=%d,g_dif=%d\n\r\n\r",mode,phase,g_stfilmdetect_rd.glb_motion_all);
 	mem = READ_FRC_REG(FRC_IP_PAT_RECT_CYCLE);//Bit  7: 5        reg_ip_pat_mode

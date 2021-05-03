@@ -553,7 +553,7 @@ int frc_buf_calculate(struct frc_dev_s *devp)
 	u32 align_hsize;
 	u32 align_vsize;
 	u32 temp;
-	int log = 1;
+	int log = 2;
 	u32 ratio;
 
 	if (!devp)
@@ -770,7 +770,7 @@ int frc_buf_distribute(struct frc_dev_s *devp)
 	u32 i;
 	u32 real_onebuf_size;
 	u32 paddr = 0, base;
-	int log = 1;
+	int log = 2;
 
 	/*----------------- buffer alloc------------------*/
 	base = devp->buf.cma_mem_paddr_start;
@@ -930,7 +930,7 @@ int frc_buf_mapping_tab_init(struct frc_dev_s *devp)
 	u8 *p = NULL;
 	u32 data_buf_addr, data_buf_size;
 	u32 link_tab_all_size;
-	u32 log = 1;
+	u32 log = 2;
 	//u32 *init_start_addr;
 
 	cma_paddr = devp->buf.cma_mem_paddr_start;
@@ -1055,7 +1055,7 @@ int frc_buf_config(struct frc_dev_s *devp)
 {
 	u32 i = 0;
 	u32 base;
-	u32 log = 1;
+	u32 log = 2;
 
 	if (!devp || !devp->buf.cma_mem_paddr_start || !devp->buf.cma_mem_alloced) {
 		pr_frc(0, "%s fail <cma alloced:%d>\n", __func__, devp->buf.cma_mem_alloced);
@@ -1129,7 +1129,7 @@ int frc_buf_config(struct frc_dev_s *devp)
 
 	frc_buf_mapping_tab_init(devp);
 
-	pr_frc(0, "%s success!\n", __func__);
+	//pr_frc(0, "%s success!\n", __func__);
 	return 0;
 }
 

@@ -61,23 +61,27 @@
 
 enum dbg_level {
 	dbg_frc = 0,
-	dbg_bbd = 10,
-	dbg_film = 11,
-	dbg_logo = 12,
-	dbg_me = 13,
-	dbg_mc = 14,
-	dbg_scene = 15,
-	dbg_vp = 16,
+	dbg_sts = 5,
+	dbg_bbd = 100,
+	dbg_film = 200,
+	dbg_logo = 300,
+	dbg_me = 400,
+	dbg_mc = 500,
+	dbg_scene = 600,
+	dbg_vp = 700,
+};
+
+enum efrc_event {
+	FRC_EVENT_NO_EVENT		= 0x00000000,
+	FRC_EVENT_VF_CHG_TO_NO		= 0x00000001,
+	FRC_EVENT_VF_CHG_TO_HAVE	= 0x00000002,
+	FRC_EVENT_VF_IS_GAME		= 0x00000004,
+	FRC_EVENT_VF_CHG_IN_SIZE	= 0x00000008,
 };
 
 enum eFRC_POS {
 	FRC_POS_BEFORE_POSTBLEND = 0,
 	FRC_POS_AFTER_POSTBLEND = 1,
-};
-
-enum chg_flag {
-	FRC_CHG_NONE = 0,
-	FRC_CHG_HV_SIZE = 0x1,
 };
 
 //-------------------------------------------------------------------sence start
@@ -548,6 +552,7 @@ struct st_search_final_line_para {
 	u8 force_final_each_posi_en[4]; // 1;    //  u1, force lft en
 
 	u8 valid_ratio; // 2;			// u3, ratio for bb valid
+	u8 bbd_7_seg_en;
 };
 
 //---------------------------------------------------------bbd end
@@ -573,6 +578,7 @@ struct st_vp_ctrl_para {
 	u32 occl_exist_most_th;
 	u8  occl_exist_most_en;
 	u32 occl_exist_region_th;
+	u8  add_7_flag_en;
 };
 
 //---------------------------------------------------------vp end
@@ -685,6 +691,7 @@ struct st_film_detect_item
 	u8      otb_start;
 
 	u8      frame_buf_num;
+	u8	film_7_seg_en;
 };
 
 struct st_film_table_item
@@ -865,6 +872,7 @@ struct st_me_ctrl_item {
 	u32 scene_change_catchin_frame_count;
 	u32 scene_change_frame_count;
 	u32 scene_change_judder_frame_count;
+	u32 scene_change_dehalooff_frame_count;
 	u32 mixmodein_frame_count;
 	u32 mixmodeout_frame_count;
 	u32 scene_change_reject_frame_count;
@@ -872,6 +880,19 @@ struct st_me_ctrl_item {
 	u32 region_sad_sum_20[48][20];
 	u32 region_sad_cnt_20[48][20];
 	u32 region_s_consis_20[48][20];
+};
+
+struct st_me_rule_en {
+	u8 rule1_en;
+	u8 rule2_en;
+	u8 rule3_en;
+	u8 rule4_en;
+	u8 rule5_en;
+	u8 rule6_en;
+	u8 rule7_en;
+	u8 rule8_en;
+	u8 rule9_en;
+	u8 rule10_en;
 };
 
 //----------------------------------------------------------me end
@@ -1079,6 +1100,7 @@ struct frc_fw_data_s {
 	struct st_fb_ctrl_item g_stFbCtrl_Item;
 	struct st_region_fb_ctrl_item g_stRegionFbCtrl_Item;
 	struct st_me_ctrl_item g_stMeCtrl_Item;
+	struct st_me_rule_en g_stMeRule_EN;
 
 	/*mc*/
 	struct st_search_range_dynamic_para g_stsrch_rng_dym_para;
@@ -1146,3 +1168,4 @@ struct frc_force_size_s {
 	u32 force_vsize;
 };
 #endif
+

@@ -52,6 +52,18 @@
 #include "frc_hw.h"
 #include "frc_reg.h"
 
+int frc_enable_cnt = 2;
+module_param(frc_enable_cnt, int, 0664);
+MODULE_PARM_DESC(frc_enable_cnt, "frc enable counter");
+
+int frc_disable_cnt = 2;
+module_param(frc_disable_cnt, int, 0664);
+MODULE_PARM_DESC(frc_disable_cnt, "frc disable counter");
+
+int frc_re_cfg_cnt = 4;/*need bigger than frc_disable_cnt*/
+module_param(frc_re_cfg_cnt, int, 0664);
+MODULE_PARM_DESC(frc_re_cfg_cnt, "frc reconfig counter");
+
 void frc_fw_initial(struct frc_dev_s *devp)
 {
 	if (!devp)
@@ -61,11 +73,12 @@ void frc_fw_initial(struct frc_dev_s *devp)
 	devp->in_sts.vs_tsk_cnt = 0;
 	devp->in_sts.vs_timestamp = sched_clock();
 	devp->in_sts.vf_repeat_cnt = 0;
+	devp->in_sts.vf_null_cnt = 0;
 
 	devp->out_sts.vs_cnt = 0;
 	devp->out_sts.vs_tsk_cnt = 0;
 	devp->out_sts.vs_timestamp = sched_clock();
-
+	devp->in_sts.vf = NULL;
 	devp->frc_sts.vs_cnt = 0;
 	devp->vs_timestamp = sched_clock();
 }
@@ -87,7 +100,6 @@ void frc_hw_initial(struct frc_dev_s *devp)
 	frc_logo_param_init(devp);
 	//  fd  param init
 	frc_film_param_init(devp);
-	pr_frc(0, "%s ok\n", __func__);
 }
 
 void frc_in_reg_monitor(struct frc_dev_s *devp)
@@ -125,7 +137,6 @@ void frc_out_reg_monitor(struct frc_dev_s *devp)
 {
 	u32 i;
 	u32 reg;
-	//char *buf = devp->dbg_buf;
 
 	for (i = 0; i < MONITOR_REG_MAX; i++) {
 		reg = devp->dbg_out_reg[i];
@@ -223,9 +234,10 @@ void frc_output_tasklet_pro(unsigned long arg)
 
 	if (!devp->frc_fw_pause) {
 		frc_scene_detect_output(devp);
-		//frc_me_ctrl(devp);
-		//if (fw_data->g_stvpctrl_para.vp_en == 1)
-			//frc_vp_ctrl(devp);
+		if (fw_data->g_stMeCtrl_Para.me_en == 1)
+			frc_me_ctrl(devp);
+		if (fw_data->g_stvpctrl_para.vp_en == 1)
+			frc_vp_ctrl(devp);
 		frc_mc_ctrl(devp);
 		//frc_melogo_ctrl(devp);
 	}
@@ -275,31 +287,109 @@ int frc_update_in_sts(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts,
 			frc_in_sts->in_vsize = cur_video_sts->nnhf_input_h;
 		}
 	}
+	//pr_frc(dbg_sts, "in size(%d,%d) sr_out(%d,%d) dbg(%d,%d)\n",
+	//	frc_in_sts->in_hsize, frc_in_sts->in_vsize,
+	//	cur_video_sts->nnhf_input_w, cur_video_sts->nnhf_input_h,
+	//	devp->dbg_input_hsize, devp->dbg_input_vsize);
 
 	return 0;
 }
 
-enum chg_flag frc_in_sts_check(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts)
+enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
+						struct st_frc_in_sts *cur_in_sts)
 {
-	enum chg_flag ret = FRC_CHG_NONE;
-
 	/* check change */
+	enum efrc_event sts_change = FRC_EVENT_NO_EVENT;
+	//enum frc_state_e cur_state = devp->frc_sts.state;
+	u32 cur_sig_in;
 
 	/*back up*/
-	devp->in_sts.vf_type = frc_in_sts->vf_type;
-	devp->in_sts.duration = frc_in_sts->duration;
-	devp->in_sts.signal_type = frc_in_sts->signal_type;
-	devp->in_sts.source_type = frc_in_sts->source_type;
-	devp->in_sts.in_hsize = frc_in_sts->in_hsize;
-	devp->in_sts.in_vsize = frc_in_sts->in_vsize;
-	if (devp->in_sts.vf == frc_in_sts->vf)
+	devp->in_sts.vf_type = cur_in_sts->vf_type;
+	devp->in_sts.duration = cur_in_sts->duration;
+	devp->in_sts.signal_type = cur_in_sts->signal_type;
+	devp->in_sts.source_type = cur_in_sts->source_type;
+	/* check size change */
+	if (devp->in_sts.in_hsize != cur_in_sts->in_hsize) {
+		pr_frc(1, "hsize change (%d - %d)\n",
+			devp->in_sts.in_hsize, cur_in_sts->in_hsize);
+		/*need reconfig*/
+		devp->frc_sts.re_cfg_cnt = frc_re_cfg_cnt;
+		sts_change |= FRC_EVENT_VF_CHG_IN_SIZE;
+	}
+	devp->in_sts.in_hsize = cur_in_sts->in_hsize;
+	/* check size change */
+	if (devp->in_sts.in_hsize != cur_in_sts->in_hsize) {
+		pr_frc(1, "vsize change (%d - %d)\n",
+			devp->in_sts.in_vsize, cur_in_sts->in_vsize);
+		/*need reconfig*/
+		devp->frc_sts.re_cfg_cnt = frc_re_cfg_cnt;
+		sts_change |= FRC_EVENT_VF_CHG_IN_SIZE;
+	}
+	devp->in_sts.in_vsize = cur_in_sts->in_vsize;
+	/* check is same vframe */
+	pr_frc(dbg_sts, "vf (0x%lx, 0x%lx)\n", devp->in_sts.vf, cur_in_sts->vf);
+	if (devp->in_sts.vf == cur_in_sts->vf && cur_in_sts->vf_sts)
 		devp->in_sts.vf_repeat_cnt++;
-	devp->in_sts.vf = frc_in_sts->vf;
+
+	devp->in_sts.vf = cur_in_sts->vf;
+
+	if (devp->frc_sts.re_cfg_cnt) {
+		devp->frc_sts.re_cfg_cnt--;
+		cur_sig_in = false;
+	} else if (devp->in_sts.in_hsize == 0 || devp->in_sts.in_vsize == 0) {
+		cur_sig_in = false;
+	} else {
+		cur_sig_in = cur_in_sts->vf_sts;
+	}
+
+	pr_frc(dbg_sts, "vf_sts: %d, cur_sig_in:0x%x have_cnt:%d no_cnt:%d re_cfg_cnt:%d\n",
+		devp->in_sts.vf_sts, cur_sig_in,
+		devp->in_sts.have_vf_cnt, devp->in_sts.no_vf_cnt, devp->frc_sts.re_cfg_cnt);
+
+	pr_frc(dbg_sts, "hvsize (%d,%d) cur(%d,%d)\n",
+		devp->in_sts.in_hsize, devp->in_sts.in_vsize,
+		cur_in_sts->in_hsize, cur_in_sts->in_vsize);
+
+	switch (devp->in_sts.vf_sts) {
+	case VFRAME_NO:
+		if (cur_sig_in == VFRAME_HAVE) {
+			if (devp->in_sts.have_vf_cnt++ >= frc_enable_cnt)  {
+				devp->in_sts.vf_sts = cur_sig_in;
+				//if (FRC_EVENT_VF_IS_GAME)
+				sts_change |= FRC_EVENT_VF_CHG_TO_HAVE;
+				devp->in_sts.have_vf_cnt = 0;
+				pr_frc(1, "FRC_EVENT_VF_CHG_TO_HAVE\n");
+			}
+		} else {
+			devp->in_sts.have_vf_cnt = 0;
+		}
+		break;
+	case VFRAME_HAVE:
+		if (cur_sig_in == VFRAME_NO) {
+			if (devp->in_sts.no_vf_cnt++ >= frc_disable_cnt) {
+				devp->in_sts.vf_sts = cur_sig_in;
+				devp->in_sts.no_vf_cnt = 0;
+				pr_frc(1, "FRC_EVENT_VF_CHG_TO_NO\n");
+				sts_change |= FRC_EVENT_VF_CHG_TO_NO;
+			}
+		} else {
+			devp->in_sts.no_vf_cnt = 0;
+		}
+		break;
+	}
+
+	/* even attach , mode change */
+	if (devp->frc_sts.auto_ctrl && sts_change) {
+		if (sts_change & FRC_EVENT_VF_CHG_TO_NO)
+			frc_change_to_state(FRC_STATE_DISABLE);
+		else if (sts_change & FRC_EVENT_VF_CHG_TO_HAVE)
+			frc_change_to_state(FRC_STATE_ENABLE);
+	}
 
 	if (devp->dbg_vf_monitor)
 		frc_vf_monitor(devp);
 
-	return ret;
+	return sts_change;
 }
 
 /*video_input_w
@@ -310,25 +400,31 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					struct vpp_frame_par_s *cur_video_sts)
 {
 	struct st_frc_in_sts cur_in_sts;
-	u32 no_input = 0;
-	enum chg_flag chg;
-	u32 ret;
+	u32 no_input = false;
+	enum efrc_event frc_event;
 
 	if (!devp)
 		return;
 
-	if (!vf || !cur_video_sts)
-		no_input = 1;
+	if (!devp->probe_ok)
+		return;
 
-	cur_in_sts.vf_sts = no_input ? 0 : 1;
+	if (!vf || !cur_video_sts) {
+		devp->in_sts.vf_null_cnt++;
+		no_input = true;
+	}
+
 	if (devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND)
-		cur_in_sts.vf_sts = 1;
+		cur_in_sts.vf_sts = true;
+	else
+		cur_in_sts.vf_sts = no_input ? false : true;
 
-	ret = frc_update_in_sts(devp, &cur_in_sts, vf, cur_video_sts);
+	frc_update_in_sts(devp, &cur_in_sts, vf, cur_video_sts);
 
 	/* check input is change */
-	chg = frc_in_sts_check(devp, &cur_in_sts);
-
+	frc_event = frc_input_sts_check(devp, &cur_in_sts);
+	if (frc_event)
+		pr_frc(1, "event = 0x%08x\n", frc_event);
 	/*need disable and bypass frc*/
 	//if (no_input && devp->dbg_force_en == FRC_STATE_DISABLE)
 	//	frc_change_to_state(FRC_STATE_BYPASS);
@@ -346,7 +442,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 	enum frc_state_e new_state;
 	u32 state_changed = 0;
 	u32 frame_cnt = 0;
-	u32 log = 2;
+	u32 log = 1;
 
 	cur_state = devp->frc_sts.state;
 	new_state = devp->frc_sts.new_state;
@@ -382,11 +478,18 @@ void frc_state_handle(struct frc_dev_s *devp)
 	case FRC_STATE_ENABLE:
 		if (state_changed) {
 			if (new_state == FRC_STATE_DISABLE) {
-				set_frc_enable(OFF);
-				devp->frc_sts.frame_cnt = 0;
-				pr_frc(log, "sm state change %s -> %s\n",
-					frc_state_ary[cur_state], frc_state_ary[new_state]);
-				frc_state_change_finish(devp);
+				if (devp->frc_sts.frame_cnt == 0) {
+					set_frc_enable(OFF);
+					frc_reset(1);
+					devp->frc_sts.frame_cnt++;
+				} else {
+					frc_reset(0);
+					devp->frc_sts.frame_cnt = 0;
+					pr_frc(log, "sm state change %s -> %s\n",
+						frc_state_ary[cur_state],
+						frc_state_ary[new_state]);
+					frc_state_change_finish(devp);
+				}
 			} else if (new_state == FRC_STATE_BYPASS) {
 				//first frame set enable off
 				if (devp->frc_sts.frame_cnt == 0) {

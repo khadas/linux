@@ -8,6 +8,11 @@
 #define ON	1
 #define OFF	0
 
+enum vf_sts {
+	VFRAME_NO = 0,
+	VFRAME_HAVE = 1,
+};
+
 irqreturn_t frc_input_isr(int irq, void *dev_id);
 irqreturn_t frc_output_isr(int irq, void *dev_id);
 

@@ -24,7 +24,7 @@
 #include "frc_common.h"
 #include "frc_interface.h"
 
-#define FRC_FW_VER			"t3 driver bringup 2021-0429 update vlsi svn 578"
+#define FRC_FW_VER			"t3 driver bringup 2021-0501 improve frc on off flow"
 
 #define PR_ERR(fmt, args ...)		pr_info("frc_Err: " fmt, ##args)
 #define PR_FRC(fmt, args ...)		pr_info("frc: " fmt, ##args)
@@ -172,10 +172,11 @@ struct st_frc_sts {
 	u32 state_transing;
 	u32 frame_cnt;
 	u32 vs_cnt;
+	u32 re_cfg_cnt;
 };
 
 struct st_frc_in_sts {
-	u32 vf_sts;		/*0:no vframe input*/
+	u32 vf_sts;		/*0:no vframe input, 1:have vframe input, other: unknown*/
 	u32 vf_type;		/*vframe type*/
 	u32 duration;		/*vf duration*/
 	u32 in_hsize;
@@ -184,11 +185,15 @@ struct st_frc_in_sts {
 	u32 source_type;	/*enum vframe_source_type_e*/
 	struct vframe_s *vf;
 	u32 vf_repeat_cnt;
+	u32 vf_null_cnt;
 
 	u32 vs_cnt;
 	u32 vs_tsk_cnt;
 	u32 vs_duration;
 	u64 vs_timestamp;
+
+	u32 have_vf_cnt;
+	u32 no_vf_cnt;
 };
 
 struct st_frc_out_sts {

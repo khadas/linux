@@ -30,6 +30,7 @@
 #include "frc_reg.h"
 #include "frc_common.h"
 #include "frc_drv.h"
+#include "frc_me.h"
 
 static u8 fallback_level[11]  = {0,0,2,4,6,7,9,10,12,14,15};  //TEMP MODIFY
 
@@ -43,6 +44,7 @@ void frc_me_param_init(struct frc_dev_s *frc_devp)
 	struct st_fb_ctrl_para *g_stFbCtrl_Para;
 	struct st_me_ctrl_item *g_stMeCtrl_Item;
 	struct st_region_fb_ctrl_item *g_stRegionFbCtrl_Item;
+	struct st_me_rule_en *g_stMeRule_EN;
 
 	frc_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	g_stMeCtrl_Para = &frc_data->g_stMeCtrl_Para;
@@ -51,6 +53,7 @@ void frc_me_param_init(struct frc_dev_s *frc_devp)
 	g_stFbCtrl_Para = &frc_data->g_stFbCtrl_Para;
 	g_stMeCtrl_Item = &frc_data->g_stMeCtrl_Item;
 	g_stRegionFbCtrl_Item = &frc_data->g_stRegionFbCtrl_Item;
+	g_stMeRule_EN = &frc_data->g_stMeRule_EN;
 
 	g_stMeCtrl_Para->me_en           = 0 ;
 	g_stScnChgDet_Para->schg_det_en0 = 69;   // b0: top enable
@@ -160,7 +163,6 @@ void frc_me_param_init(struct frc_dev_s *frc_devp)
 	g_stFbCtrl_Para->base_region_TC_th_s   =   4000;   //4*6
 	g_stFbCtrl_Para->base_region_TC_th_l   =   6000;
 
-	g_stMeCtrl_Para->me_rule_ctrl_en             =   1   ;
 	g_stMeCtrl_Para->update_strength_add_value   =   0   ;
 	g_stMeCtrl_Para->scene_change_flag           =   0   ;
 	g_stMeCtrl_Para->fallback_gmvx_th            =   250 ;
@@ -189,6 +191,17 @@ void frc_me_param_init(struct frc_dev_s *frc_devp)
 			g_stMeCtrl_Item->region_s_consis_20[i][j]=   0;
 		}
 	}
+	g_stMeCtrl_Para->me_rule_ctrl_en = 1;
+	g_stMeRule_EN->rule1_en = 1;//rule_1, static scene			    --> small random & zmv_penalty=0
+	g_stMeRule_EN->rule2_en = 1;//rule_2, when scene change, big apl --> increase random, small apl-->decrease random
+	g_stMeRule_EN->rule3_en = 1;//rule_3, when scene change		    --> enable spatial sad rule for clear v-buf
+	g_stMeRule_EN->rule4_en = 1;//rule_4, static scene 			    --> enable glb_mot rule for clear v-buf
+	g_stMeRule_EN->rule5_en = 1;//rule_5, pure panning			    --> enable periodic0
+	g_stMeRule_EN->rule6_en = 1;//rule_6, MV> search range  		    --> FB
+	g_stMeRule_EN->rule7_en = 1;//rule_7, scene change 			    --> two frame FB
+	g_stMeRule_EN->rule8_en = 1;//rule_8, demo window||mix mode      --> disable clear v-buf
+	g_stMeRule_EN->rule9_en = 1;//rule_9, for fast panning 		    --> control zero panalty
+	g_stMeRule_EN->rule10_en = 1;//rule_10, scene change 		    --> dehalo off
 }
 
 void set_me_gmv(struct frc_dev_s *frc_devp)
@@ -746,6 +759,7 @@ void me_rule_ctrl(struct frc_dev_s *frc_devp)
 	u32 mvx_div_mode, mvy_div_mode, film_mode, total_blk_cnt;
 	u8  mc_demo_window1_en, mc_demo_window2_en, mc_demo_window3_en, mc_demo_window4_en, film_mix_mode_fw;
 	u8  mc_fallback_level, me_stat_region_xyxy[4];
+	u32 glb_mot_all_film;
 
 	struct frc_fw_data_s *frc_data;
 	struct st_me_ctrl_para *g_stMeCtrl_Para;
@@ -755,6 +769,7 @@ void me_rule_ctrl(struct frc_dev_s *frc_devp)
 	struct st_me_ctrl_item *g_stMeCtrl_Item;
 	//struct st_region_fb_ctrl_item *g_stRegionFbCtrl_Item;
 	struct st_me_rd *g_stME_RD;
+	struct st_me_rule_en *g_stMeRule_EN;
 
 	frc_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	g_stMeCtrl_Para = &frc_data->g_stMeCtrl_Para;
@@ -762,6 +777,7 @@ void me_rule_ctrl(struct frc_dev_s *frc_devp)
 	g_stFbCtrl_Para = &frc_data->g_stFbCtrl_Para;
 	g_stMeCtrl_Item = &frc_data->g_stMeCtrl_Item;
 	g_stME_RD = &frc_data->g_stme_rd;
+	g_stMeRule_EN = &frc_data->g_stMeRule_EN;
 
 	mvx_div_mode =  READ_FRC_REG(FRC_ME_EN)>>4 & 0x3;
 	mvy_div_mode =  READ_FRC_REG(FRC_ME_EN)    & 0x3;
@@ -775,47 +791,36 @@ void me_rule_ctrl(struct frc_dev_s *frc_devp)
 	me_stat_region_xyxy[3] = READ_FRC_REG(FRC_ME_STAT_12R_V1)      & 0x3FF;
 	total_blk_cnt = (me_stat_region_xyxy[2]-me_stat_region_xyxy[0])*(me_stat_region_xyxy[3]-me_stat_region_xyxy[1]);
 	u8 dtl_blk_ratio = (total_blk_cnt==0)? 0 : (100*g_stME_RD->gmv_total_sum/total_blk_cnt);
+	glb_mot_all_film = READ_FRC_REG(FRC_FD_DIF_GL_FILM);
 
 	me_rule_ctrl_init(frc_devp);
 
 	if(g_stMeCtrl_Para->me_rule_ctrl_en == 1) {
-		//rule_1: static scene-->small random & zmv_penaltu=0
-		if(1)//(prm_fd->ro_fd_glb_mot_all_film < 0x500) //TEMP MODIFY
-		{
+		//rule_1: static scene-->small random & zmv_penalty=0
+		if (g_stMeRule_EN->rule1_en == 1) {
+        	if(glb_mot_all_film < 0x500) {
 			g_stMeCtrl_Para->update_strength_add_value = -16;
 			me_set_update_strength(g_stMeCtrl_Para->update_strength_add_value);
 
-			if(g_stMeCtrl_Item->static_scene_frame_count < 60)
-			{
-				g_stMeCtrl_Item->static_scene_frame_count++;
+				g_stMeCtrl_Item->static_scene_frame_count = (g_stMeCtrl_Item->static_scene_frame_count < 60) ?
+																(g_stMeCtrl_Item->static_scene_frame_count + 1) : 60;
+			} else {
+				g_stMeCtrl_Item->static_scene_frame_count = (g_stMeCtrl_Item->static_scene_frame_count > 0) ?
+																(g_stMeCtrl_Item->static_scene_frame_count - 1) : 0;
 			}
-			else
-			{
+			if (g_stMeCtrl_Item->static_scene_frame_count >= 60) { //iir in, no iir out
 				me_set_zmv_penalty(0);
-				g_stMeCtrl_Item->static_scene_frame_count = 60;
-			}
-		}
-		else
-		{
-			if(g_stMeCtrl_Item->static_scene_frame_count > 0)
-			{
-				g_stMeCtrl_Item->static_scene_frame_count --;
-			}
-			else
-			{
-				g_stMeCtrl_Item->static_scene_frame_count = 0;
 			}
 		}
 
 		// rule_2, when scene change, big apl -->increase random, small apl-->decrease random
 		film_mode =  READ_FRC_REG(FRC_REG_PHS_TABLE)>>8 & 0xFF;
-		if(g_stMeCtrl_Para->scene_change_flag&& film_mode!=0)
-		{
+		if (g_stMeRule_EN->rule2_en == 1) {
+			if (g_stMeCtrl_Para->scene_change_flag&& film_mode!=0) {
 			g_stMeCtrl_Item->scene_change_catchin_frame_count = 20;
 		}
 
-		if(g_stMeCtrl_Item->scene_change_catchin_frame_count > 0)
-		{
+			if (g_stMeCtrl_Item->scene_change_catchin_frame_count > 0) {
 			g_stMeCtrl_Para->update_strength_add_value = 3;
 			me_set_update_strength(g_stMeCtrl_Para->update_strength_add_value);
 
@@ -830,47 +835,51 @@ void me_rule_ctrl(struct frc_dev_s *frc_devp)
 
 			g_stMeCtrl_Item->scene_change_catchin_frame_count --;
 		}
+		}
 
 		//rule_3, when scene change--> enable spatial sad rule for clear v-buf
-		if(g_stMeCtrl_Para->scene_change_flag == 1)
-		{
+		if (g_stMeRule_EN->rule3_en == 1) {
+			if (g_stMeCtrl_Para->scene_change_flag == 1) {
 			g_stMeCtrl_Item->scene_change_frame_count = 8;
 		}
 
-		if(g_stMeCtrl_Item->scene_change_frame_count > 0)
-		{
+			if (g_stMeCtrl_Item->scene_change_frame_count > 0) {
 			me_set_clear_vbuf_sad_en(1);
 			g_stMeCtrl_Item->scene_change_frame_count --;
 		}
+		}
 
 		//rule_4, static scene--> enable glb_mot rule for clear v-buf
-		if(1)//(prm_fd->ro_fd_glb_mot_all_film < 0x10)  //TEMP MODIFY
-		{
+        if (g_stMeRule_EN->rule4_en == 1) {
+        	if (glb_mot_all_film < 0x10) {
 			me_set_clear_vbuf_gmv_static_en(1);
+		}
 		}
 
 		//rule_5, pure panning--> enable periodic0
-		if((gmv_ratio >96)&&(g_stME_RD->glb_t_consis[0]< 0xF00))
-		{
+		if (g_stMeRule_EN->rule5_en == 1) {
+			if ((gmv_ratio >96)&&(g_stME_RD->glb_t_consis[0]< 0xF00)) {
 			me_set_periodic_0(1);
+		}
 		}
 
 		//rule_6, MV> search range -->FB
-		if((gmv_ratio > 85)&&(abs_gmv_x > g_stMeCtrl_Para->fallback_gmvx_th ||abs_gmv_y > g_stMeCtrl_Para->fallback_gmvy_th))
-		{
+		if (g_stMeRule_EN->rule6_en == 1) {
+			if ((gmv_ratio > 85)&&(abs_gmv_x > g_stMeCtrl_Para->fallback_gmvx_th ||abs_gmv_y > g_stMeCtrl_Para->fallback_gmvy_th)) {
 			mc_fallback_level = g_stFbCtrl_Para->fallback_level_max;
+		}
 		}
 
 		//rule_7, scene change--->two frame FB
-		if(g_stMeCtrl_Para->scene_change_flag == 1)
-		{
+		if (g_stMeRule_EN->rule7_en == 1) {
+			if (g_stMeCtrl_Para->scene_change_flag == 1) {
 			g_stMeCtrl_Item->scene_change_judder_frame_count = 20;
 		}
 
-		if(g_stMeCtrl_Item->scene_change_judder_frame_count > 0)
-		{
+			if (g_stMeCtrl_Item->scene_change_judder_frame_count > 0) {
 			mc_fallback_level = g_stFbCtrl_Para->fallback_level_max;
 			g_stMeCtrl_Item->scene_change_judder_frame_count--;
+		}
 		}
 
 		//rule_8, demo window||mix mode --->disable clear v-buf
@@ -881,39 +890,35 @@ void me_rule_ctrl(struct frc_dev_s *frc_devp)
 		demo_window_en = mc_demo_window1_en||mc_demo_window2_en||mc_demo_window3_en||mc_demo_window4_en;
 
 		film_mix_mode_fw = READ_FRC_REG(FRC_REG_FILM_PHS_1)>>17 & 0x1;
-		if((demo_window_en ==1)&&(film_mix_mode_fw==1))
-		{
-			if(g_stMeCtrl_Item->mixmodein_frame_count < 20)
-			{
-				g_stMeCtrl_Item->mixmodein_frame_count++;
+		if (g_stMeRule_EN->rule8_en == 1) {
+			if ((demo_window_en ==1)&&(film_mix_mode_fw==1)) {
+				g_stMeCtrl_Item->mixmodein_frame_count = (g_stMeCtrl_Item->mixmodein_frame_count < 20) ?
+															(g_stMeCtrl_Item->mixmodein_frame_count + 1) : 120;
+			} else {
+				g_stMeCtrl_Item->mixmodein_frame_count = (g_stMeCtrl_Item->mixmodein_frame_count > 0) ?
+															(g_stMeCtrl_Item->mixmodein_frame_count - 1) : 0;
 			}
-			else
-			{
-				g_stMeCtrl_Item->mixmodeout_frame_count = 120;
+			if (g_stMeCtrl_Item->mixmodein_frame_count > 20) {  //iir in, iir out
 				mc_fallback_level = 0;
 				me_set_clear_vbuf_top_en(0);
-			}
-		}
-		else
-		{
-			if(g_stMeCtrl_Item->mixmodeout_frame_count > 0)
-			{
-				g_stMeCtrl_Item->mixmodeout_frame_count--;
-				mc_fallback_level = 0;
-				me_set_clear_vbuf_top_en(0);
-			}
-			else
-			{
-				g_stMeCtrl_Item->mixmodein_frame_count = 0;
 			}
 		}
 
 		//rule_9, for fast panning, control zero panalty
-		if(gmv_ratio >70 && dtl_blk_ratio <60 &&g_stME_RD->glb_sad_sum[0]< 0x2000)
-		{
+		if (g_stMeRule_EN->rule9_en == 1) {
+			if (gmv_ratio >90 && dtl_blk_ratio <60 &&g_stME_RD->glb_sad_sum[0]< 0x2000)
 			me_set_zmv_penalty(255);
 		}
-		//rule_10, for low dtl and high apl content---> change sad coring to 0x38
+		//rule_10, scene change --> dehalo off
+		if (g_stMeRule_EN->rule10_en == 1) {
+			if (g_stMeCtrl_Para->scene_change_flag == 1)
+				g_stMeCtrl_Item->scene_change_dehalooff_frame_count = 8;
+
+			if (g_stMeCtrl_Item->scene_change_dehalooff_frame_count > 0) {
+				frc_set_global_dehalo_en(0);
+				g_stMeCtrl_Item->scene_change_dehalooff_frame_count--;
+			}
+		}
 	}
 }
 

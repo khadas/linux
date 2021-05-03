@@ -182,6 +182,17 @@ void frc_init_config(struct frc_dev_s *devp)
 		vpu_reg_write_bits(VPU_FRC_TOP_CTRL, 1, 4, 1);
 }
 
+void frc_reset(u32 onoff)
+{
+	if (onoff) {
+		WRITE_FRC_REG(FRC_AUTO_RST_SEL, 0x3c);
+		WRITE_FRC_REG(FRC_SYNC_SW_RESETS, 0x3c);
+	} else {
+		WRITE_FRC_REG(FRC_SYNC_SW_RESETS, 0x0);
+		WRITE_FRC_REG(FRC_AUTO_RST_SEL, 0x0);
+	}
+}
+
 void set_frc_enable(u32 en)
 {
 	WRITE_FRC_BITS(FRC_TOP_CTRL, 0, 8, 1);
@@ -514,10 +525,12 @@ static void frc_input_init(struct frc_dev_s *frc_devp,
 		frc_top->frc_fb_num = FRC_TOTAL_BUF_NUM;
 	}
 	/*no loss*/
-	frc_top->mc_loss_en = 0;
-	frc_top->me_loss_en = 0;
+	frc_top->mc_loss_en = true;
+	frc_top->me_loss_en = true;
 	pr_frc(1, "top in: hsize:%d, vsize:%d\n", frc_top->hsize, frc_top->vsize);
 	pr_frc(1, "top out: hsize:%d, vsize:%d\n", frc_top->out_hsize, frc_top->out_vsize);
+	if (frc_top->hsize == 0 || frc_top->vsize == 0)
+		pr_frc(0, "err: size in hsize:%d, vsize:%d !!!!\n", frc_top->hsize, frc_top->vsize);
 }
 
 void frc_top_init(struct frc_dev_s *frc_devp)
@@ -534,7 +547,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	u32 mc_frm_dly          ;//Read RO ro_mc2out_dly_num
 	u32 memc_frm_dly        ;//total delay
 	u32 reg_mc_dly_vofst1   ;
-	u32 log = 1;
+	u32 log = 2;
 	u32 frc_v_porch;
 	u32 frc_vporch_cal;
 	u32 frc_porch_delta;
@@ -551,10 +564,12 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	reg_post_dly_vofst = fw_data->holdline_parm.reg_post_dly_vofst;
 	reg_mc_dly_vofst0 = fw_data->holdline_parm.reg_mc_dly_vofst0;
 
+	frc_reset(1);
 	frc_input_init(frc_devp, frc_top);
 	pr_frc(log, "%s\n", __func__);
 	////Config frc input size
 	WRITE_FRC_BITS(FRC_FRAME_SIZE ,(frc_top->vsize <<16) | frc_top->hsize  , 0  ,32 );
+	frc_reset(0);
 
 	/*!!!!!!!!! tread de, vpu register*/
 	frc_top->vfb = vpu_reg_read(ENCL_VIDEO_VAVON_BLINE);
@@ -1316,7 +1331,7 @@ void init_bb_xyxy(u32 hsize ,u32 vsize)
 	 WRITE_FRC_BITS(FRC_ME_NEX_LBUF_OFST - HME_ME_OFFSET,43 ,16,16);
 	 WRITE_FRC_BITS(FRC_ME_NEX_LBUF_OFST - HME_ME_OFFSET,-48,0 ,16);
 
-	//me  me_blksize_dsxï¼Œ me_blksize_dsy-> FRC_REG_BLK_SIZE_XY
+	//me  me_blksize_dsxï¼?me_blksize_dsy-> FRC_REG_BLK_SIZE_XY
 	 me_width      = (hsize+(1<<me_dsx)-1)/(1<<me_dsx);/*960*/
 	 me_height     = (vsize+(1<<me_dsy)-1)/(1<<me_dsy);/*540*/
 	 hme_width     = (me_width+(1<<hme_dsx)-1)/(1<<hme_dsx);/*240*/
@@ -1335,8 +1350,8 @@ void init_bb_xyxy(u32 hsize ,u32 vsize)
 	pr_frc(1, "hme_blk_xsize = %d\n", hme_blk_xsize);
 	pr_frc(1, "hme_blk_ysize = %d\n", hme_blk_ysize);
 
-	 WRITE_FRC_BITS(FRC_ME_BB_PIX_ED, me_width-1,     16, 12);/*reg_me_bb_xyxy[2] ï¼š960*/
-	 WRITE_FRC_BITS(FRC_ME_BB_PIX_ED, me_height-1,     0, 12);/*reg_me_bb_xyxy[3] ï¼š540*/
+	 WRITE_FRC_BITS(FRC_ME_BB_PIX_ED, me_width-1,     16, 12);/*reg_me_bb_xyxy[2] ï¼?60*/
+	 WRITE_FRC_BITS(FRC_ME_BB_PIX_ED, me_height-1,     0, 12);/*reg_me_bb_xyxy[3] ï¼?40*/
 	 WRITE_FRC_BITS(FRC_ME_BB_BLK_ED, me_blk_xsize-1, 16, 10);/*reg_me_bb_blk_xyxy[2] 240*/
 	 WRITE_FRC_BITS(FRC_ME_BB_BLK_ED, me_blk_ysize-1,  0, 10);/*reg_me_bb_blk_xyxy[3] 135*/
 
