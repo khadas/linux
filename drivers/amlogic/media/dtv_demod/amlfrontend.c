@@ -211,7 +211,7 @@ static int amdemod_check_8vsb_rst(struct aml_dtvdemod *demod)
 			PR_ATSC("reset done\n");
 		}
 
-		if (atsc_read_reg_v4(0x2e) >= 0x79) {
+		if (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >= 0x79) {
 			demod->atsc_rst_needed = 1;
 			ret = 0;
 			PR_ATSC("need reset\n");
@@ -222,11 +222,11 @@ static int amdemod_check_8vsb_rst(struct aml_dtvdemod *demod)
 		}
 
 		if (demod->atsc_rst_wait_cnt >= 3 &&
-			(atsc_read_reg_v4(0x2e) >= 0x76)) {
+		    (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >= 0x76)) {
 			demod->atsc_rst_done = 1;
 			ret = 1;
 		}
-	} else if (atsc_read_reg_v4(0x2e) >= 0x76) {
+	} else if (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >= 0x76) {
 		ret = 1;
 	}
 
@@ -1375,7 +1375,7 @@ static int gxtv_demod_atsc_read_status
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			if (timer_not_enough(demod, D_TIMER_DETECT)) {
 				*status = 0;
-				PR_DBG("s=0\n");
+				PR_INFO("WAIT!\n");
 			} else {
 				*status = FE_TIMEDOUT;
 				timer_disable(demod, D_TIMER_DETECT);
@@ -1383,13 +1383,6 @@ static int gxtv_demod_atsc_read_status
 		} else {
 			*status = FE_TIMEDOUT;
 		}
-		#if 0
-		if (ats_thread_flg)
-			*status = FE_TIMEDOUT;
-		else
-			*status = 0;
-		#endif
-
 	}
 
 	if (demod->last_lock != ilock) {
@@ -1411,7 +1404,6 @@ static int gxtv_demod_atsc_read_status
 			demod->atsc_dbg_lst_status = s;
 			demod->last_lock = ilock;
 		}
-		/*aml_dbgatscl(".");*/
 	}
 	return 0;
 }
@@ -1702,7 +1694,7 @@ static int gxtv_demod_atsc_get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-void atsc_detect_first(struct dvb_frontend *fe, enum fe_status *status)
+void atsc_detect_first(struct dvb_frontend *fe, enum fe_status *status, unsigned int re_tune)
 {
 	unsigned int ucblocks;
 	unsigned int atsc_status;
@@ -1710,10 +1702,8 @@ void atsc_detect_first(struct dvb_frontend *fe, enum fe_status *status)
 	int strenth;
 	int cnt;
 	int check_ok;
-
-	/*tuner strength*/
-	if (dvb_tuner_delay > 9)
-		msleep(dvb_tuner_delay);
+	static unsigned int times;
+	enum ATSC_SYS_STA sys_sts;
 
 	strenth = tuner_get_ch_power(fe);
 
@@ -1731,6 +1721,12 @@ void atsc_detect_first(struct dvb_frontend *fe, enum fe_status *status)
 		return;
 	}
 
+	sys_sts = (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >> 4) & 0xf;
+	if (re_tune || sys_sts < ATSC_SYS_STA_DETECT_CFO_USE_PILOT)
+		times = 0;
+	else
+		times++;
+
 	#define CNT_FIRST_ATSC  (2)
 	check_ok = 0;
 
@@ -1741,11 +1737,16 @@ void atsc_detect_first(struct dvb_frontend *fe, enum fe_status *status)
 		gxtv_demod_atsc_read_status(fe, &s);
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			*status = s;
+			/* detect pn after detect cfo after 375 ms */
+			if (s == 0 && times == 3 &&
+			    sys_sts < ATSC_SYS_STA_DETECT_PN_IN_EQ_OUT) {
+				*status = FE_TIMEDOUT;
+				PR_INFO("can't detect pn, not atsc sig\n");
+			} else {
+				*status = s;
+			}
 			break;
 		}
-
-		//	*status = s;
 
 		if (s != 0x1f) {
 			gxtv_demod_atsc_read_ber(fe, &atsc_status);
@@ -1943,8 +1944,8 @@ static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 			PR_ATSC("[id %d] detect modulation is j83 first.\n", demod->id);
 			atsc_j83b_detect_first(fe, status);
 		} else if (c->modulation > QAM_AUTO) {
-			PR_ATSC("[id %d] modulation is AUTO.\n", demod->id);
-			atsc_detect_first(fe, status);
+			PR_ATSC("[id %d] modulation is 8VSB.\n", demod->id);
+			atsc_detect_first(fe, status, re_tune);
 		} else {
 			PR_ATSC("[id %d] modulation is %d unsupported!\n",
 					demod->id, c->modulation);
@@ -1952,17 +1953,16 @@ static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 
 		return 0;
 	}
-#if 1
+
 	if (!demod->en_detect) {
 		PR_DBGL("[id %d] tune:not enable\n", demod->id);
 		return 0;
 	}
-#endif
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		if (c->modulation > QAM_AUTO)
-			atsc_detect_first(fe, status);
-		else if (c->modulation <= QAM_AUTO &&
-			(c->modulation !=  QPSK))
+			atsc_detect_first(fe, status, re_tune);
+		else if (c->modulation <= QAM_AUTO &&	(c->modulation !=  QPSK))
 			atsc_j83b_detect_first(fe, status);
 	} else {
 		atsc_polling(fe, status);

@@ -12,7 +12,7 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/04/May: dvbt2 miss channel(root cause)"
+#define DTVDEMOD_VER	"2021/07/May: atsc fast search"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
