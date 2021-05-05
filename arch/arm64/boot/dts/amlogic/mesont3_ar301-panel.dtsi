@@ -413,7 +413,7 @@
 		compatible = "amlogic, lcd_extern";
 		status = "okay";
 		index = <0>;
-		key_valid = <0>;
+		key_valid = <1>;
 		i2c_bus = "i2c_bus_2";
 
 		extern_0{
@@ -454,7 +454,7 @@
 		compatible = "amlogic, backlight-t3";
 		status = "okay";
 		index = <0>;
-		key_valid = <0>;
+		key_valid = <1>;
 		pinctrl-names = "pwm_on","pwm_vs_on",
 				"pwm_off";
 		pinctrl-0 = <&pwm_d_pins6>;
