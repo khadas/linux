@@ -31,9 +31,10 @@
 #define DEFAULT_WALL_ADJ_THRES (UNIT90K / 10) //100ms
 #define MAX_SESSION_NUM 8
 #define CHECK_INTERVAL ((HZ / 10) * 3) //300ms
+#define WAIT_INTERVAL (2 * (HZ)) //2s
 #define TRANSIT_INTERVAL (HZ) //1s
 #define DISC_THRE_MIN (UNIT90K * 3)
-#define DISC_THRE_MAX (UNIT90K * 60)
+#define DISC_THRE_MAX (UNIT90K * 20)
 
 #define TEN_MS_INTERVAL  (HZ / 100)
 #define MIN_GAP (UNIT90K * 3)		/* 3s */
@@ -303,7 +304,6 @@ static void wait_up_poll(struct sync_session *session)
 
 static void transit_work_func(struct work_struct *work)
 {
-	bool wake = false;
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct sync_session *session =
 		container_of(dwork, struct sync_session, transit_work);
@@ -316,8 +316,6 @@ static void transit_work_func(struct work_struct *work)
 		session->transit_work_on = false;
 	}
 	mutex_unlock(&session->session_mutex);
-	if (wake)
-		wait_up_poll(session);
 }
 
 static void wait_work_func(struct work_struct *work)
@@ -487,7 +485,7 @@ static void pcr_set(struct sync_session *session)
 		session->pcr_init_flag |= INITCHECK_PCR;
 		session->pcr_init_mode = INIT_PRIORITY_PCR;
 		if (!VALID_PTS(cur_vpts) && !VALID_PTS(cur_apts)) {
-			use_pcr_clock(session, true, cur_pcr);
+			use_pcr_clock(session, true, 0);
 			msync_dbg(LOG_TRACE, "[%d]%d enable pcr %u\n",
 				session->id, __LINE__, cur_pcr);
 		}
@@ -576,7 +574,7 @@ static void pcr_set(struct sync_session *session)
 			session->id, __LINE__, ref_pcr);
 	}
 
-	if (VALID_PTS(session->first_vpts.pts)) {
+	if (VALID_PTS(session->first_vpts.pts) && !session->pcr_work_on) {
 		session->pcr_init_flag |= INITCHECK_VPTS;
 		ref_pcr = get_ref_pcr(session, cur_vpts, cur_apts, min_pts);
 		if (VALID_PTS(cur_pcr))
@@ -718,7 +716,7 @@ static u32 session_audio_start(struct sync_session *session,
 				cancel_delayed_work(&session->wait_work);
 			queue_delayed_work(session->wq,
 				&session->wait_work,
-				CHECK_INTERVAL);
+				WAIT_INTERVAL);
 			session->wait_work_on = true;
 			session->stat = AVS_STAT_STARTING;
 			ret = AVS_START_ASYNC;
@@ -967,19 +965,32 @@ static void session_video_disc_pcr(struct sync_session *session, u32 pts)
 					__LINE__, session->id, pts);
 			}
 		} else {
-			if ((int)(pcr - pts) > 0) {
-				use_pcr_clock(session, true, 0);
+			u32 apts = session->last_apts.pts;
+
+			if ((int)(pcr - pts) > 0 &&
+				VALID_PTS(apts) &&
+				(int)(pcr - apts) > 0 &&
+				abs_diff(pcr, apts) <
+					session->disc_thres_min) {
 				msync_dbg(LOG_DEBUG,
-					"[%d]%d enable pcr\n",
-					__LINE__, session->id);
+					"[%d]%d ignore vdisc a %u\n",
+					__LINE__, session->id, apts);
 			} else {
-				session_set_wall_clock(session, pts);
+				u32 min_pts = pts;
+
+				if (A_DISC_SET(session->pcr_disc_flag) &&
+					abs_diff(pts,  apts) <
+						session->disc_thres_min)
+					min_pts = min(apts, pts);
+				session_set_wall_clock(session, min_pts);
 				msync_dbg(LOG_DEBUG,
-					"[%d]%d vdisc set wall %u\n",
-					__LINE__, session->id, pts);
+					"[%d]%d vdisc set wall %u a/v %u/%u\n",
+					__LINE__, session->id, min_pts,
+					pts, apts);
 			}
 		}
 	}
+	session->pcr_disc_flag |= VIDEO_DISC;
 	session->last_vpts.pts = pts;
 	session->last_vpts.wall_clock = session->wall_clock;
 	mutex_unlock(&session->session_mutex);
@@ -1077,10 +1088,11 @@ static void pcr_check(struct sync_session *session)
 
 			/* apts timeout */
 			if (abs_diff(last_pts, checkin_apts)
-				> 2 * UNIT90K) {
+				> session->disc_thres_max) {
 				session->pcr_disc_flag |= AUDIO_DISC;
-				msync_dbg(LOG_DEBUG, "[%d] %d adisc\n",
-					session->id, __LINE__);
+				msync_dbg(LOG_DEBUG, "[%d] %d adisc %x\n",
+					session->id, __LINE__,
+					session->pcr_disc_flag);
 			}
 			if (last_pts == checkin_apts) {
 				session->last_check_apts_cnt++;
@@ -1258,6 +1270,22 @@ static void pcr_check(struct sync_session *session)
 		msync_dbg(LOG_INFO, "[%d] %d enable pcr %u\n",
 			session->id, __LINE__, session->pcr_clock.pts);
 	}
+
+	if (A_DISC_SET(session->pcr_disc_flag) &&
+		V_DISC_SET(session->pcr_disc_flag) &&
+		VALID_PTS(checkin_apts) &&
+		VALID_PTS(checkin_vpts)) {
+		u32 min_pts = min(checkin_apts, checkin_vpts);
+
+		if (abs_diff(checkin_apts, checkin_vpts) <
+			session->disc_thres_min) {
+			use_pcr_clock(session, false, min_pts);
+			msync_dbg(LOG_INFO,
+				"[%d] %d disable pcr %u vs %u\n",
+				session->id, __LINE__, min_pts,
+				session->pcr_clock.pts);
+		}
+	}
 }
 
 static void pcr_timer_func(struct timer_list *t)
@@ -1383,8 +1411,9 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		if (!copy_from_user(&ts, argp, sizeof(ts))) {
 			if (!VALID_PTS(session->last_vpts.pts))
 				msync_dbg(LOG_DEBUG,
-					"session[%d] first vpts %u\n",
-					session->id, ts.pts);
+					"session[%d] first vpts %u w %u\n",
+					session->id, ts.pts,
+					session->wall_clock);
 			session->last_vpts = ts;
 			session_update_vpts(session);
 		}
@@ -1404,7 +1433,8 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			if (!VALID_PTS(session->last_apts.pts))
 				msync_dbg(LOG_DEBUG,
 					"session[%d] first apts %u w %u\n",
-					session->id, ts.pts, session->wall_clock);
+					session->id, ts.pts,
+					session->wall_clock);
 			session->last_apts = ts;
 			session_update_apts(session);
 		}
@@ -1420,8 +1450,11 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	{
 		struct session_event event;
 
-		if (!copy_from_user(&event, argp, sizeof(event)))
+		if (!copy_from_user(&event, argp, sizeof(event))) {
+			if (event.event >= AVS_EVENT_MAX)
+				return -EINVAL;
 			session_handle_event(session, &event);
+		}
 		break;
 	}
 	case AMSYNCS_IOC_GET_SYNC_STAT:
@@ -1500,8 +1533,10 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		put_user(session->rate, (u32 __user *)argp);
 		break;
 	case AMSYNCS_IOC_SET_NAME:
-		strncpy_from_user(session->name,
-			(const char __user *)argp, sizeof(session->name));
+		if (strncpy_from_user(session->name,
+				(const char __user *)argp,
+				sizeof(session->name)))
+			return -EFAULT;
 		break;
 	case AMSYNCS_IOC_SET_WALL_ADJ_THRES:
 		get_user(session->wall_adj_thres, (u32 __user *)argp);
@@ -1917,6 +1952,7 @@ static long msync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			sync.id_pool[i] = 0;
 			spin_unlock_irqrestore(&sync.lock, flags);
 			msync_dbg(LOG_ERR, "fail to create session %d\n", i);
+			vfree(priv);
 			return rc;
 		}
 		put_user(i, (u32 __user *)argp);
