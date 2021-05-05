@@ -50,6 +50,8 @@ struct session_sync_stat {
 	uint32_t mode;
 	/* valid in aligned sync */
 	uint32_t v_timeout;
+	/* in audio switching process */
+	uint32_t audio_switch;
 };
 
 enum avs_event {
@@ -60,6 +62,7 @@ enum avs_event {
 	AVS_AUDIO_STOP,
 	AVS_VIDEO_TSTAMP_DISCONTINUITY,
 	AVS_AUDIO_TSTAMP_DISCONTINUITY,
+	AVS_AUDIO_SWITCH,
 	AVS_EVENT_MAX,
 };
 

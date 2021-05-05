@@ -146,11 +146,14 @@ struct sync_session {
 	struct delayed_work pcr_start_work;
 	bool transit_work_on;
 	struct delayed_work transit_work;
+	bool audio_change_work_on;
+	struct delayed_work audio_change_work;
 	bool start_posted;
 	bool v_timeout;
 
 	/* debug */
 	bool debug_freerun;
+	bool audio_switching;
 };
 
 struct msync {
@@ -344,6 +347,34 @@ static void wait_work_func(struct work_struct *work)
 		wake = true;
 	}
 	session->wait_work_on = false;
+	mutex_unlock(&session->session_mutex);
+	if (wake)
+		wait_up_poll(session);
+}
+
+static void audio_change_work_func(struct work_struct *work)
+{
+	bool wake = false;
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct sync_session *session =
+		container_of(dwork, struct sync_session, audio_change_work);
+
+	mutex_lock(&session->session_mutex);
+	msync_dbg(LOG_WARN, "[%d] audio start now clock %u apts %u\n",
+		session->id, session->wall_clock, session->first_apts.pts);
+	if (!session->audio_change_work_on) {
+		mutex_unlock(&session->session_mutex);
+		return;
+	}
+	if (session->start_policy == AMSYNC_START_ALIGN &&
+			!session->start_posted) {
+		session->start_posted = true;
+		session->stat = AVS_STAT_STARTED;
+		msync_dbg(LOG_WARN, "[%d] audio allow start\n",
+			session->id);
+		wake = true;
+	}
+	session->audio_change_work_on = false;
 	mutex_unlock(&session->session_mutex);
 	if (wake)
 		wait_up_poll(session);
@@ -704,7 +735,44 @@ static u32 session_audio_start(struct sync_session *session,
 
 	session->a_active = true;
 	mutex_lock(&session->session_mutex);
-	if (session->mode == AVS_MODE_A_MASTER) {
+	if (session->audio_switching) {
+		update_f_apts(session, pts);
+		if (session->wall_clock > pts ||
+		    session->start_policy != AMSYNC_START_ALIGN) {
+			/* audio start immediately pts to small */
+			/* (need drop) or no wait */
+			session->stat = AVS_STAT_STARTED;
+			msync_dbg(LOG_INFO,
+				"[%d]%d audio immediate start %u clock %u\n",
+				session->id, __LINE__, pts,
+				session->wall_clock);
+			if (session->start_policy == AMSYNC_START_ALIGN &&
+					!session->start_posted) {
+				session->start_posted = true;
+				wakeup = true;
+			}
+		} else if (session->start_policy == AMSYNC_START_ALIGN) {
+			// normal case, wait audio start point
+			u32 diff_ms =  (pts - session->wall_clock) / 90;
+			u32 delay_jiffies = (diff_ms / 10) * HZ / 100;
+
+			msync_dbg(LOG_INFO,
+				"[%d]%d audio start %u def %u ms clock %u\n",
+				session->id, __LINE__,
+				pts, diff_ms, session->wall_clock);
+
+			if (session->audio_change_work_on)
+				cancel_delayed_work
+					(&session->audio_change_work);
+
+			queue_delayed_work(session->wq,
+					&session->audio_change_work,
+					delay_jiffies);
+			session->audio_change_work_on = true;
+			session->stat = AVS_STAT_TRANSITION;
+			ret = AVS_START_ASYNC;
+		}
+	} else if (session->mode == AVS_MODE_A_MASTER) {
 		session_set_wall_clock(session, start_pts);
 		update_f_apts(session, pts);
 
@@ -868,6 +936,14 @@ static void session_audio_stop(struct sync_session *session)
 		session->v_timeout = false;
 		msync_dbg(LOG_INFO, "[%d]%d clock stop\n",
 			session->id, __LINE__);
+	} else if (session->audio_switching) {
+		session->start_posted = false;
+		if (session->audio_change_work_on) {
+			cancel_delayed_work(&session->audio_change_work);
+			session->audio_change_work_on = false;
+		}
+		msync_dbg(LOG_INFO, "[%d]%s audio switching stop audio\n",
+				session->id, __func__);
 	} else if (session->mode == AVS_MODE_IPTV) {
 		session->cur_mode = AVS_MODE_V_MASTER;
 		session_set_wall_clock(session, session->last_vpts.wall_clock);
@@ -1021,6 +1097,14 @@ static void session_audio_disc(struct sync_session *session, u32 pts)
 		session->last_apts.pts = pts;
 		session->last_apts.wall_clock = session->wall_clock;
 	}
+}
+
+static void session_audio_switch(struct sync_session *session, u32 start)
+{
+	//u32 last_pts = session->last_apts.pts;
+	msync_dbg(LOG_WARN, "[%d] set audio switch to %u @ pos %u\n",
+				session->id, start, session->wall_clock);
+	session->audio_switching = start ? true : false;
 }
 
 static void session_update_vpts(struct sync_session *session)
@@ -1308,6 +1392,7 @@ static const char *event_dbg[AVS_EVENT_MAX] = {
 	"audio_stop",
 	"video_disc",
 	"audio_disc",
+	"audio_switch",
 };
 
 static void session_handle_event(struct sync_session *session,
@@ -1342,6 +1427,9 @@ static void session_handle_event(struct sync_session *session,
 		break;
 	case AVS_AUDIO_TSTAMP_DISCONTINUITY:
 		session_audio_disc(session, event->value);
+		break;
+	case AVS_AUDIO_SWITCH:
+		session_audio_switch(session, event->value);
 		break;
 	default:
 		break;
@@ -1469,6 +1557,7 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		stat.v_timeout = session->v_timeout;
 		stat.a_active = session->a_active;
 		stat.mode = session->cur_mode;
+		stat.audio_switch = session->audio_switching;
 		if (copy_to_user(argp, &stat, sizeof(stat)))
 			return -EFAULT;
 		session->event_pending = false;
@@ -1628,6 +1717,9 @@ static void free_session(struct sync_session *session)
 		cancel_delayed_work(&session->transit_work);
 	if (session->pcr_work_on)
 		cancel_delayed_work(&session->pcr_start_work);
+	if (session->audio_change_work_on)
+		cancel_delayed_work(&session->audio_change_work);
+
 	if (session->pcr_timer_added)
 		del_timer_sync(&session->pcr_timer);
 	mutex_unlock(&session->session_mutex);
@@ -1683,7 +1775,8 @@ static ssize_t session_stat_show(struct class *cla,
 		"first v/%x a/%x\n"
 		"last  v/%x a/%x\n"
 		"start %d r %d\n"
-		"w %x pcr(%c) %x\n",
+		"w %x pcr(%c) %x\n"
+		"audio switch %c\n",
 		session->v_active, session->a_active,
 		session->first_vpts.pts,
 		session->first_apts.pts,
@@ -1692,7 +1785,8 @@ static ssize_t session_stat_show(struct class *cla,
 		session->clock_start, session->rate,
 		session->wall_clock,
 		session->use_pcr ? 'y' : 'n',
-		session->pcr_clock.pts);
+		session->pcr_clock.pts,
+		session->audio_switching ? 'y' : 'n');
 }
 
 static ssize_t pcr_stat_show(struct class *cla,
@@ -1873,6 +1967,7 @@ static int create_session(u32 id)
 	INIT_DELAYED_WORK(&session->wait_work, wait_work_func);
 	INIT_DELAYED_WORK(&session->transit_work, transit_work_func);
 	INIT_DELAYED_WORK(&session->pcr_start_work, pcr_start_work_func);
+	INIT_DELAYED_WORK(&session->audio_change_work, audio_change_work_func);
 
 	mutex_init(&session->session_mutex);
 	spin_lock_irqsave(&sync.lock, flags);
