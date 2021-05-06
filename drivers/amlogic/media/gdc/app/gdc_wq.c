@@ -157,7 +157,7 @@ static int gdc_process_work_queue(struct gdc_context_s *wq)
 {
 	struct gdc_queue_item_s *pitem;
 	struct list_head  *head = &wq->work_queue, *pos;
-	int ret = 0, i = 0;
+	int ret = 0;
 	unsigned int block_mode;
 	int timeout = 0;
 	ktime_t start_time = 0, stop_time = 0, diff_time = 0;
@@ -224,35 +224,15 @@ static int gdc_process_work_queue(struct gdc_context_s *wq)
 					process_time);
 		}
 
-		/* if block mode (cmd) */
-		if (block_mode) {
-			pitem->cmd.wait_done_flag = 0;
-			wake_up_interruptible(&wq->cmd_complete);
-		}
 		spin_lock(&wq->lock);
 		pos = pos->next;
 		list_move_tail(&pitem->list, &wq->free_queue);
 		spin_unlock(&wq->lock);
-		/* if dma buf detach it */
-		for (i = 0; i < GDC_MAX_PLANE; i++) {
-			if (pitem->dma_cfg.input_cfg[i].dma_used) {
-				gdc_dma_buffer_unmap_info
-					(gdc_manager.buffer,
-					 &pitem->dma_cfg.input_cfg[i].dma_cfg);
-				pitem->dma_cfg.input_cfg[i].dma_used = 0;
-			}
-			if (pitem->dma_cfg.output_cfg[i].dma_used) {
-				gdc_dma_buffer_unmap_info
-					(gdc_manager.buffer,
-					 &pitem->dma_cfg.output_cfg[i].dma_cfg);
-				pitem->dma_cfg.output_cfg[i].dma_used = 0;
-			}
-		}
-		if (pitem->dma_cfg.config_cfg.dma_used) {
-			gdc_dma_buffer_unmap_info
-				(gdc_manager.buffer,
-				 &pitem->dma_cfg.config_cfg.dma_cfg);
-			pitem->dma_cfg.config_cfg.dma_used = 0;
+
+		/* if block mode (cmd) */
+		if (block_mode) {
+			pitem->cmd.wait_done_flag = 0;
+			wake_up_interruptible(&wq->cmd_complete);
 		}
 		pitem = (struct gdc_queue_item_s *)pos;
 	} while (pos != head);
