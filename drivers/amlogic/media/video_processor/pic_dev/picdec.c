@@ -1231,6 +1231,12 @@ int picdec_cma_buf_init(void)
 			return -1;
 		}
 		aml_pr_info(0, "reserved memory config fail , use CMA.\n");
+		/* display buf0 + display buf1 + input process buf (for ge2d)
+		 * 1: output_format_mode == 1 (output is yuv444)
+		 *    24M + 24M + 24M = 72M
+		 * 2: output_format_mode == 0 (output is nv12),
+		 *    16M + 16M + 24M = 56M
+		 */
 		if (picdec_device.output_format_mode) {
 			if (picdec_device.cma_mode == 0) {
 				picdec_device.cma_pages =
@@ -1256,20 +1262,20 @@ int picdec_cma_buf_init(void)
 				picdec_device.cma_pages =
 					dma_alloc_from_contiguous
 						(&picdec_device.pdev->dev,
-						 (48 * SZ_1M) >> PAGE_SHIFT,
+						 (56 * SZ_1M) >> PAGE_SHIFT,
 						 0, 0);
 				picdec_device.buffer_start = page_to_phys
 					(picdec_device.cma_pages);
-				picdec_device.buffer_size = (48 * SZ_1M);
+				picdec_device.buffer_size = (56 * SZ_1M);
 			} else {
 				flags = CODEC_MM_FLAGS_DMA |
 					CODEC_MM_FLAGS_CMA_CLEAR;
 				picdec_device.buffer_start =
 					codec_mm_alloc_for_dma
 						("picdec",
-						 (48 * SZ_1M) / PAGE_SIZE,
+						 (56 * SZ_1M) / PAGE_SIZE,
 						 0, flags);
-				picdec_device.buffer_size = (48 * SZ_1M);
+				picdec_device.buffer_size = (56 * SZ_1M);
 			}
 		}
 
@@ -1316,7 +1322,7 @@ int picdec_cma_buf_uninit(void)
 					dma_release_from_contiguous
 						(&picdec_device.pdev->dev,
 						 picdec_device.cma_pages,
-						 (48 * SZ_1M) >> PAGE_SHIFT);
+						 (56 * SZ_1M) >> PAGE_SHIFT);
 					picdec_device.cma_pages = NULL;
 				}
 			} else {
@@ -1549,7 +1555,7 @@ static int picdec_open(struct inode *inode, struct file *file)
 		ret = picdec_start();
 		priv->context = NULL;
 		priv->phyaddr = (unsigned long)picdec_device.assit_buf_start;
-		priv->buf_len = (picdec_device.buffer_size / 3);
+		priv->buf_len = 24 * SZ_1M; /* max size is 3840*2160*3 (24M) */
 		file->private_data = priv;
 	}
 	return ret;
