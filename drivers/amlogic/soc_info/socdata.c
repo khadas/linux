@@ -25,6 +25,7 @@
 
 unsigned int read_nocsdata_cmd;
 unsigned int write_nocsdata_cmd;
+unsigned int auth_reg_ops_cmd;
 static void __iomem *soc_ver1_addr, *soc_poc_addr;
 
 struct socdata_dev_t {
@@ -46,11 +47,12 @@ static int socdata_open(struct inode *inode, struct file *file)
 static long socdata_unlocked_ioctl(struct file *file,
 	unsigned int cmd, unsigned long arg)
 {
-	unsigned long ret = 0;
+	unsigned long size, ret = 0;
 	void __user *argp = (void __user *)arg;
 	unsigned long __user *soc_info = argp;
 	unsigned char info[NOCS_DATA_LENGTH];
 	long long offset = 0;
+	void *all_authnt_region;
 
 	switch (cmd) {
 	case CMD_POC_DATA:
@@ -83,6 +85,46 @@ static long socdata_unlocked_ioctl(struct file *file,
 			return ret;
 		}
 		if (nocsdata_write(info, (NOCS_DATA_LENGTH - 24), &offset))
+			return -EFAULT;
+		break;
+	case CMD_AUTH_REGION_SET:
+		size = sizeof(struct authnt_region) + sizeof(uint32_t);
+		all_authnt_region = kzalloc(size, GFP_KERNEL);
+		if (!all_authnt_region)
+			return -ENOMEM;
+		ret = copy_from_user((void *)all_authnt_region, argp,
+			sizeof(struct authnt_region) + sizeof(uint32_t));
+		if (ret != 0) {
+			kfree(all_authnt_region);
+			pr_debug("%s:%d,copy_from_user fail\n",
+				__func__, __LINE__);
+			return ret;
+		}
+		if (auth_region_set((void *)all_authnt_region)) {
+			kfree(all_authnt_region);
+			return -EFAULT;
+		}
+		kfree(all_authnt_region);
+		break;
+	case CMD_AUTH_REGION_GET_ALL:
+		size = sizeof(struct authnt_region) * AUTH_REG_NUM + sizeof(uint32_t);
+		all_authnt_region = kzalloc(size, GFP_KERNEL);
+		if (!all_authnt_region)
+			return -ENOMEM;
+		if (auth_region_get_all(all_authnt_region)) {
+			kfree(all_authnt_region);
+			return -EFAULT;
+		}
+		ret = copy_to_user(argp, all_authnt_region, size);
+		kfree(all_authnt_region);
+		if (ret != 0) {
+			pr_debug("%s:%d,copy_from_user fail\n",
+				__func__, __LINE__);
+			return ret;
+		}
+		break;
+	case CMD_AUTH_REGION_RST:
+		if (auth_region_rst())
 			return -EFAULT;
 		break;
 
@@ -142,6 +184,11 @@ static int aml_socdata_probe(struct platform_device *pdev)
 	if (of_property_read_u32(pdev->dev.of_node, "write_nocsdata_cmd",
 		&write_nocsdata_cmd)) {
 		dev_err(&pdev->dev, "please config write nocsdata cmd\n");
+		return -1;
+	}
+	if (of_property_read_u32(pdev->dev.of_node, "auth_reg_ops_cmd",
+		&auth_reg_ops_cmd)) {
+		dev_err(&pdev->dev, "please config auth reg set cmd\n");
 		return -1;
 	}
 
