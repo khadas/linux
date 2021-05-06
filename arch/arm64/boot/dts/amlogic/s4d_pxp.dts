@@ -1547,11 +1547,11 @@
 	uart-has-rtscts;
 };
 
-//&gpu {
-//	tbl =  <&dvfs285_cfg
-//		&dvfs400_cfg
-//		&dvfs500_cfg
-//		&dvfs666_cfg
-//		&dvfs850_cfg
-//		&dvfs850_cfg>;
-//};
+&gpu {
+	tbl =  <&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg
+		&dvfs500_cfg>;
+};
