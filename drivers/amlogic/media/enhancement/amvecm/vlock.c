@@ -255,7 +255,7 @@ int vlock_init_reg_map(struct device *dev, struct stvlock_sig_sts *pvlock)
 	int i = 0;
 	struct vlk_reg_map_tab *regmap;
 
-	if (pvlock->dtdata->vlk_chip == vlock_chip_t7)
+	if (pvlock->dtdata->vlk_chip >= vlock_chip_t7)
 		regmap = (struct vlk_reg_map_tab *)&regmap_tab_t7;
 	else
 		regmap = (struct vlk_reg_map_tab *)&regmap_tab_tm2;
@@ -339,7 +339,7 @@ u32 vlock_get_panel_pll_m(struct stvlock_sig_sts *pvlock)
 	if (pvlock->dtdata->vlk_pll_sel == vlock_pll_sel_hdmi) {
 		amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL, &val);
 	} else {
-		if (pvlock->dtdata->vlk_chip == vlock_chip_t7) {
+		if (pvlock->dtdata->vlk_chip >= vlock_chip_t7) {
 			if (pvlock->idx == VLOCK_ENC0)
 				val =
 				vlock_reg_rd_bits(REG_MAP_ANACTRL, ANACTRL_TCON_PLL0_CNTL0, 0, 8);
@@ -370,7 +370,7 @@ u32 vlock_get_panel_pll_frac(struct stvlock_sig_sts *pvlock)
 	if (pvlock->dtdata->vlk_pll_sel == vlock_pll_sel_hdmi) {
 		amvecm_hiu_reg_read(HHI_HDMI_PLL_CNTL2, &val);
 	} else {
-		if (pvlock->dtdata->vlk_chip == vlock_chip_t7) {
+		if (pvlock->dtdata->vlk_chip >= vlock_chip_t7) {
 			if (pvlock->idx == VLOCK_ENC0)
 				val =
 				vlock_reg_rd_bits(REG_MAP_ANACTRL, ANACTRL_TCON_PLL0_CNTL1, 0, 19);
@@ -401,7 +401,7 @@ void vlock_set_panel_pll_m(struct stvlock_sig_sts *pvlock, u32 val)
 	if (pvlock->dtdata->vlk_pll_sel == vlock_pll_sel_hdmi) {
 		amvecm_hiu_reg_write(HHI_HDMI_PLL_CNTL, val);
 	} else {
-		if (pvlock->dtdata->vlk_chip == vlock_chip_t7)
+		if (pvlock->dtdata->vlk_chip >= vlock_chip_t7)
 			if (pvlock->idx == VLOCK_ENC0)
 				vlock_reg_wt_bits(REG_MAP_ANACTRL,
 						  ANACTRL_TCON_PLL0_CNTL0, val, 0, 8);
@@ -431,7 +431,7 @@ void vlock_set_panel_pll_frac(struct stvlock_sig_sts *pvlock, u32 val)
 	if (pvlock->dtdata->vlk_pll_sel == vlock_pll_sel_hdmi) {
 		amvecm_hiu_reg_write(HHI_HDMI_PLL_CNTL2, val);
 	} else {
-		if (pvlock->dtdata->vlk_chip == vlock_chip_t7)
+		if (pvlock->dtdata->vlk_chip >= vlock_chip_t7)
 			if (pvlock->idx == VLOCK_ENC0)
 				vlock_reg_wt_bits(REG_MAP_ANACTRL,
 						  ANACTRL_TCON_PLL0_CNTL1, val, 0, 19);
@@ -568,7 +568,7 @@ static void vlock_pll_select(struct stvlock_sig_sts *pvlock,
 	if (vlock_debug & VLOCK_DEBUG_INFO)
 		pr_info("%s md:%d\n", __func__, workmd);
 
-	if (pvlock->dtdata->vlk_chip == vlock_chip_t7) {
+	if (pvlock->dtdata->vlk_chip >= vlock_chip_t7) {
 		if (workmd == vlock_pll_sel_disable) {
 			if (pvlock->idx == VLOCK_ENC0) {
 				/* enc0: need disable vlock clk lock */
@@ -631,8 +631,7 @@ static void vlock_pll_select(struct stvlock_sig_sts *pvlock,
 						vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_VLOCK_CNTL,
 								      0x7, 0, 3);
 				} else if (IS_MANUAL_MODE(vlock_mode)) {
-					vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_VLOCK_CNTL,
-							      0x6, 0, 3);
+					vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_VLOCK_CNTL, 0x6, 0, 3);
 				}
 			}
 		}
@@ -732,21 +731,17 @@ static void vlock_enable(struct stvlock_sig_sts *pvlock, bool enable)
 			 */
 			if (is_meson_gxtvbb_cpu() &&
 			    (((tmp_value >> 21) & 0x3) != 2))
-				vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL6,
-							  2, 21, 2);
+				vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL6, 2, 21, 2);
 		} else {
-			vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL6,
-						  enable, 20, 1);
+			vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL6, enable, 20, 1);
 		}
 #endif
 	} else if (is_meson_txl_cpu() || is_meson_txlx_cpu()) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		if (vlock_mode & VLOCK_MODE_MANUAL_PLL)
-			vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL5,
-						  0, 3, 1);
+			vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL5, 0, 3, 1);
 		else
-			vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL5,
-						  enable, 3, 1);
+			vlock_hiu_reg_wt_bits(HHI_HDMI_PLL_CNTL5, enable, 3, 1);
 #endif
 	} else if (pvlock->dtdata->vlk_hwver >= vlock_hw_ver2) {
 		/*reset*/
@@ -834,6 +829,7 @@ static void vlock_setting(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 	/*vlock_set_clk_src, after tm2 use clk tree*/
 	if (pvlock->dtdata->vlk_chip <= vlock_chip_tm2)
 		amvecm_hiu_reg_write(HHI_VID_LOCK_CLK_CNTL, 0x80);
+
 	if (IS_ENC_MODE(vlock_mode)) {
 		/*init default config for enc mode*/
 		vlock_hw_reinit(pvlock, vlock_enc_setting, VLOCK_DEFAULT_REG_SIZE);
@@ -1620,7 +1616,7 @@ static void vlock_pll_adj_limit_check(unsigned int *pll_val)
 static void vlock_update_pll(struct stvlock_sig_sts *pvlock)
 {
 	/* pll data update */
-	if (pvlock->dtdata->vlk_chip == vlock_chip_t7) {
+	if (pvlock->dtdata->vlk_chip >= vlock_chip_t7) {
 		if (pvlock->idx == VLOCK_ENC0) {
 			vlock_reg_wt_bits(REG_MAP_ANACTRL, ANACTRL_TCON_PLL_VLOCK, 2, 3, 2);
 			vlock_reg_wt_bits(REG_MAP_ANACTRL, ANACTRL_TCON_PLL_VLOCK, 0, 3, 2);
@@ -3122,7 +3118,7 @@ void vlock_lcd_param_work(struct work_struct *p_work)
 		msleep(20);
 	}
 
-	pr_info("lcd vlock_en=%d, vlock_mode=0x%x\n", vlock_en, vlock_mode);
+	pr_info("lcd vlock_en=%d, vlock_mode=0x%x i=%d\n", vlock_en, vlock_mode, i);
 }
 #endif
 
