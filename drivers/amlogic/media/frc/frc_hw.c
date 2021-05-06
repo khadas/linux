@@ -193,6 +193,18 @@ void frc_reset(u32 onoff)
 	}
 }
 
+void frc_mc_reset(u32 onoff)
+{
+	if (onoff) {
+		WRITE_FRC_REG(FRC_MC_SW_RESETS, 0xffff);
+		WRITE_FRC_REG(FRC_MEVP_SW_RESETS, 0xffffff);
+	} else {
+		WRITE_FRC_REG(FRC_MEVP_SW_RESETS, 0x0);
+		WRITE_FRC_REG(FRC_MC_SW_RESETS, 0x0);
+	}
+	pr_frc(1, "%s %d\n", __func__, onoff);
+}
+
 void set_frc_enable(u32 en)
 {
 	WRITE_FRC_BITS(FRC_TOP_CTRL, 0, 8, 1);
@@ -564,12 +576,12 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	reg_post_dly_vofst = fw_data->holdline_parm.reg_post_dly_vofst;
 	reg_mc_dly_vofst0 = fw_data->holdline_parm.reg_mc_dly_vofst0;
 
-	frc_reset(1);
+	//frc_reset(1);
+	//frc_reset(0);
 	frc_input_init(frc_devp, frc_top);
 	pr_frc(log, "%s\n", __func__);
 	////Config frc input size
 	WRITE_FRC_BITS(FRC_FRAME_SIZE ,(frc_top->vsize <<16) | frc_top->hsize  , 0  ,32 );
-	frc_reset(0);
 
 	/*!!!!!!!!! tread de, vpu register*/
 	frc_top->vfb = vpu_reg_read(ENCL_VIDEO_VAVON_BLINE);

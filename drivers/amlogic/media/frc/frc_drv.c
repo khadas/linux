@@ -441,7 +441,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->frc_sts.new_state = FRC_STATE_BYPASS;
 
 	/*0:before postblend; 1:after postblend*/
-	devp->frc_hw_pos = FRC_POS_AFTER_POSTBLEND;/*for test*/
+	//devp->frc_hw_pos = FRC_POS_AFTER_POSTBLEND;/*for test*/
 	devp->frc_sts.auto_ctrl = 0;
 	devp->frc_fw_pause = false;
 	devp->frc_sts.frame_cnt = 0;
@@ -467,7 +467,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->dbg_buf_len = 0;
 
 	devp->loss_ratio = 0;
-	devp->prot_mode = 1;
+	devp->prot_mode = false;
 
 	devp->in_out_ratio = FRC_RATIO_1_1;
 	devp->film_mode = EN_FILM32;

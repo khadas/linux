@@ -409,7 +409,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	if (!devp->probe_ok)
 		return;
 
-	if (!vf || !cur_video_sts) {
+	if (!vf || !cur_video_sts || !get_video_enabled()) {
 		devp->in_sts.vf_null_cnt++;
 		no_input = true;
 	}
@@ -449,7 +449,8 @@ void frc_state_handle(struct frc_dev_s *devp)
 	frame_cnt = devp->frc_sts.frame_cnt;
 	if (cur_state != new_state) {
 		state_changed = 1;
-		pr_frc(log, "sm state_changed (%d->%d)\n", cur_state, new_state);
+		pr_frc(log, "sm state_changed (%d->%d) cnt:%d\n", cur_state, new_state,
+			devp->frc_sts.frame_cnt);
 	}
 	switch (cur_state) {
 	case FRC_STATE_DISABLE:
@@ -461,15 +462,19 @@ void frc_state_handle(struct frc_dev_s *devp)
 				       frc_state_ary[cur_state], frc_state_ary[new_state]);
 				frc_state_change_finish(devp);
 			} else if (new_state == FRC_STATE_ENABLE) {
-				frc_hw_initial(devp);
-				//first : set bypass off
-				set_frc_bypass(OFF);
-				//second: set frc enable on
-				set_frc_enable(ON);
-				devp->frc_sts.frame_cnt = 0;
-				pr_frc(log, "sm state change %s -> %s\n",
-					frc_state_ary[cur_state], frc_state_ary[new_state]);
-				frc_state_change_finish(devp);
+				if (devp->frc_sts.frame_cnt == 0) {
+					frc_hw_initial(devp);
+					//first : set bypass off
+					set_frc_bypass(OFF);
+					//second: set frc enable on
+					set_frc_enable(ON);
+					pr_frc(log, "sm state change %s -> %s\n",
+						frc_state_ary[cur_state], frc_state_ary[new_state]);
+					devp->frc_sts.frame_cnt = 0;
+					frc_state_change_finish(devp);
+				} else {
+					devp->frc_sts.frame_cnt++;
+				}
 			} else {
 				pr_frc(0, "err new state %d\n", new_state);
 			}
@@ -480,10 +485,8 @@ void frc_state_handle(struct frc_dev_s *devp)
 			if (new_state == FRC_STATE_DISABLE) {
 				if (devp->frc_sts.frame_cnt == 0) {
 					set_frc_enable(OFF);
-					frc_reset(1);
 					devp->frc_sts.frame_cnt++;
 				} else {
-					frc_reset(0);
 					devp->frc_sts.frame_cnt = 0;
 					pr_frc(log, "sm state change %s -> %s\n",
 						frc_state_ary[cur_state],
@@ -523,9 +526,9 @@ void frc_state_handle(struct frc_dev_s *devp)
 				if (devp->frc_sts.frame_cnt == 0) {
 					//first frame set bypass off
 					set_frc_bypass(OFF);
-					set_frc_enable(OFF);
+					//set_frc_enable(OFF);
 					devp->frc_sts.frame_cnt++;
-				} else {
+				} else if (devp->frc_sts.frame_cnt == 1) {
 					frc_hw_initial(devp);
 					//second frame set enable on
 					set_frc_enable(ON);
@@ -533,6 +536,8 @@ void frc_state_handle(struct frc_dev_s *devp)
 					pr_frc(log, "sm state change %s -> %s\n",
 					       frc_state_ary[cur_state], frc_state_ary[new_state]);
 					frc_state_change_finish(devp);
+				} else {
+					devp->frc_sts.frame_cnt++;
 				}
 			} else {
 				pr_frc(0, "err new state %d\n", new_state);
