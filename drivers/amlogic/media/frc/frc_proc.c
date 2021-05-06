@@ -327,7 +327,7 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	}
 	devp->in_sts.in_vsize = cur_in_sts->in_vsize;
 	/* check is same vframe */
-	pr_frc(dbg_sts, "vf (0x%lx, 0x%lx)\n", devp->in_sts.vf, cur_in_sts->vf);
+	pr_frc(dbg_sts, "vf (0x%lx, 0x%lx)\n", (ulong)devp->in_sts.vf, (ulong)cur_in_sts->vf);
 	if (devp->in_sts.vf == cur_in_sts->vf && cur_in_sts->vf_sts)
 		devp->in_sts.vf_repeat_cnt++;
 
