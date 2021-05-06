@@ -5999,7 +5999,7 @@ static struct clk_hw_onecell_data sm1_hw_onecell_data = {
 };
 
 /* Convenience table to populate regmap in .probe */
-static struct clk_regmap *const g12a_clk_regmaps[] = {
+static struct clk_regmap *const g12a_clk_regmaps[] __initconst = {
 	&g12a_clk81,
 	&g12a_dos,
 	&g12a_ddr,

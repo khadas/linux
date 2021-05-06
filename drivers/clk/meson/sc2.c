@@ -5791,7 +5791,7 @@ static struct clk_hw_onecell_data sc2_hw_onecell_data = {
 };
 
 /* Convenience table to populate regmap in .probe */
-static struct clk_regmap *const sc2_clk_regmaps[] = {
+static struct clk_regmap *const sc2_clk_regmaps[] __initconst = {
 	&sc2_rtc_32k_clkin,
 	&sc2_rtc_32k_div,
 	&sc2_rtc_32k_xtal,
@@ -6064,7 +6064,7 @@ static struct clk_regmap *const sc2_clk_regmaps[] = {
 	&sc2_pwm_ij
 };
 
-static struct clk_regmap *const sc2_cpu_clk_regmaps[] = {
+static struct clk_regmap *const sc2_cpu_clk_regmaps[] __initconst = {
 	&sc2_cpu_clk_premux0,
 	&sc2_cpu_clk_mux0_div,
 	&sc2_cpu_clk_postmux0,
@@ -6089,7 +6089,7 @@ static struct clk_regmap *const sc2_cpu_clk_regmaps[] = {
 	&sc2_cpu3_clk
 };
 
-static struct clk_regmap *const sc2_pll_clk_regmaps[] = {
+static struct clk_regmap *const sc2_pll_clk_regmaps[] __initconst = {
 	&sc2_fixed_pll_dco,
 	&sc2_fixed_pll,
 	&sc2_sys_pll_dco,
@@ -6210,7 +6210,7 @@ static struct regmap *sc2_regmap_resource(struct device *dev, char *name)
 	return devm_regmap_init_mmio(dev, base, &clkc_regmap_config);
 }
 
-static int meson_sc2_probe(struct platform_device *pdev)
+static int __ref meson_sc2_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct regmap *basic_map;

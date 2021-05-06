@@ -1434,7 +1434,7 @@ static struct clk_hw_onecell_data t5d_hw_onecell_data = {
 };
 
 /* Convenience table to populate regmap in .probe */
-static struct clk_regmap *const t5d_clk_regmaps[] = {
+static struct clk_regmap *const t5d_clk_regmaps[] __initconst = {
 	&t5d_fixed_pll,
 	&t5d_sys_pll,
 	&t5d_gp0_pll,

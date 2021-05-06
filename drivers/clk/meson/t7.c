@@ -7645,7 +7645,7 @@ static struct clk_hw_onecell_data t7_hw_onecell_data = {
 };
 
 /* Convenience table to populate regmap in .probe */
-static struct clk_regmap *const t7_clk_regmaps[] = {
+static struct clk_regmap *const t7_clk_regmaps[] __initconst = {
 	&t7_rtc_32k_clkin,
 	&t7_rtc_32k_div,
 	&t7_rtc_32k_xtal,
@@ -8034,7 +8034,7 @@ static struct clk_regmap *const t7_clk_regmaps[] = {
 	&t7_pwm_ao_gh,
 };
 
-static struct clk_regmap *const t7_cpu_clk_regmaps[] = {
+static struct clk_regmap *const t7_cpu_clk_regmaps[] __initconst = {
 	&t7_cpu_dyn_clk,
 	&t7_cpu_clk,
 	&t7_a73_dyn_clk,
@@ -8046,7 +8046,7 @@ static struct clk_regmap *const t7_cpu_clk_regmaps[] = {
  */
 };
 
-static struct clk_regmap *const t7_pll_clk_regmaps[] = {
+static struct clk_regmap *const t7_pll_clk_regmaps[] __initconst = {
 	&t7_fixed_pll_dco,
 	&t7_fixed_pll,
 	&t7_sys_pll_dco,
@@ -8144,7 +8144,7 @@ static struct regmap *t7_regmap_resource(struct device *dev, char *name)
 	return devm_regmap_init_mmio(dev, base, &clkc_regmap_config);
 }
 
-static int meson_t7_probe(struct platform_device *pdev)
+static int __ref meson_t7_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct regmap *basic_map;
