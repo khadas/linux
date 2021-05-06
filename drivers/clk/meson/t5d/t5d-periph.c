@@ -1897,7 +1897,7 @@ static struct clk_hw_onecell_data t5d_periph_hw_onecell_data = {
 };
 
 /* Convenience table to populate regmap in .probe */
-static struct clk_regmap *const t5d_periph_clk_regmaps[] = {
+static struct clk_regmap *const t5d_periph_clk_regmaps[] __initconst = {
 	&t5d_mpeg_clk_sel,
 	&t5d_mpeg_clk_div,
 	&t5d_clk81,

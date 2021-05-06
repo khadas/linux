@@ -363,7 +363,7 @@ static struct clk_regmap tm2_aoclkc_saradc_gate = {
 	},
 };
 
-static struct clk_regmap *tm2_aoclkc_regmap[] = {
+static struct clk_regmap *tm2_aoclkc_regmap[] __initdata = {
 	&tm2_aoclkc_ahb_bus,
 	&tm2_aoclkc_ir,
 	&tm2_aoclkc_i2c_master,

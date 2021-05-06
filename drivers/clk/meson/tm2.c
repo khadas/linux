@@ -5319,7 +5319,7 @@ static struct clk_hw_onecell_data tm2_hw_onecell_data = {
 };
 
 /* Convenience table to populate regmap in .probe */
-static struct clk_regmap *const tm2_clk_regmaps[] = {
+static struct clk_regmap *const tm2_clk_regmaps[] __initconst = {
 	&tm2_clk81,
 	&tm2_mpeg_clk_div,
 	&tm2_mpeg_clk_sel,

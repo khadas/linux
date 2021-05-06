@@ -380,7 +380,7 @@ static const unsigned int g12a_aoclk_reset[] = {
 	[RESET_AO_IR_OUT]	= 23,
 };
 
-static struct clk_regmap *g12a_aoclk_regmap[] = {
+static struct clk_regmap *g12a_aoclk_regmap[] __initdata = {
 	&g12a_aoclk_ahb,
 	&g12a_aoclk_ir_in,
 	&g12a_aoclk_i2c_m0,

@@ -4868,7 +4868,7 @@ static struct clk_hw_onecell_data s4d_hw_onecell_data = {
 };
 
 /* Convenience table to populate regmap in .probe */
-static struct clk_regmap *const s4_clk_regmaps[] = {
+static struct clk_regmap *const s4_clk_regmaps[] __initconst  = {
 	&s4_rtc_32k_clkin,
 	&s4_rtc_32k_div,
 	&s4_rtc_32k_xtal,
@@ -5105,13 +5105,12 @@ static struct clk_regmap *const s4_clk_regmaps[] = {
 	&s4_pwm_ij
 };
 
-static struct clk_regmap *const s4_cpu_clk_regmaps[] = {
+static struct clk_regmap *const s4_cpu_clk_regmaps[] __initconst = {
 	&s4_cpu_dyn_clk,
 	&s4_cpu_clk
-
 };
 
-static struct clk_regmap *const s4_pll_clk_regmaps[] = {
+static struct clk_regmap *const s4_pll_clk_regmaps[] __initconst = {
 	&s4_fixed_pll_dco,
 	&s4_fixed_pll,
 	&s4_sys_pll_dco,
@@ -5189,7 +5188,7 @@ static struct regmap *s4_regmap_resource(struct device *dev, char *name)
 	return devm_regmap_init_mmio(dev, base, &clkc_regmap_config);
 }
 
-static int meson_s4_probe(struct platform_device *pdev)
+static int __ref meson_s4_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct regmap *basic_map;
@@ -5276,7 +5275,7 @@ static struct platform_driver s4_driver = {
 builtin_platform_driver(s4_driver);
 #else
 #ifndef MODULE
-static int s4_clkc_init(void)
+static int __init s4_clkc_init(void)
 {
 	return platform_driver_register(&s4_driver);
 }
