@@ -53,31 +53,33 @@
 		dsp_fw_reserved:linux,dsp_fw {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x00800000>;
+			size = <0x0 0x00400000>;
 			alignment = <0x0 0x00400000>;
-			alloc-ranges = <0x0 0x30000000 0x0 0x00800000>;
+			alloc-ranges = <0x0 0x30800000 0x0 0x0f800000>;
 		};
 
 		logo_reserved:linux,meson-fb {
 			compatible = "shared-dma-pool";
 			reusable;
+			/* keep sync with fb, fox example:logo_addr = "0x30000000"*/
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x3f800000 0x0 0x800000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
 			compatible = "shared-dma-pool";
 			reusable;
+			/* alloc-ranges start should not be 0x0*/
 			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x3ec00000 0x0 0x00c00000>;
+			alloc-ranges = <0x0 0x30800000 0x0 0x0f800000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x9800000>;
+			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
 		};
 
@@ -106,7 +108,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x1b000000>;
+			size = <0x0 0x19400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -168,7 +170,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 40M */
-			size = <0x0 0x02800000>;
+			size = <0x0 0x00800000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -884,7 +886,7 @@
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000>;
-	logo_addr = "0x3f800000";
+	logo_addr = "0x30000000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
