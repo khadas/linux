@@ -2261,9 +2261,9 @@ u32 vlock_fsm_check_support(struct stvlock_sig_sts *pvlock,
 		ret = false;
 	}
 
-	if (vinfo->fr_adj_type == VOUT_FR_ADJ_NONE) {
+	if (vinfo->fr_adj_type == VOUT_FR_ADJ_NONE || vinfo->fr_adj_type == VOUT_FR_ADJ_HDMI) {
 		if (vlock_debug & VLOCK_DEBUG_INFO)
-			pr_info("[%s] for adj_type VOUT_FR_ADJ_NONE!!!\n",
+			pr_info("[%s] for adj_type VOUT_FR_ADJ_NONE or VOUT_FR_ADJ_HDMI!!!\n",
 				__func__);
 		ret = false;
 	}
