@@ -669,7 +669,7 @@
 					reg-names = "mux", "gpio";
 					gpio-controller;
 					#gpio-cells = <2>;
-					gpio-ranges = <&periphs_pinctrl 0 0 13>;
+					gpio-ranges = <&storage_pinctrl 0 0 13>;
 				};
 			};
 
