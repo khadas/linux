@@ -754,7 +754,7 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 			ret = meson_gdc_set_input_addr(addr, gdc_cmd);
 			if (ret != 0) {
 				gdc_log(LOG_ERR, "set input addr err\n");
-				goto dma_buf_unmap;
+				return ret;
 			}
 		} else {
 			/* set MSB val */
@@ -764,7 +764,7 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 			size = gdc_set_input_addr(i, addr, gdc_cmd);
 			if (size < 0) {
 				gdc_log(LOG_ERR, "set input addr err\n");
-				goto dma_buf_unmap;
+				return ret;
 			}
 		}
 		gdc_log(LOG_DEBUG, "plane[%d] get input addr=%lx\n",
@@ -773,22 +773,13 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 			size = gdc_get_input_size(gdc_cmd);
 			if (size < 0) {
 				gdc_log(LOG_ERR, "set input addr err\n");
-				goto dma_buf_unmap;
+				return ret;
 			}
 		}
 		meson_gdc_dma_flush(dev, addr, size);
 	}
 
 	return 0;
-
-dma_buf_unmap:
-	while (i >= 0) {
-		cfg = &context->dma_cfg.input_cfg[i].dma_cfg;
-		gdc_dma_buffer_unmap_info(gdc_manager.buffer, cfg);
-		context->dma_cfg.input_cfg[i].dma_used = 0;
-		i--;
-	}
-	return ret;
 }
 
 static int gdc_process_output_dma_info(struct gdc_context_s *context,
@@ -848,23 +839,13 @@ static int gdc_process_output_dma_info(struct gdc_context_s *context,
 			ret = gdc_set_output_addr(i, addr, gdc_cmd);
 			if (ret < 0) {
 				gdc_log(LOG_ERR, "set input addr err\n");
-				goto dma_buf_unmap;
+				return ret;
 			}
 		}
 		gdc_log(LOG_DEBUG, "plane[%d] get output addr=%lx\n",
 			i, addr);
 	}
 	return 0;
-
-dma_buf_unmap:
-	while (i >= 0) {
-		cfg = &context->dma_cfg.output_cfg[i].dma_cfg;
-		gdc_dma_buffer_unmap_info(gdc_manager.buffer, cfg);
-		context->dma_cfg.output_cfg[i].dma_used = 0;
-		i--;
-	}
-
-	return ret;
 }
 
 static int gdc_process_ex_info(struct gdc_context_s *context,
