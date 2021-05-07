@@ -185,7 +185,7 @@ static void rdma_end_addr_update(u32 vpp_index, ulong table_paddr, u32 count)
 static ulong rdma_end_addr_get(u32 vpp_index)
 {
 	u32 end_addr = 0, end_addr_msb = 0;
-	ulong rdma_end_addr;
+	ulong rdma_end_addr = 0;
 
 	switch (vpp_index) {
 	case VPU_VPP0:
