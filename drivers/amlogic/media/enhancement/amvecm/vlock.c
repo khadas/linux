@@ -72,7 +72,7 @@ static unsigned int vlock_intput_type;
  */
 static signed int vlock_line_limit = 2;
 
-static signed int vlock_enc_maxtune_line_num = 10;
+static signed int vlock_enc_maxtune_line_num = 8;
 module_param(vlock_enc_maxtune_line_num, uint, 0664);
 MODULE_PARM_DESC(vlock_enc_maxtune_line_num, "\n vlock_enc_maxtune_line_num\n");
 
@@ -170,6 +170,9 @@ static unsigned int vlock_latch_en_cnt = 20;
 module_param(vlock_latch_en_cnt, uint, 0664);
 MODULE_PARM_DESC(vlock_latch_en_cnt, "\n vlock_latch_en_cnt\n");
 
+u32 vlock_tune_sync_on = 1;
+module_param(vlock_tune_sync_on, uint, 0664);
+MODULE_PARM_DESC(vlock_tune_sync_on, "\n vlock_tune_sync_on\n");
 
 static unsigned int vlock_log_en;
 struct vlock_log_s **vlock_log;
@@ -463,26 +466,28 @@ static void vlock_tune_sync(struct stvlock_sig_sts *pvlock)
 	u32 offset_enc = pvlock->offset_encl;
 
 	if (pvlock->dtdata->vlk_chip == vlock_chip_t3 && pvlock->idx == VLOCK_ENC0) {
-		/* MEMC 4K ENCL setting, vlock will change the ENCL_VIDEO_MAX_LNCNT,
-		 * so need dynamic change this register
-		 */
-		u32 frc_v_porch = pvlock->enc_frc_v_porch;
-		u32 max_lncnt = pvlock->enc_frc_max_line;
-		u32 max_pxcnt = pvlock->enc_frc_max_pixel;
+		if (vlock_tune_sync_on) {
+			/* MEMC 4K ENCL setting, vlock will change the ENCL_VIDEO_MAX_LNCNT,
+			 * so need dynamic change this register
+			 */
+			u32 frc_v_porch = pvlock->enc_frc_v_porch;
+			u32 max_lncnt = pvlock->enc_frc_max_line;
+			u32 max_pxcnt = pvlock->enc_frc_max_pixel;
 
-		if (vlock_debug & VLOCK_DEBUG_INFO)
-			pr_info("frc_v_porch=%d max_lncnt=%d max_pxcnt=%d\n",
-				frc_v_porch, max_lncnt, max_pxcnt);
-		WRITE_VPP_REG(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
-		WRITE_VPP_REG(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));
-		WRITE_VPP_REG(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
+			//if (vlock_debug & VLOCK_DEBUG_INFO)
+			//	pr_info("frc_v_porch=%d max_lncnt=%d max_pxcnt=%d\n",
+			//		frc_v_porch, max_lncnt, max_pxcnt);
+			WRITE_VPP_REG(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
+			WRITE_VPP_REG(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));
+			WRITE_VPP_REG(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
 
-		pvlock->enc_frc_max_line =
-			READ_VPP_REG(pvlock->enc_max_line_addr + offset_enc);
-		pvlock->enc_frc_max_pixel =
-			READ_VPP_REG(pvlock->enc_max_pixel_addr + offset_enc);
-		pvlock->enc_frc_v_porch =
-			READ_VPP_REG(pvlock->enc_frc_v_porch_addr + offset_enc);
+			pvlock->enc_frc_max_line =
+				READ_VPP_REG(pvlock->enc_max_line_addr + offset_enc);
+			pvlock->enc_frc_max_pixel =
+				READ_VPP_REG(pvlock->enc_max_pixel_addr + offset_enc);
+			pvlock->enc_frc_v_porch =
+				READ_VPP_REG(pvlock->enc_frc_v_porch_addr + offset_enc);
+		}
 	}
 }
 
@@ -505,8 +510,7 @@ static unsigned int vlock_check_input_hz(struct vframe_s *vf)
 			ret_hz = 50;
 		else if (diff(ret_hz, 30) <= 1)
 			ret_hz = 30;
-		else if (diff(ret_hz, 25) <= 1)
-			ret_hz = 25;
+
 	} else if (vf->source_type == VFRAME_SOURCE_TYPE_CVBS &&
 		   (vlock_support & VLOCK_SUPPORT_CVBS)) {
 		if (vf->source_mode == VFRAME_SOURCE_MODE_NTSC)
@@ -894,11 +898,16 @@ static void vlock_setting(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 		 *(output_freq/input_freq)*Ifrm_cnt_mod must be integer
 		 */
 		if (vlock_adapt == 0) {
-			if (output_hz > 0 && input_hz > 0)
-				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL + offset_vlck,
-						   output_hz / input_hz, 16, 8);
-			else
+			if (output_hz > 0 && input_hz > 0) {
+				if (input_hz == 24 && output_hz == 60)
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL + offset_vlck,
+							   2, 16, 8);
+				else
+					WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL + offset_vlck,
+							   output_hz / input_hz, 16, 8);
+			} else {
 				WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL + offset_vlck, 1, 16, 8);
+			}
 		} else {
 			WRITE_VPP_REG_BITS(VPU_VLOCK_MISC_CTRL + offset_vlck, input_hz, 16, 8);
 		}
@@ -1264,7 +1273,7 @@ static void vlock_enable_step1(struct vframe_s *vf, struct vinfo_s *vinfo,
 	if (vlock_debug & VLOCK_DEBUG_INFO) {
 		pr_info("%s:vmode/source_type/source_mode/input_freq/output_freq:\n",
 			__func__);
-		pr_info("\t%d/%d/%d/%d=>%d/%d/%d/%d\n",
+		pr_info("\t %d/%d/%d/%d => %d/%d/%d/%d\n",
 			pre_source_type, pre_source_mode,
 			pre_input_freq, pre_output_freq,
 			vf->source_type, vf->source_mode,
@@ -1374,7 +1383,7 @@ static void vlock_enable_step3_enc(struct stvlock_sig_sts *pvlock)
 	u32 offset_vlck = pvlock->offset_vlck;
 	u32 offset_enc = pvlock->offset_encl;
 
-	if (pvlock->enable_cnt++ > 30)
+	if (pvlock->enable_cnt++ > 15)
 		pvlock->enable_cnt = 0;
 	if (!pvlock->pre_enc_max_pixel || !pvlock->pre_enc_max_line) {
 		pr_info("vlock enc max val err P:%d L:%d\n",
@@ -2000,6 +2009,12 @@ void vlock_status_init(void)
 			pvlock->phlock_en = pvlock->dtdata->vlk_phlock_en;
 		/* vlock.phlock_percent = phlock_percent; */
 		vlock_clear_frame_counter(pvlock);
+		//vlock_reset(pvlock, 1);
+		//vlock_reset(pvlock, 0);
+		vlock_dis_cnt = 0;
+		vlock_hw_reinit(pvlock, vlock_enc_setting, VLOCK_DEFAULT_REG_SIZE);
+		vlock_disable_step1(pvlock);
+		vlock_disable_step2(pvlock);
 	}
 	pr_info("%s vlock_en:%d\n", __func__, vlock_en);
 }
@@ -2232,10 +2247,11 @@ u32 vlock_fsm_check_support(struct stvlock_sig_sts *pvlock,
 	if (pvlock->input_hz > 0 &&
 	    (pvlock->input_hz == pvlock->output_hz))
 		vs_support = true;
-	/* ex:30Hz->60Hz 25Hz->50Hz */
-	if (pvlock->input_hz > 0 &&
+	/* ex:30Hz->60Hz 25Hz->50Hz or in 24->60Hz */
+	if ((pvlock->input_hz > 0 &&
 	    ((pvlock->input_hz * 2) == pvlock->output_hz) &&
-	    (vlock_support & VLOCK_SUPPORT_1TO2))
+	    (vlock_support & VLOCK_SUPPORT_1TO2)) ||
+	    (pvlock->input_hz == 24 && pvlock->output_hz == 60))
 		vs_support = true;
 
 	if ((!vs_support && vlock_adapt == 0) ||
@@ -2290,6 +2306,9 @@ u32 vlock_fsm_input_check(struct stvlock_sig_sts *pvlock, struct vframe_s *vf)
 		pvlock->output_hz =
 		vlock_check_output_hz(vinfo->sync_duration_num,
 				      vinfo->sync_duration_den);
+		pvlock->duration = vf->duration;
+		//if (vlock_debug & VLOCK_DEBUG_INFO)
+		//	pr_info("input_hz:%d duration:%d\n", pvlock->input_hz, pvlock->duration);
 	}
 
 	/*check vf exist status*/
@@ -2710,8 +2729,8 @@ void vlock_fsm_monitor(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 					if (timeout++ > 4)
 						break;
 				}
-				vlock_en = 0;
-				vecm_latch_flag &= ~FLAG_VLOCK_DIS;
+				//vlock_en = 0;
+				//vecm_latch_flag &= ~FLAG_VLOCK_DIS;
 				if (vlock_debug & VLOCK_DEBUG_INFO)
 					pr_info("[%s] vlock dis\n", __func__);
 				vlock_clear_frame_counter(pvlock);
@@ -2748,8 +2767,13 @@ void vlock_fsm_monitor(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 		break;
 
 	case VLOCK_STATE_DISABLE_STEP2_DONE:
-		if (vlock_disable_step2(pvlock))
+		if (vlock_disable_step2(pvlock)) {
 			pvlock->fsm_sts = VLOCK_STATE_NULL;
+			if (vecm_latch_flag & FLAG_VLOCK_DIS) {
+				vlock_en = 0;
+				vecm_latch_flag &= ~FLAG_VLOCK_DIS;
+			}
+		}
 		break;
 
 	default:
@@ -2969,6 +2993,7 @@ void vlock_status(struct stvlock_sig_sts *pvlock)
 	pr_info("vinfo vtotal:%d\n", vinfo->vtotal);
 	pr_info("fr_adj_type:%d\n", vinfo->fr_adj_type);
 	pr_info("vframe input_hz:%d\n", pvlock->input_hz);
+	pr_info("vframe duration:%d\n", pvlock->duration);
 	pr_info("vframe output_hz:%d\n", pvlock->output_hz);
 	pr_info("val_m:(0x%0x, 0x%x)\n", pvlock->val_m, vlock_get_panel_pll_m(pvlock));
 	pr_info("val_f:(0x%0x, 0x%x)\n", pvlock->val_frac, vlock_get_panel_pll_frac(pvlock));
@@ -3373,26 +3398,28 @@ ssize_t vlock_debug_store(struct class *cla,
 	} else if (!strncmp(parm[0], "status", 6)) {
 		if (!parm[1]) {
 			temp_val = VLOCK_ENC0;
-		} else if (kstrtol(parm[1], 10, &val) < 0) {
-			temp_val = VLOCK_ENC0;
 		} else {
+			if (kstrtol(parm[1], 10, &val) < 0)
+				return -EINVAL;
 			if (val <= VLOCK_ENC2)
 				temp_val = val;
 			else
 				temp_val = VLOCK_ENC0;
+			temp_val = VLOCK_ENC0;
 		}
 		pvlock = vlock_tab[temp_val];
 		vlock_status(pvlock);
 	} else if (!strncmp(parm[0], "dump_reg", 8)) {
 		if (!parm[1]) {
 			temp_val = VLOCK_ENC0;
-		} else if (kstrtol(parm[1], 10, &val) < 0) {
-			temp_val = VLOCK_ENC0;
 		} else {
+			if (kstrtol(parm[1], 10, &val) < 0)
+				return -EINVAL;
 			if (val <= VLOCK_ENC2)
 				temp_val = val;
 			else
 				temp_val = VLOCK_ENC0;
+			temp_val = VLOCK_ENC0;
 		}
 		pvlock = vlock_tab[temp_val];
 		vlock_reg_dump(pvlock);

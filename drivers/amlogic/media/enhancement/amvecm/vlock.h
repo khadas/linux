@@ -118,6 +118,7 @@ struct stvlock_sig_sts {
 	u32 frame_cnt_in;
 	u32 frame_cnt_no;
 	u32 input_hz;
+	u32 duration;
 	u32 output_hz;
 	bool md_support;
 	u32 video_inverse;
