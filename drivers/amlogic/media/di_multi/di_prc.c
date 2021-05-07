@@ -339,7 +339,7 @@ void di_cfg_top_dts(void)
 	/* afbce and pout */
 	if (!DIM_IS_IC(TM2B)	&&
 	    !DIM_IS_IC(T5)	&&
-	    DIM_IS_IC_EF(SC2)) {
+	    DIM_IS_IC_BF(SC2)) {
 		if (cfgg(ALLOC_SCT)) {
 			PR_WARN("alloc_sct:not support:%d->0\n", cfgg(ALLOC_SCT));
 			cfgs(ALLOC_SCT, 0);
