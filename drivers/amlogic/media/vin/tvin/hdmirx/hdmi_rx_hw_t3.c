@@ -826,11 +826,9 @@ void aml_eq_cfg_t3(void)
 	}
 	/* enable dfe for all frequency */
 	aml_dfe_en_t3();
-	/*enable HYPER_GAIN calibration for 3G/1.5G/27M*/
-	if (rx.phy.phy_bw <= PHY_BW_3) {
-		aml_hyper_gain_tuning_t3();
-		usleep_range(100, 110);
-	}
+	/*enable HYPER_GAIN calibration for 6G to fix 2.0 cts HF2-1 issue*/
+	aml_hyper_gain_tuning_t3();
+	usleep_range(100, 110);
 	/*tmds valid det*/
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, CDR_LKDET_EN, 1);
 }
