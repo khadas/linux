@@ -545,6 +545,7 @@
 		};
 	};//End efusekey
 	/* Audio Related start */
+
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
@@ -586,7 +587,7 @@
 		aml-audio-card,dai-link@1 {
 			format = "i2s";// "dsp_a";
 			mclk-fs = <256>;
-			//continuous-clock;
+			continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
@@ -598,7 +599,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-i2s2hdmi";
+			suffix-name = "alsaPORT-i2s";
 			cpu {
 				sound-dai = <&tdmb>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -615,7 +616,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&amlogic_codec>;
 			};
 		};
 
@@ -632,7 +633,6 @@
 			//bitclock-master = <&tdmccodec>;
 			//frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-i2s";
 			cpu {
 				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -642,7 +642,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				sound-dai = <&amlogic_codec /*&ad82584f_62*/>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -885,32 +885,12 @@
 	tdmb: tdm@1 {
 		compatible = "amlogic, t5-snd-tdmb";
 		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-in = <0 1 0 0>;
 		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-				&clkc CLKID_MPLL1>;
-		clock-names = "mclk", "clk_srcpll";
-		pinctrl-names = "tdm_pins";
-		pinctrl-0 = </*&tdmb_mclk &tdmout_b &tdmin_b*/>;
-
-		i2s2hdmi = <1>;
-		status = "okay";
-	};
-
-	tdmc: tdm@2 {
-		compatible = "amlogic, t5-snd-tdmc";
-		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-in = <1>;
-		dai-tdm-lane-slot-mask-out = <1>;
-		dai-tdm-clk-sel = <2>;
-		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
 				&clkaudio CLKID_AUDIO_MCLK_PAD0
-				&clkc CLKID_MPLL2
-				&clkc CLKID_MPLL0
-				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
-		clock-names = "mclk", "mclk_pad", "clk_srcpll",
-			"samesource_srcpll", "samesource_clk";
+				&clkc CLKID_MPLL1>;
+		clock-names = "mclk", "mclk_pad",  "clk_srcpll";
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -925,6 +905,18 @@
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
+
+		status = "okay";
+	};
+
+	tdmc: tdm@2 {
+		compatible = "amlogic, t5-snd-tdmc";
+		#sound-dai-cells = <0>;
+		dai-tdm-lane-slot-mask-out = <1>;
+		dai-tdm-clk-sel = <2>;
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkc CLKID_MPLL2>;
+		clock-names = "mclk", "clk_srcpll";
 
 		status = "okay";
 	};
@@ -1180,7 +1172,7 @@
 		 * 3:spdifout
 		 * 4:spdifout_b
 		 */
-		eqdrc_module = <2>;
+		eqdrc_module = <1>;
 		/* max 0xf, each bit for one lane, usually one lane */
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
@@ -1572,4 +1564,9 @@
 		&dvfs666_cfg
 		&dvfs850_cfg
 		&dvfs850_cfg>;
+};
+
+&amlogic_codec {
+	tocodec_inout = <1>;
+	tdmout_index = <1>;
 };
