@@ -293,7 +293,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdmitx_edid_clear(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
 	edidinfo_detach_to_vinfo(hdev);
-	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, 0);
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_SUSPEND);
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_VSDB_PACKET, 0);
 	/* for huawei TV, it will display green screen pattern under
@@ -354,7 +354,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	set_disp_mode_auto();
 
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, hdev->hpd_state);
-	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, 1);
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, hdev->hpd_state);
 	pr_info("amhdmitx: late resume module %d\n", __LINE__);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
@@ -6834,7 +6834,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	hdev->hpd_state = !!hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0);
 	hdmitx_notify_hpd(hdev->hpd_state, NULL);
-	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, hdev->hpd_state);
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	INIT_WORK(&hdev->work_hdr, hdr_work_func);
 
 /* When init hdmi, clear the hdmitx module edid ram and edid buffer. */
