@@ -590,6 +590,9 @@ struct vframe_s {
 	bool discard_dv_data;
 
 	u32 frame_type;
+
+	u32 meta_data_size;
+	char *meta_data_buf;
 } /*vframe_t */;
 
 int get_curren_frame_para(int *top, int *left, int *bottom, int *right);
