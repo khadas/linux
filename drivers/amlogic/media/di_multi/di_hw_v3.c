@@ -4747,7 +4747,7 @@ void config_di_mif_v3(struct DI_MIF_S *di_mif,
 		}
 	}
 	//dbg_ic("%s:%d:linear:%d\n", __func__, mif_index, di_mif->linear);
-	di_mif->nocompress = (di_buf->vframe->type & VIDTYPE_COMPRESS) ? 0 : 1;
+//	di_mif->nocompress = (di_buf->vframe->type & VIDTYPE_COMPRESS) ? 0 : 1;
 
 	if (di_buf->vframe->bitdepth & BITDEPTH_Y10) {
 		if (di_buf->vframe->type & VIDTYPE_VIU_444)
