@@ -106,5 +106,9 @@
 #define VPU_PROT3_STAT_2            0x277b
 #define VPU_PROT3_REQ_ONOFF         0x277c
 
+#define VPU_VENCI_STAT              0x1ceb
+#define VPU_VENCL_STAT              0x1cec
+#define VPU_VENCP_STAT              0x1ced
+#define VPU_VENC_CTRL               0x1cef
 #endif
 

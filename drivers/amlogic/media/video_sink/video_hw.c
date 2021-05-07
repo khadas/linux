@@ -7155,25 +7155,94 @@ int calc_hold_line(void)
 		return READ_VCBUS_REG(ENCP_VFIFO2VD_LINE_TOP_START) >> 1;
 }
 
+static int get_venc_type(void)
+{
+	u32 venc_type = 0;
+
+	if (cur_dev->t7_display) {
+		u32 venc_mux = 3;
+		u32 venc_addr = VPU_VENC_CTRL;
+
+		venc_mux = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux &= 0x3;
+
+		switch (venc_mux) {
+		case 0:
+			venc_addr = VPU_VENC_CTRL;
+			break;
+		case 1:
+			venc_addr = VPU1_VENC_CTRL;
+			break;
+		case 2:
+			venc_addr = VPU2_VENC_CTRL;
+			break;
+		}
+		venc_type = READ_VCBUS_REG(venc_addr);
+	} else {
+		venc_type = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL);
+	}
+	venc_type &= 0x3;
+
+	return venc_type;
+}
+
 u32 get_cur_enc_line(void)
 {
-	u32 ret = 0;
+	int enc_line = 0;
+	unsigned int reg = VPU_VENCI_STAT;
+	unsigned int reg_val = 0;
+	u32 offset = 0;
+	u32 venc_type = get_venc_type();
 
-	switch (READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3) {
-	case 0:
-		ret = (READ_VCBUS_REG(ENCL_INFO_READ) >> 16) & 0x1fff;
-		break;
-	case 1:
-		ret = (READ_VCBUS_REG(ENCI_INFO_READ) >> 16) & 0x1fff;
-		break;
-	case 2:
-		ret = (READ_VCBUS_REG(ENCP_INFO_READ) >> 16) & 0x1fff;
-		break;
-	case 3:
-		ret = (READ_VCBUS_REG(ENCT_INFO_READ) >> 16) & 0x1fff;
-		break;
+	if (cur_dev->t7_display) {
+		u32 venc_mux = 3;
+
+		venc_mux = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux &= 0x3;
+		switch (venc_mux) {
+		case 0:
+			offset = 0;
+			break;
+		case 1:
+			offset = 0x600;
+			break;
+		case 2:
+			offset = 0x800;
+			break;
+		}
+		switch (venc_type) {
+		case 0:
+			reg = VPU_VENCI_STAT;
+			break;
+		case 1:
+			reg = VPU_VENCP_STAT;
+			break;
+		case 2:
+			reg = VPU_VENCL_STAT;
+			break;
+		}
+	} else {
+		switch (venc_type) {
+		case 0:
+			reg = ENCL_INFO_READ;
+			break;
+		case 1:
+			reg = ENCI_INFO_READ;
+			break;
+		case 2:
+			reg = ENCP_INFO_READ;
+			break;
+		case 3:
+			reg = ENCT_INFO_READ;
+			break;
+		}
 	}
-	return ret;
+
+	reg_val = READ_VCBUS_REG(reg + offset);
+
+	enc_line = (reg_val >> 16) & 0x1fff;
+
+	return enc_line;
 }
 
 static void do_vpu_delay_work(struct work_struct *work)
