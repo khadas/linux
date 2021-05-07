@@ -296,7 +296,8 @@ static int aml_tdm_set_clkdiv(struct aml_tdm *p_tdm, int div)
 }
 
 /* mpll clk range from 5M to 500M */
-#define AML_MPLL_FREQ_MIN	5000000
+#define AML_MPLL_FREQ_MIN   5000000
+#define AML_MPLL_FREQ_MAX   500000000
 static unsigned int aml_mpll_mclk_ratio(unsigned int freq)
 {
 	unsigned int i, ratio = 2;
@@ -306,7 +307,11 @@ static unsigned int aml_mpll_mclk_ratio(unsigned int freq)
 		ratio = 1 << i;
 		ratio = ratio * 16;
 		mpll_freq = freq * ratio;
-
+		/*when in tdm mode ,tdm slot > 8,the mpll freq maybe > 500M*/
+		while (mpll_freq > AML_MPLL_FREQ_MAX) {
+			ratio = ratio >> 1;
+			mpll_freq = freq * ratio;
+		}
 		if (mpll_freq > AML_MPLL_FREQ_MIN)
 			break;
 	}
