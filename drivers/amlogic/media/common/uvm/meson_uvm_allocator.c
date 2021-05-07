@@ -359,17 +359,17 @@ static int mua_get_meta_data(int fd, ulong arg)
 	vfp = &handle->vf;
 
 	/* check source type. */
-	if (!vfp->hdr10p_data_size ||
-		vfp->hdr10p_data_size > META_DATA_SIZE) {
+	if (!vfp->meta_data_size ||
+		vfp->meta_data_size > META_DATA_SIZE) {
 		MUA_PRINTK(0, "meta data size: %d is invalid.\n",
-			vfp->hdr10p_data_size);
+			vfp->meta_data_size);
 		dma_buf_put(dmabuf);
 		return -EINVAL;
 	}
 
 	meta.fd = fd;
-	meta.size = vfp->hdr10p_data_size;
-	memcpy(meta.data, vfp->hdr10p_data_buf, vfp->hdr10p_data_size);
+	meta.size = vfp->meta_data_size;
+	memcpy(meta.data, vfp->meta_data_buf, vfp->meta_data_size);
 
 	if (copy_to_user((void __user *)arg, &meta, sizeof(meta))) {
 		MUA_PRINTK(0, "meta data copy err.\n");
