@@ -4032,7 +4032,7 @@ static void config_di_mif(struct DI_MIF_S *di_mif, struct di_buf_s *di_buf,
 	di_mif->canvas0_addr2 =
 		(di_buf->vframe->canvas0Addr >> 16) & 0xff;
 
-	di_mif->nocompress = (di_buf->vframe->type & VIDTYPE_COMPRESS) ? 0 : 1;
+//	di_mif->nocompress = (di_buf->vframe->type & VIDTYPE_COMPRESS) ? 0 : 1;
 
 	if (di_buf->vframe->bitdepth & BITDEPTH_Y10) {
 		if (di_buf->vframe->type & VIDTYPE_VIU_444)
@@ -5169,7 +5169,7 @@ void pre_inp_mif_w(struct DI_MIF_S *di_mif, struct vframe_s *vf)
 		}
 
 		if (vf->canvas0_config[0].block_mode)
-			di_mif->block_mode = 1;
+			di_mif->block_mode = vf->canvas0_config[0].block_mode;
 		else
 			di_mif->block_mode = 0;
 	}
