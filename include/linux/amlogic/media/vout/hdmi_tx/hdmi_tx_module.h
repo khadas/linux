@@ -792,6 +792,9 @@ int hdmitx_set_audio(struct hdmitx_dev *hdmitx_device,
 #define HDMITX_UNPLUG			2
 #define HDMITX_PHY_ADDR_VALID		3
 
+#define HDMI_SUSPEND	0
+#define HDMI_WAKEUP	1
+
 enum hdmitx_event {
 	HDMITX_NONE_EVENT = 0,
 	HDMITX_HPD_EVENT,
