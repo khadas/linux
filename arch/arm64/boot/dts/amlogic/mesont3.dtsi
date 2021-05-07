@@ -1445,8 +1445,9 @@
 		 * po_fmt---1: NV21/8;  2: nv12/8;  3: AFBC 422/10BIT;
 		 *          4: dynamic(4K AFBC,10/422);
 		 *          6: dynamic(from decoder 4K source,out is AFBC,10/420),other is 422/10BIT
-		 * bypass_mem---0:nr not bypass,  1: nr bypass;2: when 4k input ,nr is bypass;
+		 * bypass_mem---0:nr not bypass; 1: nr bypass; 2: when 4k input ,nr is bypass;
 		 *              3: bypass nr for 4k,but not from vdin;
+		 * alloc_sct---0:not support; bit 0: for 4k; bit 1: for 1080p
 		 ***************************************************/
 	};
 
