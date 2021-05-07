@@ -37,6 +37,7 @@
 /* media module used media/registers/cpu_version.h since kernel 5.4 */
 #include <linux/amlogic/media/registers/cpu_version.h>
 /* Amlogic Headers */
+#include <linux/amlogic/media/osd/osd_logo.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/meson_ion.h>
@@ -3787,6 +3788,13 @@ static int osd_info_setup(char *str)
 }
 
 __setup("osd_reverse=", osd_info_setup);
+
+void get_logo_osd_reverse(u32 *index, u32 *reverse_type)
+{
+	*index = osd_info.index;
+	*reverse_type = osd_info.osd_reverse;
+}
+EXPORT_SYMBOL(get_logo_osd_reverse);
 
 static struct device_attribute osd_attrs[] = {
 	__ATTR(scale, 0664,

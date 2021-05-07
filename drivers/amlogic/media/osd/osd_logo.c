@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 
 /* Amlogic Headers */
+#include <linux/amlogic/media/osd/osd_logo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 
@@ -166,6 +167,35 @@ static int get_logo_height(char *str)
 	return 0;
 }
 
+static u32 display_bpp;
+
+static int logo_display_bpp_setup(char *str)
+{
+	int ret;
+
+	ret = kstrtoint(str, 0, &display_bpp);
+	pr_info("logo_info.bpp=%d\n", display_bpp);
+	return 0;
+}
+
+u32 get_logo_fb_width(void)
+{
+	return logo_info.fb_width;
+}
+EXPORT_SYMBOL(get_logo_fb_width);
+
+u32 get_logo_fb_height(void)
+{
+	return logo_info.fb_height;
+}
+EXPORT_SYMBOL(get_logo_fb_height);
+
+u32 get_logo_display_bpp(void)
+{
+	return display_bpp;
+}
+EXPORT_SYMBOL(get_logo_display_bpp);
+
 int set_osd_logo_freescaler(void)
 {
 	const struct vinfo_s *vinfo = NULL;
@@ -256,6 +286,8 @@ void set_logo_loaded(void)
 {
 	logo_info.loaded = 0;
 }
+
+__setup("display_bpp=", logo_display_bpp_setup);
 
 __setup("logo=", logo_setup);
 

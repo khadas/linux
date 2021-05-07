@@ -37,6 +37,7 @@
 #include "meson_vpu_pipeline.h"
 #include "meson_crtc.h"
 
+#include <linux/amlogic/media/osd/osd_logo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 
 #define DRIVER_NAME "meson"
@@ -115,27 +116,17 @@ static u32 am_meson_get_vblank_counter(struct drm_device *dev,
 
 static char *strmode;
 struct am_meson_logo logo;
+
 #ifdef MODULE
-MODULE_PARM_DESC(fb_width, "fb_width");
-module_param_named(fb_width, logo.width, uint, 0600);
-
-MODULE_PARM_DESC(fb_height, "fb_height");
-module_param_named(fb_height, logo.height, uint, 0600);
-
-MODULE_PARM_DESC(display_bpp, "display_bpp");
-module_param_named(display_bpp, logo.bpp, uint, 0600);
 
 MODULE_PARM_DESC(outputmode, "outputmode");
 module_param_named(outputmode, logo.outputmode_t, charp, 0600);
 
-MODULE_PARM_DESC(osd_reverse, "osd_reverse");
-module_param_named(osd_reverse, logo.osd_reverse, uint, 0600);
 #else
 core_param(fb_width, logo.width, uint, 0644);
 core_param(fb_height, logo.height, uint, 0644);
 core_param(display_bpp, logo.bpp, uint, 0644);
 core_param(outputmode, logo.outputmode_t, charp, 0644);
-core_param(osd_reverse, logo.osd_reverse, uint, 0644);
 #endif
 
 static struct drm_framebuffer *am_meson_logo_init_fb(struct drm_device *dev)
@@ -143,9 +134,18 @@ static struct drm_framebuffer *am_meson_logo_init_fb(struct drm_device *dev)
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_framebuffer *fb;
 	struct am_meson_fb *meson_fb;
+	u32 reverse_type, osd_index;
 
 	/*TODO: get mode from vout api temp.*/
 	strcpy(logo.outputmode, get_vout_mode_uboot());
+	logo.width = get_logo_fb_width();
+	logo.height = get_logo_fb_height();
+	logo.bpp = get_logo_display_bpp();
+	if (!logo.bpp)
+		logo.bpp = 16;
+
+	get_logo_osd_reverse(&osd_index, &reverse_type);
+	logo.osd_reverse = reverse_type;
 
 	DRM_INFO("width=%d,height=%d,start_addr=0x%pa,size=%d\n",
 		 logo.width, logo.height, &logo.start, logo.size);
@@ -154,6 +154,8 @@ static struct drm_framebuffer *am_meson_logo_init_fb(struct drm_device *dev)
 	DRM_INFO("outputmode=%s\n", logo.outputmode);
 	if (logo.bpp == 16)
 		mode_cmd.pixel_format = DRM_FORMAT_RGB565;
+	else if (logo.bpp == 24)
+		mode_cmd.pixel_format = DRM_FORMAT_RGB888;
 	else
 		mode_cmd.pixel_format = DRM_FORMAT_XRGB8888;
 	mode_cmd.offsets[0] = 0;
