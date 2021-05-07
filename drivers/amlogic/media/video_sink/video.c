@@ -3607,8 +3607,8 @@ void vsync_rdma_process(void)
 }
 #endif
 
-static enum vmode_e old_vmode = VMODE_MAX;
-static enum vmode_e new_vmode = VMODE_MAX;
+static char old_vmode[32];
+static char new_vmode[32];
 static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
 {
 	struct provider_disp_mode_req_s req;
@@ -5688,12 +5688,12 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	/* vout mode detection under old tunnel mode */
 	if ((vf) && ((vf->type & VIDTYPE_NO_VIDEO_ENABLE) == 0)) {
-		if (old_vmode != new_vmode) {
+		if (strcmp(old_vmode, new_vmode)) {
 			vd_layer[0].property_changed = true;
 			vd_layer[1].property_changed = true;
 			vd_layer[2].property_changed = true;
 			pr_info("detect vout mode change!!!!!!!!!!!!\n");
-			old_vmode = new_vmode;
+			strcpy(old_vmode, new_vmode);
 		}
 	}
 	toggle_cnt = 0;
@@ -7122,12 +7122,12 @@ SET_FILTER:
 	/* vout mode detection under new non-tunnel mode */
 	if (vd_layer[0].dispbuf || vd_layer[1].dispbuf ||
 	   vd_layer[2].dispbuf) {
-		if (old_vmode != new_vmode) {
+		if (strcmp(old_vmode, new_vmode)) {
 			vd_layer[0].property_changed = true;
 			vd_layer[1].property_changed = true;
 			vd_layer[2].property_changed = true;
 			pr_info("detect vout mode change!!!!!!!!!!!!\n");
-			old_vmode = new_vmode;
+			strcpy(old_vmode, new_vmode);
 		}
 	}
 
@@ -14677,7 +14677,7 @@ int vout_notify_callback(struct notifier_block *block, unsigned long cmd,
 		vsync_pts_inc_scale = vinfo->sync_duration_den;
 		vsync_pts_inc_scale_base = vinfo->sync_duration_num;
 		spin_unlock_irqrestore(&lock, flags);
-		new_vmode = vinfo->mode;
+		strncpy(new_vmode, vinfo->name, 32);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		pr_info("DOLBY: %s: VOUT_EVENT_MODE_CHANGE\n",
 			__func__);
@@ -14721,8 +14721,8 @@ static void vout_hook(void)
 			vinfo->sync_duration_num;
 		vsync_pts_inc_scale = vinfo->sync_duration_den;
 		vsync_pts_inc_scale_base = vinfo->sync_duration_num;
-		old_vmode = vinfo->mode;
-		new_vmode = vinfo->mode;
+		strcpy(old_vmode, vinfo->name);
+		strcpy(new_vmode, vinfo->name);
 	}
 #ifdef CONFIG_AM_VIDEO_LOG
 	if (vinfo) {
