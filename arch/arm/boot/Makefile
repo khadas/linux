@@ -17,6 +17,10 @@ ifneq ($(MACHINE),)
 include $(MACHINE)/Makefile.boot
 endif
 
+ifeq ($(CONFIG_AMLOGIC_ARMV8_AARCH32),y)
+include $(srctree)/arch/arm/mach-meson/Makefile.boot
+endif
+
 # Note: the following conditions must always be true:
 #   ZRELADDR == virt_to_phys(PAGE_OFFSET + TEXT_OFFSET)
 #   PARAMS_PHYS must be within 4MB of ZRELADDR
