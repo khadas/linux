@@ -38,6 +38,7 @@ struct lcd_clk_ctrl_s {
 #define LCD_PRBS_MODE_LVDS    BIT(0)
 #define LCD_PRBS_MODE_VX1     BIT(1)
 #define LCD_PRBS_MODE_MAX     2
+#define LCD_CLK_MSR_INVALID   0xffffffff
 
 struct lcd_clktree_s {
 	unsigned char clk_gate_state;
@@ -79,6 +80,7 @@ struct lcd_clk_data_s {
 	unsigned char clk_path_valid;
 	unsigned char vclk_sel;
 	int enc_clk_msr_id;
+	int fifo_clk_msr_id;
 	struct lcd_clk_ctrl_s *pll_ctrl_table;
 
 	unsigned int ss_level_max;

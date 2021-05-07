@@ -36,6 +36,8 @@ struct lcd_debug_info_reg_s {
 	unsigned int *reg_clk_table;
 	unsigned int *reg_encl_table;
 	unsigned int *reg_pinmux_table;
+	void (*prbs_test)(struct aml_lcd_drv_s *pdrv, unsigned int s,
+			  unsigned int mode_flag);
 };
 
 struct lcd_debug_info_if_s {
