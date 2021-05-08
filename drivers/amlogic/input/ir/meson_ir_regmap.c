@@ -181,6 +181,20 @@ static struct meson_ir_reg_map regs_default_rcmm[] = {
 	{REG_REG3,         1200 << 0},
 };
 
+static struct meson_ir_reg_map regs_default_mitsubishi[] = {
+	{ REG_LDR_ACTIVE,   (500 << 16) | (300 << 0)},
+	{ REG_LDR_IDLE,     (250 << 16) | (150 << 0)},
+	{ REG_LDR_REPEAT,   (250 << 16) | (150 << 0)},
+	{ REG_BIT_0,        (60 << 16)  | (40 << 0)},
+	{ REG_REG0,         (7 << 28) | (0xBBB << 12) | 0x13},
+	{ REG_STATUS,       (120 << 20) | (80 << 10)},
+	{ REG_REG1,         0x8f00},
+	{ REG_REG2,         (0x3) | (1 << 24) | (23 << 11)},
+	{ REG_DURATN2,      0x00},
+	{ REG_REG3,         0x1950},
+	{ REG_DURATN3,      0x00}
+};
+
 void meson_ir_set_hardcode(struct meson_ir_chip *chip, int code)
 {
 	meson_ir_dbg(chip->r_dev, "framecode=0x%x\n", code);
@@ -647,6 +661,40 @@ static u32 ir_rcmm_get_custom_code(struct meson_ir_chip  *chip)
 	return custom_code;
 }
 
+static int meson_ir_mitsubishi_get_scancode(struct meson_ir_chip *chip)
+{
+	int  code = 0;
+	int decode_status = 0;
+	int status = 0;
+
+	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_STATUS, &decode_status);
+	decode_status &= 0xf;
+	if (decode_status & 0x01)
+		status |= IR_STATUS_REPEAT;
+
+	chip->decode_status = status;
+	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME, &code);
+	meson_ir_dbg(chip->r_dev, "framecode=0x%x\n", code);
+	chip->r_dev->cur_hardcode = code;
+	code = (code >> 8) & 0xff;
+	return code;
+}
+
+static int meson_ir_mitsubishi_get_decode_status(struct meson_ir_chip *chip)
+{
+	int status = chip->decode_status;
+
+	return status;
+}
+
+static u32 meson_ir_mitsubishi_get_custom_code(struct meson_ir_chip *chip)
+{
+	u32 custom_code;
+
+	custom_code = chip->r_dev->cur_hardcode & 0xff;
+	return custom_code;
+}
+
 /*legacy IR controller support protocols*/
 static struct meson_ir_reg_proto reg_rcmm = {
 	.protocol = REMOTE_TYPE_RCMM,
@@ -769,6 +817,16 @@ static struct meson_ir_reg_proto reg_sharp = {
 	.get_custom_code   = meson_ir_sharp_get_custom_code,
 };
 
+static struct meson_ir_reg_proto reg_mitsubishi = {
+	.protocol = REMOTE_TYPE_MITSUBISHI,
+	.name	  = "mitsubishi",
+	.reg_map      = regs_default_mitsubishi,
+	.reg_map_size = ARRAY_SIZE(regs_default_mitsubishi),
+	.get_scancode	   = meson_ir_mitsubishi_get_scancode,
+	.get_decode_status = meson_ir_mitsubishi_get_decode_status,
+	.get_custom_code   = meson_ir_mitsubishi_get_custom_code,
+};
+
 const struct meson_ir_reg_proto *meson_ir_regs_proto[] = {
 	&reg_nec,
 	&reg_duokan,
@@ -782,6 +840,7 @@ const struct meson_ir_reg_proto *meson_ir_regs_proto[] = {
 	&reg_rca,
 	&reg_sharp,
 	&reg_rcmm,
+	&reg_mitsubishi,
 	NULL
 };
 
