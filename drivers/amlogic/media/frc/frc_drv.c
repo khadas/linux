@@ -401,14 +401,25 @@ static long frc_campat_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 int frc_notify_callback(struct notifier_block *block, unsigned long cmd, void *para)
 {
+	struct frc_dev_s *devp = get_frc_devp();
+
+	if (!devp)
+		return -1;
+
 	pr_frc(1, "%s cmd: 0x%lx\n", __func__, cmd);
 	switch (cmd) {
-		/*temp add*/
-		case VOUT_EVENT_MODE_CHANGE_PRE:
-			break;
+	case VOUT_EVENT_MODE_CHANGE_PRE:
+		/*if frc on, need disable frc, and enable frc*/
+		devp->frc_sts.out_put_mode_changed = FRC_EVENT_VOUT_CHG;
+		//frc_change_to_state(FRC_STATE_DISABLE);
+		break;
 
-		default:
-			break;
+	case VOUT_EVENT_MODE_CHANGE:
+		//devp->frc_sts.out_put_mode_changed = FRC_EVENT_NO_EVENT;
+		break;
+
+	default:
+		break;
 	}
 	return 0;
 }
@@ -447,6 +458,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->frc_sts.frame_cnt = 0;
 	devp->frc_sts.state_transing = false;
 	devp->frc_sts.re_cfg_cnt = 0;
+	devp->frc_sts.out_put_mode_changed = false;
 	devp->in_sts.vf_sts = 0;/*initial to no*/
 	devp->dbg_force_en = 0;
 

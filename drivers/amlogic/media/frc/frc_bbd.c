@@ -47,7 +47,7 @@ void frc_bbd_param_init(struct frc_dev_s *frc_devp)
 	//for fw
 	search_final_line_para->bbd_en = 1;
 	//1bit 0:close, using bb_mode_switch, 1: open, detect more than zeros in img, bbd off;
-	search_final_line_para->pattern_detect_en	 = 1;	     //  u8,
+	search_final_line_para->pattern_detect_en	 = 0;	     //  u8,
 	search_final_line_para->pattern_dect_ratio	 = 109;      //  u8,	 7bit 85% ratio/128
 	// 0:use pre scheme 1:use new scheme 2 use new soft scheme
 	search_final_line_para->mode_switch = 1;
@@ -159,7 +159,7 @@ void frc_bbd_param_init(struct frc_dev_s *frc_devp)
 	search_final_line_para->rit_confidence_max = 24;//  u8,     final top line confidence max th
 
 	// bbd iir
-	search_final_line_para->final_iir_mode = 0;//  u8,     0: not do iir, 1: num sel iir
+	search_final_line_para->final_iir_mode = 1;//  u8,     0: not do iir, 1: num sel iir
 	search_final_line_para->final_iir_num_th1 = 4;		 //  u8
 	search_final_line_para->final_iir_num_th2 = 2;		 //  u8
 	search_final_line_para->final_iir_sel_rst_num = 9;		 //  u8
@@ -461,6 +461,24 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 					   g_stbbd_rd->bot_edge_first_val,
 					   search_final_line_para->edge_choose_row_th);//  bot
 
+	// for debug path
+	UPDATE_FRC_REG_BITS(FRC_REG_DEBUG_PATH_TOP_BOT_EDGE_POSI2, g_stbbd_rd->top_edge_posi2 << 16,
+				0xFFFF0000);
+	UPDATE_FRC_REG_BITS(FRC_REG_DEBUG_PATH_TOP_BOT_EDGE_POSI2,
+	g_stbbd_rd->bot_edge_posi2, 0x0000FFFF);
+	UPDATE_FRC_REG_BITS(FRC_REG_DEBUG_PATH_LFT_RIT_EDGE_POSI2, g_stbbd_rd->lft_edge_posi2 << 16,
+				0xFFFF0000);
+	UPDATE_FRC_REG_BITS(FRC_REG_DEBUG_PATH_LFT_RIT_EDGE_POSI2,
+	g_stbbd_rd->rit_edge_posi2, 0x0000FFFF);
+	UPDATE_FRC_REG_BITS(FRC_REG_DEBUG_PATH_TOP_BOT_EDGE_POSI1, g_stbbd_rd->top_edge_posi1 << 16,
+				0xFFFF0000);
+	UPDATE_FRC_REG_BITS(FRC_REG_DEBUG_PATH_TOP_BOT_EDGE_POSI1, g_stbbd_rd->bot_edge_posi1,
+				0x0000FFFF);
+	UPDATE_FRC_REG_BITS(FRC_REG_DEBUG_PATH_LFT_RIT_EDGE_POSI1, g_stbbd_rd->lft_edge_posi1 << 16,
+				0xFFFF0000);
+	UPDATE_FRC_REG_BITS(FRC_REG_DEBUG_PATH_LFT_RIT_EDGE_POSI1, g_stbbd_rd->rit_edge_posi1,
+				0x0000FFFF);
+
 	caption[0] = 0; //  lft caption
 	caption[1] = 0; //  top caption
 	caption[2] = 0; //  rit caption
@@ -538,6 +556,24 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 						   search_final_line_para->sel2_high_mode,
 						   search_final_line_para->motion_sel1_high_mode,
 						   &sel2_mode[3], 3);
+
+	pr_frc(dbg_bbd + 2, "\nLB1-%d %d-%d %d-%d %d-%d %d", g_stbbd_rd->finer_lft_posi1,
+		g_stbbd_rd->finer_lft_valid1,
+		g_stbbd_rd->top_posi1, g_stbbd_rd->top_valid1, g_stbbd_rd->finer_rit_posi1,
+		g_stbbd_rd->finer_rit_valid1,
+		g_stbbd_rd->bot_posi1, g_stbbd_rd->bot_valid1);
+	pr_frc(dbg_bbd + 2, "\nLB2-%d %d-%d %d-%d %d-%d %d", g_stbbd_rd->finer_lft_posi2,
+		g_stbbd_rd->finer_lft_valid2,
+		g_stbbd_rd->top_posi2, g_stbbd_rd->top_valid2, g_stbbd_rd->finer_rit_posi2,
+		g_stbbd_rd->finer_rit_valid2,
+		g_stbbd_rd->bot_posi2, g_stbbd_rd->bot_valid2);
+	pr_frc(dbg_bbd + 0, "\nmode=%d", search_final_line_para->mode_switch);
+	pr_frc(dbg_bbd + 0, "\nLB -%d %d %d %d", tmp_final_posi[0], tmp_final_posi[1],
+		tmp_final_posi[2], tmp_final_posi[3]);
+	pr_frc(dbg_bbd + 0, "\nEL -%d %d %d %d", edge_posi[0], edge_posi[1],
+		edge_posi[2], edge_posi[3]);
+	pr_frc(dbg_bbd + 0, "\nML -%d %d %d %d", motion_posi[0], motion_posi[1],
+		motion_posi[2], motion_posi[3]);
 
 	// new scheme
 	if (search_final_line_para->mode_switch == 0) {
@@ -645,16 +681,14 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 		UPDATE_FRC_REG_BITS(FRC_REG_BLACKBAR_XYXY_ME_ED, blackbar_xyxy_me[3], 0x0000FFFF);
 
 		// for down sample img
-		if ((g_stfrc_rd->input_fid % 2) == 1) {
-			ds_xyxy[0] = (search_final_line_para->ds_xyxy_force == 1) ?
-					det_lft : tmp_final_posi_new[0];   //  lft
-			ds_xyxy[1] = (search_final_line_para->ds_xyxy_force == 1) ?
-					det_top : tmp_final_posi_new[1];   //  top
-			ds_xyxy[2] = (search_final_line_para->ds_xyxy_force == 1) ?
-					det_rit : tmp_final_posi_new[2];   //  rit
-			ds_xyxy[3] = (search_final_line_para->ds_xyxy_force == 1) ?
-					det_bot : tmp_final_posi_new[3];   //  bot
-		}
+		ds_xyxy[0] = (search_final_line_para->ds_xyxy_force == 1) ?
+				det_lft : tmp_final_posi_new[0];   //  lft
+		ds_xyxy[1] = (search_final_line_para->ds_xyxy_force == 1) ?
+				det_top : tmp_final_posi_new[1];   //  top
+		ds_xyxy[2] = (search_final_line_para->ds_xyxy_force == 1) ?
+				det_rit : tmp_final_posi_new[2];   //  rit
+		ds_xyxy[3] = (search_final_line_para->ds_xyxy_force == 1) ?
+				det_bot : tmp_final_posi_new[3];   //  bot
 
 		UPDATE_FRC_REG_BITS(FRC_REG_DS_WIN_SETTING_LFT_TOP, ds_xyxy[0] << 16, 0xFFFF0000);
 		UPDATE_FRC_REG_BITS(FRC_REG_DS_WIN_SETTING_LFT_TOP, ds_xyxy[1], 0x0000FFFF);
@@ -681,6 +715,7 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 				cur_final_posi[1] = edge_posi[1];
 				caption[1] = 0;
 				caption_change[1] = 0;
+				pr_frc(dbg_bbd + 0, "\nTopCase0\n");
 			} else if (tmp_final_posi[1] > edge_posi[1]) {// tmp > edge;
 				if (motion_posi[1] > edge_posi[1]) {// motion > edge
 					// edge ==0
@@ -688,8 +723,10 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 						cur_final_posi[1] = pre_final_posi[1];
 					else// edge != 0
 						cur_final_posi[1] = edge_posi[1];
+					pr_frc(dbg_bbd + 0, "\nTopCase1\n");
 				} else {// motion <= edge
 					cur_final_posi[1] = det_top;
+					pr_frc(dbg_bbd + 0, "\nTopCase2\n");
 				}
 				caption[1] = 0;
 				caption_change[1] = 0;
@@ -700,6 +737,7 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 						cur_final_posi[1] = edge_posi[1];
 						caption[1] = 1;
 						caption_change[1] = 0;
+						pr_frc(dbg_bbd + 0, "\nTopCase3\n");
 					} else {
 						if ((search_final_line_para->pre_motion_posi[1] >
 						     motion_posi[1] + top_bot_caption_motion_delta) && !
@@ -708,10 +746,12 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 							cur_final_posi[1] = edge_posi[1];
 							caption[1] = 1;
 							caption_change[1] = 1;
+							pr_frc(dbg_bbd + 0, "\nTopCase4\n");
 						} else {
 							cur_final_posi[1] = tmp_final_posi[1];
 							caption[1] = 0;
 							caption_change[1] = 0;
+							pr_frc(dbg_bbd + 0, "\nTopCase5\n");
 						}
 					}
 				} else {
@@ -720,14 +760,15 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 							MIN(edge_posi[1], tmp_final_posi[1]);
 						caption[1] = 1;
 						caption_change[1] = 0;
+						pr_frc(dbg_bbd + 0, "\nTopCase6\n");
 					} else {
-						cnt_max = MAX(MIN(det_top + top_bot_motion_edge_line_num / 2 - 1, motion_posi[1]) -
-							      top_bot_motion_edge_delta, det_top);
+						cnt_max = MAX(MIN(det_top + top_bot_motion_edge_line_num / 2 - 1, motion_posi[1]), det_top);
 
-						if (g_stbbd_rd->top_edge_posi1 < cnt_max && g_stbbd_rd->top_edge_posi_valid1) {
+						if ((ABS(g_stbbd_rd->top_edge_posi1 - cnt_max) <= top_bot_motion_edge_delta) && g_stbbd_rd->top_edge_posi_valid1) {
 							cur_final_posi[1] = g_stbbd_rd->top_edge_posi1;
 							caption[1] = 1;
 							caption_change[1] = 0;
+							pr_frc(dbg_bbd + 0, "\nTopCase7\n");
 						} else {
 							if (search_final_line_para->pre_motion_posi[1] < edge_posi[1]) {
 								if (sel2_mode[1] == 1)
@@ -737,21 +778,28 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 
 								caption[1] = 0;
 								caption_change[1] = 0;
+
+								pr_frc(dbg_bbd + 0, "\nTopCase8\n");
 							} else if ((search_final_line_para->pre_motion_posi[1] > motion_posi[1] + top_bot_caption_motion_delta) && !
 								  (search_final_line_para->caption[1] == 1 && search_final_line_para->caption_change[1] == 1)) {
 								if (search_final_line_para->top_bot_pre_motion_cur_motion_choose_edge_mode == 0) {
 									cur_final_posi[1] = edge_posi[1];
 									caption[1] = 1;
 									caption_change[1] = 1;
+									pr_frc(dbg_bbd + 0,
+										"\nTopCase9\n");
 								} else if (search_final_line_para->top_bot_pre_motion_cur_motion_choose_edge_mode == 1) {
 									cur_final_posi[1] = tmp_final_posi[1];
 									caption[1] = 0;
 									caption_change[1] = 0;
+									pr_frc(dbg_bbd + 0,
+										"\nTopCase10\n");
 								}
 							} else {
 								cur_final_posi[1] = tmp_final_posi[1];
 								caption[1] = 0;
 								caption_change[1] = 0;
+								pr_frc(dbg_bbd + 0, "\nTopCase11\n");
 							}
 						}
 					}
@@ -885,6 +933,7 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 				cur_final_posi[3] = edge_posi[3];
 				caption[3] = 0;
 				caption_change[3] = 0;
+				pr_frc(dbg_bbd + 0, "\nBotCase0\n");
 			} else if (tmp_final_posi[3] < edge_posi[3]) {
 				// tmp < edge;
 				// motion > edge
@@ -894,8 +943,10 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 						cur_final_posi[3] = pre_final_posi[3];
 					else // edge != det bot
 						cur_final_posi[3] = edge_posi[3];
+					pr_frc(dbg_bbd + 0, "\nBotCase1\n");
 				} else {// motion <= edge
 					cur_final_posi[3] = det_bot;
+					pr_frc(dbg_bbd + 0, "\nBotCase2\n");
 				}
 				caption[3] = 0;
 				caption_change[3] = 0;
@@ -906,6 +957,7 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 						cur_final_posi[3] = edge_posi[3];
 						caption[3] = 1;
 						caption_change[3] = 0;
+						pr_frc(dbg_bbd + 0, "\nBotCase3\n");
 					} else {
 						if ((search_final_line_para->pre_motion_posi[3] <
 						     motion_posi[3] -
@@ -916,10 +968,12 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 							cur_final_posi[3] = edge_posi[3];
 							caption[3] = 1;
 							caption_change[3] = 1;
+							pr_frc(dbg_bbd + 0, "\nBotCase4\n");
 						} else {
 							cur_final_posi[3] = tmp_final_posi[3];
 							caption[3] = 0;
 							caption_change[3] = 0;
+							pr_frc(dbg_bbd + 0, "\nBotCase5\n");
 						}
 					}
 				} else {
@@ -928,19 +982,21 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 									tmp_final_posi[3]);
 						caption[3] = 1;
 						caption_change[3] = 0;
+						pr_frc(dbg_bbd + 0, "\nBotCase6\n");
 					} else {
 						cnt_max =
 						MIN(MAX(det_bot + 1 -
 							top_bot_motion_edge_line_num / 2,
-							motion_posi[3]) + top_bot_motion_edge_delta,
+							motion_posi[3]),
 							det_bot);
 
-						if (g_stbbd_rd->bot_edge_posi1 > cnt_max &&
+						if ((ABS(g_stbbd_rd->bot_edge_posi1 - cnt_max) <= top_bot_motion_edge_delta) &&
 						    g_stbbd_rd->bot_edge_posi_valid1) {
 							cur_final_posi[3] =
 								g_stbbd_rd->bot_edge_posi1;
 							caption[3] = 1;
 							caption_change[3] = 0;
+							pr_frc(dbg_bbd + 0, "\nBotCase7\n");
 						} else {
 							if (search_final_line_para->pre_motion_posi[3] > edge_posi[3]) {
 								if (sel2_mode[3] == 1)
@@ -950,6 +1006,7 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 
 								caption[3] = 0;
 								caption_change[3] = 0;
+								pr_frc(dbg_bbd + 0, "\nBotCase8\n");
 							} else if ((search_final_line_para->pre_motion_posi[3] <
 								   motion_posi[3] - top_bot_caption_motion_delta) && !
 								  (search_final_line_para->caption[3] == 1 && search_final_line_para->caption_change[3] == 1)) {
@@ -957,16 +1014,19 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 									cur_final_posi[3] = edge_posi[3];
 									caption[3] = 1;
 									caption_change[3] = 1;
+									pr_frc(dbg_bbd + 0, "\nBotCase9\n");
 								} else if (search_final_line_para->top_bot_pre_motion_cur_motion_choose_edge_mode == 1) {
 									cur_final_posi[3] = tmp_final_posi[3];
 									caption[3] = 0;
 									caption_change[3] = 0;
+									pr_frc(dbg_bbd + 0, "\nBotCase10\n");
 								}
 							} else {
 								cur_final_posi[3] =
 									tmp_final_posi[3];
 								caption[3] = 0;
 								caption_change[3] = 0;
+								pr_frc(dbg_bbd + 0, "\nBotCase11\n");
 							}
 						}
 					}
@@ -1106,6 +1166,7 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 				cur_final_posi[0] = edge_posi[0];
 				caption[0] = 0;
 				caption_change[0] = 0;
+				pr_frc(dbg_bbd + 0, "\nLftCase0\n");
 			} else if (tmp_final_posi[0] > edge_posi[0]) {
 				// motion > edge
 				if (motion_posi[0] > edge_posi[0]) {
@@ -1115,8 +1176,10 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 					} else {// edge != det lft
 						cur_final_posi[0] = edge_posi[0];
 					}
+					pr_frc(dbg_bbd + 0, "\nLftCase1\n");
 				} else {// motion <= edge
 					cur_final_posi[0] = det_lft;
+					pr_frc(dbg_bbd + 0, "\nLftCase2\n");
 				}
 				caption[0] = 0;
 				caption_change[0] = 0;
@@ -1127,6 +1190,7 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 						cur_final_posi[0] = edge_posi[0];
 						caption[0] = 1;
 						caption_change[0] = 0;
+						pr_frc(dbg_bbd + 0, "\nLftCase3\n");
 					} else {
 						if ((search_final_line_para->pre_motion_posi[0] >
 						     motion_posi[0] +
@@ -1137,10 +1201,12 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 							cur_final_posi[0] = edge_posi[0];
 							caption[0] = 1;
 							caption_change[0] = 1;
+							pr_frc(dbg_bbd + 0, "\nLftCase4\n");
 						} else {
 							cur_final_posi[0] = tmp_final_posi[0];
 							caption[0] = 0;
 							caption_change[0] = 0;
+							pr_frc(dbg_bbd + 0, "\nLftCase5\n");
 						}
 					}
 				} else {
@@ -1149,18 +1215,19 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 							MIN(edge_posi[0], tmp_final_posi[0]);
 						caption[0] = 1;
 						caption_change[0] = 0;
+						pr_frc(dbg_bbd + 0, "\nLftCase6\n");
 					} else {
 						cnt_max = MAX(MIN(det_lft +
 								  lft_rit_motion_edge_line_num / 2 - 1,
-								  motion_posi[0]) -
-								  lft_rit_motion_edge_delta,
+								  motion_posi[0]),
 								  det_lft);
 
-						if (g_stbbd_rd->lft_edge_posi1 < cnt_max &&
+						if ((ABS(g_stbbd_rd->lft_edge_posi1 - cnt_max) <= lft_rit_motion_edge_delta) &&
 						    g_stbbd_rd->lft_edge_posi_valid1) {
 							cur_final_posi[0] = g_stbbd_rd->lft_edge_posi1;
 							caption[0] = 1;
 							caption_change[0] = 0;
+							pr_frc(dbg_bbd + 0, "\nLftCase7\n");
 						} else {
 							if (search_final_line_para->pre_motion_posi[0] < edge_posi[0]) {
 								if (sel2_mode[0] == 1)
@@ -1170,21 +1237,25 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 
 								caption[0] = 0;
 								caption_change[0] = 0;
+								pr_frc(dbg_bbd + 0, "\nLftCase8\n");
 							} else if ((search_final_line_para->pre_motion_posi[0] > motion_posi[0] + lft_rit_caption_motion_delta) && !
 								   (search_final_line_para->caption[0] == 1 && search_final_line_para->caption_change[0] == 1)) {
 								if (search_final_line_para->lft_rit_pre_motion_cur_motion_choose_edge_mode == 0) {
 									cur_final_posi[0] = edge_posi[0];
 									caption[0] = 1;
 									caption_change[0] = 1;
+									pr_frc(dbg_bbd + 0, "\nLftCase9\n");
 								} else if (search_final_line_para->lft_rit_pre_motion_cur_motion_choose_edge_mode == 1) {
 									cur_final_posi[0] = tmp_final_posi[0];
 									caption[0] = 0;
 									caption_change[0] = 0;
+									pr_frc(dbg_bbd + 0, "\nLftCase10\n");
 								}
 							} else {
 								cur_final_posi[0] = tmp_final_posi[0];
 								caption[0] = 0;
 								caption_change[0] = 0;
+								pr_frc(dbg_bbd + 0, "\nLftCase11\n");
 							}
 						}
 					}
@@ -1326,6 +1397,7 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 				cur_final_posi[2] = edge_posi[2];
 				caption[2] = 0;
 				caption_change[2] = 0;
+				pr_frc(dbg_bbd + 0, "\nRitCase0\n");
 			} else if (tmp_final_posi[2] < edge_posi[2]) { // tmp < edge;
 				// motion > edge
 				if (motion_posi[2] < edge_posi[2]) {
@@ -1335,8 +1407,10 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 					} else {// edge != det rit
 						cur_final_posi[2] = edge_posi[2];
 					}
+					pr_frc(dbg_bbd + 0, "\nRitCase1\n");
 				} else {// motion <= edge
 					cur_final_posi[2] = det_rit;
+					pr_frc(dbg_bbd + 0, "\nRitCase2\n");
 				}
 				caption[2] = 0;
 				caption_change[2] = 0;
@@ -1348,6 +1422,7 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 						cur_final_posi[2] = edge_posi[2];
 						caption[2] = 1;
 						caption_change[2] = 0;
+						pr_frc(dbg_bbd + 0, "\nRitCase3\n");
 					} else {
 						if ((search_final_line_para->pre_motion_posi[2] <
 						     motion_posi[2] -
@@ -1358,10 +1433,12 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 							cur_final_posi[2] = edge_posi[2];
 							caption[2] = 1;
 							caption_change[2] = 1;
+							pr_frc(dbg_bbd + 0, "\nRitCase4\n");
 						} else {
 							cur_final_posi[2] = tmp_final_posi[2];
 							caption[2] = 0;
 							caption_change[2] = 0;
+							pr_frc(dbg_bbd + 0, "\nRitCase5\n");
 						}
 					}
 				} else {
@@ -1370,14 +1447,15 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 							MAX(edge_posi[2], tmp_final_posi[2]);
 						caption[2] = 1;
 						caption_change[2] = 0;
+						pr_frc(dbg_bbd + 0, "\nRitCase6\n");
 					} else {
-						cnt_max = MIN(MAX(det_rit + 1 - lft_rit_motion_edge_line_num / 2, motion_posi[2]) +
-							      lft_rit_motion_edge_delta, det_rit);
+						cnt_max = MIN(MAX(det_rit + 1 - lft_rit_motion_edge_line_num / 2, motion_posi[2]), det_rit);
 
-						if (g_stbbd_rd->rit_edge_posi1 > cnt_max && g_stbbd_rd->rit_edge_posi_valid1) {
+						if ((ABS(g_stbbd_rd->rit_edge_posi1 - cnt_max) <= lft_rit_motion_edge_delta) && g_stbbd_rd->rit_edge_posi_valid1) {
 							cur_final_posi[2] = g_stbbd_rd->rit_edge_posi1;
 							caption[2] = 1;
 							caption_change[2] = 0;
+							pr_frc(dbg_bbd + 0, "\nRitCase7\n");
 						} else {
 							if (search_final_line_para->pre_motion_posi[2] > edge_posi[2]) {
 								if (sel2_mode[2] == 1)
@@ -1387,22 +1465,27 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 
 								caption[2] = 0;
 								caption_change[2] = 0;
+								pr_frc(dbg_bbd + 0, "\nRitCase8\n");
 							} else if ((search_final_line_para->pre_motion_posi[2] < motion_posi[2] - lft_rit_caption_motion_delta) && !
 								   (search_final_line_para->caption[2] == 1 && search_final_line_para->caption_change[2] == 1)) {
 								if (search_final_line_para->lft_rit_pre_motion_cur_motion_choose_edge_mode == 0) {
 									cur_final_posi[2] = edge_posi[2];
 									caption[2] = 1;
 									caption_change[2] = 1;
+									pr_frc(dbg_bbd + 0, "\nRitCase9\n");
 								} else if (search_final_line_para->lft_rit_pre_motion_cur_motion_choose_edge_mode == 1) {
 									cur_final_posi[2] = tmp_final_posi[2];
 									caption[2] = 0;
 									caption_change[2] = 0;
+									pr_frc(dbg_bbd + 0, "\nRitCase10\n");
 								}
 							} else {
 								cur_final_posi[2] =
 									tmp_final_posi[2];
 								caption[2] = 0;
 								caption_change[2] = 0;
+								pr_frc(dbg_bbd + 0,
+									"\nRitCase11\n");
 							}
 						}
 					}
@@ -1703,16 +1786,14 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 		UPDATE_FRC_REG_BITS(FRC_REG_BLACKBAR_XYXY_ME_ED, blackbar_xyxy_me[3], 0x0000FFFF);
 
 		// for down sample img
-		if ((g_stfrc_rd->input_fid % 2) == 1) {
-			ds_xyxy[0]   = (search_final_line_para->ds_xyxy_force == 1) ?
-					det_lft : tmp_final_posi_new[0];   //  lft
-			ds_xyxy[1]   = (search_final_line_para->ds_xyxy_force == 1) ?
-					det_top : tmp_final_posi_new[1];   //  top
-			ds_xyxy[2]   = (search_final_line_para->ds_xyxy_force == 1) ?
-					det_rit : tmp_final_posi_new[2];   //  rit
-			ds_xyxy[3]   = (search_final_line_para->ds_xyxy_force == 1) ?
-					det_bot : tmp_final_posi_new[3];   //  bot
-		}
+		ds_xyxy[0]   = (search_final_line_para->ds_xyxy_force == 1) ?
+				det_lft : tmp_final_posi_new[0];   //  lft
+		ds_xyxy[1]   = (search_final_line_para->ds_xyxy_force == 1) ?
+				det_top : tmp_final_posi_new[1];   //  top
+		ds_xyxy[2]   = (search_final_line_para->ds_xyxy_force == 1) ?
+				det_rit : tmp_final_posi_new[2];   //  rit
+		ds_xyxy[3]   = (search_final_line_para->ds_xyxy_force == 1) ?
+				det_bot : tmp_final_posi_new[3];   //  bot
 
 		UPDATE_FRC_REG_BITS(FRC_REG_DS_WIN_SETTING_LFT_TOP, ds_xyxy[0] << 16, 0xFFFF0000);
 		UPDATE_FRC_REG_BITS(FRC_REG_DS_WIN_SETTING_LFT_TOP, ds_xyxy[1],	  0x0000FFFF);
@@ -2147,6 +2228,9 @@ void frc_bbd_ctrl(struct frc_dev_s *frc_devp)
 
 	fw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	search_final_line_para = &fw_data->search_final_line_para;
+
+	if (fw_data->search_final_line_para.bbd_en == 0)
+		return;
 
 	frc_bbd_choose_final_line(frc_devp);
 	frc_bbd_window_ctrl();

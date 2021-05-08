@@ -225,10 +225,10 @@ void set_vp_region_boundary(void)
 {
 	u16 blk_bb_vp[4], xstep, ystep;
 
-	blk_bb_vp[0] = READ_FRC_REG(FRC_VP_BB_1) >> 16 & 0xFFFF;
-	blk_bb_vp[1] = READ_FRC_REG(FRC_VP_BB_1)     & 0xFFFF;
-	blk_bb_vp[2] = READ_FRC_REG(FRC_VP_BB_2) >> 16 & 0xFFFF;
-	blk_bb_vp[3] = READ_FRC_REG(FRC_VP_BB_2)     & 0xFFFF;
+	blk_bb_vp[0] = READ_FRC_REG(FRC_VP_BB_1)     & 0xFFFF;
+	blk_bb_vp[1] = READ_FRC_REG(FRC_VP_BB_1) >> 16 & 0xFFFF;
+	blk_bb_vp[2] = READ_FRC_REG(FRC_VP_BB_2)     & 0xFFFF;
+	blk_bb_vp[3] = READ_FRC_REG(FRC_VP_BB_2) >> 16 & 0xFFFF;
 
 	xstep = (blk_bb_vp[2] - blk_bb_vp[0]) / 4;
 	ystep = (blk_bb_vp[3] - blk_bb_vp[1]) / 3;

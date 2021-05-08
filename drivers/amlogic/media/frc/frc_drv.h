@@ -24,7 +24,7 @@
 #include "frc_common.h"
 #include "frc_interface.h"
 
-#define FRC_FW_VER			"t3 driver bringup 2021-0506 hdmi sw display issue"
+#define FRC_FW_VER			"t3 driver bringup 2021-0508 update fw from svn 596"
 
 #define PR_ERR(fmt, args ...)		pr_info("frc_Err: " fmt, ##args)
 #define PR_FRC(fmt, args ...)		pr_info("frc: " fmt, ##args)
@@ -173,6 +173,7 @@ struct st_frc_sts {
 	u32 frame_cnt;
 	u32 vs_cnt;
 	u32 re_cfg_cnt;
+	u32 out_put_mode_changed;
 };
 
 struct st_frc_in_sts {

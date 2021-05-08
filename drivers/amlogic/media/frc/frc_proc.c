@@ -195,8 +195,7 @@ void frc_input_tasklet_pro(unsigned long arg)
 	if (!devp->frc_fw_pause) {
 		frc_scene_detect_input(devp);
 		frc_film_detect_ctrl(devp);
-		if (fw_data->search_final_line_para.bbd_en == 1)
-			frc_bbd_ctrl(devp);
+		frc_bbd_ctrl(devp);
 		frc_iplogo_ctrl(devp);
 	}
 }
@@ -239,7 +238,8 @@ void frc_output_tasklet_pro(unsigned long arg)
 		if (fw_data->g_stvpctrl_para.vp_en == 1)
 			frc_vp_ctrl(devp);
 		frc_mc_ctrl(devp);
-		//frc_melogo_ctrl(devp);
+		if (fw_data->g_stiplogoctrl_para.logo_en == 1)
+			frc_melogo_ctrl(devp);
 	}
 }
 
@@ -326,6 +326,14 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 		sts_change |= FRC_EVENT_VF_CHG_IN_SIZE;
 	}
 	devp->in_sts.in_vsize = cur_in_sts->in_vsize;
+
+	if (devp->frc_sts.out_put_mode_changed) {
+		pr_frc(1, "out_put_mode_changed 0x%x\n", devp->frc_sts.out_put_mode_changed);
+		devp->frc_sts.re_cfg_cnt = frc_re_cfg_cnt;
+		sts_change |= FRC_EVENT_VOUT_CHG;
+		devp->frc_sts.out_put_mode_changed = 0;
+	}
+
 	/* check is same vframe */
 	pr_frc(dbg_sts, "vf (0x%lx, 0x%lx)\n", (ulong)devp->in_sts.vf, (ulong)cur_in_sts->vf);
 	if (devp->in_sts.vf == cur_in_sts->vf && cur_in_sts->vf_sts)
@@ -425,9 +433,6 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	frc_event = frc_input_sts_check(devp, &cur_in_sts);
 	if (frc_event)
 		pr_frc(1, "event = 0x%08x\n", frc_event);
-	/*need disable and bypass frc*/
-	//if (no_input && devp->dbg_force_en == FRC_STATE_DISABLE)
-	//	frc_change_to_state(FRC_STATE_BYPASS);
 }
 
 void frc_state_change_finish(struct frc_dev_s *devp)

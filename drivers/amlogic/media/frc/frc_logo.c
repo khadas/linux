@@ -56,6 +56,7 @@ void frc_logo_param_init(struct frc_dev_s *frc_devp)
 	g_stiplogoctrl_para->xsize				   = input_hsize;
 	// mc image ysize, depend on the input image ysize
 	g_stiplogoctrl_para->ysize				   = input_vsize;
+	g_stiplogoctrl_para->logo_en				= 1;
 	// u1, dft=0,0:not use me_gmv_invalid check
 	g_stiplogoctrl_para->gmv_invalid_check_en		   = 0;
 	// u1, enable gmv ctrl corr clr method
@@ -222,6 +223,9 @@ void frc_iplogo_ctrl(struct frc_dev_s *frc_devp)
 	g_stiplogoctrl_item = &frc_data->g_stiplogoctrl_item;
 	g_stiplogoctrl_para = &frc_data->g_stiplogoctrl_para;
 	g_stme_rd = &frc_data->g_stme_rd;
+
+	if (g_stiplogoctrl_para->logo_en == 0)
+		return;
 
 	u8      i;
 	// me image size

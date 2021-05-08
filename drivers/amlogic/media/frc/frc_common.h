@@ -77,6 +77,7 @@ enum efrc_event {
 	FRC_EVENT_VF_CHG_TO_HAVE	= 0x00000002,
 	FRC_EVENT_VF_IS_GAME		= 0x00000004,
 	FRC_EVENT_VF_CHG_IN_SIZE	= 0x00000008,
+	FRC_EVENT_VOUT_CHG		= 0x00000010,
 };
 
 enum eFRC_POS {
@@ -595,6 +596,7 @@ struct st_iplogo_ctrl_item {
 struct st_iplogo_ctrl_para {
 	u16 xsize;
 	u16 ysize;                            // mc image size
+	u8 logo_en;							//u1, dft=1, 0 disable
 	u8 gmv_invalid_check_en;             // u1, dft=0,0:not use me_gmv_invalid check
 	u8 gmv_ctrl_corr_clr_en;             // u1, enable gmv ctrl corr clr method
 	// u11,threshold of gmv for gmv ctrl corr clr method

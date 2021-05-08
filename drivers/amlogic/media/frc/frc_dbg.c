@@ -662,6 +662,7 @@ ssize_t frc_iplogo_ctrl_param_show(struct class *class,
 	len += sprintf(buf + len, "st_iplogo_ctrl_para info:\n");
 	len += sprintf(buf + len, "xsize=%d\n", param->xsize);
 	len += sprintf(buf + len, "ysize=%d\n", param->ysize);
+	len += sprintf(buf + len, "logo_en=%d\n", param->logo_en);
 	len += sprintf(buf + len, "gmv_invalid_check_en=%d\n", param->gmv_invalid_check_en);
 	len += sprintf(buf + len, "gmv_ctrl_corr_clr_en=%d\n", param->gmv_ctrl_corr_clr_en);
 	len += sprintf(buf + len, "gmv_ctrl_corr_clr_th=%d\n", param->gmv_ctrl_corr_clr_th);
@@ -708,6 +709,8 @@ ssize_t frc_iplogo_ctrl_param_store(struct class *class,
 		param->xsize = value;
 	else if (!strcmp(parm[0], "ysize"))
 		param->ysize = value;
+	else if (!strcmp(parm[0], "logo_en"))
+		param->logo_en = value;
 	else if (!strcmp(parm[0], "gmv_invalid_check_en"))
 		param->gmv_invalid_check_en = value;
 	else if (!strcmp(parm[0], "gmv_ctrl_corr_clr_en"))
