@@ -15,8 +15,7 @@
 #include "meson_drv.h"
 
 struct am_drm_cvbs_s {
-	struct drm_device *drm;
-	struct drm_connector connector;
+	struct meson_connector base;
 	struct drm_encoder encoder;
 };
 

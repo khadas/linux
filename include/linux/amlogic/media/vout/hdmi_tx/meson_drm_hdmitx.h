@@ -12,18 +12,28 @@
  */
 
 /*drm hpd*/
-typedef void (*drm_hpd_cb)(void *data);
+struct drm_hdmitx_hpd_cb {
+	void (*callback)(void *data);
+	void *data;
+};
 
-int drm_hdmitx_register_hpd_cb(drm_hpd_cb cb, void *data);
+int drm_hdmitx_register_hpd_cb(struct drm_hdmitx_hpd_cb *hpd_cb);
+
+struct drm_hdmitx_hdcp_cb {
+	void (*callback)(void *data, int auth);
+	void *data;
+};
+
+int drm_hdmitx_register_hdcp_cb(struct drm_hdmitx_hdcp_cb *hdcp_cb);
+
 int drm_hdmitx_detect_hpd(void);
-
 unsigned char *drm_hdmitx_get_raw_edid(void);
 int drm_hdmitx_get_vic_list(int **vics);
-
 int drm_hdmitx_get_hdcp_cap(void);
 unsigned int drm_get_rx_hdcp_cap(void);
 int drm_hdmitx_hdcp_enable(unsigned int content_type);
 int drm_hdmitx_hdcp_disable(unsigned int content_type);
+
 int drm_get_hdcp_auth_sts(void);
 void drm_hdmitx_hdcp22_init(void);
 void drm_hdmitx_avmute(unsigned char mute);

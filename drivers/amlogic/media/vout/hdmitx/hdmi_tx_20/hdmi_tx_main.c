@@ -5646,8 +5646,8 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	hdmitx_notify_hpd(hdev->hpd_state);
 
 	/*notify to drm hdmi*/
-	if (hdmitx_device.drm_cb)
-		hdmitx_device.drm_cb(hdmitx_device.drm_data);
+	if (hdmitx_device.drm_hpd_cb.callback)
+		hdmitx_device.drm_hpd_cb.callback(hdmitx_device.drm_hpd_cb.data);
 
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, 1);
 	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 1);
@@ -5716,8 +5716,8 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		hdmitx_notify_hpd(hdev->hpd_state);
 		hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
 		/*notify to drm hdmi*/
-		if (hdmitx_device.drm_cb)
-			hdmitx_device.drm_cb(hdmitx_device.drm_data);
+		if (hdmitx_device.drm_hpd_cb.callback)
+			hdmitx_device.drm_hpd_cb.callback(hdmitx_device.drm_hpd_cb.data);
 
 		hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
 		hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
@@ -5747,8 +5747,8 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx_notify_hpd(hdev->hpd_state);
 
 	/*notify to drm hdmi*/
-	if (hdmitx_device.drm_cb)
-		hdmitx_device.drm_cb(hdmitx_device.drm_data);
+	if (hdmitx_device.drm_hpd_cb.callback)
+		hdmitx_device.drm_hpd_cb.callback(hdmitx_device.drm_hpd_cb.data);
 
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
 	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
@@ -6033,6 +6033,9 @@ void hdmitx_event_notify(unsigned long state, void *arg)
 void hdmitx_hdcp_status(int hdmi_authenticated)
 {
 	hdmitx_set_uevent(HDMITX_HDCP_EVENT, hdmi_authenticated);
+	if (hdmitx_device.drm_hdcp_cb.callback)
+		hdmitx_device.drm_hdcp_cb.callback(hdmitx_device.drm_hdcp_cb.data,
+			hdmi_authenticated);
 }
 
 static void hdmitx_init_parameters(struct hdmitx_info *info)
@@ -6170,8 +6173,10 @@ static void amhdmitx_get_drm_info(void)
 		}
 	} else {
 		hdmitx_device.drm_feature = 0;
-		hdmitx_device.drm_cb = 0;
-		hdmitx_device.drm_data = 0;
+		hdmitx_device.drm_hpd_cb.callback = 0;
+		hdmitx_device.drm_hpd_cb.data = 0;
+		hdmitx_device.drm_hdcp_cb.callback = 0;
+		hdmitx_device.drm_hdcp_cb.data = 0;
 		pr_info("drm_feature skip.");
 	}
 }
@@ -6967,11 +6972,11 @@ int drm_hdmitx_detect_hpd(void)
 }
 EXPORT_SYMBOL(drm_hdmitx_detect_hpd);
 
-int drm_hdmitx_register_hpd_cb(drm_hpd_cb cb, void *data)
+int drm_hdmitx_register_hpd_cb(struct drm_hdmitx_hpd_cb *hpd_cb)
 {
 	mutex_lock(&setclk_mutex);
-	hdmitx_device.drm_cb = cb;
-	hdmitx_device.drm_data = data;
+	hdmitx_device.drm_hpd_cb.callback = hpd_cb->callback;
+	hdmitx_device.drm_hpd_cb.data = hpd_cb->data;
 	mutex_unlock(&setclk_mutex);
 	return 0;
 }
@@ -7026,6 +7031,16 @@ unsigned char *drm_hdmitx_get_raw_edid(void)
 		return hdmitx_device.EDID_buf;
 }
 EXPORT_SYMBOL(drm_hdmitx_get_raw_edid);
+
+int drm_hdmitx_register_hdcp_cb(struct drm_hdmitx_hdcp_cb *hdcp_cb)
+{
+	mutex_lock(&setclk_mutex);
+	hdmitx_device.drm_hdcp_cb.callback = hdcp_cb->callback;
+	hdmitx_device.drm_hdcp_cb.data = hdcp_cb->data;
+	mutex_unlock(&setclk_mutex);
+	return 0;
+}
+EXPORT_SYMBOL(drm_hdmitx_register_hdcp_cb);
 
 /* bit[1]: hdcp22, bit[0]: hdcp14 */
 int drm_hdmitx_get_hdcp_cap(void)

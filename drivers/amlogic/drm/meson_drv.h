@@ -44,6 +44,15 @@ struct meson_drm_thread {
 	unsigned int crtc_id;
 };
 
+struct meson_connector {
+	struct drm_connector connector;
+	struct meson_drm *drm_priv;
+	void (*update)(struct drm_connector_state *new_state,
+		struct drm_connector_state *old_state);
+};
+
+#define connector_to_meson_connector(x) container_of(x, struct meson_connector, connector)
+
 struct meson_drm {
 	struct device *dev;
 
@@ -86,9 +95,13 @@ int am_meson_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct meson_crtc_funcs *crtc_funcs);
 void am_meson_unregister_crtc_funcs(struct drm_crtc *crtc);
 struct drm_connector *am_meson_hdmi_connector(void);
+
+/*meson mode config atomic func*/
 int meson_atomic_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
 			     bool nonblock);
+void meson_atomic_helper_commit_tail(struct drm_atomic_state *old_state);
+/*******************************/
 
 #ifdef CONFIG_DEBUG_FS
 int meson_debugfs_init(struct drm_minor *minor);

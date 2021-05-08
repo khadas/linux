@@ -76,7 +76,7 @@ char *am_cvbs_get_voutmode(struct drm_display_mode *mode)
 
 static inline struct am_drm_cvbs_s *con_to_cvbs(struct drm_connector *con)
 {
-	return container_of(con, struct am_drm_cvbs_s, connector);
+	return container_of(connector_to_meson_connector(con), struct am_drm_cvbs_s, base);
 }
 
 static inline struct am_drm_cvbs_s *encoder_to_cvbs(struct drm_encoder *encoder)
@@ -145,46 +145,6 @@ static enum drm_connector_status am_cvbs_connector_detect
 	return connector_status_connected;
 }
 
-static int am_cvbs_connector_set_property(struct drm_connector *connector,
-					  struct drm_property *property,
-					  uint64_t val)
-{
-	struct am_drm_cvbs_s *am_drm_cvbs = con_to_cvbs(connector);
-	struct drm_connector_state *state = am_drm_cvbs->connector.state;
-	struct drm_mode_config *config = &connector->dev->mode_config;
-
-	if (property == config->content_protection_property) {
-		DRM_INFO("property:%s       val: %lld\n", property->name, val);
-		/* For none atomic commit */
-		/* atomic will be filter on drm_moder_object.c */
-		if (val == DRM_MODE_CONTENT_PROTECTION_ENABLED) {
-			DRM_DEBUG_KMS("only drivers can set CP Enabled\n");
-			return -EINVAL;
-		}
-		state->content_protection = val;
-	}
-	/*other parperty todo*/
-	return 0;
-}
-
-static int am_cvbs_connector_atomic_get_property
-	(struct drm_connector *connector,
-	const struct drm_connector_state *state,
-	struct drm_property *property, uint64_t *val)
-{
-	struct drm_mode_config *config = &connector->dev->mode_config;
-
-	if (property == config->content_protection_property) {
-		DRM_INFO("get content_protection val: %d\n",
-			 state->content_protection);
-		*val = state->content_protection;
-	} else {
-		DRM_DEBUG_ATOMIC("Unknown property %s\n", property->name);
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static void am_cvbs_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
@@ -194,8 +154,6 @@ static void am_cvbs_connector_destroy(struct drm_connector *connector)
 static const struct drm_connector_funcs am_cvbs_connector_funcs = {
 	.detect			= am_cvbs_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
-	.set_property		= am_cvbs_connector_set_property,
-	.atomic_get_property	= am_cvbs_connector_atomic_get_property,
 	.destroy		= am_cvbs_connector_destroy,
 	.reset			= drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state	= drm_atomic_helper_connector_duplicate_state,
@@ -225,10 +183,6 @@ void am_cvbs_encoder_enable(struct drm_encoder *encoder,
 void am_cvbs_encoder_disable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
-	struct am_drm_cvbs_s *am_drm_cvbs = encoder_to_cvbs(encoder);
-	struct drm_connector_state *con_state = am_drm_cvbs->connector.state;
-
-	con_state->content_protection = DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
 }
 
 static const struct drm_encoder_helper_funcs am_cvbs_encoder_helper_funcs = {
@@ -263,9 +217,8 @@ static int am_meson_cvbs_bind(struct device *dev,
 		return -ENOMEM;
 	}
 
-	am_drm_cvbs->drm = drm;
 	encoder = &am_drm_cvbs->encoder;
-	connector = &am_drm_cvbs->connector;
+	connector = &am_drm_cvbs->base.connector;
 
 	/* Encoder */
 	drm_encoder_helper_add(encoder, &am_cvbs_encoder_helper_funcs);
@@ -310,7 +263,7 @@ cvbs_err:
 static void am_meson_cvbs_unbind(struct device *dev,
 				 struct device *master, void *data)
 {
-	am_drm_cvbs->connector.funcs->destroy(&am_drm_cvbs->connector);
+	am_drm_cvbs->base.connector.funcs->destroy(&am_drm_cvbs->base.connector);
 	am_drm_cvbs->encoder.funcs->destroy(&am_drm_cvbs->encoder);
 	kfree(am_drm_cvbs);
 }

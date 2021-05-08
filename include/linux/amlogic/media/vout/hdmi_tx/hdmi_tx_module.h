@@ -482,14 +482,15 @@ struct hdmitx_dev {
 	unsigned int vend_id_hit:1;
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
 
-	/*DRM related*/
-	unsigned int drm_feature;/*force 0 now.*/
-	drm_hpd_cb drm_cb;
-	void *drm_data;
 	bool systemcontrol_on;
 	unsigned char vid_mute_op;
 	unsigned int hdcp_ctl_lvl;
 	spinlock_t edid_spinlock; /* edid hdr/dv cap lock */
+
+	/*DRM related*/
+	unsigned int drm_feature;/*force 0 now.*/
+	struct drm_hdmitx_hpd_cb drm_hpd_cb;
+	struct drm_hdmitx_hdcp_cb drm_hdcp_cb;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
