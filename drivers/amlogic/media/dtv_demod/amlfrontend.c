@@ -2399,6 +2399,18 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 	PR_DVBT("snr*10 = %d, snr_min_x10dB=%d, L1 POST:%d,LDPC:%d\n",
 			snr * 10, snr_min_x10db, l1_post_decoded, ldpc);
 
+	/* reset demod after ts unlock more than 2s */
+	if (*status != 0x1f)  {
+		if (cnt == 17) {
+			dvbt2_reset(demod);
+			cnt = 0;
+			PR_INFO("rst demod due to ts unlock more than 2s\n");
+		}
+	} else {
+		cnt = 0;
+	}
+
+	cnt++;
 	return 0;
 }
 
