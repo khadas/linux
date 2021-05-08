@@ -6,21 +6,30 @@
 #ifndef __MESON_HDCP_H__
 #define __MESON_HDCP_H__
 
-#define HDCP_MODE14    1
-#define HDCP_MODE22    2
-#define HDCP_NULL      0
 
 enum {
-	HDCP_TX22_DISCONNECT,
-	HDCP_TX22_START,
-	HDCP_TX22_STOP
+	HDCP_NULL = 0,
+	HDCP_MODE14 = 1 << 0,
+	HDCP_MODE22 = 1 << 1,
 };
 
-void am_hdcp_disable(struct am_hdmi_tx *am_hdmi);
-void am_hdcp_enable(struct am_hdmi_tx *am_hdmi);
-void am_hdcp_disconnect(struct am_hdmi_tx *am_hdmi);
+enum {
+	HDCP_AUTH_FAIL = 0,
+	HDCP_AUTH_OK = 1,
+	HDCP_AUTH_UNKNOWN = 0xff,
+};
 
-void hdcp_comm_init(struct am_hdmi_tx *am_hdmi);
-void hdcp_comm_exit(struct am_hdmi_tx *am_hdmi);
+typedef void (*hdcp_notify)(int type, int auth_result);
+
+void meson_hdcp_init(void);
+void meson_hdcp_exit(void);
+
+void meson_hdcp_enable(int hdcp_type);
+void meson_hdcp_disable(void);
+void meson_hdcp_disconnect(void);
+
+unsigned int meson_hdcp_get_key_version(void);
+int meson_hdcp_get_valid_type(int request_type_mask);
+void meson_hdcp_reg_result_notify(hdcp_notify cb);
 
 #endif

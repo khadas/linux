@@ -71,6 +71,10 @@ static const struct drm_mode_config_funcs meson_mode_config_funcs = {
 #endif
 };
 
+static const struct drm_mode_config_helper_funcs meson_mode_config_helpers = {
+	.atomic_commit_tail = meson_atomic_helper_commit_tail,
+};
+
 int am_meson_register_crtc_funcs(struct drm_crtc *crtc,
 				 const struct meson_crtc_funcs *crtc_funcs)
 {
@@ -108,9 +112,8 @@ static void am_meson_disable_vblank(struct drm_device *dev, unsigned int crtc)
 }
 
 static u32 am_meson_get_vblank_counter(struct drm_device *dev,
-				       unsigned int pipe)
+	unsigned int pipe)
 {
-	/*to do*/
 	return 0;
 }
 
@@ -621,6 +624,7 @@ static int am_meson_drm_bind(struct device *dev)
 	drm->mode_config.max_width = 4096;
 	drm->mode_config.max_height = 4096;
 	drm->mode_config.funcs = &meson_mode_config_funcs;
+	drm->mode_config.helper_private	= &meson_mode_config_helpers;
 	drm->mode_config.allow_fb_modifiers = true;
 
 	/* Try to bind all sub drivers. */

@@ -9,6 +9,7 @@
 #include "meson_drv.h"
 #include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
+#include <linux/amlogic/media/vout/hdmi_tx/meson_drm_hdmitx.h>
 
 #define DDC_SEGMENT_ADDR   0x30
 #define VIC_MAX_NUM        512
@@ -42,51 +43,42 @@
 #define MODE_4K2KSMPTE50HZ              "smpte50hz"
 #define MODE_4K2KSMPTE60HZ              "smpte60hz"
 
-struct am_hdmi_data {
-	unsigned int vic;
-	u8 sink_is_hdmi;
-	u8 sink_has_audio;
-	unsigned int colorimetry;
-	unsigned int  cd; /* cd8, cd10 or cd12 */
-	unsigned int  cs; /* rgb, y444, y422, y420 */
-	unsigned int  cr; /* limit, full */
-	struct hdmi_pwr_ctl *pwr_ctl;
-	unsigned int aud_output_ch;
-	unsigned int tx_aud_cfg; /* 0, off; 1, on */
-	unsigned int tmds_clk_div40;
-	unsigned int VIC[VIC_MAX_NUM];
+enum {
+	HDCP_STATE_START = 0,
+	HDCP_STATE_SUCCESS,
+	HDCP_STATE_FAIL,
+	HDCP_STATE_STOP,
+	HDCP_STATE_DISCONNECT,
 };
 
 struct am_hdmi_tx {
-	struct device *dev;
+	struct meson_connector base;
 	struct drm_encoder encoder;
-	struct drm_connector connector;
-	struct meson_drm *priv;
-	int irq;
+
 	unsigned int input_color_format;
 	unsigned int output_color_format;
 	enum hdmi_color_depth color_depth;
 	enum hdmi_color_space color_space;
 	struct drm_property *color_depth_property;
 	struct drm_property *color_space_property;
-	struct drm_display_mode previous_mode;
-	struct am_hdmi_data hdmi_info;
 
-	unsigned int hpd_flag;/*0:none   1:up    2:down*/
-	unsigned int hdcp_tx_type;/*bit0:hdcp14 bit 1:hdcp22*/
-	unsigned int hdcp_downstream_type;/*bit0:hdcp14 bit 1:hdcp22*/
-	unsigned int hdcp_user_type;/*0: null hdcp 1: hdcp14 2: hdcp22*/
-	unsigned int hdcp_execute_type;/*0: null hdcp 1: hdcp14 2: hdcp22*/
+	/*drm request content type.*/
+	int hdcp_request_content_type;
+	int hdcp_request_content_protection;
+	/*current hdcp running mode, HDCP_NULL means hdcp disabled.*/
+	int hdcp_mode;
+	/*hdcp auth result, HDCP_AUTH_UNKNOWN means havenot finished auth.*/
+	int hdcp_state;
+	/*TODO:for check tee loading, should move to meson_hdcp.*/
+	int hdcp_key;
 
-	struct miscdevice hdcp_comm_device;
-	wait_queue_head_t hdcp_comm_queue;
+	/*TODO: android compatible, remove later*/
+	bool android_path;
+
+	/*amlogic property: force hdmitx update
+	 *colorspace/colordepth from sysfs.
+	 */
 	struct drm_property *update_attr_prop;
-	int hdcp_result;
-	int hdcp_report;
-	int hdcp_poll_report;
-	unsigned int hdcp_en;
-	unsigned int hdcp_ctl_lvl;
-	bool bootup_ready;
 };
 
 struct am_hdmitx_connector_state {
@@ -95,6 +87,8 @@ struct am_hdmitx_connector_state {
 };
 
 #define to_am_hdmitx_connector_state(x)	container_of(x, struct am_hdmitx_connector_state, base)
-#define connector_to_am_hdmi(x)	container_of(x, struct am_hdmi_tx, connector)
+#define meson_connector_to_am_hdmi(x)	container_of(x, struct am_hdmi_tx, base)
+#define connector_to_am_hdmi(x) \
+	container_of(connector_to_meson_connector(x), struct am_hdmi_tx, base)
 #define encoder_to_am_hdmi(x)	container_of(x, struct am_hdmi_tx, encoder)
 #endif
