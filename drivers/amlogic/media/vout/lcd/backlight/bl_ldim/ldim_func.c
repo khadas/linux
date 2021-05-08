@@ -389,10 +389,11 @@ static int remap_lut2[16][16] = {};
 static void ld_func_lut_init(struct ld_reg_s *reg)
 {
 	int i, j, k, t;
-	struct aml_bl_drv_s *bl_drv = aml_bl_get_driver();
+	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 
-	switch (bl_drv->data->chip_type) {
-	case BL_CHIP_TM2:
+	switch (bdrv->data->chip_type) {
+	case LCD_CHIP_TM2:
+	case LCD_CHIP_TM2B:
 		for (i = 0; i < 16; i++) {
 			for (j = 0; j < 16; j++)
 				remap_lut2[i][j] = ld_remap_lut[i][j * 2] |
@@ -671,10 +672,11 @@ static void ld_func_cfg_ldreg_tm2(struct ld_reg_s *reg)
 
 void ld_func_cfg_ldreg(struct ld_reg_s *reg)
 {
-	struct aml_bl_drv_s *bl_drv = aml_bl_get_driver();
+	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 
-	switch (bl_drv->data->chip_type) {
-	case BL_CHIP_TM2:
+	switch (bdrv->data->chip_type) {
+	case LCD_CHIP_TM2:
+	case LCD_CHIP_TM2B:
 		ld_func_cfg_ldreg_tm2(reg);
 		break;
 	default:

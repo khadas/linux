@@ -763,7 +763,7 @@ static ssize_t iw7038_show(struct class *class,
 				"cs_clk_delay   = %d\n"
 				"dim_max        = 0x%03x\n"
 				"dim_min        = 0x%03x\n",
-				ldim_drv->conf->dev_index,
+				ldim_drv->dev_index,
 				ldim_drv->ldev_conf->bl_zone_num,
 				ldim_drv->ldev_conf->device_count,
 				iw7038_on_flag, fault_cnt,
@@ -947,8 +947,7 @@ int ldim_dev_iw7038_probe(struct aml_ldim_driver_s *ldim_drv)
 		for (i = 0; i < ARRAY_SIZE(iw7038_class_attrs); i++) {
 			if (class_create_file(dev_class,
 					      &iw7038_class_attrs[i])) {
-				LDIMERR
-				("create ldim_dev class attribute %s fail\n",
+				LDIMERR("create ldim_dev class attribute %s fail\n",
 				 iw7038_class_attrs[i].attr.name);
 			}
 		}

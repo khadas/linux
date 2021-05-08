@@ -17,6 +17,7 @@
 #include <linux/of.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
+#include <linux/amlogic/media/vout/lcd/aml_lcd.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_extern.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
@@ -42,6 +43,48 @@ void lcd_delay_ms(int ms)
 		usleep_range(ms * 1000, ms * 1000 + 1);
 	else if (ms >= 20)
 		msleep(ms);
+}
+
+static struct lcd_i2c_match_s lcd_i2c_match_table[] = {
+	{LCD_EXT_I2C_BUS_0,   "i2c_0"},
+	{LCD_EXT_I2C_BUS_1,   "i2c_1"},
+	{LCD_EXT_I2C_BUS_2,   "i2c_2"},
+	{LCD_EXT_I2C_BUS_3,   "i2c_3"},
+	{LCD_EXT_I2C_BUS_4,   "i2c_4"},
+	{LCD_EXT_I2C_BUS_0,   "i2c_a"},
+	{LCD_EXT_I2C_BUS_1,   "i2c_b"},
+	{LCD_EXT_I2C_BUS_2,   "i2c_c"},
+	{LCD_EXT_I2C_BUS_3,   "i2c_d"},
+	{LCD_EXT_I2C_BUS_4,   "i2c_ao"},
+	{LCD_EXT_I2C_BUS_0,   "i2c_bus_0"},
+	{LCD_EXT_I2C_BUS_1,   "i2c_bus_1"},
+	{LCD_EXT_I2C_BUS_2,   "i2c_bus_2"},
+	{LCD_EXT_I2C_BUS_3,   "i2c_bus_3"},
+	{LCD_EXT_I2C_BUS_4,   "i2c_bus_4"},
+	{LCD_EXT_I2C_BUS_0,   "i2c_bus_a"},
+	{LCD_EXT_I2C_BUS_1,   "i2c_bus_b"},
+	{LCD_EXT_I2C_BUS_2,   "i2c_bus_c"},
+	{LCD_EXT_I2C_BUS_3,   "i2c_bus_d"},
+	{LCD_EXT_I2C_BUS_4,   "i2c_bus_ao"},
+	{LCD_EXT_I2C_BUS_MAX, "invalid"}
+};
+
+unsigned char aml_lcd_i2c_bus_get_str(const char *str)
+{
+	unsigned char i2c_bus = LCD_EXT_I2C_BUS_MAX;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(lcd_i2c_match_table); i++) {
+		if (strcmp(lcd_i2c_match_table[i].bus_str, str) == 0) {
+			i2c_bus = lcd_i2c_match_table[i].bus_id;
+			break;
+		}
+	}
+
+	if (i2c_bus == LCD_EXT_I2C_BUS_MAX)
+		LCDERR("%s: invalid i2c_bus: %s\n", __func__, str);
+
+	return i2c_bus;
 }
 
 /* **********************************
@@ -755,7 +798,7 @@ static int lcd_power_load_from_dts(struct aml_lcd_drv_s *pdrv,
 					lcd_cpu_gpio_probe(pdrv, index);
 				break;
 			case LCD_POWER_TYPE_EXTERN:
-				lcd_extern_index_lut_add(index);
+				lcd_extern_dev_index_add(pdrv->index, index);
 				break;
 			case LCD_POWER_TYPE_CLK_SS:
 				temp = power_step->power_on_step[i].value;
@@ -839,7 +882,7 @@ static int lcd_power_load_from_dts(struct aml_lcd_drv_s *pdrv,
 					lcd_cpu_gpio_probe(pdrv, index);
 				break;
 			case LCD_POWER_TYPE_EXTERN:
-				lcd_extern_index_lut_add(index);
+				lcd_extern_dev_index_add(pdrv->index, index);
 				break;
 			default:
 				break;
@@ -910,7 +953,7 @@ static int lcd_power_load_from_unifykey(struct aml_lcd_drv_s *pdrv,
 				lcd_cpu_gpio_probe(pdrv, index);
 			break;
 		case LCD_POWER_TYPE_EXTERN:
-			lcd_extern_index_lut_add(index);
+			lcd_extern_dev_index_add(pdrv->index, index);
 			break;
 		case LCD_POWER_TYPE_CLK_SS:
 			temp = power_step->power_on_step[i].value;
@@ -969,7 +1012,7 @@ static int lcd_power_load_from_unifykey(struct aml_lcd_drv_s *pdrv,
 				lcd_cpu_gpio_probe(pdrv, index);
 			break;
 		case LCD_POWER_TYPE_EXTERN:
-			lcd_extern_index_lut_add(index);
+			lcd_extern_dev_index_add(pdrv->index, index);
 			break;
 		default:
 			break;
@@ -1364,10 +1407,12 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 #endif
 		ret = of_property_read_u32_array(child, "extern_init",
 						 &para[0], 1);
-		if (ret)
+		if (ret) {
 			LCDPR("[%d]: failed to get extern_init\n", pdrv->index);
-		else
+		} else {
 			pctrl->mipi_cfg.extern_init = para[0];
+			lcd_extern_dev_index_add(pdrv->index, para[0]);
+		}
 #ifdef CONFIG_AML_LCD_TABLET
 		mipi_dsi_config_init(pconf);
 #endif

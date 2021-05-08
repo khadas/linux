@@ -491,13 +491,16 @@ static int iw7027_smr(unsigned short *buf, unsigned char len)
 	dim_max = ldim_drv->ldev_conf->dim_max;
 	dim_min = ldim_drv->ldev_conf->dim_min;
 
-	if (ldim_drv->vsync_change_flag == 50) {
-		iw7027_wreg(bl_iw7027->spi, 0x31, 0xd7);
-		ldim_drv->vsync_change_flag = 0;
-	} else if (ldim_drv->vsync_change_flag == 60) {
-		iw7027_wreg(bl_iw7027->spi, 0x31, 0xd3);
-		ldim_drv->vsync_change_flag = 0;
-	}
+	/* this function will cause backlight flicker */
+	/*if (ldim_drv->vsync_change_flag == 50) {
+	 *	iw7027_wreg(bl_iw7027->spi, 0x31, 0xd7);
+	 *	ldim_drv->vsync_change_flag = 0;
+	 *} else if (ldim_drv->vsync_change_flag == 60) {
+	 *	iw7027_wreg(bl_iw7027->spi, 0x31, 0xd3);
+	 *	ldim_drv->vsync_change_flag = 0;
+	 *}
+	 */
+
 	if (bl_iw7027->test_mode) {
 		if (!test_brightness) {
 			if (vsync_cnt == 0)
@@ -659,8 +662,7 @@ static ssize_t iw7027_store(struct class *class,
 				reg_val = (unsigned char)val2;
 				iw7027_wreg(bl->spi, reg_addr, reg_val);
 				iw7027_rreg(bl->spi, reg_addr, &temp);
-				pr_info
-				("reg 0x%02x = 0x%02x, readback 0x%02x\n",
+				pr_info("reg 0x%02x = 0x%02x, readback 0x%02x\n",
 				 reg_addr, reg_val, temp);
 				mutex_unlock(&iw7027_spi_mutex);
 			} else {

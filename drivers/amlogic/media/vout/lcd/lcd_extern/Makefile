@@ -1,11 +1,3 @@
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN) += vout/lcd/lcd_extern/lcd_extern.o vout/lcd/lcd_extern/ext_default.o vout/lcd/lcd_extern/mipi_default.o vout/lcd/lcd_extern/ext_i2c_dev.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN_I2C_T5800Q) += vout/lcd/lcd_extern/i2c_T5800Q.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN_I2C_ANX6862_7911) += vout/lcd/lcd_extern/i2c_ANX6862_7911.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN_I2C_DLPC3439) += vout/lcd/lcd_extern/i2c_DLPC3439.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN_I2C_CS602) += vout/lcd/lcd_extern/i2c_CS602.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN_SPI_LD070WS2) += vout/lcd/lcd_extern/spi_LD070WS2.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN_MIPI_KD080D13) += vout/lcd/lcd_extern/mipi_KD080D13.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN_MIPI_TV070WSM) += vout/lcd/lcd_extern/mipi_TV070WSM.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN_MIPI_ST7701) += vout/lcd/lcd_extern/mipi_ST7701.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN_MIPI_P070ACB) += vout/lcd/lcd_extern/mipi_P070ACB.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_LCD_EXTERN_MIPI_TL050FHV02CT) += vout/lcd/lcd_extern/mipi_TL050FHV02CT.o

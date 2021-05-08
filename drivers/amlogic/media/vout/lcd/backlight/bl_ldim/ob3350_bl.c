@@ -175,8 +175,7 @@ int ldim_dev_ob3350_probe(struct aml_ldim_driver_s *ldim_drv)
 		for (i = 0; i < ARRAY_SIZE(ob3350_class_attrs); i++) {
 			if (class_create_file(dev_class,
 					      &ob3350_class_attrs[i])) {
-				LDIMERR
-				("create ldim_dev class attribute %s fail\n",
+				LDIMERR("create ldim_dev class attribute %s fail\n",
 				 ob3350_class_attrs[i].attr.name);
 			}
 		}

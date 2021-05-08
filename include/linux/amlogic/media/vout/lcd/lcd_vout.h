@@ -93,10 +93,11 @@ enum lcd_chip_e {
 	LCD_CHIP_TL1,   /* 2 */
 	LCD_CHIP_SM1,	/* 3 */
 	LCD_CHIP_TM2,   /* 4 */
-	LCD_CHIP_T5,    /* 5 */
-	LCD_CHIP_T5D,   /* 6 */
-	LCD_CHIP_T7,    /* 7 */
-	LCD_CHIP_T3,	/* 8 */
+	LCD_CHIP_TM2B,  /* 5 */
+	LCD_CHIP_T5,    /* 6 */
+	LCD_CHIP_T5D,   /* 7 */
+	LCD_CHIP_T7,    /* 8 */
+	LCD_CHIP_T3,	/* 9 */
 	LCD_CHIP_MAX,
 };
 

@@ -1747,11 +1747,12 @@ static void mipi_dsi_link_on(struct aml_lcd_drv_s *pdrv)
 	unsigned int op_mode_init, op_mode_disp, offset;
 	struct dsi_config_s *dconf;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
-	struct aml_lcd_extern_driver_s *lcd_ext;
+	struct lcd_extern_driver_s *edrv;
+	struct lcd_extern_dev_s *edev;
 #endif
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("%s\n", __func__);
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
 	dconf = &pdrv->config.control.mipi_cfg;
 	op_mode_init = dconf->operation_mode_init;
@@ -1760,19 +1761,21 @@ static void mipi_dsi_link_on(struct aml_lcd_drv_s *pdrv)
 
 	if (dconf->dsi_init_on) {
 		dsi_write_cmd(pdrv, dconf->dsi_init_on);
-		LCDPR("dsi init on\n");
+		LCDPR("[%d]: dsi init on\n", pdrv->index);
 	}
 
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 	if (dconf->extern_init < LCD_EXTERN_INDEX_INVALID) {
-		lcd_ext = aml_lcd_extern_get_driver(dconf->extern_init);
-		if (!lcd_ext) {
-			LCDPR("no lcd_extern driver\n");
+		edrv = lcd_extern_get_driver(pdrv->index);
+		edev = lcd_extern_get_dev(edrv, dconf->extern_init);
+		if (!edrv || !edev) {
+			LCDPR("[%d]: no ext_%d dev\n", pdrv->index, dconf->extern_init);
 		} else {
-			if (lcd_ext->config->table_init_on) {
-				dsi_write_cmd(pdrv, lcd_ext->config->table_init_on);
-				LCDPR("[extern]%s dsi init on\n",
-				      lcd_ext->config->name);
+			if (edev->config.table_init_on) {
+				dsi_write_cmd(pdrv, edev->config.table_init_on);
+				LCDPR("[%d]: ext_%d(%s) dsi init on\n",
+				      pdrv->index, dconf->extern_init,
+				      edev->config.name);
 			}
 		}
 	}
@@ -1796,11 +1799,12 @@ void mipi_dsi_link_off(struct aml_lcd_drv_s *pdrv)
 	unsigned int op_mode_init, op_mode_disp;
 	struct dsi_config_s *dconf;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
-	struct aml_lcd_extern_driver_s *lcd_ext;
+	struct lcd_extern_driver_s *edrv;
+	struct lcd_extern_dev_s *edev;
 #endif
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("%s\n", __func__);
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
 	dconf = &pdrv->config.control.mipi_cfg;
 	op_mode_init = dconf->operation_mode_init;
@@ -1818,14 +1822,16 @@ void mipi_dsi_link_off(struct aml_lcd_drv_s *pdrv)
 
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 	if (dconf->extern_init < LCD_EXTERN_INDEX_INVALID) {
-		lcd_ext = aml_lcd_extern_get_driver(dconf->extern_init);
-		if (!lcd_ext) {
-			LCDPR("no lcd_extern driver\n");
+		edrv = lcd_extern_get_driver(pdrv->index);
+		edev = lcd_extern_get_dev(edrv, dconf->extern_init);
+		if (!edrv || !edev) {
+			LCDPR("[%d]: no ext_%d dev\n", pdrv->index, dconf->extern_init);
 		} else {
-			if (lcd_ext->config->table_init_off) {
-				dsi_write_cmd(pdrv, lcd_ext->config->table_init_off);
-				LCDPR("[extern]%s dsi init off\n",
-				      lcd_ext->config->name);
+			if (edev->config.table_init_off) {
+				dsi_write_cmd(pdrv, edev->config.table_init_off);
+				LCDPR("[%d]: ext_%d(%s) dsi init off\n",
+				      pdrv->index, dconf->extern_init,
+				      edev->config.name);
 			}
 		}
 	}
@@ -1833,7 +1839,7 @@ void mipi_dsi_link_off(struct aml_lcd_drv_s *pdrv)
 
 	if (dconf->dsi_init_off) {
 		dsi_write_cmd(pdrv, dconf->dsi_init_off);
-		LCDPR("dsi init off\n");
+		LCDPR("[%d]: dsi init off\n", pdrv->index);
 	}
 }
 

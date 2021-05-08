@@ -180,13 +180,13 @@ int ldim_dev_global_probe(struct aml_ldim_driver_s *ldim_drv)
 
 	global_on_flag = 0;
 	vsync_cnt = 0;
-	global_ldim_driver_update(ldim_drv);
 
 	/* create global class */
 
 	bl_global = kzalloc(sizeof(*bl_global), GFP_KERNEL);
 	if (!bl_global)
 		return -1;
+	global_ldim_driver_update(ldim_drv);
 
 	if (ldim_drv->ldev_conf->dev_class) {
 		dev_class = ldim_drv->ldev_conf->dev_class;

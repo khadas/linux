@@ -359,7 +359,7 @@ static void bl_power_on(struct aml_bl_drv_s *bdrv)
 {
 	struct bl_config_s *bconf = &bdrv->bconf;
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
-	struct aml_bl_extern_driver_s *bl_ext;
+	struct bl_extern_driver_s *bext;
 #endif
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 	struct aml_ldim_driver_s *ldim_drv;
@@ -460,30 +460,26 @@ static void bl_power_on(struct aml_bl_drv_s *bdrv)
 #endif
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
 	case BL_CTRL_EXTERN:
-		bl_ext = aml_bl_extern_get_driver();
-		if (!bl_ext) {
-			BLERR("no bl_extern driver\n");
+		bext = bl_extern_get_driver(bdrv->index);
+		if (!bext) {
+			BLERR("[%d]: no bl_extern driver\n", bdrv->index);
 			goto exit_power_on_bl;
 		}
 		if (bconf->en_sequence_reverse) {
 			/* step 1: power on enable */
 			bl_power_en_ctrl(bdrv, 1);
 			/* step 2: power on bl_extern */
-			if (bl_ext->power_on) {
-				ret = bl_ext->power_on();
+			if (bext->power_on) {
+				ret = bext->power_on(bext);
 				if (ret)
 					BLERR("bl_extern: power on error\n");
-			} else {
-				BLERR("bl_extern: power on is null\n");
 			}
 		} else {
 			/* step 1: power on bl_extern */
-			if (bl_ext->power_on) {
-				ret = bl_ext->power_on();
+			if (bext->power_on) {
+				ret = bext->power_on(bext);
 				if (ret)
 					BLERR("bl_extern: power on error\n");
-			} else {
-				BLERR("bl_extern: power on is null\n");
 			}
 			/* step 2: power on enable */
 			bl_power_en_ctrl(bdrv, 1);
@@ -505,7 +501,7 @@ static void bl_power_off(struct aml_bl_drv_s *bdrv)
 {
 	struct bl_config_s *bconf = &bdrv->bconf;
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
-	struct aml_bl_extern_driver_s *bl_ext;
+	struct bl_extern_driver_s *bext;
 #endif
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 	struct aml_ldim_driver_s *ldim_drv;
@@ -600,19 +596,17 @@ static void bl_power_off(struct aml_bl_drv_s *bdrv)
 #endif
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
 	case BL_CTRL_EXTERN:
-		bl_ext = aml_bl_extern_get_driver();
-		if (!bl_ext) {
-			BLERR("no bl_extern driver\n");
+		bext = bl_extern_get_driver(bdrv->index);
+		if (!bext) {
+			BLERR("[%d]: no bl_extern driver\n", bdrv->index);
 			goto exit_power_off_bl;
 		}
 		if (bconf->en_sequence_reverse == 1) {
 			/* step 1: power off bl_extern */
-			if (bl_ext->power_off) {
-				ret = bl_ext->power_off();
+			if (bext->power_off) {
+				ret = bext->power_off(bext);
 				if (ret)
 					BLERR("bl_extern: power off error\n");
-			} else {
-				BLERR("bl_extern: power off is null\n");
 			}
 			/* step 2: power off enable */
 			bl_power_en_ctrl(bdrv, 0);
@@ -620,12 +614,10 @@ static void bl_power_off(struct aml_bl_drv_s *bdrv)
 			/* step 1: power off enable */
 			bl_power_en_ctrl(bdrv, 0);
 			/* step 2: power off bl_extern */
-			if (bl_ext->power_off) {
-				ret = bl_ext->power_off();
+			if (bext->power_off) {
+				ret = bext->power_off(bext);
 				if (ret)
 					BLERR("bl_extern: power off error\n");
-			} else {
-				BLERR("bl_extern: power off is null\n");
 			}
 		}
 		break;
@@ -636,7 +628,7 @@ static void bl_power_off(struct aml_bl_drv_s *bdrv)
 		break;
 	}
 	if (bconf->power_off_delay > 0)
-		msleep(bconf->power_off_delay);
+		lcd_delay_ms(bconf->power_off_delay);
 
 	bdrv->state &= ~BL_STATE_BL_ON;
 	BLPR("backlight power off\n");
@@ -646,22 +638,23 @@ exit_power_off_bl:
 }
 
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
-static void bl_set_level_extern(unsigned int level)
+static void bl_set_level_extern(struct aml_bl_drv_s *bdrv, unsigned int level)
 {
-	struct aml_bl_extern_driver_s *bl_ext;
+	struct bl_extern_driver_s *bext;
 	int ret;
 
-	bl_ext = aml_bl_extern_get_driver();
-	if (!bl_ext) {
-		BLERR("no bl_extern driver\n");
+	bext = bl_extern_get_driver(bdrv->index);
+	if (!bext) {
+		BLERR("[%d]: no bl_extern driver\n", bdrv->index);
+		return;
+	}
+
+	if (bext->set_level) {
+		ret = bext->set_level(bext, level);
+		if (ret)
+			BLERR("bl_ext: set_level error\n");
 	} else {
-		if (bl_ext->set_level) {
-			ret = bl_ext->set_level(level);
-			if (ret)
-				BLERR("bl_extern: set_level error\n");
-		} else {
-			BLERR("bl_extern: set_level is null\n");
-		}
+		BLERR("bl_ext: set_level is null\n");
 	}
 }
 #endif
@@ -752,7 +745,7 @@ static void aml_bl_set_level(struct aml_bl_drv_s *bdrv, unsigned int level)
 #endif
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
 	case BL_CTRL_EXTERN:
-		bl_set_level_extern(level);
+		bl_set_level_extern(bdrv, level);
 		break;
 #endif
 	default:
@@ -1311,14 +1304,14 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 		}
 
 		/* get bl_extern_index from dts */
-		ret = of_property_read_u32(child, "bl_extern_index",
-					   &para[0]);
+		ret = of_property_read_u32(child, "bl_extern_index", &para[0]);
 		if (ret) {
-			BLERR("failed to get bl_extern_index\n");
+			BLERR("[%d]: failed to get bl_extern_index\n", bdrv->index);
 		} else {
 			bconf->bl_extern_index = para[0];
-			BLPR("get bl_extern_index = %d\n",
-			     bconf->bl_extern_index);
+			bl_extern_dev_index_add(bdrv->index, para[0]);
+			BLPR("[%d]: get bl_extern_index = %d\n",
+			     bdrv->index, bconf->bl_extern_index);
 		}
 		break;
 #endif
@@ -1695,12 +1688,6 @@ static int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pde
 	case BL_CTRL_PWM_COMBO:
 		ret = bl_pwm_channel_register(bdrv);
 		break;
-#ifdef CONFIG_AMLOGIC_BL_EXTERN
-	case BL_CTRL_EXTERN:
-		aml_bl_extern_device_load(bdrv->bconf.bl_extern_index);
-		break;
-#endif
-
 	default:
 		break;
 	}
@@ -2217,7 +2204,7 @@ static ssize_t bl_status_show(struct device *dev,
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 #endif
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
-	struct aml_bl_extern_driver_s *bl_extern = aml_bl_extern_get_driver();
+	struct bl_extern_driver_s *bext = bl_extern_get_driver(bdrv->index);
 #endif
 	ssize_t len = 0;
 
@@ -2322,8 +2309,8 @@ static ssize_t bl_status_show(struct device *dev,
 #endif
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
 	case BL_CTRL_EXTERN:
-		if (bl_extern->config_print)
-			bl_extern->config_print();
+		if (bext->config_print)
+			bext->config_print(bext);
 		break;
 #endif
 	default:
@@ -3096,7 +3083,7 @@ static int bl_debug_file_creat(struct aml_bl_drv_s *bdrv)
 
 	for (i = 0; i < ARRAY_SIZE(bl_debug_attrs); i++) {
 		if (device_create_file(bdrv->dev, &bl_debug_attrs[i])) {
-			BLERR("[%d]: create lcd debug attribute %s fail\n",
+			BLERR("[%d]: create debug attribute %s fail\n",
 			       bdrv->index, bl_debug_attrs[i].attr.name);
 		}
 	}
@@ -3321,6 +3308,11 @@ static struct bl_data_s bl_data_tm2 = {
 	.chip_name = "tm2",
 };
 
+static struct bl_data_s bl_data_tm2b = {
+	.chip_type = LCD_CHIP_TM2B,
+	.chip_name = "tm2b",
+};
+
 static struct bl_data_s bl_data_t5 = {
 	.chip_type = LCD_CHIP_T5,
 	.chip_name = "t5",
@@ -3363,6 +3355,10 @@ static const struct of_device_id bl_dt_match_table[] = {
 	{
 		.compatible = "amlogic, backlight-tm2",
 		.data = &bl_data_tm2,
+	},
+	{
+		.compatible = "amlogic, backlight-tm2b",
+		.data = &bl_data_tm2b,
 	},
 	{
 		.compatible = "amlogic, backlight-t5",
@@ -3503,6 +3499,7 @@ err:
 	/* free drv */
 	kfree(bdrv);
 	bl_drv[index] = NULL;
+	bl_drv_init_state &= ~(1 << index);
 	BLPR("[%d]: %s: failed\n", index, __func__);
 }
 
@@ -3552,12 +3549,12 @@ static int aml_bl_probe(struct platform_device *pdev)
 	match = of_match_device(bl_dt_match_table, &pdev->dev);
 	if (!match) {
 		BLERR("%s: no match table\n", __func__);
-		return -1;
+		goto aml_bl_probe_err;
 	}
 
 	bdrv = kzalloc(sizeof(*bdrv), GFP_KERNEL);
 	if (!bdrv)
-		return -ENOMEM;
+		goto aml_bl_probe_err;
 	bdrv->index = index;
 	bdrv->data = (struct bl_data_s *)match->data;
 	bl_drv[index] = bdrv;
@@ -3575,6 +3572,11 @@ static int aml_bl_probe(struct platform_device *pdev)
 
 	BLPR("[%d]: probe OK, init_state:0x%x\n", index, bl_drv_init_state);
 	return 0;
+
+aml_bl_probe_err:
+	bl_drv_init_state &= ~(1 << index);
+	BLPR("[%d]: %s failed\n", index, __func__);
+	return -1;
 }
 
 static int __exit aml_bl_remove(struct platform_device *pdev)
@@ -3615,7 +3617,7 @@ static int __exit aml_bl_remove(struct platform_device *pdev)
 	}
 	kfree(bdrv);
 	bl_drv[index] = NULL;
-
+	bl_drv_init_state &= ~(1 << index);
 	bl_global_remove_once();
 
 	return 0;

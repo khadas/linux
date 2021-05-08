@@ -594,8 +594,7 @@ int bl_pwm_channel_register(struct aml_bl_drv_s *bdrv)
 			      bdrv->index, pwm_str, pwm_port, ret);
 			continue;
 		}
-		bl_pwm->pwm_data.meson =
-			to_meson_pwm(bl_pwm->pwm_data.pwm->chip);
+		bl_pwm->pwm_data.meson = to_meson_pwm(bl_pwm->pwm_data.pwm->chip);
 		pwm_init_state(bl_pwm->pwm_data.pwm, &bl_pwm->pwm_data.state);
 		BLPR("[%d]: register %s(%d) 0x%px\n",
 		     bdrv->index, pwm_str,

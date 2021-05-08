@@ -9,6 +9,7 @@
 #define __LDIM_DEV_DRV_H
 #include <linux/spi/spi.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
+#include "../lcd_bl.h"
 
 /* ldim spi api*/
 int ldim_spi_write(struct spi_device *spi, unsigned char *tbuf,

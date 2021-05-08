@@ -1293,6 +1293,17 @@ static ssize_t ldim_attr_store(struct class *cla,
 				goto ldim_attr_store_err;
 		}
 		pr_info("litgain = %d\n", ldim_drv->litgain);
+	} else if (!strcmp(parm[0], "black_frm_en")) {
+		if (parm[1]) {
+			if (!strcmp(parm[1], "r")) {
+				pr_info("for_tool:%d\n", ldim_drv->black_frm_en);
+				goto ldim_attr_store_end;
+			}
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				goto ldim_attr_store_err;
+			ldim_drv->black_frm_en = (unsigned char)val1;
+		}
+		pr_info("black_frm_en = %d\n", ldim_drv->black_frm_en);
 	} else if (!strcmp(parm[0], "brightness_bypass")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
@@ -1446,7 +1457,7 @@ static ssize_t ldim_attr_store(struct class *cla,
 		}
 		ldim_fw_ld_whist_print(fw_para->fw_ld_whist);
 	} else if (!strcmp(parm[0], "ld_remap_lut")) {
-		if (parm[1]) {
+		if (!parm[1]) {
 			ldim_ld_remap_lut_print(0xff);
 			goto ldim_attr_store_end;
 		}
@@ -1566,6 +1577,18 @@ static ssize_t ldim_attr_store(struct class *cla,
 			}
 		}
 		pr_info("fw_LD_ThTF_l = %d\n", fw_ctrl->fw_ld_thtf_l);
+	} else if (!strcmp(parm[0], "fw_ld_thist")) {
+		if (parm[1]) {
+			if (!strcmp(parm[1], "r")) {
+				pr_info("for_tool:%d\n", fw_ctrl->fw_ld_thist);
+				goto ldim_attr_store_end;
+			}
+			if (kstrtouint(parm[1], 10,
+				       &fw_ctrl->fw_ld_thist) < 0) {
+				goto ldim_attr_store_err;
+			}
+		}
+		pr_info("fw_ld_thist = %d\n", fw_ctrl->fw_ld_thist);
 	} else if (!strcmp(parm[0], "boost_gain")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
@@ -1856,8 +1879,7 @@ static ssize_t ldim_attr_store(struct class *cla,
 					fw_para->fw_dbgprint_lv);
 				goto ldim_attr_store_end;
 			}
-			if (kstrtouint(parm[1], 10, &fw_para->fw_dbgprint_lv)
-				       < 0)
+			if (kstrtouint(parm[1], 10, &fw_para->fw_dbgprint_lv) < 0)
 				goto ldim_attr_store_err;
 		}
 		pr_info("fw Dbprint_lv = %d\n", fw_para->fw_dbgprint_lv);
@@ -1996,17 +2018,40 @@ static ssize_t ldim_para_show(struct class *class,
 	return len;
 }
 
+static ssize_t ldim_mem_show(struct class *class,
+			      struct class_attribute *attr, char *buf)
+{
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+	int len = 0;
+
+	len = sprintf(buf,
+			"wr_mem1_paddr:      0x%lx\n"
+			"wr_mem1_vaddr:      0x%p\n"
+			"wr_mem2_paddr:      0x%lx\n"
+			"wr_mem2_vaddr:      0x%p\n"
+			"rd_mem1_paddr:      0x%lx\n"
+			"rd_mem1_vaddr:      0x%p\n"
+			"rd_mem2_paddr:      0x%lx\n"
+			"rd_mem2_vaddr:      0x%p\n",
+			(unsigned long)ldim_drv->rmem->wr_mem_paddr1,
+			ldim_drv->rmem->wr_mem_vaddr1,
+			(unsigned long)ldim_drv->rmem->wr_mem_paddr2,
+			ldim_drv->rmem->wr_mem_vaddr2,
+			(unsigned long)ldim_drv->rmem->rd_mem_paddr1,
+			ldim_drv->rmem->rd_mem_vaddr1,
+			(unsigned long)ldim_drv->rmem->rd_mem_paddr2,
+			ldim_drv->rmem->rd_mem_vaddr2);
+
+	return len;
+}
+
 static ssize_t ldim_mem_store(struct class *class,
 			      struct class_attribute *attr,
 			      const char *buf, size_t count)
 {
 	int i, ret;
-	unsigned int *data_buf, region_num, maxtri, size;
-	struct aml_bl_drv_s *bl_drv = aml_bl_get_driver();
+	unsigned int *data_buf, region_num, data, index, temp;
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
-
-	if (bl_drv->data->chip_type != BL_CHIP_TM2)
-		return count;
 
 	region_num = ldim_drv->conf->hist_row * ldim_drv->conf->hist_col;
 
@@ -2039,27 +2084,36 @@ static ssize_t ldim_mem_store(struct class *class,
 		break;
 	case 't':
 		if (!ldim_drv->rmem->rd_mem_vaddr1) {
-			LDIMERR("read_buf_1 is null\n");
+			LDIMERR("read_buf is null\n");
 			break;
 		}
 		data_buf = (unsigned int *)ldim_drv->rmem->rd_mem_vaddr1;
 
-		ret = sscanf(buf, "test %x %x", &maxtri, &size);
+		ret = sscanf(buf, "test %x %d", &data, &index);
 		if (ret == 2) {
-			for (i = 0; i < size; i++) {
-				*data_buf = maxtri | maxtri << 16;
-				data_buf++;
+			ldim_drv->matrix_update_en = 0;
+			msleep(20);
+			data_buf += (index / 2);
+			if (index % 2) {
+				temp = *data_buf & 0xffff;
+				*data_buf = temp | (data << 16);
+			} else {
+				temp = *data_buf & 0xffff0000;
+				*data_buf = temp | data;
 			}
-			LDIMPR("set rd buffer to %4d\n", maxtri);
+			LDIMPR("set rd buffer %d to 0x%x\n", index, data);
 		} else if (ret == 1) {
-			size = region_num;
-			for (i = 0; i < size; i++) {
-				*data_buf = maxtri | maxtri << 16;
+			ldim_drv->matrix_update_en = 0;
+			msleep(20);
+			temp = (region_num + 1) / 2;
+			for (i = 0; i < temp; i++) {
+				*data_buf = data | data << 16;
 				data_buf++;
 			}
-			LDIMPR("set rd buffer to %4d\n", maxtri);
+			LDIMPR("set all rd buffer to 0x%x\n", data);
 		} else {
-			LDIMERR("invalid data\n");
+			ldim_drv->matrix_update_en = 1;
+			LDIMPR("disable mem test\n");
 		}
 		break;
 	default:
@@ -2071,11 +2125,13 @@ static ssize_t ldim_mem_store(struct class *class,
 static ssize_t ldim_reg_show(struct class *class,
 			     struct class_attribute *attr, char *buf)
 {
-	struct aml_bl_drv_s *bl_drv = aml_bl_get_driver();
+	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	int len = 0;
 
-	if (bl_drv->data->chip_type == BL_CHIP_TM2)
+	if (bdrv->data->chip_type == LCD_CHIP_TM2)
 		len = ldim_hw_reg_dump_tm2(buf);
+	else if (bdrv->data->chip_type == LCD_CHIP_TM2B)
+		len = ldim_hw_reg_dump_tm2b(buf);
 	else
 		len = ldim_hw_reg_dump(buf);
 
@@ -2222,7 +2278,7 @@ static struct class_attribute aml_ldim_class_attrs[] = {
 	__ATTR(func_en, 0644, ldim_func_en_show, ldim_func_en_store),
 	__ATTR(remap, 0644, ldim_remap_show, ldim_remap_store),
 	__ATTR(para, 0644, ldim_para_show, NULL),
-	__ATTR(mem, 0644, NULL, ldim_mem_store),
+	__ATTR(mem, 0644, ldim_mem_show, ldim_mem_store),
 	__ATTR(reg, 0644, ldim_reg_show, ldim_reg_store),
 	__ATTR(demo, 0644, ldim_demo_show, ldim_demo_store)
 };

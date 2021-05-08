@@ -8,6 +8,11 @@
 #ifndef _INC_AML_LCD_COMMON_H_
 #define _INC_AML_LCD_COMMON_H_
 
+struct lcd_i2c_match_s {
+	unsigned int bus_id;
+	char *bus_str;
+};
+
 #define LCD_GPIO_MAX                    0xff
 #define LCD_GPIO_OUTPUT_LOW             0
 #define LCD_GPIO_OUTPUT_HIGH            1
@@ -58,6 +63,8 @@
 
 #define LCD_EXT_CMD_SIZE_DYNAMIC      0xff
 #define LCD_EXT_DYNAMIC_SIZE_INDEX    1
+
+unsigned char aml_lcd_i2c_bus_get_str(const char *str);
 
 #endif
 

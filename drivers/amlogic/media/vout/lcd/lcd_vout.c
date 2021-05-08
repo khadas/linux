@@ -170,7 +170,8 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 {
 	struct lcd_power_step_s *power_step;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
-	struct aml_lcd_extern_driver_s *ext_drv;
+	struct lcd_extern_driver_s *edrv;
+	struct lcd_extern_dev_s *edev;
 #endif
 	unsigned int i, index, wait;
 	int value = -1;
@@ -210,19 +211,20 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 		case LCD_POWER_TYPE_EXTERN:
 			index = power_step->index;
-			ext_drv = aml_lcd_extern_get_driver(index);
-			if (ext_drv) {
-				if (status) {
-					if (ext_drv->power_on)
-						ext_drv->power_on();
-					else
-						LCDERR("no ext power on\n");
-				} else {
-					if (ext_drv->power_off)
-						ext_drv->power_off();
-					else
-						LCDERR("no ext power off\n");
-				}
+			edrv = lcd_extern_get_driver(pdrv->index);
+			edev = lcd_extern_get_dev(edrv, index);
+			if (!edrv || !edev)
+				break;
+			if (status) {
+				if (edev->power_on)
+					edev->power_on(edrv, edev);
+				else
+					LCDERR("[%d]: no ext_%d power on\n", pdrv->index, index);
+			} else {
+				if (edev->power_off)
+					edev->power_off(edrv, edev);
+				else
+					LCDERR("[%d]: no ext_%d power off\n", pdrv->index, index);
 			}
 			break;
 #endif
@@ -983,6 +985,9 @@ static int lcd_global_init_once(void)
 	spin_lock_init(&lcd_clk_lock);
 
 	lcd_notifier_init();
+#ifdef CONFIG_AMLOGIC_LCD_EXTERN
+	lcd_extern_init();
+#endif
 
 	/* init workqueue */
 	lcd_workqueue = create_workqueue("lcd_work_queue");
@@ -1677,7 +1682,7 @@ static int lcd_probe(struct platform_device *pdev)
 
 	pdrv = lcd_driver_add(index);
 	if (!pdrv)
-		return -1;
+		goto lcd_probe_err_0;
 	/* set drvdata */
 	lcd_driver[index] = pdrv;
 	pdrv->data = pdata;
@@ -1691,29 +1696,33 @@ static int lcd_probe(struct platform_device *pdev)
 
 	ret = lcd_ioremap(pdrv, pdev);
 	if (ret)
-		goto lcd_probe_err;
+		goto lcd_probe_err_1;
 
 	INIT_WORK(&pdrv->config_probe_work, lcd_config_probe_work);
 	INIT_WORK(&pdrv->resume_work, lcd_resume_work);
 	INIT_DELAYED_WORK(&pdrv->test_delayed_work, lcd_auto_test_delayed);
 
-	lcd_cdev_add(pdrv, &pdev->dev);
+	ret = lcd_cdev_add(pdrv, &pdev->dev);
+	if (ret)
+		goto lcd_probe_err_2;
 	ret = lcd_config_probe(pdrv, pdev);
 	if (ret)
-		goto lcd_probe_err;
+		goto lcd_probe_err_2;
 
-	LCDPR("[%d]: %s ok, init_state:0x%x\n",
-	      index, __func__, lcd_drv_init_state);
+	LCDPR("[%d]: %s ok, init_state:0x%x\n", index, __func__, lcd_drv_init_state);
 
 	return 0;
 
-lcd_probe_err:
+lcd_probe_err_2:
+	lcd_cdev_remove(pdrv);
+lcd_probe_err_1:
 	/* free drvdata */
 	platform_set_drvdata(pdev, NULL);
 	lcd_driver[index] = NULL;
 	/* free drv */
 	kfree(pdrv);
-
+lcd_probe_err_0:
+	lcd_drv_init_state &= ~(1 << index);
 	LCDPR("[%d]: %s failed\n", index, __func__);
 	return ret;
 }
@@ -1744,10 +1753,10 @@ static int lcd_remove(struct platform_device *pdev)
 	kfree(pdrv->reg_map);
 	kfree(pdrv);
 	lcd_driver[index] = NULL;
-
+	lcd_drv_init_state &= ~(1 << index);
 	lcd_global_remove_once();
 
-	LCDPR("[%d]: %s\n", index, __func__);
+	LCDPR("[%d]: %s, init_state:0x%x\n", index, __func__, lcd_drv_init_state);
 	return 0;
 }
 

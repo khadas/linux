@@ -23,6 +23,7 @@
 #define LD_BLKVMAX 32
 
 #define LD_BLKREGNUM 384  /* maximum support 24*16*/
+#define LD_NUM_PROFILE 8  //16
 
 struct ld_reg_s {
 	int reg_ld_pic_row_max;            /*u13*/
@@ -268,6 +269,7 @@ struct fw_dat_s {
 struct fw_ctrl_config_s {
 	unsigned int fw_ld_thsf_l;
 	unsigned int fw_ld_thtf_l;
+	unsigned int fw_ld_thist; /* pre-calc gain */
 	unsigned int boost_gain; /*norm 256 to 1,T960 finally use*/
 	unsigned int tf_alpha; /*256;*/
 	unsigned int lpf_gain;  /* [0~128~256], norm 128 as 1*/
@@ -321,6 +323,7 @@ struct ldim_fw_para_s {
 	unsigned int para_size;
 	char ver_str[20];
 	unsigned char ver_num;
+	unsigned char valid;
 
 	unsigned char hist_col;
 	unsigned char hist_row;
@@ -344,7 +347,7 @@ struct ldim_fw_para_s {
 };
 
 /* if struct ldim_fw_para_s changed, FW_PARA_VER must be update */
-#define FW_PARA_VER    2
+#define FW_PARA_VER    3
 
 struct ldim_fw_para_s *aml_ldim_get_fw_para(void);
 

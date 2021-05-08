@@ -24,16 +24,47 @@
 #define LD_DATA_MIN     10
 #define LD_DATA_MAX     0xfff
 
+/* **********************************
+ * IOCTL define
+ * **********************************
+ */
 #define _VE_LDIM  'C'
+#define AML_LDIM_IOC_NR_GET_INFO	0x51
+#define AML_LDIM_IOC_NR_SET_INFO	0x52
 
-/* VPP.ldim IOCTL command list */
-#define LDIM_IOC_PARA  _IOW(_VE_LDIM, 0x50, struct ldim_param_s)
+#define AML_LDIM_IOC_CMD_GET_INFO \
+	_IOR(_VE_LDIM, AML_LDIM_IOC_NR_GET_INFO, struct aml_ldim_info_s)
+#define AML_LDIM_IOC_CMD_SET_INFO \
+	_IOW(_VE_LDIM, AML_LDIM_IOC_NR_SET_INFO, struct aml_ldim_info_s)
 
 enum ldim_dev_type_e {
 	LDIM_DEV_TYPE_NORMAL = 0,
 	LDIM_DEV_TYPE_SPI,
 	LDIM_DEV_TYPE_I2C,
 	LDIM_DEV_TYPE_MAX,
+};
+
+struct aml_ldim_info_s {
+	unsigned int func_en;
+	unsigned int remapping_en;
+	unsigned int alpha;
+	unsigned int lpf_method;
+	unsigned int lpf_gain;
+	unsigned int lpf_res;
+	unsigned int side_blk_diff_th;
+	unsigned int bbd_th;
+	unsigned int boost_gain;
+	unsigned int rgb_base;
+	unsigned int ld_remap_bypass;
+	unsigned int ld_tf_step_th;
+	unsigned int tf_blk_fresh_bl;
+	unsigned int tf_fresh_bl;
+	unsigned int fw_ld_thtf_l;
+	unsigned int fw_rgb_diff_th;
+	unsigned int fw_ld_thist;
+	unsigned int bl_remap_curve[16];
+	unsigned int reg_ld_remap_lut[16][32];
+	unsigned int fw_ld_whist[16];
 };
 
 struct ldim_config_s {
@@ -45,6 +76,7 @@ struct ldim_config_s {
 	unsigned char bl_en;
 	unsigned char hvcnt_bypass;
 	unsigned char dev_index;
+	struct aml_ldim_info_s *ldim_info;
 };
 
 struct ldim_param_s {
@@ -146,6 +178,7 @@ struct aml_ldim_driver_s {
 	unsigned char func_en;
 	unsigned char remap_en;
 	unsigned char demo_en;
+	unsigned char black_frm_en;
 	unsigned char func_bypass;  /* for lcd bist pattern */
 	unsigned char brightness_bypass;
 	unsigned char test_en;

@@ -141,6 +141,16 @@
 #define VPU_DMA_WRMIF_BADDR2				0x27de
 #define VPU_DMA_WRMIF_BADDR3				0x27df
 
+#define VPU_DMA_RDMIF0_CTRL                        0x2750
+#define VPU_DMA_RDMIF0_BADR0                       0x2758
+//Bit 31:0  lut0_reg_baddr0
+#define VPU_DMA_RDMIF0_BADR1                       0x2759
+//Bit 31:0  lut0_reg_baddr1
+#define VPU_DMA_RDMIF0_BADR2                       0x275a
+//Bit 31:0  lut0_reg_baddr2
+#define VPU_DMA_RDMIF0_BADR3                       0x275b
+//Bit 31:0  lut0_reg_baddr3
+
 #ifndef CONFIG_AMLOGIC_MEDIA_RDMA
 #define LDIM_VSYNC_RDMA      0
 #else

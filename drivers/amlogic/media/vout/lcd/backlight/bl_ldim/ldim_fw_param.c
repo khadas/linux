@@ -32,6 +32,7 @@ static unsigned int fw_ld_whist[16] = {
 static struct fw_ctrl_config_s ldim_fw_ctrl = {
 	.fw_ld_thsf_l = 1600,
 	.fw_ld_thtf_l = 256,
+	.fw_ld_thist = 0, /* 0 for default ((vnum * hnum * 5) >> 2) */
 	.boost_gain = 456, /*norm 256 to 1,T960 finally use*/
 	.tf_alpha = 256, /*256;*/
 	.lpf_gain = 128,  /* [0~128~256], norm 128 as 1*/
@@ -80,6 +81,7 @@ static struct ldim_fw_para_s ldim_fw_para = {
 	.para_size = sizeof(struct ldim_fw_para_s),
 	.ver_str = "not installed",
 	.ver_num = 0,
+	.valid = 0,
 
 	.hist_col = 1,
 	.hist_row = 1,

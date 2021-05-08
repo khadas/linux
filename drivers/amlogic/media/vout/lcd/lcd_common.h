@@ -18,7 +18,8 @@
 /* 20210222: add multi driver support*/
 /* 20210409: update lvds & vbyone regs for t7*/
 /* 20210412: add t3 support*/
-#define LCD_DRV_VERSION    "20210412"
+/* 20210514: add extern driver support*/
+#define LCD_DRV_VERSION    "20210514"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -27,6 +28,7 @@ extern int lcd_vout_serve_bypass;
 /* lcd common */
 void lcd_delay_us(int us);
 void lcd_delay_ms(int ms);
+unsigned char aml_lcd_i2c_bus_get_str(const char *str);
 int lcd_type_str_to_type(const char *str);
 char *lcd_type_type_to_str(int type);
 unsigned char lcd_mode_str_to_mode(const char *str);

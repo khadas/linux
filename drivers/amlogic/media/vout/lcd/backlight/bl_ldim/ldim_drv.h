@@ -53,10 +53,12 @@ void ld_func_fw_cfg_once(struct ld_reg_s *nprm);
 #define LDIM_VPU_DMA_RD    1
 
 void ldim_hw_vpu_dma_mif_en(int rw_sel, int flag);
+void ldim_hw_vpu_dma_mif_en_tm2b(int rw_sel, int flag);
 void ldim_hw_remap_en(int flag);
 void ldim_hw_remap_demo_en(int flag);
 int ldim_hw_reg_dump(char *buf);
 int ldim_hw_reg_dump_tm2(char *buf);
+int ldim_hw_reg_dump_tm2b(char *buf);
 void ldim_hw_stts_read_zone(unsigned int nrow, unsigned int ncol);
 
 void ldim_hw_remap_init_txlx(struct ld_reg_s *nprm, unsigned int ldim_bl_en,
@@ -73,6 +75,8 @@ void ldim_hw_remap_update_txlx(struct ld_reg_s *nprm, unsigned int avg_update_en
 			       unsigned int matrix_update_en);
 void ldim_hw_remap_update_tm2(struct ld_reg_s *nprm, unsigned int avg_update_en,
 			      unsigned int matrix_update_en);
+void ldim_hw_remap_update_tm2b(struct ld_reg_s *nprm, unsigned int avg_update_en,
+			       unsigned int matrix_update_en);
 
 /*==============debug=================*/
 void ldim_remap_ctrl(unsigned char status);

@@ -8,6 +8,9 @@
 #ifndef _INC_AML_BL_EXTERN_H_
 #define _INC_AML_BL_EXTERN_H_
 #include <linux/amlogic/media/vout/lcd/aml_lcd.h>
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
+#include <linux/amlogic/media/vout/lcd/lcd_mipi.h>
+#endif
 
 enum bl_extern_type_e {
 	BL_EXTERN_I2C = 0,
@@ -22,6 +25,14 @@ enum bl_extern_type_e {
 #define BL_EXTERN_GPIO_NUM_MAX   6
 #define BL_EXTERN_INDEX_INVALID  0xff
 #define BL_EXTERN_NAME_LEN_MAX   30
+
+#define BL_EXT_I2C_DEV_MAX       10
+
+struct bl_extern_i2c_dev_s {
+	char name[30];
+	struct i2c_client *client;
+};
+
 struct bl_extern_config_s {
 	unsigned char index;
 	char name[BL_EXTERN_NAME_LEN_MAX];
@@ -40,25 +51,25 @@ struct bl_extern_config_s {
 };
 
 /* global API */
-struct aml_bl_extern_driver_s {
-	unsigned char status;
+struct bl_extern_driver_s {
+	int index;
+	unsigned int status;
 	unsigned int brightness;
-	int (*power_on)(void);
-	int (*power_off)(void);
-	int (*set_level)(unsigned int level);
-	void (*config_print)(void);
-	int (*device_power_on)(void);
-	int (*device_power_off)(void);
-	int (*device_bri_update)(unsigned int level);
+	unsigned int level_max;
+	unsigned int level_min;
+	int (*power_on)(struct bl_extern_driver_s *bext);
+	int (*power_off)(struct bl_extern_driver_s *bext);
+	int (*set_level)(struct bl_extern_driver_s *bext, unsigned int level);
+	void (*config_print)(struct bl_extern_driver_s *bext);
+	int (*device_power_on)(struct bl_extern_driver_s *bext);
+	int (*device_power_off)(struct bl_extern_driver_s *bext);
+	int (*device_bri_update)(struct bl_extern_driver_s *bext, unsigned int level);
 	struct bl_extern_config_s config;
+	struct bl_extern_i2c_dev_s *i2c_dev;
 	struct device *dev;
 };
 
-struct aml_bl_extern_driver_s *aml_bl_extern_get_driver(void);
-int aml_bl_extern_device_load(int index);
-
-#ifdef CONFIG_AMLOGIC_LCD_TABLET
-int dsi_write_cmd(unsigned char *payload);
-#endif
+struct bl_extern_driver_s *bl_extern_get_driver(int index);
+int bl_extern_dev_index_add(int drv_index, int dev_index);
 
 #endif
