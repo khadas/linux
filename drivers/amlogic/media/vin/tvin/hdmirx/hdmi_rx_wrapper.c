@@ -33,6 +33,7 @@
 #include "hdmi_rx_wrapper.h"
 #include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
+#include "hdmi_rx_drv_ext.h"
 
 static int pll_unlock_cnt;
 static int pll_unlock_max;
@@ -72,6 +73,8 @@ static int wait_no_sig_max = 600;
 
 typedef void (*pf_callback)(int earc_port, bool st);
 static pf_callback earc_hdmirx_hpdst;
+
+static cec_callback cec_hdmirx5v_update;
 
 /* for debug */
 bool vic_check_en;
@@ -401,6 +404,19 @@ void unregister_earctx_callback(void)
 	earc_hdmirx_hpdst = NULL;
 }
 EXPORT_SYMBOL(unregister_earctx_callback);
+
+int register_cec_callback(cec_callback callback)
+{
+	cec_hdmirx5v_update = callback;
+	return 0;
+}
+EXPORT_SYMBOL(register_cec_callback);
+
+void unregister_cec_callback(void)
+{
+	cec_hdmirx5v_update = NULL;
+}
+EXPORT_SYMBOL(unregister_cec_callback);
 
 static bool video_mute_enabled(void)
 {
@@ -2601,6 +2617,8 @@ void rx_5v_monitor(void)
 		pwr_sts = tmp_5v;
 		rx_update_fastswitch_sts(pwr_sts);
 		rx.cur_5v_sts = (pwr_sts >> rx.port) & 1;
+		if (cec_hdmirx5v_update)
+			cec_hdmirx5v_update(pwr_sts);
 		hotplug_wait_query();
 		rx_pr("hotplug-0x%x\n", pwr_sts);
 		if (rx.cur_5v_sts == 0) {

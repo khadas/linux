@@ -3,8 +3,8 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#ifndef _TVHDMI_H
-#define _TVHDMI_H
+#ifndef __HDMI_RX_DRV_H__
+#define __HDMI_RX_DRV_H__
 
 #include <linux/workqueue.h>
 #include <linux/extcon-provider.h>
@@ -19,6 +19,7 @@
 //#include "hdmirx_repeater.h"
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
+#include "hdmi_rx_drv_ext.h"
 
 /* modified SDA I/F clk */
 #define RX_VER0 "ver.2021/03/31"
@@ -50,8 +51,8 @@
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
 
-/* update err cnt logic */
-#define RX_VER2 "ver.2021/03/22"
+/* add cec uevent callback */
+#define RX_VER2 "ver.2021/05/14"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
@@ -649,8 +650,6 @@ extern struct reg_map rx_reg_maps[MAP_ADDR_MODULE_NUM];
 extern bool downstream_repeat_support;
 void rx_tasklet_handler(unsigned long arg);
 void skip_frame(unsigned int cnt);
-int cec_set_dev_info(u8 dev_idx);
-int hdmirx_set_cec_cfg(u32 cfg);
 
 /* reg */
 
@@ -731,4 +730,5 @@ void hdmirx_fill_key_buf(const char *buf, int size);
 /* for other modules */
 int rx_is_hdcp22_support(void);
 int hdmirx_get_connect_info(void);
+
 #endif

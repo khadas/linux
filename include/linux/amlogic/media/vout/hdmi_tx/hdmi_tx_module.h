@@ -787,7 +787,7 @@ int hdmi_set_3d(struct hdmitx_dev *hdmitx_device, int type,
 int hdmitx_set_audio(struct hdmitx_dev *hdmitx_device,
 		     struct hdmitx_audpara *audio_param);
 
-/* for notify to cec */
+/* for notify to cec/hdmirx */
 #define HDMITX_PLUG			1
 #define HDMITX_UNPLUG			2
 #define HDMITX_PHY_ADDR_VALID		3
