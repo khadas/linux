@@ -63,11 +63,11 @@ function build_kernel_arm64_with_clang()
 
 	#build mk_p_builtin with clang
 	cmd "./scripts/amlogic/mk_p_builtin.sh"
-	build_kernel_arm64_clean
+	cmd "make ARCH=arm64 distclean"
 
 	#build mk_r_gki with clang
 	cmd "./scripts/amlogic/mk_r_gki.sh"
-	build_kernel_arm64_clean
+	cmd "make ARCH=arm64 distclean"
 
 	#build meson64_a64_R_defconfig + diff_config with clang
 	export PATH=/opt/clang-r377782b/bin/:$PATH
@@ -76,7 +76,7 @@ function build_kernel_arm64_with_clang()
 	cmd "make ${clang_flags} meson64_gki_r_diff_defconfig"
 	rm arch/arm64/configs/meson64_gki_r_diff_defconfig
 	cmd "make ${clang_flags} Image dtbs modules -j12"
-	build_kernel_arm64_clean
+	cmd "make ARCH=arm64 distclean"
 }
 
 function build_kernel_arm_config()
