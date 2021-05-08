@@ -18,6 +18,7 @@
 #include "meson-ir-map.dtsi"
 #include "mesong12a-bifrost.dtsi"
 #include <dt-bindings/reset/amlogic,meson-dos-reset.h>
+#include <dt-bindings/power/meson-tm2-power.h>
 
 / {
 	interrupt-parent = <&gic>;
@@ -85,11 +86,14 @@
 	tl1_codec:codec {
 		#sound-dai-cells = <0>;
 		compatible = "amlogic, tm2_revb_acodec";
+		power-domains = <&pwrc PWRC_TM2_ACODEC_ID>;
 		status = "okay";
 		reg = <0x0 0xff632000 0x0 0x1c>;
 		tdmout_index = <0>;
 		tdmin_index = <0>;
 		dat1_ch_sel = <1>;
+		clocks = <&clkc CLKID_ACODEC>;
+		clock-names = "acodec_clk";
 	};
 
 	soc {

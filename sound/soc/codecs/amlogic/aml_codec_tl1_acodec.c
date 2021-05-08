@@ -22,6 +22,7 @@
 #include <sound/tlv.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/clk.h>
 
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/sound/auge_utils.h>
@@ -48,6 +49,7 @@ struct tl1_acodec_priv {
 	struct regmap *regmap;
 	struct work_struct work;
 	struct tl1_acodec_chipinfo *chipinfo;
+	struct clk *acodec_clk;
 	int tdmout_index;
 	int dat0_ch_sel;
 	int dat1_ch_sel;
@@ -871,6 +873,12 @@ static int aml_tl1_acodec_probe(struct platform_device *pdev)
 	if (IS_ERR(aml_acodec->regmap))
 		return PTR_ERR(aml_acodec->regmap);
 
+	aml_acodec->acodec_clk = devm_clk_get(&pdev->dev, "acodec_clk");
+	if (!IS_ERR(aml_acodec->acodec_clk))
+		clk_prepare_enable(aml_acodec->acodec_clk);
+	else
+		dev_info(&pdev->dev, "Can't retrieve acodec clock\n");
+
 	of_property_read_u32
 			(pdev->dev.of_node,
 			"tdmout_index",
@@ -913,6 +921,13 @@ static int aml_tl1_acodec_probe(struct platform_device *pdev)
 
 static int aml_tl1_acodec_remove(struct platform_device *pdev)
 {
+	struct tl1_acodec_priv *aml_acodec;
+
+	aml_acodec = platform_get_drvdata(pdev);
+
+	if (!IS_ERR(aml_acodec->acodec_clk))
+		clk_disable_unprepare(aml_acodec->acodec_clk);
+
 	snd_soc_unregister_component(&pdev->dev);
 
 	return 0;
@@ -927,6 +942,9 @@ static void aml_tl1_acodec_shutdown(struct platform_device *pdev)
 	component = aml_acodec->component;
 	if (component)
 		tl1_acodec_remove(component);
+
+	if (!IS_ERR(aml_acodec->acodec_clk))
+		clk_disable_unprepare(aml_acodec->acodec_clk);
 }
 
 static const struct of_device_id aml_tl1_acodec_dt_match[] = {
