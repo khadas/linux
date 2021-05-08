@@ -29,6 +29,7 @@
 #define		REMOTE_TYPE_RCA		0x08
 #define		REMOTE_TYPE_SHARP	0x09
 #define		REMOTE_TYPE_RCMM	0x0A
+#define		REMOTE_TYPE_MITSUBISHI  0x0C
 
 /*hardware decode one protocol by using legacy IR controller*/
 #define		REMOTE_TYPE_LEGACY_NEC  0xff
@@ -51,5 +52,7 @@
 				 REMOTE_TYPE_TOSHIBA)
 #define REMOTE_TYPE_NEC_SHARP ((REMOTE_TYPE_LEGACY_NEC << 8) | \
 			       REMOTE_TYPE_SHARP)
+#define REMOTE_TYPE_NEC_MISTUBISHI  ((REMOTE_TYPE_LEGACY_NEC << 8) |	     \
+				    REMOTE_TYPE_MITSUBISHI)
 
 #endif
