@@ -108,6 +108,7 @@ enum vdin_hw_ver_e {
 	 * 3.buff 2k		4.post matrix (hdr matrix)
 	 */
 	VDIN_HW_S4,
+	VDIN_HW_S4D,
 };
 
 enum vdin_irq_flg_e {

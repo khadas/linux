@@ -1279,7 +1279,7 @@
 	};
 
 	vdac {
-		compatible = "amlogic, vdac-s4";
+		compatible = "amlogic, vdac-s4d";
 		status = "okay";
 	};
 
@@ -1432,7 +1432,7 @@
 
 	/*if you want to use vdin just modify status to "ok"*/
 	vdin0: vdin0 {
-		compatible = "amlogic, vdin-s4";
+		compatible = "amlogic, vdin-s4d";
 		dev_name = "vdin0";
 		status = "okay";
 		reserve-iomap = "true";
@@ -1452,7 +1452,7 @@
 		vdin_id = <0>;
 	};
 	vdin1: vdin1 {
-		compatible = "amlogic, vdin-s4";
+		compatible = "amlogic, vdin-s4d";
 		dev_name = "vdin1";
 		status = "okay";
 		reserve-iomap = "true";

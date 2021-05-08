@@ -1721,6 +1721,21 @@ struct meson_cvbsout_data meson_s4_cvbsout_data = {
 	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
 };
 
+struct meson_cvbsout_data meson_s4d_cvbsout_data = {
+	.cpu_id = CVBS_CPU_TYPE_S4D,
+	.name = "meson-s4d-cvbsout",
+
+	.vdac_vref_adj = 0x10,
+	.vdac_gsw = 0x5c,
+
+	.reg_vid_pll_clk_div = CLKCTRL_VID_PLL_CLK_DIV,
+	.reg_vid_clk_div = CLKCTRL_VID_CLK_DIV,
+	.reg_vid_clk_ctrl = CLKCTRL_VID_CLK_CTRL,
+	.reg_vid2_clk_div = CLKCTRL_VIID_CLK_DIV,
+	.reg_vid2_clk_ctrl = CLKCTRL_VIID_CLK_CTRL,
+	.reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK_CTRL2,
+};
+
 static const struct of_device_id meson_cvbsout_dt_match[] = {
 	{
 		.compatible = "amlogic, cvbsout-g12a",
@@ -1753,6 +1768,9 @@ static const struct of_device_id meson_cvbsout_dt_match[] = {
 	}, {
 		.compatible = "amlogic, cvbsout-s4",
 		.data		= &meson_s4_cvbsout_data,
+	}, {
+		.compatible = "amlogic, cvbsout-s4d",
+		.data		= &meson_s4d_cvbsout_data,
 	},
 	{}
 };
@@ -1852,7 +1870,7 @@ static int cvbsout_probe(struct platform_device *pdev)
 		cvbs_drv->cvbs_data->cpu_id, cvbs_drv->cvbs_data->name);
 
 	if (cvbs_drv->cvbs_data->cpu_id != CVBS_CPU_TYPE_SC2 &&
-	    cvbs_drv->cvbs_data->cpu_id != CVBS_CPU_TYPE_S4)
+	    cvbs_drv->cvbs_data->cpu_id >= CVBS_CPU_TYPE_S4)
 		cvbsout_clktree_probe(&pdev->dev);
 
 	cvbsout_get_config(&pdev->dev);

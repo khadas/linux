@@ -275,7 +275,8 @@ void set_vmode_clk(void)
 		/* mux tcon pll */
 		cvbs_out_ana_setb(HHI_LVDS_TX_PHY_CNTL1_TL1, 0, 29, 1);
 	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_SC2 ||
-		   cvbs_cpu_type() == CVBS_CPU_TYPE_S4) {
+		   cvbs_cpu_type() == CVBS_CPU_TYPE_S4 ||
+		   cvbs_cpu_type() == CVBS_CPU_TYPE_S4D) {
 		cvbs_out_ana_write(ANACTRL_HDMIPLL_CTRL0, 0x3b01047b);
 		cvbs_out_ana_write(ANACTRL_HDMIPLL_CTRL1, 0x00018000);
 		cvbs_out_ana_write(ANACTRL_HDMIPLL_CTRL2, 0x00000000);
@@ -378,7 +379,7 @@ void disable_vmode_clk(void)
 		else
 			cvbs_out_ana_setb(HHI_HDMI_PLL_CNTL, 0, 28, 1);
 	} else if (cvbs_cpu_type() == CVBS_CPU_TYPE_SC2 ||
-		   cvbs_cpu_type() == CVBS_CPU_TYPE_S4) {
+		   cvbs_cpu_type() >= CVBS_CPU_TYPE_S4) {
 		disable_vid2_clk_out();
 		/* disable pll */
 		cvbs_out_ana_setb(ANACTRL_HDMIPLL_CTRL0, 0, 28, 1);
