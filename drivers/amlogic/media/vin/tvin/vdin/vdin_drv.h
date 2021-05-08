@@ -108,6 +108,7 @@ enum vdin_hw_ver_e {
 	 * 3.buff 2k		4.post matrix (hdr matrix)
 	 */
 	VDIN_HW_S4,
+	VDIN_HW_S4D,
 	/*
 	 * t3 removed canvas
 	 * no DV meta data slicer
