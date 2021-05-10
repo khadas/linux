@@ -1051,7 +1051,7 @@ bool arm64_is_fatal_ras_serror(struct pt_regs *regs, unsigned int esr)
 }
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-int ignore_serror = 1;
+int ignore_serror;
 core_param(ignore_serror, ignore_serror, int, 0664);
 #endif
 
