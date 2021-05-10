@@ -337,6 +337,8 @@ void notrace smc_trace_start(unsigned long smcid)
 	int i, ret = 0;
 	unsigned long flags;
 
+	pstore_ftrace_io_tag(0xFFD0, (unsigned long)smcid);
+
 	if (!irq_flg || !irq_check_en || oops_in_progress)
 		return;
 
@@ -372,6 +374,8 @@ void notrace smc_trace_stop(void)
 {
 	unsigned int cpu;
 	unsigned long flags;
+
+	pstore_ftrace_io_tag(0xFFD1, 0);
 
 	if (!irq_flg || !irq_check_en || oops_in_progress)
 		return;
