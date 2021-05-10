@@ -102,19 +102,32 @@ void aml_dma_debug(struct dma_dsc *dsc, u32 nents, const char *msg,
 }
 EXPORT_SYMBOL_GPL(aml_dma_debug);
 
-void aml_dma_do_hw_crypto(struct aml_dma_dev *dd, dma_addr_t dsc,
+u8 aml_dma_do_hw_crypto(struct aml_dma_dev *dd,
+			  struct dma_dsc *dsc,
+			  u32 dsc_len,
+			  dma_addr_t dsc_addr,
 			  u8 polling, u8 dma_flags)
 {
+	u8 status = 0;
+
 	spin_lock_irqsave(&dd->dma_lock, dd->irq_flags);
 	dd->dma_busy |= dma_flags;
-	aml_write_crypto_reg(dd->thread, (uintptr_t)dsc | 2);
+	aml_write_crypto_reg(dd->thread, (uintptr_t)dsc_addr | 2);
 	if (polling) {
 		while (aml_read_crypto_reg(dd->status) == 0)
 			;
+		status = aml_read_crypto_reg(dd->status);
+		WARN_ON(!(dsc[dsc_len - 1].dsc_cfg.b.eoc == 1));
+		if (dsc[dsc_len - 1].dsc_cfg.b.eoc == 1) {
+			while (dsc[dsc_len - 1].dsc_cfg.b.owner)
+				cpu_relax();
+		}
 		aml_write_crypto_reg(dd->status, 0xf);
 		dd->dma_busy &= ~dma_flags;
 	}
 	spin_unlock_irqrestore(&dd->dma_lock, dd->irq_flags);
+
+	return status;
 }
 EXPORT_SYMBOL_GPL(aml_dma_do_hw_crypto);
 

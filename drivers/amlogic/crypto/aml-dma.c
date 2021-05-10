@@ -41,7 +41,7 @@
 #define ENABLE_CRYPTO_DEV (1)
 #define AML_DMA_QUEUE_LENGTH (50)
 static struct dentry *aml_dma_debug_dent;
-int debug = 2;
+int debug = 3;
 
 void __iomem *cryptoreg;
 
