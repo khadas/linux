@@ -188,8 +188,6 @@ static int set_aes_kl_key_iv(struct aml_aes_dev *dd, u32 *key,
 		dsc[0].dsc_cfg.b.eoc = 1;
 	}
 
-	dma_sync_single_for_device(dd->dev, dd->dma_descript_tab,
-				   PAGE_SIZE, DMA_TO_DEVICE);
 	aml_write_crypto_reg(dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
 	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
@@ -212,9 +210,9 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 
 	s32 len = keylen;
 	dma_addr_t dma_addr_key = 0;
-#if DMA_IRQ_MODE
-	u32 i = 0;
-#endif
+	u8 status = 0;
+	int err = 0;
+
 	if (!key_iv) {
 		dev_err(dev, "error allocating key_iv buffer\n");
 		return -EINVAL;
@@ -255,24 +253,31 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 	dsc[0].dsc_cfg.b.eoc = 1;
 	dsc[0].dsc_cfg.b.owner = 1;
 
-	dma_sync_single_for_device(dd->dev, dd->dma_descript_tab,
-				   PAGE_SIZE, DMA_TO_DEVICE);
+	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
 #if DMA_IRQ_MODE
 	aml_write_crypto_reg(dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
-	aml_dma_debug(dsc, i, __func__, dd->thread, dd->status);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
+	status = aml_read_crypto_reg(dd->status);
+	if (status & DMA_STATUS_KEY_ERROR) {
+		dev_err(dev, "hw crypto failed.\n");
+		err = -EINVAL;
+	}
 	aml_write_crypto_reg(dd->status, 0xf);
 #else
-	aml_dma_do_hw_crypto(dd->dma, dd->dma_descript_tab,
+	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dd->dma_descript_tab,
 			     1, DMA_FLAG_AES_IN_USE);
+	if (status & DMA_STATUS_KEY_ERROR) {
+		dev_err(dev, "hw crypto failed.\n");
+		err = -EINVAL;
+	}
 #endif
 	dma_unmap_single(dd->dev, dma_addr_key,
 			 DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
 
 	kfree(key_iv);
-	return 0;
+	return err;
 }
 
 static size_t aml_aes_sg_copy(struct scatterlist **sg, size_t *offset,
@@ -435,7 +440,11 @@ static int aml_aes_crypt_dma(struct aml_aes_dev *dd, struct dma_dsc *dsc,
 	u32 i = 0;
 #if DMA_IRQ_MODE
 	unsigned long flags;
+#else
+	int err = 0;
+	u8 status = 0;
 #endif
+
 	if (dd->flags & AES_FLAGS_CBC)
 		op_mode = OP_MODE_CBC;
 	else if (dd->flags & AES_FLAGS_CTR)
@@ -452,9 +461,6 @@ static int aml_aes_crypt_dma(struct aml_aes_dev *dd, struct dma_dsc *dsc,
 		dsc[i].dsc_cfg.b.owner = 1;
 	}
 
-	dma_sync_single_for_device(dd->dev, dd->dma_descript_tab,
-				   PAGE_SIZE, DMA_TO_DEVICE);
-
 	aml_dma_debug(dsc, nents, __func__, dd->thread, dd->status);
 
 	/* Start DMA transfer */
@@ -468,10 +474,16 @@ static int aml_aes_crypt_dma(struct aml_aes_dev *dd, struct dma_dsc *dsc,
 	return -EINPROGRESS;
 #else
 	dd->flags |= AES_FLAGS_DMA;
-	aml_dma_do_hw_crypto(dd->dma, dd->dma_descript_tab,
+	status = aml_dma_do_hw_crypto(dd->dma, dsc, nents, dd->dma_descript_tab,
 			     1, DMA_FLAG_AES_IN_USE);
-	aml_aes_crypt_dma_stop(dd);
-	return 0;
+	if (status & DMA_STATUS_KEY_ERROR)
+		dd->flags |= AES_FLAGS_ERROR;
+	err = aml_aes_crypt_dma_stop(dd);
+	if (!err) {
+		err = dd->flags & AES_FLAGS_ERROR;
+		dd->flags = (dd->flags & ~AES_FLAGS_ERROR);
+	}
+	return err;
 #endif
 
 }
@@ -683,8 +695,6 @@ static int aml_aes_crypt_dma_stop(struct aml_aes_dev *dd)
 
 	if (dd->flags & AES_FLAGS_DMA) {
 		err = 0;
-		dma_sync_single_for_cpu(dd->dev, dd->dma_descript_tab,
-					PAGE_SIZE, DMA_FROM_DEVICE);
 		if  (dd->flags & AES_FLAGS_FAST) {
 			if (dd->in_sg != dd->out_sg) {
 				dma_unmap_sg(dd->dev, dd->out_sg,
@@ -750,13 +760,22 @@ static int aml_aes_buff_init(struct aml_aes_dev *dd)
 
 	dd->buf_in = (void *)__get_free_pages(GFP_KERNEL, 0);
 	dd->buf_out = (void *)__get_free_pages(GFP_KERNEL, 0);
-	dd->descriptor = (void *)__get_free_pages(GFP_KERNEL, 0);
 	dd->buflen = PAGE_SIZE;
 	dd->buflen &= ~(AES_BLOCK_SIZE - 1);
 
-	if (!dd->buf_in || !dd->buf_out || !dd->descriptor) {
+	if (!dd->buf_in || !dd->buf_out) {
 		dev_err(dev, "unable to alloc pages.\n");
 		goto err_alloc;
+	}
+
+	dd->descriptor =
+		dmam_alloc_coherent(dd->dev,
+				   MAX_NUM_TABLES * sizeof(struct dma_dsc),
+				   &dd->dma_descript_tab, GFP_KERNEL | GFP_DMA);
+	if (!dd->descriptor) {
+		dev_err(dev, "dma descriptor error\n");
+		err = -EINVAL;
+		goto err_map_in;
 	}
 
 	/* MAP here */
@@ -776,20 +795,7 @@ static int aml_aes_buff_init(struct aml_aes_dev *dd)
 		goto err_map_out;
 	}
 
-	dd->dma_descript_tab = dma_map_single(dd->dev, dd->descriptor,
-					      PAGE_SIZE, DMA_TO_DEVICE);
-
-	if (dma_mapping_error(dd->dev, dd->dma_descript_tab)) {
-		dev_err(dev, "dma descriptor error\n");
-		err = -EINVAL;
-		goto err_map_descriptor;
-	}
-
 	return 0;
-
-err_map_descriptor:
-	dma_unmap_single(dd->dev, dd->dma_descript_tab, PAGE_SIZE,
-			 DMA_TO_DEVICE);
 
 err_map_out:
 	dma_unmap_single(dd->dev, dd->dma_addr_in, dd->buflen,
@@ -797,7 +803,6 @@ err_map_out:
 err_map_in:
 	free_page((uintptr_t)dd->buf_out);
 	free_page((uintptr_t)dd->buf_in);
-	free_page((uintptr_t)dd->descriptor);
 err_alloc:
 	if (err)
 		dev_err(dev, "error: %d\n", err);
@@ -810,11 +815,10 @@ static void aml_aes_buff_cleanup(struct aml_aes_dev *dd)
 			 DMA_FROM_DEVICE);
 	dma_unmap_single(dd->dev, dd->dma_addr_in, dd->buflen,
 			 DMA_TO_DEVICE);
-	dma_unmap_single(dd->dev, dd->dma_descript_tab, PAGE_SIZE,
-			 DMA_TO_DEVICE);
+	dmam_free_coherent(dd->dev, MAX_NUM_TABLES * sizeof(struct dma_dsc),
+			dd->descriptor, dd->dma_descript_tab);
 	free_page((uintptr_t)dd->buf_out);
 	free_page((uintptr_t)dd->buf_in);
-	free_page((uintptr_t)dd->descriptor);
 }
 
 static int aml_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
@@ -876,7 +880,6 @@ static int aml_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
 	return aml_dma_crypto_enqueue_req(dd->dma, &req->base);
 #endif
 }
-
 
 static int aml_aes_kl_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 			     unsigned int keylen)
@@ -1050,9 +1053,9 @@ static struct crypto_alg aes_algs[] = {
 	{
 		.cra_name        = "ctr(aes-aml)",
 		.cra_driver_name = "ctr-aes-aml",
-		.cra_priority    = 200,
+		.cra_priority    = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-		.cra_blocksize  = 1,
+		.cra_blocksize  = AES_BLOCK_SIZE,
 		.cra_ctxsize    = sizeof(struct aml_aes_ctx),
 		.cra_alignmask  = 0xf,
 		.cra_type       = &crypto_ablkcipher_type,
@@ -1156,7 +1159,7 @@ static struct crypto_alg aes_lite_algs[] = {
 	{
 		.cra_name        = "ctr(aes-aml)",
 		.cra_driver_name = "ctr-aes-lite-aml",
-		.cra_priority    = 200,
+		.cra_priority    = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
 			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize  = AES_BLOCK_SIZE,
@@ -1178,7 +1181,7 @@ static struct crypto_alg aes_lite_algs[] = {
 	{
 		.cra_name         = "ecb(aes-kl-aml)",
 		.cra_driver_name  = "ecb-aes-kl-aml",
-		.cra_priority   = 100,
+		.cra_priority   = 200,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
 			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize  = AES_BLOCK_SIZE,
@@ -1199,7 +1202,7 @@ static struct crypto_alg aes_lite_algs[] = {
 	{
 		.cra_name         = "cbc(aes-kl-aml)",
 		.cra_driver_name  = "cbc-aes-kl-aml",
-		.cra_priority   = 100,
+		.cra_priority   = 200,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
 			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize  = AES_BLOCK_SIZE,
@@ -1221,7 +1224,7 @@ static struct crypto_alg aes_lite_algs[] = {
 	{
 		.cra_name         = "ctr(aes-kl-aml)",
 		.cra_driver_name  = "ctr-aes-kl-aml",
-		.cra_priority    = 100,
+		.cra_priority    = 200,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
 			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize  = AES_BLOCK_SIZE,

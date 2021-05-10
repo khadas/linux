@@ -9,8 +9,7 @@
 #include <crypto/hash.h>
 #include <crypto/algapi.h>
 
- /* Reserved 4096 bytes and table is 12 bytes each */
-#define MAX_NUM_TABLES 341
+#define MAX_NUM_TABLES (16)
 #define DMA_IRQ_MODE	(0)
 
 #define DMA_BLOCK_MODE_SIZE (512)
@@ -137,8 +136,12 @@ u32 aml_read_crypto_reg(u32 addr);
 void aml_dma_debug(struct dma_dsc *dsc, u32 nents, const char *msg,
 		   u32 thread, u32 status);
 
-void aml_dma_do_hw_crypto(struct aml_dma_dev *dd, dma_addr_t dsc,
-			  u8 pooling, u8 dma_flags);
+u8 aml_dma_do_hw_crypto(struct aml_dma_dev *dd,
+			  struct dma_dsc *dsc,
+			  u32 dsc_len,
+			  dma_addr_t dsc_addr,
+			  u8 polling, u8 dma_flags);
+
 void aml_dma_finish_hw_crypto(struct aml_dma_dev *dd, u8 dma_flags);
 
 /* queue utilities */
@@ -153,8 +156,8 @@ extern void __iomem *cryptoreg;
 extern int debug;
 #define dbgp(level, fmt, arg...)                 \
 	do {                                            \
-		if (likely(debug >= (level)))                         \
-			pr_debug("%s: " fmt, __func__, ## arg);\
+		if (unlikely(level >= debug))                         \
+			pr_warn("%s: " fmt, __func__, ## arg);\
 	} while (0)
 
 #endif
