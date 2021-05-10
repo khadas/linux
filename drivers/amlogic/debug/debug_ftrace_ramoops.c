@@ -78,8 +78,9 @@ void notrace pstore_io_rw_dump(struct pstore_ftrace_record *rec,
 	sec = (unsigned long)time;
 	seq_printf(s, "[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %08lx-%8lx>  <%ps <- %pS>\n",
 		   sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
-		   record_name[rec->flag],
-		   rec->val1, (rec->flag == PSTORE_FLAG_IO_W) ? rec->val2 : 0,
+		   record_name[rec->flag], rec->val1,
+		   (rec->flag == PSTORE_FLAG_IO_W || rec->flag == PSTORE_FLAG_IO_TAG) ?
+		   rec->val2 : 0,
 		   (void *)rec->ip, (void *)rec->parent_ip);
 }
 
@@ -144,8 +145,12 @@ void notrace pstore_io_save(unsigned long reg, unsigned long val,
 
 	cpu = raw_smp_processor_id();
 
-	if (unlikely(oops_in_progress) || unlikely(per_cpu(en, cpu)))
+	if (unlikely(oops_in_progress) || unlikely(per_cpu(en, cpu))) {
+		if ((flag == PSTORE_FLAG_IO_R || flag == PSTORE_FLAG_IO_W) && IRQ_D)
+			local_irq_restore(*irq_flag);
+
 		return;
+	}
 	per_cpu(en, cpu) = 1;
 	pstore_ftrace_encode_cpu(&rec, cpu);
 	strlcpy(rec.comm, current->comm, sizeof(rec.comm) - 1);
@@ -173,7 +178,7 @@ static void notrace __pstore_io_rw_dump(struct pstore_ftrace_record *rec)
 	pr_info("[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %08lx-%8lx>  <%pS <- %pS>\n",
 		sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
 		record_name[rec->flag], rec->val1,
-		(rec->flag == PSTORE_FLAG_IO_W) ? rec->val2 : 0,
+		(rec->flag == PSTORE_FLAG_IO_W || rec->flag == PSTORE_FLAG_IO_TAG) ? rec->val2 : 0,
 		(void *)rec->ip, (void *)rec->parent_ip);
 }
 
