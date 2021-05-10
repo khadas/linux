@@ -1892,11 +1892,12 @@ void vlock_status_init(void)
 	u32 i, max_enc_num;
 	u32 offset_vlck;
 	u32 offset_enc;
+	struct vinfo_s *vinfo;
 
 	/*config vlock mode*/
 	/*todo:txlx & g9tv support auto pll,*/
 	/*but support not good,need vlsi support optimize*/
-
+	vinfo = get_current_vinfo();
 	vlock_dev_param_init();
 	pvlock = vlock_tab[VLOCK_ENC0];
 	if (pvlock->dtdata->vlk_chip == vlock_chip_t7)
@@ -2005,14 +2006,10 @@ void vlock_status_init(void)
 			pvlock->phlock_en = pvlock->dtdata->vlk_phlock_en;
 		/* vlock.phlock_percent = phlock_percent; */
 		vlock_clear_frame_counter(pvlock);
-		//vlock_reset(pvlock, 1);
-		//vlock_reset(pvlock, 0);
-		vlock_dis_cnt = 0;
-		vlock_hw_reinit(pvlock, vlock_enc_setting, VLOCK_DEFAULT_REG_SIZE);
-		vlock_disable_step1(pvlock);
-		vlock_disable_step2(pvlock);
+		//vlock_hw_reinit(pvlock, vlock_enc_setting, VLOCK_DEFAULT_REG_SIZE);
 	}
-	pr_info("%s vlock_en:%d\n", __func__, vlock_en);
+	pr_info("%s vlock_en:%d adj_type:%d mode:%d\n", __func__, vlock_en,
+		vinfo->fr_adj_type, vinfo->mode);
 }
 
 void vlock_dt_match_init(struct vecm_match_data_s *pdata)
@@ -3401,7 +3398,6 @@ ssize_t vlock_debug_store(struct class *cla,
 				temp_val = val;
 			else
 				temp_val = VLOCK_ENC0;
-			temp_val = VLOCK_ENC0;
 		}
 		pvlock = vlock_tab[temp_val];
 		vlock_status(pvlock);
@@ -3415,7 +3411,6 @@ ssize_t vlock_debug_store(struct class *cla,
 				temp_val = val;
 			else
 				temp_val = VLOCK_ENC0;
-			temp_val = VLOCK_ENC0;
 		}
 		pvlock = vlock_tab[temp_val];
 		vlock_reg_dump(pvlock);
