@@ -369,13 +369,34 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 	return 0;
 }
 
+static int dwmac_meson_disable_analog(struct device *dev)
+{
+	writel(0x00000000, phy_analog_config_addr + 0x0);
+	writel(0x003e0000, phy_analog_config_addr + 0x4);
+	writel(0x12844008, phy_analog_config_addr + 0x8);
+	writel(0x0800a40c, phy_analog_config_addr + 0xc);
+	writel(0x00000000, phy_analog_config_addr + 0x10);
+	writel(0x031d161c, phy_analog_config_addr + 0x14);
+	writel(0x00001683, phy_analog_config_addr + 0x18);
+	writel(0x09c0040a, phy_analog_config_addr + 0x44);
+	return 0;
+}
+
+static int dwmac_meson_recover_analog(struct device *dev)
+{
+	writel(0x19c0040a, phy_analog_config_addr + 0x44);
+	writel(0x0, phy_analog_config_addr + 0x4);
+	return 0;
+}
+
 extern int stmmac_pltfr_suspend(struct device *dev);
 static int aml_dwmac_suspend(struct device *dev)
 {
 	int ret = 0;
 
-	pr_info("wzh aml_suspend\n");
+	pr_info("aml_eth_suspend\n");
 	ret = stmmac_pltfr_suspend(dev);
+	dwmac_meson_disable_analog(dev);
 	return ret;
 }
 
@@ -384,9 +405,17 @@ static int aml_dwmac_resume(struct device *dev)
 {
 	int ret = 0;
 
-	pr_info("wzh aml_resume\n");
+	pr_info("aml_eth_resume\n");
+	dwmac_meson_recover_analog(dev);
 	ret = stmmac_pltfr_resume(dev);
 	return 0;
+}
+
+void meson8b_dwmac_shutdown(struct platform_device *pdev)
+{
+	pr_info("aml_eth_shutdown\n");
+	stmmac_pltfr_suspend(&pdev->dev);
+	dwmac_meson_disable_analog(&pdev->dev);
 }
 
 void set_wol_notify_bl31(void)
@@ -518,6 +547,7 @@ SIMPLE_DEV_PM_OPS(stmmac_meson8b_pm_ops, aml_dwmac_suspend,
 static struct platform_driver meson8b_dwmac_driver = {
 	.probe  = meson8b_dwmac_probe,
 	.remove = stmmac_pltfr_remove,
+	.shutdown = meson8b_dwmac_shutdown,
 	.driver = {
 		.name           = "meson8b-dwmac",
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE

@@ -20,7 +20,9 @@ int stmmac_get_platform_resources(struct platform_device *pdev,
 				  struct stmmac_resources *stmmac_res);
 
 int stmmac_pltfr_remove(struct platform_device *pdev);
+
 extern const struct dev_pm_ops stmmac_pltfr_pm_ops;
+extern void __iomem *phy_analog_config_addr;
 
 static inline void *get_stmmac_bsp_priv(struct device *dev)
 {
