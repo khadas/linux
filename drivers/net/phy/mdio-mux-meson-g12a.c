@@ -35,6 +35,9 @@ unsigned int tx_amp_bl2;
 EXPORT_SYMBOL_GPL(tx_amp_bl2);
 unsigned int enet_type;
 EXPORT_SYMBOL_GPL(enet_type);
+
+void __iomem *phy_analog_config_addr;
+EXPORT_SYMBOL_GPL(phy_analog_config_addr);
 #endif
 
 #define ETH_PLL_STS		0x40
@@ -376,6 +379,7 @@ static int g12a_mdio_mux_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->regs))
 		return PTR_ERR(priv->regs);
 
+	phy_analog_config_addr = priv->regs;
 	priv->pclk = devm_clk_get(dev, "pclk");
 	if (IS_ERR(priv->pclk)) {
 		ret = PTR_ERR(priv->pclk);
