@@ -102,6 +102,18 @@ struct codec_mm_s {
 	int next_bit;
 	struct list_head list;
 	u32 tvp_handle;
+	struct list_head release_cb_list;
+};
+
+struct codec_mm_cb_s;
+
+typedef void (*codec_mm_release_func_t)(struct codec_mm_s *mm,
+	struct codec_mm_cb_s *cb);
+
+struct codec_mm_cb_s {
+	struct list_head node;
+	void *private_data;
+	codec_mm_release_func_t func;
 };
 
 struct codec_mm_s *codec_mm_alloc(const char *owner, int size, int align2n,
@@ -118,6 +130,8 @@ int codec_mm_has_owner(struct codec_mm_s *mem, const char *owner);
 int codec_mm_request_shared_mem(struct codec_mm_s *mem, const char *owner);
 /*call if not make sure valid data.*/
 void codec_mm_release_with_check(struct codec_mm_s *mem, const char *owner);
+int codec_mm_add_release_callback(struct codec_mm_s *mem,
+	struct codec_mm_cb_s *cb);
 unsigned long dma_get_cma_size_int_byte(struct device *dev);
 
 /*---------------------------------------------------------------*/
