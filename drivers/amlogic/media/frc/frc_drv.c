@@ -49,11 +49,10 @@
 
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+#include <linux/amlogic/media/frc/frc_reg.h>
+#include <linux/amlogic/media/frc/frc_common.h>
 
-#include "frc_reg.h"
-#include "frc_common.h"
 #include "frc_drv.h"
-#include "frc_scene.h"
 #include "frc_proc.h"
 #include "frc_dbg.h"
 #include "frc_buf.h"
@@ -62,6 +61,7 @@
 static struct frc_dev_s *frc_dev;
 
 int frc_dbg_en;
+EXPORT_SYMBOL(frc_dbg_en);
 module_param(frc_dbg_en, int, 0664);
 MODULE_PARM_DESC(frc_dbg_en, "frc debug level");
 
@@ -70,11 +70,15 @@ struct frc_dev_s *get_frc_devp(void)
 	return frc_dev;
 }
 
-static struct frc_fw_data_s *fw_data;
-struct frc_fw_data_s *get_fw_data(void)
+// static struct frc_fw_data_s *fw_data;
+static const char frc_fw_ver[] = "frc_drv_ver:001_20210510";
+struct frc_fw_data_s fw_data;  // important 2021_0510
+
+struct frc_fw_data_s *frc_get_fw_data(void)
 {
-	return fw_data;
+	return &fw_data;
 }
+EXPORT_SYMBOL(frc_get_fw_data);
 
 ssize_t frc_reg_show(struct class *class,
 	struct class_attribute *attr,
@@ -543,6 +547,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	fw_data->holdline_parm.inp_hold_line = 4;
 	fw_data->holdline_parm.reg_post_dly_vofst = 0;/*fixed*/
 	fw_data->holdline_parm.reg_mc_dly_vofst0 = 1;/*fixed*/
+	pr_frc(0, "%s\n", fw_data->frc_fw_ver);
 
 	memset(&devp->frc_crc_data, 0, sizeof(struct frc_crc_data_s));
 	memset(&devp->ud_dbg, 0, sizeof(struct frc_ud_s));
@@ -584,12 +589,14 @@ static int frc_probe(struct platform_device *pdev)
 	}
 
 	frc_devp->fw_data = NULL;
-	frc_devp->fw_data = kzalloc(sizeof(struct frc_fw_data_s), GFP_KERNEL);
+	// frc_devp->fw_data = kzalloc(sizeof(struct frc_fw_data_s), GFP_KERNEL);
+
+	strcpy(&fw_data.frc_fw_ver[0], &frc_fw_ver[0]),
+	frc_devp->fw_data = &fw_data;
 	if (!frc_devp->fw_data) {
 		PR_ERR("%s: frc_dev->fw_data fail\n", __func__);
 		goto fail_alloc_fw_data_fail;
 	}
-
 	ret = alloc_chrdev_region(&frc_devp->devno, 0, FRC_DEVNO, FRC_NAME);
 	if (ret < 0) {
 		PR_ERR("%s: alloc region fail\n", __func__);
@@ -627,7 +634,7 @@ static int frc_probe(struct platform_device *pdev)
 	frc_devp->pdev = pdev;
 
 	frc_data = (struct frc_data_s *)frc_devp->data;
-	fw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
+	// fw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	frc_dts_parse(frc_devp, &frc_data->match_data);
 	if (ret < 0)
 		goto fail_dev_create;
@@ -677,7 +684,7 @@ fail_class_create_file:
 fail_create_cls:
 	unregister_chrdev_region(frc_dev->devno, FRC_DEVNO);
 fail_alloc_region:
-	kfree(frc_dev->fw_data);
+	// kfree(frc_dev->fw_data);
 	frc_dev->fw_data = NULL;
 fail_alloc_fw_data_fail:
 	kfree(frc_dev->data);

@@ -21,26 +21,23 @@
 
 #include <linux/device.h>
 #include <linux/cdev.h>
-#include "frc_common.h"
+#include <linux/amlogic/media/frc/frc_common.h>
 #include "frc_interface.h"
 
 #define FRC_FW_VER			"t3 driver bringup 2021-0512 update fw from svn 608"
-
-#define PR_ERR(fmt, args ...)		pr_info("frc_Err: " fmt, ##args)
-#define PR_FRC(fmt, args ...)		pr_info("frc: " fmt, ##args)
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
 #define FRC_CLASS_NAME	"frc"
 
+/*
 extern int frc_dbg_en;
-
 #define pr_frc(level, fmt, arg...)			\
 	do {						\
 		if ((frc_dbg_en >= (level) && frc_dbg_en < 3) || frc_dbg_en == level)	\
 			pr_info("frc: " fmt, ## arg);	\
 	} while (0)
-
+*/
 //------------------------------------------------------- buf define start
 #define FRC_COMPRESS_RATE		100	/*100: means no compress*/
 

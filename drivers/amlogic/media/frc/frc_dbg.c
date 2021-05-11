@@ -25,12 +25,10 @@
 #include <linux/ctype.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
-
+#include <linux/amlogic/media/frc/frc_reg.h>
+#include <linux/amlogic/media/frc/frc_common.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
-
-#include "frc_reg.h"
-#include "frc_common.h"
 #include "frc_drv.h"
 #include "frc_dbg.h"
 #include "frc_buf.h"

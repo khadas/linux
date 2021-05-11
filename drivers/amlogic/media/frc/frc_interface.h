@@ -10,7 +10,8 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/video_sink/vpp.h>
-#include "frc_common.h"
+#include <linux/amlogic/media/frc/frc_common.h>
+
 
 //==== ioctrol define =============
 #define FRC_IOC_MAGIC                   'F'

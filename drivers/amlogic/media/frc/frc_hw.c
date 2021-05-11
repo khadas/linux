@@ -32,9 +32,10 @@
 #include <linux/sched/clock.h>
 #include <linux/amlogic/media/registers/register_map.h>
 #include <linux/amlogic/iomap.h>
+#include <linux/amlogic/media/frc/frc_reg.h>
+// #include <linux/amlogic/media/frc/frc_common.h>
 
 #include "frc_drv.h"
-#include "frc_reg.h"
 #include "frc_hw.h"
 #include "frc_regs_table.h"
 

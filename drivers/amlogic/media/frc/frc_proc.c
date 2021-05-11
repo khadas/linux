@@ -38,19 +38,12 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/frame_sync/timestamp.h>
 #include <linux/amlogic/media/frame_sync/tsync.h>
+#include <linux/amlogic/media/frc/frc_reg.h>
+#include <linux/amlogic/media/frc/frc_common.h>
 
-#include "frc_common.h"
 #include "frc_drv.h"
-#include "frc_scene.h"
-#include "frc_bbd.h"
-#include "frc_vp.h"
 #include "frc_proc.h"
-#include "frc_logo.h"
-#include "frc_film.h"
-#include "frc_me.h"
-#include "frc_mc.h"
 #include "frc_hw.h"
-#include "frc_reg.h"
 
 int frc_enable_cnt = 2;
 module_param(frc_enable_cnt, int, 0664);
@@ -88,18 +81,20 @@ void frc_hw_initial(struct frc_dev_s *devp)
 	frc_fw_initial(devp);
 	frc_mtx_set(devp);
 	frc_top_init(devp);
-	//  me param init
-	frc_me_param_init(devp);
-	//  vp param init
-	frc_vp_param_init(devp);
-	//  mc param init
-	frc_mc_param_init(devp);
-	//  bbd param init
-	frc_bbd_param_init(devp);
+	return;
+	// fw_data = (struct frc_fw_data_s *)devp->fw_data;
+	// me param init
+	// frc_me_param_init(fw_data);
+	// vp param init
+	// frc_vp_param_init(fw_data);
+	// mc param init
+	// frc_mc_param_init(fw_data);
+	// bbd param init
+	// frc_bbd_param_init(fw_data);
 	// logo param init
-	frc_logo_param_init(devp);
-	//  fd  param init
-	frc_film_param_init(devp);
+	// frc_logo_param_init(fw_data);
+	// fd  param init
+	// frc_film_param_init(fw_data, devp->dbg_force_en, devp->dbg_in_out_ratio);
 }
 
 void frc_in_reg_monitor(struct frc_dev_s *devp)
@@ -184,19 +179,25 @@ irqreturn_t frc_input_isr(int irq, void *dev_id)
 void frc_input_tasklet_pro(unsigned long arg)
 {
 	struct frc_dev_s *devp = (struct frc_dev_s *)arg;
-	struct frc_fw_data_s *fw_data;
+	struct frc_fw_data_s *pfw_data;
 
-	fw_data = (struct frc_fw_data_s *)devp->fw_data;
-	devp->in_sts.vs_tsk_cnt++;
-
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	if (!pfw_data)
+		return;
 	if (!devp->probe_ok)
 		return;
-
+	devp->in_sts.vs_tsk_cnt++;
 	if (!devp->frc_fw_pause) {
-		frc_scene_detect_input(devp);
-		frc_film_detect_ctrl(devp);
-		frc_bbd_ctrl(devp);
-		frc_iplogo_ctrl(devp);
+		if (pfw_data->scene_detect_input)
+			pfw_data->scene_detect_input(pfw_data);
+		if (pfw_data->film_detect_ctrl)
+			pfw_data->film_detect_ctrl(pfw_data);
+		if (pfw_data->search_final_line_para.bbd_en == 1) {
+			if (pfw_data->bbd_ctrl)
+				pfw_data->bbd_ctrl(pfw_data);
+		}
+		if (pfw_data->iplogo_ctrl)
+			pfw_data->iplogo_ctrl(pfw_data);
 	}
 }
 
@@ -223,23 +224,30 @@ irqreturn_t frc_output_isr(int irq, void *dev_id)
 void frc_output_tasklet_pro(unsigned long arg)
 {
 	struct frc_dev_s *devp = (struct frc_dev_s *)arg;
-	struct frc_fw_data_s *fw_data;
+	struct frc_fw_data_s *pfw_data;
 
-	devp->out_sts.vs_tsk_cnt++;
-	fw_data = (struct frc_fw_data_s *)devp->fw_data;
-
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	if (!pfw_data)
+		return;
 	if (!devp->probe_ok)
 		return;
 
+	devp->out_sts.vs_tsk_cnt++;
 	if (!devp->frc_fw_pause) {
-		frc_scene_detect_output(devp);
-		if (fw_data->g_stMeCtrl_Para.me_en == 1)
-			frc_me_ctrl(devp);
-		if (fw_data->g_stvpctrl_para.vp_en == 1)
-			frc_vp_ctrl(devp);
-		frc_mc_ctrl(devp);
-		if (fw_data->g_stiplogoctrl_para.logo_en == 1)
-			frc_melogo_ctrl(devp);
+		if (pfw_data->scene_detect_output)
+			pfw_data->scene_detect_output(pfw_data);
+		if (pfw_data->g_stMeCtrl_Para.me_en == 1) {
+			if (pfw_data->me_ctrl)
+				pfw_data->me_ctrl(pfw_data);
+		}
+		if (pfw_data->g_stvpctrl_para.vp_en == 1) {
+			if (pfw_data->vp_ctrl)
+				pfw_data->vp_ctrl(pfw_data);
+		}
+		if (pfw_data->mc_ctrl)
+			pfw_data->mc_ctrl(pfw_data);
+		if (pfw_data->melogo_ctrl && pfw_data->g_stiplogoctrl_para.logo_en == 1)
+			pfw_data->melogo_ctrl(pfw_data);
 	}
 }
 
@@ -447,6 +455,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 {
 	enum frc_state_e cur_state;
 	enum frc_state_e new_state;
+	struct frc_fw_data_s *pfw_data;
 	u32 state_changed = 0;
 	u32 frame_cnt = 0;
 	u32 log = 1;
@@ -454,6 +463,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 	cur_state = devp->frc_sts.state;
 	new_state = devp->frc_sts.new_state;
 	frame_cnt = devp->frc_sts.frame_cnt;
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	if (cur_state != new_state) {
 		state_changed = 1;
 		pr_frc(log, "sm state_changed (%d->%d) cnt:%d\n", cur_state, new_state,
@@ -473,6 +483,8 @@ void frc_state_handle(struct frc_dev_s *devp)
 					frc_hw_initial(devp);
 					//first : set bypass off
 					set_frc_bypass(OFF);
+					if (pfw_data->frc_input_cfg)
+						pfw_data->frc_input_cfg(devp->fw_data);
 					//second: set frc enable on
 					set_frc_enable(ON);
 					pr_frc(log, "sm state change %s -> %s\n",
@@ -538,6 +550,8 @@ void frc_state_handle(struct frc_dev_s *devp)
 				} else if (devp->frc_sts.frame_cnt == 1) {
 					frc_hw_initial(devp);
 					//second frame set enable on
+					if (pfw_data->frc_input_cfg)
+						pfw_data->frc_input_cfg(devp->fw_data);
 					set_frc_enable(ON);
 					devp->frc_sts.frame_cnt = 0;
 					pr_frc(log, "sm state change %s -> %s\n",

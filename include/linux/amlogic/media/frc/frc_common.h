@@ -1009,9 +1009,16 @@ struct frc_top_type_s {
 	u32       me_loss_en;//default 0
 	u32       mc_loss_en;//default 0
 	u32       frc_prot_mode;//0:memc prefetch acorrding mode frame 1:memc prefetch 1 frame
+	u32       force_en;    // for debug
+	u32       in_out_ratio;  // for debug
+
 	/*output*/
 	u32 out_hsize;
 	u32 out_vsize;
+	/* frc_other*/
+	u16 frc_other_info;
+	u32 frc_reserved;
+
 };
 
 //-----------------------------------------------------------frc top cfg end
@@ -1091,9 +1098,13 @@ struct frc_fw_data_s {
 	struct st_me_rd g_stme_rd;
 	struct st_vp_rd g_stvp_rd;
 	struct st_mc_rd g_stmc_rd;
+	void (*scene_detect_input)(struct frc_fw_data_s *fw_data);
+	void (*scene_detect_output)(struct frc_fw_data_s *fw_data);
+
 
 	/*bbd*/
 	struct st_search_final_line_para search_final_line_para;
+	void (*bbd_ctrl)(struct frc_fw_data_s *fw_data);
 
 	struct st_vp_ctrl_para g_stvpctrl_para;
 
@@ -1101,11 +1112,14 @@ struct frc_fw_data_s {
 	struct st_iplogo_ctrl_item g_stiplogoctrl_item;// fw iplogo param
 	struct st_iplogo_ctrl_para g_stiplogoctrl_para;// fw iplogo param (adjustable)
 	struct st_melogo_ctrl_para g_stmelogoctrl_para;// fw melogo param (adjustable)
+	void (*iplogo_ctrl)(struct frc_fw_data_s *fw_data);
+	void (*melogo_ctrl)(struct frc_fw_data_s *fw_data);
 
 	/*film detect*/
 	struct st_film_ctrl_para g_stfilmctrl_para;
 	struct st_film_data_item g_stfilmdata_item;
 	struct st_film_detect_item g_stfilm_detect_item;
+	void (*film_detect_ctrl)(struct frc_fw_data_s *fw_data);
 
 	/*me*/
 	struct st_scene_change_detect_para g_stScnChgDet_Para;
@@ -1115,14 +1129,20 @@ struct frc_fw_data_s {
 	struct st_region_fb_ctrl_item g_stRegionFbCtrl_Item;
 	struct st_me_ctrl_item g_stMeCtrl_Item;
 	struct st_me_rule_en g_stMeRule_EN;
+	void (*me_ctrl)(struct frc_fw_data_s *fw_data);
 
 	/*mc*/
 	struct st_search_range_dynamic_para g_stsrch_rng_dym_para;
 	struct st_pixel_lpf_para g_stpixlpf_para;
+	void (*mc_ctrl)(struct frc_fw_data_s *fw_data);
+	void (*vp_ctrl)(struct frc_fw_data_s *fw_data);
 
 	/*frc top type config*/
 	struct frc_top_type_s frc_top_type;
 	struct frc_holdline_s holdline_parm;
+	void (*frc_input_cfg)(struct frc_fw_data_s *fw_data);
+	u8 frc_fw_ver[32];
+	u8 frc_alg_ver[32];
 };
 
 enum frc_state_e {
@@ -1181,5 +1201,15 @@ struct frc_force_size_s {
 	u32 force_hsize;
 	u32 force_vsize;
 };
-#endif
 
+extern int frc_dbg_en;
+#define pr_frc(level, fmt, arg...)			\
+	do {						\
+		if ((frc_dbg_en >= (level) && frc_dbg_en < 3) || frc_dbg_en == level)	\
+			pr_info("frc: " fmt, ## arg);	\
+	} while (0)
+
+#define PR_ERR(fmt, args ...)		pr_info("frc_Err: " fmt, ##args)
+#define PR_FRC(fmt, args ...)		pr_info("frc: " fmt, ##args)
+
+#endif

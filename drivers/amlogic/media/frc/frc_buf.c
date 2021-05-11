@@ -24,9 +24,9 @@
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
 #include <linux/page-flags.h>
+#include <linux/amlogic/media/frc/frc_reg.h>
+#include <linux/amlogic/media/frc/frc_common.h>
 
-#include "frc_reg.h"
-#include "frc_common.h"
 #include "frc_drv.h"
 #include "frc_buf.h"
 

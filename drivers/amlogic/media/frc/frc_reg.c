@@ -30,6 +30,8 @@ void WRITE_FRC_REG(unsigned int reg, unsigned int val)
 	writel(val, (frc_base + (reg << 2)));
 #endif
 }
+EXPORT_SYMBOL(WRITE_FRC_REG);
+
 
 void WRITE_FRC_BITS(unsigned int reg, unsigned int value,
 					   unsigned int start, unsigned int len)
@@ -46,6 +48,8 @@ void WRITE_FRC_BITS(unsigned int reg, unsigned int value,
 	writel(tmp, (frc_base + r));
 #endif
 }
+EXPORT_SYMBOL(WRITE_FRC_BITS);
+
 
 void UPDATE_FRC_REG_BITS(unsigned int reg,
 	unsigned int value,
@@ -61,6 +65,8 @@ void UPDATE_FRC_REG_BITS(unsigned int reg,
 	writel(val, (frc_base + (reg << 2)));
 #endif
 }
+EXPORT_SYMBOL(UPDATE_FRC_REG_BITS);
+
 
 int READ_FRC_REG(unsigned int reg)
 {
@@ -70,6 +76,7 @@ int READ_FRC_REG(unsigned int reg)
 	return 0;
 #endif
 }
+EXPORT_SYMBOL(READ_FRC_REG);
 
 u32 READ_FRC_BITS(u32 reg, const u32 start, const u32 len)
 {
@@ -80,6 +87,7 @@ u32 READ_FRC_BITS(u32 reg, const u32 start, const u32 len)
 #endif
 	return val;
 }
+EXPORT_SYMBOL(READ_FRC_BITS);
 
 u32 floor_rs(u32 ix, u32 rs)
 {
@@ -89,6 +97,7 @@ u32 floor_rs(u32 ix, u32 rs)
 
 	return rst;
 }
+EXPORT_SYMBOL(floor_rs);
 
 u32 ceil_rx(u32 ix, u32 rs)
 {
@@ -100,6 +109,7 @@ u32 ceil_rx(u32 ix, u32 rs)
 
 	return rst;
 }
+EXPORT_SYMBOL(ceil_rx);
 
 s32 negative_convert(s32 data, u32 fbits)
 {
@@ -113,4 +123,5 @@ s32 negative_convert(s32 data, u32 fbits)
 
 	return rst;
 }
+EXPORT_SYMBOL(negative_convert);
 

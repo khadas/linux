@@ -21,8 +21,8 @@ void frc_output_tasklet_pro(unsigned long arg);
 
 void frc_hw_initial(struct frc_dev_s *frc_devp);
 
-void frc_scene_detect_input(struct frc_dev_s *frc_devp);
-void frc_scene_detect_output(struct frc_dev_s *frc_devp);
+void frc_scene_detect_input(struct frc_fw_data_s *fw_data);
+void frc_scene_detect_output(struct frc_fw_data_s *fw_data);
 
 void frc_change_to_state(enum frc_state_e state);
 void frc_state_handle(struct frc_dev_s *devp);
