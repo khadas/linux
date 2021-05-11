@@ -18,7 +18,7 @@
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/meson_ir.h>
 #include "meson-ir-map.dtsi"
-//#include "mesong12a-bifrost.dtsi"
+#include "mesong12a-bifrost.dtsi"
 / {
 	cpus:cpus {
 		#address-cells = <2>;
@@ -28,100 +28,100 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x0>;
-//			enable-method = "psci";
-//			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
-//			dynamic-power-coefficient = <230>;
-//			#cooling-cells = <2>;
-//			clocks = <&clkc CLKID_CPU_CLK>,
-//				<&clkc CLKID_CPU_CLK_DYN>,
-//				<&clkc CLKID_SYS_PLL>;
-//			clock-names = "core_clk",
-//				"low_freq_clk_parent",
-//				"high_freq_clk_parent";
-//			operating-points-v2 = <&cpu_opp_table0>;
-//			cpu-supply = <&vddcpu0>;
-//			voltage-tolerance = <0>;
-//			clock-latency = <50000>;
+			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			dynamic-power-coefficient = <230>;
+			#cooling-cells = <2>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_CLK_DYN>,
+				<&clkc CLKID_SYS_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			cpu-supply = <&vddcpu0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
 		};
 
-//		CPU1:cpu@1 {
-//			device_type = "cpu";
-//			compatible = "arm,cortex-a55","arm,armv8";
-//			reg = <0x0 0x1>;
-//			enable-method = "psci";
-//			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
-//			dynamic-power-coefficient = <230>;
-//			#cooling-cells = <2>;
-//			clocks = <&clkc CLKID_CPU_CLK>,
-//				<&clkc CLKID_CPU_CLK_DYN>,
-//				<&clkc CLKID_SYS_PLL>;
-//			clock-names = "core_clk",
-//				"low_freq_clk_parent",
-//				"high_freq_clk_parent";
-//			operating-points-v2 = <&cpu_opp_table0>;
-//			cpu-supply = <&vddcpu0>;
-//			voltage-tolerance = <0>;
-//			clock-latency = <50000>;
-//		};
-//
-//		CPU2:cpu@2 {
-//			device_type = "cpu";
-//			compatible = "arm,cortex-a55","arm,armv8";
-//			reg = <0x0 0x2>;
-//			enable-method = "psci";
-//			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
-//			dynamic-power-coefficient = <230>;
-//			#cooling-cells = <2>;
-//			clocks = <&clkc CLKID_CPU_CLK>,
-//				<&clkc CLKID_CPU_CLK_DYN>,
-//				<&clkc CLKID_SYS_PLL>;
-//			clock-names = "core_clk",
-//				"low_freq_clk_parent",
-//				"high_freq_clk_parent";
-//			operating-points-v2 = <&cpu_opp_table0>;
-//			cpu-supply = <&vddcpu0>;
-//			voltage-tolerance = <0>;
-//			clock-latency = <50000>;
-//		};
-//
-//		CPU3:cpu@3 {
-//			device_type = "cpu";
-//			compatible = "arm,cortex-a55","arm,armv8";
-//			reg = <0x0 0x3>;
-//			enable-method = "psci";
-//			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
-//			dynamic-power-coefficient = <230>;
-//			#cooling-cells = <2>;
-//			clocks = <&clkc CLKID_CPU_CLK>,
-//				<&clkc CLKID_CPU_CLK_DYN>,
-//				<&clkc CLKID_SYS_PLL>;
-//			clock-names = "core_clk",
-//				"low_freq_clk_parent",
-//				"high_freq_clk_parent";
-//			operating-points-v2 = <&cpu_opp_table0>;
-//			cpu-supply = <&vddcpu0>;
-//			voltage-tolerance = <0>;
-//			clock-latency = <50000>;
-//		};
-//
-//		idle-states {
-//			entry-method = "arm,psci-0.2";
-//			CPU_SLEEP_0: cpu-sleep-0 {
-//					compatible = "arm,idle-state";
-//					arm,psci-suspend-param = <0x0010000>;
-//					local-timer-stop;
-//					entry-latency-us = <4000>;
-//					exit-latency-us = <5000>;
-//					min-residency-us = <10000>;
-//			};
-//			SYSTEM_SLEEP_0: system-sleep-0 {
-//					compatible = "arm,idle-state";
-//					arm,psci-suspend-param = <0x0000000>;
-//					entry-latency-us = <0x3fffffff>;
-//					exit-latency-us = <0x40000000>;
-//					min-residency-us = <0xffffffff>;
-//			};
-//		};
+		CPU1:cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55","arm,armv8";
+			reg = <0x0 0x1>;
+			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			dynamic-power-coefficient = <230>;
+			#cooling-cells = <2>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_CLK_DYN>,
+				<&clkc CLKID_SYS_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			cpu-supply = <&vddcpu0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
+		};
+
+		CPU2:cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55","arm,armv8";
+			reg = <0x0 0x2>;
+			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			dynamic-power-coefficient = <230>;
+			#cooling-cells = <2>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_CLK_DYN>,
+				<&clkc CLKID_SYS_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			cpu-supply = <&vddcpu0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
+		};
+
+		CPU3:cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a55","arm,armv8";
+			reg = <0x0 0x3>;
+			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			dynamic-power-coefficient = <230>;
+			#cooling-cells = <2>;
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_CLK_DYN>,
+				<&clkc CLKID_SYS_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			cpu-supply = <&vddcpu0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
+		};
+
+		idle-states {
+			entry-method = "arm,psci-0.2";
+			CPU_SLEEP_0: cpu-sleep-0 {
+					compatible = "arm,idle-state";
+					arm,psci-suspend-param = <0x0010000>;
+					local-timer-stop;
+					entry-latency-us = <4000>;
+					exit-latency-us = <5000>;
+					min-residency-us = <10000>;
+			};
+			SYSTEM_SLEEP_0: system-sleep-0 {
+					compatible = "arm,idle-state";
+					arm,psci-suspend-param = <0x0000000>;
+					entry-latency-us = <0x3fffffff>;
+					exit-latency-us = <0x40000000>;
+					min-residency-us = <0xffffffff>;
+			};
+		};
 	};
 
 	timer {
@@ -182,7 +182,7 @@
 
 	meson_suspend:pm {
 		compatible = "amlogic, pm";
-		status = "disabled";
+		status = "okay";
 		device_name = "aml_pm";
 		reg = <0x0 0xfe010288 0x0 0x4>, /*SYSCTRL_STATUS_REG2*/
 			<0x0 0xfe0102dc 0x0 0x4>; /*SYSCTRL_STICKY_REG7*/
@@ -190,7 +190,7 @@
 
 	cpu_info {
 		compatible = "amlogic, cpuinfo";
-		status = "disabled";
+		status = "okay";
 		cpuinfo_cmd = <0x82000044>;
 	};
 
@@ -211,7 +211,7 @@
 
 	cma_shrinker: cma_shrinker {
 		compatible = "amlogic, cma-shrinker";
-		status = "disabled";
+		status = "okay";
 		adj  = <0 100 200 250 900 950>;
 		free = <8192 12288 16384 24576 28672 32768>;
 	};
@@ -262,7 +262,7 @@
 
 	jtag {
 		compatible = "amlogic, jtag";
-		status = "disabled";
+		status = "okay";
 		select = "disable"; /* disable/jtag_a/jtag_b */
 		pinctrl-names="jtag_a_pins", "jtag_b_pins";
 		pinctrl-0=<&jtag_a_pins>;
@@ -270,7 +270,7 @@
 	};
 
 	mailbox_mhu_fifo: mhu@0 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, meson_mhu_fifo";
 		reg = <0x0 0xfe006000 0x0 0x800>,  /* mhu wr fifo */
 		      <0x0 0xfe006800 0x0 0x800>,  /* mhu rd fifo */
@@ -386,7 +386,7 @@
 
 			watchdog@2100 {
 				compatible = "amlogic,meson-sc2-wdt";
-				status = "disabled";
+				status = "okay";
 				/* 0:userspace, 1:kernel */
 				amlogic,feed_watchdog_mode = <1>;
 				reg = <0x0 0x2100 0x0 0x10>;
@@ -605,7 +605,7 @@
 			};
 
 			cpu_version {
-				//compatible = "amlogic,meson-gx-ao-secure", "syscon";
+				compatible = "amlogic,meson-gx-ao-secure", "syscon";
 				reg=<0x0 0x10220 0x0 0x4>;
 			};
 		};
@@ -665,7 +665,7 @@
 		dummy_codec:dummy{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, aml_dummy_codec";
-			status = "disabled";
+			status = "okay";
 		};
 		amlogic_codec:t9015{
 			#sound-dai-cells = <0>;
@@ -679,11 +679,11 @@
 			reset-names = "acodec";
 			resets = <&reset RESET_ACODEC>;
 
-			status = "disabled";
+			status = "okay";
 		};
 
 		audiobus: audiobus@0xFE330000 {
-			//compatible = "amlogic, audio-controller", "simple-bus";
+			compatible = "amlogic, audio-controller", "simple-bus";
 			reg = <0x0 0xFE330000 0x0 0x3000>;
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -723,8 +723,8 @@
 
 		/* Sound iomap */
 		aml_snd_iomap {
-			//compatible = "amlogic, snd-iomap";
-			status = "disabled";
+			compatible = "amlogic, snd-iomap";
+			status = "okay";
 			#address-cells=<2>;
 			#size-cells=<2>;
 			ranges;
@@ -781,7 +781,7 @@
 		dolby_fw: dolby_fw {
 			compatible = "amlogic, dolby_fw";
 			mem_size = <0x100000>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		pcie: pcie@f5000000 {
@@ -1029,12 +1029,12 @@
 	vcodec_dec {
 		compatible = "amlogic, vcodec-dec";
 		dev_name = "aml-vcodec-dec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	ddr_bandwidth {
 		compatible = "amlogic,ddr-bandwidth-s4";
-		status = "disabled";
+		status = "okay";
 		reg = <0 0xfe036000 0 0x400
 			0 0xfe036c00 0 0x100>;
 		interrupts = <0 78 IRQ_TYPE_EDGE_RISING>;
@@ -1043,7 +1043,7 @@
 
 	dmc_monitor {
 		compatible = "amlogic,dmc_monitor-s4";
-		status = "disabled";
+		status = "okay";
 		reg = <0 0xfe036000 0 0x400>;
 		reg_base = <0xfe037000>;
 		interrupts = <0 62 IRQ_TYPE_EDGE_RISING>;
@@ -1141,20 +1141,20 @@
 		aml_aes {
 			compatible = "amlogic,aes_g12a_dma";
 			dev_name = "aml_aes_dma";
-			status = "disabled";
+			status = "okay";
 			iv_swap = /bits/ 8 <0x0>;
 		};
 
 		aml_sha {
 			compatible = "amlogic,sha_dma";
 			dev_name = "aml_sha_dma";
-			status = "disabled";
+			status = "okay";
 		};
 
 		aml_tdes {
 			compatible = "amlogic,des_dma,tdes_dma";
 			dev_name = "aml_tdes_dma";
-			status = "disabled";
+			status = "okay";
 		};
 
 	};
@@ -1279,7 +1279,7 @@
 
 	vdac {
 		compatible = "amlogic, vdac-s4";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vout: vout {
@@ -1296,12 +1296,12 @@
 
 	dummy_venc: dummy_venc {
 		compatible = "amlogic, dummy_venc_s4";
-		status = "disabled";
+		status = "okay";
 	};
 
 	adc: adc {
 		compatible = "amlogic, adc-s4";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xff654000 0x0 0x2000/* afe reg base */
 			0x0 0xfe008000 0x0 0x2000/* hiu base */
 			>;
@@ -1320,7 +1320,7 @@
 
 	p_tsensor: p_tsensor@fe020000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe020000 0x0 0x50>;
 		tsensor_id = <1>;
 		cal_type = <0x11>;
@@ -1333,7 +1333,7 @@
 	};
 
 	meson_cooldev: meson-cooldev@0 {
-			status = "disabled";
+			status = "okay";
 			compatible = "amlogic, meson-cooldev";
 			cooling_devices {
 				cpucore_cool_cluster0 {
@@ -1382,11 +1382,11 @@
 					cooling-device = <&CPU0 0 8>;
 					contribution = <1024>;
 				};
-				//gpufreq_cooling_map {
-				//	trip = <&pcontrol>;
-				//	cooling-device = <&gpu 0 3>;
-				//	contribution = <1024>;
-				//};
+				gpufreq_cooling_map {
+					trip = <&pcontrol>;
+					cooling-device = <&gpu 0 3>;
+					contribution = <1024>;
+				};
 			};
 		};
 	};/*thermal zone end*/
@@ -1398,12 +1398,12 @@
 
 	meson_uvm {
 		compatible = "amlogic, meson_uvm";
-		status = "disabled";
+		status = "okay";
 	};
 
 	meson_videotunnel{
 		compatible = "amlogic, meson_videotunnel";
-		status = "disabled";
+		status = "okay";
 	};
 
 	fb: fb {
@@ -1423,7 +1423,7 @@
 
 	irblaster: meson-irblaster@fe08410c {
 		compatible = "amlogic, meson_irblaster";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe08410c 0x0 0x10>;
 		#irblaster-cells = <2>;
 		interrupts = <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>;
@@ -1433,7 +1433,7 @@
 	vdin0: vdin0 {
 		compatible = "amlogic, vdin-s4";
 		dev_name = "vdin0";
-		status = "disabled";
+		status = "okay";
 		reserve-iomap = "true";
 		flag_cma = <0>;/*1:share with codec_mm;2:cma alone*/
 		/*MByte, if 10bit disable: 64M(YUV422),
@@ -1453,7 +1453,7 @@
 	vdin1: vdin1 {
 		compatible = "amlogic, vdin-s4";
 		dev_name = "vdin1";
-		status = "disabled";
+		status = "okay";
 		reserve-iomap = "true";
 		flag_cma = <0>;/*1:share with codec_mm;0:cma alone*/
 		interrupts = <0 212 1>;
@@ -1464,7 +1464,7 @@
 	meson-amvideom {
 		compatible = "amlogic, amvideom-s4";
 		dev_name = "amvideom";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vsync";
 	};
@@ -1472,13 +1472,13 @@
 	video_composer {
 		compatible = "amlogic, video_composer";
 		dev_name = "video_composer";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vpu_security {
 		compatible = "amlogic, meson-s4, vpu_security";
 		dev_name = "amlogic-vpu-security";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 220 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vpu_security";
 	};
@@ -2198,32 +2198,32 @@
 	};
 };
 
-//&gpu{
-//	reg =   <0 0xFE400000 0 0x04000>, /*mali APB bus base address*/
-//		<0 0xFE002000 0 0x01000>, /*reset register*/
-//		<0 0xFF800000 0 0x01000>, /*aobus TODO update*/
-//		<0 0xFF63c000 0 0x01000>, /*hiubus for clk cntl*/
-//		<0 0xFE002000 0 0x01000>; /*reset register*/
-//
-//	interrupts = <0 144 4>, <0 145 4>, <0 146 4>;
-//	interrupt-names = "GPU", "MMU", "JOB";
-//	clk_cntl_reg = <0x57>;
-//
-//	clocks = <&clkc CLKID_MALI>;
-//	clock-names = "gpu_mux";
-//
+&gpu{
+	reg =   <0 0xFE400000 0 0x04000>, /*mali APB bus base address*/
+		<0 0xFE002000 0 0x01000>, /*reset register*/
+		<0 0xFF800000 0 0x01000>, /*aobus TODO update*/
+		<0 0xFF63c000 0 0x01000>, /*hiubus for clk cntl*/
+		<0 0xFE002000 0 0x01000>; /*reset register*/
+
+	interrupts = <0 144 4>, <0 145 4>, <0 146 4>;
+	interrupt-names = "GPU", "MMU", "JOB";
+	clk_cntl_reg = <0x57>;
+
+	clocks = <&clkc CLKID_MALI>;
+	clock-names = "gpu_mux";
+
 	/*
 	 * Mali clocking is provided by two identical clock paths
 	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
 	 * free mux to safely change frequency while running.
 	 */
-//	assigned-clocks = <&clkc CLKID_MALI_0_SEL>,
-//			  <&clkc CLKID_MALI_0>,
-//			  <&clkc CLKID_MALI>; /* Glitch free mux */
-//	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
-//				 <0>, /* Do Nothing */
-//				 <&clkc CLKID_MALI_0>;
-//	assigned-clock-rates = <0>, /* Do Nothing */
-//			       <500000000>,
-//			       <0>; /* Do Nothing */
-//};
+	assigned-clocks = <&clkc CLKID_MALI_0_SEL>,
+			  <&clkc CLKID_MALI_0>,
+			  <&clkc CLKID_MALI>; /* Glitch free mux */
+	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
+				 <0>, /* Do Nothing */
+				 <&clkc CLKID_MALI_0>;
+	assigned-clock-rates = <0>, /* Do Nothing */
+			       <500000000>,
+			       <0>; /* Do Nothing */
+};
