@@ -2269,6 +2269,7 @@
 			vrtc: rtc@0a8 {
 				compatible = "amlogic,meson-vrtc";
 				reg = <0x0 0x000a8 0x0 0x4>;
+				status = "okay";
 			};
 /*
 			cec_AO: cec@100 {
