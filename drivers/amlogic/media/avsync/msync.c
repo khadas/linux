@@ -175,6 +175,9 @@ struct msync {
 	u32 sync_duration_den;
 	u32 sync_duration_num;
 	u32 vsync_pts_inc;
+
+	/* start buffering time in 90K */
+	u32 start_buf_thres;
 };
 
 struct msync_priv {
@@ -202,6 +205,11 @@ static void pcr_set(struct sync_session *session);
 static u32 abs_diff(u32 a, u32 b)
 {
 	return (int)(a - b) > 0 ? a - b : b - a;
+}
+
+static u32 pts_early(u32 a, u32 b)
+{
+	return (int)(a - b) > 0 ? b : a;
 }
 
 static void session_set_wall_clock(struct sync_session *session, u32 clock)
@@ -421,6 +429,7 @@ static void use_pcr_clock(struct sync_session *session, bool enable, u32 pts)
 	session->clock_start = true;
 }
 
+#if 0
 static u32 get_ref_pcr(struct sync_session *session,
 	u32 cur_vpts, u32 cur_apts, u32 min_pts)
 {
@@ -479,6 +488,7 @@ static u32 get_ref_pcr(struct sync_session *session,
 
 	return ref_pcr;
 }
+#endif
 
 /* only handle first arrived A/V/PCR */
 static void pcr_set(struct sync_session *session)
@@ -486,7 +496,7 @@ static void pcr_set(struct sync_session *session)
 	u32 cur_pcr = AVS_INVALID_PTS;
 	u32 cur_vpts = AVS_INVALID_PTS;
 	u32 cur_apts = AVS_INVALID_PTS;
-	u32 ref_pcr = AVS_INVALID_PTS;
+	//u32 ref_pcr = AVS_INVALID_PTS;
 	u32 min_pts = AVS_INVALID_PTS;
 
 	if (session->pcr_init_flag & INITCHECK_DONE)
@@ -505,11 +515,15 @@ static void pcr_set(struct sync_session *session)
 		cur_apts = session->last_apts.pts;
 
 	if (VALID_PTS(cur_vpts) && VALID_PTS(cur_apts))
-		min_pts = min(cur_vpts, cur_apts);
+		min_pts = pts_early(cur_vpts, cur_apts);
 	else if (VALID_PTS(cur_vpts))
 		min_pts = cur_vpts;
 	else if (VALID_PTS(cur_apts))
 		min_pts = cur_apts;
+
+	/* buffering */
+	if (VALID_PTS(min_pts))
+		min_pts -= sync.start_buf_thres;
 
 	/* pcr comes first */
 	if (VALID_PTS(cur_pcr)) {
@@ -595,26 +609,26 @@ static void pcr_set(struct sync_session *session)
 
 	if (VALID_PTS(session->first_apts.pts)) {
 		session->pcr_init_flag |= INITCHECK_APTS;
-		ref_pcr = get_ref_pcr(session, cur_vpts, cur_apts, min_pts);
+		//ref_pcr = get_ref_pcr(session, cur_vpts, cur_apts, min_pts);
 		if (VALID_PTS(cur_pcr))
 			session->pcr_init_mode = INIT_PRIORITY_PCR;
 		else
 			session->pcr_init_mode = INIT_PRIORITY_AUDIO;
-		use_pcr_clock(session, false, ref_pcr);
+		use_pcr_clock(session, false, min_pts);
 		msync_dbg(LOG_DEBUG, "[%d]%d disable pcr %u\n",
-			session->id, __LINE__, ref_pcr);
+			session->id, __LINE__, min_pts);
 	}
 
 	if (VALID_PTS(session->first_vpts.pts) && !session->pcr_work_on) {
 		session->pcr_init_flag |= INITCHECK_VPTS;
-		ref_pcr = get_ref_pcr(session, cur_vpts, cur_apts, min_pts);
+		//ref_pcr = get_ref_pcr(session, cur_vpts, cur_apts, min_pts);
 		if (VALID_PTS(cur_pcr))
 			session->pcr_init_mode = INIT_PRIORITY_PCR;
 		else
 			session->pcr_init_mode = INIT_PRIORITY_VIDEO;
-		use_pcr_clock(session, false, ref_pcr);
+		use_pcr_clock(session, false, min_pts);
 		msync_dbg(LOG_DEBUG, "[%d]%d disable pcr %u\n",
-			session->id, __LINE__, ref_pcr);
+			session->id, __LINE__, min_pts);
 	}
 }
 
@@ -861,7 +875,7 @@ static u32 session_audio_start(struct sync_session *session,
 		session->stat = AVS_STAT_STARTED;
 		if (session->clock_start &&
 				(int)(pts - session->wall_clock) >
-				(UNIT90K / 100)) {
+				sync.start_buf_thres) {
 			ret = AVS_START_AGAIN;
 			msync_dbg(LOG_DEBUG, "[%d]%d audio drop %u\n",
 					session->id, __LINE__, pts);
@@ -1056,8 +1070,10 @@ static void session_video_disc_pcr(struct sync_session *session, u32 pts)
 
 				if (A_DISC_SET(session->pcr_disc_flag) &&
 					abs_diff(pts,  apts) <
-						session->disc_thres_min)
-					min_pts = min(apts, pts);
+						session->disc_thres_min) {
+					min_pts = pts_early(apts, pts);
+					min_pts -= sync.start_buf_thres;
+				}
 				session_set_wall_clock(session, min_pts);
 				msync_dbg(LOG_DEBUG,
 					"[%d]%d vdisc set wall %u a/v %u/%u\n",
@@ -1159,6 +1175,7 @@ static void pcr_check(struct sync_session *session)
 {
 	u32 checkin_vpts = AVS_INVALID_PTS;
 	u32 checkin_apts = AVS_INVALID_PTS;
+	u32 min_pts = AVS_INVALID_PTS;
 	int max_gap = 40;
 	u32 flag, last_pts, gap_cnt = 0;
 
@@ -1267,6 +1284,7 @@ static void pcr_check(struct sync_session *session)
 		}
 	}
 
+	/* pcr discontinuity detection */
 	if (VALID_PTS(session->pcr_clock.pts) &&
 		VALID_PTS(session->last_check_pcr_clock) &&
 		abs_diff(session->pcr_clock.pts,
@@ -1278,19 +1296,6 @@ static void pcr_check(struct sync_session *session)
 		session->last_check_pcr_clock = session->pcr_clock.pts;
 		session->pcr_cont_cnt++;
 		session->pcr_disc_cnt = 0;
-#if 0
-		if (!session->use_pcr &&
-			session->pcr_cont_cnt > 10 &&
-			abs_diff(session->pcr_clock.pts, checkin_vpts) <
-				session->disc_thres_min) {
-			use_pcr_clock(session, true, 0);
-			session->pcr_disc_flag = 0;
-			msync_dbg(LOG_INFO,
-				"[%d] %d disc resume\n",
-				session->id, __LINE__);
-			return;
-		}
-#endif
 	}
 
 	//TODO nowhere to clear pcr_init_flag to 0
@@ -1310,12 +1315,6 @@ static void pcr_check(struct sync_session *session)
 		if (V_DISC_SET(session->pcr_disc_flag) &&
 			VALID_PTS(checkin_apts) &&
 			VALID_PTS(checkin_vpts)) {
-#if 0 //none sense not used anywhere
-			if (abs_diff(checkin_apts, checkin_vpts) > MAX_GAP)
-				ref_pcr = checkin_vpts;
-			else
-				ref_pcr = min(checkin_vpts, checkin_apts);
-#endif
 			msync_dbg(LOG_INFO, "[%d] %d pcr_disc reset %u\n",
 				session->id, __LINE__, checkin_vpts);
 			use_pcr_clock(session, false, checkin_vpts);
@@ -1324,45 +1323,32 @@ static void pcr_check(struct sync_session *session)
 		return;
 	}
 
-	if (session->pcr_disc_cnt > 100 && VALID_PTS(checkin_vpts)) {
+	min_pts = pts_early(checkin_apts, checkin_vpts);
+	if (session->pcr_disc_cnt > 100 && VALID_PTS(min_pts)) {
+		min_pts -= sync.start_buf_thres;
 		msync_dbg(LOG_INFO, "[%d] %d pcr_disc reset %u\n",
-			session->id, __LINE__, checkin_vpts);
+			session->id, __LINE__, min_pts);
 		session->pcr_init_mode = INIT_PRIORITY_VIDEO;
-		use_pcr_clock(session, false, checkin_vpts);
+		use_pcr_clock(session, false, min_pts);
 	}
 
-	/* arrival order of video and PCR disc */
-	if (V_DISC_SET(session->pcr_disc_flag) &&
-		!PCR_DISC_SET(session->pcr_disc_flag)) {
-		session->pcr_disc_flag = 0;
-		if (VALID_PTS(checkin_vpts) && session->use_pcr &&
-			pcr_v_disc(session, checkin_vpts)) {
-			use_pcr_clock(session, false, checkin_vpts);
-			msync_dbg(LOG_INFO, "[%d] %d disable pcr %u\n",
-				session->id, __LINE__, checkin_vpts);
-		}
-	} else if (!V_DISC_SET(session->pcr_disc_flag) &&
+	/* TODO: dead code? */
+	if (!V_DISC_SET(session->pcr_disc_flag) &&
 		PCR_DISC_SET(session->pcr_disc_flag) &&
 		session->use_pcr) {
 		session->use_pcr = false;
 		msync_dbg(LOG_INFO, "[%d] %d pdisc ignored\n",
 			session->id, __LINE__);
-	} else if (V_DISC_SET(session->pcr_disc_flag) &&
-		PCR_DISC_SET(session->pcr_disc_flag)) {
-		session->use_pcr = true;
-		session->pcr_disc_flag = 0;
-		msync_dbg(LOG_INFO, "[%d] %d enable pcr %u\n",
-			session->id, __LINE__, session->pcr_clock.pts);
 	}
 
 	if (A_DISC_SET(session->pcr_disc_flag) &&
 		V_DISC_SET(session->pcr_disc_flag) &&
 		VALID_PTS(checkin_apts) &&
 		VALID_PTS(checkin_vpts)) {
-		u32 min_pts = min(checkin_apts, checkin_vpts);
 
 		if (abs_diff(checkin_apts, checkin_vpts) <
 			session->disc_thres_min) {
+			min_pts -= sync.start_buf_thres;
 			use_pcr_clock(session, false, min_pts);
 			msync_dbg(LOG_INFO,
 				"[%d] %d disable pcr %u vs %u\n",
@@ -2191,13 +2177,35 @@ static ssize_t list_session_show(struct class *cla,
 	return snprintf(buf, sizeof(tmp), "%s", tmp);
 }
 
+static ssize_t start_buf_thres_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d in 90K unit\n",
+			sync.start_buf_thres);
+}
+
+static ssize_t start_buf_thres_store(struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	int r, thres;
+
+	r = kstrtouint(buf, 0, &thres);
+	if (r != 0)
+		return -EINVAL;
+	if (thres >= UNIT90K) {
+		msync_dbg(LOG_ERR, "must less than 90K");
+		return -EINVAL;
+	}
+	sync.start_buf_thres = thres;
+	return count;
+}
+
 static struct class_attribute msync_attrs[] = {
-	__ATTR(log_level,
-		0664,
-		log_level_show,
-		log_level_store),
+	__ATTR_RW(log_level),
 	__ATTR_RO(list_session),
 	__ATTR_RO(vout_mode),
+	__ATTR_RW(start_buf_thres),
 	__ATTR_NULL
 };
 
@@ -2205,6 +2213,7 @@ static struct attribute *msync_class_attrs[] = {
 	&msync_attrs[0].attr,
 	&msync_attrs[1].attr,
 	&msync_attrs[2].attr,
+	&msync_attrs[3].attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(msync_class);
@@ -2254,6 +2263,7 @@ int __init msync_init(void)
 	sync.msync_notifier.notifier_call = msync_notify_callback;
 	vout_register_client(&sync.msync_notifier);
 	sync.ready = true;
+	sync.start_buf_thres = UNIT90K / 10;
 	return 0;
 err3:
 	class_unregister(&msync_class);
