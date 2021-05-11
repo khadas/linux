@@ -740,7 +740,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 #else	/* !ARM64_SWAPPER_USES_SECTION_MAPS */
 
 #ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
-static int __init check_pfn_overflow(unsigned long pfn)
+static int __meminit check_pfn_overflow(unsigned long pfn)
 {
 	unsigned long pfn_up;
 	unsigned long size;
