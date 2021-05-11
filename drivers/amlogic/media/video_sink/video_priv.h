@@ -762,11 +762,6 @@ static inline bool tsync_check_vpts_discontinuity(unsigned int vpts)
 }
 #endif
 
-#ifndef CONFIG_AMLOGIC_VIDEOSYNC
-static inline void videosync_pcrscr_update(s32 inc, u32 base) {}
-static inline void vsync_notify_videosync(void) {}
-#endif
-
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 enum vd_path_e {
 	VD1_PATH = 0,
