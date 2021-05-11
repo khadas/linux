@@ -8517,7 +8517,8 @@ void init_pq_setting(void)
 	else if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
 		 is_meson_sm1_cpu() ||
 		 get_cpu_type() == MESON_CPU_MAJOR_ID_SC2 ||
-		 is_meson_s4_cpu()) {
+		 is_meson_s4_cpu() ||
+		 is_meson_s4d_cpu()) {
 		if (is_meson_s4_cpu())
 			bitdepth = 10;
 		else
