@@ -64,6 +64,9 @@ static void meson_a1_gpio_irq_sel_pin(struct meson_gpio_irq_controller *ctl,
 static unsigned int
 meson_sc2_gpio_irq_sel_type(struct meson_gpio_irq_controller *ctl,
 			    unsigned int idx, u32 val);
+static unsigned int
+meson_p1_gpio_irq_sel_type(struct meson_gpio_irq_controller *ctl,
+			    unsigned int idx, u32 val);
 #endif
 
 static void meson_a1_gpio_irq_init(struct meson_gpio_irq_controller *ctl);
@@ -88,6 +91,10 @@ struct meson_gpio_irq_params {
 	unsigned int pin_sel_mask;
 	struct irq_ctl_ops ops;
 #ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int pin_sel_reg_base;
+	unsigned int edge_sel_reg;
+	unsigned int pol_low_sel_reg;
+	unsigned int both_sel_reg;
 	u8 channel_num;
 #endif
 };
@@ -145,7 +152,24 @@ struct meson_gpio_irq_params {
 	.edge_single_offset = 12,				\
 	.pol_low_offset = 0,					\
 	.pin_sel_mask = 0xff,					\
+	.pin_sel_reg_base = 0x04,				\
 	.channel_num = 12,
+
+#define INIT_MESON_P1_COMMON_DATA(irqs)			\
+	INIT_MESON_SC2_COMMON(irqs, meson_a1_gpio_irq_init,	\
+			      meson_a1_gpio_irq_sel_pin,	\
+			      meson_p1_gpio_irq_sel_type)	\
+	.support_edge_both = true,				\
+	.edge_both_offset = 0,					\
+	.edge_single_offset = 0,				\
+	.pol_low_offset = 0,					\
+	.pin_sel_mask = 0xff,					\
+	.pin_sel_reg_base = 0x10,				\
+	.edge_sel_reg = 0x04,					\
+	.pol_low_sel_reg = 0x08,				\
+	.both_sel_reg =  0x0c,					\
+	.channel_num = 32,
+
 #endif
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -208,6 +232,10 @@ static const struct meson_gpio_irq_params s4_params = {
 static const struct meson_gpio_irq_params t3_params = {
 	INIT_MESON_SC2_COMMON_DATA(139)
 };
+
+static const struct meson_gpio_irq_params p1_params = {
+	INIT_MESON_P1_COMMON_DATA(230)
+};
 #endif
 
 static const struct of_device_id meson_irq_gpio_matches[] = {
@@ -228,6 +256,7 @@ static const struct of_device_id meson_irq_gpio_matches[] = {
 	{ .compatible = "amlogic,meson-t7-gpio-intc", .data = &t7_params },
 	{ .compatible = "amlogic,meson-s4-gpio-intc", .data = &s4_params },
 	{ .compatible = "amlogic,meson-t3-gpio-intc", .data = &t3_params },
+	{ .compatible = "amlogic,meson-p1-gpio-intc", .data = &p1_params },
 #endif
 	{ }
 };
@@ -283,7 +312,11 @@ static void meson_a1_gpio_irq_sel_pin(struct meson_gpio_irq_controller *ctl,
 	unsigned int bit_offset;
 
 	bit_offset = ((channel % 2) == 0) ? 0 : 16;
+#ifndef CONFIG_AMLOGIC_MODIFY
 	reg_offset = REG_PIN_A1_SEL + ((channel / 2) << 2);
+#else
+	reg_offset = ctl->params->pin_sel_reg_base + ((channel / 2) << 2);
+#endif
 
 	meson_gpio_irq_update_bits(ctl, reg_offset,
 				   ctl->params->pin_sel_mask << bit_offset,
@@ -325,6 +358,46 @@ meson_sc2_gpio_irq_sel_type(struct meson_gpio_irq_controller *ctl,
 
 	meson_gpio_irq_update_bits(ctl, REG_EDGE_POL,
 				   REG_EDGE_POL_MASK_SC2(idx), val);
+
+	spin_unlock_irqrestore(&ctl->lock, flags);
+
+	return 0;
+};
+
+static unsigned int
+meson_p1_gpio_irq_sel_type(struct meson_gpio_irq_controller *ctl,
+			    unsigned int idx, unsigned int type)
+{
+	unsigned int val = 0;
+	unsigned long flags;
+	const struct meson_gpio_irq_params *params;
+
+	params = ctl->params;
+
+	meson_gpio_irq_update_bits(ctl, params->both_sel_reg, BIT(0 + (idx)), 0);
+
+	if (type == IRQ_TYPE_EDGE_BOTH) {
+		val |= BIT(params->edge_both_offset + (idx));
+		spin_lock_irqsave(&ctl->lock, flags);
+		meson_gpio_irq_update_bits(ctl, params->both_sel_reg,
+					   BIT(params->edge_both_offset + (idx)), val);
+		spin_unlock_irqrestore(&ctl->lock, flags);
+		return 0;
+	}
+
+	spin_lock_irqsave(&ctl->lock, flags);
+
+	if (type & (IRQ_TYPE_LEVEL_LOW | IRQ_TYPE_EDGE_FALLING)) {
+		val = 0;
+		val |= BIT(params->pol_low_offset + (idx));
+		meson_gpio_irq_update_bits(ctl, params->pol_low_sel_reg, BIT(idx), val);
+	}
+
+	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING)) {
+		val = 0;
+		val |= BIT(params->edge_single_offset  + (idx));
+		meson_gpio_irq_update_bits(ctl, params->edge_sel_reg, BIT(idx), val);
+	}
 
 	spin_unlock_irqrestore(&ctl->lock, flags);
 
