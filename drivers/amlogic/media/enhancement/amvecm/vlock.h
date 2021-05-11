@@ -341,4 +341,5 @@ ssize_t vlock_debug_store(struct class *cla,
 ssize_t vlock_debug_show(struct class *cla,
 			 struct class_attribute *attr, char *buf);
 void vlock_clk_config(struct device *dev);
+int frc_is_on(void);
 

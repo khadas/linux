@@ -38,11 +38,14 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/frame_sync/timestamp.h>
 #include <linux/amlogic/media/frame_sync/tsync.h>
+#include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
 
 #include "frc_reg.h"
 #include "frc_common.h"
 #include "frc_drv.h"
 #include "frc_proc.h"
+#include "frc_interface.h"
 
 /*
  * every vsync handle
@@ -98,17 +101,47 @@ int frc_set_mode(enum frc_state_e state)
 
 /*
  * get current frc video latency
+ * return: ms
  */
 int frc_get_video_latency(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	u32 out_frm_dly_num;
+	struct vinfo_s *vinfo = get_current_vinfo();
+	u32 vout_hz;
+	u32 delay_time;/*ms*/
+
+	if (!devp || !vinfo)
+		return 0;
+
+	if (devp->frc_sts.state == FRC_STATE_BYPASS || devp->frc_sts.state == FRC_STATE_DISABLE)
+		return 0;
+
+	if (devp->frc_sts.state == FRC_STATE_ENABLE) {
+		vout_hz = vinfo->sync_duration_num / vinfo->sync_duration_den;
+		out_frm_dly_num = READ_FRC_BITS(FRC_REG_TOP_CTRL9, 24, 4);
+		delay_time = out_frm_dly_num * (1000 / vout_hz);
+		return delay_time;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(frc_get_video_latency);
+
+int frc_is_on(void)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
 	if (!devp)
 		return 0;
 
-	if (devp->frc_sts.state == FRC_STATE_BYPASS || devp->frc_sts.state == FRC_STATE_DISABLE)
+	if (!devp->probe_ok)
 		return 0;
 
-	return -1;
+	if (devp->frc_sts.state == FRC_STATE_ENABLE)
+		return 1;
+
+	return 0;
 }
+EXPORT_SYMBOL(frc_is_on);
 

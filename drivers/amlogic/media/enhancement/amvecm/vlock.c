@@ -461,6 +461,11 @@ void vlock_set_panel_ss(u32 onoff)
 #endif
 }
 
+int __attribute__((weak))frc_is_on(void)
+{
+	return 0;
+}
+
 static void vlock_tune_sync(struct stvlock_sig_sts *pvlock)
 {
 	u32 offset_enc = pvlock->offset_encl;
@@ -474,9 +479,10 @@ static void vlock_tune_sync(struct stvlock_sig_sts *pvlock)
 			u32 max_lncnt = pvlock->enc_frc_max_line;
 			u32 max_pxcnt = pvlock->enc_frc_max_pixel;
 
-			//if (vlock_debug & VLOCK_DEBUG_INFO)
-			//	pr_info("frc_v_porch=%d max_lncnt=%d max_pxcnt=%d\n",
-			//		frc_v_porch, max_lncnt, max_pxcnt);
+			if (!frc_is_on())
+				return;
+
+			/*shdow register*/
 			WRITE_VPP_REG(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
 			WRITE_VPP_REG(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));
 			WRITE_VPP_REG(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
@@ -1964,7 +1970,7 @@ void vlock_status_init(void)
 		pvlock->pre_enc_max_pixel = READ_VPP_REG(pvlock->enc_max_pixel_addr + offset_enc);
 		if (pvlock->dtdata->vlk_chip == vlock_chip_t3 && pvlock->idx == VLOCK_ENC0) {
 			pvlock->enc_frc_v_porch =
-				READ_VPP_REG(pvlock->enc_frc_v_porch_addr + offset_enc);
+				READ_VPP_REG_BITS(pvlock->enc_frc_v_porch_addr + offset_enc, 0, 16);
 			pvlock->enc_frc_max_line = pvlock->org_enc_line_num;
 			pvlock->enc_frc_max_pixel = pvlock->org_enc_pixel_num;
 		}

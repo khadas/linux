@@ -196,12 +196,63 @@ static long frc_ioctl(struct file *file,
 		if (copy_to_user(argp, &data, sizeof(u32)))
 			ret = -EFAULT;
 		break;
+
 	case FRC_IOC_GET_FRC_STS:
 		data = (u32)devp->frc_sts.state;
 		if (copy_to_user(argp, &data, sizeof(u32)))
 			ret = -EFAULT;
 		break;
+
 	case FRC_IOC_SET_FRC_CANDENCE:
+		if (copy_from_user(&data, argp, sizeof(u32))) {
+			ret = -EFAULT;
+			break;
+		}
+		pr_frc(1, "SET_FRC_CANDENCE:%d\n", data);
+		break;
+
+	case FRC_IOC_GET_VIDEO_LATENCY:
+		data = (u32)frc_get_video_latency();
+		if (copy_to_user(argp, &data, sizeof(u32)))
+			ret = -EFAULT;
+		break;
+
+	case FRC_IOC_GET_IS_ON:
+		data = (u32)frc_is_on();
+		if (copy_to_user(argp, &data, sizeof(u32)))
+			ret = -EFAULT;
+		break;
+
+	case FRC_IOC_SET_INPUT_VS_RATE:
+		if (copy_from_user(&data, argp, sizeof(u32))) {
+			ret = -EFAULT;
+			break;
+		}
+		pr_frc(1, "SET_INPUT_VS_RATE:%d\n", data);
+		break;
+
+	case FRC_IOC_SET_MEMC_ON_OFF:
+		if (copy_from_user(&data, argp, sizeof(u32))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		if (data) {
+			devp->frc_sts.auto_ctrl = true;
+			devp->frc_sts.re_config = true;
+		} else {
+			devp->frc_sts.auto_ctrl = false;
+			if (devp->frc_sts.state == FRC_STATE_ENABLE)
+				frc_change_to_state(FRC_STATE_DISABLE);
+		}
+		break;
+
+	case FRC_IOC_SET_MEMC_LEVEL:
+		if (copy_from_user(&data, argp, sizeof(u32))) {
+			ret = -EFAULT;
+			break;
+		}
+		pr_frc(1, "SET_MEMC_LEVEL:%d\n", data);
 		break;
 	}
 
@@ -393,9 +444,8 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp,
 #ifdef CONFIG_COMPAT
 static long frc_campat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	int ret = 0;
-
-	return ret;
+	arg = (unsigned long)compat_ptr(arg);
+	return frc_ioctl(file, cmd, arg);
 }
 #endif
 
@@ -415,7 +465,8 @@ int frc_notify_callback(struct notifier_block *block, unsigned long cmd, void *p
 		break;
 
 	case VOUT_EVENT_MODE_CHANGE:
-		//devp->frc_sts.out_put_mode_changed = FRC_EVENT_NO_EVENT;
+		devp->frc_sts.out_put_mode_changed = FRC_EVENT_VOUT_CHG;
+		//frc_change_to_state(FRC_STATE_DISABLE);
 		break;
 
 	default:
@@ -459,6 +510,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->frc_sts.state_transing = false;
 	devp->frc_sts.re_cfg_cnt = 0;
 	devp->frc_sts.out_put_mode_changed = false;
+	devp->frc_sts.re_config = false;
 	devp->in_sts.vf_sts = 0;/*initial to no*/
 	devp->dbg_force_en = 0;
 

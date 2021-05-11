@@ -26,6 +26,9 @@
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 
+#include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
+
 #include "frc_reg.h"
 #include "frc_common.h"
 #include "frc_drv.h"
@@ -56,6 +59,7 @@ static void frc_debug_parse_param(char *buf_orig, char **parm)
 void frc_status(struct frc_dev_s *devp)
 {
 	struct frc_fw_data_s *fw_data;
+	struct vinfo_s *vinfo = get_current_vinfo();
 
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	pr_frc(0, "%s\n", FRC_FW_VER);
@@ -72,6 +76,9 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "duration=%d\n", devp->in_sts.duration);
 	pr_frc(0, "vout hsize:%d vsize:%d\n", devp->out_sts.vout_width, devp->out_sts.vout_height);
 	pr_frc(0, "vout out_framerate:%d\n", devp->out_sts.out_framerate);
+	pr_frc(0, "vout sync_duration_num:%d sync_duration_den:%d hz:%d\n",
+		vinfo->sync_duration_num, vinfo->sync_duration_den,
+		vinfo->sync_duration_num / vinfo->sync_duration_den);
 	pr_frc(0, "mem_alloced:%d size:0x%x\n", devp->buf.cma_mem_alloced,
 	       devp->buf.cma_mem_size);
 	pr_frc(0, "vpu int vs_duration:%d timestamp:%ld\n",

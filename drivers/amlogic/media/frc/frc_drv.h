@@ -174,6 +174,7 @@ struct st_frc_sts {
 	u32 vs_cnt;
 	u32 re_cfg_cnt;
 	u32 out_put_mode_changed;
+	u32 re_config;
 };
 
 struct st_frc_in_sts {

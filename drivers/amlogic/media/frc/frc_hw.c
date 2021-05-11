@@ -576,11 +576,9 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	reg_post_dly_vofst = fw_data->holdline_parm.reg_post_dly_vofst;
 	reg_mc_dly_vofst0 = fw_data->holdline_parm.reg_mc_dly_vofst0;
 
-	//frc_reset(1);
-	//frc_reset(0);
 	frc_input_init(frc_devp, frc_top);
 	pr_frc(log, "%s\n", __func__);
-	////Config frc input size
+	//Config frc input size
 	WRITE_FRC_BITS(FRC_FRAME_SIZE ,(frc_top->vsize <<16) | frc_top->hsize  , 0  ,32 );
 
 	/*!!!!!!!!! tread de, vpu register*/
@@ -610,6 +608,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 				mc_frm_dly  + mc_hold_line ;//ref_frm_en before max_cnt_line
 	reg_mc_dly_vofst1 = memc_frm_dly - mc_frm_dly   - mc_hold_line ;
 	frc_vporch_cal    = memc_frm_dly - reg_mc_out_line;
+	WRITE_FRC_REG(FRC_REG_TOP_CTRL27, frc_vporch_cal);
 
 	if (frc_top->out_hsize > 1920 && frc_top->out_vsize > 1080) {
 		/*
@@ -622,9 +621,9 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 
 		pr_frc(log, "max_lncnt=%d max_pxcnt=%d\n", max_lncnt, max_pxcnt);
 
-		//max_lncnt - frc_v_porch  < 2047;
-		//set max_lncnt - frc_v_porch = 2000;
-		frc_v_porch     = max_lncnt > 1800 ? max_lncnt - 1800 : frc_vporch_cal;
+		//frc_v_porch     = max_lncnt > 1800 ? max_lncnt - 1800 : frc_vporch_cal;
+		frc_v_porch = ((max_lncnt - frc_vporch_cal) <= 1950) ?
+				frc_vporch_cal : (max_lncnt - 1950);
 		vpu_reg_write(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
 		vpu_reg_write(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
 		vpu_reg_write(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));

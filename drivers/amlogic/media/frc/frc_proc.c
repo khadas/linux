@@ -60,7 +60,7 @@ int frc_disable_cnt = 2;
 module_param(frc_disable_cnt, int, 0664);
 MODULE_PARM_DESC(frc_disable_cnt, "frc disable counter");
 
-int frc_re_cfg_cnt = 4;/*need bigger than frc_disable_cnt*/
+int frc_re_cfg_cnt = 6;/*need bigger than frc_disable_cnt*/
 module_param(frc_re_cfg_cnt, int, 0664);
 MODULE_PARM_DESC(frc_re_cfg_cnt, "frc reconfig counter");
 
@@ -327,8 +327,10 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	}
 	devp->in_sts.in_vsize = cur_in_sts->in_vsize;
 
-	if (devp->frc_sts.out_put_mode_changed) {
-		pr_frc(1, "out_put_mode_changed 0x%x\n", devp->frc_sts.out_put_mode_changed);
+	if (devp->frc_sts.out_put_mode_changed || devp->frc_sts.re_config) {
+		pr_frc(1, "out_put_mode_changed 0x%x re_config:%d\n",
+			devp->frc_sts.out_put_mode_changed,
+			devp->frc_sts.re_config);
 		devp->frc_sts.re_cfg_cnt = frc_re_cfg_cnt;
 		sts_change |= FRC_EVENT_VOUT_CHG;
 		devp->frc_sts.out_put_mode_changed = 0;
