@@ -1,0 +1,13 @@
+#
+# amlogic camera driver configuration
+#
+
+config AMLOGIC_MEDIA_CAMERA
+	bool "Amlogic Camera driver"
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_FWNODE
+	default n
+	help
+		This option is used to configure amlogic camera driver,
+		which need use dma contig and v4l2 fwnode.
+
