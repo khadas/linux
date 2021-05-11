@@ -3021,7 +3021,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		if ((devp->parm.info.status != TVIN_SIG_STATUS_STABLE ||
 		     devp->parm.info.fmt == TVIN_SIG_FMT_NULL) &&
-		    IS_TVAFE_ATV_SRC(devp->parm.port)) {
+		    !IS_TVAFE_ATV_SRC(devp->parm.port)) {
 			pr_err("TVIN_IOC_START_DEC: port %s start invalid\n",
 			       tvin_port_str(devp->parm.port));
 			pr_err("	status: %s, fmt: %s\n",
