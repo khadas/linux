@@ -5780,11 +5780,15 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			/*vsync_pts_inc_adj, vsync_pts_inc); */
 			timestamp_pcrscr_inc(vsync_pts_inc_adj);
 			timestamp_apts_inc(vsync_pts_inc_adj);
+#ifdef CONFIG_AMLOGIC_VIDEOSYNC
 			videosync_pcrscr_inc(vsync_pts_inc_adj);
+#endif
 		} else {
 			timestamp_pcrscr_inc(vsync_pts_inc + 1);
 			timestamp_apts_inc(vsync_pts_inc + 1);
+#ifdef CONFIG_AMLOGIC_VIDEOSYNC
 			videosync_pcrscr_inc(vsync_pts_inc + 1);
+#endif
 		}
 	} else {
 		if (vsync_slow_factor == 0) {
@@ -5796,19 +5800,25 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			timestamp_pcrscr_inc_scale(vsync_pts_inc_scale,
 						   vsync_pts_inc_scale_base);
 			timestamp_apts_inc(vsync_pts_inc / vsync_slow_factor);
+#ifdef CONFIG_AMLOGIC_VIDEOSYNC
 			videosync_pcrscr_update(vsync_pts_inc_scale,
 						vsync_pts_inc_scale_base);
+#endif
 		} else if (vsync_slow_factor > 1000) {
 			u32 inc = (vsync_slow_factor / 1000)
 				* vsync_pts_inc / 1000;
 
 			timestamp_pcrscr_inc(inc);
 			timestamp_apts_inc(inc);
+#ifdef CONFIG_AMLOGIC_VIDEOSYNC
 			videosync_pcrscr_inc(inc);
+#endif
 		} else {
 			timestamp_pcrscr_inc(vsync_pts_inc / vsync_slow_factor);
 			timestamp_apts_inc(vsync_pts_inc / vsync_slow_factor);
+#ifdef CONFIG_AMLOGIC_VIDEOSYNC
 			videosync_pcrscr_inc(vsync_pts_inc / vsync_slow_factor);
+#endif
 		}
 	}
 	if (omx_secret_mode) {
@@ -6688,7 +6698,9 @@ SET_FILTER:
 		}
 		vf = pip2_vf_peek();
 	}
+#ifdef CONFIG_AMLOGIC_VIDEOSYNC
 	vsync_notify_videosync();
+#endif
 	if (videopip2_get_vf_cnt >= 2) {
 		videopip2_drop_vf_cnt += (videopip2_get_vf_cnt - 1);
 		if (debug_flag & DEBUG_FLAG_PRINT_DROP_FRAME)
