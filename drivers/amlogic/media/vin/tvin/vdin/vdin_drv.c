@@ -194,13 +194,6 @@ static void vdin_backup_histgram(struct vframe_s *vf, struct vdin_dev_s *devp);
 
 char *vf_get_receiver_name(const char *provider_name);
 
-#ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-bool for_dolby_vision_certification(void)
-{
-	return false;
-}
-#endif
-
 static int vdin_get_video_reverse(char *str)
 {
 	unsigned char *ptr = str;
@@ -1927,8 +1920,10 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (for_dolby_vision_certification())
 		vdin_set_crc_pulse(devp);
+#endif
 
 	sm_ops = devp->frontend->sm_ops;
 
@@ -2287,11 +2282,12 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	vdin_set_drm_data(devp, curr_wr_vf);
 	vdin_set_vframe_prop_info(curr_wr_vf, devp);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (for_dolby_vision_certification()) {
 		vdin_get_crc_val(curr_wr_vf, devp);
 		/*pr_info("vdin_isr get vf %p, crc %x\n", curr_wr_vf, curr_wr_vf->crc);*/
 	}
-
+#endif
 	vdin_backup_histgram(curr_wr_vf, devp);
 	#ifdef CONFIG_AML_LOCAL_DIMMING
 	/*vdin_backup_histgram_ldim(curr_wr_vf, devp);*/
