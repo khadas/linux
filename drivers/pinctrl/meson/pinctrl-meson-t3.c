@@ -14,7 +14,7 @@ static const struct pinctrl_pin_desc meson_t3_analog_pins[] = {
 	MESON_PIN(CVBS1)
 };
 
-static struct meson_pmx_group meson_t3_analog_groups[] = {
+static struct meson_pmx_group meson_t3_analog_groups[] __initdata = {
 	GPIO_GROUP(CDAC_IOUT),
 	GPIO_GROUP(CVBS0),
 	GPIO_GROUP(CVBS1)
@@ -24,7 +24,7 @@ static const char * const gpio_analog_groups[] = {
 	"CDAC_IOUT", "CVBS0", "CVBS1"
 };
 
-static struct meson_pmx_func meson_t3_analog_functions[] = {
+static struct meson_pmx_func meson_t3_analog_functions[] __initdata = {
 	FUNCTION(gpio_analog)
 };
 
@@ -650,7 +650,7 @@ static const unsigned int demod_uart_rx_m15_pins[]	= { GPIOM_15 };
 static const unsigned int spdif_in_m_pins[]		= { GPIOM_29 };
 static const unsigned int spdif_out_m_pins[]		= { GPIOM_30 };
 
-static struct meson_pmx_group meson_t3_periphs_groups[] = {
+static struct meson_pmx_group meson_t3_periphs_groups[] __initdata = {
 	GPIO_GROUP(GPIOW_0),
 	GPIO_GROUP(GPIOW_1),
 	GPIO_GROUP(GPIOW_2),
@@ -1629,7 +1629,7 @@ static const char * const s2_demod_gpio_groups[] = {
 	"s2_demod_gpio5", "s2_demod_gpio6", "s2_demod_gpio7"
 };
 
-static struct meson_pmx_func meson_t3_periphs_functions[] = {
+static struct meson_pmx_func meson_t3_periphs_functions[] __initdata = {
 	FUNCTION(gpio_periphs),
 	FUNCTION(uart_a),
 	FUNCTION(uart_b),
@@ -1756,7 +1756,7 @@ static struct meson_axg_pmx_data meson_t3_periphs_pmx_banks_data = {
 	.num_pmx_banks	= ARRAY_SIZE(meson_t3_periphs_pmx_banks)
 };
 
-static struct meson_pinctrl_data meson_t3_periphs_pinctrl_data = {
+static struct meson_pinctrl_data meson_t3_periphs_pinctrl_data __refdata = {
 	.name		= "periphs-banks",
 	.pins		= meson_t3_periphs_pins,
 	.groups		= meson_t3_periphs_groups,
@@ -1776,7 +1776,7 @@ static struct meson_axg_pmx_data meson_t3_analog_pmx_banks_data = {
 	.num_pmx_banks	= ARRAY_SIZE(meson_t3_analog_pmx_banks)
 };
 
-static struct meson_pinctrl_data meson_t3_analog_pinctrl_data = {
+static struct meson_pinctrl_data meson_t3_analog_pinctrl_data __refdata = {
 	.name		= "analog-banks",
 	.pins		= meson_t3_analog_pins,
 	.groups		= meson_t3_analog_groups,
