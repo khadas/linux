@@ -1551,114 +1551,32 @@
 		//	<&clkc CLKID_HEVCB_MUX>;
 	};
 
-	isp_sc: isp-sc@fe3b1400 {
-		compatible = "amlogic, isp-sc";
-		status = "disabled";
-		reg = <0x0 0xfe3b1400 0x0 0x00000400>,
-				<0x0 0xfe3b1800 0x0 0x00000400>,
-				<0x0 0xfe3b1c00 0x0 0x00000400>,
-				<0x0 0xfe3b2000 0x0 0x00000400>;
-		reg-names = "isp_sc0", "isp_sc1", "isp_sc2", "isp_crop";
-		interrupts = <GIC_SPI 307 IRQ_TYPE_EDGE_RISING>,
-						<GIC_SPI 308 IRQ_TYPE_EDGE_RISING>,
-						<GIC_SPI 309 IRQ_TYPE_EDGE_RISING>,
-						<GIC_SPI 306 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "isp_sc0", "isp_sc1", "isp_sc2", "isp_crop";
+	csiphy0: csiphy0@ff918000 {
+		compatible = "amlogic, csiphy0";
+		reg = <0x0 0xff918000 0x0 0x1000>,
+				<0x0 0xff9a0000 0x0 0x400>;
+		reg-names = "csi_phy0","csi_aphy";
 	};
-	isp_md: isp-md@fe3b2800 {
-		compatible = "amlogic, isp-md";
-		status = "disabled";
-		reg = <0x0 0xfe3b2800 0x0 0x00000400>;
-		reg-names = "isp_md";
-		interrupts = <GIC_SPI 314 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "isp_md";
+
+	adapter0: adapter0@ff918000 {
+		compatible = "amlogic, adapter";
+		reg = <0x0 0xff918000 0x0 0x6000>;
+		reg-names = "adapter";
 	};
-	isp_flicker: isp-flicker@fe3b2c00 {
-		compatible = "amlogic, isp-flicker";
-		status = "disabled";
-		reg = <0x0 0xfe3b2c00 0x0 0x00000400>;
-		reg-names = "isp_flicker";
-		interrupts = <GIC_SPI 315 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "isp_flicker";
+
+	isp0: isp0@ff900000 {
+		compatible = "amlogic, isp";
+		reg = <0x0 0xff900000 0x0 0x10000>;
+		/* interrupt-parent = <&intc>; */
+		interrupts = <0 97 1>;
 	};
-	isp_cmpr: isp-cmpr@fe3b4000 {
-		compatible = "amlogic, isp-cmpr";
-		status = "disabled";
-		reg = <0x0 0xfe3b4000 0x0 0x00001800>,
-				<0x0 0xfe3b3000 0x0 0x0001000>;
-		reg-names = "isp_cmpr","isp_top";
-		interrupts = <GIC_SPI 317 IRQ_TYPE_EDGE_RISING>,
-						<GIC_SPI 316 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "tnr_cmpr","adapt_cmpr";
-	};
-	isp: isp@fa000000 {
-		compatible = "arm, isp";
-		status = "disabled";
-		reg = <0x0 0xfa000000 0x0 0x00040000>;
-		reg-names = "ISP";
-		interrupts = <GIC_SPI 289 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "ISP";
-		clk-level = <0>;
-		//clocks = <&clkc CLKID_MIPI_ISP>,
-		//	<&clkc CLKID_MIPI_CSI_PHY0>;
-		//clock-names = "cts_mipi_isp_clk",
-		//	"cts_mipi_csi_phy_clk0";
-		//assigned-clock-parents = <&clkc CLKID_MIPI_CSI_PHY0>;
-		//assigned-clocks = <&clkc CLKID_MIPI_CSI_PHY_CLK>;
-		power-domains = <&pwrdm PDID_T7_ISP>;
-		link-device = <&isp_sc>;
-		att-device = <&isp_flicker>;
-		cmpr-device = <&isp_cmpr>;
-		md-device = <&isp_md>;
-	};
-	adapter: isp-adapter@fe3b0000 {
-		compatible = "amlogic, isp-adapter";
-		status = "disabled";
-		reg = <0x0 0xfe3b0000 0x0 0x00005800>,
-		      <0x0 0xfe3b0800 0x0 0x00000400>;
-		reg-names = "adapter","adapter2";
-		interrupts = <GIC_SPI 288 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "adapter-irq";
-	};
-	phycsi: phy-csi@fe3be000 {
-		compatible = "amlogic, phy-csi";
-		status = "disabled";
-		reg = <0x0 0xfe3bfc00 0x0 0x00000400>,
-			  <0x0 0xfe3bf800 0x0 0x00000400>,
-			  <0x0 0xfe3bf400 0x0 0x00000400>,
-			  <0x0 0xfe3bf000 0x0 0x00000400>,
-			  <0x0 0xfe3bdc00 0x0 0x00000100>,
-			  <0x0 0xfe3bec00 0x0 0x00000400>,
-			  <0x0 0xfe3be800 0x0 0x00000400>,
-			  <0x0 0xfe3be400 0x0 0x00000400>,
-			  <0x0 0xfe3be000 0x0 0x00000400>;
-		reg-names = "csi2_phy0", "csi2_phy1", "csi2_phy2", "csi2_phy3", "aphy_reg",
-					"csi0_host", "csi1_host", "csi2_host", "csi3_host";
-		interrupts = <GIC_SPI 295 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 292 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 301 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "phy0-irq",
-					"phy1-irq",
-					"phy2-irq",
-					"phy3-irq",
-					"csi-host0-intr1",
-					"csi-host0-intr2",
-					"csi-host1-intr1",
-					"csi-host1-intr2",
-					"csi-host2-intr1",
-					"csi-host2-intr2",
-					"csi-host3-intr1",
-					"csi-host3-intr2";
-		link-device = <&adapter>;
+
+	camera0 {
+		compatible = "amlogic, camera";
+		index = <0>;
+		csiphy = <&csiphy0>;
+		adapter = <&adapter0>;
+		isp = <&isp0>;
 	};
 
 	vdec {

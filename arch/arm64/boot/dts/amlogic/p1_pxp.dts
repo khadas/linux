@@ -130,19 +130,11 @@
 			size = <0x0 0x0>;
 		};
 
-		isp_cma_reserved:linux,isp_cma {
+		camera_cma_reserved:linux,camera_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
 			size = <0x0 0x8000000>;
-			alignment = <0x0 0x400000>;
-		};
-
-		adapt_cma_reserved:linux,adapt_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			status = "okay";
-			size = <0x0 0x1800000>;
 			alignment = <0x0 0x400000>;
 		};
 
@@ -505,25 +497,6 @@
 	cpufreq-meson {
 		compatible = "amlogic, cpufreq-meson";
 		status = "disabled";
-	};
-
-	sensor: sensor {
-		compatible = "soc, sensor";
-		status = "disabled";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
-		pinctrl-names= "default";
-		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
-		//clocks = <&clkc CLKID_MCLK_0>,
-		//		<&clkc CLKID_MCLK_1>;
-		//clock-names = "mclk_0","mclk_1";
-		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
-		//reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
-	};
-
-	iq: iq {
-		compatible = "soc, iq";
-		status = "disabled";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
 	};
 
 	hdmirx {
@@ -1366,20 +1339,38 @@
 };
 
 &i2c2 {
-	status = "disabled";
+	status = "okay";
+	clock-frequency = <100000>;
 	pinctrl-names = "default";//, "sleep"
-	pinctrl-0 = <&i2c2_pins3>;
-	//pinctrl-1 = <&i2c2_sleep_pins2>;
-	clock-frequency = <100000>; /* default 100k */
-	sensor-i2c@6c {
-		compatible = "arm, i2c-sensor";
-		reg = <0x6c>;
-		reg-names = "i2c-sensor";
-		slave-addr = <0x6c>;
-		reg-type = <2>;
-		reg-data-type = <1>;
-		link-device = <&phycsi>;
+	pinctrl-0 = <&i2c2_pins1>;
+	//pinctrl-1 = <&i2c2_sleep_pins1>;
+	imx290_0: sensor0@1a {
+		compatible = "sony, imx290";
+		reg = <0x1a>;
+		clock-frequency = <37125000>;
+		port {
+			imx290_0_ep: endpoint {
+			data-lanes = <0 1 2 3>;
+			link-frequencies = /bits/ 64 <445500000>;
+			remote-endpoint = <&csiphy0_ep>;
+			};
+		};
 	};
+
+};
+
+&csiphy0 {
+	port {
+		csiphy0_ep: endpoint {
+		clock-lanes = <4>;
+		data-lanes = <0 1 2 3>;
+		remote-endpoint = <&imx290_0_ep>;
+		};
+	};
+};
+
+&isp0 {
+	memory-region = <&camera_cma_reserved>;
 };
 
 &i2c5 {
@@ -1475,21 +1466,6 @@
 
 &uart_A {
 	status = "okay";
-};
-
-&isp {
-	status = "disabled";
-	temper-line-offset = <0x1680>;
-	temper-buf-size = <12>;
-	temper-frame-num = <1>;
-	temper-frame-size = <0xBDD800>;
-	memory-region = <&isp_cma_reserved>;
-};
-
-&adapter {
-	status = "disabled";
-	mem_alloc = <24>;
-	memory-region = <&adapt_cma_reserved>;
 };
 
 &ir {
