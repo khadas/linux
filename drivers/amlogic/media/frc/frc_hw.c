@@ -698,6 +698,7 @@ void frc_inp_init(u32 frc_fb_num, u32 film_hwfw_sel)
 	WRITE_FRC_BITS(FRC_REG_INP_MODULE_EN, 1, 7, 1);//open  bbd en
 	WRITE_FRC_BITS(FRC_REG_TOP_CTRL25               ,0x4080200     ,0 ,31);//aligned padding value
 	//WRITE_FRC_BITS(FRC_REG_FILM_PHS_1               ,film_hwfw_sel ,16,1 );
+	WRITE_FRC_BITS(FRC_MEVP_CTRL0, 0, 0, 1);//close hme
 
 	/*for fw signal latch, should always enable*/
 	WRITE_FRC_BITS(FRC_REG_MODE_OPT, 1, 1, 1);
@@ -1342,7 +1343,7 @@ void init_bb_xyxy(u32 hsize ,u32 vsize)
 	 WRITE_FRC_BITS(FRC_ME_NEX_LBUF_OFST - HME_ME_OFFSET,43 ,16,16);
 	 WRITE_FRC_BITS(FRC_ME_NEX_LBUF_OFST - HME_ME_OFFSET,-48,0 ,16);
 
-	//me  me_blksize_dsxï¼?me_blksize_dsy-> FRC_REG_BLK_SIZE_XY
+	//me  me_blksize_dsx me_blksize_dsy-> FRC_REG_BLK_SIZE_XY
 	 me_width      = (hsize+(1<<me_dsx)-1)/(1<<me_dsx);/*960*/
 	 me_height     = (vsize+(1<<me_dsy)-1)/(1<<me_dsy);/*540*/
 	 hme_width     = (me_width+(1<<hme_dsx)-1)/(1<<hme_dsx);/*240*/
@@ -1361,8 +1362,8 @@ void init_bb_xyxy(u32 hsize ,u32 vsize)
 	pr_frc(1, "hme_blk_xsize = %d\n", hme_blk_xsize);
 	pr_frc(1, "hme_blk_ysize = %d\n", hme_blk_ysize);
 
-	 WRITE_FRC_BITS(FRC_ME_BB_PIX_ED, me_width-1,     16, 12);/*reg_me_bb_xyxy[2] ï¼?60*/
-	 WRITE_FRC_BITS(FRC_ME_BB_PIX_ED, me_height-1,     0, 12);/*reg_me_bb_xyxy[3] ï¼?40*/
+	 WRITE_FRC_BITS(FRC_ME_BB_PIX_ED, me_width-1,     16, 12);/*reg_me_bb_xyxy[2] 60*/
+	 WRITE_FRC_BITS(FRC_ME_BB_PIX_ED, me_height-1,     0, 12);/*reg_me_bb_xyxy[3] 40*/
 	 WRITE_FRC_BITS(FRC_ME_BB_BLK_ED, me_blk_xsize-1, 16, 10);/*reg_me_bb_blk_xyxy[2] 240*/
 	 WRITE_FRC_BITS(FRC_ME_BB_BLK_ED, me_blk_ysize-1,  0, 10);/*reg_me_bb_blk_xyxy[3] 135*/
 

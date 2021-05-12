@@ -41,23 +41,23 @@ static const struct st_film_table_item g_stfilmtable[] =
 	// 9.step_ofset, 10.delay_num, 11.max_zeros_cnt, 12. jump_id_flag,
 	// 13. simple_jump_add_buf, 14.mode_enter_level
 	{1,       1,   1,    0x1,    1,   20,  1,  0x1,		4096, 0, 1 , 0, 0, 0},
-	{22,      2,   16,   0x2,    5,   20,  10, 0x3,		2040, 1, 1 , 0, 0, 1},
-	{32,      5,   15,   0x14,   2,   20,  15, 0x1f,	810,  0, 2 , 0, 0, 0},
-	//{3223,    10,  20,   0x2A4,  2,   10,  10, 0x3ff,	810,  0, 2 , 0, 0, 0},
-	//{2224,    10,  20,   0x2A8,  1,   10,  20, 0x3ff,	810,  0, 3 , 0, 0, 2},
-	//{32322,   12,  24,   0xA94,  1,   12,  24, 0xfff,	810,  0, 2 , 0, 0, 0},
-	//{44,      4,   20,   0x8,    2,   12,  16, 0xf,		810,  0, 3 , 0, 0, 3},
-	//{21111,   6,   12,   0x3E,   1,   12,  12, 0x3f,	810,  0, 1 , 0, 0, 0},
-	//{23322,   12,  12,   0xAA4,  1,   24,  12, 0xfff,	810,  0, 2 , 0, 0, 0},
-	//{2111,    5,   10,   0x1E,   1,   10,  10, 0x1f,	810,  0, 1 , 0, 0, 0},
-	//{22224,   12,  24,   0xAA8,  1,   12,  24, 0xfff,	810,  0, 3 , 0, 0, 2},
-	//{33,      3,   250,  0x4,    2,   12,  6, 0x7,		810,  0, 2 , 0, 0, 0},
-	//{334,     10,  20,   0x248,  1,   10,  10, 0x3ff,	810,  0, 3 , 0, 0, 0},
-	//{55,      5,   90,   0x10,   2,   10,  10, 0x1f,	810,  0, 4 , 0, 0, 1},
-	//{64,      10,  20,   0x220,  1,   10,  10, 0x3ff,	810,  0, 5 , 0, 0, 2},
-	//{66,      6,   18,   0x20,   2,   12,  12, 0x3f,	810,  0, 5 , 1, 8, 1},
-	//{87,      15,  15,   0x4080, 1,   15,  15, 0x7fff,	810,  0, 7 , 1, 1, 1},
-	//{212,     5,   15,   0x1A,   1,   10,  10, 0x1f,	810,  0, 1 , 0, 0, 0},
+	{22,      2,   16,   0x2,    5,   20,  4, 0x3,		2040, 1, 1 , 0, 0, 1},
+	{32,      5,   15,   0x14,   2,   10,  5, 0x1f,	    810,  0, 2 , 0, 0, 1},
+	{3223,    10,  20,   0x2A4,  2,   10,  8, 0x3ff,	810,  0, 2 , 0, 0, 0},
+	{2224,    10,  20,   0x2A8,  1,   10,  8, 0x3ff,	810,  0, 3 , 0, 0, 2},
+	{32322,   12,  12,   0xA94,  1,   12,  9, 0xfff,	810,  0, 2 , 0, 0, 0},
+	{44,      4,   20,   0x8,    2,   12,  5, 0xf,		810,  0, 3 , 0, 0, 3},
+	{21111,   6,   12,   0x3E,   1,   12,  3, 0x3f,	    810,  0, 1 , 0, 0, 0},
+	{23322,   12,  24,   0xAA4,  1,   24,  7, 0xfff,	810,  0, 2 , 0, 0, 0},
+	{2111,    5,   20,   0x1E,   1,   10,  3, 0x1f,	    810,  0, 1 , 0, 0, 0},
+	{22224,   12,  24,   0xAA8,  1,   12,  9, 0xfff,	810,  0, 3 , 0, 0, 2},
+	{33,      3,   12,   0x4,    2,   12,  4, 0x7,		810,  0, 2 , 0, 0, 1},
+	{334,     10,  30,   0x248,  1,   10,  9, 0x3ff,	810,  0, 3 , 0, 0, 0},
+	{55,      5,   15,   0x10,   2,   10,  7, 0x1f,	    810,  0, 4 , 0, 0, 1},
+	{64,      10,  30,   0x220,  1,   10,  10, 0x3ff,	810,  0, 5 , 0, 0, 2},
+	{66,      6,   18,   0x20,   2,   12,  7, 0x3f,	    810,  0, 5 , 1, 8, 1},
+	{87,      15,  45,   0x4080, 1,   15,  17, 0x7fff,	810,  0, 7 , 1, 1, 1},
+	{212,     5,   15,   0x1A,   1,   10,  4, 0x1f,	    810,  0, 1 , 0, 0, 0},
 };
 
 void frc_film_param_init(struct frc_dev_s *frc_devp)
@@ -66,21 +66,31 @@ void frc_film_param_init(struct frc_dev_s *frc_devp)
 	struct frc_fw_data_s *frc_data;
 	struct st_film_detect_item *g_stfilm_detect_item;
 	struct st_film_data_item *g_stfilmdata_item;
+	struct st_film_ctrl_para *g_stfilm_ctrl_para;
 	u32 input_n = 2, output_m = 5;
 
 	frc_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	g_stfilm_detect_item = &frc_data->g_stfilm_detect_item;
 	g_stfilmdata_item = &frc_data->g_stfilmdata_item;
+	g_stfilm_ctrl_para =  &frc_data->g_stfilmctrl_para;
+
+	g_stfilm_ctrl_para->film_ctrl_en        = 1;
+	g_stfilm_ctrl_para->film_check_mode_en  = 1;
+	g_stfilm_ctrl_para->film_badedit_en     = 0;
+	g_stfilm_ctrl_para->film_7_seg_en      = 0;
+	g_stfilm_ctrl_para->film_mode_force_en         = 0;
+	g_stfilm_ctrl_para->film_mode_force_value      = 0;
+	g_stfilm_ctrl_para->film_mode_force_phs_en      = 0;
+	g_stfilm_ctrl_para->film_cadence_switch = 0x6ff;
+
+	g_stfilm_ctrl_para->glb_ratio        = 14;
+	g_stfilm_ctrl_para->wind_ratio       = 10;
+	g_stfilm_ctrl_para->glb_ofset        = 1024;
+	g_stfilm_ctrl_para->wind_ofset       = 100;
+	g_stfilm_ctrl_para->min_diff_th      = 2000;
 
 	g_stfilm_detect_item->quit_reset_th    = 10;
-	g_stfilm_detect_item->glb_ratio        = 14;
-	g_stfilm_detect_item->wind_ratio       = 10;
 	g_stfilm_detect_item->phase_error_flag = 0;
-	g_stfilm_detect_item->glb_ofset        = 1024;
-	g_stfilm_detect_item->wind_ofset       = 100;
-	g_stfilm_detect_item->min_diff_th      = 6000;
-	g_stfilm_detect_item->force_mode_en    = 1;
-	g_stfilm_detect_item->force_mode       = 2;
 	g_stfilm_detect_item->force_phase      = 0;
 
 	//badedit
@@ -107,12 +117,12 @@ void frc_film_param_init(struct frc_dev_s *frc_devp)
 	g_stfilm_detect_item->input_id_point  = 3;
 
 	// mix mode
-	g_stfilm_detect_item->mm_cown_thd       = 5;
-	g_stfilm_detect_item->mm_cpre_thd       = 5;
-	g_stfilm_detect_item->mm_cother_thd     = 5;
-	g_stfilm_detect_item->mm_reset_thd      = 5;
-	g_stfilm_detect_item->mm_difminthd      = 5;
-	g_stfilm_detect_item->mm_chk_mmdifthd   = 5;
+	g_stfilm_ctrl_para->mm_cown_thd       = 5;
+	g_stfilm_ctrl_para->mm_cpre_thd       = 5;
+	g_stfilm_ctrl_para->mm_cother_thd     = 5;
+	g_stfilm_ctrl_para->mm_reset_thd      = 5;
+	g_stfilm_ctrl_para->mm_difminthd      = 5;
+	g_stfilm_ctrl_para->mm_chk_mmdifthd   = 5;
 
 	for (nT0 = 0; nT0 < 6; nT0++) {
 		g_stfilmdata_item->mm_num_cown[nT0]      = 0;
@@ -251,17 +261,24 @@ void frc_film_detect_ctrl(struct frc_dev_s *frc_devp)
 
 	struct frc_fw_data_s *frc_data;
 	struct st_film_detect_item *g_stfilm_detect_item;
+	struct st_film_ctrl_para *g_stfilm_ctrl_para;
+	// struct frc_dev_s *devp = (struct frc_dev_s *)dev_id;
+
 	//struct st_film_data_item *g_stfilmdata_item;
 	//struct st_film_detect_rd *g_stfilmdetect_rd;
 
 	frc_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	g_stfilm_detect_item = &frc_data->g_stfilm_detect_item;
+	g_stfilm_ctrl_para =  &frc_data->g_stfilmctrl_para;
 	//g_stfilmdata_item = &frc_data->g_stfilmdata_item;
 	//g_stfilmdetect_rd = &frc_data->g_stfilmdetect_rd;
 
 	g_stfilm_detect_item->phase = phase;
 	g_stfilm_detect_item->input_n  = (READ_FRC_REG(FRC_REG_PHS_TABLE) >> 24) & 0xFF;
 	g_stfilm_detect_item->output_m = (READ_FRC_REG(FRC_REG_PHS_TABLE) >> 16) & 0xFF;
+
+	if (g_stfilm_ctrl_para->film_ctrl_en == 0)
+		return;
 
 
 	//Initialization
@@ -279,9 +296,13 @@ void frc_film_detect_ctrl(struct frc_dev_s *frc_devp)
 		mode = mode_hw;
 	}
 
-	frc_film_check_mode(frc_devp, flmGDif, flmW6Dif, flmW12Dif1/*from yanling, flmW12Dif2*/);
+	if (g_stfilm_ctrl_para->film_check_mode_en == 1)
+		frc_film_check_mode(frc_devp, flmGDif, flmW6Dif, flmW12Dif1/*from yanling, flmW12Dif2*/);
 
-	//frc_film_badedit_ctrl(frc_devp, flmGDif, mode);
+	//u64 timestamp = sched_clock();
+	if (g_stfilm_ctrl_para->film_badedit_en == 1)
+		frc_film_badedit_ctrl(frc_devp, flmGDif, mode);
+	//devp->out_sts.vs_duration = timestamp - devp->out_sts.vs_timestamp;
 
 	if(mode != mode_pre) {
 	    	//xil_printf("t:mod/pre=%d,%d\n\r",mode,mode_pre);
@@ -290,7 +311,12 @@ void frc_film_detect_ctrl(struct frc_dev_s *frc_devp)
 	}
 
 	mode_pre = mode;
-	if (g_stfilm_detect_item->film_7_seg_en)
+
+	pr_frc(dbg_film, "film_mode=%d,phase=%d\n", mode,phase);
+	pr_frc(dbg_film, "glb=%d\n", flmGDif[HISDIFNUM - 1]);
+
+
+	if (g_stfilm_ctrl_para->film_7_seg_en == 1)
 		frc_film_add_7_seg(frc_devp);
 
 	//xil_printf("mod=%d,phs=%d,g_dif=%d\n\r\n\r",mode,phase,g_stfilmdetect_rd.glb_motion_all);
@@ -307,11 +333,13 @@ void frc_film_check_mode(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[
 	struct frc_fw_data_s *frc_data;
 	struct st_film_detect_item *g_stfilm_detect_item;
 	struct st_film_data_item *g_stfilmdata_item;
+	struct st_film_ctrl_para *g_stfilm_ctrl_para;
 	//struct st_film_detect_rd *g_stfilmdetect_rd;
 
 	frc_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	g_stfilm_detect_item = &frc_data->g_stfilm_detect_item;
 	g_stfilmdata_item = &frc_data->g_stfilmdata_item;
+	g_stfilm_ctrl_para =  &frc_data->g_stfilmctrl_para;
 	//g_stfilmdetect_rd = &frc_data->g_stfilmdetect_rd;
 
 	u8  nT0, nT1, mix_mod = 0;
@@ -328,10 +356,6 @@ void frc_film_check_mode(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[
 	u32 AveragG     = 0;                                      //average global dif
 	u32 real_flag   = 0, expect_flag=0;
 	u8 flag         = 0;
-	//Bit 25:13   reg_org_inp_frm_vsize , custom reg
-	u8 rewrite_phase = READ_FRC_REG(FRC_REG_TOP_CTRL26) >> 13 & 0x1;
-	//u8 write_phase   = READ_FRC_REG(FRC_REG_TOP_CTRL26)     & 0xFF;
-	u8 rewrite_mode  = READ_FRC_REG(FRC_REG_TOP_CTRL26) >> 14 & 0x1;
 
 	//mode check
 	for (nT0 = 1; nT0 < FLMMODNUM; nT0++) {
@@ -341,7 +365,7 @@ void frc_film_check_mode(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[
 		min_dif = 0xFFFFFFFF;   // max of u32
 
 		//min_dif = (1<<32)-1;
-		g_stfilm_detect_item->cadencCnt        = g_stfilmtable[nT0].cadence_cnt;
+		g_stfilm_detect_item->cadence_cnt        = g_stfilmtable[nT0].cadence_cnt;
 		g_stfilm_detect_item->mode_enter_th    = g_stfilmtable[nT0].enter_th;
 		g_stfilm_detect_item->phase_match_data = g_stfilmtable[nT0].match_data;
 		g_stfilm_detect_item->quit_mode_th     = g_stfilmtable[nT0].quit_th;
@@ -359,17 +383,17 @@ void frc_film_check_mode(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[
 		// delete max and min value(for scene change)
 		sumGdif = sumGdif - max_dif - min_dif;
 		AveragG = (sumGdif + Avnum / 2) / (Avnum - 2);
-		AveragG =(AveragG * g_stfilm_detect_item->glb_ratio + 8) / 16; // average
-		AveragG = AveragG +  g_stfilm_detect_item->glb_ofset;
-		AveragG = MAX(AveragG, g_stfilm_detect_item->min_diff_th);// average as th
+		AveragG =(AveragG * g_stfilm_ctrl_para->glb_ratio + 8) / 16; // average
+		AveragG = AveragG +  g_stfilm_ctrl_para->glb_ofset;
+		AveragG = MAX(AveragG, g_stfilm_ctrl_para->min_diff_th);// average as th
 		frc_get_min_max_idx(frc_devp, flmGDif, AveragG, AB_change, &real_flag);// calculate "0","1"
 		// least significant cadence_cnt  bits
-		real_flag = real_flag % (1 << g_stfilm_detect_item->cadencCnt);
+		real_flag = real_flag % (1 << g_stfilm_detect_item->cadence_cnt);
 
 		//Mode check
 		frc_mode_check(frc_devp, real_flag, flmGDif, nT0);
 	}
-
+	pr_frc(dbg_film, "mode_pre=%d ,cnt=%d\n",mode_pre,Mode_cnt[nT1]);
 	nT1 = mode_pre;
 	if (nT1 == 0) {
 		//video ->film mode begin phase = 0
@@ -418,6 +442,11 @@ void frc_film_check_mode(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[
 	if (mix_mod == 1)
 		nT1 = 0;
 
+	pr_frc(dbg_film, "nT1=%d,pre=%d\n",nT1,mode_pre);
+	if (((g_stfilm_ctrl_para->film_cadence_switch >> nT1) & 0x1) == 0)
+		nT1 = 0;
+	pr_frc(dbg_film, "en=%d,nT1=%d\n",((g_stfilm_ctrl_para->film_cadence_switch >> nT1) & 0x1),nT1);
+
 	//quit mix_mod mix_mod-->vedio->film mode
 	if (mix_mod_pre == 1 && mix_mod == 0) {
 		if(phase[nT1] > 0) {
@@ -445,35 +474,24 @@ void frc_film_check_mode(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[
 			g_stfilmtable[nT1].mask_value,phase_next) & 0x1;
 	UPDATE_FRC_REG_BITS(FRC_FD_ENABLE, flag << 22, 1 << 22);
 
-	if (rewrite_mode) {
-		UPDATE_FRC_REG_BITS(FRC_REG_TOP_CTRL26, 0, 1 << 14);
-		g_stfilm_detect_item->force_mode_en = 1;//READ_FRC_REG(FRC_REG_TOP_CTRL26)>>31 & 1;
-		g_stfilm_detect_item->force_mode  = READ_FRC_REG(FRC_REG_TOP_CTRL26) >> 16 & 0xff;
-	}
 
-	if (READ_FRC_REG(FRC_REG_TOP_CTRL26)>>15 & 1)
-		g_stfilm_detect_item->force_mode_en = 1;
-	else
-		g_stfilm_detect_item->force_mode_en = 0;
-
-	if (rewrite_phase) {
-		//g_stfilm_detect_item->force_phase = write_phase;
+	if (g_stfilm_ctrl_para->film_mode_force_phs_en) {
 		g_stfilm_detect_item->force_phase =
-			g_stfilm_detect_item->force_phase == (g_stfilmtable[g_stfilm_detect_item->force_mode].cadence_cnt -1) ?
+			g_stfilm_detect_item->force_phase == (g_stfilmtable[g_stfilm_ctrl_para->film_mode_force_value].cadence_cnt -1) ?
 							0 : g_stfilm_detect_item->force_phase + 1 ;
 		g_stfilm_detect_item->force_phase =
-			g_stfilm_detect_item->force_phase == (g_stfilmtable[g_stfilm_detect_item->force_mode].cadence_cnt -1) ?
+			g_stfilm_detect_item->force_phase == (g_stfilmtable[g_stfilm_ctrl_para->film_mode_force_value].cadence_cnt -1) ?
 							0 : g_stfilm_detect_item->force_phase + 1 ;
-		UPDATE_FRC_REG_BITS(FRC_REG_TOP_CTRL26, 0, 1 << 13);
+		g_stfilm_ctrl_para->film_mode_force_phs_en = 0;
 	} else {
 		g_stfilm_detect_item->force_phase =
-			g_stfilm_detect_item->force_phase == (g_stfilmtable[g_stfilm_detect_item->force_mode].cadence_cnt -1) ?
+			g_stfilm_detect_item->force_phase == (g_stfilmtable[g_stfilm_ctrl_para->film_mode_force_value].cadence_cnt -1) ?
 							0 : g_stfilm_detect_item->force_phase + 1 ;
 	}
 
-	if (g_stfilm_detect_item->force_mode_en) {
-		UPDATE_FRC_REG_BITS(FRC_REG_PHS_TABLE, g_stfilm_detect_item->force_mode, 0xFF);
-		g_stfilm_detect_item->filmMod = g_stfilm_detect_item->force_mode;
+	if (g_stfilm_ctrl_para->film_mode_force_en) {
+		UPDATE_FRC_REG_BITS(FRC_REG_PHS_TABLE,  g_stfilm_ctrl_para->film_mode_force_value, 0xFF);
+		g_stfilm_detect_item->filmMod = g_stfilm_ctrl_para->film_mode_force_value;
 		UPDATE_FRC_REG_BITS(FRC_REG_FILM_PHS_1, g_stfilm_detect_item->force_phase << 24,
 				    0xFF000000);  //write film_mode and phase to reg
 	} else {
@@ -507,17 +525,17 @@ void frc_get_min_max_idx(struct frc_dev_s *frc_devp, u32 *flmDif,
 
 	*flag = 0;
 
-	for(i = 0; i < g_stfilm_detect_item->cadencCnt; i++)
+	for(i = 0; i < g_stfilm_detect_item->cadence_cnt; i++)
 		AB_change[i] = 0;              //initial
 
-	for (i = 0; i < g_stfilm_detect_item->cadencCnt; i++)
+	for (i = 0; i < g_stfilm_detect_item->cadence_cnt; i++)
 	{
 		if(flmDif[HISDIFNUM - 1 - i] > AveragG )    //---large "1"
 			AB_change[i] = 1;
 	}
 
 	//0,1 check
-	for (i = 0; i < g_stfilm_detect_item->cadencCnt; i++) {
+	for (i = 0; i < g_stfilm_detect_item->cadence_cnt; i++) {
 		if(AB_change[i] == 1)
 			*flag = *flag | 1 << i;
 	}
@@ -562,30 +580,109 @@ void frc_phase_adjustment(u8 *new_phase, u8 phase, u8 cadence_cnt,
 	*new_phase = phase1;
 }
 
+//quit core
+inline u8 quit_core(struct frc_dev_s *frc_devp, u8 *quitcnt, u8 *phase, u8 *quit_reset_cnt, u16 real_flag, u32 expect_flag,
+   			u32 glb_mot, u8 quit_reset_th, u8 quitmodth, u32 min_diff_th, u8 cadence_cnt, u32 match_value, u32 mask_value)
+{
+	struct frc_fw_data_s *frc_data;
+	struct st_film_detect_item *g_stfilm_detect_item;
+	struct st_film_data_item *g_stfilmdata_item;
+
+	frc_data = (struct frc_fw_data_s *)frc_devp->fw_data;
+	g_stfilm_detect_item = &frc_data->g_stfilm_detect_item;
+	g_stfilmdata_item = &frc_data->g_stfilmdata_item;
+
+	u8 quit_flag = 0;
+	u8 expect_zero = (expect_flag & 0x1) == 0;
+	u8 real_zero = (real_flag & 0x1) == 0;
+	u8 phase_new = 0;
+	u8 i = 0;
+	u8 phase_change_flag = 0;
+	if (quitcnt[0] == 0) {
+		if (expect_zero)
+			if(real_zero == 0 && glb_mot > min_diff_th) {
+				quitcnt[0] = 1;
+				g_stfilm_detect_item->phase_error_flag = 1;
+			}
+	}
+
+	else {
+		if (expect_zero)
+			if (real_zero == 0)
+				quitcnt[0] = quitcnt[0] + 1;                       //quit + 1
+		if (expect_flag == real_flag)
+			quit_reset_cnt[0] = quit_reset_cnt[0] + 1;            //reset + 1
+		//else
+			//quit_reset_cnt[0] = quit_reset_cnt[0] > 0  quit_reset_cnt[0] -1 : 0;            //reset + 1
+
+
+		if (real_flag != expect_flag) {   // phase wrong
+			for (i = 0; i < cadence_cnt; i++)
+			{
+				//phase 0 ---cadence_cnt-1
+				phase_new = phase_new == (cadence_cnt - 1) ? 0 :  phase_new + 1;
+				 //expect mask value
+				expect_flag = frc_cycshift(match_value, cadence_cnt, mask_value,phase_new);
+
+				if (real_flag == expect_flag) { //expect = real enter mode
+				    phase_change_flag = 1;
+					break;
+				}
+			}
+		}
+		if (quitcnt[0] > quitmodth) {
+		 	quit_flag = 1;
+			quitcnt[0] = 0;
+			quit_reset_cnt[0] = 0;
+			g_stfilm_detect_item->phase_error_flag = 0;
+		}
+		if (quit_reset_cnt[0] > quit_reset_th) {
+			if(quitcnt[0] > 0)
+				quitcnt[0] = quitcnt[0] -1;
+			else {
+				quitcnt[0] = 0;
+				g_stfilm_detect_item->phase_error_flag = 0;
+			}
+			quit_reset_cnt[0] = 0;
+		}
+
+		if (phase_change_flag)  //change phase
+		 	*phase = phase_new;
+
+		pr_frc(dbg_film, "p_flag=%d,phase_new=%d,quit_flag=%d\n",phase_change_flag,phase_new,quit_flag);
+		pr_frc(dbg_film, "quitcnt=%d,quit_reset_cnt=%d,exp=%x,real=%x\n",quitcnt[0],quit_reset_cnt[0],expect_flag,real_flag);
+
+	}
+
+	return quit_flag;
+
+}
+
 void frc_mode_check(struct frc_dev_s *frc_devp, u16 real_flag, u32 *flmGDif, u8 mode)
 {
 	struct frc_fw_data_s *frc_data;
 	struct st_film_detect_item *g_stfilm_detect_item;
 	struct st_film_data_item *g_stfilmdata_item;
+	struct st_film_ctrl_para *g_stfilm_ctrl_para;
 	//struct st_film_detect_rd *g_stfilmdetect_rd;
 
 	frc_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	g_stfilm_detect_item = &frc_data->g_stfilm_detect_item;
 	g_stfilmdata_item = &frc_data->g_stfilmdata_item;
+	g_stfilm_ctrl_para =  &frc_data->g_stfilmctrl_para;
 	//g_stfilmdetect_rd = &frc_data->g_stfilmdetect_rd;
 
 	u8  i;
 	u8  mode_now;
 	u32 expect_flag      = 0;
-	u32 expect_flag1     = 0;
-	u8  quitModth        = g_stfilm_detect_item->quit_mode_th;
+	u8  quit_flag        = 0;
+	u8  quitmodth        = g_stfilm_detect_item->quit_mode_th;
 	u8  quit_reset_th    = g_stfilmtable[mode].cadence_cnt;
-	u32 difMinth         = g_stfilm_detect_item->min_diff_th;
+	u32 difMinth         = g_stfilm_ctrl_para->min_diff_th;
 	u8  *Mode_cnt        = g_stfilmdata_item->ModCount;
 	u8  *phase           = g_stfilmdata_item->phase;
-	u8  *phase1          = g_stfilmdata_item->phase_new;
-	u8  *quitCnt         = g_stfilmdata_item->quitCount;
-	u8  *quit_reset_Cnt  = g_stfilmdata_item->quit_reset_Cnt;
+	u8  *quitcnt         = g_stfilmdata_item->quitCount;
+	u8  *quit_reset_cnt  = g_stfilmdata_item->quit_reset_Cnt;
 	u8  cadence_cnt      = g_stfilmtable[mode].cadence_cnt;
 	u32 mask_value       = g_stfilmtable[mode].mask_value;
 	u32 match_value      = frc_cycshift(g_stfilmtable[mode].match_data, cadence_cnt, mask_value, 1);
@@ -627,106 +724,14 @@ void frc_mode_check(struct frc_dev_s *frc_devp, u16 real_flag, u32 *flmGDif, u8 
 		if (phase[mode] == 0)
 			expect_flag = match_value;
 		else
-			expect_flag = match_value >> (cadence_cnt - phase[mode]);
+			expect_flag = frc_cycshift(match_value, cadence_cnt, mask_value,phase[mode]); //match_value >> (cadence_cnt - phase[mode]);
 
-		expect_flag = expect_flag & 1;              //check current dif "1" or "0"  expect
-		real_flag = real_flag & 1;                  //check current dif "1" or "0"  real
+		quit_flag = quit_core(frc_devp, quitcnt, &phase[mode], quit_reset_cnt, real_flag, expect_flag, flmGDif[HISDIFNUM -1], quit_reset_th,
+			 quitmodth, difMinth, cadence_cnt, match_value, mask_value);
 
-
-		if (quitCnt[0] == 0) {
-			if (expect_flag == 0) {                    //only check dif small
-				if (real_flag == 0 || flmGDif[HISDIFNUM - 1] < difMinth) {
-					Mode_cnt[mode] = Mode_cnt[mode] + 1;
-				} else {//quit
-					frc_phase_adjustment(&phase1[mode], phase[mode], cadence_cnt,
-							 match_value, &quitCnt[1]);
-					quitCnt[0] = quitCnt[0] +1;
-					g_stfilm_detect_item->phase_error_flag = 1;
-				}
-			}
-		} else {
-			//quit
-			if (expect_flag == 0) {
-				if (real_flag == 0 || flmGDif[HISDIFNUM - 1] < difMinth) {
-					quit_reset_Cnt[0] = quit_reset_Cnt[0] + 1;         //reset
-				} else {
-					quitCnt[0] = quitCnt[0] +1;
-					quit_reset_Cnt[0] = 0;
-				}
-			} else {
-				quit_reset_Cnt[0] = quit_reset_Cnt[0] + 1;
-			}
-
-			//check wether drop frame
-			phase1[mode]= phase1[mode] == (cadence_cnt - 1) ? 0 :  phase1[mode] + 1;
-
-			if (phase1[mode] == 0)
-				expect_flag1 = match_value;
-			else
-				expect_flag1 = match_value >> (cadence_cnt-phase1[mode]);
-
-			expect_flag1 = expect_flag1 & 1;
-
-			if (expect_flag1 == 0) {
-				if (real_flag == 0 || flmGDif[HISDIFNUM - 1] < difMinth) {
-					quit_reset_Cnt[1] = quit_reset_Cnt[1] + 1;
-
-				} else {
-					frc_phase_adjustment(&phase1[mode], phase1[mode], cadence_cnt,
-							 match_value,&quitCnt[1]);
-					quit_reset_Cnt[1] = 0;
-				}
-			} else {
-				quit_reset_Cnt[1] = quit_reset_Cnt[1] + 1;
-			}
-        	}
-
-		//xil_printf("qt_cnt=%d,%d\n\r",quitCnt[0] , quitCnt[1] );
-		//xil_printf("rst_cnt=%d,%d\n\r",quit_reset_Cnt[0] ,quit_reset_Cnt[1] );
-		//xil_printf("flg_r/e1=%d,%d\n\r",real_flag, expect_flag1);
-
-		//quit mode
-		if (((quitCnt[0] > quitModth && quitCnt[1] > quitModth / 2 ) ||
-		     quitCnt[1] > quitModth) && mode == mode_now) {
+		if (quit_flag)
 			Mode_cnt[mode] = 0;
-			for (i = 0; i < 2; i++) {
-				quitCnt[i] = 0;
-				quit_reset_Cnt[i] = 0;
-			}
-			g_stfilm_detect_item->phase_error_flag = 0;
-		}
 
-		// noise  or  scence change
-		if(quit_reset_Cnt[0] > quit_reset_th) {
-			if(quitCnt[0] > 1) {
-				quitCnt[0] = quitCnt[0] - 1;
-				quit_reset_Cnt[0] = 0;       //recover normal
-			} else {
-				quitCnt[0] = quitCnt[0] - 1;
-				quit_reset_Cnt[0] = 0;      //recover normal
-				quit_reset_Cnt[1] = 0;
-				quitCnt[1] = 0;
-				g_stfilm_detect_item->phase_error_flag = 0;
-			}
-		}
-
-		//drop frame
-		if (quit_reset_Cnt[1] > quit_reset_th)
-		{
-			if (quitCnt[1] >= quitModth / 2 && quitCnt[1] >= 2) {
-				quitCnt[1] = quitCnt[1] - 2;       // reset quickly
-				quit_reset_Cnt[1] = 0;
-			} else if (quitCnt[1] < quitModth / 2 && quitCnt[1] > 0 ) {
-				quitCnt[1] = quitCnt[1] - 1;       // reset slowly
-				quit_reset_Cnt[1] = 0;
-			} else {
-				quit_reset_Cnt[0] = 0;          //recover normal
-				quit_reset_Cnt[1] = 0;          //recover normal
-				quitCnt[0] = 0;
-				phase[mode] = phase1[mode];     //change phase
-				g_stfilm_detect_item->phase_error_flag = 0;
-			}
-		}
 	}
 
 	if (Mode_cnt[mode] > 100)
@@ -808,9 +813,11 @@ void frc_mixmod_compare_to_history(struct frc_dev_s *frc_devp, u32 *flmGDif,
 					u8 *mix_modnum_cpre_quit, u8 mix_modnum_cown,
 					u16 nsize, u8 *flag, u8 nT2, u8 nT0)
 {
-	u32 DifWW,difthinc,DifGG,difthincg,difthles,difthlesg,weight;
+	u32 difthinc,DifGG,difthincg,difthles,difthlesg,weight;
+	s32 DifWW;
 	struct frc_fw_data_s *frc_data;
 	struct st_film_detect_item *g_stfilm_detect_item;
+	struct st_film_ctrl_para *g_stfilm_ctrl_para;
 	//struct st_film_data_item *g_stfilmdata_item;
 	//struct st_film_detect_rd *g_stfilmdetect_rd;
 
@@ -818,6 +825,7 @@ void frc_mixmod_compare_to_history(struct frc_dev_s *frc_devp, u32 *flmGDif,
 	g_stfilm_detect_item = &frc_data->g_stfilm_detect_item;
 	//g_stfilmdata_item = &frc_data->g_stfilmdata_item;
 	//g_stfilmdetect_rd = &frc_data->g_stfilmdetect_rd;
+	g_stfilm_ctrl_para =  &frc_data->g_stfilmctrl_para;
 
 	DifWW = flmW6Dif[nT0][HISDIFNUM - 1] - flmW6Dif[nT0][HISDIFNUM - 1 - nT2];
 
@@ -884,7 +892,7 @@ void frc_mixmod_compare_to_history(struct frc_dev_s *frc_devp, u32 *flmGDif,
 				*mix_modnum_cpre = 0;
 		}
 
-		if (*mix_modnum_cpre == g_stfilm_detect_item->mm_cpre_thd &&
+		if (*mix_modnum_cpre == g_stfilm_ctrl_para->mm_cpre_thd &&
 		    (((flmW6Dif[nT0][HISDIFNUM - 1] + *dif_aMnMx0 / 2) / (*dif_aMnMx0 + 1)) < 9))
 			*mix_modnum_cpre = 0;
 
@@ -928,6 +936,7 @@ void frc_mixmod_compare_to_other(struct frc_dev_s *frc_devp, u32 *flmGDif,
 {
 	struct frc_fw_data_s *frc_data;
 	struct st_film_detect_item *g_stfilm_detect_item;
+	struct st_film_ctrl_para *g_stfilm_ctrl_para;
 	//struct st_film_data_item *g_stfilmdata_item;
 	//struct st_film_detect_rd *g_stfilmdetect_rd;
 
@@ -935,6 +944,7 @@ void frc_mixmod_compare_to_other(struct frc_dev_s *frc_devp, u32 *flmGDif,
 	g_stfilm_detect_item = &frc_data->g_stfilm_detect_item;
 	//g_stfilmdata_item = &frc_data->g_stfilmdata_item;
 	//g_stfilmdetect_rd = &frc_data->g_stfilmdetect_rd;
+	g_stfilm_ctrl_para =  &frc_data->g_stfilmctrl_para;
 
 	if (g_stfilm_detect_item->phase_error_flag == 0 && nT0 < 5) {
 		if ((flmGDif[HISDIFNUM - 1] - 500) <= flmW6Dif[nT0][HISDIFNUM - 1] &&
@@ -948,7 +958,7 @@ void frc_mixmod_compare_to_other(struct frc_dev_s *frc_devp, u32 *flmGDif,
 		*mix_modnum_reset = *mix_modnum_reset + 1;
 
 	//if(mix_modnum_cother[nT0]<4&&flmWDif[nT0][HISDIFNUM-1]<(10000))   //ex44 735
-	if(*mix_modnum_cother <= g_stfilm_detect_item->mm_cother_thd &&
+	if(*mix_modnum_cother <= g_stfilm_ctrl_para->mm_cother_thd &&
 	   (flmW6Dif[nT0][HISDIFNUM - 1] - flmW6Dif[nT0][HISDIFNUM - 1 - nT2]) < 1024)   //ex44 735
 		*mix_modnum_cother = 0;
 }
@@ -959,11 +969,13 @@ u8 frc_mix_mod_check(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[][HI
 	struct frc_fw_data_s *frc_data;
 	struct st_film_detect_item *g_stfilm_detect_item;
 	struct st_film_data_item *g_stfilmdata_item;
+	struct st_film_ctrl_para  *g_stfilm_ctrl_para;
 	//struct st_film_detect_rd *g_stfilmdetect_rd;
 
 	frc_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	g_stfilm_detect_item = &frc_data->g_stfilm_detect_item;
 	g_stfilmdata_item = &frc_data->g_stfilmdata_item;
+	g_stfilm_ctrl_para = &frc_data->g_stfilmctrl_para;
 	//g_stfilmdetect_rd = &frc_data->g_stfilmdetect_rd;
 
 	u8 nT0, nT1, nT2, nT3;
@@ -978,7 +990,7 @@ u8 frc_mix_mod_check(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[][HI
 	u8 *mix_modnum_reset  =  &g_stfilmdata_item->mm_num_reset[0];
 	u8 *mix_modnum_cpre_quit = &g_stfilmdata_item->mm_num_cpre_quit[0];//mix mode num compare with history(diff gradually reduced,may quit mix mode)
 	u8 mix_mod = 0;
-	u8 mm_chk_mmdifthd = g_stfilm_detect_item->mm_chk_mmdifthd;
+	u8 mm_chk_mmdifthd = g_stfilm_ctrl_para->mm_chk_mmdifthd;
 	u8 cadence = g_stfilmtable[mode].cadence_cnt;
 	u8 idx = cadence + 1;
 	//int phasecycle = g_stfilm_detect_item->phasecycle;
@@ -988,7 +1000,7 @@ u8 frc_mix_mod_check(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[][HI
 	u32 aveg_max_dif[6];
 	u32 aveg_min_difG = 0;
 	u8 aMnMx[20];//[cadence];
-	u8 ratio = g_stfilm_detect_item->wind_ratio;
+	u8 ratio = g_stfilm_ctrl_para->wind_ratio;
 
 	//int Dif[cycle];
 	u32 nMin = 0;
@@ -1068,7 +1080,7 @@ u8 frc_mix_mod_check(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[][HI
 			mean_other_max = (mean_other_max + 1024) / (WINNUM - 7);
 		}
 
-		mean_other_min = mean_other_min + g_stfilm_detect_item->wind_ofset;
+		mean_other_min = mean_other_min + g_stfilm_ctrl_para->wind_ofset;
 		mean_other_min = MIN(mean_other_min,4096);
 		//compare to history
 		if (aMnMx[0] == 0) {
@@ -1195,7 +1207,7 @@ u8 frc_mix_mod_check(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[][HI
 			mix_modnum_cown[nT0] = 255;
 		}
 
-		if (mix_modnum_reset[nT0] > g_stfilm_detect_item->mm_reset_thd) {
+		if (mix_modnum_reset[nT0] > g_stfilm_ctrl_para->mm_reset_thd) {
 			mix_modnum_cown[nT0] = 0;
 			mix_modnum_cother[nT0] = 0;
 			mix_modnum_cpre[nT0] = 0;
@@ -1204,9 +1216,9 @@ u8 frc_mix_mod_check(struct frc_dev_s *frc_devp, u32 *flmGDif, u32 flmW6Dif[][HI
 	}
 
 	for (nT0 = 0; nT0 < wind_num; nT0++) {
-		if (mix_modnum_cpre[nT0] > g_stfilm_detect_item->mm_cpre_thd ||
-		    mix_modnum_cown[nT0] > g_stfilm_detect_item->mm_cown_thd||
-		    mix_modnum_cother[nT0] >= g_stfilm_detect_item->mm_cother_thd) {
+		if (mix_modnum_cpre[nT0] > g_stfilm_ctrl_para->mm_cpre_thd ||
+		    mix_modnum_cown[nT0] > g_stfilm_ctrl_para->mm_cown_thd||
+		    mix_modnum_cother[nT0] >= g_stfilm_ctrl_para->mm_cother_thd) {
 			mix_mod = 1;
 			break;
 		}
@@ -1635,12 +1647,14 @@ void frc_film_badedit_ctrl(struct frc_dev_s *frc_devp, u32 *flmGDif,u8 mode)
 	struct frc_fw_data_s *frc_data;
 	struct st_film_detect_item *g_stfilm_detect_item;
 	struct st_film_data_item *g_stfilmdata_item;
-	//struct st_film_detect_rd *g_stfilmdetect_rd;
+	struct st_film_ctrl_para *g_stfilmctrl_para;
+
 
 	frc_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	g_stfilm_detect_item = &frc_data->g_stfilm_detect_item;
 	g_stfilmdata_item = &frc_data->g_stfilmdata_item;
-	//g_stfilmdetect_rd = &frc_data->g_stfilmdetect_rd;
+	g_stfilmdata_item = &frc_data->g_stfilmdata_item;
+	g_stfilmctrl_para = &frc_data->g_stfilmctrl_para;
 
 	u32  sumGdif = 0;                                   //sum of global dif
 	u32  AveragG = 0;                                   //average global dif
@@ -1655,38 +1669,35 @@ void frc_film_badedit_ctrl(struct frc_dev_s *frc_devp, u32 *flmGDif,u8 mode)
 	u32 mask_value      = g_stfilmtable[mode].mask_value;
 	u32 match_data      = frc_cycshift(g_stfilmtable[mode].match_data, cadence_cnt, mask_value, 1);
 	u8  update_HW_flag  = 0;
-	//u8 mc_phase         = 0;
+
 	u8 pre_idx_pre      = 0;
 	u8 skip_flag        = 0;
 	u8 latch_err        = 0;
+	u8 raw_fid          = 0;
 
 	static u8  input_fid      = 2;
 	static u8  BN             = 0;
 	static u8  change_num     = 0;
 	static u8  start_change   = 0;
-	//static s8  step_ofset     = 0;
-	static u8  step_ofset_cnt = 0;
-	//static u8  pre_fid        = 0;
-	//static u8  cur_fid        = 0;
-	//static u8  nex_fid        = 0;
-	//static u8  pre_fid_pre    = 0;
-	//static u8  cur_fid_pre    = 0;
-	//static u8  nex_fid_pre    = 0;
-	//static u8  mc_phase_pre   = 0;
 
-	//u8  i = 0, j = 0;
+	static u8  step_ofset_cnt = 0;
+
+
+
 	u32 mem  = 0 ;
-	//u32 mem2 = 0 ;
 
 	// after reading ro_frc_hw_latch_error (bit30), set reg_clr_fw_proc_err_flag=1  immediately
 	mem    = READ_FRC_REG(FRC_REG_FWD_SIGN_RO);       //ro_frc_opre/ocur/onex_point
 	//Bit 0 , default = 0,this bit use as pulse reg_clr_fw_proc_err_flag
 	UPDATE_FRC_REG_BITS(FRC_BE_CLR_FLAG, 1, 0x1);
 	latch_err = (mem >> 30) & 0x1;     //Bit 30     ro_frc_hw_latch_error
-	//xil_printf("16e=%x\n\r", mem );
 
 	g_stfilm_detect_item->input_fid_fw = input_fid;               // last input_fid
 	input_fid = READ_FRC_REG(FRC_REG_FWD_FID) >> 24 & 0xF;      //Bit 27:24  reg_frc_input_fid
+
+	raw_fid = READ_FRC_REG(FRC_REG_PAT_POINTER) >> 4 & 0xF;      //Bit 27:24  reg_frc_input_fid
+
+	pr_frc(dbg_film + 1, "input_fid=%d,raw_fid=%d\n", input_fid,raw_fid);
 
 	//table count update
 	if((output_m * cadence_cnt % input_n) != 0) {
@@ -1744,8 +1755,10 @@ void frc_film_badedit_ctrl(struct frc_dev_s *frc_devp, u32 *flmGDif,u8 mode)
 		sumGdif = sumGdif + flmGDif[HISDIFNUM - 1 - nT0];
 
 	AveragG = (sumGdif + frame_num / 2) / (frame_num);
-	AveragG = (AveragG * g_stfilm_detect_item->glb_ratio + 8) / 16;         //average
-	AveragG = AveragG + g_stfilm_detect_item->glb_ofset;                  // mode 1/0 th
+	AveragG = (AveragG * g_stfilmctrl_para->glb_ratio + 8) / 16;         //average
+	AveragG = AveragG + g_stfilmctrl_para->glb_ofset;                  // mode 1/0 th
+
+	AveragG = MAX(AveragG, g_stfilmctrl_para->min_diff_th);
 
 	phase = phase == 0 ? cadence_cnt -1 : phase - 1;
 	//flmGdif[0] phase
@@ -1935,13 +1948,6 @@ void frc_film_badedit_ctrl(struct frc_dev_s *frc_devp, u32 *flmGDif,u8 mode)
 
 	step = (1 << 20) * comb_AB_change_cnt * input_n / (frame_num * output_m);
 
-	//xil_printf("step=%d,cnt=%d\n\r",step>>13,comb_AB_change_cnt);
-
-	//debug
-	//for(nT0=0;nT0<frame_buf_num;nT0++)
-		//g_stfilmdata_item->inout_id_table[nT0][0] =
-		//g_stfilmdata_item->inout_id_table[nT0][0]g_stfilm_detect_item->input_id_length|0x10;
-
 	g_stfilm_detect_item->input_id_point =
 		g_stfilm_detect_item->input_id_point >= (g_stfilm_detect_item->input_id_length-1) ?
 		0 : g_stfilm_detect_item->input_id_point + 1;
@@ -1963,7 +1969,7 @@ void frc_film_badedit_ctrl(struct frc_dev_s *frc_devp, u32 *flmGDif,u8 mode)
 	// reg_frc_opre/ocur/onex_idx
 	UPDATE_FRC_REG_BITS(FRC_REG_FWD_FID_POSI,(g_stfilm_detect_item->inout_idx),0x7);
 
-	for (nT0 = 0; nT0 < frame_buf_num; nT0++)
+	for (nT0 = 0; nT0 < frame_buf_num; nT0++) {
 		for (nT1 = 0; nT1 < 8; nT1++) {
 			//if(nT1>0&&g_stfilmdata_item->inout_id_table[nT0][nT1-1]>16)
 				//break;
@@ -1979,8 +1985,10 @@ void frc_film_badedit_ctrl(struct frc_dev_s *frc_devp, u32 *flmGDif,u8 mode)
 					g_stfilmdata_item->inout_id_table[nT0][nT1] <<
 					((nT1 % 4) * 8),
 					(1 << ((nT1 % 4) * 8 + 5)) - (1 << ((nT1 % 8) * 8)));
-		}
 
+			}
+			pr_frc(dbg_film + 1, "id:idx_%d:%d,%d,%d\n",nT0,g_stfilmdata_item->inout_id_table[nT0][0],g_stfilmdata_item->inout_id_table[nT0][1],g_stfilmdata_item->inout_id_table[nT0][2]);
+		}
 	if (update_HW_flag) {
 		point = g_stfilm_detect_item->pre_table_point << 28 |
 			g_stfilm_detect_item->cur_table_point << 24 |
@@ -2009,26 +2017,17 @@ void frc_film_badedit_ctrl(struct frc_dev_s *frc_devp, u32 *flmGDif,u8 mode)
 	UPDATE_FRC_REG_BITS(FRC_REG_FWD_SIGN_RO,1<<31,1<<31);//Bit 31    reg_frc_tbl_wr_down_en
 	UPDATE_FRC_REG_BITS(FRC_REG_FWD_SIGN_RO,0,1<<31);    //Bit 31    reg_frc_tbl_wr_down_en
 
-	// ro_frc_input_fid / ro_frc_input_fid_p
-	mem    = READ_FRC_REG(FRC_REG_PAT_POINTER);
-	//xil_printf("ifid/p=%x,%x\n\r", (mem>>4) & 0xf , (mem>>8) & 0xf);
-	mem    = READ_FRC_REG(FRC_REG_FWD_FID);
-	// ro_frc_opre/ocur/onex_fid_mux
-	//xil_printf("ofid_pcn=%x%x%x\n\r",(mem >>8) & 0xf,(mem>>4) & 0xf,(mem) & 0xf);
-
-	mem    = READ_FRC_REG(FRC_TOP_MISC_CTRL);
-	//xil_printf("ref=%x\n\r", (mem>>2) & 0x1 );   //Bit 2    reg_ref_mode
-
-	mem    = READ_FRC_REG(FRC_BADEDIT_DBG0);
-	// xil_printf("dbg0=%x\n\r", mem );             //Bit  31: 0   ro_frc_badedit_dbg0
-	mem    = READ_FRC_REG(FRC_BADEDIT_DBG1);
-	//xil_printf("dbg1=%x\n\r", mem );             //Bit  31: 0   ro_frc_badedit_dbg1
-
-	//xil_printf("ip_id_tbl:");
-	for (nT0 = 0; nT0 < g_stfilm_detect_item->input_id_length; nT0++) {
-		//xil_printf("%x,",g_stfilmdata_item->input_id_table[nT0]);
-	}
-
 	mode_pre = mode;
+	//u64 timestamp_out = sched_clock();
+
+	mem    = READ_FRC_REG(FRC_REG_FWD_FID);       //ro_frc_opre/ocur/onex_point
+
+	pr_frc(dbg_film + 1, "fid:pre=%d,cur=%d,nex=%d\n", (mem>>8)&0xF,(mem>>4)&0xF,(mem)&0xF);
+
+	mem    = READ_FRC_REG(FRC_REG_FWD_SIGN_RO);       //ro_frc_opre/ocur/onex_point
+
+	pr_frc(dbg_film + 1, "point:pre=%d,cur=%d,nex=%d,out=%d\n", (mem>>24)&0xF,(mem>>20)&0xF,(mem>>16)&0xF,g_stfilm_detect_item->inout_table_point);
+
+	pr_frc(dbg_film + 1, "idx:pre=%d,cur=%d,nex=%d,out=%d\n", (mem>>8)&0x7,(mem>>4)&0x7,(mem>>2)&0x7,g_stfilm_detect_item->inout_idx);
 }
 

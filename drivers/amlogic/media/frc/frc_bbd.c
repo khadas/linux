@@ -182,6 +182,7 @@ void frc_bbd_param_init(struct frc_dev_s *frc_devp)
 	search_final_line_para->force_final_each_posi_en[3] = 1;//  u8,     force bot en
 
 	search_final_line_para->valid_ratio = 1;//  u8,     ratio for bb valid
+	search_final_line_para->bbd_7_seg_en = 0;	//	u1, 7 seg en
 	//  32x32bits
 }
 
@@ -574,6 +575,7 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 		edge_posi[2], edge_posi[3]);
 	pr_frc(dbg_bbd + 0, "\nML -%d %d %d %d", motion_posi[0], motion_posi[1],
 		motion_posi[2], motion_posi[3]);
+	pr_frc(dbg_bbd + 0, "\n New0512 1600");
 
 	// new scheme
 	if (search_final_line_para->mode_switch == 0) {
@@ -1604,7 +1606,8 @@ void frc_bbd_choose_final_line(struct frc_dev_s *frc_devp)
 		tmp_final_posi[2] = cur_final_posi[2];
 
 		// rit end
-
+		pr_frc(dbg_bbd + 0, "\nFinal-%d %d %d %d", tmp_final_posi[0], tmp_final_posi[1],
+		tmp_final_posi[2], tmp_final_posi[3]);
 		// BBD IIR
 		if (search_final_line_para->final_iir_mode == 1) {
 			//xil_printf("\n before sel top:%4d bot:%4d lft:%4d rit:%4d]",

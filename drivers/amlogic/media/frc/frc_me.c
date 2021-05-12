@@ -126,8 +126,8 @@ void frc_me_param_init(struct frc_dev_s *frc_devp)
 	g_stFbCtrl_Para->fb_gain_gmv_ratio_s      = 8;	//8
 	g_stFbCtrl_Para->fb_gain_gmv_ratio_l      = 24; //24
 	g_stFbCtrl_Para->fallback_level_max       = 10;
-	g_stFbCtrl_Para->base_TC_th_s             = 10000;//13056;   //0xcc00>>2, //TEMP MODIFY
-	g_stFbCtrl_Para->base_TC_th_l             = 30000;//43008;   //0x2a000>>2, //TEMP MODIFY
+	g_stFbCtrl_Para->base_TC_th_s             = 50000;//13056;   //0xcc00>>2, //TEMP MODIFY
+	g_stFbCtrl_Para->base_TC_th_l             = 80000;//43008;   //0x2a000>>2, //TEMP MODIFY
 
 	// region fallback
 	for(i = 0; i < 6; i++)
@@ -202,6 +202,9 @@ void frc_me_param_init(struct frc_dev_s *frc_devp)
 	g_stMeRule_EN->rule8_en = 1;//rule_8, demo window||mix mode      --> disable clear v-buf
 	g_stMeRule_EN->rule9_en = 1;//rule_9, for fast panning 		    --> control zero panalty
 	g_stMeRule_EN->rule10_en = 1;//rule_10, scene change 		    --> dehalo off
+
+	g_stMeCtrl_Para->me_add_7_flag_mode = 0;
+	
 }
 
 void set_me_gmv(struct frc_dev_s *frc_devp)
@@ -582,6 +585,13 @@ void fb_ctrl(struct frc_dev_s *frc_devp)
 	g_stFbCtrl_Item->mc_fallback_level_pre = mc_fallback_level;
 
 	UPDATE_FRC_REG_BITS(FRC_MC_LOGO_POST_BLENDER, (fallback_level[mc_fallback_level])<<12, 0xF000);
+
+	pr_frc(dbg_me, "TC_Median=%d, glb_TC_iir=%d\n", TC_Median, glb_TC_iir);
+	pr_frc(dbg_me, "gmv_ratio=%d, gmv_ratio_gain=%d\n", gmv_ratio, gmv_ratio_gain);
+	pr_frc(dbg_me, "TC_th_s=%d, TC_th_l=%d\n", TC_th_s, TC_th_l);
+	pr_frc(dbg_me, "mc_fallback_level=%d, fb_level=%d\n", mc_fallback_level, fallback_level[mc_fallback_level]);
+	
+	
 }
 
 void scene_detect(struct frc_dev_s *frc_devp)
@@ -1164,85 +1174,119 @@ void me_add_7_seg(struct frc_dev_s *frc_devp)
 	u32 mvx_div_mode, mvy_div_mode;
 	s32 gmvx, gmvy, mv_abs, mv_100, mv_10, mv_1, mv_sign;
 	u32 cnt10k, cnt1k, cnt100, cnt10, cnt;
+	u8 	global_fb_level, data_10, data_1, data_tmp;
+	u8  clr_vbuf_trigger, clr_vbuf_en;
 	struct frc_fw_data_s *frc_data;
 	struct st_me_rd *g_stME_RD;
+	struct st_me_ctrl_para *g_stMeCtrl_Para;
+	struct st_fb_ctrl_item *g_stFbCtrl_Item;
 
 	frc_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	g_stME_RD = &frc_data->g_stme_rd;
+	g_stMeCtrl_Para = &frc_data->g_stMeCtrl_Para;
+	g_stFbCtrl_Item = &frc_data->g_stFbCtrl_Item;
 
-	mvx_div_mode = READ_FRC_REG(FRC_ME_EN)>>4 & 0x3;
-	mvy_div_mode = READ_FRC_REG(FRC_ME_EN)    & 0x3;
+	if (g_stMeCtrl_Para->me_add_7_flag_mode == 1) {
+		mvx_div_mode = READ_FRC_REG(FRC_ME_EN)>>4 & 0x3;
+		mvy_div_mode = READ_FRC_REG(FRC_ME_EN)    & 0x3;
 
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,1<<15,BIT_15);//flag1_1_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,1<<15,BIT_7 );//flag1_2_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,1<<31,BIT_31);//flag1_3_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,1<<23,BIT_23);//flag1_4_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,1<<15,BIT_15);//flag1_5_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,1<<7 ,BIT_7 );//flag1_6_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22,1<<31,BIT_31);//flag1_7_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22,1<<23,BIT_23);//flag1_8_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22,1<<15,BIT_15);//flag2_1_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22,1<<7 ,BIT_7 );//flag2_2_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26,1<<31,BIT_31);//flag2_3_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26,1<<23,BIT_23);//flag2_4_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26,1<<15,BIT_15);//flag2_5_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26,1<<7 ,BIT_7 );//flag2_6_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26,1<<31,BIT_31);//flag2_7_en
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26,1<<23,BIT_23);//flag2_8_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,1<<15,BIT_15);//flag1_1_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,1<<7,BIT_7 );//flag1_2_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,1<<31,BIT_31);//flag1_3_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,1<<23,BIT_23);//flag1_4_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,1<<15,BIT_15);//flag1_5_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,1<<7 ,BIT_7 );//flag1_6_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22,1<<31,BIT_31);//flag1_7_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22,1<<23,BIT_23);//flag1_8_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22,1<<15,BIT_15);//flag2_1_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22,1<<7 ,BIT_7 );//flag2_2_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26,1<<31,BIT_31);//flag2_3_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26,1<<23,BIT_23);//flag2_4_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26,1<<15,BIT_15);//flag2_5_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26,1<<7 ,BIT_7 );//flag2_6_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26,1<<31,BIT_31);//flag2_7_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26,1<<23,BIT_23);//flag2_8_en
 
-	cnt = g_stME_RD->gmv_total_sum;
-	cnt10k   = cnt/10000;
-	cnt      = (cnt - cnt10k  *10000);
-	cnt1k    = cnt/1000;
-	cnt      = (cnt - cnt1k   *1000);
-	cnt100   = cnt/100;
-	cnt      = (cnt - cnt100 *100);
-	cnt10    = cnt/10;
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,cnt10k<<8, 0xF00);
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,cnt1k    , 0xF  );
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,cnt100<<24 , 0xF000000);
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,cnt10 <<16 , 0xF0000  );
+		cnt = g_stME_RD->gmv_total_sum;
+		cnt10k   = cnt/10000;
+		cnt      = (cnt - cnt10k  *10000);
+		cnt1k    = cnt/1000;
+		cnt      = (cnt - cnt1k   *1000);
+		cnt100   = cnt/100;
+		cnt      = (cnt - cnt100 *100);
+		cnt10    = cnt/10;
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,cnt10k<<8, 0xF00);
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,cnt1k    , 0xF  );
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,cnt100<<24 , 0xF000000);
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,cnt10 <<16 , 0xF0000  );
 
-	cnt = g_stME_RD->gmv_neighbor_cnt;
-	cnt10k   = cnt/10000;
-	cnt      = (cnt - cnt10k  *10000);
-	cnt1k    = cnt/1000;
-	cnt      = (cnt - cnt1k   *1000);
-	cnt100   = cnt/100;
-	cnt      = (cnt - cnt100 *100);
-	cnt10    = cnt/10;
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,cnt10k<<8 , 0xF00);
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,cnt1k     , 0xF  );
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22,cnt100<<24, 0xF000000);
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22,cnt10<<16 , 0xF0000  );
+		cnt = g_stME_RD->gmv_neighbor_cnt;
+		cnt10k   = cnt/10000;
+		cnt      = (cnt - cnt10k  *10000);
+		cnt1k    = cnt/1000;
+		cnt      = (cnt - cnt1k   *1000);
+		cnt100   = cnt/100;
+		cnt      = (cnt - cnt100 *100);
+		cnt10    = cnt/10;
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,cnt10k<<8 , 0xF00);
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM13_NUM14_NUM15_NUM16,cnt1k     , 0xF  );
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22,cnt100<<24, 0xF000000);
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22,cnt10<<16 , 0xF0000  );
 
-	gmvx = g_stME_RD->gmvx >> (mvx_div_mode+2);
-	gmvy = g_stME_RD->gmvy >> (mvy_div_mode+2);
+		gmvx = g_stME_RD->gmvx >> (mvx_div_mode+2);
+		gmvy = g_stME_RD->gmvy >> (mvy_div_mode+2);
 
-	mv_sign = (gmvx>=0) ? 0 : 1;
-	mv_abs      = ABS(gmvx);
-	mv_100 = mv_abs/100;
-	mv_10  = (mv_abs - mv_100*100 )/10;
-	mv_1   =  mv_abs - mv_100*100 - mv_10*10;
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22, mv_sign<<8 , 0xF00    );
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22, mv_100     , 0xF      );
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26, mv_10 <<24 , 0xF000000);
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26, mv_1  <<16 , 0xF0000  );
+		mv_sign = (gmvx>=0) ? 0 : 1;
+		mv_abs      = ABS(gmvx);
+		mv_100 = mv_abs/100;
+		mv_10  = (mv_abs - mv_100*100 )/10;
+		mv_1   =  mv_abs - mv_100*100 - mv_10*10;
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22, mv_sign<<8 , 0xF00    );
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM17_NUM18_NUM21_NUM22, mv_100     , 0xF      );
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26, mv_10 <<24 , 0xF000000);
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26, mv_1  <<16 , 0xF0000  );
 
-	mv_sign = (gmvy>=0) ? 0 : 1;
-	mv_abs  = ABS(gmvy);
-	mv_100 = mv_abs/100;
-	mv_10  = (mv_abs - mv_100*100 )/10;
-	mv_1   =  mv_abs - mv_100*100 - mv_10*10;
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26, mv_sign <<8 , 0xF00);
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26, mv_100      , 0xF  );
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM27_NUM28            , mv_10   <<24, 0xF000000);
-	UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM27_NUM28            , mv_1    <<16, 0xF0000 );
+		mv_sign = (gmvy>=0) ? 0 : 1;
+		mv_abs  = ABS(gmvy);
+		mv_100 = mv_abs/100;
+		mv_10  = (mv_abs - mv_100*100 )/10;
+		mv_1   =  mv_abs - mv_100*100 - mv_10*10;
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26, mv_sign <<8 , 0xF00);
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM23_NUM24_NUM25_NUM26, mv_100      , 0xF  );
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM27_NUM28            , mv_10   <<24, 0xF000000);
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_NUM27_NUM28            , mv_1    <<16, 0xF0000 );
+	}
+
+	if (g_stMeCtrl_Para->me_add_7_flag_mode == 2) {
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,1<<15,BIT_15);//flag1_1_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,1<<7,BIT_7 );//flag1_2_en
+
+		global_fb_level = g_stFbCtrl_Item->mc_fallback_level_pre;
+		data_tmp = fallback_level[global_fb_level];
+		data_10  = data_tmp/10;
+		data_1	 = data_tmp - data_10*10;
+
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,data_10<<8, 0xF00);
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,data_1    , 0xF  );
+	}
+
+	if (g_stMeCtrl_Para->me_add_7_flag_mode == 3) {
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,1<<15,BIT_15);//flag1_1_en
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12,1<<7,BIT_7 );//flag1_2_en
+
+		clr_vbuf_trigger = READ_FRC_BITS(FRC_REG_FILM_PHS_2, 1, 1);
+		clr_vbuf_en      = READ_FRC_BITS(FRC_REG_FILM_PHS_2, 0, 1);
+
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12, clr_vbuf_trigger<<8, 0xF00);
+		UPDATE_FRC_REG_BITS(FRC_MC_SEVEN_FLAG_POSI_AND_NUM11_NUM12, clr_vbuf_en, 0xF  );
+	}
+	
 }
 
 void region_readback_control(struct frc_dev_s *frc_devp)
 {
-	u32 i, j, k, region_idx, median_num, ii, jj, i_tmp, j_tmp, win3x3, region_fb_ynum, region_fb_xnum;
+	u32 i, j, k, region_idx, median_num, ii, jj, i_tmp, j_tmp;
+	u32 win3x3, region_fb_ynum, region_fb_xnum;
 	u32 region_sad_sum_median[6][8], region_sad_cnt_median[6][8], region_s_consis_median[6][8];
 	u8  region_ro_en[6][8], region_ro_pp[6][8];
 
@@ -1337,7 +1381,7 @@ void frc_me_ctrl(struct frc_dev_s *frc_devp)
 		//region_fb_ctrl();
 		me_rule_ctrl(frc_devp);
 		region_readback_control(frc_devp);
-		//me_add_7_seg();
+		me_add_7_seg(frc_devp);
 		//check_ro();
 		//xil_printf("me all finished\n\r");
 	}

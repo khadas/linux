@@ -21,5 +21,6 @@ u16 frc_bbd_line_stable(struct frc_dev_s *frc_devp, u8 *stable_flag, u16 *final_
 u16 frc_bbd_edge_th_gen(struct frc_dev_s *frc_devp, u32 *apl_val);
 u16 frc_bbd_black_th_gen(struct frc_dev_s *frc_devp, u32 *apl_val);
 void frc_bbd_param_init(struct frc_dev_s *frc_devp);
+// void frc_bbd_change_resolution_set_val(structfrc_dev_s *frc_devp);
 #endif
 

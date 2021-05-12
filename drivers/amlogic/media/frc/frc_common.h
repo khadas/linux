@@ -626,47 +626,57 @@ struct st_melogo_ctrl_para {
 
 //----------------------------------------------------------file detect start
 
-#define FLMMODNUM	3
+#define FLMMODNUM	18
 #define HISDIFNUM	30
 #define MAX_CYCLE	25
 #define PHS_FRAC_BIT	7
 #define WINNUM		12
 
-struct st_film_detect_item
+
+struct st_film_ctrl_para
 {
-	u8      flmDetLog;                   //flim mod
-	u8      cadencCnt;                   //flim mod candence count
-	u8      mode_enter_th;               //enter mode  threshold
-	u32     phase_match_data;            //phase check
-	u32     phase_mask_value;
-	u8      quit_mode_th;                 //quit mode threshold
-	u8      quit_reset_th;                //reset threshold
+	u8    film_ctrl_en;                 //film detect ctrl en 
+	u8    film_check_mode_en;           //film check  mode en
+	u8    film_badedit_en;              //film badedit ctrl en
+	u8    film_7_seg_en;               //film 7 seg en
+	u8    film_mode_force_en;          //force mode enable
+	u8    film_mode_force_value;       //force mode
+	u8    film_mode_force_phs_en;       //force mode phase
+	u32   film_cadence_switch;          //film cadence en
+	u32   min_diff_th;
 	//global average ratio average = average * ratio/16
-	u8      glb_ratio;
+	u8    glb_ratio;
 	//global diff threshold ofset th = average + glb_ofset
-	u16     glb_ofset;
+	u16   glb_ofset;
 	//each window average ratio, each widow average = average * ratio/16
-	u8      wind_ratio;
+	u8    wind_ratio;
 	//window diff threshold ofset threshold = average + wind_ofset
-	u16     wind_ofset;
+	u16   wind_ofset;
 	//min diff threshold, if motion<min_diff_th  "0"
-	u32     min_diff_th;
-	u8      phase_error_flag;             //Possible phase error
-	u8      filmMod;                      //film mode type
-	u8      phase;                        //film mode phase
-
-	u8      force_phase;                   //force mode phase
-	u8      force_mode;                    //force mode
-	u8      force_mode_en;                 //force mode en
-
-
-	//mix mode
+		//mix mode
 	u8      mm_cown_thd;                   //
 	u8      mm_cpre_thd;
 	u8      mm_cother_thd;
 	u8      mm_reset_thd;
 	u8      mm_difminthd;
 	u8      mm_chk_mmdifthd;
+};
+
+struct st_film_detect_item
+{
+	u8      flmdetlog;                   //film mod
+	u8      cadence_cnt;                   //film mod candence count
+	u8      mode_enter_th;               //enter mode  threshold
+	u32     phase_match_data;            //phase check
+	u32     phase_mask_value;
+	u8      quit_mode_th;                 //quit mode threshold
+	u8      quit_reset_th;                //reset threshold
+	
+	u8      phase_error_flag;             //Possible phase error
+	u8      filmMod;                      //film mode type
+	u8      phase;                        //film mode phase
+
+	u8      force_phase;                   //force mode phase
 
 	//badedit
 	u8      step;                        //frc phase detla
@@ -693,7 +703,6 @@ struct st_film_detect_item
 	u8      otb_start;
 
 	u8      frame_buf_num;
-	u8	film_7_seg_en;
 };
 
 struct st_film_table_item
@@ -867,6 +876,8 @@ struct st_me_ctrl_para {
 	u32 region_s_consis_th;
 	u8  region_win3x3_min;
 	u8  region_win3x3_max;
+
+	u8	me_add_7_flag_mode;
 };
 
 struct st_me_ctrl_item {
@@ -1092,6 +1103,7 @@ struct frc_fw_data_s {
 	struct st_melogo_ctrl_para g_stmelogoctrl_para;// fw melogo param (adjustable)
 
 	/*film detect*/
+	struct st_film_ctrl_para g_stfilmctrl_para;
 	struct st_film_data_item g_stfilmdata_item;
 	struct st_film_detect_item g_stfilm_detect_item;
 

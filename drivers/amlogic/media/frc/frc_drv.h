@@ -24,7 +24,7 @@
 #include "frc_common.h"
 #include "frc_interface.h"
 
-#define FRC_FW_VER			"t3 driver bringup 2021-0508 update fw from svn 596"
+#define FRC_FW_VER			"t3 driver bringup 2021-0512 update fw from svn 608"
 
 #define PR_ERR(fmt, args ...)		pr_info("frc_Err: " fmt, ##args)
 #define PR_FRC(fmt, args ...)		pr_info("frc: " fmt, ##args)

@@ -486,6 +486,19 @@ ssize_t frc_bbd_final_line_param_show(struct class *class,
 	len += sprintf(buf + len, "edge_th_min=%d\n", param->edge_th_min);
 	len += sprintf(buf + len, "final_iir_mode=%d\n", param->final_iir_mode);
 	len += sprintf(buf + len, "bbd_7_seg_en=%d\n", param->bbd_7_seg_en);
+	len += sprintf(buf + len, "force_final_posi_en=%d\n", param->force_final_posi_en);
+	len += sprintf(buf + len, "force_final_posi0=%d\n", param->force_final_posi[0]);
+	len += sprintf(buf + len, "force_final_posi1=%d\n", param->force_final_posi[1]);
+	len += sprintf(buf + len, "force_final_posi2=%d\n", param->force_final_posi[2]);
+	len += sprintf(buf + len, "force_final_posi3=%d\n", param->force_final_posi[3]);
+	len += sprintf(buf + len, "force_final_each_posi_en0=%d\n",
+		param->force_final_each_posi_en[0]);
+	len += sprintf(buf + len, "force_final_each_posi_en1=%d\n",
+		param->force_final_each_posi_en[1]);
+	len += sprintf(buf + len, "force_final_each_posi_en2=%d\n",
+		param->force_final_each_posi_en[2]);
+	len += sprintf(buf + len, "force_final_each_posi_en3=%d\n",
+		param->force_final_each_posi_en[3]);
 
 	return len;
 }
@@ -544,7 +557,24 @@ ssize_t frc_bbd_final_line_param_store(struct class *class,
 		param->final_iir_mode = value;
 	else if (!strcmp(parm[0], "bbd_7_seg_en"))
 		param->bbd_7_seg_en = value;
-
+	else if (!strcmp(parm[0], "force_final_posi_en"))
+		param->force_final_posi_en = value;
+	else if (!strcmp(parm[0], "force_final_posi0"))
+		param->force_final_posi[0] = value;
+	else if (!strcmp(parm[0], "force_final_posi1"))
+		param->force_final_posi[1] = value;
+	else if (!strcmp(parm[0], "force_final_posi2"))
+		param->force_final_posi[2] = value;
+	else if (!strcmp(parm[0], "force_final_posi3"))
+		param->force_final_posi[3] = value;
+	else if (!strcmp(parm[0], "force_final_each_posi_en0"))
+		param->force_final_each_posi_en[0] = value;
+	else if (!strcmp(parm[0], "force_final_each_posi_en1"))
+		param->force_final_each_posi_en[1] = value;
+	else if (!strcmp(parm[0], "force_final_each_posi_en2"))
+		param->force_final_each_posi_en[2] = value;
+	else if (!strcmp(parm[0], "force_final_each_posi_en3"))
+		param->force_final_each_posi_en[3] = value;
 
 	kfree(buf_orig);
 	return count;
@@ -1025,6 +1055,7 @@ ssize_t frc_me_ctrl_param_show(struct class *class,
 	len += sprintf(buf + len, "region_s_consis_th=%d\n", param->region_s_consis_th);
 	len += sprintf(buf + len, "region_win3x3_min=%d\n", param->region_win3x3_min);
 	len += sprintf(buf + len, "region_win3x3_max=%d\n", param->region_win3x3_max);
+	len += sprintf(buf + len, "me_add_7_flag_mode=%d\n", param->me_add_7_flag_mode);
 
 	return len;
 }
@@ -1077,6 +1108,8 @@ ssize_t frc_me_ctrl_param_store(struct class *class,
 		param->region_win3x3_min = value;
 	else if (!strcmp(parm[0], "region_win3x3_max"))
 		param->region_win3x3_max = value;
+	else if (!strcmp(parm[0], "me_add_7_flag_mode"))
+		param->me_add_7_flag_mode = value;
 
 	kfree(buf_orig);
 	return count;
@@ -1347,28 +1380,43 @@ ssize_t frc_me_rule_param_store(struct class *class,
 	return count;
 }
 
-ssize_t frc_film_detect_item_show(struct class *class,
+ssize_t frc_film_ctrl_param_show(struct class *class,
 	struct class_attribute *attr,
 	char *buf)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data;
-	struct st_film_detect_item *param;
+	struct st_film_ctrl_para *param;
 	ssize_t len = 0;
 
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;
-	param = &fw_data->g_stfilm_detect_item;
+	param = &fw_data->g_stfilmctrl_para;
 
-	len += sprintf(buf + len, "g_stfilm_detect_item info:\n");
+	len += sprintf(buf + len, "g_stfilm_ctrl_para info:\n");
+	len += sprintf(buf + len, "film_ctrl_en=%d\n", param->film_ctrl_en);
+	len += sprintf(buf + len, "film_check_mode_en=%d\n", param->film_check_mode_en);
+	len += sprintf(buf + len, "film_badedit_en=%d\n", param->film_badedit_en);
 	len += sprintf(buf + len, "film_7_seg_en=%d\n", param->film_7_seg_en);
-	len += sprintf(buf + len, "frame_buf_num=%d\n", param->frame_buf_num);
-	len += sprintf(buf + len, "force_mode=%d\n", param->force_mode);
-	len += sprintf(buf + len, "force_mode_en=%d\n", param->force_mode_en);
+	len += sprintf(buf + len, "film_mode_force_en=%d\n", param->film_mode_force_en);
+	len += sprintf(buf + len, "film_mode_force_value=%d\n", param->film_mode_force_value);
+	len += sprintf(buf + len, "film_mode_force_phs_en=%d\n", param->film_mode_force_phs_en);
+	len += sprintf(buf + len, "film_cadence_switch=%d\n", param->film_cadence_switch);
+	len += sprintf(buf + len, "min_diff_th=%d\n", param->min_diff_th);
+	len += sprintf(buf + len, "glb_ratio=%d\n", param->glb_ratio);
+	len += sprintf(buf + len, "wind_ratio=%d\n", param->wind_ratio);
+	len += sprintf(buf + len, "glb_ofset=%d\n", param->glb_ofset);
+	len += sprintf(buf + len, "wind_ofset=%d\n", param->wind_ofset);
+	len += sprintf(buf + len, "mm_cown_thd=%d\n", param->mm_cown_thd);
+	len += sprintf(buf + len, "mm_cpre_thd=%d\n", param->mm_cpre_thd);
+	len += sprintf(buf + len, "mm_cother_thd=%d\n", param->mm_cother_thd);
+	len += sprintf(buf + len, "mm_reset_thd=%d\n", param->mm_reset_thd);
+	len += sprintf(buf + len, "mm_difminthd=%d\n", param->mm_difminthd);
+	len += sprintf(buf + len, "mm_chk_mmdifthd=%d\n", param->mm_chk_mmdifthd);
 
 	return len;
 }
 
-ssize_t frc_film_detect_item_store(struct class *class,
+ssize_t frc_film_ctrl_param_store(struct class *class,
 	struct class_attribute *attr,
 	const char *buf,
 	size_t count)
@@ -1378,13 +1426,13 @@ ssize_t frc_film_detect_item_store(struct class *class,
 	char *parm[2] = { NULL }, *buf_orig;
 	struct frc_dev_s *devp = get_frc_devp();
 	struct frc_fw_data_s *fw_data;
-	struct st_film_detect_item *param;
+	struct st_film_ctrl_para *param;
 
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	frc_debug_parse_param(buf_orig, (char **)(&parm));
 
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;
-	param = &fw_data->g_stfilm_detect_item;
+	param = &fw_data->g_stfilmctrl_para;
 
 	if (!parm[1] || !parm[0]) {
 		pr_frc(0, "err input param\n");
@@ -1392,14 +1440,44 @@ ssize_t frc_film_detect_item_store(struct class *class,
 	}
 	rc = kstrtoint(parm[1], 10, &value);
 
-	if (!strcmp(parm[0], "film_7_seg_en"))
+	if (!strcmp(parm[0], "film_ctrl_en"))
+		param->film_ctrl_en = value;
+	else if (!strcmp(parm[0], "film_check_mode_en"))
+		param->film_check_mode_en = value;
+	else if (!strcmp(parm[0], "film_badedit_en"))
+		param->film_badedit_en = value;
+	else if (!strcmp(parm[0], "film_7_seg_en"))
 		param->film_7_seg_en = value;
-	else if (!strcmp(parm[0], "frame_buf_num"))
-		param->frame_buf_num = value;
-	else if (!strcmp(parm[0], "force_mode"))
-		param->force_mode = value;
-	else if (!strcmp(parm[0], "force_mode_en"))
-		param->force_mode_en = value;
+	else if (!strcmp(parm[0], "film_mode_force_en"))
+		param->film_mode_force_en = value;
+	else if (!strcmp(parm[0], "film_mode_force_value"))
+		param->film_mode_force_value = value;
+	else if (!strcmp(parm[0], "film_mode_force_phs_en"))
+		param->film_mode_force_phs_en = value;
+	else if (!strcmp(parm[0], "film_cadence_switch"))
+		param->film_cadence_switch = value;
+	else if (!strcmp(parm[0], "min_diff_th"))
+		param->min_diff_th = value;
+	else if (!strcmp(parm[0], "glb_ratio"))
+		param->glb_ratio = value;
+	else if (!strcmp(parm[0], "wind_ratio"))
+		param->wind_ratio = value;
+	else if (!strcmp(parm[0], "glb_ofset"))
+		param->glb_ratio = value;
+	else if (!strcmp(parm[0], "wind_ofset"))
+		param->wind_ratio = value;
+	else if (!strcmp(parm[0], "mm_cown_thd"))
+		param->mm_cown_thd = value;
+	else if (!strcmp(parm[0], "mm_cpre_thd"))
+		param->mm_cpre_thd = value;
+	else if (!strcmp(parm[0], "mm_cother_thd"))
+		param->mm_cother_thd = value;
+	else if (!strcmp(parm[0], "mm_reset_thd"))
+		param->mm_reset_thd = value;
+	else if (!strcmp(parm[0], "mm_difminthd"))
+		param->mm_difminthd = value;
+	else if (!strcmp(parm[0], "mm_chk_mmdifthd"))
+		param->mm_chk_mmdifthd = value;
 
 	kfree(buf_orig);
 	return count;
