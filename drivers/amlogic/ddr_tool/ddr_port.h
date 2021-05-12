@@ -37,6 +37,7 @@
 #define DMC_TYPE_P1			0x39
 
 #define DUAL_DMC			BIT(0)
+#define QUAD_DMC			BIT(2)
 
 #define DMC_READ			0
 #define DMC_WRITE			1

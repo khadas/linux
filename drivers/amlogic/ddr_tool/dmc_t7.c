@@ -60,13 +60,26 @@ static size_t t7_dmc_dump_reg(char *buf)
 	unsigned long val, base;
 	void *io;
 
-	for (j = 0; j < 2; j++) {
-		if (j) {
-			io = dmc_mon->io_mem2;
-			base = 0xfe034000;
-		} else {
+	for (j = 0; j < dmc_mon->mon_number; j++) {
+		switch (j) {
+		case 0:
 			io = dmc_mon->io_mem1;
 			base = 0xfe036000;
+			break;
+		case 1:
+			io = dmc_mon->io_mem2;
+			base = 0xfe034000;
+			break;
+		case 2:
+			io = dmc_mon->io_mem3;
+			base = 0xfe032000;
+			break;
+		case 3:
+			io = dmc_mon->io_mem4;
+			base = 0xfe030000;
+			break;
+		default:
+			break;
 		}
 		sz += sprintf(buf + sz, "\nDMC%d:\n", j);
 
@@ -171,8 +184,23 @@ static void t7_dmc_mon_irq(struct dmc_monitor *mon, void *io)
 	if (io) {
 		__t7_dmc_mon_irq(mon, io);
 	} else {
-		for (i = 0; i < 2; i++) {
-			io = i ? dmc_mon->io_mem2 : dmc_mon->io_mem1;
+		for (i = 0; i < dmc_mon->mon_number; i++) {
+			switch (i) {
+			case 0:
+				io = dmc_mon->io_mem1;
+				break;
+			case 1:
+				io = dmc_mon->io_mem2;
+				break;
+			case 2:
+				io = dmc_mon->io_mem3;
+				break;
+			case 3:
+				io = dmc_mon->io_mem4;
+				break;
+			default:
+				break;
+			}
 			__t7_dmc_mon_irq(mon, io);
 		}
 	}
@@ -193,8 +221,23 @@ static int t7_dmc_mon_set(struct dmc_monitor *mon)
 	end   = end >> PAGE_SHIFT;
 	dev1  = mon->device & 0xffffffff;
 	dev2  = mon->device >> 32;
-	for (i = 0; i < 2; i++) {
-		io = i ? dmc_mon->io_mem2 : dmc_mon->io_mem1;
+	for (i = 0; i < dmc_mon->mon_number; i++) {
+		switch (i) {
+		case 0:
+			io = dmc_mon->io_mem1;
+			break;
+		case 1:
+			io = dmc_mon->io_mem2;
+			break;
+		case 2:
+			io = dmc_mon->io_mem3;
+			break;
+		case 3:
+			io = dmc_mon->io_mem4;
+			break;
+		default:
+			break;
+		}
 		dmc_prot_rw(io, DMC_PROT0_STA, start, DMC_WRITE);
 		dmc_prot_rw(io, DMC_PROT0_EDA, end, DMC_WRITE);
 		dmc_prot_rw(io, DMC_PROT1_STA, start, DMC_WRITE);
@@ -221,8 +264,23 @@ void t7_dmc_mon_disable(struct dmc_monitor *mon)
 	void *io;
 	int i;
 
-	for (i = 0; i < 2; i++) {
-		io = i ? dmc_mon->io_mem2 : dmc_mon->io_mem1;
+	for (i = 0; i < dmc_mon->mon_number; i++) {
+		switch (i) {
+		case 0:
+			io = dmc_mon->io_mem1;
+			break;
+		case 1:
+			io = dmc_mon->io_mem2;
+			break;
+		case 2:
+			io = dmc_mon->io_mem3;
+			break;
+		case 3:
+			io = dmc_mon->io_mem4;
+			break;
+		default:
+			break;
+		}
 		dmc_prot_rw(io, DMC_PROT0_STA,   0, DMC_WRITE);
 		dmc_prot_rw(io, DMC_PROT0_EDA,   0, DMC_WRITE);
 		dmc_prot_rw(io, DMC_PROT1_STA,   0, DMC_WRITE);

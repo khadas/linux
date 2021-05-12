@@ -30,6 +30,13 @@ static int dual_dmc(struct ddr_bandwidth *db)
 	return 0;
 }
 
+static int quad_dmc(struct ddr_bandwidth *db)
+{
+	if (db && (db->soc_feature & QUAD_DMC))
+		return 1;
+	return 0;
+}
+
 static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 {
 	u64 mul, mbw; /* avoid overflow */
@@ -68,8 +75,6 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	do_div(mul, db->bytes_per_cycle);
 	cnt  = db->clock_count;
 	do_div(mul, cnt);
-	if (dual_dmc(db))		// div 2 for dual dma
-		mul = mul / 2;
 	db->cur_sample.total_usage = mul;
 	if (freq) {
 		/* calculate in KB */
@@ -179,7 +184,7 @@ static int format_port(char *buf, u64 port_mask)
 	if (!port_mask)
 		return 0;
 
-	if (dual_dmc(aml_db)) {
+	if (dual_dmc(aml_db) || quad_dmc(aml_db)) {
 		for (i = 0; i < 3; i++) {
 			dev = port_mask & 0xff;
 			port_mask >>= 8;
@@ -271,7 +276,7 @@ static ssize_t port_store(struct class *cla,
 	}
 
 	if (aml_db->ops && aml_db->ops->config_port) {
-		if (dual_dmc(aml_db)) {
+		if (dual_dmc(aml_db) || quad_dmc(aml_db)) {
 			if (port < 0) /* clear port set */
 				aml_db->port[ch] = 0;
 			else
@@ -375,7 +380,7 @@ static ssize_t mode_store(struct class *cla,
 		clear_bandwidth_statistics();
 	}
 	if (val == MODE_AUTODETECT && aml_db->ops &&
-	    aml_db->ops->config_port && !dual_dmc(aml_db)) {
+	    aml_db->ops->config_port && !(dual_dmc(aml_db) || quad_dmc(aml_db))) {
 		if (aml_db->mali_port[0] >= 0) {
 			aml_db->ops->config_port(aml_db, 0, aml_db->mali_port[0]);
 			aml_db->port[0] = (1ULL << aml_db->mali_port[0]);
@@ -594,7 +599,7 @@ static ssize_t urgent_show(struct class *cla,
 {
 	int i, s = 0;
 
-	if (dual_dmc(aml_db))
+	if (dual_dmc(aml_db) || quad_dmc(aml_db))
 		return -EINVAL;
 
 	if (!aml_db->real_ports || !aml_db->port_desc)
@@ -764,10 +769,18 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_T7
 	case DMC_TYPE_T7:
 	case DMC_TYPE_T3:
+		band->ops            = &t7_ddr_bw_ops;
+		band->channels     = 8;
+		band->dmc_number   = 2;
+		band->soc_feature |= DUAL_DMC;
+		band->mali_port[0] = 3; /* port3: mali */
+		band->mali_port[1] = 4;
+		break;
 	case DMC_TYPE_P1:
 		band->ops            = &t7_ddr_bw_ops;
 		band->channels     = 8;
-		band->soc_feature |= DUAL_DMC;
+		band->dmc_number   = 4;
+		band->soc_feature |= QUAD_DMC;
 		band->mali_port[0] = 3; /* port3: mali */
 		band->mali_port[1] = 4;
 		break;
@@ -880,6 +893,42 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 		if (res) {
 			base = ioremap(res->start, res->end - res->start);
 			aml_db->ddr_reg2 = (void *)base;
+			io_idx++;
+		} else {
+			pr_err("can't get ddr reg %d base\n", io_idx);
+			aml_db = NULL;
+			return -EINVAL;
+		}
+	}
+
+	if (quad_dmc(aml_db)) {
+		/* next for ddr register base */
+		res = platform_get_resource(pdev, IORESOURCE_MEM, io_idx);
+		if (res) {
+			base = ioremap(res->start, res->end - res->start);
+			aml_db->ddr_reg2 = (void *)base;
+			io_idx++;
+		} else {
+			pr_err("can't get ddr reg %d base\n", io_idx);
+			aml_db = NULL;
+			return -EINVAL;
+		}
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, io_idx);
+		if (res) {
+			base = ioremap(res->start, res->end - res->start);
+			aml_db->ddr_reg3 = (void *)base;
+			io_idx++;
+		} else {
+			pr_err("can't get ddr reg %d base\n", io_idx);
+			aml_db = NULL;
+			return -EINVAL;
+		}
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, io_idx);
+		if (res) {
+			base = ioremap(res->start, res->end - res->start);
+			aml_db->ddr_reg4 = (void *)base;
 			io_idx++;
 		} else {
 			pr_err("can't get ddr reg %d base\n", io_idx);

@@ -33,10 +33,13 @@ struct dmc_mon_ops {
 struct dmc_monitor {
 	void __iomem  *io_mem1;		/* For dmc 1 */
 	void __iomem  *io_mem2;		/* For dmc 2 */
+	void __iomem  *io_mem3;		/* For dmc 3 */
+	void __iomem  *io_mem4;		/* For dmc 4 */
 	unsigned long  io_base;		/* For secure world access */
 	unsigned long  addr_start;	/* monitor start address */
 	unsigned long  addr_end;	/* monitor end address */
 	u64            device;		/* monitor device mask */
+	u32            mon_number;	/* monitor number */
 	unsigned short port_num;	/* how many devices? */
 	unsigned char  chip;		/* chip ID */
 	unsigned char  configs;		/* config for dmc */
