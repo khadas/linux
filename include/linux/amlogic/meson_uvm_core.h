@@ -27,6 +27,7 @@ enum uvm_alloc_flag {
 	UVM_DELAY_ALLOC,
 	UVM_FAKE_ALLOC,
 	UVM_SECURE_ALLOC,
+	UVM_DETACH_FLAG = 30
 };
 
 /**
@@ -50,6 +51,8 @@ struct uvm_handle {
 	struct kref ref;
 	/* protects the uvm_handle fields */
 	struct mutex lock;
+	/* protects the whole operation of detaching hook mod */
+	struct mutex detachlock;
 
 	struct uvm_alloc *ua;
 	struct dma_buf *dmabuf;
@@ -184,8 +187,6 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 int uvm_detach_hook_mod(struct dma_buf *dmabuf,
 			int type);
 
-int meson_uvm_core_attach(int fd,
-			int type, char *buf);
 int meson_uvm_getinfo(int shared_fd,
 			int mode_type, char *buf);
 int meson_uvm_setinfo(int shared_fd,
