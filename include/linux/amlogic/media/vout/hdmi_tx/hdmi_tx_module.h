@@ -17,6 +17,7 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vout/hdmi_tx/meson_drm_hdmitx.h>
+#include <linux/spinlock.h>
 
 #define DEVICE_NAME "amhdmitx"
 
@@ -487,6 +488,7 @@ struct hdmitx_dev {
 	bool systemcontrol_on;
 	unsigned char vid_mute_op;
 	unsigned int hdcp_ctl_lvl;
+	spinlock_t edid_spinlock; /* edid hdr/dv cap lock */
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
