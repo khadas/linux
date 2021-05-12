@@ -660,6 +660,8 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 		      pctrl->edp_cfg.max_link_rate);
 		LCDPR("training_mode       = %d\n",
 		      pctrl->edp_cfg.training_mode);
+		LCDPR("edid_en             = %d\n",
+		      pctrl->edp_cfg.edid_en);
 		LCDPR("dpcd_caps_en        = %d\n",
 		      pctrl->edp_cfg.dpcd_caps_en);
 		LCDPR("sync_clk_mode       = %d\n",
@@ -1371,8 +1373,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 #endif
 		break;
 	case LCD_EDP:
-		ret = of_property_read_u32_array(child, "edp_attr",
-						 &para[0], 9);
+		ret = of_property_read_u32_array(child, "edp_attr", &para[0], 9);
 		if (ret) {
 			LCDERR("[%d]: failed to get edp_attr\n", pdrv->index);
 			return -1;
@@ -1380,18 +1381,17 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		pctrl->edp_cfg.max_lane_count = (unsigned char)para[0];
 		pctrl->edp_cfg.max_link_rate = (unsigned char)para[1];
 		pctrl->edp_cfg.training_mode = (unsigned char)para[2];
-		pctrl->edp_cfg.dpcd_caps_en = (unsigned char)para[3];
-		pctrl->edp_cfg.sync_clk_mode = (unsigned char)para[4];
-		pctrl->edp_cfg.scramb_mode = (unsigned char)para[5];
-		pctrl->edp_cfg.enhanced_framing_en = (unsigned char)para[6];
-		pctrl->edp_cfg.edid_en = (unsigned char)para[7];
+		pctrl->edp_cfg.edid_en = (unsigned char)para[3];
+		pctrl->edp_cfg.dpcd_caps_en = (unsigned char)para[4];
+		pctrl->edp_cfg.sync_clk_mode = (unsigned char)para[5];
+		pctrl->edp_cfg.scramb_mode = (unsigned char)para[6];
+		pctrl->edp_cfg.enhanced_framing_en = (unsigned char)para[7];
 		pctrl->edp_cfg.pn_swap = (unsigned char)para[8];
 
 		pctrl->edp_cfg.lane_count = pctrl->edp_cfg.max_lane_count;
 		pctrl->edp_cfg.link_rate = pctrl->edp_cfg.max_link_rate;
 
-		ret = of_property_read_u32_array(child, "phy_attr",
-						 &para[0], 2);
+		ret = of_property_read_u32_array(child, "phy_attr", &para[0], 2);
 		if (ret) {
 			LCDPR("[%d]: failed to get phy_attr\n", pdrv->index);
 			pctrl->edp_cfg.phy_vswing = 0x5;
@@ -2334,4 +2334,28 @@ void lcd_vout_notify_mode_change(struct aml_lcd_drv_s *pdrv)
 					  &pdrv->vinfo.mode);
 #endif
 	}
+}
+
+void lcd_vinfo_update(struct aml_lcd_drv_s *pdrv)
+{
+	struct vinfo_s *vinfo;
+	struct lcd_config_s *pconf;
+
+	vinfo = &pdrv->vinfo;
+	pconf = &pdrv->config;
+
+	vinfo->width = pconf->basic.h_active;
+	vinfo->height = pconf->basic.v_active;
+	vinfo->field_height = pconf->basic.v_active;
+	vinfo->aspect_ratio_num = pconf->basic.screen_width;
+	vinfo->aspect_ratio_den = pconf->basic.screen_height;
+	vinfo->screen_real_width = pconf->basic.screen_width;
+	vinfo->screen_real_height = pconf->basic.screen_height;
+	vinfo->sync_duration_num = pconf->timing.sync_duration_num;
+	vinfo->sync_duration_den = pconf->timing.sync_duration_den;
+	vinfo->video_clk = pconf->timing.lcd_clk;
+	vinfo->htotal = pconf->basic.h_period;
+	vinfo->vtotal = pconf->basic.v_period;
+
+	lcd_vout_notify_mode_change(pdrv);
 }

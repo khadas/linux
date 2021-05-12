@@ -2209,30 +2209,6 @@ static ssize_t lcd_debug_prbs_store(struct device *dev,
 	return count;
 }
 
-static void lcd_vinfo_update(struct aml_lcd_drv_s *pdrv)
-{
-	struct vinfo_s *vinfo;
-	struct lcd_config_s *pconf;
-
-	vinfo = &pdrv->vinfo;
-	pconf = &pdrv->config;
-	if (vinfo) {
-		vinfo->width = pconf->basic.h_active;
-		vinfo->height = pconf->basic.v_active;
-		vinfo->field_height = pconf->basic.v_active;
-		vinfo->aspect_ratio_num = pconf->basic.screen_width;
-		vinfo->aspect_ratio_den = pconf->basic.screen_height;
-		vinfo->screen_real_width = pconf->basic.screen_width;
-		vinfo->screen_real_height = pconf->basic.screen_height;
-		vinfo->sync_duration_num = pconf->timing.sync_duration_num;
-		vinfo->sync_duration_den = pconf->timing.sync_duration_den;
-		vinfo->video_clk = pconf->timing.lcd_clk;
-		vinfo->htotal = pconf->basic.h_period;
-		vinfo->vtotal = pconf->basic.v_period;
-	}
-	lcd_vout_notify_mode_change(pdrv);
-}
-
 static void lcd_debug_config_update(struct aml_lcd_drv_s *pdrv)
 {
 
@@ -4160,6 +4136,21 @@ static ssize_t lcd_edp_debug_show(struct device *dev,
 	return len;
 }
 
+static ssize_t lcd_edp_edid_debug_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	struct edp_config_s *edp_conf;
+	int len = 0;
+
+	edp_conf = &pdrv->config.control.edp_cfg;
+
+	len = sprintf(buf, "edid_en: %d, edid_state: 0x%x, edid_retry_cnt: %d\n",
+		      edp_conf->edid_en, edp_conf->edid_state, edp_conf->edid_retry_cnt);
+
+	return len;
+}
+
 static ssize_t lcd_mlvds_debug_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
@@ -4582,6 +4573,29 @@ static ssize_t lcd_edp_debug_store(struct device *dev,
 	} else {
 		pr_info("invalid data\n");
 		return -EINVAL;
+	}
+
+	return count;
+}
+
+static ssize_t lcd_edp_edid_debug_store(struct device *dev,
+					struct device_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	struct edp_config_s *edp_conf;
+
+	edp_conf = &pdrv->config.control.edp_cfg;
+	switch (buf[0]) {
+	case 'r': /* read */
+		dptx_edid_dump(pdrv);
+		break;
+	case 's': /* set */
+		dptx_edid_timing_probe(pdrv);
+		break;
+	default:
+		LCDERR("invalid command\n");
+		break;
 	}
 
 	return count;
@@ -6080,9 +6094,11 @@ static struct device_attribute lcd_debug_attrs_mipi[] = {
 static struct device_attribute lcd_debug_attrs_edp[] = {
 	__ATTR(edp,   0644,
 	       lcd_edp_debug_show, lcd_edp_debug_store),
-	__ATTR(phy,    0644,
+	__ATTR(phy,   0644,
 	       lcd_phy_debug_show, lcd_phy_debug_store),
-	__ATTR(null,     0644, NULL, NULL)
+	__ATTR(edid,  0644,
+	       lcd_edp_edid_debug_show, lcd_edp_edid_debug_store),
+	__ATTR(null,  0644, NULL, NULL)
 };
 
 static int lcd_debug_file_creat(struct aml_lcd_drv_s *pdrv)

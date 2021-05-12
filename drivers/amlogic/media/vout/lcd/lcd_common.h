@@ -58,6 +58,7 @@ void lcd_clk_change(struct aml_lcd_drv_s *pdrv);
 void lcd_if_enable_retry(struct aml_lcd_drv_s *pdrv);
 void lcd_vout_notify_mode_change_pre(struct aml_lcd_drv_s *pdrv);
 void lcd_vout_notify_mode_change(struct aml_lcd_drv_s *pdrv);
+void lcd_vinfo_update(struct aml_lcd_drv_s *pdrv);
 
 void lcd_queue_work(struct work_struct *work);
 inline void lcd_queue_delayed_work(struct delayed_work *delayed_work, int ms);
@@ -114,6 +115,7 @@ int lcd_debug_remove(struct aml_lcd_drv_s *pdrv);
 void lcd_wait_vsync(struct aml_lcd_drv_s *pdrv);
 void lcd_gamma_check_en(struct aml_lcd_drv_s *pdrv);
 void lcd_gamma_debug_test_en(struct aml_lcd_drv_s *pdrv, int flag);
+void lcd_set_venc_timing(struct aml_lcd_drv_s *pdrv);
 void lcd_set_venc(struct aml_lcd_drv_s *pdrv);
 void lcd_venc_change(struct aml_lcd_drv_s *pdrv);
 
@@ -133,6 +135,8 @@ int lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv,
 void mipi_dsi_config_init(struct aml_lcd_drv_s *pdrv);
 int lcd_mipi_test_read(struct aml_lcd_drv_s *pdrv, struct dsi_read_s *dread);
 int dsi_set_operation_mode(struct aml_lcd_drv_s *pdrv, unsigned char op_mode);
+int dptx_edid_dump(struct aml_lcd_drv_s *pdrv);
+int dptx_edid_timing_probe(struct aml_lcd_drv_s *pdrv);
 void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv);
 void lcd_tablet_vout_server_remove(struct aml_lcd_drv_s *pdrv);
 void lcd_tablet_clk_config_change(struct aml_lcd_drv_s *pdrv);

@@ -321,6 +321,9 @@ struct dsi_config_s {
 	struct dsi_read_s *dread;
 };
 
+#define EDP_EDID_STATE_LOAD     BIT(0)
+#define EDP_EDID_STATE_APPLY    BIT(1)
+#define EDP_EDID_RETRY_MAX      3
 struct edp_config_s {
 	unsigned char max_lane_count;
 	unsigned char max_link_rate;
@@ -339,9 +342,13 @@ struct edp_config_s {
 	unsigned char lane_count;
 	unsigned char link_rate;
 	unsigned int bit_rate;
+	unsigned char edid_state;
+	unsigned char edid_retry_cnt;
 	unsigned char link_update;
 	unsigned char training_settings;
 	unsigned char main_stream_enable;
+
+	unsigned char edid_data[128];
 };
 
 struct mlvds_config_s {

@@ -11,7 +11,12 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
+#ifdef CONFIG_AMLOGIC_VPU
+#include <linux/amlogic/media/vpu/vpu.h>
+#endif
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#include "edp_tx.h"
+#include "lcd_tablet.h"
 #include "../lcd_reg.h"
 #include "../lcd_clk_config.h"
 #include "../lcd_common.h"
@@ -21,13 +26,21 @@
 #define EDP_AUX_RETRY_CNT        5
 #define EDP_AUX_TIMEOUT          1000
 #define EDP_AUX_INTERVAL         200
-static int dptx_aux_write(struct aml_lcd_drv_s *pdrv, unsigned int addr,
-			  unsigned int len, unsigned char *buf)
-{
-	unsigned int data, i, state;
-	unsigned int retry_cnt = 0, timeout = 0;
 
-dptx_aux_write_retry:
+static int dptx_aux_check(struct aml_lcd_drv_s *pdrv)
+{
+	if (dptx_reg_read(pdrv, EDP_TX_TRANSMITTER_OUTPUT_ENABLE))
+		return 0;
+
+	LCDERR("[%d]: %s: dptx is not enabled\n", pdrv->index, __func__);
+	return -1;
+}
+
+static void dptx_aux_request(struct aml_lcd_drv_s *pdrv, struct dptx_aux_req_s *req)
+{
+	unsigned int state, timeout = 0;
+	int i = 0;
+
 	timeout = 0;
 	while (timeout++ < EDP_TX_AUX_REQ_TIMEOUT) {
 		state = dptx_reg_getb(pdrv, EDP_TX_AUX_STATE, 1, 1);
@@ -36,109 +49,542 @@ dptx_aux_write_retry:
 		lcd_delay_us(EDP_TX_AUX_REQ_INTERVAL);
 	};
 
-	dptx_reg_write(pdrv, EDP_TX_AUX_ADDRESS, addr);
-	for (i = 0; i < len; i++)
-		dptx_reg_write(pdrv, EDP_TX_AUX_WRITE_FIFO, buf[i]);
+	dptx_reg_write(pdrv, EDP_TX_AUX_ADDRESS, req->address);
+	/*submit data only for write commands*/
+	if (req->cmd_state == 0) {
+		for (i = 0; i < req->byte_cnt; i++)
+			dptx_reg_write(pdrv, EDP_TX_AUX_WRITE_FIFO, req->data[i]);
+	}
+	/*submit the command and the data size*/
+	dptx_reg_write(pdrv, EDP_TX_AUX_COMMAND,
+		       ((req->cmd_code << 8) | ((req->byte_cnt - 1) & 0xf)));
+}
 
-	dptx_reg_write(pdrv, EDP_TX_AUX_COMMAND, (0x800 | ((len - 1) & 0xf)));
+static int dptx_aux_submit_cmd(struct aml_lcd_drv_s *pdrv, struct dptx_aux_req_s *req)
+{
+	unsigned int status = 0, reply = 0;
+	unsigned int retry_cnt = 0, timeout = 0;
+	char str[8];
+
+	if (dptx_aux_check(pdrv))
+		return -1;
+
+	if (req->cmd_state)
+		sprintf(str, "read");
+	else
+		sprintf(str, "write");
+
+dptx_aux_submit_cmd_retry:
+	dptx_aux_request(pdrv, req);
 
 	timeout = 0;
 	while (timeout++ < EDP_AUX_TIMEOUT) {
 		lcd_delay_us(EDP_AUX_INTERVAL);
-		data = dptx_reg_read(pdrv, EDP_TX_AUX_TRANSFER_STATUS);
-		if (data & (1 << 0)) {
-			state = dptx_reg_read(pdrv, EDP_TX_AUX_REPLY_CODE);
-			if (state == 0)
+		reply = 0;
+		status = dptx_reg_read(pdrv, EDP_TX_AUX_TRANSFER_STATUS);
+		if (status & (1 << 0)) {
+			reply = dptx_reg_read(pdrv, EDP_TX_AUX_REPLY_CODE);
+			if (reply == DPTX_AUX_REPLY_CODE_ACK)
 				return 0;
-			if (state == 1) {
-				LCDPR("[%d]: edp aux write addr 0x%x NACK!\n",
-				      pdrv->index, addr);
-				return -1;
+			if (reply & DPTX_AUX_REPLY_CODE_DEFER) {
+				if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+					LCDPR("[%d]: edp aux %s addr 0x%x Defer!\n",
+					      pdrv->index, str, req->address);
+				}
 			}
-			if (state == 2) {
-				LCDPR("[%d]: edp aux write addr 0x%x Defer!\n",
-				      pdrv->index, addr);
+			if (reply & DPTX_AUX_REPLY_CODE_NACK) {
+				if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+					LCDPR("[%d]: edp aux %s addr 0x%x NACK!\n",
+					      pdrv->index, str, req->address);
+				}
+				//return -1;
+			}
+			if (reply & DPTX_AUX_REPLY_CODE_I2C_DEFER) {
+				if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+					LCDPR("[%d]: edp aux i2c %s addr 0x%x Defer!\n",
+					      pdrv->index, str, req->address);
+				}
+			}
+			if (reply & DPTX_AUX_REPLY_CODE_I2C_NACK) {
+				if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+					LCDPR("[%d]: edp aux i2c %s addr 0x%x NACK!\n",
+					      pdrv->index, str, req->address);
+				}
+				//return -1;
 			}
 			break;
 		}
 
-		if (data & (1 << 3)) {
-			LCDPR("[%d]: edp aux write addr 0x%x Error!\n",
-			      pdrv->index, addr);
+		if (status & (1 << 3)) {
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+				LCDPR("[%d]: edp aux %s addr 0x%x Error!\n",
+				      pdrv->index, str, req->address);
+			}
 			break;
 		}
 	}
 
 	if (retry_cnt++ < EDP_AUX_RETRY_CNT) {
 		lcd_delay_us(EDP_AUX_INTERVAL);
-		LCDPR("[%d]: edp aux write addr 0x%x timeout, retry %d\n",
-		      pdrv->index, addr, retry_cnt);
-		goto dptx_aux_write_retry;
+		LCDPR("[%d]: edp aux %s addr 0x%x timeout, status 0x%x, reply 0x%x, retry %d\n",
+		      pdrv->index, str, req->address, status, reply, retry_cnt);
+		goto dptx_aux_submit_cmd_retry;
 	}
 
-	LCDPR("[%d]: edp aux write addr 0x%x failed\n", pdrv->index, addr);
+	LCDPR("[%d]: edp aux %s addr 0x%x failed\n", pdrv->index, str, req->address);
 	return -1;
+}
+
+static int dptx_aux_write(struct aml_lcd_drv_s *pdrv, unsigned int addr,
+			  unsigned int len, unsigned char *buf)
+{
+	struct dptx_aux_req_s aux_req;
+	int ret;
+
+	aux_req.cmd_code = DPTX_AUX_CMD_WRITE;
+	aux_req.cmd_state = 0;
+	aux_req.address = addr;
+	aux_req.byte_cnt = len;
+	aux_req.data = buf;
+
+	ret = dptx_aux_submit_cmd(pdrv, &aux_req);
+	return ret;
 }
 
 static int dptx_aux_read(struct aml_lcd_drv_s *pdrv, unsigned int addr,
 			 unsigned int len, unsigned char *buf)
 {
-	unsigned int data, i, state;
-	unsigned int retry_cnt = 0, timeout = 0;
+	struct dptx_aux_req_s aux_req;
+	int i, ret;
 
-dptx_aux_read_retry:
-	timeout = 0;
-	while (timeout++ < EDP_TX_AUX_REQ_TIMEOUT) {
-		state = dptx_reg_getb(pdrv, EDP_TX_AUX_STATE, 1, 1);
-		if (state == 0)
-			break;
-		lcd_delay_us(EDP_TX_AUX_REQ_INTERVAL);
-	};
+	aux_req.cmd_code = DPTX_AUX_CMD_READ;
+	aux_req.cmd_state = 0;
+	aux_req.address = addr;
+	aux_req.byte_cnt = len;
+	aux_req.data = buf;
 
-	dptx_reg_write(pdrv, EDP_TX_AUX_ADDRESS, addr);
-	dptx_reg_write(pdrv, EDP_TX_AUX_COMMAND, (0x900 | ((len - 1) & 0xf)));
+	ret = dptx_aux_submit_cmd(pdrv, &aux_req);
+	if (ret)
+		return -1;
 
-	timeout = 0;
-	while (timeout++ < EDP_AUX_TIMEOUT) {
-		lcd_delay_us(EDP_AUX_INTERVAL);
-		data = dptx_reg_read(pdrv, EDP_TX_AUX_TRANSFER_STATUS);
-		if (data & (1 << 0)) {
-			state = dptx_reg_read(pdrv, EDP_TX_AUX_REPLY_CODE);
-			if (state == 0)
-				goto dptx_aux_read_succeed;
-			if (state == 1) {
-				LCDPR("[%d]: edp aux read addr 0x%x NACK!\n",
-				      pdrv->index, addr);
-				return -1;
-			}
-			if (state == 2) {
-				LCDPR("[%d]: edp aux read addr 0x%x Defer!\n",
-				      pdrv->index, addr);
-			}
-			break;
-		}
-
-		if (data & (1 << 3)) {
-			LCDPR("[%d]: edp aux read addr 0x%x Error!\n", pdrv->index, addr);
-			break;
-		}
-	}
-
-	if (retry_cnt++ < EDP_AUX_RETRY_CNT) {
-		lcd_delay_us(EDP_AUX_INTERVAL);
-		LCDPR("[%d]: edp aux read addr 0x%x timeout, retry %d\n",
-		      pdrv->index, addr, retry_cnt);
-		goto dptx_aux_read_retry;
-	}
-
-	LCDPR("[%d]: edp aux read addr 0x%x failed\n", pdrv->index, addr);
-	return -1;
-
-dptx_aux_read_succeed:
 	for (i = 0; i < len; i++)
 		buf[i] = (unsigned char)(dptx_reg_read(pdrv, EDP_TX_AUX_REPLY_DATA));
 
 	return 0;
+}
+
+static int dptx_aux_i2c_read(struct aml_lcd_drv_s *pdrv, unsigned int dev_addr,
+			     unsigned int reg_addr, unsigned int len,
+			     unsigned char *buf)
+{
+	struct dptx_aux_req_s aux_req;
+	unsigned char aux_data[4];
+	unsigned int n = 0, reply_count = 0;
+	int i, ret;
+
+	len = (len > 16) ? 16 : len; /*cap the byte count*/
+
+	aux_data[0] = reg_addr;
+	aux_data[1] = 0x00;
+
+	/*send the dev_addr write*/
+	aux_req.cmd_code = DPTX_AUX_CMD_I2C_WRITE_MOT;
+	aux_req.cmd_state = 0;
+	aux_req.address = dev_addr;
+	aux_req.byte_cnt = 1;
+	aux_req.data = aux_data;
+
+	ret = dptx_aux_submit_cmd(pdrv, &aux_req);
+	if (ret)
+		return -1;
+
+	/*submit the read command to hardware*/
+	aux_req.cmd_code = DPTX_AUX_CMD_I2C_READ;
+	aux_req.cmd_state = 1;
+	aux_req.address = dev_addr;
+	aux_req.byte_cnt = len;
+
+	while (n < len) {
+		ret = dptx_aux_submit_cmd(pdrv, &aux_req);
+		if (ret)
+			return -1;
+
+		reply_count = dptx_reg_read(pdrv, EDP_TX_AUX_REPLY_DATA_COUNT);
+		for (i = 0; i < reply_count; i++) {
+			buf[n] = dptx_reg_read(pdrv, EDP_TX_AUX_REPLY_DATA);
+			n++;
+		}
+
+		aux_req.byte_cnt -= reply_count;
+		/*increment the address for the next transaction*/
+		aux_data[0] += reply_count;
+	}
+
+	return 0;
+}
+
+static void dptx_edid_print(struct dptx_edid_s *edp_edid)
+{
+	pr_info("Manufacturer ID:       %s\n"
+		"Product ID:            0x%04x\n"
+		"Product SN:            0x%08x\n"
+		"Week:                  %d\n"
+		"Year:                  %d\n"
+		"EDID Version:          %04x\n",
+		edp_edid->manufacturer_id,
+		edp_edid->product_id,
+		edp_edid->product_sn,
+		edp_edid->week,
+		edp_edid->year,
+		edp_edid->version);
+	if (edp_edid->string_flag & (1 << 0))
+		pr_info("Monitor Name:          %s\n", edp_edid->name);
+	if (edp_edid->string_flag & (1 << 1))
+		pr_info("Monitor AScii String:  %s\n", edp_edid->asc_string);
+	if (edp_edid->string_flag & (1 << 2))
+		pr_info("Monitor SN:            %s\n", edp_edid->serial_num);
+
+	pr_info("Detail Timing:\n"
+		"    Pixel Clock:   %d.%dMHz\n"
+		"    H Active:      %d\n"
+		"    H Blank:       %d\n"
+		"    V Active:      %d\n"
+		"    V Blank:       %d\n"
+		"    H FP:          %d\n"
+		"    H PW:          %d\n"
+		"    V FP:          %d\n"
+		"    V PW:          %d\n"
+		"    H Size:        %dmm\n"
+		"    V Size:        %dmm\n"
+		"    H Border:      %d\n"
+		"    V Border:      %d\n"
+		"    Hsync Pol:     %d\n"
+		"    Vsync Pol:     %d\n",
+		edp_edid->preferred_timing.pclk / 1000000,
+		(edp_edid->preferred_timing.pclk % 1000000) / 1000,
+		edp_edid->preferred_timing.h_active,
+		edp_edid->preferred_timing.h_blank,
+		edp_edid->preferred_timing.v_active,
+		edp_edid->preferred_timing.v_blank,
+		edp_edid->preferred_timing.h_fp,
+		edp_edid->preferred_timing.h_pw,
+		edp_edid->preferred_timing.v_fp,
+		edp_edid->preferred_timing.v_pw,
+		edp_edid->preferred_timing.h_size,
+		edp_edid->preferred_timing.v_size,
+		edp_edid->preferred_timing.h_border,
+		edp_edid->preferred_timing.v_border,
+		(edp_edid->preferred_timing.timing_ctrl >> 1) & 0x1,
+		(edp_edid->preferred_timing.timing_ctrl >> 2) & 0x1);
+}
+
+static int dptx_edid_valid_check(unsigned char *edid_buf)
+{
+	unsigned char header[8] = {0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00};
+	unsigned int checksum = 0;
+	int i;
+
+	if (memcmp(edid_buf, header, 8)) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDERR("%s: invalid EDID header\n", __func__);
+		return -1;
+	}
+
+	for (i = 0; i < 128; i++)
+		checksum += edid_buf[i];
+	if ((checksum & 0xff)) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDERR("%s: EDID checksum Wrong\n", __func__);
+		return -1;
+	}
+
+	return 0;
+}
+
+static void dptx_edid_parase(unsigned char *edid_buf, struct dptx_edid_s *edp_edid)
+{
+	struct dptx_edid_range_limit_s *range;
+	struct dptx_edid_timing_s *timing;
+	unsigned int temp;
+	int i, j;
+
+	range = &edp_edid->range_limit;
+	timing = &edp_edid->preferred_timing;
+
+	temp = ((edid_buf[8] << 8) | edid_buf[9]);
+	for (i = 0; i < 3; i++)
+		edp_edid->manufacturer_id[i] = (((temp >> ((2 - i) * 5)) & 0x1f) - 1) + 'A';
+
+	edp_edid->manufacturer_id[3] = '\0';
+	temp = ((edid_buf[11] << 8) | edid_buf[10]);
+	edp_edid->product_id = temp;
+	temp = ((edid_buf[12] << 24) | (edid_buf[13] << 16) | (edid_buf[14] << 8) | edid_buf[15]);
+	edp_edid->product_sn = temp;
+	edp_edid->week = edid_buf[16];
+	edp_edid->year = 1990 + edid_buf[17];
+	temp = ((edid_buf[18] << 8) | edid_buf[19]);
+	edp_edid->version = temp;
+
+	edp_edid->string_flag = 0;
+	for (i = 0; i < 4; i++) {
+		j = 54 + i * 18;
+		if ((edid_buf[j] + edid_buf[j + 1]) == 0) {
+			if ((edid_buf[j + 2] + edid_buf[j + 4]) == 0) {
+				switch (edid_buf[j + 3]) {
+				case 0xfc: //monitor name
+					memcpy(edp_edid->name, &edid_buf[j + 5], 13);
+					edp_edid->name[13] = '\0';
+					edp_edid->string_flag |= (1 << 0);
+					break;
+				case 0xfd: //monitor range limits
+					range->min_vfreq = edid_buf[j + 5];
+					range->max_v_freq = edid_buf[j + 6];
+					range->min_hfreq = edid_buf[j + 7];
+					range->max_hfreq = edid_buf[j + 8];
+					range->max_pclk = edid_buf[j + 9];
+					range->GTF_ctrl = ((edid_buf[j + 11] << 8) |
+							   edid_buf[j + 10]);
+					range->GTF_start_hfreq = edid_buf[j + 12] * 2000;
+					range->GTF_C = edid_buf[j + 13] / 2;
+					range->GTF_M = ((edid_buf[j + 15] << 8) |
+							edid_buf[j + 14]);
+					range->GTF_K = edid_buf[j + 16];
+					range->GTF_J = edid_buf[j + 17] / 2;
+					break;
+				case 0xfe: //ascii string
+					memcpy(edp_edid->asc_string, &edid_buf[j + 5], 13);
+					edp_edid->asc_string[13] = '\0';
+					edp_edid->string_flag |= (1 << 1);
+					break;
+				case 0xff: //monitor serial num
+					memcpy(edp_edid->serial_num, &edid_buf[j + 5], 13);
+					edp_edid->serial_num[13] = '\0';
+					edp_edid->string_flag |= (1 << 2);
+					break;
+				default:
+					break;
+				}
+			}
+		} else {//detail timing
+			temp = ((edid_buf[j + 1] << 8) | (edid_buf[j])) * 10000;
+			timing->pclk = temp;
+			temp = ((((edid_buf[j + 4] >> 4) & 0xf) << 8) | edid_buf[j + 2]);
+			timing->h_active = temp;
+			temp = ((((edid_buf[j + 4] >> 0) & 0xf) << 8) | edid_buf[j + 3]);
+			timing->h_blank = temp;
+			temp = ((((edid_buf[j + 7] >> 4) & 0xf) << 8) | edid_buf[j + 5]);
+			timing->v_active = temp;
+			temp = ((((edid_buf[j + 7] >> 0) & 0xf) << 8) | edid_buf[j + 6]);
+			timing->v_blank = temp;
+			temp = ((((edid_buf[j + 11] >> 6) & 0x3) << 8) | edid_buf[j + 8]);
+			timing->h_fp = temp;
+			temp = ((((edid_buf[j + 11] >> 4) & 0x3) << 8) | edid_buf[j + 9]);
+			timing->h_pw = temp;
+			temp = ((((edid_buf[j + 11] >> 2) & 0x3) << 4) |
+				((edid_buf[j + 10] >> 4) & 0xf));
+			timing->v_fp = temp;
+			temp = ((((edid_buf[j + 11] >> 0) & 0x3) << 4) |
+				((edid_buf[j + 10] >> 0) & 0xf));
+			timing->v_pw = temp;
+			temp = ((((edid_buf[j + 14] >> 4) & 0xf) << 8) | edid_buf[j + 12]);
+			timing->h_size = temp;
+			temp = ((((edid_buf[j + 14] >> 0) & 0xf) << 8) | edid_buf[j + 13]);
+			timing->v_size = temp;
+			timing->h_border = edid_buf[j + 15];
+			timing->v_border = edid_buf[j + 16];
+			timing->timing_ctrl = edid_buf[j + 17];
+		}
+	}
+
+	edp_edid->ext_flag = edid_buf[126];
+	edp_edid->checksum = edid_buf[127];
+}
+
+static int dptx_read_edid(struct aml_lcd_drv_s *pdrv, unsigned char *edid_buf)
+{
+	int i, ret;
+
+	if (!edid_buf) {
+		LCDERR("[%d]: %s: edid buf is null\n", pdrv->index, __func__);
+		return -1;
+	}
+
+	for (i = 0; i < 128; i += 16) {
+		ret = dptx_aux_i2c_read(pdrv, 0x50, i, 16, &edid_buf[i]);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static void edp_edid_timing_update(struct aml_lcd_drv_s *pdrv, struct dptx_edid_s *edp_edid)
+{
+	struct lcd_config_s *pconf = &pdrv->config;
+	struct dptx_edid_timing_s *timing = &edp_edid->preferred_timing;
+	unsigned int sync_duration;
+
+	lcd_vout_notify_mode_change_pre(pdrv);
+
+	pconf->basic.h_active = timing->h_active;
+	pconf->basic.v_active = timing->v_active;
+	pconf->basic.h_period = timing->h_active + timing->h_blank;
+	pconf->basic.v_period = timing->v_active + timing->v_blank;
+
+	pconf->timing.lcd_clk = timing->pclk;
+	pconf->timing.lcd_clk_dft = pconf->timing.lcd_clk;
+	sync_duration = timing->pclk / pconf->basic.h_period;
+	sync_duration = sync_duration * 100 / pconf->basic.v_period;
+	pconf->timing.sync_duration_num = sync_duration;
+	pconf->timing.sync_duration_den = 100;
+
+	pconf->timing.hsync_width = timing->h_pw;
+	pconf->timing.hsync_bp = timing->h_blank - timing->h_fp - timing->h_pw;
+	pconf->timing.hsync_pol = (timing->timing_ctrl >> 1) & 0x1;
+	pconf->timing.vsync_width = timing->v_pw;
+	pconf->timing.vsync_bp = timing->v_blank - timing->v_fp - timing->v_pw;
+	pconf->timing.vsync_pol = (timing->timing_ctrl >> 2) & 0x1;
+
+	pconf->basic.screen_width = timing->h_size;
+	pconf->basic.screen_height = timing->v_size;
+
+	lcd_timing_init_config(pdrv);
+	lcd_tablet_config_update(pdrv);
+	lcd_tablet_config_post_update(pdrv);
+#ifdef CONFIG_AMLOGIC_VPU
+	vpu_dev_clk_request(pdrv->lcd_vpu_dev, pdrv->config.timing.lcd_clk);
+#endif
+	lcd_set_clk(pdrv);
+	lcd_set_venc_timing(pdrv);
+	lcd_vinfo_update(pdrv);
+}
+
+int dptx_edid_dump(struct aml_lcd_drv_s *pdrv)
+{
+	struct dptx_edid_s edp_edid;
+	unsigned char *edid_buf;
+	char *str;
+	int i, n, retry_cnt = 0, ret;
+
+	edid_buf = kcalloc(128, sizeof(unsigned char), GFP_KERNEL);
+	if (!edid_buf)
+		return -1;
+
+dptx_edid_dump_retry:
+	ret = dptx_read_edid(pdrv, edid_buf);
+	if (ret) {
+		if (retry_cnt++ > DPTX_EDID_READ_RETRY_MAX) {
+			LCDERR("[%d]: %s: failed to read EDID from sink\n",
+				pdrv->index, __func__);
+			goto dptx_edid_dump_err;
+		}
+		memset(edid_buf, 0, 128 * sizeof(unsigned char));
+		goto dptx_edid_dump_retry;
+	}
+	ret = dptx_edid_valid_check(edid_buf);
+	if (ret) {
+		if (retry_cnt++ > DPTX_EDID_READ_RETRY_MAX) {
+			LCDERR("[%d]: %s: edid data check error\n",
+				pdrv->index, __func__);
+			goto dptx_edid_dump_err;
+		}
+
+		memset(edid_buf, 0, 128 * sizeof(unsigned char));
+		goto dptx_edid_dump_retry;
+	}
+
+	str = kcalloc(400, sizeof(char), GFP_KERNEL);
+	if (str) {
+		LCDPR("[%d]: EDID Raw data:\n", pdrv->index);
+		n = 0;
+		for (i = 0; i < 128; i++) {
+			n += sprintf(str + n, " %02x", edid_buf[i]);
+			if (i % 16 == 15)
+				n += sprintf(str + n, "\n");
+		}
+		pr_info("%s\n", str);
+		kfree(str);
+	}
+
+	dptx_edid_parase(edid_buf, &edp_edid);
+	dptx_edid_print(&edp_edid);
+
+	kfree(edid_buf);
+	return 0;
+
+dptx_edid_dump_err:
+	kfree(edid_buf);
+	return -1;
+}
+
+int dptx_edid_timing_probe(struct aml_lcd_drv_s *pdrv)
+{
+	struct edp_config_s *edp_cfg;
+	unsigned char *edid_buf;
+	struct dptx_edid_s edp_edid;
+	char *str;
+	int i, n, retry_cnt = 0, ret;
+
+	edp_cfg = &pdrv->config.control.edp_cfg;
+	edid_buf = edp_cfg->edid_data;
+	if (edp_cfg->edid_en == 0)
+		return 0;
+
+	if ((edp_cfg->edid_state & EDP_EDID_STATE_LOAD) == 0) {
+dptx_edid_timing_probe_retry:
+		memset(edid_buf, 0, 128 * sizeof(unsigned char));
+		ret = dptx_read_edid(pdrv, edid_buf);
+		if (ret) {
+			if (retry_cnt++ > DPTX_EDID_READ_RETRY_MAX) {
+				LCDERR("[%d]: %s: failed to read EDID from sink, retry %d\n",
+				       pdrv->index, __func__, retry_cnt);
+				goto dptx_edid_timing_probe_err;
+			}
+			goto dptx_edid_timing_probe_retry;
+		}
+		ret = dptx_edid_valid_check(edid_buf);
+		if (ret) {
+			if (retry_cnt++ > DPTX_EDID_READ_RETRY_MAX) {
+				LCDERR("[%d]: %s: edid data check error, retry %d\n",
+				       pdrv->index, __func__, retry_cnt);
+				goto dptx_edid_timing_probe_err;
+			}
+			goto dptx_edid_timing_probe_retry;
+		}
+		edp_cfg->edid_state |= EDP_EDID_STATE_LOAD;
+
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+			str = kcalloc(400, sizeof(char), GFP_KERNEL);
+			if (str) {
+				LCDPR("[%d]: EDID Raw data:\n", pdrv->index);
+				n = 0;
+				for (i = 0; i < 128; i++) {
+					if (i % 16 == 0)
+						n += sprintf(str + n, "\n");
+					n += sprintf(str + n, " %02x", edid_buf[i]);
+				}
+				pr_info("%s\n", str);
+				kfree(str);
+			}
+		}
+	}
+
+	if ((edp_cfg->edid_state & EDP_EDID_STATE_APPLY) == 0) {
+		if (edp_cfg->edid_retry_cnt++ > EDP_EDID_RETRY_MAX)
+			return -1;
+		dptx_edid_parase(edid_buf, &edp_edid);
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			dptx_edid_print(&edp_edid);
+		edp_edid_timing_update(pdrv, &edp_edid);
+		edp_cfg->edid_state |= EDP_EDID_STATE_APPLY;
+	}
+
+	LCDPR("%s ok\n", __func__);
+	return 0;
+
+dptx_edid_timing_probe_err:
+	LCDPR("%s failed\n", __func__);
+	return -1;
 }
 
 static void dptx_link_fast_training(struct aml_lcd_drv_s *pdrv)
@@ -378,6 +824,8 @@ static void edp_tx_init(struct aml_lcd_drv_s *pdrv)
 		mdelay(2);
 	}
 	LCDPR("[%d]: edp HPD state: %d, i=%d\n", index, hpd_state, i);
+
+	dptx_edid_timing_probe(pdrv);
 
 	/* tx Link-rate and Lane_count */
 	dptx_reg_write(pdrv, EDP_TX_LINK_BW_SET, 0x0a); /* Link-rate */

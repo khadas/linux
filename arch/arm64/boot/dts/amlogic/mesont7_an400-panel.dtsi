@@ -203,7 +203,7 @@
 				2 /*max_lane_count: 1,2,4*/
 				1 /*max_link_rate: 0=1.62G, 1=2.7G*/
 				0 /*training_mode*/
-				0 /*reserved*/
+				0 /*edid_en, auto timing by edid*/
 				0 /*reserved */
 				0 /*reserved */
 				0 /*reserved */
