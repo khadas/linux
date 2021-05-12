@@ -201,6 +201,17 @@
 		#clock-cells = <0>;
 	};
 
+	arm_pmu {
+		compatible = "arm,armv8-pmuv3";
+		private-interrupts;
+		interrupts = <GIC_SPI 235 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 236 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 237 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
+
+		reg = <0x0 0xff634680 0x0 0x4>;
+	};
+
 	ddr_bandwidth {
 		compatible = "amlogic,ddr-bandwidth-t3";
 		status = "okay";
