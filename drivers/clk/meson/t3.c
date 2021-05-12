@@ -49,7 +49,14 @@ static const struct pll_params_table t3_sys_pll_params_table[] = {
 };
 #else
 static const struct pll_params_table t3_sys_pll_params_table[] = {
-	/* DCO = [1.6G - 3.2G] M = [67 - 133] */
+	/*
+	 *  The DCO range of syspll sys1pll gp1pll on T3 is 1.6G-3.2G
+	 *  OD=0 div=1  1.6G - 3.2G
+	 *  OD=1 div=2  800M - 1.6G
+	 *  OD=2 div=4  400M - 800M
+	 *  OD=3 div=8  200M - 400M
+	 *  OD=4 div=16 100M - 200M
+	 */
 	PLL_PARAMS(100, 1), /*DCO=2400M OD=DCO/2=1200M*/
 	PLL_PARAMS(117, 1), /*DCO=2808M OD=DCO/2=1404M*/
 	PLL_PARAMS(125, 1), /*DCO=3000M OD=DCO/2=1500M*/
@@ -688,8 +695,16 @@ static const struct pll_params_table t3_gp1_pll_table[] = {
 };
 #else
 static const struct pll_params_table t3_gp1_pll_table[] = {
-	PLL_PARAMS(200, 1), /*DCO=4800M OD=1200M*/
-	PLL_PARAMS(125, 1), /*DCO=3000M OD=1500M*/
+	/*
+	 *  The DCO range of syspll sys1pll gp1pll on T3 is 1.6G-3.2G
+	 *  OD=0 div=1  1.6G - 3.2G
+	 *  OD=1 div=2  800M - 1.6G
+	 *  OD=2 div=4  400M - 800M
+	 *  OD=3 div=8  200M - 400M
+	 *  OD=4 div=16 100M - 200M
+	 */
+	PLL_PARAMS(100, 1), /*DCO=2400M OD=DCO/2=1200M*/
+	PLL_PARAMS(125, 1), /*DCO=3000M OD=DCO/2=1500M*/
 	{ /* sentinel */  }
 };
 #endif
