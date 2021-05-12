@@ -87,6 +87,7 @@ unsigned int audio_nicam_delay = 100;
 
 unsigned int audio_atv_ov;
 unsigned int audio_atv_ov_flag;
+unsigned int audio_atv_ov_threshold = 0x10;
 
 enum AUDIO_SCAN_ID {
 	ID_PAL_I = 0,
@@ -2480,14 +2481,20 @@ void aml_audio_overmodulation(int enable)
 	if (atvdemod_get_snr() < snr_threshold)
 		return;
 
-	if (enable && Broadcast_Standard ==
-		AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK) {
+	/* Not under A2/NICAM/BTSC. */
+	if (get_audio_signal_input_mode() != 0)
+		return;
+
+	if (enable && (Broadcast_Standard ==
+		AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK ||
+		Broadcast_Standard == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I ||
+		Broadcast_Standard == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG)) {
 		tmp_v = atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0x28);
 		tmp_v = tmp_v&0xffff;
-		if (tmp_v > 0x10 && audio_atv_ov_flag == 0) {
+		if (tmp_v > audio_atv_ov_threshold && audio_atv_ov_flag == 0) {
 			tmp_v1 =
 				atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0);
-			tmp_v1 = (tmp_v1&0xffffff)|(1<<24);
+			tmp_v1 = (tmp_v1 & 0xfffff8) | (1 << 24) | 2;
 			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0, tmp_v1);
 			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2,
 					0x14, 0x8000015);
@@ -2501,11 +2508,11 @@ void aml_audio_overmodulation(int enable)
 			aml_audio_valume_gain_set(audio_gain_val);
 
 			audio_atv_ov_flag = 1;
-			pr_info("tmp_v[0x%lx] > 0x10 && audio_atv_ov_flag == 0.\n",
-					tmp_v);
+			pr_info("tmp_v[0x%lx] > 0x%x && audio_atv_ov_flag == 0.\n",
+					tmp_v, audio_atv_ov_threshold);
 		}
 #if 0 /* No need, Enter and hold */
-		else if (tmp_v <= 0x10 && audio_atv_ov_flag == 1) {
+		else if (tmp_v <= audio_atv_ov_threshold && audio_atv_ov_flag == 1) {
 			tmp_v1 = atv_dmd_rd_long(APB_BLOCK_ADDR_SIF_STG_2, 0);
 			tmp_v1 = (tmp_v1&0xffffff)|(0<<24);
 			atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0, tmp_v1);
@@ -2519,8 +2526,8 @@ void aml_audio_overmodulation(int enable)
 			audio_source_select(1);
 
 			audio_atv_ov_flag = 0;
-			pr_info("tmp_v[0x%lx] <= 0x10 && audio_atv_ov_flag == 1.\n",
-					tmp_v);
+			pr_info("tmp_v[0x%lx] <= 0x%x && audio_atv_ov_flag == 1.\n",
+					tmp_v, audio_atv_ov_threshold);
 		}
 #endif
 	}

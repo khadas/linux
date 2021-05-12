@@ -71,6 +71,7 @@ static struct mutex vdac_mutex;
  * #define VDAC_MODULE_AVOUT_AV  (1 << 6)
  */
 static unsigned int pri_flag;
+static unsigned int pri_flag_cnt;
 
 static unsigned int vdac_debug_print;
 
@@ -446,9 +447,10 @@ void vdac_enable(bool on, unsigned int module_sel)
 	switch (module_sel) {
 	case VDAC_MODULE_AVOUT_ATV: /* atv avout */
 		if (on) {
+			++pri_flag_cnt;
 			if (pri_flag & VDAC_MODULE_AVOUT_ATV) {
-				pr_info("%s: avout_atv is already on\n",
-					__func__);
+				pr_info("%s: avout_atv is already on, pri_flag_cnt: %d\n",
+					__func__, pri_flag_cnt);
 				break;
 			}
 			pri_flag |= VDAC_MODULE_AVOUT_ATV;
@@ -459,11 +461,19 @@ void vdac_enable(bool on, unsigned int module_sel)
 			}
 			vdac_enable_avout_atv(1);
 		} else {
+			--pri_flag_cnt;
 			if (!(pri_flag & VDAC_MODULE_AVOUT_ATV)) {
-				pr_info("%s: avout_atv is already off\n",
-					__func__);
+				pr_info("%s: avout_atv is already off, pri_flag_cnt: %d\n",
+					__func__, pri_flag_cnt);
 				break;
 			}
+
+			if (pri_flag_cnt) {
+				pr_info("%s: avout_atv is in use, cann't off, pri_flag_cnt: %d\n",
+					__func__, pri_flag_cnt);
+				break;
+			}
+
 			pri_flag &= ~VDAC_MODULE_AVOUT_ATV;
 			if (pri_flag & VDAC_MODULE_CVBS_OUT) {
 				if (vdac_debug_print) {

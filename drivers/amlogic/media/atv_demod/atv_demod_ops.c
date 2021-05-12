@@ -167,6 +167,8 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 
 		return -1;
 	}
+
+	adc_set_filter_ctrl(true, FILTER_ATV_DEMOD, NULL);
 #else
 	if (!IS_ERR_OR_NULL(amlatvdemod_devp->agc_pin)) {
 		devm_pinctrl_put(amlatvdemod_devp->agc_pin);
@@ -192,12 +194,16 @@ int atv_demod_enter_mode(struct dvb_frontend *fe)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
 	adc_set_pll_cntl(0, ADC_ATV_DEMOD, NULL);
+	adc_set_filter_ctrl(false, FILTER_ATV_DEMOD, NULL);
 #endif
 
 	pr_dbg("%s: error, vdac is not enabled.\n", __func__);
 
 	return -1;
 #endif
+
+	adc_set_filter_ctrl(true, FILTER_ATV_DEMOD, NULL);
+
 	usleep_range(2000, 2100);
 	atvdemod_clk_init();
 	/* err_code = atvdemod_init(); */
@@ -248,6 +254,7 @@ int atv_demod_leave_mode(struct dvb_frontend *fe)
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
 	adc_set_pll_cntl(0, ADC_ATV_DEMOD, NULL);
+	adc_set_filter_ctrl(false, FILTER_ATV_DEMOD, NULL);
 #endif
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		aud_demod_clk_gate(0);
@@ -804,6 +811,9 @@ static void atvdemod_fe_try_signal(struct v4l2_frontend *v4l2_fe,
 				tuner_id == AM_TUNER_R842) {
 			usleep_range(40 * 1000, 40 * 1000 + 100);
 			fe->ops.tuner_ops.get_status(fe, (u32 *)&tuner_state);
+		} else if (tuner_id == AM_TUNER_ATBM2040 ||
+				tuner_id == AM_TUNER_ATBM253) {
+			usleep_range(50 * 1000, 50 * 1000 + 100);
 		} else {
 			/* AM_TUNER_SI2151 and AM_TUNER_SI2159 */
 			usleep_range(10 * 1000, 10 * 1000 + 100);
@@ -932,6 +942,9 @@ static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
 			else if (tuner_id == AM_TUNER_R840 ||
 					tuner_id == AM_TUNER_R842)
 				usleep_range(40 * 1000, 40 * 1000 + 100);
+			else if (tuner_id == AM_TUNER_ATBM2040 ||
+					tuner_id == AM_TUNER_ATBM253)
+				usleep_range(50 * 1000, 50 * 1000 + 100);
 			else
 				usleep_range(10 * 1000, 10 * 1000 + 100);
 
@@ -1029,6 +1042,9 @@ static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
 			else if (tuner_id == AM_TUNER_R840 ||
 					tuner_id == AM_TUNER_R842)
 				usleep_range(40 * 1000, 40 * 1000 + 100);
+			else if (tuner_id == AM_TUNER_ATBM2040 ||
+					tuner_id == AM_TUNER_ATBM253)
+				usleep_range(50 * 1000, 50 * 1000 + 100);
 			else
 				usleep_range(10 * 1000, 10 * 1000 + 100);
 		}

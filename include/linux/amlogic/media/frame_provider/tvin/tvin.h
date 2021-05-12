@@ -27,6 +27,14 @@ enum adc_sel {
 	ADC_MAX,
 };
 
+enum filter_sel {
+	FILTER_ATV_DEMOD = 1,
+	FILTER_TVAFE = 2,
+	FILTER_DTV_DEMOD = 4,
+	FILTER_DTV_DEMODT2 = 8,
+	FILTER_MAX,
+};
+
 /* *********************************************************************** */
 
 /* * TVIN general definition/enum/struct *********************************** */
@@ -596,6 +604,7 @@ int adc_get_pll_flag(void);
 /*ADC_EN_DTV_DEMODPLL	0x8*/
 int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para_);
 void adc_set_ddemod_default(enum fe_delivery_system delsys);/* add for dtv demod */
+int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data);
 #else
 static inline void adc_pll_down(void)
 {
@@ -617,6 +626,11 @@ static inline int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_par
 
 static inline void adc_set_ddemod_default(enum fe_delivery_system delsys)
 {
+}
+
+static inline int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
+{
+	return 0;
 }
 #endif
 

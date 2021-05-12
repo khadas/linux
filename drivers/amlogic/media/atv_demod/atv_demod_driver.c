@@ -54,7 +54,10 @@
 /* 2020/11/03 --- V2.27 --- Bringup t5d. */
 /* 2020/11/23 --- V2.28 --- Adapter multi tuner switch. */
 /* 2021/04/15 --- V2.29 --- Bringup t3. */
-#define AMLATVDEMOD_VER "V2.29"
+/* 2021/05/12 --- V2.30 --- Fix adc filter enable/disable in tvafe and demod. */
+/*                          Fix atbm253/2040 stable delay when scanning. */
+/*                          Fix pal-dk and add pal-bg/i audio overmodulation. */
+#define AMLATVDEMOD_VER "V2.30"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -136,6 +139,7 @@ static ssize_t atvdemod_debug_store(struct class *class,
 			val = 1;
 
 		adc_set_pll_cntl(!!val, ADC_ATV_DEMOD, NULL);
+		adc_set_filter_ctrl(!!val, FILTER_ATV_DEMOD, NULL);
 #endif
 		pr_info("adc_pll %s done ....\n", val ? "ON" : "OFF");
 	} else if (!strncmp(parm[0], "vdac", 4)) {
@@ -447,7 +451,7 @@ static ssize_t atvdemod_debug_show(struct class *class,
 	len += sprintf(buff + len, "[vdac\n\techo vdac on_off > %s\n", patch);
 
 	len += sprintf(buff + len, "ATV Demod Status:\n");
-	if (priv->state == ATVDEMOD_STATE_WORK) {
+	if (priv && priv->state == ATVDEMOD_STATE_WORK) {
 		retrieve_vpll_carrier_lock(&vpll_lock);
 		len += sprintf(buff + len, "atv_demod: vpp lock: %s.\n",
 			vpll_lock == 0 ? "Locked" : "Unlocked");

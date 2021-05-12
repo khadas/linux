@@ -427,13 +427,9 @@ static void tvafe_set_cvbs_default(struct tvafe_cvd2_s *cvd2,
 	}
 	if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_TL1) {
 		if (IS_TVAFE_ATV_SRC(port)) {
-			W_APB_REG(TVFE_VAFE_CTRL0, 0x000d0710);
-			W_APB_REG(TVFE_VAFE_CTRL1, 0x00003000);
-			W_APB_REG(TVFE_VAFE_CTRL2, 0x1fe09e31);
+			adc_set_filter_ctrl(true, FILTER_ATV_DEMOD, NULL);
 		} else if (IS_TVAFE_AVIN_SRC(port)) {
-			W_APB_REG(TVFE_VAFE_CTRL0, 0x00490710);
-			W_APB_REG(TVFE_VAFE_CTRL1, 0x0000110e);
-			W_APB_REG(TVFE_VAFE_CTRL2, 0x1fe09f83);
+			adc_set_filter_ctrl(true, FILTER_TVAFE, NULL);
 		}
 
 #if (defined(CONFIG_ADC_DOUBLE_SAMPLING_FOR_CVBS) && defined(CRYSTAL_24M))

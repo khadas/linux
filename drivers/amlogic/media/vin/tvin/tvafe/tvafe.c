@@ -635,10 +635,13 @@ static void tvafe_dec_close(struct tvin_frontend_s *fe)
 	devp->flags |= TVAFE_POWERDOWN_IN_IDLE;
 	tvafe_enable_module(false);
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
-	if (IS_TVAFE_ATV_SRC(tvafe->parm.port))
+	if (IS_TVAFE_ATV_SRC(tvafe->parm.port)) {
 		adc_set_pll_cntl(0, ADC_EN_ATV_DEMOD, NULL);
-	else if (IS_TVAFE_AVIN_SRC(tvafe->parm.port))
+		adc_set_filter_ctrl(0, FILTER_ATV_DEMOD, NULL);
+	} else if (IS_TVAFE_AVIN_SRC(tvafe->parm.port)) {
 		adc_set_pll_cntl(0, ADC_EN_TVAFE, NULL);
+		adc_set_filter_ctrl(0, FILTER_TVAFE, NULL);
+	}
 #endif
 #endif
 

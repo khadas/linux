@@ -1169,6 +1169,12 @@ int get_nicam_lock_status(void)
 	return ((reg_value >> 28) & 1);
 }
 
+int get_audio_signal_input_mode(void)
+{
+	/* 0: MONO, other: Stereo/Dual/SAP/NICAM. */
+	return signal_audmode;
+}
+
 void update_nicam_mode(int *nicam_flag, int *nicam_mono_flag,
 		int *nicam_stereo_flag, int *nicam_dual_flag)
 {

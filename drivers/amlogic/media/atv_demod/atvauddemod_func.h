@@ -26,6 +26,7 @@ void set_nicam_outputmode(uint32_t outmode);
 void set_a2_eiaj_outputmode(uint32_t outmode);
 void set_btsc_outputmode(uint32_t outmode);
 int get_nicam_lock_status(void);
+int get_audio_signal_input_mode(void);
 void update_nicam_mode(int *nicam_flag, int *nicam_mono_flag,
 		int *nicam_stereo_flag, int *nicam_dual_flag);
 void update_btsc_mode(int auto_en, int *stereo_flag, int *sap_flag);

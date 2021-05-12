@@ -201,6 +201,122 @@ void adc_set_ddemod_default(enum fe_delivery_system delsys)
 }
 EXPORT_SYMBOL(adc_set_ddemod_default);
 
+int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
+{
+	int ret = 0;
+	struct tvin_adc_dev *devp = adc_devp;
+
+	if (!probe_finish || !devp)
+		return -ENXIO;
+
+	mutex_lock(&devp->filter_mutex);
+
+	if (!on) {
+		devp->filter_flg &= ~module_sel;
+		if (devp->print_en)
+			pr_info("%s: on: %d, module: 0x%x, filter_flg: 0x%x\n",
+				__func__, on, module_sel, devp->filter_flg);
+
+		mutex_unlock(&devp->filter_mutex);
+
+		return 0;
+	}
+
+	if (devp->print_en)
+		pr_info("%s: on: %d, module: 0x%x, filter_flg: 0x%x\n",
+				__func__, on, module_sel, devp->filter_flg);
+
+	switch (module_sel) {
+	case FILTER_ATV_DEMOD:
+		if (devp->filter_flg & (FILTER_TVAFE | FILTER_DTV_DEMOD)) {
+			ret = -1;
+
+			pr_info("%s: ADEMOD fail!!!, filter_flg: %d\n",
+					__func__, devp->filter_flg);
+			break;
+		}
+
+		if (devp->filter_flg & FILTER_ATV_DEMOD) {
+			if (devp->print_en)
+				pr_info("%s: ADEMOD ATV had done!: %d\n",
+						__func__, devp->filter_flg);
+			break;
+		}
+
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			adc_wr_afe(AFE_VAFE_CTRL0, 0x000d0710);
+			adc_wr_afe(AFE_VAFE_CTRL1, 0x3000);
+			adc_wr_afe(AFE_VAFE_CTRL2, 0x1fe09e31);
+		} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXL ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) {
+			adc_wr_afe(AFE_VAFE_CTRL0, 0x00090b00);
+			adc_wr_afe(AFE_VAFE_CTRL1, 0x00000110);
+			adc_wr_afe(AFE_VAFE_CTRL2, 0x0010ef93);
+		}
+
+		devp->filter_flg |= FILTER_ATV_DEMOD;
+		break;
+
+	case FILTER_TVAFE:
+		if (devp->filter_flg & (FILTER_ATV_DEMOD | FILTER_DTV_DEMOD)) {
+			ret = -2;
+
+			pr_info("%s: AFE fail!!!, filter_flg: %d\n",
+					__func__, devp->filter_flg);
+			break;
+		}
+
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			adc_wr_afe(AFE_VAFE_CTRL0, 0x00490710);
+			adc_wr_afe(AFE_VAFE_CTRL1, 0x0000110e);
+			adc_wr_afe(AFE_VAFE_CTRL2, 0x1fe09f83);
+		} else if (get_cpu_type() == MESON_CPU_MAJOR_ID_TXL ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX) {
+			adc_wr_afe(AFE_VAFE_CTRL0, 0x00090b00);
+			adc_wr_afe(AFE_VAFE_CTRL1, 0x00000110);
+			adc_wr_afe(AFE_VAFE_CTRL2, 0x0010ef93);
+		}
+
+		devp->filter_flg |= FILTER_TVAFE;
+		break;
+
+	case FILTER_DTV_DEMOD:
+		if (devp->filter_flg & (FILTER_ATV_DEMOD | FILTER_TVAFE)) {
+			ret = -3;
+
+			pr_info("%s: DDEMOD fail!!!, filter_flg: %d\n",
+					__func__, devp->filter_flg);
+			break;
+		}
+
+		devp->filter_flg |= FILTER_DTV_DEMOD;
+		break;
+
+	case FILTER_DTV_DEMODT2:
+		if (devp->filter_flg & (FILTER_ATV_DEMOD | FILTER_TVAFE)) {
+			ret = -4;
+
+			pr_info("%s:DMODPLL fail!!!, filter_flg: %d\n",
+					__func__, devp->filter_flg);
+			break;
+		}
+
+		devp->filter_flg |= FILTER_DTV_DEMODT2;
+		break;
+
+	default:
+		if (devp->print_en)
+			pr_err("%s: module: 0x%x wrong module index!!!",
+					__func__, module_sel);
+		break;
+	}
+
+	mutex_unlock(&devp->filter_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(adc_set_filter_ctrl);
+
 static void adc_set_dtvdemod_pll_by_clk(struct tvin_adc_dev *devp,
 					struct dfe_adcpll_para *p_dtv_para)
 {
@@ -918,6 +1034,7 @@ static int adc_remove(struct platform_device *pdev)
 		class_unregister(&adc_class);
 		mutex_destroy(&adc_devp->pll_mutex);
 		mutex_destroy(&adc_devp->ioctl_mutex);
+		mutex_destroy(&adc_devp->filter_mutex);
 		kfree(adc_devp);
 	}
 
@@ -1112,6 +1229,7 @@ static int adc_probe(struct platform_device *pdev)
 
 	mutex_init(&devp->ioctl_mutex);
 	mutex_init(&devp->pll_mutex);
+	mutex_init(&devp->filter_mutex);
 	probe_finish = true;
 	pr_info("%s ver:%s\n", __func__, TVDIN_ADC_VER);
 	return 0;
