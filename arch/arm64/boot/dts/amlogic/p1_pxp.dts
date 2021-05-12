@@ -1636,7 +1636,7 @@
 };
 
 &pwm_ab {
-	pinctrl-0 = <&pwm_a_pins>;
+	//pinctrl-0 = <&pwm_a_pins>;
 	pinctrl-names = "default";
 	status = "disabled";
 };
@@ -1648,16 +1648,6 @@
 &uart_C {
 	status = "disabled";
 	uart-has-rtscts;
-};
-
-&pwmao_ab {
-	status = "disabled";
-};
-
-&pwmao_cd {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pwm_ao_d_pins>;
-	status = "disabled";
 };
 
 &vddcpua {
