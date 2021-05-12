@@ -25,6 +25,7 @@
 #define MUA_DELAY_ALLOC      BIT(UVM_DELAY_ALLOC)
 #define MUA_FAKE_ALLOC       BIT(UVM_FAKE_ALLOC)
 #define MUA_USAGE_PROTECTED  BIT(UVM_SECURE_ALLOC)
+#define MUA_DETACH           BIT(UVM_DETACH_FLAG)
 #define ION_FLAG_PROTECTED   BIT(31)
 #define META_DATA_SIZE       (256)
 
@@ -86,7 +87,7 @@ struct uvm_meta_data {
 };
 
 struct uvm_hook_data {
-	enum uvm_hook_mod_type mode_type;
+	int mode_type;
 	int shared_fd;
 	char data_buf[META_DATA_SIZE + 1];
 };
@@ -115,6 +116,8 @@ union uvm_ioctl_arg {
 #define UVM_IOC_GET_INFO _IOWR(UVM_IOC_MAGIC, 6, \
 				struct uvm_hook_data)
 #define UVM_IOC_SET_INFO _IOWR(UVM_IOC_MAGIC, 7, \
+				struct uvm_hook_data)
+#define UVM_IOC_DETATCH _IOWR(UVM_IOC_MAGIC, 8, \
 				struct uvm_hook_data)
 #endif
 

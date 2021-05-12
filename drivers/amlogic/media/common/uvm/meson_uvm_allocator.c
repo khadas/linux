@@ -23,6 +23,7 @@
 #include <linux/meson_ion.h>
 
 #include "meson_uvm_allocator.h"
+#include "meson_uvm_nn_processor.h"
 
 static struct mua_device *mdev;
 
@@ -382,6 +383,74 @@ static int mua_get_meta_data(int fd, ulong arg)
 	return 0;
 }
 
+static int mua_attach(int fd, int type, char *buf)
+{
+	struct uvm_hook_mod_info info;
+	int ret = 0;
+	struct dma_buf *dmabuf = NULL;
+
+	memset(&info, 0, sizeof(struct uvm_hook_mod_info));
+	info.type = PROCESS_INVALID;
+	info.arg = NULL;
+	info.acquire_fence = NULL;
+
+//	switch (type) {
+//	case PROCESS_NN:
+//		info = attach_nn_hook_mod_info();
+//		break;
+//	case PROCESS_GRALLOC:
+//		ret = attach_gr_hook_mod_info(buf, &info);
+//		break;
+//	default:
+//		UVM_PRINTK(0, "mod_type is not valid.\n");
+//	}
+//	if (ret) {
+//		UVM_PRINTK(0, "get hook_mod_info failed\n");
+//	return -EINVAL;
+//	}
+
+	MUA_PRINTK(1, "core_attach: type:%d buf:%s.\n",
+		type, buf);
+	dmabuf = dma_buf_get(fd);
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
+		MUA_PRINTK(0, "dmabuf is not uvm.\n");
+		return -EINVAL;
+	}
+	if (info.type >= VF_SRC_DECODER && info.type < PROCESS_INVALID)
+		ret = uvm_attach_hook_mod(dmabuf, &info);
+
+	dma_buf_put(dmabuf);
+	return ret;
+}
+
+static int mua_detach(int fd, int type)
+{
+	int ret = 0;
+	int index = 0;
+	struct dma_buf *dmabuf = NULL;
+	struct uvm_handle *handle = NULL;
+
+	dmabuf = dma_buf_get(fd);
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
+		MUA_PRINTK(0, "dmabuf is not uvm.\n");
+		return -EINVAL;
+	}
+	handle = dmabuf->priv;
+
+	MUA_PRINTK(1, "[%s]: dmabuf %p.\n",  __func__, dmabuf);
+
+	if (handle->flags & MUA_DETACH) {
+		for (index = VF_SRC_DECODER; index < PROCESS_INVALID; index++) {
+			if (type & BIT(index))
+				ret &= uvm_detach_hook_mod(dmabuf, index);
+		}
+	}
+
+	dma_buf_put(dmabuf);
+
+	return ret;
+}
+
 static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct mua_device *md;
@@ -402,11 +471,25 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case UVM_IOC_ATTATCH:
-		ret = meson_uvm_core_attach(data.hook_data.shared_fd,
+		MUA_PRINTK(1, "mua_ioctl_ATTATCH: shared_fd=%d, mode_type=%d\n",
+			data.hook_data.shared_fd,
+			data.hook_data.mode_type);
+		ret = mua_attach(data.hook_data.shared_fd,
 						data.hook_data.mode_type,
 						data.hook_data.data_buf);
 		if (ret < 0) {
-			MUA_PRINTK(1, "get meta data fail.\n");
+			MUA_PRINTK(1, "mua_attach fail.\n");
+			return -EINVAL;
+		}
+		break;
+	case UVM_IOC_DETATCH:
+		MUA_PRINTK(1, "mua_ioctl_DETATCH: shared_fd=%d, mode_type=%d\n",
+			data.hook_data.shared_fd,
+			data.hook_data.mode_type);
+		ret = mua_detach(data.hook_data.shared_fd,
+						data.hook_data.mode_type);
+		if (ret < 0) {
+			MUA_PRINTK(1, "mua_detach fail.\n");
 			return -EINVAL;
 		}
 		break;

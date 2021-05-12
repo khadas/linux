@@ -278,6 +278,7 @@ static struct uvm_handle *uvm_handle_alloc(size_t len, size_t align,
 
 	kref_init(&handle->ref);
 	mutex_init(&handle->lock);
+	mutex_init(&handle->detachlock);
 	handle->size = len;
 	handle->align = align;
 	handle->flags = flags;
@@ -387,7 +388,7 @@ int dmabuf_bind_uvm_alloc(struct dma_buf *dmabuf, struct uvm_alloc_info *info)
 	struct uvm_handle *handle;
 	struct uvm_alloc *ua;
 
-	if (!dmabuf || !dmabuf_is_uvm(dmabuf)) {
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
 		UVM_PRINTK(0, "dmabuf is not uvm.\n");
 		return -EINVAL;
 	}
@@ -420,7 +421,7 @@ int dmabuf_bind_uvm_delay_alloc(struct dma_buf *dmabuf,
 	struct uvm_handle *handle;
 	struct uvm_alloc *ua;
 
-	if (!dmabuf || !dmabuf_is_uvm(dmabuf)) {
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
 		UVM_PRINTK(0, "dmabuf is not uvm.\n");
 		return -EINVAL;
 	}
@@ -440,7 +441,7 @@ int dmabuf_set_vframe(struct dma_buf *dmabuf, struct vframe_s *vf,
 {
 	struct uvm_handle *handle;
 
-	if (!dmabuf || !dmabuf_is_uvm(dmabuf)) {
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
 		UVM_PRINTK(0, "dmabuf is not uvm.\n");
 		return -EINVAL;
 	}
@@ -460,7 +461,7 @@ struct vframe_s *dmabuf_get_vframe(struct dma_buf *dmabuf)
 {
 	struct uvm_handle *handle;
 
-	if (!dmabuf || !dmabuf_is_uvm(dmabuf)) {
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
 		UVM_PRINTK(0, "dmabuf is not uvm.\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -476,7 +477,7 @@ int dmabuf_put_vframe(struct dma_buf *dmabuf)
 {
 	struct uvm_handle *handle;
 
-	if (!dmabuf || !dmabuf_is_uvm(dmabuf)) {
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
 		UVM_PRINTK(0, "dmabuf is not uvm.\n");
 		return -EINVAL;
 	}
@@ -491,7 +492,7 @@ bool is_valid_mod_type(struct dma_buf *dmabuf,
 {
 	struct uvm_handle *handle;
 
-	if (!dmabuf || !dmabuf_is_uvm(dmabuf)) {
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
 		UVM_PRINTK(1, "dmabuf is not uvm.\n");
 		return 0;
 	}
@@ -508,7 +509,7 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 	struct uvm_handle *handle;
 	struct uvm_hook_mod *uhmod;
 
-	if (!dmabuf || !dmabuf_is_uvm(dmabuf)) {
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
 		UVM_PRINTK(0, "dmabuf is not uvm.\n");
 		return -EINVAL;
 	}
@@ -530,6 +531,7 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 
 	mutex_lock(&handle->lock);
 	list_add_tail(&uhmod->list, &handle->mod_attached);
+	handle->flags &= ~BIT(UVM_DETACH_FLAG);
 	handle->n_mod_attached++;
 	handle->mod_attached_mask |= 1 << (uhmod->type);
 	mutex_unlock(&handle->lock);
@@ -540,47 +542,6 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 	return 0;
 }
 EXPORT_SYMBOL(uvm_attach_hook_mod);
-
-int meson_uvm_core_attach(int fd, int type, char *buf)
-{
-	struct uvm_hook_mod_info info;
-	int ret = 0;
-	struct dma_buf *dmabuf = NULL;
-
-	memset(&info, 0, sizeof(struct uvm_hook_mod_info));
-	info.type = PROCESS_INVALID;
-	info.arg = NULL;
-	info.acquire_fence = NULL;
-
-//	switch (type) {
-//	case PROCESS_NN:
-//		info = attach_nn_hook_mod_info();
-//		break;
-//	case PROCESS_GRALLOC:
-//		ret = attach_gr_hook_mod_info(buf, &info);
-//		break;
-//	default:
-//		UVM_PRINTK(0, "mod_type is not valid.\n");
-//	}
-//	if (ret) {
-//		UVM_PRINTK(0, "get hook_mod_info failed\n");
-///		return -EINVAL;
-//	}
-
-	UVM_PRINTK(1, "core_attach: type:%d buf:%s.\n",
-		type, buf);
-	dmabuf = dma_buf_get(fd);
-	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm.\n");
-		return -EINVAL;
-	}
-	if (info.type >= VF_SRC_DECODER && info.type < PROCESS_INVALID)
-		ret = uvm_attach_hook_mod(dmabuf, &info);
-
-	dma_buf_put(dmabuf);
-	return ret;
-}
-EXPORT_SYMBOL(meson_uvm_attach);
 
 int meson_uvm_getinfo(int shared_fd, int mode_type, char *buf)
 {
@@ -613,6 +574,21 @@ int meson_uvm_getinfo(int shared_fd, int mode_type, char *buf)
 }
 EXPORT_SYMBOL(meson_uvm_getinfo);
 
+static void meson_uvm_core_setinfo(struct uvm_handle *handle,
+	char *buf)
+{
+	int ret = 0;
+	int detach_flag = 0;
+
+	UVM_PRINTK(1, "setinfo buf=%s.\n", buf);
+	ret = sscanf(buf, "detach_flag=%d", &detach_flag);
+	if (ret == 1 && detach_flag == 1) {
+		mutex_lock(&handle->lock);
+		handle->flags |= BIT(UVM_DETACH_FLAG);
+		mutex_unlock(&handle->lock);
+	}
+}
+
 int meson_uvm_setinfo(int shared_fd, int mode_type, char *buf)
 {
 	struct uvm_handle *handle;
@@ -627,6 +603,11 @@ int meson_uvm_setinfo(int shared_fd, int mode_type, char *buf)
 	}
 
 	handle = dmabuf->priv;
+	meson_uvm_core_setinfo(handle, buf);
+	if (mode_type == PROCESS_INVALID) {
+		dma_buf_put(dmabuf);
+		return 0;
+	}
 	uhmod = uvm_find_hook_mod(handle, mode_type);
 	if (uhmod) {
 		ret = uhmod->setinfo(uhmod->arg, buf);
@@ -671,7 +652,7 @@ static struct uvm_hook_mod *uvm_find_hook_mod(struct uvm_handle *handle,
 		UVM_PRINTK(1, "%s fail.\n", __func__);
 		return NULL;
 	}
-
+	UVM_PRINTK(1, "%s success.\n", __func__);
 	return ret;
 }
 
@@ -681,7 +662,7 @@ struct uvm_hook_mod *uvm_get_hook_mod(struct dma_buf *dmabuf,
 	struct uvm_handle *handle;
 	struct uvm_hook_mod *uhmod = NULL;
 
-	if (!dmabuf || !dmabuf_is_uvm(dmabuf)) {
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
 		UVM_PRINTK(0, "dmabuf is not uvm.\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -710,18 +691,25 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 {
 	struct uvm_handle *handle;
 	struct uvm_hook_mod *uhmod = NULL;
+	int ret = 0;
 
-	if (!dmabuf || !dmabuf_is_uvm(dmabuf)) {
+	UVM_PRINTK(1, "%s called, mod_type%d.\n", __func__, type);
+
+	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
 		UVM_PRINTK(0, "dmabuf is not uvm.\n");
 		return -EINVAL;
 	}
 
 	handle = dmabuf->priv;
+
+	mutex_lock(&handle->detachlock);
 	uhmod = uvm_find_hook_mod(handle, type);
 
 	if (uhmod)
-		return kref_put(&uhmod->ref, uvm_hook_mod_release);
+		ret = kref_put(&uhmod->ref, uvm_hook_mod_release);
 	else
-		return -EINVAL;
+		ret = -EINVAL;
+	mutex_unlock(&handle->detachlock);
+	return ret;
 }
 EXPORT_SYMBOL(uvm_put_hook_mod);
