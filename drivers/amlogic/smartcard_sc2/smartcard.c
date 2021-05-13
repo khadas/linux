@@ -2272,6 +2272,7 @@ static ssize_t smc_read(struct file *filp,
 		long cr;
 
 		pr_dbg("read %d bytes\n", ret);
+		spin_unlock_irqrestore(&smc->slock, flags);
 		if (cnt >= ret) {
 			cr = copy_to_user(buff, smc->recv_buf + start, ret);
 		} else {
@@ -2280,6 +2281,7 @@ static ssize_t smc_read(struct file *filp,
 			cr = copy_to_user(buff, smc->recv_buf + start, cnt);
 			cr = copy_to_user(buff + cnt, smc->recv_buf, cnt1);
 		}
+		spin_lock_irqsave(&smc->slock, flags);
 		_atomic_wrap_add(&smc->recv_start, ret, RECV_BUF_SIZE);
 	}
 	spin_unlock_irqrestore(&smc->slock, flags);
@@ -2324,6 +2326,7 @@ static ssize_t smc_write(struct file *filp,
 		int cnt = SEND_BUF_SIZE - start;
 		long cr;
 
+		spin_unlock_irqrestore(&smc->slock, flags);
 		if (cnt >= ret) {
 			cr = copy_from_user(smc->send_buf + start, buff, ret);
 		} else {
@@ -2332,6 +2335,7 @@ static ssize_t smc_write(struct file *filp,
 			cr = copy_from_user(smc->send_buf + start, buff, cnt);
 			cr = copy_from_user(smc->send_buf, buff + cnt, cnt1);
 		}
+		spin_lock_irqsave(&smc->slock, flags);
 		_atomic_wrap_add(&smc->send_start, ret, SEND_BUF_SIZE);
 	}
 
