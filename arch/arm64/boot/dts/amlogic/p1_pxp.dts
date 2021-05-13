@@ -1434,16 +1434,16 @@
 };
 
 &sd_emmc_c {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
 
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	mmc-ddr-1_8v;
-	mmc-hs200-1_8v;
-	mmc-hs400-1_8v;
+//	mmc-ddr-1_8v;
+//	mmc-hs200-1_8v;
+//	mmc-hs400-1_8v;
 	//mmc-hs400-enhanced-strobe;
 	max-frequency = <200000000>;
 	non-removable;
