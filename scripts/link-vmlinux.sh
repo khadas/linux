@@ -204,8 +204,11 @@ kallsyms()
 	info KSYM ${2}
 	local kallsymopt;
 
-	if [ -n "${CONFIG_KALLSYMS_ALL}" ]; then
-		kallsymopt="${kallsymopt} --all-symbols"
+	# we don't need all symbols, this can help to save about 1MB memory
+	if ! [ -n "${CONFIG_AMLOGIC_MODIFY}" ]; then
+		if [ -n "${CONFIG_KALLSYMS_ALL}" ]; then
+			kallsymopt="${kallsymopt} --all-symbols"
+		fi
 	fi
 
 	if [ -n "${CONFIG_KALLSYMS_ABSOLUTE_PERCPU}" ]; then
