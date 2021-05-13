@@ -40,6 +40,10 @@ struct bdi_writeback;
 
 void init_mm_internals(void);
 
+#ifdef CONFIG_AMLOGIC_MEM_DEBUG
+void dump_mem_layout(char *buf);
+#endif
+
 #ifndef CONFIG_NEED_MULTIPLE_NODES	/* Don't use mapnrs, do it properly */
 extern unsigned long max_mapnr;
 
