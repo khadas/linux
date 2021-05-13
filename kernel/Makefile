@@ -127,10 +127,22 @@ KASAN_SANITIZE_stackleak.o := n
 KCOV_INSTRUMENT_stackleak.o := n
 
 $(obj)/configs.o: $(obj)/config_data.gz
+ifdef CONFIG_AMLOGIC_MODIFY
+# Amlogic: there are too many sentences marked by '#' in .config flies
+# So we need to remove them when generate config.gz, this can help to save
+# about 20KB memory in ro data
+$(obj)/cfg_less.txt: $(KCONFIG_CONFIG) FORCE
+	$(shell sed '/#/d' $(KCONFIG_CONFIG) > $(src)/cfg_less.txt)
+
+targets += config_data.gz
+$(obj)/config_data.gz: $(obj)/cfg_less.txt FORCE
+	$(call if_changed,gzip)
+else
 
 targets += config_data.gz
 $(obj)/config_data.gz: $(KCONFIG_CONFIG) FORCE
 	$(call if_changed,gzip)
+endif
 
 $(obj)/kheaders.o: $(obj)/kheaders_data.tar.xz
 
