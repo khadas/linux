@@ -143,6 +143,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_TMODE_3,	/*EDIM_TMODE_3_PW_LOCAL*/
 	EDI_CFG_LINEAR,
 	EDI_CFG_PONLY_MODE,
+	EDI_CFG_HF,
 	EDI_CFG_PONLY_BP_THD,
 	EDI_CFG_END,
 };
@@ -490,6 +491,9 @@ struct di_hpre_s {
 	unsigned int idle_cnt;	/*use this avoid repeat idle <->check*/
 	/*dbg flow:*/
 	bool dbg_f_en;
+	bool hf_busy;
+	unsigned char hf_owner;
+	void *hf_w_buf; //di_buf_s;
 	unsigned int dbg_f_lstate;
 	unsigned int dbg_f_cnt;
 	union hw_sc2_ctr_pre_s pre_top_cfg;
@@ -1160,6 +1164,9 @@ struct di_mm_cfg_s {
 	unsigned int pre_inser_size;
 	unsigned int ibuf_hsize;
 	unsigned int pbuf_hsize;
+	unsigned int size_buf_hf; //from t3
+	unsigned int hf_hsize;
+	unsigned int hf_vsize;
 };
 struct dim_mm_t_s {
 	/* use for reserved and alloc all*/
@@ -1625,6 +1632,7 @@ struct dsub_ndis_s {
 	/* @ary_note:	used dbuff + vfm	*/
 	/* @ary_note: mode3: di use out buffer	*/
 	/*		used pbuff		*/
+	struct hf_info_t hf;//for display
 };
 
 struct dim_ndis_s {
@@ -1816,6 +1824,8 @@ struct di_ch_s {
 	struct qs_cls_s		ndis_que_kback;
 	struct qs_cls_s		npst_que; /*new interface */
 	struct dim_itf_s itf;
+	bool en_hf_buf;
+	bool en_hf; //
 };
 
 struct dim_policy_s {
@@ -2036,6 +2046,9 @@ struct di_data_l_s {
 	/*di ops for other module */
 	/*struct di_ext_ops *di_api; */
 	const struct di_meson_data *mdata;
+	unsigned char hf_src_cnt;//
+	unsigned char hf_owner;	//
+	bool	hf_busy;//
 };
 
 /**************************************

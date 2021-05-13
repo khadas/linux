@@ -1657,10 +1657,9 @@ static unsigned int di_mif_add_get_offset_v3(enum DI_MIF0_ID mif_index)
 	case DI_MIF0_ID_IF2:
 		index = 5;
 		break;
-
-		break;
 	default:
 		addr = DIM_ERR;
+		break;
 	};
 
 	if (addr == DIM_ERR)
@@ -2419,6 +2418,97 @@ static void set_wrmif_simple_v3(struct DI_SIM_MIF_s *mif,
 	}
 }
 
+bool dim_aisr_test(struct DI_SIM_MIF_s *mif, bool sel)
+{
+	dbg_ic("%s:%d\n", __func__, sel);
+	dbg_ic("\t <%d,%d>\n", mif->end_x + 1, mif->end_y + 1);
+	dbg_ic("\t addr= 0x%lx\n", mif->addr);
+	return true;
+}
+
+static unsigned int dim_hf_dbg;
+module_param_named(dim_hf_dbg, dim_hf_dbg, uint, 0644);
+
+/* from t3 */
+/* ucode: aisr_pre_cfg */
+/* sel: pre: 0; post: 1*/
+/* .aisr_pre */
+bool dim_aisr_pre_cfg(struct DI_SIM_MIF_s *mif, bool sel)
+{
+	unsigned int wrmif_stride;
+	const struct reg_acc *op = &di_pre_regset;
+	unsigned int dummy_en = 1, dummy_x = 0, dummy_y = 0;
+	unsigned int d_x, d_y, b_x, b_y;
+
+	/*dummy*/
+	d_x = mif->end_x - mif->start_x + 1;
+	d_y = mif->end_y - mif->start_y + 1;
+
+	b_x = mif->buf_hsize;
+	b_y = (unsigned int)mif->addr2;
+	dim_print("hf:hw cfg:sel:%d\n", sel);
+	if (b_x == d_x &&
+	    b_y == d_y) {
+		dummy_en = 0;
+	} else {
+		dummy_x = b_x - d_x;
+		dummy_y = b_y - d_y;
+	}
+	if (dummy_x > 1920 || dummy_y > 1080) {
+		PR_ERR("%s:size err:%d,%d\n", __func__, dummy_x, dummy_y);
+		PR_INF("%d,%d,%d,%d\n", d_x, d_y, b_x, b_y);
+		return false;
+	}
+
+	op->wr(NN_LRHF6, 128		<< 24	|
+			 dummy_x	<< 12	|
+			 dummy_en	<< 11	|
+			 dummy_y);
+	dbg_ic("nn6:0x%x = 0x%x\n", NN_LRHF6, op->rd(NN_LRHF6));
+	dbg_ic("nn6:<%d,%d,%d>\n", dummy_en, dummy_x, dummy_y);
+	/*bit3:2   1: pre 2: post */
+	if (!sel)
+		op->bwr(DI_TOP_CTRL, 1, 2, 2);//select nr dout to nn_lr_hf
+	else
+		op->bwr(DI_TOP_CTRL, 2, 2, 2);//select post
+
+	/*use canvas_num for dbg mode: not update this register*/
+	if (dim_hf_dbg >= 2)
+		dim_print("hw:dbg_not cfg\n");
+	else
+		op->bwr(NN_LRHF0, 3, 30, 2);
+
+	//05-06 from jintao: op->bwr(AISR_PRE_WRMIF_BADDR,0,6,1);//little endian
+	op->bwr(AISR_PRE_WRMIF_BADDR, 1, 6, 1);//little endian //05-06fromjintao
+	op->bwr(AISR_PRE_WRMIF_BADDR, 0, 7, 1);//swap 64 bit
+
+	wrmif_stride = ((mif->buf_hsize * 8 + 511) >> 9) <<  2;
+	op->bwr(AISR_PRE_WMIF_CTRL3, 1, 16, 1);
+	op->bwr(AISR_PRE_WMIF_CTRL3, wrmif_stride, 0, 13);
+	op->wr(AISR_PRE_WMIF_CTRL4, mif->addr >> 4);
+	#ifdef HIS_CODE
+	op->wr(AISR_PRE_WMIF_SCOPE_X, ((b_x - 1) << 16) | 0);
+	op->wr(AISR_PRE_WMIF_SCOPE_Y, ((b_y - 1) << 16) | 0);
+	#else
+	op->wr(AISR_PRE_WMIF_SCOPE_X, ((mif->end_x - mif->start_x) << 16) | 0);
+	op->wr(AISR_PRE_WMIF_SCOPE_Y, ((mif->end_y - mif->start_y) << 16) | 0);
+	#endif
+
+	return true;
+}
+
+void dim_aisr_disable(void)
+{
+	const struct reg_acc *op = &di_pre_regset;
+
+	if (dim_hf_dbg) {
+		dim_hf_dbg = 2;
+		return;
+	}
+	dim_print("hf:hw disable\n");
+	op->bwr(NN_LRHF0, 0, 30, 2);
+	op->bwr(DI_TOP_CTRL, 0, 2, 2);
+}
 /* ref to config_di_wr_mif */
 //static
 void wr_mif_cfg_v3(struct DI_SIM_MIF_s *wr_mif,
@@ -4977,6 +5067,13 @@ void hpre_timeout_read(void)
 	dim_print("c:0x%x:0x%x\n", DI_RO_PRE_DBG, DIM_RDMA_RD(DI_RO_PRE_DBG));
 }
 
+void hpst_timeout_read(void)
+{
+	if (DIM_IS_IC_BF(SC2))
+		return;
+	dim_print("c:0x%x:0x%x\n", DI_RO_POST_DBG, DIM_RDMA_RD(DI_RO_POST_DBG));
+	dim_print("c:0x%x:0x%x\n", DI_RO_POST_DBG, DIM_RDMA_RD(DI_RO_POST_DBG));
+}
 static void hpre_gl_thd_v3(void)
 {
 	const struct reg_acc *op = &di_pre_regset;
@@ -5373,6 +5470,8 @@ const struct dim_hw_opsv_s dim_ops_l1_v3 = {
 	.wrmif_sw_buf	= NULL,
 	.wrmif_trig	= NULL,
 	.wr_rst_protect	= NULL,
+	.aisr_pre	= NULL,
+	.aisr_disable	= NULL,
 	.hw_init	= hw_init_v3,
 	.pre_hold_block_txlx = NULL,
 	.pre_cfg_mif	= config_di_mif_v3,
@@ -5419,6 +5518,8 @@ const struct dim_hw_opsv_s dim_ops_l1_v4 = { //for t7
 	.pre_ma_mif_set	= set_ma_pre_mif_t7,
 	.post_mtnrd_mif_set = set_post_mtnrd_mif_t7,
 	.pre_enable_mc	= pre_enable_mc_t7,
+	.aisr_pre	= dim_aisr_pre_cfg,
+	.aisr_disable	= dim_aisr_disable,
 	.wrmif_trig	= NULL,
 	.wr_rst_protect	= NULL,
 	.hw_init	= hw_init_v3,

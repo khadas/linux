@@ -396,4 +396,23 @@ unsigned int dim_int_tab(struct device *dev,
 				 struct afbce_map_s *pcfg);
 
 void di_decontour_disable(bool on);
+
+unsigned int di_hf_cnt_size(unsigned int w, unsigned int h, bool is_4k);
+bool di_hf_set_buffer(struct di_buf_s *di_buf, struct div2_mm_s *mm);
+bool di_hf_hw_try_alloc(unsigned int who);
+void di_hf_hw_release(unsigned int who);
+bool di_hf_hw_is_busy(void);
+bool di_hf_buf_size_set(struct DI_SIM_MIF_s *hf_mif);
+bool di_hf_t_try_alloc(struct di_ch_s *pch);
+void di_hf_t_release(struct di_ch_s *pch);
+void di_hf_reg(struct di_ch_s *pch);
+bool di_hf_size_check(struct DI_SIM_MIF_s *w_mif);
+
+void di_hf_lock_blend_buffer_pre(struct di_buf_s *di_buf);
+void di_hf_lock_blend_buffer_pst(struct di_buf_s *di_buf);
+void di_hf_lock_irq_flg(void);
+
+void dim_print_hf(struct hf_info_t *phf);
+void dim_dbg_seq_hf(struct hf_info_t *hf, struct seq_file *seq);
+
 #endif	/*__DI_PRC_H__*/
