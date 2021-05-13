@@ -724,3 +724,4 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 	else
 		return -EINVAL;
 }
+EXPORT_SYMBOL(uvm_put_hook_mod);
