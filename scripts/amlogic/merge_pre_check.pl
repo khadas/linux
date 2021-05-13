@@ -16,6 +16,7 @@ my $skip = 0;
 my $make_clang="make ARCH=arm64 CC=clang HOSTCC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- -j12";
 my $make_defconfig_link = "https://wiki-china.amlogic.com/Platform/Kernel/Kernel5.4/Build";
 my $env_common = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+my $arm64_dts = "arch/arm64/boot/dts/amlogic/";
 
 #Check mesonxx_defconfig
 sub check_defconfig
@@ -85,6 +86,56 @@ sub check_defconfig
 	}
 	#print $err ? "fail\n" : "success\n";
 }
+
+sub dts_check
+{
+	my $dts_diff = "";
+	my $diff = `git diff HEAD^ --name-only | grep -E '*dts'`;
+	my $all_dts = `find $arm64_dts -name "*dts"`;
+	my @diff_str = split /[\n]/, $diff;
+	my @all_dts_str = split /[\n]/, $all_dts;
+	my $diff_count = 0;
+	my $all_dts_count = 0;
+	my $count = 0;
+	for (@diff_str)
+	{
+		$re = $_;
+		if ($re=~m/^(.*?)\_/)
+		{
+		$dts_diff = $1;
+		$dts_diff = $dts_diff."_";
+		}
+		if (!($_ =~ "pxp.dts"))
+		{
+			for (@diff_str)
+			{
+				if ($_ =~ $dts_diff)
+				{
+					$diff_count=$diff_count+1;
+				}
+			}
+			for (@all_dts_str)
+			{
+				if ($_ =~ $dts_diff)
+				{
+					$all_dts_count=$all_dts_count+1;
+				}
+			}
+		}
+		if ($diff_count != $all_dts_count)
+		{
+			$count=$count+1;
+		}
+		$diff_count=0;
+		$all_dts_count=0;
+	}
+	if ($count != 0)
+	{
+		$err_cnt += 1;
+		$err_msg .= "	$err_cnt: Solution:\n	please check dts the board is all changed? \n";
+	}
+}
+
 
 # check module_param number
 sub check_module_param
@@ -331,6 +382,7 @@ my $err_msg_p = "\nCommit Pre check failed. Total $err_cnt errors.\n";
 
 #Check meson_defconfig
 check_defconfig();
+dts_check();
 
 #check_module_param
 check_module_param();
