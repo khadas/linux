@@ -4837,46 +4837,51 @@ struct clk_regmap _name = {						\
 
 /*CLKCTRL_SYS_CLK_EN0_REG0*/
 static MESON_P1_SYS_GATE(p1_sys_clk_ddr,		CLKCTRL_SYS_CLK_EN0_REG0, 0);
-static MESON_P1_SYS_GATE(p1_sys_clk_dos,		CLKCTRL_SYS_CLK_EN0_REG0, 1);
 static MESON_P1_SYS_GATE(p1_sys_clk_ethphy,		CLKCTRL_SYS_CLK_EN0_REG0, 4);
-static MESON_P1_SYS_GATE(p1_sys_clk_demod,		CLKCTRL_SYS_CLK_EN0_REG0, 5);
-static MESON_P1_SYS_GATE(p1_sys_clk_mali,		CLKCTRL_SYS_CLK_EN0_REG0, 6);
+static MESON_P1_SYS_GATE(p1_sys_clk_m4,			CLKCTRL_SYS_CLK_EN0_REG0, 6);
+static MESON_P1_SYS_GATE(p1_sys_clk_glb,		CLKCTRL_SYS_CLK_EN0_REG0, 7);
 static MESON_P1_SYS_GATE(p1_sys_clk_aocpu,		CLKCTRL_SYS_CLK_EN0_REG0, 13);
 static MESON_P1_SYS_GATE(p1_sys_clk_aucpu,		CLKCTRL_SYS_CLK_EN0_REG0, 14);
-static MESON_P1_SYS_GATE(p1_sys_clk_cec,		CLKCTRL_SYS_CLK_EN0_REG0, 16);
+static MESON_P1_SYS_GATE(p1_sys_clk_dewarpc,		CLKCTRL_SYS_CLK_EN0_REG0, 16);
+static MESON_P1_SYS_GATE(p1_sys_clk_dewarpb,		CLKCTRL_SYS_CLK_EN0_REG0, 17);
+static MESON_P1_SYS_GATE(p1_sys_clk_dewarpa,		CLKCTRL_SYS_CLK_EN0_REG0, 18);
 static MESON_P1_SYS_GATE(p1_sys_clk_ampipe_nand,	CLKCTRL_SYS_CLK_EN0_REG0, 19);
 static MESON_P1_SYS_GATE(p1_sys_clk_ampipe_eth,		CLKCTRL_SYS_CLK_EN0_REG0, 20);
 static MESON_P1_SYS_GATE(p1_sys_clk_am2axi0,		CLKCTRL_SYS_CLK_EN0_REG0, 21);
 static MESON_P1_SYS_GATE(p1_sys_clk_am2axi1,		CLKCTRL_SYS_CLK_EN0_REG0, 22);
 static MESON_P1_SYS_GATE(p1_sys_clk_am2axi2,		CLKCTRL_SYS_CLK_EN0_REG0, 23);
-static MESON_P1_SYS_GATE(p1_sys_clk_sdemmcb,		CLKCTRL_SYS_CLK_EN0_REG0, 25);
+static MESON_P1_SYS_GATE(p1_sys_clk_sdemmca,		CLKCTRL_SYS_CLK_EN0_REG0, 25);
 static MESON_P1_SYS_GATE(p1_sys_clk_sdemmcc,		CLKCTRL_SYS_CLK_EN0_REG0, 26);
-static MESON_P1_SYS_GATE(p1_sys_clk_smartcard,		CLKCTRL_SYS_CLK_EN0_REG0, 27);
-static MESON_P1_SYS_GATE(p1_sys_clk_acodec,		CLKCTRL_SYS_CLK_EN0_REG0, 28);
 static MESON_P1_SYS_GATE(p1_sys_clk_spifc,		CLKCTRL_SYS_CLK_EN0_REG0, 29);
 static MESON_P1_SYS_GATE(p1_sys_clk_msr_clk,		CLKCTRL_SYS_CLK_EN0_REG0, 30);
-static MESON_P1_SYS_GATE(p1_sys_clk_ir_ctrl,		CLKCTRL_SYS_CLK_EN0_REG0, 31);
 
 /*CLKCTRL_SYS_CLK_EN0_REG1*/
 static MESON_P1_SYS_GATE(p1_sys_clk_audio,		CLKCTRL_SYS_CLK_EN0_REG1, 0);
-static MESON_P1_SYS_GATE(p1_sys_clk_tvfe,		CLKCTRL_SYS_CLK_EN0_REG1, 1);
 static MESON_P1_SYS_GATE(p1_sys_clk_eth,		CLKCTRL_SYS_CLK_EN0_REG1, 3);
 static MESON_P1_SYS_GATE(p1_sys_clk_uart_a,		CLKCTRL_SYS_CLK_EN0_REG1, 5);
 static MESON_P1_SYS_GATE(p1_sys_clk_uart_b,		CLKCTRL_SYS_CLK_EN0_REG1, 6);
 static MESON_P1_SYS_GATE(p1_sys_clk_uart_c,		CLKCTRL_SYS_CLK_EN0_REG1, 7);
 static MESON_P1_SYS_GATE(p1_sys_clk_uart_d,		CLKCTRL_SYS_CLK_EN0_REG1, 8);
-static MESON_P1_SYS_GATE(p1_sys_clk_nna,		CLKCTRL_SYS_CLK_EN0_REG1, 9);
-static MESON_P1_SYS_GATE(p1_sys_clk_ciplus,		CLKCTRL_SYS_CLK_EN0_REG1, 10);
+static MESON_P1_SYS_GATE(p1_sys_clk_uart_e,		CLKCTRL_SYS_CLK_EN0_REG1, 9);
+static MESON_P1_SYS_GATE(p1_sys_clk_uart_f,		CLKCTRL_SYS_CLK_EN0_REG1, 10);
 static MESON_P1_SYS_GATE(p1_sys_clk_aififo,		CLKCTRL_SYS_CLK_EN0_REG1, 11);
 static MESON_P1_SYS_GATE(p1_sys_clk_spicc2,		CLKCTRL_SYS_CLK_EN0_REG1, 12);
+static MESON_P1_SYS_GATE(p1_sys_clk_spicc3,		CLKCTRL_SYS_CLK_EN0_REG1, 13);
+static MESON_P1_SYS_GATE(p1_sys_clk_spicc4,		CLKCTRL_SYS_CLK_EN0_REG1, 14);
+static MESON_P1_SYS_GATE(p1_sys_clk_ts_a76,		CLKCTRL_SYS_CLK_EN0_REG1, 15);
+static MESON_P1_SYS_GATE(p1_sys_clk_ts_a55,		CLKCTRL_SYS_CLK_EN0_REG1, 16);
+static MESON_P1_SYS_GATE(p1_sys_clk_spicc5,		CLKCTRL_SYS_CLK_EN0_REG1, 17);
+static MESON_P1_SYS_GATE(p1_sys_clk_ts_ddr_0,		CLKCTRL_SYS_CLK_EN0_REG1, 18);
+static MESON_P1_SYS_GATE(p1_sys_clk_ts_ddr_1,		CLKCTRL_SYS_CLK_EN0_REG1, 19);
 static MESON_P1_SYS_GATE(p1_sys_clk_g2d,		CLKCTRL_SYS_CLK_EN0_REG1, 20);
 static MESON_P1_SYS_GATE(p1_sys_clk_spicc0,		CLKCTRL_SYS_CLK_EN0_REG1, 21);
 static MESON_P1_SYS_GATE(p1_sys_clk_spicc1,		CLKCTRL_SYS_CLK_EN0_REG1, 22);
 static MESON_P1_SYS_GATE(p1_sys_clk_pcie,		CLKCTRL_SYS_CLK_EN0_REG1, 24);
+static MESON_P1_SYS_GATE(p1_sys_clk_pciephy,		CLKCTRL_SYS_CLK_EN0_REG1, 25);
 static MESON_P1_SYS_GATE(p1_sys_clk_usb,		CLKCTRL_SYS_CLK_EN0_REG1, 26);
-static MESON_P1_SYS_GATE(p1_sys_clk_pcie_phy,		CLKCTRL_SYS_CLK_EN0_REG1, 27);
-static MESON_P1_SYS_GATE(p1_sys_clk_i2c_ao_a,		CLKCTRL_SYS_CLK_EN0_REG1, 28);
-static MESON_P1_SYS_GATE(p1_sys_clk_i2c_ao_b,		CLKCTRL_SYS_CLK_EN0_REG1, 29);
+static MESON_P1_SYS_GATE(p1_sys_clk_pcie_phy0,		CLKCTRL_SYS_CLK_EN0_REG1, 27);
+static MESON_P1_SYS_GATE(p1_sys_clk_pcie_phy1,		CLKCTRL_SYS_CLK_EN0_REG1, 28);
+static MESON_P1_SYS_GATE(p1_sys_clk_pcie_phy2,		CLKCTRL_SYS_CLK_EN0_REG1, 29);
 static MESON_P1_SYS_GATE(p1_sys_clk_i2c_m_a,		CLKCTRL_SYS_CLK_EN0_REG1, 30);
 static MESON_P1_SYS_GATE(p1_sys_clk_i2c_m_b,		CLKCTRL_SYS_CLK_EN0_REG1, 31);
 
@@ -4884,31 +4889,44 @@ static MESON_P1_SYS_GATE(p1_sys_clk_i2c_m_b,		CLKCTRL_SYS_CLK_EN0_REG1, 31);
 static MESON_P1_SYS_GATE(p1_sys_clk_i2c_m_c,		CLKCTRL_SYS_CLK_EN0_REG2, 0);
 static MESON_P1_SYS_GATE(p1_sys_clk_i2c_m_d,		CLKCTRL_SYS_CLK_EN0_REG2, 1);
 static MESON_P1_SYS_GATE(p1_sys_clk_i2c_m_e,		CLKCTRL_SYS_CLK_EN0_REG2, 2);
-static MESON_P1_SYS_GATE(p1_sys_clk_i2c_s_a,		CLKCTRL_SYS_CLK_EN0_REG2, 5);
-static MESON_P1_SYS_GATE(p1_sys_clk_bt656_pclk,		CLKCTRL_SYS_CLK_EN0_REG2, 6);
-static MESON_P1_SYS_GATE(p1_sys_clk_hdmi20_aceclk,	CLKCTRL_SYS_CLK_EN0_REG2, 7);
-static MESON_P1_SYS_GATE(p1_sys_clk_hdmirx_pclk,	CLKCTRL_SYS_CLK_EN0_REG2, 9);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_m_f,		CLKCTRL_SYS_CLK_EN0_REG2, 3);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_m_g,		CLKCTRL_SYS_CLK_EN0_REG2, 4);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_m_h,		CLKCTRL_SYS_CLK_EN0_REG2, 5);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_m_i,		CLKCTRL_SYS_CLK_EN0_REG2, 6);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_m_j,		CLKCTRL_SYS_CLK_EN0_REG2, 7);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_s_a,		CLKCTRL_SYS_CLK_EN0_REG2, 8);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_m_k,		CLKCTRL_SYS_CLK_EN0_REG2, 9);
 static MESON_P1_SYS_GATE(p1_sys_clk_mmc_pclk,		CLKCTRL_SYS_CLK_EN0_REG2, 11);
+static MESON_P1_SYS_GATE(p1_sys_clk_isp_pclk,		CLKCTRL_SYS_CLK_EN0_REG2, 17);
 static MESON_P1_SYS_GATE(p1_sys_clk_rsa,		CLKCTRL_SYS_CLK_EN0_REG2, 18);
 static MESON_P1_SYS_GATE(p1_sys_clk_pclk_sys_cpu_apb,	CLKCTRL_SYS_CLK_EN0_REG2, 19);
 static MESON_P1_SYS_GATE(p1_sys_clk_dspa,		CLKCTRL_SYS_CLK_EN0_REG2, 21);
-static MESON_P1_SYS_GATE(p1_sys_clk_atv_dmd,		CLKCTRL_SYS_CLK_EN0_REG2, 23);
-static MESON_P1_SYS_GATE(p1_sys_clk_adec_top,		CLKCTRL_SYS_CLK_EN0_REG2, 24);
-static MESON_P1_SYS_GATE(p1_sys_clk_vpu_intr,		CLKCTRL_SYS_CLK_EN0_REG2, 25);
-static MESON_P1_SYS_GATE(p1_sys_clk_frc_intr,		CLKCTRL_SYS_CLK_EN0_REG2, 26);
+static MESON_P1_SYS_GATE(p1_sys_clk_dspb,		CLKCTRL_SYS_CLK_EN0_REG2, 22);
 static MESON_P1_SYS_GATE(p1_sys_clk_sar_adc,		CLKCTRL_SYS_CLK_EN0_REG2, 28);
 static MESON_P1_SYS_GATE(p1_sys_clk_gic,		CLKCTRL_SYS_CLK_EN0_REG2, 30);
-static MESON_P1_SYS_GATE(p1_sys_clk_ts_cpu,		CLKCTRL_SYS_CLK_EN0_REG2, 31);
 
 /*CLKCTRL_SYS_CLK_EN0_REG3*/
 static MESON_P1_SYS_GATE(p1_sys_clk_ts_nna,		CLKCTRL_SYS_CLK_EN0_REG3, 0);
-static MESON_P1_SYS_GATE(p1_sys_clk_ts_vpu,		CLKCTRL_SYS_CLK_EN0_REG3, 1);
-static MESON_P1_SYS_GATE(p1_sys_clk_pwm_ab,		CLKCTRL_SYS_CLK_EN0_REG3, 7);
-static MESON_P1_SYS_GATE(p1_sys_clk_pwm_cd,		CLKCTRL_SYS_CLK_EN0_REG3, 8);
-static MESON_P1_SYS_GATE(p1_sys_clk_pwm_ef,		CLKCTRL_SYS_CLK_EN0_REG3, 9);
-static MESON_P1_SYS_GATE(p1_sys_clk_pwm_gh,		CLKCTRL_SYS_CLK_EN0_REG3, 10);
-static MESON_P1_SYS_GATE(p1_sys_clk_pwm_ij,		CLKCTRL_SYS_CLK_EN0_REG3, 11);
-static MESON_P1_SYS_GATE(p1_sys_clk_tcon,		CLKCTRL_SYS_CLK_EN0_REG3, 12);
+static MESON_P1_SYS_GATE(p1_sys_clk_pwm_ab,		CLKCTRL_SYS_CLK_EN0_REG3, 5);
+static MESON_P1_SYS_GATE(p1_sys_clk_pwm_cd,		CLKCTRL_SYS_CLK_EN0_REG3, 6);
+static MESON_P1_SYS_GATE(p1_sys_clk_pwm_ef,		CLKCTRL_SYS_CLK_EN0_REG3, 7);
+static MESON_P1_SYS_GATE(p1_sys_clk_pwm_gh,		CLKCTRL_SYS_CLK_EN0_REG3, 8);
+static MESON_P1_SYS_GATE(p1_sys_clk_pwm_ij,		CLKCTRL_SYS_CLK_EN0_REG3, 9);
+static MESON_P1_SYS_GATE(p1_sys_clk_depa,		CLKCTRL_SYS_CLK_EN0_REG3, 10);
+static MESON_P1_SYS_GATE(p1_sys_clk_depb,		CLKCTRL_SYS_CLK_EN0_REG3, 11);
+static MESON_P1_SYS_GATE(p1_sys_clk_mopa,		CLKCTRL_SYS_CLK_EN0_REG3, 12);
+static MESON_P1_SYS_GATE(p1_sys_clk_mopb,		CLKCTRL_SYS_CLK_EN0_REG3, 13);
+static MESON_P1_SYS_GATE(p1_sys_clk_vfe,		CLKCTRL_SYS_CLK_EN0_REG3, 14);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_s_b,		CLKCTRL_SYS_CLK_EN0_REG3, 15);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_s_c,		CLKCTRL_SYS_CLK_EN0_REG3, 16);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_s_d,		CLKCTRL_SYS_CLK_EN0_REG3, 17);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_s_e,		CLKCTRL_SYS_CLK_EN0_REG3, 18);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_s_f,		CLKCTRL_SYS_CLK_EN0_REG3, 19);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_s_g,		CLKCTRL_SYS_CLK_EN0_REG3, 20);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_s_h,		CLKCTRL_SYS_CLK_EN0_REG3, 21);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_s_i,		CLKCTRL_SYS_CLK_EN0_REG3, 22);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_s_j,		CLKCTRL_SYS_CLK_EN0_REG3, 23);
+static MESON_P1_SYS_GATE(p1_sys_clk_i2c_s_k,		CLKCTRL_SYS_CLK_EN0_REG3, 24);
 
 /* Array of all clocks provided by this provider */
 static struct clk_hw_onecell_data p1_hw_onecell_data = {
@@ -5139,72 +5157,90 @@ static struct clk_hw_onecell_data p1_hw_onecell_data = {
 		[CLKID_M4_CLK_1]			= &p1_m4_clk_1.hw,
 		[CLKID_M4_CLK]				= &p1_m4_clk.hw,
 		[CLKID_SYS_CLK_DDR]			= &p1_sys_clk_ddr.hw,
-		[CLKID_SYS_CLK_DOS]			= &p1_sys_clk_dos.hw,
 		[CLKID_SYS_CLK_ETHPHY]			= &p1_sys_clk_ethphy.hw,
-		[CLKID_SYS_CLK_DEMOD]			= &p1_sys_clk_demod.hw,
-		[CLKID_SYS_CLK_MALI]			= &p1_sys_clk_mali.hw,
+		[CLKID_SYS_CLK_M4]			= &p1_sys_clk_m4.hw,
+		[CLKID_SYS_CLK_GLB]			= &p1_sys_clk_glb.hw,
 		[CLKID_SYS_CLK_AOCPU]			= &p1_sys_clk_aocpu.hw,
 		[CLKID_SYS_CLK_AUCPU]			= &p1_sys_clk_aucpu.hw,
-		[CLKID_SYS_CLK_CEC]			= &p1_sys_clk_cec.hw,
+		[CLKID_SYS_CLK_DEWARPC]			= &p1_sys_clk_dewarpc.hw,
+		[CLKID_SYS_CLK_DEWARPB]			= &p1_sys_clk_dewarpb.hw,
+		[CLKID_SYS_CLK_DEWARPA]			= &p1_sys_clk_dewarpa.hw,
 		[CLKID_SYS_CLK_AMPIPE_NAND]		= &p1_sys_clk_ampipe_nand.hw,
 		[CLKID_SYS_CLK_AMPIPE_ETH]		= &p1_sys_clk_ampipe_eth.hw,
 		[CLKID_SYS_CLK_AM2AXI0]			= &p1_sys_clk_am2axi0.hw,
 		[CLKID_SYS_CLK_AM2AXI1]			= &p1_sys_clk_am2axi1.hw,
 		[CLKID_SYS_CLK_AM2AXI2]			= &p1_sys_clk_am2axi2.hw,
-		[CLKID_SYS_CLK_SD_EMMC_B]		= &p1_sys_clk_sdemmcb.hw,
+		[CLKID_SYS_CLK_SD_EMMC_A]		= &p1_sys_clk_sdemmca.hw,
 		[CLKID_SYS_CLK_SD_EMMC_C]		= &p1_sys_clk_sdemmcc.hw,
-		[CLKID_SYS_CLK_SMARTCARD]		= &p1_sys_clk_smartcard.hw,
-		[CLKID_SYS_CLK_ACODEC]			= &p1_sys_clk_acodec.hw,
 		[CLKID_SYS_CLK_SPIFC]			= &p1_sys_clk_spifc.hw,
 		[CLKID_SYS_CLK_MSR_CLK]			= &p1_sys_clk_msr_clk.hw,
-		[CLKID_SYS_CLK_IR_CTRL]			= &p1_sys_clk_ir_ctrl.hw,
 		[CLKID_SYS_CLK_AUDIO]			= &p1_sys_clk_audio.hw,
-		[CLKID_SYS_CLK_TVFE]			= &p1_sys_clk_tvfe.hw,
 		[CLKID_SYS_CLK_ETH]			= &p1_sys_clk_eth.hw,
 		[CLKID_SYS_CLK_UART_A]			= &p1_sys_clk_uart_a.hw,
 		[CLKID_SYS_CLK_UART_B]			= &p1_sys_clk_uart_b.hw,
 		[CLKID_SYS_CLK_UART_C]			= &p1_sys_clk_uart_c.hw,
 		[CLKID_SYS_CLK_UART_D]			= &p1_sys_clk_uart_d.hw,
-		[CLKID_SYS_CLK_NNA]			= &p1_sys_clk_nna.hw,
-		[CLKID_SYS_CLK_CIPLUS]			= &p1_sys_clk_ciplus.hw,
+		[CLKID_SYS_CLK_UART_E]			= &p1_sys_clk_uart_e.hw,
+		[CLKID_SYS_CLK_UART_F]			= &p1_sys_clk_uart_f.hw,
 		[CLKID_SYS_CLK_AIFIFO]			= &p1_sys_clk_aififo.hw,
 		[CLKID_SYS_CLK_SPICC2]			= &p1_sys_clk_spicc2.hw,
+		[CLKID_SYS_CLK_SPICC3]			= &p1_sys_clk_spicc3.hw,
+		[CLKID_SYS_CLK_SPICC4]			= &p1_sys_clk_spicc4.hw,
+		[CLKID_SYS_CLK_TS_A76]			= &p1_sys_clk_ts_a76.hw,
+		[CLKID_SYS_CLK_TS_A55]			= &p1_sys_clk_ts_a55.hw,
+		[CLKID_SYS_CLK_SPICC5]			= &p1_sys_clk_spicc5.hw,
+		[CLKID_SYS_CLK_TS_DDR_0]		= &p1_sys_clk_ts_ddr_0.hw,
+		[CLKID_SYS_CLK_TS_DDR_1]		= &p1_sys_clk_ts_ddr_1.hw,
 		[CLKID_SYS_CLK_G2D]			= &p1_sys_clk_g2d.hw,
 		[CLKID_SYS_CLK_SPICC0]			= &p1_sys_clk_spicc0.hw,
 		[CLKID_SYS_CLK_SPICC1]			= &p1_sys_clk_spicc1.hw,
 		[CLKID_SYS_CLK_PCIE]			= &p1_sys_clk_pcie.hw,
+		[CLKID_SYS_CLK_PCIEPHY]			= &p1_sys_clk_pciephy.hw,
 		[CLKID_SYS_CLK_USB]			= &p1_sys_clk_usb.hw,
-		[CLKID_SYS_CLK_PCIE_PHY]		= &p1_sys_clk_pcie_phy.hw,
-		[CLKID_SYS_CLK_I2C_M_AO_A]		= &p1_sys_clk_i2c_ao_a.hw,
-		[CLKID_SYS_CLK_I2C_M_AO_B]		= &p1_sys_clk_i2c_ao_b.hw,
+		[CLKID_SYS_CLK_PCIE_PHY0]		= &p1_sys_clk_pcie_phy0.hw,
+		[CLKID_SYS_CLK_PCIE_PHY1]		= &p1_sys_clk_pcie_phy1.hw,
+		[CLKID_SYS_CLK_PCIE_PHY2]		= &p1_sys_clk_pcie_phy2.hw,
 		[CLKID_SYS_CLK_I2C_M_A]			= &p1_sys_clk_i2c_m_a.hw,
 		[CLKID_SYS_CLK_I2C_M_B]			= &p1_sys_clk_i2c_m_b.hw,
 		[CLKID_SYS_CLK_I2C_M_C]			= &p1_sys_clk_i2c_m_c.hw,
 		[CLKID_SYS_CLK_I2C_M_D]			= &p1_sys_clk_i2c_m_d.hw,
 		[CLKID_SYS_CLK_I2C_M_E]			= &p1_sys_clk_i2c_m_e.hw,
+		[CLKID_SYS_CLK_I2C_M_F]			= &p1_sys_clk_i2c_m_f.hw,
+		[CLKID_SYS_CLK_I2C_M_G]			= &p1_sys_clk_i2c_m_g.hw,
+		[CLKID_SYS_CLK_I2C_M_H]			= &p1_sys_clk_i2c_m_h.hw,
+		[CLKID_SYS_CLK_I2C_M_I]			= &p1_sys_clk_i2c_m_i.hw,
+		[CLKID_SYS_CLK_I2C_M_J]			= &p1_sys_clk_i2c_m_j.hw,
 		[CLKID_SYS_CLK_I2C_S_A]			= &p1_sys_clk_i2c_s_a.hw,
-		[CLKID_SYS_CLK_BT656_PCLK]		= &p1_sys_clk_bt656_pclk.hw,
-		[CLKID_SYS_CLK_HDMI20_ACE_CLK]		= &p1_sys_clk_hdmi20_aceclk.hw,
-		[CLKID_SYS_CLK_HDMIRX_PCLK]		= &p1_sys_clk_hdmirx_pclk.hw,
+		[CLKID_SYS_CLK_I2C_M_K]			= &p1_sys_clk_i2c_m_k.hw,
 		[CLKID_SYS_CLK_MMC_PCLK]		= &p1_sys_clk_mmc_pclk.hw,
+		[CLKID_SYS_CLK_ISP_PCLK]		= &p1_sys_clk_isp_pclk.hw,
 		[CLKID_SYS_CLK_RSA]			= &p1_sys_clk_rsa.hw,
 		[CLKID_SYS_CLK_PCLK_SYS_CPU_APB]	= &p1_sys_clk_pclk_sys_cpu_apb.hw,
 		[CLKID_SYS_CLK_DSPA]			= &p1_sys_clk_dspa.hw,
-		[CLKID_SYS_CLK_ATV_DMD]			= &p1_sys_clk_atv_dmd.hw,
-		[CLKID_SYS_CLK_ADEC_TOP]		= &p1_sys_clk_adec_top.hw,
-		[CLKID_SYS_CLK_VPU_INTR]		= &p1_sys_clk_vpu_intr.hw,
-		[CLKID_SYS_CLK_FRC_INTR]		= &p1_sys_clk_frc_intr.hw,
+		[CLKID_SYS_CLK_DSPB]			= &p1_sys_clk_dspb.hw,
 		[CLKID_SYS_CLK_SAR_ADC]			= &p1_sys_clk_sar_adc.hw,
 		[CLKID_SYS_CLK_GIC]			= &p1_sys_clk_gic.hw,
-		[CLKID_SYS_CLK_TS_CPU]			= &p1_sys_clk_ts_cpu.hw,
 		[CLKID_SYS_CLK_TS_NNA]			= &p1_sys_clk_ts_nna.hw,
-		[CLKID_SYS_CLK_TS_VPU]			= &p1_sys_clk_ts_vpu.hw,
 		[CLKID_SYS_CLK_PWM_AB]			= &p1_sys_clk_pwm_ab.hw,
 		[CLKID_SYS_CLK_PWM_CD]			= &p1_sys_clk_pwm_cd.hw,
 		[CLKID_SYS_CLK_PWM_EF]			= &p1_sys_clk_pwm_ef.hw,
 		[CLKID_SYS_CLK_PWM_GH]			= &p1_sys_clk_pwm_gh.hw,
 		[CLKID_SYS_CLK_PWM_IJ]			= &p1_sys_clk_pwm_ij.hw,
-		[CLKID_SYS_CLK_TCON]			= &p1_sys_clk_tcon.hw,
+		[CLKID_SYS_CLK_DEPA]			= &p1_sys_clk_depa.hw,
+		[CLKID_SYS_CLK_DEPB]			= &p1_sys_clk_depb.hw,
+		[CLKID_SYS_CLK_MOPA]			= &p1_sys_clk_mopa.hw,
+		[CLKID_SYS_CLK_MOPB]			= &p1_sys_clk_mopb.hw,
+		[CLKID_SYS_CLK_VFE]			= &p1_sys_clk_vfe.hw,
+		[CLKID_SYS_CLK_I2C_S_B]			= &p1_sys_clk_i2c_s_b.hw,
+		[CLKID_SYS_CLK_I2C_S_C]			= &p1_sys_clk_i2c_s_c.hw,
+		[CLKID_SYS_CLK_I2C_S_D]			= &p1_sys_clk_i2c_s_d.hw,
+		[CLKID_SYS_CLK_I2C_S_E]			= &p1_sys_clk_i2c_s_e.hw,
+		[CLKID_SYS_CLK_I2C_S_F]			= &p1_sys_clk_i2c_s_f.hw,
+		[CLKID_SYS_CLK_I2C_S_G]			= &p1_sys_clk_i2c_s_g.hw,
+		[CLKID_SYS_CLK_I2C_S_H]			= &p1_sys_clk_i2c_s_h.hw,
+		[CLKID_SYS_CLK_I2C_S_I]			= &p1_sys_clk_i2c_s_i.hw,
+		[CLKID_SYS_CLK_I2C_S_J]			= &p1_sys_clk_i2c_s_j.hw,
+		[CLKID_SYS_CLK_I2C_S_K]			= &p1_sys_clk_i2c_s_k.hw,
 		[NR_CLKS]				= NULL
 	},
 	.num = NR_CLKS,
@@ -5394,72 +5430,90 @@ static struct clk_regmap *const p1_clk_regmaps[] = {
 	&p1_m4_clk_1,
 	&p1_m4_clk,
 	&p1_sys_clk_ddr,
-	&p1_sys_clk_dos,
 	&p1_sys_clk_ethphy,
-	&p1_sys_clk_demod,
-	&p1_sys_clk_mali,
+	&p1_sys_clk_m4,
+	&p1_sys_clk_glb,
 	&p1_sys_clk_aocpu,
 	&p1_sys_clk_aucpu,
-	&p1_sys_clk_cec,
+	&p1_sys_clk_dewarpc,
+	&p1_sys_clk_dewarpb,
+	&p1_sys_clk_dewarpa,
 	&p1_sys_clk_ampipe_nand,
 	&p1_sys_clk_ampipe_eth,
 	&p1_sys_clk_am2axi0,
 	&p1_sys_clk_am2axi1,
 	&p1_sys_clk_am2axi2,
-	&p1_sys_clk_sdemmcb,
+	&p1_sys_clk_sdemmca,
 	&p1_sys_clk_sdemmcc,
-	&p1_sys_clk_smartcard,
-	&p1_sys_clk_acodec,
 	&p1_sys_clk_spifc,
 	&p1_sys_clk_msr_clk,
-	&p1_sys_clk_ir_ctrl,
 	&p1_sys_clk_audio,
-	&p1_sys_clk_tvfe,
 	&p1_sys_clk_eth,
 	&p1_sys_clk_uart_a,
 	&p1_sys_clk_uart_b,
 	&p1_sys_clk_uart_c,
 	&p1_sys_clk_uart_d,
-	&p1_sys_clk_nna,
-	&p1_sys_clk_ciplus,
+	&p1_sys_clk_uart_e,
+	&p1_sys_clk_uart_f,
 	&p1_sys_clk_aififo,
 	&p1_sys_clk_spicc2,
+	&p1_sys_clk_spicc3,
+	&p1_sys_clk_spicc4,
+	&p1_sys_clk_ts_a76,
+	&p1_sys_clk_ts_a55,
+	&p1_sys_clk_spicc5,
+	&p1_sys_clk_ts_ddr_0,
+	&p1_sys_clk_ts_ddr_1,
 	&p1_sys_clk_g2d,
 	&p1_sys_clk_spicc0,
 	&p1_sys_clk_spicc1,
 	&p1_sys_clk_pcie,
+	&p1_sys_clk_pciephy,
 	&p1_sys_clk_usb,
-	&p1_sys_clk_pcie_phy,
-	&p1_sys_clk_i2c_ao_a,
-	&p1_sys_clk_i2c_ao_b,
+	&p1_sys_clk_pcie_phy0,
+	&p1_sys_clk_pcie_phy1,
+	&p1_sys_clk_pcie_phy2,
 	&p1_sys_clk_i2c_m_a,
 	&p1_sys_clk_i2c_m_b,
 	&p1_sys_clk_i2c_m_c,
 	&p1_sys_clk_i2c_m_d,
 	&p1_sys_clk_i2c_m_e,
+	&p1_sys_clk_i2c_m_f,
+	&p1_sys_clk_i2c_m_g,
+	&p1_sys_clk_i2c_m_h,
+	&p1_sys_clk_i2c_m_i,
+	&p1_sys_clk_i2c_m_j,
 	&p1_sys_clk_i2c_s_a,
-	&p1_sys_clk_bt656_pclk,
-	&p1_sys_clk_hdmi20_aceclk,
-	&p1_sys_clk_hdmirx_pclk,
+	&p1_sys_clk_i2c_m_k,
 	&p1_sys_clk_mmc_pclk,
+	&p1_sys_clk_isp_pclk,
 	&p1_sys_clk_rsa,
 	&p1_sys_clk_pclk_sys_cpu_apb,
 	&p1_sys_clk_dspa,
-	&p1_sys_clk_atv_dmd,
-	&p1_sys_clk_adec_top,
-	&p1_sys_clk_vpu_intr,
-	&p1_sys_clk_frc_intr,
+	&p1_sys_clk_dspb,
 	&p1_sys_clk_sar_adc,
 	&p1_sys_clk_gic,
-	&p1_sys_clk_ts_cpu,
 	&p1_sys_clk_ts_nna,
-	&p1_sys_clk_ts_vpu,
 	&p1_sys_clk_pwm_ab,
 	&p1_sys_clk_pwm_cd,
 	&p1_sys_clk_pwm_ef,
 	&p1_sys_clk_pwm_gh,
 	&p1_sys_clk_pwm_ij,
-	&p1_sys_clk_tcon,
+	&p1_sys_clk_depa,
+	&p1_sys_clk_depb,
+	&p1_sys_clk_mopa,
+	&p1_sys_clk_mopb,
+	&p1_sys_clk_vfe,
+	&p1_sys_clk_i2c_s_b,
+	&p1_sys_clk_i2c_s_c,
+	&p1_sys_clk_i2c_s_d,
+	&p1_sys_clk_i2c_s_e,
+	&p1_sys_clk_i2c_s_f,
+	&p1_sys_clk_i2c_s_g,
+	&p1_sys_clk_i2c_s_h,
+	&p1_sys_clk_i2c_s_i,
+	&p1_sys_clk_i2c_s_j,
+	&p1_sys_clk_i2c_s_k,
 	/*plls*/
 	&p1_sys_pll_dco,
 	&p1_sys_pll,
