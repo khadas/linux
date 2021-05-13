@@ -24,7 +24,7 @@
 #include <linux/kasan.h>
 #include <linux/seq_file.h>
 
-static void dump_mem_layout(char *buf)
+void dump_mem_layout(char *buf)
 {
 #define MLK(b, t) b, t, ((t) - (b)) >> 10
 #define MLM(b, t) b, t, ((t) - (b)) >> 20
