@@ -101,3 +101,11 @@ ao_sysctrl: sys-ctrl@0 {
 		#power-domain-cells = <1>;
 		status = "okay";
 	};
+
+	pwrdm: power-domains {
+		compatible = "amlogic,p1-power-domain";
+		#power-domain-cells = <1>;
+		status = "okay";
+	};
+
+

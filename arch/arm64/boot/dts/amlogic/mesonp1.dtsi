@@ -6,7 +6,7 @@
 #include <dt-bindings/clock/p1-clkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/power/t7-pd.h>
+#include <dt-bindings/power/p1-pd.h>
 #include <dt-bindings/clock/amlogic,t7-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-p1-gpio.h>
@@ -347,9 +347,9 @@
 	};
 
 	pwrdm: power-domains {
-		compatible = "amlogic,t7-power-domain";
+		compatible = "amlogic,p1-power-domain";
 		#power-domain-cells = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	nna_top_ports_wrapper_0: nna_top_ports_wrapper@fe372000 {
@@ -370,9 +370,9 @@
 		interrupt-names = "nna_interrupt";
 		interrupts = <0 187 1>;
 		minor-number = <0>;
-		power-domains = <&pwrdm PDID_T7_NNA_CORE0>,
-		      <&pwrdm PDID_T7_NNA_TOP>;
-		power-domain-names = "pwrc-core","pwrc-top";
+		//power-domains = <&pwrdm PDID_T7_NNA_CORE0>,
+		//      <&pwrdm PDID_T7_NNA_TOP>;
+		//power-domain-names = "pwrc-core","pwrc-top";
 		reg = <0x0 0xfe372000 0x0 0x1000>;
 		reg-names = "nna_irq_wrapper";
 	};
@@ -395,9 +395,9 @@
 		interrupt-names = "nna_interrupt";
 		interrupts = <0 188 1>;
 		minor-number = <1>;
-		power-domains = <&pwrdm PDID_T7_NNA_CORE1>,
-		      <&pwrdm PDID_T7_NNA_TOP>;
-		power-domain-names = "pwrc-core","pwrc-top";
+		//power-domains = <&pwrdm PDID_T7_NNA_CORE1>,
+		//      <&pwrdm PDID_T7_NNA_TOP>;
+		//power-domain-names = "pwrc-core","pwrc-top";
 		reg = <0x0 0xfe373000 0x0 0x1000>;
 		reg-names = "nna_irq_wrapper";
 	};
@@ -420,8 +420,8 @@
 		interrupt-names = "nna_interrupt";
 		interrupts = <0 185 1>;
 		minor-number = <2>;
-		power-domains = <&pwrdm PDID_T7_NNA_CORE2>,
-		      <&pwrdm PDID_T7_NNA_TOP>;
+		//power-domains = <&pwrdm PDID_T7_NNA_CORE2>,
+		//      <&pwrdm PDID_T7_NNA_TOP>;
 		power-domain-names = "pwrc-core","pwrc-top";
 		reg = <0x0 0xfe370000 0x0 0x1000>;
 		reg-names = "nna_irq_wrapper";
@@ -445,9 +445,9 @@
 		interrupt-names = "nna_interrupt";
 		interrupts = <0 186 1>;
 		minor-number = <3>;
-		power-domains = <&pwrdm PDID_T7_NNA_CORE3>,
-		      <&pwrdm PDID_T7_NNA_TOP>;
-		power-domain-names = "pwrc-core","pwrc-top";
+		//power-domains = <&pwrdm PDID_T7_NNA_CORE3>,
+		//      <&pwrdm PDID_T7_NNA_TOP>;
+		//power-domain-names = "pwrc-core","pwrc-top";
 		reg = <0x0 0xfe371000 0x0 0x1000>;
 		reg-names = "nna_irq_wrapper";
 	};
@@ -482,8 +482,8 @@
 		boot_sram_size = <0x80000>;
 		//dspsrambase = <0xf7100000>;
 		//dspsramsize = <0x100000>;
-		power-domains = <&pwrdm PDID_T7_DSPA>,
-						<&pwrdm PDID_T7_DSPB>;
+		power-domains = <&pwrdm PDID_P1_DSPA>,
+						<&pwrdm PDID_P1_DSPB>;
 		power-domain-names = "dspa", "dspb";
 		status = "disabled";
 	};
@@ -693,7 +693,7 @@
 				//clock-names = "core", "async";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				power-domains = <&pwrdm PDID_T7_SPICC0>;
+				//power-domains = <&pwrdm PDID_T7_SPICC0>;
 				status = "disabled";
 			};
 
@@ -706,7 +706,7 @@
 				//clock-names = "core", "async";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				power-domains = <&pwrdm PDID_T7_SPICC1>;
+				//power-domains = <&pwrdm PDID_T7_SPICC1>;
 				status = "disabled";
 			};
 
@@ -719,7 +719,7 @@
 				//clock-names = "core", "async";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				power-domains = <&pwrdm PDID_T7_SPICC2>;
+				//power-domains = <&pwrdm PDID_T7_SPICC2>;
 				status = "disabled";
 			};
 
@@ -732,7 +732,7 @@
 				//clock-names = "core", "async";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				power-domains = <&pwrdm PDID_T7_SPICC3>;
+				//power-domains = <&pwrdm PDID_T7_SPICC3>;
 				status = "disabled";
 			};
 
@@ -745,7 +745,7 @@
 				//clock-names = "core", "async";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				power-domains = <&pwrdm PDID_T7_SPICC4>;
+				//power-domains = <&pwrdm PDID_T7_SPICC4>;
 				status = "disabled";
 			};
 
@@ -758,7 +758,7 @@
 				//clock-names = "core", "async";
 				#address-cells = <1>;
 				#size-cells = <0>;
-				power-domains = <&pwrdm PDID_T7_SPICC5>;
+				//power-domains = <&pwrdm PDID_T7_SPICC5>;
 				status = "disabled";
 			};
 
@@ -1186,8 +1186,8 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xFE330000 0x0 0x3000>;
+			//power-domains = <&pwrdm PDID_T7_AUDIO>;
 
-			power-domains = <&pwrdm PDID_T7_AUDIO>;
 			status = "disabled";
 
 			clkaudio: audio_clocks {
@@ -1344,7 +1344,7 @@
 			pcie-phy-rst-bit = <13>;
 			pcie-ctrl-a-rst-bit = <12>;
 			pwr-ctl = <0>;
-			power-domains = <&pwrdm PDID_T7_PCIE>;
+			//power-domains = <&pwrdm PDID_T7_PCIE>;
 			pcie-ctrl-sleep-shift = <15>;
 			pcie-hhi-mem-pd-shift = <26>;
 			pcie-hhi-mem-pd-mask = <0xf>;
@@ -1425,7 +1425,7 @@
 			      <0x0 0xfe024000 0x0 0x8>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			power-domains = <&pwrdm PDID_T7_ETH>;
+			//power-domains = <&pwrdm PDID_T7_ETH>;
 			//clocks = <&clkc CLKID_ETH>,
 			//	 <&clkc CLKID_FCLK_DIV2>,
 			//	 <&clkc CLKID_MPLL2>;
@@ -1597,14 +1597,14 @@
 			"mailbox_1",
 			"mailbox_2",
 			"parser_b";
-		power-domains = <&pwrdm PDID_T7_DOS_VDEC>,
-			<&pwrdm PDID_T7_DOS_HCODEC>,
-			<&pwrdm PDID_T7_DOS_HEVC>,
-			<&pwrdm PDID_T7_DOS_WAVE>;
-		power-domain-names = "pwrc-vdec",
-			"pwrc-hcodec",
-			"pwrc-hevc",
-			"pwrc-wave";
+		//power-domains = <&pwrdm PDID_T7_DOS_VDEC>,
+		//	<&pwrdm PDID_T7_DOS_HCODEC>,
+		//	<&pwrdm PDID_T7_DOS_HEVC>,
+		//	<&pwrdm PDID_T7_DOS_WAVE>;
+		//power-domain-names = "pwrc-vdec",
+		//	"pwrc-hcodec",
+		//	"pwrc-hevc",
+		//	"pwrc-wave";
 	};
 	cpu_ver_name {
 		compatible = "amlogic, cpu-major-id-t7";
@@ -1641,7 +1641,7 @@
 		compatible = "amlogic, amhdmitx-t7";
 		dev_name = "amhdmitx";
 		status = "disabled";
-		power-domains = <&pwrdm PDID_T7_VI_CLK2>;
+		//power-domains = <&pwrdm PDID_T7_VI_CLK2>;
 		vend-data = <&vend_data>;
 		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
 		pinctrl-0=<&hdmitx_hpd>;
@@ -1794,7 +1794,7 @@
 		clock-names = "hcodec_p0";
 		*/
 
-		power-domains = <&pwrdm PDID_T7_DOS_HCODEC>;
+		//power-domains = <&pwrdm PDID_T7_DOS_HCODEC>;
 		interrupts = <0 91 1 0 92 1 0 93 1>;
 		interrupt-names = "dos_mbox_slow_irq0", "dos_mbox_slow_irq1", "dos_mbox_slow_irq2";
 		//reset-names = "jpegenc_rst";
@@ -1821,7 +1821,7 @@
 		#address-cells=<2>;
 		#size-cells=<2>;
 		pwr-ctl = <0>;
-		power-domains = <&pwrdm PDID_T7_DOS_WAVE>;
+		//power-domains = <&pwrdm PDID_T7_DOS_WAVE>;
 		ranges;
 		io_reg_base {
 			reg = <0x0 0xfe310000 0x0 0x10000>;
@@ -1974,7 +1974,7 @@
 		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
 		//clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
-		power-domains = <&pwrdm PDID_T7_MALI_TOP>;
+		//power-domains = <&pwrdm PDID_T7_MALI_TOP>;
 		#thermal-sensor-cells = <1>;
 	};
 
@@ -1989,7 +1989,7 @@
 		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 		//clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
-		power-domains = <&pwrdm PDID_T7_NNA_TOP>;
+		//power-domains = <&pwrdm PDID_T7_NNA_TOP>;
 		#thermal-sensor-cells = <1>;
 	};
 
@@ -2004,7 +2004,7 @@
 		interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 		//clocks = <&clkc CLKID_TS_CLK_GATE>;
 		clock-names = "ts_comp";
-		power-domains = <&pwrdm PDID_T7_DOS_HEVC>;
+		//power-domains = <&pwrdm PDID_T7_DOS_HEVC>;
 		#thermal-sensor-cells = <1>;
 	};
 
@@ -2350,7 +2350,7 @@
 		//	"clk_ge2d",
 		//	"clk_ge2d_gate";
 		reg = <0x0 0xff040000 0x0 0x100>;
-		power-domains = <&pwrdm PDID_T7_GE2D>;
+//		power-domains = <&pwrdm PDID_T7_GE2D>;
 	};
 
 	aml_bt: aml_bt {
@@ -2394,7 +2394,7 @@
 		//	<&clkc CLKID_GDC_CLK>;
 		//clock-names = "mux_gate", "mux_sel", "clk_gate";
 		clk-rate = <800000000>;
-		power-domains = <&pwrdm PDID_T7_GDC>;
+//		power-domains = <&pwrdm PDID_T7_GDC>;
 	};
 
 	amlgdc {
@@ -2410,7 +2410,7 @@
 		//	<&clkc CLKID_DEWARP_CLK>;
 		//clock-names = "mux_gate", "mux_sel", "clk_gate";
 		clk-rate = <800000000>;
-		power-domains = <&pwrdm PDID_T7_DEWARP>;
+//		power-domains = <&pwrdm PDID_T7_DEWARP>;
 	};
 
 	mhu_fifo: mhu@0 {
@@ -3368,7 +3368,7 @@
 
 	interrupts = <0 144 4>, <0 145 4>, <0 146 4>;
 	interrupt-names = "GPU", "MMU", "JOB";
-	power-domains = <&pwrdm PDID_T7_MALI_TOP>;
+//	power-domains = <&pwrdm PDID_T7_MALI_TOP>;
 	num_of_pp = <4>;
 	system-coherency = <0>;
 	//clocks = <&clkc CLKID_MALI_MUX>;
