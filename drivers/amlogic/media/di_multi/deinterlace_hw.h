@@ -347,7 +347,7 @@ struct DI_SIM_MIF_s {
 	unsigned int	buf_hsize;
 	ulong		addr; //for t7
 	ulong		addr1;
-	ulong		addr2;
+	ulong		addr2;	// addr2 or hf buffer v_size;
 	enum DI_MIFS_ID	mif_index; /* */
 };
 
@@ -769,7 +769,9 @@ struct dim_hw_opsv_s {
 				       struct DI_MC_MIF_s *mcinfowr_mif,
 				       struct DI_MC_MIF_s *mcvecwr_mif,
 				       unsigned char mcdi_en);
-
+	/* from t3:*/
+	bool (*aisr_pre)(struct DI_SIM_MIF_s *mif, bool sel);
+	void (*aisr_disable)(void);
 	void (*wrmif_trig)(enum EDI_MIFSM mifsel);
 	void (*wr_rst_protect)(bool on);
 	void (*hw_init)(void);
@@ -892,5 +894,6 @@ void di_mcmif_linear_rd_cfg(struct DI_MC_MIF_s *mif,
 bool dip_is_linear(void);
 bool dim_dbg_cfg_post_byapss(void);
 void dbg_reg_mem(unsigned int dbgid);
+bool dim_aisr_test(struct DI_SIM_MIF_s *mif, bool sel);//test only
 
 #endif

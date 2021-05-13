@@ -106,6 +106,7 @@
 #define VFRAME_FLAG_DI_PW_VFM			0x100000
 #define VFRAME_FLAG_DI_PW_N_LOCAL		0x200000
 #define VFRAME_FLAG_DI_PW_N_EXT			0x400000
+#define VFRAME_FLAG_HF				0x800000 /*HF*/
 
 enum pixel_aspect_ratio_e {
 	PIXEL_ASPECT_RATIO_1_1,
@@ -416,6 +417,15 @@ struct dcntr_mem_s {
 	bool cds_canvas_mode;
 };
 
+struct hf_info_t {
+	u32 index;
+	ulong phy_addr;
+	u32 width;
+	u32 height;
+	u32 buffer_w;
+	u32 buffer_h;
+};
+
 struct vframe_s {
 	u32 index;
 	u32 index_disp;
@@ -492,6 +502,7 @@ struct vframe_s {
 			   unsigned int zoom_end_x_lines,
 			   unsigned int zoom_start_y_lines,
 			   unsigned int zoom_end_y_lines, struct vframe_s *vf);
+	struct hf_info_t *hf_info;	/* hg data*/
 	void *private_data;
 	/* vframe properties */
 	struct vframe_prop_s prop;

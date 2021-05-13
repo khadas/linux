@@ -217,6 +217,7 @@ bool dpst_step_wait_int(void)
 			ppost = get_post_stru(ch);
 			PR_WARN("ch[%d]:post timeout[%d]\n", ch,
 				ppost->cur_post_buf->seq_post);
+			hpst_timeout_read();
 			dim_ddbg_mod_save(EDI_DBG_MOD_POST_TIMEOUT, ch, 0);
 			/*state*/
 			pst->state = EDI_PST_ST_TIMEOUT;

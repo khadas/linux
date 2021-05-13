@@ -111,6 +111,14 @@ static void trace_post(unsigned int index, unsigned long ctime)
 	trace_dim_post("POST-IRQ-1", index, ctime);
 }
 
+static void trace_irq_aisr(void)
+{
+	u64 ustime;
+
+	ustime = cur_to_usecs();
+	trace_dim_irq_aisr("PRE-AISR-1", 0, ustime);
+}
+
 #define DI_TRACE_LIMIT		50
 static void trace_pre_get(unsigned int index)
 {
@@ -264,6 +272,7 @@ const struct dim_tr_ops_s dim_tr_ops = {
 	.sct_alloc = trace_msct,
 	.sct_tail  = trace_msct_tail,
 	.self_trig = trace_slef_trig,
+	.irq_aisr = trace_irq_aisr,
 };
 
 void dbg_timer(unsigned int ch, enum EDBG_TIMER item)
@@ -545,6 +554,20 @@ static ssize_t ddbg_log_reg_store(struct file *file, const char __user *userbuf,
 }
 
 /**********************/
+
+static int seq_hf_info(struct seq_file *seq, void *v, struct hf_info_t *hf)
+{
+	if (!hf) {
+		//seq_printf(seq, "no hf\n");
+		return 0;
+	}
+	seq_printf(seq, "hf_info:0x%px, 0x%x\n", hf, hf->index);
+	seq_printf(seq, "\t<%d,%d>\n", hf->width, hf->height);
+	seq_printf(seq, "\t<%d,%d>\n", hf->buffer_w, hf->buffer_h);
+	seq_printf(seq, "\taddr:0x%lx\n", hf->phy_addr);
+	return 0;
+}
+
 static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 {
 	int i;
@@ -577,6 +600,16 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	seq_printf(seq, "%-15s:0x%x\n", "flag", pvfm->flag);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DOUBLE_FRAM",
 		   pvfm->flag & VFRAME_FLAG_DOUBLE_FRAM);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_P_ONLY",
+		   pvfm->flag & VFRAME_FLAG_DI_P_ONLY);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_VFM",
+		   pvfm->flag & VFRAME_FLAG_DI_PW_VFM);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_N_LOCAL",
+		   pvfm->flag & VFRAME_FLAG_DI_PW_N_LOCAL);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_N_EXT",
+		   pvfm->flag & VFRAME_FLAG_DI_PW_N_EXT);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_HF",
+		   pvfm->flag & VFRAME_FLAG_HF);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);
 	seq_printf(seq, "%-15s:0x%lx\n", "compHeadAddr", pvfm->compHeadAddr);
@@ -589,8 +622,8 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	seq_printf(seq, "%-15s:%d\n", "compWidth", pvfm->compWidth);
 	seq_printf(seq, "%-15s:%d\n", "compHeight", pvfm->compHeight);
 	seq_printf(seq, "%-15s:%d\n", "ratio_control", pvfm->ratio_control);
-	seq_printf(seq, "%-15s:%d\n", "bitdepth", pvfm->bitdepth);
-	seq_printf(seq, "%-15s:%d\n", "signal_type", pvfm->signal_type);
+	seq_printf(seq, "%-15s:0x%x\n", "bitdepth", pvfm->bitdepth);
+	seq_printf(seq, "%-15s:0x%x\n", "signal_type", pvfm->signal_type);
 
 	/*
 	 *	   bit 29: present_flag
@@ -670,6 +703,8 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 		seq_printf(seq, "\t%-15s:0x%x\n", "endian",
 			   pcvs->endian);
 	}
+
+	seq_hf_info(seq, v, pvfm->hf_info);
 
 	if (pvfm->vf_ext)
 		seq_printf(seq, "%-15s\n", "vf_ext");
@@ -2052,6 +2087,38 @@ static int policy_show(struct seq_file *s, void *what)
 	return 0;
 }
 
+static int hf_en_show(struct seq_file *s, void *what)
+{
+	int ch;
+
+	struct di_ch_s *pch;
+
+	/*ch*/
+	seq_puts(s, "ch:\n");
+	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
+		pch = get_chdata(ch);
+		seq_printf(s, "ch[%d];ext:%d\n",
+			   ch, dip_itf_is_ins_exbuf(pch));
+		seq_printf(s, "\ten_hf_buf:%d,en_hf:%d\n",
+			   pch->en_hf_buf,
+			   pch->en_hf);
+	}
+	/*top*/
+	if (get_datal() && get_datal()->mdata)
+		seq_printf(s, "ic:%s;cfg:\n",
+		get_datal()->mdata->name);
+	seq_printf(s, "\tcfg:\t%d\n",
+		   cfgg(HF));
+	seq_printf(s, "\tbusy:\t%d\n",
+		   get_datal()->hf_busy);
+	seq_printf(s, "\tcnt:\t%d\n",
+		   get_datal()->hf_src_cnt);
+	seq_printf(s, "\thf_owner:\t%d\n",
+		   get_datal()->hf_owner);
+
+	return 0;
+}
+
 /**********************/
 static int dbg_afd0_reg_show(struct seq_file *s, void *v)
 {
@@ -2246,6 +2313,8 @@ static int dbg_mif_print_show(struct seq_file *s, void *v)
 /**********************/
 DEFINE_SEQ_SHOW_ONLY(dim_reg_cue_int);
 DEFINE_SEQ_SHOW_ONLY(policy);
+DEFINE_SEQ_SHOW_ONLY(hf_en);
+
 /**********************/
 DEFINE_SEQ_SHOW_ONLY(rcfgx);
 DEFINE_SEQ_SHOW_ONLY(seq_file_vframe_in);
@@ -2378,6 +2447,7 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"cfg_one", S_IFREG | 0644, &cfgt_one_fops},
 	{"cfg_sel", S_IFREG | 0644, &cfgt_sel_fops},
 	{"policy", S_IFREG | 0644, &policy_fops},
+	{"hf_cfg", S_IFREG | 0644, &hf_en_fops},
 	{"afbc_cfg", S_IFREG | 0644, &dbg_afbc_cfg_v3_fops},
 	{"reg_afd0", S_IFREG | 0644, &dbg_afd0_reg_fops},
 	{"reg_afd1", S_IFREG | 0644, &dbg_afd1_reg_fops},

@@ -1265,6 +1265,7 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 
 		buf_p->nr_size = mm->cfg.nr_size;
 		buf_p->tab_size = mm->cfg.afbct_size;
+		buf_p->hf_adr	= 0;
 
 		//
 		for (i = 0; i < 3; i++)
@@ -1310,11 +1311,21 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 			buf_p->afbc_adr	= buf_p->adr_start;
 			buf_p->blk_buf->pat_buf	= NULL;
 		}
+
+		if (mm->cfg.size_buf_hf) {
+			buf_p->hf_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size;
+			di_hf_set_buffer(buf_p, mm);
+		} else {
+			buf_p->hf_adr = 0;
+		}
+
 		dbg_mem2("%s:pst:flg_afbct[%d], addr[0x%lx]\n",
 			__func__,
 			mm->cfg.dat_pafbct_flg.d32, addr_afbct);
 
-		buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size;
+		//buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size;
+		buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size +
+				mm->cfg.size_buf_hf;
 		buf_p->nr_adr = buf_p->dw_adr + mm->cfg.dw_size;
 		buf_p->tab_size = mm->cfg.pst_afbct_size;
 		buf_p->nr_size = mm->cfg.pst_buf_size;
@@ -1346,12 +1357,13 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		buf_p->insert_adr	= 0;
 	}
 
-	dbg_mem2("%s:%px,btype[%d]:index[%d]:i[%d]:nr[0x%lx]\n", __func__,
+	dbg_mem2("%s:%px,btype[%d]:index[%d]:i[%d]:nr[0x%lx]:hf:[0x%lx]\n", __func__,
 		 buf_p,
 		 buf_p->type,
 		 buf_p->index,
 		 buf_p->buf_is_i,
-		 buf_p->nr_adr);
+		 buf_p->nr_adr,
+		 buf_p->hf_adr);
 	dbg_mem2("\t:i_ad[0x%lx]:t_add[0x%lx]:dw[0x%lx]:crc:0x%x\n",
 		 buf_p->afbc_adr,
 		 buf_p->afbct_adr,
@@ -2187,7 +2199,7 @@ unsigned int mem_release_keep_back(struct di_ch_s *pch)
 			PR_ERR("%s:no ndis blk?:%d\n", __func__, i);
 			continue;
 		}
-		PR_INF("%s:keep back out %d\n", __func__, ndis->header.index);
+		dbg_keep("%s:keep back out %d\n", __func__, ndis->header.index);
 
 		mem_release_one_inused(pch, ndis->c.blk);
 		ndis_move_keep2idle(pch, ndis);
@@ -3679,6 +3691,14 @@ static int dim_probe(struct platform_device *pdev)
 	di_devp->post_irq = irq_of_parse_and_map(pdev->dev.of_node, 1);
 	PR_INF("post_irq:%d\n",	di_devp->post_irq);
 
+	di_devp->aisr_irq = -ENXIO;
+
+	di_devp->aisr_irq = platform_get_irq_byname(pdev, "aisr_irq");
+	if (di_devp->aisr_irq  == -ENXIO)
+		PR_INF("cannot get aisr_irq\n");
+	else
+		PR_INF("aisr_irq:%d\n", di_devp->aisr_irq);
+
 	di_pr_info("%s allocate rdma channel %d.\n", __func__,
 		   di_devp->rdma_handle);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
@@ -3743,6 +3763,13 @@ static int dim_probe(struct platform_device *pdev)
 				       (void *)"post_di");
 	}
 
+	if (di_devp->aisr_irq != -ENXIO) {
+		ret = devm_request_irq(&pdev->dev, di_devp->aisr_irq,
+				       &dim_aisr_irq,
+				       IRQF_SHARED, "aisr_pre",
+				       (void *)"aisr_pre");
+		PR_INF("aisr _irq ok\n");
+	}
 	di_devp->sema_flg = 1;	/*di_sema_init_flag = 1;*/
 	dimh_hw_init(dimp_get(edi_mp_pulldown_enable),
 		     dimp_get(edi_mp_mcpre_en));

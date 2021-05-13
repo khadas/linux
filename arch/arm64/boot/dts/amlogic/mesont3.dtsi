@@ -1527,8 +1527,9 @@
 		//memory-region = <&di_reserved>;
 		memory-region = <&di_cma_reserved>;
 		interrupts = <0 203 1
-				0 202 1>;
-		interrupt-names = "pre_irq", "post_irq";
+				0 202 1
+				0 81 1>;
+		interrupt-names = "pre_irq", "post_irq", "aisr_irq";
 		clocks = <&clkc CLKID_VPU_CLKB>,
 			<&clkc CLKID_VPU>;
 		clock-names = "vpu_clkb",
@@ -1558,6 +1559,7 @@
 		 * bypass_mem---0:nr not bypass; 1: nr bypass; 2: when 4k input ,nr is bypass;
 		 *              3: bypass nr for 4k,but not from vdin;
 		 * alloc_sct---0:not support; bit 0: for 4k; bit 1: for 1080p
+		 * hf---0:not enable; 1: enable
 		 ***************************************************/
 	};
 

@@ -225,6 +225,7 @@ struct di_buf_s {
 	unsigned long afbct_adr;
 	unsigned long dw_adr;
 	unsigned long insert_adr;
+	unsigned long hf_adr;
 	struct mcinfo_pre_s {
 		unsigned int highvertfrqflg;
 		unsigned int motionparadoxflg;
@@ -274,6 +275,7 @@ struct di_buf_s {
 	unsigned char afbc_sgn_cfg;
 	struct di_win_s win; /*post write*/
 	struct di_buf_s *di_buf_post; /*07-27 */
+	struct hf_info_t hf;	/* struct hf_info_t */
 	unsigned long jiff; // for wait
 	struct dim_rpt_s pq_rpt;
 	enum EDI_SGN	sgn_lv;
@@ -292,11 +294,14 @@ struct di_buf_s {
 	unsigned int afbce_out_yuv420_10	: 1; /* 2020-11-26*/
 	unsigned int is_nbypass	: 1; /*2020-12-07*/
 	unsigned int is_bypass_pst : 1; /*2021-01-07*/
-	unsigned int rev1	: 4;
+	unsigned int en_hf	: 1; //only flg post buffer
+	unsigned int hf_done	: 1; //
+	unsigned int rev1	: 2;
 
 	unsigned int rev2	: 16;
 	struct dsub_bufv_s	c;
 	unsigned int datacrc;
+	bool hf_irq;
 };
 
 #define RDMA_DET3D_IRQ			0x20
@@ -387,6 +392,7 @@ struct di_dev_s {
 	unsigned char	   di_event;
 	unsigned int	   pre_irq;
 	unsigned int	   post_irq;
+	unsigned int	aisr_irq;
 	unsigned int	   flags;
 	unsigned long	   jiffy;
 	bool	mem_flg;	/*ary add for make sure mem is ok*/
@@ -431,6 +437,7 @@ struct di_pre_stru_s {
 	struct DI_SIM_MIF_s	di_contp2rd_mif;
 	struct DI_SIM_MIF_s	di_contprd_mif;
 	struct DI_SIM_MIF_s	di_contwr_mif;
+	struct DI_SIM_MIF_s	hf_mif;
 	int		field_count_for_cont;
 /*
  * 0 (f0,null,f0)->nr0,
@@ -535,6 +542,7 @@ struct di_post_stru_s {
 	struct DI_MIF_S	di_buf1_mif;
 	struct DI_MIF_S	di_buf2_mif;
 	struct DI_SIM_MIF_s di_diwr_mif;
+	struct DI_SIM_MIF_s hf_mif;
 	struct DI_SIM_MIF_s	di_mtnprd_mif;
 	struct DI_MC_MIF_s	di_mcvecrd_mif;
 	/*post doing buf and write buf to post ready*/
@@ -646,6 +654,7 @@ void dim_release_canvas(void);
 unsigned int dim_cma_alloc_total(struct di_dev_s *de_devp);
 irqreturn_t dim_irq(int irq, void *dev_instance);
 irqreturn_t dim_post_irq(int irq, void *dev_instance);
+irqreturn_t dim_aisr_irq(int irq, void *dev_instance);
 
 void dim_rdma_init(void);
 void dim_rdma_exit(void);
@@ -811,6 +820,8 @@ bool sc2_dbg_is_en_pst_irq(void);
 void sc2_dbg_pre_info(unsigned int val);
 void sc2_dbg_pst_info(unsigned int val);
 void hpre_timeout_read(void);
+void hpst_timeout_read(void);
+
 #define TEST_4K_NR	(1)
 //#define DBG_TEST_CRC	(1)
 //#define DBG_TEST_CRC_P	(1)

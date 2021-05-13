@@ -2433,5 +2433,46 @@
 #define NRDSWR_BADDR                               0x37fd
 #define NRDSWR_STRIDE                              0x37fe
 
+/********************************************************/
+/*from T3*/
+// reg_base = 0x20_xx
+#define NN_LRHF0                                   0x2014
+//Bit 31           reg_lrhf_en
+//Bit 29:26        reg_gclk_ctrl[3:0]
+//Bit 25:16        reg_lrhf_hf_gain_neg
+//Bit 9:0          reg_lrhf_hf_gain_pos
+#define NN_LRHF1                                   0x2015
+//Bit 31:28        reg_gclk_ctrl[7:4]
+//Bit 26:16        reg_lrhf_lpf_coeff01
+//Bit 10:0         reg_lrhf_lpf_coeff00
+#define NN_LRHF2                                   0x2016
+//Bit 31:28        reg_gclk_ctrl[11:8]
+//Bit 26:16        reg_lrhf_lpf_coeff10
+//Bit 10:0         reg_lrhf_lpf_coeff02
+#define NN_LRHF3                                   0x2017
+//Bit 26:16        reg_lrhf_lpf_coeff12
+//Bit 10:0         reg_lrhf_lpf_coeff11
+#define NN_LRHF4                                   0x2018
+//Bit 26:16        reg_lrhf_lpf_coeff21
+//Bit 10:0         reg_lrhf_lpf_coeff20
+#define NN_LRHF5                                   0x2019
+//Bit 31:24        reg_hblank_num
+//Bit 23:16        reg_vblank_num
+//Bit 10:0         eg_lrhf_lpf_coeff22
+#define NN_LRHF6                                   0x201a
+//Bit 31:24        reg_lrhf_pad_val
+//Bit 22:12        reg_lrhf_pad_cols
+//Bit 11           reg_dummy_en
+//Bit 10:0         reg_lrhf_pad_rows
+#define AISR_PRE_WRMIF_BADDR                       0x2020
+//`define AISR_PRE_WMIF_CTRL1    AISR_PRE_WRMIF_BADDR+8'h00;  8'h20
+#define AISR_PRE_WMIF_CTRL2                        0x2021
+#define AISR_PRE_WMIF_CTRL3                        0x2022
+#define AISR_PRE_WMIF_CTRL4                        0x2023
+#define AISR_PRE_WMIF_SCOPE_X                      0x2024
+#define AISR_PRE_WMIF_SCOPE_Y                      0x2025
+#define AISR_PRE_WMIF_RO_STAT                      0x2026
+/********************************************************/
+
 #endif	/*__DI_REG_V3_H__*/
 
