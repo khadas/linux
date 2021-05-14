@@ -421,10 +421,12 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 	}
 
 #ifdef CONFIG_AMLOGIC_LCD_TABLET
-	if (pdrv->config.control.mipi_cfg.dread) {
-		if (pdrv->config.control.mipi_cfg.dread->flag) {
-			lcd_mipi_test_read(pdrv, pdrv->config.control.mipi_cfg.dread);
-			pdrv->config.control.mipi_cfg.dread->flag = 0;
+	if (pdrv->config.basic.lcd_type == LCD_MIPI) {
+		if (pdrv->config.control.mipi_cfg.dread) {
+			if (pdrv->config.control.mipi_cfg.dread->flag) {
+				lcd_mipi_test_read(pdrv, pdrv->config.control.mipi_cfg.dread);
+				pdrv->config.control.mipi_cfg.dread->flag = 0;
+			}
 		}
 	}
 #endif
