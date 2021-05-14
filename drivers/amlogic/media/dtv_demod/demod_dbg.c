@@ -750,7 +750,7 @@ static ssize_t attr_store(struct class *cls,
 
 	if (!strcmp(parm[0], "symb_rate")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val) == 0))
-			demod->symbol_rate = val;
+			demod->symbol_rate_manu = val;
 	} else if (!strcmp(parm[0], "symb_rate_en")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val) == 0))
 			demod->symb_rate_en = val;
@@ -858,6 +858,9 @@ static ssize_t attr_store(struct class *cls,
 	} else if (!strcmp(parm[0], "timeout_dvbs")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
 			demod->timeout_dvbs_ms = val;
+	} else if (!strcmp(parm[0], "timeout_dvbc")) {
+		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
+			demod->timeout_dvbc_ms = val;
 	} else if (!strcmp(parm[0], "dump_reg")) {
 		dump_regs(demod);
 	} else if (!strcmp(parm[0], "get_plp")) {
