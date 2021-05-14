@@ -234,12 +234,22 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 		vd_path_id = VFM_PATH_INVALID;
 	}
 
+	vd_layer_vpp[vpp_id].force_switch_mode = force_switch_vf_mode;
+
 	if (gvideo_recv_vpp[recv_id] &&
 	    vd_layer_vpp[vpp_id].dispbuf_mapping == &gvideo_recv_vpp[recv_id]->cur_buf &&
 	    (gvideo_recv_vpp[recv_id]->cur_buf == &gvideo_recv_vpp[recv_id]->local_buf ||
 	     !gvideo_recv_vpp[recv_id]->cur_buf) &&
 	    vd_layer_vpp[vpp_id].dispbuf != gvideo_recv_vpp[recv_id]->cur_buf)
 		vd_layer_vpp[vpp_id].dispbuf = gvideo_recv_vpp[recv_id]->cur_buf;
+
+	if (vd_layer_vpp[vpp_id].switch_vf &&
+	    vd_layer_vpp[vpp_id].dispbuf &&
+	    vd_layer_vpp[vpp_id].dispbuf->vf_ext)
+		vd_layer_vpp[vpp_id].vf_ext =
+			(struct vframe_s *)vd_layer_vpp[vpp_id].dispbuf->vf_ext;
+	else
+		vd_layer_vpp[vpp_id].vf_ext = NULL;
 
 	/* vd2/3 config */
 	if (gvideo_recv_vpp[recv_id] &&
@@ -272,11 +282,14 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 		if (cur_blackout) {
 			vd_layer_vpp[vpp_id].property_changed = false;
 		} else if (vd_layer_vpp[vpp_id].dispbuf) {
-			vd_layer_vpp[vpp_id].dispbuf->canvas0Addr =
-				get_layer_display_canvas(layer_id);
+			if (vd_layer_vpp[vpp_id].switch_vf && vd_layer_vpp[vpp_id].vf_ext)
+				vd_layer_vpp[vpp_id].vf_ext->canvas0Addr =
+					get_layer_display_canvas(layer_id);
+			else
+				vd_layer_vpp[vpp_id].dispbuf->canvas0Addr =
+					get_layer_display_canvas(layer_id);
 		}
 	}
-
 
 	if (vd_layer_vpp[vpp_id].dispbuf &&
 	    (vd_layer_vpp[vpp_id].dispbuf->flag & (VFRAME_FLAG_VIDEO_COMPOSER |

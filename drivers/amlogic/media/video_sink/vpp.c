@@ -900,7 +900,7 @@ static int vpp_process_speed_check
 		return SPEED_CHECK_DONE;
 
 	/* store the debug info for legacy */
-	if (layer_id == 0 && (vpp_flags & VPP_FLAG_MORE_LOG))
+	if (layer_id == 0 && (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME))
 		cur_vf_type = vf->type;
 
 	if (force_vskip_cnt == 0xff)/*for debug*/
@@ -912,7 +912,7 @@ static int vpp_process_speed_check
 	if (vinfo->sync_duration_den >  0)
 		sync_duration_den = vinfo->sync_duration_den;
 
-	if (vf->type & VIDTYPE_PRE_INTERLACE) {
+	if (IS_DI_POST(vf->type)) {
 		if (is_meson_txlx_cpu())
 			clk_in_pps = 250000000;
 		else
@@ -929,11 +929,11 @@ static int vpp_process_speed_check
 		max_height =  4320 *  (vpu_clk / 1000000) / 666;
 	}
 
-	if (max_proc_height < max_height)
-		max_height = max_proc_height;
-
-	if (layer_id == 0 && (vpp_flags & VPP_FLAG_MORE_LOG))
+	if (layer_id == 0 && (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME)) {
+		if (max_proc_height < max_height)
+			max_height = max_proc_height;
 		cur_proc_height = max_height;
+	}
 
 	if (width_in > 720)
 		min_ratio_1000 =  min_skip_ratio;
@@ -948,7 +948,7 @@ static int vpp_process_speed_check
 	/*according vlsi suggest,
 	 *if di work need check mif input and vpu process speed
 	 */
-	if (vf->type & VIDTYPE_PRE_INTERLACE) {
+	if (IS_DI_POST(vf->type)) {
 		htotal = vinfo->htotal;
 		clk_vpu = vpu_clk_get();
 		clk_temp = clk_in_pps / 1000000;
@@ -974,7 +974,7 @@ static int vpp_process_speed_check
 
 	if (freq_ratio < 1)
 		freq_ratio = 1;
-	if (layer_id == 0 && (vpp_flags & VPP_FLAG_MORE_LOG))
+	if (layer_id == 0 && (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME))
 		cur_freq_ratio = freq_ratio;
 
 	/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8) */
@@ -1003,7 +1003,7 @@ static int vpp_process_speed_check
 					1000 * freq_ratio,
 					height_out * max_height);
 				/* di process first, need more a bit of ratio */
-				if (vf->type & VIDTYPE_PRE_INTERLACE)
+				if (IS_DI_POST(vf->type))
 					cur_ratio = (cur_ratio * 105) / 100;
 				if (next_frame_par->vscale_skip_count > 0 &&
 				    ((vf->type & VIDTYPE_VIU_444) ||
@@ -1012,7 +1012,7 @@ static int vpp_process_speed_check
 
 				/* store the debug info for legacy */
 				if (layer_id == 0 &&
-				    (vpp_flags & VPP_FLAG_MORE_LOG))
+				    (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME))
 					cur_skip_ratio = cur_ratio;
 
 				if (cur_ratio > min_ratio_1000 &&
@@ -1252,8 +1252,8 @@ static int vpp_set_filters_internal
 	bool ext_sar = false;
 	bool no_compress = false;
 	u32 min_aspect_ratio_out, max_aspect_ratio_out;
-	int is_larger_4k50hz = 0;
 	u32 cur_super_debug = 0;
+	int is_larger_4k50hz = 0;
 	u32 src_width_max, src_height_max;
 	bool afbc_support;
 
@@ -1712,8 +1712,7 @@ RESTART:
 		(next_frame_par->vscale_skip_count + 1);
 	/* DI POST link, need make pps input size is even */
 	if ((next_frame_par->VPP_pic_in_height_ & 1) &&
-	    (vf->type & VIDTYPE_PRE_INTERLACE) &&
-	    !(vf->type & VIDTYPE_DI_PW)) {
+	    IS_DI_POST(vf->type)) {
 		next_frame_par->VPP_pic_in_height_ &= ~1;
 		next_frame_par->VPP_vd_end_lines_ =
 			next_frame_par->VPP_pic_in_height_ *
@@ -1917,6 +1916,7 @@ RESTART:
 
 	if ((vf->type & VIDTYPE_COMPRESS) &&
 	    !(vf->type & VIDTYPE_NO_DW) &&
+	    !IS_DI_POSTWRTIE(vf->type) &&
 	    vf->canvas0Addr != 0 &&
 	    !next_frame_par->nocomp) {
 		if (vd1_vd2_mux)
@@ -1943,10 +1943,17 @@ RESTART:
 		 * buffer when primary frame can not be scaled.
 		 */
 		next_frame_par->nocomp = true;
-		w_in = vf->width;
-		width_in = vf->width;
-		h_in = vf->height;
-		height_in = vf->height;
+		if (input->proc_3d_type & MODE_3D_ENABLE) {
+			w_in = (width_in * vf->width) / vf->compWidth;
+			width_in = w_in;
+			h_in = (height_in * vf->height) / vf->compHeight;
+			height_in = h_in;
+		} else {
+			w_in = vf->width;
+			width_in = vf->width;
+			h_in = vf->height;
+			height_in = vf->height;
+		}
 		next_frame_par->hscale_skip_count = 0;
 		next_frame_par->vscale_skip_count = 0;
 		if (vf->width && vf->compWidth)
@@ -2201,6 +2208,20 @@ RESTART:
 	    (vf->type & VIDTYPE_COMPRESS) &&
 	    (vf->type & VIDTYPE_NO_DW))
 		ret = vppfilter_changed_but_hold;
+
+	if (vf->vf_ext &&
+	    !(vpp_flags & VPP_FLAG_FORCE_NOT_SWITCH_VF)) {
+		if ((next_frame_par->vscale_skip_count > 1 &&
+		     (vf->type & VIDTYPE_COMPRESS) &&
+		     IS_DI_POSTWRTIE(vf->type)) ||
+		    (vpp_flags & VPP_FLAG_FORCE_SWITCH_VF))
+			ret = vppfilter_changed_but_switch;
+		if ((vpp_flags & VPP_FLAG_MORE_LOG) &&
+		    ret == vppfilter_changed_but_switch)
+			pr_debug
+				("layer%d: switch the display to vf_ext %p->%p\n",
+				input->layer_id, vf, vf->vf_ext);
+	}
 	return ret;
 }
 
@@ -2210,7 +2231,6 @@ void aisr_set_filters(u32 ratio_x, u32 ratio_y,
 			struct vframe_s *vf)
 {
 	u32 vpp_flags = 0;
-	s32 start, end;
 	s32 ini_vphase;
 	u32 vert_chroma_filter;
 	u32 layer_id = 0;
@@ -2220,14 +2240,8 @@ void aisr_set_filters(u32 ratio_x, u32 ratio_y,
 	/* vertical */
 	ini_vphase = 0; /* vpp_zoom_center_y & 0xff; */
 
-	start = 0;
-	end = dst_h - 1;
-	aisr_frame_par->VPP_vsc_startp =
-		(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
-		(start >> 1) : start;
-	aisr_frame_par->VPP_vsc_endp =
-		(vpp_flags & VPP_FLAG_INTERLACE_OUT) ?
-		(end >> 1) : end;
+	aisr_frame_par->VPP_vsc_startp = 0;
+	aisr_frame_par->VPP_vsc_endp = dst_h - 1;
 
 	/* set filter co-efficients */
 	filter->vpp_vsc_start_phase_step = ratio_y << 6;
@@ -3566,8 +3580,7 @@ RESTART:
 
 	/* DI POST link, need make pps input size is even */
 	if ((next_frame_par->VPP_pic_in_height_ & 1) &&
-	    (vf->type & VIDTYPE_PRE_INTERLACE) &&
-	    !(vf->type & VIDTYPE_DI_PW)) {
+	    IS_DI_POST(vf->type)) {
 		next_frame_par->VPP_pic_in_height_ &= ~1;
 		next_frame_par->VPP_vd_end_lines_ =
 			next_frame_par->VPP_pic_in_height_ *
@@ -3737,6 +3750,7 @@ RESTART:
 
 	if ((vf->type & VIDTYPE_COMPRESS) &&
 	    !(vf->type & VIDTYPE_NO_DW) &&
+	    !IS_DI_POSTWRTIE(vf->type) &&
 	    vf->canvas0Addr != 0 &&
 	    !next_frame_par->nocomp) {
 		if (vd1_vd2_mux)
@@ -3762,10 +3776,17 @@ RESTART:
 		 * buffer when primary frame can not be scaled.
 		 */
 		next_frame_par->nocomp = true;
-		w_in = vf->width;
-		width_in = vf->width;
-		h_in = vf->height;
-		height_in = vf->height;
+		if (input->proc_3d_type & MODE_3D_ENABLE) {
+			w_in = (width_in * vf->width) / vf->compWidth;
+			width_in = w_in;
+			h_in = (height_in * vf->height) / vf->compHeight;
+			height_in = h_in;
+		} else {
+			w_in = vf->width;
+			width_in = vf->width;
+			h_in = vf->height;
+			height_in = vf->height;
+		}
 		next_frame_par->hscale_skip_count = 0;
 		next_frame_par->vscale_skip_count = 0;
 		if (vf->width && vf->compWidth)
@@ -3812,6 +3833,20 @@ RESTART:
 	    (vf->type & VIDTYPE_COMPRESS) &&
 	    (vf->type & VIDTYPE_NO_DW))
 		ret = vppfilter_changed_but_hold;
+
+	if (vf->vf_ext &&
+	    !(vpp_flags & VPP_FLAG_FORCE_NOT_SWITCH_VF)) {
+		if ((next_frame_par->vscale_skip_count > 1 &&
+		     (vf->type & VIDTYPE_COMPRESS) &&
+		     IS_DI_POSTWRTIE(vf->type)) ||
+		    (vpp_flags & VPP_FLAG_FORCE_SWITCH_VF))
+			ret = vppfilter_changed_but_switch;
+		if ((vpp_flags & VPP_FLAG_MORE_LOG) &&
+		    ret == vppfilter_changed_but_switch)
+			pr_debug
+				("layer%d: switch the display to vf_ext %p->%p\n",
+				input->layer_id, vf, vf->vf_ext);
+	}
 	return ret;
 }
 
@@ -3831,12 +3866,15 @@ int vpp_set_filters(struct disp_info_s *input,
 	struct disp_info_s local_input;
 	bool bypass_sr0 = bypass_sr;
 	bool bypass_sr1 = bypass_sr;
+	bool retry = false;
 
 	if (!input)
 		return ret;
 
 	WARN_ON(!vinfo);
 
+RERTY:
+	vpp_flags = 0;
 	/* use local var to avoid the input data be overwritten */
 	memcpy(&local_input, input, sizeof(struct disp_info_s));
 
@@ -3968,8 +4006,14 @@ int vpp_set_filters(struct disp_info_s *input,
 	if (vinfo->field_height != vinfo->height)
 		vpp_flags |= VPP_FLAG_INTERLACE_OUT;
 
-	if (op_flag & 1)
+	if (op_flag & OP_VPP_MORE_LOG) {
 		vpp_flags |= VPP_FLAG_MORE_LOG;
+		vpp_flags |= VPP_FLAG_FROM_TOGGLE_FRAME;
+	}
+	if (op_flag & OP_FORCE_SWITCH_VF)
+		vpp_flags |= VPP_FLAG_FORCE_SWITCH_VF;
+	else if (op_flag & OP_FORCE_NOT_SWITCH_VF)
+		vpp_flags |= VPP_FLAG_FORCE_NOT_SWITCH_VF;
 
 	if (local_input.need_no_compress)
 		vpp_flags |= VPP_FLAG_FORCE_NO_COMPRESS;
@@ -3994,6 +4038,20 @@ int vpp_set_filters(struct disp_info_s *input,
 		bypass_sr0 = true;
 		bypass_sr1 = true;
 	}
+
+	if (ret == vppfilter_changed_but_switch && vf->vf_ext) {
+		struct vframe_s *tmp = (struct vframe_s *)vf->vf_ext;
+
+		memcpy(&tmp->pic_mode, &vf->pic_mode,
+			sizeof(struct vframe_pic_mode_s));
+		vf = tmp;
+		retry = true;
+		goto RERTY;
+	}
+
+	if (retry && ret == vppfilter_success)
+		ret = vppfilter_success_and_switched;
+
 	/*config super scaler after set next_frame_par is calc ok for pps*/
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	if (is_meson_tl1_cpu()) {

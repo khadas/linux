@@ -134,7 +134,9 @@ static int vpu_mem_power_off_count;
 static int dv_mem_power_off_count;
 static struct vpu_dev_s *vd1_vpu_dev;
 static struct vpu_dev_s *afbc_vpu_dev;
+#ifdef DI_POST_PWR
 static struct vpu_dev_s *di_post_vpu_dev;
+#endif
 static struct vpu_dev_s *vd1_scale_vpu_dev;
 static struct vpu_dev_s *vpu_fgrain0;
 static struct vpu_dev_s *vd2_vpu_dev;
@@ -438,7 +440,7 @@ static struct vpu_dev_s *vpu_prime_dolby_ram;
 		} \
 		VIDEO_LAYER_OFF(); \
 		VD1_MEM_POWER_OFF(); \
-		if (vd_layer[0].global_debug & DEBUG_FLAG_BLACKOUT) {  \
+		if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO) {  \
 			pr_info("VIDEO: DisableVideoLayer()\n"); \
 		} \
 	} while (0)
@@ -466,7 +468,7 @@ static struct vpu_dev_s *vpu_prime_dolby_ram;
 		if (vd_layer_vpp[1].vpp_index != VPP0 && vd_layer_vpp[1].layer_id == 1) \
 			VIDEO_LAYERX_VPP2_OFF(); \
 		VD2_MEM_POWER_OFF(); \
-		if (vd_layer[1].global_debug & DEBUG_FLAG_BLACKOUT) {  \
+		if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO) {  \
 			pr_info("VIDEO: DisableVideoLayer2()\n"); \
 		} \
 	} while (0)
@@ -490,7 +492,7 @@ static struct vpu_dev_s *vpu_prime_dolby_ram;
 		if (vd_layer_vpp[1].vpp_index != VPP0 && vd_layer_vpp[1].layer_id == 2) \
 			VIDEO_LAYERX_VPP2_OFF(); \
 		VD3_MEM_POWER_OFF(); \
-		if (vd_layer[2].global_debug & DEBUG_FLAG_BLACKOUT) {  \
+		if (vd_layer[2].global_debug & DEBUG_FLAG_BASIC_INFO) {  \
 			pr_info("VIDEO: DisableVideoLayer3()\n"); \
 		} \
 	} while (0)
@@ -820,6 +822,41 @@ bool get_disable_video_flag(enum vd_path_e vd_path)
 }
 EXPORT_SYMBOL(get_disable_video_flag);
 
+u32 get_video_onoff_state(void)
+{
+	return vd_layer[0].onoff_state;
+}
+EXPORT_SYMBOL(get_video_onoff_state);
+
+u32 get_videopip_onoff_state(void)
+{
+	u32 state = VIDEO_ENABLE_STATE_IDLE;
+
+	if (vd_layer[1].vpp_index == VPP0)
+		state = vd_layer[1].onoff_state;
+	else if (vd_layer_vpp[0].layer_id == 1 &&
+		vd_layer_vpp[0].vpp_index != VPP0)
+		state =  vd_layer_vpp[0].onoff_state;
+	return state;
+}
+EXPORT_SYMBOL(get_videopip_onoff_state);
+
+u32 get_videopip2_onoff_state(void)
+{
+	u32 state = VIDEO_ENABLE_STATE_IDLE;
+
+	if (vd_layer[2].vpp_index == VPP0)
+		state = vd_layer[2].onoff_state;
+	else if (vd_layer_vpp[0].layer_id == 2 &&
+		vd_layer_vpp[0].vpp_index != VPP0)
+		state =  vd_layer_vpp[0].onoff_state;
+	else if (vd_layer_vpp[1].layer_id == 2 &&
+		vd_layer_vpp[1].vpp_index != VPP0)
+		state =  vd_layer_vpp[1].onoff_state;
+	return state;
+}
+EXPORT_SYMBOL(get_videopip2_onoff_state);
+
 bool is_di_on(void)
 {
 	bool ret = false;
@@ -857,8 +894,7 @@ bool is_di_post_mode(struct vframe_s *vf)
 {
 	bool ret = false;
 
-	if (vf && (vf->type & VIDTYPE_PRE_INTERLACE) &&
-	    !(vf->type & VIDTYPE_DI_PW))
+	if (vf && IS_DI_POST(vf->type))
 		ret = true;
 	return ret;
 }
@@ -1334,7 +1370,7 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			if (vf &&
 			    (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-			    !(vf->type & VIDTYPE_DI_PW)))
+			    !IS_DI_POSTWRTIE(vf->type)))
 				r |= (1 << 19); /* dos_uncomp */
 			if (type & VIDTYPE_COMB_MODE)
 				r |= (1 << 20);
@@ -1835,7 +1871,7 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			if (vf &&
 			    (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-			    !(vf->type & VIDTYPE_DI_PW)))
+			    !IS_DI_POSTWRTIE(vf->type)))
 				r |= (1 << 19); /* dos_uncomp */
 		}
 		cur_dev->rdma_func[vpp_index].rdma_wr(vd_afbc_reg->afbc_enable, r);
@@ -2186,16 +2222,15 @@ static void vd_afbc_setting_tl1(struct video_layer_s *layer, struct mif_pos_s *s
 	pix_end_h = pix_bgn_h + setting->end_x_lines -
 		setting->start_x_lines;
 
-	cur_dev->rdma_func[vpp_index].rdma_wr
-		(vd_afbc_reg->afbc_mif_hor_scope,
-		(mif_blk_bgn_h << 16) |
-		mif_blk_end_h);
-
 	if (((process_3d_type & MODE_3D_FA) ||
 	     (process_3d_type & MODE_FORCE_3D_FA_LR)) &&
 	    setting->vpp_3d_mode == 1) {
-			/* do nothing*/
+		/* do nothing*/
 	} else {
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_afbc_reg->afbc_mif_hor_scope,
+			(mif_blk_bgn_h << 16) |
+			mif_blk_end_h);
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_afbc_reg->afbc_pixel_hor_scope,
 			((pix_bgn_h << 16) |
@@ -3918,9 +3953,10 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 	vpp_index = layer->vpp_index;
 
 	misc_off = layer->misc_reg_offt;
-	if (layer->global_debug & DEBUG_FLAG_BLACKOUT)
-		pr_info("VIDEO: VD1 AFBC off now. dispbuf:%p, *dispbuf_mapping:%p, local: %p, %p, %p, %p\n",
+	if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
+		pr_info("VIDEO: VD1 AFBC off now. dispbuf:%p vf_ext:%p, *dispbuf_mapping:%p, local: %p, %p, %p, %p\n",
 			layer->dispbuf,
+			layer->vf_ext,
 			layer->dispbuf_mapping ?
 			*layer->dispbuf_mapping : NULL,
 			&vf_local, &local_pip,
@@ -3959,14 +3995,17 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 	}
 
 	if (layer->dispbuf &&
-	    is_local_vf(layer->dispbuf))
+	    is_local_vf(layer->dispbuf)) {
 		layer->dispbuf = NULL;
+		layer->vf_ext = NULL;
+	}
 	if (layer->dispbuf_mapping) {
 		if (*layer->dispbuf_mapping &&
 		    is_local_vf(*layer->dispbuf_mapping))
 			*layer->dispbuf_mapping = NULL;
 		layer->dispbuf_mapping = NULL;
 		layer->dispbuf = NULL;
+		layer->vf_ext = NULL;
 	}
 	layer->new_vframe_count = 0;
 }
@@ -3978,9 +4017,10 @@ static void disable_vd2_blend(struct video_layer_s *layer)
 		return;
 	vpp_index = layer->vpp_index;
 
-	if (layer->global_debug & DEBUG_FLAG_BLACKOUT)
-		pr_info("VIDEO: VD2 AFBC off now. dispbuf:%p, *dispbuf_mapping:%p, local: %p, %p, %p, %p\n",
+	if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
+		pr_info("VIDEO: VD2 AFBC off now. dispbuf:%p, vf_ext:%p, *dispbuf_mapping:%p, local: %p, %p, %p, %p\n",
 			layer->dispbuf,
+			layer->vf_ext,
 			layer->dispbuf_mapping ?
 			*layer->dispbuf_mapping : NULL,
 			&vf_local, &local_pip,
@@ -3990,14 +4030,17 @@ static void disable_vd2_blend(struct video_layer_s *layer)
 	cur_dev->rdma_func[vpp_index].rdma_wr(layer->vd_mif_reg.vd_if0_gen_reg, 0);
 
 	if (layer->dispbuf &&
-	    is_local_vf(layer->dispbuf))
+	    is_local_vf(layer->dispbuf)) {
 		layer->dispbuf = NULL;
+		layer->vf_ext = NULL;
+	}
 	if (layer->dispbuf_mapping) {
 		if (*layer->dispbuf_mapping &&
 		    is_local_vf(*layer->dispbuf_mapping))
 			*layer->dispbuf_mapping = NULL;
 		layer->dispbuf_mapping = NULL;
 		layer->dispbuf = NULL;
+		layer->vf_ext = NULL;
 	}
 	/* FIXME: remove global variables */
 	last_el_status = 0;
@@ -4012,9 +4055,10 @@ static void disable_vd3_blend(struct video_layer_s *layer)
 		return;
 	vpp_index = layer->vpp_index;
 
-	if (layer->global_debug & DEBUG_FLAG_BLACKOUT)
-		pr_info("VIDEO: VD3 AFBC off now. dispbuf:%p, *dispbuf_mapping:%p, local: %p, %p, %p, %p, %p\n",
+	if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
+		pr_info("VIDEO: VD3 AFBC off now. dispbuf:%p vf_ext:%p, *dispbuf_mapping:%p, local: %p, %p, %p, %p, %p\n",
 			layer->dispbuf,
+			layer->vf_ext,
 			layer->dispbuf_mapping ?
 			*layer->dispbuf_mapping : NULL,
 			&vf_local, &local_pip2,
@@ -4025,14 +4069,17 @@ static void disable_vd3_blend(struct video_layer_s *layer)
 	cur_dev->rdma_func[vpp_index].rdma_wr(layer->vd_mif_reg.vd_if0_gen_reg, 0);
 
 	if (layer->dispbuf &&
-	    is_local_vf(layer->dispbuf))
+	    is_local_vf(layer->dispbuf)) {
 		layer->dispbuf = NULL;
+		layer->vf_ext = NULL;
+	}
 	if (layer->dispbuf_mapping) {
 		if (*layer->dispbuf_mapping &&
 		    is_local_vf(*layer->dispbuf_mapping))
 			*layer->dispbuf_mapping = NULL;
 		layer->dispbuf_mapping = NULL;
 		layer->dispbuf = NULL;
+		layer->vf_ext = NULL;
 	}
 	/* FIXME: remove global variables */
 	need_disable_vd3 = false;
@@ -4256,19 +4303,16 @@ void config_dvel_position(struct video_layer_s *layer,
 	setting->vc_skip = 2;
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-		if ((layer->dispbuf->type
-		    & VIDTYPE_VIU_444) ||
-		    (layer->dispbuf->type
-		    & VIDTYPE_RGB_444)) {
+		if ((bl_vf->type & VIDTYPE_VIU_444) ||
+		    (bl_vf->type & VIDTYPE_RGB_444)) {
 			setting->hc_skip = 1;
 			setting->vc_skip = 1;
-		} else if (layer->dispbuf->type
-			   & VIDTYPE_VIU_422) {
+		} else if (bl_vf->type & VIDTYPE_VIU_422) {
 			setting->vc_skip = 1;
 		}
 	}
 
-	if ((layer->dispbuf->type & VIDTYPE_COMPRESS) &&
+	if ((bl_vf->type & VIDTYPE_COMPRESS) &&
 	    !layer->cur_frame_par->nocomp)
 		setting->skip_afbc = false;
 	else
@@ -4351,20 +4395,25 @@ s32 config_dvel_blend(struct video_layer_s *layer,
  *********************************************************/
 #ifdef TV_3D_FUNCTION_OPEN
 static void get_3d_horz_pos(struct video_layer_s *layer,
-			    struct vframe_s *vf, u32 vpp_3d_mode,
+			    struct vframe_s *vf,
 	u32 *ls, u32 *le, u32 *rs, u32 *re)
 {
 	u32 crop_sx, crop_ex;
 	int frame_width;
 	struct disp_info_s *info = &glayer_info[0];
+	struct vpp_frame_par_s *cur_frame_par;
+	u32 vpp_3d_mode;
 
-	if (!vf)
+	if (!vf || !layer->cur_frame_par)
 		return;
 
+	cur_frame_par = layer->cur_frame_par;
+	vpp_3d_mode = cur_frame_par->vpp_3d_mode;
 	crop_sx = info->crop_left;
 	crop_ex = info->crop_right;
 
-	if (vf->type & VIDTYPE_COMPRESS)
+	if (!cur_frame_par->nocomp &&
+	    (vf->type & VIDTYPE_COMPRESS))
 		frame_width = vf->compWidth;
 	else
 		frame_width = vf->width;
@@ -4408,20 +4457,25 @@ static void get_3d_horz_pos(struct video_layer_s *layer,
 }
 
 static void get_3d_vert_pos(struct video_layer_s *layer,
-			    struct vframe_s *vf, u32 vpp_3d_mode,
+			    struct vframe_s *vf,
 	u32 *ls, u32 *le, u32 *rs, u32 *re)
 {
 	u32 crop_sy, crop_ey, height;
 	int frame_height;
 	struct disp_info_s *info = &glayer_info[0];
+	struct vpp_frame_par_s *cur_frame_par;
+	u32 vpp_3d_mode;
 
-	if (!vf)
+	if (!vf || !layer->cur_frame_par)
 		return;
 
+	cur_frame_par = layer->cur_frame_par;
+	vpp_3d_mode = cur_frame_par->vpp_3d_mode;
 	crop_sy = info->crop_top;
 	crop_ey = info->crop_bottom;
 
-	if (vf->type & VIDTYPE_COMPRESS)
+	if (!cur_frame_par->nocomp &&
+	    (vf->type & VIDTYPE_COMPRESS))
 		frame_height = vf->compHeight;
 	else
 		frame_height = vf->height;
@@ -4537,8 +4591,15 @@ static void get_3d_vert_pos(struct video_layer_s *layer,
 void config_3d_vd2_position(struct video_layer_s *layer,
 			    struct mif_pos_s *setting)
 {
+	struct vframe_s *dispbuf = NULL;
+
 	if (!layer || !layer->cur_frame_par || !layer->dispbuf || !setting)
 		return;
+
+	if (layer->switch_vf && layer->vf_ext)
+		dispbuf = layer->vf_ext;
+	else
+		dispbuf = layer->dispbuf;
 
 	memcpy(setting, &layer->mif_setting, sizeof(struct mif_pos_s));
 	setting->id = 1;
@@ -4549,7 +4610,7 @@ void config_3d_vd2_position(struct video_layer_s *layer,
 	/* not framepacking mode, need process vert position more */
 	/* framepacking mode, need use right eye position */
 	/* to set vd2 Y0 not vd1 Y1*/
-	if ((layer->dispbuf->type & VIDTYPE_MVC) && framepacking_support) {
+	if ((dispbuf->type & VIDTYPE_MVC) && framepacking_support) {
 		setting->l_vs_chrm =
 			setting->r_vs_chrm;
 		setting->l_ve_chrm =
@@ -4585,9 +4646,15 @@ s32 config_3d_vd2_blend(struct video_layer_s *layer,
 {
 	struct vpp_frame_par_s *cur_frame_par;
 	u32 x_lines, y_lines;
+	struct vframe_s *dispbuf = NULL;
 
 	if (!layer || !layer->cur_frame_par || !setting)
 		return -1;
+
+	if (layer->switch_vf && layer->vf_ext)
+		dispbuf = layer->vf_ext;
+	else
+		dispbuf = layer->dispbuf;
 
 	memcpy(setting, &layer->bld_setting, sizeof(struct blend_setting_s));
 	setting->id = 1;
@@ -4615,8 +4682,7 @@ s32 config_3d_vd2_blend(struct video_layer_s *layer,
 			layer->start_y_lines;
 		setting->postblend_v_end =
 			layer->end_y_lines;
-	} else if (layer->dispbuf &&
-		   (layer->dispbuf->type & VIDTYPE_MVC)) {
+	} else if (dispbuf && (dispbuf->type & VIDTYPE_MVC)) {
 		u32 blank;
 
 		if (framepacking_support)
@@ -4645,6 +4711,8 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 	u32 FA_enable = process_3d_type & MODE_3D_OUT_FA_MASK;
 	u32 src_start_x_lines, src_end_x_lines;
 	u32 src_start_y_lines, src_end_y_lines;
+	u32 mif_blk_bgn_h, mif_blk_end_h;
+	struct vframe_s *dispbuf = NULL;
 	struct hw_vd_reg_s *vd_mif_reg;
 	struct hw_vd_reg_s *vd2_mif_reg;
 	struct hw_afbc_reg_s *vd_afbc_reg;
@@ -4653,21 +4721,24 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 	if (!layer || !layer->cur_frame_par || !layer->dispbuf)
 		return;
 
+	if (layer->switch_vf && layer->vf_ext)
+		dispbuf = layer->vf_ext;
+	else
+		dispbuf = layer->dispbuf;
 	vd_mif_reg = &layer->vd_mif_reg;
 	vd2_mif_reg = &vd_layer[1].vd_mif_reg;
 	vd_afbc_reg = &layer->vd_afbc_reg;
+
 	src_start_x_lines = 0;
 	src_end_x_lines =
-		((layer->dispbuf->type &
-		VIDTYPE_COMPRESS) ?
-		layer->dispbuf->compWidth :
-		layer->dispbuf->width) - 1;
+		(dispbuf->type & VIDTYPE_COMPRESS) ?
+		dispbuf->compWidth : dispbuf->width;
+	src_end_x_lines -= 1;
 	src_start_y_lines = 0;
 	src_end_y_lines =
-		((layer->dispbuf->type &
-		VIDTYPE_COMPRESS) ?
-		layer->dispbuf->compHeight :
-		layer->dispbuf->height) - 1;
+		(dispbuf->type & VIDTYPE_COMPRESS) ?
+		dispbuf->compHeight : dispbuf->height;
+	src_end_y_lines -= 1;
 
 	misc_off = layer->misc_reg_offt;
 	cur_frame_par = layer->cur_frame_par;
@@ -4690,19 +4761,41 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd2_mif_reg->vd_if0_chroma_psel,
 			0x4000000);
-		if (layer->dispbuf->type & VIDTYPE_COMPRESS) {
+		if (dispbuf->type & VIDTYPE_COMPRESS) {
 			if ((process_3d_type & MODE_FORCE_3D_FA_LR) &&
 			    cur_frame_par->vpp_3d_mode == 1) {
-				start_aligned = src_start_x_lines;
-				end_aligned = src_end_x_lines + 1;
-				block_len =
-					(end_aligned - start_aligned) / 2;
-				block_len = block_len /
-					(cur_frame_par->hscale_skip_count + 1);
-				cur_dev->rdma_func[vpp_index].rdma_wr
-					(vd_afbc_reg->afbc_pixel_hor_scope,
-					(start_aligned << 16) |
-					(start_aligned + block_len - 1));
+				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TL1) {
+					start_aligned = src_start_x_lines;
+					end_aligned = src_end_x_lines + 1;
+					block_len =
+						(end_aligned - start_aligned) / 2;
+					mif_blk_bgn_h = src_start_x_lines / 32;
+					mif_blk_end_h =
+						(start_aligned + block_len - 1) / 32;
+					start_aligned =
+						src_start_x_lines -	(mif_blk_bgn_h << 5);
+					block_len = block_len /
+						(cur_frame_par->hscale_skip_count + 1);
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_afbc_reg->afbc_mif_hor_scope,
+						(mif_blk_bgn_h << 16) |
+						mif_blk_end_h);
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_afbc_reg->afbc_pixel_hor_scope,
+						(start_aligned << 16) |
+						(start_aligned + block_len - 1));
+				} else {
+					start_aligned = src_start_x_lines;
+					end_aligned = src_end_x_lines + 1;
+					block_len =
+						(end_aligned - start_aligned) / 2;
+					block_len = block_len /
+						(cur_frame_par->hscale_skip_count + 1);
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_afbc_reg->afbc_pixel_hor_scope,
+						(start_aligned << 16) |
+						(start_aligned + block_len - 1));
+				}
 			}
 			if ((process_3d_type & MODE_FORCE_3D_FA_TB) &&
 			    cur_frame_par->vpp_3d_mode == 2) {
@@ -4733,19 +4826,42 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 			(vd2_mif_reg->vd_if0_luma_psel, 0);
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd2_mif_reg->vd_if0_chroma_psel, 0);
-		if (layer->dispbuf->type & VIDTYPE_COMPRESS) {
+		if (dispbuf->type & VIDTYPE_COMPRESS) {
 			if ((process_3d_type & MODE_FORCE_3D_FA_LR) &&
 			    cur_frame_par->vpp_3d_mode == 1) {
-				start_aligned = src_end_x_lines;
-				end_aligned = src_end_x_lines + 1;
-				block_len =
-					(end_aligned - start_aligned) / 2;
-				block_len = block_len /
-					(cur_frame_par->hscale_skip_count + 1);
-				cur_dev->rdma_func[vpp_index].rdma_wr
-					(vd_afbc_reg->afbc_pixel_hor_scope,
-					((start_aligned + block_len) << 16) |
-					(end_aligned - 1));
+				if (get_cpu_type() >= MESON_CPU_MAJOR_ID_TL1) {
+					start_aligned = src_start_x_lines;
+					end_aligned = src_end_x_lines + 1;
+					block_len =
+						(end_aligned - start_aligned) / 2;
+					mif_blk_bgn_h =
+						(src_start_x_lines + block_len) / 32;
+					mif_blk_end_h = src_end_x_lines / 32;
+					start_aligned =
+						src_start_x_lines + block_len -
+						(mif_blk_bgn_h << 5);
+					block_len = block_len /
+						(cur_frame_par->hscale_skip_count + 1);
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_afbc_reg->afbc_mif_hor_scope,
+						(mif_blk_bgn_h << 16) |
+						mif_blk_end_h);
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_afbc_reg->afbc_pixel_hor_scope,
+						(start_aligned << 16) |
+						(start_aligned + block_len - 1));
+				} else {
+					start_aligned = src_start_x_lines;
+					end_aligned = src_end_x_lines + 1;
+					block_len =
+						(end_aligned - start_aligned) / 2;
+					block_len = block_len /
+						(cur_frame_par->hscale_skip_count + 1);
+					cur_dev->rdma_func[vpp_index].rdma_wr
+						(vd_afbc_reg->afbc_pixel_hor_scope,
+						((start_aligned + block_len) << 16) |
+						(end_aligned - 1));
+				}
 			}
 			if ((process_3d_type & MODE_FORCE_3D_FA_TB) &&
 			    cur_frame_par->vpp_3d_mode == 2) {
@@ -4812,20 +4928,26 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 s32 config_vd_position(struct video_layer_s *layer,
 		       struct mif_pos_s *setting)
 {
+	struct vframe_s *dispbuf = NULL;
+
 	if (!layer || !layer->cur_frame_par || !layer->dispbuf || !setting)
 		return -1;
 
+	if (layer->switch_vf && layer->vf_ext)
+		dispbuf = layer->vf_ext;
+	else
+		dispbuf = layer->dispbuf;
 	setting->id = layer->layer_id;
 	setting->p_vd_mif_reg = &layer->vd_mif_reg;
 	setting->p_vd_afbc_reg = &layer->vd_afbc_reg;
 
 	setting->reverse = glayer_info[setting->id].reverse;
 	setting->src_w =
-		(layer->dispbuf->type & VIDTYPE_COMPRESS) ?
-		layer->dispbuf->compWidth : layer->dispbuf->width;
+		(dispbuf->type & VIDTYPE_COMPRESS) ?
+		dispbuf->compWidth : dispbuf->width;
 	setting->src_h =
-		(layer->dispbuf->type & VIDTYPE_COMPRESS) ?
-		layer->dispbuf->compHeight : layer->dispbuf->height;
+		(dispbuf->type & VIDTYPE_COMPRESS) ?
+		dispbuf->compHeight : dispbuf->height;
 
 	setting->start_x_lines = layer->start_x_lines;
 	setting->end_x_lines = layer->end_x_lines;
@@ -4839,19 +4961,16 @@ s32 config_vd_position(struct video_layer_s *layer,
 	setting->vc_skip = 2;
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-		if ((layer->dispbuf->type
-			& VIDTYPE_VIU_444) ||
-			(layer->dispbuf->type
-			& VIDTYPE_RGB_444)) {
+		if ((dispbuf->type & VIDTYPE_VIU_444) ||
+		    (dispbuf->type & VIDTYPE_RGB_444)) {
 			setting->hc_skip = 1;
 			setting->vc_skip = 1;
-		} else if (layer->dispbuf->type
-			& VIDTYPE_VIU_422) {
+		} else if (dispbuf->type & VIDTYPE_VIU_422) {
 			setting->vc_skip = 1;
 		}
 	}
 
-	if ((layer->dispbuf->type & VIDTYPE_COMPRESS) &&
+	if ((dispbuf->type & VIDTYPE_COMPRESS) &&
 	    !layer->cur_frame_par->nocomp)
 		setting->skip_afbc = false;
 	else
@@ -4870,13 +4989,11 @@ s32 config_vd_position(struct video_layer_s *layer,
 	if (setting->id == 0 &&
 	    (process_3d_type & MODE_3D_ENABLE)) {
 		get_3d_horz_pos
-			(layer, layer->dispbuf,
-			layer->cur_frame_par->vpp_3d_mode,
+			(layer, dispbuf,
 			&setting->l_hs_luma, &setting->l_he_luma,
 			&setting->r_hs_luma, &setting->r_he_luma);
 		get_3d_vert_pos
-			(layer, layer->dispbuf,
-			layer->cur_frame_par->vpp_3d_mode,
+			(layer, dispbuf,
 			&setting->l_vs_luma, &setting->l_ve_luma,
 			&setting->r_vs_luma, &setting->r_ve_luma);
 	}
@@ -4896,7 +5013,7 @@ s32 config_vd_position(struct video_layer_s *layer,
 	/* framepacking mode, need use right eye position */
 	/* to set vd2 Y0 not vd1 Y1*/
 	if (setting->id == 0 &&
-	    (layer->dispbuf->type & VIDTYPE_MVC) &&
+	    (dispbuf->type & VIDTYPE_MVC) &&
 	    !framepacking_support) {
 		setting->l_vs_chrm =
 			setting->l_vs_luma;
@@ -4959,6 +5076,7 @@ s32 config_vd_blend(struct video_layer_s *layer,
 		    struct blend_setting_s *setting)
 {
 	struct vpp_frame_par_s *cur_frame_par;
+	struct vframe_s *dispbuf = NULL;
 	u32 x_lines, y_lines;
 #ifdef CHECK_LATER
 	u32 type = 0;
@@ -4967,6 +5085,10 @@ s32 config_vd_blend(struct video_layer_s *layer,
 	if (!layer || !layer->cur_frame_par || !setting)
 		return -1;
 
+	if (layer->switch_vf && layer->vf_ext)
+		dispbuf = layer->vf_ext;
+	else
+		dispbuf = layer->dispbuf;
 	cur_frame_par = layer->cur_frame_par;
 	setting->frame_par = cur_frame_par;
 	setting->id = layer->layer_id;
@@ -4985,8 +5107,7 @@ s32 config_vd_blend(struct video_layer_s *layer,
 		setting->preblend_h_end =
 			cur_frame_par->video_input_w - 1;
 	}
-	if (layer->dispbuf &&
-	    (layer->dispbuf->type & VIDTYPE_MVC)) {
+	if (dispbuf && (dispbuf->type & VIDTYPE_MVC)) {
 		setting->preblend_v_start =
 			cur_frame_par->VPP_vd_start_lines_;
 		setting->preblend_v_end = y_lines;
@@ -5073,8 +5194,8 @@ s32 config_vd_blend(struct video_layer_s *layer,
 #endif
 	/* FIXME: need remove this work around check for afbc */
 #ifdef CHECK_LATER
-	if (layer->dispbuf)
-		type = layer->dispbuf->type;
+	if (dispbuf)
+		type = dispbuf->type;
 	if (cur_frame_par->nocomp)
 		type &= ~VIDTYPE_COMPRESS;
 
@@ -5556,7 +5677,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 				VPP_POSTBLEND_EN;
 			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_IDLE;
 			vd_layer[0].onoff_time = jiffies_to_msecs(jiffies);
-			if (vd_layer[0].global_debug & DEBUG_FLAG_BLACKOUT)
+			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
 				pr_info("VIDEO: VsyncEnableVideoLayer\n");
 			vpu_delay_work_flag |=
 				VPU_VIDEO_LAYER1_CHANGED;
@@ -5574,7 +5695,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 			vd_layer[0].onoff_time = jiffies_to_msecs(jiffies);
 			vpu_delay_work_flag |=
 				VPU_VIDEO_LAYER1_CHANGED;
-			if (vd_layer[0].global_debug & DEBUG_FLAG_BLACKOUT)
+			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
 				pr_info("VIDEO: VsyncDisableVideoLayer\n");
 			video1_off_req = 1;
 			force_flush = true;
@@ -5632,7 +5753,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 			vd_layer[1].onoff_time = jiffies_to_msecs(jiffies);
 			vpu_delay_work_flag |=
 				VPU_VIDEO_LAYER2_CHANGED;
-			if (vd_layer[1].global_debug & DEBUG_FLAG_BLACKOUT)
+			if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO)
 				pr_info("VIDEO: VsyncEnableVideoLayer2\n");
 			force_flush = true;
 		} else if (vd_layer[1].onoff_state ==
@@ -5646,7 +5767,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 			vd_layer[1].onoff_time = jiffies_to_msecs(jiffies);
 			vpu_delay_work_flag |=
 				VPU_VIDEO_LAYER2_CHANGED;
-			if (vd_layer[1].global_debug & DEBUG_FLAG_BLACKOUT)
+			if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO)
 				pr_info("VIDEO: VsyncDisableVideoLayer2\n");
 			video2_off_req = 1;
 			force_flush = true;
@@ -5987,7 +6108,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 			vd_layer[0].post_blend_en = 1;
 			vd_layer[0].onoff_state = VIDEO_ENABLE_STATE_IDLE;
 			vd_layer[0].onoff_time = jiffies_to_msecs(jiffies);
-			if (vd_layer[0].global_debug & DEBUG_FLAG_BLACKOUT)
+			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
 				pr_info("VIDEO: VsyncEnableVideoLayer\n");
 			vpu_delay_work_flag |=
 				VPU_VIDEO_LAYER1_CHANGED;
@@ -6002,7 +6123,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 			vd_layer[0].onoff_time = jiffies_to_msecs(jiffies);
 			vpu_delay_work_flag |=
 				VPU_VIDEO_LAYER1_CHANGED;
-			if (vd_layer[0].global_debug & DEBUG_FLAG_BLACKOUT)
+			if (vd_layer[0].global_debug & DEBUG_FLAG_BASIC_INFO)
 				pr_info("VIDEO: VsyncDisableVideoLayer\n");
 			video1_off_req = 1;
 			force_flush = true;
@@ -6047,7 +6168,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 				vd_layer[1].onoff_time = jiffies_to_msecs(jiffies);
 				vpu_delay_work_flag |=
 					VPU_VIDEO_LAYER2_CHANGED;
-				if (vd_layer[1].global_debug & DEBUG_FLAG_BLACKOUT)
+				if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info("VIDEO: VsyncEnableVideoLayer2\n");
 				force_flush = true;
 			} else if (vd_layer[1].onoff_state ==
@@ -6059,7 +6180,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 				vd_layer[1].onoff_time = jiffies_to_msecs(jiffies);
 				vpu_delay_work_flag |=
 					VPU_VIDEO_LAYER2_CHANGED;
-				if (vd_layer[1].global_debug & DEBUG_FLAG_BLACKOUT)
+				if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info("VIDEO: VsyncDisableVideoLayer2\n");
 				video2_off_req = 1;
 				force_flush = true;
@@ -6109,7 +6230,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 				vd_layer[1].onoff_time = jiffies_to_msecs(jiffies);
 				vpu_delay_work_flag |=
 					VPU_VIDEO_LAYER3_CHANGED;
-				if (vd_layer[2].global_debug & DEBUG_FLAG_BLACKOUT)
+				if (vd_layer[2].global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info("VIDEO: VsyncEnableVideoLayer3\n");
 				force_flush = true;
 			} else if (vd_layer[2].onoff_state ==
@@ -6121,7 +6242,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 				vd_layer[2].onoff_time = jiffies_to_msecs(jiffies);
 				vpu_delay_work_flag |=
 					VPU_VIDEO_LAYER3_CHANGED;
-				if (vd_layer[1].global_debug & DEBUG_FLAG_BLACKOUT)
+				if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info("VIDEO: VsyncDisableVideoLayer2\n");
 				video3_off_req = 1;
 				force_flush = true;
@@ -6454,7 +6575,7 @@ void vpp1_blend_update(u32 vpp_index)
 				vd_layer_vpp[0].onoff_time = jiffies_to_msecs(jiffies);
 				vpu_delay_work_flag |=
 					VPU_VIDEO_LAYER2_CHANGED;
-				if (vd_layer_vpp[0].global_debug & DEBUG_FLAG_BLACKOUT)
+				if (vd_layer_vpp[0].global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info("VIDEO: VsyncEnableVideoLayer2\n");
 				force_flush = true;
 			} else if (vd_layer_vpp[0].onoff_state ==
@@ -6464,7 +6585,7 @@ void vpp1_blend_update(u32 vpp_index)
 				vd_layer_vpp[0].onoff_time = jiffies_to_msecs(jiffies);
 				vpu_delay_work_flag |=
 					VPU_VIDEO_LAYER2_CHANGED;
-				if (vd_layer_vpp[0].global_debug & DEBUG_FLAG_BLACKOUT)
+				if (vd_layer_vpp[0].global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info("VIDEO: VsyncDisableVideoLayer2\n");
 				videox_off_req = 1;
 				force_flush = true;
@@ -6583,7 +6704,7 @@ void vpp2_blend_update(u32 vpp_index)
 				vd_layer_vpp[1].onoff_time = jiffies_to_msecs(jiffies);
 				vpu_delay_work_flag |=
 					VPU_VIDEO_LAYER3_CHANGED;
-				if (vd_layer_vpp[1].global_debug & DEBUG_FLAG_BLACKOUT)
+				if (vd_layer_vpp[1].global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info("VIDEO: VsyncEnableVideoLayer3\n");
 				force_flush = true;
 			} else if (vd_layer_vpp[1].onoff_state ==
@@ -6593,7 +6714,7 @@ void vpp2_blend_update(u32 vpp_index)
 				vd_layer_vpp[1].onoff_time = jiffies_to_msecs(jiffies);
 				vpu_delay_work_flag |=
 					VPU_VIDEO_LAYER3_CHANGED;
-				if (vd_layer_vpp[1].global_debug & DEBUG_FLAG_BLACKOUT)
+				if (vd_layer_vpp[1].global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info("VIDEO: VsyncDisableVideoLayer3\n");
 				video_off_req = 1;
 				force_flush = true;
@@ -6727,11 +6848,14 @@ static bool is_vframe_changed
 	    glayer_info[layer_id].proc_3d_type != process_3d_type)
 		return true;
 	if (cur_vf && new_vf &&
-	    (cur_vf->bufWidth != new_vf->bufWidth ||
+	    (((cur_vf->type & VIDTYPE_COMPRESS) &&
+	      (cur_vf->compWidth != new_vf->compWidth ||
+	       cur_vf->compHeight != new_vf->compHeight)) ||
+	     cur_vf->bufWidth != new_vf->bufWidth ||
 	     cur_vf->width != new_vf->width ||
 	     cur_vf->height != new_vf->height ||
-	     (cur_vf->sar_width != new_vf->sar_width) ||
-	     (cur_vf->sar_height != new_vf->sar_height) ||
+	     cur_vf->sar_width != new_vf->sar_width ||
+	     cur_vf->sar_height != new_vf->sar_height ||
 	     cur_vf->bitdepth != new_vf->bitdepth ||
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	     cur_vf->trans_fmt != new_vf->trans_fmt ||
@@ -6979,13 +7103,33 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		force_toggle = true;
 	}
 
-	if ((layer->global_debug & DEBUG_FLAG_BLACKOUT) && first_picture)
+	if (!vf->vf_ext) {
+		if (layer->switch_vf) {
+			force_toggle = true;
+			if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
+				pr_info
+					("layer%d: force disable switch vf: %p\n",
+					layer->layer_id, vf);
+		}
+		layer->switch_vf = false;
+	} else if (layer->switch_vf) {
+		struct vframe_s *tmp = (struct vframe_s *)vf->vf_ext;
+
+		memcpy(&tmp->pic_mode, &vf->pic_mode,
+			sizeof(struct vframe_pic_mode_s));
+		if (!layer->vf_ext)
+			force_toggle = true;
+	}
+
+	if ((layer->global_debug & DEBUG_FLAG_BASIC_INFO) && first_picture)
 		pr_info("first swap picture {%d,%d} pts:%x,\n",
 			vf->width, vf->height, vf->pts);
 
 	set_layer_display_canvas
 		(layer,
-		vf, layer->cur_frame_par, layer_info);
+		layer->switch_vf ?
+		(struct vframe_s *)vf->vf_ext : vf,
+		layer->cur_frame_par, layer_info);
 
 	frame_changed = is_vframe_changed
 		(layer_id,
@@ -6993,14 +7137,22 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 
 	/* enable new config on the new frames */
 	if (first_picture || force_toggle || frame_changed) {
-		layer->next_frame_par =
-			(&layer->frame_parms[0] == layer->next_frame_par) ?
-			&layer->frame_parms[1] : &layer->frame_parms[0];
+		u32 op_flag = OP_VPP_MORE_LOG;
+
+		if (layer->next_frame_par == layer->cur_frame_par)
+			layer->next_frame_par =
+				(&layer->frame_parms[0] == layer->next_frame_par) ?
+				&layer->frame_parms[1] : &layer->frame_parms[0];
 		/* FIXME: remove the global variables */
 		glayer_info[layer_id].reverse = reverse;
 		glayer_info[layer_id].mirror = mirror;
 		glayer_info[layer_id].proc_3d_type =
 			process_3d_type;
+
+		if (layer->force_switch_mode == 1)
+			op_flag |= OP_FORCE_SWITCH_VF;
+		else if (layer->force_switch_mode == 2)
+			op_flag |= OP_FORCE_NOT_SWITCH_VF;
 
 		ret = vpp_set_filters
 			(&glayer_info[layer_id], vf,
@@ -7008,18 +7160,47 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 			(is_dolby_vision_on() &&
 			is_dolby_vision_stb_mode() &&
 			for_dolby_vision_certification()),
-			1);
+			op_flag);
 
 		memcpy(&gpic_info[layer_id], &vf->pic_mode,
 		       sizeof(struct vframe_pic_mode_s));
 
 		if (ret == vppfilter_success_and_changed ||
-		    ret == vppfilter_changed_but_hold)
+		    ret == vppfilter_changed_but_hold ||
+			ret == vppfilter_changed_but_switch)
 			layer->property_changed = true;
 
-		if (ret != vppfilter_changed_but_hold)
+		if (ret != vppfilter_changed_but_hold &&
+		    ret != vppfilter_changed_but_switch)
 			layer->new_vpp_setting = true;
 
+		if (ret == vppfilter_success_and_switched && vf->vf_ext) {
+			/* first switch, need re-config vf ext canvas */
+			if (!layer->switch_vf) {
+				set_layer_display_canvas
+					(layer,
+					(struct vframe_s *)vf->vf_ext,
+					layer->cur_frame_par, layer_info);
+				if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
+					pr_info
+						("layer%d: switch the display to vf_ext %p->%p\n",
+						layer->layer_id, vf, vf->vf_ext);
+			}
+			layer->switch_vf = true;
+		} else {
+			/* first switch, need re-config orig vf canvas */
+			if (layer->switch_vf) {
+				set_layer_display_canvas
+					(layer,
+					vf,
+					layer->cur_frame_par, layer_info);
+				if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
+					pr_info
+						("layer%d: switch the display to orig vf %p->%p\n",
+						layer->layer_id, vf->vf_ext, vf);
+			}
+			layer->switch_vf = false;
+		}
 		if (layer_id == 0) {
 			if ((vf->width > 1920 && vf->height > 1088) ||
 			    ((vf->type & VIDTYPE_COMPRESS) &&
@@ -7073,6 +7254,10 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	if (first_picture)
 		layer->new_vpp_setting = true;
 	layer->dispbuf = vf;
+	if (layer->switch_vf)
+		layer->vf_ext = (struct vframe_s *)vf->vf_ext;
+	else
+		layer->vf_ext = NULL;
 	return ret;
 }
 
@@ -7316,7 +7501,9 @@ static void do_vpu_delay_work(struct work_struct *work)
 				    ~VPU_DELAYWORK_MEM_POWER_OFF_VD1;
 				vpu_dev_mem_power_down(vd1_vpu_dev);
 				vpu_dev_mem_power_down(afbc_vpu_dev);
+#ifdef DI_POST_PWR
 				vpu_dev_mem_power_down(di_post_vpu_dev);
+#endif
 				if (!legacy_vpp)
 					vpu_dev_mem_power_down
 					(vd1_scale_vpu_dev);
@@ -8885,7 +9072,9 @@ int video_hw_init(void)
 	/* temp: enable VPU arb mem */
 	vd1_vpu_dev = vpu_dev_register(VPU_VIU_VD1, "VD1");
 	afbc_vpu_dev = vpu_dev_register(VPU_AFBC_DEC, "VD1_AFBC");
+#ifdef DI_POST_PWR
 	di_post_vpu_dev = vpu_dev_register(VPU_DI_POST, "DI_POST");
+#endif
 	vd1_scale_vpu_dev = vpu_dev_register(VPU_VD1_SCALE, "VD1_SCALE");
 	if (glayer_info[0].fgrain_support)
 		vpu_fgrain0 = vpu_dev_register(VPU_FGRAIN0, "VPU_FGRAIN0");

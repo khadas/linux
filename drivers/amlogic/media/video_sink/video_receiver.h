@@ -38,6 +38,7 @@ struct video_recv_s {
 	struct vframe_receiver_s handle;
 	struct vframe_receiver_op_s *vf_ops;
 	struct vframe_s local_buf;
+	struct vframe_s local_buf_ext;
 	struct vframe_s *cur_buf;
 	struct vframe_s *rdma_buf;
 	struct vframe_s *buf_to_put[DISPBUF_TO_PUT_MAX];
