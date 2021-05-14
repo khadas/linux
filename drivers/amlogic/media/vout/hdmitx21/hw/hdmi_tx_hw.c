@@ -30,7 +30,6 @@
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_info_global.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ddc.h>
-#include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ext.h>
 #include <linux/reset.h>
 #include <linux/compiler.h>
 #include <linux/arm-smccc.h>
@@ -47,18 +46,9 @@ static void hdmitx_csc_config(u8 input_color_format,
 static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 				  u32 dvi_mode);
 
-struct ksv_lists_ {
-	u8 valid;
-	u32 no;
-	u8 lists[MAX_KSV_LISTS * 5];
-};
-
-static struct ksv_lists_ tmp_ksv_lists;
-
 static int hdmitx_set_dispmode(struct hdmitx_dev *hdev);
 static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 			      struct hdmitx_audpara *audio_param);
-static void hdmitx_setupirq(struct hdmitx_dev *hdev);
 static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf);
 static void hdmitx_debug_bist(struct hdmitx_dev *hdev, u32 num);
 static void hdmitx_uninit(struct hdmitx_dev *hdev);
@@ -86,13 +76,6 @@ static enum hdmi_vic get_vic_from_pkt(void);
 #define TX_INPUT_COLOR_RANGE	0
 /* Pixel bit width: 4=24-bit; 5=30-bit; 6=36-bit; 7=48-bit. */
 #define TX_COLOR_DEPTH		 COLORDEPTH_24B
-
-static pf_callback earc_hdmitx_hpdst;
-
-pf_callback *hdmitx21_earc_hpdst(void)
-{
-	return &earc_hdmitx_hpdst;
-}
 
 int hdmitx21_hpd_hw_op(enum hpd_op cmd)
 {
@@ -132,64 +115,6 @@ int hdmitx21_ddc_hw_op(enum ddc_op cmd)
 	return 0;
 }
 EXPORT_SYMBOL(hdmitx21_ddc_hw_op);
-
-static int hdcp_topo_st = -1;
-static int hdcp22_susflag;
-int hdmitx21_hdcp_opr(u32 val)
-{
-	struct arm_smccc_res res;
-
-	if (val == 1) { /* HDCP14_ENABLE */
-		arm_smccc_smc(0x82000010, 0, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 2) { /* HDCP14_RESULT */
-		arm_smccc_smc(0x82000011, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0) & 0xffffffff);
-	}
-	if (val == 0) { /* HDCP14_INIT */
-		arm_smccc_smc(0x82000012, 0, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 3) { /* HDCP14_EN_ENCRYPT */
-		arm_smccc_smc(0x82000013, 0, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 4) { /* HDCP14_OFF */
-		arm_smccc_smc(0x82000014, 0, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 5) {	/* HDCP_MUX_22 */
-		arm_smccc_smc(0x82000015, 0, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 6) {	/* HDCP_MUX_14 */
-		arm_smccc_smc(0x82000016, 0, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 7) { /* HDCP22_RESULT */
-		arm_smccc_smc(0x82000017, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0) & 0xffffffff);
-	}
-	if (val == 0xa) { /* HDCP14_KEY_LSTORE */
-		arm_smccc_smc(0x8200001a, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0) & 0xffffffff);
-	}
-	if (val == 0xb) { /* HDCP22_KEY_LSTORE */
-		arm_smccc_smc(0x8200001b, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0) & 0xffffffff);
-	}
-	if (val == 0xc) { /* HDCP22_KEY_SET_DUK */
-		arm_smccc_smc(0x8200001c, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0) & 0xffffffff);
-	}
-	if (val == 0xd) { /* HDCP22_SET_TOPO */
-		arm_smccc_smc(0x82000083, hdcp_topo_st, 0, 0, 0, 0, 0, 0, &res);
-	}
-	if (val == 0xe) { /* HDCP22_GET_TOPO */
-		arm_smccc_smc(0x82000084, 0, 0, 0, 0, 0, 0, 0, &res);
-		return (unsigned int)((res.a0) & 0xffffffff);
-	}
-	if (val == 0xf) { /* HDCP22_SET_SUSFLAG */
-		arm_smccc_smc(0x8200008a, hdcp22_susflag,
-			 0, 0, 0, 0, 0, 0, &res);
-	}
-	return -1;
-}
 
 static void config_avmute(u32 val)
 {
@@ -350,7 +275,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	// [0]      core_pwd_intr_rise
 	hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT_CLR, 0x000001ff);
 
-	// Enable internal pixclk, tmds_clk, spdif_clk, i2s_clk, cecclk, and hdcp22_esmclk
+	// Enable internal pixclk, tmds_clk, spdif_clk, i2s_clk, cecclk
 	// [   31] free_clk_en
 	// [   13] aud_mclk_sel: 0=Use i2s_mclk; 1=Use spdif_clk. For ACR.
 	// [   12] i2s_ws_inv
@@ -409,7 +334,6 @@ void hdmitx21_meson_init(struct hdmitx_dev *hdev)
 {
 	hdev->hwop.setdispmode = hdmitx_set_dispmode;
 	hdev->hwop.setaudmode = hdmitx_set_audmode;
-	hdev->hwop.setupirq = hdmitx_setupirq;
 	hdev->hwop.debugfun = hdmitx_debug;
 	hdev->hwop.debug_bist = hdmitx_debug_bist;
 	hdev->hwop.uninit = hdmitx_uninit;
@@ -421,78 +345,6 @@ void hdmitx21_meson_init(struct hdmitx_dev *hdev)
 	hdev->hwop.cntlmisc = hdmitx_cntl_misc;
 	hdmi_hwp_init(hdev);
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, CLR_AVMUTE);
-}
-
-static void hdmitx_phy_bandgap_en(struct hdmitx_dev *hdev)
-{
-	switch (hdev->data->chip_type) {
-	case MESON_CPU_ID_T7:
-		hdmitx21_phy_bandgap_en_t7();
-		break;
-	default:
-		break;
-	}
-}
-
-static irqreturn_t intr_handler(int irq, void *dev)
-{
-	/* get interrupt status */
-	u32 dat_top = hdmitx21_rd_reg(HDMITX_TOP_INTR_STAT);
-	struct hdmitx_dev *hdev = (struct hdmitx_dev *)dev;
-
-	/* ack INTERNAL_INTR or else we stuck with no interrupts at all */
-	hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT_CLR, ~0);
-
-	pr_info(SYS "irq %x\n", dat_top);
-
-	if (hdev->hpd_lock == 1) {
-		pr_info(HW "HDMI hpd locked\n");
-		goto next;
-	}
-	/* check HPD status */
-	if ((dat_top & (1 << 1)) && (dat_top & (1 << 2))) {
-		if (hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO))
-			dat_top &= ~(1 << 2);
-		else
-			dat_top &= ~(1 << 1);
-	}
-	/* HPD rising */
-	if (dat_top & (1 << 1)) {
-		hdev->hdmitx_event |= HDMI_TX_HPD_PLUGIN;
-		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
-		hdmitx_phy_bandgap_en(hdev);
-		if (earc_hdmitx_hpdst)
-			earc_hdmitx_hpdst(true);
-		queue_delayed_work(hdev->hdmi_wq,
-				   &hdev->work_hpd_plugin, HZ / 2);
-	}
-	/* HPD falling */
-	if (dat_top & (1 << 2)) {
-		queue_delayed_work(hdev->hdmi_wq,
-				   &hdev->work_aud_hpd_plug, 2 * HZ);
-		hdev->hdmitx_event |= HDMI_TX_HPD_PLUGOUT;
-		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
-		if (earc_hdmitx_hpdst)
-			earc_hdmitx_hpdst(false);
-		queue_delayed_work(hdev->hdmi_wq,
-			&hdev->work_hpd_plugout, 0);
-	}
-	/* internal interrupt */
-	if (dat_top & (1 << 0)) {
-		hdev->hdmitx_event |= HDMI_TX_INTERNAL_INTR;
-		queue_delayed_work(hdev->hdmi_wq,
-				   &hdev->work_internal_intr, HZ / 10);
-	}
-	if (dat_top & (1 << 3)) {
-		u32 rd_nonce_mode =
-			hdmitx21_rd_reg(HDMITX_TOP_SKP_CNTL_STAT) & 0x1;
-		pr_info(HW "hdcp22: Nonce %s  Vld: %d\n",
-			rd_nonce_mode ? "HW" : "SW",
-			((hdmitx21_rd_reg(HDMITX_TOP_SKP_CNTL_STAT) >> 31) & 1));
-	}
-
-next:
-	return IRQ_HANDLED;
 }
 
 void phy_hpll_off(void)
@@ -953,7 +805,7 @@ static bool hdmitx_vsif_en(u8 *body)
 	int ret;
 
 	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR, body);
-	if (ret != -1 || ret != 0)
+	if (ret != -1 && ret != 0)
 		return 0;
 	else
 		return 1;
@@ -1195,16 +1047,6 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	return 1;
 }
 
-static void hdmitx_setupirq(struct hdmitx_dev *phdev)
-{
-	int r;
-
-	hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT_CLR, 0x7);
-	r = request_irq(phdev->irq_hpd, &intr_handler,
-			IRQF_SHARED, "hdmitx",
-			(void *)phdev);
-}
-
 static void hdmitx_uninit(struct hdmitx_dev *phdev)
 {
 	free_irq(phdev->irq_hpd, (void *)phdev);
@@ -1380,15 +1222,6 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		hdmitx_set_audmode(hdev, NULL);
 	} else if (strncmp(tmpbuf, "dumpintr", 8) == 0) {
 		hdmitx_dump_intr();
-	} else if (strncmp(tmpbuf, "testhdcp", 8) == 0) {
-		int i;
-
-		i = tmpbuf[8] - '0';
-		if (i == 2)
-			pr_info("hdcp rslt = %d", hdmitx21_hdcp_opr(2));
-		if (i == 1)
-			hdev->hwop.cntlddc(hdev, DDC_HDCP_OP, HDCP14_ON);
-		return;
 	} else if (strncmp(tmpbuf, "chkfmt", 6) == 0) {
 		check21_detail_fmt();
 		return;
@@ -1406,13 +1239,6 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			pr_info(HPD "hdmitx: unlock hpd\n");
 		}
 		return;
-	} else if (strncmp(tmpbuf, "hpd_stick", 9) == 0) {
-		if (tmpbuf[9] == '1')
-			hdev->hdcp_hpd_stick = 1;
-		else
-			hdev->hdcp_hpd_stick = 0;
-		pr_info(HPD "hdmitx: %sstick hpd\n",
-			(hdev->hdcp_hpd_stick) ? "" : "un");
 	} else if (strncmp(tmpbuf, "vic", 3) == 0) {
 		pr_info(HW "hdmi vic count = %d\n", hdev->vic_count);
 		if ((tmpbuf[3] >= '0') && (tmpbuf[3] <= '9')) {
@@ -1420,9 +1246,6 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			pr_info(HW "set hdmi vic count = %d\n",
 				hdev->vic_count);
 		}
-	} else if (strncmp(tmpbuf, "topo", 4) == 0) {
-		pr_info("topo: %d\n", hdmitx21_hdcp_opr(0xe));
-		return;
 	} else if (strncmp(tmpbuf, "dumpcecreg", 10) == 0) {
 		u8 cec_val = 0;
 		u32 cec_adr = 0;
@@ -1689,48 +1512,6 @@ static void hdmitx_getediddata(u8 *des, u8 *src)
 		des[i] = src[i];
 }
 
-static int ksv_sha_matched;
-
-static void hdcptx_events_handle(struct timer_list *t)
-{
-}
-
-static void hdcp_start_timer(struct hdmitx_dev *hdev)
-{
-	static int init_flag;
-
-	if (!init_flag) {
-		init_flag = 1;
-		timer_setup(&hdev->hdcp_timer, hdcptx_events_handle, 0);
-		hdev->hdcp_timer.expires = jiffies + HZ / 100;
-		add_timer(&hdev->hdcp_timer);
-		return;
-	}
-	hdev->hdcp_timer.expires = jiffies + HZ / 100;
-	mod_timer(&hdev->hdcp_timer, jiffies + HZ / 100);
-}
-
-static void set_pkf_duk_nonce(void)
-{
-	static int nonce_mode = 1; /* 1: use HW nonce 0: use SW nonce */
-
-	/* Configure duk/pkf */
-	hdmitx21_hdcp_opr(0xc);
-	if (nonce_mode == 1) {
-		hdmitx21_wr_reg(HDMITX_TOP_SKP_CNTL_STAT, 0xf);
-	} else {
-		hdmitx21_wr_reg(HDMITX_TOP_SKP_CNTL_STAT, 0xe);
-/* Configure nonce[127:0].
- * MSB must be written the last to assert nonce_vld signal.
- */
-	}
-	usleep_range(9, 11);
-}
-
-static void check_read_ksv_list_st(void)
-{
-}
-
 void hdmitx_set_div40(u32 div40)
 {
 	u32 addr = 0x20;
@@ -1789,79 +1570,9 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, u32 cmd,
 		break;
 	case DDC_EDID_CLEAR_RAM:
 		break;
-	case DDC_RESET_HDCP:
-		hdmitx21_set_reg_bits(HDMITX_TOP_SW_RESET, 1, 5, 1);
-		usleep_range(9, 11);
-		hdmitx21_set_reg_bits(HDMITX_TOP_SW_RESET, 0, 5, 1);
-		usleep_range(9, 11);
-		break;
-	case DDC_HDCP_MUX_INIT:
-		if (argv == 2)
-			set_pkf_duk_nonce();
-		if (argv == 1)
-			hdmitx21_hdcp_opr(6);
-		break;
-	case DDC_HDCP_OP:
-		ksv_sha_matched = 0;
-		memset(&tmp_ksv_lists, 0, sizeof(tmp_ksv_lists));
-		del_timer(&hdev->hdcp_timer);
-		if (hdev->topo_info)
-			memset(hdev->topo_info, 0, sizeof(*hdev->topo_info));
-
-		if (argv == HDCP14_ON) {
-			check_read_ksv_list_st();
-			if (hdev->topo_info)
-				hdev->topo_info->hdcp_ver = HDCPVER_14;
-			hdmitx21_ddc_hw_op(DDC_MUX_DDC);
-			hdmitx21_set_reg_bits(HDMITX_TOP_SKP_CNTL_STAT, 0, 3, 1);
-			hdmitx21_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1, 31, 1);
-			hdmitx21_hdcp_opr(6);
-			hdmitx21_hdcp_opr(1);
-			hdcp_start_timer(hdev);
-		}
-		if (argv == HDCP14_OFF)
-			hdmitx21_hdcp_opr(4);
-		if (argv == HDCP22_ON) {
-			if (hdev->topo_info)
-				hdev->topo_info->hdcp_ver = 2;
-			hdmitx21_ddc_hw_op(DDC_MUX_DDC);
-			hdmitx21_hdcp_opr(5);
-			/* wait for start hdcp22app */
-		}
-		if (argv == HDCP22_OFF)
-			hdmitx21_hdcp_opr(6);
-		break;
-	case DDC_IS_HDCP_ON:
-/* argv = !!((hdmitx21_rd_reg(TX_HDCP_MODE)) & (1 << 7)); */
-		break;
-	case DDC_HDCP_GET_BKSV:
-		break;
-	case DDC_HDCP_GET_AUTH:
-		if (hdev->hdcp_mode == 1)
-			return hdmitx21_hdcp_opr(2);
-		if (hdev->hdcp_mode == 2)
-			return hdmitx21_hdcp_opr(7);
-		else
-			return 0;
-		break;
-	case DDC_HDCP_14_LSTORE:
-		return hdmitx21_hdcp_opr(0xa);
-	case DDC_HDCP_22_LSTORE:
-		return hdmitx21_hdcp_opr(0xb);
-	case DDC_HDCP14_GET_TOPO_INFO:
-		/* if rx is not repeater, directly return */
-		return 1;
-	case DDC_HDCP_SET_TOPO_INFO:
-		if (hdcp_topo_st != argv) {
-			hdcp_topo_st = argv;
-			hdmitx21_hdcp_opr(0xd);
-		}
-		break;
 	case DDC_SCDC_DIV40_SCRAMB:
 		hdmitx_set_div40(argv == 1);
 		break;
-	case DDC_HDCP14_GET_BCAPS_RP:
-		return 0;
 	default:
 		break;
 	}
@@ -1998,13 +1709,6 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 		return hdmitx_tmds_rxsense();
 	case MISC_TMDS_CEDST:
 		return hdmitx_tmds_cedst(hdev);
-	case MISC_ESM_RESET:
-		if (hdev->hdcp_hpd_stick == 1) {
-			pr_info(HW "hdcp: stick mode\n");
-			break;
-		}
-		hdmitx21_hdcp_opr(6);
-		break;
 	case MISC_VIID_IS_USING:
 		break;
 	case MISC_TMDS_CLK_DIV40:
@@ -2022,16 +1726,6 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 		usleep_range(1000, 2000);
 		break;
 	case MISC_I2C_REACTIVE:
-		break;
-	case MISC_SUSFLAG:
-		if (argv == 1) {
-			hdcp22_susflag = 1;
-			hdmitx21_hdcp_opr(0xf);
-		}
-		if (argv == 0) {
-			hdcp22_susflag = 0;
-			hdmitx21_hdcp_opr(0xf);
-		}
 		break;
 	default:
 		break;

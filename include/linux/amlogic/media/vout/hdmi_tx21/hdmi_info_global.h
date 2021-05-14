@@ -260,8 +260,6 @@ struct hdmitx_info {
 	unsigned support_ycbcr444_flag:1;
 	unsigned support_ycbcr422_flag:1;
 	unsigned tx_video_input_stable_flag:1;
-	unsigned auto_hdcp_ri_flag:1;
-	unsigned hw_sha_calculator_flag:1;
 	unsigned need_sup_cec:1;
 
 	/* ------------------------------------------------------- */
