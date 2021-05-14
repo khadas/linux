@@ -6695,6 +6695,7 @@ static ssize_t amvecm_debug_store(struct class *cla,
 	char *buf_orig, *parm[8] = {NULL};
 	long val = 0;
 	unsigned int mode_sel, color, color_mode, i;
+	struct vinfo_s *vinfo = get_current_vinfo();
 
 	if (!buf)
 		return count;
@@ -7497,9 +7498,25 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		}
 		mltcast_skip_en = val;
 		pr_info("setting value: %d\n", mltcast_skip_en);
+	} else if (!strcmp(parm[0], "pst_hist_sel")) {
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 10, &val) < 0)
+				goto free_buf;
+			if (val == 1) {
+				vpp_pst_hist_sta_config(1, HIST_MAXRGB,
+					AFTER_POST2_MTX, vinfo);
+				pr_info("hist sel: max rgb hist\n");
+			} else {
+				vpp_pst_hist_sta_config(1, HIST_YR,
+					BEFORE_POST2_MTX, vinfo);
+				pr_info("hist sel: Y hist\n");
+			}
+		}
 	} else {
 		pr_info("unsupport cmd\n");
 	}
+	vpp_pst_hist_sta_config(1, HIST_MAXRGB,
+		AFTER_POST2_MTX, vinfo);
 
 	kfree(buf_orig);
 	return count;
@@ -8594,8 +8611,8 @@ tvchip_pq_setting:
 			hdr_hist_config_int();
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
-			vpp_pst_hist_sta_config(1, HIST_YR,
-				BEFORE_POST2_MTX, vinfo);
+			vpp_pst_hist_sta_config(1, HIST_MAXRGB,
+				AFTER_POST2_MTX, vinfo);
 	}
 
 	/* enable vadj1 by default */

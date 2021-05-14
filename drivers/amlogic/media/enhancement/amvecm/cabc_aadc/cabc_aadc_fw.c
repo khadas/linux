@@ -41,6 +41,7 @@ MODULE_PARM_DESC(pr_cabc_aad, "\n pr_cabc_aad\n");
 
 static int cabc_aad_en;
 static int status_flag;
+static int pre_cabc_en;
 
 static int lut_Y_gain[17] = {
 	0, 256, 512, 768, 1024, 1280, 1536, 1792, 2048, 2304,
@@ -153,6 +154,11 @@ static int pre_gamma[3][65] = {
 };
 
 static int o_bl_mapping[13] = {
+	2048, 2048, 2048, 2048, 2048, 2662, 2867,
+	3072, 3276, 3481, 3686, 3891, 4096
+};
+
+static int maxbin_bl_mapping[13] = {
 	1984, 1984, 3292, 3292, 3292, 3292, 3292,
 	3292, 3592, 4096, 4096, 4096, 4096
 };
@@ -201,10 +207,16 @@ static struct cabc_param_s cabc_parm = {
 	.cabc_sc_flag = 1,
 	.cabc_sc_hist_diff_thd = 1920 * 1080 / 3,
 	.cabc_sc_apl_diff_thd = 24 << (LED_BL_BW - PSTHIST_NRM),
-	.cabc_en = 1,
+	.cabc_en = 0,
 	.cabc_bl_map_mode = 0,
 	.cabc_bl_map_en = 1,
 	.o_bl_cv = o_bl_mapping,
+	.maxbin_bl_cv = maxbin_bl_mapping,
+	.cabc_patch_bl_th = 25,
+	.cabc_patch_on_alpha = 30,
+	.cabc_patch_bl_off_th = 10,
+	.cabc_patch_off_alpha = 15,
+	.cabc_temp_proc = 1,
 };
 
 static struct pre_gam_param_s pre_gam_parm = {
@@ -239,7 +251,7 @@ struct aad_fw_param_s fw_aad_parm = {
 	.aad_alg = NULL,
 };
 
-static char cabc_ver[32] = "cabc_v1_20210508";
+static char cabc_ver[32] = "cabc_v1_20210514";
 struct cabc_fw_param_s fw_cabc_parm = {
 	.fw_cabc_en = 1,
 	.fw_cabc_status = 0,
@@ -356,9 +368,12 @@ void aml_cabc_alg_process(struct work_struct *work)
 			pr_cabc_aad_dbg("%s: cabc alg func is NULL\n", __func__);
 	} else {
 		fw_cabc_parm.cabc_alg(&fw_cabc_parm, cabc_final_gain);
-		backlight = fw_cabc_parm.tgt_bl >> 4;
+		backlight = fw_cabc_parm.tgt_bl;
 		backlight_setting_update(backlight);
-
+		if (fw_cabc_parm.cabc_param->cabc_temp_proc == 0) {
+			backlight_update_ctrl(0);
+			fw_cabc_parm.cabc_param->cabc_temp_proc = 1;
+		}
 	}
 
 	if (!fw_pre_gma_parm.pre_gamma_proc) {
@@ -373,6 +388,15 @@ void aml_cabc_alg_process(struct work_struct *work)
 
 	if (!status_flag)
 		status_flag = 1;
+
+	if (fw_pre_gma_parm.pre_gamma_proc &&
+		fw_cabc_parm.cabc_alg &&
+		cabc_aad_en &&
+		fw_cabc_parm.cabc_param->cabc_en &&
+		pre_cabc_en != fw_cabc_parm.cabc_param->cabc_en) {
+		backlight_update_ctrl(1);
+		pre_cabc_en = fw_cabc_parm.cabc_param->cabc_en;
+	}
 }
 
 void aml_cabc_alg_bypass(struct work_struct *work)
@@ -384,6 +408,10 @@ void aml_cabc_alg_bypass(struct work_struct *work)
 		set_pre_gamma_reg(&pre_gam);
 		pr_cabc_aad_dbg("%s\n", __func__);
 		status_flag = 0;
+		if (pre_cabc_en) {
+			backlight_update_ctrl(0);
+			pre_cabc_en = 0;
+		}
 	}
 }
 
@@ -416,13 +444,27 @@ int cabc_alg_state(void)
 		fw_cabc_param->cabc_param->cabc_sc_apl_diff_thd);
 	pr_info("cabc_en = %d\n",
 		fw_cabc_param->cabc_param->cabc_en);
-	pr_info("fw_cabc_bl_map_mode = %d\n",
+	pr_info("cabc_bl_map_mode = %d\n",
 		fw_cabc_param->cabc_param->cabc_bl_map_mode);
-	pr_info("fw_cabc_bl_map_en = %d\n",
+	pr_info("cabc_bl_map_en = %d\n",
 		fw_cabc_param->cabc_param->cabc_bl_map_en);
+	pr_info("cabc_patch_bl_th = %d\n",
+		fw_cabc_param->cabc_param->cabc_patch_bl_th);
+	pr_info("cabc_patch_on_alpha = %d\n",
+		fw_cabc_param->cabc_param->cabc_patch_on_alpha);
+	pr_info("cabc_patch_bl_off_th = %d\n",
+		fw_cabc_param->cabc_param->cabc_patch_bl_off_th);
+	pr_info("cabc_patch_off_alpha = %d\n",
+		fw_cabc_param->cabc_param->cabc_patch_off_alpha);
+	pr_info("cabc_temp_proc = %d\n",
+		fw_cabc_param->cabc_param->cabc_temp_proc);
 
 	for (i = 0; i < 13; i++)
 		pr_info("o_bl_mapping[%d] = %d\n", i, fw_cabc_param->cabc_param->o_bl_cv[i]);
+
+	for (i = 0; i < 13; i++)
+		pr_info("maxbin_bl_mapping[%d] = %d\n",
+		i, fw_cabc_param->cabc_param->maxbin_bl_cv[i]);
 
 	pr_info("\n--------fw vpp y hist-------\n");
 	if (fw_cabc_param->i_hist) {
@@ -681,11 +723,9 @@ int cabc_aad_debug(char **param)
 
 	if (!strcmp(param[0], "enable")) {/*module en/disable*/
 		cabc_aad_en = 1;
-		backlight_update_ctrl(cabc_aad_en);
 		pr_info("enable aad\n");
 	} else if (!strcmp(param[0], "disable")) {
 		cabc_aad_en = 0;
-		backlight_update_ctrl(cabc_aad_en);
 		pr_info("disable aad\n");
 	} else if (!strcmp(param[0], "aad_enable")) {/*debug aad*/
 		fw_aad_param->fw_aad_en = 1;
@@ -1011,7 +1051,9 @@ int cabc_aad_debug(char **param)
 			goto error;
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
-		fw_cabc_param->cabc_param->cabc_en = val;
+		fw_cabc_param->cabc_param->cabc_en = (int)val;
+		if (fw_cabc_param->cabc_param->cabc_en)
+			backlight_update_ctrl(fw_cabc_param->cabc_param->cabc_en);
 		pr_info("cabc_en = %d\n", (int)val);
 	} else if (!strcmp(param[0], "cabc_bl_map_mode")) {
 		if (!fw_cabc_param->cabc_param)
@@ -1042,6 +1084,56 @@ int cabc_aad_debug(char **param)
 			pr_info("o_bl_cv[%d] = %d\n",
 				i, fw_cabc_param->cabc_param->o_bl_cv[i]);
 		}
+	} else if (!strcmp(param[0], "maxbin_bl_cv")) {
+		if (!fw_cabc_param->cabc_param)
+			goto error;
+		if (param[2]) {
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			i = (int)val;
+			if (i >= 13)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->maxbin_bl_cv[i] = (int)val;
+			pr_info("maxbin_bl_cv[%d] = %d\n",
+				i, fw_cabc_param->cabc_param->maxbin_bl_cv[i]);
+		}
+	} else if (!strcmp(param[0], "cabc_patch_bl_th")) {
+		if (!fw_cabc_param->cabc_param)
+			goto error;
+		if (kstrtoul(param[1], 10, &val) < 0)
+			goto error;
+		fw_cabc_param->cabc_param->cabc_patch_bl_th = val;
+		pr_info("cabc_patch_bl_th = %d\n", (int)val);
+	} else if (!strcmp(param[0], "cabc_patch_on_alpha")) {
+		if (!fw_cabc_param->cabc_param)
+			goto error;
+		if (kstrtoul(param[1], 10, &val) < 0)
+			goto error;
+		fw_cabc_param->cabc_param->cabc_patch_on_alpha = val;
+		pr_info("cabc_patch_on_alpha = %d\n", (int)val);
+	} else if (!strcmp(param[0], "cabc_patch_bl_off_th")) {
+		if (!fw_cabc_param->cabc_param)
+			goto error;
+		if (kstrtoul(param[1], 10, &val) < 0)
+			goto error;
+		fw_cabc_param->cabc_param->cabc_patch_bl_off_th = val;
+		pr_info("cabc_patch_bl_off_th = %d\n", (int)val);
+	} else if (!strcmp(param[0], "cabc_patch_off_alpha")) {
+		if (!fw_cabc_param->cabc_param)
+			goto error;
+		if (kstrtoul(param[1], 10, &val) < 0)
+			goto error;
+		fw_cabc_param->cabc_param->cabc_patch_off_alpha = val;
+		pr_info("cabc_patch_off_alpha = %d\n", (int)val);
+	} else if (!strcmp(param[0], "cabc_temp_proc")) {
+		if (!fw_cabc_param->cabc_param)
+			goto error;
+		if (kstrtoul(param[1], 10, &val) < 0)
+			goto error;
+		fw_cabc_param->cabc_param->cabc_temp_proc = val;
+		pr_info("cabc_temp_proc = %d\n", (int)val);
 	} else if (!strcmp(param[0], "cabc_debug_mode")) {
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;

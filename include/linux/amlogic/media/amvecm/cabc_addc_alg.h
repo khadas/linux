@@ -57,6 +57,12 @@ struct cabc_param_s {
 	int cabc_bl_map_mode;
 	int cabc_bl_map_en;
 	int *o_bl_cv;
+	int *maxbin_bl_cv;
+	int cabc_patch_bl_th;
+	int cabc_patch_on_alpha;
+	int cabc_patch_bl_off_th;
+	int cabc_patch_off_alpha;
+	int cabc_temp_proc;
 };
 
 struct pre_gam_param_s {
