@@ -172,7 +172,19 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	ins->last_switch_state = false;
 
 	if (ins->cur_buf) {
-		ins->local_buf = *ins->cur_buf;
+		if (ins->cur_buf->vf_ext &&
+		    IS_DI_POSTWRTIE(ins->cur_buf->type)) {
+			struct vframe_s *tmp =
+				(struct vframe_s *)ins->cur_buf->vf_ext;
+
+			memcpy(&tmp->pic_mode, &ins->cur_buf->pic_mode,
+				sizeof(struct vframe_pic_mode_s));
+			ins->local_buf_ext = *tmp;
+			ins->local_buf = *ins->cur_buf;
+			ins->local_buf.vf_ext = (void *)&ins->local_buf_ext;
+		} else {
+			ins->local_buf = *ins->cur_buf;
+		}
 		ins->cur_buf = &ins->local_buf;
 	}
 	spin_unlock_irqrestore(&ins->lock, flags);
@@ -533,7 +545,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins)
 		vf = common_vf_peek(ins);
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
-	if (toggle_vf &&
+	if (toggle_vf && IS_DI_POST(toggle_vf->type) &&
 	    (toggle_vf->flag & VFRAME_FLAG_DOUBLE_FRAM) &&
 	    glayer_info[0].display_path_id == ins->path_id) {
 		if (toggle_vf->di_instance_id == di_api_get_instance_id()) {

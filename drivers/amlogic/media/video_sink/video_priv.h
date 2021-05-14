@@ -27,7 +27,7 @@
 #define VIDEO_ENABLE_STATE_ON_PENDING 2
 #define VIDEO_ENABLE_STATE_OFF_REQ    3
 
-#define DEBUG_FLAG_BLACKOUT     0x1
+#define DEBUG_FLAG_BASIC_INFO     0x1
 #define DEBUG_FLAG_PRINT_TOGGLE_FRAME 0x2
 #define DEBUG_FLAG_PRINT_RDMA                0x4
 #define DEBUG_FLAG_GET_COUNT                 0x8
@@ -35,7 +35,8 @@
 #define DEBUG_FLAG_PRINT_PATH_SWITCH        0x20
 #define DEBUG_FLAG_TRACE_EVENT	        0x40
 #define DEBUG_FLAG_LOG_RDMA_LINE_MAX         0x100
-#define DEBUG_FLAG_HDMI_AVSYNC_DEBUG     0x400
+#define DEBUG_FLAG_BLACKOUT     0x200
+#define DEBUG_FLAG_NO_CLIP_SETTING     0x400
 #define DEBUG_FLAG_TOGGLE_SKIP_KEEP_CURRENT  0x10000
 #define DEBUG_FLAG_TOGGLE_FRAME_PER_VSYNC    0x20000
 #define DEBUG_FLAG_RDMA_WAIT_1		     0x40000
@@ -50,7 +51,7 @@
 #define DEBUG_FLAG_OMX_DV_DROP_FRAME        0x8000000
 #define DEBUG_FLAG_COMPOSER_NO_DROP_FRAME     0x10000000
 #define DEBUG_FLAG_AXIS_NO_UPDATE     0x20000000
-#define DEBUG_FLAG_NO_CLIP_SETTING    0x40000000
+#define DEBUG_FLAG_HDMI_AVSYNC_DEBUG     0x40000000
 
 #define VOUT_TYPE_TOP_FIELD 0
 #define VOUT_TYPE_BOT_FIELD 1
@@ -107,6 +108,10 @@
 #define VPP_FILER_COEFS_NUM   33
 #define VPP_NUM 3
 #define RDMA_INTERFACE_NUM 4
+
+#define OP_VPP_MORE_LOG 1
+#define OP_FORCE_SWITCH_VF 2
+#define OP_FORCE_NOT_SWITCH_VF 4
 
 enum vd_path_id {
 	VFM_PATH_DEF = -1,
@@ -346,6 +351,9 @@ struct video_layer_s {
 	bool new_frame;
 	u32 vout_type;
 	bool bypass_pps;
+	bool switch_vf;
+	u8 force_switch_mode;
+	struct vframe_s *vf_ext;
 
 	struct vpp_frame_par_s *cur_frame_par;
 	struct vpp_frame_par_s *next_frame_par;
@@ -473,6 +481,9 @@ struct video_dev_s *get_video_cur_dev(void);
 u32 get_video_enabled(void);
 u32 get_videopip_enabled(void);
 u32 get_videopip2_enabled(void);
+u32 get_video_onoff_state(void);
+u32 get_videopip_onoff_state(void);
+u32 get_videopip2_onoff_state(void);
 
 bool is_di_on(void);
 bool is_di_post_on(void);
@@ -584,7 +595,6 @@ extern bool reverse;
 extern u32  mirror;
 extern struct vframe_s vf_local;
 extern struct vframe_s vf_local2;
-extern struct vframe_s vf_local3;
 extern struct vframe_s local_pip;
 extern struct vframe_s local_pip2;
 extern struct vframe_s *cur_dispbuf;
@@ -615,6 +625,7 @@ extern bool rdma_enable_pre;
 extern struct vpp_frame_par_s *curpip_frame_par;
 extern struct vpp_frame_par_s *curpip2_frame_par;
 extern struct video_layer_s vd_layer_vpp[2];
+extern u32 force_switch_vf_mode;
 
 bool black_threshold_check(u8 id);
 extern atomic_t primary_src_fmt;

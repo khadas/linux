@@ -1250,7 +1250,7 @@ static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *ge2d_buf)
 		return 0;
 	}
 
-	if (get_video_debug_flags() & DEBUG_FLAG_BLACKOUT) {
+	if (get_video_debug_flags() & DEBUG_FLAG_BASIC_INFO) {
 		pr_info("%s keep_y_addr=%p %lx\n",
 			__func__, (void *)keep_y_addr,
 			canvas_get_addr(y_index));
@@ -1269,7 +1269,7 @@ static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *ge2d_buf)
 			return 0;
 		}
 		ge2d_keeplastframe_block(cur_index, GE2D_FORMAT_S24_YUV444);
-		if (get_video_debug_flags() & DEBUG_FLAG_BLACKOUT)
+		if (get_video_debug_flags() & DEBUG_FLAG_BASIC_INFO)
 			pr_info("%s: VIDTYPE_VIU_444\n", __func__);
 	} else if ((ge2d_buf->type & VIDTYPE_VIU_NV21) == VIDTYPE_VIU_NV21) {
 		canvas_read(y_index, &cs0);
@@ -1281,7 +1281,7 @@ static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *ge2d_buf)
 			return 0;
 		}
 		ge2d_keeplastframe_block(cur_index, GE2D_FORMAT_M24_NV21);
-		if (get_video_debug_flags() & DEBUG_FLAG_BLACKOUT)
+		if (get_video_debug_flags() & DEBUG_FLAG_BASIC_INFO)
 			pr_info("%s: VIDTYPE_VIU_NV21\n", __func__);
 	} else {
 		canvas_read(y_index, &cs0);
@@ -1296,7 +1296,7 @@ static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *ge2d_buf)
 			return 0;
 		}
 		ge2d_keeplastframe_block(cur_index, GE2D_FORMAT_M24_YUV420);
-		if (get_video_debug_flags() & DEBUG_FLAG_BLACKOUT)
+		if (get_video_debug_flags() & DEBUG_FLAG_BASIC_INFO)
 			pr_info("%s: VIDTYPE_VIU_420\n", __func__);
 	}
 	pr_info("%s: use ge2d keep video\n", __func__);
@@ -1307,7 +1307,7 @@ static unsigned int vf_ge2d_keep_frame_locked(struct vframe_s *ge2d_buf)
 static unsigned int vf_keep_current_locked(struct vframe_s *cur_buf,
 					   struct vframe_s *cur_buf_el)
 {
-	int ret;
+	int ret = 0;
 
 	if (!cur_buf) {
 		pr_info("keep exit without cur_buf\n");
@@ -1333,7 +1333,7 @@ static unsigned int vf_keep_current_locked(struct vframe_s *cur_buf,
 		ret = 2;
 		if (cur_buf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
 			ret = video_keeper_frame_keep_locked
-				(cur_buf->vf_ext,
+				((struct vframe_s *)cur_buf->vf_ext,
 				cur_buf_el);
 			pr_info("keep di_dec buffer\n");
 		}
@@ -1364,7 +1364,7 @@ static unsigned int vf_keep_current_locked(struct vframe_s *cur_buf,
 unsigned int vf_keep_pip_current_locked(struct vframe_s *cur_buf,
 					struct vframe_s *cur_buf_el)
 {
-	int ret;
+	int ret = 0;
 
 	if (!cur_buf) {
 		pr_info("keep pip exit without cur_buf\n");
@@ -1386,6 +1386,20 @@ unsigned int vf_keep_pip_current_locked(struct vframe_s *cur_buf,
 		return 0;
 	}
 
+	if (IS_DI_PROCESSED(cur_buf->type)) {
+		ret = 2;
+		if (cur_buf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+			ret = video_pip_keeper_frame_keep_locked
+				((struct vframe_s *)cur_buf->vf_ext,
+				cur_buf_el);
+			pr_info("pip keep di_dec buffer\n");
+		}
+		pr_info("pip keep exit is di %s\n",
+			IS_DI_POSTWRTIE(cur_buf->type) ?
+			"post write" : "post");
+		return ret;
+	}
+
 	ret = video_pip_keeper_frame_keep_locked(cur_buf, cur_buf_el);
 
 	if (ret) {
@@ -1402,7 +1416,7 @@ unsigned int vf_keep_pip_current_locked(struct vframe_s *cur_buf,
 unsigned int vf_keep_pip2_current_locked(struct vframe_s *cur_buf,
 					struct vframe_s *cur_buf_el)
 {
-	int ret;
+	int ret = 0;
 
 	if (!cur_buf) {
 		pr_info("keep pip2 exit without cur_buf\n");
@@ -1422,6 +1436,20 @@ unsigned int vf_keep_pip2_current_locked(struct vframe_s *cur_buf,
 	if (get_blackout_pip2_policy()) {
 		pr_info("policy: keep exit is skip current\n");
 		return 0;
+	}
+
+	if (IS_DI_PROCESSED(cur_buf->type)) {
+		ret = 2;
+		if (cur_buf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+			ret = video_pip2_keeper_frame_keep_locked
+				((struct vframe_s *)cur_buf->vf_ext,
+				cur_buf_el);
+			pr_info("pip2 keep di_dec buffer\n");
+		}
+		pr_info("pip2 keep exit is di %s\n",
+			IS_DI_POSTWRTIE(cur_buf->type) ?
+			"post write" : "post");
+		return ret;
 	}
 
 	ret = video_pip2_keeper_frame_keep_locked(cur_buf, cur_buf_el);
