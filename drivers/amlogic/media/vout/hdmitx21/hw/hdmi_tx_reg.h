@@ -3,8 +3,8 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#ifndef _HDMI_TX_REG_H
-#define _HDMI_TX_REG_H
+#ifndef __HDMI_TX_REG_H__
+#define __HDMI_TX_REG_H__
 
 /* TOP-level wrapper registers addresses
  * bit24: 1 means secure access
@@ -51,1248 +51,2401 @@
 #define HDMITX_TOP_DONT_TOUCH0        (TOP_SEC_OFFSET_MASK + (0x0FE << 2)) // 0x3F8
 #define HDMITX_TOP_DONT_TOUCH1        (TOP_SEC_OFFSET_MASK + (0x0FF << 2)) // 0x3FC
 
-//------------------------------------------------------------------------------
-// INVECAS TX CONTROLLER REGISTERS ADDRESSES
-//------------------------------------------------------------------------------
+#define INTR3_IVCTX 0x0000
 
-//====================AON_DDC_REG===============
-#define            INTR3_IVCTX 0x00000000
-#define       INTR3_MASK_IVCTX 0x00000001
-#define       DDC_MANUAL_IVCTX 0x00000002
-#define         DDC_ADDR_IVCTX 0x00000003
-#define         DDC_SEGM_IVCTX 0x00000004
-#define       DDC_OFFSET_IVCTX 0x00000005
-#define     DDC_DIN_CNT1_IVCTX 0x00000006
-#define     DDC_DIN_CNT2_IVCTX 0x00000007
-#define       DDC_STATUS_IVCTX 0x00000008
-#define          DDC_CMD_IVCTX 0x00000009
-#define     DDC_DATA_AON_IVCTX 0x0000000A
-#define     DDC_DOUT_CNT_IVCTX 0x0000000B
-#define    DDC_DELAY_CNT_IVCTX 0x0000000C
-#define DDC_TIMEOUT_CNT1_IVCTX 0x0000000D
-#define DDC_TIMEOUT_CNT2_IVCTX 0x0000000E
-#define DDC_TIMEOUT_CNT3_IVCTX 0x0000000F
-#define  DDC_TIMEOUT_CTL_IVCTX 0x00000010
-#define     TPI_HPD_RSEN_IVCTX 0x00000011
-#define         HTPLG_T2_IVCTX 0x00000012
-#define         HTPLG_T1_IVCTX 0x00000013
-#define         HPD_CTRL_IVCTX 0x00000014
-#define      HPD_IN_CTRL_IVCTX 0x00000015
-#define            INTR1_IVCTX 0x00000016
-#define       INTR1_MASK_IVCTX 0x00000017
-#define      AON_CYP_CTL_IVCTX 0x00000018
+#define INTR3_MASK_IVCTX 0x0001
 
-//====================SYSSOC_P0_REG===============
-#define             VND_IDL_IVCTX 0x00000100
-#define             VND_IDH_IVCTX 0x00000101
-#define             DEV_IDL_IVCTX 0x00000102
-#define             DEV_IDH_IVCTX 0x00000103
-#define            DEV_REVL_IVCTX 0x00000104
-#define            DEV_REVH_IVCTX 0x00000105
-#define            SOC_INTR_IVCTX 0x00000106
-#define        SOC_INTRMASK_IVCTX 0x00000107
-#define          HOST_CTRL1_IVCTX 0x00000108
-#define          HOST_CTRL2_IVCTX 0x00000109
-#define        OTP_DBYTE510_IVCTX 0x0000010A
-#define        SOC_FUNC_SEL_IVCTX 0x0000010B
-#define           SYS_CTRL1_IVCTX 0x0000010C
-#define              CLKPWD_IVCTX 0x0000010D
-#define           CLKPHASE1_IVCTX 0x0000010E
-#define           CLKPHASE2_IVCTX 0x0000010F
-#define            PWD_SRST_IVCTX 0x00000110
-#define             SW_RST2_IVCTX 0x00000111
-#define             SW_RST3_IVCTX 0x00000112
-#define            SYS_MISC_IVCTX 0x00000113
-#define           SYS_MISC2_IVCTX 0x00000114
-#define           SYS_MISC3_IVCTX 0x00000115
-#define            PRIFCNTL_IVCTX 0x00000116
-#define         PAGE_1_ADDR_IVCTX 0x00000117
-#define         PAGE_2_ADDR_IVCTX 0x00000118
-#define         PAGE_3_ADDR_IVCTX 0x00000119
-#define   PAGE_MHLSPEC_ADDR_IVCTX 0x0000011A
-#define      PAGE_CBUS_ADDR_IVCTX 0x0000011B
-#define         HW_TPI_ADDR_IVCTX 0x0000011C
-#define         PAGE_7_ADDR_IVCTX 0x0000011D
-#define         PAGE_8_ADDR_IVCTX 0x0000011E
-#define         PAGE_9_ADDR_IVCTX 0x0000011F
-#define        PAGE_10_ADDR_IVCTX 0x00000120
-#define        PAGE_11_ADDR_IVCTX 0x00000121
-#define        PAGE_12_ADDR_IVCTX 0x00000122
-#define        PAGE_13_ADDR_IVCTX 0x00000123
-#define        PAGE_14_ADDR_IVCTX 0x00000124
-#define        PAGE_15_ADDR_IVCTX 0x00000125
-#define           IPREGRST0_IVCTX 0x00000126
-#define           IPREGRST1_IVCTX 0x00000127
-#define           IPREGRST2_IVCTX 0x00000128
-#define           IPREGRST3_IVCTX 0x00000129
-#define     PCLK2TMDS_MISC0_IVCTX 0x0000012A
-#define     PCLK2TMDS_MISC1_IVCTX 0x0000012B
-#define      HDCP2X_CONTROL_IVCTX 0x0000012C
-#define      VIDGEN_CONTROL_IVCTX 0x0000012D
-#define VP_BUF_ALIGN_STATUS_IVCTX 0x0000012E
-#define       CLK_DIV_CNTRL_IVCTX 0x0000012F
-//====================SYSTOP_REG===============
-#define            TOP_INTR_IVCTX 0x00000130
+#define DDC_MANUAL_IVCTX 0x0002
 
-//====================SW_TPI_REG===============
-#define           DEBUG_MODE_EN_IVCTX 0x00000200
-#define                SYS_STAT_IVCTX 0x00000201
-#define               SYS_CTRL3_IVCTX 0x00000202
-#define                     DPD_IVCTX 0x00000203
-#define               SYS_CTRL4_IVCTX 0x00000204
-#define                 MCUTOUT_IVCTX 0x00000205
-#define            DIGIPREGRST0_IVCTX 0x00000206
-#define            DIGIPREGRST1_IVCTX 0x00000207
-#define            DIGIPREGRST2_IVCTX 0x00000208
-#define            DIGIPREGRST3_IVCTX 0x00000209
-#define           HDCP_CTRL_0_0_IVCTX 0x0000020E
-#define               HDCP_CTRL_IVCTX 0x0000020F
-#define               WR_BKSV_1_IVCTX 0x00000210
-#define               WR_BKSV_2_IVCTX 0x00000211
-#define               WR_BKSV_3_IVCTX 0x00000212
-#define               WR_BKSV_4_IVCTX 0x00000213
-#define               WR_BKSV_5_IVCTX 0x00000214
-#define                     AN1_IVCTX 0x00000215
-#define                     AN2_IVCTX 0x00000216
-#define                     AN3_IVCTX 0x00000217
-#define                     AN4_IVCTX 0x00000218
-#define                     AN5_IVCTX 0x00000219
-#define                     AN6_IVCTX 0x0000021A
-#define                     AN7_IVCTX 0x0000021B
-#define                     AN8_IVCTX 0x0000021C
-#define                  AKSV_1_IVCTX 0x0000021D
-#define                  AKSV_2_IVCTX 0x0000021E
-#define                  AKSV_3_IVCTX 0x0000021F
-#define                  AKSV_4_IVCTX 0x00000220
-#define                  AKSV_5_IVCTX 0x00000221
-#define                    RI_1_IVCTX 0x00000222
-#define                    RI_2_IVCTX 0x00000223
-#define             RI_128_COMP_IVCTX 0x00000224
-#define              HDCP_I_CNT_IVCTX 0x00000225
-#define                 RI_STAT_IVCTX 0x00000226
-#define                  RI_CMD_IVCTX 0x00000227
-#define                RI_START_IVCTX 0x00000228
-#define                 RI_RX_1_IVCTX 0x00000229
-#define                 RI_RX_2_IVCTX 0x0000022A
-#define            TXHDCP_DEBUG_IVCTX 0x0000022B
-#define            VSYNC_START0_IVCTX 0x00000230
-#define            VSYNC_START1_IVCTX 0x00000231
-#define              VSYNC_END0_IVCTX 0x00000232
-#define              VSYNC_END1_IVCTX 0x00000233
-#define                CLKRATIO_IVCTX 0x00000235
-#define                P2T_CTRL_IVCTX 0x00000236
-#define              VID_BLANK0_IVCTX 0x00000237
-#define              VID_BLANK1_IVCTX 0x00000238
-#define              VID_BLANK2_IVCTX 0x00000239
-#define               VID_OVRRD_IVCTX 0x0000023A
-#define               AP_DEPROC_IVCTX 0x0000023B
-#define    HBLANK_REKEY_CONTROL_IVCTX 0x0000023C
-#define              HDPLL_FIX0_IVCTX 0x0000023D
-#define              HDPLL_FIX1_IVCTX 0x0000023E
-#define              POL_DETECT_IVCTX 0x0000023F
-#define              HDPLL_FIX2_IVCTX 0x00000240
-#define              HDPLL_FIX3_IVCTX 0x00000241
-#define       VSI_MHL_IEEE_NO_0_IVCTX 0x00000242
-#define       VSI_MHL_IEEE_NO_1_IVCTX 0x00000243
-#define       VSI_MHL_IEEE_NO_2_IVCTX 0x00000244
-#define            PKT_FILTER_0_IVCTX 0x00000245
-#define            PKT_FILTER_1_IVCTX 0x00000246
-#define            PKT_FILTER_2_IVCTX 0x00000247
-#define            PKT_FILTER_3_IVCTX 0x00000248
-#define         PKT_FILTER_CTRL_IVCTX 0x00000249
-#define         DROP_GEN_TYPE_0_IVCTX 0x0000024A
-#define         DROP_GEN_TYPE_1_IVCTX 0x0000024B
-#define         DROP_D_HDR_TYPE_IVCTX 0x0000024C
-#define               DIPT_CNTL_IVCTX 0x0000024D
-#define            D_HDR_ORG_ID_IVCTX 0x0000024E
-#define              SYS_CNTR_0_IVCTX 0x0000024F
-#define              SYS_CNTR_1_IVCTX 0x00000250
-#define            SYS_CNTR_ST0_IVCTX 0x00000251
-#define            SYS_CNTR_ST1_IVCTX 0x00000252
-#define          L1_INTR_STAT_0_IVCTX 0x00000253
-#define          L1_INTR_STAT_1_IVCTX 0x00000254
-#define         HTPLG_T2_SW_TPI_IVCTX 0x0000025F
-#define         HTPLG_T1_SW_TPI_IVCTX 0x00000260
-#define              INTR_STATE_IVCTX 0x00000263
-#define            INTR1_SW_TPI_IVCTX 0x00000264
-#define            INTR2_SW_TPI_IVCTX 0x00000265
-#define            INTR3_SW_TPI_IVCTX 0x00000266
-#define            INTR5_SW_TPI_IVCTX 0x00000267
-#define            RSVD4_SW_TPI_IVCTX 0x00000268
-#define            RSVD5_SW_TPI_IVCTX 0x00000269
-#define       INTR1_MASK_SW_TPI_IVCTX 0x0000026A
-#define       INTR2_MASK_SW_TPI_IVCTX 0x0000026B
-#define       INTR3_MASK_SW_TPI_IVCTX 0x0000026C
-#define       INTR5_MASK_SW_TPI_IVCTX 0x0000026D
-#define            RSVD6_SW_TPI_IVCTX 0x0000026E
-#define            RSVD7_SW_TPI_IVCTX 0x0000026F
-#define         HPD_CTRL_SW_TPI_IVCTX 0x00000270
-#define            RSVD9_SW_TPI_IVCTX 0x00000273
-#define              TMDS_CSTAT_IVCTX 0x00000274
-#define           RSVD10_SW_TPI_IVCTX 0x00000275
-#define           RSVD11_SW_TPI_IVCTX 0x00000276
-#define            GCP_PKT_CTRL_IVCTX 0x00000277
-#define              TMDS_CTRL4_IVCTX 0x00000278
-#define        SCDT_HOLDOFF_MSB_IVCTX 0x00000279
-#define              TMDS_CTRL7_IVCTX 0x0000027B
-#define     HPD_IN_CTRL_SW_TPI_IVCTX  0x0000027C
-#define          VSIF_IEEE_ID_0_IVCTX 0x0000027D
-#define          VSIF_IEEE_ID_1_IVCTX 0x0000027E
-#define          VSIF_IEEE_ID_2_IVCTX 0x0000027F
-#define     DROP_CVTEM_PKT_TYPE_IVCTX 0x00000280
-#define      DROP_VTEM_PKT_TYPE_IVCTX 0x00000281
-#define      DROP_VSEM_PKT_TYPE_IVCTX 0x00000282
-#define             VSEM_ORG_ID_IVCTX 0x00000283
-#define        DSC_CVTEM_ORG_ID_IVCTX 0x00000284
-#define             VTEM_ORG_ID_IVCTX 0x00000285
-#define      DSC_CVTEM_DS_TAG_1_IVCTX 0x00000286
-#define      DSC_CVTEM_DS_TAG_2_IVCTX 0x00000287
-#define           VTEM_DS_TAG_1_IVCTX 0x00000288
-#define           VTEM_DS_TAG_2_IVCTX 0x00000289
-#define           FAPA_PKT_CNTL_IVCTX 0x0000028A
-#define          VSIF2_PKT_CTRL_IVCTX 0x0000028B
-#define          VSIF2_PKT_TYPE_IVCTX 0x0000028C
-#define       VSIF2_PKT_VERSION_IVCTX 0x0000028D
-#define      VSIF2_PKT_IEEE_ID0_IVCTX 0x0000028E
-#define      VSIF2_PKT_IEEE_ID1_IVCTX 0x0000028F
-#define      VSIF2_PKT_IEEE_ID2_IVCTX 0x00000290
-#define      DROP_D_HDR_PC_TYPE_IVCTX 0x00000291
-#define        DROP_DSC_PC_TYPE_IVCTX 0x00000292
-#define    D_HDR_PC_PKT_VERSION_IVCTX 0x00000293
-#define      DSC_PC_PKT_VERSION_IVCTX 0x00000294
-#define        HDCP_MISC_CTRL_0_IVCTX 0x00000295
-#define        HDCP_MISC_CTRL_1_IVCTX 0x00000296
-#define        EMP_ARBITER_CTRL_IVCTX 0x00000297
-#define      EMP_ARBITER_CTRL_1_IVCTX 0x00000298
-#define        EMP_PKT_TYPE_VAL_IVCTX 0x00000299
-#define         HDPLL_FIX_NEW_0_IVCTX 0x0000029A
-#define         HDPLL_FIX_NEW_1_IVCTX 0x0000029B
-#define         HDPLL_FIX_NEW_2_IVCTX 0x0000029C
-#define    FRL_LINK_RATE_CONFIG_IVCTX 0x0000029D
-#define         FAPA_PKT_HEADER_IVCTX 0x0000029E
-#define                  LM_DDC_IVCTX 0x0000029F
-#define              TXSHA_CTRL_IVCTX 0x000002A4
-#define              TXKSV_FIFO_IVCTX 0x000002A5
-#define           TXDS_BSTATUS1_IVCTX 0x000002A6
-#define           TXDS_BSTATUS2_IVCTX 0x000002A7
-#define                 TXVH0_0_IVCTX 0x000002AB
-#define                 TXVH0_1_IVCTX 0x000002AC
-#define                 TXVH0_2_IVCTX 0x000002AD
-#define                 TXVH0_3_IVCTX 0x000002AE
-#define                 TXVH1_0_IVCTX 0x000002AF
-#define                 TXVH1_1_IVCTX 0x000002B0
-#define                 TXVH1_2_IVCTX 0x000002B1
-#define                 TXVH1_3_IVCTX 0x000002B2
-#define                 TXVH2_0_IVCTX 0x000002B3
-#define                 TXVH2_1_IVCTX 0x000002B4
-#define                 TXVH2_2_IVCTX 0x000002B5
-#define                 TXVH2_3_IVCTX 0x000002B6
-#define                 TXVH3_0_IVCTX 0x000002B7
-#define                 TXVH3_1_IVCTX 0x000002B8
-#define                 TXVH3_2_IVCTX 0x000002B9
-#define                 TXVH3_3_IVCTX 0x000002BA
-#define                 TXVH4_0_IVCTX 0x000002BB
-#define                 TXVH4_1_IVCTX 0x000002BC
-#define                 TXVH4_2_IVCTX 0x000002BD
-#define                 TXVH4_3_IVCTX 0x000002BE
-#define       DDC_MANUAL_SW_TPI_IVCTX 0x000002BF
-#define         DDC_ADDR_SW_TPI_IVCTX 0x000002C0
-#define         DDC_SEGM_SW_TPI_IVCTX 0x000002C1
-#define       DDC_OFFSET_SW_TPI_IVCTX 0x000002C2
-#define     DDC_DIN_CNT1_SW_TPI_IVCTX 0x000002C3
-#define     DDC_DIN_CNT2_SW_TPI_IVCTX 0x000002C4
-#define       DDC_STATUS_SW_TPI_IVCTX 0x000002C5
-#define          DDC_CMD_SW_TPI_IVCTX 0x000002C6
-#define                DDC_DATA_IVCTX 0x000002C7
-#define     DDC_DOUT_CNT_SW_TPI_IVCTX 0x000002C8
-#define    DDC_DELAY_CNT_SW_TPI_IVCTX 0x000002C9
-#define             TEST_TXCTRL_IVCTX 0x000002CA
-#define                    EPST_IVCTX 0x000002CB
-#define                    EPCM_IVCTX 0x000002CC
-#define                 OTP_CLK_IVCTX 0x000002CD
-#define DDC_TIMEOUT_CNT1_SW_TPI_IVCTX 0x000002CE
-#define DDC_TIMEOUT_CNT2_SW_TPI_IVCTX 0x000002CF
-#define DDC_TIMEOUT_CNT3_SW_TPI_IVCTX 0x000002D0
-#define  DDC_TIMEOUT_CTL_SW_TPI_IVCTX 0x000002D1
-#define            PKT_FILTER_4_IVCTX 0x000002D2
-#define         DROP_GEN_TYPE_3_IVCTX 0x000002D3
-#define         DROP_GEN_TYPE_4_IVCTX 0x000002D4
-#define         DROP_GEN_TYPE_5_IVCTX 0x000002D5
+#define DDC_ADDR_IVCTX 0x0003
+	#define BIT_DDC_ADDR_REG 0xFE
 
-//====================AVLINK_REG===============
-#define            TX_ZONE_CTL0_IVCTX 0x00000300
-#define            TX_ZONE_CTL1_IVCTX 0x00000301
-#define            TX_ZONE_CTL2_IVCTX 0x00000302
-#define            TX_ZONE_CTL3_IVCTX 0x00000303
-#define            TX_ZONE_CTL4_IVCTX 0x00000304
-#define            TX_ZONE_CTL5_IVCTX 0x00000305
-#define          TX_ZONEVCO_CTL_IVCTX 0x00000306
-#define             MHL3CTS_CTL_IVCTX 0x00000307
-#define           TX_XBIST_CNTL_IVCTX 0x00000308
-#define       TX_XBIST_INST_LOW_IVCTX 0x00000309
-#define      TX_XBIST_INST_HIGH_IVCTX 0x0000030A
-#define        TX_XBIST_PAT_LOW_IVCTX 0x0000030B
-#define       TX_XBIST_PAT_HIGH_IVCTX 0x0000030C
-#define       TX_XBIST_CONF_LOW_IVCTX 0x0000030D
-#define      TX_XBIST_CONF_HIGH_IVCTX 0x0000030E
-#define         TX_XBIST_STATUS_IVCTX 0x0000030F
-#define TX_XBIST_PAT_PERIOD_CNT_IVCTX 0x00000310
-#define                HDMICTL0_IVCTX 0x00000311
-#define                HDMICTL1_IVCTX 0x00000312
-#define                HDMICTL2_IVCTX 0x00000313
-#define                HDMICTL3_IVCTX 0x00000314
-#define                HDMICTL4_IVCTX 0x00000315
-#define                HDMICTL5_IVCTX 0x00000316
-#define                HDMICTL6_IVCTX 0x00000317
-#define                HDMICTL7_IVCTX 0x00000318
-#define                  SW_RST_IVCTX 0x00000319
-#define        FIFO_10TO20_CTRL_IVCTX 0x0000031A
+#define DDC_SEGM_IVCTX 0x0004
 
-//====================MHLHDMI_REG===============
-#define       MHLHDMITXTOP_INTR_IVCTX 0x00000330
-#define      MHLHDMITXTOP_INTR1_IVCTX 0x00000331
-#define MHLHDMITXTOP_INTR1_MASK_IVCTX 0x00000332
-#define    MHLHDMITXTOP_RDY_RCC_IVCTX 0x00000333
-#define       EMSC_ADCTC_LD_SEL_IVCTX 0x00000334
+#define DDC_OFFSET_IVCTX 0x0005
 
-//====================PXL_BIST_REG===============
-#define                     BIST_RST_IVCTX 0x00000400
-#define            PBIST_H_TOTAL_LOW_IVCTX 0x00000401
-#define           PBIST_H_TOTAL_HIGH_IVCTX 0x00000402
-#define            PBIST_H_WIDTH_LOW_IVCTX 0x00000403
-#define           PBIST_H_WIDTH_HIGH_IVCTX 0x00000404
-#define        PBIST_HSYNC_WIDTH_LOW_IVCTX 0x00000405
-#define       PBIST_HSYNC_WIDTH_HIGH_IVCTX 0x00000406
-#define   PBIST_HSYNC_BACK_PORCH_LOW_IVCTX 0x00000407
-#define  PBIST_HSYNC_BACK_PORCH_HIGH_IVCTX 0x00000408
-#define  PBIST_HSYNC_FRONT_PORCH_LOW_IVCTX 0x00000409
-#define PBIST_HSYNC_FRONT_PORCH_HIGH_IVCTX 0x0000040A
-#define            PBIST_V_TOTAL_LOW_IVCTX 0x0000040B
-#define           PBIST_V_TOTAL_HIGH_IVCTX 0x0000040C
-#define           PBIST_V_HEIGHT_LOW_IVCTX 0x0000040D
-#define          PBIST_V_HEIGHT_HIGH_IVCTX 0x0000040E
-#define        PBIST_VSYNC_WIDTH_LOW_IVCTX 0x0000040F
-#define       PBIST_VSYNC_WIDTH_HIGH_IVCTX 0x00000410
-#define   PBIST_VSYNC_BACK_PORCH_LOW_IVCTX 0x00000411
-#define  PBIST_VSYNC_BACK_PORCH_HIGH_IVCTX 0x00000412
-#define  PBIST_VSYNC_FRONT_PORCH_LOW_IVCTX 0x00000413
-#define PBIST_VSYNC_FRONT_PORCH_HIGH_IVCTX 0x00000414
-#define             RX_TBIST_CTRL_21_IVCTX 0x00000415
-#define        REG_PXL_BIST_BIT_MODE_IVCTX 0x00000416
-#define    CONFIG_BIST_10BIT_B_1ST_0_IVCTX 0x00000417
-#define    CONFIG_BIST_10BIT_B_1ST_1_IVCTX 0x00000418
-#define    CONFIG_BIST_10BIT_B_2ND_0_IVCTX 0x00000419
-#define    CONFIG_BIST_10BIT_B_2ND_1_IVCTX 0x0000041A
-#define    CONFIG_BIST_10BIT_G_1ST_0_IVCTX 0x0000041B
-#define    CONFIG_BIST_10BIT_G_1ST_1_IVCTX 0x0000041C
-#define    CONFIG_BIST_10BIT_G_2ND_0_IVCTX 0x0000041D
-#define    CONFIG_BIST_10BIT_G_2ND_1_IVCTX 0x0000041E
-#define    CONFIG_BIST_10BIT_R_1ST_0_IVCTX 0x0000041F
-#define    CONFIG_BIST_10BIT_R_1ST_1_IVCTX 0x00000420
-#define    CONFIG_BIST_10BIT_R_2ND_0_IVCTX 0x00000421
-#define    CONFIG_BIST_10BIT_R_2ND_1_IVCTX 0x00000422
-#define                    STPG_LUM0_IVCTX 0x00000424
-#define                    STPG_LUM1_IVCTX 0x00000425
-#define                    STPG_LUM2_IVCTX 0x00000426
-#define                   STPG_LUM0B_IVCTX 0x00000427
-#define                   STPG_LUM1B_IVCTX 0x00000428
-#define                   STPG_LUM2B_IVCTX 0x00000429
-#define                REG_V5_H4TO13_IVCTX 0x0000042A
-#define                    REG_V6_H2_IVCTX 0x0000042B
-#define                    REG_V6_H3_IVCTX 0x0000042C
-#define                    REG_V6_H4_IVCTX 0x0000042D
-#define                    REG_V6_H5_IVCTX 0x0000042E
-#define                    REG_V6_H6_IVCTX 0x0000042F
-#define                    REG_V6_H7_IVCTX 0x00000430
-#define                    REG_V6_H8_IVCTX 0x00000431
-#define                    REG_V6_H9_IVCTX 0x00000432
-#define                   REG_V6_H10_IVCTX 0x00000433
-#define                   REG_V6_H11_IVCTX 0x00000434
-#define                   REG_V6_H12_IVCTX 0x00000435
-#define                   REG_V6_H13_IVCTX 0x00000436
-#define                   REG_V6_H14_IVCTX 0x00000437
-#define                   REG_V6_H15_IVCTX 0x00000438
-#define                   REG_V6_H16_IVCTX 0x00000439
-#define               REG_V7_CONST61_IVCTX 0x0000043A
-#define               REG_V7_CONST50_IVCTX 0x0000043B
-#define              REG_V7_CONST102_IVCTX 0x0000043C
-#define              REG_V9_CONST204_IVCTX 0x0000043D
-#define              REG_V9_CONST205_IVCTX 0x0000043E
-#define              REG_V9_CONST209_IVCTX 0x0000043F
-#define              REG_V9_CONST229_IVCTX 0x00000440
-#define              REG_V9_CONST231_IVCTX 0x00000441
-#define                REG_V10_H3TO4_IVCTX 0x00000442
-#define                REG_V10_H5TO6_IVCTX 0x00000443
-#define                REG_V10_H7TO8_IVCTX 0x00000444
-#define               REG_V10_H9TO10_IVCTX 0x00000445
-#define              REG_V10_H11TO12_IVCTX 0x00000446
-#define              REG_V10_H13TO14_IVCTX 0x00000447
-#define                    BIST_CTRL_IVCTX 0x00000448
-#define               BIST_DURATION0_IVCTX 0x00000449
-#define               BIST_DURATION1_IVCTX 0x0000044A
-#define               BIST_DURATION2_IVCTX 0x0000044B
-#define                BIST_TEST_SEL_IVCTX 0x0000044C
-#define              BIST_VIDEO_MODE_IVCTX 0x0000044D
-#define            BIST_8BIT_PATTERN_IVCTX 0x0000044E
-#define                  BIST_STATUS_IVCTX 0x00000451
-#define                  BIST_RESULT_IVCTX 0x00000452
-#define             BIST_P_ERR_CNT_0_IVCTX 0x00000453
-#define             BIST_P_ERR_CNT_1_IVCTX 0x00000454
-#define             BIST_R_ERR_CNT_0_IVCTX 0x00000455
-#define             BIST_R_ERR_CNT_1_IVCTX 0x00000456
-#define             BIST_G_ERR_CNT_0_IVCTX 0x00000457
-#define             BIST_G_ERR_CNT_1_IVCTX 0x00000458
-#define             BIST_B_ERR_CNT_0_IVCTX 0x00000459
-#define             BIST_B_ERR_CNT_1_IVCTX 0x0000045A
-#define            BIST_CNTL_ERR_CNT_IVCTX 0x0000045B
-#define                   STPG_SIZE1_IVCTX 0x0000045C
-#define                   STPG_SIZE2_IVCTX 0x0000045D
-#define                   STPG_SIZE3_IVCTX 0x0000045E
-#define                   BIST_CTRL2_IVCTX 0x00000465
-#define             BIST_TIMING_CTRL_IVCTX 0x00000466
-#define      BIST_EXTD_CNT_ERR_CNT_0_IVCTX 0x00000467
-#define      BIST_EXTD_CNT_ERR_CNT_1_IVCTX 0x00000468
-#define         BIST_EXTD_COLOR_MODE_IVCTX 0x00000469
-#define                STPG_EXTD_RED_IVCTX 0x0000046A
-#define               STPG_EXTD_BLUE_IVCTX 0x0000046B
-#define              STPG_EXTD_GREEN_IVCTX 0x0000046C
-#define  BIST_STPG_EXTD_BUS_CNT_MODE_IVCTX 0x0000046D
-#define         STPG_EXTD_CNT_STATIC_IVCTX 0x0000046E
-#define  BIST_PGEN_EXTD_BUS_CNT_MODE_IVCTX 0x0000046F
-#define         PGEN_EXTD_CNT_STATIC_IVCTX 0x00000470
-#define                  Y_WHITE_LOW_IVCTX 0x00000471
-#define                 Y_WHITE_HIGH_IVCTX 0x00000472
-#define                 CB_WHITE_LOW_IVCTX 0x00000473
-#define                CB_WHITE_HIGH_IVCTX 0x00000474
-#define                 CR_WHITE_LOW_IVCTX 0x00000475
-#define                CR_WHITE_HIGH_IVCTX 0x00000476
-#define                 Y_YELLOW_LOW_IVCTX 0x00000477
-#define                Y_YELLOW_HIGH_IVCTX 0x00000478
-#define                CB_YELLOW_LOW_IVCTX 0x00000479
-#define               CB_YELLOW_HIGH_IVCTX 0x0000047A
-#define                CR_YELLOW_LOW_IVCTX 0x0000047B
-#define               CR_YELLOW_HIGH_IVCTX 0x0000047C
-#define                   Y_CYAN_LOW_IVCTX 0x0000047D
-#define                  Y_CYAN_HIGH_IVCTX 0x0000047E
-#define                  CB_CYAN_LOW_IVCTX 0x0000047F
-#define                 CB_CYAN_HIGH_IVCTX 0x00000480
-#define                  CR_CYAN_LOW_IVCTX 0x00000481
-#define                 CR_CYAN_HIGH_IVCTX 0x00000482
-#define                  Y_GREEN_LOW_IVCTX 0x00000483
-#define                 Y_GREEN_HIGH_IVCTX 0x00000484
-#define                 CB_GREEN_LOW_IVCTX 0x00000485
-#define                CB_GREEN_HIGH_IVCTX 0x00000486
-#define                 CR_GREEN_LOW_IVCTX 0x00000487
-#define                CR_GREEN_HIGH_IVCTX 0x00000488
-#define                Y_MAGENTA_LOW_IVCTX 0x00000489
-#define               Y_MAGENTA_HIGH_IVCTX 0x0000048A
-#define               CB_MAGENTA_LOW_IVCTX 0x0000048B
-#define              CB_MAGENTA_HIGH_IVCTX 0x0000048C
-#define               CR_MAGENTA_LOW_IVCTX 0x0000048D
-#define              CR_MAGENTA_HIGH_IVCTX 0x0000048E
-#define                    Y_RED_LOW_IVCTX 0x0000048F
-#define                   Y_RED_HIGH_IVCTX 0x00000490
-#define                   CB_RED_LOW_IVCTX 0x00000491
-#define                  CB_RED_HIGH_IVCTX 0x00000492
-#define                   CR_RED_LOW_IVCTX 0x00000493
-#define                  CR_RED_HIGH_IVCTX 0x00000494
-#define                   Y_BLUE_LOW_IVCTX 0x00000495
-#define                  Y_BLUE_HIGH_IVCTX 0x00000496
-#define                  CB_BLUE_LOW_IVCTX 0x00000497
-#define                 CB_BLUE_HIGH_IVCTX 0x00000498
-#define                  CR_BLUE_LOW_IVCTX 0x00000499
-#define                 CR_BLUE_HIGH_IVCTX 0x0000049A
-#define                  Y_BLACK_LOW_IVCTX 0x0000049B
-#define                 Y_BLACK_HIGH_IVCTX 0x0000049C
-#define                 CB_BLACK_LOW_IVCTX 0x0000049D
-#define                CB_BLACK_HIGH_IVCTX 0x0000049E
-#define                 CR_BLACK_LOW_IVCTX 0x0000049F
-#define                CR_BLACK_HIGH_IVCTX 0x000004A0
+#define DDC_DIN_CNT1_IVCTX 0x0006
 
-//====================HW_TPI_REG===============
-#define                       TPI_MISC_IVCTX 0x00000607
-#define                        TPI_PRD_IVCTX 0x00000608
-#define                      TPI_INPUT_IVCTX 0x00000609
-#define                     TPI_OUTPUT_IVCTX 0x0000060A
-#define                  TPI_AVI_CHSUM_IVCTX 0x0000060C
-#define                  TPI_AVI_BYTE1_IVCTX 0x0000060D
-#define                  TPI_AVI_BYTE2_IVCTX 0x0000060E
-#define                  TPI_AVI_BYTE3_IVCTX 0x0000060F
-#define                  TPI_AVI_BYTE4_IVCTX 0x00000610
-#define                  TPI_AVI_BYTE5_IVCTX 0x00000611
-#define                  TPI_AVI_BYTE6_IVCTX 0x00000612
-#define                  TPI_AVI_BYTE7_IVCTX 0x00000613
-#define                  TPI_AVI_BYTE8_IVCTX 0x00000614
-#define                  TPI_AVI_BYTE9_IVCTX 0x00000615
-#define                 TPI_AVI_BYTE10_IVCTX 0x00000616
-#define                 TPI_AVI_BYTE11_IVCTX 0x00000617
-#define                 TPI_AVI_BYTE12_IVCTX 0x00000618
-#define                 TPI_AVI_BYTE13_IVCTX 0x00000619
-#define                         TPI_SC_IVCTX 0x0000061A
-#define                     TPI_DEV_ID_IVCTX 0x0000061B
-#define                 TPI_COPP_DATA1_IVCTX 0x00000629
-#define                 TPI_COPP_DATA2_IVCTX 0x0000062A
-#define                  TPI_WR_BKSV_1_IVCTX 0x0000062B
-#define                  TPI_WR_BKSV_2_IVCTX 0x0000062C
-#define                  TPI_WR_BKSV_3_IVCTX 0x0000062D
-#define                  TPI_WR_BKSV_4_IVCTX 0x0000062E
-#define                  TPI_WR_BKSV_5_IVCTX 0x0000062F
-#define                   TPI_HDCP_REV_IVCTX 0x00000630
-#define                      TPI_KSV_V_IVCTX 0x00000631
-#define                  TPI_VVALUE_B0_IVCTX 0x00000632
-#define                  TPI_VVALUE_B1_IVCTX 0x00000633
-#define                  TPI_VVALUE_B2_IVCTX 0x00000634
-#define                  TPI_VVALUE_B3_IVCTX 0x00000635
-#define                     TPI_AKSV_1_IVCTX 0x00000636
-#define                     TPI_AKSV_2_IVCTX 0x00000637
-#define                     TPI_AKSV_3_IVCTX 0x00000638
-#define                     TPI_AKSV_4_IVCTX 0x00000639
-#define                     TPI_AKSV_5_IVCTX 0x0000063A
-#define            TPI_HPD_RSEN_SW_TPI_IVCTX 0x0000063B
-#define                    TPI_INTR_EN_IVCTX 0x0000063C
-#define                   TPI_INTR_ST0_IVCTX 0x0000063D
-#define              TPI_KSV_FIFO_STAT_IVCTX 0x00000641
-#define              TPI_KSV_FIFO_FORW_IVCTX 0x00000642
-#define                   TPI_DS_BCAPS_IVCTX 0x00000644
-#define                   TPI_BSTATUS1_IVCTX 0x00000645
-#define                   TPI_BSTATUS2_IVCTX 0x00000646
-#define                  TPI_VID_MUTE0_IVCTX 0x0000064B
-#define                   RSVD1_HW_TPI_IVCTX 0x0000064C
-#define                  TPI_VID_MUTE1_IVCTX 0x0000064D
-#define                   RSVD2_HW_TPI_IVCTX 0x0000064E
-#define                  TPI_VID_MUTE2_IVCTX 0x0000064F
-#define                   RSVD4_HW_TPI_IVCTX 0x00000660
-#define                    TPI_HW_DBG1_IVCTX 0x00000679
-#define                    TPI_HW_DBG2_IVCTX 0x0000067A
-#define                    TPI_HW_DBG3_IVCTX 0x0000067B
-#define                    TPI_HW_DBG4_IVCTX 0x0000067C
-#define                    TPI_HW_DBG5_IVCTX 0x0000067D
-#define                    TPI_HW_DBG6_IVCTX 0x0000067E
-#define                    TPI_HW_DBG7_IVCTX 0x0000067F
-#define                    TPI_HW_DBG8_IVCTX 0x00000680
-#define                    TPI_HW_DBG9_IVCTX 0x00000681
-#define                   TPI_HW_DBG10_IVCTX 0x00000682
-#define                   TPI_HW_DBG11_IVCTX 0x00000683
-#define                   TPI_HW_DBG12_IVCTX 0x00000684
-#define                   TPI_HW_DBG13_IVCTX 0x00000685
-#define                   TPI_HW_DBG14_IVCTX 0x00000686
-#define                   TPI_HW_DBG15_IVCTX 0x00000687
-#define                   TPI_HW_DBG16_IVCTX 0x00000688
-#define                    TPI_HW_OPT0_IVCTX 0x000006B8
-#define                    TPI_HW_OPT1_IVCTX 0x000006B9
-#define                    TPI_HW_OPT2_IVCTX 0x000006BA
-#define                    TPI_HW_OPT3_IVCTX 0x000006BB
-#define                   RSVD7_HW_TPI_IVCTX 0x000006BC
-#define                   RSVD8_HW_TPI_IVCTX 0x000006BD
-#define                   RSVD9_HW_TPI_IVCTX 0x000006BE
-#define                  TPI_INFO_FSEL_IVCTX 0x000006BF
-#define                    TPI_INFO_B0_IVCTX 0x000006C0
-#define                    TPI_INFO_B1_IVCTX 0x000006C1
-#define                    TPI_INFO_B2_IVCTX 0x000006C2
-#define                    TPI_INFO_B3_IVCTX 0x000006C3
-#define                    TPI_INFO_B4_IVCTX 0x000006C4
-#define                    TPI_INFO_B5_IVCTX 0x000006C5
-#define                    TPI_INFO_B6_IVCTX 0x000006C6
-#define                    TPI_INFO_B7_IVCTX 0x000006C7
-#define                    TPI_INFO_B8_IVCTX 0x000006C8
-#define                    TPI_INFO_B9_IVCTX 0x000006C9
-#define                   TPI_INFO_B10_IVCTX 0x000006CA
-#define                   TPI_INFO_B11_IVCTX 0x000006CB
-#define                   TPI_INFO_B12_IVCTX 0x000006CC
-#define                   TPI_INFO_B13_IVCTX 0x000006CD
-#define                   TPI_INFO_B14_IVCTX 0x000006CE
-#define                   TPI_INFO_B15_IVCTX 0x000006CF
-#define                   TPI_INFO_B16_IVCTX 0x000006D0
-#define                   TPI_INFO_B17_IVCTX 0x000006D1
-#define                   TPI_INFO_B18_IVCTX 0x000006D2
-#define                   TPI_INFO_B19_IVCTX 0x000006D3
-#define                   TPI_INFO_B20_IVCTX 0x000006D4
-#define                   TPI_INFO_B21_IVCTX 0x000006D5
-#define                   TPI_INFO_B22_IVCTX 0x000006D6
-#define                   TPI_INFO_B23_IVCTX 0x000006D7
-#define                   TPI_INFO_B24_IVCTX 0x000006D8
-#define                   TPI_INFO_B25_IVCTX 0x000006D9
-#define                   TPI_INFO_B26_IVCTX 0x000006DA
-#define                   TPI_INFO_B27_IVCTX 0x000006DB
-#define                   TPI_INFO_B28_IVCTX 0x000006DC
-#define                   TPI_INFO_B29_IVCTX 0x000006DD
-#define                   TPI_INFO_B30_IVCTX 0x000006DE
-#define                    TPI_INFO_EN_IVCTX 0x000006DF
-#define                 VSIF_COMP_CNTL_IVCTX 0x000006E0
-#define                       GCP_CNTL_IVCTX 0x000006E1
-#define                    GCP_GEN_CNT_IVCTX 0x000006E2
-#define                   GCP_AUTO_GEN_IVCTX 0x000006E3
-#define                GCP_AUTO_GEN_EN_IVCTX 0x000006E4
-#define                   GCP_CUR_STAT_IVCTX 0x000006E5
-#define            AUTO_BLANK_VID_CTRL_IVCTX 0x000006E6
-#define          R_CR_BLANK_DATA_REG_0_IVCTX 0x000006E7
-#define          R_CR_BLANK_DATA_REG_1_IVCTX 0x000006E8
-#define           G_Y_BLANK_DATA_REG_0_IVCTX 0x000006E9
-#define           G_Y_BLANK_DATA_REG_1_IVCTX 0x000006EA
-#define          B_CB_BLANK_DATA_REG_0_IVCTX 0x000006EB
-#define          B_CB_BLANK_DATA_REG_1_IVCTX 0x000006EC
-#define                      VTEM_CTRL_IVCTX 0x000006ED
-#define HDMI_PIPELINE_DI_VSYNCOFFSET_0_IVCTX 0x000006EE
-#define HDMI_PIPELINE_DI_VSYNCOFFSET_1_IVCTX 0x000006EF
-#define   HDMI_PIPELINE_DI_VSYNC_DELTA_IVCTX 0x000006F0
-#define    HDMI_PIPELINE_DI_VSYNC_CTRL_IVCTX 0x000006F1
-#define             HDMI_PIPELINE_GP_0_IVCTX 0x000006F2
-#define             HDMI_PIPELINE_GP_1_IVCTX 0x000006F3
-#define             HDMI_PIPELINE_GP_2_IVCTX 0x000006F4
-#define             HDMI_PIPELINE_GP_3_IVCTX 0x000006F5
-#define                  RSVD10_HW_TPI_IVCTX 0x000006F7
-#define              TPI_DDC_MASTER_EN_IVCTX 0x000006F8
-#define          TPI_VSIF_VX1CTL_HW_EN_IVCTX 0x000006F9
-#define              TPI_VX1CTL_M0_MSB_IVCTX 0x000006FA
-#define              TPI_VX1CTL_M0_LSB_IVCTX 0x000006FB
-#define              TPI_VX1CTL_M1_MSB_IVCTX 0x000006FC
-#define              TPI_VX1CTL_M1_LSB_IVCTX 0x000006FD
-#define                  RSVD11_HW_TPI_IVCTX 0x000006FF
+#define DDC_DIN_CNT2_IVCTX 0x0007
 
-//====================HUNTER_PHY_REG===============
-#define      HT_TOP_CTL_PHY_IVCTX 0x00000700
-#define      HT_DP_CTL2_PHY_IVCTX 0x00000703
-#define      HT_DP_CTL3_PHY_IVCTX 0x00000704
-#define      HT_DP_CTL4_PHY_IVCTX 0x00000705
-#define     HT_DRV_CTL0_PHY_IVCTX 0x00000706
-#define     HT_PLL_CTL0_PHY_IVCTX 0x0000072A
-#define     HT_PLL_CTL7_PHY_IVCTX 0x00000731
-#define     HT_DIG_CTL0_PHY_IVCTX 0x00000748
-#define     HT_DIG_CTL1_PHY_IVCTX 0x00000749
-#define     HT_DIG_CTL2_PHY_IVCTX 0x0000074A
-#define     HT_DIG_CTL3_PHY_IVCTX 0x0000074B
-#define     HT_DIG_CTL4_PHY_IVCTX 0x0000074C
-#define     HT_DIG_CTL5_PHY_IVCTX 0x0000074D
-#define     HT_DIG_CTL6_PHY_IVCTX 0x0000074E
-#define     HT_DIG_CTL7_PHY_IVCTX 0x0000074F
-#define     HT_DIG_CTL8_PHY_IVCTX 0x00000750
-#define     HT_DIG_CTL9_PHY_IVCTX 0x00000751
-#define    HT_DIG_CTL10_PHY_IVCTX 0x00000752
-#define    HT_DIG_CTL11_PHY_IVCTX 0x00000753
-#define    HT_DIG_CTL12_PHY_IVCTX 0x00000754
-#define    HT_DIG_CTL13_PHY_IVCTX 0x00000755
-#define    HT_DIG_CTL14_PHY_IVCTX 0x00000756
-#define    HT_DIG_CTL15_PHY_IVCTX 0x00000757
-#define    HT_DIG_CTL16_PHY_IVCTX 0x00000758
-#define    HT_DIG_CTL17_PHY_IVCTX 0x00000759
-#define    HT_DIG_CTL18_PHY_IVCTX 0x0000075A
-#define    HT_DIG_CTL19_PHY_IVCTX 0x0000075B
-#define    HT_DIG_CTL20_PHY_IVCTX 0x0000075C
-#define    HT_DIG_CTL21_PHY_IVCTX 0x0000075D
-#define    HT_DIG_CTL22_PHY_IVCTX 0x0000075E
-#define    HT_DIG_CTL23_PHY_IVCTX 0x0000075F
-#define    HT_DIG_CTL24_PHY_IVCTX 0x00000760
-#define HUNTER_ANA_ST_0_PHY_IVCTX 0x00000761
-#define HT_DIG_PAT100_0_PHY_IVCTX 0x00000762
-#define HT_DIG_PAT100_1_PHY_IVCTX 0x00000763
-#define HT_DIG_PAT100_2_PHY_IVCTX 0x00000764
-#define HT_DIG_PAT100_3_PHY_IVCTX 0x00000765
-#define HT_DIG_PAT100_4_PHY_IVCTX 0x00000766
-#define HT_DIG_PAT100_5_PHY_IVCTX 0x00000767
-#define HT_DIG_PAT100_6_PHY_IVCTX 0x00000768
-#define HT_DIG_PAT100_7_PHY_IVCTX 0x00000769
-#define HT_DIG_PAT100_8_PHY_IVCTX 0x0000076A
-#define HT_DIG_PAT100_9_PHY_IVCTX 0x0000076B
-#define HT_DIG_PAT100_A_PHY_IVCTX 0x0000076C
-#define HT_DIG_PAT100_B_PHY_IVCTX 0x0000076D
-#define HT_DIG_PAT100_C_PHY_IVCTX 0x0000076E
-#define  HT_DIG_PAT_CTL_PHY_IVCTX 0x0000076F
-#define     HT_DBG_CTL0_PHY_IVCTX 0x00000770
-#define     HT_DBG_CTL1_PHY_IVCTX 0x00000771
-#define     HT_DBG_CTL2_PHY_IVCTX 0x00000772
-#define     HT_DBG_CTL3_PHY_IVCTX 0x00000773
-#define     HT_DBG_CTL4_PHY_IVCTX 0x00000774
-#define       HT_LTP_ST_PHY_IVCTX 0x00000777
+#define DDC_STATUS_IVCTX 0x0008
+	#define BIT_DDC_STATUS_BUSLOW BIT(6)
+	#define BIT_DDC_STATUS_NACK BIT(5)
+	#define BIT_DDC_STATUS_INPROG BIT(4)
+	#define BIT_DDC_STATUS_FIFOFULL BIT(3)
+	#define BIT_DDC_STATUS_FIFOEMPTY BIT(2)
+	#define BIT_DDC_STATUS_FIFOREADINUSE BIT(1)
+	#define BIT_DDC_STATUS_FIFOWRITEINUSE BIT(0)
 
-//====================HDCP2XCORE_REG===============
-#define         CP2TX_CTRL_0_IVCTX 0x00000800
-#define         CP2TX_CTRL_1_IVCTX 0x00000801
-#define         CP2TX_CTRL_2_IVCTX 0x00000802
-#define          CP2TX_INTR0_IVCTX 0x00000803
-#define          CP2TX_INTR1_IVCTX 0x00000804
-#define          CP2TX_INTR2_IVCTX 0x00000805
-#define          CP2TX_INTR3_IVCTX 0x00000806
-#define     CP2TX_INTR0_MASK_IVCTX 0x00000807
-#define     CP2TX_INTR1_MASK_IVCTX 0x00000808
-#define     CP2TX_INTR2_MASK_IVCTX 0x00000809
-#define     CP2TX_INTR3_MASK_IVCTX 0x0000080A
-#define     CP2TX_INTRSTATUS_IVCTX 0x0000080B
-#define      CP2TX_AUTH_STAT_IVCTX 0x0000080C
-#define          CP2TX_STATE_IVCTX 0x0000080D
-#define     CP2TX_GEN_STATUS_IVCTX 0x0000080E
-#define      CP2TX_ROSC_BIST_IVCTX 0x0000080F
-#define            CP2TX_TP0_IVCTX 0x00000810
-#define            CP2TX_TP1_IVCTX 0x00000811
-#define            CP2TX_TP2_IVCTX 0x00000812
-#define            CP2TX_TP3_IVCTX 0x00000813
-#define            CP2TX_TP4_IVCTX 0x00000814
-#define            CP2TX_TP5_IVCTX 0x00000815
-#define            CP2TX_TP6_IVCTX 0x00000816
-#define            CP2TX_TP7_IVCTX 0x00000817
-#define            CP2TX_TP8_IVCTX 0x00000818
-#define            CP2TX_TP9_IVCTX 0x00000819
-#define           CP2TX_TP10_IVCTX 0x0000081A
-#define           CP2TX_TP11_IVCTX 0x0000081B
-#define           CP2TX_TP12_IVCTX 0x0000081C
-#define           CP2TX_TP13_IVCTX 0x0000081D
-#define           CP2TX_TP14_IVCTX 0x0000081E
-#define           CP2TX_TP15_IVCTX 0x0000081F
-#define         CP2TX_GP_IN0_IVCTX 0x00000820
-#define         CP2TX_GP_IN1_IVCTX 0x00000821
-#define         CP2TX_GP_IN2_IVCTX 0x00000822
-#define         CP2TX_GP_IN3_IVCTX 0x00000823
-#define         CP2TX_GP_IN4_IVCTX 0x00000824
-#define         CP2TX_GP_IN5_IVCTX 0x00000825
-#define          CP2TX_GPCTL_IVCTX 0x00000826
-#define        CP2TX_GP_OUT0_IVCTX 0x00000827
-#define        CP2TX_GP_OUT1_IVCTX 0x00000828
-#define        CP2TX_GP_OUT2_IVCTX 0x00000829
-#define        CP2TX_GP_OUT3_IVCTX 0x0000082A
-#define        CP2TX_GP_OUT4_IVCTX 0x0000082B
-#define        CP2TX_GP_OUT5_IVCTX 0x0000082C
-#define   CP2TX_RX_ID_CORE_0_IVCTX 0x0000082D
-#define   CP2TX_RX_ID_CORE_1_IVCTX 0x0000082E
-#define   CP2TX_RX_ID_CORE_2_IVCTX 0x0000082F
-#define   CP2TX_RX_ID_CORE_3_IVCTX 0x00000830
-#define   CP2TX_RX_ID_CORE_4_IVCTX 0x00000831
-#define     CP2TX_RPT_DETAIL_IVCTX 0x00000832
-#define     CP2TX_RPT_SMNG_K_IVCTX 0x00000833
-#define      CP2TX_RPT_DEPTH_IVCTX 0x00000834
-#define     CP2TX_RPT_DEVCNT_IVCTX 0x00000835
-#define    CP2TX_SEQ_NUM_V_0_IVCTX 0x00000836
-#define    CP2TX_SEQ_NUM_V_1_IVCTX 0x00000837
-#define    CP2TX_SEQ_NUM_V_2_IVCTX 0x00000838
-#define    CP2TX_SEQ_NUM_M_0_IVCTX 0x00000839
-#define    CP2TX_SEQ_NUM_M_1_IVCTX 0x0000083A
-#define    CP2TX_SEQ_NUM_M_2_IVCTX 0x0000083B
-#define   CP2TX_IPT_CTR_7TO0_IVCTX 0x0000083C
-#define  CP2TX_IPT_CTR_15TO8_IVCTX 0x0000083D
-#define         CP2TX_AESCTL_IVCTX 0x0000083E
-#define      CP2TX_TX_CTRL_0_IVCTX 0x00000870
-#define      CP2TX_TX_STATUS_IVCTX 0x00000871
-#define CP2TX_TX_RPT_SMNG_IN_IVCTX 0x00000872
-#define  CP2TX_RPT_RCVID_OUT_IVCTX 0x00000873
-#define    CP2TX_CIPHER_CTL2_IVCTX 0x00000874
-#define            CP2TX_GP0_IVCTX 0x00000875
-#define            CP2TX_GP1_IVCTX 0x00000876
+#define DDC_CMD_IVCTX 0x0009
+	#define BIT_DDC_CMD_HDCP_DDC_EN BIT(6)
+	#define BIT_DDC_CMD_SDA_DEL_EN BIT(5)
+	#define BIT_DDC_CMD_DDC_FLT_EN BIT(4)
+	#define BIT_DDC_CMD_DDC_CMD 0x0F
+	#define DDC_CMD_ABORT_TRANSACTION 0x0F
+	#define DDC_CMD_CLK_RESET 0x0A
+	#define DDC_CMD_CLR_FIFO 0x09
 
-//====================HDCP2XWRAPPER_REG===============
-#define             HDCP2X_DEBUG_CTRL0_IVCTX 0x000008A0
-#define             HDCP2X_DEBUG_CTRL1_IVCTX 0x000008A1
-#define             HDCP2X_DEBUG_CTRL2_IVCTX 0x000008A2
-#define             HDCP2X_DEBUG_CTRL3_IVCTX 0x000008A3
-#define             HDCP2X_DEBUG_CTRL4_IVCTX 0x000008A4
-#define             HDCP2X_DEBUG_STAT0_IVCTX 0x000008A5
-#define             HDCP2X_DEBUG_STAT1_IVCTX 0x000008A6
-#define             HDCP2X_DEBUG_STAT2_IVCTX 0x000008A7
-#define             HDCP2X_DEBUG_STAT3_IVCTX 0x000008A8
-#define             HDCP2X_DEBUG_STAT4_IVCTX 0x000008A9
-#define             HDCP2X_DEBUG_STAT5_IVCTX 0x000008AA
-#define             HDCP2X_DEBUG_STAT6_IVCTX 0x000008AB
-#define             HDCP2X_DEBUG_STAT7_IVCTX 0x000008AC
-#define             HDCP2X_DEBUG_STAT8_IVCTX 0x000008AD
-#define             HDCP2X_DEBUG_STAT9_IVCTX 0x000008AE
-#define            HDCP2X_DEBUG_STAT10_IVCTX 0x000008AF
-#define            HDCP2X_DEBUG_STAT11_IVCTX 0x000008B0
-#define            HDCP2X_DEBUG_STAT12_IVCTX 0x000008B1
-#define            HDCP2X_DEBUG_STAT13_IVCTX 0x000008B2
-#define            HDCP2X_DEBUG_STAT14_IVCTX 0x000008B3
-#define            HDCP2X_DEBUG_STAT15_IVCTX 0x000008B4
-#define                 HDCP2X_TX_SRST_IVCTX 0x000008B5
-#define                 HDCP2X_POLL_CS_IVCTX 0x000008B6
-#define      HDCP2X_CUPD_START_ADDR_LO_IVCTX 0x000008B7
-#define      HDCP2X_CUPD_START_ADDR_HI_IVCTX 0x000008B8
-#define HDCP2X_CUPD_SIGN_START_ADDR_LO_IVCTX 0x000008B9
-#define HDCP2X_CUPD_SIGN_START_ADDR_HI_IVCTX 0x000008BA
-#define   HDCP2X_PRAM_SIGN_END_ADDR_LO_IVCTX 0x000008BB
-#define   HDCP2X_CUPD_SIGN_END_ADDR_HI_IVCTX 0x000008BC
-#define                   HDCP2X_CTL_0_IVCTX 0x000008BD
-#define                   HDCP2X_CTL_1_IVCTX 0x000008BE
-#define                   HDCP2X_CTL_2_IVCTX 0x000008BF
-#define            HDCP2X_CUPD_SIZE_LO_IVCTX 0x000008C0
-#define            HDCP2X_CUPD_SIZE_HI_IVCTX 0x000008C1
-#define                 HDCP2X_GEN_STA_IVCTX 0x000008C2
-#define               HDCP2X_POLL_VAL0_IVCTX 0x000008C3
-#define               HDCP2X_POLL_VAL1_IVCTX 0x000008C4
-#define                HDCP2X_DDCM_STS_IVCTX 0x000008C5
-#define               HDCP2X_ROSC_BIST_IVCTX 0x000008C6
-#define                HDCP2_PRAM_DATA_IVCTX 0x000008CF
-#define            HDCP2X_DEBUG_STAT16_IVCTX 0x000008D0
+#define DDC_DATA_AON_IVCTX 0x000A
 
-//====================HDMI2_REG===============
-#define            SCRCTL_IVCTX 0x00000900
-#define         HDMI2CTL0_IVCTX 0x00000901
-#define         HDMI2CTL1_IVCTX 0x00000902
-#define        TXC_DATA0L_IVCTX 0x00000903
-#define        TXC_DATA0H_IVCTX 0x00000904
-#define        TXC_DATA1L_IVCTX 0x00000905
-#define        TXC_DATA1H_IVCTX 0x00000906
-#define        TXC_DATA2L_IVCTX 0x00000907
-#define        TXC_DATA2H_IVCTX 0x00000908
-#define      TXC_DATA_DIV_IVCTX 0x00000909
-#define       RSVD0_HDMI2_IVCTX 0x0000090A
-#define          SCDC_CTL_IVCTX 0x00000920
-#define   SCDC_ACT_STATUS_IVCTX 0x00000921
-#define        SCDC_STATE_IVCTX 0x00000922
-#define     SCDC_UP_FLAG0_IVCTX 0x00000923
-#define     SCDC_UP_FLAG1_IVCTX 0x00000924
-#define        SCDC_INTR0_IVCTX 0x00000925
-#define   SCDC_INTR0_MASK_IVCTX 0x00000926
-#define  SCDC_POLL_TIMER0_IVCTX 0x00000927
-#define  SCDC_POLL_TIMER1_IVCTX 0x00000928
-#define  SCDC_POLL_TIMER2_IVCTX 0x00000929
-#define         SCDC_SRST_IVCTX 0x0000092A
-#define    SCDC_FRM_LIMIT_IVCTX 0x0000092B
-#define    RREQ_FRM_LIMIT_IVCTX 0x0000092C
-#define SCDC_SRC_TEST_CFG_IVCTX 0x0000092D
-#define    SCDC_STS_FLAG0_IVCTX 0x0000092E
-#define    SCDC_STS_FLAG1_IVCTX 0x0000092F
-#define    SCDC_STS_FLAG2_IVCTX 0x00000930
-#define    FRL_LTP_OVR_EN_IVCTX 0x00000931
-#define  FRL_LTP_OVR_VAL0_IVCTX 0x00000932
-#define  FRL_LTP_OVR_VAL1_IVCTX 0x00000933
-#define       RSVD1_HDMI2_IVCTX 0x00000934
+#define DDC_DOUT_CNT_IVCTX 0x000B
+	#define BIT_DDC_DOUT_CNT_DATA_OUT_CNT 0x1F
 
-//====================H21TX_SB_REG=============
-#define                   H21TXSB_CTRL_IVCTX 0x00000940
-#define                H21TXSB_PKT_PRD_IVCTX 0x00000941
-#define                 H21TXSB_MAXPKT_IVCTX 0x00000942
-#define                  H21TXSB_SRPRD_IVCTX 0x00000943
-#define                    H21TXSB_KSR_IVCTX 0x00000944
-#define                   H21TXSB_KSSB_IVCTX 0x00000945
-#define                    H21TXSB_CPR_IVCTX 0x00000946
-#define                    H21TXSB_SPM_IVCTX 0x00000947
-#define               H21TXSB_PATT_SEL_IVCTX 0x00000948
-#define             H21TXSB_ERR_INS_EN_IVCTX 0x00000949
-#define H21TXSB_ERR_INS_BYTE_WISE_EN_0_IVCTX 0x0000094A
-#define H21TXSB_ERR_INS_BYTE_WISE_EN_1_IVCTX 0x0000094B
-#define H21TXSB_ERR_INS_BYTE_WISE_EN_2_IVCTX 0x0000094C
-#define H21TXSB_ERR_INS_BYTE_WISE_EN_3_IVCTX 0x0000094D
-#define H21TXSB_ERR_INS_BYTE_WISE_EN_4_IVCTX 0x0000094E
-#define H21TXSB_ERR_INS_BYTE_WISE_EN_5_IVCTX 0x0000094F
-#define H21TXSB_ERR_INS_BYTE_WISE_EN_6_IVCTX 0x00000950
-#define H21TXSB_ERR_INS_BYTE_WISE_EN_7_IVCTX 0x00000951
-#define           H21TXSB_BLOCK0_BYTE0_IVCTX 0x00000952
-#define           H21TXSB_BLOCK0_BYTE1_IVCTX 0x00000953
-#define           H21TXSB_BLOCK0_BYTE2_IVCTX 0x00000954
-#define           H21TXSB_BLOCK1_BYTE0_IVCTX 0x00000955
-#define            H21TXSB_BOCK1_BYTE1_IVCTX 0x00000956
-#define            H21TXSB_BOCK1_BYTE2_IVCTX 0x00000957
-#define           H21TXSB_BLOCK2_BYTE0_IVCTX 0x00000958
-#define           H21TXSB_BLOCK2_BYTE1_IVCTX 0x00000959
-#define           H21TXSB_BLOCK2_BYTE2_IVCTX 0x0000095A
-#define           H21TXSB_BLOCK3_BYTE0_IVCTX 0x0000095B
-#define           H21TXSB_BLOCK3_BYTE1_IVCTX 0x0000095C
-#define           H21TXSB_BLOCK3_BYTE2_IVCTX 0x0000095D
-#define  H21TXSB_BLOCK0_BYTE0_CTRL_VAL_IVCTX 0x0000095E
-#define  H21TXSB_BLOCK0_BYTE1_CTRL_VAL_IVCTX 0x0000095F
-#define  H21TXSB_BLOCK0_BYTE2_CTRL_VAL_IVCTX 0x00000960
-#define  H21TXSB_BLOCK1_BYTE0_CTRL_VAL_IVCTX 0x00000961
-#define  H21TXSB_BLOCK1_BYTE1_CTRL_VAL_IVCTX 0x00000962
-#define  H21TXSB_BLOCK1_BYTE2_CTRL_VAL_IVCTX 0x00000963
-#define  H21TXSB_BLOCK2_BYTE0_CTRL_VAL_IVCTX 0x00000964
-#define  H21TXSB_BLOCK2_BYTE1_CTRL_VAL_IVCTX 0x00000965
-#define  H21TXSB_BLOCK2_BYTE2_CTRL_VAL_IVCTX 0x00000966
-#define  H21TXSB_BLOCK3_BYTE0_CTRL_VAL_IVCTX 0x00000967
-#define  H21TXSB_BLOCK3_BYTE1_CTRL_VAL_IVCTX 0x00000968
-#define  H21TXSB_BLOCK3_BYTE2_CTRL_VAL_IVCTX 0x00000969
-#define                H21TXSB_INTRSTS_IVCTX 0x0000096A
-#define         H21TXSB_D_HDR_INTRMASK_IVCTX 0x0000096B
-#define   H21TXSB_KEEPOUT_PERIOD_END_0_IVCTX 0x0000096C
-#define   H21TXSB_KEEPOUT_PERIOD_END_1_IVCTX 0x0000096D
-#define H21TXSB_KEEPOUT_PERIOD_START_0_IVCTX 0x0000096E
-#define H21TXSB_KEEPOUT_PERIOD_START_1_IVCTX 0x0000096F
-#define                 H21TXSB_CTRL_1_IVCTX 0x00000970
-#define                H21TXSB_SPARE_0_IVCTX 0x00000971
-#define                H21TXSB_SPARE_1_IVCTX 0x00000972
-#define                H21TXSB_SPARE_2_IVCTX 0x00000973
-#define                H21TXSB_SPARE_3_IVCTX 0x00000974
-#define                H21TXSB_SPARE_4_IVCTX 0x00000975
-#define                H21TXSB_SPARE_5_IVCTX 0x00000976
-#define                H21TXSB_SPARE_6_IVCTX 0x00000977
-#define                H21TXSB_SPARE_7_IVCTX 0x00000978
-#define                H21TXSB_SPARE_8_IVCTX 0x00000979
-#define                H21TXSB_SPARE_9_IVCTX 0x0000097A
+#define DDC_DELAY_CNT_IVCTX 0x000C
 
-//==============H21TX_SB_TOP_REG===========
-#define                 H21TX_SB_TOP0_IVCTX 0x00000980
-#define                 H21TX_SB_TOP1_IVCTX 0x00000981
-#define    H21TX_SB_TOP_INS_DISP_CTRL_IVCTX 0x00000982
-#define H21TX_SB_TOP_INS_DISP_10B_CNT_IVCTX 0x00000983
-#define H21TX_SB_TOP_INS_DISP_08B_CNT_IVCTX 0x00000984
-#define  H21TX_SB_TOP_INS_DISP_CTRL_1_IVCTX 0x00000985
+#define DDC_TIMEOUT_CNT1_IVCTX 0x000D
 
-//====================AIP_REG===============
-#define            RSVD0_AIP_IVCTX 0x00000A00
-#define             ACR_CTRL_IVCTX 0x00000A01
-#define            FREQ_SVAL_IVCTX 0x00000A02
-#define              N_SVAL1_IVCTX 0x00000A03
-#define              N_SVAL2_IVCTX 0x00000A04
-#define              N_SVAL3_IVCTX 0x00000A05
-#define          CTS_TXSVAL1_IVCTX 0x00000A06
-#define          CTS_TXSVAL2_IVCTX 0x00000A07
-#define          CTS_TXSVAL3_IVCTX 0x00000A08
-#define          CTS_TXHVAL1_IVCTX 0x00000A09
-#define          CTS_TXHVAL2_IVCTX 0x00000A0A
-#define          CTS_TXHVAL3_IVCTX 0x00000A0B
-#define        ACR_CTS_CTRL1_IVCTX 0x00000A0C
-#define        ACR_CTS_CTRL2_IVCTX 0x00000A0D
-#define      ACR_CTS_CLK_DIV_IVCTX 0x00000A0E
-#define       FS_HIGH_PERIOD_IVCTX 0x00000A0F
-#define        FS_LOW_PERIOD_IVCTX 0x00000A10
-#define        AIP_IN_AUD_ID_IVCTX 0x00000A12
-#define               AUD_EN_IVCTX 0x00000A13
-#define             AUD_MODE_IVCTX 0x00000A14
-#define           SPDIF_CTRL_IVCTX 0x00000A15
-#define          SPDIF_SSMPL_IVCTX 0x00000A16
-#define          SPDIF_HSMPL_IVCTX 0x00000A17
-#define             SPDIF_FS_IVCTX 0x00000A18
-#define         SPDIF_SSMPL2_IVCTX 0x00000A19
-#define         SPDIF_HSMPL2_IVCTX 0x00000A1A
-#define           SPDIF_ERTH_IVCTX 0x00000A1B
-#define           I2S_IN_MAP_IVCTX 0x00000A1C
-#define          I2S_IN_CTRL_IVCTX 0x00000A1D
-#define            I2S_CHST0_IVCTX 0x00000A1E
-#define            I2S_CHST1_IVCTX 0x00000A1F
-#define            I2S_CHST2_IVCTX 0x00000A20
-#define            I2S_CHST3_IVCTX 0x00000A21
-#define            I2S_CHST4_IVCTX 0x00000A22
-#define            I2S_CHST5_IVCTX 0x00000A23
-#define            I2S_CHST6_IVCTX 0x00000A24
-#define                 ASRC_IVCTX 0x00000A25
-#define          I2S_IN_SIZE_IVCTX 0x00000A26
-#define     AUD_PAR_BUSCLK_1_IVCTX 0x00000A27
-#define     AUD_PAR_BUSCLK_2_IVCTX 0x00000A28
-#define     AUD_PAR_BUSCLK_3_IVCTX 0x00000A29
-#define       DSD_INTERLEAVE_IVCTX 0x00000A2A
-#define   AUDIO_PAR_MODE_SEL_IVCTX 0x00000A2B
-#define              AIP_RST_IVCTX 0x00000A2C
-#define         AIP_HDMI2MHL_IVCTX 0x00000A2D
-#define             TDM_CTRL_IVCTX 0x00000A2E
-#define          AUDP_TXCTRL_IVCTX 0x00000A2F
-#define          AUDP_TXFIFO_IVCTX 0x00000A31
-#define       AIP_REG_ACC_TO_IVCTX 0x00000A32
-#define       AIP_TDM_CH_MAP_IVCTX 0x00000A33
-#define       AIP_TDM_CTRL_4_IVCTX 0x00000A34
-#define     AIP_EXT_TDM_CTRL_IVCTX 0x00000A35
-#define AIP_TDM_TCF_AUTO_RST_IVCTX 0x00000A36
-#define        AIP_3D_AUD_ON_IVCTX 0x00000A37
-#define       AIP_3D_AUD_PID_IVCTX 0x00000A38
-#define       AIP_INTR_STATE_IVCTX 0x00000A4E
-#define            AIP_INTR1_IVCTX 0x00000A4F
-#define            AIP_INTR2_IVCTX 0x00000A50
-#define       AIP_INTR1_MASK_IVCTX 0x00000A51
-#define       AIP_INTR2_MASK_IVCTX 0x00000A52
-#define            RSVD1_API_IVCTX 0x00000A53
-#define   TPI_DOWN_SMPL_CTRL_IVCTX 0x00000A61
-#define       TPI_AUD_CONFIG_IVCTX 0x00000A62
-#define           TPI_AUD_FS_IVCTX 0x00000A63
-#define      AIP_TDM_CH_MAP2_IVCTX 0x00000A64
-#define    AUD_TDM_CH_SWAP_1_IVCTX 0x00000A65
-#define    AUD_TDM_CH_SWAP_2_IVCTX 0x00000A66
-#define      AIP_TDM_CH_MAP3_IVCTX 0x00000A67
-#define      AIP_TDM_CH_MAP4_IVCTX 0x00000A68
-#define      AIP_TDM_CH_MAP5_IVCTX 0x00000A69
-#define      AIP_TDM_CH_MAP6_IVCTX 0x00000A6A
-#define      AIP_TDM_CH_MAP7_IVCTX 0x00000A6B
-#define      AIP_TDM_CH_MAP8_IVCTX 0x00000A6C
-#define       PRL_AUD_CH_NUM_IVCTX 0x00000A6D
-#define        AUDIO_CLK_DIV_IVCTX 0x00000A6E
+#define DDC_TIMEOUT_CNT2_IVCTX 0x000E
 
-//====================VIDEO_PATH_CORE_REG===============
-#define                                 VP_FEATURES_IVCTX 0x00000B00
-#define                               VP_BUILD_TIME_IVCTX 0x00000B08
-#define                               VP_SOFT_RESET_IVCTX 0x00000B0C
-#define                          VP_DATA_BITS_VALUE_IVCTX 0x00000B0E
-#define                               VP_INPUT_MUTE_IVCTX 0x00000B10
-#define                        VP_INPUT_SYNC_CONFIG_IVCTX 0x00000B12
-#define                             VP_INPUT_FORMAT_IVCTX 0x00000B14
-#define                            VP_INPUT_MAPPING_IVCTX 0x00000B16
-#define                               VP_INPUT_MASK_IVCTX 0x00000B18
-#define                          VP_PIPELINE_CONFIG_IVCTX 0x00000B1A
-#define                 VP_INPUT_SYNC_ADJUST_CONFIG_IVCTX 0x00000B1C
-#define                             VP_DEGEN_CONFIG_IVCTX 0x00000B20
-#define                        VP_DEGEN_PIXEL_DELAY_IVCTX 0x00000B22
-#define              VP_DEGEN_PIXEL_COUNT_MINUS_ONE_IVCTX 0x00000B24
-#define                         VP_DEGEN_LINE_DELAY_IVCTX 0x00000B26
-#define                         VP_DEGEN_LINE_COUNT_IVCTX 0x00000B28
-#define                            VP_DEC656_CONFIG_IVCTX 0x00000B30
-#define         VP_DEC656_DELAY_EAV_TO_HSYNC_ACTIVE_IVCTX 0x00000B32
-#define       VP_DEC656_PULSE_WIDTH_HSYNC_MINUS_ONE_IVCTX 0x00000B34
-#define                 VP_DEC656_VSYNC_FRONT_PORCH_IVCTX 0x00000B36
-#define           VP_DEC656_EAV_TO_VSYNC_DELAY_EVEN_IVCTX 0x00000B38
-#define            VP_DEC656_EAV_TO_VSYNC_DELAY_ODD_IVCTX 0x00000B3A
-#define                 VP_DEC656_PULSE_WIDTH_VSYNC_IVCTX 0x00000B3C
-#define                            VP_DEC656_STATUS_IVCTX 0x00000B3E
-#define                              VP_OUTPUT_MUTE_IVCTX 0x00000B40
-#define                       VP_OUTPUT_SYNC_CONFIG_IVCTX 0x00000B42
-#define                           VP_OUTPUT_MAPPING_IVCTX 0x00000B44
-#define                              VP_OUTPUT_MASK_IVCTX 0x00000B46
-#define                            VP_OUTPUT_FORMAT_IVCTX 0x00000B48
-#define                  VP_OUTPUT_BLANK_START_LINE_IVCTX 0x00000B4C
-#define                    VP_OUTPUT_BLANK_END_LINE_IVCTX 0x00000B4E
-#define                      VP_OUTPUT_BLANK_CONFIG_IVCTX 0x00000B50
-#define                   VP_OUTPUT_BLANKING_STATUS_IVCTX 0x00000B52
-#define                           VP_OUTPUT_BLANK_Y_IVCTX 0x00000B54
-#define                          VP_OUTPUT_BLANK_CB_IVCTX 0x00000B56
-#define                          VP_OUTPUT_BLANK_CR_IVCTX 0x00000B58
-#define                          VP_OUTPUT_ACTIVE_Y_IVCTX 0x00000B5A
-#define                         VP_OUTPUT_ACTIVE_CB_IVCTX 0x00000B5C
-#define                         VP_OUTPUT_ACTIVE_CR_IVCTX 0x00000B5E
-#define                  VP_VTG_HORIZONTAL_SYNC_END_IVCTX 0x00000B60
-#define        VP_VTG_HORIZONTAL_ACTIVE_VIDEO_START_IVCTX 0x00000B62
-#define                             VP_VTG_HALFLINE_IVCTX 0x00000B64
-#define          VP_VTG_HORIZONTAL_ACTIVE_VIDEO_END_IVCTX 0x00000B66
-#define                          VP_VTG_END_OF_LINE_IVCTX 0x00000B68
-#define                    VP_VTG_VERTICAL_SYNC_END_IVCTX 0x00000B70
-#define                        VP_VTG_TRIGGER_START_IVCTX 0x00000B72
-#define          VP_VTG_VERTICAL_ACTIVE_VIDEO_START_IVCTX 0x00000B74
-#define            VP_VTG_VERTICAL_ACTIVE_VIDEO_END_IVCTX 0x00000B76
-#define                VP_VTG_VERTICAL_END_OF_FRAME_IVCTX 0x00000B78
-#define                               VP_VTG_CONFIG_IVCTX 0x00000B7A
-#define                            VP_VTG_THRESHOLD_IVCTX 0x00000B7B
-#define                          VP_VTG_CYCLE_DELAY_IVCTX 0x00000B7C
-#define                       VP_VTG_UPDATE_REQUEST_IVCTX 0x00000B7E
-#define                          VP_VTG_BANK_CONFIG_IVCTX 0x00000B7F
-#define                              VP_FDET_CONFIG_IVCTX 0x00000B80
-#define                              VP_FDET_STATUS_IVCTX 0x00000B81
-#define                               VP_FDET_CLEAR_IVCTX 0x00000B82
-#define                 VP_FDET_INTERLACE_THRESHOLD_IVCTX 0x00000B83
-#define          VP_FDET_FRAME_RATE_DELTA_THRESHOLD_IVCTX 0x00000B84
-#define                          VP_FDET_FRAME_RATE_IVCTX 0x00000B88
-#define                         VP_FDET_PIXEL_COUNT_IVCTX 0x00000B8C
-#define                          VP_FDET_LINE_COUNT_IVCTX 0x00000B8E
-#define                     VP_FDET_HSYNC_LOW_COUNT_IVCTX 0x00000B90
-#define                    VP_FDET_HSYNC_HIGH_COUNT_IVCTX 0x00000B92
-#define                        VP_FDET_HFRONT_COUNT_IVCTX 0x00000B94
-#define                         VP_FDET_HBACK_COUNT_IVCTX 0x00000B96
-#define                VP_FDET_VSYNC_LOW_COUNT_EVEN_IVCTX 0x00000B98
-#define               VP_FDET_VSYNC_HIGH_COUNT_EVEN_IVCTX 0x00000B9A
-#define                   VP_FDET_VFRONT_COUNT_EVEN_IVCTX 0x00000B9C
-#define                    VP_FDET_VBACK_COUNT_EVEN_IVCTX 0x00000B9E
-#define                 VP_FDET_VSYNC_LOW_COUNT_ODD_IVCTX 0x00000BA0
-#define                VP_FDET_VSYNC_HIGH_COUNT_ODD_IVCTX 0x00000BA2
-#define                    VP_FDET_VFRONT_COUNT_ODD_IVCTX 0x00000BA4
-#define                     VP_FDET_VBACK_COUNT_ODD_IVCTX 0x00000BA6
-#define                         VP_FDET_FRAME_COUNT_IVCTX 0x00000BA8
-#define           VP_FDET_LINE_RATE_DELTA_THRESHOLD_IVCTX 0x00000BAA
-#define                           VP_FDET_LINE_RATE_IVCTX 0x00000BAC
-#define             VP_FDET_VSYNC_HSYNC_OFFSET_EVEN_IVCTX 0x00000BB0
-#define              VP_FDET_VSYNC_HSYNC_OFFSET_ODD_IVCTX 0x00000BB2
-#define                            VP_FDET_IRQ_MASK_IVCTX 0x00000BB8
-#define                          VP_FDET_IRQ_STATUS_IVCTX 0x00000BBC
-#define                     VP_EMBD_SYNC_ENC_CONFIG_IVCTX 0x00000BC0
-#define               VP_EMBD_SYNC_ENC_SECT0_CONFIG_IVCTX 0x00000BC4
-#define               VP_EMBD_SYNC_ENC_SECT1_CONFIG_IVCTX 0x00000BC8
-#define               VP_EMBD_SYNC_ENC_SECT2_CONFIG_IVCTX 0x00000BCC
-#define               VP_EMBD_SYNC_ENC_SECT3_CONFIG_IVCTX 0x00000BD0
-#define               VP_EMBD_SYNC_ENC_SECT4_CONFIG_IVCTX 0x00000BD4
-#define               VP_EMBD_SYNC_ENC_SECT5_CONFIG_IVCTX 0x00000BD8
-#define     VP_EMBD_SYNC_ENC_HORIZONTAL_DATA_PIXELS_IVCTX 0x00000BDC
-#define VP_EMBD_SYNC_ENC_HORIZONTAL_BLANKING_PIXELS_IVCTX 0x00000BDE
-#define             VP_EMBD_SYNC_ENC_UPDATE_REQUEST_IVCTX 0x00000BE0
-#define                VP_EMBD_SYNC_ENC_BANK_CONFIG_IVCTX 0x00000BE1
+#define DDC_TIMEOUT_CNT3_IVCTX 0x000F
 
-//====================VIDEO_PATH_CORE_CMS_CSC0_REG=============
-#define                 VP_CMS_CSC0_FEATURES_IVCTX 0x00000D00
-#define          VP_CMS_CSC0_DATA_BITS_VALUE_IVCTX 0x00000D02
-#define               VP_CMS_CSC0_BUILD_TIME_IVCTX 0x00000D04
-#define         VP_CMS_CSC0_C420_C422_CONFIG_IVCTX 0x00000D08
-#define         VP_CMS_CSC0_C422_C444_CONFIG_IVCTX 0x00000D0C
-#define         VP_CMS_CSC0_PIXCAP_IN_CONFIG_IVCTX 0x00000D10
-#define        VP_CMS_CSC0_PIXCAP_IN_CONTROL_IVCTX 0x00000D11
-#define         VP_CMS_CSC0_PIXCAP_IN_STATUS_IVCTX 0x00000D12
-#define          VP_CMS_CSC0_PIXCAP_IN_PIXEL_IVCTX 0x00000D14
-#define           VP_CMS_CSC0_PIXCAP_IN_LINE_IVCTX 0x00000D16
-#define              VP_CMS_CSC0_PIXCAP_IN_Y_IVCTX 0x00000D18
-#define             VP_CMS_CSC0_PIXCAP_IN_CB_IVCTX 0x00000D1A
-#define             VP_CMS_CSC0_PIXCAP_IN_CR_IVCTX 0x00000D1C
-#define         VP_CMS_CSC0_MULTI_CSC_CONFIG_IVCTX 0x00000D20
-#define VP_CMS_CSC0_MULTI_CSC_MULTCOEFF_ADDR_IVCTX 0x00000D22
-#define VP_CMS_CSC0_MULTI_CSC_MULTCOEFF_DATA_IVCTX 0x00000D24
-#define   VP_CMS_CSC0_MULTI_CSC_IN_GY_OFFSET_IVCTX 0x00000D28
-#define  VP_CMS_CSC0_MULTI_CSC_IN_BCB_OFFSET_IVCTX 0x00000D2C
-#define  VP_CMS_CSC0_MULTI_CSC_IN_RCR_OFFSET_IVCTX 0x00000D30
-#define  VP_CMS_CSC0_MULTI_CSC_OUT_GY_OFFSET_IVCTX 0x00000D34
-#define VP_CMS_CSC0_MULTI_CSC_OUT_BCB_OFFSET_IVCTX 0x00000D38
-#define VP_CMS_CSC0_MULTI_CSC_OUT_RCR_OFFSET_IVCTX 0x00000D3C
+#define DDC_TIMEOUT_CTL_IVCTX 0x0010
 
-//====================VIDEO_PATH_CORE_CMS_CSC1_REG=============
-#define                 VP_CMS_CSC1_FEATURES_IVCTX 0x00000D80
-#define          VP_CMS_CSC1_DATA_BITS_VALUE_IVCTX 0x00000D82
-#define               VP_CMS_CSC1_BUILD_TIME_IVCTX 0x00000D84
-#define         VP_CMS_CSC1_MULTI_CSC_CONFIG_IVCTX 0x00000DA0
-#define VP_CMS_CSC1_MULTI_CSC_MULTCOEFF_ADDR_IVCTX 0x00000DA2
-#define VP_CMS_CSC1_MULTI_CSC_MULTCOEFF_DATA_IVCTX 0x00000DA4
-#define   VP_CMS_CSC1_MULTI_CSC_IN_GY_OFFSET_IVCTX 0x00000DA8
-#define  VP_CMS_CSC1_MULTI_CSC_IN_BCB_OFFSET_IVCTX 0x00000DAC
-#define  VP_CMS_CSC1_MULTI_CSC_IN_RCR_OFFSET_IVCTX 0x00000DB0
-#define  VP_CMS_CSC1_MULTI_CSC_OUT_GY_OFFSET_IVCTX 0x00000DB4
-#define VP_CMS_CSC1_MULTI_CSC_OUT_BCB_OFFSET_IVCTX 0x00000DB8
-#define VP_CMS_CSC1_MULTI_CSC_OUT_RCR_OFFSET_IVCTX 0x00000DBC
-#define         VP_CMS_CSC1_C444_C422_CONFIG_IVCTX 0x00000DC0
-#define         VP_CMS_CSC1_C422_C420_CONFIG_IVCTX 0x00000DC2
-#define            VP_CMS_CSC1_DITHER_CONFIG_IVCTX 0x00000DC4
-#define        VP_CMS_CSC1_RANGE_CLIP_CONFIG_IVCTX 0x00000DC6
-#define         VP_CMS_CSC1_RANGE_CLIP_Y_MIN_IVCTX 0x00000DC8
-#define         VP_CMS_CSC1_RANGE_CLIP_Y_MAX_IVCTX 0x00000DCA
-#define         VP_CMS_CSC1_RANGE_CLIP_C_MIN_IVCTX 0x00000DCC
-#define         VP_CMS_CSC1_RANGE_CLIP_C_MAX_IVCTX 0x00000DCE
-#define        VP_CMS_CSC1_PIXCAP_OUT_CONFIG_IVCTX 0x00000DD0
-#define       VP_CMS_CSC1_PIXCAP_OUT_CONTROL_IVCTX 0x00000DD1
-#define        VP_CMS_CSC1_PIXCAP_OUT_STATUS_IVCTX 0x00000DD2
-#define         VP_CMS_CSC1_PIXCAP_OUT_PIXEL_IVCTX 0x00000DD4
-#define          VP_CMS_CSC1_PIXCAP_OUT_LINE_IVCTX 0x00000DD6
-#define             VP_CMS_CSC1_PIXCAP_OUT_Y_IVCTX 0x00000DD8
-#define            VP_CMS_CSC1_PIXCAP_OUT_CB_IVCTX 0x00000DDA
-#define            VP_CMS_CSC1_PIXCAP_OUT_CR_IVCTX 0x00000DDC
+#define TPI_HPD_RSEN_IVCTX 0x0011
 
-//====================HDR_REG===============
-#define          D_HDR_GEN_CTL_IVCTX 0x00000F00
-#define          D_HDR_INTRSTS_IVCTX 0x00000F01
-#define         D_HDR_INTRMASK_IVCTX 0x00000F02
-#define           D_HDR_PC_HB0_IVCTX 0x00000F03
-#define           D_HDR_PC_HB1_IVCTX 0x00000F04
-#define           D_HDR_PC_PB3_IVCTX 0x00000F05
-#define           D_HDR_PC_PB4_IVCTX 0x00000F06
-#define           D_HDR_PC_PB5_IVCTX 0x00000F07
-#define           D_HDR_EM_HB0_IVCTX 0x00000F08
-#define           D_HDR_EM_PB0_IVCTX 0x00000F09
-#define           D_HDR_EM_PB2_IVCTX 0x00000F0A
-#define           D_HDR_EM_PB3_IVCTX 0x00000F0B
-#define           D_HDR_EM_PB4_IVCTX 0x00000F0C
-#define        D_HDR_ACK_TO_HI_IVCTX 0x00000F0D
-#define        D_HDR_ACK_TO_LO_IVCTX 0x00000F0E
-#define        D_HDR_ACT_DE_HI_IVCTX 0x00000F0F
-#define        D_HDR_ACT_DE_LO_IVCTX 0x00000F10
-#define            D_HDR_VB_LE_IVCTX 0x00000F11
-#define        D_HDR_READ_PORT_IVCTX 0x00000F12
-#define              D_HDR_DBG_IVCTX 0x00000F13
-#define        D_HDR_MEM_WDATA_IVCTX 0x00000F14
-#define      D_HDR_INSERT_CTRL_IVCTX 0x00000F15
-#define D_HDR_INSERT_PAYLOAD_0_IVCTX 0x00000F16
-#define D_HDR_INSERT_PAYLOAD_1_IVCTX 0x00000F17
-#define    D_HDR_MEM_WADDR_RST_IVCTX 0x00000F18
-#define     D_HDR_INSERT_CTL_1_IVCTX 0x00000F19
-#define     D_HDR_INSERT_CTL_2_IVCTX 0x00000F1A
-#define     D_HDR_INSERT_CTL_3_IVCTX 0x00000F1B
-#define       D_HDR_FAPA_DEBUG_IVCTX 0x00000F1C
-#define          D_HDR_SPARE_0_IVCTX 0x00000F1D
-#define          D_HDR_SPARE_1_IVCTX 0x00000F1E
-#define          D_HDR_SPARE_2_IVCTX 0x00000F1F
-#define          D_HDR_SPARE_3_IVCTX 0x00000F20
-#define          D_HDR_SPARE_4_IVCTX 0x00000F21
-#define          D_HDR_SPARE_5_IVCTX 0x00000F22
-#define          D_HDR_SPARE_6_IVCTX 0x00000F23
-#define          D_HDR_SPARE_7_IVCTX 0x00000F24
-#define          D_HDR_SPARE_8_IVCTX 0x00000F25
-#define          D_HDR_SPARE_9_IVCTX 0x00000F26
+#define HTPLG_T2_IVCTX 0x0012
 
-//====================DSC_PKT_REG===============
-#define          DSC_PKT_GEN_CTL_IVCTX 0x00000F80
-#define          DSC_PKT_INTRSTS_IVCTX 0x00000F81
-#define         DSC_PKT_INTRMASK_IVCTX 0x00000F82
-#define           DSC_PKT_PC_HB0_IVCTX 0x00000F83
-#define           DSC_PKT_PC_HB1_IVCTX 0x00000F84
-#define           DSC_PKT_PC_PB3_IVCTX 0x00000F85
-#define           DSC_PKT_PC_PB4_IVCTX 0x00000F86
-#define           DSC_PKT_PC_PB5_IVCTX 0x00000F87
-#define           DSC_PKT_EM_HB0_IVCTX 0x00000F88
-#define           DSC_PKT_EM_PB0_IVCTX 0x00000F89
-#define           DSC_PKT_EM_PB2_IVCTX 0x00000F8A
-#define           DSC_PKT_EM_PB3_IVCTX 0x00000F8B
-#define           DSC_PKT_EM_PB4_IVCTX 0x00000F8C
-#define        DSC_PKT_ACK_TO_HI_IVCTX 0x00000F8D
-#define        DSC_PKT_ACK_TO_LO_IVCTX 0x00000F8E
-#define        DSC_PKT_ACT_DE_HI_IVCTX 0x00000F8F
-#define        DSC_PKT_ACT_DE_LO_IVCTX 0x00000F90
-#define            DSC_PKT_VB_LE_IVCTX 0x00000F91
-#define        DSC_PKT_READ_PORT_IVCTX 0x00000F92
-#define              DSC_PKT_DBG_IVCTX 0x00000F93
-#define        DSC_PKT_MEM_WDATA_IVCTX 0x00000F94
-#define      DSC_PKT_INSERT_CTRL_IVCTX 0x00000F95
-#define    DSC_PKT_MEM_WADDR_RST_IVCTX 0x00000F96
-#define     DSC_PKT_INSERT_CTL_1_IVCTX 0x00000F97
-#define DSC_PKT_INSERT_PAYLOAD_0_IVCTX 0x00000F98
-#define DSC_PKT_INSERT_PAYLOAD_1_IVCTX 0x00000F99
-#define     DSC_PKT_INSERT_CTL_2_IVCTX 0x00000F9A
-#define     DSC_PKT_INSERT_CTL_3_IVCTX 0x00000F9B
-#define     DSC_PKT_INSERT_CTL_4_IVCTX 0x00000F9C
-#define     DSC_PKT_INSERT_CTL_5_IVCTX 0x00000F9D
-#define    DSC_PKT_MAX_PAYLOAD_0_IVCTX 0x00000F9E
-#define    DSC_PKT_MAX_PAYLOAD_1_IVCTX 0x00000F9F
-#define          DSC_PKT_SPARE_0_IVCTX 0x00000FA0
-#define          DSC_PKT_SPARE_1_IVCTX 0x00000FA1
-#define          DSC_PKT_SPARE_2_IVCTX 0x00000FA2
-#define          DSC_PKT_SPARE_3_IVCTX 0x00000FA3
-#define          DSC_PKT_SPARE_4_IVCTX 0x00000FA4
-#define          DSC_PKT_SPARE_5_IVCTX 0x00000FA5
-#define          DSC_PKT_SPARE_6_IVCTX 0x00000FA6
-#define          DSC_PKT_SPARE_7_IVCTX 0x00000FA7
-#define          DSC_PKT_SPARE_8_IVCTX 0x00000FA8
-#define          DSC_PKT_SPARE_9_IVCTX 0x00000FA9
+#define HTPLG_T1_IVCTX 0x0013
 
-//====================ZONEVCO_REG===============
-#define      ZONE_CTRL_0_IVCTX 0x00001000
-#define    ZONE_STATUS_0_IVCTX 0x00001001
-#define          DEBUG_0_IVCTX 0x00001002
-#define          DEBUG_1_IVCTX 0x00001003
-#define    VCOCAL_CTRL_0_IVCTX 0x00001004
-#define  VCOCAL_STATUS_0_IVCTX 0x00001005
-#define PRECLK_FORCE_CTL_IVCTX 0x00001006
-#define   PRECLK_CNT_MAX_IVCTX 0x00001007
-#define     OCLK_CNT_MAX_IVCTX 0x00001008
-#define     OCLK_CNT_MIN_IVCTX 0x00001009
-#define          PRE_DIV_IVCTX 0x0000100A
-#define         POST_DIV_IVCTX 0x0000100B
-#define  VCOCAL_STATUS_1_IVCTX 0x0000100C
-#define        PLL_MODE0_IVCTX 0x0000100D
-#define         SZONE_OW_IVCTX 0x0000100E
-#define          ISEL_OW_IVCTX 0x0000100F
-#define       BIAS_BGR_D_IVCTX 0x00001010
-#define       DIV_PRE_OW_IVCTX 0x00001011
-#define       DIV_PST_OW_IVCTX 0x00001012
-#define        VCOCAL_OW_IVCTX 0x00001013
-#define        ZONE_INTR_IVCTX 0x00001014
-#define   ZONE_INTR_MASK_IVCTX 0x00001015
-#define      ZONE_CTRL_1_IVCTX 0x00001016
-#define      ZONE_CTRL_2_IVCTX 0x00001017
-#define       PLL_LK_DLY_IVCTX 0x00001018
-#define      LKDT_CTRL_0_IVCTX 0x00001019
-#define       LKDT_CTRL1_IVCTX 0x0000101A
-#define       LKDT_CTRL2_IVCTX 0x0000101B
-#define       LKDT_CTRL3_IVCTX 0x0000101C
-#define     OCLK_CNT_THR_IVCTX 0x0000101D
-#define      ZVTIMER_MAX_IVCTX 0x0000101E
-#define          ZVSTATE_IVCTX 0x0000101F
-#define       VCOCAL_ADJ_IVCTX 0x00001020
-#define    ZONECAL_ADJ_0_IVCTX 0x00001021
-#define    ZONECAL_ADJ_1_IVCTX 0x00001022
-#define    ZONECAL_ADJ_2_IVCTX 0x00001023
-#define    ZONECAL_ADJ_3_IVCTX 0x00001024
-#define       ZONECTRL_3_IVCTX 0x00001025
-#define       ZONECTRL_4_IVCTX 0x00001026
-#define       ZONECTRL_5_IVCTX 0x00001027
-#define       ZONECTRL_6_IVCTX 0x00001028
-#define       ZONECTRL_7_IVCTX 0x00001029
-#define       ZONECTRL_8_IVCTX 0x0000102A
-#define       ZONECTRL_9_IVCTX 0x0000102B
-#define       ZONECTRL_A_IVCTX 0x0000102C
-#define       ZONECTRL_B_IVCTX 0x0000102D
-#define       ZONECTRL_C_IVCTX 0x0000102E
-#define       ZONECTRL_D_IVCTX 0x0000102F
-#define       ZONECTRL_E_IVCTX 0x00001030
-#define       ZONECTRL_F_IVCTX 0x00001031
-#define    ZONE_STATUS_1_IVCTX 0x00001032
-#define    ZONE_STATUS_2_IVCTX 0x00001033
-#define    ZONE_STATUS_3_IVCTX 0x00001034
-#define    ZONE_STATUS_4_IVCTX 0x00001035
-#define    ZONE_STATUS_5_IVCTX 0x00001036
-#define    ZONE_STATUS_6_IVCTX 0x00001037
-#define    ZONE_STATUS_7_IVCTX 0x00001038
-#define    ZONE_STATUS_8_IVCTX 0x00001039
-#define    ZONE_STATUS_9_IVCTX 0x0000103A
-#define    ZONE_STATUS_A_IVCTX 0x0000103B
-#define     ZONE_CTRL_10_IVCTX 0x0000103C
+#define HPD_CTRL_IVCTX 0x0014
 
-#endif  /* __HDMI_TX_REG_H_ */
+#define HPD_IN_CTRL_IVCTX 0x0015
+
+#define INTR1_IVCTX 0x0016
+
+#define INTR1_MASK_IVCTX 0x0017
+
+#define AON_CYP_CTL_IVCTX 0x0018
+
+#define VND_IDL_IVCTX 0x0100
+
+#define VND_IDH_IVCTX 0x0101
+
+#define DEV_IDL_IVCTX 0x0102
+
+#define DEV_IDH_IVCTX 0x0103
+
+#define DEV_REVL_IVCTX 0x0104
+
+#define DEV_REVH_IVCTX 0x0105
+
+#define SOC_INTR_IVCTX 0x0106
+
+#define SOC_INTRMASK_IVCTX 0x0107
+
+#define HOST_CTRL1_IVCTX 0x0108
+
+#define HOST_CTRL2_IVCTX 0x0109
+
+#define OTP_DBYTE510_IVCTX 0x010A
+
+#define SOC_FUNC_SEL_IVCTX 0x010B
+
+#define SYS_CTRL1_IVCTX 0x010C
+
+#define CLKPWD_IVCTX 0x010D
+
+#define CLKPHASE1_IVCTX 0x010E
+
+#define CLKPHASE2_IVCTX 0x010F
+
+#define PWD_SRST_IVCTX 0x0110
+
+#define SW_RST2_IVCTX 0x0111
+
+#define SW_RST3_IVCTX 0x0112
+
+#define SYS_MISC_IVCTX 0x0113
+
+#define SYS_MISC2_IVCTX 0x0114
+
+#define SYS_MISC3_IVCTX 0x0115
+
+#define PRIFCNTL_IVCTX 0x0116
+
+#define PAGE_1_ADDR_IVCTX 0x0117
+
+#define PAGE_2_ADDR_IVCTX 0x0118
+
+#define PAGE_3_ADDR_IVCTX 0x0119
+
+#define PAGE_MHLSPEC_ADDR_IVCTX 0x011A
+
+#define PAGE_CBUS_ADDR_IVCTX 0x011B
+
+#define HW_TPI_ADDR_IVCTX 0x011C
+
+#define PAGE_7_ADDR_IVCTX 0x011D
+
+#define PAGE_8_ADDR_IVCTX 0x011E
+
+#define PAGE_9_ADDR_IVCTX 0x011F
+
+#define PAGE_10_ADDR_IVCTX 0x0120
+
+#define PAGE_11_ADDR_IVCTX 0x0121
+
+#define PAGE_12_ADDR_IVCTX 0x0122
+
+#define PAGE_13_ADDR_IVCTX 0x0123
+
+#define PAGE_14_ADDR_IVCTX 0x0124
+
+#define PAGE_15_ADDR_IVCTX 0x0125
+
+#define IPREGRST0_IVCTX 0x0126
+
+#define IPREGRST1_IVCTX 0x0127
+
+#define IPREGRST2_IVCTX 0x0128
+
+#define IPREGRST3_IVCTX 0x0129
+
+#define PCLK2TMDS_MISC0_IVCTX 0x012A
+
+#define PCLK2TMDS_MISC1_IVCTX 0x012B
+
+#define HDCP2X_CONTROL_IVCTX 0x012C
+
+#define VIDGEN_CONTROL_IVCTX 0x012D
+
+#define VP_BUF_ALIGN_STATUS_IVCTX 0x012E
+
+#define CLK_DIV_CNTRL_IVCTX 0x012F
+
+#define TOP_INTR_IVCTX 0x0130
+
+#define DEBUG_MODE_EN_IVCTX 0x0200
+
+#define SYS_STAT_IVCTX 0x0201
+
+#define SYS_CTRL3_IVCTX 0x0202
+
+#define DPD_IVCTX 0x0203
+
+#define SYS_CTRL4_IVCTX 0x0204
+
+#define MCUTOUT_IVCTX 0x0205
+
+#define DIGIPREGRST0_IVCTX 0x0206
+
+#define DIGIPREGRST1_IVCTX 0x0207
+
+#define DIGIPREGRST2_IVCTX 0x0208
+
+#define DIGIPREGRST3_IVCTX 0x0209
+
+#define HDCP_CTRL_0_0_IVCTX 0x020E
+
+#define HDCP_CTRL_IVCTX 0x020F
+
+#define WR_BKSV_1_IVCTX 0x0210
+
+#define WR_BKSV_2_IVCTX 0x0211
+
+#define WR_BKSV_3_IVCTX 0x0212
+
+#define WR_BKSV_4_IVCTX 0x0213
+
+#define WR_BKSV_5_IVCTX 0x0214
+
+#define AN1_IVCTX 0x0215
+
+#define AN2_IVCTX 0x0216
+
+#define AN3_IVCTX 0x0217
+
+#define AN4_IVCTX 0x0218
+
+#define AN5_IVCTX 0x0219
+
+#define AN6_IVCTX 0x021A
+
+#define AN7_IVCTX 0x021B
+
+#define AN8_IVCTX 0x021C
+
+#define AKSV_1_IVCTX 0x021D
+
+#define AKSV_2_IVCTX 0x021E
+
+#define AKSV_3_IVCTX 0x021F
+
+#define AKSV_4_IVCTX 0x0220
+
+#define AKSV_5_IVCTX 0x0221
+
+#define RI_1_IVCTX 0x0222
+
+#define RI_2_IVCTX 0x0223
+
+#define RI_128_COMP_IVCTX 0x0224
+
+#define HDCP_I_CNT_IVCTX 0x0225
+
+#define RI_STAT_IVCTX 0x0226
+
+#define RI_CMD_IVCTX 0x0227
+
+#define RI_START_IVCTX 0x0228
+
+#define RI_RX_1_IVCTX 0x0229
+
+#define RI_RX_2_IVCTX 0x022A
+
+#define TXHDCP_DEBUG_IVCTX 0x022B
+
+#define VSYNC_START0_IVCTX 0x0230
+
+#define VSYNC_START1_IVCTX 0x0231
+
+#define VSYNC_END0_IVCTX 0x0232
+
+#define VSYNC_END1_IVCTX 0x0233
+
+#define CLKRATIO_IVCTX 0x0235
+
+#define P2T_CTRL_IVCTX 0x0236
+
+#define VID_BLANK0_IVCTX 0x0237
+
+#define VID_BLANK1_IVCTX 0x0238
+
+#define VID_BLANK2_IVCTX 0x0239
+
+#define VID_OVRRD_IVCTX 0x023A
+
+#define AP_DEPROC_IVCTX 0x023B
+
+#define HBLANK_REKEY_CONTROL_IVCTX 0x023C
+
+#define HDPLL_FIX0_IVCTX 0x023D
+
+#define HDPLL_FIX1_IVCTX 0x023E
+
+#define POL_DETECT_IVCTX 0x023F
+
+#define HDPLL_FIX2_IVCTX 0x0240
+
+#define HDPLL_FIX3_IVCTX 0x0241
+
+#define VSI_MHL_IEEE_NO_0_IVCTX 0x0242
+
+#define VSI_MHL_IEEE_NO_1_IVCTX 0x0243
+
+#define VSI_MHL_IEEE_NO_2_IVCTX 0x0244
+
+#define PKT_FILTER_0_IVCTX 0x0245
+
+#define PKT_FILTER_1_IVCTX 0x0246
+
+#define PKT_FILTER_2_IVCTX 0x0247
+
+#define PKT_FILTER_3_IVCTX 0x0248
+
+#define PKT_FILTER_CTRL_IVCTX 0x0249
+
+#define DROP_GEN_TYPE_0_IVCTX 0x024A
+
+#define DROP_GEN_TYPE_1_IVCTX 0x024B
+
+#define DROP_D_HDR_TYPE_IVCTX 0x024C
+
+#define DIPT_CNTL_IVCTX 0x024D
+
+#define D_HDR_ORG_ID_IVCTX 0x024E
+
+#define SYS_CNTR_0_IVCTX 0x024F
+
+#define SYS_CNTR_1_IVCTX 0x0250
+
+#define SYS_CNTR_ST0_IVCTX 0x0251
+
+#define SYS_CNTR_ST1_IVCTX 0x0252
+
+#define L1_INTR_STAT_0_IVCTX 0x0253
+
+#define L1_INTR_STAT_1_IVCTX 0x0254
+
+#define HTPLG_T2_SW_TPI_IVCTX 0x025F
+
+#define HTPLG_T1_SW_TPI_IVCTX 0x0260
+
+#define INTR_STATE_IVCTX 0x0263
+
+#define INTR1_SW_TPI_IVCTX 0x0264
+
+#define INTR2_SW_TPI_IVCTX 0x0265
+	#define BIT_INTR2_SW_HASH_DONE_B6 BIT(6)
+
+#define INTR3_SW_TPI_IVCTX 0x0266
+
+#define INTR5_SW_TPI_IVCTX 0x0267
+
+#define RSVD4_SW_TPI_IVCTX 0x0268
+
+#define RSVD5_SW_TPI_IVCTX 0x0269
+
+#define INTR1_MASK_SW_TPI_IVCTX 0x026A
+
+#define INTR2_MASK_SW_TPI_IVCTX 0x026B
+
+#define INTR3_MASK_SW_TPI_IVCTX 0x026C
+
+#define INTR5_MASK_SW_TPI_IVCTX 0x026D
+
+#define RSVD6_SW_TPI_IVCTX 0x026E
+
+#define RSVD7_SW_TPI_IVCTX 0x026F
+
+#define HPD_CTRL_SW_TPI_IVCTX 0x0270
+
+#define RSVD9_SW_TPI_IVCTX 0x0273
+
+#define TMDS_CSTAT_IVCTX 0x0274
+
+#define RSVD10_SW_TPI_IVCTX 0x0275
+
+#define RSVD11_SW_TPI_IVCTX 0x0276
+
+#define GCP_PKT_CTRL_IVCTX 0x0277
+
+#define TMDS_CTRL4_IVCTX 0x0278
+
+#define SCDT_HOLDOFF_MSB_IVCTX 0x0279
+
+#define TMDS_CTRL7_IVCTX 0x027B
+
+#define HPD_IN_CTRL_SW_TPI_IVCTX  0x027C
+
+#define VSIF_IEEE_ID_0_IVCTX 0x027D
+
+#define VSIF_IEEE_ID_1_IVCTX 0x027E
+
+#define VSIF_IEEE_ID_2_IVCTX 0x027F
+
+#define DROP_CVTEM_PKT_TYPE_IVCTX 0x0280
+
+#define DROP_VTEM_PKT_TYPE_IVCTX 0x0281
+
+#define DROP_VSEM_PKT_TYPE_IVCTX 0x0282
+
+#define VSEM_ORG_ID_IVCTX 0x0283
+
+#define DSC_CVTEM_ORG_ID_IVCTX 0x0284
+
+#define VTEM_ORG_ID_IVCTX 0x0285
+
+#define DSC_CVTEM_DS_TAG_1_IVCTX 0x0286
+
+#define DSC_CVTEM_DS_TAG_2_IVCTX 0x0287
+
+#define VTEM_DS_TAG_1_IVCTX 0x0288
+
+#define VTEM_DS_TAG_2_IVCTX 0x0289
+
+#define FAPA_PKT_CNTL_IVCTX 0x028A
+
+#define VSIF2_PKT_CTRL_IVCTX 0x028B
+
+#define VSIF2_PKT_TYPE_IVCTX 0x028C
+
+#define VSIF2_PKT_VERSION_IVCTX 0x028D
+
+#define VSIF2_PKT_IEEE_ID0_IVCTX 0x028E
+
+#define VSIF2_PKT_IEEE_ID1_IVCTX 0x028F
+
+#define VSIF2_PKT_IEEE_ID2_IVCTX 0x0290
+
+#define DROP_D_HDR_PC_TYPE_IVCTX 0x0291
+
+#define DROP_DSC_PC_TYPE_IVCTX 0x0292
+
+#define D_HDR_PC_PKT_VERSION_IVCTX 0x0293
+
+#define DSC_PC_PKT_VERSION_IVCTX 0x0294
+
+#define HDCP_MISC_CTRL_0_IVCTX 0x0295
+
+#define HDCP_MISC_CTRL_1_IVCTX 0x0296
+
+#define EMP_ARBITER_CTRL_IVCTX 0x0297
+
+#define EMP_ARBITER_CTRL_1_IVCTX 0x0298
+
+#define EMP_PKT_TYPE_VAL_IVCTX 0x0299
+
+#define HDPLL_FIX_NEW_0_IVCTX 0x029A
+
+#define HDPLL_FIX_NEW_1_IVCTX 0x029B
+
+#define HDPLL_FIX_NEW_2_IVCTX 0x029C
+
+#define FRL_LINK_RATE_CONFIG_IVCTX 0x029D
+
+#define FAPA_PKT_HEADER_IVCTX 0x029E
+
+#define LM_DDC_IVCTX 0x029F
+	#define BIT_LM_DDC_SWTPIEN_B7 BIT(7)
+	#define BIT_LM_DDC_VIDEOMUTEEN_B5 BIT(5)
+	#define BIT_LM_DDC_TPISW_B2 BIT(2)
+	#define BIT_LM_DDC_GRANT_B1 BIT(1)
+	#define BIT_LM_DDC_REQUEST_B0 BIT(0)
+
+#define TXSHA_CTRL_IVCTX 0x02A4
+
+#define TXKSV_FIFO_IVCTX 0x02A5
+
+#define TXDS_BSTATUS1_IVCTX 0x02A6
+
+#define TXDS_BSTATUS2_IVCTX 0x02A7
+
+#define TXVH0_0_IVCTX 0x02AB
+
+#define TXVH0_1_IVCTX 0x02AC
+
+#define TXVH0_2_IVCTX 0x02AD
+
+#define TXVH0_3_IVCTX 0x02AE
+
+#define TXVH1_0_IVCTX 0x02AF
+
+#define TXVH1_1_IVCTX 0x02B0
+
+#define TXVH1_2_IVCTX 0x02B1
+
+#define TXVH1_3_IVCTX 0x02B2
+
+#define TXVH2_0_IVCTX 0x02B3
+
+#define TXVH2_1_IVCTX 0x02B4
+
+#define TXVH2_2_IVCTX 0x02B5
+
+#define TXVH2_3_IVCTX 0x02B6
+
+#define TXVH3_0_IVCTX 0x02B7
+
+#define TXVH3_1_IVCTX 0x02B8
+
+#define TXVH3_2_IVCTX 0x02B9
+
+#define TXVH3_3_IVCTX 0x02BA
+
+#define TXVH4_0_IVCTX 0x02BB
+
+#define TXVH4_1_IVCTX 0x02BC
+
+#define TXVH4_2_IVCTX 0x02BD
+
+#define TXVH4_3_IVCTX 0x02BE
+
+#define DDC_MANUAL_SW_TPI_IVCTX 0x02BF
+
+#define DDC_ADDR_SW_TPI_IVCTX 0x02C0
+
+#define DDC_SEGM_SW_TPI_IVCTX 0x02C1
+
+#define DDC_OFFSET_SW_TPI_IVCTX 0x02C2
+
+#define DDC_DIN_CNT1_SW_TPI_IVCTX 0x02C3
+
+#define DDC_DIN_CNT2_SW_TPI_IVCTX 0x02C4
+
+#define DDC_STATUS_SW_TPI_IVCTX 0x02C5
+
+#define DDC_CMD_SW_TPI_IVCTX 0x02C6
+
+#define DDC_DATA_IVCTX 0x02C7
+
+#define DDC_DOUT_CNT_SW_TPI_IVCTX 0x02C8
+
+#define DDC_DELAY_CNT_SW_TPI_IVCTX 0x02C9
+
+#define TEST_TXCTRL_IVCTX 0x02CA
+
+#define EPST_IVCTX 0x02CB
+
+#define EPCM_IVCTX 0x02CC
+
+#define OTP_CLK_IVCTX 0x02CD
+
+#define DDC_TIMEOUT_CNT1_SW_TPI_IVCTX 0x02CE
+
+#define DDC_TIMEOUT_CNT2_SW_TPI_IVCTX 0x02CF
+
+#define DDC_TIMEOUT_CNT3_SW_TPI_IVCTX 0x02D0
+
+#define DDC_TIMEOUT_CTL_SW_TPI_IVCTX 0x02D1
+
+#define PKT_FILTER_4_IVCTX 0x02D2
+
+#define DROP_GEN_TYPE_3_IVCTX 0x02D3
+
+#define DROP_GEN_TYPE_4_IVCTX 0x02D4
+
+#define DROP_GEN_TYPE_5_IVCTX 0x02D5
+
+#define TX_ZONE_CTL0_IVCTX 0x0300
+
+#define TX_ZONE_CTL1_IVCTX 0x0301
+
+#define TX_ZONE_CTL2_IVCTX 0x0302
+
+#define TX_ZONE_CTL3_IVCTX 0x0303
+
+#define TX_ZONE_CTL4_IVCTX 0x0304
+
+#define TX_ZONE_CTL5_IVCTX 0x0305
+
+#define TX_ZONEVCO_CTL_IVCTX 0x0306
+
+#define MHL3CTS_CTL_IVCTX 0x0307
+
+#define TX_XBIST_CNTL_IVCTX 0x0308
+
+#define TX_XBIST_INST_LOW_IVCTX 0x0309
+
+#define TX_XBIST_INST_HIGH_IVCTX 0x030A
+
+#define TX_XBIST_PAT_LOW_IVCTX 0x030B
+
+#define TX_XBIST_PAT_HIGH_IVCTX 0x030C
+
+#define TX_XBIST_CONF_LOW_IVCTX 0x030D
+
+#define TX_XBIST_CONF_HIGH_IVCTX 0x030E
+
+#define TX_XBIST_STATUS_IVCTX 0x030F
+
+#define TX_XBIST_PAT_PERIOD_CNT_IVCTX 0x0310
+
+#define HDMICTL0_IVCTX 0x0311
+
+#define HDMICTL1_IVCTX 0x0312
+
+#define HDMICTL2_IVCTX 0x0313
+
+#define HDMICTL3_IVCTX 0x0314
+
+#define HDMICTL4_IVCTX 0x0315
+
+#define HDMICTL5_IVCTX 0x0316
+
+#define HDMICTL6_IVCTX 0x0317
+
+#define HDMICTL7_IVCTX 0x0318
+
+#define SW_RST_IVCTX 0x0319
+
+#define FIFO_10TO20_CTRL_IVCTX 0x031A
+
+#define MHLHDMITXTOP_INTR_IVCTX 0x0330
+
+#define MHLHDMITXTOP_INTR1_IVCTX 0x0331
+
+#define MHLHDMITXTOP_INTR1_MASK_IVCTX 0x0332
+
+#define MHLHDMITXTOP_RDY_RCC_IVCTX 0x0333
+
+#define EMSC_ADCTC_LD_SEL_IVCTX 0x0334
+
+#define BIST_RST_IVCTX 0x0400
+
+#define PBIST_H_TOTAL_LOW_IVCTX 0x0401
+
+#define PBIST_H_TOTAL_HIGH_IVCTX 0x0402
+
+#define PBIST_H_WIDTH_LOW_IVCTX 0x0403
+
+#define PBIST_H_WIDTH_HIGH_IVCTX 0x0404
+
+#define PBIST_HSYNC_WIDTH_LOW_IVCTX 0x0405
+
+#define PBIST_HSYNC_WIDTH_HIGH_IVCTX 0x0406
+
+#define PBIST_HSYNC_BACK_PORCH_LOW_IVCTX 0x0407
+
+#define PBIST_HSYNC_BACK_PORCH_HIGH_IVCTX 0x0408
+
+#define PBIST_HSYNC_FRONT_PORCH_LOW_IVCTX 0x0409
+
+#define PBIST_HSYNC_FRONT_PORCH_HIGH_IVCTX 0x040A
+
+#define PBIST_V_TOTAL_LOW_IVCTX 0x040B
+
+#define PBIST_V_TOTAL_HIGH_IVCTX 0x040C
+
+#define PBIST_V_HEIGHT_LOW_IVCTX 0x040D
+
+#define PBIST_V_HEIGHT_HIGH_IVCTX 0x040E
+
+#define PBIST_VSYNC_WIDTH_LOW_IVCTX 0x040F
+
+#define PBIST_VSYNC_WIDTH_HIGH_IVCTX 0x0410
+
+#define PBIST_VSYNC_BACK_PORCH_LOW_IVCTX 0x0411
+
+#define PBIST_VSYNC_BACK_PORCH_HIGH_IVCTX 0x0412
+
+#define PBIST_VSYNC_FRONT_PORCH_LOW_IVCTX 0x0413
+
+#define PBIST_VSYNC_FRONT_PORCH_HIGH_IVCTX 0x0414
+
+#define RX_TBIST_CTRL_21_IVCTX 0x0415
+
+#define REG_PXL_BIST_BIT_MODE_IVCTX 0x0416
+
+#define CONFIG_BIST_10BIT_B_1ST_0_IVCTX 0x0417
+
+#define CONFIG_BIST_10BIT_B_1ST_1_IVCTX 0x0418
+
+#define CONFIG_BIST_10BIT_B_2ND_0_IVCTX 0x0419
+
+#define CONFIG_BIST_10BIT_B_2ND_1_IVCTX 0x041A
+
+#define CONFIG_BIST_10BIT_G_1ST_0_IVCTX 0x041B
+
+#define CONFIG_BIST_10BIT_G_1ST_1_IVCTX 0x041C
+
+#define CONFIG_BIST_10BIT_G_2ND_0_IVCTX 0x041D
+
+#define CONFIG_BIST_10BIT_G_2ND_1_IVCTX 0x041E
+
+#define CONFIG_BIST_10BIT_R_1ST_0_IVCTX 0x041F
+
+#define CONFIG_BIST_10BIT_R_1ST_1_IVCTX 0x0420
+
+#define CONFIG_BIST_10BIT_R_2ND_0_IVCTX 0x0421
+
+#define CONFIG_BIST_10BIT_R_2ND_1_IVCTX 0x0422
+
+#define STPG_LUM0_IVCTX 0x0424
+
+#define STPG_LUM1_IVCTX 0x0425
+
+#define STPG_LUM2_IVCTX 0x0426
+
+#define STPG_LUM0B_IVCTX 0x0427
+
+#define STPG_LUM1B_IVCTX 0x0428
+
+#define STPG_LUM2B_IVCTX 0x0429
+
+#define REG_V5_H4TO13_IVCTX 0x042A
+
+#define REG_V6_H2_IVCTX 0x042B
+
+#define REG_V6_H3_IVCTX 0x042C
+
+#define REG_V6_H4_IVCTX 0x042D
+
+#define REG_V6_H5_IVCTX 0x042E
+
+#define REG_V6_H6_IVCTX 0x042F
+
+#define REG_V6_H7_IVCTX 0x0430
+
+#define REG_V6_H8_IVCTX 0x0431
+
+#define REG_V6_H9_IVCTX 0x0432
+
+#define REG_V6_H10_IVCTX 0x0433
+
+#define REG_V6_H11_IVCTX 0x0434
+
+#define REG_V6_H12_IVCTX 0x0435
+
+#define REG_V6_H13_IVCTX 0x0436
+
+#define REG_V6_H14_IVCTX 0x0437
+
+#define REG_V6_H15_IVCTX 0x0438
+
+#define REG_V6_H16_IVCTX 0x0439
+
+#define REG_V7_CONST61_IVCTX 0x043A
+
+#define REG_V7_CONST50_IVCTX 0x043B
+
+#define REG_V7_CONST102_IVCTX 0x043C
+
+#define REG_V9_CONST204_IVCTX 0x043D
+
+#define REG_V9_CONST205_IVCTX 0x043E
+
+#define REG_V9_CONST209_IVCTX 0x043F
+
+#define REG_V9_CONST229_IVCTX 0x0440
+
+#define REG_V9_CONST231_IVCTX 0x0441
+
+#define REG_V10_H3TO4_IVCTX 0x0442
+
+#define REG_V10_H5TO6_IVCTX 0x0443
+
+#define REG_V10_H7TO8_IVCTX 0x0444
+
+#define REG_V10_H9TO10_IVCTX 0x0445
+
+#define REG_V10_H11TO12_IVCTX 0x0446
+
+#define REG_V10_H13TO14_IVCTX 0x0447
+
+#define BIST_CTRL_IVCTX 0x0448
+
+#define BIST_DURATION0_IVCTX 0x0449
+
+#define BIST_DURATION1_IVCTX 0x044A
+
+#define BIST_DURATION2_IVCTX 0x044B
+
+#define BIST_TEST_SEL_IVCTX 0x044C
+
+#define BIST_VIDEO_MODE_IVCTX 0x044D
+
+#define BIST_8BIT_PATTERN_IVCTX 0x044E
+
+#define BIST_STATUS_IVCTX 0x0451
+
+#define BIST_RESULT_IVCTX 0x0452
+
+#define BIST_P_ERR_CNT_0_IVCTX 0x0453
+
+#define BIST_P_ERR_CNT_1_IVCTX 0x0454
+
+#define BIST_R_ERR_CNT_0_IVCTX 0x0455
+
+#define BIST_R_ERR_CNT_1_IVCTX 0x0456
+
+#define BIST_G_ERR_CNT_0_IVCTX 0x0457
+
+#define BIST_G_ERR_CNT_1_IVCTX 0x0458
+
+#define BIST_B_ERR_CNT_0_IVCTX 0x0459
+
+#define BIST_B_ERR_CNT_1_IVCTX 0x045A
+
+#define BIST_CNTL_ERR_CNT_IVCTX 0x045B
+
+#define STPG_SIZE1_IVCTX 0x045C
+
+#define STPG_SIZE2_IVCTX 0x045D
+
+#define STPG_SIZE3_IVCTX 0x045E
+
+#define BIST_CTRL2_IVCTX 0x0465
+
+#define BIST_TIMING_CTRL_IVCTX 0x0466
+
+#define BIST_EXTD_CNT_ERR_CNT_0_IVCTX 0x0467
+
+#define BIST_EXTD_CNT_ERR_CNT_1_IVCTX 0x0468
+
+#define BIST_EXTD_COLOR_MODE_IVCTX 0x0469
+
+#define STPG_EXTD_RED_IVCTX 0x046A
+
+#define STPG_EXTD_BLUE_IVCTX 0x046B
+
+#define STPG_EXTD_GREEN_IVCTX 0x046C
+
+#define BIST_STPG_EXTD_BUS_CNT_MODE_IVCTX 0x046D
+
+#define STPG_EXTD_CNT_STATIC_IVCTX 0x046E
+
+#define BIST_PGEN_EXTD_BUS_CNT_MODE_IVCTX 0x046F
+
+#define PGEN_EXTD_CNT_STATIC_IVCTX 0x0470
+
+#define Y_WHITE_LOW_IVCTX 0x0471
+
+#define Y_WHITE_HIGH_IVCTX 0x0472
+
+#define CB_WHITE_LOW_IVCTX 0x0473
+
+#define CB_WHITE_HIGH_IVCTX 0x0474
+
+#define CR_WHITE_LOW_IVCTX 0x0475
+
+#define CR_WHITE_HIGH_IVCTX 0x0476
+
+#define Y_YELLOW_LOW_IVCTX 0x0477
+
+#define Y_YELLOW_HIGH_IVCTX 0x0478
+
+#define CB_YELLOW_LOW_IVCTX 0x0479
+
+#define CB_YELLOW_HIGH_IVCTX 0x047A
+
+#define CR_YELLOW_LOW_IVCTX 0x047B
+
+#define CR_YELLOW_HIGH_IVCTX 0x047C
+
+#define Y_CYAN_LOW_IVCTX 0x047D
+
+#define Y_CYAN_HIGH_IVCTX 0x047E
+
+#define CB_CYAN_LOW_IVCTX 0x047F
+
+#define CB_CYAN_HIGH_IVCTX 0x0480
+
+#define CR_CYAN_LOW_IVCTX 0x0481
+
+#define CR_CYAN_HIGH_IVCTX 0x0482
+
+#define Y_GREEN_LOW_IVCTX 0x0483
+
+#define Y_GREEN_HIGH_IVCTX 0x0484
+
+#define CB_GREEN_LOW_IVCTX 0x0485
+
+#define CB_GREEN_HIGH_IVCTX 0x0486
+
+#define CR_GREEN_LOW_IVCTX 0x0487
+
+#define CR_GREEN_HIGH_IVCTX 0x0488
+
+#define Y_MAGENTA_LOW_IVCTX 0x0489
+
+#define Y_MAGENTA_HIGH_IVCTX 0x048A
+
+#define CB_MAGENTA_LOW_IVCTX 0x048B
+
+#define CB_MAGENTA_HIGH_IVCTX 0x048C
+
+#define CR_MAGENTA_LOW_IVCTX 0x048D
+
+#define CR_MAGENTA_HIGH_IVCTX 0x048E
+
+#define Y_RED_LOW_IVCTX 0x048F
+
+#define Y_RED_HIGH_IVCTX 0x0490
+
+#define CB_RED_LOW_IVCTX 0x0491
+
+#define CB_RED_HIGH_IVCTX 0x0492
+
+#define CR_RED_LOW_IVCTX 0x0493
+
+#define CR_RED_HIGH_IVCTX 0x0494
+
+#define Y_BLUE_LOW_IVCTX 0x0495
+
+#define Y_BLUE_HIGH_IVCTX 0x0496
+
+#define CB_BLUE_LOW_IVCTX 0x0497
+
+#define CB_BLUE_HIGH_IVCTX 0x0498
+
+#define CR_BLUE_LOW_IVCTX 0x0499
+
+#define CR_BLUE_HIGH_IVCTX 0x049A
+
+#define Y_BLACK_LOW_IVCTX 0x049B
+
+#define Y_BLACK_HIGH_IVCTX 0x049C
+
+#define CB_BLACK_LOW_IVCTX 0x049D
+
+#define CB_BLACK_HIGH_IVCTX 0x049E
+
+#define CR_BLACK_LOW_IVCTX 0x049F
+
+#define CR_BLACK_HIGH_IVCTX 0x04A0
+
+#define TPI_MISC_IVCTX 0x0607
+
+#define TPI_PRD_IVCTX 0x0608
+
+#define TPI_INPUT_IVCTX 0x0609
+
+#define TPI_OUTPUT_IVCTX 0x060A
+
+#define TPI_AVI_CHSUM_IVCTX 0x060C
+
+#define TPI_AVI_BYTE1_IVCTX 0x060D
+
+#define TPI_AVI_BYTE2_IVCTX 0x060E
+
+#define TPI_AVI_BYTE3_IVCTX 0x060F
+
+#define TPI_AVI_BYTE4_IVCTX 0x0610
+
+#define TPI_AVI_BYTE5_IVCTX 0x0611
+
+#define TPI_AVI_BYTE6_IVCTX 0x0612
+
+#define TPI_AVI_BYTE7_IVCTX 0x0613
+
+#define TPI_AVI_BYTE8_IVCTX 0x0614
+
+#define TPI_AVI_BYTE9_IVCTX 0x0615
+
+#define TPI_AVI_BYTE10_IVCTX 0x0616
+
+#define TPI_AVI_BYTE11_IVCTX 0x0617
+
+#define TPI_AVI_BYTE12_IVCTX 0x0618
+
+#define TPI_AVI_BYTE13_IVCTX 0x0619
+
+#define TPI_SC_IVCTX 0x061A
+
+#define TPI_DEV_ID_IVCTX 0x061B
+
+#define TPI_COPP_DATA1_IVCTX 0x0629
+	#define BIT_TPI_COPP_DATA1_GPROT BIT(7)
+	#define BIT_TPI_COPP_DATA1_LPROT BIT(6)
+	#define BIT_TPI_COPP_DATA1_LINK_STATUS (BIT(5) | BIT(4))
+	#define BIT_TPI_COPP_DATA1_HDCP_REP BIT(3)
+	#define BIT_TPI_COPP_DATA1_CONNTYPE_BIT0 BIT(2)
+	#define BIT_TPI_COPP_DATA1_PROTYPE BIT(1)
+	#define BIT_TPI_COPP_DATA1_CONNTYPE_BIT1 BIT(0)
+
+#define TPI_COPP_DATA2_IVCTX 0x062A
+	#define BIT_TPI_COPP_DATA2_TPI_HDCP_PREP_EN BIT(7)
+	#define BIT_TPI_COPP_DATA2_CANCEL_PROT_EN BIT(6)
+	#define BIT_TPI_COPP_DATA2_INTR_ENCRYPTION BIT(5)
+	#define BIT_TPI_COPP_DATA2_KSV_FORWARD BIT(4)
+	#define BIT_TPI_COPP_DATA2_INTERM_RI_CHECK_EN BIT(3)
+	#define BIT_TPI_COPP_DATA2_DOUBLE_RI_CHECK BIT(2)
+	#define BIT_TPI_COPP_DATA2_DDC_SHORT_RI_RD BIT(1)
+	#define BIT_TPI_COPP_DATA2_COPP_PROTLEVEL BIT(0)
+
+#define TPI_WR_BKSV_1_IVCTX 0x062B
+
+#define TPI_WR_BKSV_2_IVCTX 0x062C
+
+#define TPI_WR_BKSV_3_IVCTX 0x062D
+
+#define TPI_WR_BKSV_4_IVCTX 0x062E
+
+#define TPI_WR_BKSV_5_IVCTX 0x062F
+
+#define TPI_HDCP_REV_IVCTX 0x0630
+
+#define TPI_KSV_V_IVCTX 0x0631
+
+#define TPI_VVALUE_B0_IVCTX 0x0632
+
+#define TPI_VVALUE_B1_IVCTX 0x0633
+
+#define TPI_VVALUE_B2_IVCTX 0x0634
+
+#define TPI_VVALUE_B3_IVCTX 0x0635
+
+#define TPI_AKSV_1_IVCTX 0x0636
+
+#define TPI_AKSV_2_IVCTX 0x0637
+
+#define TPI_AKSV_3_IVCTX 0x0638
+
+#define TPI_AKSV_4_IVCTX 0x0639
+
+#define TPI_AKSV_5_IVCTX 0x063A
+
+#define TPI_HPD_RSEN_SW_TPI_IVCTX 0x063B
+
+#define TPI_INTR_EN_IVCTX 0x063C
+
+#define TPI_INTR_ST0_IVCTX 0x063D
+	#define BIT_TPI_INTR_ST0_REAUTH_RI_MISMATCH BIT(7)
+	#define BIT_TPI_INTR_ST0_V_VALUE_COMPLETED BIT(6)
+	#define BIT_TPI_INTR_ST0_REESTABLISH BIT(5)
+	#define BIT_TPI_INTR_ST0_KSVFIFO_1ST_BYTE BIT(3)
+	#define BIT_TPI_INTR_ST0_BKSV_BCAPS_DONE BIT(2)
+	#define BIT_TPI_INTR_ST0_BKSV_BCAPS_ERR BIT(1)
+	#define BIT_TPI_INTR_ST0_BKSV_ERR BIT(0)
+
+#define TPI_KSV_FIFO_STAT_IVCTX 0x0641
+	#define BIT_TPI_KSV_FIFO_STAT_LAST BIT(7)
+	#define BIT_TPI_KSV_FIFO_STAT_BYTES 0x1F
+
+#define TPI_KSV_FIFO_FORW_IVCTX 0x0642
+
+#define TPI_DS_BCAPS_IVCTX 0x0644
+
+#define TPI_BSTATUS1_IVCTX 0x0645
+
+#define TPI_BSTATUS2_IVCTX 0x0646
+
+#define TPI_VID_MUTE0_IVCTX 0x064B
+
+#define RSVD1_HW_TPI_IVCTX 0x064C
+
+#define TPI_VID_MUTE1_IVCTX 0x064D
+
+#define RSVD2_HW_TPI_IVCTX 0x064E
+
+#define TPI_VID_MUTE2_IVCTX 0x064F
+
+#define RSVD4_HW_TPI_IVCTX 0x0660
+
+#define TPI_HW_DBG1_IVCTX 0x0679
+
+#define TPI_HW_DBG2_IVCTX 0x067A
+
+#define TPI_HW_DBG3_IVCTX 0x067B
+
+#define TPI_HW_DBG4_IVCTX 0x067C
+
+#define TPI_HW_DBG5_IVCTX 0x067D
+
+#define TPI_HW_DBG6_IVCTX 0x067E
+
+#define TPI_HW_DBG7_IVCTX 0x067F
+
+#define TPI_HW_DBG8_IVCTX 0x0680
+
+#define TPI_HW_DBG9_IVCTX 0x0681
+
+#define TPI_HW_DBG10_IVCTX 0x0682
+
+#define TPI_HW_DBG11_IVCTX 0x0683
+
+#define TPI_HW_DBG12_IVCTX 0x0684
+
+#define TPI_HW_DBG13_IVCTX 0x0685
+
+#define TPI_HW_DBG14_IVCTX 0x0686
+
+#define TPI_HW_DBG15_IVCTX 0x0687
+
+#define TPI_HW_DBG16_IVCTX 0x0688
+
+#define TPI_HW_OPT0_IVCTX 0x06B8
+
+#define TPI_HW_OPT1_IVCTX 0x06B9
+
+#define TPI_HW_OPT2_IVCTX 0x06BA
+
+#define TPI_HW_OPT3_IVCTX 0x06BB
+
+#define RSVD7_HW_TPI_IVCTX 0x06BC
+
+#define RSVD8_HW_TPI_IVCTX 0x06BD
+
+#define RSVD9_HW_TPI_IVCTX 0x06BE
+
+#define TPI_INFO_FSEL_IVCTX 0x06BF
+
+#define TPI_INFO_B0_IVCTX 0x06C0
+
+#define TPI_INFO_B1_IVCTX 0x06C1
+
+#define TPI_INFO_B2_IVCTX 0x06C2
+
+#define TPI_INFO_B3_IVCTX 0x06C3
+
+#define TPI_INFO_B4_IVCTX 0x06C4
+
+#define TPI_INFO_B5_IVCTX 0x06C5
+
+#define TPI_INFO_B6_IVCTX 0x06C6
+
+#define TPI_INFO_B7_IVCTX 0x06C7
+
+#define TPI_INFO_B8_IVCTX 0x06C8
+
+#define TPI_INFO_B9_IVCTX 0x06C9
+
+#define TPI_INFO_B10_IVCTX 0x06CA
+
+#define TPI_INFO_B11_IVCTX 0x06CB
+
+#define TPI_INFO_B12_IVCTX 0x06CC
+
+#define TPI_INFO_B13_IVCTX 0x06CD
+
+#define TPI_INFO_B14_IVCTX 0x06CE
+
+#define TPI_INFO_B15_IVCTX 0x06CF
+
+#define TPI_INFO_B16_IVCTX 0x06D0
+
+#define TPI_INFO_B17_IVCTX 0x06D1
+
+#define TPI_INFO_B18_IVCTX 0x06D2
+
+#define TPI_INFO_B19_IVCTX 0x06D3
+
+#define TPI_INFO_B20_IVCTX 0x06D4
+
+#define TPI_INFO_B21_IVCTX 0x06D5
+
+#define TPI_INFO_B22_IVCTX 0x06D6
+
+#define TPI_INFO_B23_IVCTX 0x06D7
+
+#define TPI_INFO_B24_IVCTX 0x06D8
+
+#define TPI_INFO_B25_IVCTX 0x06D9
+
+#define TPI_INFO_B26_IVCTX 0x06DA
+
+#define TPI_INFO_B27_IVCTX 0x06DB
+
+#define TPI_INFO_B28_IVCTX 0x06DC
+
+#define TPI_INFO_B29_IVCTX 0x06DD
+
+#define TPI_INFO_B30_IVCTX 0x06DE
+
+#define TPI_INFO_EN_IVCTX 0x06DF
+
+#define VSIF_COMP_CNTL_IVCTX 0x06E0
+
+#define GCP_CNTL_IVCTX 0x06E1
+
+#define GCP_GEN_CNT_IVCTX 0x06E2
+
+#define GCP_AUTO_GEN_IVCTX 0x06E3
+
+#define GCP_AUTO_GEN_EN_IVCTX 0x06E4
+
+#define GCP_CUR_STAT_IVCTX 0x06E5
+
+#define AUTO_BLANK_VID_CTRL_IVCTX 0x06E6
+
+#define R_CR_BLANK_DATA_REG_0_IVCTX 0x06E7
+
+#define R_CR_BLANK_DATA_REG_1_IVCTX 0x06E8
+
+#define G_Y_BLANK_DATA_REG_0_IVCTX 0x06E9
+
+#define G_Y_BLANK_DATA_REG_1_IVCTX 0x06EA
+
+#define B_CB_BLANK_DATA_REG_0_IVCTX 0x06EB
+
+#define B_CB_BLANK_DATA_REG_1_IVCTX 0x06EC
+
+#define VTEM_CTRL_IVCTX 0x06ED
+
+#define HDMI_PIPELINE_DI_VSYNCOFFSET_0_IVCTX 0x06EE
+
+#define HDMI_PIPELINE_DI_VSYNCOFFSET_1_IVCTX 0x06EF
+
+#define HDMI_PIPELINE_DI_VSYNC_DELTA_IVCTX 0x06F0
+
+#define HDMI_PIPELINE_DI_VSYNC_CTRL_IVCTX 0x06F1
+
+#define HDMI_PIPELINE_GP_0_IVCTX 0x06F2
+
+#define HDMI_PIPELINE_GP_1_IVCTX 0x06F3
+
+#define HDMI_PIPELINE_GP_2_IVCTX 0x06F4
+
+#define HDMI_PIPELINE_GP_3_IVCTX 0x06F5
+
+#define RSVD10_HW_TPI_IVCTX 0x06F7
+
+#define TPI_DDC_MASTER_EN_IVCTX 0x06F8
+	#define BIT_TPI_DDC_MASTER_EN_HW_EN BIT(7)
+
+#define TPI_VSIF_VX1CTL_HW_EN_IVCTX 0x06F9
+
+#define TPI_VX1CTL_M0_MSB_IVCTX 0x06FA
+
+#define TPI_VX1CTL_M0_LSB_IVCTX 0x06FB
+
+#define TPI_VX1CTL_M1_MSB_IVCTX 0x06FC
+
+#define TPI_VX1CTL_M1_LSB_IVCTX 0x06FD
+
+#define RSVD11_HW_TPI_IVCTX 0x06FF
+
+#define CP2TX_CTRL_0_IVCTX 0x0800
+	#define BIT_CP2TX_CTRL_0_RI_STRICT_MSG_CHK BIT(7)
+	#define BIT_CP2TX_CTRL_0_RI_IGNORE_HPD BIT(6)
+	#define BIT_CP2TX_CTRL_0_RI_KEEP_NSTRDKM BIT(5)
+	#define BIT_CP2TX_CTRL_0_RI_KEEP_KM_ON_HFAIL BIT(4)
+	#define BIT_CP2TX_CTRL_0_RI_WAIT_FIRST_V BIT(3)
+	#define BIT_CP2TX_CTRL_0_RI_SMNG_AUTO BIT(2)
+	#define BIT_CP2TX_CTRL_0_RI_DDC_SCL_RST_AUTO BIT(1)
+	#define BIT_CP2TX_CTRL_0_RI_DDC_SCL_RST_MAN BIT(0)
+
+#define CP2TX_CTRL_1_IVCTX 0x0801
+
+#define CP2TX_CTRL_2_IVCTX 0x0802
+	#define BIT_CP2TX_CTRL_2_RI_SEQNUMM_AUTO BIT(5)
+	#define BIT_CP2TX_CTRL_2_RI_CHK_SEQNUMV BIT(4)
+	#define BIT_CP2TX_CTRL_2_RI_CHK_RPT_EXCEED_FLAG BIT(3)
+	#define BIT_CP2TX_CTRL_2_RI_CUPD_HW BIT(2)
+	#define BIT_CP2TX_CTRL_2_RI_CUPD_START BIT(1)
+	#define BIT_CP2TX_CTRL_2_RI_CUPD_DONE BIT(0)
+
+#define CP2TX_INTR0_IVCTX 0x0803
+	#define BIT_CP2TX_INTR0_POLL_INTERVAL BIT(7)
+	#define BIT_CP2TX_INTR0_REAUTH_REQ BIT(6)
+	#define BIT_CP2TX_INTR0_CCHK_FAIL BIT(5)
+	#define BIT_CP2TX_INTR0_CCHK_DONE BIT(4)
+	#define BIT_CP2TX_INTR0_HASH_FAIL BIT(3)
+	#define BIT_CP2TX_INTR0_RPT_READY_CHANGE BIT(2)
+	#define BIT_CP2TX_INTR0_AUTH_FAIL BIT(1)
+	#define BIT_CP2TX_INTR0_AUTH_DONE BIT(0)
+
+#define CP2TX_INTR1_IVCTX 0x0804
+	#define BIT_CP2TX_INTR1_RO_GP3 BIT(7)
+	#define BIT_CP2TX_INTR1_RO_CERT_SENT_RCVD BIT(6)
+	#define BIT_CP2TX_INTR1_RO_RPT_SMNG_XFER_DONE BIT(5)
+	#define BIT_CP2TX_INTR1_RO_RPT_RCVID_XFER_DONE BIT(4)
+	#define BIT_CP2TX_INTR1_RO_SKE_SENT_RCVD BIT(3)
+	#define BIT_CP2TX_INTR1_RO_AKE_SEND_RVCD BIT(2)
+	#define BIT_CP2TX_INTR1_RPT_SMNG_CHANGED BIT(1)
+	#define BIT_CP2TX_INTR1_RPT_RCVID_CHANGED BIT(0)
+
+#define CP2TX_INTR2_IVCTX 0x0805
+
+#define CP2TX_INTR3_IVCTX 0x0806
+
+#define CP2TX_INTR0_MASK_IVCTX 0x0807
+
+#define CP2TX_INTR1_MASK_IVCTX 0x0808
+
+#define CP2TX_INTR2_MASK_IVCTX 0x0809
+
+#define CP2TX_INTR3_MASK_IVCTX 0x080A
+
+#define CP2TX_INTRSTATUS_IVCTX 0x080B
+
+#define CP2TX_AUTH_STAT_IVCTX 0x080C
+
+#define CP2TX_STATE_IVCTX 0x080D
+
+#define CP2TX_GEN_STATUS_IVCTX 0x080E
+	#define BIT_CP2TX_GEN_STATUS_RO_SKE_DONE BIT(4)
+	#define BIT_CP2TX_GEN_STATUS_RO_RPT_READY BIT(3)
+	#define BIT_CP2TX_GEN_STATUS_RO_REPEATER BIT(2)
+	#define BIT_CP2TX_GEN_STATUS_RO_HPD BIT(1)
+	#define BIT_CP2TX_GEN_STATUS_RO_PRG_SEL BIT(0)
+
+#define CP2TX_ROSC_BIST_IVCTX 0x080F
+
+#define CP2TX_TP0_IVCTX 0x0810
+
+#define CP2TX_TP1_IVCTX 0x0811
+
+#define CP2TX_TP2_IVCTX 0x0812
+
+#define CP2TX_TP3_IVCTX 0x0813
+
+#define CP2TX_TP4_IVCTX 0x0814
+
+#define CP2TX_TP5_IVCTX 0x0815
+
+#define CP2TX_TP6_IVCTX 0x0816
+
+#define CP2TX_TP7_IVCTX 0x0817
+
+#define CP2TX_TP8_IVCTX 0x0818
+
+#define CP2TX_TP9_IVCTX 0x0819
+
+#define CP2TX_TP10_IVCTX 0x081A
+
+#define CP2TX_TP11_IVCTX 0x081B
+
+#define CP2TX_TP12_IVCTX 0x081C
+
+#define CP2TX_TP13_IVCTX 0x081D
+
+#define CP2TX_TP14_IVCTX 0x081E
+
+#define CP2TX_TP15_IVCTX 0x081F
+
+#define CP2TX_GP_IN0_IVCTX 0x0820
+
+#define CP2TX_GP_IN1_IVCTX 0x0821
+
+#define CP2TX_GP_IN2_IVCTX 0x0822
+	#define BIT_CP2TX_IGNORE_RXSTATUS_B0 BIT(0)
+	#define BIT_CP2TX_TIMEOUT_DISABLE_B2 BIT(2)
+
+#define CP2TX_GP_IN3_IVCTX 0x0823
+
+#define CP2TX_GP_IN4_IVCTX 0x0824
+
+#define CP2TX_GP_IN5_IVCTX 0x0825
+
+#define CP2TX_GPCTL_IVCTX 0x0826
+
+#define CP2TX_GP_OUT0_IVCTX 0x0827
+
+#define CP2TX_GP_OUT1_IVCTX 0x0828
+
+#define CP2TX_GP_OUT2_IVCTX 0x0829
+
+#define CP2TX_GP_OUT3_IVCTX 0x082A
+
+#define CP2TX_GP_OUT4_IVCTX 0x082B
+
+#define CP2TX_GP_OUT5_IVCTX 0x082C
+
+#define CP2TX_RX_ID_CORE_0_IVCTX 0x082D
+
+#define CP2TX_RX_ID_CORE_1_IVCTX 0x082E
+
+#define CP2TX_RX_ID_CORE_2_IVCTX 0x082F
+
+#define CP2TX_RX_ID_CORE_3_IVCTX 0x0830
+
+#define CP2TX_RX_ID_CORE_4_IVCTX 0x0831
+
+#define CP2TX_RPT_DETAIL_IVCTX 0x0832
+
+#define CP2TX_RPT_SMNG_K_IVCTX 0x0833
+
+#define CP2TX_RPT_DEPTH_IVCTX 0x0834
+
+#define CP2TX_RPT_DEVCNT_IVCTX 0x0835
+
+#define CP2TX_SEQ_NUM_V_0_IVCTX 0x0836
+
+#define CP2TX_SEQ_NUM_V_1_IVCTX 0x0837
+
+#define CP2TX_SEQ_NUM_V_2_IVCTX 0x0838
+
+#define CP2TX_SEQ_NUM_M_0_IVCTX 0x0839
+
+#define CP2TX_SEQ_NUM_M_1_IVCTX 0x083A
+
+#define CP2TX_SEQ_NUM_M_2_IVCTX 0x083B
+
+#define CP2TX_IPT_CTR_7TO0_IVCTX 0x083C
+
+#define CP2TX_IPT_CTR_15TO8_IVCTX 0x083D
+
+#define CP2TX_AESCTL_IVCTX 0x083E
+	#define BIT_CP2TX_AESCTL_RI_AES_PWROPT BIT(5)
+	#define BIT_CP2TX_AESCTL_RI_AES_FORCE_STOP BIT(4)
+	#define BIT_CP2TX_AESCTL_RI_AES_DUALPIPE_CTL BIT(3)
+	#define BIT_CP2TX_AESCTL_RI_AES_DUALPIPE_OVR BIT(2)
+	#define BIT_CP2TX_AESCTL_RI_AES_RST_AUTHDONE BIT(1)
+	#define BIT_CP2TX_AESCTL_RI_AES_RST_MAN BIT(0)
+
+#define CP2TX_TX_CTRL_0_IVCTX 0x0870
+	#define BIT_CP2TX_TX_CTRL_0_RI_RPT_SMNG_WR_START BIT(4)
+	#define BIT_CP2TX_TX_CTRL_0_RI_RPT_SMNG_WR BIT(3)
+	#define BIT_CP2TX_TX_CTRL_0_RI_RPT_SMNG_XFER_START BIT(2)
+	#define BIT_CP2TX_TX_CTRL_0_RI_RPT_RCVID_RD_START BIT(1)
+	#define BIT_CP2TX_TX_CTRL_0_RI_RPT_RCVID_RD BIT(0)
+
+#define CP2TX_TX_STATUS_IVCTX 0x0871
+
+#define CP2TX_TX_RPT_SMNG_IN_IVCTX 0x0872
+
+#define CP2TX_RPT_RCVID_OUT_IVCTX 0x0873
+
+#define CP2TX_CIPHER_CTL2_IVCTX 0x0874
+
+#define CP2TX_GP0_IVCTX 0x0875
+
+#define CP2TX_GP1_IVCTX 0x0876
+
+#define HDCP2X_DEBUG_CTRL0_IVCTX 0x08A0
+
+#define HDCP2X_DEBUG_CTRL1_IVCTX 0x08A1
+
+#define HDCP2X_DEBUG_CTRL2_IVCTX 0x08A2
+
+#define HDCP2X_DEBUG_CTRL3_IVCTX 0x08A3
+
+#define HDCP2X_DEBUG_CTRL4_IVCTX 0x08A4
+
+#define HDCP2X_DEBUG_STAT0_IVCTX 0x08A5
+
+#define HDCP2X_DEBUG_STAT1_IVCTX 0x08A6
+
+#define HDCP2X_DEBUG_STAT2_IVCTX 0x08A7
+
+#define HDCP2X_DEBUG_STAT3_IVCTX 0x08A8
+
+#define HDCP2X_DEBUG_STAT4_IVCTX 0x08A9
+
+#define HDCP2X_DEBUG_STAT5_IVCTX 0x08AA
+
+#define HDCP2X_DEBUG_STAT6_IVCTX 0x08AB
+
+#define HDCP2X_DEBUG_STAT7_IVCTX 0x08AC
+
+#define HDCP2X_DEBUG_STAT8_IVCTX 0x08AD
+
+#define HDCP2X_DEBUG_STAT9_IVCTX 0x08AE
+
+#define HDCP2X_DEBUG_STAT10_IVCTX 0x08AF
+
+#define HDCP2X_DEBUG_STAT11_IVCTX 0x08B0
+
+#define HDCP2X_DEBUG_STAT12_IVCTX 0x08B1
+
+#define HDCP2X_DEBUG_STAT13_IVCTX 0x08B2
+
+#define HDCP2X_DEBUG_STAT14_IVCTX 0x08B3
+
+#define HDCP2X_DEBUG_STAT15_IVCTX 0x08B4
+
+#define HDCP2X_TX_SRST_IVCTX 0x08B5
+
+#define HDCP2X_POLL_CS_IVCTX 0x08B6
+
+#define HDCP2X_CUPD_START_ADDR_LO_IVCTX 0x08B7
+
+#define HDCP2X_CUPD_START_ADDR_HI_IVCTX 0x08B8
+
+#define HDCP2X_CUPD_SIGN_START_ADDR_LO_IVCTX 0x08B9
+
+#define HDCP2X_CUPD_SIGN_START_ADDR_HI_IVCTX 0x08BA
+
+#define HDCP2X_PRAM_SIGN_END_ADDR_LO_IVCTX 0x08BB
+
+#define HDCP2X_CUPD_SIGN_END_ADDR_HI_IVCTX 0x08BC
+
+#define HDCP2X_CTL_0_IVCTX 0x08BD
+	#define BIT_HDCP2X_CTL_0_ENCRYPT_EN BIT(7)
+	#define BIT_HDCP2X_CTL_0_POLINT_SEL BIT(6)
+	#define BIT_HDCP2X_CTL_0_POLINT_OVR BIT(5)
+	#define BIT_HDCP2X_CTL_0_EN BIT(0)
+
+#define HDCP2X_CTL_1_IVCTX 0x08BE
+	#define BIT_HDCP2X_CTL_1_HPD_SW BIT(2)
+	#define BIT_HDCP2X_CTL_1_HPD_OVR BIT(1)
+	#define BIT_HDCP2X_CTL_1_REAUTH_SW BIT(0)
+
+#define HDCP2X_CTL_2_IVCTX 0x08BF
+
+#define HDCP2X_CUPD_SIZE_LO_IVCTX 0x08C0
+
+#define HDCP2X_CUPD_SIZE_HI_IVCTX 0x08C1
+
+#define HDCP2X_GEN_STA_IVCTX 0x08C2
+
+#define HDCP2X_POLL_VAL0_IVCTX 0x08C3
+
+#define HDCP2X_POLL_VAL1_IVCTX 0x08C4
+
+#define HDCP2X_DDC_STS_IVCTX 0x08C5
+	#define BIT_REGTX0_HDCP2X_DDC_STS_ERR_STS_B3_B0 0xF0
+	#define BIT_REGTX0_HDCP2X_DDC_STS_CTL_CS_B3_B0 0x0F
+
+#define HDCP2X_ROSC_BIST_IVCTX 0x08C6
+
+#define HDCP2_PRAM_DATA_IVCTX 0x08CF
+
+#define HDCP2X_DEBUG_STAT16_IVCTX 0x08D0
+
+#define SCRCTL_IVCTX 0x0900
+
+#define HDMI2CTL0_IVCTX 0x0901
+
+#define HDMI2CTL1_IVCTX 0x0902
+
+#define TXC_DATA0L_IVCTX 0x0903
+
+#define TXC_DATA0H_IVCTX 0x0904
+
+#define TXC_DATA1L_IVCTX 0x0905
+
+#define TXC_DATA1H_IVCTX 0x0906
+
+#define TXC_DATA2L_IVCTX 0x0907
+
+#define TXC_DATA2H_IVCTX 0x0908
+
+#define TXC_DATA_DIV_IVCTX 0x0909
+
+#define RSVD0_HDMI2_IVCTX 0x090A
+
+#define SCDC_CTL_IVCTX 0x0920
+	#define BIT_SCDC_CTL_REG_DDC_STALL_REQ BIT(5)
+
+#define SCDC_ACT_STATUS_IVCTX 0x0921
+
+#define SCDC_STATE_IVCTX 0x0922
+
+#define SCDC_UP_FLAG0_IVCTX 0x0923
+
+#define SCDC_UP_FLAG1_IVCTX 0x0924
+
+#define SCDC_INTR0_IVCTX 0x0925
+
+#define SCDC_INTR0_MASK_IVCTX 0x0926
+
+#define SCDC_POLL_TIMER0_IVCTX 0x0927
+
+#define SCDC_POLL_TIMER1_IVCTX 0x0928
+
+#define SCDC_POLL_TIMER2_IVCTX 0x0929
+
+#define SCDC_SRST_IVCTX 0x092A
+
+#define SCDC_FRM_LIMIT_IVCTX 0x092B
+
+#define RREQ_FRM_LIMIT_IVCTX 0x092C
+
+#define SCDC_SRC_TEST_CFG_IVCTX 0x092D
+
+#define SCDC_STS_FLAG0_IVCTX 0x092E
+
+#define SCDC_STS_FLAG1_IVCTX 0x092F
+
+#define SCDC_STS_FLAG2_IVCTX 0x0930
+
+#define FRL_LTP_OVR_EN_IVCTX 0x0931
+
+#define FRL_LTP_OVR_VAL0_IVCTX 0x0932
+
+#define FRL_LTP_OVR_VAL1_IVCTX 0x0933
+
+#define RSVD1_HDMI2_IVCTX 0x0934
+
+#define H21TXSB_CTRL_IVCTX 0x0940
+
+#define H21TXSB_PKT_PRD_IVCTX 0x0941
+
+#define H21TXSB_MAXPKT_IVCTX 0x0942
+
+#define H21TXSB_SRPRD_IVCTX 0x0943
+
+#define H21TXSB_KSR_IVCTX 0x0944
+
+#define H21TXSB_KSSB_IVCTX 0x0945
+
+#define H21TXSB_CPR_IVCTX 0x0946
+
+#define H21TXSB_SPM_IVCTX 0x0947
+
+#define H21TXSB_PATT_SEL_IVCTX 0x0948
+
+#define H21TXSB_ERR_INS_EN_IVCTX 0x0949
+
+#define H21TXSB_ERR_INS_BYTE_WISE_EN_0_IVCTX 0x094A
+
+#define H21TXSB_ERR_INS_BYTE_WISE_EN_1_IVCTX 0x094B
+
+#define H21TXSB_ERR_INS_BYTE_WISE_EN_2_IVCTX 0x094C
+
+#define H21TXSB_ERR_INS_BYTE_WISE_EN_3_IVCTX 0x094D
+
+#define H21TXSB_ERR_INS_BYTE_WISE_EN_4_IVCTX 0x094E
+
+#define H21TXSB_ERR_INS_BYTE_WISE_EN_5_IVCTX 0x094F
+
+#define H21TXSB_ERR_INS_BYTE_WISE_EN_6_IVCTX 0x0950
+
+#define H21TXSB_ERR_INS_BYTE_WISE_EN_7_IVCTX 0x0951
+
+#define H21TXSB_BLOCK0_BYTE0_IVCTX 0x0952
+
+#define H21TXSB_BLOCK0_BYTE1_IVCTX 0x0953
+
+#define H21TXSB_BLOCK0_BYTE2_IVCTX 0x0954
+
+#define H21TXSB_BLOCK1_BYTE0_IVCTX 0x0955
+
+#define H21TXSB_BOCK1_BYTE1_IVCTX 0x0956
+
+#define H21TXSB_BOCK1_BYTE2_IVCTX 0x0957
+
+#define H21TXSB_BLOCK2_BYTE0_IVCTX 0x0958
+
+#define H21TXSB_BLOCK2_BYTE1_IVCTX 0x0959
+
+#define H21TXSB_BLOCK2_BYTE2_IVCTX 0x095A
+
+#define H21TXSB_BLOCK3_BYTE0_IVCTX 0x095B
+
+#define H21TXSB_BLOCK3_BYTE1_IVCTX 0x095C
+
+#define H21TXSB_BLOCK3_BYTE2_IVCTX 0x095D
+
+#define H21TXSB_BLOCK0_BYTE0_CTRL_VAL_IVCTX 0x095E
+
+#define H21TXSB_BLOCK0_BYTE1_CTRL_VAL_IVCTX 0x095F
+
+#define H21TXSB_BLOCK0_BYTE2_CTRL_VAL_IVCTX 0x0960
+
+#define H21TXSB_BLOCK1_BYTE0_CTRL_VAL_IVCTX 0x0961
+
+#define H21TXSB_BLOCK1_BYTE1_CTRL_VAL_IVCTX 0x0962
+
+#define H21TXSB_BLOCK1_BYTE2_CTRL_VAL_IVCTX 0x0963
+
+#define H21TXSB_BLOCK2_BYTE0_CTRL_VAL_IVCTX 0x0964
+
+#define H21TXSB_BLOCK2_BYTE1_CTRL_VAL_IVCTX 0x0965
+
+#define H21TXSB_BLOCK2_BYTE2_CTRL_VAL_IVCTX 0x0966
+
+#define H21TXSB_BLOCK3_BYTE0_CTRL_VAL_IVCTX 0x0967
+
+#define H21TXSB_BLOCK3_BYTE1_CTRL_VAL_IVCTX 0x0968
+
+#define H21TXSB_BLOCK3_BYTE2_CTRL_VAL_IVCTX 0x0969
+
+#define H21TXSB_INTRSTS_IVCTX 0x096A
+
+#define H21TXSB_D_HDR_INTRMASK_IVCTX 0x096B
+
+#define H21TXSB_KEEPOUT_PERIOD_END_0_IVCTX 0x096C
+
+#define H21TXSB_KEEPOUT_PERIOD_END_1_IVCTX 0x096D
+
+#define H21TXSB_KEEPOUT_PERIOD_START_0_IVCTX 0x096E
+
+#define H21TXSB_KEEPOUT_PERIOD_START_1_IVCTX 0x096F
+
+#define H21TXSB_CTRL_1_IVCTX 0x0970
+
+#define H21TXSB_SPARE_0_IVCTX 0x0971
+
+#define H21TXSB_SPARE_1_IVCTX 0x0972
+
+#define H21TXSB_SPARE_2_IVCTX 0x0973
+
+#define H21TXSB_SPARE_3_IVCTX 0x0974
+
+#define H21TXSB_SPARE_4_IVCTX 0x0975
+
+#define H21TXSB_SPARE_5_IVCTX 0x0976
+
+#define H21TXSB_SPARE_6_IVCTX 0x0977
+
+#define H21TXSB_SPARE_7_IVCTX 0x0978
+
+#define H21TXSB_SPARE_8_IVCTX 0x0979
+
+#define H21TXSB_SPARE_9_IVCTX 0x097A
+
+#define H21TX_SB_TOP0_IVCTX 0x0980
+
+#define H21TX_SB_TOP1_IVCTX 0x0981
+
+#define H21TX_SB_TOP_INS_DISP_CTRL_IVCTX 0x0982
+
+#define H21TX_SB_TOP_INS_DISP_10B_CNT_IVCTX 0x0983
+
+#define H21TX_SB_TOP_INS_DISP_08B_CNT_IVCTX 0x0984
+
+#define H21TX_SB_TOP_INS_DISP_CTRL_1_IVCTX 0x0985
+
+#define RSVD0_AIP_IVCTX 0x0A00
+
+#define ACR_CTRL_IVCTX 0x0A01
+
+#define FREQ_SVAL_IVCTX 0x0A02
+
+#define N_SVAL1_IVCTX 0x0A03
+
+#define N_SVAL2_IVCTX 0x0A04
+
+#define N_SVAL3_IVCTX 0x0A05
+
+#define CTS_TXSVAL1_IVCTX 0x0A06
+
+#define CTS_TXSVAL2_IVCTX 0x0A07
+
+#define CTS_TXSVAL3_IVCTX 0x0A08
+
+#define CTS_TXHVAL1_IVCTX 0x0A09
+
+#define CTS_TXHVAL2_IVCTX 0x0A0A
+
+#define CTS_TXHVAL3_IVCTX 0x0A0B
+
+#define ACR_CTS_CTRL1_IVCTX 0x0A0C
+
+#define ACR_CTS_CTRL2_IVCTX 0x0A0D
+
+#define ACR_CTS_CLK_DIV_IVCTX 0x0A0E
+
+#define FS_HIGH_PERIOD_IVCTX 0x0A0F
+
+#define FS_LOW_PERIOD_IVCTX 0x0A10
+
+#define AIP_IN_AUD_ID_IVCTX 0x0A12
+
+#define AUD_EN_IVCTX 0x0A13
+
+#define AUD_MODE_IVCTX 0x0A14
+
+#define SPDIF_CTRL_IVCTX 0x0A15
+
+#define SPDIF_SSMPL_IVCTX 0x0A16
+
+#define SPDIF_HSMPL_IVCTX 0x0A17
+
+#define SPDIF_FS_IVCTX 0x0A18
+
+#define SPDIF_SSMPL2_IVCTX 0x0A19
+
+#define SPDIF_HSMPL2_IVCTX 0x0A1A
+
+#define SPDIF_ERTH_IVCTX 0x0A1B
+
+#define I2S_IN_MAP_IVCTX 0x0A1C
+
+#define I2S_IN_CTRL_IVCTX 0x0A1D
+
+#define I2S_CHST0_IVCTX 0x0A1E
+
+#define I2S_CHST1_IVCTX 0x0A1F
+
+#define I2S_CHST2_IVCTX 0x0A20
+
+#define I2S_CHST3_IVCTX 0x0A21
+
+#define I2S_CHST4_IVCTX 0x0A22
+
+#define I2S_CHST5_IVCTX 0x0A23
+
+#define I2S_CHST6_IVCTX 0x0A24
+
+#define ASRC_IVCTX 0x0A25
+
+#define I2S_IN_SIZE_IVCTX 0x0A26
+
+#define AUD_PAR_BUSCLK_1_IVCTX 0x0A27
+
+#define AUD_PAR_BUSCLK_2_IVCTX 0x0A28
+
+#define AUD_PAR_BUSCLK_3_IVCTX 0x0A29
+
+#define DSD_INTERLEAVE_IVCTX 0x0A2A
+
+#define AUDIO_PAR_MODE_SEL_IVCTX 0x0A2B
+
+#define AIP_RST_IVCTX 0x0A2C
+
+#define AIP_HDMI2MHL_IVCTX 0x0A2D
+
+#define TDM_CTRL_IVCTX 0x0A2E
+
+#define AUDP_TXCTRL_IVCTX 0x0A2F
+
+#define AUDP_TXFIFO_IVCTX 0x0A31
+
+#define AIP_REG_ACC_TO_IVCTX 0x0A32
+
+#define AIP_TDM_CH_MAP_IVCTX 0x0A33
+
+#define AIP_TDM_CTRL_4_IVCTX 0x0A34
+
+#define AIP_EXT_TDM_CTRL_IVCTX 0x0A35
+
+#define AIP_TDM_TCF_AUTO_RST_IVCTX 0x0A36
+
+#define AIP_3D_AUD_ON_IVCTX 0x0A37
+
+#define AIP_3D_AUD_PID_IVCTX 0x0A38
+
+#define AIP_INTR_STATE_IVCTX 0x0A4E
+
+#define AIP_INTR1_IVCTX 0x0A4F
+
+#define AIP_INTR2_IVCTX 0x0A50
+
+#define AIP_INTR1_MASK_IVCTX 0x0A51
+
+#define AIP_INTR2_MASK_IVCTX 0x0A52
+
+#define RSVD1_API_IVCTX 0x0A53
+
+#define TPI_DOWN_SMPL_CTRL_IVCTX 0x0A61
+
+#define TPI_AUD_CONFIG_IVCTX 0x0A62
+
+#define TPI_AUD_FS_IVCTX 0x0A63
+
+#define AIP_TDM_CH_MAP2_IVCTX 0x0A64
+
+#define AUD_TDM_CH_SWAP_1_IVCTX 0x0A65
+
+#define AUD_TDM_CH_SWAP_2_IVCTX 0x0A66
+
+#define AIP_TDM_CH_MAP3_IVCTX 0x0A67
+
+#define AIP_TDM_CH_MAP4_IVCTX 0x0A68
+
+#define AIP_TDM_CH_MAP5_IVCTX 0x0A69
+
+#define AIP_TDM_CH_MAP6_IVCTX 0x0A6A
+
+#define AIP_TDM_CH_MAP7_IVCTX 0x0A6B
+
+#define AIP_TDM_CH_MAP8_IVCTX 0x0A6C
+
+#define PRL_AUD_CH_NUM_IVCTX 0x0A6D
+
+#define AUDIO_CLK_DIV_IVCTX 0x0A6E
+
+#define VP_FEATURES_IVCTX 0x0B00
+
+#define VP_BUILD_TIME_IVCTX 0x0B08
+
+#define VP_SOFT_RESET_IVCTX 0x0B0C
+
+#define VP_DATA_BITS_VALUE_IVCTX 0x0B0E
+
+#define VP_INPUT_MUTE_IVCTX 0x0B10
+
+#define VP_INPUT_SYNC_CONFIG_IVCTX 0x0B12
+
+#define VP_INPUT_FORMAT_IVCTX 0x0B14
+
+#define VP_INPUT_MAPPING_IVCTX 0x0B16
+
+#define VP_INPUT_MASK_IVCTX 0x0B18
+
+#define VP_PIPELINE_CONFIG_IVCTX 0x0B1A
+
+#define VP_INPUT_SYNC_ADJUST_CONFIG_IVCTX 0x0B1C
+
+#define VP_DEGEN_CONFIG_IVCTX 0x0B20
+
+#define VP_DEGEN_PIXEL_DELAY_IVCTX 0x0B22
+
+#define VP_DEGEN_PIXEL_COUNT_MINUS_ONE_IVCTX 0x0B24
+
+#define VP_DEGEN__LINE__DELAY_IVCTX 0x0B26
+
+#define VP_DEGEN__LINE__COUNT_IVCTX 0x0B28
+
+#define VP_DEC656_CONFIG_IVCTX 0x0B30
+
+#define VP_DEC656_DELAY_EAV_TO_HSYNC_ACTIVE_IVCTX 0x0B32
+
+#define VP_DEC656_PULSE_WIDTH_HSYNC_MINUS_ONE_IVCTX 0x0B34
+
+#define VP_DEC656_VSYNC_FRONT_PORCH_IVCTX 0x0B36
+
+#define VP_DEC656_EAV_TO_VSYNC_DELAY_EVEN_IVCTX 0x0B38
+
+#define VP_DEC656_EAV_TO_VSYNC_DELAY_ODD_IVCTX 0x0B3A
+
+#define VP_DEC656_PULSE_WIDTH_VSYNC_IVCTX 0x0B3C
+
+#define VP_DEC656_STATUS_IVCTX 0x0B3E
+
+#define VP_OUTPUT_MUTE_IVCTX 0x0B40
+
+#define VP_OUTPUT_SYNC_CONFIG_IVCTX 0x0B42
+
+#define VP_OUTPUT_MAPPING_IVCTX 0x0B44
+
+#define VP_OUTPUT_MASK_IVCTX 0x0B46
+
+#define VP_OUTPUT_FORMAT_IVCTX 0x0B48
+
+#define VP_OUTPUT_BLANK_START__LINE__IVCTX 0x0B4C
+
+#define VP_OUTPUT_BLANK_END__LINE__IVCTX 0x0B4E
+
+#define VP_OUTPUT_BLANK_CONFIG_IVCTX 0x0B50
+
+#define VP_OUTPUT_BLANKING_STATUS_IVCTX 0x0B52
+
+#define VP_OUTPUT_BLANK_Y_IVCTX 0x0B54
+
+#define VP_OUTPUT_BLANK_CB_IVCTX 0x0B56
+
+#define VP_OUTPUT_BLANK_CR_IVCTX 0x0B58
+
+#define VP_OUTPUT_ACTIVE_Y_IVCTX 0x0B5A
+
+#define VP_OUTPUT_ACTIVE_CB_IVCTX 0x0B5C
+
+#define VP_OUTPUT_ACTIVE_CR_IVCTX 0x0B5E
+
+#define VP_VTG_HORIZONTAL_SYNC_END_IVCTX 0x0B60
+
+#define VP_VTG_HORIZONTAL_ACTIVE_VIDEO_START_IVCTX 0x0B62
+
+#define VP_VTG_HALFLINE_IVCTX 0x0B64
+
+#define VP_VTG_HORIZONTAL_ACTIVE_VIDEO_END_IVCTX 0x0B66
+
+#define VP_VTG_END_OF__LINE__IVCTX 0x0B68
+
+#define VP_VTG_VERTICAL_SYNC_END_IVCTX 0x0B70
+
+#define VP_VTG_TRIGGER_START_IVCTX 0x0B72
+
+#define VP_VTG_VERTICAL_ACTIVE_VIDEO_START_IVCTX 0x0B74
+
+#define VP_VTG_VERTICAL_ACTIVE_VIDEO_END_IVCTX 0x0B76
+
+#define VP_VTG_VERTICAL_END_OF_FRAME_IVCTX 0x0B78
+
+#define VP_VTG_CONFIG_IVCTX 0x0B7A
+
+#define VP_VTG_THRESHOLD_IVCTX 0x0B7B
+
+#define VP_VTG_CYCLE_DELAY_IVCTX 0x0B7C
+
+#define VP_VTG_UPDATE_REQUEST_IVCTX 0x0B7E
+
+#define VP_VTG_BANK_CONFIG_IVCTX 0x0B7F
+
+#define VP_FDET_CONFIG_IVCTX 0x0B80
+
+#define VP_FDET_STATUS_IVCTX 0x0B81
+
+#define VP_FDET_CLEAR_IVCTX 0x0B82
+
+#define VP_FDET_INTERLACE_THRESHOLD_IVCTX 0x0B83
+
+#define VP_FDET_FRAME_RATE_DELTA_THRESHOLD_IVCTX 0x0B84
+
+#define VP_FDET_FRAME_RATE_IVCTX 0x0B88
+
+#define VP_FDET_PIXEL_COUNT_IVCTX 0x0B8C
+
+#define VP_FDET__LINE__COUNT_IVCTX 0x0B8E
+
+#define VP_FDET_HSYNC_LOW_COUNT_IVCTX 0x0B90
+
+#define VP_FDET_HSYNC_HIGH_COUNT_IVCTX 0x0B92
+
+#define VP_FDET_HFRONT_COUNT_IVCTX 0x0B94
+
+#define VP_FDET_HBACK_COUNT_IVCTX 0x0B96
+
+#define VP_FDET_VSYNC_LOW_COUNT_EVEN_IVCTX 0x0B98
+
+#define VP_FDET_VSYNC_HIGH_COUNT_EVEN_IVCTX 0x0B9A
+
+#define VP_FDET_VFRONT_COUNT_EVEN_IVCTX 0x0B9C
+
+#define VP_FDET_VBACK_COUNT_EVEN_IVCTX 0x0B9E
+
+#define VP_FDET_VSYNC_LOW_COUNT_ODD_IVCTX 0x0BA0
+
+#define VP_FDET_VSYNC_HIGH_COUNT_ODD_IVCTX 0x0BA2
+
+#define VP_FDET_VFRONT_COUNT_ODD_IVCTX 0x0BA4
+
+#define VP_FDET_VBACK_COUNT_ODD_IVCTX 0x0BA6
+
+#define VP_FDET_FRAME_COUNT_IVCTX 0x0BA8
+
+#define VP_FDET__LINE__RATE_DELTA_THRESHOLD_IVCTX 0x0BAA
+
+#define VP_FDET__LINE__RATE_IVCTX 0x0BAC
+
+#define VP_FDET_VSYNC_HSYNC_OFFSET_EVEN_IVCTX 0x0BB0
+
+#define VP_FDET_VSYNC_HSYNC_OFFSET_ODD_IVCTX 0x0BB2
+
+#define VP_FDET_IRQ_MASK_IVCTX 0x0BB8
+
+#define VP_FDET_IRQ_STATUS_IVCTX 0x0BBC
+
+#define VP_EMBD_SYNC_ENC_CONFIG_IVCTX 0x0BC0
+
+#define VP_EMBD_SYNC_ENC_SECT0_CONFIG_IVCTX 0x0BC4
+
+#define VP_EMBD_SYNC_ENC_SECT1_CONFIG_IVCTX 0x0BC8
+
+#define VP_EMBD_SYNC_ENC_SECT2_CONFIG_IVCTX 0x0BCC
+
+#define VP_EMBD_SYNC_ENC_SECT3_CONFIG_IVCTX 0x0BD0
+
+#define VP_EMBD_SYNC_ENC_SECT4_CONFIG_IVCTX 0x0BD4
+
+#define VP_EMBD_SYNC_ENC_SECT5_CONFIG_IVCTX 0x0BD8
+
+#define VP_EMBD_SYNC_ENC_HORIZONTAL_DATA_PIXELS_IVCTX 0x0BDC
+
+#define VP_EMBD_SYNC_ENC_HORIZONTAL_BLANKING_PIXELS_IVCTX 0x0BDE
+
+#define VP_EMBD_SYNC_ENC_UPDATE_REQUEST_IVCTX 0x0BE0
+
+#define VP_EMBD_SYNC_ENC_BANK_CONFIG_IVCTX 0x0BE1
+
+#define VP_CMS_CSC0_FEATURES_IVCTX 0x0D00
+
+#define VP_CMS_CSC0_DATA_BITS_VALUE_IVCTX 0x0D02
+
+#define VP_CMS_CSC0_BUILD_TIME_IVCTX 0x0D04
+
+#define VP_CMS_CSC0_C420_C422_CONFIG_IVCTX 0x0D08
+
+#define VP_CMS_CSC0_C422_C444_CONFIG_IVCTX 0x0D0C
+
+#define VP_CMS_CSC0_PIXCAP_IN_CONFIG_IVCTX 0x0D10
+
+#define VP_CMS_CSC0_PIXCAP_IN_CONTROL_IVCTX 0x0D11
+
+#define VP_CMS_CSC0_PIXCAP_IN_STATUS_IVCTX 0x0D12
+
+#define VP_CMS_CSC0_PIXCAP_IN_PIXEL_IVCTX 0x0D14
+
+#define VP_CMS_CSC0_PIXCAP_IN__LINE__IVCTX 0x0D16
+
+#define VP_CMS_CSC0_PIXCAP_IN_Y_IVCTX 0x0D18
+
+#define VP_CMS_CSC0_PIXCAP_IN_CB_IVCTX 0x0D1A
+
+#define VP_CMS_CSC0_PIXCAP_IN_CR_IVCTX 0x0D1C
+
+#define VP_CMS_CSC0_MULTI_CSC_CONFIG_IVCTX 0x0D20
+
+#define VP_CMS_CSC0_MULTI_CSC_MULTCOEFF_ADDR_IVCTX 0x0D22
+
+#define VP_CMS_CSC0_MULTI_CSC_MULTCOEFF_DATA_IVCTX 0x0D24
+
+#define VP_CMS_CSC0_MULTI_CSC_IN_GY_OFFSET_IVCTX 0x0D28
+
+#define VP_CMS_CSC0_MULTI_CSC_IN_BCB_OFFSET_IVCTX 0x0D2C
+
+#define VP_CMS_CSC0_MULTI_CSC_IN_RCR_OFFSET_IVCTX 0x0D30
+
+#define VP_CMS_CSC0_MULTI_CSC_OUT_GY_OFFSET_IVCTX 0x0D34
+
+#define VP_CMS_CSC0_MULTI_CSC_OUT_BCB_OFFSET_IVCTX 0x0D38
+
+#define VP_CMS_CSC0_MULTI_CSC_OUT_RCR_OFFSET_IVCTX 0x0D3C
+
+#define VP_CMS_CSC1_FEATURES_IVCTX 0x0D80
+
+#define VP_CMS_CSC1_DATA_BITS_VALUE_IVCTX 0x0D82
+
+#define VP_CMS_CSC1_BUILD_TIME_IVCTX 0x0D84
+
+#define VP_CMS_CSC1_MULTI_CSC_CONFIG_IVCTX 0x0DA0
+
+#define VP_CMS_CSC1_MULTI_CSC_MULTCOEFF_ADDR_IVCTX 0x0DA2
+
+#define VP_CMS_CSC1_MULTI_CSC_MULTCOEFF_DATA_IVCTX 0x0DA4
+
+#define VP_CMS_CSC1_MULTI_CSC_IN_GY_OFFSET_IVCTX 0x0DA8
+
+#define VP_CMS_CSC1_MULTI_CSC_IN_BCB_OFFSET_IVCTX 0x0DAC
+
+#define VP_CMS_CSC1_MULTI_CSC_IN_RCR_OFFSET_IVCTX 0x0DB0
+
+#define VP_CMS_CSC1_MULTI_CSC_OUT_GY_OFFSET_IVCTX 0x0DB4
+
+#define VP_CMS_CSC1_MULTI_CSC_OUT_BCB_OFFSET_IVCTX 0x0DB8
+
+#define VP_CMS_CSC1_MULTI_CSC_OUT_RCR_OFFSET_IVCTX 0x0DBC
+
+#define VP_CMS_CSC1_C444_C422_CONFIG_IVCTX 0x0DC0
+
+#define VP_CMS_CSC1_C422_C420_CONFIG_IVCTX 0x0DC2
+
+#define VP_CMS_CSC1_DITHER_CONFIG_IVCTX 0x0DC4
+
+#define VP_CMS_CSC1_RANGE_CLIP_CONFIG_IVCTX 0x0DC6
+
+#define VP_CMS_CSC1_RANGE_CLIP_Y_MIN_IVCTX 0x0DC8
+
+#define VP_CMS_CSC1_RANGE_CLIP_Y_MAX_IVCTX 0x0DCA
+
+#define VP_CMS_CSC1_RANGE_CLIP_C_MIN_IVCTX 0x0DCC
+
+#define VP_CMS_CSC1_RANGE_CLIP_C_MAX_IVCTX 0x0DCE
+
+#define VP_CMS_CSC1_PIXCAP_OUT_CONFIG_IVCTX 0x0DD0
+
+#define VP_CMS_CSC1_PIXCAP_OUT_CONTROL_IVCTX 0x0DD1
+
+#define VP_CMS_CSC1_PIXCAP_OUT_STATUS_IVCTX 0x0DD2
+
+#define VP_CMS_CSC1_PIXCAP_OUT_PIXEL_IVCTX 0x0DD4
+
+#define VP_CMS_CSC1_PIXCAP_OUT__LINE__IVCTX 0x0DD6
+
+#define VP_CMS_CSC1_PIXCAP_OUT_Y_IVCTX 0x0DD8
+
+#define VP_CMS_CSC1_PIXCAP_OUT_CB_IVCTX 0x0DDA
+
+#define VP_CMS_CSC1_PIXCAP_OUT_CR_IVCTX 0x0DDC
+
+#define D_HDR_GEN_CTL_IVCTX 0x0F00
+
+#define D_HDR_INTRSTS_IVCTX 0x0F01
+
+#define D_HDR_INTRMASK_IVCTX 0x0F02
+
+#define D_HDR_PC_HB0_IVCTX 0x0F03
+
+#define D_HDR_PC_HB1_IVCTX 0x0F04
+
+#define D_HDR_PC_PB3_IVCTX 0x0F05
+
+#define D_HDR_PC_PB4_IVCTX 0x0F06
+
+#define D_HDR_PC_PB5_IVCTX 0x0F07
+
+#define D_HDR_EM_HB0_IVCTX 0x0F08
+
+#define D_HDR_EM_PB0_IVCTX 0x0F09
+
+#define D_HDR_EM_PB2_IVCTX 0x0F0A
+
+#define D_HDR_EM_PB3_IVCTX 0x0F0B
+
+#define D_HDR_EM_PB4_IVCTX 0x0F0C
+
+#define D_HDR_ACK_TO_HI_IVCTX 0x0F0D
+
+#define D_HDR_ACK_TO_LO_IVCTX 0x0F0E
+
+#define D_HDR_ACT_DE_HI_IVCTX 0x0F0F
+
+#define D_HDR_ACT_DE_LO_IVCTX 0x0F10
+
+#define D_HDR_VB_LE_IVCTX 0x0F11
+
+#define D_HDR_READ_PORT_IVCTX 0x0F12
+
+#define D_HDR_DBG_IVCTX 0x0F13
+
+#define D_HDR_MEM_WDATA_IVCTX 0x0F14
+
+#define D_HDR_INSERT_CTRL_IVCTX 0x0F15
+
+#define D_HDR_INSERT_PAYLOAD_0_IVCTX 0x0F16
+
+#define D_HDR_INSERT_PAYLOAD_1_IVCTX 0x0F17
+
+#define D_HDR_MEM_WADDR_RST_IVCTX 0x0F18
+
+#define D_HDR_INSERT_CTL_1_IVCTX 0x0F19
+
+#define D_HDR_INSERT_CTL_2_IVCTX 0x0F1A
+
+#define D_HDR_INSERT_CTL_3_IVCTX 0x0F1B
+
+#define D_HDR_FAPA_DEBUG_IVCTX 0x0F1C
+
+#define D_HDR_SPARE_0_IVCTX 0x0F1D
+
+#define D_HDR_SPARE_1_IVCTX 0x0F1E
+
+#define D_HDR_SPARE_2_IVCTX 0x0F1F
+
+#define D_HDR_SPARE_3_IVCTX 0x0F20
+
+#define D_HDR_SPARE_4_IVCTX 0x0F21
+
+#define D_HDR_SPARE_5_IVCTX 0x0F22
+
+#define D_HDR_SPARE_6_IVCTX 0x0F23
+
+#define D_HDR_SPARE_7_IVCTX 0x0F24
+
+#define D_HDR_SPARE_8_IVCTX 0x0F25
+
+#define D_HDR_SPARE_9_IVCTX 0x0F26
+
+#define DSC_PKT_GEN_CTL_IVCTX 0x0F80
+
+#define DSC_PKT_INTRSTS_IVCTX 0x0F81
+
+#define DSC_PKT_INTRMASK_IVCTX 0x0F82
+
+#define DSC_PKT_PC_HB0_IVCTX 0x0F83
+
+#define DSC_PKT_PC_HB1_IVCTX 0x0F84
+
+#define DSC_PKT_PC_PB3_IVCTX 0x0F85
+
+#define DSC_PKT_PC_PB4_IVCTX 0x0F86
+
+#define DSC_PKT_PC_PB5_IVCTX 0x0F87
+
+#define DSC_PKT_EM_HB0_IVCTX 0x0F88
+
+#define DSC_PKT_EM_PB0_IVCTX 0x0F89
+
+#define DSC_PKT_EM_PB2_IVCTX 0x0F8A
+
+#define DSC_PKT_EM_PB3_IVCTX 0x0F8B
+
+#define DSC_PKT_EM_PB4_IVCTX 0x0F8C
+
+#define DSC_PKT_ACK_TO_HI_IVCTX 0x0F8D
+
+#define DSC_PKT_ACK_TO_LO_IVCTX 0x0F8E
+
+#define DSC_PKT_ACT_DE_HI_IVCTX 0x0F8F
+
+#define DSC_PKT_ACT_DE_LO_IVCTX 0x0F90
+
+#define DSC_PKT_VB_LE_IVCTX 0x0F91
+
+#define DSC_PKT_READ_PORT_IVCTX 0x0F92
+
+#define DSC_PKT_DBG_IVCTX 0x0F93
+
+#define DSC_PKT_MEM_WDATA_IVCTX 0x0F94
+
+#define DSC_PKT_INSERT_CTRL_IVCTX 0x0F95
+
+#define DSC_PKT_MEM_WADDR_RST_IVCTX 0x0F96
+
+#define DSC_PKT_INSERT_CTL_1_IVCTX 0x0F97
+
+#define DSC_PKT_INSERT_PAYLOAD_0_IVCTX 0x0F98
+
+#define DSC_PKT_INSERT_PAYLOAD_1_IVCTX 0x0F99
+
+#define DSC_PKT_INSERT_CTL_2_IVCTX 0x0F9A
+
+#define DSC_PKT_INSERT_CTL_3_IVCTX 0x0F9B
+
+#define DSC_PKT_INSERT_CTL_4_IVCTX 0x0F9C
+
+#define DSC_PKT_INSERT_CTL_5_IVCTX 0x0F9D
+
+#define DSC_PKT_MAX_PAYLOAD_0_IVCTX 0x0F9E
+
+#define DSC_PKT_MAX_PAYLOAD_1_IVCTX 0x0F9F
+
+#define DSC_PKT_SPARE_0_IVCTX 0x0FA0
+
+#define DSC_PKT_SPARE_1_IVCTX 0x0FA1
+
+#define DSC_PKT_SPARE_2_IVCTX 0x0FA2
+
+#define DSC_PKT_SPARE_3_IVCTX 0x0FA3
+
+#define DSC_PKT_SPARE_4_IVCTX 0x0FA4
+
+#define DSC_PKT_SPARE_5_IVCTX 0x0FA5
+
+#define DSC_PKT_SPARE_6_IVCTX 0x0FA6
+
+#define DSC_PKT_SPARE_7_IVCTX 0x0FA7
+
+#define DSC_PKT_SPARE_8_IVCTX 0x0FA8
+
+#define DSC_PKT_SPARE_9_IVCTX 0x0FA9
+
+#define ZONE_CTRL_0_IVCTX 0x1000
+
+#define ZONE_STATUS_0_IVCTX 0x1001
+
+#define DEBUG_0_IVCTX 0x1002
+
+#define DEBUG_1_IVCTX 0x1003
+
+#define VCOCAL_CTRL_0_IVCTX 0x1004
+
+#define VCOCAL_STATUS_0_IVCTX 0x1005
+
+#define PRECLK_FORCE_CTL_IVCTX 0x1006
+
+#define PRECLK_CNT_MAX_IVCTX 0x1007
+
+#define OCLK_CNT_MAX_IVCTX 0x1008
+
+#define OCLK_CNT_MIN_IVCTX 0x1009
+
+#define PRE_DIV_IVCTX 0x100A
+
+#define POST_DIV_IVCTX 0x100B
+
+#define VCOCAL_STATUS_1_IVCTX 0x100C
+
+#define PLL_MODE0_IVCTX 0x100D
+
+#define SZONE_OW_IVCTX 0x100E
+
+#define ISEL_OW_IVCTX 0x100F
+
+#define BIAS_BGR_D_IVCTX 0x1010
+
+#define DIV_PRE_OW_IVCTX 0x1011
+
+#define DIV_PST_OW_IVCTX 0x1012
+
+#define VCOCAL_OW_IVCTX 0x1013
+
+#define ZONE_INTR_IVCTX 0x1014
+
+#define ZONE_INTR_MASK_IVCTX 0x1015
+
+#define ZONE_CTRL_1_IVCTX 0x1016
+
+#define ZONE_CTRL_2_IVCTX 0x1017
+
+#define PLL_LK_DLY_IVCTX 0x1018
+
+#define LKDT_CTRL_0_IVCTX 0x1019
+
+#define LKDT_CTRL1_IVCTX 0x101A
+
+#define LKDT_CTRL2_IVCTX 0x101B
+
+#define LKDT_CTRL3_IVCTX 0x101C
+
+#define OCLK_CNT_THR_IVCTX 0x101D
+
+#define ZVTIMER_MAX_IVCTX 0x101E
+
+#define ZVSTATE_IVCTX 0x101F
+
+#define VCOCAL_ADJ_IVCTX 0x1020
+
+#define ZONECAL_ADJ_0_IVCTX 0x1021
+
+#define ZONECAL_ADJ_1_IVCTX 0x1022
+
+#define ZONECAL_ADJ_2_IVCTX 0x1023
+
+#define ZONECAL_ADJ_3_IVCTX 0x1024
+
+#define ZONECTRL_3_IVCTX 0x1025
+
+#define ZONECTRL_4_IVCTX 0x1026
+
+#define ZONECTRL_5_IVCTX 0x1027
+
+#define ZONECTRL_6_IVCTX 0x1028
+
+#define ZONECTRL_7_IVCTX 0x1029
+
+#define ZONECTRL_8_IVCTX 0x102A
+
+#define ZONECTRL_9_IVCTX 0x102B
+
+#define ZONECTRL_A_IVCTX 0x102C
+
+#define ZONECTRL_B_IVCTX 0x102D
+
+#define ZONECTRL_C_IVCTX 0x102E
+
+#define ZONECTRL_D_IVCTX 0x102F
+
+#define ZONECTRL_E_IVCTX 0x1030
+
+#define ZONECTRL_F_IVCTX 0x1031
+
+#define ZONE_STATUS_1_IVCTX 0x1032
+
+#define ZONE_STATUS_2_IVCTX 0x1033
+
+#define ZONE_STATUS_3_IVCTX 0x1034
+
+#define ZONE_STATUS_4_IVCTX 0x1035
+
+#define ZONE_STATUS_5_IVCTX 0x1036
+
+#define ZONE_STATUS_6_IVCTX 0x1037
+
+#define ZONE_STATUS_7_IVCTX 0x1038
+
+#define ZONE_STATUS_8_IVCTX 0x1039
+
+#define ZONE_STATUS_9_IVCTX 0x103A
+
+#define ZONE_STATUS_A_IVCTX 0x103B
+
+#define ZONE_CTRL_10_IVCTX 0x103C
+
+#endif  /* __HDMI_TX_REG_H__ */
