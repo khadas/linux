@@ -88,8 +88,10 @@ static void amlogic_new_usb3phy_shutdown(struct usb_phy *x)
 {
 	struct amlogic_usb_v2 *phy = phy_to_amlusb(x);
 
-	if (phy->phy.flags == AML_USB3_PHY_ENABLE)
+	if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
 		clk_disable_unprepare(phy->clk);
+		writel(0x1d, phy->phy3_cfg);
+	}
 
 	phy->suspend_flag = 1;
 }
@@ -274,8 +276,10 @@ static int amlogic_new_usb3_init(struct usb_phy *x)
 	u32 data = 0;
 
 	if (phy->suspend_flag) {
-		if (phy->phy.flags == AML_USB3_PHY_ENABLE)
+		if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
 			clk_prepare_enable(phy->clk);
+			writel(0x7c, phy->phy3_cfg);
+		}
 		phy->suspend_flag = 0;
 		return 0;
 	}
