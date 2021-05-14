@@ -12,7 +12,7 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/7/June: DVBS cannot blind search"
+#define DTVDEMOD_VER	"2021/08/Jun: support dvbc auto sr"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
@@ -24,6 +24,7 @@
 #define TIMEOUT_ATSC		2000
 #define TIMEOUT_DVBT		2000
 #define TIMEOUT_DVBS		2000
+#define TIMEOUT_DVBC		3000
 
 enum Gxtv_Demod_Tuner_If {
 	SI2176_5M_IF = 5,
@@ -183,8 +184,10 @@ struct aml_dtvdemod {
 	unsigned int atsc_rst_wait_cnt;
 	/* only for tm2,first time of pwr on,reset after signal locked end */
 
-	unsigned short symbol_rate;
+	unsigned int symbol_rate_manu;
+	unsigned int sr_val_hw;
 	unsigned int symb_rate_en;
+	unsigned int auto_sr;
 	unsigned int freq;
 	unsigned int freq_dvbc;
 	enum fe_modulation atsc_mode;
@@ -195,7 +198,7 @@ struct aml_dtvdemod {
 	unsigned int time_start;
 	unsigned int time_passed;
 	enum fe_status last_status;
-
+	unsigned int timeout_dvbc_ms;
 	int autoflags;
 	int auto_flags_trig;
 

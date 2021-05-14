@@ -118,9 +118,8 @@ static int dvbc_get_freq_off(struct aml_dtvdemod *demod)
 void qam_auto_scan(struct aml_dtvdemod *demod, int auto_qam_enable)
 {
 	if (auto_qam_enable) {
-		qam_write_reg(demod, 0xc, 0x235cf459);
-		/*qam_write_reg(demod, 0xe, 0x2d82d);*/
-		qam_write_reg(demod, 0xe, 0x400);/*reduce range to 0.05m*/
+		qam_write_reg(demod, SR_SCAN_SPEED, 0x235cf4e2);
+		qam_write_reg(demod, TIM_SWEEP_RANGE_CFG, 0x400000);
 		qam_write_reg(demod, 0x4e, 0x12010012);
 	} else
 		qam_write_reg(demod, 0x4e, 0x12000012);
@@ -275,7 +274,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod)
 	demod_dvbc_set_qam(demod, ch_mode);
 	/*dvbc_write_reg(QAM_BASE+0x00c, 0xfffffffe);*/
 	/* // adc_cnt, symb_cnt*/
-	qam_write_reg(demod, 0x3, 0xffff8ffe);
+	qam_write_reg(demod, SYMB_CNT_CFG, 0xffff03ff);
 	/* adc_cnt, symb_cnt    by raymond 20121213 */
 	if (clk_freq == 0)
 		afifo_ctr = 0;
@@ -290,7 +289,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod)
 	 /* // PHS_reset & TIM_CTRO_ACCURATE  sw_tim_select=0*/
 	/*dvbc_write_reg(QAM_BASE+0x020, 0x21b53e54);*/
 	 /* //modified by qiancheng*/
-	qam_write_reg(demod, 0x8, 0x61b53e54);
+	qam_write_reg(demod, SR_OFFSET_ACC, 0x61b53e54);
 	/*modified by qiancheng by raymond 20121208  0x63b53e54 for cci */
 	/*  dvbc_write_reg(QAM_BASE+0x020, 0x6192bfe2);*/
 	/* //modifed by ligg 20130613 auto symb_rate scan*/
@@ -315,7 +314,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod)
 	PR_DVBC("max_frq_off is %x,\n", max_frq_off);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
-		qam_write_reg(demod, 0xc, 0x245cf450); //MODIFIED BY QIANCHENG
+		qam_write_reg(demod, SR_SCAN_SPEED, 0x235cf4e2);
 	else
 		qam_write_reg(demod, 0xb, max_frq_off & 0x3fffffff);
 	/* max frequency offset, by raymond 20121208 */
@@ -421,10 +420,10 @@ u32 dvbc_set_auto_symtrack(struct aml_dtvdemod *demod)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 		return 0;
 
-	qam_write_reg(demod, 0xc, 0x245bf45c);	/*open track */
-	qam_write_reg(demod, 0x8, 0x61b2bf5c);
+	qam_write_reg(demod, SR_SCAN_SPEED, 0x245bf45c);	/*open track */
+	qam_write_reg(demod, SR_OFFSET_ACC, 0x61b2bf5c);
 	qam_write_reg(demod, 0x11, (7000 & 0xffff) * 256);
-	qam_write_reg(demod, 0xe, 0x00220000);
+	qam_write_reg(demod, TIM_SWEEP_RANGE_CFG, 0x00220000);
 	qam_write_reg(demod, 0x7, qam_read_reg(demod, 0x7) & ~(1 << 0));
 	/* Sw disable demod */
 	qam_write_reg(demod, 0x7, qam_read_reg(demod, 0x7) | (1 << 0));
@@ -460,6 +459,7 @@ int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts)
 		demod->id, demod_sts->dat1, qam_read_reg(demod, 0x38) & 0xffff,
 		qam_read_reg(demod, 0x2d) & 0xffff,
 		qam_read_reg(demod, 0x29) & 0x7f, demod_sts->ch_pow & 0xffff);
+	PR_DVBC("[id %d] 0x31=0x%x\n", demod->id, qam_read_reg(demod, 0x31));
 
 	return 0;
 }
@@ -482,7 +482,8 @@ void dvbc_init_reg_ext(struct aml_dtvdemod *demod)
 	qam_write_reg(demod, 0x7, 0xf33);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-		qam_write_reg(demod, 0x12, 0x50e1000);
+		/* set min sr to 2000 for cover 3000 ~ 7000 */
+		qam_write_reg(demod, 0x12, 0x507d000);
 		qam_write_reg(demod, 0x30, 0x41f2f69);
 	}
 }

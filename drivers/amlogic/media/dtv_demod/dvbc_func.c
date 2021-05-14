@@ -305,12 +305,6 @@ int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc)
 		PR_DVBC("[id %d] QAM mode option %d\n", demod->id, mode);
 	}
 
-	if (symb_rate < 1000 || symb_rate > 7000) {
-		PR_DVBC("[id %d] Error: Invalid Symbol Rate option %d\n", demod->id, symb_rate);
-		symb_rate = 5361;
-		ret = -1;
-	}
-
 	if (ch_freq < 1000 || ch_freq > 900000) {
 		PR_DVBC("[id %d] Error: Invalid Channel Freq option %d\n", demod->id, ch_freq);
 		ch_freq = 474000;
