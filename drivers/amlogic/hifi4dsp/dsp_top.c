@@ -76,6 +76,11 @@ unsigned long init_dsp_psci_smc(u32 id, u32 addr, u32 cfg0)
 {
 	struct arm_smccc_res res;
 
+	if (bootlocation == 2 && hifi4dsp_p[id]->dsp->optimize_longcall) {
+		addr = hifi4dsp_p[id]->dsp->sram_remap_addr[0];
+		arm_smccc_smc(0x82000096, id, addr,
+			hifi4dsp_p[id]->dsp->sram_remap_addr[1], 2, 0, 0, 0, &res);
+	}
 	arm_smccc_smc(0x82000090, id, addr, cfg0,
 		      0, 0, 0, 0, &res);
 	return res.a0;

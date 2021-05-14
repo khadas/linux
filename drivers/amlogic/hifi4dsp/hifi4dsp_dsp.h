@@ -143,6 +143,8 @@ struct hifi4dsp_dsp {
 	u32 dspstarted;
 	u32 dsphang;
 	void __iomem *status_reg;
+	u32 optimize_longcall;
+	u32 sram_remap_addr[2];
 
 	void *info;
 	void *priv;

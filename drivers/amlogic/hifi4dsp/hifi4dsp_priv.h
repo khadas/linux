@@ -65,4 +65,6 @@ struct hifi4dsp_miscdev_t {
 #define PWR_ON    1
 #define PWR_OFF   0
 
+extern unsigned int bootlocation;
+
 #endif /*_HIFI4DSP_PRIV_H*/

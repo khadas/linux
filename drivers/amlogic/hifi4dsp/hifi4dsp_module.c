@@ -48,8 +48,8 @@
 #include "dsp_top.h"
 
 struct reg_iomem_t g_regbases;
+unsigned int bootlocation;
 static unsigned int boot_sram_addr, boot_sram_size;
-static unsigned int bootlocation;
 static struct mutex hifi4dsp_flock;
 
 static struct reserved_mem hifi4_rmem; /*dsp firmware memory*/
@@ -597,8 +597,8 @@ static int hifi4dsp_driver_dsp_stop(struct hifi4dsp_dsp *dsp)
 	strcpy(message, "SCPI_CMD_HIFI4STOP");
 
 	if (dsp->dspstarted == 1) {
-		if (!dsp->dsphang)
-			scpi_send_data(message, sizeof(message), info->id ? SCPI_DSPB : SCPI_DSPA,
+		if (hifi4dsp_p[dsp->id]->dsp->status_reg && !dsp->dsphang)
+			scpi_send_data(message, sizeof(message), dsp->id ? SCPI_DSPB : SCPI_DSPA,
 				SCPI_CMD_HIFI4STOP, NULL, 0);
 		msleep(50);
 		soc_dsp_poweroff(info->id);
@@ -1077,6 +1077,8 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	struct hifi4dsp_miscdev_t *p_dsp_miscdev;
 	struct miscdevice *pmscdev;
 	enum dsp_start_mode startmode;
+	u32 optimize_longcall[2];
+	u32 sram_remap_addr[4];
 
 	phys_addr_t hifi4base;
 	int hifi4size;
@@ -1153,6 +1155,14 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 						       boot_sram_size);
 	}
 
+	ret = of_property_read_u32_array(np, "optimize_longcall", &optimize_longcall[0], 2);
+	if (ret)
+		pr_debug("can't get optimize_longcall\n");
+
+	ret = of_property_read_u32_array(np, "sram_remap_addr", &sram_remap_addr[0], 4);
+	if (ret)
+		pr_debug("can't get sram_remap_addr\n");
+
 	/*init hifi4dsp_dsp*/
 	dsp = kcalloc(dsp_cnt, sizeof(*dsp), GFP_KERNEL);
 	if (!dsp)
@@ -1205,10 +1215,12 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	if (!get_hifi_share_mem(&hifi_shmem, pdev)) {
 		dsp->addr.smem_paddr = hifi_shmem.base;
 		dsp->addr.smem_size = hifi_shmem.size;
-		dsp->addr.smem = mm_vmap(dsp->addr.smem_paddr, dsp->addr.smem_size,
-			pgprot_dmacoherent(PAGE_KERNEL));
-		pr_info("sharemem map phys:0x%lx-->virt:0x%lx\n",
-			(unsigned long)dsp->addr.smem_paddr, (unsigned long)dsp->addr.smem);
+		if (dsp->addr.smem_paddr && dsp->addr.smem_size) {
+			dsp->addr.smem = mm_vmap(dsp->addr.smem_paddr, dsp->addr.smem_size,
+				pgprot_dmacoherent(PAGE_KERNEL));
+			pr_info("sharemem map phys:0x%lx-->virt:0x%lx\n",
+				(unsigned long)dsp->addr.smem_paddr, (unsigned long)dsp->addr.smem);
+		}
 	}
 
 	if (dsp_cnt > 1) {
@@ -1314,6 +1326,9 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		dsp->ops = priv->dsp_dev->ops;
 		dsp->start_mode = startmode;
 		dsp->dsphang = 0;
+		dsp->optimize_longcall = optimize_longcall[id];
+		dsp->sram_remap_addr[0] = sram_remap_addr[2 * id];
+		dsp->sram_remap_addr[1] = sram_remap_addr[2 * id + 1];
 		priv->dsp = dsp;
 
 		hifi4dsp_p[i] = priv;

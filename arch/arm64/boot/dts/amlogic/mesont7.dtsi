@@ -474,8 +474,10 @@
 		dspaoffset = <0xa0000>;
 		dspboffset = <0x8a0000>;
 		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
-		boot_sram_addr = <0xfff00000>;
-		boot_sram_size = <0x80000>;
+		optimize_longcall = <1 0>;
+		sram_remap_addr = <0x40700000 0xf7000000 0x0 0x0>;
+		boot_sram_addr = <0xf7000000>;
+		boot_sram_size = <0x100000>;
 		//dspsrambase = <0xf7100000>;
 		//dspsramsize = <0x100000>;
 		power-domains = <&pwrdm PDID_T7_DSPA>,
