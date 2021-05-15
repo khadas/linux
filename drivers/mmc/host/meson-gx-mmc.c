@@ -3829,8 +3829,8 @@ err_init_clk:
 err_core_clk:
 	clk_disable_unprepare(host->core_clk);
 free_host:
-	mmc_free_host(mmc);
 	dev_notice(host->dev, "host probe failed!\n");
+	mmc_free_host(mmc);
 	return ret;
 }
 
