@@ -236,6 +236,7 @@ static void session_vsync_update(struct sync_session *session)
 		den = den * 20 * session->rate / 1000;
 		spin_lock_irqsave(&session->lock, flags);
 		temp = div_u64_rem(90000ULL * den, sync.sync_duration_num * 20, &r);
+		r /= 20;
 		session->wall_clock += temp;
 		session->wall_clock_inc_remainer += r;
 		if (session->wall_clock_inc_remainer >= sync.sync_duration_num) {
@@ -277,8 +278,16 @@ static void msync_update_mode(void)
 		info->sync_duration_num;
 	sync.vsync_pts_inc = inc;
 	spin_lock_irqsave(&sync.lock, flags);
-	sync.sync_duration_den = info->sync_duration_den;
-	sync.sync_duration_num = info->sync_duration_num;
+	if (info->sync_duration_num == 2997 ||
+	    info->sync_duration_num == 5994) {
+		/* this is an adjustment to give accurate num/dem pair */
+		sync.sync_duration_den = 1001;
+		sync.sync_duration_num = 3000 * 1000 / info->sync_duration_den;
+		sync.sync_duration_num *= (info->sync_duration_num / 2997);
+	} else {
+		sync.sync_duration_den = info->sync_duration_den;
+		sync.sync_duration_num = info->sync_duration_num;
+	}
 	spin_unlock_irqrestore(&sync.lock, flags);
 	msync_dbg(0, "vsync_pts_inc %d %d/%d\n", inc,
 		sync.sync_duration_den, sync.sync_duration_num);
@@ -1760,6 +1769,7 @@ static ssize_t session_stat_show(struct class *cla,
 		"active v/%d a/%d\n"
 		"first v/%x a/%x\n"
 		"last  v/%x a/%x\n"
+		"diff-ms a-w %d v-w %d a-v %d\n"
 		"start %d r %d\n"
 		"w %x pcr(%c) %x\n"
 		"audio switch %c\n",
@@ -1768,6 +1778,9 @@ static ssize_t session_stat_show(struct class *cla,
 		session->first_apts.pts,
 		session->last_vpts.pts,
 		session->last_apts.pts,
+		(int)(session->last_apts.pts - session->wall_clock) / 90,
+		(int)(session->last_vpts.pts - session->wall_clock) / 90,
+		(int)(session->last_apts.pts - session->last_vpts.pts) / 90,
 		session->clock_start, session->rate,
 		session->wall_clock,
 		session->use_pcr ? 'y' : 'n',
