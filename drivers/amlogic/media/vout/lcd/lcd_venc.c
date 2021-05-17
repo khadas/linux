@@ -142,8 +142,8 @@ static void lcd_set_encl_tcon(struct aml_lcd_drv_s *pdrv)
 	} else {
 		reg_rgb_base = L_RGB_BASE_ADDR;
 		reg_rgb_coeff = L_RGB_COEFF_ADDR;
-		reg_dith_ctrl = L_POL_CNTL_ADDR;
-		reg_pol_ctrl = L_DITH_CNTL_ADDR;
+		reg_dith_ctrl = L_DITH_CNTL_ADDR;
+		reg_pol_ctrl = L_POL_CNTL_ADDR;
 		reg_de_hs = L_DE_HS_ADDR;
 		reg_de_he = L_DE_HE_ADDR;
 		reg_de_vs = L_DE_VS_ADDR;
