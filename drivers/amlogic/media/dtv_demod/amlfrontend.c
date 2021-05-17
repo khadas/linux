@@ -3011,15 +3011,16 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	int ret = 0;
 
-	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d.\n",
+	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d.\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
-			c->bandwidth_hz, c->modulation, c->inversion);
+			c->bandwidth_hz);
 
 	demod->demod_status.symb_rate = c->symbol_rate / 1000;
 	demod->last_lock = -1;
 
 	tuner_set_params(fe);
 	dtvdemod_dvbs_set_ch(&demod->demod_status);
+	demod->time_start = jiffies_to_msecs(jiffies);
 
 	if (devp->agc_direction) {
 		PR_INFO("DTV AGC direction: %d, Set dvbs agc pin reverse\n", devp->agc_direction);
@@ -3052,6 +3053,16 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		demod->last_lock = -1;
 		PR_DVBS("[id %d] tuner:no signal!\n", demod->id);
 		return 0;
+	}
+
+	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
+	if (demod->time_passed >= 500) {
+		if (!dvbs_rd_byte(0x160)) {
+			*status = FE_TIMEDOUT;
+			demod->last_lock = -1;
+			PR_DVBS("[id %d] not dvbs signal\n", demod->id);
+			return 0;
+		}
 	}
 
 	s = amdemod_stat_islock(demod, SYS_DVBS);
@@ -4235,7 +4246,7 @@ static void dvbs_blind_scan_work(struct work_struct *work)
 	unsigned int freq_min = devp->blind_min_fre;
 	unsigned int freq_max = devp->blind_max_fre;
 	unsigned int freq_step = devp->blind_fre_step;
-	unsigned int symbol_rate_hw;
+	//unsigned int symbol_rate_hw;
 	struct dvb_frontend *fe;
 	enum fe_status status;
 	unsigned int freq_one_percent;
@@ -4265,18 +4276,17 @@ static void dvbs_blind_scan_work(struct work_struct *work)
 		return;
 	}
 
-	symbol_rate_hw = dvbs_rd_byte(0x9fc) << 24;
-	symbol_rate_hw |= dvbs_rd_byte(0x9fd) << 16;
-	symbol_rate_hw |= dvbs_rd_byte(0x9fe) << 8;
-	symbol_rate_hw |= dvbs_rd_byte(0x9ff);
-	PR_INFO("0x9fc:0x%x, 0x9fd:0x%x, 0x9fe:0x%x, 0x9ff:0x%x\n", dvbs_rd_byte(0x9fc),
-		dvbs_rd_byte(0x9fd), dvbs_rd_byte(0x9fe), dvbs_rd_byte(0x9ff));
-	PR_INFO("hw sr = 0x%x\n", symbol_rate_hw);
+	/* symbol_rate_hw = dvbs_rd_byte(0x9fc) << 24;
+	 * symbol_rate_hw |= dvbs_rd_byte(0x9fd) << 16;
+	 * symbol_rate_hw |= dvbs_rd_byte(0x9fe) << 8;
+	 * symbol_rate_hw |= dvbs_rd_byte(0x9ff);
+	 * PR_INFO("hw sr = 0x%x\n", symbol_rate_hw);
+	 */
 
 	/* map blind scan process */
 	freq_one_percent = (freq_max - freq_min) / 100;
 	PR_DVBS("freq_one_percent : %d\n", freq_one_percent);
-	timer_set_max(demod, D_TIMER_DETECT, 500);
+	timer_set_max(demod, D_TIMER_DETECT, demod->timeout_dvbs_ms);
 	fe->ops.info.type = FE_QPSK;
 
 	if (fe->ops.tuner_ops.set_config)

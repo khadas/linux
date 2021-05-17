@@ -12,7 +12,7 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/20/May: S4D bringup"
+#define DTVDEMOD_VER	"2021/21/May: satellite fast search"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
@@ -192,6 +192,8 @@ struct aml_dtvdemod {
 	unsigned int timeout_atsc_ms;
 	unsigned int timeout_dvbt_ms;
 	unsigned int timeout_dvbs_ms;
+	unsigned int time_start;
+	unsigned int time_passed;
 
 	int autoflags;
 	int auto_flags_trig;
