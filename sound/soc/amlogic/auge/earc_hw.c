@@ -1258,6 +1258,19 @@ void earctx_compressed_enable(struct regmap *dmac_map,
 			 enable << 30);
 }
 
+bool get_earctx_enable(struct regmap *cmdc_map, struct regmap *dmac_map)
+{
+	enum attend_type type = earctx_cmdc_get_attended_type(cmdc_map);
+
+	if (type == ATNDTYP_DISCNCT)
+		return false;
+
+	if (mmio_read(dmac_map, EARCTX_SPDIFOUT_CTRL0) & 0x1 << 31)
+		return true;
+
+	return false;
+}
+
 void earctx_enable(struct regmap *top_map,
 		   struct regmap *cmdc_map,
 		   struct regmap *dmac_map,
@@ -1266,6 +1279,9 @@ void earctx_enable(struct regmap *top_map,
 		   bool rterm_on)
 {
 	enum attend_type type = earctx_cmdc_get_attended_type(cmdc_map);
+
+	if (type == ATNDTYP_DISCNCT)
+		return;
 
 	if (enable) {
 		int offset, mask, val;
