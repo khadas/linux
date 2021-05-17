@@ -67,7 +67,12 @@ static const char * const dnames[] = {
 #define MAX_DVB_MINORS		256
 #define DVB_MAX_IDS		MAX_DVB_MINORS
 #else
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define DVB_MAX_IDS		32
+#else
 #define DVB_MAX_IDS		4
+#endif
+
 
 static const u8 minor_type[] = {
        [DVB_DEVICE_VIDEO]      = 0,

@@ -541,6 +541,34 @@ void wdma_irq(u8 chan_id, int enable)
 	pr_dbg("%s data:0x%0x\n", __func__, data);
 }
 
+void tso_set(int path)
+{
+	unsigned int data;
+
+	data = READ_CBUS_REG(DEMOD_TS_O_PATH_CTRL);
+	switch (path) {
+	case 0:
+		//ts0
+		data &= 0x0;
+		break;
+	case 1:
+		//ts1
+		data &= 0x1;
+		break;
+	case 2:
+		//ts2
+		data &= 0x2;
+		break;
+	default:
+		//ts2
+		data &= 0x2;
+		break;
+	}
+
+	WRITE_CBUS_REG(DEMOD_TS_O_PATH_CTRL, data);
+	pr_dbg("%s data:0x%0x\n", __func__, data);
+}
+
 unsigned int wdma_get_ready(u8 chan_id)
 {
 	return READ_CBUS_REG(TS_DMA_WCH_READY(chan_id));
