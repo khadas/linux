@@ -129,7 +129,7 @@ unsigned int wdma_get_cfg_fast_mode(void);
 void wdma_clean_batch(u8 chan_id);
 void wdma_irq(u8 chan_id, int enable);
 unsigned int wdma_get_wr_len(u8 chan_id, int *overflow);
-
+void tso_set(int path);
 /*****************************************************/
 /*****************************************************/
 /*****************************************************/

@@ -500,6 +500,7 @@
 		pinctrl-names= "ci_ts_pins", "ci_addr_pins";
 		pinctrl-0=<&dvb_ci_bus_pins &ci_ts_pins>;
 		pinctrl-1=<&dvb_ci_bus_pins &ci_addr_pins>;
+		reg = <0x0 0xffd20000 0x0 0x1FFF>;
 		/*irq define*/
 		interrupts = <0 186 1
 				0 187 1>;

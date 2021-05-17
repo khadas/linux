@@ -193,12 +193,50 @@ ssize_t tsn_source_store(struct class *class,
 	return count;
 }
 
+ssize_t tso_source_show(struct class *class,
+			struct class_attribute *attr, char *buf)
+{
+	int r, total = 0;
+
+	r = sprintf(buf, "tso_source:ts1\n");
+
+	buf += r;
+	total += r;
+	return total;
+}
+
+ssize_t tso_source_store(struct class *class,
+			 struct class_attribute *attr,
+			 const char *buf, size_t count)
+{
+	struct aml_dvb *advb = aml_get_dvb_device();
+	int src = -1;
+
+	if (mutex_lock_interruptible(&advb->mutex))
+		return -ERESTARTSYS;
+
+	if (!strncmp("ts0", buf, 3))
+		src = 0;
+	else if (!strncmp("ts1", buf, 3))
+		src = 1;
+	else if (!strncmp("ts2", buf, 3))
+		src = 2;
+	else if (!strncmp("ts3", buf, 3))
+		src = 3;
+
+	tso_set(src);
+
+	mutex_unlock(&advb->mutex);
+	return count;
+}
+
 static CLASS_ATTR_RW(ts_setting);
 static CLASS_ATTR_RO(get_pcr);
 static CLASS_ATTR_RO(dmx_setting);
 static CLASS_ATTR_RO(dsc_setting);
 
 static CLASS_ATTR_RW(tsn_source);
+static CLASS_ATTR_RW(tso_source);
 
 static struct attribute *aml_stb_class_attrs[] = {
 	&class_attr_ts_setting.attr,
@@ -206,6 +244,7 @@ static struct attribute *aml_stb_class_attrs[] = {
 	&class_attr_dmx_setting.attr,
 	&class_attr_dsc_setting.attr,
 	&class_attr_tsn_source.attr,
+	&class_attr_tso_source.attr,
 	NULL
 };
 

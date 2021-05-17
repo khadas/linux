@@ -2612,6 +2612,60 @@
 		};
 	};
 
+dvb_p_ts2_pins: dvb_p_ts2_pins {
+		mux {
+			groups = "tsin_b_din0",
+			"tsin_b_din1",
+			"tsin_b_din2",
+			"tsin_b_din3",
+			"tsin_b_din4",
+			"tsin_b_din5",
+			"tsin_b_din6",
+			"tsin_b_din7",
+			"tsin_b_clk",
+			"tsin_b_sop",
+			"tsin_b_valid";
+			function = "tsin_b";
+		};
+	};
+	dvb_ci_bus_pins: dvb_ci_bus_pins {
+		mux {
+			groups = "cicam_a0", "cicam_a1",
+			"cicam_data0", "cicam_data1",
+			"cicam_data2", "cicam_data3",
+			"cicam_data4", "cicam_data5",
+			"cicam_data6", "cicam_data7",
+			"cicam_cen", "cicam_oen",
+			"cicam_wen", "cicam_iordn",
+			"cicam_iowrn",
+			"cicam_reset", "cicam_waitn",
+			"cicam_irqn";
+			function = "cicam";
+		};
+	};
+	ci_ts_pins: ci_ts_pins {
+		mux {
+			groups =  "tsout_clk_z",
+			"tsout_sop_z", "tsout_valid_z",
+			"tsout_d0_z", "tsout_d1_z",
+			"tsout_d2_z", "tsout_d3_z",
+			"tsout_d4_z", "tsout_d5_z",
+			"tsout_d6_z", "tsout_d7_z";
+			function = "tsout";
+		};
+	};
+	ci_addr_pins: ci_addr_pins {
+		mux {
+			groups = "cicam_a2",
+			"cicam_a3", "cicam_a4",
+			"cicam_a5", "cicam_a6",
+			"cicam_a7", "cicam_a8",
+			"cicam_a9",
+			"cicam_a10", "cicam_a11";
+			function = "cicam";
+		};
+	};
+
 	diseqc_out: diseqc_out {
 		mux {/*only use out, don't support */
 			groups = "diseqc_out_z0";
