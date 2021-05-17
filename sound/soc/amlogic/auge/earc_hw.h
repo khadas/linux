@@ -311,7 +311,7 @@ void earctx_enable(struct regmap *top_map,
 		   enum audio_coding_types coding_type,
 		   bool enable,
 		   bool rterm_on);
-
+bool get_earctx_enable(struct regmap *cmdc_map, struct regmap *dmac_map);
 void earcrx_cmdc_get_latency(struct regmap *cmdc_map, u8 *latency);
 void earcrx_cmdc_set_latency(struct regmap *cmdc_map, u8 *latency);
 void earcrx_cmdc_get_cds(struct regmap *cmdc_map, u8 *cds);

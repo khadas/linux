@@ -213,7 +213,7 @@ static void spdif_sharebuffer_free(struct aml_spdif *p_spdif,
 	}
 }
 
-int ss_prepare(struct snd_pcm_substream *substream,
+static int ss_prepare(struct snd_pcm_substream *substream,
 			void *pfrddr,
 			int samesource_sel,
 			int lane_i2s,
@@ -236,9 +236,11 @@ int ss_prepare(struct snd_pcm_substream *substream,
 	if (ops && ops->private) {
 		struct aml_spdif *p_spdif = ops->private;
 
-		if (p_spdif->samesource_sel != SHAREBUFFER_NONE) {
+		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
+		    get_samesrc_ops(p_spdif->samesource_sel) &&
+		    get_samesrc_ops(p_spdif->samesource_sel)->prepare) {
 			share_lvl++;
-			ops->prepare(substream,
+			get_samesrc_ops(p_spdif->samesource_sel)->prepare(substream,
 				pfrddr,
 				p_spdif->samesource_sel,
 				lane_i2s,
@@ -251,7 +253,7 @@ int ss_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int ss_set_clk(int samesource_sel,
+static int ss_set_clk(int samesource_sel,
 		struct clk *clk_src, int rate, int same)
 {
 	struct samesrc_ops *ops = NULL;
@@ -264,7 +266,10 @@ int ss_set_clk(int samesource_sel,
 	if (ops && ops->private) {
 		struct aml_spdif *p_spdif = ops->private;
 
-		if (p_spdif->samesource_sel != SHAREBUFFER_NONE) {
+		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
+		    get_samesrc_ops(p_spdif->samesource_sel) &&
+		    get_samesrc_ops(p_spdif->samesource_sel)->set_clks) {
+			ops = get_samesrc_ops(p_spdif->samesource_sel);
 			ops->set_clks(p_spdif->samesource_sel,
 				clk_src,
 				rate, 1);
@@ -274,7 +279,7 @@ int ss_set_clk(int samesource_sel,
 	return 0;
 }
 
-int ss_free(struct snd_pcm_substream *substream,
+static int ss_free(struct snd_pcm_substream *substream,
 	void *pfrddr, int samesource_sel, int share_lvl)
 {
 	struct samesrc_ops *ops = NULL;
@@ -290,9 +295,11 @@ int ss_free(struct snd_pcm_substream *substream,
 	if (ops && ops->private) {
 		struct aml_spdif *p_spdif = ops->private;
 
-		if (p_spdif->samesource_sel != SHAREBUFFER_NONE) {
+		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
+		    get_samesrc_ops(p_spdif->samesource_sel) &&
+		    get_samesrc_ops(p_spdif->samesource_sel)->hw_free) {
 			share_lvl++;
-			ops->hw_free(substream,
+			get_samesrc_ops(p_spdif->samesource_sel)->hw_free(substream,
 				pfrddr,
 				p_spdif->samesource_sel,
 				share_lvl);
@@ -302,7 +309,7 @@ int ss_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int ss_trigger(int cmd, int samesource_sel, bool reenable)
+static int ss_trigger(int cmd, int samesource_sel, bool reenable)
 {
 	struct samesrc_ops *ops = NULL;
 
@@ -314,16 +321,19 @@ int ss_trigger(int cmd, int samesource_sel, bool reenable)
 	if (ops && ops->private) {
 		struct aml_spdif *p_spdif = ops->private;
 
-		if (p_spdif->samesource_sel != SHAREBUFFER_NONE) {
-			ops->trigger(cmd,
-				p_spdif->samesource_sel, reenable);
+		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
+		    get_samesrc_ops(p_spdif->samesource_sel) &&
+		    get_samesrc_ops(p_spdif->samesource_sel)->trigger) {
+			get_samesrc_ops(p_spdif->samesource_sel)->trigger(cmd,
+				p_spdif->samesource_sel,
+				reenable);
 		}
 	}
 
 	return 0;
 }
 
-void ss_mute(int samesource_sel, bool mute)
+static void ss_mute(int samesource_sel, bool mute)
 {
 	struct samesrc_ops *ops = NULL;
 
@@ -335,8 +345,12 @@ void ss_mute(int samesource_sel, bool mute)
 	if (ops && ops->private) {
 		struct aml_spdif *p_spdif = ops->private;
 
-		if (p_spdif->samesource_sel != SHAREBUFFER_NONE)
-			ops->mute(p_spdif->samesource_sel, mute);
+		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
+		    get_samesrc_ops(p_spdif->samesource_sel) &&
+		    get_samesrc_ops(p_spdif->samesource_sel)->mute) {
+			get_samesrc_ops(p_spdif->samesource_sel)->mute(p_spdif->samesource_sel,
+				mute);
+		}
 	}
 }
 
