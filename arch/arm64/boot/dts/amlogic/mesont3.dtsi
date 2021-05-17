@@ -1136,7 +1136,7 @@
 				clocks = < &clkaudio CLKID_EARCTX_CMDC
 					&clkaudio CLKID_EARCTX_DMAC
 					&clkc CLKID_FCLK_DIV4
-					&clkc CLKID_MPLL1
+					&clkc CLKID_MPLL2
 					>;
 				clock-names =
 					"tx_cmdc",

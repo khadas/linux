@@ -764,7 +764,7 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
-#if 0
+
 		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
 			suffix-name = "alsaPORT-earc";
@@ -776,7 +776,7 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
-#endif
+
 		aml-audio-card,dai-link@8 {
 			mclk-fs = <256>;
 			continuous-clock;
@@ -1016,7 +1016,7 @@
 		pinctrl-0 = <&spdifout_z>;
 		pinctrl-1 = <&spdifout_z_mute>;
 
-		samesource_sel = <4>;
+		samesource_sel = <5>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
@@ -1258,7 +1258,7 @@
 }; /* end of audiobus */
 
 &earc {
-	status = "disabled";
+	status = "okay";
 };
 
 &audio_data {
