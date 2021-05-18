@@ -1478,11 +1478,13 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 
 	if (hw_source >= DMA_0 && hw_source <= DMA_7) {
 		demux->local_sid = hw_source - DMA_0;
+		ts_output_update_filter(demux->id, demux->local_sid);
 		dsc_set_sid(demux->id, INPUT_LOCAL, demux->local_sid);
 	} else if (hw_source >= FRONTEND_TS0 && hw_source <= FRONTEND_TS7) {
 		demux->ts_index = hw_source - FRONTEND_TS0;
 		if (advb->ts[demux->ts_index].ts_sid != -1) {
 			demux->demod_sid = advb->ts[demux->ts_index].ts_sid;
+			ts_output_update_filter(demux->id, demux->demod_sid);
 			dsc_set_sid(demux->id, INPUT_DEMOD, demux->demod_sid);
 		}
 	}
@@ -1900,7 +1902,8 @@ static struct class aml_dmx_class = {
 
 int dmx_regist_dmx_class(void)
 {
-	class_register(&aml_dmx_class);
+	if (class_register(&aml_dmx_class) < 0)
+		dprint("register class error\n");
 	return 0;
 }
 
