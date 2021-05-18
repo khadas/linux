@@ -1102,7 +1102,10 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod)
 		break;
 	}
 
-	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+	if (demod_is_t5d_cpu(devp))
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+	else
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 }
 
 void dvbt2_reset(struct aml_dtvdemod *demod)
@@ -1430,7 +1433,7 @@ unsigned int dtvdemod_calcul_get_field(unsigned int memory_base, unsigned int nb
 	return result;
 }
 
-void dtvdemod_get_plp(struct dtv_property *tvp)
+void dtvdemod_get_plp(struct amldtvdemod_device_s *devp, struct dtv_property *tvp)
 {
 	/* unsigned int miso_mode; */
 	unsigned int plp_num;
@@ -1441,8 +1444,13 @@ void dtvdemod_get_plp(struct dtv_property *tvp)
 	unsigned int val;
 
 	/* val[29-24]:0x805, plp num */
-	val = front_read_reg(0x3e);
-	plp_num = (val >> 24) & 0x3f;
+	if (demod_is_t5d_cpu(devp)) {
+		val = front_read_reg(0x3e);
+		plp_num = (val >> 24) & 0x3f;
+	} else {
+		plp_num = dvbt_t2_rdb(0x805);
+		PR_INFO("read 0x805: %d\n", plp_num);
+	}
 
 	/* miso_mode = (dvbt_t2_rdb(0x871) >> 4) & 0x7; */
 	/* plp_num = dvbt_t2_rdb(0x805); */

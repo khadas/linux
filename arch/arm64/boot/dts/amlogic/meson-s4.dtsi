@@ -1939,7 +1939,7 @@
 		};
 	};
 
-	dtvdemod_if_agc_pins: dtvdemod_agc_pins {
+	dtvdemod_if_agc_pins: dtvdemod_if_agc_pins {
 		mux {
 			groups = "dtv_a_if_agc_z6",
 				"dtv_b_if_agc";
