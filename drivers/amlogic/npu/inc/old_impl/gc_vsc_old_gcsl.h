@@ -142,10 +142,17 @@ BEGIN_EXTERN_C()
 
 /* bump up version to 1.49 for supporting textureSize function for more sampler type 5/20/2020 */
 /* bump up version to 1.50 for adding a new variable tcsHasNoPerVertexAttribute in hints 06/03/2020 */
+/* bump up version to 1.51 for modifying the constant border value 07/14/2020 */
+/* bump up version to 1.52 for adding OCL fma intrinsic function when HW support is not available 07/17/2020 */
+/* bump up version to 1.53 for adding OCL dual16 check in hints 07/17/2020 */
+/* bump up version to 1.54 for adding a new _viv_image_load_uimage_1d_rg32ui, iimage_1d_rg32i, uimage_3d_rg32ui, iimage_3d_rg32i libfunction 24/08/2020 */
+
+/* bump up version to 1.55 for saving shaderKind and swizzle of uniform to gcSHADER on 09/09/2020 */
+/* bump up version to 1.56 for refine save and load inputLocation and outputLocation in gcSHADER on 09/22/2020 */
 
 /* current version */
-#define gcdSL_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 51)
-#define gcdSL_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 51)
+#define gcdSL_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 57)
+#define gcdSL_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 57)
 
 typedef union _gcsValue
 {
@@ -226,6 +233,7 @@ gceFRAGOUT_USAGE;
 #define _SHADER_DX_VERSION_30     gcmCC('\3', '\0', '\0', '\0')
 #define _cldCL1Dot1               gcmCC('\0', '\0', '\0', '\1')
 #define _cldCL1Dot2               gcmCC('\0', '\0', '\2', '\1')
+#define _cldCL3Dot0               gcmCC('\0', '\0', '\0', '\3')
 #define _SHADER_GL10_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\0', '\1')
 #define _SHADER_GL11_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\1', '\1')
 #define _SHADER_GL12_VERSION      gcmCC('\0', _SHADER_GL_VERSION_SIG, '\2', '\1')
@@ -1099,7 +1107,6 @@ typedef enum _gcSHADER_VAR_CATEGORY
     gcSHADER_VAR_CATEGORY_GLOBAL_INVOCATION_ID_OFFSET, /* the globalId offset, for multi-GPU only. */
     gcSHADER_VAR_CATEGORY_VIEW_INDEX,
     gcSHADER_VAR_CATEGORY_CLIP_DISTANCE_ENABLE,
-    gcSHADER_VAR_CATEGORY_THREAD_ID_MEM_ADDR,
 }
 gcSHADER_VAR_CATEGORY;
 
@@ -1264,6 +1271,8 @@ typedef enum _gceUNIFORM_FLAGS
     gcvUNIFORM_KIND_TEMP_REG_SPILL_ADDRESS      = 22,
     gcvUNIFORM_KIND_GLOBAL_WORK_SCALE           = 23,
     gcvUNIFORM_KIND_NUM_GROUPS_FOR_SINGLE_GPU   = 24,
+    gcvUNIFORM_KIND_THREAD_ID_MEM_ADDR          = 25,
+    gcvUNIFORM_KIND_ENQUEUED_LOCAL_SIZE         = 26,
 
     /* Use this to check if this flag is a special uniform kind. */
     gcvUNIFORM_FLAG_SPECIAL_KIND_MASK           = 0x1F,
@@ -1309,6 +1318,7 @@ gceUNIFORM_FLAGS;
                                      (k) == gcvUNIFORM_KIND_KERNEL_ARG_LOCAL_MEM_SIZE || \
                                      (k) == gcvUNIFORM_KIND_GLOBAL_SIZE               || \
                                      (k) == gcvUNIFORM_KIND_LOCAL_SIZE                || \
+                                     (k) == gcvUNIFORM_KIND_ENQUEUED_LOCAL_SIZE       || \
                                      (k) == gcvUNIFORM_KIND_NUM_GROUPS                || \
                                      (k) == gcvUNIFORM_KIND_GLOBAL_OFFSET             || \
                                      (k) == gcvUNIFORM_KIND_WORK_DIM                  || \
@@ -1355,6 +1365,7 @@ gceUNIFORM_FLAGS;
 #define isUniformWorkDim(u)                  (GetUniformKind(u) == gcvUNIFORM_KIND_WORK_DIM)
 #define isUniformGlobalSize(u)               (GetUniformKind(u) == gcvUNIFORM_KIND_GLOBAL_SIZE)
 #define isUniformLocalSize(u)                (GetUniformKind(u) == gcvUNIFORM_KIND_LOCAL_SIZE)
+#define isUniformEnqueuedLocalSize(u)        (GetUniformKind(u) == gcvUNIFORM_KIND_ENQUEUED_LOCAL_SIZE)
 #define isUniformNumGroups(u)                (GetUniformKind(u) == gcvUNIFORM_KIND_NUM_GROUPS)
 #define isUniformNumGroupsForSingleGPU(u)    (GetUniformKind(u) == gcvUNIFORM_KIND_NUM_GROUPS_FOR_SINGLE_GPU)
 #define isUniformGlobalOffset(u)             (GetUniformKind(u) == gcvUNIFORM_KIND_GLOBAL_OFFSET)
@@ -1374,6 +1385,7 @@ gceUNIFORM_FLAGS;
 #define isUniformWorkItemPrintfBufferSize(u) (GetUniformKind(u) == gcvUNIFORM_KIND_WORKITEM_PRINTF_BUFFER_SIZE)
 #define isUniformTempRegSpillAddress(u)      (GetUniformKind(u) == gcvUNIFORM_KIND_TEMP_REG_SPILL_ADDRESS)
 #define isUniformGlobalWorkScale(u)          (GetUniformKind(u) == gcvUNIFORM_KIND_GLOBAL_WORK_SCALE)
+#define isUniformThreadIdMemAddr(u)          (GetUniformKind(u) == gcvUNIFORM_KIND_THREAD_ID_MEM_ADDR)
 
 #define hasUniformKernelArgKind(u)          (isUniformKernelArg(u)  ||       \
                                              isUniformKernelArgLocal(u) ||   \
@@ -1438,7 +1450,6 @@ gceUNIFORM_FLAGS;
 #define isUniformGlobalInvocationIdOffset(u)((u)->_varCategory == gcSHADER_VAR_CATEGORY_GLOBAL_INVOCATION_ID_OFFSET)
 #define isUniformViewIndex(u)               ((u)->_varCategory == gcSHADER_VAR_CATEGORY_VIEW_INDEX)
 #define isUniformClipDistanceEnable(u)      ((u)->_varCategory == gcSHADER_VAR_CATEGORY_CLIP_DISTANCE_ENABLE)
-#define isUniformThreadIdMemAddr(u)         ((u)->_varCategory == gcSHADER_VAR_CATEGORY_THREAD_ID_MEM_ADDR)
 
 #define isUniformBasicType(u)               (isUniformNormal((u))                   || \
                                              isUniformBlockMember((u))              || \
@@ -1547,7 +1558,11 @@ typedef enum _gceBuiltinNameKind
     gcSL_MULTI_TEX_COORD_6      = -54, /* gl_MultiTexCoord6 */
     gcSL_MULTI_TEX_COORD_7      = -55, /* gl_MultiTexCoord7 */
     gcSL_CLIP_VERTEX            = -56, /* gl_ClipVertex */
-    gcSL_BUILTINNAME_COUNT      = 57
+    gcSL_FRONT_COLOR_IN            = -57,
+    gcSL_BACK_COLOR_IN             = -58,
+    gcSL_FRONT_SECONDARY_COLOR_IN  = -59,
+    gcSL_BACK_SECONDARY_COLOR_IN   = -60,
+    gcSL_BUILTINNAME_COUNT      = 61
 } gceBuiltinNameKind;
 
 /* Special code generation indices. */
@@ -2865,6 +2880,12 @@ typedef struct _gcBINARY_UNIFORM
     /* uniform flags */
     char                            flags[sizeof(gceUNIFORM_FLAGS)];
 
+    /* Physically assigned values. */
+    gctUINT8                        swizzle;
+
+    /* Shader type for this uniform. Set this at the end of link. */
+    gcSHADER_KIND                   shaderKind;
+
     /* Corresponding Index of Program's GLUniform */
     gctINT16                        glUniformIndex;
 
@@ -3709,7 +3730,8 @@ typedef enum _gceFUNCTION_FLAG
   gcvFUNC_PARAM_AS_IMG_SOURCE0  = 0x10000, /* Use parameter as source0 of a IMG op. */
   gcvFUNC_USING_SAMPLER_VIRTUAL = 0x20000, /* Use sampler virtual instructions, like get_sampler_lmm or get_sampler_lbs. */
   gcvFUNC_HAS_TEMPREG_BIGGAP    = 0x40000, /* the function has big gap in temp ergister due to called be inlined first */
-  gcvFUNC_NOT_USED              = 0x80000, /* the function is not used the sahder, do not convert to VIR */
+  gcvFUNC_HAS_INT64             = 0x80000, /* the function has long/ulong types */
+  gcvFUNC_NOT_USED              = 0x100000, /* the function is not used the sahder, do not convert to VIR */
 } gceFUNCTION_FLAG;
 
 typedef enum _gceINTRINSICS_KIND
@@ -3912,6 +3934,7 @@ struct _gcsFUNCTION
 #define IsFunctionParamAsImgSource0(f)              (((f)->flags & gcvFUNC_PARAM_AS_IMG_SOURCE0) != 0)
 #define IsFunctionUsingSamplerVirtual(f)            (((f)->flags & gcvFUNC_USING_SAMPLER_VIRTUAL) != 0)
 #define IsFunctionHasBigGapInTempReg(f)             (((f)->flags & gcvFUNC_HAS_TEMPREG_BIGGAP) != 0)
+#define IsFunctionHasInt64(f)                       (((f)->flags & gcvFUNC_HAS_INT64) != 0)
 #define IsFunctionNotUsed(f)                        (((f)->flags & gcvFUNC_NOT_USED) != 0)
 
 #define SetFunctionRecompiler(f)                    if (f != gcvNULL) { (f)->flags |= gcvFUNC_RECOMPILER; }
@@ -3919,6 +3942,8 @@ struct _gcsFUNCTION
 #define SetFunctionHasSamplerIndexing(f)            if (f != gcvNULL) { (f)->flags |= gcvFUNC_HAS_SAMPLER_INDEXINED; }
 #define SetFunctionParamAsImgSource0(f)             if (f != gcvNULL) { (f)->flags |= gcvFUNC_PARAM_AS_IMG_SOURCE0; }
 #define SetFunctionUsingSamplerVirtual(f)           if (f != gcvNULL) { (f)->flags |= gcvFUNC_USING_SAMPLER_VIRTUAL; }
+#define SetFunctionHasInt64(f)                      if (f != gcvNULL) { (f)->flags |= gcvFUNC_HAS_INT64; }
+#define SetFunctionNotUsed(f)                       if (f != gcvNULL) { (f)->flags |= gcvFUNC_NOT_USED; }
 #define SetFunctionNotUsed(f)                       if (f != gcvNULL) { (f)->flags |= gcvFUNC_NOT_USED; }
 
 /* Same structure, but inside a binary.
@@ -4282,6 +4307,7 @@ typedef enum _gcSHADER_FLAGS
     gcSHADER_FLAG_GENERATED_OFFLINE_COMPILER= 0x4000000, /* whether enable offline compile. */
     gcSHADER_FLAG_COMPATIBILITY_PROFILE     = 0x8000000, /* the shader version is compatibility profile for OGL.*/
     gcSHADER_FLAG_USE_CONST_REG_FOR_UBO     = 0x10000000, /* Use constant register to save the UBO.*/
+    gcSHADER_FLAG_HAS_CL_KHR_FP16_EXTENSION = 0x20000000, /* the shader has OCL extension cl-khr-fp16 enabled */
 } gcSHADER_FLAGS;
 
 #define gcShaderIsOldHeader(Shader)             (((Shader)->flags & gcSHADER_FLAG_OLDHEADER) != 0)
@@ -4301,6 +4327,7 @@ typedef enum _gcSHADER_FLAGS
 #define gcShaderHasImageQuery(Shader)           (((Shader)->flags & gcSHADER_FLAG_HAS_IMAGE_QUERY) != 0)
 #define gcShaderHasVivVxExtension(Shader)       (((Shader)->flags & gcSHADER_FLAG_HAS_VIV_VX_EXTENSION) != 0)
 #define gcShaderHasVivGcslDriverImage(Shader)   (((Shader)->flags & gcSHADER_FLAG_HAS_VIV_GCSL_DRIVER_IMAGE) != 0)
+#define gcShaderHasClKhrFp16Extension(Shader)   (((Shader)->flags & gcSHADER_FLAG_HAS_CL_KHR_FP16_EXTENSION) != 0)
 #define gcShaderUseLocalMem(Shader)             (((Shader)->flags & gcSHADER_FLAG_USE_LOCAL_MEM) != 0)
 #define gcShaderVPTwoSideEnable(Shader)         (((Shader)->flags & gcSHADER_FLAG_VP_TWO_SIDE_ENABLE) != 0)
 #define gcShaderClampOutputColor(Shader)        (((Shader)->flags & gcSHADER_FLAG_CLAMP_OUTPUT_COLOR) != 0)
@@ -4344,6 +4371,8 @@ typedef enum _gcSHADER_FLAGS
 #define gcShaderClrHasVivVxExtension(Shader)    do { (Shader)->flags &= ~gcSHADER_FLAG_HAS_VIV_VX_EXTENSION; } while (0)
 #define gcShaderSetHasVivGcslDriverImage(Shader)    do { (Shader)->flags |= gcSHADER_FLAG_HAS_VIV_GCSL_DRIVER_IMAGE; } while (0)
 #define gcShaderClrHasVivGcslDriverImage(Shader)    do { (Shader)->flags &= ~gcSHADER_FLAG_HAS_VIV_GCSL_DRIVER_IMAGE; } while (0)
+#define gcShaderSetHasClKhrFp16Extension(Shader)    do { (Shader)->flags |= gcSHADER_FLAG_HAS_CL_KHR_FP16_EXTENSION; } while (0)
+#define gcShaderClrHasClKhrFp16Extension(Shader)    do { (Shader)->flags &= ~gcSHADER_FLAG_HAS_CL_KHR_FP16_EXTENSION; } while (0)
 #define gcShaderSetVPTwoSideEnable(Shader)      do { (Shader)->flags |= gcSHADER_FLAG_VP_TWO_SIDE_ENABLE; } while (0)
 #define gcShaderClrVPTwoSideEnable(Shader)      do { (Shader)->flags &= ~gcSHADER_FLAG_VP_TWO_SIDE_ENABLE; } while (0)
 #define gcShaderSetClampOutputColor(Shader)     do { (Shader)->flags |= gcSHADER_FLAG_CLAMP_OUTPUT_COLOR; } while (0)

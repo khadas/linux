@@ -980,12 +980,25 @@ gckVIDMEM_AllocateVirtual(
     }
 
     /* Allocate the virtual memory. */
-    gcmkONERROR(
-        gckOS_AllocatePagedMemory(os,
-                                  Flag,
-                                  &node->Virtual.bytes,
-                                  &node->Virtual.gid,
-                                  &node->Virtual.physical));
+    if (Flag & gcvALLOC_FLAG_CONTIGUOUS)
+    {
+        gcmkONERROR_EX(
+            gckOS_AllocatePagedMemory(os,
+                                      Flag,
+                                      &node->Virtual.bytes,
+                                      &node->Virtual.gid,
+                                      &node->Virtual.physical),
+                                      gcvSTATUS_OUT_OF_MEMORY);
+    }
+    else
+    {
+        gcmkONERROR(
+            gckOS_AllocatePagedMemory(os,
+                                      Flag,
+                                      &node->Virtual.bytes,
+                                      &node->Virtual.gid,
+                                      &node->Virtual.physical));
+    }
 
     /* Calculate required GPU page (4096) count. */
     /* Assume start address is 4096 aligned. */
@@ -1301,8 +1314,22 @@ _ConvertPhysical(
     else
     {
         gctBOOL flatMapped;
+        gctSIZE_T bytes = 1;
 
-        gcmkONERROR(gckMMU_IsFlatMapped(Kernel->mmu, physical, gcvINVALID_ADDRESS, &flatMapped));
+        if (Node)
+        {
+            bytes = Node->Virtual.bytes;
+        }
+        else if (VidMemBlock)
+        {
+            bytes = VidMemBlock->bytes;
+        }
+        else
+        {
+            gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+        }
+
+        gcmkONERROR(gckMMU_IsFlatMapped(Kernel->mmu, physical, gcvINVALID_ADDRESS, bytes, &flatMapped));
 
         if (!flatMapped)
         {
@@ -1507,12 +1534,13 @@ gckVIDMEM_BLOCK_Construct(
     }
 
     /* Alloc 1M page size aligned memory block. */
-    gcmkONERROR(
+    gcmkONERROR_EX(
         gckOS_AllocatePagedMemory(os,
                                   Flag,
                                   &BlockSize,
                                   &vidMemBlock->gid,
-                                  &vidMemBlock->physical));
+                                  &vidMemBlock->physical),
+                                  gcvSTATUS_OUT_OF_MEMORY);
 
     /* Map current hardware mmu table with 1M pages for this video memory block. */
     gcmkONERROR(gckVIDMEM_MapVidMemBlock(Kernel, vidMemBlock));
@@ -1658,7 +1686,8 @@ _AllocateVirtualChunk(
     node = _FindVirtualChunkNode(Kernel, VidMemBlock, bytes);
     if (node == gcvNULL)
     {
-        gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
+        status = gcvSTATUS_OUT_OF_MEMORY;
+        goto OnError;
     }
 
     if (node->VirtualChunk.bytes > bytes)
@@ -1718,7 +1747,7 @@ gckVIDMEM_AllocateVirtualChunk(
     gcmkVERIFY_OBJECT(os, gcvOBJ_OS);
 
     /* Acquire the vidMem block mutex */
-    gcmkONERROR(gckOS_AcquireMutex(Kernel->os, Kernel->vidMemBlockMutex, gcvINFINITE));
+    gcmkONERROR(gckOS_AcquireMutex(os, Kernel->vidMemBlockMutex, gcvINFINITE));
     acquired = gcvTRUE;
 
     /* Find the free vidmem block. */
@@ -1728,29 +1757,31 @@ gckVIDMEM_AllocateVirtualChunk(
         /* Not found, construct new block. */
         blockSize = gcmALIGN(Bytes, gcd1M_PAGE_SIZE);
 
-        gcmkONERROR(
+        gcmkONERROR_EX(
             gckVIDMEM_BLOCK_Construct(Kernel,
                                       blockSize,
                                       Type,
                                       Flag,
-                                      &vidMemBlock));
+                                      &vidMemBlock),
+                                      gcvSTATUS_OUT_OF_MEMORY);
 
         gcmkONERROR(_AddToBlockList(Kernel, vidMemBlock));
     }
 
     /* Allocate virtual chunk node in the found block. */
-    gcmkONERROR(
+    gcmkONERROR_EX(
         _AllocateVirtualChunk(Kernel,
                               vidMemBlock,
                               Type,
                               &Bytes,
-                              &node));
+                              &node),
+                              gcvSTATUS_OUT_OF_MEMORY);
 
     /* Return pointer to the gcuVIDMEM_NODE union. */
     *Node = node;
 
     /* Release the vidMem block mutex. */
-    gcmkVERIFY_OK(gckOS_ReleaseMutex(Kernel->os, Kernel->vidMemBlockMutex));
+    gcmkVERIFY_OK(gckOS_ReleaseMutex(os, Kernel->vidMemBlockMutex));
 
     gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_VIDMEM,
                    "Created virtual node 0x%x for %u bytes @ 0x%x",
@@ -1764,7 +1795,7 @@ OnError:
     if (acquired)
     {
         /* Release the vidMem block mutex. */
-        gcmkVERIFY_OK(gckOS_ReleaseMutex(Kernel->os, Kernel->vidMemBlockMutex));
+        gcmkVERIFY_OK(gckOS_ReleaseMutex(os, Kernel->vidMemBlockMutex));
     }
 
     /* Return the status. */
@@ -2118,12 +2149,7 @@ gckVIDMEM_Lock(
     OUT gctUINT32 * Address
     )
 {
-    gckOS os;
-
     gcmkHEADER_ARG("Kernel=%p Node=%p", Kernel, Node);
-
-    /* Extract the gckOS object pointer. */
-    os = Kernel->os;
 
     /* Increment the lock count. */
     if (Node->VidMem.locked++ == 0)
@@ -2894,9 +2920,6 @@ gckVIDMEM_NODE_Construct(
 
     node->metadata.magic = VIV_VIDMEM_METADATA_MAGIC;
     node->metadata.ts_fd = -1;
-#ifdef gcdANDROID
-    node->metadata.ts_address = 0;
-#endif
 
     node->node = VideoNode;
     node->transitNode = gcvNULL;
@@ -2989,7 +3012,7 @@ gckVIDMEM_NODE_AllocateLinear(
         Flag |= gcvALLOC_FLAG_CONTIGUOUS;
     }
 
-    gcmkONERROR(
+    gcmkONERROR_EX(
         gckVIDMEM_AllocateLinear(Kernel,
                                  VideoMemory,
                                  bytes,
@@ -2997,7 +3020,8 @@ gckVIDMEM_NODE_AllocateLinear(
                                  Type,
                                  Flag,
                                  Specified,
-                                 &node));
+                                 &node),
+                                 gcvSTATUS_OUT_OF_MEMORY);
 
     /* Update pool. */
     node->VidMem.pool = Pool;
@@ -3062,8 +3086,16 @@ gckVIDMEM_NODE_AllocateVirtual(
     gcmkHEADER_ARG("Kernel=%p Pool=%d Type=%d Flag=%x *Bytes=%u",
                    Kernel, Pool, Type, Flag, bytes);
 
-    gcmkONERROR(
-        gckVIDMEM_AllocateVirtual(Kernel, Flag, bytes, &node));
+    if (Flag & gcvALLOC_FLAG_CONTIGUOUS)
+    {
+        gcmkONERROR_EX(
+            gckVIDMEM_AllocateVirtual(Kernel, Flag, bytes, &node), gcvSTATUS_OUT_OF_MEMORY);
+    }
+    else
+    {
+        gcmkONERROR(
+            gckVIDMEM_AllocateVirtual(Kernel, Flag, bytes, &node));
+    }
 
     /* Update type. */
     node->Virtual.type = Type;
@@ -3107,8 +3139,9 @@ gckVIDMEM_NODE_AllocateVirtualChunk(
     gcmkHEADER_ARG("Kernel=%p Pool=%d Type=%d Flag=%x *Bytes=%u",
                    Kernel, Pool, Type, Flag, bytes);
 
-    gcmkONERROR(
-        gckVIDMEM_AllocateVirtualChunk(Kernel, Type, Flag, bytes, &node));
+    gcmkONERROR_EX(
+        gckVIDMEM_AllocateVirtualChunk(Kernel, Type, Flag, bytes, &node),
+        gcvSTATUS_OUT_OF_MEMORY);
 
     bytes = node->VirtualChunk.bytes;
 
@@ -4021,6 +4054,12 @@ static void _dmabuf_release(struct dma_buf *dmabuf)
 {
     gckVIDMEM_NODE nodeObject = dmabuf->priv;
 
+    if (nodeObject->metadata.ts_dma_buf)
+    {
+        dma_buf_put(nodeObject->metadata.ts_dma_buf);
+        nodeObject->metadata.ts_dma_buf = NULL;
+    }
+
     gcmkVERIFY_OK(gckVIDMEM_NODE_Dereference(nodeObject->kernel, nodeObject));
 }
 
@@ -4435,17 +4474,26 @@ gckVIDMEM_NODE_WrapUserMemory(
 
             dma_buf_put(dmabuf);
         }
-        else
+        else if (fd == -1)
         {
-            if (!Desc->dmabuf)
+            /* It is called by our kernel drm driver. */
+
+            if (IS_ERR(gcmUINT64_TO_PTR(Desc->dmabuf)))
             {
-                gcmkPRINT("Wrap user memory: invalid dmabuf from user.\n");
+                gcmkPRINT("Wrap memory: invalid dmabuf from kernel.\n");
 
                 gcmkFOOTER();
                 return gcvSTATUS_INVALID_ARGUMENT;
             }
 
             dmabuf = gcmUINT64_TO_PTR(Desc->dmabuf);
+        }
+        else
+        {
+            gcmkPRINT("Wrap memory: invalid dmabuf fd.\n");
+
+            gcmkFOOTER();
+            return gcvSTATUS_INVALID_ARGUMENT;
         }
 
         if (dmabuf->ops == &_dmabuf_ops)

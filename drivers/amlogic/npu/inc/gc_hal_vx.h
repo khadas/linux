@@ -116,6 +116,10 @@ gcoVX_BindUniform(
     IN gctUINT32            Num
     );
 
+gceSTATUS gcoVX_GetUniformBase(
+    IN gctUINT32 *hwConstRegAddress
+    );
+
 gceSTATUS
     gcoVX_SetImageInfo(
     IN  gcUNIFORM,
@@ -208,11 +212,12 @@ gceSTATUS
 gcoVX_TriggerAccelerator(
     IN gctUINT32              CmdAddress,
     IN gceVX_ACCELERATOR_TYPE Type,
+    IN gctBOOL                tpLiteSupport,
     IN gctUINT32              EventId,
+    IN gctUINT32              noFlush,
     IN gctBOOL                waitEvent,
-    IN gctUINT32              gpuId,
-    IN gctBOOL                sync,
-    IN gctUINT32              syncEventID
+    IN gctUINT32              coreId,
+    IN gctBOOL                coreSync
     );
 
 gceSTATUS
@@ -369,6 +374,10 @@ gceSTATUS gcoVX_GetEvisNoInstFeatureCap(
 
 gceSTATUS gcoVX_MultiGPUSync(
     OUT gctUINT32_PTR *Memory
+    );
+
+gceSTATUS gcoVX_QueryNNClusters(
+    OUT gctUINT32 *Clusters
     );
 
 #ifdef __cplusplus

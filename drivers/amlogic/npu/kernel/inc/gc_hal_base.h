@@ -104,11 +104,6 @@ typedef struct _gcsUSER_MEMORY_DESC *   gcsUSER_MEMORY_DESC_PTR;
 typedef struct _gcsNN_FIXED_FEATURE
 {
     gctUINT  vipCoreCount;
-    gctUINT  nnCoreCount;           /* total nn core count */
-    gctUINT  nnCoreCountInt8;       /* total nn core count supporting int8 */
-    gctUINT  nnCoreCountInt16;      /* total nn core count supporting int16 */
-    gctUINT  nnCoreCountFloat16;    /* total nn core count supporting float16 */
-    gctUINT  nnCoreCountBFloat16;    /* total nn core count supporting Bfloat16 */
     gctUINT  nnMadPerCore;
     gctUINT  nnInputBufferDepth;
     gctUINT  nnAccumBufferDepth;
@@ -137,11 +132,27 @@ typedef struct _gcsNN_FIXED_FEATURE
     gctUINT  nnMaxKXSize;
     gctUINT  nnMaxKYSize;
     gctUINT  nnMaxKZSize;
+    gctUINT  nnClusterNumForPowerControl;
+
+    /* add related information for check in/out size */
+    gctUINT  outImageXStrideBits;
+    gctUINT  outImageYStrideBits;
+    gctUINT  inImageXStrideBits;
+    gctUINT  inImageYStrideBits;
+    gctUINT  outImageXSizeBits;
+    gctUINT  outImageYSizeBits;
+    gctUINT  inImageXSizeBits;
+    gctUINT  inImageYSizeBits;
 } gcsNN_FIXED_FEATURE;
 
 /* Features can be customized from outside */
 typedef struct _gcsNN_CUSTOMIZED_FEATURE
 {
+    gctUINT  nnCoreCount;           /* total nn core count */
+    gctUINT  nnCoreCountInt8;       /* total nn core count supporting int8 */
+    gctUINT  nnCoreCountInt16;      /* total nn core count supporting int16 */
+    gctUINT  nnCoreCountFloat16;    /* total nn core count supporting float16 */
+    gctUINT  nnCoreCountBFloat16;    /* total nn core count supporting Bfloat16 */
     gctUINT  vipSRAMSize;
     gctUINT  axiSRAMSize;
     gctFLOAT ddrReadBWLimit;
@@ -328,6 +339,8 @@ typedef struct _gcsTLS
     /* libGAL.so handle */
     gctHANDLE                   handle;
 
+    gctHANDLE                   graph;
+
     /* If true, do not releas 2d engine and hardware in hal layer */
     gctBOOL                     release2DUpper;
 
@@ -465,6 +478,13 @@ gcoHAL_GetProductName(
     );
 
 gceSTATUS
+gcoHAL_GetProductNameWithHardware(
+    IN  gcoHARDWARE Hardware,
+    OUT gctSTRING *ProductName,
+    OUT gctUINT *PID
+    );
+
+gceSTATUS
 gcoHAL_SetFscaleValue(
     IN gcoHAL Hal,
     IN gctUINT CoreIndex,
@@ -517,6 +537,12 @@ gcoHAL_IsFeatureAvailable(
     );
 
 gceSTATUS
+gcoHAL_IsFeatureAvailableWithHardware(
+    IN  gcoHARDWARE Hardware,
+    IN gceFEATURE Feature
+    );
+
+gceSTATUS
 gcoHAL_IsFeatureAvailable1(
     IN gcoHAL Hal,
     IN gceFEATURE Feature
@@ -530,6 +556,12 @@ gcoHAL_QueryChipIdentity(
     OUT gctUINT32* ChipRevision,
     OUT gctUINT32* ChipFeatures,
     OUT gctUINT32* ChipMinorFeatures
+    );
+
+gceSTATUS gcoHAL_QueryChipIdentityWithHardware(
+    IN  gcoHARDWARE Hardware,
+    OUT gceCHIPMODEL* ChipModel,
+    OUT gctUINT32* ChipRevision
     );
 
 gceSTATUS gcoHAL_QueryChipIdentityEx(
@@ -946,6 +978,16 @@ gcoHAL_LockVideoMemory(
     );
 
 gceSTATUS
+gcoHAL_LockVideoMemoryEx(
+    IN gctUINT32 Node,
+    IN gctBOOL Cacheable,
+    IN gceENGINE engine,
+    IN gceLOCK_VIDEO_MEMORY_OP Op,
+    OUT gctUINT32 * Address,
+    OUT gctPOINTER * Logical
+    );
+
+gceSTATUS
 gcoHAL_UnlockVideoMemory(
     IN gctUINT32 Node,
     IN gceVIDMEM_TYPE Type,
@@ -957,7 +999,8 @@ gcoHAL_UnlockVideoMemoryEX(
     IN gctUINT32 Node,
     IN gceVIDMEM_TYPE Type,
     IN gceENGINE Engine,
-    IN gctBOOL Sync
+    IN gctBOOL Sync,
+    IN gceLOCK_VIDEO_MEMORY_OP Op
     );
 
 gceSTATUS
@@ -1029,6 +1072,24 @@ gcoHAL_AlignToTile(
     IN OUT gctUINT32 * Height,
     IN  gceSURF_TYPE Type,
     IN  gceSURF_FORMAT Format
+    );
+
+gceSTATUS
+gcoHAL_GetLastCommitStatus(
+    IN gcoHAL Hal,
+    OUT gctBOOL * Pending
+    );
+
+gceSTATUS
+gcoHAL_SetLastCommitStatus(
+    IN gcoHAL Hal,
+    IN gctBOOL Pending
+    );
+
+gceSTATUS
+gcoHAL_IsFlatMapped(
+    IN gctPHYS_ADDR_T PhysicalAddress,
+    OUT gctUINT32 *Address
     );
 
 /******************************************************************************\
@@ -1566,6 +1627,7 @@ gceSTATUS
 gcoOS_SetProfileSetting(
         IN gcoOS Os,
         IN gctBOOL Enable,
+        IN gceProfilerMode ProfileMode,
         IN gctCONST_STRING FileName
         );
 #endif
@@ -2270,6 +2332,21 @@ gcoSURF_Construct(
     OUT gcoSURF * Surface
     );
 
+gceSTATUS
+gcoSURF_ConstructWithUserPool(
+    IN gcoHAL Hal,
+    IN gctUINT Width,
+    IN gctUINT Height,
+    IN gctUINT Depth,
+    IN gceSURF_TYPE Type,
+    IN gceSURF_FORMAT Format,
+    IN gctPOINTER TileStatusLogical,
+    IN gctPHYS_ADDR_T TileStatusPhysical,
+    IN gctPOINTER Logical,
+    IN gctPHYS_ADDR_T Physical,
+    OUT gcoSURF * Surface
+    );
+
 /* Destroy an gcoSURF object. */
 gceSTATUS
 gcoSURF_Destroy(
@@ -2524,6 +2601,12 @@ gcoSURF_ComputeColorMask(
 gceSTATUS
 gcoSURF_Flush(
     IN gcoSURF Surface
+    );
+
+gceSTATUS
+gcoSURF_3DBlitClearTileStatus(
+    IN gcsSURF_VIEW *SurfView,
+    IN gctBOOL ClearAsDirty
     );
 
 /* Fill surface from it's tile status buffer. */
@@ -4360,8 +4443,29 @@ gckOS_DebugStatus2Name(
         } \
     } \
     while (gcvFALSE)
+
+/* Ignore the debug info when the specific error occurs. */
+#define _gcmkONERROR_EX(prefix, func, error) \
+    do \
+    { \
+        status = func; \
+        if (gcmIS_ERROR(status)) \
+        { \
+            if (status != error) \
+            { \
+                prefix##PRINT_VERSION(); \
+                prefix##TRACE(gcvLEVEL_ERROR, \
+                    #prefix "ONERROR: status=%d(%s) @ %s(%d)", \
+                    status, gckOS_DebugStatus2Name(status), __FUNCTION__, __LINE__); \
+            } \
+            goto OnError; \
+        } \
+    } \
+    while (gcvFALSE)
+
 #define gcmONERROR(func)            _gcmONERROR(gcm, func)
 #define gcmkONERROR(func)           _gcmkONERROR(gcmk, func)
+#define gcmkONERROR_EX(func, error)        _gcmkONERROR_EX(gcmk, func, error)
 
 #define gcmGET_INDEX_SIZE(type, size) \
     switch (type) \
@@ -4646,6 +4750,14 @@ gckOS_DebugStatus2Name(
                 _gcmVERIFY_ARGUMENT_RETURN(gcm, arg, value)
 #   define gcmkVERIFY_ARGUMENT_RETURN(arg, value) \
                 _gcmVERIFY_ARGUMENT_RETURN(gcmk, arg, value)
+
+#define _gcmCHECK_ADD_OVERFLOW(x, y) \
+(\
+    ((x) > 0 && (y) > 0 && gcvMAXSIZE_T - (x) < (y)) ? gcvSTATUS_RESLUT_OVERFLOW : gcvSTATUS_OK \
+)
+
+#define gcmCHECK_ADD_OVERFLOW(x, y) _gcmCHECK_ADD_OVERFLOW(x, y)
+#define gcmkCHECK_ADD_OVERFLOW(x, y) _gcmCHECK_ADD_OVERFLOW(x, y)
 
 #define MAX_LOOP_COUNT 0x7FFFFFFF
 
@@ -5359,7 +5471,7 @@ gcoHAL_GetUserDebugOption(
     } \
 }
 #else
-#define gcmCONFIGUREUNIFORMS(ChipModel, ChipRevision, Halti5Avail, SmallBatch, NumConstants, \
+#define gcmCONFIGUREUNIFORMS(ChipModel, ChipRevision, Halti5Avail, SmallBatch, ComputeOnly, NumConstants, \
              UnifiedConst, VsConstBase, PsConstBase, VsConstMax, PsConstMax, ConstMax) \
 { \
     if (NumConstants > 256) \
@@ -5413,6 +5525,15 @@ gcoHAL_GetUserDebugOption(
             PsConstMax   = 256; \
             ConstMax     = 512; \
         } \
+    } \
+    else if (NumConstants == 160 && ComputeOnly) \
+    { \
+        UnifiedConst = gcvTRUE; \
+        VsConstBase  = 0xD000; \
+        PsConstBase  = 0xD800; \
+        VsConstMax   = 0; \
+        PsConstMax   = 160; \
+        ConstMax     = 160; \
     } \
     else \
     { \
@@ -5476,7 +5597,7 @@ gcoHAL_GetUserDebugOption(
     } \
 }
 #else
-#define gcmCONFIGUREUNIFORMS2(ChipModel, ChipRevision, Halti5Avail, SmallBatch, NumConstants, \
+#define gcmCONFIGUREUNIFORMS2(ChipModel, ChipRevision, Halti5Avail, SmallBatch, ComputeOnly, NumConstants, \
              UnifiedConst, VsConstMax, PsConstMax) \
 { \
     if (NumConstants > 256) \
@@ -5507,6 +5628,12 @@ gcoHAL_GetUserDebugOption(
             VsConstMax   = 256; \
             PsConstMax   = 256; \
         } \
+    } \
+    else if (NumConstants == 160 && ComputeOnly) \
+    { \
+        UnifiedConst = gcvTRUE; \
+        VsConstMax   = 0; \
+        PsConstMax   = 160; \
     } \
     else \
     { \

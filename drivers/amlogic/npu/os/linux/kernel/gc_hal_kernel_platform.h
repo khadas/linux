@@ -118,12 +118,12 @@ typedef struct _gcsMODULE_PARAMETERS
     gctINT                  fastClear;
     gceCOMPRESSION_OPTION   compression;
     gctUINT                 gpu3DMinClock;
-    gctUINT                 userClusterMask;
+    gctUINT                 userClusterMasks[gcdMAX_MAJOR_CORE_COUNT];
     gctUINT                 smallBatch;
 
     /* Debug or other information. */
     gctUINT                 stuckDump;
-    gctINT                  gpuProfiler;
+	gctINT                  gpuProfiler;
 
     /* device type, 0 for char device, 1 for misc device. */
     gctUINT                 deviceType;
@@ -136,6 +136,12 @@ typedef struct _gcsMODULE_PARAMETERS
     gctUINT                 allMapInOne;
 
     gctUINT                 isrPoll;
+
+    /* APB register offset to the register base address. */
+    gctUINT64               registerAPB;
+
+    /* Enabled NN clusters number */
+    gctUINT                 enableNN;
 }
 gcsMODULE_PARAMETERS;
 
@@ -338,6 +344,7 @@ typedef struct _gcsPLATFORM_OPERATIONS
         IN gcsPLATFORM *Platform,
         IN gctUINT32  powerLevel
         );
+
 /*******************************************************************************
 **
 **  _ExternalCacheOperation
@@ -345,7 +352,8 @@ typedef struct _gcsPLATFORM_OPERATIONS
 **  External device cache operation, if support. If the core has any additional caches
 **  they must be invalidated after this function returns. If the core does not
 **  have any addional caches the externalCacheOperation in the platform->ops should
-**  remain NULL.
+**  remain NULL. The function may be called by multiple thread, so need to add mutex
+**  in the callback when there is shared resource.
 **
 **  INPUT:
 **

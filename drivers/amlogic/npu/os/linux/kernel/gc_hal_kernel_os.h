@@ -111,6 +111,11 @@ struct _LINUX_MDL
 
     /* sub mdl list */
     struct list_head        rmaLink;
+
+    /* If it is wrapped node from logical. */
+    gctBOOL                 wrapFromLogical;
+    /* If it is wrapped node from physical. */
+    gctBOOL                 wrapFromPhysical;
 };
 
 extern PLINUX_MDL_MAP

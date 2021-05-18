@@ -2314,6 +2314,13 @@ _FuncRelease(
     for (i = 0; i < Execution->funcCmdCount; i++)
     {
         command = &Execution->funcCmd[i];
+        /*free golden*/
+#if gcdFLOP_RESET_DEBUG
+        if(command->golden)
+        {
+            gcmkVERIFY_OK(gckOS_Free(hardware->os, (gctPOINTER)command->golden));
+        }
+#endif
 
         /* Free data buffers. */
         if (command->data)
@@ -2411,6 +2418,56 @@ _FuncExecute(IN gcsFUNCTION_EXECUTION_PTR Execution)
 }
 
 static gceSTATUS
+_FuncExecute_FLOPRESET(IN gcsFUNCTION_EXECUTION_PTR Execution)
+{
+#if gcdENABLE_FLOP_RESET_DEBUG
+    gctUINT32 i = 0, j = 0, minus_flag = 0;
+#endif
+
+    gceSTATUS status = gckHARDWARE_ExecuteFunctions(Execution);
+#if gcdENABLE_FLOP_RESET_DEBUG && gcdFLOP_RESET_PPU
+    minus_flag += 1;
+#endif
+
+    //check output;
+#if gcdENABLE_FLOP_RESET_DEBUG
+    for (i  = 0; i < Execution->funcCmdCount - minus_flag; i++)
+    {
+        //ignore PPU
+        gcmkPRINT("outSizeBytes is : %d", Execution->funcCmd[i].outSize);
+        for(j = 0; j < Execution->funcCmd[i].outSize; j++ )
+        {
+            if(((char*)(Execution->funcCmd[i].golden))[j] != ((char*)(Execution->funcCmd[i].outlogical))[j])
+            {
+                if(i == 0)
+                {
+                    gcmkPRINT("NN workaround verify failed!");
+                    return status;
+                }
+                else if(i == 1)
+                {
+                    gcmkPRINT("TP workaround verify failed!");
+                    return status;
+                }
+            }
+        }
+        if(i == 0)
+        {
+            gcmkPRINT("top 2 outputBytes: %c, %c",((char*)(Execution->funcCmd[i].outlogical))[0], ((char*)(Execution->funcCmd[i].outlogical))[1]);
+            gcmkPRINT("top 2 goldenBytes: %c, %c",((char*)(Execution->funcCmd[i].golden))[0], ((char*)(Execution->funcCmd[i].golden))[1]);
+            //gcmkPRINT("when copmaring gloden address is %p", Execution->funcCmd[i].golden);
+            gcmkPRINT("NN workaround verify success!");
+        }
+        else
+        {
+            gcmkPRINT("TP workaround verify success!");
+        }
+    }
+#endif
+
+    return status;
+}
+static gceSTATUS
 _FuncValidate_MMU(IN gcsFUNCTION_EXECUTION_PTR Execution)
 {
     gckHARDWARE hardware = (gckHARDWARE)Execution->hardware;
@@ -2467,6 +2524,49 @@ _FuncRelease_MMU(IN gcsFUNCTION_EXECUTION_PTR Execution)
     return gcvSTATUS_OK;
 }
 
+gceSTATUS
+_QueryNNClusters(
+    gckHARDWARE Hardware,
+    gctUINT32 * Value
+    )
+{
+    gctUINT64 enableNN = 0xFF;
+    gctUINT32 value = 0;
+    gceSTATUS status = gcvSTATUS_OK;
+
+    if (gcmIS_SUCCESS(gckOS_QueryOption(Hardware->os, "enableNN", &enableNN)))
+    {
+        if (!enableNN)
+        {
+            value = 0x2;
+        }
+        else if (enableNN == 0xFF || (enableNN == Hardware->identity.nnClusterNum))
+        {
+            value = 0;
+        }
+        else
+        {
+            /* We only support maximum 8 clusters by current. */
+            if (enableNN > 0x7)
+            {
+                gcmkPRINT("[Galcore warning]: Invalid enableNN value is configured.");
+
+                gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+            }
+
+            value = (gctUINT32)enableNN + 0x2;
+        }
+    }
+
+    Hardware->options.enableNNClusters = (gctUINT32)enableNN;
+    Hardware->options.configNNPowerControl = value;
+
+    *Value = value;
+
+OnError:
+    return status;
+}
+
 static gceSTATUS
 _ProgramMMUStates(
     IN gckHARDWARE Hardware,
@@ -2483,6 +2583,7 @@ _ProgramMMUStates(
     gctUINT32_PTR buffer;
     gctBOOL ace;
     gctUINT32 reserveBytes = 0;
+    gctUINT32 nnConfig = 0;
 
     gctBOOL config2D;
 
@@ -2876,7 +2977,78 @@ _ProgramMMUStates(
  16:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
  16:16) - (0 ?
  16:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 16:16) - (0 ? 16:16) + 1))))))) << (0 ? 16:16)));
+ ~0U : (~(~0U << ((1 ? 16:16) - (0 ? 16:16) + 1))))))) << (0 ? 16:16))) |
+              ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 19:19) - (0 ?
+ 19:19) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 19:19) - (0 ?
+ 19:19) + 1))))))) << (0 ?
+ 19:19))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
+ 19:19) - (0 ?
+ 19:19) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 19:19) - (0 ? 19:19) + 1))))))) << (0 ? 19:19))) |
+              ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 22:22) - (0 ?
+ 22:22) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 22:22) - (0 ?
+ 22:22) + 1))))))) << (0 ?
+ 22:22))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
+ 22:22) - (0 ?
+ 22:22) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 22:22) - (0 ? 22:22) + 1))))))) << (0 ? 22:22)));
+
+        gcmkONERROR(_QueryNNClusters(Hardware, &nnConfig));
+
+        if (nnConfig)
+        {
+            *buffer++
+                = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1))))))) << (0 ?
+ 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
+                | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 15:0) - (0 ?
+ 15:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 15:0) - (0 ?
+ 15:0) + 1))))))) << (0 ?
+ 15:0))) | (((gctUINT32) ((gctUINT32) (0x0E4C) & ((gctUINT32) ((((1 ?
+ 15:0) - (0 ?
+ 15:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
+                | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 25:16) - (0 ?
+ 25:16) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 25:16) - (0 ?
+ 25:16) + 1))))))) << (0 ?
+ 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
+ 25:16) - (0 ?
+ 25:16) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
+
+            *buffer++
+                = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 11:8) - (0 ?
+ 11:8) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 11:8) - (0 ?
+ 11:8) + 1))))))) << (0 ?
+ 11:8))) | (((gctUINT32) ((gctUINT32) (nnConfig) & ((gctUINT32) ((((1 ?
+ 11:8) - (0 ?
+ 11:8) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 11:8) - (0 ? 11:8) + 1))))))) << (0 ? 11:8)));
+
+            reserveBytes += 8;
+        }
 
         do{*buffer++ = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  31:27) - (0 ?
@@ -3354,6 +3526,7 @@ _ProgramMMUStatesMCFE(
     gctUINT32_PTR buffer;
     gctBOOL ace;
     gctUINT32 reserveBytes = 0;
+    gctUINT32 nnConfig = 0;
 
     gcmkHEADER_ARG("Hardware=0x%x", Hardware);
 
@@ -3724,6 +3897,86 @@ _ProgramMMUStatesMCFE(
  ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)));
             }
         }
+
+        gcmkONERROR(_QueryNNClusters(Hardware, &nnConfig));
+
+        if (nnConfig)
+        {
+            if (Hardware->identity.customerID != 0x85)
+            {
+                gcmkPRINT("Galcore info: Don't set enableNN as this chip not support NN cluster power control!\n");
+                gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
+            }
+
+            *buffer++
+                = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1))))))) << (0 ?
+ 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
+                | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 15:0) - (0 ?
+ 15:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 15:0) - (0 ?
+ 15:0) + 1))))))) << (0 ?
+ 15:0))) | (((gctUINT32) ((gctUINT32) (0x0E4C) & ((gctUINT32) ((((1 ?
+ 15:0) - (0 ?
+ 15:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
+                | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 25:16) - (0 ?
+ 25:16) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 25:16) - (0 ?
+ 25:16) + 1))))))) << (0 ?
+ 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
+ 25:16) - (0 ?
+ 25:16) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
+
+            *buffer++
+                = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 11:8) - (0 ?
+ 11:8) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 11:8) - (0 ?
+ 11:8) + 1))))))) << (0 ?
+ 11:8))) | (((gctUINT32) ((gctUINT32) (nnConfig) & ((gctUINT32) ((((1 ?
+ 11:8) - (0 ?
+ 11:8) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 11:8) - (0 ? 11:8) + 1))))))) << (0 ? 11:8)));
+
+            *buffer++ = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1))))))) << (0 ?
+ 31:27))) | (((gctUINT32) (0x03 & ((gctUINT32) ((((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)));
+            *buffer++ = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1))))))) << (0 ?
+ 31:27))) | (((gctUINT32) (0x03 & ((gctUINT32) ((((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)));
+
+            reserveBytes += 16;
+        }
+
+
     }
 
     if (Bytes != gcvNULL)
@@ -3766,10 +4019,14 @@ _FuncInit_MMU(IN gcsFUNCTION_EXECUTION_PTR Execution)
     mode = gcvMMU_MODE_4K;
 #endif
 
+#if defined(CONFIG_ZONE_DMA32)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
     if (!gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_MMU_PAGE_DESCRIPTOR))
     {
         flags |= gcvALLOC_FLAG_4GB_ADDR;
     }
+#endif
+#endif
 
 #if gcdENABLE_CACHEABLE_COMMAND_BUFFER
     flags |= gcvALLOC_FLAG_CACHEABLE;
@@ -4514,6 +4771,19 @@ _FuncValidate_FlopReset(
     return status;
 }
 
+gceSTATUS gckFUNCTION_CheckCHIPID(
+    IN gcsFUNCTION_EXECUTION_PTR Execution
+    )
+{
+    gckHARDWARE hardware = (gckHARDWARE)Execution->hardware;
+    if( (hardware->identity.customerID == 0xb5) || (hardware->identity.customerID == 0x9f) || (hardware->identity.customerID == 0x99) ||
+        (hardware->identity.customerID == 0xa1) || (hardware->identity.customerID == 0x88) || (hardware->identity.customerID == 0x98))
+    {
+        return gcvSTATUS_TRUE;
+    }
+    return gcvSTATUS_FALSE;
+}
+
 static gceSTATUS
 _FuncInit_FlopReset(
     IN gcsFUNCTION_EXECUTION_PTR Execution
@@ -4532,14 +4802,8 @@ _FuncInit_FlopReset(
 
     Execution->funcCmdCount = 0;
 
-#if gcdFLOP_RESET_PPU
-    /* PPU is always there. */
-    doPPU = gcvTRUE;
-    Execution->funcCmdCount++;
-#endif
-
 #if gcdFLOP_RESET_NN
-    if (gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_NN_ENGINE) && (hardware->identity.customerID == 0x9f))
+    if ((gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_NN_ENGINE) && (hardware->identity.customerID == 0x9f)) || (gckFUNCTION_CheckCHIPID(Execution) && gcdENABLE_FLOP_RESET))
     {
         doNN = gcvTRUE;
         Execution->funcCmdCount++;
@@ -4547,11 +4811,17 @@ _FuncInit_FlopReset(
 #endif
 
 #if gcdFLOP_RESET_TP
-    if (gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_TP_ENGINE) && (hardware->identity.customerID == 0x9f))
+    if ((gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_NN_ENGINE) && (hardware->identity.customerID == 0x9f)) || (gckFUNCTION_CheckCHIPID(Execution) && gcdENABLE_FLOP_RESET))
     {
         doTP = gcvTRUE;
         Execution->funcCmdCount++;
     }
+#endif
+
+#if gcdFLOP_RESET_PPU
+    /* PPU is always there. */
+    doPPU = gcvTRUE;
+    Execution->funcCmdCount++;
 #endif
 
     if (!Execution->funcCmdCount)
@@ -4584,16 +4854,6 @@ _FuncInit_FlopReset(
     allocFlag = gcvALLOC_FLAG_CACHEABLE;
 #endif
 
-    if (doPPU)
-    {
-        gcmkONERROR(gckHARDWARE_ResetFlopWithPPU(
-            hardware,
-            allocFlag,
-            &pool,
-            &Execution->funcCmd[index++]
-            ));
-    }
-
     if (doNN)
     {
         gcmkONERROR(gckHARDWARE_ResetFlopWithNN(
@@ -4607,6 +4867,16 @@ _FuncInit_FlopReset(
     if (doTP)
     {
         gcmkONERROR(gckHARDWARE_ResetFlopWithTP(
+            hardware,
+            allocFlag,
+            &pool,
+            &Execution->funcCmd[index++]
+            ));
+    }
+
+    if (doPPU)
+    {
+        gcmkONERROR(gckHARDWARE_ResetFlopWithPPU(
             hardware,
             allocFlag,
             &pool,
@@ -11105,7 +11375,7 @@ gceSTATUS gckFUNCTION_Construct(IN         gctPOINTER Hardware)
             gckOS_MemCopy(func->funcName, "flop reset", 11);
             func->funcExecution.init = _FuncInit_FlopReset;
             func->funcExecution.validate = _FuncValidate_FlopReset;
-            func->funcExecution.execute = _FuncExecute;
+            func->funcExecution.execute = _FuncExecute_FLOPRESET;
             func->funcExecution.release = _FuncRelease;
             break;
 #else
@@ -11244,19 +11514,7 @@ gceSTATUS gckFUNCTION_Execute(IN gcsFUNCTION_EXECUTION_PTR Execution)
 
     if (Execution->inited && Execution->funcExecution.execute)
     {
-        gckHARDWARE hardware = (gckHARDWARE)Execution->hardware;
-
-        if (hardware->options.powerManagement && hardware->hasQchannel)
-        {
-            gcmkONERROR(gckHARDWARE_QchannelBypass(hardware, gcvTRUE));
-        }
-
         gcmkONERROR(Execution->funcExecution.execute(Execution));
-
-        if (hardware->options.powerManagement && hardware->hasQchannel)
-        {
-            gcmkONERROR(gckHARDWARE_QchannelBypass(hardware, gcvFALSE));
-        }
     }
     else
     {

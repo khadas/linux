@@ -199,6 +199,16 @@ This define enables the use of VM for gckCommand and fence buffers.
 #endif
 
 /*
+    gcdDUMP_TPNN_SUBCOMMAND
+
+        Dump for TP/NN command buffer
+        When set to 1, will dump TP/NN command buffer when GPU/VIP hang.
+*/
+#ifndef gcdDUMP_TPNN_SUBCOMMAND
+#   define gcdDUMP_TPNN_SUBCOMMAND              0
+#endif
+
+/*
     gcdDUMP_2D
 
         Dump for 2D capture.
@@ -677,11 +687,7 @@ This define enables the use of VM for gckCommand and fence buffers.
         When non-zero, all video memory will be bufferable by default.
 */
 #ifndef gcdENABLE_BUFFERABLE_VIDEO_MEMORY
-#if gcdFPGA_BUILD
-#   define gcdENABLE_BUFFERABLE_VIDEO_MEMORY           0
-#else
 #   define gcdENABLE_BUFFERABLE_VIDEO_MEMORY           1
-#endif
 #endif
 
 /*
@@ -754,6 +760,14 @@ This define enables the use of VM for gckCommand and fence buffers.
 #ifndef gcdSMALL_BLOCK_SIZE
 #   define gcdSMALL_BLOCK_SIZE                  4096
 #   define gcdRATIO_FOR_SMALL_MEMORY            32
+#endif
+
+/*
+    gcdENABLE_VIRTUAL_ADDR_UNMAP
+        enable virtual address unmap for the weight_bias and the virtual image
+*/
+#ifndef gcdENABLE_VIRTUAL_ADDRESS_UNMAP
+#   define gcdENABLE_VIRTUAL_ADDRESS_UNMAP      0
 #endif
 
 /*
@@ -1369,6 +1383,13 @@ This define enables the use of VM for gckCommand and fence buffers.
 #endif
 
 #define gcdHAL_TEST 1
+
+/*
+    gcdUSE_ZWP_SYNCHRONIZATION
+
+        When enabled, will use the zwp_linux_surface_synchronization path,
+        otherwise switch to old wayland path.
+ */
 #define gcdUSE_ZWP_SYNCHRONIZATION 1
 
 /*
@@ -1397,14 +1418,18 @@ This define enables the use of VM for gckCommand and fence buffers.
 #endif
 
 /*
-    gcdEXTERNAL_SRAM_DEFAULT_POOL
-        When enabled, external SRAM can be used for the initial command,
-        but the external SRAM base and size must be set by customer.
-        AXI-SRAM only can be used if pool type is speficied
-        with gcvSRAM_EXTERNAL[X] when allocating video memory.
+    gcdEXTERNAL_SRAM_USAGE
+        '0': User driver queries the whole external SRAM and manages the memory.
+             Or user driver dynamically allocate the external SRAM with pool type gcvPOOL_EXTERNAL_SRAM.
+
+        '1': External SRAM only can be used for the initial command,
+             but the external SRAM base and size must be set by customer.
+             And it only can be used if pool type is gcvPOOL_EXTERNAL_SRAM when allocating video memory.
+
+        '2': To be extended.
 */
-#ifndef gcdEXTERNAL_SRAM_DEFAULT_POOL
-#   define gcdEXTERNAL_SRAM_DEFAULT_POOL 0
+#ifndef gcdEXTERNAL_SRAM_USAGE
+#   define gcdEXTERNAL_SRAM_USAGE 0
 #endif
 
 /*
@@ -1416,6 +1441,18 @@ This define enables the use of VM for gckCommand and fence buffers.
 #   define gcdENABLE_SW_PREEMPTION 0
 #endif
 
+/*
+    gcdENABLE_PER_DEVICE_PM
+        Enable per device power management if set to 2, all the hardware cores will be one device.
+        Enable per user device power management if set to 1, the brother cores of a device depends on user driver.
+        Disable per device power mangement if set to 0.
+        Only support Linux OS currently.
+*/
+#ifndef gcdENABLE_PER_DEVICE_PM
+#   define gcdENABLE_PER_DEVICE_PM 0
+#endif
+
 #endif /* __gc_hal_options_h_ */
+
 
 

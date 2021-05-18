@@ -14,9 +14,6 @@
 #ifndef __gc_hal_types_shared_h_
 #define __gc_hal_types_shared_h_
 
-#include "gc_hal_version.h"
-#include "gc_hal_options.h"
-
 #if !defined(VIV_KMD)
 #if defined(__KERNEL__)
 #include "linux/version.h"
@@ -682,20 +679,48 @@ gcs2D_PROFILE;
 
 /*******************************************************************************
 **
-** gcmBSWAP32
+** gcmBSWAP16/32/64
 **
-**      Return a value with all bytes in the 32 bit argument swapped.
+**      Return a value with all bytes in the 16/32/64 bit argument swapped.
 */
 #if !defined(__KERNEL__) && defined(__GNUC__) && (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__ >= 40300) \
    && !defined(__VXWORKS__)
+#  define gcmBSWAP16(x)     __builtin_bswap16(x)
 #  define gcmBSWAP32(x)     __builtin_bswap32(x)
+#  define gcmBSWAP64(x)     __builtin_bswap64(x)
 #else
+#  define gcmBSWAP16(x) ((gctUINT16)(\
+        (((gctUINT16)(x) & (gctUINT16)0x00FF) << 8)  | \
+        (((gctUINT16)(x) & (gctUINT16)0xFF00) >> 8)))
+
 #  define gcmBSWAP32(x) ((gctUINT32)(\
-        (((gctUINT32)(x) & (gctUINT32)0x000000FFUL) << 24) | \
-        (((gctUINT32)(x) & (gctUINT32)0x0000FF00UL) << 8)  | \
-        (((gctUINT32)(x) & (gctUINT32)0x00FF0000UL) >> 8)  | \
-        (((gctUINT32)(x) & (gctUINT32)0xFF000000UL) >> 24)))
+        (((gctUINT32)(x) & (gctUINT32)0x000000FFU) << 24) | \
+        (((gctUINT32)(x) & (gctUINT32)0x0000FF00U) << 8)  | \
+        (((gctUINT32)(x) & (gctUINT32)0x00FF0000U) >> 8)  | \
+        (((gctUINT32)(x) & (gctUINT32)0xFF000000U) >> 24)))
+
+#  define gcmBSWAP64(x) ((gctUINT64)(\
+        (((gctUINT64)(x) & (gctUINT64)0x00000000000000FFULL) << 56) | \
+        (((gctUINT64)(x) & (gctUINT64)0x000000000000FF00ULL) << 40) | \
+        (((gctUINT64)(x) & (gctUINT64)0x0000000000FF0000ULL) << 24) | \
+        (((gctUINT64)(x) & (gctUINT64)0x00000000FF000000ULL) << 8 ) | \
+        (((gctUINT64)(x) & (gctUINT64)0x000000FF00000000ULL) >> 8 ) | \
+        (((gctUINT64)(x) & (gctUINT64)0x0000FF0000000000ULL) >> 24) | \
+        (((gctUINT64)(x) & (gctUINT64)0x00FF000000000000ULL) >> 40) | \
+        (((gctUINT64)(x) & (gctUINT64)0xFF00000000000000ULL) >> 56)))
 #endif
+
+/*******************************************************************************
+**
+** gcmBSWAP16IN32
+**
+**      Return a value with every 16 bit swapped of a 32 bit data type.
+*/
+#  define gcmBSWAP16IN32(x) ((gctUINT32)(\
+        (((gctUINT32)(x) & (gctUINT32)0x000000FFU) << 8)  | \
+        (((gctUINT32)(x) & (gctUINT32)0x0000FF00U) >> 8)  | \
+        (((gctUINT32)(x) & (gctUINT32)0x00FF0000U) << 8)  | \
+        (((gctUINT32)(x) & (gctUINT32)0xFF000000U) >> 8)))
 
 /*******************************************************************************
 ***** Database ****************************************************************/

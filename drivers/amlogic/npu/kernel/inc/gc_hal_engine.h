@@ -78,6 +78,7 @@ typedef struct _gcsSURF_RESOLVE_ARGS
             gctBOOL   directCopy;
             gctBOOL   resample;
             gctBOOL   bUploadTex; /* used for upload tex.*/
+            gctBOOL   bSwap; /* used for swap.*/
             gctBOOL   visualizeDepth; /* convert depth to visible color */
             gcsPOINT  srcOrigin;
             gcsPOINT  dstOrigin;
@@ -91,6 +92,7 @@ typedef struct _gcsSURF_RESOLVE_ARGS
             gctBOOL   dstSwizzle;    /* dst surface format swizzle infomation */
             gctBOOL   srcCompressed;   /* src compressed format*/
             gctBOOL   dstCompressed;   /* dst compressed format*/
+            gctUINT   blitToSelf;
         } v2;
     } uArgs;
 }
@@ -209,6 +211,8 @@ typedef struct _gcsSURF_BLIT_ARGS
     gctUINT     flags;
     gctUINT     srcNumSlice, dstNumSlice;
     gctBOOL     needDecode;
+    gctBOOL     readSwap;
+    gctBOOL     writeSwap;
 }
 gcsSURF_BLIT_ARGS;
 
@@ -2243,6 +2247,12 @@ gcoTEXTURE_SetDepthTextureFlag(
     );
 
 gceSTATUS
+gcoTEXTURE_SetSpecialSwap(
+    IN gcoTEXTURE Texture,
+    IN gctBOOL  needSwap
+    );
+
+gceSTATUS
 gcoTEXTURE_BindTextureTS(
     IN gcsTEXTURE_BINDTEXTS_ARGS * args
     );
@@ -2712,6 +2722,12 @@ gcoBUFOBJ_IndexGetRange(
     IN gctUINT32 Count,
     OUT gctUINT32 * MinimumIndex,
     OUT gctUINT32 * MaximumIndex
+    );
+
+/* Sets buffer upload endian hint */
+gceSTATUS
+gcoBUFOBJ_SetBufferEndianHint(
+    IN gcoBUFOBJ BufObj
     );
 
 /*  Sets a buffer object as dirty */

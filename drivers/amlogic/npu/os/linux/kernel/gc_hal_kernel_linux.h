@@ -166,6 +166,7 @@
 #endif
 
 int get_nna_status(struct platform_device *dev);
+
 extern struct device *galcore_device;
 
 /******************************************************************************\

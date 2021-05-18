@@ -307,7 +307,7 @@ typedef struct _gcsPROFILER_VIP_PROBE_COUNTERS
     gctUINT32       nn_non_zero_coef_count_overflow;
 
     gctUINT32       nn_reserved_counter[4 * MODULE_NN_RESERVED_COUNTER_NUM];
-    gctUINT32       nn_total_idle_cycle_core_overflow;
+    gctUINT32       nn_total_idle_cycle_core_overflow[4];
     gctUINT32       nn_total_idle_cycle_core[32];
 
     /* TP */

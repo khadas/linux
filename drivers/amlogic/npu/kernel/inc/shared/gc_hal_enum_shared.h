@@ -655,6 +655,7 @@ typedef enum _gceFEATURE
     gcvFEATURE_NN_ASYMMETRIC_INT8,
 
     gcvFEATURE_FORMAT_YUV_I010, /*support YUVI010 & P010_LSB format*/
+    gcvFEATURE_FORMAT_YUV420_101010, /*support YUV420_101010 format*/
 
     gcFEATURE_BIT_NN_COMPRESSION_BYPASSS,
     gcFEATURE_BIT_BFLOAT_COEF_COMPRESSION_ZERO_COEFBIT14_INVERSE,
@@ -692,12 +693,46 @@ typedef enum _gceFEATURE
     gcFEATURE_BIT_BFP_COEF_AUTO_PAD_INCOMPLETE_ZERO_IN_KZ_PLANE,
     gcvFEATURE_NN_FLOAT32_IO,
     gcvFEATURE_TP_FLOAT32_IO,
+    /* add for support INT16x(U)INT8 */
+    gcFEATURE_BIT_NN_23BITS_POST_MULTIPLIER_VIP_V7,
+    gcFEATURE_BIT_TP_23BITS_POST_MULTIPLIER_VIP_V7,
+    gcvFEATURE_CONV_INT16X8BIT_VIP_V7,
 
     /* Q channel support. */
     gcvFEATURE_Q_CHANNEL_SUPPORT,
 
     /* MMU descriptor new refinement. */
     gcvFEATURE_MMU_PAGE_DESCRIPTOR,
+
+    gcvFEATURE_BIT_NN_TILE_NUM_BIGGER_THAN_1024_FIX,
+
+    gcvFEATURE_BIT_HI1_L2_CACHE,
+
+    gcFEATURE_BIT_NN_SUPPORT_CONV_1D,
+
+    gcFEATURE_BIT_NN_DEPTHWISE_AFTER_16BIT_LAYER_LIMIT_FIX,
+
+    /* support gcvSURF_B8G8R8_PLANAR & gcvSURF_AYUV format */
+    gcFEATURE_BIT_BGR_PLANAR,
+
+    gcvFEATURE_BIT_USC_INDIVIDUAL_PORT_WRT_EARLY_EVICT_DATA_CORRUPT_FIX,
+    gcvFEATURE_BIT_NN_TP_INSTR_COMPLETE_IN_SAME_CYCLE_WITH_WAIT_EVENT_FIX,
+
+    gcFEATURE_BIT_TP_SOFTMAX,
+    gcvFEATURE_TP_TENSOR_ADD_MUL,
+
+    gcvFEATURE_NN_REMOVE_POOLING,
+    gcvFEATURE_BIT_NN_DEPTHWISE_INT16XINT8,
+    gcvFEATURE_BIT_NN_DEPTHWISE_8BIT_VIP_V7,
+    gcFEATURE_BIT_NN_ZDP_TRANSPOSE_CH9_ONLY,
+    gcFEATURE_BIT_NN_SUPPORT_DUMMY_TILE,
+    gcFEATURE_BIT_USE_VIPSRAM_FOR_KERNEL_STREAMING,
+    gcFEATURE_BIT_NN_SUPPORT_KERNEL_1BYTE_ALIGN,
+    gcFEATURE_BIT_NN_SMALL_BATCH_PHASE2,
+    gcvFEATURE_SH_MOVAI_MOVAR_UNUSED_COMPONENTS_WRITE_DIRTY_DATA_FIX,
+    gcFEATURE_BIT_NN_ENHANCED_MAX_POOLING,
+    gcvFEATURE_NN_1x1_NON_POOLING_PACKING,
+    gcFEATURE_BIT_NN_SUPPORT_BOTH_CONV_NATIVE_STRIDE2_AND_POOLING,
 
     /* Insert features above this comment only. */
     gcvFEATURE_COUNT                /* Not a feature. */
@@ -900,6 +935,7 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_X8B8G8R8_SNORM,
     gcvSURF_A8B8G8R8_SNORM,
     gcvSURF_A8B12G12R12_2_A8R8G8B8,
+    gcvSURF_B8G8R8_PLANAR,
 
     /* Compressed formats. */
     gcvSURF_DXT1                = 400,
@@ -942,6 +978,7 @@ typedef enum _gceSURF_FORMAT
     gcvSURF_P010,
     gcvSURF_P010_LSB,
     gcvSURF_I010,
+    gcvSURF_YUV420_101010,
 #if gcdVG_ONLY
     gcvSURF_AYUY2,
     gcvSURF_ANV12,
@@ -1558,6 +1595,7 @@ typedef enum _gceSTATUS
     gcvSTATUS_NOT_MULTI_PIPE_ALIGNED =   -28,
     gcvSTATUS_OUT_OF_SAMPLER         =   -29,
     gcvSTATUS_PROBE_LATER           =   -30,
+    gcvSTATUS_RESLUT_OVERFLOW       =   -31,
 
     /* Linker errors. */
     gcvSTATUS_GLOBAL_TYPE_MISMATCH              =   -1000,
@@ -1759,7 +1797,10 @@ typedef enum _gceHAL_COMMAND_CODES
     /*************** OS specific end ***************/
 
     /*************** Reserved ***************/
-    gcvHAL_SET_IDLE,
+    /* Access APB register. */
+    gcvHAL_APB_AXIFE_ACCESS,
+
+    /* Trigger a software reset. */
     gcvHAL_RESET,
 
     /* Command commit done, kernel event only. */
@@ -1782,9 +1823,13 @@ typedef enum _gceHAL_COMMAND_CODES
     /* Set debug level. */
     gcvHAL_SET_DEBUG_LEVEL_ZONE,
 
-    /* Dump info. */
+    /* Dump HW register state. */
     gcvHAL_DUMP_GPU_STATE,
-    gcvHAL_DUMP_EVENT,
+
+    /* Sync video memory for special memory pool */
+    gcvHAL_SYNC_VIDEO_MEMORY,
+
+    /* Dump profiler. */
     gcvHAL_DUMP_GPU_PROFILE,
 
     /* Timer. */
@@ -1797,8 +1842,6 @@ typedef enum _gceHAL_COMMAND_CODES
     /* Destory MMU. */
     gcvHAL_DESTROY_MMU,
 
-    /* sync video memory for special memory pool */
-    gcvHAL_SYNC_VIDEO_MEMORY,
     /*************** Reserved end ***************/
 }
 gceHAL_COMMAND_CODES;
@@ -1919,6 +1962,16 @@ typedef enum _gceDUMP_BUFFER_TYPE
 }
 gceDUMP_BUFFER_TYPE;
 
+typedef enum _gceLOCK_VIDEO_MEMORY_OP
+{
+    gcvLOCK_VIDEO_MEMORY_OP_NONE = 0x00,
+    gcvLOCK_VIDEO_MEMORY_OP_LOCK = 0x01,
+    gcvLOCK_VIDEO_MEMORY_OP_MAP = 0x02,
+    gcvLOCK_VIDEO_MEMORY_OP_UNLOCK = 0x04,
+    gcvLOCK_VIDEO_MEMORY_OP_UNMAP = 0x08,
+}
+gceLOCK_VIDEO_MEMORY_OP;
+
 typedef enum _gceSYNC_VIDEO_MEMORY_REASON
 {
     gcvSYNC_REASON_NONE = 0,
@@ -1926,6 +1979,13 @@ typedef enum _gceSYNC_VIDEO_MEMORY_REASON
     gcvSYNC_REASON_AFTER_WRITE,
 }
 gceSYNC_VIDEO_MEMORY_REASON;
+
+typedef enum _gceProfilerMode
+{
+    gcvPROFILER_PROBE_MODE = 0,
+    gcvPROFILER_AHB_MODE   = 1,
+}
+gceProfilerMode;
 
 #ifdef __cplusplus
 }

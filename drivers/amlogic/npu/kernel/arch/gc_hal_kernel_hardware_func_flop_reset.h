@@ -62,6 +62,7 @@ extern "C" {
 #include "gc_hal_kernel.h"
 #include "gc_hal_kernel_hardware.h"
 
+
 gceSTATUS
 gckHARDWARE_ResetFlopWithPPU(
     IN gckHARDWARE Hardware,
@@ -88,5 +89,14 @@ gckHARDWARE_ResetFlopWithTP(
 #ifdef __cplusplus
 }
 #endif
+
+#ifndef gcdENABLE_FLOP_RESET
+#   define gcdENABLE_FLOP_RESET                    1
+#endif
+
+#ifndef gcdENABLE_FLOP_RESET_DEBUG
+#   define gcdENABLE_FLOP_RESET_DEBUG                    0
+#endif
+
 #endif
 

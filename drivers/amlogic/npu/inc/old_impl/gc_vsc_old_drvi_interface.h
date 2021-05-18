@@ -61,6 +61,7 @@ BEGIN_EXTERN_C()
 #define _sldWorkGroupCountName              "#workGroupCount"
 #define _sldWorkGroupIdOffsetName           "#workGroupIdOffset"
 #define _sldGlobalIdOffsetName              "#globalIdOffset"
+#define _sldConstBorderValueName            "#constBorderValue"
 
 /* Shared use. */
 #define _sldLocalInvocationIndexName        "#local_invocation_index"
@@ -766,7 +767,8 @@ typedef struct _gcsHINT
     /* Third word. */
     gctUINT     fragColorUsage        : 2;
     gctBOOL     dependOnWorkGroupSize : 2;
-    gctUINT     reserved              : 28;
+    gctBOOL     clIsDual16            : 2;
+    gctUINT     reserved              : 26;
 
     /* flag if the shader uses gl_FragCoord, gl_FrontFacing, gl_PointCoord */
     gctCHAR     useFragCoord[4];
@@ -841,7 +843,10 @@ typedef struct _gcsHINT
 
     gctUINT     extraUscPages;
 
-    /* Concurrent workThreadCount. */
+    /* Active cluster count for this shader. */
+    gctUINT16   activeClusterCount;
+
+    /* Concurrent workThreadCount, per-GPU when multi-cluster is disabled, per-cluster when multi-cluster is enabled. */
     gctUINT16   workThreadCount;
 
     /* Local/share memory size. */
@@ -1868,7 +1873,7 @@ extern gctBOOL gcDoTriageForShaderId(gctINT shaderId, gctINT startId, gctINT end
 #define FB_INSERT_MOV_INPUT                 0x0040  /* insert MOV Rn, Rn for input to help HW team to debug */
 #define FB_ENABLE_FS_OUT_INIT               0x0080  /* enable Fragment shader output
                                                        initialization if it is un-initialized */
-#define FB_ENABLE_CONST_BORDER              0x0100  /* enable const border value, driver need to set $ConstBorderValue uniform */
+#define FB_ENABLE_CONST_BORDER              0x0100  /* enable const border value, driver need to set #constBorderValue uniform */
 #define FB_FORCE_LS_ACCESS                  0x8000  /* triage use: enforce all load/store as local storage access,
                                                        remove this feature bit once local storage access is supported */
 #define FB_FORCE_USC_UNALLOC                0x10000 /* triage use: enforce all load/store as USC Unalloc  */
@@ -1880,6 +1885,8 @@ extern gctBOOL gcDoTriageForShaderId(gctINT shaderId, gctINT startId, gctINT end
 #define FB_GENERATED_OFFLINE_COMPILER       0x80000 /* Enable Offline Compile . */
 
 #define FB_VSIMULATOR_RUNNING_MODE          0x100000 /* VSimulator running mode. */
+
+#define FB_VIV_VX_KERNEL                    0x200000        /* A OVX kernel, we need to replace this by using gceAPI. */
 
 #define gcmOPT_SetPatchTexld(m,n) (gcmGetOptimizerOption()->patchEveryTEXLDs = (m),\
                                    gcmGetOptimizerOption()->patchDummyTEXLDs = (n))
@@ -2111,6 +2118,8 @@ extern gcsHWCaps *
 #define GetHWHasHalti5()                      (gcGetHWCaps()->hwFeatureFlags.hasHalti5)
 #define GetHWHasAdvancedInst()                (gcGetHWCaps()->hwFeatureFlags.supportAdvancedInsts)
 #define GetHWHasFmaSupport()                  (GetHWHasHalti5() && GetHWHasAdvancedInst())
+#define GetHWHasLoadStoreConv4RoundingMode()  gcvFALSE
+#define GetHWHasFullPackedModeSupport()       gcvFALSE
 #define GetHWHasTS()                          (gcGetHWCaps()->hwFeatureFlags.supportTS)
 #define GetHWHasGS()                          (gcGetHWCaps()->hwFeatureFlags.supportGS)
 #define GetHWHasSamplerBaseOffset()           (gcGetHWCaps()->hwFeatureFlags.hasSamplerBaseOffset)
@@ -2741,6 +2750,18 @@ gcSHADER_MergeShader(
     IN gctINT         ShaderCount,
     IN gcSHADER *     ShaderArray,
     OUT gcSHADER *    MergedShader
+    );
+
+/*******************************************************************************
+**                                gcSHADER_SetGeoLayout
+********************************************************************************
+*/
+gceSTATUS
+gcSHADER_SetGeoLayout(
+    IN gcSHADER          Shader,
+    IN gctINT            geoMaxVertices,
+    IN gcGeoPrimitive    geoInPrimitive,
+    IN gcGeoPrimitive    geoOutPrimitive
     );
 
 /*******************************************************************************
@@ -7689,6 +7710,27 @@ gcSHADER_WriteShaderToFile(
     IN gcSHADER    Binary,
     IN gctSTRING    ShaderName
     );
+
+/*******************************************************************************
+**                                gcSHADER_SetAllOutputShadingModeToFlat
+********************************************************************************
+**
+**    set user shader all output shading mode to flat.
+**
+**    OUTPUT:
+**
+**        gcSHADER    Shader
+**            Pointer to a gcSHADER object holding information about the shader
+**            and all output shading mode are set to flat
+**
+**
+*/
+
+gceSTATUS
+gcSHADER_SetAllOutputShadingModeToFlat(
+    OUT gcSHADER    Shader
+    );
+
 /*******************************************************************************
 **                                gcSHADER_ReadShaderFromFile
 ********************************************************************************

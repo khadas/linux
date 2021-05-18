@@ -49,6 +49,12 @@ extern "C" {
          (n) : gcmALIGN(n, align)                                      \
 )
 
+#define gcmALIGN_CHECK_OVERFLOW(n, align)                              \
+(\
+    (gcmALIGN((n) & ~0ULL, (align) & ~0ULL) ^ gcmALIGN(n, align)) ?    \
+         gcvSTATUS_RESLUT_OVERFLOW : gcvSTATUS_OK                      \
+)
+
 #define gcmALIGN_BASE(n, align) \
 (\
     ((n) & ~((align) - 1)) \
@@ -124,8 +130,6 @@ typedef struct _gckHARDWARE *       gckHARDWARE;
 #define gcdMAX_DRAW_BUFFERS            16
 
 #define gcdMAX_3DGPU_COUNT             8
-
-#define gcdMAX_MAJOR_CORE_COUNT        8
 
 #define gcdMAX_VERTEX_STREAM_COUNT     4
 /*******************************************************************************
@@ -761,6 +765,13 @@ gckOS_Delay(
     IN gctUINT32 Delay
     );
 
+/* Delay a number of microseconds. */
+gceSTATUS
+gckOS_Udelay(
+    IN gckOS Os,
+    IN gctUINT32 Delay
+    );
+
 /* Get time in milliseconds. */
 gceSTATUS
 gckOS_GetTicks(
@@ -1316,6 +1327,20 @@ gckOS_SetGPUPower(
     );
 
 gceSTATUS
+gckOS_SetClockState(
+    IN gckOS Os,
+    IN gceCORE Core,
+    IN gctBOOL Clock
+    );
+
+gceSTATUS
+gckOS_GetClockState(
+    IN gckOS Os,
+    IN gceCORE Core,
+    IN gctBOOL * Clock
+    );
+
+gceSTATUS
 gckOS_ResetGPU(
     IN gckOS Os,
     IN gceCORE Core
@@ -1360,42 +1385,40 @@ gckOS_CreateSemaphore(
     );
 
 
-/* Delete a semahore. */
+/* Delete a semaphore. */
 gceSTATUS
 gckOS_DestroySemaphore(
     IN gckOS Os,
     IN gctPOINTER Semaphore
     );
 
-/* Acquire a semahore. */
+/* Acquire a semaphore. */
 gceSTATUS
 gckOS_AcquireSemaphore(
     IN gckOS Os,
     IN gctPOINTER Semaphore
     );
 
-/* Try to acquire a semahore. */
+/* Try to acquire a semaphore. */
 gceSTATUS
 gckOS_TryAcquireSemaphore(
     IN gckOS Os,
     IN gctPOINTER Semaphore
     );
 
-/* Release a semahore. */
+/* Release a semaphore. */
 gceSTATUS
 gckOS_ReleaseSemaphore(
     IN gckOS Os,
     IN gctPOINTER Semaphore
     );
 
-#if gcdENABLE_SW_PREEMPTION
-/* Release a semahore. */
+/* Release a semaphore. */
 gceSTATUS
 gckOS_ReleaseSemaphoreEx(
     IN gckOS Os,
     IN gctPOINTER Semaphore
     );
-#endif
 
 /*******************************************************************************
 ** Timer API.
@@ -2100,6 +2123,7 @@ gckMMU_IsFlatMapped(
     IN gckMMU Mmu,
     IN gctUINT64 Physical,
     IN gctUINT32 Address,
+    IN gctSIZE_T Bytes,
     OUT gctBOOL *In
     );
 
