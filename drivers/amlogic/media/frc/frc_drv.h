@@ -24,7 +24,7 @@
 #include <linux/amlogic/media/frc/frc_common.h>
 #include "frc_interface.h"
 
-#define FRC_FW_VER			"t3 driver bringup 2021-0512 update fw from svn 608"
+#define FRC_FW_VER			"t3 driver bringup 2021-0518 ntsc 50 display error"
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"

@@ -326,7 +326,7 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	}
 	devp->in_sts.in_hsize = cur_in_sts->in_hsize;
 	/* check size change */
-	if (devp->in_sts.in_hsize != cur_in_sts->in_hsize) {
+	if (devp->in_sts.in_vsize != cur_in_sts->in_vsize) {
 		pr_frc(1, "vsize change (%d - %d)\n",
 			devp->in_sts.in_vsize, cur_in_sts->in_vsize);
 		/*need reconfig*/
@@ -430,6 +430,13 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	if (!vf || !cur_video_sts || !get_video_enabled()) {
 		devp->in_sts.vf_null_cnt++;
 		no_input = true;
+	}
+
+	if (vf) {
+		if (vf->flag & VFRAME_FLAG_GAME_MODE) {
+			devp->in_sts.vf_null_cnt++;
+			no_input = true;
+		}
 	}
 
 	if (devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND)
