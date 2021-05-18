@@ -28,6 +28,7 @@
 #include <linux/kobject.h>
 #include <../kernel/power/power.h>
 #include <linux/amlogic/power_domain.h>
+#include <linux/syscore_ops.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt) "gxbb_pm: " fmt
@@ -291,6 +292,7 @@ ssize_t time_out_show(struct device *dev, struct device_attribute *attr,
 	return len;
 }
 
+static int sys_time_out;
 ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
@@ -300,6 +302,7 @@ ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 	ret = kstrtouint(buf, 10, &time_out);
 	switch (ret) {
 	case 0:
+		sys_time_out = time_out;
 		writel_relaxed(time_out, debug_reg);
 		break;
 	default:
@@ -328,6 +331,29 @@ static struct class meson_pm_class = {
 	.class_groups = meson_pm_groups,
 };
 
+int gx_pm_syscore_suspend(void)
+{
+	if (sys_time_out)
+		writel_relaxed(sys_time_out, debug_reg);
+	return 0;
+}
+
+void gx_pm_syscore_resume(void)
+{
+	sys_time_out = 0;
+}
+
+static struct syscore_ops gx_pm_syscore_ops = {
+	.suspend = gx_pm_syscore_suspend,
+	.resume	= gx_pm_syscore_resume,
+};
+
+static int __init gx_pm_init_ops(void)
+{
+	register_syscore_ops(&gx_pm_syscore_ops);
+	return 0;
+}
+
 static int meson_pm_probe(struct platform_device *pdev)
 {
 	unsigned int irq_pwrctrl;
@@ -350,6 +376,8 @@ static int meson_pm_probe(struct platform_device *pdev)
 	err = class_register(&meson_pm_class);
 	if (unlikely(err))
 		return err;
+
+	gx_pm_init_ops();
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	err = register_pm_notifier(&lgcy_early_suspend_notifier);
