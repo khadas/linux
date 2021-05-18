@@ -14,6 +14,7 @@ enum audio_event {
 	AUDIO_SPDIF_FMT_EVENT,
 	HEADPHONE_DETECTION_EVENT,
 	MICROPHONE_DETECTION_EVENT,
+	EARCTX_ATNDTYP_EVENT,
 };
 
 #define MAX_UEVENT_LEN 64
@@ -23,6 +24,6 @@ struct audio_uevent {
 	const char *env;
 };
 
-int audio_send_uevent(struct snd_soc_card *card, enum audio_event type, int val);
+int audio_send_uevent(struct device *dev, enum audio_event type, int val);
 
 #endif
