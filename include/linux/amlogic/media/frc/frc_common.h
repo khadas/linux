@@ -631,7 +631,7 @@ struct st_melogo_ctrl_para {
 #define MAX_CYCLE	25
 #define PHS_FRAC_BIT	7
 #define WINNUM		12
-
+#define GLB_AVG_NUM		8
 
 struct st_film_ctrl_para
 {
@@ -639,11 +639,13 @@ struct st_film_ctrl_para
 	u8    film_check_mode_en;           //film check  mode en
 	u8    film_badedit_en;              //film badedit ctrl en
 	u8    film_7_seg_en;               //film 7 seg en
+	u8    film_mix_mode_en;            //film mixmode en
 	u8    film_mode_force_en;          //force mode enable
 	u8    film_mode_force_value;       //force mode
-	u8    film_mode_force_phs_en;       //force mode phase
+	// u8    film_mode_force_phs_en;       //force mode phase
 	u32   film_cadence_switch;          //film cadence en
 	u32   min_diff_th;
+	u32   scene_change_th;                //scene change th
 	//global average ratio average = average * ratio/16
 	u8    glb_ratio;
 	//global diff threshold ofset th = average + glb_ofset
@@ -660,6 +662,9 @@ struct st_film_ctrl_para
 	u8      mm_reset_thd;
 	u8      mm_difminthd;
 	u8      mm_chk_mmdifthd;
+//badedit
+	u8     cadence_num;                  // frame_num cadence_num
+	u8     bade_adj_step_en;             // frame_num adjust en
 };
 
 struct st_film_detect_item
@@ -673,7 +678,9 @@ struct st_film_detect_item
 	u8      quit_reset_th;                //reset threshold
 	
 	u8      phase_error_flag;             //Possible phase error
-	u8      filmMod;                      //film mode type
+	u8      phase_error_flag_pre;         //Possible phase error of previous frame
+	u8      film_mod;                      //film mode type
+	u8      mix_mod;                      //mix mode
 	u8      phase;                        //film mode phase
 
 	u8      force_phase;                   //force mode phase
@@ -729,12 +736,13 @@ struct st_film_table_item
 
 struct st_film_data_item
 {
-	u8      ModCount[FLMMODNUM];                  //film mode count
-	u8      quitCount[2];                          // quitcunt num
-	u8      quit_reset_Cnt[2];                    //
+	u8      mod_count[FLMMODNUM];                  //film mode count
+	u8      quit_count;                          // quitcunt num
+	u8      quit_reset_cnt;                      // quit_reset num
 	u8      phase[FLMMODNUM];                     // cadence phase
-	u8      phase_new[FLMMODNUM];                 // another phase
-
+	u8      scene_change_cnt;                     //scene change
+	u8      glb_mot_diff_enter;
+	u8      glb_mot_diff_hist[HISDIFNUM];         //glb motion history
 	//mix mode
 	//mix mode num compare with own window
 	u8      mm_num_cown[6];
@@ -889,6 +897,7 @@ struct st_me_ctrl_item {
 	u32 mixmodein_frame_count;
 	u32 mixmodeout_frame_count;
 	u32 scene_change_reject_frame_count;
+	u32 gmv_eq0_count;
 
 	u32 region_sad_sum_20[48][20];
 	u32 region_sad_cnt_20[48][20];

@@ -61,6 +61,7 @@ void frc_status(struct frc_dev_s *devp)
 
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	pr_frc(0, "%s\n", FRC_FW_VER);
+	pr_frc(0, "%s\n", fw_data->frc_alg_ver);
 	pr_frc(0, "probe_ok sts:%d hw_pos:%d (1:after) fw_pause:%d\n", devp->probe_ok,
 		devp->frc_hw_pos, devp->frc_fw_pause);
 	pr_frc(0, "frs state:%d (%s) new:%d\n", devp->frc_sts.state,
@@ -476,14 +477,34 @@ ssize_t frc_bbd_final_line_param_show(struct class *class,
 	len += sprintf(buf + len, "ds_xyxy_force=%d\n", param->ds_xyxy_force);
 	len += sprintf(buf + len, "sel2_high_mode=%d\n", param->sel2_high_mode);
 	len += sprintf(buf + len, "motion_sel1_high_mode=%d\n", param->motion_sel1_high_mode);
+	len += sprintf(buf + len, "hist_scale_depth=%d\n", param->hist_scale_depth);
 	len += sprintf(buf + len, "black_th_gen_en=%d\n", param->black_th_gen_en);
+	len += sprintf(buf + len, "black_th_gen_mode=%d\n", param->black_th_gen_mode);
 	len += sprintf(buf + len, "black_th_max=%d\n", param->black_th_max);
 	len += sprintf(buf + len, "black_th_min=%d\n", param->black_th_min);
 	len += sprintf(buf + len, "edge_th_gen_en=%d\n", param->edge_th_gen_en);
 	len += sprintf(buf + len, "edge_th_max=%d\n", param->edge_th_max);
 	len += sprintf(buf + len, "edge_th_min=%d\n", param->edge_th_min);
+	len += sprintf(buf + len, "edge_choose_mode=%d\n", param->edge_choose_mode);
+	len += sprintf(buf + len, "edge_choose_delta=%d\n", param->edge_choose_delta);
+	len += sprintf(buf + len, "edge_choose_row_th=%d\n", param->edge_choose_row_th);
+	len += sprintf(buf + len, "edge_choose_col_th=%d\n", param->edge_choose_col_th);
 	len += sprintf(buf + len, "final_iir_mode=%d\n", param->final_iir_mode);
+	len += sprintf(buf + len, "final_iir_num_th1=%d\n", param->final_iir_num_th1);
+	len += sprintf(buf + len, "final_iir_num_th2=%d\n", param->final_iir_num_th2);
+	len += sprintf(buf + len, "final_iir_sel_rst_num=%d\n", param->final_iir_sel_rst_num);
+	len += sprintf(buf + len, "final_iir_check_valid_mode=%d\n",
+		param->final_iir_check_valid_mode);
+	len += sprintf(buf + len, "top_confidence=%d\n", param->top_confidence);
+	len += sprintf(buf + len, "bot_confidence=%d\n", param->bot_confidence);
+	len += sprintf(buf + len, "lft_confidence=%d\n", param->lft_confidence);
+	len += sprintf(buf + len, "rit_confidence=%d\n", param->rit_confidence);
+	len += sprintf(buf + len, "top_confidence_max=%d\n", param->top_confidence_max);
+	len += sprintf(buf + len, "bot_confidence_max=%d\n", param->bot_confidence_max);
+	len += sprintf(buf + len, "lft_confidence_max=%d\n", param->lft_confidence_max);
+	len += sprintf(buf + len, "rit_confidence=%d\n", param->rit_confidence);
 	len += sprintf(buf + len, "bbd_7_seg_en=%d\n", param->bbd_7_seg_en);
+	len += sprintf(buf + len, "motion_posi_strong_en=%d\n", param->motion_posi_strong_en);
 	len += sprintf(buf + len, "force_final_posi_en=%d\n", param->force_final_posi_en);
 	len += sprintf(buf + len, "force_final_posi0=%d\n", param->force_final_posi[0]);
 	len += sprintf(buf + len, "force_final_posi1=%d\n", param->force_final_posi[1]);
@@ -551,10 +572,42 @@ ssize_t frc_bbd_final_line_param_store(struct class *class,
 		param->edge_th_max = value;
 	else if (!strcmp(parm[0], "edge_th_min"))
 		param->edge_th_min = value;
+	else if (!strcmp(parm[0], "edge_choose_mode"))
+		param->edge_choose_mode = value;
+	else if (!strcmp(parm[0], "edge_choose_delta"))
+		param->edge_choose_delta = value;
+	else if (!strcmp(parm[0], "edge_choose_row_th"))
+		param->edge_choose_row_th = value;
+	else if (!strcmp(parm[0], "edge_choose_col_th"))
+		param->edge_choose_col_th = value;
 	else if (!strcmp(parm[0], "final_iir_mode"))
 		param->final_iir_mode = value;
+	else if (!strcmp(parm[0], "final_iir_num_th1"))
+		param->final_iir_num_th1 = value;
+	else if (!strcmp(parm[0], "final_iir_num_th2"))
+		param->final_iir_num_th2 = value;
+	else if (!strcmp(parm[0], "final_iir_sel_rst_num"))
+		param->final_iir_sel_rst_num = value;
+	else if (!strcmp(parm[0], "top_confidence"))
+		param->top_confidence = value;
+	else if (!strcmp(parm[0], "bot_confidence"))
+		param->bot_confidence = value;
+	else if (!strcmp(parm[0], "lft_confidence"))
+		param->lft_confidence = value;
+	else if (!strcmp(parm[0], "rit_confidence"))
+		param->rit_confidence = value;
+	else if (!strcmp(parm[0], "top_confidence_max"))
+		param->top_confidence_max = value;
+	else if (!strcmp(parm[0], "bot_confidence_max"))
+		param->bot_confidence_max = value;
+	else if (!strcmp(parm[0], "lft_confidence_max"))
+		param->lft_confidence_max = value;
+	else if (!strcmp(parm[0], "rit_confidence_max"))
+		param->rit_confidence_max = value;
 	else if (!strcmp(parm[0], "bbd_7_seg_en"))
 		param->bbd_7_seg_en = value;
+	else if (!strcmp(parm[0], "motion_posi_strong_en"))
+		param->motion_posi_strong_en = value;
 	else if (!strcmp(parm[0], "force_final_posi_en"))
 		param->force_final_posi_en = value;
 	else if (!strcmp(parm[0], "force_final_posi0"))
@@ -573,6 +626,10 @@ ssize_t frc_bbd_final_line_param_store(struct class *class,
 		param->force_final_each_posi_en[2] = value;
 	else if (!strcmp(parm[0], "force_final_each_posi_en3"))
 		param->force_final_each_posi_en[3] = value;
+	else if (!strcmp(parm[0], "hist_scale_depth"))
+		param->hist_scale_depth = value;
+	else if (!strcmp(parm[0], "black_th_gen_mode"))
+		param->black_th_gen_mode = value;
 
 	kfree(buf_orig);
 	return count;
@@ -1395,11 +1452,13 @@ ssize_t frc_film_ctrl_param_show(struct class *class,
 	len += sprintf(buf + len, "film_check_mode_en=%d\n", param->film_check_mode_en);
 	len += sprintf(buf + len, "film_badedit_en=%d\n", param->film_badedit_en);
 	len += sprintf(buf + len, "film_7_seg_en=%d\n", param->film_7_seg_en);
+	len += sprintf(buf + len, "film_mix_mode_en=%d\n", param->film_mix_mode_en);
 	len += sprintf(buf + len, "film_mode_force_en=%d\n", param->film_mode_force_en);
 	len += sprintf(buf + len, "film_mode_force_value=%d\n", param->film_mode_force_value);
-	len += sprintf(buf + len, "film_mode_force_phs_en=%d\n", param->film_mode_force_phs_en);
+	//  len += sprintf(buf + len, "film_mode_force_phs_en=%d\n", param->film_mode_force_phs_en);
 	len += sprintf(buf + len, "film_cadence_switch=%d\n", param->film_cadence_switch);
 	len += sprintf(buf + len, "min_diff_th=%d\n", param->min_diff_th);
+	len += sprintf(buf + len, "scene_change_th=%d\n", param->scene_change_th);
 	len += sprintf(buf + len, "glb_ratio=%d\n", param->glb_ratio);
 	len += sprintf(buf + len, "wind_ratio=%d\n", param->wind_ratio);
 	len += sprintf(buf + len, "glb_ofset=%d\n", param->glb_ofset);
@@ -1410,6 +1469,8 @@ ssize_t frc_film_ctrl_param_show(struct class *class,
 	len += sprintf(buf + len, "mm_reset_thd=%d\n", param->mm_reset_thd);
 	len += sprintf(buf + len, "mm_difminthd=%d\n", param->mm_difminthd);
 	len += sprintf(buf + len, "mm_chk_mmdifthd=%d\n", param->mm_chk_mmdifthd);
+	len += sprintf(buf + len, "cadence_num=%d\n", param->cadence_num);
+	len += sprintf(buf + len, "bade_adj_step_en=%d\n", param->bade_adj_step_en);
 
 	return len;
 }
@@ -1446,16 +1507,20 @@ ssize_t frc_film_ctrl_param_store(struct class *class,
 		param->film_badedit_en = value;
 	else if (!strcmp(parm[0], "film_7_seg_en"))
 		param->film_7_seg_en = value;
+	else if (!strcmp(parm[0], "film_mix_mode_en"))
+		param->film_mix_mode_en = value;
 	else if (!strcmp(parm[0], "film_mode_force_en"))
 		param->film_mode_force_en = value;
 	else if (!strcmp(parm[0], "film_mode_force_value"))
 		param->film_mode_force_value = value;
-	else if (!strcmp(parm[0], "film_mode_force_phs_en"))
-		param->film_mode_force_phs_en = value;
+	// else if (!strcmp(parm[0], "film_mode_force_phs_en"))
+    //		param->film_mode_force_phs_en = value;
 	else if (!strcmp(parm[0], "film_cadence_switch"))
 		param->film_cadence_switch = value;
 	else if (!strcmp(parm[0], "min_diff_th"))
 		param->min_diff_th = value;
+	else if (!strcmp(parm[0], "scene_change_th"))
+		param->scene_change_th = value;
 	else if (!strcmp(parm[0], "glb_ratio"))
 		param->glb_ratio = value;
 	else if (!strcmp(parm[0], "wind_ratio"))
@@ -1476,6 +1541,10 @@ ssize_t frc_film_ctrl_param_store(struct class *class,
 		param->mm_difminthd = value;
 	else if (!strcmp(parm[0], "mm_chk_mmdifthd"))
 		param->mm_chk_mmdifthd = value;
+	else if (!strcmp(parm[0], "cadence_num"))
+		param->cadence_num = value;
+	else if (!strcmp(parm[0], "bade_adj_step_en"))
+		param->bade_adj_step_en = value;
 
 	kfree(buf_orig);
 	return count;

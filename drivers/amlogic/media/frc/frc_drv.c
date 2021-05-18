@@ -71,7 +71,7 @@ struct frc_dev_s *get_frc_devp(void)
 }
 
 // static struct frc_fw_data_s *fw_data;
-static const char frc_fw_ver[] = "frc_drv_ver:001_20210510";
+static const char frc_fw_ver[] = "frc_drv_ver:001_20210519";
 struct frc_fw_data_s fw_data;  // important 2021_0510
 
 struct frc_fw_data_s *frc_get_fw_data(void)

@@ -82,19 +82,6 @@ void frc_hw_initial(struct frc_dev_s *devp)
 	frc_mtx_set(devp);
 	frc_top_init(devp);
 	return;
-	// fw_data = (struct frc_fw_data_s *)devp->fw_data;
-	// me param init
-	// frc_me_param_init(fw_data);
-	// vp param init
-	// frc_vp_param_init(fw_data);
-	// mc param init
-	// frc_mc_param_init(fw_data);
-	// bbd param init
-	// frc_bbd_param_init(fw_data);
-	// logo param init
-	// frc_logo_param_init(fw_data);
-	// fd  param init
-	// frc_film_param_init(fw_data, devp->dbg_force_en, devp->dbg_in_out_ratio);
 }
 
 void frc_in_reg_monitor(struct frc_dev_s *devp)
@@ -151,7 +138,6 @@ void frc_out_reg_monitor(struct frc_dev_s *devp)
 void frc_dump_monitor_data(struct frc_dev_s *devp)
 {
 	//char *buf = devp->dbg_buf;
-
 	//pr_info("%d, %s\n", devp->dbg_buf_len, buf);
 	devp->dbg_buf_len = 0;
 }
@@ -342,6 +328,7 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 		devp->frc_sts.re_cfg_cnt = frc_re_cfg_cnt;
 		sts_change |= FRC_EVENT_VOUT_CHG;
 		devp->frc_sts.out_put_mode_changed = 0;
+		devp->frc_sts.re_config = 0;
 	}
 
 	/* check is same vframe */
