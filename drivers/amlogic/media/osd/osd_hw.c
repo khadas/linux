@@ -10760,6 +10760,9 @@ static int osd_setting_order(u32 output_index)
 				case 2:
 					secure_src |= OSD3_INPUT_SECURE;
 					break;
+				case 3:
+					secure_src |= OSD4_INPUT_SECURE;
+					break;
 				}
 			}
 			if (secure_src && osd_hw.osd_afbcd[i].enable)
