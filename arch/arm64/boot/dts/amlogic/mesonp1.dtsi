@@ -1005,6 +1005,18 @@
 				status = "disable";
 				reg=<0x0 0x10220 0x0 0x140>;
 			};
+
+			gbl_timer: global_timer@8e000 {
+				compatible = "amlogic, meson-glb-timer";
+				reg = <0x0 0x8e000 0x0 0x28>,
+				      <0x0 0x8e040 0x0 0x68c>,
+				      <0x0 0x8e800 0x0 0x1f8>,
+				      <0x0 0x8f000 0x0 0x3c>;
+				reg-names = "topctrl", "srcsel", "outctl", "outsel";
+				clocks = <&clkc CLKID_SYS_CLK_GLB>;
+				clock-names = "glb_clk";
+			};
+
 		};
 
 		crg_phy_20: crgphy20@fe03c000 {
