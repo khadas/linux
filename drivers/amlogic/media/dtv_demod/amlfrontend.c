@@ -233,6 +233,13 @@ static int amdemod_check_8vsb_rst(struct aml_dtvdemod *demod)
 	return ret;
 }
 
+unsigned int demod_is_t5d_cpu(struct amldtvdemod_device_s *devp)
+{
+	enum dtv_demod_hw_ver_e hw_ver = devp->data->hw_ver;
+
+	return (hw_ver == DTVDEMOD_HW_T5D) || (hw_ver == DTVDEMOD_HW_T5D_B);
+}
+
 static int amdemod_stat_islock(struct aml_dtvdemod *demod,
 		enum fe_delivery_system delsys)
 {
@@ -242,6 +249,12 @@ static int amdemod_stat_islock(struct aml_dtvdemod *demod,
 	int atsc_fsm;
 	int ret = 0;
 	unsigned int val;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+
+	if (unlikely(!devp)) {
+		PR_ERR("%s, devp is NULL\n", __func__);
+		return -1;
+	}
 
 	switch (delsys) {
 	case SYS_DVBC_ANNEX_A:
@@ -295,7 +308,12 @@ static int amdemod_stat_islock(struct aml_dtvdemod *demod,
 		break;
 
 	case SYS_DVBT2:
-		val = front_read_reg(0x3e);
+		if (demod_is_t5d_cpu(devp)) {
+			val = front_read_reg(0x3e);
+		} else {
+			val = dvbt_t2_rdb(TS_STATUS);
+			val >>= 7;
+		}
 
 		/* val[0], 0x581[7] */
 		if (val & 0x1)
@@ -1073,9 +1091,20 @@ static int dvbt2_read_snr(struct dvb_frontend *fe, u16 *snr)
 	if (!devp->demod_thread)
 		return 0;
 
-	val = front_read_reg(0x3e);
-	/* val[23-21]:0x2a09,val[20-13]:0x2a08 */
-	val >>= 13;
+	if (unlikely(!devp)) {
+		PR_ERR("%s, devp is NULL\n", __func__);
+		return -1;
+	}
+
+	if (demod_is_t5d_cpu(devp)) {
+		val = front_read_reg(0x3e);
+		/* val[23-21]:0x2a09,val[20-13]:0x2a08 */
+		val >>= 13;
+	} else {
+		val = dvbt_t2_rdb(0x2a09) << 8;
+		val |= dvbt_t2_rdb(0x2a08);
+	}
+
 	*snr = val & 0x7ff;
 	*snr = *snr * 3 / 64;
 
@@ -2114,7 +2143,7 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	static unsigned int cnt;
 	static unsigned int prt_sts_cnt;
-	unsigned int val, snr;
+	unsigned int val, snr, l1_post_decoded, ldpc;
 	unsigned int modulation, code_rate;
 	unsigned int snr_min_x10db = 0;
 
@@ -2151,21 +2180,35 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 	if (devp->debug_on && !(prt_sts_cnt++ % 3)) {
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 		dvbt2_info(NULL);
-		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+
+		if (demod_is_t5d_cpu(devp))
+			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 	}
 
 	/* test bus definition
 	 * val[30]:0x839[3],[29-24]:0x805,[23-21]:0x2a09,[20-13]:0x2a08,[12:7]:0xa50
 	 * val[6-2]:0x8c3,[1]:0x361b[7],[0]:0x581[7]
 	 */
-	val = front_read_reg(0x3e);
-	snr = val >> 13;
+	if (demod_is_t5d_cpu(devp)) {
+		val = front_read_reg(0x3e);
+		snr = val >> 13;
+		modulation = (val >> 2) & 0x1f;
+		modulation = (modulation >> 3) & 0x3;
+		code_rate = (val >> 2) & 0x1f;
+		code_rate = code_rate & 0x7;
+		l1_post_decoded = (val >> 30) & 0x01;
+		ldpc = (val >> 7) & 0x3f;
+	} else {
+		snr = dvbt_t2_rdb(0x2a09) << 8;
+		snr |= dvbt_t2_rdb(0x2a08);
+		modulation = (dvbt_t2_rdb(0x8c3) >> 4) & 0x7;
+		code_rate = (dvbt_t2_rdb(0x8c3) >> 1) & 0x7;
+		l1_post_decoded = (dvbt_t2_rdb(0x839) >> 3) & 0x1;
+		ldpc = dvbt_t2_rdb(0xa50);
+	}
+
 	snr &= 0x7ff;
 	snr = snr * 3 / 64;
-	modulation = (val >> 2) & 0x1f;
-	modulation = (modulation >> 3) & 0x3;
-	code_rate = (val >> 2) & 0x1f;
-	code_rate = code_rate & 0x7;
 
 	if (modulation < 4)
 		snr_min_x10db = minimum_snr_x10[modulation][code_rate];
@@ -2174,8 +2217,8 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 
 	if (devp->debug_on) {
 		PR_INFO("modulation:%d, code_rate: %d\n", modulation, code_rate);
-		PR_INFO("snr*10 = %d, snr_min_x10dB=%d, 839[3] = %d,LDPC: %d\n",
-			snr * 10, snr_min_x10db, ((val >> 30) & 0x01), ((val >> 7) & 0x3f));
+		PR_INFO("snr*10 = %d, snr_min_x10dB=%d, L1 POST:%d,LDPC:%d\n",
+			snr * 10, snr_min_x10db, l1_post_decoded, ldpc);
 	}
 
 	return 0;
@@ -3970,6 +4013,7 @@ void dbg_reg_addr(struct amldtvdemod_device_s *devp)
 	PR_INFO("\tisdbt:\t0x%x\n", devp->data->regoff.off_isdbt);
 	PR_INFO("\tatsc:\t0x%x\n", devp->data->regoff.off_atsc);
 	PR_INFO("\tfront:\t0x%x\n", devp->data->regoff.off_front);
+	PR_INFO("\tdvbt/t2:\t0x%x\n", devp->data->regoff.off_dvbt_t2);
 
 	PR_INFO("virtual addr:\n");
 	for (i = 0; i < ES_MAP_ADDR_NUM; i++)
@@ -3984,7 +4028,7 @@ static void dtvdemod_clktree_probe(struct device *dev)
 
 	devp->vdac_clk_gate = devm_clk_get(dev, "vdac_clk_gate");
 	if (IS_ERR_OR_NULL(devp->vdac_clk_gate))
-		PR_ERR("error: %s: clk vdac_clk_gate\n", __func__);
+		PR_INFO("%s: no clk vdac_clk_gate\n", __func__);
 }
 
 static void dtvdemod_clktree_remove(struct device *dev)
@@ -4006,7 +4050,7 @@ static void vdac_clk_gate_ctrl(int status)
 		}
 
 		if (IS_ERR_OR_NULL(devp->vdac_clk_gate))
-			PR_ERR("error: %s: vdac_clk_gate\n", __func__);
+			PR_INFO("%s: no vdac_clk_gate\n", __func__);
 		else
 			clk_prepare_enable(devp->vdac_clk_gate);
 
@@ -4018,7 +4062,7 @@ static void vdac_clk_gate_ctrl(int status)
 		}
 
 		if (IS_ERR_OR_NULL(devp->vdac_clk_gate))
-			PR_ERR("error: %s: vdac_clk_gate\n", __func__);
+			PR_INFO("%s: no vdac_clk_gate\n", __func__);
 		else
 			clk_disable_unprepare(devp->vdac_clk_gate);
 
@@ -5455,7 +5499,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 			break;
 
 		/* plp nums & ids */
-		dtvdemod_get_plp(tvp);
+		dtvdemod_get_plp(devp, tvp);
 		break;
 
 	default:

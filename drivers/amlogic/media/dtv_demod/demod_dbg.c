@@ -240,7 +240,9 @@ static void seq_dump_regs(struct seq_file *seq)
 			}
 
 			if (demod->last_delsys == SYS_DVBT2) {
-				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+				if (demod_is_t5d_cpu(devp))
+					demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+
 				devp->demod_thread = polling_en;
 			}
 			break;
@@ -608,7 +610,9 @@ static void info_show(void)
 			devp->demod_thread = 0;
 			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 			dvbt2_info(NULL);
-			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+			if (demod_is_t5d_cpu(devp))
+				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+
 			devp->demod_thread = 1;
 			aml_demod_debug = debug_mode;
 			break;
@@ -687,7 +691,9 @@ static void dump_regs(struct aml_dtvdemod *demod)
 		}
 
 		if (demod->last_delsys == SYS_DVBT2) {
-			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+			if (demod_is_t5d_cpu(devp))
+				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+
 			devp->demod_thread = polling_en;
 		}
 		break;
