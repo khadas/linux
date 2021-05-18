@@ -39,10 +39,15 @@ static void uvm_handle_destroy(struct kref *kref)
 	struct uvm_handle *handle;
 
 	handle = container_of(kref, struct uvm_handle, ref);
+	if (handle->ua && handle->ua->sgt) {
+		sg_free_table(handle->ua->sgt);
+		kfree(handle->ua->sgt);
+	}
 
 	kfree(handle->ua);
 
 	kfree(handle);
+	UVM_PRINTK(1, "%s called\n", __func__);
 }
 
 static struct sg_table
@@ -131,6 +136,7 @@ static void meson_uvm_release(struct dma_buf *dmabuf)
 	list_for_each_entry_safe(uhmod, uhtmp, &handle->mod_attached, list)
 		kref_put(&uhmod->ref, uvm_hook_mod_release);
 
+	UVM_PRINTK(1, "%s called, %u\n", __func__, kref_read(&handle->ref));
 	kref_put(&handle->ref, uvm_handle_destroy);
 }
 
@@ -685,6 +691,7 @@ static void uvm_hook_mod_release(struct kref *kref)
 	list_del(&uhmod->list);
 	UVM_PRINTK(1, "%s called, %px.\n", __func__, uhmod);
 	uhmod->free(uhmod->arg);
+	kfree(uhmod);
 }
 
 int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
