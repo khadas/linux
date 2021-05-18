@@ -19,7 +19,8 @@
 /* 20210409: update lvds & vbyone regs for t7*/
 /* 20210412: add t3 support*/
 /* 20210514: add extern driver support*/
-#define LCD_DRV_VERSION    "20210514"
+/* 20210518: update t7 & t3 lvds lane setting*/
+#define LCD_DRV_VERSION    "20210518"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;

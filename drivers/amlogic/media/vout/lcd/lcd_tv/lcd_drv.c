@@ -304,8 +304,8 @@ static void lcd_lvds_control_set(struct aml_lcd_drv_s *pdrv)
 			}
 		} else {
 			if (lane_reverse) {
-				lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, 0xab12345);
-				lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, 0x60789);
+				lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, 0x9ab12345);
+				lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, 0x6078);
 			} else {
 				lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, 0x87643210);
 				lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, 0xb5a9);
