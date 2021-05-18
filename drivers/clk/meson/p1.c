@@ -2521,7 +2521,7 @@ static struct clk_regmap p1_ge2d_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_GE2DCLK_CTRL,
 		.mask = 0x7,
-		.shift = 25,
+		.shift = 9,
 		.table = p1_ge2d_table
 	},
 	.hw.init = &(struct clk_init_data){
@@ -2529,14 +2529,13 @@ static struct clk_regmap p1_ge2d_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = p1_ge2d_clk_parent_data,
 		.num_parents = ARRAY_SIZE(p1_ge2d_clk_parent_data),
-		.flags = CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
 static struct clk_regmap p1_ge2d_div = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = CLKCTRL_GE2DCLK_CTRL,
-		.shift = 16,
+		.shift = 0,
 		.width = 7,
 	},
 	.hw.init = &(struct clk_init_data){
@@ -2553,7 +2552,7 @@ static struct clk_regmap p1_ge2d_div = {
 static struct clk_regmap p1_ge2d = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = CLKCTRL_GE2DCLK_CTRL,
-		.bit_idx = 24,
+		.bit_idx = 8,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "ge2d",
@@ -2562,7 +2561,7 @@ static struct clk_regmap p1_ge2d = {
 			&p1_ge2d_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
