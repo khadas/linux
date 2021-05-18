@@ -188,7 +188,7 @@ static int aml_audio_hal_format_set_enum(struct snd_kcontrol *kcontrol,
 
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 
-	audio_send_uevent(card, AUDIO_SPDIF_FMT_EVENT, hal_format);
+	audio_send_uevent(card->dev, AUDIO_SPDIF_FMT_EVENT, hal_format);
 	pr_info("update audio atmos flag! audio_type = %d\n", hal_format);
 
 	if (p_aml_audio->hal_fmt != hal_format)
@@ -338,14 +338,14 @@ static void jack_work_func(struct work_struct *work)
 					EXTCON_JACK_HEADPHONE, 1);
 				snd_soc_jack_report(&card_data->hp_jack.jack,
 					status, SND_JACK_HEADPHONE);
-				audio_send_uevent(&card_data->snd_card,
+				audio_send_uevent(card_data->snd_card.dev,
 					HEADPHONE_DETECTION_EVENT, 1);
 			} else {
 				extcon_set_state_sync(audio_extcon_headphone,
 					EXTCON_JACK_HEADPHONE, 0);
 				snd_soc_jack_report(&card_data->hp_jack.jack, 0,
 					SND_JACK_HEADPHONE);
-				audio_send_uevent(&card_data->snd_card,
+				audio_send_uevent(card_data->snd_card.dev,
 					HEADPHONE_DETECTION_EVENT, 0);
 			}
 		}
@@ -362,14 +362,14 @@ static void jack_work_func(struct work_struct *work)
 					EXTCON_JACK_MICROPHONE, 1);
 				snd_soc_jack_report(&card_data->mic_jack.jack,
 					status, SND_JACK_MICROPHONE);
-				audio_send_uevent(&card_data->snd_card,
+				audio_send_uevent(card_data->snd_card.dev,
 					MICROPHONE_DETECTION_EVENT, 1);
 			} else {
 				extcon_set_state_sync(audio_extcon_microphone,
 					EXTCON_JACK_MICROPHONE, 0);
 				snd_soc_jack_report(&card_data->mic_jack.jack,
 					0, SND_JACK_MICROPHONE);
-				audio_send_uevent(&card_data->snd_card,
+				audio_send_uevent(card_data->snd_card.dev,
 					MICROPHONE_DETECTION_EVENT, 0);
 			}
 		}

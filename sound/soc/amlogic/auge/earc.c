@@ -36,6 +36,7 @@
 #include "frhdmirx_hw.h"
 #include "sharebuffer.h"
 #include "spdif_hw.h"
+#include "../common/audio_uevent.h"
 
 #define DRV_NAME "EARC"
 
@@ -112,7 +113,6 @@ struct earc {
 
 	/* external connect */
 	struct extcon_dev *rx_edev;
-	struct extcon_dev *tx_edev;
 
 	/* audio codec type for tx */
 	enum audio_coding_types tx_audio_coding_type;
@@ -439,28 +439,13 @@ static void earctx_update_attend_event(struct earc *p_earc,
 	if (state) {
 		if (is_earc) {
 			p_earc->earctx_connected_device_type = ATNDTYP_EARC;
-			extcon_set_state_sync(p_earc->tx_edev,
-					      EXTCON_EARCTX_ATNDTYP_ARC,
-					      false);
-			extcon_set_state_sync(p_earc->tx_edev,
-					      EXTCON_EARCTX_ATNDTYP_EARC,
-					      state);
+			audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_EARC);
 		} else {
 			p_earc->earctx_connected_device_type = ATNDTYP_ARC;
-			extcon_set_state_sync(p_earc->tx_edev,
-					      EXTCON_EARCTX_ATNDTYP_ARC,
-					      state);
-			extcon_set_state_sync(p_earc->tx_edev,
-					      EXTCON_EARCTX_ATNDTYP_EARC,
-					      false);
+			audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_ARC);
 		}
 	} else {
-		extcon_set_state_sync(p_earc->tx_edev,
-				      EXTCON_EARCTX_ATNDTYP_ARC,
-				      state);
-		extcon_set_state_sync(p_earc->tx_edev,
-				      EXTCON_EARCTX_ATNDTYP_EARC,
-				      state);
+		audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_DISCNCT);
 	}
 }
 
@@ -2102,37 +2087,6 @@ static int earcrx_cmdc_setup(struct earc *p_earc)
 	return ret;
 }
 
-static const unsigned int earctx_extcon[] = {
-	EXTCON_EARCTX_ATNDTYP_ARC,
-	EXTCON_EARCTX_ATNDTYP_EARC,
-	EXTCON_NONE,
-};
-
-static int earctx_extcon_register(struct earc *p_earc)
-{
-	int ret = 0;
-
-	/* earc or arc connect */
-	p_earc->tx_edev = devm_extcon_dev_allocate(p_earc->dev, earctx_extcon);
-	if (IS_ERR(p_earc->tx_edev)) {
-		dev_err(p_earc->dev, "failed to allocate earc extcon!!!\n");
-		ret = -ENOMEM;
-		return ret;
-	}
-	/*
-	 * p_earc->tx_edev->dev.parent  = p_earc->dev;
-	 * p_earc->tx_edev->name = "earctx";
-	 * dev_set_name(&p_earc->tx_edev->dev, "earctx");
-	 */
-	ret = devm_extcon_dev_register(p_earc->dev, p_earc->tx_edev);
-	if (ret < 0) {
-		dev_err(p_earc->dev, "earc extcon failed to register!!\n");
-		return ret;
-	}
-
-	return ret;
-}
-
 void earc_hdmirx_hpdst(int earc_port, bool st)
 {
 	struct earc *p_earc = s_earc;
@@ -2398,7 +2352,6 @@ static int earc_platform_probe(struct platform_device *pdev)
 
 	/* TX */
 	if (!IS_ERR(p_earc->tx_top_map)) {
-		earctx_extcon_register(p_earc);
 		earctx_cmdc_setup(p_earc);
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 		register_earctx_callback(earc_hdmirx_hpdst);
