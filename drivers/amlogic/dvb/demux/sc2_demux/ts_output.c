@@ -2703,3 +2703,72 @@ int ts_output_dump_info(char *buf)
 
 	return total;
 }
+
+int ts_output_update_filter(int dmx_no, int sid)
+{
+	int i = 0;
+
+	/*update dvr filter*/
+	for (i = 0; i < MAX_OUT_ELEM_NUM; i++) {
+		struct out_elem *pout = &out_elem_table[i];
+		struct pid_entry *head_pid_slot = NULL;
+		struct pid_entry *prev_pid_slot = NULL;
+		struct pid_entry *new_pid_slot = NULL;
+		struct pid_entry *pid_slot = NULL;
+
+		if (pout->used && pout->dmx_id == dmx_no) {
+			pout->sid = sid;
+			pid_slot = pout->pid_list;
+			while (pid_slot) {
+				/*free slot*/
+				tsout_config_ts_table(-1, pid_slot->pid_mask,
+					      pid_slot->id, pout->pchan->id);
+
+				/*remalloc slot and */
+				new_pid_slot = _malloc_pid_entry_slot(pout->sid,
+						pid_slot->pid);
+				if (!new_pid_slot) {
+					pr_dbg("malloc pid entry fail\n");
+					_free_pid_entry_slot(pid_slot);
+					pid_slot = pid_slot->pnext;
+					continue;
+				}
+				new_pid_slot->pid = pid_slot->pid;
+				new_pid_slot->pid_mask = pid_slot->pid_mask;
+				new_pid_slot->used = 1;
+				new_pid_slot->dmx_id = pid_slot->dmx_id;
+				new_pid_slot->ref = pid_slot->ref;
+				new_pid_slot->pout = pout;
+
+				if (!head_pid_slot)
+					head_pid_slot = new_pid_slot;
+				else
+					prev_pid_slot->pnext = new_pid_slot;
+
+				prev_pid_slot = new_pid_slot;
+				tsout_config_ts_table(new_pid_slot->pid,
+						new_pid_slot->pid_mask,
+						new_pid_slot->id,
+						pout->pchan->id);
+
+				_free_pid_entry_slot(pid_slot);
+				pid_slot = pid_slot->pnext;
+			}
+			pout->pid_list = head_pid_slot;
+		}
+	}
+	/*update es table filter*/
+	for (i = 0; i < MAX_ES_NUM; i++) {
+		struct es_entry *es_slot = &es_table[i];
+		struct out_elem *pout = NULL;
+
+		if (es_slot->used && es_slot->dmx_id == dmx_no) {
+			pout = es_slot->pout;
+			pout->sid = sid;
+			tsout_config_es_table(es_slot->buff_id, es_slot->pid,
+				      pout->sid, 1, !drop_dup, pout->format);
+		}
+	}
+	return 0;
+}
+
