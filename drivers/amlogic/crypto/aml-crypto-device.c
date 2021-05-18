@@ -494,7 +494,7 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 	u8 *key_clean = NULL;
 	struct device *dev = NULL;
 	int s = 0;
-	int nbufs = 0;
+	u32 nbufs = 0;
 	int rc = 0;
 	int block_mode = 0;
 	u32 src_bufsz = 0;
@@ -515,6 +515,11 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 	}
 
 	nbufs = kcop->cop.num_src_bufs;
+	if (nbufs > MAX_CRYPTO_BUFFERS) {
+		dbgp(2, "too many buffers: %d\n", nbufs);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < nbufs; i++) {
 		if (kcop->cop.src[i].length != kcop->cop.dst[i].length) {
 			dbgp(2, "incompatible buffer size\n");
@@ -746,7 +751,7 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 	u8 *key_clean = NULL;
 	struct device *dev = NULL;
 	int s = 0;
-	int nbufs = 0;
+	u32 nbufs = 0;
 	int rc = 0;
 	int block_mode = 0;
 	u8 *tmp_buf = NULL, *tmp_buf2 = NULL;
@@ -766,6 +771,11 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 
 	/* data sanity check for HW restrictions */
 	nbufs = kcop->cop.num_dst_bufs;
+	if (nbufs > MAX_CRYPTO_BUFFERS) {
+		dbgp(2, "too many buffers: %d\n", nbufs);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < nbufs; i++)
 		src_bufsz += kcop->cop.src[i].length;
 	if (hw_restriction_check(nbufs, kcop->cop.dst, ses_ptr)) {
@@ -966,7 +976,7 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 	u8 *key_clean = NULL;
 	struct device *dev = NULL;
 	int s = 0;
-	int nbufs = 0;
+	u32 nbufs = 0;
 	int rc = 0;
 	int block_mode = 0;
 	u8 *tmp_buf = NULL, *tmp_buf2 = NULL;
@@ -986,6 +996,11 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 
 	/* data sanity check for HW restrictions */
 	nbufs = kcop->cop.num_src_bufs;
+	if (nbufs > MAX_CRYPTO_BUFFERS) {
+		dbgp(2, "too many buffers: %d\n", nbufs);
+		return -EINVAL;
+	}
+
 	if (hw_restriction_check(nbufs, kcop->cop.src, ses_ptr)) {
 		dbgp(2, "checked fail in dst\n");
 		return -EINVAL;
@@ -1179,8 +1194,8 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 	u8 *iv = NULL;
 	struct device *dev = NULL;
 	int s = 0;
-	int nsrc_bufs = 0;
-	int ndst_bufs = 0;
+	u32 nsrc_bufs = 0;
+	u32 ndst_bufs = 0;
 	u32 total = 0;
 	u32 src_bufsz = 0;
 	u32 dst_bufsz = 0;
@@ -1200,11 +1215,21 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 	dev = crypto_dd->dev;
 
 	nsrc_bufs = kcop->cop.num_src_bufs;
+	if (nsrc_bufs > MAX_CRYPTO_BUFFERS) {
+		dbgp(2, "too many buffers: %d\n", nsrc_bufs);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < nsrc_bufs; i++)
 		src_bufsz += kcop->cop.src[i].length;
 	total = src_bufsz;
 
 	ndst_bufs = kcop->cop.num_dst_bufs;
+	if (ndst_bufs > MAX_CRYPTO_BUFFERS) {
+		dbgp(2, "too many buffers: %d\n", ndst_bufs);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < ndst_bufs; i++)
 		dst_bufsz += kcop->cop.dst[i].length;
 
@@ -1431,6 +1456,7 @@ int crypto_run(struct fcrypt *fcr, struct kernel_crypt_op *kcop)
 			ret = -EINVAL;
 			goto out_unlock;
 		}
+
 		if (kcop->cop.src_phys && kcop->cop.dst_phys)
 			ret = __crypto_run_physical(ses_ptr, kcop);
 		else if (!kcop->cop.src_phys && kcop->cop.dst_phys)
@@ -1627,7 +1653,7 @@ static inline void crypt_op_to_compat(struct crypt_op *cop,
 	compat->op = cop->op;
 	compat->src_phys = cop->src_phys;
 	compat->dst_phys = cop->dst_phys;
-	compat->ivlen = compat->ivlen;
+	compat->ivlen = cop->ivlen;
 	compat->num_src_bufs = cop->num_src_bufs;
 	compat->num_dst_bufs = cop->num_src_bufs;
 	compat->reserved = cop->reserved;
@@ -1669,7 +1695,7 @@ static inline void crypt_op_to_compat(struct crypt_op *cop,
 #endif
 		} else {
 			compat->dst[i].addr = ptr_to_compat(cop->dst[i].addr);
-			compat->dst[i].length = compat->dst[i].length;
+			compat->dst[i].length = cop->dst[i].length;
 		}
 	}
 	compat->iv  = ptr_to_compat(cop->iv);
@@ -1683,6 +1709,13 @@ static int compat_kcop_from_user(struct kernel_crypt_op *kcop,
 	if (unlikely(copy_from_user(&compat_cop, arg, sizeof(compat_cop))))
 		return -EFAULT;
 	compat_to_crypt_op(&compat_cop, &kcop->cop);
+
+	if (kcop->cop.num_src_bufs > MAX_CRYPTO_BUFFERS ||
+	    kcop->cop.num_dst_bufs > MAX_CRYPTO_BUFFERS) {
+		dbgp(2, "too many buffers, src: %d, dst: %d\n",
+		     kcop->cop.num_src_bufs, kcop->cop.num_dst_bufs);
+		return -EINVAL;
+	}
 
 	return fill_kcop_from_cop(kcop, fcr);
 }
