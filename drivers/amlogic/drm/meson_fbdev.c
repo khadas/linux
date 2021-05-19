@@ -250,6 +250,7 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 	struct meson_drm_fbdev *fbdev = container_of(fb_helper, struct meson_drm_fbdev, base);
 	struct drm_gem_object *fb_gem = fbdev->fb_gem;
 	struct drm_fb_helper_surface_size sizes;
+	unsigned int bytes_per_pixel;
 
 	if (oops_in_progress)
 		return -EBUSY;
@@ -270,6 +271,15 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 		sizes.surface_height = sizes.fb_height;
 		sizes.surface_bpp = var->bits_per_pixel;
 		sizes.surface_depth = PREFERRED_DEPTH;
+
+		fb->width = sizes.fb_width;
+		fb->height = sizes.fb_height;
+		bytes_per_pixel = DIV_ROUND_UP(sizes.surface_bpp, 8);
+		fb->pitches[0] =  ALIGN(fb->width * bytes_per_pixel, 64);
+
+		info->screen_size = fb->pitches[0] * fb->height;
+		info->fix.smem_len = info->screen_size;
+
 		drm_fb_helper_fill_info(info, fb_helper, &sizes);
 
 		if (fb_gem && fb_gem->size < info->fix.smem_len) {
@@ -362,6 +372,8 @@ retry:
 		plane_state->src_h = 0;
 		plane_state->zpos = fbdev->zorder;
 	}
+	/* fix alpha */
+	plane_state->pixel_blend_mode = DRM_MODE_BLEND_COVERAGE;
 
 	DRM_DEBUG("update fb [%x-%x, %x-%x]-%d->[%d-%d]",
 		plane_state->src_x, plane_state->src_y,
