@@ -89,7 +89,7 @@ static struct clk_regmap p1_sys_pll_dco = {
 #endif
 		.table = p1_sys_pll_params_table,
 		.l = {
-			.reg_off = CLKCTRL_SYS0PLL_CTRL0,
+			.reg_off = CLKCTRL_SYS0PLL_STS,
 			.shift   = 31,
 			.width   = 1,
 		},
@@ -142,7 +142,7 @@ static struct clk_regmap p1_sys1_pll_dco = {
 #endif
 		.table = p1_sys_pll_params_table,
 		.l = {
-			.reg_off = CLKCTRL_SYS1PLL_CTRL0,
+			.reg_off = CLKCTRL_SYS1PLL_STS,
 			.shift   = 31,
 			.width   = 1,
 		},
@@ -617,7 +617,7 @@ static struct clk_regmap p1_gp0_pll_dco = {
 			.width   = 1,
 		},
 		.rst = {
-			.reg_off = CLKCTRL_GP0PLL_CTRL0,
+			.reg_off = CLKCTRL_GP0PLL_STS,
 			.shift   = 29,
 			.width   = 1,
 		},
@@ -677,13 +677,13 @@ static struct clk_regmap p1_gp0_pll = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table p1_gp1_pll_table[] = {
-	PLL_PARAMS(200, 1, 2), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=1200M*/
 	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=1500M*/
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table p1_gp1_pll_table[] = {
-	PLL_PARAMS(200, 1), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(100, 1), /*DCO=2400M OD=1200M*/
 	PLL_PARAMS(125, 1), /*DCO=3000M OD=1500M*/
 	{ /* sentinel */  }
 };
@@ -707,7 +707,7 @@ static struct clk_regmap p1_gp1_pll_dco = {
 			.width   = 5,
 		},
 		.l = {
-			.reg_off = CLKCTRL_GP1PLL_CTRL0,
+			.reg_off = CLKCTRL_GP1PLL_STS,
 			.shift   = 31,
 			.width   = 1,
 		},
@@ -787,7 +787,7 @@ static struct clk_regmap p1_fdle_pll_dco = {
 			.width   = 5,
 		},
 		.l = {
-			.reg_off = CLKCTRL_FDLEPLL_CTRL0,
+			.reg_off = CLKCTRL_FDLEPLL_STS,
 			.shift   = 31,
 			.width   = 1,
 		},
@@ -867,7 +867,7 @@ static struct clk_regmap p1_m4_pll_dco = {
 			.width   = 5,
 		},
 		.l = {
-			.reg_off = CLKCTRL_M4PLL_CTRL0,
+			.reg_off = CLKCTRL_M4PLL_STS,
 			.shift   = 31,
 			.width   = 1,
 		},
@@ -948,7 +948,7 @@ static struct clk_regmap p1_gp2_pll_dco = {
 			.width   = 5,
 		},
 		.l = {
-			.reg_off = CLKCTRL_GP2PLL_CTRL0,
+			.reg_off = CLKCTRL_GP2PLL_STS,
 			.shift   = 31,
 			.width   = 1,
 		},
@@ -1029,7 +1029,7 @@ static struct clk_regmap p1_nna_pll_dco = {
 			.width   = 5,
 		},
 		.l = {
-			.reg_off = CLKCTRL_NNAPLL_CTRL0,
+			.reg_off = CLKCTRL_NNAPLL_STS,
 			.shift   = 31,
 			.width   = 1,
 		},
@@ -1255,7 +1255,7 @@ static struct clk_regmap p1_hifi_pll_dco = {
 			.width   = 19,
 		},
 		.l = {
-			.reg_off = CLKCTRL_HIFIPLL_CTRL0,
+			.reg_off = CLKCTRL_HIFIPLL_STS,
 			.shift   = 31,
 			.width   = 1,
 		},
@@ -1361,7 +1361,7 @@ static struct clk_regmap p1_pcie_pll_dco = {
 			.width   = 12,
 		},
 		.l = {
-			.reg_off = CLKCTRL_PCIEPLL_CTRL0,
+			.reg_off = CLKCTRL_PCIEPLL_STS,
 			.shift   = 31,
 			.width   = 1,
 		},
@@ -1459,6 +1459,125 @@ static struct clk_regmap p1_pcie_hcsl = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &p1_pcie_pll.hw },
 		.num_parents = 1,
+	},
+};
+
+#ifdef CONFIG_ARM
+static const struct pll_params_table p1_mclk_pll_table[] = {
+	PLL_PARAMS(99, 1, 1), /* DCO = 2376M OD = 1 PLL = 1152M */
+	PLL_PARAMS(100, 1, 1), /* DCO = 2400M */
+	{ /* sentinel */  }
+};
+#else
+static const struct pll_params_table p1_mclk_pll_table[] = {
+	PLL_PARAMS(99, 1), /* DCO = 2376M OD = 1 PLL = 1152M */
+	PLL_PARAMS(100, 1), /* DCO = 2400M */
+	{ /* sentinel */  }
+};
+#endif
+
+static const struct reg_sequence p1_mclk_init_regs[] = {
+	{ .reg = ANACTRL_MCLK_PLL_CNTL0, .def = 0x20011064, .delay_us = 20 },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL0, .def = 0x30011064 },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL1, .def = 0x1470500f },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL2, .def = 0x00023041 },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL3, .def = 0x18180000 },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL4, .def = 0x00180303 },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL0, .def = 0x10011064, .delay_us = 20 },
+	{ .reg = ANACTRL_MCLK_PLL_CNTL2, .def = 0x00023001, .delay_us = 20 }
+};
+
+static struct clk_regmap p1_mclk_pll_dco = {
+	.data = &(struct meson_clk_pll_data){
+		.en = {
+			.reg_off = ANACTRL_MCLK_PLL_CNTL0,
+			.shift   = 28,
+			.width   = 1,
+		},
+		.m = {
+			.reg_off = ANACTRL_MCLK_PLL_CNTL0,
+			.shift   = 0,
+			.width   = 8,
+		},
+		.n = {
+			.reg_off = ANACTRL_MCLK_PLL_CNTL0,
+			.shift   = 16,
+			.width   = 5,
+		},
+#ifdef CONFIG_ARM
+		/* for 32bit */
+		.od = {
+			.reg_off = ANACTRL_MCLK_PLL_CNTL0,
+			.shift	 = 12,
+			.width	 = 3,
+		},
+#endif
+		.l = {
+			.reg_off = ANACTRL_MCLK_PLL_STS,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = ANACTRL_MCLK_PLL_CNTL0,
+			.shift   = 29,
+			.width   = 1,
+		},
+		.table = p1_mclk_pll_table,
+		.init_regs = p1_mclk_init_regs,
+		.init_count = ARRAY_SIZE(p1_mclk_init_regs),
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mclk_pll_dco",
+		.ops = &meson_clk_pll_ops,
+		.parent_names = (const char *[]){ "xtal" },
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL
+	},
+};
+
+/* max div is 16 */
+static const struct clk_div_table mclk_div[] = {
+	{ .val = 0, .div = 1 },
+	{ .val = 1, .div = 2 },
+	{ .val = 2, .div = 4 },
+	{ .val = 3, .div = 8 },
+	{ .val = 4, .div = 16 },
+	{ /* sentinel */ }
+};
+
+static struct clk_regmap p1_mclk_pre_od = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = ANACTRL_MCLK_PLL_CNTL0,
+		.shift = 12,
+		.width = 3,
+		.table = mclk_div,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mclk_pre_od",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&p1_mclk_pll_dco.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap p1_mclk_pll = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = ANACTRL_MCLK_PLL_CNTL4,
+		.shift = 16,
+		.width = 5,
+		.flags = CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mclk_pll",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&p1_mclk_pre_od.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4962,6 +5081,9 @@ static struct clk_hw_onecell_data p1_hw_onecell_data = {
 		[CLKID_PCIE_PLL_OD]			= &p1_pcie_pll_od.hw,
 		[CLKID_PCIE_PLL]			= &p1_pcie_pll.hw,
 		[CLKID_PCIE_HCSL]			= &p1_pcie_hcsl.hw,
+		[CLKID_MCLK_PLL_DCO]			= &p1_mclk_pll_dco.hw,
+		[CLKID_MCLK_PRE]			= &p1_mclk_pre_od.hw,
+		[CLKID_MCLK_PLL]			= &p1_mclk_pll.hw,
 		[CLKID_MPLL_50M_DIV]			= &p1_mpll_50m_div.hw,
 		[CLKID_MPLL_50M]			= &p1_mpll_50m.hw,
 		[CLKID_MPLL_PREDIV]			= &p1_mpll_prediv.hw,
@@ -5533,9 +5655,6 @@ static struct clk_regmap *const p1_clk_regmaps[] = {
 	&p1_gp1_pll,
 	&p1_hifi_pll_dco,
 	&p1_hifi_pll,
-	&p1_pcie_pll_dco,
-	&p1_pcie_pll_od,
-	&p1_pcie_hcsl,
 	&p1_fdle_pll_dco,
 	&p1_fdle_pll,
 	&p1_nna_pll_dco,
@@ -5549,6 +5668,15 @@ static struct clk_regmap *const p1_clk_regmaps[] = {
 	&p1_mpll2,
 	&p1_mpll3_div,
 	&p1_mpll3
+};
+
+static struct clk_regmap *const p1_pll_regmaps[] = {
+	&p1_pcie_pll_dco,
+	&p1_pcie_pll_od,
+	&p1_pcie_hcsl,
+	&p1_mclk_pll_dco,
+	&p1_mclk_pre_od,
+	&p1_mclk_pll,
 };
 
 static struct clk_regmap *const p1_cpu_clk_regmaps[] = {
@@ -5610,7 +5738,7 @@ static struct regmap *p1_regmap_resource(struct device *dev, char *name)
 static int meson_p1_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct regmap *basic_map;
+	struct regmap *basic_map, *pll_map;
 	struct regmap *cpu_clk_map;
 	int ret, i;
 
@@ -5627,12 +5755,21 @@ static int meson_p1_probe(struct platform_device *pdev)
 		return PTR_ERR(cpu_clk_map);
 	}
 
+	pll_map = p1_regmap_resource(dev, "pll");
+	if (IS_ERR(basic_map)) {
+		dev_err(dev, "pll clk registers not found\n");
+		return PTR_ERR(pll_map);
+	}
+
 	/* Populate regmap for the regmap backed clocks */
 	for (i = 0; i < ARRAY_SIZE(p1_clk_regmaps); i++)
 		p1_clk_regmaps[i]->map = basic_map;
 
 	for (i = 0; i < ARRAY_SIZE(p1_cpu_clk_regmaps); i++)
 		p1_cpu_clk_regmaps[i]->map = cpu_clk_map;
+
+	for (i = 0; i < ARRAY_SIZE(p1_pll_regmaps); i++)
+		p1_pll_regmaps[i]->map = pll_map;
 
 	regmap_write(basic_map, CLKCTRL_MPLL_CTRL0, 0x00000543);
 

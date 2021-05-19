@@ -618,8 +618,9 @@
 				compatible = "amlogic,p1-clkc";
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0xb50>,
+				      <0x0 0x8000 0x0 0x54>,
 				      <0x0 0xe040 0x0 0xbc>;
-				reg-names = "basic", "cpu_clk";
+				reg-names = "basic", "pll", "cpu_clk";
 				clocks = <&xtal>;
 				clock-names = "xtal";
 				status = "okay";

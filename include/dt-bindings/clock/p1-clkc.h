@@ -51,7 +51,10 @@
 #define CLKID_MPLL2			39
 #define CLKID_MPLL3_DIV			40
 #define CLKID_MPLL3			41
-#define CLKID_BASE			42
+#define CLKID_MCLK_PLL_DCO		42
+#define CLKID_MCLK_PRE			43
+#define CLKID_MCLK_PLL			44
+#define CLKID_BASE			45
 
 #define CLKID_RTC_32K_CLKIN		(CLKID_BASE + 0)
 #define CLKID_RTC_32K_DIV		(CLKID_BASE + 1)
