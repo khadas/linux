@@ -618,7 +618,7 @@ static struct stchip_register_t l2a_def_val_local[] = {
 	{0x9f8,    0x73},/* REG_RL2A_DVBSX_DEMOD_SFRLOW0 */
 	/* auto sr low end */
 
-	{0x9fc,    0x19},/* REG_RL2A_DVBSX_DEMOD_SFR3 */
+	//{0x9fc,    0x19},/* REG_RL2A_DVBSX_DEMOD_SFR3 */
 	//{0x9fd,    0x98},/* REG_RL2A_DVBSX_DEMOD_SFR2 */
 	//{0x9fe,    0x8d},/* REG_RL2A_DVBSX_DEMOD_SFR1 */
 	//{0x9ff,    0x00},/* REG_RL2A_DVBSX_DEMOD_SFR0 */
