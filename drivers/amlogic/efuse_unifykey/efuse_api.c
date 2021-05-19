@@ -152,6 +152,28 @@ static unsigned long efuse_data_process(unsigned long type,
 	return res.a0;
 }
 
+int efuse_amlogic_cali_item_read(unsigned int item)
+{
+	struct arm_smccc_res res;
+
+	/* range check */
+	if (item < EFUSE_CALI_SUBITEM_WHOBURN ||
+		item > EFUSE_CALI_SUBITEM_BC)
+		return -EINVAL;
+
+	mutex_lock(&efuse_lock);
+
+	do {
+		arm_smccc_smc((unsigned long)EFUSE_READ_CALI_ITEM,
+			(unsigned long)item,
+			0, 0, 0, 0, 0, 0, &res);
+	} while (0);
+
+	mutex_unlock(&efuse_lock);
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(efuse_amlogic_cali_item_read);
+
 unsigned long efuse_amlogic_set(char *buf, size_t count)
 {
 	unsigned long ret;
