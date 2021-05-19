@@ -1157,7 +1157,7 @@
 			compatible = "amlogic, aml-wifi";
 			status = "disabled";
 			irq_trigger_type = "GPIO_IRQ_LOW";
-			dhd_static_buf;
+			//dhd_static_buf;
 			pwm_config = <&wifi_pwm_conf>;
 		};
 
