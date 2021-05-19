@@ -53,7 +53,6 @@ int device_status_v2(unsigned long usb_peri_reg)
 }
 EXPORT_SYMBOL(device_status_v2);
 
-
 static void set_device_mode_v2(struct platform_device *pdev,
 				unsigned long reg_addr, int controller_type)
 {

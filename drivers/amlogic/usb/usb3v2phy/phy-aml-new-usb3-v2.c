@@ -97,6 +97,25 @@ static void amlogic_new_usb3phy_shutdown(struct usb_phy *x)
 	phy->suspend_flag = 1;
 }
 
+void resume_xhci_port_a(void)
+{
+	union u2p_r2_v2 reg2;
+	struct u2p_aml_regs_v2 u2p_aml_regs;
+	unsigned long reg_addr;
+
+	if (!g_phy_v2)
+		return;
+
+	if (g_phy_v2->xhci_port_a_addr) {
+		reg_addr = (unsigned long)g_phy_v2->usb2_phy_cfg;
+		u2p_aml_regs.u2p_r_v2[2] = (void __iomem	*)
+				((unsigned long)reg_addr + PHY_REGISTER_SIZE + 0x8);
+		reg2.d32 = readl(u2p_aml_regs.u2p_r_v2[2]);
+		if (reg2.b.iddig_curr == 1)
+			writel(0xa0, g_phy_v2->xhci_port_a_addr);
+	}
+}
+
 void force_disable_xhci_port_a(void)
 {
 	if (!g_phy_v2)

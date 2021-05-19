@@ -534,4 +534,6 @@ void aml_new_otg_init(void);
 #endif
 
 void force_disable_xhci_port_a(void);
+void resume_xhci_port_a(void);
+void xhci_force_disable_port(void);
 #endif

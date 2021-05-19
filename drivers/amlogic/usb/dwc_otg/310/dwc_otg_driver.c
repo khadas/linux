@@ -956,6 +956,24 @@ static const struct of_device_id dwc_otg_dt_match[] = {
 	{},
 };
 
+void xhci_force_disable_port(void)
+{
+	int controller_setting;
+	int controller_type;
+
+	controller_type = g_dwc_otg_device[0]->core_if->controller_type;
+
+	if (force_device_mode && controller_type == USB_HOST_ONLY)
+		controller_setting = USB_DEVICE_ONLY;
+	else
+		controller_setting = controller_type;
+
+	if (controller_setting == USB_OTG)
+		resume_xhci_port_a();
+	else if (controller_setting == USB_DEVICE_ONLY)
+		force_disable_xhci_port_a();
+}
+
 /**
  * This function is called when an lm_device is bound to a
  * dwc_otg_driver. It creates the driver components required to
@@ -1467,6 +1485,8 @@ static int dwc2_prepare(struct device *dev)
 
 static void dwc2_complete(struct device *dev)
 {
+	xhci_force_disable_port();
+
 	return;
 }
 
@@ -1483,6 +1503,7 @@ static int dwc2_suspend(struct device *dev)
 	cpu_type = of_get_property(pdev->dev.of_node, "cpu-type", NULL);
 	if (!cpu_type)
 		return 0;
+
 	clk_suspend_usb(pdev, s_clock_name,
 			(unsigned long)(g_dwc_otg_device[pdev->id]->
 				core_if->usb_peri_reg), cpu_type);
@@ -1502,6 +1523,7 @@ static int dwc2_resume(struct device *dev)
 	cpu_type = of_get_property(pdev->dev.of_node, "cpu-type", NULL);
 	if (!cpu_type)
 		return 0;
+
 	clk_resume_usb(pdev, s_clock_name,
 			(unsigned long)(g_dwc_otg_device[pdev->id]->
 				core_if->usb_peri_reg), cpu_type);
