@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include "efuse.h"
 #include <linux/amlogic/efuse.h>
+#include <linux/io.h>
 
 #define EFUSE_DEVICE_NAME   "efuse"
 #define EFUSE_CLASS_NAME    "efuse"
@@ -610,6 +611,29 @@ exit:
 	return ret;
 }
 
+static ssize_t secureboot_check_show(struct class *cla,
+				 struct class_attribute *attr, char *buf)
+{
+	ssize_t n = 0;
+	int ret;
+
+	struct aml_efuse_dev *efuse_dev;
+
+	efuse_dev = container_of(cla, struct aml_efuse_dev, cls);
+	if (!efuse_dev->reg_base)
+		ret = -EINVAL;
+	else
+		ret = readl(efuse_dev->reg_base) & efuse_dev->secureboot_mask;
+	if (ret < 0)
+		n = sprintf(buf, "fail");
+	else if (ret == 0)
+		n = sprintf(buf, "raw");
+	else
+		n = sprintf(buf, "encrypt");
+
+	return n;
+}
+
 static int key_item_parse_dt(const struct device_node *np_efusekey,
 			     int index, struct efusekey_info *infos)
 {
@@ -732,6 +756,7 @@ static EFUSE_CLASS_ATTR(mac_bt);
 static EFUSE_CLASS_ATTR(mac_wifi);
 static EFUSE_CLASS_ATTR(usid);
 static CLASS_ATTR_WO(amlogic_set);
+static CLASS_ATTR_RO(secureboot_check);
 
 static struct attribute *efuse_calss_attrs[] = {
 	&class_attr_userdata.attr,
@@ -740,6 +765,7 @@ static struct attribute *efuse_calss_attrs[] = {
 	&class_attr_mac_wifi.attr,
 	&class_attr_usid.attr,
 	&class_attr_amlogic_set.attr,
+	&class_attr_secureboot_check.attr,
 	NULL,
 };
 
@@ -752,6 +778,9 @@ static int efuse_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct clk *efuse_clk;
 	struct aml_efuse_dev *efuse_dev;
+	struct resource *reg_mem = NULL;
+	void __iomem *reg_base = NULL;
+	unsigned int  secureboot_mask;
 
 	efuse_dev = devm_kzalloc(&pdev->dev, sizeof(*efuse_dev), GFP_KERNEL);
 	if (!efuse_dev) {
@@ -819,6 +848,25 @@ static int efuse_probe(struct platform_device *pdev)
 			efuse_pattern_size);
 	}
 
+	reg_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!IS_ERR_OR_NULL(reg_mem)) {
+		reg_base = devm_ioremap_resource(&pdev->dev, reg_mem);
+		if (IS_ERR(reg_base)) {
+			dev_err(&pdev->dev, "reg0: cannot obtain I/O memory region.\n");
+			ret = PTR_ERR(reg_base);
+			goto error1;
+		} else {
+			ret = of_property_read_u32(np, "secureboot_mask",
+				   &secureboot_mask);
+			if (ret) {
+				dev_err(&pdev->dev, "can't get reg secureboot_mask\n");
+				goto error1;
+			}
+		}
+	} else {
+		dev_err(&pdev->dev, "can't get reg resource\n");
+	}
+
 	get_efusekey_info(np);
 
 	ret = alloc_chrdev_region(&efuse_dev->devno, 0, 1, EFUSE_DEVICE_NAME);
@@ -827,6 +875,8 @@ static int efuse_probe(struct platform_device *pdev)
 		goto error1;
 	}
 
+	efuse_dev->reg_base = reg_base;
+	efuse_dev->secureboot_mask = secureboot_mask;
 	efuse_dev->cls.name = EFUSE_CLASS_NAME;
 	efuse_dev->cls.owner = THIS_MODULE;
 	efuse_dev->cls.class_groups = efuse_calss_groups;

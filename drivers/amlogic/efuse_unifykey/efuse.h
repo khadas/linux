@@ -19,6 +19,8 @@ struct aml_efuse_dev {
 	struct class           cls;
 	struct cdev            cdev;
 	dev_t                  devno;
+	void __iomem	       *reg_base;
+	unsigned int           secureboot_mask;
 };
 
 struct aml_efuse_key {
