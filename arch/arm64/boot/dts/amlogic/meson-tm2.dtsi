@@ -510,7 +510,7 @@
 	};
 
 	amhdmitx: amhdmitx{
-		compatible = "amlogic, amhdmitx-sm1";
+		compatible = "amlogic, amhdmitx-tm2";
 		dev_name = "amhdmitx";
 		status = "disabled";
 		vend-data = <&vend_data>;
@@ -541,7 +541,7 @@
 			<0x0 0xff63c000 0x0 0x2000>,
 			<0x0 0xff678000 0x0 0x8000>,
 			<0x0 0xff670000 0x0 0x8000>,
-			<0x0 0xffe01000 0x0 0x100>;
+			<0x0 0xffe01000 0x0 0x1000>;
 		reg-names = "cbus",
 			    "vcbus",
 			    "hiubus",

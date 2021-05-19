@@ -45,6 +45,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_config.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include "hw/tvenc_conf.h"
 #include "hw/common.h"
 #include "hw/hw_clk.h"
@@ -109,6 +110,11 @@ static struct amhdmitx_data_s amhdmitx_data_sc2 = {
 	.chip_name = "sc2",
 };
 
+static struct amhdmitx_data_s amhdmitx_data_tm2 = {
+	.chip_type = MESON_CPU_ID_TM2,
+	.chip_name = "tm2",
+};
+
 static const struct of_device_id meson_amhdmitx_of_match[] = {
 	{
 		.compatible	 = "amlogic, amhdmitx-g12a",
@@ -125,6 +131,10 @@ static const struct of_device_id meson_amhdmitx_of_match[] = {
 	{
 		.compatible	 = "amlogic, amhdmitx-sc2",
 		.data = &amhdmitx_data_sc2,
+	},
+	{
+		.compatible	 = "amlogic, amhdmitx-tm2",
+		.data = &amhdmitx_data_tm2,
 	},
 	{},
 };
@@ -4390,7 +4400,7 @@ static ssize_t hdcp_ctl_lvl_store(struct device *dev,
 
 	pr_info("set hdcp_ctl_lvl: %s\n", buf);
 	if (kstrtoul(buf, 10, &ctl_lvl) == 0) {
-		if (ctl_lvl >= 0 && ctl_lvl <= 2)
+		if (ctl_lvl <= 2)
 			hdmitx_device.hdcp_ctl_lvl = ctl_lvl;
 	}
 	return count;
@@ -6195,7 +6205,17 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 			return -1;
 		}
 		hdmitx_device.data = (struct amhdmitx_data_s *)match->data;
-
+		if (hdmitx_device.data->chip_type == MESON_CPU_ID_TM2 ||
+			hdmitx_device.data->chip_type == MESON_CPU_ID_TM2B) {
+			/* diff revA/B of TM2 chip */
+			if (is_meson_rev_b()) {
+				hdmitx_device.data->chip_type = MESON_CPU_ID_TM2B;
+				hdmitx_device.data->chip_name = "tm2b";
+			} else {
+				hdmitx_device.data->chip_type = MESON_CPU_ID_TM2;
+				hdmitx_device.data->chip_name = "tm2";
+			}
+		}
 		pr_info(SYS "chip_type:%d chip_name:%s\n",
 			hdmitx_device.data->chip_type,
 			hdmitx_device.data->chip_name);
