@@ -133,7 +133,7 @@ extern struct st_eq_data eq_ch1;
 extern struct st_eq_data eq_ch2;
 extern int delay_ms_cnt;
 extern int eq_max_setting;
-extern bool phy_pddq_en;
+extern u32 phy_pddq_en;
 extern int eq_dbg_ch0;
 extern int eq_dbg_ch1;
 extern int eq_dbg_ch2;

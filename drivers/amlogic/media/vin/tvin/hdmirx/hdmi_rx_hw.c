@@ -99,7 +99,7 @@ bool term_cal_en;
 int clock_lock_th = 2;
 int scdc_force_en = 1;
 /* for hdcp_hpd debug, disable by default */
-bool hdcp_hpd_ctrl_en;
+u32 hdcp_hpd_ctrl_en;
 int eq_dbg_lvl;
 u32 phy_trim_val;
 /* bit'4: tdr enable
@@ -467,11 +467,18 @@ u8 hdmirx_rd_cor(u32 addr)
 	ulong flags;
 	u8 data;
 	u32 dev_offset = 0;
+	bool need_wr_twice = false;
 
+	/* addr bit[8:15] is 0x1d or 0x1e need write twice */
+	need_wr_twice = ((((addr >> 8) & 0xff) == 0x1d) ||
+		(((addr >> 8) & 0xff) == 0x1e));
 	dev_offset = TOP_COR_BASE_OFFSET_T7 +
 		rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
 	spin_lock_irqsave(&reg_rw_lock, flags);
 	data = rd_reg_b(MAP_ADDR_MODULE_TOP,
+		      addr + dev_offset);
+	if (need_wr_twice)
+		data = rd_reg_b(MAP_ADDR_MODULE_TOP,
 		      addr + dev_offset);
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 
@@ -2096,6 +2103,11 @@ bool rx_clr_tmds_valid(void)
 				rx_pr("low empplitue %s!\n", __func__);
 			ret = true;
 		}
+	} else if (rx.phy_ver >= PHY_VER_T5) {
+		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, CDR_RST, 0);
+		ret = true;
+		if (log_level & VIDEO_LOG)
+			rx_pr("%s!\n", __func__);
 	}
 	return ret;
 }
@@ -3408,7 +3420,6 @@ void cor_init(void)
 	/* TDM cfg */
 	hdmirx_wr_cor(RX_TDM_CTRL1_AUD_IVCRX, 0x00);
 	hdmirx_wr_cor(RX_TDM_CTRL2_AUD_IVCRX, 0x10);
-
 }
 
 void hdcp_init_t7(void)
@@ -3420,7 +3431,7 @@ void hdcp_init_t7(void)
 	hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, 0x01);//ri_hdcp2x_en
 	//hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02);// irq
 	hdmirx_wr_cor(PWD_SW_CLMP_AUE_OIF_PWD_IVCRX, 0x0);
-	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x4);
+	//hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x1);//no use
 	//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3); irq
 	//hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, 0x1); //same as L3309
 	//hdmirx_wr_cor(CP2PA_TP1_HDCP2X_IVCRX, 0x9e);
@@ -3433,6 +3444,11 @@ void hdcp_init_t7(void)
 
 	//clr gcp wr; disable hw avmute
 	hdmirx_wr_cor(DEC_AV_MUTE_DP2_IVCRX, 0x20);
+
+	// hdcp 2x ECC detection enable
+	hdmirx_wr_cor(HDCP2X_RX_ECC_CTRL, 1);
+	hdmirx_wr_cor(HDCP2X_RX_ECC_FRM_ERR_THR_0, 0xff);
+	hdmirx_wr_cor(HDCP2X_RX_ECC_FRM_ERR_THR_1, 0xff);
 }
 
 void hdmirx_hw_config(void)
@@ -5379,5 +5395,12 @@ void rx_ddc_calibration(bool en)
 		hdmirx_wr_top(TOP_INFILTER_I2C2, data32);
 		hdmirx_wr_top(TOP_INFILTER_I2C3, data32);
 	}
+}
+
+void rx_hdcp_22_sent_reauth(void)
+{
+	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x0);
+	hdmirx_wr_cor(RX_ECC_CTRL_DP2_IVCRX, 3);
+	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x80);
 }
 

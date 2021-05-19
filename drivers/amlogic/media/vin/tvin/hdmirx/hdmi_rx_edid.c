@@ -42,7 +42,7 @@ static u8 com_aud[DB_LEN_MAX - 1] = {0};
  */
 static unsigned char recv_vsvdb_len = 0xFF;
 static unsigned char recv_vsvdb[VSVDB_LEN] = {0};
-bool vsvdb_update_hpd_en = true;
+u32 vsvdb_update_hpd_en = 1;
 
 int edid_mode;
 u8 port_hpd_rst_flag;
@@ -67,19 +67,19 @@ static unsigned char edid_tx[EDID_SIZE];
  * 1:reset hpd after atmos edid update
  * 0:not reset hpd after atmos edid update
  */
-bool atmos_edid_update_hpd_en = 1;
+u32 atmos_edid_update_hpd_en = 1;
 static u_char tmp_sad_len;
 static u_char tmp_sad[30];
 
 /* if free space is not enough in edid to do
  * data blk splice, then remove the last dtd(s)
  */
-bool en_take_dtd_space = true;
+u32 en_take_dtd_space = 1;
 /*
  * 1:reset hpd after cap ds edid update
  * 0:not reset hpd after cap ds edid update
  */
-bool earc_cap_ds_update_hpd_en = true;
+u32 earc_cap_ds_update_hpd_en = 1;
 
 unsigned int edid_select;
 

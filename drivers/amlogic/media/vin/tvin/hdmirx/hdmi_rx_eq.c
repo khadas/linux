@@ -50,7 +50,7 @@ int eq_dbg_ch2;
  * select the mode to config eq setting
  * 0: no pddq mode	1: use pddq down and up mode
  */
-bool phy_pddq_en;
+u32 phy_pddq_en;
 /*------------------------variable define end----------------------*/
 
 bool eq_maxvsmin(int ch0setting, int ch1setting, int ch2setting)

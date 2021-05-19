@@ -77,7 +77,7 @@ static pf_callback earc_hdmirx_hpdst;
 bool vic_check_en;
 bool dvi_check_en;
 //bool clk_debug_en;
-bool rx5v_debug_en;
+u32 rx5v_debug_en;
 u32 err_chk_en;
 u32 force_vic;
 int log_level = LOG_EN;
@@ -109,7 +109,7 @@ MODULE_PARM_DESC(esm_auth_fail_en, "\n esm_auth_fail_en\n");
 module_param(esm_auth_fail_en, bool, 0664);
 
 /* to inform hdcp_rx22 whether there's any device connected */
-bool pwr_sts_to_esm;
+u32 pwr_sts_to_esm;
 static int hdcp22_capable_sts = 0xff;
 static int hdcp22_auth_sts = 0xff;
 
@@ -160,11 +160,11 @@ static int stable_check_lvl;
  */
 static int edid_update_delay = 150;
 int skip_frame_cnt = 1;
-static bool hdcp22_reauth_enable;
+static u32 hdcp22_reauth_enable;
 unsigned int edid_update_flag;
 unsigned int downstream_hpd_flag;
-static bool hdcp22_stop_auth_enable;
-static bool hdcp22_esm_reset2_enable;
+static u32 hdcp22_stop_auth_enable;
+static u32 hdcp22_esm_reset2_enable;
 int sm_pause;
 int pre_port = 0xff;
 /* waiting time cannot be reduced 10*10*/
@@ -178,7 +178,7 @@ static bool term_flag = 1;
 /* vpp mute when signal change, used
  * in companion with vlock phase = 84
  */
-bool vpp_mute_enable;
+u32 vpp_mute_enable;
 int clk_chg_cnt;
 int clk_chg_max = 3;
 
@@ -720,12 +720,16 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	u8 rx_hdcp1x_intr0;
 	u8 rx_hdcp2x_intr0;
 	u8 rx_hdcp2x_intr1;
+	u8 hdcp_2x_ecc_intr;
 	//bool vsi_handle_flag = false;
 	//bool drm_handle_flag = false;
 	//bool emp_handle_flag = false;
 	//u32 rx_top_intr_stat = 0;
 	//bool irq_need_clr = 0;
 	/* clear interrupt quickly */
+	hdcp_2x_ecc_intr = hdmirx_rd_cor(HDCP2X_RX_ECC_INTR);
+	if (hdcp_2x_ecc_intr != 0)
+		hdmirx_wr_cor(HDCP2X_RX_ECC_INTR, hdcp_2x_ecc_intr);
 	grp_intr1 = hdmirx_rd_cor(RX_GRP_INTR1_STAT_PWD_IVCRX);
 	if (grp_intr1 != 0)
 		hdmirx_wr_cor(RX_GRP_INTR1_STAT_PWD_IVCRX, grp_intr1);
@@ -855,6 +859,13 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 			rx_pr("dp2-irq2-%x\n", rx_depack2_intr2);
 		if (rx_get_bits(rx_depack2_intr2, _BIT(4)))
 			emp_type |= EMP_TYPE_VSIF;
+	}
+
+	if (hdcp_2x_ecc_intr) {
+		if (log_level & IRQ_LOG)
+			rx_pr("ecc_err-%x\n", hdcp_2x_ecc_intr);
+		if (hdcp22_auth_sts == HDCP22_AUTH_STATE_SUCCESS)
+			rx_hdcp_22_sent_reauth();
 	}
 	//if (vsif_type)
 		//rx_pkt_handler(PKT_BUFF_SET_VSI);
@@ -2045,9 +2056,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(diff_frame_th, i++);
 	pr_var(force_vic, i++);
 	pr_var(aud_sr_stb_max, i++);
-	pr_var(hdcp22_kill_esm, i++);
 	pr_var(pwr_sts_to_esm, i++);
-	pr_var(esm_auth_fail_en, i++);
 	pr_var(log_level, i++);
 	pr_var(rx5v_debug_en, i++);
 	pr_var(clk_unstable_cnt, i++);
@@ -2056,24 +2065,12 @@ void rx_get_global_variable(const char *buf)
 	pr_var(clk_stable_max, i++);
 	pr_var(wait_no_sig_max, i++);
 	pr_var(receive_edid_len, i++);
-	pr_var(new_edid, i++);
 	pr_var(hdcp_array_len, i++);
 	pr_var(hdcp_len, i++);
 	pr_var(hdcp_repeat_depth, i++);
-	pr_var(new_hdcp, i++);
-	pr_var(repeat_plug, i++);
 	pr_var(up_phy_addr, i++);
-	pr_var(hpd_to_esm, i++);
-	pr_var(esm_reset_flag, i++);
-	pr_var(video_stable_to_esm, i++);
-	pr_var(enable_hdcp22_esm_log, i++);
-	pr_var(esm_error_flag, i++);
 	pr_var(stable_check_lvl, i++);
 	pr_var(hdcp22_reauth_enable, i++);
-	pr_var(hdcp22_stop_auth_enable, i++);
-	pr_var(hdcp22_stop_auth, i++);
-	pr_var(hdcp22_esm_reset2_enable, i++);
-	pr_var(hdcp22_esm_reset2, i++);
 	pr_var(esm_recovery_mode, i++);
 	pr_var(unnormal_wait_max, i++);
 	pr_var(hdmi_yuv444_enable, i++);
@@ -2092,7 +2089,6 @@ void rx_get_global_variable(const char *buf)
 	pr_var(pd_fifo_start_cnt, i++);
 	pr_var(hdcp22_on, i++);
 	pr_var(delay_ms_cnt, i++);
-	pr_var(downstream_repeat_support, i++);
 	pr_var(eq_max_setting, i++);
 	pr_var(eq_dbg_ch0, i++);
 	pr_var(eq_dbg_ch1, i++);
@@ -2101,7 +2097,6 @@ void rx_get_global_variable(const char *buf)
 	pr_var(phy_pddq_en, i++);
 	pr_var(long_cable_best_setting, i++);
 	pr_var(port_map, i++);
-	pr_var(new_hdr_lum, i++);
 	pr_var(skip_frame_cnt, i++);
 	pr_var(vdin_drop_frame_cnt, i++);
 	pr_var(atmos_edid_update_hpd_en, i++);
@@ -2245,12 +2240,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(force_vic, index);
 	if (set_pr_var(tmpbuf, var_to_str(aud_sr_stb_max), &aud_sr_stb_max, value))
 		return pr_var(aud_sr_stb_max, index);
-	if (set_pr_var(tmpbuf, var_to_str(hdcp22_kill_esm), &hdcp22_kill_esm, value))
-		return pr_var(hdcp22_kill_esm, index);
 	if (set_pr_var(tmpbuf, var_to_str(pwr_sts_to_esm), &pwr_sts_to_esm, value))
 		return pr_var(pwr_sts_to_esm, index);
-	if (set_pr_var(tmpbuf, var_to_str(esm_auth_fail_en), &esm_auth_fail_en, value))
-		return pr_var(esm_auth_fail_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx5v_debug_en), &rx5v_debug_en, value))
 		return pr_var(rx5v_debug_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(clk_unstable_cnt), &clk_unstable_cnt, value))
@@ -2265,42 +2256,16 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(wait_no_sig_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(receive_edid_len), &receive_edid_len, value))
 		return pr_var(receive_edid_len, index);
-	if (set_pr_var(tmpbuf, var_to_str(new_edid), &new_edid, value))
-		return pr_var(hdcp_array_len, index);
 	if (set_pr_var(tmpbuf, var_to_str(hdcp_len), &hdcp_len, value))
 		return pr_var(hdcp_len, index);
 	if (set_pr_var(tmpbuf, var_to_str(hdcp_repeat_depth), &hdcp_repeat_depth, value))
 		return pr_var(hdcp_repeat_depth, index);
-	if (set_pr_var(tmpbuf, var_to_str(new_hdcp), &new_hdcp, value))
-		return pr_var(new_hdcp, index);
-	if (set_pr_var(tmpbuf, var_to_str(repeat_plug), &repeat_plug, value))
-		return pr_var(repeat_plug, index);
 	if (set_pr_var(tmpbuf, var_to_str(up_phy_addr), &up_phy_addr, value))
 		return pr_var(up_phy_addr, index);
-	if (set_pr_var(tmpbuf, var_to_str(hpd_to_esm), &hpd_to_esm, value))
-		return pr_var(hpd_to_esm, index);
-	if (set_pr_var(tmpbuf, var_to_str(esm_reset_flag), &esm_reset_flag, value))
-		return pr_var(esm_reset_flag, index);
-	if (set_pr_var(tmpbuf, var_to_str(video_stable_to_esm), &video_stable_to_esm, value))
-		return pr_var(video_stable_to_esm, index);
-	if (set_pr_var(tmpbuf, var_to_str(enable_hdcp22_esm_log), &enable_hdcp22_esm_log, value))
-		return pr_var(enable_hdcp22_esm_log, index);
-	if (set_pr_var(tmpbuf, var_to_str(esm_error_flag), &esm_error_flag, value))
-		return pr_var(esm_error_flag, index);
 	if (set_pr_var(tmpbuf, var_to_str(stable_check_lvl), &stable_check_lvl, value))
 		return pr_var(stable_check_lvl, index);
 	if (set_pr_var(tmpbuf, var_to_str(hdcp22_reauth_enable), &hdcp22_reauth_enable, value))
 		return pr_var(hdcp22_reauth_enable, index);
-	if (set_pr_var(tmpbuf, var_to_str(hdcp22_stop_auth_enable),
-		&hdcp22_stop_auth_enable, value))
-		return pr_var(hdcp22_stop_auth_enable, index);
-	if (set_pr_var(tmpbuf, var_to_str(hdcp22_stop_auth), &hdcp22_stop_auth, value))
-		return pr_var(hdcp22_stop_auth, index);
-	if (set_pr_var(tmpbuf, var_to_str(hdcp22_esm_reset2_enable),
-		&hdcp22_esm_reset2_enable, value))
-		return pr_var(hdcp22_esm_reset2_enable, index);
-	if (set_pr_var(tmpbuf, var_to_str(hdcp22_esm_reset2), &hdcp22_esm_reset2, value))
-		return pr_var(hdcp22_esm_reset2, index);
 	if (set_pr_var(tmpbuf, var_to_str(esm_recovery_mode), &esm_recovery_mode, value))
 		return pr_var(esm_recovery_mode, index);
 	if (set_pr_var(tmpbuf, var_to_str(unnormal_wait_max), &unnormal_wait_max, value))
@@ -2339,9 +2304,6 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(hdcp22_on, index);
 	if (set_pr_var(tmpbuf, var_to_str(delay_ms_cnt), &delay_ms_cnt, value))
 		return pr_var(delay_ms_cnt, index);
-	if (set_pr_var(tmpbuf, var_to_str(downstream_repeat_support),
-		&downstream_repeat_support, value))
-		return pr_var(downstream_repeat_support, index);
 	if (set_pr_var(tmpbuf, var_to_str(eq_max_setting), &eq_max_setting, value))
 		return pr_var(eq_max_setting, index);
 	if (set_pr_var(tmpbuf, var_to_str(eq_dbg_ch0), &eq_dbg_ch0, value))
@@ -2359,8 +2321,6 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(long_cable_best_setting, index);
 	if (set_pr_var(tmpbuf, var_to_str(port_map), &port_map, value))
 		return pr_var(port_map, index);
-	if (set_pr_var(tmpbuf, var_to_str(new_hdr_lum), &new_hdr_lum, value))
-		return pr_var(new_hdr_lum, index);
 	if (set_pr_var(tmpbuf, var_to_str(skip_frame_cnt), &skip_frame_cnt, value))
 		return pr_var(skip_frame_cnt, index);
 	if (set_pr_var(tmpbuf, var_to_str(vdin_drop_frame_cnt), &vdin_drop_frame_cnt, value))
@@ -2821,44 +2781,6 @@ static void hdcp22_decrypt_monitor(void)
 		}
 	} else {
 		rx.last_hdcp22_state = 0;
-	}
-}
-
-static bool avi_rcv_unnormal_chk(void)
-{
-	bool ret = false;
-
-	if (!rx.var.de_stable) {
-		rx.var.de_cnt = 0;
-		rx.var.avi_rcv_cnt = 0;
-	}
-	/* start count AVI pkt and DE(vsync) after timing
-	 * stable, check if no avi pkt received during
-	 * every continuous fixed frames
-	 */
-	if (rx.var.de_cnt >= rx.var.avi_chk_frames) {
-		if (rx.var.avi_rcv_cnt == 0) {
-			if (!rx.cur.hw_dvi)
-				ret = true;
-		} else {
-			rx.var.avi_rcv_cnt = 0;
-			ret = false;
-		}
-		/* start check again */
-		rx.var.de_cnt = 0;
-	}
-	return ret;
-}
-
-static void rx_sig_sync_monitor(void)
-{
-	bool avi_unnormal = avi_rcv_unnormal_chk();
-
-	avi_unnormal = false;
-	if (avi_unnormal && rx.hdcp.hdcp_source) {
-		rx_send_hpd_pulse();
-		rx_pr("###no correct avi pkt during %d frames\n",
-		      rx.var.avi_chk_frames);
 	}
 }
 
@@ -3893,7 +3815,6 @@ void hdmirx_timer_handler(struct timer_list *t)
 				rx_clkrate_monitor();
 				rx_main_state_machine();
 				hdcp22_decrypt_monitor();
-				rx_sig_sync_monitor();
 				rx_ext_state_monitor();
 			}
 			/* rx_pkt_check_content(); */

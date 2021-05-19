@@ -20,8 +20,8 @@
 //#include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 
-/* enable hyper gain for 6g */
-#define RX_VER0 "ver.2021/05/12"
+/* hdcp link issue */
+#define RX_VER0 "ver.2021/05/26"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -254,11 +254,11 @@ struct rx_var_param {
 	 */
 	int edid_update_delay;
 	int skip_frame_cnt;
-	bool hdcp22_reauth_enable;
+	u32 hdcp22_reauth_enable;
 	unsigned int edid_update_flag;
 	unsigned int downstream_hpd_flag;
-	bool hdcp22_stop_auth_enable;
-	bool hdcp22_esm_reset2_enable;
+	u32 hdcp22_stop_auth_enable;
+	u32 hdcp22_esm_reset2_enable;
 	int sm_pause;
 	int pre_port;
 	/* waiting time cannot be reduced */
@@ -273,7 +273,7 @@ struct rx_var_param {
 	/* vpp mute when signal change, used
 	 * in companion with vlock phase = 84
 	 */
-	bool vpp_mute_enable;
+	u32 vpp_mute_enable;
 	/* mute delay cnt before vpp unmute */
 	int mute_cnt;
 	u8 dbg_ve;
@@ -303,18 +303,18 @@ struct rx_aml_phy {
 	int vga_dbg_delay;
 	u8 eq_fix_val;
 	int cdr_fr_en;
-	bool force_sqo;
+	u32 force_sqo;
 	/* add for t5 */
 	int os_rate;
 	u32 vga_gain;
 	u32 eq_stg1;
 	u32 eq_stg2;
-	bool dfe_hold;
-	bool eq_hold;
+	u32 dfe_hold;
+	u32 eq_hold;
 	int eye_delay;
-	bool eq_retry;
-	bool tap2_byp;
-	bool long_bist_en;
+	u32 eq_retry;
+	u32 tap2_byp;
+	u32 long_bist_en;
 };
 
 enum scan_mode_e {
@@ -694,7 +694,7 @@ extern int yuv_quant_range;
 extern int en_4k_timing;
 extern int cec_dev_en;
 extern bool dev_is_appletv_v2;
-extern bool en_4096_2_3840;
+extern u32 en_4096_2_3840;
 extern int en_4k_2_2k;
 extern bool hdmi_cec_en;
 extern int hdmi_yuv444_enable;
@@ -707,7 +707,7 @@ extern int suspend_pddq_sel;
 extern int disable_port_num;
 extern int disable_port_en;
 extern bool video_stable_to_esm;
-extern bool pwr_sts_to_esm;
+extern u32 pwr_sts_to_esm;
 extern bool enable_hdcp22_esm_log;
 extern bool esm_reset_flag;
 extern bool esm_auth_fail_en;

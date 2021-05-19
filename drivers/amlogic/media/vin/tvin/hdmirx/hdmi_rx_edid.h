@@ -712,12 +712,12 @@ extern u8 port_hpd_rst_flag;
 extern int edid_mode;
 extern int port_map;
 extern bool new_hdr_lum;
-extern bool atmos_edid_update_hpd_en;
-extern bool en_take_dtd_space;
-extern bool earc_cap_ds_update_hpd_en;
+extern u32 atmos_edid_update_hpd_en;
+extern u32 en_take_dtd_space;
+extern u32 earc_cap_ds_update_hpd_en;
 extern unsigned char edid_temp[MAX_EDID_BUF_SIZE];
 extern unsigned int edid_select;
-extern bool vsvdb_update_hpd_en;
+extern u32 vsvdb_update_hpd_en;
 extern enum edid_delivery_mothed_e edid_delivery_mothed;
 
 int rx_set_hdr_lumi(unsigned char *data, int len);

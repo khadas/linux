@@ -126,7 +126,7 @@ static u8 audio_block[MAX_AUDIO_BLK_LEN] = {
 	0x07, 0x01, 0x67, 0x7F, 0x01
 };
 
-bool en_4096_2_3840;
+u32 en_4096_2_3840;
 int en_4k_2_2k;
 int en_4k_timing = 1;
 int cec_dev_en;
@@ -1026,7 +1026,7 @@ void rx_set_sig_info(void)
 void rx_update_sig_info(void)
 {
 	rx_get_vsi_info();
-	//rx_set_sig_info();
+	rx_set_sig_info();
 }
 
 /*

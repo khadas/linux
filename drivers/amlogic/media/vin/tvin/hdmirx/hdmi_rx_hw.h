@@ -1146,6 +1146,8 @@
 	#define CDR_FR_EN				_BIT(30)
 	#define EQ_EN					_BIT(29)
 	#define CDR_PH_DIV				MSK(3, 0)
+	#define CDR_RST					_BIT(25)
+	#define EQ_RST					_BIT(24)
 #define HHI_RX_PHY_DCHD_CNTL1		(0xe << 2)/*0x38*/
 	#define IQ_OFST_SIGN			_BIT(27)
 	#define IQ_OFST_VAL				MSK(5, 22)
@@ -2536,6 +2538,12 @@
 #define     CP2PA_GP2_HDCP2X_IVCRX     0x00001d1d
 #define     CP2PA_GP3_HDCP2X_IVCRX     0x00001d1e
 
+#define HDCP2X_RX_ECC_CTRL				0x1d90
+#define HDCP2X_RX_ECC_FRM_ERR_THR_0		0x1d96
+#define HDCP2X_RX_ECC_FRM_ERR_THR_1		0x1d97
+#define HDCP2X_RX_ECC_INTR				0x1d9e
+#define HDCP2X_RX_ECC_INTR_MASK			0x1d9f
+
 //==================== CP2PA CORE===============
 #define CP2PAX_CTRL_0_HDCP2X_IVCRX     0x00001e00
 #define CP2PAX_CTRL_1_HDCP2X_IVCRX     0x00001e01
@@ -3130,7 +3138,7 @@ extern int hbr_force_8ch;
 extern bool term_cal_en;
 extern int clock_lock_th;
 extern int scdc_force_en;
-extern bool hdcp_hpd_ctrl_en;
+extern u32 hdcp_hpd_ctrl_en;
 extern int eq_dbg_lvl;
 extern int phy_term_lel;
 extern bool phy_tdr_en;
@@ -3361,5 +3369,6 @@ void dump_vsi_reg_t3(void);
 void rx_set_irq_t3(bool en);
 void rx_set_aud_output_t3(u32 param);
 void rx_sw_reset_t3(int level);
+void rx_hdcp_22_sent_reauth(void);
 
 #endif
