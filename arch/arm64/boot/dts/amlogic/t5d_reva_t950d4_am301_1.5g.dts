@@ -86,10 +86,10 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* yuv420(32x3)96M + di(7x4,10x5)78M + workbuf(12M)
-			 * the sum with align 4M then is equal to 188M
+			/* yuv420(32x3)96M + di(7x4,11x5)84M + workbuf(12M)
+			 * the sum with align 4M then is equal to 192M
 			 */
-			size = <0x0 0xbc00000>;
+			size = <0x0 0xc000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
@@ -235,7 +235,7 @@
 		en_4k = <0>;
 		keep_dec_vf = <0>;
 		po_fmt = <0>;
-		post_nub = <7>;
+		post_nub = <11>;
 		//memory-region = <&di_reserved>;
 		memory-region = <&di_cma_reserved>;
 		interrupts = <0 46 1
