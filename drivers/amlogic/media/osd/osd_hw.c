@@ -12687,6 +12687,9 @@ void osd_cursor_hw_no_scale(u32 index, s16 x, s16 y, s16 xstart, s16 ystart,
 
 void  osd_suspend_hw(void)
 {
+	wait_vsync_wakeup();
+	wait_vsync_wakeup_viu2();
+	wait_vsync_wakeup_viu3();
 	if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL) {
 		osd_hw.reg_status_save =
 			osd_reg_read(VPP_MISC) & OSD_RELATIVE_BITS;
@@ -12824,6 +12827,9 @@ void osd_resume_hw(void)
 
 void osd_shutdown_hw(void)
 {
+	wait_vsync_wakeup();
+	wait_vsync_wakeup_viu2();
+	wait_vsync_wakeup_viu3();
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	if (osd_hw.osd_meson_dev.has_rdma)
 		enable_rdma(0);
