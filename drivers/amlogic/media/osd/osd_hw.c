@@ -11874,13 +11874,15 @@ static void affinity_set(unsigned long mask)
 
 static int affinity_set_task(void *data)
 {
+	int ret;
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	allow_signal(SIGTERM);
 
 	while (affinity_info.run_affinity_task) {
-		wait_for_completion(&affinity_info.affinity_task_com);
+		ret = wait_for_completion_interruptible
+			(&affinity_info.affinity_task_com);
 		msleep(200);
 		affinity_set(affinity_info.affinity_mask);
 	}
