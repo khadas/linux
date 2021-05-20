@@ -149,6 +149,7 @@ struct earc {
 	struct work_struct rx_dmac_int_work;
 	u8 cds_data[CDS_MAX_BYTES];
 	enum sharebuffer_srcs samesource_sel;
+	struct samesource_info ss_info;
 };
 
 static struct earc *s_earc;
@@ -718,7 +719,9 @@ static int earc_dai_prepare(struct snd_pcm_substream *substream,
 
 		earctx_dmac_init(p_earc->tx_top_map,
 				 p_earc->tx_dmac_map,
-				 p_earc->chipinfo->earc_spdifout_lane_mask);
+				 p_earc->chipinfo->earc_spdifout_lane_mask,
+				 3,
+				 0x1 << 4);
 		earctx_dmac_set_format(p_earc->tx_dmac_map,
 				       fr->fifo_id,
 				       bit_depth - 1,
@@ -800,7 +803,7 @@ static void earctx_update_clk(struct earc *p_earc,
 
 	freq *= multi;
 	if (freq == p_earc->tx_dmac_freq) {
-		dev_info(p_earc->dev, "tx dmac clk, rate:%d, set freq: %d, get freq:%lu\n",
+		dev_info(p_earc->dev, "already tx dmac clk, rate:%d, set freq: %d, get freq:%lu\n",
 			rate,
 			freq,
 			clk_get_rate(p_earc->clk_tx_dmac));
@@ -808,7 +811,8 @@ static void earctx_update_clk(struct earc *p_earc,
 	}
 
 	p_earc->tx_dmac_freq = freq;
-	clk_set_rate(p_earc->clk_tx_dmac_srcpll, freq);
+	if (clk_get_rate(p_earc->clk_tx_dmac_srcpll) < freq)
+		clk_set_rate(p_earc->clk_tx_dmac_srcpll, freq);
 	clk_set_rate(p_earc->clk_tx_dmac, freq);
 
 	dev_info(p_earc->dev, "tx dmac clk, rate:%d, set freq: %d, get freq:%lu\n",
@@ -817,14 +821,83 @@ static void earctx_update_clk(struct earc *p_earc,
 		clk_get_rate(p_earc->clk_tx_dmac));
 }
 
+int spdif_codec_to_earc_codec[][2] = {
+	{AUD_CODEC_TYPE_STEREO_PCM, AUDIO_CODING_TYPE_STEREO_LPCM},
+	{AUD_CODEC_TYPE_DTS_RAW_MODE, AUDIO_CODING_TYPE_DTS},
+	{AUD_CODEC_TYPE_AC3, AUDIO_CODING_TYPE_AC3},
+	{AUD_CODEC_TYPE_DTS, AUDIO_CODING_TYPE_DTS},
+	{AUD_CODEC_TYPE_EAC3, AUDIO_CODING_TYPE_EAC3},
+	{AUD_CODEC_TYPE_DTS_HD, AUDIO_CODING_TYPE_DTS_HD},
+	{AUD_CODEC_TYPE_MULTI_LPCM, AUDIO_CODING_TYPE_MULTICH_2CH_LPCM},
+	{AUD_CODEC_TYPE_TRUEHD, AUDIO_CODING_TYPE_MLP},
+	{AUD_CODEC_TYPE_DTS_HD_MA, AUDIO_CODING_TYPE_DTS_HD_MA},
+	{AUD_CODEC_TYPE_HSR_STEREO_PCM, AUDIO_CODING_TYPE_STEREO_LPCM},
+	{AUD_CODEC_TYPE_AC3_LAYOUT_B, AUDIO_CODING_TYPE_AC3_LAYOUT_B},
+	{AUD_CODEC_TYPE_OBA, AUDIO_CODING_TYPE_HBR_LPCM}
+
+};
+
+int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_type)
+{
+	enum audio_coding_types last_coding_type;
+	struct frddr *fr;
+	enum attend_type type;
+	struct iec_cnsmr_cs cs_info;
+	int channels, rate;
+
+	if (!s_earc || IS_ERR(s_earc->tx_cmdc_map))
+		return 0;
+
+	last_coding_type = s_earc->tx_audio_coding_type;
+
+	if (new_coding_type == last_coding_type)
+		return 0;
+
+	s_earc->tx_audio_coding_type = new_coding_type;
+
+	if (!s_earc->tx_dmac_clk_on)
+		return 0;
+
+	dev_info(s_earc->dev, "tx audio coding type: 0x%02x\n", new_coding_type);
+
+	type = earctx_cmdc_get_attended_type(s_earc->tx_cmdc_map);
+
+	fr = s_earc->fddr;
+	/* Update dmac clk ? */
+	if (fr) {
+		channels = fr->channels;
+		rate = fr->rate;
+	} else {
+		channels = s_earc->ss_info.channels;
+		rate = s_earc->ss_info.rate;
+	}
+	earctx_update_clk(s_earc, channels, rate);
+
+	/* Update ECC enable/disable */
+	earctx_compressed_enable(s_earc->tx_dmac_map,
+				 type, new_coding_type, true);
+
+	/* Update Channel Status in runtime */
+	iec_get_cnsmr_cs_info(&cs_info,
+			      s_earc->tx_audio_coding_type,
+			      channels,
+			      rate);
+	earctx_set_cs_info(s_earc->tx_dmac_map,
+			   s_earc->tx_audio_coding_type,
+			   &cs_info,
+			   &s_earc->tx_cs_lpcm_ca);
+
+	return 0;
+}
+
 int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
-	struct frddr *fr, enum aud_codec_types type)
+	struct frddr *fr, enum aud_codec_types type, int lane_i2s)
 {
 	enum attend_type earc_type;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int bit_depth = snd_pcm_format_width(runtime->format);
-	struct iec_cnsmr_cs cs_info;
-	int ret;
+	int i, ret;
+	unsigned int chmask = 0, swap_masks = 0;
 
 	if (!s_earc)
 		return -ENOTCONN;
@@ -852,22 +925,22 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	earctx_update_clk(s_earc, runtime->channels, runtime->rate);
+	/* same source channels always 2 */
+	s_earc->ss_info.channels =  2;
+	s_earc->ss_info.rate = runtime->rate;
+	aml_earctx_set_audio_coding_type(spdif_codec_to_earc_codec[type][1]);
+	for (i = 0; i < runtime->channels; i++)
+		chmask |= (1 << i);
+	swap_masks = (2 * lane_i2s) | (2 * lane_i2s + 1) << 4;
 	earctx_dmac_init(s_earc->tx_top_map,
 			 s_earc->tx_dmac_map,
-			 s_earc->chipinfo->earc_spdifout_lane_mask);
+			 s_earc->chipinfo->earc_spdifout_lane_mask,
+			 chmask,
+			 swap_masks);
 	earctx_dmac_set_format(s_earc->tx_dmac_map,
 			       fr->fifo_id,
 			       bit_depth - 1,
 			       spdifout_get_frddr_type(bit_depth));
-	iec_get_cnsmr_cs_info(&cs_info,
-			      s_earc->tx_audio_coding_type,
-			      runtime->channels,
-			      runtime->rate);
-	earctx_set_cs_info(s_earc->tx_dmac_map,
-			   s_earc->tx_audio_coding_type,
-			   &cs_info,
-			   &s_earc->tx_cs_lpcm_ca);
 	earctx_set_cs_mute(s_earc->tx_dmac_map, s_earc->tx_cs_mute);
 
 	return 0;
@@ -1494,53 +1567,7 @@ int earctx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
 int earctx_set_audio_coding_type(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct earc *p_earc = dev_get_drvdata(component->dev);
-	enum audio_coding_types new_coding_type =
-				ucontrol->value.integer.value[0];
-	enum audio_coding_types last_coding_type;
-	struct frddr *fr;
-	enum attend_type type;
-	struct iec_cnsmr_cs cs_info;
-
-	if (!p_earc || IS_ERR(p_earc->tx_cmdc_map))
-		return 0;
-
-	last_coding_type = p_earc->tx_audio_coding_type;
-	fr = p_earc->fddr;
-
-	if (new_coding_type == last_coding_type)
-		return 0;
-
-	p_earc->tx_audio_coding_type = new_coding_type;
-
-	if (!p_earc->tx_dmac_clk_on)
-		return 0;
-
-	dev_info(p_earc->dev,
-		"tx audio coding type: 0x%02x\n",
-		new_coding_type);
-
-	type = earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map);
-
-	/* Update dmac clk ? */
-	earctx_update_clk(p_earc, fr->channels, fr->rate);
-
-	/* Update ECC enable/disable */
-	earctx_compressed_enable(p_earc->tx_dmac_map,
-				 type, new_coding_type, true);
-
-	/* Update Channel Status in runtime */
-	iec_get_cnsmr_cs_info(&cs_info,
-			      p_earc->tx_audio_coding_type,
-			      fr->channels,
-			      fr->rate);
-	earctx_set_cs_info(p_earc->tx_dmac_map,
-			   p_earc->tx_audio_coding_type,
-			   &cs_info,
-			   &p_earc->tx_cs_lpcm_ca);
-
-	return 0;
+	return aml_earctx_set_audio_coding_type(ucontrol->value.integer.value[0]);
 }
 
 int earctx_get_mute(struct snd_kcontrol *kcontrol,

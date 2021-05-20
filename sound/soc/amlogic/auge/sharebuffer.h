@@ -20,6 +20,11 @@ enum sharebuffer_srcs {
 	SHAREBUFFER_SRC_NUM = 6
 };
 
+struct samesource_info {
+	int channels;
+	int rate;
+};
+
 struct clk;
 
 struct samesrc_ops {

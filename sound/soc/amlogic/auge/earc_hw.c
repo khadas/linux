@@ -851,7 +851,9 @@ void earctx_cmdc_hpd_detect(struct regmap *top_map,
 
 void earctx_dmac_init(struct regmap *top_map,
 		      struct regmap *dmac_map,
-		      int earc_spdifout_lane_mask)
+		      int earc_spdifout_lane_mask,
+		      unsigned int chmask,
+		      unsigned int swap_masks)
 {
 	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 			 0x3 << 28,
@@ -877,12 +879,12 @@ void earctx_dmac_init(struct regmap *top_map,
 	if (earc_spdifout_lane_mask == EARC_SPDIFOUT_LANE_MASK_V2)
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL2,
 				 0xffff,   /* lane mask */
-				 0x3);     /*  ODO: lane 0 now */
+				 chmask);     /*  ODO: lane 0 now */
 	else
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 				 0xff << 4,   /* lane mask */
-				 0x3 << 4);   /*  ODO: lane 0 now */
-
+				 chmask << 4);   /*  ODO: lane 0 now */
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_SWAP, 0xff, swap_masks);
 	mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL0,
 			 0x1 << 23 | /* reg_bch_in_reverse */
 			 0x1 << 21 | /* reg_bch_out_data_reverse */
@@ -1265,7 +1267,7 @@ bool get_earctx_enable(struct regmap *cmdc_map, struct regmap *dmac_map)
 	if (type == ATNDTYP_DISCNCT)
 		return false;
 
-	if (mmio_read(dmac_map, EARCTX_SPDIFOUT_CTRL0) & 0x1 << 31)
+	if (mmio_read(dmac_map, EARCTX_SPDIFOUT_CTRL0) & 0x1 << 28)
 		return true;
 
 	return false;

@@ -10,7 +10,7 @@
 bool is_earc_spdif(void);
 void aml_earctx_enable(bool enable);
 int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
-	struct frddr *fr, enum aud_codec_types type);
+	struct frddr *fr, enum aud_codec_types type, int lane_i2s);
 bool aml_get_earctx_enable(void);
 bool get_earcrx_chnum_mult_mode(void);
 

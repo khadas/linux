@@ -120,7 +120,7 @@ int sharebuffer_prepare(struct snd_pcm_substream *substream,
 		sharebuffer_spdifout_prepare
 		(substream, fr, samesource_sel - 3, lane_i2s, type, separated);
 	} else if (samesource_sel == SHAREBUFFER_EARCTX) {
-		sharebuffer_earctx_prepare(substream, fr, type);
+		sharebuffer_earctx_prepare(substream, fr, type, lane_i2s);
 		if (!aml_get_earctx_enable())
 			return 0;
 	}

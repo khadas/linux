@@ -175,7 +175,7 @@ static int resample_clk_set(struct audioresample *p_resample, int output_sr)
 	int ret = 0;
 
 	/* defaule tdm out mclk to resample clk */
-	clk_set_rate(p_resample->pll, output_sr * CLK_RATIO * 2);
+	clk_set_rate(p_resample->pll, output_sr * CLK_RATIO * 32);
 	clk_set_rate(p_resample->sclk, output_sr * CLK_RATIO);
 	clk_set_rate(p_resample->clk, output_sr * CLK_RATIO);
 
