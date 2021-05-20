@@ -145,18 +145,20 @@ static void spdif_sharebuffer_prepare(struct snd_pcm_substream *substream,
 
 	ops = get_samesrc_ops(p_spdif->samesource_sel);
 	if (ops) {
-		ops->prepare(substream,
-			p_spdif->fddr,
-			p_spdif->samesource_sel,
-			0,
-			p_spdif->codec_type,
-			1,
-			p_spdif->chipinfo->separate_tohdmitx_en
-			);
+		if (ops->prepare)
+			ops->prepare(substream,
+				p_spdif->fddr,
+				p_spdif->samesource_sel,
+				0,
+				p_spdif->codec_type,
+				1,
+				p_spdif->chipinfo->separate_tohdmitx_en
+				);
 
-		ops->set_clks(p_spdif->samesource_sel,
-			p_spdif->sysclk,
-			p_spdif->sysclk_freq, 1);
+		if (ops->set_clks)
+			ops->set_clks(p_spdif->samesource_sel,
+				p_spdif->sysclk,
+				p_spdif->sysclk_freq, 1);
 	}
 }
 
@@ -171,7 +173,7 @@ static void spdif_sharebuffer_trigger(struct aml_spdif *p_spdif,
 		return;
 
 	ops = get_samesrc_ops(p_spdif->samesource_sel);
-	if (ops) {
+	if (ops && ops->trigger) {
 		int reenable = 0;
 
 		if (channels > 2)
@@ -192,7 +194,7 @@ static void spdif_sharebuffer_mute(struct aml_spdif *p_spdif, bool mute)
 		return;
 
 	ops = get_samesrc_ops(p_spdif->samesource_sel);
-	if (ops)
+	if (ops && ops->mute)
 		ops->mute(p_spdif->samesource_sel, mute);
 }
 
@@ -207,7 +209,7 @@ static void spdif_sharebuffer_free(struct aml_spdif *p_spdif,
 		return;
 
 	ops = get_samesrc_ops(p_spdif->samesource_sel);
-	if (ops) {
+	if (ops && ops->hw_free) {
 		ops->hw_free(substream,
 			p_spdif->fddr, p_spdif->samesource_sel, 1);
 	}

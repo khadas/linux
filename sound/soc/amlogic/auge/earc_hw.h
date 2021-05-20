@@ -284,7 +284,9 @@ void earctx_cmdc_hpd_detect(struct regmap *top_map,
 			    int earc_port, bool st);
 void earctx_dmac_init(struct regmap *top_map,
 		      struct regmap *dmac_map,
-		      int earc_spdifout_lane_mask);
+		      int earc_spdifout_lane_mask,
+		      unsigned int chmask,
+		      unsigned int swap_masks);
 void earctx_dmac_set_format(struct regmap *dmac_map,
 			    int frddr_idx, int msb, int frddr_type);
 int earctx_get_cs_iec958(struct regmap *dmac_map);
