@@ -504,7 +504,18 @@ static void vt_session_trim_lock(struct vt_session *session,
 					 instance->id, buffer->file_buffer,
 					 buffer, instance->fcount);
 			}
-			buffer->item.buffer_status = VT_BUFFER_FREE;
+			/* if still has producer, return the buffer to producer */
+			if (instance->producer) {
+				buffer->item.buffer_fd = buffer->buffer_fd_pro;
+				buffer->item.buffer_status = VT_BUFFER_RELEASE;
+				kfifo_put(&instance->fifo_to_producer, buffer);
+
+				vt_debug(VT_DEBUG_FILE,
+					 "vt [%d] session trim buffer(%p) back to producer\n",
+					 instance->id, buffer);
+			} else {
+				buffer->item.buffer_status = VT_BUFFER_FREE;
+			}
 		}
 	}
 }
@@ -754,6 +765,7 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 			if (ret == id)
 				break;
 			else if (ret < 0) {
+				pr_err("Connect to vt [%d] idr alloc fail:%d\n", id, ret);
 				mutex_unlock(&dev->instance_lock);
 				return ret;
 			}
