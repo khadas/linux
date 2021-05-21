@@ -315,7 +315,7 @@ static int __init match_common_caller(void *data, const char *name,
 	if (!strcmp(name, "_etext"))	/* end of text */
 		return -1;
 
-	for (i = 0; i < COMMON_CALLER_SIZE; i++) {
+	for (i = 0; i < ARRAY_SIZE(common_func); i++) {
 		s = &common_func[i];
 		if (!s->name)
 			break;		/* end */
@@ -1189,9 +1189,9 @@ int slab_trace_add_page(struct page *page, int order,
 	return 0;
 
 nomem:
-	kfree(trace);
 	pr_err("%s, failed to trace obj %p for %s, trace:%p\n", __func__,
 	       page_address(page), s->name, trace);
+	kfree(trace);
 	return -ENOMEM;
 }
 
