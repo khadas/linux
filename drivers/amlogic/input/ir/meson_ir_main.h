@@ -17,6 +17,8 @@
 
 #define CURSOR_MOVE_ACCELERATE {0, 2, 2, 4, 4, 6, 8, 10, 12, 14, 16, 18}
 #define DEBUG_BUFFER_SIZE  4096
+#define DECIDE_VENDOR_CHIP_ID (chip->vendor && chip->product && chip->version)
+#define DECIDE_VENDOR_TA_ID (ct->tab.vendor && ct->tab.product && ct->tab.version)
 
 enum IR_CONTR_NUMBER {
 	MULTI_IR_ID = 0,
@@ -112,7 +114,11 @@ struct meson_ir_chip {
 	int irqno;/*irq number*/
 	int irq_cpumask;
 	int protocol;
-
+	unsigned int vendor;
+	unsigned int product;
+	unsigned int version;
+	unsigned int input_cnt;
+	unsigned int search_id[3];
 	int (*report_key)(struct meson_ir_chip *chip);
 	int (*release_key)(struct meson_ir_chip *chip);
 	int (*set_register_config)(struct meson_ir_chip *chip, int type);
@@ -180,6 +186,10 @@ void meson_ir_cdev_free(struct meson_ir_chip *chip);
 int meson_ir_scancode_sort(struct ir_map_tab *ir_map);
 struct meson_ir_map_tab_list *meson_ir_seek_map_tab(struct meson_ir_chip *chip,
 						    int custom_code);
+void meson_ir_input_ots_configure(struct meson_ir_dev *dev, int cnt0);
+void meson_ir_input_device_ots_init(struct input_dev *dev, struct device *parent,
+		struct meson_ir_chip *chip, const char *name, int cnt);
+void meson_ir_timer_keyup(struct timer_list *t);
 void meson_ir_tab_free(struct meson_ir_map_tab_list *ir_map_list);
 int meson_ir_pulses_malloc(struct meson_ir_chip *chip);
 void meson_ir_pulses_free(struct meson_ir_chip *chip);

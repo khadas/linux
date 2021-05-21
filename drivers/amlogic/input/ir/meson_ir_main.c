@@ -144,6 +144,7 @@ static int meson_ir_report_rel(struct meson_ir_dev *dev, u32 scancode,
 	s32 cursor_value = 0;
 	u32 valid_scancode;
 	u16 mouse_code;
+	int cnt;
 	s32 move_accelerate[] = CURSOR_MOVE_ACCELERATE;
 
 	/*nothing need to do in normal mode*/
@@ -178,10 +179,20 @@ static int meson_ir_report_rel(struct meson_ir_dev *dev, u32 scancode,
 	} else {
 		return -EINVAL;
 	}
-	input_event(chip->r_dev->input_device, EV_REL,
-		    mouse_code, cursor_value);
-	input_sync(chip->r_dev->input_device);
 
+	if (DECIDE_VENDOR_TA_ID) {
+		for (cnt = 0; cnt <= chip->input_cnt; cnt++) {
+			if (chip->search_id[cnt] == ct->tab.vendor)
+				break;
+		}
+		input_event(chip->r_dev->input_device_ots[cnt], EV_REL,
+					mouse_code, cursor_value);
+		input_sync(chip->r_dev->input_device_ots[cnt]);
+	} else {
+		input_event(chip->r_dev->input_device, EV_REL,
+		    mouse_code, cursor_value);
+		input_sync(chip->r_dev->input_device);
+	}
 	meson_ir_dbg(chip->r_dev, "mouse cursor be %s moved %d.\n",
 		     mouse_code == REL_X ? "horizontal" : "vertical",
 		     cursor_value);
@@ -378,6 +389,8 @@ static int meson_ir_get_custom_tables(struct device_node *node,
 	u32 value;
 	int ret = -1;
 	int index;
+	int cnt = 0;
+	int cnl;
 	char *propname;
 	const char *uname;
 	unsigned long flags;
@@ -458,6 +471,42 @@ static int meson_ir_get_custom_tables(struct device_node *node,
 			goto err;
 		}
 		ptable->tab.release_delay = value;
+
+		ret = of_property_read_u32(map, "vendor", &value);
+		if (ret)
+			value = 0;
+		chip->vendor = value;
+		ptable->tab.vendor = chip->vendor;
+
+		ret = of_property_read_u32(map, "product", &value);
+		if (ret)
+			value = 0;
+		chip->product = value;
+		ptable->tab.product = chip->product;
+
+		ret = of_property_read_u32(map, "version", &value);
+		if (ret)
+			value = 0;
+		chip->version = value;
+		ptable->tab.version = chip->version;
+
+		if (DECIDE_VENDOR_CHIP_ID) {
+			if (cnt == 0 || cnl != chip->vendor) {
+				chip->r_dev->input_device_ots[cnt] =
+					devm_input_allocate_device(chip->dev);
+				input_set_drvdata(chip->r_dev->input_device_ots[cnt], chip->r_dev);
+				meson_ir_input_device_ots_init(chip->r_dev->input_device_ots[cnt],
+					chip->dev, chip, "ir_keypad1", cnt);
+				meson_ir_input_ots_configure(chip->r_dev, cnt);
+				chip->input_cnt = cnt;
+				chip->search_id[cnt] = chip->vendor;
+				ret = input_register_device(chip->r_dev->input_device_ots[cnt]);
+				if (ret < 0)
+					return ret;
+			}
+			cnl = chip->vendor;
+			cnt++;
+		}
 
 		ret = of_property_read_u32_array(map, "keymap",
 						 (u32 *)&ptable->tab.codemap[0],
@@ -587,6 +636,7 @@ static int meson_ir_hardware_init(struct platform_device *pdev)
 	ret = meson_ir_get_devtree_pdata(pdev);
 	if (ret < 0)
 		return ret;
+
 	chip->set_register_config(chip, chip->protocol);
 	ret = devm_request_irq(&pdev->dev, chip->irqno, meson_ir_interrupt,
 			       IRQF_SHARED, "meson_ir", (void *)chip);
@@ -616,6 +666,21 @@ static void meson_ir_input_device_init(struct input_dev *dev,
 	dev->id.version = 0x0100;
 	dev->rep[REP_DELAY] = 0xffffffff;  /*close input repeat*/
 	dev->rep[REP_PERIOD] = 0xffffffff; /*close input repeat*/
+}
+
+void meson_ir_input_device_ots_init(struct input_dev *dev,
+		struct device *parent,  struct meson_ir_chip *chip, const char *name, int cnt0)
+
+{
+	chip->r_dev->input_device_ots[cnt0]->name = "ir_keypad1";
+	chip->r_dev->input_device_ots[cnt0]->phys = "keypad/input0";
+	chip->r_dev->input_device_ots[cnt0]->dev.parent = chip->dev;
+	chip->r_dev->input_device_ots[cnt0]->id.bustype = BUS_ISA;
+	chip->r_dev->input_device_ots[cnt0]->id.vendor  = chip->vendor;
+	chip->r_dev->input_device_ots[cnt0]->id.product = chip->product;
+	chip->r_dev->input_device_ots[cnt0]->id.version = chip->version;
+	chip->r_dev->input_device_ots[cnt0]->rep[REP_DELAY] = 0xffffffff;
+	chip->r_dev->input_device_ots[cnt0]->rep[REP_PERIOD] = 0xffffffff;
 }
 
 static int meson_ir_probe(struct platform_device *pdev)
@@ -671,6 +736,8 @@ static int meson_ir_probe(struct platform_device *pdev)
 	ret = meson_ir_hardware_init(pdev);
 	if (ret < 0)
 		return ret;
+
+	timer_setup(&dev->timer_keyup, meson_ir_timer_keyup, 0);
 
 	ret = meson_ir_cdev_init(chip);
 	if (ret < 0)

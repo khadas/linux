@@ -24,17 +24,31 @@
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include "meson_ir_core.h"
+#include "meson_ir_main.h"
 
 static void meson_ir_do_keyup(struct meson_ir_dev *dev)
 {
-	input_report_key(dev->input_device, dev->last_keycode, 0);
-	input_sync(dev->input_device);
+	int cnt;
+	struct meson_ir_chip *chip = (struct meson_ir_chip *)dev->platform_data;
+	struct meson_ir_map_tab_list *ct = chip->cur_tab;
+
+	if (DECIDE_VENDOR_TA_ID) {
+		for (cnt = 0; cnt <= chip->input_cnt; cnt++) {
+			if (chip->search_id[cnt] == ct->tab.vendor)
+				break;
+		}
+		input_report_key(dev->input_device_ots[cnt], dev->last_keycode, 0);
+		input_sync(dev->input_device_ots[cnt]);
+	} else {
+		input_report_key(dev->input_device, dev->last_keycode, 0);
+		input_sync(dev->input_device);
+	}
 	dev->keypressed = 0;
 	dev->last_scancode = -1;
 	meson_ir_dbg(dev, "keyup!!\n");
 }
 
-static void meson_ir_timer_keyup(struct timer_list *t)
+void meson_ir_timer_keyup(struct timer_list *t)
 {
 	struct meson_ir_dev *dev = from_timer(dev, t, timer_keyup);
 	unsigned long flags;
@@ -59,6 +73,9 @@ static void meson_ir_timer_keyup(struct timer_list *t)
 static void meson_ir_do_keydown(struct meson_ir_dev *dev, int scancode,
 				u32 keycode)
 {
+	int cnt;
+	struct meson_ir_chip *chip = (struct meson_ir_chip *)dev->platform_data;
+	struct meson_ir_map_tab_list *ct = chip->cur_tab;
 	meson_ir_dbg(dev, "keypressed=0x%x\n", dev->keypressed);
 
 	if (dev->keypressed)
@@ -68,8 +85,17 @@ static void meson_ir_do_keydown(struct meson_ir_dev *dev, int scancode,
 		dev->keypressed = 1;
 		dev->last_scancode = scancode;
 		dev->last_keycode = keycode;
-		input_report_key(dev->input_device, keycode, 1);
-		input_sync(dev->input_device);
+		if (DECIDE_VENDOR_TA_ID) {
+			for (cnt = 0; cnt <= chip->input_cnt; cnt++) {
+				if (chip->search_id[cnt] == ct->tab.vendor)
+					break;
+			}
+			input_report_key(dev->input_device_ots[cnt], keycode, 1);
+			input_sync(dev->input_device_ots[cnt]);
+		} else {
+			input_report_key(dev->input_device, keycode, 1);
+			input_sync(dev->input_device);
+		}
 		meson_ir_dbg(dev, "report key!!\n");
 	} else {
 		dev_err(dev->dev, "no valid key to handle");
@@ -123,6 +149,25 @@ void meson_ir_keydown(struct meson_ir_dev *dev, int scancode, int status)
 }
 EXPORT_SYMBOL(meson_ir_keydown);
 
+void meson_ir_input_ots_configure(struct meson_ir_dev *dev, int cnt0)
+{
+	int i;
+
+	for (i = KEY_RESERVED; i < BTN_MISC; i++)
+		input_set_capability(dev->input_device_ots[cnt0], EV_KEY, i);
+
+	for (i = KEY_OK; i < BTN_TRIGGER_HAPPY; i++)
+		input_set_capability(dev->input_device_ots[cnt0], EV_KEY, i);
+
+	for (i = BTN_MOUSE; i < BTN_SIDE; i++)
+		input_set_capability(dev->input_device_ots[cnt0], EV_KEY, i);
+
+	input_set_capability(dev->input_device_ots[cnt0], EV_REL, REL_X);
+	input_set_capability(dev->input_device_ots[cnt0], EV_REL, REL_Y);
+	input_set_capability(dev->input_device_ots[cnt0], EV_REL, REL_WHEEL);
+}
+EXPORT_SYMBOL(meson_ir_input_ots_configure);
+
 void meson_ir_input_configure(struct meson_ir_dev *dev)
 {
 	int i;
@@ -139,7 +184,5 @@ void meson_ir_input_configure(struct meson_ir_dev *dev)
 	input_set_capability(dev->input_device, EV_REL, REL_X);
 	input_set_capability(dev->input_device, EV_REL, REL_Y);
 	input_set_capability(dev->input_device, EV_REL, REL_WHEEL);
-
-	timer_setup(&dev->timer_keyup, meson_ir_timer_keyup, 0);
 }
 EXPORT_SYMBOL(meson_ir_input_configure);

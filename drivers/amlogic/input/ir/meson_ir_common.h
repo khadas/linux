@@ -57,6 +57,9 @@ struct ir_map_tab {
 	__u16 map_size;
 	__u32 custom_code;
 	__u32 release_delay;
+	__u32 vendor;
+	__u32 product;
+	__u32 version;
 	union _codemap codemap[0];
 };
 
