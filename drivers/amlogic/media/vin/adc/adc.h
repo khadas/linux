@@ -6,7 +6,7 @@
 #ifndef __ADC_H_
 #define __ADC_H_
 
-#define TVDIN_ADC_VER "2020/06/16 improve robustness for probe fail"
+#define TVDIN_ADC_VER "2021/05/20 S4D dvbs clk support"
 
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000
@@ -101,6 +101,7 @@ enum adc_chip_ver {
 	ADC_CHIP_T5D,
 	ADC_CHIP_S4,
 	ADC_CHIP_T3,
+	ADC_CHIP_S4D,
 };
 
 struct adc_reg_phy {

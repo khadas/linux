@@ -981,7 +981,8 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			if (devp->data->hw_ver == DTVDEMOD_HW_S4) {
+			if (devp->data->hw_ver == DTVDEMOD_HW_S4 ||
+				devp->data->hw_ver == DTVDEMOD_HW_S4D) {
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x10);
 				usleep_range(1000, 2000);
