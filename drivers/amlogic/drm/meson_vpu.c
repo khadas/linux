@@ -35,6 +35,7 @@
 #include "meson_vpu_pipeline.h"
 
 #define AM_VOUT_NULL_MODE "null"
+static int irq_init_done;
 static struct platform_device *gp_dev;
 static unsigned long gem_mem_start, gem_mem_size;
 
@@ -130,6 +131,9 @@ static irqreturn_t am_meson_vpu_irq(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
 	struct meson_drm *priv = dev->dev_private;
+
+	if (!irq_init_done)
+		return IRQ_NONE;
 
 	am_meson_crtc_irq(priv);
 
@@ -301,6 +305,7 @@ static int am_meson_vpu_bind(struct device *dev,
 		return ret;
 	/* IRQ is initially disabled; it gets enabled in crtc_enable */
 	disable_irq(amcrtc->irq);
+	irq_init_done = 1;
 	DRM_INFO("[%s] out\n", __func__);
 	return 0;
 }
