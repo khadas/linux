@@ -57,6 +57,7 @@ struct meson_ir_raw_handle;
 struct meson_ir_dev {
 	struct device *dev;
 	struct input_dev *input_device;
+	struct input_dev *input_device_ots[3];
 	struct list_head reg_list;
 	struct list_head aml_list;
 	struct meson_ir_raw_handle *raw;

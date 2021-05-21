@@ -156,6 +156,9 @@
 			mapname = "amlogic-remote-4";
 			customcode = <0x7788>;
 			release_delay = <80>;
+			vendor = <0x0002>;
+			product = <0x0002>;
+			version = <0x0200>;
 			size  = <38>;   /*keymap size*/
 			keymap = <REMOTE_KEY(0x01, KEY_1)
 				REMOTE_KEY(0x02, KEY_2)
