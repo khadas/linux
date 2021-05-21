@@ -24,17 +24,21 @@
 #include <linux/delay.h>
 #include <linux/regulator/driver.h>
 #include "../../regulator/internal.h"
+#include "../../opp/opp.h"
 #include <linux/amlogic/scpi_protocol.h>
 #include "meson-cpufreq.h"
 #include <linux/energy_model.h>
 #include <linux/cpu_cooling.h>
 #include <linux/thermal.h>
 #include <linux/arm-smccc.h>
+#include <linux/proc_fs.h>
 
 #define CREATE_TRACE_POINTS
 /*whether use different tables or not*/
 static bool cpufreq_voltage_set_skip;
 static DEFINE_MUTEX(cpufreq_target_lock);
+struct proc_dir_entry *cpufreq_proc;
+static int opp_table_index[MAX_CLUSTERS];
 
 static unsigned int get_cpufreq_table_index(u64 function_id,
 					    u64 arg0, u64 arg1, u64 arg2)
@@ -409,15 +413,15 @@ int choose_cpufreq_tables_index(const struct device_node *np, u32 cur_cluster)
 {
 	int ret = 0;
 
-	cpufreq_tables_supply = of_property_read_bool(np,
+	cpufreq_tables_supply[cur_cluster] = of_property_read_bool(np,
 						      "multi_tables_available");
-	if (cpufreq_tables_supply) {
+	if (cpufreq_tables_supply[cur_cluster]) {
 		/*choose appropriate cpufreq tables according efuse info*/
 		ret = get_cpufreq_table_index(GET_DVFS_TABLE_INDEX,
 					      cur_cluster, 0, 0);
-		pr_info("%s:tables_index %u\n", __func__, ret);
+		pr_info("%s:clusterid: %u tables_index %u\n", __func__, cur_cluster, ret);
 	}
-
+	opp_table_index[cur_cluster] = ret;
 	return ret;
 }
 
@@ -534,6 +538,50 @@ static int aml_cpufreq_table_validate_and_sort(struct cpufreq_policy *policy)
 		return ret;
 
 	return set_freq_table_sorted(policy);
+}
+
+static int policy_info_show(struct seq_file *m, void *v)
+{
+	struct cpufreq_policy *policy = m->private;
+	struct meson_cpufreq_driver_data *driver_data = policy->driver_data;
+	struct device *cpu_dev = driver_data->cpu_dev;
+	struct opp_table *opp_table = dev_pm_opp_get_opp_table(cpu_dev);
+	struct dev_pm_opp *opp;
+	int clusterid = driver_data->clusterid;
+
+	seq_printf(m, "pdvfs_en: %d\n", cpufreq_tables_supply[clusterid]);
+	seq_printf(m, "table_index: %d\n", opp_table_index[clusterid]);
+	if (opp_table) {
+		seq_puts(m, "opp table:\n");
+		mutex_lock(&opp_table->lock);
+		list_for_each_entry(opp, &opp_table->opp_list, node) {
+			if (!opp->available)
+				continue;
+			seq_printf(m, "%lu %lu\n", opp->rate, opp->supplies[0].u_volt);
+		}
+		mutex_unlock(&opp_table->lock);
+	}
+	return 0;
+}
+
+static int meson_cpufreq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, policy_info_show, PDE_DATA(inode));
+}
+
+static const struct file_operations meson_cpufreq_fops = {
+	.open = meson_cpufreq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static void create_meson_cpufreq_proc_files(struct cpufreq_policy *policy)
+{
+	char policy_name[10] = {0};
+
+	snprintf(policy_name, sizeof(policy_name), "policy%u", policy->cpu);
+	proc_create_data(policy_name, 0444, cpufreq_proc, &meson_cpufreq_fops, policy);
 }
 
 /* CPU initialization */
@@ -674,6 +722,7 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	if (of_property_read_u32(np, "clock-latency", &transition_latency))
 		policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
 
+	cpufreq_data->clusterid = cur_cluster;
 	cpufreq_data->cpu_dev = cpu_dev;
 	cpufreq_data->low_freq_clk_p = low_freq_clk_p;
 	cpufreq_data->high_freq_clk_p = high_freq_clk_p;
@@ -698,6 +747,8 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 		freq_hz =  policy->cur * 1000;
 
 	nr_opp = dev_pm_opp_get_opp_count(cpu_dev);
+
+	create_meson_cpufreq_proc_files(policy);
 
 	dev_info(cpu_dev, "%s: CPU %d initialized\n", __func__, policy->cpu);
 	return ret;
@@ -832,6 +883,9 @@ static int meson_cpufreq_probe(struct platform_device *pdev)
 			pr_debug("failed to get cpu regulator:%d!\n", ret);
 		return ret;
 	}
+	cpufreq_proc = proc_mkdir("meson_cpufreq", NULL);
+	if (!cpufreq_proc)
+		pr_err("%s: failed to create meson_cppufreq proc entry\n", __func__);
 
 	ret = cpufreq_register_driver(&meson_cpufreq_driver);
 	if (ret) {

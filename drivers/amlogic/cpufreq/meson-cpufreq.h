@@ -46,7 +46,7 @@ static struct cpufreq_freqs freqs;
 unsigned int low_dsu_rate;
 
 /*whether use different tables or not*/
-bool cpufreq_tables_supply;
+bool cpufreq_tables_supply[MAX_CLUSTERS];
 #define GET_DVFS_TABLE_INDEX           0x82000088
 
 struct meson_cpufreq_driver_data {
@@ -60,6 +60,7 @@ struct meson_cpufreq_driver_data {
 	struct clk *clk_dsu;
 	struct clk *clk_dsu_pre;
 	struct thermal_cooling_device *cdev;
+	int clusterid;
 };
 
 static struct mutex cluster_lock[MAX_CLUSTERS];
