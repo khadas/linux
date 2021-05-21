@@ -3051,34 +3051,27 @@ static ssize_t dc_cap_show(struct device *dev,
 		}
 	}
 next444:
-	if (prxcap->dc_y444) {
-		if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
-		    dv2->sup_10b_12b_444 == 0x2)
-			if (!hdev->vend_id_hit)
-				pos += snprintf(buf + pos, PAGE_SIZE, "444,12bit\n");
-		if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1 ||
-		    dv2->sup_10b_12b_444 == 0x1) {
-			if (!hdev->vend_id_hit)
-				pos += snprintf(buf + pos, PAGE_SIZE, "444,10bit\n");
-			pos += snprintf(buf + pos, PAGE_SIZE, "444,8bit\n");
+	if (prxcap->native_Mode & (1 << 5)) {
+		if (prxcap->dc_y444) {
+			if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
+			    dv2->sup_10b_12b_444 == 0x2)
+				if (!hdev->vend_id_hit)
+					pos += snprintf(buf + pos, PAGE_SIZE, "444,12bit\n");
+			if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1 ||
+			    dv2->sup_10b_12b_444 == 0x1) {
+				if (!hdev->vend_id_hit)
+					pos += snprintf(buf + pos, PAGE_SIZE, "444,10bit\n");
+			}
 		}
-		if (prxcap->dc_36bit || dv->sup_yuv422_12bit ||
-		    dv2->sup_yuv422_12bit)
-			if (!hdev->vend_id_hit)
-				pos += snprintf(buf + pos, PAGE_SIZE, "422,12bit\n");
-		if (prxcap->dc_30bit) {
-			if (!hdev->vend_id_hit)
-				pos += snprintf(buf + pos, PAGE_SIZE, "422,10bit\n");
-			pos += snprintf(buf + pos, PAGE_SIZE, "422,8bit\n");
-			goto nextrgb;
-		}
-	} else {
-		if (prxcap->native_Mode & (1 << 5))
-			pos += snprintf(buf + pos, PAGE_SIZE, "444,8bit\n");
-		if (prxcap->native_Mode & (1 << 4))
-			pos += snprintf(buf + pos, PAGE_SIZE, "422,8bit\n");
+		pos += snprintf(buf + pos, PAGE_SIZE, "444,8bit\n");
 	}
-nextrgb:
+	/* y422, not check dc */
+	if (prxcap->native_Mode & (1 << 4)) {
+		pos += snprintf(buf + pos, PAGE_SIZE, "422,12bit\n");
+		pos += snprintf(buf + pos, PAGE_SIZE, "422,10bit\n");
+		pos += snprintf(buf + pos, PAGE_SIZE, "422,8bit\n");
+	}
+
 	if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
 	    dv2->sup_10b_12b_444 == 0x2)
 		if (!hdev->vend_id_hit)
