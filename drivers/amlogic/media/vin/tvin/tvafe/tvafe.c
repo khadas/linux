@@ -314,10 +314,9 @@ static int tvafe_get_v_fmt(void)
 {
 	int fmt = 0;
 
-	if (tvin_get_sm_status(0) != TVIN_SM_STATUS_STABLE) {
-		tvafe_pr_info("%s tvafe is not STABLE\n", __func__);
+	if (tvin_get_sm_status(0) != TVIN_SM_STATUS_STABLE)
 		return 0;
-	}
+
 	if (g_tvafe_info)
 		fmt = tvafe_cvd2_get_format(&g_tvafe_info->cvd2);
 	tvafe_manual_fmt_save = fmt;
