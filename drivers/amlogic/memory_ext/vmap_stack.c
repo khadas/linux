@@ -397,6 +397,7 @@ static noinline void show_fault_stack(unsigned long addr, struct pt_regs *regs)
 	frame.prev_fp = addr;
 	frame.pc = (unsigned long)regs->regs[30];
 	sp = addr;
+	frame.prev_type = STACK_TYPE_UNKNOWN;
 #elif defined(CONFIG_ARM)
 	frame.fp = regs->ARM_fp;
 	frame.sp = regs->ARM_sp;
