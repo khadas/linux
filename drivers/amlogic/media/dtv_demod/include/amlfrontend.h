@@ -12,7 +12,7 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/07/May: atsc fast search"
+#define DTVDEMOD_VER	"2021/20/May: S4D bringup"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
@@ -102,6 +102,7 @@ enum dtv_demod_hw_ver_e {
 	DTVDEMOD_HW_S4,
 	DTVDEMOD_HW_T5D_B,
 	DTVDEMOD_HW_T3,
+	DTVDEMOD_HW_S4D,
 };
 
 struct ddemod_dig_clk_addr {
@@ -253,6 +254,8 @@ struct amldtvdemod_device_s {
 #endif
 	/*agc pin mux*/
 	struct pinctrl *pin;	/*agc pintrcl*/
+
+	bool agc_direction;
 
 #if 1 /*move to aml_dtv_demod*/
 	/*for mem reserved*/

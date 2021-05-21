@@ -688,7 +688,7 @@ static int Gxtv_Demod_Dvbc_Init(struct aml_dtvdemod *demod, int mode)
 			__func__, sys.adc_clk, sys.demod_clk, demod->demod_status.tmp);
 
 	/* sys clk div */
-	if (devp->data->hw_ver == DTVDEMOD_HW_S4)
+	if (devp->data->hw_ver == DTVDEMOD_HW_S4 || devp->data->hw_ver == DTVDEMOD_HW_S4D)
 		dd_hiu_reg_write(0x80, 0x501);
 	else if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
@@ -2206,7 +2206,9 @@ static int dtvdemod_atsc_init(struct aml_dtvdemod *demod)
 	demod->demod_status.adc_freq = sys.adc_clk;
 	demod->demod_status.clk_freq = sys.demod_clk;
 
-	if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
+	if (devp->data->hw_ver == DTVDEMOD_HW_S4D)
+		dd_hiu_reg_write(0x80, 0x501);
+	else if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
 		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 	demod_set_sys(demod, &sys);
 
@@ -2965,6 +2967,7 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	int ret = 0;
 
 	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d.\n",
@@ -2976,6 +2979,11 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 
 	tuner_set_params(fe);
 	dtvdemod_dvbs_set_ch(&demod->demod_status);
+
+	if (devp->agc_direction) {
+		PR_INFO("DTV AGC direction: %d, Set dvbs agc pin reverse\n", devp->agc_direction);
+		dvbs_wr_byte(0x118, 0x04);
+	}
 
 	return ret;
 }
@@ -3079,8 +3087,16 @@ static int dtvdemod_dvbs2_init(struct aml_dtvdemod *demod)
 	PR_DBG("[%s]adc_clk is %d,demod_clk is %d\n", __func__, sys.adc_clk,
 	       sys.demod_clk);
 	demod->auto_flags_trig = 0;
-	dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x702);
-	dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+
+	if (devp->data->hw_ver == DTVDEMOD_HW_S4D) {
+		PR_DBG("[%s]S4D SET DEMOD CLK\n", __func__);
+		dd_hiu_reg_write(0x81, 0x702);
+		dd_hiu_reg_write(0x80, 0x501);
+	} else {
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x702);
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+	}
+
 	demod_set_sys(demod, &sys);
 	aml_dtv_demode_isr_en(devp, 1);
 	/*enable diseqc irq*/
@@ -3587,6 +3603,21 @@ const struct meson_ddemod_data  data_t3 = {
 	.hw_ver = DTVDEMOD_HW_T3,
 };
 
+const struct meson_ddemod_data  data_s4d = {
+	.dig_clk = {
+		.demod_clk_ctl = 0x74,
+		.demod_clk_ctl_1 = 0x75,
+	},
+	.regoff = {
+		.off_demod_top = 0xf000,
+		.off_front = 0x3800,
+		.off_dvbc = 0x1000,
+		.off_dvbc_2 = 0x1400,
+		.off_dvbs = 0x2000,
+	},
+	.hw_ver = DTVDEMOD_HW_S4D,
+};
+
 static const struct of_device_id meson_ddemod_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -3627,6 +3658,9 @@ static const struct of_device_id meson_ddemod_match[] = {
 	}, {
 		.compatible = "amlogic, ddemod-t3",
 		.data		= &data_t3,
+	}, {
+		.compatible = "amlogic, ddemod-s4d",
+		.data		= &data_s4d,
 	},
 	/* DO NOT remove, to avoid scan err of KASAN */
 	{}
@@ -3758,6 +3792,11 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 		PR_INFO("pinmux:not define in dts\n");
 		devp->pin = NULL;
 	}
+
+	//Agc pin direction set
+	//have "agc_pin_direction" agc_direction = 1;donot have agc_direction = 0
+	devp->agc_direction = of_property_read_bool(pdev->dev.of_node, "agc_pin_direction");
+	PR_INFO("agc_pin_direction:%d\n", devp->agc_direction);
 
 #ifdef CONFIG_OF
 	ret = of_property_read_u32(pdev->dev.of_node, "spectrum", &value);
@@ -4309,7 +4348,8 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 			ret = -ENOMEM;
 
 		/* delayed workqueue for dvbt2 fw downloading */
-		if (dtvdd_devp->data->hw_ver != DTVDEMOD_HW_S4) {
+		if (dtvdd_devp->data->hw_ver != DTVDEMOD_HW_S4 ||
+			dtvdd_devp->data->hw_ver != DTVDEMOD_HW_S4D) {
 			INIT_DELAYED_WORK(&devp->fw_dwork, dtvdemod_fw_dwork);
 			schedule_delayed_work(&devp->fw_dwork, 10 * HZ);
 		}
@@ -5511,9 +5551,10 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 
 	mutex_lock(&amldtvdemod_device_mutex);
 
-	if ((ic_version != MESON_CPU_MAJOR_ID_S4 && devp->index > 0) ||
-		(ic_version == MESON_CPU_MAJOR_ID_S4 && devp->index > 1)) {
-		pr_err("%s: Had attached (%d), only S4 support 2 attach.\n",
+	if ((devp->data->hw_ver != DTVDEMOD_HW_S4 && devp->index > 0) ||
+		(devp->data->hw_ver != DTVDEMOD_HW_S4 && devp->index > 1) ||
+		(devp->data->hw_ver != DTVDEMOD_HW_S4D && devp->index > 1)) {
+		pr_err("%s: Had attached (%d), only S4 and S4D support 2 attach.\n",
 				__func__, devp->index);
 
 		mutex_unlock(&amldtvdemod_device_mutex);
@@ -5541,8 +5582,9 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 	demod->inited = false;
 	demod->suspended = true;
 
-	/* select dvbc module for s4 */
-	if (ic_version == MESON_CPU_MAJOR_ID_S4)
+	/* select dvbc module for s4 and S4D */
+	if (devp->data->hw_ver != DTVDEMOD_HW_S4 ||
+		devp->data->hw_ver != DTVDEMOD_HW_S4D)
 		demod->dvbc_sel = demod->id;
 	else
 		demod->dvbc_sel = 0;
@@ -5662,6 +5704,16 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 #endif
 			strcpy(aml_dtvdm_ops.info.name,
 					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT/DTMB ddemod t3");
+			break;
+		case DTVDEMOD_HW_S4D:
+			aml_dtvdm_ops.delsys[0] = SYS_DVBC_ANNEX_A;
+			aml_dtvdm_ops.delsys[1] = SYS_DVBC_ANNEX_B;
+			aml_dtvdm_ops.delsys[2] = SYS_DVBS;
+			aml_dtvdm_ops.delsys[3] = SYS_DVBS2;
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+			aml_dtvdm_ops.delsys[4] = SYS_ANALOG;
+#endif
+			strcpy(aml_dtvdm_ops.info.name, "amlogic DVB-C/DVB-S dtv demod s4d");
 			break;
 
 		default:

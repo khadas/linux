@@ -182,6 +182,7 @@ void adc_set_ddemod_default(enum fe_delivery_system delsys)
 			break;
 
 		case ADC_CHIP_S4:
+		case ADC_CHIP_S4D:
 			/* enable bandgap */
 			adc_wr_hiu_bits(0xb0, 1, 11, 1);
 			adc_wr_hiu(0xd1, 0x582);
@@ -209,12 +210,12 @@ static void adc_set_dtvdemod_pll_by_clk(struct tvin_adc_dev *devp,
 	struct adc_reg_addr *adc_addr = &devp->plat_data->adc_addr;
 	struct adc_pll_reg_addr *pll_addr = &devp->plat_data->pll_addr;
 
-	if (chip == ADC_CHIP_S4)
+	if (chip == ADC_CHIP_S4 || chip == ADC_CHIP_S4D)
 		reg_offset = 0x10;
 
 	switch (p_dtv_para->adc_clk) {
 	case ADC_CLK_24M:
-		if (chip == ADC_CHIP_S4) {
+		if (chip == ADC_CHIP_S4 || chip == ADC_CHIP_S4D) {
 			adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x0105047d);
 			//adc_wr_hiu(HHI_ADC_PLL_CNTL0_TL1 + reg_offset, 0x312004e0);
 			adc_wr_hiu(pll_addr->adc_pll_cntl_1 + reg_offset, 0x03c00000);
@@ -275,6 +276,11 @@ static void adc_set_dtvdemod_pll_by_delsys(struct tvin_adc_dev *devp,
 						struct dfe_adcpll_para *p_dtv_para)
 {
 	struct adc_pll_reg_addr *pll_addr = &devp->plat_data->pll_addr;
+	enum adc_chip_ver chip = devp->plat_data->chip_id;
+	unsigned int reg_offset = 0;
+
+	if (chip == ADC_CHIP_S4 || chip == ADC_CHIP_S4D)
+		reg_offset = 0x10;
 
 	switch (p_dtv_para->delsys) {
 	case SYS_DVBT:
@@ -291,15 +297,27 @@ static void adc_set_dtvdemod_pll_by_delsys(struct tvin_adc_dev *devp,
 		break;
 
 	case SYS_DVBS2:
-		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x20050487);
-		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x30050487);
-		adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x00800000);
-		adc_wr_hiu(pll_addr->adc_pll_cntl_2, 0x0);
-		adc_wr_hiu(pll_addr->adc_pll_cntl_3, 0x48681f00);
-		adc_wr_hiu(pll_addr->adc_pll_cntl_4, 0x88770290);
-		adc_wr_hiu(pll_addr->adc_pll_cntl_5, 0x3927a000);
-		adc_wr_hiu(pll_addr->adc_pll_cntl_6, 0x56540000);
-		adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x10050487);
+		if (chip == ADC_CHIP_S4D) {
+			adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x20070487);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x30070487);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_1 + reg_offset, 0x01000000);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_2 + reg_offset, 0x0);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_3 + reg_offset, 0x48681f00);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_4 + reg_offset, 0x88770290);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_5 + reg_offset, 0x3927a000);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_6 + reg_offset, 0x56540000);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x10070487);
+		} else {
+			adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x20050487);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x30050487);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x00800000);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_2, 0x0);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_3, 0x48681f00);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_4, 0x88770290);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_5, 0x3927a000);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_6, 0x56540000);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x10050487);
+		}
 		break;
 
 	default:
@@ -541,6 +559,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 				case ADC_CHIP_T5D:
 				case ADC_CHIP_S4:
 				case ADC_CHIP_T3:
+				case ADC_CHIP_S4D:
 					adc_set_dtvdemod_pll_by_delsys(devp, p_dtv_para);
 					break;
 
@@ -994,6 +1013,12 @@ static const struct adc_platform_data_s adc_data_t3 = {
 	.chip_id = ADC_CHIP_T3,
 };
 
+static const struct adc_platform_data_s adc_data_s4d = {
+	ADC_ADDR_TL1_TO_S4,
+	ADC_PLL_ADDR_TL1,
+	.chip_id = ADC_CHIP_S4D,
+};
+
 static const struct of_device_id adc_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -1032,6 +1057,10 @@ static const struct of_device_id adc_dt_match[] = {
 	{
 		.compatible = "amlogic, adc-t3",
 		.data = &adc_data_t3,
+	},
+	{
+		.compatible = "amlogic, adc-s4d",
+		.data = &adc_data_s4d,
 	},
 	{}
 };
