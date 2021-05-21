@@ -245,9 +245,38 @@ static int ad82587d_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
+static int ad82587d_trigger(struct snd_pcm_substream *substream, int cmd,
+			       struct snd_soc_dai *codec_dai)
+{
+	struct ad82587d_priv *ad82587d = snd_soc_dai_get_drvdata(codec_dai);
+	struct snd_soc_component *component = ad82587d->component;
+	unsigned char mute_val;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		switch (cmd) {
+		case SNDRV_PCM_TRIGGER_START:
+		case SNDRV_PCM_TRIGGER_RESUME:
+		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+			mute_val = snd_soc_component_read32(component, MUTE);
+			mute_val &= ~(1 << 3);
+			snd_soc_component_write(component, MUTE, mute_val);
+			break;
+		case SNDRV_PCM_TRIGGER_STOP:
+		case SNDRV_PCM_TRIGGER_SUSPEND:
+		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+			mute_val = snd_soc_component_read32(component, MUTE);
+			mute_val |= (1 << 3);
+			snd_soc_component_write(component, MUTE, mute_val);
+			break;
+		}
+	}
+	return 0;
+}
+
 static const struct snd_soc_dai_ops ad82587d_dai_ops = {
 	.hw_params = ad82587d_hw_params,
 	.set_fmt = ad82587d_set_dai_fmt,
+	.trigger = ad82587d_trigger,
 };
 
 static struct snd_soc_dai_driver ad82587d_dai = {
@@ -376,6 +405,7 @@ static int ad82587d_probe(struct snd_soc_component *component)
 	}
 
 	ad82587d_init(component);
+	ad82587d->component = component;
 
 	return 0;
 }

@@ -57,6 +57,9 @@ struct tdm_chipinfo {
 	struct src_table *tdmin_srcs;
 	bool slot_num_en;
 	bool chnum_en;
+
+	/* only for t5&t5d*/
+	bool need_mute_tdm;
 };
 
 #define SRC_TDMIN_A     "tdmin_a"
@@ -316,6 +319,7 @@ struct tdm_chipinfo t5_tdma_chipinfo = {
 	.tdmin_srcs = &tdmin_srcs_v2[0],
 	.slot_num_en = true,
 	.chnum_en = false,
+	.need_mute_tdm = true,
 };
 
 struct tdm_chipinfo t5_tdmb_chipinfo = {
@@ -331,6 +335,7 @@ struct tdm_chipinfo t5_tdmb_chipinfo = {
 	.tdmin_srcs = &tdmin_srcs_v2[0],
 	.slot_num_en = true,
 	.chnum_en = false,
+	.need_mute_tdm = true,
 };
 
 struct tdm_chipinfo t5_tdmc_chipinfo = {
@@ -346,6 +351,7 @@ struct tdm_chipinfo t5_tdmc_chipinfo = {
 	.tdmin_srcs = &tdmin_srcs_v2[0],
 	.slot_num_en = true,
 	.chnum_en = false,
+	.need_mute_tdm = true,
 };
 
 struct tdm_chipinfo t7_tdma_chipinfo = {
