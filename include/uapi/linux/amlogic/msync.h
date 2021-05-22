@@ -129,6 +129,8 @@ struct session_debug {
 #define AMSYNCS_IOC_GET_WALL_ADJ_THRES	_IOR((_A_M_SS), 0x11, unsigned int)
 #define AMSYNCS_IOC_GET_CLOCK_START	_IOR((_A_M_SS), 0x12, unsigned int)
 #define AMSYNCS_IOC_AUDIO_START	_IOW((_A_M_SS), 0x13, struct audio_start)
+#define AMSYNCS_IOC_SET_CLK_DEV	_IOW((_A_M_SS), 0x14, int)
+#define AMSYNCS_IOC_GET_CLK_DEV	_IOR((_A_M_SS), 0x15, int)
 
 //For debuging
 #define AMSYNCS_IOC_GET_DEBUG_MODE	_IOR((_A_M_SS), 0x100, struct session_debug)

@@ -33,7 +33,8 @@
 #define CHECK_INTERVAL ((HZ / 10) * 3) //300ms
 #define WAIT_INTERVAL (2 * (HZ)) //2s
 #define TRANSIT_INTERVAL (HZ) //1s
-#define DISC_THRE_MIN (UNIT90K * 3)
+#define DISC_THRE_REC (UNIT90K / 5)
+#define DISC_THRE_MIN (UNIT90K / 3)
 #define DISC_THRE_MAX (UNIT90K * 20)
 
 #define TEN_MS_INTERVAL  (HZ / 100)
@@ -128,6 +129,7 @@ struct sync_session {
 	u32 pcr_disc_cnt;
 	u32 pcr_cont_cnt;
 	u32 pcr_disc_clock;
+	int clk_dev; /*pcr mono deviation. Positive if pcr is faster.*/
 
 	struct pts_tri first_vpts;
 	struct pts_tri last_vpts;
@@ -433,7 +435,6 @@ static void use_pcr_clock(struct sync_session *session, bool enable, u32 pts)
 		/* use wall clock as reference */
 		session->use_pcr = false;
 		session_set_wall_clock(session, pts);
-		session->last_vpts.pts = pts;
 	}
 	session->clock_start = true;
 }
@@ -1049,6 +1050,7 @@ static void session_video_disc_pcr(struct sync_session *session, u32 pts)
 		/* set wall clock */
 		session_set_wall_clock(session, pts);
 	} else if (pcr_v_disc(session, pts)) {
+		/* TODO: dead code */
 		u32 pcr = pcr_get(session);
 
 		if (session->use_pcr) {
@@ -1062,32 +1064,6 @@ static void session_video_disc_pcr(struct sync_session *session, u32 pts)
 				msync_dbg(LOG_DEBUG,
 					"[%d]%d vdisc set wall %u\n",
 					__LINE__, session->id, pts);
-			}
-		} else {
-			u32 apts = session->last_apts.pts;
-
-			if ((int)(pcr - pts) > 0 &&
-				VALID_PTS(apts) &&
-				(int)(pcr - apts) > 0 &&
-				abs_diff(pcr, apts) <
-					session->disc_thres_min) {
-				msync_dbg(LOG_DEBUG,
-					"[%d]%d ignore vdisc a %u\n",
-					__LINE__, session->id, apts);
-			} else {
-				u32 min_pts = pts;
-
-				if (A_DISC_SET(session->pcr_disc_flag) &&
-					abs_diff(pts,  apts) <
-						session->disc_thres_min) {
-					min_pts = pts_early(apts, pts);
-					min_pts -= sync.start_buf_thres;
-				}
-				session_set_wall_clock(session, min_pts);
-				msync_dbg(LOG_DEBUG,
-					"[%d]%d vdisc set wall %u a/v %u/%u\n",
-					__LINE__, session->id, min_pts,
-					pts, apts);
 			}
 		}
 	}
@@ -1238,10 +1214,9 @@ static void pcr_check(struct sync_session *session)
 			gap_cnt = 0;
 
 			/* vpts timeout */
-			if (abs_diff(last_pts, checkin_vpts)
-				> 2 * UNIT90K)
+			if (abs_diff(last_pts, checkin_vpts) > 2 * UNIT90K) {
 				session->pcr_disc_flag |= VIDEO_DISC;
-			if (last_pts == checkin_vpts) {
+			} else if (last_pts == checkin_vpts) {
 				session->last_check_vpts_cnt++;
 				if (session->last_check_vpts_cnt > max_gap) {
 					session->pcr_disc_flag |= VIDEO_DISC;
@@ -1251,6 +1226,9 @@ static void pcr_check(struct sync_session *session)
 			} else {
 				session->last_check_vpts = checkin_vpts;
 				session->last_check_vpts_cnt = 0;
+				if (abs_diff(session->wall_clock,
+					checkin_vpts) < DISC_THRE_REC)
+					session->pcr_disc_flag &= ~(VIDEO_DISC);
 			}
 			if (flag != session->pcr_disc_flag)
 				msync_dbg(LOG_WARN,
@@ -1359,6 +1337,7 @@ static void pcr_check(struct sync_session *session)
 			session->disc_thres_min) {
 			min_pts -= sync.start_buf_thres;
 			use_pcr_clock(session, false, min_pts);
+			session->pcr_disc_flag = 0;
 			msync_dbg(LOG_INFO,
 				"[%d] %d disable pcr %u vs %u\n",
 				session->id, __LINE__, min_pts,
@@ -1655,6 +1634,25 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		debug.pcr_init_flag = session->pcr_init_flag;
 		if (copy_to_user(argp, &debug, sizeof(debug)))
 			return -EFAULT;
+		break;
+	}
+	case AMSYNCS_IOC_SET_CLK_DEV:
+	{
+		int dev;
+
+		get_user(dev, (int __user *)argp);
+		if (dev > 1000 || dev < -1000)
+			return -EINVAL;
+		session->clk_dev = dev;
+		//TODO change video PLL
+		msync_dbg(LOG_WARN, "[%d]clk dev %d\n",
+			session->id, dev);
+		break;
+	}
+	case AMSYNCS_IOC_GET_CLK_DEV:
+	{
+		put_user(session->clk_dev, (int __user *)argp);
+		break;
 	}
 	default:
 		break;
