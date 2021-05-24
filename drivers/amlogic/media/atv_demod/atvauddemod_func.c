@@ -1620,10 +1620,13 @@ void set_outputmode(uint32_t standard, uint32_t outmode)
 		if (!aud_reinit && get_nicam_lock_status()) {
 			if (standard == AUDIO_STANDARD_A2_DK1
 				|| standard == AUDIO_STANDARD_A2_DK1
-				|| standard == AUDIO_STANDARD_A2_DK3)
+				|| standard == AUDIO_STANDARD_A2_DK3) {
 				aud_std = AUDIO_STANDARD_NICAM_DK;
-			else if (standard == AUDIO_STANDARD_A2_BG)
+				aud_mode = AUDIO_OUTMODE_NICAM_STEREO;
+			} else if (standard == AUDIO_STANDARD_A2_BG) {
 				aud_std = AUDIO_STANDARD_NICAM_BG;
+				aud_mode = AUDIO_OUTMODE_NICAM_STEREO;
+			}
 
 			break;
 		}
@@ -1640,10 +1643,13 @@ void set_outputmode(uint32_t standard, uint32_t outmode)
 	case AUDIO_STANDARD_MONO_L:
 		/* for FM MONO system to detection nicam status */
 		if (!aud_mono_only && !aud_reinit && get_nicam_lock_status()) {
-			if (standard == AUDIO_STANDARD_MONO_I)
+			if (standard == AUDIO_STANDARD_MONO_I) {
 				aud_std = AUDIO_STANDARD_NICAM_I;
-			else if (standard == AUDIO_STANDARD_MONO_L)
+				aud_mode = AUDIO_OUTMODE_NICAM_STEREO;
+			} else if (standard == AUDIO_STANDARD_MONO_L) {
 				aud_std = AUDIO_STANDARD_NICAM_L;
+				aud_mode = AUDIO_OUTMODE_NICAM_STEREO;
+			}
 
 			audio_source_select(1);
 		} else {

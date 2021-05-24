@@ -1305,15 +1305,21 @@ static enum v4l2_search atvdemod_fe_search(struct v4l2_frontend *v4l2_fe)
 
 	/*from the current freq start, and set the afc_step*/
 	/*if step is 2Mhz,r840 will miss program*/
-	if (slow_mode ||
-		(tuner_id == AM_TUNER_R840 || tuner_id == AM_TUNER_R842) ||
-		(p->afc_range == ATV_AFC_1_0MHZ)) {
+	if (slow_mode || p->afc_range == ATV_AFC_1_0MHZ) {
 		pr_dbg("[%s] slow mode to search the channel\n", __func__);
 		afc_step = ATV_AFC_1_0MHZ;
 	} else if (!slow_mode) {
-		afc_step = p->afc_range/* ATV_AFC_2_0MHZ */;
+		if ((tuner_id == AM_TUNER_R840 || tuner_id == AM_TUNER_R842) &&
+			p->afc_range >= ATV_AFC_2_0MHZ) {
+			pr_dbg("[%s] r842/r840 use slow mode to search the channel\n",
+					__func__);
+			afc_step = ATV_AFC_1_0MHZ;
+		} else {
+			afc_step = p->afc_range;
+		}
 	} else {
-		pr_dbg("[%s] slow mode to search the channel\n", __func__);
+		pr_dbg("[%s] default use slow mode to search the channel\n",
+				__func__);
 		afc_step = ATV_AFC_1_0MHZ;
 	}
 
