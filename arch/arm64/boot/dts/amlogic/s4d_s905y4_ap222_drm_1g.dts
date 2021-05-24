@@ -143,9 +143,9 @@
 		status = "okay";
 	};
 	amdolby_vision {
-		compatible = "amlogic, dolby_vision_sc2";
+		compatible = "amlogic, dolby_vision_s4d";
 		dev_name = "aml_amdolby_vision_driver";
-		status = "disabled";
+		status = "okay";
 		tv_mode = <0>;/*1:enabel ;0:disable*/
 	};
 	cvbsout {
