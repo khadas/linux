@@ -429,7 +429,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 						0, demux->id, &cb_id);
 			ts_output_add_cb(feed->ts_out_elem,
 					 out_ts_elem_cb, feed, cb_id,
-					 format, 0);
+					 format, 0, demux->id);
 			feed->cb_id = cb_id;
 			mutex_unlock(demux->pmutex);
 			return 0;
@@ -470,7 +470,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0,
 					  demux->id, &cb_id);
 		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed,
-			cb_id, format, 0);
+			cb_id, format, 0, demux->id);
 		feed->cb_id = cb_id;
 	} else {
 		dprint("%s error\n", __func__);
@@ -678,7 +678,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 	int cb_id = 0;
 	int ret = 0;
 
-	pr_dbg("%s\n", __func__);
+	pr_dbg("%s dmx id:%d\n", __func__, demux->id);
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
 
@@ -734,7 +734,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 		       (unsigned long)(sec_feed->sec_out_elem));
 		ts_output_add_cb(sec_feed->sec_out_elem,
 				 _ts_out_sec_cb, sec_feed, demux->id,
-				 SECTION_FORMAT, 1);
+				 SECTION_FORMAT, 1, demux->id);
 		mutex_unlock(demux->pmutex);
 		return 0;
 	}
@@ -775,7 +775,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 				  demux->id, &cb_id);
 		ts_output_add_cb(sec_feed->sec_out_elem,
 				 _ts_out_sec_cb, sec_feed, cb_id,
-				 SECTION_FORMAT, 1);
+				 SECTION_FORMAT, 1, demux->id);
 	}
 	pr_dbg("sec_out_elem:0x%lx\n", (unsigned long)(sec_feed->sec_out_elem));
 	mutex_unlock(demux->pmutex);
@@ -790,7 +790,7 @@ static int _dmx_section_feed_stop_filtering(struct dmx_section_feed *feed)
 	int i = 0;
 	int start_flag = 0;
 
-	pr_dbg("%s\n", __func__);
+	pr_dbg("%s dmx id:%d\n", __func__, demux->id);
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
@@ -830,7 +830,7 @@ static int _dmx_section_feed_release_filter(struct dmx_section_feed *feed,
 	struct aml_dmx *demux = (struct aml_dmx *)feed->parent->priv;
 	int i = 0;
 
-	pr_dbg("%s\n", __func__);
+	pr_dbg("%s dmx id:%d\n", __func__, demux->id);
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
