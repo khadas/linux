@@ -2779,6 +2779,7 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	bool valid = 0;
 	struct rx_cap *prxcap = NULL;
 	const struct dv_info *dv = &hdev->rxcap.dv_info;
+	enum hdmi_vic *vesa_t = &hdev->rxcap.vesa_timing[0];
 	unsigned int rx_max_tmds_clk = 0;
 	unsigned int calc_tmds_clk = 0;
 	int i = 0;
@@ -2791,8 +2792,9 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	if (!hdev || !para)
 		return 0;
 
-	if (strcmp(para->sname, "invalid") == 0)
-		return 0;
+	if (para->sname)
+		if (strcmp(para->sname, "invalid") == 0)
+			return 0;
 	/* exclude such as: 2160p60hz YCbCr444 10bit */
 	switch (para->vic) {
 	case HDMI_3840x2160p50_16x9:
@@ -2826,6 +2828,24 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	for (i = 0; (i < prxcap->VIC_count) && (i < VIC_MAX_NUM); i++) {
 		if ((para->vic & 0xff) == (prxcap->VIC[i] & 0xff))
 			svd_flag = 1;
+	}
+	if (para->vic >= HDMITX_VESA_OFFSET) {
+		if (para->cd != COLORDEPTH_24B)
+			return 0;
+		if (para->cs != COLORSPACE_RGB444)
+			return 0;
+		for (i = 0; vesa_t[i] && i < VESA_MAX_TIMING; i++) {
+			struct hdmi_format_para *param = NULL;
+
+			param = hdmi_get_fmt_paras(vesa_t[i]);
+			if (param) {
+				if (param->vic >= HDMITX_VESA_OFFSET &&
+					para->vic == param->vic) {
+					svd_flag = 1;
+					break;
+				}
+			}
+		}
 	}
 	if (svd_flag == 0)
 		return 0;
