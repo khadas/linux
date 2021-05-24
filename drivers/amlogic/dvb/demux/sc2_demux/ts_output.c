@@ -84,6 +84,7 @@ struct cb_entry {
 	u8 id;
 	u8 format;
 	u8 ref;
+	u8 demux_id;
 	ts_output_cb cb;
 	void *udata[MAX_FEED_NUM];
 	struct cb_entry *next;
@@ -2338,11 +2339,12 @@ int ts_output_reset(struct out_elem *pout)
  * \param cb_id:cb_id
  * \param format:format
  * \param is_sec: is section callback
+ * \param demux_id:dmx id
  * \retval 0:success.
  * \retval -1:fail.
  */
 int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
-		     u8 cb_id, u8 format, bool is_sec)
+		     u8 cb_id, u8 format, bool is_sec, u8 demux_id)
 {
 	struct cb_entry *tmp_cb = NULL;
 
@@ -2371,6 +2373,7 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 	tmp_cb->format = format;
 	tmp_cb->ref = 0;
 	tmp_cb->id = cb_id;
+	tmp_cb->demux_id = demux_id;
 
 	if (is_sec) {
 		tmp_cb->next = pout->cb_sec_list;
@@ -2512,12 +2515,27 @@ int ts_output_dump_info(char *buf)
 		unsigned int free_size = 0;
 		unsigned int wp_offset = 0;
 		struct pid_entry *pid_list;
+		struct cb_entry *tmp_cb = NULL;
 
 		if (pout->used && pout->format == DVR_FORMAT) {
+			tmp_cb = pout->cb_ts_list;
+
 			r = sprintf(buf, "%d sid:0x%0x ref:%d ",
 				    count, pout->sid, pout->ref);
 			buf += r;
 			total += r;
+
+			r = sprintf(buf, "dmx_id ");
+			buf += r;
+			total += r;
+
+			while (tmp_cb) {
+				r = sprintf(buf, "%d ", tmp_cb->demux_id);
+				buf += r;
+				total += r;
+
+				tmp_cb = tmp_cb->next;
+			}
 
 			ts_output_get_mem_info(pout,
 					       &total_size,
@@ -2668,10 +2686,26 @@ int ts_output_dump_info(char *buf)
 		unsigned int buf_phy_start = 0;
 		unsigned int free_size = 0;
 		unsigned int wp_offset = 0;
+		struct cb_entry *tmp_cb = NULL;
+		struct out_elem *pout = NULL;
 
 		if (es_slot->used && es_slot->status == SECTION_FORMAT) {
-			r = sprintf(buf, "%d dmxid:%d sid:0x%0x ",
-				    count, es_slot->dmx_id, es_slot->pout->sid);
+			pout = es_slot->pout;
+			tmp_cb = pout->cb_sec_list;
+
+			r = sprintf(buf, "%d dmx_id:", count);
+			buf += r;
+			total += r;
+
+			while (tmp_cb) {
+				r = sprintf(buf, "%d ", tmp_cb->demux_id);
+				buf += r;
+				total += r;
+
+				tmp_cb = tmp_cb->next;
+			}
+
+			r = sprintf(buf, "sid:0x%0x ", es_slot->pout->sid);
 			buf += r;
 			total += r;
 
@@ -2704,6 +2738,54 @@ int ts_output_dump_info(char *buf)
 	return total;
 }
 
+static void update_dvr_sid(struct out_elem *pout, int sid, int dmx_no)
+{
+	struct pid_entry *head_pid_slot = NULL;
+	struct pid_entry *prev_pid_slot = NULL;
+	struct pid_entry *new_pid_slot = NULL;
+	struct pid_entry *pid_slot = NULL;
+
+	pout->sid = sid;
+	pid_slot = pout->pid_list;
+	while (pid_slot) {
+		dprint("change dmx id:%d, dvr dmx filter sid:0x%0x, pid:0x%0x\n",
+				dmx_no, pout->sid, pid_slot->pid);
+		/*free slot*/
+		tsout_config_ts_table(-1, pid_slot->pid_mask,
+		      pid_slot->id, pout->pchan->id);
+
+		/*remalloc slot and */
+		new_pid_slot = _malloc_pid_entry_slot(pout->sid, pid_slot->pid);
+		if (!new_pid_slot) {
+			pr_dbg("malloc pid entry fail\n");
+			_free_pid_entry_slot(pid_slot);
+			pid_slot = pid_slot->pnext;
+			return;
+		}
+		new_pid_slot->pid = pid_slot->pid;
+		new_pid_slot->pid_mask = pid_slot->pid_mask;
+		new_pid_slot->used = 1;
+		new_pid_slot->dmx_id = pid_slot->dmx_id;
+		new_pid_slot->ref = pid_slot->ref;
+		new_pid_slot->pout = pout;
+
+		if (!head_pid_slot)
+			head_pid_slot = new_pid_slot;
+		else
+			prev_pid_slot->pnext = new_pid_slot;
+
+		prev_pid_slot = new_pid_slot;
+		tsout_config_ts_table(new_pid_slot->pid,
+			new_pid_slot->pid_mask,
+			new_pid_slot->id,
+			pout->pchan->id);
+
+		_free_pid_entry_slot(pid_slot);
+		pid_slot = pid_slot->pnext;
+	}
+	pout->pid_list = head_pid_slot;
+}
+
 int ts_output_update_filter(int dmx_no, int sid)
 {
 	int i = 0;
@@ -2711,62 +2793,52 @@ int ts_output_update_filter(int dmx_no, int sid)
 	/*update dvr filter*/
 	for (i = 0; i < MAX_OUT_ELEM_NUM; i++) {
 		struct out_elem *pout = &out_elem_table[i];
-		struct pid_entry *head_pid_slot = NULL;
-		struct pid_entry *prev_pid_slot = NULL;
-		struct pid_entry *new_pid_slot = NULL;
-		struct pid_entry *pid_slot = NULL;
+		u8 flag = 0;
 
-		if (pout->used && pout->dmx_id == dmx_no) {
-			pout->sid = sid;
-			pid_slot = pout->pid_list;
-			while (pid_slot) {
-				/*free slot*/
-				tsout_config_ts_table(-1, pid_slot->pid_mask,
-					      pid_slot->id, pout->pchan->id);
+		if (pout->used && pout->format == DVR_FORMAT) {
+			struct cb_entry *tmp_cb = pout->cb_ts_list;
 
-				/*remalloc slot and */
-				new_pid_slot = _malloc_pid_entry_slot(pout->sid,
-						pid_slot->pid);
-				if (!new_pid_slot) {
-					pr_dbg("malloc pid entry fail\n");
-					_free_pid_entry_slot(pid_slot);
-					pid_slot = pid_slot->pnext;
-					continue;
+			while (tmp_cb) {
+				if (tmp_cb->demux_id == dmx_no) {
+					flag = 1;
+					break;
 				}
-				new_pid_slot->pid = pid_slot->pid;
-				new_pid_slot->pid_mask = pid_slot->pid_mask;
-				new_pid_slot->used = 1;
-				new_pid_slot->dmx_id = pid_slot->dmx_id;
-				new_pid_slot->ref = pid_slot->ref;
-				new_pid_slot->pout = pout;
-
-				if (!head_pid_slot)
-					head_pid_slot = new_pid_slot;
-				else
-					prev_pid_slot->pnext = new_pid_slot;
-
-				prev_pid_slot = new_pid_slot;
-				tsout_config_ts_table(new_pid_slot->pid,
-						new_pid_slot->pid_mask,
-						new_pid_slot->id,
-						pout->pchan->id);
-
-				_free_pid_entry_slot(pid_slot);
-				pid_slot = pid_slot->pnext;
+				tmp_cb = tmp_cb->next;
 			}
-			pout->pid_list = head_pid_slot;
+			if (flag)
+				update_dvr_sid(pout, sid, dmx_no);
 		}
 	}
 	/*update es table filter*/
 	for (i = 0; i < MAX_ES_NUM; i++) {
 		struct es_entry *es_slot = &es_table[i];
 		struct out_elem *pout = NULL;
+		u8 flag = 0;
 
-		if (es_slot->used && es_slot->dmx_id == dmx_no) {
+		if (es_slot->used) {
+			struct cb_entry *tmp_cb = NULL;
 			pout = es_slot->pout;
-			pout->sid = sid;
-			tsout_config_es_table(es_slot->buff_id, es_slot->pid,
+
+			if (es_slot->status == ES_FORMAT || es_slot->status == PES_FORMAT)
+				tmp_cb = pout->cb_ts_list;
+			else if (es_slot->status == SECTION_FORMAT)
+				tmp_cb = pout->cb_sec_list;
+
+			while (tmp_cb) {
+				if (tmp_cb->demux_id == dmx_no) {
+					flag = 1;
+					break;
+				}
+				tmp_cb = tmp_cb->next;
+			}
+
+			if (flag) {
+				pout->sid = sid;
+				dprint("change dmx id:%d, filter sid:0x%0x, pid:0x%0x\n",
+					dmx_no, pout->sid, es_slot->pid);
+				tsout_config_es_table(es_slot->buff_id, es_slot->pid,
 				      pout->sid, 1, !drop_dup, pout->format);
+			}
 		}
 	}
 	return 0;
