@@ -85,6 +85,12 @@ enum eFRC_POS {
 	FRC_POS_AFTER_POSTBLEND = 1,
 };
 
+enum efrc_memc_level {
+	FRC_MEMC_LOW      = 1,
+	FRC_MEMC_MID      = 2,
+	FRC_MEMC_HIGH     = 3,
+};
+
 //-------------------------------------------------------------------sence start
 struct st_frc_rd {
 	u32 glb_h_dtl;
@@ -635,7 +641,7 @@ struct st_melogo_ctrl_para {
 
 struct st_film_ctrl_para
 {
-	u8    film_ctrl_en;                 //film detect ctrl en 
+	u8    film_ctrl_en;                 //film detect ctrl en
 	u8    film_check_mode_en;           //film check  mode en
 	u8    film_badedit_en;              //film badedit ctrl en
 	u8    film_7_seg_en;               //film 7 seg en
@@ -677,7 +683,7 @@ struct st_film_detect_item
 	u32     phase_mask_value;
 	u8      quit_mode_th;                 //quit mode threshold
 	u8      quit_reset_th;                //reset threshold
-	
+
 	u8      phase_error_flag;             //Possible phase error
 	u8      phase_error_flag_pre;         //Possible phase error of previous frame
 	u8      film_mod;                      //film mode type
@@ -1029,6 +1035,8 @@ struct frc_top_type_s {
 	u32 out_hsize;
 	u32 out_vsize;
 	/* frc_other*/
+	u8  frc_memc_level;
+	u8  frc_other_reserved;
 	u16 frc_other_info;
 	u32 frc_reserved;
 
@@ -1154,7 +1162,8 @@ struct frc_fw_data_s {
 	struct frc_top_type_s frc_top_type;
 	struct frc_holdline_s holdline_parm;
 	void (*frc_input_cfg)(struct frc_fw_data_s *fw_data);
-	u8 frc_fw_ver[32];
+	void (*frc_memc_level)(struct frc_fw_data_s *fw_data);
+
 	u8 frc_alg_ver[32];
 };
 

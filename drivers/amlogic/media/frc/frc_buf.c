@@ -511,10 +511,25 @@ int frc_buf_alloc(struct frc_dev_s *devp)
 		pr_frc(0, "cma_mem_size err\n");
 		return -1;
 	}
-
+	// test with datacompressrate
+	#if (FRC_COMPRESS_RATE == 60)
+		devp->buf.cma_mem_realalloced = FRC_COMPRESS_RATE_60_SIZE;
+	#elif (FRC_COMPRESS_RATE == 80)
+		devp->buf.cma_mem_realalloced = FRC_COMPRESS_RATE_80_SIZE;
+	#elif (FRC_COMPRESS_RATE == 50)
+		devp->buf.cma_mem_realalloced = FRC_COMPRESS_RATE_50_SIZE;
+	#elif (FRC_COMPRESS_RATE == 55)
+		devp->buf.cma_mem_realalloced = FRC_COMPRESS_RATE_55_SIZE;
+	#else
+		devp->buf.cma_mem_realalloced =  devp->buf.cma_mem_size;
+	#endif
+	if (devp->buf.cma_mem_realalloced <  devp->buf.total_size)
+		devp->buf.cma_mem_realalloced =  devp->buf.total_size + (512 * 1024);
+	if (devp->buf.cma_mem_realalloced > devp->buf.cma_mem_size)
+		devp->buf.cma_mem_realalloced = devp->buf.cma_mem_size;
 	devp->buf.cma_mem_paddr_pages =
-	dma_alloc_from_contiguous(&devp->pdev->dev, devp->buf.cma_mem_size >> PAGE_SHIFT, 0, 0);
-
+	dma_alloc_from_contiguous(&devp->pdev->dev,
+					(devp->buf.cma_mem_realalloced) >> PAGE_SHIFT, 0, 0);
 	if (!devp->buf.cma_mem_paddr_pages) {
 		devp->buf.cma_mem_size = 0;
 		pr_frc(0, "cma_alloc fail\n");
@@ -523,8 +538,9 @@ int frc_buf_alloc(struct frc_dev_s *devp)
 	/*physical pages address to real address*/
 	devp->buf.cma_mem_paddr_start = page_to_phys(devp->buf.cma_mem_paddr_pages);
 	devp->buf.cma_mem_alloced = 1;
-	pr_frc(0, "cma paddr_start=0x%lx size:0x%x\n", (ulong)devp->buf.cma_mem_paddr_start,
-	       devp->buf.cma_mem_size);
+	pr_frc(0, "cma paddr_start=0x%lx cma_mem_realalloced:0x%x(%d)\n",
+		(ulong)devp->buf.cma_mem_paddr_start,
+		devp->buf.cma_mem_realalloced, devp->buf.cma_mem_realalloced);
 
 	return 0;
 }

@@ -78,8 +78,9 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "vout sync_duration_num:%d sync_duration_den:%d hz:%d\n",
 		vinfo->sync_duration_num, vinfo->sync_duration_den,
 		vinfo->sync_duration_num / vinfo->sync_duration_den);
-	pr_frc(0, "mem_alloced:%d size:0x%x\n", devp->buf.cma_mem_alloced,
-	       devp->buf.cma_mem_size);
+	pr_frc(0, "mem_alloced-size:0x%x(%d), data_compress_rate:%d, real total size:%d\n",
+		devp->buf.cma_mem_realalloced,
+		devp->buf.cma_mem_realalloced, FRC_COMPRESS_RATE, devp->buf.real_total_size);
 	pr_frc(0, "vpu int vs_duration:%d timestamp:%ld\n",
 	       devp->vs_duration, (ulong)devp->vs_timestamp);
 	pr_frc(0, "frc in vs_duration:%d timestamp:%ld\n",

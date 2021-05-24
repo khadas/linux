@@ -71,8 +71,8 @@ struct frc_dev_s *get_frc_devp(void)
 }
 
 // static struct frc_fw_data_s *fw_data;
-static const char frc_fw_ver[] = "frc_drv_ver:001_20210519";
 struct frc_fw_data_s fw_data;  // important 2021_0510
+static const char frc_alg_defver[] = "alg_ver:default";
 
 struct frc_fw_data_s *frc_get_fw_data(void)
 {
@@ -547,7 +547,6 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	fw_data->holdline_parm.inp_hold_line = 4;
 	fw_data->holdline_parm.reg_post_dly_vofst = 0;/*fixed*/
 	fw_data->holdline_parm.reg_mc_dly_vofst0 = 1;/*fixed*/
-	pr_frc(0, "%s\n", fw_data->frc_fw_ver);
 
 	memset(&devp->frc_crc_data, 0, sizeof(struct frc_crc_data_s));
 	memset(&devp->ud_dbg, 0, sizeof(struct frc_ud_s));
@@ -590,8 +589,7 @@ static int frc_probe(struct platform_device *pdev)
 
 	frc_devp->fw_data = NULL;
 	// frc_devp->fw_data = kzalloc(sizeof(struct frc_fw_data_s), GFP_KERNEL);
-
-	strcpy(&fw_data.frc_fw_ver[0], &frc_fw_ver[0]),
+	strcpy(&fw_data.frc_alg_ver[0], &frc_alg_defver[0]);
 	frc_devp->fw_data = &fw_data;
 	if (!frc_devp->fw_data) {
 		PR_ERR("%s: frc_dev->fw_data fail\n", __func__);
@@ -602,7 +600,6 @@ static int frc_probe(struct platform_device *pdev)
 		PR_ERR("%s: alloc region fail\n", __func__);
 		goto fail_alloc_region;
 	}
-
 	frc_devp->clsp = class_create(THIS_MODULE, FRC_CLASS_NAME);
 	if (IS_ERR(frc_devp->clsp)) {
 		ret = PTR_ERR(frc_devp->clsp);
@@ -658,10 +655,11 @@ static int frc_probe(struct platform_device *pdev)
 	frc_init_config(frc_devp);
 
 	/*buffer config*/
-	frc_buf_alloc(frc_devp);
 	frc_buf_calculate(frc_devp);
+	frc_buf_alloc(frc_devp);
 	frc_buf_distribute(frc_devp);
 	frc_buf_config(frc_devp);
+
 	frc_internal_initial();
 	frc_hw_initial(frc_devp);
 

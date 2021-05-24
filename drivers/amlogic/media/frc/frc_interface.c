@@ -144,3 +144,51 @@ int frc_is_on(void)
 }
 EXPORT_SYMBOL(frc_is_on);
 
+int frc_is_supported(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+
+	if (!devp)
+		return 0;
+	if (!devp->probe_ok)
+		return 0;
+
+	return 1;
+}
+EXPORT_SYMBOL(frc_is_supported);
+
+u8 frc_memc_get_level(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *pfw_data;
+
+	if (!devp)
+		return 0;
+	if (!devp->probe_ok)
+		return 0;
+	if (!devp->fw_data)
+		return 0;
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	return  pfw_data->frc_top_type.frc_memc_level;
+}
+EXPORT_SYMBOL(frc_memc_get_level);
+
+int frc_memc_set_level(u8 level)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *pfw_data;
+
+	if (!devp)
+		return 0;
+	if (!devp->probe_ok)
+		return 0;
+	if (!devp->fw_data)
+		return 0;
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	pfw_data->frc_top_type.frc_memc_level = level;
+	// if (devp->fw_data.frc_memc_level)
+	//	pfw_data->frc_memc_level(pfw_data);
+	return 1;
+}
+EXPORT_SYMBOL(frc_memc_set_level);
+

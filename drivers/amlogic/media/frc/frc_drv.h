@@ -38,7 +38,11 @@ extern int frc_dbg_en;
 	} while (0)
 */
 //------------------------------------------------------- buf define start
-#define FRC_COMPRESS_RATE		100	/*100: means no compress*/
+#define FRC_COMPRESS_RATE		60                 /*100: means no compress,60,80,50,55*/
+#define FRC_COMPRESS_RATE_60_SIZE       (212 * 1024 * 1024)    // Need 209.2MB ( 0xD60000) 4MB Align
+#define FRC_COMPRESS_RATE_80_SIZE       (276 * 1024 * 1024)    // Need 274.7MB  4MB Align
+#define FRC_COMPRESS_RATE_50_SIZE       (180 * 1024 * 1024)    // Need 176.4MB  4MB Align
+#define FRC_COMPRESS_RATE_55_SIZE       (196 * 1024 * 1024)    // Need 192.7MB  4MB Align
 
 #define FRC_TOTAL_BUF_NUM		16
 #define FRC_MEMV_BUF_NUM		6
@@ -47,7 +51,7 @@ extern int frc_dbg_en;
 
 #define FRC_SLICER_NUM			4
 
-		/*down scaler config*/
+/*down scaler config*/
 #define FRC_ME_SD_RATE_HD		2
 #define FRC_ME_SD_RATE_4K		4
 #define FRC_LOGO_SD_RATE		1
@@ -55,11 +59,11 @@ extern int frc_dbg_en;
 
 #define FRC_HVSIZE_ALIGN_SIZE		16
 
-		/*bit number config*/
+/*bit number config*/
 #define FRC_MC_BITS_NUM			10
 #define FRC_ME_BITS_NUM			8
 
-		/*buff define and config*/
+/*buff define and config*/
 #define LOSSY_MC_INFO_LINE_SIZE		128	/*bytes*/
 #define LOSSY_ME_INFO_LINE_SIZE		128	/*bytes*/
 //------------------------------------------------------- buf define end
@@ -83,6 +87,7 @@ struct st_frc_buf {
 	struct page *cma_mem_paddr_pages;
 	phys_addr_t cma_mem_paddr_start;
 	u32 cma_mem_alloced;
+	u32 cma_mem_realalloced;
 
 	/*frame size*/
 	u32 in_hsize;
