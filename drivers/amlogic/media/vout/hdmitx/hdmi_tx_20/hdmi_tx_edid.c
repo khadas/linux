@@ -211,7 +211,23 @@ static void store_vesa_idx(struct rx_cap *prxcap, enum hdmi_vic vesa_timing)
 		if (prxcap->vesa_timing[i] == vesa_timing)
 			break;
 	}
-	pr_info("hdmitx: reach vesa idx MAX\n");
+}
+
+static void store_cea_idx(struct rx_cap *prxcap, enum hdmi_vic vic)
+{
+	int i;
+	int already = 0;
+
+	for (i = 0; (i < VIC_MAX_NUM) && (i < prxcap->VIC_count); i++) {
+		if (vic == prxcap->VIC[i]) {
+			already = 1;
+			break;
+		}
+	}
+	if (!already) {
+		prxcap->VIC[prxcap->VIC_count] = vic;
+		prxcap->VIC_count++;
+	}
 }
 
 static void edid_establishedtimings(struct rx_cap *prxcap, unsigned char *data)
@@ -268,10 +284,17 @@ static void calc_timing(unsigned char *data, struct vesa_standard_timing *t)
 		t->vactive = t->hactive * 9 / 16;
 		break;
 	}
-	t->hsync = (data[1] & 0x3f) + 60;
+	t->vsync = (data[1] & 0x3f) + 60;
 	para = hdmi_get_vesa_paras(t);
-	if (para)
+	if (para) {
 		t->vesa_timing = para->vic;
+		if (para->vic < HDMITX_VESA_OFFSET) {
+			struct hdmitx_dev *hdev = get_hdmitx_device();
+			struct rx_cap *prxcap = &hdev->rxcap;
+
+			store_cea_idx(prxcap, para->vic);
+		}
+	}
 }
 
 static void edid_standardtiming(struct rx_cap *prxcap, unsigned char *data,
@@ -326,17 +349,15 @@ void edid_decodestandardtiming(struct hdmitx_info *info,
 }
 
 /* ----------------------------------------------------------- */
-void edid_parseceatiming(unsigned char blk_mun,
-			 unsigned char baseaddr,
-			 unsigned char *buff)
+void edid_parseceatiming(struct rx_cap *prxcap,
+	unsigned char *buff)
 {
-	unsigned char index_edid;
+	int i;
+	unsigned char *dtd_base = buff;
 
-	for (index_edid = 0; index_edid < blk_mun; index_edid++) {
-		baseaddr += 18;
-		/* there is not the TimingDescriptors */
-		if ((baseaddr + 18) > 0x7d)
-			break;
+	for (i = 0; i < 4; i++) {
+		edid_dtd_parsing(prxcap, dtd_base);
+		dtd_base += 0x12;
 	}
 }
 
@@ -1845,9 +1866,14 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	edid_y420cmdb_postprocess(hdev);
 	hdev->vic_count = prxcap->VIC_count;
 
-	idx = blockbuf[3] & 0xf;
-	for (i = 0; i < idx; i++)
-		edid_dtd_parsing(prxcap, &blockbuf[blockbuf[2] + i * 18]);
+	/* dtds in extended blocks */
+	i = 0;
+	offset = blockbuf[2] + i * 18;
+	for ( ; (offset + 18) < 0x7f; i++) {
+		edid_dtd_parsing(prxcap, &blockbuf[offset]);
+		offset += 18;
+	}
+
 	if (vfpdb_offset)
 		edid_parsingvfpdb(prxcap, vfpdb_offset);
 
@@ -1869,7 +1895,7 @@ static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev)
 	prxcap->RxAudioCap[0].cc3 = 1; /* 16bit */
 }
 
-/* add default VICs for DVI case */
+/* add default VICs for all zeroes case */
 static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 {
 	struct rx_cap *prxcap = &hdmitx_device->rxcap;
@@ -2083,6 +2109,9 @@ static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data)
 	struct hdmi_format_para *para = NULL;
 	struct dtd *t = &prxcap->dtd[prxcap->dtd_idx];
 
+	/* if data[0-2] are zeroes, no need parse, and skip*/
+	if (data[0] == 0 && data[1] == 0 && data[2] == 0)
+		return;
 	memset(t, 0, sizeof(struct dtd));
 	t->pixel_clock = data[0] + (data[1] << 8);
 	t->h_active = (((data[4] >> 4) & 0xf) << 8) + data[2];
@@ -2094,6 +2123,8 @@ static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data)
 	t->v_sync_offset = (((data[11] >> 2) & 0x3) << 4) +
 		((data[10] >> 4) & 0xf);
 	t->v_sync = (((data[11] >> 0) & 0x3) << 4) + ((data[10] >> 0) & 0xf);
+	t->h_image_size = (((data[14] >> 4) & 0xf) << 8) + data[12];
+	t->v_image_size = ((data[14] & 0xf) << 8) + data[11];
 /*
  * Special handling of 1080i60hz, 1080i50hz
  */
@@ -2124,6 +2155,10 @@ next:
 		pr_info(EDID "get dtd%d vic: %d\n",
 			prxcap->dtd_idx, para->vic);
 		prxcap->dtd_idx++;
+		if (para->vic < HDMITX_VESA_OFFSET)
+			store_cea_idx(prxcap, para->vic);
+		else
+			store_vesa_idx(prxcap, para->vic);
 	} else {
 		dump_dtd_info(t);
 	}
@@ -2234,17 +2269,17 @@ static void edid_cvt_timing_3bytes(struct rx_cap *prxcap,
 	}
 	switch ((data[2] >> 5) & 0x3) {
 	case 0:
-		t->hsync = 50;
+		t->vsync = 50;
 		break;
 	case 1:
-		t->hsync = 60;
+		t->vsync = 60;
 		break;
 	case 2:
-		t->hsync = 75;
+		t->vsync = 75;
 		break;
 	case 3:
 	default:
-		t->hsync = 85;
+		t->vsync = 85;
 		break;
 	}
 	para = hdmi_get_vesa_paras(t);
@@ -2389,14 +2424,13 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	Edid_PhyscialSizeParse(&hdmitx_device->rxcap, &EDID_buf[21]);
 
 	edid_decodestandardtiming(&hdmitx_device->hdmi_info, &EDID_buf[26], 8);
-	edid_parseceatiming(4, 0x36, &EDID_buf[0]);
+	edid_parseceatiming(&hdmitx_device->rxcap, &EDID_buf[0x36]);
 
 	blockcount = EDID_buf[0x7E];
 	hdmitx_device->rxcap.blk0_chksum = EDID_buf[0x7F];
 
 	if (blockcount == 0) {
 		pr_info(EDID "EDID BlockCount=0\n");
-		hdmitx_edid_set_default_vic(hdmitx_device);
 
 		/* DVI case judgement: only contains one block and
 		 * checksum valid
@@ -2416,7 +2450,7 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 			hdmitx_device->rxcap.ieeeoui = HDMI_IEEEOUI;
 		if (zero_numbers > 120)
 			hdmitx_device->rxcap.ieeeoui = HDMI_IEEEOUI;
-
+		hdmitx_edid_set_default_vic(hdmitx_device);
 		return 0; /* do nothing. */
 	}
 
@@ -2455,9 +2489,6 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 				ret_val =
 				edid_parsingceadb(hdmitx_device,
 						  &EDID_buf[i * 128]);
-				edid_parseceatiming(5,
-						    EDID_buf[i * 128 + 2],
-						    &EDID_buf[i * 128]);
 			}
 		}
 		if (i * 128 < sizeof(hdmitx_device->EDID_buf))
@@ -2533,10 +2564,6 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		pr_info(EDID "not find IEEEOUT\n");
 	}
 
-	if (prxcap->ieeeoui != HDMI_IEEEOUI || prxcap->ieeeoui == 0x0 ||
-	    prxcap->VIC_count == 0)
-		hdmitx_edid_set_default_vic(hdmitx_device);
-
 	/* strictly DVI device judgement */
 	/* valid EDID & no audio tag & no IEEEOUI */
 	if (edid_check_valid(&EDID_buf[0]) &&
@@ -2574,6 +2601,22 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		}
 	}
 	hdmitx_device->vend_id_hit = hdmitx_find_philips(hdmitx_device);
+	/* For some receivers, they don't claim the screen size
+	 * and re-calculate it from the h/v image size from dtd
+	 * the unit of screen size is cm, but the unit of image size is mm
+	 */
+	if (prxcap->physcial_weight == 0 || prxcap->physcial_height == 0) {
+		struct dtd *t = &prxcap->dtd[0];
+
+		prxcap->physcial_weight = (t->h_image_size + 5) / 10;
+		prxcap->physcial_height = (t->v_image_size + 5) / 10;
+	}
+
+	/* if edid are all zeroes, or no VIC, no vesa dtd, set default vic */
+	if (edid_zero_data(EDID_buf) ||
+	    (prxcap->VIC_count == 0 && prxcap->vesa_timing[0] == 0))
+		hdmitx_edid_set_default_vic(hdmitx_device);
+
 	return 0;
 }
 

@@ -2310,7 +2310,7 @@ static struct hdmi_format_para fmt_para_vesa_1360x768p60_16x9 = {
 	.tmds_clk_div40 = 0,
 	.tmds_clk = 855000,
 	.timing = {
-		.pixel_freq = 855000,
+		.pixel_freq = 85500,
 		.h_freq = 47700,
 		.v_freq = 60015,
 		.vsync = 60,
@@ -3047,9 +3047,17 @@ struct hdmi_format_para *hdmi_get_vesa_paras(struct vesa_standard_timing *t)
 	for (i = 0; all_fmt_paras[i]; i++) {
 		if (t->hactive == all_fmt_paras[i]->timing.h_active &&
 		    t->vactive == all_fmt_paras[i]->timing.v_active) {
-			if (t->hsync &&
-			    t->hsync == all_fmt_paras[i]->timing.vsync)
-				return all_fmt_paras[i];
+			if (t->vsync) {
+				unsigned int vsync;
+
+				vsync = all_fmt_paras[i]->timing.vsync;
+				if (vsync == 0) {
+					vsync = all_fmt_paras[i]->timing.v_freq;
+					vsync = vsync / 1000;
+				}
+				if (t->vsync == vsync)
+					return all_fmt_paras[i];
+			}
 			if (t->hblank &&
 			    t->hblank == all_fmt_paras[i]->timing.h_blank &&
 			    t->vblank &&
