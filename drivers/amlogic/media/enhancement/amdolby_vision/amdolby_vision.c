@@ -13089,7 +13089,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		return ret;
 	}
 
-	if (is_meson_t7()) {
+	if (is_meson_t7() || is_meson_s4d()) {
 		total_name_len = get_chip_name();
 		get_ko = strstr(func->version_info, total_chip_name);
 
