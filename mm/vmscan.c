@@ -2375,6 +2375,12 @@ enum scan_balance {
 	SCAN_FILE,
 };
 
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+static int vmscan_swap_file_ratio = 1;
+module_param_named(swap_file_ratio, vmscan_swap_file_ratio,
+		   int, 0644);
+#endif
+
 /*
  * Determine how aggressively the anon and file LRU lists should be
  * scanned.  The relative value of each set of LRU lists is determined
@@ -2509,6 +2515,13 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 		lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, MAX_NR_ZONES);
 	file  = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE, MAX_NR_ZONES) +
 		lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, MAX_NR_ZONES);
+
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	if (vmscan_swap_file_ratio) {
+		anon_prio = anon_prio * anon / (anon + file + 1);
+		file_prio = file_prio * file / (anon + file + 1);
+	}
+#endif
 
 	spin_lock_irq(&pgdat->lru_lock);
 	if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
