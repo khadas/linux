@@ -631,8 +631,8 @@ struct dtd {
 	unsigned short h_sync;
 	unsigned short v_sync_offset;
 	unsigned short v_sync;
-	unsigned char h_image_size;
-	unsigned char v_image_size;
+	unsigned short h_image_size;
+	unsigned short v_image_size;
 	unsigned char h_border;
 	unsigned char v_border;
 	unsigned char flags;
@@ -644,7 +644,7 @@ struct vesa_standard_timing {
 	unsigned short vactive;
 	unsigned short hblank;
 	unsigned short vblank;
-	unsigned short hsync;
+	unsigned short vsync;
 	unsigned short tmds_clk; /* Value = Pixel clock ?? 10,000 */
 	enum hdmi_vic vesa_timing;
 };
