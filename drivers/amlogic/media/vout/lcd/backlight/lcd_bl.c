@@ -375,6 +375,10 @@ static void bl_power_on(struct aml_bl_drv_s *bdrv)
 		BLPR("%s exit, for lcd is off\n", __func__);
 		goto exit_power_on_bl;
 	}
+	if ((bdrv->state & BL_STATE_BL_POWER_ON) == 0) {
+		BLPR("%s exit, for backlight power off\n", __func__);
+		goto exit_power_on_bl;
+	}
 
 	if (bdrv->brightness_bypass == 0) {
 		if (bdrv->level == 0 || (bdrv->state & BL_STATE_BL_ON))
@@ -1703,7 +1707,7 @@ static void bl_on_function(struct aml_bl_drv_s *bdrv)
 	mutex_lock(&bl_level_mutex);
 
 	/* lcd power on backlight flag */
-	bdrv->state |= (BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
+	bdrv->state |= BL_STATE_LCD_ON;
 	BLPR("%s: bl_step_on_flag=%d, bl_level=%u, state=0x%x\n",
 	     __func__, bdrv->step_on_flag, bdrv->level, bdrv->state);
 
@@ -1843,7 +1847,7 @@ static int bl_lcd_off_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	bdrv->on_request = 0;
-	bdrv->state &= ~(BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
+	bdrv->state &= ~BL_STATE_LCD_ON;
 	mutex_lock(&bl_level_mutex);
 	bdrv->state |= BL_STATE_BL_INIT_ON;
 	if (bdrv->state & BL_STATE_BL_ON)
@@ -2876,17 +2880,18 @@ static ssize_t bl_debug_power_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct aml_bl_drv_s *bdrv = dev_get_drvdata(dev);
-	int state;
+	int pwr_state, real_state;
 
-	if ((bdrv->state & BL_STATE_LCD_ON) == 0) {
-		state = 0;
-	} else {
-		if (bdrv->state & BL_STATE_BL_POWER_ON)
-			state = 1;
-		else
-			state = 0;
-	}
-	return sprintf(buf, "backlight power state: %d\n", state);
+	if (bdrv->state & BL_STATE_BL_POWER_ON)
+		pwr_state = 1;
+	else
+		pwr_state = 0;
+	if (bdrv->state & BL_STATE_BL_ON)
+		real_state = 1;
+	else
+		real_state = 0;
+	return sprintf(buf, "backlight power state: %d, real state: %d\n",
+		       pwr_state, real_state);
 }
 
 static ssize_t bl_debug_power_store(struct device *dev,
@@ -2904,10 +2909,6 @@ static ssize_t bl_debug_power_store(struct device *dev,
 	}
 
 	BLPR("[%d]: power control: %u\n", bdrv->index, temp);
-	if ((bdrv->state & BL_STATE_LCD_ON) == 0) {
-		temp = 0;
-		BLPR("[%d]: backlight force off for lcd is off\n", bdrv->index);
-	}
 	if (temp == 0) {
 		bdrv->state &= ~BL_STATE_BL_POWER_ON;
 		if (bdrv->state & BL_STATE_BL_ON)
@@ -3384,6 +3385,8 @@ static void aml_bl_power_init(struct aml_bl_drv_s *bdrv)
 {
 	struct bl_config_s *bconf = &bdrv->bconf;
 
+	/* update bl status */
+	bdrv->state = (BL_STATE_LCD_ON | BL_STATE_BL_POWER_ON);
 	bdrv->on_request = 1;
 	/* lcd power on sequence control */
 	if (bconf->method < BL_CTRL_MAX) {
@@ -3407,8 +3410,7 @@ static void bl_init_status_update(struct aml_bl_drv_s *bdrv)
 		return;
 
 	if (pdrv->boot_ctrl) {
-		if (pdrv->boot_ctrl->init_level ==
-		    LCD_INIT_LEVEL_KERNEL_ON) {
+		if (pdrv->boot_ctrl->init_level == LCD_INIT_LEVEL_KERNEL_ON) {
 			BLPR("[%d]: power on for init_level %d\n",
 			     bdrv->index, pdrv->boot_ctrl->init_level);
 			aml_bl_power_init(bdrv);
