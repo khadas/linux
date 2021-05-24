@@ -5862,6 +5862,8 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 
 	if ((vd_layer[0].global_output == 0 && !vd_layer[0].force_black) ||
 	    black_threshold_check(0)) {
+		if (vd_layer[0].enabled)
+			force_flush = true;
 		vd_layer[0].enabled = 0;
 		/* preblend need disable together */
 		vpp_misc_set &= ~(VPP_VD1_PREBLEND |
@@ -5871,19 +5873,23 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 		vd_layer[0].pre_blend_en = 0;
 		vd_layer[0].post_blend_en = 0;
 	} else {
+		if (vd_layer[0].enabled != vd_layer[0].enabled_status_saved)
+			force_flush = true;
 		vd_layer[0].enabled = vd_layer[0].enabled_status_saved;
+		if (vd_layer[0].enabled) {
+			vd_layer[0].pre_blend_en = 1;
+			vd_layer[0].post_blend_en = 1;
+		} else {
+			vd_layer[0].pre_blend_en = 0;
+			vd_layer[0].post_blend_en = 0;
+		}
 	}
-
 	if (!vd_layer[0].enabled &&
 	    ((vpp_misc_set & VPP_VD1_POSTBLEND) ||
 	     (vpp_misc_set & VPP_VD1_PREBLEND)))
 		vpp_misc_set &= ~(VPP_VD1_PREBLEND |
 			VPP_VD1_POSTBLEND |
 			VPP_PREBLEND_EN);
-	if (!vd_layer[0].enabled) {
-		vd_layer[0].pre_blend_en = 0;
-		vd_layer[0].post_blend_en = 0;
-	}
 
 	if (vd1_enabled != vd_layer[0].enabled) {
 		if (vd_layer[0].enabled) {
@@ -5903,14 +5909,41 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 	if (!(mode & COMPOSE_MODE_3D) &&
 	    (vd_layer[1].global_output == 0 ||
 	     black_threshold_check(1))) {
+		if (vd_layer[1].enabled)
+			force_flush = true;
 		vd_layer[1].enabled = 0;
 		vpp_misc_set &= ~(VPP_VD2_PREBLEND |
 			VPP_VD2_POSTBLEND);
 		vd_layer[1].pre_blend_en = 0;
 		vd_layer[1].post_blend_en = 0;
 	} else {
+		if (vd_layer[1].enabled != vd_layer[1].enabled_status_saved)
+			force_flush = true;
 		vd_layer[1].enabled = vd_layer[1].enabled_status_saved;
+		if (vd_layer[1].enabled) {
+			if (mode & COMPOSE_MODE_3D) {
+				vd_layer[1].pre_blend_en = 1;
+				vd_layer[1].post_blend_en = 0;
+			} else if (vd_layer[0].enabled &&
+				(mode & COMPOSE_MODE_DV)) {
+				vd_layer[1].pre_blend_en = 0;
+				vd_layer[1].post_blend_en = 0;
+			} else if (vd_layer[1].dispbuf) {
+				vd_layer[1].pre_blend_en = 0;
+				vd_layer[1].post_blend_en = 1;
+			} else {
+				vd_layer[1].pre_blend_en = 1;
+			}
+		} else {
+			vd_layer[1].pre_blend_en = 0;
+			vd_layer[1].post_blend_en = 0;
+		}
 	}
+	if (!vd_layer[1].enabled &&
+	    ((vpp_misc_set & VPP_VD2_POSTBLEND) ||
+	     (vpp_misc_set & VPP_VD2_PREBLEND)))
+		vpp_misc_set &= ~(VPP_VD2_PREBLEND |
+			VPP_VD2_POSTBLEND);
 
 	if (!vd_layer[0].enabled && is_local_vf(vd_layer[0].dispbuf)) {
 		safe_switch_videolayer(0, false, true);
@@ -5926,16 +5959,6 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 			video_pip_keeper_new_frame_notify();
 		else if (vd_layer[1].keep_frame_id == 0)
 			video_keeper_new_frame_notify();
-	}
-
-	if (!vd_layer[1].enabled &&
-	    ((vpp_misc_set & VPP_VD2_POSTBLEND) ||
-	     (vpp_misc_set & VPP_VD2_PREBLEND)))
-		vpp_misc_set &= ~(VPP_VD2_PREBLEND |
-			VPP_VD2_POSTBLEND);
-	if (!vd_layer[1].enabled) {
-		vd_layer[1].pre_blend_en = 0;
-		vd_layer[1].post_blend_en = 0;
 	}
 
 	force_flush |= vpp_zorder_check();
@@ -6283,8 +6306,8 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 					vd_layer[2].pre_blend_en = 1;
 				}
 				//vpp_misc_set |= (vd_layer[2].layer_alpha);
-				vd_layer[1].onoff_state = VIDEO_ENABLE_STATE_IDLE;
-				vd_layer[1].onoff_time = jiffies_to_msecs(jiffies);
+				vd_layer[2].onoff_state = VIDEO_ENABLE_STATE_IDLE;
+				vd_layer[2].onoff_time = jiffies_to_msecs(jiffies);
 				vpu_delay_work_flag |=
 					VPU_VIDEO_LAYER3_CHANGED;
 				if (vd_layer[2].global_debug & DEBUG_FLAG_BASIC_INFO)
@@ -6299,7 +6322,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 				vd_layer[2].onoff_time = jiffies_to_msecs(jiffies);
 				vpu_delay_work_flag |=
 					VPU_VIDEO_LAYER3_CHANGED;
-				if (vd_layer[1].global_debug & DEBUG_FLAG_BASIC_INFO)
+				if (vd_layer[2].global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info("VIDEO: VsyncDisableVideoLayer2\n");
 				video3_off_req = 1;
 				force_flush = true;
@@ -6316,13 +6339,24 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 	}
 	if ((vd_layer[0].global_output == 0 && !vd_layer[0].force_black) ||
 	    black_threshold_check(0)) {
+		if (vd_layer[0].enabled)
+			force_flush = true;
 		vd_layer[0].enabled = 0;
 		/* preblend need disable together */
 		vd_layer[0].pre_blend_en = 0;
 		vd_layer[0].post_blend_en = 0;
 
 	} else {
+		if (vd_layer[0].enabled != vd_layer[0].enabled_status_saved)
+			force_flush = true;
 		vd_layer[0].enabled = vd_layer[0].enabled_status_saved;
+		if (vd_layer[0].enabled) {
+			vd_layer[0].pre_blend_en = 1;
+			vd_layer[0].post_blend_en = 1;
+		} else {
+			vd_layer[0].pre_blend_en = 0;
+			vd_layer[0].post_blend_en = 0;
+		}
 	}
 
 	if (t7_vd1_enabled != vd_layer[0].enabled) {
@@ -6340,25 +6374,38 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 		t7_vd1_enabled = vd_layer[0].enabled;
 	}
 
-	if (!vd_layer[0].enabled) {
-		vd_layer[0].pre_blend_en = 0;
-		vd_layer[0].post_blend_en = 0;
-	}
-
 	if (vd_layer[1].vpp_index == VPP0) {
 		if (!(mode & COMPOSE_MODE_3D) &&
 		    (vd_layer[1].global_output == 0 ||
 		     black_threshold_check(1))) {
+			if (vd_layer[1].enabled)
+				force_flush = true;
 			vd_layer[1].enabled = 0;
 			vd_layer[1].pre_blend_en = 0;
 			vd_layer[1].post_blend_en = 0;
 		} else {
+			if (vd_layer[1].enabled != vd_layer[1].enabled_status_saved)
+				force_flush = true;
 			vd_layer[1].enabled = vd_layer[1].enabled_status_saved;
-		}
-
-		if (!vd_layer[1].enabled) {
-			vd_layer[1].pre_blend_en = 0;
-			vd_layer[1].post_blend_en = 0;
+			if (vd_layer[1].enabled) {
+				if (mode & COMPOSE_MODE_3D) {
+					vd_layer[1].pre_blend_en = 1;
+					vd_layer[1].post_blend_en = 0;
+				} else if (vd_layer[0].enabled &&
+					(mode & COMPOSE_MODE_DV)) {
+					/* DV el case */
+					vd_layer[1].pre_blend_en = 0;
+					vd_layer[1].post_blend_en = 0;
+				} else if (vd_layer[1].dispbuf) {
+					vd_layer[1].pre_blend_en = 0;
+					vd_layer[1].post_blend_en = 1;
+				} else {
+					vd_layer[1].pre_blend_en = 1;
+				}
+			} else {
+				vd_layer[1].pre_blend_en = 0;
+				vd_layer[1].post_blend_en = 0;
+			}
 		}
 	} else {
 		vd_layer[1].pre_blend_en = 0;
@@ -6367,16 +6414,26 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 	if (vd_layer[2].vpp_index == VPP0) {
 		if ((vd_layer[2].global_output == 0 ||
 		     black_threshold_check(2))) {
+			if (vd_layer[2].enabled)
+				force_flush = true;
 			vd_layer[2].enabled = 0;
 			vd_layer[2].pre_blend_en = 0;
 			vd_layer[2].post_blend_en = 0;
 		} else {
+			if (vd_layer[2].enabled != vd_layer[2].enabled_status_saved)
+				force_flush = true;
 			vd_layer[2].enabled = vd_layer[2].enabled_status_saved;
-		}
-
-		if (!vd_layer[2].enabled) {
-			vd_layer[2].pre_blend_en = 0;
-			vd_layer[2].post_blend_en = 0;
+			if (vd_layer[2].enabled) {
+				if (vd_layer[2].dispbuf) {
+					vd_layer[2].pre_blend_en = 0;
+					vd_layer[2].post_blend_en = 1;
+				} else {
+					vd_layer[2].pre_blend_en = 1;
+				}
+			} else {
+				vd_layer[2].pre_blend_en = 0;
+				vd_layer[2].post_blend_en = 0;
+			}
 		}
 	} else {
 		vd_layer[2].pre_blend_en = 0;
@@ -6657,14 +6714,21 @@ void vpp1_blend_update(u32 vpp_index)
 	if (vd_layer_vpp[0].vpp_index != VPP0) {
 		if (vd_layer_vpp[0].global_output == 0 ||
 		     black_threshold_check(1)) {
+			if (vd_layer_vpp[0].enabled)
+				force_flush = true;
 			vd_layer_vpp[0].enabled = 0;
 			vd_layer_vpp[0].vppx_blend_en = 0;
 		} else {
+			if (vd_layer_vpp[0].enabled != vd_layer_vpp[0].enabled_status_saved)
+				force_flush = true;
 			vd_layer_vpp[0].enabled = vd_layer_vpp[0].enabled_status_saved;
+			if (vd_layer_vpp[0].enabled) {
+				if (vd_layer_vpp[0].dispbuf)
+					vd_layer_vpp[0].vppx_blend_en = 1;
+			} else {
+				vd_layer_vpp[0].vppx_blend_en = 0;
+			}
 		}
-
-		if (!vd_layer_vpp[0].enabled)
-			vd_layer_vpp[0].vppx_blend_en = 0;
 	}
 
 	layer_id = vd_layer_vpp[0].layer_id;
@@ -6784,16 +6848,23 @@ void vpp2_blend_update(u32 vpp_index)
 	}
 
 	if (vd_layer_vpp[1].vpp_index != VPP0) {
-		if ((vd_layer_vpp[1].global_output == 0 ||
-		     black_threshold_check(2))) {
+		if (vd_layer_vpp[1].global_output == 0 ||
+			 black_threshold_check(2)) {
+			if (vd_layer_vpp[1].enabled)
+				force_flush = true;
 			vd_layer_vpp[1].enabled = 0;
 			vd_layer_vpp[1].vppx_blend_en = 0;
 		} else {
+			if (vd_layer_vpp[1].enabled != vd_layer_vpp[1].enabled_status_saved)
+				force_flush = true;
 			vd_layer_vpp[1].enabled = vd_layer_vpp[1].enabled_status_saved;
+			if (vd_layer_vpp[1].enabled) {
+				if (vd_layer_vpp[1].dispbuf)
+					vd_layer_vpp[1].vppx_blend_en = 1;
+			} else {
+				vd_layer_vpp[1].vppx_blend_en = 0;
+			}
 		}
-
-		if (!vd_layer_vpp[1].enabled)
-			vd_layer_vpp[1].vppx_blend_en = 0;
 	}
 	layer_id = vd_layer_vpp[1].layer_id;
 	if (vd_layer_vpp[1].vpp_index != VPP0 &&
