@@ -1302,7 +1302,7 @@
 	};
 
 	adc: adc {
-		compatible = "amlogic, adc-s4";
+		compatible = "amlogic, adc-s4d";
 		status = "okay";
 		reg = <0x0 0xff654000 0x0 0x2000/* afe reg base */
 			0x0 0xfe008000 0x0 0x2000/* hiu base */
@@ -1941,10 +1941,17 @@
 		};
 	};
 
-	dtvdemod_agc_pins: dtvdemod_agc_pins {
+	dtvdemod_if_agc_pins: dtvdemod_if_agc_pins {
 		mux {
-			groups = "dtv_a_if_agc_z6",
+			groups = "dtv_a_if_agc_z10",
 				"dtv_b_if_agc";
+			function = "dtv";
+		};
+	};
+
+	dtvdemod_rf_agc_pins: dtvdemod_rf_agc_pins {
+		mux {
+			groups = "dtv_a_rf_agc";
 			function = "dtv";
 		};
 	};

@@ -358,12 +358,13 @@
 	};
 
 	aml_dtv_demod {
-		compatible = "amlogic, ddemod-s4";
+		compatible = "amlogic, ddemod-s4d";
 		dev_name = "aml_dtv_demod";
-		status = "disabled";
+		status = "okay";
 		/* diseqc_name = "sgm_41286"; */
-		pinctrl-names="dtvdemod_agc_pins";
-		pinctrl-0=<&dtvdemod_agc_pins>;
+		pinctrl-names="if_agc_pins", "rf_agc_pins";
+		pinctrl-0=<&dtvdemod_if_agc_pins>;
+		pinctrl-1=<&dtvdemod_rf_agc_pins>;
 		/* pinctrl-1=<&diseqc_out>; */
 		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
 		/* lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>; */
@@ -385,6 +386,7 @@
 		cma_flag = <1>;
 		cma_mem_size = <8>;
 		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
+		agc_pin_direction;//for S4D av2018 rf agc reverse
 	};
 
 	provisionkey {
