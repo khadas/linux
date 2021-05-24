@@ -1104,6 +1104,8 @@ ssize_t frc_me_ctrl_param_show(struct class *class,
 	len += sprintf(buf + len, "scene_change_flag=%d\n", param->scene_change_flag);
 	len += sprintf(buf + len, "fallback_gmvx_th=%d\n", param->fallback_gmvx_th);
 	len += sprintf(buf + len, "fallback_gmvy_th=%d\n", param->fallback_gmvy_th);
+	len += sprintf(buf + len, "gmv_eq0_cnt_th=%d\n", param->gmv_eq0_cnt_th);
+	len += sprintf(buf + len, "gmv_eq0_th=%d\n", param->gmv_eq0_th);
 	len += sprintf(buf + len, "region_sad_median_num=%d\n", param->region_sad_median_num);
 	len += sprintf(buf + len, "region_sad_sum_th=%d\n", param->region_sad_sum_th);
 	len += sprintf(buf + len, "region_sad_cnt_th=%d\n", param->region_sad_cnt_th);
@@ -1151,6 +1153,10 @@ ssize_t frc_me_ctrl_param_store(struct class *class,
 		param->fallback_gmvx_th = value;
 	else if (!strcmp(parm[0], "fallback_gmvy_th"))
 		param->fallback_gmvy_th = value;
+	else if (!strcmp(parm[0], "gmv_eq0_cnt_th"))
+		param->gmv_eq0_cnt_th = value;
+	else if (!strcmp(parm[0], "gmv_eq0_th"))
+		param->gmv_eq0_th = value;
 	else if (!strcmp(parm[0], "region_sad_median_num"))
 		param->region_sad_median_num = value;
 	else if (!strcmp(parm[0], "region_sad_sum_th"))
@@ -1382,6 +1388,7 @@ ssize_t frc_me_rule_param_show(struct class *class,
 	len += sprintf(buf + len, "rule8_en=%d\n", param->rule8_en);
 	len += sprintf(buf + len, "rule9_en=%d\n", param->rule9_en);
 	len += sprintf(buf + len, "rule10_en=%d\n", param->rule10_en);
+	len += sprintf(buf + len, "fb_en=%d\n", param->fb_en);
 
 	return len;
 }
@@ -1430,6 +1437,8 @@ ssize_t frc_me_rule_param_store(struct class *class,
 		param->rule9_en = value;
 	else if (!strcmp(parm[0], "rule10_en"))
 		param->rule10_en = value;
+	else if (!strcmp(parm[0], "fb_en"))
+		param->fb_en = value;
 
 	kfree(buf_orig);
 	return count;
@@ -1459,6 +1468,7 @@ ssize_t frc_film_ctrl_param_show(struct class *class,
 	len += sprintf(buf + len, "film_cadence_switch=%d\n", param->film_cadence_switch);
 	len += sprintf(buf + len, "min_diff_th=%d\n", param->min_diff_th);
 	len += sprintf(buf + len, "scene_change_th=%d\n", param->scene_change_th);
+	len += sprintf(buf + len, "scene_change_th=%d\n", param->phase_error_flag_rst_th);
 	len += sprintf(buf + len, "glb_ratio=%d\n", param->glb_ratio);
 	len += sprintf(buf + len, "wind_ratio=%d\n", param->wind_ratio);
 	len += sprintf(buf + len, "glb_ofset=%d\n", param->glb_ofset);
@@ -1521,6 +1531,8 @@ ssize_t frc_film_ctrl_param_store(struct class *class,
 		param->min_diff_th = value;
 	else if (!strcmp(parm[0], "scene_change_th"))
 		param->scene_change_th = value;
+	else if (!strcmp(parm[0], "phase_error_flag_rst_th"))
+		param->phase_error_flag_rst_th = value;
 	else if (!strcmp(parm[0], "glb_ratio"))
 		param->glb_ratio = value;
 	else if (!strcmp(parm[0], "wind_ratio"))

@@ -646,6 +646,7 @@ struct st_film_ctrl_para
 	u32   film_cadence_switch;          //film cadence en
 	u32   min_diff_th;
 	u32   scene_change_th;                //scene change th
+	u8    phase_error_flag_rst_th;     //film phase error flag reset max th
 	//global average ratio average = average * ratio/16
 	u8    glb_ratio;
 	//global diff threshold ofset th = average + glb_ofset
@@ -877,6 +878,8 @@ struct st_me_ctrl_para {
 	u8  scene_change_flag;
 	u32 fallback_gmvx_th;
 	u32 fallback_gmvy_th;
+	u8  gmv_eq0_cnt_th;
+	u32 gmv_eq0_th;
 
 	u8  region_sad_median_num;
 	u32 region_sad_sum_th;
@@ -897,7 +900,7 @@ struct st_me_ctrl_item {
 	u32 mixmodein_frame_count;
 	u32 mixmodeout_frame_count;
 	u32 scene_change_reject_frame_count;
-	u32 gmv_eq0_count;
+	u8  gmv_eq0_count;
 
 	u32 region_sad_sum_20[48][20];
 	u32 region_sad_cnt_20[48][20];
@@ -915,6 +918,7 @@ struct st_me_rule_en {
 	u8 rule8_en;
 	u8 rule9_en;
 	u8 rule10_en;
+	u8 fb_en;
 };
 
 //----------------------------------------------------------me end
