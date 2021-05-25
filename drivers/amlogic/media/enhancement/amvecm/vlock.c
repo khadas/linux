@@ -2012,7 +2012,13 @@ void vlock_status_init(void)
 			pvlock->phlock_en = pvlock->dtdata->vlk_phlock_en;
 		/* vlock.phlock_percent = phlock_percent; */
 		vlock_clear_frame_counter(pvlock);
-		//vlock_hw_reinit(pvlock, vlock_enc_setting, VLOCK_DEFAULT_REG_SIZE);
+
+		vlock_hw_reinit(pvlock, vlock_enc_setting, VLOCK_DEFAULT_REG_SIZE);
+		vlock_dis_cnt = 0;
+		msleep(2);
+		vlock_disable_step2(pvlock);
+
+		pr_info("%s vlock_en:%d\n", __func__, vlock_en);
 	}
 	pr_info("%s vlock_en:%d adj_type:%d mode:%d\n", __func__, vlock_en,
 		vinfo->fr_adj_type, vinfo->mode);

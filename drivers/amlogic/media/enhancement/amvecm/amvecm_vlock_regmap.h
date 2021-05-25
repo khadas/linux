@@ -27,7 +27,7 @@ struct vlock_regs_s {
 #define VLOCK_DEFAULT_REG_SIZE 20
 static struct vlock_regs_s vlock_enc_setting[VLOCK_DEFAULT_REG_SIZE] = {
 	/* optimize */
-	{0x3000,     0xE3f53f10  },
+	{0x3000,     0xc3f13f12  },
 	{0x3001,     0x41E3c3c   },
 	{0x3002,     0x6000000   },
 	{0x3003,     0x20709605/*0x20709709  */},
