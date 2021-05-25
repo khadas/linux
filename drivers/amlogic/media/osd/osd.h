@@ -925,5 +925,6 @@ struct hw_para_s {
 	struct osd_fence_fun_s osd_fence[VIU_COUNT][2];
 	struct osd_rdma_fun_s osd_rdma_func[VIU_COUNT];
 	u32 viu_osd_table[VIU_COUNT];
+	u32 blend_mode[HW_OSD_COUNT];
 };
 #endif /* _OSD_H_ */

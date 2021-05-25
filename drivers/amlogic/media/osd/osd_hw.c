@@ -6073,6 +6073,7 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 	osd_hw.gbl_alpha[index] = layer_map->plane_alpha;
 	osd_hw.dim_layer[index] = layer_map->dim_layer;
 	osd_hw.secure_enable[index] = layer_map->secure_enable;
+	osd_hw.blend_mode[index] = layer_map->blend_mode;
 
 	/* Todo: */
 	if (layer_map->dim_layer) {
@@ -6902,8 +6903,11 @@ static void osd_update_color_mode(u32 index)
 						(osd_reg->osd_blk2_cfg_w4, 0);
 			}
 		}
-		if (idx >= COLOR_INDEX_32_BGRX &&
-		    idx <= COLOR_INDEX_32_XRGB)
+		if ((idx >= COLOR_INDEX_32_BGRX &&
+		     idx <= COLOR_INDEX_32_XRGB) ||
+		    (idx >= COLOR_INDEX_32_BGRA &&
+		     idx <= COLOR_INDEX_32_ARGB &&
+		     osd_hw.blend_mode[index] == BLEND_MODE_NONE))
 			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 				(osd_reg->osd_ctrl_stat2,
 				0x1ff, 6, 9);
