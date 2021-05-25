@@ -89,7 +89,7 @@
 			/* yuv420(32x3)96M + di(7x4,11x5)84M + workbuf(12M)
 			 * the sum with align 4M then is equal to 195M
 			 */
-			size = <0x0 0xc000000>;
+			size = <0x0 0x9000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
@@ -244,6 +244,7 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
+		ponly_mode = <1>;
 	};
 
 	aml_dtv_demod {
