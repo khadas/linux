@@ -844,15 +844,17 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	/*		       VPU_VIU_VDIN0,*/
 	/*		       VPU_MEM_POWER_ON);*/
 
-	vdin_set_all_regs(devp);
-	vdin_hw_enable(devp);
-	vdin_set_dolby_tunnel(devp);
-	vdin_write_mif_or_afbce_init(devp);
 	vfe = provider_vf_peek(devp->vfp);
 	if (vfe)
 		vdin_frame_write_ctrl_set(devp, vfe, 0);
 	else
 		pr_info("peek first vframe fail\n");
+
+	vdin_set_all_regs(devp);
+	vdin_hw_enable(devp);
+	vdin_set_dolby_tunnel(devp);
+	vdin_write_mif_or_afbce_init(devp);
+
 	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
 	    devp->frontend &&
 	    devp->frontend->dec_ops &&
