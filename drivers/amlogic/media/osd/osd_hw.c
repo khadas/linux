@@ -5322,7 +5322,7 @@ static void osd_info_output(int count)
 				     osd_backup->layer[index].src_w,
 				     osd_backup->layer[index].src_h,
 				     osd_backup->layer[index].dst_x,
-				     osd_backup->layer[index].dst_h,
+				     osd_backup->layer[index].dst_y,
 				     osd_backup->layer[index].dst_w,
 				     osd_backup->layer[index].dst_h);
 		}
@@ -8068,7 +8068,8 @@ static void osd_setting_blend0(struct hw_osd_blending_s *blending)
 		osd_blend_reg->osd_blend_din_scope_v[index] =
 			bld_osd_v_end << 16 | bld_osd_v_start;
 		osd_log_dbg2(MODULE_BLEND,
-			    "blend0:input2_data:%d,%d,%d,%d\n",
+			    "blend0:input2_data[osd%d]:%d,%d,%d,%d\n",
+			     index,
 			     layer_blend->input2_data.x,
 			     layer_blend->input2_data.y,
 			     layer_blend->input2_data.w,
@@ -8162,7 +8163,7 @@ static void osd_setting_blend1(struct hw_osd_blending_s *blending)
 		osd_blend_reg->osd_blend_din_scope_v[index] =
 			bld_osd_v_end << 16 | bld_osd_v_start;
 		osd_log_dbg2(MODULE_BLEND,
-			     "blend1:input1_data(osd%d):%d,%d,%d,%d\n",
+			     "blend1:input1_data[osd%d]:%d,%d,%d,%d\n",
 			     index,
 			     layer_blend->input1_data.x,
 			     layer_blend->input1_data.y,
@@ -8189,7 +8190,8 @@ static void osd_setting_blend1(struct hw_osd_blending_s *blending)
 		osd_blend_reg->osd_blend_din_scope_v[index] =
 			bld_osd_v_end << 16 | bld_osd_v_start;
 		osd_log_dbg2(MODULE_BLEND,
-			     "layer_blend->input2_data:%d,%d,%d,%d\n",
+			     "blend1:input2_data[osd%d]:%d,%d,%d,%d\n",
+			     index,
 			     layer_blend->input2_data.x,
 			     layer_blend->input2_data.y,
 			     layer_blend->input2_data.w,
@@ -8216,7 +8218,7 @@ static void osd_setting_blend1(struct hw_osd_blending_s *blending)
 	osd_blend_reg->osd_blend_blend1_size =
 		blend_vsize  << 16 | blend_hsize;
 
-	osd_log_dbg2(MODULE_BLEND, "layer_blend1->output_data:%d,%d,%d,%d\n",
+	osd_log_dbg2(MODULE_BLEND, "blend1:layer_blend->output_data:%d,%d,%d,%d\n",
 		     layer_blend->output_data.x,
 		     layer_blend->output_data.y,
 		     layer_blend->output_data.w,
@@ -8656,9 +8658,6 @@ static void osd_setting_blend1_input(u32 index,
 
 	layer_blend = &blending->layer_blend;
 	if (index == OSD1) {
-		if (blending->osd_blend_mode == OSD_BLEND_AC ||
-		    blending->osd_blend_mode == OSD_BLEND_ABC ||
-		    blending->osd_blend_mode == OSD_BLEND_AB_C) {
 			layer_blend->output_data.x =
 				blending->dst_data.x;
 			layer_blend->output_data.y =
@@ -8668,7 +8667,6 @@ static void osd_setting_blend1_input(u32 index,
 				blending->dst_data.w;
 			layer_blend->output_data.h =
 				blending->dst_data.h;
-		}
 	} else {
 		layer_blend->output_data.x =
 			osd_hw.free_dst_data[index].x_start;
