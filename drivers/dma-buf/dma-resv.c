@@ -33,7 +33,11 @@
  */
 
 #include <linux/dma-resv.h>
+#include <linux/dma-fence-chain.h>
+#include <linux/dma-fence-array.h>
 #include <linux/export.h>
+#include <linux/mm.h>
+#include <linux/sched/mm.h>
 
 /**
  * DOC: Reservation Object Overview
@@ -45,6 +49,11 @@
  * mechanism is used to protect read access to fences from locked
  * write-side updates.
  */
+
+/* deep dive into the fence containers */
+#define dma_fence_deep_dive_for_each(fence, chain, index, head)	\
+	dma_fence_chain_for_each(chain, head)			\
+		dma_fence_array_for_each(fence, index, chain)
 
 DEFINE_WD_CLASS(reservation_ww_class);
 EXPORT_SYMBOL(reservation_ww_class);
@@ -483,6 +492,92 @@ unlock:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dma_resv_get_fences_rcu);
+
+/**
+ * dma_resv_get_singleton_rcu - get a single fence for the dma_resv object
+ * @obj: the reservation object
+ *
+ * Get a single fence representing all unsignaled fences in the dma_resv object
+ * plus the given extra fence. If we got only one fence return a new
+ * reference to that, otherwise return a dma_fence_array object.
+ *
+ * RETURNS
+ * The singleton dma_fence on success or an ERR_PTR on failure
+ */
+struct dma_fence *dma_resv_get_singleton_unlocked(struct dma_resv *obj)
+{
+	struct dma_fence *result, **resv_fences, *fence, *chain, **fences;
+	struct dma_fence_array *array;
+	unsigned int num_resv_fences, num_fences;
+	unsigned int err, i, j;
+
+	err = dma_resv_get_fences_rcu(obj, NULL,
+					&num_resv_fences, &resv_fences);
+	if (err)
+		return ERR_PTR(err);
+
+	if (num_resv_fences == 0)
+		return NULL;
+
+	num_fences = 0;
+	result = NULL;
+
+	for (i = 0; i < num_resv_fences; ++i) {
+		dma_fence_deep_dive_for_each(fence, chain, j, resv_fences[i]) {
+			if (dma_fence_is_signaled(fence))
+				continue;
+
+			result = fence;
+			++num_fences;
+		}
+	}
+
+	if (num_fences <= 1) {
+		result = dma_fence_get(result);
+		goto put_resv_fences;
+	}
+
+	fences = kmalloc_array(num_fences, sizeof(struct dma_fence*),
+			       GFP_KERNEL);
+	if (!fences) {
+		result = ERR_PTR(-ENOMEM);
+		goto put_resv_fences;
+	}
+
+	num_fences = 0;
+	for (i = 0; i < num_resv_fences; ++i) {
+		dma_fence_deep_dive_for_each(fence, chain, j, resv_fences[i]) {
+			if (!dma_fence_is_signaled(fence))
+				fences[num_fences++] = dma_fence_get(fence);
+		}
+	}
+
+	if (num_fences <= 1) {
+		result = num_fences ? fences[0] : NULL;
+		kfree(fences);
+		goto put_resv_fences;
+	}
+
+	array = dma_fence_array_create(num_fences, fences,
+				       dma_fence_context_alloc(1),
+				       1, false);
+	if (array) {
+		result = &array->base;
+	} else {
+		result = ERR_PTR(-ENOMEM);
+		while (num_fences--)
+			dma_fence_put(fences[num_fences]);
+		kfree(fences);
+	}
+
+put_resv_fences:
+	while (num_resv_fences--)
+		dma_fence_put(resv_fences[num_resv_fences]);
+	kfree(resv_fences);
+
+	return result;
+}
+EXPORT_SYMBOL_GPL(dma_resv_get_singleton_unlocked);
 
 /**
  * dma_resv_wait_timeout_rcu - Wait on reservation's objects
