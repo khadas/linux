@@ -7,7 +7,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/p1-pd.h>
-#include <dt-bindings/clock/amlogic,t7-audio-clk.h>
+#include <dt-bindings/clock/amlogic,p1-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-p1-gpio.h>
 #include <dt-bindings/reset/amlogic,meson-p1-reset.h>
@@ -1176,7 +1176,7 @@
 		dummy_codec:dummy{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, aml_dummy_codec";
-			status = "disabled";
+			status = "okay";
 		};
 		acodec:codec {
 			#sound-dai-cells = <0>;
@@ -1202,19 +1202,19 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xFE330000 0x0 0x3000>;
-			//power-domains = <&pwrdm PDID_T7_AUDIO>;
 
-			status = "disabled";
+		//	power-domains = <&pwrdm PDID_T7_AUDIO>;
+			status = "okay";
 
 			clkaudio: audio_clocks {
-				compatible = "amlogic, t7-audio-clocks";
+				compatible = "amlogic, p1-audio-clocks";
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0xb0>;
-				status = "disabled";
+				status = "okay";
 			};
 			ddr_manager {
 				compatible =
-					"amlogic, t5-audio-ddr-manager";
+					"amlogic, p1-audio-ddr-manager";
 				interrupts = <
 					GIC_SPI 32 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 33 IRQ_TYPE_EDGE_RISING
@@ -1230,12 +1230,12 @@
 					"toddr_d",
 					"frddr_a", "frddr_b", "frddr_c",
 					"frddr_d";
-				status = "disabled";
+				status = "okay";
 			};
 
 		pinctrl_audio: pinctrl {
 				compatible = "amlogic, audio-pinctrl";
-				status = "disabled";
+				status = "okay";
 			};
 		};/* end of audiobus*/
 
@@ -1296,7 +1296,7 @@
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
-			status = "disabled";
+			status = "okay";
 			#address-cells=<2>;
 			#size-cells=<2>;
 			ranges;
@@ -1320,6 +1320,9 @@
 			};
 			resampleB_base {
 				reg = <0x0 0xFE334000 0x0 0x104>;
+			};
+			pdm_bus_b {
+				reg = <0x0 0xFE334800 0x0 0x400>;
 			};
 		};
 

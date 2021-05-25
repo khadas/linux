@@ -724,8 +724,8 @@ void vad_enable(bool enable)
 		if (pdm)
 			gain_index = pdm->pdm_gain_index;
 		osr = pdm_get_ors(0, p_vad->wakeup_sample_rate);
-
-		aml_pdm_filter_ctrl(gain_index, osr, 1);
+		/*only used pdm 0*/
+		aml_pdm_filter_ctrl(gain_index, osr, 1, 0);
 		p_vad->tddr->fmt.rate = p_vad->wakeup_sample_rate;
 		pr_info("%s, gain_index = %d, osr = %d, vad_sample_rate = %d\n",
 			__func__, gain_index, osr, p_vad->tddr->fmt.rate);

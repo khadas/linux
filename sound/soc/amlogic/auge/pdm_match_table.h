@@ -7,18 +7,21 @@
 #define __PDM_MATCH_TABLE_H__
 
 static struct pdm_chipinfo g12a_pdm_chipinfo = {
+	.id              = PDM_A,
 	.mute_fn         = true,
 	.truncate_data   = false,
 };
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct pdm_chipinfo tl1_pdm_chipinfo = {
+	.id              = PDM_A,
 	.mute_fn         = true,
 	.truncate_data   = false,
 };
 #endif
 
 static struct pdm_chipinfo sm1_pdm_chipinfo = {
+	.id              = PDM_A,
 	.mute_fn         = true,
 	.truncate_data   = false,
 	.train           = true,
@@ -26,6 +29,7 @@ static struct pdm_chipinfo sm1_pdm_chipinfo = {
 };
 
 static struct pdm_chipinfo tm2_pdm_chipinfo = {
+	.id              = PDM_A,
 	.mute_fn         = true,
 	.truncate_data   = false,
 	.train           = true,
@@ -33,10 +37,27 @@ static struct pdm_chipinfo tm2_pdm_chipinfo = {
 };
 
 static struct pdm_chipinfo sc2_pdm_chipinfo = {
+	.id              = PDM_A,
 	.mute_fn         = true,
 	.truncate_data   = false,
 	.train           = true,
 	.train_version   = PDM_TRAIN_VERSION_V2,
+};
+
+static struct pdm_chipinfo p1_pdm_chipinfo_a = {
+	.id              = PDM_A,
+	.mute_fn         = true,
+	.truncate_data   = false,
+	.train           = true,
+	.train_version   = PDM_TRAIN_VERSION_V1,
+};
+
+static struct pdm_chipinfo p1_pdm_chipinfo_b = {
+	.id              = PDM_B,
+	.mute_fn         = true,
+	.truncate_data   = false,
+	.train           = true,
+	.train_version   = PDM_TRAIN_VERSION_V1,
 };
 
 static const struct of_device_id aml_pdm_device_id[] = {
@@ -65,7 +86,14 @@ static const struct of_device_id aml_pdm_device_id[] = {
 		.compatible = "amlogic, sc2-snd-pdm",
 		.data		= &sc2_pdm_chipinfo,
 	},
-
+	{
+		.compatible = "amlogic, p1-snd-pdm-a",
+		.data       = &p1_pdm_chipinfo_a,
+	},
+	{
+		.compatible = "amlogic, p1-snd-pdm-b",
+		.data       = &p1_pdm_chipinfo_b,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, aml_pdm_device_id);

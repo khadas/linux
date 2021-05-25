@@ -33,20 +33,37 @@ struct lb_src_table {
 	char *name;
 };
 
+struct data_src_table {
+	enum datain_src src;
+	char *name;
+};
+
+struct data_src_table loopback_data_table[DATAIN_MAX] = {
+	{DATAIN_TDMA,	   "tdmin_a"},
+	{DATAIN_TDMB,	   "tdmin_b"},
+	{DATAIN_TDMC,	   "tdmin_c"},
+	{DATAIN_SPDIF,	   "spdifin"},
+	{DATAIN_PDM,	   "pdmin"},
+	{DATAIN_TDMD,	   "tdmin_d"},
+	{DATAIN_PDMB,	   "pdmin_b"},
+};
+
 struct lb_src_table tdmin_lb_src_table[TDMINLB_SRC_MAX] = {
-	{TDMINLB_TDMOUTA,      "tdmout_a"},
-	{TDMINLB_TDMOUTB,      "tdmout_b"},
-	{TDMINLB_TDMOUTC,      "tdmout_c"},
+	{TDMINLB_TDMOUTA,	   "tdmout_a"},
+	{TDMINLB_TDMOUTB,	   "tdmout_b"},
+	{TDMINLB_TDMOUTC,	   "tdmout_c"},
 	{TDMINLB_PAD_TDMINA,   "tdmin_a"},
 	{TDMINLB_PAD_TDMINB,   "tdmin_b"},
 	{TDMINLB_PAD_TDMINC,   "tdmin_c"},
 	{TDMINLB_PAD_TDMINA_D, "tdmind_a"},
 	{TDMINLB_PAD_TDMINB_D, "tdmind_b"},
 	{TDMINLB_PAD_TDMINC_D, "tdmind_c"},
-	{TDMINLB_HDMIRX,       "hdmirx"},
-	{TDMINLB_ACODEC,       "acodec_adc"},
+	{TDMINLB_HDMIRX,	   "hdmirx"},
+	{TDMINLB_ACODEC,	   "acodec_adc"},
 	{SPDIFINLB_SPDIFOUTA,  "spdifout_a"},
 	{SPDIFINLB_SPDIFOUTB,  "spdifout_b"},
+	{TDMINLB_TDMOUTD,	   "tdmout_d"},
+
 };
 
 static char *tdmin_lb_src2str(enum datalb_src src)
@@ -57,6 +74,12 @@ static char *tdmin_lb_src2str(enum datalb_src src)
 	return tdmin_lb_src_table[src].name;
 }
 
+static char *loopback_src_table(enum datain_src src)
+{
+	if (src >= DATAIN_MAX)
+		src = DATAIN_PDM;
+	return loopback_data_table[src].name;
+}
 struct loopback {
 	struct device *dev;
 	struct aml_audio_controller *actrl;
@@ -126,8 +149,8 @@ unsigned int loopback_get_lb_channel(int id)
 }
 
 #define LOOPBACK_BUFFER_BYTES (512 * 1024)
-#define LOOPBACK_RATES      (SNDRV_PCM_RATE_8000_192000)
-#define LOOPBACK_FORMATS    (SNDRV_PCM_FMTBIT_S16_LE |\
+#define LOOPBACK_RATES		(SNDRV_PCM_RATE_8000_192000)
+#define LOOPBACK_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE |\
 						SNDRV_PCM_FMTBIT_S24_LE |\
 						SNDRV_PCM_FMTBIT_S32_LE)
 
@@ -289,14 +312,14 @@ static int loopback_mmap(struct snd_pcm_substream *substream,
 }
 
 static struct snd_pcm_ops loopback_ops = {
-	.open      = loopback_open,
-	.close     = loopback_close,
-	.ioctl     = snd_pcm_lib_ioctl,
+	.open	   = loopback_open,
+	.close	   = loopback_close,
+	.ioctl	   = snd_pcm_lib_ioctl,
 	.hw_params = loopback_hw_params,
 	.hw_free   = loopback_hw_free,
 	.prepare   = loopback_prepare,
 	.pointer   = loopback_pointer,
-	.mmap      = loopback_mmap,
+	.mmap	   = loopback_mmap,
 };
 
 static int datain_pdm_startup(struct loopback *p_loopback)
@@ -361,10 +384,12 @@ static int loopback_dai_startup(struct snd_pcm_substream *ss,
 		case DATAIN_TDMA:
 		case DATAIN_TDMB:
 		case DATAIN_TDMC:
+		case DATAIN_TDMD:
 			break;
 		case DATAIN_SPDIF:
 			break;
 		case DATAIN_PDM:
+		case DATAIN_PDMB:
 			ret = datain_pdm_startup(p_loopback);
 			if (ret < 0)
 				goto err;
@@ -406,10 +431,12 @@ static void loopback_dai_shutdown(struct snd_pcm_substream *ss,
 		case DATAIN_TDMA:
 		case DATAIN_TDMB:
 		case DATAIN_TDMC:
+		case DATAIN_TDMD:
 			break;
 		case DATAIN_SPDIF:
 			break;
 		case DATAIN_PDM:
+		case DATAIN_PDMB:
 			datain_pdm_shutdown(p_loopback);
 			break;
 		case DATAIN_LOOPBACK:
@@ -474,7 +501,9 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 		case DATAIN_TDMA:
 		case DATAIN_TDMB:
 		case DATAIN_TDMC:
+		case DATAIN_TDMD:
 		case DATAIN_PDM:
+		case DATAIN_PDMB:
 			datain_toddr_type = 0;
 			datain_msb = 32 - 1;
 			datain_lsb = 0;
@@ -490,20 +519,30 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 			break;
 		default:
 			pr_err("unsupport data in source:%d\n",
-			       p_loopback->datain_src);
+				   p_loopback->datain_src);
 			return -EINVAL;
 		}
 
 		datain_cfg.ext_signed = 0;
-		datain_cfg.chnum      = p_loopback->datain_chnum;
-		datain_cfg.chmask     = p_loopback->datain_chmask;
-		datain_cfg.type       = datain_toddr_type;
-		datain_cfg.m          = datain_msb;
-		datain_cfg.n          = datain_lsb;
-		datain_cfg.src        = p_loopback->datain_src;
-		datain_cfg.srcs       = p_loopback->chipinfo->srcs;
+		datain_cfg.chnum = p_loopback->datain_chnum;
+		datain_cfg.chmask = p_loopback->datain_chmask;
+		datain_cfg.type = datain_toddr_type;
+		datain_cfg.m = datain_msb;
+		datain_cfg.n = datain_lsb;
+		datain_cfg.src = p_loopback->datain_src;
+		datain_cfg.srcs = p_loopback->chipinfo->srcs;
 
 		lb_set_datain_cfg(p_loopback->id, &datain_cfg);
+		/*p1 add tdm d and pdm b*/
+		if (datain_cfg.src >= DATAIN_TDMD) {
+			src_str = loopback_src_table(p_loopback->datain_src);
+			conf = p_loopback->chipinfo->srcs;
+			for (; conf->name[0]; conf++) {
+				if (strncmp(conf->name, src_str, strlen(src_str)) == 0)
+					break;
+			}
+			loopback_src_set(p_loopback->id, conf);
+		}
 	}
 
 	if (p_loopback->datalb_chnum > 0) {
@@ -525,17 +564,17 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 			break;
 		default:
 			pr_err("unsupport data lb source:%d\n",
-			       p_loopback->datalb_src);
+				   p_loopback->datalb_src);
 			return -EINVAL;
 		}
 
 		datalb_cfg.ext_signed  = 0;
-		datalb_cfg.chnum       = p_loopback->datalb_chnum;
-		datalb_cfg.chmask      = p_loopback->datalb_chmask;
-		datalb_cfg.type        = datalb_toddr_type;
-		datalb_cfg.m           = datalb_msb;
-		datalb_cfg.n           = datalb_lsb;
-		datalb_cfg.loopback_src  = 0; /* todo: tdmin_LB */
+		datalb_cfg.chnum = p_loopback->datalb_chnum;
+		datalb_cfg.chmask = p_loopback->datalb_chmask;
+		datalb_cfg.type = datalb_toddr_type;
+		datalb_cfg.m = datalb_msb;
+		datalb_cfg.n = datalb_lsb;
+		datalb_cfg.loopback_src = 0; /* todo: tdmin_LB */
 		datalb_cfg.tdmin_lb_srcs = p_loopback->chipinfo->tdmin_lb_srcs;
 		/* get resample B status */
 		datalb_cfg.resample_enable =
@@ -569,22 +608,24 @@ static void datatin_pdm_cfg(struct snd_pcm_runtime *runtime,
 	struct pdm_info info;
 	struct aml_pdm *pdm = (struct aml_pdm *)p_loopback->mic_src;
 	int gain_index = 0;
+	if (!pdm)
+		return;
+	if (!pdm->chipinfo)
+		return;
+	gain_index = pdm->pdm_gain_index;
 
-	if (pdm)
-		gain_index = pdm->pdm_gain_index;
-
-	info.bitdepth	  = bit_depth;
-	info.channels	  = p_loopback->datain_chnum;
-	info.lane_masks   = p_loopback->datain_lane_mask;
-	info.dclk_idx	  = p_loopback->dclk_idx;
-	info.bypass       = 0;
+	info.bitdepth = bit_depth;
+	info.channels = p_loopback->datain_chnum;
+	info.lane_masks = p_loopback->datain_lane_mask;
+	info.dclk_idx = p_loopback->dclk_idx;
+	info.bypass = 0;
 	info.sample_count = pdm_get_sample_count(0, p_loopback->dclk_idx);
-	aml_pdm_ctrl(&info);
+	aml_pdm_ctrl(&info, pdm->chipinfo->id);
 
 	/* filter for pdm */
 	osr = pdm_get_ors(p_loopback->dclk_idx, runtime->rate);
 
-	aml_pdm_filter_ctrl(gain_index, osr, 1);
+	aml_pdm_filter_ctrl(gain_index, osr, 1, pdm->chipinfo->id);
 }
 
 static int loopback_dai_prepare(struct snd_pcm_substream *ss,
@@ -631,13 +672,13 @@ static int loopback_dai_prepare(struct snd_pcm_substream *ss,
 		return -EINVAL;
 	}
 
-	fmt.type      = toddr_type;
-	fmt.msb       = msb;
-	fmt.lsb       = lsb;
-	fmt.endian    = 0;
+	fmt.type = toddr_type;
+	fmt.msb = msb;
+	fmt.lsb = lsb;
+	fmt.endian  = 0;
 	fmt.bit_depth = bit_depth;
-	fmt.ch_num    = runtime->channels;
-	fmt.rate      = runtime->rate;
+	fmt.ch_num = runtime->channels;
+	fmt.rate = runtime->rate;
 
 	aml_toddr_select_src(to, src);
 	aml_toddr_set_format(to, &fmt);
@@ -647,6 +688,7 @@ static int loopback_dai_prepare(struct snd_pcm_substream *ss,
 		case DATAIN_TDMA:
 		case DATAIN_TDMB:
 		case DATAIN_TDMC:
+		case DATAIN_TDMD:
 			aml_tdmin_set_src(p_loopback->mic_src);
 			break;
 		case DATAIN_SPDIF:
@@ -658,7 +700,7 @@ static int loopback_dai_prepare(struct snd_pcm_substream *ss,
 			break;
 		default:
 			pr_err("loopback unexpected datain src 0x%02x\n",
-			       p_loopback->datain_src);
+				   p_loopback->datain_src);
 			return -EINVAL;
 		}
 	}
@@ -668,6 +710,7 @@ static int loopback_dai_prepare(struct snd_pcm_substream *ss,
 		case TDMINLB_TDMOUTA:
 		case TDMINLB_TDMOUTB:
 		case TDMINLB_TDMOUTC:
+		case TDMINLB_TDMOUTD:
 			break;
 		case TDMINLB_PAD_TDMINA:
 		case TDMINLB_PAD_TDMINB:
@@ -682,7 +725,7 @@ static int loopback_dai_prepare(struct snd_pcm_substream *ss,
 			break;
 		default:
 			pr_err("loopback unexpected datalb src 0x%02x\n",
-			       p_loopback->datalb_src);
+				   p_loopback->datalb_src);
 			return -EINVAL;
 		}
 	}
@@ -693,13 +736,14 @@ static int loopback_dai_prepare(struct snd_pcm_substream *ss,
 }
 
 static void loopback_mic_src_trigger(struct loopback *p_loopback,
-			    int stream,
-			    bool enable)
+				int stream,
+				bool enable)
 {
 	switch (p_loopback->datain_src) {
 	case DATAIN_TDMA:
 	case DATAIN_TDMB:
 	case DATAIN_TDMC:
+	case DATAIN_TDMD:
 		aml_tdm_trigger(p_loopback->mic_src,
 			stream, enable);
 		break;
@@ -707,7 +751,10 @@ static void loopback_mic_src_trigger(struct loopback *p_loopback,
 	case DATAIN_SPDIF:
 		break;
 	case DATAIN_PDM:
-		pdm_enable(enable);
+		pdm_enable(enable, 0);
+		break;
+	case DATAIN_PDMB:
+		pdm_enable(enable, 1);
 		break;
 	case DATAIN_LOOPBACK:
 		break;
@@ -719,12 +766,13 @@ static void loopback_mic_src_trigger(struct loopback *p_loopback,
 }
 
 static void loopback_mic_src_fifo_reset(struct loopback *p_loopback,
-			       int stream)
+				   int stream)
 {
 	switch (p_loopback->datain_src) {
 	case DATAIN_TDMA:
 	case DATAIN_TDMB:
 	case DATAIN_TDMC:
+	case DATAIN_TDMD:
 		aml_tdm_fifo_reset(p_loopback->actrl,
 			stream, p_loopback->datain_src);
 		break;
@@ -732,7 +780,10 @@ static void loopback_mic_src_fifo_reset(struct loopback *p_loopback,
 	case DATAIN_SPDIF:
 		break;
 	case DATAIN_PDM:
-		pdm_fifo_reset();
+		pdm_fifo_reset(0);
+		break;
+	case DATAIN_PDMB:
+		pdm_fifo_reset(1);
 		break;
 	case DATAIN_LOOPBACK:
 		break;
@@ -883,12 +934,14 @@ static int loopback_dai_hw_params(struct snd_pcm_substream *ss,
 		case DATAIN_TDMA:
 		case DATAIN_TDMB:
 		case DATAIN_TDMC:
+		case DATAIN_TDMD:
 			aml_tdm_hw_setting_init(p_loopback->mic_src,
 				rate, p_loopback->datain_chnum, ss->stream);
 			break;
 		case DATAIN_SPDIF:
 			break;
 		case DATAIN_PDM:
+		case DATAIN_PDMB:
 			datain_pdm_set_clk(p_loopback);
 			break;
 		case DATAIN_LOOPBACK:
@@ -927,6 +980,7 @@ int loopback_dai_hw_free(struct snd_pcm_substream *ss,
 		case DATAIN_TDMA:
 		case DATAIN_TDMB:
 		case DATAIN_TDMC:
+		case DATAIN_TDMD:
 			aml_tdm_hw_setting_free(p_loopback->mic_src, ss->stream);
 			break;
 		case DATAIN_SPDIF:
@@ -976,6 +1030,7 @@ static int loopback_dai_mute_stream(struct snd_soc_dai *dai,
 		case DATAIN_TDMA:
 		case DATAIN_TDMB:
 		case DATAIN_TDMC:
+		case DATAIN_TDMD:
 			tdm_mute_capture(p_loopback->mic_src, mute);
 			break;
 		case DATAIN_SPDIF:
@@ -993,39 +1048,39 @@ static int loopback_dai_mute_stream(struct snd_soc_dai *dai,
 }
 
 static struct snd_soc_dai_ops loopback_dai_ops = {
-	.startup    = loopback_dai_startup,
-	.shutdown   = loopback_dai_shutdown,
-	.prepare    = loopback_dai_prepare,
-	.trigger    = loopback_dai_trigger,
-	.hw_params  = loopback_dai_hw_params,
-	.hw_free    = loopback_dai_hw_free,
-	.set_fmt    = loopback_dai_set_fmt,
+	.startup	= loopback_dai_startup,
+	.shutdown	= loopback_dai_shutdown,
+	.prepare	= loopback_dai_prepare,
+	.trigger	= loopback_dai_trigger,
+	.hw_params	= loopback_dai_hw_params,
+	.hw_free	= loopback_dai_hw_free,
+	.set_fmt	= loopback_dai_set_fmt,
 	.set_sysclk = loopback_dai_set_sysclk,
 	.mute_stream = loopback_dai_mute_stream,
 };
 
 static struct snd_soc_dai_driver loopback_dai[] = {
 	{
-		.name    = "LOOPBACK-A",
-		.id      = 0,
+		.name = "LOOPBACK-A",
+		.id = 0,
 		.capture = {
-		     .channels_min = 1,
-		     .channels_max = 32,
-		     .rates        = LOOPBACK_RATES,
-		     .formats      = LOOPBACK_FORMATS,
+			 .channels_min = 1,
+			 .channels_max = 32,
+			 .rates = LOOPBACK_RATES,
+			 .formats = LOOPBACK_FORMATS,
 		},
-		.ops     = &loopback_dai_ops,
+		.ops = &loopback_dai_ops,
 	},
 	{
-		.name    = "LOOPBACK-B",
-		.id      = 1,
+		.name = "LOOPBACK-B",
+		.id = 1,
 		.capture = {
-		     .channels_min = 1,
-		     .channels_max = 32,
-		     .rates        = LOOPBACK_RATES,
-		     .formats      = LOOPBACK_FORMATS,
+			 .channels_min = 1,
+			 .channels_max = 32,
+			 .rates = LOOPBACK_RATES,
+			 .formats = LOOPBACK_FORMATS,
 		},
-		.ops     = &loopback_dai_ops,
+		.ops = &loopback_dai_ops,
 	},
 };
 
@@ -1134,9 +1189,9 @@ static const struct snd_kcontrol_new snd_loopback_controls[] = {
 };
 
 static const struct snd_soc_component_driver loopback_component = {
-	.name         = DRV_NAME,
-	.ops      = &loopback_ops,
-	.controls     = snd_loopback_controls,
+	.name		  = DRV_NAME,
+	.ops	  = &loopback_ops,
+	.controls	  = snd_loopback_controls,
 	.num_controls = ARRAY_SIZE(snd_loopback_controls),
 };
 
@@ -1173,8 +1228,8 @@ static void loopback_platform_late_resume(struct early_suspend *h)
 
 #define loopback_es_hdr(idx) \
 static struct early_suspend loopback_es_hdr_##idx = { \
-	.suspend = loopback_platform_early_suspend,       \
-	.resume  = loopback_platform_late_resume,         \
+	.suspend = loopback_platform_early_suspend, \
+	.resume  = loopback_platform_late_resume,   \
 }
 
 loopback_es_hdr(0);
@@ -1191,7 +1246,7 @@ static void loopback_register_early_suspend_hdr(int idx, void *pdev)
 	else
 		return;
 
-	pes->param   = pdev;
+	pes->param	 = pdev;
 	register_early_suspend(pes);
 }
 #endif
@@ -1283,10 +1338,12 @@ static int datain_parse_of(struct device_node *node,
 		case DATAIN_TDMA:
 		case DATAIN_TDMB:
 		case DATAIN_TDMC:
+		case DATAIN_TDMD:
 			break;
 		case DATAIN_SPDIF:
 			break;
 		case DATAIN_PDM:
+		case DATAIN_PDMB:
 			ret = datain_pdm_parse_of(&pdev->dev, p_loopback);
 			if (ret < 0)
 				goto err;
@@ -1621,11 +1678,11 @@ static int loopback_platform_resume(struct platform_device *pdev)
 
 static struct platform_driver loopback_platform_driver = {
 	.driver = {
-		.name           = DRV_NAME,
-		.owner          = THIS_MODULE,
+		.name			= DRV_NAME,
+		.owner			= THIS_MODULE,
 		.of_match_table = of_match_ptr(loopback_device_id),
 	},
-	.probe  = loopback_platform_probe,
+	.probe	= loopback_platform_probe,
 	.suspend = loopback_platform_suspend,
 	.resume  = loopback_platform_resume,
 };

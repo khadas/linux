@@ -77,30 +77,42 @@ static void aml_snd_update_bits(u32 base_type, unsigned int reg,
 	pr_err("write snd reg %x error\n", reg);
 }
 
-int aml_pdm_read(unsigned int reg)
+int aml_pdm_read(int id, unsigned int reg)
 {
 	int ret, val = 0;
-
-	ret = aml_snd_read(IO_PDM_BUS, reg, &val);
-
-	if (ret) {
-		pr_err("read pdm reg %x error %d\n", reg, ret);
-		return -1;
+	if (id == 0) {
+		ret = aml_snd_read(IO_PDM_BUS, reg, &val);
+		if (ret) {
+			pr_err("read pdm reg %x error %d\n", reg, ret);
+			return -1;
+		}
+	} else if (id == 1) {
+		ret = aml_snd_read(IO_PDM_BUS_B, reg, &val);
+		if (ret) {
+			pr_err("read pdm reg %x error %d\n", reg, ret);
+			return -1;
+		}
 	}
 	return val;
 }
 EXPORT_SYMBOL(aml_pdm_read);
 
-void aml_pdm_write(unsigned int reg, unsigned int val)
+void aml_pdm_write(int id, unsigned int reg, unsigned int val)
 {
-	aml_snd_write(IO_PDM_BUS, reg, val);
+	if (id == 0)
+		aml_snd_write(IO_PDM_BUS, reg, val);
+	else if (id == 1)
+		aml_snd_write(IO_PDM_BUS_B, reg, val);
 }
 EXPORT_SYMBOL(aml_pdm_write);
 
-void aml_pdm_update_bits(unsigned int reg, unsigned int mask,
+void aml_pdm_update_bits(int id, unsigned int reg, unsigned int mask,
 			 unsigned int val)
 {
-	aml_snd_update_bits(IO_PDM_BUS, reg, mask, val);
+	if (id == 0)
+		aml_snd_update_bits(IO_PDM_BUS, reg, mask, val);
+	else if (id == 1)
+		aml_snd_update_bits(IO_PDM_BUS_B, reg, mask, val);
 }
 EXPORT_SYMBOL(aml_pdm_update_bits);
 

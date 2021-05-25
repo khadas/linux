@@ -18,14 +18,14 @@
 
 static DEFINE_SPINLOCK(pdm_lock);
 static unsigned long pdm_enable_cnt;
-void pdm_enable(int is_enable)
+void pdm_enable(int is_enable, int id)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&pdm_lock, flags);
 	if (is_enable) {
 		if (pdm_enable_cnt == 0)
-			aml_pdm_update_bits(PDM_CTRL,
+			aml_pdm_update_bits(id, PDM_CTRL,
 				0x1 << 31,
 				is_enable << 31);
 		pdm_enable_cnt++;
@@ -33,7 +33,7 @@ void pdm_enable(int is_enable)
 		if (WARN_ON(pdm_enable_cnt == 0))
 			goto exit;
 		if (--pdm_enable_cnt == 0)
-			aml_pdm_update_bits(PDM_CTRL,
+			aml_pdm_update_bits(id, PDM_CTRL,
 				0x1 << 31 | 0x1 << 16,
 				0 << 31 | 0 << 16);
 	}
@@ -42,26 +42,29 @@ exit:
 	spin_unlock_irqrestore(&pdm_lock, flags);
 }
 
-void pdm_fifo_reset(void)
+void pdm_fifo_reset(int id)
 {
 	/* PDM Asynchronous FIFO soft reset.
 	 * write 1 to soft reset AFIFO
 	 */
-	aml_pdm_update_bits(PDM_CTRL,
+	aml_pdm_update_bits(id, PDM_CTRL,
 		0x1 << 16,
 		0 << 16);
 
-	aml_pdm_update_bits(PDM_CTRL,
+	aml_pdm_update_bits(id, PDM_CTRL,
 		0x1 << 16,
 		0x1 << 16);
 }
 
-void pdm_force_sysclk_to_oscin(bool force)
+void pdm_force_sysclk_to_oscin(bool force, int id)
 {
-	audiobus_update_bits(EE_AUDIO_CLK_PDMIN_CTRL1, 0x1 << 30, force << 30);
+	if (id == 0)
+		audiobus_update_bits(EE_AUDIO_CLK_PDMIN_CTRL1, 0x1 << 30, force << 30);
+	else if (id == 1)
+		audiobus_update_bits(EE_AUDIO_CLK_PDMIN_CTRL3, 0x1 << 30, force << 30);
 }
 
-void pdm_set_channel_ctrl(int sample_count)
+void pdm_set_channel_ctrl(int sample_count, int id)
 {
 	int left_sample_count = sample_count, right_sample_count = sample_count;
 	int train_version = pdm_get_train_version();
@@ -72,19 +75,19 @@ void pdm_set_channel_ctrl(int sample_count)
 	if (train_version == PDM_TRAIN_VERSION_V2)
 		right_sample_count += 22;
 
-	aml_pdm_write(PDM_CHAN_CTRL, ((right_sample_count << 24) |
+	aml_pdm_write(id, PDM_CHAN_CTRL, ((right_sample_count << 24) |
 					(left_sample_count << 16) |
 					(right_sample_count << 8) |
 					(left_sample_count << 0)
 		));
-	aml_pdm_write(PDM_CHAN_CTRL1, ((right_sample_count << 24) |
+	aml_pdm_write(id, PDM_CHAN_CTRL1, ((right_sample_count << 24) |
 					(left_sample_count << 16) |
 					(right_sample_count << 8) |
 					(left_sample_count << 0)
 		));
 }
 
-void aml_pdm_ctrl(struct pdm_info *info)
+void aml_pdm_ctrl(struct pdm_info *info, int id)
 {
 	int mode, i, ch_mask = 0;
 	int pdm_chs, lane_chs = 0;
@@ -125,10 +128,10 @@ void aml_pdm_ctrl(struct pdm_info *info)
 		ch_mask,
 		info->bypass);
 
-	aml_pdm_write(PDM_CLKG_CTRL, 1);
+	aml_pdm_write(id, PDM_CLKG_CTRL, 1);
 
 	/* must be sure that clk and pdm is enable */
-	aml_pdm_update_bits(PDM_CTRL,
+	aml_pdm_update_bits(id, PDM_CTRL,
 				(0x7 << 28 | 0xff << 8 | 0xff << 0),
 				/* invert the PDM_DCLK or not */
 				(0 << 30) |
@@ -144,7 +147,7 @@ void aml_pdm_ctrl(struct pdm_info *info)
 				(ch_mask << 0)
 				);
 
-	pdm_set_channel_ctrl(info->sample_count);
+	pdm_set_channel_ctrl(info->sample_count, id);
 }
 
 void aml_pdm_arb_config(struct aml_audio_controller *actrl)
@@ -155,7 +158,7 @@ void aml_pdm_arb_config(struct aml_audio_controller *actrl)
 
 /* config for hcic, lpf1,2,3, hpf */
 static void aml_pdm_filters_config(int pdm_gain_index, int osr,
-	int lpf1_len, int lpf2_len, int lpf3_len)
+	int lpf1_len, int lpf2_len, int lpf3_len, int id)
 {
 	s32 hcic_dn_rate;
 	s32 hcic_tap_num;
@@ -234,7 +237,7 @@ static void aml_pdm_filters_config(int pdm_gain_index, int osr,
 	f3_ds_rate	 = 2;
 
 	/* hcic */
-	aml_pdm_write(PDM_HCIC_CTRL1,
+	aml_pdm_write(id, PDM_HCIC_CTRL1,
 		(0x80000000 |
 		hcic_tap_num |
 		(hcic_dn_rate << 4) |
@@ -242,19 +245,19 @@ static void aml_pdm_filters_config(int pdm_gain_index, int osr,
 		);
 
 	/* lpf */
-	aml_pdm_write(PDM_F1_CTRL,
+	aml_pdm_write(id, PDM_F1_CTRL,
 		(0x80000000 |
 		f1_tap_num |
 		(2 << 12) |
 		(f1_rnd_mode << 16))
 		);
-	aml_pdm_write(PDM_F2_CTRL,
+	aml_pdm_write(id, PDM_F2_CTRL,
 		(0x80000000 |
 		f2_tap_num |
 		(2 << 12) |
 		(f2_rnd_mode << 16))
 		);
-	aml_pdm_write(PDM_F3_CTRL,
+	aml_pdm_write(id, PDM_F3_CTRL,
 		(0x80000000 |
 		f3_tap_num |
 		(2 << 12) |
@@ -262,7 +265,7 @@ static void aml_pdm_filters_config(int pdm_gain_index, int osr,
 		);
 
 	/* hpf */
-	aml_pdm_write(PDM_HPF_CTRL,
+	aml_pdm_write(id, PDM_HPF_CTRL,
 		(hpf_out_factor |
 		(hpf_shift_step << 16) |
 		(hpf_en << 31))
@@ -273,29 +276,29 @@ static void aml_pdm_filters_config(int pdm_gain_index, int osr,
 /* coefficent for LPF1,2,3 */
 static void aml_pdm_LPF_coeff(int lpf1_len, const int *lpf1_coeff,
 	int lpf2_len, const int *lpf2_coeff,
-	int lpf3_len, const int *lpf3_coeff)
+	int lpf3_len, const int *lpf3_coeff, int id)
 {
 	int i;
 	s32 data;
 	s32 data_tmp;
 
-	aml_pdm_write(PDM_COEFF_ADDR, 0);
+	aml_pdm_write(id, PDM_COEFF_ADDR, 0);
 	for (i = 0;
 		i < lpf1_len;
 		i++)
-		aml_pdm_write(PDM_COEFF_DATA, lpf1_coeff[i]);
+		aml_pdm_write(id, PDM_COEFF_DATA, lpf1_coeff[i]);
 	for (i = 0;
 		i < lpf2_len;
 		i++)
-		aml_pdm_write(PDM_COEFF_DATA, lpf2_coeff[i]);
+		aml_pdm_write(id, PDM_COEFF_DATA, lpf2_coeff[i]);
 	for (i = 0;
 		i < lpf3_len;
 		i++)
-		aml_pdm_write(PDM_COEFF_DATA, lpf3_coeff[i]);
+		aml_pdm_write(id, PDM_COEFF_DATA, lpf3_coeff[i]);
 
-	aml_pdm_write(PDM_COEFF_ADDR, 0);
+	aml_pdm_write(id, PDM_COEFF_ADDR, 0);
 	for (i = 0; i < lpf1_len; i++) {
-		data = aml_pdm_read(PDM_COEFF_DATA);
+		data = aml_pdm_read(id, PDM_COEFF_DATA);
 		data_tmp = lpf1_coeff[i];
 		if (data != data_tmp) {
 			pr_info("FAILED coeff data verified wrong!\n");
@@ -304,7 +307,7 @@ static void aml_pdm_LPF_coeff(int lpf1_len, const int *lpf1_coeff,
 		}
 	}
 	for (i = 0; i < lpf2_len; i++) {
-		data = aml_pdm_read(PDM_COEFF_DATA);
+		data = aml_pdm_read(id, PDM_COEFF_DATA);
 		data_tmp = lpf2_coeff[i];
 		if (data != data_tmp) {
 			pr_info("FAILED coeff data verified wrong!\n");
@@ -313,7 +316,7 @@ static void aml_pdm_LPF_coeff(int lpf1_len, const int *lpf1_coeff,
 		}
 	}
 	for (i = 0; i < lpf3_len; i++) {
-		data = aml_pdm_read(PDM_COEFF_DATA);
+		data = aml_pdm_read(id, PDM_COEFF_DATA);
 		data_tmp = lpf3_coeff[i];
 		if (data != data_tmp) {
 			pr_info("FAILED coeff data verified wrong!\n");
@@ -324,7 +327,7 @@ static void aml_pdm_LPF_coeff(int lpf1_len, const int *lpf1_coeff,
 
 }
 
-void aml_pdm_filter_ctrl(int pdm_gain_index, int osr, int mode)
+void aml_pdm_filter_ctrl(int pdm_gain_index, int osr, int mode, int id)
 {
 	int lpf1_len, lpf2_len, lpf3_len;
 	const int *lpf1_coeff, *lpf2_coeff, *lpf3_coeff;
@@ -423,76 +426,76 @@ void aml_pdm_filter_ctrl(int pdm_gain_index, int osr, int mode)
 		osr,
 		lpf1_len,
 		lpf2_len,
-		lpf3_len);
+		lpf3_len, id);
 
 	aml_pdm_LPF_coeff(lpf1_len, lpf1_coeff,
 		lpf2_len, lpf2_coeff,
-		lpf3_len, lpf3_coeff
-		);
+		lpf3_len, lpf3_coeff,
+		id);
 
 }
 
-int pdm_get_mute_value(void)
+int pdm_get_mute_value(int id)
 {
-	return aml_pdm_read(PDM_MUTE_VALUE);
+	return aml_pdm_read(id, PDM_MUTE_VALUE);
 }
 
-void pdm_set_mute_value(int val)
+void pdm_set_mute_value(int val, int id)
 {
-	aml_pdm_write(PDM_MUTE_VALUE, val);
+	aml_pdm_write(id, PDM_MUTE_VALUE, val);
 }
 
-int pdm_get_mute_channel(void)
+int pdm_get_mute_channel(int id)
 {
-	int val = aml_pdm_read(PDM_CTRL);
+	int val = aml_pdm_read(id, PDM_CTRL);
 
 	return (val & (0xff << 20));
 }
 
-void pdm_set_mute_channel(int mute_chmask)
+void pdm_set_mute_channel(int mute_chmask, int id)
 {
 	int mute_en = 0;
 
 	if (mute_chmask)
 		mute_en = 1;
 
-	aml_pdm_update_bits(PDM_CTRL,
+	aml_pdm_update_bits(id, PDM_CTRL,
 		(0xff << 20 | 0x1 << 17),
 		(mute_chmask << 20 | mute_en << 17));
 }
 
-void pdm_set_bypass_data(bool bypass)
+void pdm_set_bypass_data(bool bypass, int id)
 {
-	aml_pdm_update_bits(PDM_CTRL, 0x1 << 28, bypass << 28);
+	aml_pdm_update_bits(id, PDM_CTRL, 0x1 << 28, bypass << 28);
 }
 
-void pdm_init_truncate_data(int freq)
+void pdm_init_truncate_data(int freq, int id)
 {
 	int mask_val;
 
 	/* assume mask 1.05ms */
 	mask_val = ((freq / 1000) * 1050) / 1000 - 1;
 
-	aml_pdm_write(PDM_MASK_NUM, mask_val);
+	aml_pdm_write(id, PDM_MASK_NUM, mask_val);
 }
 
-void pdm_train_en(bool en)
+void pdm_train_en(bool en, int id)
 {
-	aml_pdm_update_bits(PDM_CTRL,
+	aml_pdm_update_bits(id, PDM_CTRL,
 		0x1 << 19,
 		en << 19);
 }
 
-void pdm_train_clr(void)
+void pdm_train_clr(int id)
 {
-	aml_pdm_update_bits(PDM_CTRL,
+	aml_pdm_update_bits(id, PDM_CTRL,
 		0x1 << 18,
 		0x1 << 18);
 }
 
-int pdm_train_sts(void)
+int pdm_train_sts(int id)
 {
-	int val = aml_pdm_read(PDM_STS);
+	int val = aml_pdm_read(id, PDM_STS);
 
 	return ((val >> 4) & 0xff);
 }

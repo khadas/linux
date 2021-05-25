@@ -16,14 +16,14 @@ enum{
 	IO_VAD,
 	IO_RESAMPLEA,
 	IO_RESAMPLEB,
+	IO_PDM_BUS_B,
 	IO_MAX,
 };
 
-int aml_pdm_read(unsigned int reg);
-void aml_pdm_write(unsigned int reg, unsigned int val);
-void aml_pdm_update_bits(unsigned int reg, unsigned int mask,
+int aml_pdm_read(int id, unsigned int reg);
+void aml_pdm_write(int id, unsigned int reg, unsigned int val);
+void aml_pdm_update_bits(int id, unsigned int reg, unsigned int mask,
 			 unsigned int val);
-
 int audiobus_read(unsigned int reg);
 void audiobus_write(unsigned int reg, unsigned int val);
 void audiobus_update_bits(unsigned int reg, unsigned int mask,

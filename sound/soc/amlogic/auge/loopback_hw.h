@@ -69,6 +69,7 @@ void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg);
 void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg, bool multi_bits_lbsrcs);
 void lb_enable(int id, bool enable, bool chnum_en);
 void lb_set_chnum_en(int id, bool en, bool chnum_en);
+void loopback_src_set(int id, struct mux_conf *conf);
 
 enum lb_out_rate {
 	MIC_RATE,

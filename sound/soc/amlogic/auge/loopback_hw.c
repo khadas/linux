@@ -132,6 +132,14 @@ void lb_set_mode(int id, enum lb_out_rate rate)
 	audiobus_update_bits(reg, 0x1 << 30, rate << 30);
 }
 
+void loopback_src_set(int id, struct mux_conf *conf)
+{
+	int offset = EE_AUDIO_LB_B_CTRL2 - EE_AUDIO_LB_A_CTRL2;
+	int reg = EE_AUDIO_LB_A_CTRL2 + offset * id;
+
+	audiobus_update_bits(reg, conf->mask << conf->shift, conf->val << conf->shift);
+}
+
 void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg)
 {
 	int offset = EE_AUDIO_LB_B_CTRL0 - EE_AUDIO_LB_A_CTRL0;
@@ -173,13 +181,13 @@ void lb_set_datain_cfg(int id, struct data_cfg *datain_cfg)
 			datain_cfg->src         << 0
 		);
 	}
-
-	conf = datain_cfg->srcs;
-	conf += datain_cfg->src;
-	reg = conf->reg + offset * id;
-	audiobus_update_bits(reg,
-			     conf->mask << conf->shift,
-			     conf->val << conf->shift);
+	if (datain_cfg->src < DATAIN_TDMD) {
+		conf = datain_cfg->srcs;
+		conf += datain_cfg->src;
+		reg = conf->reg + offset * id;
+		audiobus_update_bits(reg, conf->mask << conf->shift,
+		conf->val << conf->shift);
+	}
 }
 
 void lb_set_datalb_cfg(int id, struct data_cfg *datalb_cfg, bool multi_bits_lbsrcs)
