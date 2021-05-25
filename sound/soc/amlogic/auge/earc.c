@@ -950,7 +950,7 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 
 void aml_earctx_enable(bool enable)
 {
-	if (!s_earc)
+	if (!s_earc || !s_earc->tx_dmac_clk_on)
 		return;
 	earctx_enable(s_earc->tx_top_map,
 		s_earc->tx_cmdc_map,
