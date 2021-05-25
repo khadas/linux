@@ -58,9 +58,6 @@ static void dump_pcm_setting(struct pcm_setting *setting)
 	pr_debug("\tslot_width(%d)\n", setting->slot_width);
 	pr_debug("\tlane_mask_in(%#x)\n", setting->lane_mask_in);
 	pr_debug("\tlane_mask_out(%#x)\n", setting->lane_mask_out);
-	pr_debug("\tlane_oe_mask_in(%#x)\n", setting->lane_oe_mask_in);
-	pr_debug("\tlane_oe_mask_out(%#x)\n", setting->lane_oe_mask_out);
-	pr_debug("\tlane_lb_mask_in(%#x)\n", setting->lane_lb_mask_in);
 }
 
 struct aml_tdm {
@@ -188,7 +185,6 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 	struct pcm_setting *setting = &p_tdm->setting;
 	unsigned int lanes, swap_val = 0, swap_val1 = 0;
 	unsigned int lane_mask;
-	unsigned int set_num = 0;
 	unsigned int i;
 
 	/* calc lanes by channels and slots */
@@ -202,9 +198,6 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/* set lanes mask acordingly */
 		lane_mask = setting->lane_mask_out;
-		/* compatible using oe masks */
-		if (!lane_mask && setting->lane_oe_mask_out)
-			lane_mask = setting->lane_oe_mask_out;
 
 		for (i = 0; i < p_tdm->lane_cnt; i++) {
 			if (((1 << i) & lane_mask) && lanes) {
@@ -222,37 +215,19 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 		aml_tdm_set_lane_channel_swap(p_tdm->actrl,
 			stream, p_tdm->id, swap_val, swap_val1);
 	} else {
-		if (p_tdm->chipinfo->oe_fn && p_tdm->setting.lane_oe_mask_in)
-			lane_mask = setting->lane_oe_mask_in;
-		else
-			lane_mask = setting->lane_mask_in;
-
-		if (p_tdm->chipinfo->slot_num_en && setting->slots > 0)
-			aml_tdmin_set_slot_num(p_tdm->actrl, p_tdm->id, setting->slots);
+		/* set lanes mask acordingly */
+		lane_mask = setting->lane_mask_in;
 
 		for (i = 0; i < p_tdm->lane_cnt; i++) {
-			if (i < lanes)
+			if (((1 << i) & lane_mask) && lanes) {
 				aml_tdm_set_channel_mask(p_tdm->actrl,
 					stream, p_tdm->id, i, setting->rx_mask);
-			if (((1 << i) & lane_mask) && i < LANE_MAX1) {
-				/* each lane only L/R masked */
-				pr_debug("tdmin set lane %d\n", i);
-				swap_val |= (i * 2) <<
-						(set_num++ * LANE_MAX1);
-				swap_val |= (i * 2 + 1) <<
-						(set_num++ * LANE_MAX1);
-			}
-			if (((1 << i) & lane_mask) &&
-				i >= LANE_MAX1 && i < LANE_MAX3) {
-				/* each lane only L/R masked */
-				pr_debug("tdmin set lane %d\n", i);
-				swap_val1 |= (i * 2) <<
-						(set_num++ * LANE_MAX1);
-				swap_val1 |= (i * 2 + 1) <<
-						(set_num++ * LANE_MAX1);
+				lanes--;
 			}
 		}
-
+		swap_val = 0x76543210;
+		if (p_tdm->lane_cnt > LANE_MAX1)
+			swap_val1 = 0xfedcba98;
 		aml_tdm_set_lane_channel_swap(p_tdm->actrl,
 			stream, p_tdm->id, swap_val, swap_val1);
 	}
@@ -675,36 +650,6 @@ static int of_parse_tdm_lane_slot_out(struct device_node *np,
 	if (lane_mask)
 		return snd_soc_of_get_slot_mask(np,
 			"dai-tdm-lane-slot-mask-out", lane_mask);
-
-	return -EINVAL;
-}
-
-static int of_parse_tdm_lane_oe_slot_in(struct device_node *np,
-			      unsigned int *lane_mask)
-{
-	if (lane_mask)
-		return snd_soc_of_get_slot_mask(np,
-			"dai-tdm-lane-oe-slot-mask-in", lane_mask);
-
-	return -EINVAL;
-}
-
-static int of_parse_tdm_lane_oe_slot_out(struct device_node *np,
-			      unsigned int *lane_mask)
-{
-	if (lane_mask)
-		return snd_soc_of_get_slot_mask(np,
-			"dai-tdm-lane-oe-slot-mask-out", lane_mask);
-
-	return -EINVAL;
-}
-
-static int of_parse_tdm_lane_lb_slot_in(struct device_node *np,
-			      unsigned int *lane_mask)
-{
-	if (lane_mask)
-		return snd_soc_of_get_slot_mask(np,
-			"dai-tdm-lane-lb-slot-mask-in", lane_mask);
 
 	return -EINVAL;
 }
@@ -1290,23 +1235,15 @@ static int aml_dai_set_tdm_slot(struct snd_soc_dai *cpu_dai,
 {
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 	struct snd_soc_dai_driver *drv = cpu_dai->driver;
-	unsigned int lanes_out_cnt = 0, lanes_in_cnt = 0;
-	unsigned int lanes_oe_out_cnt = 0, lanes_oe_in_cnt = 0;
-	unsigned int force_oe = 0, oe_val = 0;
-	unsigned int lanes_lb_cnt = 0;
-	int out_lanes = 0, in_lanes = 0;
-	int in_src = -1;
+	unsigned int out_lanes = 0, in_lanes = 0;
 
-	lanes_out_cnt = pop_count(p_tdm->setting.lane_mask_out);
-	lanes_in_cnt = pop_count(p_tdm->setting.lane_mask_in);
-	lanes_lb_cnt = pop_count(p_tdm->setting.lane_lb_mask_in);
+	out_lanes = pop_count(p_tdm->setting.lane_mask_out);
+	in_lanes = pop_count(p_tdm->setting.lane_mask_in);
 
 	pr_debug("%s(), txmask(%#x), rxmask(%#x)\n",
 		__func__, tx_mask, rx_mask);
 	pr_debug("\tlanes_out_cnt(%d), lanes_in_cnt(%d)\n",
-		lanes_out_cnt, lanes_in_cnt);
-	pr_debug("\tlanes_lb_cnt(%d)\n",
-		lanes_lb_cnt);
+		out_lanes, in_lanes);
 	pr_debug("\tslots(%d), slot_width(%d)\n",
 		slots, slot_width);
 
@@ -1315,75 +1252,9 @@ static int aml_dai_set_tdm_slot(struct snd_soc_dai *cpu_dai,
 	p_tdm->setting.slots = slots;
 	p_tdm->setting.slot_width = slot_width;
 
-	if (p_tdm->setting.lane_mask_in
-			& p_tdm->setting.lane_lb_mask_in)
-		pr_err("pin(%x) should be selected for only one usage\n",
-			p_tdm->setting.lane_mask_in
-				& p_tdm->setting.lane_lb_mask_in);
-
-	if (p_tdm->chipinfo->oe_fn) {
-		if (p_tdm->setting.lane_mask_out
-				& p_tdm->setting.lane_oe_mask_out)
-			pr_err("pin(%x) should be selected for only one usage\n",
-				p_tdm->setting.lane_mask_out
-					& p_tdm->setting.lane_oe_mask_out);
-
-		if ((p_tdm->setting.lane_mask_in & p_tdm->setting.lane_oe_mask_in) ||
-		    (p_tdm->setting.lane_lb_mask_in & p_tdm->setting.lane_oe_mask_in))
-			pr_err("pin(%x:%x) should be selected for only one usage\n",
-				p_tdm->setting.lane_mask_in
-					& p_tdm->setting.lane_oe_mask_in,
-				p_tdm->setting.lane_lb_mask_in
-					& p_tdm->setting.lane_oe_mask_in);
-
-		lanes_oe_out_cnt = pop_count(p_tdm->setting.lane_oe_mask_out);
-		lanes_oe_in_cnt = pop_count(p_tdm->setting.lane_oe_mask_in);
-		pr_debug
-			("\tlanes_oe_out_cnt(%d), lanes_oe_in_cnt(%d)\n",
-			lanes_oe_out_cnt, lanes_oe_in_cnt);
-
-		if (lanes_oe_out_cnt) {
-			unsigned int oe_fn_version = p_tdm->chipinfo->oe_fn;
-
-			force_oe = (1 << p_tdm->chipinfo->lane_cnt) - 1;
-			oe_val = p_tdm->setting.lane_oe_mask_out;
-			if (oe_fn_version == OE_FUNCTION_V1) {
-				aml_tdm_set_oe_v1
-					(p_tdm->actrl, p_tdm->id,
-					force_oe, oe_val);
-			} else if (oe_fn_version == OE_FUNCTION_V2) {
-				aml_tdm_set_oe_v2
-					(p_tdm->actrl, p_tdm->id,
-					force_oe, oe_val);
-			} else {
-				pr_err
-					("%s(), oe version(%d) not support\n",
-					__func__, oe_fn_version);
-			}
-		}
-
-		if (lanes_lb_cnt)
-			in_src = p_tdm->tdmin_lb_src;
-		if (lanes_oe_in_cnt)
-			in_src = p_tdm->id + 3;
-		if (lanes_in_cnt)
-			in_src = p_tdm->id;
-	} else {
-		if (lanes_lb_cnt)
-			in_src = p_tdm->tdmin_lb_src;
-		if (lanes_in_cnt && lanes_in_cnt <= 4)
-			in_src = p_tdm->id;
-		if (in_src > 5) {
-			pr_err("unknown src(%d) for tdmin\n", in_src);
-			return -EINVAL;
-		}
-	}
-
-	out_lanes = lanes_out_cnt;
-	in_lanes = lanes_in_cnt + lanes_oe_in_cnt + lanes_lb_cnt;
 	if (in_lanes > 0 && in_lanes <= LANE_MAX3)
 		aml_tdm_set_slot_in(p_tdm->actrl,
-			p_tdm->id, in_src, slot_width);
+			p_tdm->id, p_tdm->id, slot_width);
 
 	if (out_lanes > 0 && out_lanes <= LANE_MAX3)
 		aml_tdm_set_slot_out(p_tdm->actrl,
@@ -1771,23 +1642,8 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	if (ret < 0)
 		p_tdm->setting.lane_mask_out = 0x1;
 
-	/* get tdm lanes oe info. if not, set to default 0 */
-	ret = of_parse_tdm_lane_oe_slot_in(node, &p_tdm->setting.lane_oe_mask_in);
-	if (ret < 0)
-		p_tdm->setting.lane_oe_mask_in = 0x0;
-
-	ret = of_parse_tdm_lane_oe_slot_out(node, &p_tdm->setting.lane_oe_mask_out);
-	if (ret < 0)
-		p_tdm->setting.lane_oe_mask_out = 0x0;
-
-	/* get tdm lanes lb info. if not, set to default 0 */
-	ret = of_parse_tdm_lane_lb_slot_in(node, &p_tdm->setting.lane_lb_mask_in);
-	if (ret < 0)
-		p_tdm->setting.lane_lb_mask_in = 0x0;
-
-	dev_info(&pdev->dev, "lane_mask_out = %x, lane_oe_mask_out = %x\n",
-		 p_tdm->setting.lane_mask_out,
-		 p_tdm->setting.lane_oe_mask_out);
+	dev_info(&pdev->dev, "lane_mask_out = %x\n",
+		 p_tdm->setting.lane_mask_out);
 
 	p_tdm->clk = devm_clk_get(&pdev->dev, "clk_srcpll");
 	if (IS_ERR(p_tdm->clk)) {
