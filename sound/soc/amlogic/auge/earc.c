@@ -723,7 +723,7 @@ static int earc_dai_prepare(struct snd_pcm_substream *substream,
 				 p_earc->tx_dmac_map,
 				 p_earc->chipinfo->earc_spdifout_lane_mask,
 				 3,
-				 0x1 << 4);
+				 0x10);
 		earctx_dmac_set_format(p_earc->tx_dmac_map,
 				       fr->fifo_id,
 				       bit_depth - 1,

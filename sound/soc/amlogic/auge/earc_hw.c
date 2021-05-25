@@ -855,6 +855,8 @@ void earctx_dmac_init(struct regmap *top_map,
 		      unsigned int chmask,
 		      unsigned int swap_masks)
 {
+	unsigned int lswap_masks, rswap_masks;
+
 	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 			 0x3 << 28,
 			 0x0 << 28);
@@ -884,18 +886,31 @@ void earctx_dmac_init(struct regmap *top_map,
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 				 0xff << 4,   /* lane mask */
 				 chmask << 4);   /*  ODO: lane 0 now */
-	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_SWAP, 0xff, swap_masks);
 	mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL0,
 			 0x1 << 23 | /* reg_bch_in_reverse */
 			 0x1 << 21 | /* reg_bch_out_data_reverse */
-			 0x1 << 16 | /* reg_ubit_fifo_init_n */
-			 0x7 << 8  | /* r channel select */
-			 0x7 << 4,   /* l channel select */
+			 0x1 << 16,  /* reg_ubit_fifo_init_n */
 			 0x1 << 23 |
 			 0x1 << 21 |
-			 0x1 << 16 |
-			 0x1 << 8 |
-			 0x0 << 4);
+			 0x1 << 16);
+	lswap_masks = swap_masks & 0xf;
+	rswap_masks = (swap_masks & 0xf0) >> 4;
+	if (lswap_masks > 7)
+		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL0,
+				 0x1 << 14 | 0x7 << 4,
+				 0x1 << 14 | (lswap_masks - 8) << 4);
+	else
+		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL0,
+				 0x1 << 14 | 0x7 << 4,
+				 0x0 << 14 | lswap_masks << 4);
+	if (rswap_masks > 7)
+		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL0,
+				 0x1 << 15 | 0x7 << 8,
+				 0x1 << 15 | (rswap_masks - 8) << 8);
+	else
+		mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL0,
+				 0x1 << 15 | 0x7 << 8,
+				 0x0 << 15 | rswap_masks << 8);
 
 	mmio_update_bits(dmac_map, EARCTX_ERR_CORRT_CTRL4,
 			 0xf << 17,
