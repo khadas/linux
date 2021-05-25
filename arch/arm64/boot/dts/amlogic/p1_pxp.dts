@@ -1482,14 +1482,50 @@
 	};
 };
 
+&spicc0 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc0_pins>;
+	cs-gpios = <&gpio GPIOH_9 0>;
+};
+
+&spicc1 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc1_pins>;
+	cs-gpios = <&gpio GPIOH_13 0>;
+};
+
+&spicc2 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc2_pins_h>;
+	cs-gpios = <&gpio GPIOH_17 0>;
+};
+
 &spicc3 {
 	status = "disabled";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spicc3_pins>;
-	cs-gpios = <&gpio GPIOT_9 0>;
+	pinctrl-0 = <&spicc3_pins_k>;
+	cs-gpios = <&gpio GPIOK_3 0>;
+
+};
+
+&spicc4 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc4_pins_k>;
+	cs-gpios = <&gpio GPIOK_7 0>;
+};
+
+&spicc5 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc5_pins>;
+	cs-gpios = <&gpio GPIOT_13 0>;
 	spi-nor@0 {
 		compatible = "jedec,spi-nor";
-		status = "disabled";
+		status = "okay";
 		reg = <0>;
 		spi-max-frequency = <16000000>;
 	};
