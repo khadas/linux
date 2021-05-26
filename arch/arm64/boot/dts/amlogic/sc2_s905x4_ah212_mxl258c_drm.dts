@@ -1687,7 +1687,6 @@
 
 &aml_bt {
 	status = "okay";
-	power_down_disable = <1>;
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
 };
