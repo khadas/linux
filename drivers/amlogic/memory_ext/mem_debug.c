@@ -17,7 +17,9 @@
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
 #include <linux/crash_dump.h>
+#ifdef CONFIG_ARM64
 #include <asm/boot.h>
+#endif
 #include <asm/fixmap.h>
 #include <linux/kasan.h>
 #include <linux/seq_file.h>
@@ -28,9 +30,9 @@ static void dump_mem_layout(char *buf)
 #define MLM(b, t) b, t, ((t) - (b)) >> 20
 #define MLG(b, t) b, t, ((t) - (b)) >> 30
 #define MLK_ROUNDUP(b, t) b, t, DIV_ROUND_UP(((t) - (b)), SZ_1K)
+#ifdef CONFIG_ARM64
 	int pos = 0;
 
-#ifdef CONFIG_ARM64
 	pos += sprintf(buf + pos, "Virtual kernel memory layout:\n");
 #ifdef CONFIG_KASAN
 	pos += sprintf(buf + pos, "    kasan   : 0x%16lx - 0x%16lx   (%6ld GB)\n",

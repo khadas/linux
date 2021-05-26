@@ -616,8 +616,18 @@ int incfs_read_next_metadata_record(struct backing_file_context *bfc,
 	md_record_size = le16_to_cpu(md_hdr->h_record_size);
 
 	if (md_record_size > max_md_size) {
+#ifdef CONFIG_AMLOGIC_MODIFY
+#ifndef CONFIG_ARM64
+		pr_warn("incfs: The record is too large. Size: %d",
+				md_record_size);
+#else
 		pr_warn("incfs: The record is too large. Size: %ld",
 				md_record_size);
+#endif
+#else
+		pr_warn("incfs: The record is too large. Size: %ld",
+				md_record_size);
+#endif
 		return -EBADMSG;
 	}
 

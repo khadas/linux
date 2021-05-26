@@ -1254,7 +1254,11 @@ static long ioctl_create_file(struct mount_info *mi,
 	/* Initializing a newly created file. */
 	error = init_new_file(mi, index_file_dentry, &args.file_id, args.size,
 			      range(attr_value, args.file_attr_len),
+#ifdef CONFIG_AMLOGIC_MODIFY
+			      (u8 __user *)(long)args.signature_info,
+#else
 			      (u8 __user *)args.signature_info,
+#endif
 			      args.signature_size);
 	if (error)
 		goto delete_index_file;
