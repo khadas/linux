@@ -40,12 +40,13 @@
 #include <linux/amlogic/media/frame_sync/tsync.h>
 #include <linux/amlogic/media/frc/frc_reg.h>
 #include <linux/amlogic/media/frc/frc_common.h>
+#include <linux/amlogic/tee.h>
 
 #include "frc_drv.h"
 #include "frc_proc.h"
 #include "frc_hw.h"
 
-int frc_enable_cnt = 2;
+int frc_enable_cnt = 1;
 module_param(frc_enable_cnt, int, 0664);
 MODULE_PARM_DESC(frc_enable_cnt, "frc enable counter");
 
@@ -53,9 +54,11 @@ int frc_disable_cnt = 2;
 module_param(frc_disable_cnt, int, 0664);
 MODULE_PARM_DESC(frc_disable_cnt, "frc disable counter");
 
-int frc_re_cfg_cnt = 6;/*need bigger than frc_disable_cnt*/
+int frc_re_cfg_cnt = 3;/*need bigger than frc_disable_cnt*/
 module_param(frc_re_cfg_cnt, int, 0664);
 MODULE_PARM_DESC(frc_re_cfg_cnt, "frc reconfig counter");
+
+u32 secure_tee_handle;
 
 void frc_fw_initial(struct frc_dev_s *devp)
 {
@@ -421,8 +424,18 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 
 	if (vf) {
 		if (vf->flag & VFRAME_FLAG_GAME_MODE) {
-			devp->in_sts.vf_null_cnt++;
+			devp->in_sts.game_mode = true;
 			no_input = true;
+		} else {
+			devp->in_sts.game_mode = false;
+		}
+
+		if (vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
+			devp->in_sts.secure_mode = true;
+			/*for test secure mode disable memc*/
+			//no_input = true;
+		} else {
+			devp->in_sts.secure_mode = false;
 		}
 	}
 
@@ -443,6 +456,101 @@ void frc_state_change_finish(struct frc_dev_s *devp)
 {
 	devp->frc_sts.state = devp->frc_sts.new_state;
 	devp->frc_sts.state_transing = false;
+}
+
+void frc_test_mm_secure_set_off(struct frc_dev_s *devp)
+{
+#ifdef CONFIG_AMLOGIC_TEE
+	if (!tee_enabled()) {
+		pr_frc(0, "tee is not enable\n");
+		return;
+	}
+
+	if (secure_tee_handle) {
+		tee_unprotect_mem(secure_tee_handle);
+		pr_frc(0, "%s handl:%d\n", __func__, secure_tee_handle);
+		secure_tee_handle = 0;
+	}
+#endif
+}
+
+void frc_test_mm_secure_set_on(struct frc_dev_s *devp, u32 start, u32 size)
+{
+#ifdef CONFIG_AMLOGIC_TEE
+	if (!tee_enabled()) {
+		pr_frc(0, "tee is not enable\n");
+		return;
+	}
+
+	if (!secure_tee_handle) {
+		tee_protect_mem_by_type(TEE_MEM_TYPE_FRC, start, size, &secure_tee_handle);
+		pr_frc(0, "%s handl:%d start:0x%x size:0x%x\n", __func__,
+			secure_tee_handle, start, size);
+	}
+#endif
+}
+
+void frc_mm_secure_set(struct frc_dev_s *devp)
+{
+#ifdef CONFIG_AMLOGIC_TEE
+	u32 addr_start;
+	u32 addr_size;
+	enum frc_state_e new_state;
+
+	if (!tee_enabled()) {
+		pr_frc(0, "tee is not enable\n");
+		return;
+	}
+	/*data buffer set to secure mode*/
+	addr_start = devp->buf.cma_mem_paddr_start + devp->buf.lossy_mc_y_data_buf_paddr[0];
+	addr_size = devp->buf.lossy_mc_y_link_buf_paddr[0] - devp->buf.lossy_mc_y_data_buf_paddr[0];
+
+	/*data buffer, me/mc info and link buffer set to secure mode*/
+	//addr_start = devp->buf.cma_mem_paddr_start + devp->buf.lossy_mc_y_info_buf_paddr;
+	//addr_size = devp->buf.norm_hme_data_buf_paddr[0] - devp->buf.lossy_mc_y_info_buf_paddr;
+
+	new_state = devp->frc_sts.new_state;
+
+	/*secure mode check*/
+	if (!devp->in_sts.secure_mode) {
+		if (devp->buf.secured) {
+			devp->buf.secured = false;
+			/*call secure api to exit secure mode*/
+			tee_unprotect_mem(secure_tee_handle);
+			frc_force_secure(false);
+			pr_frc(1, "%s tee_unprotect_mem %d\n", __func__,
+				secure_tee_handle);
+			secure_tee_handle = 0;
+		}
+	} else {
+		/*need set mm to secure mode*/
+		if (new_state == FRC_STATE_ENABLE) {
+			if (!devp->buf.secured) {
+				devp->buf.secured = true;
+				/*call secure api enter secure mode*/
+				tee_protect_mem_by_type(TEE_MEM_TYPE_FRC, addr_start,
+							addr_size, &secure_tee_handle);
+				frc_force_secure(true);
+				pr_frc(1, "%s handl:%d addr_start:0x%x addr_size:0x%x\n",
+					__func__, secure_tee_handle,
+					addr_start, addr_size);
+			}
+		} else {
+			if (devp->buf.secured) {
+				devp->buf.secured = false;
+				/*call secure api to exit secure mode*/
+				tee_unprotect_mem(secure_tee_handle);
+				frc_force_secure(false);
+				pr_frc(1, "%s tee_unprotect_mem %d\n", __func__,
+					secure_tee_handle);
+				secure_tee_handle = 0;
+			}
+		}
+	}
+#else
+	if (devp->in_sts.secure_mode)
+		pr_frc(1, "err: secure no tee define!!!\n");
+#endif
 }
 
 void frc_state_handle(struct frc_dev_s *devp)
@@ -468,12 +576,14 @@ void frc_state_handle(struct frc_dev_s *devp)
 		if (state_changed) {
 			if (new_state == FRC_STATE_BYPASS) {
 				set_frc_bypass(ON);
+				frc_mm_secure_set(devp);
 				devp->frc_sts.frame_cnt = 0;
 				pr_frc(log, "sm state change %s -> %s\n",
 				       frc_state_ary[cur_state], frc_state_ary[new_state]);
 				frc_state_change_finish(devp);
 			} else if (new_state == FRC_STATE_ENABLE) {
 				if (devp->frc_sts.frame_cnt == 0) {
+					frc_mm_secure_set(devp);
 					frc_hw_initial(devp);
 					//first : set bypass off
 					set_frc_bypass(OFF);
@@ -497,6 +607,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 		if (state_changed) {
 			if (new_state == FRC_STATE_DISABLE) {
 				if (devp->frc_sts.frame_cnt == 0) {
+					frc_mm_secure_set(devp);
 					set_frc_enable(OFF);
 					devp->frc_sts.frame_cnt++;
 				} else {
@@ -509,6 +620,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 			} else if (new_state == FRC_STATE_BYPASS) {
 				//first frame set enable off
 				if (devp->frc_sts.frame_cnt == 0) {
+					frc_mm_secure_set(devp);
 					set_frc_enable(OFF);
 					//set_frc_bypass(OFF);
 					devp->frc_sts.frame_cnt++;
@@ -537,6 +649,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 				frc_state_change_finish(devp);
 			} else if (new_state == FRC_STATE_ENABLE) {
 				if (devp->frc_sts.frame_cnt == 0) {
+					frc_mm_secure_set(devp);
 					//first frame set bypass off
 					set_frc_bypass(OFF);
 					//set_frc_enable(OFF);

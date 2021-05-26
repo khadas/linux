@@ -74,4 +74,5 @@ void mc_undown_read(struct frc_dev_s *frc_devp);
 void frc_dump_fixed_table(void);
 void frc_reset(u32 onoff);
 void frc_mc_reset(u32 onoff);
+void frc_force_secure(u32 onoff);
 #endif

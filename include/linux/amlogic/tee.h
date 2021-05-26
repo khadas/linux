@@ -31,6 +31,7 @@
 #define TEE_MEM_TYPE_DEMUX                                 0xa
 #define TEE_MEM_TYPE_TCON                                  0xb
 #define TEE_MEM_TYPE_PCIE                                  0xc
+#define TEE_MEM_TYPE_FRC				   0xd
 #define TEE_MEM_TYPE_INVALID                               0xff
 
 /* device ID used by tee_config_device_state() */

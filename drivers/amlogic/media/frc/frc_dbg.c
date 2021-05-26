@@ -67,6 +67,8 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "frs state:%d (%s) new:%d\n", devp->frc_sts.state,
 	       frc_state_ary[devp->frc_sts.state], devp->frc_sts.new_state);
 	pr_frc(0, "input in_hsize=%d in_vsize=%d\n", devp->in_sts.in_hsize, devp->in_sts.in_vsize);
+	pr_frc(0, "game_mode=%d secure_mode=%d\n", devp->in_sts.game_mode,
+		devp->in_sts.secure_mode);
 	pr_frc(0, "dbg en:%d in_out_ratio=0x%x\n", devp->dbg_force_en, devp->dbg_in_out_ratio);
 	pr_frc(0, "dbg hsize=%d vsize=%d\n", devp->dbg_input_hsize, devp->dbg_input_vsize);
 	pr_frc(0, "vf_sts:%d, vf_type:0x%x, signal_type=0x%x, source_type=0x%x\n",
@@ -78,9 +80,9 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "vout sync_duration_num:%d sync_duration_den:%d hz:%d\n",
 		vinfo->sync_duration_num, vinfo->sync_duration_den,
 		vinfo->sync_duration_num / vinfo->sync_duration_den);
-	pr_frc(0, "mem_alloced-size:0x%x(%d), data_compress_rate:%d, real total size:%d\n",
-		devp->buf.cma_mem_realalloced,
-		devp->buf.cma_mem_realalloced, FRC_COMPRESS_RATE, devp->buf.real_total_size);
+	pr_frc(0, "data_compress_rate:%d, real total size:%d\n",
+		FRC_COMPRESS_RATE, devp->buf.real_total_size);
+	pr_frc(0, "buf secured:%d\n", devp->buf.secured);
 	pr_frc(0, "vpu int vs_duration:%d timestamp:%ld\n",
 	       devp->vs_duration, (ulong)devp->vs_timestamp);
 	pr_frc(0, "frc in vs_duration:%d timestamp:%ld\n",
@@ -364,6 +366,15 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			fw_data->frc_top_type.mc_loss_en  = val1;
+	} else if (!strcmp(parm[0], "secure_on")) {
+		if (!parm[1] || !parm[2])
+			goto exit;
+		if (kstrtoint(parm[1], 16, &val1) == 0) {
+			if (kstrtoint(parm[2], 16, &val2) == 0)
+				frc_test_mm_secure_set_on(devp, val1, val2);
+		}
+	} else if (!strcmp(parm[0], "secure_off")) {
+		frc_test_mm_secure_set_off(devp);
 	}
 
 exit:

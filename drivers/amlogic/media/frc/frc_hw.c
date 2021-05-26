@@ -1875,6 +1875,14 @@ void cfg_mc_loss(u32 mc_loss_en)
 	WRITE_FRC_BITS(FRC_REG_TOP_CTRL11, mc_loss_en, 0, 1); //reg_frc_mc_loss_en
 }
 
+void frc_force_secure(u32 onoff)
+{
+	if (onoff)
+		WRITE_FRC_BITS(FRC_MC_LOSS_SLICE_SEC, 1, 0, 1);//reg_mc_loss_slice_sec
+	else
+		WRITE_FRC_BITS(FRC_MC_LOSS_SLICE_SEC, 0, 0, 1);//reg_mc_loss_slice_sec
+}
+
 void recfg_memc_mif_base_addr(u32 base_ofst)
 {
 	u32 reg_addr;

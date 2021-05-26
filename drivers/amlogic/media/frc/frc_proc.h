@@ -30,6 +30,8 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					struct vpp_frame_par_s *cur_video_sts);
 void frc_dump_monitor_data(struct frc_dev_s *devp);
 void frc_vf_monitor(struct frc_dev_s *devp);
+void frc_test_mm_secure_set_off(struct frc_dev_s *devp);
+void frc_test_mm_secure_set_on(struct frc_dev_s *devp, u32 start, u32 size);
 
 u32 get_video_enabled(void);
 

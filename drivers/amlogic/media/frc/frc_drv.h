@@ -24,7 +24,7 @@
 #include <linux/amlogic/media/frc/frc_common.h>
 #include "frc_interface.h"
 
-#define FRC_FW_VER			"play local 8k, display not right"
+#define FRC_FW_VER			"2021-0528 frc support secure mode"
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
 #define FRC_CLASS_NAME	"frc"
@@ -87,7 +87,7 @@ struct st_frc_buf {
 	struct page *cma_mem_paddr_pages;
 	phys_addr_t cma_mem_paddr_start;
 	u32 cma_mem_alloced;
-	u32 cma_mem_realalloced;
+	u32 secured;
 
 	/*frame size*/
 	u32 in_hsize;
@@ -197,6 +197,9 @@ struct st_frc_in_sts {
 
 	u32 have_vf_cnt;
 	u32 no_vf_cnt;
+
+	u32 game_mode;
+	u32 secure_mode;
 };
 
 struct st_frc_out_sts {
