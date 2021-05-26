@@ -12,7 +12,7 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/21/Jun: fix j83b unlock, due to the side effects of 'dvbc auto sr'"
+#define DTVDEMOD_VER	"2021/24/Jun: atsc co-channel inteference"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
@@ -322,7 +322,9 @@ struct amldtvdemod_device_s {
 	bool vdac_enable;
 	bool agc_pin_enable;
 	bool dvbc_inited;
-
+	int peak[2048];
+	unsigned int ber_base;
+	unsigned int atsc_cr_step_size_dbg;
 	unsigned char index;
 	struct list_head demod_list;
 };
@@ -479,5 +481,9 @@ unsigned int demod_is_t5d_cpu(struct amldtvdemod_device_s *devp);
 #ifdef MODULE
 struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config);
 #endif
+void cci_run_new(struct amldtvdemod_device_s *devp);
+void atsc_reset_new(void);
+unsigned int cfo_run_new(void);
+void set_cr_ck_rate_new(void);
 
 #endif

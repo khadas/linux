@@ -158,6 +158,7 @@ static void dvbc_get_qam_name(enum qam_md_e qam_mode, char *str)
 }
 
 static int dtvdemod_leave_mode(struct amldtvdemod_device_s *devp);
+static unsigned int atsc_check_cci(struct amldtvdemod_device_s *devp);
 
 struct amldtvdemod_device_s *dtvdemod_get_dev(void)
 {
@@ -183,54 +184,54 @@ int convert_snr(int in_snr)
 	return out_snr;
 }
 
-static void dtvdemod_do_8vsb_rst(void)
-{
-	union atsc_cntl_reg_0x20 val;
+//static void dtvdemod_do_8vsb_rst(void)
+//{
+	//union atsc_cntl_reg_0x20 val;
 
-	val.bits = atsc_read_reg_v4(ATSC_CNTR_REG_0X20);
-	val.b.cpu_rst = 1;
-	atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
-	val.b.cpu_rst = 0;
-	atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
-}
+	//val.bits = atsc_read_reg_v4(ATSC_CNTR_REG_0X20);
+	//val.b.cpu_rst = 1;
+	//atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
+	//val.b.cpu_rst = 0;
+	//atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
+//}
 
-static int amdemod_check_8vsb_rst(struct aml_dtvdemod *demod)
-{
-	int ret = 0;
+//static int amdemod_check_8vsb_rst(struct aml_dtvdemod *demod)
+//{
+	//int ret = 0;
 
 	/* for tl1/tm2, first time of pwr on,
 	 * reset after signal locked
 	 * for lock event, 0x79 is safe for reset
 	 */
-	if (demod->atsc_rst_done == 0) {
-		if (demod->atsc_rst_needed) {
-			dtvdemod_do_8vsb_rst();
-			demod->atsc_rst_done = 1;
-			ret = 0;
-			PR_ATSC("reset done\n");
-		}
+	//if (demod->atsc_rst_done == 0) {
+		//if (demod->atsc_rst_needed) {
+			//dtvdemod_do_8vsb_rst();
+			//demod->atsc_rst_done = 1;
+			//ret = 0;
+			//PR_ATSC("reset done\n");
+		//}
 
-		if (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >= 0x79) {
-			demod->atsc_rst_needed = 1;
-			ret = 0;
-			PR_ATSC("need reset\n");
-		} else {
-			demod->atsc_rst_wait_cnt++;
-			PR_ATSC("wait cnt: %d\n",
-					demod->atsc_rst_wait_cnt);
-		}
+		//if (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >= 0x79) {
+			//demod->atsc_rst_needed = 1;
+			//ret = 0;
+			//PR_ATSC("need reset\n");
+		//} else {
+			//demod->atsc_rst_wait_cnt++;
+			//PR_ATSC("wait cnt: %d\n",
+					//demod->atsc_rst_wait_cnt);
+		//}
 
-		if (demod->atsc_rst_wait_cnt >= 3 &&
-		    (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >= 0x76)) {
-			demod->atsc_rst_done = 1;
-			ret = 1;
-		}
-	} else if (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >= 0x76) {
-		ret = 1;
-	}
+		//if (demod->atsc_rst_wait_cnt >= 3 &&
+		    //(atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >= 0x76)) {
+			//demod->atsc_rst_done = 1;
+			//ret = 1;
+		//}
+	//} else if (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >= 0x76) {
+		//ret = 1;
+	//}
 
-	return ret;
-}
+	//return ret;
+//}
 
 unsigned int demod_is_t5d_cpu(struct amldtvdemod_device_s *devp)
 {
@@ -246,7 +247,7 @@ static int amdemod_stat_islock(struct aml_dtvdemod *demod,
 	int lock_status;
 	int dvbt_status1;
 	int atsc_fsm;
-	int ret = 0;
+	unsigned int ret = 0;
 	unsigned int val;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
@@ -279,19 +280,30 @@ static int amdemod_stat_islock(struct aml_dtvdemod *demod,
 				ret = 1;
 		} else if (demod->atsc_mode == VSB_8) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-				ret = amdemod_check_8vsb_rst(demod);
+				//ret = amdemod_check_8vsb_rst(demod);
+				val = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
+				if (val >= ATSC_LOCK)
+					ret = 1;
+				else if (val >= CR_PEAK_LOCK)
+					ret = atsc_check_cci(dtvdd_devp);
+				else //if (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) <= 0x50)
+					ret = 0;
 			} else {
 				atsc_fsm = atsc_read_reg(0x0980);
 				PR_DBGL("atsc status [%x]\n", atsc_fsm);
 
 				if (atsc_read_reg(0x0980) >= 0x79)
 					ret = 1;
+				else
+					ret = 0;
 			}
 		} else {
 			atsc_fsm = atsc_read_reg(0x0980);
 			PR_DBGL("atsc status [%x]\n", atsc_fsm);
 			if (atsc_read_reg(0x0980) >= 0x79)
 				ret = 1;
+			else
+				ret = 0;
 		}
 		break;
 
@@ -1418,6 +1430,70 @@ static enum dvbfe_algo gxtv_demod_get_frontend_algo(struct dvb_frontend *fe)
 	return DVBFE_ALGO_HW;
 }
 
+static unsigned int atsc_check_cci(struct amldtvdemod_device_s *devp)
+{
+	unsigned int fsm_status;
+	int time[10], time_table[10];
+	unsigned int ret = CFO_FAIL;
+	unsigned int i;
+
+	fsm_status = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
+	PR_ATSC("fsm[%x]not lock,need to run cci\n", fsm_status);
+	time[0] = jiffies_to_msecs(jiffies);
+	set_cr_ck_rate_new();
+	time[1] = jiffies_to_msecs(jiffies);
+	time_table[0] = (time[1] - time[0]);
+	fsm_status = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
+	PR_ATSC("fsm[%x][atsc_time]cci finish cost %d ms\n",
+		fsm_status, time_table[0]);
+	if (fsm_status >= ATSC_LOCK) {
+		goto exit;
+	} else if (fsm_status >= CR_PEAK_LOCK) {
+	//else if (fsm_status < CR_LOCK) {
+		//ret = cfo_run_new();
+	//}
+
+		ret = CFO_OK;
+		//msleep(100);
+	}
+
+	time[2] = jiffies_to_msecs(jiffies);
+	time_table[1] = (time[2] - time[1]);
+	//PR_ATSC("fsm[%x][atsc_time]cfo done,cost %d ms,\n",
+		//atsc_read_reg_v4(ATSC_CNTR_REG_0X2E), time_table[1]);
+
+	if (ret == CFO_FAIL)
+		goto exit;
+
+	cci_run_new(devp);
+	ret = 2;
+
+	for (i = 0; i < 2; i++) {
+		fsm_status = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
+		if (fsm_status >= ATSC_LOCK) {
+			time[3] = jiffies_to_msecs(jiffies);
+			PR_ATSC("----------------------\n");
+			time_table[2] = (time[3] - time[2]);
+			time_table[3] = (time[3] - time[0]);
+			time_table[4] = (time[3] - time[5]);
+			PR_ATSC("fsm[%x][atsc_time]fec lock cost %d ms\n",
+				fsm_status, time_table[2]);
+			PR_ATSC("fsm[%x][atsc_time]lock,one cost %d ms,\n",
+				fsm_status, time_table[3]);
+			break;
+		} else if (fsm_status <= IDLE) {
+			PR_ATSC("atsc idle,retune, and reset\n");
+			set_cr_ck_rate_new();
+			atsc_reset_new();
+			break;
+		}
+		msleep(20);
+	}
+
+exit:
+	return ret;
+}
+
 unsigned  int ats_thread_flg;
 static int gxtv_demod_atsc_read_status
 	(struct dvb_frontend *fe, enum fe_status *status)
@@ -1429,7 +1505,6 @@ static int gxtv_demod_atsc_read_status
 	int ilock;
 	unsigned char s = 0;
 	int strength = 0;
-	/*debug only*/
 
 	if (!devp->demod_thread) {
 		ilock = 1;
@@ -1441,16 +1516,23 @@ static int gxtv_demod_atsc_read_status
 	if (!get_dtvpll_init_flag())
 		return 0;
 
+	/* j83b */
 	if ((c->modulation <= QAM_AUTO) && (c->modulation != QPSK)) {
 		s = amdemod_stat_islock(demod, SYS_DVBC_ANNEX_A);
 		dvbc_status(demod, &demod_sts);
-	} else if (c->modulation > QAM_AUTO) {
+	} else if (c->modulation > QAM_AUTO) {/* atsc */
 		/*atsc_thread();*/
 		s = amdemod_stat_islock(demod, SYS_ATSC);
 
-		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			if (s == 0 && demod->last_lock == 1 &&
-				(atsc_read_reg(0x0980) >= 0x76)) {
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
+			atsc_check_fsm_status();
+
+			if (!s) {
+				PR_ATSC("ber dalta:%d\n",
+					atsc_read_reg_v4(ATSC_FEC_BER) - devp->ber_base);
+			}
+		} else {
+			if (s == 0 && demod->last_lock == 1 && atsc_read_reg(0x0980) >= 0x76) {
 				s = 1;
 				PR_ATSC("[rsj] unlock,but fsm >= 0x76\n");
 			}
@@ -1481,6 +1563,11 @@ static int gxtv_demod_atsc_read_status
 		PR_INFO("%s [id %d]: %s.\n", __func__, demod->id,
 			ilock ? "!!  >> LOCK << !!" : "!! >> UNLOCK << !!");
 		demod->last_lock = ilock;
+
+		if (c->modulation > QAM_AUTO && ilock) {
+			devp->ber_base = atsc_read_reg_v4(ATSC_FEC_BER);
+			PR_ATSC("ber base:%d\n", devp->ber_base);
+		}
 	}
 
 	if (aml_demod_debug & DBG_ATSC) {
@@ -1497,6 +1584,7 @@ static int gxtv_demod_atsc_read_status
 			demod->last_lock = ilock;
 		}
 	}
+
 	return 0;
 }
 
@@ -1693,6 +1781,7 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 			val.b.cpu_rst = 0;
 			atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val.bits);
 			usleep_range(5000, 5001);
+			demod->last_status = 0;
 		} else {
 			/*demod_set_demod_reg(0x507, TXLX_ADC_REG6);*/
 			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x507);
@@ -1788,6 +1877,7 @@ static int gxtv_demod_atsc_get_frontend(struct dvb_frontend *fe)
 
 void atsc_detect_first(struct dvb_frontend *fe, enum fe_status *status, unsigned int re_tune)
 {
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	unsigned int ucblocks;
 	unsigned int atsc_status;
 	enum fe_status s;
@@ -1807,8 +1897,10 @@ void atsc_detect_first(struct dvb_frontend *fe, enum fe_status *status, unsigned
 				atsc_read_reg_v4(0x44) & 0xfff, strenth);
 	}
 
+	PR_ATSC("tuner strength: %d\n", strenth);
 	if (strenth < THRD_TUNER_STRENTH_ATSC) {
 		*status = FE_TIMEDOUT;
+		demod->last_status = *status;
 		PR_ATSC("tuner:no signal!\n");
 		return;
 	}
@@ -1826,17 +1918,20 @@ void atsc_detect_first(struct dvb_frontend *fe, enum fe_status *status, unsigned
 		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 			gxtv_demod_atsc_read_ucblocks(fe, &ucblocks);
 
-		gxtv_demod_atsc_read_status(fe, &s);
+		if (gxtv_demod_atsc_read_status(fe, &s) == 2)
+			times = 0;
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			/* detect pn after detect cfo after 375 ms */
-			if (s == 0 && times == 3 &&
-			    sys_sts < ATSC_SYS_STA_DETECT_PN_IN_EQ_OUT) {
+			if (times == 2 && sys_sts < ATSC_SYS_STA_DETECT_PN_IN_EQ_OUT) {
 				*status = FE_TIMEDOUT;
 				PR_INFO("can't detect pn, not atsc sig\n");
 			} else {
 				*status = s;
 			}
+
+			demod->last_status = *status;
+
 			break;
 		}
 
@@ -1975,9 +2070,6 @@ static int atsc_j83b_polling(struct dvb_frontend *fe, enum fe_status *s)
 			*s = FE_TIMEDOUT;
 	}
 
-
-
-
 	return 0;
 }
 
@@ -2018,7 +2110,7 @@ static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	*delay = HZ / 8;
+	*delay = HZ / 4;
 
 	if (!devp->demod_thread)
 		return 0;
@@ -5190,17 +5282,18 @@ static int aml_dtvdm_read_status(struct dvb_frontend *fe,
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-	enum fe_delivery_system delsys = SYS_UNDEFINED;
+	enum fe_delivery_system delsys = demod->last_delsys;
 	int ret = 0;
 
 	mutex_lock(&devp->lock);
-
-	delsys = demod->last_delsys;
 
 	if (delsys == SYS_UNDEFINED) {
 		mutex_unlock(&devp->lock);
 		return 0;
 	}
+
+	if (!unlikely(devp))
+		PR_ERR("%s, devp is NULL\n", __func__);
 
 	if (is_not_active(fe)) {
 		PR_DBGL("[id %d] read status:not active\n", demod->id);
@@ -5234,7 +5327,7 @@ static int aml_dtvdm_read_status(struct dvb_frontend *fe,
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 	case SYS_DVBC_ANNEX_B:
-		ret = gxtv_demod_atsc_read_status(fe, status);
+		*status = demod->last_status;
 		break;
 
 	case SYS_DTMB:
