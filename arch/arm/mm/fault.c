@@ -99,6 +99,47 @@ void show_pte(const char *lvl, struct mm_struct *mm, unsigned long addr)
 { }
 #endif					/* CONFIG_MMU */
 
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+static long get_user_pfn(struct mm_struct *mm, unsigned long addr)
+{
+	long pfn = -1;
+	pgd_t *pgd;
+
+	if (!mm || addr >= VMALLOC_START)
+		mm = &init_mm;
+
+	pgd = pgd_offset(mm, addr);
+
+	do {
+		pud_t *pud;
+		pmd_t *pmd;
+		pte_t *pte;
+
+		if (pgd_none(*pgd) || pgd_bad(*pgd))
+			break;
+
+		pud = pud_offset(pgd, addr);
+		if (pud_none(*pud) || pud_bad(*pud))
+			break;
+
+		pmd = pmd_offset(pud, addr);
+		if (pmd_none(*pmd) || pmd_bad(*pmd))
+			break;
+
+		pte = pte_offset_map(pmd, addr);
+		if (pte_none(*pte)) {
+			pte_unmap(pte);
+			break;
+		}
+
+		pfn = pte_pfn(*pte);
+		pte_unmap(pte);
+	} while (0);
+
+	return pfn;
+}
+#endif /* CONFIG_AMLOGIC_USER_FAULT */
+
 /*
  * Oops.  The kernel tried to access some page that wasn't present.
  */
@@ -127,6 +168,58 @@ __do_kernel_fault(struct mm_struct *mm, unsigned long addr, unsigned int fsr,
 	do_exit(SIGKILL);
 }
 
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+static unsigned char *regidx_to_name[] = {
+	"r0 ", "r1 ", "r2 ", "r3 ",
+	"r4 ", "r5 ", "r6 ", "r7 ",
+	"r8 ", "r9 ", "r10",
+	"fp ", "ip ", "sp ", "lr ",
+	"pc "
+};
+
+void show_all_pfn(struct task_struct *task, struct pt_regs *regs)
+{
+	int i;
+	long pfn1;
+	char s1[10];
+	int top;
+
+	top = 16;
+	pr_info("reg     value       pfn   ");
+	pr_cont("reg     value       pfn\n");
+	for (i = 0; i < top; i++) {
+		pfn1 = get_user_pfn(task->mm, regs->uregs[i]);
+		if (pfn1 >= 0)
+			sprintf(s1, "%8lx", pfn1);
+		else
+			sprintf(s1, "--------");
+		if (i % 2 == 0)
+			pr_info("%s:  %08lx  %s  ", regidx_to_name[i],
+				regs->uregs[i], s1);
+		else
+			pr_cont("%s:  %08lx  %s\n", regidx_to_name[i],
+				regs->uregs[i], s1);
+	}
+}
+
+static int (*dmc_cb)(char *);
+void set_dump_dmc_func(void *f)
+{
+	dmc_cb =  (void *)f;
+}
+
+void _dump_dmc_reg(void)
+{
+	char buf[1024] = {0};
+
+	if (!dmc_cb)
+		return;
+	dmc_cb(buf);
+	pr_crit("%s\n", buf);
+}
+EXPORT_SYMBOL(set_dump_dmc_func);
+#endif /* CONFIG_AMLOGIC_USER_FAULT */
+
 /*
  * Something tried to access memory that isn't in our memory map..
  * User mode accesses just cause a SIGSEGV
@@ -141,13 +234,31 @@ __do_user_fault(unsigned long addr, unsigned int fsr, unsigned int sig,
 		harden_branch_predictor();
 
 #ifdef CONFIG_DEBUG_USER
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	if (unhandled_signal(tsk, sig) &&
+	    (((user_debug & UDBG_SEGV) && (sig == SIGSEGV)) ||
+	    ((user_debug & UDBG_BUS)  && (sig == SIGBUS)))) {
+#else
 	if (((user_debug & UDBG_SEGV) && (sig == SIGSEGV)) ||
 	    ((user_debug & UDBG_BUS)  && (sig == SIGBUS))) {
+#endif
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+		pr_info("%s: unhandled page fault (%d) at 0x%08lx, code 0x%03x\n",
+		       tsk->comm, sig, addr, fsr);
+#else
 		pr_err("8<--- cut here ---\n");
 		pr_err("%s: unhandled page fault (%d) at 0x%08lx, code 0x%03x\n",
 		       tsk->comm, sig, addr, fsr);
+#endif
 		show_pte(KERN_ERR, tsk->mm, addr);
-		show_regs(regs);
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+		if (user_fault_debug_ratelimited()) {
+			show_all_pfn(tsk, regs);
+#endif /* CONFIG_AMLOGIC_USER_FAULT */
+			show_regs(regs);
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+		}
+#endif
 	}
 #endif
 #ifndef CONFIG_KUSER_HELPERS
