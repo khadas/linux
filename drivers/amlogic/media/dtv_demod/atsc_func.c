@@ -619,7 +619,7 @@ unsigned int atsc_read_ser(void)
 	unsigned int ser;
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
-		ser = atsc_read_reg_v4(0xfb);
+		ser = atsc_read_reg_v4(ATSC_FEC_REG_0XFB);
 	else
 		ser = atsc_read_reg(0x0687) + (atsc_read_reg(0x0686) << 8) +
 			(atsc_read_reg(0x0685) << 16) +	(atsc_read_reg(0x0684) << 24);
@@ -810,6 +810,253 @@ int cci_run(void)
 	return 0;
 }
 
+void atsc_reset_new(void)
+{
+	union atsc_cntl_reg_0x20 val_0x20;
+
+	val_0x20.bits = atsc_read_reg_v4(ATSC_CNTR_REG_0X20);
+	val_0x20.b.cpu_rst = 1;
+	atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val_0x20.bits);
+	msleep(20);
+	val_0x20.b.cpu_rst = 0;
+	atsc_write_reg_v4(ATSC_CNTR_REG_0X20, val_0x20.bits);
+}
+
+void cci_run_new(struct amldtvdemod_device_s *devp)
+{
+	unsigned int result[4], bin[4], power[4];
+	int max_p[2], max_b[2], ck0;
+	int cci_cnt = 0;
+	int avg_len = 200;
+	int threshold;
+	union ATSC_EQ_REG_0X92_BITS val_0x92;
+	unsigned int time[10];
+
+	threshold = avg_len * 800;
+	time[0] = jiffies_to_msecs(jiffies);
+	val_0x92.bits = atsc_read_reg_v4(ATSC_EQ_REG_0X92);
+
+	for (ck0 = 0; ck0 < 2048; ck0++)
+		devp->peak[ck0] = 0;
+
+	for (ck0 = 0; ck0 < 2; ck0++) {
+		max_p[ck0] = 0;
+		max_b[ck0] = 0;
+	}
+
+	time[1] = jiffies_to_msecs(jiffies);
+	PR_ATSC("[atsc_time][cci_run1,%d ms]\n", (time[1] - time[0]));
+
+	for (ck0 = 0; ck0 < avg_len; ck0++) {
+		val_0x92.b.cwrmv_enable = 0x1;
+		atsc_write_reg_v4(ATSC_EQ_REG_0X92, val_0x92.bits);
+
+		result[0] = atsc_read_reg_v4(ATSC_CNTR_REG_0X29) & 0xffffff;
+		power[0] = result[0] >> 11;
+		bin[0] = result[0] & 0x7ff;
+
+		result[1] = atsc_read_reg_v4(ATSC_CNTR_REG_0X2A) & 0xffffff;
+		power[1] = result[1] >> 11;
+		bin[1] = result[1] & 0x7ff;
+
+		result[2] = atsc_read_reg_v4(ATSC_CNTR_REG_0X2B) & 0xffffff;
+		power[2] = result[2] >> 11;
+		bin[2] = result[2] & 0x7ff;
+
+		result[3] = atsc_read_reg_v4(ATSC_CNTR_REG_0X2C) & 0xffffff;
+		power[3] = result[3] >> 11;
+		bin[3] = result[3] & 0x7ff;
+
+		devp->peak[bin[0]] = devp->peak[bin[0]] + power[0];
+		devp->peak[bin[1]] = devp->peak[bin[1]] + power[1];
+		devp->peak[bin[2]] = devp->peak[bin[2]] + power[2];
+		devp->peak[bin[3]] = devp->peak[bin[3]] + power[3];
+		usleep_range(300, 400);
+	}
+
+	time[2] = jiffies_to_msecs(jiffies);
+	PR_ATSC("[atsc_time][cci_run2,%d ms]\n", (time[2] - time[1]));
+
+	cci_cnt = 0;
+
+	for (ck0 = 0; ck0 < 2048; ck0++) {
+		if (devp->peak[ck0] > threshold) {
+			if (devp->peak[ck0] > max_p[0]) {
+				/* Shift Max */
+				max_p[1] = max_p[0];
+				max_b[1] = max_b[0];
+				max_p[0] = devp->peak[ck0];
+				max_b[0] = ck0;
+			} else if (devp->peak[ck0] > max_p[1]) {
+				max_p[1] = devp->peak[ck0];
+				max_b[1] = ck0;
+			}
+
+			cci_cnt = cci_cnt + 1;
+		}
+	}
+
+	time[3] = jiffies_to_msecs(jiffies);
+	PR_ATSC("[atsc_time][cci_run3,%d ms]\n", (time[3] - time[2]));
+
+	if (cci_cnt > 0) {
+		atsc_write_reg_bits_v4(ATSC_DEMOD_REG_0X61, max_b[0], 0, 11);
+		if (cci_cnt > 1)
+			atsc_write_reg_bits_v4(ATSC_DEMOD_REG_0X61, max_b[1], 16, 11);
+
+		if (devp->atsc_cr_step_size_dbg) {
+			atsc_write_reg_v4(ATSC_DEMOD_REG_0X60, devp->atsc_cr_step_size_dbg);
+			PR_ATSC("%s dbg mode,set cr reg(0x60) = 0x%x\n", __func__,
+				devp->atsc_cr_step_size_dbg);
+		} else {
+			atsc_write_reg_v4(ATSC_DEMOD_REG_0X60, 0x140);
+			//atsc_write_reg_bits_v4(ATSC_DEMOD_REG_0X60, 1, 8, 1);
+			PR_ATSC("%s set cr reg(0x60) = 0x140\n", __func__);
+		}
+	}
+
+	for (ck0 = 0; ck0 < 2; ck0++)
+		PR_ATSC("%d-%d CCI:pos 0x%x,power 0x%x.\n", cci_cnt, ck0, max_b[ck0], max_p[ck0]);
+
+	PR_ATSC("After writing0x61: 0x%x\n", atsc_read_reg_v4(ATSC_DEMOD_REG_0X61));
+
+	time[4] = jiffies_to_msecs(jiffies);
+	PR_ATSC("[atsc_time][cci_run4,%d ms]\n", (time[4] - time[3]));
+	PR_ATSC("[atsc_time]--------printf cost %d us\n", jiffies_to_msecs(jiffies) - time[4]);
+}
+
+void set_cr_ck_rate_new(void)
+{
+	union ATSC_DEMOD_REG_0X6A_BITS val_0x6a;
+	union ATSC_EQ_REG_0XA5_BITS val_0xa5;
+	union ATSC_DEMOD_REG_0X54_BITS val_0x54;
+	union ATSC_DEMOD_REG_0X55_BITS val_0x55;
+	union ATSC_DEMOD_REG_0X6E_BITS val_0x6e;
+
+	//Read Reg
+	val_0x6a.bits = atsc_read_reg(ATSC_DEMOD_REG_0X6A);
+	val_0xa5.bits =	atsc_read_reg(ATSC_EQ_REG_0XA5);
+	val_0x54.bits =	atsc_read_reg(ATSC_DEMOD_REG_0X54);
+	val_0x55.bits =	atsc_read_reg(ATSC_DEMOD_REG_0X55);
+	val_0x6e.bits =	atsc_read_reg(ATSC_DEMOD_REG_0X6E);
+
+	//Set Reg
+	val_0x6a.b.peak_thd = 0x6;//Let CCFO Quality over 6
+	val_0xa5.bits =	0x8c;//increase state 2 to state 3
+	val_0x54.bits = 0x1aaaaa;//24m 5m if
+	val_0x55.bits = 0x3ae28d;//24m
+	val_0x6e.bits =	0x16e3600;
+
+	//Write Reg
+	atsc_write_reg(ATSC_DEMOD_REG_0X6A, val_0x6a.bits);
+	atsc_write_reg(ATSC_EQ_REG_0XA5, val_0xa5.bits);
+	atsc_write_reg(ATSC_DEMOD_REG_0X54, val_0x54.bits);
+	atsc_write_reg(ATSC_DEMOD_REG_0X55, val_0x55.bits);
+	atsc_write_reg(ATSC_DEMOD_REG_0X6E, val_0x6e.bits);
+}
+
+unsigned int cfo_run_new(void)
+{
+	int cr_rate0, cr_rate1, cr_rate2, cr_rate;
+	int fcent, fs;
+	int cfo_sta, cr_peak_sta;
+	int i, j;
+	int sys_state;
+	int table_count;
+	int max_count;
+	int freq_table[] = {0, -50, 50, -100, 100, -150, 150};
+	int scan_range;
+	int offset;
+	unsigned int ret = 0;
+
+	if (cfo_count == 1)
+		max_count = 3;
+	else if (cfo_count == 2)
+		max_count = 5;
+	else
+		max_count = 1;//7;
+
+	fcent = SI2176_5M_IF * 1000;/*if*/
+	fs = ADC_CLK_24M;/*crystal*/
+	cfo_sta = 0;
+	cr_peak_sta = 0;
+	table_count = 0;
+	scan_range = 10;
+	offset = freq_table[table_count];
+	PR_ATSC("Fcent[%d], Fs[%d]\n", fcent, fs);
+
+	for (i = -(scan_range - 1); i <= scan_range + 1; i++) {
+		atsc_reset_new();
+		cfo_sta = UNLOCK;
+		cr_peak_sta = UNLOCK;
+		cr_rate = (1 << 10) * (fcent + offset) / fs;
+		cr_rate *= (1 << 13);
+		cr_rate0 = cr_rate & 0xff;
+		cr_rate1 = (cr_rate >> 8) & 0xff;
+		cr_rate2 = (cr_rate >> 16) & 0xff;
+		atsc_write_reg_v4(ATSC_DEMOD_REG_0X54, cr_rate);
+		PR_ATSC("[autoscan]crRate is %x, Offset is %dkhz\n ", cr_rate, offset);
+
+		/*detec cfo signal*/
+		for (j = 0; j < 3; j++) {
+			sys_state = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
+			/*sys_state = (sys_state >> 4) & 0x0f;*/
+			if (sys_state >= CR_LOCK) {
+				cfo_sta = LOCK;
+				PR_ATSC("fsm[%x][autoscan]cfo lock\n", sys_state);
+				break;
+			}
+			msleep(20);
+		}
+
+		PR_ATSC("fsm[%x]cfo_sta is %d\n", atsc_read_reg_v4(ATSC_CNTR_REG_0X2E), cfo_sta);
+
+		/*detec cr peak signal*/
+		if (cfo_sta == LOCK) {
+			for (j = 0; j < 5; j++) {
+				sys_state = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
+				PR_ATSC("fsm[%x]in CR LOCK\n",
+					atsc_read_reg_v4(ATSC_CNTR_REG_0X2E));
+				/*sys_state = (sys_state >> 4) & 0x0f;*/
+				if (sys_state >= CR_PEAK_LOCK) {
+					cr_peak_sta = LOCK;
+					PR_ATSC("fsm[%x][autoscan]cr peak lock\n",
+						atsc_read_reg_v4(ATSC_CNTR_REG_0X2E));
+					break;
+				} else if (sys_state <= 20) {
+					PR_ATSC("no signal,break\n");
+					break;
+				}
+				msleep(20);
+			}
+		} else {
+			if (table_count >= (max_count - 1))
+				break;
+			table_count++;
+			offset = freq_table[table_count];
+			continue;
+		}
+
+		/*reset*/
+		if (cr_peak_sta == LOCK) {
+			/*atsc_reset();*/
+			PR_ATSC("fsm[%x][autoscan]atsc_reset\n",
+				atsc_read_reg_v4(ATSC_CNTR_REG_0X2E));
+			ret = CFO_OK;
+		} else {
+			if (table_count >= (max_count - 1)) {
+				PR_ATSC("cfo not lock,will try again\n");
+				ret = CFO_FAIL;
+				break;
+			}
+			table_count++;
+			offset = freq_table[table_count];
+		}
+	}
+
+	return ret;
+}
+
 int cfo_run(void)
 {
 	int cr_rate0, cr_rate1, cr_rate2, cr_rate;
@@ -863,8 +1110,8 @@ int cfo_run(void)
 		for (j = 0; j < detec_cfo_times; j++) {
 			sys_state = read_atsc_fsm();
 			/*sys_state = (sys_state >> 4) & 0x0f;*/
-			if (sys_state >= CR_Lock) {
-				cfo_sta = Lock;
+			if (sys_state >= CR_LOCK) {
+				cfo_sta = LOCK;
 				PR_ATSC("fsm[%x][autoscan]cfo lock\n",
 					read_atsc_fsm());
 				break;
@@ -874,14 +1121,14 @@ int cfo_run(void)
 		PR_ATSC("fsm[%x]cfo_sta is %d\n", read_atsc_fsm(), cfo_sta);
 
 		/*detec cr peak signal*/
-		if (cfo_sta == Lock) {
+		if (cfo_sta == LOCK) {
 			for (j = 0; j < cfo_times; j++) {
 				sys_state = read_atsc_fsm();
 				PR_ATSC("fsm[%x]in CR LOCK\n",
 					read_atsc_fsm());
 				/*sys_state = (sys_state >> 4) & 0x0f;*/
-				if (sys_state >= CR_Peak_Lock) {
-					cr_peak_sta = Lock;
+				if (sys_state >= CR_PEAK_LOCK) {
+					cr_peak_sta = LOCK;
 					PR_ATSC("fsm[0x%x]cr peak lock\n",
 						read_atsc_fsm());
 					break;
@@ -895,11 +1142,11 @@ int cfo_run(void)
 			continue;
 
 		/*reset*/
-		if (cr_peak_sta == Lock) {
+		if (cr_peak_sta == LOCK) {
 			/*atsc_reset();*/
 			PR_ATSC("fsm[%x][autoscan]atsc_reset\n",
 			read_atsc_fsm());
-			return Cfo_Ok;
+			return CFO_OK;
 
 		}
 	}
@@ -1052,7 +1299,7 @@ void atsc_thread(void)
 	int snr_now;
 	char *info1 = "[atsc_time]fsm";
 
-	fsm_status = Idle;
+	fsm_status = IDLE;
 	ser_thresholds = 200;
 	time[4] = jiffies_to_msecs(jiffies);
 	fsm_status = read_atsc_fsm();
@@ -1063,7 +1310,7 @@ void atsc_thread(void)
 
 	if (!field_test_version)
 		PR_ATSC("awgn_flag is %d\n", awgn_flag);
-	if (fsm_status < Atsc_Lock) {
+	if (fsm_status < ATSC_LOCK) {
 		/*step1:open dagc*/
 
 		fsm_status = read_atsc_fsm();
@@ -1084,13 +1331,13 @@ void atsc_thread(void)
 		fsm_status = read_atsc_fsm();
 		PR_ATSC("%s[%x]cci finish,need to run cfo,cost %d ms\n",
 			info1, fsm_status, time_table[0]);
-		if (fsm_status >= Atsc_Lock) {
+		if (fsm_status >= ATSC_LOCK) {
 			return;
-		} else if (fsm_status < CR_Lock) {
+		} else if (fsm_status < CR_LOCK) {
 			/*step3:run cfo*/
 			ret = cfo_run();
 		} else {
-			ret = Cfo_Ok;
+			ret = CFO_OK;
 			msleep(100);
 		}
 		time[2] = jiffies_to_msecs(jiffies);
@@ -1103,7 +1350,7 @@ void atsc_thread(void)
 			ret = cci_run();
 		for (i = 0; i < 80; i++) {
 			fsm_status = read_atsc_fsm();
-			if (fsm_status >= Atsc_Lock) {
+			if (fsm_status >= ATSC_LOCK) {
 				time[3] = jiffies_to_msecs(jiffies);
 				PR_ATSC("----------------------\n");
 				time_table[2] = (time[3] - time[2]);
@@ -1114,7 +1361,7 @@ void atsc_thread(void)
 				PR_ATSC("%s[%x]lock,one cost %d ms,\n",
 					info1, fsm_status, time_table[3]);
 				break;
-			} else if (fsm_status <= Idle) {
+			} else if (fsm_status <= IDLE) {
 				PR_ATSC("atsc idle,retune, and reset\n");
 				set_cr_ck_rate();
 				atsc_reset();
@@ -1527,3 +1774,26 @@ int check_atsc_fsm_status(void)
 	return atsc_snr;
 }
 
+void atsc_check_fsm_status(void)
+{
+	union ATSC_FA_REG_0XE7_BITS val_0xe7;
+	union ATSC_DEMOD_REG_0X72_BITS val_0x72;
+	union ATSC_AGC_REG_0X44_BITS val_0x44;
+	unsigned int snr, snr_db;
+	int cr, ck, sm, ber, ser;
+
+	val_0xe7.bits =	atsc_read_reg_v4(ATSC_FA_REG_0XE7);
+	val_0x72.bits = atsc_read_reg_v4(ATSC_DEMOD_REG_0X72);
+	val_0x44.bits =	atsc_read_reg_v4(ATSC_AGC_REG_0X44);
+
+	snr = atsc_read_reg_v4(ATSC_EQ_REG_0XC3);
+	snr_db = SNR_dB_table[atsc_find(snr, SNR_table, 56)];
+	cr = atsc_read_reg_v4(ATSC_DEMOD_REG_0X73);
+	ck = atsc_read_reg_v4(ATSC_DEMOD_REG_0X75);
+	sm = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E);
+	ber = atsc_read_reg_v4(ATSC_FEC_BER);
+	ser = atsc_read_reg_v4(ATSC_FEC_REG_0XFB);
+
+	PR_ATSC("SNR:0x%x,SNRdB:%d FSM:0x%x,cr:%d,ck:0x%x,ber is 0x%x, ser is 0x%x\n",
+		snr, snr_db / 10, sm, cr, ck, ber, ser);
+}

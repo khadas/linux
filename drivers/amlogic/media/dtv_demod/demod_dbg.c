@@ -974,6 +974,10 @@ static ssize_t attr_store(struct class *cls,
 		if (parm[1] && (kstrtouint(parm[1], 16, &val)) == 0)
 			devp->blind_scan_stop = val;
 		PR_INFO("set blind scan to %d\n", devp->blind_scan_stop);
+	} else if (!strcmp(parm[0], "cr_val")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &val)) == 0)
+			devp->atsc_cr_step_size_dbg = val;
+		PR_INFO("set atsc cr val to 0x%x\n", devp->atsc_cr_step_size_dbg);
 	}
 
 fail_exec_cmd:

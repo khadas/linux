@@ -83,6 +83,7 @@ void adc_dpll_setup(int clk_a, int clk_b, int clk_sys, struct aml_demod_sta *dem
 		return;
 	}
 
+	dig_clk_cfg.d32 = 0;
 	adc_pll_cntl.d32 = 0;
 	adc_pll_cntl2.d32 = 0;
 	adc_pll_cntl3.d32 = 0;
@@ -873,6 +874,25 @@ void atsc_write_reg_v4(unsigned int addr, unsigned int data)
 	writel(data, gbase_atsc() + (addr << 2));
 
 	mutex_unlock(&mp);
+}
+
+void atsc_write_reg_bits_v4(u32 addr, const u32 data, const u32 start, const u32 len)
+{
+	unsigned int val;
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	if (!get_dtvpll_init_flag() || unlikely(!devp))
+		return;
+
+	mutex_lock(&mp);
+	val = readl(gbase_atsc() + (addr << 2));
+	val &= ~(((1L << (len)) - 1) << (start));
+	val |= (((data) & ((1L << (len)) - 1)) << (start));
+	writel(val, gbase_atsc() + (addr << 2));
+	mutex_unlock(&mp);
+
+	if (devp->print_on)
+		PR_INFO("atsc wrBit 0x%x=0x%x, s:%d,l:%d\n", addr, data, start, len);
 }
 
 unsigned int atsc_read_reg_v4(unsigned int addr)

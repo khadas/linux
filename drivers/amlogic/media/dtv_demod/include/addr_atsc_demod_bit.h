@@ -6,6 +6,16 @@
 #ifndef __ADDR_ATSC_DEMOD_BIT_H__
 #define __ADDR_ATSC_DEMOD_BIT_H__
 
+union ATSC_AGC_REG_0X44_BITS {
+	unsigned int bits;
+	struct{
+		unsigned int	i_agc_pwm_data1		:12,
+		reserved4           :4,
+		t_agc_pwm_data1     :12,
+		reserved5           :4;
+	} b;
+};
+
 struct	ATSC_DEMOD_REG_0X52_BITS {
 	unsigned int	lpf_crgn_3                     :5,
 	reserved0                      :3,
@@ -345,6 +355,15 @@ union	ATSC_DEMOD_REG_0X88_BITS {
 	struct{
 		unsigned int	ccfo_pow_peak                  :16,
 		ccfo_avg_peak                  :16;
+	} b;
+};
+
+union ATSC_FA_REG_0XE7_BITS {
+	unsigned int bits;
+	struct {
+		unsigned int	fa_phase_alpha_do              :23,
+		reserved25                     :1,
+		fa_quality                     :8;
 	} b;
 };
 
