@@ -611,6 +611,19 @@ void tsync_pcr_pcrscr_set(void)
 				tsync_use_demux_pcr);
 			return;
 		}
+		if (cur_checkin_vpts < cur_pcr &&
+		    cur_checkin_vpts < cur_checkin_apts) {
+			ref_pcr = cur_checkin_vpts -
+				tsync_pcr_ref_latency;
+			tsync_set_pcr_mode(0, ref_pcr);
+			tsync_pcr_inited_mode =
+				INIT_PRIORITY_VIDEO;
+			tsync_pcr_inited_flag |= TSYNC_PCR_INITCHECK_VPTS;
+			pr_info("tsync_set:pcrscr %x,vpts %x,mode %d,ref_pcr %x\n",
+				timestamp_pcrscr_get(), timestamp_vpts_get(),
+				tsync_use_demux_pcr, ref_pcr);
+			return;
+		}
 	}
 	/* decide use which para to init */
 	if (cur_pcr && !(tsync_pcr_inited_flag & complete_init_flag) &&
