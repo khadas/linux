@@ -450,6 +450,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	hdmitx_set_sys_clk(hdev, 0xff);
 	hdmitx_set_cts_hdcp22_clk(hdev);
 	hdmitx_set_hdcp_pclk(hdev);
+	hdmitx_set_hdmi_axi_clk(hdev);
 
 	/* wire	wr_enable = control[3]; */
 	/* wire	fifo_enable = control[2]; */
@@ -3312,8 +3313,8 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		hdmitx_disable_packet(HDMI_PACKET_VEND);
 	} else if (strncmp(tmpbuf, "hdcp_mode", 9) == 0) {
 		ret = kstrtoul(tmpbuf + 9, 16, &value);
-		if (value >= 0 && value <= 3 &&
-			hdev->hwop.am_hdmitx_set_hdcp_mode)
+		if (value <= 3 &&
+		    hdev->hwop.am_hdmitx_set_hdcp_mode)
 			hdev->hwop.am_hdmitx_set_hdcp_mode(value);
 	} else if (strncmp(tmpbuf, "drm_set_hdmi", 12) == 0) {
 		if (hdev->hwop.am_hdmitx_set_hdmi_mode)

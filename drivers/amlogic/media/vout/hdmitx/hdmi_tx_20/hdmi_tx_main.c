@@ -6340,6 +6340,7 @@ static void amhdmitx_clktree_probe(struct device *hdmitx_dev)
 	struct clk *hdmi_clk_vapb, *hdmi_clk_vpu;
 	struct clk *hdcp22_tx_skp, *hdcp22_tx_esm;
 	struct clk *venci_top_gate, *venci_0_gate, *venci_1_gate;
+	struct clk *cts_hdmi_axi_clk;
 
 	hdmi_clk_vapb = devm_clk_get(hdmitx_dev, "hdmi_vapb_clk");
 	if (IS_ERR(hdmi_clk_vapb)) {
@@ -6386,6 +6387,12 @@ static void amhdmitx_clktree_probe(struct device *hdmitx_dev)
 		pr_warn(SYS "venci_0_gate failed to probe\n");
 	else
 		hdmitx_device.hdmitx_clk_tree.venci_1_gate = venci_1_gate;
+
+	cts_hdmi_axi_clk = devm_clk_get(hdmitx_dev, "cts_hdmi_axi_clk");
+	if (IS_ERR(cts_hdmi_axi_clk))
+		pr_warn("get cts_hdmi_axi_clk err\n");
+	else
+		hdmitx_device.hdmitx_clk_tree.cts_hdmi_axi_clk = cts_hdmi_axi_clk;
 }
 
 void amhdmitx_vpu_dev_regiter(struct hdmitx_dev *hdev)

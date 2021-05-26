@@ -278,6 +278,7 @@ struct hdmitx_clk_tree_s {
 	struct clk *hdmi_clk_vpu;
 	struct clk *hdcp22_tx_skp;
 	struct clk *hdcp22_tx_esm;
+	struct clk *cts_hdmi_axi_clk;
 	struct clk *venci_top_gate;
 	struct clk *venci_0_gate;
 	struct clk *venci_1_gate;

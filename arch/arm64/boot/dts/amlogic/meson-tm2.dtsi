@@ -515,12 +515,14 @@
 			&clkc CLKID_VCLK2_VENCI0
 			&clkc CLKID_VCLK2_VENCI1
 			&clkc CLKID_VAPB_SEL
-			&clkc CLKID_VPU>;
+			&clkc CLKID_VPU
+			&clkc CLKID_HDMIRX_AXI_GATE>;
 		clock-names = "venci_top_gate",
 			"venci_0_gate",
 			"venci_1_gate",
 			"hdmi_vapb_clk",
-			"hdmi_vpu_clk";
+			"hdmi_vpu_clk",
+			"cts_hdmi_axi_clk";
 		interrupts = <0 7 IRQ_TYPE_EDGE_RISING
 			0 3 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "hdmitx_hpd", "viu1_vsync";

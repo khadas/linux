@@ -161,8 +161,12 @@ void am_hdcp_enable(struct am_hdmi_tx *am_hdmi)
 {
 	/* hdcp enabled, but may not start auth as key not ready */
 	am_hdmi->hdcp_en = 1;
-	am_hdmi->hdcp_execute_type = am_get_hdcp_exe_type(am_hdmi);
 
+	if (!am_hdmi->bootup_ready) {
+		DRM_INFO("[%s]: hdcp_tx22 not ready, delay hdcp auth\n", __func__);
+		return;
+	}
+	am_hdmi->hdcp_execute_type = am_get_hdcp_exe_type(am_hdmi);
 	if (am_hdmi->hdcp_execute_type == HDCP_MODE22) {
 		drm_hdmitx_hdcp_enable(2);
 		am_hdmi->hdcp_report = HDCP_TX22_START;
@@ -195,8 +199,13 @@ static long hdcp_comm_ioctl(struct file *file,
 		/* notify by TEE, hdcp key ready, echo 2 > hdcp_mode */
 		rtn_val = 0;
 		am_hdmi->hdcp_tx_type = get_hdcp_hdmitx_version(am_hdmi);
-		if (am_hdmi->hdcp_tx_type & 0x2)
+		if (am_hdmi->hdcp_tx_type & 0x2) {
+			/* when bootup, if hdcp22 init after hdcp14 auth,
+			 * hdcp path will switch to hdcp22. need to delay
+			 * hdcp auth to covery this issue.
+			 */
 			drm_hdmitx_hdcp22_init();
+		}
 		DRM_INFO("hdcp key load ready\n");
 		break;
 	case TEE_HDCP_IOC_END:
@@ -206,11 +215,9 @@ static long hdcp_comm_ioctl(struct file *file,
 		/* hdcp_tx22 load ready (after TEE key ready) */
 		DRM_INFO("IOC_LOAD_END %d, %d\n",
 			 am_hdmi->hdcp_report, am_hdmi->hdcp_poll_report);
-		if (am_hdmi->hdcp_en && am_hdmi->hdcp_execute_type == 0) {
+		am_hdmi->bootup_ready = true;
+		if (am_hdmi->hdcp_en)
 			am_hdcp_enable(am_hdmi);
-			DRM_INFO("hdcp start before key ready, restart: %d\n",
-				 am_hdmi->hdcp_execute_type);
-		}
 		am_hdmi->hdcp_poll_report = am_hdmi->hdcp_report;
 		rtn_val = 0;
 		break;
@@ -310,6 +317,8 @@ void hdcp_comm_init(struct am_hdmi_tx *am_hdmi)
 
 	am_hdmi->hdcp_user_type = 0x3;
 	am_hdmi->hdcp_report = HDCP_TX22_DISCONNECT;
+	am_hdmi->hdcp_en = 0;
+	am_hdmi->bootup_ready = false;
 	init_waitqueue_head(&am_hdmi->hdcp_comm_queue);
 	am_hdmi->hdcp_comm_device.minor = MISC_DYNAMIC_MINOR;
 	am_hdmi->hdcp_comm_device.name = "tee_comm_hdcp";

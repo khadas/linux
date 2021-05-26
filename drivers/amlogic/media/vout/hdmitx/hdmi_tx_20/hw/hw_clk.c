@@ -203,6 +203,22 @@ void hdmitx_set_hdcp_pclk(struct hdmitx_dev *hdev)
 		hd_set_reg_bits(P_HHI_GCLK_MPEG2, 1, 3, 1);
 }
 
+void hdmitx_set_hdmi_axi_clk(struct hdmitx_dev *hdev)
+{
+	switch (hdev->data->chip_type) {
+	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_TM2B:
+		if (hdev->hdmitx_clk_tree.cts_hdmi_axi_clk) {
+			WARN_ON(clk_set_rate(hdev->hdmitx_clk_tree.cts_hdmi_axi_clk,
+				667000000));
+			clk_prepare_enable(hdev->hdmitx_clk_tree.cts_hdmi_axi_clk);
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 static void set_hpll_clk_out(unsigned int clk)
 {
 	struct hdmitx_dev *hdev = get_hdmitx_device();
