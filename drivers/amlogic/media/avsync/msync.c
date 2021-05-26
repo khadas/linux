@@ -33,7 +33,6 @@
 #define CHECK_INTERVAL ((HZ / 10) * 3) //300ms
 #define WAIT_INTERVAL (2 * (HZ)) //2s
 #define TRANSIT_INTERVAL (HZ) //1s
-#define DISC_THRE_REC (UNIT90K / 5)
 #define DISC_THRE_MIN (UNIT90K / 3)
 #define DISC_THRE_MAX (UNIT90K * 20)
 
@@ -212,6 +211,11 @@ static u32 abs_diff(u32 a, u32 b)
 static u32 pts_early(u32 a, u32 b)
 {
 	return (int)(a - b) > 0 ? b : a;
+}
+
+static u32 pts_later(u32 a, u32 b)
+{
+	return (int)(a - b) > 0 ? a : b;
 }
 
 static void session_set_wall_clock(struct sync_session *session, u32 clock)
@@ -500,6 +504,27 @@ static u32 get_ref_pcr(struct sync_session *session,
 }
 #endif
 
+/* Starting policy */
+static u32 get_start_pts(u32 vpts, u32 apts, u32 thres)
+{
+	u32 min_pts = AVS_INVALID_PTS;
+
+	if (VALID_PTS(vpts) && VALID_PTS(apts))
+		min_pts = pts_early(vpts, apts);
+	else if (VALID_PTS(vpts))
+		min_pts = vpts;
+	else if (VALID_PTS(apts))
+		min_pts = apts;
+
+	/* give audio enough buffer but do not block video */
+	if (min_pts == apts)
+		min_pts -= thres;
+	else
+		min_pts = pts_later(min_pts - thres, vpts);
+
+	return min_pts;
+}
+
 /* only handle first arrived A/V/PCR */
 static void pcr_set(struct sync_session *session)
 {
@@ -530,10 +555,6 @@ static void pcr_set(struct sync_session *session)
 		min_pts = cur_vpts;
 	else if (VALID_PTS(cur_apts))
 		min_pts = cur_apts;
-
-	/* buffering */
-	if (VALID_PTS(min_pts))
-		min_pts -= sync.start_buf_thres;
 
 	/* pcr comes first */
 	if (VALID_PTS(cur_pcr)) {
@@ -624,9 +645,14 @@ static void pcr_set(struct sync_session *session)
 			session->pcr_init_mode = INIT_PRIORITY_PCR;
 		else
 			session->pcr_init_mode = INIT_PRIORITY_AUDIO;
+
+		min_pts = get_start_pts(session->first_vpts.pts,
+				session->first_apts.pts,
+				sync.start_buf_thres);
 		use_pcr_clock(session, false, min_pts);
-		msync_dbg(LOG_DEBUG, "[%d]%d disable pcr %u\n",
-			session->id, __LINE__, min_pts);
+		msync_dbg(LOG_DEBUG, "[%d]%d disable pcr %u buf %u\n",
+			session->id, __LINE__, min_pts,
+			(int)(session->first_apts.pts - min_pts));
 	}
 
 	if (VALID_PTS(session->first_vpts.pts) && !session->pcr_work_on) {
@@ -1227,7 +1253,8 @@ static void pcr_check(struct sync_session *session)
 				session->last_check_vpts = checkin_vpts;
 				session->last_check_vpts_cnt = 0;
 				if (abs_diff(session->wall_clock,
-					checkin_vpts) < DISC_THRE_REC)
+					checkin_vpts) <=
+						(session->disc_thres_min >> 1))
 					session->pcr_disc_flag &= ~(VIDEO_DISC);
 			}
 			if (flag != session->pcr_disc_flag)
@@ -1335,14 +1362,34 @@ static void pcr_check(struct sync_session *session)
 
 		if (abs_diff(checkin_apts, checkin_vpts) <
 			session->disc_thres_min) {
+			min_pts = get_start_pts(checkin_vpts,
+					checkin_apts,
+					sync.start_buf_thres);
+		} else if ((int)(checkin_vpts - checkin_apts)) {
+			/* reset to buffer audio only */
+			min_pts = checkin_apts;
 			min_pts -= sync.start_buf_thres;
-			use_pcr_clock(session, false, min_pts);
-			session->pcr_disc_flag = 0;
-			msync_dbg(LOG_INFO,
-				"[%d] %d disable pcr %u vs %u\n",
-				session->id, __LINE__, min_pts,
-				session->pcr_clock.pts);
 		}
+		use_pcr_clock(session, false, min_pts);
+		session->pcr_disc_flag = 0;
+		msync_dbg(LOG_INFO,
+			"[%d] %d disable pcr %u(p) %u(a) %u(v) --> %u(m)\n",
+			session->id, __LINE__,
+			session->pcr_clock.pts,
+			checkin_apts, checkin_vpts, min_pts);
+	}
+
+	if (A_DISC_SET(session->pcr_disc_flag) && !session->v_active) {
+		min_pts = get_start_pts(checkin_vpts,
+				checkin_apts,
+				sync.start_buf_thres);
+
+		use_pcr_clock(session, false, min_pts);
+		session->pcr_disc_flag &= ~AUDIO_DISC;
+		msync_dbg(LOG_INFO,
+			"[%d] %d disable pcr %u(p) %u(a) --> %u(m)\n",
+			session->id, __LINE__,
+			session->pcr_clock.pts, checkin_apts, min_pts);
 	}
 }
 
@@ -2274,7 +2321,7 @@ int __init msync_init(void)
 	sync.msync_notifier.notifier_call = msync_notify_callback;
 	vout_register_client(&sync.msync_notifier);
 	sync.ready = true;
-	sync.start_buf_thres = UNIT90K / 10;
+	sync.start_buf_thres = UNIT90K / 5;
 	return 0;
 err3:
 	class_unregister(&msync_class);
