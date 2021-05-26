@@ -19,6 +19,10 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/usb/of.h>
+#ifdef CONFIG_AMLOGIC_USB
+#include <linux/kthread.h>
+//#include "../core/hub.h"
+#endif
 
 #include "xhci.h"
 #include "xhci-plat.h"
@@ -153,6 +157,38 @@ static const struct of_device_id usb_xhci_of_match[] = {
 MODULE_DEVICE_TABLE(of, usb_xhci_of_match);
 #endif
 
+#ifdef CONFIG_AMLOGIC_USB
+static struct crg_reset crg_task[CRG_XHCI_MAX_COUNT];
+static unsigned int crg_xhci_count;
+
+static int xhci_plat_probe(struct platform_device *pdev);
+static int xhci_plat_remove(struct platform_device *dev);
+
+static int crg_reset_thread(void *data)
+{
+	struct platform_device *plat_dev = data;
+	struct usb_hcd	*hcd = platform_get_drvdata(plat_dev);
+	int i;
+
+	while (!kthread_should_stop()) {
+		hcd = platform_get_drvdata(plat_dev);
+		if (hcd && hcd->crg_do_reset) {
+			xhci_plat_remove(plat_dev);
+			xhci_plat_probe(plat_dev);
+		}
+		msleep(20);
+	}
+	for (i = 0; i < CRG_XHCI_MAX_COUNT; i++) {
+		if (crg_task[i].id == plat_dev->id) {
+			crg_task[i].crg_reset_task = NULL;
+			break;
+		}
+	}
+
+	return 0;
+}
+#endif
+
 static int xhci_plat_probe(struct platform_device *pdev)
 {
 	const struct xhci_plat_priv *priv_match;
@@ -163,6 +199,10 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	struct usb_hcd		*hcd;
 	int			ret;
 	int			irq;
+#ifdef CONFIG_AMLOGIC_USB
+	char crg_thread_name[32];
+	int i, j, task_exsit_flag = 0;
+#endif
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -234,6 +274,30 @@ static int xhci_plat_probe(struct platform_device *pdev)
 #endif
 
 	xhci = hcd_to_xhci(hcd);
+#ifdef CONFIG_AMLOGIC_USB
+	for (i = 0; i < CRG_XHCI_MAX_COUNT; i++) {
+		if (!crg_task[i].crg_reset_task) {
+			for (j = 0; j < i; j++) {
+				if (crg_task[j].id == pdev->id) {
+					task_exsit_flag = 1;
+					break;
+				}
+			}
+			if (task_exsit_flag == 1)
+				break;
+			sprintf(crg_thread_name, "crg_reset_%d_thr\n", i);
+			crg_task[i].crg_reset_task =
+				kthread_run(crg_reset_thread, pdev, crg_thread_name);
+			if (IS_ERR(crg_task[i].crg_reset_task)) {
+				xhci_err(xhci, "unable to start crg_reset_thread\n");
+				goto put_hcd;
+			}
+			crg_task[i].id = pdev->id;
+			crg_xhci_count = i;
+			break;
+		}
+	}
+#endif
 
 	/*
 	 * Not all platforms have clks so it is not an error if the
@@ -387,6 +451,9 @@ static int xhci_plat_remove(struct platform_device *dev)
 
 	clk_disable_unprepare(clk);
 	clk_disable_unprepare(reg_clk);
+#ifdef CONFIG_AMLOGIC_USB
+	devm_release_mem_region(&dev->dev, hcd->rsrc_start, hcd->rsrc_len);
+#endif
 	usb_put_hcd(hcd);
 
 	pm_runtime_disable(&dev->dev);
@@ -478,6 +545,14 @@ module_init(xhci_plat_init);
 
 static void __exit xhci_plat_exit(void)
 {
+#ifdef CONFIG_AMLOGIC_USB
+	int i;
+
+	for (i = 0; i <= crg_xhci_count; i++) {
+		if (crg_task[i].crg_reset_task)
+			kthread_stop(crg_task[i].crg_reset_task);
+	}
+#endif
 	platform_driver_unregister(&usb_xhci_driver);
 }
 module_exit(xhci_plat_exit);

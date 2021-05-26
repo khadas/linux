@@ -22,6 +22,14 @@
 #include	"xhci-ext-caps.h"
 #include "pci-quirks.h"
 
+#ifdef CONFIG_AMLOGIC_USB
+#define CRG_XHCI_MAX_COUNT		0x8
+struct crg_reset {
+	struct task_struct *crg_reset_task;
+	int id;
+};
+#endif
+
 /* xHCI PCI Configuration Registers */
 #define XHCI_SBRN_OFFSET	(0x60)
 
