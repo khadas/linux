@@ -1640,7 +1640,7 @@ bool rx_edid_update_aud_blk(u_char *pedid,
 			    u_char *sad_data,
 			    u_char len)
 {
-	u_char *tmp_aud_blk = NULL;
+	u_char tmp_aud_blk[128];
 
 	if (!pedid)
 		return false;
@@ -1650,17 +1650,11 @@ bool rx_edid_update_aud_blk(u_char *pedid,
 			rx_pr("err SAD length: %d\n", len);
 		return false;
 	}
-	tmp_aud_blk = kmalloc(len + 1, GFP_KERNEL);
-	if (!tmp_aud_blk) {
-		rx_pr("err: malloc aud blk buf\n");
-		return false;
-	}
 	tmp_aud_blk[0] = (0x1 << 5) | len;
 	memcpy(tmp_aud_blk + 1, sad_data, len);
 	edid_rm_db_by_tag(pedid, AUDIO_TAG);
 	/* place aud data blk to blk index = 0x1 */
 	splice_data_blk_to_edid(pedid, tmp_aud_blk, 0x1);
-	kfree(tmp_aud_blk);
 	return true;
 }
 

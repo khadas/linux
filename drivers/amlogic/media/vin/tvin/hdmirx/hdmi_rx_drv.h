@@ -39,8 +39,8 @@
 #define IRQ_LOG		0x2000
 #define COR_LOG		0x4000
 
-/* add irq enable and disable function */
-#define RX_VER1 "ver.2021/05/12"
+/* fix driver crash when kernel bootup */
+#define RX_VER1 "ver.2021/05/26"
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 
