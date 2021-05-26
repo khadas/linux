@@ -1294,7 +1294,7 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 		pafd_ctr->fb.mode = AFBC_WK_P;
 		//AFBC_WK_6D_ALL;//AFBC_WK_IN;//
 	} else if (IS_IC_EF(cid, T5DB)) {
-		//afbc_cfg = 0;
+		afbc_cfg = 0;
 		memcpy(&pafd_ctr->fb, &cafbc_v4_t5dvb, sizeof(pafd_ctr->fb));
 		pafd_ctr->fb.mode = AFBC_WK_IN;
 	} else if (IS_IC_EF(cid, T5D)) { //unsupport afbc
@@ -1738,7 +1738,7 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 //ary tmp	unsigned int fmt_size_h     ; //13 bits
 //ary tmp	unsigned int fmt_size_v     ; //13 bits
 
-	di_print("afbc_in:[%d]:vf typ[0x%x] 0x%x, 0x%x\n",
+	di_print("afbc_in:[%d]:vf typ[0x%x] 0x%lx, 0x%lx\n",
 		 dec,
 		 vf->type,
 		 vf->compHeadAddr,
