@@ -485,17 +485,22 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 	if (status0 & INT_EARCTX_CMDC_RECV_UNEXP)
 		dev_info(p_earc->dev, "EARCTX_CMDC_RECV_UNEXP\n");
 
-	if (status0 & INT_EARCTX_CMDC_IDLE1) {
-		earctx_update_attend_event(p_earc,
-					   false, false);
-
-		dev_info(p_earc->dev, "EARCTX_CMDC_IDLE1\n");
-	}
-	if (status0 & INT_EARCTX_CMDC_IDLE2) {
-		earctx_update_attend_event(p_earc,
-					   false, true);
-
-		dev_info(p_earc->dev, "EARCTX_CMDC_IDLE2\n");
+	/*
+	 * plug out ARC, from ARC to IDLE2, then to IDLE1
+	 * if receive both interrupt, then only send IDLE1 status
+	 */
+	if ((status0 & INT_EARCTX_CMDC_IDLE1) && (status0 & INT_EARCTX_CMDC_IDLE2)) {
+		earctx_update_attend_event(p_earc, false, false);
+		dev_info(p_earc->dev, "only send EARCTX_CMDC_IDLE1\n");
+	} else {
+		if (status0 & INT_EARCTX_CMDC_IDLE1) {
+			earctx_update_attend_event(p_earc, false, false);
+			dev_info(p_earc->dev, "EARCTX_CMDC_IDLE1\n");
+		}
+		if (status0 & INT_EARCTX_CMDC_IDLE2) {
+			earctx_update_attend_event(p_earc, false, true);
+			dev_info(p_earc->dev, "EARCTX_CMDC_IDLE2\n");
+		}
 	}
 
 	if (p_earc->tx_dmac_clk_on) {
