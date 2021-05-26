@@ -50,7 +50,20 @@ static const char *handler[]= {
 void *vectors_page;
 
 #ifdef CONFIG_DEBUG_USER
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+#define USER_DEBUG_UNDEFINED_INSTRUCTION BIT(0)
+#define USER_DEBUG_SYSTEM_CALL           BIT(1)
+#define USER_DEBUG_INVALID_DATA_ABORT    BIT(2)
+#define USER_DEBUG_SIGSEGV_FAULT         BIT(3)
+#define USER_DEBUG_SIGBUS_FAULT          BIT(14)
+unsigned int user_debug = USER_DEBUG_UNDEFINED_INSTRUCTION |
+			  USER_DEBUG_SYSTEM_CALL |
+			  USER_DEBUG_INVALID_DATA_ABORT |
+			  USER_DEBUG_SIGSEGV_FAULT |
+			  USER_DEBUG_SIGBUS_FAULT;
+#else
 unsigned int user_debug;
+#endif
 
 static int __init user_debug_setup(char *str)
 {
@@ -479,6 +492,10 @@ die_sig:
 	if (user_debug & UDBG_UNDEFINED) {
 		pr_info("%s (%d): undefined instruction: pc=%p\n",
 			current->comm, task_pid_nr(current), pc);
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+		if (user_fault_debug_ratelimited())
+			show_all_pfn(current, regs);
+#endif
 		__show_regs(regs);
 		dump_instr(KERN_INFO, regs);
 	}
@@ -521,8 +538,20 @@ asmlinkage void __exception_irq_entry handle_fiq_as_nmi(struct pt_regs *regs)
  */
 asmlinkage void bad_mode(struct pt_regs *regs, int reason)
 {
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR
+	char buf[512];
+#endif
 	console_verbose();
 
+#ifdef CONFIG_AMLOGIC_DMC_MONITOR
+	//dump_dmc_reg(buf);
+	pr_err("%s\n", buf);
+#endif
+
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	if (user_fault_debug_ratelimited())
+		show_all_pfn(current, regs);
+#endif /* CONFIG_AMLOGIC_USER_FAULT */
 	pr_crit("Bad mode in %s handler detected\n", handler[reason]);
 
 	die("Oops - bad mode", regs, 0);

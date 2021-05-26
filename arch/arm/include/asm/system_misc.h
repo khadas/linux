@@ -9,11 +9,19 @@
 #include <linux/irqflags.h>
 #include <linux/reboot.h>
 #include <linux/percpu.h>
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+#include <linux/ratelimit.h>
+#endif
 
 extern void cpu_init(void);
 
 void soft_restart(unsigned long);
 extern void (*arm_pm_idle)(void);
+
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+extern void show_all_pfn(struct task_struct *task, struct pt_regs *regs);
+extern void show_vma(struct mm_struct *mm, unsigned long addr);
+#endif /* CONFIG_AMLOGIC_USER_FAULT */
 
 #ifdef CONFIG_HARDEN_BRANCH_PREDICTOR
 typedef void (*harden_branch_predictor_fn_t)(void);
@@ -36,6 +44,22 @@ static inline void harden_branch_predictor(void)
 #define UDBG_BUS	(1 << 4)
 
 extern unsigned int user_debug;
+
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+#define USR_FAULT_DBG_RATELIMIT_INTERVAL	(5 * HZ)
+#define USR_FAULT_DBG_RATELIMIT_BURST		3
+
+#define user_fault_debug_ratelimited()					\
+({									\
+	static DEFINE_RATELIMIT_STATE(usr_fault_dgb_rs,			\
+				      USR_FAULT_DBG_RATELIMIT_INTERVAL,	\
+				      USR_FAULT_DBG_RATELIMIT_BURST);	\
+	bool __show_ratelimited = false;				\
+	if (__ratelimit(&usr_fault_dgb_rs))				\
+		__show_ratelimited = true;				\
+	__show_ratelimited;						\
+})
+#endif
 
 #endif /* !__ASSEMBLY__ */
 
