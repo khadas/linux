@@ -25,6 +25,7 @@
 #include "frc_interface.h"
 
 #define FRC_FW_VER			"2021-0528 frc support secure mode"
+#define FRC_KERDRV_VER                  638
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
 #define FRC_CLASS_NAME	"frc"

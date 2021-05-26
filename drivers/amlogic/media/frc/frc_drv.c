@@ -70,6 +70,9 @@ struct frc_dev_s *get_frc_devp(void)
 	return frc_dev;
 }
 
+int  frc_kerdrv_ver = FRC_KERDRV_VER;
+EXPORT_SYMBOL(frc_kerdrv_ver);
+
 // static struct frc_fw_data_s *fw_data;
 struct frc_fw_data_s fw_data;  // important 2021_0510
 static const char frc_alg_defver[] = "alg_ver:default";

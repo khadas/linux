@@ -1225,6 +1225,8 @@ struct frc_force_size_s {
 };
 
 extern int frc_dbg_en;
+extern int frc_kerdrv_ver;
+
 #define pr_frc(level, fmt, arg...)			\
 	do {						\
 		if ((frc_dbg_en >= (level) && frc_dbg_en < 3) || frc_dbg_en == level)	\
