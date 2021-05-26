@@ -86,6 +86,7 @@ struct am_hdmi_tx {
 	int hdcp_poll_report;
 	unsigned int hdcp_en;
 	unsigned int hdcp_ctl_lvl;
+	bool bootup_ready;
 };
 
 struct am_hdmitx_connector_state {
