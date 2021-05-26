@@ -9188,9 +9188,9 @@ int video_hw_init(void)
 	/* select afbcd output to di pre */
 	if (video_is_meson_t5d_revb_cpu()) {
 		/* default false */
-		vd1_vd2_mux = false;
-		vd_layer[0].vd1_vd2_mux = false;
-		di_used_vd1_afbc(false);
+		vd1_vd2_mux = true;
+		vd_layer[0].vd1_vd2_mux = true;
+		di_used_vd1_afbc(true);
 	} else {
 		vd1_vd2_mux = false;
 		vd_layer[0].vd1_vd2_mux = false;
