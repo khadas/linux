@@ -5454,7 +5454,7 @@ void enable_dolby_vision(int enable)
 							0x55555455);
 						dolby_vision_core1_on = false;
 					}
-				} else if (is_meson_tm2_stbmode() || is_meson_t7_stbmode())   {
+				} else if (is_meson_tm2_stbmode()) {
 					if (is_meson_stb_hdmimode())
 						core_flag = 1;
 					VSYNC_WR_DV_REG_BITS
