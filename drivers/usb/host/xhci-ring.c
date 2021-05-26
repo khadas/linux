@@ -968,6 +968,9 @@ void xhci_stop_endpoint_command_watchdog(struct timer_list *t)
 {
 	struct xhci_virt_ep *ep = from_timer(ep, t, stop_cmd_timer);
 	struct xhci_hcd *xhci = ep->xhci;
+#ifdef CONFIG_AMLOGIC_USB
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
+#endif
 	unsigned long flags;
 
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -991,7 +994,9 @@ void xhci_stop_endpoint_command_watchdog(struct timer_list *t)
 	 * and try to recover a -ETIMEDOUT with a host controller reset
 	 */
 	xhci_hc_died(xhci);
-
+#ifdef CONFIG_AMLOGIC_USB
+	hcd->crg_do_reset = 1;
+#endif
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 			"xHCI host controller is dead.");
