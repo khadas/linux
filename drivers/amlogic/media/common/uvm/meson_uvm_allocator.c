@@ -99,6 +99,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	void *vaddr;
 	struct sg_table *src_sgt = NULL;
 	struct scatterlist *sg = NULL;
+	unsigned int id = meson_ion_cma_heap_id_get();
 
 	buffer = container_of(obj, struct mua_buffer, base);
 	MUA_PRINTK(1, "%s. buf_scalar=%d WxH: %dx%d\n",
@@ -115,8 +116,9 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	MUA_PRINTK(1, "buffer->size:%zu realloc dmabuf->size=%zu\n",
 			buffer->size, dmabuf->size);
 	if (!buffer->idmabuf[1]) {
+		id = meson_ion_codecmm_heap_id_get();
 		idmabuf = ion_alloc(dmabuf->size,
-				    (1 << ION_HEAP_TYPE_CUSTOM), ION_FLAG_EXTEND_MESON_HEAP);
+				    (1 << id), ION_FLAG_EXTEND_MESON_HEAP);
 		if (IS_ERR(idmabuf)) {
 			MUA_PRINTK(0, "%s: ion_alloc fail.\n", __func__);
 			return -ENOMEM;
@@ -188,6 +190,7 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 	struct sg_table *src_sgt = NULL;
 	struct scatterlist *sg = NULL;
 	unsigned int ion_flags = 0;
+	unsigned int id = meson_ion_cma_heap_id_get();
 
 	buffer = container_of(obj, struct mua_buffer, base);
 	memset(&info, 0, sizeof(info));
@@ -204,8 +207,9 @@ static int mua_process_delay_alloc(struct dma_buf *dmabuf,
 		if (buffer->ion_flags & MUA_USAGE_PROTECTED)
 			ion_flags |= ION_FLAG_PROTECTED;
 		ion_flags |= ION_FLAG_EXTEND_MESON_HEAP;
+		id = meson_ion_codecmm_heap_id_get();
 		idmabuf = ion_alloc(dmabuf->size,
-				    (1 << ION_HEAP_TYPE_CUSTOM), ion_flags);
+				    (1 << id), ion_flags);
 		if (IS_ERR(idmabuf)) {
 			MUA_PRINTK(0, "%s: ion_alloc fail.\n", __func__);
 			return -ENOMEM;
@@ -269,6 +273,7 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 	struct dma_buf *idmabuf;
 	struct ion_buffer *ibuffer;
 	unsigned int ion_flags = 0;
+	unsigned int id = meson_ion_cma_heap_id_get();
 
 	memset(&info, 0, sizeof(info));
 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
@@ -284,8 +289,9 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 
 	if (data->flags & MUA_IMM_ALLOC) {
 		ion_flags |= ION_FLAG_EXTEND_MESON_HEAP;
+		id = meson_ion_codecmm_heap_id_get();
 		idmabuf = ion_alloc(alloc_buf_size,
-				    (1 << ION_HEAP_TYPE_CUSTOM), ion_flags);
+				    (1 << id), ion_flags);
 		if (IS_ERR(idmabuf)) {
 			MUA_PRINTK(0, "%s: ion_alloc fail.\n", __func__);
 			kfree(buffer);
