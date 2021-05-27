@@ -504,10 +504,13 @@ static int wifi_setup_dt(void)
 		ret = gpio_request(wifi_info.chip_en_pin, OWNER_NAME);
 		if (ret)
 			WIFI_INFO("chip_en_pin request failed(%d)\n", ret);
-		else
-			ret = gpio_direction_output(wifi_info.chip_en_pin, 1);
+		ret = gpio_direction_output(wifi_info.chip_en_pin, 0);
 		if (ret)
-			WIFI_INFO("chip_en_pin output failed(%d)\n", ret);
+			WIFI_INFO("chip_en_pin output 0 failed(%d)\n", ret);
+		msleep(20);
+		ret = gpio_direction_output(wifi_info.chip_en_pin, 1);
+		if (ret)
+			WIFI_INFO("chip_en_pin output 1 failed(%d)\n", ret);
 		SHOW_PIN_OWN("chip_en_pin", wifi_info.chip_en_pin);
 	}
 
@@ -544,6 +547,9 @@ static int wifi_setup_dt(void)
 			WIFI_INFO("power_on_pin2 output failed(%d)\n", ret);
 		SHOW_PIN_OWN("power_on_pin2", wifi_info.power_on_pin2);
 	}
+
+	set_usb_wifi_power(0);
+	set_usb_wifi_power(1);
 
 	return 0;
 }
