@@ -24,7 +24,7 @@
 #include <linux/amlogic/media/frc/frc_common.h>
 #include "frc_interface.h"
 
-#define FRC_FW_VER			"t3 driver bringup 2021-0524 update fw from svn 638"
+#define FRC_FW_VER			"play local 8k, display not right"
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
 #define FRC_CLASS_NAME	"frc"

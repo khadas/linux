@@ -596,12 +596,18 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	if (frc_top->out_hsize == 1920 && frc_top->out_vsize == 1080) {
 		mevp_frm_dly = 130;
 		mc_frm_dly   = 11 ;//inp performace issue, need frc_clk >  enc0_clk
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 0, 0, 1);
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 0, 1, 1);
 	} else if (frc_top->out_hsize == 3840 && frc_top->out_vsize == 2160) {
 		mevp_frm_dly = 260;
 		mc_frm_dly = 28;
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 0, 1);
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 1, 1);
 	} else {
 		mevp_frm_dly = 140;
 		mc_frm_dly   = 10 ;//inp performace issue, need frc_clk >  enc0_clk
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 0, 1);
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 1, 1);
 	}
 
 	//memc_frm_dly
