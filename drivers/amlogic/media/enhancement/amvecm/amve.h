@@ -219,5 +219,6 @@ void vpp_pst_hist_sta_config(int en,
 	enum pst_hist_pos pos,
 	struct vinfo_s *vinfo);
 void vpp_pst_hist_sta_read(unsigned int *hist);
+void eye_proc(int *rgb, int mtx_on);
 #endif
 

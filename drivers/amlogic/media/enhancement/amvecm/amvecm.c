@@ -333,6 +333,7 @@ static struct vpp_mtx_info_s mtx_info = {
 };
 
 static struct pre_gamma_table_s pre_gamma;
+struct eye_protect_s eye_protect;
 
 /* vpp brightness/contrast/saturation/hue */
 int __init amvecm_load_pq_val(char *str)
@@ -1452,6 +1453,14 @@ void pre_gma_update(struct pre_gamma_table_s *pre_gma_lut)
 	}
 }
 
+void eye_prot_update(struct eye_protect_s *eye_prot)
+{
+	if (vecm_latch_flag2 & VPP_EYE_PROTECT_UPDATE) {
+		eye_proc(eye_prot->rgb, eye_prot->en);
+		vecm_latch_flag2 &= ~VPP_EYE_PROTECT_UPDATE;
+	}
+}
+
 void amvecm_video_latch(void)
 {
 	pc_mode_process();
@@ -1476,6 +1485,7 @@ void amvecm_video_latch(void)
 	/*matrix wr & rd latch */
 	vpp_mtx_update(&mtx_info);
 	pre_gma_update(&pre_gamma);
+	eye_prot_update(&eye_protect);
 }
 
 static void amvecm_overscan_process(struct vframe_s *vf,
@@ -1994,6 +2004,7 @@ static long amvecm_ioctl(struct file *file,
 	struct vpp_mtx_info_s *mtx_p = &mtx_info;
 	struct pre_gamma_table_s *pre_gma_tb = NULL;
 	struct hdr_tmo_sw pre_tmo_reg;
+	struct eye_protect_s *eye_prot = NULL;
 
 	if (debug_amvecm & 2)
 		pr_info("[amvecm..] %s: cmd_nr = 0x%x\n",
@@ -2644,6 +2655,26 @@ static long amvecm_ioctl(struct file *file,
 			pr_info("tmo_reg copy to user success\n");
 		}
 		break;
+	case AMVECM_IOC_S_EYE_PROT:
+		mem_size = sizeof(struct eye_protect_s);
+		eye_prot = kmalloc(mem_size, GFP_KERNEL);
+		if (!eye_prot) {
+			pr_amvecm_dbg("eye_protect malloc fail\n");
+			ret = -ENOMEM;
+			break;
+		}
+		if (copy_from_user(eye_prot, (void __user *)arg,
+				   sizeof(struct eye_protect_s))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("eye_protect struct cp from usr failed\n");
+		} else {
+			pr_amvecm_dbg("eye_protect struct cp from usr success\n");
+			eye_protect.en = eye_prot->en;
+			memcpy(eye_protect.rgb,
+				eye_prot->rgb, 3 * sizeof(int));
+			vecm_latch_flag2 |= VPP_EYE_PROTECT_UPDATE;
+		}
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -2653,6 +2684,7 @@ static long amvecm_ioctl(struct file *file,
 	kfree(hdr_tm);
 	kfree(aipq_ofst_ptr);
 	kfree(pre_gma_tb);
+	kfree(eye_prot);
 	// kfree(pre_tmo_reg);
 	return ret;
 }

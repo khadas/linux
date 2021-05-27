@@ -81,6 +81,7 @@ void dolby_vision_set_toggle_flag(int flag);
  *#define VPP_VADJ1_EN                (1 << 0)
  */
 
+#define VPP_EYE_PROTECT_UPDATE      BIT(7)
 #define VPP_PRE_GAMMA_UPDATE        BIT(6)
 #define VPP_MARTIX_GET              BIT(5)
 #define VPP_MARTIX_UPDATE           BIT(4)
@@ -339,6 +340,13 @@ struct pre_gamma_table_s {
 /*hdr10_tmo ioc*/
 #define AMVECM_IOC_S_HDR_TMO   _IOW(_VE_CM, 0x74, struct hdr_tmo_sw)
 #define AMVECM_IOC_G_HDR_TMO   _IOR(_VE_CM, 0x75, struct hdr_tmo_sw)
+
+struct eye_protect_s {
+	int en;
+	int rgb[3];
+};
+
+#define AMVECM_IOC_S_EYE_PROT   _IOW(_VE_CM, 0x78, struct eye_protect_s)
 
 struct am_vdj_mode_s {
 	int flag;
