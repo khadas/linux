@@ -66,11 +66,20 @@
 #define MKL_USAGE_AES        (0)
 #define MKL_USAGE_TDES       (1)
 #define MKL_USAGE_DES        (2)
+#define MKL_USAGE_S17		 (3)
 #define MKL_USAGE_NDL        (7)
 #define MKL_USAGE_ND         (8)
 #define MKL_USAGE_CSA3       (9)
 #define MKL_USAGE_CSA2       (10)
 #define MKL_USAGE_HMAC       (13)
+
+/*bit 0~11: frobenious cycles*/
+/*bit 12: variant cryptography
+ *        0: variant 5
+ *        1: variant 6
+ */
+ /*variant: 6, frobenious cycles:0x5a5*/
+#define S17_CFG_DEFAULT     (0x15a5)
 
 #define HANDLE_TO_KTE(h) ((h) & (KTE_MAX - 1))
 struct key_table_s {
@@ -217,7 +226,7 @@ static int kt_alloc(u32 *handle, struct key_alloc *config)
 	return res;
 }
 
-static int kt_config(u32 handle, int key_userid, int key_algo)
+static int kt_config(u32 handle, int key_userid, int key_algo, unsigned int ext_value)
 {
 	int res = REE_SUCCESS;
 	int index;
@@ -289,6 +298,16 @@ static int kt_config(u32 handle, int key_userid, int key_algo)
 		case KEY_ALGO_ND:
 			key_table[index].key_algo = MKL_USAGE_ND;
 			break;
+		case KEY_ALGO_S17:
+			key_table[index].key_algo = MKL_USAGE_S17;
+			if (ext_value == 0) {
+				WRITE_CBUS_REG(KT_REE_S17_CONFIG, S17_CFG_DEFAULT);
+				dprint_i("def frobenius :0x%0x\n", S17_CFG_DEFAULT);
+			} else {
+				WRITE_CBUS_REG(KT_REE_S17_CONFIG, ext_value);
+				dprint_i("frobenius :0x%0x\n", ext_value);
+			}
+			break;
 		default:
 			dprint("%s, %d invalid algo\n",
 			       __func__, __LINE__);
@@ -306,6 +325,7 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 	int res = REE_SUCCESS;
 	u32 KT_KEY0, KT_KEY1, KT_KEY2, KT_KEY3;
 	u32 key0 = 0, key1 = 0, key2 = 0, key3 = 0;
+	u32 key4 = 0, key5 = 0, key6 = 0, key7 = 0;
 	int user_id = 0;
 	int algo = 0;
 	int en_decrypt = 0;
@@ -313,6 +333,7 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 	u32 kte;
 	u32 mode = KTE_MODE_HOST;
 	int i;
+	int fun_id;
 
 	kte = HANDLE_TO_KTE(handle);
 	index = find_kt_index(handle);
@@ -321,13 +342,13 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 		dprint("%s, handle:%#x index invalid\n", __func__, handle);
 		return -1;
 	}
-
+//{
 //	int i = 0;
 //	dprint_i("kte:%d, len:%d key:\n", kte, key_len);
 //	for (i = 0; i < key_len; i++)
 //		dprint_i("0x%0x ", key[i]);
 //	dprint_i("\n");
-
+//}
 	if (key_table[index].flag != KTE_VALID) {
 		dprint("%s, %d kte flag invalid\n", __func__, __LINE__);
 		return -1;
@@ -353,6 +374,15 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 		memcpy((void *)&key2, &key[8], 4);
 	if (key_len >= 16)
 		memcpy((void *)&key3, &key[12], 4);
+	if (key_len >= 20)
+		memcpy((void *)&key4, &key[16], 4);
+	if (key_len >= 24)
+		memcpy((void *)&key5, &key[20], 4);
+	if (key_len >= 28)
+		memcpy((void *)&key6, &key[24], 4);
+	if (key_len >= 32)
+		memcpy((void *)&key7, &key[28], 4);
+
 
 	user_id = key_table[index].key_userid;
 	if (user_id <= MKL_USER_CRYPTO_T5) {
@@ -379,12 +409,64 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 		}
 		usleep_range(10000, 15000);
 	}
+	if (algo == MKL_USAGE_S17) {
+		fun_id = 6;
+		WRITE_CBUS_REG(KT_KEY0, key0);
+		WRITE_CBUS_REG(KT_KEY1, key1);
+		WRITE_CBUS_REG(KT_KEY2, key2);
+		WRITE_CBUS_REG(KT_KEY3, key3);
+		WRITE_CBUS_REG(KT_REE_CFG, (KTE_PENDING << KTE_PENDING_OFFSET)
+			| (mode << KTE_MODE_OFFSET)
+			| (en_decrypt << KTE_FLAG_OFFSET)
+			| (algo << KTE_KEYALGO_OFFSET)
+			| (user_id << KTE_USERID_OFFSET)
+			| (kte << KTE_KTE_OFFSET)
+			| (0 << KTE_TEE_PRIV_OFFSET)
+			| (0 << KTE_LEVEL_OFFSET)
+			| fun_id);
+		i = 0;
+		do {
+			res = READ_CBUS_REG(KT_REE_CFG);
+			if (i++ > 800) {
+				dprint("KT_REE_CFG still pending. timed out\n");
+				WRITE_CBUS_REG(KT_REE_CFG, (0 << KTE_PENDING_OFFSET));
+				WRITE_CBUS_REG(KT_REE_RDY, 1);
+				return -1;
+			}
+			usleep_range(10000, 15000);
+		} while (res & (KTE_PENDING << KTE_PENDING_OFFSET));
 
-	WRITE_CBUS_REG(KT_KEY0, key0);
-	WRITE_CBUS_REG(KT_KEY1, key1);
-	WRITE_CBUS_REG(KT_KEY2, key2);
-	WRITE_CBUS_REG(KT_KEY3, key3);
-	WRITE_CBUS_REG(KT_REE_CFG, (KTE_PENDING << KTE_PENDING_OFFSET)
+		fun_id = 7;
+		WRITE_CBUS_REG(KT_KEY0, key4);
+		WRITE_CBUS_REG(KT_KEY1, key5);
+		WRITE_CBUS_REG(KT_KEY2, key6);
+		WRITE_CBUS_REG(KT_KEY3, key7);
+		WRITE_CBUS_REG(KT_REE_CFG, (KTE_PENDING << KTE_PENDING_OFFSET)
+			| (mode << KTE_MODE_OFFSET)
+			| (en_decrypt << KTE_FLAG_OFFSET)
+			| (algo << KTE_KEYALGO_OFFSET)
+			| (user_id << KTE_USERID_OFFSET)
+			| (kte << KTE_KTE_OFFSET)
+			| (0 << KTE_TEE_PRIV_OFFSET)
+			| (0 << KTE_LEVEL_OFFSET)
+			| fun_id);
+		i = 0;
+		do {
+			res = READ_CBUS_REG(KT_REE_CFG);
+			if (i++ > 800) {
+				dprint("KT_REE_CFG still pending. timed out\n");
+				WRITE_CBUS_REG(KT_REE_CFG, (0 << KTE_PENDING_OFFSET));
+				WRITE_CBUS_REG(KT_REE_RDY, 1);
+				return -1;
+			}
+			usleep_range(10000, 15000);
+		} while (res & (KTE_PENDING << KTE_PENDING_OFFSET));
+	} else {
+		WRITE_CBUS_REG(KT_KEY0, key0);
+		WRITE_CBUS_REG(KT_KEY1, key1);
+		WRITE_CBUS_REG(KT_KEY2, key2);
+		WRITE_CBUS_REG(KT_KEY3, key3);
+		WRITE_CBUS_REG(KT_REE_CFG, (KTE_PENDING << KTE_PENDING_OFFSET)
 			| (mode << KTE_MODE_OFFSET)
 			| (en_decrypt << KTE_FLAG_OFFSET)
 			| (algo << KTE_KEYALGO_OFFSET)
@@ -392,18 +474,18 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 			| (kte << KTE_KTE_OFFSET)
 			| (0 << KTE_TEE_PRIV_OFFSET)
 			| (0 << KTE_LEVEL_OFFSET));
-	i = 0;
-	do {
-		res = READ_CBUS_REG(KT_REE_CFG);
-		if (i++ > 800) {
-			dprint("KT_REE_CFG still pending. timed out\n");
-			WRITE_CBUS_REG(KT_REE_CFG, (0 << KTE_PENDING_OFFSET));
-			WRITE_CBUS_REG(KT_REE_RDY, 1);
-			return -1;
-		}
-		usleep_range(10000, 15000);
-	} while (res & (KTE_PENDING << KTE_PENDING_OFFSET));
-
+		i = 0;
+		do {
+			res = READ_CBUS_REG(KT_REE_CFG);
+			if (i++ > 800) {
+				dprint("KT_REE_CFG still pending. timed out\n");
+				WRITE_CBUS_REG(KT_REE_CFG, (0 << KTE_PENDING_OFFSET));
+				WRITE_CBUS_REG(KT_REE_RDY, 1);
+				return -1;
+			}
+			usleep_range(10000, 15000);
+		} while (res & (KTE_PENDING << KTE_PENDING_OFFSET));
+	};
 	pr_dbg("KT_CFG[0x%08x]=0x%08x\n", KT_REE_CFG, res);
 	WRITE_CBUS_REG(KT_REE_RDY, 1);
 	if (((res >> KTE_STATUS_OFFSET) & KTE_STATUS_MASK) == MKL_STS_OK) {
@@ -633,7 +715,7 @@ int dmx_key_do_ioctl(struct file *file, unsigned int cmd, void *parg)
 			struct key_config *config = parg;
 
 			if (kt_config(config->key_index,
-				config->key_userid, config->key_algo) == 0)
+				config->key_userid, config->key_algo, config->ext_value) == 0)
 				ret = 0;
 			break;
 		}

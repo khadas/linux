@@ -788,6 +788,10 @@ static char *get_algo_str(int algo)
 	case CA_ALGO_ASA_LIGHT:
 		str = "asa";
 		break;
+	case CA_ALGO_S17_ECB_CLR_END:
+	case CA_ALGO_S17_ECB_CTS:
+		str = "s17";
+		break;
 	default:
 		str = "none";
 		break;

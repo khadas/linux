@@ -39,7 +39,8 @@ enum key_algo {
 	KEY_ALGO_CSA2,
 	KEY_ALGO_CSA3,
 	KEY_ALGO_NDL,
-	KEY_ALGO_ND
+	KEY_ALGO_ND,
+	KEY_ALGO_S17
 };
 
 struct key_descr {
@@ -52,6 +53,8 @@ struct key_config {
 	unsigned int key_index;
 	int key_userid;
 	int key_algo;
+	//cur just for s17 algo
+	unsigned int ext_value;
 };
 
 struct key_alloc {

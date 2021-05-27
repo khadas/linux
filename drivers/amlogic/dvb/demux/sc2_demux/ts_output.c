@@ -778,7 +778,7 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 			return cur_es_bytes;
 	}
 
-	pheader->pts_dts_flag = last_header[2] & 0x3;
+	pheader->pts_dts_flag = last_header[2] & 0xF;
 	pheader->dts = last_header[3] & 0x1;
 	pheader->dts <<= 32;
 	pheader->dts |= last_header[11] << 24
@@ -816,17 +816,24 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 		return -1;
 
 	if (es_params->have_send_header == 0) {
-		pr_dbg("%s pdts_flag:%d, pts:0x%lx, dts:0x%lx, len:%d\n",
+		pr_dbg("%s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, len:%d\n",
 		       pout->type == AUDIO_TYPE ? "audio" : "video",
+			   pout->es_pes->pid,
+			   pout->sid,
 		       es_params->header.pts_dts_flag,
 		       (unsigned long)es_params->header.pts,
 		       (unsigned long)es_params->header.dts,
 		       es_params->header.len);
+
 		if (es_params->header.pts_dts_flag & 0x2)
 			pout->newest_pts = es_params->header.pts;
-		out_ts_cb_list(pout, (char *)&es_params->header, h_len,
-			(h_len + es_params->header.len),
-			&es_params->es_overflow);
+
+		if (!(es_params->header.pts_dts_flag & 0x4 ||
+			(es_params->header.pts_dts_flag & 0x8)))
+			out_ts_cb_list(pout, (char *)&es_params->header,
+				h_len,
+				(h_len + es_params->header.len),
+				&es_params->es_overflow);
 		es_params->have_send_header = 1;
 	}
 
@@ -835,7 +842,11 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 	if (ret) {
 		if (!es_params->es_overflow)
-			out_ts_cb_list(pout, ptmp, ret, 0, 0);
+			if (!(es_params->header.pts_dts_flag & 0x4 ||
+				(es_params->header.pts_dts_flag & 0x8)))
+				out_ts_cb_list(pout, ptmp, ret, 0, 0);
+			else
+				; //do nothing
 		else
 			pr_dbg("audio data lost\n");
 		if (((dump_audio_es & 0xFFFF)  == pout->es_pes->pid &&
@@ -862,7 +873,11 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 			ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 			if (ret) {
 				if (!es_params->es_overflow)
-					out_ts_cb_list(pout, ptmp, ret, 0, 0);
+					if (!(es_params->header.pts_dts_flag & 0x4 ||
+						(es_params->header.pts_dts_flag & 0x8)))
+						out_ts_cb_list(pout, ptmp, ret, 0, 0);
+					else
+						; //do nothing
 				else
 					pr_dbg("audio data lost\n");
 				if (pout->dump_file.file_fp)
@@ -1214,9 +1229,13 @@ static int write_aucpu_es_data(struct out_elem *pout,
 		       es_params->header.len);
 		if (es_params->header.pts_dts_flag & 0x2)
 			pout->newest_pts = es_params->header.pts;
-		out_ts_cb_list(pout, (char *)&es_params->header, h_len,
-			(h_len + es_params->header.len),
-			&es_params->es_overflow);
+
+		if (!(es_params->header.pts_dts_flag & 0x4 ||
+			(es_params->header.pts_dts_flag & 0x8)))
+			out_ts_cb_list(pout, (char *)&es_params->header,
+				h_len,
+				(h_len + es_params->header.len),
+				&es_params->es_overflow);
 		es_params->have_send_header = 1;
 	}
 
@@ -1225,7 +1244,11 @@ static int write_aucpu_es_data(struct out_elem *pout,
 	ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
 	if (ret) {
 		if (!es_params->es_overflow)
-			out_ts_cb_list(pout, ptmp, ret, 0, 0);
+			if (!(es_params->header.pts_dts_flag & 0x4 ||
+				(es_params->header.pts_dts_flag & 0x8)))
+				out_ts_cb_list(pout, ptmp, ret, 0, 0);
+			else
+				; //do nothing
 		else
 			pr_dbg("audio data lost\n");
 		if (((dump_audio_es & 0xFFFF)  == pout->es_pes->pid &&
@@ -1291,6 +1314,15 @@ static int write_aucpu_sec_es_data(struct out_elem *pout,
 	es_params->data_len += ret;
 	if (ret != len)
 		return -1;
+
+	/*s4/s4d, es header will add scb & pscp*/
+	if ((es_params->header.pts_dts_flag & 0x4) ||
+		(es_params->header.pts_dts_flag & 0x8)) {
+		pr_dbg("detect scb/pscp is 1, will discard the es\n");
+		es_params->data_start = 0;
+		es_params->data_len = 0;
+		return 0;
+	}
 
 	memset(&sec_es_data, 0, sizeof(struct dmx_sec_es_data));
 	sec_es_data.pts_dts_flag = es_params->header.pts_dts_flag;
@@ -1470,6 +1502,7 @@ static int write_sec_video_es_data(struct out_elem *pout,
 
 	if (es_params->header.pts_dts_flag & 0x2)
 		pout->newest_pts = sec_es_data.pts;
+
 	out_ts_cb_list(pout, (char *)&sec_es_data,
 			sizeof(struct dmx_sec_es_data), 0, 0);
 
