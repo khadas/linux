@@ -11056,7 +11056,6 @@ static void osd_setting_viux(u32 output_index)
 		osd_rdma_rd_op rdma_rd = rdma_func->osd_rdma_rd;
 		osd_rdma_wr_op rdma_wr = rdma_func->osd_rdma_wr;
 		osd_rdma_wr_bits_op rdma_wr_bits = rdma_func->osd_rdma_wr_bits;
-		int free_scaler_reg = VPP_OSD3_SCALE_CTRL;
 
 		/* enable free_scale */
 		osd_hw.free_scale_enable[index] = 0x10001;
@@ -11162,25 +11161,13 @@ static void osd_setting_viux(u32 output_index)
 					     0x0, 28, 1);
 		}
 
-		/* bypass free_scaler */
-		switch (index) {
-		case OSD1:
-			free_scaler_reg = VPP_OSD1_SCALE_CTRL;
-			break;
-		case OSD2:
-			free_scaler_reg = VPP_OSD2_SCALE_CTRL;
-			break;
-		case OSD3:
-			free_scaler_reg = VPP_OSD3_SCALE_CTRL;
-			break;
-		case OSD4:
-			free_scaler_reg = VPP_OSD4_SCALE_CTRL;
-			break;
-		default:
-			osd_log_err("osd%d bypass free_scaler error\n", index);
-			break;
+		/* bypass free_scaler & osd_blend */
+		if (osd_dev_hw.path_ctrl_independ) {
+			rdma_wr_bits(VIU_OSD1_PATH_CTRL + index, 0x1, 4, 1);
+			rdma_wr_bits(VIU_OSD1_PATH_CTRL + index, 0x1, 0, 1);
+		} else {
+			rdma_wr_bits(VPP_OSD1_SCALE_CTRL + index, 0x7, 0, 3);
 		}
-		rdma_wr_bits(free_scaler_reg, 0x7, 0, 3);
 
 		/* hdr in size */
 		set_osd_hdr_size_in(index, width, height);

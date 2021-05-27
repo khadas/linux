@@ -4632,8 +4632,13 @@ static void config_osd_table(u32 display_device_cnt)
 			osd_hw.viu_osd_table[VIU1] = OSD_TABLE_1;
 			break;
 		case 2:
-			osd_hw.viu_osd_table[VIU1] = OSD_TABLE_2_1;
-			osd_hw.viu_osd_table[VIU2] = OSD_TABLE_2_2;
+			if (osd_meson_dev.osd_count == 3) {
+				osd_hw.viu_osd_table[VIU1] = OSD_TABLE_3_1;
+				osd_hw.viu_osd_table[VIU2] = OSD_TABLE_3_2;
+			} else {
+				osd_hw.viu_osd_table[VIU1] = OSD_TABLE_2_1;
+				osd_hw.viu_osd_table[VIU2] = OSD_TABLE_2_2;
+			}
 			break;
 		case 3:
 			osd_hw.viu_osd_table[VIU1] = OSD_TABLE_3_1;
