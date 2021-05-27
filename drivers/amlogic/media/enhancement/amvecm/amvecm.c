@@ -4496,7 +4496,8 @@ static ssize_t amvecm_set_post_matrix_show(struct class *cla,
 	pr_info("36 : osd2 output\n");
 	pr_info("40 : postblend output\n");
 	pr_info("48: osd1 output\n");
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7)) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
+	    !is_meson_s4d_cpu() && !is_meson_s4_cpu()) {
 		val = READ_VPP_REG(VPP_PROBE_CTRL);
 		pr_info("current setting: %d\n", val & 0x3f);
 	} else {
@@ -4515,7 +4516,8 @@ static ssize_t amvecm_set_post_matrix_store(struct class *cla,
 
 	if (kstrtoint(buf, 10, &val) < 0)
 		return -EINVAL;
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7)) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
+	    !is_meson_s4d_cpu() && !is_meson_s4_cpu()) {
 		reg_val = READ_VPP_REG(VPP_PROBE_CTRL);
 		reg_val = reg_val & 0xffffffc0;
 		reg_val |= 0x10000;
@@ -4548,7 +4550,8 @@ static ssize_t amvecm_post_matrix_pos_show(struct class *cla,
 	pr_info("Usage:\n");
 	pr_info("echo x y > /sys/class/amvecm/matrix_pos\n");
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
+	    !is_meson_s4d_cpu() && !is_meson_s4_cpu())
 		val = READ_VPP_REG(VPP_PROBE_POS);
 	else
 		val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
@@ -4582,14 +4585,16 @@ static ssize_t amvecm_post_matrix_pos_store(struct class *cla,
 	val_x = val_x & 0x1fff;
 	val_y = val_y & 0x1fff;
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
+	    !is_meson_s4d_cpu() && !is_meson_s4_cpu())
 		reg_val = READ_VPP_REG(VPP_PROBE_POS);
 	else
 		reg_val = READ_VPP_REG(VPP_MATRIX_PROBE_POS);
 	reg_val = reg_val & 0xe000e000;
 	reg_val = reg_val | (val_x << 16) | val_y;
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
+	    !is_meson_s4d_cpu() && !is_meson_s4_cpu())
 		WRITE_VPP_REG(VPP_PROBE_POS, reg_val);
 	else
 		WRITE_VPP_REG(VPP_MATRIX_PROBE_POS, reg_val);
@@ -4604,7 +4609,8 @@ static ssize_t amvecm_post_matrix_data_show(struct class *cla,
 {
 	int len = 0, val1 = 0, val2 = 0;
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) &&
+	    !is_meson_s4d_cpu() && !is_meson_s4_cpu())
 		val1 = READ_VPP_REG(VPP_PROBE_COLOR);
 	else
 		val1 = READ_VPP_REG(VPP_MATRIX_PROBE_COLOR);
