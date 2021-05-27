@@ -2468,3 +2468,136 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 	return 0;
 }
 EXPORT_SYMBOL(dv_pq_ctl);
+
+int mtx_mul_mtx(int (*mtx_a)[3], int (*mtx_b)[3], int (*mtx_out)[3])
+{
+	int i, j, k;
+
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 3; j++) {
+			mtx_out[i][j] = 0;
+			for (k = 0; k < 3; k++)
+				mtx_out[i][j] += mtx_a[i][k] * mtx_b[k][j];
+		}
+	}
+
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 3; j++)
+			mtx_out[i][j] = (mtx_out[i][j] + (1 << 9)) >> 10;
+	}
+
+	return 0;
+}
+
+int mtx_multi(int *rgb, int (*mtx_out)[3])
+{
+	int i, j;
+	int mtx_rgb[3][3] = {0};
+	int mtx_in[3][3] = {0};
+	int mtx_rgbto709l[3][3] = {
+		{187, 629, 63},
+		{-103, -346, 450},
+		{450, -409, -41},
+	};
+	int mtx_709ltorgb[3][3] = {
+		{1192, 0, 1836},
+		{1192, -218, -547},
+		{1192, 2166, 0},
+	};
+
+	mtx_in[0][0] = rgb[0];
+	mtx_in[1][1] = rgb[1];
+	mtx_in[2][2] = rgb[2];
+
+	if (mtx_in[0][0] == 0x400 &&
+		mtx_in[1][1] == 0x400 &&
+		mtx_in[2][2] == 0x400) {
+		for (i = 0; i < 3; i++) {
+			for (j = 0; j < 3; j++) {
+				if (i == j)
+					mtx_out[i][j] = 0x400;
+				else
+					mtx_out[i][j] = 0;
+			}
+		}
+
+	} else {
+		mtx_mul_mtx(mtx_in, mtx_709ltorgb, mtx_rgb);
+		mtx_mul_mtx(mtx_rgbto709l, mtx_rgb, mtx_out);
+	}
+
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 3; j++)
+			pr_amve_dbg("mtx_out[%d][%d] = 0x%x\n",
+			i, j, mtx_out[i][j]);
+	}
+	return 0;
+}
+
+void eye_proc(int *rgb, int mtx_on)
+{
+	unsigned int matrix_coef00_01 = 0;
+	unsigned int matrix_coef02_10 = 0;
+	unsigned int matrix_coef11_12 = 0;
+	unsigned int matrix_coef20_21 = 0;
+	unsigned int matrix_coef22 = 0;
+	unsigned int matrix_coef13_14 = 0;
+	unsigned int matrix_coef23_24 = 0;
+	unsigned int matrix_coef15_25 = 0;
+	unsigned int matrix_clip = 0;
+	unsigned int matrix_offset0_1 = 0;
+	unsigned int matrix_offset2 = 0;
+	unsigned int matrix_pre_offset0_1 = 0;
+	unsigned int matrix_pre_offset2 = 0;
+	unsigned int matrix_en_ctrl = 0;
+	int mtx_out[3][3] = {0};
+	int pre_offset[3] = {
+		-64, -512, -512
+	};
+
+	int offset[3] = {
+		64, 512, 512
+	};
+	struct vinfo_s *vinfo = get_current_vinfo();
+
+	if (vinfo->mode == VMODE_LCD)
+		return;
+
+	matrix_coef00_01 = VPP_POST2_MATRIX_COEF00_01;
+	matrix_coef02_10 = VPP_POST2_MATRIX_COEF02_10;
+	matrix_coef11_12 = VPP_POST2_MATRIX_COEF11_12;
+	matrix_coef20_21 = VPP_POST2_MATRIX_COEF20_21;
+	matrix_coef22 = VPP_POST2_MATRIX_COEF22;
+	matrix_coef13_14 = VPP_POST2_MATRIX_COEF13_14;
+	matrix_coef23_24 = VPP_POST2_MATRIX_COEF23_24;
+	matrix_coef15_25 = VPP_POST2_MATRIX_COEF15_25;
+	matrix_clip = VPP_POST2_MATRIX_CLIP;
+	matrix_offset0_1 = VPP_POST2_MATRIX_OFFSET0_1;
+	matrix_offset2 = VPP_POST2_MATRIX_OFFSET2;
+	matrix_pre_offset0_1 = VPP_POST2_MATRIX_PRE_OFFSET0_1;
+	matrix_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2;
+	matrix_en_ctrl = VPP_POST2_MATRIX_EN_CTRL;
+
+	VSYNC_WRITE_VPP_REG_BITS(VPP_POST2_MATRIX_EN_CTRL, mtx_on, 0, 1);
+
+	if (!mtx_on)
+		return;
+
+	mtx_multi(rgb, mtx_out);
+	VSYNC_WRITE_VPP_REG(matrix_coef00_01,
+		((mtx_out[0][0] & 0x1fff) << 16) | (mtx_out[0][1] & 0x1fff));
+	VSYNC_WRITE_VPP_REG(matrix_coef02_10,
+		((mtx_out[0][2] & 0x1fff) << 16) | (mtx_out[1][0] & 0x1fff));
+	VSYNC_WRITE_VPP_REG(matrix_coef11_12,
+		((mtx_out[1][1] & 0x1fff) << 16) | (mtx_out[1][2] & 0x1fff));
+	VSYNC_WRITE_VPP_REG(matrix_coef20_21,
+		((mtx_out[2][0] & 0x1fff) << 16) | (mtx_out[2][1] & 0x1fff));
+	VSYNC_WRITE_VPP_REG(matrix_coef22, (mtx_out[2][2] & 0x1fff));
+	VSYNC_WRITE_VPP_REG(matrix_offset0_1,
+		((offset[0] & 0x7ff) << 16) | (offset[1] & 0x7ff));
+	VSYNC_WRITE_VPP_REG(matrix_offset2, (offset[2] & 0x7ff));
+	VSYNC_WRITE_VPP_REG(matrix_pre_offset0_1,
+		((pre_offset[0] & 0x7ff) << 16) | (pre_offset[1] & 0x7ff));
+	VSYNC_WRITE_VPP_REG(matrix_pre_offset2, (pre_offset[2] & 0x7ff));
+}
+
