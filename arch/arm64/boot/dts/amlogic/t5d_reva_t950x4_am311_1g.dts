@@ -227,7 +227,7 @@
 		en_4k = <0>;
 		keep_dec_vf = <0>;
 		po_fmt = <0>;
-		post_nub = <11>;
+		post_nub = <9>;
 		//memory-region = <&di_reserved>;
 		memory-region = <&di_cma_reserved>;
 		interrupts = <0 46 1
