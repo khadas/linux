@@ -53,9 +53,10 @@
 		dsp_fw_reserved:linux,dsp_fw {
 			compatible = "shared-dma-pool";
 			reusable;
+			/* for sync of dsp fw, fix it to 0x30000000*/
 			size = <0x0 0x00400000>;
 			alignment = <0x0 0x00400000>;
-			alloc-ranges = <0x0 0x30800000 0x0 0x0f800000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x00400000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -64,7 +65,7 @@
 			/* keep sync with fb, fox example:logo_addr = "0x30000000"*/
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x30000000 0x0 0x800000>;
+			alloc-ranges = <0x0 0x3f800000 0x0 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
@@ -73,7 +74,7 @@
 			/* alloc-ranges start should not be 0x0*/
 			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x30800000 0x0 0x0f800000>;
+			alloc-ranges = <0x0 0x30400000 0x0 0x0f400000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -917,7 +918,7 @@
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000>;
-	logo_addr = "0x30000000";
+	logo_addr = "0x3f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
