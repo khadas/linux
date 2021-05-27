@@ -6,6 +6,7 @@
 #ifndef _KEY_REG_H_
 #define _KEY_REG_H_
 
+#define KT_REE_S17_CONFIG                          0x442408
 #define KT_REE_RDY                                 ((0x0020  << 2) + 0x440500)
 #define KT_REE_RDY2                                ((0x0021  << 2) + 0x440500)
 #define KT_REE_CFG                                 ((0x0022  << 2) + 0x440500)
