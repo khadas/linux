@@ -55,10 +55,12 @@ int lcd_extern_i2c_write(struct i2c_client *i2client,
 	msg.buf = buff;
 
 	ret = i2c_transfer(i2client->adapter, &msg, 1);
-	if (ret < 0)
+	if (ret < 0) {
 		EXTERR("i2c write failed [addr 0x%02x]\n", i2client->addr);
+		return -1;
+	}
 
-	return ret;
+	return 0;
 }
 
 int lcd_extern_i2c_read(struct i2c_client *i2client,
@@ -85,9 +87,10 @@ int lcd_extern_i2c_read(struct i2c_client *i2client,
 	if (ret < 0) {
 		EXTERR("%s: i2c transfer failed [addr 0x%02x]\n",
 		       __func__, i2client->addr);
+		return -1;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int lcd_extern_i2c_config_from_dts(struct device *dev,
