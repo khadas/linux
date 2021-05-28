@@ -1418,6 +1418,7 @@ static bool tv_backlight_changed;
 static bool tv_backlight_force_update;
 static int force_disable_dv_backlight;
 static bool dv_control_backlight_status;
+static bool use_12b_bl = true;/*12bit backlight interface*/
 static bool enable_vpu_probe;
 static bool bypass_all_vpp_pq;
 static int use_target_lum_from_cfg;
@@ -11353,15 +11354,19 @@ EXPORT_SYMBOL(get_dolby_vision_hdr_policy);
 void dolby_vision_update_backlight(void)
 {
 #ifdef CONFIG_AMLOGIC_LCD
+	u32 new_bl = 0;
+
 	if (is_meson_tvmode()) {
 		if (!force_disable_dv_backlight) {
 			bl_delay_cnt++;
 			if (tv_backlight_changed &&
 			    set_backlight_delay_vsync == bl_delay_cnt) {
-				pr_dolby_dbg("dv set backlight %d\n", tv_backlight);
+				new_bl = use_12b_bl ? tv_backlight << 4 :
+					tv_backlight;
+				pr_dolby_dbg("dv set backlight %d\n", new_bl);
 				aml_lcd_atomic_notifier_call_chain
 					(LCD_EVENT_BACKLIGHT_GD_DIM,
-					 &tv_backlight);
+					 &new_bl);
 				tv_backlight_changed = false;
 			}
 		}
