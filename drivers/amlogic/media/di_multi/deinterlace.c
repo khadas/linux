@@ -5891,6 +5891,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 
 		di_buf = di_que_out_to_di_buf(channel, QUE_IN_FREE);
 		di_buf->dec_vf_state = 0;	/*dec vf keep*/
+		di_buf->is_eos = 0;
 		if (dim_check_di_buf(di_buf, 10, channel))
 			return 16;
 
@@ -6220,13 +6221,14 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 					VIDTYPE_INTERLACE_TOP;
 				di_buf->post_proc_flag = 0;
 
-		di_buf_tmp = di_que_out_to_di_buf(channel, QUE_IN_FREE);
-		if (dim_check_di_buf(di_buf_tmp, 10, channel)) {
-			recycle_vframe_type_pre(di_buf, channel);
-			PR_ERR("DI:no free in_buffer for progressive skip.\n");
+				di_buf_tmp = di_que_out_to_di_buf(channel, QUE_IN_FREE);
+				if (dim_check_di_buf(di_buf_tmp, 10, channel)) {
+					recycle_vframe_type_pre(di_buf, channel);
+					PR_ERR("DI:no free in_buffer for progressive skip.\n");
 					return 18;
-		}
+				}
 
+				di_buf_tmp->is_eos = 0;
 				di_buf_tmp->vframe->private_data = di_buf_tmp;
 				di_buf_tmp->seq = ppre->in_seq;
 				ppre->in_seq++;
