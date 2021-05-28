@@ -90,20 +90,29 @@ sub check_defconfig
 sub dts_check
 {
 	my $dts_diff = "";
-	my $diff = `git diff HEAD^ --name-only | grep -E '*dts'`;
+	my $diff = `git diff HEAD^ --name-only | grep  -E '*dts\$'`;
 	my $all_dts = `find $arm64_dts -name "*dts"`;
 	my @diff_str = split /[\n]/, $diff;
 	my @all_dts_str = split /[\n]/, $all_dts;
 	my $diff_count = 0;
 	my $all_dts_count = 0;
 	my $count = 0;
+	my $i = 0;
+	my $t = 0;
+	my $q = 0;
+	my $temp = "";
+	my @arry = ("");
+	my @arry1 = ("");
+	my @arry2 = ("");
 	for (@diff_str)
 	{
 		$re = $_;
 		if ($re=~m/^(.*?)\_/)
 		{
-		$dts_diff = $1;
-		$dts_diff = $dts_diff."_";
+			$dts_diff = $1;
+			$dts_diff =~ /$arm64_dts/;
+			$temp=$';
+			$dts_diff = $dts_diff."_";
 		}
 		if (!($_ =~ "pxp.dts"))
 		{
@@ -111,14 +120,21 @@ sub dts_check
 			{
 				if ($_ =~ $dts_diff)
 				{
-					$diff_count=$diff_count+1;
+					$_ =~ /$arm64_dts/;
+					$arry1->[$diff_count] = $';
+					$diff_count = $diff_count+1;
 				}
 			}
 			for (@all_dts_str)
 			{
-				if ($_ =~ $dts_diff)
+				if (!($_ =~ "pxp.dts"))
 				{
-					$all_dts_count=$all_dts_count+1;
+					if ($_ =~ $dts_diff)
+					{
+						$all_dts_count=$all_dts_count+1;
+						$_ =~ /$arm64_dts/;
+						$arry->[$all_dts_count] = $';
+					}
 				}
 			}
 		}
@@ -126,13 +142,40 @@ sub dts_check
 		{
 			$count=$count+1;
 		}
-		$diff_count=0;
-		$all_dts_count=0;
-	}
-	if ($count != 0)
-	{
+		while ($q<$t)
+		{
+			if ($arry2->[$q] =~ $temp)
+			{
+				$count=0;
+			}
+			$q=$q+1;
+		}
+		if ($count != 0)
+		{
 		$err_cnt += 1;
-		$err_msg .= "	$err_cnt: Solution:\n	please check dts the board is all changed? \n";
+		$err_msg .= "	$err_cnt:You are modifying the board $temp DTS file \n";
+		$err_msg .= "	  You have modified dts is ";
+		while($diff_count > 0)
+		{
+			$err_msg .= "$arry1->[$diff_count-1] ";
+			$diff_count=$diff_count-1;
+		}
+		$err_msg .= "\n";
+		$err_msg .= "	  Please confirm should you modify other boards too? ";
+		while( $i < $all_dts_count )
+		{
+			$err_msg .= "$arry->[$i+1] ";
+			$i = $i+1;
+		}
+		$err_msg .= "\n";
+		$i = 0;
+		$count = 0;
+		$diff_count = 0;
+		$all_dts_count = 0;
+		$arry2->[$t]=$temp;
+		$t=$t+1;
+		$q=0;
+		}
 	}
 }
 
