@@ -1405,7 +1405,7 @@
 	/*backlight*/
 	bl_pwm_vs_on_pins:bl_pwm_vs_on_pin {
 		mux {
-			groups = "pwm_d_h12";
+			groups = "pwm_vs_h12";
 			function = "pwm_vs";
 		};
 	};
