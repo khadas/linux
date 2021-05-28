@@ -2058,7 +2058,8 @@ static bool enable_fel;
 static u32 tv_backlight;
 static bool tv_backlight_changed;
 static bool tv_backlight_force_update;
-
+static int force_disable_dv_backlight;
+static bool dv_control_backlight_status;
 static bool enable_vpu_probe;
 static bool bypass_all_vpp_pq;
 
@@ -6291,11 +6292,12 @@ void enable_dolby_vision(int enable)
 			hdr_vd1_off();
 		}
 		/*dv release control of pwm*/
-		if (is_meson_tm2_tvmode()) {
+		if (is_meson_tvmode()) {
 			gd_en = 0;
 #ifdef CONFIG_AMLOGIC_LCD
 			aml_lcd_atomic_notifier_call_chain
 			(LCD_EVENT_BACKLIGHT_DV_SEL, &gd_en);
+			dv_control_backlight_status = false;
 #endif
 		}
 	}
@@ -6809,11 +6811,15 @@ static void update_pwm_control(void)
 			     dolby_vision_src_format, gd_en, tv_backlight);
 
 #ifdef CONFIG_AMLOGIC_LCD
-		aml_lcd_atomic_notifier_call_chain
-		(LCD_EVENT_BACKLIGHT_DV_SEL, &gd_en);
+		if (!force_disable_dv_backlight) {
+			aml_lcd_atomic_notifier_call_chain
+			(LCD_EVENT_BACKLIGHT_DV_SEL, &gd_en);
+			dv_control_backlight_status = gd_en > 0 ? true : false;
+			if (gd_en)
+				tv_backlight_force_update = true;
+		}
 #endif
-		if (gd_en)
-			tv_backlight_force_update = true;
+
 	}
 }
 
@@ -11927,6 +11933,12 @@ void dolby_vision_set_toggle_flag(int flag)
 }
 EXPORT_SYMBOL(dolby_vision_set_toggle_flag);
 
+bool is_dv_control_backlight(void)
+{
+	return dv_control_backlight_status;
+}
+EXPORT_SYMBOL(is_dv_control_backlight);
+
 void set_dolby_vision_mode(int mode)
 {
 	if ((is_meson_box() || is_meson_txlx() || is_meson_tm2() || is_meson_t7() ||
@@ -12021,21 +12033,38 @@ EXPORT_SYMBOL(get_dolby_vision_hdr_policy);
 
 void dolby_vision_update_backlight(void)
 {
-	if (is_meson_tvmode()) {
-		bl_delay_cnt++;
-		if (tv_backlight_changed &&
-		    set_backlight_delay_vsync == bl_delay_cnt) {
-			pr_dolby_dbg("dv set backlight %d\n", tv_backlight);
 #ifdef CONFIG_AMLOGIC_LCD
-			aml_lcd_atomic_notifier_call_chain
-				(LCD_EVENT_BACKLIGHT_DV_DIM,
-				 &tv_backlight);
-#endif
-			tv_backlight_changed = false;
+	if (is_meson_tvmode()) {
+		if (!force_disable_dv_backlight) {
+			bl_delay_cnt++;
+			if (tv_backlight_changed &&
+			    set_backlight_delay_vsync == bl_delay_cnt) {
+				pr_dolby_dbg("dv set backlight %d\n", tv_backlight);
+				aml_lcd_atomic_notifier_call_chain
+					(LCD_EVENT_BACKLIGHT_DV_DIM,
+					 &tv_backlight);
+				tv_backlight_changed = false;
+			}
 		}
 	}
+#endif
 }
 EXPORT_SYMBOL(dolby_vision_update_backlight);
+
+void dolby_vision_disable_backlight(void)
+{
+#ifdef CONFIG_AMLOGIC_LCD
+	int gd_en = 0;
+
+	pr_dolby_dbg("disable dv backlight\n");
+
+	if (is_meson_tvmode()) {
+		aml_lcd_atomic_notifier_call_chain
+		(LCD_EVENT_BACKLIGHT_DV_SEL, &gd_en);
+		dv_control_backlight_status = false;
+	}
+#endif
+}
 
 static unsigned long __invoke_psci_fn_smc(unsigned long function_id,
 			unsigned long arg0, unsigned long arg1,
@@ -13863,6 +13892,18 @@ static long amdolby_vision_ioctl(struct file *file,
 			ret = -EFAULT;
 		}
 		break;
+	case DV_IOC_CONFIG_DV_BL:
+		if (copy_from_user(&force_disable_dv_backlight, argp, sizeof(s32)) == 0) {
+			if (debug_dolby & 0x200)
+				pr_info("[DV]: disable dv bl %d\n", force_disable_dv_backlight);
+			if (force_disable_dv_backlight)
+				dolby_vision_disable_backlight();
+			else
+				update_pwm_control();
+		} else {
+			ret = -EFAULT;
+		}
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -14191,6 +14232,36 @@ static ssize_t amdolby_vision_gd_rf_adjust_store
 	r = kstrtoint(buf, 0, &gd_rf_adjust);
 	if (r != 0)
 		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t	amdolby_vision_force_disable_bl_show
+	(struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "force disable dv bl: %d\n", force_disable_dv_backlight);
+}
+
+static ssize_t amdolby_vision_force_disable_bl_store
+	(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	size_t r;
+
+	if (!buf)
+		return count;
+
+	r = kstrtoint(buf, 0, &force_disable_dv_backlight);
+	if (r != 0)
+		return -EINVAL;
+
+	pr_info("update force_disable_dv_backlight to %d\n", force_disable_dv_backlight);
+	if (force_disable_dv_backlight)
+		dolby_vision_disable_backlight();
+	else
+		update_pwm_control();
 
 	return count;
 }
@@ -14688,6 +14759,9 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(cur_crc, 0644,
 	       amdolby_vision_crc_show,
 	       NULL),
+	__ATTR(force_disable_dv_backlight, 0644,
+	       amdolby_vision_force_disable_bl_show,
+	       amdolby_vision_force_disable_bl_store),
 	__ATTR_NULL
 };
 

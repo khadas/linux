@@ -114,6 +114,9 @@ struct dv_config_file_s {
 /* set Amlogic_cfg.txt and dv_config.bin dir */
 #define DV_IOC_SET_DV_CONFIG_FILE _IOW((DV_M), 0x9, struct dv_config_file_s)
 
+/*1: disable dv GD, 0: restore dv GD*/
+#define DV_IOC_CONFIG_DV_BL _IOW((DV_M), 0xa, int)
+
 #define DV_SEI 0x01000000
 #define DV_AV1_SEI 0x14000000
 #define HDR10P 0x02000000
@@ -190,4 +193,5 @@ int parse_sei_and_meta_ext
 	 char *md_buf,
 	 char *comp_buf);
 void dolby_vision_clear_buf(void);
+bool is_dv_control_backlight(void);
 #endif
