@@ -627,6 +627,7 @@ extern struct vpp_frame_par_s *curpip_frame_par;
 extern struct vpp_frame_par_s *curpip2_frame_par;
 extern struct video_layer_s vd_layer_vpp[2];
 extern u32 force_switch_vf_mode;
+extern u32 video_info_change_status;
 
 bool black_threshold_check(u8 id);
 extern atomic_t primary_src_fmt;

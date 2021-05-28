@@ -33,6 +33,7 @@
 #include <linux/amlogic/media/utils/amlog.h>
 #include <linux/amlogic/media/registers/register.h>
 #include <linux/amlogic/media/utils/vdec_reg.h>
+#include <linux/amlogic/media/video_sink/video_signal_notify.h>
 
 #include "video_priv.h"
 
@@ -661,6 +662,9 @@ module_param(force_vskip_cnt, uint, 0664);
 static unsigned int disable_adapted;
 MODULE_PARM_DESC(disable_adapted, "disable_adapted");
 module_param(disable_adapted, uint, 0664);
+
+static u32 cur_nnhf_input_w;
+static u32 cur_nnhf_input_h;
 
 #define ZOOM_BITS       18
 #define PHASE_BITS      8
@@ -3023,6 +3027,9 @@ static void vpp_set_super_scaler
 				next_frame_par->VPP_vsc_endp -
 				next_frame_par->VPP_vsc_startp + 1;
 		}
+		if (cur_nnhf_input_w != next_frame_par->cm_input_w ||
+		    cur_nnhf_input_h != next_frame_par->cm_input_h)
+			video_info_change_status |= VIDEO_SIZE_CHANGE_EVENT;
 		next_frame_par->nnhf_input_w = next_frame_par->cm_input_w;
 		next_frame_par->nnhf_input_h = next_frame_par->cm_input_h;
 	} else if (sr->core_support == ONLY_CORE0) {
@@ -3115,7 +3122,8 @@ static void vpp_set_super_scaler
 				next_frame_par->VPP_vsc_startp + 1;
 		}
 	}
-
+	cur_nnhf_input_w = next_frame_par->nnhf_input_w;
+	cur_nnhf_input_h = next_frame_par->nnhf_input_h;
 	if (super_debug && (vpp_flags & VPP_FLAG_MORE_LOG)) {
 		pr_info("layer0: spsc0_w_in=%u, spsc0_h_in=%u, spsc1_w_in=%u, spsc1_h_in=%u.\n",
 			next_frame_par->spsc0_w_in, next_frame_par->spsc0_h_in,

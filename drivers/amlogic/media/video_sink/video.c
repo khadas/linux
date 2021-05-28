@@ -1738,7 +1738,7 @@ atomic_t cur_primary_src_fmt =
 	ATOMIC_INIT(VFRAME_SIGNAL_FMT_INVALID);
 
 u32 video_prop_status;
-
+u32 video_info_change_status;
 u32 force_switch_vf_mode;
 
 #define CONFIG_AM_VOUT
@@ -8185,6 +8185,17 @@ exit:
 		atomic_set(&video_prop_change, video_prop_status);
 		video_prop_status = VIDEO_PROP_CHANGE_NONE;
 		wake_up_interruptible(&amvideo_prop_change_wait);
+	}
+	if (video_info_change_status) {
+		struct vd_info_s vd_info;
+
+		if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
+			pr_info("VD1 send event to frc, changed status: 0x%x\n",
+				video_info_change_status);
+		vd_info.flags = video_info_change_status;
+		vd_signal_notifier_call_chain(VIDEO_INFO_CHANGED,
+					      &vd_info);
+		video_info_change_status = VIDEO_INFO_CHANGE_NONE;
 	}
 	vpu_work_process();
 	vpp_crc_result = vpp_crc_check(vpp_crc_en, VPP0);

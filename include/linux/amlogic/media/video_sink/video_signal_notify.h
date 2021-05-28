@@ -10,6 +10,11 @@
 
 #define VIDEO_SIGNAL_TYPE_CHANGED   0x0001
 #define VIDEO_SECURE_TYPE_CHANGED   0x0002
+#define VIDEO_INFO_CHANGED          0x0003
+
+/* video info event flags */
+#define VIDEO_INFO_CHANGE_NONE      0x0000
+#define VIDEO_SIZE_CHANGE_EVENT     0x0001
 
 enum vd_format_e {
 	SIGNAL_INVALID = -1,
@@ -24,6 +29,11 @@ struct vd_signal_info_s {
 	enum vd_format_e signal_type;
 	enum vd_format_e vd1_signal_type;
 	enum vd_format_e vd2_signal_type;
+	u32 reversed;
+};
+
+struct vd_info_s {
+	u32 flags;
 	u32 reversed;
 };
 
