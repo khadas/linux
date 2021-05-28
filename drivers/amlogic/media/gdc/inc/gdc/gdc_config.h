@@ -24,7 +24,8 @@ struct gdc_context_s;
 
 enum {
 	CORE_AXI,
-	MUXGATE_MUXSEL_GATE
+	MUXGATE_MUXSEL_GATE,
+	GATE
 };
 
 struct gdc_device_data_s {

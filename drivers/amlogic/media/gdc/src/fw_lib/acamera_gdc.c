@@ -577,14 +577,16 @@ int gdc_pwr_config(bool enable, u32 dev_type)
 		if (clk_type == CORE_AXI) {
 			clk_prepare_enable(gdc_dev->clk_core);
 			clk_prepare_enable(gdc_dev->clk_axi);
-		} else if (clk_type == MUXGATE_MUXSEL_GATE) {
+		} else if (clk_type == MUXGATE_MUXSEL_GATE ||
+			   clk_type == GATE) {
 			clk_prepare_enable(gdc_dev->clk_gate);
 		}
 	} else {
 		if (clk_type == CORE_AXI) {
 			clk_disable_unprepare(gdc_dev->clk_core);
 			clk_disable_unprepare(gdc_dev->clk_axi);
-		} else if (clk_type == MUXGATE_MUXSEL_GATE) {
+		} else if (clk_type == MUXGATE_MUXSEL_GATE ||
+			   clk_type == GATE) {
 			clk_disable_unprepare(gdc_dev->clk_gate);
 		}
 	}

@@ -60,6 +60,11 @@ static struct gdc_device_data_s aml_gdc = {
 	.clk_type = MUXGATE_MUXSEL_GATE,
 };
 
+static struct gdc_device_data_s aml_gdc_v2 = {
+	.dev_type = AML_GDC,
+	.clk_type = GATE
+};
+
 static const struct of_device_id gdc_dt_match[] = {
 	{.compatible = "amlogic, g12b-gdc", .data = &arm_gdc_clk2},
 	{.compatible = "amlogic, arm-gdc",  .data = &arm_gdc},
@@ -69,6 +74,7 @@ MODULE_DEVICE_TABLE(of, gdc_dt_match);
 
 static const struct of_device_id amlgdc_dt_match[] = {
 	{.compatible = "amlogic, aml-gdc",  .data = &aml_gdc},
+	{.compatible = "amlogic, aml-gdc-v2",  .data = &aml_gdc_v2},
 	{} };
 
 MODULE_DEVICE_TABLE(of, amlgdc_dt_match);
@@ -2009,6 +2015,18 @@ static int gdc_platform_probe(struct platform_device *pdev)
 
 		clk_set_parent(mux_sel, mux_gate);
 
+		/* clk_gate */
+		gdc_dev->clk_gate = devm_clk_get(&pdev->dev, "clk_gate");
+		if (IS_ERR(gdc_dev->clk_gate)) {
+			gdc_log(LOG_ERR, "cannot get gdc clk_gate\n");
+		} else {
+			clk_set_rate(gdc_dev->clk_gate, clk_rate);
+			clk_prepare_enable(gdc_dev->clk_gate);
+			rc = clk_get_rate(gdc_dev->clk_gate);
+			gdc_log(LOG_INFO, "%s clk_gate is %d MHZ\n",
+				drv_name, rc / 1000000);
+		}
+	} else if (gdc_data->clk_type == GATE) {
 		/* clk_gate */
 		gdc_dev->clk_gate = devm_clk_get(&pdev->dev, "clk_gate");
 		if (IS_ERR(gdc_dev->clk_gate)) {
