@@ -1789,6 +1789,8 @@ static void bl_delayd_on(struct work_struct *p_work)
 	d_work = container_of(p_work, struct delayed_work, work);
 	bdrv = container_of(d_work, struct aml_bl_drv_s, delayed_on_work);
 
+	if (bdrv->probe_done == 0)
+		return;
 	if (bdrv->on_request == 0)
 		return;
 
@@ -1803,14 +1805,17 @@ static int bl_lcd_on_notifier(struct notifier_block *nb,
 
 	if ((event & LCD_EVENT_BL_ON) == 0)
 		return NOTIFY_DONE;
-	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-		BLPR("%s: 0x%lx\n", __func__, event);
 
 	if (!pdrv)
 		return NOTIFY_DONE;
 	bdrv = aml_bl_get_driver(pdrv->index);
 	if (aml_bl_check_driver(bdrv))
 		return NOTIFY_DONE;
+	if (bdrv->probe_done == 0)
+		return NOTIFY_DONE;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+		BLPR("[%d]: %s: 0x%lx\n", bdrv->index, __func__, event);
 
 	bdrv->on_request = 1;
 	/* lcd power on sequence control */
@@ -1837,14 +1842,17 @@ static int bl_lcd_off_notifier(struct notifier_block *nb,
 
 	if ((event & LCD_EVENT_BL_OFF) == 0)
 		return NOTIFY_DONE;
-	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-		BLPR("%s: 0x%lx\n", __func__, event);
 
 	if (!pdrv)
 		return NOTIFY_DONE;
 	bdrv = aml_bl_get_driver(pdrv->index);
 	if (aml_bl_check_driver(bdrv))
 		return NOTIFY_DONE;
+	if (bdrv->probe_done == 0)
+		return NOTIFY_DONE;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+		BLPR("[%d]: %s: 0x%lx\n", bdrv->index, __func__, event);
 
 	bdrv->on_request = 0;
 	bdrv->state &= ~BL_STATE_LCD_ON;
@@ -1874,7 +1882,7 @@ static inline int bl_pwm_vs_lcd_update(struct aml_bl_drv_s *bdrv,
 	unsigned int cnt;
 
 	if (!bl_pwm) {
-		BLERR("%s: bl_pwm is null\n", __func__);
+		BLERR("[%d]: %s: bl_pwm is null\n", bdrv->index, __func__);
 		return 0;
 	}
 
@@ -1919,9 +1927,11 @@ static int bl_lcd_update_notifier(struct notifier_block *nb,
 	bdrv = aml_bl_get_driver(pdrv->index);
 	if (aml_bl_check_driver(bdrv))
 		return NOTIFY_DONE;
+	if (bdrv->probe_done == 0)
+		return NOTIFY_DONE;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-		BLPR("bl_lcd_update_notifier for pwm_vs\n");
+		BLPR("[%d]: %s for pwm_vs\n", bdrv->index, __func__);
 	switch (bdrv->bconf.method) {
 	case BL_CTRL_PWM:
 		if (bdrv->bconf.bl_pwm->pwm_port == BL_PWM_VS) {
@@ -1979,8 +1989,11 @@ static int bl_lcd_test_notifier(struct notifier_block *nb,
 	bdrv = aml_bl_get_driver(pdrv->index);
 	if (aml_bl_check_driver(bdrv))
 		return NOTIFY_DONE;
+	if (bdrv->probe_done == 0)
+		return NOTIFY_DONE;
+
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-		BLPR("bl_lcd_test_notifier for lcd test_pattern\n");
+		BLPR("[%d]: %s for lcd test_pattern\n", bdrv->index, __func__);
 
 	flag = (pdrv->test_state > 0) ? 1 : 0;
 	switch (bdrv->bconf.method) {
@@ -2013,6 +2026,8 @@ static int bl_dv_dimming_notifier(struct notifier_block *nb,
 
 	if (aml_bl_check_driver(bdrv))
 		return NOTIFY_DONE;
+	if (bdrv->probe_done == 0)
+		return NOTIFY_DONE;
 
 	if (bdrv->brightness_bypass)
 		return NOTIFY_DONE;
@@ -2028,7 +2043,7 @@ static int bl_dv_dimming_notifier(struct notifier_block *nb,
 	/* atomic notifier, can't schedule or sleep */
 	bdrv->level_dv = *(unsigned int *)data;
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-		BLPR("%s: level_dv: %d\n", __func__, bdrv->level_dv);
+		BLPR("[%d]: %s: level_dv: %d\n", bdrv->index, __func__, bdrv->level_dv);
 
 	bdrv->level_dv = (bdrv->level_dv < 10) ? 10 :
 		((bdrv->level_dv > 255) ? 255 : bdrv->level_dv);
@@ -2039,8 +2054,8 @@ static int bl_dv_dimming_notifier(struct notifier_block *nb,
 	aml_bl_set_level(bdrv, level);
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
-		BLPR("%s: %u, real brightness: %u, state: 0x%x\n",
-		     __func__, *(unsigned int *)data,
+		BLPR("[%d]: %s: %u, real brightness: %u, state: 0x%x\n",
+		     bdrv->index, __func__, *(unsigned int *)data,
 		     level, bdrv->state);
 	}
 
@@ -2063,6 +2078,8 @@ static int bl_dv_sel_notifier(struct notifier_block *nb,
 
 	if (aml_bl_check_driver(bdrv))
 		return NOTIFY_DONE;
+	if (bdrv->probe_done == 0)
+		return NOTIFY_DONE;
 	if (bdrv->bconf.method == BL_CTRL_LOCAL_DIMMING)
 		return NOTIFY_DONE;
 
@@ -2071,7 +2088,7 @@ static int bl_dv_sel_notifier(struct notifier_block *nb,
 
 	sel = (unsigned int *)data;
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-		BLPR("%s: dv_sel: %d\n", __func__, *sel);
+		BLPR("[%d]: %s: dv_sel: %d\n", bdrv->index, __func__, *sel);
 
 	if (*sel)
 		bdrv->state |= BL_STATE_DV_EN;
@@ -2982,23 +2999,6 @@ static ssize_t bl_debug_delay_store(struct device *dev,
 	return count;
 }
 
-static ssize_t bl_debug_key_valid_show(struct device *dev,
-				       struct device_attribute *attr, char *buf)
-{
-	struct aml_bl_drv_s *bdrv = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%d\n", bdrv->key_valid);
-}
-
-static ssize_t bl_debug_config_load_show(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
-{
-	struct aml_bl_drv_s *bdrv = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%d\n", bdrv->config_load);
-}
-
 static ssize_t bl_debug_brightness_bypass_show(struct device *dev,
 					       struct device_attribute *attr,
 					       char *buf)
@@ -3070,11 +3070,9 @@ static struct device_attribute bl_debug_attrs[] = {
 	__ATTR(power_on, 0644, bl_debug_power_show, bl_debug_power_store),
 	__ATTR(step_on, 0644, bl_debug_step_on_show, bl_debug_step_on_store),
 	__ATTR(delay, 0644, bl_debug_delay_show, bl_debug_delay_store),
-	__ATTR(key_valid,   0444, bl_debug_key_valid_show, NULL),
-	__ATTR(config_load, 0444, bl_debug_config_load_show, NULL),
 	__ATTR(brightness_bypass, 0644, bl_debug_brightness_bypass_show,
 	       bl_debug_brightness_bypass_store),
-	__ATTR(brightness_level, 0644, bl_debug_brightness_show,
+	__ATTR(debug_level, 0644, bl_debug_brightness_show,
 	       bl_debug_brightness_store),
 };
 
@@ -3483,6 +3481,7 @@ static void aml_bl_config_probe_work(struct work_struct *work)
 		goto err;
 	}
 	bdrv->bldev = bldev;
+	bdrv->probe_done = 1;
 
 	/* init workqueue */
 	INIT_DELAYED_WORK(&bdrv->delayed_on_work, bl_delayd_on);

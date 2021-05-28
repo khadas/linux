@@ -1589,8 +1589,7 @@ static int lcd_tcon_load_init_data_from_unifykey(void)
 		return -1;
 	key_len = data_len;
 	ret = lcd_unifykey_get_no_header("lcd_tcon",
-					 tcon_mm_table.core_reg_table,
-					 &key_len);
+					 tcon_mm_table.core_reg_table, &key_len);
 	if (ret)
 		goto lcd_tcon_load_init_data_err;
 	if (key_len != data_len)

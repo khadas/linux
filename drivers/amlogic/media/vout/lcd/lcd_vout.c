@@ -317,7 +317,7 @@ static void lcd_power_if_on(struct aml_lcd_drv_s *pdrv)
 {
 	mutex_lock(&lcd_vout_mutex);
 	if (!(pdrv->status & LCD_STATUS_IF_ON)) {
-		pdrv->power_ctrl(pdrv, 1);
+		lcd_power_ctrl(pdrv, 1);
 		pdrv->status |= LCD_STATUS_IF_ON;
 	}
 	pdrv->config.change_flag = 0;
@@ -330,7 +330,7 @@ static void lcd_power_if_off(struct aml_lcd_drv_s *pdrv)
 	mutex_lock(&lcd_vout_mutex);
 	if (pdrv->status & LCD_STATUS_IF_ON) {
 		pdrv->status &= ~LCD_STATUS_IF_ON;
-		pdrv->power_ctrl(pdrv, 0);
+		lcd_power_ctrl(pdrv, 0);
 	}
 	mutex_unlock(&lcd_vout_mutex);
 }
@@ -360,12 +360,12 @@ static void lcd_module_reset(struct aml_lcd_drv_s *pdrv)
 	mutex_lock(&lcd_vout_mutex);
 
 	pdrv->status &= ~LCD_STATUS_ON;
-	pdrv->power_ctrl(pdrv, 0);
+	lcd_power_ctrl(pdrv, 0);
 
 	msleep(500);
 
 	pdrv->driver_init_pre(pdrv);
-	pdrv->power_ctrl(pdrv, 1);
+	lcd_power_ctrl(pdrv, 1);
 	pdrv->status |= LCD_STATUS_ON;
 	pdrv->config.change_flag = 0;
 
@@ -558,6 +558,8 @@ static int lcd_power_encl_on_notifier(struct notifier_block *nb,
 		LCDERR("%s: data is null\n", __func__);
 		return NOTIFY_DONE;
 	}
+	if (pdrv->probe_done == 0)
+		return NOTIFY_DONE;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
@@ -588,6 +590,8 @@ static int lcd_power_encl_off_notifier(struct notifier_block *nb,
 		LCDERR("%s: data is null\n", __func__);
 		return NOTIFY_DONE;
 	}
+	if (pdrv->probe_done == 0)
+		return NOTIFY_DONE;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
@@ -612,6 +616,8 @@ static int lcd_power_if_on_notifier(struct notifier_block *nb,
 		LCDERR("%s: data is null\n", __func__);
 		return NOTIFY_DONE;
 	}
+	if (pdrv->probe_done == 0)
+		return NOTIFY_DONE;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
@@ -648,6 +654,8 @@ static int lcd_power_if_off_notifier(struct notifier_block *nb,
 		LCDERR("%s: data is null\n", __func__);
 		return NOTIFY_DONE;
 	}
+	if (pdrv->probe_done == 0)
+		return NOTIFY_DONE;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
@@ -672,6 +680,8 @@ static int lcd_power_screen_black_notifier(struct notifier_block *nb,
 		LCDERR("%s: data is null\n", __func__);
 		return NOTIFY_DONE;
 	}
+	if (pdrv->probe_done == 0)
+		return NOTIFY_DONE;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
@@ -696,6 +706,8 @@ static int lcd_power_screen_restore_notifier(struct notifier_block *nb,
 		LCDERR("%s: data is null\n", __func__);
 		return NOTIFY_DONE;
 	}
+	if (pdrv->probe_done == 0)
+		return NOTIFY_DONE;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
@@ -730,6 +742,8 @@ static int lcd_vlock_param_notifier(struct notifier_block *nb,
 		LCDERR("[%d]: %s: drv is null\n", index, __func__);
 		return NOTIFY_DONE;
 	}
+	if (pdrv->probe_done == 0)
+		return NOTIFY_DONE;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: 0x%lx\n", index, __func__, event);
@@ -837,14 +851,11 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	argp = (void __user *)arg;
 	switch (mcd_nr) {
 	case LCD_IOC_NR_GET_HDR_INFO:
-		if (copy_to_user(argp, opt_info,
-				 sizeof(struct lcd_optical_info_s))) {
+		if (copy_to_user(argp, opt_info, sizeof(struct lcd_optical_info_s)))
 			ret = -EFAULT;
-		}
 		break;
 	case LCD_IOC_NR_SET_HDR_INFO:
-		if (copy_from_user(opt_info, argp,
-				   sizeof(struct lcd_optical_info_s))) {
+		if (copy_from_user(opt_info, argp, sizeof(struct lcd_optical_info_s))) {
 			ret = -EFAULT;
 		} else {
 			lcd_optical_vinfo_update(pdrv);
@@ -1048,8 +1059,7 @@ static void lcd_global_remove_once(void)
 static int lcd_vsync_irq_init(struct aml_lcd_drv_s *pdrv)
 {
 	if (pdrv->res_vsync_irq[0]) {
-		snprintf(pdrv->vsync_isr_name[0], 15,
-			 "lcd%d_vsync", pdrv->index);
+		snprintf(pdrv->vsync_isr_name[0], 15, "lcd%d_vsync", pdrv->index);
 		if (request_irq(pdrv->res_vsync_irq[0]->start,
 				lcd_vsync_isr, IRQF_SHARED,
 				pdrv->vsync_isr_name[0], (void *)pdrv)) {
@@ -1064,8 +1074,7 @@ static int lcd_vsync_irq_init(struct aml_lcd_drv_s *pdrv)
 	}
 
 	if (pdrv->res_vsync_irq[1]) {
-		snprintf(pdrv->vsync_isr_name[1], 15,
-			 "lcd%d_vsync2", pdrv->index);
+		snprintf(pdrv->vsync_isr_name[1], 15, "lcd%d_vsync2", pdrv->index);
 		if (request_irq(pdrv->res_vsync_irq[1]->start,
 				lcd_vsync2_isr, IRQF_SHARED,
 				pdrv->vsync_isr_name[1], (void *)pdrv)) {
@@ -1080,8 +1089,7 @@ static int lcd_vsync_irq_init(struct aml_lcd_drv_s *pdrv)
 	}
 
 	if (pdrv->res_vsync_irq[2]) {
-		snprintf(pdrv->vsync_isr_name[2], 15,
-			 "lcd%d_vsync3", pdrv->index);
+		snprintf(pdrv->vsync_isr_name[2], 15, "lcd%d_vsync3", pdrv->index);
 		if (request_irq(pdrv->res_vsync_irq[2]->start,
 				lcd_vsync3_isr, IRQF_SHARED,
 				pdrv->vsync_isr_name[2], (void *)pdrv)) {
@@ -1179,14 +1187,14 @@ static int lcd_mode_probe(struct aml_lcd_drv_s *pdrv)
 	lcd_phy_probe(pdrv);
 	lcd_debug_probe(pdrv);
 	lcd_mode_init(pdrv);
+	pdrv->probe_done = 1;
 
 	lcd_vsync_irq_init(pdrv);
 
 	if (pdrv->init_flag) {
 		LCDPR("[%d]: power on for init_flag\n", pdrv->index);
 		mutex_lock(&lcd_power_mutex);
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON,
-					    (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, (void *)pdrv);
 		lcd_if_enable_retry(pdrv);
 		mutex_unlock(&lcd_power_mutex);
 	}
@@ -1454,7 +1462,6 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv,
 	pdrv->fr_mode = 0;
 	pdrv->viu_sel = LCD_VIU_SEL_NONE;
 	pdrv->vsync_none_timer_flag = 0;
-	pdrv->power_ctrl = lcd_power_ctrl;
 	pdrv->module_reset = lcd_module_reset;
 	lcd_clk_config_probe(pdrv);
 	lcd_phy_config_init(pdrv);

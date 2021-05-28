@@ -177,6 +177,7 @@ struct aml_bl_drv_s {
 	unsigned int level_dv;
 	unsigned int level_init_on;
 
+	unsigned char probe_done;
 	unsigned char brightness_bypass;
 	unsigned char step_on_flag;
 	unsigned char on_request; /* for lcd power sequence */

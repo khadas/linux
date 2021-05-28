@@ -381,8 +381,7 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 			lcd_init_on_flag = 1;
 			if (pdrv->key_valid == 0 &&
 			    !(pdrv->status & LCD_STATUS_ENCL_ON)) {
-				aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON,
-							    (void *)pdrv);
+				aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
 				lcd_if_enable_retry(pdrv);
 			} else if (pdrv->driver_change) {
 				mutex_lock(&lcd_vout_mutex);
@@ -391,7 +390,10 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 			}
 		} else if (lcd_init_on_flag == 1) {
 			mutex_lock(&lcd_vout_mutex);
-			ret = pdrv->driver_change(pdrv);
+			if (pdrv->driver_change(pdrv))
+				ret = pdrv->driver_change(pdrv);
+			else
+				ret = -1;
 			mutex_unlock(&lcd_vout_mutex);
 		}
 	} else {
@@ -544,6 +546,8 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 	int i, n, find = 0;
 
 	if (!pdrv)
+		return -1;
+	if (pdrv->probe_done == 0)
 		return -1;
 
 	if (lcd_vout_serve_bypass) {

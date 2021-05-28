@@ -230,6 +230,8 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 
 	if (!pdrv)
 		return -1;
+	if (pdrv->probe_done == 0)
+		return -1;
 
 	if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
 		LCDPR("%s: lcd is disabled, exit\n", __func__);

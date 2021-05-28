@@ -2336,11 +2336,9 @@ void lcd_if_enable_retry(struct aml_lcd_drv_s *pdrv)
 			break;
 		LCDPR("[%d]: retry enable...%d\n",
 		      pdrv->index, pdrv->config.retry_enable_cnt);
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF,
-					    (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF, (void *)pdrv);
 		msleep(1000);
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON,
-					    (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, (void *)pdrv);
 	}
 	pdrv->config.retry_enable_cnt = 0;
 }
@@ -2348,17 +2346,14 @@ void lcd_if_enable_retry(struct aml_lcd_drv_s *pdrv)
 void lcd_vout_notify_mode_change_pre(struct aml_lcd_drv_s *pdrv)
 {
 	if (pdrv->viu_sel == 1) {
-		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE,
-					 &pdrv->vinfo.mode);
+		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &pdrv->vinfo.mode);
 	} else if (pdrv->viu_sel == 2) {
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-		vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE,
-					  &pdrv->vinfo.mode);
+		vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &pdrv->vinfo.mode);
 #endif
 	} else if (pdrv->viu_sel == 3) {
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-		vout3_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE,
-					  &pdrv->vinfo.mode);
+		vout3_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &pdrv->vinfo.mode);
 #endif
 	}
 }
@@ -2366,17 +2361,14 @@ void lcd_vout_notify_mode_change_pre(struct aml_lcd_drv_s *pdrv)
 void lcd_vout_notify_mode_change(struct aml_lcd_drv_s *pdrv)
 {
 	if (pdrv->viu_sel == 1) {
-		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
-					 &pdrv->vinfo.mode);
+		vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &pdrv->vinfo.mode);
 	} else if (pdrv->viu_sel == 2) {
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
-		vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
-					  &pdrv->vinfo.mode);
+		vout2_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &pdrv->vinfo.mode);
 #endif
 	} else if (pdrv->viu_sel == 3) {
 #ifdef CONFIG_AMLOGIC_VOUT3_SERVE
-		vout3_notifier_call_chain(VOUT_EVENT_MODE_CHANGE,
-					  &pdrv->vinfo.mode);
+		vout3_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &pdrv->vinfo.mode);
 #endif
 	}
 }

@@ -801,7 +801,7 @@ static void lcd_vx1_timeout_reset(struct work_struct *work)
 	if (vx1_timeout_reset_flag == 0)
 		return;
 
-	LCDPR("%s\n", __func__);
+	LCDPR("[%d]: %s\n", pdrv->index, __func__);
 	pdrv->module_reset(pdrv);
 	if (pdrv->config.control.vbyone_cfg.intr_en)
 		lcd_vx1_hold_reset(pdrv);
@@ -1163,11 +1163,11 @@ int lcd_vbyone_interrupt_up(struct aml_lcd_drv_s *pdrv)
 	if (request_irq(venc_vx1_irq, lcd_vbyone_interrupt_handler, 0,
 			pdrv->vbyone_isr_name, (void *)pdrv)) {
 		LCDERR("[%d]: can't request %s\n",
-		pdrv->index, pdrv->vbyone_isr_name);
+		       pdrv->index, pdrv->vbyone_isr_name);
 	} else {
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 			LCDPR("[%d]: request %s successful\n",
-			pdrv->index, pdrv->vbyone_isr_name);
+			      pdrv->index, pdrv->vbyone_isr_name);
 		}
 	}
 	pdrv->vbyone_vsync_handler = lcd_vbyone_vsync_handler;

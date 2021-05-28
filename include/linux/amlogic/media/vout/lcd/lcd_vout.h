@@ -559,6 +559,7 @@ struct aml_lcd_drv_s {
 	unsigned char test_flag;
 	unsigned char mute_state;
 	unsigned char mute_flag;
+	unsigned char probe_done;
 	unsigned char viu_sel;
 	unsigned char gamma_en_flag;
 	unsigned char vsync_none_timer_flag;
@@ -599,7 +600,6 @@ struct aml_lcd_drv_s {
 	void (*module_tiny_reset)(struct aml_lcd_drv_s *pdrv);
 	void (*lcd_screen_black)(struct aml_lcd_drv_s *pdrv);
 	void (*lcd_screen_restore)(struct aml_lcd_drv_s *pdrv);
-	void (*power_ctrl)(struct aml_lcd_drv_s *pdrv, int status);
 	void (*phy_set)(struct aml_lcd_drv_s *pdrv, int status);
 	void (*fr_adjust)(struct aml_lcd_drv_s *pdrv, int duration);
 	int (*vbyone_vsync_handler)(struct aml_lcd_drv_s *pdrv);

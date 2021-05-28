@@ -2557,23 +2557,19 @@ static void lcd_power_interface_ctrl(struct aml_lcd_drv_s *pdrv, int state)
 	LCDPR("%s: %d\n", __func__, state);
 	if (state) {
 		if (pdrv->status & LCD_STATUS_ENCL_ON) {
-			aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON,
-						    (void *)pdrv);
+			aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, (void *)pdrv);
 			lcd_if_enable_retry(pdrv);
 		} else {
-			LCDERR("%s: can't power on when controller is off\n",
-			       __func__);
+			LCDERR("%s: can't power on when controller is off\n", __func__);
 		}
 	} else {
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF,
-					    (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF, (void *)pdrv);
 	}
 	mutex_unlock(&lcd_power_mutex);
 }
 
-static ssize_t lcd_debug_store(struct device *dev,
-			       struct device_attribute *attr, const char *buf,
-			       size_t count)
+static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr,
+			       const char *buf, size_t count)
 {
 	int ret = 0;
 	unsigned int temp, val[6];
@@ -2603,8 +2599,7 @@ static ssize_t lcd_debug_store(struct device *dev,
 	case 'b':
 		if (buf[1] == 'a') { /* basic */
 			ret = sscanf(buf, "basic %d %d %d %d %d",
-				     &val[0], &val[1], &val[2], &val[3],
-				     &val[4]);
+				     &val[0], &val[1], &val[2], &val[3], &val[4]);
 			if (ret == 4) {
 				pconf->basic.h_active = val[0];
 				pconf->basic.v_active = val[1];
@@ -2674,8 +2669,7 @@ static ssize_t lcd_debug_store(struct device *dev,
 	case 't': /* test */
 		ret = sscanf(buf, "test %d", &temp);
 		if (ret == 1) {
-			pdrv->test_flag =
-				(unsigned char)(temp | LCD_TEST_UPDATE);
+			pdrv->test_flag = (unsigned char)(temp | LCD_TEST_UPDATE);
 		} else {
 			LCDERR("invalid data\n");
 			return -EINVAL;
@@ -2787,6 +2781,16 @@ static ssize_t lcd_debug_store(struct device *dev,
 			return -EINVAL;
 		}
 		break;
+	case 'g':
+		ret = sscanf(buf, "gamma %d", &temp);
+		if (ret == 1) {
+			LCDPR("gamma en: %d\n", temp);
+			lcd_gamma_debug_test_en(pdrv, temp);
+		} else {
+			LCDERR("invalid data\n");
+			return -EINVAL;
+		}
+		break;
 	default:
 		LCDERR("wrong command\n");
 		break;
@@ -2800,8 +2804,7 @@ static ssize_t lcd_debug_change_show(struct device *dev,
 	return sprintf(buf, "%s\n", lcd_debug_change_usage_str);
 }
 
-static void lcd_debug_change_clk_change(struct aml_lcd_drv_s *pdrv,
-					unsigned int pclk)
+static void lcd_debug_change_clk_change(struct aml_lcd_drv_s *pdrv, unsigned int pclk)
 {
 	struct lcd_config_s *pconf;
 	unsigned int sync_duration;
@@ -2831,8 +2834,7 @@ static void lcd_debug_change_clk_change(struct aml_lcd_drv_s *pdrv,
 	}
 }
 
-static ssize_t lcd_debug_change_store(struct device *dev,
-				      struct device_attribute *attr,
+static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
 	int ret = 0;
@@ -3131,8 +3133,7 @@ static ssize_t lcd_debug_enable_show(struct device *dev,
 	return sprintf(buf, "lcd_status: 0x%x\n", pdrv->status);
 }
 
-static ssize_t lcd_debug_enable_store(struct device *dev,
-				      struct device_attribute *attr,
+static ssize_t lcd_debug_enable_store(struct device *dev, struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -3158,8 +3159,7 @@ static ssize_t lcd_debug_enable_store(struct device *dev,
 	return count;
 }
 
-static ssize_t lcd_debug_resume_show(struct device *dev,
-				     struct device_attribute *attr,
+static ssize_t lcd_debug_resume_show(struct device *dev, struct device_attribute *attr,
 				     char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -3188,8 +3188,7 @@ static ssize_t lcd_debug_resume_store(struct device *dev,
 	return count;
 }
 
-static ssize_t lcd_debug_power_show(struct device *dev,
-				    struct device_attribute *attr,
+static ssize_t lcd_debug_power_show(struct device *dev, struct device_attribute *attr,
 				    char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -3206,8 +3205,7 @@ static ssize_t lcd_debug_power_show(struct device *dev,
 	return sprintf(buf, "lcd power state: %d\n", state);
 }
 
-static ssize_t lcd_debug_power_store(struct device *dev,
-				     struct device_attribute *attr,
+static ssize_t lcd_debug_power_store(struct device *dev, struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -3221,22 +3219,19 @@ static ssize_t lcd_debug_power_store(struct device *dev,
 	}
 	if (temp) {
 		mutex_lock(&lcd_power_mutex);
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON,
-					    (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, (void *)pdrv);
 		lcd_if_enable_retry(pdrv);
 		mutex_unlock(&lcd_power_mutex);
 	} else {
 		mutex_lock(&lcd_power_mutex);
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF,
-					    (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF, (void *)pdrv);
 		mutex_unlock(&lcd_power_mutex);
 	}
 
 	return count;
 }
 
-static ssize_t lcd_debug_power_step_show(struct device *dev,
-					 struct device_attribute *attr,
+static ssize_t lcd_debug_power_step_show(struct device *dev, struct device_attribute *attr,
 					 char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -3255,8 +3250,7 @@ static ssize_t lcd_debug_power_step_show(struct device *dev,
 	return n;
 }
 
-static ssize_t lcd_debug_power_step_store(struct device *dev,
-					  struct device_attribute *attr,
+static ssize_t lcd_debug_power_step_store(struct device *dev, struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
 	int ret = 0;
@@ -3326,8 +3320,7 @@ static ssize_t lcd_debug_power_step_store(struct device *dev,
 	return count;
 }
 
-static ssize_t lcd_debug_frame_rate_show(struct device *dev,
-					 struct device_attribute *attr,
+static ssize_t lcd_debug_frame_rate_show(struct device *dev, struct device_attribute *attr,
 					 char *buf)
 {
 	unsigned int sync_duration;
@@ -3343,8 +3336,7 @@ static ssize_t lcd_debug_frame_rate_show(struct device *dev,
 		pconf->timing.fr_adjust_type);
 }
 
-static ssize_t lcd_debug_frame_rate_store(struct device *dev,
-					  struct device_attribute *attr,
+static ssize_t lcd_debug_frame_rate_store(struct device *dev, struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
 	int ret = 0;
@@ -3380,8 +3372,7 @@ static ssize_t lcd_debug_frame_rate_store(struct device *dev,
 	return count;
 }
 
-static ssize_t lcd_debug_fr_policy_show(struct device *dev,
-					struct device_attribute *attr,
+static ssize_t lcd_debug_fr_policy_show(struct device *dev, struct device_attribute *attr,
 					char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -3389,8 +3380,7 @@ static ssize_t lcd_debug_fr_policy_show(struct device *dev,
 	return sprintf(buf, "fr_auto_policy: %d\n", pdrv->fr_auto_policy);
 }
 
-static ssize_t lcd_debug_fr_policy_store(struct device *dev,
-					 struct device_attribute *attr,
+static ssize_t lcd_debug_fr_policy_store(struct device *dev, struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -3419,10 +3409,8 @@ static ssize_t lcd_debug_ss_show(struct device *dev,
 	return len;
 }
 
-static ssize_t lcd_debug_ss_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf,
-				  size_t count)
+static ssize_t lcd_debug_ss_store(struct device *dev, struct device_attribute *attr,
+				  const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	unsigned int value = 0, temp;
@@ -3513,8 +3501,7 @@ static ssize_t lcd_debug_clk_show(struct device *dev,
 	return n;
 }
 
-static ssize_t lcd_debug_clk_store(struct device *dev,
-				   struct device_attribute *attr,
+static ssize_t lcd_debug_clk_store(struct device *dev, struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -3554,8 +3541,7 @@ static ssize_t lcd_debug_test_show(struct device *dev,
 	return sprintf(buf, "test pattern: %d\n", pdrv->test_state);
 }
 
-static ssize_t lcd_debug_test_store(struct device *dev,
-				    struct device_attribute *attr,
+static ssize_t lcd_debug_test_store(struct device *dev, struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -3598,8 +3584,7 @@ static ssize_t lcd_debug_mute_show(struct device *dev,
 	return sprintf(buf, "get lcd mute state: %d\n", pdrv->mute_state);
 }
 
-static ssize_t lcd_debug_mute_store(struct device *dev,
-				    struct device_attribute *attr,
+static ssize_t lcd_debug_mute_store(struct device *dev, struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -3832,8 +3817,7 @@ static void lcd_debug_reg_dump(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 	}
 }
 
-static ssize_t lcd_debug_reg_store(struct device *dev,
-				   struct device_attribute *attr,
+static ssize_t lcd_debug_reg_store(struct device *dev, struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -4030,8 +4014,7 @@ static ssize_t lcd_debug_dump_show(struct device *dev,
 	return len;
 }
 
-static ssize_t lcd_debug_dump_store(struct device *dev,
-				    struct device_attribute *attr,
+static ssize_t lcd_debug_dump_store(struct device *dev, struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
 	char *buf_orig;
@@ -4069,8 +4052,7 @@ static ssize_t lcd_debug_print_show(struct device *dev,
 		       lcd_debug_print_flag);
 }
 
-static ssize_t lcd_debug_print_store(struct device *dev,
-				     struct device_attribute *attr,
+static ssize_t lcd_debug_print_store(struct device *dev, struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
 	int ret = 0;
@@ -4505,8 +4487,7 @@ static ssize_t lcd_tcon_status_show(struct device *dev,
 }
 
 static ssize_t lcd_tcon_adb_status_show(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+					struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	int len = 0;
@@ -4595,8 +4576,7 @@ static ssize_t lcd_tcon_adb_status_show(struct device *dev,
 	return len;
 }
 
-static ssize_t lcd_ttl_debug_store(struct device *dev,
-				   struct device_attribute *attr,
+static ssize_t lcd_ttl_debug_store(struct device *dev, struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
 	int ret = 0;
@@ -4624,8 +4604,7 @@ static ssize_t lcd_ttl_debug_store(struct device *dev,
 	return count;
 }
 
-static ssize_t lcd_lvds_debug_store(struct device *dev,
-				    struct device_attribute *attr,
+static ssize_t lcd_lvds_debug_store(struct device *dev, struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
 	int ret = 0;
@@ -4655,8 +4634,7 @@ static ssize_t lcd_lvds_debug_store(struct device *dev,
 #ifdef CONFIG_AMLOGIC_LCD_TV
 static int vx1_intr_state = 1;
 #endif
-static ssize_t lcd_vx1_debug_store(struct device *dev,
-				   struct device_attribute *attr,
+static ssize_t lcd_vx1_debug_store(struct device *dev, struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
 	int ret = 0;
@@ -4800,8 +4778,7 @@ static ssize_t lcd_vx1_debug_store(struct device *dev,
 	return count;
 }
 
-static ssize_t lcd_mipi_debug_store(struct device *dev,
-				    struct device_attribute *attr,
+static ssize_t lcd_mipi_debug_store(struct device *dev, struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
 	int ret = 0;
@@ -4844,8 +4821,7 @@ static ssize_t lcd_mipi_debug_store(struct device *dev,
 	return count;
 }
 
-static ssize_t lcd_edp_debug_store(struct device *dev,
-				   struct device_attribute *attr,
+static ssize_t lcd_edp_debug_store(struct device *dev, struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -4873,8 +4849,7 @@ static ssize_t lcd_edp_debug_store(struct device *dev,
 	return count;
 }
 
-static ssize_t lcd_edp_edid_debug_store(struct device *dev,
-					struct device_attribute *attr,
+static ssize_t lcd_edp_edid_debug_store(struct device *dev, struct device_attribute *attr,
 					const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -4896,8 +4871,7 @@ static ssize_t lcd_edp_edid_debug_store(struct device *dev,
 	return count;
 }
 
-static ssize_t lcd_mlvds_debug_store(struct device *dev,
-				     struct device_attribute *attr,
+static ssize_t lcd_mlvds_debug_store(struct device *dev, struct device_attribute *attr,
 				     const char *buf, size_t count)
 {
 	int ret = 0;
@@ -4929,8 +4903,7 @@ static ssize_t lcd_mlvds_debug_store(struct device *dev,
 	return count;
 }
 
-static ssize_t lcd_p2p_debug_store(struct device *dev,
-				   struct device_attribute *attr,
+static ssize_t lcd_p2p_debug_store(struct device *dev, struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
 	int ret = 0;
@@ -5078,8 +5051,7 @@ static ssize_t lcd_phy_debug_show(struct device *dev,
 	return len;
 }
 
-static ssize_t lcd_phy_debug_store(struct device *dev,
-				   struct device_attribute *attr,
+static ssize_t lcd_phy_debug_store(struct device *dev, struct device_attribute *attr,
 				   const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -5312,13 +5284,10 @@ static void lcd_tcon_rmem_save(char *path, unsigned int flag)
 	case 0: /* bin path */
 		if (rmem->bin_path_rmem.mem_vaddr) {
 			sprintf(str, "%s.bin", path);
-			ret = lcd_tcon_buf_save(str,
-						rmem->bin_path_rmem.mem_vaddr,
+			ret = lcd_tcon_buf_save(str, rmem->bin_path_rmem.mem_vaddr,
 						rmem->bin_path_rmem.mem_size);
-			if (ret == 0) {
-				LCDPR("save tcon bin_path to %s finished\n",
-				      str);
-			}
+			if (ret == 0)
+				LCDPR("save tcon bin_path to %s finished\n", str);
 		} else {
 			pr_info("bin_path invalid\n");
 		}
@@ -5326,8 +5295,7 @@ static void lcd_tcon_rmem_save(char *path, unsigned int flag)
 	case 1: /* vac */
 		if (table->valid_flag & LCD_TCON_DATA_VALID_VAC) {
 			sprintf(str, "%s.bin", path);
-			ret = lcd_tcon_buf_save(str,
-						rmem->vac_rmem.mem_vaddr,
+			ret = lcd_tcon_buf_save(str, rmem->vac_rmem.mem_vaddr,
 						rmem->vac_rmem.mem_size);
 			if (ret == 0)
 				LCDPR("save tcon vac to %s finished\n", str);
@@ -5338,21 +5306,15 @@ static void lcd_tcon_rmem_save(char *path, unsigned int flag)
 	case 2: /* demura */
 		if (table->valid_flag & LCD_TCON_DATA_VALID_DEMURA) {
 			sprintf(str, "%s_set.bin", path);
-			ret = lcd_tcon_buf_save(str,
-						rmem->demura_set_rmem.mem_vaddr,
+			ret = lcd_tcon_buf_save(str, rmem->demura_set_rmem.mem_vaddr,
 						rmem->demura_set_rmem.mem_size);
-			if (ret == 0) {
-				LCDPR("save tcon demura_set to %s finished\n",
-				      str);
-			}
+			if (ret == 0)
+				LCDPR("save tcon demura_set to %s finished\n", str);
 			sprintf(str, "%s_lut.bin", path);
-			ret = lcd_tcon_buf_save(str,
-						rmem->demura_lut_rmem.mem_vaddr,
+			ret = lcd_tcon_buf_save(str, rmem->demura_lut_rmem.mem_vaddr,
 						rmem->demura_lut_rmem.mem_size);
-			if (ret == 0) {
-				LCDPR("save tcon demura_lut to %s finished\n",
-				      str);
-			}
+			if (ret == 0)
+				LCDPR("save tcon demura_lut to %s finished\n", str);
 		} else {
 			pr_info("demura invalid\n");
 		}
@@ -5360,21 +5322,17 @@ static void lcd_tcon_rmem_save(char *path, unsigned int flag)
 	case 3: /* acc */
 		if (table->valid_flag & LCD_TCON_DATA_VALID_ACC) {
 			sprintf(str, "%s.bin", path);
-			ret = lcd_tcon_buf_save(str,
-						rmem->acc_lut_rmem.mem_vaddr,
+			ret = lcd_tcon_buf_save(str, rmem->acc_lut_rmem.mem_vaddr,
 						rmem->acc_lut_rmem.mem_size);
-			if (ret == 0) {
-				LCDPR("save tcon acc_lut to %s finished\n",
-				      str);
-			}
+			if (ret == 0)
+				LCDPR("save tcon acc_lut to %s finished\n", str);
 		} else {
 			pr_info("acc invalid\n");
 		}
 		break;
 	case 4: /* tcon_data*/
 		if (table->version) {
-			pr_info("data_mem_block_cnt:   %d\n",
-				table->block_cnt);
+			pr_info("data_mem_block_cnt:   %d\n", table->block_cnt);
 
 			for (i = 0; i < table->block_cnt; i++) {
 				sprintf(str, "%s_%d.bin", path, i);
@@ -5384,17 +5342,12 @@ static void lcd_tcon_rmem_save(char *path, unsigned int flag)
 					continue;
 				}
 
-				block_header =
-					(struct lcd_tcon_data_block_header_s *)
+				block_header = (struct lcd_tcon_data_block_header_s *)
 					table->data_mem_vaddr[i];
-				ret = lcd_tcon_buf_save
-					(str, table->data_mem_vaddr[i],
-					 block_header->block_size);
-				if (ret == 0) {
-					LCDPR
-				("save tcon_data to %s finish",
-				 str);
-				}
+				ret = lcd_tcon_buf_save(str, table->data_mem_vaddr[i],
+							block_header->block_size);
+				if (ret == 0)
+					LCDPR("save tcon_data to %s finish", str);
 			}
 		} else {
 			pr_info("tcon_data invalid\n");
@@ -5575,8 +5528,7 @@ static int lcd_tcon_reg_table_check(unsigned char *table, unsigned int size)
 	return 0;
 }
 
-static ssize_t lcd_tcon_debug_store(struct device *dev,
-				    struct device_attribute *attr,
+static ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -5902,8 +5854,7 @@ lcd_tcon_debug_store_err:
 	return count;
 }
 
-static ssize_t lcd_tcon_adb_debug_store(struct device *dev,
-					struct device_attribute *attr,
+static ssize_t lcd_tcon_adb_debug_store(struct device *dev, struct device_attribute *attr,
 					const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -6107,8 +6058,7 @@ static ssize_t lcd_mipi_cmd_debug_show(struct device *dev,
 	return sprintf(buf, "%s\n", lcd_mipi_cmd_debug_usage_str);
 }
 
-static ssize_t lcd_mipi_cmd_debug_store(struct device *dev,
-					struct device_attribute *attr,
+static ssize_t lcd_mipi_cmd_debug_store(struct device *dev, struct device_attribute *attr,
 					const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
@@ -6175,8 +6125,7 @@ static struct dsi_read_s dread = {
 };
 
 static ssize_t lcd_mipi_read_debug_show(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+					struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	unsigned int i = 0, len;
@@ -6233,8 +6182,7 @@ static ssize_t lcd_mipi_read_debug_show(struct device *dev,
 	return len;
 }
 
-static ssize_t lcd_mipi_read_debug_store(struct device *dev,
-					 struct device_attribute *attr,
+static ssize_t lcd_mipi_read_debug_store(struct device *dev, struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
 	unsigned int para[2];
@@ -6264,8 +6212,7 @@ static ssize_t lcd_mipi_read_debug_store(struct device *dev,
 }
 
 static ssize_t lcd_mipi_state_debug_show(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
+					 struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	unsigned int state_save, offset;
@@ -6280,8 +6227,7 @@ static ssize_t lcd_mipi_state_debug_show(struct device *dev,
 }
 
 static ssize_t lcd_mipi_mode_debug_show(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+					struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	unsigned char mode;
@@ -6294,8 +6240,7 @@ static ssize_t lcd_mipi_mode_debug_show(struct device *dev,
 		(mode ? "command" : "video"), mode);
 }
 
-static ssize_t lcd_mipi_mode_debug_store(struct device *dev,
-					 struct device_attribute *attr,
+static ssize_t lcd_mipi_mode_debug_store(struct device *dev, struct device_attribute *attr,
 					 const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
