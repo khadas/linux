@@ -75,4 +75,5 @@ void frc_dump_fixed_table(void);
 void frc_reset(u32 onoff);
 void frc_mc_reset(u32 onoff);
 void frc_force_secure(u32 onoff);
+void frc_osdbit_setfalsecolor(u32 falsecolor);
 #endif

@@ -343,6 +343,11 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			devp->frc_sts.auto_ctrl = val1;
+	} else if (!strcmp(parm[0], "osdbit_fcolr")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_osdbit_setfalsecolor(val1);
 	} else if (!strcmp(parm[0], "me_lossy")) {
 		if (!parm[1])
 			goto exit;

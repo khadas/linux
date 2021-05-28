@@ -259,6 +259,7 @@ static long frc_ioctl(struct file *file,
 			ret = -EFAULT;
 			break;
 		}
+		frc_memc_set_level(data);
 		pr_frc(1, "SET_MEMC_LEVEL:%d\n", data);
 		break;
 	}

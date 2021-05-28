@@ -672,3 +672,22 @@ void frc_state_handle(struct frc_dev_s *devp)
 		break;
 	}
 }
+
+int frc_memc_set_level(u8 level)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *pfw_data;
+
+	if (!devp)
+		return 0;
+	if (!devp->probe_ok)
+		return 0;
+	if (!devp->fw_data)
+		return 0;
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	pfw_data->frc_top_type.frc_memc_level = level;
+	// if (pfw_data->frc_memc_level)
+	//	pfw_data->frc_memc_level(pfw_data);
+	return 1;
+}
+

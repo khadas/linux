@@ -174,13 +174,24 @@ void frc_clk_init(struct frc_dev_s *frc_devp)
 	}
 }
 
+void frc_osdbit_setfalsecolor(u32 falsecolor)
+{
+	WRITE_FRC_BITS(FRC_LOGO_DEBUG, falsecolor, 19, 1);  //  falsecolor enable
+}
+
 void frc_init_config(struct frc_dev_s *devp)
 {
 	/*1: before postblend, 0: after postblend*/
-	if (devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND)
+	if (devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND) {
 		vpu_reg_write_bits(VPU_FRC_TOP_CTRL, 0, 4, 1);
-	else
+		WRITE_FRC_BITS(FRC_REG_BLK_SCALE, 1, 1, 1); // OSD Bit Enable
+		WRITE_FRC_BITS(FRC_IPLOGO_EN, 0x8, 20, 4);
+	} else {
 		vpu_reg_write_bits(VPU_FRC_TOP_CTRL, 1, 4, 1);
+		WRITE_FRC_BITS(FRC_REG_BLK_SCALE, 0, 1, 1);   // OSD Bit Disable
+		WRITE_FRC_BITS(FRC_IPLOGO_EN, 0, 20, 4);
+		WRITE_FRC_BITS(FRC_LOGO_DEBUG, 0, 19, 1);
+	}
 }
 
 void frc_reset(u32 onoff)
