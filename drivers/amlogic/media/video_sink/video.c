@@ -410,6 +410,8 @@ MODULE_PARM_DESC(vdin_err_crc_cnt, "\n vdin_err_crc_cnt\n");
 module_param(vdin_err_crc_cnt, uint, 0664);
 #define ERR_CRC_COUNT 6
 
+static bool dv_mute_vpp_flag;
+
 static unsigned int video_3d_format;
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 static unsigned int mvc_flag;
@@ -3899,10 +3901,13 @@ static inline bool dv_vf_crc_check(struct vframe_s *vf)
 	}
 
 	/*mute when err crc > = 6*/
-	if (vdin_err_crc_cnt >= ERR_CRC_COUNT)
+	if (vdin_err_crc_cnt >= ERR_CRC_COUNT) {
 		set_video_mute(true);
-	else
+		dv_mute_vpp_flag = true;
+	} else if (dv_mute_vpp_flag) {
 		set_video_mute(false);
+		dv_mute_vpp_flag = false;
+	}
 	return crc_err;
 }
 
@@ -5596,6 +5601,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_MSYNC
 	msync_vsync_update();
+#endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (is_dolby_vision_on())
+		dolby_vision_update_backlight();
 #endif
 
 	if (cur_vd1_path_id == 0xff)
