@@ -27,7 +27,7 @@
 				core0 {
 					cpu = <&CPU0>;
 				};
-			/*	core1 {
+				core1 {
 					cpu = <&CPU1>;
 				};
 				core2 {
@@ -35,190 +35,188 @@
 				};
 				core3 {
 					cpu = <&CPU3>;
-				};*/
-			};
-			/*cluster1:cluster1 {
-				core0 {
+				};
+				core4 {
 					cpu = <&CPU4>;
 				};
-				core1 {
+				core5 {
 					cpu = <&CPU5>;
 				};
-				core2 {
+				core6 {
 					cpu = <&CPU6>;
 				};
-				core3 {
+				core7 {
 					cpu = <&CPU7>;
 				};
-			};*/
+			};
 		};
 
 		CPU0:cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a73","arm,armv8";
+			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 //			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			#cooling-cells = <2>;
-/*			clocks = <&clkc CLKID_A73_CLK>,
-				<&clkc CLKID_A73_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>;
-			clock-names = "core_clk",
-				"low_freq_clk_parent",
-				"high_freq_clk_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
-			capacity-dmips-mhz = <1024>;
-			dynamic-power-coefficient = <550>;
-			#cooling-cells = <2>;*/
+//			clocks = <&clkc CLKID_A73_CLK>,
+//				<&clkc CLKID_A73_DYN_CLK>,
+//				<&clkc CLKID_SYS_PLL>;
+//			clock-names = "core_clk",
+//				"low_freq_clk_parent",
+//				"high_freq_clk_parent";
+//			operating-points-v2 = <&cpu_opp_table0>;
+//			voltage-tolerance = <0>;
+//			clock-latency = <50000>;
+//			capacity-dmips-mhz = <1024>;
+//			dynamic-power-coefficient = <550>;
+//			#cooling-cells = <2>;
 		};
-/*
+
 		CPU1:cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a73","arm,armv8";
+			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 //			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_A73_CLK>,
-				<&clkc CLKID_A73_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>;
-			clock-names = "core_clk",
-				"low_freq_clk_parent",
-				"high_freq_clk_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
-			capacity-dmips-mhz = <1024>;
-			dynamic-power-coefficient = <550>;
-			#cooling-cells = <2>;
+//			clocks = <&clkc CLKID_A73_CLK>,
+//				<&clkc CLKID_A73_DYN_CLK>,
+//				<&clkc CLKID_SYS_PLL>;
+//			clock-names = "core_clk",
+//				"low_freq_clk_parent",
+//				"high_freq_clk_parent";
+//			operating-points-v2 = <&cpu_opp_table0>;
+//			voltage-tolerance = <0>;
+//			clock-latency = <50000>;
+//			capacity-dmips-mhz = <1024>;
+//			dynamic-power-coefficient = <550>;
+//			#cooling-cells = <2>;
 		};
 
 		CPU2:cpu@2 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a73","arm,armv8";
+			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 //			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_A73_CLK>,
-				<&clkc CLKID_A73_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>;
-			clock-names = "core_clk",
-				"low_freq_clk_parent",
-				"high_freq_clk_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
-			capacity-dmips-mhz = <1024>;
-			dynamic-power-coefficient = <550>;
-			#cooling-cells = <2>;
+//			clocks = <&clkc CLKID_A73_CLK>,
+//				<&clkc CLKID_A73_DYN_CLK>,
+//				<&clkc CLKID_SYS_PLL>;
+//			clock-names = "core_clk",
+//				"low_freq_clk_parent",
+//				"high_freq_clk_parent";
+//			operating-points-v2 = <&cpu_opp_table0>;
+//			voltage-tolerance = <0>;
+//			clock-latency = <50000>;
+//			capacity-dmips-mhz = <1024>;
+//			dynamic-power-coefficient = <550>;
+//			#cooling-cells = <2>;
 		};
 
 		CPU3:cpu@3 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a73","arm,armv8";
+			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 //			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_A73_CLK>,
-				<&clkc CLKID_A73_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>;
-			clock-names = "core_clk",
-				"low_freq_clk_parent",
-				"high_freq_clk_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
-			capacity-dmips-mhz = <1024>;
-			dynamic-power-coefficient = <550>;
-			#cooling-cells = <2>;
+//			clocks = <&clkc CLKID_A73_CLK>,
+//				<&clkc CLKID_A73_DYN_CLK>,
+//				<&clkc CLKID_SYS_PLL>;
+//			clock-names = "core_clk",
+//				"low_freq_clk_parent",
+//				"high_freq_clk_parent";
+//			operating-points-v2 = <&cpu_opp_table0>;
+//			voltage-tolerance = <0>;
+//			clock-latency = <50000>;
+//			capacity-dmips-mhz = <1024>;
+//			dynamic-power-coefficient = <550>;
+//			#cooling-cells = <2>;
 		};
 
-		CPU4:cpu@100 {
+		CPU4:cpu@4 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53","arm,armv8";
-			reg = <0x0 0x100>;
+			compatible = "arm,cortex-a55","arm,armv8";
+			reg = <0x0 0x4>;
 			enable-method = "psci";
 //			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS1_PLL>;
-			clock-names = "core_clk",
-				"low_freq_clk_parent",
-				"high_freq_clk_parent";
-			operating-points-v2 = <&cpu_opp_table1>;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
-			capacity-dmips-mhz = <632>;
-			dynamic-power-coefficient = <110>;
-			#cooling-cells = <2>;
+//			clocks = <&clkc CLKID_CPU_CLK>,
+//				<&clkc CLKID_CPU_DYN_CLK>,
+//				<&clkc CLKID_SYS1_PLL>;
+//			clock-names = "core_clk",
+//				"low_freq_clk_parent",
+//				"high_freq_clk_parent";
+//			operating-points-v2 = <&cpu_opp_table1>;
+//			voltage-tolerance = <0>;
+//			clock-latency = <50000>;
+//			capacity-dmips-mhz = <632>;
+//			dynamic-power-coefficient = <110>;
+//			#cooling-cells = <2>;
 		};
 
-		CPU5:cpu@101{
+		CPU5:cpu@5{
 			device_type = "cpu";
-			compatible = "arm,cortex-a53","arm,armv8";
-			reg = <0x0 0x101>;
+			compatible = "arm,cortex-a55","arm,armv8";
+			reg = <0x0 0x5>;
 			enable-method = "psci";
 //			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS1_PLL>;
-			clock-names = "core_clk",
-				"low_freq_clk_parent",
-				"high_freq_clk_parent";
-			operating-points-v2 = <&cpu_opp_table1>;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
-			capacity-dmips-mhz = <632>;
-			dynamic-power-coefficient = <110>;
-			#cooling-cells = <2>;
+//			clocks = <&clkc CLKID_CPU_CLK>,
+//				<&clkc CLKID_CPU_DYN_CLK>,
+//				<&clkc CLKID_SYS1_PLL>;
+//			clock-names = "core_clk",
+//				"low_freq_clk_parent",
+//				"high_freq_clk_parent";
+//			operating-points-v2 = <&cpu_opp_table1>;
+//			voltage-tolerance = <0>;
+//			clock-latency = <50000>;
+//			capacity-dmips-mhz = <632>;
+//			dynamic-power-coefficient = <110>;
+//			#cooling-cells = <2>;
 		};
 
-		CPU6:cpu@102 {
+		CPU6:cpu@6 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53","arm,armv8";
-			reg = <0x0 0x102>;
+			compatible = "arm,cortex-a76","arm,armv8";
+			reg = <0x0 0x6>;
 			enable-method = "psci";
 //			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS1_PLL>;
-			clock-names = "core_clk",
-				"low_freq_clk_parent",
-				"high_freq_clk_parent";
-			operating-points-v2 = <&cpu_opp_table1>;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
-			capacity-dmips-mhz = <632>;
-			dynamic-power-coefficient = <110>;
-			#cooling-cells = <2>;
+//			clocks = <&clkc CLKID_CPU_CLK>,
+//				<&clkc CLKID_CPU_DYN_CLK>,
+//				<&clkc CLKID_SYS1_PLL>;
+//			clock-names = "core_clk",
+//				"low_freq_clk_parent",
+//				"high_freq_clk_parent";
+//			operating-points-v2 = <&cpu_opp_table1>;
+//			voltage-tolerance = <0>;
+//			clock-latency = <50000>;
+//			capacity-dmips-mhz = <632>;
+//			dynamic-power-coefficient = <110>;
+//			#cooling-cells = <2>;
 		};
 
-		CPU7:cpu@103 {
+		CPU7:cpu@7 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53","arm,armv8";
-			reg = <0x0 0x103>;
+			compatible = "arm,cortex-a76","arm,armv8";
+			reg = <0x0 0x7>;
 			enable-method = "psci";
 //			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS1_PLL>;
-			clock-names = "core_clk",
-				"low_freq_clk_parent",
-				"high_freq_clk_parent";
-			operating-points-v2 = <&cpu_opp_table1>;
-			voltage-tolerance = <0>;
-			clock-latency = <50000>;
-			capacity-dmips-mhz = <632>;
-			dynamic-power-coefficient = <110>;
-			#cooling-cells = <2>;
+//			clocks = <&clkc CLKID_CPU_CLK>,
+//				<&clkc CLKID_CPU_DYN_CLK>,
+//				<&clkc CLKID_SYS1_PLL>;
+//			clock-names = "core_clk",
+//				"low_freq_clk_parent",
+//				"high_freq_clk_parent";
+//			operating-points-v2 = <&cpu_opp_table1>;
+//			voltage-tolerance = <0>;
+//			clock-latency = <50000>;
+//			capacity-dmips-mhz = <632>;
+//			dynamic-power-coefficient = <110>;
+//			#cooling-cells = <2>;
 		};
 
 		idle-states {
@@ -239,7 +237,6 @@
 					min-residency-us = <0xffffffff>;
 			};
 		};
-*/
 	};
 
 	timer {
@@ -291,7 +288,6 @@
 
 	psci {
 		compatible = "arm,psci-0.2";
-		status = "disabled";
 		method = "smc";
 	};
 
