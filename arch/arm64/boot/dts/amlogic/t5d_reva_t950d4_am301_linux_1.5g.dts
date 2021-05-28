@@ -20,7 +20,7 @@
 
 #include "mesont5d_reva.dtsi"
 #include "partition_normal_linux.dtsi"
-#include "mesont5d_reva_am301-panel.dtsi"
+#include "mesont5d_reva_am301_linux-panel.dtsi"
 #include "mesont5_drm.dtsi"
 
 / {
