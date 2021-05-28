@@ -35,10 +35,12 @@ struct meson_vrtc_data {
 static int meson_vrtc_read_time(struct device *dev, struct rtc_time *tm)
 {
 	struct timespec64 time;
+	struct timespec64 boot_time;
 
 	dev_dbg(dev, "%s\n", __func__);
 #ifdef CONFIG_AMLOGIC_MODIFY
-	time.tv_sec = ktime_get_real_seconds() + vrtc_init_date;
+	ktime_get_boottime_ts64(&boot_time);
+	time.tv_sec = boot_time.tv_sec + vrtc_init_date;
 #else
 	ktime_get_raw_ts64(&time);
 #endif
@@ -72,11 +74,13 @@ static int meson_vrtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	struct meson_vrtc_data *vrtc = dev_get_drvdata(dev);
 #ifdef CONFIG_AMLOGIC_MODIFY
 	u64 expires;
+	struct timespec64 boot_time;
 
 	del_timer(&vrtc->alarm);
 	if (alarm->enabled) {
+		ktime_get_boottime_ts64(&boot_time);
 		vrtc->alarm_time = rtc_tm_to_time64(&alarm->time)
-			- ktime_get_real_seconds() - vrtc_init_date;
+			- boot_time.tv_sec - vrtc_init_date;
 		last_jiffies = jiffies;
 		expires = vrtc->alarm_time * HZ + jiffies;
 		vrtc->alarm.expires = expires;
@@ -103,9 +107,11 @@ static int meson_vrtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct meson_vrtc_data *vrtc = dev_get_drvdata(dev);
 	time64_t alrm;
+	struct timespec64 boot_time;
 
+	ktime_get_boottime_ts64(&boot_time);
 	alrm = vrtc->alarm_time - div64_u64(jiffies - last_jiffies, HZ)
-		+ vrtc_init_date + ktime_get_real_seconds();
+		+ vrtc_init_date + boot_time.tv_sec;
 	rtc_time64_to_tm(alrm, &alarm->time);
 
 	alarm->enabled = vrtc->enabled;
