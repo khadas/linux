@@ -67,6 +67,7 @@ static struct early_suspend aocec_suspend_handler;
 /* cec driver function config */
 #define CEC_FREEZE_WAKE_UP
 #define CEC_MAIL_BOX
+#define PHY_ADDR_LEN 4
 
 DECLARE_WAIT_QUEUE_HEAD(cec_msg_wait_queue);
 
@@ -90,6 +91,7 @@ static bool ee_cec;
 static bool pin_status;
 static int cec_msg_dbg_en;
 static struct st_cec_mailbox_data cec_mailbox;
+static void cec_stored_msg_push(void);
 
 #define CEC_ERR(format, args...)				\
 	do {	\
@@ -185,6 +187,10 @@ static struct cec_uevent cec_events[] = {
 	{
 		.type = CEC_RX_MSG,
 		.env = "cec_rx_msg=",
+	},
+	{
+		.type = CEC_PWR_UEVENT,
+		.env = "cec_wakeup=",
 	},
 	{
 		/* end of cec_events[] */
@@ -487,6 +493,18 @@ void cec_dbg_init(void)
 	stdbgflg.hal_cmd_bypass = 0;
 }
 
+static bool cec_need_store_msg_to_buff(void)
+{
+	/* if framework has not started msg reading
+	 * or there's still msg left in store buff,
+	 * need to continue to store the received msg,
+	 * otherwise msg will be flushed and lost.
+	 */
+	if (!cec_dev->framework_on || cec_dev->msg_num > 0)
+		return true;
+	else
+		return false;
+}
 void cec_store_msg_to_buff(unsigned char len, unsigned char *msg)
 {
 	unsigned int i;
@@ -495,7 +513,8 @@ void cec_store_msg_to_buff(unsigned char len, unsigned char *msg)
 	if (!cec_dev)
 		return;
 
-	if (cec_dev->wakeup_st && len < MAX_MSG &&
+	if (cec_need_store_msg_to_buff() &&
+	    len < MAX_MSG &&
 	    cec_dev->msg_idx < CEC_MSG_BUFF_MAX) {
 		msg_idx = cec_dev->msg_idx;
 		cec_dev->msgbuff[msg_idx].len = len;
@@ -1399,8 +1418,6 @@ int ceca_rx_irq_handle(unsigned char *msg, unsigned char *len)
 		msg[i] = aocec_rd_reg(CEC_RX_MSG_0_HEADER + i);
 
 	ret = rx_stat;
-	/* for resume, cec hal not ready */
-	cec_store_msg_to_buff(*len, msg);
 
 	/* ignore ping message */
 	if (cec_msg_dbg_en && *len > 1) {
@@ -3021,20 +3038,26 @@ static ssize_t hdmitx_cec_read(struct file *f, char __user *buf,
 	int ret;
 	unsigned int idx;
 	unsigned int len = 0;
+	static unsigned int store_msg_rd_idx;
 
 	if (!cec_dev)
 		return 0;
 
+	cec_dev->framework_on = 1;
 	if (cec_dev->msg_num) {
 		cec_dev->msg_num--;
-		idx = cec_dev->msg_idx;
+		idx = store_msg_rd_idx;
 		len = cec_dev->msgbuff[idx].len;
-		cec_dev->msg_idx++;
+		store_msg_rd_idx++;
 		if (copy_to_user(buf, &cec_dev->msgbuff[idx].msg[0], len))
 			return -EINVAL;
 		CEC_INFO("read msg from buff len=%d\n", len);
+		/* notify uplayer to read all stored msg */
+		if (cec_dev->msg_num > 0)
+			cec_stored_msg_push();
 		return len;
 	}
+	store_msg_rd_idx = 0;
 
 	/*CEC_ERR("read msg start\n");*/
 	ret = wait_for_completion_timeout(&cec_dev->rx_ok, CEC_FRAME_DELAY);
@@ -3210,6 +3233,9 @@ void cec_status(void)
 	CEC_ERR("ee_to_ao:0x%x\n", cec_dev->plat_data->ee_to_ao);
 	CEC_ERR("irq_ceca:0x%x\n", cec_dev->irq_ceca);
 	CEC_ERR("irq_cecb:0x%x\n", cec_dev->irq_cecb);
+	CEC_ERR("framework_on:0x%x\n", cec_dev->framework_on);
+	CEC_ERR("store msg_num:0x%x\n", cec_dev->msg_num);
+	CEC_ERR("store msg_idx:0x%x\n", cec_dev->msg_idx);
 
 	port = kcalloc(cec_dev->port_num, sizeof(*port), GFP_KERNEL);
 	if (port) {
@@ -3323,6 +3349,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 	unsigned int tmp;
 	struct hdmi_port_info *port;
 	unsigned int a, i = 0;
+	struct st_rx_msg wk_msg;
 	/*struct hdmitx_dev *tx_dev;*/
 	/*unsigned int tx_hpd;*/
 
@@ -3451,11 +3478,19 @@ static long hdmitx_cec_ioctl(struct file *f,
 
 	case CEC_IOC_SET_OPTION_SYS_CTRL:
 		tmp = (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL);
-		if (arg)
+		/* now framework ready to handle msg, if there's
+		 * any msg received or stored, notify framework
+		 * to read, including CEC wakeup msg
+		 */
+		if (arg) {
 			cec_dev->hal_flag |= tmp;
-		else
+			if (new_msg || cec_dev->msg_num > 0)
+				cec_stored_msg_push();
+			CEC_ERR("CEC framework ctrl enabled\n");
+		} else {
 			cec_dev->hal_flag &= ~(tmp);
-
+			CEC_ERR("CEC framework ctrl disabled\n");
+		}
 		cec_dev->hal_flag |= (1 << HDMI_OPTION_SERVICE_FLAG);
 		break;
 
@@ -3549,6 +3584,26 @@ static long hdmitx_cec_ioctl(struct file *f,
 	case CEC_IOC_SET_DEBUG_EN:
 		cec_msg_dbg_en = arg & 0xff;
 		break;
+	case CEC_IOC_GET_WK_OTP_MSG:
+		memset(&wk_msg, 0x0, sizeof(wk_msg));
+		wk_msg.len = cec_dev->cec_wk_otp_msg[0];
+		memcpy(wk_msg.msg, &cec_dev->cec_wk_otp_msg[1],
+		       sizeof(wk_msg.len));
+		if (copy_to_user(argp, &wk_msg, _IOC_SIZE(cmd))) {
+			mutex_unlock(&cec_dev->cec_ioctl_mutex);
+			return -EINVAL;
+		}
+		break;
+	case CEC_IOC_GET_WK_AS_MSG:
+		memset(&wk_msg, 0x0, sizeof(wk_msg));
+		wk_msg.len = cec_dev->cec_wk_as_msg[0];
+		memcpy(wk_msg.msg, &cec_dev->cec_wk_as_msg[1],
+		       sizeof(wk_msg.len));
+		if (copy_to_user(argp, &wk_msg, _IOC_SIZE(cmd))) {
+			mutex_unlock(&cec_dev->cec_ioctl_mutex);
+			return -EINVAL;
+		}
+		break;
 	default:
 		CEC_ERR("error ioctrl: 0x%x\n", cmd);
 		break;
@@ -3574,7 +3629,7 @@ static unsigned int cec_poll(struct file *filp, poll_table *wait)
 	unsigned int mask = 0;
 
 	poll_wait(filp, &cec_msg_wait_queue, wait);
-	if (new_msg)
+	if (new_msg || cec_dev->msg_num > 0)
 		mask |= POLLIN | POLLRDNORM;
 
 	return mask;
@@ -3588,9 +3643,21 @@ void cec_new_msg_push(void)
 	if (cec_config(0, 0) & CEC_FUNC_CFG_CEC_ON) {
 		complete(&cec_dev->rx_ok);
 		new_msg = 1;
+		/* will notify by stored_msg_push */
+		if (cec_dev->framework_on && cec_need_store_msg_to_buff())
+			return;
 		wake_up(&cec_msg_wait_queue);
 		/* uevent to notify cec msg received */
 		queue_delayed_work(cec_dev->cec_rx_event_wq, &cec_dev->work_cec_rx, 0);
+	}
+}
+
+static void cec_stored_msg_push(void)
+{
+	if (cec_config(0, 0) & CEC_FUNC_CFG_CEC_ON) {
+		wake_up(&cec_msg_wait_queue);
+		queue_delayed_work(cec_dev->cec_rx_event_wq,
+				   &cec_dev->work_cec_rx, CEC_NOTIFY_DELAY);
 	}
 }
 
@@ -3727,8 +3794,8 @@ static void aocec_late_resume(struct early_suspend *h)
 	if (!cec_dev)
 		return;
 
-	cec_dev->wakeup_st = 0;
-	cec_dev->msg_idx = 0;
+	/* cec_dev->wakeup_st = 0; */
+	/* cec_dev->msg_idx = 0; */
 
 	cec_dev->cec_suspend = CEC_PW_POWER_ON;
 	CEC_ERR("%s, suspend sts:%d\n", __func__, cec_dev->cec_suspend);
@@ -4051,11 +4118,11 @@ static void cec_get_wakeup_reason(void)
 	/* cec bootup earlier than gx_pm module,
 	 * need to use scpi interface instead
 	 * of gx_pm interface when powerup
+	 * for tm2, also need to use scpi interface
+	 * for resume reason
 	 */
-	if (!cec_dev->probe_finish)
-		scpi_get_wakeup_reason(&cec_dev->wakeup_reason);
-	else
-		cec_dev->wakeup_reason = get_resume_method();
+	scpi_get_wakeup_reason(&cec_dev->wakeup_reason);
+	/* cec_dev->wakeup_reason = get_resume_reason(); */
 	CEC_ERR("wakeup_reason:0x%x\n", cec_dev->wakeup_reason);
 }
 
@@ -4068,19 +4135,111 @@ static void cec_clear_wakeup_reason(void)
 		CEC_INFO("clr wakeup reason fail\n");
 }
 
+static unsigned int cec_get_wk_port_id(unsigned int phy_addr)
+{
+	int i = 0;
+	unsigned int port_id = 0;
+
+	if (phy_addr == 0xFFFF || (phy_addr & 0xF000) == 0)
+		return 0xFF;
+
+	for (i = 0; i < PHY_ADDR_LEN; i++) {
+		port_id = (phy_addr >> (PHY_ADDR_LEN - i - 1) * 4) & 0xF;
+		if (port_id == 0) {
+			port_id = (phy_addr >> (PHY_ADDR_LEN - i) * 4) & 0xF;
+			break;
+		}
+	}
+	return port_id;
+}
+
+/* for shutdown/resume
+ * wakeup message from source
+ * <Image View On> 0x04 len = 2
+ * <Text View On> 0x0D len = 2
+ * <Active Source> 0x82 len = 4
+ *
+ * wakeup message from TV
+ * <Set Stream Path> 0x86 len = 4
+ * <Routing Change> 0x80 len = 6
+ * <remote key> 0x40 0x6d 0x09 len = 3
+ * if <Routing Change> is received
+ * then ignore other otp/as msg
+ */
 static void cec_get_wakeup_data(void)
 {
+	unsigned int stick_cec1 = 0;
+	unsigned int stick_cec2 = 0;
 	/*temp for mailbox not ready*/
 	/*data = readl(cec_dev->periphs_reg + (0xa6 << 2));*/
 	/*cec_dev->wakup_data.wk_logic_addr = data & 0xff;*/
 	/*cec_dev->wakup_data.wk_phy_addr = (data >> 8) & 0xffff;*/
 	/*cec_dev->wakup_data.wk_port_id = (data >> 24) & 0xff;*/
 
-	scpi_get_cec_val(SCPI_CMD_GET_CEC1,
-			 (unsigned int *)&cec_dev->wakup_data);
+	memset(cec_dev->cec_wk_otp_msg, 0, sizeof(cec_dev->cec_wk_otp_msg));
+	memset(cec_dev->cec_wk_as_msg, 0, sizeof(cec_dev->cec_wk_as_msg));
+#ifdef CEC_MAIL_BOX
+	scpi_get_cec_val(SCPI_CMD_GET_CEC1, &stick_cec1);
+	scpi_get_cec_val(SCPI_CMD_GET_CEC2, &stick_cec2);
+#endif
+	CEC_ERR("wakeup_data: %#x %#x\n", stick_cec1, stick_cec2);
 
-	CEC_ERR("wakeup_data: %#x\n",
-		*((unsigned int *)&cec_dev->wakup_data));
+	/* CEC_FUNC_MASK and AUTO_POWER_ON_MASK
+	 * already judge under uboot
+	 */
+	/* for otp, recovery and compose to msg */
+	switch ((stick_cec1 >> 16) & 0xff) {
+	case CEC_OC_ROUTING_CHANGE:
+		cec_dev->cec_wk_otp_msg[0] = 6;
+		cec_dev->cec_wk_otp_msg[1] = (stick_cec1 >> 24) & 0xff;
+		cec_dev->cec_wk_otp_msg[2] = (stick_cec1 >> 16) & 0xff;
+		cec_dev->cec_wk_otp_msg[3] = (stick_cec1 >> 8) & 0xff;
+		cec_dev->cec_wk_otp_msg[4] = stick_cec1 & 0xff;
+		cec_dev->cec_wk_otp_msg[5] = (stick_cec2 >> 24) & 0xff;
+		cec_dev->cec_wk_otp_msg[6] = (stick_cec2 >> 16) & 0xff;
+		break;
+	case CEC_OC_SET_STREAM_PATH:
+		cec_dev->cec_wk_otp_msg[0] = 4;
+		cec_dev->cec_wk_otp_msg[1] = (stick_cec1 >> 24) & 0xff;
+		cec_dev->cec_wk_otp_msg[2] = (stick_cec1 >> 16) & 0xff;
+		cec_dev->cec_wk_otp_msg[3] = (stick_cec1 >> 8) & 0xff;
+		cec_dev->cec_wk_otp_msg[4] = stick_cec1 & 0xff;
+		break;
+	case CEC_OC_USER_CONTROL_PRESSED:
+		cec_dev->cec_wk_otp_msg[0] = 3;
+		cec_dev->cec_wk_otp_msg[1] = (stick_cec1 >> 24) & 0xff;
+		cec_dev->cec_wk_otp_msg[2] = (stick_cec1 >> 16) & 0xff;
+		cec_dev->cec_wk_otp_msg[3] = (stick_cec1 >> 8) & 0xff;
+		break;
+	case CEC_OC_IMAGE_VIEW_ON:
+	case CEC_OC_TEXT_VIEW_ON:
+		cec_dev->cec_wk_otp_msg[0] = 2;
+		cec_dev->cec_wk_otp_msg[1] = (stick_cec1 >> 24) & 0xff;
+		cec_dev->cec_wk_otp_msg[2] = (stick_cec1 >> 16) & 0xff;
+		cec_dev->wakup_data.wk_phy_addr = 0xffff;
+		cec_dev->wakup_data.wk_logic_addr =
+			(cec_dev->cec_wk_otp_msg[1] >> 4) & 0xf;
+		cec_dev->wakup_data.wk_port_id = 0xff;
+		break;
+	default:
+		break;
+	}
+
+	if (cec_dev->cec_wk_otp_msg[0] > 4)
+		return;
+	/* for active source, recovery and compose to msg */
+	if (((stick_cec2 >> 16) & 0xff) == CEC_OC_ACTIVE_SOURCE) {
+		cec_dev->cec_wk_as_msg[0] = 4;
+		cec_dev->cec_wk_as_msg[1] = (stick_cec2 >> 24) & 0xff;
+		cec_dev->cec_wk_as_msg[2] = (stick_cec2 >> 16) & 0xff;
+		cec_dev->cec_wk_as_msg[3] = (stick_cec2 >> 8) & 0xff;
+		cec_dev->cec_wk_as_msg[4] = stick_cec2 & 0xff;
+		cec_dev->wakup_data.wk_phy_addr = stick_cec2 & 0xffff;
+		cec_dev->wakup_data.wk_logic_addr =
+			(cec_dev->cec_wk_as_msg[1] >> 4) & 0xf;
+		cec_dev->wakup_data.wk_port_id =
+			cec_get_wk_port_id(cec_dev->wakup_data.wk_phy_addr);
+	}
 }
 
 static int __of_irq_count(struct device_node *dev)
@@ -4621,7 +4780,20 @@ static int aml_cec_probe(struct platform_device *pdev)
 #endif
 	#ifdef CEC_MAIL_BOX
 	cec_get_wakeup_reason();
+	cec_dev->msg_idx = 0;
+	cec_dev->msg_num = 0;
+	cec_dev->framework_on = 0;
+	/* shutdown->resme, need to read stick regs to get info */
 	cec_get_wakeup_data();
+	/* store and push otp/active source msg from uboot */
+	if (cec_dev->wakeup_reason == CEC_WAKEUP) {
+		if (cec_dev->cec_wk_otp_msg[0] > 0)
+			cec_store_msg_to_buff(cec_dev->cec_wk_otp_msg[0],
+					      &cec_dev->cec_wk_otp_msg[1]);
+		if (cec_dev->cec_wk_as_msg[0] > 0)
+			cec_store_msg_to_buff(cec_dev->cec_wk_as_msg[0],
+					      &cec_dev->cec_wk_as_msg[1]);
+	}
 	#endif
 	cec_irq_enable(true);
 	CEC_ERR("%s success end\n", __func__);
@@ -4710,7 +4882,7 @@ static int aml_cec_pm_prepare(struct device *dev)
 		return 0;
 	}
 	/*initial msg buffer*/
-	cec_dev->wakeup_st = 0;
+	/* cec_dev->wakeup_st = 0; */
 	cec_dev->msg_idx = 0;
 	cec_dev->msg_num = 0;
 	for (i = 0; i < CEC_MSG_BUFF_MAX; i++) {
@@ -4719,6 +4891,8 @@ static int aml_cec_pm_prepare(struct device *dev)
 			cec_dev->msgbuff[i].msg[j] = 0;
 	}
 	//cec_dev->cec_suspend = CEC_DEEP_SUSPEND;
+	/* todo: when to notify uplayer that cec enter suspend */
+	cec_set_uevent(CEC_PWR_UEVENT, CEC_SUSPEND);
 	CEC_ERR("%s\n", __func__);
 	return 0;
 }
@@ -4728,13 +4902,22 @@ static void aml_cec_pm_complete(struct device *dev)
 	if (IS_ERR_OR_NULL(cec_dev))
 		return;
 
-	cec_dev->wakeup_st = 0;
-	cec_dev->msg_idx = 0;
+	/* cec_dev->wakeup_st = 0; */
+	/* cec_dev->msg_idx = 0; */
 #ifdef CEC_MAIL_BOX
 	cec_get_wakeup_reason();
 	if (cec_dev->wakeup_reason == CEC_WAKEUP) {
 		cec_key_report(0);
 		cec_clear_wakeup_reason();
+		/* todo: when to notify linux/android platform
+		 * to read wakeup msg
+		 */
+		if (cec_dev->cec_wk_otp_msg[0] > 0)
+			cec_set_uevent(CEC_PWR_UEVENT, CEC_WAKEUP_OTP);
+		if (cec_dev->cec_wk_as_msg[0] > 0)
+			cec_set_uevent(CEC_PWR_UEVENT, CEC_WAKEUP_AS);
+	} else {
+		cec_set_uevent(CEC_PWR_UEVENT, CEC_WAKEUP_NORMAL);
 	}
 #endif
 	CEC_ERR("%s\n", __func__);
@@ -4769,9 +4952,49 @@ static int aml_cec_suspend_noirq(struct device *dev)
 	cec_save_mail_box();
 	cec_dev->cec_info.power_status = CEC_PW_STANDBY;
 	cec_dev->cec_suspend = CEC_PW_STANDBY;
+	cec_dev->msg_idx = 0;
+	cec_dev->msg_num = 0;
+	cec_dev->framework_on = 0;
+	CEC_INFO("%s\n", __func__);
 	return 0;
 }
 
+static void cec_get_wk_msg(void)
+{
+	int i = 0;
+
+	memset(cec_dev->cec_wk_otp_msg, 0, sizeof(cec_dev->cec_wk_otp_msg));
+	scpi_get_cec_wk_msg(SCPI_CMD_GET_CEC_OTP_MSG,
+		 cec_dev->cec_wk_otp_msg);
+	CEC_INFO("cec_wk_otp_msg len: %x\n", cec_dev->cec_wk_otp_msg[0]);
+	for (i = 0; i < cec_dev->cec_wk_otp_msg[0]; i++)
+		CEC_INFO("cec_wk_otp_msg[%d] %02x\n", i,
+			 cec_dev->cec_wk_otp_msg[i + 1]);
+	if (cec_dev->cec_wk_otp_msg[2] == CEC_OC_IMAGE_VIEW_ON ||
+	    cec_dev->cec_wk_otp_msg[2] == CEC_OC_TEXT_VIEW_ON) {
+		cec_dev->wakup_data.wk_phy_addr = 0xffff;
+		cec_dev->wakup_data.wk_logic_addr =
+			(cec_dev->cec_wk_otp_msg[1] >> 4) & 0xf;
+		cec_dev->wakup_data.wk_port_id = 0xff;
+	}
+
+	memset(cec_dev->cec_wk_as_msg, 0, sizeof(cec_dev->cec_wk_as_msg));
+	scpi_get_cec_wk_msg(SCPI_CMD_GET_CEC_AS_MSG,
+		 cec_dev->cec_wk_as_msg);
+	CEC_INFO("cec_wk_as_msg len: %x\n", cec_dev->cec_wk_as_msg[0]);
+	for (i = 0; i < cec_dev->cec_wk_as_msg[0]; i++)
+		CEC_INFO("cec_wk_as_msg[%d] %02x\n", i,
+			 cec_dev->cec_wk_as_msg[i + 1]);
+	if (cec_dev->cec_wk_as_msg[2] == CEC_OC_ACTIVE_SOURCE) {
+		cec_dev->wakup_data.wk_phy_addr =
+			(cec_dev->cec_wk_as_msg[3] << 8) |
+			cec_dev->cec_wk_as_msg[4];
+		cec_dev->wakup_data.wk_logic_addr =
+			(cec_dev->cec_wk_as_msg[1] >> 4) & 0xf;
+		cec_dev->wakup_data.wk_port_id =
+			cec_get_wk_port_id(cec_dev->wakup_data.wk_phy_addr);
+	}
+}
 static int aml_cec_resume_noirq(struct device *dev)
 {
 	int ret = 0;
@@ -4781,8 +5004,8 @@ static int aml_cec_resume_noirq(struct device *dev)
 	cec_dev->cec_info.power_status = CEC_PW_TRANS_STANDBY_TO_ON;
 	cec_dev->cec_suspend = CEC_PW_TRANS_STANDBY_TO_ON;
 	/*initial msg buffer*/
-	cec_dev->msg_idx = 0;
-	cec_dev->msg_num = 0;
+	/* cec_dev->msg_idx = 0; */
+	/* cec_dev->msg_num = 0; */
 
 	#ifdef CEC_FREEZE_WAKE_UP
 	if (is_pm_s2idle_mode())
@@ -4792,9 +5015,24 @@ static int aml_cec_resume_noirq(struct device *dev)
 	{
 		cec_clear_all_logical_addr(ee_cec);
 		cec_get_wakeup_reason();
-		cec_get_wakeup_data();
+		/* since SC2, it uses uboot2019
+		 * for previous chips, uboot2015, still use stick regs
+		 */
+		if (cec_dev->plat_data->chip_id >= CEC_CHIP_SC2)
+			cec_get_wk_msg();
+		else
+			cec_get_wakeup_data();
 		/* disable all logical address */
 		/*cec_dev->cec_info.addr_enable = 0;*/
+	}
+	/* store and push otp/active source msg from uboot */
+	if (cec_dev->wakeup_reason == CEC_WAKEUP) {
+		if (cec_dev->cec_wk_otp_msg[0] > 0)
+			cec_store_msg_to_buff(cec_dev->cec_wk_otp_msg[0],
+					      &cec_dev->cec_wk_otp_msg[1]);
+		if (cec_dev->cec_wk_as_msg[0] > 0)
+			cec_store_msg_to_buff(cec_dev->cec_wk_as_msg[0],
+					      &cec_dev->cec_wk_as_msg[1]);
 	}
 	cec_pre_init();
 	if (!IS_ERR(cec_dev->dbg_dev->pins->default_state))
@@ -4804,7 +5042,7 @@ static int aml_cec_resume_noirq(struct device *dev)
 	cec_irq_enable(true);
 	cec_dev->cec_info.power_status = CEC_PW_POWER_ON;
 	cec_dev->cec_suspend = CEC_PW_POWER_ON;
-	cec_dev->wakeup_st = 1;
+	/* cec_dev->wakeup_st = 1; */
 	return 0;
 }
 

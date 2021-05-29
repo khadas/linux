@@ -6,11 +6,13 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION     "2021/06/28: fix wakeup from shutdown"
+#define CEC_DRIVER_VERSION     "2021/07/10: transfer cec wakeup msg to uplayer"
 
 #define CEC_DEV_NAME		"cec"
 
 #define CEC_FRAME_DELAY		msecs_to_jiffies(30)
+/* delay for framework to receive & handle uevent */
+#define CEC_NOTIFY_DELAY	msecs_to_jiffies(10)
 #define CEC_CHK_BUS_CNT		20
 
 #define CEC_PHY_PORT_NUM	4
@@ -175,6 +177,9 @@ struct ao_cec_dev {
 	struct mutex cec_ioctl_mutex;
 	struct mutex cec_uevent_mutex; /* cec uevent */
 	struct cec_wakeup_t wakup_data;
+	/* msg_len + maximum msg len */
+	unsigned char cec_wk_otp_msg[17];
+	unsigned char cec_wk_as_msg[17];
 	unsigned int wakeup_reason;
 #ifdef CONFIG_PM
 	int cec_suspend;
@@ -184,7 +189,7 @@ struct ao_cec_dev {
 	struct cec_platform_data_s *plat_data;
 
 	unsigned int cfg;
-	unsigned int wakeup_st;
+	/* unsigned int wakeup_st; */
 
 	unsigned int msg_idx;
 	unsigned int msg_num;
@@ -192,6 +197,7 @@ struct ao_cec_dev {
 
 	struct clk *ceca_clk;
 	struct clk *cecb_clk;
+	bool framework_on;
 };
 
 struct cec_msg_last {
@@ -514,10 +520,22 @@ enum {
 	CECB_STAT0_P2S_FBACK_RX_ERR = 6,
 };
 
+/* suspend uevent(only for deep suspend)
+ * under early suspend, cec msg is handled by framework
+ */
+#define CEC_SUSPEND 0
+#define CEC_WAKEUP_NORMAL 1
+/* wake up by CEC, one touch play or
+ * active source msg received from uboot
+ */
+#define CEC_WAKEUP_OTP 2
+#define CEC_WAKEUP_AS 3
+
 enum cec_event_type {
 	CEC_NONE_EVENT = 0,
 	HDMI_PLUG_EVENT = 1,
 	CEC_RX_MSG = 2,
+	CEC_PWR_UEVENT = 3
 };
 
 #define MAX_UEVENT_LEN 64
@@ -576,6 +594,31 @@ struct cec_uevent {
 
 #define HHI_32K_CLK_CNTL		(0x89 << 2)
 #define HHI_HDMIRX_ARC_CNTL		(0xe8 << 2)
+
+#define CEC_IOC_MAGIC                   'C'
+#define CEC_IOC_GET_PHYSICAL_ADDR       _IOR(CEC_IOC_MAGIC, 0x00, uint16_t)
+#define CEC_IOC_GET_VERSION             _IOR(CEC_IOC_MAGIC, 0x01, int)
+#define CEC_IOC_GET_VENDOR_ID           _IOR(CEC_IOC_MAGIC, 0x02, uint32_t)
+#define CEC_IOC_GET_PORT_INFO           _IOR(CEC_IOC_MAGIC, 0x03, int)
+#define CEC_IOC_GET_PORT_NUM            _IOR(CEC_IOC_MAGIC, 0x04, int)
+#define CEC_IOC_GET_SEND_FAIL_REASON    _IOR(CEC_IOC_MAGIC, 0x05, uint32_t)
+#define CEC_IOC_SET_OPTION_WAKEUP       _IOW(CEC_IOC_MAGIC, 0x06, uint32_t)
+#define CEC_IOC_SET_OPTION_ENALBE_CEC   _IOW(CEC_IOC_MAGIC, 0x07, uint32_t)
+#define CEC_IOC_SET_OPTION_SYS_CTRL     _IOW(CEC_IOC_MAGIC, 0x08, uint32_t)
+#define CEC_IOC_SET_OPTION_SET_LANG     _IOW(CEC_IOC_MAGIC, 0x09, uint32_t)
+#define CEC_IOC_GET_CONNECT_STATUS      _IOR(CEC_IOC_MAGIC, 0x0A, uint32_t)
+#define CEC_IOC_ADD_LOGICAL_ADDR        _IOW(CEC_IOC_MAGIC, 0x0B, uint32_t)
+#define CEC_IOC_CLR_LOGICAL_ADDR        _IOW(CEC_IOC_MAGIC, 0x0C, uint32_t)
+#define CEC_IOC_SET_DEV_TYPE            _IOW(CEC_IOC_MAGIC, 0x0D, uint32_t)
+#define CEC_IOC_SET_ARC_ENABLE          _IOW(CEC_IOC_MAGIC, 0x0E, uint32_t)
+#define CEC_IOC_SET_AUTO_DEVICE_OFF     _IOW(CEC_IOC_MAGIC, 0x0F, uint32_t)
+#define CEC_IOC_GET_BOOT_ADDR           _IOW(CEC_IOC_MAGIC, 0x10, uint32_t)
+#define CEC_IOC_GET_BOOT_REASON         _IOW(CEC_IOC_MAGIC, 0x11, uint32_t)
+#define CEC_IOC_SET_FREEZE_MODE         _IOW(CEC_IOC_MAGIC, 0x12, uint32_t)
+#define CEC_IOC_GET_BOOT_PORT           _IOW(CEC_IOC_MAGIC, 0x13, uint32_t)
+#define CEC_IOC_SET_DEBUG_EN		_IOW(CEC_IOC_MAGIC, 0x14, uint32_t)
+#define CEC_IOC_GET_WK_OTP_MSG	_IOR(CEC_IOC_MAGIC, 0x17, struct st_rx_msg)
+#define CEC_IOC_GET_WK_AS_MSG	_IOR(CEC_IOC_MAGIC, 0x18, struct st_rx_msg)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 unsigned long hdmirx_rd_top(unsigned long addr);
