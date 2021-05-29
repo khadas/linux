@@ -1051,6 +1051,28 @@ int scpi_send_cec_data(u32 cmd_id, u32 *val, u32 size)
 }
 EXPORT_SYMBOL_GPL(scpi_send_cec_data);
 
+int scpi_get_cec_wk_msg(enum scpi_std_cmd index, unsigned char *cec_msg)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+	u32 temp = 0;
+	struct __packed {
+		u32 status;
+		unsigned char msg_len;
+		unsigned char cec_msg[16];
+	} buf;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
+			index, temp, buf);
+	if (scpi_execute_cmd(&sdata))
+		return -EPERM;
+
+	memcpy(cec_msg, &buf.msg_len,
+		sizeof(buf.msg_len) + sizeof(buf.cec_msg));
+	return 0;
+}
+EXPORT_SYMBOL_GPL(scpi_get_cec_wk_msg);
+
 u8 scpi_get_ethernet_calc(void)
 {
 	struct scpi_data_buf sdata;
