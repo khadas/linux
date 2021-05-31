@@ -544,18 +544,10 @@ static void info_show(void)
 		case SYS_DVBC_ANNEX_A:
 		case SYS_DVBC_ANNEX_C:
 			dvbc_status(demod, &demod_sts);
-			if (demod_sts.ch_sts & 0x1) {
+			if ((qam_read_reg(demod, 0x31) & 0xf) == 5)
 				PR_INFO("lock: locked.\n");
-				PR_INFO("ch_sts: %d.\n", demod_sts.ch_sts);
-				PR_INFO("ch_pow: %d.\n", demod_sts.ch_pow);
-				PR_INFO("ch_snr: %d.\n", demod_sts.ch_snr);
-				PR_INFO("ch_ber: %d.\n", demod_sts.ch_ber);
-				PR_INFO("ch_per: %d.\n", demod_sts.ch_per);
-				PR_INFO("symb_rate: %d.\n", demod_sts.symb_rate);
-				PR_INFO("freq_off: %d.\n", demod_sts.freq_off);
-			} else {
+			else
 				PR_INFO("lock: unlocked.\n");
-			}
 			break;
 
 		case SYS_DTMB:
@@ -729,6 +721,7 @@ static ssize_t attr_store(struct class *cls,
 	list_for_each_entry(tmp, &devp->demod_list, list) {
 		if (tmp->id == 0) {
 			demod = tmp;
+			fe = &demod->frontend;
 			break;
 		}
 	}
@@ -741,6 +734,7 @@ static ssize_t attr_store(struct class *cls,
 			list_for_each_entry(tmp, &devp->demod_list, list) {
 				if (tmp->id == 0) {
 					demod = tmp;
+					fe = &demod->frontend;
 					break;
 				}
 			}
