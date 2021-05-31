@@ -168,13 +168,28 @@ static int crg_reset_thread(void *data)
 {
 	struct platform_device *plat_dev = data;
 	struct usb_hcd	*hcd = platform_get_drvdata(plat_dev);
-	int i;
+	int i, mutex_id;
 
+	mutex_id = 0;
+	for (i = 0; i < CRG_XHCI_MAX_COUNT; i++) {
+		if (crg_task[i].id == plat_dev->id) {
+			mutex_id = i;
+			break;
+		}
+	}
+	while (!crg_task[mutex_id].hcd_mutex)
+		msleep(20);
 	while (!kthread_should_stop()) {
+		mutex_lock(crg_task[mutex_id].hcd_mutex);
 		hcd = platform_get_drvdata(plat_dev);
-		if (hcd && hcd->crg_do_reset) {
+		if (crg_task[mutex_id].hcd_removed_flag == 1) {
+			mutex_unlock(crg_task[mutex_id].hcd_mutex);
+		} else if (hcd && hcd->crg_do_reset) {
+			mutex_unlock(crg_task[mutex_id].hcd_mutex);
 			xhci_plat_remove(plat_dev);
 			xhci_plat_probe(plat_dev);
+		} else {
+			mutex_unlock(crg_task[mutex_id].hcd_mutex);
 		}
 		msleep(20);
 	}
@@ -279,12 +294,18 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		if (!crg_task[i].crg_reset_task) {
 			for (j = 0; j < i; j++) {
 				if (crg_task[j].id == pdev->id) {
+					crg_task[j].hcd_removed_flag = 0;
 					task_exsit_flag = 1;
 					break;
 				}
 			}
 			if (task_exsit_flag == 1)
 				break;
+			crg_task[i].hcd_mutex = kmalloc(sizeof(*crg_task[i].hcd_mutex),
+				GFP_KERNEL);
+			if (!crg_task[i].hcd_mutex)
+				goto put_hcd;
+			mutex_init(crg_task[i].hcd_mutex);
 			sprintf(crg_thread_name, "crg_reset_%d_thr\n", i);
 			crg_task[i].crg_reset_task =
 				kthread_run(crg_reset_thread, pdev, crg_thread_name);
@@ -293,6 +314,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 				goto put_hcd;
 			}
 			crg_task[i].id = pdev->id;
+			crg_task[i].hcd_removed_flag = 0;
 			crg_xhci_count = i;
 			break;
 		}
@@ -433,11 +455,46 @@ disable_runtime:
 
 static int xhci_plat_remove(struct platform_device *dev)
 {
+#ifdef CONFIG_AMLOGIC_USB
+	int i;
+	struct usb_hcd	*hcd;
+	struct xhci_hcd	*xhci;
+	struct clk *clk;
+	struct clk *reg_clk;
+	struct usb_hcd *shared_hcd;
+#else
 	struct usb_hcd	*hcd = platform_get_drvdata(dev);
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	struct clk *clk = xhci->clk;
 	struct clk *reg_clk = xhci->reg_clk;
 	struct usb_hcd *shared_hcd = xhci->shared_hcd;
+#endif
+
+#ifdef CONFIG_AMLOGIC_USB
+	for (i = 0; i < CRG_XHCI_MAX_COUNT; i++) {
+		if (dev && crg_task[i].id == dev->id)
+			break;
+	}
+	if (i >= CRG_XHCI_MAX_COUNT)
+		return 0;
+	if (crg_task[i].hcd_removed_flag == 1)
+		return 0;
+	if (crg_task[i].hcd_mutex) {
+		mutex_lock(crg_task[i].hcd_mutex);
+		crg_task[i].hcd_removed_flag = 1;
+	}
+	hcd = platform_get_drvdata(dev);
+	if (hcd) {
+		xhci = hcd_to_xhci(hcd);
+		clk = xhci->clk;
+		reg_clk = xhci->reg_clk;
+		shared_hcd = xhci->shared_hcd;
+	} else {
+		if (crg_task[i].hcd_mutex)
+			mutex_unlock(crg_task[i].hcd_mutex);
+		return 0;
+	}
+#endif
 
 	pm_runtime_get_sync(&dev->dev);
 	xhci->xhc_state |= XHCI_STATE_REMOVING;
@@ -459,6 +516,11 @@ static int xhci_plat_remove(struct platform_device *dev)
 	pm_runtime_disable(&dev->dev);
 	pm_runtime_put_noidle(&dev->dev);
 	pm_runtime_set_suspended(&dev->dev);
+
+#ifdef CONFIG_AMLOGIC_USB
+	if (crg_task[i].hcd_mutex)
+		mutex_unlock(crg_task[i].hcd_mutex);
+#endif
 
 	return 0;
 }
@@ -551,6 +613,7 @@ static void __exit xhci_plat_exit(void)
 	for (i = 0; i <= crg_xhci_count; i++) {
 		if (crg_task[i].crg_reset_task)
 			kthread_stop(crg_task[i].crg_reset_task);
+		kfree(crg_task[i].hcd_mutex);
 	}
 #endif
 	platform_driver_unregister(&usb_xhci_driver);

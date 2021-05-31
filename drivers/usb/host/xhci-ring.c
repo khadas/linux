@@ -995,7 +995,10 @@ void xhci_stop_endpoint_command_watchdog(struct timer_list *t)
 	 */
 	xhci_hc_died(xhci);
 #ifdef CONFIG_AMLOGIC_USB
-	hcd->crg_do_reset = 1;
+	if (hcd->primary_hcd)
+		hcd->primary_hcd->crg_do_reset = 1;
+	else
+		hcd->crg_do_reset = 1;
 #endif
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,

@@ -26,6 +26,10 @@
 #define CRG_XHCI_MAX_COUNT		0x8
 struct crg_reset {
 	struct task_struct *crg_reset_task;
+	/* hcd_mutex protect crg_reset_thread and xhci_plat_remove
+	 */
+	struct mutex		*hcd_mutex;
+	int hcd_removed_flag;
 	int id;
 };
 #endif
