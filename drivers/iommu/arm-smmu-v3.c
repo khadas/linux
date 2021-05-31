@@ -2737,6 +2737,48 @@ static struct iommu_ops arm_smmu_ops = {
 	.pgsize_bitmap		= -1UL, /* Restricted during device attach */
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static void *persistent_ram_vmap_nocache(phys_addr_t start, size_t size)
+{
+	struct page **pages;
+	phys_addr_t page_start;
+	unsigned int page_count;
+	pgprot_t prot;
+	unsigned int i;
+	void *vaddr;
+
+	page_start = start - offset_in_page(start);
+	page_count = DIV_ROUND_UP(size + offset_in_page(start), PAGE_SIZE);
+
+	prot = pgprot_noncached(PAGE_KERNEL);
+
+	pages = kmalloc_array(page_count, sizeof(struct page *), GFP_KERNEL);
+	/*
+	 *if (!pages) {
+	 *	pr_err("%s: Failed to allocate array for %u pages\n",
+	 *	       __func__, page_count);
+	 *	return NULL;
+	 *}
+	 */
+
+	for (i = 0; i < page_count; i++) {
+		phys_addr_t addr = page_start + i * PAGE_SIZE;
+
+		pages[i] = pfn_to_page(addr >> PAGE_SHIFT);
+	}
+	vaddr = vmap(pages, page_count, VM_MAP, prot);
+	kfree(pages);
+
+	/*
+	 * Since vmap() uses page granularity, we must add the offset
+	 * into the page here, to get the byte granularity address
+	 * into the mapping to represent the actual "start" location.
+	 */
+	//return vaddr + offset_in_page(start);
+	return vaddr;
+}
+#endif
+
 /* Probing and initialisation functions */
 static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 				   struct arm_smmu_queue *q,
@@ -2745,11 +2787,19 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 				   size_t dwords, const char *name)
 {
 	size_t qsz;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int base_addr_phys;
+	void *vmap_addr = NULL;
+#endif
 
 	do {
 		qsz = ((1 << q->llq.max_n_shift) * dwords) << 3;
+#ifndef CONFIG_AMLOGIC_MODIFY
 		q->base = dmam_alloc_coherent(smmu->dev, qsz, &q->base_dma,
 					      GFP_KERNEL);
+#else
+		q->base = kmalloc(qsz, GFP_KERNEL);
+#endif
 		if (q->base || qsz < PAGE_SIZE)
 			break;
 
@@ -2763,6 +2813,19 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 		return -ENOMEM;
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	base_addr_phys = virt_to_phys(q->base);
+
+	vmap_addr = persistent_ram_vmap_nocache(base_addr_phys, qsz);
+	if (!vmap_addr) {
+		kfree(q->base);
+		dev_err(smmu->dev, "failed to persistent %zx bytes\n", qsz);
+		return -ENOMEM;
+	}
+
+	q->base = vmap_addr;
+	q->base_dma = base_addr_phys;
+#endif
 	if (!WARN_ON(q->base_dma & (qsz - 1))) {
 		dev_info(smmu->dev, "allocated %u entries for %s\n",
 			 1 << q->llq.max_n_shift, name);
@@ -3344,8 +3407,10 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	if (reg & IDR0_SEV)
 		smmu->features |= ARM_SMMU_FEAT_SEV;
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	if (reg & IDR0_MSI)
 		smmu->features |= ARM_SMMU_FEAT_MSI;
+#endif
 
 	if (reg & IDR0_HYP)
 		smmu->features |= ARM_SMMU_FEAT_HYP;
