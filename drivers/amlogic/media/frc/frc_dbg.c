@@ -101,7 +101,6 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "frc_prot_mode = %d\n", devp->prot_mode);
 	pr_frc(0, "film_mode = %d\n", devp->film_mode);
 	pr_frc(0, "film_mode_det = %d\n", devp->film_mode_det);
-
 	pr_frc(0, "frc in hsize = %d\n", fw_data->frc_top_type.hsize);
 	pr_frc(0, "frc in vsize = %d\n", fw_data->frc_top_type.vsize);
 	pr_frc(0, "vfb = %d\n", fw_data->frc_top_type.vfb);
@@ -375,8 +374,12 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 		}
 	} else if (!strcmp(parm[0], "secure_off")) {
 		frc_test_mm_secure_set_off(devp);
+	} else if (!strcmp(parm[0], "prot_mode")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->prot_mode = val1;
 	}
-
 exit:
 	kfree(buf_orig);
 }

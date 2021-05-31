@@ -442,9 +442,7 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp,
 		frc_devp->clk_frc = NULL;
 		frc_devp->clk_me = NULL;
 	}
-
 	frc_attach_pd(frc_devp);
-
 	return ret;
 }
 
