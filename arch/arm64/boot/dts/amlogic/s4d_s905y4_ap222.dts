@@ -44,14 +44,14 @@
 		ranges;
 
 		/* global autoconfigured region for contiguous allocations */
-//		ramoops@0x07400000 {
-//			compatible = "ramoops";
-//			reg = <0x0 0x07400000 0x0 0x00100000>;
-//			record-size = <0x20000>;
-//			console-size = <0x40000>;
-//			ftrace-size = <0x80000>;
-//			pmsg-size = <0x20000>;
-//		};
+		ramoops@0x07400000 {
+			compatible = "ramoops";
+			reg = <0x0 0x07400000 0x0 0x00100000>;
+			record-size = <0x20000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x80000>;
+			pmsg-size = <0x20000>;
+		};
 
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
@@ -101,7 +101,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x13400000>;
+			size = <0x0 0x1b000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -166,7 +166,7 @@
 	};
 	cvbsout {
 		compatible = "amlogic, cvbsout-s4";
-		status = "disabled";
+		status = "okay";
 
 		/* clk path */
 		/* 0:vid_pll vid2_clk */
@@ -291,13 +291,13 @@
 	ionvideo {
 		compatible = "amlogic, ionvideo";
 		dev_name = "ionvideo";
-		status = "disabled";
+		status = "okay";
 	};
 
 	amlvideo2_0 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";
-		status = "disabled";
+		status = "okay";
 		amlvideo2_id = <0>;
 		cma_mode = <1>;
 	};
@@ -305,7 +305,7 @@
 	amlvideo2_1 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";
-		status = "disabled";
+		status = "okay";
 		amlvideo2_id = <1>;
 		cma_mode = <1>;
 	};
@@ -314,13 +314,13 @@
 		compatible = "amlogic, ppmgr";
 		memory-region = <&ppmgr_reserved>;
 		dev_name = "ppmgr";
-		status = "disabled";
+		status = "okay";
 	};
 
 	amlvecm {
 		compatible = "amlogic, vecm";
 		dev_name = "aml_vecm";
-		status = "disabled";
+		status = "okay";
 		gamma_en = <0>;/*1:enabel ;0:disable*/
 		wb_en = <0>;/*1:enabel ;0:disable*/
 		cm_en = <0>;/*1:enabel ;0:disable*/
@@ -330,7 +330,7 @@
 
 	multi-di {
 		compatible = "amlogic, dim-s4";
-		status = "disabled";
+		status = "okay";
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
 		flag_cma = <4>;	//<1>;
 		//memory-region = <&di_reserved>;
@@ -545,7 +545,7 @@
 	};//End efusekey
 	/* Audio Related start */
 	auge_sound {
-		//compatible = "amlogic, auge-sound-card";
+		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/
@@ -704,7 +704,7 @@
 
 	picdec {
 		compatible = "amlogic, picdec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	audiolocker: locker {
@@ -720,7 +720,7 @@
 
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";
-		status = "disabled";
+		status = "okay";
 		opp-shared;
 
 		opp00 {
@@ -771,12 +771,12 @@
 
 	cpufreq-meson {
 		compatible = "amlogic, cpufreq-meson";
-		status = "disabled";
+		status = "okay";
 	};
 
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
-		status = "disabled";
+		status = "okay";
 		key_name = "standby", "vol+", "vol-";
 		key_num = <3>;
 		io-channels = <&saradc 0>;
@@ -789,7 +789,7 @@
 
 	gpio_keypad{
 		compatible = "amlogic, gpio_keypad";
-		status = "disabled";
+		status = "okay";
 		scan_period = <20>;
 		key_num = <1>;
 		key_name = "bluetooth";
@@ -800,25 +800,25 @@
 };
 
 &pwm_ij {
-	status = "disabled";
+	status = "okay";
 };
 
 &i2c3 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_pins2>;
 	clock-frequency = <300000>;
 };
 
 &i2c4 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c4_pins3>;
 	clock-frequency = <300000>;
 };
 
 &i2c1 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins2>;
 	clock-frequency = <300000>; /* default 100k */
@@ -826,7 +826,7 @@
 	tlc59116: tlc59116@60 {
 		compatible = "amlogic,tlc59116_led";
 		reg = <0x60>;
-		status = "disabled";
+		status = "okay";
 
 		led0 {
 			default_colors = <0 0 0>;
@@ -859,7 +859,7 @@
 };
 
 &vddcpu0 {
-	status = "disabled";
+	status = "okay";
 };
 
 &audiobus {
@@ -878,7 +878,7 @@
 			&tdm_d1_pins
 			&tdma_clk_pins>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	tdmb: tdm@1 {
@@ -894,7 +894,7 @@
 		pinctrl-0 = </*&tdmb_mclk &tdmout_b &tdmin_b*/>;
 
 		i2s2hdmi = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	tdmc: tdm@2 {
@@ -925,7 +925,7 @@
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	spdifa: spdif@0 {
@@ -950,7 +950,7 @@
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 	spdifb: spdif@1 {
 		compatible = "amlogic, tm2-revb-snd-spdif-b";
@@ -961,7 +961,7 @@
 		clock-names = "sysclk",
 				"gate_spdifout", "clk_spdifout";
 
-		status = "disabled";
+		status = "okay";
 	};
 	apdm: pdm {
 		compatible = "amlogic, sm1-snd-pdm";
@@ -984,7 +984,7 @@
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	asrca: resample@0 {
@@ -1053,7 +1053,7 @@
 		 */
 		level = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	loopbacka:loopback@0 {
@@ -1108,7 +1108,7 @@
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	loopbackb:loopback@1 {
@@ -1184,7 +1184,7 @@
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0x3>;
-		status = "disabled";
+		status = "okay";
 	};
 }; /* end of audiobus */
 
@@ -1257,26 +1257,26 @@
 }; /* end of periphs_pinctrl */
 
 &audio_data {
-	status = "disabled";
+	status = "okay";
 };
 
 &dwc2_a {
-	status = "disabled";
+	status = "okay";
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
 	controller-type = <3>;
 };
 
 &crg {
-	status = "disabled";
+	status = "okay";
 };
 
 &usb2_phy_v2 {
-	status = "disabled";
+	status = "okay";
 	portnum = <2>;
 };
 
 &usb3_phy_v2 {
-	status = "disabled";
+	status = "okay";
 	portnum = <0>;
 	otg = <1>;
 	/*gpio-vbus-power = "GPIOH_6";*/
@@ -1290,7 +1290,7 @@
 
 /* SDIO */
 &sd_emmc_a {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&sdio_pins>;
 	pinctrl-1 = <&sdio_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -1347,11 +1347,10 @@
 //	sd-uhs-sdr50;
 //	sd-uhs-sdr104;
 	max-frequency = <200000000>;
-	non-removable;
 	disable-wp;
 
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
-	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
+	dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 	//vmmc-supply = <&vddao_3v3>;
 	//vqmmc-supply = <&emmc_1v8>;
 };
@@ -1445,17 +1444,17 @@
 };
 
 &saradc {
-	status = "disabled";
+	status = "okay";
 };
 
 &ethmac {
-	status = "disabled";
+	status = "okay";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
 };
 
 &ir {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
 };
@@ -1480,7 +1479,7 @@
 	mem_size = <0x00800000 0x1980000 0x100000>;
 	logo_addr = "0x7f800000";
 	mem_alloc = <0>;
-	pxp_mode = <1>; /** 0:normal mode 1:pxp mode */
+	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
 &amhdmitx {
@@ -1524,13 +1523,13 @@
 };
 
 &aml_wifi{
-	status = "disabled";
+	status = "okay";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };
 
 &aml_bt {
-	status = "disabled";
+	status = "okay";
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	btwakeup-gpios = <&gpio    GPIOX_18 GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
@@ -1539,19 +1538,19 @@
 &pwm_ef {
 	pinctrl-0 = <&pwm_e_pins1>;
 	pinctrl-names = "default";
-	status = "disabled";
+	status = "okay";
 };
 
 &uart_A {
-	status = "disabled";
+	status = "okay";
 	uart-has-rtscts;
 };
 
-//&gpu {
-//	tbl =  <&dvfs285_cfg
-//		&dvfs400_cfg
-//		&dvfs500_cfg
-//		&dvfs666_cfg
-//		&dvfs850_cfg
-//		&dvfs850_cfg>;
-//};
+&gpu {
+	tbl =  <&dvfs285_cfg
+		&dvfs400_cfg
+		&dvfs500_cfg
+		&dvfs666_cfg
+		&dvfs850_cfg
+		&dvfs850_cfg>;
+};
