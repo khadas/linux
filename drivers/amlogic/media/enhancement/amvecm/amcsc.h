@@ -118,7 +118,8 @@ enum output_format_e {
 bool is_vinfo_available(const struct vinfo_s *vinfo);
 int is_sink_cap_changed(const struct vinfo_s *vinfo,
 			int *p_current_hdr_cap,
-			int *p_current_sink_available);
+			int *p_current_sink_available,
+			enum vpp_index vpp_index);
 int is_video_turn_on(bool *vd_on, enum vd_path_e vd_path);
 
 #define SIG_CS_CHG	0x01
@@ -188,7 +189,7 @@ extern uint tx_hdr10_plus_support;
 extern struct master_display_info_s dbg_hdr_send;
 
 int amvecm_matrix_process(struct vframe_s *vf, struct vframe_s *vf_rpt, int flags,
-			  enum vd_path_e vd_path);
+			  enum vd_path_e vd_path, enum vpp_index vpp_index);
 int amvecm_hdr_dbg(u32 sel);
 
 u32 get_video_enabled(void);
@@ -219,17 +220,17 @@ struct hdr_data_t {
 void hdr_init(struct hdr_data_t *phdr_data);
 void hdr_exit(void);
 void hdr_set_cfg_osd_100(int val);
-void hdr_osd_off(void);
-void hdr_vd1_off(void);
-void hdr_vd2_off(void);
-void hdr_vd1_iptmap(void);
+void hdr_osd_off(enum vpp_index vpp_index);
+void hdr_vd1_off(enum vpp_index vpp_index);
+void hdr_vd2_off(enum vpp_index vpp_index);
+void hdr_vd1_iptmap(enum vpp_index vpp_index);
 bool is_video_layer_on(enum vd_path_e vd_path);
 
 #define HDR_MODULE_OFF		0
 #define HDR_MODULE_ON		1
 #define HDR_MODULE_BYPASS	2
 void set_hdr_module_status(enum vd_path_e vd_path, int status);
-int get_hdr_module_status(enum vd_path_e vd_path);
+int get_hdr_module_status(enum vd_path_e vd_path, enum vpp_index vpp_index);
 int get_primaries_type(struct vframe_master_display_colour_s *p_mdc);
 
 #define PROC_BYPASS			0
@@ -253,14 +254,16 @@ int get_primaries_type(struct vframe_master_display_colour_s *p_mdc);
 uint get_hdr10_plus_pkt_delay(void);
 void update_hdr10_plus_pkt(bool enable,
 			   void *hdr10plus_params,
-			   void *send_info);
-void send_hdr10_plus_pkt(enum vd_path_e vd_path);
+			   void *send_info,
+			   enum vpp_index vpp_index);
+void send_hdr10_plus_pkt(enum vd_path_e vd_path, enum vpp_index vpp_index);
 
 #define HDRPLUS_PKT_UPDATE	2
 #define HDRPLUS_PKT_REPEAT	1
 #define HDRPLUS_PKT_IDLE	0
 
-void hdr10_plus_process_update(int force_source_lumin, enum vd_path_e vd_path);
+void hdr10_plus_process_update(int force_source_lumin, enum vd_path_e vd_path,
+		enum vpp_index vpp_index);
 extern int customer_hdr_clipping;
 
 /* api to get sink capability */

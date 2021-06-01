@@ -225,7 +225,8 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 				0,
 				0,
 				0,
-				layer_id);
+				layer_id,
+				vpp_index);
 		}
 #endif
 	}
@@ -352,7 +353,8 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 		vd_layer_vpp[vpp_id].cur_frame_par ?
 		vd_layer_vpp[vpp_id].cur_frame_par->cm_input_h :
 		0,
-		layer_id);
+		layer_id,
+		vpp_index);
 #endif
 
 	if (need_disable_vd2 || need_disable_vd3)

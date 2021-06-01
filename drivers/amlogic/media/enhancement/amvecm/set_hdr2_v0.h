@@ -165,7 +165,8 @@ struct hdr_proc_lut_param_s {
 enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			      u32 hdr_process_select,
 			      struct vinfo_s *vinfo,
-			      struct matrix_s *gmt_mtx);
+			      struct matrix_s *gmt_mtx,
+			      enum vpp_index vpp_index);
 
 enum mtx_csc_e {
 	MATRIX_NULL = 0,
@@ -200,13 +201,16 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 unsigned int _log2(unsigned int value);
 int hdr10p_ebzcurve_update(enum hdr_module_sel module_sel,
 			   enum hdr_process_sel hdr_process_select,
-			   struct hdr10pgen_param_s *hdr10pgen_param);
+			   struct hdr10pgen_param_s *hdr10pgen_param,
+			   enum vpp_index vpp_index);
 enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 				 u32 hdr_process_select,
 				 struct vinfo_s *vinfo,
-				 struct matrix_s *gmt_mtx);
+				 struct matrix_s *gmt_mtx,
+				 enum vpp_index vpp_index);
 void set_ootf_lut(enum hdr_module_sel module_sel,
-		  struct hdr_proc_lut_param_s *hdr_lut_param);
+		  struct hdr_proc_lut_param_s *hdr_lut_param,
+		  enum vpp_index vpp_index);
 extern struct hdr_proc_lut_param_s hdr_lut_param;
 extern int oo_y_lut_hdr_sdr_def[149];
 extern int oo_y_lut_hdr_sdr[149];
@@ -214,7 +218,8 @@ extern int oo_y_lut_hlg_sdr[149];
 void eo_clip_proc(struct vframe_master_display_colour_s *master_info,
 		  unsigned int eo_sel);
 int hdr10_tm_update(enum hdr_module_sel module_sel,
-		    enum hdr_process_sel hdr_process_select);
+		    enum hdr_process_sel hdr_process_select,
+		    enum vpp_index vpp_index);
 extern int cgain_lut_bypass[65];
 extern unsigned int hdr10_pr;
 extern unsigned int hdr10_clip_disable;

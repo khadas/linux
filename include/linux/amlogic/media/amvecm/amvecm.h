@@ -570,6 +570,13 @@ enum vd_path_e {
 	VD_PATH_MAX = 3
 };
 
+enum vpp_index {
+	VPP_TOP0 = 0,
+	VPP_TOP1 = 1,
+	VPP_TOP2 = 2,
+	VPP_TOP_MAX_S = 3
+};
+
 extern signed int vd1_brightness, vd1_contrast;
 extern bool gamma_en;
 extern unsigned int atv_source_flg;
@@ -597,7 +604,8 @@ int amvecm_on_vs(struct vframe_s *display_vf,
 		 unsigned int sps_h_in,
 		 unsigned int cm_in_w,
 		 unsigned int cm_in_h,
-		 enum vd_path_e vd_path);
+		 enum vd_path_e vd_path,
+		 enum vpp_index vpp_index);
 void refresh_on_vs(struct vframe_s *vf);
 void pc_mode_process(void);
 void pq_user_latch_process(void);
@@ -636,7 +644,7 @@ void enable_osd1_mtx(unsigned int en);
 void set_cur_hdr_policy(uint policy);
 bool di_api_mov_sel(unsigned int mode,
 		    unsigned int *pdate);
-enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path);
+enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path, enum vpp_index vpp_index);
 
 int amvecm_set_saturation_hue(int mab);
 
@@ -659,7 +667,7 @@ struct single_scene_s {
 };
 
 extern struct single_scene_s detected_scenes[SCENE_MAX];
-u32 hdr_set(u32 module_sel, u32 hdr_process_select);
+u32 hdr_set(u32 module_sel, u32 hdr_process_select, enum vpp_index vpp_index);
 int dv_pq_ctl(enum dv_pq_ctl_e ctl);
 #endif /* AMVECM_H */
 

@@ -6661,7 +6661,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					0,
 					0,
 					0,
-					VD1_PATH);
+					VD1_PATH,
+					VPP_TOP0);
 			if (vd2_path_id == VFM_PATH_AMVIDEO)
 				iret2 = amvecm_on_vs
 					((cur_dispbuf != &vf_local)
@@ -6673,7 +6674,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					0,
 					0,
 					0,
-					VD2_PATH);
+					VD2_PATH,
+					VPP_TOP0);
 			if (vd3_path_id == VFM_PATH_AMVIDEO)
 				iret3 = amvecm_on_vs
 					((cur_dispbuf != &vf_local)
@@ -6685,7 +6687,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					0,
 					0,
 					0,
-					VD3_PATH);
+					VD3_PATH,
+					VPP_TOP0);
 			if (iret1 == 1 || iret2 == 1 || iret3 == 1)
 				break;
 #endif
@@ -6845,7 +6848,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 						0,
 						0,
 						0,
-						VD1_PATH);
+						VD1_PATH,
+						VPP_TOP0);
 					if (vd2_path_id == VFM_PATH_AMVIDEO)
 						iret2 = amvecm_on_vs
 						((cur_dispbuf != &vf_local)
@@ -6857,7 +6861,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 						0,
 						0,
 						0,
-						VD2_PATH);
+						VD2_PATH,
+						VPP_TOP0);
 					/* karry ? */
 					if (vd3_path_id == VFM_PATH_AMVIDEO)
 						iret3 = amvecm_on_vs
@@ -6870,7 +6875,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 						0,
 						0,
 						0,
-						VD3_PATH);
+						VD3_PATH,
+						VPP_TOP0);
 					if (iret1 == 1 || iret2 == 1 || iret3 == 1)
 						break;
 #endif
@@ -6966,7 +6972,8 @@ SET_FILTER:
 					0,
 					0,
 					0,
-					VD1_PATH);
+					VD1_PATH,
+					VPP_TOP0);
 			if (vd2_path_id == VFM_PATH_DEF ||
 			    vd2_path_id == VFM_PATH_PIP)
 				iret2 = amvecm_on_vs
@@ -6979,7 +6986,8 @@ SET_FILTER:
 					0,
 					0,
 					0,
-					VD2_PATH);
+					VD2_PATH,
+					VPP_TOP0);
 			if (vd3_path_id == VFM_PATH_PIP)
 				iret3 = amvecm_on_vs
 					((cur_pipbuf != &local_pip)
@@ -6991,7 +6999,8 @@ SET_FILTER:
 					0,
 					0,
 					0,
-					VD3_PATH);
+					VD3_PATH,
+					VPP_TOP0);
 			if (iret1 == 1 || iret2 == 1 || iret3 == 1)
 				break;
 #endif
@@ -7056,7 +7065,8 @@ SET_FILTER:
 					0,
 					0,
 					0,
-					VD1_PATH);
+					VD1_PATH,
+					VPP_TOP0);
 			if (vd2_path_id == VFM_PATH_PIP2)
 				iret2 = amvecm_on_vs
 					((cur_pipbuf2 != &local_pip2)
@@ -7068,7 +7078,8 @@ SET_FILTER:
 					0,
 					0,
 					0,
-					VD2_PATH);
+					VD2_PATH,
+					VPP_TOP0);
 			if (vd3_path_id == VFM_PATH_DEF ||
 			    vd3_path_id == VFM_PATH_PIP2)
 				iret3 = amvecm_on_vs
@@ -7081,7 +7092,8 @@ SET_FILTER:
 					0,
 					0,
 					0,
-					VD3_PATH);
+					VD3_PATH,
+					VPP_TOP0);
 			if (iret1 == 1 || iret2 == 1 || iret3 == 1)
 				break;
 #endif
@@ -7132,7 +7144,8 @@ SET_FILTER:
 				0,
 				0,
 				0,
-				VD1_PATH);
+				VD1_PATH,
+				VPP_TOP0);
 		}
 		if (vd2_path_id == gvideo_recv[0]->path_id)
 			amvecm_on_vs
@@ -7147,7 +7160,8 @@ SET_FILTER:
 				0,
 				0,
 				0,
-				VD2_PATH);
+				VD2_PATH,
+				VPP_TOP0);
 		if (vd3_path_id == gvideo_recv[0]->path_id)
 			amvecm_on_vs
 				((gvideo_recv[0]->cur_buf !=
@@ -7161,7 +7175,8 @@ SET_FILTER:
 				0,
 				0,
 				0,
-				VD3_PATH);
+				VD3_PATH,
+				VPP_TOP0);
 #endif
 	}
 
@@ -7183,7 +7198,8 @@ SET_FILTER:
 				0,
 				0,
 				0,
-				VD1_PATH);
+				VD1_PATH,
+				VPP_TOP0);
 		}
 		if (vd2_path_id == gvideo_recv[1]->path_id)
 			amvecm_on_vs
@@ -7198,7 +7214,8 @@ SET_FILTER:
 				0,
 				0,
 				0,
-				VD2_PATH);
+				VD2_PATH,
+				VPP_TOP0);
 		if (vd3_path_id == gvideo_recv[1]->path_id)
 			amvecm_on_vs
 				((gvideo_recv[1]->cur_buf !=
@@ -7212,7 +7229,8 @@ SET_FILTER:
 				0,
 				0,
 				0,
-				VD3_PATH);
+				VD3_PATH,
+				VPP_TOP0);
 #endif
 	}
 
@@ -7234,7 +7252,8 @@ SET_FILTER:
 					0,
 					0,
 					0,
-					VD1_PATH);
+					VD1_PATH,
+					VPP_TOP0);
 			}
 			if (vd2_path_id == gvideo_recv[2]->path_id)
 				amvecm_on_vs
@@ -7249,7 +7268,8 @@ SET_FILTER:
 					0,
 					0,
 					0,
-					VD2_PATH);
+					VD2_PATH,
+					VPP_TOP0);
 			if (vd3_path_id == gvideo_recv[2]->path_id)
 				amvecm_on_vs
 					((gvideo_recv[2]->cur_buf !=
@@ -7263,7 +7283,8 @@ SET_FILTER:
 					0,
 					0,
 					0,
-					VD3_PATH);
+					VD3_PATH,
+					VPP_TOP0);
 #endif
 		}
 	/* FIXME: if need enable for vd1 */
@@ -7660,7 +7681,8 @@ SET_FILTER:
 		cur_frame_par ?
 		cur_frame_par->cm_input_h :
 		0,
-		VD1_PATH);
+		VD1_PATH,
+		VPP_TOP0);
 #endif
 
 	/* work around which dec/vdin don't call update src_fmt function */
@@ -7683,7 +7705,7 @@ SET_FILTER:
 			new_src_fmt = get_dolby_vision_src_format();
 		else
 #endif
-			new_src_fmt = get_cur_source_type(VD1_PATH);
+			new_src_fmt = get_cur_source_type(VD1_PATH, VPP_TOP0);
 #endif
 		if (new_src_fmt > 0 && new_src_fmt < 8)
 			fmt = src_map[new_src_fmt];
@@ -7971,7 +7993,8 @@ SET_FILTER:
 		curpip_frame_par ?
 		curpip_frame_par->cm_input_h :
 		0,
-		VD2_PATH);
+		VD2_PATH,
+		VPP_TOP0);
 #endif
 
 	if (need_disable_vd2) {
@@ -8242,7 +8265,8 @@ SET_FILTER:
 			curpip2_frame_par ?
 			curpip2_frame_par->cm_input_h :
 			0,
-			VD3_PATH);
+			VD3_PATH,
+			VPP_TOP0);
 #endif
 		if (need_disable_vd3)
 			safe_switch_videolayer(2, false, true);

@@ -1050,7 +1050,8 @@ void eo_clip_proc(struct vframe_master_display_colour_s *master_info,
 void set_hdr_matrix(enum hdr_module_sel module_sel,
 		    enum hdr_matrix_sel mtx_sel,
 		    struct hdr_proc_mtx_param_s *hdr_mtx_param,
-		    struct hdr10pgen_param_s *p_hdr10pgen_param)
+		    struct hdr10pgen_param_s *p_hdr10pgen_param,
+		    enum vpp_index vpp_index)
 {
 	unsigned int MATRIXI_COEF00_01 = 0;
 	unsigned int MATRIXI_COEF02_10 = 0;
@@ -1143,11 +1144,14 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 
 	int vpp_sel;
 
-	if (module_sel == OSD2_HDR &&
+	if (vpp_index == VPP_TOP1 &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
-		vpp_sel = 1;
+		vpp_sel = VPP_TOP1;
+	else if (vpp_index == VPP_TOP2 &&
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = 0;
+		vpp_sel = VPP_TOP0;
 
 	if (module_sel == VD1_HDR) {
 		MATRIXI_COEF00_01 = VD1_HDR2_MATRIXI_COEF00_01;
@@ -1917,7 +1921,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 }
 
 void set_eotf_lut(enum hdr_module_sel module_sel,
-		  struct hdr_proc_lut_param_s *hdr_lut_param)
+		  struct hdr_proc_lut_param_s *hdr_lut_param,
+		  enum vpp_index vpp_index)
 {
 	static unsigned int lut[HDR2_EOTF_LUT_SIZE];
 	unsigned int eotf_lut_addr_port = 0;
@@ -1926,12 +1931,14 @@ void set_eotf_lut(enum hdr_module_sel module_sel,
 	unsigned int i = 0;
 	int vpp_sel;
 
-	if (module_sel == OSD2_HDR &&
+	if (vpp_index == VPP_TOP1 &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
-		vpp_sel = 1;
+		vpp_sel = VPP_TOP1;
+	else if (vpp_index == VPP_TOP2 &&
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = VPP_TOP2;
 	else
 		vpp_sel = 0;
-
 
 	if (module_sel == VD1_HDR) {
 		eotf_lut_addr_port = VD1_EOTF_LUT_ADDR_PORT;
@@ -1981,7 +1988,8 @@ void set_eotf_lut(enum hdr_module_sel module_sel,
 }
 
 void set_ootf_lut(enum hdr_module_sel module_sel,
-		  struct hdr_proc_lut_param_s *hdr_lut_param)
+		  struct hdr_proc_lut_param_s *hdr_lut_param,
+		  enum vpp_index vpp_index)
 {
 	static unsigned int lut[HDR2_OOTF_LUT_SIZE];
 	unsigned int ootf_lut_addr_port = 0;
@@ -1990,11 +1998,14 @@ void set_ootf_lut(enum hdr_module_sel module_sel,
 	unsigned int i = 0;
 	int vpp_sel;
 
-	if (module_sel == OSD2_HDR &&
+	if (vpp_index == VPP_TOP1 &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
-		vpp_sel = 1;
+		vpp_sel = VPP_TOP1;
+	else if (vpp_index == VPP_TOP2 &&
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = 0;
+		vpp_sel = VPP_TOP0;
 
 	if (module_sel == VD1_HDR) {
 		ootf_lut_addr_port = VD1_OGAIN_LUT_ADDR_PORT;
@@ -2048,7 +2059,8 @@ void set_ootf_lut(enum hdr_module_sel module_sel,
 }
 
 void set_oetf_lut(enum hdr_module_sel module_sel,
-		  struct hdr_proc_lut_param_s *hdr_lut_param)
+		  struct hdr_proc_lut_param_s *hdr_lut_param,
+		  enum vpp_index vpp_index)
 {
 	static unsigned int lut[HDR2_OETF_LUT_SIZE];
 	unsigned int oetf_lut_addr_port = 0;
@@ -2057,11 +2069,14 @@ void set_oetf_lut(enum hdr_module_sel module_sel,
 	unsigned int i = 0;
 	int vpp_sel;
 
-	if (module_sel == OSD2_HDR &&
+	if (vpp_index == VPP_TOP1 &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
-		vpp_sel = 1;
+		vpp_sel = VPP_TOP1;
+	else if (vpp_index == VPP_TOP2 &&
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = 0;
+		vpp_sel = VPP_TOP0;
 
 	if (module_sel == VD1_HDR) {
 		oetf_lut_addr_port = VD1_OETF_LUT_ADDR_PORT;
@@ -2124,7 +2139,8 @@ void set_oetf_lut(enum hdr_module_sel module_sel,
 }
 
 void set_c_gain(enum hdr_module_sel module_sel,
-		struct hdr_proc_lut_param_s *hdr_lut_param)
+		struct hdr_proc_lut_param_s *hdr_lut_param,
+		enum vpp_index vpp_index)
 {
 	unsigned int lut[HDR2_CGAIN_LUT_SIZE];
 	unsigned int cgain_lut_addr_port = 0;
@@ -2134,11 +2150,14 @@ void set_c_gain(enum hdr_module_sel module_sel,
 	unsigned int i = 0;
 	int vpp_sel;
 
-	if (module_sel == OSD2_HDR &&
+	if (vpp_index == VPP_TOP1 &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
-		vpp_sel = 1;
+		vpp_sel = VPP_TOP1;
+	else if (vpp_index == VPP_TOP2 &&
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = 0;
+		vpp_sel = VPP_TOP0;
 
 
 	if (module_sel == VD1_HDR) {
@@ -2399,18 +2418,22 @@ void get_hist(enum vd_path_e vd_path, enum hdr_hist_sel hist_sel)
 }
 
 void hdr_hist_config(enum hdr_module_sel module_sel,
-		     struct hdr_proc_lut_param_s *hdr_lut_param)
+		     struct hdr_proc_lut_param_s *hdr_lut_param,
+		     enum vpp_index vpp_index)
 {
 	unsigned int hist_ctrl;
 	unsigned int hist_hs_he;
 	unsigned int hist_vs_ve;
 	int vpp_sel;
 
-	if (module_sel == OSD2_HDR &&
+	if (vpp_index == VPP_TOP1 &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
-		vpp_sel = 1;
+		vpp_sel = VPP_TOP1;
+	else if (vpp_index == VPP_TOP2 &&
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = 0;
+		vpp_sel = VPP_TOP0;
 
 	if (module_sel == VD1_HDR) {
 		hist_ctrl = VD1_HDR2_HIST_CTRL;
@@ -2498,7 +2521,8 @@ struct hdr_proc_lut_param_s hdr_lut_param;
 enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			      enum hdr_process_sel hdr_process_select,
 	struct vinfo_s *vinfo,
-	struct matrix_s *gmt_mtx)
+	struct matrix_s *gmt_mtx,
+	enum vpp_index vpp_index)
 {
 	int bit_depth;
 	unsigned int i = 0, j = 0;
@@ -2522,11 +2546,14 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	    module_sel == VD3_HDR))
 		return hdr_process_select;
 
-	if (module_sel == OSD2_HDR &&
+	if (vpp_index == VPP_TOP1 &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
-		vpp_sel = 1;
+		vpp_sel = VPP_TOP1;
+	else if (vpp_index == VPP_TOP2 &&
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+		vpp_sel = VPP_TOP2;
 	else
-		vpp_sel = 0;
+		vpp_sel = VPP_TOP0;
 
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
@@ -3219,21 +3246,21 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	    (module_sel == VD2_HDR || module_sel == OSD1_HDR))
 		return hdr_process_select;
 
-	set_hdr_matrix(module_sel, HDR_IN_MTX, &hdr_mtx_param, NULL);
+	set_hdr_matrix(module_sel, HDR_IN_MTX, &hdr_mtx_param, NULL, vpp_index);
 
-	set_eotf_lut(module_sel, &hdr_lut_param);
+	set_eotf_lut(module_sel, &hdr_lut_param, vpp_index);
 
-	set_hdr_matrix(module_sel, HDR_GAMUT_MTX, &hdr_mtx_param, NULL);
+	set_hdr_matrix(module_sel, HDR_GAMUT_MTX, &hdr_mtx_param, NULL, vpp_index);
 
-	set_ootf_lut(module_sel, &hdr_lut_param);
+	set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
 
-	set_oetf_lut(module_sel, &hdr_lut_param);
+	set_oetf_lut(module_sel, &hdr_lut_param, vpp_index);
 
-	set_hdr_matrix(module_sel, HDR_OUT_MTX, &hdr_mtx_param, NULL);
+	set_hdr_matrix(module_sel, HDR_OUT_MTX, &hdr_mtx_param, NULL, vpp_index);
 
-	set_c_gain(module_sel, &hdr_lut_param);
+	set_c_gain(module_sel, &hdr_lut_param, vpp_index);
 
-	hdr_hist_config(module_sel, &hdr_lut_param);
+	hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
 
 	if (clip_func == 0xff) {
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
@@ -3243,15 +3270,16 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	return hdr_process_select;
 }
 
-u32 hdr_set(u32 module_sel, u32 hdr_process_select)
+u32 hdr_set(u32 module_sel, u32 hdr_process_select, enum vpp_index vpp_index)
 {
-	return hdr_func(module_sel, hdr_process_select, NULL, NULL);
+	return hdr_func(module_sel, hdr_process_select, NULL, NULL, vpp_index);
 }
 EXPORT_SYMBOL(hdr_set);
 
 int hdr10p_ebzcurve_update(enum hdr_module_sel module_sel,
 			   enum hdr_process_sel hdr_process_select,
-	struct hdr10pgen_param_s *p_hdr10pgen_param)
+	struct hdr10pgen_param_s *p_hdr10pgen_param,
+	enum vpp_index vpp_index)
 {
 	int bit_depth;
 	unsigned int i = 0;
@@ -3325,15 +3353,16 @@ int hdr10p_ebzcurve_update(enum hdr_module_sel module_sel,
 	hdr_mtx_param.p_sel = hdr_process_select;
 
 	set_hdr_matrix(module_sel, HDR_GAMUT_MTX,
-		       &hdr_mtx_param, p_hdr10pgen_param);
+		       &hdr_mtx_param, p_hdr10pgen_param,
+		       vpp_index);
 
-	set_ootf_lut(module_sel, &hdr_lut_param);
+	set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
 
 	return 0;
 }
 
 int hdr10_tm_update(enum hdr_module_sel module_sel,
-		    enum hdr_process_sel hdr_process_select)
+		    enum hdr_process_sel hdr_process_select, enum vpp_index vpp_index)
 {
 	int bit_depth;
 	unsigned int i = 0;
@@ -3369,7 +3398,7 @@ int hdr10_tm_update(enum hdr_module_sel module_sel,
 		return 0;
 	}
 
-	set_ootf_lut(module_sel, &hdr_lut_param);
+	set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
 
 	return 0;
 }
@@ -3377,7 +3406,8 @@ int hdr10_tm_update(enum hdr_module_sel module_sel,
 enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 				 enum hdr_process_sel hdr_process_select,
 	struct vinfo_s *vinfo,
-	struct matrix_s *gmt_mtx)
+	struct matrix_s *gmt_mtx,
+	enum vpp_index vpp_index)
 {
 	int bit_depth;
 	unsigned int i = 0, j = 0;
@@ -3580,21 +3610,21 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 	    (module_sel == VD3_HDR || module_sel == OSD2_HDR))
 		return hdr_process_select;
 
-	set_hdr_matrix(module_sel, HDR_IN_MTX, &hdr_mtx_param, NULL);
+	set_hdr_matrix(module_sel, HDR_IN_MTX, &hdr_mtx_param, NULL, vpp_index);
 
-	set_eotf_lut(module_sel, &hdr_lut_param);
+	set_eotf_lut(module_sel, &hdr_lut_param, vpp_index);
 
-	set_hdr_matrix(module_sel, HDR_GAMUT_MTX, &hdr_mtx_param, NULL);
+	set_hdr_matrix(module_sel, HDR_GAMUT_MTX, &hdr_mtx_param, NULL, vpp_index);
 
-	set_ootf_lut(module_sel, &hdr_lut_param);
+	set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
 
-	set_oetf_lut(module_sel, &hdr_lut_param);
+	set_oetf_lut(module_sel, &hdr_lut_param, vpp_index);
 
-	set_hdr_matrix(module_sel, HDR_OUT_MTX, &hdr_mtx_param, NULL);
+	set_hdr_matrix(module_sel, HDR_OUT_MTX, &hdr_mtx_param, NULL, vpp_index);
 
-	set_c_gain(module_sel, &hdr_lut_param);
+	set_c_gain(module_sel, &hdr_lut_param, vpp_index);
 
-	hdr_hist_config(module_sel, &hdr_lut_param);
+	hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
 
 	if (clip_func == 0xff) {
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
@@ -3627,12 +3657,12 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 
 	if (mtx_sel == VPP2_POST2_MTX &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
-		vpp_sel = 2;
+		vpp_sel = VPP_TOP2;
 	else if (mtx_sel == VPP1_POST2_MTX &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
-		vpp_sel = 1;
+		vpp_sel = VPP_TOP1;
 	else
-		vpp_sel = 0;
+		vpp_sel = VPP_TOP0;
 
 	if (mtx_sel == VD1_MTX) {
 		matrix_coef00_01 = VPP_VD1_MATRIX_COEF00_01;

@@ -1728,17 +1728,17 @@ void vdin_set_hdr(struct vdin_dev_s *devp)
 		 * 2nd, process sel: bit1=HDR_SDR
 		 * bit11=HDR10P_SDR
 		 */
-		hdr_set(5, 2);
+		hdr_set(5, 2, VPP_TOP0);
 		break;
 
 	case SIGNAL_SDR:
 		/* HDR_BYPASS(bit0) | HLG_BYPASS(bit3) */
-		hdr_set(5, 0x9);
+		hdr_set(5, 0x9, VPP_TOP0);
 		break;
 
 	case SIGNAL_HLG:
 		/* HLG_SDR(bit4) */
-		hdr_set(5, 0x10);
+		hdr_set(5, 0x10, VPP_TOP0);
 		break;
 
 	/* VDIN DON'T support dv loopback currently */
