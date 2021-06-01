@@ -213,7 +213,7 @@ static void bt_device_deinit(struct bt_dev_data *pdata)
 		gpio_free(pdata->gpio_hostwake);
 }
 
-static void bt_device_on(struct bt_dev_data *pdata)
+static void bt_device_on(struct bt_dev_data *pdata, unsigned long down_time, unsigned long up_time)
 {
 	if (pdata->power_down_disable == 0) {
 		if (btpower_evt == 1 && pdata->gpio_reset > 0) {
@@ -249,8 +249,8 @@ static void bt_device_on(struct bt_dev_data *pdata)
 		}
 		if (btpower_evt == 0 && pdata->gpio_en > 0)
 			set_usb_bt_power(0);
-
-		msleep(200);
+		if (down_time > 0)
+			msleep(down_time);
 	}
 
 	if (btpower_evt == 1 && pdata->gpio_reset > 0) {
@@ -286,8 +286,8 @@ static void bt_device_on(struct bt_dev_data *pdata)
 	}
 	if (btpower_evt == 0 && pdata->gpio_en > 0)
 		set_usb_bt_power(1);
-
-	msleep(200);
+	if (up_time > 0)
+		msleep(up_time);
 }
 
 /*The system calls this function when GPIOC_14 interrupt occurs*/
@@ -373,7 +373,7 @@ static int bt_set_block(void *data, bool blocked)
 
 	if (!blocked) {
 		pr_info("AML_BT: going ON,btpower_evt=%d\n", btpower_evt);
-		bt_device_on(pdata);
+		bt_device_on(pdata, 200, 200);
 	} else {
 		pr_info("AML_BT: going OFF,btpower_evt=%d\n", btpower_evt);
 	bt_device_off(pdata);
@@ -541,9 +541,10 @@ static int bt_probe(struct platform_device *pdev)
 	ret = class_create_file(bt_addr_class, &class_attr_value);
 
 	bt_device_init(pdata);
+
 	if (pdata->power_down_disable == 1) {
 		pdata->power_down_disable = 0;
-		bt_device_on(pdata);
+		bt_device_on(pdata, 100, 0);
 		pdata->power_down_disable = 1;
 	}
 
