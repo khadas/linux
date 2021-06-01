@@ -18,6 +18,8 @@
 #include "dmc_monitor.h"
 #include "ddr_bandwidth.h"
 
+#include <linux/amlogic/gki_module.h>
+
 static int __init ddr_tool_init(void)
 {
 	int ret;
