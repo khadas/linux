@@ -123,6 +123,9 @@ bool can_use_cma(gfp_t gfp_flags)
 	if (cma_forbidden_mask(gfp_flags))
 		return false;
 
+	if (cma_alloc_ref())
+		return false;
+
 	if (task_nice(current) > 0)
 		return false;
 
@@ -226,7 +229,7 @@ static unsigned long get_align_pfn_high(unsigned long pfn)
 
 static struct page *get_migrate_page(struct page *page, unsigned long private)
 {
-	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE;
+	gfp_t gfp_mask = GFP_USER | __GFP_MOVABLE | __GFP_NO_CMA;
 	struct page *new = NULL;
 #ifdef CONFIG_AMLOGIC_PAGE_TRACE
 	struct page_trace *old_trace, *new_trace;
@@ -767,10 +770,10 @@ void show_page(struct page *page)
 #endif
 	if (page->mapping && !((unsigned long)page->mapping & 0x3))
 		map_flag = page->mapping->flags;
-	pr_info("page:%lx, map:%lx, mf:%lx, pf:%lx, m:%d, c:%d, f:%ps\n",
+	pr_info("page:%lx, map:%lx, mf:%lx, pf:%lx, m:%d, c:%d, o:%lx, pt:%lx, f:%ps\n",
 		page_to_pfn(page), (unsigned long)page->mapping, map_flag,
 		page->flags & 0xffffffff,
-		page_mapcount(page), page_count(page),
+		page_mapcount(page), page_count(page), page->private, page->index,
 		(void *)trace);
 	if (cma_debug_level > 4)
 		rmap_walk_vma(page);

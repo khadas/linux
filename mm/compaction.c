@@ -774,6 +774,26 @@ static bool too_many_isolated(pg_data_t *pgdat)
 	return isolated > (inactive + active) / 2;
 }
 
+#ifdef CONFIG_AMLOGIC_CMA
+static void check_page_to_cma(struct compact_control *cc, struct page *page)
+{
+	struct address_space *mapping;
+
+	if (cc->forbid_to_cma)	/* no need check once it is true */
+		return;
+
+	mapping = page_mapping(page);
+	if ((unsigned long)mapping & PAGE_MAPPING_ANON)
+		mapping = NULL;
+
+	if (PageKsm(page) && !PageSlab(page))
+		cc->forbid_to_cma = true;
+
+	if (mapping && cma_forbidden_mask(mapping_gfp_mask(mapping)))
+		cc->forbid_to_cma = true;
+}
+#endif
+
 /**
  * isolate_migratepages_block() - isolate all migrate-able pages within
  *				  a single pageblock
@@ -860,19 +880,40 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		 * contention, to give chance to IRQs. Abort completely if
 		 * a fatal signal is pending.
 		 */
+	#ifdef CONFIG_AMLOGIC_CMA
+		if (!(low_pfn % SWAP_CLUSTER_MAX) &&
+		    compact_unlock_should_abort(&pgdat->lru_lock, flags,
+		    &locked, cc)) {
+			cma_debug(1, page, "abort, low_pfn:%lx, swap:%ld\n",
+				  low_pfn, SWAP_CLUSTER_MAX);
+			low_pfn = 0;
+			goto fatal_pending;
+		}
+	#else
 		if (!(low_pfn % SWAP_CLUSTER_MAX)
 		    && compact_unlock_should_abort(&pgdat->lru_lock,
 					    flags, &locked, cc)) {
 			low_pfn = 0;
 			goto fatal_pending;
 		}
+	#endif
 
+	#ifdef CONFIG_AMLOGIC_CMA
+		if (!pfn_valid_within(low_pfn)) {
+			cma_debug(1, page, "invalid pfn:%lx\n", low_pfn);
+			goto isolate_fail;
+		}
+	#else
 		if (!pfn_valid_within(low_pfn))
 			goto isolate_fail;
+	#endif
 		nr_scanned++;
 
 		page = pfn_to_page(low_pfn);
 
+	#ifdef CONFIG_AMLOGIC_CMA
+		check_page_to_cma(cc, page);
+	#endif
 		/*
 		 * Check if the pageblock has already been marked skipped.
 		 * Only the aligned PFN is checked as the caller isolates
@@ -918,6 +959,10 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 
 			if (likely(order < MAX_ORDER))
 				low_pfn += (1UL << order) - 1;
+		#ifdef CONFIG_AMLOGIC_CMA
+			cma_debug(1, page, "compound page:%lx\n",
+				  page_to_pfn(page));
+		#endif
 			goto isolate_fail;
 		}
 
@@ -943,6 +988,12 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 					goto isolate_success;
 			}
 
+		#ifdef CONFIG_AMLOGIC_CMA
+			if (page_count(page)) {
+				cma_debug(1, page, " NO migrate page1:%lx\n",
+						  page_to_pfn(page));
+			}
+		#endif
 			goto isolate_fail;
 		}
 
@@ -974,9 +1025,24 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 					goto isolate_abort;
 			}
 
+		#ifdef CONFIG_AMLOGIC_CMA
+			if (!locked) {
+				cma_debug(1, page, "lock failed: %lx\n",
+					  page_to_pfn(page));
+				break;
+			}
+			/* Recheck PageLRU and PageCompound under lock */
+			if (!PageLRU(page)) {
+				cma_debug(1, page, "No migrate2: %lx\n",
+					  page_to_pfn(page));
+				goto isolate_fail;
+			}
+		#else
+
 			/* Recheck PageLRU and PageCompound under lock */
 			if (!PageLRU(page))
 				goto isolate_fail;
+		#endif
 
 			/*
 			 * Page become compound since the non-locked check,
@@ -985,15 +1051,28 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 			 */
 			if (unlikely(PageCompound(page))) {
 				low_pfn += compound_nr(page) - 1;
+		#ifdef CONFIG_AMLOGIC_CMA
+				cma_debug(1, page, "page compound fail: %lx\n",
+					  page_to_pfn(page));
+		#endif
 				goto isolate_fail;
 			}
 		}
 
 		lruvec = mem_cgroup_page_lruvec(page, pgdat);
 
+	#ifdef CONFIG_AMLOGIC_CMA
+		/* Try isolate the page */
+		if (__isolate_lru_page(page, isolate_mode) != 0) {
+			cma_debug(1, page, "isolate fail: %lx, isolate_mode: %x\n",
+				  page_to_pfn(page), isolate_mode);
+			goto isolate_fail;
+		}
+	#else
 		/* Try isolate the page */
 		if (__isolate_lru_page(page, isolate_mode) != 0)
 			goto isolate_fail;
+	#endif
 
 		VM_BUG_ON_PAGE(PageCompound(page), page);
 
@@ -1004,6 +1083,10 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 
 isolate_success:
 		list_add(&page->lru, &cc->migratepages);
+	#ifdef CONFIG_AMLOGIC_CMA
+		if (cc->page_type == COMPACT_CMA)
+			SetPageCmaAllocating(page);
+	#endif
 		cc->nr_migratepages++;
 		nr_isolated++;
 
@@ -1453,6 +1536,9 @@ static void isolate_freepages(struct compact_control *cc)
 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
 	struct list_head *freelist = &cc->freepages;
 	unsigned int stride;
+#ifdef CONFIG_AMLOGIC_CMA
+	int migrate_type;
+#endif /* CONFIG_AMLOGIC_CMA */
 
 	/* Try a small search of the free lists for a candidate */
 	isolate_start_pfn = fast_isolate_freepages(cc);
@@ -1508,6 +1594,13 @@ static void isolate_freepages(struct compact_control *cc)
 		if (!isolation_suitable(cc, page))
 			continue;
 
+	#ifdef CONFIG_AMLOGIC_CMA
+		migrate_type = get_pageblock_migratetype(page);
+		if (is_migrate_isolate(migrate_type))
+			continue;
+		if (is_migrate_cma(migrate_type) && cc->forbid_to_cma)
+			continue;
+	#endif /* CONFIG_AMLOGIC_CMA */
 		/* Found a block suitable for isolating free pages from. */
 		nr_isolated = isolate_freepages_block(cc, &isolate_start_pfn,
 					block_end_pfn, freelist, stride, false);
@@ -2223,6 +2316,10 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
 				cc->free_pfn, end_pfn, sync);
 
 	migrate_prep_local();
+
+#ifdef CONFIG_AMLOGIC_CMA
+	cc->forbid_to_cma = false;
+#endif
 
 	while ((ret = compact_finished(cc)) == COMPACT_CONTINUE) {
 		int err;
