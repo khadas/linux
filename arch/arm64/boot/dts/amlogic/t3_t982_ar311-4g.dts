@@ -73,7 +73,7 @@
 			/* alloc-ranges start should not be 0x0*/
 			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x30400000 0x0 0x0f400000>;
+			alloc-ranges = <0x0 0x3ec00000 0x0 0x00c00000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
