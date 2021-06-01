@@ -4392,7 +4392,7 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 			ret = -ENOMEM;
 
 		/* delayed workqueue for dvbt2 fw downloading */
-		if (dtvdd_devp->data->hw_ver != DTVDEMOD_HW_S4 ||
+		if (dtvdd_devp->data->hw_ver != DTVDEMOD_HW_S4 &&
 			dtvdd_devp->data->hw_ver != DTVDEMOD_HW_S4D) {
 			INIT_DELAYED_WORK(&devp->fw_dwork, dtvdemod_fw_dwork);
 			schedule_delayed_work(&devp->fw_dwork, 10 * HZ);
@@ -5595,9 +5595,10 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 
 	mutex_lock(&amldtvdemod_device_mutex);
 
-	if ((devp->data->hw_ver != DTVDEMOD_HW_S4 && devp->index > 0) ||
-		(devp->data->hw_ver != DTVDEMOD_HW_S4 && devp->index > 1) ||
-		(devp->data->hw_ver != DTVDEMOD_HW_S4D && devp->index > 1)) {
+	if ((devp->data->hw_ver != DTVDEMOD_HW_S4 && devp->data->hw_ver != DTVDEMOD_HW_S4D &&
+		devp->index > 0) ||
+		(devp->data->hw_ver == DTVDEMOD_HW_S4 && devp->index > 1) ||
+		(devp->data->hw_ver == DTVDEMOD_HW_S4D && devp->index > 1)) {
 		pr_err("%s: Had attached (%d), only S4 and S4D support 2 attach.\n",
 				__func__, devp->index);
 
@@ -5627,8 +5628,8 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 	demod->suspended = true;
 
 	/* select dvbc module for s4 and S4D */
-	if (devp->data->hw_ver != DTVDEMOD_HW_S4 ||
-		devp->data->hw_ver != DTVDEMOD_HW_S4D)
+	if (devp->data->hw_ver == DTVDEMOD_HW_S4 ||
+		devp->data->hw_ver == DTVDEMOD_HW_S4D)
 		demod->dvbc_sel = demod->id;
 	else
 		demod->dvbc_sel = 0;
