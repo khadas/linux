@@ -2450,7 +2450,8 @@
 		      <0x0 0xfe007044 0x0 0xc0>;   /* mhu irqctrl reg */
 		interrupts = <0 248 1>;   /* irq top */
 		mbox-irqmax = <64>;
-		mbox-irqctlr = <0>;
+		mbox-irqctlr = <2>;
+		mbox-irqclr = <1>;
 		mbox-nums = <6>;
 		mbox-names = "dsp_dev",
 			     "ap_to_dspa",

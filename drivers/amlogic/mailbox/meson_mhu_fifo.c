@@ -37,6 +37,24 @@ struct mbox_data {
 	char data[MBOX_DATA_SIZE];
 } __packed;
 
+struct mhu_ctlr {
+	struct device *dev;
+	void __iomem *mbox_wr_base;
+	void __iomem *mbox_rd_base;
+	void __iomem *mbox_set_base;
+	void __iomem *mbox_clr_base;
+	void __iomem *mbox_sts_base;
+	void __iomem *mbox_irq_base;
+	void __iomem *mbox_payload_base;
+	struct mbox_controller mbox_con;
+	struct mhu_chan *channels;
+	int mhu_id[MBOX_MAX];
+	int mhu_irq;
+	int mhu_irqctlr;
+	int mhu_irqclr;
+	int mhu_irqmax;
+};
+
 static struct list_head mbox_devs = LIST_HEAD_INIT(mbox_devs);
 static struct class *mbox_class;
 
@@ -153,17 +171,17 @@ static void mbox_chan_report(u32 status, void *msg, int idx)
 void mbox_irq_clean(u64 mask, struct mhu_ctlr *ctlr)
 {
 	void __iomem *mbox_irq_base = ctlr->mbox_irq_base;
-	int irqctlr = ctlr->mhu_irqctlr;
+	int irqclr = ctlr->mhu_irqclr;
 	int irqmax = ctlr->mhu_irqmax;
 	u64 hstatus, lstatus;
 
 	if (irqmax / MHUIRQ_MAXNUM_DEF == 2) {
 		hstatus = (mask >> MBOX_IRQSHIFT) & MBOX_IRQMASK;
 		lstatus = mask & MBOX_IRQMASK;
-		writel(lstatus, mbox_irq_base + IRQ_CLR_OFFSETL(irqctlr));
-		writel(hstatus, mbox_irq_base + IRQ_CLR_OFFSETH(irqctlr));
+		writel(lstatus, mbox_irq_base + IRQ_CLR_OFFSETL(irqclr));
+		writel(hstatus, mbox_irq_base + IRQ_CLR_OFFSETH(irqclr));
 	} else {
-		writel((mask & MBOX_IRQMASK), mbox_irq_base + IRQ_CLR_OFFSET(irqctlr));
+		writel((mask & MBOX_IRQMASK), mbox_irq_base + IRQ_CLR_OFFSET(irqclr));
 	}
 }
 
@@ -626,6 +644,7 @@ static int mhu_fifo_probe(struct platform_device *pdev)
 	int idx, err;
 	u32 num_chans = 0;
 	u32 irqctlr = 0;
+	u32 irqclr = 0;
 	u32 irqmax = 0;
 	int wrrd = 0;
 	int memid = 0;
@@ -726,6 +745,12 @@ static int mhu_fifo_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 	mhu_ctlr->mhu_irqctlr = irqctlr;
+
+	err = of_property_read_u32(dev->of_node,
+				   "mbox-irqclr", &irqclr);
+	if (err)
+		irqclr = irqctlr;
+	mhu_ctlr->mhu_irqclr = irqclr;
 
 	err = of_property_read_u32(dev->of_node,
 				   "mbox-irqmax", &irqmax);
