@@ -4011,7 +4011,12 @@ void dim_pre_de_process(unsigned int channel)
 		ppre->di_wr_buf->hf.buffer_h =
 			(unsigned int)ppre->hf_mif.addr2;
 		//di_hf_lock_blend_buffer_pre(ppre->di_wr_buf);
-		opl1()->aisr_pre(&ppre->hf_mif, 0);
+		if (is_di_hf_y_reverse())
+			ppre->di_wr_buf->hf.revert_mode = true;
+		else
+			ppre->di_wr_buf->hf.revert_mode = false;
+		opl1()->aisr_pre(&ppre->hf_mif, 0,
+				 ppre->di_wr_buf->hf.revert_mode);
 
 		ppre->di_wr_buf->hf_done = 1;
 	}
@@ -8080,8 +8085,12 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		di_buf->hf.width = ppost->di_diwr_mif.end_x + 1;
 		di_buf->hf.buffer_w = ppost->hf_mif.buf_hsize;
 		di_buf->hf.buffer_h = (unsigned int)ppost->hf_mif.addr2;
+		if (is_di_hf_y_reverse())
+			di_buf->hf.revert_mode = true;
+		else
+			di_buf->hf.revert_mode = false;
 		//di_hf_lock_blend_buffer_pst(di_buf);
-		opl1()->aisr_pre(&ppost->hf_mif, 1);
+		opl1()->aisr_pre(&ppost->hf_mif, 1, di_buf->hf.revert_mode);
 		di_buf->hf_done = 1;
 	}
 	dbg_ic("hf:en:pst:%d;addr:0x%lx;done:%d\n",

@@ -2433,7 +2433,7 @@ module_param_named(dim_hf_dbg, dim_hf_dbg, uint, 0644);
 /* ucode: aisr_pre_cfg */
 /* sel: pre: 0; post: 1*/
 /* .aisr_pre */
-bool dim_aisr_pre_cfg(struct DI_SIM_MIF_s *mif, bool sel)
+bool dim_aisr_pre_cfg(struct DI_SIM_MIF_s *mif, bool sel, bool para)
 {
 	unsigned int wrmif_stride;
 	const struct reg_acc *op = &di_pre_regset;
@@ -2493,6 +2493,7 @@ bool dim_aisr_pre_cfg(struct DI_SIM_MIF_s *mif, bool sel)
 	op->wr(AISR_PRE_WMIF_SCOPE_X, ((mif->end_x - mif->start_x) << 16) | 0);
 	op->wr(AISR_PRE_WMIF_SCOPE_Y, ((mif->end_y - mif->start_y) << 16) | 0);
 	#endif
+	op->bwr(AISR_PRE_WRMIF_BADDR, para, 5, 1);//is_di_hf_y_reverse
 
 	return true;
 }
@@ -2509,6 +2510,7 @@ void dim_aisr_disable(void)
 	op->bwr(NN_LRHF0, 0, 30, 2);
 	op->bwr(DI_TOP_CTRL, 0, 2, 2);
 }
+
 /* ref to config_di_wr_mif */
 //static
 void wr_mif_cfg_v3(struct DI_SIM_MIF_s *wr_mif,

@@ -425,6 +425,7 @@ struct dcntr_mem_s {
 };
 
 struct hf_info_t {
+	bool revert_mode;
 	u32 index;
 	ulong phy_addr;
 	u32 width;

@@ -5232,6 +5232,7 @@ void dim_print_hf(struct hf_info_t *hf)
 	PR_INF("\t<%d,%d>\n", hf->width, hf->height);
 	PR_INF("\t<%d,%d>\n", hf->buffer_w, hf->buffer_h);
 	PR_INF("\t0x%lx\n", hf->phy_addr);
+	PR_INF("\t0x%x\n", hf->revert_mode);
 }
 
 void dim_dbg_seq_hf(struct hf_info_t *hf, struct seq_file *seq)

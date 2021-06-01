@@ -770,7 +770,7 @@ struct dim_hw_opsv_s {
 				       struct DI_MC_MIF_s *mcvecwr_mif,
 				       unsigned char mcdi_en);
 	/* from t3:*/
-	bool (*aisr_pre)(struct DI_SIM_MIF_s *mif, bool sel);
+	bool (*aisr_pre)(struct DI_SIM_MIF_s *mif, bool sel, bool para);
 	void (*aisr_disable)(void);
 	void (*wrmif_trig)(enum EDI_MIFSM mifsel);
 	void (*wr_rst_protect)(bool on);
