@@ -797,28 +797,27 @@ static void earctx_update_clk(struct earc *p_earc,
 			      unsigned int rate)
 {
 	unsigned int multi = audio_multi_clk(p_earc->tx_audio_coding_type);
-	unsigned int freq = rate * 128 * 5; /* 5, falling edge */
+	unsigned int nominal_freq = rate * 128 * 5; /* 5, falling edge */
+	unsigned int freq = nominal_freq * multi;
 
-	dev_info(p_earc->dev, "set %dX normal dmac clk\n", multi);
-
-	freq *= multi;
-	if (freq == p_earc->tx_dmac_freq) {
-		dev_info(p_earc->dev, "already tx dmac clk, rate:%d, set freq: %d, get freq:%lu\n",
-			rate,
-			freq,
-			clk_get_rate(p_earc->clk_tx_dmac));
-		return;
-	}
-
-	p_earc->tx_dmac_freq = freq;
-	if (clk_get_rate(p_earc->clk_tx_dmac_srcpll) < freq)
-		clk_set_rate(p_earc->clk_tx_dmac_srcpll, freq);
-	clk_set_rate(p_earc->clk_tx_dmac, freq);
-
-	dev_info(p_earc->dev, "tx dmac clk, rate:%d, set freq: %d, get freq:%lu\n",
+	dev_info(p_earc->dev, "set %dX normal dmac clk, p_earc->tx_dmac_freq:%d\n",
+		multi, p_earc->tx_dmac_freq);
+	dev_info(p_earc->dev,
+		"%s, rate:%d, set freq:%d, get freq:%lu, set src freq:%d, get src freq:%lu\n",
+		__func__,
 		rate,
 		freq,
-		clk_get_rate(p_earc->clk_tx_dmac));
+		clk_get_rate(p_earc->clk_tx_dmac),
+		nominal_freq * 16,
+		clk_get_rate(p_earc->clk_tx_dmac_srcpll));
+
+	if (freq == p_earc->tx_dmac_freq)
+		return;
+
+	/* same with tdm mpll */
+	clk_set_rate(p_earc->clk_tx_dmac_srcpll, nominal_freq * 16);
+	p_earc->tx_dmac_freq = freq;
+	clk_set_rate(p_earc->clk_tx_dmac, freq);
 }
 
 int spdif_codec_to_earc_codec[][2] = {

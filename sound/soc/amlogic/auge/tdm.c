@@ -283,7 +283,7 @@ static unsigned int aml_mpll_mclk_ratio(unsigned int freq)
 
 	for (i = 1; i < 15; i++) {
 		ratio = 1 << i;
-		ratio = ratio * 16;
+		ratio = ratio * 4 * 5; /* for same with earctx, so need *5 */
 		mpll_freq = freq * ratio;
 
 		if (mpll_freq > AML_MPLL_FREQ_MIN)
