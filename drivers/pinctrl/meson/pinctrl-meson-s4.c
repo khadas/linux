@@ -231,6 +231,10 @@ static const unsigned int i2c2_scl_d_pins[]		= { GPIOD_11 };
 
 /* Bank D func6 */
 static const unsigned int gen_clk_d_pins[]		= { GPIOD_10 };
+static const unsigned int tsin_b_clk_c_pins[]		= { GPIOD_6 };
+static const unsigned int tsin_b_sop_c_pins[]		= { GPIOD_7 };
+static const unsigned int tsin_b_valid_c_pins[]		= { GPIOD_8 };
+static const unsigned int tsin_b_d0_c_pins[]		= { GPIOD_9 };
 
 /* Bank H func1 */
 static const unsigned int hdmitx_sda_pins[]		= { GPIOH_0 };
@@ -282,6 +286,10 @@ static const unsigned int spi_a_ss0_h_pins[]		= { GPIOH_7 };
 
 /* Bank H func6 */
 static const unsigned int gen_clk_h_pins[]		= { GPIOH_11 };
+static const unsigned int tsin_b1_clk_pins[]		= { GPIOH_4 };
+static const unsigned int tsin_b1_sop_pins[]		= { GPIOH_5 };
+static const unsigned int tsin_b1_valid_pins[]		= { GPIOH_6 };
+static const unsigned int tsin_b1_d0_pins[]		= { GPIOH_7 };
 
 /* Bank X func1 */
 static const unsigned int sdio_d0_pins[]		= { GPIOX_0 };
@@ -381,6 +389,10 @@ static const unsigned int uart_d_rts_z_pins[]		= { GPIOZ_3 };
 static const unsigned int pwm_g_z_pins[]		= { GPIOZ_4 };
 static const unsigned int pwm_f_z_pins[]		= { GPIOZ_5 };
 static const unsigned int pwm_e_z_pins[]		= { GPIOZ_6 };
+static const unsigned int tsin_b_clk_z_pins[]		= { GPIOZ_7 };
+static const unsigned int tsin_b_sop_z_pins[]		= { GPIOZ_10 };
+static const unsigned int tsin_b_valid_z_pins[]		= { GPIOZ_11 };
+static const unsigned int tsin_b_d0_z_pins[]		= { GPIOZ_12 };
 
 /* Bank Z func6 */
 static const unsigned int s2_demod_gpio7_pins[]		= { GPIOZ_0 };
@@ -618,6 +630,10 @@ static struct meson_pmx_group meson_s4_periphs_groups[] __initdata = {
 
 	/* Bank D func6 */
 	GROUP(gen_clk_d,		6),
+	GROUP(tsin_b_clk_c,		6),
+	GROUP(tsin_b_sop_c,		6),
+	GROUP(tsin_b_valid_c,		6),
+	GROUP(tsin_b_d0_c,		6),
 
 	/* Bank H func1 */
 	GROUP(hdmitx_sda,		1),
@@ -669,6 +685,10 @@ static struct meson_pmx_group meson_s4_periphs_groups[] __initdata = {
 
 	/* Bank H func6 */
 	GROUP(gen_clk_h,		6),
+	GROUP(tsin_b1_clk,		6),
+	GROUP(tsin_b1_sop,		6),
+	GROUP(tsin_b1_valid,		6),
+	GROUP(tsin_b1_d0,		6),
 
 	/* Bank X func1 */
 	GROUP(sdio_d0,			1),
@@ -779,6 +799,10 @@ static struct meson_pmx_group meson_s4_periphs_groups[] __initdata = {
 	GROUP(diseqc_out,		6),
 	GROUP(s2_demod_gpio1,		6),
 	GROUP(s2_demod_gpio0,		6),
+	GROUP(tsin_b_clk_z,		6),
+	GROUP(tsin_b_sop_z,		6),
+	GROUP(tsin_b_valid_z,		6),
+	GROUP(tsin_b_d0_z,		6),
 
 	/* Bank Z func7 */
 	GROUP(gen_clk_z9,		7),
@@ -1053,6 +1077,15 @@ static const char * const tsin_a_groups[] = {
 	"tsin_a_clk", "tsin_a_sop", "tsin_a_valid", "tsin_a_din0"
 };
 
+static const char * const tsin_b_groups[] = {
+	"tsin_b_clk_c", "tsin_b_sop_c", "tsin_b_valid_c", "tsin_b_d0_c",
+	"tsin_b_clk_z", "tsin_b_sop_z", "tsin_b_valid_z", "tsin_b_d0_z"
+};
+
+static const char * const tsin_b1_groups[] = {
+	"tsin_b1_clk", "tsin_b1_sop", "tsin_b1_valid", "tsin_b1_d0"
+};
+
 static const char * const s2_demod_groups[] = {
 	"s2_demod_gpio7", "s2_demod_gpio6", "s2_demod_gpio5", "s2_demod_gpio4",
 	"s2_demod_gpio3", "s2_demod_gpio2", "s2_demod_gpio1", "s2_demod_gpio0"
@@ -1111,6 +1144,8 @@ static struct meson_pmx_func meson_s4_periphs_functions[] __initdata = {
 	FUNCTION(i2c_slave),
 	FUNCTION(dtv),
 	FUNCTION(tsin_a),
+	FUNCTION(tsin_b),
+	FUNCTION(tsin_b1),
 	FUNCTION(s2_demod)
 };
 
