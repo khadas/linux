@@ -214,6 +214,56 @@ struct st_frc_out_sts {
 	u64 vs_timestamp;
 };
 
+struct tool_debug_s {
+	u32 reg_read;
+	u32 reg_read_val;
+};
+
+struct dbg_dump_tab {
+	u8 *name;
+	u32 addr;
+	u32 start;
+	u32 len;
+};
+
+enum frc_mtx_e {
+	FRC_INPUT_CSC = 1,
+	FRC_OUTPUT_CSC,
+};
+
+enum frc_mtx_csc_e {
+	CSC_OFF = 0,
+	RGB_YUV709L,
+	RGB_YUV709F,
+	YUV709L_RGB,
+	YUV709F_RGB,
+};
+
+struct crc_parm_s {
+	u32 crc_en;
+	u32 crc_done_flag;
+	u32 crc_data_cmp[2];/*3cmp*/
+};
+
+struct frc_crc_data_s {
+	u32 frc_crc_read;
+	u32 frc_crc_pr;
+	struct crc_parm_s me_wr_crc;
+	struct crc_parm_s me_rd_crc;
+	struct crc_parm_s mc_wr_crc;
+};
+
+struct frc_ud_s {
+	u32 meud_dbg_en;
+	u32 mcud_dbg_en;
+};
+
+struct frc_force_size_s {
+	u32 force_en;
+	u32 force_hsize;
+	u32 force_vsize;
+};
+
 struct frc_dev_s {
 	dev_t devt;
 	struct cdev cdev;

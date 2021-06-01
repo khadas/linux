@@ -12,6 +12,12 @@
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include <linux/amlogic/media/frc/frc_common.h>
 
+enum frc_state_e {
+	FRC_STATE_DISABLE = 0,
+	FRC_STATE_ENABLE,
+	FRC_STATE_BYPASS,
+	FRC_STATE_NULL,
+};
 
 //==== ioctrol define =============
 #define FRC_IOC_MAGIC                   'F'
