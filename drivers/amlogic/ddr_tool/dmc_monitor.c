@@ -30,6 +30,7 @@
 #include <linux/highmem.h>
 #include "dmc_monitor.h"
 #include "ddr_port.h"
+#include <linux/amlogic/gki_module.h>
 
 struct dmc_monitor *dmc_mon;
 
@@ -60,27 +61,7 @@ static int early_dmc_param(char *buf)
 	return 0;
 }
 
-#ifdef MODULE
-static char *dmc_param = "";
-
-static int set_dmc_param(const char *val, const struct kernel_param *kp)
-{
-	param_set_charp(val, kp);
-
-	return early_dmc_param(dmc_param);
-}
-
-static const struct kernel_param_ops dmc_param_ops = {
-	.set = set_dmc_param,
-	.get = param_get_charp,
-};
-
-module_param_cb(dmc_monitor, &dmc_param_ops, &dmc_param, 0644);
-MODULE_PARM_DESC(jtag, "dmc_monitor");
-#else
-early_param("dmc_monitor", early_dmc_param);
-#endif
-
+__setup("dmc_monitor=", early_dmc_param);
 
 void show_violation_mem(unsigned long addr)
 {
