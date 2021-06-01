@@ -1491,6 +1491,10 @@ free_it:
 			(*get_compound_page_dtor(page))(page);
 		else
 			list_add(&page->lru, &free_pages);
+	#ifdef CONFIG_AMLOGIC_CMA
+		if (ttu_flags & TTU_IGNORE_ACCESS)
+			ClearPageCmaAllocating(page);
+	#endif
 		continue;
 
 activate_locked_split:
@@ -4027,6 +4031,9 @@ static int kswapd(void *p)
 
 	WRITE_ONCE(pgdat->kswapd_order, 0);
 	WRITE_ONCE(pgdat->kswapd_classzone_idx, MAX_NR_ZONES);
+#ifdef CONFIG_AMLOGIC_CMA
+	set_user_nice(current, -5);
+#endif /* CONFIG_AMLOGIC_CMA */
 	for ( ; ; ) {
 		bool ret;
 
