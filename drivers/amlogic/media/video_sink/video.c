@@ -410,7 +410,9 @@ MODULE_PARM_DESC(vdin_err_crc_cnt, "\n vdin_err_crc_cnt\n");
 module_param(vdin_err_crc_cnt, uint, 0664);
 #define ERR_CRC_COUNT 6
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 static bool dv_mute_vpp_flag;
+#endif
 
 static unsigned int video_3d_format;
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
