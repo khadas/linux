@@ -146,14 +146,15 @@
 		 * };
 		 */
 
-		demod_cma_reserved:linux,demod_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* 8M */
-			size = <0x0 0x0800000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
-		};
+		/*demod_cma_reserved:linux,demod_cma {
+		 *	compatible = "shared-dma-pool";
+		 *	reusable;
+		 *	//8M
+		 *	size = <0x0 0x0800000>;
+		 *	alignment = <0x0 0x400000>;
+		 *	alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
+		 *};
+		 */
 
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
@@ -245,11 +246,11 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 	};
-
+#if 0
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-t5d";
 		dev_name = "aml_dtv_demod";
-		status = "okay";
+		status = "disabled";
 		diseqc_name = "sgm_41286";
 		pinctrl-names="if_agc_pins", "diseqc", "rf_agc_pins";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
@@ -276,7 +277,7 @@
 		cma_mem_size = <8>;
 		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
 	};
-
+#endif
 	/* Audio Related start */
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
@@ -443,10 +444,10 @@
 		dev_name = "dvb-extern";
 		status = "okay";
 
-		fe_num = <1>;
+		fe_num = <0>;
 		fe0_demod = "internal";
 
-		tuner_num = <2>; /* tuner number, multi tuner support */
+		tuner_num = <1>; /* tuner number, multi tuner support */
 		tuner0_name = "mxl661_tuner";
 		tuner0_i2c_adap = <&i2c0>;
 		tuner0_i2c_addr = <0x60>;
