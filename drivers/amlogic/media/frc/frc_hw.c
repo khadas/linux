@@ -599,26 +599,25 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	reg_mc_out_line = (frc_top->vfb / 4) * 3;// 3/4 point of front vblank
 	reg_me_dly_vofst = reg_mc_out_line;
 
-	if (frc_top->hsize <= 1920)
+	if (frc_top->hsize <= 1920 && (frc_top->hsize * frc_top->vsize <= 1920 * 1080)) {
 		frc_top->is_me1mc4 = 0;/*me:mc 1:2*/
-	else
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 0, 0, 1); //8*8 align
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 0, 1, 1); //8*8 align
+	} else {
 		frc_top->is_me1mc4 = 1;/*me:mc 1:4*/
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 0, 1); //16*16 align
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 1, 1); //16*16 align
+	}
 
 	if (frc_top->out_hsize == 1920 && frc_top->out_vsize == 1080) {
 		mevp_frm_dly = 130;
 		mc_frm_dly   = 11 ;//inp performace issue, need frc_clk >  enc0_clk
-		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 0, 0, 1);
-		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 0, 1, 1);
 	} else if (frc_top->out_hsize == 3840 && frc_top->out_vsize == 2160) {
 		mevp_frm_dly = 260;
 		mc_frm_dly = 28;
-		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 0, 1);
-		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 1, 1);
 	} else {
 		mevp_frm_dly = 140;
 		mc_frm_dly   = 10 ;//inp performace issue, need frc_clk >  enc0_clk
-		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 0, 1);
-		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 1, 1);
 	}
 
 	//memc_frm_dly
