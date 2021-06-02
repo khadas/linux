@@ -224,12 +224,7 @@ kallsyms()
 
 	local afile="`basename ${2} .o`.S"
 
-	# using higher compress ration version
-	if [ -n "{CONFIG_AMLOGIC_MODIFY}" ]; then
-		${NM} -n ${1} | scripts/kallsyms_aml ${kallsymopt} > ${afile}
-	else
-		${NM} -n ${1} | scripts/kallsyms ${kallsymopt} > ${afile}
-	fi
+	${NM} -n ${1} | scripts/kallsyms ${kallsymopt} > ${afile}
 	${CC} ${aflags} -c -o ${2} ${afile}
 }
 
