@@ -10872,6 +10872,29 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 }
 EXPORT_SYMBOL(dolby_vision_parse_metadata);
 
+/*dual_layer && parse_ret_flags   =1 =>mel*/
+/*dual_layer && parse_ret_flags !=1 =>fel*/
+bool vf_is_fel(struct vframe_s *vf)
+{
+	enum vframe_signal_fmt_e fmt;
+	bool fel = false;
+
+	if (!vf)
+		return false;
+
+	fmt = get_vframe_src_fmt(vf);
+
+	if (fmt == VFRAME_SIGNAL_FMT_DOVI) {
+		if (debug_dolby & 0x1)
+			pr_dolby_dbg("dual layer %d, parse ret flags %d\n",
+				     vf->src_fmt.dual_layer,
+				     vf->src_fmt.parse_ret_flags);
+		if (vf->src_fmt.dual_layer && vf->src_fmt.parse_ret_flags != 1)
+			fel = true;
+	}
+	return fel;
+}
+
 /* 0: no el; >0: with el */
 /* 1: need wait el vf    */
 /* 2: no match el found  */
@@ -10995,7 +11018,8 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 				    DOLBY_VISION_OUTPUT_MODE_BYPASS &&
 				    mode ==
 				    DOLBY_VISION_OUTPUT_MODE_IPT_TUNNEL &&
-				    dolby_vision_wait_delay > 0) {
+				    dolby_vision_wait_delay > 0 &&
+				    !vf_is_fel(vf)) {
 					dolby_vision_wait_count =
 					dolby_vision_wait_delay;
 				} else {
