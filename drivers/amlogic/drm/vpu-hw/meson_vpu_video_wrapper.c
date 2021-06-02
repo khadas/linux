@@ -20,6 +20,10 @@
 #include "meson_drv.h"
 #include "meson_plane.h"
 
+static int video_axis_zoom = -1;
+module_param(video_axis_zoom, int, 0664);
+MODULE_PARM_DESC(video_axis_zoom, "video_axis_zoom");
+
 static u32 video_type_get(u32 pixel_format)
 {
 	u32 vframe_type = 0;
@@ -169,10 +173,11 @@ static int video_check_state(struct meson_vpu_block *vblk,
 static void video_set_state(struct meson_vpu_block *vblk,
 			    struct meson_vpu_block_state *state)
 {
-	struct vframe_s *vf = NULL;
+	struct vframe_s *vf = NULL, *dec_vf = NULL, *vfp = NULL;
 	struct meson_vpu_video *video = to_video_block(vblk);
 	struct meson_vpu_video_state *mvvs = to_video_state(state);
-	u32 pixel_format, src_h, byte_stride;
+	u32 pixel_format, src_h, byte_stride, pic_w, pic_h;
+	u32 recal_src_w, recal_src_h;
 	u64 phy_addr, phy_addr2 = 0;
 
 	DRM_DEBUG("%s", __func__);
@@ -189,21 +194,79 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	DRM_DEBUG("%s %d-%d-%llx", __func__, src_h, pixel_format, phy_addr);
 
 	if (mvvs->is_uvm) {
+		dec_vf = mvvs->vf;
 		vf = mvvs->vf;
-		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME))
+		DRM_DEBUG("dec vf, %s, flag-%u, type-%u, %u, %u, %u, %u\n",
+			  __func__, dec_vf->flag, dec_vf->type,
+			  dec_vf->compWidth, dec_vf->compHeight,
+			  dec_vf->width, dec_vf->height);
+		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
 			vf = mvvs->vf->vf_ext;
+			DRM_DEBUG("DI vf, %s, flag-%u, type-%u, %u,%u,%u,%u\n",
+				  __func__, vf->flag, vf->type,
+				  vf->compWidth, vf->compHeight,
+				  vf->width, vf->height);
+		}
 		vf->axis[0] = mvvs->dst_x;
 		vf->axis[1] = mvvs->dst_y;
 		vf->axis[2] = mvvs->dst_x + mvvs->dst_w - 1;
 		vf->axis[3] = mvvs->dst_y + mvvs->dst_h - 1;
 		vf->crop[0] = mvvs->src_y;/*crop top*/
 		vf->crop[1] = mvvs->src_x;/*crop left*/
-		/*vf->width is from mvvs->src_w which is the
-		 *valid content so the crop of bottom and right
-		 *could be 0
+
+		/*
+		 *if video_axis_zoom = 1, means the video anix is
+		 *set by westeros
 		 */
-		vf->crop[2] = 0;/*crop bottow*/
-		vf->crop[3] = 0;/*crop right*/
+		if (video_axis_zoom != -1) {
+			if (dec_vf->type & VIDTYPE_COMPRESS) {
+				pic_w = dec_vf->compWidth;
+				pic_h = dec_vf->compHeight;
+				recal_src_w = mvvs->src_w *
+							pic_w / dec_vf->width;
+				recal_src_h = mvvs->src_h *
+							pic_h / dec_vf->height;
+				vf->crop[0] = mvvs->src_y *
+							pic_h / dec_vf->height;
+				vf->crop[1] = mvvs->src_x *
+							pic_w / dec_vf->width;
+			} else {
+				pic_w = dec_vf->width;
+				pic_h = dec_vf->height;
+				recal_src_w = mvvs->src_w;
+				recal_src_h = mvvs->src_h;
+			}
+		} else {
+			recal_src_w = mvvs->src_w;
+			recal_src_h = mvvs->src_h;
+			if (dec_vf->type & VIDTYPE_COMPRESS) {
+				pic_w = dec_vf->compWidth;
+				pic_h = dec_vf->compHeight;
+			} else {
+				pic_w = dec_vf->width;
+				pic_h = dec_vf->height;
+			}
+		}
+
+		if ((pic_w == 0 || pic_h == 0) && dec_vf->vf_ext) {
+			vfp = dec_vf->vf_ext;
+			pic_w = vfp->width;
+			pic_h = vfp->height;
+		}
+
+		/*crop bottow*/
+		if (pic_h > recal_src_h + vf->crop[0])
+			vf->crop[2] = pic_h - recal_src_h - vf->crop[0];
+		else
+			vf->crop[2] = 0;
+
+		/*crop right*/
+		if (pic_w > recal_src_w + vf->crop[1])
+			vf->crop[3] = pic_w - recal_src_w - vf->crop[1];
+		else
+			vf->crop[3] = 0;
+		DRM_DEBUG("vf-crop:%u, %u, %u, %u\n",
+				pic_w, pic_h, vf->crop[2], vf->crop[3]);
 		vf->flag |= VFRAME_FLAG_VIDEO_DRM;
 		if (!kfifo_put(&video->ready_q, vf))
 			DRM_INFO("ready_q is full!\n");
