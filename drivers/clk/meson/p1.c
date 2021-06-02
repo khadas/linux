@@ -1089,6 +1089,13 @@ static const struct cpu_dyn_table p1_cpu_dyn_table[] = {
 	CPU_LOW_PARAMS(1000000000, 1, 0, 0),
 };
 
+static const struct clk_parent_data p1_dyn_clk_sel[] __initconst = {
+	{ .fw_name = "xtal", },
+	{ .hw = &p1_fclk_div2.hw },
+	{ .hw = &p1_fclk_div3.hw },
+	{ .hw = &p1_fclk_div2p5.hw },
+};
+
 static struct clk_regmap p1_cpu_dyn_clk = {
 	.data = &(struct meson_sec_cpu_dyn_data){
 		.table = p1_cpu_dyn_table,
@@ -1099,12 +1106,7 @@ static struct clk_regmap p1_cpu_dyn_clk = {
 	.hw.init = &(struct clk_init_data){
 		.name = "cpu_dyn_clk",
 		.ops = &meson_sec_cpu_dyn_ops,
-		.parent_data = (const struct clk_parent_data []) {
-			{ .fw_name = "xtal", },
-			{ .hw = &p1_fclk_div2.hw },
-			{ .hw = &p1_fclk_div3.hw },
-			{ .hw = &p1_fclk_div2p5.hw }
-		},
+		.parent_data = p1_dyn_clk_sel,
 		.num_parents = 4,
 	},
 };
@@ -1113,7 +1115,6 @@ static struct clk_regmap p1_cpu_clk = {
 	.data = &(struct clk_regmap_mux_data){
 		.mask = 0x1,
 		.shift = 11,
-		.flags = CLK_MUX_ROUND_CLOSEST,
 		.smc_id = SECURE_CPU_CLK,
 		.secid = SECID_CPU_CLK_SEL,
 		.secid_rd = SECID_CPU_CLK_RD
@@ -1131,6 +1132,82 @@ static struct clk_regmap p1_cpu_clk = {
 		 * Register has the risk of being directly operated
 		 */
 		.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
+	},
+};
+
+static struct clk_regmap p1_a76_dyn_clk = {
+	.data = &(struct meson_sec_cpu_dyn_data){
+		.table = p1_cpu_dyn_table,
+		.table_cnt = ARRAY_SIZE(p1_cpu_dyn_table),
+		.secid_dyn_rd = SECID_A76_CLK_RD,
+		.secid_dyn = SECID_A76_CLK_DYN,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "a76_dyn_clk",
+		.ops = &meson_sec_cpu_dyn_ops,
+		.parent_data = p1_dyn_clk_sel,
+		.num_parents = 4,
+	},
+};
+
+static struct clk_regmap p1_a76_clk = {
+	.data = &(struct clk_regmap_mux_data){
+		.mask = 0x1,
+		.shift = 11,
+		.smc_id = SECURE_CPU_CLK,
+		.secid = SECID_A76_CLK_SEL,
+		.secid_rd = SECID_A76_CLK_RD
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "a76_clk",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&p1_a76_dyn_clk.hw,
+			&p1_sys_pll.hw,
+		},
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static const struct cpu_dyn_table p1_dsu_dyn_table[] = {
+	/* For dsu, his parent should always be on fiv_div2 or gp1 pll */
+	CPU_LOW_PARAMS(1000000000, 1, 0, 0),
+	CPU_LOW_PARAMS(1200000000, 3, 0, 0),
+	CPU_LOW_PARAMS(1500000000, 3, 0, 0),
+};
+
+static struct clk_regmap p1_dsu_dyn_clk = {
+	.data = &(struct meson_sec_cpu_dyn_data){
+		.table = p1_dsu_dyn_table,
+		.table_cnt = ARRAY_SIZE(p1_dsu_dyn_table),
+		.secid_dyn_rd = SECID_DSU_CLK_RD,
+		.secid_dyn = SECID_DSU_CLK_DYN,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "dsu_dyn_clk",
+		.ops = &meson_sec_cpu_dyn_ops,
+		.parent_data = p1_dyn_clk_sel,
+		.num_parents = 4,
+	},
+};
+
+static struct clk_regmap p1_dsu_clk = {
+	.data = &(struct clk_regmap_mux_data){
+		.mask = 0x1,
+		.shift = 11,
+		.smc_id = SECURE_CPU_CLK,
+		.secid = SECID_DSU_CLK_SEL,
+		.secid_rd = SECID_DSU_CLK_RD,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "dsu_clk",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&p1_dsu_dyn_clk.hw,
+			&p1_gp1_pll.hw,
+		},
+		.num_parents = 2,
 	},
 };
 
@@ -1205,6 +1282,13 @@ static struct p1_sys_pll_nb_data p1_sys_pll_nb_data = {
 	.sys_pll = &p1_sys_pll.hw,
 	.cpu_clk = &p1_cpu_clk.hw,
 	.cpu_dyn_clk = &p1_cpu_dyn_clk.hw,
+	.nb.notifier_call = p1_sys_pll_notifier_cb,
+};
+
+static struct p1_sys_pll_nb_data p1_sys1_pll_nb_data = {
+	.sys_pll = &p1_sys1_pll.hw,
+	.cpu_clk = &p1_a76_clk.hw,
+	.cpu_dyn_clk = &p1_a76_dyn_clk.hw,
 	.nb.notifier_call = p1_sys_pll_notifier_cb,
 };
 
@@ -1531,7 +1615,6 @@ static struct clk_regmap p1_mclk_pll_dco = {
 		.ops = &meson_clk_pll_ops,
 		.parent_names = (const char *[]){ "xtal" },
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL
 	},
 };
 
@@ -5073,6 +5156,10 @@ static struct clk_hw_onecell_data p1_hw_onecell_data = {
 		[CLKID_GP1_PLL]				= &p1_gp1_pll.hw,
 		[CLKID_CPU_DYN_CLK]			= &p1_cpu_dyn_clk.hw,
 		[CLKID_CPU_CLK]				= &p1_cpu_clk.hw,
+		[CLKID_A76_DYN_CLK]			= &p1_a76_dyn_clk.hw,
+		[CLKID_A76_CLK]				= &p1_a76_clk.hw,
+		[CLKID_DSU_DYN_CLK]			= &p1_dsu_dyn_clk.hw,
+		[CLKID_DSU_CLK]				= &p1_dsu_clk.hw,
 		[CLKID_HIFI_PLL_DCO]			= &p1_hifi_pll_dco.hw,
 		[CLKID_HIFI_PLL]			= &p1_hifi_pll.hw,
 		[CLKID_PCIE_PLL_DCO]			= &p1_pcie_pll_dco.hw,
@@ -5680,12 +5767,11 @@ static struct clk_regmap *const p1_pll_regmaps[] = {
 
 static struct clk_regmap *const p1_cpu_clk_regmaps[] = {
 	&p1_cpu_dyn_clk,
-	&p1_cpu_clk
-/*
- *	&p1_cpu1_clk,
- *	&p1_cpu2_clk,
- *	&p1_cpu3_clk
- */
+	&p1_cpu_clk,
+	&p1_a76_dyn_clk,
+	&p1_a76_clk,
+	&p1_dsu_dyn_clk,
+	&p1_dsu_clk
 };
 
 static int meson_p1_dvfs_setup(struct platform_device *pdev)
@@ -5697,6 +5783,14 @@ static int meson_p1_dvfs_setup(struct platform_device *pdev)
 				    &p1_sys_pll_nb_data.nb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register sys_pll notifier\n");
+		return ret;
+	}
+
+	/* Setup cluster 1 clock notifier for sys1_pll */
+	ret = clk_notifier_register(p1_sys1_pll.hw.clk,
+				    &p1_sys1_pll_nb_data.nb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register sys1_pll notifier\n");
 		return ret;
 	}
 
@@ -5776,8 +5870,6 @@ static int meson_p1_probe(struct platform_device *pdev)
 		/* array might be sparse */
 		if (!p1_hw_onecell_data.hws[i])
 			continue;
-		dev_err(dev, "registering %d  %s\n", i,
-		    p1_hw_onecell_data.hws[i]->init->name);
 
 		ret = devm_clk_hw_register(dev, p1_hw_onecell_data.hws[i]);
 		if (ret) {
@@ -5787,7 +5879,7 @@ static int meson_p1_probe(struct platform_device *pdev)
 	}
 
 	meson_p1_dvfs_setup(pdev);
-	pr_info("clk register over.....\n");
+
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get,
 					   &p1_hw_onecell_data);
 }
