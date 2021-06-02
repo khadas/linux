@@ -77,6 +77,7 @@
 
 DEFINE_SPINLOCK(dovi_lock);
 
+static unsigned int dolby_vision_probe_ok;
 static const struct dolby_vision_func_s *p_funcs_stb;
 static const struct dolby_vision_func_s *p_funcs_tv;
 
@@ -13277,6 +13278,10 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 	int total_name_len = 0;
 	char *get_ko = NULL;
 
+	if (dolby_vision_probe_ok == 0) {
+		pr_info("error: (%s) dolby vision probe fail cannot register\n", __func__);
+		return -ENOMEM;
+	}
 	/*when dv ko load into kernel, this flag will be disabled
 	 *otherwise it will effect hdr module
 	 */
@@ -14748,10 +14753,12 @@ static int amdolby_vision_probe(struct platform_device *pdev)
 				       sizeof(struct dv_device_data_s));
 			} else {
 				pr_err("%s data NOT match\n", __func__);
+				dolby_vision_probe_ok = 0;
 				return -ENODEV;
 			}
 		} else {
 			pr_err("%s NOT match\n", __func__);
+			dolby_vision_probe_ok = 0;
 			return -ENODEV;
 		}
 		ret = of_property_read_u32(of_node, "tv_mode", &val);
@@ -14804,6 +14811,7 @@ static int amdolby_vision_probe(struct platform_device *pdev)
 	init_waitqueue_head(&devp->dv_queue);
 	pr_info("%s: ok\n", __func__);
 	dolby_vision_check_enable();
+	dolby_vision_probe_ok = 1;
 	return 0;
 
 fail_create_device:
@@ -14824,6 +14832,7 @@ fail_create_class:
 fail_alloc_region:
 	pr_info("[amdolby_vision.] : amdolby_vision alloc error.\n");
 	pr_info("[amdolby_vision.] : amdolby_vision_init.\n");
+	dolby_vision_probe_ok = 0;
 	return ret;
 
 }
