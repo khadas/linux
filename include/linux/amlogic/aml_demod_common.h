@@ -38,7 +38,8 @@ enum tuner_type {
 	AM_TUNER_R836 = 20,
 	AM_TUNER_R848 = 21,
 	AM_TUNER_MXL603 = 22,
-	AM_TUNER_RT710 = 23
+	AM_TUNER_RT710 = 23,
+	AM_TUNER_R850 = 24
 };
 
 enum atv_demod_type {

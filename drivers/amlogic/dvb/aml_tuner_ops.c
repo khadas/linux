@@ -170,7 +170,7 @@ static int tuner_pre_init(struct dvb_tuner *tuner)
 
 		/* In some cases, pre-init is required. */
 		/* 1. Loop thorugh is enabled. */
-		if (ops->cfg.lt_out) {
+		if (ops->cfg.lt_out && ops->fe.ops.tuner_ops.set_config) {
 			ret = ops->fe.ops.tuner_ops.set_config(&ops->fe, NULL);
 
 			ops->pre_inited = ret ? false : true;
@@ -178,6 +178,9 @@ static int tuner_pre_init(struct dvb_tuner *tuner)
 			pr_err("Tuner: pre_init tuner%d [id %d] %s.\n",
 					ops->index, ops->cfg.id,
 					ret ? "fail" : "done");
+
+			if (ops->pre_inited && ops->fe.ops.tuner_ops.release)
+				ops->fe.ops.tuner_ops.release(&ops->fe);
 		} else {
 			ops->pre_inited = true;
 		}

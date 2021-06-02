@@ -29,6 +29,7 @@ AML_TUNER_ATTACH_FUNCTION(mxl603);
 AML_TUNER_ATTACH_FUNCTION(r836);
 AML_TUNER_ATTACH_FUNCTION(r848);
 AML_TUNER_ATTACH_FUNCTION(rt710);
+AML_TUNER_ATTACH_FUNCTION(r850);
 
 static struct dvb_frontend *aml_tuner_attach(const struct tuner_module *module,
 		struct dvb_frontend *fe, const struct tuner_config *cfg);
@@ -382,6 +383,23 @@ static const struct tuner_module tuner_modules[] = {
 		.detach = aml_tuner_detach,
 		.match = aml_tuner_match,
 		.detect = aml_tuner_detect
+	},
+	{
+		.name = "r850",
+		.id = AM_TUNER_R850,
+		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
+				SYS_ISDBT, SYS_ATSC, SYS_DTMB, SYS_DVBT2,
+				SYS_DVBC_ANNEX_C
+		},
+		.type = { FE_OFDM, FE_ATSC, FE_QAM,
+				FE_DTMB, FE_ISDBT,
+				AML_FE_UNDEFINED
+		},
+		.attach_symbol = NULL,
+		.attach = aml_tuner_attach,
+		.detach = aml_tuner_detach,
+		.match = aml_tuner_match,
+		.detect = aml_tuner_detect
 	}
 };
 
@@ -485,6 +503,10 @@ static struct dvb_frontend *aml_attach_detach_tuner(
 	case AM_TUNER_RT710:
 		attach ? (p = aml_dvb_attach(rt710_attach, fe, cfg)) :
 				aml_dvb_detach(rt710_attach);
+		break;
+	case AM_TUNER_R850:
+		attach ? (p = aml_dvb_attach(r850_attach, fe, cfg)) :
+				aml_dvb_detach(r850_attach);
 		break;
 	default:
 		p = NULL;
