@@ -4049,7 +4049,7 @@ void osd_set_free_scale_enable_hw(u32 index, u32 enable)
 				osd_hw.free_src_data[index].y_start + 1;
 			if (height_dst != height_src &&
 			    osd_hw.free_dst_data[index].y_end <
-			    osd_hw.vinfo_height[index] - 1)
+			    osd_hw.vinfo_height[VIU1] - 1)
 				osd_set_dummy_data(index, 0);
 			else
 				osd_set_dummy_data(index, 0xff);
@@ -4242,7 +4242,7 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	else
 		osd_set_dummy_data(index, 0xff);
 
-	if (osd_hw.free_dst_data[index].y_end >= osd_hw.vinfo_height[index] - 1)
+	if (osd_hw.free_dst_data[index].y_end >= osd_hw.vinfo_height[output_index] - 1)
 		osd_set_dummy_data(index, 0xff);
 	osd_update_window_axis = true;
 	osd_update_disp_dst_size(index);
@@ -5528,7 +5528,7 @@ static bool osd_direct_compose_pan_display(struct osd_fence_map_s *fence_map)
 			if ((height_dst != height_src ||
 			     width_dst != width_src) &&
 			    osd_hw.free_dst_data[index].y_end <
-			    osd_hw.vinfo_height[index] - 1)
+			    osd_hw.vinfo_height[VIU1] - 1)
 				osd_set_dummy_data(index, 0);
 			else
 				osd_set_dummy_data(index, 0xff);
@@ -8252,6 +8252,32 @@ static void vpp_setting_blend(struct hw_osd_blending_s *blending)
 		     vpp0_blend_reg->osd2_v_end);
 }
 
+static void set_osd_dummy_policy(u32 index, u32 src_height, u32 dst_height)
+{
+	u32 output_index;
+
+	output_index = get_output_device_id(index);
+
+	if (index == OSD1) {
+		if (osd_hw.osd_meson_dev.cpu_id ==
+		   __MESON_CPU_MAJOR_ID_G12A &&
+		   dst_height != src_height &&
+		   osd_hw.free_dst_data[index].y_end <
+		   osd_hw.vinfo_height[output_index] - 1)
+			osd_set_dummy_data(index, 0);
+		else
+			osd_set_dummy_data(index, 0xff);
+	} else {
+		if (osd_hw.osd_meson_dev.cpu_id ==
+		   __MESON_CPU_MAJOR_ID_G12A &&
+		   osd_hw.free_dst_data[index].y_end <
+		   osd_hw.vinfo_height[output_index] - 1)
+			osd_set_dummy_data(index, 0);
+		else
+			osd_set_dummy_data(index, 0xff);
+	}
+}
+
 /* input w, h is background */
 static void osd_set_freescale(u32 index,
 			      struct hw_osd_blending_s *blending)
@@ -8392,13 +8418,7 @@ static void osd_set_freescale(u32 index,
 
 	src_height = osd_hw.free_src_data[index].x_end -
 		osd_hw.free_src_data[index].x_start + 1;
-	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_G12A &&
-	    height != src_height &&
-	    osd_hw.free_dst_data[index].y_end <
-	    osd_hw.vinfo_height[index] - 1)
-		osd_set_dummy_data(index, 0);
-	else
-		osd_set_dummy_data(index, 0xff);
+	set_osd_dummy_policy(index, src_height, height);
 	osd_log_dbg2(MODULE_BLEND, "osd%d:free_src_data:%d,%d,%d,%d\n",
 		     index,
 		     osd_hw.free_src_data[index].x_start,
@@ -10746,7 +10766,7 @@ static bool set_old_hwc_freescale(u32 index)
 			osd_hw.free_src_data[index].y_start + 1;
 	if (height_dst != height_src &&
 	    osd_hw.free_dst_data[index].y_end <
-	    osd_hw.vinfo_height[index] - 1)
+	    osd_hw.vinfo_height[VIU1] - 1)
 		osd_set_dummy_data(index, 0);
 	else
 		osd_set_dummy_data(index, 0xff);
@@ -13293,7 +13313,7 @@ static bool osd_direct_render(struct osd_plane_map_s *plane_map)
 			if ((height_dst != height_src ||
 			     width_dst != width_src) &&
 			    osd_hw.free_dst_data[index].y_end <
-			    osd_hw.vinfo_height[index] - 1)
+			    osd_hw.vinfo_height[output_index] - 1)
 				osd_set_dummy_data(index, 0);
 			else
 				osd_set_dummy_data(index, 0xff);
