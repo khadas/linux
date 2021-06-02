@@ -560,13 +560,11 @@ void bl_pwm_config_init(struct bl_pwm_config_s *bl_pwm)
 	}
 }
 
-int bl_pwm_channel_register(struct aml_bl_drv_s *bdrv)
+int bl_pwm_channel_register(struct device *dev, phandle pwm_phandle,
+			    struct bl_pwm_config_s *bl_pwm)
 {
-	struct bl_pwm_config_s *bl_pwm = NULL;
-	struct device_node *blnode = bdrv->dev->of_node;
 	struct device_node *pnode = NULL;
 	struct device_node *child;
-	phandle pwm_phandle;
 	const char *pwm_str;
 	unsigned int pwm_port, pwm_index = BL_PWM_MAX;
 	int ret = 0;
@@ -574,9 +572,8 @@ int bl_pwm_channel_register(struct aml_bl_drv_s *bdrv)
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
 		BLPR("%s\n", __func__);
 
-	ret = of_property_read_u32(blnode, "bl_pwm_config", &pwm_phandle);
-	if (ret) {
-		BLERR("%s: not match bl_pwm_config node\n", __func__);
+	if (!bl_pwm) {
+		BLERR("%s: bl_pwm is null\n", __func__);
 		return -1;
 	}
 	pnode = of_find_node_by_phandle(pwm_phandle);
@@ -602,38 +599,20 @@ int bl_pwm_channel_register(struct aml_bl_drv_s *bdrv)
 			return ret;
 		}
 
-		bl_pwm = NULL;
-		switch (bdrv->bconf.method) {
-		case BL_CTRL_PWM:
-			if (pwm_port == bdrv->bconf.bl_pwm->pwm_port)
-				bl_pwm = bdrv->bconf.bl_pwm;
-			break;
-		case BL_CTRL_PWM_COMBO:
-			if (pwm_port == bdrv->bconf.bl_pwm_combo0->pwm_port)
-				bl_pwm = bdrv->bconf.bl_pwm_combo0;
-			if (pwm_port == bdrv->bconf.bl_pwm_combo1->pwm_port)
-				bl_pwm = bdrv->bconf.bl_pwm_combo1;
-			break;
-		default:
-			break;
-		}
-		if (!bl_pwm)
+		if (pwm_port != bl_pwm->pwm_port)
 			continue;
 
 		bl_pwm->pwm_data.meson_index = pwm_index;
-		bl_pwm->pwm_data.pwm = devm_of_pwm_get(bdrv->dev, child, NULL);
+		bl_pwm->pwm_data.pwm = devm_of_pwm_get(dev, child, NULL);
 		if (IS_ERR_OR_NULL(bl_pwm->pwm_data.pwm)) {
 			ret = PTR_ERR(bl_pwm->pwm_data.pwm);
-			BLERR("[%d]: unable to request %s(%d): 0x%x\n",
-			      bdrv->index, pwm_str, pwm_port, ret);
+			BLERR("unable to request %s(%d): 0x%x\n", pwm_str, pwm_port, ret);
 			continue;
 		}
 		bl_pwm->pwm_data.meson = to_meson_pwm(bl_pwm->pwm_data.pwm->chip);
 		pwm_init_state(bl_pwm->pwm_data.pwm, &bl_pwm->pwm_data.state);
-		BLPR("[%d]: register %s(%d) 0x%px\n",
-		     bdrv->index, pwm_str,
-		     bl_pwm->pwm_data.meson_index,
-		     bl_pwm->pwm_data.pwm);
+		BLPR("register %s(%d) 0x%px\n",
+		     pwm_str, bl_pwm->pwm_data.meson_index, bl_pwm->pwm_data.pwm);
 	}
 
 	return ret;

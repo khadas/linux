@@ -191,6 +191,13 @@
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
+
+		ldc_mem_reserved:linux,ldc_mem {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x400000>;
+			alignment = <0x0 0x400000>;
+		};
 	};
 	codec_mm {
 		compatible = "amlogic, codec, mm";
@@ -1593,7 +1600,7 @@
 };
 
 &spicc1 {	//for UWB/LocalDimm
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins>;
 	cs-gpios = <&gpio GPIOH_24 GPIO_ACTIVE_HIGH>;

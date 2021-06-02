@@ -14,7 +14,8 @@
 
 /*20200215: init version */
 /*20210201: fix compiler mistake */
-#define LDIM_DRV_VER    "20210201"
+/*20210602: support t7/t3 new ldc */
+#define LDIM_DRV_VER    "20210602"
 
 extern unsigned char ldim_debug_print;
 
@@ -25,22 +26,16 @@ extern int ld_remap_lut[16][32];
 #define AML_LDIM_DEVICE_NAME "aml_ldim"
 #define AML_LDIM_CLASS_NAME  "aml_ldim"
 
-/*========================================*/
-struct ldim_operate_func_s {
-	unsigned short h_region_max;
-	unsigned short v_region_max;
-	unsigned short total_region_max;
-	int (*alloc_rmem)(void);
-	void (*remap_update)(struct ld_reg_s *nprm,
-			     unsigned int avg_update_en,
-			     unsigned int matrix_update_en);
-	void (*stts_init)(unsigned int pic_h, unsigned int pic_v,
-			  unsigned int blk_vnum, unsigned int blk_hnum);
-	void (*remap_init)(struct ld_reg_s *nprm,
-			   unsigned int bl_en, unsigned int hvcnt_bypass);
-	void (*vs_arithmetic)(void);
-};
-
+/* new ldc buf memory data mapping */
+#define LDC_PROFILE_OFFSET      0x00000
+#define LDC_GLOBAL_HIST_OFFSET  0xc0000
+#define LDC_SEG_HIST0_OFFSET    0xc0100
+#define LDC_SEG_HIST1_OFFSET    0xc2500
+#define LDC_SEG_DUTY0_OFFSET    0xc4900
+#define LDC_SEG_DUTY1_OFFSET    0xc5300
+#define LDC_SEG_DUTY2_OFFSET    0xc5d00
+#define LDC_SEG_DUTY3_OFFSET    0xc6700
+#define LDC_MEM_END             0xc7100
 /*========================================*/
 
 /* ldim func */
@@ -60,33 +55,35 @@ int ldim_hw_reg_dump(char *buf);
 int ldim_hw_reg_dump_tm2(char *buf);
 int ldim_hw_reg_dump_tm2b(char *buf);
 void ldim_hw_stts_read_zone(unsigned int nrow, unsigned int ncol);
+void ldim_func_profile_update(struct ld_reg_s *nprm, struct ldim_profile_s *profile);
 
-void ldim_hw_remap_init_txlx(struct ld_reg_s *nprm, unsigned int ldim_bl_en,
-			     unsigned int ldim_hvcnt_bypass);
 void ldim_hw_remap_init_tm2(struct ld_reg_s *nprm, unsigned int ldim_bl_en,
 			    unsigned int ldim_hvcnt_bypass);
-void ldim_hw_stts_initial_txlx(unsigned int pic_h, unsigned int pic_v,
-			       unsigned int blk_vnum, unsigned int blk_hnum);
 void ldim_hw_stts_initial_tl1(unsigned int pic_h, unsigned int pic_v,
 			      unsigned int blk_vnum, unsigned int blk_hnum);
 void ldim_hw_stts_initial_tm2(unsigned int pic_h, unsigned int pic_v,
 			      unsigned int blk_vnum, unsigned int blk_hnum);
-void ldim_hw_remap_update_txlx(struct ld_reg_s *nprm, unsigned int avg_update_en,
-			       unsigned int matrix_update_en);
 void ldim_hw_remap_update_tm2(struct ld_reg_s *nprm, unsigned int avg_update_en,
 			      unsigned int matrix_update_en);
 void ldim_hw_remap_update_tm2b(struct ld_reg_s *nprm, unsigned int avg_update_en,
 			       unsigned int matrix_update_en);
 
+/*new ldc*/
+void ldc_rmem_data_parse(struct aml_ldim_driver_s *ldim_drv);
+void ldim_vs_arithmetic_t7(struct aml_ldim_driver_s *ldim_drv);
+void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag);
+void ldim_func_ctrl_t3(struct aml_ldim_driver_s *ldim_drv, int flag);
+void ldim_drv_init_t7(struct aml_ldim_driver_s *ldim_drv);
+void ldim_drv_init_t3(struct aml_ldim_driver_s *ldim_drv);
+
+/*ldim mem*/
+void ldc_mem_dump(unsigned char *vaddr, unsigned int size);
+void ldc_mem_save(char *path, unsigned long mem_paddr, unsigned int mem_size);
+void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size);
+void ldc_mem_clear(unsigned long mem_paddr, unsigned int mem_size);
+
 /*==============debug=================*/
 void ldim_remap_ctrl(unsigned char status);
-void ldim_func_ctrl(unsigned char status);
-void ldim_stts_initial(unsigned int pic_h, unsigned int pic_v,
-		       unsigned int blk_vnum, unsigned int blk_hnum);
-void ldim_initial(unsigned int pic_h, unsigned int pic_v,
-		  unsigned int blk_vnum, unsigned int blk_hnum,
-		  unsigned int blk_mode, unsigned int ldim_bl_en,
-		  unsigned int hvcnt_bypass);
 void ldim_db_para_print(struct ldim_fw_para_s *fw_para);
 int aml_ldim_debug_probe(struct class *ldim_class);
 void aml_ldim_debug_remove(struct class *ldim_class);

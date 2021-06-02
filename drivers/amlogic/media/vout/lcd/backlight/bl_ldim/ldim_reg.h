@@ -151,6 +151,49 @@
 #define VPU_DMA_RDMIF0_BADR3                       0x275b
 //Bit 31:0  lut0_reg_baddr3
 
+/* *************************************************************************
+ * T7 LDC register
+ */
+#define LDC_REG_BLOCK_NUM                          0x1400
+#define LDC_REG_SEG_Y_BOUNDARY_0_1                 0x1401
+#define LDC_REG_SEG_X_BOUNDARY_0_1                 0x1411
+#define LDC_REG_PANEL_SIZE                         0x1429
+#define LDC_REG_DOWNSAMPLE                         0x142a
+#define LDC_REG_HIST_OVERLAP                       0x142b
+#define LDC_REG_BLEND_DIFF_TH                      0x142c
+#define LDC_REG_CURVE_COEF                         0x142d
+#define LDC_REG_INIT_BL                            0x142e
+#define LDC_REG_SF_MODE                            0x142f
+#define LDC_REG_SF_GAIN                            0x1430
+#define LDC_REG_BS_MODE                            0x1431
+#define LDC_REG_APL                                0x1432
+#define LDC_REG_GLB_BOOST                          0x1433
+#define LDC_REG_LOCAL_BOOST                        0x1434
+#define LDC_REG_TF                                 0x1435
+#define LDC_REG_TF_SC                              0x1436
+#define LDC_REG_PROFILE_MODE                       0x1437
+#define LDC_REG_BLK_FILTER                         0x1438
+#define LDC_REG_BLK_FILTER_COEF                    0x1439
+#define LDC_REG_BL_MEMORY                          0x143a
+#define LDC_REG_FACTOR_DIV_0                       0x143b
+#define LDC_REG_FACTOR_DIV_1                       0x143c
+#define LDC_REG_BITS_DIV                           0x143d
+#define LDC_REG_GLB_GAIN                           0x143e
+#define LDC_REG_DITHER                             0x143f
+#define LDC_DDR_ADDR_BASE                          0x1471
+#define LDC_GAIN_LUT_DATA                          0x1472
+#define LDC_ADJ_VS_CTRL                            0x1476
+#define LDC_CTRL_MISC0                             0x1478
+#define LDC_CTRL_MISC1                             0x1479
+#define LDC_GAIN_LUT_ADDR                          0x1473
+#define LDC_GAIN_LUT_CTRL0                         0x1474
+#define LDC_GAIN_LUT_CTRL1                         0x1475
+#define LDC_DGB_CTRL                               0x147a
+#define LDC_RO_GAIN_SMP_DATA                       0x147f
+#define VPU_RDARB_MODE_L2C1                        0x279d
+
+/* *************************************************************************/
+
 #ifndef CONFIG_AMLOGIC_MEDIA_RDMA
 #define LDIM_VSYNC_RDMA      0
 #else

@@ -22,8 +22,37 @@
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include <linux/amlogic/media/vout/lcd/ldim_alg.h>
+#include "../../lcd_common.h"
 #include "ldim_drv.h"
 #include "ldim_reg.h"
+
+#define LDIM_DBG_REG_RW_MODE_NULL              0
+#define LDIM_DBG_REG_RW_MODE_RN                1
+#define LDIM_DBG_REG_RW_MODE_RS                2
+#define LDIM_DBG_REG_RW_MODE_WM                3
+#define LDIM_DBG_REG_RW_MODE_WN                4
+#define LDIM_DBG_REG_RW_MODE_WS                5
+#define LDIM_DBG_REG_RW_MODE_ERR               6
+
+#define LDIM_DBG_REG_FLAG_VCBUS                0
+#define LDIM_DBG_REG_FLAG_APBBUS               1
+
+/* 1: unlocked, 0: locked, negative: locked, possible waiters */
+static struct mutex ldim_dbg_reg_mutex;
+/*for dbg reg use*/
+struct ldim_dbg_reg_s {
+	unsigned int rw_mode;
+	unsigned int bus_flag;
+	unsigned int addr;
+	unsigned int size;
+};
+
+static struct ldim_dbg_reg_s dbg_reg = {
+	.rw_mode = LDIM_DBG_REG_RW_MODE_NULL,
+	.bus_flag = LDIM_DBG_REG_FLAG_VCBUS,
+	.addr = 0,
+	.size = 0,
+};
 
 void ldim_db_para_print(struct ldim_fw_para_s *fw_para)
 {
@@ -477,8 +506,8 @@ static void ldim_get_matrix(struct aml_ldim_driver_s *ldim_drv,
 static void ldim_get_matrix_info(struct aml_ldim_driver_s *ldim_drv)
 {
 	unsigned int i, j, n, len;
-	unsigned short *ldim_matrix_t = NULL;
-	unsigned short *ldim_matrix_spi_t = NULL;
+	unsigned short *local_buf = NULL;
+	unsigned short *spi_buf = NULL;
 	char *buf;
 
 	n = ldim_drv->conf->hist_col * 10 + 20;
@@ -487,29 +516,27 @@ static void ldim_get_matrix_info(struct aml_ldim_driver_s *ldim_drv)
 		return;
 
 	len = ldim_drv->conf->hist_row * ldim_drv->conf->hist_col;
-	ldim_matrix_t = kcalloc(len, sizeof(unsigned short), GFP_KERNEL);
-	if (!ldim_matrix_t) {
+	local_buf = kcalloc(len, sizeof(unsigned short), GFP_KERNEL);
+	if (!local_buf) {
 		kfree(buf);
 		return;
 	}
-	ldim_matrix_spi_t = kcalloc(len, sizeof(unsigned short), GFP_KERNEL);
-	if (!ldim_matrix_spi_t) {
+	spi_buf = kcalloc(len, sizeof(unsigned short), GFP_KERNEL);
+	if (!spi_buf) {
 		kfree(buf);
-		kfree(ldim_matrix_t);
+		kfree(local_buf);
 		return;
 	}
 
-	memcpy(ldim_matrix_t, &ldim_drv->local_ldim_matrix[0],
-	       len * sizeof(unsigned short));
-	memcpy(ldim_matrix_spi_t, &ldim_drv->ldim_matrix_buf[0],
-	       len * sizeof(unsigned short));
+	memcpy(local_buf, &ldim_drv->local_bl_matrix[0], len * sizeof(unsigned short));
+	memcpy(spi_buf, &ldim_drv->bl_matrix_cur[0], len * sizeof(unsigned short));
 
 	pr_info("%s:\n", __func__);
 	for (i = 0; i < ldim_drv->conf->hist_row; i++) {
 		len = 0;
 		for (j = 0; j < ldim_drv->conf->hist_col; j++) {
 			n = ldim_drv->conf->hist_col * i + j;
-			len += sprintf(buf + len, "\t%4d", ldim_matrix_t[n]);
+			len += sprintf(buf + len, "\t%4d", local_buf[n]);
 		}
 		pr_info("%s\n", buf);
 	}
@@ -520,22 +547,21 @@ static void ldim_get_matrix_info(struct aml_ldim_driver_s *ldim_drv)
 		len = 0;
 		for (j = 0; j < ldim_drv->conf->hist_col; j++) {
 			n = ldim_drv->conf->hist_col * i + j;
-			len += sprintf(buf + len, "\t%4d",
-				       ldim_matrix_spi_t[n]);
+			len += sprintf(buf + len, "\t%4d", spi_buf[n]);
 		}
 		pr_info("%s\n", buf);
 	}
 	pr_info("\n");
 
 	kfree(buf);
-	kfree(ldim_matrix_t);
-	kfree(ldim_matrix_spi_t);
+	kfree(local_buf);
+	kfree(spi_buf);
 }
 
 static void ldim_get_test_matrix_info(struct aml_ldim_driver_s *ldim_drv)
 {
 	unsigned int i, n, len;
-	unsigned short *ldim_matrix_t = ldim_drv->test_matrix;
+	unsigned short *temp_buf = ldim_drv->test_matrix;
 	char *buf;
 
 	n = ldim_drv->conf->hist_col * ldim_drv->conf->hist_row;
@@ -548,7 +574,7 @@ static void ldim_get_test_matrix_info(struct aml_ldim_driver_s *ldim_drv)
 	pr_info("ldim test_mode: %d, test_matrix:\n", ldim_drv->test_en);
 	len = 0;
 	for (i = 1; i < n; i++)
-		len += sprintf(buf + len, "\t%4d", ldim_matrix_t[i]);
+		len += sprintf(buf + len, "\t%4d", temp_buf[i]);
 	pr_info("%s\n", buf);
 
 	kfree(buf);
@@ -558,7 +584,6 @@ static void ldim_sel_int_matrix_mute_print(struct aml_ldim_driver_s *ldim_drv,
 					   unsigned int n, unsigned int *matrix)
 {
 	unsigned int i, len;
-	unsigned int *ldim_matrix_t = NULL;
 	char *buf;
 
 	len = n * 10 + 20;
@@ -566,26 +591,18 @@ static void ldim_sel_int_matrix_mute_print(struct aml_ldim_driver_s *ldim_drv,
 	if (!buf)
 		return;
 
-	ldim_matrix_t = kcalloc(n, sizeof(unsigned int), GFP_KERNEL);
-	if (!ldim_matrix_t) {
-		kfree(buf);
-		return;
-	}
-	memcpy(ldim_matrix_t, matrix, (n * sizeof(unsigned int)));
-
 	len = 0;
 	for (i = 0; i < n; i++)
-		len += sprintf(buf + len, " %d", ldim_matrix_t[i]);
+		len += sprintf(buf + len, " %d", matrix[i]);
 	pr_info("for_tool:%s\n", buf);
 
 	kfree(buf);
-	kfree(ldim_matrix_t);
 }
 
 static void ldim_matrix_bl_matrix_mute_print(struct aml_ldim_driver_s *ldim_drv)
 {
 	unsigned int i, n, len;
-	unsigned short *ldim_matrix_t = NULL;
+	unsigned short *temp_buf = NULL;
 	char *buf;
 
 	len = ldim_drv->conf->hist_row * ldim_drv->conf->hist_col * 8 + 20;
@@ -594,29 +611,27 @@ static void ldim_matrix_bl_matrix_mute_print(struct aml_ldim_driver_s *ldim_drv)
 		return;
 
 	n = ldim_drv->conf->hist_row * ldim_drv->conf->hist_col;
-	ldim_matrix_t = kcalloc(n, sizeof(unsigned short), GFP_KERNEL);
-	if (!ldim_matrix_t) {
+	temp_buf = kcalloc(n, sizeof(unsigned short), GFP_KERNEL);
+	if (!temp_buf) {
 		kfree(buf);
 		return;
 	}
-	memcpy(ldim_matrix_t, ldim_drv->local_ldim_matrix,
-	       (n * sizeof(unsigned short)));
+	memcpy(temp_buf, ldim_drv->local_bl_matrix, (n * sizeof(unsigned short)));
 
 	len = 0;
 	for (i = 0; i < n; i++)
-		len += sprintf(buf + len, " %d", ldim_matrix_t[i]);
+		len += sprintf(buf + len, " %d", temp_buf[i]);
 	pr_info("for_tool: %d %d%s\n",
 		ldim_drv->conf->hist_row, ldim_drv->conf->hist_col, buf);
 
 	kfree(buf);
-	kfree(ldim_matrix_t);
+	kfree(temp_buf);
 }
 
-static void ldim_matrix_histgram_mute_print(struct aml_ldim_driver_s *ldim_drv,
-					    unsigned int sel)
+static void ldim_matrix_histgram_mute_print(struct aml_ldim_driver_s *ldim_drv, unsigned int sel)
 {
 	unsigned int i, j, k, n, len;
-	unsigned int *p = NULL;
+	unsigned int *temp_buf = NULL;
 	char *buf;
 
 	n = ldim_drv->conf->hist_row * ldim_drv->conf->hist_col * 16;
@@ -633,13 +648,13 @@ static void ldim_matrix_histgram_mute_print(struct aml_ldim_driver_s *ldim_drv,
 	if (!buf)
 		return;
 
-	p = kcalloc(n, sizeof(unsigned int), GFP_KERNEL);
-	if (!p) {
+	temp_buf = kcalloc(n, sizeof(unsigned int), GFP_KERNEL);
+	if (!temp_buf) {
 		kfree(buf);
 		return;
 	}
 
-	memcpy(p, ldim_drv->hist_matrix, n * sizeof(unsigned int));
+	memcpy(temp_buf, ldim_drv->hist_matrix, n * sizeof(unsigned int));
 
 	len = 0;
 	if (sel == 0xffff) {
@@ -648,8 +663,7 @@ static void ldim_matrix_histgram_mute_print(struct aml_ldim_driver_s *ldim_drv,
 				for (k = 0; k < 16; k++) {
 					n = i * 16 * ldim_drv->conf->hist_col +
 					    j * 16 + k;
-					len += sprintf(buf + len, " 0x%x",
-						       *(p + n));
+					len += sprintf(buf + len, " 0x%x", *(temp_buf + n));
 				}
 			}
 		}
@@ -660,18 +674,18 @@ static void ldim_matrix_histgram_mute_print(struct aml_ldim_driver_s *ldim_drv,
 		j = sel % ldim_drv->conf->hist_col;
 		n = i * 16 * ldim_drv->conf->hist_col + j * 16;
 		for (k = 0; k < 16; k++)
-			len += sprintf(buf + len, " 0x%x", *(p + n + k));
+			len += sprintf(buf + len, " 0x%x", *(temp_buf + n + k));
 		pr_info("for_tool: %d 16%s\n", sel, buf);
 	}
 
 	kfree(buf);
-	kfree(p);
+	kfree(temp_buf);
 }
 
 static void ldim_matrix_max_rgb_mute_print(struct aml_ldim_driver_s *ldim_drv)
 {
 	unsigned int i, j, n, len;
-	unsigned int *p = NULL;
+	unsigned int *temp_buf = NULL;
 	char *buf;
 
 	n = ldim_drv->conf->hist_col * ldim_drv->conf->hist_row * 3 * 30 + 20;
@@ -680,28 +694,28 @@ static void ldim_matrix_max_rgb_mute_print(struct aml_ldim_driver_s *ldim_drv)
 		return;
 
 	len = ldim_drv->conf->hist_col * ldim_drv->conf->hist_row * 3;
-	p = kcalloc(len, sizeof(unsigned int), GFP_KERNEL);
-	if (!p) {
+	temp_buf = kcalloc(len, sizeof(unsigned int), GFP_KERNEL);
+	if (!temp_buf) {
 		kfree(buf);
 		return;
 	}
-	memcpy(p, ldim_drv->max_rgb, len * sizeof(unsigned int));
+	memcpy(temp_buf, ldim_drv->max_rgb, len * sizeof(unsigned int));
 
 	len = 0;
 	for (i = 0; i < ldim_drv->conf->hist_row; i++) {
 		for (j = 0; j < ldim_drv->conf->hist_col; j++) {
 			n = i * ldim_drv->conf->hist_col + j;
 			len += sprintf(buf + len, " %d %d %d",
-				p[n * 3],
-				p[n * 3 + 1],
-				p[n * 3 + 2]);
+				temp_buf[n * 3],
+				temp_buf[n * 3 + 1],
+				temp_buf[n * 3 + 2]);
 		}
 	}
 	pr_info("for_tool: %d 3%s\n",
 		(ldim_drv->conf->hist_row * ldim_drv->conf->hist_col), buf);
 
 	kfree(buf);
-	kfree(p);
+	kfree(temp_buf);
 }
 
 static void ldim_stts_data_dump(struct aml_ldim_driver_s *ldim_drv)
@@ -761,7 +775,7 @@ ldim_stts_data_dump_exit_0:
 static void ldim_matrix_SF_matrix_mute_print(struct aml_ldim_driver_s *ldim_drv)
 {
 	unsigned int i, n, len;
-	unsigned int *ldim_matrix_t = NULL;
+	unsigned int *temp_buf = NULL;
 	char *buf;
 
 	len = ldim_drv->conf->hist_row * ldim_drv->conf->hist_col * 10 + 20;
@@ -770,22 +784,21 @@ static void ldim_matrix_SF_matrix_mute_print(struct aml_ldim_driver_s *ldim_drv)
 		return;
 
 	n = ldim_drv->conf->hist_row * ldim_drv->conf->hist_col;
-	ldim_matrix_t = kcalloc(n, sizeof(unsigned int), GFP_KERNEL);
-	if (!ldim_matrix_t) {
+	temp_buf = kcalloc(n, sizeof(unsigned int), GFP_KERNEL);
+	if (!temp_buf) {
 		kfree(buf);
 		return;
 	}
-	memcpy(ldim_matrix_t, ldim_drv->fw_para->fdat->sf_bl_matrix,
-	       (n * sizeof(unsigned int)));
+	memcpy(temp_buf, ldim_drv->fw_para->fdat->sf_bl_matrix, (n * sizeof(unsigned int)));
 
 	len = 0;
 	for (i = 0; i < n; i++)
-		len += sprintf(buf + len, " %d", ldim_matrix_t[i]);
+		len += sprintf(buf + len, " %d", temp_buf[i]);
 	pr_info("for_tool: %d %d%s\n",
 		ldim_drv->conf->hist_row, ldim_drv->conf->hist_col, buf);
 
 	kfree(buf);
-	kfree(ldim_matrix_t);
+	kfree(temp_buf);
 }
 
 static void ldim_matrix_LD_remap_LUT_mute_print(void)
@@ -834,7 +847,7 @@ static void ldim_matrix_LD_remap_LUT_mute_line_print(int index)
 static void ldim_test_matrix_mute_print(struct aml_ldim_driver_s *ldim_drv)
 {
 	unsigned int i, n, len;
-	unsigned short *p = ldim_drv->test_matrix;
+	unsigned short *temp_buf = ldim_drv->test_matrix;
 	char *buf;
 
 	n = ldim_drv->conf->hist_col * ldim_drv->conf->hist_row;
@@ -845,15 +858,14 @@ static void ldim_test_matrix_mute_print(struct aml_ldim_driver_s *ldim_drv)
 
 	len = 0;
 	for (i = 0; i < n; i++)
-		len += sprintf(buf + len, " %d", p[i]);
+		len += sprintf(buf + len, " %d", temp_buf[i]);
 	pr_info("for_tool: %d %d%s\n",
 		ldim_drv->conf->hist_row, ldim_drv->conf->hist_col, buf);
 
 	kfree(buf);
 }
 
-static void ldim_set_matrix(unsigned int *data, unsigned int reg_sel,
-			    unsigned int cnt)
+static void ldim_set_matrix(unsigned int *data, unsigned int reg_sel, unsigned int cnt)
 {
 	/* gMatrix_LUT: s12*100 */
 	if (reg_sel == 0)
@@ -870,8 +882,7 @@ static void ldim_set_matrix(unsigned int *data, unsigned int reg_sel,
 		ldim_wr_lut(REG_LD_LUT_VDG_BASE, data, 16, cnt);
 }
 
-static ssize_t ldim_attr_show(struct class *cla,
-			      struct class_attribute *attr, char *buf)
+static ssize_t ldim_attr_show(struct class *cla, struct class_attribute *attr, char *buf)
 {
 	ssize_t len = 0;
 
@@ -973,8 +984,7 @@ static ssize_t ldim_attr_show(struct class *cla,
 	return len;
 }
 
-static ssize_t ldim_attr_store(struct class *cla,
-			       struct class_attribute *attr,
+static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			       const char *buf, size_t len)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
@@ -1093,7 +1103,7 @@ static ssize_t ldim_attr_store(struct class *cla,
 					ldim_drv->conf->hist_row,
 					ldim_drv->conf->hist_col,
 					ldim_drv->conf->bl_mode,
-					ldim_drv->conf->bl_en,
+					ldim_drv->conf->func_en,
 					ldim_drv->conf->hvcnt_bypass);
 				goto ldim_attr_store_end;
 			}
@@ -1113,21 +1123,16 @@ static ssize_t ldim_attr_store(struct class *cla,
 			ldim_drv->conf->hist_row = (unsigned char)hist_row;
 			ldim_drv->conf->hist_col = (unsigned char)hist_col;
 			ldim_drv->conf->bl_mode = (unsigned char)blk_mode;
-			ldim_drv->conf->bl_en = (unsigned char)ldim_bl_en;
-			ldim_drv->conf->hvcnt_bypass =
-				(unsigned char)hvcnt_bypass;
-			ldim_initial(ldim_drv->conf->hsize,
-				     ldim_drv->conf->vsize,
-				     ldim_drv->conf->hist_row,
-				     ldim_drv->conf->hist_col,
-				     blk_mode, ldim_bl_en,
-				     hvcnt_bypass);
+			ldim_drv->conf->func_en = (unsigned char)ldim_bl_en;
+			ldim_drv->conf->hvcnt_bypass = (unsigned char)hvcnt_bypass;
+			if (ldim_drv->data->drv_init)
+				ldim_drv->data->drv_init(ldim_drv);
 			pr_info("**************ldim init ok*************\n");
 		}
 		pr_info("remap_init param: %d %d %d %d %d\n",
 			ldim_drv->conf->hist_row, ldim_drv->conf->hist_col,
 			ldim_drv->conf->bl_mode,
-			ldim_drv->conf->bl_en,
+			ldim_drv->conf->func_en,
 			ldim_drv->conf->hvcnt_bypass);
 	} else if (!strcmp(parm[0], "ldim_stts_init")) {
 		if (parm[1]) {
@@ -1146,10 +1151,8 @@ static ssize_t ldim_attr_store(struct class *cla,
 
 			ldim_drv->conf->hist_row = (unsigned char)hist_row;
 			ldim_drv->conf->hist_col = (unsigned char)hist_col;
-			ldim_stts_initial(ldim_drv->conf->hsize,
-					  ldim_drv->conf->vsize,
-					  ldim_drv->conf->hist_row,
-					  ldim_drv->conf->hist_col);
+			if (ldim_drv->data->drv_init)
+				ldim_drv->data->drv_init(ldim_drv);
 			pr_info("************ldim stts init ok*************\n");
 		}
 		pr_info("ldim_stts_init param: %d %d\n",
@@ -1174,7 +1177,8 @@ static ssize_t ldim_attr_store(struct class *cla,
 			if (kstrtoul(parm[1], 10, &val1) < 0)
 				goto ldim_attr_store_err;
 			ldim_drv->func_en = val1 ? 1 : 0;
-			ldim_func_ctrl(ldim_drv->func_en);
+			if (ldim_drv->data && ldim_drv->data->func_ctrl)
+				ldim_drv->data->func_ctrl(ldim_drv, ldim_drv->func_en);
 		}
 		pr_info("ldim_func_en: %d\n", ldim_drv->func_en);
 	} else if (!strcmp(parm[0], "remap")) {
@@ -1330,6 +1334,7 @@ static ssize_t ldim_attr_store(struct class *cla,
 			ldim_drv->test_en = (unsigned char)val1;
 		}
 		LDIMPR("test_mode: %d\n", ldim_drv->test_en);
+		ldim_drv->level_update = 1;
 	} else if (!strcmp(parm[0], "test_set")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
@@ -1349,9 +1354,9 @@ static ssize_t ldim_attr_store(struct class *cla,
 				for (i = 0; i < size; i++) {
 					if (kstrtouint(parm[i + 4], 10, &j) < 0)
 						goto ldim_attr_store_err;
-					ldim_drv->test_matrix[i] =
-						(unsigned short)j;
+					ldim_drv->test_matrix[i] = (unsigned short)j;
 				}
+				ldim_drv->level_update = 1;
 				goto ldim_attr_store_end;
 			}
 		}
@@ -1366,9 +1371,9 @@ static ssize_t ldim_attr_store(struct class *cla,
 				ldim_drv->test_matrix[i] = (unsigned short)j;
 				LDIMPR("set test_matrix[%d] = %4d\n", i, j);
 			} else {
-				LDIMERR("invalid index for test_matrix[%d]\n",
-					i);
+				LDIMERR("invalid index for test_matrix[%d]\n", i);
 			}
+			ldim_drv->level_update = 1;
 			goto ldim_attr_store_end;
 		}
 		ldim_get_test_matrix_info(ldim_drv);
@@ -1382,6 +1387,7 @@ static ssize_t ldim_attr_store(struct class *cla,
 				ldim_drv->test_matrix[i] = (unsigned short)j;
 
 			LDIMPR("set all test_matrix to %4d\n", j);
+			ldim_drv->level_update = 1;
 			goto ldim_attr_store_end;
 		}
 		ldim_get_test_matrix_info(ldim_drv);
@@ -1977,7 +1983,8 @@ static ssize_t ldim_func_en_store(struct class *class,
 	ret = kstrtouint(buf, 10, &val);
 	LDIMPR("local diming function: %s\n", (val ? "enable" : "disable"));
 	ldim_drv->func_en = val ? 1 : 0;
-	ldim_func_ctrl(ldim_drv->func_en);
+	if (ldim_drv->data && ldim_drv->data->func_ctrl)
+		ldim_drv->data->func_ctrl(ldim_drv, ldim_drv->func_en);
 	return count;
 }
 
@@ -2045,8 +2052,7 @@ static ssize_t ldim_mem_show(struct class *class,
 	return len;
 }
 
-static ssize_t ldim_mem_store(struct class *class,
-			      struct class_attribute *attr,
+static ssize_t ldim_mem_store(struct class *class, struct class_attribute *attr,
 			      const char *buf, size_t count)
 {
 	int i, ret;
@@ -2138,8 +2144,7 @@ static ssize_t ldim_reg_show(struct class *class,
 	return len;
 }
 
-static ssize_t ldim_reg_store(struct class *cla,
-			      struct class_attribute *attr,
+static ssize_t ldim_reg_store(struct class *class, struct class_attribute *attr,
 			      const char *buf, size_t len)
 {
 	unsigned int n = 0, i;
@@ -2168,7 +2173,7 @@ static ssize_t ldim_reg_store(struct class *cla,
 			goto ldim_reg_store_err;
 		if (kstrtouint(parm[1], 16, &reg) < 0)
 			goto ldim_reg_store_err;
-		val = ldim_rd_vcbus(reg);
+		val = lcd_vcbus_read(reg);
 		pr_info("reg 0x%04x = 0x%08x\n", reg, val);
 	} else if (!strcmp(parm[0], "dv")) {
 		if (!parm[2])
@@ -2178,7 +2183,7 @@ static ssize_t ldim_reg_store(struct class *cla,
 		if (kstrtouint(parm[2], 10, &size) < 0)
 			goto ldim_reg_store_err;
 		for (i = 0; i < size; i++) {
-			val = ldim_rd_vcbus(reg + i);
+			val = lcd_vcbus_read(reg + i);
 			pr_info("reg 0x%04x = 0x%08x\n", (reg + i), val);
 		}
 	} else if (!strcmp(parm[0], "wv")) {
@@ -2188,10 +2193,9 @@ static ssize_t ldim_reg_store(struct class *cla,
 			goto ldim_reg_store_err;
 		if (kstrtouint(parm[2], 16, &val) < 0)
 			goto ldim_reg_store_err;
-		ldim_wr_vcbus(reg, val);
-		temp = ldim_rd_vcbus(reg);
-		pr_info("write reg 0x%04x = 0x%08x, readback 0x%08x\n",
-			reg, val, temp);
+		lcd_vcbus_write(reg, val);
+		temp = lcd_vcbus_read(reg);
+		pr_info("write reg 0x%04x = 0x%08x, readback 0x%08x\n", reg, val, temp);
 	} else if (!strcmp(parm[0], "r")) {
 		if (!parm[1])
 			goto ldim_reg_store_err;
@@ -2236,8 +2240,211 @@ ldim_reg_store_err:
 	return -EINVAL;
 }
 
-static ssize_t ldim_demo_show(struct class *class,
-			      struct class_attribute *attr, char *buf)
+static ssize_t ldim_dbg_reg_show(struct class *class,
+				 struct class_attribute *attr, char *buf)
+{
+	int len = 0;
+	unsigned int i, reg;
+
+	mutex_lock(&ldim_dbg_reg_mutex);
+
+	len += sprintf(buf + len, "for_tool:");
+	switch (dbg_reg.rw_mode) {
+	case LDIM_DBG_REG_RW_MODE_NULL:
+		len += sprintf(buf + len, "NULL");
+		break;
+	case LDIM_DBG_REG_RW_MODE_RN:
+		for (i = 0; i < dbg_reg.size; i++) {
+			reg = dbg_reg.addr + i;
+			len += sprintf(buf + len, "%04x=%08x ",
+				       reg, lcd_vcbus_read(reg));
+		}
+		break;
+	case LDIM_DBG_REG_RW_MODE_RS:
+		reg = dbg_reg.addr;
+		for (i = 0; i < dbg_reg.size; i++) {
+			len += sprintf(buf + len, "%04x=%08x ",
+				       reg, lcd_vcbus_read(reg));
+		}
+		break;
+	case LDIM_DBG_REG_RW_MODE_WM:
+		reg = dbg_reg.addr;
+		len += sprintf(buf + len, "%04x=%08x ",
+			       reg, lcd_vcbus_read(reg));
+		break;
+	case LDIM_DBG_REG_RW_MODE_WN:
+		for (i = 0; i < dbg_reg.size; i++) {
+			reg = dbg_reg.addr + i;
+			len += sprintf(buf + len, "%04x=%08x ",
+				       reg, lcd_vcbus_read(reg));
+		}
+		break;
+	case LDIM_DBG_REG_RW_MODE_WS:
+		reg = dbg_reg.addr;
+		for (i = 0; i < dbg_reg.size; i++) {
+			len += sprintf(buf + len, "%04x=%08x ",
+				       reg, lcd_vcbus_read(reg));
+		}
+		break;
+	case LDIM_DBG_REG_RW_MODE_ERR:
+		len += sprintf(buf + len, "ERROR");
+		break;
+	default:
+		len += sprintf(buf + len, "ERROR");
+		dbg_reg.rw_mode = LDIM_DBG_REG_RW_MODE_NULL;
+		dbg_reg.addr = 0;
+		dbg_reg.size = 0;
+		break;
+	}
+	len += sprintf(buf + len, "\n");
+	mutex_unlock(&ldim_dbg_reg_mutex);
+	return len;
+}
+
+static ssize_t ldim_dbg_reg_store(struct class *class, struct class_attribute *attr,
+				  const char *buf, size_t len)
+{
+	unsigned int n = 0, i;
+	char *buf_orig, *ps, *token;
+	char **parm = NULL;
+	char str[3] = {' ', '\n', '\0'};
+	unsigned int reg, mask, val, size, temp;
+
+	if (!buf)
+		return len;
+
+	mutex_lock(&ldim_dbg_reg_mutex);
+
+	parm = kcalloc(1536, sizeof(char *), GFP_KERNEL);
+	if (!parm) {
+		mutex_unlock(&ldim_dbg_reg_mutex);
+		return len;
+	}
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig) {
+		kfree(parm);
+		return len;
+	}
+	ps = buf_orig;
+	while (1) {
+		token = strsep(&ps, str);
+		if (!token)
+			break;
+		if (*token == '\0')
+			continue;
+		parm[n++] = token;
+	}
+
+	if (!strcmp(parm[0], "wmv")) {
+		if (!parm[3])
+			goto ldim_dbg_reg_store_err;
+		if (kstrtouint(parm[1], 16, &reg) < 0)
+			goto ldim_dbg_reg_store_err;
+		if (kstrtouint(parm[2], 16, &mask) < 0)
+			goto ldim_dbg_reg_store_err;
+		if (kstrtouint(parm[3], 16, &val) < 0)
+			goto ldim_dbg_reg_store_err;
+		dbg_reg.size = 1; /* for cat use */
+		dbg_reg.addr = reg;
+		dbg_reg.rw_mode = LDIM_DBG_REG_RW_MODE_WM;
+		temp = lcd_vcbus_read(reg);
+		temp &= ~mask;
+		temp |= val & mask;
+		lcd_vcbus_write(reg, temp);
+	} else if (!strcmp(parm[0], "wnv")) {//write reg auto inc
+		if (!parm[2])
+			goto ldim_dbg_reg_store_err;
+		if (kstrtouint(parm[1], 16, &reg) < 0)
+			goto ldim_dbg_reg_store_err;
+		if (kstrtouint(parm[2], 10, &size) < 0)
+			goto ldim_dbg_reg_store_err;
+		if (size == 0)
+			goto ldim_dbg_reg_store_err;
+		if (!parm[3 + size - 1])
+			goto ldim_dbg_reg_store_err;
+		dbg_reg.size = size; /* for cat use */
+		dbg_reg.addr = reg;
+		dbg_reg.rw_mode = LDIM_DBG_REG_RW_MODE_WN;
+		for (i = 0; i < size; i++) {
+			if (kstrtouint(parm[i + 3], 16, &val) < 0)
+				goto ldim_dbg_reg_store_err;
+			lcd_vcbus_write(reg + i, val);
+		}
+	} else if (!strcmp(parm[0], "wsv")) { //write reg static
+		if (!parm[2])
+			goto ldim_dbg_reg_store_err;
+		if (kstrtouint(parm[1], 16, &reg) < 0)
+			goto ldim_dbg_reg_store_err;
+		if (kstrtouint(parm[2], 10, &size) < 0)
+			goto ldim_dbg_reg_store_err;
+		if (size == 0)
+			goto ldim_dbg_reg_store_err;
+		if (!parm[3 + size - 1])
+			goto ldim_dbg_reg_store_err;
+		dbg_reg.size = size; /* for cat use */
+		dbg_reg.addr = reg;
+		dbg_reg.rw_mode = LDIM_DBG_REG_RW_MODE_WS;
+		for (i = 0; i < size; i++) {
+			if (kstrtouint(parm[i + 3], 16, &val) < 0)
+				goto ldim_dbg_reg_store_err;
+			lcd_vcbus_write(reg, val);
+		}
+	} else if (!strcmp(parm[0], "rnv")) { //read reg
+		if (!parm[1])
+			goto ldim_dbg_reg_store_err;
+		if (kstrtouint(parm[1], 16, &reg) < 0)
+			goto ldim_dbg_reg_store_err;
+		if (!parm[2]) { //read one reg
+			dbg_reg.size = 1; /* for cat use */
+			dbg_reg.addr = reg;
+			dbg_reg.rw_mode = LDIM_DBG_REG_RW_MODE_RN;
+		} else {
+			if (kstrtouint(parm[2], 10, &size) < 0)
+				goto ldim_dbg_reg_store_err;
+			if (size == 0)
+				goto ldim_dbg_reg_store_err;
+			dbg_reg.size = size; /* for cat use */
+			dbg_reg.addr = reg;
+			dbg_reg.rw_mode = LDIM_DBG_REG_RW_MODE_RN;
+		}
+	} else if (!strcmp(parm[0], "rsv")) { //read static reg
+		if (!parm[1])
+			goto ldim_dbg_reg_store_err;
+		if (kstrtouint(parm[1], 16, &reg) < 0)
+			goto ldim_dbg_reg_store_err;
+		if (!parm[2]) { //read one reg
+			dbg_reg.size = 1; /* for cat use */
+			dbg_reg.addr = reg;
+			dbg_reg.rw_mode = LDIM_DBG_REG_RW_MODE_RS;
+		} else {
+			if (kstrtouint(parm[2], 10, &size) < 0)
+				goto ldim_dbg_reg_store_err;
+			if (size == 0)
+				goto ldim_dbg_reg_store_err;
+			dbg_reg.size = size; /* for cat use */
+			dbg_reg.addr = reg;
+			dbg_reg.rw_mode = LDIM_DBG_REG_RW_MODE_RS;
+		}
+	} else {
+		goto ldim_dbg_reg_store_err;
+	}
+
+	kfree(buf_orig);
+	kfree(parm);
+	mutex_unlock(&ldim_dbg_reg_mutex);
+	return len;
+
+ldim_dbg_reg_store_err:
+	dbg_reg.rw_mode = LDIM_DBG_REG_RW_MODE_ERR;
+	LDIMERR("invalid parameters\n");
+	kfree(buf_orig);
+	kfree(parm);
+	mutex_unlock(&ldim_dbg_reg_mutex);
+	return -EINVAL;
+}
+
+static ssize_t ldim_demo_show(struct class *class, struct class_attribute *attr, char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	int ret = 0;
@@ -2247,8 +2454,7 @@ static ssize_t ldim_demo_show(struct class *class,
 	return ret;
 }
 
-static ssize_t ldim_demo_store(struct class *class,
-			       struct class_attribute *attr,
+static ssize_t ldim_demo_store(struct class *class, struct class_attribute *attr,
 			       const char *buf, size_t count)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
@@ -2273,6 +2479,236 @@ static ssize_t ldim_demo_store(struct class *class,
 	return count;
 }
 
+static void ldc_rmem_data_dump(struct aml_ldim_driver_s *ldim_drv)
+{
+	if (ldim_drv->rmem->flag == 0) {
+		pr_info("ldc resv mem invalid\n");
+		return;
+	}
+
+	pr_info("ldc global hist:\n");
+	ldc_mem_dump(ldim_drv->rmem->global_hist_vaddr, ldim_drv->rmem->global_hist_mem_size);
+	pr_info("ldc seg hist:\n");
+	ldc_mem_dump(ldim_drv->rmem->seg_hist_vaddr, ldim_drv->rmem->seg_hist_mem_size);
+	pr_info("ldc duty:\n");
+	ldc_mem_dump(ldim_drv->rmem->duty_vaddr, ldim_drv->rmem->duty_mem_size);
+}
+
+static ssize_t ldim_debug_show(struct class *class, struct class_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+
+	len += sprintf(buf + len,
+		      "echo en <width> <height> <col> <row> > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf + len,
+		       "echo reg > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf + len,
+		       "echo save <type> <path> > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf + len,
+		       "echo clr <type> > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf + len,
+		       "echo dump <type> > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf + len,
+		       "    type: profile/lut/mem\n");
+	len += sprintf(buf + len,
+		       "echo load <type> <path> > /sys/class/aml_ldim/attr\n");
+	len += sprintf(buf + len,
+		       "    type: profile/lut\n");
+
+	return len;
+}
+
+static unsigned int ldc_dbg_point_ctrl[][2] = {
+	//pnt_index, bit_width
+	{1,          12},
+	{2,          12},
+	{3,          12},
+	{4,          12},
+	{5,          10},
+	{6,          10},
+	{7,          14},
+	{8,          14}
+};
+
+static int ldc_debug_dummy(void)
+{
+	pr_info("todo\n");
+	return 0;
+}
+
+static ssize_t ldim_debug_store(struct class *class, struct class_attribute *attr,
+				const char *buf, size_t len)
+{
+	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+	unsigned int n = 0;
+	char *buf_orig, *ps, *token;
+	char **parm = NULL;
+	char str[3] = {' ', '\n', '\0'};
+	unsigned int temp, val;
+	int i;
+
+	if (!buf)
+		return len;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		return len;
+	parm = kcalloc(128, sizeof(char *), GFP_KERNEL);
+	if (!parm) {
+		kfree(buf_orig);
+		return len;
+	}
+	ps = buf_orig;
+	while (1) {
+		token = strsep(&ps, str);
+		if (!token)
+			break;
+		if (*token == '\0')
+			continue;
+		parm[n++] = token;
+	}
+
+	if (!strcmp(parm[0], "en")) {
+		if (!parm[1])
+			goto ldim_debug_store_err;
+		if (kstrtouint(parm[1], 10, &temp) < 0)
+			goto ldim_debug_store_err;
+		ldim_drv->func_en = temp ? 1 : 0;
+		if (ldim_drv->data && ldim_drv->data->func_ctrl)
+			ldim_drv->data->func_ctrl(ldim_drv, ldim_drv->func_en);
+	} else if (!strcmp(parm[0], "dump")) {
+		ldc_rmem_data_parse(ldim_drv);
+		temp = ldim_drv->conf->hist_col * ldim_drv->conf->hist_row;
+		for (i = 0; i < temp; i++) {
+			pr_info("hist[%d]: %d %d %d %d\n",
+				i, ldim_drv->seg_hist[i].min_index,
+				ldim_drv->seg_hist[i].max_index,
+				ldim_drv->seg_hist[i].weight_avg_95,
+				ldim_drv->seg_hist[i].weight_avg);
+		}
+		pr_info("\n");
+		for (i = 0; i < temp; i++)
+			pr_info("duty[%d]: %d\n", i, ldim_drv->duty[i]);
+	} else if (!strcmp(parm[0], "print")) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &temp) < 0)
+				goto ldim_debug_store_err;
+			ldim_debug_print = (unsigned char)temp;
+		}
+		pr_info("ldim_debug_print = %d\n", ldim_debug_print);
+	} else if (!strcmp(parm[0], "pnt")) {
+		if (!parm[1])
+			goto ldim_debug_store_err;
+		if (!strcmp(parm[1], "off")) {
+			lcd_vcbus_setb(LDC_DGB_CTRL, 0, 0, 1);
+			pr_info("ldc dbg point off\n");
+			goto ldim_debug_store_end;
+		}
+		if (kstrtouint(parm[1], 10, &i) < 0)
+			goto ldim_debug_store_err;
+		if (i < 1 || i > 8) {
+			lcd_vcbus_setb(LDC_DGB_CTRL, 0, 0, 1);
+			pr_info("ldc dbg point off\n");
+			goto ldim_debug_store_end;
+		}
+		if (parm[2]) {
+			if (kstrtouint(parm[1], 10, &val) < 0)
+				goto ldim_debug_store_err;
+		} else {
+			val = ldc_dbg_point_ctrl[i - 1][1];
+		}
+		temp = val - 10;
+		lcd_vcbus_setb(LDC_DGB_CTRL, i, 1, 4);
+		lcd_vcbus_setb(LDC_DGB_CTRL, temp, 5, 4);
+		lcd_vcbus_setb(LDC_DGB_CTRL, 1, 0, 1);
+	} else if (!strcmp(parm[0], "reg")) {
+		//todo
+	} else if (!strcmp(parm[0], "save")) { /* save buf to bin */
+		if (!parm[2])
+			goto ldim_debug_store_err;
+
+		if (!strcmp(parm[1], "profile")) {
+			//todo
+			ldc_debug_dummy();
+		} else if (!strcmp(parm[1], "lut")) {
+			//todo
+			ldc_debug_dummy();
+		} else if (!strcmp(parm[1], "mem")) {
+			if (ldim_drv->rmem->flag == 0) {
+				pr_info("ldc resv mem invalid\n");
+				goto ldim_debug_store_err;
+			}
+			ldc_mem_save(parm[2],
+				     ldim_drv->rmem->rsv_mem_paddr,
+				     ldim_drv->rmem->rsv_mem_size);
+		} else {
+			goto ldim_debug_store_err;
+		}
+	} else if (!strcmp(parm[0], "load")) { /*load bin to buf*/
+		if (!parm[2])
+			goto ldim_debug_store_err;
+		if (!strcmp(parm[1], "profile")) {
+			if (ldim_drv->rmem->flag == 0) {
+				pr_info("ldc resv mem invalid\n");
+				goto ldim_debug_store_err;
+			}
+			ldc_mem_write(parm[2],
+				      ldim_drv->rmem->profile_mem_paddr,
+				      ldim_drv->rmem->profile_mem_size);
+		} else if (!strcmp(parm[1], "lut")) {
+			//todo
+			ldc_debug_dummy();
+		} else {
+			goto ldim_debug_store_err;
+		}
+	} else if (!strcmp(parm[0], "clr")) {
+		if (!parm[2])
+			goto ldim_debug_store_err;
+		if (!strcmp(parm[1], "profile")) {
+			//todo
+			ldc_debug_dummy();
+		} else if (!strcmp(parm[1], "lut")) {
+			//todo
+			ldc_debug_dummy();
+		} else if (!strcmp(parm[1], "mem")) {
+			if (ldim_drv->rmem->flag == 0) {
+				pr_info("ldc resv mem invalid\n");
+				goto ldim_debug_store_err;
+			}
+			ldc_mem_clear(ldim_drv->rmem->rsv_mem_paddr,
+				      ldim_drv->rmem->rsv_mem_size);
+		} else {
+			goto ldim_debug_store_err;
+		}
+	} else if (!strcmp(parm[0], "dump")) {
+		if (!parm[1])
+			goto ldim_debug_store_err;
+		if (!strcmp(parm[1], "profile")) {
+			//todo
+			ldc_debug_dummy();
+		} else if (!strcmp(parm[1], "lut")) {
+			//todo
+			ldc_debug_dummy();
+		} else if (!strcmp(parm[1], "mem")) {
+			ldc_rmem_data_dump(ldim_drv);
+		} else {
+			goto ldim_debug_store_err;
+		}
+	} else {
+		pr_info("no support cmd!!!\n");
+	}
+
+ldim_debug_store_end:
+	kfree(buf_orig);
+	kfree(parm);
+	return len;
+
+ldim_debug_store_err:
+	pr_info("invalid parameters\n");
+	kfree(buf_orig);
+	kfree(parm);
+	return -EINVAL;
+}
+
 static struct class_attribute aml_ldim_class_attrs[] = {
 	__ATTR(attr, 0644, ldim_attr_show, ldim_attr_store),
 	__ATTR(func_en, 0644, ldim_func_en_show, ldim_func_en_store),
@@ -2280,17 +2716,21 @@ static struct class_attribute aml_ldim_class_attrs[] = {
 	__ATTR(para, 0644, ldim_para_show, NULL),
 	__ATTR(mem, 0644, ldim_mem_show, ldim_mem_store),
 	__ATTR(reg, 0644, ldim_reg_show, ldim_reg_store),
-	__ATTR(demo, 0644, ldim_demo_show, ldim_demo_store)
+	__ATTR(dbg_reg, 0644, ldim_dbg_reg_show, ldim_dbg_reg_store),
+	__ATTR(demo, 0644, ldim_demo_show, ldim_demo_store),
+	__ATTR(debug, 0644, ldim_debug_show, ldim_debug_store)
 };
 
 int aml_ldim_debug_probe(struct class *ldim_class)
 {
 	int i;
 
-	for (i = 0; aml_ldim_class_attrs[i].attr.name; i++) {
+	for (i = 0; i < ARRAY_SIZE(aml_ldim_class_attrs); i++) {
 		if (class_create_file(ldim_class, &aml_ldim_class_attrs[i]) < 0)
 			return -1;
 	}
+
+	mutex_init(&ldim_dbg_reg_mutex);
 
 	return 0;
 }
@@ -2299,7 +2739,7 @@ void aml_ldim_debug_remove(struct class *ldim_class)
 {
 	int i;
 
-	for (i = 0; aml_ldim_class_attrs[i].attr.name; i++)
+	for (i = 0; i < ARRAY_SIZE(aml_ldim_class_attrs); i++)
 		class_remove_file(ldim_class, &aml_ldim_class_attrs[i]);
 }
 

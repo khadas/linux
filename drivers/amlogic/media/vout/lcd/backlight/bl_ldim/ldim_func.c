@@ -684,6 +684,28 @@ void ld_func_cfg_ldreg(struct ld_reg_s *reg)
 	}
 }
 
+void ldim_func_profile_update(struct ld_reg_s *nprm, struct ldim_profile_s *profile)
+{
+	int i, j;
+
+	if (!nprm || !profile) {
+		LDIMERR("%s: nprm or ld_profile is null\n", __func__);
+		return;
+	}
+	if (profile->mode != 1)
+		return;
+
+	for (i = 0; i < 8; i++) {
+		for (j = 0; j < 32; j++) {
+			nprm->reg_ld_lut_hdg_txlx[i][j] = profile->ld_lut_hdg[j];
+			nprm->reg_ld_lut_vdg_txlx[i][j] = profile->ld_lut_vdg[j];
+			nprm->reg_ld_lut_vhk_txlx[i][j] = profile->ld_lut_vhk[j];
+		}
+	}
+
+	LDIMPR("%s\n", __func__);
+}
+
 #define LD_ONESIDE    1
 	/* 0: left/top side,
 	 *	1: right/bot side, others: non-one-side

@@ -432,7 +432,7 @@ static inline int aml_lcd_extern_init(void)
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_LOCAL_DIMMING
+#ifdef CONFIG_AMLOGIC_BL_LDIM
 int ldim_dev_init(void);
 #else
 static inline int ldim_dev_init(void)

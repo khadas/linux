@@ -1059,6 +1059,14 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 		bconf->power_on_delay = para[3];
 		bconf->power_off_delay = para[4];
 	}
+	ret = of_property_read_u32(child, "en_sequence_reverse", &val);
+	if (ret) {
+		bconf->en_sequence_reverse = 0;
+	} else {
+		bconf->en_sequence_reverse = val;
+		BLPR("[%d]: find en_sequence_reverse: %d\n", bdrv->index, val);
+	}
+
 	ret = of_property_read_u32(child, "bl_ldim_region_row_col", &para[0]);
 	if (ret) {
 		ret = of_property_read_u32(child, "bl_ldim_zone_row_col", &para[0]);
@@ -1126,14 +1134,6 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 		} else {
 			bconf->pwm_on_delay = para[2];
 			bconf->pwm_off_delay = para[3];
-		}
-		ret = of_property_read_u32(child, "en_sequence_reverse", &val);
-		if (ret) {
-			bconf->en_sequence_reverse = 0;
-		} else {
-			bconf->en_sequence_reverse = val;
-			BLPR("[%d]: find en_sequence_reverse: %d\n",
-			     bdrv->index, val);
 		}
 
 		bl_pwm->pwm_duty = bl_pwm->pwm_duty_min;
@@ -1249,14 +1249,6 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 			bconf->pwm_on_delay = para[4];
 			bconf->pwm_off_delay = para[5];
 		}
-		ret = of_property_read_u32(child, "en_sequence_reverse", &val);
-		if (ret) {
-			bconf->en_sequence_reverse = 0;
-		} else {
-			bconf->en_sequence_reverse = val;
-			BLPR("[%d]: find en_sequence_reverse: %d\n",
-			     bdrv->index, val);
-		}
 
 		pwm_combo0->pwm_duty = pwm_combo0->pwm_duty_min;
 		pwm_combo1->pwm_duty = pwm_combo1->pwm_duty_min;
@@ -1266,29 +1258,11 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 		break;
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 	case BL_CTRL_LOCAL_DIMMING:
-		ret = of_property_read_u32(child, "en_sequence_reverse", &val);
-		if (ret) {
-			bconf->en_sequence_reverse = 0;
-		} else {
-			bconf->en_sequence_reverse = val;
-			BLPR("[%d]: find en_sequence_reverse: %d\n",
-			     bdrv->index, val);
-		}
-
 		bconf->ldim_flag = 1;
 		break;
 #endif
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
 	case BL_CTRL_EXTERN:
-		ret = of_property_read_u32(child, "en_sequence_reverse", &val);
-		if (ret) {
-			bconf->en_sequence_reverse = 0;
-		} else {
-			bconf->en_sequence_reverse = val;
-			BLPR("[%d]: find en_sequence_reverse: %d\n",
-			     bdrv->index, val);
-		}
-
 		/* get bl_extern_index from dts */
 		ret = of_property_read_u32(child, "bl_extern_index", &para[0]);
 		if (ret) {
@@ -1431,6 +1405,13 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 	bconf->power_off_delay = (*(p + LCD_UKEY_BL_OFF_DELAY) |
 		((*(p + LCD_UKEY_BL_OFF_DELAY + 1)) << 8));
 
+	if (bl_header.version == 2) {
+		bconf->en_sequence_reverse = (*(p + LCD_UKEY_BL_CUST_VAL_0) |
+				((*(p + LCD_UKEY_BL_CUST_VAL_0 + 1)) << 8));
+	} else {
+		bconf->en_sequence_reverse = 0;
+	}
+
 	/* pwm: 24byte */
 	switch (bconf->method) {
 	case BL_CTRL_PWM:
@@ -1466,14 +1447,6 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 		}
 		bl_pwm->pwm_duty_max = *(p + LCD_UKEY_BL_PWM_DUTY_MAX);
 		bl_pwm->pwm_duty_min = *(p + LCD_UKEY_BL_PWM_DUTY_MIN);
-
-		if (bl_header.version == 2) {
-			bconf->en_sequence_reverse =
-				(*(p + LCD_UKEY_BL_CUST_VAL_0) |
-				 ((*(p + LCD_UKEY_BL_CUST_VAL_0 + 1)) << 8));
-		} else {
-			bconf->en_sequence_reverse = 0;
-		}
 
 		bl_pwm->pwm_duty = bl_pwm->pwm_duty_min;
 		bl_pwm_config_init(bl_pwm);
@@ -1544,14 +1517,6 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 		pwm_combo1->level_min = (*(p + LCD_UKEY_BL_PWM2_LEVEL_MIN) |
 			((*(p + LCD_UKEY_BL_PWM2_LEVEL_MIN + 1)) << 8));
 
-		if (bl_header.version == 2) {
-			bconf->en_sequence_reverse =
-				(*(p + LCD_UKEY_BL_CUST_VAL_0) |
-				 ((*(p + LCD_UKEY_BL_CUST_VAL_0 + 1)) << 8));
-		} else {
-			bconf->en_sequence_reverse = 0;
-		}
-
 		pwm_combo0->pwm_duty = pwm_combo0->pwm_duty_min;
 		pwm_combo1->pwm_duty = pwm_combo1->pwm_duty_min;
 		bl_pwm_config_init(pwm_combo0);
@@ -1586,6 +1551,7 @@ static int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pde
 	char key_name[15];
 	int load_id = 0, i;
 	bool is_init;
+	phandle pwm_phandle;
 	int ret = 0;
 
 	if (!bdrv->dev->of_node) {
@@ -1653,8 +1619,7 @@ static int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pde
 		aml_ldim_probe(pdev);
 #endif
 
-	bdrv->res_vsync_irq[0] =
-		platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
+	bdrv->res_vsync_irq[0] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
 	if (!bdrv->res_vsync_irq[0]) {
 		ret = -ENODEV;
 		BLERR("[%d]: bl_vsync_irq[0] resource error\n", bdrv->index);
@@ -1663,13 +1628,41 @@ static int bl_config_load(struct aml_bl_drv_s *bdrv, struct platform_device *pde
 
 	switch (bdrv->bconf.method) {
 	case BL_CTRL_PWM:
+		if (bdrv->bconf.bl_pwm->pwm_port >= BL_PWM_VS)
+			break;
+		ret = of_property_read_u32(bdrv->dev->of_node, "bl_pwm_config", &pwm_phandle);
+		if (ret) {
+			BLERR("%s: not match bl_pwm_config node\n", __func__);
+			return -1;
+		}
+		ret = bl_pwm_channel_register(bdrv->dev, pwm_phandle, bdrv->bconf.bl_pwm);
+		if (ret)
+			return -1;
+		break;
 	case BL_CTRL_PWM_COMBO:
-		ret = bl_pwm_channel_register(bdrv);
+		ret = of_property_read_u32(bdrv->dev->of_node, "bl_pwm_config", &pwm_phandle);
+		if (ret) {
+			BLERR("%s: not match bl_pwm_config node\n", __func__);
+			return -1;
+		}
+		if (bdrv->bconf.bl_pwm_combo0->pwm_port < BL_PWM_VS) {
+			ret = bl_pwm_channel_register(bdrv->dev, pwm_phandle,
+						      bdrv->bconf.bl_pwm_combo0);
+			if (ret)
+				return -1;
+		}
+		if (bdrv->bconf.bl_pwm_combo1->pwm_port < BL_PWM_VS) {
+			ret = bl_pwm_channel_register(bdrv->dev, pwm_phandle,
+						      bdrv->bconf.bl_pwm_combo1);
+			if (ret)
+				return -1;
+		}
 		break;
 	default:
 		break;
 	}
-	return ret;
+
+	return 0;
 }
 
 /* lcd notify */

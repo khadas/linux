@@ -7,7 +7,7 @@
 
 #include "mesont3.dtsi"
 #include "partition_normal_linux.dtsi"
-#include "mesont3_ar301-panel.dtsi"
+#include "mesont3_ar301_linux-panel.dtsi"
 
 / {
 	model = "Amlogic";
@@ -190,6 +190,13 @@
 			size = <0x0 0x02800000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
+		};
+
+		ldc_mem_reserved:linux,ldc_mem {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x400000>;
+			alignment = <0x0 0x400000>;
 		};
 	};
 	codec_mm {
