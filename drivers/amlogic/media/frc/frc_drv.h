@@ -79,7 +79,7 @@ struct dts_match_data {
 };
 
 struct frc_data_s {
-	const struct dts_match_data match_data;
+	const struct dts_match_data *match_data;
 };
 
 struct st_frc_buf {
@@ -279,6 +279,7 @@ struct frc_dev_s {
 	unsigned int frc_test_ptn;
 	unsigned int frc_fw_pause;
 	u32 probe_ok;
+	u32 power_on_flag;
 	struct frc_data_s *data;
 	void *fw_data;
 

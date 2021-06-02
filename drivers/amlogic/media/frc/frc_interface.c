@@ -61,7 +61,7 @@ int frc_input_handle(struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts)
 	if (!devp)
 		return -1;
 
-	if (!devp->probe_ok)
+	if (!devp->probe_ok || !devp->power_on_flag)
 		return -1;
 
 	/*update vs time*/

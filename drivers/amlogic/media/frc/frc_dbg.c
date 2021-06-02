@@ -25,10 +25,14 @@
 #include <linux/ctype.h>
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
+
 #include <linux/amlogic/media/frc/frc_reg.h>
 #include <linux/amlogic/media/frc/frc_common.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/power_domain.h>
+
 #include "frc_drv.h"
 #include "frc_dbg.h"
 #include "frc_buf.h"
@@ -62,8 +66,8 @@ void frc_status(struct frc_dev_s *devp)
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	pr_frc(0, "%s\n", FRC_FW_VER);
 	pr_frc(0, "%s\n", fw_data->frc_alg_ver);
-	pr_frc(0, "probe_ok sts:%d hw_pos:%d (1:after) fw_pause:%d\n", devp->probe_ok,
-		devp->frc_hw_pos, devp->frc_fw_pause);
+	pr_frc(0, "probe_ok sts:%d power_on_flag:%d hw_pos:%d (1:after) fw_pause:%d\n",
+		devp->probe_ok, devp->power_on_flag, devp->frc_hw_pos, devp->frc_fw_pause);
 	pr_frc(0, "frs state:%d (%s) new:%d\n", devp->frc_sts.state,
 	       frc_state_ary[devp->frc_sts.state], devp->frc_sts.new_state);
 	pr_frc(0, "input in_hsize=%d in_vsize=%d\n", devp->in_sts.in_hsize, devp->in_sts.in_vsize);
@@ -156,6 +160,8 @@ ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf)
 	len += sprintf(buf + len, "auto_ctrl 0/1 \t: frc auto on off work mode\n");
 	len += sprintf(buf + len, "mc_lossy 0/1 \t: 0:off 1:on\n");
 	len += sprintf(buf + len, "me_lossy 0/1 \t: 0:off 1:on\n");
+	len += sprintf(buf + len, "powerdown : power down memc\n");
+	len += sprintf(buf + len, "poweron : power on memc\n");
 
 	return len;
 }
@@ -166,12 +172,18 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 	int val1;
 	int val2;
 	struct frc_fw_data_s *fw_data;
-	fw_data = (struct frc_fw_data_s *)devp->fw_data;
+
+	if (!devp)
+		return;
+
 	if (!buf)
 		return;
+
 	buf_orig = kstrdup(buf, GFP_KERNEL);
 	if (!buf_orig)
 		return;
+
+	fw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	frc_debug_parse_param(buf_orig, (char **)&parm);
 
@@ -372,6 +384,10 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			devp->prot_mode = val1;
+	} else if (!strcmp(parm[0], "powerdown")) {
+		frc_power_domain_ctrl(devp, 0);
+	} else if (!strcmp(parm[0], "poweron")) {
+		frc_power_domain_ctrl(devp, 1);
 	}
 exit:
 	kfree(buf_orig);

@@ -51,6 +51,8 @@
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/frc/frc_reg.h>
 #include <linux/amlogic/media/frc/frc_common.h>
+#include <linux/amlogic/power_domain.h>
+#include <dt-bindings/power/t3-pd.h>
 
 #include "frc_drv.h"
 #include "frc_proc.h"
@@ -306,12 +308,53 @@ static int frc_attach_pd(struct frc_dev_s *devp)
 		}
 		//pr_frc(1, "pw domain %s attach\n", pd_name[i]);
 	}
-
 	return 0;
 }
 
-static int frc_dts_parse(struct frc_dev_s *frc_devp,
-	const struct dts_match_data *match_data)
+void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
+{
+	struct frc_data_s *frc_data;
+	enum chip_id chip;
+
+	frc_data = (struct frc_data_s *)devp->data;
+	chip = frc_data->match_data->chip;
+
+	if (devp->power_on_flag == onoff) {
+		pr_frc(0, "warning: same pw state\n");
+		return;
+	}
+
+	if (!onoff) {
+		devp->power_on_flag = false;
+		frc_change_to_state(FRC_STATE_BYPASS);
+		set_frc_enable(false);
+		set_frc_bypass(true);
+		frc_state_change_finish(devp);
+	}
+
+	if (chip == ID_T3) {
+		if (onoff) {
+			pwr_ctrl_psci_smc(PDID_T3_FRCTOP, PWR_ON);
+			pwr_ctrl_psci_smc(PDID_T3_FRCME, PWR_ON);
+			pwr_ctrl_psci_smc(PDID_T3_FRCMC, PWR_ON);
+
+			frc_init_config(devp);
+			frc_buf_config(devp);
+			frc_internal_initial();
+			frc_hw_initial(devp);
+		} else {
+			pwr_ctrl_psci_smc(PDID_T3_FRCTOP, PWR_OFF);
+			pwr_ctrl_psci_smc(PDID_T3_FRCME, PWR_OFF);
+			pwr_ctrl_psci_smc(PDID_T3_FRCMC, PWR_OFF);
+		}
+		pr_frc(0, "t3 power domain power %d\n", onoff);
+	}
+
+	if (onoff)
+		devp->power_on_flag = true;
+}
+
+static int frc_dts_parse(struct frc_dev_s *frc_devp)
 {
 	struct device_node *of_node;
 	unsigned int val;
@@ -320,12 +363,15 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp,
 	struct platform_device *pdev = frc_devp->pdev;
 	struct resource *res;
 	resource_size_t *base;
+	struct frc_data_s *frc_data;
 
 	of_node = pdev->dev.of_node;
 	of_id = of_match_device(frc_dts_match, &pdev->dev);
 	if (of_id) {
 		PR_FRC("%s\n", of_id->compatible);
-		match_data = of_id->data;
+		frc_data = frc_devp->data;
+		frc_data->match_data = of_id->data;
+		PR_FRC("chip id:%d\n", frc_data->match_data->chip);
 	}
 
 	if (of_node) {
@@ -634,7 +680,7 @@ static int frc_probe(struct platform_device *pdev)
 
 	frc_data = (struct frc_data_s *)frc_devp->data;
 	// fw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
-	frc_dts_parse(frc_devp, &frc_data->match_data);
+	frc_dts_parse(frc_devp);
 	if (ret < 0)
 		goto fail_dev_create;
 
@@ -670,6 +716,7 @@ static int frc_probe(struct platform_device *pdev)
 	if (frc_devp->out_irq > 0)
 		enable_irq(frc_devp->out_irq);
 	frc_devp->probe_ok = true;
+	frc_devp->power_on_flag = true;
 
 	PR_FRC("%s probe st:%d", __func__, frc_devp->probe_ok);
 	return ret;
@@ -742,11 +789,27 @@ static void frc_shutdown(struct platform_device *pdev)
 #if CONFIG_PM
 static int frc_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	struct frc_dev_s *devp = NULL;
+
+	devp = get_frc_devp();
+	if (!devp)
+		return -1;
+
+	//frc_power_domain_ctrl(devp, 0);
+
 	return 0;
 }
 
 static int frc_resume(struct platform_device *pdev)
 {
+	struct frc_dev_s *devp = NULL;
+
+	devp = get_frc_devp();
+	if (!devp)
+		return -1;
+
+	//frc_power_domain_ctrl(devp, 1);
+
 	return 0;
 }
 #endif

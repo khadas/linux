@@ -155,6 +155,9 @@ irqreturn_t frc_input_isr(int irq, void *dev_id)
 	devp->in_sts.vs_duration = timestamp - devp->in_sts.vs_timestamp;
 	devp->in_sts.vs_timestamp = timestamp;
 
+	if (!devp->probe_ok || !devp->power_on_flag)
+		return IRQ_HANDLED;
+
 	me_undown_read(devp);
 
 	if (devp->dbg_reg_monitor_i)
@@ -173,7 +176,7 @@ void frc_input_tasklet_pro(unsigned long arg)
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	if (!pfw_data)
 		return;
-	if (!devp->probe_ok)
+	if (!devp->probe_ok || !devp->power_on_flag)
 		return;
 	devp->in_sts.vs_tsk_cnt++;
 	if (!devp->frc_fw_pause) {
@@ -198,6 +201,9 @@ irqreturn_t frc_output_isr(int irq, void *dev_id)
 	devp->out_sts.vs_duration = timestamp - devp->out_sts.vs_timestamp;
 	devp->out_sts.vs_timestamp = timestamp;
 
+	if (!devp->probe_ok || !devp->power_on_flag)
+		return IRQ_HANDLED;
+
 	mc_undown_read(devp);
 
 	if (devp->dbg_reg_monitor_o)
@@ -216,7 +222,7 @@ void frc_output_tasklet_pro(unsigned long arg)
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	if (!pfw_data)
 		return;
-	if (!devp->probe_ok)
+	if (!devp->probe_ok || !devp->power_on_flag)
 		return;
 
 	devp->out_sts.vs_tsk_cnt++;
@@ -408,7 +414,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	if (!devp)
 		return;
 
-	if (!devp->probe_ok)
+	if (!devp->probe_ok || !devp->power_on_flag)
 		return;
 
 	if (!vf || !cur_video_sts || !get_video_enabled()) {
