@@ -1621,10 +1621,12 @@ int amvecm_on_vs(struct vframe_s *vf,
 		}
 		/*refresh vframe*/
 		if (!toggle_vf && vf) {
-			lc_process(vf, sps_h_en, sps_v_en,
-				   sps_w_in, sps_h_in);
 			refresh_on_vs(vf);
-			vf_state = cabc_add_hist_proc(vf);
+			if (vd_path == VD1_PATH) {
+				lc_process(vf, sps_h_en, sps_v_en,
+				   sps_w_in, sps_h_in);
+				vf_state = cabc_add_hist_proc(vf);
+			}
 		}
 
 	} else {
