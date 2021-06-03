@@ -64,7 +64,7 @@
 
 /* buffer management related */
 #define MAX_IN_BUF_NUM				(15)	/*change 4 to 8*/
-#define MAX_LOCAL_BUF_NUM			(7)
+#define MAX_LOCAL_BUF_NUM			(5)//(7)
 #define MAX_POST_BUF_NUM			(20)//(11)	/*(5)*/ /* 16 */
 #define POST_BUF_NUM				(11)
 #define VFRAME_TYPE_IN				1
@@ -481,7 +481,8 @@ struct di_pre_stru_s {
 	bool bypass_flag;
 	unsigned int is_bypass_all	: 1;
 	unsigned int is_bypass_mem	: 1;
-	unsigned int rev1		: 30;
+	unsigned int is_bypass_fg	: 1;
+	unsigned int rev1		: 29;
 	unsigned char prog_proc_type;
 /* set by prog_proc_config when source is vdin,0:use 2 i
  * serial buffer,1:use 1 p buffer,3:use 2 i paralleling buffer
@@ -533,6 +534,8 @@ struct di_pre_stru_s {
 	union afbc_blk_s	en_cfg;
 	union afbc_blk_s	en_set;
 	struct vframe_s		vfm_cpy;
+	unsigned int		h_size; //real di h_size
+	unsigned int		v_size;	//real di v_size
 };
 
 struct dim_fmt_s;
@@ -712,7 +715,7 @@ bool dim_get_mcmem_alloc(void);
 int dim_get_reg_unreg_cnt(void);
 void dim_reg_timeout_inc(void);
 
-bool is_bypass2(struct vframe_s *vf_in, unsigned int ch);
+unsigned int is_bypass2(struct vframe_s *vf_in, unsigned int ch);
 void dim_post_keep_cmd_proc(unsigned int ch, unsigned int index);
 bool dim_need_bypass(unsigned int ch, struct vframe_s *vf);
 
@@ -821,6 +824,7 @@ void sc2_dbg_pre_info(unsigned int val);
 void sc2_dbg_pst_info(unsigned int val);
 void hpre_timeout_read(void);
 void hpst_timeout_read(void);
+void dpre_vdoing(unsigned int ch);
 
 #define TEST_4K_NR	(1)
 //#define DBG_TEST_CRC	(1)

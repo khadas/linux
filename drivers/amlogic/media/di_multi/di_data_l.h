@@ -232,17 +232,42 @@ struct di_vframe_type_info {
 	char *other;
 };
 
+/*keep same order as dbg_timer_name */
+enum EDBG_TIMER {
+	EDBG_TIMER_REG_B,
+	EDBG_TIMER_REG_E,
+	EDBG_TIMER_UNREG_B,
+	EDBG_TIMER_UNREG_E,
+	EDBG_TIMER_FIRST_PEEK,
+	EDBG_TIMER_1_GET,
+	EDBG_TIMER_2_GET,
+	EDBG_TIMER_3_GET,
+	EDBG_TIMER_ALLOC,
+	EDBG_TIMER_MEM_1,
+	EDBG_TIMER_MEM_2,
+	EDBG_TIMER_MEM_3,
+	EDBG_TIMER_MEM_4,
+	EDBG_TIMER_MEM_5,
+	EDBG_TIMER_READY,
+	EDBG_TIMER_1_PRE_CFG,
+	EDBG_TIMER_1_PREADY,
+	EDBG_TIMER_2_PRE_CFG,
+	EDBG_TIMER_2_PREADY,
+	EDBG_TIMER_3_PRE_CFG,
+	EDBG_TIMER_3_PREADY,
+	EDBG_TIMER_1_PSTREADY,
+	EDBG_TIMER_2_PSTREADY,
+
+	EDBG_TIMER_NUB,
+};
+
 struct di_dbg_datax_s {
 	struct vframe_s vfm_input;	/*debug input vframe*/
 	struct vframe_s *pfm_out;	/*debug di_get vframe*/
 	/*timer:*/
-	u64 us_reg_begin;
-	u64 us_reg_end;
-	u64 us_unreg_begin;
-	u64 us_unreg_end;
-	u64 us_first_get;
-	u64 us_first_ready;
+	u64 ms_dbg[EDBG_TIMER_NUB];
 
+	unsigned char timer_mem_alloc_cnt; //limit to EDBG_TIMER_MEM_5 -> 5
 };
 
 /*debug function*/
@@ -611,6 +636,7 @@ struct dim_fcmd_s {
 	unsigned int reg_page; /*size >> page_shift*/
 	int doing; /* inc in send_cmd, and set 0 when thread done*/
 	int	sum_alloc; /* alloc ++, releas -- */
+	struct completion alloc_done;
 };
 
 struct di_mtask {
@@ -705,7 +731,8 @@ struct blk_flg_s {
 
 struct mtsk_cmd_s {
 	unsigned int cmd	: 4;
-	unsigned int rev1	: 4;
+	unsigned int block_mode : 1;
+	unsigned int rev1	: 3;
 	unsigned int nub	: 8;
 	unsigned int rev2	: 16;
 	struct blk_flg_s	flg;
@@ -1185,6 +1212,7 @@ struct di_mm_st_s {
 	unsigned int	num_pst_alloc;
 	unsigned int	flg_release;
 	int	cnt_alloc; /* debug only */
+	bool flg_alloced; /**/
 };
 
 struct div2_mm_s {
@@ -1202,6 +1230,8 @@ struct dim_sum_s {
 	unsigned int b_display;
 	unsigned int b_nin;
 	unsigned int b_in_free;
+	bool	need_local; //set by pre_config
+	bool flg_rebuild;
 };
 
 struct dim_bypass_s {
@@ -1597,6 +1627,7 @@ struct dsub_nins_s {
 	void *ori;
 	struct vframe_s vfm_cp;
 	struct dim_wmode_s	wmode; /*tmp*/
+	unsigned int cnt;
 };
 
 struct dim_nins_s {
@@ -1761,6 +1792,7 @@ struct di_ch_s {
 	unsigned int sum_ext_buf_in2;
 	unsigned int sum_pre;
 	unsigned int sum_pst;
+	unsigned int in_cnt;
 	/*@ary_note:*/
 	unsigned int self_trig_mask;
 	unsigned int self_trig_need;
@@ -1972,14 +2004,6 @@ struct di_dbg_reg_log {
 	bool overflow;
 };
 
-enum EDBG_TIMER {
-	EDBG_TIMER_REG_B,
-	EDBG_TIMER_REG_E,
-	EDBG_TIMER_UNREG_B,
-	EDBG_TIMER_UNREG_E,
-	EDBG_TIMER_FIRST_GET,
-	EDBG_TIMER_FIRST_READY,
-};
 struct di_dbg_data {
 	unsigned int vframe_type;	/*use for type info*/
 	unsigned int cur_channel;
@@ -2083,6 +2107,7 @@ struct di_data_l_s {
 #define DBG_M_NQ		DI_BIT20
 #define DBG_M_BPASS		DI_BIT21
 #define DBG_M_DCT		DI_BIT22
+#define DBG_M_PP		DI_BIT23
 #define DBG_M_IC		DI_BIT28
 #define DBG_M_RESET_PRE		DI_BIT29
 extern unsigned int di_dbg;
@@ -2122,6 +2147,8 @@ extern unsigned int di_dbg;
 #define dbg_pq(fmt, args ...)		dbg_m(DBG_M_PQ, fmt, ##args)
 #define dbg_sct(fmt, args ...)		dbg_m(DBG_M_SCT, fmt, ##args)
 #define dbg_nq(fmt, args ...)		dbg_m(DBG_M_NQ, fmt, ##args)
+#define dbg_pp(fmt, args ...)		dbg_m(DBG_M_PP, fmt, ##args)
+
 #define dbg_bypass(fmt, args ...)	dbg_m(DBG_M_BPASS, fmt, ##args)
 #define dbg_ic(fmt, args ...)		dbg_m(DBG_M_IC, fmt, ##args)
 char *di_cfgx_get_name(enum EDI_CFGX_IDX idx);

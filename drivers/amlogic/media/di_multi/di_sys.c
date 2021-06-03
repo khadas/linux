@@ -533,7 +533,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 	/*alloc*/
 	bool aret;
 	struct dim_mm_s omm;
-	bool flg_release;
+	bool flg_release, flg_alloc = false;
 	unsigned int length;
 	struct div2_mm_s *mm;
 	unsigned int size_p;
@@ -725,8 +725,8 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 	case ECMD_BLK_ALLOC:
 		/* alloc */
 		chst = dip_chst_get(ch);
-		dbg_mem2("%s:ch[%d] alloc:nub[%d],size[0x%x],top_sts[%d]\n",
-			 __func__, ch, cmd->nub, size_p, chst);
+		dbg_mem2("%s:ch[%d] alloc:nub[%d],size[0x%x],top_sts[%d],block[%d]\n",
+			 __func__, ch, cmd->nub, size_p, chst, cmd->block_mode);
 		cnt = 0;
 		for (i = 0; i < cmd->nub; i++) {
 			if (qbuf_is_empty(pbufq, QBF_BLK_Q_IDLE))
@@ -776,12 +776,16 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 			fcmd->sum_alloc++;
 			cnt++;
 		}
+		flg_alloc = true;
+		dbg_timer(ch, EDBG_TIMER_MEM_1);
 		dbg_mem2("%s:alloc:[%d]\n", __func__, cnt);
 		fcmd->alloc_cmd = 0;
 
 		break;
 	}
 	fcmd->doing--;
+	if (flg_alloc)
+		task_send_ready(25);
 }
 
 /* mem blk rebuilt end*/
@@ -1484,7 +1488,7 @@ bool mem_cfg_pre(struct di_ch_s *pch)
 //	struct di_buf_s *di_buf = NULL;
 	unsigned int ch;
 //	unsigned int err_cnt = 0;
-	unsigned int cnt;
+	unsigned int cnt, cnt_pre, cnt_pst;
 	unsigned int length;
 //	struct di_dat_s *pdat;
 
@@ -1492,15 +1496,16 @@ bool mem_cfg_pre(struct di_ch_s *pch)
 	mm = dim_mm_get(ch);
 	fcmd = &tsk->fcmd[ch];
 
-	if (fcmd->doing > 0)
-		return false;
+//	if (fcmd->doing > 0)
+//		return false;
 
 	pbf_blk = &pch->blk_qb;
 	pbf_mem = &pch->mem_qb;
 
 	/* QBF_BLK_Q_READY -> 'QBF_MEM_Q_GET' */
 	cnt = 0;
-
+	cnt_pre	= 0;
+	cnt_pst	= 0;
 	length = qbufp_count(pbf_blk, QBF_BLK_Q_READY);
 	if (length)
 		flg_q = true;
@@ -1515,43 +1520,10 @@ bool mem_cfg_pre(struct di_ch_s *pch)
 		//if (blk_buf->flg.b.page == mm->cfg.ibuf_flg.b.page) {
 		if (blk_buf->flg.b.typ == mm->cfg.ibuf_flg.b.typ) {
 			ret = qbufp_in(pbf_mem, QBF_MEM_Q_GET_PRE, q_buf);
+			cnt_pre++;
 		} else if (blk_buf->flg.b.typ == mm->cfg.pbuf_flg.b.typ) {
 			ret = qbufp_in(pbf_mem, QBF_MEM_Q_GET_PST, q_buf);
-		#ifdef MARK_HIS
-		} else if (blk_buf->flg.b.typ == mm->cfg.dat_pafbct_flg.b.typ) {
-			pdat = get_pst_afbct(pch);
-			//PR_INF("cfg:idat\n");
-			if (!pdat->blk_buf) {
-				pdat->blk_buf = blk_buf;
-				pdat->flg_alloc = 1;
-				pdat->addr_st	= blk_buf->mem_start;
-				pdat->addr_end	=
-					blk_buf->mem_start +
-					(blk_buf->flg.b.page << PAGE_SHIFT);
-
-				pat_set_addr(pch);
-				dbg_mem2("pst_afbct\n");
-			} else {
-				PR_ERR("afbct have exit?\n");
-				/*to do: recycle*/
-			}
-		} else if (blk_buf->flg.b.typ == mm->cfg.dat_idat_flg.b.typ) {
-			pdat = get_idat(pch);
-			if (!pdat->blk_buf) {
-				pdat->blk_buf = blk_buf;
-				pdat->flg_alloc = 1;
-				pdat->addr_st	= blk_buf->mem_start;
-				pdat->addr_end	=
-					blk_buf->mem_start +
-					(blk_buf->flg.b.page << PAGE_SHIFT);
-
-				iat_set_addr(pch);
-				dbg_mem2("idat\n");
-			} else {
-				PR_ERR("idat have exit?\n");
-				/*to do: recycle*/
-			}
-		#endif
+			cnt_pst++;
 		}
 		if (!ret) {
 			PR_ERR("%s:get is overflow\n", __func__);
@@ -1563,8 +1535,140 @@ bool mem_cfg_pre(struct di_ch_s *pch)
 		else
 			flg_q = true;
 	}
-
+	PR_INF("%s:%d\n", __func__, cnt);
 	return ret;
+}
+
+bool mem_cfg_2local(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbf_mem;
+	union q_buf_u q_buf;
+
+	//struct div2_mm_s *mm;
+	struct dim_mm_blk_s *blk_buf;
+	struct di_buf_s *di_buf = NULL;
+	unsigned int ch;
+	unsigned int err_cnt = 0;
+	unsigned int cnt;
+	unsigned int length;
+
+	ch = pch->ch_id;
+	//mm = dim_mm_get(ch);
+
+	pbf_mem = &pch->mem_qb;
+
+	/* QBF_MEM_Q_GET -> QBF_MEM_Q_IN_USED*/
+	/* local */
+	cnt = 0;
+	length = qbufp_count(pbf_mem, QBF_MEM_Q_GET_PRE);
+
+	while (length) {
+		if (!qbufp_out(pbf_mem, QBF_MEM_Q_GET_PRE, &q_buf)) {
+			PR_ERR("%s:local:%d\n", __func__, cnt);
+			err_cnt++;
+			break;
+		}
+
+		/* cfg mem */
+		di_buf = di_que_out_to_di_buf(ch, QUE_PRE_NO_BUF);
+		if (!di_buf) {
+			qbufp_in(pbf_mem, QBF_MEM_Q_GET_PRE, q_buf);
+			PR_ERR("%s:local no pre_no_buf[%d]\n", __func__, cnt);
+			err_cnt++;
+			break;
+		}
+		blk_buf = (struct dim_mm_blk_s *)q_buf.qbc;
+		di_buf->blk_buf = blk_buf;
+		//di_buf->nr_adr = blk_buf->mem_start;
+		//di_buf->afbc_adr = blk_buf->mem_start;
+		//di_buf->afbct_adr = blk_buf->mem_start;
+		di_buf->adr_start = blk_buf->mem_start;
+		di_buf->buf_is_i = 1;
+		di_buf->flg_null = 0;
+		dim_buf_set_addr(ch, di_buf);
+		di_buf->jiff = jiffies;
+		/*  to in used */
+		qbufp_in(pbf_mem, QBF_MEM_Q_IN_USED, q_buf);
+		queue_in(ch, di_buf, QUEUE_LOCAL_FREE);
+
+		//di_que_in(ch, QUE_PRE_NO_BUF_WAIT, di_buf);
+		cnt++;
+		length--;
+	}
+	PR_INF("%s: [%d]\n", __func__, cnt);
+
+	if (err_cnt)
+		return false;
+	return true;
+}
+
+bool mem_cfg_2pst(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbf_mem;
+	union q_buf_u q_buf;
+
+	//struct div2_mm_s *mm;
+	struct dim_mm_blk_s *blk_buf;
+	struct di_buf_s *di_buf = NULL;
+	unsigned int ch;
+	unsigned int err_cnt = 0;
+	unsigned int cnt;
+	unsigned int length_pst;
+
+	ch = pch->ch_id;
+	pbf_mem = &pch->mem_qb;
+
+	length_pst = qbufp_count(pbf_mem, QBF_MEM_Q_GET_PST);
+
+	/* post */
+	cnt = 0;
+	while (length_pst) {
+		if (!qbufp_out(pbf_mem, QBF_MEM_Q_GET_PST, &q_buf)) {
+			PR_ERR("%s:pst:%d\n", __func__, cnt);
+			err_cnt++;
+			break;
+		}
+
+		/* cfg mem */
+		di_buf = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF);
+		if (!di_buf) {
+			qbufp_in(pbf_mem, QBF_MEM_Q_GET_PST, q_buf);
+			PR_ERR("%s:no pst_no_buf[%d]\n", __func__, cnt);
+			err_cnt++;
+			break;
+		}
+		blk_buf = (struct dim_mm_blk_s *)q_buf.qbc;
+		di_buf->blk_buf = blk_buf;
+		//di_buf->nr_adr = blk_buf->mem_start;
+		//di_buf->afbc_adr = blk_buf->mem_start;
+		//di_buf->afbct_adr = blk_buf->mem_start;
+		di_buf->adr_start = blk_buf->mem_start;
+		di_buf->buf_is_i = 0;
+		di_buf->flg_null = 0;
+		dim_buf_set_addr(ch, di_buf);
+		di_buf->flg_nr = 0;
+		di_buf->flg_nv21 = 0;
+		di_buf->jiff = jiffies;
+		dim_print("nv21 clear %s:%px:\n", __func__, di_buf);
+
+		/*  to in used */
+		qbufp_in(pbf_mem, QBF_MEM_Q_IN_USED, q_buf);
+		//di_que_in(ch, QUE_POST_FREE, di_buf);
+		if (dim_blk_tvp_is_out(blk_buf)) /* new interface */
+			di_que_in(ch, QUE_PST_NO_BUF_WAIT, di_buf);
+		else if (dim_blk_tvp_is_sct(blk_buf))
+			di_que_in(ch, QUE_PST_NO_BUF_WAIT, di_buf);
+		else
+			di_que_in(ch, QUE_POST_FREE, di_buf);
+		cnt++;
+		length_pst--;
+	}
+
+	PR_INF("%s: pst[%d]\n", __func__, cnt);
+
+	if (err_cnt)
+		return false;
+	return true;
 }
 
 void di_buf_no2wait(struct di_ch_s *pch)
@@ -1990,56 +2094,6 @@ bool mem_cfg_realloc(struct di_ch_s *pch) /*temp for re-alloc mem*/
 	return true;
 }
 
-#ifdef HIS_CODE
-void mem_cfg_realloc_wait(struct di_ch_s *pch)
-{
-	unsigned int length;
-	unsigned int ch;
-	struct di_buf_s *di_buf;
-	int i;
-
-	ch = pch->ch_id;
-
-	/* pre */
-	length = di_que_list_count(ch, QUE_PRE_NO_BUF_WAIT);
-	if (length) {
-		for (i = 0; i < length; i++) {
-			//di_buf =
-				//di_que_out_to_di_buf(ch, QUE_PRE_NO_BUF_WAIT);
-			di_buf = di_que_peek(ch, QUE_PRE_NO_BUF_WAIT);
-			if (cfgg(ALLOC_WAIT) && di_buf->afbc_crc) {
-				if (!time_after_eq(jiffies,
-						   di_buf->jiff + HZ / 5))
-					break;
-			}
-			di_buf = di_que_out_to_di_buf(ch, QUE_PRE_NO_BUF_WAIT);
-			queue_in(ch, di_buf, QUEUE_LOCAL_FREE);
-			dbg_mem2("%s:pre:%d:%lu,%lu\n", __func__,
-				 di_buf->index, di_buf->jiff, jiffies);
-		}
-	}
-
-	/* pst */
-	length = di_que_list_count(ch, QUE_PST_NO_BUF_WAIT);
-	if (length) {
-		for (i = 0; i < length; i++) {
-			//di_buf =
-				//di_que_out_to_di_buf(ch, QUE_PRE_NO_BUF_WAIT);
-			di_buf = di_que_peek(ch, QUE_PST_NO_BUF_WAIT);
-			if (cfgg(ALLOC_WAIT) && di_buf->afbc_crc) {
-				if (!time_after_eq(jiffies,
-						   di_buf->jiff + HZ / 5))
-					break;
-			}
-			di_buf = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF_WAIT);
-			di_que_in(ch, QUE_POST_FREE, di_buf);
-			dbg_mem2("%s:pst:%d:%lu,%lu\n", __func__,
-				 di_buf->index, di_buf->jiff, jiffies);
-		}
-	}
-}
-#endif
-
 void mem_release_one_inused(struct di_ch_s *pch, struct dim_mm_blk_s *blk_buf)
 {
 	struct buf_que_s *pbf_blk, *pbf_mem;
@@ -2126,38 +2180,6 @@ void mem_release_all_inused(struct di_ch_s *pch)
 	}
 }
 
-#ifdef MARK_HIS
-void mem_release_keep_back(struct di_ch_s *pch)
-{
-//	struct buf_que_s *pbf_blk, *pbf_mem;
-
-	unsigned int tmpa[MAX_FIFO_SIZE];
-	unsigned int psize, itmp;
-	struct di_buf_s *p;
-	//struct di_dev_s *de_devp = get_dim_de_devp();
-//	int retr;
-//	ulong flags = 0;
-	unsigned int cnt = 0;
-	unsigned int ch;
-
-	ch = pch->ch_id;
-
-	if (di_que_is_empty(ch, QUE_POST_KEEP_BACK))
-		return;
-
-	di_que_list(ch, QUE_POST_KEEP_BACK, &tmpa[0], &psize);
-
-	for (itmp = 0; itmp < psize; itmp++) {
-		p = pw_qindex_2_buf(ch, tmpa[itmp]);
-
-		mem_release_one_inused(pch, p->blk_buf);
-		di_que_out(ch, QUE_POST_KEEP_BACK, p);
-		di_que_out_not_fifo(ch, QUE_POST_KEEP, p);
-		cnt++;
-	}
-	dbg_mem2("%s:[%d]\n", __func__, cnt);
-}
-#else
 /* @ary_note: only one caller, release all keep back buffer */
 /* return: release nub */
 unsigned int mem_release_keep_back(struct di_ch_s *pch)
@@ -2208,7 +2230,7 @@ unsigned int mem_release_keep_back(struct di_ch_s *pch)
 	dbg_mem2("%s:[%d]\n", __func__, cnt);
 	return cnt;
 }
-#endif
+
 /* @ary_note: process keep back buffer when ready */
 /* @ary_note: only one caller */
 /* @ary_note: */
@@ -3477,8 +3499,7 @@ static const struct file_operations di_fops = {
 #endif
 };
 
-#define ARY_MATCH (1)
-#ifdef ARY_MATCH
+//#define ARY_MATCH (1)
 
 static const struct di_meson_data  data_g12a = {
 	.name = "dim_g12a",
@@ -3562,7 +3583,6 @@ static const struct of_device_id amlogic_deinterlace_dt_match[] = {
 		.data = &data_t3,
 	}, {}
 };
-#endif
 
 void dim_vpu_dev_register(struct di_dev_s *vdevp)
 {
@@ -3583,10 +3603,9 @@ static int dim_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct di_dev_s *di_devp = NULL;
 	int i;
-#ifdef ARY_MATCH
 	const struct of_device_id *match;
 	struct di_data_l_s *pdata;
-#endif
+
 	PR_INF("%s:\n", __func__);
 
 	/*move from init to here*/
@@ -3643,7 +3662,6 @@ static int dim_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, di_devp);
 	di_devp->pdev = pdev;
 
-#ifdef ARY_MATCH
 	/************************/
 	match = of_match_device(amlogic_deinterlace_dt_match,
 				&pdev->dev);
@@ -3655,7 +3673,6 @@ static int dim_probe(struct platform_device *pdev)
 	pdata->mdata = match->data;
 	PR_INF("match name: %s:id[%d]\n", pdata->mdata->name,
 	       pdata->mdata->ic_id);
-#endif
 
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)
@@ -3959,17 +3976,6 @@ static const struct dev_pm_ops di_pm_ops = {
 	.resume_early = di_resume,
 };
 #endif
-#ifndef ARY_MATCH
-/* #ifdef CONFIG_USE_OF */
-static const struct of_device_id amlogic_deinterlace_dt_match[] = {
-	/*{ .compatible = "amlogic, deinterlace", },*/
-	{ .compatible = "amlogic, dim-g12a", },
-	{}
-};
-#endif
-/* #else */
-/* #define amlogic_deinterlace_dt_match NULL */
-/* #endif */
 
 static struct platform_driver di_driver = {
 	.probe			= dim_probe,

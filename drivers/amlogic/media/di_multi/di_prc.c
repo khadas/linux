@@ -130,6 +130,8 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			/* 0: not support 4K;	*/
 			/* 1: enable 4K		*/
 			/* 2: dynamic: vdin: 4k enable, other, disable	*/
+			/* bit[2:0]: for 4k enable		*/
+			/* bit[3]: pps enable for 4k only	*/
 			0,
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_POUT_FMT]  = {"po_fmt",
@@ -354,7 +356,7 @@ void di_cfg_top_dts(void)
 	/* afbce and pout */
 	if (!DIM_IS_IC(TM2B)	&&
 	    !DIM_IS_IC(T5)	&&
-	    DIM_IS_IC_EF(SC2)) {
+	    DIM_IS_IC_BF(SC2)) {
 		if (cfgg(ALLOC_SCT)) {
 			PR_WARN("alloc_sct:not support:%d->0\n", cfgg(ALLOC_SCT));
 			cfgs(ALLOC_SCT, 0);
@@ -711,10 +713,6 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 			edi_mp_di_printk_flag, 0},
 	[edi_mp_force_recovery]  = {"force_recovery:uint:1",
 			edi_mp_force_recovery, 1},
-#ifdef MARK_HIS
-	[edi_mp_debug_blend_mode]  = {"debug_blend_mode:int:-1",
-			edi_mp_debug_blend_mode, -1},
-#endif
 	[edi_mp_di_dbg_mask]  = {"di_dbg_mask:uint:0x02",
 			edi_mp_di_dbg_mask, 2},
 	[edi_mp_nr_done_check_cnt]  = {"nr_done_check_cnt:uint:5",
@@ -1257,10 +1255,24 @@ void dim_sumx_set(struct di_ch_s *pch)
 	psumx->b_nin		= nins_cnt(pch, QBF_NINS_Q_CHECK);
 	psumx->b_in_free	= di_que_list_count(ch, QUE_IN_FREE);
 
-	if (psumx->b_nin && psumx->b_pst_free && psumx->b_in_free >= 2)
-		bset(&pch->self_trig_need, 0);
-	else
+	if (psumx->b_nin &&
+	    psumx->b_pst_free &&
+	    psumx->b_in_free >= 2) {
+		if (psumx->need_local && psumx->b_pre_free)
+			bset(&pch->self_trig_need, 0);
+		else if (!psumx->need_local)
+			bset(&pch->self_trig_need, 0);
+		else
+			bclr(&pch->self_trig_need, 0);
+	} else {
 		bclr(&pch->self_trig_need, 0);
+	}
+	if (di_bypass_state_get(ch) == 1	&&
+	    psumx->b_nin			&&
+	    psumx->flg_rebuild == 0		&&
+	    psumx->b_in_free) {
+		task_send_ready(30);
+	}
 }
 
 /****************************/
@@ -1497,32 +1509,16 @@ void dip_sum_post_ch(void)
 			bset(&pch->self_trig_mask, 30);
 			break;
 		}
-		cnt = ndkb_cnt(pch);
-		if (cnt)
-			task_send_ready();
-	}
-}
-
-#ifdef MARK_SC2
-bool dip_chst_change_2unreg(void)
-{
-	unsigned int ch;
-	unsigned int chst;
-	bool ret = false;
-
-	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
-		chst = dip_chst_get(ch);
-		//dbg_poll("[%d]%d\n", ch, chst);
-		if (chst == EDI_TOP_STATE_UNREG_STEP1) {
-			//dbg_reg("%s:ch[%d]to UNREG_STEP2\n", __func__, ch);
-			set_reg_flag(ch, false);
-			dip_chst_set(ch, EDI_TOP_STATE_UNREG_STEP2);
-			ret = true;
+		if (chst == EDI_TOP_STATE_IDLE	||
+		    chst == EDI_TOP_STATE_READY	||
+		    chst == EDI_TOP_STATE_BYPASS) {
+			cnt = ndkb_cnt(pch);
+			if (cnt)
+				task_send_ready(3);
 		}
 	}
-	return ret;
 }
-#endif
+
 /************************************************
  * new reg and unreg
  ***********************************************/
@@ -1565,7 +1561,7 @@ bool dim_api_reg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
 	atomic_set(&pbm->trig_reg[ch], 1);
 
 	dbg_timer(ch, EDBG_TIMER_REG_B);
-	task_send_ready();
+	task_send_ready(4);
 
 	cnt = 0; /* 500us x 10 = 5ms */
 	while (atomic_read(&pbm->trig_reg[ch]) && cnt < 10) {
@@ -1573,7 +1569,7 @@ bool dim_api_reg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
 		cnt++;
 	}
 
-	task_send_ready();
+	task_send_ready(5);
 
 	cnt = 0; /* 3ms x 2000 = 6s */
 	while (atomic_read(&pbm->trig_reg[ch]) && cnt < 2000) {
@@ -1618,7 +1614,7 @@ bool dim_api_unreg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
 	dbg_timer(ch, EDBG_TIMER_UNREG_B);
 	task_delay(100);
 
-	task_send_ready();
+	task_send_ready(6);
 
 	cnt = 0; /* 500us x 10 = 5ms */
 	while (atomic_read(&pbm->trig_unreg[ch]) && cnt < 10) {
@@ -1626,7 +1622,7 @@ bool dim_api_unreg(enum DIME_REG_MODE rmode, struct di_ch_s *pch)
 		cnt++;
 	}
 
-	task_send_ready();
+	task_send_ready(7);
 
 	cnt = 0; /* 3ms x 2000 = 6s */
 	while (atomic_read(&pbm->trig_unreg[ch]) && cnt < 2000) {
@@ -1847,7 +1843,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 		vframe = nins_peekvfm(pch);
 
 		if (vframe) {
-			dbg_timer(ch, EDBG_TIMER_FIRST_GET);
+			dbg_timer(ch, EDBG_TIMER_FIRST_PEEK);
 			dim_tr_ops.pre_get(vframe->index_disp);
 
 			set_flag_trig_unreg(ch, false);
@@ -1866,10 +1862,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			reflesh = true;
 			break;
 		}
-		#ifdef MARK_HIS
-		if (pbm->cma_flg_run & DI_BIT0)
-			break;
-		#endif
+
 		di_reg_variable(ch, vframe);
 		/*di_reg_process_irq(ch);*/ /*check if bypass*/
 		set_reg_setting(ch, true);
@@ -1911,10 +1904,12 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 #else
 		//if (mem_cfg(pch)) {
 		mem_cfg_pre(pch);
+		mem_cfg_2local(pch);
+		mem_cfg_2pst(pch);
 		if (di_pst_afbct_check(pch) &&
-		    di_i_dat_check(pch)		&&
-		    mem_alloc_check(pch)) {
-			mem_cfg(pch);
+		    di_i_dat_check(pch)	/*	&&*/
+		    /*mem_alloc_check(pch)*/) {
+			//mem_cfg(pch);
 #endif
 			//mem_cfg_realloc_wait(pch);
 			sct_mng_working(pch);
@@ -1930,7 +1925,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 					       ch, get_sum_g(ch));
 				}
 			}
-
+			dbg_timer(ch, EDBG_TIMER_READY);
 			dip_chst_set(ch, EDI_TOP_STATE_READY);
 			set_reg_flag(ch, true);
 		}
@@ -2718,11 +2713,49 @@ static enum EDPST_MODE dim_cnt_mode(struct di_ch_s *pch)
 bool dip_is_support_4k(unsigned int ch)
 {
 	struct di_ch_s *pch = get_chdata(ch);
+	unsigned int val_4k;
 
-	if ((cfggch(pch, 4K) == 1) ||
-	    ((cfggch(pch, 4K) == 2) && IS_VDIN_SRC(pch->src_type)))
+	val_4k = cfggch(pch, 4K) & 0x7; //bit[2:0]: for 4k enable
+
+	if (val_4k == 1 ||
+	    (val_4k == 2 && IS_VDIN_SRC(pch->src_type)))
 		return true;
 	return false;
+}
+
+bool dip_cfg_is_pps_4k(unsigned int ch)
+{
+	struct di_ch_s *pch = get_chdata(ch);
+
+	return (cfggch(pch, 4K) & 0x8) ? true : false;
+}
+
+void dip_pps_cnt_hv(unsigned int *w_in, unsigned int *h_in)
+{
+	unsigned int w, h;
+	unsigned int nw, nh;
+	unsigned int div;
+
+	//3840 x 2160
+	w = *w_in;
+	h = *h_in;
+
+	div = (1920 << 10) / w; //(w << 10) / 1920;
+	nh = (div * h) >> 10 ;//(div * h) >> 10;
+	if (nh > 1088) {
+		div = (1088 << 10) / h;
+		nw = (div * w) >> 10;
+		nh = 1088;
+		if (nw % 2)
+			nw--;
+	} else {
+		nw = 1920;
+		if (nh % 2)
+			nh--;
+	}
+	PR_INF("%s:<%u,%u>-><%u,%u>\n", "pps:", *w_in, *h_in, nw, nh);
+	*w_in	= nw;
+	*h_in	= nh;
 }
 
 bool dip_is_support_nv2110(unsigned int ch)
@@ -2826,7 +2859,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 
 	if (cfgg(FIX_BUF)) {
 		if (dim_afds()	&&
-		    cfggch(pch, 4K)) {
+		    dip_is_support_4k(ch)) {
 			memcpy(&mm->cfg, &c_mm_cfg_fix_4k,
 			       sizeof(struct di_mm_cfg_s));
 		} else {
@@ -2835,11 +2868,11 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		}
 		mm->cfg.fix_buf = 1;
 	} else if (pch->ponly && dip_is_ponly_sct_mem(pch)) {
-		if (!cfggch(pch, 4K))
+		if (!dip_is_support_4k(ch))
 			memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
 		else
 			memcpy(&mm->cfg, &c_mm_cfg_4k, sizeof(struct di_mm_cfg_s));
-	} else if (!cfggch(pch, 4K)) {
+	} else if (!dip_is_support_4k(ch)) {
 		memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
 	} else if (sgn <= EDI_SGN_HD) {
 		memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
@@ -4123,6 +4156,8 @@ void dip_itf_ndrd_ins_m2_out(struct di_ch_s *pch)
 		}
 		#endif
 		didbg_vframe_out_save(pch->ch_id, buffer->vf, 1);
+		if (buffer->flag & DI_FLAG_EOS)
+			PR_INF("%s:ch[%d]:eos\n", __func__, pch->ch_id);
 		pch->itf.u.dinst.parm.ops.fill_output_done(buffer);
 		sum_pst_g_inc(pch->ch_id);
 	}
@@ -4159,62 +4194,13 @@ void dip_itf_ndrd_ins_m1_out(struct di_ch_s *pch)
 		}
 		buffer = (struct di_buffer *)pbuf.qbc;
 		didbg_vframe_out_save(pch->ch_id, buffer->vf, 2);
+		if (buffer->flag & DI_FLAG_EOS)
+			PR_INF("%s:ch[%d]:eos\n", __func__, pch->ch_id);
 		pch->itf.u.dinst.parm.ops.fill_output_done(buffer);
 		sum_pst_g_inc(pch->ch_id);
 	}
 }
 
-#ifdef MARK_HIS
-void dip_itf_ndrd_ins_m1_out(struct di_ch_s *pch)
-{
-	unsigned int cnt_ready;
-	int i;
-	struct qs_cls_s *pq;
-	union q_buf_u pbuf;
-	bool ret;
-	struct di_buffer *buffer;
-	struct dim_ndis_s *ndis1, *ndis2;
-	struct di_buf_s *di_buf;
-
-	if (dip_itf_is_vfm(pch))
-		return;
-	cnt_ready = ndrd_cnt(pch);
-	if (!cnt_ready)
-		return;
-
-	pq = &pch->ndis_que_ready;
-	for (i = 0; i < cnt_ready; i++) {
-		ret = pq->ops.peek(NULL, pq, &pbuf);
-		if (!ret) {
-			//return NULL;
-			PR_ERR("%s:%d:%d\n", __func__, cnt_ready, i);
-			break;
-		}
-		ret = pq->ops.out(NULL, pq, &pbuf);
-		if (!ret || !pbuf.qbc) {
-			//return NULL;
-			PR_ERR("%s:out:%d:%d\n", __func__, cnt_ready, i);
-			break;
-		}
-		buffer = (struct di_buffer *)pbuf.qbc;
-		ndis1 = (struct dim_ndis_s *)buffer->private_data;
-		if (ndis1) {
-			buffer->private_data = NULL;
-			//di_buf:
-			di_buf = ndis1->c.di_buf;
-			if (di_buf) {
-				di_buf_clear(pch, di_buf);
-				di_que_in(pch->ch_id, QUE_PST_NO_BUF_WAIT, di_buf);
-			}
-			ndis2 = ndis_move(pch, QBF_NDIS_Q_USED, QBF_NDIS_Q_IDLE);
-			if (ndis1 != ndis2)
-				PR_ERR("%s:\n", __func__);
-		}
-		pch->itf.u.dinst.parm.ops.fill_output_done(buffer);
-		sum_pst_g_inc(pch->ch_id);
-	}
-}
-#endif
 unsigned int ndrd_cnt(struct di_ch_s *pch)
 {
 	struct qs_cls_s	*pq;
