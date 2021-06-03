@@ -1575,7 +1575,7 @@
 
 	csiphy0: csiphy0@ff918000 {
 		compatible = "amlogic, csiphy0";
-		reg = <0x0 0xff918000 0x0 0x1000>,
+		reg = <0x0 0xff918000 0x0 0x3000>,
 				<0x0 0xff9a0000 0x0 0x400>;
 		reg-names = "csi_phy0","csi_aphy";
 	};
