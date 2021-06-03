@@ -1288,8 +1288,7 @@ static void frddr_set_sharebuffer_enable(struct frddr *fr,  int dst, int lvl, bo
  * if used for share frddr src, release from sharebuffer
  * and used for new frddr
  */
-static int aml_check_and_release_sharebuffer(struct frddr *fr,
-		enum frddr_dest ss_sel)
+int aml_check_and_release_sharebuffer(struct frddr *fr, enum frddr_dest ss_sel)
 {
 	unsigned int i;
 	int ret = -EINVAL;

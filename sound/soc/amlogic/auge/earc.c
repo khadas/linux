@@ -2176,6 +2176,9 @@ void earc_hdmirx_hpdst(int earc_port, bool st)
 		 earc_port,
 		 st ? "plugin" : "plugout");
 
+	/* release earctx same source when cable plug out */
+	if (!st)
+		aml_check_and_release_sharebuffer(NULL, EARCTX_DMAC);
 	if (!p_earc->tx_bootup_auto_cal) {
 		p_earc->tx_bootup_auto_cal = true;
 		p_earc->event |= EVENT_TX_ANA_AUTO_CAL;

@@ -344,6 +344,7 @@ void aml_frddr_check(struct frddr *fr);
 void aml_aed_set_frddr_reserved(void);
 void get_toddr_bits_config(enum toddr_src src,
 	int bit_depth, int *msb, int *lsb);
+int aml_check_and_release_sharebuffer(struct frddr *fr, enum frddr_dest ss_sel);
 
 #endif
 
