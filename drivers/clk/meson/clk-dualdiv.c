@@ -112,10 +112,10 @@ static int meson_clk_dualdiv_set_rate(struct clk_hw *hw, unsigned long rate,
 		return -EINVAL;
 
 	meson_parm_write(clk->map, &dualdiv->dual, setting->dual);
-	meson_parm_write(clk->map, &dualdiv->n1, setting->n1 - 1);
-	meson_parm_write(clk->map, &dualdiv->m1, setting->m1 - 1);
-	meson_parm_write(clk->map, &dualdiv->n2, setting->n2 - 1);
-	meson_parm_write(clk->map, &dualdiv->m2, setting->m2 - 1);
+	meson_parm_write(clk->map, &dualdiv->n1, setting->n1 ? setting->n1 - 1 : 0);
+	meson_parm_write(clk->map, &dualdiv->m1, setting->m1 ? setting->m1 - 1 : 0);
+	meson_parm_write(clk->map, &dualdiv->n2, setting->n2 ? setting->n2 - 1 : 0);
+	meson_parm_write(clk->map, &dualdiv->m2, setting->m2 ? setting->m2 - 1 : 0);
 
 	return 0;
 }

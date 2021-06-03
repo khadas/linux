@@ -6053,6 +6053,85 @@ static struct clk_regmap t3_cts_usb2_250m = {
 		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
 };
+
+static struct clk_regmap t3_demod_32k_clkin = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_DEMOD_32K_CNTL0,
+		.bit_idx = 31,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "demod_32k_clkin",
+		.ops = &clk_regmap_gate_ops,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
+		.num_parents = 1,
+	},
+};
+
+static const struct meson_clk_dualdiv_param t3_demod_32k_div_table[] = {
+	{
+		.dual	= 0,
+		.n1	= 733,
+	},
+	{}
+};
+
+static struct clk_regmap t3_demod_32k_div = {
+	.data = &(struct meson_clk_dualdiv_data){
+		.n1 = {
+			.reg_off = CLKCTRL_DEMOD_32K_CNTL0,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.n2 = {
+			.reg_off = CLKCTRL_DEMOD_32K_CNTL0,
+			.shift   = 12,
+			.width   = 12,
+		},
+		.m1 = {
+			.reg_off = CLKCTRL_DEMOD_32K_CNTL1,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.m2 = {
+			.reg_off = CLKCTRL_DEMOD_32K_CNTL1,
+			.shift   = 12,
+			.width   = 12,
+		},
+		.dual = {
+			.reg_off = CLKCTRL_DEMOD_32K_CNTL0,
+			.shift   = 28,
+			.width   = 1,
+		},
+		.table = t3_demod_32k_div_table,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "demod_32k_div",
+		.ops = &meson_clk_dualdiv_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_demod_32k_clkin.hw
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap t3_demod_32k = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_DEMOD_32K_CNTL0,
+		.bit_idx = 30,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "demod_32k",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_demod_32k_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 #define MESON_t3_SYS_GATE(_name, _reg, _bit)				\
 struct clk_regmap _name = {						\
 	.data = &(struct clk_regmap_gate_data) {			\
@@ -6454,6 +6533,9 @@ static struct clk_hw_onecell_data t3_hw_onecell_data = {
 		[CLKID_CTS_USB2_250M_SEL]		= &t3_cts_usb2_250m_sel.hw,
 		[CLKID_CTS_USB2_250M_DIV]		= &t3_cts_usb2_250m_div.hw,
 		[CLKID_CTS_USB2_250M]			= &t3_cts_usb2_250m.hw,
+		[CLKID_DEMOD_32K_CLKIN]			= &t3_demod_32k_clkin.hw,
+		[CLKID_DEMOD_32K_DIV]			= &t3_demod_32k_div.hw,
+		[CLKID_DEMOD_32K]			= &t3_demod_32k.hw,
 		[CLKID_SYS_CLK_DDR]			= &t3_sys_clk_ddr.hw,
 		[CLKID_SYS_CLK_DOS]			= &t3_sys_clk_dos.hw,
 		[CLKID_SYS_CLK_ETHPHY]			= &t3_sys_clk_ethphy.hw,
@@ -6779,6 +6861,9 @@ static struct clk_regmap *const t3_clk_regmaps[] __initconst = {
 	&t3_cts_usb2_250m_sel,
 	&t3_cts_usb2_250m_div,
 	&t3_cts_usb2_250m,
+	&t3_demod_32k_clkin,
+	&t3_demod_32k_div,
+	&t3_demod_32k,
 	&t3_sys_clk_ddr,
 	&t3_sys_clk_dos,
 	&t3_sys_clk_ethphy,
