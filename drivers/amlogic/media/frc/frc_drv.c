@@ -340,7 +340,7 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 
 			frc_init_config(devp);
 			frc_buf_config(devp);
-			frc_internal_initial();
+			frc_internal_initial(devp);
 			frc_hw_initial(devp);
 		} else {
 			pwr_ctrl_psci_smc(PDID_T3_FRCTOP, PWR_OFF);
@@ -684,18 +684,10 @@ static int frc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto fail_dev_create;
 
-	//frc_devp->dbg_buf = kmalloc(DBG_REG_BUFF, GFP_KERNEL);
-	//if (IS_ERR_OR_NULL(frc_devp->dbg_buf))
-	//	pr_frc(0, "dbg_buf err\n");
-	//else
-	//	memset((void*)frc_devp->dbg_buf, 0, DBG_REG_BUFF);
 	tasklet_init(&frc_devp->input_tasklet, frc_input_tasklet_pro, (unsigned long)frc_devp);
 	tasklet_init(&frc_devp->output_tasklet, frc_output_tasklet_pro, (unsigned long)frc_devp);
 	/*register a notify*/
 	vout_register_client(&frc_notifier_nb);
-
-	//frc_devp->frc_wq = create_workqueue("frc workqueue");
-	//INIT_WORK(&frc_devp->frc_work, frc_wq_proc);
 
 	/*driver internal data initial*/
 	frc_drv_initial(frc_devp);
@@ -708,9 +700,9 @@ static int frc_probe(struct platform_device *pdev)
 	frc_buf_distribute(frc_devp);
 	frc_buf_config(frc_devp);
 
-	frc_internal_initial();
 	frc_hw_initial(frc_devp);
-
+	frc_internal_initial(frc_devp); /*need after frc_top_init*/
+	/*enable irq*/
 	if (frc_devp->in_irq > 0)
 		enable_irq(frc_devp->in_irq);
 	if (frc_devp->out_irq > 0)

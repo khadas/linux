@@ -63,7 +63,7 @@ void set_mc_lbuf_ext(void);
 void cfg_me_loss(u32 me_loss_en);
 void cfg_mc_loss(u32 mc_loss_en);
 void recfg_memc_mif_base_addr(u32 base_ofst);
-void frc_internal_initial(void);
+void frc_internal_initial(struct frc_dev_s *frc_devp);
 void frc_dump_reg_tab(void);
 void frc_mtx_set(struct frc_dev_s *frc_devp);
 void frc_crc_enable(struct frc_dev_s *frc_devp);

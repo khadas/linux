@@ -363,13 +363,17 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 	} else if (!strcmp(parm[0], "me_lossy")) {
 		if (!parm[1])
 			goto exit;
-		if (kstrtoint(parm[1], 10, &val1) == 0)
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
 			fw_data->frc_top_type.me_loss_en  = val1;
+			cfg_me_loss(fw_data->frc_top_type.me_loss_en);
+		}
 	} else if (!strcmp(parm[0], "mc_lossy")) {
 		if (!parm[1])
 			goto exit;
-		if (kstrtoint(parm[1], 10, &val1) == 0)
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
 			fw_data->frc_top_type.mc_loss_en  = val1;
+			cfg_me_loss(fw_data->frc_top_type.mc_loss_en);
+		}
 	} else if (!strcmp(parm[0], "secure_on")) {
 		if (!parm[1] || !parm[2])
 			goto exit;
