@@ -53,6 +53,7 @@
 #include <linux/amlogic/media/frc/frc_common.h>
 #include <linux/amlogic/power_domain.h>
 #include <dt-bindings/power/t3-pd.h>
+#include <linux/amlogic/media/video_sink/video_signal_notify.h>
 
 #include "frc_drv.h"
 #include "frc_proc.h"
@@ -527,8 +528,45 @@ int frc_notify_callback(struct notifier_block *block, unsigned long cmd, void *p
 	return 0;
 }
 
+int frc_vd_notify_callback(struct notifier_block *block, unsigned long cmd, void *para)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct vd_info_s *info;
+	u32 flags;
+
+	if (!devp)
+		return -1;
+
+	info = (struct vd_info_s *)para;
+	flags = info->flags;
+
+	pr_frc(1, "%s cmd: 0x%lx flags:0x%x\n", __func__, cmd, flags);
+	switch (cmd) {
+	case VIDEO_INFO_CHANGED:
+		/*if frc on, need disable frc, and enable frc*/
+		if (flags == VIDEO_SIZE_CHANGE_EVENT && devp->probe_ok) {
+			set_frc_enable(false);
+			set_frc_bypass(true);
+			frc_change_to_state(FRC_STATE_DISABLE);
+			frc_state_change_finish(devp);
+			pr_frc(1, "VIDEO_SIZE_CHANGE_EVENT\n");
+			devp->frc_sts.out_put_mode_changed = FRC_EVENT_VF_CHG_IN_SIZE;
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static struct notifier_block frc_notifier_nb = {
 	.notifier_call	= frc_notify_callback,
+};
+
+static struct notifier_block frc_notifier_vb = {
+	.notifier_call	= frc_vd_notify_callback,
 };
 
 static const struct file_operations frc_fops = {
@@ -690,6 +728,7 @@ static int frc_probe(struct platform_device *pdev)
 	tasklet_init(&frc_devp->output_tasklet, frc_output_tasklet_pro, (unsigned long)frc_devp);
 	/*register a notify*/
 	vout_register_client(&frc_notifier_nb);
+	vd_signal_register_client(&frc_notifier_vb);
 
 	/*driver internal data initial*/
 	frc_drv_initial(frc_devp);

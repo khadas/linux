@@ -328,7 +328,10 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 		pr_frc(1, "out_put_mode_changed 0x%x re_config:%d\n",
 			devp->frc_sts.out_put_mode_changed,
 			devp->frc_sts.re_config);
-		devp->frc_sts.re_cfg_cnt = frc_re_cfg_cnt;
+		if (devp->frc_sts.out_put_mode_changed == FRC_EVENT_VF_CHG_IN_SIZE)
+			devp->frc_sts.re_cfg_cnt = 5;
+		else
+			devp->frc_sts.re_cfg_cnt = frc_re_cfg_cnt;
 		sts_change |= FRC_EVENT_VOUT_CHG;
 		devp->frc_sts.out_put_mode_changed = 0;
 		devp->frc_sts.re_config = 0;
