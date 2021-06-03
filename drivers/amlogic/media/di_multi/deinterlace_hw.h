@@ -19,7 +19,7 @@
 #ifndef _DI_HW_H
 #define _DI_HW_H
 #include <linux/amlogic/media/amvecm/amvecm.h>
-
+#include <linux/amlogic/media/di/di.h>
 #include "../deinterlace/di_pqa.h"
 //#include "di_pqa.h"
 

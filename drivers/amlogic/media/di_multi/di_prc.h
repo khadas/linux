@@ -382,6 +382,14 @@ bool dim_dbg_new_int(unsigned int id);
 int dim_dbg_tst_in_show(struct seq_file *s, void *what);
 
 #endif
+bool cma_alloc_blk_block(struct dim_mm_blk_s *blk_buf,
+		      unsigned int cma_type,
+		      unsigned int tvp,
+		      unsigned int size_page);
+void cma_release_blk_block(struct dim_mm_blk_s *blk_buf,
+				  unsigned int cma_type);
+unsigned char dim_pre_bypass(struct di_ch_s *pch);
+
 unsigned int dim_get_dbg_dec21(void);
 bool dim_in_linear(void);
 bool dim_dbg_cfg_disable_arb(void);
@@ -396,6 +404,8 @@ unsigned int dim_int_tab(struct device *dev,
 				 struct afbce_map_s *pcfg);
 
 void di_decontour_disable(bool on);
+void dip_pps_cnt_hv(unsigned int *w_in, unsigned int *h_in);
+bool dip_cfg_is_pps_4k(unsigned int ch);
 
 unsigned int di_hf_cnt_size(unsigned int w, unsigned int h, bool is_4k);
 bool di_hf_set_buffer(struct di_buf_s *di_buf, struct div2_mm_s *mm);

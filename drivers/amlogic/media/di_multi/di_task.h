@@ -32,7 +32,7 @@ int task_start(void);
 void dbg_task(void);
 
 bool task_send_cmd(unsigned int cmd);
-void task_send_ready(void);
+void task_send_ready(unsigned int id);
 bool task_send_cmd2(unsigned int ch, unsigned int cmd);
 void task_polling_cmd_keep(unsigned int ch, unsigned int top_sts);
 void task_delay(unsigned int val);
@@ -44,6 +44,7 @@ void dbg_mtask(void);
 //bool mtsk_release(unsigned int ch, unsigned int cmd);
 bool mtsk_alloc_block(unsigned int ch, struct mtsk_cmd_s *cmd);
 bool mtsk_release_block(unsigned int ch, unsigned int cmd);
+bool mtsk_alloc_block2(unsigned int ch, struct mtsk_cmd_s *cmd);
 bool mtask_send_cmd(unsigned int ch, struct mtsk_cmd_s *cmd);
 bool mtsk_release(unsigned int ch, unsigned int cmd);
 void mtask_wake_m(void);

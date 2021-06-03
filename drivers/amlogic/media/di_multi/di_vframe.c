@@ -162,6 +162,8 @@ static bool nins_m_in_vf(struct di_ch_s *pch)
 		}
 		pins = (struct dim_nins_s *)pbufq->pbuf[index].qbc;
 		pins->c.ori = vf;
+		pins->c.cnt = pch->in_cnt;
+		pch->in_cnt++;
 		//pins->c.etype = EDIM_NIN_TYPE_VFM;
 		memcpy(&pins->c.vfm_cp, vf, sizeof(pins->c.vfm_cp));
 		flg_q = qbuf_in(pbufq, QBF_NINS_Q_CHECK, index);
@@ -171,6 +173,14 @@ static bool nins_m_in_vf(struct di_ch_s *pch)
 			pw_vf_put(vf, ch);
 			qbuf_in(pbufq, QBF_NINS_Q_IDLE, index);
 			break;
+		}
+		if (pch->in_cnt < 4) {
+			if (pch->in_cnt == 1)
+				dbg_timer(ch, EDBG_TIMER_1_GET);
+			else if (pch->in_cnt == 2)
+				dbg_timer(ch, EDBG_TIMER_2_GET);
+			else if (pch->in_cnt == 3)
+				dbg_timer(ch, EDBG_TIMER_3_GET);
 		}
 	}
 
@@ -437,7 +447,7 @@ static int di_ori_event_ready(unsigned int channel)
 	if (dip_chst_get(channel) == EDI_TOP_STATE_REG_STEP1)
 		task_send_cmd(LCMD1(ECMD_READY, channel));
 	else
-		task_send_ready();
+		task_send_ready(9);
 
 	di_irq_ori_event_ready(channel);
 	return 0;
@@ -851,7 +861,7 @@ struct vframe_s *di_vf_l_peek(unsigned int channel)
 	if (vframe_ret) {
 		dim_tr_ops.post_peek(9);
 	} else {
-		task_send_ready();
+//		task_send_ready(22);
 		dim_tr_ops.post_peek(4);
 	}
 	return vframe_ret;

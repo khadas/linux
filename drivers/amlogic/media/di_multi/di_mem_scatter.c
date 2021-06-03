@@ -1111,23 +1111,6 @@ void sct_sw_off_rebuild(struct di_ch_s *pch)
 	}
 	ch = pch->ch_id;
 
-	#ifdef HIS_CODE
-	/* clear QUE_POST_FREE */
-	for (i = 0; i < 2; i++) {
-		di_buf = di_que_peek(ch, QUE_POST_FREE);
-		if (di_buf->blk_buf && di_buf->blk_buf->sct) {
-			di_buf = di_que_out_to_di_buf(ch, QUE_POST_FREE);
-			sct = (struct dim_sct_s *)di_buf->blk_buf->sct;
-			qsct_used_some_to_recycle(pch, sct);
-			di_buf->afbct_adr	= 0;
-			di_buf->blk_buf->sct = NULL;
-			di_buf->blk_buf->pat_buf = NULL;
-			di_que_in(ch, QUE_PST_NO_BUF_WAIT, di_buf);
-		} else {
-			break;
-		}
-	}
-	#endif
 	pbufq = &pch->sct_qb;
 	/* clear req */
 	len = qbufp_count(pbufq, QBF_SCT_Q_REQ);

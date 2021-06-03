@@ -487,7 +487,7 @@ int di_destroy_instance(int index)
 	dim_trig_unreg(ch);
 	dim_api_unreg(DIME_REG_MODE_NEW, pch);
 	mutex_unlock(&pch->itf.lock_reg);
-	PR_INF("%s:end\n", __func__);
+	PR_INF("%s:ch[%d]:end\n", __func__, ch);
 	return 0;
 }
 EXPORT_SYMBOL(di_destroy_instance);
@@ -556,10 +556,13 @@ enum DI_ERRORTYPE di_empty_input_buffer(int index, struct di_buffer *buffer)
 	//pins->c.etype = EDIM_NIN_TYPE_VFM;
 	if (dip_itf_is_ins(pch) && dim_dbg_new_int(2))
 		dim_dbg_buffer2(buffer, 0);
+	pins->c.cnt = pch->in_cnt;
+	pch->in_cnt++;
 
 	if (buffer->flag & DI_FLAG_EOS) {
-		pins->c.vfm_cp.type |= VIDTYPE_V4L_EOS;
-		PR_INF("%s:eos\n", __func__);
+		pins->c.vfm_cp.type |= (VIDTYPE_V4L_EOS |
+					VIDTYPE_INTERLACE_TOP); //test only
+		PR_INF("%s:ch[%d] eos\n", __func__, ch);
 	} else {
 		/* @ary_note: eos may be no vf */
 		memcpy(&pins->c.vfm_cp, buffer->vf, sizeof(pins->c.vfm_cp));
@@ -572,7 +575,15 @@ enum DI_ERRORTYPE di_empty_input_buffer(int index, struct di_buffer *buffer)
 		qbuf_in(pbufq, QBF_NINS_Q_IDLE, index);
 	}
 	//dbg_itf_tmode(pch,1);
-	task_send_ready();
+	if (pch->in_cnt < 4) {
+		if (pch->in_cnt == 1)
+			dbg_timer(ch, EDBG_TIMER_1_GET);
+		else if (pch->in_cnt == 2)
+			dbg_timer(ch, EDBG_TIMER_2_GET);
+		else if (pch->in_cnt == 3)
+			dbg_timer(ch, EDBG_TIMER_3_GET);
+	}
+	task_send_ready(20);
 	return DI_ERR_NONE;
 }
 EXPORT_SYMBOL(di_empty_input_buffer);
@@ -689,7 +700,7 @@ enum DI_ERRORTYPE di_fill_output_buffer(int index, struct di_buffer *buffer)
 		ret = di_fill_output_buffer_mode2(pch, buffer);
 	else if (pintf->tmode == EDIM_TMODE_3_PW_LOCAL)
 		ret = di_fill_output_buffer_mode3(pch, buffer);
-	task_send_ready();
+	task_send_ready(21);
 	return ret;
 }
 EXPORT_SYMBOL(di_fill_output_buffer);
@@ -736,7 +747,7 @@ int di_get_output_buffer_num(int index)
 	struct di_ch_s *pch;
 	int ret = -1;
 
-	PR_INF("%s:\n", __func__);
+	dbg_reg("%s:\n", __func__);
 	ch = index_2_ch(index);
 	if (ch == ERR_INDEX) {
 		PR_ERR("%s:index overflow\n", __func__);
@@ -747,7 +758,7 @@ int di_get_output_buffer_num(int index)
 	pintf = &pch->itf;
 	if (pintf->tmode == EDIM_TMODE_3_PW_LOCAL)
 		ret = DIM_NDIS_NUB;
-	PR_INF("%s:end\n", __func__);
+	dbg_reg("%s:end\n", __func__);
 	return ret;
 }
 EXPORT_SYMBOL(di_get_output_buffer_num);
@@ -767,7 +778,7 @@ int di_get_input_buffer_num(int index)
 	struct di_ch_s *pch;
 	int ret = -1;
 
-	PR_INF("%s:\n", __func__);
+	dbg_reg("%s:\n", __func__);
 	ch = index_2_ch(index);
 	if (ch == ERR_INDEX) {
 		PR_ERR("%s:index overflow\n", __func__);
@@ -778,7 +789,7 @@ int di_get_input_buffer_num(int index)
 	pintf = &pch->itf;
 	if (pintf->tmode == EDIM_TMODE_3_PW_LOCAL)
 		ret = DIM_NINS_NUB;
-	PR_INF("%s:end\n", __func__);
+	dbg_reg("%s:end\n", __func__);
 	return ret;
 }
 EXPORT_SYMBOL(di_get_input_buffer_num);

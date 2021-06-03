@@ -275,40 +275,90 @@ const struct dim_tr_ops_s dim_tr_ops = {
 	.irq_aisr = trace_irq_aisr,
 };
 
+/*keep same order as enum EDBG_TIMER*/
+static const char * const dbg_timer_name[] = {
+	"reg_b",
+	"reg_e",
+	"unreg_b",
+	"unreg_e",
+	"1_peek",
+	"1_get",
+	"2_get",
+	"3_get",
+	"alloc",
+	"mem1",
+	"mem2",
+	"mem3",
+	"mem4",
+	"mem5",
+	"ready",
+	"1_pre_cfg",
+	"1_pre_ready",
+	"2_pre_cfg",
+	"2_pre_ready",
+	"3_pre_cfg",
+	"3_pre_ready",
+	"1_pst",
+	"2_pst",
+};
+
 void dbg_timer(unsigned int ch, enum EDBG_TIMER item)
 {
 	u64 ustime, udiff;
 	struct di_ch_s *pch;
+	unsigned int tmp;
 
 	pch = get_chdata(ch);
-	ustime = cur_to_usecs();
+	//ustime = cur_to_usecs();
+	ustime	= cur_to_msecs();
 
+	if (item >= EDBG_TIMER_NUB)
+		return;
+	if (item == EDBG_TIMER_MEM_1) {
+		if (pch->dbg_data.timer_mem_alloc_cnt < 5) {
+			tmp = EDBG_TIMER_MEM_1 + pch->dbg_data.timer_mem_alloc_cnt;
+			pch->dbg_data.ms_dbg[tmp] = ustime;
+			pch->dbg_data.timer_mem_alloc_cnt++;
+			//PR_INF("%s:%s:%lu\n", __func__,
+			//	 dbg_timer_name[item],
+			//	 (unsigned long)ustime);
+		}
+		return;
+	}
+	//PR_INF("%s:%s:%lu\n", __func__, dbg_timer_name[item], (unsigned long)ustime);
+	pch->dbg_data.ms_dbg[item] = ustime;
+	//PR_INF("%s:%d:ms[%llu]\n", __func__, item, ustime);
 	switch (item) {
-	case EDBG_TIMER_REG_B:
-		pch->dbg_data.us_reg_begin = ustime;
-		break;
 	case EDBG_TIMER_REG_E:
-		pch->dbg_data.us_reg_end = ustime;
-		udiff = pch->dbg_data.us_reg_end -
-			pch->dbg_data.us_reg_begin;
-		//dbg_ev("reg:use[%llu]us\n", udiff);
-		break;
-	case EDBG_TIMER_UNREG_B:
-		pch->dbg_data.us_unreg_begin = ustime;
+		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_REG_E] -
+			pch->dbg_data.ms_dbg[EDBG_TIMER_REG_B];
+		dbg_ev("reg:use[%llu]ms\n", udiff);
 		break;
 	case EDBG_TIMER_UNREG_E:
-		pch->dbg_data.us_unreg_end = ustime;
-		udiff = pch->dbg_data.us_unreg_end -
-			pch->dbg_data.us_unreg_begin;
-		//dbg_ev("unreg:use[%llu]us\n", udiff);
+
+		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_E] -
+			pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_B];
+		dbg_ev("unreg:use[%llu]ms\n", udiff);
+		//dbg_ev("\tb[%llu]:e[%llu]\n",
+		 //      pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_B],
+		 //      pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_E]);
 		break;
-	case EDBG_TIMER_FIRST_GET:
-		pch->dbg_data.us_first_get = ustime;
-		break;
-	case EDBG_TIMER_FIRST_READY:
-		pch->dbg_data.us_first_ready = ustime;
+	default:
 		break;
 	}
+}
+
+void dbg_timer_clear(unsigned int ch)
+{
+	int i;
+	struct di_ch_s *pch;
+
+	pch = get_chdata(ch);
+
+	for (i = EDBG_TIMER_FIRST_PEEK; i < EDBG_TIMER_NUB; i++)
+		pch->dbg_data.ms_dbg[i] = 0;
+
+	pch->dbg_data.timer_mem_alloc_cnt = 0;
 }
 static unsigned int seq_get_channel(struct seq_file *s)
 {
@@ -1163,6 +1213,43 @@ static int seq_file_state_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+static int seq_file_stateb_show(struct seq_file *s, void *v)
+{
+	unsigned int ch;
+	struct di_ch_s *pch;
+	//struct di_pre_stru_s *ppre;
+	//struct di_post_stru_s *ppst;
+	int i;
+	u64 diff1, diff2, treg, tlast, tcrr, tcrr_old;
+	//struct di_dat_s *pdat;
+	//struct di_mm_s *mm;
+
+	ch = seq_get_channel(s);
+	seq_printf(s, "%s:ch[%d]\n", __func__, ch);
+
+	//mm = dim_mm_get(ch);
+
+	pch = get_chdata(ch);
+	if (pch) {
+		treg = pch->dbg_data.ms_dbg[EDBG_TIMER_REG_B];
+		tlast = treg;
+		seq_printf(s, "%s:%llu\n", "timer", treg);
+		for (i = EDBG_TIMER_FIRST_PEEK; i < EDBG_TIMER_NUB; i++) {
+			tcrr = pch->dbg_data.ms_dbg[i];
+			tcrr_old = tcrr;
+			if (!tcrr)
+				tcrr = tlast;
+			diff1 = tcrr - treg;
+			diff2 = tcrr - tlast;
+			seq_printf(s, "\t%-20s:%-10llu, %-10llu, %-10llu\n",
+				   dbg_timer_name[i],
+				   tcrr_old,
+				   diff1, diff2);
+			tlast = tcrr;
+		}
+	}
+	return 0;
+}
 static int seq_file_mif_show(struct seq_file *seq, void *v)
 {
 	unsigned int ch;
@@ -1901,7 +1988,7 @@ void dbg_f_post_disable(unsigned int para)
 
 void dbg_f_trig_task(unsigned int para)
 {
-	task_send_ready();
+	task_send_ready(10);
 }
 
 void dbg_f_pq_sel(unsigned int para)
@@ -2320,6 +2407,8 @@ DEFINE_SEQ_SHOW_ONLY(rcfgx);
 DEFINE_SEQ_SHOW_ONLY(seq_file_vframe_in);
 DEFINE_SEQ_SHOW_ONLY(seq_file_vframe_out);
 DEFINE_SEQ_SHOW_ONLY(seq_file_state);
+DEFINE_SEQ_SHOW_ONLY(seq_file_stateb);
+
 DEFINE_SEQ_SHOW_ONLY(seq_file_mif);
 DEFINE_SEQ_SHOW_ONLY(seq_file_sum);
 
@@ -2494,6 +2583,7 @@ static const struct di_dbgfs_files_t di_debugfs_files[] = {
 	{"rvfm_in", S_IFREG | 0644, &seq_file_vframe_in_fops},
 	{"rvfm_out", S_IFREG | 0644, &seq_file_vframe_out_fops},
 	{"state", S_IFREG | 0644, &seq_file_state_fops},
+	{"stateb", S_IFREG | 0644, &seq_file_stateb_fops},
 	{"dumpmif", S_IFREG | 0644, &seq_file_mif_fops},
 	{"test_reg", S_IFREG | 0644, &reg_fops},
 	{"sum", S_IFREG | 0644, &seq_file_sum_fops},

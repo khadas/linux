@@ -71,6 +71,7 @@ struct dim_tr_ops_s {
 
 extern const struct dim_tr_ops_s dim_tr_ops;
 void dbg_timer(unsigned int ch, enum EDBG_TIMER item);
+void dbg_timer_clear(unsigned int ch);
 void dim_dump_mif_state(struct DI_MIF_S *mif, char *name);
 
 #endif	/*__DI_DBG_H__*/
