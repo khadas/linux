@@ -98,15 +98,13 @@ struct lcd_clk_data_s {
 	void (*vclk_crt_set)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_disable)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_gate_switch)(struct aml_lcd_drv_s *pdrv, int status);
-	void (*clk_gate_optional_switch)(struct aml_lcd_drv_s *pdrv,
-					 int status);
+	void (*clk_gate_optional_switch)(struct aml_lcd_drv_s *pdrv, int status);
+	void (*clktree_set)(struct aml_lcd_drv_s *pdrv);
 	void (*clktree_probe)(struct aml_lcd_drv_s *pdrv);
 	void (*clktree_remove)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_config_init_print)(struct aml_lcd_drv_s *pdrv);
-	void (*prbs_clk_config)(struct aml_lcd_drv_s *pdrv,
-				unsigned int prbs_mode);
-	int (*clk_config_print)(struct aml_lcd_drv_s *pdrv,
-				char *buf, int offset);
+	void (*prbs_clk_config)(struct aml_lcd_drv_s *pdrv, unsigned int prbs_mode);
+	int (*clk_config_print)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 };
 
 struct lcd_clk_config_s { /* unit: kHz */

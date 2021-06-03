@@ -1748,6 +1748,9 @@ static void lcd_set_tcon_clk_t3(struct aml_lcd_drv_s *pdrv)
 	struct lcd_config_s *pconf = &pdrv->config;
 	unsigned int freq, val;
 
+	if (pdrv->index > 0) /* tcon_clk only valid for lcd0 */
+		return;
+
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("%s\n", __func__);
 	cconf = get_lcd_clk_config(pdrv);
@@ -2891,7 +2894,6 @@ static void lcd_clk_set_tl1(struct aml_lcd_drv_s *pdrv)
 	if (!cconf)
 		return;
 
-	lcd_set_tcon_clk_tl1(pdrv);
 	lcd_set_pll_tl1(pdrv);
 	lcd_set_vid_pll_div(cconf);
 }
@@ -2910,8 +2912,6 @@ static void lcd_clk_set_t7(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_clk_set_t3(struct aml_lcd_drv_s *pdrv)
 {
-	if (pdrv->index == 0) /* tcon_clk invalid for lcd1 */
-		lcd_set_tcon_clk_t3(pdrv);
 	lcd_set_pll_t3(pdrv);
 	lcd_set_vid_pll_div_t3(pdrv);
 }
@@ -3972,6 +3972,9 @@ lcd_set_clk_retry:
 		goto lcd_set_clk_retry;
 	}
 
+	if (cconf->data->clktree_set)
+		cconf->data->clktree_set(pdrv);
+
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 }
@@ -4117,6 +4120,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12a_path0 = {
 	.clk_disable = lcd_clk_disable_dft,
 	.clk_gate_switch = lcd_clk_gate_switch_g12a,
 	.clk_gate_optional_switch = NULL,
+	.clktree_set = NULL,
 	.clktree_probe = lcd_clktree_probe_g12a,
 	.clktree_remove = lcd_clktree_remove_g12a,
 	.clk_config_init_print = lcd_clk_config_init_print_g12a,
@@ -4165,6 +4169,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12a_path1 = {
 	.clk_disable = lcd_clk_disable_dft,
 	.clk_gate_switch = lcd_clk_gate_switch_g12a,
 	.clk_gate_optional_switch = NULL,
+	.clktree_set = NULL,
 	.clktree_probe = lcd_clktree_probe_g12a,
 	.clktree_remove = lcd_clktree_remove_g12a,
 	.clk_config_init_print = lcd_clk_config_init_print_g12a,
@@ -4213,6 +4218,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path0 = {
 	.clk_disable = lcd_clk_disable_dft,
 	.clk_gate_switch = lcd_clk_gate_switch_g12a,
 	.clk_gate_optional_switch = NULL,
+	.clktree_set = NULL,
 	.clktree_probe = lcd_clktree_probe_g12a,
 	.clktree_remove = lcd_clktree_remove_g12a,
 	.clk_config_init_print = lcd_clk_config_init_print_g12a,
@@ -4261,6 +4267,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path1 = {
 	.clk_disable = lcd_clk_disable_dft,
 	.clk_gate_switch = lcd_clk_gate_switch_g12a,
 	.clk_gate_optional_switch = NULL,
+	.clktree_set = NULL,
 	.clktree_probe = lcd_clktree_probe_g12a,
 	.clktree_remove = lcd_clktree_remove_g12a,
 	.clk_config_init_print = lcd_clk_config_init_print_g12a,
@@ -4310,6 +4317,7 @@ static struct lcd_clk_data_s lcd_clk_data_tl1 = {
 	.clk_disable = lcd_clk_disable_dft,
 	.clk_gate_switch = lcd_clk_gate_switch_dft,
 	.clk_gate_optional_switch = lcd_clk_gate_optional_switch_tl1,
+	.clktree_set = lcd_set_tcon_clk_tl1,
 	.clktree_probe = lcd_clktree_probe_tl1,
 	.clktree_remove = lcd_clktree_remove_tl1,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
@@ -4359,6 +4367,7 @@ static struct lcd_clk_data_s lcd_clk_data_tm2 = {
 	.clk_disable = lcd_clk_disable_dft,
 	.clk_gate_switch = lcd_clk_gate_switch_dft,
 	.clk_gate_optional_switch = lcd_clk_gate_optional_switch_tl1,
+	.clktree_set = lcd_set_tcon_clk_tl1,
 	.clktree_probe = lcd_clktree_probe_tl1,
 	.clktree_remove = lcd_clktree_remove_tl1,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
@@ -4407,6 +4416,7 @@ static struct lcd_clk_data_s lcd_clk_data_t5d = {
 	.clk_disable = lcd_clk_disable_dft,
 	.clk_gate_switch = lcd_clk_gate_switch_dft,
 	.clk_gate_optional_switch = lcd_clk_gate_optional_switch_tl1,
+	.clktree_set = lcd_set_tcon_clk_tl1,
 	.clktree_probe = lcd_clktree_probe_tl1,
 	.clktree_remove = lcd_clktree_remove_tl1,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
@@ -4455,6 +4465,7 @@ static struct lcd_clk_data_s lcd_clk_data_t7 = {
 	.clk_disable = lcd_clk_disable_t7,
 	.clk_gate_switch = lcd_clk_gate_switch_t7,
 	.clk_gate_optional_switch = NULL,
+	.clktree_set = NULL,
 	.clktree_probe = lcd_clktree_probe_t7,
 	.clktree_remove = lcd_clktree_remove_t7,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
@@ -4503,6 +4514,7 @@ static struct lcd_clk_data_s lcd_clk_data_t3 = {
 	.clk_disable = lcd_clk_disable_t7,
 	.clk_gate_switch = lcd_clk_gate_switch_t7,
 	.clk_gate_optional_switch = lcd_clk_gate_optional_switch_tl1,
+	.clktree_set = lcd_set_tcon_clk_t3,
 	.clktree_probe = lcd_clktree_probe_t3,
 	.clktree_remove = lcd_clktree_remove_t3,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
