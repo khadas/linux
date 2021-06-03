@@ -570,6 +570,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->in_sts.have_vf_cnt = 0;
 	devp->in_sts.no_vf_cnt = 0;
 
+	// devp->dbg_in_out_ratio = FRC_RATIO_1_2;/*enum frc_ratio_mode_type frc_ratio_mode*/
 	devp->dbg_in_out_ratio = FRC_RATIO_1_1;/*enum frc_ratio_mode_type frc_ratio_mode*/
 	devp->dbg_input_hsize = vinfo->width;
 	devp->dbg_input_vsize = vinfo->height;
@@ -585,6 +586,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->loss_ratio = 0;
 	devp->prot_mode = false;
 
+	// devp->in_out_ratio = FRC_RATIO_1_2;
 	devp->in_out_ratio = FRC_RATIO_1_1;
 	devp->film_mode = EN_FILM32;
 	devp->film_mode_det = 0;
