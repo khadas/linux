@@ -3048,12 +3048,12 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	}
 	PR_DVBS("strength: %d\n", strenth);
 
-	if (strenth < THRD_TUNER_STRENTH_DVBS) {
-		*status = FE_TIMEDOUT;
-		demod->last_lock = -1;
-		PR_DVBS("[id %d] tuner:no signal!\n", demod->id);
-		return 0;
-	}
+//	if (strenth < THRD_TUNER_STRENTH_DVBS) {
+//		*status = FE_TIMEDOUT;
+//		demod->last_lock = -1;
+//		PR_DVBS("[id %d] tuner:no signal!\n", demod->id);
+//		return 0;
+//	}
 
 	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
 	if (demod->time_passed >= 500) {
