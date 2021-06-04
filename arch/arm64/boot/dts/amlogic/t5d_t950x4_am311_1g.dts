@@ -625,7 +625,7 @@
 
 	vbi {
 		compatible = "amlogic, vbi";
-		status = "okay";
+		status = "disable";
 		interrupts = <0 83 1>;
 	};
 
