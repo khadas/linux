@@ -1081,6 +1081,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("hv reverse enabled: %d\n", devp->hv_reverse_en);
 	pr_info("dbg_dump_frames: %d,dbg_stop_dec_delay:%d\n",
 		devp->dbg_dump_frames, devp->dbg_stop_dec_delay);
+	pr_info("vdin_function_sel: 0x%x\n", devp->vdin_function_sel);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 	/*vdin_dump_vs_info(devp);*/
 }
@@ -2754,6 +2755,12 @@ start_chk:
 				vdin_game_mode_chg(devp, game_mode, temp);
 			game_mode = temp;
 		}
+	} else if (!strcmp(parm[0], "self_restar")) {
+		vdin_self_stop_dec(devp);
+		vdin_self_start_dec(devp);
+	} else if (!strcmp(parm[0], "vdin_function_sel")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0))
+			devp->vdin_function_sel = temp;
 	} else {
 		pr_info("unknown command\n");
 	}

@@ -606,6 +606,10 @@
 		double_write_en;
 		/* secure_en; */
 		v4l_support_en = <0>;
+		/* vdin_function_sel: (vdin special handle select)
+		 * bit0 -- vdin restart oneself when switch pc mode
+		 */
+		vdin_function_sel = <0x1>;
 	};
 
 	vdin@1 {

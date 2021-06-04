@@ -61,6 +61,7 @@
 #include <linux/amlogic/media/frame_sync/timestamp.h>
 #include <linux/amlogic/media/frame_sync/tsync.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h>
+#include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>
@@ -1129,6 +1130,50 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	return 0;
 }
 
+void vdin_self_start_dec(struct vdin_dev_s *devp)
+{
+	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
+		pr_err("already flags\n");
+		return;
+	}
+
+	if (vdin_dbg_en)
+		pr_info("%s in\n", __func__);
+
+	vdin_start_dec(devp);
+	devp->flags |= VDIN_FLAG_DEC_STARTED;
+	if (devp->parm.port != TVIN_PORT_VIU1 ||
+	    viu_hw_irq != 0) {
+		/*enable irq */
+		enable_irq(devp->irq);
+		devp->flags |= VDIN_FLAG_ISR_EN;
+
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) &&
+		    devp->index == 0 && devp->vpu_crash_irq > 0)
+			enable_irq(devp->vpu_crash_irq);
+
+		if (devp->wr_done_irq > 0)
+			enable_irq(devp->wr_done_irq);
+
+		/* for t7 dv meta data */
+		if (/*vdin_is_dv_signal_in(devp) &&*/
+		    /*devp->index == devp->dv.dv_path_idx &&*/
+		    devp->vdin2_meta_wr_done_irq > 0) {
+			enable_irq(devp->vdin2_meta_wr_done_irq);
+			pr_info("enable meta wt done irq %d\n",
+				devp->vdin2_meta_wr_done_irq);
+		}
+		if (vdin_dbg_en)
+			pr_info("%s START_DEC vdin.%d enable_irq\n",
+				__func__, devp->index);
+	}
+
+	if (vdin_dbg_en)
+		pr_info("%s(%d) port %s, decode started ok flags=0x%x\n",
+			__func__, devp->index,
+			tvin_port_str(devp->parm.port), devp->flags);
+}
+
 /*
  * 1. disable irq.
  * 2. disable hw work, including:
@@ -1205,12 +1250,16 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 
 	vdin_dump_frames(devp);
 
-	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
-	    devp->frontend->dec_ops &&
-	    devp->frontend->dec_ops->stop &&
-	    ((!IS_TVAFE_ATV_SRC(devp->parm.port)) ||
-	     ((devp->flags & VDIN_FLAG_SNOW_FLAG) == 0)))
-		devp->frontend->dec_ops->stop(devp->frontend, devp->parm.port);
+	if ((devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
+		!devp->self_stop_start) {
+		if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
+		    devp->frontend->dec_ops &&
+		    devp->frontend->dec_ops->stop &&
+		    ((!IS_TVAFE_ATV_SRC(devp->parm.port)) ||
+		     ((devp->flags & VDIN_FLAG_SNOW_FLAG) == 0)))
+			devp->frontend->dec_ops->stop(devp->frontend,
+						devp->parm.port);
+	}
 
 	vdin_hw_disable(devp);
 
@@ -1261,9 +1310,12 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->prop.hdcp_sts = 0;
 	devp->starting_chg = 0;
 
-	 /* clear color para*/
-	memset(&devp->pre_prop, 0, sizeof(devp->prop));
-	memset(&devp->prop, 0, sizeof(devp->prop));
+	if (!(devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
+		!devp->self_stop_start) {
+		/* clear color para*/
+		memset(&devp->pre_prop, 0, sizeof(devp->prop));
+		memset(&devp->prop, 0, sizeof(devp->prop));
+	}
 	if (vdin_time_en)
 		pr_info("vdin.%d stop time %ums,run time:%ums.\n",
 			devp->index, jiffies_to_msecs(jiffies),
@@ -1271,6 +1323,28 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 
 	if (vdin_dbg_en)
 		pr_info("%s ok\n", __func__);
+}
+
+void vdin_self_stop_dec(struct vdin_dev_s *devp)
+{
+	if (!(devp->flags & VDIN_FLAG_DEC_STARTED)) {
+		pr_err("%s(%d) decode havn't started flags=0x%x\n",
+			__func__, devp->index, devp->flags);
+		return;
+	}
+
+	if (vdin_dbg_en)
+		pr_info("%s in\n", __func__);
+
+	devp->flags |= VDIN_FLAG_DEC_STOP_ISR;
+
+	vdin_stop_dec(devp);
+
+	/* init flag */
+	devp->flags &= ~VDIN_FLAG_DEC_STOP_ISR;
+	/* devp->flags &= ~VDIN_FLAG_FORCE_UNSTABLE; */
+	/* clear the flag of decode started */
+	devp->flags &= (~VDIN_FLAG_DEC_STARTED);
 }
 
 /*
@@ -3780,7 +3854,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			vdin_game_mode_chg(devp, game_mode, tmp);
 		game_mode = tmp;
 		if (vdin_dbg_en)
-			pr_info("TVIN_IOC_GAME_MODE(%d) done\n\n", game_mode);
+			pr_info("TVIN_IOC_GAME_MODE(%d) done\n", game_mode);
 		break;
 	}
 	case TVIN_IOC_VRR_MODE:
@@ -4077,12 +4151,31 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	case TVIN_IOC_S_PC_MODE:
-		if (copy_from_user(&vdin_pc_mode, argp, sizeof(unsigned int))) {
+		if (copy_from_user(&tmp, argp, sizeof(unsigned int))) {
 			ret = -EFAULT;
 			break;
 		}
+
+		if (vdin_pc_mode != tmp &&
+		    (devp->vdin_function_sel & VDIN_SELF_STOP_START)) {
+			mutex_lock(&devp->fe_lock);
+			if (devp->flags & VDIN_FLAG_DEC_STARTED) {
+				_video_set_disable(1);
+				vdin_pc_mode = tmp;
+				devp->self_stop_start = 1;
+				vdin_self_stop_dec(devp);
+				vdin_self_start_dec(devp);
+				devp->self_stop_start = 0;
+				/* 1:disable video 0:open video 2:open video when new frame */
+				_video_set_disable(2);
+			}
+			mutex_unlock(&devp->fe_lock);
+		}
+		vdin_pc_mode = tmp;
+
 		if (vdin_dbg_en)
-			pr_info("vdin_pc_mode:%d\n", vdin_pc_mode);
+			pr_info("TVIN_IOC_S_PC_MODE:%d tmp:%d func_sel:0x%x\n",
+				vdin_pc_mode, tmp, devp->vdin_function_sel);
 		break;
 	case TVIN_IOC_S_FRAME_WR_EN:
 		if (copy_from_user(&devp->vframe_wr_en, argp,
@@ -5105,6 +5198,11 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		if (ret)
 			vdevp->vrr_mode = 1;
 	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "vdin_function_sel",
+				   &vdevp->vdin_function_sel);
+	if (ret)
+		vdevp->vdin_function_sel = 0;
 
 	/* init vdin parameters */
 	vdevp->flags = VDIN_FLAG_NULL;

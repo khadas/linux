@@ -81,7 +81,8 @@
 /* 20220408: get format convert when started */
 /* 20220415: transmit freesync data */
 /* 20220416: dv game mode picture display abnormal */
-#define VDIN_VER "20220416:dv game mode picture display abnormal"
+/* 20220422: linux system pc mode myself restart dec */
+#define VDIN_VER "20220422:linux system pc mode myself restart dec"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -219,6 +220,8 @@ struct match_data_s {
 /* size for rdma table */
 #define RDMA_TABLE_SIZE			(PAGE_SIZE >> 3)
 /* #define VDIN_DEBUG */
+#define VDIN_SELF_STOP_START		(BIT0)
+
 
 #define IS_HDMI_SRC(src)	\
 		({typeof(src) src_ = src; \
@@ -782,6 +785,8 @@ struct vdin_dev_s {
 	unsigned int dbg_stop_dec_delay;
 	unsigned int vinfo_std_duration; /* get vinfo fps value */
 	unsigned int dbg_no_swap_en:1;
+	unsigned int vdin_function_sel;
+	unsigned int self_stop_start;
 };
 
 struct vdin_hist_s {
@@ -848,7 +853,9 @@ int vdin_open_fe(enum tvin_port_e port, int index,
 		 struct vdin_dev_s *devp);
 void vdin_close_fe(struct vdin_dev_s *devp);
 int vdin_start_dec(struct vdin_dev_s *devp);
+void vdin_self_start_dec(struct vdin_dev_s *devp);
 void vdin_stop_dec(struct vdin_dev_s *devp);
+void vdin_self_stop_dec(struct vdin_dev_s *devp);
 irqreturn_t vdin_isr_simple(int irq, void *dev_id);
 irqreturn_t vdin_isr(int irq, void *dev_id);
 irqreturn_t vdin_v4l2_isr(int irq, void *dev_id);
