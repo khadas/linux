@@ -116,9 +116,7 @@ static irqreturn_t mbox_dsp_handler(int irq, void *p)
 	void __iomem *mbox_sts_base = ctlr->mbox_sts_base[mhudev];
 	void __iomem *payload = ctlr->mbox_pl_base[mhudev];
 	struct mhu_data_buf *data;
-	u32 status;
-
-	status = readl(mbox_sts_base);
+	u32 status  = readl(mbox_sts_base);
 
 	if (status && irq == mhu_chan->rx_irq) {
 		data = mhu_chan->data;
@@ -242,12 +240,114 @@ static struct mbox_chan_ops mhu_ops = {
 	.last_tx_done = mhu_last_tx_done,
 };
 
-static int to_send_chan(int chan)
+static int to_send_idx(int idx, bool send)
 {
-	if (chan % 2)
-		return chan;
-	else
-		return chan + 1;
+	if (send)
+		return (idx % 2) ? idx : idx + 1;
+	return (idx % 2) ? idx - 1 : idx;
+}
+
+static ssize_t mbox_message_send(struct device *dev, void *data,
+				 int count, int idx,
+				 struct mbox_message *mbox_msg)
+{
+	int ret;
+	struct mbox_client cl = {0};
+	struct mbox_chan *chan, *mbox_chan;
+	struct mhu_chan *mhu_chan;
+	struct mhu_data_buf data_buf;
+	struct mbdata_async mbdata_async;
+	unsigned long flags;
+	int data_size = 0;
+
+	mbdata_async.complete = (unsigned long)(&mbox_msg->complete);
+	dev_dbg(dev, "%s %lx\n", __func__,
+		(unsigned long)mbdata_async.complete);
+	memcpy(mbdata_async.data, data, count);
+	data_buf.tx_buf = (void *)&mbdata_async;
+	data_buf.tx_size = count + MBOX_COMPLETE_LEN + MBOX_RESERVE_LEN;
+	data_size = count + MBOX_COMPLETE_LEN;
+	data_buf.cmd = (mbox_msg->cmd)
+			| SIZE_SHIFT(data_size)
+			| SYNC_SHIFT(ASYNC_CMD);
+	data_buf.rx_buf = NULL;
+	cl.dev = dev;
+	cl.tx_block = true;
+	cl.tx_tout = MBOX_TIME_OUT;
+	mbox_chan = mbox_get_channel(&cl, idx);
+	if (IS_ERR_OR_NULL(mbox_chan)) {
+		dev_err(dev, "Not have this chan\n");
+		ret = PTR_ERR(mbox_chan);
+		goto err_send3;
+	}
+	mutex_lock(&mbox_chan->mutex);
+	chan = mbox_request_channel(&cl, idx);
+	if (IS_ERR_OR_NULL(chan)) {
+		mutex_unlock(&mbox_chan->mutex);
+		dev_err(dev, "Failed Req Chan\n");
+		ret = PTR_ERR(chan);
+		goto err_send3;
+	}
+	mhu_chan = (struct mhu_chan *)chan->con_priv;
+	mbox_msg->chan_idx = to_send_idx(mhu_chan->index, false);
+	spin_lock_irqsave(&mhu_list_lock, flags);
+	list_add_tail(&mbox_msg->list, &mbox_list[mbox_msg->chan_idx]);
+	spin_unlock_irqrestore(&mhu_list_lock, flags);
+	ret = mbox_send_message(chan, (void *)(&data_buf));
+	mbox_free_channel(chan);
+	if (ret < 0) {
+		dev_err(dev, "Failed transfer message via mailbox %d\n", ret);
+		mutex_unlock(&mbox_chan->mutex);
+		spin_lock_irqsave(&mhu_list_lock, flags);
+		list_del(&mbox_msg->list);
+		spin_unlock_irqrestore(&mhu_list_lock, flags);
+		goto err_send3;
+	}
+	mutex_unlock(&mbox_chan->mutex);
+	dev_dbg(dev, "Ack OK\n");
+	ret = count;
+err_send3:
+	return ret;
+}
+
+ssize_t mbox_message_send_pl(struct device *dev, int cmd,
+				 void *data, int count, int idx)
+{
+	struct mbox_message *mbox_msg;
+	struct mbdata_async *mb_data;
+	int ret = 0;
+	unsigned long flags;
+
+	mbox_msg = kzalloc(sizeof(*mbox_msg), GFP_KERNEL);
+	if (!mbox_msg) {
+		ret = -ENOMEM;
+		goto err_send0;
+	}
+
+	mb_data = kzalloc(sizeof(*mb_data), GFP_KERNEL);
+	if (!mb_data) {
+		ret = -ENOMEM;
+		goto err_send1;
+	}
+
+	mbox_msg->data = (void *)mb_data;
+	mbox_msg->cmd = cmd & CMD_MASK;
+	mbox_msg->task = current;
+	init_completion(&mbox_msg->complete);
+	ret = mbox_message_send(dev, data, count, idx, mbox_msg);
+	if (ret >= 0) {
+		ret = wait_for_completion_killable(&mbox_msg->complete);
+		if (!ret)
+			memcpy(data, mbox_msg->data, count);
+		spin_lock_irqsave(&mhu_list_lock, flags);
+		list_del(&mbox_msg->list);
+		spin_unlock_irqrestore(&mhu_list_lock, flags);
+	}
+	kfree(mbox_msg->data);
+err_send1:
+	kfree(mbox_msg);
+err_send0:
+	return ret;
 }
 
 static ssize_t mbox_message_write(struct file *filp,
@@ -257,7 +357,7 @@ static ssize_t mbox_message_write(struct file *filp,
 	int ret;
 	struct mbox_message *mbox_msg;
 	struct mbox_client cl = {0};
-	struct mbox_chan *chan;
+	struct mbox_chan *chan, *mbox_chan;
 	struct mbdata_async mbdata_async;
 	struct mhu_data_buf data_buf;
 	unsigned long flags;
@@ -267,7 +367,7 @@ static ssize_t mbox_message_write(struct file *filp,
 	int channel =  mbox_dev->channel_id;
 	int send_channel;
 
-	send_channel = to_send_chan(channel);
+	send_channel = to_send_idx(channel, true);
 
 	if (count > MBOX_ALLOWED_SIZE) {
 		dev_err(dev,
@@ -326,17 +426,23 @@ static ssize_t mbox_message_write(struct file *filp,
 	cl.dev = dev;
 	cl.tx_block = true;
 	cl.tx_tout = MBOX_TIME_OUT;
-	mutex_lock(&mbox_dev->mutex);
+	mbox_chan = mbox_get_channel(&cl, send_channel);
+	if (IS_ERR_OR_NULL(mbox_chan)) {
+		dev_err(dev, "Not have this chan\n");
+		ret = PTR_ERR(mbox_chan);
+		goto err_probe3;
+	}
+	mutex_lock(&mbox_chan->mutex);
 	chan = mbox_request_channel(&cl, send_channel);
 	if (IS_ERR_OR_NULL(chan)) {
-		mutex_unlock(&mbox_dev->mutex);
+		mutex_unlock(&mbox_chan->mutex);
 		dev_err(dev, "Failed Req Chan\n");
 		ret = PTR_ERR(chan);
 		goto err_probe3;
 	}
 	ret = mbox_send_message(chan, (void *)(&data_buf));
 	mbox_free_channel(chan);
-	mutex_unlock(&mbox_dev->mutex);
+	mutex_unlock(&mbox_chan->mutex);
 	if (ret < 0) {
 		dev_err(dev, "Failed to send message via mailbox %d\n", ret);
 	} else {
@@ -468,11 +574,11 @@ static int mhu_cdev_init(struct device *dev, struct mhu_ctlr *mhu_ctlr)
 			dev_err(dev, "mbox unable to alloc dev\n");
 			goto out_err;
 		}
+		list_add_tail(&cur->char_list, &mbox_devs);
 
 		mhu_chan = &mhu_ctlr->channels[i * 2];
 		cur->channel_id = i * 2;
 		cur->char_no = MKDEV(char_major, i);
-		mutex_init(&cur->mutex);
 
 		if (!of_get_property(dev->of_node, "mbox-names", NULL)) {
 			dev_err(dev, "%s() get mbox name fail\n", __func__);
@@ -509,7 +615,6 @@ static int mhu_cdev_init(struct device *dev, struct mhu_ctlr *mhu_ctlr)
 			dev_err(dev, "mbox fail to create device\n");
 			goto out_err;
 		}
-		list_add_tail(&cur->char_list, &mbox_devs);
 	}
 	return 0;
 out_err:
@@ -619,6 +724,7 @@ static int mhu_pl_probe(struct platform_device *pdev)
 			dev_err(dev, "failed to get interrupt %d\n", idx);
 			return -ENXIO;
 		}
+		mutex_init(&mbox_chans[idx].mutex);
 		mbox_chans[idx].con_priv = mhu_chan;
 	}
 

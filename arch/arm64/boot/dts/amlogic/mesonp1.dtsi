@@ -2983,10 +2983,22 @@
 	mbox_user: mbox-user@0 {
 		status = "okay";
 		compatible = "amlogic, meson-mbox-user";
-		mbox-nums = <1>;
-		mbox-names = "ree2aocpu";
-		mboxes = <&mhu_fifo P1_REE2AO>;
-		mbox-dests = <MAILBOX_AOCPU>;
+		mbox-nums = <5>;
+		mbox-names = "ree2aocpu",
+			     "tree2dspa",
+			     "tree2dspb",
+			     "tree2mfa",
+			     "tree2mfb";
+		mboxes = <&mhu_fifo P1_REE2AO>,
+			 <&mhu_fifo P1_REE2DSPA>,
+			 <&mhu_fifo P1_REE2DSPB>,
+			 <&mhu_fifo P1_REE2BL40A>,
+			 <&mhu_fifo P1_REE2BL40B>;
+		mbox-dests = <MAILBOX_AOCPU>,
+			     <MAILBOX_DSP>,
+			     <MAILBOX_DSP>,
+			     <MAILBOX_MF>,
+			     <MAILBOX_MF>;
 	};
 
 	lut_dma:lut_dma {

@@ -62,6 +62,7 @@ struct mbox_message {
 	struct task_struct *task;
 	struct completion complete;
 	int cmd;
+	int chan_idx;
 	char *data;
 };
 

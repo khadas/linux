@@ -160,7 +160,10 @@ enum scpi_chan {
 int scpi_send_data(void *data, int size, int channel,
 		   int cmd, void *revdata, int revsize);
 int mbox_message_send_ao_sync(struct device *dev, int cmd, void *sdata,
-		int tx_size, void *rdata, int rx_size, int idx);
-int mbox_message_send_sec_sync(struct device *dev, int cmd, void *sdata,
-		size_t tx_size, void *rdata, size_t *rx_size, int idx);
+			      int tx_size, void *rdata, int rx_size, int idx);
+int mbox_message_send_sec_sync(struct device *dev, int cmd,
+			       void *sdata, size_t tx_size,
+			       void *rdata, size_t *rx_size, int idx);
+int mbox_message_send_data_sync(struct device *dev, int cmd,
+				void *data, int count, int idx);
 #endif /*_SCPI_PROTOCOL_H_*/

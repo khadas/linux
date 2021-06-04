@@ -98,12 +98,11 @@ static void mbox_fifo_clr(void __iomem *to, long count)
 	}
 }
 
-static int to_send_chan(int chan)
+static int to_send_idx(int idx, bool send)
 {
-	if (chan % 2)
-		return chan;
-	else
-		return chan + 1;
+	if (send)
+		return (idx % 2) ? idx : idx + 1;
+	return (idx % 2) ? idx - 1 : idx;
 }
 
 static void mbox_chan_report(u32 status, void *msg, int idx)
@@ -338,6 +337,120 @@ static struct mbox_chan_ops mhu_ops = {
 	.last_tx_done = mhu_last_tx_done,
 };
 
+static ssize_t mbox_message_send(struct device *dev,
+				 void *data, int count,
+				 int idx, struct mbox_message *mbox_msg)
+{
+	int ret;
+	struct mbox_client cl = {0};
+	struct mbox_chan *chan, *mbox_chan;
+	struct mhu_chan *mhu_chan;
+	struct mhu_data_buf data_buf;
+	struct mbox_data mbox_data;
+	unsigned long flags;
+	struct mhu_mbox *mbox_dev, *n;
+
+	list_for_each_entry_safe(mbox_dev, n, &mbox_devs, char_list) {
+		if (mbox_dev->channel_id == idx)
+			break;
+	}
+
+	mbox_data.task = 0;
+	mbox_data.status = 0;
+	mbox_data.ullclt = 0;
+	mbox_data.complete = (unsigned long)(&mbox_msg->complete);
+	dev_dbg(dev, "%s %lx\n", __func__, (unsigned long)mbox_data.complete);
+	memcpy(mbox_data.data, data, count);
+	data_buf.tx_buf = (void *)&mbox_data;
+	data_buf.tx_size = count + MBOX_HEAD_SIZE;
+	data_buf.cmd = (mbox_msg->cmd)
+			| SIZE_SHIFT(data_buf.tx_size)
+			| SYNC_SHIFT(ASYNC_CMD);
+	data_buf.rx_buf = NULL;
+	cl.dev = dev;
+	cl.tx_block = true;
+	cl.tx_tout = MBOX_TIME_OUT;
+	mbox_chan = mbox_get_channel(&cl, idx);
+	if (IS_ERR_OR_NULL(mbox_chan)) {
+		dev_err(dev, "Not have this chan\n");
+		ret = PTR_ERR(mbox_chan);
+		goto err_send3;
+	}
+	mutex_lock(&mbox_chan->mutex);
+	chan = mbox_request_channel(&cl, idx);
+	if (IS_ERR_OR_NULL(chan)) {
+		mutex_unlock(&mbox_chan->mutex);
+		dev_err(dev, "Failed Req Chan\n");
+		ret = PTR_ERR(mbox_chan);
+		goto err_send3;
+	}
+	mhu_chan = (struct mhu_chan *)chan->con_priv;
+	mbox_msg->chan_idx = to_send_idx(mhu_chan->index, false);
+	spin_lock_irqsave(&mbox_dev->mhu_lock, flags);
+	list_add_tail(&mbox_msg->list, &mbox_list[mbox_msg->chan_idx]);
+	spin_unlock_irqrestore(&mbox_dev->mhu_lock, flags);
+	ret = mbox_send_message(chan, (void *)(&data_buf));
+	mbox_free_channel(chan);
+	if (ret < 0) {
+		dev_err(dev, "Failed transfer message via mailbox %d\n", ret);
+		mutex_unlock(&mbox_chan->mutex);
+		spin_lock_irqsave(&mbox_dev->mhu_lock, flags);
+		list_del(&mbox_msg->list);
+		spin_unlock_irqrestore(&mbox_dev->mhu_lock, flags);
+		goto err_send3;
+	}
+	mutex_unlock(&mbox_chan->mutex);
+	dev_dbg(dev, "Ack OK\n");
+	ret = count;
+err_send3:
+	return ret;
+}
+
+ssize_t mbox_message_send_fifo(struct device *dev, int cmd,
+			       void *data, int count, int idx)
+{
+	struct mbox_message *mbox_msg;
+	struct mbox_data *mb_data;
+	int ret = 0;
+	unsigned long flags;
+	struct mhu_mbox *mbox_dev, *n;
+
+	list_for_each_entry_safe(mbox_dev, n, &mbox_devs, char_list) {
+		if (mbox_dev->channel_id == idx)
+			break;
+	}
+
+	mbox_msg = kzalloc(sizeof(*mbox_msg), GFP_KERNEL);
+	if (!mbox_msg) {
+		ret = -ENOMEM;
+		goto err_send0;
+	}
+
+	mb_data = kzalloc(sizeof(*mb_data), GFP_KERNEL);
+	if (!mb_data) {
+		ret = -ENOMEM;
+		goto err_send1;
+	}
+	mbox_msg->data = (void *)mb_data;
+	mbox_msg->cmd = cmd & CMD_MASK;
+	mbox_msg->task = current;
+	init_completion(&mbox_msg->complete);
+	ret = mbox_message_send(dev, data, count, idx, mbox_msg);
+	if (ret >= 0) {
+		ret = wait_for_completion_killable(&mbox_msg->complete);
+		if (!ret)
+			memcpy(data, mbox_msg->data, count);
+		spin_lock_irqsave(&mbox_dev->mhu_lock, flags);
+		list_del(&mbox_msg->list);
+		spin_unlock_irqrestore(&mbox_dev->mhu_lock, flags);
+	}
+	kfree(mb_data);
+err_send1:
+	kfree(mbox_msg);
+err_send0:
+	return ret;
+}
+
 static ssize_t mbox_message_write(struct file *filp,
 				  const char __user *userbuf,
 				  size_t count, loff_t *ppos)
@@ -345,7 +458,7 @@ static ssize_t mbox_message_write(struct file *filp,
 	int ret;
 	struct mbox_message *mbox_msg;
 	struct mbox_client cl = {0};
-	struct mbox_chan *chan;
+	struct mbox_chan *chan, *mbox_chan;
 	struct mbox_data mbox_data;
 	struct mhu_data_buf data_buf;
 	unsigned long flags;
@@ -355,7 +468,7 @@ static ssize_t mbox_message_write(struct file *filp,
 	int channel =  mbox_dev->channel_id;
 	int send_channel;
 
-	send_channel = to_send_chan(channel);
+	send_channel = to_send_idx(channel, true);
 
 	if (count > MBOX_USER_MAX_LEN || count < MBOX_USER_CMD_LEN) {
 		dev_err(dev,
@@ -419,17 +532,23 @@ static ssize_t mbox_message_write(struct file *filp,
 	cl.tx_block = true;
 	cl.tx_tout = MBOX_TIME_OUT;
 	cl.rx_callback = NULL;
-	mutex_lock(&mbox_dev->mutex);
+	mbox_chan = mbox_get_channel(&cl, send_channel);
+	if (IS_ERR_OR_NULL(mbox_chan)) {
+		dev_err(dev, "Not have this chan\n");
+		ret = PTR_ERR(mbox_chan);
+		goto err_probe3;
+	}
+	mutex_lock(&mbox_chan->mutex);
 	chan = mbox_request_channel(&cl, send_channel);
 	if (IS_ERR(chan)) {
-		mutex_unlock(&mbox_dev->mutex);
+		mutex_unlock(&mbox_chan->mutex);
 		dev_err(dev, "Failed Req Chan\n");
 		ret = PTR_ERR(chan);
 		goto err_probe3;
 	}
 	ret = mbox_send_message(chan, (void *)(&data_buf));
 	mbox_free_channel(chan);
-	mutex_unlock(&mbox_dev->mutex);
+	mutex_unlock(&mbox_chan->mutex);
 	if (ret < 0) {
 		dev_err(dev, "Failed to send message via mailbox %d\n", ret);
 	} else {
@@ -562,11 +681,11 @@ static int mhu_cdev_init(struct device *dev, struct mhu_ctlr *mhu_ctlr)
 			dev_err(dev, "mbox unable to alloc dev\n");
 			goto out_err;
 		}
+		list_add_tail(&cur->char_list, &mbox_devs);
 
 		mhu_chan = &mhu_ctlr->channels[i * 2];
 		cur->channel_id = i * 2;
 		cur->char_no = MKDEV(char_major, i);
-		mutex_init(&cur->mutex);
 
 		if (!of_get_property(dev->of_node, "mbox-names", NULL)) {
 			dev_err(dev, "%s() get mbox name fail\n", __func__);
@@ -604,7 +723,6 @@ static int mhu_cdev_init(struct device *dev, struct mhu_ctlr *mhu_ctlr)
 			dev_err(dev, "mbox fail to create device\n");
 			goto out_err;
 		}
-		list_add_tail(&cur->char_list, &mbox_devs);
 	}
 	return 0;
 out_err:
@@ -780,6 +898,7 @@ static int mhu_fifo_probe(struct platform_device *pdev)
 		mhu_chan->mhu_id = mhu_ctlr->mhu_id[idx];
 		mhu_chan->ctlr = mhu_ctlr;
 		mbox_chans[idx].con_priv = mhu_chan;
+		mutex_init(&mbox_chans[idx].mutex);
 		pr_debug("%s, chan index: %d, idx: %d, mbu_id:%d\n",
 			 __func__, mhu_chan->index, idx, mhu_chan->mhu_id);
 		if (BIT(idx) & REV_MBOX_MASK)

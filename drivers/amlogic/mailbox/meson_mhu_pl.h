@@ -44,4 +44,6 @@
 
 int __init aml_mhu_pl_init(void);
 void aml_mhu_pl_exit(void);
+ssize_t mbox_message_send_pl(struct device *dev,
+			int cmd, void *data, int count, int idx);
 #endif

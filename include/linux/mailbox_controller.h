@@ -124,6 +124,9 @@ struct mbox_chan {
 	void *msg_data[MBOX_TX_QUEUE_LEN];
 	spinlock_t lock; /* Serialise access to the channel */
 	void *con_priv;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct mutex mutex;  /*for channel mutex*/
+#endif
 };
 
 int mbox_controller_register(struct mbox_controller *mbox); /* can sleep */

@@ -77,12 +77,36 @@ static ssize_t mbox_message_write(struct file *filp,
 				break;
 		}
 		mhu_dev->busy = true;
-		ret = mbox_message_send_ao_sync(dev, *(uint32_t *)data, data + CMD_LEN, count,
-				mhu_dev->data, count, idx);
+		ret = mbox_message_send_ao_sync(dev, *(uint32_t *)data,
+						data + CMD_LEN,
+						count - CMD_LEN,
+						mhu_dev->data,
+						count - CMD_LEN, idx);
 		mhu_dev->r_size = count;
 		break;
 	case MAILBOX_DSP:
-		ret = -EINVAL;
+		ret = copy_from_user(mhu_dev->data, userbuf + CMD_LEN,
+				     count - CMD_LEN);
+		if (ret) {
+			ret = -EFAULT;
+			goto err_probe0;
+		}
+		ret = mbox_message_send_data_sync(dev, *(uint32_t *)data,
+						  mhu_dev->data,
+						  count - CMD_LEN, idx);
+		mhu_dev->r_size = count - CMD_LEN;
+		break;
+	case MAILBOX_MF:
+		ret = copy_from_user(mhu_dev->data, userbuf + CMD_LEN,
+				     count - CMD_LEN);
+		if (ret) {
+			ret = -EFAULT;
+			goto err_probe0;
+		}
+		ret = mbox_message_send_data_sync(dev, *(uint32_t *)data,
+						  mhu_dev->data,
+						  count - CMD_LEN, idx);
+		mhu_dev->r_size = count - CMD_LEN;
 		break;
 	case MAILBOX_SECPU:
 		rx_size = count;
@@ -117,7 +141,8 @@ static ssize_t mbox_message_read(struct file *filp, char __user *userbuf,
 		count = MBOX_USER_SIZE;
 
 	size = count > mhu_dev->r_size ? mhu_dev->r_size : count;
-	if (dest == MAILBOX_AOCPU || dest == MAILBOX_SECPU) {
+	if (dest == MAILBOX_AOCPU || dest == MAILBOX_SECPU ||
+	    dest == MAILBOX_DSP || dest == MAILBOX_MF) {
 		*ppos = 0;
 		ret = simple_read_from_buffer(userbuf, size, ppos,
 					mhu_dev->data, size);

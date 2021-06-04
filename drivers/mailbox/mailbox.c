@@ -399,6 +399,43 @@ struct mbox_chan *mbox_request_channel(struct mbox_client *cl, int index)
 }
 EXPORT_SYMBOL_GPL(mbox_request_channel);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+struct mbox_chan *mbox_get_channel(struct mbox_client *cl, int index)
+{
+	struct device *dev = cl->dev;
+	struct mbox_controller *mbox;
+	struct of_phandle_args spec;
+	struct mbox_chan *chan;
+
+	if (!dev || !dev->of_node) {
+		pr_debug("%s: No owner device node\n", __func__);
+		return ERR_PTR(-ENODEV);
+	}
+
+	mutex_lock(&con_mutex);
+
+	if (of_parse_phandle_with_args(dev->of_node, "mboxes",
+				       "#mbox-cells", index, &spec)) {
+		dev_dbg(dev, "%s: can't parse \"mboxes\" property\n", __func__);
+		mutex_unlock(&con_mutex);
+		return ERR_PTR(-ENODEV);
+	}
+
+	chan = ERR_PTR(-EPROBE_DEFER);
+	list_for_each_entry(mbox, &mbox_cons, node)
+		if (mbox->dev->of_node == spec.np) {
+			chan = mbox->of_xlate(mbox, &spec);
+			break;
+		}
+
+	of_node_put(spec.np);
+
+	mutex_unlock(&con_mutex);
+	return chan;
+}
+EXPORT_SYMBOL_GPL(mbox_get_channel);
+#endif
+
 struct mbox_chan *mbox_request_channel_byname(struct mbox_client *cl,
 					      const char *name)
 {

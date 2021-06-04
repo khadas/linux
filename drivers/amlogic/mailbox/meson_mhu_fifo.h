@@ -56,4 +56,6 @@
 
 int __init aml_mhu_fifo_init(void);
 void aml_mhu_fifo_exit(void);
+ssize_t mbox_message_send_fifo(struct device *dev,
+				int cmd, void *data, int count, int idx);
 #endif

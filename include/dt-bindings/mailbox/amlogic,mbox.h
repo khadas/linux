@@ -9,7 +9,7 @@
 #define MAILBOX_AOCPU	1
 #define MAILBOX_DSP	2
 #define MAILBOX_SECPU	3
-#define MAILBOX_BL40	4
+#define MAILBOX_MF	4
 
 // P1 MBOX DEST
 #define P1_DSPA2REE     0

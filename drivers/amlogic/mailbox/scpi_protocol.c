@@ -1412,3 +1412,30 @@ int mbox_message_send_sec_sync(struct device *dev, int cmd, void *sdata,
 	return ret;
 }
 EXPORT_SYMBOL(mbox_message_send_sec_sync);
+
+int mbox_message_send_data_sync(struct device *dev, int cmd, void *data,
+			       int count, int idx)
+{
+	int ret;
+	int flag_mask = MASK_MHU_FIFO | MASK_MHU_PL;
+
+	if (count > MBOX_DATA_SIZE) {
+		pr_err("data size overflow, size %d, limit is %d\n",
+		       count, MBOX_DATA_SIZE);
+		return -ENOSPC;
+	}
+	switch (mhu_f & flag_mask) {
+	case MASK_MHU_FIFO:
+		ret = mbox_message_send_fifo(dev, cmd, data, count, idx);
+		break;
+	case MASK_MHU_PL:
+		ret = mbox_message_send_pl(dev, cmd, data, count, idx);
+		break;
+	default:
+		pr_err("Not support this %s\n", __func__);
+		ret = -1;
+		break;
+	};
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mbox_message_send_data_sync);
