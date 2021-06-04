@@ -938,15 +938,15 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	if (demod->last_lock != ilock) {
 		if (*status == (FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
 		    FE_HAS_VITERBI | FE_HAS_SYNC)) {
-			PR_INFO("%s [id %d]: !!  >> LOCK << !!, freq:%d\n",
+			PR_INFO("%s [id %d]: !!  >> LOCKT << !!, freq:%d\n",
 					__func__, demod->id, fe->dtv_property_cache.frequency);
 			demod->last_lock = ilock;
 		} else if (*status == FE_TIMEDOUT) {
-			PR_INFO("%s [id %d]: !!  >> UNLOCK << !!, freq:%d\n",
+			PR_INFO("%s [id %d]: !!  >> UNLOCKT << !!, freq:%d\n",
 				__func__, demod->id, fe->dtv_property_cache.frequency);
 			demod->last_lock = ilock;
 		} else {
-			PR_INFO("%s [id %d]: !!  >> WAIT << !!\n", __func__, demod->id);
+			PR_INFO("%s [id %d]: !!  >> WAITT << !!\n", __func__, demod->id);
 		}
 	}
 
@@ -1025,15 +1025,15 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	if (demod->last_lock != ilock) {
 		if (*status == (FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
 		    FE_HAS_VITERBI | FE_HAS_SYNC)) {
-			PR_INFO("%s [id %d]: !!  >> LOCK << !!, freq:%d\n",
+			PR_INFO("%s [id %d]: !!  >> LOCKT2 << !!, freq:%d\n",
 					__func__, demod->id, fe->dtv_property_cache.frequency);
 			demod->last_lock = ilock;
 		} else if (*status == FE_TIMEDOUT) {
-			PR_INFO("%s [id %d]: !!  >> UNLOCK << !!, freq:%d\n",
+			PR_INFO("%s [id %d]: !!  >> UNLOCKT2 << !!, freq:%d\n",
 				__func__, demod->id, fe->dtv_property_cache.frequency);
 			demod->last_lock = ilock;
 		} else {
-			PR_INFO("%s [id %d]: !!  >> WAIT << !!\n", __func__, demod->id);
+			PR_INFO("%s [id %d]: !!  >> WAITT2 << !!\n", __func__, demod->id);
 		}
 	}
 
@@ -2255,11 +2255,9 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 	else
 		PR_ERR("modulation is overflow\n");
 
-	if (devp->debug_on) {
-		PR_INFO("modulation:%d, code_rate: %d\n", modulation, code_rate);
-		PR_INFO("snr*10 = %d, snr_min_x10dB=%d, L1 POST:%d,LDPC:%d\n",
+	PR_DVBT("modulation:%d, code_rate: %d\n", modulation, code_rate);
+	PR_DVBT("snr*10 = %d, snr_min_x10dB=%d, L1 POST:%d,LDPC:%d\n",
 			snr * 10, snr_min_x10db, l1_post_decoded, ldpc);
-	}
 
 	return 0;
 }
