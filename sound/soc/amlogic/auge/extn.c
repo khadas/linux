@@ -32,6 +32,8 @@
 #include "earc.h"
 
 #include "../common/misc.h"
+#include "../common/debug.h"
+
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
@@ -123,6 +125,8 @@ static const struct snd_pcm_hardware extn_hardware = {
 	.channels_max = 32,
 };
 
+static snd_pcm_uframes_t extn_pointer(struct snd_pcm_substream *substream);
+
 int get_hdmirx_mode(void)
 {
 	if (s_extn)
@@ -151,29 +155,45 @@ static irqreturn_t extn_ddr_isr(int irq, void *devid)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct device *dev = rtd->cpu_dai->dev;
 	struct extn *p_extn = (struct extn *)dev_get_drvdata(dev);
+	unsigned int period_dur_ms = 0;
 
 	if (!snd_pcm_running(substream))
 		return IRQ_HANDLED;
 
 	snd_pcm_period_elapsed(substream);
 
+#ifdef DEBUG_IRQ
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE && p_extn->tddr) {
+		unsigned int addr = extn_pointer(substream);
+		struct snd_pcm_runtime *runtime = substream->runtime;
+
+		get_time_stamp(TODDR, p_extn->tddr->fifo_id, addr,
+			(runtime->control->appl_ptr) % (runtime->buffer_size),
+			runtime->buffer_size);
+	}
+#endif
+
 	if (p_extn->frhdmirx_version == T7_FRHDMIRX) {
 		frhdmirx_clr_SPDIF_irq_bits_for_t7_version();
 		return IRQ_HANDLED;
 	}
 
+	period_dur_ms = substream->runtime->period_size * 1000 / substream->runtime->rate;
+
 	/* check pcm or nonpcm for PAO*/
 	if (p_extn->hdmirx_mode == HDMIRX_MODE_PAO) {
-		int timeout_thres = 5;
+		/* by default, we check about 100 ms duration for the
+		 * hdmirx data pipeline, if no PaPb there after 100ms, clear the PaPb flag
+		 */
+		unsigned int timeout_thres = 100 / period_dur_ms;
+
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 		int sample_rate_index = get_hdmi_sample_rate_index();
 
 		/*192K audio*/
 		if (sample_rate_index == 7)
-			timeout_thres = 10;
-		else
-			timeout_thres = 5;
+			timeout_thres = timeout_thres * 2;
 #endif
 		if (p_extn->frhdmirx_last_cnt == p_extn->frhdmirx_cnt) {
 			p_extn->frhdmirx_same_cnt++;
@@ -367,8 +387,10 @@ static snd_pcm_uframes_t extn_pointer(struct snd_pcm_substream *substream)
 		addr = aml_toddr_get_position(p_extn->tddr);
 
 	frames = bytes_to_frames(runtime, addr - start_addr);
-	if (frames > runtime->buffer_size)
+	if (frames > runtime->buffer_size) {
 		frames = 0;
+		pr_err("hw pointer is invalid: %s\n", __func__);
+	}
 
 	return frames;
 }

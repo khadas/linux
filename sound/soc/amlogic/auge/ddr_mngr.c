@@ -30,12 +30,12 @@
 #include "extn.h"
 #include "frhdmirx_hw.h"
 #include "earc.h"
+#include "../common/debug.h"
 
 #define DRV_NAME "audio-ddr-manager"
 
 static DEFINE_MUTEX(ddr_mutex);
 
-#define DDRMAX 4
 static struct frddr frddrs[DDRMAX];
 static struct toddr toddrs[DDRMAX];
 
@@ -1874,6 +1874,22 @@ static int frddr_src_enum_set(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#ifdef DEBUG_IRQ
+static int ddr_debug_set(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	set_ddr_debug(ucontrol->value.enumerated.item[0]);
+	return 0;
+}
+
+static int ddr_debug_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = get_ddr_debug();
+	return 0;
+}
+#endif
+
 static const struct snd_kcontrol_new snd_ddr_controls[] = {
 	SOC_ENUM_EXT("Audio In Source",
 		toddr_input_source_enum,
@@ -1883,6 +1899,12 @@ static const struct snd_kcontrol_new snd_ddr_controls[] = {
 		toddr_input_source_enum,
 		frddr_src_enum_get,
 		frddr_src_enum_set),
+#ifdef DEBUG_IRQ
+	SOC_SINGLE_BOOL_EXT("Audio DDR DEBUG",
+		0,
+		ddr_debug_get,
+		ddr_debug_set),
+#endif
 };
 
 int card_add_ddr_kcontrols(struct snd_soc_card *card)

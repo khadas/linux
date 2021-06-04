@@ -38,8 +38,11 @@
 #include "effects_v2.h"
 #include "spdif.h"
 
+#include "../common/debug.h"
+
 #define DRV_NAME "snd_tdm"
 
+static snd_pcm_uframes_t aml_tdm_pointer(struct snd_pcm_substream *substream);
 static void dump_pcm_setting(struct pcm_setting *setting)
 {
 	if (!setting)
@@ -615,6 +618,17 @@ static irqreturn_t aml_tdm_ddr_isr(int irq, void *devid)
 		pr_info("%s(), reset tdmin, jiffies:%lu\n", __func__, jiffies);
 		snd_pcm_stop_xrun(substream);
 	}
+
+#ifdef DEBUG_IRQ
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK && p_tdm->fddr) {
+		unsigned int addr = aml_tdm_pointer(substream);
+		struct snd_pcm_runtime *runtime = substream->runtime;
+
+		get_time_stamp(FRDDR, p_tdm->fddr->fifo_id, addr,
+			(runtime->control->appl_ptr) % (runtime->buffer_size),
+			runtime->buffer_size);
+	}
+#endif
 
 	snd_pcm_period_elapsed(substream);
 
