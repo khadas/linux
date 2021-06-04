@@ -50,7 +50,11 @@ static const char *handler[]= {
 	"Error"
 };
 
+#ifndef CONFIG_AMLOGIC_USER_FAULT
 int show_unhandled_signals = 0;
+#else
+int show_unhandled_signals = 1;
+#endif
 
 #ifdef CONFIG_AMLOGIC_VMAP
 static void dump_backtrace_entry(unsigned long ip, unsigned long fp,
@@ -350,9 +354,16 @@ static void arm64_show_signal(int signo, const char *str)
 	struct pt_regs *regs = task_pt_regs(tsk);
 
 	/* Leave if the signal won't be shown */
+#ifndef CONFIG_AMLOGIC_USER_FAULT
 	if (!show_unhandled_signals ||
 	    !unhandled_signal(tsk, signo) ||
 	    !__ratelimit(&rs))
+#else
+	if ((!show_unhandled_signals &&
+	     !unhandled_signal(tsk, signo)) ||
+	     !__ratelimit(&rs))
+
+#endif
 		return;
 
 	pr_info("%s[%d]: unhandled exception: ", tsk->comm, task_pid_nr(tsk));
@@ -365,6 +376,9 @@ static void arm64_show_signal(int signo, const char *str)
 	__show_regs(regs);
 #ifdef CONFIG_AMLOGIC_USER_FAULT
 	show_all_pfn(current, regs);
+	if (regs && kexec_should_crash(current) && (show_unhandled_signals & 2))
+		crash_kexec(regs);
+
 #endif
 }
 
