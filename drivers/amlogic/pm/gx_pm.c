@@ -227,8 +227,12 @@ static unsigned long __invoke_psci_fn_smc(unsigned long function_id,
 static void __iomem *debug_reg;
 static void __iomem *exit_reg;
 static suspend_state_t pm_state;
+static unsigned int resume_reason;
 
-unsigned int get_resume_method(void)
+/*
+ * get_resume_reason always return last resume reason.
+ */
+unsigned int get_resume_reason(void)
 {
 	unsigned int val = 0;
 
@@ -237,7 +241,35 @@ unsigned int get_resume_method(void)
 		val = readl_relaxed(exit_reg) & 0xf;
 	return val;
 }
+EXPORT_SYMBOL_GPL(get_resume_reason);
+
+/*
+ * get_resume_method return last resume reason.
+ * It can be cleared by clr_resume_method().
+ */
+unsigned int get_resume_method(void)
+{
+	return resume_reason;
+}
 EXPORT_SYMBOL_GPL(get_resume_method);
+
+static void set_resume_method(unsigned int val)
+{
+	resume_reason = val;
+}
+
+static int clr_suspend_notify(struct notifier_block *nb,
+				     unsigned long event, void *dummy)
+{
+	if (event == PM_SUSPEND_PREPARE)
+		set_resume_method(UDEFINED_WAKEUP);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block clr_suspend_notifier = {
+	.notifier_call = clr_suspend_notify,
+};
 
 unsigned int is_pm_s2idle_mode(void)
 {
@@ -341,6 +373,7 @@ int gx_pm_syscore_suspend(void)
 void gx_pm_syscore_resume(void)
 {
 	sys_time_out = 0;
+	set_resume_method(get_resume_reason());
 }
 
 static struct syscore_ops gx_pm_syscore_ops = {
@@ -384,6 +417,10 @@ static int meson_pm_probe(struct platform_device *pdev)
 	if (unlikely(err))
 		return err;
 #endif
+
+	err = register_pm_notifier(&clr_suspend_notifier);
+	if (unlikely(err))
+		return err;
 
 	pr_info("%s done\n", __func__);
 	return 0;
