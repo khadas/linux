@@ -4488,8 +4488,11 @@ static void aml_dtvdemod_shutdown(struct platform_device *pdev)
 		 * But need to reinitialize it.
 		 */
 		if (devp->state != DTVDEMOD_ST_IDLE) {
-			if (demod->last_delsys != SYS_UNDEFINED)
+			if (demod->last_delsys != SYS_UNDEFINED) {
 				leave_mode(demod, demod->last_delsys);
+				if (demod->frontend.ops.tuner_ops.release)
+					demod->frontend.ops.tuner_ops.release(&demod->frontend);
+			}
 		}
 	}
 
@@ -4548,8 +4551,11 @@ static int dtvdemod_leave_mode(struct amldtvdemod_device_s *devp)
 		 */
 		delsys = demod->last_delsys;
 		PR_INFO("%s, delsys = %s\n", __func__, name_fe_delivery_system[delsys]);
-		if (delsys != SYS_UNDEFINED)
+		if (delsys != SYS_UNDEFINED) {
 			leave_mode(demod, delsys);
+			if (demod->frontend.ops.tuner_ops.release)
+				demod->frontend.ops.tuner_ops.release(&demod->frontend);
+		}
 	}
 
 	return 0;
