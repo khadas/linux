@@ -11541,8 +11541,9 @@ int osd_setting_blend(u32 output_index)
 		}
 	}
 
+#ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 	check_and_reverse_axis(start_index, osd_count, output_index);
-
+#endif
 	if (osd_hw.osd_meson_dev.osd_ver < OSD_HIGH_ONE) {
 		osd_setting_old_hwc();
 	} else {
@@ -13486,17 +13487,24 @@ void osd_get_screen_info(u32 index,
 
 void osd_get_fence_count(u32 index, u32 *fence_cnt, u32 *timeline_cnt)
 {
+#ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 	u32 output_index;
 	struct sync_timeline *tl = NULL;
+#endif
 
 	if (index >= OSD_MAX || !fence_cnt || !timeline_cnt)
 		return;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 	output_index = get_output_device_id(index);
 	tl = (struct sync_timeline *)osd_timeline[output_index];
 
 	*fence_cnt = cur_streamline_val[output_index];
 	*timeline_cnt = tl ? tl->value : 0;
+#else
+	*fence_cnt = 0;
+	*timeline_cnt = 0;
+#endif
 }
 
 int get_vmap_addr(u32 index, u8 __iomem **buf)

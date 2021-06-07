@@ -1359,7 +1359,7 @@
 };
 
 &sd_emmc_c {
-	status = "okay";
+	status = "disable";
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -1379,7 +1379,7 @@
 };
 
 &mtd_nand {
-	status = "disabled";
+	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;
 
@@ -1425,7 +1425,7 @@
 		};
 		partition@4 {
 			label = "logo";
-			reg = <0x0 0x00200000>;
+			reg = <0x0 0x200000>;
 		};
 		partition@5 {
 			label = "recovery";
@@ -1433,11 +1433,11 @@
 		};
 		partition@6 {
 			label = "boot";
-			reg = <0x0 0x0F00000>;
+			reg = <0x0 0x1000000>;
 		};
 		partition@7 {
 			label = "system";
-			reg = <0x0 0x11800000>;
+			reg = <0x0 0x8000000>;
 		};
 		partition@8 {
 			label = "data";
