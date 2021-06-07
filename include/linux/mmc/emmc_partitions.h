@@ -63,6 +63,7 @@ struct mmc_partitions_fmt {
 
 /*#ifdef CONFIG_MMC_AML*/
 int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk);
+int add_fake_boot_partition(struct gendisk *disk, char *name, int idx);
 /*
  *#else
  *static inline int aml_emmc_partition_ops(struct mmc_card *card,
