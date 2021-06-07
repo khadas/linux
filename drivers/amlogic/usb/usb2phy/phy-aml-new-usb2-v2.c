@@ -17,11 +17,12 @@
 #include <linux/amlogic/power_ctrl.h>
 #include <linux/amlogic/usb-v2.h>
 #include <linux/amlogic/usbtype.h>
+#include <linux/amlogic/cpu_version.h>
 #include "../phy/phy-aml-new-usb-v2.h"
 
 struct amlogic_usb_v2	*g_phy2_v2;
 char name[32];
-#define TUNING_DISCONNECT_THRESHOLD 0x34
+#define TUNING_DISCONNECT_THRESHOLD 0x3c
 
 void set_usb_phy_host_tuning(int port, int default_val)
 {
@@ -142,7 +143,17 @@ void set_usb_pll(struct amlogic_usb_v2 *phy, void __iomem	*reg)
 					val = 0x800001f;
 				writel(val | readl(reg + 0x10), reg + 0x10);
 			}
-
+			/*new disconnect threshold 0x38: t3 bit[27-28], t7,s4 bit[26-27] */
+			val = readl(reg + 0x38);
+			if (is_meson_s4_cpu() || is_meson_s4d_cpu() ||
+				is_meson_t7_cpu()) {
+				val &= ~0xc000000;
+				val |= (phy->pll_dis_thred_enhance << 26 & 0xc000000);
+			} else {
+				val &= ~0x18000000;
+				val |= (phy->pll_dis_thred_enhance << 27 & 0x18000000);
+			}
+			writel(val, reg + 0x38);
 			writel(0x78000, reg + 0x34);
 		} else {
 			writel(phy->pll_setting[3], reg + 0x50);
@@ -295,6 +306,7 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 	int i = 0;
 	int retval;
 	u32 pll_setting[8];
+	u32 pll_disconnect_enhance;
 	u32 phy_reset_level_bit[USB_PHY_MAX_NUMBER] = {-1};
 	u32 usb_reset_bit = 2;
 	u32 otg_phy_index = 1;
@@ -446,6 +458,10 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 			"pll-setting-8", &(pll_setting[7]));
 	if (retval < 0)
 		return -EINVAL;
+	retval = of_property_read_u32(dev->of_node,
+		"dis-thred-enhance", &pll_disconnect_enhance);
+	if (retval < 0)
+		pll_disconnect_enhance = 0;
 
 	dev_info(&pdev->dev, "USB2 phy probe:phy_mem:0x%lx, iomap phy_base:0x%lx\n",
 			(unsigned long)phy_mem->start, (unsigned long)phy_base);
@@ -468,6 +484,7 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 	phy->pll_setting[5] = pll_setting[5];
 	phy->pll_setting[6] = pll_setting[6];
 	phy->pll_setting[7] = pll_setting[7];
+	phy->pll_dis_thred_enhance = pll_disconnect_enhance;
 	phy->suspend_flag = 0;
 	phy->phy_version = phy_version;
 	phy->otg_phy_index = otg_phy_index;
