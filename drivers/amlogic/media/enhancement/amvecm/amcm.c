@@ -257,6 +257,12 @@ void am_set_regmap(struct am_regs_s *p)
 					if (!lc_en)
 						val = val & 0xffffffef;
 				}
+
+				if (lc_curve_ctrl_reg_set_flag(addr)) {
+					mask |= 0x1;
+					val |= 0x1;
+				}
+
 				if (pq_reg_wr_rdma) {
 					temp = READ_VPP_REG(addr);
 					VSYNC_WR_MPEG_REG(addr,

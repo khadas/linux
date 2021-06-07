@@ -127,5 +127,7 @@ void lc_process(struct vframe_s *vf,
 void lc_free(void);
 void lc_read_region(int blk_vnum, int blk_hnum);
 void lc_disable(void);
+bool lc_curve_ctrl_reg_set_flag(unsigned int addr);
+
 #endif
 

@@ -1893,6 +1893,20 @@ void lc_init(int bitdepth)
 		pr_info("%s: init fail", __func__);
 }
 
+bool lc_curve_ctrl_reg_set_flag(unsigned int addr)
+{
+	bool lc_config_set_flag = false;
+
+	if (addr == LC_CURVE_CTRL) {
+		if (lc_en && lc_flag > 1)
+			lc_config_set_flag = true;
+		else
+			lc_config_set_flag = false;
+	}
+
+	return lc_config_set_flag;
+}
+
 void lc_process(struct vframe_s *vf,
 		unsigned int sps_h_en,
 	unsigned int sps_v_en,
