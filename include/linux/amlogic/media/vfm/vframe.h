@@ -393,6 +393,13 @@ struct componser_info_t {
 	int axis[MAX_COMPOSER_COUNT][AXIS_INFO_COUNT];
 };
 
+struct nn_value_t {
+	int maxclass;
+	int maxprob;
+};
+
+#define AI_PQ_TOP 5
+
 struct dcntr_mem_s {
 	u32 index;
 	u32 grd_addr;
@@ -625,6 +632,7 @@ struct vframe_s {
 
 	/*for double write VP9/AV1 vf*/
 	void *mem_dw_handle;
+	struct nn_value_t nn_value[AI_PQ_TOP];
 	struct dma_fence *fence;
 		/*current is dv input*/
 	bool dv_input;
@@ -636,6 +644,7 @@ struct vframe_s {
 
 	/* currently only for keystone use */
 	unsigned int crc;
+	bool ai_pq_enable;
 	struct componser_info_t *componser_info;
 	void *decontour_pre;
 

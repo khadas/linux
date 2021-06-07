@@ -107,7 +107,7 @@ int smooth_process(int base_val, int reg_val, int offset, int bld_rs)
 
 int blue_scene_process(int offset, int enable)
 {
-	int bld_rs = 4;
+	int bld_rs = 1;
 	static int reg_val;
 	int base_val = 0;
 	int bld_offset;
@@ -164,7 +164,7 @@ int blue_scene_process(int offset, int enable)
 
 int green_scene_process(int offset, int enable)
 {
-	int bld_rs = 4;
+	int bld_rs = 1;
 	static int reg_val;
 	int base_val = 0;
 	int bld_offset;
@@ -220,7 +220,7 @@ int green_scene_process(int offset, int enable)
 
 int peaking_scene_process(int offset, int enable)
 {
-	int bld_rs = 4;
+	int bld_rs = 1;
 	static int reg_val[4];
 	int base_val[4];
 	int bld_offset[4];
@@ -348,7 +348,7 @@ int contrast_scene_process(int offset, int enable)
 
 int skintone_scene_process(int offset, int enable)
 {
-	int bld_rs = 4;
+	int bld_rs = 1;
 	static int reg_val;
 	int base_val = 0;
 	int bld_offset;
@@ -404,7 +404,7 @@ int skintone_scene_process(int offset, int enable)
 
 int saturation_scene_process(int offset, int enable)
 {
-	int bld_rs = 4;
+	int bld_rs = 1;
 	static int reg_val;
 	int base_val;
 	int bld_offset;
@@ -496,7 +496,7 @@ int aipq_base_peaking_param(unsigned int reg,
 			    unsigned int mask,
 			    unsigned int value)
 {
-	if (reg == SRSHARP0_PK_FINALGAIN_HP_BP &&
+	if (reg == offset_addr(SRSHARP0_PK_FINALGAIN_HP_BP) &&
 	    (mask & 0xffff) == 0xffff) {
 		adap_param->peaking_param.sr0_hp_final_gain =
 			(value >> 8) & 0xff;
@@ -504,7 +504,7 @@ int aipq_base_peaking_param(unsigned int reg,
 			value & 0xff;
 	}
 
-	if (reg == SRSHARP1_PK_FINALGAIN_HP_BP &&
+	if (reg == offset_addr(SRSHARP1_PK_FINALGAIN_HP_BP) &&
 	    (mask & 0xffff) == 0xffff) {
 		adap_param->peaking_param.sr1_hp_final_gain =
 			(value >> 8) & 0xff;

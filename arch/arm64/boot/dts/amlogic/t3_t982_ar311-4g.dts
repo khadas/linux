@@ -204,7 +204,7 @@
 	vdetect {
 		compatible = "amlogic, vdetect";
 		dev_name = "vdetect";
-		status = "disabled";
+		status = "okay";
 	};
 
 	amlvideo2_0 {

@@ -346,6 +346,20 @@ static inline int aml_vecm_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_VDETECT
+int vdetect_init(void);
+void vdetect_exit(void);
+#else
+static inline int vdetect_init(void)
+{
+	return 0;
+}
+
+static inline void vdetect_exit(void)
+{
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 int frc_init(void);
 #else

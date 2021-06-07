@@ -6,3 +6,4 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VIDEO) += video_sink/video_receiver.
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VIDEO) += video_sink/video_reg.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VIDEO) += video_sink/video_signal_notify.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VIDEO) += video_sink/video_multi_vsync.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VIDEO) += video_sink/vpp_pq_process.o

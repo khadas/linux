@@ -61,6 +61,7 @@
 #include <linux/amlogic/media/frame_sync/tsync.h>
 #endif
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+#include "vpp_pq.h"
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
 #include <linux/amlogic/media/utils/vdec_reg.h>
@@ -144,6 +145,46 @@ int video_vsync_viu2 = -ENXIO;
 int video_vsync_viu3 = -ENXIO;
 int video_pre_vsync = -ENXIO;
 
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+unsigned int det_stb_cnt = 30;
+unsigned int det_unstb_cnt = 20;
+unsigned int tolrnc_cnt = 6;
+unsigned int timer_filter_en;
+unsigned int aipq_set_policy;
+unsigned int color_th = 100;
+
+u32 get_stb_cnt(void)
+{
+	return det_stb_cnt;
+}
+
+u32 get_unstb_cnt(void)
+{
+	return det_unstb_cnt;
+}
+
+u32 get_tolrnc_cnt(void)
+{
+	return tolrnc_cnt;
+}
+
+u32 get_timer_filter_en(void)
+{
+	return timer_filter_en;
+}
+
+u32 get_aipq_set_policy(void)
+{
+	return aipq_set_policy;
+}
+
+u32 get_color_th(void)
+{
+	return color_th;
+}
+#endif
+
+static struct ai_scenes_pq vpp_scenes[AI_SCENES_MAX];
 static u32 cur_omx_index;
 
 struct video_frame_detect_s {
@@ -182,6 +223,7 @@ static int hold_property_changed;
 static struct video_frame_detect_s video_frame_detect;
 static long long time_setomxpts;
 static long long time_setomxpts_last;
+struct nn_value_t nn_scenes_value[AI_PQ_TOP];
 
 /*----omx_info  bit0: keep_last_frame, bit1~31: unused----*/
 static u32 omx_info = 0x1;
@@ -5750,6 +5792,11 @@ static void blend_reg_conflict_detect(void)
 	}
 }
 
+static int ai_pq_disable;
+static int ai_pq_debug;
+static int ai_pq_value = -1;
+static int ai_pq_policy = 1;
+
 #ifdef FIQ_VSYNC
 void vsync_fisr_in(void)
 #else
@@ -5789,6 +5836,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	s32 vd3_path_id = glayer_info[2].display_path_id;
 	int axis[4];
 	int crop[4];
+	int pq_process_debug[4];
 	enum vframe_signal_fmt_e fmt;
 	int i, j = 0;
 
@@ -8315,6 +8363,21 @@ SET_FILTER:
 				di_post_vf);
 		di_post_process_done = true;
 	}
+
+	if (vd_layer[0].dispbuf) {
+		pq_process_debug[0] = ai_pq_value;
+		pq_process_debug[1] = ai_pq_disable;
+		pq_process_debug[2] = ai_pq_debug;
+		pq_process_debug[3] = ai_pq_policy;
+		vf_pq_process(vd_layer[0].dispbuf, vpp_scenes, pq_process_debug);
+		if (ai_pq_debug > 0x10) {
+			ai_pq_debug--;
+			if (ai_pq_debug == 0x10)
+				ai_pq_debug = 0;
+		}
+		memcpy(nn_scenes_value, vd_layer[0].dispbuf->nn_value,
+		       sizeof(nn_scenes_value));
+	}
 exit:
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	if (legacy_vpp &&
@@ -8964,6 +9027,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		avsync_count = 0;
 		timestamp_avsync_counter_set(avsync_count);
 #endif
+		nn_scenes_value[0].maxprob = 0;
 		//init_hdr_info();
 		mutex_lock(&omx_mutex);
 		omx_continuous_drop_count = 0;
@@ -8979,8 +9043,10 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		update_process_hdmi_avsync_flag(false);
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
 		video_vf_light_unreg_provider(1);
+		nn_scenes_value[0].maxprob = 0;
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG) {
 		video_vf_light_unreg_provider(0);
+		nn_scenes_value[0].maxprob = 0;
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
 		video_drop_vf_cnt = 0;
 		enable_video_discontinue_report = 1;
@@ -14381,19 +14447,99 @@ static ssize_t pip_alpha_store
 	return strnlen(buf, count);
 }
 
-static ssize_t hscaler_8tap_enable_show
-	(struct class *cla,
-	struct class_attribute *attr,
-	char *buf)
+/*
+ * default setting scenes is 23
+ */
+static ssize_t pq_default_show(struct class *cla,
+			       struct class_attribute *attr, char *buf)
+{
+	ssize_t count;
+	int i = 0;
+	char end[4] = "\n";
+	char temp[20] = "default scene pq:";
+
+	count = sprintf(buf, "%s", temp);
+	while (i < SCENES_VALUE)
+		count += sprintf(buf + count, " %d",
+				 vpp_scenes[AI_SCENES_MAX - 1].pq_values[i++]);
+	count += sprintf(buf + count, " %s", end);
+	return count;
+}
+
+static ssize_t pq_default_store(struct class *cla,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	int i = 0;
+	int parsed[SCENES_VALUE];
+
+	if (likely(parse_para(buf, SCENES_VALUE, parsed) == SCENES_VALUE)) {
+		vpp_scenes[AI_SCENES_MAX - 1].pq_scenes = DEFAUT_SETTING;
+		while (i < SCENES_VALUE) {
+			vpp_scenes[AI_SCENES_MAX - 1].pq_values[i] = parsed[i];
+			i++;
+		}
+	}
+	i = 0;
+	pr_info("the default scene pq param: ");
+	while (i < SCENES_VALUE)
+		pr_info("%d ", vpp_scenes[AI_SCENES_MAX - 1].pq_values[i++]);
+	pr_info("\n");
+
+	return strnlen(buf, count);
+}
+
+static ssize_t pq_data_store(struct class *cla,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
+
+{
+	int parsed[4];
+	ssize_t buflen;
+	int ret;
+
+	buflen = strlen(buf);
+	if (buflen <= 0)
+		return 0;
+
+	ret = parse_para(buf, 4, parsed);
+	if (ret == 4 && parsed[0]) {
+		if (parsed[1] < AI_SCENES_MAX && parsed[1] >= 0 &&
+		    parsed[2] < SCENES_VALUE && parsed[2] >= 0 &&
+		    parsed[3] >= 0) {
+			vpp_scenes[parsed[1]].pq_scenes = parsed[1];
+			vpp_scenes[parsed[1]].pq_values[parsed[2]] = parsed[3];
+
+		} else {
+			pr_info("the 2nd param: 0~23,the 3rd param: 0~9,the 4th param: >=0\n");
+		}
+	} else if (ret == 3 && parsed[0] == 0) {
+		if (parsed[1] < AI_SCENES_MAX && parsed[1] >= 0 &&
+		    parsed[2] < SCENES_VALUE && parsed[2] >= 0)
+			pr_info("pq value: %d\n",
+				vpp_scenes[parsed[1]].pq_values[parsed[2]]);
+		else
+			pr_info("the 2nd param: 0~23,the 3rd param: 0~9\n");
+	} else {
+		if (parsed[0] == 0)
+			pr_info("1st param 0 is to read pq value,need set 3 param\n");
+		else
+			pr_info("1st param 1 is to set pq value,need set 4 param\n");
+	}
+	return strnlen(buf, count);
+}
+
+static ssize_t hscaler_8tap_enable_show(struct class *cla,
+					struct class_attribute *attr,
+					char *buf)
 {
 	return snprintf(buf, 64, "hscaler_8tap_en: %d\n\n",
 		hscaler_8tap_enable[0]);
 }
 
-static ssize_t hscaler_8tap_enable_store
-	(struct class *cla,
-	struct class_attribute *attr,
-	const char *buf, size_t count)
+static ssize_t hscaler_8tap_enable_store(struct class *cla,
+					 struct class_attribute *attr,
+					 const char *buf, size_t count)
 {
 	int ret;
 	int hscaler_8tap_en;
@@ -14512,6 +14658,32 @@ static ssize_t pre_hscaler_ntap_set_show
 		pre_hscaler_ntap[0],
 		pre_hscaler_ntap[1],
 		pre_hscaler_ntap[2]);
+}
+
+static ssize_t cur_ai_scenes_show(struct class *cla,
+				  struct class_attribute *attr, char *buf)
+{
+	ssize_t count;
+	int i = 0;
+
+	if (!vd_layer[0].dispbuf)
+		return 0;
+
+	if (nn_scenes_value[0].maxprob == 0)
+		return 0;
+	if (vd_layer[0].disable_video == 1 ||
+	    vd_layer[0].global_output == 0)
+		return 0;
+	count = 0;
+	while (i < AI_PQ_TOP) {
+		count += sprintf(buf + count, "%d:",
+			nn_scenes_value[i].maxclass);
+		count += sprintf(buf + count, "%d;",
+			nn_scenes_value[i].maxprob);
+		i++;
+	}
+	count += sprintf(buf + count, "\n");
+	return count;
 }
 
 static ssize_t pre_hscaler_ntap_set_store
@@ -14910,6 +15082,228 @@ static ssize_t pps_auto_calc_store(struct class *cla,
 	return count;
 }
 
+static ssize_t ai_pq_disable_show(struct class *cla,
+				  struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "ai_pq_disable: %d\n", ai_pq_disable);
+}
+
+static ssize_t ai_pq_disable_store(struct class *cla,
+				   struct class_attribute *attr,
+				   const char *buf, size_t count)
+{
+	long tmp;
+
+	int ret = kstrtol(buf, 0, &tmp);
+
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	ai_pq_disable = tmp;
+	return count;
+}
+
+static ssize_t ai_pq_debug_show(struct class *cla,
+				struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "ai_pq_debug: %d\n", ai_pq_debug);
+}
+
+static ssize_t ai_pq_debug_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	long tmp;
+
+	int ret = kstrtol(buf, 0, &tmp);
+
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	ai_pq_debug = tmp;
+	return count;
+}
+
+static ssize_t ai_pq_value_show(struct class *cla,
+				struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "ai_pq_value: %d\n", ai_pq_value);
+}
+
+static ssize_t ai_pq_value_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	long tmp;
+
+	int ret = kstrtol(buf, 0, &tmp);
+
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	ai_pq_value = tmp;
+	return count;
+}
+
+static ssize_t ai_pq_policy_show(struct class *cla,
+				 struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "ai_pq_policy: %d\n", ai_pq_policy);
+}
+
+static ssize_t ai_pq_policy_store(struct class *cla,
+				  struct class_attribute *attr,
+				  const char *buf, size_t count)
+{
+	long tmp;
+
+	int ret = kstrtol(buf, 0, &tmp);
+
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	ai_pq_policy = tmp;
+	return count;
+}
+
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+static ssize_t det_stb_cnt_show(struct class *cla,
+				struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "det_stb_cnt: %d\n", det_stb_cnt);
+}
+
+static ssize_t det_stb_cnt_store(struct class *cla,
+				 struct class_attribute *attr,
+				 const char *buf, size_t count)
+{
+	long tmp;
+
+	int ret = kstrtol(buf, 0, &tmp);
+
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	det_stb_cnt = tmp;
+	return count;
+}
+
+static ssize_t det_unstb_cnt_show(struct class *cla,
+				  struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "det_unstb_cnt: %d\n", det_unstb_cnt);
+}
+
+static ssize_t det_unstb_cnt_store(struct class *cla,
+				   struct class_attribute *attr,
+				   const char *buf, size_t count)
+{
+	long tmp;
+
+	int ret = kstrtol(buf, 0, &tmp);
+
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	det_unstb_cnt = tmp;
+	return count;
+}
+
+static ssize_t tolrnc_cnt_show(struct class *cla,
+			       struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "tolrnc_cnt: %d\n", tolrnc_cnt);
+}
+
+static ssize_t tolrnc_cnt_store(struct class *cla,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+
+	int ret = kstrtol(buf, 0, &tmp);
+
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	tolrnc_cnt = tmp;
+	return count;
+}
+
+static ssize_t timer_filter_en_show(struct class *cla,
+				    struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "timer_filter_en: %d\n", timer_filter_en);
+}
+
+static ssize_t timer_filter_en_store(struct class *cla,
+				     struct class_attribute *attr,
+				     const char *buf, size_t count)
+{
+	long tmp;
+
+	int ret = kstrtol(buf, 0, &tmp);
+
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	timer_filter_en = tmp;
+	return count;
+}
+
+static ssize_t aipq_set_policy_show(struct class *cla,
+				    struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "aipq_set_policy: %d\n", aipq_set_policy);
+}
+
+static ssize_t aipq_set_policy_store(struct class *cla,
+				     struct class_attribute *attr,
+				     const char *buf, size_t count)
+{
+	long tmp;
+
+	int ret = kstrtol(buf, 0, &tmp);
+
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	aipq_set_policy = tmp;
+	return count;
+}
+
+static ssize_t color_th_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "color_th: %d\n", color_th);
+}
+
+static ssize_t color_th_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	long tmp;
+
+	int ret = kstrtol(buf, 0, &tmp);
+
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	color_th = tmp;
+	return count;
+}
+#endif
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -15209,6 +15603,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       film_grain_show,
 	       film_grain_store),
+	__ATTR(pq_default,
+	       0664,
+	       pq_default_show,
+	       pq_default_store),
 	__ATTR(hscaler_8tap_en,
 	       0664,
 	       hscaler_8tap_enable_show,
@@ -15233,6 +15631,8 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       pre_vscaler_ntap_enable_show,
 	       pre_vscaler_ntap_enable_store),
+	__ATTR_WO(pq_data),
+	__ATTR_RO(cur_ai_scenes),
 	__ATTR(pre_vscaler_ntap,
 	       0664,
 	       pre_vscaler_ntap_set_show,
@@ -15293,6 +15693,48 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       pps_auto_calc_show,
 	       pps_auto_calc_store),
+	__ATTR(ai_pq_disable,
+	       0664,
+	       ai_pq_disable_show,
+	       ai_pq_disable_store),
+	__ATTR(ai_pq_debug,
+	       0664,
+	       ai_pq_debug_show,
+	       ai_pq_debug_store),
+	__ATTR(ai_pq_value,
+	       0664,
+	       ai_pq_value_show,
+	       ai_pq_value_store),
+	__ATTR(ai_pq_policy,
+	       0664,
+	       ai_pq_policy_show,
+	       ai_pq_policy_store),
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+	__ATTR(det_stb_cnt,
+	       0664,
+	       det_stb_cnt_show,
+	       det_stb_cnt_store),
+	__ATTR(det_unstb_cnt,
+	       0664,
+	       det_unstb_cnt_show,
+	       det_unstb_cnt_store),
+	__ATTR(tolrnc_cnt,
+	       0664,
+	       tolrnc_cnt_show,
+	       tolrnc_cnt_store),
+	__ATTR(timer_filter_en,
+	       0664,
+	       timer_filter_en_show,
+	       timer_filter_en_store),
+	__ATTR(aipq_set_policy,
+	       0664,
+	       aipq_set_policy_show,
+	       aipq_set_policy_store),
+	__ATTR(color_th,
+	       0664,
+	       color_th_show,
+	       color_th_store),
+#endif
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -16274,6 +16716,7 @@ static void set_rdma_func_handler(void)
 static int amvideom_probe(struct platform_device *pdev)
 {
 	int ret = 0;
+	int i, j;
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
@@ -16358,6 +16801,11 @@ static int amvideom_probe(struct platform_device *pdev)
 	register_early_suspend(&video_early_suspend_handler);
 #endif
 	video_keeper_init();
+	for (i = 0; i < AI_SCENES_MAX; i++) {
+		vpp_scenes[i].pq_scenes = i;
+		for (j = 0; j < SCENES_VALUE; j++)
+			vpp_scenes[i].pq_values[j] = vpp_pq_data[i][j];
+	}
 	return ret;
 }
 

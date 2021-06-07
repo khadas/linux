@@ -1,0 +1,13 @@
+#
+# Amlogic video2 device configuration
+#
+
+menu "V4L2 Video Support"
+
+config AMLOGIC_VDETECT
+	tristate "Amlogic v4l vdetect device support"
+	default n
+
+		help
+				Select to enable "Amlogic v4l vdetect device support.
+endmenu
