@@ -192,11 +192,13 @@ static struct cec_uevent cec_events[] = {
 	},
 };
 
+#ifdef CONFIG_AMLOGIC_HDMITX
 static int hdmitx_notify_callback(struct notifier_block *block,
 				  unsigned long cmd, void *para);
 static struct notifier_block hdmitx_notifier_nb = {
 	.notifier_call	= hdmitx_notify_callback,
 };
+#endif
 
 static void write_ao(unsigned int addr, unsigned int data)
 {
@@ -4155,19 +4157,18 @@ static void cec_rx_uevent_handler(struct work_struct *work)
 	cec_set_uevent(CEC_RX_MSG, 0);
 }
 
+#ifdef CONFIG_AMLOGIC_HDMITX
 static int hdmitx_notify_callback(struct notifier_block *block,
 				  unsigned long cmd, void *para)
 {
 	int ret = 0;
 
 	switch (cmd) {
-#ifdef CONFIG_AMLOGIC_HDMITX
 	case HDMITX_PLUG:
 	case HDMITX_UNPLUG:
 		CEC_INFO("[%s] event: %ld\n", __func__, cmd);
 		queue_delayed_work(cec_dev->hdmi_plug_wq, &cec_dev->work_hdmi_plug, 0);
 		break;
-#endif
 	default:
 		CEC_ERR("[%s] unsupported notify:%ld\n", __func__, cmd);
 		ret = -EINVAL;
@@ -4175,6 +4176,7 @@ static int hdmitx_notify_callback(struct notifier_block *block,
 	}
 	return ret;
 }
+#endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 static int hdmirx_notify_callback(unsigned int pwr5v_sts)
