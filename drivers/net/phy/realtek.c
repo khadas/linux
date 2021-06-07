@@ -401,6 +401,78 @@ static int rtl8125_config_aneg(struct phy_device *phydev)
 	return __genphy_config_aneg(phydev, ret);
 }
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+static int aml_rtl8211f_read_status(struct phy_device *phydev)
+{
+	unsigned int aml_link_speed = 0;
+	int aml_lpadv = 0;
+	int err, old_link = phydev->link;
+
+	/* Update the link, but return if there was an error */
+	err = genphy_update_link(phydev);
+	if (err)
+		return err;
+
+	/* why bother the PHY if nothing can have changed */
+	if (phydev->autoneg == AUTONEG_ENABLE && old_link && phydev->link)
+		return 0;
+
+	phydev->speed = SPEED_UNKNOWN;
+	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->pause = 0;
+	phydev->asym_pause = 0;
+
+	err = genphy_read_lpa(phydev);
+	if (err < 0)
+		return err;
+
+	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete) {
+	//	phy_resolve_aneg_linkmode(phydev);
+		aml_lpadv = phy_read_paged(phydev, 0xa43, 0x1a);
+		if (aml_lpadv < 0)
+			return aml_lpadv;
+
+		phydev->duplex = aml_lpadv & 0x8 ? DUPLEX_FULL : DUPLEX_HALF;
+		phydev->link = aml_lpadv & 0x4 ? 1 : 0;
+		aml_link_speed = (aml_lpadv & 0x30) >> 4;
+
+		switch (aml_link_speed) {
+		case 0:
+			phydev->speed = SPEED_10;
+			break;
+		case 1:
+			phydev->speed = SPEED_100;
+			break;
+		case 2:
+			phydev->speed = SPEED_1000;
+			break;
+		default:
+			pr_info("wzh no match speed\n");
+			break;
+		}
+	} else if (phydev->autoneg == AUTONEG_DISABLE) {
+		int bmcr = phy_read(phydev, MII_BMCR);
+
+		if (bmcr < 0)
+			return bmcr;
+
+		if (bmcr & BMCR_FULLDPLX)
+			phydev->duplex = DUPLEX_FULL;
+		else
+			phydev->duplex = DUPLEX_HALF;
+
+		if (bmcr & BMCR_SPEED1000)
+			phydev->speed = SPEED_1000;
+		else if (bmcr & BMCR_SPEED100)
+			phydev->speed = SPEED_100;
+		else
+			phydev->speed = SPEED_10;
+	}
+
+	return 0;
+}
+#endif
+
 static int rtl8125_read_status(struct phy_device *phydev)
 {
 	if (phydev->autoneg == AUTONEG_ENABLE) {
@@ -517,6 +589,9 @@ static struct phy_driver realtek_drvs[] = {
 		.config_init	= &rtl8211f_config_init,
 		.ack_interrupt	= &rtl8211f_ack_interrupt,
 		.config_intr	= &rtl8211f_config_intr,
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+		.read_status	= &aml_rtl8211f_read_status,
+#endif
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.read_page	= rtl821x_read_page,
