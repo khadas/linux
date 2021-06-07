@@ -16304,7 +16304,8 @@ static int amvideom_probe(struct platform_device *pdev)
 		memcpy(&amvideo_meson_dev.dev_property, &legcy_dev_property,
 		       sizeof(struct video_device_hw_s));
 	}
-
+	if (amvideo_meson_dev.max_vd_layers > MAX_VD_LAYERS)
+		return -EINVAL;
 	set_rdma_func_handler();
 	video_early_init(&amvideo_meson_dev);
 	video_cap_set(&amvideo_meson_dev);

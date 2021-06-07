@@ -146,7 +146,7 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 	s32 vout_type;
 	struct vframe_s *path0_new_frame = NULL;
 	struct vframe_s *new_frame = NULL;
-	u32 cur_blackout;
+	u32 cur_blackout = 0;
 	static s32 cur_vd_path_id = VFM_PATH_INVALID;
 	int axis[4];
 	int crop[4];

@@ -146,7 +146,7 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	if (!strcmp(ins->recv_name, "video_render.5"))
 		vpp1_used = true;
 	if (!strcmp(ins->recv_name, "video_render.6"))
-		vpp1_used = true;
+		vpp2_used = true;
 	/* FIXME: remove the global variable */
 	atomic_inc(&video_unreg_flag);
 	if (vpp1_used)
@@ -268,7 +268,7 @@ static void common_vf_light_unreg_provider(struct video_recv_s *ins)
 	if (!strcmp(ins->recv_name, "video_render.5"))
 		vpp1_used = true;
 	if (!strcmp(ins->recv_name, "video_render.6"))
-		vpp1_used = true;
+		vpp2_used = true;
 	/* FIXME: remove the global variable */
 	atomic_inc(&video_unreg_flag);
 	if (vpp1_used)
