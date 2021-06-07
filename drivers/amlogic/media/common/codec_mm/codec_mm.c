@@ -111,6 +111,7 @@ static u32 default_tvp_pool_size_0;
 static u32 default_tvp_pool_size_1;
 static u32 default_tvp_pool_size_2;
 static u32 tvp_dynamic_increase_disable;
+static u32 tvp_dynamic_alloc_max_size;
 
 #define TVP_POOL_SEGMENT_MAX_USED 4
 #define TVP_MAX_SLOT 8
@@ -1720,7 +1721,7 @@ static int codec_mm_tvp_pool_unprotect_and_release(struct extpool_mgt_s *tvp_poo
 
 		if (gpool) {
 			if (gen_pool_avail(gpool) != gen_pool_size(gpool)) {
-				pr_err("ERROR: TVP pool is not free.\n");
+				pr_err("Warn: TVP pool will release later.\n");
 				ignored++;
 				continue;	/*ignore this free now, */
 			}
@@ -2087,10 +2088,14 @@ static void codec_mm_tvp_segment_init(void)
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 
 	/*2M for audio not protect.*/
-	default_tvp_4k_size = mgt->total_codec_mem_size - SZ_1M * 2;
 	if (tvp_dynamic_increase_disable) {
-		if (default_tvp_4k_size > DEFAULT_TVP_SIZE_FOR_4K)
-			default_tvp_4k_size = DEFAULT_TVP_SIZE_FOR_4K;
+		if (default_tvp_4k_size <= 0 ||
+			(tvp_dynamic_alloc_max_size > 0 &&
+				default_tvp_4k_size >= tvp_dynamic_alloc_max_size)) {
+			default_tvp_4k_size = mgt->total_codec_mem_size - SZ_1M * 2;
+			if (default_tvp_4k_size > DEFAULT_TVP_SIZE_FOR_4K)
+				default_tvp_4k_size = DEFAULT_TVP_SIZE_FOR_4K;
+		}
 		/*97MB -> 160MB, may not enough for h265*/
 		default_tvp_size = (mgt->total_codec_mem_size - (SZ_1M * 2)) >
 				DEFAULT_TVP_SIZE_FOR_NO4K ?
@@ -2098,6 +2103,7 @@ static void codec_mm_tvp_segment_init(void)
 					default_tvp_4k_size;
 		return;
 	}
+	default_tvp_4k_size = mgt->total_codec_mem_size - SZ_1M * 2;
 	default_tvp_size = default_tvp_4k_size;
 	size = default_tvp_pool_size_0 +
 		default_tvp_pool_size_1 + default_tvp_pool_size_2;
@@ -2143,6 +2149,7 @@ static void codec_mm_tvp_segment_init(void)
 	size += default_tvp_pool_segment_size[3];
 	default_tvp_4k_size = size;
 	default_tvp_size = size;
+	tvp_dynamic_alloc_max_size = size;
 }
 
 int codec_mm_enable_tvp(int size, int flags)
@@ -2433,6 +2440,7 @@ int codec_mm_mgt_init(struct device *dev)
 	}
 	mgt->total_cma_size = codec_mm_get_cma_size_int_byte(mgt->dev);
 	mgt->total_codec_mem_size += mgt->total_cma_size;
+	default_tvp_4k_size = 0;
 	codec_mm_tvp_segment_init();
 	default_cma_res_size = mgt->total_cma_size;
 	mgt->global_memid = 0;
