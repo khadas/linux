@@ -1552,7 +1552,7 @@
 &pwm_ef {
 	pinctrl-0 = <&pwm_f_pins1>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 };
 
 &uart_A {
