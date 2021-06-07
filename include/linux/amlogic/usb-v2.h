@@ -224,6 +224,7 @@ struct amlogic_usb_v2 {
 	void __iomem	*usb2_phy_cfg;
 	void __iomem	*xhci_port_a_addr;
 	u32 pll_setting[8];
+	u32 pll_dis_thred_enhance;
 	int phy_cfg_state[4];
 	/* Set VBus Power though GPIO */
 	int vbus_power_pin;

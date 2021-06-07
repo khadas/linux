@@ -1611,6 +1611,7 @@
 			pll-setting-6 = <0x78000>;
 			pll-setting-7 = <0xe0004>;
 			pll-setting-8 = <0xe000c>;
+			dis-thred-enhance = <0x2>;/**t7-0x38:bit[26-27]**/
 			version = <2>;
 			//power-domains = <&pwrdm PDID_SC2_USB_COMB>;
 			phy0-reset-level-bit = <8>;
@@ -1637,6 +1638,7 @@
 			pll-setting-6 = <0x78000>;
 			pll-setting-7 = <0xe0004>;
 			pll-setting-8 = <0xe000c>;
+			dis-thred-enhance = <0x2>;/**t7-0x38:bit[26-27]**/
 			version = <2>;
 			//power-domains = <&pwrdm PDID_SC2_USB_COMB>;
 			phy0-reset-level-bit = <9>;
