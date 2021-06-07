@@ -2932,6 +2932,9 @@ static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
 	char cap_str[10];
+#ifdef CONFIG_MMC_MESON_GX
+	int idx = 0;
+#endif
 
 	/*
 	 * Check that the card supports the command class(es) we need.
@@ -2972,6 +2975,10 @@ static int mmc_blk_probe(struct mmc_card *card)
 	list_for_each_entry(part_md, &md->part, part) {
 		if (mmc_add_disk(part_md))
 			goto out;
+#ifdef CONFIG_MMC_MESON_GX
+		if (part_md->area_type == MMC_BLK_DATA_AREA_BOOT)
+			add_fake_boot_partition(part_md->disk, "bootloader%d", idx++);
+#endif
 	}
 
 	/* Add two debugfs entries */
