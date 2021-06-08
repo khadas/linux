@@ -56,7 +56,7 @@ enum pcr_init_flag {
 	INITCHECK_PCR = 1,
 	INITCHECK_VPTS = 2,
 	INITCHECK_APTS = 4,
-	INITCHECK_DONE = 6, /* all set */
+	INITCHECK_DONE = 6, /* a/v set */
 };
 
 enum pcr_init_priority_e {
@@ -124,6 +124,7 @@ struct sync_session {
 	u32 last_check_apts;
 	u32 last_check_apts_cnt;
 	u32 last_check_pcr_clock;
+	u32 audio_start_drop_cnt;
 	u32 pcr_disc_flag;
 	u32 pcr_disc_cnt;
 	u32 pcr_cont_cnt;
@@ -155,6 +156,11 @@ struct sync_session {
 	/* debug */
 	bool debug_freerun;
 	bool audio_switching;
+	bool debug_vsync;
+	u64 d_vsync_start;
+	u32 d_wall_start;
+	int d_vsync_cnt;
+	u64 d_vsync_last;
 };
 
 struct msync {
@@ -235,6 +241,7 @@ static void session_vsync_update(struct sync_session *session)
 		u32 temp = 0;
 		u32 r = 0;
 		u32 den = sync.sync_duration_den;
+		u64 now;
 
 		/* both den and num * 20 to handle
 		 * speed with multiple of 0.05
@@ -250,6 +257,27 @@ static void session_vsync_update(struct sync_session *session)
 			session->wall_clock_inc_remainer -= sync.sync_duration_num;
 		}
 		spin_unlock_irqrestore(&session->lock, flags);
+		if (!session->debug_vsync)
+			return;
+		/* check vsync quality */
+		now = ktime_get_raw_ns();
+		if (session->d_vsync_last != -1)
+			msync_dbg(LOG_TRACE, "[%d]vsync %llu ns\n",
+					session->id,
+					now - session->d_vsync_last);
+		session->d_vsync_last = now;
+		if (!session->d_vsync_cnt) {
+			session->d_vsync_start = now;
+			session->d_wall_start = session->wall_clock;
+		}
+		session->d_vsync_cnt++;
+		if (session->d_vsync_cnt == 1801) {
+			u64 mono_delta = now - session->d_vsync_start;
+
+			msync_dbg(LOG_DEBUG, "[%d]1800 vsync mono %llu ns\n",
+					session->id, mono_delta);
+			session->d_vsync_cnt = 0;
+		}
 	}
 }
 
@@ -755,7 +783,7 @@ static void session_video_start(struct sync_session *session, u32 pts)
 				"[%d]%d video start %u deferred\n",
 				session->id, __LINE__, pts);
 			if (session->pcr_work_on)
-				cancel_delayed_work(&session->pcr_start_work);
+				cancel_delayed_work_sync(&session->pcr_start_work);
 			queue_delayed_work(session->wq,
 				&session->pcr_start_work,
 				CHECK_INTERVAL);
@@ -812,7 +840,7 @@ static u32 session_audio_start(struct sync_session *session,
 				pts, diff_ms, session->wall_clock);
 
 			if (session->audio_change_work_on)
-				cancel_delayed_work
+				cancel_delayed_work_sync
 					(&session->audio_change_work);
 
 			queue_delayed_work(session->wq,
@@ -831,7 +859,7 @@ static u32 session_audio_start(struct sync_session *session,
 			msync_dbg(LOG_INFO, "[%d]%d audio start %u deferred\n",
 					session->id, __LINE__, pts);
 			if (session->wait_work_on)
-				cancel_delayed_work(&session->wait_work);
+				cancel_delayed_work_sync(&session->wait_work);
 			queue_delayed_work(session->wq,
 				&session->wait_work,
 				WAIT_INTERVAL);
@@ -862,7 +890,7 @@ static u32 session_audio_start(struct sync_session *session,
 				session_set_wall_clock(session, vpts);
 				session->clock_start = true;
 				if (session->wait_work_on)
-					cancel_delayed_work(&session->wait_work);
+					cancel_delayed_work_sync(&session->wait_work);
 				queue_delayed_work(session->wq,
 					&session->wait_work,
 					delay * TEN_MS_INTERVAL);
@@ -889,7 +917,7 @@ static u32 session_audio_start(struct sync_session *session,
 			session->stat = AVS_STAT_TRANSITION;
 			/* enter grace period */
 			if (session->transit_work_on)
-				cancel_delayed_work(&session->transit_work);
+				cancel_delayed_work_sync(&session->transit_work);
 			queue_delayed_work(session->wq,
 				&session->transit_work,
 				TRANSIT_INTERVAL);
@@ -904,17 +932,29 @@ static u32 session_audio_start(struct sync_session *session,
 		update_f_apts(session, pts);
 		if (session->start_policy == AMSYNC_START_ALIGN &&
 				session->pcr_work_on) {
-			cancel_delayed_work(&session->pcr_start_work);
+			cancel_delayed_work_sync(&session->pcr_start_work);
 			session->pcr_work_on = false;
 		}
 		pcr_set(session);
 		session->stat = AVS_STAT_STARTED;
 		if (session->clock_start &&
-				(int)(pts - session->wall_clock) >
-				sync.start_buf_thres) {
+				((int)(session->wall_clock - pts) > 0 ||
+				 (int)(pts - session->wall_clock) <
+				 sync.start_buf_thres)) {
 			ret = AVS_START_AGAIN;
-			msync_dbg(LOG_DEBUG, "[%d]%d audio drop %u\n",
-					session->id, __LINE__, pts);
+			session->audio_start_drop_cnt++;
+			msync_dbg(LOG_DEBUG, "[%d]%d audio drop %u w %u\n",
+					session->id, __LINE__,
+					pts, session->wall_clock);
+			/* audio just cant catch up */
+			if (session->audio_start_drop_cnt >= 10) {
+				session->pcr_init_flag = 0;
+				session->audio_start_drop_cnt = 0;
+				pcr_set(session);
+				ret = AVS_START_SYNC;
+				msync_dbg(LOG_INFO, "[%d]%d reinit\n",
+					session->id, __LINE__);
+			}
 		}
 	}
 exit:
@@ -977,6 +1017,7 @@ static void session_video_stop(struct sync_session *session)
 static void session_audio_stop(struct sync_session *session)
 {
 	session->a_active = false;
+	session->audio_start_drop_cnt = 0;
 	update_f_apts(session, AVS_INVALID_PTS);
 
 	mutex_lock(&session->session_mutex);
@@ -989,7 +1030,7 @@ static void session_audio_stop(struct sync_session *session)
 	} else if (session->audio_switching) {
 		session->start_posted = false;
 		if (session->audio_change_work_on) {
-			cancel_delayed_work(&session->audio_change_work);
+			cancel_delayed_work_sync(&session->audio_change_work);
 			session->audio_change_work_on = false;
 		}
 		msync_dbg(LOG_INFO, "[%d]%s audio switching stop audio\n",
@@ -1365,10 +1406,17 @@ static void pcr_check(struct sync_session *session)
 			min_pts = get_start_pts(checkin_vpts,
 					checkin_apts,
 					sync.start_buf_thres);
-		} else if ((int)(checkin_vpts - checkin_apts)) {
+		} else if (abs_diff(checkin_vpts, checkin_apts) <
+				session->disc_thres_max &&
+				(int)(checkin_vpts - checkin_apts) > 0) {
 			/* reset to buffer audio only */
 			min_pts = checkin_apts;
 			min_pts -= sync.start_buf_thres;
+		} else {
+			if ((int)(checkin_vpts - checkin_apts) > 0)
+				min_pts = checkin_vpts;
+			else
+				min_pts = checkin_apts - sync.start_buf_thres;
 		}
 		use_pcr_clock(session, false, min_pts);
 		session->pcr_disc_flag = 0;
@@ -1496,6 +1544,8 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			wakeup = true;
 		} else {
 			session->mode = mode;
+			if (session->mode == AVS_MODE_PCR_MASTER)
+				session->cur_mode = mode;
 		}
 		mutex_unlock(&session->session_mutex);
 		if (wakeup)
@@ -1681,20 +1731,19 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		debug.pcr_init_flag = session->pcr_init_flag;
 		if (copy_to_user(argp, &debug, sizeof(debug)))
 			return -EFAULT;
-		break;
 	}
 	case AMSYNCS_IOC_SET_CLK_DEV:
 	{
-		int dev;
+		int dev, ret = 0;
 
 		get_user(dev, (int __user *)argp);
 		if (dev > 1000 || dev < -1000)
 			return -EINVAL;
 		session->clk_dev = dev;
-		//TODO change video PLL
-		msync_dbg(LOG_WARN, "[%d]clk dev %d\n",
-			session->id, dev);
-		break;
+		//ret = set_clock_drift(dev);
+		msync_dbg(LOG_WARN, "[%d]clk dev %d ret %d\n",
+			session->id, dev, ret);
+		return ret;
 	}
 	case AMSYNCS_IOC_GET_CLK_DEV:
 	{
@@ -1752,13 +1801,13 @@ static void free_session(struct sync_session *session)
 	msync_dbg(LOG_INFO, "free session[%d]\n", session->id);
 	mutex_lock(&session->session_mutex);
 	if (session->wait_work_on)
-		cancel_delayed_work(&session->wait_work);
+		cancel_delayed_work_sync(&session->wait_work);
 	if (session->transit_work_on)
-		cancel_delayed_work(&session->transit_work);
+		cancel_delayed_work_sync(&session->transit_work);
 	if (session->pcr_work_on)
-		cancel_delayed_work(&session->pcr_start_work);
+		cancel_delayed_work_sync(&session->pcr_start_work);
 	if (session->audio_change_work_on)
-		cancel_delayed_work(&session->audio_change_work);
+		cancel_delayed_work_sync(&session->audio_change_work);
 
 	if (session->pcr_timer_added)
 		del_timer_sync(&session->pcr_timer);
@@ -1923,12 +1972,35 @@ static ssize_t free_run_store(struct class *cla,
 	return count;
 }
 
+static ssize_t debug_vsync_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	struct sync_session *session;
+
+	session = container_of(cla, struct sync_session, session_class);
+	return sprintf(buf, "%u", session->debug_vsync);
+}
+
+static ssize_t debug_vsync_store(struct class *cla,
+		struct class_attribute *attr, const char *buf, size_t count)
+{
+	struct sync_session *session;
+	size_t r;
+
+	session = container_of(cla, struct sync_session, session_class);
+	r = kstrtobool(buf, &session->debug_vsync);
+	if (r != 0)
+		return -EINVAL;
+	return count;
+}
+
 static struct class_attribute session_attrs[] = {
 	__ATTR_RO(session_stat),
 	__ATTR_RW(disc_thres_min),
 	__ATTR_RW(disc_thres_max),
 	__ATTR_RW(free_run),
 	__ATTR_RO(pcr_stat),
+	__ATTR_RW(debug_vsync),
 	__ATTR_NULL
 };
 
@@ -1937,6 +2009,8 @@ static struct attribute *session_class_attrs[] = {
 	&session_attrs[1].attr,
 	&session_attrs[2].attr,
 	&session_attrs[3].attr,
+	&session_attrs[4].attr,
+	&session_attrs[5].attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(session_class);
@@ -2008,6 +2082,7 @@ static int create_session(u32 id)
 	session->last_check_vpts = AVS_INVALID_PTS;
 	session->last_check_pcr_clock = AVS_INVALID_PTS;
 	session->pcr_disc_clock = AVS_INVALID_PTS;
+	session->d_vsync_last = -1;
 	INIT_DELAYED_WORK(&session->wait_work, wait_work_func);
 	INIT_DELAYED_WORK(&session->transit_work, transit_work_func);
 	INIT_DELAYED_WORK(&session->pcr_start_work, pcr_start_work_func);
