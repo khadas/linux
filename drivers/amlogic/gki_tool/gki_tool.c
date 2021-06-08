@@ -25,6 +25,7 @@ module_param_named(debug, gki_tool_debug, int, 0644);
 static int __init gki_tool_init(void)
 {
 	gki_module_init();
+	gki_config_init();
 	return 0;
 }
 
