@@ -836,8 +836,7 @@
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
 				&clkaudio CLKID_AUDIO_MCLK_PAD0
 				&clkc CLKID_MPLL2>;
-		clock-names = "mclk", "mclk_pad", "clk_srcpll",
-			"samesource_srcpll", "samesource_clk";
+		clock-names = "mclk", "mclk_pad", "clk_srcpll";
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
