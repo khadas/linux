@@ -1144,7 +1144,7 @@
 		card_type = <1>;
 		tx_delay = <10>;
 		save_para = <1>;
-		src_clk_rate = <780000000>;
+		src_clk_rate = <768000000>;
 		compute_cmd_delay = <0>;
 		compute_coef = <0>;
 		mmc_debug_flag;

@@ -419,6 +419,7 @@ static const struct pll_params_table t5d_gp0_pll_table[] = {
 	PLL_PARAMS(141, 1, 2), /* DCO = 3384M OD = 2 PLL = 846M */
 	PLL_PARAMS(130, 1, 2), /* DCO = 3120M OD = 2 PLL = 780M */
 	PLL_PARAMS(132, 1, 2), /* DCO = 3168M OD = 2 PLL = 792M */
+	PLL_PARAMS(128, 1, 2), /* DCO = 3072M OD = 2 PLL = 768M */
 	PLL_PARAMS(248, 1, 3), /* DCO = 5952M OD = 3 PLL = 744M */
 	{ /* sentinel */  },
 };
@@ -427,6 +428,7 @@ static const struct pll_params_table t5d_gp0_pll_table[] = {
 	PLL_PARAMS(141, 1), /* DCO = 3384M OD = 2 PLL = 846M*/
 	PLL_PARAMS(130, 1), /* DCO = 3120M OD = 2 PLL = 780M */
 	PLL_PARAMS(132, 1), /* DCO = 3168M OD = 2 PLL = 792M */
+	PLL_PARAMS(128, 1), /* DCO = 3072M OD = 2 PLL = 768M */
 	PLL_PARAMS(248, 1), /* DCO = 5952M OD = 3 PLL = 744M */
 	{0, 0},
 };
@@ -437,8 +439,8 @@ static const struct pll_params_table t5d_gp0_pll_table[] = {
  */
 static const struct reg_sequence t5d_gp0_init_regs[] = {
 	{ .reg = HHI_GP0_PLL_CNTL1,	.def = 0x00000000 },
-	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0x00000000 },
-	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x48681c00 },
+	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0x00000180 },
+	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x4a681c00 },
 	{ .reg = HHI_GP0_PLL_CNTL4,	.def = 0x33771290 },
 	{ .reg = HHI_GP0_PLL_CNTL5,	.def = 0x39272000 },
 	{ .reg = HHI_GP0_PLL_CNTL6,	.def = 0x56540000 },
