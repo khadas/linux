@@ -359,14 +359,14 @@ static void arm64_show_signal(int signo, const char *str)
 	    !unhandled_signal(tsk, signo) ||
 	    !__ratelimit(&rs))
 #else
-	if ((!show_unhandled_signals &&
-	     !unhandled_signal(tsk, signo)) ||
-	     !__ratelimit(&rs))
-
+	if (!show_unhandled_signals ||
+		(!unhandled_signal(tsk, signo) &&
+		!(show_unhandled_signals & 0xe)) ||
+		!__ratelimit(&rs))
 #endif
 		return;
 
-	pr_info("%s[%d]: unhandled exception: ", tsk->comm, task_pid_nr(tsk));
+	pr_info("%s[%d]: unhandled exception: %d ", tsk->comm, task_pid_nr(tsk), signo);
 	if (esr)
 		pr_cont("%s, ESR 0x%08x, ", esr_get_class_string(esr), esr);
 
@@ -376,7 +376,7 @@ static void arm64_show_signal(int signo, const char *str)
 	__show_regs(regs);
 #ifdef CONFIG_AMLOGIC_USER_FAULT
 	show_all_pfn(current, regs);
-	if (regs && kexec_should_crash(current) && (show_unhandled_signals & 2))
+	if (regs && kexec_should_crash(current) && (show_unhandled_signals & 4))
 		crash_kexec(regs);
 
 #endif
