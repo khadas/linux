@@ -6718,17 +6718,22 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int amhdmitx_suspend(struct platform_device *pdev,
-			    pm_message_t state)
+static void _amhdmitx_suspend(void)
 {
 	/* drm tx22 enters AUTH_STOP, don't do hdcp22 IP reset */
 	if (hdmitx_device.hdcp_ctl_lvl > 0)
-		return 0;
+		return;
 	hdmitx_device.hwop.cntlmisc(&hdmitx_device, MISC_DIS_HPLL, 0);
 	hdmitx_device.hwop.cntlddc(&hdmitx_device,
 		DDC_RESET_HDCP, 0);
 	pr_info("amhdmitx: suspend and reset hdcp\n");
+}
+
+#ifdef CONFIG_PM
+static int amhdmitx_suspend(struct platform_device *pdev,
+			    pm_message_t state)
+{
+	_amhdmitx_suspend();
 	return 0;
 }
 
@@ -6749,6 +6754,11 @@ static int amhdmitx_resume(struct platform_device *pdev)
 }
 #endif
 
+static void amhdmitx_shutdown(struct platform_device *pdev)
+{
+	_amhdmitx_suspend();
+}
+
 static struct platform_driver amhdmitx_driver = {
 	.probe	  = amhdmitx_probe,
 	.remove	 = amhdmitx_remove,
@@ -6756,6 +6766,7 @@ static struct platform_driver amhdmitx_driver = {
 	.suspend	= amhdmitx_suspend,
 	.resume	 = amhdmitx_resume,
 #endif
+	.shutdown = amhdmitx_shutdown,
 	.driver	 = {
 		.name   = DEVICE_NAME,
 		.owner	= THIS_MODULE,
