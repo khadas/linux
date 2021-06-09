@@ -39,6 +39,7 @@ struct meson_tlc59116 {
 	struct meson_tlc59116_io *io;
 	struct meson_tlc59116_colors *colors;
 	unsigned int *colors_buf;
+	int ignore_led_suspend;
 	int reset_gpio;
 	int led_counts;
 };

@@ -607,6 +607,9 @@ static int meson_tlc59116_parse_led_dt(struct meson_tlc59116 *tlc59116,
 	int ret = -1;
 	int i = 0;
 
+	if (of_property_read_bool(np, "ignore-led-suspend"))
+		tlc59116->ignore_led_suspend = 1;
+
 	for_each_child_of_node(np, temp) {
 		ret = of_property_read_u32_array(temp, "default_colors",
 						 (unsigned int *)
@@ -743,6 +746,50 @@ static int meson_tlc59116_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
+static int meson_tlc59116_suspend(struct device *dev)
+{
+	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct meson_tlc59116 *tlc59116 = i2c_get_clientdata(client);
+
+	if (!tlc59116) {
+		dev_err(tlc59116->dev, "tlc59116 is NULL!\n");
+		return -ENXIO;
+	}
+
+	if (tlc59116->ignore_led_suspend)
+		return 0;
+
+	meson_tlc59116_i2c_write(tlc59116, MESON_TLC59116_REG_LEDOUT0, 0x0);
+	meson_tlc59116_i2c_write(tlc59116, MESON_TLC59116_REG_LEDOUT1, 0x0);
+	meson_tlc59116_i2c_write(tlc59116, MESON_TLC59116_REG_LEDOUT2, 0x0);
+	meson_tlc59116_i2c_write(tlc59116, MESON_TLC59116_REG_LEDOUT3, 0x0);
+	meson_tlc59116_i2c_write(tlc59116, MESON_TLC59116_REG_MODE_1, 0x10);
+
+	return 0;
+}
+
+static int meson_tlc59116_resume(struct device *dev)
+{
+	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct meson_tlc59116 *tlc59116 = i2c_get_clientdata(client);
+
+	if (!tlc59116) {
+		dev_err(tlc59116->dev, "tlc59116 is NULL!\n");
+		return -ENXIO;
+	}
+
+	if (tlc59116->ignore_led_suspend)
+		return 0;
+
+	meson_tlc59116_i2c_write(tlc59116, MESON_TLC59116_REG_LEDOUT0, 0xaa);
+	meson_tlc59116_i2c_write(tlc59116, MESON_TLC59116_REG_LEDOUT1, 0xaa);
+	meson_tlc59116_i2c_write(tlc59116, MESON_TLC59116_REG_LEDOUT2, 0xaa);
+	meson_tlc59116_i2c_write(tlc59116, MESON_TLC59116_REG_LEDOUT3, 0xaa);
+	meson_tlc59116_i2c_write(tlc59116, MESON_TLC59116_REG_MODE_1, 0x00);
+
+	return 0;
+}
+
 static const struct i2c_device_id meson_tlc59116_i2c_id[] = {
 	{ MESON_TLC59116_I2C_NAME, 0 },
 	{ }
@@ -754,11 +801,14 @@ static const struct of_device_id meson_tlc59116_dt_match[] = {
 	{ }
 };
 
+static SIMPLE_DEV_PM_OPS(meson_tlc59116_pm, meson_tlc59116_suspend, meson_tlc59116_resume);
+
 static struct i2c_driver meson_tlc59116_driver = {
 	.driver = {
 		.name = MESON_TLC59116_I2C_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(meson_tlc59116_dt_match),
+		.pm = &meson_tlc59116_pm,
 	},
 	.probe = meson_tlc59116_i2c_probe,
 	.remove = meson_tlc59116_i2c_remove,
