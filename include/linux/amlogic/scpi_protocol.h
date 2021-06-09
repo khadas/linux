@@ -153,4 +153,6 @@ enum scpi_chan {
  */
 int scpi_send_data(void *data, int size, int channel,
 		   int cmd, void *revdata, int revsize);
+int mbox_message_send_ao_sync(struct device *dev, int cmd, void *sdata,
+		int tx_size, void *rdata, int rx_size, int idx);
 #endif /*_SCPI_PROTOCOL_H_*/

@@ -256,6 +256,7 @@
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe010288 0x0 0x4>; //SYSCTRL_STATUS_REG2
 		status = "okay";
+		mboxes = <&mhu_fifo 3>;
 	};
 
 	aml_reboot {

@@ -1255,3 +1255,107 @@ int scpi_send_data(void *data, int size, int channel,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(scpi_send_data);
+
+static int  mbox_message_send_common(struct mbox_client *cl,
+			struct mhu_data_buf *data_buf, void *sdata, int idx)
+{
+	struct mbox_chan *chan;
+	struct scpi_data_buf scpi_buf;
+	int ret = -1;
+
+	cl->rx_callback = scpi_rx_callback;
+	init_completion(&scpi_buf.complete);
+	data_buf->cl_data = &scpi_buf;
+	data_buf->rx_buf = kmalloc(data_buf->rx_size, GFP_KERNEL);
+	if (!data_buf->rx_buf)
+		return -SCPI_ERR_NOMEM;
+
+	data_buf->tx_buf = kmalloc(data_buf->tx_size, GFP_KERNEL);
+	if (!data_buf->tx_buf) {
+		kfree(data_buf->rx_buf);
+		return -SCPI_ERR_NOMEM;
+	}
+	memset(data_buf->tx_buf, 0, data_buf->tx_size);
+	memset(data_buf->rx_buf, 0, data_buf->rx_size);
+	memcpy(data_buf->tx_buf + data_buf->head_off, sdata,
+		data_buf->tx_size - data_buf->head_off);
+	chan = mbox_request_channel(cl, idx);
+	if (IS_ERR(chan)) {
+		ret = -SCPI_ERR_DEVICE;
+		goto freedata;
+	}
+
+	if (mbox_send_message(chan, (void *)data_buf) < 0) {
+		ret = -SCPI_ERR_TIMEOUT;
+		goto freechannel;
+	}
+
+	ret = wait_for_completion_timeout(&scpi_buf.complete,
+			msecs_to_jiffies(MBOX_TIME_OUT));
+	if (!ret) {
+		pr_err("Warning: scpi wait ack timeout\n");
+		ret = -SCPI_ERR_TIMEOUT;
+		goto freechannel;
+	}
+	mbox_free_channel(chan);
+	return 0;
+freechannel:
+	mbox_free_channel(chan);
+freedata:
+	kfree(data_buf->tx_buf);
+	kfree(data_buf->rx_buf);
+	return ret;
+}
+
+static int mbox_get_head_offset(struct mhu_data_buf *data_buf, int mhu_type)
+{
+	switch (mhu_type) {
+	case MASK_MHU_FIFO:
+		data_buf->head_off = MBOX_HEAD_SIZE;
+		break;
+	case MASK_MHU_PL:
+		data_buf->head_off = MBOX_PL_HEAD_SIZE;
+		break;
+	default:
+		data_buf->head_off = -1;
+		break;
+	};
+	return data_buf->head_off;
+}
+
+int mbox_message_send_ao_sync(struct device *dev, int cmd, void *sdata,
+			int tx_size, void *rdata, int rx_size, int idx)
+{
+	int mhu_type = mhu_f & MASK_MHU_ALL;
+	struct mhu_data_buf data_buf;
+	struct mbox_client cl = {0};
+	int ret = 0;
+
+	ret = mbox_get_head_offset(&data_buf, mhu_type);
+	if (ret < 0 && (mhu_type & MASK_MHU)) {
+		data_buf.head_off = 0;
+		data_buf.cmd = PACK_SCPI_CMD(cmd,
+					SCPI_CL_NONE,
+					tx_size);
+	} else {
+		data_buf.cmd = (cmd & MBCMD_MASK)
+			| ((tx_size + data_buf.head_off) & MBSIZE_MASK) << MBSIZE_SHIFT
+			| SYNC_CMD_TAG;
+	}
+	cl.dev = dev;
+	data_buf.tx_size = tx_size + data_buf.head_off;
+	data_buf.rx_size = rx_size + data_buf.head_off;
+
+	ret = mbox_message_send_common(&cl, (void *)&data_buf, sdata, idx);
+	if (ret) {
+		dev_err(dev, "Failed to send data %d\n", ret);
+		return ret;
+	}
+
+	memcpy(rdata, data_buf.rx_buf + data_buf.head_off, rx_size);
+	kfree(data_buf.tx_buf);
+	kfree(data_buf.rx_buf);
+	ret = tx_size;
+	return ret;
+}
+EXPORT_SYMBOL(mbox_message_send_ao_sync);
