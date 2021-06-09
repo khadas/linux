@@ -1,0 +1,20 @@
+#############################################################
+# board remove config list, DO NOT use "is not set" or "=y"
+# with each config xxx:
+#  - append to meson64_a64_R_config with "# CONFIG_XXX is not set"
+#  - remove from meson64_gki_module_config if "CONFIG_XXX=[ym]"
+#############################################################
+
+#remove below configs will cause compile or runtime error, need owner fix
+#CONFIG_AMLOGIC_LCD
+#CONFIG_AMLOGIC_LCD_TV
+#CONFIG_AMLOGIC_LCD_TABLET
+#CONFIG_AMLOGIC_LCD_EXTERN
+#CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+
+CONFIG_MTD
+
+CONFIG_AMLOGIC_HIFI4DSP
+CONFIG_MTD_NAND_MESON
+CONFIG_MTD_RESV_MESON
+CONFIG_MTD_SPI_NAND_MESON
