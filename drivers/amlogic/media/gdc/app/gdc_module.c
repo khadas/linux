@@ -62,7 +62,9 @@ static struct gdc_device_data_s aml_gdc = {
 
 static struct gdc_device_data_s aml_gdc_v2 = {
 	.dev_type = AML_GDC,
-	.clk_type = GATE
+	.clk_type = GATE,
+	.bit_width_ext = 1,
+	.gamma_support = 1
 };
 
 static const struct of_device_id gdc_dt_match[] = {
@@ -244,7 +246,7 @@ static int meson_gdc_set_input_addr(u32 start_addr,
 
 	gc = &gdc_cmd->gdc_config;
 
-	switch (gc->format) {
+	switch (gc->format & FORMAT_TYPE_MASK) {
 	case NV12:
 		gdc_cmd->y_base_addr = start_addr;
 		gdc_cmd->uv_base_addr = start_addr +
@@ -497,7 +499,7 @@ static void meson_gdc_deinit_dma_addr(struct gdc_context_s *context)
 		return;
 	}
 
-	switch (gc->format) {
+	switch (gc->format & FORMAT_TYPE_MASK) {
 	case NV12:
 		dma_cfg = &context->y_dma_cfg;
 		meson_gdc_dma_unmap(dma_cfg);
@@ -615,7 +617,7 @@ static int gdc_set_input_addr(int plane_id,
 
 	gc = &gdc_cmd->gdc_config;
 
-	switch (gc->format) {
+	switch (gc->format & FORMAT_TYPE_MASK) {
 	case NV12:
 		if (plane_id == 0) {
 			gdc_cmd->y_base_addr = addr;
@@ -690,7 +692,7 @@ static int gdc_get_input_size(struct gdc_cmd_s *gdc_cmd)
 
 	gc = &gdc_cmd->gdc_config;
 
-	switch (gc->format) {
+	switch (gc->format & FORMAT_TYPE_MASK) {
 	case NV12:
 	case YV12:
 		size = gc->input_y_stride * gc->input_height * 3 / 2;
@@ -1115,7 +1117,7 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 		union transform_u *trans =
 				&gs_with_fw->fw_info.fw_output_info.trans;
 
-		switch (gdc_cmd->gdc_config.format) {
+		switch (gdc_cmd->gdc_config.format & FORMAT_TYPE_MASK) {
 		case NV12:
 			format = "nv12";
 			break;
@@ -1957,6 +1959,8 @@ static int gdc_platform_probe(struct platform_device *pdev)
 
 	gdc_dev->config_out_file = config_out_file;
 	gdc_dev->clk_type = gdc_data->clk_type;
+	gdc_dev->bit_width_ext = gdc_data->bit_width_ext;
+	gdc_dev->gamma_support = gdc_data->gamma_support;
 	gdc_dev->pdev = pdev;
 	gdc_dev->ext_msb_8g = gdc_data->ext_msb_8g;
 

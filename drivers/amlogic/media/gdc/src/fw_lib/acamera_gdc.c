@@ -172,6 +172,9 @@ int gdc_process(struct gdc_cmd_s *gdc_cmd,
 
 	gdc_log(LOG_DEBUG, "starting GDC process.\n");
 
+	if (GDC_DEV_T(dev_type)->bit_width_ext)
+		gdc_bit_width_write(gdc_cmd->gdc_config.format);
+
 	//input y plane
 	gdc_data1in_addr_write(dma_cfg->input_cfg[0].paddr_8g_msb,
 			       y_base_addr, dev_type);
@@ -249,6 +252,9 @@ int gdc_process_yuv420p(struct gdc_cmd_s *gdc_cmd,
 	u32 output_stride = gc->output_y_stride;
 	u32 output_u_stride = gc->output_c_stride;
 	u32 output_v_stride = gc->output_c_stride;
+
+	if (GDC_DEV_T(dev_type)->bit_width_ext)
+		gdc_bit_width_write(gdc_cmd->gdc_config.format);
 
 	//input y plane
 	gdc_data1in_addr_write(dma_cfg->input_cfg[0].paddr_8g_msb,
@@ -331,6 +337,9 @@ int gdc_process_y_grey(struct gdc_cmd_s *gdc_cmd,
 	}
 
 	gdc_log(LOG_DEBUG, "starting GDC process.\n");
+
+	if (GDC_DEV_T(dev_type)->bit_width_ext)
+		gdc_bit_width_write(gdc_cmd->gdc_config.format);
 
 	//input y plane
 	gdc_data1in_addr_write(dma_cfg->input_cfg[0].paddr_8g_msb,

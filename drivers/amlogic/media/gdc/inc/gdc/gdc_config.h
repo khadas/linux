@@ -33,6 +33,8 @@ struct gdc_device_data_s {
 	int clk_type;
 	/* use independ reg to set 8g addr MSB */
 	int ext_msb_8g;
+	int bit_width_ext; /* 8/10/12/16bit support */
+	int gamma_support; /* gamma support */
 };
 
 struct meson_gdc_dev_t {
@@ -51,6 +53,8 @@ struct meson_gdc_dev_t {
 	};
 	struct clk *clk_axi; /* not used for clk_gate only cases */
 	int ext_msb_8g;
+	int bit_width_ext;
+	int gamma_support;
 };
 
 struct gdc_event_s {
@@ -106,6 +110,13 @@ extern struct gdc_manager_s gdc_manager;
 #define ISP_DWAP_TOP_DST_U_CTRL1           ((0x16 << 2) | ISP_DWAP_REG_MARK)
 #define ISP_DWAP_TOP_DST_V_CTRL0           ((0x17 << 2) | ISP_DWAP_REG_MARK)
 #define ISP_DWAP_TOP_DST_V_CTRL1           ((0x18 << 2) | ISP_DWAP_REG_MARK)
+
+#define ISP_DWAP_GAMMA_CTRL                ((0x60 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_GAMMA_OFST                ((0x61 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_GAMMA_NUM                 ((0x62 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_GAMMA_STP                 ((0x63 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_GAMMA_LUT_ADDR            ((0x64 << 2) | ISP_DWAP_REG_MARK)
+#define ISP_DWAP_GAMMA_LUT_DATA            ((0x65 << 2) | ISP_DWAP_REG_MARK)
 
 #define DEWARP_STRIDE_ALIGN(x) (((x) + 15) / 16)
 #define AML_GDC_COEF_SIZE  256
@@ -221,6 +232,39 @@ static inline void gdc_mesh_addr_write(ulong data)
 {
 	gdc_log(LOG_DEBUG, "mesh paddr: 0x%lx\n", data);
 	system_gdc_write_32(ISP_DWAP_TOP_MESH_CTRL0, data >> 4);
+}
+
+static inline void gdc_bit_width_write(u32 format)
+{
+	u32 curr = 0;
+	u32 bitw = 0;
+
+	switch (format & FORMAT_BITW_MASK) {
+	case BITW_8:
+		bitw  = 0;
+		break;
+	case BITW_10:
+		bitw  = 1;
+		break;
+	case BITW_12:
+		bitw  = 2;
+		break;
+	case BITW_16:
+		bitw  = 3;
+		break;
+	default:
+		gdc_log(LOG_ERR, "%s, format (0x%x) is wrong\n",
+			__func__, format);
+	}
+	gdc_log(LOG_DEBUG, "bit width:%d\n", bitw);
+
+	curr = system_gdc_read_32(ISP_DWAP_TOP_CMD_CTRL1);
+	system_gdc_write_32(ISP_DWAP_TOP_CMD_CTRL1,
+			    (curr & 0x3fffffff) | (bitw << 30));
+
+	curr = system_gdc_read_32(ISP_DWAP_GAMMA_CTRL);
+	system_gdc_write_32(ISP_DWAP_GAMMA_CTRL,
+			    (curr & 0xfffffff3) | (bitw << 2));
 }
 
 // args: data (32-bit)
