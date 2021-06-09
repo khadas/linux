@@ -783,7 +783,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	else if (canvas_config_mode == 2)
 		vdin_canvas_auto_config(devp);
 
-	if (devp->afbce_info) {
+	if (devp->afbce_info && devp->afbce_valid) {
 		vdin_afbce_maptable_init(devp);
 		vdin_afbce_config(devp);
 	}
