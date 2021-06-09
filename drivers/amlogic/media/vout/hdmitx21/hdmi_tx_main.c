@@ -216,7 +216,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdcp_mode_set(0);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
-	hdev->cur_VIC = HDMI_UNKNOWN;
+	hdev->cur_VIC = HDMI_0_UNKNOWN;
 	hdev->output_blank_flag = 0;
 	hdmitx_set_vsif_pkt(0, 0, NULL, true);
 	hdmitx_set_hdr10plus_pkt(0, NULL);
@@ -232,7 +232,7 @@ static int hdmitx_is_hdmi_vmode(char *mode_name)
 {
 	enum hdmi_vic vic = hdmitx21_edid_vic_tab_map_vic(mode_name);
 
-	if (vic == HDMI_UNKNOWN)
+	if (vic == HDMI_0_UNKNOWN)
 		return 0;
 
 	return 1;
@@ -339,7 +339,7 @@ static  int  set_disp_mode(const char *mode)
 	if (strncmp(mode, "1080p50hz", strlen("1080p50hz")) == 0)
 		vic = HDMI_31_1920x1080p50_16x9;
 
-	if (vic != HDMI_UNKNOWN) {
+	if (vic != HDMI_0_UNKNOWN) {
 		hdev->mux_hpd_if_pin_high_flag = 1;
 		if (hdev->vic_count == 0) {
 			if (hdev->unplug_powerdown)
@@ -347,7 +347,7 @@ static  int  set_disp_mode(const char *mode)
 		}
 	}
 
-	hdev->cur_VIC = HDMI_UNKNOWN;
+	hdev->cur_VIC = HDMI_0_UNKNOWN;
 	ret = hdmitx21_set_display(hdev, vic);
 	if (ret >= 0) {
 		hdev->hwop.cntl(hdev, HDMITX_AVMUTE_CNTL, AVMUTE_CLEAR);
@@ -355,7 +355,7 @@ static  int  set_disp_mode(const char *mode)
 		hdev->audio_param_update_flag = 1;
 	}
 
-	if (hdev->cur_VIC == HDMI_UNKNOWN) {
+	if (hdev->cur_VIC == HDMI_0_UNKNOWN) {
 		if (hdev->hpdmode == 2) {
 			/* edid will be read again when hpd is muxed and
 			 * it is high
@@ -490,7 +490,7 @@ static int set_disp_mode_auto(void)
 	struct hdmitx_dev *hdev = get_hdmitx_dev();
 	struct hdmi_format_para *para = NULL;
 	u8 mode[32];
-	enum hdmi_vic vic = HDMI_UNKNOWN;
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
 	memset(mode, 0, sizeof(mode));
 	hdev->ready = 0;
@@ -540,8 +540,8 @@ static int set_disp_mode_auto(void)
 	/* nothing */
 	}
 
-	hdev->cur_VIC = HDMI_UNKNOWN;
-/* if vic is HDMI_UNKNOWN, hdmitx21_set_display will disable HDMI */
+	hdev->cur_VIC = HDMI_0_UNKNOWN;
+/* if vic is HDMI_0_UNKNOWN, hdmitx21_set_display will disable HDMI */
 	ret = hdmitx21_set_display(hdev, vic);
 
 	if (ret >= 0) {
@@ -549,7 +549,7 @@ static int set_disp_mode_auto(void)
 		hdev->cur_VIC = vic;
 		hdev->audio_param_update_flag = 1;
 	}
-	if (hdev->cur_VIC == HDMI_UNKNOWN) {
+	if (hdev->cur_VIC == HDMI_0_UNKNOWN) {
 		if (hdev->hpdmode == 2) {
 			/* edid will be read again when hpd is muxed
 			 * and it is high
@@ -2331,7 +2331,7 @@ static ssize_t hdmi_hdr_status_show(struct device *dev,
 static ssize_t dc_cap_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
-	enum hdmi_vic vic = HDMI_UNKNOWN;
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 	int pos = 0;
 	struct hdmitx_dev *hdev = get_hdmitx_dev();
 	struct rx_cap *prxcap = &hdev->rxcap;
@@ -2345,22 +2345,22 @@ static ssize_t dc_cap_show(struct device *dev,
 		pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
 	} else {
 		vic = hdmitx21_edid_get_VIC(hdev, "2160p60hz420", 0);
-		if (vic != HDMI_UNKNOWN) {
+		if (vic != HDMI_0_UNKNOWN) {
 			pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
 			goto next444;
 		}
 		vic = hdmitx21_edid_get_VIC(hdev, "2160p50hz420", 0);
-		if (vic != HDMI_UNKNOWN) {
+		if (vic != HDMI_0_UNKNOWN) {
 			pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
 			goto next444;
 		}
 		vic = hdmitx21_edid_get_VIC(hdev, "smpte60hz420", 0);
-		if (vic != HDMI_UNKNOWN) {
+		if (vic != HDMI_0_UNKNOWN) {
 			pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
 			goto next444;
 		}
 		vic = hdmitx21_edid_get_VIC(hdev, "smpte50hz420", 0);
-		if (vic != HDMI_UNKNOWN) {
+		if (vic != HDMI_0_UNKNOWN) {
 			pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
 			goto next444;
 		}
@@ -4383,7 +4383,9 @@ static void amhdmitx_infoframe_init(struct hdmitx_dev *hdev)
 	ret = hdmi_vendor_infoframe_init(&hdev->infoframes.vend.vendor.hdmi);
 	if (!ret)
 		pr_info("%s[%d] init vendor infoframe failed %d\n", __func__, __LINE__, ret);
-	hdmi_avi_infoframe_init(&hdev->infoframes.avi.avi);
+	ret = hdmi_avi_infoframe_init(&hdev->infoframes.avi.avi);
+	if (ret)
+		pr_info("init avi infoframe failed\n");
 	// TODO, panic
 	// hdmi_spd_infoframe_init(&hdev->infoframes.spd.spd,
 	//	hdev->config_data.vend_data->vendor_name,

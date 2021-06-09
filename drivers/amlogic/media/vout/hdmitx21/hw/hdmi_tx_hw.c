@@ -1734,7 +1734,7 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 
 static enum hdmi_vic get_vic_from_pkt(void)
 {
-	enum hdmi_vic vic = HDMI_UNKNOWN;
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
 	return vic;
 }
@@ -2233,7 +2233,7 @@ static void hdmitx_csc_config(u8 input_color_format,
 
 static void hdmitx_set_hw(struct hdmitx_dev *hdev)
 {
-	enum hdmi_vic vic = HDMI_UNKNOWN;
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 	struct hdmi_format_para *para = NULL;
 
 	vic = (enum hdmi_vic)hdev->para->timing.vic;

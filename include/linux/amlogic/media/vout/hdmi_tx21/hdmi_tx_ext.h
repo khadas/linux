@@ -8,6 +8,34 @@
 
 #include "hdmi_common.h"
 
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
+struct hdmitx_dev *get_hdmitx_device(void);
+int get_hpd_state(void);
+bool is_tv_changed(void);
+int hdmitx_event_notifier_regist(struct notifier_block *nb);
+int hdmitx_event_notifier_unregist(struct notifier_block *nb);
+#else
+static inline struct hdmitx_dev *get_hdmitx_device(void)
+{
+	return NULL;
+}
+
+static inline int get_hpd_state(void)
+{
+	return 0;
+}
+
+static inline int hdmitx_event_notifier_regist(struct notifier_block *nb)
+{
+	return -EINVAL;
+}
+
+static inline int hdmitx_event_notifier_unregist(struct notifier_block *nb)
+{
+	return -EINVAL;
+}
+#endif
+
 typedef void (*pf_callback)(bool st);
 
 #ifdef CONFIG_AMLOGIC_HDMITX

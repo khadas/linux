@@ -19,6 +19,7 @@
 #include <linux/uaccess.h>
 #include <linux/mutex.h>
 #include <linux/cdev.h>
+#include <linux/timer.h>
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/of_reserved_mem.h>
@@ -41,8 +42,9 @@
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/vout/vdac_dev.h>
 /*#include <linux/amlogic/amports/vframe.h>*/
-/*#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_notify.h>*/
-/* #include <linux/amlogic/media/vout/hdmi_tx/hdmi_hdcp.h> */
+/* #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h> */
+#include <linux/amlogic/media/vout/hdmi.h>
+#include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ext.h>
 #include <linux/of_gpio.h>
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
@@ -119,9 +121,8 @@ int pc_mode_en;
 MODULE_PARM_DESC(pc_mode_en, "\n pc_mode_en\n");
 module_param(pc_mode_en, int, 0664);
 
-#define MAX_AUDIO_BLK_LEN 31
-static int audio_block_len = 13;
-static u8 audio_block[MAX_AUDIO_BLK_LEN] = {
+int rx_audio_block_len = 13;
+u8 rx_audio_block[MAX_AUDIO_BLK_LEN] = {
 	0x2C, 0x09, 0x7F, 0x05,	0x15, 0x07, 0x50, 0x57,
 	0x07, 0x01, 0x67, 0x7F, 0x01
 };
@@ -157,6 +158,15 @@ static bool early_suspend_flag;
 
 struct reg_map rx_reg_maps[MAP_ADDR_MODULE_NUM];
 bool already_start_dec;
+
+/* audio block compose method for hdmitx/rx:
+ * 1: for soundbar:
+ * EDID = downstream TV's video + soundbar's audio capability.
+ * 2: for RPT, use EDID of downstream directly.
+ * both no audio blk mix.
+ * 0: keep EDID of hdmirx itself
+ */
+int aud_compose_type = 1;
 
 static struct notifier_block aml_hdcp22_pm_notifier = {
 	.notifier_call = aml_hdcp22_pm_notify,
@@ -2007,8 +2017,8 @@ static ssize_t audio_blk_show(struct device *dev,
 	ssize_t len = 0;
 
 	len += sprintf(buf, "audio_blk = {");
-	for (i = 0; i < audio_block_len; i++)
-		len += sprintf(buf + len, "%02x ",  audio_block[i]);
+	for (i = 0; i < rx_audio_block_len; i++)
+		len += sprintf(buf + len, "%02x ", rx_audio_block[i]);
 	len += sprintf(buf + len, "}\n");
 	return len;
 }
@@ -2023,8 +2033,8 @@ static ssize_t audio_blk_store(struct device *dev,
 	if (cnt > MAX_AUDIO_BLK_LEN)
 		cnt = MAX_AUDIO_BLK_LEN;
 	rx_pr("audio_blk store len: %d\n", cnt);
-	memcpy(audio_block, buf, cnt);
-	audio_block_len = cnt;
+	memcpy(rx_audio_block, buf, cnt);
+	rx_audio_block_len = cnt;
 
 	return count;
 }
@@ -2409,8 +2419,13 @@ void rx_tmds_data_capture(void)
 	set_fs(old_fs);
 }
 
+/* for HDMIRX/CEC notify */
+#define HDMITX_PLUG                     1
+#define HDMITX_UNPLUG                   2
+#define HDMITX_PHY_ADDR_VALID           3
+#define HDMITX_HDCP14_KSVLIST           4
+
 #ifdef CONFIG_AMLOGIC_HDMITX
-#ifdef COMMENTED_OUT_54
 static int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 				     unsigned long value, void *p)
 {
@@ -2424,13 +2439,15 @@ static int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 			rx_pr("%s, HDMITX_PLUG\n", __func__);
 		if (p) {
 			rx_pr("update EDID from HDMITX\n");
-			rx_update_tx_edid_with_audio_block(p, audio_block);
+			rx_update_tx_edid_with_audio_block(p, rx_audio_block);
 		}
 		break;
 
 	case HDMITX_UNPLUG:
 		if (log_level & EDID_LOG)
-			rx_pr("%s, HDMITX_UNPLUG\n", __func__);
+			rx_pr("%s, HDMITX_UNPLUG, recover primary EDID\n",
+			      __func__);
+		rx_update_tx_edid_with_audio_block(NULL, NULL);
 		break;
 
 	case HDMITX_PHY_ADDR_VALID:
@@ -2461,7 +2478,6 @@ static int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 	}
 	return ret;
 }
-#endif
 #endif
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -2916,6 +2932,13 @@ static int hdmirx_probe(struct platform_device *pdev)
 		hdcp22_on = 1;
 	else
 		hdcp22_on = rx_is_hdcp22_support();
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "aud_compose_type",
+				   &aud_compose_type);
+	if (ret) {
+		aud_compose_type = 1;
+		rx_pr("not find aud_compose_type, soundbar by default\n");
+	}
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)
 		rx_pr("warning: no rev cmd mem\n");
@@ -2932,21 +2955,17 @@ static int hdmirx_probe(struct platform_device *pdev)
 #endif
 	mutex_init(&hdevp->rx_lock);
 	register_pm_notifier(&aml_hdcp22_pm_notifier);
-#ifdef COMMENTED_OUT_54
-	init_timer(&hdevp->timer);
-	hdevp->timer.data = (ulong)hdevp;
-#endif
+	/* init_timer(&hdevp->timer); */
+	/* hdevp->timer.data = (ulong)hdevp; */
 	hdevp->timer.function = hdmirx_timer_handler;
 	hdevp->timer.expires = jiffies + TIMER_STATE_CHECK;
 	add_timer(&hdevp->timer);
 	rx.boot_flag = true;
 #ifdef CONFIG_AMLOGIC_HDMITX
-#ifdef COMMENTED_OUT_54
 	if (rx.chip_id == CHIP_ID_TM2) {
 		rx.tx_notify.notifier_call = rx_hdmi_tx_notify_handler;
 		hdmitx_event_notifier_regist(&rx.tx_notify);
 	}
-#endif
 #endif
 	rx_pr("hdmirx: driver probe ok\n");
 	return 0;

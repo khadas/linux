@@ -73,6 +73,7 @@
 #define BLK_LENGTH(a) ((a) & 0x1F)
 /* maximum VSVDB length is VSVDB V0: 26bytes */
 #define VSVDB_LEN	26
+#define MAX_AUDIO_BLK_LEN 31
 
 enum edid_audio_format_e {
 	AUDIO_FORMAT_HEADER,

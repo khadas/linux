@@ -256,10 +256,10 @@ static int hdmitx_set_uevent(enum hdmitx_event type, int val)
  */
 int hdr_status_pos;
 
-static inline void hdmitx_notify_hpd(int hpd)
+static inline void hdmitx_notify_hpd(int hpd, void *p)
 {
 	if (hpd)
-		hdmitx_event_notify(HDMITX_PLUG, NULL);
+		hdmitx_event_notify(HDMITX_PLUG, p);
 	else
 		hdmitx_event_notify(HDMITX_UNPLUG, NULL);
 }
@@ -343,11 +343,13 @@ static void hdmitx_late_resume(struct early_suspend *h)
 		hdev->already_used = 1;
 
 	pr_info("hdmitx hpd state: %d\n", hdev->hpd_state);
-	hdmitx_notify_hpd(hdev->hpd_state);
 
 	/*force to get EDID after resume for Amplifier Power case*/
 	if (hdev->hpd_state)
 		hdmitx_get_edid(hdev);
+	hdmitx_notify_hpd(hdev->hpd_state,
+			  hdev->edid_parsing ?
+			  hdev->edid_ptr : NULL);
 
 	hdev->hwop.cntlconfig(hdev, CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	set_disp_mode_auto();
@@ -5888,7 +5890,9 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		plugout_mute_flg = false;
 	}
 	hdev->hpd_state = 1;
-	hdmitx_notify_hpd(hdev->hpd_state);
+	hdmitx_notify_hpd(hdev->hpd_state,
+			  hdev->edid_parsing ?
+			  hdev->edid_ptr : NULL);
 
 	/*notify to drm hdmi*/
 	if (hdmitx_device.drm_hpd_cb.callback)
@@ -5958,7 +5962,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		hdmi_physical_size_update(hdev);
 		hdmitx_edid_ram_buffer_clear(hdev);
 		hdev->hpd_state = 0;
-		hdmitx_notify_hpd(hdev->hpd_state);
+		hdmitx_notify_hpd(hdev->hpd_state, NULL);
 		hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
 		/*notify to drm hdmi*/
 		if (hdmitx_device.drm_hpd_cb.callback)
@@ -5989,7 +5993,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmi_physical_size_update(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
 	hdev->hpd_state = 0;
-	hdmitx_notify_hpd(hdev->hpd_state);
+	hdmitx_notify_hpd(hdev->hpd_state, NULL);
 
 	/*notify to drm hdmi*/
 	if (hdmitx_device.drm_hpd_cb.callback)
@@ -6240,7 +6244,7 @@ static void hdmitx_init_fmt_attr(struct hdmitx_dev *hdev)
 
 /* for notify to cec */
 static BLOCKING_NOTIFIER_HEAD(hdmitx_event_notify_list);
-int hdmitx_event_notifier_regist(struct notifier_block *nb)
+int _hdmitx_event_notifier_regist(struct notifier_block *nb)
 {
 	int ret = 0;
 
@@ -6252,7 +6256,9 @@ int hdmitx_event_notifier_regist(struct notifier_block *nb)
 	ret = blocking_notifier_chain_register(&hdmitx_event_notify_list, nb);
 	/* update status when register */
 	if (!ret && nb->notifier_call) {
-		hdmitx_notify_hpd(hdmitx_device.hpd_state);
+		hdmitx_notify_hpd(hdmitx_device.hpd_state,
+				  hdmitx_device.edid_parsing ?
+				  hdmitx_device.edid_ptr : NULL);
 		if (hdmitx_device.physical_addr != 0xffff)
 			hdmitx_event_notify(HDMITX_PHY_ADDR_VALID,
 					    &hdmitx_device.physical_addr);
@@ -6260,9 +6266,9 @@ int hdmitx_event_notifier_regist(struct notifier_block *nb)
 
 	return ret;
 }
-EXPORT_SYMBOL(hdmitx_event_notifier_regist);
+EXPORT_SYMBOL(_hdmitx_event_notifier_regist);
 
-int hdmitx_event_notifier_unregist(struct notifier_block *nb)
+int _hdmitx_event_notifier_unregist(struct notifier_block *nb)
 {
 	int ret;
 
@@ -6273,7 +6279,7 @@ int hdmitx_event_notifier_unregist(struct notifier_block *nb)
 
 	return ret;
 }
-EXPORT_SYMBOL(hdmitx_event_notifier_unregist);
+EXPORT_SYMBOL(_hdmitx_event_notifier_unregist);
 
 void hdmitx_event_notify(unsigned long state, void *arg)
 {
@@ -6828,7 +6834,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	hdmitx_init_fmt_attr(hdev);
 
 	hdev->hpd_state = !!hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0);
-	hdmitx_notify_hpd(hdev->hpd_state);
+	hdmitx_notify_hpd(hdev->hpd_state, NULL);
 	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, hdev->hpd_state);
 	INIT_WORK(&hdev->work_hdr, hdr_work_func);
 

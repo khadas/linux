@@ -2197,6 +2197,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(vpp_mute_enable, i++);
 	pr_var(dbg_cs, i++);
 	pr_var(dbg_pkt, i++);
+	pr_var(aud_compose_type, i++);
 	pr_var(rx.var.force_pattern, i++);
 	/* phy var definitioin */
 	pr_var(rx.aml_phy.sqrst_en, i++);
@@ -2464,6 +2465,9 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(dbg_cs, index);
 	if (set_pr_var(tmpbuf, var_to_str(dbg_pkt), &dbg_pkt, value))
 		return pr_var(dbg_pkt, index);
+	if (set_pr_var(tmpbuf, var_to_str(aud_compose_type),
+	    &aud_compose_type, value))
+		return pr_var(aud_compose_type, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx.var.force_pattern), &rx.var.force_pattern, value))
 		return pr_var(rx.var.force_pattern, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.sqrst_en), &rx.aml_phy.sqrst_en, value))

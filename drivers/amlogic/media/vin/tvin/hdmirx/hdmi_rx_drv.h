@@ -695,6 +695,7 @@ extern int en_4k_2_2k;
 extern bool hdmi_cec_en;
 extern int hdmi_yuv444_enable;
 extern int vdin_drop_frame_cnt;
+extern int aud_compose_type;
 /* debug */
 extern bool hdcp_enable;
 extern int log_level;
@@ -740,6 +741,8 @@ void hdmirx_fill_edid_buf(const char *buf, int size);
 void hdmirx_fill_edid_with_port_buf(const char *buf, int size);
 unsigned int hdmirx_read_edid_buf(char *buf, int max_size);
 void hdmirx_fill_key_buf(const char *buf, int size);
+extern int rx_audio_block_len;
+extern u8 rx_audio_block[MAX_AUDIO_BLK_LEN];
 
 /* for other modules */
 int rx_is_hdcp22_support(void);

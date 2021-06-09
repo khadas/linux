@@ -812,32 +812,14 @@ struct hdmitx_uevent {
 
 #ifdef CONFIG_AMLOGIC_HDMITX
 struct hdmitx_dev *get_hdmitx_device(void);
-int get_hpd_state(void);
-bool is_tv_changed(void);
-int hdmitx_event_notifier_regist(struct notifier_block *nb);
-int hdmitx_event_notifier_unregist(struct notifier_block *nb);
-void hdmitx_event_notify(unsigned long state, void *arg);
 void hdmitx_hdcp_status(int hdmi_authenticated);
+void hdmitx_event_notify(unsigned long state, void *arg);
 #else
 static inline struct hdmitx_dev *get_hdmitx_device(void)
 {
 	return NULL;
 }
 
-static inline int get_hpd_state(void)
-{
-	return 0;
-}
-
-static inline int hdmitx_event_notifier_regist(struct notifier_block *nb)
-{
-	return -EINVAL;
-}
-
-static inline int hdmitx_event_notifier_unregist(struct notifier_block *nb)
-{
-	return -EINVAL;
-}
 #endif
 
 void hdmi_set_audio_para(int para);

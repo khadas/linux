@@ -24,8 +24,17 @@
 #include "hdmi_rx_hw.h"
 
 enum edid_delivery_mothed_e edid_delivery_mothed;
+/* temp edid buff for edid calc & update */
 unsigned char edid_temp[MAX_EDID_BUF_SIZE];
+/* buff to store downstream EDID or EDID load from bin */
 static char edid_buf[MAX_EDID_BUF_SIZE] = {0x0};
+#ifdef CONFIG_AMLOGIC_HDMITX
+/* buff to backup EDID loaded from uplayer bin,
+ * for recovery EDID of hdmirx itself on soundbar
+ */
+static unsigned char edid_bin[MAX_EDID_BUF_SIZE] = {0x0};
+#endif
+
 static int edid_size;
 struct edid_data_s tmp_edid_data;
 int arc_port_id;
@@ -640,6 +649,7 @@ void hdmirx_fill_edid_buf(const char *buf, int size)
 {
 #ifdef CONFIG_AMLOGIC_HDMITX
 	int i;
+	u8 *aud_blk;
 #endif
 	if (edid_delivery_mothed == EDID_DELIVERY_NULL)
 		edid_delivery_mothed = EDID_DELIVERY_ALL_PORT;
@@ -653,6 +663,20 @@ void hdmirx_fill_edid_buf(const char *buf, int size)
 		return;
 	}
 #ifdef CONFIG_AMLOGIC_HDMITX
+	memcpy(edid_bin, buf, size);
+	/* save AUDIO blk of primary EDID, it maybe
+	 * overwritten by audio_blk_store later
+	 */
+	if (size % EDID_SIZE == 0) {
+		aud_blk = edid_tag_extract(edid_bin, AUDIO_TAG);
+		if (aud_blk) {
+			rx_audio_block_len = BLK_LENGTH(aud_blk[0]) + 1;
+			if (rx_audio_block_len <= MAX_AUDIO_BLK_LEN)
+				memcpy(rx_audio_block, aud_blk,
+				       rx_audio_block_len);
+		}
+	}
+
 	if ((edid_from_tx & 1) &&
 	    (size == 2 * EDID_SIZE * PORT_NUM)) {
 		rx_pr("using EDID from TX, blocking user EDID change\n");
@@ -3931,19 +3955,33 @@ bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data,
 					unsigned char *audio_block)
 {
 	int i;
+	bool ret = false;
 
-	if (!edid_data || !audio_block)
-		return false;
-	if (edid_from_tx & 2)
-		edid_from_tx |= 1;
-	if (edid_from_tx & 1)
-		edid_select = 0;
-	memcpy(edid_tx, edid_data, EDID_SIZE);
-	rx_modify_edid(edid_tx, EDID_SIZE, audio_block);
-	rx_pr("update edid after merge audio block\n");
-	for (i = 0; i < 2 * PORT_NUM; i++)
-		memcpy(edid_buf + i * EDID_SIZE, edid_tx, EDID_SIZE);
-	edid_size = 2 * PORT_NUM * EDID_SIZE;
+	if (!edid_data || !audio_block) {
+		ret = false;
+		/* recovery primary EDID loaded from bin */
+		memcpy(edid_buf, edid_bin, sizeof(edid_bin));
+	} else {
+		if (edid_from_tx & 2)
+			edid_from_tx |= 1;
+		if (edid_from_tx & 1)
+			edid_select = 0;
+		memcpy(edid_tx, edid_data, EDID_SIZE);
+		/* not mix audio blk */
+		/* rx_modify_edid(edid_tx, EDID_SIZE, audio_block); */
+		if (aud_compose_type == 0) {
+			return false;
+		} else if (aud_compose_type == 1) {
+			edid_rm_db_by_tag(edid_tx, AUDIO_TAG);
+			/* place aud data blk to blk index = 0x1 */
+			splice_data_blk_to_edid(edid_tx, audio_block, 0x1);
+		}
+		rx_pr("update edid after merge audio block\n");
+		for (i = 0; i < 2 * PORT_NUM; i++)
+			memcpy(edid_buf + i * EDID_SIZE, edid_tx, EDID_SIZE);
+		edid_size = 2 * PORT_NUM * EDID_SIZE;
+		ret = true;
+	}
 	hdmi_rx_top_edid_update();
 	if (rx.open_fg) {
 		rx_pr("rx_send_hpd_pulse\n");
@@ -3951,7 +3989,7 @@ bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data,
 	} else {
 		pre_port = 0xff;
 	}
-	return true;
+	return ret;
 }
 EXPORT_SYMBOL(rx_update_tx_edid_with_audio_block);
 #endif
