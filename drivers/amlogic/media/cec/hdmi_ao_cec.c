@@ -47,6 +47,7 @@
 /*#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_cec_20.h>*/
 #ifdef CONFIG_AMLOGIC_HDMITX
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
+#include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ext.h>
 #endif
 #include <linux/amlogic/pm.h>
 #include <linux/amlogic/cpu_version.h>

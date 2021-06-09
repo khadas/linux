@@ -29,9 +29,11 @@ static void construct_avi_packet(struct hdmitx_dev *hdev)
 {
 	struct hdmi_avi_infoframe *info = &hdev->infoframes.avi.avi;
 	struct hdmi_format_para *para = hdev->para;
+	int ret;
 
-	hdmi_avi_infoframe_init(info);
-
+	ret = hdmi_avi_infoframe_init(info);
+	if (ret)
+		pr_info("init avi infoframe failed\n");
 	info->colorspace = HDMI_COLORSPACE_YUV444; /* TODO */
 	info->scan_mode = HDMI_SCAN_MODE_NONE;
 	info->colorimetry = HDMI_COLORIMETRY_ITU_709;
@@ -85,7 +87,7 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		pr_info(VID "special tv detected\n");
 	pr_info(VID "already init VIC = %d  Now VIC = %d\n",
 		vic, videocode);
-	if (vic != HDMI_UNKNOWN && vic == videocode)
+	if (vic != HDMI_0_UNKNOWN && vic == videocode)
 		hdev->cur_VIC = vic;
 
 	param = hdev->para;

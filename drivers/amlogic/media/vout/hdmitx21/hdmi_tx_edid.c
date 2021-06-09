@@ -1217,7 +1217,7 @@ INVALID_DRM_DYNAMIC:
 static int edid_parsingvfpdb(struct rx_cap *prxcap, u8 *buf)
 {
 	u32 len = buf[0] & 0x1f;
-	enum hdmi_vic svr = HDMI_UNKNOWN;
+	enum hdmi_vic svr = HDMI_0_UNKNOWN;
 
 	if (buf[1] != EXTENSION_VFPDB_TAG)
 		return 0;
@@ -2527,7 +2527,7 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 enum hdmi_vic hdmitx21_edid_vic_tab_map_vic(const char *disp_mode)
 {
 	struct hdmi_timing *timing = NULL;
-	enum hdmi_vic vic = HDMI_UNKNOWN;
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
 	timing = hdmitx21_gettiming_from_name(disp_mode);
 	if (timing)
@@ -2555,22 +2555,22 @@ const char *hdmitx21_edid_vic_to_string(enum hdmi_vic vic)
 static bool is_rx_support_y420(struct hdmitx_dev *hdev)
 {
 	// TODO
-	enum hdmi_vic vic = HDMI_UNKNOWN;
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
 	vic = hdmitx21_edid_get_VIC(hdev, "2160p60hz420", 0);
-	if (vic != HDMI_UNKNOWN)
+	if (vic != HDMI_0_UNKNOWN)
 		return 1;
 
 	vic = hdmitx21_edid_get_VIC(hdev, "2160p50hz420", 0);
-	if (vic != HDMI_UNKNOWN)
+	if (vic != HDMI_0_UNKNOWN)
 		return 1;
 
 	vic = hdmitx21_edid_get_VIC(hdev, "smpte60hz420", 0);
-	if (vic != HDMI_UNKNOWN)
+	if (vic != HDMI_0_UNKNOWN)
 		return 1;
 
 	vic = hdmitx21_edid_get_VIC(hdev, "smpte50hz420", 0);
-	if (vic != HDMI_UNKNOWN)
+	if (vic != HDMI_0_UNKNOWN)
 		return 1;
 
 	return 0;
@@ -2750,18 +2750,18 @@ enum hdmi_vic hdmitx21_edid_get_VIC(struct hdmitx_dev *hdev,
 	if (vic >= HDMITX_VESA_OFFSET)
 		vesa_vic = vic;
 	else
-		vesa_vic = HDMI_UNKNOWN;
-	if (vic != HDMI_UNKNOWN) {
+		vesa_vic = HDMI_0_UNKNOWN;
+	if (vic != HDMI_0_UNKNOWN) {
 		if (force_flag == 0) {
 			for (j = 0; j < prxcap->VIC_count ; j++) {
 				if (prxcap->VIC[j] == vic)
 					break;
 			}
 			if (j >= prxcap->VIC_count)
-				vic = HDMI_UNKNOWN;
+				vic = HDMI_0_UNKNOWN;
 		}
 	}
-	if (vic == HDMI_UNKNOWN && vesa_vic != HDMI_UNKNOWN) {
+	if (vic == HDMI_0_UNKNOWN && vesa_vic != HDMI_0_UNKNOWN) {
 		for (j = 0; vesa_t[j] && j < VESA_MAX_TIMING; j++) {
 			para = hdmi21_get_fmt_paras(vesa_t[j]);
 			if (para) {

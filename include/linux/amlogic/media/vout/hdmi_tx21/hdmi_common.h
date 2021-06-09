@@ -47,7 +47,7 @@ enum hdmi_tf_type {
 
 enum hdmi_vic {
 	/* Refer to CEA 861-D */
-	HDMI_UNKNOWN = 0,
+	HDMI_0_UNKNOWN = 0,
 	HDMI_1_640x480p60_4x3		= 1,
 	HDMI_2_720x480p60_4x3		= 2,
 	HDMI_3_720x480p60_16x9		= 3,

@@ -6,6 +6,20 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ext.h>
+#include "hdmi_tx_ext.h"
+
+/* for notify to cec */
+int hdmitx_event_notifier_regist(struct notifier_block *nb)
+{
+	return _hdmitx_event_notifier_regist(nb);
+}
+EXPORT_SYMBOL(hdmitx_event_notifier_regist);
+
+int hdmitx_event_notifier_unregist(struct notifier_block *nb)
+{
+	return _hdmitx_event_notifier_unregist(nb);
+}
+EXPORT_SYMBOL(hdmitx_event_notifier_unregist);
 
 int register_earcrx_callback(pf_callback callback)
 {
