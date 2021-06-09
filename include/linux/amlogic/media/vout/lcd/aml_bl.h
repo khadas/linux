@@ -37,6 +37,7 @@
 struct bl_data_s {
 	unsigned int chip_type;
 	const char *chip_name;
+	unsigned int pwm_vs_flag;
 };
 
 /* for lcd backlight power */
@@ -124,6 +125,7 @@ struct bl_pwm_config_s {
 	unsigned int pwm_max; /* internal used for pwm control */
 	unsigned int pwm_min; /* internal used for pwm control */
 	unsigned int pwm_level; /* internal used for pwm control */
+	unsigned int pwm_vs_flag; /* internal used for pwm control */
 };
 
 #define BL_NAME_MAX    30

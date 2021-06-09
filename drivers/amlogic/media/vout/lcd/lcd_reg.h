@@ -1618,11 +1618,13 @@
 #define VPU_VPU_PWM_V1                             0x2731
 #define VPU_VPU_PWM_V2                             0x2732
 #define VPU_VPU_PWM_V3                             0x2733
+#define VPU_VPU_PWM_H0                             0x2734
 
 #define VPU_VPU_PWM_V0_T7                          0x1ce0
 #define VPU_VPU_PWM_V1_T7                          0x1ce1
 #define VPU_VPU_PWM_V2_T7                          0x1ce2
 #define VPU_VPU_PWM_V3_T7                          0x1ce3
+#define VPU_VPU_PWM_H0_T7                          0x1ce4
 /* ***********************************************
  * register access api
  */

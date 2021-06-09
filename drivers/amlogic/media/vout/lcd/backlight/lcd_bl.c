@@ -995,20 +995,17 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 	}
 	strncpy(bconf->name, str, (BL_NAME_MAX - 1));
 
-	ret = of_property_read_u32_array(child, "bl_level_default_uboot_kernel",
-					 &para[0], 2);
+	ret = of_property_read_u32_array(child, "bl_level_default_uboot_kernel", &para[0], 2);
 	if (ret) {
-		BLERR("[%d]: failed to get bl_level_default_uboot_kernel\n",
-		      bdrv->index);
+		BLERR("[%d]: failed to get bl_level_default_uboot_kernel\n", bdrv->index);
 		bconf->level_uboot = BL_LEVEL_DEFAULT;
 		bconf->level_default = BL_LEVEL_DEFAULT;
 	} else {
 		bconf->level_uboot = para[0] & BL_LEVEL_MASK;
 		bconf->level_default = para[1] & BL_LEVEL_MASK;
 
-		bdrv->brightness_bypass =
-			((para[1] >> BL_POLICY_BRIGHTNESS_BYPASS_BIT) &
-			 BL_POLICY_BRIGHTNESS_BYPASS_MASK);
+		bdrv->brightness_bypass = ((para[1] >> BL_POLICY_BRIGHTNESS_BYPASS_BIT) &
+					   BL_POLICY_BRIGHTNESS_BYPASS_MASK);
 		if (bdrv->brightness_bypass) {
 			BLPR("[%d]: 0x%x: enable brightness_bypass\n",
 			     bdrv->index, para[1]);
@@ -1021,8 +1018,7 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 		}
 	}
 
-	ret = of_property_read_u32_array(child, "bl_level_attr",
-					 &para[0], 4);
+	ret = of_property_read_u32_array(child, "bl_level_attr", &para[0], 4);
 	if (ret) {
 		BLERR("[%d]: failed to get bl_level_attr\n", bdrv->index);
 		bconf->level_min = BL_LEVEL_MIN;
@@ -1065,8 +1061,7 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 	}
 	ret = of_property_read_u32(child, "bl_ldim_region_row_col", &para[0]);
 	if (ret) {
-		ret = of_property_read_u32(child, "bl_ldim_zone_row_col",
-					   &para[0]);
+		ret = of_property_read_u32(child, "bl_ldim_zone_row_col", &para[0]);
 		if (ret == 0)
 			bconf->ldim_flag = 1;
 	} else {
@@ -1094,8 +1089,7 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 			BLPR("[%d]: bl pwm_port: %s(0x%x)\n",
 			     bdrv->index, str, bl_pwm->pwm_port);
 		}
-		ret = of_property_read_u32_array(child, "bl_pwm_attr",
-						 &para[0], 4);
+		ret = of_property_read_u32_array(child, "bl_pwm_attr", &para[0], 4);
 		if (ret) {
 			BLERR("[%d]: failed to get bl_pwm_attr\n", bdrv->index);
 			bl_pwm->pwm_method = BL_PWM_POSITIVE;
@@ -1123,8 +1117,7 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 			if (bl_pwm->pwm_freq < 50)
 				bl_pwm->pwm_freq = 50;
 		}
-		ret = of_property_read_u32_array(child, "bl_pwm_power",
-						 &para[0], 4);
+		ret = of_property_read_u32_array(child, "bl_pwm_power", &para[0], 4);
 		if (ret) {
 			BLERR("[%d]: failed to get bl_pwm_power\n",
 			      bdrv->index);
@@ -1144,16 +1137,15 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 		}
 
 		bl_pwm->pwm_duty = bl_pwm->pwm_duty_min;
+		bl_pwm->pwm_vs_flag = bdrv->data->pwm_vs_flag;
 		/* init pwm config */
 		bl_pwm_config_init(bl_pwm);
 		break;
 	case BL_CTRL_PWM_COMBO:
-		bconf->bl_pwm_combo0 = kzalloc(sizeof(*bconf->bl_pwm_combo0),
-					       GFP_KERNEL);
+		bconf->bl_pwm_combo0 = kzalloc(sizeof(*bconf->bl_pwm_combo0), GFP_KERNEL);
 		if (!bconf->bl_pwm_combo0)
 			return -1;
-		bconf->bl_pwm_combo1 = kzalloc(sizeof(*bconf->bl_pwm_combo1),
-					       GFP_KERNEL);
+		bconf->bl_pwm_combo1 = kzalloc(sizeof(*bconf->bl_pwm_combo1), GFP_KERNEL);
 		if (!bconf->bl_pwm_combo1)
 			return -1;
 
@@ -1163,20 +1155,16 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 		pwm_combo0->index = 0;
 		pwm_combo1->index = 1;
 
-		ret = of_property_read_string_index(child, "bl_pwm_combo_port",
-						    0, &str);
+		ret = of_property_read_string_index(child, "bl_pwm_combo_port", 0, &str);
 		if (ret) {
-			BLERR("[%d]: failed to get bl_pwm_combo_port\n",
-			      bdrv->index);
+			BLERR("[%d]: failed to get bl_pwm_combo_port\n", bdrv->index);
 			pwm_combo0->pwm_port = BL_PWM_MAX;
 		} else {
 			pwm_combo0->pwm_port = bl_pwm_str_to_num(str);
 		}
-		ret = of_property_read_string_index(child, "bl_pwm_combo_port",
-						    1, &str);
+		ret = of_property_read_string_index(child, "bl_pwm_combo_port", 1, &str);
 		if (ret) {
-			BLERR("[%d]: failed to get bl_pwm_combo_port\n",
-			      bdrv->index);
+			BLERR("[%d]: failed to get bl_pwm_combo_port\n", bdrv->index);
 			pwm_combo1->pwm_port = BL_PWM_MAX;
 		} else {
 			pwm_combo1->pwm_port = bl_pwm_str_to_num(str);
@@ -1187,8 +1175,7 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 		     pwm_combo0->pwm_port,
 		     bl_pwm_num_to_str(pwm_combo1->pwm_port),
 		     pwm_combo1->pwm_port);
-		ret = of_property_read_u32_array(child,
-						 "bl_pwm_combo_level_mapping",
+		ret = of_property_read_u32_array(child, "bl_pwm_combo_level_mapping",
 						 &para[0], 4);
 		if (ret) {
 			BLERR("[%d]: failed to get bl_pwm_combo_level_mapping\n",
@@ -1203,11 +1190,9 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 			pwm_combo1->level_max = para[2];
 			pwm_combo1->level_min = para[3];
 		}
-		ret = of_property_read_u32_array(child, "bl_pwm_combo_attr",
-						 &para[0], 8);
+		ret = of_property_read_u32_array(child, "bl_pwm_combo_attr", &para[0], 8);
 		if (ret) {
-			BLERR("[%d]: failed to get bl_pwm_combo_attr\n",
-			      bdrv->index);
+			BLERR("[%d]: failed to get bl_pwm_combo_attr\n", bdrv->index);
 			pwm_combo0->pwm_method = BL_PWM_POSITIVE;
 			if (pwm_combo0->pwm_port == BL_PWM_VS)
 				pwm_combo0->pwm_freq = BL_FREQ_VS_DEFAULT;
@@ -1256,11 +1241,9 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 			if (pwm_combo1->pwm_freq < 50)
 				pwm_combo1->pwm_freq = 50;
 		}
-		ret = of_property_read_u32_array(child, "bl_pwm_combo_power",
-						 &para[0], 6);
+		ret = of_property_read_u32_array(child, "bl_pwm_combo_power", &para[0], 6);
 		if (ret) {
-			BLERR("[%d]: failed to get bl_pwm_combo_power\n",
-			      bdrv->index);
+			BLERR("[%d]: failed to get bl_pwm_combo_power\n", bdrv->index);
 			bconf->pwm_on_delay = 0;
 			bconf->pwm_off_delay = 0;
 		} else {
@@ -1278,6 +1261,8 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 
 		pwm_combo0->pwm_duty = pwm_combo0->pwm_duty_min;
 		pwm_combo1->pwm_duty = pwm_combo1->pwm_duty_min;
+		pwm_combo0->pwm_vs_flag = bdrv->data->pwm_vs_flag;
+		pwm_combo1->pwm_vs_flag = bdrv->data->pwm_vs_flag;
 		/* init pwm config */
 		bl_pwm_config_init(pwm_combo0);
 		bl_pwm_config_init(pwm_combo1);
@@ -1335,8 +1320,7 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 }
 #endif
 
-static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv,
-					char *key_name)
+static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_name)
 {
 	struct bl_config_s *bconf = &bdrv->bconf;
 	unsigned char *para;
@@ -1368,15 +1352,13 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv,
 	len = LCD_UKEY_HEAD_SIZE;
 	ret = lcd_unifykey_len_check(key_len, len);
 	if (ret < 0) {
-		BLERR("[%d]: unifykey header length is incorrect\n",
-		      bdrv->index);
+		BLERR("[%d]: unifykey header length is incorrect\n", bdrv->index);
 		kfree(para);
 		return -1;
 	}
 
 	lcd_unifykey_header_check(para, &bl_header);
-	BLPR("[%d]: unifykey version: 0x%04x\n",
-	     bdrv->index, bl_header.version);
+	BLPR("[%d]: unifykey version: 0x%04x\n", bdrv->index, bl_header.version);
 	switch (bl_header.version) {
 	case 2:
 		len = 10 + 30 + 12 + 8 + 32 + 10;
@@ -1478,8 +1460,7 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv,
 			((*(p + LCD_UKEY_BL_PWM_FREQ + 3)) << 8));
 		if (bl_pwm->pwm_port == BL_PWM_VS) {
 			if (bl_pwm->pwm_freq > 4) {
-				BLERR("bl_pwm_vs wrong freq %d\n",
-				      bl_pwm->pwm_freq);
+				BLERR("bl_pwm_vs wrong freq %d\n", bl_pwm->pwm_freq);
 				bl_pwm->pwm_freq = BL_FREQ_VS_DEFAULT;
 			}
 		} else {
@@ -1498,17 +1479,16 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv,
 		}
 
 		bl_pwm->pwm_duty = bl_pwm->pwm_duty_min;
+		bl_pwm->pwm_vs_flag = bdrv->data->pwm_vs_flag;
 		bl_pwm_config_init(bl_pwm);
 		break;
 	case BL_CTRL_PWM_COMBO:
-		bconf->bl_pwm_combo0 = kzalloc(sizeof(*bconf->bl_pwm_combo0),
-					       GFP_KERNEL);
+		bconf->bl_pwm_combo0 = kzalloc(sizeof(*bconf->bl_pwm_combo0), GFP_KERNEL);
 		if (!bconf->bl_pwm_combo0) {
 			kfree(para);
 			return -1;
 		}
-		bconf->bl_pwm_combo1 = kzalloc(sizeof(*bconf->bl_pwm_combo1),
-					       GFP_KERNEL);
+		bconf->bl_pwm_combo1 = kzalloc(sizeof(*bconf->bl_pwm_combo1), GFP_KERNEL);
 		if (!bconf->bl_pwm_combo1) {
 			kfree(para);
 			return -1;
@@ -1531,8 +1511,7 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv,
 			((*(p + LCD_UKEY_BL_PWM_FREQ + 3)) << 8));
 		if (pwm_combo0->pwm_port == BL_PWM_VS) {
 			if (pwm_combo0->pwm_freq > 4) {
-				BLERR("bl_pwm_0_vs wrong freq %d\n",
-				      pwm_combo0->pwm_freq);
+				BLERR("bl_pwm_0_vs wrong freq %d\n", pwm_combo0->pwm_freq);
 				pwm_combo0->pwm_freq = BL_FREQ_VS_DEFAULT;
 			}
 		} else {
@@ -1550,8 +1529,7 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv,
 			((*(p + LCD_UKEY_BL_PWM2_FREQ + 3)) << 8));
 		if (pwm_combo1->pwm_port == BL_PWM_VS) {
 			if (pwm_combo1->pwm_freq > 4) {
-				BLERR("bl_pwm_1_vs wrong freq %d\n",
-				      pwm_combo1->pwm_freq);
+				BLERR("bl_pwm_1_vs wrong freq %d\n", pwm_combo1->pwm_freq);
 				pwm_combo1->pwm_freq = BL_FREQ_VS_DEFAULT;
 			}
 		} else {
@@ -1580,6 +1558,8 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv,
 
 		pwm_combo0->pwm_duty = pwm_combo0->pwm_duty_min;
 		pwm_combo1->pwm_duty = pwm_combo1->pwm_duty_min;
+		pwm_combo0->pwm_vs_flag = bdrv->data->pwm_vs_flag;
+		pwm_combo1->pwm_vs_flag = bdrv->data->pwm_vs_flag;
 		bl_pwm_config_init(pwm_combo0);
 		bl_pwm_config_init(pwm_combo1);
 		break;
@@ -3283,53 +3263,63 @@ static int aml_bl_resume(struct platform_device *pdev)
 static struct bl_data_s bl_data_g12a = {
 	.chip_type = LCD_CHIP_G12A,
 	.chip_name = "g12a",
+	.pwm_vs_flag = 0,
 };
 
 static struct bl_data_s bl_data_g12b = {
 	.chip_type = LCD_CHIP_G12B,
 	.chip_name = "g12b",
+	.pwm_vs_flag = 0,
 };
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct bl_data_s bl_data_tl1 = {
 	.chip_type = LCD_CHIP_TL1,
 	.chip_name = "tl1",
+	.pwm_vs_flag = 1,
 };
 #endif
 
 static struct bl_data_s bl_data_sm1 = {
 	.chip_type = LCD_CHIP_SM1,
 	.chip_name = "sm1",
+	.pwm_vs_flag = 0,
 };
 
 static struct bl_data_s bl_data_tm2 = {
 	.chip_type = LCD_CHIP_TM2,
 	.chip_name = "tm2",
+	.pwm_vs_flag = 1,
 };
 
 static struct bl_data_s bl_data_tm2b = {
 	.chip_type = LCD_CHIP_TM2B,
 	.chip_name = "tm2b",
+	.pwm_vs_flag = 1,
 };
 
 static struct bl_data_s bl_data_t5 = {
 	.chip_type = LCD_CHIP_T5,
 	.chip_name = "t5",
+	.pwm_vs_flag = 1,
 };
 
 static struct bl_data_s bl_data_t5d = {
 	.chip_type = LCD_CHIP_T5D,
 	.chip_name = "t5d",
+	.pwm_vs_flag = 1,
 };
 
 static struct bl_data_s bl_data_t7 = {
 	.chip_type = LCD_CHIP_T7,
 	.chip_name = "t7",
+	.pwm_vs_flag = 1,
 };
 
 static struct bl_data_s bl_data_t3 = {
 	.chip_type = LCD_CHIP_T3,
 	.chip_name = "t3",
+	.pwm_vs_flag = 1,
 };
 
 static const struct of_device_id bl_dt_match_table[] = {

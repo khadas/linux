@@ -169,7 +169,7 @@ static void bl_set_pwm_vs(struct bl_pwm_config_s *bl_pwm,
 			  unsigned int pol, unsigned int out_level)
 {
 	unsigned int pwm_hi, n, sw;
-	unsigned int vs[4], ve[4];
+	unsigned int vs[8], ve[8];
 	int i;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV) {
@@ -178,12 +178,12 @@ static void bl_set_pwm_vs(struct bl_pwm_config_s *bl_pwm,
 	}
 
 	if (out_level == 0) {
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < 8; i++) {
 			vs[i] = 0x1fff;
 			ve[i] = 0;
 		}
 	} else if (out_level == 1) {
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < 8; i++) {
 			vs[i] = 0;
 			ve[i] = 0x1fff;
 		}
@@ -201,13 +201,13 @@ static void bl_set_pwm_vs(struct bl_pwm_config_s *bl_pwm,
 			vs[i] = 1 + (sw * i);
 			ve[i] = vs[i] + pwm_hi - 1;
 		}
-		for (i = n; i < 4; i++) {
-			vs[i] = 0xffff;
-			ve[i] = 0xffff;
+		for (i = n; i < 8; i++) {
+			vs[i] = 0x1fff;
+			ve[i] = 0x1fff;
 		}
 	}
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV) {
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < 8; i++) {
 			BLPR("pwm_vs: vs[%d]=%d, ve[%d]=%d\n",
 			     i, vs[i], i, ve[i]);
 		}
@@ -219,6 +219,21 @@ static void bl_set_pwm_vs(struct bl_pwm_config_s *bl_pwm,
 	lcd_vcbus_write(VPU_VPU_PWM_V1, (ve[1] << 16) | (vs[1]));
 	lcd_vcbus_write(VPU_VPU_PWM_V2, (ve[2] << 16) | (vs[2]));
 	lcd_vcbus_write(VPU_VPU_PWM_V3, (ve[3] << 16) | (vs[3]));
+	if (bl_pwm->pwm_vs_flag) {
+		lcd_vcbus_setb(VPU_VPU_PWM_H0, 1, 31, 1);
+		lcd_vcbus_setb(VPU_VPU_PWM_V0, vs[4], 0, 13);
+		lcd_vcbus_setb(VPU_VPU_PWM_V0, ve[4], 16, 13);
+		lcd_vcbus_write(VPU_VPU_PWM_V1, (ve[5] << 16) | (vs[5]));
+		lcd_vcbus_write(VPU_VPU_PWM_V2, (ve[6] << 16) | (vs[6]));
+		lcd_vcbus_write(VPU_VPU_PWM_V3, (ve[7] << 16) | (vs[7]));
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV) {
+			BLPR("VPU_VPU_PWM_V4=0x%08x\n", lcd_vcbus_read(VPU_VPU_PWM_V0));
+			BLPR("VPU_VPU_PWM_V5=0x%08x\n", lcd_vcbus_read(VPU_VPU_PWM_V1));
+			BLPR("VPU_VPU_PWM_V6=0x%08x\n", lcd_vcbus_read(VPU_VPU_PWM_V2));
+			BLPR("VPU_VPU_PWM_V7=0x%08x\n", lcd_vcbus_read(VPU_VPU_PWM_V3));
+		}
+		lcd_vcbus_setb(VPU_VPU_PWM_H0, 0, 31, 1);
+	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV) {
 		BLPR("VPU_VPU_PWM_V0=0x%08x\n", lcd_vcbus_read(VPU_VPU_PWM_V0));
