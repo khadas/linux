@@ -408,7 +408,8 @@ static irqreturn_t vbi_isr(int irq, void *dev_id)
 
 static void vbi_ringbuffer_flush(struct vbi_ringbuffer_s *rbuf)
 {
-	memset(rbuf->data, 0, rbuf->size);
+	if (rbuf->data)
+		memset(rbuf->data, 0, rbuf->size);
 	rbuf->pread = 0;
 	rbuf->pwrite = 0;
 	rbuf->error = 0;
