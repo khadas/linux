@@ -105,6 +105,7 @@ struct mhu_ctlr {
 	int mhu_id[MBOX_MAX];
 	int mhu_irq;
 	int mhu_irqctlr;
+	int mhu_irqclr;
 	int mhu_irqmax;
 	/*for pl mhu*/
 	void __iomem *mbox_sts_base[MHUDEV_MAX];

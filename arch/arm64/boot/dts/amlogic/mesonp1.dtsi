@@ -15,6 +15,7 @@
 #include <dt-bindings/pwm/meson.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/meson_ir.h>
+#include <dt-bindings/mailbox/amlogic,mbox.h>
 #include "meson-ir-map.dtsi"
 #include "mesong12a-bifrost.dtsi"
 / {
@@ -2696,6 +2697,15 @@
 		mbox-id = <0x0 0x1 0x6 0x7 0x2 0x3>;
 		mbox-wr-rd = <1>;
 		#mbox-cells = <1>;
+	};
+
+	mbox_user: mbox-user@0 {
+		status = "okay";
+		compatible = "amlogic, meson-mbox-user";
+		mbox-nums = <1>;
+		mbox-names = "ree2aocpu";
+		mboxes = <&mhu_fifo 5>;
+		mbox-dests = <MAILBOX_AOCPU>;
 	};
 
 	lut_dma:lut_dma {

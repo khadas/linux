@@ -37,24 +37,6 @@ struct mbox_data {
 	char data[MBOX_DATA_SIZE];
 } __packed;
 
-struct mhu_ctlr {
-	struct device *dev;
-	void __iomem *mbox_wr_base;
-	void __iomem *mbox_rd_base;
-	void __iomem *mbox_set_base;
-	void __iomem *mbox_clr_base;
-	void __iomem *mbox_sts_base;
-	void __iomem *mbox_irq_base;
-	void __iomem *mbox_payload_base;
-	struct mbox_controller mbox_con;
-	struct mhu_chan *channels;
-	int mhu_id[MBOX_MAX];
-	int mhu_irq;
-	int mhu_irqctlr;
-	int mhu_irqclr;
-	int mhu_irqmax;
-};
-
 static struct list_head mbox_devs = LIST_HEAD_INIT(mbox_devs);
 static struct class *mbox_class;
 
