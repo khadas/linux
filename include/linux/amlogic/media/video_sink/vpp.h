@@ -179,8 +179,8 @@ struct vpp_frame_par_s {
 	u8 sr_core_support;
 	u32 hsc_rpt_p0_num0;
 	u32 vsc_top_rpt_l0_num;
-	long h_phase[3];
-	long v_phase[3];
+	s64 h_phase[3];
+	s64 v_phase[3];
 	u32 crop_top;
 	u32 crop_bottom;
 };

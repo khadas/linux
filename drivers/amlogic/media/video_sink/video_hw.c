@@ -8554,6 +8554,7 @@ void aisr_update_frame_info(struct video_layer_s *layer,
 		if (srout_data) {
 			u32 reshape_scaler;
 			u32 src_w, src_h;
+			u32 di_hf_y_reverse;
 
 			layer->aisr_mif_setting.src_w =
 				srout_data->hf_width;
@@ -8587,6 +8588,14 @@ void aisr_update_frame_info(struct video_layer_s *layer,
 			aisr_frame_par->reshape_output_h = src_h;
 			aisr_frame_par->reshape_scaler_w = reshape_scaler;
 			aisr_frame_par->reshape_scaler_h = reshape_scaler;
+			if (vf->hf_info && vf->hf_info->revert_mode)
+				di_hf_y_reverse = 1;
+			else
+				di_hf_y_reverse = 0;
+			/* mif setting changed, need new_vpp_setting to true */
+			if (di_hf_y_reverse != layer->aisr_mif_setting.di_hf_y_reverse)
+				layer->new_vpp_setting = true;
+			layer->aisr_mif_setting.di_hf_y_reverse = di_hf_y_reverse;
 		}
 	} else {
 		layer->aisr_mif_setting.aisr_enable = 0;
@@ -8826,21 +8835,21 @@ void aisr_reshape_cfg(struct video_layer_s *layer,
 	cur_dev->rdma_func[VPP0].rdma_wr_bits
 		(aisr_reshape_reg.aisr_reshape_ctrl0,
 		1, 0, 3);
-#ifdef DI_HF_Y_REVERSE
-	if (glayer_info[0].reverse)
-		r |= (1 << 0) | (0 << 1);
-	else if (glayer_info[0].mirror == H_MIRROR)
-		r |= (1 << 0) | (0 << 1);
-	else if (glayer_info[0].mirror == V_MIRROR)
-		pr_info("not supported v mirror, please used di hf y reverse\n");
-#else
-	if (glayer_info[0].reverse)
-		r |= (1 << 0) | (1 << 1);
-	else if (glayer_info[0].mirror == H_MIRROR)
-		r |= (1 << 0) | (0 << 1);
-	else if (glayer_info[0].mirror == V_MIRROR)
-		r |= (0 << 0) | (1 << 1);
-#endif
+	if (aisr_mif_setting->di_hf_y_reverse) {
+		if (glayer_info[0].reverse)
+			r |= (1 << 0) | (0 << 1);
+		else if (glayer_info[0].mirror == H_MIRROR)
+			r |= (1 << 0) | (0 << 1);
+		else if (glayer_info[0].mirror == V_MIRROR)
+			pr_info("not supported v mirror, please used di hf y reverse\n");
+	} else {
+		if (glayer_info[0].reverse)
+			r |= (1 << 0) | (1 << 1);
+		else if (glayer_info[0].mirror == H_MIRROR)
+			r |= (1 << 0) | (0 << 1);
+		else if (glayer_info[0].mirror == V_MIRROR)
+			r |= (0 << 0) | (1 << 1);
+	}
 	cur_dev->rdma_func[VPP0].rdma_wr_bits
 		(aisr_reshape_reg.aisr_reshape_ctrl0,
 		r, 4, 2);
@@ -8887,32 +8896,32 @@ s32 config_aisr_position(struct video_layer_s *layer,
 		aisr_mif_setting->aisr_enable = 0;
 	aisr_mif_setting->vscale_skip_count =
 		cur_dev->aisr_frame_parms.vscale_skip_count;
-#ifdef DI_HF_Y_REVERSE
-	aisr_mif_setting->x_start = layer->start_x_lines;
-	aisr_mif_setting->x_end = layer->end_x_lines;
-	if (glayer_info[0].reverse ||
-	    glayer_info[0].mirror == V_MIRROR) {
-		u32 height, y_start, y_end;
+	if (aisr_mif_setting->di_hf_y_reverse) {
+		aisr_mif_setting->x_start = layer->start_x_lines;
+		aisr_mif_setting->x_end = layer->end_x_lines;
+		if (glayer_info[0].reverse ||
+		    glayer_info[0].mirror == V_MIRROR) {
+			u32 height, y_start, y_end;
 
-		height = aisr_mif_setting->src_h -
-			cur_dev->aisr_frame_parms.crop_top -
-			cur_dev->aisr_frame_parms.crop_bottom;
-		y_start = aisr_mif_setting->y_start +
-			cur_dev->aisr_frame_parms.crop_bottom;
-		y_end = y_start + height;
+			height = aisr_mif_setting->src_h -
+				cur_dev->aisr_frame_parms.crop_top -
+				cur_dev->aisr_frame_parms.crop_bottom;
+			y_start = aisr_mif_setting->y_start +
+				cur_dev->aisr_frame_parms.crop_bottom;
+			y_end = y_start + height;
 
-		aisr_mif_setting->y_start = y_start;
-		aisr_mif_setting->y_end = y_end;
+			aisr_mif_setting->y_start = y_start;
+			aisr_mif_setting->y_end = y_end;
+		} else {
+			aisr_mif_setting->y_start = layer->start_y_lines;
+			aisr_mif_setting->y_end = layer->end_y_lines;
+		}
 	} else {
+		aisr_mif_setting->x_start = layer->start_x_lines;
+		aisr_mif_setting->x_end = layer->end_x_lines;
 		aisr_mif_setting->y_start = layer->start_y_lines;
 		aisr_mif_setting->y_end = layer->end_y_lines;
 	}
-#else
-	aisr_mif_setting->x_start = layer->start_x_lines;
-	aisr_mif_setting->x_end = layer->end_x_lines;
-	aisr_mif_setting->y_start = layer->start_y_lines;
-	aisr_mif_setting->y_end = layer->end_y_lines;
-#endif
 	padding_y = aisr_mif_setting->src_align_h - aisr_mif_setting->src_h;
 	if (glayer_info[0].reverse ||
 	    glayer_info[0].mirror == V_MIRROR) {

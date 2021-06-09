@@ -319,7 +319,7 @@ struct aisr_setting_s {
 	u32 y_end;
 	u32 little_endian;
 	u32 swap_64bit;
-	u32 reverse;
+	u32 di_hf_y_reverse;
 	u32 vscale_skip_count;
 	ulong phy_addr;
 };

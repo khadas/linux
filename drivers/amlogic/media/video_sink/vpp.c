@@ -2353,7 +2353,7 @@ static void sr_pps_step_phase_id(struct vpp_frame_par_s *next_frame_par)
 			cascade_v_size[1],
 			cascade_v_size[2],
 			cascade_v_size[3]);
-		pr_info("h_phase[1]=0x%lx, v_phase[1]=0x%lx\n",
+		pr_info("h_phase[1]=0x%llx, v_phase[1]=0x%llx\n",
 			next_frame_par->h_phase[1], next_frame_par->v_phase[1]);
 	}
 }
@@ -2436,7 +2436,7 @@ static void sr_pps_phase_auto_calculation(struct vpp_frame_par_s *next_frame_par
 	next_frame_par->h_phase[2] <<= (25 - 2);
 	next_frame_par->v_phase[2] <<= (25 - 2);
 	if (aisr_debug_flag)
-		pr_info("%s:h_phase[0]=0x%lx, v_phase[0]=0x%lx,h_phase[2]=0x%lx,v_phase[2]=0x%lx\n",
+		pr_info("%s:h_phase[0]=0x%llx, v_phase[0]=0x%llx,h_phase[2]=0x%llx,v_phase[2]=0x%llx\n",
 			__func__,
 			next_frame_par->h_phase[0],
 			next_frame_par->v_phase[0],
