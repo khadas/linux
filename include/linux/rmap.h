@@ -12,6 +12,8 @@
 #include <linux/memcontrol.h>
 #include <linux/highmem.h>
 
+int isolate_lru_page(struct page *page);
+
 /*
  * The anon_vma heads a list of private "related" vmas, to scan if
  * an anonymous page pointing to this anon_vma needs to be unmapped:
