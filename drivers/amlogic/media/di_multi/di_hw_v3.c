@@ -5195,14 +5195,14 @@ void dim_secure_pre_en(unsigned char ch)
 			DIM_DI_WR(DI_PRE_SEC_IN, 0x3F);//secure
 		else
 			tee_config_device_state(16, 1);
-		get_datal()->ch_data[ch].is_secure_pre = 2;
+		get_datal()->is_secure_pre = 2;
 		//dbg_mem2("%s:tvp3 pre SECURE:%d\n", __func__, ch);
 	} else {
 		if (DIM_IS_IC_EF(SC2))
 			DIM_DI_WR(DI_PRE_SEC_IN, 0x0);
 		else
 			tee_config_device_state(16, 0);
-		get_datal()->ch_data[ch].is_secure_pre = 1;
+		get_datal()->is_secure_pre = 1;
 		//dbg_mem2("%s:tvp3 pre NOSECURE:%d\n", __func__, ch);
 	}
 }
@@ -5213,10 +5213,10 @@ void dim_secure_sw_pre(unsigned char ch)
 		return;
 	//dbg_mem2("%s:tvp3 pre:%d\n", __func__, ch);
 
-	if (get_datal()->ch_data[ch].is_secure_pre == 0)//first set
+	if (get_datal()->is_secure_pre == 0)//first set
 		dim_secure_pre_en(ch);
 	else if (get_datal()->ch_data[ch].is_tvp !=
-		 get_datal()->ch_data[ch].is_secure_pre)
+		 get_datal()->is_secure_pre)
 		dim_secure_pre_en(ch);
 }
 
@@ -5227,14 +5227,14 @@ void dim_secure_pst_en(unsigned char ch)
 			DIM_DI_WR(DI_POST_SEC_IN, 0x1F);//secure
 		else
 			tee_config_device_state(17, 1);
-		get_datal()->ch_data[ch].is_secure_pst = 2;
+		get_datal()->is_secure_pst = 2;
 		//dbg_mem2("%s:tvp4 PST SECURE:%d\n", __func__, ch);
 	} else {
 		if (DIM_IS_IC_EF(SC2))
 			DIM_DI_WR(DI_POST_SEC_IN, 0x0);
 		else
 			tee_config_device_state(17, 0);
-		get_datal()->ch_data[ch].is_secure_pst = 1;
+		get_datal()->is_secure_pst = 1;
 		//dbg_mem2("%s:tvp4 pST NOSECURE:%d\n", __func__, ch);
 	}
 }
@@ -5245,10 +5245,10 @@ void dim_secure_sw_post(unsigned char ch)
 		return;
 	//dbg_mem2("%s:tvp4 post:%d\n", __func__, ch);
 
-	if (get_datal()->ch_data[ch].is_secure_pst == 0)//first set
+	if (get_datal()->is_secure_pst == 0)//first set
 		dim_secure_pst_en(ch);
 	else if (get_datal()->ch_data[ch].is_tvp !=
-		 get_datal()->ch_data[ch].is_secure_pst)
+		 get_datal()->is_secure_pst)
 		dim_secure_pst_en(ch);
 }
 
