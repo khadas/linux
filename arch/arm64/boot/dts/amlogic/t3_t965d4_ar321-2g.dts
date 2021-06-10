@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include "mesont3.dtsi"
-#include "partition_normal_PR_32.dtsi"
+#include "partition_mbox_ab.dtsi"
 #include "mesont3_ar301-panel.dtsi"
 
 / {
@@ -626,8 +626,8 @@
 		interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "demod_isr";
 		power-domains = <&pwrdm PDID_T3_DEMOD>;
-		//clocks = <&clkc CLKID_DAC_CLK>;
-		//clock-names = "vdac_clk_gate";
+		clocks = <&clkc CLKID_DEMOD_32K>;
+		clock-names = "demod_32k";
 		reg = <0x0 0xfe360000 0x0 0x10000	/*dtv demod base*/
 			   0x0 0xfe000000 0x0 0x2000	/*hiu reg base*/
 			   0x0 0xff800000 0x0 0x1000	/*io_aobus_base*/

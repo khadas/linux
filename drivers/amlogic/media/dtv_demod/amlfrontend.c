@@ -157,7 +157,6 @@ static void dvbc_get_qam_name(enum qam_md_e qam_mode, char *str)
 	}
 }
 
-static void dtvdemod_vdac_enable(bool on);
 static int dtvdemod_leave_mode(struct amldtvdemod_device_s *devp);
 
 struct amldtvdemod_device_s *dtvdemod_get_dev(void)
@@ -3350,6 +3349,100 @@ static void set_agc_pinmux(enum fe_delivery_system delsys, unsigned int on)
 	}
 }
 
+static void vdac_clk_gate_ctrl(int status)
+{
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	if (status) {
+		if (devp->clk_gate_state) {
+			PR_INFO("clk_gate is already on\n");
+			return;
+		}
+
+		if (IS_ERR_OR_NULL(devp->vdac_clk_gate))
+			PR_INFO("%s: no vdac_clk_gate\n", __func__);
+		else
+			clk_prepare_enable(devp->vdac_clk_gate);
+
+		devp->clk_gate_state = 1;
+	} else {
+		if (devp->clk_gate_state == 0) {
+			PR_INFO("clk_gate is already off\n");
+			return;
+		}
+
+		if (IS_ERR_OR_NULL(devp->vdac_clk_gate))
+			PR_INFO("%s: no vdac_clk_gate\n", __func__);
+		else
+			clk_disable_unprepare(devp->vdac_clk_gate);
+
+		devp->clk_gate_state = 0;
+	}
+}
+
+/*
+ * use dtvdemod_vdac_enable replace vdac_enable
+ */
+static void dtvdemod_vdac_enable(bool on)
+{
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	if (on) {
+		vdac_clk_gate_ctrl(1);
+		if (!devp->vdac_enable) {
+			vdac_enable(1, VDAC_MODULE_DTV_DEMOD);
+			devp->vdac_enable = true;
+		}
+	} else {
+		vdac_clk_gate_ctrl(0);
+		if (devp->vdac_enable) {
+			vdac_enable(0, VDAC_MODULE_DTV_DEMOD);
+			devp->vdac_enable = false;
+		}
+	}
+}
+
+static void demod_32k_ctrl(unsigned int onoff)
+{
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	if (!unlikely(devp)) {
+		PR_ERR("%s, devp is NULL\n", __func__);
+		return;
+	}
+
+	if (devp->data->hw_ver != DTVDEMOD_HW_T3)
+		return;
+
+	if (onoff) {
+		if (devp->clk_demod_32k_state) {
+			PR_INFO("demod_32k is already on\n");
+			return;
+		}
+
+		if (IS_ERR_OR_NULL(devp->demod_32k)) {
+			PR_INFO("%s: no clk demod_32k\n", __func__);
+		} else {
+			clk_set_rate(devp->demod_32k, 32768);
+			clk_prepare_enable(devp->demod_32k);
+		}
+
+		devp->clk_demod_32k_state = 1;
+	} else {
+		if (devp->clk_demod_32k_state == 0) {
+			PR_INFO("demod_32k is already off\n");
+			return;
+		}
+
+		if (IS_ERR_OR_NULL(devp->demod_32k))
+			PR_INFO("%s: no clk demod_32k\n", __func__);
+		else
+			clk_disable_unprepare(devp->demod_32k);
+
+		devp->clk_demod_32k_state = 0;
+	}
+}
+
 static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys)
 {
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
@@ -3367,6 +3460,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 	/* must enable the adc ref signal for demod, */
 	/*vdac_enable(1, VDAC_MODULE_DTV_DEMOD);*/
 	dtvdemod_vdac_enable(1);/*on*/
+	demod_32k_ctrl(1);
 	demod->en_detect = 0;/**/
 	dtmb_poll_stop(demod);/*polling mode*/
 
@@ -3545,6 +3639,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 		/* should disable the adc ref signal for demod */
 		/*vdac_enable(0, VDAC_MODULE_DTV_DEMOD);*/
 		dtvdemod_vdac_enable(0);/*off*/
+		demod_32k_ctrl(0);
 		set_agc_pinmux(delsys, 0);
 
 		if (devp->cma_flag == 1 && devp->flg_cma_allc) {
@@ -4125,10 +4220,15 @@ static void dtvdemod_clktree_probe(struct device *dev)
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 
 	devp->clk_gate_state = 0;
+	devp->clk_demod_32k_state = 0;
 
 	devp->vdac_clk_gate = devm_clk_get(dev, "vdac_clk_gate");
-	if (IS_ERR_OR_NULL(devp->vdac_clk_gate))
-		PR_INFO("%s: no clk vdac_clk_gate\n", __func__);
+	if (!IS_ERR_OR_NULL(devp->vdac_clk_gate))
+		PR_INFO("%s: clk vdac_clk_gate probe ok.\n", __func__);
+
+	devp->demod_32k = devm_clk_get(dev, "demod_32k");
+	if (!IS_ERR_OR_NULL(devp->demod_32k))
+		PR_INFO("%s: clk demod_32k probe ok.\n", __func__);
 }
 
 static void dtvdemod_clktree_remove(struct device *dev)
@@ -4137,58 +4237,9 @@ static void dtvdemod_clktree_remove(struct device *dev)
 
 	if (!IS_ERR_OR_NULL(devp->vdac_clk_gate))
 		devm_clk_put(dev, devp->vdac_clk_gate);
-}
 
-static void vdac_clk_gate_ctrl(int status)
-{
-	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
-
-	if (status) {
-		if (devp->clk_gate_state) {
-			PR_INFO("clk_gate is already on\n");
-			return;
-		}
-
-		if (IS_ERR_OR_NULL(devp->vdac_clk_gate))
-			PR_INFO("%s: no vdac_clk_gate\n", __func__);
-		else
-			clk_prepare_enable(devp->vdac_clk_gate);
-
-		devp->clk_gate_state = 1;
-	} else {
-		if (devp->clk_gate_state == 0) {
-			PR_INFO("clk_gate is already off\n");
-			return;
-		}
-
-		if (IS_ERR_OR_NULL(devp->vdac_clk_gate))
-			PR_INFO("%s: no vdac_clk_gate\n", __func__);
-		else
-			clk_disable_unprepare(devp->vdac_clk_gate);
-
-		devp->clk_gate_state = 0;
-	}
-}
-/*
- * use dtvdemod_vdac_enable replace vdac_enable
- */
-static void dtvdemod_vdac_enable(bool on)
-{
-	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
-
-	if (on) {
-		vdac_clk_gate_ctrl(1);
-		if (!devp->vdac_enable) {
-			vdac_enable(1, VDAC_MODULE_DTV_DEMOD);
-			devp->vdac_enable = true;
-		}
-	} else {
-		vdac_clk_gate_ctrl(0);
-		if (devp->vdac_enable) {
-			vdac_enable(0, VDAC_MODULE_DTV_DEMOD);
-			devp->vdac_enable = false;
-		}
-	}
+	if (!IS_ERR_OR_NULL(devp->demod_32k))
+		devm_clk_put(dev, devp->demod_32k);
 }
 
 static int dtvdemod_request_firmware(const char *file_name, char *buf, int size)
