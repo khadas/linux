@@ -64,7 +64,7 @@
 
 /* Ref.2021-0926: t5d/t7 default force yuv422 to yuv444
  */
-#define VDIN_VER "ver:2021-1027: bringup for t3"
+#define VDIN_VER "ver:2021-1218: add secure debug info"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

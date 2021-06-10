@@ -2680,6 +2680,18 @@ start_chk:
 	} else if (!strcmp(parm[0], "doublewrite")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
 			devp->double_wr_cfg = temp;
+	} else if (!strcmp(parm[0], "secure_mem")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			if (temp) {
+				devp->secure_en = 1;
+				devp->cma_config_flag = 0x1;
+			} else {
+				devp->secure_en = 0;
+				devp->cma_config_flag = 0x101;
+			}
+		}
+		pr_info("secure:%d, cma flag:%d\n", devp->secure_en,
+			devp->cma_config_flag);
 	} else if (!strcmp(parm[0], "wv")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (parm[1] && (kstrtouint(parm[2], 16, &mode) == 0))
