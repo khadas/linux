@@ -212,8 +212,17 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 	mmc->actual_clock = 0;
 
 	/* return with clock being stopped */
-	if (!rate)
+	if (!rate) {
+		if (aml_card_type_mmc(host)) {
+			ret = clk_set_parent(host->mux[0], host->clk[0]);
+			while (__clk_get_enable_count(host->clk[2]))
+				clk_disable_unprepare(host->clk[2]);
+			while (__clk_get_enable_count(host->clk[1]))
+				clk_disable_unprepare(host->clk[1]);
+			host->src_clk_cfg_done = false;
+		}
 		return 0;
+	}
 
 	/* Stop the clock during rate change to avoid glitches */
 	cfg = readl(host->regs + SD_EMMC_CFG);
@@ -241,12 +250,7 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 		} else {
 			if (rate > 200000000) {
 				/* HS400@200 config src clock */
-				ret = clk_set_parent(host->mux[0], host->clk[2]);
-				if (ret) {
-					dev_err(host->dev, "set parent error\n");
-					return ret;
-				}
-				if (host->src_clk_rate != 0) {
+				if (host->src_clk_rate != 0 && !host->src_clk_cfg_done) {
 					dev_notice(host->dev, "set src rate to:%u\n",
 								host->src_clk_rate);
 					ret = clk_set_rate(host->clk[2], host->src_clk_rate);
@@ -254,16 +258,17 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 						dev_err(host->dev, "set src err\n");
 						return ret;
 					}
+					clk_prepare_enable(host->clk[2]);
+					host->src_clk_cfg_done = true;
 				}
-				clk_prepare_enable(host->clk[2]);
-			} else {
-				/* sdr104@200 config src clock */
-				ret = clk_set_parent(host->mux[0], host->clk[1]);
+				ret = clk_set_parent(host->mux[0], host->clk[2]);
 				if (ret) {
 					dev_err(host->dev, "set parent error\n");
 					return ret;
 				}
-				if (host->src_clk_rate != 0) {
+			} else {
+				/* sdr104@200 config src clock */
+				if (host->src_clk_rate != 0 && !host->src_clk_cfg_done) {
 					dev_notice(host->dev, "set src rate to:%u\n",
 								host->src_clk_rate);
 					ret = clk_set_rate(host->clk[1], host->src_clk_rate);
@@ -271,8 +276,14 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 						dev_err(host->dev, "set src err\n");
 						return ret;
 					}
+					clk_prepare_enable(host->clk[1]);
+					host->src_clk_cfg_done = true;
 				}
-				clk_prepare_enable(host->clk[1]);
+				ret = clk_set_parent(host->mux[0], host->clk[1]);
+				if (ret) {
+					dev_err(host->dev, "set parent error\n");
+					return ret;
+				}
 			}
 		}
 

@@ -199,6 +199,7 @@ struct meson_host {
 	int nwr_cnt;
 	bool ignore_desc_busy;
 	bool use_intf3_tuning;
+	bool src_clk_cfg_done;
 	struct dentry *debugfs_root;
 };
 
