@@ -131,7 +131,7 @@ enum pageflags {
 	PG_young,
 	PG_idle,
 #endif
-#ifdef CONFIG_AMLOGIC_CMA
+#if defined(CONFIG_AMLOGIC_CMA) && !defined(CONFIG_KASAN)
 	PG_cma_allocating,      /* indicate page is under cma allocating */
 #endif
 	__NR_PAGEFLAGS,
@@ -329,7 +329,7 @@ __PAGEFLAG(Slab, slab, PF_NO_TAIL)
 __PAGEFLAG(SlobFree, slob_free, PF_NO_TAIL)
 PAGEFLAG(Checked, checked, PF_NO_COMPOUND)	   /* Used by some filesystems */
 
-#ifdef CONFIG_AMLOGIC_CMA
+#if defined(CONFIG_AMLOGIC_CMA) && !defined(CONFIG_KASAN)
 PAGEFLAG(CmaAllocating, cma_allocating, PF_ANY)
 #endif
 
@@ -829,7 +829,7 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
  * Flags checked when a page is freed.  Pages being freed should not have
  * these flags set.  It they are, there is a problem.
  */
-#ifdef CONFIG_AMLOGIC_CMA
+#if defined(CONFIG_AMLOGIC_CMA) && !defined(CONFIG_KASAN)
 #define PAGE_FLAGS_CHECK_AT_FREE				\
 	(1UL << PG_lru		| 1UL << PG_locked	|	\
 	 1UL << PG_private	| 1UL << PG_private_2	|	\

@@ -1491,7 +1491,7 @@ free_it:
 			(*get_compound_page_dtor(page))(page);
 		else
 			list_add(&page->lru, &free_pages);
-	#ifdef CONFIG_AMLOGIC_CMA
+	#if defined(CONFIG_AMLOGIC_CMA) && !defined(CONFIG_KASAN)
 		if (ttu_flags & TTU_IGNORE_ACCESS)
 			ClearPageCmaAllocating(page);
 	#endif

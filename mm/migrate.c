@@ -174,7 +174,7 @@ void putback_movable_pages(struct list_head *l)
 	struct page *page2;
 
 	list_for_each_entry_safe(page, page2, l, lru) {
-#ifdef CONFIG_AMLOGIC_CMA
+#if defined(CONFIG_AMLOGIC_CMA) && !defined(CONFIG_KASAN)
 		if (PageCmaAllocating(page))    /* migrate/reclaim failed */
 			ClearPageCmaAllocating(page);
 #endif
@@ -331,7 +331,7 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
 		goto out;
 
 	page = migration_entry_to_page(entry);
-#ifdef CONFIG_AMLOGIC_CMA
+#if defined(CONFIG_AMLOGIC_CMA) && !defined(CONFIG_KASAN)
 	/* This page is under cma allocating, do not increase it ref */
 	if (PageCmaAllocating(page)) {
 		pr_debug("%s, Page:%lx, flags:%lx, m:%d, c:%d, map:%p\n",
@@ -1303,7 +1303,7 @@ put_new:
 		else
 			put_page(newpage);
 	}
-#ifdef CONFIG_AMLOGIC_CMA
+#if defined(CONFIG_AMLOGIC_CMA) && !defined(CONFIG_KASAN)
 	if (reason == MR_CONTIG_RANGE && rc == MIGRATEPAGE_SUCCESS)
 		ClearPageCmaAllocating(page);
 #endif
