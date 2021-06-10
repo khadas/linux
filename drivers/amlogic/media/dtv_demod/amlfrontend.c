@@ -852,15 +852,6 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		PR_DVBT("tuner:no signal! strength:%d\n", strenth);
 		return 0;
 	}
-	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
-	if (demod->time_passed >= 200) {
-		if ((dvbt_t2_rdb(0x2901) & 0xf) < 4) {
-			*status = FE_TIMEDOUT;
-			demod->last_lock = -1;
-			PR_DVBT("[id %d] not dvbt signal\n", demod->id);
-			return 0;
-		}
-	}
 
 	s = amdemod_stat_islock(demod, SYS_DVBT);
 
@@ -961,7 +952,6 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	int strength_limit = THRD_TUNER_STRENTH_DVBT;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-	unsigned int p1_peak, val;
 
 	if (!devp->demod_thread)
 		return 0;
@@ -975,34 +965,6 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		demod->last_lock = -1;
 		PR_DVBT("tuner:no signal! strength:%d\n", strenth);
 		return 0;
-	}
-
-	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
-	if (demod->time_passed >= 800) {
-		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-		//T5D testbus read reg val
-		if (demod_is_t5d_cpu(devp)) {
-			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
-			val = front_read_reg(0x3e);
-			p1_peak = (val >> 1) & 0x01;//test bus val[1];
-			PR_DVBT("DVBT2 testbus:0x%x\n", p1_peak);
-			if (p1_peak == 1) {
-				*status = FE_TIMEDOUT;
-				demod->last_lock = -1;
-				PR_DVBT("[id %d] not dvbt2 signal\n", demod->id);
-				return 0;
-			}
-		} else {
-			p1_peak = (dvbt_t2_rdb(0x2838) + (dvbt_t2_rdb(0x2839) << 8) +
-				(dvbt_t2_rdb(0x283A) << 16));
-			PR_DVBT("DVBT2 p1_peak:0x%x\n", p1_peak);
-			if (p1_peak == 0xe00) {
-				*status = FE_TIMEDOUT;
-				demod->last_lock = -1;
-				PR_DVBT("[id %d] not dvbt2 signal\n", demod->id);
-				return 0;
-			}
-		}
 	}
 
 	s = amdemod_stat_islock(demod, SYS_DVBT2);
@@ -1267,7 +1229,6 @@ static int dvbt_set_frontend(struct dvb_frontend *fe)
 
 	tuner_set_params(fe);
 	dvbt_set_ch(demod, &param);
-	demod->time_start = jiffies_to_msecs(jiffies);
 	/* wait tuner stable */
 	msleep(30);
 
@@ -1287,7 +1248,6 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 	demod->last_lock = -1;
 	tuner_set_params(fe);
 	dvbt2_set_ch(demod);
-	demod->time_start = jiffies_to_msecs(jiffies);
 	/* wait tuner stable */
 	msleep(30);
 
