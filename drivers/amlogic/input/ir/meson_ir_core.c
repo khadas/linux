@@ -37,6 +37,12 @@ static void meson_ir_do_keyup(struct meson_ir_dev *dev)
 			if (chip->search_id[cnt] == ct->tab.vendor)
 				break;
 		}
+		if (cnt > chip->input_cnt) {
+			dev_err(chip->dev, "vendor ID Configuration error\n");
+			dev_err(chip->dev, "vendor = %x, product = %x, version = %x\n",
+					ct->tab.vendor, ct->tab.product, ct->tab.version);
+			return;
+		}
 		input_report_key(dev->input_device_ots[cnt], dev->last_keycode, 0);
 		input_sync(dev->input_device_ots[cnt]);
 	} else {
@@ -89,6 +95,12 @@ static void meson_ir_do_keydown(struct meson_ir_dev *dev, int scancode,
 			for (cnt = 0; cnt <= chip->input_cnt; cnt++) {
 				if (chip->search_id[cnt] == ct->tab.vendor)
 					break;
+			}
+			if (cnt > chip->input_cnt) {
+				dev_err(chip->dev, "vendor ID configuration error\n");
+				dev_err(chip->dev, "vendor = %x, product = %x, version = %x\n",
+						ct->tab.vendor, ct->tab.product, ct->tab.version);
+				return;
 			}
 			input_report_key(dev->input_device_ots[cnt], keycode, 1);
 			input_sync(dev->input_device_ots[cnt]);

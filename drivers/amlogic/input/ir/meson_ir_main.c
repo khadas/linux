@@ -199,6 +199,12 @@ static int meson_ir_report_rel(struct meson_ir_dev *dev, u32 scancode,
 			if (chip->search_id[cnt] == ct->tab.vendor)
 				break;
 		}
+		if (cnt > chip->input_cnt) {
+			dev_err(chip->dev, "vdndor ID Configuration error\n");
+			dev_err(chip->dev, "vendor = %x, product = %x, version = %x\n",
+					ct->tab.vendor, ct->tab.product, ct->tab.version);
+			return 0;
+		}
 		input_event(chip->r_dev->input_device_ots[cnt], EV_REL,
 					mouse_code, cursor_value);
 		input_sync(chip->r_dev->input_device_ots[cnt]);
