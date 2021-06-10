@@ -254,6 +254,8 @@ struct amldtvdemod_device_s {
 	/* clktree */
 	unsigned int clk_gate_state;
 	struct clk *vdac_clk_gate;
+	unsigned int clk_demod_32k_state;
+	struct clk *demod_32k;
 #endif
 	/*agc pin mux*/
 	struct pinctrl *pin;	/*agc pintrcl*/
