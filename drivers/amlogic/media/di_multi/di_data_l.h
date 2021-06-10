@@ -1834,10 +1834,6 @@ struct di_ch_s {
 	struct dim_iat_s	iat_bf[DIM_IAT_NUB];
 	unsigned int		is_tvp	:2;
 	//0: unknown, 1: non tvp, 2: tvp
-	unsigned int		is_secure_pre	:2;
-	//0: unknown, 1: non secure, 2: secure
-	unsigned int		is_secure_pst	:2;
-	//0: unknown, 1: non secure, 2: secure
 	/* qb: sct 2020-11-03 */
 	struct buf_que_s sct_qb;
 	struct qs_cls_s sct_q[QBF_SCT_Q_NUB];
@@ -2047,6 +2043,10 @@ struct di_data_l_s {
 	unsigned int cfg_dbg_mode; /*val or item*/
 	int mp_uit[K_DI_MP_UIT_NUB];	/*EDI_MP_UI_T*/
 	struct di_ch_s ch_data[DI_CHANNEL_NUB];
+	unsigned int		is_secure_pre	:2;
+	//0: unknown, 1: non secure, 2: secure
+	unsigned int		is_secure_pst	:2;
+	//0: unknown, 1: non secure, 2: secure
 	int plane[DI_CHANNEL_NUB];	/*use for debugfs*/
 
 	struct di_dbg_data dbg_data;
@@ -2415,24 +2415,24 @@ static inline void set_flag_tvp(unsigned char ch, unsigned int data)
 	get_datal()->ch_data[ch].is_tvp = data;
 }
 
-static inline unsigned int get_flag_secure_pre(unsigned char ch)
+static inline unsigned int get_flag_secure_pre(void)
 {
-	return get_datal()->ch_data[ch].is_secure_pre;
+	return get_datal()->is_secure_pre;
 }
 
-static inline void set_flag_secure_pre(unsigned char ch, unsigned int data)
+static inline void set_flag_secure_pre(unsigned int data)
 {
-	get_datal()->ch_data[ch].is_secure_pre = data;
+	get_datal()->is_secure_pre = data;
 }
 
-static inline unsigned int get_flag_secure_pst(unsigned char ch)
+static inline unsigned int get_flag_secure_pst(void)
 {
-	return get_datal()->ch_data[ch].is_secure_pst;
+	return get_datal()->is_secure_pst;
 }
 
-static inline void set_flag_secure_pst(unsigned char ch, unsigned int data)
+static inline void set_flag_secure_pst(unsigned int data)
 {
-	get_datal()->ch_data[ch].is_secure_pst = data;
+	get_datal()->is_secure_pst = data;
 }
 
 /*sum*/
