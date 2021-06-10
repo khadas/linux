@@ -302,108 +302,6 @@ static int read_avmute(void)
 	return ret;
 }
 
-static void config_video_mapping(enum hdmi_color_space cs,
-				 enum hdmi_color_depth cd)
-{
-	unsigned int val = 0;
-
-	pr_info("config: cs = %d cd = %d\n", cs, cd);
-	switch (cs) {
-	case COLORSPACE_RGB444:
-		switch (cd) {
-		case COLORDEPTH_24B:
-			val = 0x1;
-			break;
-		case COLORDEPTH_30B:
-			val = 0x3;
-			break;
-		case COLORDEPTH_36B:
-			val = 0x5;
-			break;
-		case COLORDEPTH_48B:
-			val = 0x7;
-			break;
-		default:
-			break;
-		}
-		break;
-	case COLORSPACE_YUV444:
-	case COLORSPACE_YUV420:
-		switch (cd) {
-		case COLORDEPTH_24B:
-			val = 0x9;
-			break;
-		case COLORDEPTH_30B:
-			val = 0xb;
-			break;
-		case COLORDEPTH_36B:
-			val = 0xd;
-			break;
-		case COLORDEPTH_48B:
-			val = 0xf;
-			break;
-		default:
-			break;
-		}
-		break;
-	case COLORSPACE_YUV422:
-		switch (cd) {
-		case COLORDEPTH_24B:
-			val = 0x16;
-			break;
-		case COLORDEPTH_30B:
-			val = 0x14;
-			break;
-		case COLORDEPTH_36B:
-			val = 0x12;
-			break;
-		case COLORDEPTH_48B:
-			pr_info("y422 no 48bits mode\n");
-			break;
-		default:
-			break;
-		}
-		break;
-	default:
-		break;
-	}
-	hdmitx_set_reg_bits(HDMITX_DWC_TX_INVID0, val, 0, 4);
-
-	switch (cd) {
-	case COLORDEPTH_24B:
-		val = 0x4;
-		break;
-	case COLORDEPTH_30B:
-		val = 0x5;
-		break;
-	case COLORDEPTH_36B:
-		val = 0x6;
-		break;
-	case COLORDEPTH_48B:
-		val = 0x7;
-		break;
-	default:
-		break;
-	}
-	hdmitx_set_reg_bits(HDMITX_DWC_VP_PR_CD, val, 4, 4);
-
-	switch (cd) {
-	case COLORDEPTH_30B:
-	case COLORDEPTH_36B:
-	case COLORDEPTH_48B:
-		hdmitx_set_reg_bits(HDMITX_DWC_VP_CONF, 0, 6, 1);
-		hdmitx_set_reg_bits(HDMITX_DWC_VP_CONF, 1, 5, 1);
-		hdmitx_set_reg_bits(HDMITX_DWC_VP_CONF, 1, 2, 1);
-		hdmitx_set_reg_bits(HDMITX_DWC_VP_CONF, 0, 0, 2);
-		break;
-	case COLORDEPTH_24B:
-		break;
-	default:
-		break;
-	}
-	hdmitx_set_reg_bits(HDMITX_DWC_VP_PR_CD, val, 4, 4);
-}
-
 /* record HDMITX current format, matched with uboot */
 /* ISA_DEBUG_REG0 0x2600
  * bit[11]: Y420
@@ -4226,9 +4124,6 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 		if (hdmitx_rd_reg(HDMITX_DWC_FC_VSDPAYLOAD0) == 0x20)
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
 		break;
-	case CONF_VIDEO_MAPPING:
-		config_video_mapping(hdev->para->cs, hdev->para->cd);
-		break;
 	case CONF_CLR_AUDINFO_PACKET:
 		break;
 	case CONF_AVI_BT2020:
@@ -4821,11 +4716,10 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	data32 |= (((output_color_format == COLORSPACE_YUV422) ?
 		COLORDEPTH_24B : color_depth) << 4);
 	data32 |= (0 << 0);
+	/* HDMI1.4 CTS7-19, CD of GCP for Y422 should be 0 */
 	if ((data32 & 0xf0) == 0x40)
 		data32 &= ~(0xf << 4);
-	hdmitx_wr_reg(HDMITX_DWC_VP_PR_CD,  data32);
-	if (output_color_format == COLORSPACE_YUV422)
-		hdmitx_set_reg_bits(HDMITX_DWC_VP_PR_CD, 0x4, 4, 4);
+	hdmitx_wr_reg(HDMITX_DWC_VP_PR_CD, data32);
 
 	/* Video Packet Stuffing */
 	data32  = 0;
