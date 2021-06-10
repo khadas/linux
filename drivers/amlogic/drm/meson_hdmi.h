@@ -11,38 +11,6 @@
 #include <drm/drm_encoder.h>
 #include <linux/amlogic/media/vout/hdmi_tx/meson_drm_hdmitx.h>
 
-#define DDC_SEGMENT_ADDR   0x30
-#define VIC_MAX_NUM        512
-#define DRM_MODE_LEN_MAX	32
-#define DRM_ATTR_LEN_MAX	16
-#define DRM_HDMITX_VER     "20210428"
-//Not sure the default value
-#define MESON_DEFAULT_COLOR_DEPTH COLORDEPTH_24B
-#define MESON_DEFAULT_COLOR_SPACE HDMI_COLORSPACE_RGB
-
-#define COLOR_YCBCR444_12BIT             "444,12bit"
-#define COLOR_YCBCR444_10BIT             "444,10bit"
-#define COLOR_YCBCR444_8BIT              "444,8bit"
-#define COLOR_YCBCR422_12BIT             "422,12bit"
-#define COLOR_YCBCR422_10BIT             "422,10bit"
-#define COLOR_YCBCR422_8BIT              "422,8bit"
-#define COLOR_YCBCR420_12BIT             "420,12bit"
-#define COLOR_YCBCR420_10BIT             "420,10bit"
-#define COLOR_YCBCR420_8BIT              "420,8bit"
-#define COLOR_RGB_12BIT                  "rgb,12bit"
-#define COLOR_RGB_10BIT                  "rgb,10bit"
-#define COLOR_RGB_8BIT                   "rgb,8bit"
-
-#define MODE_4K2K24HZ                   "2160p24hz"
-#define MODE_4K2K25HZ                   "2160p25hz"
-#define MODE_4K2K30HZ                   "2160p30hz"
-#define MODE_4K2K50HZ                   "2160p50hz"
-#define MODE_4K2K60HZ                   "2160p60hz"
-#define MODE_4K2KSMPTE                  "smpte24hz"
-#define MODE_4K2KSMPTE30HZ              "smpte30hz"
-#define MODE_4K2KSMPTE50HZ              "smpte50hz"
-#define MODE_4K2KSMPTE60HZ              "smpte60hz"
-
 enum {
 	HDCP_STATE_START = 0,
 	HDCP_STATE_SUCCESS,
@@ -51,16 +19,17 @@ enum {
 	HDCP_STATE_DISCONNECT,
 };
 
+struct hdmitx_color_attr {
+	int colorformat;
+	int bitdepth;
+};
+
 struct am_hdmi_tx {
 	struct meson_connector base;
 	struct drm_encoder encoder;
 
-	unsigned int input_color_format;
-	unsigned int output_color_format;
-	enum hdmi_color_depth color_depth;
-	enum hdmi_color_space color_space;
-	struct drm_property *color_depth_property;
-	struct drm_property *color_space_property;
+	/*drm current hdmitx attr color-subsample(format)/colordepth*/
+	struct hdmitx_color_attr color_attr;
 
 	/*drm request content type.*/
 	int hdcp_request_content_type;
