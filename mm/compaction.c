@@ -1083,7 +1083,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 
 isolate_success:
 		list_add(&page->lru, &cc->migratepages);
-	#ifdef CONFIG_AMLOGIC_CMA
+	#if defined(CONFIG_AMLOGIC_CMA) && !defined(CONFIG_KASAN)
 		if (cc->page_type == COMPACT_CMA)
 			SetPageCmaAllocating(page);
 	#endif

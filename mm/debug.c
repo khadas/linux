@@ -90,7 +90,7 @@ void __dump_page(struct page *page, const char *reason)
 		} else
 			pr_warn("%ps\n", mapping->a_ops);
 	}
-#ifdef CONFIG_AMLOGIC_CMA
+#if defined(CONFIG_AMLOGIC_CMA) && !defined(CONFIG_KASAN)
 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS);
 #else
 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
