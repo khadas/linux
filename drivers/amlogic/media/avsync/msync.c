@@ -1731,6 +1731,7 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		debug.pcr_init_flag = session->pcr_init_flag;
 		if (copy_to_user(argp, &debug, sizeof(debug)))
 			return -EFAULT;
+		break;
 	}
 	case AMSYNCS_IOC_SET_CLK_DEV:
 	{
