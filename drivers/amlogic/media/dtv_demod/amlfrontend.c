@@ -849,14 +849,17 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	if (strenth < strength_limit) {
 		*status = FE_TIMEDOUT;
 		demod->last_lock = -1;
+		demod->last_status = *status;
 		PR_DVBT("tuner:no signal! strength:%d\n", strenth);
 		return 0;
 	}
+
 	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
 	if (demod->time_passed >= 200) {
 		if ((dvbt_t2_rdb(0x2901) & 0xf) < 4) {
 			*status = FE_TIMEDOUT;
 			demod->last_lock = -1;
+			demod->last_status = *status;
 			PR_DVBT("[id %d] not dvbt signal\n", demod->id);
 			return 0;
 		}
@@ -949,6 +952,7 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			PR_INFO("%s [id %d]: !!  >> WAITT << !!\n", __func__, demod->id);
 		}
 	}
+	demod->last_status = *status;
 
 	return 0;
 }
@@ -973,6 +977,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	if (strenth < strength_limit) {
 		*status = FE_TIMEDOUT;
 		demod->last_lock = -1;
+		demod->last_status = *status;
 		PR_DVBT("tuner:no signal! strength:%d\n", strenth);
 		return 0;
 	}
@@ -989,6 +994,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			if (p1_peak == 1) {
 				*status = FE_TIMEDOUT;
 				demod->last_lock = -1;
+				demod->last_status = *status;
 				PR_DVBT("[id %d] not dvbt2 signal\n", demod->id);
 				return 0;
 			}
@@ -999,6 +1005,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			if (p1_peak == 0xe00) {
 				*status = FE_TIMEDOUT;
 				demod->last_lock = -1;
+				demod->last_status = *status;
 				PR_DVBT("[id %d] not dvbt2 signal\n", demod->id);
 				return 0;
 			}
@@ -1036,6 +1043,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			PR_INFO("%s [id %d]: !!  >> WAITT2 << !!\n", __func__, demod->id);
 		}
 	}
+	demod->last_status = *status;
 
 	return 0;
 }
@@ -1264,6 +1272,7 @@ static int dvbt_set_frontend(struct dvb_frontend *fe)
 	param.agc_mode = 1;
 	param.dat0 = 1;
 	demod->last_lock = -1;
+	demod->last_status = 0;
 
 	tuner_set_params(fe);
 	dvbt_set_ch(demod, &param);
@@ -1285,6 +1294,7 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 	demod->bw = dtvdemod_convert_bandwidth(c->bandwidth_hz);
 	demod->freq = c->frequency / 1000;
 	demod->last_lock = -1;
+	demod->last_status = 0;
 	tuner_set_params(fe);
 	dvbt2_set_ch(demod);
 	demod->time_start = jiffies_to_msecs(jiffies);
@@ -1355,6 +1365,7 @@ static unsigned int dvbt_init(struct aml_dtvdemod *demod)
 	dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x704);
 	dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 	demod_set_sys(demod, &sys);
+	demod->last_status = 0;
 
 	return 0;
 }
@@ -1381,6 +1392,7 @@ static unsigned int dtvdemod_dvbt2_init(struct aml_dtvdemod *demod)
 	dd_hiu_reg_write(dig_clk->demod_clk_ctl_1, 0x704);
 	dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
 	demod_set_sys(demod, &sys);
+	demod->last_status = 0;
 
 	return 0;
 }
@@ -5097,11 +5109,11 @@ static int aml_dtvdm_read_status(struct dvb_frontend *fe,
 		break;
 
 	case SYS_DVBT:
-		ret = dvbt_read_status(fe, status);
+		*status = demod->last_status;
 		break;
 
 	case SYS_DVBT2:
-		ret = dvbt2_read_status(fe, status);
+		*status = demod->last_status;
 		break;
 
 	case SYS_ISDBT:
