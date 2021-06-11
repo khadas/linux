@@ -9728,7 +9728,7 @@ int video_hw_init(void)
 			1, 8, 1);
 	}
 	/* force bypass dolby for TL1/T5, no dolby function */
-	if (!glayer_info[0].dv_support)
+	if (!glayer_info[0].dv_support && !is_meson_s4d_cpu())
 		WRITE_VCBUS_REG_BITS(DOLBY_PATH_CTRL, 0xf, 0, 6);
 	for (i = 0; i < MAX_VD_LAYER; i++) {
 		if (glayer_info[i].fgrain_support)
