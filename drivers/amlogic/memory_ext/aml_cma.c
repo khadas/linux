@@ -1016,6 +1016,12 @@ retry:
 			!strcmp(p->comm, "rapps.simpleapp"))
 			continue;
 
+		if (oom_score_adj <= 0) {
+			pr_debug("ignore top app:'%s' (%d), adj %hd, size %d, to kill\n",
+				p->comm, p->pid, oom_score_adj, tasksize);
+			continue;
+		}
+
 		selected = p;
 		selected_taskswap = taskswap;
 		selected_tasksize = tasksize;
