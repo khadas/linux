@@ -776,7 +776,7 @@
 				status = "disabled";
 				reg = <0x0 0x56000 0x0 0x80>;
 				clock-names = "default";
-				//clocks = <&clkc CLKID_SPIFC>;
+				clocks = <&clkc CLKID_SYS_CLK_SPIFC>;
 				pinctrl-names = "default";
 				pinctrl-0 = <&spifc_all_pins>;
 				#address-cells = <1>;
@@ -3117,19 +3117,6 @@
 		};
 	};
 
-	spifc_all_pins: spifc_all_pins {
-		mux {
-			groups =  "nor_hold",
-				"nor_d",
-				"nor_q",
-				"nor_c",
-				"nor_wp",
-				"nor_cs";
-			function = "nor";
-			drive-strength-microamp = <3000>;
-		};
-	};
-
 	spicc0_pins: spicc0_pins {
 		mux {
 			groups = "spi_a_mosi",
@@ -3400,6 +3387,19 @@
 			function = "gpio_storage";
 			bias-pull-down;
 			drive-strength-microamp = <4000>;
+		};
+	};
+
+	spifc_all_pins: spifc_all_pins {
+		mux {
+			groups =  "spif_hold",
+				"spif_mo",
+				"spif_mi",
+				"spif_clk",
+				"spif_wp",
+				"spif_cs";
+			function = "spif";
+			drive-strength-microamp = <3000>;
 		};
 	};
 };
