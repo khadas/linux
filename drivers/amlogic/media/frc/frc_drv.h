@@ -24,8 +24,8 @@
 #include <linux/amlogic/media/frc/frc_common.h>
 #include "frc_interface.h"
 
-#define FRC_FW_VER			"2021-0611 power down disable pw domain"
-#define FRC_KERDRV_VER                  649
+#define FRC_FW_VER			"2021-0611 frc sync alg svn660 and fixCID"
+#define FRC_KERDRV_VER                  660
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
 #define FRC_CLASS_NAME	"frc"

@@ -1070,7 +1070,7 @@ void config_phs_regs(enum frc_ratio_mode_type frc_ratio_mode,
 	u32            reg_out_frm_dly_num = 3;
 	u32            reg_frc_pd_pat_num  = 1;
 	u32            reg_ip_film_end     = 1;
-	uint64_t            inp_frm_vld_lut     = 1;
+	u64            inp_frm_vld_lut     = 1;
 	u32            reg_ip_incr[16]     = {0,1,3,1,1,1,1,1,2,3,2,1,1,1,1,2};
 
 	//config ip_film_end
@@ -1613,8 +1613,8 @@ void sys_fw_param_frc_init(u32 frm_hsize, u32 frm_vsize, u32 is_me1mc4)
 	}
 	WRITE_FRC_BITS(FRC_REG_ME_HME_SCALE, reg_me_dsx_scale, 6, 2);
 	WRITE_FRC_BITS(FRC_REG_ME_HME_SCALE, reg_me_dsy_scale, 4, 2);
-//	WRITE_FRC_BITS(FRC_REG_ME_HME_SCALE, reg_hme_dsx_scale, 2, 2);
-//	WRITE_FRC_BITS(FRC_REG_ME_HME_SCALE, reg_hme_dsy_scale, 0, 2);
+	// WRITE_FRC_BITS(FRC_REG_ME_HME_SCALE, reg_hme_dsx_scale, 2, 2);
+	// WRITE_FRC_BITS(FRC_REG_ME_HME_SCALE, reg_hme_dsy_scale, 0, 2);
 
 	WRITE_FRC_BITS(FRC_REG_BLK_SCALE  , logo_mc_ratio               , 4 , 2);//reg_logo_mc_ratio
 	WRITE_FRC_BITS(FRC_REG_BLK_SCALE  , OSD_MC_RATIO                , 2 , 2);//reg_osd_mc_ratio
@@ -1631,6 +1631,7 @@ void sys_fw_param_frc_init(u32 frm_hsize, u32 frm_vsize, u32 is_me1mc4)
 	WRITE_FRC_BITS(FRC_ME_REGION_RP_GMV_2, reg_me_mvx_div_mode + 2, 17, 3);  //reg_region_rp_gmv_mvx_sft
 	WRITE_FRC_BITS(FRC_ME_REGION_RP_GMV_2, reg_me_mvy_div_mode + 2, 14, 3);  //reg_region_rp_gmv_mvy_sft
 
+	/* //  below changed to fixed CID139496
 	if(me_mc_ratio==0) {
 		reg_mc_blksize_xscale  = 2 ;              //  u3: (0~4); mc block horizontal size in full pixel scale = (1<<xscal), set to (reg_me_dsx_scale.value + 2) as default
 		reg_mc_blksize_yscale  = 2 ;              //  u3: (0~4); mc block vertical size in full pixel scale = (1<<yscal), set to (reg_me_dsy_scale.value + 2) as default
@@ -1667,6 +1668,23 @@ void sys_fw_param_frc_init(u32 frm_hsize, u32 frm_vsize, u32 is_me1mc4)
 		reg_mc_fetch_size = 5 ;
 		reg_mc_blk_x      = 8 ;
 	}
+	*/
+	// because me_mc_ratio only equal 1 or 2
+	if (me_mc_ratio == 2) {
+		reg_mc_blksize_xscale = 4;
+		reg_mc_blksize_yscale = 4;
+		reg_mc_mvx_scale =  2;
+		reg_mc_mvy_scale =  2;
+		reg_mc_fetch_size = 9;
+		reg_mc_blk_x      = 16;
+	} else {
+		reg_mc_blksize_xscale = 3;
+		reg_mc_blksize_yscale = 3;
+		reg_mc_mvx_scale =  1;
+		reg_mc_mvy_scale =  1;
+		reg_mc_fetch_size = 5;
+		reg_mc_blk_x      = 8;
+	}
 	WRITE_FRC_BITS(FRC_REG_BLK_SCALE, reg_mc_blksize_xscale, 9, 3);  //reg_mc_blksize_xscale
 	WRITE_FRC_BITS(FRC_REG_BLK_SCALE, reg_mc_blksize_yscale, 6, 3);  //reg_mc_blksize_yscale
 	WRITE_FRC_BITS(FRC_MC_SETTING1  , reg_mc_mvx_scale,      8, 4);  //reg_mc_mvx_scale
@@ -1688,10 +1706,21 @@ void sys_fw_param_frc_init(u32 frm_hsize, u32 frm_vsize, u32 is_me1mc4)
 	WRITE_FRC_BITS(FRC_BBD_DETECT_REGION_LFT2RIT, reg_bb_det_lft, 16, 16);  //if reg_bb_det_lft < 0
 	WRITE_FRC_BITS(FRC_BBD_DETECT_REGION_LFT2RIT, reg_bb_det_rit, 0 , 16);  //if reg_bb_det_rit>frm_hsize-1
 
-	reg_bb_det_motion_top  =  (0 == reg_me_dsy_scale) ? reg_bb_det_top : reg_bb_det_top     >> reg_me_dsy_scale;
-	reg_bb_det_motion_bot  = ((0 == reg_me_dsy_scale) ? reg_bb_det_bot : (reg_bb_det_bot+1) >> reg_me_dsy_scale) - 1;
-	reg_bb_det_motion_lft  =  (0 == reg_me_dsx_scale) ? reg_bb_det_lft : (reg_bb_det_lft >> reg_me_dsx_scale);
-	reg_bb_det_motion_rit  = ((0 == reg_me_dsx_scale) ? reg_bb_det_rit : (reg_bb_det_rit+1) >> reg_me_dsx_scale) - 1;
+	/*
+	 *below changed to fixed CID139497, CID139498
+	 * // reg_bb_det_motion_top  =  (0 == reg_me_dsy_scale) ? reg_bb_det_top :
+	 *				reg_bb_det_top     >> reg_me_dsy_scale;
+	 * // reg_bb_det_motion_bot  = ((0 == reg_me_dsy_scale) ? reg_bb_det_bot :
+	 *				(reg_bb_det_bot+1) >> reg_me_dsy_scale) - 1;
+	 * // reg_bb_det_motion_lft  =  (0 == reg_me_dsx_scale) ? reg_bb_det_lft :
+	 *				(reg_bb_det_lft >> reg_me_dsx_scale);
+	 * // reg_bb_det_motion_rit  = ((0 == reg_me_dsx_scale) ? reg_bb_det_rit :
+	 *				(reg_bb_det_rit+1) >> reg_me_dsx_scale) - 1;
+	 */
+	reg_bb_det_motion_top  = reg_bb_det_top >> reg_me_dsy_scale;
+	reg_bb_det_motion_bot  = ((reg_bb_det_bot + 1) >> reg_me_dsy_scale) - 1;
+	reg_bb_det_motion_lft  = reg_bb_det_lft >> reg_me_dsx_scale;
+	reg_bb_det_motion_rit  = ((reg_bb_det_rit + 1) >> reg_me_dsx_scale) - 1;
 
 	WRITE_FRC_BITS(FRC_BBD_DETECT_MOTION_REGION_TOP2BOT, reg_bb_det_motion_top, 16, 16); //reg_bb_det_motion_top
 	WRITE_FRC_BITS(FRC_BBD_DETECT_MOTION_REGION_TOP2BOT, reg_bb_det_motion_bot, 0,  16); //reg_bb_det_motion_bot
@@ -1838,7 +1867,7 @@ void sys_fw_param_frc_init(u32 frm_hsize, u32 frm_vsize, u32 is_me1mc4)
 	WRITE_FRC_BITS(FRC_BBD_FLATNESS_DETEC_REGION_RIT_BOT, reg_bb_det_rit, 16, 16); //reg_bb_flat_xyxy_2
 	WRITE_FRC_BITS(FRC_BBD_FLATNESS_DETEC_REGION_RIT_BOT, reg_bb_det_bot,  0, 16); //reg_bb_flat_xyxy_3
 
-//`endif
+// endif
 }
 
 

@@ -471,7 +471,7 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 			vpu_base = NULL;
 		} else {
 			frc_devp->vpu_reg = (void *)base;
-			vpu_base = frc_devp->clk_reg;
+			vpu_base = frc_devp->vpu_reg;
 			pr_frc(0, "vpu reg base 0x%lx -> 0x%lx, map size:0x%lx\n",
 			       (ulong)res->start, (ulong)vpu_base, (ulong)(res->end - res->start));
 		}
@@ -726,8 +726,8 @@ static int frc_probe(struct platform_device *pdev)
 	frc_data = (struct frc_data_s *)frc_devp->data;
 	// fw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	frc_dts_parse(frc_devp);
-	if (ret < 0)
-		goto fail_dev_create;
+	// if (ret < 0)  // fixed CID 139501
+	//	goto fail_dev_create;
 
 	tasklet_init(&frc_devp->input_tasklet, frc_input_tasklet_pro, (unsigned long)frc_devp);
 	tasklet_init(&frc_devp->output_tasklet, frc_output_tasklet_pro, (unsigned long)frc_devp);
