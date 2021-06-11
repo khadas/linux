@@ -54,6 +54,9 @@ static struct early_suspend bt_early_suspend;
 
 #define BT_RFKILL "bt_rfkill"
 #define MODULE_ID 0x271
+#define POWER_EVENT_DEF     0
+#define POWER_EVENT_RESET   1
+#define POWER_EVENT_EN      2
 
 char bt_addr[18] = "";
 char *btmac;
@@ -72,7 +75,6 @@ static int distinguish_module(void)
 	int vendor_id = 0;
 
 	vendor_id = sdio_get_vendor();
-	pr_info("vendor_id = 0x%x\n", vendor_id);
 
 	if (vendor_id == MODULE_ID)
 		return 0;
@@ -127,47 +129,108 @@ struct bt_dev_runtime_data {
 	struct bt_dev_data *pdata;
 };
 
-static void bt_device_off(struct bt_dev_data *pdata)
+static void off_def_power(struct bt_dev_data *pdata, unsigned long down_time)
 {
-	if (!distinguish_module()) {
-		return;
+	if (pdata->gpio_reset > 0) {
+		if (pdata->power_on_pin_OD &&
+			pdata->power_low_level) {
+			gpio_direction_input(pdata->gpio_reset);
+		} else {
+			gpio_direction_output(pdata->gpio_reset,
+				pdata->power_low_level);
+		}
+
+		if (down_time)
+			msleep(down_time);
 	}
 
+	if (pdata->gpio_en > 0) {
+		if (pdata->power_on_pin_OD &&
+			pdata->power_low_level) {
+			gpio_direction_input(pdata->gpio_en);
+		} else {
+			set_usb_bt_power(0);
+		}
+	}
+}
+
+static void on_def_power(struct bt_dev_data *pdata, unsigned long up_time)
+{
+	if (pdata->gpio_reset > 0) {
+		if (pdata->power_on_pin_OD &&
+			!pdata->power_low_level) {
+			gpio_direction_input(pdata->gpio_reset);
+		} else {
+			gpio_direction_output(pdata->gpio_reset,
+				!pdata->power_low_level);
+		}
+
+		if (up_time)
+			msleep(up_time);
+	}
+
+	if (pdata->gpio_en > 0) {
+		if (pdata->power_on_pin_OD &&
+			!pdata->power_low_level) {
+			gpio_direction_input(pdata->gpio_en);
+		} else {
+			set_usb_bt_power(1);
+		}
+	}
+}
+
+static void off_reset_power(struct bt_dev_data *pdata, unsigned long down_time)
+{
+	if (pdata->gpio_reset > 0) {
+		if (pdata->power_on_pin_OD &&
+			pdata->power_low_level) {
+			gpio_direction_input(pdata->gpio_reset);
+		} else {
+			gpio_direction_output(pdata->gpio_reset,
+				pdata->power_low_level);
+		}
+
+		if (down_time)
+			msleep(down_time);
+	}
+}
+
+static void on_reset_power(struct bt_dev_data *pdata, unsigned long up_time)
+{
+	if (pdata->gpio_reset > 0) {
+		if (pdata->power_on_pin_OD &&
+			!pdata->power_low_level) {
+			gpio_direction_input(pdata->gpio_reset);
+		} else {
+			gpio_direction_output(pdata->gpio_reset,
+				!pdata->power_low_level);
+		}
+
+		if (up_time)
+			msleep(up_time);
+	}
+}
+
+static void bt_device_off(struct bt_dev_data *pdata)
+{
+	if (!distinguish_module())
+		return;
+
 	if (pdata->power_down_disable == 0) {
-		if (btpower_evt == 1 && pdata->gpio_reset > 0) {
-			if (pdata->power_on_pin_OD &&
-				pdata->power_low_level) {
-				gpio_direction_input(pdata->gpio_reset);
-			} else {
-				gpio_direction_output(pdata->gpio_reset,
-					pdata->power_low_level);
-			}
-		}
-		if (btpower_evt == 1 && pdata->gpio_en > 0) {
-			if (pdata->power_on_pin_OD &&
-				pdata->power_low_level) {
-				gpio_direction_input(pdata->gpio_en);
-			} else {
-				gpio_direction_output(pdata->gpio_en,
-					pdata->power_low_level);
-			}
-		}
-
-		if (btpower_evt == 2)
+		switch (btpower_evt) {
+		case POWER_EVENT_DEF:
+			off_def_power(pdata, 0);
+			break;
+		case POWER_EVENT_RESET:
+			off_reset_power(pdata, 0);
+			break;
+		case POWER_EVENT_EN:
 			set_usb_bt_power(0);
-
-		if (btpower_evt == 0 && pdata->gpio_reset > 0) {
-			if (pdata->power_on_pin_OD &&
-				pdata->power_low_level) {
-				gpio_direction_input(pdata->gpio_reset);
-			} else {
-				gpio_direction_output(pdata->gpio_reset,
-					pdata->power_low_level);
-			}
+			break;
+		default:
+			pr_err("%s default no electricity", __func__);
+			break;
 		}
-		if (btpower_evt == 0 && pdata->gpio_en > 0)
-			set_usb_bt_power(0);
-
 		msleep(20);
 	}
 }
@@ -216,78 +279,24 @@ static void bt_device_deinit(struct bt_dev_data *pdata)
 static void bt_device_on(struct bt_dev_data *pdata, unsigned long down_time, unsigned long up_time)
 {
 	if (pdata->power_down_disable == 0) {
-		if (btpower_evt == 1 && pdata->gpio_reset > 0) {
-			if (pdata->power_on_pin_OD &&
-				pdata->power_low_level) {
-				gpio_direction_input(pdata->gpio_reset);
-			} else {
-				gpio_direction_output(pdata->gpio_reset,
-					pdata->power_low_level);
-			}
-		}
-		if (btpower_evt == 1 && pdata->gpio_en > 0) {
-			if (pdata->power_on_pin_OD &&
-				pdata->power_low_level) {
-				gpio_direction_input(pdata->gpio_en);
-			} else {
-				gpio_direction_output(pdata->gpio_en,
-						pdata->power_low_level);
-			}
-		}
-
-		if (btpower_evt == 2)
+		switch (btpower_evt) {
+		case POWER_EVENT_DEF:
+			off_def_power(pdata, down_time);
+			on_def_power(pdata, up_time);
+			break;
+		case POWER_EVENT_RESET:
+			off_reset_power(pdata, down_time);
+			on_reset_power(pdata, up_time);
+			break;
+		case POWER_EVENT_EN:
 			set_usb_bt_power(0);
-
-		if (btpower_evt == 0 && pdata->gpio_reset > 0) {
-			if (pdata->power_on_pin_OD &&
-				pdata->power_low_level) {
-				gpio_direction_input(pdata->gpio_reset);
-			} else {
-				gpio_direction_output(pdata->gpio_reset,
-					pdata->power_low_level);
-			}
-		}
-		if (btpower_evt == 0 && pdata->gpio_en > 0)
-			set_usb_bt_power(0);
-		if (down_time > 0)
-			msleep(down_time);
-	}
-
-	if (btpower_evt == 1 && pdata->gpio_reset > 0) {
-		if (pdata->power_on_pin_OD &&
-			!pdata->power_low_level) {
-			gpio_direction_input(pdata->gpio_reset);
-		} else {
-			gpio_direction_output(pdata->gpio_reset,
-				!pdata->power_low_level);
+			set_usb_bt_power(1);
+			break;
+		default:
+			pr_err("%s default no electricity", __func__);
+			break;
 		}
 	}
-	if (btpower_evt == 1 && pdata->gpio_en > 0) {
-		if (pdata->power_on_pin_OD &&
-			!pdata->power_low_level) {
-			gpio_direction_input(pdata->gpio_en);
-		} else {
-			gpio_direction_output(pdata->gpio_en,
-				!pdata->power_low_level);
-		}
-	}
-
-	if (btpower_evt == 2)
-		set_usb_bt_power(1);
-
-	if (btpower_evt == 0 && pdata->gpio_reset > 0) {
-		if (pdata->power_on_pin_OD &&
-			!pdata->power_low_level) {
-			gpio_direction_input(pdata->gpio_reset);
-		} else {
-			gpio_direction_output(pdata->gpio_reset,
-				!pdata->power_low_level);
-		}
-	}
-	if (btpower_evt == 0 && pdata->gpio_en > 0)
-		set_usb_bt_power(1);
-	if (up_time > 0)
-		msleep(up_time);
 }
 
 /*The system calls this function when GPIOC_14 interrupt occurs*/
@@ -376,7 +385,7 @@ static int bt_set_block(void *data, bool blocked)
 		bt_device_on(pdata, 200, 200);
 	} else {
 		pr_info("AML_BT: going OFF,btpower_evt=%d\n", btpower_evt);
-	bt_device_off(pdata);
+		bt_device_off(pdata);
 	}
 	return 0;
 }

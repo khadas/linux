@@ -548,8 +548,9 @@ static int wifi_setup_dt(void)
 		SHOW_PIN_OWN("power_on_pin2", wifi_info.power_on_pin2);
 	}
 
-	set_usb_wifi_power(0);
-	set_usb_wifi_power(1);
+	set_wifi_power(0);
+	msleep(100);
+	set_wifi_power(1);
 
 	return 0;
 }
