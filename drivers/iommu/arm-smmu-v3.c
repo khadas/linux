@@ -32,6 +32,9 @@
 #include <linux/platform_device.h>
 
 #include <linux/amba/bus.h>
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <asm/cacheflush.h>
+#endif
 
 /* MMIO registers */
 #define ARM_SMMU_IDR0			0x0
@@ -383,7 +386,11 @@
 #define MSI_IOVA_BASE			0x8000000
 #define MSI_IOVA_LENGTH			0x100000
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static bool disable_bypass;
+#else
 static bool disable_bypass = 1;
+#endif
 module_param_named(disable_bypass, disable_bypass, bool, S_IRUGO);
 MODULE_PARM_DESC(disable_bypass,
 	"Disable bypass streams such that incoming transactions from devices that are not attached to an iommu domain will report an abort back to the device and will not be allowed to pass through the SMMU.");
@@ -1483,6 +1490,7 @@ static void arm_smmu_write_ctx_desc(struct arm_smmu_device *smmu,
 	cfg->cdptr[1] = cpu_to_le64(val);
 
 	cfg->cdptr[3] = cpu_to_le64(cfg->cd.mair);
+	__flush_dcache_area(cfg->cdptr, 32);
 }
 
 /* Stream table manipulation functions */
@@ -2145,6 +2153,48 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
 	kfree(smmu_domain);
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static void *persistent_ram_vmap_nocache(phys_addr_t start, size_t size)
+{
+	struct page **pages;
+	phys_addr_t page_start;
+	unsigned int page_count;
+	pgprot_t prot;
+	unsigned int i;
+	void *vaddr;
+
+	page_start = start - offset_in_page(start);
+	page_count = DIV_ROUND_UP(size + offset_in_page(start), PAGE_SIZE);
+
+	prot = pgprot_noncached(PAGE_KERNEL);
+
+	pages = kmalloc_array(page_count, sizeof(struct page *), GFP_KERNEL);
+	/*
+	 *if (!pages) {
+	 *	pr_err("%s: Failed to allocate array for %u pages\n",
+	 *	       __func__, page_count);
+	 *	return NULL;
+	 *}
+	 */
+
+	for (i = 0; i < page_count; i++) {
+		phys_addr_t addr = page_start + i * PAGE_SIZE;
+
+		pages[i] = pfn_to_page(addr >> PAGE_SHIFT);
+	}
+	vaddr = vmap(pages, page_count, VM_MAP, prot);
+	kfree(pages);
+
+	/*
+	 * Since vmap() uses page granularity, we must add the offset
+	 * into the page here, to get the byte granularity address
+	 * into the mapping to represent the actual "start" location.
+	 */
+	//return vaddr + offset_in_page(start);
+	return vaddr;
+}
+#endif
+
 static int arm_smmu_domain_finalise_s1(struct arm_smmu_domain *smmu_domain,
 				       struct io_pgtable_cfg *pgtbl_cfg)
 {
@@ -2165,6 +2215,7 @@ static int arm_smmu_domain_finalise_s1(struct arm_smmu_domain *smmu_domain,
 		ret = -ENOMEM;
 		goto out_free_asid;
 	}
+	__flush_dcache_area(cfg->cdptr, (CTXDESC_CD_DWORDS << 3));
 
 	cfg->cd.asid	= (u16)asid;
 	cfg->cd.ttbr	= pgtbl_cfg->arm_lpae_s1_cfg.ttbr[0];
@@ -2737,48 +2788,6 @@ static struct iommu_ops arm_smmu_ops = {
 	.pgsize_bitmap		= -1UL, /* Restricted during device attach */
 };
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-static void *persistent_ram_vmap_nocache(phys_addr_t start, size_t size)
-{
-	struct page **pages;
-	phys_addr_t page_start;
-	unsigned int page_count;
-	pgprot_t prot;
-	unsigned int i;
-	void *vaddr;
-
-	page_start = start - offset_in_page(start);
-	page_count = DIV_ROUND_UP(size + offset_in_page(start), PAGE_SIZE);
-
-	prot = pgprot_noncached(PAGE_KERNEL);
-
-	pages = kmalloc_array(page_count, sizeof(struct page *), GFP_KERNEL);
-	/*
-	 *if (!pages) {
-	 *	pr_err("%s: Failed to allocate array for %u pages\n",
-	 *	       __func__, page_count);
-	 *	return NULL;
-	 *}
-	 */
-
-	for (i = 0; i < page_count; i++) {
-		phys_addr_t addr = page_start + i * PAGE_SIZE;
-
-		pages[i] = pfn_to_page(addr >> PAGE_SHIFT);
-	}
-	vaddr = vmap(pages, page_count, VM_MAP, prot);
-	kfree(pages);
-
-	/*
-	 * Since vmap() uses page granularity, we must add the offset
-	 * into the page here, to get the byte granularity address
-	 * into the mapping to represent the actual "start" location.
-	 */
-	//return vaddr + offset_in_page(start);
-	return vaddr;
-}
-#endif
-
 /* Probing and initialisation functions */
 static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 				   struct arm_smmu_queue *q,
@@ -2798,7 +2807,8 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 		q->base = dmam_alloc_coherent(smmu->dev, qsz, &q->base_dma,
 					      GFP_KERNEL);
 #else
-		q->base = kmalloc(qsz, GFP_KERNEL);
+		q->base = kzalloc(qsz, GFP_KERNEL);
+		__flush_dcache_area(q->base, qsz);
 #endif
 		if (q->base || qsz < PAGE_SIZE)
 			break;
@@ -2967,16 +2977,38 @@ static int arm_smmu_init_strtab_linear(struct arm_smmu_device *smmu)
 	u64 reg;
 	u32 size;
 	struct arm_smmu_strtab_cfg *cfg = &smmu->strtab_cfg;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int base_addr_phys;
+	void *vmap_addr = NULL;
+#endif
 
 	size = (1 << smmu->sid_bits) * (STRTAB_STE_DWORDS << 3);
+#ifndef CONFIG_AMLOGIC_MODIFY
 	strtab = dmam_alloc_coherent(smmu->dev, size, &cfg->strtab_dma,
 				     GFP_KERNEL | __GFP_ZERO);
+#else
+	strtab = kzalloc(size, GFP_KERNEL);
+	__flush_dcache_area(strtab, size);
+#endif
 	if (!strtab) {
 		dev_err(smmu->dev,
 			"failed to allocate linear stream table (%u bytes)\n",
 			size);
 		return -ENOMEM;
 	}
+#ifdef CONFIG_AMLOGIC_MODIFY
+	base_addr_phys = virt_to_phys(strtab);
+
+	vmap_addr = persistent_ram_vmap_nocache(base_addr_phys, size);
+	if (!vmap_addr) {
+		kfree(strtab);
+		dev_err(smmu->dev, "failed to persistent %d bytes\n", size);
+		return -ENOMEM;
+	}
+
+	strtab = vmap_addr;
+	cfg->strtab_dma = base_addr_phys;
+#endif
 	cfg->strtab = strtab;
 	cfg->num_l1_ents = 1 << smmu->sid_bits;
 
@@ -3488,6 +3520,10 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	/* SID/SSID sizes */
 	smmu->ssid_bits = FIELD_GET(IDR1_SSIDSIZE, reg);
 	smmu->sid_bits = FIELD_GET(IDR1_SIDSIZE, reg);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/* for select the line stream table */
+	smmu->sid_bits = 5;
+#endif
 
 	/*
 	 * If the SMMU supports fewer bits than would fill a single L2 stream
