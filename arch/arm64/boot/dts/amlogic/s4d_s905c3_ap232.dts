@@ -207,27 +207,30 @@
 		dvb_power_value = <1>;
 		dvb_power_dir = <0>; /* 0: out, 1: in. */
 
-		/* interal 2 * dvb-c, interal 1 * dvb-s, extern 1 * dvb-s */
-		fe_num = <4>;
+		/* interal 1 * dvb-c/s, interal 1 * dvb-c, extern 1 * dvb-s */
+		fe_num = <3>;
 		fe0_demod = "internal";
-		fe0_tuner0 = <0>; /* use tuner0 */
+		fe0_tuner0 = <0>; /* use tuner0 C */
+		fe0_tuner1 = <2>; /* use tuner2 S */
 
 		fe1_demod = "internal";
-		fe1_tuner0 = <1>; /* use tuner1 */
+		fe1_tuner0 = <1>; /* use tuner1 C */
 
-		fe2_demod = "internal";
-		fe2_tuner0 = <2>; /* use tuner2 */
-
-		fe3_demod = "cxd2856";
-		fe3_i2c_adap_id = <&i2c4>;
-		fe3_demod_i2c_addr = <0xD8>;
-		fe3_reset_value = <0>;
-		fe3_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
-		fe3_reset_dir = <0>; /* 0: out, 1: in. */
-		fe3_ant_poweron_value = <0>;
-		fe3_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
-		fe3_ts = <0>;
-		fe3_tuner1 = <3>; /* use tuner3, only S. */
+		fe2_demod = "cxd2856";
+		fe2_i2c_adap_id = <&i2c4>;
+		fe2_demod_i2c_addr = <0xD8>;
+		fe2_reset_value = <0>;
+		fe2_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
+		fe2_reset_dir = <0>; /* 0: out, 1: in. */
+		fe2_ant_poweron_value = <0>;
+		fe2_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
+		fe2_lnb_en_gpio = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
+		fe2_lnb_en_value = <1>;
+		fe2_lnb_sel_gpio = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		fe2_lnb_sel_value = <1>;
+		fe2_ts = <0>;
+		fe2_tuner0 = <1>; /* use tuner0, only TC. */
+		fe2_tuner1 = <3>; /* use tuner3, only S. */
 
 		tuner_num = <4>; /* tuner number, multi tuner support */
 		tuner0_name = "r836_tuner";
@@ -361,15 +364,15 @@
 		compatible = "amlogic, ddemod-s4d";
 		dev_name = "aml_dtv_demod";
 		status = "okay";
-		/* diseqc_name = "sgm_41286"; */
-		pinctrl-names="if_agc_pins", "rf_agc_pins";
+		diseqc_name = "sgm_41286";
+		pinctrl-names="if_agc_pins", "rf_agc_pins", "diseqc";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
 		pinctrl-1=<&dtvdemod_rf_agc_pins>;
-		/* pinctrl-1=<&diseqc_out>; */
-		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
-		/* lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>; */
-		/* interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>; */
-		/* interrupt-names = "demod_isr"; */
+		pinctrl-2=<&diseqc_out>;
+		lnb_en-gpios = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
+		lnb_sel-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "demod_isr";
 
 		power-domains = <&pwrdm PDID_S4_DEMOD>;
 		/* clocks = <&clkc CLKID_DAC_CLK>; */

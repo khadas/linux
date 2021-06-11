@@ -1086,6 +1086,10 @@ static const char * const tsin_b1_groups[] = {
 	"tsin_b1_clk", "tsin_b1_sop", "tsin_b1_valid", "tsin_b1_d0"
 };
 
+static const char * const diseqc_out_groups[] = {
+	"diseqc_out"
+};
+
 static const char * const s2_demod_groups[] = {
 	"s2_demod_gpio7", "s2_demod_gpio6", "s2_demod_gpio5", "s2_demod_gpio4",
 	"s2_demod_gpio3", "s2_demod_gpio2", "s2_demod_gpio1", "s2_demod_gpio0"
@@ -1146,6 +1150,7 @@ static struct meson_pmx_func meson_s4_periphs_functions[] __initdata = {
 	FUNCTION(tsin_a),
 	FUNCTION(tsin_b),
 	FUNCTION(tsin_b1),
+	FUNCTION(diseqc_out),
 	FUNCTION(s2_demod)
 };
 
