@@ -1956,6 +1956,14 @@
 		};
 	};
 
+	diseqc_out: diseqc_out {
+		mux {
+			groups = "diseqc_out";
+			function = "diseqc_out";
+			bias-pull-down;
+		};
+	};
+
 	eecec_a: ee_ceca {
 		mux {
 			groups = "ao_cec_a";
