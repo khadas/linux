@@ -194,6 +194,7 @@ struct aml_dtvdemod {
 	unsigned int timeout_dvbs_ms;
 	unsigned int time_start;
 	unsigned int time_passed;
+	enum fe_status last_status;
 
 	int autoflags;
 	int auto_flags_trig;
