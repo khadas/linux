@@ -320,6 +320,8 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 	frc_data = (struct frc_data_s *)devp->data;
 	chip = frc_data->match_data->chip;
 
+#define K_MEMC_CLK_DIS
+
 	if (devp->power_on_flag == onoff) {
 		pr_frc(0, "warning: same pw state\n");
 		return;
@@ -335,18 +337,21 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 
 	if (chip == ID_T3) {
 		if (onoff) {
+#ifdef K_MEMC_CLK_DIS
 			pwr_ctrl_psci_smc(PDID_T3_FRCTOP, PWR_ON);
 			pwr_ctrl_psci_smc(PDID_T3_FRCME, PWR_ON);
 			pwr_ctrl_psci_smc(PDID_T3_FRCMC, PWR_ON);
-
+#endif
 			frc_init_config(devp);
 			frc_buf_config(devp);
 			frc_internal_initial(devp);
 			frc_hw_initial(devp);
 		} else {
+#ifdef K_MEMC_CLK_DIS
 			pwr_ctrl_psci_smc(PDID_T3_FRCTOP, PWR_OFF);
 			pwr_ctrl_psci_smc(PDID_T3_FRCME, PWR_OFF);
 			pwr_ctrl_psci_smc(PDID_T3_FRCMC, PWR_OFF);
+#endif
 		}
 		pr_frc(0, "t3 power domain power %d\n", onoff);
 	}
@@ -828,7 +833,9 @@ static int frc_suspend(struct platform_device *pdev, pm_message_t state)
 	if (!devp)
 		return -1;
 
-	//frc_power_domain_ctrl(devp, 0);
+	frc_power_domain_ctrl(devp, 0);
+	if (devp->power_on_flag)
+		devp->power_on_flag = false;
 
 	return 0;
 }
@@ -841,7 +848,9 @@ static int frc_resume(struct platform_device *pdev)
 	if (!devp)
 		return -1;
 
-	//frc_power_domain_ctrl(devp, 1);
+	frc_power_domain_ctrl(devp, 1);
+	if (!devp->power_on_flag)
+		devp->power_on_flag = true;
 
 	return 0;
 }
