@@ -5047,7 +5047,8 @@ unsigned char dim_pre_bypass(struct di_ch_s *pch)
 		mm = dim_mm_get(ch);
 		if (!mm->sts.flg_alloced) {
 			sgn = di_vframe_2_sgn(vframe);
-			if (IS_I_SRC(vframe->type))
+			//if (IS_I_SRC(vframe->type))
+			if (!pch->ponly && sgn < EDI_SGN_4K)
 				pch->sumx.need_local = true;
 			else
 				pch->sumx.need_local = false;
