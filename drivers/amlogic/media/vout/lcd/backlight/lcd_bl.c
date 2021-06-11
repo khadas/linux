@@ -3476,10 +3476,10 @@ static void aml_bl_config_probe_work(struct work_struct *work)
 	/* init workqueue */
 	INIT_DELAYED_WORK(&bdrv->delayed_on_work, bl_delayd_on);
 
-	bl_debug_file_creat(bdrv);
+	bl_init_status_update(bdrv);
 
 	bl_vsync_irq_init(bdrv);
-	bl_init_status_update(bdrv);
+	bl_debug_file_creat(bdrv);
 
 	BLPR("[%d]: %s: ok\n", index, __func__);
 	return;
