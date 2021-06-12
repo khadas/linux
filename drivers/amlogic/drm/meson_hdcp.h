@@ -11,6 +11,7 @@ enum {
 	HDCP_NULL = 0,
 	HDCP_MODE14 = 1 << 0,
 	HDCP_MODE22 = 1 << 1,
+	HDCP_KEY_UPDATE = 1 << 2
 };
 
 enum {
