@@ -286,6 +286,9 @@
 
 #define	TOP_AXI_STAT_0					0x083
 #define	TOP_MISC_STAT0					0x084
+#define TOP_OVID_OVERRIDE0				0x090
+#define TOP_OVID_OVERRIDE1				0x091
+
 #define TOP_EDID_ADDR_S					0x1000
 #define TOP_EDID_ADDR_E					0x11ff
 
@@ -306,7 +309,6 @@
 /* t7 top base addr */
 #define TOP_AMLPHY_BASE_OFFSET_T7		0x4000
 #define TOP_COR_BASE_OFFSET_T7			0x8000
-
 
 #define TOP_DONT_TOUCH0                  0x0fe
 #define TOP_DONT_TOUCH1                  0x0ff
@@ -2539,10 +2541,14 @@
 #define     CP2PA_GP3_HDCP2X_IVCRX     0x00001d1e
 
 #define HDCP2X_RX_ECC_CTRL				0x1d90
-#define HDCP2X_RX_ECC_FRM_ERR_THR_0		0x1d96
-#define HDCP2X_RX_ECC_FRM_ERR_THR_1		0x1d97
+#define HDCP2X_RX_ECC_CNT2CHK_0			0x1d91
+#define HDCP2X_RX_ECC_CNT2CHK_1			0x1d92
+#define HDCP2X_RX_ECC_GVN_FRM_ERR_THR_0		0x1d9B
+#define HDCP2X_RX_ECC_GVN_FRM_ERR_THR_1		0x1d9C
+#define HDCP2X_RX_ECC_GVN_FRM_ERR_THR_2		0x1d9D
 #define HDCP2X_RX_ECC_INTR				0x1d9e
 #define HDCP2X_RX_ECC_INTR_MASK			0x1d9f
+#define HDCP2X_RX_GVN_FRM				0x1d9A
 
 //==================== CP2PA CORE===============
 #define CP2PAX_CTRL_0_HDCP2X_IVCRX     0x00001e00
@@ -3150,6 +3156,7 @@ extern bool hdcp22_kill_esm;
 extern bool hpd_to_esm;
 extern u32 term_cal_val;
 extern u32 phy_trim_val;
+extern u32 hdcp22_reauth_enable;
 
 void rx_get_best_eq_setting(void);
 void wr_reg_hhi(unsigned int offset, unsigned int val);
@@ -3370,5 +3377,7 @@ void rx_set_irq_t3(bool en);
 void rx_set_aud_output_t3(u32 param);
 void rx_sw_reset_t3(int level);
 void rx_hdcp_22_sent_reauth(void);
+bool rx_ecc_err_overflow(void);
+void hdmirx_output_en(bool en);
 
 #endif

@@ -1900,7 +1900,8 @@ void rx_set_irq_t3(bool en)
 		hdmirx_wr_cor(RX_INTR1_MASK_PWD_IVCRX, 0x03);//register_address: 0x1050
 		hdmirx_wr_cor(RX_INTR2_MASK_PWD_IVCRX, 0x00);//register_address: 0x1051
 		hdmirx_wr_cor(RX_INTR3_MASK_PWD_IVCRX, 0x00);//register_address: 0x1052
-		hdmirx_wr_cor(RX_INTR4_MASK_PWD_IVCRX, 0x03);//register_address: 0x1053
+		//must set 0.
+		hdmirx_wr_cor(RX_INTR4_MASK_PWD_IVCRX, 0);//0x03);//register_address: 0x1053
 		hdmirx_wr_cor(RX_INTR5_MASK_PWD_IVCRX, 0x00);//register_address: 0x1054
 		hdmirx_wr_cor(RX_INTR6_MASK_PWD_IVCRX, 0x00);//register_address: 0x1055
 		hdmirx_wr_cor(RX_INTR7_MASK_PWD_IVCRX, 0x00);//register_address: 0x1056

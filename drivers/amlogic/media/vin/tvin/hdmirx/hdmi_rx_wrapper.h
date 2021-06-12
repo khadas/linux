@@ -20,6 +20,7 @@
 #define COLOR_DEP_EN		0x400
 #define ERR_CNT_EN		0x800
 #define TMDS_VALID_EN		0x1000
+#define ECC_ERR_CNT_EN      0x2000
 
 /* aud sample rate stable range */
 /* #define AUD_SR_RANGE 2000 */

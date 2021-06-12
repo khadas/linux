@@ -2089,6 +2089,13 @@ bool rx_clr_tmds_valid(void)
 {
 	bool ret = false;
 
+	if (rx.state >= FSM_SIG_STABLE) {
+		rx.state = FSM_WAIT_CLK_STABLE;
+		hdmirx_output_en(false);
+		hdmirx_top_irq_en(false);
+		if (log_level & VIDEO_LOG)
+			rx_pr("%s!\n", __func__);
+	}
 	if (rx.phy_ver == PHY_VER_TL1) {
 		wr_reg_hhi_bits(HHI_HDMIRX_PHY_MISC_CNTL0, MSK(3, 7), 0);
 		if (log_level & VIDEO_LOG)
@@ -3440,21 +3447,34 @@ void hdcp_init_t7(void)
 	//hdmirx_wr_cor(CP2PAX_GP_IN1_HDCP2X_IVCRX, 0x2);
 	//hdmirx_wr_cor(CP2PAX_GP_CTL_HDCP2X_IVCRX, 0xdb);
 	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x8);
-	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x0);
+	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x2);
 
 	//clr gcp wr; disable hw avmute
 	hdmirx_wr_cor(DEC_AV_MUTE_DP2_IVCRX, 0x20);
 
-	// hdcp 2x ECC detection enable
-	hdmirx_wr_cor(HDCP2X_RX_ECC_CTRL, 1);
-	hdmirx_wr_cor(HDCP2X_RX_ECC_FRM_ERR_THR_0, 0xff);
-	hdmirx_wr_cor(HDCP2X_RX_ECC_FRM_ERR_THR_1, 0xff);
+	// hdcp 2x ECC detection enable  mode 3
+	hdmirx_wr_cor(HDCP2X_RX_ECC_CTRL, 7);
+	hdmirx_wr_cor(HDCP2X_RX_ECC_CNT2CHK_0, 60);
+	hdmirx_wr_cor(HDCP2X_RX_ECC_GVN_FRM_ERR_THR_0, 0xff);
+	hdmirx_wr_cor(HDCP2X_RX_ECC_GVN_FRM_ERR_THR_1, 0xf);
+	//hdmirx_wr_cor(HDCP2X_RX_ECC_GVN_FRM_ERR_THR_2, 0xff);
+	hdmirx_wr_cor(HDCP2X_RX_GVN_FRM, 30);
+
 }
 
+void hdmirx_output_en(bool en)
+{
+	if (en)
+		hdmirx_wr_top(TOP_OVID_OVERRIDE0, 0);
+	else
+		hdmirx_wr_top(TOP_OVID_OVERRIDE0, 0x80000000);
+}
 void hdmirx_hw_config(void)
 {
 	rx_pr("%s port:%d\n", __func__, rx.port);
 	hdmirx_top_sw_reset();
+	TOP_init();
+	hdmirx_output_en(false);
 	if (rx.chip_id >= CHIP_ID_T7) {
 		cor_init();
 	} else {
@@ -3467,12 +3487,15 @@ void hdmirx_hw_config(void)
 		DWC_init();
 	}
 	hdmirx_irq_hdcp_enable(false);
+	if (rx.chip_id >= CHIP_ID_T7)
+		hdcp_init_t7();
 	rx_ddc_calibration(false);
 	packet_init();
 	if (rx.chip_id >= CHIP_ID_TL1)
 		aml_phy_switch_port();
 	hdmirx_phy_init();
-	hdmirx_top_irq_en(true);
+	if (rx.chip_id < CHIP_ID_T7)
+		hdmirx_top_irq_en(true);
 	rx_pr("%s  %d Done!\n", __func__, rx.port);
 	/* hdmi reset will cause cec not working*/
 	/* cec modult need reset */
@@ -3519,7 +3542,8 @@ void hdmirx_hw_probe(void)
 		hdcp_init_t7();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
-	hdmirx_top_irq_en(true);
+	if (rx.chip_id < CHIP_ID_T7)
+		hdmirx_top_irq_en(true);
 	rx_pr("%s Done!\n", __func__);
 }
 
@@ -4109,6 +4133,8 @@ void hdmirx_config_video(void)
 	hdmirx_wr_cor(RX_VP_INPUT_FORMAT_HI, data8);
 
 	rx_sw_reset_t7(2);
+	hdmirx_output_en(true);
+	hdmirx_top_irq_en(true);
 }
 
 /*
@@ -5314,7 +5340,7 @@ u8 rx_get_avmute_sts(void)
 
 	if (rx.chip_id >= CHIP_ID_T7) {
 		if (hdmirx_rd_cor(RX_GCP_DBYTE0_DP3_IVCRX) & 1)
-			ret = 1;
+			ret = 0; //for debug
 	} else {
 		if (hdmirx_rd_dwc(DWC_PDEC_GCP_AVMUTE) & 0x02)
 			ret = 1;
@@ -5395,6 +5421,18 @@ void rx_ddc_calibration(bool en)
 		hdmirx_wr_top(TOP_INFILTER_I2C2, data32);
 		hdmirx_wr_top(TOP_INFILTER_I2C3, data32);
 	}
+}
+
+bool rx_ecc_err_overflow(void)
+{
+	bool ret = false;
+
+	if ((hdmirx_rd_cor(RX_HDCP_ERR2_DP2_IVCRX) == 0xff) &&
+		(hdmirx_rd_cor(RX_HDCP_ERR_DP2_IVCRX) == 0xff))
+		ret = true;
+	hdmirx_wr_cor(RX_ECC_CTRL_DP2_IVCRX, 3);
+
+	return ret;
 }
 
 void rx_hdcp_22_sent_reauth(void)

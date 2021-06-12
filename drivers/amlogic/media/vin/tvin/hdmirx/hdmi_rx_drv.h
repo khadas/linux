@@ -21,8 +21,8 @@
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_drv_ext.h"
 
-/* hdcp link issue */
-#define RX_VER0 "ver.2021/05/26"
+/* irq optimization */
+#define RX_VER0 "ver.2021/06/10"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -39,7 +39,7 @@
 #define DBG_LOG		0x1000
 #define IRQ_LOG		0x2000
 #define COR_LOG		0x4000
-
+#define DBG1_LOG    0x8000
 /* fix driver crash when kernel bootup */
 #define RX_VER1 "ver.2021/05/26"
 
@@ -627,6 +627,7 @@ struct rx_s {
 	bool arc_5vsts;
 	u32 vsync_cnt;
 	bool vrr_en;
+	bool ecc_err;
 #ifdef CONFIG_AMLOGIC_HDMITX
 	struct notifier_block tx_notify;
 #endif

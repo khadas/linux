@@ -163,13 +163,14 @@ static int stable_check_lvl;
  */
 static int edid_update_delay = 150;
 int skip_frame_cnt = 1;
-static u32 hdcp22_reauth_enable;
+u32 hdcp22_reauth_enable = 1;
 unsigned int edid_update_flag;
 unsigned int downstream_hpd_flag;
 static u32 hdcp22_stop_auth_enable;
 static u32 hdcp22_esm_reset2_enable;
 int sm_pause;
 int pre_port = 0xff;
+u32 vsync_err_cnt_max = 10;
 /* waiting time cannot be reduced 10*10*/
 /* it will cause hdcp1.4 cts fail */
 static int hdcp_none_wait_max = 10;
@@ -707,7 +708,6 @@ static int hdmi_rx_ctrl_irq_handler(void)
 static int hdmi_rx_ctrl_irq_handler_t7(void)
 {
 	int error = 0;
-
 	u8 intr_0 = 0;
 	u8 intr_1 = 0;
 	u8 intr_2 = 0;
@@ -747,8 +747,11 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	if (hdcp_2x_ecc_intr != 0)
 		hdmirx_wr_cor(HDCP2X_RX_ECC_INTR, hdcp_2x_ecc_intr);
 	grp_intr1 = hdmirx_rd_cor(RX_GRP_INTR1_STAT_PWD_IVCRX);
-	if (grp_intr1 != 0)
+	if (grp_intr1 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("rx_intr_4-%x\n", rx_intr_4);
 		hdmirx_wr_cor(RX_GRP_INTR1_STAT_PWD_IVCRX, grp_intr1);
+	}
 	intr_0 = hdmirx_rd_cor(RX_DEPACK_INTR0_DP2_IVCRX);
 	if (intr_0 != 0)
 		hdmirx_wr_cor(RX_DEPACK_INTR0_DP2_IVCRX, intr_0);
@@ -781,8 +784,11 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	if (rx_intr_3 != 0)
 		hdmirx_wr_cor(RX_INTR3_PWD_IVCRX, rx_intr_3);
 	rx_intr_4 = hdmirx_rd_cor(RX_INTR4_PWD_IVCRX);
-	if (rx_intr_4 != 0)
+	if (rx_intr_4 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("rx_intr_4-%x\n", rx_intr_4);
 		hdmirx_wr_cor(RX_INTR4_PWD_IVCRX, rx_intr_4);
+	}
 	rx_intr_5 = hdmirx_rd_cor(RX_INTR5_PWD_IVCRX);
 	if (rx_intr_5 != 0)
 		hdmirx_wr_cor(RX_INTR5_PWD_IVCRX, rx_intr_5);
@@ -880,8 +886,13 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	if (hdcp_2x_ecc_intr) {
 		if (log_level & IRQ_LOG)
 			rx_pr("ecc_err-%x\n", hdcp_2x_ecc_intr);
-		if (hdcp22_auth_sts == HDCP22_AUTH_STATE_SUCCESS)
-			rx_hdcp_22_sent_reauth();
+		if (hdcp22_auth_sts == HDCP22_AUTH_STATE_SUCCESS)  {
+			if (hdcp22_reauth_enable) {
+				rx_hdcp_22_sent_reauth();
+				if (rx.state >= FSM_SIG_STABLE)
+					rx.state = FSM_SIG_WAIT_STABLE;
+			}
+		}
 	}
 	//if (vsif_type)
 		//rx_pkt_handler(PKT_BUFF_SET_VSI);
@@ -903,8 +914,11 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 irqreturn_t irq_handler(int irq, void *params)
 {
 	int error = 0;
-	u8 tmp, goto_cnt = 0;
+	u8 tmp = 0;
 	unsigned long hdmirx_top_intr_stat;
+	static u32 pre_ms, cur_ms;
+	static u32 err_vsync;
+	u8 hdcp_2x_ecc_intr;
 
 	if (params == 0) {
 		rx_pr("%s: %s\n", __func__,
@@ -974,8 +988,36 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 				} else {
 					rx.vrr_en = false;
 				}
-				/* t5d 5.4 vdin not enabled 1222*/
 				rx_update_sig_info();
+			}
+			cur_ms = jiffies_to_msecs(jiffies);
+			if (cur_ms - pre_ms <= 3)
+				err_vsync++;
+			else
+				err_vsync = 0;
+			pre_ms = cur_ms;
+			if (err_vsync >= vsync_err_cnt_max) {
+				if (rx.state >= FSM_SIG_STABLE) {
+					rx.state = FSM_SIG_WAIT_STABLE;
+					rx_pr("vsync!\n");
+					err_vsync = 0;
+					hdmirx_output_en(false);
+					hdmirx_top_irq_en(false);
+				}
+			}
+			hdcp_2x_ecc_intr = hdmirx_rd_cor(HDCP2X_RX_ECC_INTR);
+			if (hdcp_2x_ecc_intr != 0) {
+				hdmirx_wr_cor(HDCP2X_RX_ECC_INTR, hdcp_2x_ecc_intr);
+				if (log_level & IRQ_LOG)
+					rx_pr("ecc_err-%x\n", hdcp_2x_ecc_intr);
+				//if (hdcp22_auth_sts == HDCP22_AUTH_STATE_SUCCESS)  {
+				//if (rx.cur.hdcp22_state == 3) {
+				if (hdcp22_reauth_enable) {
+					rx_hdcp_22_sent_reauth();
+					if (rx.state >= FSM_SIG_STABLE)
+						rx.state = FSM_SIG_WAIT_STABLE;
+				}
+				//}
 			}
 			if (log_level & 0x400)
 				rx_pr("[isr] DE rise.\n");
@@ -986,8 +1028,10 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 				rx_pr("[isr] last_emp_done\n");
 		}
 		if (hdmirx_top_intr_stat & (1 << 25)) {
-			rx_emp_field_done_irq();
-			rx_pkt_handler(PKT_BUFF_SET_EMP);
+			if (rx.state >= FSM_SIG_STABLE) {
+				rx_emp_field_done_irq();
+				rx_pkt_handler(PKT_BUFF_SET_EMP);
+			}
 			if (log_level & 0x400)
 				rx_pr("[isr] emp_field_done\n");
 		}
@@ -1021,20 +1065,7 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 		if (error == 1)
 			goto reisr;
 	} else if (rx.chip_id >= CHIP_ID_T7) {
-		hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
-		hdmirx_top_intr_stat &= 0x2;
-		if (hdmirx_top_intr_stat) {
-			if (log_level & ERR_LOG)
-				rx_pr("\n irq_miss");
-			goto_cnt++;
-			if (goto_cnt > 5) {
-				if (log_level & ERR_LOG)
-					rx_pr("\n irq_miss_5times");
-				hdmirx_wr_top(TOP_INTR_STAT_CLR, hdmirx_top_intr_stat);
-			} else {
-				goto reisr;
-			}
-		}
+		//nothing
 	} else {
 		hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 		hdmirx_top_intr_stat &= 0x1;
@@ -1613,6 +1644,16 @@ static bool rx_is_timing_stable(void)
 			ret = false;
 		}
 	}
+	if (stable_check_lvl & ECC_ERR_CNT_EN) {
+		if (rx.cur.hdcp22_state == 3)
+			rx.ecc_err = rx_ecc_err_overflow();
+
+		if (rx.ecc_err) {
+			ret = false;
+			if (log_level & VIDEO_LOG)
+				rx_pr("ecc err\n");
+		}
+	}
 	if (!ret && log_level & VIDEO_LOG)
 		rx_pr("\n");
 
@@ -2121,6 +2162,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(hdcp_none_wait_max, i++);
 	pr_var(pll_unlock_max, i++);
 	pr_var(esd_phy_rst_max, i++);
+	pr_var(vsync_err_cnt_max, i++);
 	pr_var(ignore_sscp_charerr, i++);
 	pr_var(ignore_sscp_tmds, i++);
 	pr_var(err_chk_en, i++);
@@ -2354,6 +2396,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(pll_unlock_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(esd_phy_rst_max), &esd_phy_rst_max, value))
 		return pr_var(esd_phy_rst_max, index);
+	if (set_pr_var(tmpbuf, var_to_str(vsync_err_cnt_max), &vsync_err_cnt_max, value))
+		return pr_var(vsync_err_cnt_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(ignore_sscp_charerr), &ignore_sscp_charerr, value))
 		return pr_var(ignore_sscp_charerr, index);
 	if (set_pr_var(tmpbuf, var_to_str(ignore_sscp_tmds), &ignore_sscp_tmds, value))
@@ -3087,7 +3131,8 @@ void rx_main_state_machine(void)
 			rx.hdcp.hdcp_pre_ver = rx.hdcp.hdcp_version;
 			/* need to clr to none, for dishNXT box */
 			rx.hdcp.hdcp_version = HDCP_VER_NONE;
-			rx_sw_reset(2);
+			//rx_sw_reset(2);
+			hdmirx_output_en(true);
 			rx.state = FSM_WAIT_CLK_STABLE;
 			vic_check_en = false;
 			rx.skip = 0;
@@ -3128,7 +3173,8 @@ void rx_main_state_machine(void)
 				rx.hdcp.hdcp_pre_ver = rx.hdcp.hdcp_version;
 				/* need to clr to none, for dishNXT box */
 				rx.hdcp.hdcp_version = HDCP_VER_NONE;
-				rx_sw_reset(2);
+				//rx_sw_reset(2);
+				hdmirx_output_en(true);
 				rx.state = FSM_WAIT_CLK_STABLE;
 				vic_check_en = false;
 				rx.skip = 0;
@@ -3416,6 +3462,7 @@ static void dump_video_status(void)
 	rx_pr("VRR en = %d\n", rx.vtem_info.vrr_en);
 	rx_pr("skip frame=%d\n", rx.skip);
 	rx_pr("avmute_skip:0x%x\n", rx.avmute_skip);
+	rx_pr("ecc cnt:%d\n", rx.ecc_err);
 	if (log_level & VSI_LOG) {
 		rx_pr("****vs_info_details:*****\n");
 		rx_pr("hdr10plus = %d\n", rx.vs_info_details.hdr10plus);
