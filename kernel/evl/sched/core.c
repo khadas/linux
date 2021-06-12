@@ -719,6 +719,7 @@ static inline void leave_inband(struct evl_thread *root)
 #endif
 }
 
+#ifdef CONFIG_SMP
 /* oob stalled. */
 static irqreturn_t oob_reschedule_interrupt(int irq, void *dev_id)
 {
@@ -728,6 +729,9 @@ static irqreturn_t oob_reschedule_interrupt(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+#else
+#define oob_reschedule_interrupt  NULL
+#endif
 
 static inline void set_next_running(struct evl_rq *rq,
 				struct evl_thread *next)
@@ -1347,7 +1351,8 @@ int __init evl_init_sched(void)
 		init_rq(rq, cpu);
 	}
 
-	if (IS_ENABLED(CONFIG_SMP)) {
+	/* See comment about hooking TIMER_OOB_IPI. */
+	if (IS_ENABLED(CONFIG_SMP) && num_possible_cpus() > 1) {
 		ret = __request_percpu_irq(RESCHEDULE_OOB_IPI,
 					oob_reschedule_interrupt,
 					IRQF_OOB,
@@ -1373,7 +1378,7 @@ void __init evl_cleanup_sched(void)
 	struct evl_rq *rq;
 	int cpu;
 
-	if (IS_ENABLED(CONFIG_SMP))
+	if (IS_ENABLED(CONFIG_SMP) && num_possible_cpus() > 1)
 		free_percpu_irq(RESCHEDULE_OOB_IPI, &evl_machine_cpudata);
 
 	for_each_online_cpu(cpu) {
