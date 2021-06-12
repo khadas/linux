@@ -1294,8 +1294,8 @@ evl_find_sched_class(union evl_sched_param *param,
 
 #ifdef CONFIG_TRACING
 
-const char *evl_trace_sched_attrs(struct trace_seq *p,
-				struct evl_sched_attrs *attrs)
+notrace const char *evl_trace_sched_attrs(struct trace_seq *p,
+					struct evl_sched_attrs *attrs)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
 
