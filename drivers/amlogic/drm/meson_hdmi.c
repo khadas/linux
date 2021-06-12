@@ -34,7 +34,6 @@
 #include "meson_crtc.h"
 
 #define DEVICE_NAME "amhdmitx"
-#define HDCP_KEY_INVALID 0xff00
 
 static struct am_hdmi_tx am_hdmi_info;
 
@@ -463,7 +462,6 @@ void meson_hdmitx_update_hdcp(void)
 {
 	int hdcp_request_mode = HDCP_NULL;
 	int hdcp_request_mask = HDCP_NULL;
-	unsigned int hdcp_key_mask = 0;
 
 	DRM_DEBUG("%s\n", __func__);
 
@@ -478,8 +476,10 @@ void meson_hdmitx_update_hdcp(void)
 	else
 		hdcp_request_mask = HDCP_MODE22;
 
-	/*current hdcp mode is valid, check to use last state*/
-	if (hdcp_request_mask & am_hdmi_info.hdcp_mode) {
+	hdcp_request_mode = meson_hdcp_get_valid_type(hdcp_request_mask);
+
+	/*mode is same, try to re-use last state*/
+	if (hdcp_request_mode == am_hdmi_info.hdcp_mode) {
 		switch (am_hdmi_info.hdcp_state) {
 		case HDCP_STATE_START:
 			DRM_INFO("waiting hdcp result.\n");
@@ -488,9 +488,6 @@ void meson_hdmitx_update_hdcp(void)
 			meson_hdmitx_set_hdcp_result(HDCP_AUTH_OK);
 			return;
 		case HDCP_STATE_FAIL:
-			/*failed mode, dont try again.*/
-			hdcp_request_mask &= ~(am_hdmi_info.hdcp_mode);
-			break;
 		default:
 			DRM_ERROR("meet stopped hdcp stat\n");
 			break;
@@ -499,20 +496,10 @@ void meson_hdmitx_update_hdcp(void)
 
 	meson_hdmitx_stop_hdcp();
 
-	/*try to get latest key state.*/
-	if (am_hdmi_info.hdcp_key == HDCP_KEY_INVALID) {
-		hdcp_request_mode = HDCP_MODE22;
-		DRM_INFO("first load hdcp key %u\n", hdcp_key_mask);
-	} else {
-		hdcp_request_mode = meson_hdcp_get_valid_type(hdcp_request_mask);
-	}
-
-	if (hdcp_request_mode == HDCP_NULL) {
-		DRM_ERROR("No valid hdcp mode exit.\n");
-		return;
-	}
-
-	meson_hdmitx_start_hdcp(hdcp_request_mode);
+	if (hdcp_request_mode != HDCP_NULL)
+		meson_hdmitx_start_hdcp(hdcp_request_mode);
+	else
+		DRM_ERROR("No valid hdcp mode exit, maybe hdcp havenot init.\n");
 }
 
 void meson_hdmitx_update_hdcp_locked(void)
@@ -551,8 +538,8 @@ void meson_hdmitx_update(struct drm_connector_state *new_state,
 static void meson_hdmitx_hdcp_notify(int type, int result)
 {
 	if (type == HDCP_NULL && result == HDCP_AUTH_OK) {
-		DRM_ERROR("HDCP KEY LOAD FINISHED, need update?\n");
-		//meson_hdmitx_update_hdcp_locked();
+		DRM_ERROR("HDCP statue changed, need re-run hdcp\n");
+		meson_hdmitx_update_hdcp_locked();
 		return;
 	}
 
@@ -560,12 +547,6 @@ static void meson_hdmitx_hdcp_notify(int type, int result)
 		DRM_DEBUG("notify type is mismatch[%d]-[%d]\n",
 			type, am_hdmi_info.hdcp_mode);
 		return;
-	}
-
-	if (result != HDCP_AUTH_UNKNOWN && am_hdmi_info.hdcp_key == HDCP_KEY_INVALID) {
-		am_hdmi_info.hdcp_key = meson_hdcp_get_key_version();
-		DRM_INFO("update hdcp key in mode22 fail to [%d]\n",
-			am_hdmi_info.hdcp_key);
 	}
 
 	if (result == HDCP_AUTH_OK) {
@@ -825,7 +806,6 @@ static int am_meson_hdmi_probe(struct platform_device *pdev)
 		am_hdmi_info.android_path = true;
 	} else {
 		meson_hdcp_init();
-		am_hdmi_info.hdcp_key = HDCP_KEY_INVALID;/*set invalid.*/
 		if (hdmitx_dev->hdcp_ctl_lvl == 1) {
 			/*TODO: for westeros start hdcp by driver, will move to userspace.*/
 			am_hdmi_info.hdcp_request_content_type =
