@@ -537,7 +537,7 @@ void meson_hdmitx_update(struct drm_connector_state *new_state,
 
 static void meson_hdmitx_hdcp_notify(int type, int result)
 {
-	if (type == HDCP_NULL && result == HDCP_AUTH_OK) {
+	if (type == HDCP_KEY_UPDATE && result == HDCP_AUTH_UNKNOWN) {
 		DRM_ERROR("HDCP statue changed, need re-run hdcp\n");
 		meson_hdmitx_update_hdcp_locked();
 		return;

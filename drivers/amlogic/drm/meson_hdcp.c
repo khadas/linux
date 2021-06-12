@@ -21,6 +21,8 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/arm-smccc.h>
 #include <linux/workqueue.h>
+#include <linux/timer.h>
+#include <linux/workqueue.h>
 #include "meson_drv.h"
 #include "meson_hdmi.h"
 #include "meson_hdcp.h"
@@ -53,13 +55,15 @@ enum {
 };
 
 enum {
-	HDCP22_KEY_LOADING = 0,
-	HDCP22_KEY_SUCCESS,
-	HDCP22_KEY_FAIL
+	HDCP22_DAEMON_LOADING = 0,
+	HDCP22_DAEMON_DONE,
+	HDCP22_DAEMON_TIMEOUT
 };
 
 #define HDCP_AUTH_TIMEOUT (40) /*40*200ms = 8s*/
 #define HDCP22_LOAD_TIMEOUT (160)
+#define TIMER_CHECK	(1 * HZ / 2)
+#define TIMER_CHK_CNT 40
 
 struct meson_hdmitx_hdcp {
 	struct miscdevice hdcp_comm_device;
@@ -74,9 +78,12 @@ struct meson_hdmitx_hdcp {
 	int hdcp_auth_result;
 	int hdcp_fail_cnt;
 	int hdcp_report;
-	int bootup_ready;
+	int hdcp22_daemon_state;
 
 	hdcp_notify hdcp_cb;
+	struct timer_list daemon_load_timer;
+	unsigned int key_chk_cnt;
+	struct delayed_work notify_work;
 };
 
 static struct meson_hdmitx_hdcp meson_hdcp;
@@ -107,15 +114,18 @@ unsigned int meson_hdcp_get_key_version(void)
 int meson_hdcp_get_valid_type(int request_type_mask)
 {
 	int type;
+	unsigned int hdcp_tx_type = meson_hdcp_get_key_version();
 
-	meson_hdcp.hdcp_tx_type = meson_hdcp_get_key_version();
-	DRM_INFO("%s usr_type: %d, tx_type: %d\n",
-		 __func__, request_type_mask, meson_hdcp.hdcp_tx_type);
+	DRM_INFO("%s usr_type: %d, key_store: %d\n",
+		 __func__, request_type_mask, hdcp_tx_type);
 	if (/* !meson_hdcp.hdcp_downstream_type && */
-		meson_hdcp.hdcp_tx_type)
+		hdcp_tx_type) {
 		meson_hdcp.hdcp_downstream_type =
 			get_hdcp_downstream_ver();
-	switch (meson_hdcp.hdcp_tx_type & 0x3) {
+		if (meson_hdcp.hdcp22_daemon_state != HDCP22_DAEMON_DONE)
+			hdcp_tx_type &= ~(1 << 1);
+	}
+	switch (hdcp_tx_type & 0x3) {
 	case 0x3:
 		if ((meson_hdcp.hdcp_downstream_type & 0x2) &&
 			(request_type_mask & 0x2))
@@ -210,16 +220,8 @@ static void meson_hdmitx_hdcp_cb(void *data, int auth)
 		} else if (auth == 0) {
 			hdcp_data->hdcp_fail_cnt++;
 
-			if (hdcp_data->hdcp_execute_type == HDCP_MODE22 &&
-				hdcp_data->bootup_ready == HDCP22_KEY_LOADING) {
-				if (hdcp_data->hdcp_fail_cnt > HDCP22_LOAD_TIMEOUT) {
-					DRM_ERROR("hdcp 22 key load timeout\n");
-					hdcp_data->bootup_ready = HDCP22_KEY_FAIL;
-					hdcp_auth_result = HDCP_AUTH_FAIL;
-				}
-			} else if (hdcp_data->hdcp_fail_cnt > HDCP_AUTH_TIMEOUT) {
+			if (hdcp_data->hdcp_fail_cnt > HDCP_AUTH_TIMEOUT)
 				hdcp_auth_result = HDCP_AUTH_FAIL;
-			}
 		}
 
 		DRM_DEBUG("HDCP cb %d vs %d\n", hdcp_data->hdcp_auth_result, auth);
@@ -252,7 +254,7 @@ void meson_hdcp_enable(int hdcp_type)
 	meson_hdcp.hdcp_execute_type = hdcp_type;
 
 	if (meson_hdcp.hdcp_execute_type == HDCP_MODE22) {
-		if (meson_hdcp.bootup_ready != HDCP22_KEY_SUCCESS) {
+		if (meson_hdcp.hdcp22_daemon_state != HDCP22_DAEMON_DONE) {
 			DRM_INFO("[%s]: hdcp_tx22 not ready, delay hdcp auth\n", __func__);
 			return;
 		}
@@ -297,13 +299,9 @@ static long hdcp_comm_ioctl(struct file *file,
 		/* hdcp_tx22 load ready (after TEE key ready) */
 		DRM_ERROR("IOC_LOAD_END %d, %d\n",
 			 meson_hdcp.hdcp_report, meson_hdcp.hdcp_poll_report);
-		if (meson_hdcp.bootup_ready == HDCP22_KEY_FAIL)
+		if (meson_hdcp.hdcp22_daemon_state == HDCP22_DAEMON_TIMEOUT)
 			DRM_ERROR("hdcp22 key load late than TIMEOUT.\n");
-		meson_hdcp.bootup_ready = HDCP22_KEY_SUCCESS;
-		if (meson_hdcp.hdcp_en && meson_hdcp.hdcp_execute_type == HDCP_MODE22)
-			meson_hdcp_enable(meson_hdcp.hdcp_execute_type);
-		else /*send notify when key load finished.*/
-			meson_hdcp.hdcp_cb(HDCP_NULL, HDCP_AUTH_OK);
+		meson_hdcp.hdcp22_daemon_state = HDCP22_DAEMON_DONE;
 		meson_hdcp.hdcp_poll_report = meson_hdcp.hdcp_report;
 		rtn_val = 0;
 		break;
@@ -477,6 +475,37 @@ static void am_hdmitx_hdcp_disconnect(void)
 
 /***** debug interface end *****/
 
+static void meson_hdcp_key_notify(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct meson_hdmitx_hdcp *meson_hdcp =
+		container_of(dwork, struct meson_hdmitx_hdcp,
+			     notify_work);
+
+	meson_hdcp->hdcp_cb(HDCP_KEY_UPDATE, HDCP_AUTH_UNKNOWN);
+}
+
+void hdcp_key_check(struct timer_list *timer)
+{
+	struct meson_hdmitx_hdcp *meson_hdcp =
+		container_of(timer, struct meson_hdmitx_hdcp,
+			     daemon_load_timer);
+
+	/*send notify when key load finished or timeout.*/
+	if (meson_hdcp->hdcp22_daemon_state == HDCP22_DAEMON_DONE) {
+		DRM_INFO("hdcp_tx22 load ready, stop timer\n");
+		/*meson_hdcp->key_chk_cnt = 0;*/
+		schedule_delayed_work(&meson_hdcp->notify_work, HZ / 100);
+	} else if (meson_hdcp->key_chk_cnt++ < TIMER_CHK_CNT) {
+		meson_hdcp->daemon_load_timer.expires = jiffies + TIMER_CHECK;
+		add_timer(&meson_hdcp->daemon_load_timer);
+	} else {
+		DRM_INFO("hdcp_tx22 load timeout\n");
+		meson_hdcp->hdcp22_daemon_state = HDCP22_DAEMON_TIMEOUT;
+		/*meson_hdcp->key_chk_cnt = 0;*/
+		schedule_delayed_work(&meson_hdcp->notify_work, 0);
+	}
+}
 void meson_hdcp_init(void)
 {
 	int ret;
@@ -486,7 +515,7 @@ void meson_hdcp_init(void)
 	meson_hdcp.hdcp_debug_type = 0x3;
 	meson_hdcp.hdcp_report = HDCP_TX22_DISCONNECT;
 	meson_hdcp.hdcp_en = 0;
-	meson_hdcp.bootup_ready = HDCP22_KEY_LOADING;
+	meson_hdcp.hdcp22_daemon_state = HDCP22_DAEMON_LOADING;
 	init_waitqueue_head(&meson_hdcp.hdcp_comm_queue);
 	meson_hdcp.hdcp_comm_device.minor = MISC_DYNAMIC_MINOR;
 	meson_hdcp.hdcp_comm_device.name = "tee_comm_hdcp";
@@ -506,10 +535,17 @@ void meson_hdcp_init(void)
 	hdmitx_dev->hwop.am_hdmitx_hdcp_disable = am_hdmitx_hdcp_disable;
 	hdmitx_dev->hwop.am_hdmitx_hdcp_enable = am_hdmitx_hdcp_enable;
 	hdmitx_dev->hwop.am_hdmitx_hdcp_disconnect = am_hdmitx_hdcp_disconnect;
+	INIT_DELAYED_WORK(&meson_hdcp.notify_work, meson_hdcp_key_notify);
+	meson_hdcp.key_chk_cnt = 0;
+	timer_setup(&meson_hdcp.daemon_load_timer, hdcp_key_check, 0);
+	meson_hdcp.daemon_load_timer.expires = jiffies + TIMER_CHECK;
+	add_timer(&meson_hdcp.daemon_load_timer);
 }
 
 void meson_hdcp_exit(void)
 {
 	misc_deregister(&meson_hdcp.hdcp_comm_device);
+	del_timer_sync(&meson_hdcp.daemon_load_timer);
+	cancel_delayed_work(&meson_hdcp.notify_work);
 }
 
