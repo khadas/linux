@@ -1415,7 +1415,7 @@ int evl_killall(int mask)
 }
 EXPORT_SYMBOL_GPL(evl_killall);
 
-pid_t evl_get_inband_pid(struct evl_thread *thread)
+notrace pid_t evl_get_inband_pid(struct evl_thread *thread)
 {
 	if (thread->state & (T_ROOT|T_DORMANT|T_ZOMBIE))
 		return 0;
