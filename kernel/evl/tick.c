@@ -81,14 +81,14 @@ static int proxy_set_oneshot_stopped(struct clock_event_device *proxy_dev)
 }
 
 #ifdef CONFIG_SMP
-
 static irqreturn_t clock_ipi_handler(int irq, void *dev_id)
 {
 	evl_core_tick(NULL);
 
 	return IRQ_HANDLED;
 }
-
+#else
+#define clock_ipi_handler  NULL
 #endif
 
 static void setup_proxy(struct clock_proxy_device *dev)
@@ -108,14 +108,20 @@ int evl_enable_tick(void)
 {
 	int ret;
 
-#ifdef CONFIG_SMP
-	ret = __request_percpu_irq(TIMER_OOB_IPI,
-				clock_ipi_handler,
-				IRQF_OOB, "EVL timer IPI",
-				&evl_machine_cpudata);
-	if (ret)
-		return ret;
-#endif
+	/*
+	 * We may be running a SMP kernel on a uniprocessor machine
+	 * whose interrupt controller provides no IPI: attempt to hook
+	 * the timer IPI only if the hardware can support multiple
+	 * CPUs.
+	 */
+	if (IS_ENABLED(CONFIG_SMP) && num_possible_cpus() > 1) {
+		ret = __request_percpu_irq(TIMER_OOB_IPI,
+					clock_ipi_handler,
+					IRQF_OOB, "EVL timer IPI",
+					&evl_machine_cpudata);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * CAUTION:
@@ -129,11 +135,8 @@ int evl_enable_tick(void)
 	 * device supports oneshot mode, or fails.
 	 */
 	ret = tick_install_proxy(setup_proxy, &evl_oob_cpus);
-	if (ret) {
-#ifdef CONFIG_SMP
-		free_percpu_irq(TIMER_OOB_IPI,
-				&evl_machine_cpudata);
-#endif
+	if (ret && IS_ENABLED(CONFIG_SMP) && num_possible_cpus() > 1) {
+		free_percpu_irq(TIMER_OOB_IPI, &evl_machine_cpudata);
 		return ret;
 	}
 
