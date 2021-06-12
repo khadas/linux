@@ -69,8 +69,6 @@ struct am_hdmi_tx {
 	int hdcp_mode;
 	/*hdcp auth result, HDCP_AUTH_UNKNOWN means havenot finished auth.*/
 	int hdcp_state;
-	/*TODO:for check tee loading, should move to meson_hdcp.*/
-	int hdcp_key;
 
 	/*TODO: android compatible, remove later*/
 	bool android_path;
