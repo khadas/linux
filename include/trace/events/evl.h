@@ -817,6 +817,9 @@ DEFINE_EVENT(evl_sched_attrs, evl_thread_getsched,
 
 #define evl_print_thread_mode(__mode)	\
 	__print_flags(__mode, "|",	\
+		{T_HMOBS, "hmobs"},	\
+		{T_HMSIG, "hmsig"},	\
+		{T_WOSX, "wosx"},	\
 		{T_WOSS, "woss"},	\
 		{T_WOLI, "woli"})
 
