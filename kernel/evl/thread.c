@@ -1528,6 +1528,7 @@ void handle_oob_trap_entry(unsigned int trapnr, struct pt_regs *regs)
 void handle_oob_trap_exit(unsigned int trapnr, struct pt_regs *regs)
 {
 	struct evl_thread *curr = evl_current();
+	bool is_bp = false;
 
 	if (in_nmi())
 		return;
@@ -1535,6 +1536,9 @@ void handle_oob_trap_exit(unsigned int trapnr, struct pt_regs *regs)
 	hard_local_irq_enable();
 
 	curr->local_info &= ~T_INFAULT;
+
+	if (current->ptrace & PT_PTRACED)
+		is_bp = evl_is_breakpoint(trapnr);
 
 	/*
 	 * Switch back to the oob stage only after recovering from a
@@ -1545,7 +1549,8 @@ void handle_oob_trap_exit(unsigned int trapnr, struct pt_regs *regs)
 	 * syscall barrier is there to reinstate the proper stage if
 	 * need be.
 	 */
-	if (!user_mode(regs) && !evl_is_breakpoint(trapnr)) {
+	if (!user_mode(regs) &&
+	    (EVL_DEBUG(CORE) || (curr->state & T_WOSS)) && !is_bp) {
 		evl_switch_oob();
 		note_trap(curr, trapnr, regs, "resuming out-of-band");
 	}
