@@ -900,6 +900,7 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				 unsigned char *buf)
 {
 	unsigned char *dat = buf;
+	unsigned char *cuva_dat = buf;
 	unsigned char pos = 0;
 	unsigned int ieeeoui = 0;
 	u8 length = 0;
@@ -926,6 +927,26 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 		hdr10_plus->ieeeoui = ieeeoui;
 		hdr10_plus->application_version = dat[pos] & 0x3;
 		pos++;
+		return;
+	}
+	if (ieeeoui == CUVA_IEEEOUI) {
+		struct hdmitx_dev *hdev = get_hdmitx_device();
+		struct cuva_info *cuva = &hdev->rxcap.cuva_info;
+
+		memcpy(cuva->rawdata, cuva_dat, 15); /* 15, fixed length */
+		cuva->length = cuva_dat[0] & 0x1f;
+		cuva->ieeeoui = cuva_dat[2] |
+				(cuva_dat[3] << 8) |
+				(cuva_dat[4] << 16);
+		cuva->system_start_code = cuva_dat[5];
+		cuva->version_code = cuva_dat[6] >> 4;
+		cuva->display_max_lum = cuva_dat[7] |
+					(cuva_dat[8] << 8) |
+					(cuva_dat[9] << 16) |
+					(cuva_dat[10] << 24);
+		cuva->display_min_lum = cuva_dat[11] | (cuva_dat[12] << 8);
+		cuva->rx_mode_sup = (cuva_dat[13] >> 6) & 0x1;
+		cuva->monitor_mode_sup = (cuva_dat[13] >> 7) & 0x1;
 		return;
 	}
 
