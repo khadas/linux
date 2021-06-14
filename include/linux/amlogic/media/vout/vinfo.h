@@ -90,6 +90,18 @@ struct hdr10_plus_info {
 	u8 application_version;
 };
 
+struct cuva_info {
+	u8 rawdata[15];
+	u8 length;
+	u32 ieeeoui;
+	u8 system_start_code;
+	u8 version_code;
+	u32 display_max_lum;
+	u16 display_min_lum;
+	u8 monitor_mode_sup;
+	u8 rx_mode_sup;
+};
+
 struct hdr_info {
 /* RX EDID hdr support types */
 	u32 hdr_support;
@@ -110,6 +122,7 @@ struct hdr_info {
 	u32 lumi_max; /* RX EDID Lumi Max value */
 	u32 lumi_avg; /* RX EDID Lumi Avg value */
 	u32 lumi_min; /* RX EDID Lumi Min value */
+	struct cuva_info cuva_info;
 };
 
 struct hdr10plus_para {
@@ -185,6 +198,46 @@ struct dv_vsif_para {
 	} vers;
 };
 
+struct cuva_hdr_vsif_para {
+	u8 system_start_code;
+	u8 version_code;
+	u8 monitor_mode_en;
+	u8 transfer_character;
+};
+
+struct cuva_hdr_vs_emds_para {
+	u8 system_start_code;
+	u8 version_code;
+	u16 min_maxrgb_pq;
+	u16 avg_maxrgb_pq;
+	u16 var_maxrgb_pq;
+	u16 max_maxrgb_pq;
+	u16 targeted_max_lum_pq;
+	u8 transfer_character;
+	u8 base_enable_flag;
+	u16 base_param_m_p;
+	u16 base_param_m_m;
+	u16 base_param_m_a;
+	u16 base_param_m_b;
+	u16 base_param_m_n;
+	u8 base_param_k[3];
+	u8 base_param_delta_enable_mode;
+	u8 base_param_enable_delta;
+	u8 _3spline_enable_num;
+	u8 _3spline_enable_flag;
+	struct {
+		u8 th_enable_mode;
+		u8 th_enable_mb;
+		u16 th_enable;
+		u16 th_enable_delta[2];
+		u8 enable_strength;
+	} _3spline_data[2];
+	u8 color_saturation_num;
+	u8 color_saturation_gain[8];
+	u8 graphic_src_display_value;
+	u16 max_display_mastering_lum;
+};
+
 struct vsif_debug_save {
 	enum eotf_type type;
 	enum mode_type tunnel_mode;
@@ -253,6 +306,8 @@ struct vout_device_s {
 				  bool signal_sdr);
 	void (*fresh_tx_hdr10plus_pkt)(unsigned int flag,
 				       struct hdr10plus_para *data);
+	void (*fresh_tx_cuva_hdr_vsif)(struct cuva_hdr_vsif_para *data);
+	void (*fresh_tx_cuva_hdr_vs_emds)(struct cuva_hdr_vs_emds_para *data);
 	void (*fresh_tx_emp_pkt)(unsigned char *data, unsigned int type,
 				 unsigned int size);
 };

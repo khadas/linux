@@ -68,6 +68,8 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type, enum mode_type
 	tunnel_mode, struct dv_vsif_para *data, bool signal_sdr);
 static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 				     struct hdr10plus_para *data);
+static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data);
+static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data);
 static void hdmitx_set_emp_pkt(unsigned char *data,
 			       unsigned int type,
 			       unsigned int size);
@@ -162,6 +164,8 @@ struct vout_device_s hdmitx_vdev = {
 	.fresh_tx_hdr_pkt = hdmitx_set_drm_pkt,
 	.fresh_tx_vsif_pkt = hdmitx_set_vsif_pkt,
 	.fresh_tx_hdr10plus_pkt = hdmitx_set_hdr10plus_pkt,
+	.fresh_tx_cuva_hdr_vsif = hdmitx_set_cuva_hdr_vsif,
+	.fresh_tx_cuva_hdr_vs_emds = hdmitx_set_cuva_hdr_vs_emds,
 	.fresh_tx_emp_pkt = hdmitx_set_emp_pkt,
 };
 
@@ -531,6 +535,9 @@ static void hdrinfo_to_vinfo(struct vinfo_s *info, struct hdmitx_dev *hdev)
 	/*hdr 10+*/
 	memcpy(&info->hdr_info.hdr10plus_info,
 	       &hdev->rxcap.hdr10plus_info, sizeof(struct hdr10_plus_info));
+	/* cuva info */
+	memcpy(&info->hdr_info.cuva_info, &hdev->rxcap.cuva_info,
+	       sizeof(struct cuva_info));
 
 	info->hdr_info.colorimetry_support =
 		hdev->rxcap.colorimetry_data;
@@ -2131,6 +2138,150 @@ static void hdmitx_set_hdr10plus_pkt(unsigned int flag,
 			SET_AVI_BT2020);
 }
 
+static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data)
+{
+	unsigned long flags = 0;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	unsigned char ven_hb[3] = {0x81, 0x01, 0x1b};
+	unsigned char ven_db[27] = {0x00};
+
+	spin_lock_irqsave(&hdev->edid_spinlock, flags);
+	if (!data) {
+		hdev->hwop.setpacket(HDMI_PACKET_VEND, NULL, NULL);
+		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
+		return;
+	}
+	ven_db[0] = GET_OUI_BYTE0(CUVA_IEEEOUI);
+	ven_db[1] = GET_OUI_BYTE1(CUVA_IEEEOUI);
+	ven_db[2] = GET_OUI_BYTE2(CUVA_IEEEOUI);
+	ven_db[3] = data->system_start_code;
+	ven_db[4] = (data->version_code & 0xf) << 4;
+	hdev->hwop.setpacket(HDMI_PACKET_VEND, ven_db, ven_hb);
+	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
+}
+
+struct hdmi_packet_t {
+	u8 hb[3];
+	u8 pb[28];
+	u8 no_used; /* padding to 32 bytes */
+};
+
+static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
+{
+	struct hdmi_packet_t vs_emds[3] = {0};
+	unsigned long flags;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	static unsigned char *virt_ptr;
+	static unsigned char *virt_ptr_align32bit;
+	unsigned long phys_ptr;
+
+	spin_lock_irqsave(&hdev->edid_spinlock, flags);
+	if (!data) {
+		hdev->hwop.cntlconfig(hdev, CONF_EMP_NUMBER, 0);
+		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
+		return;
+	}
+
+	vs_emds[0].hb[0] = 0x7f;
+	vs_emds[0].hb[1] = 1 << 7;
+	vs_emds[0].hb[2] = 0; /* Sequence_Index */
+	vs_emds[0].pb[0] = (1 << 7) | (1 << 4) | (1 << 2) | (1 << 1);
+	vs_emds[0].pb[1] = 0; /* rsvd */
+	vs_emds[0].pb[2] = 0; /* Organization_ID */
+	vs_emds[0].pb[3] = 0; /* Data_Set_Tag_MSB */
+	vs_emds[0].pb[4] = 2; /* Data_Set_Tag_LSB */
+	vs_emds[0].pb[5] = 0; /* Data_Set_Length_MSB */
+	vs_emds[0].pb[6] = 0x38; /* Data_Set_Length_LSB */
+	vs_emds[0].pb[7] = GET_OUI_BYTE0(CUVA_IEEEOUI);
+	vs_emds[0].pb[8] = GET_OUI_BYTE1(CUVA_IEEEOUI);
+	vs_emds[0].pb[9] = GET_OUI_BYTE2(CUVA_IEEEOUI);
+	vs_emds[0].pb[10] = data->system_start_code;
+	vs_emds[0].pb[11] = ((data->version_code & 0xf) << 4) |
+			     ((data->min_maxrgb_pq >> 8) & 0xf);
+	vs_emds[0].pb[12] = data->min_maxrgb_pq & 0xff;
+	vs_emds[0].pb[13] = (data->avg_maxrgb_pq >> 8) & 0xf;
+	vs_emds[0].pb[14] = data->avg_maxrgb_pq & 0xff;
+	vs_emds[0].pb[15] = (data->var_maxrgb_pq >> 8) & 0xf;
+	vs_emds[0].pb[16] = data->var_maxrgb_pq & 0xff;
+	vs_emds[0].pb[17] = (data->max_maxrgb_pq >> 8) & 0xf;
+	vs_emds[0].pb[18] = data->max_maxrgb_pq & 0xff;
+	vs_emds[0].pb[19] = (data->targeted_max_lum_pq >> 8) & 0xf;
+	vs_emds[0].pb[20] = data->targeted_max_lum_pq & 0xff;
+	vs_emds[0].pb[21] = ((data->transfer_character & 1) << 7) |
+			     ((data->base_enable_flag & 0x1) << 6) |
+			     ((data->base_param_m_p >> 8) & 0x3f);
+	vs_emds[0].pb[22] = data->base_param_m_p & 0xff;
+	vs_emds[0].pb[23] = data->base_param_m_m & 0x3f;
+	vs_emds[0].pb[24] = (data->base_param_m_a >> 8) & 0x3;
+	vs_emds[0].pb[25] = data->base_param_m_a & 0xff;
+	vs_emds[0].pb[26] = (data->base_param_m_b >> 8) & 0x3;
+	vs_emds[0].pb[27] = data->base_param_m_b & 0xff;
+	vs_emds[1].hb[0] = 0x7f;
+	vs_emds[1].hb[1] = 0;
+	vs_emds[1].hb[2] = 1; /* Sequence_Index */
+	vs_emds[1].pb[0] = data->base_param_m_n & 0x3f;
+	vs_emds[1].pb[1] = (((data->base_param_k[0] & 3) << 4) |
+			   ((data->base_param_k[1] & 3) << 2) |
+			   ((data->base_param_k[2] & 3) << 0));
+	vs_emds[1].pb[2] = data->base_param_delta_enable_mode & 0x7;
+	vs_emds[1].pb[3] = data->base_param_enable_delta & 0x7f;
+	vs_emds[1].pb[4] = (((data->_3spline_enable_num & 0x3) << 3) |
+			    ((data->_3spline_enable_flag & 1)  << 2) |
+			    (data->_3spline_data[0].th_enable_mode & 0x3));
+	vs_emds[1].pb[5] = data->_3spline_data[0].th_enable_mb;
+	vs_emds[1].pb[6] = (data->_3spline_data[0].th_enable >> 8) & 0xf;
+	vs_emds[1].pb[7] = data->_3spline_data[0].th_enable & 0xff;
+	vs_emds[1].pb[8] =
+		(data->_3spline_data[0].th_enable_delta[0] >> 8) & 0x3;
+	vs_emds[1].pb[9] = data->_3spline_data[0].th_enable_delta[0] & 0xff;
+	vs_emds[1].pb[10] =
+		(data->_3spline_data[0].th_enable_delta[1] >> 8) & 0x3;
+	vs_emds[1].pb[11] = data->_3spline_data[0].th_enable_delta[1] & 0xff;
+	vs_emds[1].pb[12] = data->_3spline_data[0].enable_strength;
+	vs_emds[1].pb[13] = data->_3spline_data[1].th_enable_mode & 0x3;
+	vs_emds[1].pb[14] = data->_3spline_data[1].th_enable_mb;
+	vs_emds[1].pb[15] = (data->_3spline_data[1].th_enable >> 8) & 0xf;
+	vs_emds[1].pb[16] = data->_3spline_data[1].th_enable & 0xff;
+	vs_emds[1].pb[17] =
+		(data->_3spline_data[1].th_enable_delta[0] >> 8) & 0x3;
+	vs_emds[1].pb[18] = data->_3spline_data[1].th_enable_delta[0] & 0xff;
+	vs_emds[1].pb[19] =
+		(data->_3spline_data[1].th_enable_delta[1] >> 8) & 0x3;
+	vs_emds[1].pb[20] = data->_3spline_data[1].th_enable_delta[1] & 0xff;
+	vs_emds[1].pb[21] = data->_3spline_data[1].enable_strength;
+	vs_emds[1].pb[22] = data->color_saturation_num;
+	vs_emds[1].pb[23] = data->color_saturation_gain[0];
+	vs_emds[1].pb[24] = data->color_saturation_gain[1];
+	vs_emds[1].pb[25] = data->color_saturation_gain[2];
+	vs_emds[1].pb[26] = data->color_saturation_gain[3];
+	vs_emds[1].pb[27] = data->color_saturation_gain[4];
+	vs_emds[2].hb[0] = 0x7f;
+	vs_emds[2].hb[1] = (1 << 6);
+	vs_emds[2].hb[2] = 2; /* Sequence_Index */
+	vs_emds[2].pb[0] = data->color_saturation_gain[5];
+	vs_emds[2].pb[1] = data->color_saturation_gain[6];
+	vs_emds[2].pb[2] = data->color_saturation_gain[7];
+	vs_emds[2].pb[3] = data->graphic_src_display_value;
+	vs_emds[2].pb[4] = 0; /* Reserved */
+	vs_emds[2].pb[5] = data->max_display_mastering_lum >> 8;
+	vs_emds[2].pb[6] = data->max_display_mastering_lum & 0xff;
+
+	if (!virt_ptr) { /* init virt_ptr and virt_ptr_align32bit */
+		virt_ptr = kzalloc((sizeof(vs_emds) + 0x1f), GFP_KERNEL);
+		virt_ptr_align32bit = (unsigned char *)
+			((((unsigned long)virt_ptr) + 0x1f) & (~0x1f));
+	}
+	memcpy(virt_ptr_align32bit, vs_emds, sizeof(vs_emds));
+	phys_ptr = virt_to_phys(virt_ptr_align32bit);
+
+	pr_info("emp_pkt phys_ptr: %lx\n", phys_ptr);
+
+	hdev->hwop.cntlconfig(hdev, CONF_EMP_NUMBER,
+			      sizeof(vs_emds) / (sizeof(struct hdmi_packet_t)));
+	hdev->hwop.cntlconfig(hdev, CONF_EMP_PHY_ADDR, phys_ptr);
+	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
+}
+
 #define  EMP_FIRST 0x80
 #define  EMP_LAST 0x40
 struct emp_debug_save emp_config_data;
@@ -3337,6 +3488,7 @@ static ssize_t hdr_cap_show(struct device *dev,
 	unsigned int i, j;
 	struct rx_cap *prxcap = &hdmitx_device.rxcap;
 	int hdr10plugsupported = 0;
+	struct cuva_info *cuva = &prxcap->cuva_info;
 
 	if (prxcap->hdr10plus_info.ieeeoui == HDR10_PLUS_IEEE_OUI &&
 	    prxcap->hdr10plus_info.application_version != 0xFF)
@@ -3383,7 +3535,27 @@ static ssize_t hdr_cap_show(struct device *dev,
 
 	pos += snprintf(buf + pos, PAGE_SIZE, "\n\ncolorimetry_data: %x\n",
 		prxcap->colorimetry_data);
-
+	if (cuva->ieeeoui == CUVA_IEEEOUI) {
+		pos += snprintf(buf + pos, PAGE_SIZE, "CUVA supported: 1\n");
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"  system_start_code: %u\n", cuva->system_start_code);
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"  version_code: %u\n", cuva->version_code);
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"  display_maximum_luminance: %u\n",
+			cuva->display_max_lum);
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"  display_minimum_luminance: %u\n",
+			cuva->display_min_lum);
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"  monitor_mode_support: %u\n", cuva->monitor_mode_sup);
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"  rx_mode_support: %u\n", cuva->rx_mode_sup);
+		for (i = 0; i < (cuva->length + 1); i++)
+			pos += snprintf(buf + pos, PAGE_SIZE, "%02x",
+				cuva->rawdata[i]);
+		pos += snprintf(buf + pos, PAGE_SIZE, "\n");
+	}
 	return pos;
 }
 

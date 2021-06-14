@@ -154,6 +154,13 @@ struct rx_cap {
 	unsigned char hdr_rawdata[7];
 	struct hdr_dynamic_struct hdr_dynamic_info[4];
 	struct hdr10_plus_info hdr10plus_info;
+	struct dv_info dv_info;
+	/* When hdr_priority is 1, then dv_info will be all 0
+	 * And select HDR10 to DolbyVision from HDR priority,
+	 * System won't get real dv_cap, but can get real dv_cap2
+	 */
+	struct dv_info dv_info2;
+	struct cuva_info cuva_info;
 	unsigned char IDManufacturerName[4];
 	unsigned char IDProductCode[2];
 	unsigned char IDSerialNumber[4];
@@ -180,12 +187,6 @@ struct rx_cap {
 		unsigned char top_and_bottom;
 		unsigned char side_by_side;
 	} support_3d_format[VIC_MAX_NUM];
-	struct dv_info dv_info;
-	/* When hdr_priority is 1, then dv_info will be all 0
-	 * And select HDR10 to DolbyVision from HDR priority,
-	 * System won't get real dv_cap, but can get real dv_cap2
-	 */
-	struct dv_info dv_info2;
 	enum hdmi_vic preferred_mode;
 	struct dtd dtd[16];
 	unsigned char dtd_idx;

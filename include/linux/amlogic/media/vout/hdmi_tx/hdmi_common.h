@@ -24,6 +24,7 @@
 #define HF_IEEEOUI		0xC45DD8
 #define DOVI_IEEEOUI		0x00D046
 #define HDR10PLUS_IEEEOUI	0x90848B
+#define CUVA_IEEEOUI		0x047503
 
 enum hdmi_tf_type {
 	HDMI_NONE = 0,
