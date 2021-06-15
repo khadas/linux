@@ -904,8 +904,6 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	/* write vframe as default */
 	devp->vframe_wr_en = 1;
 	devp->vframe_wr_en_pre = 1;
-	if (devp->matrix_pattern_mode)
-		vdin_set_matrix_color(devp);
 	if (vdin_time_en)
 		pr_info("vdin.%d start time: %ums, run time:%ums.\n",
 			devp->index, jiffies_to_msecs(jiffies),
@@ -1030,6 +1028,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->unreliable_vs_cnt = 0;
 	devp->unreliable_vs_cnt_pre = 0;
 	devp->unreliable_vs_idx = 0;
+	devp->prop.hdcp_sts = 0;
 
 	 /* clear color para*/
 	memset(&devp->prop, 0, sizeof(devp->prop));
@@ -1051,16 +1050,29 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	struct tvin_frontend_s *fe;
 	int ret = 0;
 	struct vdin_dev_s *devp = vdin_devp[no];
+	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
 	enum tvin_sig_fmt_e fmt;
 
-	mutex_lock(&devp->fe_lock);
 	if (IS_ERR_OR_NULL(devp)) {
 		pr_err("[vdin]%s vdin%d has't registered or devp is NULL\n",
 		       __func__, no);
-		mutex_unlock(&devp->fe_lock);
 		return -1;
 	}
-	pr_info("%s port: 0x%x\n", __func__, para->port);
+
+	vdin0_devp->pre_prop.hdcp_sts = vdin0_devp->prop.hdcp_sts;
+	devp->matrix_pattern_mode = 0;
+	/* check input content is pretected */
+	if ((vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
+	    (vdin0_devp->flags & VDIN_FLAG_DEC_STARTED) &&
+	    vdin0_devp->prop.hdcp_sts) {
+		pr_err("hdmi hdcp en, can't capture\n");
+		devp->matrix_pattern_mode = 4;
+	}
+	pr_info("vdin0 port:0x%x, flag:0x%x, hdcp sts:%d matx:%d\n",
+	       vdin0_devp->parm.port, vdin0_devp->flags,
+	       vdin0_devp->prop.hdcp_sts, devp->matrix_pattern_mode);
+
+	mutex_lock(&devp->fe_lock);
 	fmt = devp->parm.info.fmt;
 	if (vdin_dbg_en) {
 		pr_info("[%s]port:0x%x, cfmt:%d;dfmt:%d;dest_hactive:%d;",
@@ -1304,6 +1316,7 @@ int stop_tvin_service(int no)
 		mutex_unlock(&devp->fe_lock);
 		return -EBUSY;
 	}
+	devp->matrix_pattern_mode = 0;
 	vdin_stop_dec(devp);
 	/*close fe*/
 	if (devp->frontend->dec_ops->close)
@@ -2445,6 +2458,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 {
 	ulong flags;
 	struct vdin_dev_s *devp = (struct vdin_dev_s *)dev_id;
+	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
 	enum vdin_vf_put_md put_md = VDIN_VF_PUT;
 	struct vf_entry *next_wr_vfe = NULL, *curr_wr_vfe = NULL;
 	struct vframe_s *curr_wr_vf = NULL;
@@ -2453,6 +2467,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	struct tvin_state_machine_ops_s *sm_ops;
 	int ret = 0;
 	unsigned int offset;
+	unsigned int pretect_mode;
 
 	if (!devp)
 		return IRQ_HANDLED;
@@ -2489,6 +2504,15 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	if (devp)
 		/* avoid null pointer oops */
 		stamp  = vdin_get_meas_vstamp(offset);
+
+	/* check input content is pretected */
+	pretect_mode = vdin0_devp->prop.hdcp_sts ? 4 : 0;
+	if (pretect_mode != devp->matrix_pattern_mode) {
+		devp->matrix_pattern_mode = pretect_mode;
+		pr_info("vdin0:hdcp chg to %d\n", vdin0_devp->prop.hdcp_sts);
+		vdin_set_matrix(devp);
+	}
+
 	/* if win_size changed for video only */
 	if (!(devp->flags & VDIN_FLAG_V4L2_DEBUG))
 		vdin_set_wr_mif(devp);

@@ -619,6 +619,17 @@ void hdmirx_get_dvi_info(struct tvin_sig_property_s *prop)
 }
 
 /*
+ * hdmirx_get_hdcp_sts - get hdcp status 0:none hdcp  1:hdcp14 or 22
+ */
+void hdmirx_get_hdcp_sts(struct tvin_sig_property_s *prop)
+{
+	if (rx.hdcp.hdcp_version != HDCP_VER_NONE)
+		prop->hdcp_sts = 1;
+	else
+		prop->hdcp_sts = 0;
+}
+
+/*
  * hdmirx_get_fps_info - get video frame rate info
  */
 void hdmirx_get_fps_info(struct tvin_sig_property_s *prop)
@@ -1124,6 +1135,7 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	hdmirx_get_latency_info(prop);
 	hdmirx_get_emp_info(prop);
 	hdmirx_get_active_aspect_ratio(prop);
+	hdmirx_get_hdcp_sts(prop);
 	prop->skip_vf_num = vdin_drop_frame_cnt;
 }
 

@@ -493,6 +493,7 @@ struct tvin_sig_property_s {
 
 	/* only use for loopback, 0=positvie, 1=negative */
 	unsigned int polarity_vs;
+	unsigned int hdcp_sts;	/* pretected content src. 1:pretected 0:not*/
 };
 
 #define TVAFE_VF_POOL_SIZE		6 /* 8 */

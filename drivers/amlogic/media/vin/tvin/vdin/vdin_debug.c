@@ -911,6 +911,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("frontend_colordepth:%d\n", devp->prop.colordepth);
 	pr_info("source_bitdepth:%d\n", devp->source_bitdepth);
 	pr_info("color_depth_config:0x%x\n", devp->color_depth_config);
+	pr_info("matrix_pattern_mode:0x%x\n", devp->matrix_pattern_mode);
+	pr_info("hdcp_sts:0x%x\n", devp->prop.hdcp_sts);
 	pr_info("full_pack:%d\n", devp->full_pack);
 	pr_info("color_depth_support:0x%x\n", devp->color_depth_support);
 	pr_info("cma_flag:0x%x\n", devp->cma_config_flag);

@@ -1841,6 +1841,9 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
 			VDIN_PROBE_SEL_BIT, VDIN_PROBE_SEL_WID);
 	}
+
+	if (devp->matrix_pattern_mode)
+		vdin_set_matrix_color(devp);
 }
 
 void vdin_set_matrixs(struct vdin_dev_s *devp, unsigned char id,
@@ -5804,35 +5807,36 @@ void vdin_set_matrix_color(struct vdin_dev_s *devp)
 	unsigned int mode = devp->matrix_pattern_mode;
 
 	/*vdin bist mode RGB:black*/
-	wr(offset, 0x1210, 0x4);
-	wr(offset, 0x1211, 0x0);
-	wr(offset, 0x1212, 0x0);
-	wr(offset, 0x1213, 0x0);
-	wr(offset, 0x1214, 0x0);
-	wr(offset, 0x1215, 0x0);
-	wr(offset, 0x1218, 0x0);
-	wr(offset, 0x1219, 0x0);
+	wr(offset, VDIN_MATRIX_CTRL, 0x4);
+	wr(offset, VDIN_MATRIX_COEF00_01, 0x0);
+	wr(offset, VDIN_MATRIX_COEF02_10, 0x0);
+	wr(offset, VDIN_MATRIX_COEF11_12, 0x0);
+	wr(offset, VDIN_MATRIX_COEF20_21, 0x0);
+	wr(offset, VDIN_MATRIX_COEF22, 0x0);
+	wr(offset, VDIN_MATRIX_PRE_OFFSET0_1, 0x0);
+	wr(offset, VDIN_MATRIX_PRE_OFFSET2, 0x0);
 	if (mode == 1) {
-		wr(offset, 0x1216, 0x10f010f);
-		wr(offset, 0x1217, 0x2ff);
+		wr(offset, VDIN_MATRIX_OFFSET0_1, 0x10f010f);
+		wr(offset, VDIN_MATRIX_OFFSET2, 0x2ff);
 	} else if (mode == 2) {
-		wr(offset, 0x1216, 0x10f010f);
-		wr(offset, 0x1217, 0x1ff);
+		wr(offset, VDIN_MATRIX_OFFSET0_1, 0x10f010f);
+		wr(offset, VDIN_MATRIX_OFFSET2, 0x1ff);
 	} else if (mode == 3) {
-		wr(offset, 0x1216, 0x00003ff);
-		wr(offset, 0x1217, 0x0);
+		wr(offset, VDIN_MATRIX_OFFSET0_1, 0x00003ff);
+		wr(offset, VDIN_MATRIX_OFFSET2, 0x0);
 	} else if (mode == 4) {
-		wr(offset, 0x1216, 0x1ff01ff);
-		wr(offset, 0x1217, 0x1ff);
+		wr(offset, VDIN_MATRIX_OFFSET0_1, 0x1ff01ff);
+		wr(offset, VDIN_MATRIX_OFFSET2, 0x1ff);
 	} else {
-		wr(offset, 0x1216, 0x1ff010f);
-		wr(offset, 0x1217, 0x2ff);
+		wr(offset, VDIN_MATRIX_OFFSET0_1, 0x1ff010f);
+		wr(offset, VDIN_MATRIX_OFFSET2, 0x2ff);
 	}
 
 	if (mode)
-		wr(offset, 0x1210, 0x6);
+		wr(offset, VDIN_MATRIX_CTRL, 0x6);
 	else
-		wr(offset, 0x1210, 0x0);
+		wr(offset, VDIN_MATRIX_CTRL, 0x0);
+	pr_info("%s offset:%d, md:%d\n", __func__, offset, mode);
 }
 
 /* only active under vdi6 loopback case */
