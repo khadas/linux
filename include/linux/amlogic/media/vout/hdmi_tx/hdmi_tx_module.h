@@ -789,8 +789,6 @@ struct hdmitx_uevent {
 	const char *env;
 };
 
-int hdmitx_set_uevent(enum hdmitx_event type, int val);
-
 #ifdef CONFIG_AMLOGIC_HDMITX
 struct hdmitx_dev *get_hdmitx_device(void);
 int get_hpd_state(void);

@@ -213,7 +213,7 @@ static char invalidchecksum[11] = {
 
 static char emptychecksum[11] = {0};
 
-int hdmitx_set_uevent(enum hdmitx_event type, int val)
+static int hdmitx_set_uevent(enum hdmitx_event type, int val)
 {
 	char env[MAX_UEVENT_LEN];
 	struct hdmitx_uevent *event = hdmi_events;
@@ -240,7 +240,6 @@ int hdmitx_set_uevent(enum hdmitx_event type, int val)
 	/* pr_info("%s[%d] %s %d\n", __func__, __LINE__, env, ret); */
 	return ret;
 }
-EXPORT_SYMBOL(hdmitx_set_uevent);
 
 /* There are 3 callback functions for front HDR/DV/HDR10+ modules to notify
  * hdmi drivers to send out related HDMI infoframe
@@ -1348,6 +1347,9 @@ static ssize_t hdcp22_base_show(struct device *dev,
 
 void hdmitx_audio_mute_op(unsigned int flag)
 {
+	if (hdmitx_device.hdmi_init != 1)
+		return;
+
 	hdmitx_device.tx_aud_cfg = flag;
 	if (flag == 0)
 		hdmitx_device.hwop.cntlconfig(&hdmitx_device,
@@ -1360,6 +1362,9 @@ EXPORT_SYMBOL(hdmitx_audio_mute_op);
 
 void hdmitx_video_mute_op(unsigned int flag)
 {
+	if (hdmitx_device.hdmi_init != 1)
+		return;
+
 	if (flag == 0) {
 		/* hdmitx_device.hwop.cntlconfig(&hdmitx_device, */
 			/* CONF_VIDEO_MUTE_OP, VIDEO_MUTE); */
@@ -4143,6 +4148,9 @@ void direct_hdcptx14_opr(enum rptx_hdcp14_cmd cmd, void *args)
 	int rst;
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
+	if (hdmitx_device.hdmi_init != 1)
+		return;
+
 	pr_info("%s[%d] cmd: %d\n", __func__, __LINE__, cmd);
 	switch (cmd) {
 	case RPTX_HDCP14_OFF:
@@ -5999,6 +6007,8 @@ int hdmitx_event_notifier_regist(struct notifier_block *nb)
 {
 	int ret = 0;
 
+	if (hdmitx_device.hdmi_init != 1)
+		return 1;
 	if (!nb)
 		return ret;
 
@@ -6018,6 +6028,9 @@ EXPORT_SYMBOL(hdmitx_event_notifier_regist);
 int hdmitx_event_notifier_unregist(struct notifier_block *nb)
 {
 	int ret;
+
+	if (hdmitx_device.hdmi_init != 1)
+		return 1;
 
 	ret = blocking_notifier_chain_unregister(&hdmitx_event_notify_list, nb);
 
@@ -6991,6 +7004,9 @@ int drm_hdmitx_get_vic_list(int **vics)
 	int count = 0;
 	int *viclist = 0;
 
+	if (hdmitx_device.hdmi_init != 1)
+		return 0;
+
 	if (hdmitx_device.tv_no_edid)
 		return 0;
 
@@ -7045,6 +7061,8 @@ EXPORT_SYMBOL(drm_hdmitx_register_hdcp_cb);
 /* bit[1]: hdcp22, bit[0]: hdcp14 */
 int drm_hdmitx_get_hdcp_cap(void)
 {
+	if (hdmitx_device.hdmi_init != 1)
+		return 0;
 	if (hdmitx_device.lstore < 0x10) {
 		hdmitx_device.lstore = 0;
 		if (hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_14_LSTORE, 0))
@@ -7062,6 +7080,8 @@ unsigned int drm_get_rx_hdcp_cap(void)
 {
 	unsigned int ver = 0x0;
 
+	if (hdmitx_device.hdmi_init != 1)
+		return 0;
 	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
 	if (hdmitx_device.hwop.cntlddc(&hdmitx_device,
 		DDC_HDCP_22_LSTORE, 0) == 0)
@@ -7082,6 +7102,8 @@ EXPORT_SYMBOL(drm_get_rx_hdcp_cap);
 /* after TEE hdcp key valid, do hdcp22 init before tx22 start */
 void drm_hdmitx_hdcp22_init(void)
 {
+	if (hdmitx_device.hdmi_init != 1)
+		return;
 	hdmitx_hdcp_do_work(&hdmitx_device);
 	hdmitx_device.hwop.cntlddc(&hdmitx_device,
 		DDC_HDCP_MUX_INIT, 2);
@@ -7091,8 +7113,11 @@ EXPORT_SYMBOL(drm_hdmitx_hdcp22_init);
 /* echo 1/2 > hdcp_mode */
 int drm_hdmitx_hdcp_enable(unsigned int content_type)
 {
-	enum hdmi_vic vic =
-		hdmitx_device.hwop.getstate(&hdmitx_device, STAT_VIDEO_VIC, 0);
+	enum hdmi_vic vic = HDMI_UNKNOWN;
+
+	if (hdmitx_device.hdmi_init != 1)
+		return 1;
+	vic = hdmitx_device.hwop.getstate(&hdmitx_device, STAT_VIDEO_VIC, 0);
 
 	hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_GET_AUTH, 0);
 
@@ -7121,6 +7146,9 @@ EXPORT_SYMBOL(drm_hdmitx_hdcp_enable);
 /* echo -1 > hdcp_mode;echo stop14/22 > hdcp_ctrl */
 int drm_hdmitx_hdcp_disable(unsigned int content_type)
 {
+	if (hdmitx_device.hdmi_init != 1)
+		return 1;
+
 	hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_MUX_INIT, 1);
 	hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_GET_AUTH, 0);
 
@@ -7141,6 +7169,9 @@ EXPORT_SYMBOL(drm_hdmitx_hdcp_disable);
 
 int drm_get_hdcp_auth_sts(void)
 {
+	if (hdmitx_device.hdmi_init != 1)
+		return 0;
+
 	return hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_GET_AUTH, 0);
 }
 EXPORT_SYMBOL(drm_get_hdcp_auth_sts);
@@ -7149,6 +7180,8 @@ void drm_hdmitx_avmute(unsigned char mute)
 {
 	int cmd = OFF_AVMUTE;
 
+	if (hdmitx_device.hdmi_init != 1)
+		return;
 	if (mute == 0)
 		cmd = CLR_AVMUTE;
 	else
@@ -7160,6 +7193,9 @@ EXPORT_SYMBOL(drm_hdmitx_avmute);
 void drm_hdmitx_set_phy(unsigned char en)
 {
 	int cmd = TMDS_PHY_ENABLE;
+
+	if (hdmitx_device.hdmi_init != 1)
+		return;
 
 	if (en == 0)
 		cmd = TMDS_PHY_DISABLE;
@@ -7189,6 +7225,9 @@ bool drm_chk_mode_attr_sup(char *mode, char *attr)
 	struct hdmi_format_para *para = NULL;
 	bool valid = false;
 
+	if (hdmitx_device.hdmi_init != 1)
+		return valid;
+
 	if (!mode || !attr)
 		return valid;
 
@@ -7214,6 +7253,8 @@ bool drm_chk_hdmi_mode(const char *mode)
 {
 	enum hdmi_vic vic = HDMI_UNKNOWN;
 
+	if (hdmitx_device.hdmi_init != 1)
+		return false;
 	if (!mode)
 		return false;
 
