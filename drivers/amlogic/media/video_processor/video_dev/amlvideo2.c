@@ -105,6 +105,7 @@ KERNEL_VERSION(\
 #define DUR2PTS_RM(x) ((x) & 0xf)
 
 #define CMA_ALLOC_SIZE 24
+#define CMA_ALLOC_SIZE_4K 48
 
 #define CANVAS_WIDTH_ALIGN 32
 
@@ -117,7 +118,7 @@ static unsigned int debug;
 #define DEF_FRAMERATE 30
 static unsigned int mirror_value;
 
-static unsigned int vid_limit = 32;
+static unsigned int vid_limit = 50;
 module_param_named(video2_vid_limit, vid_limit, uint, 0644);
 
 static unsigned int amlvideo2_dbg_en;
@@ -146,7 +147,10 @@ static struct v4l2_frmivalenum amlvideo2_frmivalenum[] = {{
 		.numerator = 1, .denominator = 30, } } }, {
 	.index = 1, .pixel_format = V4L2_PIX_FMT_NV21, .width = 1600, .height =
 		1200, .type = V4L2_FRMIVAL_TYPE_DISCRETE, {.discrete = {
-		.numerator = 1, .denominator = 5, } } }, };
+		.numerator = 1, .denominator = 5, } } }, {
+	.index = 1, .pixel_format = V4L2_PIX_FMT_NV21, .width = 3840, .height =
+		2160, .type = V4L2_FRMIVAL_TYPE_DISCRETE, {.discrete = {
+		.numerator = 1, .denominator = 5, } } }};
 #define dpr_err(dev, level, fmt, arg...) \
 	v4l2_dbg((level), debug, &(dev)->v4l2_dev, fmt, ## arg)
 
@@ -287,6 +291,8 @@ struct resource memobj;
 int cma_mode;
 int node_id;
 bool use_reserve;
+int support_4k_capture;
+u32 framebuffer_total_size;
 };
 
 struct crop_info_s {
@@ -400,7 +406,7 @@ struct amlvideo2_frame_info *frame;
 };
 
 static struct v4l2_frmsize_discrete amlvideo2_prev_resolution[] = {{160, 120}, {
-320, 240}, {640, 480}, {1280, 720}, };
+320, 240}, {640, 480}, {1280, 720}, {1920, 1080}, {3840, 2160}};
 
 static struct v4l2_frmsize_discrete amlvideo2_pic_resolution[] = {{1280, 960} };
 
@@ -2946,7 +2952,7 @@ int amlvideo2_ge2d_multi_pre_process(struct vframe_s *vf,
 	int output_canvas = output->canvas_id;
 	int temp_canvas;
 	unsigned long temp_start = node->vid_dev->buffer_start +
-		(CMA_ALLOC_SIZE * SZ_1M);
+		(node->vid_dev->framebuffer_total_size * SZ_1M);
 	int temp_w = vf->width / 4;
 	int temp_h = vf->height / 4;
 	u32 h_scale_coef_type =
@@ -4487,6 +4493,8 @@ static void free_buffer(struct videobuf_queue *vq,
 
 #define norm_maxw() 2000
 #define norm_maxh() 1600
+#define norm_maxw_4k() 3840
+#define norm_maxh_4k() 2160
 
 static int buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 			  enum v4l2_field field)
@@ -4497,14 +4505,23 @@ static int buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	struct amlvideo2_node *node = fh->node;
 	struct amlvideo2_node_buffer *buf =
 			container_of(vb, struct amlvideo2_node_buffer, vb);
+	int support_4k = 0;
 	int rc;
+	int maxh = norm_maxh();
+	int maxw = norm_maxw();
 
 	dpr_err(node->vid_dev, 1, "%s, field=%d\n", __func__, field);
 
 	WARN_ON(!fh->fmt);
 
-	if (fh->width < 16 || fh->width > norm_maxw() ||
-	    fh->height < 16 || fh->height > norm_maxh())
+	support_4k = node->vid_dev->support_4k_capture;
+	if (support_4k) {
+		maxh = norm_maxh_4k();
+		maxw = norm_maxw_4k();
+	}
+
+	if (fh->width < 16 || fh->width > maxw ||
+	    fh->height < 16 || fh->height > maxh)
 		return -EINVAL;
 
 	buf->vb.size = (fh->width * fh->height * fh->fmt->depth) >> 3;
@@ -4634,6 +4651,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	struct amlvideo2_fmt *fmt = NULL;
 	enum v4l2_field field;
 	unsigned int maxw, maxh;
+	int support_4k = 0;
 
 	fmt = get_format(f);
 	if (!fmt) {
@@ -4651,8 +4669,14 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	maxw = norm_maxw();
-	maxh = norm_maxh();
+	support_4k = node->vid_dev->support_4k_capture;
+	if (support_4k) {
+		maxh = norm_maxh_4k();
+		maxw = norm_maxw_4k();
+	} else {
+		maxh = norm_maxh();
+		maxw = norm_maxw();
+	}
 
 	f->fmt.pix.field = field;
 	v4l_bound_align_image(&f->fmt.pix.width, 16,
@@ -5399,6 +5423,7 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 				  struct v4l2_frmsizeenum *fsize)
 {
 	int ret = 0, i = 0;
+	struct amlvideo2_node *node = video_drvdata(file);
 	struct amlvideo2_fmt *fmt = NULL;
 	struct v4l2_frmsize_discrete *frmsize = NULL;
 
@@ -5417,6 +5442,9 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 		if (fsize->index >= ARRAY_SIZE(amlvideo2_prev_resolution))
 			return -EINVAL;
 		frmsize = &amlvideo2_prev_resolution[fsize->index];
+		if (!node->vid_dev->support_4k_capture &&
+		    (frmsize->width > norm_maxw() || frmsize->height > norm_maxh()))
+			return -EINVAL;
 		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 		fsize->discrete.width = frmsize->width;
 		fsize->discrete.height = frmsize->height;
@@ -5425,6 +5453,9 @@ static int vidioc_enum_framesizes(struct file *file, void *fh,
 		if (fsize->index >= ARRAY_SIZE(amlvideo2_pic_resolution))
 			return -EINVAL;
 		frmsize = &amlvideo2_pic_resolution[fsize->index];
+		if (!node->vid_dev->support_4k_capture &&
+		    (frmsize->width > norm_maxw() || frmsize->height > norm_maxh()))
+			return -EINVAL;
 		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 		fsize->discrete.width = frmsize->width;
 		fsize->discrete.height = frmsize->height;
@@ -5685,16 +5716,17 @@ int amlvideo2_cma_buf_init(struct amlvideo2_device *vid_dev,  int node_id)
 {
 	int flags;
 	int ret;
+	int cma_size = vid_dev->framebuffer_total_size;
 
 	if (!vid_dev->use_reserve) {
 		if (vid_dev->cma_mode == 0) {
 			vid_dev->cma_pages = dma_alloc_from_contiguous
 				(&vid_dev->pdev->dev,
-				 (CMA_ALLOC_SIZE * SZ_1M) >> PAGE_SHIFT, 0, 0);
+				 (cma_size * SZ_1M) >> PAGE_SHIFT, 0, 0);
 			if (vid_dev->cma_pages) {
 				vid_dev->buffer_start = page_to_phys
 					(vid_dev->cma_pages);
-				vid_dev->buffer_size = (CMA_ALLOC_SIZE * SZ_1M);
+				vid_dev->buffer_size = (cma_size * SZ_1M);
 			} else {
 				pr_err("amlvideo2 alloc cma alone failed\n");
 				return -1;
@@ -5714,14 +5746,14 @@ int amlvideo2_cma_buf_init(struct amlvideo2_device *vid_dev,  int node_id)
 					vid_dev->buffer_start =
 					codec_mm_alloc_for_dma
 					("amlvideo2.0",
-					 ((CMA_ALLOC_SIZE + 4) * SZ_1M) /
+					 ((cma_size + 4) * SZ_1M) /
 					  PAGE_SIZE,
 					 0, flags);
 				else
 					vid_dev->buffer_start =
 					codec_mm_alloc_for_dma
 					("amlvideo2.0",
-					 (CMA_ALLOC_SIZE * SZ_1M) / PAGE_SIZE,
+					 (cma_size * SZ_1M) / PAGE_SIZE,
 					 0, flags);
 			} else {
 				if (vid_dev->node
@@ -5729,14 +5761,14 @@ int amlvideo2_cma_buf_init(struct amlvideo2_device *vid_dev,  int node_id)
 					vid_dev->buffer_start =
 					codec_mm_alloc_for_dma
 					("amlvideo2.1",
-					 ((CMA_ALLOC_SIZE + 4) *
+					 ((cma_size + 4) *
 					  SZ_1M) / PAGE_SIZE,
 					 0, flags);
 				else
 					vid_dev->buffer_start =
 					codec_mm_alloc_for_dma
 					("amlvideo2.1",
-					 (CMA_ALLOC_SIZE * SZ_1M) / PAGE_SIZE,
+					 (cma_size * SZ_1M) / PAGE_SIZE,
 					 0, flags);
 			}
 			if (!(vid_dev->buffer_start)) {
@@ -5745,11 +5777,11 @@ int amlvideo2_cma_buf_init(struct amlvideo2_device *vid_dev,  int node_id)
 			}
 			if (vid_dev->node[node_id]->ge2d_multi_process_flag
 				== 1)
-				vid_dev->buffer_size = ((CMA_ALLOC_SIZE + 4) *
+				vid_dev->buffer_size = ((cma_size + 4) *
 							SZ_1M);
 			else
 				vid_dev->buffer_size =
-				(CMA_ALLOC_SIZE * SZ_1M);
+				(cma_size * SZ_1M);
 		}
 		if (node_id == 0)
 			pr_info("amlvideo2.0 cma memory is %x , size is  %x\n",
@@ -5774,7 +5806,7 @@ int amlvideo2_cma_buf_uninit(struct amlvideo2_device *vid_dev, int node_id)
 				dma_release_from_contiguous
 					(&vid_dev->pdev->dev,
 					 vid_dev->cma_pages,
-					 (CMA_ALLOC_SIZE * SZ_1M) >>
+					 (vid_dev->framebuffer_total_size * SZ_1M) >>
 					 PAGE_SHIFT);
 				vid_dev->cma_pages = NULL;
 			}
@@ -6457,10 +6489,22 @@ static int amlvideo2_driver_probe(struct platform_device *pdev)
 		pr_err("don't find  match cma_mode\n");
 		dev->cma_mode = 1;
 	}
+
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "amlvideo2_id", &dev->node_id);
 	if (ret)
 		pr_err("don't find amlvideo2 node id.\n");
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "support_4k", &dev->support_4k_capture);
+	if (ret) {
+		pr_err("no match support_4k for amlvideo2.%d, disable as default\n", dev->node_id);
+		dev->support_4k_capture = 0;
+	} else {
+		pr_info("support_4k %d for amlvideo2.%d\n", dev->support_4k_capture, dev->node_id);
+	}
+
+	dev->framebuffer_total_size = dev->support_4k_capture ? CMA_ALLOC_SIZE_4K : CMA_ALLOC_SIZE;
 	dev->pdev = pdev;
 
 	if (v4l2_device_register(&pdev->dev, &dev->v4l2_dev) < 0) {
