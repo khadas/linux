@@ -488,12 +488,12 @@ struct hdmitx_dev {
 	enum eotf_type hdmi_current_eotf_type;
 	enum mode_type hdmi_current_tunnel_mode;
 	bool hdmi_current_signal_sdr;
+	unsigned int hdr_priority;
 	unsigned int flag_3dfp:1;
 	unsigned int flag_3dtb:1;
 	unsigned int flag_3dss:1;
 	unsigned int dongle_mode:1;
 	unsigned int cedst_en:1; /* configure in DTS */
-	unsigned int hdr_priority:1;
 	unsigned int bist_lock:1;
 	unsigned int vend_id_hit:1;
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;

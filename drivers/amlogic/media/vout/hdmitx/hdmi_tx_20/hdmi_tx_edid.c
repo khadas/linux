@@ -1183,6 +1183,12 @@ static int edid_parsedrmsb(struct rx_cap *prxcap,
 {
 	unsigned char tag = 0, ext_tag = 0, data_end = 0;
 	unsigned int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	if (hdev->hdr_priority == 2) {
+		pr_info("hdr_priority is 2 and not parse hdr block\n");
+		return 0;
+	}
 
 	tag = (buf[pos] >> 5) & 0x7;
 	data_end = (buf[pos] & 0x1f);
