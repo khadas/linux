@@ -3480,6 +3480,13 @@ static ssize_t hdr_cap_show(struct device *dev,
 	struct rx_cap *prxcap = &hdmitx_device.rxcap;
 	int hdr10plugsupported = 0;
 	struct cuva_info *cuva = &prxcap->cuva_info;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	if (hdev->hdr_priority == 2) {
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"mask rx hdr capability\n");
+		return pos;
+	}
 
 	if (prxcap->hdr10plus_info.ieeeoui == HDR10_PLUS_IEEE_OUI &&
 	    prxcap->hdr10plus_info.application_version != 0xFF)
@@ -7173,9 +7180,12 @@ __setup("frac_rate_policy=", hdmitx_boot_frac_rate);
 
 static int hdmitx_boot_hdr_priority(char *str)
 {
-	if (strncmp("1", str, 1) == 0) {
-		hdmitx_device.hdr_priority = 1;
-		pr_info("hdmitx boot hdr_priority: 1\n");
+	unsigned int val = 0;
+
+	if ((strncmp("1", str, 1) == 0) || (strncmp("2", str, 1) == 0)) {
+		val = str[0] - '0';
+		hdmitx_device.hdr_priority = val;
+		pr_info("hdmitx boot hdr_priority: %d\n", val);
 	}
 	return 0;
 }
