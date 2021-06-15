@@ -1829,17 +1829,32 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 			demod->demod_status.clk_freq = DEMOD_CLK_167M;
 			nco_rate = (demod->demod_status.adc_freq * 256) /
 					demod->demod_status.clk_freq + 2;
-			front_write_bits(AFIFO_ADC, nco_rate,
-					 AFIFO_NCO_RATE_BIT, AFIFO_NCO_RATE_WID);
+			PR_ATSC("demod_clk:%d, ADC_CLK:%d, nco_rate:%d\n",
+				demod->demod_status.clk_freq,
+				demod->demod_status.adc_freq, nco_rate);
+			if (devp->data->hw_ver == DTVDEMOD_HW_S4D) {
+				front_write_bits(AFIFO_ADC_S4D, nco_rate,
+					AFIFO_NCO_RATE_BIT, AFIFO_NCO_RATE_WID);
+			} else {
+				front_write_bits(AFIFO_ADC, nco_rate,
+					AFIFO_NCO_RATE_BIT, AFIFO_NCO_RATE_WID);
+			}
 			front_write_reg(SFIFO_OUT_LENS, 0x5);
 			/* sys clk = 167M */
-			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x502);
+			if (devp->data->hw_ver == DTVDEMOD_HW_S4D)
+				dd_hiu_reg_write(DEMOD_CLK_CTL_S4D, 0x502);
+			else
+				dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x502);
 		} else {
 			/* txlx j.83b set sys clk to 222M */
 			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x502);
 		}
 
 		demod_set_mode_ts(SYS_DVBC_ANNEX_A);
+		if (devp->data->hw_ver == DTVDEMOD_HW_S4D) {
+			demod_top_write_reg(DEMOD_TOP_REG0, 0x00);
+			demod_top_write_reg(DEMOD_TOP_REGC, 0xcc0011);
+		}
 		param_j83b.ch_freq = c->frequency / 1000;
 		param_j83b.mode = amdemod_qam(c->modulation);
 		PR_ATSC("gxtv_demod_atsc_set_frontend, modulation: %d\n", c->modulation);
@@ -2472,10 +2487,13 @@ static int dtvdemod_atsc_init(struct aml_dtvdemod *demod)
 	demod->demod_status.adc_freq = sys.adc_clk;
 	demod->demod_status.clk_freq = sys.demod_clk;
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_S4D)
-		dd_hiu_reg_write(0x80, 0x501);
-	else if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
-		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+	if (devp->data->hw_ver == DTVDEMOD_HW_S4D) {
+		demod->demod_status.adc_freq = sys.adc_clk;
+		dd_hiu_reg_write(DEMOD_CLK_CTL_S4D, 0x501);
+	} else {
+		if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
+			dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+	}
 	demod_set_sys(demod, &sys);
 
 	return 0;
@@ -6198,8 +6216,8 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 
 	mutex_lock(&amldtvdemod_device_mutex);
 
-	if ((devp->data->hw_ver != DTVDEMOD_HW_S4 && devp->data->hw_ver != DTVDEMOD_HW_S4D &&
-		devp->index > 0) ||
+	if ((devp->data->hw_ver != DTVDEMOD_HW_S4 &&
+		devp->data->hw_ver != DTVDEMOD_HW_S4D && devp->index > 0) ||
 		(devp->data->hw_ver == DTVDEMOD_HW_S4 && devp->index > 1) ||
 		(devp->data->hw_ver == DTVDEMOD_HW_S4D && devp->index > 1)) {
 		pr_err("%s: Had attached (%d), only S4 and S4D support 2 attach.\n",

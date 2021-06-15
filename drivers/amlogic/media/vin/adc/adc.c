@@ -185,7 +185,7 @@ void adc_set_ddemod_default(enum fe_delivery_system delsys)
 		case ADC_CHIP_S4D:
 			/* enable bandgap */
 			adc_wr_hiu_bits(0xb0, 1, 11, 1);
-			adc_wr_hiu(0xd1, 0x582);
+			adc_wr_hiu(0xd1, 0x562);
 			adc_wr_hiu(0xd0, 0x41209007);
 			break;
 

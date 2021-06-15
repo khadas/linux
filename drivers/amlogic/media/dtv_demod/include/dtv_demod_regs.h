@@ -24,4 +24,8 @@
 #define J83B_FEC_TS_CLK		(0x84)
 #define PARALLEL_CLK_DIV_BIT	16
 #define PARALLEL_CLK_DIV_WID	6
+
+/* S4D reg */
+#define AFIFO_ADC_S4D (0x6c)
+#define DEMOD_CLK_CTL_S4D (0x80)
 #endif

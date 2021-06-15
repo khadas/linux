@@ -1000,12 +1000,23 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 	case SYS_ATSCMH:
 	case SYS_DVBC_ANNEX_B:
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
-			demod_top_write_reg(DEMOD_TOP_REGC, 0x10);
-			usleep_range(1000, 1001);
-			demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
-			front_write_bits(AFIFO_ADC, nco_rate, AFIFO_NCO_RATE_BIT,
-					 AFIFO_NCO_RATE_WID);
+			if (devp->data->hw_ver == DTVDEMOD_HW_S4D) {
+				demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
+				demod_top_write_reg(DEMOD_TOP_REGC, 0x10);
+				usleep_range(1000, 2000);
+				demod_top_write_reg(DEMOD_TOP_REGC, 0xcc0011);
+				front_write_bits(0x6c, nco_rate,
+					AFIFO_NCO_RATE_BIT,
+					AFIFO_NCO_RATE_WID);
+			} else {
+				demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
+				demod_top_write_reg(DEMOD_TOP_REGC, 0x10);
+				usleep_range(1000, 1001);
+				demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
+				front_write_bits(AFIFO_ADC, nco_rate,
+					AFIFO_NCO_RATE_BIT,
+					AFIFO_NCO_RATE_WID);
+			}
 			front_write_bits(AFIFO_ADC, 1, ADC_2S_COMPLEMENT_BIT,
 					 ADC_2S_COMPLEMENT_WID);
 		}
@@ -1020,8 +1031,8 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x10);
 				usleep_range(1000, 2000);
 				demod_top_write_reg(DEMOD_TOP_REGC, 0xcc0011);
-				front_write_bits(0x6c, nco_rate, AFIFO_NCO_RATE_BIT,
-						 AFIFO_NCO_RATE_WID);
+				front_write_bits(AFIFO_ADC_S4D, nco_rate,
+					AFIFO_NCO_RATE_BIT, AFIFO_NCO_RATE_WID);
 			} else {
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x11);
 				demod_top_write_reg(DEMOD_TOP_REGC, 0x10);
@@ -1048,8 +1059,14 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x220010);
 			usleep_range(1000, 1001);
 			demod_top_write_reg(DEMOD_TOP_REGC, 0x220011);
-			front_write_bits(AFIFO_ADC, nco_rate, AFIFO_NCO_RATE_BIT,
-					 AFIFO_NCO_RATE_WID);
+			if (devp->data->hw_ver == DTVDEMOD_HW_S4D)
+				front_write_bits(AFIFO_ADC_S4D, nco_rate,
+					AFIFO_NCO_RATE_BIT,
+					AFIFO_NCO_RATE_WID);
+			else
+				front_write_bits(AFIFO_ADC, nco_rate,
+					AFIFO_NCO_RATE_BIT,
+					AFIFO_NCO_RATE_WID);
 			front_write_reg(SFIFO_OUT_LENS, 0x0);
 			front_write_reg(0x22, 0x7200a06);
 		}
