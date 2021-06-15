@@ -434,6 +434,27 @@
 		fr_policy = <2>;
 	};
 
+	dummy_venc: dummy_venc {
+		compatible = "amlogic, dummy_venc";
+		status = "okay";
+		clocks = <&clkc CLKID_VCLK2_ENCP
+			&clkc CLKID_VCLK2_VENCP0
+			&clkc CLKID_VCLK2_VENCP1
+			&clkc CLKID_VCLK2_ENCI
+			&clkc CLKID_VCLK2_VENCI0
+			&clkc CLKID_VCLK2_VENCI1
+			&clkc CLKID_VCLK2_ENCL
+			&clkc CLKID_VCLK2_VENCL>;
+		clock-names = "encp_top_gate",
+			"encp_int_gate0",
+			"encp_int_gate1",
+			"venci_top_gate",
+			"enci_int_gate0",
+			"enci_int_gate1",
+			"encl_top_gate",
+			"encl_int_gate";
+	};
+
 	rdma {
 		compatible = "amlogic, meson-tl1, rdma";
 		status = "okay";
