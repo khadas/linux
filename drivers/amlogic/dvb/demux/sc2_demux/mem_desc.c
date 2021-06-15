@@ -367,6 +367,9 @@ int _alloc_buff(unsigned int len, int sec_level,
 
 	iret = cache_malloc(len, &buf_start_virt, &buf_start);
 	if (iret == 0) {
+		pr_dbg("init cache phy:0x%lx, virt:0x%lx, len:%d\n",
+				buf_start, buf_start_virt, len);
+		memset((char *)buf_start_virt, 0, len);
 		if (sec_level) {
 #ifdef CONFIG_AMLOGIC_TEE
 			ret = tee_protect_mem_by_type(TEE_MEM_TYPE_DEMUX,
@@ -393,6 +396,10 @@ int _alloc_buff(unsigned int len, int sec_level,
 		dprint("%s fail\n", __func__);
 		return -1;
 	}
+	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
+	pr_dbg("init phy:0x%lx, virt:0x%lx, len:%d\n",
+			buf_start, buf_start_virt, len);
+	memset((char *)buf_start_virt, 0, len);
 	if (sec_level) {
 #ifdef CONFIG_AMLOGIC_TEE
 		//ret = tee_protect_tvp_mem(buf_start, len, handle);
@@ -402,7 +409,6 @@ int _alloc_buff(unsigned int len, int sec_level,
 		pr_dbg("%s, protect 0x%lx, len:%d, ret:0x%x\n",
 				__func__, buf_start, len, ret);
 	}
-	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
 
 	*vir_mem = buf_start_virt;
 	*phy_mem = buf_start;
