@@ -1974,8 +1974,8 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 		/*for recode interrupt cnt*/
 		/* rxpktsts.fifo_int_cnt++; */
 		pkt_num = hdmirx_rd_dwc(DWC_PDEC_FIFO_STS1);
-		if (log_level & 0x8000)
-			rx_pr("pkt=%d\n", pkt_num);
+		//if (log_level & 0x8000)
+			//rx_pr("pkt=%d\n", pkt_num);
 		while (pkt_num >= K_ONEPKT_BUFF_SIZE) {
 			rxpktsts.fifo_pkt_num++;
 			/*read one pkt from fifo*/

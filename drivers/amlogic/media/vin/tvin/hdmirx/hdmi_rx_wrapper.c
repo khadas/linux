@@ -182,7 +182,7 @@ static bool term_flag = 1;
 /* vpp mute when signal change, used
  * in companion with vlock phase = 84
  */
-u32 vpp_mute_enable;
+u32 vpp_mute_enable = 1;
 int clk_chg_cnt;
 int clk_chg_max = 3;
 
@@ -325,7 +325,7 @@ void hdmirx_fsm_var_init(void)
 		clk_unstable_max = 10;
 		esd_phy_rst_max = 80;
 		pll_unlock_max = 30;
-		stable_check_lvl = 0x7cf;
+		stable_check_lvl = 0x7df;
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
 		hpd_wait_max = 40;
@@ -743,13 +743,14 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	//u32 rx_top_intr_stat = 0;
 	//bool irq_need_clr = 0;
 	/* clear interrupt quickly */
+
 	hdcp_2x_ecc_intr = hdmirx_rd_cor(HDCP2X_RX_ECC_INTR);
 	if (hdcp_2x_ecc_intr != 0)
 		hdmirx_wr_cor(HDCP2X_RX_ECC_INTR, hdcp_2x_ecc_intr);
 	grp_intr1 = hdmirx_rd_cor(RX_GRP_INTR1_STAT_PWD_IVCRX);
 	if (grp_intr1 != 0) {
 		if (log_level & DBG1_LOG)
-			rx_pr("rx_intr_4-%x\n", rx_intr_4);
+			rx_pr("grp_intr1-%x\n", grp_intr1);
 		hdmirx_wr_cor(RX_GRP_INTR1_STAT_PWD_IVCRX, grp_intr1);
 	}
 	intr_0 = hdmirx_rd_cor(RX_DEPACK_INTR0_DP2_IVCRX);
@@ -918,7 +919,7 @@ irqreturn_t irq_handler(int irq, void *params)
 	unsigned long hdmirx_top_intr_stat;
 	static u32 pre_ms, cur_ms;
 	static u32 err_vsync;
-	u8 hdcp_2x_ecc_intr;
+	//u8 hdcp_2x_ecc_intr;
 
 	if (params == 0) {
 		rx_pr("%s: %s\n", __func__,
@@ -1005,20 +1006,20 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 					hdmirx_top_irq_en(false);
 				}
 			}
-			hdcp_2x_ecc_intr = hdmirx_rd_cor(HDCP2X_RX_ECC_INTR);
-			if (hdcp_2x_ecc_intr != 0) {
-				hdmirx_wr_cor(HDCP2X_RX_ECC_INTR, hdcp_2x_ecc_intr);
-				if (log_level & IRQ_LOG)
-					rx_pr("ecc_err-%x\n", hdcp_2x_ecc_intr);
-				//if (hdcp22_auth_sts == HDCP22_AUTH_STATE_SUCCESS)  {
-				//if (rx.cur.hdcp22_state == 3) {
-				if (hdcp22_reauth_enable) {
-					rx_hdcp_22_sent_reauth();
-					if (rx.state >= FSM_SIG_STABLE)
-						rx.state = FSM_SIG_WAIT_STABLE;
-				}
+			//hdcp_2x_ecc_intr = hdmirx_rd_cor(HDCP2X_RX_ECC_INTR);
+			//if (hdcp_2x_ecc_intr != 0) {
+				//hdmirx_wr_cor(HDCP2X_RX_ECC_INTR, hdcp_2x_ecc_intr);
+				//if (log_level & IRQ_LOG)
+					//rx_pr("ecc_err-%x\n", hdcp_2x_ecc_intr);
+				////if (hdcp22_auth_sts == HDCP22_AUTH_STATE_SUCCESS)  {
+				////if (rx.cur.hdcp22_state == 3) {
+				//if (hdcp22_reauth_enable) {
+					//rx_hdcp_22_sent_reauth();
+					//if (rx.state >= FSM_SIG_STABLE)
+						//rx.state = FSM_SIG_WAIT_STABLE;
 				//}
-			}
+				////}
+			//}
 			if (log_level & 0x400)
 				rx_pr("[isr] DE rise.\n");
 		}
@@ -2137,6 +2138,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(en_4k_timing, i++);
 	pr_var(acr_mode, i++);
 	pr_var(force_clk_rate, i++);
+	pr_var(afifo_moniter_cnt, i++);
 	pr_var(auto_aclk_mute, i++);
 	pr_var(aud_avmute_en, i++);
 	pr_var(aud_mute_sel, i++);
@@ -2344,6 +2346,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(acr_mode, index);
 	if (set_pr_var(tmpbuf, var_to_str(force_clk_rate), &force_clk_rate, value))
 		return pr_var(force_clk_rate, index);
+	if (set_pr_var(tmpbuf, var_to_str(afifo_moniter_cnt), &afifo_moniter_cnt, value))
+		return pr_var(afifo_moniter_cnt, index);
 	if (set_pr_var(tmpbuf, var_to_str(auto_aclk_mute), &auto_aclk_mute, value))
 		return pr_var(auto_aclk_mute, index);
 	if (set_pr_var(tmpbuf, var_to_str(aud_avmute_en), &aud_avmute_en, value))
@@ -3873,9 +3877,10 @@ void hdmirx_timer_handler(struct timer_list *t)
 	if (rx.open_fg) {
 		rx_nosig_monitor();
 		rx_cable_clk_monitor();
-		if (!hdmirx_repeat_support() || !rx.firm_change) {
+		if (!hdmirx_repeat_support()) {
 			if (!sm_pause) {
 				rx_clkrate_monitor();
+				rx_afifo_monitor();
 				rx_main_state_machine();
 				hdcp22_decrypt_monitor();
 				rx_ext_state_monitor();

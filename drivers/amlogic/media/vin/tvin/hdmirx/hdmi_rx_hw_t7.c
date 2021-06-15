@@ -1917,7 +1917,7 @@ void rx_set_irq_t7(bool en)
 		data8 |= 1 << 2; /* intr_cea_new_vsi */
 		hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, data8);
 
-		hdmirx_wr_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, 0);
+		hdmirx_wr_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, 4);
 		hdmirx_wr_cor(RX_INTR1_MASK_PWD_IVCRX, 0x03);//register_address: 0x1050
 		hdmirx_wr_cor(RX_INTR2_MASK_PWD_IVCRX, 0x00);//register_address: 0x1051
 		hdmirx_wr_cor(RX_INTR3_MASK_PWD_IVCRX, 0x00);//register_address: 0x1052

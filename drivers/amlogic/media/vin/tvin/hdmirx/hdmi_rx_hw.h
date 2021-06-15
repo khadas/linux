@@ -3125,6 +3125,7 @@ extern unsigned int hdmirx_ctrl_port;
 extern int acr_mode;
 extern int hdcp_enc_mode;
 extern int force_clk_rate;
+extern u32 afifo_moniter_cnt;
 extern int auto_aclk_mute;
 extern int aud_avmute_en;
 extern int aud_mute_sel;
@@ -3365,5 +3366,5 @@ void aml_phy_get_trim_val_t7(void);
 void rx_hdcp_22_sent_reauth(void);
 bool rx_ecc_err_overflow(void);
 void hdmirx_output_en(bool en);
-
+void rx_afifo_monitor(void);
 #endif

@@ -21,8 +21,8 @@
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_drv_ext.h"
 
-/* irq optimization */
-#define RX_VER0 "ver.2021/06/10"
+/* added colorspace detection */
+#define RX_VER0 "ver.2021/06/21"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -47,7 +47,6 @@
 
 #define EDID_MIX_MAX_SIZE 64
 #define ESM_KILL_WAIT_TIMES 250
-
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
 
@@ -744,5 +743,10 @@ void hdmirx_fill_key_buf(const char *buf, int size);
 /* for other modules */
 int rx_is_hdcp22_support(void);
 int rx_hdcp22_send_uevent(int val);
+
+//#define RX_VER0 "ver.2021/06/21"
+//1. added colorspace detection
+//2. add afifo detection
+//3. use top de-repeat
 
 #endif

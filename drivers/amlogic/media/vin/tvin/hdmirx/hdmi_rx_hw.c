@@ -59,7 +59,7 @@ int hdcp_enc_mode;
 /* top_irq_en bit[16:13] hdcp_sts */
 /* bit27 DE rise */
 int top_intr_maskn_value;
-
+u32 afifo_moniter_cnt;
 bool hdcp_enable = 1;
 int acr_mode;
 int auto_aclk_mute = 2;
@@ -1485,6 +1485,9 @@ void rx_afifo_store_all_subpkt(bool all_pkt)
 {
 	static bool flag = true;
 
+	if (rx.chip_id > CHIP_ID_T7)
+		return;
+
 	if (all_pkt) {
 		if (log_level & AUDIO_LOG)
 			rx_pr("afifo store all subpkts: %d\n", flag);
@@ -1510,6 +1513,9 @@ void rx_afifo_store_all_subpkt(bool all_pkt)
 unsigned int hdmirx_audio_fifo_rst(void)
 {
 	int error = 0;
+
+	if (rx.chip_id > CHIP_ID_T7)
+		return 0;
 
 	hdmirx_wr_bits_dwc(DWC_AUD_FIFO_CTRL, AFIF_INIT, 1);
 	udelay(20);
@@ -1798,8 +1804,9 @@ static int TOP_init(void)
 	}
 	/* conversion mode of 422 to 444 */
 	data32 |= 0	<< 19;
-	/* pixel_repeat_ovr */
-	data32 |= 1 << 7;
+	/* pixel_repeat_ovr 0=auto  1 only for T7!!! */
+	if (rx.chip_id == CHIP_ID_T7)
+		data32 |= 1 << 7;
 	/* !!!!dolby vision 422 to 444 ctl bit */
 	data32 |= 0	<< 0;
 	hdmirx_wr_top(TOP_VID_CNTL,	data32);
@@ -3025,6 +3032,37 @@ bool rx_clkrate_monitor(void)
 	return changed;
 }
 
+void rx_afifo_monitor(void)
+{
+	static u8 cnt;
+
+	if (cnt++ >= 5)
+		cnt = 0;
+	else
+		return;
+	if (rx.chip_id < CHIP_ID_T7)
+		return;
+	if (rx.state != FSM_SIG_READY)
+		return;
+	if (hdmirx_rd_cor(RX_INTR4_PWD_IVCRX) & 2) {
+		hdmirx_wr_cor(RX_INTR4_PWD_IVCRX, 2);
+		afifo_moniter_cnt++;
+		if (log_level & AUDIO_LOG)
+			rx_pr("afifo overflow\n");
+	} else {
+		if (afifo_moniter_cnt)
+			afifo_moniter_cnt--;
+	}
+	if (afifo_moniter_cnt > 5 &&
+		afifo_moniter_cnt < 0x100) {
+		afifo_moniter_cnt = 0;
+		hdmirx_output_en(false);
+		rx_set_cur_hpd(0, 5);
+		rx.state = FSM_5V_LOST;
+		rx_pr("!!force reset\n");
+	}
+}
+
 /*
  * rx_hdcp_init - hdcp1.4 init and enable
  */
@@ -3248,7 +3286,7 @@ void cor_init(void)
 
 	//DEPACK
 	data8  = 0;
-	data8 |= (0 << 4);//[4] reg_wait4_two_avi_pkts  default is 1, but need two packet
+	data8 |= (1 << 4);//[4] reg_wait4_two_avi_pkts  default is 1, but need two packet
 	data8 |= (0 << 0);//[0] reg_all_if_clr_en
 	hdmirx_wr_cor(VSI_CTRL4_DP3_IVCRX, data8);   //register_address: 0x120f
 
@@ -3307,12 +3345,15 @@ void cor_init(void)
 
 	hdmirx_wr_cor(RX_AVG_WINDOW_AUD_IVCRX, 0xff);//AVG_WINDOW
 
-	data8	= 0;
-	data8 |= (1 << 6);//[7:6] reg_vcnt_max
-	data8 |= (3 << 4);//[5:4] reg_mclk4dac     0:128*fs; 1:256*fs; 2:384*fs; 3:512*fs
-	data8 |= (2 << 2);//[3:2] reg_mclk4hbra    0:128*fs; 1:256*fs; 2:384*fs; 3:512*fs
-	data8 |= (2 << 0);//[1:0] reg_mclk4dsd     0:128*fs; 1:256*fs; 2:384*fs; 3:512*fs
-	hdmirx_wr_cor(RX_ACR_CTRL1_AUD_IVCRX, data8);//register address: 0x1401 (0x7a)
+	data8 |= (0 << 7); //[7] cts_dropped_auto_en
+	data8 |= (0 << 6); //[6] post_hw_sw_sel
+	data8 |= (0 << 5); //[5] upll_hw_sw_sel
+	data8 |= (0 << 4); //[4] cts_hw_sw_sel: 0=hw; 1=sw.
+	data8 |= (0 << 3); //[3] n_hw_sw_sel: 0=hw; 1=sw.
+	data8 |= (0 << 2); //[2] cts_reused_auto_en
+	data8 |= (0 << 1); //[1] fs_hw_sw_sel: 0=hw; 1=sw.
+	data8 |= (0 << 0); //[0] acr_init_wp
+	hdmirx_wr_cor(RX_ACR_CTRL1_AUD_IVCRX, data8);//register address: 0x1400 (0x7a)
 
 	data8 = 0;
 	data8 |= (0 << 6);//[7:6] rhdmi_aud_smaple_f_extn
@@ -3423,6 +3464,17 @@ void cor_init(void)
 	/* TDM cfg */
 	hdmirx_wr_cor(RX_TDM_CTRL1_AUD_IVCRX, 0x00);
 	hdmirx_wr_cor(RX_TDM_CTRL2_AUD_IVCRX, 0x10);
+
+	//clr gcp wr; disable hw avmute
+	hdmirx_wr_cor(DEC_AV_MUTE_DP2_IVCRX, 0x20);
+
+	// hdcp 2x ECC detection enable  mode 3
+	hdmirx_wr_cor(HDCP2X_RX_ECC_CTRL, 7);
+	hdmirx_wr_cor(HDCP2X_RX_ECC_CNT2CHK_0, 60);
+	hdmirx_wr_cor(HDCP2X_RX_ECC_GVN_FRM_ERR_THR_0, 0xff);
+	hdmirx_wr_cor(HDCP2X_RX_ECC_GVN_FRM_ERR_THR_1, 0xf);
+	//hdmirx_wr_cor(HDCP2X_RX_ECC_GVN_FRM_ERR_THR_2, 0xff);
+	hdmirx_wr_cor(HDCP2X_RX_GVN_FRM, 30);
 }
 
 void hdcp_init_t7(void)
@@ -3444,18 +3496,6 @@ void hdcp_init_t7(void)
 	//hdmirx_wr_cor(CP2PAX_GP_CTL_HDCP2X_IVCRX, 0xdb);
 	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x8);
 	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x2);
-
-	//clr gcp wr; disable hw avmute
-	hdmirx_wr_cor(DEC_AV_MUTE_DP2_IVCRX, 0x20);
-
-	// hdcp 2x ECC detection enable  mode 3
-	hdmirx_wr_cor(HDCP2X_RX_ECC_CTRL, 7);
-	hdmirx_wr_cor(HDCP2X_RX_ECC_CNT2CHK_0, 60);
-	hdmirx_wr_cor(HDCP2X_RX_ECC_GVN_FRM_ERR_THR_0, 0xff);
-	hdmirx_wr_cor(HDCP2X_RX_ECC_GVN_FRM_ERR_THR_1, 0xf);
-	//hdmirx_wr_cor(HDCP2X_RX_ECC_GVN_FRM_ERR_THR_2, 0xff);
-	hdmirx_wr_cor(HDCP2X_RX_GVN_FRM, 30);
-
 }
 
 void hdmirx_output_en(bool en)
@@ -3469,7 +3509,7 @@ void hdmirx_hw_config(void)
 {
 	rx_pr("%s port:%d\n", __func__, rx.port);
 	hdmirx_top_sw_reset();
-	TOP_init();
+	//TOP_init();
 	hdmirx_output_en(false);
 	if (rx.chip_id >= CHIP_ID_T7) {
 		cor_init();
@@ -4099,35 +4139,36 @@ void hdmirx_config_video(void)
 	break;
 	}
 
-	/* repeatition config */
-	switch (rx.cur.repeat) {
-	case 1:
-		reg_clk_vp_core_div = 3;
-		reg_clk_vp_out_div = 1;
-	break;
-	case 3:
-		reg_clk_vp_core_div = 7;
-		reg_clk_vp_out_div = 3;
-	break;
-	default:
-		reg_clk_vp_core_div = 1;
-		reg_clk_vp_out_div = 0;
-	break;
+	if (rx.chip_id == CHIP_ID_T7) {
+		/* repeatition config */
+		switch (rx.cur.repeat) {
+		case 1:
+			reg_clk_vp_core_div = 3;
+			reg_clk_vp_out_div = 1;
+		break;
+		case 3:
+			reg_clk_vp_core_div = 7;
+			reg_clk_vp_out_div = 3;
+		break;
+		default:
+			reg_clk_vp_core_div = 1;
+			reg_clk_vp_out_div = 0;
+		break;
+		}
+		data8 = hdmirx_rd_cor(RX_PWD0_CLK_DIV_0);
+		data8 &= (~0x3f);
+		//[5:3] divides the vpc out clock
+		data8 |= (reg_clk_vp_out_div << 3);//[5:3] divides the vpc out clock
+		//[2:0] divides the vpc core clock:
+		//0: divide by 1; 1: divide by 2; 3: divide by 4; 7: divide by 8
+		data8 |= (reg_clk_vp_core_div << 0);
+		hdmirx_wr_cor(RX_PWD0_CLK_DIV_0, data8) ;//register address: 0x10c1
+
+		data8 = hdmirx_rd_cor(RX_VP_INPUT_FORMAT_HI);
+		data8 &= (~0x7);
+		data8 |= ((rx.cur.repeat & 0x3) << 0);
+		hdmirx_wr_cor(RX_VP_INPUT_FORMAT_HI, data8);
 	}
-	data8 = hdmirx_rd_cor(RX_PWD0_CLK_DIV_0);
-	data8 &= (~0x3f);
-	//[5:3] divides the vpc out clock
-	data8 |= (reg_clk_vp_out_div << 3);//[5:3] divides the vpc out clock
-	//[2:0] divides the vpc core clock:
-	//0: divide by 1; 1: divide by 2; 3: divide by 4; 7: divide by 8
-	data8 |= (reg_clk_vp_core_div << 0);
-	hdmirx_wr_cor(RX_PWD0_CLK_DIV_0, data8) ;//register address: 0x10c1
-
-	data8 = hdmirx_rd_cor(RX_VP_INPUT_FORMAT_HI);
-	data8 &= (~0x7);
-	data8 |= ((rx.cur.repeat & 0x3) << 0);
-	hdmirx_wr_cor(RX_VP_INPUT_FORMAT_HI, data8);
-
 	rx_sw_reset_t7(2);
 	hdmirx_output_en(true);
 	hdmirx_top_irq_en(true);
