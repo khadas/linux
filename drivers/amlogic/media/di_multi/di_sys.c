@@ -1691,6 +1691,27 @@ void di_buf_no2wait(struct di_ch_s *pch)
 	PR_INF("%s:%d\n", __func__, len);
 }
 
+static unsigned int cnt_out_buffer_h_size(struct di_ch_s *pch, unsigned int cvs_h)
+{
+	unsigned int out_format;
+	unsigned int buf_hsize = 0;
+
+	if (!cfgg(LINEAR) || !dip_itf_is_ins_exbuf(pch))
+		return 0;
+	out_format = pch->itf.u.dinst.parm.output_format & 0xffff;
+	if (out_format == DI_OUTPUT_NV12 ||
+	    out_format == DI_OUTPUT_NV21) {
+		buf_hsize = cvs_h;
+	} else if (out_format == DI_OUTPUT_422) {
+		buf_hsize = cvs_h * 2 / 5;
+	} else {
+		PR_ERR("%s:format not support!%d\n", __func__, out_format);
+	}
+	dbg_ic("%s:buf_hsize=%d\n", __func__, buf_hsize);
+
+	return buf_hsize;
+}
+
 /*ary note: for new interface out buffer */
 bool mem_cfg_pst(struct di_ch_s *pch)
 {
@@ -1727,6 +1748,10 @@ bool mem_cfg_pst(struct di_ch_s *pch)
 		di_buf->c.buffer = buffer;
 		di_buf->adr_start = buffer->vf->canvas0_config[0].phy_addr;
 		di_buf->nr_adr	= di_buf->adr_start;
+		/* h_size */
+		di_buf->buf_hsize =
+		cnt_out_buffer_h_size(pch,
+				      buffer->vf->canvas0_config[0].width);
 	}
 	di_buf->canvas_config_flag = 1;
 	mm = dim_mm_get(ch);
