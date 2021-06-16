@@ -394,12 +394,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		}
 	}
 
-	if (filter->params.pes.flags & DMX_MEM_SEC_LEVEL1)
-		sec_level = DMX_MEM_SEC_LEVEL1;
-	else if (filter->params.pes.flags & DMX_MEM_SEC_LEVEL2)
-		sec_level = DMX_MEM_SEC_LEVEL2;
-	else if (filter->params.pes.flags & DMX_MEM_SEC_LEVEL3)
-		sec_level = DMX_MEM_SEC_LEVEL3;
+	sec_level = (filter->params.pes.flags >> 10) & 0x7;
 
 	feed->type = type;
 	feed->format = format;
@@ -451,7 +446,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			ts_output_set_sec_mem(feed->ts_out_elem,
 				demux->sec_dvr_buff, demux->sec_dvr_size);
 			demux->sec_dvr_size = 0;
-			sec_level = DMX_MEM_SEC_LEVEL1;
+			sec_level = 1;
 		}
 		if (sec_level != 0)
 			ret = ts_output_set_mem(feed->ts_out_elem,
@@ -755,12 +750,8 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 			sec_filter = (struct dmx_section_filter *)
 			&sec_feed->filter[i].section_filter;
 			filter = (struct dmxdev_filter *)sec_filter->priv;
-			if (filter->params.sec.flags & DMX_MEM_SEC_LEVEL1)
-				sec_level = DMX_MEM_SEC_LEVEL1;
-			else if (filter->params.sec.flags & DMX_MEM_SEC_LEVEL2)
-				sec_level = DMX_MEM_SEC_LEVEL2;
-			else if (filter->params.sec.flags & DMX_MEM_SEC_LEVEL3)
-				sec_level = DMX_MEM_SEC_LEVEL3;
+
+			sec_level = (filter->params.sec.flags >> 10) & 0x7;
 			break;
 		}
 	}
