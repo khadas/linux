@@ -366,28 +366,10 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	devp->canvas_max_num = min(devp->canvas_max_num, canvas_num);
 	devp->canvas_max_num = min(devp->canvas_max_num, max_buffer_num);
 	if (devp->canvas_max_num < devp->vfmem_max_cnt) {
-		pr_err("\nvdin%d canvas_max_num %d less than vfmem_max_cnt %d\n",
+		pr_err("\nvdin%d canvas_max_num %d less vfmem_max_cnt %d\n",
 			devp->index, devp->canvas_max_num, devp->vfmem_max_cnt);
 	}
 	devp->vfmem_max_cnt = min(devp->vfmem_max_cnt, devp->canvas_max_num);
-
-	if (devp->set_canvas_manual == 1) {
-		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
-			if (vdin_set_canvas_addr[i].dmabuff == 0)
-				break;
-
-			canvas_id = vdin_canvas_ids[devp->index][i * canvas_step];
-			canvas_addr = vdin_set_canvas_addr[i].paddr;
-			canvas_config(canvas_id, canvas_addr,
-				devp->canvas_w, devp->canvas_h,
-				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-			pr_info("canvas index=%d- %3d: 0x%lx-0x%lx %ux%u\n",
-				i, canvas_id, canvas_addr,
-				canvas_addr + devp->canvas_max_size,
-				devp->canvas_w, devp->canvas_h);
-		}
-		return;
-	}
 
 #ifdef VDIN_DEBUG
 	pr_info("vdin%d cnavas auto configuration table:\n",
@@ -633,21 +615,6 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	mem_size = PAGE_ALIGN(frame_size) * max_buffer_num;
 	mem_size = roundup(mem_size, PAGE_SIZE);
 
-	if (devp->set_canvas_manual == 1) {
-		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
-			if (vdin_set_canvas_addr[i].dmabuff == 0)
-				break;
-
-			vdin_set_canvas_addr[i].paddr =
-				roundup(vdin_set_canvas_addr[i].paddr,
-					devp->canvas_align);
-		}
-
-		max_buffer_num = i;
-		devp->canvas_max_num = max_buffer_num;
-		devp->vfmem_max_cnt = max_buffer_num;
-	}
-
 #ifdef CONFIG_AMLOGIC_TEE
 	/* must align to 64k for secure protection
 	 * always align for switch secure mode dynamically
@@ -667,6 +634,35 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		strcpy(vdin_name, "vdin0");
 	else if (devp->index == 1)
 		strcpy(vdin_name, "vdin1");
+
+	if (devp->set_canvas_manual == 1) {
+		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
+			if (vdin_set_canvas_addr[i].dmabuff == 0)
+				break;
+			vdin_set_canvas_addr[i].paddr =
+				roundup(vdin_set_canvas_addr[i].paddr,
+					devp->canvas_align);
+			/*real buffer number*/
+			max_buffer_num = i;
+			devp->canvas_max_num = max_buffer_num;
+			devp->vfmem_max_cnt = max_buffer_num;
+			/*update to real total frames size*/
+			mem_size =
+				vdin_set_canvas_addr[i].size * max_buffer_num;
+			devp->vfmem_start[i] = vdin_set_canvas_addr[i].paddr;
+			if (vdin_dbg_en)
+				pr_info("vdin%d buf[%d] mem_start = 0x%lx, mem_size = 0x%x\n",
+					devp->index, i,
+					devp->vfmem_start[i],
+					vdin_set_canvas_addr[i].size);
+		}
+
+		devp->mem_size = mem_size;
+		devp->cma_mem_alloc = 1;
+		pr_info("vdin%d keystone cma alloc %d buffers ok!\n",
+			devp->index, devp->vfmem_max_cnt);
+		return 0;
+	}
 
 	if (devp->cma_config_flag & MEM_ALLOC_DISCRETE) {
 		for (i = 0; i < max_buffer_num; i++) {
