@@ -7890,10 +7890,12 @@ static void set_blend_din(struct hw_osd_blending_s *blending)
 
 	if (!blending)
 		return;
+	if (osd_dev_hw.t7_display)
+		blend_din_en = 0x0;
 	for (i = 0; i < OSD_BLEND_LAYERS; i++) {
 		/* find osd index */
 		osd_index = blend_din_to_osd(i, blending);
-		if (osd_index >= OSD1 && osd_index <= osd_count) {
+		if (osd_index >= OSD1 && osd_index < osd_count) {
 			/* depend on osd enable */
 			blend_din_en = _set_bits(blend_din_en,
 						 i,
