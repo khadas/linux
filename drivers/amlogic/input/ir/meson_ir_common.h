@@ -12,7 +12,7 @@
 #define CUSTOM_NAME_LEN 64
 
 /*to ensure kernel and user spase use the same header file*/
-#define SHARE_DATA_VERSION "v1.1.0"
+#define SHARE_DATA_VERSION "v1.1.1"
 
 union _codemap {
 	struct ir_key_map {
