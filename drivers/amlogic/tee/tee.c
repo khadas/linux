@@ -84,6 +84,18 @@ static int disable_flag;
 #define TEE_SMC_SYS_BOOT_COMPLETE \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_SYS_BOOT_COMPLETE)
 
+#define TEE_SMC_FUNCID_VP9_PROB_PROCESS            0xE070
+#define TEE_SMC_VP9_PROB_PROCESS \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_VP9_PROB_PROCESS)
+
+#define TEE_SMC_FUNCID_VP9_PROB_MALLOC             0xE071
+#define TEE_SMC_VP9_PROB_MALLOC \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_VP9_PROB_MALLOC)
+
+#define TEE_SMC_FUNCID_VP9_PROB_FREE               0xE072
+#define TEE_SMC_VP9_PROB_FREE \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_VP9_PROB_FREE)
+
 static struct class *tee_sys_class;
 
 struct tee_smc_calls_revision_result {
@@ -325,6 +337,46 @@ void tee_demux_config_pipeline(int tsn_in, int tsn_out)
 			tsn_in, tsn_out, 0, 0, 0, 0, 0, &res);
 }
 EXPORT_SYMBOL(tee_demux_config_pipeline);
+
+int tee_vp9_prob_process(u32 cur_frame_type, u32 prev_frame_type,
+		u32 prob_status, u32 prob_addr)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(TEE_SMC_VP9_PROB_PROCESS,
+			cur_frame_type, prev_frame_type, prob_status,
+			prob_addr, 0, 0, 0, &res);
+
+	return res.a0;
+}
+EXPORT_SYMBOL(tee_vp9_prob_process);
+
+int tee_vp9_prob_malloc(u32 *prob_addr)
+{
+	struct arm_smccc_res res;
+
+	if (!prob_addr)
+		return 0xFFFF0006;
+
+	arm_smccc_smc(TEE_SMC_VP9_PROB_MALLOC,
+			0, 0, 0, 0, 0, 0, 0, &res);
+
+	*prob_addr = res.a1;
+
+	return res.a0;
+}
+EXPORT_SYMBOL(tee_vp9_prob_malloc);
+
+int tee_vp9_prob_free(u32 prob_addr)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(TEE_SMC_VP9_PROB_FREE,
+			prob_addr, 0, 0, 0, 0, 0, 0, &res);
+
+	return res.a0;
+}
+EXPORT_SYMBOL(tee_vp9_prob_free);
 
 int tee_create_sysfs(void)
 {

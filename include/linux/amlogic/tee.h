@@ -65,5 +65,12 @@ void tee_demux_config_pipeline(int tsn_in, int tsn_out);
 u32 tee_protect_mem(u32 type, u32 level,
 		u32 start, u32 size, u32 *handle);
 
+int tee_vp9_prob_process(u32 cur_frame_type, u32 prev_frame_type,
+		u32 prob_status, u32 prob_addr);
+
+int tee_vp9_prob_malloc(u32 *prob_addr);
+
+int tee_vp9_prob_free(u32 prob_addr);
+
 #endif /* __TEE_H__ */
 
