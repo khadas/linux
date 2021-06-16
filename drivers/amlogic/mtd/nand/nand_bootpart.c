@@ -108,26 +108,23 @@ int aml_nand_parse_env(char *cmd)
 {
 	struct boot_area_entry *boot_entry = NULL;
 	char *p = cmd;
+	u8 i;
 
+	p = p ? strchr(p, ':') : NULL;
 	if (!p) {
 		pr_info("WARN, no bl2e/x, so use reserved\n");
 		return 0;
 	}
 
+	p++;
+	pr_info("%s\n", p);
 	boot_entry = general_boot_layout.boot_entry;
-	p = strchr(p, ':');
-	if (!p)
-		return 1;
-	pr_info("%s\n", p + 1);
-	boot_entry[BOOT_AREA_BL2E].size = memparse(p + 1, NULL);
-	p = strchr(p, ',');
-	if (!p)
-		return 1;
-	pr_info("%s\n", p + 1);
-	boot_entry[BOOT_AREA_BL2X].size = memparse(p + 1, NULL);
-	pr_info("bl2e_size(0x%llx) bl2x_size(0x%llx)\n",
-		boot_entry[BOOT_AREA_BL2E].size,
-		boot_entry[BOOT_AREA_BL2X].size);
+	for (i = BOOT_AREA_BL2E; i <= BOOT_AREA_DEVFIP && p; i++) {
+		boot_entry[i].size = memparse(p, NULL);
+		p = strchr(p, ',') + 1;
+		pr_info("%s_size(0x%llx)\n", boot_entry[i].name, boot_entry[i].size);
+	}
+
 	return 0;
 }
 
