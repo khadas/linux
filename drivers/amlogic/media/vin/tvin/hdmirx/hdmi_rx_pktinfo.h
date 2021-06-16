@@ -14,7 +14,7 @@
 
 #define K_FLAG_TAB_END			0xa0a05f5f
 
-//#define VSIF_PKT_READ_FROM_PD_FIFO
+#define VSIF_PKT_READ_FROM_PD_FIFO
 
 #define IEEE_VSI14		0x000c03
 #define IEEE_DV15		0x00d046
