@@ -369,7 +369,8 @@ int _alloc_buff(unsigned int len, int sec_level,
 	if (iret == 0) {
 		if (sec_level) {
 #ifdef CONFIG_AMLOGIC_TEE
-			ret = tee_protect_mem_by_type(TEE_MEM_TYPE_DEMUX,
+			sec_level = sec_level == 1 ? 0 : sec_level;
+			ret = tee_protect_mem(TEE_MEM_TYPE_DEMUX, sec_level,
 				buf_start, len, handle);
 #endif
 			pr_dbg("%s, protect 0x%lx, len:%d, ret:0x%x\n",
@@ -395,8 +396,9 @@ int _alloc_buff(unsigned int len, int sec_level,
 	}
 	if (sec_level) {
 #ifdef CONFIG_AMLOGIC_TEE
+		sec_level = sec_level == 1 ? 0 : sec_level;
 		//ret = tee_protect_tvp_mem(buf_start, len, handle);
-		ret = tee_protect_mem_by_type(TEE_MEM_TYPE_DEMUX,
+		ret = tee_protect_mem(TEE_MEM_TYPE_DEMUX, sec_level,
 				buf_start, len, handle);
 #endif
 		pr_dbg("%s, protect 0x%lx, len:%d, ret:0x%x\n",
