@@ -4631,9 +4631,9 @@ static struct clk_regmap t3_spicc2 = {
 
 /* pwm clk */
 /* TODO: need add t3_vid_pll */
+static u32 t3_pwm_clk_table[] = {0, 2, 3};
 static const struct clk_parent_data t3_pwm_parent_data[] __initconst = {
 	{ .fw_name = "xtal", },
-	/*{ .hw = &t3_vid_pll.hw },*/
 	{ .hw = &t3_fclk_div4.hw },
 	{ .hw = &t3_fclk_div3.hw }
 };
@@ -4643,13 +4643,13 @@ static struct clk_regmap t3_pwm_a_sel = {
 		.offset = CLKCTRL_PWM_CLK_AB_CTRL,
 		.mask = 0x3,
 		.shift = 9,
+		.table = t3_pwm_clk_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "pwm_a_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = t3_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(t3_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4666,7 +4666,7 @@ static struct clk_regmap t3_pwm_a_div = {
 			&t3_pwm_a_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4691,13 +4691,13 @@ static struct clk_regmap t3_pwm_b_sel = {
 		.offset = CLKCTRL_PWM_CLK_AB_CTRL,
 		.mask = 0x3,
 		.shift = 25,
+		.table = t3_pwm_clk_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "pwm_b_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = t3_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(t3_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4714,7 +4714,7 @@ static struct clk_regmap t3_pwm_b_div = {
 			&t3_pwm_b_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4739,13 +4739,13 @@ static struct clk_regmap t3_pwm_c_sel = {
 		.offset = CLKCTRL_PWM_CLK_CD_CTRL,
 		.mask = 0x3,
 		.shift = 9,
+		.table = t3_pwm_clk_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "pwm_c_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = t3_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(t3_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4762,7 +4762,7 @@ static struct clk_regmap t3_pwm_c_div = {
 			&t3_pwm_c_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4787,13 +4787,13 @@ static struct clk_regmap t3_pwm_d_sel = {
 		.offset = CLKCTRL_PWM_CLK_CD_CTRL,
 		.mask = 0x3,
 		.shift = 25,
+		.table = t3_pwm_clk_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "pwm_d_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = t3_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(t3_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4810,7 +4810,7 @@ static struct clk_regmap t3_pwm_d_div = {
 			&t3_pwm_d_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4835,13 +4835,13 @@ static struct clk_regmap t3_pwm_e_sel = {
 		.offset = CLKCTRL_PWM_CLK_EF_CTRL,
 		.mask = 0x3,
 		.shift = 9,
+		.table = t3_pwm_clk_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "pwm_e_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = t3_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(t3_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4858,7 +4858,7 @@ static struct clk_regmap t3_pwm_e_div = {
 			&t3_pwm_e_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4883,13 +4883,13 @@ static struct clk_regmap t3_pwm_f_sel = {
 		.offset = CLKCTRL_PWM_CLK_EF_CTRL,
 		.mask = 0x3,
 		.shift = 25,
+		.table = t3_pwm_clk_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "pwm_f_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = t3_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(t3_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4906,7 +4906,7 @@ static struct clk_regmap t3_pwm_f_div = {
 			&t3_pwm_f_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4931,13 +4931,13 @@ static struct clk_regmap t3_pwm_g_sel = {
 		.offset = CLKCTRL_PWM_CLK_GH_CTRL,
 		.mask = 0x3,
 		.shift = 9,
+		.table = t3_pwm_clk_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "pwm_g_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = t3_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(t3_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4954,7 +4954,7 @@ static struct clk_regmap t3_pwm_g_div = {
 			&t3_pwm_g_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -4979,13 +4979,13 @@ static struct clk_regmap t3_pwm_h_sel = {
 		.offset = CLKCTRL_PWM_CLK_GH_CTRL,
 		.mask = 0x3,
 		.shift = 25,
+		.table = t3_pwm_clk_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "pwm_h_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = t3_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(t3_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -5002,7 +5002,7 @@ static struct clk_regmap t3_pwm_h_div = {
 			&t3_pwm_h_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -5027,13 +5027,13 @@ static struct clk_regmap t3_pwm_i_sel = {
 		.offset = CLKCTRL_PWM_CLK_IJ_CTRL,
 		.mask = 0x3,
 		.shift = 9,
+		.table = t3_pwm_clk_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "pwm_i_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = t3_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(t3_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -5050,7 +5050,7 @@ static struct clk_regmap t3_pwm_i_div = {
 			&t3_pwm_i_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -5075,13 +5075,13 @@ static struct clk_regmap t3_pwm_j_sel = {
 		.offset = CLKCTRL_PWM_CLK_IJ_CTRL,
 		.mask = 0x3,
 		.shift = 25,
+		.table = t3_pwm_clk_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "pwm_j_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = t3_pwm_parent_data,
 		.num_parents = ARRAY_SIZE(t3_pwm_parent_data),
-		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -5098,7 +5098,7 @@ static struct clk_regmap t3_pwm_j_div = {
 			&t3_pwm_j_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
