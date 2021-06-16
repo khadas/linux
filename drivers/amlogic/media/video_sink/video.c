@@ -15842,7 +15842,9 @@ static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 			layer_cap |= LAYER2_AFBC;
 		if (p_amvideo->pps_support[0])
 			layer_cap |= LAYER0_SCALER;
-		if (p_amvideo->pps_support[1])
+		/* remove the vd2 support cap for upper layer */
+		if (p_amvideo->pps_support[1] &&
+		    p_amvideo->cpu_type != MESON_CPU_MAJOR_ID_T5D_REVB_)
 			layer_cap |= LAYER1_SCALER;
 		if (p_amvideo->pps_support[2])
 			layer_cap |= LAYER2_SCALER;
@@ -15853,6 +15855,7 @@ static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 		if (p_amvideo->alpha_support[2])
 			layer_cap |= LAYER2_ALPHA;
 	}
+	pr_debug("%s cap:%x, ptype:%d\n", __func__, layer_cap, p_amvideo->cpu_type);
 }
 
 static void set_rdma_func_handler(void)
