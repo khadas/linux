@@ -94,6 +94,7 @@ struct lcd_clk_data_s {
 	void (*pll_frac_generate)(struct aml_lcd_drv_s *pdrv);
 	void (*set_ss_level)(struct aml_lcd_drv_s *pdrv);
 	void (*set_ss_advance)(struct aml_lcd_drv_s *pdrv);
+	void (*clk_ss_enable)(struct aml_lcd_drv_s *pdrv, int status);
 	void (*clk_set)(struct aml_lcd_drv_s *pdrv);
 	void (*vclk_crt_set)(struct aml_lcd_drv_s *pdrv);
 	void (*clk_disable)(struct aml_lcd_drv_s *pdrv);
@@ -131,6 +132,7 @@ struct lcd_clk_config_s { /* unit: kHz */
 	unsigned int ss_level;
 	unsigned int ss_freq;
 	unsigned int ss_mode;
+	unsigned int ss_en;
 	unsigned int edp_div0;
 	unsigned int edp_div1;
 	unsigned int div_sel;
