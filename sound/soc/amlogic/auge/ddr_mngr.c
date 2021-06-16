@@ -753,90 +753,75 @@ static void aml_toddr_set_resample_ab(struct toddr *to,
 
 }
 
-static void aml_resample_enable(struct toddr *to,
-	struct toddr_attach *p_attach_resample,
-	bool enable)
+static void aml_resample_enable(struct toddr *to, struct toddr_attach *p_attach_resample)
 {
+	int bitwidth = 16;
+	bool enable = false;
+
 	if (!to || !p_attach_resample || !to->chipinfo) {
 		pr_err("%s(), NULL pointer.", __func__);
 		return;
 	}
 
-	pr_info("toddr %d selects data to %s resample_%c for module:%s\n",
-		to->fifo_id,
-		enable ? "enable" : "disable",
-		(p_attach_resample->id == RESAMPLE_A) ? 'a' : 'b',
-		toddr_src_get_str(p_attach_resample->attach_module)
-		);
-
+	bitwidth = to->fmt.bit_depth;
 	mutex_lock(&p_attach_resample->lock);
-	if (enable) {
-		int bitwidth = to->fmt.bit_depth;
-		/* channels and bit depth for resample */
+	/* channels and bit depth for resample */
+	/*&& (to->src == SPDIFIN)*/
+	if (to->chipinfo && to->chipinfo->asrc_only_left_j && bitwidth == 32) {
+		struct aml_audio_controller *actrl = to->actrl;
+		unsigned int reg_base = to->reg_base;
+		unsigned int reg;
+		unsigned int endian, toddr_type;
 
-		/*&& (to->src == SPDIFIN)*/
-		if (to->chipinfo && to->chipinfo->asrc_only_left_j && bitwidth == 32) {
-			struct aml_audio_controller *actrl = to->actrl;
-			unsigned int reg_base = to->reg_base;
-			unsigned int reg;
-			unsigned int endian, toddr_type;
+		/* TODO: fixed me */
+		pr_info("Warning: Not support 32bit sample rate for axg chipset\n");
+		bitwidth = 24;
+		endian = 5;
+		toddr_type = 4;
 
-			/* TODO: fixed me */
-			pr_info("Warning: Not support 32bit sample rate for axg chipset\n");
-			bitwidth = 24;
-			endian = 5;
-			toddr_type = 4;
-
-			/* FIX ME */
-			reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0,
-				reg_base);
-			aml_audiobus_update_bits(actrl, reg,
-				0x7 << 24 | 0x7 << 13,
-				endian << 24 | toddr_type << 13);
-		}
-
-		if (p_attach_resample->resample_version >= SM1_RESAMPLE) {
-			if (p_attach_resample->id == RESAMPLE_A) {
-				new_resampleA_set_format(p_attach_resample->id,
-						to->fmt.ch_num, bitwidth);
-			}
-			if (p_attach_resample->resample_version == SM1_RESAMPLE) {
-				new_resample_src_select(p_attach_resample->id,
-							to->fifo_id);
-			} else {
-				struct toddr_src_conf *conf = NULL;
-				char *src_str = NULL;
-
-				src_str = toddr_src2str(p_attach_resample->attach_module);
-				conf = to->chipinfo->to_srcs;
-				for (; conf->name[0]; conf++) {
-					if (strncmp(conf->name, src_str, strlen(src_str)) == 0)
-						break;
-				}
-				new_resample_src_select_v2(p_attach_resample->id, conf->val);
-			}
-		} else if (p_attach_resample->resample_version == AXG_RESAMPLE) {
-			/* toddr index for resample */
-			if (to->chipinfo &&
-			    to->chipinfo->asrc_src_sel_ctrl) {
-				resample_src_select_ab(p_attach_resample->id,
-						       to->fifo_id);
-			} else {
-				resample_src_select(to->fifo_id);
-			}
-			resample_format_set(p_attach_resample->id,
-					    to->fmt.ch_num, bitwidth);
-		}
+		/* FIX ME */
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
+		aml_audiobus_update_bits(actrl, reg,
+			0x7 << 24 | 0x7 << 13,
+			endian << 24 | toddr_type << 13);
 	}
 
+	if (p_attach_resample->resample_version >= SM1_RESAMPLE) {
+		if (p_attach_resample->id == RESAMPLE_A)
+			new_resampleA_set_format(p_attach_resample->id, to->fmt.ch_num, bitwidth);
+
+		if (p_attach_resample->resample_version == SM1_RESAMPLE) {
+			new_resample_src_select(p_attach_resample->id, to->fifo_id);
+		} else {
+			struct toddr_src_conf *conf = NULL;
+			char *src_str = NULL;
+
+			src_str = toddr_src2str(p_attach_resample->attach_module);
+			conf = to->chipinfo->to_srcs;
+			for (; conf->name[0]; conf++) {
+				if (strncmp(conf->name, src_str, strlen(src_str)) == 0)
+					break;
+			}
+			new_resample_src_select_v2(p_attach_resample->id, conf->val);
+		}
+	} else if (p_attach_resample->resample_version == AXG_RESAMPLE) {
+		/* toddr index for resample */
+		if (to->chipinfo && to->chipinfo->asrc_src_sel_ctrl)
+			resample_src_select_ab(p_attach_resample->id, to->fifo_id);
+		else
+			resample_src_select(to->fifo_id);
+
+		resample_format_set(p_attach_resample->id, to->fmt.ch_num, bitwidth);
+	}
+
+	enable = get_resample_enable(p_attach_resample->id);
 	if (p_attach_resample->resample_version >= T5_RESAMPLE &&
 	    p_attach_resample->id == RESAMPLE_A) {
 		aml_toddr_select_src(to, RESAMPLEA);
 	} else {
 		/* select reample data */
 		if (to->chipinfo && to->chipinfo->asrc_src_sel_ctrl)
-			aml_toddr_set_resample_ab(to, p_attach_resample->id,
-						  enable);
+			aml_toddr_set_resample_ab(to, p_attach_resample->id, enable);
 		else
 			aml_toddr_set_resample(to, enable);
 	}
@@ -847,6 +832,12 @@ static void aml_resample_enable(struct toddr *to,
 	else if (p_attach_resample->resample_version == AXG_RESAMPLE)
 		resample_enable(p_attach_resample->id, enable);
 	mutex_unlock(&p_attach_resample->lock);
+	pr_info("toddr %d selects data to %s resample_%c for module:%s\n",
+		to->fifo_id,
+		enable ? "enable" : "disable",
+		(p_attach_resample->id == RESAMPLE_A) ? 'a' : 'b',
+		toddr_src_get_str(p_attach_resample->attach_module)
+		);
 }
 
 void aml_set_resample(enum resample_idx id,
@@ -879,7 +870,7 @@ void aml_set_resample(enum resample_idx id,
 	}
 
 	if (p_attach_resample->status == RUNNING)
-		aml_resample_enable(to, p_attach_resample, enable);
+		aml_resample_enable(to, p_attach_resample);
 
 exit:
 	mutex_unlock(&ddr_mutex);
@@ -909,7 +900,7 @@ static void aml_check_resample(struct toddr *to, bool enable)
 				aml_toddr_select_src(to, RESAMPLEA);
 			}
 
-			aml_resample_enable(to, p_attach_resample, p_attach_resample->enable);
+			aml_resample_enable(to, p_attach_resample);
 		}
 		p_attach_resample = &attach_resample_b;
 	}

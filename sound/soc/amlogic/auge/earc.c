@@ -910,7 +910,7 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 
 	earc_type = earctx_cmdc_get_attended_type(s_earc->tx_cmdc_map);
 	if (earc_type == ATNDTYP_DISCNCT) {
-		dev_err(s_earc->dev, "Neither eARC_TX or ARC_TX is attended!\n");
+		dev_dbg(s_earc->dev, "%s: Neither eARC_TX or ARC_TX is attended!\n", __func__);
 		return -ENOTCONN;
 	}
 
