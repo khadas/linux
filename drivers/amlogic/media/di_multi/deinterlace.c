@@ -7538,13 +7538,16 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 				ppost->di_diwr_mif.buf_hsize = di_buf->buf_hsize;//1920; tmp;
 				ppost->di_buf0_mif.linear = 1;
 				ppost->di_buf0_mif.buf_crop_en = 1;
-				ppost->di_buf0_mif.buf_hsize = di_buf->buf_hsize;; /*tmp*/;
+				ppost->di_buf0_mif.buf_hsize =
+					di_buf->di_buf_dup_p[0]->buf_hsize;
 				ppost->di_buf1_mif.linear = 1;
 				ppost->di_buf1_mif.buf_crop_en = 1;
-				ppost->di_buf1_mif.buf_hsize = di_buf->buf_hsize;; /*tmp*/;
+				ppost->di_buf1_mif.buf_hsize =
+					di_buf->di_buf_dup_p[0]->buf_hsize;
 				ppost->di_buf2_mif.linear = 1;
 				ppost->di_buf2_mif.buf_crop_en = 1;
-				ppost->di_buf2_mif.buf_hsize = di_buf->buf_hsize;; /*tmp*/;
+				ppost->di_buf2_mif.buf_hsize =
+					di_buf->di_buf_dup_p[0]->buf_hsize;
 
 				ppost->di_mtnprd_mif.linear = 1;
 				ppost->di_mcvecrd_mif.linear = 1;
