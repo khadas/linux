@@ -192,6 +192,10 @@ static void picdec_vf_put(struct vframe_s *vf, void *op_arg)
 	if (!vf)
 		return;
 	INCPTR(putting_ptr);
+	if (putting_ptr == fill_ptr) {
+		aml_pr_info(1, "buffer%d is being in use, skip\n", fill_ptr);
+		return;
+	}
 	for (i = 0; i < VF_POOL_SIZE; i++) {
 		canvas_addr = index2canvas(i);
 		if (vf->canvas0Addr == canvas_addr) {
