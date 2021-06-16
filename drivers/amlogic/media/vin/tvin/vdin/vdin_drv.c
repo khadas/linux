@@ -3936,7 +3936,8 @@ static unsigned int vdin_poll(struct file *file, poll_table *wait)
 	struct vdin_dev_s *devp = file->private_data;
 	unsigned int mask = 0;
 
-	if ((devp->flags & VDIN_FLAG_FS_OPENED) == 0)
+	if ((devp->flags & VDIN_FLAG_FS_OPENED) == 0 &&
+	    devp->set_canvas_manual != 1)
 		return mask;
 
 	if (devp->set_canvas_manual == 1) {
@@ -4710,6 +4711,21 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		vdevp->mem_start = mem_start;
 		vdevp->mem_size = mem_end - mem_start + 1;
 	}
+
+	pr_info("vdin(%d) dma mask\n", vdevp->index);
+	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	if (dma_set_coherent_mask(&pdev->dev, 0xffffffff) < 0)
+		pr_info("dev set_coherent_mask fail\n");
+
+	if (dma_set_mask(&pdev->dev, 0xffffffff) < 0)
+		pr_info("set dma maks fail\n");
+
+	vdevp->dev->dma_mask = &vdevp->dev->coherent_dma_mask;
+	if (dma_set_coherent_mask(vdevp->dev, 0xffffffff) < 0)
+		pr_info("dev set_coherent_mask fail\n");
+
+	if (dma_set_mask(vdevp->dev, 0xffffffff) < 0)
+		pr_info("set dma maks fail\n");
 
 	ret = vdin_get_irq_from_dts(pdev, vdevp);
 	if (ret < 0)
