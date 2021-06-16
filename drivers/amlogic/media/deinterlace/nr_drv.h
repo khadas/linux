@@ -82,6 +82,32 @@ struct NR4_PARM_s {
 	unsigned int sw_dm_scene_change_en;
 };
 
+struct NR4_NEPARM_S {
+	int nr4_ne_spatial_th;
+	unsigned int nr4_ne_spatial_pixel_step;
+	// u2  range:1 ~3
+	unsigned int nr4_ne_temporal_pixel_step;
+	// u2  range:1 ~3
+	unsigned int nr4_ne_xst;
+	//u12,range:2 ~3838;
+	unsigned int nr4_ne_xed;
+	// u12,range: Reg_nr4_ne_xst + 1 ~ 3838
+	unsigned int nr4_ne_yst;
+	// u12,range:2 ~2178
+	unsigned int nr4_ne_yed;
+	// u12,range:Reg_nr4_ne_yst + 1 ~ 2178
+	unsigned int nr4_ne_luma_lowlimit;
+	// u8, range:0~255
+	unsigned int nr4_ne_luma_higlimit;
+	//u8, range:Reg_nr4_ne_luma_LowLimit+1~ 255
+	int ro_nr4_ne_finalsigma;
+	int ro_nr4_ne_spatialsigma;
+	int ro_nr4_ne_temporalsigma;
+	int ro_nr4_ne_spatial_blockvar[16];
+	int ro_nr4_ne_temporal_blockmean[16];
+	int ro_nr4_ne_temporal_blockvar[16];
+};
+
 struct CUE_PARM_s {
 	int glb_mot_framethr;
 	int glb_mot_fieldnum;
@@ -112,6 +138,7 @@ struct NR_PARM_s {
 	bool           prog_flag;
 	struct DNR_PARM_s *pdnr_parm;
 	struct NR4_PARM_s *pnr4_parm;
+	struct NR4_NEPARM_S *pnr4_neparm;
 	struct CUE_PARM_s *pcue_parm;
 	struct NR_CTRL_REGS_s *pnr_regs;
 };

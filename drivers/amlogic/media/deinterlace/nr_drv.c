@@ -51,6 +51,9 @@ module_param_named(nr2_en, nr2_en, uint, 0644);
 static bool dynamic_dm_chk = true;
 module_param_named(dynamic_dm_chk, dynamic_dm_chk, bool, 0644);
 
+static bool nr4ne_en;
+module_param_named(nr4ne_en, nr4ne_en, bool, 0644);
+
 static bool nr_ctrl_reg;
 
 bool nr_demo_flag;
@@ -385,6 +388,11 @@ static void nr4_config(struct NR4_PARM_s *nr4_parm_p,
 	/* noise meter */
 	DI_Wr(NR4_NM_X_CFG, (val<<16) | (width-val-1));
 	DI_Wr(NR4_NM_Y_CFG, (val<<16) | (height-val-1));
+	if (IS_IC(dil_get_cpuver_flag(), T3) && nr4ne_en) {
+		DI_Wr(NR4_NE_X, width - 1);
+		DI_Wr(NR4_NE_Y, height - 1);
+	}
+
 	/* enable nr4 */
 	DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 16, 1);
 	DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 18, 1);
@@ -727,6 +735,240 @@ static void noise_meter_process(struct NR4_PARM_s *nr4_param_p,
 	nr4_param_p->sw_nr4_field_sad[0] = nr4_param_p->sw_nr4_field_sad[1];
 	nr4_param_p->sw_nr4_field_sad[1] = field_sad;
 }
+
+//sort from largest to smallest
+static void sort(int *data, int datanum)
+{
+	int  i,  j, k;
+
+	for (i = 0; i < datanum - 1; i++) {
+		for (j = i + 1; j < datanum; j++) {
+			if (data[i] < data[j]) {
+				k = data[i];
+				data[i] = data[j];
+				data[j] = k;
+			}
+		}
+	}
+}
+
+// calculate spatial by soft,
+//Input is the array which hold the spatial sigma results
+static int soft_cal_spatial_sigma(int nrow, int lysizespatial,
+				  int totalnum,
+				  struct NR4_NEPARM_S *nr4_neparm_p)
+{
+	int i;
+	int a1, a2, a3, th;
+	int num = 0;
+	int sumvar = 0, sigma = 0;
+	int data[16];
+
+	// put the variable back into the register
+	for (i = 0; i < totalnum; i++)
+		data[i] = nr4_neparm_p->ro_nr4_ne_spatial_blockvar[i];
+
+	sort(data, totalnum);
+	a1 = data[0];    // max
+	a2 = data[1];    // second max
+	a3 = data[totalnum - 1]; // min
+	if (a2 * 2 < a1 && a1 > 2048)
+		th = (a2 - a3);
+	else
+		th = (a1 - a3);
+
+	for (i = 0; i < totalnum; i++) {
+		if ((data[i] * 2) < ((a3) * 2 + th)) {
+			num = num + 1;
+			sumvar = sumvar + data[i];
+		}
+	}
+	if (num == 0)
+		sigma = 0;
+	else
+		sigma = sumvar / num;
+	sigma = sigma > 2047 ? 2047 : sigma;
+	return sigma;
+}
+
+static int Soft_cal_final_sigma(int *vardata, int *meandata, int spatial_outsigma,
+			 int temporal_outsigma, int varnum, int th)
+{
+	int i, sum_dif, num_sum;
+	int Final_sigma;
+
+	if (spatial_outsigma == 0) {
+		Final_sigma = 0;
+	} else if (spatial_outsigma < 307 && temporal_outsigma > 1638) {
+		Final_sigma = 0;
+	} else if (spatial_outsigma > 40 &&
+		  spatial_outsigma < 307 && temporal_outsigma < 819) {
+		sum_dif = 0;
+		num_sum = 0;
+
+		// Traversing the array of block var data
+		for (i = 0; i < varnum; i++) {
+			if (vardata[i] > 0) {
+				sum_dif = sum_dif + meandata[i];
+				num_sum = num_sum + 1;
+			}
+		}
+		if (sum_dif > th && num_sum)
+			Final_sigma = (spatial_outsigma + temporal_outsigma) *
+				(1 / (sum_dif / num_sum));
+		else
+			Final_sigma = spatial_outsigma + temporal_outsigma;
+	} else if (spatial_outsigma > temporal_outsigma ||
+		  temporal_outsigma > 4096) {
+		Final_sigma = spatial_outsigma;
+	} else {
+		Final_sigma = spatial_outsigma + temporal_outsigma;
+	}
+	return Final_sigma;
+}
+
+static void noise_meter2_process(struct NR4_NEPARM_S *nr4_neparm_p,
+				 unsigned short nexsizein,
+				 unsigned short neysizein)
+{
+	int blocknum = 16;
+	int sumvar = 0;
+	int spatial_blocknum = 16;
+	int vardatalen = 16;
+	int i, k, temporal_sigma;
+	int th1;
+	int final_sigma, spatial_sigma;
+	int vardata[16], temporalblockmean[16];
+
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[0] =
+		Rd(RO_NR4_NE_SBVAR_0) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[1] =
+		(Rd(RO_NR4_NE_SBVAR_0) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[2] =
+		Rd(RO_NR4_NE_SBVAR_1) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[3] =
+		(Rd(RO_NR4_NE_SBVAR_1) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[4] =
+		Rd(RO_NR4_NE_SBVAR_2) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[5] =
+		(Rd(RO_NR4_NE_SBVAR_2) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[6] =
+		Rd(RO_NR4_NE_SBVAR_3) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[7] =
+		(Rd(RO_NR4_NE_SBVAR_3) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[8] =
+		Rd(RO_NR4_NE_SBVAR_4) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[9] =
+		(Rd(RO_NR4_NE_SBVAR_4) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[10] =
+		Rd(RO_NR4_NE_SBVAR_5) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[11] =
+		(Rd(RO_NR4_NE_SBVAR_5) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[12] =
+		Rd(RO_NR4_NE_SBVAR_6) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[13] =
+		(Rd(RO_NR4_NE_SBVAR_6) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[14] =
+		Rd(RO_NR4_NE_SBVAR_7) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_spatial_blockvar[15] =
+		(Rd(RO_NR4_NE_SBVAR_7) >> 16) & 0x7ff;
+
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[0] =
+		Rd(RO_NR4_NE_TBVAR_0) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[1] =
+		(Rd(RO_NR4_NE_TBVAR_0) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[2] =
+		Rd(RO_NR4_NE_TBVAR_1) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[3] =
+		(Rd(RO_NR4_NE_TBVAR_1) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[4] =
+		Rd(RO_NR4_NE_TBVAR_2) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[5] =
+		(Rd(RO_NR4_NE_TBVAR_2) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[6] =
+		Rd(RO_NR4_NE_TBVAR_3) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[7] =
+		(Rd(RO_NR4_NE_TBVAR_3) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[8] =
+		Rd(RO_NR4_NE_TBVAR_4) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[9] =
+		(Rd(RO_NR4_NE_TBVAR_4) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[10] =
+		Rd(RO_NR4_NE_TBVAR_5) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[11] =
+		(Rd(RO_NR4_NE_TBVAR_5) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[12] =
+		Rd(RO_NR4_NE_TBVAR_6) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[13] =
+		(Rd(RO_NR4_NE_TBVAR_6) >> 16) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[14] =
+		Rd(RO_NR4_NE_TBVAR_7) & 0x7ff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockvar[15] =
+		(Rd(RO_NR4_NE_TBVAR_7) >> 16) & 0x7ff;
+
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[0] =
+		Rd(RO_NR4_NE_TBSUM_0) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[1] =
+		(Rd(RO_NR4_NE_TBSUM_0) >> 16) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[2] =
+		Rd(RO_NR4_NE_TBSUM_0) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[3] =
+		(Rd(RO_NR4_NE_TBSUM_0) >> 16) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[4] =
+		Rd(RO_NR4_NE_TBSUM_0) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[5] =
+		(Rd(RO_NR4_NE_TBSUM_0) >> 16) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[6] =
+		Rd(RO_NR4_NE_TBSUM_0) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[7] =
+		(Rd(RO_NR4_NE_TBSUM_0) >> 16) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[8] =
+		Rd(RO_NR4_NE_TBSUM_0) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[9] =
+		(Rd(RO_NR4_NE_TBSUM_0) >> 16) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[10] =
+		Rd(RO_NR4_NE_TBSUM_0) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[11] =
+		(Rd(RO_NR4_NE_TBSUM_0) >> 16) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[12] =
+		Rd(RO_NR4_NE_TBSUM_0) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[13] =
+		(Rd(RO_NR4_NE_TBSUM_0) >> 16) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[14] =
+		Rd(RO_NR4_NE_TBSUM_0) & 0x1fff;
+	nr4_neparm_p->ro_nr4_ne_temporal_blockmean[15] =
+		(Rd(RO_NR4_NE_TBSUM_0) >> 16) & 0x1fff;
+
+	//Function implementation
+	// calculate temporal_sigma
+	for (i = 0; i < blocknum; i++)
+		sumvar += nr4_neparm_p->ro_nr4_ne_temporal_blockvar[i];
+
+	temporal_sigma = ((sumvar + 8) >> 4);
+	temporal_sigma = temporal_sigma > 2047 ? 2047 : temporal_sigma;
+	nr4_neparm_p->ro_nr4_ne_temporalsigma = temporal_sigma;
+
+	//if (NERow == NEYSizeIn - 1)
+	//{
+	th1 = (nr4_neparm_p->nr4_ne_spatial_th) << 4;
+	for (k = 0; k < spatial_blocknum; k++) {
+		vardata[k] = nr4_neparm_p->ro_nr4_ne_spatial_blockvar[k];
+		temporalblockmean[k] =
+			nr4_neparm_p->ro_nr4_ne_temporal_blockmean[k];
+	}
+	spatial_sigma = soft_cal_spatial_sigma(neysizein - 1,
+					       nexsizein, spatial_blocknum,
+					       nr4_neparm_p);
+	final_sigma  =  Soft_cal_final_sigma(vardata, temporalblockmean,
+					     spatial_sigma, temporal_sigma,
+					     vardatalen, th1);
+	nr4_neparm_p->ro_nr4_ne_spatialsigma = spatial_sigma;
+	nr4_neparm_p->ro_nr4_ne_finalsigma = final_sigma;
+	//pr_info("%s temporal=%x,spatial=%x,final=%x\n", __func__,
+		//temporal_sigma, spatial_sigma, final_sigma);
+	//}
+}
+
 static void luma_enhancement_process(struct NR4_PARM_s *nr4_param_p,
 		unsigned int field_cnt)
 {
@@ -1095,6 +1337,9 @@ void nr_process_in_irq(void)
 		luma_enhancement_process(nr_param.pnr4_parm,
 				nr_param.frame_count);
 	}
+	if (IS_IC(dil_get_cpuver_flag(), T3) && nr4ne_en)
+		noise_meter2_process(nr_param.pnr4_neparm, nr_param.width,
+				     nr_param.height);
 }
 
 static dnr_param_t dnr_params[] = {
@@ -1314,6 +1559,32 @@ static void nr4_param_init(struct NR4_PARM_s *nr4_parm_p)
 	nr4_parm_p->sw_nr4_noise_ctrl_dm_en = 0;
 	nr4_parm_p->sw_nr4_scene_change_thd2 = 80;
 	nr4_parm_p->sw_dm_scene_change_en = 0;
+}
+
+static void nr4_neparam_init(struct NR4_NEPARM_S *nr4_neparm_p)
+{
+	int k = 0;
+
+	nr4_neparm_p->nr4_ne_spatial_th = 375;
+	nr4_neparm_p->nr4_ne_spatial_pixel_step = 2;
+	nr4_neparm_p->nr4_ne_temporal_pixel_step = 2;
+	nr4_neparm_p->nr4_ne_xst = 14;
+	nr4_neparm_p->nr4_ne_xed = 1904;
+	nr4_neparm_p->nr4_ne_yst = 14;
+	nr4_neparm_p->nr4_ne_yed = 1064;
+	nr4_neparm_p->nr4_ne_luma_lowlimit = 16;
+	nr4_neparm_p->nr4_ne_luma_higlimit = 235;
+
+	nr4_neparm_p->ro_nr4_ne_finalsigma = 0;
+	nr4_neparm_p->ro_nr4_ne_spatialsigma = 0;
+	nr4_neparm_p->ro_nr4_ne_temporalsigma = 0;
+
+	for (k = 0; k < 16; k++) {
+		nr4_neparm_p->ro_nr4_ne_spatial_blockvar[k] = 0;
+		nr4_neparm_p->ro_nr4_ne_temporal_blockmean[k] = 0;
+		nr4_neparm_p->ro_nr4_ne_temporal_blockvar[k] = 0;
+	}
+	pr_info("%s\n", __func__);
 }
 
 static void cue_param_init(struct CUE_PARM_s *cue_parm_p)
@@ -1547,6 +1818,10 @@ void nr_drv_uninit(struct device *dev)
 		vfree(nr_param.pcue_parm);
 		nr_param.pcue_parm = NULL;
 	}
+	if (nr_param.pnr4_neparm) {
+		vfree(nr_param.pnr4_neparm);
+		nr_param.pnr4_neparm = NULL;
+	}
 
 	device_remove_file(dev, &dev_attr_nr4_param);
 	device_remove_file(dev, &dev_attr_dnr_param);
@@ -1577,6 +1852,15 @@ void nr_drv_init(struct device *dev)
 		else
 			cue_param_init(nr_param.pcue_parm);
 	}
+
+	if (IS_IC(dil_get_cpuver_flag(), T3) && nr4ne_en) {
+		nr_param.pnr4_neparm = vmalloc(sizeof(struct NR4_NEPARM_S));
+		if (IS_ERR(nr_param.pnr4_neparm))
+			pr_err("%s allocate ne parm error.\n", __func__);
+		else
+			nr4_neparam_init(nr_param.pnr4_neparm);
+	}
+
 	dnr_prm_init(&dnr_param);
 	nr_param.pdnr_parm = &dnr_param;
 	device_create_file(dev, &dev_attr_dnr_param);
