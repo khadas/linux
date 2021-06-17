@@ -151,7 +151,7 @@ int codec_mm_get_total_size(void);
 int codec_mm_get_free_size(void);
 int codec_mm_get_tvp_free_size(void);
 int codec_mm_get_reserved_size(void);
-int codec_mm_enough_for_size(int size, int with_wait);
+int codec_mm_enough_for_size(int size, int with_wait, int mem_flags);
 int codec_mm_disable_tvp(void);
 int codec_mm_enable_tvp(int size, int flags);
 int codec_mm_video_tvp_enabled(void);
