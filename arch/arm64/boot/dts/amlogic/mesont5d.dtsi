@@ -1136,7 +1136,7 @@
 				<&peripheral_clkc CLKID_SD_EMMC_C_MUX>,
 				<&peripheral_clkc CLKID_SD_EMMC_C_GATE>,
 				<&xtal>,
-				<&clkc CLKID_FCLK_DIV2>,
+				<&clkc CLKID_GP0_PLL>,
 				<&clkc CLKID_GP0_PLL>;
 
 		clock-names = "core", "mux0", "mux1",
