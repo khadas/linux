@@ -131,7 +131,7 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x0800000>;
 			alignment = <0x0 0x400000>;
 		};
 	};
@@ -334,6 +334,7 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
+		post_nub = <10>;
 	};
 
 	provisionkey {
