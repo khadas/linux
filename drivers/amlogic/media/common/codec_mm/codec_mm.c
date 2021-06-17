@@ -2414,10 +2414,10 @@ EXPORT_SYMBOL(v4l_freebufs_back_to_codec_mm);
  *1: if no mem, do wait and free some cache.
  *0: do not wait.
  */
-int codec_mm_enough_for_size(int size, int with_wait)
+int codec_mm_enough_for_size(int size, int with_wait, int mem_flags)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
-	int have_mem = codec_mm_alloc_pre_check_in(mgt, size, 0);
+	int have_mem = codec_mm_alloc_pre_check_in(mgt, size, mem_flags);
 
 	if (!have_mem && with_wait && mgt->alloced_for_sc_cnt > 0) {
 		pr_err(" No mem, clear scatter cache!!\n");
