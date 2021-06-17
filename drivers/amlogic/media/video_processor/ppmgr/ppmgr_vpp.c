@@ -77,12 +77,20 @@
 #define PPMGRVPP_WARN(fmt, args...) pr_warn("PPMGRVPP: warn: " fmt " ", ## args)
 #define PPMGRVPP_ERR(fmt, args...) pr_err("PPMGRVPP: err: " fmt " ", ## args)
 
-#define VF_POOL_SIZE 7
 #ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
 #define ASS_POOL_SIZE 2
 #else
 #define ASS_POOL_SIZE 1
 #endif
+
+/*2 = ASS_POOL_SIZE; for compile,set max*/
+#define ASS_POOL_SIZE_MAX 2
+#define VF_POOL_SIZE 10
+#define CANVAS_RESERVED 8
+
+#define VF_POOL_EXT (VF_POOL_SIZE + ASS_POOL_SIZE_MAX - CANVAS_RESERVED)
+#define TOTAL_NEED_CANVAS (VF_POOL_SIZE + ASS_POOL_SIZE_MAX)
+static int canvas_ext[VF_POOL_EXT] = {-1, -1, -1, -1};
 
 #define MASK_POOL_SIZE 0
 #define PPMGR_TB_DETECT
@@ -90,7 +98,7 @@
 #define RECEIVER_NAME "ppmgr"
 #define PROVIDER_NAME   "ppmgr"
 
-#define MM_ALLOC_SIZE SZ_16M
+#define MM_ALLOC_SIZE (SZ_16M + SZ_4M + SZ_2M)
 #define MAX_WIDTH  1024
 #define MAX_HEIGHT 576
 #define THREAD_INTERRUPT 0
@@ -217,7 +225,7 @@ bool is_valid_ppframe(struct ppframe_s *pp_vf)
  *
  * ************************************************
  */
-static u32 ppmgr_canvas_tab[8] = {
+static u32 ppmgr_canvas_tab[VF_POOL_SIZE + ASS_POOL_SIZE_MAX] = {
 	PPMGR_CANVAS_INDEX + 0,
 	PPMGR_CANVAS_INDEX + 1,
 	PPMGR_CANVAS_INDEX + 2,
@@ -225,12 +233,53 @@ static u32 ppmgr_canvas_tab[8] = {
 	PPMGR_CANVAS_INDEX + 4,
 	PPMGR_CANVAS_INDEX + 5,
 	PPMGR_CANVAS_INDEX + 6,
-	PPMGR_CANVAS_INDEX + 7
+	PPMGR_CANVAS_INDEX + 7,
+	-1,
+	-1,
+	-1,
+	-1
+};
+
+static u32 pp_canvas_tab[VF_POOL_SIZE + ASS_POOL_SIZE_MAX] = {
+	PPMGR_CANVAS_INDEX + 0,
+	PPMGR_CANVAS_INDEX + 1,
+	PPMGR_CANVAS_INDEX + 2,
+	PPMGR_CANVAS_INDEX + 3,
+	PPMGR_CANVAS_INDEX + 4,
+	PPMGR_CANVAS_INDEX + 5,
+	PPMGR_CANVAS_INDEX + 6,
+	PPMGR_CANVAS_INDEX + 7,
+	-1,
+	-1,
+	-1,
+	-1
 };
 
 u32 index2canvas(u32 index)
 {
-	return ppmgr_canvas_tab[index];
+	u32 canvas = -1;
+
+	if (index < TOTAL_NEED_CANVAS)
+		canvas = ppmgr_canvas_tab[index];
+	else
+		pr_err("ppmgr: get canvas1 -1, index =%d\n", index);
+	if (canvas == -1)
+		pr_err("ppmgr: get canvas -1, index =%d\n", index);
+	return canvas;
+}
+
+u32 index_to_canvas(u32 index)
+{
+	u32 canvas = -1;
+
+	if (index < TOTAL_NEED_CANVAS) {
+		canvas = pp_canvas_tab[index];
+		if (canvas == -1)
+			pr_err("ppmgr: get canvas2 -1, index =%d\n", index);
+		return canvas;
+	}
+	pr_err("ppmgr: get canvas2 err, index =%d\n", index);
+	return PPMGR_CANVAS_INDEX + index;
 }
 
 #include "decontour.h"
@@ -899,15 +948,15 @@ static int decontour_pre_process(struct vframe_s *vf)
 		phy_addr_0 = vf->canvas0_config[0].phy_addr;
 		phy_addr_1 = vf->canvas0_config[1].phy_addr;
 		phy_addr_2 = vf->canvas0_config[2].phy_addr;
-		canvas_config_config(PPMGR_CANVAS_INDEX,
+		canvas_config_config(index_to_canvas(0),
 			&vf->canvas0_config[0]);
-		canvas_config_config(PPMGR_CANVAS_INDEX + 1,
+		canvas_config_config(index_to_canvas(1),
 			&vf->canvas0_config[1]);
-		canvas_config_config(PPMGR_CANVAS_INDEX + 2,
+		canvas_config_config(index_to_canvas(2),
 			&vf->canvas0_config[2]);
-		canvas_id_0 = PPMGR_CANVAS_INDEX;
-		canvas_id_1 = PPMGR_CANVAS_INDEX + 1;
-		canvas_id_2 = PPMGR_CANVAS_INDEX + 2;
+		canvas_id_0 = index_to_canvas(0);
+		canvas_id_1 = index_to_canvas(1);
+		canvas_id_2 = index_to_canvas(2);
 		canvas_width = vf->canvas0_config[0].width;
 		canvas_height = vf->canvas0_config[0].height;
 		block_mode = vf->canvas0_config[0].block_mode;
@@ -1013,7 +1062,7 @@ static int decontour_pre_process(struct vframe_s *vf)
 	dcntr_grid_wrmif(1,  /*int mif_index,  //0:cds  1:grd   2:yds*/
 		0,  /*int mem_mode,  //0:linear address mode  1:canvas mode*/
 		5,  /*int src_fmt ,  //0:4bit 1:8bit 2:16bit 3:32bit 4:64bit 5:128bit*/
-		PPMGR_CANVAS_INDEX + 3,  /*int canvas_id*/
+		index_to_canvas(3),  /*int canvas_id*/
 		0,  /*int mif_x_start*/
 		grd_xsize - 1,  /*int mif_x_end*/
 		0,  /*int mif_y_start*/
@@ -1032,7 +1081,7 @@ static int decontour_pre_process(struct vframe_s *vf)
 		dcntr_grid_wrmif(2,  /*int mif_index,  //0:cds  1:grd   2:yds*/
 			0,  /*int mem_mode,  //0:linear address mode  1:canvas mode*/
 			1,  /*int src_fmt,  //0:4bit 1:8bit 2:16bit 3:32bit 4:64bit 5:128bit*/
-			PPMGR_CANVAS_INDEX + 4,  /*int canvas_id*/
+			index_to_canvas(4),  /*int canvas_id*/
 			0,  /*int mif_x_start*/
 			ds_out_width - 1,  /*int mif_x_end*/
 			0,  /*int mif_y_start*/
@@ -1045,7 +1094,7 @@ static int decontour_pre_process(struct vframe_s *vf)
 		dcntr_grid_wrmif(0,  /*int mif_index,  //0:cds  1:grd   2:yds*/
 			0,  /*int mem_mode,  //0:linear address mode  1:canvas mode*/
 			2,  /*int src_fmt,  //0:4bit 1:8bit 2:16bit 3:32bit 4:64bit 5:128bit*/
-			PPMGR_CANVAS_INDEX + 5,  /*int canvas_id*/
+			index_to_canvas(5),  /*int canvas_id*/
 			0,  /*int mif_x_start*/
 			(ds_out_width >> 1) - 1,  /*int mif_x_end*/
 			0,  /*int mif_y_start*/
@@ -1584,12 +1633,37 @@ static const struct vframe_provider_s *dec_vfp;
 const struct vframe_receiver_op_s *vf_ppmgr_reg_provider(void)
 {
 	const struct vframe_receiver_op_s *r = NULL;
+	const char *canvas_owner = "ppmgr";
+	int i;
+
+	ppmgr_device.is_used = true;
 
 	if (ppmgr_device.debug_first_frame == 1) {
 		dumpfirstframe = 1;
 		count_scr = 0;
 		count_dst = 0;
 		PPMGRVPP_INFO("need dump first frame!\n");
+	}
+
+	for (i = 0; i < VF_POOL_EXT; i++) {
+		if (canvas_ext[i] == -1) {
+			canvas_ext[i] =
+				canvas_pool_map_alloc_canvas(canvas_owner);
+			pr_debug("ppmgr: alloc canvas: =%d\n", canvas_ext[i]);
+		} else {
+			pr_debug("ppmgr: use ext canvas: =%d\n", canvas_ext[i]);
+		}
+		pp_canvas_tab[CANVAS_RESERVED + i] = canvas_ext[i];
+		ppmgr_canvas_tab[CANVAS_RESERVED + i] = canvas_ext[i];
+	}
+	for (i = 0; i < VF_POOL_EXT; i++) {
+		if (pp_canvas_tab[CANVAS_RESERVED + i] == -1)
+			pr_err("ppmgr: canvas index %d is -1\n",
+				CANVAS_RESERVED + i);
+	}
+	for (i = 0; i < TOTAL_NEED_CANVAS; i++) {
+		pr_debug("ppmgr: index=%d, canvas =%d canvas =%d\n",
+			i, pp_canvas_tab[i], ppmgr_canvas_tab[i]);
 	}
 
 	mutex_lock(&ppmgr_mutex);
@@ -1630,6 +1704,7 @@ void vf_ppmgr_unreg_provider(void)
 
 	if (is_decontour_supported())
 		decontour_uninit();
+	ppmgr_device.is_used = false;
 }
 
 /*skip the second reset request*/
@@ -2390,7 +2465,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 	if (i != VF_POOL_SIZE) {
 		canvas_read(new_vf->canvas0Addr & 0xff, &cd);
 		if (cd.width != new_vf->width * 3)
-			canvas_config(PPMGR_CANVAS_INDEX + i,
+			canvas_config(index_to_canvas(i),
 					cd.addr,
 					new_vf->width * 3,
 					new_vf->height,
@@ -4005,23 +4080,23 @@ int ppmgr_buffer_init(int vout_mode, int secure_mode)
 			decbuf_size = (canvas_width * canvas_height * 12) >> 3;
 			decbuf_size = PAGE_ALIGN(decbuf_size);
 			for (i = 0; i < VF_POOL_SIZE; i++) {
-				canvas_config(PPMGR_CANVAS_INDEX + i, (ulong)
+				canvas_config(index_to_canvas(i), (ulong)
 					      (buf_start + i * decbuf_size),
 					      canvas_width, canvas_height,
 					      CANVAS_ADDR_NOWRAP,
 					      CANVAS_BLKMODE_LINEAR);
 
-				canvas_config(PPMGR_CANVAS_INDEX + VF_POOL_SIZE
-					      + i, (ulong)(buf_start + i
+				canvas_config(index_to_canvas(VF_POOL_SIZE + i),
+						(ulong)(buf_start + i
 					      * decbuf_size + (canvas_width
 					      * canvas_height)),
 					      canvas_width, canvas_height / 2,
 					      CANVAS_ADDR_NOWRAP,
 					      CANVAS_BLKMODE_LINEAR);
 
-				ppmgr_canvas_tab[i] = (PPMGR_CANVAS_INDEX + i)
-					| ((PPMGR_CANVAS_INDEX
-					+ i + VF_POOL_SIZE) << 8);
+				ppmgr_canvas_tab[i] = (index_to_canvas(i))
+					| ((index_to_canvas(i + VF_POOL_SIZE)
+					<< 8);
 			}
 		} else {
 			int bpp = 4;
@@ -4039,13 +4114,14 @@ int ppmgr_buffer_init(int vout_mode, int secure_mode)
 			decbuf_size = canvas_width * canvas_height * bpp;
 			/*decbuf_size = PAGE_ALIGN(decbuf_size);*/
 			for (i = 0; i < VF_POOL_SIZE; i++) {
-				canvas_config(PPMGR_CANVAS_INDEX + i, (ulong)
-					      (buf_start + i * decbuf_size),
+				canvas_config(index_to_canvas(i),
+					      (ulong)(buf_start +
+					      i * decbuf_size),
 					      canvas_width * bpp,
 					      canvas_height,
 					      CANVAS_ADDR_NOWRAP,
 					      CANVAS_BLKMODE_LINEAR);
-				ppmgr_canvas_tab[i] = PPMGR_CANVAS_INDEX + i;
+				ppmgr_canvas_tab[i] = index_to_canvas(i);
 			}
 		}
 	} else {
@@ -4096,7 +4172,7 @@ int ppmgr_buffer_init(int vout_mode, int secure_mode)
 			ppmgr_device.canvas_width = canvas_width;
 			ppmgr_device.canvas_height = canvas_height;
 			for (i = 0; i < VF_POOL_SIZE; i++) {
-				canvas_config(PPMGR_CANVAS_INDEX + i, (ulong)
+				canvas_config(index_to_canvas(i), (ulong)
 					      (buf_start + i * decbuf_size),
 					      canvas_width * 3,
 					      canvas_height,
@@ -4104,8 +4180,8 @@ int ppmgr_buffer_init(int vout_mode, int secure_mode)
 					      CANVAS_BLKMODE_32X32);
 			}
 			for (j = 0; j < ASS_POOL_SIZE; j++) {
-				canvas_config(PPMGR_CANVAS_INDEX + VF_POOL_SIZE
-					      + j, (ulong)(buf_start
+				canvas_config(index_to_canvas(VF_POOL_SIZE + j),
+					(ulong)(buf_start
 					      + (VF_POOL_SIZE + j)
 					      * decbuf_size),
 					      canvas_width * 3, canvas_height,
@@ -4142,7 +4218,7 @@ int ppmgr_buffer_init(int vout_mode, int secure_mode)
 			}
 
 			for (i = 0; i < VF_POOL_SIZE; i++) {
-				canvas_config(PPMGR_CANVAS_INDEX + i + 0,
+				canvas_config(index_to_canvas(i),
 					      (ulong)(buf_start
 						      + i * decbuf_size),
 					      canvas_width * 3,

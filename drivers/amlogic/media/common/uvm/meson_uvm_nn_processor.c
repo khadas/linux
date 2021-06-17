@@ -20,6 +20,9 @@
 static int uvm_nn_debug;
 module_param(uvm_nn_debug, int, 0644);
 
+static int uvm_open_nn;
+module_param(uvm_open_nn, int, 0644);
+
 #define PRINT_ERROR		0X0
 #define PRINT_OTHER	    0X0001
 
@@ -51,14 +54,15 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr)
 
 	dmabuf = dma_buf_get(shared_fd);
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		nn_print(PRINT_ERROR, "%s: dmabuf is not uvm.\n", __func__);
+		nn_print(PRINT_ERROR,
+			"%s: dmabuf is not uvm.dmabuf=%px, shared_fd=%d\n",
+			__func__, dmabuf, shared_fd);
 		return -EINVAL;
 	}
 	dma_buf_put(dmabuf);
 
 	is_dec_vf = is_valid_mod_type(dmabuf, VF_SRC_DECODER);
 	is_v4l_vf = is_valid_mod_type(dmabuf, VF_PROCESS_V4LVIDEO);
-	nn_print(PRINT_OTHER, "is_dec_vf=%d, is_v4l_vf=%d\n", is_dec_vf, is_v4l_vf);
 
 	if (is_dec_vf) {
 		vf = dmabuf_get_vframe(dmabuf);
@@ -66,17 +70,15 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr)
 	} else {
 		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
 		if (IS_ERR_OR_NULL(uhmod) || !uhmod->arg) {
-			nn_print(PRINT_ERROR, "get_fh_info err: no v4lvideo\n");
+			nn_print(PRINT_ERROR, "get_fh err: no v4lvideo\n");
 			return -EINVAL;
 		}
 		file_private_data = uhmod->arg;
 		uvm_put_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
-		if (!file_private_data) {
-			nn_print(PRINT_ERROR, "invalid fd: no uvm, no v4lvideo!!\n");
-		} else {
+		if (!file_private_data)
+			nn_print(PRINT_ERROR, "invalid fd no uvm/v4lvideo\n");
+		else
 			vf = &file_private_data->vf;
-			nn_print(PRINT_OTHER, "vf is from v4lvideo\n");
-		}
 	}
 	if (vf) {
 		hf_info = vf->hf_info;
@@ -86,7 +88,7 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr)
 			nn_sr->hf_height = hf_info->height;
 			nn_sr->hf_align_w = hf_info->buffer_w;
 			nn_sr->hf_align_h = hf_info->buffer_h;
-			nn_print(PRINT_OTHER, "has hf:phy=%llx, omx_index=%d\n",
+			nn_print(PRINT_OTHER, "has hf:phy=%llx omx_index=%d\n",
 				hf_info->phy_addr, vf->omx_index);
 		} else {
 			nn_print(PRINT_OTHER, "no hf info\n");
@@ -106,10 +108,13 @@ void free_nn_data(void *arg)
 	struct vf_nn_sr_t *nn_sr = (struct vf_nn_sr_t *)arg;
 
 	if (arg) {
-		nn_print(PRINT_OTHER, "%s: nn_out_file_count =%d\n",
-			__func__, nn_sr->nn_out_file_count);
+		nn_print(PRINT_OTHER, "%s: nn_out_file_count =%d, nn_sr=%px\n",
+			__func__, nn_sr->nn_out_file_count, nn_sr);
 		if (nn_sr->nn_out_file) {
 			fput(nn_sr->nn_out_file);
+			if (nn_sr->nn_out_file_count == 0)
+				nn_print(PRINT_ERROR,
+				"%s:  nn_out_file_count is 0!!\n", __func__);
 			nn_sr->nn_out_file_count--;
 		}
 		kfree((u8 *)arg);
@@ -132,27 +137,26 @@ int attach_nn_hook_mod_info(int shared_fd,
 
 	memset(&nn_sr_t, 0, sizeof(struct vf_nn_sr_t));
 
-	ret = nn_get_hf_info(shared_fd, &nn_sr_t);
-
-	ai_sr_info->hf_phy_addr = nn_sr_t.hf_phy_addr;
-	ai_sr_info->hf_width = nn_sr_t.hf_width;
-	ai_sr_info->hf_height = nn_sr_t.hf_height;
-
-	if (ai_sr_info->hf_phy_addr == 0 ||
-		ai_sr_info->hf_width == 0 ||
-		ai_sr_info->hf_height == 0) {
-		nn_print(PRINT_ERROR, "attach: no hf\n");
-		return -EINVAL;
+	if (!uvm_open_nn) {
+		ai_sr_info->hf_phy_addr = 0;
+		ai_sr_info->hf_width = 0;
+		ai_sr_info->hf_height = 0;
+	} else {
+		ret = nn_get_hf_info(shared_fd, &nn_sr_t);
+		ai_sr_info->hf_phy_addr = nn_sr_t.hf_phy_addr;
+		ai_sr_info->hf_width = nn_sr_t.hf_width;
+		ai_sr_info->hf_height = nn_sr_t.hf_height;
 	}
 
 	if (ret) {
-		nn_print(PRINT_ERROR, "get hf info error\n");
-		return -EINVAL;
+		nn_print(PRINT_ERROR, "attach:get hf info error\n");
 	}
 
 	dmabuf = dma_buf_get(shared_fd);
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		nn_print(PRINT_ERROR, "dmabuf is not uvm.\n");
+		nn_print(PRINT_ERROR,
+			"attach:dmabuf is not uvm.dmabuf=%px, shared_fd=%d\n",
+			dmabuf, shared_fd);
 		return -EINVAL;
 	}
 	dma_buf_put(dmabuf);
@@ -161,7 +165,7 @@ int attach_nn_hook_mod_info(int shared_fd,
 	uhmod = uvm_get_hook_mod(dmabuf, PROCESS_NN);
 	if (IS_ERR_OR_NULL(uhmod)) {
 		nn_sr = kzalloc(sizeof(*nn_sr), GFP_KERNEL);
-		nn_print(PRINT_OTHER, "first attach, need alloc\n");
+		nn_print(PRINT_OTHER, "attach:first attach, need alloc\n");
 		if (!nn_sr)
 			return -ENOMEM;
 	} else {
@@ -169,11 +173,18 @@ int attach_nn_hook_mod_info(int shared_fd,
 		attached = true;
 		nn_sr = uhmod->arg;
 		if (!nn_sr) {
-			nn_print(PRINT_ERROR, "nn_sr is null, error dmabuf=%p\n", dmabuf);
+			nn_print(PRINT_ERROR,
+				"attach:nn_sr is null, dmabuf=%p\n", dmabuf);
 			return -EINVAL;
 		}
-		fput(nn_sr->nn_out_file);
-		nn_sr->nn_out_file_count--;
+		nn_print(PRINT_OTHER, "nn_sr=%px\n", nn_sr);
+		if (nn_sr->nn_out_file_count != 0) {
+			fput(nn_sr->nn_out_file);
+			nn_sr->nn_out_file_count--;
+		} else {
+			nn_print(PRINT_OTHER,
+				"%s:  nn_out_file_count is 0!!\n", __func__);
+		}
 		memset(nn_sr, 0, sizeof(struct vf_nn_sr_t));
 	}
 
@@ -181,18 +192,13 @@ int attach_nn_hook_mod_info(int shared_fd,
 	nn_sr->nn_status = ai_sr_info->nn_status;
 
 	nn_print(PRINT_OTHER,
-		"%s: shared_fd=%d, nn_out_fd=%d, w=%d, h=%d, fence_fd=%d, nn_sr=%p, hf:%lld, %d*%d, nn_status=%d\n",
-		__func__,
+		"attach: shared_fd=%d, fence_fd=%d, %d*%d, nn_status=%d, nn_sr=%px\n",
 		ai_sr_info->shared_fd,
-		ai_sr_info->nn_out_fd,
-		ai_sr_info->nn_out_width,
-		ai_sr_info->nn_out_height,
 		ai_sr_info->fence_fd,
-		nn_sr,
-		ai_sr_info->hf_phy_addr,
 		ai_sr_info->hf_width,
 		ai_sr_info->hf_height,
-		nn_sr->nn_status);
+		nn_sr->nn_status,
+		nn_sr);
 
 	nn_sr->nn_out_dma_buf = NULL;
 	nn_sr->shared_fd = shared_fd;
@@ -201,10 +207,9 @@ int attach_nn_hook_mod_info(int shared_fd,
 	else
 		nn_sr->fence = NULL;
 
-	if (attached) {
-		nn_print(PRINT_OTHER, "%s has attached\n", __func__);
-		return -EINVAL;
-	}
+	if (attached)
+		return 0;
+
 	info->type = PROCESS_NN;
 	info->arg = nn_sr;
 	info->free = free_nn_data;
@@ -286,12 +291,8 @@ int nn_mod_setinfo(void *arg, char *buf)
 	nn_sr_dst->nn_status = nn_sr_src->nn_status;/*this must at the last line of this function*/
 
 	nn_print(PRINT_OTHER,
-		"%s: shared_fd =%d, nn_fd=%d, out_phy=%llx,addr=%pa, sr_dst=%p, status=%d, nn_index=%d, nn_mode=%d\n",
-		__func__,
+		"setinfo: shared_fd =%d, nn_fd=%d,status=%d, nn_index=%d, nn_mode=%d\n",
 		nn_sr_src->shared_fd, nn_out_fd,
-		nn_sr_dst->nn_out_phy_addr,
-		&addr,
-		nn_sr_dst,
 		nn_sr_src->nn_status,
 		nn_sr_src->nn_index,
 		nn_sr_dst->nn_mode);
@@ -302,9 +303,7 @@ int nn_mod_getinfo(void *arg, char *buf)
 {
 	struct vf_nn_sr_t *vf_nn_sr = NULL;
 	struct uvm_ai_sr_info *si_sr_info = NULL;
-	int tmp_fd = -1;
 	int ret = -1;
-	size_t len;
 	phys_addr_t addr = 0;
 	u8 *data_hf;
 	u8 *data_tmp;
@@ -338,25 +337,12 @@ int nn_mod_getinfo(void *arg, char *buf)
 	si_sr_info->nn_index = vf_nn_sr->nn_index;
 
 	if (si_sr_info->get_info_type == GET_HF_INFO) {
-		nn_print(PRINT_OTHER, "%s: hf_phy_addr=%llx, %d*%d\n",
-			__func__,
+		nn_print(PRINT_OTHER, "getinfo: hf_phy_addr=%llx, %d*%d\n",
 			si_sr_info->hf_phy_addr,
 			si_sr_info->hf_width,
 			si_sr_info->hf_height);
 		return 0;
 	}
-
-	tmp_fd = si_sr_info->nn_in_tmp_fd;
-
-	if (tmp_fd != -1) {
-		ret = meson_ion_share_fd_to_phys(tmp_fd, &addr, &len);
-		if (ret < 0) {
-			nn_print(PRINT_ERROR, "import out fd %d failed\n", tmp_fd);
-			return -EINVAL;
-		}
-		nn_print(PRINT_OTHER, "%s: tmp: addr=%p\n", __func__, &addr);
-	}
-	si_sr_info->nn_in_tmp_phy_addr = addr;
 
 	if (addr && si_sr_info->hf_phy_addr) {
 		hf_size = si_sr_info->hf_align_w * si_sr_info->hf_align_h;

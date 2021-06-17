@@ -383,6 +383,44 @@ static void vf_keep(struct v4lvideo_dev *dev,
 	file_private_data->is_keep = true;
 }
 
+void v4lvideo_keep_vf(struct file *file)
+{
+	struct vframe_s *vf_p;
+	struct vframe_s *vf_ext_p = NULL;
+	int type = MEM_TYPE_CODEC_MM;
+	int keep_id = 0;
+	int keep_head_id = 0;
+	struct file_private_data *file_private_data;
+
+	file_private_data = v4lvideo_get_file_private_data(file, false);
+
+	if (!file_private_data) {
+		V4LVID_ERR("vf_keep error: file_private_data is NULL");
+		return;
+	}
+
+	vf_p = file_private_data->vf_p;
+
+	if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR) {
+		vf_ext_p = file_private_data->vf_ext_p;
+		if (!vf_ext_p) {
+			V4LVID_ERR("file_vf_keep error: vf_ext is NULL");
+			return;
+		}
+		vf_p = vf_ext_p;
+	}
+
+	if (vf_p->type & VIDTYPE_SCATTER)
+		type = MEM_TYPE_CODEC_MM_SCATTER;
+	video_keeper_keep_mem(vf_p->mem_handle, type, &keep_id);
+	video_keeper_keep_mem(vf_p->mem_head_handle,
+			      MEM_TYPE_CODEC_MM, &keep_head_id);
+
+	file_private_data->keep_id = keep_id;
+	file_private_data->keep_head_id = keep_head_id;
+	file_private_data->is_keep = true;
+}
+
 static void vf_free(struct file_private_data *file_private_data)
 {
 	struct vframe_s *vf_p;
@@ -409,6 +447,8 @@ static void vf_free(struct file_private_data *file_private_data)
 	}
 
 	if (vf->type & VIDTYPE_DI_PW) {
+		v4l_print(inst_id, PRINT_OTHER,
+			"free: omx_index=%d\n", vf_p->omx_index);
 		dim_post_keep_cmd_release2(vf_p);
 		total_release_count[inst_id]++;
 		v4l_print(inst_id, PRINT_COUNT,
@@ -2081,6 +2121,45 @@ static const struct file_operations v4lvideo_file_fops = {
 int is_v4lvideo_buf_file(struct file *file)
 {
 	return file->f_op == &v4lvideo_file_fops;
+}
+
+struct file *v4lvideo_alloc_file(void)
+{
+	struct file *file = NULL;
+	struct file_private_data *private_data = NULL;
+
+	private_data = kzalloc(sizeof(*private_data), GFP_KERNEL);
+	if (!private_data)
+		return NULL;
+
+	init_file_private_data(private_data);
+
+	file = anon_inode_getfile("v4lvideo_file",
+				  &v4lvideo_file_fops,
+				  private_data, 0);
+	if (IS_ERR(file)) {
+		kfree((u8 *)private_data);
+		pr_err("%s: anon_inode_getfile fail\n", __func__);
+		return NULL;
+	}
+
+	private_data->md.p_md  = vmalloc(MD_BUF_SIZE);
+	if (!private_data->md.p_md) {
+		kfree((u8 *)private_data);
+		return NULL;
+	}
+
+	private_data->md.p_comp = vmalloc(COMP_BUF_SIZE);
+	if (!private_data->md.p_comp) {
+		if (private_data->md.p_md) {
+			vfree(private_data->md.p_md);
+			private_data->md.p_md = NULL;
+		}
+		kfree((u8 *)private_data);
+		return NULL;
+	}
+
+	return file;
 }
 
 int v4lvideo_alloc_fd(int *fd)

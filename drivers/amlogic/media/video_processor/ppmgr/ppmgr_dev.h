@@ -91,6 +91,7 @@ struct ppmgr_device_t {
 	int debug_decontour;
 	int i_do_decontour;
 	bool reg_dct_irq_success;
+	bool is_used;
 };
 
 struct ppmgr_dev_reg_s {

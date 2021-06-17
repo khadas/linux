@@ -363,4 +363,10 @@ void videosync_pcrscr_update(s32 inc, u32 base);
 void videosync_pcrscr_inc(s32 inc);
 void vsync_notify_videosync(void);
 #endif
+
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
+void vsync_notify_videoqueue(void);
+void videoqueue_pcrscr_update(s32 inc, u32 base);
+#endif
+
 #endif /* VIDEO_H */

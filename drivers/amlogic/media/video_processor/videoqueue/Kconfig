@@ -1,0 +1,14 @@
+#
+# Amlogic videoqueue device configuration
+#
+
+menu "Amlogic videoqueue support"
+
+config AMLOGIC_VIDEOQUEUE
+	tristate "amlogic videoqueue device support"
+	default n
+
+	help
+		Select to enable "Amlogic videoqueue device support.
+
+endmenu

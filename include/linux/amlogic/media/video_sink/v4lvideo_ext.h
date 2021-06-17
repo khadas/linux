@@ -23,6 +23,7 @@
 #define V4LVIDEO_FLAG_DI_DEC     2
 
 #include <linux/dma-buf.h>
+#include <linux/file.h>
 
 int v4lvideo_assign_map(char **receiver_name, int *inst);
 
@@ -70,6 +71,11 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf);
 struct file_private_data *v4lvideo_get_vf(int fd);
 void dim_post_keep_cmd_release2(struct vframe_s *vframe);
 int is_v4lvideo_buf_file(struct file *file);
+struct file *v4lvideo_alloc_file(void);
+void v4lvideo_keep_vf(struct file *file);
+struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
+							 bool alloc_if_null);
+void init_file_private_data(struct file_private_data *file_private_data);
 
 
 #endif /* V4LVIDEO_EXT_H */

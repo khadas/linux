@@ -125,7 +125,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x19400000>;
+			size = <0x0 0x1BC00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -231,6 +231,11 @@
 		status = "okay";
 	};
 
+	video_queue {
+		compatible = "amlogic, video_queue";
+		dev_name = "videoqueue";
+		status = "okay";
+	};
 	amlvideo2_0 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";
@@ -1345,8 +1350,8 @@
 	 * dw:960x540x3 = 1.5M
 	 * total size:(27.5+1.5)x buffernumber
 	 */
-	cma_size = <300>;
-	frame_buff_num = <10>;
+	cma_size = <330>;
+	frame_buff_num = <11>;
 };
 
 &vdin1 {

@@ -4850,7 +4850,9 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		crop[2] = vf->crop[2];
 		crop[3] = vf->crop[3];
 		_set_video_window(&glayer_info[2], axis);
-		_set_video_crop(&glayer_info[2], crop);
+		if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+			vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
+			_set_video_crop(&glayer_info[2], crop);
 
 		glayer_info[2].zorder = vf->zorder;
 	}
@@ -5005,7 +5007,9 @@ void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		crop[2] = vf->crop[2];
 		crop[3] = vf->crop[3];
 		_set_video_window(&glayer_info[1], axis);
-		_set_video_crop(&glayer_info[1], crop);
+		if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+			vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
+			_set_video_crop(&glayer_info[1], crop);
 
 		glayer_info[1].zorder = vf->zorder;
 	}
@@ -5176,7 +5180,10 @@ static void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1
 		crop[2] = vf->crop[2];
 		crop[3] = vf->crop[3];
 		_set_video_window(&glayer_info[0], axis);
-		_set_video_crop(&glayer_info[0], crop);
+		if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+			vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
+			_set_video_crop(&glayer_info[0], crop);
+
 		glayer_info[0].zorder = vf->zorder;
 	}
 
@@ -5844,6 +5851,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	int pq_process_debug[4];
 	enum vframe_signal_fmt_e fmt;
 	int i, j = 0;
+	int source_type = 0;
 
 	blend_reg_conflict_detect();
 	if (video_suspend && video_suspend_cycle >= 1) {
@@ -5962,6 +5970,10 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
 	vsync_notify_video_composer();
 #endif
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
+	vsync_notify_videoqueue();
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (is_dolby_vision_enable()) {
 		char *provider_name = NULL;
@@ -6109,14 +6121,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		}
 	}
 
-#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
-	if (cur_frame_par) {/*need call every vsync*/
-		if (vf)
-			vlock_process(vf, cur_frame_par);
-		else
-			vlock_process(NULL, cur_frame_par);
-	}
-#endif
 	enc_line = get_cur_enc_line();
 	if (enc_line > vsync_enter_line_max)
 		vsync_enter_line_max = enc_line;
@@ -6219,6 +6223,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			videosync_pcrscr_update(vsync_pts_inc_scale,
 						vsync_pts_inc_scale_base);
 #endif
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
+			videoqueue_pcrscr_update(vsync_pts_inc_scale,
+						vsync_pts_inc_scale_base);
+#endif
+
 		} else if (vsync_slow_factor > 1000) {
 			u32 inc = (vsync_slow_factor / 1000)
 				* vsync_pts_inc / 1000;
@@ -7620,10 +7629,14 @@ SET_FILTER:
 		crop[2] = vd_layer[0].dispbuf->crop[2];
 		crop[3] = vd_layer[0].dispbuf->crop[3];
 		_set_video_window(&glayer_info[0], axis);
-		_set_video_crop(&glayer_info[0], crop);
+		source_type = vd_layer[0].dispbuf->source_type;
+		if (source_type != VFRAME_SOURCE_TYPE_HDMI &&
+			source_type != VFRAME_SOURCE_TYPE_CVBS)
+			_set_video_crop(&glayer_info[0], crop);
 		set_alpha_scpxn(&vd_layer[0], vd_layer[0].dispbuf->componser_info);
 		glayer_info[0].zorder = vd_layer[0].dispbuf->zorder;
 	}
+
 	/* setting video display property in underflow mode */
 	if (!new_frame &&
 	    vd_layer[0].dispbuf &&
@@ -7638,6 +7651,15 @@ SET_FILTER:
 		dvel_swap_frame(cur_dispbuf2);
 #endif
 	}
+
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+	if (cur_frame_par) {/*need call every vsync*/
+		if (vd_layer[0].dispbuf)
+			vlock_process(vd_layer[0].dispbuf, cur_frame_par);
+		else
+			vlock_process(NULL, cur_frame_par);
+	}
+#endif
 
 #if defined(CONFIG_AMLOGIC_MEDIA_FRC)
 	frc_input_handle(vd_layer[0].dispbuf, cur_frame_par);
@@ -7945,7 +7967,10 @@ SET_FILTER:
 		crop[2] = vd_layer[1].dispbuf->crop[2];
 		crop[3] = vd_layer[1].dispbuf->crop[3];
 		_set_video_window(&glayer_info[1], axis);
-		_set_video_crop(&glayer_info[1], crop);
+		source_type = vd_layer[1].dispbuf->source_type;
+		if (source_type != VFRAME_SOURCE_TYPE_HDMI &&
+			source_type != VFRAME_SOURCE_TYPE_CVBS)
+			_set_video_crop(&glayer_info[1], crop);
 		set_alpha_scpxn(&vd_layer[1], vd_layer[1].dispbuf->componser_info);
 		glayer_info[1].zorder = vd_layer[1].dispbuf->zorder;
 	}
@@ -8217,7 +8242,10 @@ SET_FILTER:
 			crop[2] = vd_layer[2].dispbuf->crop[2];
 			crop[3] = vd_layer[2].dispbuf->crop[3];
 			_set_video_window(&glayer_info[2], axis);
-			_set_video_crop(&glayer_info[2], crop);
+			source_type = vd_layer[2].dispbuf->source_type;
+			if (source_type != VFRAME_SOURCE_TYPE_HDMI &&
+				source_type != VFRAME_SOURCE_TYPE_CVBS)
+				_set_video_crop(&glayer_info[2], crop);
 			set_alpha_scpxn(&vd_layer[2], vd_layer[2].dispbuf->componser_info);
 			glayer_info[2].zorder = vd_layer[2].dispbuf->zorder;
 		}

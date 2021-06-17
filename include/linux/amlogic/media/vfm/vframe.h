@@ -435,11 +435,11 @@ struct hf_info_t {
 };
 
 enum nn_status_e {
-	NN_INVALID = -1,
-	NN_WAIT_DOING = 0,
-	NN_START_DOING = 1,
-	NN_DONE = 2,
-	NN_DISPLAYED = 3
+	NN_INVALID = 0,
+	NN_WAIT_DOING = 1,
+	NN_START_DOING = 2,
+	NN_DONE = 3,
+	NN_DISPLAYED = 4
 };
 
 enum nn_mode_e {

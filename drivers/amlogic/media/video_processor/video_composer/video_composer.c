@@ -92,7 +92,7 @@ static u32 total_put_count;
 static u32 debug_vd_layer;
 static u64 nn_need_time = 15000;
 static u64 nn_margin_time = 9000;
-
+static u32 nn_bypass;
 
 #define PRINT_ERROR		0X0
 #define PRINT_QUEUE_STATUS	0X0001
@@ -102,7 +102,7 @@ static u64 nn_margin_time = 9000;
 #define PRINT_INDEX_DISP	0X0010
 #define PRINT_PATTERN	        0X0020
 #define PRINT_OTHER		0X0040
-#define PRINT_NN_TIME		0X0080
+#define PRINT_NN		0X0080
 
 
 #define to_dst_buf(vf)	\
@@ -196,6 +196,8 @@ static int video_timeline_create_fence(struct composer_dev *dev)
 	u32 pt_val = 0;
 
 	pt_val = dev->cur_streamline_val + 1;
+	vc_print(dev->index, PRINT_FENCE, "pt_val %d", pt_val);
+
 	out_fence_fd = aml_sync_create_fence(dev->video_timeline, pt_val);
 	if (out_fence_fd >= 0) {
 		dev->cur_streamline_val++;
@@ -1345,6 +1347,7 @@ static void video_composer_task(struct composer_dev *dev)
 	bool is_dec_vf = false, is_v4l_vf = false;
 	struct vf_nn_sr_t *srout_data = NULL;
 	struct video_composer_private *vc_private;
+	u32 nn_status;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -1586,15 +1589,19 @@ static void video_composer_task(struct composer_dev *dev)
 				 vf->omx_index);
 		} else {
 			if (is_dec_vf || is_v4l_vf) {
-				if (vf->hf_info)
+				if (vf->hf_info && !nn_bypass)
 					srout_data = vc_get_hfout_data(dev, file_vf);
 				if (srout_data)
 					video_wait_sr_fence(dev, srout_data->fence);
 				vc_private = vc_private_q_pop(dev);
 				if (srout_data && vc_private && vf->hf_info) {
+					nn_status = srout_data->nn_status;
 					if (vf->hf_info->phy_addr != 0 &&
 						vf->hf_info->width != 0 &&
-						vf->hf_info->height != 0) {
+						vf->hf_info->height != 0 &&
+						(nn_status == NN_WAIT_DOING ||
+						nn_status == NN_START_DOING ||
+						nn_status == NN_DONE)) {
 						vc_private->srout_data = srout_data;
 						vc_private->flag |= VC_FLAG_AI_SR;
 					}
@@ -2169,7 +2176,7 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 		if ((vf->vc_private->flag & VC_FLAG_AI_SR) == 0)
 			return vf;
 
-		vc_print(dev->index, PRINT_NN_TIME,
+		vc_print(dev->index, PRINT_NN,
 			"peek:nn_status=%d, nn_index=%d, nn_mode=%d, PHY=%llx, nn out:%d*%d, hf:%d*%d,hf_align:%d*%d\n",
 			vf->vc_private->srout_data->nn_status,
 			vf->vc_private->srout_data->nn_index,
@@ -2183,28 +2190,45 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 			vf->vc_private->srout_data->hf_align_h);
 		if (vf->vc_private->srout_data->nn_status != NN_DONE) {
 			if (vf->vc_private->srout_data->nn_status == NN_WAIT_DOING) {
-				vc_print(dev->index, PRINT_FENCE | PRINT_NN_TIME,
-					"peek: nn wait doing, nn_index =%d, omx_index=%d, nn_status=%d\n",
+				vc_print(dev->index, PRINT_FENCE | PRINT_NN,
+					"peek: nn wait doing, nn_index =%d, omx_index=%d, nn_status=%d, srout_data=%px\n",
+					vf->vc_private->srout_data->nn_index,
+					vf->omx_index,
+					vf->vc_private->srout_data->nn_status,
+					vf->vc_private->srout_data);
+				return NULL;
+			} else if (vf->vc_private->srout_data->nn_status
+				== NN_DISPLAYED) {
+				vc_print(dev->index, PRINT_ERROR,
+					"peek: nn_status err, nn_index =%d, omx_index=%d, nn_status=%d\n",
 					vf->vc_private->srout_data->nn_index,
 					vf->omx_index,
 					vf->vc_private->srout_data->nn_status);
-				return NULL;
+				return vf;
 			}
 			do_gettimeofday(&now_time);
 			nn_start_time = vf->vc_private->srout_data->start_time;
 			nn_used_time = (u64)1000000 * (now_time.tv_sec - nn_start_time.tv_sec)
 					+ now_time.tv_usec - nn_start_time.tv_usec;
-			if ((nn_need_time - nn_used_time) > nn_margin_time)
+			if (nn_used_time < (nn_need_time - nn_margin_time))
 				canbe_peek = false;
-			vc_print(dev->index, PRINT_FENCE | PRINT_NN_TIME,
+			vc_print(dev->index, PRINT_FENCE | PRINT_NN,
 				"peek: nn not done, nn_index =%d, omx_index=%d, nn_status=%d, nn_used_time=%lld canbe_peek=%d\n",
 				vf->vc_private->srout_data->nn_index,
 				vf->omx_index,
 				vf->vc_private->srout_data->nn_status,
 				nn_used_time,
 				canbe_peek);
-			if (!canbe_peek)
+			if (!canbe_peek) {
+				vc_print(dev->index, PRINT_FENCE | PRINT_NN,
+				"peek:fail: nn not done, nn_index =%d, omx_index=%d, nn_status=%d, nn_used_time=%lld canbe_peek=%d\n",
+					vf->vc_private->srout_data->nn_index,
+					vf->omx_index,
+					vf->vc_private->srout_data->nn_status,
+					nn_used_time,
+					canbe_peek);
 				return NULL;
+			}
 		}
 
 		return vf;
@@ -3240,6 +3264,26 @@ static ssize_t nn_margin_time_store(struct class *class,
 	return count;
 }
 
+static ssize_t nn_bypass_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "nn_bypass: %d\n", nn_bypass);
+}
+
+static ssize_t nn_bypass_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+	nn_bypass = val;
+	return count;
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -3270,6 +3314,7 @@ static CLASS_ATTR_RO(total_get_count);
 static CLASS_ATTR_RO(total_put_count);
 static CLASS_ATTR_RW(nn_need_time);
 static CLASS_ATTR_RW(nn_margin_time);
+static CLASS_ATTR_RW(nn_bypass);
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -3302,6 +3347,7 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_total_put_count.attr,
 	&class_attr_nn_need_time.attr,
 	&class_attr_nn_margin_time.attr,
+	&class_attr_nn_bypass.attr,
 	NULL
 };
 

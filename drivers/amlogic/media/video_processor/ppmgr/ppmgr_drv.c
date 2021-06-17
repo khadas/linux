@@ -67,6 +67,12 @@ static struct ppmgr_dev_reg_s ppmgr_dev_reg;
 int ppmgr_secure_debug;
 int ppmgr_secure_mode;
 
+bool get_ppmgr_is_used(void)
+{
+	return ppmgr_device.is_used;
+}
+EXPORT_SYMBOL(get_ppmgr_is_used);
+
 enum platform_type_t get_platform_type(void)
 {
 	return platform_type;
@@ -1128,6 +1134,30 @@ static ssize_t mirror_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
+static ssize_t is_used_show(struct class *cla,
+					struct class_attribute *attr, char *buf)
+{
+	int is_used = ppmgr_device.is_used;
+
+	return snprintf(buf, 80, "%d\n",
+		 is_used);
+}
+
+static ssize_t  is_used_store(struct class *cla,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned long tmp;
+	int ret = kstrtoul(buf, 0, &tmp);
+
+	if (ret != 0) {
+		PPMGRDRV_ERR("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	ppmgr_device.is_used = tmp;
+	return count;
+}
+
 /* *************************************************************
  * 3DTV usage
  * *************************************************************
@@ -1192,6 +1222,7 @@ static CLASS_ATTR_RW(dump_grid);
 static CLASS_ATTR_RW(bypass_decontour);
 static CLASS_ATTR_RW(debug_decontour);
 static CLASS_ATTR_RW(i_do_decontour);
+static CLASS_ATTR_RW(is_used);
 
 static struct attribute *ppmgr_class_attrs[] = {
 	&class_attr_ppmgr_info.attr,
@@ -1228,6 +1259,7 @@ static struct attribute *ppmgr_class_attrs[] = {
 	&class_attr_bypass_decontour.attr,
 	&class_attr_debug_decontour.attr,
 	&class_attr_i_do_decontour.attr,
+	&class_attr_is_used.attr,
 	NULL
 };
 

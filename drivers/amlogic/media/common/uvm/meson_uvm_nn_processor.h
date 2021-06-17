@@ -27,8 +27,6 @@ struct uvm_ai_sr_info {
 	s32 nn_status;
 	s32 nn_index;
 	s32 nn_mode;
-	s32 nn_in_tmp_fd;
-	s64 nn_in_tmp_phy_addr;
 	s32 get_info_type;
 };
 

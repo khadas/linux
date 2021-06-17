@@ -328,6 +328,20 @@ static inline void meson_videotunnel_exit(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_VIDEOQUEUE
+int videoqueue_init(void);
+void videoqueue_exit(void);
+#else
+static inline int videoqueue_init(void)
+{
+	return 0;
+}
+
+static inline void videoqueue_exit(void)
+{
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 int aml_lcd_extern_i2c_dev_init(void);
 #else
