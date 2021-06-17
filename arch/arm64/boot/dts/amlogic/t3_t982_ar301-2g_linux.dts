@@ -289,6 +289,13 @@
 		key_tolerance = <40 40 40 40 40 40 40>;
 	};
 
+	provisionkey {
+		compatible = "amlogic, provisionkey";
+		status = "disabled";
+		key-permit-default = "write";
+		KEY_PROVISION_XXX { };
+	};//End provisionkey
+
 	unifykey {
 		compatible = "amlogic,unifykey";
 		status = "okay";

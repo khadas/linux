@@ -46,7 +46,7 @@
 		factory:factory{
 			pname = "factory";
 			size = <0x0 0x800000>;
-			mask = <1>;
+			mask = <0x11>;
 		};
 		tee:tee{
 			pname = "tee";
