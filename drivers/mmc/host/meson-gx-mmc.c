@@ -213,13 +213,15 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 
 	/* return with clock being stopped */
 	if (!rate) {
-		if (aml_card_type_mmc(host)) {
+		if (aml_card_type_mmc(host) && host->src_clk_cfg_done) {
 			ret = clk_set_parent(host->mux[0], host->clk[0]);
-			while (__clk_get_enable_count(host->clk[2]))
+			if (__clk_get_enable_count(host->clk[2]))
 				clk_disable_unprepare(host->clk[2]);
-			while (__clk_get_enable_count(host->clk[1]))
+			if (__clk_get_enable_count(host->clk[1]))
 				clk_disable_unprepare(host->clk[1]);
 			host->src_clk_cfg_done = false;
+			WARN_ON(__clk_get_enable_count(host->clk[2]));
+			WARN_ON(__clk_get_enable_count(host->clk[1]));
 		}
 		return 0;
 	}
