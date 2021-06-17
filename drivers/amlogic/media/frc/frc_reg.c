@@ -114,7 +114,7 @@ EXPORT_SYMBOL(ceil_rx);
 s32 negative_convert(s32 data, u32 fbits)
 {
 	s32 rst = 0;
-	s64 sign_base = 1 << (fbits - 1);
+	s64 sign_base = (s64)1 << (fbits - 1);
 
 	if ((data & sign_base) == sign_base)
 		rst = -((sign_base << 1) - data);

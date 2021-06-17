@@ -682,7 +682,7 @@ static int frc_probe(struct platform_device *pdev)
 
 	frc_devp->fw_data = NULL;
 	// frc_devp->fw_data = kzalloc(sizeof(struct frc_fw_data_s), GFP_KERNEL);
-	strcpy(&fw_data.frc_alg_ver[0], &frc_alg_defver[0]);
+	strncpy(&fw_data.frc_alg_ver[0], &frc_alg_defver[0], strlen(frc_alg_defver));
 	frc_devp->fw_data = &fw_data;
 	if (!frc_devp->fw_data) {
 		PR_ERR("%s: frc_dev->fw_data fail\n", __func__);

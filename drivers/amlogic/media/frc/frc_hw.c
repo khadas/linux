@@ -159,7 +159,7 @@ void frc_clk_init(struct frc_dev_s *frc_devp)
 		frc_devp->clk_frc_Frq = clk_get_rate(frc_devp->clk_frc);
 		pr_frc(0, "clk_frc frq : %d Mhz\n", frc_devp->clk_frc_Frq / 1000000);
 
-		clk_set_rate(frc_devp->clk_me, 400000000);
+		clk_set_rate(frc_devp->clk_me, 333333333);
 		clk_prepare_enable(frc_devp->clk_me);
 		frc_devp->clk_me_frq = clk_get_rate(frc_devp->clk_me);
 		pr_frc(0, "clk_me frq : %d Mhz\n", frc_devp->clk_me_frq / 1000000);
@@ -613,8 +613,10 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 		mevp_frm_dly = 130;
 		mc_frm_dly   = 11 ;//inp performace issue, need frc_clk >  enc0_clk
 	} else if (frc_top->out_hsize == 3840 && frc_top->out_vsize == 2160) {
-		mevp_frm_dly = 260;
-		mc_frm_dly = 28;
+		mevp_frm_dly = 222; // reg readback  under 333MHz
+		mc_frm_dly = 28;   // reg readback (14)  under 333MHz
+		// mevp_frm_dly = 260;   // under 400MHz
+		// mc_frm_dly = 28;      // under 400MHz
 	} else {
 		mevp_frm_dly = 140;
 		mc_frm_dly   = 10 ;//inp performace issue, need frc_clk >  enc0_clk

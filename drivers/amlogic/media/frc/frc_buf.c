@@ -1058,11 +1058,16 @@ int frc_buf_config(struct frc_dev_s *devp)
 	u32 base;
 	u32 log = 2;
 
-	if (!devp || !devp->buf.cma_mem_paddr_start || !devp->buf.cma_mem_alloced) {
+	if (!devp) {
+		pr_frc(0, "%s fail<devp is null>\n", __func__);
+		return -1;
+	} else if (!devp->buf.cma_mem_alloced) {
 		pr_frc(0, "%s fail <cma alloced:%d>\n", __func__, devp->buf.cma_mem_alloced);
 		return -1;
+	} else if (!devp->buf.cma_mem_paddr_start) {
+		pr_frc(0, "%s fail <cma_paddr is null>\n", __func__);
+		return -1;
 	}
-
 	base = devp->buf.cma_mem_paddr_start;
 	pr_frc(log, "%s cma base:0x%x\n", __func__, base);
 	/*mc info buffer*/
