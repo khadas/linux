@@ -11,6 +11,7 @@
 #include <linux/uaccess.h>
 #include <linux/amlogic/clk_measure.h>
 #include <linux/kallsyms.h>
+#include <linux/arm-smccc.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt) "clk-debug: " fmt
@@ -137,6 +138,7 @@ static ssize_t enable_write(struct file *file, const char __user *buffer,
 	else
 		clk_disable_unprepare(debug_clk);
 
+	kfree(input);
 	return count;
 }
 
@@ -187,6 +189,8 @@ static ssize_t rate_write(struct file *file, const char __user *buffer,
 	}
 
 	pr_info("current rate = %lu\n", clk_get_rate(debug_clk));
+
+	kfree(input);
 
 	return count;
 }
@@ -240,6 +244,38 @@ static ssize_t clk_write(struct file *file, const char __user *buffer,
 	return count;
 }
 
+static ssize_t secure_reg_write(struct file *file, const char __user *buffer,
+			 size_t count, loff_t *ppos)
+{
+	int ret;
+	char *input;
+	unsigned long reg;
+	struct arm_smccc_res res;
+
+	input = kzalloc(count, GFP_KERNEL);
+	if (!input) {
+		kfree(input);
+		return -ENOMEM;
+	}
+
+	if (copy_from_user(input, buffer, count)) {
+		kfree(input);
+		return -EFAULT;
+	}
+	ret = kstrtoul(input, 0, &reg);
+	if (ret) {
+		kfree(input);
+		return -EINVAL;
+	}
+
+	arm_smccc_smc(0x82000099, 0x30,
+		reg, 0, 0, 0, 0, 0, &res);
+
+	kfree(input);
+
+	return count;
+}
+
 static const struct file_operations parent_file_ops = {
 	.open		= simple_open,
 	.write		= parent_write,
@@ -268,6 +304,11 @@ static const struct file_operations clk_file_ops = {
 	.write		= clk_write,
 };
 
+static const struct file_operations secure_file_ops = {
+	.open		= simple_open,
+	.write		= secure_reg_write,
+};
+
 static int __init clk_debug_init(void)
 {
 	struct dentry *root;
@@ -278,6 +319,7 @@ static int __init clk_debug_init(void)
 	debugfs_create_file("enable", 0600, root, NULL, &enable_file_ops);
 	debugfs_create_file("parent", 0200, root, NULL, &parent_file_ops);
 	debugfs_create_file("measure", 0200, root, NULL, &measure_file_ops);
+	debugfs_create_file("secure_reg", 0200, root, NULL, &secure_file_ops);
 
 	return 0;
 }

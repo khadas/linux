@@ -58,7 +58,10 @@
 #define CLKID_A76_CLK			46
 #define CLKID_DSU_DYN_CLK		47
 #define CLKID_DSU_CLK			48
-#define CLKID_BASE			49
+#define CLKID_DSU_FINAL_CLK		49
+#define CLKID_CPU6_CLK			50
+#define CLKID_CPU7_CLK			51
+#define CLKID_BASE			52
 
 #define CLKID_RTC_32K_CLKIN		(CLKID_BASE + 0)
 #define CLKID_RTC_32K_DIV		(CLKID_BASE + 1)
