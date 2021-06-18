@@ -60,7 +60,9 @@ static int vb2_dma_sg_alloc_compacted(struct vb2_dma_sg_buf *buf,
 {
 	unsigned int last_page = 0;
 	unsigned long size = buf->size;
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+	int order_max = 3;
+#endif
 	while (size > 0) {
 		struct page *pages;
 		int order;
@@ -71,6 +73,10 @@ static int vb2_dma_sg_alloc_compacted(struct vb2_dma_sg_buf *buf,
 		if ((PAGE_SIZE << order) > size)
 			order--;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+		if (order > order_max)
+			order = order_max;
+#endif
 		pages = NULL;
 		while (!pages) {
 			pages = alloc_pages(GFP_KERNEL | __GFP_ZERO |
