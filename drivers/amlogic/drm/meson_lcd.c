@@ -18,16 +18,6 @@
 #include "meson_crtc.h"
 #include "meson_lcd.h"
 
-struct am_drm_lcd_s {
-	struct drm_panel panel;
-	struct drm_connector connector;
-	struct drm_encoder encoder;
-	struct mipi_dsi_host dsi_host;
-	struct drm_device *drm;
-	struct aml_lcd_drv_s *lcd_drv;
-	struct drm_display_mode *mode;
-	struct display_timing *timing;
-};
 
 static struct am_drm_lcd_s *am_drm_lcd;
 
@@ -64,28 +54,13 @@ static struct display_timing am_lcd_timing = {
 /* ***************************************************************** */
 /*     drm driver function                                           */
 /* ***************************************************************** */
-static inline struct am_drm_lcd_s *con_to_lcd(struct drm_connector *con)
-{
-	return container_of(con, struct am_drm_lcd_s, connector);
-}
-
-static inline struct am_drm_lcd_s *encoder_to_lcd(struct drm_encoder *encoder)
-{
-	return container_of(encoder, struct am_drm_lcd_s, encoder);
-}
-
-static inline struct am_drm_lcd_s *panel_to_lcd(struct drm_panel *panel)
-{
-	return container_of(panel, struct am_drm_lcd_s, panel);
-}
-
 static int am_lcd_connector_get_modes(struct drm_connector *connector)
 {
 	struct drm_display_mode *mode;
 	struct am_drm_lcd_s *lcd;
 	int count = 0;
 
-	lcd = con_to_lcd(connector);
+	lcd = connector_to_am_lcd(connector);
 
 	DRM_DEBUG("***************************************************\n");
 	DRM_DEBUG("am_drm_lcd: %s: lcd mode [%s] display size: %d x %d\n",
@@ -119,7 +94,7 @@ enum drm_mode_status am_lcd_connector_mode_valid(struct drm_connector *connector
 {
 	struct am_drm_lcd_s *lcd;
 
-	lcd = con_to_lcd(connector);
+	lcd = connector_to_am_lcd(connector);
 	if (!lcd)
 		return MODE_ERROR;
 	if (!lcd->lcd_drv)
@@ -229,7 +204,7 @@ static void am_lcd_encoder_enable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
 	enum vmode_e vmode = get_current_vmode();
-	struct am_drm_lcd_s *lcd = encoder_to_lcd(encoder);
+	struct am_drm_lcd_s *lcd = encoder_to_am_lcd(encoder);
 	struct am_meson_crtc_state *meson_crtc_state = to_am_meson_crtc_state(encoder->crtc->state);
 
 	if (!lcd)
@@ -274,7 +249,7 @@ static void am_lcd_encoder_enable(struct drm_encoder *encoder,
 static void am_lcd_encoder_disable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
-	struct am_drm_lcd_s *lcd = encoder_to_lcd(encoder);
+	struct am_drm_lcd_s *lcd = encoder_to_am_lcd(encoder);
 
 	if (!lcd)
 		return;
@@ -310,7 +285,7 @@ static const struct drm_encoder_funcs am_lcd_encoder_funcs = {
 
 static int am_lcd_disable(struct drm_panel *panel)
 {
-	struct am_drm_lcd_s *lcd = panel_to_lcd(panel);
+	struct am_drm_lcd_s *lcd = drm_plane_to_am_hdmi(panel);
 
 	if (!lcd)
 		return -ENODEV;
@@ -326,7 +301,7 @@ static int am_lcd_disable(struct drm_panel *panel)
 
 static int am_lcd_unprepare(struct drm_panel *panel)
 {
-	struct am_drm_lcd_s *lcd = panel_to_lcd(panel);
+	struct am_drm_lcd_s *lcd = drm_plane_to_am_hdmi(panel);
 
 	if (!lcd)
 		return -ENODEV;
@@ -342,7 +317,7 @@ static int am_lcd_unprepare(struct drm_panel *panel)
 
 static int am_lcd_prepare(struct drm_panel *panel)
 {
-	struct am_drm_lcd_s *lcd = panel_to_lcd(panel);
+	struct am_drm_lcd_s *lcd = drm_plane_to_am_hdmi(panel);
 
 	if (!lcd)
 		return -ENODEV;
@@ -358,7 +333,7 @@ static int am_lcd_prepare(struct drm_panel *panel)
 
 static int am_lcd_enable(struct drm_panel *panel)
 {
-	struct am_drm_lcd_s *lcd = panel_to_lcd(panel);
+	struct am_drm_lcd_s *lcd = drm_plane_to_am_hdmi(panel);
 
 	if (!lcd)
 		return -ENODEV;
@@ -378,7 +353,7 @@ static int am_lcd_enable(struct drm_panel *panel)
 
 static int am_lcd_get_modes(struct drm_panel *panel)
 {
-	struct am_drm_lcd_s *lcd = panel_to_lcd(panel);
+	struct am_drm_lcd_s *lcd = drm_plane_to_am_hdmi(panel);
 	struct drm_connector *connector = panel->connector;
 	struct drm_device *drm = panel->drm;
 	struct drm_display_mode *mode;
@@ -415,7 +390,7 @@ static int am_lcd_get_timings(struct drm_panel *panel,
 			      unsigned int num_timings,
 				    struct display_timing *timings)
 {
-	struct am_drm_lcd_s *lcd = panel_to_lcd(panel);
+	struct am_drm_lcd_s *lcd = drm_plane_to_am_hdmi(panel);
 
 	if (!lcd)
 		return 0;
@@ -465,9 +440,9 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 		lcd->mode->name[DRM_DISPLAY_MODE_LEN - 1] = 0;
 		/*ToDo:change it according to lcd drivers config*/
 		if (!strcmp(vout_mode, "panel"))
-			lcd->connector.connector_type = DRM_MODE_CONNECTOR_DSI;
+			lcd->base.connector.connector_type = DRM_MODE_CONNECTOR_DSI;
 		else
-			lcd->connector.connector_type = DRM_MODE_CONNECTOR_LVDS;
+			lcd->base.connector.connector_type = DRM_MODE_CONNECTOR_LVDS;
 	}
 	lcd->mode->clock = pconf->timing.lcd_clk / 1000;
 	lcd->mode->hdisplay = pconf->basic.h_active;
@@ -634,7 +609,7 @@ static int am_meson_lcd_bind(struct device *dev, struct device *master,
 	am_drm_lcd->drm = drm;
 
 	encoder = &am_drm_lcd->encoder;
-	connector = &am_drm_lcd->connector;
+	connector = &am_drm_lcd->base.connector;
 	encoder_type = DRM_MODE_ENCODER_LVDS;
 	connector_type = DRM_MODE_CONNECTOR_LVDS;
 
