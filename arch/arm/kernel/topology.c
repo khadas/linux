@@ -168,8 +168,10 @@ static void update_cpu_capacity(unsigned int cpu)
 
 	topology_set_cpu_scale(cpu, cpu_capacity(cpu) / middle_capacity);
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	pr_info("CPU%u: update cpu_capacity %lu\n",
 		cpu, topology_get_cpu_scale(cpu));
+#endif
 }
 
 #else
@@ -232,10 +234,12 @@ void store_cpu_topology(unsigned int cpuid)
 
 	update_cpu_capacity(cpuid);
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	pr_info("CPU%u: thread %d, cpu %d, socket %d, mpidr %x\n",
 		cpuid, cpu_topology[cpuid].thread_id,
 		cpu_topology[cpuid].core_id,
 		cpu_topology[cpuid].package_id, mpidr);
+#endif
 
 topology_populated:
 	update_siblings_masks(cpuid);
