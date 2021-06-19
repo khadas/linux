@@ -182,7 +182,7 @@ int __ref xen_swiotlb_init(int verbose, bool early)
 	enum xen_swiotlb_err m_ret = XEN_SWIOTLB_UNKNOWN;
 	unsigned int repeat = 3;
 
-	xen_io_tlb_nslabs = is_swiotlb_active();
+	xen_io_tlb_nslabs = is_swiotlb_active(NULL);
 retry:
 	bytes = xen_set_nslabs(xen_io_tlb_nslabs);
 	order = get_order(xen_io_tlb_nslabs << IO_TLB_SHIFT);
