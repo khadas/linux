@@ -139,6 +139,13 @@
 		};
 	};
 
+	dsu-pmu-0 {
+	compatible = "arm,dsu-pmu";
+		status = "okay";
+		cpus = <&cpu0>,<&cpu1>,<&cpu2>,<&cpu3>;
+		interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	aml_pm {
 		compatible = "amlogic, pm";
 		status = "okay";
