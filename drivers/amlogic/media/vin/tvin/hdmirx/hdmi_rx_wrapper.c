@@ -3400,10 +3400,8 @@ static void dump_phy_status(void)
 		dump_aml_phy_sts_tm2();
 	else if (rx.phy_ver == PHY_VER_T5)
 		dump_aml_phy_sts_t5();
-	else if (rx.phy_ver == PHY_VER_T7)
+	else if (rx.phy_ver >= PHY_VER_T7)
 		dump_aml_phy_sts_t7();
-	else if (rx.phy_ver == PHY_VER_T3)
-		dump_aml_phy_sts_t3();
 	else
 		dump_aml_phy_sts_tl1();
 }

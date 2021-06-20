@@ -32,6 +32,11 @@
 #include "hdmi_rx_hw.h"
 #include "hdmi_rx_wrapper.h"
 
+/* FT trim flag:1-valid, 0-not valid */
+bool rterm_trim_flag_t5;
+/* FT trim value 4 bits */
+u32 rterm_trim_val_t5;
+
 /* for T5 */
 static const u32 phy_misci_t5[][4] = {
 		 /* 0x05	 0x06	 0x07	 0x08 */
@@ -553,7 +558,9 @@ void aml_phy_offset_cal_t5(void)
 	usleep_range(5, 10);
 
 	data32 = phy_misci_t5[idx][1];
-	/* todo */
+	if (rterm_trim_flag_t5)
+		data32 = ((data32 & (~((0xf << 12) | 0x1))) |
+			(rterm_trim_val_t5 << 12) | rterm_trim_flag_t5);
 	/* step2-0xd8 */
 	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL1, data32);
 	/*step2-0xe0*/
@@ -835,6 +842,19 @@ void aml_eq_cfg_t5(void)
 	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, CDR_LKDET_EN, 1);
 }
 
+void aml_phy_get_trim_val_t5(void)
+{
+	u32 data32;
+
+	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_MISC_CNTL1);
+	/* bit [12: 15]*/
+	rterm_trim_val_t5 = (data32 >> 12) & 0xf;
+	/* bit'0*/
+	rterm_trim_flag_t5 = data32 & 0x1;
+	if (rterm_trim_flag_t5)
+		rx_pr("rterm trim=0x%x\n", rterm_trim_val_t5);
+}
+
 void aml_phy_cfg_t5(void)
 {
 	u32 idx = rx.phy.phy_bw;
@@ -856,7 +876,9 @@ void aml_phy_cfg_t5(void)
 		usleep_range(5, 10);
 
 		data32 = phy_misci_t5[idx][1];
-		/* todo */
+		if (rterm_trim_flag_t5)
+			data32 = ((data32 & (~((0xf << 12) | 0x1))) |
+				(rterm_trim_val_t5 << 12) | rterm_trim_flag_t5);
 		/* step2-0xd8 */
 		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL1, data32);
 		/*step2-0xe0*/

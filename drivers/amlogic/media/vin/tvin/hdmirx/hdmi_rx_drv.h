@@ -51,8 +51,8 @@
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
 
-/* add cec uevent callback */
-#define RX_VER2 "ver.2021/05/14"
+/* add phy rterm trim control */
+#define RX_VER2 "ver.2021/06/19"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368

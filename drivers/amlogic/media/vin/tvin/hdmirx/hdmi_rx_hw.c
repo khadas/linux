@@ -1391,10 +1391,8 @@ int rx_set_audio_param(u32 param)
 {
 	if (rx.chip_id < CHIP_ID_T7)
 		hbr_force_8ch = param & 1;
-	else if (rx.chip_id == CHIP_ID_T7)
-		rx_set_aud_output_t7(param);
 	else
-		rx_set_aud_output_t3(param);
+		rx_set_aud_output_t7(param);
 	return 1;
 }
 EXPORT_SYMBOL(rx_set_audio_param);
@@ -2965,10 +2963,8 @@ bool rx_eq_done(void)
 
 void aml_phy_offset_cal(void)
 {
-	if (rx.phy_ver == PHY_VER_T7)
+	if (rx.phy_ver >= PHY_VER_T7)
 		aml_phy_offset_cal_t7();
-	else if (rx.phy_ver == PHY_VER_T3)
-		aml_phy_offset_cal_t3();
 	else if (rx.phy_ver == PHY_VER_T5)
 		aml_phy_offset_cal_t5();
 }
@@ -4473,10 +4469,8 @@ void dump_reg_phy(void)
 {
 	if (rx.phy_ver == PHY_VER_T5)
 		dump_reg_phy_t5();
-	else if (rx.phy_ver == PHY_VER_T7)
+	else if (rx.phy_ver >= PHY_VER_T7)
 		dump_reg_phy_t7();
-	else if (rx.phy_ver == PHY_VER_T3)
-		dump_reg_phy_t3();
 	else
 		dump_reg_phy_tl1_tm2();
 }
@@ -4747,19 +4741,28 @@ bool is_ft_trim_done(void)
 }
 
 /*T5 todo:*/
-void aml_phy_get_trim_val(void)
+void aml_phy_get_trim_val_tl1_tm2(void)
 {
 	u32 data32;
 
-	if (rx.chip_id < CHIP_ID_TL1 ||
-	    rx.chip_id > CHIP_ID_TM2)
-		return;
 	phy_tdr_en = (phy_term_lel >> 4) & 0x1;
 	phy_term_lel = phy_term_lel & 0xf;
 	phy_trim_val = rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL1);
 	data32 = (phy_trim_val >> 12) & 0x3ff;
 	data32 = (~((~data32) << phy_term_lel) | (1 << phy_term_lel));
 	phy_trim_val = ((phy_trim_val & (~(0x3ff << 12))) | (data32 << 12));
+}
+
+void aml_phy_get_trim_val(void)
+{
+	if (rx.chip_id >= CHIP_ID_TL1 &&
+		rx.chip_id <= CHIP_ID_TM2)
+		aml_phy_get_trim_val_tl1_tm2();
+	else if (rx.chip_id >= CHIP_ID_T5 &&
+		rx.chip_id <= CHIP_ID_T5D)
+		aml_phy_get_trim_val_t5();
+	else if (rx.chip_id >= CHIP_ID_T7)
+		aml_phy_get_trim_val_t7();
 }
 
 void rx_get_best_eq_setting(void)
@@ -4856,10 +4859,8 @@ void aml_phy_init_handler(struct work_struct *work)
 		aml_phy_init_tm2();
 	else if (rx.phy_ver == PHY_VER_T5)
 		aml_phy_init_t5();
-	else if (rx.phy_ver == PHY_VER_T7)
+	else if (rx.phy_ver >= PHY_VER_T7)
 		aml_phy_init_t7();
-	else if (rx.phy_ver == PHY_VER_T3)
-		aml_phy_init_t3();
 	eq_sts = E_EQ_FINISH;
 }
 
@@ -4888,10 +4889,8 @@ void rx_phy_short_bist(void)
 		aml_phy_short_bist_tm2();
 	else if (rx.phy_ver == PHY_VER_T5)
 		aml_phy_short_bist_t5();
-	else if (rx.phy_ver == PHY_VER_T7)
+	else if (rx.phy_ver >= PHY_VER_T7)
 		aml_phy_short_bist_t7();
-	else if (rx.phy_ver == PHY_VER_T3)
-		aml_phy_short_bist_t3();
 }
 
 unsigned int aml_phy_pll_lock_tm2(void)
@@ -4940,10 +4939,8 @@ unsigned int aml_phy_tmds_valid(void)
 		return aml_get_tmds_valid_tm2();
 	else if (rx.phy_ver == PHY_VER_T5)
 		return aml_get_tmds_valid_t5();
-	else if (rx.phy_ver == PHY_VER_T7)
+	else if (rx.phy_ver >= PHY_VER_T7)
 		return aml_get_tmds_valid_t7();
-	else if (rx.phy_ver == PHY_VER_T3)
-		return aml_get_tmds_valid_t3();
 	else
 		return false;
 }
@@ -4969,12 +4966,9 @@ void aml_phy_power_off(void)
 	} else if (rx.phy_ver == PHY_VER_T5) {
 		/* pll power down */
 		aml_phy_power_off_t5();
-	} else if (rx.phy_ver == PHY_VER_T7) {
+	} else if (rx.phy_ver >= PHY_VER_T7) {
 		/* pll power down */
 		aml_phy_power_off_t7();
-	} else if (rx.phy_ver == PHY_VER_T3) {
-		/* pll power down */
-		aml_phy_power_off_t3();
 	}
 	if (log_level & VIDEO_LOG)
 		rx_pr("%s\n", __func__);
@@ -4997,20 +4991,16 @@ void aml_phy_iq_skew_monitor(void)
 {
 	if (rx.phy_ver == PHY_VER_T5)
 		aml_phy_iq_skew_monitor_t5();
-	else if (rx.phy_ver == PHY_VER_T7)
+	else if (rx.phy_ver >= PHY_VER_T7)
 		aml_phy_iq_skew_monitor_t7();
-	else if (rx.phy_ver == PHY_VER_T3)
-		aml_phy_iq_skew_monitor_t3();
 }
 
 void aml_eq_eye_monitor(void)
 {
 	if (rx.phy_ver == PHY_VER_T5)
 		aml_eq_eye_monitor_t5();
-	else if (rx.phy_ver == PHY_VER_T7)
+	else if (rx.phy_ver >= PHY_VER_T7)
 		aml_eq_eye_monitor_t7();
-	else if (rx.phy_ver == PHY_VER_T3)
-		aml_eq_eye_monitor_t3();
 }
 
 void rx_emp_to_ddr_init(void)
