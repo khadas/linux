@@ -375,14 +375,14 @@ static void lcd_module_reset(struct aml_lcd_drv_s *pdrv)
 	mutex_unlock(&lcd_vout_mutex);
 }
 
-static void lcd_resume_work(struct work_struct *work)
+static void lcd_lata_resume_work(struct work_struct *work)
 {
 	struct aml_lcd_drv_s *pdrv;
 
-	pdrv = container_of(work, struct aml_lcd_drv_s, resume_work);
+	pdrv = container_of(work, struct aml_lcd_drv_s, late_resume_work);
 
 	mutex_lock(&lcd_power_mutex);
-	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
+	aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)pdrv);
 	lcd_if_enable_retry(pdrv);
 	LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
 	mutex_unlock(&lcd_power_mutex);
@@ -1282,8 +1282,7 @@ static void lcd_config_probe_work(struct work_struct *work)
 
 	if ((pdrv->status & LCD_STATUS_VMODE_ACTIVE) &&
 	    !(pdrv->status & LCD_STATUS_ENCL_ON)) {
-		LCDPR("[%d]: %s: lcd_enable in kernel\n",
-		      pdrv->index, __func__);
+		LCDPR("[%d]: %s: lcd_enable in kernel\n", pdrv->index, __func__);
 		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
 		lcd_if_enable_retry(pdrv);
 	}
@@ -1310,28 +1309,29 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv)
 		- lcd_vcbus_read(ENCL_VIDEO_HAVON_BEGIN + offset) + 1;
 	pconf->basic.v_active = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE + offset)
 		- lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE + offset) + 1;
-	pconf->basic.h_period =
-		lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT + offset) + 1;
-	pconf->basic.v_period =
-		lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT + offset) + 1;
+	pconf->basic.h_period = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT + offset) + 1;
+	pconf->basic.v_period = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT + offset) + 1;
 	pdrv->init_flag = 0;
 	if (lcd_vcbus_read(ENCL_VIDEO_EN + offset)) {
 		switch (pdrv->boot_ctrl->init_level) {
 		case LCD_INIT_LEVEL_NORMAL:
 			pdrv->status = LCD_STATUS_ON;
+			pdrv->resume_flag = (LCD_RESUME_PREPARE | LCD_RESUME_ENABLE);
 			break;
 		case LCD_INIT_LEVEL_PWR_OFF:
 			pdrv->status = LCD_STATUS_ENCL_ON;
+			pdrv->resume_flag = LCD_RESUME_PREPARE;
 			break;
 		case LCD_INIT_LEVEL_KERNEL_ON:
 			pdrv->init_flag = 1;
 			pdrv->status = LCD_STATUS_ENCL_ON;
+			pdrv->resume_flag = LCD_RESUME_PREPARE;
 			break;
 		default:
 			pdrv->status = LCD_STATUS_ON;
+			pdrv->resume_flag = (LCD_RESUME_PREPARE | LCD_RESUME_ENABLE);
 			break;
 		}
-		pdrv->resume_flag = 1;
 	} else {
 		pdrv->status = 0;
 		pdrv->resume_flag = 0;
@@ -1342,8 +1342,7 @@ static void lcd_config_default(struct aml_lcd_drv_s *pdrv)
 	lcd_gamma_check_en(pdrv);
 }
 
-static int lcd_config_probe(struct aml_lcd_drv_s *pdrv,
-			    struct platform_device *pdev)
+static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev)
 {
 	const struct device_node *np;
 	const char *str = "none";
@@ -1444,16 +1443,11 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv,
 		      pdrv->index, pdrv->resume_type);
 	}
 
-	pdrv->res_vsync_irq[0] = platform_get_resource_byname
-			(pdev, IORESOURCE_IRQ, "vsync");
-	pdrv->res_vsync_irq[1] = platform_get_resource_byname
-			(pdev, IORESOURCE_IRQ, "vsync2");
-	pdrv->res_vsync_irq[2] = platform_get_resource_byname
-			(pdev, IORESOURCE_IRQ, "vsync3");
-	pdrv->res_vx1_irq = platform_get_resource_byname
-			(pdev, IORESOURCE_IRQ, "vbyone");
-	pdrv->res_tcon_irq = platform_get_resource_byname
-			(pdev, IORESOURCE_IRQ, "tcon");
+	pdrv->res_vsync_irq[0] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
+	pdrv->res_vsync_irq[1] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync2");
+	pdrv->res_vsync_irq[2] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync3");
+	pdrv->res_vx1_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vbyone");
+	pdrv->res_tcon_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "tcon");
 
 	pdrv->test_state = pdrv->debug_ctrl->debug_test_pattern;
 	pdrv->test_flag = 0;
@@ -1706,7 +1700,7 @@ static int lcd_probe(struct platform_device *pdev)
 		goto lcd_probe_err_1;
 
 	INIT_WORK(&pdrv->config_probe_work, lcd_config_probe_work);
-	INIT_WORK(&pdrv->resume_work, lcd_resume_work);
+	INIT_WORK(&pdrv->late_resume_work, lcd_lata_resume_work);
 	INIT_DELAYED_WORK(&pdrv->test_delayed_work, lcd_auto_test_delayed);
 
 	ret = lcd_cdev_add(pdrv, &pdev->dev);
@@ -1745,7 +1739,7 @@ static int lcd_remove(struct platform_device *pdev)
 	index = pdrv->index;
 
 	cancel_work_sync(&pdrv->config_probe_work);
-	cancel_work_sync(&pdrv->resume_work);
+	cancel_work_sync(&pdrv->late_resume_work);
 	if (lcd_workqueue)
 		destroy_workqueue(lcd_workqueue);
 
@@ -1774,29 +1768,15 @@ static int lcd_resume(struct platform_device *pdev)
 	if (!pdrv)
 		return 0;
 
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("resume method: %d\n", get_resume_method());
-
-	if (get_resume_method() == RTC_WAKEUP ||
-	    get_resume_method() == AUTO_WAKEUP ||
-	    get_resume_method() == UDEFINED_WAKEUP)
-		return 0;
-
 	if ((pdrv->status & LCD_STATUS_VMODE_ACTIVE) == 0)
 		return 0;
 
-	if (pdrv->resume_type) {
-		pdrv->resume_flag = 1;
-		lcd_queue_work(&pdrv->resume_work);
-	} else {
-		mutex_lock(&lcd_power_mutex);
-		LCDPR("[%d]: directly lcd resume\n", pdrv->index);
-		pdrv->resume_flag = 1;
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
-		lcd_if_enable_retry(pdrv);
-		LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
-		mutex_unlock(&lcd_power_mutex);
-	}
+	mutex_lock(&lcd_power_mutex);
+	LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	pdrv->resume_flag |= LCD_RESUME_PREPARE;
+	aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, (void *)pdrv);
+	LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
+	mutex_unlock(&lcd_power_mutex);
 
 	return 0;
 }
@@ -1809,10 +1789,13 @@ static int lcd_suspend(struct platform_device *pdev, pm_message_t state)
 		return 0;
 
 	mutex_lock(&lcd_power_mutex);
+	if (pdrv->status & LCD_STATUS_IF_ON)
+		LCDERR("[%d]: %s: lcd interface is still enabled!\n", pdrv->index, __func__);
+
+	pdrv->resume_flag &= ~LCD_RESUME_PREPARE;
 	if (pdrv->status & LCD_STATUS_ENCL_ON) {
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
-		pdrv->resume_flag = 0;
-		LCDPR("%s finished\n", __func__);
+		aml_lcd_notifier_call_chain(LCD_EVENT_UNPREPARE, (void *)pdrv);
+		LCDPR("[%d]: %s finished\n", pdrv->index, __func__);
 	}
 	mutex_unlock(&lcd_power_mutex);
 	return 0;

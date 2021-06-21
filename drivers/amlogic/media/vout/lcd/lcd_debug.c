@@ -538,18 +538,18 @@ static int lcd_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	len += snprintf((buf + len), n,
 		"driver version: %s\n"
 		"panel_type: %s, chip: %d, mode: %s, status: %d\n"
-		"viu_sel: %d, isr_cnt: %d, mute_flag: 0x%x, test_flag: 0x%x\n"
-		"resume_type: %d, fr_auto_policy: %d\n"
-		"key_valid: %d, config_load: %d\n"
-		"fr_mode: %d, fr_duration: %d\n",
+		"viu_sel: %d, isr_cnt: %d, resume_type: %d, resume_flag: 0x%x\n"
+		"fr_auto_policy: %d, fr_mode: %d, fr_duration: %d\n"
+		"mute_flag: 0x%x, test_flag: 0x%x\n"
+		"key_valid: %d, config_load: %d\n",
 		LCD_DRV_VERSION,
 		pconf->propname, pdrv->data->chip_type,
 		lcd_mode_mode_to_str(pdrv->mode), pdrv->status,
 		pdrv->viu_sel, pdrv->vsync_cnt,
+		pdrv->resume_type, pdrv->resume_flag,
+		pdrv->fr_auto_policy, pdrv->fr_mode, pdrv->fr_duration,
 		pdrv->mute_flag, pdrv->test_flag,
-		pdrv->resume_type, pdrv->fr_auto_policy,
-		pdrv->key_valid, pdrv->config_load,
-		pdrv->fr_mode, pdrv->fr_duration);
+		pdrv->key_valid, pdrv->config_load);
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,

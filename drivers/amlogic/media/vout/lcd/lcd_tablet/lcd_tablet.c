@@ -346,9 +346,9 @@ static int lcd_suspend(void *data)
 		return -1;
 
 	mutex_lock(&lcd_power_mutex);
-	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
-	pdrv->resume_flag = 0;
-	LCDPR("%s finished\n", __func__);
+	pdrv->resume_flag &= ~LCD_RESUME_ENABLE;
+	aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)pdrv);
+	LCDPR("[%d]: early_suspend finished\n", pdrv->index);
 	mutex_unlock(&lcd_power_mutex);
 	return 0;
 }
@@ -363,18 +363,18 @@ static int lcd_resume(void *data)
 	if ((pdrv->status & LCD_STATUS_VMODE_ACTIVE) == 0)
 		return 0;
 
-	if (pdrv->resume_flag)
+	if (pdrv->resume_flag & LCD_RESUME_ENABLE)
 		return 0;
 
 	if (pdrv->resume_type) {
-		lcd_queue_work(&pdrv->resume_work);
+		lcd_queue_work(&pdrv->late_resume_work);
 	} else {
 		mutex_lock(&lcd_power_mutex);
-		LCDPR("directly lcd late resume\n");
-		pdrv->resume_flag = 1;
-		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
+		LCDPR("[%d]: directly lcd late_resume\n", pdrv->index);
+		pdrv->resume_flag |= LCD_RESUME_ENABLE;
+		aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)pdrv);
 		lcd_if_enable_retry(pdrv);
-		LCDPR("%s finished\n", __func__);
+		LCDPR("[%d]: late_resume finished\n", pdrv->index);
 		mutex_unlock(&lcd_power_mutex);
 	}
 

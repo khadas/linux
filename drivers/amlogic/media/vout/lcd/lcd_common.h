@@ -21,7 +21,8 @@
 /* 20210514: add extern driver support*/
 /* 20210518: update t7 & t3 lvds lane setting*/
 /* 20210616: fix t3 clk ss mistake*/
-#define LCD_DRV_VERSION    "20210616"
+/* 20210621: separate resume(PREPARE) and late_resume(ENABLE)*/
+#define LCD_DRV_VERSION    "20210621"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;

@@ -533,6 +533,9 @@ struct lcd_reg_map_s {
 	char flag;
 };
 
+#define LCD_RESUME_PREPARE       BIT(0)
+#define LCD_RESUME_ENABLE        BIT(1)
+
 #define LCD_STATUS_IF_ON         BIT(0)
 #define LCD_STATUS_ENCL_ON       BIT(1)
 #define LCD_STATUS_VMODE_ACTIVE  BIT(2)
@@ -552,7 +555,7 @@ struct aml_lcd_drv_s {
 	unsigned char clk_path; /* 0=hpll, 1=gp0_pll */
 	unsigned char config_load;
 	unsigned char resume_type; /* 0=directly, 1=workqueue */
-	unsigned char resume_flag; /* 0=off, 1=on */
+	unsigned char resume_flag;
 	unsigned char init_flag; /* 0=none, 1=power on request */
 	unsigned char auto_test;
 	unsigned char test_state;
@@ -607,7 +610,7 @@ struct aml_lcd_drv_s {
 	struct work_struct config_probe_work;
 	struct work_struct tcon_config_work;
 	struct work_struct test_check_work;
-	struct work_struct resume_work;
+	struct work_struct late_resume_work;
 	struct work_struct vx1_reset_work;
 	struct delayed_work test_delayed_work;
 	struct resource *res_vsync_irq[3];
