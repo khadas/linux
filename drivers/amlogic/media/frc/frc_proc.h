@@ -26,7 +26,6 @@ void frc_scene_detect_output(struct frc_fw_data_s *fw_data);
 
 void frc_change_to_state(enum frc_state_e state);
 void frc_state_change_finish(struct frc_dev_s *devp);
-
 void frc_state_handle(struct frc_dev_s *devp);
 void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					struct vpp_frame_par_s *cur_video_sts);
@@ -34,6 +33,7 @@ void frc_dump_monitor_data(struct frc_dev_s *devp);
 void frc_vf_monitor(struct frc_dev_s *devp);
 void frc_test_mm_secure_set_off(struct frc_dev_s *devp);
 void frc_test_mm_secure_set_on(struct frc_dev_s *devp, u32 start, u32 size);
+int frc_memc_set_level(u8 level);
 
 u32 get_video_enabled(void);
 

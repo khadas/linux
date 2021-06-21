@@ -162,6 +162,7 @@ ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf)
 	len += sprintf(buf + len, "me_lossy 0/1 \t: 0:off 1:on\n");
 	len += sprintf(buf + len, "powerdown : power down memc\n");
 	len += sprintf(buf + len, "poweron : power on memc\n");
+	len += sprintf(buf + len, "memc_level : memc_dejudder\n");
 
 	return len;
 }
@@ -392,6 +393,11 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 		frc_power_domain_ctrl(devp, 0);
 	} else if (!strcmp(parm[0], "poweron")) {
 		frc_power_domain_ctrl(devp, 1);
+	} else if (!strcmp(parm[0], "memc_level")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_memc_set_level((u8)val1);
 	}
 exit:
 	kfree(buf_orig);
@@ -538,6 +544,33 @@ ssize_t frc_vp_ctrl_param_store(struct class *class,
 	kfree(buf_orig);
 	return count;
 
+}
+
+ssize_t frc_logo_ctrl_param_show(struct class *class,
+	struct class_attribute *attr,
+	char *buf)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
+	ssize_t len = 0;
+
+	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_LOGO_CTRL, buf);
+	return len;
+}
+
+ssize_t frc_logo_ctrl_param_store(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	char *buf_orig;
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_LOGO_CTRL, buf_orig, count);
+	kfree(buf_orig);
+	return count;
 }
 
 ssize_t frc_iplogo_ctrl_param_show(struct class *class,

@@ -156,6 +156,7 @@ static struct class_attribute frc_class_attrs[] = {
 	__ATTR(final_line_param, 0644, frc_bbd_final_line_param_show,
 		frc_bbd_final_line_param_store),
 	__ATTR(vp_ctrl_param, 0644, frc_vp_ctrl_param_show, frc_vp_ctrl_param_store),
+	__ATTR(logo_ctrl_param, 0644, frc_logo_ctrl_param_show, frc_logo_ctrl_param_store),
 	__ATTR(iplogo_ctrl_param, 0644, frc_iplogo_ctrl_param_show, frc_iplogo_ctrl_param_store),
 	__ATTR(melogo_ctrl_param, 0644, frc_melogo_ctrl_param_show, frc_melogo_ctrl_param_store),
 	__ATTR(sence_chg_detect_param, 0644, frc_sence_chg_detect_param_show,
@@ -787,6 +788,15 @@ static int frc_remove(struct platform_device *pdev)
 
 	PR_FRC("%s:module remove\n", __func__);
 	frc_devp = platform_get_drvdata(pdev);
+	tasklet_kill(&frc_devp->input_tasklet);
+	tasklet_kill(&frc_devp->output_tasklet);
+	tasklet_disable(&frc_devp->input_tasklet);
+	tasklet_disable(&frc_devp->output_tasklet);
+	if (frc_devp->in_irq > 0)
+		free_irq(frc_devp->in_irq, (void *)frc_devp);
+	if (frc_devp->out_irq > 0)
+		free_irq(frc_devp->out_irq, (void *)frc_devp);
+
 	device_destroy(frc_devp->clsp, frc_devp->devno);
 	cdev_del(&frc_devp->cdev);
 	class_destroy(frc_devp->clsp);
@@ -795,11 +805,12 @@ static int frc_remove(struct platform_device *pdev)
 	set_frc_clk_disable();
 	//if (frc_devp->dbg_buf)
 	//	kfree(frc_devp->dbg_buf);
+	frc_buf_release(frc_devp);
 	kfree(frc_dev->data);
 	frc_dev->data = NULL;
 	kfree(frc_dev);
 	frc_dev = NULL;
-	frc_buf_release(frc_devp);
+
 
 	return 0;
 }
@@ -810,6 +821,15 @@ static void frc_shutdown(struct platform_device *pdev)
 
 	PR_FRC("%s:module shutdown\n", __func__);
 	frc_devp = platform_get_drvdata(pdev);
+	tasklet_kill(&frc_devp->input_tasklet);
+	tasklet_kill(&frc_devp->output_tasklet);
+	tasklet_disable(&frc_devp->input_tasklet);
+	tasklet_disable(&frc_devp->output_tasklet);
+	if (frc_devp->in_irq > 0)
+		free_irq(frc_devp->in_irq, (void *)frc_devp);
+	if (frc_devp->out_irq > 0)
+		free_irq(frc_devp->out_irq, (void *)frc_devp);
+
 	device_destroy(frc_devp->clsp, frc_devp->devno);
 	cdev_del(&frc_devp->cdev);
 	class_destroy(frc_devp->clsp);
@@ -818,10 +838,12 @@ static void frc_shutdown(struct platform_device *pdev)
 	set_frc_clk_disable();
 	//if (frc_devp->dbg_buf)
 	//	kfree(frc_devp->dbg_buf);
+	frc_buf_release(frc_devp);
 	kfree(frc_dev->data);
 	frc_dev->data = NULL;
 	kfree(frc_dev);
 	frc_dev = NULL;
+	PR_FRC("%s:module shutdown done\n", __func__);
 }
 
 #if CONFIG_PM

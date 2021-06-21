@@ -95,15 +95,16 @@ enum efrc_memc_level {
 enum efrc_memc_dbg_type {
 	MEMC_DBG_BBD_FINAL_LINE   = 0x01,
 	MEMC_DBG_VP_CTRL          = 0x02,
-	MEMC_DBG_IPLOGO_CTRL      = 0x03,
-	MEMC_DBG_MELOGO_CTRL      = 0x04,
-	MEMC_DBG_SENCE_CHG_DETECT = 0x05,
-	MEMC_DBG_FB_CTRL          = 0x06,
-	MEMC_DBG_ME_CTRL          = 0x07,
-	MEMC_DBG_SEARCH_RANG      = 0x08,
-	MEMC_DBG_PIXEL_LPF        = 0x09,
-	MEMC_DBG_ME_RULE          = 0x0A,
-	MEMC_DBG_FILM_CTRL        = 0X0B,
+	MEMC_DBG_LOGO_CTRL        = 0x03,
+	MEMC_DBG_IPLOGO_CTRL      = 0x04,
+	MEMC_DBG_MELOGO_CTRL      = 0x05,
+	MEMC_DBG_SENCE_CHG_DETECT = 0x06,
+	MEMC_DBG_FB_CTRL          = 0x07,
+	MEMC_DBG_ME_CTRL          = 0x08,
+	MEMC_DBG_SEARCH_RANG      = 0x09,
+	MEMC_DBG_PIXEL_LPF        = 0x0A,
+	MEMC_DBG_ME_RULE          = 0x0B,
+	MEMC_DBG_FILM_CTRL        = 0X0C,
 };
 
 //-----------------------------------------------------------frc top cfg

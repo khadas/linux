@@ -695,8 +695,8 @@ int frc_memc_set_level(u8 level)
 		return 0;
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	pfw_data->frc_top_type.frc_memc_level = level;
-	// if (pfw_data->frc_memc_level)
-	//	pfw_data->frc_memc_level(pfw_data);
+	if (pfw_data->frc_memc_level)
+		pfw_data->frc_memc_level(pfw_data);
 	return 1;
 }
 

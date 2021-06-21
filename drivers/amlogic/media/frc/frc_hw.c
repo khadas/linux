@@ -336,6 +336,8 @@ void me_undown_read(struct frc_dev_s *frc_devp)
 {
 	u32 val, me_ud_flag;
 
+	if (!frc_devp)
+		return;
 	if (frc_devp->ud_dbg.meud_dbg_en) {
 		val = READ_FRC_REG(FRC_INP_UE_DBG);
 		me_ud_flag = val & 0x3e;
@@ -350,6 +352,8 @@ void mc_undown_read(struct frc_dev_s *frc_devp)
 {
 	u32 val, mc_ud_flag;
 
+	if (!frc_devp)
+		return;
 	if (frc_devp->ud_dbg.mcud_dbg_en) {
 		val = READ_FRC_REG(FRC_MC_DBG_MC_WRAP);
 		mc_ud_flag = (val >> 24) & 0x1;
