@@ -42,6 +42,7 @@ MODULE_PARM_DESC(pr_cabc_aad, "\n pr_cabc_aad\n");
 static int cabc_aad_en;
 static int status_flag;
 static int pre_cabc_en;
+static int debug_cabc_aad;
 
 static int lut_Y_gain[17] = {
 	0, 256, 512, 768, 1024, 1280, 1536, 1792, 2048, 2304,
@@ -237,7 +238,7 @@ static struct aad_debug_param_s aad_dbg_parm = {
 	.cur_frm_gain = 0,
 };
 
-static char aad_ver[32] = "aad_v1_20201016";
+static char aad_ver[32] = "aad_v1_20210621";
 int cur_o_gain[3] = {4096, 4096, 4096};
 static u32 pre_backlight;
 struct aad_fw_param_s fw_aad_parm = {
@@ -251,7 +252,7 @@ struct aad_fw_param_s fw_aad_parm = {
 	.aad_alg = NULL,
 };
 
-static char cabc_ver[32] = "cabc_v1_20210514";
+static char cabc_ver[32] = "cabc_v1_20210621";
 struct cabc_fw_param_s fw_cabc_parm = {
 	.fw_cabc_en = 1,
 	.fw_cabc_status = 0,
@@ -415,6 +416,126 @@ void aml_cabc_alg_bypass(struct work_struct *work)
 	}
 }
 
+void cabc_aad_d_convert_str(int num, char cur_s[], int bit_chose)
+{
+	char buf[9] = {0};
+	int i, count, cur_s_len;
+
+	if (bit_chose == 10)
+		snprintf(buf, sizeof(buf), "%d", num);
+	else if (bit_chose == 16)
+		snprintf(buf, sizeof(buf), "%x", num);
+
+	count = strlen(buf);
+	cur_s_len = strlen(cur_s);
+
+	buf[count] = ' ';
+
+	for (i = 0; i < count + 1; i++)
+		cur_s[i + cur_s_len] = buf[i];
+}
+
+ssize_t debug_cabc_alg_state(char *buf)
+{
+	int i = 0;
+	ssize_t len = 0;
+	struct cabc_fw_param_s *fw_cabc_param = cabc_fw_param_get();
+
+	if (debug_cabc_aad == 0x30) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->fw_cabc_en);
+	} else if (debug_cabc_aad == 0x31) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_hist_mode);
+	} else if (debug_cabc_aad == 0x32) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_tf_en);
+	} else if (debug_cabc_aad == 0x33) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_sc_flag);
+	} else if (debug_cabc_aad == 0x34) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_bl_map_mode);
+	} else if (debug_cabc_aad == 0x35) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_bl_map_en);
+	} else if (debug_cabc_aad == 0x36) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_temp_proc);
+	} else if (debug_cabc_aad == 0x37) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_max95_ratio);
+	} else if (debug_cabc_aad == 0x38) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_hist_blend_alpha);
+	} else if (debug_cabc_aad == 0x39) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_init_bl_min);
+	} else if (debug_cabc_aad == 0x3A) {
+		return sprintf(buf, "for_tool:%d\n",
+					fw_cabc_param->cabc_param->cabc_init_bl_max);
+	} else if (debug_cabc_aad == 0x3B) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_tf_alpha);
+	} else if (debug_cabc_aad == 0x3C) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_sc_hist_diff_thd);
+	} else if (debug_cabc_aad == 0x3D) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_sc_apl_diff_thd);
+	} else if (debug_cabc_aad == 0x3E) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_patch_bl_th);
+	} else if (debug_cabc_aad == 0x3F) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_patch_on_alpha);
+	} else if (debug_cabc_aad == 0x40) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_patch_bl_off_th);
+	} else if (debug_cabc_aad == 0x41) {
+		return sprintf(buf, "for_tool:%d\n",
+			fw_cabc_param->cabc_param->cabc_patch_off_alpha);
+	} else if (debug_cabc_aad == 0x42) {
+		char *stemp = NULL;
+
+		stemp = kmalloc(100, GFP_KERNEL);
+		if (!stemp)
+			return 0;
+		memset(stemp, 0, 100);
+
+		for (i = 0; i < 13; i++) {
+			pr_info("o_bl_cv[%d] = %d\n", i, fw_cabc_param->cabc_param->o_bl_cv[i]);
+			cabc_aad_d_convert_str(fw_cabc_param->cabc_param->o_bl_cv[i],
+				stemp, 10);
+		}
+
+		len = sprintf(buf, "for_tool:%s\n", stemp);
+		kfree(stemp);
+
+		return len;
+	} else if (debug_cabc_aad == 0x43) {
+		char *stemp = NULL;
+
+		stemp = kmalloc(100, GFP_KERNEL);
+		if (!stemp)
+			return 0;
+		memset(stemp, 0, 100);
+
+		for (i = 0; i < 13; i++) {
+			pr_info("maxbin_bl_cv[%d] = %d\n",
+				i, fw_cabc_param->cabc_param->maxbin_bl_cv[i]);
+			cabc_aad_d_convert_str(fw_cabc_param->cabc_param->maxbin_bl_cv[i],
+				stemp, 10);
+		}
+		len = sprintf(buf, "for_tool:%s\n", stemp);
+		kfree(stemp);
+
+		return len;
+	}
+
+	return 0;
+}
+
 int cabc_alg_state(void)
 {
 	int i;
@@ -495,6 +616,422 @@ int cabc_alg_state(void)
 	return 0;
 }
 
+void db_cabc_param_set(struct db_cabc_param_s *db_cabc_param_data)
+{
+	unsigned int i = 0;
+	void __user *argp;
+	unsigned int mem_size;
+
+	int db_o_bl_cv[13] = {0};
+	int db_maxbin_bl_cv[13] = {0};
+
+	if (!db_cabc_param_data) {
+		pr_info("db_cabc_param_data is NULL\n");
+		return;
+	}
+
+	/*db_o_bl_cv data receive*/
+	{
+		argp = (void __user *)db_cabc_param_data->db_o_bl_cv.cabc_aad_param_ptr;
+		mem_size = sizeof(int) * db_cabc_param_data->db_o_bl_cv.length;
+		pr_info("aad argp = %p	db_o_bl_cv.length=%d mem_size=%d\n",
+			argp, db_cabc_param_data->db_o_bl_cv.length, mem_size);
+		if (db_cabc_param_data->db_o_bl_cv.length > mem_size) {
+			db_cabc_param_data->db_o_bl_cv.length = mem_size;
+			pr_info("db_o_bl_cv system control length > kernel length\n");
+		}
+		if (copy_from_user(db_o_bl_cv,
+				   argp,
+				   mem_size))
+			pr_info("db_o_bl_cv control db_cabc_aad_param_s fail\n");
+		else
+			pr_info("db_o_bl_cv control db_cabc_aad_param_s success\n");
+	}
+	/*db_maxbin_bl_cv data receive*/
+	{
+		argp = (void __user *)db_cabc_param_data->db_maxbin_bl_cv.cabc_aad_param_ptr;
+		mem_size = sizeof(int) * db_cabc_param_data->db_maxbin_bl_cv.length;
+		if (db_cabc_param_data->db_maxbin_bl_cv.length > mem_size) {
+			db_cabc_param_data->db_maxbin_bl_cv.length = mem_size;
+			pr_info("db_maxbin_bl_cv system control length > kernel length\n");
+		}
+		if (copy_from_user(db_maxbin_bl_cv,
+				   argp,
+				   mem_size))
+			pr_info("db_maxbin_bl_cv control db_cabc_aad_param_s fail\n");
+		else
+			pr_info("db_maxbin_bl_cv control db_cabc_aad_param_s success\n");
+	}
+
+	if (pr_cabc_aad & CABC_DEBUG) {
+		pr_info("data from user cabc_param_cabc_en = %d\n",
+			db_cabc_param_data->cabc_param_cabc_en);
+		pr_info("data from user cabc_param_hist_mode = %d\n",
+			db_cabc_param_data->cabc_param_hist_mode);
+		pr_info("data from user cabc_param_tf_en = %d\n",
+			db_cabc_param_data->cabc_param_tf_en);
+		pr_info("data from user cabc_param_sc_flag = %d\n",
+			db_cabc_param_data->cabc_param_sc_flag);
+		pr_info("data from user cabc_param_bl_map_mode = %d\n",
+			db_cabc_param_data->cabc_param_bl_map_mode);
+		pr_info("data from user cabc_param_bl_map_en = %d\n",
+			db_cabc_param_data->cabc_param_bl_map_en);
+		pr_info("data from user cabc_param_temp_proc = %d\n",
+			db_cabc_param_data->cabc_param_temp_proc);
+		pr_info("data from user cabc_param_max95_ratio = %d\n",
+			db_cabc_param_data->cabc_param_max95_ratio);
+		pr_info("data from user cabc_param_hist_blend_alpha = %d\n",
+			db_cabc_param_data->cabc_param_hist_blend_alpha);
+		pr_info("data from user cabc_param_init_bl_min = %d\n",
+			db_cabc_param_data->cabc_param_init_bl_min);
+		pr_info("data from user cabc_param_init_bl_max = %d\n",
+			db_cabc_param_data->cabc_param_init_bl_max);
+		pr_info("data from user cabc_param_tf_alpha = %d\n",
+			db_cabc_param_data->cabc_param_tf_alpha);
+
+		pr_info("data from user cabc_param_sc_hist_diff_thd = %d\n",
+			db_cabc_param_data->cabc_param_sc_hist_diff_thd);
+		pr_info("data from user cabc_param_sc_apl_diff_thd = %d\n",
+			db_cabc_param_data->cabc_param_sc_apl_diff_thd);
+		pr_info("data from user cabc_param_patch_bl_th = %d\n",
+			db_cabc_param_data->cabc_param_patch_bl_th);
+		pr_info("data from user cabc_param_patch_on_alpha = %d\n",
+			db_cabc_param_data->cabc_param_patch_on_alpha);
+		pr_info("data from user cabc_param_patch_bl_off_th = %d\n",
+			db_cabc_param_data->cabc_param_patch_bl_off_th);
+		pr_info("data from user cabc_param_patch_off_alpha = %d\n",
+			db_cabc_param_data->cabc_param_patch_off_alpha);
+
+		for (i = 0; i < db_cabc_param_data->db_o_bl_cv.length; i++)
+			pr_info("data from user db_o_bl_cv[%d] = %d\n",
+				i, db_o_bl_cv[i]);
+		for (i = 0; i < db_cabc_param_data->db_maxbin_bl_cv.length; i++)
+			pr_info("data from user db_o_bl_cv[%d] = %d\n",
+				i, db_maxbin_bl_cv[i]);
+	}
+
+	fw_cabc_parm.fw_cabc_en = db_cabc_param_data->cabc_param_cabc_en;
+	fw_cabc_parm.cabc_param->cabc_hist_mode =
+		db_cabc_param_data->cabc_param_hist_mode;
+	fw_cabc_parm.cabc_param->cabc_tf_en =
+		db_cabc_param_data->cabc_param_tf_en;
+	fw_cabc_parm.cabc_param->cabc_sc_flag =
+		db_cabc_param_data->cabc_param_sc_flag;
+	fw_cabc_parm.cabc_param->cabc_bl_map_mode =
+		db_cabc_param_data->cabc_param_bl_map_mode;
+	fw_cabc_parm.cabc_param->cabc_bl_map_en =
+		db_cabc_param_data->cabc_param_bl_map_en;
+	fw_cabc_parm.cabc_param->cabc_temp_proc =
+		db_cabc_param_data->cabc_param_temp_proc;
+	fw_cabc_parm.cabc_param->cabc_max95_ratio =
+		db_cabc_param_data->cabc_param_max95_ratio;
+	fw_cabc_parm.cabc_param->cabc_hist_blend_alpha =
+		db_cabc_param_data->cabc_param_hist_blend_alpha;
+	fw_cabc_parm.cabc_param->cabc_init_bl_min =
+		db_cabc_param_data->cabc_param_init_bl_min;
+	fw_cabc_parm.cabc_param->cabc_init_bl_max =
+		db_cabc_param_data->cabc_param_init_bl_max;
+	fw_cabc_parm.cabc_param->cabc_tf_alpha =
+		db_cabc_param_data->cabc_param_tf_alpha;
+	fw_cabc_parm.cabc_param->cabc_sc_hist_diff_thd =
+		db_cabc_param_data->cabc_param_sc_hist_diff_thd;
+	fw_cabc_parm.cabc_param->cabc_sc_apl_diff_thd =
+		db_cabc_param_data->cabc_param_sc_apl_diff_thd;
+	fw_cabc_parm.cabc_param->cabc_patch_bl_th =
+		db_cabc_param_data->cabc_param_patch_bl_th;
+	fw_cabc_parm.cabc_param->cabc_patch_on_alpha =
+		db_cabc_param_data->cabc_param_patch_on_alpha;
+	fw_cabc_parm.cabc_param->cabc_patch_bl_off_th =
+		db_cabc_param_data->cabc_param_patch_bl_off_th;
+	fw_cabc_parm.cabc_param->cabc_patch_off_alpha =
+		db_cabc_param_data->cabc_param_patch_off_alpha;
+
+	memcpy(fw_cabc_parm.cabc_param->o_bl_cv, db_o_bl_cv, sizeof(db_o_bl_cv));
+	memcpy(fw_cabc_parm.cabc_param->maxbin_bl_cv, db_maxbin_bl_cv, sizeof(db_maxbin_bl_cv));
+}
+
+void db_aad_param_set(struct db_aad_param_s *db_aad_param_data)
+{
+	unsigned int i = 0, j = 0;
+	void __user *argp;
+	unsigned int mem_size;
+	int LUT_Y_gain_cur[17]	= {0};
+	int LUT_RG_gain_cur[17] = {0};
+	int LUT_BG_gain_cur[17] = {0};
+	int gain_lut_cur[48]	= {0};
+	int xy_lut_cur[32]		= {0};
+
+	if (!db_aad_param_data) {
+		pr_info("db_aad_param_data is NULL\n");
+		return;
+	}
+
+	/*db_LUT_Y_gain data receive*/
+	{
+		argp = (void __user *)db_aad_param_data->db_LUT_Y_gain.cabc_aad_param_ptr;
+		mem_size = sizeof(int) * db_aad_param_data->db_LUT_Y_gain.length;
+		if (db_aad_param_data->db_LUT_Y_gain.length > mem_size) {
+			db_aad_param_data->db_LUT_Y_gain.length = mem_size;
+			pr_info("db_LUT_Y_gain system control length > kernel length\n");
+		}
+		if (copy_from_user(LUT_Y_gain_cur,
+				   argp,
+				   mem_size))
+			pr_info("db_LUT_RG_gain control db_cabc_aad_param_s fail\n");
+		else
+			pr_info("db_LUT_RG_gain control db_cabc_aad_param_s success\n");
+	}
+	/*db_LUT_RG_gain data receive*/
+	{
+		argp = (void __user *)db_aad_param_data->db_LUT_RG_gain.cabc_aad_param_ptr;
+		mem_size = sizeof(int) * db_aad_param_data->db_LUT_RG_gain.length;
+		if (db_aad_param_data->db_LUT_RG_gain.length > mem_size) {
+			db_aad_param_data->db_LUT_RG_gain.length = mem_size;
+			pr_info("db_LUT_RG_gain system control length > kernel length\n");
+		}
+		if (copy_from_user(LUT_RG_gain_cur,
+				   argp,
+				   mem_size))
+			pr_info("db_LUT_RG_gain control db_cabc_aad_param_s fail\n");
+		else
+			pr_info("db_LUT_RG_gain control db_cabc_aad_param_s success\n");
+	}
+	/*db_LUT_BG_gain data receive*/
+	{
+		argp = (void __user *)db_aad_param_data->db_LUT_BG_gain.cabc_aad_param_ptr;
+		mem_size = sizeof(int) * db_aad_param_data->db_LUT_BG_gain.length;
+		if (db_aad_param_data->db_LUT_BG_gain.length > mem_size) {
+			db_aad_param_data->db_LUT_BG_gain.length = mem_size;
+			pr_info("db_LUT_RG_gain system control length > kernel length\n");
+		}
+		if (copy_from_user(LUT_BG_gain_cur,
+				   argp,
+				   mem_size))
+			pr_info("db_LUT_RG_gain control db_cabc_aad_param_s fail\n");
+		else
+			pr_info("db_LUT_BG_gain control db_cabc_aad_param_s success\n");
+	}
+	/*db_gain_lut data receive*/
+	{
+		argp = (void __user *)db_aad_param_data->db_gain_lut.cabc_aad_param_ptr;
+		mem_size = sizeof(int) * db_aad_param_data->db_gain_lut.length;
+		if (db_aad_param_data->db_gain_lut.length > mem_size) {
+			db_aad_param_data->db_gain_lut.length = mem_size;
+			pr_info("db_gain_lut system control length > kernel length\n");
+		}
+		if (copy_from_user(gain_lut_cur,
+				   argp,
+				   mem_size))
+			pr_info("db_gain_lut control db_cabc_aad_param_s fail\n");
+		else
+			pr_info("db_gain_lut control db_cabc_aad_param_s success\n");
+	}
+	/*db_xy_lut data receive*/
+	{
+		argp = (void __user *)db_aad_param_data->db_xy_lut.cabc_aad_param_ptr;
+		mem_size = sizeof(int) * db_aad_param_data->db_xy_lut.length;
+		if (db_aad_param_data->db_xy_lut.length > mem_size) {
+			db_aad_param_data->db_xy_lut.length = mem_size;
+			pr_info("db_xy_lut system control length > kernel length\n");
+		}
+		if (copy_from_user(xy_lut_cur,
+				   argp,
+				   mem_size))
+			pr_info("db_xy_lut control db_cabc_aad_param_s fail\n");
+		else
+			pr_info("db_xy_lut control db_cabc_aad_param_s success\n");
+	}
+
+	if (pr_cabc_aad & AAD_DEBUG) {
+		pr_info("data from user aad_param_cabc_aad_en = %d\n",
+		db_aad_param_data->aad_param_cabc_aad_en);
+		pr_info("data from user aad_param_aad_en = %d\n",
+			db_aad_param_data->aad_param_aad_en);
+		pr_info("data from user aad_param_tf_en = %d\n",
+			db_aad_param_data->aad_param_tf_en);
+		pr_info("data from user aad_param_force_gain_en = %d\n",
+			db_aad_param_data->aad_param_force_gain_en);
+		pr_info("data from user aad_param_sensor_mode = %d\n",
+			db_aad_param_data->aad_param_sensor_mode);
+		pr_info("data from user aad_param_mode = %d\n",
+			db_aad_param_data->aad_param_mode);
+		pr_info("data from user aad_param_dist_mode = %d\n",
+			db_aad_param_data->aad_param_dist_mode);
+		pr_info("data from user aad_param_tf_alpha = %d\n",
+			db_aad_param_data->aad_param_tf_alpha);
+		for (i = 0; i < 3; i++)
+			pr_info("data from user aad_param_sensor_input[%d] = %d\n",
+			i, db_aad_param_data->aad_param_sensor_input[i]);
+		for (i = 0; i < db_aad_param_data->db_LUT_Y_gain.length; i++)
+			pr_info("data from user db_LUT_Y_gain[%d] = %d\n",
+				i, LUT_Y_gain_cur[i]);
+		for (i = 0; i < db_aad_param_data->db_LUT_RG_gain.length; i++)
+			pr_info("data from user db_LUT_Y_gain[%d] = %d\n",
+				i, LUT_RG_gain_cur[i]);
+		for (i = 0; i < db_aad_param_data->db_LUT_BG_gain.length; i++)
+			pr_info("data from user db_LUT_Y_gain[%d] = %d\n",
+				i, LUT_BG_gain_cur[i]);
+		for (i = 0; i < db_aad_param_data->db_gain_lut.length; i++)
+			pr_info("data from user db_LUT_Y_gain[%d] = %d\n",
+				i, gain_lut_cur[i]);
+		for (i = 0; i < db_aad_param_data->db_xy_lut.length; i++)
+			pr_info("data from user db_LUT_Y_gain[%d] = %d\n",
+				i, xy_lut_cur[i]);
+	}
+
+	cabc_aad_en = db_aad_param_data->aad_param_cabc_aad_en;
+	fw_aad_parm.fw_aad_en = db_aad_param_data->aad_param_aad_en;
+	fw_aad_parm.aad_param->aad_tf_en = db_aad_param_data->aad_param_tf_en;
+	fw_aad_parm.aad_param->aad_force_gain_en = db_aad_param_data->aad_param_force_gain_en;
+	fw_aad_parm.aad_param->aad_sensor_mode = db_aad_param_data->aad_param_sensor_mode;
+	fw_aad_parm.aad_param->aad_mode = db_aad_param_data->aad_param_mode;
+	fw_aad_parm.aad_param->aad_dist_mode = db_aad_param_data->aad_param_dist_mode;
+	fw_aad_parm.aad_param->aad_tf_alpha = db_aad_param_data->aad_param_tf_alpha;
+
+	memcpy(fw_aad_parm.aad_param->sensor_input, db_aad_param_data->aad_param_sensor_input,
+		sizeof(db_aad_param_data->aad_param_sensor_input));
+	memcpy(fw_aad_parm.aad_param->aad_LUT_Y_gain, LUT_Y_gain_cur, sizeof(LUT_Y_gain_cur));
+	memcpy(fw_aad_parm.aad_param->aad_LUT_RG_gain, LUT_RG_gain_cur, sizeof(LUT_RG_gain_cur));
+	memcpy(fw_aad_parm.aad_param->aad_LUT_BG_gain, LUT_BG_gain_cur, sizeof(LUT_BG_gain_cur));
+
+	for (i = 0; i < 16; i++)
+		for (j = 0; j < 3; j++)
+			fw_aad_parm.aad_param->aad_gain_lut[i][j] =
+				gain_lut_cur[i * 3 + j];
+
+	for (i = 0; i < 16; i++)
+		for (j = 0; j < 2; j++)
+			fw_aad_parm.aad_param->aad_xy_lut[i][j] =
+				xy_lut_cur[i * 2 + j];
+}
+
+ssize_t debug_pre_gamma_alg_state(char *buf)
+{
+	return 0;
+}
+
+ssize_t debug_aad_alg_state(char *buf)
+{
+	int i, j;
+	int len = 0;
+	struct aad_fw_param_s *fw_aad_param = aad_fw_param_get();
+
+	if (debug_cabc_aad == 0x01) {
+		return sprintf(buf, "for_tool:%d\n", cabc_aad_en);
+	} else if (debug_cabc_aad == 0x02) {
+		return sprintf(buf, "for_tool:%d\n", fw_aad_param->fw_aad_en);
+	} else if (debug_cabc_aad == 0x03) {
+		return sprintf(buf, "for_tool:%d\n", fw_aad_param->aad_param->aad_tf_en);
+	} else if (debug_cabc_aad == 0x04) {
+		return sprintf(buf, "for_tool:%d\n", fw_aad_param->aad_param->aad_force_gain_en);
+	} else if (debug_cabc_aad == 0x05) {
+		return sprintf(buf, "for_tool:%d\n", fw_aad_param->aad_param->aad_sensor_mode);
+	} else if (debug_cabc_aad == 0x06) {
+		return sprintf(buf, "for_tool:%d\n", fw_aad_param->aad_param->aad_mode);
+	} else if (debug_cabc_aad == 0x07) {
+		return sprintf(buf, "for_tool:%d\n", fw_aad_param->aad_param->aad_dist_mode);
+	} else if (debug_cabc_aad == 0x08) {
+		return sprintf(buf, "for_tool:%d\n", fw_aad_param->aad_param->aad_tf_alpha);
+	} else if (debug_cabc_aad == 0x09) {
+		char *stemp = NULL;
+
+		stemp = kmalloc(100, GFP_KERNEL);
+		if (!stemp)
+			return 0;
+		memset(stemp, 0, 100);
+
+		for (i = 0; i < 3; i++)
+			cabc_aad_d_convert_str(fw_aad_param->aad_param->sensor_input[i],
+				stemp, 10);
+
+		len = sprintf(buf, "for_tool:%s\n", stemp);
+		kfree(stemp);
+
+		return len;
+	} else if (debug_cabc_aad == 0x0A) {
+		char *stemp = NULL;
+
+		stemp = kmalloc(100, GFP_KERNEL);
+		if (!stemp)
+			return 0;
+		memset(stemp, 0, 100);
+
+		for (i = 0; i < 17; i++)
+			cabc_aad_d_convert_str(fw_aad_param->aad_param->aad_LUT_Y_gain[i],
+				stemp, 10);
+
+		len = sprintf(buf, "for_tool:%s\n", stemp);
+		kfree(stemp);
+
+		return len;
+	} else if (debug_cabc_aad == 0x0B) {
+		char *stemp = NULL;
+
+		stemp = kmalloc(100, GFP_KERNEL);
+		if (!stemp)
+			return 0;
+		memset(stemp, 0, 100);
+		for (i = 0; i < 17; i++)
+			cabc_aad_d_convert_str(fw_aad_param->aad_param->aad_LUT_RG_gain[i],
+				stemp, 10);
+		len = sprintf(buf, "for_tool:%s\n", stemp);
+		kfree(stemp);
+
+		return len;
+	} else if (debug_cabc_aad == 0x0C) {
+		char *stemp = NULL;
+
+		stemp = kmalloc(100, GFP_KERNEL);
+		if (!stemp)
+			return 0;
+		memset(stemp, 0, 100);
+		for (i = 0; i < 17; i++)
+			cabc_aad_d_convert_str(fw_aad_param->aad_param->aad_LUT_BG_gain[i],
+				stemp, 10);
+		len = sprintf(buf, "for_tool:%s\n", stemp);
+		kfree(stemp);
+		return len;
+	} else if (debug_cabc_aad == 0x0D) {
+		int temp[48] = {0};
+		char *stemp = NULL;
+
+		stemp = kmalloc(300, GFP_KERNEL);
+		if (!stemp)
+			return 0;
+		memset(stemp, 0, 300);
+		for (i = 0; i < 16; i++) {
+			for (j = 0; j < 3; j++) {
+				temp[i * 3 + j] = fw_aad_param->aad_param->aad_gain_lut[i][j];
+				cabc_aad_d_convert_str(temp[i * 3 + j],
+					stemp, 10);
+			}
+		}
+		len = sprintf(buf, "for_tool:%s\n", stemp);
+		kfree(stemp);
+		return len;
+	} else if (debug_cabc_aad == 0x0E) {
+		int temp[32] = {0};
+		char *stemp = NULL;
+
+		stemp = kmalloc(300, GFP_KERNEL);
+		if (!stemp)
+			return 0;
+		memset(stemp, 0, 300);
+		for (i = 0; i < 16; i++) {
+			for (j = 0; j < 2; j++) {
+				temp[i * 2 + j] = fw_aad_param->aad_param->aad_xy_lut[i][j];
+				cabc_aad_d_convert_str(temp[i * 2 + j],
+					stemp, 10);
+			}
+		}
+		len = sprintf(buf, "for_tool:%s\n", stemp);
+		kfree(stemp);
+		return len;
+	}
+
+	return 0;
+}
+
 int aad_alg_state(void)
 {
 	int i;
@@ -504,7 +1041,6 @@ int aad_alg_state(void)
 	pr_info("fw_aad_en = %d\n", fw_aad_param->fw_aad_en);
 	pr_info("fw_aad_status = %d\n", fw_aad_param->fw_aad_status);
 	pr_info("fw_aad_ver = %s\n", fw_aad_param->fw_aad_ver);
-
 	pr_info("\n--------aadc alg parameters-------\n");
 	pr_info("aad_sensor_mode = %d\n", fw_aad_param->aad_param->aad_sensor_mode);
 	pr_info("aad_mode = %d\n", fw_aad_param->aad_param->aad_mode);
@@ -668,13 +1204,24 @@ int pre_gamma_alg_state(void)
 	return 0;
 }
 
-int cabc_aad_print(void)
+ssize_t cabc_aad_print(char *buf)
 {
-	cabc_alg_state();
-	aad_alg_state();
-	pre_gamma_alg_state();
+	ssize_t len = 0;
 
-	return 0;
+	if (debug_cabc_aad == 0x00) {
+		cabc_alg_state();
+		aad_alg_state();
+		pre_gamma_alg_state();
+	} else if (debug_cabc_aad >= 0x01 && debug_cabc_aad <= 0x1D) {
+		len = debug_aad_alg_state(buf);
+	} else if (debug_cabc_aad >= 0x30 && debug_cabc_aad <= 0x4F) {
+		len = debug_cabc_alg_state(buf);
+	} else if (debug_cabc_aad >= 0x50 && debug_cabc_aad <= 0x52) {
+		len = debug_pre_gamma_alg_state(buf);
+	}
+	debug_cabc_aad = 0;
+
+	return len;
 }
 
 static void str_sapr_conv(const char *s, unsigned int size, int *dest, int num)
@@ -689,7 +1236,8 @@ static void str_sapr_conv(const char *s, unsigned int size, int *dest, int num)
 		return;
 
 	s1 = kmalloc(size + 1, GFP_KERNEL);
-	len = sizeof(s);
+	//len = sizeof(s);
+	len = size * num;
 	end = s;
 
 	j = 0;
@@ -700,7 +1248,7 @@ static void str_sapr_conv(const char *s, unsigned int size, int *dest, int num)
 		if (kstrtoul(s1, 10, &value) < 0)
 			break;
 		*dest++ = value;
-		end = s + size;
+		end = end + size;
 		len -= size;
 		j++;
 		if (j >= num)
@@ -716,14 +1264,15 @@ int cabc_aad_debug(char **param)
 	struct cabc_fw_param_s *fw_cabc_param = cabc_fw_param_get();
 	struct pgm_param_s *fw_pregm_param = pregam_fw_param_get();
 	int lut[48] = {0};
-	int i;
+	int i, j;
 
 	if (!param)
 		return -1;
 
 	if (!strcmp(param[0], "enable")) {/*module en/disable*/
 		cabc_aad_en = 1;
-		pr_info("enable aad\n");
+		backlight_update_ctrl(cabc_aad_en);
+		pr_info("cabc_aad_en val:%d\n", cabc_aad_en);
 	} else if (!strcmp(param[0], "disable")) {
 		cabc_aad_en = 0;
 		pr_info("disable aad\n");
@@ -733,6 +1282,25 @@ int cabc_aad_debug(char **param)
 	} else if (!strcmp(param[0], "aad_disable")) {
 		fw_aad_param->fw_aad_en = 0;
 		pr_info("disable aad\n");
+	} else if (!strcmp(param[0], "cabc_aad_en")) {
+		if (!strcmp(param[1], "w")) {
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			cabc_aad_en = val;
+			backlight_update_ctrl(cabc_aad_en);
+			pr_info("cabc_aad_en val:%d\n", cabc_aad_en);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x01;
+		}
+	} else if (!strcmp(param[0], "aad_en")) {
+		if (!strcmp(param[1], "w")) {
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_aad_param->fw_aad_en = val;
+			pr_info("enable aad\n");
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x02;
+		}
 	} else if (!strcmp(param[0], "aad_status")) {
 		if (!strcmp(param[1], "enable"))
 			fw_aad_param->fw_aad_status = 1;
@@ -740,19 +1308,41 @@ int cabc_aad_debug(char **param)
 			fw_aad_param->fw_aad_status = 0;
 		pr_info("aad_status = %d\n", fw_aad_param->fw_aad_status);
 	} else if (!strcmp(param[0], "aad_sensor_mode")) {
-		if (!fw_aad_param->aad_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_aad_param->aad_param->aad_sensor_mode = val;
-		pr_info("aad_sensor_mode = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_aad_param->aad_param->aad_sensor_mode = val;
+			pr_info("aad_sensor_mode = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x05;
+		} else {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_aad_param->aad_param->aad_sensor_mode = val;
+			pr_info("aad_sensor_mode = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "aad_mode")) {
-		if (!fw_aad_param->aad_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_aad_param->aad_param->aad_mode = val;
-		pr_info("aad_mode = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_aad_param->aad_param->aad_mode = val;
+			pr_info("aad_mode = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x06;
+		} else {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_aad_param->aad_param->aad_mode = val;
+			pr_info("aad_mode = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "aad_LUT_Y_gain")) {
 		if (!fw_aad_param->aad_param)
 			goto error;
@@ -823,33 +1413,99 @@ int cabc_aad_debug(char **param)
 		fw_aad_param->aad_param->aad_BG_gain_max = val;
 		pr_info("aad_BG_gain_max = %d\n", (int)val);
 	} else if (!strcmp(param[0], "aad_tf_en")) {
-		if (!fw_aad_param->aad_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_aad_param->aad_param->aad_tf_en = val;
-		pr_info("aad_tf_en = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_aad_param->aad_param->aad_tf_en = val;
+			pr_info("aad_tf_en = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x03;
+		} else {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_aad_param->aad_param->aad_tf_en = val;
+			pr_info("aad_tf_en = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "aad_tf_alpha")) {
-		if (!fw_aad_param->aad_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_aad_param->aad_param->aad_tf_alpha = val;
-		pr_info("aad_tf_alpha = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_aad_param->aad_param->aad_tf_alpha = val;
+			pr_info("aad_tf_alpha = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x08;
+		} else {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_aad_param->aad_param->aad_tf_alpha = val;
+			pr_info("aad_tf_alpha = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "aad_dist_mode")) {
-		if (!fw_aad_param->aad_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_aad_param->aad_param->aad_dist_mode = val;
-		pr_info("aad_dist_mode = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_aad_param->aad_param->aad_dist_mode = val;
+			pr_info("aad_dist_mode = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x07;
+		} else {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_aad_param->aad_param->aad_dist_mode = val;
+			pr_info("aad_dist_mode = %d\n", (int)val);
+		}
+	} else if (!strcmp(param[0], "sensor_rgb")) {
+		if (!strcmp(param[1], "w")) {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (!param[1])
+				goto error;
+			str_sapr_conv(param[2], 5,
+				fw_aad_param->aad_param->sensor_input,
+				3);
+			pr_info("set sensor_rgb\n");
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x09;
+		} else {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (!param[1])
+				goto error;
+			str_sapr_conv(param[1], 5,
+				fw_aad_param->aad_param->sensor_input,
+				3);
+			pr_info("set sensor_rgb\n");
+		}
 	} else if (!strcmp(param[0], "aad_force_gain_en")) {
-		if (!fw_aad_param->aad_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_aad_param->aad_param->aad_force_gain_en = val;
-		pr_info("aad_force_gain_en = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_aad_param->aad_param->aad_force_gain_en = val;
+			pr_info("aad_force_gain_en = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x04;
+		} else {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_aad_param->aad_param->aad_force_gain_en = val;
+			pr_info("aad_force_gain_en = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "aad_rgb_gain")) {
 		if (!fw_aad_param->aad_param)
 			goto error;
@@ -965,6 +1621,82 @@ int cabc_aad_debug(char **param)
 			goto error;
 		fw_aad_param->aad_debug_mode = val;
 		pr_info("aad_debug_mode = %d\n", (int)val);
+	} else if (!strcmp(param[0], "lut_Y_gain_w_val_str")) {
+		if (!strcmp(param[1], "w") || !param[1]) {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (!param[1])
+				goto error;
+			str_sapr_conv(param[2], 5,
+				fw_aad_param->aad_param->aad_LUT_Y_gain,
+				17);
+			pr_info("set lut_Y_gain_wr_val_str\n");
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x0A;
+		}
+	} else if (!strcmp(param[0], "lut_RG_gain_w_val_str")) {
+		if (!strcmp(param[1], "w")) {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (!param[2])
+				goto error;
+			str_sapr_conv(param[2], 5,
+				fw_aad_param->aad_param->aad_LUT_RG_gain,
+				17);
+			pr_info("set lut_RG_gain_w_val_str\n");
+		}  else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x0B;
+		}
+	} else if (!strcmp(param[0], "lut_BG_gain_w_val_str")) {
+		if (!strcmp(param[1], "w")) {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (!param[2])
+				goto error;
+			str_sapr_conv(param[2], 5,
+				fw_aad_param->aad_param->aad_LUT_BG_gain,
+				17);
+			pr_info("set lut_BG_gain_w_val_str\n");
+		}  else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x0C;
+		}
+	} else if (!strcmp(param[0], "gain_lut_w_val_str")) {
+		int temp[48] = {0};
+
+		if (!strcmp(param[1], "w")) {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (!param[2])
+				goto error;
+			str_sapr_conv(param[2], 5,
+				temp,
+				48);
+			for (i = 0; i < 16; i++)
+				for (j = 0; j < 3; j++) {
+					fw_aad_param->aad_param->aad_gain_lut[i][j] =
+						temp[i * 3 + j];
+				}
+		}  else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x0D;
+		}
+	} else if (!strcmp(param[0], "xy_lut_w_val_str")) {
+		int temp[32] = {0};
+
+		if (!strcmp(param[1], "w")) {
+			if (!fw_aad_param->aad_param)
+				goto error;
+			if (!param[2])
+				goto error;
+			str_sapr_conv(param[2], 5,
+				temp,
+				32);
+			for (i = 0; i < 16; i++) {
+				for (j = 0; j < 2; j++)
+					fw_aad_param->aad_param->aad_xy_lut[i][j] = temp[i * 2 + j];
+			}
+		}  else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x0E;
+		}
 	} else if (!strcmp(param[0], "fw_cabc_en")) {/*debug cabc*/
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;
@@ -977,98 +1709,239 @@ int cabc_aad_debug(char **param)
 			fw_cabc_param->fw_cabc_status = 0;
 		pr_info("cabc_status = %d\n", fw_cabc_param->fw_cabc_status);
 	} else if (!strcmp(param[0], "cabc_max95_ratio")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_max95_ratio = val;
-		pr_info("cabc_max95_ratio = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_max95_ratio = val;
+			pr_info("cabc_max95_ratio = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x37;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_max95_ratio = val;
+			pr_info("cabc_max95_ratio = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_hist_mode")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_hist_mode = val;
-		pr_info("cabc_hist_mode = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_hist_mode = val;
+			pr_info("cabc_hist_mode = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x31;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_hist_mode = val;
+			pr_info("cabc_hist_mode = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_hist_blend_alpha")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_hist_blend_alpha = val;
-		pr_info("cabc_hist_blend_alpha = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_hist_blend_alpha = val;
+			pr_info("cabc_hist_blend_alpha = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x38;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_hist_blend_alpha = val;
+			pr_info("cabc_hist_blend_alpha = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_init_bl_min")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_init_bl_min = val;
-		pr_info("cabc_init_bl_min = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_init_bl_min = val;
+			pr_info("cabc_init_bl_min = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x39;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_init_bl_min = val;
+			pr_info("cabc_init_bl_min = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_init_bl_max")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_init_bl_max = val;
-		pr_info("cabc_init_bl_max = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_init_bl_max = val;
+			pr_info("cabc_init_bl_max = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x3A;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_init_bl_max = val;
+			pr_info("cabc_init_bl_max = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_tf_alpha")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_tf_alpha = val;
-		pr_info("cabc_tf_alpha = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_tf_alpha = val;
+			pr_info("cabc_tf_alpha = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x3B;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_tf_alpha = val;
+			pr_info("cabc_tf_alpha = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_tf_en")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_tf_en = val;
-		pr_info("cabc_tf_en = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_tf_en = val;
+			pr_info("cabc_tf_en = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x32;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_tf_en = val;
+			pr_info("cabc_tf_en = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_sc_flag")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_sc_flag = val;
-		pr_info("cabc_sc_flag = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_sc_flag = val;
+			pr_info("cabc_sc_flag = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x33;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_sc_flag = val;
+			pr_info("cabc_sc_flag = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_sc_hist_diff_thd")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_sc_hist_diff_thd = val;
-		pr_info("cabc_sc_hist_diff_thd = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_sc_hist_diff_thd = val;
+			pr_info("cabc_sc_hist_diff_thd = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x3C;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_sc_flag = val;
+			pr_info("cabc_sc_flag = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_sc_apl_diff_thd")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_sc_apl_diff_thd = val;
-		pr_info("cabc_sc_apl_diff_thd = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_sc_apl_diff_thd = val;
+			pr_info("cabc_sc_apl_diff_thd = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x3D;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_sc_apl_diff_thd = val;
+			pr_info("cabc_sc_apl_diff_thd = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_en")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_en = (int)val;
-		if (fw_cabc_param->cabc_param->cabc_en)
-			backlight_update_ctrl(fw_cabc_param->cabc_param->cabc_en);
-		pr_info("cabc_en = %d\n", (int)val);
+		if ((!strcmp(param[1], "w"))) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_en = val;
+			pr_info("cabc_en = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x30;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_en = val;
+			pr_info("cabc_en = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_bl_map_mode")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_bl_map_mode = val;
-		pr_info("cabc_bl_map_mode = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_bl_map_mode = val;
+			pr_info("cabc_bl_map_mode = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x34;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_bl_map_mode = val;
+			pr_info("cabc_bl_map_mode = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_bl_map_en")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_bl_map_en = val;
-		pr_info("cabc_bl_map_en = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_bl_map_en = val;
+			pr_info("cabc_bl_map_en = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x35;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_bl_map_en = val;
+			pr_info("cabc_bl_map_en = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "o_bl_cv")) {
 		if (!fw_cabc_param->cabc_param)
 			goto error;
@@ -1099,41 +1972,123 @@ int cabc_aad_debug(char **param)
 			pr_info("maxbin_bl_cv[%d] = %d\n",
 				i, fw_cabc_param->cabc_param->maxbin_bl_cv[i]);
 		}
+	} else if (!strcmp(param[0], "o_bl_cv_w_val_str")) {
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (!param[2])
+				goto error;
+			str_sapr_conv(param[2], 5,
+				fw_cabc_param->cabc_param->o_bl_cv,
+				13);
+			pr_info("o_bl_cv_w_val_str\n");
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x42;
+		}
+	} else if (!strcmp(param[0], "maxbin_bl_cv_w_val_str")) {
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (!param[2])
+				goto error;
+			str_sapr_conv(param[2], 5,
+				fw_cabc_param->cabc_param->maxbin_bl_cv,
+				13);
+			pr_info("maxbin_bl_cv_w_val_str\n");
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x43;
+		}
 	} else if (!strcmp(param[0], "cabc_patch_bl_th")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_patch_bl_th = val;
-		pr_info("cabc_patch_bl_th = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_patch_bl_th = val;
+			pr_info("cabc_patch_bl_th = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x3E;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_patch_bl_th = val;
+			pr_info("cabc_patch_bl_th = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_patch_on_alpha")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_patch_on_alpha = val;
-		pr_info("cabc_patch_on_alpha = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_patch_on_alpha = val;
+			pr_info("cabc_patch_on_alpha = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x3F;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_patch_on_alpha = val;
+			pr_info("cabc_patch_on_alpha = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_patch_bl_off_th")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_patch_bl_off_th = val;
-		pr_info("cabc_patch_bl_off_th = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_patch_bl_off_th = val;
+			pr_info("cabc_patch_bl_off_th = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x40;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_patch_bl_off_th = val;
+			pr_info("cabc_patch_bl_off_th = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_patch_off_alpha")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_patch_off_alpha = val;
-		pr_info("cabc_patch_off_alpha = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_patch_off_alpha = val;
+			pr_info("cabc_patch_off_alpha = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x41;
+			pr_info("store debug_cabc_aad = 0x41\n");
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_patch_off_alpha = val;
+			pr_info("cabc_patch_off_alpha = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_temp_proc")) {
-		if (!fw_cabc_param->cabc_param)
-			goto error;
-		if (kstrtoul(param[1], 10, &val) < 0)
-			goto error;
-		fw_cabc_param->cabc_param->cabc_temp_proc = val;
-		pr_info("cabc_temp_proc = %d\n", (int)val);
+		if (!strcmp(param[1], "w")) {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[2], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_temp_proc = val;
+			pr_info("cabc_temp_proc = %d\n", (int)val);
+		} else if (!strcmp(param[1], "r")) {
+			debug_cabc_aad = 0x36;
+		} else {
+			if (!fw_cabc_param->cabc_param)
+				goto error;
+			if (kstrtoul(param[1], 10, &val) < 0)
+				goto error;
+			fw_cabc_param->cabc_param->cabc_temp_proc = val;
+			pr_info("cabc_temp_proc = %d\n", (int)val);
+		}
 	} else if (!strcmp(param[0], "cabc_debug_mode")) {
 		if (kstrtoul(param[1], 10, &val) < 0)
 			goto error;

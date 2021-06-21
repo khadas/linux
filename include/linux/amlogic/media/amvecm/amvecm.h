@@ -340,6 +340,12 @@ struct pre_gamma_table_s {
 #define AMVECM_IOC_S_HDR_TMO   _IOW(_VE_CM, 0x74, struct hdr_tmo_sw)
 #define AMVECM_IOC_G_HDR_TMO   _IOR(_VE_CM, 0x75, struct hdr_tmo_sw)
 
+/*cabc command list*/
+#define AMVECM_IOC_S_CABC_PARAM _IOW(_VE_CM, 0x76, struct db_cabc_param_s)
+
+/*aad command list*/
+#define AMVECM_IOC_S_AAD_PARAM _IOW(_VE_CM, 0x77, struct db_aad_param_s)
+
 struct am_vdj_mode_s {
 	int flag;
 	int brightness;

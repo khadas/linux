@@ -2005,6 +2005,8 @@ static long amvecm_ioctl(struct file *file,
 	struct vpp_mtx_info_s *mtx_p = &mtx_info;
 	struct pre_gamma_table_s *pre_gma_tb = NULL;
 	struct hdr_tmo_sw pre_tmo_reg;
+	struct db_cabc_param_s db_cabc_param;
+	struct db_aad_param_s db_aad_param;
 
 	if (debug_amvecm & 2)
 		pr_info("[amvecm..] %s: cmd_nr = 0x%x\n",
@@ -2653,6 +2655,28 @@ static long amvecm_ioctl(struct file *file,
 			pr_info("tmo_reg copy to user fail\n");
 		} else {
 			pr_info("tmo_reg copy to user success\n");
+		}
+		break;
+	case AMVECM_IOC_S_CABC_PARAM:
+		if (copy_from_user(&db_cabc_param,
+			(void __user *)arg,
+			sizeof(struct db_cabc_param_s))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("db_cabc_param copy from user fail\n");
+		} else {
+			db_cabc_param_set(&db_cabc_param);
+			pr_amvecm_dbg("db_cabc_param set success\n");
+		}
+		break;
+	case AMVECM_IOC_S_AAD_PARAM:
+		if (copy_from_user(&db_aad_param,
+			(void __user *)arg,
+			sizeof(struct db_aad_param_s))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("db_aad_param copy from user fail\n");
+		} else {
+			db_aad_param_set(&db_aad_param);
+			pr_amvecm_dbg("db_aad_param set success\n");
 		}
 		break;
 	default:
@@ -3459,8 +3483,10 @@ free_buf:
 static ssize_t amvecm_cabc_aad_show(struct class *cla,
 				    struct class_attribute *attr, char *buf)
 {
-	cabc_aad_print();
-	return 0;
+	ssize_t len = 0;
+
+	len = cabc_aad_print(buf);
+	return len;
 }
 
 static ssize_t amvecm_cabc_aad_store(struct class *cla,

@@ -379,6 +379,54 @@ struct hdr_osd_reg_s {
 	s32 shadow_mode;
 };
 
+struct db_cabc_aad_param_s {
+	unsigned int length;
+	union {
+		void *cabc_aad_param_ptr;
+		long long cabc_aad_param_ptr_len;
+	};
+};
+
+struct db_aad_param_s {
+	int aad_param_cabc_aad_en;
+	int aad_param_aad_en;
+	int aad_param_tf_en;
+	int aad_param_force_gain_en;
+	int aad_param_sensor_mode;
+	int aad_param_mode;
+	int aad_param_dist_mode;
+	int aad_param_tf_alpha;
+	int aad_param_sensor_input[3];
+	struct db_cabc_aad_param_s	 db_LUT_Y_gain;
+	struct db_cabc_aad_param_s	 db_LUT_RG_gain;
+	struct db_cabc_aad_param_s	 db_LUT_BG_gain;
+	struct db_cabc_aad_param_s	 db_gain_lut;
+	struct db_cabc_aad_param_s	 db_xy_lut;
+};
+
+struct db_cabc_param_s {
+	int cabc_param_cabc_en;
+	int cabc_param_hist_mode;
+	int cabc_param_tf_en;
+	int cabc_param_sc_flag;
+	int cabc_param_bl_map_mode;
+	int cabc_param_bl_map_en;
+	int cabc_param_temp_proc;
+	int cabc_param_max95_ratio;
+	int cabc_param_hist_blend_alpha;
+	int cabc_param_init_bl_min;
+	int cabc_param_init_bl_max;
+	int cabc_param_tf_alpha;
+	int cabc_param_sc_hist_diff_thd;
+	int cabc_param_sc_apl_diff_thd;
+	int cabc_param_patch_bl_th;
+	int cabc_param_patch_on_alpha;
+	int cabc_param_patch_bl_off_th;
+	int cabc_param_patch_off_alpha;
+	struct db_cabc_aad_param_s db_o_bl_cv;
+	struct db_cabc_aad_param_s db_maxbin_bl_cv;
+};
+
 extern struct hdr_osd_reg_s hdr_osd_reg;
 /***********************OSD HDR registers*******************************/
 
