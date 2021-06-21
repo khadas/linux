@@ -111,12 +111,12 @@ static void trace_post(unsigned int index, unsigned long ctime)
 	trace_dim_post("POST-IRQ-1", index, ctime);
 }
 
-static void trace_irq_aisr(void)
+static void trace_irq_aisr(unsigned int index)
 {
 	u64 ustime;
 
 	ustime = cur_to_usecs();
-	trace_dim_irq_aisr("PRE-AISR-1", 0, ustime);
+	trace_dim_irq_aisr("PRE-AISR-1", index, ustime);
 }
 
 #define DI_TRACE_LIMIT		50

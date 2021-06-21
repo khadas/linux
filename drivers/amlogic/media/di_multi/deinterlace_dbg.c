@@ -1345,6 +1345,8 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 
 	seq_printf(seq, "%-15s=%d\n", "sum_alloc_release",
 		   get_mtask()->fcmd[channel].sum_alloc);
+	seq_printf(seq, "%-15s=%d\n", "sum_hf",
+		   get_mtask()->fcmd[channel].sum_hf_alloc);
 	seq_printf(seq, "%-15s=%d\n", "npst_cnt",
 		   npst_cnt(pch));
 	dump_state_flag = 0;

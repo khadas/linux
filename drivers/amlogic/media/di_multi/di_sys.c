@@ -602,7 +602,26 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 			if (!ret)
 				break;
 			blk_buf = (struct dim_mm_blk_s *)pbufq->pbuf[index].qbc;
+			/* hf */
+			if (blk_buf->flg_hf) {
+				//ret = dim_mm_release(EDI_MEM_M_CMA,
+				ret = dim_mm_release(cfgg(MEM_FLAG),
+					blk_buf->hf_buff.pages,
+					blk_buf->hf_buff.cnt,
+					blk_buf->hf_buff.mem_start);
+				if (ret) {
+					fcmd->sum_hf_psize -= blk_buf->hf_buff.cnt;
+					memset(&blk_buf->hf_buff, 0, sizeof(blk_buf->hf_buff));
+					blk_buf->flg_hf = 0;
+					fcmd->sum_hf_alloc--;
+					dbg_mem2("release:hf:%d\n", blk_buf->header.index);
+				} else {
+					PR_ERR("%s:fail.release hf [%d] 0x%x:\n", __func__,
+					       index, fcmd->sum_hf_psize);
+				}
+			}
 
+			/* hf end */
 			ret = dim_mm_release(cfgg(MEM_FLAG),
 					     blk_buf->pages,
 					     //blk_buf->size_page,
@@ -680,6 +699,25 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 			if (!ret)
 				break;
 			blk_buf = (struct dim_mm_blk_s *)pbufq->pbuf[index].qbc;
+			/* hf */
+			if (blk_buf->flg_hf) {
+				//ret = dim_mm_release(EDI_MEM_M_CMA,
+				ret = dim_mm_release(cfgg(MEM_FLAG),
+					blk_buf->hf_buff.pages,
+					blk_buf->hf_buff.cnt,
+					blk_buf->hf_buff.mem_start);
+				if (ret) {
+					fcmd->sum_hf_psize -= blk_buf->hf_buff.cnt;
+					memset(&blk_buf->hf_buff, 0, sizeof(blk_buf->hf_buff));
+					blk_buf->flg_hf = 0;
+					dbg_mem2("release:hf:%d\n", blk_buf->header.index);
+					fcmd->sum_hf_alloc--;
+				} else {
+					PR_ERR("%s:fail.release hf [%d]\n", __func__,
+					       index);
+				}
+			}
+			/* hf end */
 
 			ret = dim_mm_release(cfgg(MEM_FLAG),
 					     blk_buf->pages,
@@ -772,6 +810,38 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 			dbg_mem2("blk a:%d:st[0x%lx] size_p[0x%x]\n",
 				 blk_buf->header.index,
 				 blk_buf->mem_start, size_p);
+			/*alloc hf */
+			if (cmd->hf_need && !blk_buf->flg_hf) {
+				memset(&omm, 0, sizeof(omm));
+				//aret = dim_mm_alloc(EDI_MEM_M_CMA,
+				aret = dim_mm_alloc(cfgg(MEM_FLAG),
+						    mm->cfg.size_buf_hf >> PAGE_SHIFT,
+						    &omm,
+						    0);
+				if (!aret) {
+					PR_ERR("2:%s: alloc hf failed %d fail.0x%x;%d\n",
+					       __func__,
+						blk_buf->header.index,
+						fcmd->sum_hf_psize,
+						fcmd->sum_hf_alloc);
+					blk_buf->flg_hf = 0;
+				} else {
+					blk_buf->flg_hf = 1;
+					blk_buf->hf_buff.mem_start = omm.addr;
+					blk_buf->hf_buff.cnt = mm->cfg.size_buf_hf >> PAGE_SHIFT;
+					blk_buf->hf_buff.pages = omm.ppage;
+					fcmd->sum_hf_psize += blk_buf->hf_buff.cnt;
+					fcmd->sum_hf_alloc++;
+					dbg_mem2("alloc:hf:%d:0x%x\n",
+						 blk_buf->header.index, fcmd->sum_hf_psize);
+				}
+
+			} else if (cmd->hf_need && blk_buf->flg_hf) {
+				PR_ERR("%s:have hf?%d\n", __func__, blk_buf->header.index);
+			} else {
+				blk_buf->flg_hf = 0;
+			}
+			/* hf en */
 			qbuf_in(pbufq, QBF_BLK_Q_READY, blk_buf->header.index);
 			fcmd->sum_alloc++;
 			cnt++;
@@ -1270,7 +1340,9 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		buf_p->nr_size = mm->cfg.nr_size;
 		buf_p->tab_size = mm->cfg.afbct_size;
 		buf_p->hf_adr	= 0;
-
+		if (buf_p->blk_buf && buf_p->blk_buf->flg_hf)
+			PR_ERR("%s:local buffer have hf?%d\n", __func__,
+			       buf_p->blk_buf->header.index);
 		//
 		for (i = 0; i < 3; i++)
 			buf_p->canvas_width[i] = mm->cfg.canvas_width[i];
@@ -1317,8 +1389,15 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		}
 
 		if (mm->cfg.size_buf_hf) {
-			buf_p->hf_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size;
-			di_hf_set_buffer(buf_p, mm);
+			if (buf_p->blk_buf->flg_hf) {
+				buf_p->hf_adr = buf_p->blk_buf->hf_buff.mem_start;
+				di_hf_set_buffer(buf_p, mm);
+			} else {
+				PR_ERR("%s:size:[%d]:flg[%d]\n",
+				       __func__,
+				       mm->cfg.size_buf_hf, buf_p->blk_buf->flg_hf);
+				buf_p->hf_adr = 0;
+			}
 		} else {
 			buf_p->hf_adr = 0;
 		}
@@ -1328,8 +1407,7 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 			mm->cfg.dat_pafbct_flg.d32, addr_afbct);
 
 		//buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size;
-		buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size +
-				mm->cfg.size_buf_hf;
+		buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.pst_afbci_size;
 		buf_p->nr_adr = buf_p->dw_adr + mm->cfg.dw_size;
 		buf_p->tab_size = mm->cfg.pst_afbct_size;
 		buf_p->nr_size = mm->cfg.pst_buf_size;

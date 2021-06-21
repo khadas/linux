@@ -517,6 +517,7 @@ struct di_hpre_s {
 	/*dbg flow:*/
 	bool dbg_f_en;
 	bool hf_busy;
+	bool irq_nr;/* dbg hf timeout only */
 	unsigned char hf_owner;
 	void *hf_w_buf; //di_buf_s;
 	unsigned int dbg_f_lstate;
@@ -636,6 +637,8 @@ struct dim_fcmd_s {
 	unsigned int reg_page; /*size >> page_shift*/
 	int doing; /* inc in send_cmd, and set 0 when thread done*/
 	int	sum_alloc; /* alloc ++, releas -- */
+	int	sum_hf_alloc; /* alloc ++, releas -- */
+	unsigned int sum_hf_psize;
 	struct completion alloc_done;
 };
 
@@ -732,7 +735,8 @@ struct blk_flg_s {
 struct mtsk_cmd_s {
 	unsigned int cmd	: 4;
 	unsigned int block_mode : 1;
-	unsigned int rev1	: 3;
+	unsigned int hf_need	: 1; //
+	unsigned int rev1	: 2;
 	unsigned int nub	: 8;
 	unsigned int rev2	: 16;
 	struct blk_flg_s	flg;
@@ -1462,6 +1466,12 @@ enum QBF_BLK_Q_TYPE {
 	QBF_BLK_Q_NUB,
 };
 
+struct dim_sub_mem_s {
+	unsigned long	mem_start;
+	struct page	*pages;
+	unsigned int	cnt;
+};
+
 #define DIM_BLK_NUB	20 /* buf number*/
 struct dim_mm_blk_s {
 	struct qs_buf_s	header;
@@ -1478,6 +1488,8 @@ struct dim_mm_blk_s {
 	void *sct;
 	unsigned int sct_keep; //keep number
 	void *buffer; //new_interface
+	struct dim_sub_mem_s	hf_buff;
+	bool	flg_hf;
 };
 
 /*que buf block end*/
