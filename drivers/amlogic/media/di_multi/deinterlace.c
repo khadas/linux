@@ -2291,8 +2291,8 @@ static int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 	} else {
 		mm->cfg.size_buf_hf = 0;
 	}
-	PR_INF("hf:size:%d\n", mm->cfg.size_buf_hf);
-	mm->cfg.size_post += mm->cfg.size_buf_hf;
+
+	//mm->cfg.size_post += mm->cfg.size_buf_hf;
 
 	mm->cfg.size_post	= roundup(mm->cfg.size_post, PAGE_SIZE);
 	mm->cfg.size_post_page	= mm->cfg.size_post >> PAGE_SHIFT;
@@ -2316,8 +2316,11 @@ static int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 	else
 		mm->cfg.pbuf_flg.b.typ = EDIM_BLK_TYP_OLDP;
 
-	if (dip_itf_is_ins_exbuf(pch))
+	if (dip_itf_is_ins_exbuf(pch)) {
 		mm->cfg.pbuf_flg.b.typ |= EDIM_BLK_TYP_POUT;
+		mm->cfg.size_buf_hf = 0;
+	}
+	dbg_mem2("hf:size:%d\n", mm->cfg.size_buf_hf);
 
 	dbg_mem2("%s:3 pst_cvs_w[%d]\n", __func__, mm->cfg.pst_cvs_w);
 	#ifdef PRINT_BASIC
@@ -2591,7 +2594,7 @@ static int di_init_buf_new(struct di_ch_s *pch, struct vframe_s *vframe)
 		}
 		//pch->sumx.vfm_bypass = false;
 		blk_cmd.cmd = ECMD_BLK_ALLOC;
-
+		blk_cmd.hf_need = 0;
 		if (mm->cfg.num_local) {
 			/* pre */
 			//blk_cmd.cmd = ECMD_BLK_ALLOC;
@@ -2610,6 +2613,11 @@ static int di_init_buf_new(struct di_ch_s *pch, struct vframe_s *vframe)
 		blk_cmd.flg.d32 = mm->cfg.pbuf_flg.d32;
 
 		if (mm->cfg.pbuf_flg.b.page) {//@ary_note: ??
+			if (mm->cfg.size_buf_hf)
+				blk_cmd.hf_need = 1;
+			else
+				blk_cmd.hf_need = 0;
+
 			if (blk_cmd.nub > 4) {
 				tmp_nub = blk_cmd.nub - 3;
 				blk_cmd.nub = 3;
@@ -2722,6 +2730,7 @@ void dim_post_re_alloc(unsigned int ch)
 	if (length) {
 		mem_2_blk(pch);
 		cmd.cmd = ECMD_BLK_RELEASE;
+		cmd.hf_need = 0;
 		mtask_send_cmd(ch, &cmd);
 		//mtsk_release(ch, ECMD_BLK_RELEASE);
 	}
@@ -2730,6 +2739,10 @@ void dim_post_re_alloc(unsigned int ch)
 		cmd.cmd = ECMD_BLK_ALLOC;
 		cmd.nub = mm->sts.flg_realloc;
 		cmd.flg.d32 = mm->cfg.pbuf_flg.d32;
+		if (mm->cfg.size_buf_hf)
+			cmd.hf_need = 1;
+		else
+			cmd.hf_need = 0;
 		mtask_send_cmd(ch, &cmd);
 		//mtsk_alloc(ch, mm->sts.flg_realloc, mm->cfg.size_post_page);
 		mm->sts.flg_realloc = 0;
@@ -4898,14 +4911,14 @@ static struct di_buf_s *pp_local_2_post(struct di_ch_s *pch,
 	if (!buf_pst)
 		return NULL;
 	pp_buf_cp(buf_pst, di_buf);
-	if (buf_pst->hf_done) {
-		memcpy(&buf_pst->hf, &di_buf->hf, sizeof(buf_pst->hf));
 
-		if (di_dbg & DBG_M_IC) {
-			dim_print_hf(&buf_pst->hf);
-			dbg_ic("hf add2 =0x%lx\n", buf_pst->hf_adr);
-		}
+	/* hf */
+	memcpy(&buf_pst->hf, &di_buf->hf, sizeof(buf_pst->hf));
+	if (di_dbg & DBG_M_IC) {
+		dim_print_hf(&buf_pst->hf);
+		dbg_ic("hf add2 =0x%lx\n", buf_pst->hf_adr);
 	}
+
 	//di_que_in(ch, QUE_PRE_NO_BUF, di_buf);
 
 	return buf_pst;
@@ -4995,6 +5008,7 @@ static void re_build_buf(struct di_ch_s *pch, enum EDI_SGN sgn)
 	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_B)) {	/*trig cma alloc*/
 
 		blk_cmd.cmd = ECMD_BLK_ALLOC;
+		blk_cmd.hf_need = 0;
 		if (mm->cfg.num_local) {
 			/*pre idat*/
 			pre_sec_alloc(pch, mm->cfg.dat_idat_flg.d32);
@@ -5026,7 +5040,10 @@ static void re_build_buf(struct di_ch_s *pch, enum EDI_SGN sgn)
 		blk_cmd.nub = post_nub;//mm->cfg.num_post;
 
 		blk_cmd.flg.d32 = mm->cfg.pbuf_flg.d32;
-
+		if (mm->cfg.size_buf_hf)
+			blk_cmd.hf_need = 1;
+		else
+			blk_cmd.hf_need = 0;
 		mtask_send_cmd(ch, &blk_cmd);
 		mm->sts.flg_alloced = true;
 	}
@@ -6693,12 +6710,17 @@ void dbg_irq(unsigned char *name)
 irqreturn_t dim_irq(int irq, void *dev_instance)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
+	unsigned long irq_flg;
 
+	di_lock_irqfiq_save(irq_flg);
+	dim_tr_ops.irq_aisr(1);
 	if (pre->hf_busy && pre->hf_owner == 1) {
+		pre->irq_nr = true; //debug hf timeout
 		dbg_irq("nr");
+		di_unlock_irqfiq_restore(irq_flg);
 		return IRQ_HANDLED;
 	}
-
+	di_unlock_irqfiq_restore(irq_flg);
 	dim_irq_pre();
 	return IRQ_HANDLED;
 }
@@ -6773,6 +6795,7 @@ irqreturn_t dim_post_irq(int irq, void *dev_instance)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
 
+	dim_tr_ops.irq_aisr(2);
 	if (pre->hf_owner == 2 && pre->hf_busy) {
 		dbg_irq("wr");
 		return IRQ_HANDLED;
@@ -6787,7 +6810,7 @@ irqreturn_t dim_aisr_irq(int irq, void *dev_instance)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
 
-	dim_tr_ops.irq_aisr();
+	dim_tr_ops.irq_aisr(3);
 	dbg_irq("aisr");
 
 	if (pre->hf_busy) {

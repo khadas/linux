@@ -66,7 +66,7 @@ struct dim_tr_ops_s {
 	void (*sct_alloc)(unsigned int index, u64 timer_begin);
 	void (*sct_tail)(unsigned int index, unsigned int used_cnt);
 	void (*self_trig)(unsigned int index);
-	void (*irq_aisr)(void);
+	void (*irq_aisr)(unsigned int index);
 };
 
 extern const struct dim_tr_ops_s dim_tr_ops;

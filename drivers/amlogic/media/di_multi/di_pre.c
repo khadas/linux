@@ -423,6 +423,7 @@ unsigned int dpre_mtotal_set(void *data)
 	//trace_printk("%s\n", __func__);
 //ary 2020-12-09	spin_lock_irqsave(&plist_lock, flags);
 	dim_pre_de_process(pre->curr_ch);
+	pre->irq_nr = false;
 //ary 2020-12-09	spin_unlock_irqrestore(&plist_lock, flags);
 	/*begin to count timer*/
 	di_tout_contr(EDI_TOUT_CONTR_EN, &pre->tout);
@@ -543,12 +544,13 @@ void dpre_mtotal_timeout_contr(void)
 	pre->pres->pre_de_busy = 0;
 	pre->pres->pre_de_clear_flag = 2;
 	if ((dimp_get(edi_mp_di_dbg_mask) & 0x2)) {
-		PR_WARN("DI:ch[%d]*****wait %d timeout 0x%x(%d ms)*****\n",
+		PR_WARN("DI:ch[%d]*****wait %d timeout 0x%x(%d ms)*****[%d]\n",
 			pre->curr_ch,
 			pre->pres->field_count_for_cont,
 			RD(DI_INTR_CTRL),
 			(unsigned int)(cur_to_msecs() -
-			pre->pres->irq_time[1]));
+			pre->pres->irq_time[1]),
+			pre->irq_nr);
 	}
 	/*******************************/
 	dim_pre_de_done_buf_config(pre->curr_ch, true);
