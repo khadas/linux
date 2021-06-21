@@ -595,6 +595,9 @@ static void info_show(void)
 			PR_INFO("atsc rst done: %d.\n", demod->atsc_rst_done);
 			break;
 
+		case SYS_DVBC_ANNEX_B:
+			break;
+
 		case SYS_DVBT:
 			aml_demod_debug |= DBG_DVBT;
 			dvbt_info(demod, NULL);
@@ -774,75 +777,45 @@ static ssize_t attr_store(struct class *cls,
 		tvp.cmd = DTV_DELIVERY_SYSTEM;
 
 		/* ref include/uapi/linux/dvb/frontend.h */
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
+		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0) {
 			tvp.u.data = val;
-		else
+			fe->dtv_property_cache.delivery_system = val;
+		} else {
 			tvp.u.data = SYS_DTMB;
-
-		switch (tvp.u.data) {
-		case SYS_ATSC:
-			fe->dtv_property_cache.modulation = VSB_8;
-			fe->dtv_property_cache.delivery_system = SYS_ATSC;
-			fe->dtv_property_cache.symbol_rate = 10762238;
-			fe->dtv_property_cache.frequency = 790000000;
-			break;
-
-		case SYS_DTMB:
-			fe->dtv_property_cache.modulation = QAM_AUTO;
 			fe->dtv_property_cache.delivery_system = SYS_DTMB;
-			fe->dtv_property_cache.frequency = 80000000;
-			break;
-
-		case SYS_DVBC_ANNEX_A:
-			fe->dtv_property_cache.modulation = QAM_64;
-			fe->dtv_property_cache.delivery_system = SYS_DVBC_ANNEX_A;
-			fe->dtv_property_cache.symbol_rate = 6875000;
-			fe->dtv_property_cache.frequency = 80000000;
-			break;
-
-		case SYS_DVBC_ANNEX_C:
-			fe->dtv_property_cache.modulation = QAM_64;
-			fe->dtv_property_cache.delivery_system = SYS_DVBC_ANNEX_C;
-			fe->dtv_property_cache.symbol_rate = 6875000;
-			fe->dtv_property_cache.frequency = 80000000;
-			break;
-
-		case SYS_DVBC_ANNEX_B:
-			fe->dtv_property_cache.modulation = QAM_64;
-			fe->dtv_property_cache.delivery_system = SYS_DVBC_ANNEX_B;
-			fe->dtv_property_cache.frequency = 1830000000;
-			break;
-
-		case SYS_DVBT:
-			fe->dtv_property_cache.delivery_system = SYS_DVBT;
-			break;
-
-		case SYS_DVBT2:
-			fe->dtv_property_cache.delivery_system = SYS_DVBT2;
-			break;
-
-		case SYS_DVBS:
-			fe->dtv_property_cache.delivery_system = SYS_DVBS;
-
-			if (parm[2] && (kstrtouint(parm[2], 10, &val)) == 0)
-				fe->dtv_property_cache.symbol_rate = val * 1000 * 1000;
-			else
-				fe->dtv_property_cache.symbol_rate = 5000000;
-			break;
-
-		case SYS_DVBS2:
-			fe->dtv_property_cache.delivery_system = SYS_DVBS2;
-			break;
-
-		case SYS_ISDBT:
-			fe->dtv_property_cache.delivery_system = SYS_ISDBT;
-			fe->dtv_property_cache.frequency = 1830000000;
-			break;
-		default:
-			break;
 		}
 
-		fe->ops.set_property(fe, &tvp);
+		/* ref include/uapi/linux/dvb/frontend.h */
+		if (parm[2] && (kstrtouint(parm[2], 10, &val)) == 0)
+			fe->dtv_property_cache.frequency = val;
+		else
+			fe->dtv_property_cache.frequency = 88000000;
+
+		if (parm[3] && (kstrtouint(parm[3], 10, &val)) == 0)
+			fe->dtv_property_cache.symbol_rate = val;
+		else
+			fe->dtv_property_cache.symbol_rate = 0;
+
+		if (parm[4] && (kstrtouint(parm[4], 10, &val)) == 0)
+			fe->dtv_property_cache.bandwidth_hz = val;
+		else
+			fe->dtv_property_cache.bandwidth_hz = 8000000;
+
+		if (parm[5] && (kstrtouint(parm[5], 10, &val)) == 0)
+			fe->dtv_property_cache.modulation = val;
+		else
+			fe->dtv_property_cache.modulation = QAM_AUTO;
+
+		if (fe->dtv_property_cache.delivery_system == SYS_DVBS ||
+			fe->dtv_property_cache.delivery_system == SYS_DVBS2)
+			fe->dtv_property_cache.frequency = fe->dtv_property_cache.frequency / 1000;
+
+		if (fe->ops.init)
+			fe->ops.init(fe);
+		if (fe->ops.set_property)
+			fe->ops.set_property(fe, &tvp);
+		if (fe->ops.tune)
+			fe->ops.tune(fe, true, 0, &delay, &sts);
 	} else if (!strcmp(parm[0], "tune")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
 			fe->ops.tune(fe, val, 0, &delay, &sts);

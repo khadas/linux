@@ -3646,6 +3646,12 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 
 		break;
 
+	case SYS_ATSC:
+	case SYS_ATSCMH:
+	case SYS_DVBC_ANNEX_B:
+		demod->atsc_mode = 0;
+		break;
+
 	case SYS_DTMB:
 		if (demod->act_dtmb) {
 			dtmb_poll_stop(demod); /*polling mode*/
