@@ -2,7 +2,7 @@
 /*
  * remote processor messaging bus internals
  *
- * Copyright (c) 2018, The Linux Foundation.
+ * Copyright (c) 2020 The Linux Foundation.
  * Copyright (C) 2011 Texas Instruments, Inc.
  * Copyright (C) 2011 Google, Inc.
  *

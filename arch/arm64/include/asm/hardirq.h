@@ -13,24 +13,11 @@
 #include <asm/kvm_arm.h>
 #include <asm/sysreg.h>
 
-#if defined(CONFIG_AMLOGIC_FREERTOS) || defined(CONFIG_AMLOGIC_CPUIDLE)
-#define NR_IPI	8
-#else
-#define NR_IPI	7
-#endif
-
 typedef struct {
 	unsigned int __softirq_pending;
-	unsigned int ipi_irqs[NR_IPI];
 } ____cacheline_aligned irq_cpustat_t;
 
 #include <linux/irq_cpustat.h>	/* Standard mappings for irq_cpustat_t above */
-
-#define __inc_irq_stat(cpu, member)	__IRQ_STAT(cpu, member)++
-#define __get_irq_stat(cpu, member)	__IRQ_STAT(cpu, member)
-
-u64 smp_irq_stat_cpu(unsigned int cpu);
-#define arch_irq_stat_cpu	smp_irq_stat_cpu
 
 #define __ARCH_IRQ_EXIT_IRQS_DISABLED	1
 

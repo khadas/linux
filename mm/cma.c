@@ -50,7 +50,6 @@
 
 struct cma cma_areas[MAX_CMA_AREAS];
 unsigned cma_area_count;
-static DEFINE_MUTEX(cma_mutex);
 
 #ifdef CONFIG_AMLOGIC_CMA
 void cma_init_clear(struct cma *cma, bool clear)
@@ -710,9 +709,8 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 		mutex_unlock(&cma->lock);
 
 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
-		mutex_lock(&cma_mutex);
-	#ifdef CONFIG_AMLOGIC_CMA
-	#ifndef CONFIG_ARM64
+#ifdef CONFIG_AMLOGIC_CMA
+#ifndef CONFIG_ARM64
 		if (!PageHighMem(pfn_to_page(pfn)) &&
 			PageHighMem(pfn_to_page(pfn + count - 1))) {
 			pfn_limit = ((unsigned long)high_memory - PAGE_OFFSET)
@@ -728,14 +726,14 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 		} else {
 			ret = aml_cma_alloc_range(pfn, pfn + count);
 		}
-	#else
+#else
 		ret = aml_cma_alloc_range(pfn, pfn + count);
-	#endif
-	#else
+#endif
+#else		
 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
 				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
-	#endif /* CONFIG_AMLOGIC_CMA */
-		mutex_unlock(&cma_mutex);
+#endif		
+
 		if (ret == 0) {
 			page = pfn_to_page(pfn);
 			break;

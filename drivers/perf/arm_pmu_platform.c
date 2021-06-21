@@ -712,7 +712,7 @@ int arm_pmu_device_probe(struct platform_device *pdev,
 
 	ret = armpmu_register(pmu);
 	if (ret)
-		goto out_free;
+		goto out_free_irqs;
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 		if (amlpmu_init(pdev, pmu)) {

@@ -235,9 +235,7 @@ enum zone_stat_item {
 #endif
 	/* Second 128 byte cacheline */
 	NR_BOUNCE,
-#if IS_ENABLED(CONFIG_ZSMALLOC)
 	NR_ZSPAGES,		/* allocated in zsmalloc */
-#endif
 	NR_FREE_CMA_PAGES,
 #ifdef CONFIG_AMLOGIC_CMA
 	NR_INACTIVE_ANON_CMA,	/* must match order of LRU_[IN]ACTIVE */
@@ -731,7 +729,7 @@ struct zonelist {
 extern struct page *mem_map;
 #endif
 
-#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_GKI_OPT_FEATURES)
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 struct deferred_split {
 	spinlock_t split_queue_lock;
 	struct list_head split_queue;
@@ -819,7 +817,7 @@ typedef struct pglist_data {
 	unsigned long first_deferred_pfn;
 #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
 
-#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_GKI_OPT_FEATURES)
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	struct deferred_split deferred_split_queue;
 #endif
 

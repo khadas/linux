@@ -96,7 +96,6 @@ obj-$(CONFIG_TASK_DELAY_ACCT) += delayacct.o
 obj-$(CONFIG_TASKSTATS) += taskstats.o tsacct.o
 obj-$(CONFIG_TRACEPOINTS) += tracepoint.o
 obj-$(CONFIG_LATENCYTOP) += latencytop.o
-obj-$(CONFIG_ELFCORE) += elfcore.o
 obj-$(CONFIG_FUNCTION_TRACER) += trace/
 obj-$(CONFIG_TRACING) += trace/
 obj-$(CONFIG_TRACE_CLOCK) += trace/
@@ -127,6 +126,7 @@ KASAN_SANITIZE_stackleak.o := n
 KCOV_INSTRUMENT_stackleak.o := n
 
 $(obj)/configs.o: $(obj)/config_data.gz
+
 ifdef CONFIG_AMLOGIC_MODIFY
 # Amlogic: there are too many sentences marked by '#' in .config flies
 # So we need to remove them when generate config.gz, this can help to save
@@ -134,15 +134,19 @@ ifdef CONFIG_AMLOGIC_MODIFY
 $(obj)/cfg_less.txt: $(KCONFIG_CONFIG) FORCE
 	$(shell sed '/#/d' $(KCONFIG_CONFIG) > $(src)/cfg_less.txt)
 
-targets += config_data.gz
+targets += config_data config_data.gz
 $(obj)/config_data.gz: $(obj)/cfg_less.txt FORCE
 	$(call if_changed,gzip)
 else
-
-targets += config_data.gz
-$(obj)/config_data.gz: $(KCONFIG_CONFIG) FORCE
+targets += config_data config_data.gz
+$(obj)/config_data.gz: $(obj)/config_data FORCE
 	$(call if_changed,gzip)
 endif
+
+filechk_cat = cat $<
+
+$(obj)/config_data: $(KCONFIG_CONFIG) FORCE
+	$(call filechk,cat)
 
 $(obj)/kheaders.o: $(obj)/kheaders_data.tar.xz
 

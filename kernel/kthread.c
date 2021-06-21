@@ -9,7 +9,6 @@
 #include <uapi/linux/sched/types.h>
 #include <linux/sched.h>
 #include <linux/sched/task.h>
-#include <linux/sched/wake_q.h>
 #include <linux/kthread.h>
 #include <linux/completion.h>
 #include <linux/err.h>
@@ -470,9 +469,34 @@ struct task_struct *kthread_create_on_cpu(int (*threadfn)(void *data),
 		return p;
 	kthread_bind(p, cpu);
 	/* CPU hotplug need to bind once again when unparking the thread. */
-	set_bit(KTHREAD_IS_PER_CPU, &to_kthread(p)->flags);
 	to_kthread(p)->cpu = cpu;
 	return p;
+}
+
+void kthread_set_per_cpu(struct task_struct *k, int cpu)
+{
+	struct kthread *kthread = to_kthread(k);
+	if (!kthread)
+		return;
+
+	WARN_ON_ONCE(!(k->flags & PF_NO_SETAFFINITY));
+
+	if (cpu < 0) {
+		clear_bit(KTHREAD_IS_PER_CPU, &kthread->flags);
+		return;
+	}
+
+	kthread->cpu = cpu;
+	set_bit(KTHREAD_IS_PER_CPU, &kthread->flags);
+}
+
+bool kthread_is_per_cpu(struct task_struct *k)
+{
+	struct kthread *kthread = to_kthread(k);
+	if (!kthread)
+		return false;
+
+	return test_bit(KTHREAD_IS_PER_CPU, &kthread->flags);
 }
 
 /**
@@ -807,15 +831,14 @@ static void kthread_insert_work_sanity_check(struct kthread_worker *worker,
 /* insert @work before @pos in @worker */
 static void kthread_insert_work(struct kthread_worker *worker,
 				struct kthread_work *work,
-				struct list_head *pos,
-				struct wake_q_head *wake_q)
+				struct list_head *pos)
 {
 	kthread_insert_work_sanity_check(worker, work);
 
 	list_add_tail(&work->node, pos);
 	work->worker = worker;
 	if (!worker->current_work && likely(worker->task))
-		wake_q_add(wake_q, worker->task);
+		wake_up_process(worker->task);
 }
 
 /**
@@ -833,19 +856,15 @@ static void kthread_insert_work(struct kthread_worker *worker,
 bool kthread_queue_work(struct kthread_worker *worker,
 			struct kthread_work *work)
 {
-	DEFINE_WAKE_Q(wake_q);
-	unsigned long flags;
 	bool ret = false;
+	unsigned long flags;
 
 	raw_spin_lock_irqsave(&worker->lock, flags);
 	if (!queuing_blocked(worker, work)) {
-		kthread_insert_work(worker, work, &worker->work_list, &wake_q);
+		kthread_insert_work(worker, work, &worker->work_list);
 		ret = true;
 	}
 	raw_spin_unlock_irqrestore(&worker->lock, flags);
-
-	wake_up_q(&wake_q);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(kthread_queue_work);
@@ -863,7 +882,6 @@ void kthread_delayed_work_timer_fn(struct timer_list *t)
 	struct kthread_delayed_work *dwork = from_timer(dwork, t, timer);
 	struct kthread_work *work = &dwork->work;
 	struct kthread_worker *worker = work->worker;
-	DEFINE_WAKE_Q(wake_q);
 	unsigned long flags;
 
 	/*
@@ -881,18 +899,15 @@ void kthread_delayed_work_timer_fn(struct timer_list *t)
 	WARN_ON_ONCE(list_empty(&work->node));
 	list_del_init(&work->node);
 	if (!work->canceling)
-		kthread_insert_work(worker, work, &worker->work_list, &wake_q);
+		kthread_insert_work(worker, work, &worker->work_list);
 
 	raw_spin_unlock_irqrestore(&worker->lock, flags);
-
-	wake_up_q(&wake_q);
 }
 EXPORT_SYMBOL(kthread_delayed_work_timer_fn);
 
 static void __kthread_queue_delayed_work(struct kthread_worker *worker,
 					 struct kthread_delayed_work *dwork,
-					 unsigned long delay,
-					 struct wake_q_head *wake_q)
+					 unsigned long delay)
 {
 	struct timer_list *timer = &dwork->timer;
 	struct kthread_work *work = &dwork->work;
@@ -908,7 +923,7 @@ static void __kthread_queue_delayed_work(struct kthread_worker *worker,
 	 * on that there's no such delay when @delay is 0.
 	 */
 	if (!delay) {
-		kthread_insert_work(worker, work, &worker->work_list, wake_q);
+		kthread_insert_work(worker, work, &worker->work_list);
 		return;
 	}
 
@@ -941,21 +956,17 @@ bool kthread_queue_delayed_work(struct kthread_worker *worker,
 				unsigned long delay)
 {
 	struct kthread_work *work = &dwork->work;
-	DEFINE_WAKE_Q(wake_q);
 	unsigned long flags;
 	bool ret = false;
 
 	raw_spin_lock_irqsave(&worker->lock, flags);
 
 	if (!queuing_blocked(worker, work)) {
-		__kthread_queue_delayed_work(worker, dwork, delay, &wake_q);
+		__kthread_queue_delayed_work(worker, dwork, delay);
 		ret = true;
 	}
 
 	raw_spin_unlock_irqrestore(&worker->lock, flags);
-
-	wake_up_q(&wake_q);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(kthread_queue_delayed_work);
@@ -984,7 +995,6 @@ void kthread_flush_work(struct kthread_work *work)
 		KTHREAD_WORK_INIT(fwork.work, kthread_flush_work_fn),
 		COMPLETION_INITIALIZER_ONSTACK(fwork.done),
 	};
-	DEFINE_WAKE_Q(wake_q);
 	struct kthread_worker *worker;
 	bool noop = false;
 
@@ -997,17 +1007,14 @@ void kthread_flush_work(struct kthread_work *work)
 	WARN_ON_ONCE(work->worker != worker);
 
 	if (!list_empty(&work->node))
-		kthread_insert_work(worker, &fwork.work,
-				    work->node.next, &wake_q);
+		kthread_insert_work(worker, &fwork.work, work->node.next);
 	else if (worker->current_work == work)
 		kthread_insert_work(worker, &fwork.work,
-				    worker->work_list.next, &wake_q);
+				    worker->work_list.next);
 	else
 		noop = true;
 
 	raw_spin_unlock_irq(&worker->lock);
-
-	wake_up_q(&wake_q);
 
 	if (!noop)
 		wait_for_completion(&fwork.done);
@@ -1086,7 +1093,6 @@ bool kthread_mod_delayed_work(struct kthread_worker *worker,
 			      unsigned long delay)
 {
 	struct kthread_work *work = &dwork->work;
-	DEFINE_WAKE_Q(wake_q);
 	unsigned long flags;
 	int ret = false;
 
@@ -1105,12 +1111,9 @@ bool kthread_mod_delayed_work(struct kthread_worker *worker,
 
 	ret = __kthread_cancel_work(work, true, &flags);
 fast_queue:
-	__kthread_queue_delayed_work(worker, dwork, delay, &wake_q);
+	__kthread_queue_delayed_work(worker, dwork, delay);
 out:
 	raw_spin_unlock_irqrestore(&worker->lock, flags);
-
-	wake_up_q(&wake_q);
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(kthread_mod_delayed_work);

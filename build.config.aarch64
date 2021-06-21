@@ -1,8 +1,34 @@
+#ARCH=arm64
+#
+#LLVM_IAS=1
+#CROSS_COMPILE=aarch64-linux-gnu-
+#CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
+#LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gas/linux-x86
+#LINUX_GCC_CROSS_COMPILE_COMPAT_PREBUILTS_BIN=prebuilts/gas/linux-x86
+#
+#MAKE_GOALS="
+#Image
+#modules
+#"
+#
+#FILES="
+#arch/arm64/boot/Image
+#vmlinux
+#System.map
+#"
+
+
+#this config from amlgoic-5.4-dev
 ARCH=arm64
 
-CLANG_TRIPLE=aarch64-linux-gnu-
-CROSS_COMPILE=aarch64-linux-androidkernel-
-LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
+#In kernel 5.4.124+, CLANG_TRIPLE is not used
+#CROSS_COMPILE will set to --target (when 5.4.84 CROSS_TRIPLE set to --target)
+#if --target set to aarch64-linux-androidkernel-, kernel can't boot(need further analysis)
+
+#CLANG_TRIPLE=aarch64-linux-gnu-
+CROSS_COMPILE=aarch64-linux-gnu-
+#CROSS_COMPILE=aarch64-linux-androidkernel-
+#LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
 
 FILES="
 arch/arm64/boot/Image.gz
@@ -10,3 +36,4 @@ arch/arm64/boot/Image
 vmlinux
 System.map
 "
+

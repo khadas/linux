@@ -441,11 +441,7 @@ ssize_t kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
 	set_fs(old_fs);
 	return result;
 }
-#ifdef CONFIG_AMLOGIC_MODIFY
 EXPORT_SYMBOL(kernel_read);
-#else
-EXPORT_SYMBOL_NS(kernel_read, ANDROID_GKI_VFS_EXPORT_ONLY);
-#endif
 
 ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 {
@@ -545,11 +541,7 @@ ssize_t kernel_write(struct file *file, const void *buf, size_t count,
 
 	return res;
 }
-#ifdef CONFIG_AMLOGIC_MODIFY
 EXPORT_SYMBOL(kernel_write);
-#else
-EXPORT_SYMBOL_NS(kernel_write, ANDROID_GKI_VFS_EXPORT_ONLY);
-#endif
 
 ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_t *pos)
 {
@@ -578,7 +570,10 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 
 	return ret;
 }
+
+#ifdef CONFIG_AMLOGIC_MODIFY
 EXPORT_SYMBOL_GPL(vfs_write);
+#endif
 
 /* file_ppos returns &file->f_pos or NULL if file is stream */
 static inline loff_t *file_ppos(struct file *file)
@@ -674,7 +669,7 @@ ssize_t ksys_pwrite64(unsigned int fd, const char __user *buf,
 	f = fdget(fd);
 	if (f.file) {
 		ret = -ESPIPE;
-		if (f.file->f_mode & FMODE_PWRITE)
+		if (f.file->f_mode & FMODE_PWRITE)  
 			ret = vfs_write(f.file, buf, count, &pos);
 		fdput(f);
 	}

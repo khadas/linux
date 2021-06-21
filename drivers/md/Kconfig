@@ -538,17 +538,6 @@ config DM_VERITY_VERIFY_ROOTHASH_SIG
 
 	  If unsure, say N.
 
-config DM_VERITY_AVB
-	tristate "Support AVB specific verity error behavior"
-	depends on DM_VERITY
-	---help---
-	  Enables Android Verified Boot platform-specific error
-	  behavior. In particular, it will modify the vbmeta partition
-	  specified on the kernel command-line when non-transient error
-	  occurs (followed by a panic).
-
-	  If unsure, say N.
-
 config DM_VERITY_FEC
 	bool "Verity forward error correction support"
 	depends on DM_VERITY
@@ -597,6 +586,7 @@ config DM_INTEGRITY
 	select BLK_DEV_INTEGRITY
 	select DM_BUFIO
 	select CRYPTO
+	select CRYPTO_SKCIPHER
 	select ASYNC_XOR
 	---help---
 	  This device-mapper target emulates a block device that has
@@ -638,6 +628,20 @@ config DM_BOW
 	  changes using free blocks identified by issuing a trim command.
 	  This can then be restored by running a command line utility,
 	  or committed by simply replacing the target.
+
+	  If unsure, say N.
+
+config DM_USER
+	tristate "Block device in userspace"
+	depends on BLK_DEV_DM
+	default y
+	help
+	  This device-mapper target allows a userspace daemon to provide the
+	  contents of a block device.  See
+	  <file:Documentation/block/dm-user.rst> for more information.
+
+	  To compile this code as a module, choose M here: the module will be
+	  called dm-user.
 
 	  If unsure, say N.
 

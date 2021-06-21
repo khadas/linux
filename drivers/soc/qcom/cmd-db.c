@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2016-2018, 2020, The Linux Foundation. All rights reserved. */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -274,6 +274,7 @@ static struct platform_driver cmd_db_dev_driver = {
 	.driver = {
 		   .name = "cmd-db",
 		   .of_match_table = cmd_db_match_table,
+		   .suppress_bind_attrs = true,
 	},
 };
 
@@ -283,5 +284,5 @@ static int __init cmd_db_device_init(void)
 }
 arch_initcall(cmd_db_device_init);
 
-MODULE_DESCRIPTION("Qualcomm Technologies, Inc. Command DB for QCOM SoCs");
+MODULE_DESCRIPTION("Qualcomm Technologies, Inc. Command DB Driver");
 MODULE_LICENSE("GPL v2");

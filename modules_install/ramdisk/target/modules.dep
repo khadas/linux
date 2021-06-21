@@ -1,0 +1,61 @@
+meson-clk-measure.ko:
+gpio_keypad.ko:
+adc_keypad.ko: aml_mailbox.ko
+pps_core.ko:
+meson-cpufreq.ko:
+aml_spifc.ko:
+stmmac.ko: ptp.ko pps_core.ko phylink.ko
+meson_ir.ko: aml_gki_tool.ko
+snd-soc-tas5805.ko:
+dolby_fw.ko:
+aml_gki_tool.ko:
+leds_state.ko: aml_mailbox.ko
+aml_spicc.ko:
+meson_mtd_reserve.ko:
+meson_saradc.ko:
+reg_access.ko:
+leds-tlc59116.ko:
+dwmac-meson8b.ko: aml_mdio_g12a.ko mdio_mux.ko stmmac-platform.ko stmmac.ko ptp.ko pps_core.ko phylink.ko
+reboot.ko:
+aml_mailbox.ko:
+ptp.ko: pps_core.ko
+aml_rng.ko:
+spinand.ko: meson_spi_nand.ko meson_mtd_reserve.ko
+meson_mtd_nfc.ko: meson_mtd_reserve.ko aml_gki_tool.ko
+meson-clk-debug.ko: meson-clk-measure.ko
+thermal.ko:
+mdio_mux.ko:
+aml_media.ko: aml_dvb_extern.ko aml_tee.ko meson-clk-measure.ko aml_gki_tool.ko aml_mailbox.ko
+meson_jtag.ko:
+snd-usb-audio.ko: snd-hwdep.ko snd-usbmidi-lib.ko
+spi-nor.ko:
+aml_mdio_g12a.ko: mdio_mux.ko
+snd-soc-aml_codec_tl1_acodec.ko: snd_soc.ko aml_media.ko aml_dvb_extern.ko aml_tee.ko snd_soc_notify.ko meson-clk-measure.ko aml_gki_tool.ko aml_mailbox.ko
+aml_aucpu.ko:
+meson-gxl.ko: aml_mdio_g12a.ko mdio_mux.ko
+snd_soc_notify.ko:
+snd-soc-dummy_codec.ko:
+amlogic_amaudio.ko: aml_media.ko aml_dvb_extern.ko aml_tee.ko meson-clk-measure.ko aml_gki_tool.ko aml_mailbox.ko
+aml_dvb_extern.ko:
+aml_irblaster.ko:
+meson_gxbb_wdt.ko:
+hifidsp.ko: aml_mailbox.ko
+snd-soc-aml_t9015.ko: snd_soc.ko aml_media.ko aml_dvb_extern.ko aml_tee.ko snd_soc_notify.ko meson-clk-measure.ko aml_gki_tool.ko aml_mailbox.ko
+dwmac-dwc-qos-eth.ko: stmmac-platform.ko stmmac.ko ptp.ko pps_core.ko phylink.ko
+dvb_demux.ko: aml_aucpu.ko aml_media.ko aml_dvb_extern.ko aml_tee.ko meson-clk-measure.ko aml_gki_tool.ko aml_mailbox.ko
+aml_ddr_tool.ko: aml_gki_tool.ko
+aml_drm.ko: aml_media.ko aml_dvb_extern.ko aml_tee.ko meson-clk-measure.ko aml_gki_tool.ko aml_mailbox.ko
+meson_spi_nand.ko: meson_mtd_reserve.ko
+aml_tee.ko:
+audiodsp.ko:
+snd-hwdep.ko:
+ad82584f.ko:
+stmmac-platform.ko: stmmac.ko ptp.ko pps_core.ko phylink.ko
+phylink.ko:
+snd_soc.ko: aml_media.ko aml_dvb_extern.ko aml_tee.ko snd_soc_notify.ko meson-clk-measure.ko aml_gki_tool.ko aml_mailbox.ko
+audio_data.ko:
+snd-soc-tas5707.ko:
+exfat.ko:
+rtc-meson-vrtc.ko: aml_mailbox.ko
+snd-usbmidi-lib.ko:
+aml_crypto_dma.ko:

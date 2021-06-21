@@ -1,0 +1,61 @@
+lib/modules/meson-clk-measure.ko:
+lib/modules/gpio_keypad.ko:
+lib/modules/adc_keypad.ko: lib/modules/aml_mailbox.ko
+lib/modules/pps_core.ko:
+lib/modules/meson-cpufreq.ko:
+lib/modules/aml_spifc.ko:
+lib/modules/stmmac.ko: lib/modules/ptp.ko lib/modules/pps_core.ko lib/modules/phylink.ko
+lib/modules/meson_ir.ko: lib/modules/aml_gki_tool.ko
+lib/modules/snd-soc-tas5805.ko:
+lib/modules/dolby_fw.ko:
+lib/modules/aml_gki_tool.ko:
+lib/modules/leds_state.ko: lib/modules/aml_mailbox.ko
+lib/modules/aml_spicc.ko:
+lib/modules/meson_mtd_reserve.ko:
+lib/modules/meson_saradc.ko:
+lib/modules/reg_access.ko:
+lib/modules/leds-tlc59116.ko:
+lib/modules/dwmac-meson8b.ko: lib/modules/aml_mdio_g12a.ko lib/modules/mdio_mux.ko lib/modules/stmmac-platform.ko lib/modules/stmmac.ko lib/modules/ptp.ko lib/modules/pps_core.ko lib/modules/phylink.ko
+lib/modules/reboot.ko:
+lib/modules/aml_mailbox.ko:
+lib/modules/ptp.ko: lib/modules/pps_core.ko
+lib/modules/aml_rng.ko:
+lib/modules/spinand.ko: lib/modules/meson_spi_nand.ko lib/modules/meson_mtd_reserve.ko
+lib/modules/meson_mtd_nfc.ko: lib/modules/meson_mtd_reserve.ko lib/modules/aml_gki_tool.ko
+lib/modules/meson-clk-debug.ko: lib/modules/meson-clk-measure.ko
+lib/modules/thermal.ko:
+lib/modules/mdio_mux.ko:
+lib/modules/aml_media.ko: lib/modules/aml_dvb_extern.ko lib/modules/aml_tee.ko lib/modules/meson-clk-measure.ko lib/modules/aml_gki_tool.ko lib/modules/aml_mailbox.ko
+lib/modules/meson_jtag.ko:
+lib/modules/snd-usb-audio.ko: lib/modules/snd-hwdep.ko lib/modules/snd-usbmidi-lib.ko
+lib/modules/spi-nor.ko:
+lib/modules/aml_mdio_g12a.ko: lib/modules/mdio_mux.ko
+lib/modules/snd-soc-aml_codec_tl1_acodec.ko: lib/modules/snd_soc.ko lib/modules/aml_media.ko lib/modules/aml_dvb_extern.ko lib/modules/aml_tee.ko lib/modules/snd_soc_notify.ko lib/modules/meson-clk-measure.ko lib/modules/aml_gki_tool.ko lib/modules/aml_mailbox.ko
+lib/modules/aml_aucpu.ko:
+lib/modules/meson-gxl.ko: lib/modules/aml_mdio_g12a.ko lib/modules/mdio_mux.ko
+lib/modules/snd_soc_notify.ko:
+lib/modules/snd-soc-dummy_codec.ko:
+lib/modules/amlogic_amaudio.ko: lib/modules/aml_media.ko lib/modules/aml_dvb_extern.ko lib/modules/aml_tee.ko lib/modules/meson-clk-measure.ko lib/modules/aml_gki_tool.ko lib/modules/aml_mailbox.ko
+lib/modules/aml_dvb_extern.ko:
+lib/modules/aml_irblaster.ko:
+lib/modules/meson_gxbb_wdt.ko:
+lib/modules/hifidsp.ko: lib/modules/aml_mailbox.ko
+lib/modules/snd-soc-aml_t9015.ko: lib/modules/snd_soc.ko lib/modules/aml_media.ko lib/modules/aml_dvb_extern.ko lib/modules/aml_tee.ko lib/modules/snd_soc_notify.ko lib/modules/meson-clk-measure.ko lib/modules/aml_gki_tool.ko lib/modules/aml_mailbox.ko
+lib/modules/dwmac-dwc-qos-eth.ko: lib/modules/stmmac-platform.ko lib/modules/stmmac.ko lib/modules/ptp.ko lib/modules/pps_core.ko lib/modules/phylink.ko
+lib/modules/dvb_demux.ko: lib/modules/aml_aucpu.ko lib/modules/aml_media.ko lib/modules/aml_dvb_extern.ko lib/modules/aml_tee.ko lib/modules/meson-clk-measure.ko lib/modules/aml_gki_tool.ko lib/modules/aml_mailbox.ko
+lib/modules/aml_ddr_tool.ko: lib/modules/aml_gki_tool.ko
+lib/modules/aml_drm.ko: lib/modules/aml_media.ko lib/modules/aml_dvb_extern.ko lib/modules/aml_tee.ko lib/modules/meson-clk-measure.ko lib/modules/aml_gki_tool.ko lib/modules/aml_mailbox.ko
+lib/modules/meson_spi_nand.ko: lib/modules/meson_mtd_reserve.ko
+lib/modules/aml_tee.ko:
+lib/modules/audiodsp.ko:
+lib/modules/snd-hwdep.ko:
+lib/modules/ad82584f.ko:
+lib/modules/stmmac-platform.ko: lib/modules/stmmac.ko lib/modules/ptp.ko lib/modules/pps_core.ko lib/modules/phylink.ko
+lib/modules/phylink.ko:
+lib/modules/snd_soc.ko: lib/modules/aml_media.ko lib/modules/aml_dvb_extern.ko lib/modules/aml_tee.ko lib/modules/snd_soc_notify.ko lib/modules/meson-clk-measure.ko lib/modules/aml_gki_tool.ko lib/modules/aml_mailbox.ko
+lib/modules/audio_data.ko:
+lib/modules/snd-soc-tas5707.ko:
+lib/modules/exfat.ko:
+lib/modules/rtc-meson-vrtc.ko: lib/modules/aml_mailbox.ko
+lib/modules/snd-usbmidi-lib.ko:
+lib/modules/aml_crypto_dma.ko:
