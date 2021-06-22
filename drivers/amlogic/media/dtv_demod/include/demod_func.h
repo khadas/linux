@@ -253,7 +253,8 @@ struct demod_status_ops *dvbt_get_status_ops(void);
 /* dvbc */
 
 int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc);
-int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts);
+int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts,
+		struct seq_file *seq);
 int dvbc_isr_islock(void);
 void dvbc_isr(struct aml_demod_sta *demod_sta);
 u32 dvbc_set_qam_mode(unsigned char mode);

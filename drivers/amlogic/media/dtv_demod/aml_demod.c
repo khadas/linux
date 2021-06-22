@@ -217,7 +217,7 @@ static long aml_demod_ioctl(struct file *file,
 		break;
 
 	case AML_DEMOD_DVBC_GET_CH:
-		dvbc_status(demod, (struct aml_demod_sts *)arg);
+		dvbc_status(demod, (struct aml_demod_sts *)arg, NULL);
 		break;
 
 	case AML_DEMOD_DVBT_SET_CH:

@@ -1091,7 +1091,7 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod)
 	case DTVDEMOD_HW_T5D:
 	case DTVDEMOD_HW_T5D_B:
 		dtvdemod_ddr_reg_write(0x148, dtvdemod_ddr_reg_read(0x148) & 0xefffffff);
-		usleep_range(5000, 5001);
+		usleep_range(5000, 6000);
 		dtvdemod_ddr_reg_write(0x148, dtvdemod_ddr_reg_read(0x148) | 0x10000000);
 		break;
 

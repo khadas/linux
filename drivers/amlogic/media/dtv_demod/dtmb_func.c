@@ -279,11 +279,10 @@ int check_dtmb_mobile_det(void)
 	return mobile_det;
 }
 
-int dtmb_information(struct aml_dtvdemod *demod)
+int dtmb_information(struct seq_file *seq)
 {
-	int tps, snr, fec_lock, fec_bch_add, fec_ldpc_unc_acc, fec_ldpc_it_avg,
-	/*tmp,*/ che_snr;
-	unsigned int buf[3]; /**/
+	int tps, snr, fec_lock, fec_bch_add, fec_ldpc_unc_acc, fec_ldpc_it_avg, che_snr;
+	unsigned int buf[3];
 
 	tps = dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT);
 
@@ -299,49 +298,63 @@ int dtmb_information(struct aml_dtvdemod *demod)
 	fec_bch_add = dtmb_reg_r_bch();
 	fec_ldpc_unc_acc = dtmb_read_reg(DTMB_TOP_FEC_LDPC_UNC_ACC);
 	fec_ldpc_it_avg = dtmb_read_reg(DTMB_TOP_FEC_LDPC_IT_AVG);
-	PR_DTMB("[FSM] : %x %x %x %x\n",
-	       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0),
-	       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE1),
-	       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE2),
-	       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE3));
-	/* PR_DTMB*/
-	/*    ("[AGC]: agc_power %d,agc_if_gain %d,agc_rf_gain %d,",*/
-	/*     (-(((dtmb_read_reg(DTMB_TOP_FRONT_AGC) >> 22) & 0x3ff) / 16)),*/
-	/*     ((dtmb_read_reg(DTMB_TOP_FRONT_AGC)) & 0x3ff),*/
-	/*    ((dtmb_read_reg(DTMB_TOP_FRONT_AGC) >> 11) & 0x7ff));*/
-
 	dtmb_read_agc(DTMB_D9_ALL, &buf[0]);
-	PR_DTMB
-	    ("[AGC]: agc_power %d,agc_if_gain %d,agc_rf_gain %d,",
-	     (-((buf[2]) / 16)),
-	     buf[0],
-	     buf[1]);
 
-	PR_DTMB
-	      ("dagc_power %3d,dagc_gain %3d mobi_det_power %d\n",
-	      ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 0) & 0xff),
-	     ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 8) & 0xfff),
-	     (dtmb_read_reg(DTMB_TOP_CTRL_SYS_OFDM_CNT) >> 8) & 0x7ffff);
-	PR_DTMB
-	    ("[TPS] SC or MC %2d,f_r %2d qam_nr %2d ",
-	     (dtmb_read_reg(DTMB_TOP_CHE_OBS_STATE1) >> 1) & 0x1,
-	     (tps >> 22) & 0x1, (tps >> 21) & 0x1);
-	PR_DTMB
-		("intlv %2d,cr %2d constl %2d\n",
-		(tps >> 20) & 0x1,
-	     (tps >> 18) & 0x3, (tps >> 16) & 0x3);
+	if (seq) {
+		seq_printf(seq, "[FSM] : %x %x %x %x\n",
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0),
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE1),
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE2),
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE3));
 
-	PR_DTMB
-	    ("[dtmb] snr is %d,fec_lock is %d,fec_bch_add is %d,",
-	     snr, fec_lock, fec_bch_add);
-	PR_DTMB
-	    ("fec_ldpc_unc_acc is %d ,fec_ldpc_it_avg is %d\n",
-	     fec_ldpc_unc_acc,
-	     fec_ldpc_it_avg / 256);
-	PR_DTMB
-	    ("------------------------------------------------------------\n");
+		seq_printf(seq, "[AGC]: agc_power %d,agc_if_gain %d,agc_rf_gain %d,",
+			   (-((buf[2]) / 16)),	buf[0], buf[1]);
 
-	tuner_get_ch_power(&demod->frontend);
+		seq_printf(seq, "dagc_power %3d,dagc_gain %3d mobi_det_power %d\n",
+		      ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 0) & 0xff),
+		     ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 8) & 0xfff),
+		     (dtmb_read_reg(DTMB_TOP_CTRL_SYS_OFDM_CNT) >> 8) & 0x7ffff);
+		seq_printf(seq, "[TPS] SC or MC %2d,f_r %2d qam_nr %2d ",
+		     (dtmb_read_reg(DTMB_TOP_CHE_OBS_STATE1) >> 1) & 0x1,
+		     (tps >> 22) & 0x1, (tps >> 21) & 0x1);
+		seq_printf(seq, "intlv %2d,cr %2d constl %2d\n",
+			(tps >> 20) & 0x1,
+		     (tps >> 18) & 0x3, (tps >> 16) & 0x3);
+
+		seq_printf(seq, "[dtmb] snr is %d,fec_lock is %d,fec_bch_add is %d,",
+		     snr, fec_lock, fec_bch_add);
+		seq_printf(seq, "fec_ldpc_unc_acc is %d ,fec_ldpc_it_avg is %d\n",
+		     fec_ldpc_unc_acc,
+		     fec_ldpc_it_avg / 256);
+		seq_puts(seq, "------------------------------------------------------------\n");
+	} else {
+		PR_DTMB("[FSM] : %x %x %x %x\n",
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE0),
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE1),
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE2),
+		       dtmb_read_reg(DTMB_TOP_CTRL_FSM_STATE3));
+
+		PR_DTMB("[AGC]: agc_power %d,agc_if_gain %d,agc_rf_gain %d,", (-((buf[2]) / 16)),
+			buf[0], buf[1]);
+
+		PR_DTMB("dagc_power %3d,dagc_gain %3d mobi_det_power %d\n",
+		      ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 0) & 0xff),
+		     ((dtmb_read_reg(DTMB_TOP_FRONT_DAGC) >> 8) & 0xfff),
+		     (dtmb_read_reg(DTMB_TOP_CTRL_SYS_OFDM_CNT) >> 8) & 0x7ffff);
+		PR_DTMB("[TPS] SC or MC %2d,f_r %2d qam_nr %2d ",
+		     (dtmb_read_reg(DTMB_TOP_CHE_OBS_STATE1) >> 1) & 0x1,
+		     (tps >> 22) & 0x1, (tps >> 21) & 0x1);
+		PR_DTMB("intlv %2d,cr %2d constl %2d\n",
+			(tps >> 20) & 0x1,
+		     (tps >> 18) & 0x3, (tps >> 16) & 0x3);
+
+		PR_DTMB("[dtmb] snr is %d,fec_lock is %d,fec_bch_add is %d,",
+		     snr, fec_lock, fec_bch_add);
+		PR_DTMB("fec_ldpc_unc_acc is %d ,fec_ldpc_it_avg is %d\n",
+		     fec_ldpc_unc_acc,
+		     fec_ldpc_it_avg / 256);
+		PR_DTMB("------------------------------------------------------------\n");
+	}
 
 	return 0;
 }
@@ -487,7 +500,7 @@ int dtmb_check_status_gxtv(struct dvb_frontend *fe)
 	int time_cnt;/* cci_det, src_config;*/
 	int cfo_init, count;
 
-	dtmb_information(demod);
+	dtmb_information(NULL);
 	time_cnt = 0;
 	local_state = 0;
 	cfo_init = 0;
@@ -519,7 +532,7 @@ int dtmb_check_status_gxtv(struct dvb_frontend *fe)
 			msleep(demod_timeout);
 			time_cnt++;
 			local_state = AMLOGIC_DTMB_STEP3;
-			dtmb_information(demod);
+			dtmb_information(NULL);
 			dtmb_check_cci();
 			if (time_cnt > 8)
 				PR_DTMB
@@ -562,12 +575,12 @@ int dtmb_check_status_txl(struct dvb_frontend *fe)
 	int time_cnt;
 
 	time_cnt = 0;
-	dtmb_information(demod);
+	dtmb_information(NULL);
 	if (check_dtmb_fec_lock() != 1) {
 		while ((time_cnt < 10) && (check_dtmb_fec_lock() != 1)) {
 			msleep(demod_timeout);
 			time_cnt++;
-			dtmb_information(demod);
+			dtmb_information(NULL);
 			if (((dtmb_read_reg(DTMB_TOP_CTRL_CHE_WORKCNT)
 				>> 21) & 0x1) == 0x1) {
 				PR_DTMB("4qam-nr,need set spectrum\n");

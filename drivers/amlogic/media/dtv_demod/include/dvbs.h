@@ -96,5 +96,6 @@ unsigned int dvbs2_diseqc_irq_check(void);
 void dvbs2_diseqc_irq_en(unsigned int onoff);
 void dvbs2_diseqc_init(void);
 void dvbs2_diseqc_continuous_tone(unsigned int onoff);
+void dvbs_check_status(struct seq_file *seq);
 
 #endif
