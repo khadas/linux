@@ -39,6 +39,9 @@
 #include "common.h"
 #include "hw_clk.h"
 #include <linux/arm-smccc.h>
+#ifdef CONFIG_AMLOGIC_VPU
+#include <linux/amlogic/media/vpu/vpu.h>
+#endif
 #include "checksha.h"
 #include "reg_sc2.h"
 
@@ -453,6 +456,11 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 		hd_set_reg_bits(P_PWRCTRL_MEM_PD11, 0, 8, 8);
 	else
 		hd_set_reg_bits(P_HHI_MEM_PD_REG0, 0, 8, 8);
+#ifdef CONFIG_AMLOGIC_VPU
+	/* VPU_HDMI since tm2_B: P_HHI_MEM_PD_REG4 bit[13:12] */
+	if (hdev->hdmi_vpu_dev)
+		vpu_dev_mem_power_on(hdev->hdmi_vpu_dev);
+#endif
 	/* enable CLK_TO_DIG */
 	if (hdev->data->chip_type >= MESON_CPU_ID_SC2)
 		hd_set_reg_bits(P_ANACTRL_HDMIPHY_CTRL3, 0x3, 0, 2);
