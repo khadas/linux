@@ -3522,7 +3522,7 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	smmu->sid_bits = FIELD_GET(IDR1_SIDSIZE, reg);
 #ifdef CONFIG_AMLOGIC_MODIFY
 	/* for select the line stream table */
-	smmu->sid_bits = 5;
+	smmu->sid_bits = 7;
 #endif
 
 	/*
@@ -3713,6 +3713,11 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	struct arm_smmu_device *smmu;
 	struct device *dev = &pdev->dev;
 	bool bypass;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	int i = 0;
+	void __iomem *smmu_ctrl_base;
+	u32 ctrl_tmp;
+#endif
 
 	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
 	if (!smmu) {
@@ -3743,6 +3748,25 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	smmu->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(smmu->base))
 		return PTR_ERR(smmu->base);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/* map the mmu ctrl register */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	smmu_ctrl_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(smmu_ctrl_base))
+		return PTR_ERR(smmu->base);
+
+	/* set the TBU mode 2 */
+	for (i = 9; i < 32; i = i + 2) {
+		ctrl_tmp = readl_relaxed(smmu_ctrl_base + i * 4);
+		ctrl_tmp &= ~(3 << 20);
+		ctrl_tmp |= (2 << 20);
+		writel_relaxed(ctrl_tmp, smmu_ctrl_base + i * 4);
+	}
+
+	__flush_dcache_area(smmu_ctrl_base, 0x80);
+	devm_iounmap(dev, smmu_ctrl_base);
+#endif
 
 	/* Interrupt lines */
 
