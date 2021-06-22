@@ -127,6 +127,28 @@ struct hifi4dsp_addr *hifi4dsp_get_share_memory(void)
 }
 EXPORT_SYMBOL(hifi4dsp_get_share_memory);
 
+struct hifi4dsp_firmware *hifi4dsp_get_firmware(int dspid)
+{
+	if (!hifi4dsp_p[dspid])
+		return NULL;
+
+	return hifi4dsp_p[dspid]->dsp->dsp_fw;
+}
+
+void hifi4dsp_shm_clean(int dspid, unsigned int paddr, unsigned int size)
+{
+	if (!hifi4dsp_p[dspid])
+		return;
+	dma_sync_single_for_device(hifi4dsp_p[dspid]->dev, paddr, size, DMA_TO_DEVICE);
+}
+
+void hifi4dsp_shm_invalidate(int dspid, unsigned int paddr, unsigned int size)
+{
+	if (!hifi4dsp_p[dspid])
+		return;
+	dma_sync_single_for_device(hifi4dsp_p[dspid]->dev, paddr, size, DMA_FROM_DEVICE);
+}
+
 static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 					    unsigned long arg)
 {
@@ -1198,7 +1220,7 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	}
 
 	/*init dsp firmware*/
-	dsp_firmware = kzalloc(sizeof(*dsp_firmware), GFP_KERNEL);
+	dsp_firmware = kcalloc(dsp_cnt, sizeof(*dsp_firmware), GFP_KERNEL);
 	if (!dsp_firmware)
 		goto dsp_firmware_malloc_error;
 
@@ -1239,6 +1261,7 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		priv += i;
 		pdata += i;
 		dsp += i;
+		dsp_firmware += i;
 		pr_info("\nregister dsp-%d start\n", id);
 
 		/*get boot address*/
@@ -1279,6 +1302,7 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		dsp_firmware->paddr = hifi4base;
 		dsp_firmware->size = hifi4size;
 		dsp_firmware->id = id;
+		dsp_firmware->buf = fw_addr;
 		strcpy(dsp_firmware->name, "amlogic_firmware");
 
 		/*init hifi4dsp_miscdev_t ->priv*/

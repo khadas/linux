@@ -36,5 +36,8 @@ struct hifi4dsp_firmware *hifi4dsp_fw_register(struct hifi4dsp_dsp *dsp,
 					       char *fw_name);
 int hifi4dsp_dump_memory(const void *buf, unsigned int bytes, int col);
 void *get_hifi_fw_mem_type(void);
+struct hifi4dsp_firmware *hifi4dsp_get_firmware(int dspid);
+void hifi4dsp_shm_clean(int dspid, unsigned int paddr, unsigned int size);
+void hifi4dsp_shm_invalidate(int dspid, unsigned int paddr, unsigned int size);
 
 #endif /*_HIFI4DSP_FIRMWARE_H*/
