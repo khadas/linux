@@ -15,7 +15,9 @@
 #include <linux/device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
+#endif
 #include <linux/amlogic/media/vout/hdmi_tx/meson_drm_hdmitx.h>
 #include <linux/spinlock.h>
 
@@ -491,6 +493,11 @@ struct hdmitx_dev {
 	unsigned int drm_feature;/*force 0 now.*/
 	struct drm_hdmitx_hpd_cb drm_hpd_cb;
 	struct drm_hdmitx_hdcp_cb drm_hdcp_cb;
+#ifdef CONFIG_AMLOGIC_VPU
+	struct vpu_dev_s *encp_vpu_dev;
+	struct vpu_dev_s *enci_vpu_dev;
+	struct vpu_dev_s *hdmi_vpu_dev;
+#endif
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)

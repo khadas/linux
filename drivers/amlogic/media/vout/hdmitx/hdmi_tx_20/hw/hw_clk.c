@@ -68,10 +68,23 @@ static void hdmitx_disable_encp_clk(struct hdmitx_dev *hdev)
 		hd_set_reg_bits(P_CLKCTRL_VID_CLK_CTRL2, 0, 2, 1);
 	else
 		hd_set_reg_bits(P_HHI_VID_CLK_CNTL2, 0, 2, 1);
+#ifdef CONFIG_AMLOGIC_VPU
+	if (hdev->encp_vpu_dev) {
+		vpu_dev_clk_gate_off(hdev->encp_vpu_dev);
+		vpu_dev_mem_power_down(hdev->encp_vpu_dev);
+	}
+#endif
 }
 
 static void hdmitx_enable_encp_clk(struct hdmitx_dev *hdev)
 {
+#ifdef CONFIG_AMLOGIC_VPU
+	if (hdev->encp_vpu_dev) {
+		vpu_dev_clk_gate_on(hdev->encp_vpu_dev);
+		vpu_dev_mem_power_on(hdev->encp_vpu_dev);
+	}
+#endif
+
 	if (hdev->data->chip_type >= MESON_CPU_ID_SC2)
 		hd_set_reg_bits(P_CLKCTRL_VID_CLK_CTRL2, 1, 2, 1);
 	else
@@ -84,7 +97,12 @@ static void hdmitx_disable_enci_clk(struct hdmitx_dev *hdev)
 		hd_set_reg_bits(P_CLKCTRL_VID_CLK_CTRL2, 0, 0, 1);
 	else
 		hd_set_reg_bits(P_HHI_VID_CLK_CNTL2, 0, 0, 1);
-
+#ifdef CONFIG_AMLOGIC_VPU
+	if (hdev->enci_vpu_dev) {
+		vpu_dev_clk_gate_off(hdev->enci_vpu_dev);
+		vpu_dev_mem_power_down(hdev->enci_vpu_dev);
+	}
+#endif
 	if (hdev->hdmitx_clk_tree.venci_top_gate)
 		clk_disable_unprepare(hdev->hdmitx_clk_tree.venci_top_gate);
 
@@ -105,6 +123,13 @@ static void hdmitx_enable_enci_clk(struct hdmitx_dev *hdev)
 
 	if (hdev->hdmitx_clk_tree.venci_1_gate)
 		clk_prepare_enable(hdev->hdmitx_clk_tree.venci_1_gate);
+
+#ifdef CONFIG_AMLOGIC_VPU
+	if (hdev->enci_vpu_dev) {
+		vpu_dev_clk_gate_on(hdev->enci_vpu_dev);
+		vpu_dev_mem_power_on(hdev->enci_vpu_dev);
+	}
+#endif
 
 	if (hdev->data->chip_type >= MESON_CPU_ID_SC2)
 		hd_set_reg_bits(P_CLKCTRL_VID_CLK_CTRL2, 1, 0, 1);

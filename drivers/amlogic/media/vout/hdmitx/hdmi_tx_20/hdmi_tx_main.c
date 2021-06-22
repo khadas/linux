@@ -6518,6 +6518,13 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdcp_ctl_lvl);
 	ret = device_create_file(dev, &dev_attr_hdmitx_drm_flag);
 
+#ifdef CONFIG_AMLOGIC_VPU
+	hdmitx_device.encp_vpu_dev = vpu_dev_register(VPU_VENCP, DEVICE_NAME);
+	hdmitx_device.enci_vpu_dev = vpu_dev_register(VPU_VENCI, DEVICE_NAME);
+	/* vpu gate/mem ctrl for hdmitx, since TM2B */
+	hdmitx_device.hdmi_vpu_dev = vpu_dev_register(VPU_HDMI, DEVICE_NAME);
+#endif
+
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
 #endif
