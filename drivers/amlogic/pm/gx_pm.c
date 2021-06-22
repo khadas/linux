@@ -280,6 +280,8 @@ unsigned int is_pm_s2idle_mode(void)
 }
 EXPORT_SYMBOL_GPL(is_pm_s2idle_mode);
 
+/*Call it as suspend_reason because of historical reasons. */
+/*Actually, we should call it wakeup_reason.               */
 static unsigned int suspend_reason;
 ssize_t suspend_reason_show(struct device *dev,
 			    struct device_attribute *attr,
@@ -287,7 +289,7 @@ ssize_t suspend_reason_show(struct device *dev,
 {
 	unsigned int len;
 
-	suspend_reason = get_resume_method();
+	suspend_reason = get_resume_reason();
 	len = sprintf(buf, "%d\n", suspend_reason);
 
 	return len;
