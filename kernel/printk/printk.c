@@ -1406,12 +1406,13 @@ static size_t print_prefix(const struct printk_log *msg, bool syslog,
 	if (syslog)
 		len = print_syslog((msg->facility << 3) | msg->level, buf);
 
-	if (time)
-		len += print_time(msg->ts_nsec, buf + len);
-
 #ifdef CONFIG_AMLOGIC_MODIFY
+	/* print_prefix() is under logbuf_lock protected */
 	curr_cpu = msg->cpu;
 #endif
+
+	if (time)
+		len += print_time(msg->ts_nsec, buf + len);
 
 	len += print_caller(msg->caller_id, buf + len);
 
