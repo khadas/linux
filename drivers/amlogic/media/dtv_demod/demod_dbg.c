@@ -61,6 +61,10 @@ static void get_chip_name(struct amldtvdemod_device_s *devp, char *str)
 		strcpy(str, "DTVDEMOD_HW_S4");
 		break;
 
+	case DTVDEMOD_HW_T3:
+		strcpy(str, "DTVDEMOD_HW_T3");
+		break;
+
 	case DTVDEMOD_HW_S4D:
 		strcpy(str, "DTVDEMOD_HW_S4D");
 		break;
@@ -144,26 +148,21 @@ static void seq_dump_regs(struct seq_file *seq)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 	struct aml_dtvdemod *demod = NULL;
-	unsigned int reg_start, i, polling_en = 1;
+	unsigned int reg_start, polling_en = 1;
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		seq_puts(seq, "demod top start\n");
-		for (reg_start = 0, i = 0; reg_start <= 0xc; reg_start += 4, i++) {
-			if (!(i % 10))
-				seq_puts(seq, "\n");
+		for (reg_start = 0; reg_start <= 0xc; reg_start += 4)
+			seq_printf(seq, "[0x%x]=0x%x\n", reg_start, demod_top_read_reg(reg_start));
 
-			seq_printf(seq, "[0x%x]=0x%x\t", reg_start, demod_top_read_reg(reg_start));
+		if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+			seq_printf(seq, "[0x10]=0x%x\n", demod_top_read_reg(DEMOD_TOP_CFG_REG_4));
+			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 		}
-		seq_puts(seq, "demod top end\n\n");
 
 		seq_puts(seq, "demod front start\n");
-		for (reg_start = 0x20, i = 0; reg_start <= 0x68; reg_start++, i++) {
-			if (!(i % 10))
-				seq_puts(seq, "\n");
-
-			seq_printf(seq, "[0x%x]=0x%x\t", reg_start, front_read_reg(reg_start));
-		}
-		seq_puts(seq, "demod front end\n\n");
+		for (reg_start = 0x20; reg_start <= 0x68; reg_start++)
+			seq_printf(seq, "[0x%x]=0x%x\n", reg_start, front_read_reg(reg_start));
 	}
 
 	list_for_each_entry(demod, &devp->demod_list, list) {
@@ -172,21 +171,13 @@ static void seq_dump_regs(struct seq_file *seq)
 		case SYS_ATSC:
 		case SYS_ATSCMH:
 			if (is_meson_txlx_cpu()) {
-				for (reg_start = 0, i = 0; reg_start <= 0xfff; reg_start++, i++) {
-					if (!(i % 10))
-						seq_puts(seq, "\n");
-
-					seq_printf(seq, "[0x%x] = 0x%x\t",
+				for (reg_start = 0; reg_start <= 0xfff; reg_start++)
+					seq_printf(seq, "[0x%x] = 0x%x\n",
 						   reg_start, atsc_read_reg(reg_start));
-				}
 			} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-				for (reg_start = 0x0, i = 0; reg_start <= 0xff; reg_start++, i++) {
-					if (!(i % 10))
-						seq_puts(seq, "\n");
-
-					seq_printf(seq, "[0x%x] = 0x%x\t",
+				for (reg_start = 0x0; reg_start <= 0xff; reg_start++)
+					seq_printf(seq, "[0x%x] = 0x%x\n",
 						   reg_start, atsc_read_reg_v4(reg_start));
-				}
 			}
 			break;
 
@@ -195,60 +186,56 @@ static void seq_dump_regs(struct seq_file *seq)
 		case SYS_DVBC_ANNEX_B:
 			seq_puts(seq, "dvbc/j83b start\n");
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-				for (reg_start = 0, i = 0; reg_start <= 0xff; reg_start++, i++) {
-					if (!(i % 10))
-						seq_puts(seq, "\n");
-
-					seq_printf(seq, "[0x%x] = 0x%x\t",
+				for (reg_start = 0; reg_start <= 0xff; reg_start++)
+					seq_printf(seq, "[0x%x] = 0x%x\n",
 						   reg_start, qam_read_reg(demod, reg_start));
-				}
 			}
-			seq_puts(seq, "dvbc/j83b end\n");
 			break;
 
 		case SYS_DVBT:
 		case SYS_DVBT2:
-			if (demod->last_delsys == SYS_DVBT2) {
-				polling_en = devp->demod_thread;
-				devp->demod_thread = 0;
-				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-			}
+			polling_en = devp->demod_thread;
+			devp->demod_thread = 0;
+			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 
 			if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
-				for (reg_start = 0x0, i = 0; reg_start <= 0xf4;
-						reg_start++, i++) {
-					if (!(i % 10))
-						seq_puts(seq, "\n");
-
-					seq_printf(seq, "[0x%x] = 0x%x\t",
+				for (reg_start = 0x0; reg_start <= 0xf4; reg_start++)
+					seq_printf(seq, "[0x%x] = 0x%x\n",
 						   reg_start, dvbt_t2_rdb(reg_start));
-				}
 
-				for (reg_start = 0x538, i = 0; reg_start <= 0xfff;
-						reg_start++, i++) {
-					if (!(i % 10))
-						seq_puts(seq, "\n");
-
-					seq_printf(seq, "[0x%x] = 0x%x\t",
+				for (reg_start = 0x538; reg_start <= 0xfff; reg_start++)
+					seq_printf(seq, "[0x%x] = 0x%x\n",
 						   reg_start, dvbt_t2_rdb(reg_start));
-				}
 
-				for (reg_start = 0x1500, i = 0; reg_start <= 0x3776;
-						reg_start++, i++) {
-					if (!(i % 10))
-						seq_puts(seq, "\n");
-
-					seq_printf(seq, "[0x%x] = 0x%x\t",
-						   reg_start, dvbt_t2_rdb(reg_start));
-				}
+				/* TODO: flash weak signal during dump the following regs */
+				//for (reg_start = 0x1500; reg_start <= 0x3776; reg_start++)
+					//seq_printf(seq, "[0x%x] = 0x%x\n",
+						   //reg_start, dvbt_t2_rdb(reg_start));
 			}
 
-			if (demod->last_delsys == SYS_DVBT2) {
-				if (demod_is_t5d_cpu(devp))
-					demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+			if (demod->last_delsys == SYS_DVBT2 && demod_is_t5d_cpu(devp))
+				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 
-				devp->demod_thread = polling_en;
-			}
+			devp->demod_thread = polling_en;
+			break;
+
+		case SYS_DTMB:
+			for (reg_start = 0x0; reg_start <= 0xff; reg_start++)
+				seq_printf(seq, "[0x%x] = 0x%x\n",
+					   reg_start, dtmb_read_reg(reg_start));
+			break;
+
+		case SYS_ISDBT:
+			for (reg_start = 0x0; reg_start <= 0xff; reg_start++)
+				seq_printf(seq, "[0x%x] = 0x%x\n",
+					   reg_start, dvbt_isdbt_rd_reg_new(reg_start));
+			break;
+
+		case SYS_DVBS:
+		case SYS_DVBS2:
+			for (reg_start = 0x0; reg_start <= 0xfbf; reg_start++)
+				seq_printf(seq, "[0x%x] = 0x%x\n",
+					   reg_start, dvbs_rd_byte(reg_start));
 			break;
 
 		default:
@@ -264,11 +251,12 @@ static void seq_dump_status(struct seq_file *seq)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 	struct aml_dtvdemod *demod = NULL;
-	int snr, lock_status, bch, agc_if_gain[3];
+	int snr, lock_status, agc_if_gain[3];
 	unsigned int ser;
 	int strength = 0;
-	unsigned int debug_mode = aml_demod_debug;
 	char chip_name[30];
+	struct aml_demod_sts demod_sts;
+	unsigned int polling_en = 1;
 
 	seq_printf(seq, "version:%s\n", DTVDEMOD_VER);
 	get_chip_name(devp, chip_name);
@@ -284,23 +272,16 @@ static void seq_dump_status(struct seq_file *seq)
 		switch (demod->last_delsys) {
 		case SYS_DVBC_ANNEX_A:
 		case SYS_DVBC_ANNEX_C:
+		case SYS_DVBC_ANNEX_B:
+			dvbc_status(demod, &demod_sts, seq);
 			break;
 
 		case SYS_DTMB:
+			dtmb_information(seq);
 			if (strength <= -56) {
 				dtmb_read_agc(DTMB_D9_IF_GAIN, &agc_if_gain[0]);
 				strength = dtmb_get_power_strength(agc_if_gain[0]);
 			}
-
-			snr = dtmb_reg_r_che_snr();
-			snr = convert_snr(snr);
-			seq_printf(seq, "snr: %d\n", snr);
-
-			lock_status = dtmb_reg_r_fec_lock();
-			seq_printf(seq, "lock: %d\n", lock_status);
-
-			bch = dtmb_reg_r_bch();
-			seq_printf(seq, "bch: %d\n", bch);
 			break;
 
 		case SYS_ISDBT:
@@ -326,15 +307,24 @@ static void seq_dump_status(struct seq_file *seq)
 			break;
 
 		case SYS_DVBT:
-			aml_demod_debug |= DBG_DVBT;
 			dvbt_info(demod, seq);
-			aml_demod_debug = debug_mode;
 			break;
 
 		case SYS_DVBT2:
-			aml_demod_debug |= DBG_DVBT;
+			polling_en = devp->demod_thread;
+			devp->demod_thread = 0;
+			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 			dvbt2_info(seq);
-			aml_demod_debug = debug_mode;
+
+			if (demod_is_t5d_cpu(devp))
+				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+
+			devp->demod_thread = polling_en;
+			break;
+
+		case SYS_DVBS:
+		case SYS_DVBS2:
+			dvbs_check_status(seq);
 			break;
 
 		default:
@@ -516,7 +506,7 @@ int dtmb_write_usb(struct dtvdemod_capture_s *cap, unsigned int read_start)
 
 static void info_show(void)
 {
-	int snr, lock_status, bch, agc_if_gain[3];
+	int snr, lock_status, agc_if_gain[3];
 	unsigned int ser;
 	int strength = 0;
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
@@ -547,28 +537,16 @@ static void info_show(void)
 		switch (demod->last_delsys) {
 		case SYS_DVBC_ANNEX_A:
 		case SYS_DVBC_ANNEX_C:
-			dvbc_status(demod, &demod_sts);
-			if ((qam_read_reg(demod, 0x31) & 0xf) == 5)
-				PR_INFO("lock: locked.\n");
-			else
-				PR_INFO("lock: unlocked.\n");
+		case SYS_DVBC_ANNEX_B:
+			dvbc_status(demod, &demod_sts, NULL);
 			break;
 
 		case SYS_DTMB:
+			dtmb_information(NULL);
 			if (strength <= -56) {
 				dtmb_read_agc(DTMB_D9_IF_GAIN, &agc_if_gain[0]);
 				strength = dtmb_get_power_strength(agc_if_gain[0]);
 			}
-
-			snr = dtmb_reg_r_che_snr();
-			snr = convert_snr(snr);
-			PR_INFO("snr: %d.\n", snr);
-
-			lock_status = dtmb_reg_r_fec_lock();
-			PR_INFO("lock: %d.\n", lock_status);
-
-			bch = dtmb_reg_r_bch();
-			PR_INFO("bch: %d.\n", bch);
 			break;
 
 		case SYS_ISDBT:
@@ -595,9 +573,6 @@ static void info_show(void)
 			PR_INFO("atsc rst done: %d.\n", demod->atsc_rst_done);
 			break;
 
-		case SYS_DVBC_ANNEX_B:
-			break;
-
 		case SYS_DVBT:
 			aml_demod_debug |= DBG_DVBT;
 			dvbt_info(demod, NULL);
@@ -614,6 +589,11 @@ static void info_show(void)
 
 			devp->demod_thread = 1;
 			aml_demod_debug = debug_mode;
+			break;
+
+		case SYS_DVBS:
+		case SYS_DVBS2:
+			dvbs_check_status(NULL);
 			break;
 
 		default:
@@ -672,6 +652,7 @@ static void dump_regs(struct aml_dtvdemod *demod)
 
 	case SYS_DVBT:
 	case SYS_DVBT2:
+		pr_info("dvbt/t2 start\n");
 		if (demod->last_delsys == SYS_DVBT2) {
 			polling_en = devp->demod_thread;
 			devp->demod_thread = 0;
@@ -695,6 +676,32 @@ static void dump_regs(struct aml_dtvdemod *demod)
 
 			devp->demod_thread = polling_en;
 		}
+		pr_info("dvbt/t2 end\n");
+		break;
+
+	case SYS_DTMB:
+		pr_info("dtmb start\n");
+		for (reg_start = 0x0; reg_start <= 0xff; reg_start++)
+			pr_info("[0x%x] = 0x%x\n", reg_start, dtmb_read_reg(reg_start));
+
+		pr_info("dtmb end\n");
+		break;
+
+	case SYS_ISDBT:
+		pr_info("isdbt start\n");
+		for (reg_start = 0x0; reg_start <= 0xff; reg_start++)
+			pr_info("[0x%x] = 0x%x\n", reg_start, dvbt_isdbt_rd_reg_new(reg_start));
+
+		pr_info("isdbt end\n");
+		break;
+
+	case SYS_DVBS:
+	case SYS_DVBS2:
+		pr_info("dvbs start\n");
+		for (reg_start = 0x0; reg_start <= 0xfbf; reg_start++)
+			pr_info("[0x%x] = 0x%x\n", reg_start, dvbs_rd_byte(reg_start));
+
+		pr_info("dvbs end\n");
 		break;
 
 	default:

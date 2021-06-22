@@ -1305,3 +1305,64 @@ void demod_dump_reg_diseqc(void)
 		PR_INFO(" diseqc reg:0x%x val:0x%x\n", i, dvbs_rd_byte(i));
 }
 
+void dvbs_check_status(struct seq_file *seq)
+{
+	char *roll_off;
+
+	switch (dvbs_rd_byte(0xa05) & 0x7) {
+	case 0:
+		roll_off = "0.35";
+		break;
+
+	case 1:
+		roll_off = "0.25";
+		break;
+
+	case 2:
+		roll_off = "0.20";
+		break;
+
+	case 3:
+		roll_off = "0.10";
+		break;
+
+	case 5:
+		roll_off = "0.15";
+		break;
+
+	case 4:
+		roll_off = "0.05";
+		break;
+
+	default:
+		roll_off = "Unknown Roll Off";
+		break;
+	}
+
+	if (seq) {
+		seq_printf(seq, "Roll Off:%s,SNR 0x%x,0x152=0x%x,0x153=0x%x,TS_ok:%d\n",
+			roll_off,
+			(dvbs_rd_byte(CNR_HIGH) << 8) | dvbs_rd_byte(CNR_LOW), dvbs_rd_byte(0x152),
+			dvbs_rd_byte(0x153), (dvbs_rd_byte(0x160) >> 3) & 0x1);
+		seq_printf(seq, "PER1:%d,PER2:%d\n",
+			((dvbs_rd_byte(0xe61) & 0x7f)  << 16) +
+			((dvbs_rd_byte(0xe62) & 0xff) << 8) +
+			(dvbs_rd_byte(0xe63) & 0xff),
+			((dvbs_rd_byte(0xe65) & 0x7f)  << 16) +
+			((dvbs_rd_byte(0xe66) & 0xff) << 8) +
+			(dvbs_rd_byte(0xe67) & 0xff));
+	} else {
+		PR_DVBS("Roll Off:%s,SNR 0x%x,0x152=0x%x,0x153=0x%x,TS_ok:%d\n",
+			roll_off,
+			(dvbs_rd_byte(CNR_HIGH) << 8) | dvbs_rd_byte(CNR_LOW), dvbs_rd_byte(0x152),
+			dvbs_rd_byte(0x153), (dvbs_rd_byte(0x160) >> 3) & 0x1);
+		PR_DVBS("PER1:%d,PER2:%d\n",
+			((dvbs_rd_byte(0xe61) & 0x7f)  << 16) +
+			((dvbs_rd_byte(0xe62) & 0xff) << 8) +
+			(dvbs_rd_byte(0xe63) & 0xff),
+			((dvbs_rd_byte(0xe65) & 0x7f)  << 16) +
+			((dvbs_rd_byte(0xe66) & 0xff) << 8) +
+			(dvbs_rd_byte(0xe67) & 0xff));
+	}
+}
+

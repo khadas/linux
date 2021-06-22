@@ -450,7 +450,7 @@ u32 dvbc_set_auto_symtrack(struct aml_dtvdemod *demod)
 	return 0;
 }
 
-int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts)
+int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts, struct seq_file *seq)
 {
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
@@ -458,9 +458,6 @@ int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts)
 		PR_ERR("devp is NULL, return\n");
 		return -1;
 	}
-
-	if (!devp->debug_on)
-		return 0;
 
 	demod_sts->ch_sts = qam_read_reg(demod, 0x6);
 	demod_sts->ch_pow = dvbc_get_ch_power(demod);
@@ -470,15 +467,26 @@ int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts)
 	demod_sts->symb_rate = dvbc_get_symb_rate(demod);
 	demod_sts->freq_off = dvbc_get_freq_off(demod);
 	demod_sts->dat1 = tuner_get_ch_power(&demod->frontend);
-	PR_DVBC("[id %d] ch_sts is 0x%x, snr %ddB, ber %d, per %d, srate %d, freqoff %dkHz\n",
-		demod->id, demod_sts->ch_sts, demod_sts->ch_snr / 100,
-		demod_sts->ch_ber, demod_sts->ch_per,
-		demod_sts->symb_rate, demod_sts->freq_off);
-	PR_DVBC("[id %d] strength %ddb,0xe0 status %u,b4 status %u, dagc_gain %u, power %ddb\n\n",
-		demod->id, demod_sts->dat1, qam_read_reg(demod, 0x38) & 0xffff,
-		qam_read_reg(demod, 0x2d) & 0xffff,
-		qam_read_reg(demod, 0x29) & 0x7f, demod_sts->ch_pow & 0xffff);
-	PR_DVBC("[id %d] 0x31=0x%x\n", demod->id, qam_read_reg(demod, 0x31));
+
+	if (seq) {
+		seq_printf(seq, "ch_sts:0x%x,snr:%ddB,ber:%d,per:%d,srate:%d,freqoff:%dkHz\n",
+			demod_sts->ch_sts, demod_sts->ch_snr / 100, demod_sts->ch_ber,
+			demod_sts->ch_per, demod_sts->symb_rate, demod_sts->freq_off);
+		seq_printf(seq, "strength:%ddb,0xe0 status:%u,b4 status:%u,dagc_gain:%u\n",
+			demod_sts->dat1, qam_read_reg(demod, 0x38) & 0xffff,
+			qam_read_reg(demod, 0x2d) & 0xffff, qam_read_reg(demod, 0x29) & 0x7f);
+		seq_printf(seq, "power:%ddb,0x31=0x%x\n", demod_sts->ch_pow & 0xffff,
+			   qam_read_reg(demod, 0x31));
+	} else {
+		PR_DVBC("ch_sts is 0x%x, snr %ddB, ber %d, per %d, srate %d, freqoff %dkHz\n",
+			demod_sts->ch_sts, demod_sts->ch_snr / 100, demod_sts->ch_ber,
+			demod_sts->ch_per, demod_sts->symb_rate, demod_sts->freq_off);
+		PR_DVBC("strength %ddb,0xe0 status %u,b4 status %u, dagc_gain %u, power %ddb\n\n",
+			demod_sts->dat1, qam_read_reg(demod, 0x38) & 0xffff,
+			qam_read_reg(demod, 0x2d) & 0xffff, qam_read_reg(demod, 0x29) & 0x7f,
+			demod_sts->ch_pow & 0xffff);
+		PR_DVBC("0x31=0x%x\n", qam_read_reg(demod, 0x31));
+	}
 
 	return 0;
 }
