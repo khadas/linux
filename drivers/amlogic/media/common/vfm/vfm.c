@@ -417,6 +417,12 @@ static void vfm_init(void)
 
 	char def_dvel_id[VFM_NAME_LEN] = "dvelpath";
 	char def_dvel_chain[] = "dveldec dvel";
+
+	char def_dvbl_id2[VFM_NAME_LEN] = "dvblpath2";
+	char def_dvbl_chain2[] = "dvbldec2 videopip";
+
+	char def_dvel_id2[VFM_NAME_LEN] = "dvelpath2";
+	char def_dvel_chain2[] = "dveldec2 dvel";
 #endif
 	char def_dvhdmiin_id[VFM_NAME_LEN] = "dvhdmiin";
 	char def_dvhdmiin_chain[] = "dv_vdin amvideo";
@@ -438,6 +444,8 @@ static void vfm_init(void)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	vfm_map_add(def_dvbl_id, def_dvbl_chain);
 	vfm_map_add(def_dvel_id, def_dvel_chain);
+	vfm_map_add(def_dvbl_id2, def_dvbl_chain2);
+	vfm_map_add(def_dvel_id2, def_dvel_chain2);
 #endif
 	vfm_map_add(def_dvhdmiin_id, def_dvhdmiin_chain);
 }
