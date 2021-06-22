@@ -789,7 +789,7 @@ static int am_meson_hdmi_bind(struct device *dev,
 	/* Encoder */
 	drm_encoder_helper_add(encoder, &meson_hdmitx_encoder_helper_funcs);
 	ret = drm_encoder_init(drm, encoder, &meson_hdmitx_encoder_funcs,
-			       DRM_MODE_ENCODER_TVDAC, "am_hdmi_encoder");
+			       DRM_MODE_ENCODER_TMDS, "am_hdmi_encoder");
 	if (ret) {
 		dev_err(priv->dev, "Failed to init hdmi encoder\n");
 		return ret;
