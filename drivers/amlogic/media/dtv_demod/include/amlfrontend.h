@@ -22,7 +22,7 @@
 #define THRD_TUNER_STRENTH_DVBS (-79)
 
 #define TIMEOUT_ATSC		2000
-#define TIMEOUT_DVBT		2000
+#define TIMEOUT_DVBT		3000
 #define TIMEOUT_DVBS		2000
 #define TIMEOUT_DVBC		3000
 
@@ -201,6 +201,7 @@ struct aml_dtvdemod {
 	unsigned int timeout_dvbc_ms;
 	int autoflags;
 	int auto_flags_trig;
+	unsigned int p1_peak;
 
 	unsigned int times;
 	unsigned int no_sig_cnt;
