@@ -10,6 +10,7 @@
 
 /*core power supply*/
 #define CORE_SUPPLY "cpu"
+#define DSU_SUPPLY  "dsu"
 
 /* Core Clocks */
 #define CORE_CLK	"core_clk"
@@ -17,6 +18,7 @@
 #define HIGH_FREQ_CLK_PARENT	"high_freq_clk_parent"
 #define DSU_CLK		"dsu_clk"
 #define DSU_PRE_PARENT "dsu_pre_parent"
+#define DSU_PRE_PARENT2 "dsu_pre_parent2"
 
 static struct clk *clk[MAX_CLUSTERS];
 static bool reg_use_buck[MAX_CLUSTERS];
@@ -52,6 +54,11 @@ bool cpufreq_tables_supply[MAX_CLUSTERS];
 struct meson_cpufreq_driver_data {
 	struct device *cpu_dev;
 	struct regulator *reg;
+	struct regulator *reg_dsu;
+	bool reg_external_used;
+	u32 *dsu_opp_table;
+	bool dsu_clock_shared;
+	u32 clusterid;
 	struct cpufreq_policy *policy;
 	/* voltage tolerance in percentage */
 	unsigned int volt_tol;
@@ -59,8 +66,15 @@ struct meson_cpufreq_driver_data {
 	struct clk *low_freq_clk_p;
 	struct clk *clk_dsu;
 	struct clk *clk_dsu_pre;
+	struct clk *clk_dsu_pre2;
 	struct thermal_cooling_device *cdev;
 	int clusterid;
+};
+
+enum dsu_clock_power_voters {
+	LITTLE_VOTER,
+	BIG_VOTER,
+	VOTER_NUM
 };
 
 static struct mutex cluster_lock[MAX_CLUSTERS];
