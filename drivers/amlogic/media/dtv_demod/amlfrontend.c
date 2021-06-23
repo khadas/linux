@@ -662,11 +662,20 @@ static int gxtv_demod_dvbc_read_signal_strength
 
 static int gxtv_demod_dvbc_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
+	u32 tmp;
 	struct aml_demod_sts demod_sts;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
-	dvbc_status(demod, &demod_sts);
+	if (!devp->demod_thread)
+		return 0;
+
+	tmp = qam_read_reg(demod, 0x5) & 0xfff;
+	demod_sts.ch_snr = tmp * 100 / 32;
 	*snr = demod_sts.ch_snr / 100;
+
+	if (*snr > 100)
+		*snr = 100;
 
 	return 0;
 }
