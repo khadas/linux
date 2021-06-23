@@ -13170,6 +13170,21 @@ static ssize_t process_fmt_show
 	return ret;
 }
 
+static ssize_t cur_aipq_sp_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	ssize_t count = 0;
+
+	if (!cur_dispbuf)
+		return 0;
+
+	count += sprintf(buf + count, "%d:", scene_prob[0]);
+	count += sprintf(buf + count, "%d;", scene_prob[1]);
+	count += sprintf(buf + count, "\n");
+
+	return count;
+}
+
 static ssize_t video_inuse_show(struct class *class,
 				struct class_attribute *attr,
 				char *buf)
@@ -15548,6 +15563,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR_RO(video_layer1_state),
 	__ATTR_RO(pic_mode_info),
 	__ATTR_RO(src_fmt),
+	__ATTR_RO(cur_aipq_sp),
 	__ATTR_RO(process_fmt),
 	__ATTR(axis_pip,
 	       0664,

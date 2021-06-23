@@ -114,8 +114,12 @@ int blue_scene_process(int offset, int enable)
 	static int first_frame = 1;
 
 	if (!enable || !(aipq_en & (1 << BLUE_SCENE))) {
+		cm2_sat(ecm2colormd_cyan, 0, 0);
+		cm2_curve_update_sat(ecm2colormd_cyan);
+		cm2_sat(ecm2colormd_blue, 0, 0);
+		cm2_curve_update_sat(ecm2colormd_blue);
 		first_frame = 1;
-		return -1;
+		return 0;
 	}
 
 	if (first_frame == 1) {
@@ -171,8 +175,10 @@ int green_scene_process(int offset, int enable)
 	static int first_frame = 1;
 
 	if (!enable || !(aipq_en & (1 << GREEN_SCENE))) {
+		cm2_sat(ecm2colormd_green, 0, 0);
+		cm2_curve_update_sat(ecm2colormd_green);
 		first_frame = 1;
-		return -1;
+		return 0;
 	}
 
 	if (first_frame == 1) {
@@ -235,8 +241,14 @@ int peaking_scene_process(int offset, int enable)
 	adap_param->satur_param.offset = offset;
 
 	if (!enable || !(aipq_en & (1 << PEAKING_SCENE))) {
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_FINALGAIN_HP_BP,
+			base_val[0] << 8 | base_val[1],
+			0, 16);
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_FINALGAIN_HP_BP,
+			base_val[2] << 8 | base_val[3],
+			0, 16);
 		first_frame = 1;
-		return -1;
+		return 0;
 	}
 
 	if (first_frame == 1) {
@@ -300,8 +312,9 @@ int contrast_scene_process(int offset, int enable)
 	adap_param->dnlp_param.offset = offset;
 
 	if (!enable || !(aipq_en & (1 << DYNAMIC_CONTRAST_SCENE))) {
+		ai_dnlp_param_update(base_val);
 		first_frame = 1;
-		return -1;
+		return 0;
 	}
 
 	if (first_frame == 1) {
@@ -355,8 +368,10 @@ int skintone_scene_process(int offset, int enable)
 	static int first_frame = 1;
 
 	if (!enable || !(aipq_en & (1 << SKIN_TONE_SCENE))) {
+		cm2_sat(ecm2colormd_skin, 0, 0);
+		cm2_curve_update_sat(ecm2colormd_skin);
 		first_frame = 1;
-		return -1;
+		return 0;
 	}
 
 	if (first_frame == 1) {
@@ -414,8 +429,9 @@ int saturation_scene_process(int offset, int enable)
 	adap_param->satur_param.offset = offset;
 
 	if (!enable || !(aipq_en & (1 << SATURATION_SCENE))) {
+		amvecm_set_saturation_hue(base_val << 16);
 		first_frame = 1;
-		return -1;
+		return 0;
 	}
 
 	if (first_frame == 1) {
