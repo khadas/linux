@@ -6861,6 +6861,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		/* need to get edid before vout probe */
 		hdmitx_device.already_used = 1;
 		hdmitx_get_edid(hdev);
+		edidinfo_attach_to_vinfo(hdev);
 	}
 	/* Trigger HDMITX IRQ*/
 	if (hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0)) {
