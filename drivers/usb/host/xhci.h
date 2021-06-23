@@ -32,6 +32,8 @@ struct crg_reset {
 	int hcd_removed_flag;
 	int id;
 };
+
+extern struct crg_reset crg_task[CRG_XHCI_MAX_COUNT];
 #endif
 
 /* xHCI PCI Configuration Registers */

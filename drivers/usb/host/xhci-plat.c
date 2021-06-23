@@ -21,7 +21,6 @@
 #include <linux/usb/of.h>
 #ifdef CONFIG_AMLOGIC_USB
 #include <linux/kthread.h>
-//#include "../core/hub.h"
 #endif
 
 #include "xhci.h"
@@ -158,7 +157,7 @@ MODULE_DEVICE_TABLE(of, usb_xhci_of_match);
 #endif
 
 #ifdef CONFIG_AMLOGIC_USB
-static struct crg_reset crg_task[CRG_XHCI_MAX_COUNT];
+struct crg_reset crg_task[CRG_XHCI_MAX_COUNT];
 static unsigned int crg_xhci_count;
 
 static int xhci_plat_probe(struct platform_device *pdev);
@@ -184,7 +183,8 @@ static int crg_reset_thread(void *data)
 		hcd = platform_get_drvdata(plat_dev);
 		if (crg_task[mutex_id].hcd_removed_flag == 1) {
 			mutex_unlock(crg_task[mutex_id].hcd_mutex);
-		} else if (hcd && hcd->crg_do_reset) {
+			msleep(500);
+		} else if (hcd && hcd->crg_do_reset == 1) {
 			mutex_unlock(crg_task[mutex_id].hcd_mutex);
 			xhci_plat_remove(plat_dev);
 			xhci_plat_probe(plat_dev);
@@ -193,12 +193,8 @@ static int crg_reset_thread(void *data)
 		}
 		msleep(20);
 	}
-	for (i = 0; i < CRG_XHCI_MAX_COUNT; i++) {
-		if (crg_task[i].id == plat_dev->id) {
-			crg_task[i].crg_reset_task = NULL;
-			break;
-		}
-	}
+
+	crg_task[mutex_id].crg_reset_task = NULL;
 
 	return 0;
 }
@@ -289,37 +285,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 #endif
 
 	xhci = hcd_to_xhci(hcd);
-#ifdef CONFIG_AMLOGIC_USB
-	for (i = 0; i < CRG_XHCI_MAX_COUNT; i++) {
-		if (!crg_task[i].crg_reset_task) {
-			for (j = 0; j < i; j++) {
-				if (crg_task[j].id == pdev->id) {
-					crg_task[j].hcd_removed_flag = 0;
-					task_exsit_flag = 1;
-					break;
-				}
-			}
-			if (task_exsit_flag == 1)
-				break;
-			crg_task[i].hcd_mutex = kmalloc(sizeof(*crg_task[i].hcd_mutex),
-				GFP_KERNEL);
-			if (!crg_task[i].hcd_mutex)
-				goto put_hcd;
-			mutex_init(crg_task[i].hcd_mutex);
-			sprintf(crg_thread_name, "crg_reset_%d_thr\n", i);
-			crg_task[i].crg_reset_task =
-				kthread_run(crg_reset_thread, pdev, crg_thread_name);
-			if (IS_ERR(crg_task[i].crg_reset_task)) {
-				xhci_err(xhci, "unable to start crg_reset_thread\n");
-				goto put_hcd;
-			}
-			crg_task[i].id = pdev->id;
-			crg_task[i].hcd_removed_flag = 0;
-			crg_xhci_count = i;
-			break;
-		}
-	}
-#endif
+
 
 	/*
 	 * Not all platforms have clks so it is not an error if the
@@ -425,6 +391,40 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	 */
 	pm_runtime_forbid(&pdev->dev);
 
+#ifdef CONFIG_AMLOGIC_USB
+	for (i = 0; i < CRG_XHCI_MAX_COUNT; i++) {
+		if (!crg_task[i].crg_reset_task) {
+			for (j = 0; j < i; j++) {
+				if (crg_task[j].id == pdev->id) {
+					crg_task[j].hcd_removed_flag = 0;
+					task_exsit_flag = 1;
+					break;
+				}
+			}
+			if (task_exsit_flag == 1)
+				break;
+			crg_task[i].hcd_mutex = kmalloc(sizeof(*crg_task[i].hcd_mutex),
+				GFP_KERNEL);
+			if (!crg_task[i].hcd_mutex)
+				goto dealloc_usb2_hcd;
+			mutex_init(crg_task[i].hcd_mutex);
+
+			crg_task[i].id = pdev->id;
+			crg_task[i].hcd_removed_flag = 0;
+			crg_xhci_count = i;
+
+			sprintf(crg_thread_name, "crg_reset_%d_thr\n", i);
+			crg_task[i].crg_reset_task =
+				kthread_run(crg_reset_thread, pdev, crg_thread_name);
+			if (IS_ERR(crg_task[i].crg_reset_task)) {
+				xhci_err(xhci, "unable to start crg_reset_thread\n");
+				goto dealloc_usb2_hcd;
+			}
+			break;
+		}
+	}
+#endif
+
 	return 0;
 
 
@@ -475,10 +475,20 @@ static int xhci_plat_remove(struct platform_device *dev)
 		if (dev && crg_task[i].id == dev->id)
 			break;
 	}
-	if (i >= CRG_XHCI_MAX_COUNT)
+	if (i >= CRG_XHCI_MAX_COUNT) {
+		dev_err(&dev->dev,
+				"xhci:Can't find the crg_task.id, dev->id=%d\n",
+				dev->id);
+		dev_err(&dev->dev,
+				"%s do noting and return\n", __func__);
 		return 0;
-	if (crg_task[i].hcd_removed_flag == 1)
+	}
+	if (crg_task[i].hcd_removed_flag == 1) {
+		dev_err(&dev->dev,
+				"the platform dev has been removed, dev->id=%d\n",
+				dev->id);
 		return 0;
+	}
 	if (crg_task[i].hcd_mutex) {
 		mutex_lock(crg_task[i].hcd_mutex);
 		crg_task[i].hcd_removed_flag = 1;
