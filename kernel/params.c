@@ -18,7 +18,7 @@
 #endif
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-static bool async_long_initcall;
+static bool async_long_initcall = 1;
 core_param(async_long_initcall, async_long_initcall, bool, 0644);
 #endif
 
