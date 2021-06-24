@@ -3087,6 +3087,43 @@ void sdio_reinit(void)
 }
 EXPORT_SYMBOL(sdio_reinit);
 
+void sdio_clk_always_on(bool clk_aws_on)
+{
+	struct meson_host *host = NULL;
+	u32 conf = 0;
+
+	if (sdio_host) {
+		host = mmc_priv(sdio_host);
+		conf = readl(host->regs + SD_EMMC_CFG);
+		if (clk_aws_on)
+			conf &= ~CFG_AUTO_CLK;
+		else
+			conf |= CFG_AUTO_CLK;
+		writel(conf, host->regs + SD_EMMC_CFG);
+		pr_info("[%s] clk:0x%x, cfg:0x%x\n",
+				__func__, readl(host->regs + SD_EMMC_CLOCK),
+				readl(host->regs + SD_EMMC_CFG));
+	} else {
+		pr_info("Error: sdio_host is NULL\n");
+	}
+
+	pr_info("[%s] finish\n", __func__);
+}
+EXPORT_SYMBOL(sdio_clk_always_on);
+
+void sdio_set_max_regs(unsigned int size)
+{
+	if (sdio_host) {
+		sdio_host->max_req_size = size;
+		sdio_host->max_seg_size = sdio_host->max_req_size;
+	} else {
+		pr_info("Error: sdio_host is NULL\n");
+	}
+
+	pr_info("[%s] finish\n", __func__);
+}
+EXPORT_SYMBOL(sdio_set_max_regs);
+
 /*this function tells wifi is using sd(sdiob) or sdio(sdioa)*/
 const char *get_wifi_inf(void)
 {
