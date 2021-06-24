@@ -36,6 +36,7 @@ int frc_get_video_latency(void);
 int frc_is_on(void);
 int frc_is_supported(void);
 int frc_memc_set_level(u8 level);
-u8 frc_memc_get_level(void);
+int frc_set_seg_display(u8 enable, u8 seg1, u8 seg2, u8 seg3);
+
 
 #endif
