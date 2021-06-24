@@ -1126,7 +1126,8 @@ static void set_vd_mif_linear_cs(struct video_layer_s *layer,
 				   struct canvas_s *cs0,
 				   struct canvas_s *cs1,
 				   struct canvas_s *cs2,
-				   struct vframe_s *vf)
+				   struct vframe_s *vf,
+				   u32 lr_select)
 {
 	u32 y_line_stride;
 	u32 c_line_stride;
@@ -1134,7 +1135,22 @@ static void set_vd_mif_linear_cs(struct video_layer_s *layer,
 	u64 baddr_y, baddr_cb, baddr_cr;
 	struct hw_vd_linear_reg_s *vd_mif_linear_reg = &layer->vd_mif_linear_reg;
 	u8 vpp_index;
+	u32 vd_if_baddr_y, vd_if_baddr_cb, vd_if_baddr_cr;
+	u32 vd_if_stride_0, vd_if_stride_1;
 
+	if (!lr_select) {
+		vd_if_baddr_y = vd_mif_linear_reg->vd_if0_baddr_y;
+		vd_if_baddr_cb = vd_mif_linear_reg->vd_if0_baddr_cb;
+		vd_if_baddr_cr = vd_mif_linear_reg->vd_if0_baddr_cr;
+		vd_if_stride_0 = vd_mif_linear_reg->vd_if0_stride_0;
+		vd_if_stride_1 = vd_mif_linear_reg->vd_if0_stride_1;
+	} else {
+		vd_if_baddr_y = vd_mif_linear_reg->vd_if0_baddr_y_f1;
+		vd_if_baddr_cb = vd_mif_linear_reg->vd_if0_baddr_cb_f1;
+		vd_if_baddr_cr = vd_mif_linear_reg->vd_if0_baddr_cr_f1;
+		vd_if_stride_0 = vd_mif_linear_reg->vd_if0_stride_0_f1;
+		vd_if_stride_1 = vd_mif_linear_reg->vd_if0_stride_1_f1;
+	}
 	vpp_index = layer->vpp_index;
 	if ((vf->type & VIDTYPE_VIU_444) ||
 		    (vf->type & VIDTYPE_RGB_444) ||
@@ -1144,15 +1160,15 @@ static void set_vd_mif_linear_cs(struct video_layer_s *layer,
 		y_line_stride = viu_line_stride(y_buffer_width);
 		baddr_cb = 0;
 		baddr_cr = 0;
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_y,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_y,
 			baddr_y >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_cb,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_cb,
 			baddr_cb >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_cr,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_cr,
 			baddr_cr >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_stride_0,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_0,
 			y_line_stride | 0 << 16);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_stride_1,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_1,
 			1 << 16 | 0);
 	} else {
 		baddr_y = cs0->addr;
@@ -1163,15 +1179,15 @@ static void set_vd_mif_linear_cs(struct video_layer_s *layer,
 
 		y_line_stride = viu_line_stride(y_buffer_width);
 		c_line_stride = viu_line_stride(c_buffer_width);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_y,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_y,
 			baddr_y >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_cb,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_cb,
 			baddr_cb >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_cr,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_cr,
 			baddr_cr >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_stride_0,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_0,
 			y_line_stride | c_line_stride << 16);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_stride_1,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_1,
 			1 << 16 | c_line_stride);
 	}
 }
@@ -1179,7 +1195,8 @@ static void set_vd_mif_linear_cs(struct video_layer_s *layer,
 static void set_vd_mif_linear(struct video_layer_s *layer,
 				   struct canvas_config_s *config,
 				   u32 planes,
-				   struct vframe_s *vf)
+				   struct vframe_s *vf,
+				   u32 lr_select)
 {
 	u32 y_line_stride;
 	u32 c_line_stride;
@@ -1188,8 +1205,23 @@ static void set_vd_mif_linear(struct video_layer_s *layer,
 	struct hw_vd_linear_reg_s *vd_mif_linear_reg = &layer->vd_mif_linear_reg;
 	struct canvas_config_s *cfg = config;
 	u8 vpp_index;
+	u32 vd_if_baddr_y, vd_if_baddr_cb, vd_if_baddr_cr;
+	u32 vd_if_stride_0, vd_if_stride_1;
 
 	vpp_index = layer->vpp_index;
+	if (!lr_select) {
+		vd_if_baddr_y = vd_mif_linear_reg->vd_if0_baddr_y;
+		vd_if_baddr_cb = vd_mif_linear_reg->vd_if0_baddr_cb;
+		vd_if_baddr_cr = vd_mif_linear_reg->vd_if0_baddr_cr;
+		vd_if_stride_0 = vd_mif_linear_reg->vd_if0_stride_0;
+		vd_if_stride_1 = vd_mif_linear_reg->vd_if0_stride_1;
+	} else {
+		vd_if_baddr_y = vd_mif_linear_reg->vd_if0_baddr_y_f1;
+		vd_if_baddr_cb = vd_mif_linear_reg->vd_if0_baddr_cb_f1;
+		vd_if_baddr_cr = vd_mif_linear_reg->vd_if0_baddr_cr_f1;
+		vd_if_stride_0 = vd_mif_linear_reg->vd_if0_stride_0_f1;
+		vd_if_stride_1 = vd_mif_linear_reg->vd_if0_stride_1_f1;
+	}
 	switch (planes) {
 	case 1:
 		baddr_y = cfg->phy_addr;
@@ -1197,15 +1229,15 @@ static void set_vd_mif_linear(struct video_layer_s *layer,
 		y_line_stride = viu_line_stride(y_buffer_width);
 		baddr_cb = 0;
 		baddr_cr = 0;
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_y,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_y,
 			baddr_y >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_cb,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_cb,
 			baddr_cb >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_cr,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_cr,
 			baddr_cr >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_stride_0,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_0,
 			y_line_stride | 0 << 16);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_stride_1,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_1,
 			1 << 16 | 0);
 		break;
 	case 2:
@@ -1217,15 +1249,15 @@ static void set_vd_mif_linear(struct video_layer_s *layer,
 		baddr_cr = 0;
 		y_line_stride = viu_line_stride(y_buffer_width);
 		c_line_stride = viu_line_stride(c_buffer_width);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_y,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_y,
 			baddr_y >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_cb,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_cb,
 			baddr_cb >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_cr,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_cr,
 			baddr_cr >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_stride_0,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_0,
 			y_line_stride | c_line_stride << 16);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_stride_1,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_1,
 			1 << 16 | c_line_stride);
 		break;
 	case 3:
@@ -1238,15 +1270,15 @@ static void set_vd_mif_linear(struct video_layer_s *layer,
 		baddr_cr = cfg->phy_addr;
 		y_line_stride = viu_line_stride(y_buffer_width);
 		c_line_stride = viu_line_stride(c_buffer_width);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_y,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_y,
 			baddr_y >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_cb,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_cb,
 			baddr_cb >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_baddr_cr,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_baddr_cr,
 			baddr_cr >> 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_stride_0,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_0,
 			y_line_stride | c_line_stride << 16);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_linear_reg->vd_if0_stride_1,
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_1,
 			1 << 16 | c_line_stride);
 		break;
 	default:
@@ -7064,6 +7096,191 @@ int get_layer_display_canvas(u8 layer_id)
 	return ret;
 }
 
+static void canvas_update_for_mif(struct video_layer_s *layer,
+			     struct vframe_s *vf)
+{
+	struct canvas_s cs0[2], cs1[2], cs2[2];
+	u32 *cur_canvas_tbl;
+	u8 cur_canvas_id;
+
+	cur_canvas_id = layer->cur_canvas_id;
+	cur_canvas_tbl =
+		&layer->canvas_tbl[cur_canvas_id][0];
+
+	if (vf->canvas0Addr != (u32)-1) {
+		canvas_copy(vf->canvas0Addr & 0xff,
+			    cur_canvas_tbl[0]);
+		canvas_copy((vf->canvas0Addr >> 8) & 0xff,
+			    cur_canvas_tbl[1]);
+		canvas_copy((vf->canvas0Addr >> 16) & 0xff,
+			    cur_canvas_tbl[2]);
+		if (cur_dev->mif_linear) {
+			canvas_read(cur_canvas_tbl[0], &cs0[0]);
+			canvas_read(cur_canvas_tbl[1], &cs1[0]);
+			canvas_read(cur_canvas_tbl[2], &cs2[0]);
+			set_vd_mif_linear_cs(layer,
+				&cs0[0], &cs1[0], &cs2[0],
+				vf,
+				0);
+		}
+	} else {
+		vframe_canvas_set
+			(&vf->canvas0_config[0],
+			vf->plane_num,
+			&cur_canvas_tbl[0]);
+		if (cur_dev->mif_linear) {
+			set_vd_mif_linear(layer,
+				&vf->canvas0_config[0],
+				vf->plane_num,
+				vf,
+				0);
+			layer->mif_setting.block_mode =
+				vf->canvas0_config[0].block_mode;
+		}
+	}
+}
+
+static void canvas_update_for_3d(struct video_layer_s *layer,
+			     struct vframe_s *vf,
+			     struct vpp_frame_par_s *cur_frame_par,
+			     struct disp_info_s *disp_info,
+			     bool is_mvc)
+{
+	struct canvas_s cs0[2], cs1[2], cs2[2];
+	u32 *cur_canvas_tbl;
+	u8 cur_canvas_id;
+
+	cur_canvas_id = layer->cur_canvas_id;
+	cur_canvas_tbl =
+		&layer->canvas_tbl[cur_canvas_id][0];
+
+	if (vf->canvas1Addr != (u32)-1) {
+		canvas_copy
+			(vf->canvas1Addr & 0xff,
+			cur_canvas_tbl[3]);
+		canvas_copy
+			((vf->canvas1Addr >> 8) & 0xff,
+			cur_canvas_tbl[4]);
+		canvas_copy
+			((vf->canvas1Addr >> 16) & 0xff,
+			cur_canvas_tbl[5]);
+		canvas_read(cur_canvas_tbl[3], &cs0[1]);
+		canvas_read(cur_canvas_tbl[4], &cs1[1]);
+		canvas_read(cur_canvas_tbl[5], &cs2[1]);
+		if (cur_dev->mif_linear) {
+			if (is_mvc) {
+				set_vd_mif_linear_cs(&vd_layer[1],
+					&cs0[1], &cs1[1], &cs2[1],
+					vf,
+					0);
+				vd_layer[1].mif_setting.block_mode =
+					vf->canvas1_config[0].block_mode;
+			}
+			if (cur_frame_par &&
+				cur_frame_par->vpp_2pic_mode == 1)
+				set_vd_mif_linear_cs(&vd_layer[0],
+					&cs0[0], &cs1[0], &cs2[0],
+					vf,
+					1);
+			else
+				set_vd_mif_linear_cs(&vd_layer[0],
+					&cs0[1], &cs1[1], &cs2[1],
+					vf,
+					1);
+			if (is_mvc)
+				set_vd_mif_linear_cs(&vd_layer[1],
+					&cs0[0], &cs1[0], &cs2[0],
+					vf,
+					1);
+			if (cur_frame_par && disp_info &&
+			    (disp_info->proc_3d_type & MODE_3D_ENABLE) &&
+			    (disp_info->proc_3d_type & MODE_3D_TO_2D_R) &&
+			    cur_frame_par->vpp_2pic_mode == VPP_SELECT_PIC1) {
+				set_vd_mif_linear_cs(&vd_layer[0],
+					&cs0[1], &cs1[1], &cs2[1],
+					vf,
+					0);
+				set_vd_mif_linear_cs(&vd_layer[0],
+					&cs0[1], &cs1[1], &cs2[1],
+					vf,
+					1);
+				if (is_mvc) {
+					set_vd_mif_linear_cs(&vd_layer[1],
+						&cs0[1], &cs1[1], &cs2[1],
+						vf,
+						0);
+					set_vd_mif_linear_cs(&vd_layer[1],
+						&cs0[1], &cs1[1], &cs2[1],
+						vf,
+						1);
+				}
+			}
+		}
+	} else {
+		vframe_canvas_set
+			(&vf->canvas1_config[0],
+			vf->plane_num,
+			&cur_canvas_tbl[3]);
+		if (cur_dev->mif_linear) {
+			if (is_mvc) {
+				set_vd_mif_linear(&vd_layer[1],
+					&vf->canvas1_config[0],
+					vf->plane_num,
+					vf,
+					0);
+				vd_layer[1].mif_setting.block_mode =
+					vf->canvas1_config[0].block_mode;
+			}
+			if (cur_frame_par &&
+				cur_frame_par->vpp_2pic_mode == 1)
+				set_vd_mif_linear(&vd_layer[0],
+					&vf->canvas0_config[0],
+					vf->plane_num,
+					vf,
+					1);
+			else
+				set_vd_mif_linear(&vd_layer[0],
+					&vf->canvas1_config[0],
+					vf->plane_num,
+					vf,
+					1);
+			if (is_mvc)
+				set_vd_mif_linear(&vd_layer[1],
+					&vf->canvas0_config[0],
+					vf->plane_num,
+					vf,
+					1);
+			if (cur_frame_par && disp_info &&
+			    (disp_info->proc_3d_type & MODE_3D_ENABLE) &&
+			    (disp_info->proc_3d_type & MODE_3D_TO_2D_R) &&
+			    cur_frame_par->vpp_2pic_mode == VPP_SELECT_PIC1) {
+				set_vd_mif_linear(&vd_layer[0],
+					&vf->canvas1_config[0],
+					vf->plane_num,
+					vf,
+					0);
+				set_vd_mif_linear(&vd_layer[0],
+					&vf->canvas1_config[0],
+					vf->plane_num,
+					vf,
+					1);
+				if (is_mvc) {
+					set_vd_mif_linear(&vd_layer[1],
+						&vf->canvas1_config[0],
+						vf->plane_num,
+						vf,
+						0);
+					set_vd_mif_linear(&vd_layer[1],
+						&vf->canvas1_config[0],
+						vf->plane_num,
+						vf,
+						1);
+				}
+			}
+		}
+	}
+}
+
 int set_layer_display_canvas(struct video_layer_s *layer,
 			     struct vframe_s *vf,
 			     struct vpp_frame_par_s *cur_frame_par,
@@ -7116,73 +7333,13 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 		update_mif = false;
 
 	if (update_mif) {
-		if (vf->canvas0Addr != (u32)-1) {
-			struct canvas_s cs0, cs1, cs2;
-
-			canvas_copy(vf->canvas0Addr & 0xff,
-				    cur_canvas_tbl[0]);
-			canvas_copy((vf->canvas0Addr >> 8) & 0xff,
-				    cur_canvas_tbl[1]);
-			canvas_copy((vf->canvas0Addr >> 16) & 0xff,
-				    cur_canvas_tbl[2]);
-			if (cur_dev->mif_linear) {
-				canvas_read(cur_canvas_tbl[0], &cs0);
-				canvas_read(cur_canvas_tbl[1], &cs1);
-				canvas_read(cur_canvas_tbl[2], &cs2);
-				set_vd_mif_linear_cs(layer,
-					&cs0, &cs1, &cs2,
-					vf);
-			}
-		} else {
-			vframe_canvas_set
-				(&vf->canvas0_config[0],
-				vf->plane_num,
-				&cur_canvas_tbl[0]);
-			if (cur_dev->mif_linear) {
-				set_vd_mif_linear(layer,
-					&vf->canvas0_config[0],
-					vf->plane_num,
-					vf);
-				layer->mif_setting.block_mode =
-					vf->canvas0_config[0].block_mode;
-			}
-		}
+		canvas_update_for_mif(layer, vf);
 		if (layer_id == 0 &&
-		    (is_mvc || process_3d_type)) {
-			if (vf->canvas1Addr != (u32)-1) {
-				struct canvas_s cs0, cs1, cs2;
-				canvas_copy
-					(vf->canvas1Addr & 0xff,
-					cur_canvas_tbl[3]);
-				canvas_copy
-					((vf->canvas1Addr >> 8) & 0xff,
-					cur_canvas_tbl[4]);
-				canvas_copy
-					((vf->canvas1Addr >> 16) & 0xff,
-					cur_canvas_tbl[5]);
-				if (cur_dev->mif_linear) {
-					canvas_read(cur_canvas_tbl[3], &cs0);
-					canvas_read(cur_canvas_tbl[4], &cs1);
-					canvas_read(cur_canvas_tbl[5], &cs2);
-					set_vd_mif_linear_cs(&vd_layer[1],
-						&cs0, &cs1, &cs2,
-						vf);
-				}
-			} else {
-				vframe_canvas_set
-					(&vf->canvas1_config[0],
-					vf->plane_num,
-					&cur_canvas_tbl[3]);
-				if (cur_dev->mif_linear) {
-					set_vd_mif_linear(&vd_layer[1],
-						&vf->canvas1_config[0],
-						vf->plane_num,
-						vf);
-				vd_layer[1].mif_setting.block_mode =
-					vf->canvas1_config[0].block_mode;
-				}
-			}
-		}
+		    (is_mvc || process_3d_type))
+			canvas_update_for_3d(layer, vf,
+					    cur_frame_par, disp_info,
+					    is_mvc);
+
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_mif_reg->vd_if0_canvas0,
 			layer->disp_canvas[cur_canvas_id][0]);

@@ -2191,10 +2191,65 @@ static inline struct vframe_s *video_vf_peek(void)
 	return vf;
 }
 
+void pre_process_for_3d(struct vframe_s *vf)
+{
+	int frame_width, frame_height;
+
+	if (vf->type & VIDTYPE_COMPRESS) {
+		frame_width = vf->compWidth;
+		frame_height = vf->compHeight;
+	} else {
+		frame_width = vf->width;
+		frame_height = vf->height;
+	}
+
+#if defined(TV_3D_FUNCTION_OPEN) && defined(CONFIG_AMLOGIC_MEDIA_TVIN)
+	/*can be moved to h264mvc.c */
+	if ((vf->type & VIDTYPE_MVC) &&
+	    (process_3d_type & MODE_3D_ENABLE) && vf->trans_fmt) {
+		vf->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
+		process_3d_type |= MODE_3D_MVC;
+		mvc_flag = 1;
+	} else {
+		process_3d_type &= (~MODE_3D_MVC);
+		mvc_flag = 0;
+	}
+	if (((process_3d_type & MODE_FORCE_3D_TO_2D_LR) ||
+	     (process_3d_type & MODE_FORCE_3D_LR) ||
+	     (process_3d_type & MODE_FORCE_3D_FA_LR)) &&
+	    (!(vf->type & VIDTYPE_MVC)) &&
+	    vf->trans_fmt != TVIN_TFMT_3D_FP) {
+		vf->trans_fmt = TVIN_TFMT_3D_DET_LR;
+		vf->left_eye.start_x = 0;
+		vf->left_eye.start_y = 0;
+		vf->left_eye.width = frame_width / 2;
+		vf->left_eye.height = frame_height;
+		vf->right_eye.start_x = frame_width / 2;
+		vf->right_eye.start_y = 0;
+		vf->right_eye.width = frame_width / 2;
+		vf->right_eye.height = frame_height;
+	}
+	if (((process_3d_type & MODE_FORCE_3D_TO_2D_TB) ||
+	     (process_3d_type & MODE_FORCE_3D_TB) ||
+	     (process_3d_type & MODE_FORCE_3D_FA_TB)) &&
+	    (!(vf->type & VIDTYPE_MVC)) &&
+	    vf->trans_fmt != TVIN_TFMT_3D_FP) {
+		vf->trans_fmt = TVIN_TFMT_3D_TB;
+		vf->left_eye.start_x = 0;
+		vf->left_eye.start_y = 0;
+		vf->left_eye.width = frame_width;
+		vf->left_eye.height = frame_height / 2;
+		vf->right_eye.start_x = 0;
+		vf->right_eye.start_y = frame_height / 2;
+		vf->right_eye.width = frame_width;
+		vf->right_eye.height = frame_height / 2;
+	}
+#endif
+}
+
 static inline struct vframe_s *video_vf_get(void)
 {
 	struct vframe_s *vf = NULL;
-	int frame_width, frame_height;
 
 	if (hist_test_flag) {
 		if (cur_dispbuf != &hist_test_vf)
@@ -2217,13 +2272,6 @@ static inline struct vframe_s *video_vf_get(void)
 			vf->disp_pts = 0;
 			vf->disp_pts_us64 = 0;
 		}
-		if (vf->type & VIDTYPE_COMPRESS) {
-			frame_width = vf->compWidth;
-			frame_height = vf->compHeight;
-		} else {
-			frame_width = vf->width;
-			frame_height = vf->height;
-		}
 		video_notify_flag |= VIDEO_NOTIFY_PROVIDER_GET;
 		atomic_set(&vf->use_cnt, 1);
 		/*always to 1,for first get from vfm provider */
@@ -2232,51 +2280,8 @@ static inline struct vframe_s *video_vf_get(void)
 			vf->width = framepacking_width;
 			vf->height = framepacking_height;
 		}
-#if defined(TV_3D_FUNCTION_OPEN) && defined(CONFIG_AMLOGIC_MEDIA_TVIN)
-		/*can be moved to h264mvc.c */
-		if ((vf->type & VIDTYPE_MVC) &&
-		    (process_3d_type & MODE_3D_ENABLE) && vf->trans_fmt) {
-			vf->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD;
-			process_3d_type |= MODE_3D_MVC;
-			mvc_flag = 1;
-		} else {
-			process_3d_type &= (~MODE_3D_MVC);
-			mvc_flag = 0;
-		}
-		if (((process_3d_type & MODE_FORCE_3D_TO_2D_LR) ||
-		     (process_3d_type & MODE_FORCE_3D_LR) ||
-		     (process_3d_type & MODE_FORCE_3D_FA_LR)) &&
-		    (!(vf->type & VIDTYPE_MVC)) &&
-		    vf->trans_fmt != TVIN_TFMT_3D_FP) {
-			vf->trans_fmt = TVIN_TFMT_3D_DET_LR;
-			vf->left_eye.start_x = 0;
-			vf->left_eye.start_y = 0;
-			vf->left_eye.width = frame_width / 2;
-			vf->left_eye.height = frame_height;
-
-			vf->right_eye.start_x = frame_width / 2;
-			vf->right_eye.start_y = 0;
-			vf->right_eye.width = frame_width / 2;
-			vf->right_eye.height = frame_height;
-		}
-		if (((process_3d_type & MODE_FORCE_3D_TO_2D_TB) ||
-		     (process_3d_type & MODE_FORCE_3D_TB) ||
-		     (process_3d_type & MODE_FORCE_3D_FA_TB)) &&
-		    (!(vf->type & VIDTYPE_MVC)) &&
-		    vf->trans_fmt != TVIN_TFMT_3D_FP) {
-			vf->trans_fmt = TVIN_TFMT_3D_TB;
-			vf->left_eye.start_x = 0;
-			vf->left_eye.start_y = 0;
-			vf->left_eye.width = frame_width;
-			vf->left_eye.height = frame_height / 2;
-
-			vf->right_eye.start_x = 0;
-			vf->right_eye.start_y = frame_height / 2;
-			vf->right_eye.width = frame_width;
-			vf->right_eye.height = frame_height / 2;
-		}
+		pre_process_for_3d(vf);
 		receive_frame_count++;
-#endif
 	}
 	return vf;
 }

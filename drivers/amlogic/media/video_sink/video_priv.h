@@ -709,6 +709,7 @@ s32 config_aisr_pps(struct video_layer_s *layer,
 			 struct scaler_setting_s *aisr_setting);
 s32 config_aisr_position(struct video_layer_s *layer,
 			     struct aisr_setting_s *aisr_mif_setting);
+void pre_process_for_3d(struct vframe_s *vf);
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void vsync_rdma_process(void);
 #endif
