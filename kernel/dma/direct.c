@@ -330,7 +330,7 @@ EXPORT_SYMBOL(dma_direct_unmap_sg);
 static inline bool dma_direct_possible(struct device *dev, dma_addr_t dma_addr,
 		size_t size)
 {
-	return swiotlb_force != SWIOTLB_FORCE &&
+	return !is_swiotlb_force_bounce(dev) &&
 		dma_capable(dev, dma_addr, size);
 }
 
@@ -418,7 +418,7 @@ size_t dma_direct_max_mapping_size(struct device *dev)
 {
 	/* If SWIOTLB is active, use its maximum mapping size */
 	if (is_swiotlb_active(dev) &&
-	    (dma_addressing_limited(dev) || swiotlb_force == SWIOTLB_FORCE))
+	    (dma_addressing_limited(dev) || is_swiotlb_force_bounce(dev)))
 		return swiotlb_max_mapping_size(dev);
 	return SIZE_MAX;
 }
