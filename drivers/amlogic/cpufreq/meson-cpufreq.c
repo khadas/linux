@@ -747,6 +747,7 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 		freq_hz =  policy->cur * 1000;
 
 	nr_opp = dev_pm_opp_get_opp_count(cpu_dev);
+	dev_pm_opp_of_register_em(policy->cpus);
 
 	create_meson_cpufreq_proc_files(policy);
 
