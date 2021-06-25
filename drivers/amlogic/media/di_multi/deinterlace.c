@@ -10166,7 +10166,7 @@ static unsigned int dim_bypass_check(struct vframe_s *vf)
 	unsigned int reason = 0;
 	unsigned int x, y;
 
-	if (dimp_get(edi_mp_di_debug_flag) & 0x10000)
+	if (dimp_get(edi_mp_di_debug_flag) & 0x100000)
 		reason = 1;
 
 	if (reason || !vf)
