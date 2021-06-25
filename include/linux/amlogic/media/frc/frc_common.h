@@ -6,21 +6,28 @@
 #ifndef __FRC_COMMON_H__
 #define __FRC_COMMON_H__
 
+#ifndef MAX
 #define MAX(a, b) ({ \
 			typeof(a) _a = a; \
 			typeof(b) _b = b; \
 			_a > _b ? _a : _b; \
 		})
+#endif // MAX
+
+#ifndef MIN
 #define MIN(a, b) ({ \
 			typeof(a) _a = a; \
 			typeof(b) _b = b; \
 			_a < _b ? _a : _b; \
 		})
+#endif // MIN
 
+#ifndef ABS
 #define ABS(a)	({ \
 			int _a = (int)a;\
 			((_a) > 0 ? (_a) : -(_a));\
 		})
+#endif // ABS
 
 #ifndef DIV
 #define DIV(a, b) ({ \

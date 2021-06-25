@@ -168,6 +168,11 @@ extern unsigned int sync_3d_out_inv;
 extern unsigned int sync_3d_black_color;
 extern unsigned int sync_3d_sync_to_vbo;
 
+extern int fmeter_en;
+extern int cur_sr_level;
+extern int pre_fmeter_level, cur_fmeter_level, fmeter_flag;
+void amve_fmeter_init(int enable);
+void amve_fmetersize_config(u32 sr0_w, u32 sr0_h, u32 sr1_w, u32 sr1_h);
 
 /* #if defined(CONFIG_ARCH_MESON2) */
 /* unsigned long long ve_get_vs_cnt(void); */
