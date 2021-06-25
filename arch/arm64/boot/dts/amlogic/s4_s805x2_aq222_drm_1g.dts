@@ -102,7 +102,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0xb400000>;
+			size = <0x0 0x9400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};
@@ -131,7 +131,7 @@
 			reusable;
 			/* 420 mode:1280x720x2x4=8MB */
 			/* 444 mode:1280x720x3x4=12MB */
-			size = <0x0 0x800000>;
+			size = <0x0 0x000000>;
 			alignment = <0x0 0x400000>;
 		};
 
@@ -351,6 +351,7 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
+		post_nub = <10>;
 	};
 
 	aml_dtv_demod {

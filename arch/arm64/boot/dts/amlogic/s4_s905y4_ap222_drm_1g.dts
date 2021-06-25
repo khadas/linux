@@ -132,7 +132,7 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x0 0x01400000>;
+			size = <0x0 0x0000000>;
 			alignment = <0x0 0x400000>;
 		};
 	};
@@ -184,7 +184,7 @@
 	dvb-extern {
 		compatible = "amlogic, dvb-extern";
 		dev_name = "dvb-extern";
-		status = "okay";
+		status = "disabled";
 
 		/* dvb hardware main power. */
 		dvb_power_gpio = <&gpio GPIOZ_5 GPIO_ACTIVE_HIGH>;
@@ -244,7 +244,7 @@
 	dvb-demux {
 		compatible = "amlogic sc2, dvb-demux";
 		dev_name = "dvb-demux";
-		status = "okay";
+		status = "disabled";
 
 		reg = <0x0 0xfe000000 0x0 0x480000>;
 
@@ -335,6 +335,7 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
+		post_nub = <10>;
 	};
 
 	provisionkey {
