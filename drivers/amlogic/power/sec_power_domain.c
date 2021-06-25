@@ -290,7 +290,7 @@ static struct sec_pm_domain_data s4_pm_domain_data __initdata = {
 };
 
 static struct sec_pm_private_domain t3_pm_domains[] = {
-	[PDID_T3_DSPA] = POWER_DOMAIN(dspa, PDID_T3_DSPA, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_DSPA] = POWER_DOMAIN(dspa, PDID_T3_DSPA, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T3_DOS_HCODEC] = POWER_DOMAIN(hcodec, PDID_T3_DOS_HCODEC, DOMAIN_INIT_OFF, 0),
 	[PDID_T3_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_T3_DOS_HEVC, DOMAIN_INIT_OFF, 0),
 	[PDID_T3_DOS_VDEC] = POWER_DOMAIN(vdec, PDID_T3_DOS_VDEC, DOMAIN_INIT_OFF, 0),
@@ -323,7 +323,7 @@ static struct sec_pm_private_domain t3_pm_domains[] = {
 	[PDID_T3_SPICC0] = POWER_DOMAIN(spicc0, PDID_T3_SPICC0, DOMAIN_INIT_OFF, 0),
 	[PDID_T3_SPICC1] = POWER_DOMAIN(spicc1, PDID_T3_SPICC1, DOMAIN_INIT_OFF, 0),
 	[PDID_T3_SPICC2] = POWER_DOMAIN(spicc2, PDID_T3_SPICC2, DOMAIN_INIT_OFF, 0),
-	[PDID_T3_AUDIO] = POWER_DOMAIN(audio, PDID_T3_AUDIO, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_AUDIO] = POWER_DOMAIN(audio, PDID_T3_AUDIO, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 };
 
 static struct sec_pm_domain_data t3_pm_domain_data = {
@@ -362,7 +362,7 @@ static int sec_pd_probe(struct platform_device *pdev)
 	if (!pd)
 		return -ENOMEM;
 	pri_pd = devm_kcalloc(&pdev->dev, match->domains_count, sizeof(*private_pd), GFP_KERNEL);
-	if (!pd)
+	if (!pri_pd)
 		return -ENOMEM;
 
 #ifdef MODULE
@@ -390,6 +390,11 @@ static int sec_pd_probe(struct platform_device *pdev)
 		pri_pd[i].pd_parent = private_pd->pd_parent;
 
 		init_status = pwr_ctrl_status_psci_smc(private_pd->pd_index);
+
+		if (init_status == DOMAIN_INIT_OFF && private_pd->pd_status == DOMAIN_INIT_ON) {
+			if (pd[i].base.flags == GENPD_FLAG_ALWAYS_ON)
+				pwr_ctrl_psci_smc(i, PWR_ON);
+		}
 
 		if (init_status == -1 || pd[i].base.flags == GENPD_FLAG_ALWAYS_ON)
 			init_status = private_pd->pd_status;
