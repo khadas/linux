@@ -1373,6 +1373,7 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 		ponly_mode = <1>;
+		bp_thd = <0>;
 	};
 
 	ionvideo {
