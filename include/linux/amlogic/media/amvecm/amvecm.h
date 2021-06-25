@@ -40,6 +40,33 @@ bool is_dovi_frame(struct vframe_s *vf);
 void dolby_vision_set_toggle_flag(int flag);
 #endif
 
+#ifndef MAX
+#define MAX(a, b) ({ \
+	typeof(a) _a = a; \
+	typeof(b) _b = b; \
+	_a > _b ? _a : _b; \
+	})
+#endif // MAX
+
+#ifndef MIN
+#define MIN(c, d) ({ \
+	typeof(c) _c = c; \
+	typeof(d) _d = d; \
+	_c < _d ? _c : _d; \
+	})
+#endif // MIN
+
+#ifndef FMETER_SCORE
+#define FMETER_SCORE(x, y, z) ({ \
+			typeof(x) _x = x; \
+			typeof(y) _y = y; \
+			typeof(z) _z = z; \
+			MAX(MIN(100, MAX(0, (_x * 1000) / (_x + _y + _z))), \
+			MIN(100, MAX(0, (_x + _y) * 1000 / \
+			(_x + _y + _z) / 3))); \
+			})
+#endif // FMETER_SCORE
+
 /* struct ve_dnlp_s          video_ve_dnlp; */
 #define FLAG_RSV31              BIT(31)
 #define FLAG_VADJ1_COLOR        BIT(30)
@@ -645,6 +672,10 @@ bool di_api_mov_sel(unsigned int mode,
 enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path);
 
 int amvecm_set_saturation_hue(int mab);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+int frc_set_seg_display(u8 enable, u8 seg1, u8 seg2, u8 seg3);
+#endif
 
 /*ai detected scenes*/
 enum detect_scene_e {

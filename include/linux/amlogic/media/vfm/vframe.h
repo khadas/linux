@@ -137,6 +137,7 @@ struct vframe_hist_s {
 	unsigned short vpp_gamma[64];
 	unsigned int vpp_hue_gamma[32];
 	unsigned int vpp_sat_gamma[32];
+
 #ifdef AML_LOCAL_DIMMING
 	unsigned int ldim_max[100];
 #endif
@@ -487,6 +488,11 @@ struct vframe_s {
 	u64 disp_pts_us64;
 	u64 timestamp;
 	u32 flag;
+
+	unsigned int fmeter0_hcnt[4];
+	unsigned int fmeter1_hcnt[4];
+	int fmeter0_score;
+	int fmeter1_score;
 
 	u32 canvas0Addr;
 	u32 canvas1Addr;

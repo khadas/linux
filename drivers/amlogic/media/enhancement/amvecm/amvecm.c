@@ -281,6 +281,14 @@ unsigned int pq_user_latch_flag;
 module_param(pq_user_latch_flag, uint, 0664);
 MODULE_PARM_DESC(pq_user_latch_flag, "\n pq_user_latch_flag\n");
 
+unsigned int fmeter_debug;/* for fmeter debug */
+module_param(fmeter_debug, uint, 0664);
+MODULE_PARM_DESC(fmeter_debug, "\n fmeter_debug\n");
+
+unsigned int fmeter_count = 2;/* for fmeter count */
+module_param(fmeter_count, uint, 0664);
+MODULE_PARM_DESC(fmeter_count, "\n fmeter_count\n");
+
 /*0: 709/601	1: bt2020*/
 int tx_op_color_primary;
 module_param(tx_op_color_primary, int, 0664);
@@ -302,6 +310,9 @@ int pd_fix_lvl = PD_HIG_LVL;
 unsigned int gmv_weak_th = 4;
 unsigned int gmv_th = 17;
 
+int pre_fmeter_level = 0, cur_fmeter_level = 0, fmeter_flag = 0;
+int cur_sr_level = 5;
+
 static int wb_init_bypass_coef[24] = {
 	0, 0, 0, /* pre offset */
 	1024,	0,	0,
@@ -311,6 +322,22 @@ static int wb_init_bypass_coef[24] = {
 	0, 0, 0, /* 20'/21'/22' */
 	0, 0, 0, /* offset */
 	0, 0, 0  /* mode, right_shift, clip_en */
+};
+
+static int sr0_gain_val[11] = {
+	128, 128, 120, 112, 104, 96, 88, 80, 72, 64, 64
+};
+
+static int sr0_shoot_val[11] = {
+	30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10
+};
+
+static int sr1_gain_val[11] = {
+	128, 128, 120, 112, 104, 96, 88, 80, 72, 64, 64
+};
+
+static int sr1_shoot_val[11] = {
+	40, 38, 36, 34, 32, 30, 28, 26, 24, 22, 20
 };
 
 #define AIPQ_SCENE_MAX 22
@@ -1119,6 +1146,31 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf)
 	READ_VPP_REG_BITS(VI_DNLP_HIST31,
 			  VI_HIST_ON_BIN_63_BIT, VI_HIST_ON_BIN_63_WID);
 
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3) {
+		vf->fmeter0_hcnt[0] =
+		READ_VPP_REG(SRSHARP0_RO_FMETER_HCNT_TYPE0);
+		vf->fmeter0_hcnt[1] =
+		READ_VPP_REG(SRSHARP0_RO_FMETER_HCNT_TYPE1);
+		vf->fmeter0_hcnt[2] =
+		READ_VPP_REG(SRSHARP0_RO_FMETER_HCNT_TYPE2);
+		vf->fmeter0_hcnt[3] =
+		READ_VPP_REG(SRSHARP0_RO_FMETER_HCNT_TYPE3);
+		vf->fmeter1_hcnt[0] =
+		READ_VPP_REG(SRSHARP1_RO_FMETER_HCNT_TYPE0);
+		vf->fmeter1_hcnt[1] =
+		READ_VPP_REG(SRSHARP1_RO_FMETER_HCNT_TYPE1);
+		vf->fmeter1_hcnt[2] =
+		READ_VPP_REG(SRSHARP1_RO_FMETER_HCNT_TYPE2);
+		vf->fmeter1_hcnt[3] =
+		READ_VPP_REG(SRSHARP1_RO_FMETER_HCNT_TYPE3);
+
+		vf->fmeter0_score = FMETER_SCORE(vf->fmeter0_hcnt[0],
+			vf->fmeter0_hcnt[1], vf->fmeter0_hcnt[2]);
+
+		vf->fmeter1_score = FMETER_SCORE(vf->fmeter1_hcnt[0],
+			vf->fmeter1_hcnt[1], vf->fmeter1_hcnt[2]);
+	}
+
 	if (enable_pattern_detect == 1) {
 		for (i = 0; i < 32; i++) {
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
@@ -1243,6 +1295,100 @@ void amvecm_dejaggy_patch(struct vframe_s *vf)
 		pr_amvecm_dbg("pd_detect_en = %d; pd_fix_lvl = %d\n",
 			      pd_detect_en, pd_fix_lvl);
 	}
+}
+
+/*sr fmeter interface*/
+void amvecm_fmeter_process(struct vframe_s *vf)
+{
+	u8 fmeter_score_unit, fmeter_score_ten, fmeter_score_hundred;
+
+	if (!vf)
+		return;
+
+	if (vf->height <= 1080 && vf->width <= 1920) {
+		fmeter_score_hundred = vf->fmeter0_score / 100;
+		fmeter_score_ten =
+			(vf->fmeter0_score - fmeter_score_hundred * 100) / 10;
+		fmeter_score_unit =
+			vf->fmeter0_score - fmeter_score_hundred * 100
+			- fmeter_score_ten * 10;
+		if (fmeter_debug == 3)
+			pr_info("fmeter0_hcnt0 = %d,hcnt1 = %d,hcnt2 = %d,hcnt3 = %d\n",
+				vf->fmeter0_hcnt[0], vf->fmeter0_hcnt[1],
+				vf->fmeter0_hcnt[2], vf->fmeter0_hcnt[3]);
+		if (fmeter_debug == 2)
+			pr_info("fmeter0_score = %d\n", vf->fmeter0_score);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+		if (fmeter_debug == 1)
+			frc_set_seg_display(1, fmeter_score_hundred,
+				fmeter_score_ten, fmeter_score_unit);
+		else
+			frc_set_seg_display(0, 0, 0, 0);
+#endif
+
+		cur_fmeter_level = vf->fmeter0_score / 10;
+		if (cur_fmeter_level == pre_fmeter_level)
+			fmeter_flag++;
+		else
+			fmeter_flag = 0;
+	} else {
+		fmeter_score_hundred = vf->fmeter1_score / 100;
+		fmeter_score_ten =
+			(vf->fmeter1_score - fmeter_score_hundred * 100) / 10;
+		fmeter_score_unit =
+			vf->fmeter1_score - fmeter_score_hundred * 100
+			- fmeter_score_ten * 10;
+		if (fmeter_debug == 3)
+			pr_info("fmeter1_hcnt0 = %d,hcnt1 = %d,hcnt2 = %d,hcnt3 = %d\n",
+				vf->fmeter1_hcnt[0], vf->fmeter1_hcnt[1],
+				vf->fmeter1_hcnt[2], vf->fmeter1_hcnt[3]);
+		if (fmeter_debug == 2)
+			pr_info("fmeter1_score = %d\n", vf->fmeter1_score);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+		if (fmeter_debug == 1)
+			frc_set_seg_display(1, fmeter_score_hundred,
+				fmeter_score_ten, fmeter_score_unit);
+		else
+			frc_set_seg_display(0, 0, 0, 0);
+#endif
+
+		cur_fmeter_level = vf->fmeter1_score / 10;
+		if (cur_fmeter_level == pre_fmeter_level)
+			fmeter_flag++;
+		else
+			fmeter_flag = 0;
+	}
+	if (fmeter_flag == fmeter_count && fmeter_en) {
+		fmeter_flag = 0;
+		if (cur_sr_level < cur_fmeter_level)
+			cur_sr_level++;
+		else if (cur_sr_level > cur_fmeter_level)
+			cur_sr_level--;
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_SR7_PKLONG_PF_GAIN,
+		sr1_gain_val[cur_sr_level] << 24 | sr1_gain_val[cur_sr_level]
+		<< 16 | sr1_gain_val[cur_sr_level] << 8
+		| sr1_gain_val[cur_sr_level], 0, 32);
+
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_OS_STATIC,
+		sr1_shoot_val[cur_sr_level], 0, 10);
+
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_OS_STATIC,
+		sr1_shoot_val[cur_sr_level], 12, 10);
+
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_SR7_PKLONG_PF_GAIN,
+		sr0_gain_val[cur_sr_level] << 24 | sr0_gain_val[cur_sr_level]
+		<< 16 | sr0_gain_val[cur_sr_level] << 8
+		| sr0_gain_val[cur_sr_level], 0, 32);
+
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_OS_STATIC,
+		sr0_shoot_val[cur_sr_level], 0, 10);
+
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_OS_STATIC,
+		sr0_shoot_val[cur_sr_level], 12, 10);
+	}
+	pre_fmeter_level = cur_fmeter_level;
 }
 
 static int vpp_mtx_update(struct vpp_mtx_info_s *mtx_info)
@@ -1627,6 +1773,12 @@ int amvecm_on_vs(struct vframe_s *vf,
 			amvecm_size_patch(cm_in_w, cm_in_h);
 			/*1080i pulldown combing workaround*/
 			amvecm_dejaggy_patch(toggle_vf);
+			if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3) {
+				/*frequence meter size config*/
+				amve_fmetersize_config(vf->width, vf->height,
+					sps_w_in, sps_h_in);
+				amvecm_fmeter_process(toggle_vf);
+			}
 		}
 		/*refresh vframe*/
 		if (!toggle_vf && vf) {
@@ -8600,6 +8752,10 @@ tvchip_pq_setting:
 		cm_init_config(bitdepth);
 		/*lc init*/
 		lc_init(bitdepth);
+
+		/*frequence meter init*/
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
+			amve_fmeter_init(fmeter_en);
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
 			hdr_hist_config_int();

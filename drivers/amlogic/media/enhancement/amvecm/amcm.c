@@ -388,7 +388,8 @@ void pd_combing_fix_patch(enum pd_comb_fix_lvl_e level)
 	      is_meson_txhd_cpu() ||
 	      get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
 	      get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
-	      get_cpu_type() == MESON_CPU_MAJOR_ID_T7))
+	      get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
+	      get_cpu_type() == MESON_CPU_MAJOR_ID_T3))
 		return;
 
 	pr_amcm_dbg("\n[amcm..] pd fix lvl = %d\n", level);
@@ -510,7 +511,8 @@ void cm_latch_process(void)
 			(get_cpu_type() != MESON_CPU_MAJOR_ID_SC2) &&
 			(get_cpu_type() != MESON_CPU_MAJOR_ID_T5) &&
 			(get_cpu_type() != MESON_CPU_MAJOR_ID_T5D) &&
-			(get_cpu_type() != MESON_CPU_MAJOR_ID_T7))
+			(get_cpu_type() != MESON_CPU_MAJOR_ID_T7) &&
+			(get_cpu_type() != MESON_CPU_MAJOR_ID_T3))
 			amcm_level_sel(cm_level);
 		amcm_enable();
 		pr_amcm_dbg("\n[amcm..] set cm2 load OK!!!\n");

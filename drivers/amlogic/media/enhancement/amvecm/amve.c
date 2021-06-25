@@ -76,6 +76,11 @@ static int amve_debug;
 module_param(amve_debug, int, 0664);
 MODULE_PARM_DESC(amve_debug, "amve_debug");
 
+/*for fmeter en*/
+int fmeter_en = 1;
+module_param(fmeter_en, int, 0664);
+MODULE_PARM_DESC(fmeter_en, "fmeter_en");
+
 struct ve_hist_s video_ve_hist;
 
 unsigned int vpp_log[128][10];
@@ -2248,6 +2253,86 @@ void amvecm_wb_enable(int enable)
 			WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 0, 6, 1);
 		else
 			WRITE_VPP_REG_BITS(VPP_GAINOFF_CTRL0, 0, 31, 1);
+	}
+}
+
+/*frequence meter init*/
+void amve_fmeter_init(int enable)
+{
+	if (!enable)
+		return;
+	/*sr0 fmeter*/
+	WRITE_VPP_REG_BITS(SRSHARP0_FMETER_CTRL, enable, 0, 1);
+	WRITE_VPP_REG_BITS(SRSHARP0_FMETER_CTRL, 0xe, 4, 4);
+	WRITE_VPP_REG_BITS(SRSHARP0_FMETER_CTRL, 0xa, 8, 4);
+	WRITE_VPP_REG(SRSHARP0_FMETER_CORING, 0x04040404);
+	WRITE_VPP_REG(SRSHARP0_FMETER_RATIO_H, 0x00040404);
+	WRITE_VPP_REG(SRSHARP0_FMETER_RATIO_V, 0x00040404);
+	WRITE_VPP_REG(SRSHARP0_FMETER_RATIO_D, 0x00040404);
+	WRITE_VPP_REG(SRSHARP0_FMETER_H_FILTER0_9TAP_0, 0xe11ddc24);
+	WRITE_VPP_REG_BITS(SRSHARP0_FMETER_H_FILTER0_9TAP_1, 0x14, 0, 10);
+	WRITE_VPP_REG(SRSHARP0_FMETER_H_FILTER1_9TAP_0, 0x20f0ed26);
+	WRITE_VPP_REG_BITS(SRSHARP0_FMETER_H_FILTER1_9TAP_1, 0xf0, 0, 10);
+	WRITE_VPP_REG(SRSHARP0_FMETER_H_FILTER2_9TAP_0, 0xe2e81932);
+	WRITE_VPP_REG_BITS(SRSHARP0_FMETER_H_FILTER2_9TAP_1, 0x04, 0, 10);
+
+	/*sr1 fmeter*/
+	WRITE_VPP_REG_BITS(SRSHARP1_FMETER_CTRL, enable, 0, 1);
+	WRITE_VPP_REG_BITS(SRSHARP1_FMETER_CTRL, 0xe, 4, 4);
+	WRITE_VPP_REG_BITS(SRSHARP1_FMETER_CTRL, 0xa, 8, 4);
+	WRITE_VPP_REG(SRSHARP1_FMETER_CORING, 0x04040404);
+	WRITE_VPP_REG(SRSHARP1_FMETER_RATIO_H, 0x00040404);
+	WRITE_VPP_REG(SRSHARP1_FMETER_RATIO_V, 0x00040404);
+	WRITE_VPP_REG(SRSHARP1_FMETER_RATIO_D, 0x00040404);
+	WRITE_VPP_REG(SRSHARP1_FMETER_H_FILTER0_9TAP_0, 0xe11ddc24);
+	WRITE_VPP_REG_BITS(SRSHARP1_FMETER_H_FILTER0_9TAP_1, 0x14, 0, 10);
+	WRITE_VPP_REG(SRSHARP1_FMETER_H_FILTER1_9TAP_0, 0x20f0ed26);
+	WRITE_VPP_REG_BITS(SRSHARP1_FMETER_H_FILTER1_9TAP_1, 0xf0, 0, 10);
+	WRITE_VPP_REG(SRSHARP1_FMETER_H_FILTER2_9TAP_0, 0xe2e81932);
+	WRITE_VPP_REG_BITS(SRSHARP1_FMETER_H_FILTER2_9TAP_1, 0x04, 0, 10);
+
+	/*sr default value*/
+	WRITE_VPP_REG(SRSHARP1_SR7_PKLONG_PF_GAIN, 0x40404040);
+	WRITE_VPP_REG_BITS(SRSHARP1_PK_OS_STATIC, 0x14, 0, 10);
+	WRITE_VPP_REG_BITS(SRSHARP1_PK_OS_STATIC, 0x14, 12, 10);
+}
+
+/*frequence meter size config*/
+void amve_fmetersize_config(u32 sr0_w, u32 sr0_h, u32 sr1_w, u32 sr1_h)
+{
+	u32 fmeter0_x_st, fmeter0_x_end, fmeter0_y_st, fmeter0_y_end;
+	u32 fmeter1_x_st, fmeter1_x_end, fmeter1_y_st, fmeter1_y_end;
+
+	fmeter0_x_st = 0;
+	fmeter0_x_end = sr0_w & 0x1fff;
+	fmeter0_y_st = 0;
+	fmeter0_y_end = sr0_h & 0x1fff;
+
+	fmeter1_x_st = 0;
+	fmeter1_x_end = sr1_w & 0x1fff;
+	fmeter1_y_st = 0;
+	fmeter1_y_end = sr1_h & 0x1fff;
+
+	if ((fmeter_en) && (get_cpu_type() == MESON_CPU_MAJOR_ID_T3)) {
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_FMETER_WIN_HOR,
+			fmeter0_x_st, 0, 13);
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_FMETER_WIN_HOR,
+			fmeter0_x_end, 16, 13);
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_FMETER_WIN_HOR,
+			fmeter0_y_st, 0, 13);
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_FMETER_WIN_VER,
+			fmeter0_y_end, 16, 13);
+
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_FMETER_WIN_HOR,
+			fmeter1_x_st, 0, 13);
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_FMETER_WIN_HOR,
+			fmeter1_x_end, 16, 13);
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_FMETER_WIN_HOR,
+			fmeter1_y_st, 0, 13);
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_FMETER_WIN_VER,
+			fmeter1_y_end, 16, 13);
+	} else {
+		return;
 	}
 }
 
