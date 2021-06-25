@@ -753,6 +753,29 @@
 		compatible = "amlogic, meson, lut_dma";
 		status = "disabled";
 	};
+
+	cpu_temp: temperature-sensor@ff634800 {
+		compatible = "amlogic, tm2-cpu-thermal",
+			     "amlogic, tm2-thermal";
+		reg = <0x0 0xff634800 0x0 0x50>,
+			<0x0 0xff800268 0x0 0x4>;
+		interrupts = <0 35 0>;
+		clocks = <&clkc CLKID_TS>; /* CLKID_TS_COMP>;*/
+		#thermal-sensor-cells = <1>;
+		status = "disabled";
+	};
+
+	ddr_temp: temperature-sensor@ff634c00 {
+		compatible = "amlogic, tm2-ddr-thermal",
+			     "amlogic, tm2-thermal";
+		reg = <0x0 0xff634c00 0x0 0x50>,
+			<0x0 0xff800230 0x0 0x4>;
+		interrupts = <0 36 0>;
+		clocks = <&clkc CLKID_TS>; /* CLKID_TS_COMP>;*/
+		#thermal-sensor-cells = <1>;
+		status = "disabled";
+	};
+
 	p_tsensor: p_tsensor@ff634800 {
 		compatible = "amlogic, r1p1-tsensor";
 		status = "okay";
@@ -801,7 +824,7 @@
 	};
 
 	thermal-zones {
-		soc_thermal: soc_thermal {
+		cpu_thermal: cpu_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
 			sustainable-power = <1230>;
