@@ -97,7 +97,7 @@ static inline u32 get_sr1_offset(void)
 	/*sr1 register shfit*/
 	if (cpu_after_eq_t7())
 		return 0x1300;
-	if (cpu_after_eq_tm2b())
+	else if (cpu_after_eq_tm2b())
 		return 0x1300;
 	else if (cpu_after_eq_tl1())
 		return 0x0;
