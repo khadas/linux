@@ -461,7 +461,7 @@
 		pinctrl-1 = <&bl_pwm_vs_on_pins>;
 		pinctrl-2 = <&bl_pwm_off_pins>;
 		pinctrl_version = <2>; /* for uboot */
-		interrupts = <0 3 1>;
+		interrupts = <0 197 1>;
 		interrupt-names = "vsync";
 		bl_pwm_config = <&bl_pwm_conf>;
 
