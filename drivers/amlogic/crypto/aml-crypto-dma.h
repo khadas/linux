@@ -46,6 +46,13 @@ enum TXLX_DMA_REG_OFFSETS {
 	TXLX_DMA_SEC  = 0x11,
 };
 
+enum CRYPTO_ALGO_CAPABILITY {
+	CAP_AES = 0x1,
+	CAP_DES = 0x2,
+	CAP_TDES = 0x4,
+	CAP_S17 = 0x8,
+};
+
 #define aml_write_reg(addr, data) \
 	writel(data, (int *)addr)
 
@@ -75,7 +82,7 @@ enum TXLX_DMA_REG_OFFSETS {
 #define MODE_AES128  0x8
 #define MODE_AES192  0x9
 #define MODE_AES256  0xa
-/* 0xb is skipped */
+#define MODE_S17     0xb
 #define MODE_DES     0xc
 /* 0xd is skipped */
 #define MODE_TDES_2K 0xe
@@ -111,6 +118,7 @@ struct dma_dsc {
 #define DMA_STATUS_KEY_ERROR   BIT(1)
 
 #define DMA_KEY_IV_BUF_SIZE (48)
+#define DMA_KEY_IV_BUF_SIZE_64B (64)
 struct aml_dma_dev {
 	spinlock_t dma_lock; /* spinlock for dma */
 	u32 thread;

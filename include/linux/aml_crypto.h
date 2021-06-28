@@ -36,9 +36,11 @@ struct crypt_op {
 	__u8   dst_phys;     /* set if dst is in physical addr */
 	__u8   ivlen;        /* length of IV */
 	__u8   __user *iv;   /* Notice: iv returned from physical is invalid */
+	__u8   __user *param;   /* extra parameters for algorithm */
+	__u16  param_len;
 	__u8   num_src_bufs;
 	__u8   num_dst_bufs;
-	__u16  reserved;     /* reserved */
+	__u32  reserved;
 	struct crypt_mem src[MAX_CRYPTO_BUFFERS];   /* source data */
 	struct crypt_mem dst[MAX_CRYPTO_BUFFERS];   /* output data */
 };
@@ -52,7 +54,9 @@ enum aml_crypto_op_t {
 	CRYPTO_OP_AES_ECB =  5,
 	CRYPTO_OP_AES_CBC =  6,
 	CRYPTO_OP_AES_CTR =  7,
-
+	CRYPTO_OP_S17_ECB = 8,
+	CRYPTO_OP_S17_CBC = 9,
+	CRYPTO_OP_S17_CTR = 10,
 	CRYPTO_OP_MAX
 };
 
