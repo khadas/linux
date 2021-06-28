@@ -206,6 +206,19 @@ static int pcm_setting_init(struct pcm_setting *setting, unsigned int rate,
 	return 0;
 }
 
+/* get counts of '1's in val */
+static unsigned int pop_count(unsigned int val)
+{
+	unsigned int count = 0;
+
+	while (val) {
+		count++;
+		val = val & (val - 1);
+	}
+
+	return count;
+}
+
 static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 				unsigned int channels, int stream)
 {
@@ -223,13 +236,19 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 	}
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		unsigned int tx_mask = setting->tx_mask;
+
+		/* suppose mono I2S format */
+		if (channels == 1 && pop_count(tx_mask) > 1)
+			tx_mask = 0x1;
+
 		/* set lanes mask acordingly */
 		lane_mask = setting->lane_mask_out;
 
 		for (i = 0; i < p_tdm->lane_cnt; i++) {
 			if (((1 << i) & lane_mask) && lanes) {
 				aml_tdm_set_channel_mask(p_tdm->actrl,
-					stream, p_tdm->id, i, setting->tx_mask,
+					stream, p_tdm->id, i, tx_mask,
 					p_tdm->chipinfo->use_vadtop);
 				lanes--;
 			}
@@ -244,6 +263,11 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 			stream, p_tdm->id, swap_val, swap_val1,
 			p_tdm->chipinfo->use_vadtop);
 	} else {
+		unsigned int rx_mask = setting->rx_mask;
+
+		/* suppose mono I2S format */
+		if (channels == 1 && pop_count(rx_mask) > 1)
+			rx_mask = 0x1;
 		/* set lanes mask acordingly */
 		lane_mask = setting->lane_mask_in;
 
@@ -255,7 +279,7 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 		for (i = 0; i < p_tdm->lane_cnt; i++) {
 			if (((1 << i) & lane_mask) && lanes) {
 				aml_tdm_set_channel_mask(p_tdm->actrl,
-					stream, p_tdm->id, i, setting->rx_mask,
+					stream, p_tdm->id, i, rx_mask,
 					p_tdm->chipinfo->use_vadtop);
 				lanes--;
 			}
@@ -862,19 +886,6 @@ static irqreturn_t aml_tdm_ddr_isr(int irq, void *devid)
 	snd_pcm_period_elapsed(substream);
 
 	return IRQ_HANDLED;
-}
-
-/* get counts of '1's in val */
-static unsigned int pop_count(unsigned int val)
-{
-	unsigned int count = 0;
-
-	while (val) {
-		count++;
-		val = val & (val - 1);
-	}
-
-	return count;
 }
 
 static int of_parse_tdm_lane_slot_in(struct device_node *np,
