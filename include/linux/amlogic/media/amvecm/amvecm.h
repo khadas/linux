@@ -612,7 +612,7 @@ int amvecm_on_vs(struct vframe_s *display_vf,
 		 unsigned int cm_in_h,
 		 enum vd_path_e vd_path,
 		 enum vpp_index vpp_index);
-void refresh_on_vs(struct vframe_s *vf);
+void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf);
 void pc_mode_process(void);
 void pq_user_latch_process(void);
 void vlock_process(struct vframe_s *vf,

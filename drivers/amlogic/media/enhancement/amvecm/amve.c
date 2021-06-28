@@ -164,7 +164,7 @@ MODULE_PARM_DESC(sr_adapt_level, "\n sr_adapt_level\n");
 /* *********************************************************************** */
 /* *** VPP_FIQ-oriented functions **************************************** */
 /* *********************************************************************** */
-static void ve_hist_gamma_tgt(struct vframe_s *vf)
+void ve_hist_gamma_tgt(struct vframe_s *vf)
 {
 	int ave_luma;
 	struct vframe_prop_s *p = &vf->prop;
@@ -271,8 +271,6 @@ void ve_on_vs(struct vframe_s *vf)
 			ve_dnlp_load_reg();
 		}
 	}
-	ve_hist_gamma_tgt(vf);
-
 	/* sharpness process */
 	sharpness_process(vf);
 }

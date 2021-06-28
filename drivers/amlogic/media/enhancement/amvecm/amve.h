@@ -190,6 +190,7 @@ extern struct am_regs_s sr1reg_cvbs;
 extern struct am_regs_s sr1reg_hv_noscale;
 void amvecm_fresh_overscan(struct vframe_s *vf);
 void amvecm_reset_overscan(void);
+void ve_hist_gamma_tgt(struct vframe_s *vf);
 int vpp_set_lut3d(int bfromkey,
 		  int keyindex,
 		  unsigned int p3dlut_in[][3],

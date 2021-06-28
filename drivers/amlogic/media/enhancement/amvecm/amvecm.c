@@ -1622,7 +1622,6 @@ int amvecm_on_vs(struct vframe_s *vf,
 		}
 		/*refresh vframe*/
 		if (!toggle_vf && vf) {
-			refresh_on_vs(vf);
 			if (vd_path == VD1_PATH) {
 				lc_process(vf, sps_h_en, sps_v_en,
 				   sps_w_in, sps_h_in);
@@ -1633,7 +1632,6 @@ int amvecm_on_vs(struct vframe_s *vf,
 	} else {
 		result = amvecm_matrix_process(NULL, NULL, flags, vd_path, vpp_index);
 		if (vd_path == VD1_PATH) {
-			ve_hist_gamma_reset();
 			lc_process(NULL, sps_h_en, sps_v_en,
 				   sps_w_in, sps_h_in);
 			/*1080i pulldown combing workaround*/
@@ -1670,7 +1668,7 @@ int amvecm_on_vs(struct vframe_s *vf,
 }
 EXPORT_SYMBOL(amvecm_on_vs);
 
-void refresh_on_vs(struct vframe_s *vf)
+void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf)
 {
 	if (probe_ok == 0)
 		return;
@@ -1682,14 +1680,19 @@ void refresh_on_vs(struct vframe_s *vf)
 	}
 #endif
 
-	if (vf) {
-		vpp_get_vframe_hist_info(vf);
+	if (vf || rpt_vf) {
+		vpp_get_vframe_hist_info(vf ? vf : rpt_vf);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (!for_dolby_vision_certification())
 #endif
-			ve_on_vs(vf);
-		vpp_backup_histgram(vf);
-		pattern_detect(vf);
+			ve_on_vs(vf ? vf : rpt_vf);
+		if (vf && is_video_layer_on(VD1_PATH)) {
+			ve_hist_gamma_tgt(vf);
+			vpp_backup_histgram(vf);
+		}
+		pattern_detect(vf ? vf : rpt_vf);
+	} else {
+		ve_hist_gamma_reset();
 	}
 }
 EXPORT_SYMBOL(refresh_on_vs);
