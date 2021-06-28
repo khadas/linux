@@ -848,7 +848,7 @@ void sct_mng_working(struct di_ch_s *pch)
 	unsigned int cnt_pst_free, cnt_sct_ready, cnt_sct_req;
 	unsigned int cnt_idle, cnt_wait, need_req, req_new = 0;
 	unsigned int cnt_recycle, ready_set, cnt_pst_ready;
-	struct buf_que_s *pbufq;
+	struct buf_que_s *pbufq, *pbufq_dis;
 	struct dim_mscttop_s	*pmsct;
 	struct dim_sct_s *sct;
 	//bool f_no_res = false;
@@ -864,6 +864,7 @@ void sct_mng_working(struct di_ch_s *pch)
 	struct di_dev_s *devp = get_dim_de_devp();
 	struct di_pre_stru_s *ppre;
 	unsigned int frame_nub;
+	unsigned int cnt_display = 0;
 
 	if (!pch)
 		return;
@@ -912,6 +913,9 @@ void sct_mng_working(struct di_ch_s *pch)
 	cnt_sct_ready	= qbufp_count(pbufq, QBF_SCT_Q_READY);
 	cnt_sct_req	= qbufp_count(pbufq, QBF_SCT_Q_REQ);
 	mutex_unlock(&pmsct->lock_ready);
+
+	pbufq_dis = &pch->ndis_qb;
+	cnt_display = qbufp_count(pbufq_dis, QBF_NDIS_Q_DISPLAY);
 
 	ready_set = cnt_sct_ready;
 	if (cnt_sct_ready && cnt_wait < cnt_sct_ready) {
@@ -1016,6 +1020,8 @@ void sct_mng_working(struct di_ch_s *pch)
 		//if (req_new)
 		//	mtask_wake_for_sct();
 	} else if (cnt_pst_ready >= 1) {
+	} else if (dip_itf_is_ins_lbuf(pch) &&
+		   cnt_display >= (pmsct->max_nub - 3)) {
 	} else {
 		/* no resource */
 		if (f_no_wbuf)

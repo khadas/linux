@@ -324,28 +324,33 @@ static void cfg_ch_set(struct di_ch_s *pch)
 {
 	struct di_init_parm *parm;
 	unsigned int out_format;
-
+	bool used_di_define = false;
 	parm = &pch->itf.u.dinst.parm;
 	out_format = parm->output_format & 0xffff;
 
-	switch (out_format) {
-	case DI_OUTPUT_422:
-		cfgsch(pch, POUT_FMT, 0);
-		cfgsch(pch, IOUT_FMT, 0);
-		break;
-	case DI_OUTPUT_NV12:
-		cfgsch(pch, POUT_FMT, 2);
-		cfgsch(pch, IOUT_FMT, 2);
-		break;
-	case DI_OUTPUT_NV21:
-		cfgsch(pch, POUT_FMT, 1);
-		cfgsch(pch, IOUT_FMT, 1);
-		break;
-	default:
-		PR_INF("%s:format not set\n", __func__);
-		break;
-	}
+	if (parm->output_format & DI_OUTPUT_BY_DI_DEFINE &&
+	    pch->itf.tmode == EDIM_TMODE_3_PW_LOCAL)
+		used_di_define = true;
 
+	if (!used_di_define) {
+		switch (out_format) {
+		case DI_OUTPUT_422:
+			cfgsch(pch, POUT_FMT, 0);
+			cfgsch(pch, IOUT_FMT, 0);
+			break;
+		case DI_OUTPUT_NV12:
+			cfgsch(pch, POUT_FMT, 2);
+			cfgsch(pch, IOUT_FMT, 2);
+			break;
+		case DI_OUTPUT_NV21:
+			cfgsch(pch, POUT_FMT, 1);
+			cfgsch(pch, IOUT_FMT, 1);
+			break;
+		default:
+			PR_INF("%s:format not set\n", __func__);
+			break;
+		}
+	}
 	cfgsch(pch, KEEP_DEC_VF, 0); // for all new_interface
 	if (dip_itf_is_ins_exbuf(pch)) {
 		//cfgsch(pch, KEEP_DEC_VF, 0);
@@ -383,7 +388,8 @@ int di_create_instance(struct di_init_parm parm)
 		return DI_ERR_REG_NO_IDLE_CH;
 	}
 
-	if ((parm.output_format & 0xffff) == DI_OUTPUT_422)
+	if ((parm.output_format & 0xffff) == DI_OUTPUT_422 ||
+	    parm.output_format & DI_OUTPUT_BY_DI_DEFINE)
 		parm.output_format &= ~DI_OUTPUT_LINEAR;
 
 	ch = (unsigned int)ret;
@@ -445,7 +451,7 @@ int di_create_instance(struct di_init_parm parm)
 	cfg_ch_set(pch);
 	mutex_unlock(&pch->itf.lock_reg);
 	PR_INF("%s:ch[%d],tmode[%d]\n", __func__, ch, itf->tmode);
-	PR_INF("\tout:%d\n", itf->u.dinst.parm.output_format);
+	PR_INF("\tout:0x%x\n", itf->u.dinst.parm.output_format);
 	return ch;
 }
 EXPORT_SYMBOL(di_create_instance);
