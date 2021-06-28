@@ -487,7 +487,8 @@ static int mhu_cdev_init(struct device *dev, struct mhu_ctlr *mhu_ctlr)
 			goto out_err;
 		}
 
-		strncpy(cur->char_name, name, 32);
+		strncpy(cur->char_name, name, CDEV_NAME_SIZE - 1);
+		cur->char_name[CDEV_NAME_SIZE - 1] = '\0';
 		pr_debug("dts char name[%d]: %s\n", index, cur->char_name);
 
 		cur->mhu_dev = dev;

@@ -17,6 +17,7 @@
 #include <dt-bindings/pwm/meson.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/meson_ir.h>
+#include <dt-bindings/mailbox/amlogic,mbox.h>
 #include "meson-ir-map.dtsi"
 #include "mesong12a-bifrost.dtsi"
 / {
@@ -291,7 +292,7 @@
 		reg = <0x0 0xfe02e030 0x0 0x4>;
 	};
 
-	mailbox_mhu_fifo: mhu@0 {
+	mbox_mhu_fifo: mhu@0 {
 		status = "okay";
 		compatible = "amlogic, meson_mhu_fifo";
 		reg = <0x0 0xfe006000 0x0 0x800>,  /* mhu wr fifo */
@@ -307,12 +308,38 @@
 			     "ap_to_dspa",
 			     "ao_dev",
 			     "ap_to_ao";
-		mboxes = <&mailbox_mhu_fifo 0>,
-			 <&mailbox_mhu_fifo 1>,
-			 <&mailbox_mhu_fifo 2>,
-			 <&mailbox_mhu_fifo 3>;
+		mboxes = <&mbox_mhu_fifo 0>,
+			 <&mbox_mhu_fifo 1>,
+			 <&mbox_mhu_fifo 2>,
+			 <&mbox_mhu_fifo 3>;
 		mbox-id = <0x0 0x1 0x2 0x3>;
 		#mbox-cells = <1>;
+	};
+
+	mbox_mhu_sec: mhu_sec@0xfe441800 {
+		status = "okay";
+		compatible = "amlogic, meson_mhu_sec";
+		reg = <0x0 0xfe441800 0x0 0x10>,  /* nee2scpu csr */
+		      <0x0 0xfe441c00 0x0 0x10>,  /* scpu2nee csr */
+		      <0x0 0xfe441a00 0x0 0x80>,   /* nee2scpu st */
+		      <0x0 0xfe441e00 0x0 0x80>;   /* scpu2nee st*/
+		interrupts = <0 49 1>;   /* irq ree */
+		mbox-nums = <2>;
+		mbox-names = "nee2scpu",
+			     "scpu2nee";
+		#mbox-cells = <1>;
+	};
+
+	mbox_user: mbox-user@0 {
+		status = "okay";
+		compatible = "amlogic, meson-mbox-user";
+		mbox-nums = <2>;
+		mbox-names = "nee2scpu",
+			     "ree2aocpu";
+		mboxes = <&mbox_mhu_sec 0>,
+			 <&mbox_mhu_fifo 3>;
+		mbox-dests = <MAILBOX_SECPU>,
+			     <MAILBOX_AOCPU>;
 	};
 
 	vddcpu0: pwm_j-regulator {
