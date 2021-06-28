@@ -39,6 +39,13 @@ int lcd_reg_tl1[] = {
 	LCD_MAP_MAX,
 };
 
+int lcd_reg_t5[] = {
+	LCD_MAP_TCON,
+	LCD_MAP_PERIPHS,
+	LCD_MAP_RST,
+	LCD_MAP_MAX,
+};
+
 int lcd_reg_t7[] = {
 	LCD_MAP_COMBO_DPHY,
 	LCD_MAP_EDP,
@@ -924,7 +931,7 @@ void lcd_tcon_update_bits_byte(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 	spin_lock_irqsave(&lcd_reg_spinlock, flags);
 	p = check_lcd_tcon_reg_byte(pdrv, reg);
 	if (p) {
-		if (mask == 0xffffffff) {
+		if (mask == 0xff) {
 			writel(value, p);
 		} else {
 			temp =  readl(p);

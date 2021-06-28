@@ -316,6 +316,24 @@
 #define CRT_MASK                                   0x1117
 #define RESET7_MASK                                0x1118
 
+/* t5 */
+#define RESET0_MASK_T5                             0x0010
+#define RESET1_MASK_T5                             0x0011
+#define RESET2_MASK_T5                             0x0012
+#define RESET3_MASK_T5                             0x0013
+#define RESET4_MASK_T5                             0x0014
+#define RESET5_MASK_T5                             0x0015
+#define RESET6_MASK_T5                             0x0016
+#define RESET7_MASK_T5                             0x0017
+#define RESET0_LEVEL_T5                            0x0020
+#define RESET1_LEVEL_T5                            0x0021
+#define RESET2_LEVEL_T5                            0x0022
+#define RESET3_LEVEL_T5                            0x0023
+#define RESET4_LEVEL_T5                            0x0024
+#define RESET5_LEVEL_T5                            0x0025
+#define RESET6_LEVEL_T5                            0x0026
+#define RESET7_LEVEL_T5                            0x0027
+
 #define RESETCTRL_RESET0                           0x0000
 #define RESETCTRL_RESET1                           0x0001
 #define RESETCTRL_RESET2                           0x0002
@@ -1631,6 +1649,7 @@
 extern int lcd_reg_gxb[];
 extern int lcd_reg_g12a[];
 extern int lcd_reg_tl1[];
+extern int lcd_reg_t5[];
 extern int lcd_reg_t7[];
 
 int lcd_ioremap(struct aml_lcd_drv_s *pdrv, struct platform_device *pdev);
@@ -1667,10 +1686,6 @@ void lcd_cbus_setb(unsigned int reg, unsigned int value,
 unsigned int lcd_periphs_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
 void lcd_periphs_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 		       unsigned int value);
-void lcd_pinmux_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			 unsigned int mask);
-void lcd_pinmux_clr_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-			 unsigned int mask);
 
 unsigned int dsi_host_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
 void dsi_host_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,
@@ -1747,8 +1762,7 @@ unsigned int lcd_reset_read(struct aml_lcd_drv_s *pdrv, unsigned int reg);
 void lcd_reset_write(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 		     unsigned int value);
 void lcd_reset_setb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
-		    unsigned int value,
-		    unsigned int start, unsigned int len);
+		    unsigned int value, unsigned int start, unsigned int len);
 unsigned int lcd_reset_getb(struct aml_lcd_drv_s *pdrv, unsigned int reg,
 			    unsigned int start, unsigned int len);
 void lcd_reset_set_mask(struct aml_lcd_drv_s *pdrv, unsigned int reg,

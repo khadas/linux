@@ -11,6 +11,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
 
 #define REG_LCD_TCON_MAX    0xffff
 #define TCON_INTR_MASKN_VAL    0x0  /* default mask all */
@@ -48,6 +49,7 @@ struct lcd_tcon_config_s {
 	unsigned int *axi_reg;
 	void (*tcon_axi_mem_config)(void);
 	void (*tcon_axi_mem_secure)(void);
+	void (*tcon_global_reset)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_gamma_pattern)(struct aml_lcd_drv_s *pdrv,
 				  unsigned int bit_width, unsigned int gamma_r,
 				  unsigned int gamma_g, unsigned int gamma_b);
@@ -79,6 +81,22 @@ struct tcon_rmem_s {
 	struct tcon_rmem_config_s acc_lut_rmem;
 };
 
+struct tcon_data_list_s {
+	unsigned int flag;
+	unsigned int id;
+	unsigned char *block_vaddr;
+	struct tcon_data_list_s *next;
+};
+
+struct tcon_data_multi_s {
+	unsigned int block_type;
+	unsigned int list_cnt;
+	unsigned int flag;
+	unsigned int sel_id;
+	struct tcon_data_list_s *list_header;
+	struct tcon_data_list_s *list_cur;
+};
+
 struct tcon_data_priority_s {
 	unsigned int index;
 	unsigned int priority;
@@ -97,6 +115,9 @@ struct tcon_mem_map_table_s {
 	struct tcon_data_priority_s *data_priority;
 	unsigned int *data_size;
 	unsigned char **data_mem_vaddr;
+
+	unsigned int data_multi_cnt;
+	struct tcon_data_multi_s *data_multi;
 };
 
 struct tcon_mem_secure_config_s {
@@ -180,6 +201,8 @@ struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);
 int lcd_tcon_valid_check(void);
 struct tcon_rmem_s *get_lcd_tcon_rmem(void);
 struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);
+void lcd_tcon_global_reset_t5(struct aml_lcd_drv_s *pdrv);
+void lcd_tcon_global_reset_t3(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_gamma_pattern_tl1(struct aml_lcd_drv_s *pdrv,
 			       unsigned int bit_width, unsigned int gamma_r,
 			       unsigned int gamma_g, unsigned int gamma_b);
@@ -190,9 +213,19 @@ void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 			   struct lcd_tcon_config_s *tcon_conf,
 			   struct tcon_mem_map_table_s *mm_table);
 int lcd_tcon_enable_tl1(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_disable_tl1(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_disable_t3(struct aml_lcd_drv_s *pdrv);
 
 /* common */
+int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
+				   unsigned char *data_buf, int init_flag);
+int lcd_tcon_data_multi_remvoe(struct tcon_mem_map_table_s *mm_table);
+int lcd_tcon_data_multi_add(struct tcon_mem_map_table_s *mm_table,
+			    struct lcd_tcon_data_block_header_s *block_header,
+			    unsigned int index);
+
 int lcd_tcon_data_load(void);
 void lcd_tcon_reg_table_print(void);
 void lcd_tcon_reg_readback_print(struct aml_lcd_drv_s *pdrv);

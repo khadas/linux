@@ -417,21 +417,28 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 	if (!pdrv)
 		return;
 
-	if (pdrv->config.basic.lcd_type == LCD_VBYONE) {
-		if (pdrv->vbyone_vsync_handler)
-			pdrv->vbyone_vsync_handler(pdrv);
-	}
-
+	switch (pdrv->config.basic.lcd_type) {
+	case LCD_MIPI:
 #ifdef CONFIG_AMLOGIC_LCD_TABLET
-	if (pdrv->config.basic.lcd_type == LCD_MIPI) {
 		if (pdrv->config.control.mipi_cfg.dread) {
 			if (pdrv->config.control.mipi_cfg.dread->flag) {
 				lcd_mipi_test_read(pdrv, pdrv->config.control.mipi_cfg.dread);
 				pdrv->config.control.mipi_cfg.dread->flag = 0;
 			}
 		}
-	}
 #endif
+		break;
+	case LCD_VBYONE:
+		if (pdrv->vbyone_vsync_handler)
+			pdrv->vbyone_vsync_handler(pdrv);
+		break;
+	case LCD_MLVDS:
+	case LCD_P2P:
+		lcd_tcon_vsync_isr(pdrv);
+		break;
+	default:
+		break;
+	}
 
 	if (pdrv->mute_flag & LCD_MUTE_UPDATE) {
 		flag = pdrv->mute_flag & 0x1;
@@ -1558,7 +1565,7 @@ static struct lcd_data_s lcd_data_tm2 = {
 static struct lcd_data_s lcd_data_t5 = {
 	.chip_type = LCD_CHIP_T5,
 	.chip_name = "t5",
-	.reg_map_table = &lcd_reg_tl1[0],
+	.reg_map_table = &lcd_reg_t5[0],
 	.drv_max = 1,
 	.offset_venc = {0},
 	.offset_venc_if = {0},
@@ -1568,7 +1575,7 @@ static struct lcd_data_s lcd_data_t5 = {
 static struct lcd_data_s lcd_data_t5d = {
 	.chip_type = LCD_CHIP_T5D,
 	.chip_name = "t5d",
-	.reg_map_table = &lcd_reg_tl1[0],
+	.reg_map_table = &lcd_reg_t5[0],
 	.drv_max = 1,
 	.offset_venc = {0},
 	.offset_venc_if = {0},
@@ -1588,7 +1595,7 @@ static struct lcd_data_s lcd_data_t7 = {
 static struct lcd_data_s lcd_data_t3 = {
 	.chip_type = LCD_CHIP_T3,
 	.chip_name = "t3",
-	.reg_map_table = &lcd_reg_tl1[0],
+	.reg_map_table = &lcd_reg_t5[0],
 	.drv_max = 2,
 	.offset_venc = {0x0, 0x600, 0x0},
 	.offset_venc_if = {0x0, 0x500, 0x0},

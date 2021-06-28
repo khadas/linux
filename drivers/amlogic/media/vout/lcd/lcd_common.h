@@ -22,7 +22,8 @@
 /* 20210518: update t7 & t3 lvds lane setting*/
 /* 20210616: fix t3 clk ss mistake*/
 /* 20210621: separate resume(PREPARE) and late_resume(ENABLE)*/
-#define LCD_DRV_VERSION    "20210621"
+/* 20210625: add tcon multi lut support*/
+#define LCD_DRV_VERSION    "20210625"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -97,6 +98,7 @@ unsigned int lcd_tcon_reg_read(struct aml_lcd_drv_s *pdrv, unsigned int addr);
 void lcd_tcon_reg_write(struct aml_lcd_drv_s *pdrv,
 			unsigned int addr, unsigned int val);
 int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv);
+void lcd_tcon_global_reset(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_gamma_set_pattern(struct aml_lcd_drv_s *pdrv,
 			       unsigned int bit_width, unsigned int gamma_r,
 			       unsigned int gamma_g, unsigned int gamma_b);
@@ -109,6 +111,7 @@ int lcd_tcon_core_reg_get(struct aml_lcd_drv_s *pdrv,
 			  unsigned char *buf, unsigned int size);
 int lcd_tcon_enable(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv);
+void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv);
 
 /* lcd debug */
 int lcd_debug_info_len(int num);

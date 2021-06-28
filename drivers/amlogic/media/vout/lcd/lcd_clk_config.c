@@ -1808,6 +1808,17 @@ static void lcd_set_tcon_clk_tl1(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
+static void lcd_set_tcon_clk_t5(struct aml_lcd_drv_s *pdrv)
+{
+	if (pdrv->config.basic.lcd_type != LCD_MLVDS &&
+	    pdrv->config.basic.lcd_type != LCD_P2P)
+		return;
+
+	lcd_set_tcon_clk_tl1(pdrv);
+
+	lcd_tcon_global_reset(pdrv);
+}
+
 static void lcd_set_tcon_clk_t3(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
@@ -1815,6 +1826,10 @@ static void lcd_set_tcon_clk_t3(struct aml_lcd_drv_s *pdrv)
 	unsigned int freq, val;
 
 	if (pdrv->index > 0) /* tcon_clk only valid for lcd0 */
+		return;
+
+	if (pdrv->config.basic.lcd_type != LCD_MLVDS &&
+	    pdrv->config.basic.lcd_type != LCD_P2P)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
@@ -1849,6 +1864,8 @@ static void lcd_set_tcon_clk_t3(struct aml_lcd_drv_s *pdrv)
 	default:
 		break;
 	}
+
+	lcd_tcon_global_reset(pdrv);
 }
 
 /* ****************************************************
@@ -4387,6 +4404,56 @@ static struct lcd_clk_data_s lcd_clk_data_tm2 = {
 	.prbs_clk_config = lcd_prbs_config_clk_tl1,
 };
 
+static struct lcd_clk_data_s lcd_clk_data_t5 = {
+	.pll_od_fb = PLL_OD_FB_TL1,
+	.pll_m_max = PLL_M_MAX,
+	.pll_m_min = PLL_M_MIN,
+	.pll_n_max = PLL_N_MAX,
+	.pll_n_min = PLL_N_MIN,
+	.pll_frac_range = PLL_FRAC_RANGE_TL1,
+	.pll_frac_sign_bit = PLL_FRAC_SIGN_BIT_TL1,
+	.pll_od_sel_max = PLL_OD_SEL_MAX_TL1,
+	.pll_ref_fmax = PLL_FREF_MAX,
+	.pll_ref_fmin = PLL_FREF_MIN,
+	.pll_vco_fmax = PLL_VCO_MAX_TM2,
+	.pll_vco_fmin = PLL_VCO_MIN_TM2,
+	.pll_out_fmax = CLK_DIV_IN_MAX_TL1,
+	.pll_out_fmin = PLL_VCO_MIN_TL1 / 16,
+	.div_in_fmax = CLK_DIV_IN_MAX_TL1,
+	.div_out_fmax = CRT_VID_CLK_IN_MAX_TL1,
+	.xd_out_fmax = ENCL_CLK_IN_MAX_TL1,
+
+	.clk_path_valid = 0,
+	.vclk_sel = 0,
+	.enc_clk_msr_id = 9,
+	.fifo_clk_msr_id = 129,
+	.pll_ctrl_table = pll_ctrl_table_tl1,
+
+	.ss_level_max = sizeof(lcd_ss_level_table_tl1) / sizeof(char *),
+	.ss_freq_max = sizeof(lcd_ss_freq_table_tl1) / sizeof(char *),
+	.ss_mode_max = sizeof(lcd_ss_mode_table_tl1) / sizeof(char *),
+	.ss_level_table = lcd_ss_level_table_tl1,
+	.ss_freq_table = lcd_ss_freq_table_tl1,
+	.ss_mode_table = lcd_ss_mode_table_tl1,
+
+	.clk_generate_parameter = lcd_clk_generate_tl1,
+	.pll_frac_generate = lcd_pll_frac_generate_dft,
+	.set_ss_level = lcd_set_pll_ss_level_tl1,
+	.set_ss_advance = lcd_set_pll_ss_advance_tl1,
+	.clk_ss_enable = lcd_pll_ss_enable_tl1,
+	.clk_set = lcd_clk_set_tl1,
+	.vclk_crt_set = lcd_set_vclk_crt,
+	.clk_disable = lcd_clk_disable_dft,
+	.clk_gate_switch = lcd_clk_gate_switch_dft,
+	.clk_gate_optional_switch = lcd_clk_gate_optional_switch_tl1,
+	.clktree_set = lcd_set_tcon_clk_t5,
+	.clktree_probe = lcd_clktree_probe_tl1,
+	.clktree_remove = lcd_clktree_remove_tl1,
+	.clk_config_init_print = lcd_clk_config_init_print_dft,
+	.clk_config_print = lcd_clk_config_print_dft,
+	.prbs_clk_config = lcd_prbs_config_clk_tl1,
+};
+
 static struct lcd_clk_data_s lcd_clk_data_t5d = {
 	.pll_od_fb = PLL_OD_FB_TL1,
 	.pll_m_max = PLL_M_MAX,
@@ -4429,7 +4496,7 @@ static struct lcd_clk_data_s lcd_clk_data_t5d = {
 	.clk_disable = lcd_clk_disable_dft,
 	.clk_gate_switch = lcd_clk_gate_switch_dft,
 	.clk_gate_optional_switch = lcd_clk_gate_optional_switch_tl1,
-	.clktree_set = lcd_set_tcon_clk_tl1,
+	.clktree_set = lcd_set_tcon_clk_t5,
 	.clktree_probe = lcd_clktree_probe_tl1,
 	.clktree_remove = lcd_clktree_remove_tl1,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
@@ -4562,8 +4629,10 @@ static void lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_
 		break;
 #endif
 	case LCD_CHIP_TM2:
-	case LCD_CHIP_T5:
 		cconf->data = &lcd_clk_data_tm2;
+		break;
+	case LCD_CHIP_T5:
+		cconf->data = &lcd_clk_data_t5;
 		break;
 	case LCD_CHIP_T5D:
 		cconf->data = &lcd_clk_data_t5d;
