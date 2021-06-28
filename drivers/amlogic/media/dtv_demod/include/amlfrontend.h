@@ -12,7 +12,7 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/21/Jun: fix j83b unlock, due to the side effects of 'dvbc auto sr'"
+#define DTVDEMOD_VER	"2021/08/Jun: support dvbc auto sr"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
