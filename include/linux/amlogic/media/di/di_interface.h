@@ -85,8 +85,15 @@ enum di_output_format {
 	DI_OUTPUT_TVP		= 0x20000000, /*21-03-02*/
 	DI_OUTPUT_LINEAR	= 0x40000000,
 	/*1:di output must linear, 0: determined by di,may be linear or block*/
-	DI_OUTPUT_AFBC_BEST = 0x80000000,
-	/*if di support afbc, use afbc is the best choice*/
+	DI_OUTPUT_BY_DI_DEFINE	= 0x80000000,
+	/* when use di's local buffer, can use this option,
+	 * when use this option, blow define is no use
+	 *	DI_OUTPUT_422
+	 *	DI_OUTPUT_NV12
+	 *	DI_OUTPUT_NV21
+	 *	DI_OUTPUT_LINEAR
+	 */
+
 	DI_OUTPUT_MAX = 0x7FFFFFFF,
 };
 
