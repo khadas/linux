@@ -387,8 +387,7 @@ int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 	wait = msecs_to_jiffies(MBOX_TIME_OUT);
 	ret = wait_for_completion_timeout(&scpi_buf->complete, wait);
 	if (ret == 0) {
-		pr_err("Warning: scpi wait ack time out %d\n",
-		       ret);
+		pr_err("Warning: scpi wait ack time out %d\n", ret);
 		status = SCPI_ERR_TIMEOUT;
 		goto free_channel;
 	}
@@ -398,12 +397,10 @@ int send_scpi_cmd(struct scpi_data_buf *scpi_buf,
 	case C_DSPB_FIFO:
 		status = *(u32 *)(data->rx_buf);
 		if (status == ACK_OK) {
-			memcpy(rx_buf, (data->rx_buf) + MBOX_HEAD_SIZE,
-			       (data->rx_size - MBOX_HEAD_SIZE));
-
-			data->rx_buf = rx_buf;
+			if (rx_buf)
+				memcpy(rx_buf, (data->rx_buf) + MBOX_HEAD_SIZE,
+					(data->rx_size - MBOX_HEAD_SIZE));
 		}
-
 		data->rx_buf = rx_buf;
 
 		status = SCPI_SUCCESS;
@@ -1316,6 +1313,9 @@ static int mbox_get_head_offset(struct mhu_data_buf *data_buf, int mhu_type)
 	case MASK_MHU_PL:
 		data_buf->head_off = MBOX_PL_HEAD_SIZE;
 		break;
+	case MASK_MHU_SEC:
+		data_buf->head_off = 0;
+		break;
 	default:
 		data_buf->head_off = -1;
 		break;
@@ -1326,7 +1326,7 @@ static int mbox_get_head_offset(struct mhu_data_buf *data_buf, int mhu_type)
 int mbox_message_send_ao_sync(struct device *dev, int cmd, void *sdata,
 			int tx_size, void *rdata, int rx_size, int idx)
 {
-	int mhu_type = mhu_f & MASK_MHU_ALL;
+	int mhu_type = mhu_f & (MASK_MHU_FIFO | MASK_MHU_PL | MASK_MHU);
 	struct mhu_data_buf data_buf;
 	struct mbox_client cl = {0};
 	int ret = 0;
@@ -1348,7 +1348,7 @@ int mbox_message_send_ao_sync(struct device *dev, int cmd, void *sdata,
 
 	ret = mbox_message_send_common(&cl, (void *)&data_buf, sdata, idx);
 	if (ret) {
-		dev_err(dev, "Failed to send data %d\n", ret);
+		dev_err(dev, "Failed to aosend data %d\n", ret);
 		return ret;
 	}
 
@@ -1359,3 +1359,34 @@ int mbox_message_send_ao_sync(struct device *dev, int cmd, void *sdata,
 	return ret;
 }
 EXPORT_SYMBOL(mbox_message_send_ao_sync);
+
+int mbox_message_send_sec_sync(struct device *dev, int cmd, void *sdata,
+			size_t tx_size, void *rdata, size_t *rx_size, int idx)
+{
+	int mhu_type = mhu_f & MASK_MHU_SEC;
+	struct mhu_data_buf data_buf;
+	struct mbox_client cl = {0};
+	int ret = 0;
+
+	ret = mbox_get_head_offset(&data_buf, mhu_type);
+	if (ret < 0) {
+		dev_err(dev, "not supprt sec mbox\n");
+		return ret;
+	}
+	cl.dev = dev;
+	data_buf.tx_size = tx_size + data_buf.head_off;
+	data_buf.rx_size = *rx_size + data_buf.head_off;
+
+	ret = mbox_message_send_common(&cl, (void *)&data_buf, sdata, idx);
+	if (ret) {
+		dev_err(dev, "Failed to send secdata %d\n", ret);
+		return ret;
+	}
+	*rx_size = data_buf.rx_size;
+	memcpy(rdata, data_buf.rx_buf + data_buf.head_off, *rx_size);
+	kfree(data_buf.tx_buf);
+	kfree(data_buf.rx_buf);
+	ret = tx_size;
+	return ret;
+}
+EXPORT_SYMBOL(mbox_message_send_sec_sync);

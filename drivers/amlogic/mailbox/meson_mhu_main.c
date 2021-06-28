@@ -18,12 +18,16 @@
 #include "meson_mhu.h"
 #include "meson_mhu_pl.h"
 #include "meson_mhu_fifo.h"
+#include "meson_mhu_sec.h"
+#include "meson_mhu_user.h"
 
 static int __init mailbox_init(void)
 {
 	aml_mhu_init();
 	aml_mhu_pl_init();
 	aml_mhu_fifo_init();
+	aml_mhu_sec_init();
+	aml_mhu_user_init();
 
 	return 0;
 }
@@ -33,6 +37,8 @@ static void __exit mailbox_exit(void)
 	aml_mhu_exit();
 	aml_mhu_pl_exit();
 	aml_mhu_fifo_exit();
+	aml_mhu_sec_exit();
+	aml_mhu_user_exit();
 }
 
 module_init(mailbox_init);
