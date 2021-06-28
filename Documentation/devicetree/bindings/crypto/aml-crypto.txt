@@ -104,14 +104,14 @@ aml_sha{
 This feature is only supported on devices that has key table integrated
 
 Required properties:
-- compatible : Should be "amlogic,crypto_sc2" for sc2
+- compatible : Should be "amlogic,crypto_s4d" for s4d
 - dev_name : Should be "aml_crypto_dev"
 
 Example:
 crypto {
-	compatible = "amlogic,crypto_sc2";
+	compatible = "amlogic,crypto_s4d";
 	dev_name = "aml_crypto_dev";
 	status = "okay";
-	thread = /bits/ 5 <0x0>;
+	thread = /bits/ 8 <0x5>;
 	interrupts = <0 29 1>;
 }

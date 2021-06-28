@@ -59,6 +59,7 @@
 #define MKL_USER_CRYPTO_T3   (3)
 #define MKL_USER_CRYPTO_T4   (4)
 #define MKL_USER_CRYPTO_T5   (5)
+#define MKL_USER_CRYPTO_ANY  (7)
 #define MKL_USER_LOC_DEC     (8)
 #define MKL_USER_NETWORK     (9)
 #define MKL_USER_LOC_ENC     (10)
@@ -270,6 +271,9 @@ static int kt_config(u32 handle, int key_userid, int key_algo, unsigned int ext_
 	case CRYPTO_T5:
 		key_table[index].key_userid = MKL_USER_CRYPTO_T5;
 		break;
+	case CRYPTO_ANY:
+		key_table[index].key_userid = MKL_USER_CRYPTO_ANY;
+		break;
 	default:
 		dprint("%s, %d invalid user id\n",
 		       __func__, __LINE__);
@@ -300,12 +304,18 @@ static int kt_config(u32 handle, int key_userid, int key_algo, unsigned int ext_
 			break;
 		case KEY_ALGO_S17:
 			key_table[index].key_algo = MKL_USAGE_S17;
-			if (ext_value == 0) {
-				WRITE_CBUS_REG(KT_REE_S17_CONFIG, S17_CFG_DEFAULT);
-				dprint_i("def frobenius :0x%0x\n", S17_CFG_DEFAULT);
-			} else {
-				WRITE_CBUS_REG(KT_REE_S17_CONFIG, ext_value);
-				dprint_i("frobenius :0x%0x\n", ext_value);
+			if (key_userid < CRYPTO_T0) {
+				if (ext_value == 0) {
+					WRITE_CBUS_REG(KT_REE_S17_CONFIG,
+						       S17_CFG_DEFAULT);
+					dprint_i("def frobenius :0x%0x\n",
+						 S17_CFG_DEFAULT);
+				} else {
+					WRITE_CBUS_REG(KT_REE_S17_CONFIG,
+						       ext_value);
+					dprint_i("frobenius :0x%0x\n",
+						 ext_value);
+				}
 			}
 			break;
 		default:
@@ -385,7 +395,7 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 
 
 	user_id = key_table[index].key_userid;
-	if (user_id <= MKL_USER_CRYPTO_T5) {
+	if (user_id <= MKL_USER_CRYPTO_ANY) {
 		if (key_len == 1) {
 			en_decrypt = 1;
 		} else if (key_len == 2) {
@@ -409,7 +419,7 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 		}
 		usleep_range(10000, 15000);
 	}
-	if (algo == MKL_USAGE_S17) {
+	if (key_len == 32 && (algo == MKL_USAGE_S17 || algo == MKL_USAGE_AES)) {
 		fun_id = 6;
 		WRITE_CBUS_REG(KT_KEY0, key0);
 		WRITE_CBUS_REG(KT_KEY1, key1);

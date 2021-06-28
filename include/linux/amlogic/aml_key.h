@@ -30,6 +30,7 @@ enum user_id {
 	CRYPTO_T3 = 0x103,
 	CRYPTO_T4 = 0x104,
 	CRYPTO_T5 = 0x105,
+	CRYPTO_ANY = 0x106,
 };
 
 enum key_algo {
