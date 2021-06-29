@@ -1207,6 +1207,10 @@ void dvbt_reg_initial(unsigned int bw)
 		dvbt_t2_wrb(0x15b3, (dvbt_t2_rdb(0x15b3) & 0xcf));
 	}
 
+	/* T3 chip close dccomp*/
+	if (is_meson_t3_cpu())
+		dvbt_t2_wrb(0x15a8, 0x02);
+
 	setsrcgain(calcul_src_gain_m(bandwidth, s_r));
 	settrl(calcul_tr_inominal_rate_m(bandwidth, s_r));
 
