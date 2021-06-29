@@ -6,7 +6,7 @@
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
 
-#define CEC_DRIVER_VERSION     "2021/02/22: cec on off control hpd"
+#define CEC_DRIVER_VERSION     "2021/06/28: fix wakeup from shutdown"
 
 #define CEC_DEV_NAME		"cec"
 

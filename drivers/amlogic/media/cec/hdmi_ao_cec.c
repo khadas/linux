@@ -4001,8 +4001,14 @@ static void cec_set_clk(struct platform_device *pdev)
 
 static void cec_get_wakeup_reason(void)
 {
-	cec_dev->wakeup_reason = get_resume_method();
-	/*scpi_get_wakeup_reason(&cec_dev->wakeup_reason);*/
+	/* cec bootup earlier than gx_pm module,
+	 * need to use scpi interface instead
+	 * of gx_pm interface when powerup
+	 */
+	if (!cec_dev->probe_finish)
+		scpi_get_wakeup_reason(&cec_dev->wakeup_reason);
+	else
+		cec_dev->wakeup_reason = get_resume_method();
 	CEC_ERR("wakeup_reason:0x%x\n", cec_dev->wakeup_reason);
 }
 
