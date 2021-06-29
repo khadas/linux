@@ -4440,6 +4440,26 @@ static ssize_t hdmitx_drm_flag_show(struct device *dev,
 	return pos;
 }
 
+static ssize_t hdr_mute_frame_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\r\n", hdr_mute_frame);
+	return pos;
+}
+
+static ssize_t hdr_mute_frame_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long mute_frame = 0;
+
+	pr_info("set hdr_mute_frame: %s\n", buf);
+	if (kstrtoul(buf, 10, &mute_frame) == 0)
+		hdr_mute_frame = mute_frame;
+	return count;
+}
+
 void print_drm_config_data(void)
 {
 	enum hdmi_hdr_transfer hdr_transfer_feature;
@@ -5115,7 +5135,7 @@ static DEVICE_ATTR_RO(hdmi_hsty_config);
 static DEVICE_ATTR_RW(sysctrl_enable);
 static DEVICE_ATTR_RW(hdcp_ctl_lvl);
 static DEVICE_ATTR_RO(hdmitx_drm_flag);
-
+static DEVICE_ATTR_RW(hdr_mute_frame);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
@@ -5532,6 +5552,7 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 		pr_info("clear dv_info\n");
 	}
 	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
+	hdmitx_event_notify(HDMITX_PHY_ADDR_VALID, &hdev->physical_addr);
 	hdmitx_edid_buf_compare_print(hdev);
 
 	mutex_unlock(&getedid_mutex);
@@ -6553,6 +6574,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_sysctrl_enable);
 	ret = device_create_file(dev, &dev_attr_hdcp_ctl_lvl);
 	ret = device_create_file(dev, &dev_attr_hdmitx_drm_flag);
+	ret = device_create_file(dev, &dev_attr_hdr_mute_frame);
 
 #ifdef CONFIG_AMLOGIC_VPU
 	hdmitx_device.encp_vpu_dev = vpu_dev_register(VPU_VENCP, DEVICE_NAME);
@@ -6732,6 +6754,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_sysctrl_enable);
 	device_remove_file(dev, &dev_attr_hdcp_ctl_lvl);
 	device_remove_file(dev, &dev_attr_hdmitx_drm_flag);
+	device_remove_file(dev, &dev_attr_hdr_mute_frame);
 
 	cdev_del(&hdmitx_device.cdev);
 
