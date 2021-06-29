@@ -394,6 +394,14 @@ size_t get_fb_rmem_size(int index)
 	return fb_rmem_size[index];
 }
 
+size_t osd_canvas_align(size_t x)
+{
+	if (osd_meson_dev.osd_ver >= OSD_HIGH_ONE)
+		return (((x) + 63) & ~63);
+	else
+		return (((x) + 31) & ~31);
+}
+
 static void osddev_setup(struct osd_fb_dev_s *fbdev)
 {
 	if (fbdev->fb_mem_paddr) {
