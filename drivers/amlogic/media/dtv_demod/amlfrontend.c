@@ -3515,6 +3515,8 @@ static void set_agc_pinmux(enum fe_delivery_system delsys, unsigned int on)
 
 		devp->agc_pin_enable = false;
 	}
+
+	PR_INFO("%s '%s' %d done.\n", __func__, pin_name, on);
 }
 
 static void vdac_clk_gate_ctrl(int status)
@@ -4301,6 +4303,9 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 		else
 			pinctrl_select_state(devp->pin,
 					devp->diseqc_pin_st);
+
+		devm_pinctrl_put(devp->pin);
+		devp->pin = NULL;
 	}
 
 	return 0;
