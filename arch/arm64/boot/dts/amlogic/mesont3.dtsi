@@ -333,6 +333,7 @@
 		boot_sram_size = <0x80000>;
 		//dspsrambase = <0xf7100000>;
 		//dspsramsize = <0x100000>;
+		suspend_resume_support = <1 0>;
 		power-domains = <&pwrdm PDID_T3_DSPA>;
 		power-domain-names = "dspa";
 		status = "okay";
