@@ -480,9 +480,10 @@ struct di_pre_stru_s {
 /* true: bypass di all logic, false: not bypass */
 	bool bypass_flag;
 	unsigned int is_bypass_all	: 1;
-	unsigned int is_bypass_mem	: 1;
+	/* bit0 for cfg, bit1 for t5dvb*/
+	unsigned int is_bypass_mem	: 2;
 	unsigned int is_bypass_fg	: 1;
-	unsigned int rev1		: 29;
+	unsigned int rev1		: 28;
 	unsigned char prog_proc_type;
 /* set by prog_proc_config when source is vdin,0:use 2 i
  * serial buffer,1:use 1 p buffer,3:use 2 i paralleling buffer
