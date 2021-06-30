@@ -335,13 +335,16 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 	int ret = 0;/* 0: success; -x: failed */
 	struct dfe_adcpll_para *p_dtv_para = p_para;/* only for dtv demod */
 	struct tvin_adc_dev *devp = adc_devp;
-	struct adc_reg_addr *adc_addr = &devp->plat_data->adc_addr;
-	struct adc_pll_reg_addr *pll_addr = &devp->plat_data->pll_addr;
+	struct adc_reg_addr *adc_addr;
+	struct adc_pll_reg_addr *pll_addr;
 
 	if (!probe_finish || !devp) {
 		ret = -6;
 		return ret;
 	}
+
+	adc_addr = &devp->plat_data->adc_addr;
+	pll_addr = &devp->plat_data->pll_addr;
 
 	if (!on) {
 		mutex_lock(&devp->pll_mutex);
@@ -678,8 +681,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		} else if (is_meson_gxlx_cpu()) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 			adc_wr_hiu(HHI_DEMOD_CLK_CNTL, 0x1000502);
-
-			adc_pll_lock_cnt = 1;
+			//adc_pll_lock_cnt = 1;
 #endif
 		}  else {
 			/*is_meson_gxtvbb_cpu()*/
@@ -687,14 +689,13 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			adc_wr_hiu(HHI_ADC_PLL_CNTL,  p_dtv_para->adcpllctl);
 			adc_wr_hiu(HHI_DEMOD_CLK_CNTL, p_dtv_para->demodctl);
 			adc_wr_hiu(HHI_ADC_PLL_CNTL3, 0x0a2a2110);
-
-			adc_pll_lock_cnt = 1;
+			//adc_pll_lock_cnt = 1;
 		}
 
 		devp->pll_flg |= ADC_DTV_DEMOD;
 		mutex_unlock(&devp->pll_mutex);
-		if (adc_pll_lock_cnt == 10 && devp->print_en)
-			pr_info("%s: adc pll lock fail!!!\n", __func__);
+		//if (adc_pll_lock_cnt == 10 && devp->print_en)
+			//pr_info("%s: adc pll lock fail!!!\n", __func__);
 		break;
 
 	default:

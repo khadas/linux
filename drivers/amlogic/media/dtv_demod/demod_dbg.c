@@ -1653,7 +1653,14 @@ void aml_demod_dbg_init(void)
 void aml_demod_dbg_exit(void)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
-	struct dentry *root_entry = devp->demod_root;
+	struct dentry *root_entry;
+
+	if (unlikely(!devp)) {
+		PR_ERR("%s:devp is NULL\n", __func__);
+		return;
+	}
+
+	root_entry = devp->demod_root;
 
 	if (root_entry)
 		debugfs_remove_recursive(root_entry);
