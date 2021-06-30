@@ -225,6 +225,9 @@ struct amlogic_usb_v2 {
 	u32 pll_setting[8];
 	u32 pll_dis_thred_enhance;
 	int phy_cfg_state[4];
+	int phy_trim_initvalue[8];
+	int phy_0xc_initvalue[8];
+	int phy_trim_state[4];
 	/* Set VBus Power though GPIO */
 	int vbus_power_pin;
 	int vbus_power_pin_work_mask;
