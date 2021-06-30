@@ -7438,7 +7438,8 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 				enable_video_layer3();
 		}
 	}
-
+	if (vd_layer[0].enabled && !vd_layer[1].enabled && is_mvc)
+		enable_video_layer2();
 	if (first_picture || sr_phase_changed)
 		layer->new_vpp_setting = true;
 	layer->dispbuf = vf;
