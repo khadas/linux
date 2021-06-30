@@ -37,7 +37,7 @@
 //#include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
-#ifdef CONFIG_AMLOGIC_SND_SOC
+#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 #include <linux/amlogic/media/sound/aout_notify.h>
 #endif
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_info_global.h>
@@ -5559,7 +5559,7 @@ static struct vout_server_s hdmitx_vout2_server = {
 };
 #endif
 
-#ifdef CONFIG_AMLOGIC_SND_SOC
+#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 
 #include <linux/soundcard.h>
 #include <sound/core.h>
@@ -6794,7 +6794,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	vout2_register_server(&hdmitx_vout2_server);
 #endif
-#ifdef CONFIG_AMLOGIC_SND_SOC
+#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 	if (hdmitx_uboot_audio_en()) {
 		struct hdmitx_audpara *audpara = &hdev->cur_audio_param;
 
@@ -6890,7 +6890,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	vout2_unregister_server(&hdmitx_vout2_server);
 #endif
 
-#ifdef CONFIG_AMLOGIC_SND_SOC
+#if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 	aout_unregister_client(&hdmitx_notifier_nb_a);
 #endif
 
