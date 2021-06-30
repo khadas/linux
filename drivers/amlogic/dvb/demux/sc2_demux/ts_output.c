@@ -787,9 +787,9 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	else
 		pheader->len = cur_es_bytes - last_es_bytes;
 
-	pr_dbg("%s len:%d,cur_es_bytes:0x%0x, last_es_bytes:0x%0x\n",
-	       __func__, pheader->len, cur_es_bytes, last_es_bytes);
-	pr_dbg("%s pid:0x%0x\n", __func__, pout->es_pes->pid);
+	pr_dbg("%s sid:0x%0x pid:0x%0x len:%d,cur_es_bytes:0x%0x, last_es_bytes:0x%0x\n",
+	       __func__, pout->sid, pout->es_pes->pid, pheader->len, cur_es_bytes, last_es_bytes);
+//	pr_dbg("%s pid:0x%0x\n", __func__, pout->es_pes->pid);
 
 	return 0;
 }
@@ -876,11 +876,34 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 	return -1;
 }
 
+int find_es_start(char *es_buf, int length)
+{
+	int i = 0;
+	int len = 0;
+	char *p;
+
+	p = es_buf;
+	len = length - 4;
+	for (i = 0; i < len; i++) {
+		if (*(p + i) == 0x0 &&
+		    *(p + 1 + i) == 0x0 &&
+			*(p + 2 + i) == 0x0 &&
+			*(p + 3 + i) == 0x01)
+			break;
+	}
+	if (i == 0)
+		return 0;
+	if (i == len)
+		return -1;
+	return i;
+}
 static int clean_es_data(struct out_elem *pout, struct chan_id *pchan,
 			 unsigned int len)
 {
 	int ret;
 	char *ptmp;
+	int check_len = 0xFFFFFFFF;
+	int org_len = len;
 
 	while (len) {
 		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
@@ -889,6 +912,24 @@ static int clean_es_data(struct out_elem *pout, struct chan_id *pchan,
 
 		if (pout->running == TASK_DEAD)
 			return -1;
+	}
+	if (pout->pchan->sec_level == 0 && pout->type == VIDEO_TYPE) {
+		int start = 0;
+
+		ret = SC2_bufferid_read(pout->pchan, &ptmp, check_len, 0);
+		if (ret > 4) {
+			start = find_es_start(ptmp, ret);
+			if (start == 0) {
+				pchan->r_offset = org_len;
+				pr_dbg("find right es start\n");
+			} else if (start == -1) {
+				pchan->r_offset = org_len;
+				pr_dbg("can't find es start\n");
+			} else {
+				pchan->r_offset = org_len + start;
+				pr_dbg("find es start at %d\n", start);
+			}
+		}
 	}
 	return 0;
 }
@@ -1505,7 +1546,10 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 				&es_params->last_header, 16);
 			memcpy(&es_params->last_header, pcur_header,
 					sizeof(es_params->last_header));
-			dprint("error: clean dirty len:0x%0x\n", dirty_len);
+			if (pout->type == VIDEO_TYPE)
+				dprint("video: clean dirty len:0x%0x\n", dirty_len);
+			else
+				dprint("audio: clean dirty len:0x%0x\n", dirty_len);
 			return 0;
 		}
 		if (pheader->len == 0) {
