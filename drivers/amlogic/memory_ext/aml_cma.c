@@ -1013,6 +1013,7 @@ retry:
 		}
 		if (!strcmp(p->comm, "k.glbenchmark27") ||
 			!strcmp(p->comm, "ten.setupwraith") ||
+			!strcmp(p->comm, "atom:lmk_victim") ||
 			!strcmp(p->comm, "rapps.simpleapp"))
 			continue;
 
