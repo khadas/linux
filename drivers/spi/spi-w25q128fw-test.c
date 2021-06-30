@@ -93,7 +93,11 @@ void HexToAscii(unsigned char *pHex, unsigned char *pAscii, int nLen)
                 if (Nibble[j] < 16)
                     Nibble[j] = Nibble[j] - 10 + 'A';
             }
+			
             *pAscii++ = Nibble[j];
+            if(i==(nLen-1) && j==1){
+            	*pAscii = '\0';
+            }          	
         }
     }
 }

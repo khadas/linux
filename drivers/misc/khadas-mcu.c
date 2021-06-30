@@ -184,7 +184,7 @@ static ssize_t show_mac_addr(struct class *cls,
 				struct class_attribute *attr, char *buf)
 {
 	int ret;
-	unsigned char addr_Ascii[12]={0};
+	unsigned char addr_Ascii[13]={0};
 	unsigned char addr[6]={0};
 	int i;
 	
