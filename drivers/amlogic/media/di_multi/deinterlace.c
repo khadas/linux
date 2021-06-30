@@ -3929,6 +3929,14 @@ void dim_pre_de_process(unsigned int channel)
 	 */
 
 	/*dim_dbg_pre_cnt(channel, "s2");*/
+	/* for t5d vb netflix change afbc input timeout */
+	if (DIM_IS_IC(T5DB)) {
+		if (ppre->field_count_for_cont < 2 &&
+		    ppre->cur_prog_flag)
+			ppre->is_bypass_mem |= 0x02;
+		else
+			ppre->is_bypass_mem &= ~0x02;
+	}
 
 	dimh_enable_di_pre_aml(&ppre->di_inp_mif,
 			       &ppre->di_mem_mif,
