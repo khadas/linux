@@ -1139,6 +1139,7 @@ struct di_mm_cfg_s {
 	/**/
 	unsigned int num_local;
 	unsigned int num_post;
+	unsigned int num_rebuild_keep; //ary add
 	unsigned int num_step1_post;
 
 	unsigned int size_local;

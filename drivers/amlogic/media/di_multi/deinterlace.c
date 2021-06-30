@@ -2586,6 +2586,7 @@ static int di_init_buf_new(struct di_ch_s *pch, struct vframe_s *vframe)
 			mm->sts.flg_alloced = false;
 			di_bypass_state_set(ch, true);
 			//pch->sumx.vfm_bypass = true;
+			mm->cfg.num_rebuild_keep = length_keep;
 			return 0;
 		}
 		//pch->sumx.vfm_bypass = false;
@@ -2642,8 +2643,10 @@ static int di_init_buf_new(struct di_ch_s *pch, struct vframe_s *vframe)
 		}
 #endif
 		mm->sts.flg_alloced = true;
+		mm->cfg.num_rebuild_keep = 0;
 	} else {
 		mm->sts.flg_alloced = true;
+		mm->cfg.num_rebuild_keep = 0;
 	}
 	return 0;
 }
@@ -4955,7 +4958,8 @@ static void re_build_buf(struct di_ch_s *pch, enum EDI_SGN sgn)
 	if (mm->sts.flg_alloced)
 		release_post = mem_release_free(pch);
 	else
-		length_keep = ndis_cnt(pch, QBF_NDIS_Q_KEEP);
+		length_keep = mm->cfg.num_rebuild_keep;
+	//ndis_cnt(pch, QBF_NDIS_Q_KEEP);
 	mem_2_blk(pch);
 	mtsk_release(ch, ECMD_BLK_RELEASE);
 
