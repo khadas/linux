@@ -53,6 +53,46 @@ void set_usb_phy_host_tuning(int port, int default_val)
 	g_phy2_v2->phy_cfg_state[port] = default_val;
 }
 
+static void set_usb_phy_trim_tuning
+	(struct usb_phy *x, int port, int default_val)
+{
+	void __iomem	*phy_reg_base;
+	u32 value;
+	struct amlogic_usb_v2	*aml_phy =
+		container_of(x, struct amlogic_usb_v2, phy);
+
+	if (!aml_phy)
+		return;
+	if (aml_phy->phy_version == 0)
+		return;
+
+	if (port > aml_phy->portnum)
+		return;
+	if (default_val == aml_phy->phy_trim_state[port]) {
+		if (default_val == 0)
+			default_val = 1;
+		else
+			return;
+	}
+
+	phy_reg_base = aml_phy->phy_cfg[port];
+	dev_info(aml_phy->dev, "---%s port(%d) tuning for host cf(%ps)--\n",
+		default_val ? "Recovery" : "Set",
+		port, __builtin_return_address(0));
+	if (!default_val) {
+		value = readl(phy_reg_base + 0x0c);
+		value |= 0x07;
+		writel(value, phy_reg_base + 0x0c);
+		writel(0x8000fff, phy_reg_base + 0x10);
+		writel(0x78000, phy_reg_base + 0x34);
+	} else {
+		writel(aml_phy->phy_0xc_initvalue[port], phy_reg_base + 0x0c);
+		writel(aml_phy->phy_trim_initvalue[port], phy_reg_base + 0x10);
+		writel(0x78000, phy_reg_base + 0x34);
+	}
+	aml_phy->phy_trim_state[port] = default_val;
+}
+
 void set_usb_phy_device_tuning(int port, int default_val)
 {
 	void __iomem	*phy_reg_base;
@@ -113,6 +153,20 @@ static void usb_set_calibration_trim
 	writel(value, reg + 0x10);
 
 	dev_info(phy->dev, "phy trim value= 0x%08x\n", value);
+}
+
+static void set_trim_initvalue
+(struct amlogic_usb_v2 *phy, void __iomem	*reg, int port)
+{
+	u32 val;
+
+	if (!phy)
+		return;
+
+	val = readl(reg + 0x10);
+	phy->phy_trim_initvalue[port] = val;
+	val = readl(reg + 0x0c);
+	phy->phy_0xc_initvalue[port] = val;
 }
 
 void set_usb_pll(struct amlogic_usb_v2 *phy, void __iomem	*reg)
@@ -245,8 +299,10 @@ static int amlogic_new_usb2_init(struct usb_phy *x)
 	}
 
 	/* step 7: pll setting */
-	for (i = 0; i < phy->portnum; i++)
+	for (i = 0; i < phy->portnum; i++) {
 		set_usb_pll(phy, phy->phy_cfg[i]);
+		set_trim_initvalue(phy, phy->phy_cfg[i], i);
+	}
 
 	if (phy->suspend_flag)
 		phy->suspend_flag = 0;
@@ -475,6 +531,7 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 	phy->phy.init		= amlogic_new_usb2_init;
 	phy->phy.set_suspend	= amlogic_new_usb2_suspend;
 	phy->phy.shutdown	= amlogic_new_usb2phy_shutdown;
+	phy->phy.phy_trim_tuning	= set_usb_phy_trim_tuning;
 	phy->phy.type		= USB_PHY_TYPE_USB2;
 	phy->pll_setting[0] = pll_setting[0];
 	phy->pll_setting[1] = pll_setting[1];
@@ -495,6 +552,7 @@ static int amlogic_new_usb2_probe(struct platform_device *pdev)
 		phy->phy_cfg[i] = phy_cfg_base[i];
 		/* set port default tuning state */
 		phy->phy_cfg_state[i] = 1;
+		phy->phy_trim_state[i] = 1;
 		phy->phy_reset_level_bit[i] = phy_reset_level_bit[i];
 	}
 

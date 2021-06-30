@@ -34,6 +34,10 @@
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
+#ifdef CONFIG_AMLOGIC_USB
+#include <linux/amlogic/usb-v2.h>
+#endif
+
 #include "hub.h"
 #include "otg_whitelist.h"
 
@@ -2195,6 +2199,9 @@ void usb_disconnect(struct usb_device **pdev)
 	struct usb_device *udev = *pdev;
 	struct usb_hub *hub = NULL;
 	int port1 = 1;
+#ifdef CONFIG_AMLOGIC_USB
+	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
+#endif
 
 	/* mark the device as inactive, so any further urb submissions for
 	 * this device (and any of its children) will fail immediately.
@@ -2203,7 +2210,10 @@ void usb_disconnect(struct usb_device **pdev)
 	usb_set_device_state(udev, USB_STATE_NOTATTACHED);
 	dev_info(&udev->dev, "USB disconnect, device number %d\n",
 			udev->devnum);
-
+#ifdef CONFIG_AMLOGIC_USB
+	if (udev->portnum > 0)
+		usb_phy_trim_tuning(hcd->usb_phy, udev->portnum - 1, 1);
+#endif
 	/*
 	 * Ensure that the pm runtime code knows that the USB device
 	 * is in the process of being disconnected.
@@ -5171,7 +5181,10 @@ loop:
 				   KOBJ_CHANGE, device_enum_fail);
 		dev_err(&port_dev->dev,
 			"Device no response\n");
-}
+		usb_phy_trim_tuning(hcd->usb_phy, port1 - 1, 1);
+	}
+	if (SET_CONFIG_TRIES == (i + 2))
+		usb_phy_trim_tuning(hcd->usb_phy, port1 - 1, 0);
 #endif
 		usb_ep0_reinit(udev);
 		release_devnum(udev);

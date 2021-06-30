@@ -155,6 +155,10 @@ struct usb_phy {
 	 * manually detect the charger type.
 	 */
 	enum usb_charger_type (*charger_detect)(struct usb_phy *x);
+#ifdef CONFIG_AMLOGIC_USB
+	void (*phy_trim_tuning)(struct usb_phy *x,
+		int port, int default_val);
+#endif
 };
 
 /* for board-specific init logic */
@@ -212,6 +216,15 @@ usb_phy_vbus_off(struct usb_phy *x)
 
 	return x->set_vbus(x, false);
 }
+
+#ifdef CONFIG_AMLOGIC_USB
+static inline void
+usb_phy_trim_tuning(struct usb_phy *x, int port, int default_val)
+{
+	if (x && x->phy_trim_tuning)
+		x->phy_trim_tuning(x, port, default_val);
+}
+#endif
 
 /* for usb host and peripheral controller drivers */
 #if IS_ENABLED(CONFIG_USB_PHY)
