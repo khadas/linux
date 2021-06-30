@@ -118,7 +118,7 @@ static struct am_regs_s cm_default = {
 
 /*sr0 sharpness reg*/
 struct am_regs_s sr0_default = {
-	95,
+	94,
 	{
 	{REG_TYPE_OFFSET_VCBUS, SRSHARP0_SHARP_HVSIZE, 0xffffffff, 0x02d00240},
 	{REG_TYPE_OFFSET_VCBUS, SRSHARP0_SHARP_HVBLANK_NUM, 0xffffffff, 0x00001e58},
@@ -254,14 +254,13 @@ struct am_regs_s sr0_default = {
 		0xffffffff, 0x56667ac8},
 	{REG_TYPE_OFFSET_VCBUS, SRSHARP0_PKGAIN_VSLUMA_LUT_H,
 		0xffffffff, 0x00000004},
-	{REG_TYPE_OFFSET_VCBUS, SRSHARP0_DEJ_CTRL, 0xffffffff, 0x00000000},
 	{0}
 	}
 };
 
 /*sr1 sharpness reg*/
 struct am_regs_s sr1_default = {
-	95,
+	94,
 	{
 	{REG_TYPE_OFFSET_VCBUS, SRSHARP1_SHARP_HVSIZE, 0xffffffff, 0x02d00240},
 	{REG_TYPE_OFFSET_VCBUS, SRSHARP1_SHARP_HVBLANK_NUM, 0xffffffff, 0x00001e58},
@@ -397,7 +396,6 @@ struct am_regs_s sr1_default = {
 		0xffffffff, 0x56667ac8},
 	{REG_TYPE_OFFSET_VCBUS, SRSHARP1_PKGAIN_VSLUMA_LUT_H,
 		0xffffffff, 0x00000004},
-	{REG_TYPE_OFFSET_VCBUS, SRSHARP1_DEJ_CTRL, 0xffffffff, 0x00000000},
 	{0}
 	}
 };
