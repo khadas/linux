@@ -26,6 +26,9 @@
 #define HOST_MODE	0
 #define DEVICE_MODE	1
 
+static int UDC_exist_flag = -1;
+static char crg_UDC_name[128];
+
 struct amlogic_crg_otg {
 	struct device           *dev;
 	void __iomem    *phy3_cfg;
@@ -105,6 +108,7 @@ static void amlogic_crg_otg_work(struct work_struct *work)
 	union u2p_r2_v2 reg2;
 	unsigned long reg_addr = ((unsigned long)phy->usb2_phy_cfg);
 	unsigned long phy3_addr = ((unsigned long)phy->phy3_cfg);
+	int ret;
 
 	reg2.d32 = readl((void __iomem *)(reg_addr + 8));
 	if (reg2.b.iddig_curr == 0) {
@@ -117,6 +121,11 @@ static void amlogic_crg_otg_work(struct work_struct *work)
 		crg_exit();
 		set_mode(reg_addr, DEVICE_MODE, phy3_addr);
 		crg_gadget_init();
+		if (UDC_exist_flag != 1) {
+			ret = crg_otg_write_UDC(crg_UDC_name);
+			if (ret == 0 || ret == -EBUSY)
+				UDC_exist_flag = 1;
+		}
 	}
 	reg2.b.usb_iddig_irq = 0;
 	writel(reg2.d32, (void __iomem *)(reg_addr + 8));
@@ -149,10 +158,11 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	const void *prop;
 	int irq;
 	int retval;
-	int otg = 0;
+	int len, otg = 0;
 	int controller_type = USB_NORMAL;
 	union u2p_r2_v2 reg2;
 	unsigned long reg_addr;
+	const char *udc_name = NULL;
 
 	prop = of_get_property(dev->of_node, "controller-type", NULL);
 	if (prop)
@@ -194,12 +204,24 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	if (!phy)
 		return -ENOMEM;
 
+	udc_name = of_get_property(pdev->dev.of_node, "udc-name", NULL);
+	if (!udc_name)
+		udc_name = "fdd00000.crgudc2";
+	len = strlen(udc_name);
+	if (len >= 128) {
+		dev_info(&pdev->dev, "udc_name is too long: %d\n", len);
+		return -EINVAL;
+	}
+	strncpy(crg_UDC_name, udc_name, len);
+	crg_UDC_name[len] = '\0';
+
 	if (controller_type == USB_OTG)
 		otg = 1;
 
 	dev_info(&pdev->dev, "controller_type is %d\n", controller_type);
 	dev_info(&pdev->dev, "crg_force_device_mode is %d\n", crg_force_device_mode);
 	dev_info(&pdev->dev, "otg is %d\n", otg);
+	dev_info(&pdev->dev, "udc_name: %s\n", crg_UDC_name);
 
 	dev_info(&pdev->dev, "phy2_mem:0x%lx, iomap phy2_base:0x%lx\n",
 		 (unsigned long)usb2_phy_mem,

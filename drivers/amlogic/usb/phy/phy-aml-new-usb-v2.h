@@ -18,3 +18,7 @@ void crg_exit(void);
 int crg_init(void);
 void crg_gadget_exit(void);
 int crg_gadget_init(void);
+#ifdef CONFIG_AMLOGIC_USB
+int crg_otg_write_UDC(const char *udc_name);
+#endif
+
