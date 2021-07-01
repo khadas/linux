@@ -163,7 +163,7 @@ static void choose_mode_attr(char *outputmode, u32 max_bpc, struct hdmitx_color_
 void meson_hdmitx_setup_color_attr(struct drm_crtc_state *crtc_state,
 	struct drm_connector_state *conn_state)
 {
-	bool support = false;
+	bool reset_attr = true;
 	char attr_str[HDMITX_ATTR_LEN_MAX];
 	char *mode_str;
 
@@ -173,19 +173,19 @@ void meson_hdmitx_setup_color_attr(struct drm_crtc_state *crtc_state,
 
 	mode_str = crtc_state->mode.name;
 
-	/* get attr from ubootenv, not used now.*/
-	if (false) {
+	/*TODO: get attr from hdmitx drv, for legacy usage, remove later.*/
+	if (true) {
 		amhdmitx_get_attr(attr_str);
 		DRM_INFO("new mode name :%s, current attr: %s\n",
-			crtc_state->mode.name, attr_str);
-		if (!drm_chk_hdmi_mode(crtc_state->mode.name))
-			return;
-		support = drm_chk_mode_attr_sup(mode_str, attr_str);
-		if (support)
-			DRM_INFO("mode & current attr supported\n");
+		mode_str, attr_str);
+		if (drm_chk_mode_attr_sup(mode_str, attr_str))
+			reset_attr = false;
+		else
+			DRM_ERROR("mode-attr[%s-%s] NOT supported\n",
+				mode_str, attr_str);
 	}
 
-	if (true) {
+	if (reset_attr) {
 		choose_mode_attr(mode_str, conn_state->max_bpc, &am_hdmi_info.color_attr);
 		build_hdmitx_attr_str(attr_str,
 			am_hdmi_info.color_attr.colorformat, am_hdmi_info.color_attr.bitdepth);
@@ -296,7 +296,7 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 
 			drm_mode_probed_add(connector, mode);
 
-			DRM_INFO("add mode [%s]\n", mode->name);
+			DRM_DEBUG("add mode [%s]\n", mode->name);
 		}
 
 		if (pref_mode)
@@ -345,7 +345,7 @@ static enum drm_connector_status am_hdmitx_connector_detect
 {
 	int hpdstat = drm_hdmitx_detect_hpd();
 
-	DRM_INFO("am_hdmi_connector_detect [%d]\n", hpdstat);
+	DRM_DEBUG("am_hdmi_connector_detect [%d]\n", hpdstat);
 	return hpdstat == 1 ?
 		connector_status_connected : connector_status_disconnected;
 }
