@@ -2502,9 +2502,15 @@ static long tsync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 				    sizeof(demux_info)) == 0)) {
 			tsync_check_pid_valid_for_newarch(demux_info);
 			ret = pts_start(PTS_TYPE_VIDEO);
-			if (ret < 0)
-				pr_err("pts_start failed\n");
-
+			if (ret < 0) {
+				pr_err("pts_start failed, retry\n");
+				ret = pts_stop(PTS_TYPE_VIDEO);
+				if (ret < 0)
+					pr_warn("pts_stop failed when retrying...");
+				ret = pts_start(PTS_TYPE_VIDEO);
+				if (ret < 0)
+					pr_err("pts_start failed\n");
+			}
 			tsync_pcr_start();
 		}
 		break;
