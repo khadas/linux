@@ -113,7 +113,9 @@ static void aml_dma_put(void *buf_priv)
 		pr_err("failed to release cma buffer\n");
 	}
 	buf->vaddr = NULL;
-	clear_dma_buffer((struct aml_dma_buffer *)buf->priv, buf->index);
+	if (buf->index < AML_MAX_DMABUF && buf->priv)
+		clear_dma_buffer((struct aml_dma_buffer *)buf->priv,
+				 buf->index);
 	put_device(buf->dev);
 
 	gdc_log(LOG_DEBUG, "gdc free:aml_dma_buf=0x%p,buf->index=%d\n",
