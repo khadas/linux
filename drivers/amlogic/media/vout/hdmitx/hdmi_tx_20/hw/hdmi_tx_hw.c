@@ -2092,6 +2092,7 @@ static void hdmitx_set_scdc(struct hdmitx_dev *hdev)
 	}
 	set_tmds_clk_div40(hdev->para->tmds_clk_div40);
 	scdc_config(hdev);
+	hdev->div40 = hdev->para->tmds_clk_div40;
 }
 
 void hdmitx_set_enc_hw(struct hdmitx_dev *hdev)
@@ -3329,6 +3330,10 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			hdev->hwop.am_hdmitx_hdcp_enable();
 		else if (value == 2 && hdev->hwop.am_hdmitx_hdcp_disconnect)
 			hdev->hwop.am_hdmitx_hdcp_disconnect();
+	} else if (strncmp(tmpbuf, "avmute_frame", 12) == 0) {
+		ret = kstrtoul(tmpbuf + 12, 10, &value);
+		hdev->debug_param.avmute_frame = value;
+		pr_info(HW "avmute_frame = %lu\n", value);
 	}
 }
 
@@ -4043,10 +4048,12 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, unsigned int cmd,
 			scdc_wr_sink(TMDS_CFG, 0x3); /* TMDS 1/40 & Scramble */
 			scdc_wr_sink(TMDS_CFG, 0x3); /* TMDS 1/40 & Scramble */
 			hdmitx_wr_reg(HDMITX_DWC_FC_SCRAMBLER_CTRL, 1);
+			hdev->div40 = 1;
 		} else {
 			scdc_wr_sink(TMDS_CFG, 0x0); /* TMDS 1/40 & Scramble */
 			scdc_wr_sink(TMDS_CFG, 0x0); /* TMDS 1/40 & Scramble */
 			hdmitx_wr_reg(HDMITX_DWC_FC_SCRAMBLER_CTRL, 0);
+			hdev->div40 = 0;
 		}
 		break;
 	case DDC_HDCP14_GET_BCAPS_RP:
