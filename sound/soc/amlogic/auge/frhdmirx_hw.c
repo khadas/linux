@@ -13,6 +13,7 @@
 #include "iomap.h"
 #include "extn.h"
 #include "hdmirx_arc_iomap.h"
+#include "earc.h"
 
 void frhdmirx_afifo_reset(void)
 {
@@ -321,10 +322,19 @@ void arc_earc_source_select(int src)
 /* this is used from TM2, arc source enable */
 void arc_enable(bool enable, int version)
 {
-	if (version == TM2_ARC)
-		aml_hiubus_update_bits(HHI_HDMIRX_EARCTX_CNTL0,
-			0x1 << 31, (enable ? 0x1 : 0) << 31);
-	else if (version == T7_ARC)
-		hdmirx_arc_update_reg(HDMIRX_EARCTX_CNTL0, 0x1 << 31, (enable ? 0x1 : 0) << 31);
+	/* can't disable earc as the heartbeat lost */
+	if (aml_get_earctx_attended_type() == ATNDTYP_EARC && !enable)
+		return;
+
+	if (is_earc_spdif()) {
+		aml_earctx_enable_d2a(enable);
+	} else {
+		if (version == TM2_ARC)
+			aml_hiubus_update_bits(HHI_HDMIRX_EARCTX_CNTL0,
+				0x1 << 31, (enable ? 0x1 : 0) << 31);
+		else if (version == T7_ARC)
+			hdmirx_arc_update_reg(HDMIRX_EARCTX_CNTL0,
+				0x1 << 31, (enable ? 0x1 : 0) << 31);
+	}
 }
 

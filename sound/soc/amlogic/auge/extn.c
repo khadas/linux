@@ -480,8 +480,10 @@ static int extn_dai_probe(struct snd_soc_dai *cpu_dai)
 		arc_source_enable(p_extn->arc_src, false);
 
 	if (p_extn->chipinfo && p_extn->chipinfo->arc_version >= TM2_ARC) {
-		/* override the earc default setting if earc doesn't exist */
-		if (!is_earc_spdif())
+		/* set arc_earc_source_select by earc device exist or not */
+		if (is_earc_spdif())
+			arc_earc_source_select(EARCTX_SPDIF_TO_HDMIRX);
+		else
 			arc_earc_source_select(SPDIFA_TO_HDMIRX);
 	}
 

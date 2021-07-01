@@ -201,6 +201,22 @@ bool aml_get_earctx_enable(void)
 	return false;
 }
 
+enum attend_type aml_get_earctx_attended_type(void)
+{
+	if (!s_earc)
+		return -ENOTCONN;
+
+	return earctx_cmdc_get_attended_type(s_earc->tx_cmdc_map);
+}
+
+void aml_earctx_enable_d2a(int enable)
+{
+	if (!s_earc)
+		return;
+
+	return earctx_enable_d2a(s_earc->tx_top_map, enable);
+}
+
 static irqreturn_t earc_ddr_isr(int irq, void *data)
 {
 	struct snd_pcm_substream *substream =

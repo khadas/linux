@@ -724,6 +724,11 @@ void earctx_cmdc_int_mask(struct regmap *top_map)
 		  );
 }
 
+void earctx_enable_d2a(struct regmap *top_map, int enable)
+{
+	mmio_update_bits(top_map, EARCTX_ANA_CTRL0, 0x1 << 31, enable << 31);
+}
+
 void earctx_cmdc_init(struct regmap *top_map, bool en, bool rterm_on)
 {
 	/* ana */

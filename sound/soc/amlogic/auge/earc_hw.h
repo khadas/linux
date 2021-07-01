@@ -275,7 +275,7 @@ void earcrx_reset(struct regmap *dmac_map);
 void earcrx_enable(struct regmap *cmdc_map,
 		   struct regmap *dmac_map, bool enable);
 void earctx_cmdc_int_mask(struct regmap *top_map);
-
+void earctx_enable_d2a(struct regmap *top_map, int enable);
 void earctx_cmdc_init(struct regmap *top_map, bool en, bool rterm_on);
 void earctx_cmdc_set_timeout(struct regmap *cmdc_map, int no_timeout);
 void earctx_cmdc_arc_connect(struct regmap *cmdc_map, bool init);
