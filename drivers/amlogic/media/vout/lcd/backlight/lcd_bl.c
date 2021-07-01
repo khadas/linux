@@ -1137,7 +1137,6 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 		}
 
 		bl_pwm->pwm_duty = bl_pwm->pwm_duty_min;
-		bl_pwm->pwm_vs_flag = bdrv->data->pwm_vs_flag;
 		/* init pwm config */
 		bl_pwm_config_init(bl_pwm);
 		break;
@@ -1261,8 +1260,6 @@ static int bl_config_load_from_dts(struct aml_bl_drv_s *bdrv)
 
 		pwm_combo0->pwm_duty = pwm_combo0->pwm_duty_min;
 		pwm_combo1->pwm_duty = pwm_combo1->pwm_duty_min;
-		pwm_combo0->pwm_vs_flag = bdrv->data->pwm_vs_flag;
-		pwm_combo1->pwm_vs_flag = bdrv->data->pwm_vs_flag;
 		/* init pwm config */
 		bl_pwm_config_init(pwm_combo0);
 		bl_pwm_config_init(pwm_combo1);
@@ -1479,7 +1476,6 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 		}
 
 		bl_pwm->pwm_duty = bl_pwm->pwm_duty_min;
-		bl_pwm->pwm_vs_flag = bdrv->data->pwm_vs_flag;
 		bl_pwm_config_init(bl_pwm);
 		break;
 	case BL_CTRL_PWM_COMBO:
@@ -1558,8 +1554,6 @@ static int bl_config_load_from_unifykey(struct aml_bl_drv_s *bdrv, char *key_nam
 
 		pwm_combo0->pwm_duty = pwm_combo0->pwm_duty_min;
 		pwm_combo1->pwm_duty = pwm_combo1->pwm_duty_min;
-		pwm_combo0->pwm_vs_flag = bdrv->data->pwm_vs_flag;
-		pwm_combo1->pwm_vs_flag = bdrv->data->pwm_vs_flag;
 		bl_pwm_config_init(pwm_combo0);
 		bl_pwm_config_init(pwm_combo1);
 		break;
@@ -3557,6 +3551,8 @@ static int aml_bl_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, bdrv);
 	bl_cdev_add(bdrv, &pdev->dev);
 	bdrv->pdev = pdev;
+
+	bl_pwm_init_config_probe(bdrv->data);
 
 	INIT_WORK(&bdrv->config_probe_work, aml_bl_config_probe_work);
 	lcd_queue_work(&bdrv->config_probe_work);

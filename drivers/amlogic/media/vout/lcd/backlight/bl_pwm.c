@@ -27,6 +27,18 @@
 #include "lcd_bl.h"
 #include "../lcd_reg.h"
 
+struct bl_pwm_init_config_s {
+	unsigned int *pwm_vs_reg;
+	unsigned int pwm_vs_reg_cnt;
+	unsigned int pwm_vs_flag;
+};
+
+static struct bl_pwm_init_config_s pwm_init_cfg = {
+	.pwm_vs_reg = NULL,
+	.pwm_vs_reg_cnt = 0,
+	.pwm_vs_flag = 0,
+};
+
 static char *bl_pwm_name[] = {
 	"PWM_A",
 	"PWM_B",
@@ -169,7 +181,7 @@ static void bl_set_pwm_vs(struct bl_pwm_config_s *bl_pwm,
 			  unsigned int pol, unsigned int out_level)
 {
 	unsigned int pwm_hi, n, sw;
-	unsigned int vs[8], ve[8];
+	unsigned int reg[5], vs[8], ve[8];
 	int i;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV) {
@@ -213,33 +225,40 @@ static void bl_set_pwm_vs(struct bl_pwm_config_s *bl_pwm,
 		}
 	}
 
-	lcd_vcbus_write(VPU_VPU_PWM_V0, (pol << 31) |
+	if (pwm_init_cfg.pwm_vs_reg_cnt < 5) {
+		BLERR("%s: pwm_vs reg error\n", __func__);
+		return;
+	}
+	for (i = 0; i < pwm_init_cfg.pwm_vs_reg_cnt; i++)
+		reg[i] = pwm_init_cfg.pwm_vs_reg[i];
+
+	lcd_vcbus_write(reg[0], (pol << 31) |
 		       (2 << 14) | /* vsync latch */
 		       (ve[0] << 16) | (vs[0]));
-	lcd_vcbus_write(VPU_VPU_PWM_V1, (ve[1] << 16) | (vs[1]));
-	lcd_vcbus_write(VPU_VPU_PWM_V2, (ve[2] << 16) | (vs[2]));
-	lcd_vcbus_write(VPU_VPU_PWM_V3, (ve[3] << 16) | (vs[3]));
-	if (bl_pwm->pwm_vs_flag) {
-		lcd_vcbus_setb(VPU_VPU_PWM_H0, 1, 31, 1);
-		lcd_vcbus_setb(VPU_VPU_PWM_V0, vs[4], 0, 13);
-		lcd_vcbus_setb(VPU_VPU_PWM_V0, ve[4], 16, 13);
-		lcd_vcbus_write(VPU_VPU_PWM_V1, (ve[5] << 16) | (vs[5]));
-		lcd_vcbus_write(VPU_VPU_PWM_V2, (ve[6] << 16) | (vs[6]));
-		lcd_vcbus_write(VPU_VPU_PWM_V3, (ve[7] << 16) | (vs[7]));
+	lcd_vcbus_write(reg[1], (ve[1] << 16) | (vs[1]));
+	lcd_vcbus_write(reg[2], (ve[2] << 16) | (vs[2]));
+	lcd_vcbus_write(reg[3], (ve[3] << 16) | (vs[3]));
+	if (pwm_init_cfg.pwm_vs_flag) {
+		lcd_vcbus_setb(reg[4], 1, 31, 1);
+		lcd_vcbus_setb(reg[0], vs[4], 0, 13);
+		lcd_vcbus_setb(reg[0], ve[4], 16, 13);
+		lcd_vcbus_write(reg[1], (ve[5] << 16) | (vs[5]));
+		lcd_vcbus_write(reg[2], (ve[6] << 16) | (vs[6]));
+		lcd_vcbus_write(reg[3], (ve[7] << 16) | (vs[7]));
 		if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV) {
-			BLPR("VPU_VPU_PWM_V4=0x%08x\n", lcd_vcbus_read(VPU_VPU_PWM_V0));
-			BLPR("VPU_VPU_PWM_V5=0x%08x\n", lcd_vcbus_read(VPU_VPU_PWM_V1));
-			BLPR("VPU_VPU_PWM_V6=0x%08x\n", lcd_vcbus_read(VPU_VPU_PWM_V2));
-			BLPR("VPU_VPU_PWM_V7=0x%08x\n", lcd_vcbus_read(VPU_VPU_PWM_V3));
+			BLPR("VPU_VPU_PWM_V4=0x%08x\n", lcd_vcbus_read(reg[0]));
+			BLPR("VPU_VPU_PWM_V5=0x%08x\n", lcd_vcbus_read(reg[1]));
+			BLPR("VPU_VPU_PWM_V6=0x%08x\n", lcd_vcbus_read(reg[2]));
+			BLPR("VPU_VPU_PWM_V7=0x%08x\n", lcd_vcbus_read(reg[3]));
 		}
-		lcd_vcbus_setb(VPU_VPU_PWM_H0, 0, 31, 1);
+		lcd_vcbus_setb(reg[4], 0, 31, 1);
 	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV) {
-		BLPR("VPU_VPU_PWM_V0=0x%08x\n", lcd_vcbus_read(VPU_VPU_PWM_V0));
-		BLPR("VPU_VPU_PWM_V1=0x%08x\n", lcd_vcbus_read(VPU_VPU_PWM_V1));
-		BLPR("VPU_VPU_PWM_V2=0x%08x\n", lcd_vcbus_read(VPU_VPU_PWM_V2));
-		BLPR("VPU_VPU_PWM_V3=0x%08x\n", lcd_vcbus_read(VPU_VPU_PWM_V3));
+		BLPR("VPU_VPU_PWM_V0=0x%08x\n", lcd_vcbus_read(reg[0]));
+		BLPR("VPU_VPU_PWM_V1=0x%08x\n", lcd_vcbus_read(reg[1]));
+		BLPR("VPU_VPU_PWM_V2=0x%08x\n", lcd_vcbus_read(reg[2]));
+		BLPR("VPU_VPU_PWM_V3=0x%08x\n", lcd_vcbus_read(reg[3]));
 	}
 }
 
@@ -618,4 +637,39 @@ int bl_pwm_channel_register(struct aml_bl_drv_s *bdrv)
 	}
 
 	return ret;
+}
+
+static unsigned int pwm_vs_reg[] = {
+	VPU_VPU_PWM_V0,
+	VPU_VPU_PWM_V1,
+	VPU_VPU_PWM_V2,
+	VPU_VPU_PWM_V3,
+	VPU_VPU_PWM_H0
+};
+
+static unsigned int pwm_vs_reg_t7[] = {
+	VPU_VPU_PWM_V0_T7,
+	VPU_VPU_PWM_V1_T7,
+	VPU_VPU_PWM_V2_T7,
+	VPU_VPU_PWM_V3_T7,
+	VPU_VPU_PWM_H0_T7
+};
+
+int bl_pwm_init_config_probe(struct bl_data_s *bdata)
+{
+	switch (bdata->chip_type) {
+	case LCD_CHIP_T7:
+	case LCD_CHIP_T3:
+		pwm_init_cfg.pwm_vs_reg = pwm_vs_reg_t7;
+		pwm_init_cfg.pwm_vs_reg_cnt = ARRAY_SIZE(pwm_vs_reg_t7);
+		break;
+	default:
+		pwm_init_cfg.pwm_vs_reg = pwm_vs_reg;
+		pwm_init_cfg.pwm_vs_reg_cnt = ARRAY_SIZE(pwm_vs_reg);
+		break;
+	}
+
+	pwm_init_cfg.pwm_vs_flag = bdata->pwm_vs_flag;
+
+	return 0;
 }
