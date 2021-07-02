@@ -31,7 +31,6 @@
 #include <crypto/hash.h>
 #include <crypto/algapi.h>
 
-#define FSCRYPT_NEED_OPS
 #include <linux/fscrypt.h>
 
 #include "ubifs-media.h"

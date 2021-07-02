@@ -246,7 +246,7 @@ void __qcom_scm_cpu_power_down(u32 flags)
 {
 }
 
-int __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
+bool __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
 {
 	int ret;
 	struct qcom_scm_desc desc = {0};
@@ -259,7 +259,7 @@ int __qcom_scm_is_call_available(struct device *dev, u32 svc_id, u32 cmd_id)
 	ret = qcom_scm_call(dev, QCOM_SCM_SVC_INFO, QCOM_IS_CALL_AVAIL_CMD,
 			    &desc, &res);
 
-	return ret ? : res.a1;
+	return ret ? false : !!res.a1;
 }
 
 int __qcom_scm_hdcp_req(struct device *dev, struct qcom_scm_hdcp_req *req,
@@ -406,6 +406,38 @@ int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
 			    &res);
 
 	return ret ? : res.a1;
+}
+
+int __qcom_scm_ice_invalidate_key(struct device *dev, u32 index)
+{
+	struct qcom_scm_desc desc = {
+		.arginfo = QCOM_SCM_ARGS(1),
+		.args[0] = index,
+	};
+	struct arm_smccc_res res;
+
+	return qcom_scm_call(dev, QCOM_SCM_SVC_ES,
+			     QCOM_SCM_ES_INVALIDATE_ICE_KEY, &desc, &res);
+}
+
+int __qcom_scm_ice_set_key(struct device *dev, u32 index, dma_addr_t key_phys,
+			   u32 key_size, enum qcom_scm_ice_cipher cipher,
+			   u32 data_unit_size)
+{
+	struct qcom_scm_desc desc = {
+		.arginfo = QCOM_SCM_ARGS(5, QCOM_SCM_VAL, QCOM_SCM_RW,
+					 QCOM_SCM_VAL, QCOM_SCM_VAL,
+					 QCOM_SCM_VAL),
+		.args[0] = index,
+		.args[1] = key_phys,
+		.args[2] = key_size,
+		.args[3] = cipher,
+		.args[4] = data_unit_size,
+	};
+	struct arm_smccc_res res;
+
+	return qcom_scm_call(dev, QCOM_SCM_SVC_ES,
+			     QCOM_SCM_ES_CONFIG_SET_ICE_KEY, &desc, &res);
 }
 
 int __qcom_scm_set_remote_state(struct device *dev, u32 state, u32 id)

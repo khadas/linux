@@ -72,7 +72,7 @@
  *
  *
  *              +-------------------------------------------+
- *              |            incfs_super_block              |]---+
+ *              |            incfs_file_header              |]---+
  *              +-------------------------------------------+    |
  *              |                 metadata                  |<---+
  *              |           incfs_file_signature            |]---+
@@ -118,11 +118,13 @@ enum incfs_metadata_type {
 	INCFS_MD_NONE = 0,
 	INCFS_MD_BLOCK_MAP = 1,
 	INCFS_MD_FILE_ATTR = 2,
-	INCFS_MD_SIGNATURE = 3
+	INCFS_MD_SIGNATURE = 3,
+	INCFS_MD_STATUS = 4,
+	INCFS_MD_VERITY_SIGNATURE = 5,
 };
 
 enum incfs_file_header_flags {
-	INCFS_FILE_COMPLETE = 1 << 0,
+	INCFS_FILE_MAPPED = 1 << 1,
 };
 
 /* Header included at the beginning of all metadata records on the disk. */
@@ -136,16 +138,16 @@ struct incfs_md_header {
 	__le16 h_record_size;
 
 	/*
-	 * CRC32 of the metadata record.
+	 * Was: CRC32 of the metadata record.
 	 * (e.g. inode, dir entry etc) not just this struct.
 	 */
-	__le32 h_record_crc;
+	__le32 h_unused1;
 
 	/* Offset of the next metadata entry if any */
 	__le64 h_next_md_offset;
 
-	/* Offset of the previous metadata entry if any */
-	__le64 h_prev_md_offset;
+	/* Was: Offset of the previous metadata entry if any */
+	__le64 h_unused2;
 
 } __packed;
 
@@ -164,25 +166,41 @@ struct incfs_file_header {
 	__le16 fh_data_block_size;
 
 	/* File flags, from incfs_file_header_flags */
-	__le32 fh_file_header_flags;
+	__le32 fh_flags;
 
-	/* Offset of the first metadata record */
-	__le64 fh_first_md_offset;
+	union {
+		/* Standard incfs file */
+		struct {
+			/* Offset of the first metadata record */
+			__le64 fh_first_md_offset;
 
-	/*
-	 * Put file specific information after this point
-	 */
+			/* Full size of the file's content */
+			__le64 fh_file_size;
 
-	/* Full size of the file's content */
-	__le64 fh_file_size;
+			/* File uuid */
+			incfs_uuid_t fh_uuid;
+		};
 
-	/* File uuid */
-	incfs_uuid_t fh_uuid;
+		/* Mapped file - INCFS_FILE_MAPPED set in fh_flags */
+		struct {
+			/* Offset in original file */
+			__le64 fh_original_offset;
+
+			/* Full size of the file's content */
+			__le64 fh_mapped_file_size;
+
+			/* Original file's uuid */
+			incfs_uuid_t fh_original_uuid;
+		};
+	};
 } __packed;
 
 enum incfs_block_map_entry_flags {
-	INCFS_BLOCK_COMPRESSED_LZ4 = (1 << 0),
-	INCFS_BLOCK_HASH = (1 << 1),
+	INCFS_BLOCK_COMPRESSED_LZ4 = 1,
+	INCFS_BLOCK_COMPRESSED_ZSTD = 2,
+
+	/* Reserve 3 bits for compression alg */
+	INCFS_BLOCK_COMPRESSED_MASK = 7,
 };
 
 /* Block map entry pointing to an actual location of the data block. */
@@ -211,18 +229,18 @@ struct incfs_blockmap {
 	__le32 m_block_count;
 } __packed;
 
-/* Metadata record for file attribute. Type = INCFS_MD_FILE_ATTR */
-struct incfs_file_attr {
-	struct incfs_md_header fa_header;
-
-	__le64 fa_offset;
-
-	__le16 fa_size;
-
-	__le32 fa_crc;
-} __packed;
-
-/* Metadata record for file signature. Type = INCFS_MD_SIGNATURE */
+/*
+ * Metadata record for file signature. Type = INCFS_MD_SIGNATURE
+ *
+ * The signature stored here is the APK V4 signature data blob. See the
+ * definition of incfs_new_file_args::signature_info for an explanation of this
+ * blob. Specifically, it contains the root hash, but it does *not* contain
+ * anything that the kernel treats as a signature.
+ *
+ * When FS_IOC_ENABLE_VERITY is called on a file without this record, an APK V4
+ * signature blob and a hash tree are added to the file, and then this metadata
+ * record is created to record their locations.
+ */
 struct incfs_file_signature {
 	struct incfs_md_header sg_header;
 
@@ -241,6 +259,39 @@ struct incfs_df_signature {
 	u64 sig_offset;
 	u32 hash_size;
 	u64 hash_offset;
+};
+
+struct incfs_status {
+	struct incfs_md_header is_header;
+
+	__le32 is_data_blocks_written; /* Number of data blocks written */
+
+	__le32 is_hash_blocks_written; /* Number of hash blocks written */
+
+	__le32 is_dummy[6]; /* Spare fields */
+} __packed;
+
+/*
+ * Metadata record for verity signature. Type = INCFS_MD_VERITY_SIGNATURE
+ *
+ * This record will only exist for verity-enabled files with signatures. Verity
+ * enabled files without signatures do not have this record. This signature is
+ * checked by fs-verity identically to any other fs-verity signature.
+ */
+struct incfs_file_verity_signature {
+	struct incfs_md_header vs_header;
+
+	 /* The size of the signature */
+	__le32 vs_size;
+
+	 /* Signature's offset in the backing file */
+	__le64 vs_offset;
+} __packed;
+
+/* In memory version of above */
+struct incfs_df_verity_signature {
+	u32 size;
+	u64 offset;
 };
 
 /* State of the backing file. */
@@ -273,21 +324,22 @@ struct metadata_handler {
 	union {
 		struct incfs_md_header md_header;
 		struct incfs_blockmap blockmap;
-		struct incfs_file_attr file_attr;
 		struct incfs_file_signature signature;
+		struct incfs_status status;
+		struct incfs_file_verity_signature verity_signature;
 	} md_buffer;
 
 	int (*handle_blockmap)(struct incfs_blockmap *bm,
 			       struct metadata_handler *handler);
-	int (*handle_file_attr)(struct incfs_file_attr *fa,
-				 struct metadata_handler *handler);
 	int (*handle_signature)(struct incfs_file_signature *sig,
 				 struct metadata_handler *handler);
+	int (*handle_status)(struct incfs_status *sig,
+				 struct metadata_handler *handler);
+	int (*handle_verity_signature)(struct incfs_file_verity_signature *s,
+					struct metadata_handler *handler);
 };
 #define INCFS_MAX_METADATA_RECORD_SIZE \
 	FIELD_SIZEOF(struct metadata_handler, md_buffer)
-
-loff_t incfs_get_end_offset(struct file *f);
 
 /* Backing file context management */
 struct mount_info;
@@ -303,6 +355,9 @@ int incfs_write_blockmap_to_backing_file(struct backing_file_context *bfc,
 int incfs_write_fh_to_backing_file(struct backing_file_context *bfc,
 				   incfs_uuid_t *uuid, u64 file_size);
 
+int incfs_write_mapping_fh_to_backing_file(struct backing_file_context *bfc,
+				incfs_uuid_t *uuid, u64 file_size, u64 offset);
+
 int incfs_write_data_block_to_backing_file(struct backing_file_context *bfc,
 					   struct mem_range block,
 					   int block_index, loff_t bm_base_off,
@@ -315,16 +370,17 @@ int incfs_write_hash_block_to_backing_file(struct backing_file_context *bfc,
 					   loff_t bm_base_off,
 					   loff_t file_size);
 
-int incfs_write_file_attr_to_backing_file(struct backing_file_context *bfc,
-		struct mem_range value, struct incfs_file_attr *attr);
-
 int incfs_write_signature_to_backing_file(struct backing_file_context *bfc,
-					  struct mem_range sig, u32 tree_size);
+				struct mem_range sig, u32 tree_size,
+				loff_t *tree_offset, loff_t *sig_offset);
 
-int incfs_write_file_header_flags(struct backing_file_context *bfc, u32 flags);
-
-int incfs_make_empty_backing_file(struct backing_file_context *bfc,
-				  incfs_uuid_t *uuid, u64 file_size);
+int incfs_write_status_to_backing_file(struct backing_file_context *bfc,
+				       loff_t status_offset,
+				       u32 data_blocks_written,
+				       u32 hash_blocks_written);
+int incfs_write_verity_signature_to_backing_file(
+		struct backing_file_context *bfc, struct mem_range signature,
+		loff_t *offset);
 
 /* Reading stuff */
 int incfs_read_file_header(struct backing_file_context *bfc,
