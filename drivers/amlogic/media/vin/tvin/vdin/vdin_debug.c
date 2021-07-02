@@ -914,6 +914,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("matrix_pattern_mode:0x%x\n", devp->matrix_pattern_mode);
 	pr_info("hdcp_sts:0x%x\n", devp->prop.hdcp_sts);
 	pr_info("full_pack:%d\n", devp->full_pack);
+	pr_info("force_malloc_yuv_422_to_444:%d\n", devp->force_malloc_yuv_422_to_444);
 	pr_info("color_depth_support:0x%x\n", devp->color_depth_support);
 	pr_info("cma_flag:0x%x\n", devp->cma_config_flag);
 	pr_info("auto_cutwindow_en:%d\n", devp->auto_cutwindow_en);
@@ -1128,6 +1129,7 @@ static int seq_file_vdin_state_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "source_bitdepth:%d\n", devp->source_bitdepth);
 	seq_printf(seq, "color_depth_config:0x%x\n", devp->color_depth_config);
 	seq_printf(seq, "full_pack:%d\n", devp->full_pack);
+	seq_printf(seq, "force_malloc_yuv_422_to_444:%d\n", devp->force_malloc_yuv_422_to_444);
 	seq_printf(seq, "color_depth_support:0x%x\n",
 		   devp->color_depth_support);
 	seq_printf(seq, "cma_flag:0x%x\n", devp->cma_config_flag);
@@ -2322,6 +2324,17 @@ start_chk:
 			devp->full_pack = val;
 			pr_info("full_pack(%d):%d\n\n", devp->index,
 				devp->full_pack);
+		}
+	} else if (!strcmp(parm[0], "force_malloc_yuv_422_to_444")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 10, &val) == 0) {
+			if (val)
+				devp->force_malloc_yuv_422_to_444 = 1;
+			else
+				devp->force_malloc_yuv_422_to_444 = 0;
+			pr_info("force_malloc_yuv_422_to_444(%d):%d\n\n", devp->index,
+				devp->force_malloc_yuv_422_to_444);
 		}
 	} else if (!strcmp(parm[0], "auto_cutwindow_en")) {
 		if (!parm[1]) {

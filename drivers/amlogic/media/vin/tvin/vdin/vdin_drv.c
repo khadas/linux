@@ -489,11 +489,8 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		case VDIN_FORMAT_CONVERT_RGB_NV21:
 			chroma_size = devp->canvas_w * devp->canvas_h / 2;
 			luma_size = devp->canvas_w * devp->canvas_h;
-			chromaid =
-				(vdin_canvas_ids[index][(vf->index << 1) + 1])
-				<< 8;
-			addr = vdin_canvas_ids[index][vf->index << 1]
-				| chromaid;
+			chromaid = (vdin_canvas_ids[index][(vf->index << 1) + 1]) << 8;
+			addr = vdin_canvas_ids[index][vf->index << 1] | chromaid;
 			vf->plane_num = 2;
 			break;
 		default:
@@ -4560,6 +4557,10 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		vdevp->full_pack = VDIN_422_FULL_PK_EN;
 	else
 		vdevp->full_pack = VDIN_422_FULL_PK_DIS;
+	if (vdevp->color_depth_support & VDIN_WR_COLOR_DEPTH_FORCE_MEM_YUV422_TO_YUV444)
+		vdevp->force_malloc_yuv_422_to_444 = 1;
+	else
+		vdevp->force_malloc_yuv_422_to_444 = 0;
 
 	/*set afbce config*/
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && vdevp->index == 0) {

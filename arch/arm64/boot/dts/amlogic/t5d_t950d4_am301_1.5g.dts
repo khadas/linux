@@ -589,6 +589,7 @@
 		 * bit2:support 10bit
 		 * bit3:support 12bit
 		 * bit4:support yuv422 10bit full pack mode (from txl new add)
+		 * bit5:force yuv422 to yuv444 malloc (for vdin0 debug)
 		 * bit8:use 8bit  at 4k_50/60hz_10bit
 		 * bit9:use 10bit at 4k_50/60hz_10bit
 		 */

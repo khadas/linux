@@ -229,6 +229,7 @@ enum vdin_wr_color_depth {
 	VDIN_WR_COLOR_DEPTH_12BIT = 0x08,
 	/*TXL new add*/
 	VDIN_WR_COLOR_DEPTH_10BIT_FULL_PCAK_MODE = 0x10,
+	VDIN_WR_COLOR_DEPTH_FORCE_MEM_YUV422_TO_YUV444 = 0x20,
 };
 
 #define VDIN_422_FULL_PK_EN			1
@@ -585,6 +586,11 @@ struct vdin_dev_s {
 	 *0: config 10bit as 12bit
 	 */
 	unsigned int full_pack;
+	/* yuv422 malloc policy for vdin0 debug:
+	 *1: force yuv422 memory alloc up to yuv444 10bit(2.5->4)
+	 *0: use yuv422 memory alloc defautly
+	 */
+	unsigned int force_malloc_yuv_422_to_444;
 	/* output_color_depth:
 	 * when tv_input is 4k50hz_10bit or 4k60hz_10bit,
 	 * choose output color depth from dts
