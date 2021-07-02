@@ -330,6 +330,11 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 
 	/* (re)start clock */
 	meson_mmc_clk_ungate(host);
+	if (aml_card_type_mmc(host)) {
+		cfg = readl(host->regs + SD_EMMC_CFG);
+		cfg |= CFG_AUTO_CLK;
+		writel(cfg, host->regs + SD_EMMC_CFG);
+	}
 
 	return 0;
 }
