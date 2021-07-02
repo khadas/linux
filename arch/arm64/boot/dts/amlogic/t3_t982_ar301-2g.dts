@@ -63,9 +63,9 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* for sync of dsp fw, fix it to 0x30000000*/
-			size = <0x0 0x00400000>;
+			size = <0x0 0x00800000>;
 			alignment = <0x0 0x00400000>;
-			alloc-ranges = <0x0 0x30000000 0x0 0x00400000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x00800000>;
 		};
 
 		logo_reserved:linux,meson-fb {
