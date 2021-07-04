@@ -192,6 +192,8 @@ int evl_create_factory(struct evl_factory *fac, dev_t rdev);
 
 void evl_delete_factory(struct evl_factory *fac);
 
+bool evl_may_access_factory(struct evl_factory *fac);
+
 int evl_early_init_factories(void);
 
 void evl_early_cleanup_factories(void);
