@@ -55,6 +55,7 @@
 #define T_PTSIG   0x00001000 /* Ptrace signal is pending */
 #define T_PTSTOP  0x00002000 /* Ptrace stop is ongoing */
 #define T_PTJOIN  0x00004000 /* Ptracee should join ptsync barrier */
+#define T_NOMEM   0x00008000 /* No memory to complete the operation */
 
 /* Local information flags (private to current thread) */
 
