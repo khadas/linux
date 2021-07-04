@@ -117,12 +117,13 @@ void evl_flush_wait(struct evl_wait_queue *wq,
 		int reason);
 
 struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
-			struct evl_thread *waiter);
+			struct evl_thread *waiter,
+			int reason);
 
 static inline
 struct evl_thread *evl_wake_up_head(struct evl_wait_queue *wq)
 {
-	return evl_wake_up(wq, NULL);
+	return evl_wake_up(wq, NULL, 0);
 }
 
 int evl_reorder_wait(struct evl_thread *waiter,
