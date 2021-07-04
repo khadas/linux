@@ -59,20 +59,21 @@ EXPORT_SYMBOL_GPL(evl_add_wait_queue);
 
 /* wq->lock held, hard irqs off */
 struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
-			struct evl_thread *waiter)
+			struct evl_thread *waiter,
+			int reason)
 {
 	assert_hard_lock(&wq->lock);
 
 	trace_evl_wake_up(wq);
 
-	if (list_empty(&wq->wchan.wait_list))
+	if (list_empty(&wq->wchan.wait_list)) {
 		waiter = NULL;
-	else {
+	} else {
 		if (waiter == NULL)
 			waiter = list_first_entry(&wq->wchan.wait_list,
 						struct evl_thread, wait_next);
 		list_del_init(&waiter->wait_next);
-		evl_wakeup_thread(waiter, T_PEND, 0);
+		evl_wakeup_thread(waiter, T_PEND, reason);
 	}
 
 	return waiter;

@@ -174,7 +174,8 @@ static void wakeup_waiters(struct evl_monitor *event)
 			evl_for_each_waiter_safe(waiter, n,
 						&event->wait_queue) {
 				if (waiter->info & T_SIGNAL)
-					evl_wake_up(&event->wait_queue, waiter);
+					evl_wake_up(&event->wait_queue,
+						waiter, 0);
 			}
 		} else
 			evl_wake_up_head(&event->wait_queue);
