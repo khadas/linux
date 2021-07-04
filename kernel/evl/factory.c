@@ -21,6 +21,8 @@
 #include <linux/stringhash.h>
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
+#include <linux/capability.h>
+#include <linux/cred.h>
 #include <linux/dovetail.h>
 #include <evl/assert.h>
 #include <evl/file.h>
@@ -887,6 +889,14 @@ void evl_delete_factory(struct evl_factory *fac)
 		delete_element_class(fac);
 }
 EXPORT_SYMBOL_GPL(evl_delete_factory);
+
+bool evl_may_access_factory(struct evl_factory *fac)
+{
+	const struct cred *cred = current_cred();
+
+	return capable(CAP_SYS_ADMIN) || uid_eq(cred->euid, fac->kuid);
+}
+EXPORT_SYMBOL_GPL(evl_may_access_factory);
 
 static char *evl_devnode(struct device *dev, umode_t *mode)
 {
