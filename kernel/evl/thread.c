@@ -2716,6 +2716,39 @@ static ssize_t observable_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(observable);
 
+static ssize_t wchan_show(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	struct evl_wait_channel *wchan;
+	struct evl_thread *thread;
+	unsigned long flags;
+	ssize_t ret;
+
+	/*
+	 * Reading the wait channel is a sensitive operation:
+	 * safety-wise, and performance-wise since this locks the
+	 * thread scheduling state and disables interrupts in the
+	 * process. Reserve this to authorized users.
+	 */
+	if (!evl_may_access_factory(&evl_thread_factory))
+		return -EPERM;
+
+	thread = evl_get_element_by_dev(dev, struct evl_thread);
+	if (thread == NULL)
+		return -EIO;
+
+	raw_spin_lock_irqsave(&thread->lock, flags);
+	wchan = thread->wchan;
+	ret = snprintf(buf, PAGE_SIZE, "%s\n", wchan ? wchan->name : "none");
+	raw_spin_unlock_irqrestore(&thread->lock, flags);
+
+	evl_put_element(&thread->element);
+
+	return ret;
+}
+static DEVICE_ATTR_RO(wchan);
+
 static struct attribute *thread_attrs[] = {
 	&dev_attr_state.attr,
 	&dev_attr_sched.attr,
@@ -2723,6 +2756,7 @@ static struct attribute *thread_attrs[] = {
 	&dev_attr_stats.attr,
 	&dev_attr_pid.attr,
 	&dev_attr_observable.attr,
+	&dev_attr_wchan.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(thread);

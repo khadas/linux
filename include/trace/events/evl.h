@@ -351,6 +351,7 @@ TRACE_EVENT(evl_sleep_on,
 		__field(ktime_t, timeout)
 		__field(enum evl_tmode, timeout_mode)
 		__field(struct evl_wait_channel *, wchan)
+		__string(wchan_name, wchan->name)
 		__string(clock_name, clock ? clock->name : "none")
 	),
 
@@ -360,12 +361,14 @@ TRACE_EVENT(evl_sleep_on,
 		__entry->timeout_mode = timeout_mode;
 		__entry->wchan = wchan;
 		__assign_str(clock_name, clock ? clock->name : "none");
+		__assign_str(wchan_name, wchan->name);
 	),
 
-	TP_printk("pid=%d timeout=%Lu timeout_mode=%d clock=%s wchan=%p",
+	TP_printk("pid=%d timeout=%Lu timeout_mode=%d clock=%s wchan=%s(%p)",
 		  __entry->pid,
 		  ktime_to_ns(__entry->timeout), __entry->timeout_mode,
 		  __get_str(clock_name),
+		  __get_str(wchan_name),
 		  __entry->wchan)
 );
 
