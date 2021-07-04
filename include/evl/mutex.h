@@ -107,6 +107,7 @@ struct evl_kmutex {
 				.reorder_wait = evl_reorder_mutex_wait,	\
 				.follow_depend = evl_follow_mutex_depend, \
 				.wait_list = LIST_HEAD_INIT((__name).mutex.wchan.wait_list), \
+				.name = ##__name,			\
 			},						\
 		},							\
 		.fastlock = ATOMIC_INIT(0),				\
