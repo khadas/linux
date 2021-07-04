@@ -164,9 +164,11 @@ int evl_wait_schedule(struct evl_wait_queue *wq)
 	 * stale: -EIDRM is returned.
 	 *
 	 * - if neither T_TIMEO or T_BREAK are set, we got a wakeup
-	 * and success is returned (zero). In addition, the caller may
-	 * need to check for T_BCAST if the signal is not paired with
-	 * a condition but works as a pulse instead.
+	 * and success (zero) or -ENOMEM is returned, depending on
+	 * whether T_NOMEM is set (i.e. the operation was aborted due
+	 * to a memory shortage). In addition, the caller may need to
+	 * check for T_BCAST if the signal is not paired with a
+	 * condition but works as a pulse instead.
 	 *
 	 * - otherwise, if any of T_TIMEO or T_BREAK is set:
 	 *
@@ -187,6 +189,9 @@ int evl_wait_schedule(struct evl_wait_queue *wq)
 	info = evl_current()->info;
 	if (info & T_RMID)
 		return -EIDRM;
+
+	if (info & T_NOMEM)
+		return -ENOMEM;
 
 	if (info & (T_TIMEO|T_BREAK)) {
 		raw_spin_lock_irqsave(&wq->lock, flags);

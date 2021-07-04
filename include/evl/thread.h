@@ -29,7 +29,7 @@
 /* All bits which may cause an EVL thread to block in oob context. */
 #define EVL_THREAD_BLOCK_BITS   (T_SUSP|T_PEND|T_DELAY|T_WAIT|T_DORMANT|T_INBAND|T_HALT|T_PTSYNC)
 /* Information bits an EVL thread may receive from a blocking op. */
-#define EVL_THREAD_INFO_MASK	(T_RMID|T_TIMEO|T_BREAK|T_WAKEN|T_ROBBED|T_KICKED|T_BCAST)
+#define EVL_THREAD_INFO_MASK	(T_RMID|T_TIMEO|T_BREAK|T_WAKEN|T_ROBBED|T_KICKED|T_BCAST|T_NOMEM)
 /* Mode bits configurable via EVL_THRIOC_SET/CLEAR_MODE. */
 #define EVL_THREAD_MODE_BITS	(T_WOSS|T_WOLI|T_WOSX|T_HMSIG|T_HMOBS)
 
