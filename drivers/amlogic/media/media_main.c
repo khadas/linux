@@ -74,12 +74,13 @@ static int __init media_main_init(void)
 	call_sub_init(lcd_init);
 	call_sub_init(esm_init);
 	call_sub_init(vpu_security_init);
+	call_sub_init(ion_init);
 	call_sub_init(osd_init_module);
 	call_sub_init(dummy_venc_init);
 	call_sub_init(vout_sys_serve_init);
 	call_sub_init(vout_init_module);
 	call_sub_init(gp_pll_init);
-	call_sub_init(ion_init);
+//	call_sub_init(ion_init);
 	call_sub_init(mua_init);
 	call_sub_init(vfm_class_init);
 	call_sub_init(ge2d_init_module);
