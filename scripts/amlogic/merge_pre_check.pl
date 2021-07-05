@@ -322,7 +322,7 @@ sub sync_arm64_arm_diff
 
 sub check_nonascii_character
 {
-	my $add_msg = `git format-patch -1 --stdout`;
+	my $add_msg = `git format-patch -1 --stdout | sed -e '/^-/d'`;
 	my @add_str = split /[\n]/, $add_msg;
 	my $i = 0;
 	my $len = @add_str;
