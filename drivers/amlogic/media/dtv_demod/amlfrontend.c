@@ -3350,8 +3350,18 @@ static int dtvdemod_dvbs_tune(struct dvb_frontend *fe, bool re_tune,
 {
 	int ret = 0;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp =
+		(struct amldtvdemod_device_s *)demod->priv;
 
 	*delay = HZ / 4;
+
+	if (unlikely(!devp)) {
+		PR_ERR("%s, devp is NULL\n", __func__);
+		return -1;
+	}
+
+	if (!devp->blind_scan_stop)
+		return ret;
 
 	if (re_tune) {
 		/*first*/
@@ -4570,6 +4580,8 @@ static void dvbs_blind_scan_work(struct work_struct *work)
 	unsigned int freq_one_percent;
 	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
 
+	status = FE_NONE;
+
 	if (unlikely(!devp)) {
 		PR_ERR("%s err, devp is NULL\n", __func__);
 		return;
@@ -4610,7 +4622,7 @@ static void dvbs_blind_scan_work(struct work_struct *work)
 	if (fe->ops.tuner_ops.set_config)
 		fe->ops.tuner_ops.set_config(fe, NULL);
 
-	for (freq = freq_min; freq <= freq_max; freq += freq_step) {
+	for (freq = freq_min; freq <= freq_max;) {
 		/* no need sr step, just try by hw tuner and demod set to 45M */
 
 		if (devp->blind_scan_stop)
@@ -4641,6 +4653,19 @@ static void dvbs_blind_scan_work(struct work_struct *work)
 			PR_DVBS("lock:freq %d,srate %d\n", freq, srate);
 		}
 
+		freq += freq_step;
+		if (freq > freq_max &&
+			status == (BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK))
+			fe->dtv_property_cache.frequency = 100;
+		dvb_frontend_add_event(fe, status);
+	}
+
+	if (status == (BLINDSCAN_UPDATERESULTFREQ | FE_HAS_LOCK)) {
+	/* force process to 100% in case the lock freq is the last one */
+		usleep_range(500000, 600000);
+		fe->dtv_property_cache.frequency = 100;
+		status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
+		PR_DVBS("%s:force 100%% to upper layer\n", __func__);
 		dvb_frontend_add_event(fe, status);
 	}
 }
@@ -4705,6 +4730,7 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 	dtvdemod_version(devp);
 	devp->flg_cma_allc = false;
 	devp->demod_thread = 1;
+	devp->blind_scan_stop = 1;
 	//ary temp:
 	aml_demod_init();
 
