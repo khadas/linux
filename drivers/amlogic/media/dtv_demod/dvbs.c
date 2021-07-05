@@ -1169,9 +1169,9 @@ void dvbs2_reg_initial(unsigned int symkb_rate)
 	/* BW/(1+ROLLOFF)=SYMBOLRATE */
 	tmp = symkb_rate * ((16777216 + 67500) / 135000);
 
-	dvbs_wr_byte(0x9fd, (tmp >> 16) & 0xff);
-	dvbs_wr_byte(0x9fe, (tmp >> 8) & 0xff);
-	dvbs_wr_byte(0x9ff, tmp & 0xff);
+	dvbs_wr_byte(0x9fc, (tmp >> 16) & 0xff);
+	dvbs_wr_byte(0x9fd, (tmp >> 8) & 0xff);
+	dvbs_wr_byte(0x9fe, tmp & 0xff);
 
 	dvbs_wr_byte(0x9f0, (tmp >> 16) & 0xff);
 	dvbs_wr_byte(0x9f1, (tmp >> 8) & 0xff);
