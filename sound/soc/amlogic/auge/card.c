@@ -113,16 +113,16 @@ struct aml_card_data {
 	struct timer_list timer;
 	struct work_struct work;
 	struct work_struct init_work;
-	bool hp_last_state;
-	bool hp_cur_state;
-	bool hp_det_status;
+	int hp_last_state;
+	int hp_cur_state;
+	int hp_det_status;
 	int hp_gpio_det;
 	int hp_detect_flag;
 	bool hp_det_enable;
 	enum of_gpio_flags hp_det_flags;
-	bool micphone_last_state;
-	bool micphone_cur_state;
-	bool micphone_det_status;
+	int micphone_last_state;
+	int micphone_cur_state;
+	int micphone_det_status;
 	int micphone_gpio_det;
 	int mic_detect_flag;
 	bool mic_det_enable;
@@ -1124,6 +1124,10 @@ static int aml_card_probe(struct platform_device *pdev)
 	card_add_effects_init(&priv->snd_card);
 
 	if (priv->hp_det_enable == 1 || priv->mic_det_enable == 1) {
+		priv->hp_detect_flag = -1;
+		priv->hp_last_state = -1;
+		priv->mic_detect_flag = -1;
+		priv->micphone_last_state = -1;
 		audio_jack_detect(priv);
 		audio_extcon_register(priv, dev);
 	}
