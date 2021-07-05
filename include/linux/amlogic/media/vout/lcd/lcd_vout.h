@@ -541,11 +541,8 @@ struct lcd_reg_map_s {
 #define LCD_STATUS_VMODE_ACTIVE  BIT(2)
 #define LCD_STATUS_ON         (LCD_STATUS_IF_ON | LCD_STATUS_ENCL_ON)
 
-#define LCD_MUTE_UPDATE          BIT(4)
-#define LCD_TEST_UPDATE          BIT(5)
-
 #define LCD_VIU_SEL_NONE         0
-#define EXTERN_MUL_MAX	      10
+#define EXTERN_MUL_MAX	         10
 struct aml_lcd_drv_s {
 	unsigned int index;
 	unsigned int status;
@@ -618,6 +615,7 @@ struct aml_lcd_drv_s {
 	struct resource *res_tcon_irq;
 	struct timer_list pll_mnt_timer;
 	struct timer_list vs_none_timer;
+	spinlock_t isr_lock; /* for mute and test isr */
 
 #ifdef CONFIG_AMLOGIC_VPU
 	struct vpu_dev_s *lcd_vpu_dev;

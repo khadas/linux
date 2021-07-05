@@ -23,7 +23,8 @@
 /* 20210616: fix t3 clk ss mistake*/
 /* 20210621: separate resume(PREPARE) and late_resume(ENABLE)*/
 /* 20210625: add tcon multi lut support*/
-#define LCD_DRV_VERSION    "20210625"
+/* 20210705: add lcd mute and test state protection*/
+#define LCD_DRV_VERSION    "20210705"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;

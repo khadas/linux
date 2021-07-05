@@ -1880,9 +1880,9 @@ void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num)
 	lcd_vcbus_write(ENCL_TST_EN + offset, lcd_enc_tst[num][4]);
 	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, lcd_enc_tst[num][5], 3, 1);
 	if (num > 0)
-		LCDPR("show test pattern: %s\n", lcd_enc_tst_str[num]);
+		LCDPR("[%d]: show test pattern: %s\n", pdrv->index, lcd_enc_tst_str[num]);
 	else
-		LCDPR("disable test pattern\n");
+		LCDPR("[%d]: disable test pattern\n", pdrv->index);
 }
 
 static void lcd_mute_setting(struct aml_lcd_drv_s *pdrv, unsigned char flag)
@@ -1903,6 +1903,7 @@ static void lcd_mute_setting(struct aml_lcd_drv_s *pdrv, unsigned char flag)
 		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 1, 3, 1);
 		lcd_vcbus_write(ENCL_TST_EN + offset, 0);
 	}
+	LCDPR("[%d]: mute: %d\n", pdrv->index, flag);
 }
 
 static void lcd_screen_restore(struct aml_lcd_drv_s *pdrv)
@@ -1929,7 +1930,7 @@ static void lcd_screen_restore(struct aml_lcd_drv_s *pdrv)
 	lcd_vcbus_write(ENCL_TST_EN + offset, lcd_enc_tst[num][4]);
 	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, lcd_enc_tst[num][5], 3, 1);
 	if (num > 0)
-		LCDPR("show test pattern: %s\n", lcd_enc_tst_str[num]);
+		LCDPR("[%d]: show test pattern: %s\n", pdrv->index, lcd_enc_tst_str[num]);
 }
 
 static void lcd_screen_black(struct aml_lcd_drv_s *pdrv)
@@ -2533,7 +2534,7 @@ static void lcd_debug_clk_change(struct aml_lcd_drv_s *pdrv, unsigned int pclk)
 static void lcd_power_interface_ctrl(struct aml_lcd_drv_s *pdrv, int state)
 {
 	mutex_lock(&lcd_power_mutex);
-	LCDPR("%s: %d\n", __func__, state);
+	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, state);
 	if (state) {
 		if (pdrv->status & LCD_STATUS_ENCL_ON) {
 			aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, (void *)pdrv);
@@ -2550,11 +2551,12 @@ static void lcd_power_interface_ctrl(struct aml_lcd_drv_s *pdrv, int state)
 static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr,
 			       const char *buf, size_t count)
 {
-	int ret = 0;
+	int i, ret = 0;
 	unsigned int temp, val[6];
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	struct lcd_config_s *pconf;
 	char *print_buf;
+	unsigned long flags = 0;
 
 	pconf = &pdrv->config;
 	switch (buf[0]) {
@@ -2646,7 +2648,16 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 	case 't': /* test */
 		ret = sscanf(buf, "test %d", &temp);
 		if (ret == 1) {
-			pdrv->test_flag = (unsigned char)(temp | LCD_TEST_UPDATE);
+			spin_lock_irqsave(&pdrv->isr_lock, flags);
+			pdrv->test_flag = (unsigned char)temp;
+			spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+			LCDPR("%s: test %d\n", __func__, temp);
+			i = 0;
+			while (i++ < 5000) {
+				if (pdrv->test_state == temp)
+					break;
+				usleep_range(20, 30);
+			}
 		} else {
 			LCDERR("invalid data\n");
 			return -EINVAL;
@@ -3506,7 +3517,7 @@ static ssize_t lcd_debug_test_show(struct device *dev,
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 
-	return sprintf(buf, "test pattern: %d\n", pdrv->test_state);
+	return sprintf(buf, "[%d]: test pattern: %d\n", pdrv->index, pdrv->test_state);
 }
 
 static ssize_t lcd_debug_test_store(struct device *dev, struct device_attribute *attr,
@@ -3515,15 +3526,18 @@ static ssize_t lcd_debug_test_store(struct device *dev, struct device_attribute 
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	unsigned int temp = 0, i = 0;
 	int ret = 0;
+	unsigned long flags = 0;
 
 	if (buf[0] == 'f') { /* force test pattern */
 		ret = sscanf(buf, "force %d", &temp);
 		if (ret == 0)
 			goto lcd_debug_test_store_next;
+		spin_lock_irqsave(&pdrv->isr_lock, flags);
 		temp = (temp >= LCD_ENC_TST_NUM_MAX) ? 0 : temp;
-		lcd_debug_test(pdrv, temp);
+		pdrv->test_flag = (unsigned char)temp;
 		pdrv->test_state = (unsigned char)temp;
-		pdrv->test_flag &= ~(LCD_TEST_UPDATE);
+		lcd_debug_test(pdrv, pdrv->test_state);
+		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 		return count;
 	}
 
@@ -3533,8 +3547,12 @@ lcd_debug_test_store_next:
 		pr_info("invalid data\n");
 		return -EINVAL;
 	}
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
 	temp = (temp >= LCD_ENC_TST_NUM_MAX) ? 0 : temp;
-	pdrv->test_flag = (unsigned char)(temp | LCD_TEST_UPDATE);
+	pdrv->test_flag = (unsigned char)temp;
+	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+
+	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, temp);
 	while (i++ < 5000) {
 		if (pdrv->test_state == temp)
 			break;
@@ -3558,18 +3576,20 @@ static ssize_t lcd_debug_mute_store(struct device *dev, struct device_attribute 
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	unsigned int temp = 0, i = 0;
 	int ret = 0;
+	unsigned long flags = 0;
 
 	ret = kstrtouint(buf, 10, &temp);
 	if (ret) {
 		pr_info("invalid data\n");
 		return -EINVAL;
 	}
+
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
 	temp = temp ? 1 : 0;
-	pdrv->mute_flag = (unsigned char)(temp | LCD_MUTE_UPDATE);
-	if (temp)
-		LCDPR("set mute\n");
-	else
-		LCDPR("clear mute\n");
+	pdrv->mute_flag = (unsigned char)temp;
+	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+
+	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, temp);
 	while (i++ < 5000) {
 		if (pdrv->mute_state == temp)
 			break;

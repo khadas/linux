@@ -337,9 +337,13 @@ static void lcd_power_if_off(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_power_screen_black(struct aml_lcd_drv_s *pdrv)
 {
+	unsigned long flags = 0;
+
 	mutex_lock(&lcd_vout_mutex);
 
-	pdrv->mute_flag = (unsigned char)(1 | LCD_MUTE_UPDATE);
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
+	pdrv->mute_flag = 1;
+	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 	LCDPR("[%d]: set mute\n", pdrv->index);
 
 	mutex_unlock(&lcd_vout_mutex);
@@ -347,9 +351,13 @@ static void lcd_power_screen_black(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_power_screen_restore(struct aml_lcd_drv_s *pdrv)
 {
+	unsigned long flags = 0;
+
 	mutex_lock(&lcd_vout_mutex);
 
-	pdrv->mute_flag = (unsigned char)(0 | LCD_MUTE_UPDATE);
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
+	pdrv->mute_flag = 0;
+	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 	LCDPR("[%d]: clear mute\n", pdrv->index);
 
 	mutex_unlock(&lcd_vout_mutex);
@@ -357,6 +365,8 @@ static void lcd_power_screen_restore(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_module_reset(struct aml_lcd_drv_s *pdrv)
 {
+	unsigned long flags = 0;
+
 	mutex_lock(&lcd_vout_mutex);
 
 	pdrv->status &= ~LCD_STATUS_ON;
@@ -369,7 +379,9 @@ static void lcd_module_reset(struct aml_lcd_drv_s *pdrv)
 	pdrv->status |= LCD_STATUS_ON;
 	pdrv->config.change_flag = 0;
 
-	pdrv->mute_flag = (unsigned char)(0 | LCD_MUTE_UPDATE);
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
+	pdrv->mute_flag = 0;
+	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 	LCDPR("[%d]: clear mute\n", pdrv->index);
 
 	mutex_unlock(&lcd_vout_mutex);
@@ -412,7 +424,7 @@ static void lcd_auto_test_func(struct aml_lcd_drv_s *pdrv)
 static int lcd_vsync_print_cnt;
 static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 {
-	int flag;
+	unsigned long flags = 0;
 
 	if (!pdrv)
 		return;
@@ -440,30 +452,24 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 		break;
 	}
 
-	if (pdrv->mute_flag & LCD_MUTE_UPDATE) {
-		flag = pdrv->mute_flag & 0x1;
-		if (flag) {
-			if (pdrv->mute_state == 0) {
-				pdrv->mute_state = 1;
-				pdrv->lcd_screen_black(pdrv);
-			}
-		} else {
-			if (pdrv->mute_state) {
-				pdrv->mute_state = 0;
-				pdrv->lcd_screen_restore(pdrv);
-			}
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
+	if (pdrv->mute_flag) {
+		if (pdrv->mute_state == 0) {
+			pdrv->mute_state = 1;
+			pdrv->lcd_screen_black(pdrv);
 		}
-		pdrv->mute_flag &= ~(LCD_MUTE_UPDATE);
+	} else {
+		if (pdrv->mute_state) {
+			pdrv->mute_state = 0;
+			pdrv->lcd_screen_restore(pdrv);
+		}
 	}
 
-	if (pdrv->test_flag & LCD_TEST_UPDATE) {
-		flag = pdrv->test_flag & 0xf;
-		if (flag != pdrv->test_state) {
-			pdrv->test_state = (unsigned char)flag;
-			lcd_debug_test(pdrv, flag);
-		}
-		pdrv->test_flag &= ~(LCD_TEST_UPDATE);
+	if (pdrv->test_flag != pdrv->test_state) {
+		pdrv->test_state = pdrv->test_flag;
+		lcd_debug_test(pdrv, pdrv->test_state);
 	}
+	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 
 	if (lcd_vsync_print_cnt++ >= LCD_DEBUG_VSYNC_INTERVAL) {
 		lcd_vsync_print_cnt = 0;
@@ -1706,6 +1712,7 @@ static int lcd_probe(struct platform_device *pdev)
 	if (ret)
 		goto lcd_probe_err_1;
 
+	spin_lock_init(&pdrv->isr_lock);
 	INIT_WORK(&pdrv->config_probe_work, lcd_config_probe_work);
 	INIT_WORK(&pdrv->late_resume_work, lcd_lata_resume_work);
 	INIT_DELAYED_WORK(&pdrv->test_delayed_work, lcd_auto_test_delayed);
