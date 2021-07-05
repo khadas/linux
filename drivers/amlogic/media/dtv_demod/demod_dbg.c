@@ -6,6 +6,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/string.h>
+#include <linux/dma-mapping.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 #include "dvbs.h"
 #include "demod_func.h"
@@ -397,7 +398,7 @@ static void wait_capture(int cap_cur_addr, int depth_MB, int start)
 	/* 10 seconds time out */
 	while (tmp && (time_out < 500)) {
 		time_out = time_out + 1;
-		usleep_range(1000, 1001);
+		usleep_range(1000, 2000);
 		readfirst = front_read_reg(cap_cur_addr);
 
 		if ((last - readfirst) > 0)
@@ -405,11 +406,11 @@ static void wait_capture(int cap_cur_addr, int depth_MB, int start)
 		else
 			last = readfirst;
 
-		usleep_range(10000, 10001);
+		usleep_range(10000, 20000);
 	}
 }
 
-unsigned int capture_adc_data_tl1(void)
+unsigned int capture_adc_data_mass(void)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 	int testbus_addr, width, vld;
@@ -459,7 +460,7 @@ unsigned int capture_adc_data_tl1(void)
 	return tb_start;
 }
 
-int dtmb_write_usb(struct dtvdemod_capture_s *cap, unsigned int read_start)
+int write_usb_mass(struct dtvdemod_capture_s *cap, unsigned int read_start)
 {
 	int count;
 	unsigned int i, memsize, y, block_size;
@@ -501,6 +502,274 @@ int dtmb_write_usb(struct dtvdemod_capture_s *cap, unsigned int read_start)
 
 	/* stop tb */
 	front_write_bits(0x3a, 1, 12, 1);
+	return 0;
+}
+
+static u8 *demod_vmap(ulong addr, u32 size)
+{
+	u8 *vaddr = NULL;
+	struct page **pages = NULL;
+	u32 i, npages, offset = 0;
+	ulong phys, page_start;
+	/*pgprot_t pgprot = pgprot_noncached(PAGE_KERNEL);*/
+	pgprot_t pgprot = PAGE_KERNEL;
+
+	if (!PageHighMem(phys_to_page(addr)))
+		return phys_to_virt(addr);
+
+	offset = offset_in_page(addr);
+	page_start = addr - offset;
+	npages = DIV_ROUND_UP(size + offset, PAGE_SIZE);
+
+	pages = kmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return NULL;
+
+	for (i = 0; i < npages; i++) {
+		phys = page_start + i * PAGE_SIZE;
+		pages[i] = pfn_to_page(phys >> PAGE_SHIFT);
+	}
+
+	vaddr = vmap(pages, npages, VM_MAP, pgprot);
+	if (!vaddr) {
+		pr_err("the phy(%lx) vmaped fail, size: %d\n",
+		       page_start, npages << PAGE_SHIFT);
+		kfree(pages);
+		return NULL;
+	}
+
+	kfree(pages);
+	pr_info("[demod vmap] %s, pa(%lx) to va(%p), size: %d\n",
+		__func__, page_start, vaddr, npages << PAGE_SHIFT);
+
+	return vaddr + offset;
+}
+
+static void demod_unmap_phyaddr(u8 *vaddr)
+{
+	void *addr = (void *)(PAGE_MASK & (ulong)vaddr);
+
+	if (is_vmalloc_or_module_addr(vaddr)) {
+		vunmap(addr);
+		PR_INFO("%s:%p\n", __func__, vaddr);
+	}
+}
+
+static void demod_dma_flush(void *vaddr, int size, enum dma_data_direction dir)
+{
+	ulong phy_addr;
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
+	if (unlikely(!devp)) {
+		PR_ERR("%s:devp is NULL\n", __func__);
+		return;
+	}
+
+	if (is_vmalloc_or_module_addr(vaddr)) {
+		phy_addr = page_to_phys(vmalloc_to_page(vaddr))
+			+ offset_in_page(vaddr);
+		if (phy_addr && PageHighMem(phys_to_page(phy_addr))) {
+			dma_sync_single_for_device(&devp->this_pdev->dev,
+						   phy_addr, size, dir);
+		}
+		return;
+	}
+}
+
+static int read_memory_to_file(char *path, unsigned int start_addr,
+				unsigned int size)
+{
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	void *buf = NULL;
+	mm_segment_t old_fs = get_fs();
+
+	if (!start_addr) {
+		PR_ERR("%s: start addr is NULL\n", __func__);
+		return -1;
+	}
+
+	if (unlikely(!path)) {
+		PR_ERR("%s:capture path is NULL\n", __func__);
+		return -1;
+	}
+
+	PR_INFO("capture data path:%s,start addr:0x%x, size:%dM\n ",
+		path, start_addr, size / SZ_1M);
+
+	set_fs(KERNEL_DS);
+	filp = filp_open(path, O_RDWR | O_CREAT, 0666);
+
+	buf = demod_vmap(start_addr, size);
+	if (!buf) {
+		PR_ERR("%s:buf is NULL\n", __func__);
+		return -1;
+	}
+
+	demod_dma_flush(buf, size, DMA_FROM_DEVICE);
+	vfs_write(filp, buf, size, &pos);
+	demod_unmap_phyaddr(buf);
+	vfs_fsync(filp, 0);
+	filp_close(filp, NULL);
+	set_fs(old_fs);
+
+	return 0;
+}
+
+unsigned int capture_adc_data_once(char *path, unsigned int capture_mode)
+{
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	int testbus_addr, width, vld;
+	unsigned int tb_start, tb_depth;
+	unsigned int start_addr = 0;
+	unsigned int top_saved, polling_en;
+	//struct dvb_frontend *fe;
+	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
+	unsigned int offset, size;
+
+	if (unlikely(!devp)) {
+		PR_ERR("%s:devp is NULL\n", __func__);
+		return -1;
+	}
+
+	list_for_each_entry(tmp, &devp->demod_list, list) {
+		if (tmp->id == 0) {
+			demod = tmp;
+			//fe = &demod->frontend;
+			break;
+		}
+	}
+
+	if (unlikely(!demod)) {
+		PR_ERR("%s: demod is NULL\n", __func__);
+		return -1;
+	}
+
+	PR_INFO("%s:[path]%s,[cap_mode]%d\n", __func__, path, capture_mode);
+	switch (capture_mode) {
+	case 0: /* common fe */
+		testbus_addr = 0x1000;
+		//tb_depth = 10;
+		/* sample bit width */
+		width = 9;
+		vld = 0x100000;
+		break;
+
+	case 3: /* ts stream */
+		testbus_addr = 0x3000;
+		//tb_depth = 100;
+		/* sample bit width */
+		width = 7;
+		vld = 0x10000;
+		break;
+
+	case 4: /* T/T2 */
+		testbus_addr = 0x1000;
+		//tb_depth = 10;
+		/* sample bit width */
+		width = 11;
+		vld = 0x100000;
+		break;
+
+	case 5: /* S/S2 */
+		testbus_addr = 0x1012;
+		//tb_depth = 10;
+		/* sample bit width */
+		width = 19;
+		vld = 0x100000;
+		break;
+
+	default: /* common fe */
+		testbus_addr = 0x1000;
+		//tb_depth = 10;
+		/* sample bit width */
+		width = 9;
+		vld = 0x100000;
+		break;
+	}
+
+	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+		polling_en = devp->demod_thread;
+		devp->demod_thread = 0;
+		top_saved = demod_top_read_reg(DEMOD_TOP_CFG_REG_4);
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+	}
+
+	/* enable arb */
+	front_write_bits(0x39, 1, 30, 1);
+	/* enable mask p2 */
+	front_write_bits(0x3a, 1, 10, 1);
+	/* Stop cap */
+	front_write_bits(0x3a, 1, 12, 1);
+	/* testbus addr */
+	front_write_bits(0x39, testbus_addr, 0, 16);
+
+	/* disable test_mode */
+	front_write_bits(0x3a, 0, 13, 1);
+	start_addr = devp->mem_start;
+
+	switch (demod->last_delsys) {
+	case SYS_DTMB:
+	case SYS_ISDBT:
+		offset = 5 * 1024 * 1024;
+		break;
+
+	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_C:
+	case SYS_ATSC:
+	case SYS_ATSCMH:
+	case SYS_DVBC_ANNEX_B:
+	case SYS_DVBT:
+	case SYS_DVBS:
+	case SYS_DVBS2:
+		offset = 0 * 1024 * 1024;
+		break;
+
+	case SYS_DVBT2:
+		offset = 32 * 1024 * 1024;
+		break;
+
+	default:
+		offset = 32 * 1024 * 1024;
+		PR_ERR("%s: unknown delivery system\n", __func__);
+		break;
+	}
+
+	size = devp->cma_mem_size - offset;
+	PR_INFO("%s:addr offset:%dM, cap_size:%dM\n", __func__,
+		offset / SZ_1M, size / SZ_1M);
+	start_addr += offset;
+	front_write_reg(0x3c, start_addr);
+	front_write_reg(0x3d, start_addr + size);
+	tb_depth = size / SZ_1M;
+	/* set testbus width */
+	front_write_bits(0x3a, width, 0, 5);
+
+	/* sel adc 10bit */
+	if (width == 9)
+		demod_top_write_bits(DEMOD_TOP_REGC, 0, 8, 1);
+	else if (width == 11)/* sel adc 12bit */
+		demod_top_write_bits(DEMOD_TOP_REGC, 1, 8, 1);
+
+	/* collect by system clk */
+	front_write_reg(0x3b, vld);
+	/* disable mask p2 */
+	front_write_bits(0x3a, 0, 10, 1);
+	front_write_bits(0x39, 0, 31, 1);
+	front_write_bits(0x39, 1, 31, 1);
+	/* go tb */
+	front_write_bits(0x3a, 0, 12, 1);
+	wait_capture(0x3f, tb_depth, start_addr);
+	/* stop tb */
+	front_write_bits(0x3a, 1, 12, 1);
+	tb_start = front_read_reg(0x3f);
+
+	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, top_saved);
+		devp->demod_thread = polling_en;
+	}
+
+	read_memory_to_file(path, tb_start, size);
 	return 0;
 }
 
@@ -725,6 +994,7 @@ static ssize_t attr_store(struct class *cls,
 	struct dtv_property tvp;
 	unsigned int delay;
 	enum fe_status sts;
+	unsigned int cap_mode;
 
 	if (!buf)
 		return count;
@@ -764,7 +1034,7 @@ static ssize_t attr_store(struct class *cls,
 	} else if (!strcmp(parm[0], "symb_rate_en")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val) == 0))
 			demod->symb_rate_en = val;
-	} else if (!strcmp(parm[0], "capture")) {
+	} else if (!strcmp(parm[0], "capture_mass")) {
 		if (parm[1] && (strlen(parm[1]) < CAP_NAME_LEN)) /* path/name of ssd */
 			strcpy(devp->capture_para.cap_dev_name, parm[1]);
 		else
@@ -775,9 +1045,19 @@ static ssize_t attr_store(struct class *cls,
 		else
 			goto fail_exec_cmd;
 
-		capture_start = capture_adc_data_tl1();
-		dtmb_write_usb(&devp->capture_para, capture_start);
+		capture_start = capture_adc_data_mass();
+		write_usb_mass(&devp->capture_para, capture_start);
 
+	} else if (!strcmp(parm[0], "capture_once")) {
+		if (!parm[1]) {
+			PR_ERR("%s:capture_once, no path para\n", __func__);
+			goto fail_exec_cmd;
+		}
+
+		if (parm[2] && kstrtouint(parm[2], 10, &cap_mode) == 0)
+			capture_adc_data_once(parm[1], cap_mode);
+		else
+			capture_adc_data_once(parm[1], 0);
 	} else if (!strcmp(parm[0], "state")) {
 		info_show();
 	} else if (!strcmp(parm[0], "delsys")) {
