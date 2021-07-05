@@ -1516,7 +1516,7 @@
 	4k2k_fb = <1>;
 	display_device_cnt = <2>;
 	logo_addr = "0x3f800000";
-	mem_alloc = <0>;
+	mem_alloc = <1>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
