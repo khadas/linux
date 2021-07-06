@@ -145,6 +145,8 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len,
 int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 		       unsigned int count, int isphybuf);
 
+int SC2_bufferid_write_empty(struct chan_id *pchan, int pid);
+
 unsigned int SC2_bufferid_get_free_size(struct chan_id *pchan);
 unsigned int SC2_bufferid_get_wp_offset(struct chan_id *pchan);
 

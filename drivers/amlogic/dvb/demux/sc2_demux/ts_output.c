@@ -926,7 +926,7 @@ static int clean_es_data(struct out_elem *pout, struct chan_id *pchan,
 				pchan->r_offset = org_len;
 				pr_dbg("can't find es start\n");
 			} else {
-				pchan->r_offset = org_len + start;
+				pchan->r_offset = org_len /*+ start*/;
 				pr_dbg("find es start at %d\n", start);
 			}
 		}

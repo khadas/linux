@@ -146,3 +146,18 @@ int ts_input_write(struct in_elem *elem, const char *buf, int count)
 				 buf, count, elem->mem_level ? 1 : 0);
 	return ret;
 }
+
+/**
+ * ts_input_write_empty
+ * \param elem:
+ * \param pid
+ * \retval -1:fail.
+ */
+int ts_input_write_empty(struct in_elem *elem, int pid)
+{
+	int ret = 0;
+
+	ret = SC2_bufferid_write_empty(elem->pchan, pid);
+	return ret;
+}
+

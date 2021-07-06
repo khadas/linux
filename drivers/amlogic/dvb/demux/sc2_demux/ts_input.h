@@ -51,4 +51,5 @@ int ts_input_close(struct in_elem *elem);
  */
 int ts_input_write(struct in_elem *elem, const char *buf, int count);
 
+int ts_input_write_empty(struct in_elem *elem, int pid);
 #endif

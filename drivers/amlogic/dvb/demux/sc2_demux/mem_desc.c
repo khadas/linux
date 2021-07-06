@@ -1010,3 +1010,85 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 	rdma_config_ready(pchan->id);
 	return count - r;
 }
+
+int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
+{
+	unsigned int len;
+	unsigned int ret;
+	char *p;
+	unsigned int tmp;
+	int i = 0;
+	unsigned int times = 0;
+
+#define MAX_EMPTY_PACKET_NUM     4
+
+	do {
+	} while (!rdma_get_ready(pchan->id) && times++ < 20);
+
+	if (rch_sync_num != rch_sync_num_last) {
+		rdma_config_sync_num(rch_sync_num);
+		rch_sync_num_last = rch_sync_num;
+	}
+
+	p = (char *)pchan->mem;
+	memset(p, 0, 188);
+	p[0] = 0x47;
+	p[1] = (pid >> 8) & 0x1f;
+	p[2] = pid & 0xff;
+	p[3] = 0x20;
+
+	for (i = 1; i < MAX_EMPTY_PACKET_NUM; i++)
+		memcpy(p + 188 * i, p, 188);
+
+	len = 188 * MAX_EMPTY_PACKET_NUM;
+
+	dma_sync_single_for_device(aml_get_device(),
+		pchan->mem_phy, pchan->mem_size, DMA_TO_DEVICE);
+
+	//set desc mem ==len for trigger data transfer.
+	pchan->memdescs->bits.byte_length = len;
+	dma_sync_single_for_device(aml_get_device(),
+		pchan->memdescs_phy, sizeof(union mem_desc),
+		DMA_TO_DEVICE);
+
+	wmb();	/*Ensure pchan->mem contents visible */
+
+	pr_dbg("%s, input data:0x%0x, des len:%d\n", __func__,
+	       (*(char *)(pchan->mem)), len);
+	pr_dbg("%s, desc data:0x%0x 0x%0x\n", __func__,
+	       (*(unsigned int *)(pchan->memdescs)),
+	       (*((unsigned int *)(pchan->memdescs) + 1)));
+
+	pchan->enable = 1;
+	tmp = pchan->memdescs_phy & 0xFFFFFFFF;
+	//rdma_config_enable(pchan->id, 1, tmp,
+	rdma_config_enable(pchan, 1, tmp,
+	   pchan->mem_size, len);
+
+	do {
+	} while (!rdma_get_done(pchan->id));
+
+	ret = rdma_get_rd_len(pchan->id);
+	if (ret != len)
+		dprint("%s, len not equal,ret:%d,w:%d\n",
+	       __func__, ret, len);
+
+	pr_dbg("#######rdma##########\n");
+	pr_dbg("status:0x%0x\n", rdma_get_status(pchan->id));
+	pr_dbg("err:0x%0x, len err:0x%0x, active:%d\n",
+	       rdma_get_err(), rdma_get_len_err(), rdma_get_active());
+	pr_dbg("pkt_sync:0x%0x\n", rdma_get_pkt_sync_status(pchan->id));
+	pr_dbg("ptr:0x%0x\n", rdma_get_ptr(pchan->id));
+	pr_dbg("cfg fifo:0x%0x\n", rdma_get_cfg_fifo());
+	pr_dbg("#######rdma##########\n");
+
+	/*disable */
+	//rdma_config_enable(pchan->id, 0, 0, 0, 0);
+	rdma_config_enable(pchan, 0, 0, 0, 0);
+	rdma_clean(pchan->id);
+
+	pr_dbg("%s end\n", __func__);
+	rdma_config_ready(pchan->id);
+	return len;
+}
+

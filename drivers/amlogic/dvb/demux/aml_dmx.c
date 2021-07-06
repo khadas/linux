@@ -146,6 +146,11 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 	struct aml_dmx *pdmx = (struct aml_dmx *)demux->priv;
 	int ret = 0;
 
+	if (pdmx->reset_init == 0 && pdmx->video_pid != -1) {
+		ts_input_write_empty(pdmx->sc2_input, pdmx->video_pid);
+		pdmx->reset_init = 1;
+	}
+
 	ret = ts_input_write(pdmx->sc2_input, buf, count);
 
 //	if (signal_pending(current))
@@ -475,6 +480,12 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	} else {
 		dprint("%s error\n", __func__);
 	}
+
+	if (feed->type == VIDEO_TYPE) {
+		demux->video_pid = feed->pid;
+		demux->reset_init = 0;
+	}
+
 	mutex_unlock(demux->pmutex);
 	return 0;
 
@@ -959,6 +970,11 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
+
+	if (feed->type == VIDEO_TYPE) {
+		demux->video_pid = -1;
+		demux->reset_init = -1;
+	}
 
 	if (feed->ts_out_elem) {
 		pr_dbg("%s pid:%d\n", __func__, feed->pid);
@@ -1646,6 +1662,8 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 	pdmx->buf_warning_level = 60;
 	pdmx->init = 1;
 	pdmx->sec_dvr_size = 0;
+	pdmx->reset_init = -1;
+	pdmx->video_pid = -1;
 //      dvb_net_init(dvb_adapter, &dmx->dvb_net, &pdmx->dmx);
 
 	return 0;
