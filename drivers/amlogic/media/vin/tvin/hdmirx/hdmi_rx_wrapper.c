@@ -2571,12 +2571,11 @@ void hdmirx_open_port(enum tvin_port_e port)
 		}
 		if (rx.state > FSM_HPD_LOW)
 			rx.state = FSM_HPD_LOW;
+		wait_ddc_idle();
 		rx_set_cur_hpd(0, 0);
 		/* need reset the whole module when switch port */
-		if (need_update_edid()) {
-			wait_ddc_idle();
+		if (need_update_edid())
 			hdmi_rx_top_edid_update();
-		}
 		hdmirx_hw_config();
 	} else {
 		if (rx.state >= FSM_SIG_STABLE)

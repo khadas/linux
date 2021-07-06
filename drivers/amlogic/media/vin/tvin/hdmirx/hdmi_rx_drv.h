@@ -21,8 +21,8 @@
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_drv_ext.h"
 
-/* added colorspace detection */
-#define RX_VER0 "ver.2021/06/21"
+/* waiting i2c idle before pull dow HPD */
+#define RX_VER0 "ver.2021/07/06"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -748,5 +748,8 @@ int rx_hdcp22_send_uevent(int val);
 //1. added colorspace detection
 //2. add afifo detection
 //3. use top de-repeat
+
+//#define RX_VER0 "ver.2021/07/06"
+//waiting i2c idle before pull dow HPD
 
 #endif
