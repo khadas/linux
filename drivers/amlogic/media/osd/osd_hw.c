@@ -8516,6 +8516,8 @@ static void osd_set_freescale(u32 index,
 	u32 src_height;
 	u32 workaround_line = osd_hw.workaround_line;
 	u32 output_index = 0;
+	s32 dst_x_start, dst_y_start, dst_frm_w, dst_frm_h;
+	struct display_flip_info_s *disp_info = NULL;
 
 	layer_blend = &blending->layer_blend;
 	osd_blend_reg = &blending->osd_blend_reg;
@@ -8532,6 +8534,8 @@ static void osd_set_freescale(u32 index,
 	}
 	output_index = get_output_device_id(index);
 
+	disp_info = &osd_hw.disp_info[output_index];
+
 	if (index == OSD1) {
 		osd_hw.free_src_data[index].x_start =
 			layer_blend->output_data.x;
@@ -8544,8 +8548,9 @@ static void osd_set_freescale(u32 index,
 			layer_blend->output_data.y +
 			layer_blend->output_data.h - 1;
 
-		osd_hw.free_dst_data[index].x_start = 0;
-		osd_hw.free_dst_data[index].y_start = 0;
+		dst_x_start = 0;
+		dst_y_start = 0;
+
 		width = layer_blend->output_data.w *
 			blending->screen_ratio_w_num /
 			blending->screen_ratio_w_den;
@@ -8554,6 +8559,9 @@ static void osd_set_freescale(u32 index,
 			blending->screen_ratio_h_den;
 		if (osd_hw.field_out_en[output_index])
 			height = height >> 1;
+
+		dst_frm_w = width;
+		dst_frm_h = height;
 	} else {
 		osd_hw.free_src_data[index].x_start =
 			osd_hw.src_data[index].x;
@@ -8575,14 +8583,15 @@ static void osd_set_freescale(u32 index,
 		    blending->osd_blend_mode == OSD_BLEND_ABC ||
 		    blending->osd_blend_mode == OSD_BLEND_ABCD) {
 			/* combine mode, need uniformization */
-			osd_hw.free_dst_data[index].x_start =
-				osd_hw.dst_data[index].x *
-				blending->screen_ratio_w_den /
-				blending->screen_ratio_w_num;
-			osd_hw.free_dst_data[index].y_start =
-				osd_hw.dst_data[index].y *
-				blending->screen_ratio_h_den /
-				blending->screen_ratio_h_num;
+			dst_x_start = osd_hw.dst_data[index].x *
+					blending->screen_ratio_w_den /
+					blending->screen_ratio_w_num;
+			dst_y_start = osd_hw.dst_data[index].y *
+					blending->screen_ratio_h_den /
+					blending->screen_ratio_h_num;
+			dst_frm_w = blending->dst_data.w;
+			dst_frm_h = blending->dst_data.h;
+
 			width = osd_hw.dst_data[index].w *
 				blending->screen_ratio_w_den /
 				blending->screen_ratio_w_num;
@@ -8594,14 +8603,15 @@ static void osd_set_freescale(u32 index,
 				    blending->blend_din);
 			if (blending->blend_din != BLEND_DIN4) {
 				/* combine mode, need uniformization */
-				osd_hw.free_dst_data[index].x_start =
-					osd_hw.dst_data[index].x *
-					blending->screen_ratio_w_den /
-					blending->screen_ratio_w_num;
-				osd_hw.free_dst_data[index].y_start =
-					osd_hw.dst_data[index].y *
-					blending->screen_ratio_h_den /
-					blending->screen_ratio_h_num;
+				dst_x_start = osd_hw.dst_data[index].x *
+						blending->screen_ratio_w_den /
+						blending->screen_ratio_w_num;
+				dst_y_start = osd_hw.dst_data[index].y *
+						blending->screen_ratio_h_den /
+						blending->screen_ratio_h_num;
+				dst_frm_w = blending->dst_data.w;
+				dst_frm_h = blending->dst_data.h;
+
 				width = osd_hw.dst_data[index].w *
 					blending->screen_ratio_w_den /
 					blending->screen_ratio_w_num;
@@ -8610,10 +8620,9 @@ static void osd_set_freescale(u32 index,
 					blending->screen_ratio_h_num;
 			} else {
 				/* direct used dst as freescale dst */
-				osd_hw.free_dst_data[index].x_start =
-					osd_hw.dst_data[index].x;
-				osd_hw.free_dst_data[index].y_start =
-					osd_hw.dst_data[index].y;
+				dst_x_start = osd_hw.dst_data[index].x;
+				dst_y_start = osd_hw.dst_data[index].y;
+
 				width = osd_hw.dst_data[index].w;
 				height = osd_hw.dst_data[index].h;
 				/* interleaced case */
@@ -8621,21 +8630,57 @@ static void osd_set_freescale(u32 index,
 					height = height >> 1;
 					osd_hw.free_dst_data[index].y_start >>= 1;
 				}
+
+				/* position w h */
+				if (osd_hw.osd_preblend_en) {
+					dst_frm_w = osd_hw.fix_target_width;
+					dst_frm_h = osd_hw.fix_target_height;
+				} else {
+					dst_frm_w = disp_info->position_w;
+					dst_frm_h = disp_info->position_h;
+				}
 			}
 		} else {
 			/* direct used dst as freescale dst */
-			osd_hw.free_dst_data[index].x_start =
-				osd_hw.dst_data[index].x;
-			osd_hw.free_dst_data[index].y_start =
-				osd_hw.dst_data[index].y;
+			dst_x_start = osd_hw.dst_data[index].x;
+			dst_y_start = osd_hw.dst_data[index].y;
+
 			width = osd_hw.dst_data[index].w;
 			height = osd_hw.dst_data[index].h;
 			if (osd_hw.field_out_en[output_index]) {
 				height = height >> 1;
 				osd_hw.free_dst_data[index].y_start >>= 1;
 			}
+
+			/* position w h */
+			if (osd_hw.osd_preblend_en) {
+				dst_frm_w = osd_hw.fix_target_width;
+				dst_frm_h = osd_hw.fix_target_height;
+			} else {
+				dst_frm_w = disp_info->position_w;
+				dst_frm_h = disp_info->position_h;
+			}
 		}
 	}
+
+	if (osd_hw.osd_reverse[index] == REVERSE_TRUE) {
+		osd_hw.free_dst_data[index].x_start =
+			dst_frm_w - dst_x_start - width;
+		osd_hw.free_dst_data[index].y_start =
+			dst_frm_h - dst_y_start - height;
+	} else if (osd_hw.osd_reverse[index] == REVERSE_X) {
+		osd_hw.free_dst_data[index].x_start =
+			dst_frm_w  - dst_x_start - width;
+		osd_hw.free_dst_data[index].y_start = dst_y_start;
+	} else if (osd_hw.osd_reverse[index] == REVERSE_Y) {
+		osd_hw.free_dst_data[index].x_start = dst_x_start;
+		osd_hw.free_dst_data[index].y_start =
+			dst_frm_h - dst_y_start - height;
+	} else { /* normal, no reverse */
+		osd_hw.free_dst_data[index].x_start = dst_x_start;
+		osd_hw.free_dst_data[index].y_start = dst_y_start;
+	}
+
 	osd_hw.free_dst_data[index].x_end =
 		osd_hw.free_dst_data[index].x_start +
 		width - 1;
@@ -8769,6 +8814,10 @@ static void set_blend_path(struct hw_osd_blending_s *blending)
 	osd_blend_reg = &blending->osd_blend_reg;
 	vpp0_blend_reg = &blending->vpp0_blend_reg;
 	layer_blend->blend_core1_bypass = 0;
+
+	memset(&layer_blend->input1_data, 0, sizeof(struct dispdata_s));
+	memset(&layer_blend->input2_data, 0, sizeof(struct dispdata_s));
+
 	if (osd_hw.osd_preblend_en && output_index == VIU1) {
 		position_x = osd_hw.adjust_position_x;
 		position_y = osd_hw.adjust_position_y;
@@ -9802,6 +9851,7 @@ static void osd_set_freescale_new(u32 index,
 	u32 width, height;
 	u32 src_height;
 	u32 output_index;
+	s32 dst_x_start, dst_y_start, dst_frm_w, dst_frm_h;
 
 	layer_blend = &blending->layer_blend;
 	osd_blend_reg = &blending->osd_blend_reg;
@@ -9831,16 +9881,42 @@ static void osd_set_freescale_new(u32 index,
 		osd_hw.src_data[index].h - 1;
 
 	/* direct used dst as freescale dst */
-	osd_hw.free_dst_data[index].x_start =
-		osd_hw.dst_data[index].x;
-	osd_hw.free_dst_data[index].y_start =
-		osd_hw.dst_data[index].y;
+	dst_x_start = osd_hw.dst_data[index].x;
+	dst_y_start = osd_hw.dst_data[index].y;
 	width = osd_hw.dst_data[index].w;
 	height = osd_hw.dst_data[index].h;
 	if (osd_hw.field_out_en[output_index]) {
 		height = height >> 1;
 		osd_hw.free_dst_data[index].y_start >>= 1;
 	}
+
+	/* position w h */
+	if (osd_hw.osd_preblend_en) {
+		dst_frm_w = osd_hw.fix_target_width;
+		dst_frm_h = osd_hw.fix_target_height;
+	} else {
+		dst_frm_w = osd_hw.disp_info[output_index].position_w;
+		dst_frm_h = osd_hw.disp_info[output_index].position_h;
+	}
+
+	if (osd_hw.osd_reverse[index] == REVERSE_TRUE) {
+		osd_hw.free_dst_data[index].x_start =
+			dst_frm_w - dst_x_start - width;
+		osd_hw.free_dst_data[index].y_start =
+			dst_frm_h - dst_y_start - height;
+	} else if (osd_hw.osd_reverse[index] == REVERSE_X) {
+		osd_hw.free_dst_data[index].x_start =
+			dst_frm_w  - dst_x_start - width;
+		osd_hw.free_dst_data[index].y_start = dst_y_start;
+	} else if (osd_hw.osd_reverse[index] == REVERSE_Y) {
+		osd_hw.free_dst_data[index].x_start = dst_x_start;
+		osd_hw.free_dst_data[index].y_start =
+			dst_frm_h - dst_y_start - height;
+	} else { /* normal, no reverse */
+		osd_hw.free_dst_data[index].x_start = dst_x_start;
+		osd_hw.free_dst_data[index].y_start = dst_y_start;
+	}
+
 	osd_hw.free_dst_data[index].x_end =
 		osd_hw.free_dst_data[index].x_start +
 		width - 1;
@@ -9885,6 +9961,10 @@ static void set_blend_path_new(struct hw_osd_blending_s *blending)
 	osd_blend_reg = &blending->osd_blend_reg;
 	vpp0_blend_reg = &blending->vpp0_blend_reg;
 	layer_blend->blend_core1_bypass = 0;
+
+	memset(&layer_blend->input1_data, 0, sizeof(struct dispdata_s));
+	memset(&layer_blend->input2_data, 0, sizeof(struct dispdata_s));
+
 	if (osd_hw.osd_preblend_en && output_index == VIU1) {
 		position_x = osd_hw.adjust_position_x;
 		position_y = osd_hw.adjust_position_y;
@@ -10502,20 +10582,20 @@ static void uniformization_fb(u32 index,
 		blending->screen_ratio_h_den =
 			osd_hw.src_data[index].h;
 	}
-	if (osd_hw.osd_preblend_en == 0) {
-		blending->dst_data.x = osd_hw.dst_data[index].x *
-			blending->screen_ratio_w_den /
-			blending->screen_ratio_w_num;
-		blending->dst_data.y = osd_hw.dst_data[index].y *
-			blending->screen_ratio_h_den /
-			blending->screen_ratio_h_num;
-		blending->dst_data.w = osd_hw.dst_data[index].w *
-			blending->screen_ratio_w_den /
-			blending->screen_ratio_w_num;
-		blending->dst_data.h = osd_hw.dst_data[index].h *
-			blending->screen_ratio_h_den /
-			blending->screen_ratio_h_num;
-	}
+
+	blending->dst_data.x = osd_hw.dst_data[index].x *
+		blending->screen_ratio_w_den /
+		blending->screen_ratio_w_num;
+	blending->dst_data.y = osd_hw.dst_data[index].y *
+		blending->screen_ratio_h_den /
+		blending->screen_ratio_h_num;
+	blending->dst_data.w = osd_hw.dst_data[index].w *
+		blending->screen_ratio_w_den /
+		blending->screen_ratio_w_num;
+	blending->dst_data.h = osd_hw.dst_data[index].h *
+		blending->screen_ratio_h_den /
+		blending->screen_ratio_h_num;
+
 	osd_log_dbg2(MODULE_BLEND,
 		     "uniformization:osd%d:dst_data:%d,%d,%d,%d\n",
 		     index,
@@ -10578,7 +10658,9 @@ static void adjust_dst_position(u32 output_index)
 		osd_hw.disp_info[output_index].position_y /= 2;
 }
 
-static void fix_target_dst_size_adjust(struct hw_osd_blending_s *blending)
+static void fix_target_dst_size_adjust(struct hw_osd_blending_s *blending,
+				       struct hw_osd_blending_s *blending_backup
+				      )
 {
 	int i = 0;
 	int osd_count;
@@ -10592,20 +10674,19 @@ static void fix_target_dst_size_adjust(struct hw_osd_blending_s *blending)
 			osd_hw.dst_data[i].x =
 				osd_hw.dst_data[i].x *
 				blending->screen_ratio_w_num /
-				blending->screen_ratio_w_den;
+				blending_backup->screen_ratio_w_num;
 			osd_hw.dst_data[i].y =
 				osd_hw.dst_data[i].y *
 				blending->screen_ratio_h_num /
-				blending->screen_ratio_h_den;
+				blending_backup->screen_ratio_h_num;
 			osd_hw.dst_data[i].w =
 				osd_hw.dst_data[i].w *
 				blending->screen_ratio_w_num /
-				blending->screen_ratio_w_den;
+				blending_backup->screen_ratio_w_num;
 			osd_hw.dst_data[i].h =
 				osd_hw.dst_data[i].h *
 				blending->screen_ratio_h_num /
-				blending->screen_ratio_h_den;
-
+				blending_backup->screen_ratio_h_num;
 			osd_log_dbg2(MODULE_BLEND,
 				     "fix target adjust dst_data:osd%d:%d,%d,%d,%d\n",
 				     i,
@@ -10654,8 +10735,13 @@ static int osd_setting_order(u32 output_index)
 		osd_hw.disp_info[output_index].position_h;
 	blending->screen_ratio_h_den =
 		osd_hw.disp_info[output_index].background_h;
+
 	if (osd_hw.osd_preblend_en) {
 		int adjust = 0;
+		struct hw_osd_blending_s blending_backup;
+
+		memcpy(&blending_backup, blending,
+		       sizeof(struct hw_osd_blending_s));
 
 		if (osd_hw.disp_info[output_index].position_w !=
 			osd_hw.fix_target_width) {
@@ -10664,7 +10750,7 @@ static int osd_setting_order(u32 output_index)
 			osd_hw.adjust_position_x =
 				osd_hw.disp_info[output_index].position_x *
 				blending->screen_ratio_w_num /
-				blending->screen_ratio_w_den;
+				blending_backup.screen_ratio_w_num;
 			adjust = 1;
 		} else {
 			osd_hw.adjust_position_x =
@@ -10677,14 +10763,15 @@ static int osd_setting_order(u32 output_index)
 			osd_hw.adjust_position_y =
 				osd_hw.disp_info[output_index].position_y *
 				blending->screen_ratio_h_num /
-				blending->screen_ratio_h_den;
+				blending_backup.screen_ratio_h_num;
 			adjust = 1;
 		} else {
 			osd_hw.adjust_position_y =
 				osd_hw.disp_info[output_index].position_y;
 		}
-		if (osd_hw.osd_meson_dev.osd0_sc_independ && adjust)
-			fix_target_dst_size_adjust(blending);
+
+		if (adjust)
+			fix_target_dst_size_adjust(blending, &blending_backup);
 	}
 	blending->layer_cnt = get_available_layers(output_index);
 	set_blend_order(blending, output_index);
