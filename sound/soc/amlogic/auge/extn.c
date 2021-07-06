@@ -191,8 +191,8 @@ static irqreturn_t extn_ddr_isr(int irq, void *devid)
 		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 		int sample_rate_index = get_hdmi_sample_rate_index();
 
-		/*192K audio*/
-		if (sample_rate_index == 7)
+		/*192K & 176K audio*/
+		if (sample_rate_index == 7 ||  sample_rate_index == 6)
 			timeout_thres = timeout_thres * 2;
 #endif
 		if (p_extn->frhdmirx_last_cnt == p_extn->frhdmirx_cnt) {
