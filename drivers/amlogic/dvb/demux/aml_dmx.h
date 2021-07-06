@@ -93,6 +93,13 @@ struct aml_dmx {
 	__u32 sec_dvr_buff;
 	__u32 sec_dvr_size;
 	void *dvr_ts_output;
+
+	/*es reset will cause offset lost 184 byte
+	 *it will inject empty es packet to workaround
+	 *handle just for video filter
+	 */
+	int reset_init;
+	int video_pid;
 };
 
 void dmx_init_hw(int sid_num, int *sid_info);
