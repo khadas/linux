@@ -36,7 +36,7 @@ void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
 
 	trace_android_vh_arch_set_freq_scale(cpus, cur_freq, max_freq, &scale);
 
-	for_each_cpu(i, cpus){
+	for_each_cpu(i, cpus) {
 		per_cpu(freq_scale, i) = scale;
 		per_cpu(max_cpu_freq, i) = max_freq;
 	}

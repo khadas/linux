@@ -319,7 +319,7 @@ compound_page_dtor * const compound_page_dtors[] = {
 #ifdef CONFIG_HUGETLB_PAGE
 	free_huge_page,
 #endif
-#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_GKI_OPT_FEATURES)
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 	free_transhuge_page,
 #endif
 };
@@ -7847,7 +7847,6 @@ unsigned long free_reserved_area(void *start, void *end, int poison, const char 
 
 	return pages;
 }
-EXPORT_SYMBOL_GPL(free_reserved_area);
 
 #ifdef	CONFIG_HIGHMEM
 void free_highmem_page(struct page *page)
@@ -8850,6 +8849,7 @@ done:
 #endif
 	return ret;
 }
+EXPORT_SYMBOL_GPL(alloc_contig_range);
 #endif /* CONFIG_CONTIG_ALLOC */
 
 void free_contig_range(unsigned long pfn, unsigned int nr_pages)
@@ -8864,6 +8864,7 @@ void free_contig_range(unsigned long pfn, unsigned int nr_pages)
 	}
 	WARN(count != 0, "%d pages are still in use!\n", count);
 }
+EXPORT_SYMBOL_GPL(free_contig_range);
 
 /*
  * The zone indicated has a new number of managed_pages; batch sizes and percpu

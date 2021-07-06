@@ -44,7 +44,7 @@ static void free_master_key(struct fscrypt_master_key *mk)
 
 	wipe_master_key_secret(&mk->mk_secret);
 
-	for (i = 0; i <= __FSCRYPT_MODE_MAX; i++) {
+	for (i = 0; i <= FSCRYPT_MODE_MAX; i++) {
 		fscrypt_destroy_prepared_key(&mk->mk_direct_keys[i]);
 		fscrypt_destroy_prepared_key(&mk->mk_iv_ino_lblk_64_keys[i]);
 		fscrypt_destroy_prepared_key(&mk->mk_iv_ino_lblk_32_keys[i]);
@@ -213,7 +213,11 @@ static int allocate_filesystem_keyring(struct super_block *sb)
 	if (IS_ERR(keyring))
 		return PTR_ERR(keyring);
 
-	/* Pairs with READ_ONCE() in fscrypt_find_master_key() */
+	/*
+	 * Pairs with the smp_load_acquire() in fscrypt_find_master_key().
+	 * I.e., here we publish ->s_master_keys with a RELEASE barrier so that
+	 * concurrent tasks can ACQUIRE it.
+	 */
 	smp_store_release(&sb->s_master_keys, keyring);
 	return 0;
 }
@@ -234,8 +238,13 @@ struct key *fscrypt_find_master_key(struct super_block *sb,
 	struct key *keyring;
 	char description[FSCRYPT_MK_DESCRIPTION_SIZE];
 
-	/* pairs with smp_store_release() in allocate_filesystem_keyring() */
-	keyring = READ_ONCE(sb->s_master_keys);
+	/*
+	 * Pairs with the smp_store_release() in allocate_filesystem_keyring().
+	 * I.e., another task can publish ->s_master_keys concurrently,
+	 * executing a RELEASE barrier.  We need to use smp_load_acquire() here
+	 * to safely ACQUIRE the memory the other task published.
+	 */
+	keyring = smp_load_acquire(&sb->s_master_keys);
 	if (keyring == NULL)
 		return ERR_PTR(-ENOKEY); /* No keyring yet, so no keys yet. */
 
@@ -338,7 +347,6 @@ static int add_new_master_key(struct fscrypt_master_key_secret *secret,
 	mk->mk_spec = *mk_spec;
 
 	move_master_key_secret(&mk->mk_secret, secret);
-	init_rwsem(&mk->mk_secret_sem);
 
 	refcount_set(&mk->mk_refcount, 1); /* secret is present */
 	INIT_LIST_HEAD(&mk->mk_decrypted_inodes);
@@ -418,11 +426,8 @@ static int add_existing_master_key(struct fscrypt_master_key *mk,
 	}
 
 	/* Re-add the secret if needed. */
-	if (rekey) {
-		down_write(&mk->mk_secret_sem);
+	if (rekey)
 		move_master_key_secret(&mk->mk_secret, secret);
-		up_write(&mk->mk_secret_sem);
-	}
 	return 0;
 }
 
@@ -838,6 +843,7 @@ static int check_for_busy_inodes(struct super_block *sb,
 	struct list_head *pos;
 	size_t busy_count = 0;
 	unsigned long ino;
+	char ino_str[50] = "";
 
 	spin_lock(&mk->mk_decrypted_inodes_lock);
 
@@ -859,41 +865,23 @@ static int check_for_busy_inodes(struct super_block *sb,
 	}
 	spin_unlock(&mk->mk_decrypted_inodes_lock);
 
+	/* If the inode is currently being created, ino may still be 0. */
+	if (ino)
+		snprintf(ino_str, sizeof(ino_str), ", including ino %lu", ino);
+
 	fscrypt_warn(NULL,
-		     "%s: %zu inode(s) still busy after removing key with %s %*phN, including ino %lu",
+		     "%s: %zu inode(s) still busy after removing key with %s %*phN%s",
 		     sb->s_id, busy_count, master_key_spec_type(&mk->mk_spec),
 		     master_key_spec_len(&mk->mk_spec), (u8 *)&mk->mk_spec.u,
-		     ino);
+		     ino_str);
 	return -EBUSY;
 }
-
-static BLOCKING_NOTIFIER_HEAD(fscrypt_key_removal_notifiers);
-
-/*
- * Register a function to be executed when the FS_IOC_REMOVE_ENCRYPTION_KEY
- * ioctl has removed a key and is about to try evicting inodes.
- */
-int fscrypt_register_key_removal_notifier(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_register(&fscrypt_key_removal_notifiers,
-						nb);
-}
-EXPORT_SYMBOL_GPL(fscrypt_register_key_removal_notifier);
-
-int fscrypt_unregister_key_removal_notifier(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_unregister(&fscrypt_key_removal_notifiers,
-						  nb);
-}
-EXPORT_SYMBOL_GPL(fscrypt_unregister_key_removal_notifier);
 
 static int try_to_lock_encrypted_files(struct super_block *sb,
 				       struct fscrypt_master_key *mk)
 {
 	int err1;
 	int err2;
-
-	blocking_notifier_call_chain(&fscrypt_key_removal_notifiers, 0, NULL);
 
 	/*
 	 * An inode can't be evicted while it is dirty or has dirty pages.
@@ -1013,10 +1001,8 @@ static int do_remove_key(struct file *filp, void __user *_uarg, bool all_users)
 	/* No user claims remaining.  Go ahead and wipe the secret. */
 	dead = false;
 	if (is_master_key_secret_present(&mk->mk_secret)) {
-		down_write(&mk->mk_secret_sem);
 		wipe_master_key_secret(&mk->mk_secret);
 		dead = refcount_dec_and_test(&mk->mk_refcount);
-		up_write(&mk->mk_secret_sem);
 	}
 	up_write(&key->sem);
 	if (dead) {

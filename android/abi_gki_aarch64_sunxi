@@ -6,7 +6,6 @@
   kmalloc_order
   down_interruptible
   dev_pm_set_wake_irq
-  __arm_smccc_hvc
 
 # required by ccu-sunxi-ng.ko
   clk_notifier_register
@@ -15,16 +14,12 @@
 
 # required by sunxi_pinctrl.ko
   handle_fasteoi_irq
-  pinctrl_gpio_direction_output
-  pinctrl_gpio_direction_input
-  gpiochip_generic_config
 
 # required by sunxi_uart.ko
   uart_get_divisor
   uart_handle_cts_change
   uart_handle_dcd_change
   unregister_console
-  uart_insert_char
 
 # required by timer-sunxi.ko
   clockevents_config_and_register
@@ -39,8 +34,21 @@
   rq_flush_dcache_pages
 
 # required by sunxi_iommu.ko
-  iommu_group_alloc
   iommu_group_register_notifier
+  iommu_group_alloc
+
+# required by uas.ko
+  int_to_scsilun
+  scmd_printk
+  scsi_block_requests
+  scsi_change_queue_depth
+  scsi_print_command
+  scsi_unblock_requests
+  usb_alloc_streams
+  usb_free_streams
+  usb_kill_anchored_urbs
+  usb_unanchor_urb
+  usb_wait_anchor_empty_timeout
 
 # required by ums-realtek.ko
   usb_bulk_msg
@@ -54,11 +62,9 @@
 # required by sunxi-dmc.ko
   devm_devfreq_register_opp_notifier
 
-# required by sunxi-nsipmu.ko
-
 # required by irq-sunxi-8i-nmi.ko
+  irq_domain_xlate_onetwocell
   of_io_request_and_map
-  unregister_syscore_ops
 
 # required by tee.ko optee.ko
   gen_pool_best_fit
@@ -69,9 +75,6 @@
 # required by sunxi_nsi.ko
   device_remove_groups
 
-# required by pwm_sunxi_grounp.ko
-  of_pwm_xlate_with_flags
-
 # required by sunxi-ce.ko
   crypto_register_aead
   crypto_register_ahash
@@ -79,7 +82,7 @@
   crypto_unregister_ahash
   crypto_unregister_rng
 
-# required by required by audio_driver*.ko :
+# required by required by audio*.ko :
   __devm_release_region
   snd_dmaengine_pcm_close_release_chan
   snd_dmaengine_pcm_get_chan
@@ -88,10 +91,9 @@
   snd_dmaengine_pcm_trigger
   snd_hwparams_to_dma_slave_config
   snd_soc_add_card_controls
-  snd_soc_register_card
   snd_soc_dai_set_clkdiv
   snd_soc_dai_set_pll
-  snd_dmaengine_pcm_open
+  snd_soc_register_card
 
 # required by xr829.ko
   bridge_tunnel_header
@@ -118,7 +120,6 @@
   round_jiffies_relative
   sdio_align_size
   __sw_hweight16
-  device_move
 
 # required by arc4.ko
   arc4_crypt
@@ -129,7 +130,6 @@
   skcipher_walk_virt
 
 # required by vin_v4l2.ko
-  vb2_plane_cookie
   v4l2_i2c_subdev_init
   media_entity_find_link
   media_entity_remote_pad
@@ -148,34 +148,7 @@
   v4l2_i2c_new_subdev
   v4l2_spi_new_subdev
   v4l_bound_align_image
-  media_create_pad_link
-  v4l2_ctrl_subscribe_event
-  vb2_fop_mmap
-  vb2_fop_poll
-  vb2_fop_read
-  vb2_fop_release
-  vb2_ioctl_dqbuf
-  vb2_ioctl_expbuf
-  vb2_ioctl_qbuf
-  vb2_ioctl_querybuf
-  vb2_ioctl_reqbufs
-  vb2_ioctl_streamoff
-  vb2_ioctl_streamon
-  vb2_ops_wait_finish
-  vb2_ops_wait_prepare
-  vb2_dma_contig_clear_max_seg_size
-  vb2_dma_contig_memops
-  vb2_dma_contig_set_max_seg_size
-
-# required by videobuf2-memops.ko
-  frame_vector_create
-  frame_vector_destroy
-  get_vaddr_frames
-  put_vaddr_frames
-
-# required by videobuf2-dma-contig.ko
-  frame_vector_to_pages
-  frame_vector_to_pfns
+  vb2_plane_cookie
 
 # required by init-input.ko
   of_find_i2c_device_by_node
@@ -186,87 +159,63 @@
   create_empty_buffers
   d_add_ci
   d_obtain_alias
-  end_buffer_read_sync
   generic_error_remove_page
   generic_file_open
   ihold
   load_nls_default
   __lock_page
   make_bad_inode
-  pagecache_get_page
-  read_cache_page
   truncate_inode_pages_final
   __vmalloc
-  __wait_on_buffer
   io_schedule
   is_bad_inode
+  end_buffer_read_sync
 
-# required by sunxi-keyboard.ko
-  iio_map_array_register
-  iio_map_array_unregister
+# required by squashfs.ko
+  get_tree_bdev
+  iget_locked
+  ll_rw_block
+  logfc
+  zlib_inflate
+  zlib_inflateEnd
+  zlib_inflateInit2
+  zlib_inflate_workspacesize
 
-# required by sunxi*.ko
-  __irq_alloc_domain_generic_chips
-  clk_unregister_fixed_factor
-  clk_unregister_fixed_rate
-  clk_unregister_gate
-  cpufreq_dbs_governor_exit
+# required by cpufreq_ondemand.ko
   cpufreq_dbs_governor_init
-  cpufreq_dbs_governor_limits
+  cpufreq_dbs_governor_exit
   cpufreq_dbs_governor_start
   cpufreq_dbs_governor_stop
-  dbs_update
-  filp_close
-  get_cpu_idle_time_us
+  cpufreq_dbs_governor_limits
+  store_sampling_rate
   gov_update_cpu_data
+  dbs_update
+  get_cpu_idle_time_us
+
+# required by disp.ko
+  memblock_free
+
+#required by ehci-sunxi.ko
+  ehci_init_driver
+  ehci_resume
+  ehci_suspend
+
+# required by irq-sun8i-nmi.ko
+  __irq_alloc_domain_generic_chips
   irq_gc_ack_set_bit
   irq_gc_mask_clr_bit
   irq_gc_mask_set_bit
   irq_generic_chip_ops
   irq_get_domain_generic_chip
   irq_setup_alt_chip
-  rfkill_set_states
-  store_sampling_rate
-  usb_hcds_loaded
-
-# required by smsc95xx.ko
-  crc16
-  device_set_wakeup_enable
-  of_get_mac_address
-  usbnet_defer_kevent
-
-
-# required by microchip.ko
-  __genphy_config_aneg
-  genphy_suspend
-  __mdiobus_read
-  mdiobus_read
-  __mdiobus_write
-  mdiobus_write
-  phy_drivers_register
-  phy_drivers_unregister
-  phy_read_mmd
-  phy_restore_page
-  phy_save_page
-  phy_write_mmd
-
-
-# required by smsc75xx.ko
-  crc16
-  device_set_wakeup_enable
-  of_get_mac_address
-  usbnet_defer_kevent
-
-# required by rtl8150.ko
-  ethtool_convert_legacy_u32_to_link_mode
 
 # required by lan78xx.ko
   __bitmap_or
-  device_set_wakeup_enable
   fixed_phy_register
   fixed_phy_unregister
   __genphy_config_aneg
   genphy_read_status
+  irq_create_mapping_affinity
   irq_domain_add_simple
   mdiobus_read
   mdiobus_write
@@ -285,26 +234,35 @@
   phy_write_mmd
   usb_scuttle_anchored_urbs
 
-# required by uas.ko
-  usb_wait_anchor_empty_timeout
-  usb_free_streams
-  usb_alloc_streams
+# required by pinctrl-sunxi.ko
+  gpiochip_generic_config
+  irq_create_mapping_affinity
+  pinctrl_gpio_direction_input
+  pinctrl_gpio_direction_output
 
-# required by echi-pci.ko
-  ehci_init_driver
-  ehci_resume
-  ehci_setup
-  ehci_suspend
+# required by rtc-sunxi-ccu.ko
+  clk_unregister_fixed_factor
+  clk_unregister_fixed_rate
+  clk_unregister_gate
 
-# required by xradio_btlpm.ko
-  bt_err
-  bt_info
+# required by smsc75xx.ko and smsc95xx.ko
+  crc16
+  of_get_mac_address
+  usbnet_defer_kevent
 
-# required by sun6i-dma.ko
-  dma_get_any_slave_channel
+# required by snd-soc-sunxi.ko
+  snd_dmaengine_pcm_open
+  snd_dmaengine_pcm_pointer_no_residue
 
 # required by sun50i-cpufreq-nvmem.ko
   dev_pm_opp_of_get_opp_desc_node
   dev_pm_opp_put_prop_name
   dev_pm_opp_put_supported_hw
   dev_pm_opp_set_prop_name
+
+# required by sun6i-dma.ko
+  dma_get_any_slave_channel
+
+# required by sunxi-keyboard.ko
+  iio_map_array_register
+  iio_map_array_unregister
