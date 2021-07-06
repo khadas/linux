@@ -18,7 +18,7 @@
 		})
 
 #define ABS(a)	({ \
-			typeof(a) _a = a; \
+			int _a = (int)a;\
 			((_a) > 0 ? (_a) : -(_a));\
 		})
 

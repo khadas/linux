@@ -228,11 +228,6 @@ void set_frc_bypass(u32 en)
 	vpu_reg_write_bits(VPU_FRC_TOP_CTRL, en, 0, 1);
 }
 
-void frc_pattern_on(u32 en)
-{
-	WRITE_FRC_BITS(FRC_REG_INP_MODULE_EN, en, 6, 1);
-}
-
 void frc_crc_enable(struct frc_dev_s *frc_devp)
 {
 	struct frc_crc_data_s *crc_data;
@@ -507,6 +502,19 @@ static void set_vd1_out_size(struct frc_dev_s *frc_devp)
 		}
 	}
 	pr_frc(1, "hsize = %d, vsize = %d\n", hsize, vsize);
+}
+
+void frc_pattern_on(u32 en)
+{
+	WRITE_FRC_BITS(FRC_REG_INP_MODULE_EN, en, 6, 1);
+	if (en == 1) {
+		frc_mtx_cfg(FRC_INPUT_CSC, RGB_YUV709L);
+		frc_mtx_cfg(FRC_OUTPUT_CSC, CSC_OFF);
+
+	} else {
+		frc_mtx_cfg(FRC_INPUT_CSC, CSC_OFF);
+		frc_mtx_cfg(FRC_OUTPUT_CSC, CSC_OFF);
+	}
 }
 
 static void frc_input_init(struct frc_dev_s *frc_devp,

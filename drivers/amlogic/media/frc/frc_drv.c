@@ -602,6 +602,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	//devp->frc_hw_pos = FRC_POS_AFTER_POSTBLEND;/*for test*/
 	devp->frc_sts.auto_ctrl = 0;
 	devp->frc_fw_pause = false;
+	// devp->frc_fw_pause = true;
 	devp->frc_sts.frame_cnt = 0;
 	devp->frc_sts.state_transing = false;
 	devp->frc_sts.re_cfg_cnt = 0;
@@ -614,8 +615,8 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->in_sts.have_vf_cnt = 0;
 	devp->in_sts.no_vf_cnt = 0;
 
-	// devp->dbg_in_out_ratio = FRC_RATIO_1_2;/*enum frc_ratio_mode_type frc_ratio_mode*/
 	devp->dbg_in_out_ratio = FRC_RATIO_1_1;/*enum frc_ratio_mode_type frc_ratio_mode*/
+	// devp->dbg_in_out_ratio = FRC_RATIO_2_5;/*enum frc_ratio_mode_type frc_ratio_mode*/
 	devp->dbg_input_hsize = vinfo->width;
 	devp->dbg_input_vsize = vinfo->height;
 	devp->dbg_reg_monitor_i = 0;
@@ -630,9 +631,10 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->loss_ratio = 0;
 	devp->prot_mode = false;
 
-	// devp->in_out_ratio = FRC_RATIO_1_2;
 	devp->in_out_ratio = FRC_RATIO_1_1;
+	// devp->in_out_ratio = FRC_RATIO_2_5;
 	devp->film_mode = EN_FILM32;
+	// devp->film_mode = EN_VIDEO;
 	devp->film_mode_det = 0;
 
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;
