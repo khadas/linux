@@ -1466,7 +1466,7 @@ static void osd_rdma_vpp1_irq(void *arg)
 	rdma_status = osd_reg_read(RDMA_STATUS);
 	debug_rdma_status[VIU2] = rdma_status;
 	OSD_RDMA_VPP1_STATUS_CLEAR_REJECT;
-	//osd_update_vsync_hit();
+	osd_update_vsync_hit_viu2();
 	reset_rdma_table(VIU2);
 	//osd_update_scan_mode();
 	osd_hw_reset(VIU2);
@@ -1487,7 +1487,7 @@ static void osd_rdma_vpp2_irq(void *arg)
 	rdma_status = osd_reg_read(RDMA_STATUS);
 	debug_rdma_status[VIU3] = rdma_status;
 	OSD_RDMA_VPP2_STATUS_CLEAR_REJECT;
-	//osd_update_vsync_hit();
+	osd_update_vsync_hit_viu3();
 	reset_rdma_table(VIU3);
 	//osd_update_scan_mode();
 	osd_hw_reset(VIU3);

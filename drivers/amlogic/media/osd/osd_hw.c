@@ -96,8 +96,11 @@ static DECLARE_WAIT_QUEUE_HEAD(osd_vsync_wq);
 static DECLARE_WAIT_QUEUE_HEAD(osd_vsync2_wq);
 static DECLARE_WAIT_QUEUE_HEAD(osd_vsync3_wq);
 
+static DECLARE_WAIT_QUEUE_HEAD(osd_rdma_vpp0_done_wq);
+static DECLARE_WAIT_QUEUE_HEAD(osd_rdma_vpp1_done_wq);
+static DECLARE_WAIT_QUEUE_HEAD(osd_rdma_vpp2_done_wq);
+
 static bool vsync_hit[VIU_COUNT];
-static bool user_vsync_hit[VIU_COUNT];
 static bool osd_update_window_axis;
 static int osd_afbc_dec_enable;
 static int ext_canvas_id[HW_OSD_COUNT];
@@ -2349,23 +2352,35 @@ void osd_update_3d_mode(void)
 
 static inline void wait_vsync_wakeup(void)
 {
-	user_vsync_hit[VIU1] = true;
-	vsync_hit[VIU1] = true;
 	wake_up_interruptible_all(&osd_vsync_wq);
 }
 
 static inline void wait_vsync_wakeup_viu2(void)
 {
-	user_vsync_hit[VIU2] = true;
-	vsync_hit[VIU2] = true;
 	wake_up_interruptible_all(&osd_vsync2_wq);
 }
 
 static inline void wait_vsync_wakeup_viu3(void)
 {
-	user_vsync_hit[VIU3] = true;
-	vsync_hit[VIU3] = true;
 	wake_up_interruptible_all(&osd_vsync3_wq);
+}
+
+static inline void wait_rdma_done_wakeup(void)
+{
+	vsync_hit[VIU1] = true;
+	wake_up_interruptible_all(&osd_rdma_vpp0_done_wq);
+}
+
+static inline void wait_rdma_done_wakeup_viu2(void)
+{
+	vsync_hit[VIU2] = true;
+	wake_up_interruptible_all(&osd_rdma_vpp1_done_wq);
+}
+
+static inline void wait_rdma_done_wakeup_viu3(void)
+{
+	vsync_hit[VIU3] = true;
+	wake_up_interruptible_all(&osd_rdma_vpp2_done_wq);
 }
 
 static s64 get_adjust_vsynctime(u32 output_index)
@@ -2407,9 +2422,27 @@ static s64 get_adjust_vsynctime(u32 output_index)
 void osd_update_vsync_timestamp(void)
 {
 	ktime_t stime;
+	s64 cur_timestamp;
 
 	stime = ktime_get();
-	timestamp[VIU1] = stime - get_adjust_vsynctime(VIU1);
+	cur_timestamp = stime - get_adjust_vsynctime(VIU1);
+	if (osd_log_level) {
+		const struct vinfo_s *vinfo;
+		s64 vsync_time, diff_time;
+
+		vinfo = get_current_vinfo();
+		if (vinfo) {
+			diff_time = cur_timestamp - timestamp[VIU1];
+			vsync_time = div_s64((s64)vinfo->sync_duration_den * (s64)1000000000,
+					    (s64)vinfo->sync_duration_num);
+			if (diff_time > (vsync_time + 1000000) ||
+			    diff_time < (vsync_time - 1000000))
+				pr_info("vsync timestamp warning: cur=%lld, pre=%lld, diff_time=%lld\n",
+					cur_timestamp, timestamp[VIU1], diff_time);
+		}
+	}
+	timestamp[VIU1] = cur_timestamp;
+	wait_vsync_wakeup();
 }
 
 void osd_update_vsync_timestamp_viu2(void)
@@ -2418,6 +2451,7 @@ void osd_update_vsync_timestamp_viu2(void)
 
 	stime = ktime_get();
 	timestamp[VIU2] = stime - get_adjust_vsynctime(VIU2);
+	wait_vsync_wakeup_viu2();
 }
 
 void osd_update_vsync_timestamp_viu3(void)
@@ -2426,6 +2460,7 @@ void osd_update_vsync_timestamp_viu3(void)
 
 	stime = ktime_get();
 	timestamp[VIU3] = stime - get_adjust_vsynctime(VIU3);
+	wait_vsync_wakeup_viu3();
 }
 
 void osd_update_vsync_hit(void)
@@ -2433,7 +2468,7 @@ void osd_update_vsync_hit(void)
 #ifdef FIQ_VSYNC
 	fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
 #else
-	wait_vsync_wakeup();
+	wait_rdma_done_wakeup();
 #endif
 }
 
@@ -2442,7 +2477,7 @@ void osd_update_vsync_hit_viu2(void)
 #ifdef FIQ_VSYNC
 	fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
 #else
-	wait_vsync_wakeup_viu2();
+	wait_rdma_done_wakeup_viu2();
 #endif
 }
 
@@ -2451,7 +2486,7 @@ void osd_update_vsync_hit_viu3(void)
 #ifdef FIQ_VSYNC
 	fiq_bridge_pulse_trigger(&osd_hw.fiq_handle_item);
 #else
-	wait_vsync_wakeup_viu3();
+	wait_rdma_done_wakeup_viu3();
 #endif
 }
 
@@ -3447,7 +3482,6 @@ static irqreturn_t vsync_viu2_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	/* osd_update_scan_mode_viu2(); */
 	osd_update_vsync_timestamp_viu2();
-	osd_update_vsync_hit_viu2();
 #ifndef FIQ_VSYNC
 	return IRQ_HANDLED;
 #endif
@@ -3511,7 +3545,7 @@ u32 osd_get_reset_status(void)
 static void osd_wait_vsync_hw_viux(u32 output_index)
 {
 	unsigned long timeout;
-	wait_queue_head_t *wait_queue = &osd_vsync_wq;
+	wait_queue_head_t *wait_queue = &osd_rdma_vpp0_done_wq;
 
 	if (osd_hw.fb_drvier_probe) {
 		vsync_hit[output_index] = false;
@@ -3526,19 +3560,19 @@ static void osd_wait_vsync_hw_viux(u32 output_index)
 				#ifdef CONFIG_AMLOGIC_VOUT_SERVE
 				vinfo = get_current_vinfo();
 				#endif
-				wait_queue = &osd_vsync_wq;
+				wait_queue = &osd_rdma_vpp0_done_wq;
 				break;
 			case VIU2:
 				#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 				vinfo = get_current_vinfo2();
 				#endif
-				wait_queue = &osd_vsync2_wq;
+				wait_queue = &osd_rdma_vpp1_done_wq;
 				break;
 			case VIU3:
 				#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
 				vinfo = get_current_vinfo3();
 				#endif
-				wait_queue = &osd_vsync2_wq;
+				wait_queue = &osd_rdma_vpp2_done_wq;
 				break;
 			default:
 				osd_log_err("%s, set output_index %u error\n",
@@ -3567,9 +3601,9 @@ void osd_wait_vsync_hw(u32 index)
 s64 osd_wait_vsync_event(void)
 {
 	unsigned long timeout;
+	ktime_t stime;
 
-	user_vsync_hit[VIU1] = false;
-
+	stime = ktime_get();
 	if (pxp_mode)
 		timeout = msecs_to_jiffies(50);
 	else
@@ -3577,16 +3611,16 @@ s64 osd_wait_vsync_event(void)
 
 	/* waiting for 10ms. */
 	wait_event_interruptible_timeout(osd_vsync_wq,
-					 user_vsync_hit[VIU1], timeout);
-
+		(timestamp[VIU1] > stime) ? true : false, timeout);
 	return timestamp[VIU1];
 }
 
 s64 osd_wait_vsync_event_viu2(void)
 {
 	unsigned long timeout;
+	ktime_t stime;
 
-	user_vsync_hit[VIU2] = false;
+	stime = ktime_get();
 
 	if (pxp_mode)
 		timeout = msecs_to_jiffies(50);
@@ -3595,7 +3629,7 @@ s64 osd_wait_vsync_event_viu2(void)
 
 	/* waiting for 10ms. */
 	wait_event_interruptible_timeout(osd_vsync2_wq,
-					 user_vsync_hit[VIU2], timeout);
+		(timestamp[VIU2] > stime) ? true : false, timeout);
 
 	return timestamp[VIU2];
 }
@@ -3603,8 +3637,9 @@ s64 osd_wait_vsync_event_viu2(void)
 s64 osd_wait_vsync_event_viu3(void)
 {
 	unsigned long timeout;
+	ktime_t stime;
 
-	user_vsync_hit[VIU3] = false;
+	stime = ktime_get();
 
 	if (pxp_mode)
 		timeout = msecs_to_jiffies(50);
@@ -3613,7 +3648,7 @@ s64 osd_wait_vsync_event_viu3(void)
 
 	/* waiting for 10ms. */
 	wait_event_interruptible_timeout(osd_vsync3_wq,
-					 user_vsync_hit[VIU3], timeout);
+		(timestamp[VIU3] > stime) ? true : false, timeout);
 
 	return timestamp[VIU3];
 }
@@ -12944,6 +12979,9 @@ void  osd_suspend_hw(void)
 	wait_vsync_wakeup();
 	wait_vsync_wakeup_viu2();
 	wait_vsync_wakeup_viu3();
+	wait_rdma_done_wakeup();
+	wait_rdma_done_wakeup_viu2();
+	wait_rdma_done_wakeup_viu3();
 	if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL) {
 		osd_hw.reg_status_save =
 			osd_reg_read(VPP_MISC) & OSD_RELATIVE_BITS;
@@ -13084,6 +13122,9 @@ void osd_shutdown_hw(void)
 	wait_vsync_wakeup();
 	wait_vsync_wakeup_viu2();
 	wait_vsync_wakeup_viu3();
+	wait_rdma_done_wakeup();
+	wait_rdma_done_wakeup_viu2();
+	wait_rdma_done_wakeup_viu3();
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	if (osd_hw.osd_meson_dev.has_rdma)
 		enable_rdma(0);
