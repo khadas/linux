@@ -3805,6 +3805,8 @@ static void top_bot_config(struct di_buf_s *di_buf)
 	}
 }
 
+static void pp_buf_clear(struct di_buf_s *buff);
+
 void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 {
 //ary 2020-12-09	ulong irq_flag2 = 0;
@@ -3971,15 +3973,28 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 				ppre->di_mem_buf_dup_p = NULL;
 				dim_print("mem bypass\n");
 			} else {
-				/* send mem to ready */
-				if (ppre->di_mem_buf_dup_p->flg_nr)
-					di_que_in(channel,
-						  QUE_PRE_READY,
+				#ifdef HOLD_ONE_FRAME
+				if (ppre->di_mem_buf_dup_p->flg_nr) {
+					di_que_in(channel, QUE_PRE_READY,
 						  ppre->di_mem_buf_dup_p);
+				}
+				ppre->di_mem_buf_dup_p = ppre->di_wr_buf;
+				#else
+				/* clear mem ref */
+				if (ppre->di_mem_buf_dup_p->flg_nr) {
+					p_ref_set_buf(ppre->di_mem_buf_dup_p,
+						      0, 0, 0);
+					pp_buf_clear(ppre->di_mem_buf_dup_p);
+					di_que_in(channel, QUE_PRE_NO_BUF,
+						  ppre->di_mem_buf_dup_p);
+				}
 
-				/* send nr to mem */
-				ppre->di_mem_buf_dup_p =
-					ppre->di_wr_buf;
+				ppre->di_mem_buf_dup_p = ppre->di_wr_buf;
+				p_ref_set_buf(ppre->di_mem_buf_dup_p, 1, 0, 1);
+				di_que_in(channel, QUE_PRE_READY,
+						  ppre->di_wr_buf);
+
+				#endif
 			}
 
 			ppre->di_wr_buf->seq = ppre->pre_ready_seq++;
@@ -4550,7 +4565,14 @@ static void pp_buf_cp(struct di_buf_s *buft, struct di_buf_s *buff)
 	buft->c.buffer	= buff->c.buffer;
 	buft->c.src_is_i	= buff->c.src_is_i;
 	buft->buf_hsize	= buff->buf_hsize;
+}
 
+static void pp_buf_clear(struct di_buf_s *buff)
+{
+	if (!buff) {
+		PR_ERR("%s:no buffer\n", __func__);
+		return;
+	}
 	/* clear */
 	buff->blk_buf	= NULL;
 	buff->flg_null	= 1;
@@ -4594,8 +4616,13 @@ static struct di_buf_s *pp_pst_2_local(struct di_ch_s *pch)
 	buf_pst = di_que_out_to_di_buf(ch, QUE_POST_FREE);
 
 	pp_buf_cp(di_buf, buf_pst);
+	pp_buf_clear(buf_pst);
 	memcpy(&di_buf->hf, &buf_pst->hf, sizeof(di_buf->hf));
+	#ifdef HOLD_ONE_FRAME
 	di_que_in(ch, QUE_PST_NO_BUF, buf_pst);
+	#else
+	di_buf->di_buf_post = buf_pst;
+	#endif
 	/* debug */
 	//dbg_buf_log_save(pch, di_buf, 1);
 	//dbg_buf_log_save(pch, buf_pst, 2);
@@ -4617,10 +4644,15 @@ static struct di_buf_s *pp_local_2_post(struct di_ch_s *pch,
 
 	ch = pch->ch_id;
 	//di_lock_irqfiq_save(irq_flag2);
+	#ifdef HOLD_ONE_FRAME
 	buf_pst = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF);
 	//di_unlock_irqfiq_restore(irq_flag2);
 	if (!buf_pst)
 		return NULL;
+	#else
+	buf_pst = di_buf->di_buf_post;
+	di_buf->di_buf_post = NULL;
+	#endif
 	pp_buf_cp(buf_pst, di_buf);
 
 	/* hf */
@@ -5007,8 +5039,15 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				/*clear last p buf eos */
 				ppre->di_mem_buf_dup_p->pre_ref_count = 0;
 				ppre->di_mem_buf_dup_p->is_lastp = 1;
+				#ifdef HOLD_ONE_FRAME
 				di_que_in(channel, QUE_PRE_READY,
 					  ppre->di_mem_buf_dup_p);
+				#else
+				p_ref_set_buf(ppre->di_mem_buf_dup_p, 0, 0, 2);
+				pp_buf_clear(ppre->di_mem_buf_dup_p);
+				di_que_in(channel, QUE_PRE_NO_BUF,
+					  ppre->di_mem_buf_dup_p);
+				#endif
 				ppre->di_mem_buf_dup_p = NULL;
 				if (dip_itf_is_ins(pch) && (vframe->type & VIDTYPE_V4L_EOS))
 					add_eos_in(channel, nins);
@@ -5220,8 +5259,15 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			/*clear last p buf eos */
 				ppre->di_mem_buf_dup_p->pre_ref_count = 0;
 				ppre->di_mem_buf_dup_p->is_lastp = 1;
+				#ifdef HOLD_ONE_FRAME
 				di_que_in(channel, QUE_PRE_READY,
 					  ppre->di_mem_buf_dup_p);
+				#else
+				p_ref_set_buf(ppre->di_mem_buf_dup_p, 0, 0, 3);
+				pp_buf_clear(ppre->di_mem_buf_dup_p);
+				di_que_in(channel, QUE_PRE_NO_BUF,
+					  ppre->di_mem_buf_dup_p);
+				#endif
 				ppre->di_mem_buf_dup_p = NULL;
 			//#else
 
@@ -5404,8 +5450,15 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				/*clear last p buf eos */
 				ppre->di_mem_buf_dup_p->pre_ref_count = 0;
 				ppre->di_mem_buf_dup_p->is_lastp = 1;
+				#ifdef HOLD_ONE_FRAME
 				di_que_in(channel, QUE_PRE_READY,
 					  ppre->di_mem_buf_dup_p);
+				#else
+				p_ref_set_buf(ppre->di_mem_buf_dup_p, 0, 0, 4);
+				pp_buf_clear(ppre->di_mem_buf_dup_p);
+				di_que_in(channel, QUE_PRE_NO_BUF,
+					  ppre->di_mem_buf_dup_p);
+				#endif
 				ppre->di_mem_buf_dup_p = NULL;
 				PR_INF("p to bypass, push mem\n");
 			/*********************************/
@@ -9153,9 +9206,9 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 			}
 			di_buf->flg_nv21 = di_buf_i->flg_nv21;
 			pp_drop_frame(di_buf, channel);
-
+			#ifdef HOLD_ONE_FRAME
 			di_que_in(channel, QUE_PRE_NO_BUF, ready_di_buf);
-
+			#endif
 			frame_count++;
 
 			ret = 1;
@@ -9636,6 +9689,13 @@ void di_unreg_variable(unsigned int channel)
 	dim_sumx_clear(channel);
 	dim_polic_unreg(pch);
 	mm->sts.flg_realloc = 0;
+	if (ppre->prog_proc_type == 0x10 &&
+	    ppre->di_mem_buf_dup_p) {/* set last ref */
+		p_ref_set_buf(ppre->di_mem_buf_dup_p, 0, 0, 5);
+		pp_buf_clear(ppre->di_mem_buf_dup_p);
+		di_que_in(channel, QUE_PRE_NO_BUF, ppre->di_mem_buf_dup_p);
+	}
+
 	dim_recycle_post_back(channel);// ?
 	/*mirror_disable = get_blackout_policy();*/
 	if ((cfgg(KEEP_CLEAR_AUTO) == 2) || dip_itf_is_ins_exbuf(pch))
@@ -10255,12 +10315,15 @@ void dim_recycle_post_back(unsigned int channel)
 {
 	struct di_buf_s *di_buf = NULL;
 //ary 2020-12-09	ulong irq_flag2 = 0;
-	unsigned int i = 0;
+	unsigned int i = 0, len;
+
+	static unsigned long add_last;
+	unsigned long addr;
 
 	if (di_que_is_empty(channel, QUE_POST_BACK))
 		return;
-
-	while (i < MAX_FIFO_SIZE) {
+	len = di_que_list_count(channel, QUE_POST_BACK);
+	while (i < len) {
 		i++;
 
 		di_buf = di_que_peek(channel, QUE_POST_BACK);
@@ -10273,13 +10336,24 @@ void dim_recycle_post_back(unsigned int channel)
 			PR_ERR("%s:type is not post\n", __func__);
 			continue;
 		}
+		if (di_buf->blk_buf &&
+		    atomic_read(&di_buf->blk_buf->p_ref_mem)) {
+			addr = (unsigned long)di_buf->blk_buf;
+			if (add_last != addr) {
+				dbg_mem("is ref:0x%lx %d\n",
+					addr, di_buf->blk_buf->header.index);
+				add_last = addr;
+			}
+			queue_out(channel, di_buf);
+			di_que_in(channel, QUE_POST_BACK, di_buf);
+			continue;
+		}
 
 		dim_print("di_back:%d\n", di_buf->index);
-//ary 2020-12-09		di_lock_irqfiq_save(irq_flag2); /**/
-		#ifdef MARK_HIS /*@ary_note: */
-		di_que_out(channel, QUE_POST_BACK, di_buf);
-		di_buf->queue_index = QUEUE_DISPLAY;
-		#endif
+		if (di_buf->blk_buf)
+			dim_print("di_back:blk:%d\n",
+				  di_buf->blk_buf->header.index);
+
 		/*dec vf keep*/
 		if (di_buf->in_buf) {
 			dim_print("dim:dec vf:b:p[%d],i[%d]\n",

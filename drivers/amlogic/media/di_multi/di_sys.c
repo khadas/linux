@@ -740,6 +740,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 				blk_buf->flg.d32	= 0;
 				blk_buf->sct		= NULL;
 				blk_buf->sct_keep	= 0xff;
+				atomic_set(&blk_buf->p_ref_mem, 0);
 				qbuf_in(pbufq, QBF_BLK_Q_IDLE, index);
 				cnt++;
 				fcmd->sum_alloc--;

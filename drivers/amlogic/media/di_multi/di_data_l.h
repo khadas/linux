@@ -1556,6 +1556,7 @@ struct dim_mm_blk_s {
 	void *buffer; //new_interface
 	struct dim_sub_mem_s	hf_buff;
 	bool	flg_hf;
+	atomic_t	p_ref_mem;
 };
 
 /*que buf block end*/
@@ -2776,6 +2777,29 @@ static inline bool is_ic_between(unsigned int ic_min, unsigned int ic_max)
 	if (id >= ic_min && id <= ic_max)
 		return true;
 	return false;
+}
+
+/**************************************
+ * error flg: ?
+ *	bit 0: 1 mean no buf is error
+ *	bit 1: 1 mean no blk_buf is error
+ **************************************/
+static inline void p_ref_set_buf(struct di_buf_s *buf,
+				 bool set,
+				 unsigned char flg, unsigned char post)
+{
+	if (!buf || !buf->blk_buf) {
+		if (!buf) {
+			PR_WARN("p_ref_set:no buf %d\n", post);
+			return;
+		}
+		if (!buf->blk_buf)
+			PR_WARN("p_ref_set:no blk %d\n", post);
+
+		return;
+	}
+	dbg_mem("p_ref_set:0x%px:%d\n", buf->blk_buf, set);
+	atomic_set(&buf->blk_buf->p_ref_mem, set);
 }
 
 #define DIM_IS_IC(cc)		is_ic_named((get_datal()->mdata->ic_id), \

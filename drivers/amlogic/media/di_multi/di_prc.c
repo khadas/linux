@@ -7100,6 +7100,8 @@ void dbg_blk(struct seq_file *s, struct dim_mm_blk_s *blk_buf)
 	seq_printf(s, "\t%s:0x%x\n", "size_page", blk_buf->flg.b.typ);
 	seq_printf(s, "\t%s:%d\n", "flg_alloc", blk_buf->flg_alloc);
 	seq_printf(s, "\t%s:%d\n", "tvp", blk_buf->flg.b.tvp);
+	seq_printf(s, "\t%s:%d\n", "p_ref_mem",
+		   atomic_read(&blk_buf->p_ref_mem));
 }
 
 /* @ary_note: */
