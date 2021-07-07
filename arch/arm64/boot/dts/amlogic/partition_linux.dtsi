@@ -1,0 +1,21 @@
+/*
+ * Amlogic partition set for normal
+ *
+ * Copyright (c) 2019 Wesion Ltd
+ *
+ * This file is licensed under a dual GPLv2 or BSD license.
+ *
+ */
+/ {
+    partitions: partitions{
+		parts = <1>;
+		part-0 = <&rootfs>;
+
+		rootfs:rootfs
+		{
+			pname = "rootfs";
+			size = <0xffffffff 0xffffffff>;
+			mask = <4>;
+		};
+	};
+};/* end of / */

@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include "mesont7.dtsi"
-#include "partition_normal_PR_32.dtsi"
+#include "partition_linux.dtsi"
 #include <dt-bindings/input/input.h>
 #include "mesont7_an400-panel.dtsi"
 
