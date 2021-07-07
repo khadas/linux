@@ -1749,7 +1749,7 @@
 
 	ir: ir@8000 {
 		compatible = "amlogic, meson-ir";
-		reg = <0xfe084040 0x44>,
+		reg = <0xfe084040 0xA4>,
 			<0xfe084000 0x20>;
 		status = "disable";
 		protocol = <REMOTE_TYPE_NEC>;
