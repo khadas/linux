@@ -145,6 +145,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_PONLY_MODE,
 	EDI_CFG_HF,
 	EDI_CFG_PONLY_BP_THD,
+	EDI_CFG_T5DB_P_NOTNR_THD, /**/
 	EDI_CFG_END,
 };
 
@@ -2525,7 +2526,7 @@ static inline void sum_pst_p_inc(unsigned int ch)
 
 static inline void sum_pst_p_clear(unsigned int ch)
 {
-	//get_datal()->ch_data[ch].sum_pst_put = 0;
+	get_datal()->ch_data[ch].sum_pst_put = 0;
 }
 
 static inline unsigned int get_sum_release(unsigned int ch)

@@ -294,9 +294,10 @@ struct di_buf_s {
 	unsigned int afbce_out_yuv420_10	: 1; /* 2020-11-26*/
 	unsigned int is_nbypass	: 1; /*2020-12-07*/
 	unsigned int is_bypass_pst : 1; /*2021-01-07*/
+	unsigned int is_bypass_mem : 1;
 	unsigned int en_hf	: 1; //only flg post buffer
 	unsigned int hf_done	: 1; //
-	unsigned int rev1	: 2;
+	unsigned int rev1	: 1;
 
 	unsigned int rev2	: 16;
 	struct dsub_bufv_s	c;

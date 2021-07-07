@@ -3659,7 +3659,7 @@ static void dim_canvas_set2(struct vframe_s *vf, u32 *index);
 void dim_pre_de_process(unsigned int channel)
 {
 	ulong irq_flag2 = 0;
-	unsigned short pre_width = 0, pre_height = 0;
+	unsigned short pre_width = 0, pre_height = 0, t5d_cnt;
 	unsigned char chan2_field_num = 1;
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
 	int canvases_idex = ppre->field_count_for_cont % 2;
@@ -3947,11 +3947,21 @@ void dim_pre_de_process(unsigned int channel)
 	/*dim_dbg_pre_cnt(channel, "s2");*/
 	/* for t5d vb netflix change afbc input timeout */
 	if (DIM_IS_IC(T5DB)) {
-		if (ppre->field_count_for_cont < 2 &&
+		t5d_cnt = cfgg(T5DB_P_NOTNR_THD);
+		if (t5d_cnt < 2)
+			t5d_cnt = 2;
+		if (ppre->field_count_for_cont < t5d_cnt &&
 		    ppre->cur_prog_flag)
 			ppre->is_bypass_mem |= 0x02;
 		else
 			ppre->is_bypass_mem &= ~0x02;
+
+		if (ppre->is_bypass_mem)
+			ppre->di_wr_buf->is_bypass_mem = 1;
+		else
+			ppre->di_wr_buf->is_bypass_mem = 0;
+		dim_print("%s:is_bypass_mem[%d]\n", __func__,
+			  ppre->di_wr_buf->is_bypass_mem);
 	}
 
 	dimh_enable_di_pre_aml(&ppre->di_inp_mif,
@@ -4284,12 +4294,21 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 				ppre->di_wr_buf->pre_ref_count = 0;
 				ppre->di_mem_buf_dup_p = NULL;
 
+			} else if (ppre->di_wr_buf->is_bypass_mem) {
+				di_que_in(channel, QUE_PRE_READY,
+					  ppre->di_wr_buf);
+				ppre->di_mem_buf_dup_p = NULL;
+				dim_print("mem bypass\n");
 			} else {
-				if (ppre->di_mem_buf_dup_p->flg_nr) {
-					di_que_in(channel, QUE_PRE_READY,
+				/* send mem to ready */
+				if (ppre->di_mem_buf_dup_p->flg_nr)
+					di_que_in(channel,
+						  QUE_PRE_READY,
 						  ppre->di_mem_buf_dup_p);
-				}
-				ppre->di_mem_buf_dup_p = ppre->di_wr_buf;
+
+				/* send nr to mem */
+				ppre->di_mem_buf_dup_p =
+					ppre->di_wr_buf;
 			}
 
 			ppre->di_wr_buf->seq = ppre->pre_ready_seq++;

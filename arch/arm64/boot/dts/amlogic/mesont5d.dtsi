@@ -1376,6 +1376,10 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
+		ponly_mode = <1>;
+		bp_thd = <0>;
+		/* add for t5d verb bypass mem 2 ~ 15 */
+		t5db_nr_thd = <2>;
 	};
 
 	ionvideo {
