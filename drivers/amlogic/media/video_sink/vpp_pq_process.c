@@ -438,12 +438,6 @@ void vf_pq_process(struct vframe_s *vf,
 				i + 1, prob[i][0], prob[i][1]);
 	}
 
-	aipq_set_policy = get_aipq_set_policy();
-	if (aipq_set_policy)
-		aipq_scs_bld_proc(vpp_pq_data, prob, bld_ofst, pq_debug);
-	else
-		aipq_scs_proc(vf, vpp_pq_data, prob, bld_ofst, pq_debug);
-
 	if (pq_debug[0] != -1)
 		pq_value = pq_debug[0];
 
@@ -452,6 +446,12 @@ void vf_pq_process(struct vframe_s *vf,
 
 	if (pq_debug[1])
 		pq_value = 23;
+
+	aipq_set_policy = get_aipq_set_policy();
+	if (aipq_set_policy)
+		aipq_scs_bld_proc(vpp_pq_data, prob, bld_ofst, pq_debug);
+	else
+		aipq_scs_proc(vf, vpp_pq_data, prob, bld_ofst, pq_debug);
 
 	if (pq_debug[2] == 0x1)
 		pr_info("top5:%d,%d; %d,%d; %d,%d; %d,%d; %d,%d;\n",
