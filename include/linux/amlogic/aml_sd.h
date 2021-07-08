@@ -412,6 +412,7 @@ void aml_host_bus_fsm_show(struct mmc_host *mmc, int status);
 	((_x) << 0) | ((_x) << 6) | ((_x) << 12); }
 
 #define SD_EMMC_FIXED_ADJ_HS200
+#define EMMC_CMD_WIN_MAX_SIZE	50
 
 #define DBG_COMMON        BIT(0)
 #define DBG_HS200         BIT(1)
