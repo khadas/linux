@@ -2132,6 +2132,13 @@ static void codec_mm_tvp_segment_init(void)
 	}
 	default_tvp_4k_size = mgt->total_codec_mem_size - SZ_1M * 2;
 	default_tvp_size = default_tvp_4k_size;
+
+	if (default_tvp_pool_size_0 > default_tvp_size) {
+		default_tvp_pool_size_0 = default_tvp_size;
+		default_tvp_pool_size_1 = 0;
+		default_tvp_pool_size_2 = 0;
+	}
+
 	size = default_tvp_pool_size_0 +
 		default_tvp_pool_size_1 + default_tvp_pool_size_2;
 	if (size > default_tvp_size) {
