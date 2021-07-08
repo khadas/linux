@@ -805,6 +805,7 @@ static void lc_config(int enable,
 	int h_num, v_num;
 	unsigned int height, width;
 	static unsigned int vf_height, vf_width, flag_full_pre;
+	static unsigned int sps_w_in_pre, sps_h_in_pre;
 	unsigned int flag, flag_full;
 
 	h_num = 12;
@@ -826,14 +827,23 @@ static void lc_config(int enable,
 		flag_full = detect_signal_range_en;
 	}
 
-	if (flag_full != flag_full_pre) {
-		pr_info("signal changed, flag_full:%d->%d\n",
-			flag_full_pre, flag_full);
+	if (flag_full != flag_full_pre ||
+		sps_h_in_pre != sps_h_in ||
+		sps_w_in_pre != sps_w_in) {
+		pr_amlc_dbg("signal/sps_w_in/sps_h_in changed, flag_full:%d->%d sps_w_in:%d->%d sps_h_in:%d->%d\n",
+				flag_full_pre,
+				flag_full,
+				sps_w_in_pre,
+				sps_w_in,
+				sps_h_in_pre,
+				sps_h_in);
 	}
 
 	if (vf_height == vf->height &&
 	    vf_width == vf->width &&
 	    flag_full == flag_full_pre &&
+	    sps_w_in_pre == sps_w_in &&
+	    sps_h_in_pre == sps_h_in &&
 	    lc_en_chflg) {
 		return;
 	}
@@ -841,6 +851,8 @@ static void lc_config(int enable,
 	flag_full_pre = flag_full;
 	height = sps_h_in << sps_h_en;
 	width = sps_w_in << sps_v_en;
+	sps_w_in_pre = sps_w_in;
+	sps_h_in_pre = sps_h_in;
 
 	vf_height = vf->height;
 	vf_width = vf->width;
