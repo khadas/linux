@@ -1565,23 +1565,6 @@ RESTART:
 	if (wide_mode >= VIDEO_WIDEOPTION_4_3_IGNORE &&
 	    wide_mode <= VIDEO_WIDEOPTION_16_9_COMBINED &&
 		orig_aspect) {
-		if (vinfo->width && vinfo->height)
-			aspect_ratio_out = (vinfo->height << 10) / vinfo->width;
-
-		if ((video_height << 10) > (video_width * aspect_ratio_out)) {
-			u32 real_video_height =
-				(video_width * aspect_ratio_out) >> 10;
-
-			video_top += (video_height - real_video_height) >> 1;
-			video_height = real_video_height;
-		} else {
-			u32 real_video_width =
-				(video_height << 10) / aspect_ratio_out;
-
-			video_left += (video_width - real_video_width) >> 1;
-			video_width = real_video_width;
-		}
-
 		if (!fill_match) {
 			u32 screen_ratio_x, screen_ratio_y;
 
