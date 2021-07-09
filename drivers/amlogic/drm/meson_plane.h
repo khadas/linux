@@ -73,4 +73,8 @@ int meson_osd_plane_async_check(struct drm_plane *plane,
 void meson_osd_plane_async_update(struct drm_plane *plane,
 	struct drm_plane_state *new_state);
 
+struct drm_property *
+meson_create_scaling_filter_prop(struct drm_device *dev,
+			       unsigned int supported_filters);
+
 #endif

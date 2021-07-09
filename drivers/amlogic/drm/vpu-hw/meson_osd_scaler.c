@@ -536,6 +536,7 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 	u32 width_out = scaler_state->output_width;
 	u32 height_out = scaler_state->output_height;
 	u32 scan_mode_out = scaler_state->scan_mode_out;
+	u32 scaler_filter_mode = scaler_state->scaler_filter_mode;
 	u32 vsc_double_line_mode;
 	u32 *coef_h, *coef_v;
 	u64 phase_step_v, phase_step_h;
@@ -604,6 +605,12 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 	} else if (scan_mode_out && width_out <= 720) {
 		coef_h = osd_scaler_filter_table[COEFS_4POINT_TRIANGLE];
 		coef_v = osd_scaler_filter_table[COEFS_4POINT_TRIANGLE];
+	} else if (scaler_filter_mode >= DRM_SCALING_FILTER_BICUBIC_SHARP &&
+		   scaler_filter_mode <=  DRM_SCALING_FILTER_REPEATE){
+		coef_h = osd_scaler_filter_table[scaler_filter_mode -
+			DRM_SCALING_FILTER_BICUBIC_SHARP];
+		coef_v = osd_scaler_filter_table[scaler_filter_mode -
+			DRM_SCALING_FILTER_BICUBIC_SHARP];
 	} else {
 		coef_h = osd_scaler_filter_table[COEFS_BICUBIC];
 		coef_v = osd_scaler_filter_table[COEFS_BICUBIC];
@@ -717,6 +724,18 @@ void scan_mode_check(struct meson_vpu_pipeline *pipeline,
 	}
 }
 
+void scaler_filter_mode_check(struct meson_vpu_block *vblk,
+		     struct meson_vpu_scaler_state *scaler_state,
+		struct meson_vpu_pipeline_state *mvps)
+{
+	u32 scaling_filter_mode = mvps->plane_info[vblk->index].scaling_filter;
+
+	if (scaler_state->scaler_filter_mode != scaling_filter_mode) {
+		scaler_state->scaler_filter_mode = scaling_filter_mode;
+		osdscaler_force_update = 1;
+	}
+}
+
 static int scaler_check_state(struct meson_vpu_block *vblk,
 			      struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps)
@@ -752,6 +771,7 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 	}
 	scaler_size_check(vblk, state);
 	scan_mode_check(vblk->pipeline, scaler_state);
+	scaler_filter_mode_check(vblk, scaler_state, mvps);
 	DRM_DEBUG("scaler_state=0x%x\n", scaler_state->state_changed);
 	if (scaler_state->state_changed || osdscaler_force_update) {
 		osd_scaler_config(reg, scaler_state, vblk);

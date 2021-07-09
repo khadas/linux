@@ -357,7 +357,7 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 							meson_fb->bufp[0],
 							&fb_size[0]);
 	} else {
-		phyaddr = 0;
+		//phyaddr = 0;
 		DRM_INFO("don't find phyaddr!\n");
 		return -EINVAL;
 	}
@@ -505,14 +505,13 @@ static int meson_plane_atomic_set_property(struct drm_plane *plane,
 static struct drm_plane_state *
 meson_plane_duplicate_state(struct drm_plane *plane)
 {
-	struct am_meson_plane_state *meson_plane_state, *old_plane_state;
+	struct am_meson_plane_state *meson_plane_state;
 
 	if (WARN_ON(!plane->state))
 		return NULL;
 
 	DRM_DEBUG("%s (%s)\n", __func__, plane->name);
 
-	old_plane_state = to_am_meson_plane_state(plane->state);
 	meson_plane_state = kzalloc(sizeof(*meson_plane_state), GFP_KERNEL);
 	if (!meson_plane_state)
 		return NULL;
@@ -718,6 +717,7 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 	plane_info->pixel_blend = state->pixel_blend_mode;
 	plane_info->global_alpha = state->alpha;
 
+	plane_info->scaling_filter = (u32)state->scaling_filter;
 	mvps->plane_index[osd_plane->plane_index] = osd_plane->plane_index;
 	meson_plane_position_calc(plane_info, state, mvps->pipeline);
 	ret = meson_plane_check_size_range(plane_info);
@@ -764,7 +764,6 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 	struct meson_vpu_pipeline_state *mvps;
 	struct am_video_plane *video_plane = to_am_video_plane(plane);
 	struct meson_drm *drv = video_plane->drv;
-	struct am_meson_plane_state *plane_state;
 	int ret;
 
 	if (!state || !drv) {
@@ -779,6 +778,7 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 		DRM_INFO("%s mvps/video_plane is NULL!\n", __func__);
 		return -EINVAL;
 	}
+
 	plane_info = &mvps->video_plane_info[video_plane->plane_index];
 	plane_info->plane_index = video_plane->plane_index;
 	plane_info->zorder = state->zpos + plane_info->plane_index;
@@ -800,7 +800,6 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 		return ret;
 	}
 
-	plane_state = to_am_meson_plane_state(state);
 	plane_info->enable = 1;
 	DRM_DEBUG("VIDOE PLANE index=%d, zorder=%d\n",
 		  plane_info->plane_index, plane_info->zorder);
@@ -848,6 +847,11 @@ int meson_osd_plane_async_check(struct drm_plane *plane,
 	}
 
 	mvps = meson_vpu_pipeline_get_state(drv->pipeline, new_state->state);
+	if (!mvps) {
+		DRM_ERROR("mvps is NULL.\n");
+		return -EINVAL;
+	}
+
 	plane_info = &mvps->plane_info[osd_plane->plane_index];
 	if ((plane_info->enable && !new_state->fb) || !plane_info->enable) {
 		DRM_ERROR("plane visible state changed.\n");
@@ -945,12 +949,93 @@ static const struct drm_plane_helper_funcs am_video_helper_funcs = {
 	.atomic_disable	= meson_video_plane_atomic_disable,
 };
 
+struct drm_property *
+meson_create_scaling_filter_prop(struct drm_device *dev,
+			       unsigned int supported_filters)
+{
+	struct drm_property *prop;
+	static const struct drm_prop_enum_list props[] = {
+	{ DRM_SCALING_FILTER_DEFAULT, "Default" },
+	{ DRM_SCALING_FILTER_NEAREST_NEIGHBOR, "Nearest Neighbor" },
+	{ DRM_SCALING_FILTER_BICUBIC_SHARP, "Bicubic_Sharp" },
+	{ DRM_SCALING_FILTER_BICUBIC, "Bicubic" },
+	{ DRM_SCALING_FILTER_BILINEAR, "Bilinear" },
+	{ DRM_SCALING_FILTER_2POINT_BINILEAR, "2Point_Bilinear" },
+	{ DRM_SCALING_FILTER_3POINT_TRIANGLE_SHARP, "3Point_Triangle_Sharp" },
+	{ DRM_SCALING_FILTER_3POINT_TRIANGLE, "3Point_Triangle" },
+	{ DRM_SCALING_FILTER_4POINT_TRIANGLE, "4Point_Triangle" },
+	{ DRM_SCALING_FILTER_4POINT_BSPLINE, "4Point_BSPline" },
+	{ DRM_SCALING_FILTER_3POINT_BSPLINE, "3Point_BSPline" },
+	{ DRM_SCALING_FILTER_REPEATE, "Repeate" },
+	};
+	unsigned int valid_mode_mask = BIT(DRM_SCALING_FILTER_DEFAULT) |
+				BIT(DRM_SCALING_FILTER_NEAREST_NEIGHBOR) |
+				BIT(DRM_SCALING_FILTER_BICUBIC_SHARP) |
+				BIT(DRM_SCALING_FILTER_BICUBIC) |
+				BIT(DRM_SCALING_FILTER_BILINEAR) |
+				BIT(DRM_SCALING_FILTER_2POINT_BINILEAR)  |
+				BIT(DRM_SCALING_FILTER_3POINT_TRIANGLE_SHARP) |
+				BIT(DRM_SCALING_FILTER_3POINT_TRIANGLE) |
+				BIT(DRM_SCALING_FILTER_4POINT_TRIANGLE) |
+				BIT(DRM_SCALING_FILTER_4POINT_BSPLINE) |
+				BIT(DRM_SCALING_FILTER_3POINT_BSPLINE) |
+				BIT(DRM_SCALING_FILTER_REPEATE);
+
+	int i;
+
+	if (WARN_ON((supported_filters & ~valid_mode_mask) ||
+		((supported_filters & BIT(DRM_SCALING_FILTER_DEFAULT)) == 0)))
+		return ERR_PTR(-EINVAL);
+
+	prop = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+				   "SCALING_FILTER",
+				   hweight32(supported_filters));
+	if (!prop)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < ARRAY_SIZE(props); i++) {
+		int ret;
+
+		if (!(BIT(props[i].type) & supported_filters))
+			continue;
+
+		ret = drm_property_add_enum(prop, props[i].type,
+					    props[i].name);
+
+		if (ret) {
+			drm_property_destroy(dev, prop);
+
+			return ERR_PTR(ret);
+		}
+	}
+
+	return prop;
+}
+
+int meson_plane_create_scaling_filter_property(struct drm_plane *plane,
+					     unsigned int supported_filters)
+{
+	struct drm_property *prop =
+		meson_create_scaling_filter_prop(plane->dev, supported_filters);
+
+	if (IS_ERR(prop))
+		return PTR_ERR(prop);
+
+	drm_object_attach_property(&plane->base, prop,
+				   DRM_SCALING_FILTER_DEFAULT);
+	plane->scaling_filter_property = prop;
+
+	return 0;
+}
+
 static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 {
 	struct am_osd_plane *osd_plane;
 	struct drm_plane *plane;
-	u32 type = 0, zpos, min_zpos, max_zpos;
+	enum drm_plane_type type = DRM_PLANE_TYPE_OVERLAY;
+	u32  zpos, min_zpos, max_zpos;
 	char plane_name[8];
+	const char *const_plane_name;
 
 	osd_plane = devm_kzalloc(priv->drm->dev, sizeof(*osd_plane),
 				 GFP_KERNEL);
@@ -976,13 +1061,14 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 
 	plane = &osd_plane->base;
 	sprintf(plane_name, "osd%d", i);
+	const_plane_name = plane_name;
 
 	drm_universal_plane_init(priv->drm, plane, 0xFF,
 				 &am_osd_plane_funs,
 				 supported_drm_formats,
 				 ARRAY_SIZE(supported_drm_formats),
 				 afbc_modifier,
-				 type, plane_name);
+				 type, const_plane_name);
 	drm_plane_create_blend_mode_property(plane,
 				BIT(DRM_MODE_BLEND_PIXEL_NONE) |
 				BIT(DRM_MODE_BLEND_PREMULTI)   |
@@ -994,6 +1080,19 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 				DRM_MODE_REFLECT_MASK);
 	drm_plane_create_zpos_property(plane, zpos, min_zpos, max_zpos);
 	drm_plane_helper_add(plane, &am_osd_helper_funcs);
+	meson_plane_create_scaling_filter_property(plane,
+				BIT(DRM_SCALING_FILTER_DEFAULT) |
+				BIT(DRM_SCALING_FILTER_NEAREST_NEIGHBOR) |
+				BIT(DRM_SCALING_FILTER_BICUBIC_SHARP) |
+				BIT(DRM_SCALING_FILTER_BICUBIC) |
+				BIT(DRM_SCALING_FILTER_BILINEAR) |
+				BIT(DRM_SCALING_FILTER_2POINT_BINILEAR) |
+				BIT(DRM_SCALING_FILTER_3POINT_TRIANGLE_SHARP) |
+				BIT(DRM_SCALING_FILTER_3POINT_TRIANGLE) |
+				BIT(DRM_SCALING_FILTER_4POINT_TRIANGLE) |
+				BIT(DRM_SCALING_FILTER_4POINT_BSPLINE) |
+				BIT(DRM_SCALING_FILTER_3POINT_BSPLINE) |
+				BIT(DRM_SCALING_FILTER_REPEATE));
 	DRM_INFO("osd plane %d create done\n", i);
 	return osd_plane;
 }
@@ -1005,6 +1104,7 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 	struct drm_plane *plane;
 	char plane_name[8];
 	u32 zpos, min_zpos, max_zpos;
+	const char *const_plane_name;
 
 	video_plane = devm_kzalloc(priv->drm->dev, sizeof(*video_plane),
 				   GFP_KERNEL);
@@ -1024,13 +1124,14 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 
 	plane = &video_plane->base;
 	sprintf(plane_name, "video%d", i);
+	const_plane_name = plane_name;
 
 	drm_universal_plane_init(priv->drm, plane, 0xFF,
 				 &am_video_plane_funs,
 				 video_supported_drm_formats,
 				 ARRAY_SIZE(video_supported_drm_formats),
 				 video_fbc_modifier,
-				 DRM_PLANE_TYPE_OVERLAY, plane_name);
+				 DRM_PLANE_TYPE_OVERLAY, const_plane_name);
 
 	drm_plane_create_zpos_property(plane, zpos, min_zpos, max_zpos);
 	drm_plane_helper_add(plane, &am_video_helper_funcs);

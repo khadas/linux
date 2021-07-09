@@ -166,6 +166,7 @@ struct meson_vpu_osd_layer_info {
 	u32 rotation;
 	u32 blend_bypass;
 	u32 global_alpha;
+	u32 scaling_filter;
 };
 
 struct meson_vpu_osd {
@@ -311,6 +312,7 @@ struct meson_vpu_scaler_state {
 	u32 scan_mode_out;
 	u32 state_changed;
 	u32 free_scale_enable;
+	u32 scaler_filter_mode;
 };
 
 struct meson_vpu_scaler_param {
