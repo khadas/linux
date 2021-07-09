@@ -2532,6 +2532,7 @@ void aisr_set_filters(struct disp_info_s *input,
 	u32 crop_ratio = 1;
 	u32 crop_left, crop_right, crop_top, crop_bottom;
 	u32 cur_super_debug = 0;
+	u32 wide_mode;
 	struct vppfilter_mode_s *filter = NULL;
 	struct vpp_frame_par_s *aisr_frame_par;
 
@@ -2539,10 +2540,19 @@ void aisr_set_filters(struct disp_info_s *input,
 		return;
 	if (vpp_flags & VPP_FLAG_MORE_LOG)
 		cur_super_debug = super_debug;
+	/* don't use input->wide_mode */
+	wide_mode = (vpp_flags & VPP_FLAG_WIDEMODE_MASK) >> VPP_WIDEMODE_BITS;
 	aisr_frame_par = &cur_dev->aisr_frame_parms;
 	aisr_frame_par->vscale_skip_count = 0;
 	filter = &aisr_frame_par->vpp_filter;
 
+		/* speical mode did not use ext sar mode */
+	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
+	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP ||
+	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T) {
+		aisr_frame_par->aisr_enable = 0;
+		return;
+	}
 	w_in = aisr_frame_par->video_input_w;
 	h_in = aisr_frame_par->video_input_h;
 
