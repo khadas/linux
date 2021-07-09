@@ -1228,12 +1228,12 @@ void demod_init_local(void)
 	} while (1);
 }
 
-void dvbs2_reg_initial(unsigned int symkb_rate)
+void dvbs2_reg_initial(unsigned int symb_rate)
 {
 	unsigned int tmp = 0;
 
 	/* BW/(1+ROLLOFF)=SYMBOLRATE */
-	tmp = symkb_rate * ((16777216 + 67500) / 135000);
+	tmp = symb_rate * ((16777216 + 67500) / 135000);
 
 	dvbs_wr_byte(0x9fc, (tmp >> 16) & 0xff);
 	dvbs_wr_byte(0x9fd, (tmp >> 8) & 0xff);
@@ -1488,4 +1488,29 @@ unsigned int dvbs_get_quality(void)
 		}
 	}
 	return c_n;
+}
+
+unsigned int dvbs_get_freq_offset(unsigned int *polarity)
+{
+	unsigned int carrier_offset, freq_offset;
+
+	carrier_offset = dvbs_rd_byte(CFR12) << 16;
+	carrier_offset |= dvbs_rd_byte(CFR11) << 8;
+	carrier_offset |= dvbs_rd_byte(CFR10);
+	PR_DVBS("%s carrier offset = 0x%x\n", __func__, carrier_offset);
+
+	*polarity = carrier_offset >> 23 & 0x1;
+	/* negative val, convert to original code */
+	if (*polarity) {
+		carrier_offset ^= 0xffffff;
+		carrier_offset += 1;
+		PR_DVBS("%s convert : 0x%x\n", __func__, carrier_offset);
+	}
+
+	/* fre offset = carrier_offset * Fs(adc) / 2^24 */
+	freq_offset = carrier_offset * 135;//ADC_CLK_135M
+	freq_offset /= 16777216;/* 2^24 */
+	PR_DVBS("%s, fre offset = %dM\n", __func__, freq_offset);
+
+	return freq_offset;
 }

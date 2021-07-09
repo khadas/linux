@@ -100,6 +100,11 @@ struct fe_lla_lookup_t {
 
 #define DSTATUS		0x934
 
+/* carrier offset */
+#define	CFR12	0x9cf
+#define	CFR11	0x9d0
+#define	CFR10	0x9d1
+
 void dvbs2_diseqc_send_msg(unsigned int len, unsigned char *msg);
 void dvbs2_diseqc_read_msg(unsigned int *len, unsigned char *msg);
 unsigned int dvbs2_diseqc_irq_check(void);
@@ -107,5 +112,6 @@ void dvbs2_diseqc_irq_en(unsigned int onoff);
 void dvbs2_diseqc_init(void);
 void dvbs2_diseqc_continuous_tone(unsigned int onoff);
 void dvbs_check_status(struct seq_file *seq);
+unsigned int dvbs_get_freq_offset(unsigned int *polarity);
 
 #endif

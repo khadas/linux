@@ -1273,6 +1273,14 @@ static ssize_t attr_store(struct class *cls,
 				qam_write_bits(demod, 0x11, 0x00, 24, 8);
 			PR_INFO("ic card set mode to %d\n", val);
 		}
+	} else if (!strcmp(parm[0], "blind_min")) {
+		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
+			devp->blind_debug_min_frc = val;
+		PR_INFO("set blind frec min to %d\n", devp->blind_debug_min_frc);
+	} else if (!strcmp(parm[0], "blind_max")) {
+		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
+			devp->blind_debug_max_frc = val;
+		PR_INFO("set blind frec max to %d\n", devp->blind_debug_max_frc);
 	}
 
 fail_exec_cmd:
