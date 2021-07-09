@@ -320,6 +320,9 @@ struct amldtvdemod_device_s {
 	unsigned int blind_fre_step;
 	unsigned int blind_timeout;
 	unsigned int blind_scan_stop;
+	unsigned int blind_debug_max_frc;
+	unsigned int blind_debug_min_frc;
+	unsigned int blind_same_frec;
 
 	bool vdac_enable;
 	bool agc_pin_enable;
