@@ -37,7 +37,7 @@ struct chan_id {
 	unsigned int memdescs_phy;
 	unsigned int r_offset;
 	unsigned long memdescs_map;
-	unsigned long last_w_addr;
+	unsigned int last_w_addr;
 	unsigned int tee_handle;
 
 	/*just for DVR sec direct mem*/

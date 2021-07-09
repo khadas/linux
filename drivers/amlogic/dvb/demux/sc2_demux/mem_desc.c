@@ -11,6 +11,7 @@
 #include <linux/amlogic/tee.h>
 #include <linux/fs.h>
 #include <linux/syscalls.h>
+#include <linux/delay.h>
 
 //#define CHECK_PACKET_ALIGNM
 #ifdef CHECK_PACKET_ALIGNM
@@ -827,6 +828,7 @@ int SC2_bufferid_read(struct chan_id *pchan, char **pread, unsigned int len,
 
 	pchan->last_w_addr = w_offset;
 	if (w_offset != pchan->r_offset) {
+		usleep_range(20, 30);
 		pr_dbg("%s w:0x%0x, r:0x%0x, wr_len:0x%0x\n", __func__,
 		       (u32)w_offset, (u32)(pchan->r_offset),
 		       (u32)w_offset_org);
