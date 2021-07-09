@@ -71,6 +71,12 @@ enum pcr_disc_flag {
 	AUDIO_DISC = 4
 };
 
+enum wake_up_flag {
+	WAKE_V = 1,
+	WAKE_A = 2,
+	WAKE_AV = 3
+};
+
 #define A_DISC_SET(flag) (((flag) & AUDIO_DISC) == AUDIO_DISC)
 #define V_DISC_SET(flag) (((flag) & VIDEO_DISC) == VIDEO_DISC)
 #define PCR_DISC_SET(flag) (((flag) & PCR_DISC) == PCR_DISC)
@@ -138,7 +144,7 @@ struct sync_session {
 	struct device *session_dev;
 	/* wait queue for poll */
 	wait_queue_head_t poll_wait;
-	bool event_pending;
+	u32  event_pending;
 
 	/* start policy timer */
 	bool wait_work_on;
@@ -353,9 +359,12 @@ static unsigned int session_poll(struct file *file, poll_table *wait_table)
 	return 0;
 }
 
-static void wait_up_poll(struct sync_session *session)
+static void wakeup_poll(struct sync_session *session, u32 flag)
 {
-	session->event_pending = true;
+	if (session->v_active && (flag & WAKE_V))
+		session->event_pending |= WAKE_V;
+	if (session->a_active && (flag & WAKE_A))
+		session->event_pending |= WAKE_A;
 	wake_up_interruptible(&session->poll_wait);
 }
 
@@ -403,7 +412,7 @@ static void wait_work_func(struct work_struct *work)
 	session->wait_work_on = false;
 	mutex_unlock(&session->session_mutex);
 	if (wake)
-		wait_up_poll(session);
+		wakeup_poll(session, WAKE_A);
 }
 
 static void audio_change_work_func(struct work_struct *work)
@@ -431,7 +440,7 @@ static void audio_change_work_func(struct work_struct *work)
 	session->audio_change_work_on = false;
 	mutex_unlock(&session->session_mutex);
 	if (wake)
-		wait_up_poll(session);
+		wakeup_poll(session, WAKE_A);
 }
 
 static void pcr_start_work_func(struct work_struct *work)
@@ -803,7 +812,7 @@ static void session_video_start(struct sync_session *session, u32 pts)
 exit:
 	mutex_unlock(&session->session_mutex);
 	if (wakeup)
-		wait_up_poll(session);
+		wakeup_poll(session, WAKE_A);
 }
 
 static u32 session_audio_start(struct sync_session *session,
@@ -959,7 +968,7 @@ static u32 session_audio_start(struct sync_session *session,
 exit:
 	mutex_unlock(&session->session_mutex);
 	if (wakeup)
-		wait_up_poll(session);
+		wakeup_poll(session, WAKE_A);
 	return ret;
 }
 
@@ -1010,7 +1019,7 @@ static void session_video_stop(struct sync_session *session)
 			div64_u64((u64)jiffies * UNIT90K, HZ);
 	}
 	mutex_unlock(&session->session_mutex);
-	wait_up_poll(session);
+	wakeup_poll(session, WAKE_A);
 }
 
 static void session_audio_stop(struct sync_session *session)
@@ -1048,7 +1057,7 @@ static void session_audio_stop(struct sync_session *session)
 		session->last_check_apts_cnt = 0;
 	}
 	mutex_unlock(&session->session_mutex);
-	wait_up_poll(session);
+	wakeup_poll(session, WAKE_V);
 }
 
 /*
@@ -1590,7 +1599,7 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		}
 		mutex_unlock(&session->session_mutex);
 		if (wakeup)
-			wait_up_poll(session);
+			wakeup_poll(session, WAKE_A);
 		break;
 	}
 	case AMSYNCS_IOC_GET_MODE:
@@ -1660,11 +1669,11 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSYNCS_IOC_GET_SYNC_STAT:
 	{
 		struct session_sync_stat stat;
+		enum src_flag flag;
 
-		if (session->mode != AVS_MODE_PCR_MASTER &&
-				session->mode != AVS_MODE_A_MASTER &&
-				session->mode != AVS_MODE_IPTV)
-			return -EINVAL;
+		if (copy_from_user(&stat, argp, sizeof(stat)))
+			return -EFAULT;
+		flag = stat.flag;
 		stat.v_active = session->v_active;
 		stat.v_timeout = session->v_timeout;
 		stat.a_active = session->a_active;
@@ -1672,7 +1681,10 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		stat.audio_switch = session->audio_switching;
 		if (copy_to_user(argp, &stat, sizeof(stat)))
 			return -EFAULT;
-		session->event_pending = false;
+		if (session->v_active && flag == SRC_V)
+			session->event_pending &= ~SRC_V;
+		else if (session->a_active && flag == SRC_A)
+			session->event_pending &= ~SRC_A;
 		break;
 	}
 	case AMSYNCS_IOC_SET_PCR:
@@ -1727,7 +1739,7 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			session->id, session->rate, rate);
 		session->rate = rate;
 		if (session->mode == AVS_MODE_A_MASTER)
-			wait_up_poll(session);
+			wakeup_poll(session, WAKE_A);
 		break;
 	}
 	case AMSYNCS_IOC_GET_RATE:
@@ -1912,11 +1924,13 @@ static ssize_t session_stat_show(struct class *cla,
 		session->v_active, session->a_active,
 		session->first_vpts.pts,
 		session->first_apts.pts,
-		session->last_vpts.pts,
+		session->last_vpts.pts - session->last_vpts.delay,
 		session->last_apts.pts,
 		(int)(session->last_apts.pts - session->wall_clock) / 90,
-		(int)(session->last_vpts.pts - session->wall_clock) / 90,
-		(int)(session->last_apts.pts - session->last_vpts.pts) / 90,
+		(int)(session->last_vpts.pts - session->wall_clock -
+				session->last_vpts.delay) / 90,
+		(int)(session->last_apts.pts - session->last_vpts.pts +
+				session->last_vpts.delay) / 90,
 		session->clock_start, session->rate,
 		session->wall_clock,
 		session->use_pcr ? 'y' : 'n',
@@ -2010,7 +2024,9 @@ static ssize_t free_run_store(struct class *cla,
 	r = kstrtobool(buf, &session->debug_freerun);
 	if (r != 0)
 		return -EINVAL;
-	wait_up_poll(session);
+	wakeup_poll(session, WAKE_AV);
+	msync_dbg(LOG_WARN, "session[%d] freerun %d\n",
+		session->id, session->debug_freerun);
 	return count;
 }
 
