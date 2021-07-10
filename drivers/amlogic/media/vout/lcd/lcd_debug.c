@@ -5273,6 +5273,7 @@ static ssize_t lcd_edp_dpcd_debug_store(struct device *dev, struct device_attrib
 static ssize_t lcd_edp_edid_debug_store(struct device *dev, struct device_attribute *attr,
 					const char *buf, size_t count)
 {
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	struct edp_config_s *edp_conf;
 
@@ -5288,7 +5289,7 @@ static ssize_t lcd_edp_edid_debug_store(struct device *dev, struct device_attrib
 		LCDERR("invalid command\n");
 		break;
 	}
-
+#endif
 	return count;
 }
 
@@ -6530,7 +6531,9 @@ static ssize_t lcd_mipi_cmd_debug_show(struct device *dev,
 static ssize_t lcd_mipi_cmd_debug_store(struct device *dev, struct device_attribute *attr,
 					const char *buf, size_t count)
 {
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+#endif
 	unsigned char *cmd_table = NULL;
 	unsigned int para[24];
 	int ret = 0;
