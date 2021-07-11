@@ -254,6 +254,38 @@ int tsout_config_get_pcr(u32 pcr_entry, u64 *pcr)
 	return 0;
 }
 
+void tsout_config_remap_table(u32 pid_entry, u32 sid, int pid, int pid_new)
+{
+	union PID_CFG_FIELD cfg;
+	union PID_DATA_FIELD data;
+
+	cfg.data = 0;
+	data.data = 0;
+
+	if (pid_new == -1)
+		cfg.b.on_off = 0;
+	else
+		cfg.b.on_off = 1;
+
+	data.b.pid_mask = pid_new & 0x1fff;
+	data.b.pid = pid & 0x1fff;
+	cfg.b.pid_entry = pid_entry;
+	cfg.b.remap_flag = 1;
+	cfg.b.buffer_id = sid;
+	cfg.b.mode = MODE_WRITE;
+	cfg.b.ap_pending = 1;
+
+	WRITE_CBUS_REG(TS_OUTPUT_PID_DAT, data.data);
+	WRITE_CBUS_REG(TS_OUTPUT_PID_CFG, cfg.data);
+
+	pr_dbg("%s data.data:0x%0x\n", __func__, data.data);
+	pr_dbg("%s cfg.data:0x%0x\n", __func__, cfg.data);
+
+	do {
+		cfg.data = READ_CBUS_REG(TS_OUTPUT_PID_CFG);
+	} while (cfg.b.ap_pending);
+}
+
 unsigned int dsc_get_ready(int dsc_type)
 {
 	if (dsc_type == CA_DSC_COMMON_TYPE)

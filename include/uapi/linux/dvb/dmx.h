@@ -488,5 +488,6 @@ typedef struct dmx_filter dmx_filter_t;
 /*just for dvr sec mem, please call before DMX_SET_PES_FILTER*/
 #define DMX_SET_SEC_MEM			_IOW('o', 85, struct dmx_sec_mem)
 #define DMX_GET_DVR_MEM			_IOR('o', 86, struct dvr_mem_info)
+#define DMX_REMAP_PID			_IOR('o', 87, __u16[2])
 #endif
 #endif /* _DVBDMX_H_ */
