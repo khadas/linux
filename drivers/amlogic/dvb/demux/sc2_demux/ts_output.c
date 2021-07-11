@@ -1721,6 +1721,11 @@ int ts_output_init(int sid_num, int *sid_info)
 	}
 
 	memset(&remap_table, 0, sizeof(remap_table));
+	for (i = 0; i < MAX_REMAP_NUM; i++) {
+		struct remap_entry *remap_slot = &remap_table[i];
+
+		remap_slot->pid_entry = i;
+	}
 
 	out_elem_table = vmalloc(sizeof(*out_elem_table)
 				 * MAX_OUT_ELEM_NUM);
@@ -1819,6 +1824,51 @@ int ts_output_destroy(void)
 	return 0;
 }
 
+static struct remap_entry *ts_output_find_remap_entry(int sid, int pid)
+{
+	struct remap_entry *remap_slot = NULL;
+	int i;
+
+	for (i = 0; i < MAX_REMAP_NUM; i++) {
+		if (remap_table[i].status == 1 &&
+		    remap_table[i].stream_id == sid &&
+		    remap_table[i].pid == pid) {
+			remap_slot = &remap_table[i];
+			break;
+		}
+	}
+
+	return remap_slot;
+}
+
+static struct remap_entry *ts_output_allocate_remap_entry(void)
+{
+	struct remap_entry *remap_slot = NULL;
+	int i;
+
+	for (i = 0; i < MAX_REMAP_NUM; i++) {
+		if (remap_table[i].status == 0) {
+			remap_slot = &remap_table[i];
+			break;
+		}
+	}
+
+	return remap_slot;
+}
+
+static void ts_output_free_remap_entry(int sid, int pid)
+{
+	struct remap_entry *remap_slot = ts_output_find_remap_entry(sid, pid);
+
+	if (remap_slot) {
+		remap_slot->status = 0;
+		remap_slot->stream_id = 0;
+		remap_slot->remap_flag = 0;
+		remap_slot->pid = 0;
+		remap_slot->pid_new = 0;
+	}
+}
+
 /**
  * remap pid
  * \param sid: stream id
@@ -1829,6 +1879,35 @@ int ts_output_destroy(void)
  */
 int ts_output_remap_pid(int sid, int pid, int new_pid)
 {
+	struct remap_entry *remap_slot = NULL;
+
+	remap_slot = ts_output_find_remap_entry(sid, pid);
+	if (!remap_slot) {
+		if (new_pid < 0)
+			return 0;
+
+		remap_slot = ts_output_allocate_remap_entry();
+		if (!remap_slot) {
+			dprint("%s out of remap entry\n", __func__);
+			return -1;
+		}
+	}
+
+	remap_slot->status = 1;
+	remap_slot->stream_id = sid;
+	remap_slot->remap_flag = 1;
+	remap_slot->pid = pid;
+	remap_slot->pid_new = new_pid;
+
+	pr_dbg("%s id : %d, pid : %d, new pid : %d\n",
+			__func__, remap_slot->pid_entry,
+			remap_slot->pid, remap_slot->pid_new);
+
+	tsout_config_remap_table(remap_slot->pid_entry, sid, pid, new_pid);
+
+	if (new_pid < 0)
+		ts_output_free_remap_entry(sid, pid);
+
 	return 0;
 }
 

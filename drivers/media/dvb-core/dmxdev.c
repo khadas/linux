@@ -1198,6 +1198,13 @@ static int dvb_demux_do_ioctl(struct file *file,
 		}
 		ret = dmxdev->demux->get_dvr_mem(dmxdev->demux, parg);
 		break;
+	case DMX_REMAP_PID:
+		if (!dmxdev->demux->remap_pid) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmxdev->demux->remap_pid(dmxdev->demux, parg);
+		break;
 #endif
 
 	case DMX_ADD_PID:

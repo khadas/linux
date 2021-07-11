@@ -1556,6 +1556,28 @@ static int _dmx_get_dvr_mem(struct dmx_demux *dmx,
 	return 0;
 }
 
+static int _dmx_remap_pid(struct dmx_demux *dmx, u16 pids[2])
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	int pid = (short)pids[0];
+	int pid_new = (short)pids[1];
+	unsigned int sid;
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	if (demux->source != INPUT_DEMOD)
+		sid = demux->local_sid;
+	else
+		sid = demux->demod_sid;
+
+	ts_output_remap_pid(sid, pid, pid_new);
+
+	mutex_unlock(demux->pmutex);
+
+	return 0;
+}
+
 void dmx_init_hw(int sid_num, int *sid_info)
 {
 	ts_output_init(sid_num, sid_info);
@@ -1626,6 +1648,7 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 	pdmx->dmx.get_dmx_mem_info = _dmx_get_mem_info;
 	pdmx->dmx.set_sec_mem = _dmx_set_sec_mem;
 	pdmx->dmx.get_dvr_mem = _dmx_get_dvr_mem;
+	pdmx->dmx.remap_pid = _dmx_remap_pid;
 	pdmx->dev.filternum = (MAX_TS_FEED_NUM + MAX_SEC_FEED_NUM);
 	pdmx->dev.demux = &pdmx->dmx;
 	pdmx->dev.capabilities = DMXDEV_CAP_DUPLEX;
