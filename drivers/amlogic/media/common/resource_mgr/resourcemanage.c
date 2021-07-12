@@ -30,6 +30,8 @@
 #define DEVICE_NAME "amresource_mgr"
 #define DEVICE_CLASS_NAME "resource_mgr"
 
+#define QUERY_SECURE_BUFFER (1)
+#define QUERY_NO_SECURE_BUFFER (0)
 struct {
 	int id;
 	char *name;
@@ -41,6 +43,10 @@ struct {
 	{RESMAN_ID_TSPARSER, "tsparser"},
 	{RESMAN_ID_CODEC_MM, "codec_mm"},
 	{RESMAN_ID_ADC_PLL, "adc_pll"},
+	{RESMAN_ID_DECODER, "decoder"},
+	{RESMAN_ID_HWC, "hwc"},
+	{RESMAN_ID_DMX, "dmx"},
+	{RESMAN_ID_DI, "di"},
 	{0, NULL}
 };
 
@@ -809,8 +815,10 @@ static bool resman_codec_mm_enough(struct resman_resource *resource,
 {
 	bool enough = true;
 
-	if (!secure && codec_mm_get_free_size() < score)
+	if (!secure && (codec_mm_get_free_size() >> 20 < score)) {
 		enough = false;
+		dprintk(2, "free size 0x%x\n", codec_mm_get_free_size());
+	}
 	else if (secure && atomic_read(&resource->d.codec_mm.counter_secure)
 		>= resource->d.codec_mm.secure)
 		enough = false;
@@ -1146,8 +1154,11 @@ static void all_resource_init(void)
 		"tvp,type:3;"
 		"tsparser,type:1,avail:1;"
 		"codec_mm,type:4,total:0;"
-		"adc_pll,type:1,avail:1;";
-
+		"adc_pll,type:1,avail:1;"
+		"decoder,type:1,avail:9;"
+		"dmx,type:1,avail:4;"
+		"di,type:1,avail:4;"
+		"hwc,type:1,avail:9;";
 	INIT_LIST_HEAD(&sessions_head);
 	INIT_LIST_HEAD(&resources_head);
 	resman_parser_config(default_configs);
@@ -1212,6 +1223,22 @@ static int resman_estimate_tvp_available(int size)
 	return mode;
 }
 
+static int resman_codec_mm_available(int issecure)
+{
+	int avail = 0;
+
+	dprintk(2, "issecure %d\n", issecure);
+	if (issecure == QUERY_NO_SECURE_BUFFER)
+		avail = codec_mm_get_free_size() >> 20;
+	if (issecure == QUERY_SECURE_BUFFER) {
+		avail = (codec_mm_get_free_size() +
+			codec_mm_get_tvp_free_size()) >> 20;
+	}
+	dprintk(2, "avail %d\n", avail);
+
+	return avail;
+}
+
 static long resman_ioctl_query(struct resman_session *sess, unsigned long para)
 {
 	long r = 0;
@@ -1224,42 +1251,39 @@ static long resman_ioctl_query(struct resman_session *sess, unsigned long para)
 	memset(usage, 0, sizeof(usage));
 
 	if (copy_from_user((void *)&resman, argp, sizeof(resman))) {
-		r = -EINVAL;
-	} else {
-		selec_res = resman.k;
-		resource = resman_find_resource_by_id(selec_res);
-		if (resource) {
-			strncpy(resman.v.query.name,
-				resource->name, sizeof(resman.v.query.name));
-			resman.v.query.type = resource->type;
+		return -EINVAL;
+	}
+	selec_res = resman.k;
+	resource = resman_find_resource_by_id(selec_res);
+	if (resource) {
+		strncpy(resman.v.query.name,
+		resource->name, sizeof(resman.v.query.name));
+		resman.v.query.type = resource->type;
 
-			switch (resource->type) {
-			case RESMAN_TYPE_COUNTER:
-				resman.v.query.value = resource->value;
-				resman.v.query.avail =
-						resource->d.counter.avail;
-				break;
-			case RESMAN_TYPE_CODEC_MM:
-				resman.v.query.value = resource->value;
-				resman.v.query.avail =
-						resource->d.codec_mm.total;
-				break;
-			case RESMAN_TYPE_TVP:
-				resman.v.query.avail =
-					resman_estimate_tvp_available(resman.v.query.value);
-				break;
-			default:
-				break;
-			}
-
-			if (copy_to_user((void *)argp,
-					 &resman, sizeof(resman)))
-				r = -EFAULT;
-		} else {
-			r = -EINVAL;
-		}
+	switch (resource->type) {
+	case RESMAN_TYPE_COUNTER:
+		resman.v.query.value = resource->value;
+		resman.v.query.avail =
+			resource->d.counter.avail;
+		break;
+	case RESMAN_TYPE_CODEC_MM:
+		resman.v.query.avail =
+			resman_codec_mm_available(resman.v.query.value);
+		break;
+	case RESMAN_TYPE_TVP:
+		resman.v.query.avail =
+			resman_estimate_tvp_available(resman.v.query.value);
+		break;
+	default:
+		break;
 	}
 
+	if (copy_to_user((void *)argp,
+			&resman, sizeof(resman)))
+		r = -EFAULT;
+	} else {
+		r = -EINVAL;
+	}
 	return r;
 }
 
@@ -1270,7 +1294,10 @@ static long resman_ioctl_release(struct resman_session *sess,
 	int selec_res = (int)para;
 	struct resman_resource *resource;
 	struct resman_node  *node;
-
+	dprintk(2, "%d appname:%s, type=%d\n",
+			sess->id,
+			sess->app_name,
+			sess->app_type);
 	resource = resman_find_resource_by_id(selec_res);
 	if (!resource)
 		return -EINVAL;

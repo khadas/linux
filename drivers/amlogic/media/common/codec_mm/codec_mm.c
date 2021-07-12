@@ -2313,11 +2313,13 @@ int codec_mm_get_total_size(void)
 }
 EXPORT_SYMBOL(codec_mm_get_total_size);
 
+/*count remain size for no tvp*/
 int codec_mm_get_free_size(void)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 
 	return codec_mm_get_total_size() -
+		mgt->tvp_pool.total_size  + mgt->tvp_pool.alloced_size -
 		mgt->total_alloced_size;
 }
 EXPORT_SYMBOL(codec_mm_get_free_size);
