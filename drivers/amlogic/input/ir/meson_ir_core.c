@@ -32,6 +32,9 @@ static void meson_ir_do_keyup(struct meson_ir_dev *dev)
 	struct meson_ir_chip *chip = (struct meson_ir_chip *)dev->platform_data;
 	struct meson_ir_map_tab_list *ct = chip->cur_tab;
 
+	if (!ct)
+		return;
+
 	if (DECIDE_VENDOR_TA_ID) {
 		for (cnt = 0; cnt <= chip->input_cnt; cnt++) {
 			if (chip->search_id[cnt] == ct->tab.vendor)
@@ -82,6 +85,9 @@ static void meson_ir_do_keydown(struct meson_ir_dev *dev, int scancode,
 	int cnt;
 	struct meson_ir_chip *chip = (struct meson_ir_chip *)dev->platform_data;
 	struct meson_ir_map_tab_list *ct = chip->cur_tab;
+
+	if (!ct)
+		return;
 	meson_ir_dbg(dev, "keypressed=0x%x\n", dev->keypressed);
 
 	if (dev->keypressed)
