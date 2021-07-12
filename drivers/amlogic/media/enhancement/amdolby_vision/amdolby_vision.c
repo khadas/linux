@@ -8554,6 +8554,10 @@ static bool send_hdmi_pkt
 	static int sdr_transition_delay;
 	struct vd_signal_info_s vd_signal;
 
+	if ((debug_dolby & 2))
+		pr_dolby_dbg("[%s]src_format %d, dst %d, last %d:\n",
+			     __func__, src_format, dst_format, last_dst_format);
+
 	if (dst_format == FORMAT_HDR10) {
 		sdr_transition_delay = 0;
 		p_hdr = &dovi_setting.hdr_info;
@@ -8867,11 +8871,12 @@ static bool send_hdmi_pkt
 				hdr10_data.max_content = 0;
 				hdr10_data.max_frame_average = 0;
 				if (vinfo && vinfo->vout_device &&
-				    vinfo->vout_device->fresh_tx_hdr_pkt)
+				    vinfo->vout_device->fresh_tx_hdr_pkt) {
 					vinfo->vout_device->fresh_tx_hdr_pkt
 					(&hdr10_data);
+					last_dst_format = dst_format;
+				}
 			}
-			last_dst_format = dst_format;
 		} else if (last_dst_format == FORMAT_DOVI) {
 			if (vinfo && vinfo->vout_device &&
 			    vinfo->vout_device->fresh_tx_vsif_pkt) {
