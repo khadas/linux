@@ -50,15 +50,6 @@ enum meson_glb_topctl_ops {
 	SET_FORCE_COUNT			= 0x4,
 };
 
-/* TRIG_TYPE_** | TRIG_ONE_SHOT */
-enum meson_glb_srcsel_flag {
-	TRIG_TYPE_SW_SET		= 0,
-	TRIG_TYPE_RISING		= 1,
-	TRIG_TYPE_FALLING		= 2,
-	TRIG_TYPE_BOTH			= 3,
-	TRIG_ONE_SHOT			= 4,
-};
-
 enum output_level {
 	LOW				= 0,
 	HIGH				= 1,

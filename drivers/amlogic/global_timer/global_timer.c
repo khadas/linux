@@ -21,9 +21,12 @@
 #include <linux/regmap.h>
 #include <linux/clk.h>
 #include <linux/hrtimer.h>
+#include <linux/amlogic/glb_timer.h>
 #include "global_timer.h"
 
 //#define GLB_TIMER_TEST_CASE
+
+static struct meson_glb_timer *gbt;
 
 static struct regmap_config meson_regmap_config = {
 	.reg_bits = 32,
@@ -247,6 +250,31 @@ static inline void meson_glb_set_output_src(struct meson_glb_timer *glb, u8 srcn
 			   BIT(31) | GENMASK(3, 0), srcn | BIT(31));
 }
 
+int glb_timer_mipi_config(u8 srcn, unsigned int trig)
+{
+	if (!gbt) {
+		pr_err("gbl timer not probe yet\n");
+		return -ENODEV;
+	}
+
+	meson_glb_trig_src_config(gbt, srcn, trig);
+	meson_glb_trig_src_enable(gbt, srcn, 1);
+
+	return 0;
+}
+EXPORT_SYMBOL(glb_timer_mipi_config);
+
+unsigned long long glb_timer_get_counter(u8 srcn)
+{
+	if (!gbt) {
+		pr_err("gbl timer not probe yet\n");
+		return -ENODEV;
+	}
+
+	return meson_glb_trig_src_get_count(gbt, srcn);
+}
+EXPORT_SYMBOL(glb_timer_get_counter);
+
 static ssize_t current_val_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct meson_glb_timer *glb_timer = dev_get_drvdata(dev);
@@ -339,6 +367,8 @@ static int meson_glb_timer_probe(struct platform_device *pdev)
 	/* 100ms */
 	hrtimer_start(&glb_timer->tst_hrtimer, ktime_set(0, 100 * 1000 * 1000), HRTIMER_MODE_REL);
 #endif
+	gbt = glb_timer;
+
 	return 0;
 }
 
