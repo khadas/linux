@@ -8,6 +8,7 @@ config GKI_HIDDEN_DRM_CONFIGS
 	select VIDEOMODE_HELPERS
 	select WANT_DEV_COREDUMP if !AMLOGIC_MODIFY
 	select INTERVAL_TREE
+	select DRM_FBDEV_EMULATION if AMLOGIC_MODIFY
 	help
 	  Dummy config option used to enable hidden DRM configs.
 	  These are normally selected implicitly when including a
