@@ -56,6 +56,7 @@
 #define EXTENSION_VFPDB_TAG	0xd
 #define EXTENSION_Y420_VDB_TAG	0xe
 #define EXTENSION_Y420_CMDB_TAG	0xf
+#define EXTENSION_DOLBY_VSADB	0x11
 
 #define EDID_DETAILED_TIMING_DES_BLOCK0_POS 0x36
 #define EDID_DETAILED_TIMING_DES_BLOCK1_POS 0x48
@@ -1332,6 +1333,46 @@ INVALID_Y420CMDB:
 	return -1;
 }
 
+static void edid_parsingdolbyvsadb(struct hdmitx_dev *hdev,
+				unsigned char *buf)
+{
+	unsigned char length = 0;
+	unsigned char pos = 0;
+	unsigned int ieeeoui;
+	struct dolby_vsadb_cap *cap = &hdev->rxcap.dolby_vsadb_cap;
+
+	memset(cap->rawdata, 0, sizeof(cap->rawdata));
+	memcpy(cap->rawdata, buf, 7); /* fixed 7 bytes */
+
+	pos = 0;
+	length = buf[pos] & 0x1f;
+	if (length != 0x06)
+		pr_info("%s[%d]: the length is %d, should be 6 bytes\n",
+			__func__, __LINE__, length);
+
+	cap->length = length;
+	pos += 2;
+	ieeeoui = buf[pos] + (buf[pos + 1] << 8) + (buf[pos + 2] << 16);
+	if (ieeeoui != DOVI_IEEEOUI)
+		pr_info("%s[%d]: the ieeeoui is 0x%x, should be 0x%x\n",
+			__func__, __LINE__, ieeeoui, DOVI_IEEEOUI);
+	cap->ieeeoui = ieeeoui;
+
+	pos += 3;
+	cap->dolby_vsadb_ver = buf[pos] & 0x7;
+	if (cap->dolby_vsadb_ver)
+		pr_info("%s[%d]: the verion is 0x%x, should be 0x0\n",
+			__func__, __LINE__, cap->dolby_vsadb_ver);
+
+	cap->spk_center = (buf[pos] >> 4) & 1;
+	cap->spk_surround = (buf[pos] >> 5) & 1;
+	cap->spk_height = (buf[pos] >> 6) & 1;
+	cap->headphone_only = (buf[pos] >> 7) & 1;
+
+	pos++;
+	cap->mat_48k_pcm_only = (buf[pos] >> 0) & 1;
+}
+
 static int edid_y420cmdb_fill_all_vic(struct hdmitx_dev *hdmitx_device)
 {
 	struct rx_cap *rxcap = &hdmitx_device->rxcap;
@@ -1835,6 +1876,10 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 					break;
 				case EXTENSION_Y420_CMDB_TAG:
 					edid_parsingy420cmdb(hdev,
+							     &blockbuf[offset]);
+					break;
+				case EXTENSION_DOLBY_VSADB:
+					edid_parsingdolbyvsadb(hdev,
 							     &blockbuf[offset]);
 					break;
 				default:
@@ -3310,7 +3355,7 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 	snprintf(buffer + pos, buffer_len - pos, "LTE_340M_Scramble: %x\n",
 		 prxcap->lte_340mcsc_scramble);
 
-	if (prxcap->dv_info.ieeeoui == 0x00d046)
+	if (prxcap->dv_info.ieeeoui == DOVI_IEEEOUI)
 		pos += snprintf(buffer + pos, buffer_len - pos,
 			"  DolbyVision%d", prxcap->dv_info.ver);
 	if (prxcap->hdr_sup_eotf_smpte_st_2084)

@@ -2926,6 +2926,7 @@ static ssize_t aud_cap_show(struct device *dev,
 		"ReferToStreamHeader", "32", "44.1", "48", "88.2", "96",
 		"176.4", "192", NULL};
 	struct rx_cap *prxcap = &hdmitx_device.rxcap;
+	struct dolby_vsadb_cap *cap = &prxcap->dolby_vsadb_cap;
 
 	pos += snprintf(buf + pos, PAGE_SIZE,
 		"CodingType MaxChannels SamplingFreq SampleSize\n");
@@ -2970,6 +2971,42 @@ static ssize_t aud_cap_show(struct device *dev,
 		default:
 			break;
 		}
+	}
+
+	if (cap->ieeeoui == DOVI_IEEEOUI) {
+		/*
+		 *Dolby Vendor Specific:
+		 *  headphone_playback_only:0,
+		 *  center_speaker:1,
+		 *  surround_speaker:1,
+		 *  height_speaker:1,
+		 *  Ver:1.0,
+		 *  MAT_PCM_48kHz_only:1,
+		 *  e61146d0007001,
+		 */
+		pos += snprintf(buf + pos, PAGE_SIZE,
+				"Dolby Vendor Specific:\n");
+		if (cap->dolby_vsadb_ver == 0)
+			pos += snprintf(buf + pos, PAGE_SIZE, "  Ver:1.0,\n");
+		else
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"  Ver:Reversed,\n");
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"  center_speaker:%d,\n", cap->spk_center);
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"  surround_speaker:%d,\n", cap->spk_surround);
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"  height_speaker:%d,\n", cap->spk_height);
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"  headphone_playback_only:%d,\n", cap->headphone_only);
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"  MAT_PCM_48kHz_only:%d,\n", cap->mat_48k_pcm_only);
+
+		pos += snprintf(buf + pos, PAGE_SIZE, "  ");
+		for (i = 0; i < 7; i++)
+			pos += snprintf(buf + pos, PAGE_SIZE, "%02x",
+				cap->rawdata[i]);
+		pos += snprintf(buf + pos, PAGE_SIZE, ",\n");
 	}
 	return pos;
 }
