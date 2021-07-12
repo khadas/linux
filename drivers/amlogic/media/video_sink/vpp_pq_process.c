@@ -346,6 +346,9 @@ void aipq_scs_proc(struct vframe_s *vf,
 	} else if ((diff_skin_pct + diff_green_pct + diff_blue_pct < color_th) &&
 			    (pre_top_one >= 0)) {
 		memcpy(out, cfg[pre_top_one], sizeof(int) * SCENES_VALUE);
+	} else if ((diff_skin_pct + diff_green_pct +
+			diff_blue_pct > color_th) && (top_one_prob <= 500)) {
+		memcpy(out, cfg[pre_top_one], sizeof(int) * SCENES_VALUE);
 	} else {
 		if (pq_debug[2] == 0x8) {
 			pr_info("pre_top_one = %d, top_one = %d, top_one_prob = %d, diff_skin_pct = %d, diff_green_pct = %d, diff_blue_pct = %d\n",
