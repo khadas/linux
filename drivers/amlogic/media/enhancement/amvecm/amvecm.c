@@ -843,6 +843,10 @@ static void vpp_backup_histgram(struct vframe_s *vf)
 		vpp_hist_param.vpp_histgram[i] = vf->prop.hist.vpp_gamma[i];
 	for (i = 0; i < 128; i++)
 		vpp_hist_param.hdr_histgram[i] = hdr_hist[NUM_HDR_HIST - 1][i];
+	for (i = 0; i < 32; i++)
+		vpp_hist_param.hue_histgram[i] = vf->prop.hist.vpp_hue_gamma[i];
+	for (i = 0; i < 32; i++)
+		vpp_hist_param.sat_histgram[i] = vf->prop.hist.vpp_sat_gamma[i];
 }
 
 static void vpp_dump_histgram(void)
