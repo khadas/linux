@@ -96,7 +96,7 @@ struct sync_session {
 	/* current working mode */
 	enum av_sync_mode cur_mode;
 	enum av_sync_stat stat;
-	u32 start_policy;
+	struct ker_start_policy start_policy;
 
 	bool clock_start;
 	/* lock for ISR resource */
@@ -403,7 +403,7 @@ static void wait_work_func(struct work_struct *work)
 		session->v_timeout = true;
 	}
 
-	if (session->start_policy == AMSYNC_START_ALIGN &&
+	if (session->start_policy.policy == AMSYNC_START_ALIGN &&
 			!session->start_posted) {
 		msync_dbg(LOG_DEBUG, "[%d]start posted\n", session->id);
 		session->start_posted = true;
@@ -429,7 +429,7 @@ static void audio_change_work_func(struct work_struct *work)
 		mutex_unlock(&session->session_mutex);
 		return;
 	}
-	if (session->start_policy == AMSYNC_START_ALIGN &&
+	if (session->start_policy.policy == AMSYNC_START_ALIGN &&
 			!session->start_posted) {
 		session->start_posted = true;
 		session->stat = AVS_STAT_STARTED;
@@ -744,7 +744,7 @@ static void session_video_start(struct sync_session *session, u32 pts)
 	} else if (session->mode == AVS_MODE_A_MASTER) {
 		update_f_vpts(session, pts);
 
-		if (session->start_policy == AMSYNC_START_ALIGN &&
+		if (session->start_policy.policy == AMSYNC_START_ALIGN &&
 			VALID_PTS(session->first_apts.pts)) {
 			if (session->clock_start)
 				goto exit;
@@ -774,7 +774,7 @@ static void session_video_start(struct sync_session *session, u32 pts)
 	} else if (session->mode == AVS_MODE_IPTV) {
 		update_f_vpts(session, pts);
 
-		if (session->start_policy == AMSYNC_START_ASAP &&
+		if (session->start_policy.policy == AMSYNC_START_ASAP &&
 				!VALID_PTS(session->first_apts.pts)) {
 			session_set_wall_clock(session, pts);
 			session->clock_start = true;
@@ -783,13 +783,13 @@ static void session_video_start(struct sync_session *session, u32 pts)
 			wakeup = true;
 			msync_dbg(LOG_INFO, "[%d]%d video start %u\n",
 					session->id, __LINE__, pts);
-		} else if (session->start_policy == AMSYNC_START_ASAP) {
+		} else if (session->start_policy.policy == AMSYNC_START_ASAP) {
 			msync_dbg(LOG_INFO, "[%d]%d video start %u keep AMASTER\n",
 					session->id, __LINE__, pts);
 		}
 	} else if (session->mode == AVS_MODE_PCR_MASTER) {
 		update_f_vpts(session, pts);
-		if (session->start_policy == AMSYNC_START_ALIGN &&
+		if (session->start_policy.policy == AMSYNC_START_ALIGN &&
 			!VALID_PTS(session->first_apts.pts)) {
 			msync_dbg(LOG_INFO,
 				"[%d]%d video start %u deferred\n",
@@ -828,7 +828,7 @@ static u32 session_audio_start(struct sync_session *session,
 	if (session->audio_switching) {
 		update_f_apts(session, pts);
 		if (session->wall_clock > pts ||
-		    session->start_policy != AMSYNC_START_ALIGN) {
+		    session->start_policy.policy != AMSYNC_START_ALIGN) {
 			/* audio start immediately pts to small */
 			/* (need drop) or no wait */
 			session->stat = AVS_STAT_STARTED;
@@ -836,12 +836,12 @@ static u32 session_audio_start(struct sync_session *session,
 				"[%d]%d audio immediate start %u clock %u\n",
 				session->id, __LINE__, pts,
 				session->wall_clock);
-			if (session->start_policy == AMSYNC_START_ALIGN &&
+			if (session->start_policy.policy == AMSYNC_START_ALIGN &&
 					!session->start_posted) {
 				session->start_posted = true;
 				wakeup = true;
 			}
-		} else if (session->start_policy == AMSYNC_START_ALIGN) {
+		} else if (session->start_policy.policy == AMSYNC_START_ALIGN) {
 			// normal case, wait audio start point
 			u32 diff_ms =  (pts - session->wall_clock) / 90;
 			u32 delay_jiffies = msecs_to_jiffies(diff_ms);
@@ -866,7 +866,7 @@ static u32 session_audio_start(struct sync_session *session,
 		session_set_wall_clock(session, start_pts);
 		update_f_apts(session, pts);
 
-		if (session->start_policy == AMSYNC_START_ALIGN &&
+		if (session->start_policy.policy == AMSYNC_START_ALIGN &&
 			!VALID_PTS(session->first_vpts.pts)) {
 			msync_dbg(LOG_INFO, "[%d]%d audio start %u deferred\n",
 					session->id, __LINE__, pts);
@@ -874,12 +874,12 @@ static u32 session_audio_start(struct sync_session *session,
 				cancel_delayed_work_sync(&session->wait_work);
 			queue_delayed_work(session->wq,
 				&session->wait_work,
-				WAIT_INTERVAL);
+				session->start_policy.timeout);
 			session->wait_work_on = true;
 			session->stat = AVS_STAT_STARTING;
 			ret = AVS_START_ASYNC;
 		} else {
-			if (session->start_policy == AMSYNC_START_ALIGN) {
+			if (session->start_policy.policy == AMSYNC_START_ALIGN) {
 				u32 vpts = session->first_vpts.pts;
 				u32 delay;
 
@@ -915,7 +915,7 @@ static u32 session_audio_start(struct sync_session *session,
 	} else if (session->mode == AVS_MODE_IPTV) {
 		update_f_apts(session, pts);
 
-		if (session->start_policy == AMSYNC_START_ASAP &&
+		if (session->start_policy.policy == AMSYNC_START_ASAP &&
 			!VALID_PTS(session->first_vpts.pts)) {
 			session_set_wall_clock(session, start_pts);
 			session->clock_start = true;
@@ -924,7 +924,7 @@ static u32 session_audio_start(struct sync_session *session,
 			wakeup = true;
 			msync_dbg(LOG_INFO, "[%d]%d audio start %u\n",
 					session->id, __LINE__, pts);
-		} else if (session->start_policy == AMSYNC_START_ASAP) {
+		} else if (session->start_policy.policy == AMSYNC_START_ASAP) {
 			/* transition start from V to A master */
 			session->stat = AVS_STAT_TRANSITION;
 			/* enter grace period */
@@ -942,7 +942,7 @@ static u32 session_audio_start(struct sync_session *session,
 		msync_dbg(LOG_INFO, "[%d]%d audio start %u\n",
 				session->id, __LINE__, pts);
 		update_f_apts(session, pts);
-		if (session->start_policy == AMSYNC_START_ALIGN &&
+		if (session->start_policy.policy == AMSYNC_START_ALIGN &&
 				session->pcr_work_on) {
 			cancel_delayed_work_sync(&session->pcr_start_work);
 			session->pcr_work_on = false;
@@ -1606,12 +1606,28 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		put_user(session->mode, (u32 __user *)argp);
 		break;
 	case AMSYNCS_IOC_SET_START_POLICY:
-		get_user(session->start_policy, (u32 __user *)argp);
-		msync_dbg(LOG_INFO, "session[%d] start policy %d\n",
-			session->id, session->start_policy);
+	{
+		struct ker_start_policy policy;
+
+		if (!copy_from_user(&policy, argp, sizeof(policy))) {
+			msync_dbg(LOG_DEBUG,
+				"session[%d] policys %u timeout %u, old timeout=%d.\n",
+				session->id, policy.policy, 
+				policy.timeout, session->start_policy.timeout);
+			session->start_policy.policy = policy.policy;
+			if (policy.timeout >= 0) {
+				session->start_policy.timeout = msecs_to_jiffies(policy.timeout);
+				msync_dbg(LOG_DEBUG,
+					"session[%d]new timeout %u.\n",
+					session->id, session->start_policy.timeout);
+			}
+		}
 		break;
+	}
 	case AMSYNCS_IOC_GET_START_POLICY:
-		put_user(session->start_policy, (u32 __user *)argp);
+		if (copy_to_user(argp, &session->start_policy,
+				sizeof(struct ker_start_policy)))
+			return -EFAULT;
 		break;
 	case AMSYNCS_IOC_SET_V_TS:
 	{
@@ -2141,6 +2157,8 @@ static int create_session(u32 id)
 	session->last_check_pcr_clock = AVS_INVALID_PTS;
 	session->pcr_disc_clock = AVS_INVALID_PTS;
 	session->d_vsync_last = -1;
+	session->start_policy.policy = AMSYNC_START_ALIGN;
+	session->start_policy.timeout = WAIT_INTERVAL;
 	INIT_DELAYED_WORK(&session->wait_work, wait_work_func);
 	INIT_DELAYED_WORK(&session->transit_work, transit_work_func);
 	INIT_DELAYED_WORK(&session->pcr_start_work, pcr_start_work_func);
