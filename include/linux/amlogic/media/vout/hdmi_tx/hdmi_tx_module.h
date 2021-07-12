@@ -73,6 +73,18 @@ struct rx_audiocap {
 	unsigned char cc3;
 };
 
+struct dolby_vsadb_cap {
+	unsigned char rawdata[7 + 1]; // padding extra 1 byte
+	unsigned int ieeeoui;
+	unsigned char length;
+	unsigned char dolby_vsadb_ver;
+	unsigned char spk_center:1;
+	unsigned char spk_surround:1;
+	unsigned char spk_height:1;
+	unsigned char headphone_only:1;
+	unsigned char mat_48k_pcm_only:1;
+};
+
 #define MAX_RAW_LEN 64
 struct raw_block {
 	int len;
@@ -103,6 +115,7 @@ struct rx_cap {
 	struct rx_audiocap RxAudioCap[AUD_MAX_NUM];
 	unsigned char AUD_count;
 	unsigned char RxSpeakerAllocation;
+	struct dolby_vsadb_cap dolby_vsadb_cap;
 	/*vendor*/
 	unsigned int ieeeoui;
 	unsigned char Max_TMDS_Clock1; /* HDMI1.4b TMDS_CLK */
