@@ -43,6 +43,7 @@ enum vt_ctrl_cmd_e {
 enum vt_video_cmd_e {
 	VT_VIDEO_SET_STATUS,
 	VT_VIDEO_GET_STATUS,
+	VT_VIDEO_SET_GAME_MODE,
 };
 
 struct vt_alloc_id_data {
