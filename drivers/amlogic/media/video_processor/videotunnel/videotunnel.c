@@ -94,6 +94,27 @@ static const char *vt_debug_buffer_status_to_string(int status)
 	return status_str;
 }
 
+static const char *vt_debug_mode_status_to_string(int status)
+{
+	const char *status_str;
+
+	switch (status) {
+	case VT_MODE_BLOCK:
+		status_str = "BLOCK";
+		break;
+	case VT_MODE_NONE_BLOCK:
+		status_str = "NONE BLOCK";
+		break;
+	case VT_MODE_GAME:
+		status_str = "GAME";
+		break;
+	default:
+		status_str = "unknown";
+	}
+
+	return status_str;
+}
+
 static int vt_debug_instance_show(struct seq_file *s, void *unused)
 {
 	struct vt_instance *instance = s->private;
@@ -170,12 +191,14 @@ static int vt_debug_session_show(struct seq_file *s, void *unused)
 	struct vt_session *session = s->private;
 
 	mutex_lock(&debugfs_mutex);
-	seq_printf(s, "session(%s) %p role %s cid %ld\n",
-		   session->display_name, session,
+	seq_printf(s, "session(%s) %p\n",
+		   session->display_name, session);
+	seq_printf(s, "role: %s cid: %ld\n",
 		   session->role == VT_ROLE_PRODUCER ?
 		   "producer" : (session->role == VT_ROLE_CONSUMER ?
 		   "consumer" : "invalid"), session->cid);
-	seq_printf(s, " block mode %d\n", session->block_mode);
+	seq_printf(s, "mode: %s\n",
+		   vt_debug_mode_status_to_string(session->mode));
 	seq_puts(s, "-----------------------------------------------\n");
 	mutex_unlock(&debugfs_mutex);
 
@@ -236,7 +259,6 @@ static void vt_instance_destroy(struct kref *kref)
 			idr_remove(&dev->instance_idr, i);
 	}
 
-	list_del(&instance->entry);
 	vt_debug(VT_DEBUG_USER, "vt [%d] destroy\n", instance->id);
 
 	/* destroy fifo to conusmer */
@@ -310,7 +332,6 @@ static struct vt_instance *vt_instance_create_lock(struct vt_dev *dev)
 	instance->fcount = 0;
 	mutex_init(&instance->lock);
 	mutex_init(&instance->cmd_lock);
-	INIT_LIST_HEAD(&instance->entry);
 	kref_init(&instance->ref);
 
 	status = kfifo_alloc(&instance->fifo_to_consumer,
@@ -330,7 +351,6 @@ static struct vt_instance *vt_instance_create_lock(struct vt_dev *dev)
 
 	init_waitqueue_head(&instance->wait_producer);
 	init_waitqueue_head(&instance->wait_consumer);
-	init_waitqueue_head(&instance->wait_cmd);
 
 	/* set the buffer pool status to free */
 	for (i = 0; i < VT_POOL_SIZE; i++)
@@ -360,7 +380,7 @@ setup_fail:
 }
 
 static int vt_get_session_serial(const struct rb_root *root,
-				 const unsigned char *name)
+				 const char *name)
 {
 	int serial = -1;
 	struct rb_node *node;
@@ -413,10 +433,10 @@ static struct vt_session *vt_session_create_internal(struct vt_dev *dev,
 	session->dev = dev;
 	session->task = task;
 	session->role = VT_ROLE_INVALID;
-	session->block_mode = 1;
-	INIT_LIST_HEAD(&session->instances_head);
+	session->mode = VT_MODE_BLOCK;
 	init_waitqueue_head(&session->wait_producer);
 	init_waitqueue_head(&session->wait_consumer);
+	init_waitqueue_head(&session->wait_cmd);
 
 	session->name = kstrdup(name, GFP_KERNEL);
 	if (!session->name)
@@ -709,7 +729,6 @@ static int vt_alloc_id_process(struct vt_alloc_id_data *data,
 	instance->debug_root =
 		debugfs_create_file(name, 0664, dev->debug_root,
 				    instance, &debug_instance_fops);
-	list_add_tail(&session->instances_head, &instance->entry);
 	data->tunnel_id = instance->id;
 	mutex_unlock(&dev->instance_lock);
 
@@ -914,7 +933,7 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 		 instance->id, cmd->cmd, cmd->cmd_data);
 
 	if (instance->consumer)
-		wake_up_interruptible(&instance->consumer->wait_consumer);
+		wake_up_interruptible(&instance->consumer->wait_cmd);
 
 	return 0;
 }
@@ -941,9 +960,12 @@ static int vt_recv_cmd_process(struct vt_ctrl_data *data,
 
 	/* empty need wait */
 	if (kfifo_is_empty(&instance->fifo_cmd)) {
-		ret = wait_event_interruptible_timeout(instance->wait_cmd,
+		if (session->mode != VT_MODE_BLOCK)
+			return -EAGAIN;
+
+		ret = wait_event_interruptible_timeout(session->wait_cmd,
 						       vt_has_cmd(instance),
-						       msecs_to_jiffies(VT_MAX_WAIT_MS));
+						       msecs_to_jiffies(VT_CMD_WAIT_MS));
 
 		/* timeout */
 		if (ret == 0)
@@ -964,6 +986,17 @@ static int vt_recv_cmd_process(struct vt_ctrl_data *data,
 	data->video_cmd = vcmd->cmd;
 	data->video_cmd_data = vcmd->cmd_data;
 	data->client_id = vcmd->client_id;
+
+	if (vcmd->cmd == VT_VIDEO_SET_GAME_MODE) {
+		if (!vcmd->cmd_data)
+			session->mode = VT_MODE_NONE_BLOCK;
+		else
+			session->mode = VT_MODE_GAME;
+
+		vt_debug(VT_DEBUG_USER, "vt [%d] set mode to:%s\n",
+			 instance->id,
+			 vt_debug_mode_status_to_string(session->mode));
+	}
 
 	/* free the vt_cmd buffer allocated in vt_send_cmd_process() */
 	kfree(vcmd);
@@ -1000,11 +1033,11 @@ static int vt_ctrl_process(struct vt_ctrl_data *data,
 		break;
 	}
 	case VT_CTRL_SET_NONBLOCK_MODE: {
-		session->block_mode = 0;
+		session->mode = VT_MODE_NONE_BLOCK;
 		break;
 	}
 	case VT_CTRL_SET_BLOCK_MODE: {
-		session->block_mode = 1;
+		session->mode = VT_MODE_BLOCK;
 		break;
 	}
 	default:
@@ -1113,9 +1146,12 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 	kfifo_put(&instance->fifo_to_consumer, buffer);
 	mutex_unlock(&instance->lock);
 
-	if (instance->consumer)
+	if (instance->consumer) {
 		wake_up_interruptible(&instance->wait_consumer);
-
+		/* run in game mode */
+		if (instance->consumer->mode == VT_MODE_GAME)
+			wake_up_interruptible(&instance->consumer->wait_consumer);
+	}
 
 	vt_debug(VT_DEBUG_BUFFERS,
 		 "vt [%d] queuebuffer pfd: %d, buffer(%p) buffer file(%p) timestamp(%lld), now(%lld)\n",
@@ -1228,7 +1264,7 @@ static int vt_acquire_buffer_process(struct vt_buffer_data *data,
 
 	/* empty need wait */
 	if (kfifo_is_empty(&instance->fifo_to_consumer)) {
-		if (!session->block_mode)
+		if (session->mode != VT_MODE_BLOCK)
 			return -EAGAIN;
 
 		ret = wait_event_interruptible_timeout(instance->wait_consumer,
@@ -1463,8 +1499,9 @@ static int vt_poll_ready(struct vt_session *session)
 		mutex_lock(&instance->lock);
 		if (instance->producer && instance->producer == session)
 			size += kfifo_len(&instance->fifo_to_producer);
-		else if (instance->consumer && instance->consumer == session)
-			size += kfifo_len(&instance->fifo_cmd);
+		else if (instance->consumer && instance->consumer == session &&
+			 session->mode == VT_MODE_GAME)
+			size += kfifo_len(&instance->fifo_to_consumer);
 		mutex_unlock(&instance->lock);
 	}
 	mutex_unlock(&dev->instance_lock);
@@ -1486,8 +1523,13 @@ static __poll_t vt_poll(struct file *filp, struct poll_table_struct *wait)
 
 	if (session->role == VT_ROLE_PRODUCER)
 		poll_wait(filp, &session->wait_producer, wait);
-	else if (session->role == VT_ROLE_CONSUMER)
+	else if (session->role == VT_ROLE_CONSUMER) {
+		/* not game mode */
+		if (session->mode != VT_MODE_GAME)
+			return POLLERR;
+
 		poll_wait(filp, &session->wait_consumer, wait);
+	}
 
 	if (vt_poll_ready(session) > 0)
 		return POLLIN | POLLRDNORM;
