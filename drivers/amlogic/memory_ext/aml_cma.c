@@ -111,6 +111,23 @@ EXPORT_SYMBOL(cma_page_count_update);
 #define ANON_RATIO	60
 bool cma_first_wm_low __read_mostly;
 
+static int __init early_cma_first_wm_low_param(char *buf)
+{
+	if (!buf)
+		return -EINVAL;
+
+	if (strcmp(buf, "off") == 0)
+		cma_first_wm_low = false;
+	else if (strcmp(buf, "on") == 0)
+		cma_first_wm_low = true;
+
+	pr_info("cma_first_wm_low %sabled\n", cma_first_wm_low ? "en" : "dis");
+
+	return 0;
+}
+
+early_param("cma_first_wm_low", early_cma_first_wm_low_param);
+
 bool can_use_cma(gfp_t gfp_flags)
 {
 #if RESTRIC_ANON
