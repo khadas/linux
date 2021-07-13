@@ -101,8 +101,6 @@ static void lcd_gamma_init(struct aml_lcd_drv_s *pdrv)
 {
 	int index = pdrv->index;
 
-	if (pdrv->data->chip_type == LCD_CHIP_T7)
-		return;
 	if (pdrv->lcd_pxp)
 		return;
 
