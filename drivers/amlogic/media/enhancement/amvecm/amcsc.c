@@ -600,11 +600,20 @@ MODULE_PARM_DESC(video_process_status, "\n video_process_status\n");
 void set_hdr_module_status(enum vd_path_e vd_path, int status)
 {
 	video_process_status[vd_path] = status;
-	pr_csc(4, "video_process_status[VD%d] = %d, dv %s %s %d\n",
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	pr_csc(4, "%d: set video_process_status[VD%d] = %d, dv %s %s %d\n",
+	       __LINE__,
+
 	       vd_path + 1, status,
 	       is_dolby_vision_enable() ? "en" : "",
 	       is_dolby_vision_on() ? "on" : "",
 	       get_dv_support_info());
+#else
+	pr_csc(4, "%d: set video_process_status[VD%d] = %d\n",
+	       __LINE__,
+	       vd_path + 1, status);
+#endif
 }
 EXPORT_SYMBOL(set_hdr_module_status);
 
@@ -6762,9 +6771,15 @@ int get_hdr_module_status(enum vd_path_e vd_path, enum vpp_index vpp_index)
 	    get_source_type(VD1_PATH, vpp_index)
 	    == HDRTYPE_SDR &&
 	    sdr_process_mode[VD1_PATH]
-	    == PROC_BYPASS)
+	    == PROC_BYPASS) {
+		pr_csc(16, "get video_process_status[VD%d] = MODULE BYPASS\n",
+		       vd_path + 1);
 		return HDR_MODULE_BYPASS;
+	}
 #endif
+	pr_csc(16, "get video_process_status[VD%d] = %d\n",
+	       vd_path + 1, video_process_status[vd_path]);
+
 	return video_process_status[vd_path];
 }
 EXPORT_SYMBOL(get_hdr_module_status);
@@ -7684,8 +7699,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		    (!is_dolby_vision_on() || vd_path == VD2_PATH || vd_path == VD3_PATH)) {
 			video_process_status[vd_path] = HDR_MODULE_ON;
 			pr_csc(4,
-			       "video_process_status[VD%d] = HDR_MODULE_ON\n",
-			       vd_path + 1);
+			       "%d:set video_process_status[%s] = HDR_MODULE_ON\n",
+			       __LINE__, vd_path == VD1_PATH ? "VD1" : "VD2");
 		} else {
 			return 2;
 		}
@@ -8016,8 +8031,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			if (video_process_status[vd_path] != HDR_MODULE_ON) {
 				video_process_status[vd_path] = HDR_MODULE_ON;
 				pr_csc(4,
-				       "video_process_status[VD%d] = HDR_MODULE_ON\n",
-				       vd_path + 1);
+				       "%d:set video_process_status[VD%d] = MODULE_ON new vf\n",
+				       __LINE__, vd_path + 1);
 			}
 			vpp_matrix_update(vf, vinfo, flags, vd_path, vpp_index);
 			video_process_flags[vd_path] &= ~PROC_FLAG_FORCE_PROCESS;
@@ -8045,8 +8060,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			if (video_process_status[vd_path] != HDR_MODULE_ON) {
 				video_process_status[vd_path] = HDR_MODULE_ON;
 				pr_csc(4,
-				       "video_process_status[%d] = HDR_MODULE_ON\n",
-				       vd_path + 1);
+				       "%d:set video_process_status[VD%d] = MODULE_ON rpt vf\n",
+				       __LINE__, vd_path + 1);
 			}
 			vpp_matrix_update(vf_rpt, vinfo, flags, vd_path, vpp_index);
 			video_process_flags[vd_path] &= ~PROC_FLAG_FORCE_PROCESS;
@@ -8215,6 +8230,9 @@ int amvecm_matrix_process(struct vframe_s *vf,
 					/* and bypass hdr module for dv core*/
 					send_fake_frame = true;
 					video_process_status[vd_path] = HDR_MODULE_OFF;
+					pr_csc(4,
+					       "%d:set video_process_status[VD%d] = MODULE_OFF\n",
+					       __LINE__, vd_path + 1);
 				}
 			} else {
 #endif
@@ -8235,12 +8253,18 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				/* turn off hdr module */
 					video_process_status[vd_path] =
 						HDR_MODULE_OFF;
+					pr_csc(4,
+					       "%d:set video_process_status[VD%d] = MODULE_OFF\n",
+					       __LINE__, vd_path + 1);
 				} else {
 				/* always hdr */
 				/* faked vframe to switch matrix */
 				/* hdr module to handle osd */
 					video_process_status[vd_path] =
 						HDR_MODULE_ON;
+					pr_csc(4,
+					       "%d:set video_process_status[VD%d] = MODULE_ON\n",
+					       __LINE__, vd_path + 1);
 				}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			}
@@ -8272,8 +8296,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				video_process_status[vd_path] =
 					HDR_MODULE_BYPASS;
 				pr_csc(4,
-				       "video_process_status[VD%d] = HDR_MODULE_BYPASS\n",
-				       vd_path + 1);
+				       "%d: set video_process_status[VD%d] = HDR_MODULE_BYPASS\n",
+				       __LINE__, vd_path + 1);
 				if (vd_path == VD2_PATH && // should we add vd3 here?? TODO
 				    (is_video_layer_on(VD1_PATH) ||
 				     video_layer_wait_on[VD1_PATH]))

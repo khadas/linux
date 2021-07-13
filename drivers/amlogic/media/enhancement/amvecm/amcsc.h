@@ -240,6 +240,8 @@ int get_primaries_type(struct vframe_master_display_colour_s *p_mdc);
 /* sdr */
 #define PROC_SDR_TO_HDR		1
 #define PROC_SDR_TO_HLG		2
+#define PROC_SDR_TO_TRG		4
+
 /* hdr */
 #define PROC_HDR_TO_SDR		1
 #define PROC_HDR_TO_HLG		2

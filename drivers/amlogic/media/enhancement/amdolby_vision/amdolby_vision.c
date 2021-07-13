@@ -11483,6 +11483,12 @@ int dolby_vision_process(struct vframe_s *vf,
 			dolby_vision_parse_metadata(NULL, 1, false, false);
 			dolby_vision_set_toggle_flag(1);
 		}
+		if (!vf && video_turn_off &&
+			!dolby_vision_core1_on &&
+			dolby_vision_src_format != 0) {
+			pr_dolby_dbg("update src_fmt when video off\n");
+			dolby_vision_src_format = 0;
+		}
 	}
 
 	if (dolby_vision_mode == DOLBY_VISION_OUTPUT_MODE_BYPASS) {
@@ -11610,8 +11616,9 @@ int dolby_vision_process(struct vframe_s *vf,
 	    !(dolby_vision_flags & FLAG_CERTIFICAION)) {
 		force_set_lut = true;
 		dolby_vision_set_toggle_flag(1);
-		pr_dolby_dbg("Need update core2 first %d times\n",
-			     dolby_vision_core2_on_cnt);
+		if (debug_dolby & 2)
+			pr_dolby_dbg("Need update core2 first %d times\n",
+				     dolby_vision_core2_on_cnt);
 	}
 	if (dolby_vision_flags & FLAG_TOGGLE_FRAME) {
 		if (!(dolby_vision_flags & FLAG_CERTIFICAION))
