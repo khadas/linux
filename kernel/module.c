@@ -87,6 +87,11 @@ DEFINE_MUTEX(module_mutex);
 EXPORT_SYMBOL_GPL(module_mutex);
 static LIST_HEAD(modules);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int ignore_check_version = 1;
+core_param(ignore_check_version, ignore_check_version, int, 0644);
+#endif
+
 /* Work queue for freeing init sections in success case */
 static void do_free_init(struct work_struct *w);
 static DECLARE_WORK(init_free_wq, do_free_init);
@@ -1342,8 +1347,9 @@ static int check_version(const struct load_info *info,
 bad_version:
 	pr_warn("%s: disagrees about version of symbol %s\n",
 	       info->name, symname);
+
 #ifdef CONFIG_AMLOGIC_MODIFY
-	return 1;
+	return ignore_check_version;
 #else
 	return 0;
 #endif
