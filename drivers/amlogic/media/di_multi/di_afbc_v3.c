@@ -3339,8 +3339,8 @@ struct enc_cfg_s {
 	/* loosy_mode:
 	 * 0:close 1:luma loosy 2:chrma loosy 3: luma & chrma loosy
 	 */
-	int head_baddr;/*head addr*/
-	int mmu_info_baddr;/*mmu info linear addr*/
+	ulong head_baddr;/*head addr*/
+	ulong mmu_info_baddr;/*mmu info linear addr*/
 	int reg_format_mode;/*0:444 1:422 2:420*/
 	int reg_compbits_y;/*bits num after compression*/
 	int reg_compbits_c;/*bits num after compression*/
@@ -3688,7 +3688,7 @@ static void afbce_set(struct vframe_s *vf, enum EAFBC_ENC enc)
 	#endif
 	vf_set_for_com(di_buf);
 #ifdef AFBCP
-	di_print("%s:buf[%d],hadd[0x%x],info[0x%x]\n",
+	di_print("%s:buf[%d],head[0x%lx],info[0x%lx]\n",
 		 __func__,
 		 di_buf->index,
 		 cfg->head_baddr,

@@ -413,8 +413,8 @@ struct afbcd_ctr_s {
 	unsigned int l_h;
 	unsigned int l_w;
 	unsigned int l_bitdepth;
-	unsigned int addr_h;
-	unsigned int addr_b;
+	ulong addr_h;
+	ulong addr_b;
 //	unsigned int mem_addr_h;
 //	unsigned int mem_addr_b;
 	unsigned int pst_in_vtp;
