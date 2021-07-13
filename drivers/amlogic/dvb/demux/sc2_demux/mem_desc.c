@@ -956,6 +956,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 			dma_sync_single_for_device(aml_get_device(),
 				pchan->mem_phy, pchan->mem_size, DMA_TO_DEVICE);
 
+			pchan->memdescs->bits.address = pchan->mem_phy;
 			//set desc mem ==len for trigger data transfer.
 			pchan->memdescs->bits.byte_length = len;
 			dma_sync_single_for_device(aml_get_device(),
@@ -1015,8 +1016,16 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	unsigned int tmp;
 	int i = 0;
 	unsigned int times = 0;
+	unsigned long virt = 0;
+	unsigned long phys = 0;
 
 #define MAX_EMPTY_PACKET_NUM     4
+
+	ret = cache_malloc(MAX_EMPTY_PACKET_NUM * 188, &virt, &phys);
+	if (ret == -1) {
+		dprint("%s, fail\n", __func__);
+		return -1;
+	}
 
 	do {
 	} while (!rdma_get_ready(pchan->id) && times++ < 20);
@@ -1026,7 +1035,8 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 		rch_sync_num_last = rch_sync_num;
 	}
 
-	p = (char *)pchan->mem;
+	p = (char *)virt;
+
 	memset(p, 0, 188);
 	p[0] = 0x47;
 	p[1] = (pid >> 8) & 0x1f;
@@ -1039,8 +1049,9 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	len = 188 * MAX_EMPTY_PACKET_NUM;
 
 	dma_sync_single_for_device(aml_get_device(),
-		pchan->mem_phy, pchan->mem_size, DMA_TO_DEVICE);
+		phys, len, DMA_TO_DEVICE);
 
+	pchan->memdescs->bits.address = phys;
 	//set desc mem ==len for trigger data transfer.
 	pchan->memdescs->bits.byte_length = len;
 	dma_sync_single_for_device(aml_get_device(),
@@ -1049,8 +1060,6 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 
 	wmb();	/*Ensure pchan->mem contents visible */
 
-	pr_dbg("%s, input data:0x%0x, des len:%d\n", __func__,
-	       (*(char *)(pchan->mem)), len);
 	pr_dbg("%s, desc data:0x%0x 0x%0x\n", __func__,
 	       (*(unsigned int *)(pchan->memdescs)),
 	       (*((unsigned int *)(pchan->memdescs) + 1)));
@@ -1058,8 +1067,7 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	pchan->enable = 1;
 	tmp = pchan->memdescs_phy & 0xFFFFFFFF;
 	//rdma_config_enable(pchan->id, 1, tmp,
-	rdma_config_enable(pchan, 1, tmp,
-	   pchan->mem_size, len);
+	rdma_config_enable(pchan, 1, tmp, len, len);
 
 	do {
 	} while (!rdma_get_done(pchan->id));
@@ -1083,8 +1091,9 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 	rdma_config_enable(pchan, 0, 0, 0, 0);
 	rdma_clean(pchan->id);
 
-	pr_dbg("%s end\n", __func__);
 	rdma_config_ready(pchan->id);
+	cache_free(len, phys);
+	dprint("%s end\n", __func__);
 	return len;
 }
 
