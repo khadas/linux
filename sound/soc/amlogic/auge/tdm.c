@@ -1132,7 +1132,7 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			 */
 			if (p_tdm->chipinfo->need_mute_tdm)
 				aml_tdm_mute_playback(p_tdm->actrl, p_tdm->id,
-					false, p_tdm->lane_cnt);
+					true, p_tdm->lane_cnt);
 			else
 				aml_tdmout_enable_gain(p_tdm->id, true);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
