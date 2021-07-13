@@ -713,6 +713,187 @@ static ssize_t debug_store(struct class *class,
 	return count;
 }
 #endif
+
+/*0: I/O
+ *1: GPIO as H
+ *2: GPIO as L
+ */
+static int c7_pins_mode;
+static int c4_pins_mode = -1;
+static int c8_pins_mode = -1;
+
+static ssize_t pins_mode_show(struct class *class, struct class_attribute *attr,
+			      char *buf)
+{
+	int r, total = 0;
+
+	if (c4_pins_mode == -1 || c8_pins_mode == -1) {
+		pr_inf("please set C4/C8 first\n");
+		return 0;
+	}
+
+	r = sprintf(buf, "C4:%c ",
+		    (c4_pins_mode) ? ((c4_pins_mode == 1) ? 'H' : 'L') : '0');
+	buf += r;
+	total += r;
+
+	r = sprintf(buf, "C7:%c ",
+		    (c7_pins_mode) ? ((c7_pins_mode == 1) ? 'H' : 'L') : '0');
+	buf += r;
+	total += r;
+
+	r = sprintf(buf, "C8:%c\n",
+		    (c8_pins_mode) ? ((c8_pins_mode == 1) ? 'H' : 'L') : '0');
+	buf += r;
+	total += r;
+
+	return total;
+}
+
+static int pins_set(struct pinctrl *pinctrl, char *name)
+{
+	struct pinctrl_state *s;
+	int ret = 0;
+
+	s = pinctrl_lookup_state(pinctrl, name);
+	if (IS_ERR(s)) {
+		pr_info("can't get %s\n", name);
+		return -1;
+	}
+	ret = pinctrl_select_state(pinctrl, s);
+	if (ret < 0) {
+		pr_info("can't select %s\n", name);
+		return -1;
+	}
+	pr_inf("pin mode set %s\n", name);
+	return 0;
+}
+
+static int is_same_pin_mode(const char *buf)
+{
+	pr_inf("input:%s\n", buf);
+
+	if (buf[1] == '7') {
+		if (buf[3] == '0' && c7_pins_mode == 0)
+			return 1;
+		else if (buf[3] == 'H' && c7_pins_mode == 1)
+			return 1;
+		else if (buf[3] == 'L' && c7_pins_mode == 2)
+			return 1;
+	}
+
+	if (buf[1] == '4') {
+		if (buf[3] == '0' && c4_pins_mode == 0)
+			return 1;
+		else if (buf[3] == 'H' && c4_pins_mode == 1)
+			return 1;
+		else if (buf[3] == 'L' && c4_pins_mode == 2)
+			return 1;
+	}
+
+	if (buf[1] == '8') {
+		if (buf[3] == '0' && c8_pins_mode == 0)
+			return 1;
+		else if (buf[3] == 'H' && c8_pins_mode == 1)
+			return 1;
+		else if (buf[3] == 'L' && c8_pins_mode == 2)
+			return 1;
+	}
+	return 0;
+}
+
+static int save_pin_mode(const char *buf)
+{
+	if (buf[1] == '7') {
+		if (buf[3] == '0')
+			c7_pins_mode = 0;
+		else if (buf[3] == 'H')
+			c7_pins_mode = 1;
+		else if (buf[3] == 'L')
+			c7_pins_mode = 2;
+	}
+
+	if (buf[1] == '4') {
+		if (buf[3] == '0')
+			c4_pins_mode = 0;
+		else if (buf[3] == 'H')
+			c4_pins_mode = 1;
+		else if (buf[3] == 'L')
+			c4_pins_mode = 2;
+	}
+
+	if (buf[1] == '8') {
+		if (buf[3] == '0')
+			c8_pins_mode = 0;
+		else if (buf[3] == 'H')
+			c8_pins_mode = 1;
+		else if (buf[3] == 'L')
+			c8_pins_mode = 2;
+	}
+	pr_inf("c4:%d, c7:%d, c8:%d\n", c4_pins_mode, c7_pins_mode,
+	       c8_pins_mode);
+
+	return 0;
+}
+
+static ssize_t pins_mode_store(struct class *class,
+			       struct class_attribute *attr, const char *buf,
+			       size_t count)
+{
+	char name[32];
+	int valid = 0;
+	struct smc_dev *smc = NULL;
+
+	if (count < 4 || buf[0] != 'C') {
+		pr_inf("error param %s ", buf);
+		pr_info("it should CX:0/H/L, X:4/7/8\n");
+		return count;
+	}
+
+	if (is_same_pin_mode(buf)) {
+		pr_info("same pin mode pin mode %s\n", buf);
+		return count;
+	}
+
+	if (buf[1] == '4' || buf[1] == '7' || buf[1] == '8') {
+		memset(name, 0, sizeof(name));
+		if (buf[3] == '0') {
+			if (buf[1] == '7')
+				sprintf(name, "pins-mode0");
+			else if (buf[1] == '4')
+				sprintf(name, "pins-mode1");
+			else if (buf[1] == '8')
+				sprintf(name, "pins-mode2");
+			valid = 1;
+		} else if (buf[3] == 'H') {
+			if (buf[1] == '7')
+				sprintf(name, "data-m0-h");
+			else if (buf[1] == '4')
+				sprintf(name, "data-m1-h");
+			else if (buf[1] == '8')
+				sprintf(name, "data-m2-h");
+			valid = 1;
+		} else if (buf[3] == 'L') {
+			if (buf[1] == '7')
+				sprintf(name, "data-m0-l");
+			else if (buf[1] == '4')
+				sprintf(name, "data-m1-l");
+			else if (buf[1] == '8')
+				sprintf(name, "data-m2-l");
+			valid = 1;
+		}
+	}
+	if (valid) {
+		mutex_lock(&smc_lock);
+		smc = &smc_dev[0];
+		if (smc->pinctrl && pins_set(smc->pinctrl, name) == 0) {
+			save_pin_mode(buf);
+		}
+		mutex_unlock(&smc_lock);
+	}
+	return count;
+}
+
 static CLASS_ATTR_RW(gpio_pull);
 static CLASS_ATTR_RW(ctrl_5v3v);
 static CLASS_ATTR_RW(freq);
@@ -721,6 +902,7 @@ static CLASS_ATTR_WO(debug_reset);
 static CLASS_ATTR_WO(enable_reset);
 static CLASS_ATTR_WO(enable_cmd);
 static CLASS_ATTR_WO(enable_clk);
+static CLASS_ATTR_RW(pins_mode);
 #ifdef MEM_DEBUG
 static CLASS_ATTR_RW(debug);
 #endif
@@ -734,6 +916,7 @@ static struct attribute *smc_class_attrs[] = {
 	&class_attr_enable_reset.attr,
 	&class_attr_enable_cmd.attr,
 	&class_attr_enable_clk.attr,
+	&class_attr_pins_mode.attr,
 
 #ifdef MEM_DEBUG
 	&class_attr_debug.attr,
@@ -1160,8 +1343,7 @@ static int smc_hw_deactive(struct smc_dev *smc)
 			pr_dbg("call reset(1) in bsp.\n");
 		} else {
 			if (smc->use_enable_pin)
-				_gpio_out(smc->enable_pin,
-					  smc->enable_level,
+				_gpio_out(smc->enable_pin, !smc->enable_level,
 					  SMC_ENABLE_PIN_NAME);
 		}
 		if (ENA_GPIO_PULL > 0) {
