@@ -398,7 +398,7 @@ static int of_thermal_notify(struct thermal_zone_device *tz, int trip,
 {
 	struct thermal_instance *instance;
 	struct thermal_cooling_device *cdev;
-	int ret = 0, trip_temp;
+	int ret = 0;
 
 	if (type != THERMAL_TRIP_HOT)
 		return ret;
@@ -406,12 +406,16 @@ static int of_thermal_notify(struct thermal_zone_device *tz, int trip,
 	if (tz->temperature < 0)
 		return ret;
 
+	mutex_lock(&tz->lock);
+
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		cdev = instance->cdev;
-		tz->ops->get_trip_temp(tz, instance->trip, &trip_temp);
 		if (cdev->ops && cdev->ops->notify_state && trip == instance->trip)
-			ret += cdev->ops->notify_state(cdev, tz, trip, type);
+			ret += cdev->ops->notify_state(instance, trip, type);
 	}
+
+	mutex_unlock(&tz->lock);
+
 	return ret;
 }
 #endif

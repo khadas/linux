@@ -103,14 +103,27 @@ static int ddr_power2state(struct thermal_cooling_device *cdev,
 	return 0;
 }
 
-static int ddr_notify_state(struct thermal_cooling_device *cdev,
-			    struct thermal_zone_device *tz,
+static int ddr_notify_state(void *thermal_instance,
 			    int trip,
 			    enum thermal_trip_type type)
 {
-	struct ddr_cooling_device *ddr_device = cdev->devdata;
+	struct thermal_instance *ins = thermal_instance;
+	struct thermal_zone_device *tz;
+	struct thermal_cooling_device *cdev;
+	struct ddr_cooling_device *ddr_device;
 	int i, hyst = 0, trip_temp;
 	unsigned int val, val0, reg_val;
+
+	if (!ins)
+		return -EINVAL;
+
+	tz = ins->tz;
+	cdev = ins->cdev;
+
+	if (!tz || !cdev)
+		return -EINVAL;
+
+	ddr_device = cdev->devdata;
 
 	tz->ops->get_trip_hyst(tz, trip, &hyst);
 	tz->ops->get_trip_temp(tz, trip, &trip_temp);
@@ -207,7 +220,8 @@ ddr_cooling_register(struct device_node *np, struct cool_dev *cool)
 
 	list_for_each_entry(pos, &cool_dev->thermal_instances, cdev_node) {
 		if (!strncmp(pos->cdev->type, dev_name, sizeof(dev_name))) {
-			cool_dev->ops->notify_state(cool_dev, pos->tz, pos->trip, THERMAL_TRIP_HOT);
+			cool_dev->ops->notify_state(pos, pos->trip,
+					THERMAL_TRIP_HOT);
 			break;
 		}
 	}

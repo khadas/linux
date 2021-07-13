@@ -126,8 +126,7 @@ struct thermal_cooling_device_ops {
 	int (*power2state)(struct thermal_cooling_device *,
 			   struct thermal_zone_device *, u32, unsigned long *);
 #ifdef CONFIG_AMLOGIC_MODIFY
-	int (*notify_state)(struct thermal_cooling_device*,
-			    struct thermal_zone_device*,
+	int (*notify_state)(void *thermal_instance,
 			    int trip,
 			    enum thermal_trip_type);
 #endif

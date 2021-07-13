@@ -185,18 +185,29 @@ static int cpucore_power2state(struct thermal_cooling_device *cdev,
 	return 0;
 }
 
-static int cpucore_notify_state(struct thermal_cooling_device *cdev,
-				struct thermal_zone_device *tz,
+static int cpucore_notify_state(void *thermal_instance,
 				int trip,
 				enum thermal_trip_type type)
 {
-	struct thermal_instance *ins = NULL;
-	struct cpucore_cooling_device *cpucore_device = cdev->devdata;
+	struct thermal_instance *ins = thermal_instance;
+	struct thermal_zone_device *tz;
+	struct thermal_cooling_device *cdev;
+	struct cpucore_cooling_device *cpucore_device;
 	unsigned long  ins_upper, target_upper = 0;
-	long cur_state;
+	long cur_state = -1;
 	long upper = -1;
-	int i;
 	int hyst = 0, trip_temp;
+
+	if (!ins)
+		return -EINVAL;
+
+	tz = ins->tz;
+	cdev = ins->cdev;
+
+	if (!tz || !cdev)
+		return -EINVAL;
+
+	cpucore_device = cdev->devdata;
 
 	tz->ops->get_trip_hyst(tz, trip, &hyst);
 	tz->ops->get_trip_temp(tz, trip, &trip_temp);
@@ -217,19 +228,11 @@ static int cpucore_notify_state(struct thermal_cooling_device *cdev,
 
 	switch (type) {
 	case THERMAL_TRIP_HOT:
-		for (i = 0; i < tz->trips; i++) {
-			ins = get_thermal_instance(tz, cdev, i);
-			if (ins) {
-				ins_upper = ins->upper;
-				if (!IS_ERR_VALUE(ins_upper) &&
-				    ins_upper >= target_upper) {
-					target_upper = ins_upper;
-					upper = target_upper;
-				}
-			} else {
-				pr_debug("%s, get ins upper not match\n",
-					 __func__);
-			}
+		ins_upper = ins->upper;
+		if (!IS_ERR_VALUE(ins_upper) &&
+				ins_upper >= target_upper) {
+			target_upper = ins_upper;
+			upper = target_upper;
 		}
 		cur_state = cpucore_device->hot_step;
 		/* do not exceed levels */
