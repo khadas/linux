@@ -48,5 +48,6 @@ struct am_smc_param {
 #define AMSMC_IOC_DEACTIVE     _IO(AMSMC_IOC_MAGIC, 0x03)
 #define AMSMC_IOC_GET_PARAM    _IOR(AMSMC_IOC_MAGIC, 0x04, struct am_smc_param)
 #define AMSMC_IOC_SET_PARAM    _IOW(AMSMC_IOC_MAGIC, 0x05, struct am_smc_param)
+#define AMSMC_IOC_HOT_RESET _IOR(AMSMC_IOC_MAGIC, 0x06, struct am_smc_atr)
 
 #endif
