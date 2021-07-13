@@ -1804,10 +1804,14 @@
 		compatible = "amlogic, amlogic-usb3-m31-phy";
 		status = "disable";
 		#phy-cells = <0>;
+		reg = <0x0 0xfe002000 0x0 0x100>;
 		clocks = <&clkc CLKID_PCIE_PLL>;
 		clock-names = "pcie_refpll";
+		reset-level = <0x40>;
 		phy-reg = <0xfe02a000>;
 		phy-reg-size = <0x2000>;
+		m31phy-reset-level-bit = <13>;
+		m31ctl-reset-level-bit = <6>;
 	};
 
 	dwc2_a: dwc2_a@fdf00000 {

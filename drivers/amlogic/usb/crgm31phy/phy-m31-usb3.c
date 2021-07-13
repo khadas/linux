@@ -33,6 +33,27 @@ static int amlogic_usb3_m31_suspend(struct usb_phy *x, int suspend)
 static void amlogic_usb3_m31_shutdown(struct usb_phy *x)
 {
 	struct amlogic_usb_m31 *phy = phy_to_m31usb(x);
+	u32 val, temp = 0;
+	size_t mask = 0;
+
+	if (phy->portnum > 0) {
+		mask = (size_t)phy->reset_regs & 0xf;
+		temp = 1 << phy->m31phy_reset_level_bit;
+		val = readl((void __iomem		*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + 0x4));
+		writel((val & (~temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + 0x4));
+
+		temp = 1 << phy->m31ctl_reset_level_bit;
+		val = readl((void __iomem		*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask)));
+		writel((val & (~temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask)));
+	}
 
 	if (phy->phy.flags == AML_USB3_PHY_ENABLE)
 		clk_disable_unprepare(phy->clk);
@@ -43,6 +64,27 @@ static void amlogic_usb3_m31_shutdown(struct usb_phy *x)
 static int amlogic_usb3_m31_init(struct usb_phy *x)
 {
 	struct amlogic_usb_m31 *phy = phy_to_m31usb(x);
+	u32 val, temp = 0;
+	size_t mask = 0;
+
+	if (phy->portnum > 0) {
+		mask = (size_t)phy->reset_regs & 0xf;
+		temp = 1 << phy->m31phy_reset_level_bit;
+		val = readl((void __iomem		*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + 0x4));
+		writel((val | (temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + 0x4));
+
+		temp = 1 << phy->m31ctl_reset_level_bit;
+		val = readl((void __iomem		*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask)));
+		writel((val | (temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask)));
+	}
 
 	if (phy->suspend_flag) {
 		if (phy->phy.flags == AML_USB3_PHY_ENABLE)
@@ -83,9 +125,14 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	int ret;
 	struct device_node *tsi_pci;
 	void __iomem *phy3_base;
+	void __iomem	*reset_base = NULL;
 	unsigned int phy3_mem;
 	unsigned int phy3_mem_size = 0;
 	union phy_m31_r0 r0;
+	struct resource *reset_mem;
+	u32 reset_level = 0x84;
+	u32 m31phy_reset_level_bit;
+	u32 m31ctl_reset_level_bit;
 
 	prop = of_get_property(dev->of_node, "portnum", NULL);
 	if (prop)
@@ -122,6 +169,31 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	if (!phy)
 		return -ENOMEM;
 
+	reset_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (reset_mem) {
+		reset_base = ioremap(reset_mem->start,
+			resource_size(reset_mem));
+		if (IS_ERR(reset_base))
+			return PTR_ERR(reset_base);
+	}
+
+	prop = of_get_property(dev->of_node, "reset-level", NULL);
+	if (prop)
+		reset_level = of_read_ulong(prop, 1);
+	else
+		reset_level = 0x84;
+	prop = of_get_property(dev->of_node, "m31phy-reset-level-bit", NULL);
+	if (prop)
+		m31phy_reset_level_bit = of_read_ulong(prop, 1);
+	else
+		m31phy_reset_level_bit = 13;
+
+	prop = of_get_property(dev->of_node, "m31ctl-reset-level-bit", NULL);
+	if (prop)
+		m31ctl_reset_level_bit = of_read_ulong(prop, 1);
+	else
+		m31ctl_reset_level_bit = 6;
+
 	phy->dev		= dev;
 	phy->portnum      = portnum;
 	phy->suspend_flag = 0;
@@ -133,6 +205,10 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	phy->phy.shutdown	= amlogic_usb3_m31_shutdown;
 	phy->phy.type		= USB_PHY_TYPE_USB3;
 	phy->phy.flags		= AML_USB3_PHY_DISABLE;
+	phy->reset_regs = reset_base;
+	phy->reset_level = reset_level;
+	phy->m31phy_reset_level_bit = m31phy_reset_level_bit;
+	phy->m31ctl_reset_level_bit = m31ctl_reset_level_bit;
 
 	/* set the phy from pcie to usb3 */
 	if (phy->portnum > 0) {

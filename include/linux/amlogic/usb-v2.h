@@ -321,6 +321,10 @@ struct amlogic_usb_m31 {
 	int suspend_flag;
 	u32 portnum;
 	void __iomem	*phy3_cfg;
+	void __iomem	*reset_regs;
+	u32 reset_level;
+	u32 m31phy_reset_level_bit;
+	u32 m31ctl_reset_level_bit;
 };
 
 union phy_m31_r0 {
