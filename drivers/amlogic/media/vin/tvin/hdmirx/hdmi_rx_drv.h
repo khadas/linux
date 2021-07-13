@@ -21,8 +21,8 @@
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_drv_ext.h"
 
-/* waiting i2c idle before pull dow HPD */
-#define RX_VER0 "ver.2021/07/06"
+/* fix vsif irq issue */
+#define RX_VER0 "ver.2021/07/13"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -751,5 +751,8 @@ int rx_hdcp22_send_uevent(int val);
 
 //#define RX_VER0 "ver.2021/07/06"
 //waiting i2c idle before pull dow HPD
+
+// fix vsif irq issue
+//#define RX_VER0 "ver.2021/07/13"
 
 #endif

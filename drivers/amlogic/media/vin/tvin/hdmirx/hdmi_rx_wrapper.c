@@ -86,7 +86,7 @@ u32 force_vic;
 int log_level = LOG_EN;
 u32 dbg_cs;
 u32 dbg_pkt;// = 0x81;
-
+u32 check_cor_irq_via_vsync;
 /* used in other module */
 static int audio_sample_rate;
 
@@ -932,13 +932,16 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 
 	/* must clear ip interrupt quickly */
 	if (rx.chip_id >= CHIP_ID_TL1 &&
-	    rx.chip_id <= CHIP_ID_T5D)
+	    rx.chip_id <= CHIP_ID_T5D) {
 		tmp = hdmirx_top_intr_stat & 0x1;
-	else if (rx.chip_id >= CHIP_ID_T7)
-		tmp = hdmirx_top_intr_stat & 0x2;
-	else
+	} else if (rx.chip_id >= CHIP_ID_T7) {
+		if (check_cor_irq_via_vsync)
+			tmp = check_cor_irq_via_vsync;
+		else
+			tmp = hdmirx_top_intr_stat & 0x2;
+	} else {
 		tmp = hdmirx_top_intr_stat & (~(1 << 30));
-
+	}
 	if (tmp) {
 		if (rx.chip_id >= CHIP_ID_T7)
 			error = hdmi_rx_ctrl_irq_handler_t7();
@@ -973,7 +976,8 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			if (rx.var.de_stable)
 				rx.var.de_cnt++;
 			#ifdef VSIF_PKT_READ_FROM_PD_FIFO
-			rx_pkt_handler(PKT_BUFF_SET_FIFO);
+			if (rx.chip_id < CHIP_ID_T7)
+				rx_pkt_handler(PKT_BUFF_SET_FIFO);
 			#endif
 			if (dbg_pkt == PKT_TYPE_INFOFRAME_VSI)
 				rx_pkt_handler(PKT_BUFF_SET_VSI);
