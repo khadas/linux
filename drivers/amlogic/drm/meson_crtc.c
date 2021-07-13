@@ -365,10 +365,12 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct drm_atomic_state *old_atomic_state = old_state->state;
 	struct meson_drm *priv = amcrtc->priv;
 	struct meson_vpu_pipeline *pipeline = amcrtc->pipeline;
+	struct am_meson_crtc_state *meson_crtc_state;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 	int gamma_lut_size = 0;
 #endif
 
+	meson_crtc_state = to_am_meson_crtc_state(crtc->state);
 	if (crtc->state->color_mgmt_changed) {
 		DRM_INFO("%s color_mgmt_changed!\n", __func__);
 		if (crtc->state->ctm) {
@@ -410,10 +412,12 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 	meson_vpu_line_check(crtc->index, crtc->mode.vdisplay, crtc->mode.vrefresh);
 #endif
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
-	vpu_osd_pipeline_update(pipeline, old_atomic_state);
-#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	meson_vpu_reg_vsync_config();
-#endif
+	if (!meson_crtc_state->uboot_mode_init) {
+		vpu_osd_pipeline_update(pipeline, old_atomic_state);
+		#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+		meson_vpu_reg_vsync_config();
+		#endif
+	}
 
 	if (crtc->state->event) {
 		amcrtc->event = crtc->state->event;
