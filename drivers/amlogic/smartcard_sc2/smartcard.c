@@ -53,6 +53,7 @@
 #include <linux/reset.h>
 #include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/mod_devicetable.h>
+#include <linux/ktime.h>
 
 #include "c_stb_regs_define.h"
 #include "smc_reg.h"
@@ -150,6 +151,13 @@ static struct clk *aml_smartcard_clk;
 
 #define REG_READ 0
 #define REG_WRITE 1
+
+#define MEASURE_GUARD_TIME_BY_SW
+
+#ifdef MEASURE_GUARD_TIME_BY_SW
+static s64 etu_nsec;
+static s64 total_guard_time_nsec;
+#endif
 
 static void debug_write(const char __user *buf, size_t count)
 {
@@ -903,7 +911,13 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	reg6->cwi_value = smc->param.cwi;
 	reg6->bwi = smc->param.bwi;
 	reg6->bgt = smc->param.bgt - 2;
+#ifdef MEASURE_GUARD_TIME_BY_SW
+	etu_nsec = div64_s64((s64)smc->param.f * 1000000,
+			     ((s64)smc->param.d * (s64)smc->param.freq));
+	total_guard_time_nsec = (12 + smc->param.n) * etu_nsec;
+#else
 	reg6->N_parameter = smc->param.n;
+#endif
 	SMC_WRITE_REG(REG6, v);
 	pr_error("REG6: 0x%08lx\n", v);
 	pr_error("N	  :%d\n", smc->param.n);
@@ -911,6 +925,10 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	pr_error("bgt	 :%d\n", smc->param.bgt);
 	pr_error("bwi	 :%d\n", smc->param.bwi);
 
+#ifdef MEASURE_GUARD_TIME_BY_SW
+	pr_error("etu (ns)   :%lld\n", etu_nsec);
+	pr_error("total guard time	:%lld", total_guard_time_nsec);
+#endif
 	return 0;
 }
 
@@ -1048,12 +1066,22 @@ static int smc_hw_setup(struct smc_dev *smc)
 	reg6->cwi_value = smc->param.cwi;
 	reg6->bgt = smc->param.bgt - 2;
 	reg6->bwi = smc->param.bwi;
+
+#ifdef MEASURE_GUARD_TIME_BY_SW
+	etu_nsec = div64_s64((s64)smc->param.f * 1000000,
+			     ((s64)smc->param.d * (s64)smc->param.freq));
+	total_guard_time_nsec = (12 + smc->param.n) * etu_nsec;
+#endif
 	SMC_WRITE_REG(REG6, v);
 	pr_error("REG6: 0x%08lx\n", v);
 	pr_error("N	  :%d\n", smc->param.n);
 	pr_error("cwi	 :%d\n", smc->param.cwi);
 	pr_error("bgt	 :%d\n", smc->param.bgt);
 	pr_error("bwi	 :%d\n", smc->param.bwi);
+#ifdef MEASURE_GUARD_TIME_BY_SW
+	pr_error("etu(ns)    :%lld\n", etu_nsec);
+	pr_error("total guard time	:%lld", total_guard_time_nsec);
+#endif
 	return 0;
 }
 
@@ -1748,6 +1776,10 @@ static int transmit_chars(struct smc_dev *smc)
 	u8 byte;
 	int start = smc->send_start;
 
+#ifdef MEASURE_GUARD_TIME_BY_SW
+	s64 prev_time_nsec = 0;
+#endif
+
 	while (1) {
 		status = SMC_READ_REG(STATUS);
 		if (smc->send_end == start || status_r->xmit_fifo_full)
@@ -1759,6 +1791,14 @@ static int transmit_chars(struct smc_dev *smc)
 #ifdef SW_INVERT
 		if (smc->sc_type == SC_INVERSE)
 			byte = inv_table[byte];
+#endif
+#ifdef MEASURE_GUARD_TIME_BY_SW
+		//just wait until current time > prev time + total guard time if necessary
+		while ((ktime_to_ns(ktime_get()) - prev_time_nsec) <
+		       total_guard_time_nsec)
+			;
+
+		prev_time_nsec = ktime_to_ns(ktime_get());
 #endif
 		SMC_WRITE_REG(FIFO, byte);
 		cnt++;

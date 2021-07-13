@@ -4,4 +4,4 @@
 
 config AMLOGIC_SMARTCARD
 	tristate "Amlogic Smartcard driver"
-	default n
+	default y
