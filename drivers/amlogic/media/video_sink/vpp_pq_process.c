@@ -89,6 +89,14 @@ static unsigned int color_th = 100;
 
 /*scene_prob[0]: scene, scene_prob[1]: prob*/
 int scene_prob[2] = {0, 0};
+struct ai_pq_hist_data aipq_hist_data = {
+	.pre_skin_pct = 0,
+	.pre_green_pct = 0,
+	.pre_blue_pct = 0,
+	.cur_skin_pct = 0,
+	.cur_green_pct = 0,
+	.cur_blue_pct = 0
+};
 
 enum iir_policy_e aipq_tiir_policy_proc(int (*prob)[2], int sc_chg,
 					int *pq_debug, int *kp_flag)
@@ -314,6 +322,10 @@ void aipq_scs_proc(struct vframe_s *vf,
 	cur_green_pct = div64_u64(cur_green_hist * 1000, cur_total_hist);
 	cur_blue_pct = div64_u64(cur_blue_hist * 1000, cur_total_hist);
 
+	aipq_hist_data.cur_skin_pct	= cur_skin_pct;
+	aipq_hist_data.cur_blue_pct	= cur_blue_pct;
+	aipq_hist_data.cur_green_pct	= cur_green_pct;
+
 	diff_skin_pct = (cur_skin_pct > pre_skin_pct) ?
 		(cur_skin_pct - pre_skin_pct) :
 		(pre_skin_pct - cur_skin_pct);
@@ -393,6 +405,10 @@ void aipq_scs_proc(struct vframe_s *vf,
 	pre_skin_pct = cur_skin_pct;
 	pre_green_pct = cur_green_pct;
 	pre_blue_pct = cur_blue_pct;
+
+	aipq_hist_data.pre_skin_pct  = pre_skin_pct;
+	aipq_hist_data.pre_green_pct = pre_green_pct;
+	aipq_hist_data.pre_blue_pct  = pre_blue_pct;
 }
 
 void vf_pq_process(struct vframe_s *vf,

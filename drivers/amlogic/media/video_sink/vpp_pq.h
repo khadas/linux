@@ -44,6 +44,15 @@ struct ai_scenes_pq {
 	int pq_values[SCENES_VALUE];
 };
 
+struct ai_pq_hist_data {
+	unsigned int pre_skin_pct;
+	unsigned int pre_green_pct;
+	unsigned int pre_blue_pct;
+	unsigned int cur_skin_pct;
+	unsigned int cur_green_pct;
+	unsigned int cur_blue_pct;
+};
+
 enum iir_policy_e {
 	SC_INVALID = 1,
 	SC_DETECTED
@@ -73,4 +82,5 @@ u32 get_color_th(void);
 
 extern int vpp_pq_data[AI_SCENES_MAX][SCENES_VALUE];
 extern int scene_prob[2];
+extern struct ai_pq_hist_data aipq_hist_data;
 #endif

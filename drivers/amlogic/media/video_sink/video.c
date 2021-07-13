@@ -13208,8 +13208,22 @@ static ssize_t cur_aipq_sp_show(struct class *cla,
 	if (!cur_dispbuf)
 		return 0;
 
-	count += sprintf(buf + count, "%d:", scene_prob[0]);
-	count += sprintf(buf + count, "%d;", scene_prob[1]);
+	count += sprintf(buf + count, "top_one:%d\n", scene_prob[0]);
+	count += sprintf(buf + count, "top_one_prob:%d\n", scene_prob[1]);
+
+	count += sprintf(buf + count, "cur_skin_pct:%d\n",
+		aipq_hist_data.cur_skin_pct);
+	count += sprintf(buf + count, "cur_green_pct:%d\n",
+		aipq_hist_data.cur_green_pct);
+	count += sprintf(buf + count, "cur_blue_pct:%d\n",
+		aipq_hist_data.cur_blue_pct);
+	count += sprintf(buf + count, "pre_skin_pct:%d\n",
+		aipq_hist_data.pre_skin_pct);
+	count += sprintf(buf + count, "pre_green_pct:%d\n",
+		aipq_hist_data.pre_green_pct);
+	count += sprintf(buf + count, "pre_blue_pct:%d\n",
+		aipq_hist_data.pre_blue_pct);
+
 	count += sprintf(buf + count, "\n");
 
 	return count;
