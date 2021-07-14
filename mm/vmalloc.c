@@ -38,6 +38,9 @@
 #ifdef CONFIG_AMLOGIC_CMA
 #include <linux/amlogic/aml_cma.h>
 #endif
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+#include <linux/amlogic/vmalloc_shrinker.h>
+#endif
 
 #include <linux/uaccess.h>
 #include <asm/tlbflush.h>
@@ -2044,6 +2047,42 @@ static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
 	spin_unlock(&vmap_area_lock);
 }
 
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+struct vmap_area *get_vm(unsigned long addr)
+{
+	struct rb_node *n = vmap_area_root.rb_node, *l = NULL;
+	struct vmap_area *va, *ret = NULL;
+	int lr = -1;
+
+	spin_lock(&vmap_area_lock);
+	while (n) {
+		va = rb_entry(n, struct vmap_area, rb_node);
+		l  = n;
+		if (addr < va->va_start) {
+			n  = n->rb_left;
+			lr = 0;
+		} else if (addr >= va->va_end) {
+			n  = n->rb_right;
+			lr = 1;
+		} else {
+			ret = va;
+			break;
+		}
+	}
+	if (!ret) {	/* not find */
+		if (lr == 0) { /* first higher object */
+			ret = rb_entry(l, struct vmap_area, rb_node);
+		} else if (lr == 1) {
+			n   = rb_next(l);
+			if (n)
+				ret = rb_entry(n, struct vmap_area, rb_node);
+		}
+	}
+	spin_unlock(&vmap_area_lock);
+	return ret;
+}
+#endif
+
 static void clear_vm_uninitialized_flag(struct vm_struct *vm)
 {
 	/*
@@ -2270,6 +2309,9 @@ static void __vunmap(const void *addr, int deallocate_pages)
 	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
 
 	vm_remove_mappings(area, deallocate_pages);
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+	release_vshrinker_page((unsigned long)area->addr, area->size);
+#endif
 
 	if (deallocate_pages) {
 		int i;
@@ -2424,7 +2466,11 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
 	struct page **pages;
 	unsigned int nr_pages, array_size, i;
 	const gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+	const gfp_t alloc_mask = gfp_mask | __GFP_NOWARN | __GFP_ZERO;
+#else
 	const gfp_t alloc_mask = gfp_mask | __GFP_NOWARN;
+#endif
 	const gfp_t highmem_mask = (gfp_mask & (GFP_DMA | GFP_DMA32)) ?
 					0 :
 					__GFP_HIGHMEM;
@@ -2615,6 +2661,19 @@ void *vmalloc(unsigned long size)
 				    GFP_KERNEL);
 }
 EXPORT_SYMBOL(vmalloc);
+
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+/* This area can be scanned by vmalloc shrinker */
+void *vmalloc_scan(unsigned long size, gfp_t flags, pgprot_t prot)
+{
+	return __vmalloc_node_range(size, 1,
+				    VMALLOC_START, VMALLOC_END,
+				    flags, prot,
+				    VM_SCAN, NUMA_NO_NODE,
+				    __builtin_return_address(0));
+}
+EXPORT_SYMBOL(vmalloc_scan);
+#endif
 
 /**
  * vzalloc - allocate virtually contiguous memory with zero fill
@@ -3560,6 +3619,11 @@ static int s_show(struct seq_file *m, void *p)
 
 	if (is_vmalloc_addr(v->pages))
 		seq_puts(m, " vpages");
+
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+	if (v->flags & VM_SCAN)
+		seq_puts(m, " scan");
+#endif
 
 	show_numa_info(m, v);
 	seq_putc(m, '\n');

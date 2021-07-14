@@ -33,9 +33,16 @@ void *module_alloc(unsigned long size)
 		/* don't exceed the static module region - see below */
 		module_alloc_end = MODULES_END;
 
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+	p = __vmalloc_node_range(size, MODULE_ALIGN, module_alloc_base,
+				module_alloc_end, gfp_mask, PAGE_KERNEL_EXEC,
+				VM_SCAN, NUMA_NO_NODE,
+				__builtin_return_address(0));
+#else
 	p = __vmalloc_node_range(size, MODULE_ALIGN, module_alloc_base,
 				module_alloc_end, gfp_mask, PAGE_KERNEL, 0,
 				NUMA_NO_NODE, __builtin_return_address(0));
+#endif
 
 	if (!p && IS_ENABLED(CONFIG_ARM64_MODULE_PLTS) &&
 	    !IS_ENABLED(CONFIG_KASAN))
@@ -48,10 +55,17 @@ void *module_alloc(unsigned long size)
 		 * less likely that the module region gets exhausted, so we
 		 * can simply omit this fallback in that case.
 		 */
+	#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+		p = __vmalloc_node_range(size, MODULE_ALIGN, module_alloc_base,
+				module_alloc_base + SZ_2G, GFP_KERNEL,
+				PAGE_KERNEL_EXEC, VM_SCAN, NUMA_NO_NODE,
+				__builtin_return_address(0));
+	#else
 		p = __vmalloc_node_range(size, MODULE_ALIGN, module_alloc_base,
 				module_alloc_base + SZ_2G, GFP_KERNEL,
 				PAGE_KERNEL, 0, NUMA_NO_NODE,
 				__builtin_return_address(0));
+	#endif
 
 	if (p && (kasan_module_alloc(p, size) < 0)) {
 		vfree(p);

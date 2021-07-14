@@ -22,6 +22,9 @@ struct notifier_block;		/* in notifier.h */
 #define VM_UNINITIALIZED	0x00000020	/* vm_struct is not fully initialized */
 #define VM_NO_GUARD		0x00000040      /* don't add guard page */
 #define VM_KASAN		0x00000080      /* has allocated kasan shadow memory */
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+#define VM_SCAN			0x00000100	/* scan for shrinker */
+#endif
 /*
  * Memory with VM_FLUSH_RESET_PERMS cannot be freed in an interrupt or with
  * vfree_atomic().
@@ -241,5 +244,8 @@ struct vm_struct *__get_vm_area_node(unsigned long size,
 		unsigned long align, unsigned long flags, unsigned long start,
 		unsigned long end, int node,
 		gfp_t gfp_mask, const void *caller);
+#endif
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+void *vmalloc_scan(unsigned long size, gfp_t flags, pgprot_t prot);
 #endif
 #endif /* _LINUX_VMALLOC_H */

@@ -73,6 +73,16 @@ config AMLOGIC_VMAP
 		AMLOGIC_MEMORY_EXTEND. This config only opened
 		on 64 bit platform.
 
+config AMLOGIC_VMALLOC_SHRINKER
+	bool "Amlogic vmalloc shrinker"
+	depends on AMLOGIC_MEMORY_EXTEND
+	depends on 64BIT
+	default n
+	help
+		This config is used to enable amlogic vmalloc shrinker
+		function, it will compress/decompress vmalloc memory to zram
+		in order to save memory. It depends on AMLOGIC_MEMORY_EXTEND.
+
 config AMLOGIC_WATCHPOINT
 	tristate "Amlogic point driver"
 	depends on HAVE_HW_BREAKPOINT
