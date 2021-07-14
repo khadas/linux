@@ -132,7 +132,7 @@ ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf)
 	ssize_t len = 0;
 
 	len += sprintf(buf + len, "status\t: print frc internal status\n");
-	len += sprintf(buf + len, "dbg_level\t: set frc debug log level (0, 1, 2 ..)\n");
+	len += sprintf(buf + len, "dbg_level=%d\n", frc_dbg_en);
 	len += sprintf(buf + len, "dbg_mode\t: 0:disable 1:enable 2:bypass\n");
 	len += sprintf(buf + len, "dbg_ratio\t: set debug input ratio\n");
 	len += sprintf(buf + len, "dbg_force\t: force debug mode\n");
