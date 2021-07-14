@@ -3822,6 +3822,12 @@ u8 rx_get_hdcp_type(void)
 		data_dec = hdmirx_rd_cor(RX_HDCP_STATUS_PWD_IVCRX);
 		rx.cur.hdcp14_state = (hdmirx_rd_cor(RX_HDCP_STAT_HDCP1X_IVCRX) >> 4) & 3;
 		rx.cur.hdcp22_state = ((data_dec & 1) << 1) | (data_auth & 1);
+		if ((rx.cur.hdcp22_state & 1) && rx.cur.hdcp14_state == 0)
+			rx.hdcp.hdcp_version = HDCP_VER_22;
+		else if (rx.cur.hdcp14_state == 3 && rx.cur.hdcp22_state == 0)
+			rx.hdcp.hdcp_version = HDCP_VER_14;
+		else
+			rx.hdcp.hdcp_version = HDCP_VER_NONE;
 	} else {
 		if (hdcp22_on) {
 			tmp = hdmirx_rd_dwc(DWC_HDCP22_STATUS);

@@ -627,6 +627,8 @@ void hdmirx_get_hdcp_sts(struct tvin_sig_property_s *prop)
 		prop->hdcp_sts = 1;
 	else
 		prop->hdcp_sts = 0;
+	if (log_level & 0x10000)
+		rx_pr("hdcp_sts = %d\n", prop->hdcp_sts);
 }
 
 /*
