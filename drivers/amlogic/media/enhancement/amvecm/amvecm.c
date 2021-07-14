@@ -4436,7 +4436,7 @@ static ssize_t set_gamma_pattern_store(struct class *cls,
 	}
 
 	if (cpu_after_eq_t7()) {
-		lcd_gamma_api(r_val, g_val, b_val, 0, 0);
+		lcd_gamma_api(gamma_index, r_val, g_val, b_val, 0, 0);
 	} else {
 		amve_write_gamma_table(r_val, H_SEL_R);
 		amve_write_gamma_table(g_val, H_SEL_G);
@@ -8897,10 +8897,18 @@ void amvecm_gamma_init(bool en)
 	}
 
 	if (cpu_after_eq_t7()) {
-		lcd_gamma_api(video_gamma_table_r.data,
-			video_gamma_table_g.data,
-			video_gamma_table_b.data,
-			0, 0);
+		if (is_meson_t7_cpu()) {
+			for (i = 0; i < 3; i++)
+				lcd_gamma_api(i, video_gamma_table_r.data,
+					video_gamma_table_g.data,
+					video_gamma_table_b.data,
+					0, 0);
+		} else {
+			lcd_gamma_api(0, video_gamma_table_r.data,
+				video_gamma_table_g.data,
+				video_gamma_table_b.data,
+				0, 0);
+		}
 	} else {
 		vpp_disable_lcd_gamma_table(0, 0);
 		WRITE_VPP_REG_BITS(L_GAMMA_CNTL_PORT,
@@ -9401,6 +9409,7 @@ static int aml_lcd_gamma_notifier(struct notifier_block *nb,
 	vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
 	vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
 
+	gamma_index = *(unsigned int *)data;
 	return NOTIFY_OK;
 }
 

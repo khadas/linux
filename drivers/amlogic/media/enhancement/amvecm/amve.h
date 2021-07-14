@@ -180,6 +180,7 @@ void amve_fmetersize_config(u32 sr0_w, u32 sr0_h, u32 sr1_w, u32 sr1_h);
 extern int video_rgb_ogo_xvy_mtx;
 
 #define GAMMA_SIZE 256
+extern unsigned int gamma_index;
 
 extern unsigned int dnlp_sel;
 void ve_dnlp_load_reg(void);
@@ -218,7 +219,7 @@ void amvecm_wb_enable(int enable);
 int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg);
 unsigned int skip_pq_ctrl_load(struct am_reg_s *p);
 void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb);
-void lcd_gamma_api(u16 *r_data, u16 *g_data,
+void lcd_gamma_api(unsigned int index, u16 *r_data, u16 *g_data,
 	u16 *b_data, int rdma_write, int rw_flag);
 void vpp_pst_hist_sta_config(int en,
 	enum pst_hist_mod mod,
