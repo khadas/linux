@@ -133,7 +133,7 @@ static struct fun_symbol common_func[] __initdata = {
 #endif
 #ifdef CONFIG_SLUB	/* for some static symbols not exported in headfile */
 	{"new_slab",			0, 0},
-	{"___slab_alloc",		0, 0},
+	{"__slab_alloc",		0, 0},
 	{"allocate_slab",		0, 0},
 #endif
 	{}		/* tail */
