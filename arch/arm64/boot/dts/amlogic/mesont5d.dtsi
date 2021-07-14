@@ -720,6 +720,8 @@
 			mdio-parent-bus = <&mdio0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			enet_type = <4>;
+			tx_amp_src = <0xFF800270>;
 
 			ext_mdio: mdio@0 {
 				reg = <0>;

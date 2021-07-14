@@ -20,17 +20,6 @@ unsigned int cts_setting[16] = {0xA7E00000, 0x87E00000, 0x8BE00000, 0x93E00000,
 				0x8FE00000, 0x97E00000,	0x9BE00000, 0xA7E00000,
 				0xABE00000, 0xB3E00000, 0xAFE00000, 0xB7E00000,
 				0xE7E00000, 0xEFE00000, 0xFBE00000, 0xFFE00000};
-
-enum {
-	/* chip num */
-	ETH_PHY		= 0x0,
-	ETH_PHY_C1	= 0x1,
-	ETH_PHY_C2	= 0x2,
-	ETH_PHY_SC2	= 0x3, //kerel android-q
-	ETH_PHY_T5      = 0x4,
-	ETH_PHY_T7      = 0x5,
-};
-
 unsigned int tx_amp_bl2;
 EXPORT_SYMBOL_GPL(tx_amp_bl2);
 unsigned int enet_type;
@@ -182,9 +171,9 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	void __iomem *tx_amp_src = NULL;
 	unsigned int tx_amp_addr = 0;
 	unsigned int cts_valid = 0;
-	unsigned int cts_amp = 0;
 	struct device_node *np = priv->dev->of_node;
 
+	unsigned int cts_enhance = 0;
 	tx_amp_bl2 = 0;
 	enet_type = 0;
 #endif
@@ -229,15 +218,20 @@ static int g12a_enable_internal_mdio(struct g12a_mdio_mux *priv)
 	tx_amp_bl2 = (readl(tx_amp_src) & 0x3f);
 	pr_info("wzh txamp 0x%x\n", readl(tx_amp_src));
 
-	/*T5 use new method for tuning cts*/
-	if (enet_type == ETH_PHY_T5) {
-		cts_valid =  (tx_amp_bl2 >> 4) & 0x3;
-		if (cts_valid)
-			cts_amp  = tx_amp_bl2 & 0xf;
-		/*invalid will set cts_setting[0] 0xA7E00000*/
-		writel(cts_setting[cts_amp], priv->regs + ETH_PLL_CTL3);
-		tx_amp_bl2 = 0x15;
-	}
+	/*valid bit
+	 * t5/t5d only consider bit5 as valid bit
+	 * bit4 was for internal resistor mode, which won't been used anymore
+	 * others both bit5 and bit4 are valid bit
+	 */
+	if (enet_type == ETH_PHY_T5)
+		cts_valid = ((tx_amp_bl2 >> 5) & 0x1);
+	else
+		cts_valid = ((tx_amp_bl2 >> 4) & 0x3);
+	/*0715-2021 new define bit3 as enhance bit*/
+	cts_enhance = ((tx_amp_bl2 >> 3) & 0x1);
+
+	if ((cts_valid) && (cts_enhance))
+		writel(0x0400000, priv->regs + ETH_PLL_CTL3);
 #endif
 	return 0;
 }
