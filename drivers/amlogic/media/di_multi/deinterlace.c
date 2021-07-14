@@ -1416,7 +1416,7 @@ unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int ch)
 		reason = 0x81;
 	} else if (ppre->cur_prog_flag		&&
 		   ((ppre->cur_width > default_width)	||
-		    (ppre->cur_height > default_height)	||
+		    (ppre->cur_height > (default_height + 8))	||
 		    (ppre->cur_inp_type & VIDTYPE_VIU_444))) {
 		reason = 0x82;
 	} else if ((ppre->cur_width < 128) || (ppre->cur_height < 16)) {
@@ -4717,8 +4717,13 @@ void pre_inp_mif_w(struct DI_MIF_S *di_mif, struct vframe_s *vf)
 		di_mif->cbcr_swap = 0;
 	if ((vf->flag & VFRAME_FLAG_VIDEO_LINEAR) ||
 	    dim_in_linear()) {
-		di_mif->reg_swap = 0;
-		di_mif->l_endian = 1;
+		if (vf->canvas0_config[0].endian && (DIM_IS_IC_EF(T7))) {
+			di_mif->reg_swap = 1;
+			di_mif->l_endian = 0;
+		} else {
+			di_mif->reg_swap = 0;
+			di_mif->l_endian = 1;
+		}
 
 	} else {
 		di_mif->reg_swap = 1;
