@@ -38,7 +38,7 @@ for(@ARGV)
 my $licence_start="// SPDX-License-Identifier: (GPL-2.0+ OR MIT)\n";
 my $licence_end=
 "/*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */\n\n";
 
 #print $licence;

@@ -4,6 +4,8 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/gpio/meson-t5w-gpio.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	compatible = "amlogic";
@@ -214,6 +216,63 @@
 			};
 
 		};
+
+		pinctrl_aobus: pinctrl@14 {
+			compatible = "amlogic,meson-t5w-aobus-pinctrl";
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges;
+
+			gpio_ao: ao-bank@14 {
+				reg = <0x0 0x14 0x0 0x8>,
+					  <0x0 0x24 0x0 0x14>,
+					  <0x0 0x1c 0x0 0x8>;
+				reg-names = "mux", "gpio", "ds";
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&pinctrl_aobus 0 0 13>;
+			};
+		};
+
+	};
+
+	pinctrl_periphs: pinctrl@ff6346c0 {
+		compatible = "amlogic,meson-t5w-periphs-pinctrl";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		gpio: banks@ff6346c0 {
+			reg = <0x0 0xff6346c0 0x0 0xab>,
+			      <0x0 0xff6344e8 0x0 0x18>,
+			      <0x0 0xff634520 0x0 0x18>,
+			      <0x0 0xff634440 0x0 0x4c>;
+			reg-names = "mux",
+				"pull",
+				"pull-enable",
+				"gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pinctrl_periphs 0 0 117>;
+		};
+	};
+
+	cbus: cbus@ffd00000 {
+			compatible = "simple-bus";
+			reg = <0x0 0xffd00000 0x0 0x27000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			ranges = <0x0 0x0 0x0 0xffd00000 0x0 0x27000>;
+
+			gpio_intc: interrupt-controller@f080 {
+				compatible = "amlogic,meson-gpio-intc",
+						"amlogic,meson-t5w-gpio-intc";
+				reg = <0x0 0xf080 0x0 0x10>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				amlogic,channel-interrupts =
+					<64 65 66 67 68 69 70 71>;
+			};
 	};
 
 	uart_B: serial@ffd23000 {

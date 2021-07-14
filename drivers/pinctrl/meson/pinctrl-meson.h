@@ -182,6 +182,8 @@ int meson8_aobus_parse_dt_extra(struct meson_pinctrl *pc);
 #ifdef CONFIG_AMLOGIC_MODIFY
 /* Common ao groups extra dt parse function for SoCs g12a/b/sm1/tm2/t5d/t5 */
 int meson_g12a_aobus_parse_dt_extra(struct meson_pinctrl *pc);
+/* Only for t5w for special register layout fixup */
+int meson_t5w_workaround_parse_dt_extra(struct meson_pinctrl *pc);
 #endif
 /* Common extra dt parse function for SoCs like A1  */
 int meson_a1_parse_dt_extra(struct meson_pinctrl *pc);
