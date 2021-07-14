@@ -63,3 +63,4 @@ dtb-y += p1_skt_8g.dtb
 dtb-y += p1_skt_4g.dtb
 dtb-y += p1_ninox_4_4g.dtb
 dtb-y += p1_as400_8g.dtb
+dtb-y += t5w_pxp.dtb
