@@ -61,7 +61,8 @@
 #include "frc_buf.h"
 #include "frc_hw.h"
 
-static struct frc_dev_s *frc_dev;
+// static struct frc_dev_s *frc_dev; // for SWPL-53056:KASAN: use-after-free
+static struct frc_dev_s frc_dev;
 
 int frc_dbg_en;
 EXPORT_SYMBOL(frc_dbg_en);
@@ -70,7 +71,8 @@ MODULE_PARM_DESC(frc_dbg_en, "frc debug level");
 
 struct frc_dev_s *get_frc_devp(void)
 {
-	return frc_dev;
+	// return frc_dev;
+	return &frc_dev;
 }
 
 int  frc_kerdrv_ver = FRC_KERDRV_VER;
@@ -664,17 +666,15 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 
 static int frc_probe(struct platform_device *pdev)
 {
-	int ret = 0;
-	struct frc_dev_s *frc_devp;
-	int i;
+	int ret = 0, i;
 	struct frc_data_s *frc_data;
-
-	frc_dev = kzalloc(sizeof(*frc_dev), GFP_KERNEL);
-	if (!frc_dev) {
-		PR_ERR("%s: frc_dev kzalloc memory failed\n", __func__);
-		goto fail_alloc_dev;
-	}
-	frc_devp = frc_dev;
+	struct frc_dev_s *frc_devp = &frc_dev;
+	// frc_dev = kzalloc(sizeof(*frc_dev), GFP_KERNEL);
+	// if (!frc_dev) {
+	//	PR_ERR("%s: frc_dev kzalloc memory failed\n", __func__);
+	//	goto fail_alloc_dev;
+	// }
+	memset(frc_devp, 0, (sizeof(struct frc_dev_s)));
 
 	frc_devp->data = NULL;
 	frc_devp->data = kzalloc(sizeof(*frc_devp->data), GFP_KERNEL);
@@ -770,26 +770,26 @@ fail_class_create_file:
 		class_remove_file(frc_devp->clsp, &frc_class_attrs[i]);
 	class_destroy(frc_devp->clsp);
 fail_create_cls:
-	unregister_chrdev_region(frc_dev->devno, FRC_DEVNO);
+	unregister_chrdev_region(frc_devp->devno, FRC_DEVNO);
 fail_alloc_region:
 	// kfree(frc_dev->fw_data);
-	frc_dev->fw_data = NULL;
+	frc_devp->fw_data = NULL;
 fail_alloc_fw_data_fail:
-	kfree(frc_dev->data);
-	frc_dev->data = NULL;
+	kfree(frc_devp->data);
+	frc_devp->data = NULL;
 fail_alloc_data_fail:
-	kfree(frc_dev);
-	frc_dev = NULL;
-fail_alloc_dev:
+	// kfree(frc_dev);
+	// frc_dev = NULL;
+// fail_alloc_dev:
 	return ret;
 }
 
-static int frc_remove(struct platform_device *pdev)
+static int __exit frc_remove(struct platform_device *pdev)
 {
-	struct frc_dev_s *frc_devp = NULL;
+	struct frc_dev_s *frc_devp = &frc_dev;
 
 	PR_FRC("%s:module remove\n", __func__);
-	frc_devp = platform_get_drvdata(pdev);
+	// frc_devp = platform_get_drvdata(pdev);
 	tasklet_kill(&frc_devp->input_tasklet);
 	tasklet_kill(&frc_devp->output_tasklet);
 	tasklet_disable(&frc_devp->input_tasklet);
@@ -802,27 +802,26 @@ static int frc_remove(struct platform_device *pdev)
 	device_destroy(frc_devp->clsp, frc_devp->devno);
 	cdev_del(&frc_devp->cdev);
 	class_destroy(frc_devp->clsp);
-	unregister_chrdev_region(frc_dev->devno, FRC_DEVNO);
+	unregister_chrdev_region(frc_devp->devno, FRC_DEVNO);
 	//destroy_workqueue(frc_devp->frc_wq);
 	set_frc_clk_disable();
 	//if (frc_devp->dbg_buf)
 	//	kfree(frc_devp->dbg_buf);
 	frc_buf_release(frc_devp);
-	kfree(frc_dev->data);
-	frc_dev->data = NULL;
-	kfree(frc_dev);
-	frc_dev = NULL;
-
-
+	kfree(frc_devp->data);
+	frc_devp->data = NULL;
+	// kfree(frc_dev);
+	// frc_dev = NULL;
+	PR_FRC("%s:module remove done\n", __func__);
 	return 0;
 }
 
 static void frc_shutdown(struct platform_device *pdev)
 {
-	struct frc_dev_s *frc_devp = NULL;
+	struct frc_dev_s *frc_devp = &frc_dev;
 
 	PR_FRC("%s:module shutdown\n", __func__);
-	frc_devp = platform_get_drvdata(pdev);
+	// frc_devp = platform_get_drvdata(pdev);
 	tasklet_kill(&frc_devp->input_tasklet);
 	tasklet_kill(&frc_devp->output_tasklet);
 	tasklet_disable(&frc_devp->input_tasklet);
@@ -835,16 +834,16 @@ static void frc_shutdown(struct platform_device *pdev)
 	device_destroy(frc_devp->clsp, frc_devp->devno);
 	cdev_del(&frc_devp->cdev);
 	class_destroy(frc_devp->clsp);
-	unregister_chrdev_region(frc_dev->devno, FRC_DEVNO);
+	unregister_chrdev_region(frc_devp->devno, FRC_DEVNO);
 	//destroy_workqueue(frc_devp->frc_wq);
 	set_frc_clk_disable();
 	//if (frc_devp->dbg_buf)
 	//	kfree(frc_devp->dbg_buf);
 	frc_buf_release(frc_devp);
-	kfree(frc_dev->data);
-	frc_dev->data = NULL;
-	kfree(frc_dev);
-	frc_dev = NULL;
+	kfree(frc_devp->data);
+	frc_devp->data = NULL;
+	// kfree(frc_dev);
+	// frc_dev = NULL;
 	PR_FRC("%s:module shutdown done\n", __func__);
 }
 

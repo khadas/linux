@@ -24,8 +24,9 @@
 #include <linux/amlogic/media/frc/frc_common.h>
 #include "frc_interface.h"
 
-#define FRC_FW_VER			"2021-0714 frc sync alg svn823"
+#define FRC_FW_VER			"2021-0714 frc dev set no-pointer type"
 #define FRC_KERDRV_VER                  823
+
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
 #define FRC_CLASS_NAME	"frc"
