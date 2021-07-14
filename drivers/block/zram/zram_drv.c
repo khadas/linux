@@ -1163,7 +1163,12 @@ static bool zram_meta_alloc(struct zram *zram, u64 disksize)
 	size_t num_pages;
 
 	num_pages = disksize >> PAGE_SHIFT;
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+	zram->table = vmalloc_scan(array_size(num_pages, sizeof(*zram->table)),
+				   GFP_KERNEL, PAGE_KERNEL);
+#else
 	zram->table = vzalloc(array_size(num_pages, sizeof(*zram->table)));
+#endif
 	if (!zram->table)
 		return false;
 

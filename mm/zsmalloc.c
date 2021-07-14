@@ -1262,7 +1262,14 @@ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
 	 * pools/users, we can't allow mapping in interrupt context
 	 * because it can corrupt another users mappings.
 	 */
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+	if (mm & ZS_MM_SHRINKER)
+		mm &= ~ZS_MM_SHRINKER;
+	else
+		BUG_ON(in_interrupt());
+#else
 	BUG_ON(in_interrupt());
+#endif
 
 	/* From now on, migration cannot move the object */
 	pin_tag(handle);

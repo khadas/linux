@@ -3752,6 +3752,12 @@ static inline bool zone_watermark_fast(struct zone *z, unsigned int order,
 	long free_pages = zone_page_state(z, NR_FREE_PAGES);
 	long cma_pages = 0;
 
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	/* ignore watermark for special flags */
+	if (gfp_mask == (GFP_ATOMIC | __GFP_HIGHMEM | __GFP_NO_CMA))
+		return true;
+#endif
+
 #ifdef CONFIG_CMA
 	/* If allocation can't use CMA areas don't use free CMA pages */
 	if (!(alloc_flags & ALLOC_CMA))

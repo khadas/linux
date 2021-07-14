@@ -44,8 +44,14 @@ static int deflate_comp_init(struct deflate_ctx *ctx, int format)
 	int ret = 0;
 	struct z_stream_s *stream = &ctx->comp_stream;
 
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+	stream->workspace = vmalloc_scan(zlib_deflate_workspacesize(MAX_WBITS,
+					 MAX_MEM_LEVEL),
+					 GFP_KERNEL, PAGE_KERNEL);
+#else
 	stream->workspace = vzalloc(zlib_deflate_workspacesize(
 				    MAX_WBITS, MAX_MEM_LEVEL));
+#endif
 	if (!stream->workspace) {
 		ret = -ENOMEM;
 		goto out;
@@ -73,7 +79,12 @@ static int deflate_decomp_init(struct deflate_ctx *ctx, int format)
 	int ret = 0;
 	struct z_stream_s *stream = &ctx->decomp_stream;
 
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+	stream->workspace = vmalloc_scan(zlib_inflate_workspacesize(),
+					 GFP_KERNEL, PAGE_KERNEL);
+#else
 	stream->workspace = vzalloc(zlib_inflate_workspacesize());
+#endif
 	if (!stream->workspace) {
 		ret = -ENOMEM;
 		goto out;

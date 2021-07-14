@@ -120,6 +120,7 @@ static struct fun_symbol common_func[] __initdata = {
 	{"__vmalloc_node_flags",	0, 0},
 	{"vzalloc",			1, 0},
 	{"vmalloc",			1, 0},
+	{"__vmalloc",			1, 0},
 	{"kzalloc",			1, 0},
 	{"kstrdup_const",		1, 0},
 	{"kvmalloc_node",		1, 0},

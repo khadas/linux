@@ -985,10 +985,17 @@ out:
 
 void *bpf_jit_alloc_exec(unsigned long size)
 {
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+	return __vmalloc_node_range(size, PAGE_SIZE, BPF_JIT_REGION_START,
+				    BPF_JIT_REGION_END, GFP_KERNEL,
+				    PAGE_KERNEL, VM_SCAN, NUMA_NO_NODE,
+				    __builtin_return_address(0));
+#else
 	return __vmalloc_node_range(size, PAGE_SIZE, BPF_JIT_REGION_START,
 				    BPF_JIT_REGION_END, GFP_KERNEL,
 				    PAGE_KERNEL, 0, NUMA_NO_NODE,
 				    __builtin_return_address(0));
+#endif
 }
 
 void bpf_jit_free_exec(void *addr)

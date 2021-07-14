@@ -642,7 +642,12 @@ static int __init pptp_init_module(void)
 	int err = 0;
 	pr_info("PPTP driver version " PPTP_DRIVER_VERSION "\n");
 
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+	callid_sock = vmalloc_scan(array_size(sizeof(void *), (MAX_CALLID + 1)),
+				   GFP_KERNEL, PAGE_KERNEL);
+#else
 	callid_sock = vzalloc(array_size(sizeof(void *), (MAX_CALLID + 1)));
+#endif
 	if (!callid_sock)
 		return -ENOMEM;
 

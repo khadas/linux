@@ -22,9 +22,16 @@
  * NOTE: These only make a difference when a mapped object spans pages.
  */
 enum zs_mapmode {
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+	ZS_MM_RW, /* normal read-write mapping */
+	ZS_MM_RO, /* read-only (no copy-out at unmap time) */
+	ZS_MM_WO, /* write-only (no copy-in at map time) */
+	ZS_MM_SHRINKER = 4 /* call from module shrinker */
+#else
 	ZS_MM_RW, /* normal read-write mapping */
 	ZS_MM_RO, /* read-only (no copy-out at unmap time) */
 	ZS_MM_WO /* write-only (no copy-in at map time) */
+#endif
 	/*
 	 * NOTE: ZS_MM_WO should only be used for initializing new
 	 * (uninitialized) allocations.  Partial writes to already

@@ -2000,6 +2000,14 @@ static void mod_sysfs_teardown(struct module *mod)
 }
 
 #ifdef CONFIG_ARCH_HAS_STRICT_MODULE_RWX
+#ifdef CONFIG_AMLOGIC_VMALLOC_SHRINKER
+static void module_enable_nx(const struct module *mod) { }
+static void module_enable_x(const struct module *mod) { }
+void set_all_modules_text_rw(void) { }
+void set_all_modules_text_ro(void) { }
+void module_enable_ro(const struct module *mod, bool after_init) { }
+void module_disable_ro(const struct module *mod) { }
+#else
 /*
  * LKM RO/NX protection: protect module's text/ro-data
  * from modification and any data from execution.
@@ -2143,6 +2151,7 @@ static void module_enable_x(const struct module *mod)
 	frob_text(&mod->core_layout, set_memory_x);
 	frob_text(&mod->init_layout, set_memory_x);
 }
+#endif
 #else /* !CONFIG_ARCH_HAS_STRICT_MODULE_RWX */
 static void module_enable_nx(const struct module *mod) { }
 static void module_enable_x(const struct module *mod) { }
