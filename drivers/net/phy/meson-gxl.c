@@ -173,9 +173,14 @@ static int custom_internal_config(struct phy_device *phydev)
 		efuse_amp = efuse_amp & 0xf;
 	}
 #else
-
-	efuse_valid = ((efuse_amp >> 4) & 0x3);
-	efuse_amp = efuse_amp & 0xf;
+	if (enet_type == ETH_PHY_T5)
+		efuse_valid = ((efuse_amp >> 5) & 0x1);
+	else
+		efuse_valid = ((efuse_amp >> 4) & 0x3);
+	/*0715-2021 define bit3 as enhance bit as HW requirement
+	 *reduce steps down to 8 from 16
+	 */
+	efuse_amp = efuse_amp & 0x7;
 #endif
 	if (efuse_valid) {
 		/* efuse is valid but env not*/
@@ -191,6 +196,15 @@ static int custom_internal_config(struct phy_device *phydev)
 	} else {
 		/*env not set, efuse not valid return*/
 		pr_info("env not set, efuse also invalid\n");
+	}
+	/*rx currents for t5/t5d only by now*/
+	if (enet_type == ETH_PHY_T5) {
+		phy_write(phydev, 0x14, 0x0000);
+		phy_write(phydev, 0x14, 0x0400);
+		phy_write(phydev, 0x14, 0x0000);
+		phy_write(phydev, 0x14, 0x0400);
+		phy_write(phydev, 0x17, 0x1000);
+		phy_write(phydev, 0x14, 0x4413);
 	}
 	return 0;
 }

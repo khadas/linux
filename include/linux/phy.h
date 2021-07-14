@@ -1240,9 +1240,21 @@ static inline int phy_ethtool_get_sset_count(struct phy_device *phydev)
 	return -EOPNOTSUPP;
 }
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
 /*custom_internal_config*/
 extern unsigned int enet_type;
 extern unsigned int tx_amp_bl2;
+
+enum {
+	/* chip num */
+	ETH_PHY		= 0x0,
+	ETH_PHY_C1	= 0x1,
+	ETH_PHY_C2	= 0x2,
+	ETH_PHY_SC2	= 0x3, //kerel android-q
+	ETH_PHY_T5      = 0x4,
+	ETH_PHY_T7      = 0x5,
+};
+#endif
 
 static inline int phy_ethtool_get_stats(struct phy_device *phydev,
 					struct ethtool_stats *stats, u64 *data)
