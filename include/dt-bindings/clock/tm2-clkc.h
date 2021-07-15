@@ -47,9 +47,10 @@
 #define CLKID_PCIE_HCSL0			38
 #define CLKID_PCIE_HCSL1			39
 #define CLKID_GP1_PLL_DCO			40
+#define CLKID_PCIE_BGP				41
 
 /*HHI_GCLK_MPEG0: 0x50*/
-#define GATE_BASE0				41
+#define GATE_BASE0				42
 #define CLKID_DDR				(GATE_BASE0 + 0)
 #define CLKID_DOS				(GATE_BASE0 + 1)
 #define CLKID_ETH_PHY				(GATE_BASE0 + 2)

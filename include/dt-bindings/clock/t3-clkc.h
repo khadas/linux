@@ -54,7 +54,8 @@
 #define CLKID_MPLL2			42
 #define CLKID_MPLL3_DIV			43
 #define CLKID_MPLL3			44
-#define CLKID_BASE			45
+#define CLKID_PCIE_BGP			45
+#define CLKID_BASE			46
 
 #define CLKID_RTC_32K_CLKIN		(CLKID_BASE + 0)
 #define CLKID_RTC_32K_DIV		(CLKID_BASE + 1)

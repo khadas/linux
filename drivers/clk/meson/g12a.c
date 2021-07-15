@@ -2143,6 +2143,19 @@ static struct clk_fixed_factor g12a_pcie_pll = {
 	},
 };
 
+static struct clk_regmap g12a_pcie_bgp = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_PCIE_PLL_CNTL5,
+		.bit_idx = 27,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie_bgp",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) { &g12a_pcie_pll.hw },
+		.num_parents = 1,
+	},
+};
+
 static struct clk_regmap g12a_pcie_hcsl = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = HHI_PCIE_PLL_CNTL5,
@@ -2151,7 +2164,7 @@ static struct clk_regmap g12a_pcie_hcsl = {
 	.hw.init = &(struct clk_init_data){
 		.name = "pcie_hcsl",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &g12a_pcie_pll.hw },
+		.parent_hws = (const struct clk_hw *[]) { &g12a_pcie_bgp.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
@@ -5403,6 +5416,7 @@ static struct clk_hw_onecell_data g12a_hw_onecell_data = {
 		[CLKID_PCIE_PLL_DCO_DIV2]	= &g12a_pcie_pll_dco_div2.hw,
 		[CLKID_PCIE_PLL_OD]		= &g12a_pcie_pll_od.hw,
 		[CLKID_PCIE_PLL]		= &g12a_pcie_pll.hw,
+		[CLKID_PCIE_BGP]		= &g12a_pcie_bgp.hw,
 		[CLKID_PCIE_HCSL]		= &g12a_pcie_hcsl.hw,
 		[CLKID_VDEC_1_SEL]		= &g12a_vdec_1_sel.hw,
 		[CLKID_VDEC_1_DIV]		= &g12a_vdec_1_div.hw,
@@ -5642,6 +5656,7 @@ static struct clk_hw_onecell_data g12b_hw_onecell_data = {
 		[CLKID_PCIE_PLL_DCO_DIV2]	= &g12a_pcie_pll_dco_div2.hw,
 		[CLKID_PCIE_PLL_OD]		= &g12a_pcie_pll_od.hw,
 		[CLKID_PCIE_PLL]		= &g12a_pcie_pll.hw,
+		[CLKID_PCIE_BGP]		= &g12a_pcie_bgp.hw,
 		[CLKID_PCIE_HCSL]               = &g12a_pcie_hcsl.hw,
 		[CLKID_VDEC_1_SEL]		= &g12a_vdec_1_sel.hw,
 		[CLKID_VDEC_1_DIV]		= &g12a_vdec_1_div.hw,
@@ -5910,6 +5925,7 @@ static struct clk_hw_onecell_data sm1_hw_onecell_data = {
 		[CLKID_PCIE_PLL_DCO_DIV2]	= &g12a_pcie_pll_dco_div2.hw,
 		[CLKID_PCIE_PLL_OD]		= &g12a_pcie_pll_od.hw,
 		[CLKID_PCIE_PLL]		= &g12a_pcie_pll.hw,
+		[CLKID_PCIE_BGP]		= &g12a_pcie_bgp.hw,
 		[CLKID_PCIE_HCSL]               = &g12a_pcie_hcsl.hw,
 		[CLKID_VDEC_1_SEL]		= &g12a_vdec_1_sel.hw,
 		[CLKID_VDEC_1_DIV]		= &g12a_vdec_1_div.hw,
@@ -6182,6 +6198,7 @@ static struct clk_regmap *const g12a_clk_regmaps[] __initconst = {
 	&g12a_cpu_clk_trace,
 	&g12a_pcie_pll_od,
 	&g12a_pcie_pll_dco,
+	&g12a_pcie_bgp,
 	&g12a_pcie_hcsl,
 	&g12a_vdec_1_sel,
 	&g12a_vdec_1_div,
