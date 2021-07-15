@@ -5926,10 +5926,6 @@ static int meson_p1_dvfs_setup(struct platform_device *pdev)
 	clk_set_rate(p1_dsu_clk.hw.clk, 1000000000);
 	clk_hw_set_parent(&p1_dsu_final_clk.hw, &p1_dsu_clk.hw);
 
-	/* kepp cpu6/cpu7 at itsself clock */
-	clk_hw_set_parent(&p1_cpu6_clk.hw, &p1_a76_clk.hw);
-	clk_hw_set_parent(&p1_cpu7_clk.hw, &p1_a76_clk.hw);
-
 	return 0;
 }
 
