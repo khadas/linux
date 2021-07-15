@@ -36,6 +36,7 @@
 #include <linux/page-flags.h>
 #include <linux/vmalloc.h>
 #include <linux/amlogic/tee.h>
+#include <linux/amlogic/cpu_version.h>
 
 #define TVP_POOL_NAME "TVP_POOL"
 #define CMA_RES_POOL_NAME "CMA_RES"
@@ -2466,6 +2467,9 @@ int codec_mm_mgt_init(struct device *dev)
 	}
 	mgt->total_cma_size = codec_mm_get_cma_size_int_byte(mgt->dev);
 	mgt->total_codec_mem_size += mgt->total_cma_size;
+	if (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR) <
+		MESON_CPU_MAJOR_ID_G12A)
+		tvp_dynamic_increase_disable = 1;
 	default_tvp_4k_size = 0;
 	codec_mm_tvp_segment_init();
 	default_cma_res_size = mgt->total_cma_size;
