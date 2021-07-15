@@ -1416,6 +1416,19 @@ static struct clk_fixed_factor sc2_pcie_pll = {
 	},
 };
 
+static struct clk_regmap sc2_pcie_bgp = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = ANACTRL_PCIEPLL_CTRL5,
+		.bit_idx = 27,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie_bgp",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) { &sc2_pcie_pll.hw },
+		.num_parents = 1,
+	},
+};
+
 static struct clk_regmap sc2_pcie_hcsl = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = ANACTRL_PCIEPLL_CTRL5,
@@ -1424,7 +1437,7 @@ static struct clk_regmap sc2_pcie_hcsl = {
 	.hw.init = &(struct clk_init_data){
 		.name = "pcie_hcsl",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &sc2_pcie_pll.hw },
+		.parent_hws = (const struct clk_hw *[]) { &sc2_pcie_bgp.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
@@ -5484,6 +5497,7 @@ static struct clk_hw_onecell_data sc2_hw_onecell_data = {
 		[CLKID_PCIE_PLL_DCO_DIV2]	= &sc2_pcie_pll_dco_div2.hw,
 		[CLKID_PCIE_PLL_OD]		= &sc2_pcie_pll_od.hw,
 		[CLKID_PCIE_PLL]		= &sc2_pcie_pll.hw,
+		[CLKID_PCIE_BGP]		= &sc2_pcie_bgp.hw,
 		[CLKID_PCIE_HCSL]		= &sc2_pcie_hcsl.hw,
 		[CLKID_HDMI_PLL_DCO]		= &sc2_hdmi_pll_dco.hw,
 		[CLKID_HDMI_PLL_OD]		= &sc2_hdmi_pll_od.hw,
@@ -6109,6 +6123,7 @@ static struct clk_regmap *const sc2_pll_clk_regmaps[] __initconst = {
 	&sc2_hifi_pll,
 	&sc2_pcie_pll_dco,
 	&sc2_pcie_pll_od,
+	&sc2_pcie_bgp,
 	&sc2_pcie_hcsl,
 	&sc2_hdmi_pll_dco,
 	&sc2_hdmi_pll_od,

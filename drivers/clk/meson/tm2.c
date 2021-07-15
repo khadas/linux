@@ -844,6 +844,22 @@ static struct clk_fixed_factor tm2_pcie_pll = {
  *               |
  *                ---pcie1
  */
+static struct clk_regmap tm2_pcie_bgp = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_PCIE_PLL_CNTL5,
+		.bit_idx = 27,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie_bgp",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&tm2_pcie_pll.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 static struct clk_regmap tm2_pcie_pre_gate = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = HHI_PCIE_PLL_CNTL1,
@@ -853,7 +869,7 @@ static struct clk_regmap tm2_pcie_pre_gate = {
 		.name = "pcie_pre_gate",
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) {
-			&tm2_pcie_pll.hw
+			&tm2_pcie_bgp.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
@@ -5217,6 +5233,7 @@ static struct clk_hw_onecell_data tm2_hw_onecell_data = {
 		[CLKID_VDEC_HEVCF]		= &tm2_vdec_hevcf.hw,
 		[CLKID_TS_DIV]			= &tm2_ts_div.hw,
 		[CLKID_TS]			= &tm2_ts.hw,
+		[CLKID_PCIE_BGP]		= &tm2_pcie_bgp.hw,
 		[CLKID_PCIE_PRE_EN]		= &tm2_pcie_pre_gate.hw,
 		[CLKID_PCIE_HCSL0]		= &tm2_pcie_hcsl0.hw,
 		[CLKID_PCIE_HCSL1]		= &tm2_pcie_hcsl1.hw,
@@ -5434,6 +5451,7 @@ static struct clk_regmap *const tm2_clk_regmaps[] __initconst = {
 	&tm2_pcie_pll_dco,
 	&tm2_pcie_hcsl0,
 	&tm2_pcie_hcsl1,
+	&tm2_pcie_bgp,
 	&tm2_pcie_pre_gate,
 	&tm2_vdec_1_sel,
 	&tm2_vdec_1_div,
