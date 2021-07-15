@@ -6672,6 +6672,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 		}
 	}
 	vpp_misc_set_save = vpp_misc_set;
+	post_blend_dummy_data_update(vpp_index);
 
 	if (vd_layer[2].vpp_index == VPP0 &&
 	    vd_layer[2].dispbuf && video3_off_req)

@@ -1893,6 +1893,11 @@ RESTART:
 			w_in, end - start + 1,
 			next_frame_par);
 	}
+	/* speical mode did not use aisr */
+	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
+	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP ||
+	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T)
+		cur_dev->aisr_enable = 0;
 	/*
 	 *check the painful bandwidth limitation and see
 	 * if we need skip half resolution on source side for progressive
@@ -2536,8 +2541,6 @@ void aisr_set_filters(struct disp_info_s *input,
 	struct vppfilter_mode_s *filter = NULL;
 	struct vpp_frame_par_s *aisr_frame_par;
 
-	if (!cur_dev->aisr_enable)
-		return;
 	if (vpp_flags & VPP_FLAG_MORE_LOG)
 		cur_super_debug = super_debug;
 	/* don't use input->wide_mode */
@@ -2546,13 +2549,16 @@ void aisr_set_filters(struct disp_info_s *input,
 	aisr_frame_par->vscale_skip_count = 0;
 	filter = &aisr_frame_par->vpp_filter;
 
-		/* speical mode did not use ext sar mode */
+	/* speical mode did not use ext sar mode */
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
 	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP ||
 	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T) {
 		aisr_frame_par->aisr_enable = 0;
 		return;
 	}
+	if (!cur_dev->aisr_enable)
+		return;
+
 	w_in = aisr_frame_par->video_input_w;
 	h_in = aisr_frame_par->video_input_h;
 
