@@ -285,6 +285,17 @@
 			};
 	};
 
+	clkc: clock-controller@0 {
+		compatible = "amlogic,t5w-clkc";
+		reg = <0 0xffd46000 0 0x400>,
+			<0 0xff63c000 0 0x400>;
+		reg-names = "basic", "cpu";
+		#clock-cells = <1>;
+		clocks = <&xtal>;
+		clock-names = "xtal";
+		status = "okay";
+	};
+
 	uart_B: serial@ffd23000 {
 		compatible = "amlogic,meson-uart";
 		reg = <0x0 0xffd23000 0x0 0x18>;

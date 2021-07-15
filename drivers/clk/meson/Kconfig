@@ -209,6 +209,22 @@ config COMMON_CLK_P1
 	  Support for the clock controller on Amlogic
 	  devices, aka P1. Say Y if you want peripherals to work.
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+config COMMON_CLK_T5W
+	bool "Meson T5W clock controller"
+	depends on ARCH_MESON
+	select COMMON_CLK_MESON_REGMAP
+	select COMMON_CLK_MESON_DUALDIV
+	select COMMON_CLK_MESON_MPLL
+	select COMMON_CLK_MESON_PLL
+	select COMMON_CLK_MESON_CPU_DYNDIV
+	select COMMON_CLK_MESON_VID_PLL_DIV
+	select MFD_SYSCON
+	help
+	  Support for the clock controller on Amlogic T5W
+	  devices, aka t5w. Say Y if you want peripherals to work.
+#endif
+
 config MESON_CLKC_MODULE
 	tristate "Meson SoC clock controllers"
 	default y

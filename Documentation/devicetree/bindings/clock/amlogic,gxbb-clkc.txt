@@ -21,6 +21,7 @@ Required Properties:
 		"amlogic,s4d-clkc" for S4D SoC.
 		"amlogic,t3-clkc" for T3 SoC.
 		"amlogic,p1-clkc" for P1 SoC.
+		"amlogic,t5w-clkc" for T5W SoC.
 - clocks : list of clock phandle, one for each entry clock-names.
 - clock-names : should contain the following:
   * "xtal": the platform xtal
