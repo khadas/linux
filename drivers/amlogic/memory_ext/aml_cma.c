@@ -58,6 +58,7 @@ struct cma_pcp {
 	struct list_head list;
 	struct completion start;
 	struct completion end;
+	struct task_struct *task;
 	spinlock_t  list_lock;		/* protect job list */
 	int cpu;
 };
@@ -66,6 +67,7 @@ static bool can_boost;
 static DEFINE_PER_CPU(struct cma_pcp, cma_pcp_thread);
 static struct proc_dir_entry *dentry;
 int cma_debug_level;
+static int allow_cma_tasks;
 
 DEFINE_SPINLOCK(cma_iso_lock);
 static atomic_t cma_allocate;
@@ -431,6 +433,7 @@ static int __init init_cma_boost_task(void)
 		if (!IS_ERR(task)) {
 			kthread_bind(task, cpu);
 			set_user_nice(task, -17);
+			work->task = task;
 			pr_debug("create cma task%p, for cpu %d\n", task, cpu);
 			wake_up_process(task);
 		} else {
@@ -457,7 +460,10 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 
 	cpumask_clear(&has_work);
 
-	cpus  = num_online_cpus();
+	if (allow_cma_tasks)
+		cpus = allow_cma_tasks;
+	else
+		cpus = num_online_cpus();
 	cnt   = count;
 	delta = count / cpus;
 	atomic_set(&ok, 0);
@@ -476,6 +482,10 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 		spin_unlock(&work->list_lock);
 		complete(&work->start);
 		i++;
+		if (i == cpus) {
+			cma_debug(1, NULL, "sched work to %d cpu\n", i);
+			break;
+		}
 	}
 	local_irq_restore(flags);
 
@@ -817,15 +827,57 @@ static ssize_t cma_debug_write(struct file *file, const char __user *buffer,
 			       size_t count, loff_t *ppos)
 {
 	int arg = 0;
+	int ok = 0;
+	int cpu;
+	struct cma_pcp *work;
+	char *buf;
 
-	if (kstrtoint_from_user(buffer, count, 10, &arg))
+	buf = kmalloc(count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	if (copy_from_user(buf, buffer, count))
+		goto exit;
+
+	if (!strncmp(buf, "cma_task=", 9)) {	/* option for 'cma_task=' */
+		if (sscanf(buf, "cma_task=%d", &arg) < 0)
+			goto exit;
+		if (arg <= num_online_cpus() && arg >= 1) {
+			ok = 1;
+			allow_cma_tasks = arg;
+			pr_info("set allow_cma_tasks to %d\n", allow_cma_tasks);
+		}
+		goto exit;
+	}
+
+	if (!strncmp(buf, "cma_prio=", 9)) {	/* option for 'cma_prio=' */
+		if (sscanf(buf, "cma_prio=%d", &arg) < 0)
+			goto exit;
+		if (arg >= MIN_NICE && arg < MAX_NICE) {
+			for_each_possible_cpu(cpu) {
+				work = &per_cpu(cma_pcp_thread, cpu);
+				set_user_nice(work->task, arg);
+			}
+			ok = 1;
+			pr_info("renice cma task to %d\n", arg);
+		}
+		goto exit;
+	}
+
+	if (kstrtoint(buf, 10, &arg))
 		return -EINVAL;
 
 	if (arg > MAX_DEBUG_LEVEL)
 		return -EINVAL;
 
+	ok = 1;
 	cma_debug_level = arg;
-	return count;
+exit:
+	kfree(buf);
+	if (ok)
+		return count;
+	else
+		return -EINVAL;
 }
 
 static int cma_debug_open(struct inode *inode, struct file *file)
