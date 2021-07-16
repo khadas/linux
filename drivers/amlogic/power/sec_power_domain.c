@@ -402,7 +402,7 @@ static int sec_pd_probe(struct platform_device *pdev)
 			init_status = private_pd->pd_status;
 
 		/* Initialize based on pd_status */
-		if (pd->base.flags & GENPD_FLAG_ALWAYS_ON)
+		if (pd[i].base.flags & GENPD_FLAG_ALWAYS_ON)
 #ifdef MODULE
 			pm_genpd_init(&pd[i].base, aon_gov, init_status);
 #else
