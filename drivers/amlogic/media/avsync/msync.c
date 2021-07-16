@@ -585,7 +585,7 @@ static void pcr_set(struct sync_session *session)
 		cur_pcr = session->pcr_clock.pts;
 
 	if (VALID_PTS(session->last_vpts.pts))
-		cur_vpts = session->last_vpts.pts;
+		cur_vpts = session->last_vpts.pts - session->last_vpts.delay;
 	if (VALID_PTS(session->last_apts.pts))
 		cur_apts = session->last_apts.pts;
 
@@ -1283,6 +1283,10 @@ static void pcr_check(struct sync_session *session)
 			} else {
 				session->last_check_apts = checkin_apts;
 				session->last_check_apts_cnt = 0;
+				if (abs_diff(session->wall_clock,
+					checkin_apts) <=
+						(session->disc_thres_min >> 1))
+					session->pcr_disc_flag &= ~(AUDIO_DISC);
 			}
 			if (flag != session->pcr_disc_flag)
 				msync_dbg(LOG_WARN,
@@ -1293,13 +1297,13 @@ static void pcr_check(struct sync_session *session)
 					checkin_apts,
 					gap_cnt,
 					session->wall_clock);
-		} else {
-			session->last_check_apts = checkin_apts;
 		}
+		session->last_check_apts = checkin_apts;
 	}
 
 	if (session->v_active) {
-		checkin_vpts = session->last_vpts.pts;
+		checkin_vpts =
+			session->last_vpts.pts - session->last_vpts.delay;
 		if (VALID_PTS(checkin_vpts) &&
 				VALID_PTS(session->last_check_vpts)) {
 			flag = session->pcr_disc_flag;
@@ -1333,9 +1337,8 @@ static void pcr_check(struct sync_session *session)
 					checkin_vpts,
 					gap_cnt,
 					session->wall_clock);
-		} else {
-			session->last_check_vpts = checkin_vpts;
 		}
+		session->last_check_vpts = checkin_vpts;
 	}
 
 	if (session->use_pcr) {
