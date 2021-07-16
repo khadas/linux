@@ -4707,7 +4707,9 @@ struct module *__module_address(unsigned long addr)
 	}
 	return mod;
 }
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+EXPORT_SYMBOL_GPL(__module_address);
+#endif
 /*
  * is_module_text_address - is this address inside module code?
  * @addr: the address to check.
