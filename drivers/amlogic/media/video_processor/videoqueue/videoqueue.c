@@ -149,7 +149,7 @@ static int wakeup;
 
 void vsync_notify_videoqueue(void)
 {
-	time_cur = (u64)ktime_get() / (u64)1000;
+	time_cur = ktime_to_us(ktime_get());
 }
 
 void videoqueue_pcrscr_update(s32 inc, u32 base)
