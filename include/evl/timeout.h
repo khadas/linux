@@ -19,7 +19,7 @@
  *   to/from nanoseconds.
  */
 #define EVL_INFINITE   0
-#define EVL_NONBLOCK   ((s64)((u64)1 << 63))
+#define EVL_NONBLOCK   KTIME_MAX
 
 static inline bool timeout_infinite(ktime_t kt)
 {
