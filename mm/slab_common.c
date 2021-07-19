@@ -1498,7 +1498,7 @@ static void print_slabinfo_header(struct seq_file *m)
 #ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 	/* add total bytes for each slab */
 	seq_puts(m, "# name                        <active_objs> <num_objs> ");
-	seq_puts(m, "<objsize> <objperslab> <pagesperslab> <total bytes> <reclaim>");
+	seq_puts(m, "<objsize> <objperslab> <pagesperslab>");
 #else
 	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>");
 #endif /* CONFIG_AMLOGIC_MEMORY_EXTEND */
@@ -1507,6 +1507,9 @@ static void print_slabinfo_header(struct seq_file *m)
 #ifdef CONFIG_DEBUG_SLAB
 	seq_puts(m, " : globalstat <listallocs> <maxobjs> <grown> <reaped> <error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
 	seq_puts(m, " : cpustat <allochit> <allocmiss> <freehit> <freemiss>");
+#endif
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	seq_puts(m, " : <total bytes> <reclaim>");
 #endif
 	seq_putc(m, '\n');
 }
@@ -1563,11 +1566,9 @@ static void cache_show(struct kmem_cache *s, struct seq_file *m)
 
 #ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 	strncpy(name, cache_name(s), 31);
-	total = sinfo.num_objs * s->size;
-	seq_printf(m, "%-31s %6lu %6lu %6u %4u %4d %8lu, %s",
+	seq_printf(m, "%-31s %6lu %6lu %6u %4u %4d",
 		   name, sinfo.active_objs, sinfo.num_objs, s->size,
-		   sinfo.objects_per_slab, (1 << sinfo.cache_order),
-		   total, (s->flags & SLAB_RECLAIM_ACCOUNT) ? "S_R" : "S_U");
+		   sinfo.objects_per_slab, (1 << sinfo.cache_order));
 #else
 	seq_printf(m, "%-17s %6lu %6lu %6u %4u %4d",
 		   cache_name(s), sinfo.active_objs, sinfo.num_objs, s->size,
@@ -1577,6 +1578,11 @@ static void cache_show(struct kmem_cache *s, struct seq_file *m)
 		   sinfo.limit, sinfo.batchcount, sinfo.shared);
 	seq_printf(m, " : slabdata %6lu %6lu %6lu",
 		   sinfo.active_slabs, sinfo.num_slabs, sinfo.shared_avail);
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	total = sinfo.num_objs * s->size;
+	seq_printf(m, "%8lu, %s", total,
+		   (s->flags & SLAB_RECLAIM_ACCOUNT) ? "S_R" : "S_U");
+#endif
 	slabinfo_show_stats(m, s);
 	seq_putc(m, '\n');
 }
