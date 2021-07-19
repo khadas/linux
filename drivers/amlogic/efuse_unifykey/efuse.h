@@ -14,6 +14,8 @@
 #define EFUSE_CLASS_ATTR CLASS_ATTR_RO
 #endif
 
+#define EFUSE_CHECK_NAME_LEN   32
+
 struct aml_efuse_dev {
 	struct platform_device *pdev;
 	struct class           cls;
@@ -21,6 +23,7 @@ struct aml_efuse_dev {
 	dev_t                  devno;
 	void __iomem	       *reg_base;
 	unsigned int           secureboot_mask;
+	char name[EFUSE_CHECK_NAME_LEN];
 };
 
 struct aml_efuse_key {
@@ -55,12 +58,30 @@ struct aml_efuse_cmd {
 	unsigned int mem_out_base_cmd;
 };
 
+struct lockable_info {
+	char itemname[EFUSE_CHECK_NAME_LEN];
+	unsigned int subcmd;
+};
+
+struct aml_efuse_lockable_check {
+	unsigned int main_cmd;
+	unsigned int item_num;
+	struct lockable_info *infos;
+};
+
 extern struct aml_efuse_cmd efuse_cmd;
 
 ssize_t efuse_get_max(void);
 ssize_t efuse_read_usr(char *buf, size_t count, loff_t *ppos);
 ssize_t efuse_write_usr(char *buf, size_t count, loff_t *ppos);
 unsigned long efuse_amlogic_set(char *buf, size_t count);
+
+/*return: 0:is configurated, -1: don't cfg*/
+int efuse_burn_lockable_is_cfg(char *itemname);
+/*
+ * retrun: 1:burned(wrote), 0: not write, -1: fail
+ */
+int efuse_burn_check_burned(char *itemname);
 
 #ifdef CONFIG_AMLOGIC_EFUSE
 int __init aml_efuse_init(void);
