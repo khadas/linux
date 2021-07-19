@@ -368,5 +368,6 @@ void vsync_notify_videosync(void);
 void vsync_notify_videoqueue(void);
 void videoqueue_pcrscr_update(s32 inc, u32 base);
 #endif
+u32 get_hdmin_delay_duration(void);
 
 #endif /* VIDEO_H */

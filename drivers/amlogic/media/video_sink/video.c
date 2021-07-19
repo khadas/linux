@@ -1917,6 +1917,12 @@ static u8 enable_hdmi_delay_normal_check = 1;
 /* video_inuse */
 u32 video_inuse;
 
+u32 get_hdmin_delay_duration(void)
+{
+	return last_required_total_delay;
+}
+EXPORT_SYMBOL(get_hdmin_delay_duration);
+
 void set_freerun_mode(int mode)
 {
 	freerun_mode = mode;
@@ -7646,6 +7652,8 @@ SET_FILTER:
 		dvel_swap_frame(cur_dispbuf2);
 #endif
 	} else if (new_frame) {
+		vframe_walk_delay = (int)div_u64(((jiffies_64 -
+			new_frame->ready_jiffies64) * 1000), HZ);
 		primary_swap_frame(&vd_layer[0], new_frame, __LINE__);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		dvel_swap_frame(cur_dispbuf2);

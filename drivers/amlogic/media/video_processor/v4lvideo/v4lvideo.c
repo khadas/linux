@@ -894,12 +894,14 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 	else
 		v4l_data->file_private_data = file_private_data;
 
-	pr_info("%s: vf->type: %d vf->compWidth: %d\n",
-			__func__, vf->type, vf->compWidth);
 	if (!vf) {
 		pr_err("vf is NULL\n");
 		return;
 	}
+
+	pr_info("%s: vf->type: %d vf->compWidth: %d\n",
+			__func__, vf->type, vf->compWidth);
+
 	if ((vf->type & VIDTYPE_COMPRESS)) {
 		do_vframe_afbc_soft_decode(v4l_data, vf);
 		return;
@@ -1041,7 +1043,7 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 		dump_yuv_data(vf, v4l_data);
 }
 
-static s32 v4lvideo_release_sei_data(struct vframe_s *vf)
+s32 v4lvideo_release_sei_data(struct vframe_s *vf)
 {
 	void *p;
 	s32 ret = -2;
@@ -1148,7 +1150,7 @@ struct file_private_data *v4lvideo_get_vf(int fd)
 	return file_private_data;
 }
 
-static s32 v4lvideo_import_sei_data(struct vframe_s *vf,
+s32 v4lvideo_import_sei_data(struct vframe_s *vf,
 				    struct vframe_s *dup_vf,
 				    char *provider)
 {
@@ -1760,7 +1762,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	buf = v4l2q_pop(&dev->input_queue);
 	if (!buf) {
-		dprintk(dev, 0, "pop buf is NULL\n");
+		pr_err("pop buf is NULL\n");
 		put_count[inst_id]++;
 		if (vf->type & VIDTYPE_DI_PW)
 			total_put_count[inst_id]++;

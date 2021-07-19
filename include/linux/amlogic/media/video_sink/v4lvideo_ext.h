@@ -77,5 +77,10 @@ struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
 							 bool alloc_if_null);
 void init_file_private_data(struct file_private_data *file_private_data);
 
+s32 v4lvideo_import_sei_data(struct vframe_s *vf,
+				    struct vframe_s *dup_vf,
+				    char *provider);
+s32 v4lvideo_release_sei_data(struct vframe_s *vf);
+
 
 #endif /* V4LVIDEO_EXT_H */

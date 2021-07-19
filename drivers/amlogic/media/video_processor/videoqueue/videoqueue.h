@@ -57,8 +57,13 @@ struct video_queue_dev {
 	int frame_num;
 	struct completion file_thread_done;
 	struct completion fence_thread_done;
-	u32 pts_last;
+	u64 pts_last;
 	int last_vsync_diff;
+	char *provider_name;
+	int check_sync_count;
+	bool sync_need_delay;
+	bool sync_need_drop;
+	u32 sync_need_drop_count;
 };
 
 #define videoqueue_IOC_MAGIC  'I'
