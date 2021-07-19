@@ -84,7 +84,7 @@ void crg_clk_disable_usb_v2(struct platform_device *pdev,
 {
 	struct clk *usb_reset;
 
-	usb_reset = crg_p_clk_reset[pdev->id].usb_reset_usb_general;
+	usb_reset = devm_clk_get(&pdev->dev, "usb_general");
 	if (IS_ERR_OR_NULL(usb_reset))
 		return;
 
