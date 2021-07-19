@@ -21,3 +21,13 @@ config AMLOGIC_UNIFYKEY
 	help
 	    platform independent part of unifykey driver
 	    not choose by default
+
+config AMLOGIC_EFUSE_BURN
+	bool "Amlogic efuse pattern burn suppot"
+	default n
+	help
+	    if project need burn efuse pattern file, then
+	    it can enable this. if efuse pattern size exceed
+	    4KB, it must enable this. it write efuse pattern
+	    file through /dev/efuse_burn.
+
