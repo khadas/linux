@@ -7416,6 +7416,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	int ret = vppfilter_success;
 	bool is_mvc = false;
 	u8 layer_id;
+	bool aisr_update = false;
 
 	if (!vf)
 		return vppfilter_fail;
@@ -7467,7 +7468,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		pr_info("first swap picture {%d,%d} pts:%x,\n",
 			vf->width, vf->height, vf->pts);
 
-	aisr_update_frame_info(layer, vf);
+	aisr_update = aisr_update_frame_info(layer, vf);
 	aisr_reshape_addr_set(layer, &layer->aisr_mif_setting);
 	set_layer_display_canvas
 		(layer,
@@ -7482,7 +7483,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 
 	/* enable new config on the new frames */
 	if (first_picture || force_toggle || frame_changed ||
-	    sr_phase_changed) {
+	    sr_phase_changed || aisr_update) {
 		u32 op_flag = OP_VPP_MORE_LOG;
 
 		if (layer->next_frame_par == layer->cur_frame_par)
@@ -8699,7 +8700,7 @@ void fgrain_update_table(struct video_layer_s *layer,
 #endif
 
 #define DI_HF_Y_REVERSE
-void aisr_update_frame_info(struct video_layer_s *layer,
+bool aisr_update_frame_info(struct video_layer_s *layer,
 			 struct vframe_s *vf)
 {
 	struct vpp_frame_par_s *aisr_frame_par = NULL;
@@ -8762,6 +8763,7 @@ void aisr_update_frame_info(struct video_layer_s *layer,
 	if (layer->aisr_mif_setting.aisr_enable !=
 		cur_dev->aisr_enable)
 		layer->new_vpp_setting = true;
+	return layer->new_vpp_setting;
 }
 
 void aisr_reshape_addr_set(struct video_layer_s *layer,
@@ -9048,7 +9050,8 @@ s32 config_aisr_position(struct video_layer_s *layer,
 {
 	int padding_y;
 
-	if (!layer || !aisr_mif_setting)
+	if (!layer || !aisr_mif_setting ||
+	    !aisr_mif_setting->aisr_enable)
 		return -1;
 
 	if (!cur_dev->aisr_frame_parms.aisr_enable)
@@ -9098,7 +9101,8 @@ s32 config_aisr_pps(struct video_layer_s *layer,
 	struct vpp_frame_par_s *aisr_frame_par = NULL;
 	if (!layer || !aisr_setting)
 		return -1;
-
+	if (!layer->aisr_mif_setting.aisr_enable)
+		return -1;
 	aisr_setting->frame_par = &cur_dev->aisr_frame_parms;
 	aisr_frame_par = aisr_setting->frame_par;
 	aisr_setting->support = true;

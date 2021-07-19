@@ -2369,8 +2369,6 @@ static void sr_pps_phase_auto_calculation(struct vpp_frame_par_s *next_frame_par
 	if (!cur_dev->aisr_support ||
 	    !cur_dev->pps_auto_calc)
 		return;
-	if (!cur_dev->aisr_enable)
-		return;
 	sr = &sr_info;
 	sr0_sharp_sr2_ctrl =
 		cur_dev->rdma_func[VPP0].rdma_rd
@@ -2630,6 +2628,7 @@ RESTART:
 		(aisr_frame_par->reshape_scaler_h -
 		aisr_frame_par->vscale_skip_count);
 	aisr_frame_par->reshape_output_h = src_h;
+	aisr_frame_par->reshape_output_w = src_w;
 	aisr_frame_par->nnhf_input_w = dst_w;
 	aisr_frame_par->nnhf_input_h = dst_h;
 	ratio_x = (src_w << 18) / dst_w;

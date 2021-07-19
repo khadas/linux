@@ -697,7 +697,7 @@ s32 pip_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo);
 void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		     const struct vinfo_s *vinfo);
 s32 pip2_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo);
-void aisr_update_frame_info(struct video_layer_s *layer,
+bool aisr_update_frame_info(struct video_layer_s *layer,
 			 struct vframe_s *vf);
 void aisr_reshape_addr_set(struct video_layer_s *layer,
 				  struct aisr_setting_s *aisr_mif_setting);
