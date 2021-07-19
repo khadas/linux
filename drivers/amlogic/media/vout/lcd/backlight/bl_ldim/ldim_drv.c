@@ -193,7 +193,12 @@ void ldim_remap_ctrl(unsigned char status)
 	temp = ldim_driver.matrix_update_en;
 	if (status) {
 		ldim_driver.matrix_update_en = 0;
-		ldim_hw_remap_en(1);
+		if (bdrv->data->chip_type == LCD_CHIP_T3 ||
+			bdrv->data->chip_type == LCD_CHIP_T7){
+			lcd_vcbus_setb(LDC_DGB_CTRL, 1, 14, 1);
+		} else {
+			ldim_hw_remap_en(1);
+		}
 		msleep(20);
 		if (bdrv->data->chip_type == LCD_CHIP_TM2)
 			ldim_hw_vpu_dma_mif_en(LDIM_VPU_DMA_RD, 1);
@@ -202,7 +207,12 @@ void ldim_remap_ctrl(unsigned char status)
 		ldim_driver.matrix_update_en = temp;
 	} else {
 		ldim_driver.matrix_update_en = 0;
-		ldim_hw_remap_en(0);
+		if (bdrv->data->chip_type == LCD_CHIP_T3 ||
+			bdrv->data->chip_type == LCD_CHIP_T7){
+			lcd_vcbus_setb(LDC_DGB_CTRL, 0, 14, 1);
+		} else {
+			ldim_hw_remap_en(0);
+		}
 		msleep(20);
 		if (bdrv->data->chip_type == LCD_CHIP_TM2)
 			ldim_hw_vpu_dma_mif_en(LDIM_VPU_DMA_RD, 0);

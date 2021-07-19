@@ -441,10 +441,40 @@ static void ldc_set_t7(unsigned int width, unsigned int height,
 	LDIMPR("%s ok\n", __func__);
 }
 
+static void ldc_rmem_global_hist_get(struct aml_ldim_driver_s *ldim_drv)
+{
+	unsigned char *buf, *p;
+	unsigned int row, col, temp = 0;
+	int i, j, k;
+
+	if (!ldim_drv->global_hist) {
+		LDIMERR("%s: global_hist buf is null\n", __func__);
+		return;
+	}
+
+	buf = ldim_drv->rmem->global_hist_vaddr;
+	if (!buf)
+		return;
+
+	row = ldim_drv->conf->hist_row;
+	col = ldim_drv->conf->hist_col;
+
+	p = buf + 0x10; //valid data begin at offset 0x10
+	j = 0;
+	for (i = 0; i < 64; i++) {
+		temp = 0;
+		if (i % 8 == 0)
+			j++;
+		for (k = 0; k < 4; k++)
+			temp |= (p[i * 3 + k + j - 1] << (k * 8));
+		ldim_drv->global_hist[i] = (temp >> (i % 8)) & 0x1ffffff;
+	}
+}
+
 static void ldc_rmem_seg_hist_get(struct aml_ldim_driver_s *ldim_drv)
 {
 	unsigned char *buf, *p;
-	unsigned int row, col, n, index, temp = 0;
+	unsigned int row, col, index, temp = 0;
 	int i, j, k;
 
 	if (!ldim_drv->seg_hist) {
@@ -459,22 +489,23 @@ static void ldc_rmem_seg_hist_get(struct aml_ldim_driver_s *ldim_drv)
 	row = ldim_drv->conf->hist_row;
 	col = ldim_drv->conf->hist_col;
 
-	n = 6; /* 6bytes per seg */
+	index = 0; /* 6bytes per seg */
 	for (i = 0; i < row; i++) {
 		p = buf + (i * 0x120);
 		for (j = 0; j < col; j++) {
 			temp = 0;
 			for (k = 0; k < 3; k++)
-				temp |= (p[j * 3 + k] << (k * 8));
-			index = i * col + j;
-			ldim_drv->seg_hist[j].min_index = temp & 0xfff;
-			ldim_drv->seg_hist[j].max_index = (temp >> 12) & 0xfff;
-			p = buf + 3;
+				temp |= (p[j * 6 + k] << (k * 8));
+			ldim_drv->seg_hist[index].weight_avg = temp & 0xfff;
+			ldim_drv->seg_hist[index].weight_avg_95 =
+				(temp >> 12) & 0xfff;
 			temp = 0;
 			for (k = 0; k < 3; k++)
-				temp |= (p[k] << (k * 8));
-			ldim_drv->seg_hist[j].weight_avg_95 = temp & 0xfff;
-			ldim_drv->seg_hist[j].weight_avg = (temp >> 12) & 0xfff;
+				temp |= (p[j * 6 + k + 3] << (k * 8));
+			ldim_drv->seg_hist[index].max_index = temp & 0xfff;
+			ldim_drv->seg_hist[index].min_index =
+				(temp >> 12) & 0xfff;
+			index++;
 		}
 	}
 }
@@ -539,6 +570,7 @@ void ldc_rmem_data_parse(struct aml_ldim_driver_s *ldim_drv)
 	if (ldim_drv->hist_en)
 		return;
 
+	ldc_rmem_global_hist_get(ldim_drv);
 	ldc_rmem_seg_hist_get(ldim_drv);
 	ldc_rmem_duty_get(ldim_drv);
 
@@ -554,6 +586,7 @@ void ldim_vs_arithmetic_t7(struct aml_ldim_driver_s *ldim_drv)
 	if (ldim_drv->hist_en == 0)
 		return;
 
+	ldc_rmem_global_hist_get(ldim_drv);
 	ldc_rmem_seg_hist_get(ldim_drv);
 	ldc_rmem_duty_get(ldim_drv);
 

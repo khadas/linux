@@ -268,36 +268,66 @@ static void ldim_dump_histgram(struct aml_ldim_driver_s *ldim_drv)
 	unsigned int i, j, k, n, len;
 	unsigned int *p = NULL;
 	char *buf;
+	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 
-	n = 16 * 10 + 20;
-	buf = kcalloc(n, sizeof(char), GFP_KERNEL);
-	if (!buf)
-		return;
-
-	len = ldim_drv->conf->hist_row * ldim_drv->conf->hist_col * 16;
-	p = kcalloc(len, sizeof(unsigned int), GFP_KERNEL);
-	if (!p) {
-		kfree(buf);
-		return;
-	}
-	memcpy(p, ldim_drv->hist_matrix, len * sizeof(unsigned int));
-
-	for (i = 0; i < ldim_drv->conf->hist_row; i++) {
-		pr_info("%s: row %d:\n", __func__, i);
-		for (j = 0; j < ldim_drv->conf->hist_col; j++) {
-			len = sprintf(buf, "col %d:\n", j);
-			for (k = 0; k < 16; k++) {
-				n = i * 16 * ldim_drv->conf->hist_col + j * 16 + k;
-				len += sprintf(buf + len, "\t0x%x", *(p + n));
-				if (k == 7)
-					len += sprintf(buf + len, "\n");
-			}
-			pr_info("%s\n\n", buf);
+	if (bdrv->data->chip_type == LCD_CHIP_T7 ||
+	    bdrv->data->chip_type == LCD_CHIP_T3) {
+		n = 0;
+		for (i = 0; i < 64; i++) {
+			pr_info("glb_hist[%d]: 0x%x\n",
+				i, ldim_drv->global_hist[i]);
+			n += ldim_drv->global_hist[i];
 		}
-	}
+		pr_info("total glb_hist : 0x%x\n", n);
+		n = 0;
+		pr_info("===below is seg_hist===\n");
+		pr_info("index  :     min    max    ave_95    ave\n");
+		for (i = 0; i < ldim_drv->conf->hist_row; i++) {
+			pr_info("row: %d\n", i);
+			for (j = 0; j < ldim_drv->conf->hist_col; j++) {
+				pr_info("seg_hist[%d]:  0x%03x   0x%03x   0x%03x   0x%03x\n",
+				n,
+				ldim_drv->seg_hist[n].min_index,
+				ldim_drv->seg_hist[n].max_index,
+				ldim_drv->seg_hist[n].weight_avg_95,
+				ldim_drv->seg_hist[n].weight_avg);
+				n++;
+			}
+		}
+		pr_info("===seg_hist end===\n");
+	} else {
+		n = 16 * 10 + 20;
+		buf = kcalloc(n, sizeof(char), GFP_KERNEL);
+		if (!buf)
+			return;
 
-	kfree(buf);
-	kfree(p);
+		len = ldim_drv->conf->hist_row * ldim_drv->conf->hist_col * 16;
+		p = kcalloc(len, sizeof(unsigned int), GFP_KERNEL);
+		if (!p) {
+			kfree(buf);
+			return;
+		}
+		memcpy(p, ldim_drv->hist_matrix, len * sizeof(unsigned int));
+
+		for (i = 0; i < ldim_drv->conf->hist_row; i++) {
+			pr_info("%s: row %d:\n", __func__, i);
+			for (j = 0; j < ldim_drv->conf->hist_col; j++) {
+				len = sprintf(buf, "col %d:\n", j);
+				for (k = 0; k < 16; k++) {
+					n = i * 16 * ldim_drv->conf->hist_col
+						+ j * 16 + k;
+					len += sprintf(buf + len,
+						"\t0x%x", *(p + n));
+					if (k == 7)
+						len += sprintf(buf + len, "\n");
+				}
+				pr_info("%s\n\n", buf);
+			}
+		}
+
+		kfree(buf);
+		kfree(p);
+	}
 }
 
 static void ldim_get_matrix_info_max_rgb(struct aml_ldim_driver_s *ldim_drv)
@@ -633,6 +663,11 @@ static void ldim_matrix_histgram_mute_print(struct aml_ldim_driver_s *ldim_drv, 
 	unsigned int i, j, k, n, len;
 	unsigned int *temp_buf = NULL;
 	char *buf;
+	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
+
+	if (bdrv->data->chip_type == LCD_CHIP_T7 ||
+		bdrv->data->chip_type == LCD_CHIP_T3)
+		return;
 
 	n = ldim_drv->conf->hist_row * ldim_drv->conf->hist_col * 16;
 	if (sel == 0xffff) {
@@ -2577,6 +2612,14 @@ static ssize_t ldim_debug_store(struct class *class, struct class_attribute *att
 			ldim_drv->data->func_ctrl(ldim_drv, ldim_drv->func_en);
 	} else if (!strcmp(parm[0], "dump")) {
 		ldc_rmem_data_parse(ldim_drv);
+		temp = 0;
+		for (i = 0; i < 64; i++) {
+			pr_info("glb_hist[%d]: 0x%x\n", i,
+				ldim_drv->global_hist[i]);
+			temp += ldim_drv->global_hist[i];
+		}
+		pr_info("total glb_hist : 0x%x\n", temp);
+		pr_info("\n");
 		temp = ldim_drv->conf->hist_col * ldim_drv->conf->hist_row;
 		for (i = 0; i < temp; i++) {
 			pr_info("hist[%d]: %d %d %d %d\n",
@@ -2611,7 +2654,7 @@ static ssize_t ldim_debug_store(struct class *class, struct class_attribute *att
 			goto ldim_debug_store_end;
 		}
 		if (parm[2]) {
-			if (kstrtouint(parm[1], 10, &val) < 0)
+			if (kstrtouint(parm[2], 10, &val) < 0)
 				goto ldim_debug_store_err;
 		} else {
 			val = ldc_dbg_point_ctrl[i - 1][1];
