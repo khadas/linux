@@ -57,6 +57,7 @@ static int dump_index;
 static int dump_index_last;
 static u64 vframe_get_delay;
 static int force_delay_ms;
+static int game_mode;
 
 int vq_print(int debug_flag, const char *fmt, ...)
 {
@@ -310,7 +311,6 @@ static void do_file_thread(struct video_queue_dev *dev)
 	u32 display_vsync_no = 0;
 	u32 vsync_diff = 0;
 	struct vframe_states states;
-	u32 delay_time = 0;
 	bool need_continue = false;
 	u32 delay_vsync_count = delay_vsync;
 	char *provider_name = NULL;
@@ -331,20 +331,26 @@ static void do_file_thread(struct video_queue_dev *dev)
 	if (!kfifo_peek(&dev->file_q, &ready_file))
 		return;
 	vf = vf_peek(dev->vf_receiver_name);
-	if (!vf) {
+	if (!vf && !dev->game_mode) {
 		usleep_range(10000, 11000);
 		vf = vf_peek(dev->vf_receiver_name);
-		if (!vf) {
-			vq_print(P_SYNC, "peek err\n");
-			return;
-		}
-		vq_print(P_SYNC, "peek 2 time ok\n");
+		if (vf)
+			vq_print(P_SYNC, "peek 2 time ok\n");
 	}
 
-	if (delay_vsync_count > 0) {
-		delay_vsync_count--;
-		vq_print(P_SYNC, "delay one vsync\n");
+	if (!vf) {
+		vq_print(P_SYNC, "peek err\n");
 		return;
+	}
+
+	if (vf->flag & VFRAME_FLAG_GAME_MODE && !dev->game_mode) {
+		dev->game_mode = true;
+		game_mode = 1;
+		ret = vt_send_cmd(dev->dev_session, dev->tunnel_id,
+			VT_VIDEO_SET_GAME_MODE, 1);
+		vq_print(P_ERROR, "set game mode true\n");
+		if (ret < 0)
+			vq_print(P_ERROR, "set game mode true err\n");
 	}
 
 	dev->sync_need_delay = false;
@@ -379,6 +385,14 @@ static void do_file_thread(struct video_queue_dev *dev)
 	if (!vf)
 		return;
 
+	if (!dev->game_mode) {
+		if (delay_vsync_count > 0) {
+			delay_vsync_count--;
+			vq_print(P_SYNC, "delay one vsync\n");
+			return;
+		}
+	}
+
 	if (!sync_start) {
 		pcr_time = pts;
 		sync_start = true;
@@ -391,9 +405,11 @@ static void do_file_thread(struct video_queue_dev *dev)
 	vsync_count = 0;
 	disp_time = 0;
 	display_vsync_no = 0;
-	delay_time = delay_vsync * vsync_pts_inc;
 	need_continue = false;
 	while (1) {
+		if (dev->game_mode)
+			break;
+
 		if (pts + pcr_margin <= pcr_time) {
 			vq_print(P_SYNC,
 				"delay pts= %lld, pcr=%lld,omx_index=%d\n",
@@ -443,6 +459,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 	vf = vf_get(dev->vf_receiver_name);
 	if (!vf)
 		return;
+
 	vframe_get_delay = (int)div_u64(((jiffies_64 -
 			vf->ready_jiffies64) * 1000), HZ);
 	dev->pts_last = pts;
@@ -463,6 +480,10 @@ static void do_file_thread(struct video_queue_dev *dev)
 		vf->omx_index, states.buf_avail_num, vframe_get_delay);
 	private_data->vf = *vf;
 	private_data->vf_p = vf;
+	if (dev->game_mode) {
+		private_data->vf.timestamp = ktime_to_us(ktime_get());
+		private_data->vf.disp_pts_us64 = dev->ready_time;
+	}
 
 #ifdef COPY_META_DATA
 	v4lvideo_import_sei_data(vf, &private_data->vf, dev->provider_name);
@@ -715,6 +736,8 @@ static int videoqueue_reg_provider(struct video_queue_dev *dev)
 	dev->check_sync_count = 0;
 	dev->provider_name = NULL;
 	vframe_get_delay = 0;
+	dev->game_mode = false;
+	game_mode = 0;
 
 	INIT_KFIFO(dev->file_q);
 	INIT_KFIFO(dev->display_q);
@@ -799,6 +822,13 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 			 "unreg:wait fence_thread time %d\n", time_left);
 	dev->fence_thread = NULL;
 
+	if (dev->game_mode) {
+		ret = vt_send_cmd(dev->dev_session, dev->tunnel_id,
+			VT_VIDEO_SET_GAME_MODE, 0);
+		dev->game_mode = false;
+		if (ret < 0)
+			vq_print(P_ERROR, "set game mode false err\n");
+	}
 	ret = destroy_vt_config(dev);
 	if (ret < 0)
 		return ret;
@@ -837,6 +867,8 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 	vq_print(P_ERROR, "unreg: out\n");
 
 	sync_start = false;
+	game_mode = 0;
+	dev->game_mode = false;
 
 	return ret;
 }
@@ -871,7 +903,13 @@ static int video_receiver_event_fun(int type, void *data,
 		videoqueue_start(dev);
 		break;
 	case VFRAME_EVENT_PROVIDER_VFRAME_READY:
-		//wake_up_interruptible(&dev->file_wq);
+		if (dev->game_mode) {
+			dev->ready_time = ktime_to_us(ktime_get());
+			vq_print(P_SYNC, "VFRAME_READY\n");
+			wakeup = 1;
+			wake_up_interruptible(&file_wq);
+			vq_print(P_SYNC, "VFRAME_READY_1\n");
+		}
 		break;
 	case VFRAME_EVENT_PROVIDER_RESET:
 		videoqueue_unreg_provider(dev);
@@ -1031,6 +1069,31 @@ static ssize_t force_delay_ms_store(struct class *cla,
 	return count;
 }
 
+static ssize_t game_mode_show(struct class *cla,
+			       struct class_attribute *attr,
+			       char *buf)
+{
+	return snprintf(buf, 80,
+			"current game_mode is %d\n",
+			game_mode);
+}
+
+static ssize_t game_mode_store(struct class *cla,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	game_mode = tmp;
+	return count;
+}
+
 static CLASS_ATTR_RW(print_close);
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RO(buf_count);
@@ -1038,6 +1101,7 @@ static CLASS_ATTR_RW(dump_index);
 static CLASS_ATTR_RW(delay_vsync);
 static CLASS_ATTR_RO(vframe_get_delay);
 static CLASS_ATTR_RW(force_delay_ms);
+static CLASS_ATTR_RW(game_mode);
 
 static struct attribute *videoqueue_class_attrs[] = {
 	&class_attr_print_close.attr,
@@ -1047,6 +1111,7 @@ static struct attribute *videoqueue_class_attrs[] = {
 	&class_attr_delay_vsync.attr,
 	&class_attr_vframe_get_delay.attr,
 	&class_attr_force_delay_ms.attr,
+	&class_attr_game_mode.attr,
 	NULL
 };
 

@@ -54,6 +54,7 @@ struct video_queue_dev {
 	int dq_count;
 	struct dequeu_info dq_info[FILE_CNT];
 	bool thread_need_stop;
+	bool game_mode;
 	int frame_num;
 	struct completion file_thread_done;
 	struct completion fence_thread_done;
@@ -64,6 +65,7 @@ struct video_queue_dev {
 	bool sync_need_delay;
 	bool sync_need_drop;
 	u32 sync_need_drop_count;
+	u64 ready_time;
 };
 
 #define videoqueue_IOC_MAGIC  'I'

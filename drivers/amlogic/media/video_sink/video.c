@@ -6048,6 +6048,17 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		}
 	}
 
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+	if (cur_frame_par &&
+		glayer_info[0].display_path_id == VFM_PATH_AMVIDEO) {
+		/*need call every vsync*/
+		if (vf)
+			vlock_process(vf, cur_frame_par);
+		else
+			vlock_process(NULL, cur_frame_par);
+	}
+#endif
+
 	enc_line = get_cur_enc_line();
 	if (enc_line > vsync_enter_line_max)
 		vsync_enter_line_max = enc_line;
@@ -7078,6 +7089,18 @@ SET_FILTER:
 			else
 				new_frame_count = gvideo_recv[0]->frame_count;
 		}
+
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+		if (glayer_info[0].display_path_id == VFM_PATH_VIDEO_RENDER0 &&
+			cur_frame_par) {
+			/*need call every vsync*/
+			if (path3_new_frame)
+				vlock_process(path3_new_frame, cur_frame_par);
+			else
+				vlock_process(NULL, cur_frame_par);
+		}
+#endif
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 		if (vd1_path_id == gvideo_recv[0]->path_id) {
 			amvecm_on_vs
@@ -7587,15 +7610,6 @@ SET_FILTER:
 		dvel_swap_frame(cur_dispbuf2);
 #endif
 	}
-
-#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
-	if (cur_frame_par) {/*need call every vsync*/
-		if (vd_layer[0].dispbuf)
-			vlock_process(vd_layer[0].dispbuf, cur_frame_par);
-		else
-			vlock_process(NULL, cur_frame_par);
-	}
-#endif
 
 #if defined(CONFIG_AMLOGIC_MEDIA_FRC)
 	frc_input_handle(vd_layer[0].dispbuf, cur_frame_par);

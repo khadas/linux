@@ -1348,6 +1348,9 @@ static void video_composer_task(struct composer_dev *dev)
 	struct vf_nn_sr_t *srout_data = NULL;
 	struct video_composer_private *vc_private;
 	u32 nn_status;
+	u64 delay_time1;
+	u64 delay_time2;
+	u64 now_time;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -1610,6 +1613,18 @@ static void video_composer_task(struct composer_dev *dev)
 			}
 			dev->last_file = file_vf;
 			vf->repeat_count[dev->index] = 0;
+			if (vf->flag & VFRAME_FLAG_GAME_MODE) {
+				now_time = ktime_to_us(ktime_get());
+				delay_time1 = now_time - vf->disp_pts_us64;
+				delay_time2 = now_time - vf->timestamp;
+				vc_print(dev->index, PRINT_PATTERN,
+						 "total: time1=%lld,  time2=%lld\n",
+						 delay_time1, delay_time2);
+				if (delay_time1 > 1000)
+					vc_print(dev->index, PRINT_PATTERN,
+						 "too time1=%lld, time2=%lld\n",
+						 delay_time1, delay_time2);
+			}
 			if (!kfifo_put(&dev->ready_q,
 				       (const struct vframe_s *)vf))
 				vc_print(dev->index, PRINT_ERROR,
@@ -2150,7 +2165,8 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	time1 = dev->start_time;
 	time2 = vsync_time;
 	if (kfifo_peek(&dev->ready_q, &vf)) {
-		if (vf && get_count[dev->index] > 0) {
+		if (vf && get_count[dev->index] > 0 &&
+			!(vf->flag & VFRAME_FLAG_GAME_MODE)) {
 			time_vsync = (u64)1000000
 				* (time2.tv_sec - time1.tv_sec)
 				+ time2.tv_usec - time1.tv_usec;
