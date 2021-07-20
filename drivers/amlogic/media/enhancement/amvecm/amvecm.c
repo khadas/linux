@@ -903,7 +903,10 @@ static void vpp_dump_histgram(void)
 
 void vpp_get_hist_en(void)
 {
-	WRITE_VPP_REG_BITS(VI_HIST_CTRL, 0x1, 11, 3);
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5D)
+		WRITE_VPP_REG_BITS(VI_HIST_CTRL, 0x2, 11, 3);
+	else
+		WRITE_VPP_REG_BITS(VI_HIST_CTRL, 0x1, 11, 3);
 	WRITE_VPP_REG_BITS(VI_HIST_CTRL, 0x1, 0, 1);
 	WRITE_VPP_REG(VI_HIST_GCLK_CTRL, 0xffffffff);
 	WRITE_VPP_REG_BITS(VI_HIST_CTRL, 2, VI_HIST_POW_BIT, VI_HIST_POW_WID);
