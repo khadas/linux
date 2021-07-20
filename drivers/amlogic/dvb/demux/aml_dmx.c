@@ -1186,7 +1186,7 @@ int dmx_get_pcr(struct dmx_demux *dmx, unsigned int num, u64 *pcr)
 	pcr_index = demux->pcr_index[num];
 	if (pcr_index < 0 || pcr_index > MAX_PCR_NUM) {
 //              mutex_unlock(demux->pmutex);
-		dprint("invalid pcr index:%d\n", pcr_index);
+//		dprint("invalid pcr index:%d\n", pcr_index);
 		return -1;
 	}
 	ret = ts_output_get_pcr(pcr_index, pcr);
