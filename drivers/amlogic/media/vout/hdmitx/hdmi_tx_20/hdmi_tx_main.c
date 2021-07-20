@@ -2168,13 +2168,14 @@ struct hdmi_packet_t {
 
 static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 {
-	struct hdmi_packet_t vs_emds[3] = {0};
+	struct hdmi_packet_t vs_emds[3];
 	unsigned long flags;
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	static unsigned char *virt_ptr;
 	static unsigned char *virt_ptr_align32bit;
 	unsigned long phys_ptr;
 
+	memset(vs_emds, 0, sizeof(vs_emds));
 	spin_lock_irqsave(&hdev->edid_spinlock, flags);
 	if (!data) {
 		hdev->hwop.cntlconfig(hdev, CONF_EMP_NUMBER, 0);
