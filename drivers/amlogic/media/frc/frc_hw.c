@@ -2014,8 +2014,8 @@ void frc_dump_reg_tab(void)
 /*request from xianjun, dump fixed table reg*/
 void frc_dump_fixed_table(void)
 {
-	int i;
-	unsigned int value;
+	int i = 0;
+	unsigned int value = 0;
 
 	for (i = 0; i < REG_NUM; i++) {
 		value = READ_FRC_REG(regs_table[i].addr);

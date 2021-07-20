@@ -24,8 +24,9 @@
 #include <linux/amlogic/media/frc/frc_common.h>
 #include "frc_interface.h"
 
-#define FRC_FW_VER			"2021-0714 frc dev set no-pointer type"
-#define FRC_KERDRV_VER                  823
+// frc_20210720_divided_reg_table
+#define FRC_FW_VER			"2021-0720 frc divided reg table"
+#define FRC_KERDRV_VER                  875
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"

@@ -22,6 +22,14 @@
 			((_a) > 0 ? (_a) : -(_a));\
 		})
 
+#ifndef DIV
+#define DIV(a, b) ({ \
+			int _a = (int)a; \
+			int _b = (int)b; \
+			_b == 0 ? 0 : _a / _b; \
+		})
+#endif
+
 #define BIT_0		0x00000001
 #define BIT_1		0x00000002
 #define BIT_2		0x00000004
