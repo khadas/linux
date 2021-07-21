@@ -262,3 +262,53 @@ ldc_rmem_clear_end:
 	LDIMERR("buf mapping failed: 0x%lx\n", mem_paddr);
 }
 
+void ldc_mem_set(unsigned long mem_paddr, unsigned int mem_size)
+{
+	unsigned int span = 0, remain = 0, count = 0;
+	unsigned long phys;
+	void *vaddr = NULL;
+	unsigned int highmem_flag = 0;
+	int i;
+
+	highmem_flag = PageHighMem(phys_to_page(mem_paddr));
+	LDIMPR("%s: highmem_flag: %d\n", __func__, highmem_flag);
+	if (highmem_flag == 0) {
+		vaddr = phys_to_virt(mem_paddr);
+		if (!vaddr)
+			goto ldc_rmem_set_end;
+		LDIMPR("%s: set: paddr=0x%lx, vaddr=0x%px, size:0x%x\n",
+		       __func__, mem_paddr, vaddr, mem_size);
+		memset(vaddr, 0xff, mem_size);
+	} else {
+		span = SZ_1M;
+		count = mem_size / PAGE_ALIGN(span);
+		remain = mem_size % PAGE_ALIGN(span);
+
+		for (i = 0; i < count; i++) {
+			phys = mem_paddr + i * span;
+			vaddr = lcd_vmap(phys, span);
+			if (!vaddr)
+				goto ldc_rmem_set_end;
+			LDIMPR("%s: set: paddr=0x%lx, vaddr=0x%px, size:0x%x\n",
+			       __func__, phys, vaddr, span);
+			memset(vaddr, 0xff, span);
+			lcd_unmap_phyaddr(vaddr);
+		}
+		if (remain) {
+			phys = mem_paddr + count * span;
+			vaddr = lcd_vmap(phys, remain);
+			if (!vaddr)
+				goto ldc_rmem_set_end;
+			LDIMPR("%s: set: paddr=0x%lx, vaddr=0x%px, size:0x%x\n",
+			       __func__, phys, vaddr, remain);
+			memset(vaddr, 0xff, remain);
+			lcd_unmap_phyaddr(vaddr);
+		}
+	}
+
+	LDIMPR("%s: finished\n", __func__);
+	return;
+
+ldc_rmem_set_end:
+	LDIMERR("buf mapping failed: 0x%lx\n", mem_paddr);
+}

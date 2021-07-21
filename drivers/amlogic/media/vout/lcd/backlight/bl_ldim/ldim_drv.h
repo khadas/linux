@@ -20,6 +20,8 @@
 extern unsigned char ldim_debug_print;
 
 extern int ld_remap_lut[16][32];
+extern unsigned int ldc_gain_lut_array[16][64];
+extern unsigned int ldc_min_gain_lut[64];
 
 #define AML_LDIM_MODULE_NAME "aml_ldim"
 #define AML_LDIM_DRIVER_NAME "aml_ldim"
@@ -69,6 +71,10 @@ void ldim_hw_remap_update_tm2b(struct ld_reg_s *nprm, unsigned int avg_update_en
 			       unsigned int matrix_update_en);
 
 /*new ldc*/
+void ldc_gain_lut_set_t7(void);
+void ldc_gain_lut_set_t3(void);
+void ldc_min_gain_lut_set(void);
+void ldc_dither_lut_set(void);
 void ldc_rmem_data_parse(struct aml_ldim_driver_s *ldim_drv);
 void ldim_vs_arithmetic_t7(struct aml_ldim_driver_s *ldim_drv);
 void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag);
@@ -81,6 +87,7 @@ void ldc_mem_dump(unsigned char *vaddr, unsigned int size);
 void ldc_mem_save(char *path, unsigned long mem_paddr, unsigned int mem_size);
 void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size);
 void ldc_mem_clear(unsigned long mem_paddr, unsigned int mem_size);
+void ldc_mem_set(unsigned long mem_paddr, unsigned int mem_size);
 
 /*==============debug=================*/
 void ldim_remap_ctrl(unsigned char status);

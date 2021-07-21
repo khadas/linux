@@ -21,98 +21,232 @@
 #include "ldim_drv.h"
 #include "ldim_reg.h"
 
-static unsigned int ldc_gain_lut_array[16 * 64] = {
-3216, 3152, 3088, 3024, 2960, 2896, 2832, 2668, 2525, 2404, 2299, 2208, 2128, 2056, 1991, 1933,
-1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604, 1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
-1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269, 1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
-1157, 1146, 1135, 1056, 968, 880, 792, 704, 616, 528, 440, 352, 264, 176, 88, 0,
+unsigned int ldc_gain_lut_array[16][64] = {
+	{
+		3216, 3152, 3088, 3024, 2960, 2896, 2832, 2668,
+		2525, 2404, 2299, 2208, 2128, 2056, 1991, 1933,
+		1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604,
+		1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
+		1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269,
+		1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
+		1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		3216, 3152, 3088, 3024, 2960, 2896, 2832, 2668,
+		2525, 2404, 2299, 2208, 2128, 2056, 1991, 1933,
+		1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604,
+		1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
+		1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269,
+		1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
+		1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		3216, 3152, 3088, 3024, 2960, 2896, 2832, 2668,
+		2525, 2404, 2299, 2208, 2128, 2056, 1991, 1933,
+		1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604,
+		1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
+		1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269,
+		1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
+		1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		3216, 3152, 3088, 3024, 2960, 2896, 2832, 2668,
+		2525, 2404, 2299, 2208, 2128, 2056, 1991, 1933,
+		1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604,
+		1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
+		1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269,
+		1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
+		1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		3216, 3152, 3088, 3024, 2960, 2896, 2832, 2668,
+		2525, 2404, 2299, 2208, 2128, 2056, 1991, 1933,
+		1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604,
+		1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
+		1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269,
+		1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
+		1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		2720, 2703, 2686, 2669, 2652, 2635, 2617, 2591,
+		2525, 2404, 2299, 2208, 2128, 2056, 1991, 1933,
+		1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604,
+		1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
+		1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269,
+		1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
+		1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		2336, 2323, 2310, 2297, 2284, 2271, 2258, 2245,
+		2232, 2219, 2203, 2176, 2128, 2056, 1991, 1933,
+		1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604,
+		1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
+		1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269,
+		1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
+		1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		2048, 2039, 2031, 2023, 2014, 2004, 1994, 1983,
+		1971, 1958, 1944, 1928, 1911, 1893, 1872, 1850,
+		1826, 1799, 1770, 1739, 1705, 1669, 1635, 1604,
+		1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
+		1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269,
+		1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
+		1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		1808, 1805, 1803, 1801, 1798, 1795, 1791, 1787,
+		1783, 1777, 1771, 1764, 1756, 1747, 1737, 1726,
+		1713, 1699, 1683, 1667, 1649, 1630, 1610, 1589,
+		1566, 1543, 1519, 1494, 1470, 1447, 1426, 1405,
+		1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269,
+		1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
+		1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		1632, 1630, 1628, 1626, 1624, 1622, 1620, 1617,
+		1615, 1612, 1608, 1605, 1601, 1596, 1591, 1586,
+		1580, 1574, 1567, 1559, 1551, 1541, 1532, 1521,
+		1510, 1498, 1484, 1470, 1455, 1440, 1423, 1405,
+		1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269,
+		1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
+		1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		1488, 1485, 1482, 1480, 1477, 1475, 1472, 1469,
+		1467, 1464, 1461, 1459, 1456, 1453, 1451, 1448,
+		1445, 1442, 1439, 1437, 1434, 1431, 1428, 1425,
+		1422, 1419, 1416, 1413, 1409, 1405, 1400, 1392,
+		1381, 1367, 1349, 1331, 1315, 1299, 1284, 1269,
+		1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
+		1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		1360, 1357, 1355, 1353, 1351, 1348, 1346, 1344,
+		1342, 1340, 1337, 1335, 1333, 1330, 1328, 1326,
+		1323, 1321, 1319, 1316, 1314, 1311, 1309, 1306,
+		1304, 1301, 1298, 1296, 1293, 1290, 1287, 1284,
+		1281, 1279, 1275, 1272, 1269, 1264, 1259, 1253,
+		1246, 1237, 1227, 1215, 1202, 1190, 1179, 1167,
+		1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		1248, 1246, 1244, 1242, 1241, 1239, 1237, 1236,
+		1234, 1232, 1231, 1229, 1227, 1226, 1224, 1222,
+		1220, 1218, 1217, 1215, 1213, 1211, 1209, 1208,
+		1206, 1204, 1202, 1200, 1198, 1196, 1194, 1192,
+		1190, 1188, 1186, 1184, 1181, 1179, 1177, 1175,
+		1173, 1170, 1168, 1165, 1162, 1159, 1155, 1150,
+		1145, 1139, 1132, 1125, 1116, 1106, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		1168, 1167, 1167, 1166, 1166, 1166, 1165, 1165,
+		1164, 1164, 1163, 1163, 1162, 1162, 1161, 1161,
+		1160, 1160, 1159, 1159, 1158, 1157, 1157, 1156,
+		1155, 1154, 1153, 1153, 1152, 1151, 1150, 1149,
+		1148, 1146, 1145, 1144, 1143, 1142, 1140, 1139,
+		1137, 1136, 1134, 1133, 1131, 1129, 1127, 1126,
+		1124, 1121, 1118, 1115, 1110, 1104, 1097, 1088,
+		1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		1088, 1086, 1085, 1084, 1083, 1082, 1081, 1080,
+		1079, 1078, 1077, 1076, 1075, 1074, 1073, 1072,
+		1071, 1070, 1069, 1068, 1067, 1066, 1066, 1065,
+		1064, 1063, 1063, 1062, 1061, 1061, 1060, 1059,
+		1059, 1059, 1058, 1058, 1057, 1057, 1057, 1057,
+		1056, 1056, 1056, 1056, 1056, 1056, 1057, 1057,
+		1057, 1057, 1058, 1058, 1059, 1059, 1060, 1061,
+		1061, 1061, 1059, 1054, 1046, 1038, 1031, 1024
+	},
+	{
+		1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+		1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+		1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+		1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+		1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+		1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+		1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
+		1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024
+	}
 
-3216, 3152, 3088, 3024, 2960, 2896, 2832, 2668, 2525, 2404, 2299, 2208, 2128, 2056, 1991, 1933,
-1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604, 1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
-1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269, 1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
-1157, 1146, 1135, 1125, 1116, 1106, 1097, 992, 868, 744, 620, 496, 372, 248, 124, 0,
-
-3216, 3152, 3088, 3024, 2960, 2896, 2832, 2668, 2525, 2404, 2299, 2208, 2128, 2056, 1991, 1933,
-1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604, 1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
-1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269, 1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
-1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088, 1079, 1071, 1062, 880, 660, 440, 220, 0,
-
-3216, 3152, 3088, 3024, 2960, 2896, 2832, 2668, 2525, 2404, 2299, 2208, 2128, 2056, 1991, 1933,
-1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604, 1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
-1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269, 1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
-1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088, 1079, 1071, 1062, 1054, 1046, 1038, 1031, 0,
-
-3216, 3152, 3088, 3024, 2960, 2896, 2832, 2668, 2525, 2404, 2299, 2208, 2128, 2056, 1991, 1933,
-1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604, 1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
-1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269, 1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
-1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088, 1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024,
-
-2720, 2720, 2720, 2720, 2720, 2720, 2720, 2668, 2525, 2404, 2299, 2208, 2128, 2056, 1991, 1933,
-1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604, 1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
-1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269, 1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
-1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088, 1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024,
-
-2336, 2336, 2336, 2336, 2336, 2336, 2336, 2336, 2336, 2336, 2299, 2208, 2128, 2056, 1991, 1933,
-1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604, 1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
-1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269, 1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
-1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088, 1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024,
-
-2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 2048, 1991, 1933,
-1879, 1831, 1785, 1744, 1705, 1669, 1635, 1604, 1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
-1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269, 1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
-1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088, 1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024,
-
-1808, 1808, 1808, 1808, 1808, 1808, 1808, 1808, 1808, 1808, 1808, 1808, 1808, 1808, 1808, 1808,
-1808, 1808, 1785, 1744, 1705, 1669, 1635, 1604, 1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
-1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269, 1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
-1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088, 1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024,
-
-1632, 1632, 1632, 1632, 1632, 1632, 1632, 1632, 1632, 1632, 1632, 1632, 1632, 1632, 1632, 1632,
-1632, 1632, 1632, 1632, 1632, 1632, 1632, 1604, 1574, 1546, 1519, 1494, 1470, 1447, 1426, 1405,
-1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269, 1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
-1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088, 1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024,
-
-1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488,
-1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488, 1488, 1470, 1447, 1426, 1405,
-1386, 1367, 1349, 1331, 1315, 1299, 1284, 1269, 1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
-1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088, 1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024,
-
-1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360,
-1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360, 1360,
-1360, 1360, 1349, 1331, 1315, 1299, 1284, 1269, 1254, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
-1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088, 1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024,
-
-1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248,
-1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248,
-1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1248, 1241, 1227, 1215, 1202, 1190, 1179, 1167,
-1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088, 1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024,
-
-1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168,
-1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168,
-1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1168, 1167,
-1157, 1146, 1135, 1125, 1116, 1106, 1097, 1088, 1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024,
-
-1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088,
-1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088,
-1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088,
-1088, 1088, 1088, 1088, 1088, 1088, 1088, 1088, 1079, 1071, 1062, 1054, 1046, 1038, 1031, 1024,
-
-1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
-1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
-1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024,
-1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024
 };
 
-static void ldc_gain_lut_set_t7(void)
+unsigned int ldc_min_gain_lut[64] = {
+	64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+	64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+	64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64,
+	64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64, 64
+};
+
+unsigned int ldc_dither_lut_array[32][16] = {
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //4*4 frame00@00
+	{1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1}, //4*4 frame00@01
+	{0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1}, //4*4 frame00@10
+	{0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0}, //4*4 frame00@11
+
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //4*4 frame01@00
+	{0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0}, //4*4 frame01@01
+	{1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0}, //4*4 frame01@10
+	{1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1}, //4*4 frame01@11
+
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //4*4 frame02@00
+	{0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0}, //4*4 frame02@01
+	{0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1}, //4*4 frame02@10
+	{1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1}, //4*4 frame02@11
+
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //4*4 frame03@00
+	{0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0}, //4*4 frame03@01
+	{1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0}, //4*4 frame03@10
+	{1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1}, //4*4 frame03@11
+
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //4*4 frame04@00
+	{0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0}, //4*4 frame04@01
+	{1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 0, 0, 1}, //4*4 frame04@10
+	{1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1}, //4*4 frame04@11
+
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //4*4 frame05@00
+	{1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0}, //4*4 frame05@01
+	{1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1}, //4*4 frame05@10
+	{0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1}, //4*4 frame05@11
+
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //4*4 frame06@00
+	{0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0}, //4*4 frame06@01
+	{0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0}, //4*4 frame06@10
+	{1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1}, //4*4 frame06@11
+
+	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, //4*4 frame07@00
+	{0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1}, //4*4 frame07@01
+	{0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0}, //4*4 frame07@10
+	{1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0}  //4*4 frame07@11
+};
+
+void ldc_gain_lut_set_t7(void)
 {
+	unsigned int *p;
 	unsigned int data, ram_base = 0;
 	int i, j;
 
+	LDIMPR("%s\n", __func__);
+
 	for (i = 0; i < 16; i++) {
+		p = ldc_gain_lut_array[i];
 		for (j = 0; j < 64; j = j + 2) {
 			lcd_vcbus_write(LDC_GAIN_LUT_ADDR, ram_base);
-			data = ((ldc_gain_lut_array[i * 64 + j + 1] << 12) +
-				ldc_gain_lut_array[i * 64 + j]);
+			data = ((p[j + 1] << 12) + p[j]);
 			lcd_vcbus_write(LDC_GAIN_LUT_DATA, data);
 			lcd_vcbus_write(LDC_GAIN_LUT_CTRL0, 0x1);
 			lcd_vcbus_write(LDC_GAIN_LUT_CTRL1, 0x0);
@@ -126,39 +260,82 @@ static void ldc_gain_lut_set_t7(void)
 	}
 }
 
-static void ldc_gain_lut_set_t3(void)
+void ldc_gain_lut_set_t3(void)
 {
+	unsigned int *p;
 	unsigned int data_wr, data_rd;
 	int i, j;
 
-	lcd_vcbus_write(LDC_GAIN_LUT_CTRL0, 2); //switch to cbus clock for gain lut ram
+	LDIMPR("%s\n", __func__);
+
+	//switch to cbus clock for gain lut ram
+	lcd_vcbus_write(LDC_GAIN_LUT_CTRL0, 2);
 	lcd_vcbus_write(LDC_GAIN_LUT_ADDR, 0);
 
 	for (i = 0; i < 16; i++) {
+		p = ldc_gain_lut_array[i];
 		for (j = 0; j < 64; j = j + 2) {
-			data_wr = ((ldc_gain_lut_array[i * 64 + j + 1] << 12) +
-				   ldc_gain_lut_array[i * 64 + j]);
+			data_wr = ((p[j + 1] << 12) + p[j]);
 			lcd_vcbus_write(LDC_GAIN_LUT_DATA, data_wr);
 		}
 	}
 	lcd_vcbus_write(LDC_GAIN_LUT_ADDR, 0);
 	for (i = 0; i < 16; i++) {
+		p = ldc_gain_lut_array[i];
 		for (j = 0; j < 64; j = j + 2) {
-			data_wr = ((ldc_gain_lut_array[i * 64 + j + 1] << 12) +
-				   ldc_gain_lut_array[i * 64 + j]);
+			data_wr = ((p[j + 1] << 12) + p[j]);
 			data_rd = lcd_vcbus_read(LDC_RO_GAIN_SMP_DATA);
 			if (data_wr != data_rd) {
 				if (ldim_debug_print) {
 					LDIMERR("%s: %d: data_wr=0x%x, data_rd=0x%x\n",
-						__func__, i * 64 + j, data_wr, data_rd);
+						__func__, i * 64 + j,
+						data_wr, data_rd);
 				}
 			}
 		}
 	}
-	lcd_vcbus_write(LDC_GAIN_LUT_CTRL0, 0); //switch to ip clock for gain lut ram
+	//switch to ip clock for gain lut ram
+	lcd_vcbus_write(LDC_GAIN_LUT_CTRL0, 0);
 
 	lcd_vcbus_read(LDC_REG_PANEL_SIZE);
 	lcd_vcbus_read(LDC_REG_PANEL_SIZE);
+}
+
+void ldc_min_gain_lut_set(void)
+{
+	unsigned int *p;
+	unsigned int data;
+	int i, j;
+
+	LDIMPR("%s\n", __func__);
+
+	p = ldc_min_gain_lut;
+	for (i = 0; i < 16; i++) {
+		data = 0;
+		for (j = 0; j < 4; j++)
+			data |= ((p[i * 4 + j] & 0xff) << (j * 8));
+		lcd_vcbus_write(LDC_REG_MIN_GAIN_LUT_0 + i, data);
+	}
+}
+
+void ldc_dither_lut_set(void)
+{
+	unsigned int data, temp, offset, index;
+	int i, j, k;
+
+	LDIMPR("%s\n", __func__);
+
+	for (i = 0; i < 4; i++) { /* ls2b */
+		for (j = 0; j < 8; j++) { /* frm_idx */
+			data = 0;
+			offset = i * 8 + j;
+			index = i + j * 4;
+			for (k = 0; k < 16; k++)
+				data |= (ldc_dither_lut_array[index][k] << k);
+			temp = (data << 16) | data;
+			lcd_vcbus_write(LDC_REG_DITHER_LUT_1_0 + offset, temp);
+		}
+	}
 }
 
 static void ldim_profile_load(struct aml_ldim_driver_s *ldim_drv)
@@ -179,6 +356,11 @@ static void ldim_profile_load(struct aml_ldim_driver_s *ldim_drv)
 		return;
 	}
 
+	LDIMPR("%s: k=%d, bits=%d\n", __func__,
+	       profile->profile_k, profile->profile_bits);
+	lcd_vcbus_setb(LDC_REG_PROFILE_MODE, profile->profile_k, 8, 16);
+	lcd_vcbus_setb(LDC_REG_PROFILE_MODE, profile->profile_bits, 0, 8);
+
 	ldc_mem_write(profile->file_path,
 		      ldim_drv->rmem->profile_mem_paddr,
 		      ldim_drv->rmem->profile_mem_size);
@@ -195,8 +377,8 @@ static void ldc_factor_init(unsigned int width, unsigned int height,
 	unsigned int dis[4], multifactor[4], bits_for_div[4];
 	int i;
 
-	block_xnum = (1 << 7); //reg_ldc_blk_xnum
-	block_ynum = (1 << 6); //reg_ldc_blk_ynum
+	block_xnum = (1 << 7);
+	block_ynum = (1 << 6);
 
 	dis_x0 = width / block_xnum;
 	dis_y0 = height / block_ynum;
@@ -265,6 +447,7 @@ static void ldc_set_t7(unsigned int width, unsigned int height,
 	unsigned short seg_x_bdy[MAX_SEG_COL_NUM]; //col_num
 	unsigned short seg_y_bdy[MAX_SEG_ROW_NUM]; //row_num
 	unsigned int temp[2], data;
+	unsigned int overlap = 4;
 	int i;
 
 	LDIMPR("width:%d, height:%d, col_num:%d, row_num:%d\n",
@@ -279,98 +462,92 @@ static void ldc_set_t7(unsigned int width, unsigned int height,
 
 	lcd_vcbus_setb(LDC_REG_BLOCK_NUM, row_num, 8, 6);
 	lcd_vcbus_setb(LDC_REG_BLOCK_NUM, col_num, 14, 6);
-	lcd_vcbus_setb(LDC_REG_BLOCK_NUM, 7, 4, 4); //reg_ldc_blk_xnum
-	lcd_vcbus_setb(LDC_REG_BLOCK_NUM, 6, 0, 4); //reg_ldc_blk_ynum
+	lcd_vcbus_setb(LDC_REG_BLOCK_NUM, 7, 4, 4);
+	lcd_vcbus_setb(LDC_REG_BLOCK_NUM, 6, 0, 4);
 
-	lcd_vcbus_setb(LDC_REG_DOWNSAMPLE, 1, 23, 1); //reg_ldc_ds_filter_mode
-	lcd_vcbus_setb(LDC_REG_DOWNSAMPLE, 0x40, 15, 8); //reg_ldc_y_gain
-	lcd_vcbus_setb(LDC_REG_DOWNSAMPLE, 3, 12, 3); //reg_ldc_hist_mode
-	lcd_vcbus_setb(LDC_REG_DOWNSAMPLE, 1, 11, 1); //reg_ldc_hist_blend_mode
-	lcd_vcbus_setb(LDC_REG_DOWNSAMPLE, 0x60, 4, 7); //reg_ldc_hist_blend_alpha
-	lcd_vcbus_setb(LDC_REG_DOWNSAMPLE, 13, 0, 4); //reg_ldc_hist_adap_blend_max_gain
+	lcd_vcbus_setb(LDC_REG_DOWNSAMPLE, 1, 23, 1);
+	lcd_vcbus_setb(LDC_REG_DOWNSAMPLE, 0x40, 15, 8);
+	lcd_vcbus_setb(LDC_REG_DOWNSAMPLE, 3, 12, 3);
+	lcd_vcbus_setb(LDC_REG_DOWNSAMPLE, 1, 11, 1);
+	lcd_vcbus_setb(LDC_REG_DOWNSAMPLE, 0x60, 4, 7);
+	lcd_vcbus_setb(LDC_REG_DOWNSAMPLE, 13, 0, 4);
 
-	lcd_vcbus_setb(LDC_REG_HIST_OVERLAP, 0, 18, 10); //reg_ldc_seg_x_overlap
-	lcd_vcbus_setb(LDC_REG_HIST_OVERLAP, 0, 8, 10); //reg_ldc_seg_y_overlap
-	lcd_vcbus_setb(LDC_REG_HIST_OVERLAP, 10, 0, 8); //reg_ldc_max95_ratio
+	data = width / (overlap * col_num);
+	lcd_vcbus_setb(LDC_REG_HIST_OVERLAP, data, 18, 10);
+	data = height / (overlap * row_num);
+	lcd_vcbus_setb(LDC_REG_HIST_OVERLAP, data, 8, 10);
+	lcd_vcbus_setb(LDC_REG_HIST_OVERLAP, 10, 0, 8);
 
-	lcd_vcbus_setb(LDC_REG_BLEND_DIFF_TH, 256, 12, 12); //reg_ldc_hist_adap_blend_diff_th1
-	lcd_vcbus_setb(LDC_REG_BLEND_DIFF_TH, 640, 0, 12); //reg_ldc_hist_adap_blend_diff_th2
+	lcd_vcbus_setb(LDC_REG_BLEND_DIFF_TH, 256, 12, 12);
+	lcd_vcbus_setb(LDC_REG_BLEND_DIFF_TH, 640, 0, 12);
 
-	lcd_vcbus_setb(LDC_REG_CURVE_COEF, 0x70, 18, 8); //reg_ldc_hist_adap_blend_gain_0
-	lcd_vcbus_setb(LDC_REG_CURVE_COEF, 0x40, 10, 8); //reg_ldc_hist_adap_blend_gain_1
-	lcd_vcbus_setb(LDC_REG_CURVE_COEF, 2, 4, 6); //reg_ldc_hist_adap_blend_th0
-	lcd_vcbus_setb(LDC_REG_CURVE_COEF, 4, 0, 4); //reg_ldc_hist_adap_blend_thn
+	lcd_vcbus_setb(LDC_REG_CURVE_COEF, 0x70, 18, 8);
+	lcd_vcbus_setb(LDC_REG_CURVE_COEF, 0x40, 10, 8);
+	lcd_vcbus_setb(LDC_REG_CURVE_COEF, 2, 4, 6);
+	lcd_vcbus_setb(LDC_REG_CURVE_COEF, 4, 0, 4);
 
-	lcd_vcbus_setb(LDC_REG_INIT_BL, 0, 12, 12); //reg_ldc_init_bl_min
-	lcd_vcbus_setb(LDC_REG_INIT_BL, 0xfff, 0, 12); //reg_ldc_init_bl_max
+	lcd_vcbus_setb(LDC_REG_INIT_BL, 0, 12, 12);
+	lcd_vcbus_setb(LDC_REG_INIT_BL, 0xfff, 0, 12);
 
-	lcd_vcbus_setb(LDC_REG_SF_MODE, 2, 24, 2); //reg_ldc_sf_mode
-	lcd_vcbus_setb(LDC_REG_SF_MODE, 0x600, 12, 12); //reg_ldc_sf_tsf_3x3
-	lcd_vcbus_setb(LDC_REG_SF_MODE, 0xc00, 0, 12); //reg_ldc_sf_tsf_5x5
+	lcd_vcbus_setb(LDC_REG_SF_MODE, 2, 24, 2);
+	lcd_vcbus_setb(LDC_REG_SF_MODE, 0x600, 12, 12);
+	lcd_vcbus_setb(LDC_REG_SF_MODE, 0xc00, 0, 12);
 
-	lcd_vcbus_setb(LDC_REG_SF_GAIN, 0x20, 8, 8); //reg_ldc_sf_gain_up
-	lcd_vcbus_setb(LDC_REG_SF_GAIN, 0x00, 0, 8); //reg_ldc_sf_gain_dn
+	lcd_vcbus_setb(LDC_REG_SF_GAIN, 0x20, 8, 8);
+	lcd_vcbus_setb(LDC_REG_SF_GAIN, 0x00, 0, 8);
 
-	lcd_vcbus_setb(LDC_REG_BS_MODE, 0, 12, 3); //reg_ldc_bs_bl_mode
-	lcd_vcbus_setb(LDC_REG_BS_MODE, 0, 0, 12); //reg_ldc_glb_apl
+	lcd_vcbus_setb(LDC_REG_BS_MODE, 0, 12, 3);
+	lcd_vcbus_setb(LDC_REG_BS_MODE, 0, 0, 12);
 
-	lcd_vcbus_setb(LDC_REG_APL, 0x20, 0, 8); //reg_ldc_bs_glb_apl_gain
+	lcd_vcbus_setb(LDC_REG_APL, 0x20, 0, 8);
 
-	lcd_vcbus_setb(LDC_REG_GLB_BOOST, 0x200, 16, 12); //reg_ldc_bs_dark_scene_bl_th
-	lcd_vcbus_setb(LDC_REG_GLB_BOOST, 0x20, 8, 8); //reg_ldc_bs_gain
-	lcd_vcbus_setb(LDC_REG_GLB_BOOST, 0x60, 0, 8); //reg_ldc_bs_limit_gain
+	lcd_vcbus_setb(LDC_REG_GLB_BOOST, 0x200, 16, 12);
+	lcd_vcbus_setb(LDC_REG_GLB_BOOST, 0x20, 8, 8);
+	lcd_vcbus_setb(LDC_REG_GLB_BOOST, 0x60, 0, 8);
 
-	lcd_vcbus_setb(LDC_REG_LOCAL_BOOST, 0x20, 20, 8); //reg_ldc_bs_loc_apl_gain
-	lcd_vcbus_setb(LDC_REG_LOCAL_BOOST, 0x20, 12, 8); //reg_ldc_bs_loc_max_min_gain
-	lcd_vcbus_setb(LDC_REG_LOCAL_BOOST, 0x600, 0, 12); //reg_ldc_bs_loc_dark_scene_bl_th
+	lcd_vcbus_setb(LDC_REG_LOCAL_BOOST, 0x20, 20, 8);
+	lcd_vcbus_setb(LDC_REG_LOCAL_BOOST, 0x20, 12, 8);
+	lcd_vcbus_setb(LDC_REG_LOCAL_BOOST, 0x600, 0, 12);
 
-	lcd_vcbus_setb(LDC_REG_TF, 0x20, 24, 8); //reg_ldc_tf_low_alpha
-	lcd_vcbus_setb(LDC_REG_TF, 0x20, 16, 8); //reg_ldc_tf_high_alpha
-	lcd_vcbus_setb(LDC_REG_TF, 0x40, 8, 8); //reg_ldc_tf_low_alpha_sc
-	lcd_vcbus_setb(LDC_REG_TF, 0x40, 0, 8); //reg_ldc_tf_high_alpha_sc
+	lcd_vcbus_setb(LDC_REG_TF, 0x20, 24, 8);
+	lcd_vcbus_setb(LDC_REG_TF, 0x20, 16, 8);
+	lcd_vcbus_setb(LDC_REG_TF, 0x40, 8, 8);
+	lcd_vcbus_setb(LDC_REG_TF, 0x40, 0, 8);
 
-	lcd_vcbus_setb(LDC_DGB_CTRL, 1, 9, 1); //reg_ldc_calc_tmp_flt_en
-	lcd_vcbus_setb(LDC_REG_TF_SC, 0, 8, 1); //reg_ldc_tf_sc_flag
-	lcd_vcbus_setb(LDC_REG_TF_SC, 7, 4, 4); //reg_ldc_cmp_mask_x
-	lcd_vcbus_setb(LDC_REG_TF_SC, 7, 0, 4); //reg_ldc_cmp_mask_y
+	lcd_vcbus_setb(LDC_DGB_CTRL, 1, 9, 1);
+	lcd_vcbus_setb(LDC_REG_TF_SC, 0, 8, 1);
+	lcd_vcbus_setb(LDC_REG_TF_SC, 7, 4, 4);
+	lcd_vcbus_setb(LDC_REG_TF_SC, 7, 0, 4);
 
-	lcd_vcbus_setb(LDC_REG_PROFILE_MODE, 0x240, 8, 16); //reg_ldc_profile_k
-	lcd_vcbus_setb(LDC_REG_PROFILE_MODE, 0x18, 0, 8); //reg_ldc_profile_bits
+	lcd_vcbus_setb(LDC_REG_BLK_FILTER, 56, 8, 8);
+	lcd_vcbus_setb(LDC_REG_BLK_FILTER, 37, 0, 8);
 
-	lcd_vcbus_setb(LDC_REG_BLK_FILTER, 56, 8, 8); //reg_ldc_block_filter_a
-	lcd_vcbus_setb(LDC_REG_BLK_FILTER, 37, 0, 8); //reg_ldc_block_filter_b
+	lcd_vcbus_setb(LDC_REG_BLK_FILTER_COEF, 20, 24, 8);
+	lcd_vcbus_setb(LDC_REG_BLK_FILTER_COEF, 10, 16, 8);
+	lcd_vcbus_setb(LDC_REG_BLK_FILTER_COEF, 5, 8, 8);
+	lcd_vcbus_setb(LDC_REG_BLK_FILTER_COEF, 2, 0, 8);
 
-	lcd_vcbus_setb(LDC_REG_BLK_FILTER_COEF, 20, 24, 8); //reg_ldc_block_filter_c
-	lcd_vcbus_setb(LDC_REG_BLK_FILTER_COEF, 10, 16, 8); //reg_ldc_block_filter_d
-	lcd_vcbus_setb(LDC_REG_BLK_FILTER_COEF, 5, 8, 8); //reg_ldc_block_filter_e
-	lcd_vcbus_setb(LDC_REG_BLK_FILTER_COEF, 2, 0, 8); //reg_ldc_block_filter_f
-
-	//ldc_bl_adp_frm_en=0
-	//ldc_bl_input_fid=0
-	//ro_ldc_bl_input_fid=0
-	//ro_ldc_bl_output_fid=0
-	//ldc_bl_buf_diff=0
-	lcd_vcbus_setb(LDC_REG_BL_MEMORY, 0, 0, 3); //reg_ldc_bl_buf_diff
+	lcd_vcbus_setb(LDC_REG_BL_MEMORY, 0, 0, 3);
 	//ldc_bl_buf_num=4
 
-	lcd_vcbus_setb(LDC_REG_GLB_GAIN, 1024, 0, 12); //reg_ldc_glb_gain
+	lcd_vcbus_setb(LDC_REG_GLB_GAIN, 896, 0, 12);
+	lcd_vcbus_setb(LDC_REG_DITHER, 1, 1, 1);
+	lcd_vcbus_setb(LDC_REG_DITHER, 1, 0, 1);
 
-	lcd_vcbus_setb(LDC_DGB_CTRL, 1, 10, 1); //reg_ldc_comp_blk_intsty_en
-	lcd_vcbus_setb(LDC_DGB_CTRL, 1, 13, 1); //reg_ldc_comp_pxl_cmp_en
-	lcd_vcbus_setb(LDC_DGB_CTRL, 1, 14, 1); //reg_ldc_comp_en
-	lcd_vcbus_setb(LDC_REG_DITHER, 0, 1, 1); //reg_ldc_dth_en
-	lcd_vcbus_setb(LDC_REG_DITHER, 0, 0, 1); //reg_ldc_dth_bw
+	lcd_vcbus_setb(LDC_DGB_CTRL, 1, 10, 1);
+	lcd_vcbus_setb(LDC_DGB_CTRL, 1, 13, 1);
+	lcd_vcbus_setb(LDC_DGB_CTRL, 1, 14, 1);
 
 	memset(seg_x_bdy, 0, MAX_SEG_COL_NUM * sizeof(unsigned short));
 	memset(seg_y_bdy, 0, MAX_SEG_ROW_NUM * sizeof(unsigned short));
-	data = width / col_num;
+	//data = width / col_num;
 	for (i = 0; i < col_num; i++) {
-		seg_x_bdy[i] = data * (i + 1);
+		seg_x_bdy[i] = width * (i + 1) / col_num;
 		LDIMPR("seg_x_bdy[%d]: %d\n", i, seg_x_bdy[i]);
 	}
-	data = height / row_num;
+	//data = height / row_num;
 	for (i = 0; i < row_num; i++) {
-		seg_y_bdy[i] = data * (i + 1);
+		seg_y_bdy[i] = height * (i + 1) / row_num;
 		LDIMPR("seg_y_bdy[%d]: %d\n", i, seg_y_bdy[i]);
 	}
 
@@ -423,7 +600,7 @@ static void ldc_set_t7(unsigned int width, unsigned int height,
 	}
 
 	lcd_vcbus_setb(LDC_CTRL_MISC0, 0, 28, 1);
-	lcd_vcbus_setb(LDC_CTRL_MISC0, 1, 17, 1); //reg_ldc_vs_edge_sel
+	lcd_vcbus_setb(LDC_CTRL_MISC0, 1, 17, 1);
 
 	lcd_vcbus_setb(LDC_CTRL_MISC1, 0, 2, 1);
 	lcd_vcbus_setb(LDC_CTRL_MISC1, 1, 2, 1);
@@ -648,8 +825,10 @@ void ldim_drv_init_t7(struct aml_ldim_driver_s *ldim_drv)
 
 	lcd_vcbus_write(LDC_REG_BLOCK_NUM, 0);
 	lcd_vcbus_write(LDC_DDR_ADDR_BASE, (ldim_drv->rmem->profile_mem_paddr >> 2));
-	ldc_set_t7(width, height, col_num, row_num);
 
+	ldc_min_gain_lut_set();
+	ldc_dither_lut_set();
+	ldc_set_t7(width, height, col_num, row_num);
 	ldc_gain_lut_set_t7();
 
 	LDIMPR("drv_init: col: %d, row: %d, axi paddr: 0x%lx\n",
@@ -674,8 +853,10 @@ void ldim_drv_init_t3(struct aml_ldim_driver_s *ldim_drv)
 
 	lcd_vcbus_write(LDC_REG_BLOCK_NUM, 0);
 	lcd_vcbus_write(LDC_DDR_ADDR_BASE, (ldim_drv->rmem->profile_mem_paddr >> 2));
-	ldc_set_t7(width, height, col_num, row_num);
 
+	ldc_min_gain_lut_set();
+	ldc_dither_lut_set();
+	ldc_set_t7(width, height, col_num, row_num);
 	ldc_gain_lut_set_t3();
 
 	LDIMPR("drv_init: col: %d, row: %d, axi paddr: 0x%lx\n",

@@ -87,6 +87,8 @@ struct ldim_profile_s {
 	unsigned int ld_lut_hdg[32];
 	unsigned int ld_lut_vdg[32];
 	unsigned int ld_lut_vhk[32];
+	unsigned int profile_k;
+	unsigned int profile_bits;
 	char file_path[256];
 };
 
@@ -129,10 +131,10 @@ struct ldim_rmem_s {
 };
 
 struct ldim_seg_hist_s {
-	unsigned int min_index;
-	unsigned int max_index;
-	unsigned int weight_avg_95;
 	unsigned int weight_avg;
+	unsigned int weight_avg_95;
+	unsigned int max_index;
+	unsigned int min_index;
 };
 
 #define LDIM_INIT_ON_MAX     300
@@ -217,6 +219,8 @@ struct ldim_drv_data_s {
 			   unsigned int row, unsigned int col);
 	void (*drv_init)(struct aml_ldim_driver_s *ldim_drv);
 	void (*func_ctrl)(struct aml_ldim_driver_s *ldim_drv, int flag);
+	void (*remap_lut_update)(void);
+	void (*min_gain_lut_update)(void);
 };
 
 /*******global API******/
@@ -231,6 +235,7 @@ struct aml_ldim_driver_s {
 	unsigned char demo_en;
 	unsigned char black_frm_en;
 	unsigned char func_bypass;  /* for lcd bist pattern */
+	unsigned char dev_smr_bypass;
 	unsigned char brightness_bypass;
 	unsigned char test_en;
 	unsigned char avg_update_en;

@@ -983,6 +983,17 @@ ldim_dev_get_config_from_dts_profile:
 		}
 	} else if (profile->mode == 2) {
 		LDIMPR("load bl_profile\n");
+		ret = of_property_read_u32_array(child,
+			"ldim_bl_profile_k_bits", &temp[0], 2);
+		if (ret) {
+			LDIMERR("failed to get ldim_bl_profile_k_bits\n");
+			profile->profile_k = 24;
+			profile->profile_bits = 640;
+		} else {
+			profile->profile_k = temp[0];
+			profile->profile_bits = temp[1];
+		}
+
 		ret = of_property_read_string(child, "ldim_bl_profile_path", &str);
 		if (ret) {
 			LDIMERR("failed to get ldim_bl_profile_path\n");

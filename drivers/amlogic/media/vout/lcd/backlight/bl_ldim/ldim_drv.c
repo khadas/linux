@@ -89,7 +89,7 @@ static struct ldim_config_s ldim_config = {
 	.hist_row = 1,
 	.hist_col = 1,
 	.bl_mode = 1,
-	.func_en = 1,
+	.func_en = 0,
 	.hvcnt_bypass = 0,
 	.dev_index = 0xff,
 	.ldim_info = &ldim_info,
@@ -406,6 +406,11 @@ static int ldim_set_level(unsigned int level)
 
 static void ldim_test_ctrl(int flag)
 {
+	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
+
+	if (bdrv->data->chip_type >= LCD_CHIP_T7)
+		return;
+
 	if (flag) /* when enable lcd bist pattern, bypass ldim function */
 		ldim_driver.func_bypass = 1;
 	else
@@ -557,6 +562,9 @@ static void ldim_dev_smr(int update_flag, unsigned int size)
 {
 	struct ldim_dev_driver_s *dev_drv = ldim_driver.dev_drv;
 	int ret;
+
+	if (ldim_driver.dev_smr_bypass)
+		return;
 
 	if (!dev_drv)
 		return;
@@ -1266,6 +1274,8 @@ static struct ldim_drv_data_s ldim_data_tl1 = {
 	.memory_init = aml_ldim_malloc,
 	.drv_init = ldim_drv_init,
 	.func_ctrl = ldim_func_ctrl,
+	.remap_lut_update = NULL,
+	.min_gain_lut_update = NULL,
 };
 
 static struct ldim_drv_data_s ldim_data_tm2 = {
@@ -1284,6 +1294,8 @@ static struct ldim_drv_data_s ldim_data_tm2 = {
 	.memory_init = aml_ldim_malloc,
 	.drv_init = ldim_drv_init,
 	.func_ctrl = ldim_func_ctrl,
+	.remap_lut_update = NULL,
+	.min_gain_lut_update = NULL,
 };
 
 static struct ldim_drv_data_s ldim_data_tm2b = {
@@ -1302,6 +1314,8 @@ static struct ldim_drv_data_s ldim_data_tm2b = {
 	.memory_init = aml_ldim_malloc,
 	.drv_init = ldim_drv_init,
 	.func_ctrl = ldim_func_ctrl,
+	.remap_lut_update = NULL,
+	.min_gain_lut_update = NULL,
 };
 
 static struct ldim_drv_data_s ldim_data_t7 = {
@@ -1320,6 +1334,8 @@ static struct ldim_drv_data_s ldim_data_t7 = {
 	.memory_init = aml_ldim_malloc_t7,
 	.drv_init = ldim_drv_init_t7,
 	.func_ctrl = ldim_func_ctrl_t7,
+	.remap_lut_update = ldc_gain_lut_set_t7,
+	.min_gain_lut_update = ldc_min_gain_lut_set,
 };
 
 static struct ldim_drv_data_s ldim_data_t3 = {
@@ -1338,6 +1354,8 @@ static struct ldim_drv_data_s ldim_data_t3 = {
 	.memory_init = aml_ldim_malloc_t7,
 	.drv_init = ldim_drv_init_t3,
 	.func_ctrl = ldim_func_ctrl_t3,
+	.remap_lut_update = ldc_gain_lut_set_t3,
+	.min_gain_lut_update = ldc_min_gain_lut_set,
 };
 
 static int ldim_region_num_check(struct ldim_drv_data_s *data)

@@ -606,6 +606,8 @@
 				4  3  2  1  0
 				15 14 13 12 11>;
 			ldim_bl_profile_mode = <2>; /*0=no profile*/
+			ldim_bl_profile_k_bits = <
+				3487 24>; /*profile_k, profile_bits*/
 			ldim_bl_profile_path =
 				"/odm/etc/tvconfig/panel/tcon/HV650QUB-F70_LDIM/bl_profile.bin";
 
