@@ -51,6 +51,7 @@
 #include "hw/reg_ops.h"
 #include "hdmi_tx_hdcp.h"
 
+#include <uapi/drm/drm_mode.h>
 #include <linux/amlogic/gki_module.h>
 
 #define DEVICE_NAME "amhdmitx"
@@ -7458,22 +7459,22 @@ void drm_hdmitx_set_phy(unsigned char en)
 }
 EXPORT_SYMBOL(drm_hdmitx_set_phy);
 
-void amhdmitx_setup_attr(const char *buf)
+void drm_hdmitx_setup_attr(const char *buf)
 {
 	char attr[16] = {0};
 
 	memcpy(attr, buf, sizeof(attr));
 	memcpy(hdmitx_device.fmt_attr, attr, sizeof(hdmitx_device.fmt_attr));
 }
-EXPORT_SYMBOL(amhdmitx_setup_attr);
+EXPORT_SYMBOL(drm_hdmitx_setup_attr);
 
-void amhdmitx_get_attr(char attr[16])
+void drm_hdmitx_get_attr(char attr[16])
 {
 	memcpy(attr, hdmitx_device.fmt_attr, sizeof(hdmitx_device.fmt_attr));
 }
-EXPORT_SYMBOL(amhdmitx_get_attr);
+EXPORT_SYMBOL(drm_hdmitx_get_attr);
 
-bool drm_chk_mode_attr_sup(char *mode, char *attr)
+bool drm_hdmitx_chk_mode_attr_sup(char *mode, char *attr)
 {
 	struct hdmi_format_para *para = NULL;
 	bool valid = false;
@@ -7500,23 +7501,68 @@ bool drm_chk_mode_attr_sup(char *mode, char *attr)
 
 	return valid;
 }
-EXPORT_SYMBOL(drm_chk_mode_attr_sup);
+EXPORT_SYMBOL(drm_hdmitx_chk_mode_attr_sup);
 
-bool drm_chk_hdmi_mode(const char *mode)
+unsigned int drm_hdmitx_get_contenttypes(void)
 {
-	enum hdmi_vic vic = HDMI_UNKNOWN;
+	unsigned int types = 1 << DRM_MODE_CONTENT_TYPE_NO_DATA;/*NONE DATA*/
+	struct rx_cap *prxcap = &hdmitx_device.rxcap;
 
-	if (hdmitx_device.hdmi_init != 1)
-		return false;
-	if (!mode)
-		return false;
+	if (prxcap->cnc0)
+		types |= 1 << DRM_MODE_CONTENT_TYPE_GRAPHICS;
+	if (prxcap->cnc1)
+		types |= 1 << DRM_MODE_CONTENT_TYPE_PHOTO;
+	if (prxcap->cnc2)
+		types |= 1 << DRM_MODE_CONTENT_TYPE_CINEMA;
+	if (prxcap->cnc3)
+		types |= 1 << DRM_MODE_CONTENT_TYPE_GAME;
 
-	vic = hdmitx_edid_get_VIC(&hdmitx_device, mode, 1);
-	if (vic == HDMI_UNKNOWN)
-		return false;
-	return true;
+	return types;
 }
-EXPORT_SYMBOL(drm_chk_hdmi_mode);
+EXPORT_SYMBOL(drm_hdmitx_get_contenttypes);
+
+int drm_hdmitx_set_contenttype(int content_type)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	int ret = 0;
+
+	if (is_hdmi14_4k(hdev->cur_VIC))
+		hdmitx_construct_vsif(hdev, VT_HDMI14_4K, 1, NULL);
+	hdev->ct_mode = 0;
+	hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_OFF);
+
+	switch (content_type) {
+	case DRM_MODE_CONTENT_TYPE_GRAPHICS:
+		hdev->ct_mode = 2;
+		hdev->hwop.cntlconfig(hdev,
+			CONF_CT_MODE, SET_CT_GRAPHICS);
+		break;
+	case DRM_MODE_CONTENT_TYPE_PHOTO:
+		hdev->ct_mode = 3;
+		hdev->hwop.cntlconfig(hdev,
+			CONF_CT_MODE, SET_CT_PHOTO);
+		break;
+	case DRM_MODE_CONTENT_TYPE_CINEMA:
+		hdev->ct_mode = 4;
+		hdev->hwop.cntlconfig(hdev,
+			CONF_CT_MODE, SET_CT_CINEMA);
+		break;
+	case DRM_MODE_CONTENT_TYPE_GAME:
+		hdev->ct_mode = 1;
+		hdev->hwop.cntlconfig(hdev,
+			CONF_CT_MODE, SET_CT_GAME);
+		break;
+	default:
+		pr_err("[%s]: [%d] unsupported type\n",
+			__func__, content_type);
+		ret = -EINVAL;
+		break;
+	};
+
+	return ret;
+}
+EXPORT_SYMBOL(drm_hdmitx_set_contenttype);
+
 
 /*************DRM connector API end**************/
 
