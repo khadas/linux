@@ -975,7 +975,10 @@ exit:
 static void session_pause(struct sync_session *session, bool pause)
 {
 	mutex_lock(&session->session_mutex);
-	if (session->stat == AVS_STAT_STARTING) {
+	if (session->stat == AVS_STAT_INIT) {
+		msync_dbg(LOG_INFO, "[%d]%s ignore pause %d before starting\n",
+			session->id, __func__, pause);
+	} else if (session->stat == AVS_STAT_STARTING) {
 		msync_dbg(LOG_INFO, "[%d]%s ignore pause %d during starting\n",
 			session->id, __func__, pause);
 	} else {
