@@ -3177,7 +3177,8 @@ static int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 			switch (sig_flg) {
 			case 0:
 				*status = FE_TIMEDOUT;
-				demod->fast_search_finish = 1;
+				demod->fast_search_finish = 0;
+				demod_dvbc_fsm_reset(demod);
 				PR_DBG("%s [id %d] >>>unlock<<<\n", __func__, demod->id);
 				break;
 			case 1:
