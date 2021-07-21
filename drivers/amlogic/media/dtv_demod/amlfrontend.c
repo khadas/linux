@@ -3258,6 +3258,7 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 	if (devp->agc_direction) {
 		PR_INFO("DTV AGC direction: %d, Set dvbs agc pin reverse\n", devp->agc_direction);
 		dvbs_wr_byte(0x118, 0x04);
+		dvbs_wr_byte(0x913, 0x50);
 	}
 
 	return ret;
