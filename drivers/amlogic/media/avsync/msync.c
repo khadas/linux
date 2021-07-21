@@ -26,6 +26,8 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/major.h>
 #include <uapi/linux/amlogic/msync.h>
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_MSYNC
+#include <trace/events/meson_atrace.h>
 
 #define UNIT90K    (90000)
 #define DEFAULT_WALL_ADJ_THRES (UNIT90K / 10) //100ms
@@ -167,6 +169,8 @@ struct sync_session {
 	u32 d_wall_start;
 	int d_vsync_cnt;
 	u64 d_vsync_last;
+	char atrace_v[8];
+	char atrace_a[8];
 
 	/* audio disc recovery */
 	int audio_drop_cnt;
@@ -1650,6 +1654,7 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 					session->wall_clock);
 			session->last_vpts = ts;
 			session_update_vpts(session);
+			ATRACE_COUNTER(session->atrace_v, ts.pts);
 		}
 		break;
 	}
@@ -1671,6 +1676,7 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 					session->wall_clock);
 			session->last_apts = ts;
 			session_update_apts(session);
+			ATRACE_COUNTER(session->atrace_a, ts.pts);
 		}
 		break;
 	}
@@ -2172,6 +2178,8 @@ static int create_session(u32 id)
 	INIT_DELAYED_WORK(&session->transit_work, transit_work_func);
 	INIT_DELAYED_WORK(&session->pcr_start_work, pcr_start_work_func);
 	INIT_DELAYED_WORK(&session->audio_change_work, audio_change_work_func);
+	snprintf(session->atrace_v, sizeof(session->atrace_v), "vpts%u", id);
+	snprintf(session->atrace_a, sizeof(session->atrace_a), "apts%u", id);
 
 	mutex_init(&session->session_mutex);
 	spin_lock_irqsave(&sync.lock, flags);
