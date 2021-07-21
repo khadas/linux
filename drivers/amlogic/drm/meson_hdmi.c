@@ -146,7 +146,7 @@ static void choose_mode_attr(char *outputmode, u32 max_bpc, struct hdmitx_color_
 			continue;
 
 		build_hdmitx_attr_str(attr_str, attr_list[i].colorformat, attr_list[i].bitdepth);
-		if (drm_chk_mode_attr_sup(outputmode, attr_str)) {
+		if (drm_hdmitx_chk_mode_attr_sup(outputmode, attr_str)) {
 			attr->colorformat = attr_list[i].colorformat;
 			attr->bitdepth = attr_list[i].bitdepth;
 			DRM_INFO("get dest attr [%d], [%d]+[%d]\n",
@@ -175,10 +175,10 @@ void meson_hdmitx_setup_color_attr(struct drm_crtc_state *crtc_state,
 
 	/*TODO: get attr from hdmitx drv, for legacy usage, remove later.*/
 	if (true) {
-		amhdmitx_get_attr(attr_str);
+		drm_hdmitx_get_attr(attr_str);
 		DRM_INFO("new mode name :%s, current attr: %s\n",
 		mode_str, attr_str);
-		if (drm_chk_mode_attr_sup(mode_str, attr_str))
+		if (drm_hdmitx_chk_mode_attr_sup(mode_str, attr_str))
 			reset_attr = false;
 		else
 			DRM_ERROR("mode-attr[%s-%s] NOT supported\n",
@@ -189,7 +189,7 @@ void meson_hdmitx_setup_color_attr(struct drm_crtc_state *crtc_state,
 		choose_mode_attr(mode_str, conn_state->max_bpc, &am_hdmi_info.color_attr);
 		build_hdmitx_attr_str(attr_str,
 			am_hdmi_info.color_attr.colorformat, am_hdmi_info.color_attr.bitdepth);
-		amhdmitx_setup_attr(attr_str);
+		drm_hdmitx_setup_attr(attr_str);
 		DRM_INFO("select default colorattr:[%s]\n", attr_str);
 	}
 }
@@ -199,7 +199,7 @@ char *am_meson_hdmi_get_voutmode(struct drm_display_mode *mode)
 	return mode->name;
 }
 
-int am_hdmi_tx_get_modes(struct drm_connector *connector)
+int meson_hdmitx_get_modes(struct drm_connector *connector)
 {
 	struct edid *edid;
 	int *vics;
@@ -327,13 +327,13 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
  *		hsync_end(hse) : h_active + h_front + h_sync
  *		htotal : h_total
  */
-enum drm_mode_status am_hdmi_tx_check_mode(struct drm_connector *connector,
+enum drm_mode_status meson_hdmitx_check_mode(struct drm_connector *connector,
 					   struct drm_display_mode *mode)
 {
 	return MODE_OK;
 }
 
-static struct drm_encoder *am_hdmitx_connector_best_encoder
+static struct drm_encoder *meson_hdmitx_best_encoder
 	(struct drm_connector *connector)
 {
 	struct am_hdmi_tx *am_hdmi = connector_to_am_hdmi(connector);
@@ -389,12 +389,12 @@ static void am_hdmitx_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-int am_hdmitx_atomic_check(struct drm_connector *connector,
+int meson_hdmitx_atomic_check(struct drm_connector *connector,
 	struct drm_atomic_state *state)
 {
 	struct am_hdmitx_connector_state *new_hdmitx_state, *old_hdmitx_state;
 	struct drm_crtc_state *new_crtc_state;
-
+	unsigned int hdmitx_content_type = drm_hdmitx_get_contenttypes();
 	old_hdmitx_state = to_am_hdmitx_connector_state
 		(drm_atomic_get_old_connector_state(state, connector));
 	new_hdmitx_state = to_am_hdmitx_connector_state
@@ -402,6 +402,17 @@ int am_hdmitx_atomic_check(struct drm_connector *connector,
 	new_crtc_state = drm_atomic_get_new_crtc_state(state,
 							   connector->state->crtc);
 
+	/*check content type.*/
+	if (((1 << new_hdmitx_state->base.content_type) &
+		hdmitx_content_type) == 0) {
+		DRM_ERROR("[%s] check contentype[%d-%u] fail\n",
+			__func__,
+			new_hdmitx_state->base.content_type,
+			hdmitx_content_type);
+		return -EINVAL;
+	}
+
+	/*force set mode.*/
 	if (new_hdmitx_state->update)
 		new_crtc_state->connectors_changed = true;
 
@@ -587,6 +598,8 @@ void meson_hdmitx_update_hdcp_locked(void)
 void meson_hdmitx_update(struct drm_connector_state *new_state,
 	struct drm_connector_state *old_state)
 {
+	if (new_state->content_type != old_state->content_type)
+		drm_hdmitx_set_contenttype(new_state->content_type);
 	if (!am_hdmi_info.android_path) {
 		/*nothing changed, exit.*/
 		if (old_state->hdcp_content_type == new_state->hdcp_content_type) {
@@ -604,6 +617,7 @@ void meson_hdmitx_update(struct drm_connector_state *new_state,
 		if (!drm_atomic_crtc_needs_modeset(new_state->crtc->state))
 			meson_hdmitx_update_hdcp();
 	}
+
 }
 
 static void meson_hdmitx_hdcp_notify(int type, int result)
@@ -640,10 +654,10 @@ static void meson_hdmitx_hdcp_notify(int type, int result)
 }
 
 static const struct drm_connector_helper_funcs am_hdmi_connector_helper_funcs = {
-	.get_modes = am_hdmi_tx_get_modes,
-	.mode_valid = am_hdmi_tx_check_mode,
-	.atomic_check	= am_hdmitx_atomic_check,
-	.best_encoder = am_hdmitx_connector_best_encoder,
+	.get_modes = meson_hdmitx_get_modes,
+	.mode_valid = meson_hdmitx_check_mode,
+	.atomic_check	= meson_hdmitx_atomic_check,
+	.best_encoder = meson_hdmitx_best_encoder,
 };
 
 static const struct drm_connector_funcs am_hdmi_connector_funcs = {
@@ -729,7 +743,7 @@ static const struct of_device_id am_meson_hdmi_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, am_meson_hdmi_dt_ids);
 
-static void am_meson_hdmi_connector_init_property(struct drm_device *drm_dev,
+static void meson_hdmitx_init_property(struct drm_device *drm_dev,
 						  struct am_hdmi_tx *am_hdmi)
 {
 	struct drm_property *prop;
@@ -825,8 +839,10 @@ static int am_meson_hdmi_bind(struct device *dev,
 		am_hdmi_info.hdcp_state = HDCP_STATE_DISCONNECT;
 	}
 
+	drm_connector_attach_content_type_property(connector);
+
 	/*amlogic prop*/
-	am_meson_hdmi_connector_init_property(drm, am_hdmi);
+	meson_hdmitx_init_property(drm, am_hdmi);
 
 	DRM_INFO("[%s] out\n", __func__);
 	return 0;

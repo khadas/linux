@@ -27,8 +27,17 @@ struct drm_hdmitx_hdcp_cb {
 int drm_hdmitx_register_hdcp_cb(struct drm_hdmitx_hdcp_cb *hdcp_cb);
 
 int drm_hdmitx_detect_hpd(void);
+
 unsigned char *drm_hdmitx_get_raw_edid(void);
 int drm_hdmitx_get_vic_list(int **vics);
+
+void drm_hdmitx_setup_attr(const char *buf);
+void drm_hdmitx_get_attr(char attr[16]);
+bool drm_hdmitx_chk_mode_attr_sup(char *mode, char *attr);
+
+unsigned int drm_hdmitx_get_contenttypes(void);
+int drm_hdmitx_set_contenttype(int content_type);
+
 int drm_hdmitx_get_hdcp_cap(void);
 unsigned int drm_get_rx_hdcp_cap(void);
 int drm_hdmitx_hdcp_enable(unsigned int content_type);
@@ -38,9 +47,5 @@ int drm_get_hdcp_auth_sts(void);
 void drm_hdmitx_hdcp22_init(void);
 void drm_hdmitx_avmute(unsigned char mute);
 void drm_hdmitx_set_phy(unsigned char en);
-void amhdmitx_setup_attr(const char *buf);
-void amhdmitx_get_attr(char attr[16]);
-bool drm_chk_mode_attr_sup(char *mode, char *attr);
-bool drm_chk_hdmi_mode(const char *mode);
 
 #endif
