@@ -31,4 +31,11 @@ config AMLOGIC_MEDIA_VIDEOCAPTURE
 		Amlogic Video Media Capture support.
 		Internal Video Capture driver.
 
+config AMLOGIC_MEDIA_DUMMY_PROVIDER
+    bool "Amlogic Dummy Video Provider"
+    default n
+    help
+	Amlogic Video Media Dummy Provider support
+	Internal Dummy Video Provider driver
+
 endmenu
