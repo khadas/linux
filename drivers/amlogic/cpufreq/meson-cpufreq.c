@@ -555,29 +555,19 @@ int choose_cpufreq_tables_index(const struct device_node *np, u32 cur_cluster)
 	return ret;
 }
 
-static void get_cluster_cores(struct device_node *np, u32 *cur_cluster,
-	unsigned int cpuid, struct cpumask *dstp)
+static void get_cluster_cores(unsigned int cpuid, struct cpumask *dstp, u32 *cur_cluster)
 {
-	static int cluster_id __initdata;
-	int cpu;
-	u32 core_num, *cores;
+	int cpu, i;
 
 	cpumask_clear(dstp);
-	if (!of_property_read_u32(np, "dvfs_sibling_core_num", &core_num)) {
-		cores = kmalloc_array(core_num, sizeof(*cores), GFP_KERNEL);
-		if (!cores)
+	for (i = 0; i < MAX_CLUSTERS; i++) {
+		if (cpumask_test_cpu(cpuid, &cluster_cpus[i])) {
+			*cur_cluster = i;
+			cpumask_copy(dstp, &cluster_cpus[i]);
 			return;
-		if (!of_property_read_u32_array(np, "dvfs_sibling_cores", &cores[0], core_num)) {
-			for (cpu = 0; cpu < core_num; cpu++) {
-				pr_info("[%s %d]cpu%d\n", __func__, __LINE__, cores[cpu]);
-				cpumask_set_cpu(cores[cpu], dstp);
-			}
-			*cur_cluster = cluster_id;
-			cluster_id++;
 		}
-		kfree(cores);
-		return;
 	}
+
 	for_each_possible_cpu(cpu) {
 		if (topology_physical_package_id(cpuid) ==
 			topology_physical_package_id(cpu))
@@ -777,7 +767,7 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 		return -ENOENT;
 	}
 
-	get_cluster_cores(np, &cur_cluster, cpu, policy->cpus);
+	get_cluster_cores(cpu, policy->cpus, &cur_cluster);
 
 	cpufreq_data = kmalloc(sizeof(*cpufreq_data), GFP_KERNEL);
 	if (IS_ERR(cpufreq_data)) {
@@ -1029,11 +1019,53 @@ static struct cpufreq_driver meson_cpufreq_driver = {
 	.ready			= meson_cpufreq_ready,
 };
 
+static void meson_get_cluster_cores(void)
+{
+	struct device *cpu_dev;
+	struct device_node *np;
+	int cpu = 0, cluster_id = 0, i;
+	u32 core_num, *cores;
+
+	for (i = 0; i < MAX_CLUSTERS; i++)
+		cpumask_clear(&cluster_cpus[i]);
+	for_each_possible_cpu(cpu) {
+		if (!cpumask_test_cpu(cpu, &cluster_cpus[cluster_id])) {
+			cpu_dev = get_cpu_device(cpu);
+			if (!cpu_dev)
+				return;
+			np = of_node_get(cpu_dev->of_node);
+			if (!np)
+				return;
+			if (of_property_read_u32(np, "dvfs_sibling_core_num", &core_num)) {
+				continue;
+			} else {
+				cores = kmalloc_array(core_num, sizeof(*cores), GFP_KERNEL);
+				if (!cores)
+					return;
+				if (!of_property_read_u32_array(np, "dvfs_sibling_cores",
+							&cores[0], core_num)) {
+					for (i = 0; i < core_num; i++) {
+						pr_info("[%s %d]cpu%d->cluster%d\n",
+							__func__, __LINE__, cores[i], cluster_id);
+						cpumask_set_cpu(cores[i],
+								&cluster_cpus[cluster_id]);
+					}
+				}
+			}
+		}
+		if (cpu >= cores[core_num - 1]) {
+			cluster_id++;
+			kfree(cores);
+			cores = NULL;
+		}
+	}
+}
+
 static int meson_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device *cpu_dev;
 	struct device_node *np;
-	//struct regulator *cpu_reg;
+	struct regulator *cpu_reg;
 	struct clk *cpu_clk;
 	unsigned int cpu = 0;
 	int ret, i;
@@ -1054,6 +1086,7 @@ static int meson_cpufreq_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	meson_get_cluster_cores();
 	cpu_clk = of_clk_get_by_name(np, CORE_CLK);
 	ret = PTR_ERR_OR_ZERO(cpu_clk);
 	if (ret) {
