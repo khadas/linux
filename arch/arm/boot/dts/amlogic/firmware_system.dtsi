@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Amlogic partition set for normal
- *
- * Copyright (c) 2017-2017 Amlogic Ltd
- *
- * This file is licensed under a dual GPLv2 or BSD license.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
+
 / {
 	firmware {
 		android {
