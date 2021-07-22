@@ -3807,6 +3807,7 @@ static noinline int do_init_module(struct module *mod)
 	 * consistence after reboot, it's very important for ramoops iodump.
 	 */
 	module_memfree(mod->init_layout.base);
+	kfree(freeinit);
 #else
 	/*
 	 * We want to free module_init, but be aware that kallsyms may be
