@@ -21,23 +21,6 @@
 
 		num_of_pp = <2>;
 		sc_mpp = <1>; /* number of shader cores used most of time. */
-		clocks = <&clkc CLKID_MALI>;
-		clock-names = "gpu_mux";
-
-		/*
-		 * Mali clocking is provided by two identical clock paths
-		 * MALI_0 and MALI_1 muxed to a single clock by a glitch
-		 * free mux to safely change frequency while running.
-		 */
-		assigned-clocks = <&clkc CLKID_MALI_0_SEL>,
-				  <&clkc CLKID_MALI_0>,
-				  <&clkc CLKID_MALI>; /* Glitch free mux */
-		assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
-					 <0>, /* Do Nothing */
-					 <&clkc CLKID_MALI_0>;
-		assigned-clock-rates = <0>, /* Do Nothing */
-					   <800000000>,
-					   <0>; /* Do Nothing */
 
 		tbl =  <&dvfs285_cfg
 			&dvfs400_cfg
@@ -63,7 +46,7 @@
 			clk_reg = <0xA01>;
 			voltage = <1150>;
 			keep_count = <5>;
-			threshold = <80 170>;
+			threshold = <0 76>;
 		};
 
 		dvfs285_cfg:dvfs285_cfg {
@@ -83,7 +66,7 @@
 			clk_reg = <0xC00>;
 			voltage = <1150>;
 			keep_count = <5>;
-			threshold = <152 207>;
+			threshold = <80 120>;
 		};
 
 		dvfs500_cfg:dvfs500_cfg {
@@ -93,7 +76,7 @@
 			clk_reg = <0xA00>;
 			voltage = <1150>;
 			keep_count = <5>;
-			threshold = <38 194>;
+			threshold = <80 120>;
 		};
 
 		dvfs666_cfg:dvfs666_cfg {
@@ -103,7 +86,7 @@
 			clk_reg = <0x800>;
 			voltage = <1150>;
 			keep_count = <5>;
-			threshold = <150 203>;
+			threshold = <80 120>;
 		};
 
 		dvfs800_cfg:dvfs800_cfg {
@@ -113,7 +96,7 @@
 			clk_reg = <0x600>;
 			voltage = <1150>;
 			keep_count = <5>;
-			threshold = <230 255>;
+			threshold = <80 255>;
 		};
 
 		dvfs850_cfg:dvfs850_cfg {
@@ -123,7 +106,7 @@
 			clk_reg = <0x200>;
 			voltage = <1150>;
 			keep_count = <5>;
-			threshold = <156 255>;
+			threshold = <80 255>;
 		};
 	};
 
