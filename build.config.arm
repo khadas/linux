@@ -1,16 +1,31 @@
-ARCH=arm
+#ARCH=arm
 
-LLVM_IAS=1
-CROSS_COMPILE=arm-linux-gnueabi-
-LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gas/linux-x86
+#LLVM_IAS=1
+#CROSS_COMPILE=arm-linux-gnueabi-
+#LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gas/linux-x86
 
 MAKE_GOALS="
 Image
 modules
 "
 
+#FILES="
+#arch/arm/boot/Image
+#vmlinux
+#System.map
+#"
+
+
+ARCH=arm
+
+CLANG_TRIPLE=arm-linux-gnueabi-
+CROSS_COMPILE=arm-linux-androidkernel-
+LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/bin
+
 FILES="
+arch/arm/boot/Image.gz
 arch/arm/boot/Image
 vmlinux
 System.map
 "
+
