@@ -35,6 +35,7 @@ struct crg_reset {
 };
 
 extern struct crg_reset crg_task[CRG_XHCI_MAX_COUNT];
+extern unsigned int db_wait;
 #endif
 
 /* xHCI PCI Configuration Registers */
@@ -2759,7 +2760,11 @@ static inline const char *xhci_decode_ep_context(u32 info, u32 info2, u64 deq,
 int xhci_test_single_step(struct xhci_hcd *xhci, gfp_t mem_flags,
 			  struct urb *urb, int slot_id,
 			  unsigned int ep_index, int testflag);
-//extern void set_usb_phy_host_tuning(int port, int default_val);
+void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
+			bool more_trbs_coming,
+			u32 field1, u32 field2, u32 field3, u32 field4);
+int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend);
+void xhci_ring_device(struct xhci_hcd *xhci, int slot_id);
 #endif
 
 #endif /* __LINUX_XHCI_HCD_H */

@@ -40,6 +40,10 @@ static unsigned long long quirks;
 module_param(quirks, ullong, S_IRUGO);
 MODULE_PARM_DESC(quirks, "Bit flags for quirks to be enabled as default");
 
+#ifdef CONFIG_AMLOGIC_USB
+unsigned int db_wait;
+#endif
+
 static bool td_on_ring(struct xhci_td *td, struct xhci_ring *ring)
 {
 	struct xhci_segment *seg = ring->first_seg;
@@ -2830,7 +2834,6 @@ static int xhci_reserve_bandwidth(struct xhci_hcd *xhci,
 	return -ENOMEM;
 }
 
-
 /* Issue a configure endpoint command or evaluate context command
  * and wait for it to finish.
  */
@@ -2844,10 +2847,30 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	struct xhci_input_control_ctx *ctrl_ctx;
 	struct xhci_virt_device *virt_dev;
 	struct xhci_slot_ctx *slot_ctx;
+#ifdef CONFIG_AMLOGIC_USB
+	int i, slot_id;
+	struct xhci_ring *ring;
+#endif
 
 	if (!command)
 		return -EINVAL;
 
+#ifdef CONFIG_AMLOGIC_USB
+	if (xhci->quirks & XHCI_CRG_HOST) {
+		if (udev->speed == USB_SPEED_FULL &&
+		    udev->state == USB_STATE_NOTATTACHED) {
+			db_wait	 = 1;
+			for (i = 0; i < MAX_HC_SLOTS; i++) {
+				if (xhci->devs[i] && xhci->devs[i]->udev &&
+				    xhci->devs[i]->udev != udev) {
+					slot_id = xhci->devs[i]->udev->slot_id;
+					xhci_stop_device(xhci, slot_id, 1);
+				}
+			}
+			msleep(100);
+		}
+	}
+#endif
 	spin_lock_irqsave(&xhci->lock, flags);
 
 	if (xhci->xhc_state & XHCI_STATE_DYING) {
@@ -2903,12 +2926,73 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 				"FIXME allocate a new ring segment");
 		return -ENOMEM;
 	}
+
+	/*Full speed device disconnect*/
+#ifdef CONFIG_AMLOGIC_USB
+	if (xhci->quirks & XHCI_CRG_HOST) {
+		if (udev->speed == USB_SPEED_FULL &&
+			udev->state == USB_STATE_NOTATTACHED) {
+			for (i = 1; i < 31; ++i) {
+				ring = xhci->devs[udev->slot_id]->eps[i].ring;
+				if (!ring)
+					continue;
+				queue_trb(xhci, ring, 0,
+					ring->first_seg->trbs->generic.field[0],
+					ring->first_seg->trbs->generic.field[1],
+					ring->first_seg->trbs->generic.field[2],
+					(ring->first_seg->trbs->generic.field[3]
+					& ~0x1) | ring->cycle_state | TRB_IOC);
+
+				writel(DB_VALUE(i, 0),
+					&xhci->dba->doorbell[udev->slot_id]);
+				mdelay(5);
+
+				queue_trb(xhci, ring, 0,
+					ring->first_seg->trbs->generic.field[0],
+					ring->first_seg->trbs->generic.field[1],
+					ring->first_seg->trbs->generic.field[2],
+					(ring->first_seg->trbs->generic.field[3]
+					& ~0x1) | ring->cycle_state | TRB_IOC);
+
+				writel(DB_VALUE(i, 0),
+					&xhci->dba->doorbell[udev->slot_id]);
+				mdelay(5);
+
+				queue_trb(xhci, ring, 0,
+					ring->first_seg->trbs->generic.field[0],
+					ring->first_seg->trbs->generic.field[1],
+					ring->first_seg->trbs->generic.field[2],
+					(ring->first_seg->trbs->generic.field[3]
+					& ~0x1) | ring->cycle_state | TRB_IOC);
+
+				writel(DB_VALUE(i, 0),
+					&xhci->dba->doorbell[udev->slot_id]);
+				mdelay(5);
+				break;
+			}
+		}
+	}
+#endif
 	xhci_ring_cmd_db(xhci);
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	/* Wait for the configure endpoint command to complete */
 	wait_for_completion(command->completion);
-
+#ifdef CONFIG_AMLOGIC_USB
+	if (xhci->quirks & XHCI_CRG_HOST) {
+		if (udev->speed == USB_SPEED_FULL &&
+			udev->state == USB_STATE_NOTATTACHED) {
+			db_wait	 = 0;
+			for (i = 0; i < MAX_HC_SLOTS; i++) {
+				if (xhci->devs[i] && xhci->devs[i]->udev &&
+					xhci->devs[i]->udev != udev) {
+					slot_id = xhci->devs[i]->udev->slot_id;
+					xhci_ring_device(xhci, slot_id);
+				}
+			}
+		}
+	}
+#endif
 	if (!ctx_change)
 		ret = xhci_configure_endpoint_result(xhci, udev,
 						     &command->status);
