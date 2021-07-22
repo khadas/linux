@@ -3375,11 +3375,16 @@ void dim_pre_de_process(unsigned int channel)
 			  ppre->di_mem_buf_dup_p);
 		config_cnt_canvas_idx(ppre->di_mem_buf_dup_p,
 				      cvss->pre_idx[canvases_idex][1]);
+		if (DIM_IS_IC_EF(T7)) {
+			ppre->di_contp2rd_mif.addr =
+				ppre->di_mem_buf_dup_p->cnt_adr;
+			dbg_ic("contp2rd:0x%lx\n", ppre->di_contp2rd_mif.addr);
+		}
 	} else {
 		config_cnt_canvas_idx(ppre->di_wr_buf,
 				      cvss->pre_idx[canvases_idex][1]);
 		config_di_cnt_mif(&ppre->di_contp2rd_mif,
-				  ppre->di_wr_buf);
+			  ppre->di_wr_buf);
 	}
 	if (ppre->di_chan2_buf_dup_p) {
 		config_canvas_idx(ppre->di_chan2_buf_dup_p,
