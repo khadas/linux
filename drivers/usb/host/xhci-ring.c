@@ -400,6 +400,13 @@ void xhci_ring_ep_doorbell(struct xhci_hcd *xhci,
 	if ((ep_state & EP_STOP_CMD_PENDING) || (ep_state & SET_DEQ_PENDING) ||
 	    (ep_state & EP_HALTED) || (ep_state & EP_CLEARING_TT))
 		return;
+
+#ifdef CONFIG_AMLOGIC_USB
+	if (xhci->quirks & XHCI_CRG_HOST)
+		if (db_wait == 1)
+			return;
+#endif
+
 	writel(DB_VALUE(ep_index, stream_id), db_addr);
 	/* The CPU has better things to do at this point than wait for a
 	 * write-posting flush.  It'll get there soon enough.
@@ -2375,9 +2382,18 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
 
 	if (GET_EP_CTX_STATE(ep_ctx) == EP_STATE_DISABLED) {
+#ifdef CONFIG_AMLOGIC_USB
+		if (xhci->quirks & XHCI_CRG_HOST)
+			if (!db_wait)
+				xhci_err(xhci,
+					 "ERROR Transfer event for disabled endpoint slot %u ep %u\n",
+					 slot_id, ep_index);
+#else
 		xhci_err(xhci,
 			 "ERROR Transfer event for disabled endpoint slot %u ep %u\n",
-			  slot_id, ep_index);
+			 slot_id, ep_index);
+
+#endif
 		goto err_out;
 	}
 
@@ -2701,14 +2717,28 @@ cleanup:
 	return 0;
 
 err_out:
+#ifdef CONFIG_AMLOGIC_USB
+	if (xhci->quirks & XHCI_CRG_HOST)
+		if (!db_wait)
+			xhci_err(xhci, "@%016llx %08x %08x %08x %08x\n",
+				 (unsigned long long)xhci_trb_virt_to_dma
+				 (xhci->event_ring->deq_seg,
+				 xhci->event_ring->dequeue),
+				 lower_32_bits(le64_to_cpu(event->buffer)),
+				 upper_32_bits(le64_to_cpu(event->buffer)),
+				 le32_to_cpu(event->transfer_len),
+				 le32_to_cpu(event->flags));
+#else
 	xhci_err(xhci, "@%016llx %08x %08x %08x %08x\n",
-		 (unsigned long long) xhci_trb_virt_to_dma(
-			 xhci->event_ring->deq_seg,
-			 xhci->event_ring->dequeue),
+		 (unsigned long long)xhci_trb_virt_to_dma
+		 (xhci->event_ring->deq_seg,
+		 xhci->event_ring->dequeue),
 		 lower_32_bits(le64_to_cpu(event->buffer)),
 		 upper_32_bits(le64_to_cpu(event->buffer)),
 		 le32_to_cpu(event->transfer_len),
 		 le32_to_cpu(event->flags));
+
+#endif
 	return -ENODEV;
 }
 
@@ -2921,9 +2951,15 @@ irqreturn_t xhci_msi_irq(int irq, void *hcd)
  * @more_trbs_coming:	Will you enqueue more TRBs before calling
  *			prepare_transfer()?
  */
+#ifdef CONFIG_AMLOGIC_USB
+void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
+		bool more_trbs_coming,
+		u32 field1, u32 field2, u32 field3, u32 field4)
+#else
 static void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 		bool more_trbs_coming,
 		u32 field1, u32 field2, u32 field3, u32 field4)
+#endif
 {
 	struct xhci_generic_trb *trb;
 
