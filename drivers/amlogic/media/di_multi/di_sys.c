@@ -3859,6 +3859,11 @@ static int dim_probe(struct platform_device *pdev)
 	device_create_file(di_devp->dev, &dev_attr_tvp_region);
 	device_create_file(di_devp->dev, &dev_attr_kpi_frame_num);
 	dim_vpu_dev_register(di_devp);
+
+	//set ic version need before PQ init
+	dil_set_diffver_flag(1);
+	dil_set_cpuver_flag(get_datal()->mdata->ic_id);
+
 	dip_init_pq_ops();
 
 	if (dim_get_canvas()) {
@@ -3911,9 +3916,6 @@ static int dim_probe(struct platform_device *pdev)
 	dim_debugfs_init();	/*2018-07-18 add debugfs*/
 
 	dimh_patch_post_update_mc_sw(DI_MC_SW_IC, true);
-
-	dil_set_diffver_flag(1);
-	dil_set_cpuver_flag(get_datal()->mdata->ic_id);
 
 	pr_info("%s:ok\n", __func__);
 	return ret;
