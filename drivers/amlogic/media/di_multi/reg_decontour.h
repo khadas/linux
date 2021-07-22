@@ -1145,6 +1145,20 @@
 #define DCNTR_GRID_AXI_RDAT_CNT                    (0x4a42)
 #define DCNTR_GRID_FMT_CTRL                        (0x4a43)
 #define DCNTR_GRID_FMT_W                           (0x4a44)
+
+/* t3 */
+#define DCNTR_GRID_BADDR_Y                         (0x4a60)
+#define DCNTR_GRID_BADDR_CB                        (0x4a61)
+#define DCNTR_GRID_BADDR_CR                        (0x4a62)
+#define DCNTR_GRID_STRIDE_0                        (0x4a63)
+#define DCNTR_GRID_STRIDE_1                        (0x4a64)
+
+#define DCNTR_GRID_BADDR_Y_F1                      (0x4a65)
+#define DCNTR_GRID_BADDR_CB_F1                     (0x4a66)
+#define DCNTR_GRID_BADDR_CR_F1                     (0x4a67)
+#define DCNTR_GRID_STRIDE_0_F1                     (0x4a68)
+#define DCNTR_GRID_STRIDE_1_F1                     (0x4a69)
+
 // 0xf0-0xff
 //
 // Reading file:  dcntr_grid_top_reg.h

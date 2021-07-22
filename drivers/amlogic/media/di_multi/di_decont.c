@@ -263,6 +263,8 @@ struct dcntr_core_s {
 	const unsigned int	*reg_mif_tab[DCNTR_NUB_MIF];
 	const struct regs_t	*reg_mif_bits_tab;
 	const struct reg_t	*reg_contr_bits;
+	struct dcntr_mem_s *p_in_cfg; /* for move dct */
+	struct di_ch_s *pch;	/* for move dct */
 };
 
 void dbg_dct_core_other(struct dcntr_core_s *pcore)
@@ -1173,6 +1175,10 @@ void dcntr_dis(void)
 		pcfg->st_pause	= 0;
 		pcfg->n_rp	= 1;
 	}
+	if (pcfg->p_in_cfg && get_datal()->dct_op) {
+		get_datal()->dct_op->mem_put_free(pcfg->p_in_cfg);
+		pcfg->p_in_cfg = NULL;
+	}
 }
 
 void dcntr_set(void)
@@ -1204,25 +1210,33 @@ void dcntr_set(void)
 		pcfg->n_demo = 0;
 	}
 	if (pcfg->n_set) {
+		dbg_dctp("%s:set\n", __func__);
 		dcntr_post();
 		pcfg->st_pause	= 1;
 	} else if (pcfg->n_up) {
+		dbg_dctp("%s:update\n", __func__);
 		dcntr_update();
 		pcfg->st_pause	= 1;
 	}
 }
 
-static void dbg_pre_cfg(struct dcntr_mem_s *pprecfg)
+void dim_dbg_dct_info(struct dcntr_mem_s *pprecfg)
 {
 	if (!pprecfg)
 		return;
+	dim_print("index[%d],free[%d]\n",
+		  pprecfg->index, pprecfg->free);
 
 	dim_print("use_org[%d],ration[%d]\n",
 		  pprecfg->use_org, pprecfg->ds_ratio);
-	dim_print("grd_addr[0x%x],y_addr[0x%x], c_addr[0x%x]\n",
+	dim_print("grd_addr[0x%lx],y_addr[0x%lx], c_addr[0x%lx]\n",
 		  pprecfg->grd_addr,
 		  pprecfg->yds_addr,
 		  pprecfg->cds_addr);
+	dim_print("grd_size[%d],yds_size[%d], cds_size[%d]\n",
+		  pprecfg->grd_size,
+		  pprecfg->yds_size,
+		  pprecfg->cds_size);
 	dim_print("out_fmt[0x%x],y_len[%d],c_len[%d]\n",
 		  pprecfg->pre_out_fmt,
 		  pprecfg->yflt_wrmif_length,
@@ -1234,6 +1248,12 @@ static void dbg_pre_cfg(struct dcntr_mem_s *pprecfg)
 		  pprecfg->cds_little_endian,
 		  pprecfg->grd_swap_64bit,
 		  pprecfg->grd_little_endian);
+	dim_print("yds_canvas_mode[%d],cds_canvas_mode[%d]\n",
+		pprecfg->yds_canvas_mode,
+		pprecfg->cds_canvas_mode);
+	dim_print("ori_w[%d],ori_h[%d]\n",
+		pprecfg->ori_w,
+		pprecfg->ori_h);
 }
 
 struct linear_para_s {
@@ -1290,7 +1310,7 @@ void dcntr_check(struct vframe_s *vfm)
 	//unsigned int grd_num_mode;
 	unsigned int divrsmap_blk0_sft, yflt_wrmif_length, cflt_wrmif_length;
 	unsigned int xy, demo;
-	unsigned int ds_addy = 0, ds_addc = 0, grd_add = 0;
+	unsigned long ds_addy = 0, ds_addc = 0, grd_add = 0;
 	unsigned int cvs_y, cvs_uv;
 	struct di_cvs_s *cvss;
 	unsigned int cvs_w;
@@ -1299,8 +1319,12 @@ void dcntr_check(struct vframe_s *vfm)
 	//pdcn = (struct dcntr_mem_s *)vfm->vf_ext;
 	pdcn = (struct dcntr_mem_s *)vfm->decontour_pre;
 
-	if (!pcfg->flg_int)
+	if (!pcfg->flg_int) {
+		if (pdcn && get_datal()->dct_op)
+			get_datal()->dct_op->mem_put_free(pdcn);
+
 		return;
+	}
 	/*dbg*/
 	if (dbg_dct & DI_BIT4)
 		pcfg->in.grid_use_fix = 1;
@@ -1315,24 +1339,31 @@ void dcntr_check(struct vframe_s *vfm)
 		pcfg->st_off = 0;
 		PR_INF("dt:on\n");
 	}
-	if (!pdcn || pcfg->st_off)
-		return;
+	if (!pdcn || pcfg->st_off) {
+		if (pdcn && get_datal()->dct_op)
+			get_datal()->dct_op->mem_put_free(pdcn);
 
-	dbg_pre_cfg(pdcn);
+		pcfg->p_in_cfg = NULL;
+		return;
+	}
+
+	dim_dbg_dct_info(pdcn);
 	memcpy(&pcfg->in_cfg, pdcn, sizeof(pcfg->in_cfg));
+
+	pcfg->p_in_cfg = pdcn;
 
 	if (IS_COMP_MODE(vfm->type)) {
 		x = vfm->compWidth;
 		y = vfm->compHeight;
 
 	} else {
-		x = vfm->width;
-		y = vfm->height;
+		x = pdcn->ori_w;//vfm->width;
+		y = pdcn->ori_h;//vfm->height;
 	}
 
 	if (pdcn->use_org) {
-		ds_x = vfm->width;
-		ds_y = vfm->height;
+		ds_x = pdcn->ori_w;//vfm->width;
+		ds_y = pdcn->ori_h;//vfm->height;
 		if (DIM_IS_IC(T5)) {
 			pcfg->in.use_cvs = 1;
 		} else if (cfgg(LINEAR)) {
@@ -1352,8 +1383,8 @@ void dcntr_check(struct vframe_s *vfm)
 			check_burst = true;
 		}
 	} else {
-		ds_x = vfm->width >> pdcn->ds_ratio;
-		ds_y = vfm->height >> pdcn->ds_ratio;
+		ds_x = pdcn->ori_w >> pdcn->ds_ratio;
+		ds_y = pdcn->ori_h >> pdcn->ds_ratio;
 
 		ds_addy = pdcn->yds_addr;
 		ds_addc = pdcn->cds_addr;
@@ -1480,19 +1511,27 @@ void dcntr_check(struct vframe_s *vfm)
 
 	if (!pcfg->in.use_cvs) {
 		if (DIM_IS_IC_EF(T7)) {
-			pcfg->in.addr[ECNTR_MIF_IDX_DIVR] = ds_addy >> 4;
-			pcfg->in.addr[ECNTR_MIF_IDX_YFLT] = ds_addy >> 4;
-			pcfg->in.addr[ECNTR_MIF_IDX_CFLT] = ds_addc >> 4;
+			pcfg->in.addr[ECNTR_MIF_IDX_DIVR] =
+				(unsigned int)(ds_addy >> 4);
+			pcfg->in.addr[ECNTR_MIF_IDX_YFLT] =
+				(unsigned int)(ds_addy >> 4);
+			pcfg->in.addr[ECNTR_MIF_IDX_CFLT] =
+				(unsigned int)(ds_addc >> 4);
 		} else {
-			pcfg->in.addr[ECNTR_MIF_IDX_DIVR] = ds_addy;
-			pcfg->in.addr[ECNTR_MIF_IDX_YFLT] = ds_addy;
-			pcfg->in.addr[ECNTR_MIF_IDX_CFLT] = ds_addc;
+			pcfg->in.addr[ECNTR_MIF_IDX_DIVR] =
+				(unsigned int)ds_addy;
+			pcfg->in.addr[ECNTR_MIF_IDX_YFLT] =
+				(unsigned int)ds_addy;
+			pcfg->in.addr[ECNTR_MIF_IDX_CFLT] =
+				(unsigned int)ds_addc;
 		}
 	}
 	if (DIM_IS_IC_EF(T7))
-		pcfg->in.addr[ECNTR_MIF_IDX_GRID] = grd_add >> 4;
+		pcfg->in.addr[ECNTR_MIF_IDX_GRID] =
+			(unsigned int)(grd_add >> 4);
 	else
-		pcfg->in.addr[ECNTR_MIF_IDX_GRID] = grd_add;
+		pcfg->in.addr[ECNTR_MIF_IDX_GRID] =
+			(unsigned int)grd_add;
 
 	if (pcfg->n_bypass) {
 		pcfg->n_set	= 0;

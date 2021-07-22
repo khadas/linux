@@ -573,8 +573,10 @@ enum DI_ERRORTYPE di_empty_input_buffer(int index, struct di_buffer *buffer)
 		/* @ary_note: eos may be no vf */
 		memcpy(&pins->c.vfm_cp, buffer->vf, sizeof(pins->c.vfm_cp));
 	}
-
-	flg_q = qbuf_in(pbufq, QBF_NINS_Q_CHECK, index);
+	if (get_datal()->dct_op && get_datal()->dct_op->is_en(pch))
+		flg_q = qbuf_in(pbufq, QBF_NINS_Q_DCT, index);
+	else
+		flg_q = qbuf_in(pbufq, QBF_NINS_Q_CHECK, index);
 	sum_g_inc(ch);
 	if (!flg_q) {
 		PR_ERR("%s:qin check\n", __func__);

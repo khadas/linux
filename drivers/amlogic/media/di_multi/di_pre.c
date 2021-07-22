@@ -645,11 +645,13 @@ unsigned int dpre_mp_check(void *data)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
 	unsigned int ret = K_DO_R_JUMP(K_DO_TABLE_ID_STOP);//K_DO_R_NOT_FINISH;
+	struct di_ch_s *pch;
 
-	if (pre_run_flag == DI_RUN_FLAG_RUN	||
-	    pre_run_flag == DI_RUN_FLAG_STEP) {
-		if (pre_run_flag == DI_RUN_FLAG_STEP)
-			pre_run_flag = DI_RUN_FLAG_STEP_DONE;
+	pch = get_chdata(pre->curr_ch);
+
+	if ((get_datal()->dct_op && get_datal()->dct_op->is_en(pch)) ||
+	    pre_dbg_is_run()) {
+
 		dim_print("%s:\n", __func__);
 		if (!dim_pre_de_buf_config(pre->curr_ch)) {
 			/*pre->flg_wait_int = false;*/
@@ -863,14 +865,11 @@ unsigned int dpre_check_mode(unsigned int ch)
 	struct di_ch_s *pch;
 
 	pch = get_chdata(ch);
-	if (pre_run_flag == DI_RUN_FLAG_RUN	||
-	    pre_run_flag == DI_RUN_FLAG_STEP) {
-		if (pre_run_flag == DI_RUN_FLAG_STEP)
-			pre_run_flag = DI_RUN_FLAG_STEP_DONE;
-		vframe = nins_peekvfm(pch);//pw_vf_peek(ch);
-	} else {
+	if ((get_datal()->dct_op && get_datal()->dct_op->is_en(pch)) ||
+	    pre_dbg_is_run())
+		vframe = nins_peekvfm_pre(pch);//pw_vf_peek(ch);
+	else
 		vframe = NULL;
-	}
 
 	if (!vframe)
 		return EDI_WORK_MODE_NONE;

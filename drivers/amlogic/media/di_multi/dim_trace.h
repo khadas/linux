@@ -64,6 +64,8 @@ DEFINE_DI_EVENT(dim_self_trig);
 DEFINE_DI_EVENT(dim_sct_alloc);
 DEFINE_DI_EVENT(dim_sct_tail);
 DEFINE_DI_EVENT(dim_irq_aisr);
+DEFINE_DI_EVENT(dim_dct_set);
+DEFINE_DI_EVENT(dim_irq_dct);
 
 #endif /* _DIM_TRACE_H */
 

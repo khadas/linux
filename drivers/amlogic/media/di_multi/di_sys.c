@@ -1798,9 +1798,9 @@ bool mem_cfg_pst(struct di_ch_s *pch)
 	struct di_buffer *buffer;
 	struct div2_mm_s *mm;
 
-	dbg_dt("%s:1\n", __func__);
+//	dbg_dt("%s:1\n", __func__);
 	if (!dip_itf_is_ins_exbuf(pch)) {
-		dbg_dt("%s:5\n", __func__);
+//		dbg_dt("%s:5\n", __func__);
 		return false;
 	}
 	ch = pch->ch_id;
@@ -3657,6 +3657,7 @@ static const struct di_meson_data  data_s4 = {
 static const struct di_meson_data  data_t3 = {
 	.name = "dim_t3",
 	.ic_id	= DI_IC_ID_T3,
+	.support = IC_SUPPORT_DECONTOUR
 };
 
 /* #ifdef CONFIG_USE_OF */
@@ -3896,6 +3897,7 @@ static int dim_probe(struct platform_device *pdev)
 
 	dim_set_di_flag();
 	dim_polic_prob();
+	dct_pre_prob(pdev);
 	dcntr_prob();
 	dip_prob_ch();
 
