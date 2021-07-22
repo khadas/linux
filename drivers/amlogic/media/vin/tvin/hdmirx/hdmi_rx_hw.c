@@ -5382,7 +5382,7 @@ u8 rx_get_avmute_sts(void)
 
 	if (rx.chip_id >= CHIP_ID_T7) {
 		if (hdmirx_rd_cor(RX_GCP_DBYTE0_DP3_IVCRX) & 1)
-			ret = 0; //for debug
+			ret = 1;
 	} else {
 		if (hdmirx_rd_dwc(DWC_PDEC_GCP_AVMUTE) & 0x02)
 			ret = 1;

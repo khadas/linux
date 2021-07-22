@@ -298,7 +298,7 @@ void hdmirx_fsm_var_init(void)
 	case CHIP_ID_TXHD:
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
-		dwc_rst_wait_cnt_max = 1;
+		dwc_rst_wait_cnt_max = 110;
 		clk_unstable_max = 200;
 		esd_phy_rst_max = 2;
 		pll_unlock_max = 30;
@@ -2984,9 +2984,8 @@ void rx_main_state_machine(void)
 				rx.state = FSM_WAIT_CLK_STABLE;
 				if (esd_phy_rst_cnt++ < esd_phy_rst_max) {
 					rx.phy.cablesel++;
-					/*rx_pr("cablesel=%d\n", rx.phy.cablesel);*/
-					rx.phy.cable_clk = 0;
-					/* hdmirx_phy_init(); */
+					//rx.phy.cable_clk = 0;
+					//hdmirx_phy_init();
 				} else {
 					esd_phy_rst_cnt = 0;
 					rx.err_rec_mode = ERR_REC_HPD_RST;
@@ -3003,6 +3002,10 @@ void rx_main_state_machine(void)
 	case FSM_SIG_WAIT_STABLE:
 		if (!rx.cableclk_stb_flg) {
 			rx.state = FSM_WAIT_CLK_STABLE;
+			break;
+		}
+		if (!is_tmds_valid()) {
+			rx.state = FSM_SIG_UNSTABLE;
 			break;
 		}
 		dwc_rst_wait_cnt++;
