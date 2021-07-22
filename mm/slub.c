@@ -3926,10 +3926,6 @@ static void aml_slub_free_large(struct page *page, const void *obj)
 		__ClearPageHead(page);
 		ClearPageOwnerPriv1(page);
 		nr_pages = page->index;
-		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
-			-(nr_pages));
-		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE_O,
-			-(nr_pages));
 		pr_debug("%s, page:%p, pages:%d, obj:%p\n",
 			__func__, page_address(page), nr_pages, obj);
 		for (i = 0; i < nr_pages; i++)  {
@@ -4116,17 +4112,26 @@ void kfree(const void *x)
 	page = virt_to_head_page(x);
 	if (unlikely(!PageSlab(page))) {
 		unsigned int order = compound_order(page);
+	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+		unsigned int nr_pages;
+	#endif /* CONFIG_AMLOGIC_MEMORY_EXTEND */
 
 		BUG_ON(!PageCompound(page));
 		kfree_hook(object);
 	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+		nr_pages = page->index;
+		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
+			-(nr_pages));
+		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE_O,
+			-(nr_pages));
 		if (unlikely(PageOwnerPriv1(page))) {
 			aml_slub_free_large(page, x);
 			return;
 		}
-	#endif /* CONFIG_AMLOGIC_MEMORY_EXTEND */
+	#else
 		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
 				    -(1 << order));
+	#endif /* CONFIG_AMLOGIC_MEMORY_EXTEND */
 		__free_pages(page, order);
 		return;
 	}
