@@ -119,6 +119,22 @@ static void trace_irq_aisr(unsigned int index)
 	trace_dim_irq_aisr("PRE-AISR-1", index, ustime);
 }
 
+static void trace_irq_dct(unsigned int index)
+{
+	u64 ustime;
+
+	ustime = cur_to_usecs();
+	trace_dim_irq_dct("PRE-DIRQ-1", index, ustime);
+}
+
+static void trace_dct_set(unsigned int index)
+{
+	u64 ustime;
+
+	ustime = cur_to_usecs();
+	trace_dim_dct_set("PRE-DCTS-1", index, ustime);
+}
+
 #define DI_TRACE_LIMIT		50
 static void trace_pre_get(unsigned int index)
 {
@@ -273,6 +289,8 @@ const struct dim_tr_ops_s dim_tr_ops = {
 	.sct_tail  = trace_msct_tail,
 	.self_trig = trace_slef_trig,
 	.irq_aisr = trace_irq_aisr,
+	.irq_dct = trace_irq_dct,
+	.dct_set = trace_dct_set,
 };
 
 /*keep same order as enum EDBG_TIMER*/
@@ -282,6 +300,8 @@ static const char * const dbg_timer_name[] = {
 	"unreg_b",
 	"unreg_e",
 	"1_peek",
+	"dct_b",
+	"dct_e",
 	"1_get",
 	"2_get",
 	"3_get",
@@ -2489,6 +2509,9 @@ DEFINE_STORE_ONLY(dbg_pip);
 DEFINE_SEQ_SHOW_ONLY(dbg_dct_mif);
 DEFINE_SEQ_SHOW_ONLY(dbg_dct_contr);
 DEFINE_SEQ_SHOW_ONLY(dbg_dct_core);
+DEFINE_SEQ_SHOW_ONLY(dct_pre_ch);
+DEFINE_SEQ_SHOW_ONLY(dct_pre_reg);
+DEFINE_SEQ_SHOW_ONLY(dct_pre);
 DEFINE_SEQ_SHOW_ONLY(dbg_q_sct);
 DEFINE_SEQ_SHOW_ONLY(dbg_sct_peek);
 DEFINE_SEQ_SHOW_ONLY(dbg_sct_used_pat);
@@ -2571,6 +2594,8 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"dct_mif", S_IFREG | 0644, &dbg_dct_mif_fops},
 	{"dct_ctr", S_IFREG | 0644, &dbg_dct_contr_fops},
 	{"dct_other", S_IFREG | 0644, &dbg_dct_core_fops},
+	{"dct_preh", S_IFREG | 0644, &dct_pre_fops},
+	{"dct_pre_reg", S_IFREG | 0644, &dct_pre_reg_fops},
 #ifdef TST_NEW_INS_INTERFACE
 	{"tst_list_in", S_IFREG | 0644, &dim_dbg_tst_in_fops},
 #endif
@@ -2592,6 +2617,7 @@ static const struct di_dbgfs_files_t di_debugfs_files[] = {
 	{"vfmc", S_IFREG | 0644, &seq_file_curr_vframe_fops},
 	{"dbg_crc", S_IFREG | 0644, &dbg_crc_fops},
 	{"dbg_pip", S_IFREG | 0644, &dbg_pip_fops},
+	{"dct_pre_ch", S_IFREG | 0644, &dct_pre_ch_fops},
 	{"sct_top", S_IFREG | 0644, &dim_dbg_sct_top_fops},
 	{"list_sct", S_IFREG | 0644, &dbg_q_sct_fops},
 	{"list_sct_peek", S_IFREG | 0644, &dbg_sct_peek_fops},

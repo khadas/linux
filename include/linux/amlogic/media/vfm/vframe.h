@@ -404,9 +404,9 @@ struct nn_value_t {
 
 struct dcntr_mem_s {
 	u32 index;
-	u32 grd_addr;
-	u32 yds_addr;
-	u32 cds_addr;
+	unsigned long grd_addr;
+	unsigned long yds_addr;
+	unsigned long cds_addr;
 	u32 grd_size;
 	u32 yds_size;
 	u32 cds_size;
@@ -424,6 +424,8 @@ struct dcntr_mem_s {
 	bool cds_little_endian;
 	bool yds_canvas_mode;//0:linear address mode  1:canvas mode
 	bool cds_canvas_mode;
+	unsigned int ori_w; //add for copy from vfm
+	unsigned int ori_h; //add for copy from vfm
 };
 
 struct hf_info_t {

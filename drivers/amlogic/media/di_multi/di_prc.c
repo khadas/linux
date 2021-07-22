@@ -216,6 +216,12 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_T5DB_P_NOTNR_THD,
 			0,
 			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_DCT]  = {"dct",
+			/* 0:not en;	*/
+			/* 1:en;		*/
+			EDI_CFG_DCT,
+			0,
+			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
 
@@ -2011,6 +2017,8 @@ bool dim_tmode_is_localpost(unsigned int ch)
 void dip_hw_process(void)
 {
 	di_dbg_task_flg = 5;
+	if (get_datal()->dct_op)
+		get_datal()->dct_op->main_process();
 	dpre_process();
 	di_dbg_task_flg = 6;
 	pre_mode_setting();
@@ -3160,6 +3168,16 @@ static const struct que_creat_s qbf_nin_cfg_q[] = {//TST_Q_IN_NUB
 		.name	= "QBF_NINS_Q_USEDB",
 		.type	= Q_T_FIFO,
 		.lock	= 0,
+	},
+	[QBF_NINS_Q_DCT] = {
+		.name	= "QBF_NINS_Q_DCT",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
+	},
+	[QBF_NINS_Q_DCT_DOING] = {
+		.name	= "QBF_NINS_Q_DCT_DOING",
+		.type	= Q_T_FIFO,
+		.lock	= 0,
 	}
 };
 
@@ -3267,6 +3285,26 @@ struct dim_nins_s *nins_peek(struct di_ch_s *pch)
 
 	pbufq = &pch->nin_qb;
 	//qbuf_peek_s(pbufq, QBF_INS_Q_IN, q_buf);
+	if (get_datal()->dct_op && get_datal()->dct_op->is_en(pch))
+		ret = qbufp_peek(pbufq, QBF_NINS_Q_DCT, &q_buf);
+	else
+		ret = qbufp_peek(pbufq, QBF_NINS_Q_CHECK, &q_buf);
+	if (!ret || !q_buf.qbc)
+		return NULL;
+	ins = (struct dim_nins_s *)q_buf.qbc;
+
+	return ins;
+}
+
+struct dim_nins_s *nins_peek_pre(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_nins_s *ins;
+	bool ret;
+
+	pbufq = &pch->nin_qb;
+	//qbuf_peek_s(pbufq, QBF_INS_Q_IN, q_buf);
 	ret = qbufp_peek(pbufq, QBF_NINS_Q_CHECK, &q_buf);
 	if (!ret || !q_buf.qbc)
 		return NULL;
@@ -3285,6 +3323,28 @@ struct vframe_s *nins_peekvfm(struct di_ch_s *pch)
 
 	pbufq = &pch->nin_qb;
 	//qbuf_peek_s(pbufq, QBF_INS_Q_IN, q_buf);
+	if (get_datal()->dct_op && get_datal()->dct_op->is_en(pch))
+		ret = qbufp_peek(pbufq, QBF_NINS_Q_DCT, &q_buf);
+	else
+		ret = qbufp_peek(pbufq, QBF_NINS_Q_CHECK, &q_buf);
+	if (!ret || !q_buf.qbc)
+		return NULL;
+	ins = (struct dim_nins_s *)q_buf.qbc;
+	vfm = &ins->c.vfm_cp;
+
+	return vfm;
+}
+
+struct vframe_s *nins_peekvfm_pre(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_nins_s *ins;
+	struct vframe_s *vfm;
+	bool ret;
+
+	pbufq = &pch->nin_qb;
+
 	ret = qbufp_peek(pbufq, QBF_NINS_Q_CHECK, &q_buf);
 	if (!ret || !q_buf.qbc)
 		return NULL;
@@ -3316,6 +3376,65 @@ struct dim_nins_s *nins_get(struct di_ch_s *pch)
 	//qbuf_dbg_checkid(pbufq, 2);
 
 	return ins;
+}
+
+struct dim_nins_s *nins_dct_get(struct di_ch_s *pch)
+{
+	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_nins_s *ins;
+
+	pbufq = &pch->nin_qb;
+
+	ret = qbuf_out(pbufq, QBF_NINS_Q_DCT, &index);
+	if (!ret)
+		return NULL;
+
+	q_buf = pbufq->pbuf[index];
+	ins = (struct dim_nins_s *)q_buf.qbc;
+
+//	qbuf_in(pbufq, QBF_NINS_Q_DCT_DOING, index);
+	//qbuf_dbg_checkid(pbufq, 2);
+
+	return ins;
+}
+
+/* check-> done */
+struct dim_nins_s *nins_dct_get_bypass(struct di_ch_s *pch)
+{
+	unsigned int index;
+	bool ret;
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_nins_s *ins;
+
+	pbufq = &pch->nin_qb;
+
+	ret = qbuf_out(pbufq, QBF_NINS_Q_DCT, &index);
+	if (!ret)
+		return NULL;
+
+	q_buf = pbufq->pbuf[index];
+	ins = (struct dim_nins_s *)q_buf.qbc;
+
+	qbuf_in(pbufq, QBF_NINS_Q_CHECK, index);
+	//qbuf_dbg_checkid(pbufq, 2);
+
+	return ins;
+}
+
+bool nins_dct_2_done(struct di_ch_s *pch, struct dim_nins_s *nins)
+{
+	bool ret;
+	struct buf_que_s *pbufq;
+
+	pbufq = &pch->nin_qb;
+
+	ret = qbuf_in(pbufq, QBF_NINS_Q_CHECK, nins->header.index);
+
+	return ret;
 }
 
 /* in_used to recycle*/
@@ -5364,7 +5483,7 @@ bool dbg_src_change_simple(unsigned int ch/*struct di_ch_s *pch*/)
 
 	//ch = pch->ch_id;
 	pch = get_chdata(ch);
-	vfm = nins_peekvfm(pch);//pw_vf_peek(ch);
+	vfm = nins_peekvfm_pre(pch);//pw_vf_peek(ch);
 	if (!vfm)
 		return false;
 

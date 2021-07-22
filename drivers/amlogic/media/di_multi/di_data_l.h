@@ -146,6 +146,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_HF,
 	EDI_CFG_PONLY_BP_THD,
 	EDI_CFG_T5DB_P_NOTNR_THD, /**/
+	EDI_CFG_DCT,
 	EDI_CFG_END,
 };
 
@@ -240,6 +241,8 @@ enum EDBG_TIMER {
 	EDBG_TIMER_UNREG_B,
 	EDBG_TIMER_UNREG_E,
 	EDBG_TIMER_FIRST_PEEK,
+	EDBG_TIMER_DCT_B,
+	EDBG_TIMER_DCT_E,
 	EDBG_TIMER_1_GET,
 	EDBG_TIMER_2_GET,
 	EDBG_TIMER_3_GET,
@@ -578,6 +581,67 @@ struct di_hpst_s {
 	/*****/
 	unsigned int cfg_rev3	: 8;
 	/****************/
+};
+
+enum EDI_DCT_STATE {	/*use this for co work with do table*/
+	EDI_DCT_EXIT,
+	EDI_DCT_IDLE,	/*switch to next channel?*/
+	EDI_DCT_CHECK,	/*check mode do_table and set*/
+	EDI_DCT_DO_TABLE,	/* do table statue;*/
+};
+
+struct di_hdct_s {
+	enum EDI_DCT_STATE state;
+	unsigned int curr_ch;
+	/* use do table to switch mode*/
+	struct do_table_s sdt_mode;
+	atomic_t irq_wait;
+	unsigned int idle_cnt;
+	struct di_time_out_s tout;	/*for time out*/
+	unsigned int last_w;
+	unsigned int last_h;
+	unsigned int last_type;
+	unsigned int sbypass_reason;
+	unsigned int debug_decontour;
+	unsigned char src_cnt; /* limit active ch nub */
+	unsigned char owner;
+	bool busy;
+	bool support_canvas;
+	bool i_do_decontour;
+	bool cmd_bypass; //have get cmd, make dct bypass;
+	bool nbypass; //in bypass state;
+
+	/* */
+	unsigned int irq;
+	unsigned int cvs_dct[6];
+	/* hw set used */
+	int src_fmt; /*default 420*/
+	int mif_out_width;
+	int mif_out_height;
+	int ds_ratio;/*0:(1:1)  1:(1:2)  2:(1:4)*/
+	int mif_read_width; /*grid read mif input*/
+	int mif_read_height;
+	unsigned int pic_struct;
+	unsigned int h_avg;
+
+	unsigned int ds_out_width/* = 0*/; /*dct ds output*/
+	unsigned int ds_out_height/* = 0*/;
+	int skip/* = 0*/;
+	bool need_ds/* = false*/;
+	struct dcntr_mem_s info_last;
+	struct dim_nins_s *curr_nins;
+	unsigned int statusx[DI_CHANNEL_MAX]; /* read only */
+	unsigned int statust;/* read only */
+};
+
+struct di_dct_ops_s {
+	void (*main_process)(void);
+	void (*mem_put_free)(struct dcntr_mem_s *dmem);
+	/**/
+	void (*reg)(struct di_ch_s *pch);
+	void (*unreg)(struct di_ch_s *pch);
+	void (*unreg_all)(void);
+	bool (*is_en)(struct di_ch_s *pch);
 };
 
 /**************************************/
@@ -1632,6 +1696,8 @@ enum QBF_NINS_Q_TYPE {
 	/*for vfm clear, not back dec vf */
 	/* when reset, move used to usedb */
 	QBF_NINS_Q_USEDB,
+	QBF_NINS_Q_DCT, /*for pre-dct*/
+	QBF_NINS_Q_DCT_DOING, /*for pre-dct*/
 	QBF_NINS_Q_NUB,
 };
 
@@ -1866,6 +1932,8 @@ struct di_ch_s {
 	struct qs_cls_s		ndis_que_kback;
 	struct qs_cls_s		npst_que; /*new interface */
 	struct dim_itf_s itf;
+	void *dct_pre; /* struct di_pre_dct_s */
+
 	bool en_hf_buf;
 	bool en_hf; //
 };
@@ -1888,6 +1956,7 @@ struct dim_policy_s {
 struct di_meson_data {
 	const char *name;
 	unsigned int ic_id;
+	unsigned int support;
 	/*struct ic_ver icver;*/
 	/*struct ddemod_reg_off regoff;*/
 };
@@ -2067,6 +2136,8 @@ struct di_data_l_s {
 	struct di_mng_s mng;
 	struct di_hpre_s hw_pre;
 	struct di_hpst_s hw_pst;
+	struct di_hdct_s hw_dct;
+	const struct di_dct_ops_s *dct_op;
 	struct db_save_s db_save[DIM_DB_SAVE_NUB];
 	const struct dim_hw_opsv_s *hop_l1; /* from sc2 */
 	struct afd_s di_afd;
@@ -2121,7 +2192,8 @@ struct di_data_l_s {
 #define DBG_M_NQ		DI_BIT20
 #define DBG_M_BPASS		DI_BIT21
 #define DBG_M_DCT		DI_BIT22
-#define DBG_M_PP		DI_BIT23
+#define DBG_M_PDCT		DI_BIT23 //pre dct
+#define DBG_M_PP		DI_BIT24
 #define DBG_M_IC		DI_BIT28
 #define DBG_M_RESET_PRE		DI_BIT29
 extern unsigned int di_dbg;
@@ -2162,6 +2234,7 @@ extern unsigned int di_dbg;
 #define dbg_sct(fmt, args ...)		dbg_m(DBG_M_SCT, fmt, ##args)
 #define dbg_nq(fmt, args ...)		dbg_m(DBG_M_NQ, fmt, ##args)
 #define dbg_pp(fmt, args ...)		dbg_m(DBG_M_PP, fmt, ##args)
+#define dbg_dctp(fmt, args ...)		dbg_m(DBG_M_PDCT, fmt, ##args)
 
 #define dbg_bypass(fmt, args ...)	dbg_m(DBG_M_BPASS, fmt, ##args)
 #define dbg_ic(fmt, args ...)		dbg_m(DBG_M_IC, fmt, ##args)
@@ -2705,4 +2778,13 @@ static inline bool is_ic_between(unsigned int ic_min, unsigned int ic_max)
 #define DIM_IS_IC_BF(cc)	is_ic_before((get_datal()->mdata->ic_id), \
 					DI_IC_ID_##cc)
 #define DIM_IS_IC_BT(cc1, cc2)	is_ic_between(DI_IC_ID_##cc1, DI_IC_ID_##cc2)
+
+/************************************************
+ * ic support information
+ ************************************************/
+#define IC_SUPPORT_DECONTOUR	DI_BIT0
+
+#define IS_IC_SUPPORT(cc)	(get_datal()->mdata->support & \
+				IC_SUPPORT_##cc ? true : false)
+
 #endif	/*__DI_DATA_L_H__*/

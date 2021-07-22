@@ -221,8 +221,10 @@ void bufq_nin_int(struct di_ch_s *pch);
 void bufq_nin_exit(struct di_ch_s *pch);
 void bufq_nin_reg(struct di_ch_s *pch);
 struct dim_nins_s *nins_peek(struct di_ch_s *pch);
+struct dim_nins_s *nins_peek_pre(struct di_ch_s *pch);
 struct dim_nins_s *nins_get(struct di_ch_s *pch);
 struct vframe_s *nins_peekvfm(struct di_ch_s *pch);
+struct vframe_s *nins_peekvfm_pre(struct di_ch_s *pch);
 bool nins_out_some(struct di_ch_s *pch,
 		   struct dim_nins_s *ins,
 		   unsigned int q);
@@ -347,6 +349,20 @@ int  dbg_dct_mif_show(struct seq_file *s, void *v);
 int dbg_dct_core_show(struct seq_file *s, void *v);
 
 int dbg_dct_contr_show(struct seq_file *s, void *v);
+
+void dim_dbg_dct_info(struct dcntr_mem_s *pprecfg);
+/* dct pre */
+void dct_pre_prob(struct platform_device *pdev);
+int dct_pre_ch_show(struct seq_file *s, void *v);
+int dct_pre_reg_show(struct seq_file *s, void *v);
+int dct_pre_show(struct seq_file *s, void *v);
+
+/* for dct pre move */
+struct dim_nins_s *nins_dct_get(struct di_ch_s *pch);
+struct dim_nins_s *nins_dct_get_bypass(struct di_ch_s *pch);
+bool nins_dct_2_done(struct di_ch_s *pch, struct dim_nins_s *nins);
+
+/*************************************************/
 
 void dbg_regs_tab(struct seq_file *s, const struct regs_t *pregtab,
 		  const unsigned int *padd);//debug only

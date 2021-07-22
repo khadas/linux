@@ -763,6 +763,7 @@ void dim_get_default(unsigned int *h, unsigned int *w);
 void dbg_h_w(unsigned int ch, unsigned int nub);
 void di_set_default(unsigned int ch);
 //bool dim_dbg_is_cnt(void);
+bool pre_dbg_is_run(void);
 
 /*---------------------*/
 const struct afd_ops_s *dim_afds(void);

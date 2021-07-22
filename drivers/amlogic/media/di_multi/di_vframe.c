@@ -189,6 +189,84 @@ static bool nins_m_in_vf(struct di_ch_s *pch)
 	return true;
 }
 
+#define DIM_K_VFM_IN_DCT_LIMIT	3
+static bool nins_m_in_vf_dct(struct di_ch_s *pch)
+{
+	struct buf_que_s *pbufq;
+	unsigned int in_nub, free_nub, dct_nub;
+	int i;
+	unsigned int ch;
+	struct vframe_s *vf;
+	struct dim_nins_s	*pins;
+	unsigned int index;
+	bool flg_q;
+	unsigned int err_cnt = 0;
+
+	if (!get_datal()->dct_op || !get_datal()->dct_op->is_en(pch))
+		return nins_m_in_vf(pch);
+
+	if (!pch) {
+		PR_ERR("%s:\n", __func__);
+		return false;
+	}
+	ch = pch->ch_id;
+	pbufq = &pch->nin_qb;
+
+	in_nub		= qbufp_count(pbufq, QBF_NINS_Q_CHECK);
+	free_nub	= qbufp_count(pbufq, QBF_NINS_Q_IDLE);
+	dct_nub		= qbufp_count(pbufq, QBF_NINS_Q_DCT);
+
+	if ((in_nub + dct_nub) >= DIM_K_VFM_IN_DCT_LIMIT	||
+	    (free_nub < (DIM_K_VFM_IN_DCT_LIMIT - in_nub - dct_nub))) {
+		return false;
+	}
+
+	for (i = 0; i < (DIM_K_VFM_IN_DCT_LIMIT - in_nub - dct_nub); i++) {
+		vf = pw_vf_peek(ch);
+		if (!vf)
+			break;
+
+		vf = pw_vf_get(ch);
+		if (!vf)
+			break;
+
+		/* get ins */
+		flg_q = qbuf_out(pbufq, QBF_NINS_Q_IDLE, &index);
+		if (!flg_q) {
+			PR_ERR("%s:qout\n", __func__);
+			err_cnt++;
+			pw_vf_put(vf, ch);
+			break;
+		}
+		pins = (struct dim_nins_s *)pbufq->pbuf[index].qbc;
+		pins->c.ori = vf;
+		pins->c.cnt = pch->in_cnt;
+		pch->in_cnt++;
+		//pins->c.etype = EDIM_NIN_TYPE_VFM;
+		memcpy(&pins->c.vfm_cp, vf, sizeof(pins->c.vfm_cp));
+		flg_q = qbuf_in(pbufq, QBF_NINS_Q_DCT, index);
+		if (!flg_q) {
+			PR_ERR("%s:qin\n", __func__);
+			err_cnt++;
+			pw_vf_put(vf, ch);
+			qbuf_in(pbufq, QBF_NINS_Q_IDLE, index);
+			break;
+		}
+		if (pch->in_cnt < 4) {
+			if (pch->in_cnt == 1)
+				dbg_timer(ch, EDBG_TIMER_1_GET);
+			else if (pch->in_cnt == 2)
+				dbg_timer(ch, EDBG_TIMER_2_GET);
+			else if (pch->in_cnt == 3)
+				dbg_timer(ch, EDBG_TIMER_3_GET);
+		}
+	}
+
+	if (err_cnt)
+		return false;
+	return true;
+}
+
 static void vfm_m_fill_ready(struct di_ch_s *pch)
 {
 	pw_vf_notify_receiver(pch->ch_id,
@@ -304,7 +382,10 @@ static void dev_vframe_reg_first(struct dim_itf_s *itf)
 
 	/* clear */
 	memset(pvfmc, 0, sizeof(*pvfmc));
-	pvfmc->vf_m_fill_polling	= nins_m_in_vf;
+	if (IS_IC_SUPPORT(DECONTOUR))
+		pvfmc->vf_m_fill_polling	= nins_m_in_vf_dct;
+	else
+		pvfmc->vf_m_fill_polling	= nins_m_in_vf;
 	pvfmc->vf_m_fill_ready		= vfm_m_fill_ready;
 	pvfmc->vf_m_bypass_first_frame	= dim_bypass_first_frame;
 	itf->opins_m_back_in	= nins_m_recycle;
@@ -492,119 +573,6 @@ static void  di_ori_event_set_3D(int type, void *data, unsigned int channel)
 /*************************/
 /************************************/
 /************************************/
-#ifdef MARK_HIS
-struct vframe_s *di_vf_l_get(unsigned int channel)
-{
-	vframe_t *vframe_ret = NULL;
-	struct di_buf_s *di_buf = NULL;
-	struct di_ch_s *pch;
-#ifdef DI_DEBUG_POST_BUF_FLOW
-	struct di_buf_s *nr_buf = NULL;
-#endif
-	struct vframe_s *vfm_dbg;
-	ulong irq_flag2 = 0;
-//	struct di_post_stru_s *ppost = get_post_stru(channel);
-
-	dim_print("%s:ch[%d]\n", __func__, channel);
-
-	pch = get_chdata(channel);
-
-	if (!get_init_flag(channel)	||
-	    dim_vcry_get_flg()		||
-	    di_block_get()			||
-	    !get_reg_flag(channel)	||
-	    dump_state_flag_get()) {
-		dim_tr_ops.post_get2(1);
-		return NULL;
-	}
-
-	/**************************/
-	if (list_count(channel, QUEUE_DISPLAY) > DI_POST_GET_LIMIT) {
-		dim_tr_ops.post_get2(2);
-		return NULL;
-	}
-	/**************************/
-
-	if (!di_que_is_empty(channel, QUE_POST_READY)) {
-		dim_log_buffer_state("ge_", channel);
-		di_lock_irqfiq_save(irq_flag2);
-
-		di_buf = di_que_out_to_di_buf(channel, QUE_POST_READY);
-		if (dim_check_di_buf(di_buf, 21, channel)) {
-			di_unlock_irqfiq_restore(irq_flag2);
-			return NULL;
-		}
-		if (di_buf->type != VFRAME_TYPE_POST)
-			PR_ERR("%s:t[%d][%d]\n", __func__,
-			       di_buf->type, di_buf->index);
-
-		#ifdef MARK_HIS
-		if (!di_buf->blk_buf)
-			PR_ERR("%s:no blk:t[%d][%d]\n", __func__, di_buf->type, di_buf->index);
-		#endif
-		/* add it into display_list */
-		queue_in(channel, di_buf, QUEUE_DISPLAY);
-
-		di_unlock_irqfiq_restore(irq_flag2);
-
-		if (di_buf) {
-			vframe_ret = di_buf->vframe;
-
-			di_buf->seq = pch->disp_frame_count;
-			atomic_set(&di_buf->di_cnt, 1);
-			#ifdef MARK_HIS
-			if (di_buf->in_buf)
-				dbg_nins_log_buf(di_buf->in_buf, 2);
-			#endif
-		}
-		pch->disp_frame_count++;
-
-		dim_log_buffer_state("get", channel);
-	}
-	if (vframe_ret) {
-		dim_print("%s: %s[%d]:vtype[0x%x],0x%px [%d] %u ms\n", __func__,
-			  dim_get_vfm_type_name(di_buf->type),
-			  di_buf->index,
-			  vframe_ret->type,
-			  vframe_ret,
-			  vframe_ret->index_disp,
-			  jiffies_to_msecs(jiffies_64 -
-			  vframe_ret->ready_jiffies64));
-		dbg_buf_log_save(pch, di_buf, 12);
-		dbg_cvs_log_save(pch, di_buf, 12,
-				 0,
-				 vframe_ret->canvas0_config[0].phy_addr);
-		didbg_vframe_out_save(channel, vframe_ret);
-		dim_print("\t:cw=%d,ch=%d\n",
-			vframe_ret->width,
-			vframe_ret->height);
-		if (pch->disp_frame_count == 1 && di_get_kpi_frame_num() > 0) {
-			pr_dbg("[di_kpi] %s: 1st frame get success. %s[%d]:0x%p %u ms\n",
-				__func__,
-				dim_get_vfm_type_name(di_buf->type),
-				di_buf->index,
-				vframe_ret,
-				jiffies_to_msecs(jiffies_64 -
-				vframe_ret->ready_jiffies64));
-		}
-		dim_tr_ops.post_get(vframe_ret->index_disp);
-
-		/*dbg to use dec vf */
-		if (dbg_sct_used_decoder_buffer() && vframe_ret->vf_ext) {
-			vfm_dbg = (struct vframe_s *)vframe_ret->vf_ext;
-			vframe_ret->compBodyAddr = vfm_dbg->compBodyAddr;
-			vframe_ret->compHeadAddr = vfm_dbg->compHeadAddr;
-			vframe_ret->type &= (~0xffff);
-			vframe_ret->type |= (vfm_dbg->type & 0xffff);
-			dim_print("use dec vfm\n");
-		}
-	} else {
-		dim_tr_ops.post_get2(3);
-	}
-
-	return vframe_ret;
-}
-#else
 struct vframe_s *di_vf_l_get(unsigned int channel)
 {
 	vframe_t *vframe_ret = NULL;
@@ -651,8 +619,6 @@ struct vframe_s *di_vf_l_get(unsigned int channel)
 	dim_tr_ops.post_get(vframe_ret->index_disp);
 	return vframe_ret;
 }
-
-#endif
 
 #ifdef MARK_HIS
 void di_vf_l_put(struct vframe_s *vf, unsigned char channel)

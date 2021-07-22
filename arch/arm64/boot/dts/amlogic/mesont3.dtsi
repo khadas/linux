@@ -1534,6 +1534,11 @@
 		interrupt-names = "vpu_security";
 	};
 
+	di_local {
+		compatible = "amlogic, di-local";
+		status = "okay";
+	};
+
 	multi-di {
 		compatible = "amlogic, dim-t3";
 		status = "okay";
@@ -1543,8 +1548,9 @@
 		memory-region = <&di_cma_reserved>;
 		interrupts = <0 203 1
 				0 202 1
-				0 81 1>;
-		interrupt-names = "pre_irq", "post_irq", "aisr_irq";
+				0 81 1
+				0 285 1>;
+		interrupt-names = "pre_irq", "post_irq", "aisr_irq", "dct_irq";
 		clocks = <&clkc CLKID_VPU_CLKB>,
 			<&clkc CLKID_VPU>;
 		clock-names = "vpu_clkb",
@@ -1558,6 +1564,7 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
+		dct = <2>;//decontour enable
 		/***************************************************
 		 * t3 support 4k ,same with t7 ,no canvas,
 		 * post_nub---default is 11
