@@ -615,10 +615,10 @@ static void show_cma_usage(struct cma *cma)
 	for (i = 0; i < POOL_SIZE; i++) {
 		if (!c[i].ip)
 			break;
-		pr_info("%s, count:%5ld, func:%ps\n",
+		cma_debug(0, NULL, "%s, count:%5ld, func:%ps\n",
 			__func__, c[i].cnt, (void *)c[i].ip);
 	}
-	pr_info("%s, free pages:%ld, pool:%ld, base:%lx\n",
+	cma_debug(0, NULL, "%s, free pages:%ld, pool:%ld, base:%lx\n",
 		__func__, free, cma->count, cma->base_pfn);
 	kfree(c);
 }
