@@ -76,8 +76,10 @@ u16 tuner_get_ch_power3(struct dvb_frontend *fe)
 			/*from negative to positive*/
 			if (strengtha < -100)
 				strength = 0;
+			else if (strengtha > -20)
+				strength = 100;
 			else
-				strength = strengtha + 100;
+				strength = (strengtha + 100) * 100 / 80;
 
 		} else {
 			PR_INFO("no tuner get_strength\n");
