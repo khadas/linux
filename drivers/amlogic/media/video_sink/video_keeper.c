@@ -167,7 +167,8 @@ static int ge2d_store_frame_S_YUV444(u32 cur_index)
 	canvas_read(ydupindex, &cd);
 	src_index = y_index;
 	des_index = ydupindex;
-
+	if (cs.addr == cd.addr)
+		return 1;
 	pr_info("ge2d_canvas_dup ADDR srcy[0x%lx] des[0x%lx] des_index[0x%x]\n",
 		cs.addr, cd.addr, des_index);
 
@@ -316,14 +317,11 @@ static int ge2d_store_frame_NV21(u32 cur_index)
 
 	canvas_read(y_index, &cs0);
 	canvas_read(u_index, &cs1);
-	canvas_config(ydupindex,
-		      (ulong)yaddr,
-		      cs0.width, cs0.height,
-		      CANVAS_ADDR_NOWRAP, cs0.blkmode);
-	canvas_config(udupindex,
-		      (ulong)uaddr,
-		      cs1.width, cs1.height,
-		      CANVAS_ADDR_NOWRAP, cs1.blkmode);
+
+	canvas_config_ex(ydupindex, (ulong)yaddr, cs0.width, cs0.height,
+			 CANVAS_ADDR_NOWRAP, cs0.blkmode, cs0.endian);
+	canvas_config_ex(udupindex, (ulong)uaddr, cs1.width, cs1.height,
+			 CANVAS_ADDR_NOWRAP, cs1.blkmode, cs1.endian);
 
 	canvas_read(ydupindex, &cd);
 	src_index = ((y_index & 0xff) | ((u_index << 8) & 0x0000ff00));
@@ -627,6 +625,7 @@ static void ge2d_keeplastframe_block(int cur_index, int format)
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	u32 y_index2, u_index2, v_index2;
 #endif
+	int ret = -1;
 
 	video_module_lock();
 
@@ -650,7 +649,9 @@ static void ge2d_keeplastframe_block(int cur_index, int format)
 	switch (format) {
 	case GE2D_FORMAT_S24_YUV444:
 		pr_info("GE2D_FORMAT_S24_YUV444\n");
-		ge2d_store_frame_S_YUV444(cur_index);
+		ret = ge2d_store_frame_S_YUV444(cur_index);
+		if (ret > 0)
+			break;
 		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		canvas_update_addr(y_index2, keep_phy_addr(keep_y_addr));

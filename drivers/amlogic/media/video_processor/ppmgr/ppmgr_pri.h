@@ -35,7 +35,7 @@ void set_ppmgr_buf_info(unsigned int start, unsigned int size);
 void get_ppmgr_buf_info(unsigned int *start, unsigned int *size);
 
 /*  ppmgr buffer op. */
-int ppmgr_buffer_init(int vout_mode, int secure_mode);
+int ppmgr_buffer_init(int secure_mode);
 int ppmgr_buffer_uninit(void);
 void vf_ppmgr_reset(int type);
 int ppmgr_register(void);

@@ -23,13 +23,6 @@ void vf_ppmgr_unreg_provider(void);
 void vf_ppmgr_reset(int type);
 void ppmgr_vf_put_dec(struct vframe_s *vf);
 
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-bool get_scaler_pos_reset(void);
-void set_scaler_pos_reset(bool flag);
-u32 amvideo_get_scaler_mode(void);
-u32 amvideo_get_scaler_para(int *x, int *y, int *w, int *h, u32 *ratio);
-#endif
-
 enum ppmgr_source_type {
 	DECODER_8BIT_NORMAL = 0,
 	DECODER_8BIT_BOTTOM,

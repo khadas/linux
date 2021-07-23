@@ -53,15 +53,11 @@
 static int ppmgr_enable_flag;
 static int ppmgr_flag_change;
 static int property_change;
-static int buff_change;
 
 static int inited_ppmgr_num;
 static enum platform_type_t platform_type = PLATFORM_MID;
 /*static struct platform_device *ppmgr_core_device = NULL;*/
 struct ppmgr_device_t ppmgr_device;
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-static bool scaler_pos_reset;
-#endif
 
 static struct ppmgr_dev_reg_s ppmgr_dev_reg;
 int ppmgr_secure_debug;
@@ -92,28 +88,6 @@ void set_property_change(int flag)
 {
 	property_change = flag;
 }
-
-int get_buff_change(void)
-{
-	return buff_change;
-}
-
-void set_buff_change(int flag)
-{
-	buff_change = flag;
-}
-
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-bool get_scaler_pos_reset(void)
-{
-	return scaler_pos_reset;
-}
-
-void set_scaler_pos_reset(bool flag)
-{
-	scaler_pos_reset = flag;
-}
-#endif
 
 int get_ppmgr_status(void)
 {
@@ -159,20 +133,11 @@ static ssize_t _ppmgr_angle_store(unsigned long val)
 
 	ppmgr_device.global_angle = angle;
 	ppmgr_device.videoangle = (angle + ppmgr_device.orientation) % 4;
-	if (!ppmgr_device.use_prot) {
-		if (angle != ppmgr_device.angle) {
-			property_change = 1;
-			PPMGRDRV_INFO("ppmgr angle:%x\n", ppmgr_device.angle);
-			PPMGRDRV_INFO("orient:%x\n", ppmgr_device.orientation);
-			PPMGRDRV_INFO("vidangl:%x\n", ppmgr_device.videoangle);
-		}
-	} else {
-		if (angle != ppmgr_device.angle) {
-#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
-			set_video_angle(angle);
-#endif
-			PPMGRDRV_INFO("prot angle:%ld\n", angle);
-		}
+	if (angle != ppmgr_device.angle) {
+		property_change = 1;
+		PPMGRDRV_INFO("ppmgr angle:%x\n", ppmgr_device.angle);
+		PPMGRDRV_INFO("orient:%x\n", ppmgr_device.orientation);
+		PPMGRDRV_INFO("vidangl:%x\n", ppmgr_device.videoangle);
 	}
 	ppmgr_device.angle = angle;
 	return 0;
@@ -274,33 +239,6 @@ static ssize_t angle_store(struct class *cla, struct class_attribute *attr,
 
 	/* size = endp - buf; */
 	return count;
-}
-
-int get_use_prot(void)
-{
-	return ppmgr_device.use_prot;
-}
-EXPORT_SYMBOL(get_use_prot);
-
-static ssize_t disable_prot_show(struct class *cla,
-				 struct class_attribute *attr, char *buf)
-{
-	return snprintf(buf, 40, "%d\n", ppmgr_device.disable_prot);
-}
-
-static ssize_t disable_prot_store(struct class *cla,
-				  struct class_attribute *attr,
-				  const char *buf, size_t count)
-{
-	size_t r;
-	u32 s_value;
-
-	r = kstrtoint(buf, 0, &s_value);
-	if (r != 0)
-		return -EINVAL;
-
-	ppmgr_device.disable_prot = s_value;
-	return strnlen(buf, count);
 }
 
 static ssize_t orientation_show(struct class *cla,
@@ -694,9 +632,6 @@ static void set_disp_para(const char *para)
 	if (likely(ret == 2)) {
 		w = parsed[0];
 		h = parsed[1];
-		if (ppmgr_device.disp_width != w ||
-		    ppmgr_device.disp_height != h)
-			buff_change = 1;
 		ppmgr_device.disp_width = w;
 		ppmgr_device.disp_height = h;
 	}
@@ -713,93 +648,6 @@ static ssize_t disp_store(struct class *cla, struct class_attribute *attr,
 	set_disp_para(buf);
 	return count;
 }
-
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-/* extern int video_scaler_notify(int flag); */
-/* extern void amvideo_set_scaler_para(int x, int y, int w, int h, int flag); */
-
-static ssize_t ppscaler_show(struct class *cla, struct class_attribute *attr,
-			     char *buf)
-{
-	return snprintf(buf, 80, "current ppscaler mode is %s\n",
-			(ppmgr_device.ppscaler_flag) ? "enabled" : "disabled");
-}
-
-static ssize_t ppscaler_store(struct class *cla, struct class_attribute *attr,
-			      const char *buf, size_t count)
-{
-	long tmp;
-	/* int flag simple_strtoul(buf, &endp, 0); */
-	int flag;
-	int ret = kstrtol(buf, 0, &tmp);
-
-	if (ret != 0) {
-		PPMGRDRV_ERR("ERROR converting %s to long int!\n", buf);
-		return ret;
-	}
-	flag = tmp;
-	if (flag < 2 && flag != ppmgr_device.ppscaler_flag) {
-		if (flag)
-			video_scaler_notify(1);
-		else
-			video_scaler_notify(0);
-		ppmgr_device.ppscaler_flag = flag;
-		if (ppmgr_device.ppscaler_flag == 0)
-			set_scaler_pos_reset(true);
-	}
-	/* size = endp - buf; */
-	return count;
-}
-
-static void set_ppscaler_para(const char *para)
-{
-	int parsed[5];
-	int ret;
-
-	ret = parse_para(para, 5, parsed);
-	if (ret <= 0)
-		return;
-
-	if (likely(ret == 5)) {
-		ppmgr_device.scale_h_start = parsed[0];
-		ppmgr_device.scale_v_start = parsed[1];
-		ppmgr_device.scale_h_end = parsed[2];
-		ppmgr_device.scale_v_end = parsed[3];
-		amvideo_set_scaler_para(ppmgr_device.scale_h_start,
-					ppmgr_device.scale_v_start,
-					ppmgr_device.scale_h_end
-					- ppmgr_device.scale_h_start + 1,
-					ppmgr_device.scale_v_end
-					- ppmgr_device.scale_v_start + 1,
-					parsed[4]);
-	}
-}
-
-static ssize_t ppscaler_rect_show(struct class *cla,
-				  struct class_attribute *attr, char *buf)
-{
-	return snprintf(buf, 80, "ppscaler rect:\nx:%d,y:%d,w:%d,h:%d\n",
-			ppmgr_device.scale_h_start,
-			ppmgr_device.scale_v_start,
-			ppmgr_device.scale_h_end
-			- ppmgr_device.scale_h_start + 1,
-			ppmgr_device.scale_v_end
-			- ppmgr_device.scale_v_start + 1);
-}
-
-static ssize_t ppscaler_rect_store(struct class *cla,
-				   struct class_attribute *attr,
-				   const char *buf, size_t count)
-{
-	ssize_t buflen;
-
-	buflen = strlen(buf);
-	if (buflen <= 0)
-		return 0;
-	set_ppscaler_para(buf);
-	return count;
-}
-#endif
 
 static ssize_t ppmgr_receiver_show(struct class *cla,
 				   struct class_attribute *attr,
@@ -830,7 +678,8 @@ static ssize_t ppmgr_receiver_store(struct class *cla,
 		PPMGRDRV_ERR("ERROR converting %s to long int!\n", buf);
 		return ret;
 	}
-	ppmgr_device.receiver = tmp;
+	/* Disable this function */
+	/* ppmgr_device.receiver = tmp; */
 	vf_ppmgr_reset(0);
 	/* size = endp - buf; */
 	return count;
@@ -1203,15 +1052,10 @@ static CLASS_ATTR_RW(peek_dec);
 static CLASS_ATTR_RW(dump_path);
 static CLASS_ATTR_RW(disp);
 static CLASS_ATTR_RW(orientation);
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-static CLASS_ATTR_RW(ppscaler);
-static CLASS_ATTR_RW(ppscaler_rect);
-#endif
 static CLASS_ATTR_RW(ppmgr_receiver);
 static CLASS_ATTR_RW(platform_type);
 static CLASS_ATTR_RW(secure_mode);
 static CLASS_ATTR_RW(mirror);
-static CLASS_ATTR_RW(disable_prot);
 static CLASS_ATTR_RW(tb_detect);
 static CLASS_ATTR_RW(tb_detect_period);
 static CLASS_ATTR_RO(ppmgr_vframe_states);
@@ -1240,15 +1084,10 @@ static struct attribute *ppmgr_class_attrs[] = {
 	&class_attr_dump_path.attr,
 	&class_attr_disp.attr,
 	&class_attr_orientation.attr,
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-	&class_attr_ppscaler.attr,
-	&class_attr_ppscaler_rect.attr,
-#endif
 	&class_attr_ppmgr_receiver.attr,
 	&class_attr_platform_type.attr,
 	&class_attr_secure_mode.attr,
 	&class_attr_mirror.attr,
-	&class_attr_disable_prot.attr,
 	&class_attr_tb_detect.attr,
 	&class_attr_tb_detect_period.attr,
 	&class_attr_ppmgr_vframe_states.attr,
@@ -1406,14 +1245,6 @@ int init_ppmgr_device(void)
 	ppmgr_device.bypass = 0;
 	ppmgr_device.videoangle = 0;
 	ppmgr_device.orientation = 0;
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-	ppmgr_device.ppscaler_flag = 0;
-	ppmgr_device.scale_h_start = 0;
-	ppmgr_device.scale_h_end = 0;
-	ppmgr_device.scale_v_start = 0;
-	ppmgr_device.scale_v_end = 0;
-	scaler_pos_reset = false;
-#endif
 	ppmgr_device.receiver = 0;
 	ppmgr_device.receiver_format =
 		(GE2D_FORMAT_M24_NV21 | GE2D_LITTLE_ENDIAN);
@@ -1447,15 +1278,7 @@ int init_ppmgr_device(void)
 		PPMGRDRV_ERR("create ppmgr device error\n");
 		goto unregister_dev;
 	}
-	buff_change = 0;
 	ppmgr_register();
-	/*if (start_vpp_task()<0) return -1;*/
-	ppmgr_device.use_prot = 1;
-#if HAS_VPU_PROT
-	ppmgr_device.disable_prot = 0;
-#else
-	ppmgr_device.disable_prot = 1;
-#endif
 	ppmgr_device.global_angle = 0;
 	ppmgr_device.started = 0;
 	return 0;

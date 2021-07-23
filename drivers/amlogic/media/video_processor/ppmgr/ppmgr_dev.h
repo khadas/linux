@@ -39,19 +39,7 @@ struct ppmgr_device_t {
 	int disp_height;
 	int canvas_width;
 	int canvas_height;
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-	int ppscaler_flag;
-	int scale_h_start;
-	int scale_h_end;
-	int scale_v_start;
-	int scale_v_end;
-#endif
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_3D_PROCESS
-	unsigned int ppmgr_3d_mode;
-	unsigned int direction_3d;
-	int viewmode;
-	unsigned int scale_down;
-#endif
+
 	const struct vinfo_s *vinfo;
 	int left;
 	int top;
@@ -61,8 +49,6 @@ struct ppmgr_device_t {
 	int receiver_format;
 	int display_mode;
 	int mirror_flag;
-	int use_prot;
-	int disable_prot;
 	int started;
 	int global_angle;
 	int use_reserved;
@@ -113,16 +99,9 @@ struct ppframe_s {
 
 extern struct ppmgr_device_t ppmgr_device;
 
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-int video_scaler_notify(int flag);
-void amvideo_set_scaler_para(int x, int y, int w, int h, int flag);
-#endif
-
 int vf_ppmgr_get_states(struct vframe_states *states);
 int get_property_change(void);
 void set_property_change(int flag);
-int get_buff_change(void);
-void set_buff_change(int flag);
 enum platform_type_t get_platform_type(void);
 
 #endif /* PPMGR_DEV_INCLUDE_H. */

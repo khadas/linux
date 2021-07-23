@@ -566,12 +566,6 @@ bool video_suspend;
 u32 video_suspend_cycle;
 int log_out;
 
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-static u32 video_scaler_mode;
-static int content_top = 0, content_left = 0, content_w = 0, content_h;
-static int scaler_pos_changed;
-#endif
-
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
 static struct amvideocap_req *capture_frame_req;
 #endif
@@ -1699,57 +1693,6 @@ static void video_debugfs_exit(void)
 {
 	debugfs_remove(video_debugfs_root);
 }
-
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-int video_scaler_notify(int flag)
-{
-	video_scaler_mode = flag;
-	vd_layer[0].property_changed = true;
-	return 0;
-}
-
-u32 amvideo_get_scaler_para(int *x, int *y, int *w, int *h, u32 *ratio)
-{
-	*x = content_left;
-	*y = content_top;
-	*w = content_w;
-	*h = content_h;
-	/* *ratio = 100; */
-	return video_scaler_mode;
-}
-
-void amvideo_set_scaler_para(int x, int y, int w, int h, int flag)
-{
-	struct disp_info_s *layer = &glayer_info[0];
-
-	mutex_lock(&video_module_mutex);
-	if (w < 2)
-		w = 0;
-	if (h < 2)
-		h = 0;
-	if (flag) {
-		if (content_left != x || content_top != y ||
-		    content_w != w || content_h != h)
-			scaler_pos_changed = 1;
-		content_left = x;
-		content_top = y;
-		content_w = w;
-		content_h = h;
-	} else {
-		layer->layer_left = x;
-		layer->layer_top = y;
-		layer->layer_width = w;
-		layer->layer_height = h;
-	}
-	vd_layer[0].property_changed = true;
-	mutex_unlock(&video_module_mutex);
-}
-
-u32 amvideo_get_scaler_mode(void)
-{
-	return video_scaler_mode;
-}
-#endif
 
 bool to_notify_trick_wait;
 /* display canvas */
@@ -3793,13 +3736,6 @@ static void vsync_notify(void)
 		vf_notify_provider(RECEIVER_NAME,
 				   VFRAME_EVENT_RECEIVER_FRAME_WAIT, NULL);
 	}
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-	if (video_notify_flag & VIDEO_NOTIFY_POS_CHANGED) {
-		video_notify_flag &= ~VIDEO_NOTIFY_POS_CHANGED;
-		vf_notify_provider(RECEIVER_NAME,
-				   VFRAME_EVENT_RECEIVER_POS_CHANGED, NULL);
-	}
-#endif
 	if (video_notify_flag &
 	    (VIDEO_NOTIFY_PROVIDER_GET | VIDEO_NOTIFY_PROVIDER_PUT)) {
 		int event = 0;
@@ -4700,40 +4636,17 @@ void _set_video_window(struct disp_info_s *layer, int *p)
 	w = parsed[2] - parsed[0] + 1;
 	h = parsed[3] - parsed[1] + 1;
 
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-	if (video_scaler_mode) {
+	if (w > 0 && h > 0) {
 		if (w == 1 && h == 1) {
 			w = 0;
 			h = 0;
 		}
-		if (content_left != parsed[0] ||
-		    content_top != parsed[1] ||
-		    content_w != w ||
-		    content_h != h)
-			scaler_pos_changed = 1;
-		content_left = parsed[0];
-		content_top = parsed[1];
-		content_w = w;
-		content_h = h;
-		/* video_notify_flag =*/
-		/*video_notify_flag|VIDEO_NOTIFY_POS_CHANGED; */
-	} else {
-#endif
-	{
-		if (w > 0 && h > 0) {
-			if (w == 1 && h == 1) {
-				w = 0;
-				h = 0;
-			}
-			layer->layer_left = parsed[0];
-			layer->layer_top = parsed[1];
-			layer->layer_width = w;
-			layer->layer_height = h;
-		}
+		layer->layer_left = parsed[0];
+		layer->layer_top = parsed[1];
+		layer->layer_width = w;
+		layer->layer_height = h;
 	}
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-	}
-#endif
+
 	new_x = layer->layer_left;
 	new_y = layer->layer_top;
 	new_w = layer->layer_width;
@@ -8488,15 +8401,6 @@ exit:
 	if (timer_count > 50) {
 		timer_count = 0;
 		video_notify_flag |= VIDEO_NOTIFY_FRAME_WAIT;
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-		if ((video_scaler_mode) && (scaler_pos_changed)) {
-			video_notify_flag |= VIDEO_NOTIFY_POS_CHANGED;
-			scaler_pos_changed = 0;
-		} else {
-			scaler_pos_changed = 0;
-			video_notify_flag &= ~VIDEO_NOTIFY_POS_CHANGED;
-		}
-#endif
 	}
 
 	enc_line = get_cur_enc_line();
@@ -10512,26 +10416,13 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_GET_VIDEO_AXIS:
 		{
 			int axis[4];
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-			if (video_scaler_mode && layer->layer_id == 0) {
-				axis[0] = content_left;
-				axis[1] = content_top;
-				axis[2] = content_w;
-				axis[3] = content_h;
-			} else {
-#endif
-			{
-				axis[0] = layer->layer_left;
-				axis[1] = layer->layer_top;
-				axis[2] = layer->layer_width;
-				axis[3] = layer->layer_height;
-			}
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-			}
-#endif
+
+			axis[0] = layer->layer_left;
+			axis[1] = layer->layer_top;
+			axis[2] = layer->layer_width;
+			axis[3] = layer->layer_height;
 			axis[2] = axis[0] + axis[2] - 1;
 			axis[3] = axis[1] + axis[3] - 1;
-
 			if (copy_to_user(argp, &axis[0], sizeof(axis)) != 0)
 				ret = -EFAULT;
 		}
@@ -11282,23 +11173,10 @@ static ssize_t video_axis_show(struct class *cla,
 	int x, y, w, h;
 	struct disp_info_s *layer = &glayer_info[0];
 
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-	if (video_scaler_mode) {
-		x = content_left;
-		y = content_top;
-		w = content_w;
-		h = content_h;
-	} else {
-#endif
-	{
-		x = layer->layer_left;
-		y = layer->layer_top;
-		w = layer->layer_width;
-		h = layer->layer_height;
-	}
-#ifdef CONFIG_AMLOGIC_POST_PROCESS_MANAGER_PPSCALER
-	}
-#endif
+	x = layer->layer_left;
+	y = layer->layer_top;
+	w = layer->layer_width;
+	h = layer->layer_height;
 	return snprintf(buf, 40, "%d %d %d %d\n", x, y, x + w - 1, y + h - 1);
 }
 
