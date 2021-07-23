@@ -2366,8 +2366,12 @@ static void sr_pps_phase_auto_calculation(struct vpp_frame_par_s *next_frame_par
 	u32 sr1_sr2_vert_outphs;
 	u32 sr1_sr2_horz_outphs;
 
-	if (!cur_dev->aisr_support ||
-	    !cur_dev->pps_auto_calc)
+	if (hscaler_8tap_enable[0])
+		next_frame_par->hsc_rpt_p0_num0 = 3;
+	else
+		next_frame_par->hsc_rpt_p0_num0 = 1;
+	next_frame_par->vsc_top_rpt_l0_num = 1;
+	if (!cur_dev->pps_auto_calc)
 		return;
 	sr = &sr_info;
 	sr0_sharp_sr2_ctrl =
@@ -2429,11 +2433,6 @@ static void sr_pps_phase_auto_calculation(struct vpp_frame_par_s *next_frame_par
 			next_frame_par->h_phase[2],
 			next_frame_par->v_phase[2]);
 	sr_pps_step_phase_id(next_frame_par);
-	if (hscaler_8tap_enable[0])
-		next_frame_par->hsc_rpt_p0_num0 = 3;
-	else
-		next_frame_par->hsc_rpt_p0_num0 = 1;
-	next_frame_par->vsc_top_rpt_l0_num = 1;
 	vd_hphase_ctrl_adjust(next_frame_par);
 	if (next_frame_par->hsc_rpt_p0_num0 >= 15)
 		next_frame_par->hsc_rpt_p0_num0 = 15;
