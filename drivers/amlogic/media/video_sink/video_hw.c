@@ -9806,7 +9806,7 @@ int video_hw_init(void)
 		}
 	}
 	/* select afbcd output to di pre */
-	if (video_is_meson_t5d_revb_cpu()) {
+	if (video_is_meson_t5d_revb_cpu() && vd1_vd2_mux_dts) {
 		/* default false */
 		vd1_vd2_mux = true;
 		vd_layer[0].vd1_vd2_mux = true;

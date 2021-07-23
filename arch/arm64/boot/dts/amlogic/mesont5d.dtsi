@@ -1340,7 +1340,7 @@
 		reg = <0x0 0xff940000 0x0 0x10000>;
 	};
 
-	meson-amvideom {
+	amvideom: meson-amvideom {
 		compatible = "amlogic, amvideom-t5d-revb";
 		status = "okay";
 		interrupts = <0 3 1>;

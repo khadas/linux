@@ -136,6 +136,7 @@ static int get_count_pip2;
 
 #define DEBUG_TMP 0
 
+u32 vd1_vd2_mux_dts;
 u32 osd_vpp_misc;
 u32 osd_vpp_misc_mask;
 bool update_osd_vpp_misc;
@@ -16677,7 +16678,8 @@ static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 			layer_cap |= LAYER0_SCALER;
 		/* remove the vd2 support cap for upper layer */
 		if (p_amvideo->pps_support[1] &&
-		    p_amvideo->cpu_type != MESON_CPU_MAJOR_ID_T5D_REVB_)
+		    (p_amvideo->cpu_type != MESON_CPU_MAJOR_ID_T5D_REVB_ ||
+		     !vd1_vd2_mux))
 			layer_cap |= LAYER1_SCALER;
 		if (p_amvideo->pps_support[2])
 			layer_cap |= LAYER2_SCALER;
@@ -16725,6 +16727,12 @@ static int amvideom_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int i, j;
+	int vdtemp = -1;
+
+	vdtemp = of_property_read_u32(pdev->dev.of_node, "vd1_vd2_mux",
+				      &vd1_vd2_mux_dts);
+	if (vdtemp < 0)
+		vd1_vd2_mux_dts = 1;
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
@@ -16759,8 +16767,8 @@ static int amvideom_probe(struct platform_device *pdev)
 		return -EINVAL;
 	set_rdma_func_handler();
 	video_early_init(&amvideo_meson_dev);
-	video_cap_set(&amvideo_meson_dev);
 	video_hw_init();
+	video_cap_set(&amvideo_meson_dev);
 	video_suspend = false;
 	video_suspend_cycle = 0;
 	log_out = 1;

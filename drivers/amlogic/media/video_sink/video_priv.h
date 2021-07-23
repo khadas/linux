@@ -480,6 +480,7 @@ extern int pre_vscaler_ntap_set[MAX_VD_LAYER];
 extern int pre_vscaler_ntap[MAX_VD_LAYER];
 extern bool vd1_vd2_mux;
 extern bool aisr_en;
+extern u32 vd1_vd2_mux_dts;
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);
 bool is_dolby_vision_stb_mode(void);
