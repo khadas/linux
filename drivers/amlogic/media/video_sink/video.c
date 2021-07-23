@@ -7150,6 +7150,13 @@ SET_FILTER:
 	if (gvideo_recv[0]) {
 		path3_new_frame =
 			gvideo_recv[0]->func->dequeue_frame(gvideo_recv[0]);
+		if (path3_new_frame) {
+			source_type = path3_new_frame->source_type;
+			if (path3_new_frame->flag & VFRAME_FLAG_KEEPED)
+				new_frame_count = 0;
+			else
+				new_frame_count = gvideo_recv[0]->frame_count;
+		}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 		if (vd1_path_id == gvideo_recv[0]->path_id) {
 			amvecm_on_vs

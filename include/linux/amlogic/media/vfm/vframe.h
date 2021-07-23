@@ -107,6 +107,7 @@
 #define VFRAME_FLAG_DI_PW_N_LOCAL		0x200000
 #define VFRAME_FLAG_DI_PW_N_EXT			0x400000
 #define VFRAME_FLAG_HF				0x800000 /*HF*/
+#define VFRAME_FLAG_KEEPED			0x1000000
 
 enum pixel_aspect_ratio_e {
 	PIXEL_ASPECT_RATIO_1_1,

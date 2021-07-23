@@ -399,6 +399,9 @@ void v4lvideo_keep_vf(struct file *file)
 		return;
 	}
 
+	file_private_data->vf.flag |= VFRAME_FLAG_KEEPED;
+	file_private_data->vf_ext.flag |= VFRAME_FLAG_KEEPED;
+
 	vf_p = file_private_data->vf_p;
 
 	if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR) {

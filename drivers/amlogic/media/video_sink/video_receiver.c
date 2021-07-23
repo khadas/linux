@@ -171,6 +171,7 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	ins->original_vf = NULL;
 	ins->switch_vf = false;
 	ins->last_switch_state = false;
+	ins->frame_count = 0;
 
 	if (ins->cur_buf) {
 		if (ins->cur_buf->vf_ext &&
