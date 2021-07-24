@@ -2118,7 +2118,7 @@ lcd_prbs_test_end:
 }
 
 static void aml_lcd_prbs_test_t7(struct aml_lcd_drv_s *pdrv,
-				 unsigned int s, unsigned int mode_flag)
+				 unsigned int ms, unsigned int mode_flag)
 {
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 	unsigned int reg_phy_tx_ctrl0, reg_phy_tx_ctrl1, reg_ctrl_out, bit_width;
@@ -2157,8 +2157,7 @@ static void aml_lcd_prbs_test_t7(struct aml_lcd_drv_s *pdrv,
 	encl_msr_id = cconf->data->enc_clk_msr_id;
 	fifo_msr_id = cconf->data->fifo_clk_msr_id;
 
-	s = (s > 1800) ? 1800 : s;
-	timeout = s * 200;
+	timeout = (ms > 1000) ? 1000 : ms;
 
 	for (i = 0; i < LCD_PRBS_MODE_MAX; i++) {
 		if ((mode_flag & (1 << i)) == 0)
@@ -2184,7 +2183,7 @@ static void aml_lcd_prbs_test_t7(struct aml_lcd_drv_s *pdrv,
 			goto lcd_prbs_test_end_t7;
 		}
 		cconf->data->prbs_clk_config(pdrv, lcd_prbs_mode);
-		lcd_delay_ms(20);
+		usleep_range(500, 510);
 
 		/* set fifo_clk_sel: div 10 */
 		lcd_combo_dphy_write(pdrv, reg_phy_tx_ctrl0, (3 << 5));
@@ -2201,16 +2200,15 @@ static void aml_lcd_prbs_test_t7(struct aml_lcd_drv_s *pdrv,
 		lcd_combo_dphy_setb(pdrv, reg_phy_tx_ctrl0, 1, 12, 1);
 
 		while (lcd_prbs_flag) {
-			if (s > 1) { /* when s=1, means always run */
-				if (lcd_prbs_cnt++ >= timeout)
-					break;
-			}
+			if (lcd_prbs_cnt++ >= timeout)
+				break;
 			ret = 1;
 			val1 = lcd_combo_dphy_getb(pdrv, reg_ctrl_out,
 						   bit_width, bit_width);
-			lcd_delay_ms(5);
+			usleep_range(1000, 1001);
+
 			for (j = 0; j < 20; j++) {
-				lcd_delay_us(5);
+				usleep_range(5, 10);
 				val2 = lcd_combo_dphy_getb(pdrv, reg_ctrl_out,
 							   bit_width, bit_width);
 				if (val2 != val1) {
@@ -2273,7 +2271,7 @@ lcd_prbs_test_end_t7:
 }
 
 static void aml_lcd_prbs_test_t3(struct aml_lcd_drv_s *pdrv,
-				 unsigned int s, unsigned int mode_flag)
+				 unsigned int ms, unsigned int mode_flag)
 {
 	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
 	unsigned int reg_phy_tx_ctrl0, reg_phy_tx_ctrl1;
@@ -2302,8 +2300,7 @@ static void aml_lcd_prbs_test_t3(struct aml_lcd_drv_s *pdrv,
 	encl_msr_id = cconf->data->enc_clk_msr_id;
 	fifo_msr_id = cconf->data->fifo_clk_msr_id;
 
-	s = (s > 1800) ? 1800 : s;
-	timeout = s * 200;
+	timeout = (ms > 1000) ? 1000 : ms;
 
 	for (i = 0; i < LCD_PRBS_MODE_MAX; i++) {
 		if ((mode_flag & (1 << i)) == 0)
@@ -2330,7 +2327,7 @@ static void aml_lcd_prbs_test_t3(struct aml_lcd_drv_s *pdrv,
 			       pdrv->index, __func__);
 			goto lcd_prbs_test_end_t3;
 		}
-		lcd_delay_ms(20);
+		usleep_range(500, 510);
 
 		/* set fifo_clk_sel: div 10 */
 		lcd_ana_write(reg_phy_tx_ctrl0, (3 << 6));
@@ -2346,15 +2343,14 @@ static void aml_lcd_prbs_test_t3(struct aml_lcd_drv_s *pdrv,
 		lcd_ana_setb(reg_phy_tx_ctrl0, 1, 12, 1);
 
 		while (lcd_prbs_flag) {
-			if (s > 1) { /* when s=1, means always run */
-				if (lcd_prbs_cnt++ >= timeout)
-					break;
-			}
+			if (lcd_prbs_cnt++ >= timeout)
+				break;
 			ret = 1;
 			val1 = lcd_ana_getb(reg_phy_tx_ctrl1, 12, 12);
-			lcd_delay_ms(5);
+			usleep_range(1000, 1001);
+
 			for (j = 0; j < 20; j++) {
-				lcd_delay_us(5);
+				usleep_range(5, 10);
 				val2 = lcd_ana_getb(reg_phy_tx_ctrl1, 12, 12);
 				if (val2 != val1) {
 					ret = 0;
@@ -2433,7 +2429,7 @@ static ssize_t lcd_debug_prbs_store(struct device *dev, struct device_attribute 
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 	int ret = 0;
-	unsigned int temp;
+	unsigned int temp = 0;
 	unsigned int prbs_mode_flag;
 
 	switch (buf[0]) {
