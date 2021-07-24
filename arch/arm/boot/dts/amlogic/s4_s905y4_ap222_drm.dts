@@ -73,9 +73,18 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x8000000>;
+			size = <0x5c00000>;
 			alignment = <0x400000>;
 		};
+
+		ion_fb_reserved:linux,ion-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1920x1080x4x4 round up 4M align */
+			size = <0x2400000>;
+			alignment = <0x400000>;
+		};
+
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
 			compatible = "shared-dma-pool";
