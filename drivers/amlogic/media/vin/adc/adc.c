@@ -424,6 +424,16 @@ static void adc_set_dtvdemod_pll_by_delsys(struct tvin_adc_dev *devp,
 			adc_wr_hiu(pll_addr->adc_pll_cntl_5 + reg_offset, 0x3927a000);
 			adc_wr_hiu(pll_addr->adc_pll_cntl_6 + reg_offset, 0x56540000);
 			adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x10070487);
+		} else if (chip == ADC_CHIP_T3) {
+			adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x20070487);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x30070487);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x01000000);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_2, 0x0);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_3, 0x48681f00);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_4, 0x88770290);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_5, 0x3927a000);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_6, 0x56540000);
+			adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x10070487);
 		} else {
 			adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x20050487);
 			adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x30050487);

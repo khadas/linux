@@ -441,7 +441,8 @@ static struct stchip_register_t l2a_def_val_local[] = {
 	{0x910,    0x54},/* REG_RL2A_DVBSX_DEMOD_AGC1CFG */
 	{0x911,    0x00},/* REG_RL2A_DVBSX_DEMOD_AGC1RFN */
 	{0x912,    0x99},/* REG_RL2A_DVBSX_DEMOD_AGC1CN */
-	{0x913,    0x58},/* REG_RL2A_DVBSX_DEMOD_AGC1REF */
+	/* change from 0x58 to 0x50 */
+	{0x913,    0x50},/* REG_RL2A_DVBSX_DEMOD_AGC1REF */
 	{0x914,    0xe2},/* REG_RL2A_DVBSX_DEMOD_AGC1IDCCOMP */
 	{0x915,    0xf1},/* REG_RL2A_DVBSX_DEMOD_AGC1QDCCOMP */
 	{0x916,    0x43},/* REG_RL2A_DVBSX_DEMOD_AGC1POWERI */
