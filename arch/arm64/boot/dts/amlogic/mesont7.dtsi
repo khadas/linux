@@ -2625,6 +2625,11 @@
 			0x0 0xfe000000 0x0 0x4a0>; /* clk reg */
 	};
 
+	dummy_venc: dummy_venc {
+		compatible = "amlogic, dummy_venc_t7";
+		status = "okay";
+	};
+
 	vout_mux: vout_mux {
 		compatible = "amlogic, vout_mux-t7";
 		status = "okay";
