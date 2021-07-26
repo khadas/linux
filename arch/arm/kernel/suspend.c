@@ -14,6 +14,10 @@
 #include <asm/suspend.h>
 #include <asm/tlbflush.h>
 
+#ifdef CONFIG_AMLOGIC_VMAP
+#include <linux/amlogic/vmap_stack.h>
+#endif
+
 extern int __cpu_suspend(unsigned long, int (*)(unsigned long), u32 cpuid);
 extern void cpu_resume_mmu(void);
 
@@ -68,6 +72,28 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 #define	idmap_pgd	NULL
 #endif
 
+#ifdef CONFIG_AMLOGIC_VMAP
+void copy_pgd(void)
+{
+	unsigned long index;
+	pgd_t *pgd_c = NULL, *pgd_k, *pgd_i;
+	unsigned long size;
+
+	/*
+	 * sync pgd of current task and idmap_pgd from init mm
+	 */
+	index = pgd_index(TASK_SIZE);
+	pgd_c = cpu_get_pgd() + index;
+	pgd_i = idmap_pgd     + index;
+	pgd_k = init_mm.pgd   + index;
+	size  = (PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t);
+	pr_debug("pgd:%p, pgd_k:%p, pdg_i:%p\n",
+		 pgd_c, pgd_k, pgd_i);
+	memcpy(pgd_c, pgd_k, size);
+	memcpy(pgd_i, pgd_k, size);
+}
+#endif
+
 /*
  * This is called by __cpu_suspend() to save the state, and do whatever
  * flushing is required to ensure that when the CPU goes to sleep we have
@@ -77,7 +103,22 @@ void __cpu_suspend_save(u32 *ptr, u32 ptrsz, u32 sp, u32 *save_ptr)
 {
 	u32 *ctx = ptr;
 
+#ifdef CONFIG_AMLOGIC_VMAP
+	if (likely(is_vmap_addr((unsigned long)ptr))) {
+		struct page *page = vmalloc_to_page(ptr);
+		unsigned long offset;
+
+		offset = (unsigned long)ptr & (PAGE_SIZE - 1);
+		*save_ptr = (page_to_phys(page) + offset);
+		pr_debug("%s, ptr:%p, page:%lx, save_ptr:%x\n",
+			 __func__, ptr, page_to_pfn(page), *save_ptr);
+		copy_pgd();
+	} else {
+		*save_ptr = virt_to_phys(ptr);
+	}
+#else
 	*save_ptr = virt_to_phys(ptr);
+#endif
 
 	/* This must correspond to the LDM in cpu_resume() assembly */
 	*ptr++ = virt_to_phys(idmap_pgd);
