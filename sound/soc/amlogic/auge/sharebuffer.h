@@ -29,6 +29,8 @@ struct clk;
 
 struct samesrc_ops {
 	enum sharebuffer_srcs src;
+	struct frddr *fr;
+	int share_lvl;
 	void *private;
 
 	int (*prepare)(struct snd_pcm_substream *substream,
