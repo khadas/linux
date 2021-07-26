@@ -87,6 +87,7 @@ struct aml_spdif {
 	enum SPDIF_SRC spdifin_src;
 	int clk_tuning_enable;
 	bool on;
+	int same_src_on;
 	int in_err_cnt;
 	/* share buffer with module */
 	enum sharebuffer_srcs samesource_sel;
@@ -238,6 +239,7 @@ static int ss_prepare(struct snd_pcm_substream *substream,
 	if (ops && ops->private) {
 		struct aml_spdif *p_spdif = ops->private;
 
+		p_spdif->same_src_on = 1;
 		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
 		    get_samesrc_ops(p_spdif->samesource_sel) &&
 		    get_samesrc_ops(p_spdif->samesource_sel)->prepare) {
@@ -286,7 +288,8 @@ static int ss_free(struct snd_pcm_substream *substream,
 {
 	struct samesrc_ops *ops = NULL;
 
-	pr_debug("%s() lvl %d\n", __func__, share_lvl);
+	pr_info("%s() samesrc %d, lvl %d\n",
+		__func__, samesource_sel, share_lvl);
 	if (aml_check_sharebuffer_valid(pfrddr,
 			samesource_sel)) {
 		sharebuffer_free(substream,
@@ -297,6 +300,7 @@ static int ss_free(struct snd_pcm_substream *substream,
 	if (ops && ops->private) {
 		struct aml_spdif *p_spdif = ops->private;
 
+		p_spdif->same_src_on = 0;
 		if (p_spdif->samesource_sel != SHAREBUFFER_NONE &&
 		    get_samesrc_ops(p_spdif->samesource_sel) &&
 		    get_samesrc_ops(p_spdif->samesource_sel)->hw_free) {
@@ -925,6 +929,21 @@ static irqreturn_t aml_spdifin_status_isr(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
+static int release_spdif_same_src(struct aml_spdif *p_spdif,
+		struct snd_pcm_substream *substream)
+{
+	int samesource_sel = p_spdif->id + SHAREBUFFER_SPDIFA;
+	struct samesrc_ops *ops = get_samesrc_ops(samesource_sel);
+
+	if (!ops || !ops->fr || !ops->hw_free)
+		return 0;
+
+	pr_info("%s(), %d src sel %d\n", __func__, __LINE__, samesource_sel);
+	ops->hw_free(substream, ops->fr, samesource_sel, ops->share_lvl);
+
+	return 0;
+}
+
 static int aml_spdif_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -941,6 +960,10 @@ static int aml_spdif_open(struct snd_pcm_substream *substream)
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		p_spdif->on = true;
+
+		if (p_spdif->same_src_on)
+			release_spdif_same_src(p_spdif, substream);
+
 		p_spdif->fddr = aml_audio_register_frddr(dev,
 			p_spdif->actrl,
 			aml_spdif_ddr_isr, substream, false);

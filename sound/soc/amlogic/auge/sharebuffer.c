@@ -127,6 +127,8 @@ int sharebuffer_prepare(struct snd_pcm_substream *substream,
 
 	/* frddr, share buffer, src_sel1 */
 	aml_frddr_select_dst_ss(fr, samesource_sel, share_lvl, true);
+	samesrc_ops_table[samesource_sel]->fr = fr;
+	samesrc_ops_table[samesource_sel]->share_lvl = share_lvl;
 
 	return 0;
 }
