@@ -1036,15 +1036,19 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	return 0;
 }
 
+#define DVBT2_DEBUG_INFO
+#define TIMEOUT_SIGNAL_T2 800
+#define CONTINUE_TIMES_LOCK 3
+#define CONTINUE_TIMES_UNLOCK 2
 static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
-	int ilock;
 	unsigned char s = 0;
 	int strenth;
 	int strength_limit = THRD_TUNER_STRENTH_DVBT;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	unsigned int p1_peak, val;
+	static int no_signal_cnt;
 
 	if (!devp->demod_thread)
 		return 0;
@@ -1054,88 +1058,109 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		strength_limit = devp->tuner_strength_limit;
 
 	if (strenth < strength_limit) {
+		if (!(no_signal_cnt++ % 20))
+			dvbt2_reset(demod);
 		*status = FE_TIMEDOUT;
-		demod->last_lock = 0;
 		demod->last_status = *status;
-		PR_DVBT("tuner:no signal! strength:%d\n", strenth);
+		PR_INFO("!! >> UNLOCKT2 << !! no signal!\n");
 		return 0;
 	}
+	no_signal_cnt = 0;
 
-	val = front_read_reg(0x3e);
-	p1_peak = (val >> 1) & 0x01;//test bus val[1];
-	PR_DVBT("DVBT2 testbus:0x%x p1_peak:0x%x tuner strength:%d\n", val, p1_peak, strenth);
+	if (demod_is_t5d_cpu(devp)) {
+		val = front_read_reg(0x3e);
+		s = val & 0x01;
+		p1_peak = ((val >> 1) & 0x01) == 1 ? 0 : 1;//test bus val[1];
+	} else {
+		val = dvbt_t2_rdb(TS_STATUS);
+		s = (val >> 7) & 0x01;
+		val = (dvbt_t2_rdb(0x2838) +
+			(dvbt_t2_rdb(0x2839) << 8) +
+			(dvbt_t2_rdb(0x283A) << 16));
+		p1_peak = val == 0xe00 ? 0 : 1;
+	}
+
+	PR_DVBT("s=%d, p1=%d, demod->p1=%d, demod->last_lock=%d, val=0x%08x\n",
+		p1_peak, s, demod->p1_peak, demod->last_lock, val);
+
+#ifdef DVBT2_DEBUG_INFO
+	int snr, modu, cr, l1post, ldpc;
+
+	if (demod_is_t5d_cpu(devp)) {
+		cr = (val >> 2) & 0x7;
+		modu = (val >> 5) & 0x3;
+		ldpc = (val >> 7) & 0x3F;
+		snr = val >> 13;
+		l1post = (val >> 30) & 0x1;
+	} else {
+		snr = val;
+		cr = (dvbt_t2_rdb(0x8c3) >> 1) & 0x7;
+		modu = (dvbt_t2_rdb(0x8c3) >> 4) & 0x7;
+		ldpc = dvbt_t2_rdb(0xa50);
+		l1post = (dvbt_t2_rdb(0x839) >> 3) & 0x1;
+	}
+	snr &= 0x7ff;
+	snr = snr * 300 / 64;
+
+	PR_DVBT("code_rate=%d, modu=%d, ldpc=%d, snr=%d.%d, l1post=%d",
+		cr, modu, ldpc, snr / 100, snr % 100, l1post);
+	if (modu < 4)
+		PR_DVBT("minimum_snr_x10=%d\n", minimum_snr_x10[modu][cr]);
+	else
+		PR_DVBT("modu is overflow\n");
+#endif
 
 	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
-	if (demod->time_passed >= 800 && demod->p1_peak == 0) {
-		//demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-		//T5D testbus read reg val
-		if (demod_is_t5d_cpu(devp)) {
-			//demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
-			val = front_read_reg(0x3e);
-			PR_DVBT("DVBT2 testbus:0x%x\n", val);
-			p1_peak = (val >> 1) & 0x01;//test bus val[1];
-			//PR_DVBT("DVBT2 testbus:0x%x bit1:0x%x tuner strength:%d\n",
-				//val, p1_peak, strenth);
-			if (p1_peak == 1) {
-				*status = FE_TIMEDOUT;
-				demod->last_lock = 0;
-				demod->p1_peak = 0;
-				demod->last_status = *status;
-				PR_DVBT("[id %d] not dvbt2 signal\n", demod->id);
-				return 0;
-			} else {
-				demod->p1_peak = 1;
-				PR_DVBT("[id %d] dvbt2 signal\n", demod->id);
-			}
-		} else {
-			p1_peak = (dvbt_t2_rdb(0x2838) + (dvbt_t2_rdb(0x2839) << 8) +
-				(dvbt_t2_rdb(0x283A) << 16));
-			PR_DVBT("DVBT2 p1_peak:0x%x\n", p1_peak);
-			if (p1_peak == 0xe00) {
-				*status = FE_TIMEDOUT;
-				demod->last_lock = 0;
-				demod->p1_peak = 0;
-				demod->last_status = *status;
-				PR_DVBT("[id %d] not dvbt2 signal\n", demod->id);
-				return 0;
-			} else {
-				demod->p1_peak = 1;
-				PR_DVBT("[id %d] dvbt2 signal\n", demod->id);
-			}
-		}
-	}
-
-	s = amdemod_stat_islock(demod, SYS_DVBT2);
-
 	if (s == 1) {
-		ilock = 1;
-		*status =
-			FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-			FE_HAS_VITERBI | FE_HAS_SYNC;
-	} else {
-		if (timer_not_enough(demod, D_TIMER_DETECT)) {
-			ilock = 0;
-			*status = 0;
+		if (demod->last_lock >= 0 &&
+			demod->last_lock < CONTINUE_TIMES_LOCK &&
+			demod->time_passed < TIMEOUT_DVBT2) {
+			PR_DVBT("!!>> maybe lock %d <<!!\n", demod->last_lock);
+			demod->last_lock += 1;
 		} else {
-			ilock = 0;
+			PR_DVBT("!!>> continue lock <<!!\n");
+			demod->last_lock = CONTINUE_TIMES_LOCK;
+		}
+	} else if (demod->last_lock == 0) {
+		if (demod->p1_peak == 0 && demod->time_passed < TIMEOUT_SIGNAL_T2) {
+			if (p1_peak == 1)
+				demod->p1_peak = 1;
+		} else if (demod->p1_peak == 1 && demod->time_passed < TIMEOUT_DVBT2) {
+			if (p1_peak == 0)
+				PR_DVBT("!!>> retry PEAK <<!!\n");
+		} else {
 			*status = FE_TIMEDOUT;
-			timer_disable(demod, D_TIMER_DETECT);
+			demod->last_lock = -CONTINUE_TIMES_UNLOCK;
 		}
-	}
-	if (demod->last_lock != ilock) {
-		if (*status == (FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
-		    FE_HAS_VITERBI | FE_HAS_SYNC)) {
-			PR_INFO("%s [id %d]: !!  >> LOCKT2 << !!, freq:%d\n",
-					__func__, demod->id, fe->dtv_property_cache.frequency);
-			demod->last_lock = ilock;
-		} else if (*status == FE_TIMEDOUT) {
-			PR_INFO("%s [id %d]: !!  >> UNLOCKT2 << !!, freq:%d\n",
-				__func__, demod->id, fe->dtv_property_cache.frequency);
-			demod->last_lock = ilock;
+	} else if (demod->last_lock > 0) {
+		if (demod->time_passed < TIMEOUT_DVBT2) {
+			PR_DVBT("!!>> lost reset <<!!\n");
+			demod->last_lock = 0;
 		} else {
-			PR_INFO("%s [id %d]: !!  >> WAITT2 << !!\n", __func__, demod->id);
+			PR_DVBT("!!>> maybe lost <<!!\n");
+			demod->last_lock = -1;
+		}
+	} else {
+		if (demod->last_lock > -CONTINUE_TIMES_UNLOCK) {
+			PR_DVBT("!!>> lost +1 <<!!\n");
+			demod->last_lock -= 1;
 		}
 	}
+
+	if (demod->last_lock == CONTINUE_TIMES_LOCK)
+		*status = FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
+				FE_HAS_VITERBI | FE_HAS_SYNC;
+	else if (demod->last_lock == -CONTINUE_TIMES_UNLOCK)
+		*status = FE_TIMEDOUT;
+	else
+		*status = 0;
+
+	if (*status == 0)
+		PR_INFO("!! >> WAITT2 << !!\n");
+	else if (demod->last_status != *status)
+		PR_INFO("!! >> %sT2 << !!, freq:%d\n", *status == FE_TIMEDOUT ? "UNLOCK" : "LOCK",
+			fe->dtv_property_cache.frequency);
+
 	demod->last_status = *status;
 
 	return 0;
@@ -1390,7 +1415,7 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 			c->bandwidth_hz, c->modulation, c->inversion);
 	demod->bw = dtvdemod_convert_bandwidth(c->bandwidth_hz);
 	demod->freq = c->frequency / 1000;
-	demod->last_lock = -1;
+	demod->last_lock = 0;
 	demod->last_status = 0;
 	demod->p1_peak = 0;
 	tuner_set_params(fe);
@@ -2386,11 +2411,6 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-	static unsigned int cnt;
-	static unsigned int prt_sts_cnt;
-	unsigned int val, snr, l1_post_decoded, ldpc;
-	unsigned int modulation, code_rate;
-	unsigned int snr_min_x10db = 0;
 
 	if (unlikely(!devp)) {
 		PR_ERR("dvbt2_tune, devp is NULL\n");
@@ -2407,11 +2427,7 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 		demod->en_detect = 1; /*fist set*/
 
 		dvbt2_set_frontend(fe);
-		timer_begain(demod, D_TIMER_DETECT);
-		dvbt2_read_status(fe, status);
-		/* return directly, cnt increase 1 */
-		cnt = 1;
-		prt_sts_cnt = 1;
+		*status = 0;
 		return 0;
 	}
 
@@ -2422,60 +2438,7 @@ static int dvbt2_tune(struct dvb_frontend *fe, bool re_tune,
 
 	/*polling*/
 	dvbt2_read_status(fe, status);
-	if (devp->debug_on && !(prt_sts_cnt++ % 3)) {
-		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-		dvbt2_info(NULL);
 
-		if (demod_is_t5d_cpu(devp))
-			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
-	}
-
-	/* test bus definition
-	 * val[30]:0x839[3],[29-24]:0x805,[23-21]:0x2a09,[20-13]:0x2a08,[12:7]:0xa50
-	 * val[6-2]:0x8c3,[1]:0x361b[7],[0]:0x581[7]
-	 */
-	if (demod_is_t5d_cpu(devp)) {
-		val = front_read_reg(0x3e);
-		snr = val >> 13;
-		modulation = (val >> 2) & 0x1f;
-		modulation = (modulation >> 3) & 0x3;
-		code_rate = (val >> 2) & 0x1f;
-		code_rate = code_rate & 0x7;
-		l1_post_decoded = (val >> 30) & 0x01;
-		ldpc = (val >> 7) & 0x3f;
-	} else {
-		snr = dvbt_t2_rdb(0x2a09) << 8;
-		snr |= dvbt_t2_rdb(0x2a08);
-		modulation = (dvbt_t2_rdb(0x8c3) >> 4) & 0x7;
-		code_rate = (dvbt_t2_rdb(0x8c3) >> 1) & 0x7;
-		l1_post_decoded = (dvbt_t2_rdb(0x839) >> 3) & 0x1;
-		ldpc = dvbt_t2_rdb(0xa50);
-	}
-
-	snr &= 0x7ff;
-	snr = snr * 3 / 64;
-
-	if (modulation < 4)
-		snr_min_x10db = minimum_snr_x10[modulation][code_rate];
-	else
-		PR_ERR("modulation is overflow\n");
-
-	PR_DVBT("modulation:%d, code_rate: %d\n", modulation, code_rate);
-	PR_DVBT("snr*10 = %d, snr_min_x10dB=%d, L1 POST:%d,LDPC:%d\n",
-			snr * 10, snr_min_x10db, l1_post_decoded, ldpc);
-
-	/* reset demod after ts unlock more than 2s */
-	if (*status != 0x1f)  {
-		if (cnt == 17) {
-			dvbt2_reset(demod);
-			cnt = 0;
-			PR_INFO("rst demod due to ts unlock more than 2s\n");
-		}
-	} else {
-		cnt = 0;
-	}
-
-	cnt++;
 	return 0;
 }
 
