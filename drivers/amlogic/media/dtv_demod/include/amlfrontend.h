@@ -12,7 +12,7 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/24/Jun: atsc co-channel inteference"
+#define DTVDEMOD_VER	"2021/29/Jul: T2 miss channel"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
@@ -25,6 +25,7 @@
 #define TIMEOUT_DVBT		3000
 #define TIMEOUT_DVBS		2000
 #define TIMEOUT_DVBC		3000
+#define TIMEOUT_DVBT2		5000
 
 enum Gxtv_Demod_Tuner_If {
 	SI2176_5M_IF = 5,
