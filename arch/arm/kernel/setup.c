@@ -59,6 +59,9 @@
 #include <asm/unwind.h>
 #include <asm/memblock.h>
 #include <asm/virt.h>
+#ifdef CONFIG_AMLOGIC_VMAP
+#include <linux/amlogic/vmap_stack.h>
+#endif
 
 #include "atags.h"
 
@@ -515,6 +518,17 @@ static void __init elf_hwcap_fixup(void)
 		elf_hwcap &= ~HWCAP_SWP;
 }
 
+#ifdef CONFIG_AMLOGIC_VMAP
+void __init fixup_init_thread_union(void)
+{
+	void *p;
+
+	p = (void *)((unsigned long)&init_thread_union + THREAD_INFO_OFFSET);
+	memcpy(p, &init_thread_union, THREAD_INFO_SIZE);
+	memset(&init_thread_union, 0, THREAD_INFO_SIZE);
+}
+#endif
+
 /*
  * cpu_init - initialise one CPU.
  *
@@ -578,6 +592,9 @@ void notrace cpu_init(void)
 	      "I" (offsetof(struct stack, fiq[0])),
 	      PLC (PSR_F_BIT | PSR_I_BIT | SVC_MODE)
 	    : "r14");
+#ifdef CONFIG_AMLOGIC_VMAP
+	__setup_vmap_stack(cpu);
+#endif
 #endif
 }
 

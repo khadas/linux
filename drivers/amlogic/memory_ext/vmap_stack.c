@@ -23,6 +23,7 @@
 #include <linux/amlogic/vmap_stack.h>
 #include <linux/highmem.h>
 #include <linux/delay.h>
+#include <linux/sched/task_stack.h>
 #ifdef CONFIG_KASAN
 #include <linux/kasan.h>
 #endif
