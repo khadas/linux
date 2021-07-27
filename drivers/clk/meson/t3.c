@@ -1258,6 +1258,7 @@ static struct clk_regmap t3_pcie_bgp = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &t3_pcie_pll.hw },
 		.num_parents = 1,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
