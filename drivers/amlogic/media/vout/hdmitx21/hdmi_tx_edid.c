@@ -2006,8 +2006,8 @@ static void Edid_PhyscialSizeParse(struct rx_cap *prxcap,
 				   u8 *data)
 {
 	if (data[0] != 0 && data[1] != 0) {
-		prxcap->physcial_weight = data[0];
-		prxcap->physcial_height = data[1];
+		prxcap->physical_width  = data[0];
+		prxcap->physical_height = data[1];
 	}
 }
 
@@ -2931,8 +2931,8 @@ int hdmitx21_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		"Manufacture Year: %d\n", prxcap->manufacture_year + 1990);
 
 	pos += snprintf(buffer + pos, buffer_len - pos,
-		"Physcial size(cm): %d x %d\n",
-		prxcap->physcial_weight, prxcap->physcial_height);
+		"Physcial size(mm): %d x %d\n",
+		prxcap->physical_width, prxcap->physical_height);
 
 	pos += snprintf(buffer + pos, buffer_len - pos,
 		"EDID Version: %d.%d\n",

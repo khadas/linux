@@ -468,7 +468,7 @@ static void hdmitx_pre_display_init(void)
 		CONF_CLR_VSDB_PACKET, 0);
 }
 
-static void hdmi_physcial_size_update(struct hdmitx_dev *hdev)
+static void hdmi_physical_size_update(struct hdmitx_dev *hdev)
 {
 	unsigned int width, height;
 	struct vinfo_s *info = NULL;
@@ -480,17 +480,16 @@ static void hdmi_physcial_size_update(struct hdmitx_dev *hdev)
 	}
 
 	if (info->mode == VMODE_HDMI) {
-		width = hdev->rxcap.physcial_weight;
-		height = hdev->rxcap.physcial_height;
+		width = hdev->rxcap.physical_width;
+		height = hdev->rxcap.physical_height;
 		if (width == 0 || height == 0) {
 			info->screen_real_width = info->aspect_ratio_num;
 			info->screen_real_height = info->aspect_ratio_den;
 		} else {
-			/* transfer mm */
-			info->screen_real_width = width * 10;
-			info->screen_real_height = height * 10;
+			info->screen_real_width = width;
+			info->screen_real_height = height;
 		}
-		pr_info(SYS "update physcial size: %d %d\n",
+		pr_info(SYS "update physical size: %d %d\n",
 			info->screen_real_width, info->screen_real_height);
 	}
 }
@@ -607,7 +606,7 @@ static int set_disp_mode_auto(void)
 	/*update hdmi checksum to vout*/
 	memcpy(info->hdmichecksum, hdev->rxcap.chksum, 10);
 
-	hdmi_physcial_size_update(hdev);
+	hdmi_physical_size_update(hdev);
 
 	/* If info->name equals to cvbs, then set mode to I mode to hdmi
 	 */
@@ -5827,7 +5826,7 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		rx_repeat_hpd_state(1);
 	hdmitx_get_edid(hdev);
 	hdev->cedst_policy = hdev->cedst_en & hdev->rxcap.scdc_present;
-	hdmi_physcial_size_update(hdev);
+	hdmi_physical_size_update(hdev);
 	if (hdev->rxcap.ieeeoui != HDMI_IEEEOUI)
 		hdev->hwop.cntlconfig(hdev,
 			CONF_HDMI_DVI_MODE, DVI_MODE);
@@ -5943,7 +5942,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
 		rx_edid_physical_addr(0, 0, 0, 0);
 		hdmitx_edid_clear(hdev);
-		hdmi_physcial_size_update(hdev);
+		hdmi_physical_size_update(hdev);
 		hdmitx_edid_ram_buffer_clear(hdev);
 		hdev->hpd_state = 0;
 		hdmitx_notify_hpd(hdev->hpd_state);
@@ -5974,7 +5973,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	clear_rx_vinfo(hdev);
 	rx_edid_physical_addr(0, 0, 0, 0);
 	hdmitx_edid_clear(hdev);
-	hdmi_physcial_size_update(hdev);
+	hdmi_physical_size_update(hdev);
 	hdmitx_edid_ram_buffer_clear(hdev);
 	hdev->hpd_state = 0;
 	hdmitx_notify_hpd(hdev->hpd_state);
