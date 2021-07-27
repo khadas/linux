@@ -706,6 +706,7 @@
 #define PD_NEW_ENTRY	MSK(1, 8)
 #define PD_TH_START		MSK(1, 2)
 #define PD_AUD_LAYOUT	_BIT(11)
+#define PD_GCP_MUTE_EN	_BIT(21)
 #define DWC_PDEC_STS             (0x360UL)
 /** Register address: Packet Decoder Audio Status*/
 #define DWC_PDEC_AUD_STS         (0x364UL)

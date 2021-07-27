@@ -498,7 +498,8 @@ struct aud_info_s {
 	 */
 	int aud_hbr_rcv;
 	int aud_packet_received;
-
+	/* aud mute by gcp_avmute or aud_spflat mute */
+	bool aud_mute_en;
 	/* channel status */
 	unsigned char channel_status[CHANNEL_STATUS_SIZE];
 	unsigned char channel_status_bak[CHANNEL_STATUS_SIZE];

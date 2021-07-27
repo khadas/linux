@@ -3508,6 +3508,7 @@ static void dump_audio_status(void)
 		rx_pr("top CTS:%d, N:%d\n", val1, val0);
 	}
 	rx_pr("audio receive data:%d\n", auds_rcv_sts);
+	rx_pr("aud mute = %d", a.aud_mute_en);
 }
 
 static void dump_hdcp_status(void)

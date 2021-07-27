@@ -1339,6 +1339,9 @@ void rx_get_audinfo(struct aud_info_s *audio_info)
 			hdmirx_rd_dwc(DWC_PDEC_AUD_STS) & AUDS_HBR_RCV;
 		audio_info->aud_packet_received =
 				hdmirx_rd_dwc(DWC_PDEC_AUD_STS);
+		audio_info->aud_mute_en =
+			(hdmirx_rd_bits_dwc(DWC_PDEC_STS, PD_GCP_MUTE_EN) == 0)
+			? false : true;
 		audio_info->cts = hdmirx_rd_dwc(DWC_PDEC_ACR_CTS);
 		audio_info->n = hdmirx_rd_dwc(DWC_PDEC_ACR_N);
 	}
@@ -1370,7 +1373,9 @@ void rx_get_audio_status(struct rx_audio_stat_s *aud_sts)
 				((hdmirx_rd_dwc(DWC_AUD_FIFO_STS) &
 				 THS_PASS_STS) == 0) ? false : true;
 			aud_sts->aud_rcv_packet = rx.aud_info.aud_packet_received;
-			aud_sts->aud_stb_flag = aud_sts->afifo_thres_pass;
+			aud_sts->aud_stb_flag =
+				aud_sts->afifo_thres_pass &&
+				!rx.aud_info.aud_mute_en;
 		} else {
 			aud_sts->aud_rcv_packet = rx.aud_info.aud_packet_received;
 			aud_sts->aud_stb_flag = true;
