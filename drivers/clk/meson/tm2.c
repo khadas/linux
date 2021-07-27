@@ -856,7 +856,7 @@ static struct clk_regmap tm2_pcie_bgp = {
 			&tm2_pcie_pll.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
