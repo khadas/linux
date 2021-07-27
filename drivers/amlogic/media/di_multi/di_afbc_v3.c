@@ -1294,7 +1294,10 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 		pafd_ctr->fb.mode = AFBC_WK_P;
 		//AFBC_WK_6D_ALL;//AFBC_WK_IN;//
 	} else if (IS_IC_EF(cid, T5DB)) {
-		afbc_cfg = 0;
+		if (cfgg(T5DB_AFBCD_EN))
+			afbc_cfg = 0;
+		else
+			afbc_cfg = BITS_EAFBC_CFG_DISABLE;
 		memcpy(&pafd_ctr->fb, &cafbc_v4_t5dvb, sizeof(pafd_ctr->fb));
 		pafd_ctr->fb.mode = AFBC_WK_IN;
 	} else if (IS_IC_EF(cid, T5D)) { //unsupport afbc

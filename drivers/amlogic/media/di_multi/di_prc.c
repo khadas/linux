@@ -222,6 +222,13 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_DCT,
 			0,
 			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_T5DB_AFBCD_EN]  = {"t5db_afbcd_en",
+			/* afbcd_en for t5db */
+			/* 0:disable;	*/
+			/* 1:enable;	*/
+			EDI_CFG_T5DB_AFBCD_EN,
+			0,
+			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
 
