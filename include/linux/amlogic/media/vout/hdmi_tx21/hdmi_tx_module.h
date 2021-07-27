@@ -129,8 +129,8 @@ struct rx_cap {
 	u8 ReceiverProductName[16];
 	u8 manufacture_week;
 	u8 manufacture_year;
-	u8 physcial_weight;
-	u8 physcial_height;
+	u8 physical_width;
+	u8 physical_height;
 	u8 edid_version;
 	u8 edid_revision;
 	u8 ColorDeepSupport;

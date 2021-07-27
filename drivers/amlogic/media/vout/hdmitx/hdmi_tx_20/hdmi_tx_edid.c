@@ -2236,8 +2236,9 @@ static void Edid_PhyscialSizeParse(struct rx_cap *prxcap,
 				   unsigned char *data)
 {
 	if (data[0] != 0 && data[1] != 0) {
-		prxcap->physcial_weight = data[0];
-		prxcap->physcial_height = data[1];
+		/* Here the unit is cm, transfer to mm */
+		prxcap->physical_width  = data[0] * 10;
+		prxcap->physical_height = data[1] * 10;
 	}
 }
 
@@ -2291,7 +2292,7 @@ static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data)
 		((data[10] >> 4) & 0xf);
 	t->v_sync = (((data[11] >> 0) & 0x3) << 4) + ((data[10] >> 0) & 0xf);
 	t->h_image_size = (((data[14] >> 4) & 0xf) << 8) + data[12];
-	t->v_image_size = ((data[14] & 0xf) << 8) + data[11];
+	t->v_image_size = ((data[14] & 0xf) << 8) + data[13];
 /*
  * Special handling of 1080i60hz, 1080i50hz
  */
@@ -2772,11 +2773,11 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 	 * and re-calculate it from the h/v image size from dtd
 	 * the unit of screen size is cm, but the unit of image size is mm
 	 */
-	if (prxcap->physcial_weight == 0 || prxcap->physcial_height == 0) {
+	if (prxcap->physical_width == 0 || prxcap->physical_height == 0) {
 		struct dtd *t = &prxcap->dtd[0];
 
-		prxcap->physcial_weight = (t->h_image_size + 5) / 10;
-		prxcap->physcial_height = (t->v_image_size + 5) / 10;
+		prxcap->physical_width  = t->h_image_size;
+		prxcap->physical_height = t->v_image_size;
 	}
 
 	/* if edid are all zeroes, or no VIC, no vesa dtd, set default vic */
@@ -3360,8 +3361,8 @@ int hdmitx_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		"Manufacture Year: %d\n", prxcap->manufacture_year + 1990);
 
 	pos += snprintf(buffer + pos, buffer_len - pos,
-		"Physcial size(cm): %d x %d\n",
-		prxcap->physcial_weight, prxcap->physcial_height);
+		"Physcial size(mm): %d x %d\n",
+		prxcap->physical_width, prxcap->physical_height);
 
 	pos += snprintf(buffer + pos, buffer_len - pos,
 		"EDID Version: %d.%d\n",
