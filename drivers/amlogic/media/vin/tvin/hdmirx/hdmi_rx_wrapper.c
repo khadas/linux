@@ -1202,6 +1202,13 @@ static bool fmt_vic_abnormal(void)
 		if (log_level & VIDEO_LOG)
 			rx_pr("repeatition abnormal for vesa\n");
 		return true;
+	} else if ((rx.pre.sw_vic == HDMI_1080p_ALTERNATIVE) &&
+			   (rx.pre.sw_dvi ||
+			    rx.pre.colorspace == E_COLOR_YUV420 ||
+			    rx.vs_info_details._3d_structure == 0)) {
+		if (log_level & VIDEO_LOG)
+			rx_pr("avi abnormal for 3dmode\n");
+		return true;
 	}
 	return false;
 }
