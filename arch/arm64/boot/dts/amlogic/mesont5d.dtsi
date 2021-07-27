@@ -1378,6 +1378,8 @@
 		bp_thd = <0>;
 		/* add for t5d verb bypass mem 2 ~ 15 */
 		t5db_nr_thd = <2>;
+		t5db_afbcd_en = <1>;
+		/* afbcd enable for t5db */
 	};
 
 	ionvideo {
