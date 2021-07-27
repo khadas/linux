@@ -11574,14 +11574,16 @@ int dolby_vision_process(struct vframe_s *vf,
 				dolby_vision_core1_on_cnt);
 	}
 	if (dolby_vision_on && !dolby_vision_core1_on &&
+	    dolby_vision_core2_on_cnt &&
 	    dolby_vision_core2_on_cnt < DV_CORE2_RECONFIG_CNT &&
 	    !(dolby_vision_flags & FLAG_TOGGLE_FRAME) &&
 	    !is_meson_tvmode() &&
 	    !(dolby_vision_flags & FLAG_CERTIFICAION)) {
 		force_set_lut = true;
 		dolby_vision_set_toggle_flag(1);
-		pr_dolby_dbg("Need update core2 first %d times\n",
-			     dolby_vision_core2_on_cnt);
+		if (debug_dolby & 2)
+			pr_dolby_dbg("Need update core2 first %d times\n",
+				dolby_vision_core2_on_cnt);
 	}
 	if (dolby_vision_flags & FLAG_TOGGLE_FRAME) {
 		if (!(dolby_vision_flags & FLAG_CERTIFICAION))
