@@ -2076,7 +2076,7 @@ static int sync_render_layers_fence(u32 index, u32 yres,
 
 int osd_sync_request_render(u32 index, u32 yres,
 			    struct sync_req_render_s *request,
-			    u32 phys_addr,
+			    ulong phys_addr,
 			    size_t len)
 {
 	int line, hwc_enable;
@@ -2220,7 +2220,7 @@ int osd_sync_request(u32 index, u32 yres, struct fb_sync_request_s *request)
 
 int osd_sync_request_render(u32 index, u32 yres,
 			    struct sync_req_render_s *request,
-			    u32 phys_addr,
+			    ulong phys_addr,
 			    size_t len)
 {
 	osd_log_err("%s not supported\n", __func__);

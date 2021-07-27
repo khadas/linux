@@ -119,7 +119,7 @@ int osd_sync_request(u32 index, u32 yres,
 		     struct fb_sync_request_s *request);
 int osd_sync_request_render(u32 index, u32 yres,
 			    struct sync_req_render_s *request,
-			    u32 phys_addr,
+			    ulong phys_addr,
 			    size_t len);
 int osd_sync_do_hwc(u32 output_index, struct do_hwc_cmd_s *hwc_cmd);
 s64 osd_wait_vsync_event(void);
