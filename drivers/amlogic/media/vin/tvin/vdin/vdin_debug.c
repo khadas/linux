@@ -2969,6 +2969,19 @@ static ssize_t cm2_store(struct device *dev,
 
 static DEVICE_ATTR_RW(cm2);
 
+static ssize_t snow_flag_show(struct device *dev,
+			 struct device_attribute *attr,
+			 char *buf)
+{
+	int snow_flag = 0;
+	struct vdin_dev_s *devp = dev_get_drvdata(dev);
+
+	snow_flag = (devp->flags & VDIN_FLAG_SNOW_FLAG) >> 14;
+	return snprintf(buf, sizeof(unsigned int), "%d\n", snow_flag);
+}
+
+static DEVICE_ATTR_RO(snow_flag);
+
 int vdin_create_debug_files(struct device *dev)
 {
 	int ret = 0;
@@ -2985,6 +2998,7 @@ int vdin_create_debug_files(struct device *dev)
 	ret = device_create_file(dev, &dev_attr_cm2);
 	/*ret = device_create_file(dev, &dev_attr_debug_for_isp);*/
 	ret = device_create_file(dev, &dev_attr_crop);
+	ret = device_create_file(dev, &dev_attr_snow_flag);
 	return ret;
 }
 
@@ -3001,6 +3015,7 @@ void vdin_remove_debug_files(struct device *dev)
 	/*device_remove_file(dev, &dev_attr_debug_for_isp);*/
 	device_remove_file(dev, &dev_attr_crop);
 	device_remove_file(dev, &dev_attr_sig_det);
+	device_remove_file(dev, &dev_attr_snow_flag);
 }
 
 #ifdef DEBUG_SUPPORT
