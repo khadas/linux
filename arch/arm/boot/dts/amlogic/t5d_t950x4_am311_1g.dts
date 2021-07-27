@@ -100,7 +100,7 @@
 			 *        |      |      |NUM_FRAMEBUFFER_SURFACE_BUFFERS := 3
 			 * size = 1920 * 1080 * 3 * 4(RGBA: 4 bytes/pixel) + 4M(10% * afbc)
 			 */
-			size = <0x00400000>;
+			size = <0x01000000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x0 0x3f400000>;
 		};
@@ -108,7 +108,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1280x720x4x3 round up 4M align */
-			size = <0x00000>;
+			size = <0xc00000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x0 0x3f400000>;
 		};
@@ -119,7 +119,7 @@
 		//	reusable;
 			/* 3840x2160x4x4 ~=128 M */
 		//	size = <0xc400000>;
-		//	alignment = <0x0 0x400000>;
+		//	alignment = <0x400000>;
 		//};
 
 		/*  vdin1 CMA pool */
@@ -147,7 +147,7 @@
 		 *		reusable;
 		 *		//8M
 		 *		size = <0x0800000>;
-		 *		alignment = <0x0 0x400000>;
+		 *		alignment = <0x400000>;
 		 *	alloc-ranges = <0x0 0x3f400000>;
 		 *};
 		 */
@@ -164,7 +164,7 @@
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
 			//size = <0x7800000>;
-			alignment = <0x0 0x400000>;
+			alignment = <0x400000>;
 		};
 
 		/* for hdmi rx emp use */
@@ -175,7 +175,7 @@
 			/* 4M for emp to ddr */
 			/* 32M for tmds to ddr */
 			/*size = <0x8000>;*/
-			/*alignment = <0x0 0x400000>;*/
+			/*alignment = <0x400000>;*/
 		/*};*/
 
 		/* POST PROCESS MANAGER */

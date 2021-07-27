@@ -652,7 +652,7 @@
 			reg = <0xff63c000 0x2000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0xff63c000 0x2000>;
+			ranges = <0 0xff63c000 0x2000>;
 
 			hhi: system-controller@0 {
 				compatible = "amlogic,meson-gx-hhi-sysctrl",
@@ -673,7 +673,7 @@
 			reg = <0xff646000 0x2000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0xff646000 0x2000>;
+			ranges = <0 0xff646000 0x2000>;
 
 			hhi1: system-controller@1 {
 				compatible = "amlogic,meson-gx-hhi-sysctrl",
@@ -737,12 +737,12 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0xff600000 0x3000>;
-			ranges = <0xff600000 0x3000>;
+			ranges = <0 0xff600000 0x3000>;
 
 			clkaudio:audio_clocks {
 				compatible = "amlogic, t5-audio-clocks";
 				#clock-cells = <1>;
-				reg = <0xb0>;
+				reg = <0x0 0xb0>;
 			};
 
 			ddr_manager {
@@ -825,7 +825,7 @@
 			reg = <0xffd00000 0x27000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x0 0xffd00000 0x27000>;
+			ranges = <0 0xffd00000 0x27000>;
 
 			clk-measure@18000 {
 				compatible = "amlogic,meson-t5d-clk-measure";
@@ -965,7 +965,7 @@
 			reg = <0xff800000 0xb000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0xff800000 0xb000>;
+			ranges = <0 0xff800000 0xb000>;
 
 			cpu_version {
 				reg = <0x220 0x4>;
@@ -977,7 +977,7 @@
 				reg = <0x0 0x300>;
 				#address-cells = <1>;
 				#size-cells = <1>;
-				ranges = <0x0 0x300>;
+				ranges = <0x0 0x0 0x300>;
 
 				clkc_AO: clock-controller@2 {
 					compatible = "amlogic,t5d-aoclkc";
@@ -1025,7 +1025,7 @@
 				compatible = "amlogic, meson-ir";
 				reg = <0x8040 0xA4>,
 					<0x8000 0x20>;
-				status = "disable";
+				status = "okay";
 				protocol = <REMOTE_TYPE_NEC>;
 				interrupts = <GIC_SPI 196 IRQ_TYPE_EDGE_RISING>;
 				pinctrl-names = "default";

@@ -20,9 +20,9 @@
 			"tcon_gate",
 			"fclk_div5",
 			"clk_tcon";
-		reg = <0x0 0xff660000 0x0 0xd000 /*tcon*/
-			0x0 0xff634400 0x0 0x300 /*periphs*/
-			0x0 0xffd01000 0x0 0xa0>; /*reset*/
+		reg = <0xff660000 0xd000 /*tcon*/
+			0xff634400 0x300 /*periphs*/
+			0xffd01000 0xa0>; /*reset*/
 		interrupts = <0 3 1
 			0 88 1>;
 		interrupt-names = "vsync","tcon";
