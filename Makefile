@@ -803,7 +803,9 @@ KBUILD_CFLAGS += $(call cc-disable-warning, unused-const-variable)
 ifdef CONFIG_FRAME_POINTER
 KBUILD_CFLAGS	+= -fno-omit-frame-pointer -fno-optimize-sibling-calls
 ifdef CONFIG_AMLOGIC_VMAP
+ifdef CONFIG_ARM64
 KBUILD_CFLAGS	+= -mno-omit-leaf-frame-pointer
+endif
 endif
 else
 # Some targets (ARM with Thumb2, for example), can't be built with frame
