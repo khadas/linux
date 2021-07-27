@@ -1013,11 +1013,11 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE7_DP3_IVCRX);
 			pkt->sbpkt.vsi_dobv15.aux_run_mode = tmp;
 			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE8_DP3_IVCRX);
-			pkt->sbpkt.vsi_dobv15.aux_run_mode = tmp;
+			pkt->sbpkt.vsi_dobv15.aux_run_ver = tmp;
 			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE9_DP3_IVCRX);
-			pkt->sbpkt.vsi_dobv15.aux_run_mode = tmp;
+			pkt->sbpkt.vsi_dobv15.aux_debug = tmp;
 			tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE10_DP3_IVCRX);
-			pkt->sbpkt.vsi_dobv15.aux_run_mode = tmp;
+			pkt->sbpkt.vsi_dobv15.content_type = tmp;
 			for (i = 0; i < 17; i++) {
 				tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE11_DP3_IVCRX + i);
 				pkt->sbpkt.vsi_dobv15.data[i] = tmp;
