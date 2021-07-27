@@ -90,6 +90,7 @@ int canvas_pool_map_alloc_canvas(const char *owner)
 {
 	return canvas_pool_map_alloc_canvas_in(get_canvas_pool(), owner);
 }
+EXPORT_SYMBOL(canvas_pool_map_alloc_canvas);
 
 /*
  *num >=1 && <=4
@@ -207,11 +208,13 @@ int canvas_pool_map_free_canvas(int index)
 {
 	return canvas_pool_map_free_canvas_in(get_canvas_pool(), index);
 }
+EXPORT_SYMBOL(canvas_pool_map_free_canvas);
 
 int canvas_pool_canvas_num(void)
 {
 	return get_canvas_pool()->canvas_max;
 }
+EXPORT_SYMBOL(canvas_pool_canvas_num);
 
 static int canvas_pool_init(void)
 {
@@ -249,6 +252,7 @@ canvas_pool_register_const_canvas(int start_index, int end, const char *owner)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(canvas_pool_register_const_canvas);
 
 int canvas_pool_get_canvas_info(int index, struct canvas_info *info)
 {
@@ -261,6 +265,7 @@ int canvas_pool_get_canvas_info(int index, struct canvas_info *info)
 	cavas_pool_unlock(pool);
 	return 0;
 }
+EXPORT_SYMBOL(canvas_pool_get_canvas_info);
 
 void canvas_pool_dump_canvas_info(void)
 {
@@ -349,6 +354,7 @@ u32 canvas_pool_canvas_alloced(int index)
 		return 0;
 	return !!test_bit(index, pool->canvas_map);
 }
+EXPORT_SYMBOL(canvas_pool_canvas_alloced);
 
 static ssize_t
 canvas_pool_map_show(struct class *class,
@@ -489,6 +495,7 @@ int canvas_pool_get_static_canvas_by_name(const char *owner, u8 *tab, int size)
 	pr_info("not found register static canvas for %s\n", owner);
 	return 0;
 }
+EXPORT_SYMBOL(canvas_pool_get_static_canvas_by_name);
 
 static struct class canvas_class = {
 	.name = "amcanvas",
