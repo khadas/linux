@@ -89,6 +89,10 @@ enum ipi_msg_type {
 	NR_IPI
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+bool panic_on_corefail;
+core_param(panic_on_corefail, panic_on_corefail, bool, 0644);
+#endif
 static int ipi_irq_base __read_mostly;
 static int nr_ipi __read_mostly = NR_IPI;
 static struct irq_desc *ipi_desc[NR_IPI] __read_mostly;
@@ -147,11 +151,25 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 					    msecs_to_jiffies(5000));
 
 		if (!cpu_online(cpu)) {
-			pr_crit("CPU%u: failed to come online\n", cpu);
+#ifdef CONFIG_AMLOGIC_MODIFY
+			if (panic_on_corefail)
+				panic("CPU%u: failed to come online\n", cpu);
+			else
+				pr_crit("CPU%u: failed to come online\n", cpu);
+#else
+				pr_crit("CPU%u: failed to come online\n", cpu);
+#endif
 			ret = -EIO;
 		}
 	} else {
-		pr_err("CPU%u: failed to boot: %d\n", cpu, ret);
+#ifdef CONFIG_AMLOGIC_MODIFY
+		if (panic_on_corefail)
+			panic("CPU%u: failed to boot: %d\n", cpu, ret);
+		else
+			pr_err("CPU%u: failed to boot: %d\n", cpu, ret);
+#else
+			pr_err("CPU%u: failed to boot: %d\n", cpu, ret);
+#endif
 		return ret;
 	}
 
