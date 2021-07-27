@@ -625,7 +625,6 @@ static void ge2d_keeplastframe_block(int cur_index, int format)
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	u32 y_index2, u_index2, v_index2;
 #endif
-	int ret = -1;
 
 	video_module_lock();
 
@@ -649,8 +648,7 @@ static void ge2d_keeplastframe_block(int cur_index, int format)
 	switch (format) {
 	case GE2D_FORMAT_S24_YUV444:
 		pr_info("GE2D_FORMAT_S24_YUV444\n");
-		ret = ge2d_store_frame_S_YUV444(cur_index);
-		if (ret > 0)
+		if (ge2d_store_frame_S_YUV444(cur_index) > 0)
 			break;
 		canvas_update_addr(y_index, keep_phy_addr(keep_y_addr));
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA

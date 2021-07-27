@@ -110,7 +110,6 @@ static int ass_index = -1;
 static DEFINE_SPINLOCK(lock);
 static bool ppmgr_blocking;
 static bool ppmgr_inited;
-static int ppmgr_reset_type;
 static int ppmgr_buffer_status;
 static struct ppframe_s vfp_pool[VF_POOL_SIZE];
 static struct vframe_s *vfp_pool_free[VF_POOL_SIZE + 1];
@@ -235,7 +234,6 @@ struct dcntr_mem_s dcntr_mem_info[DCNTR_POOL_SIZE];
 struct dcntr_mem_s dcntr_mem_info_last;
 
 static struct completion isr_done;
-static int isr_received;
 static u32 last_w;
 static u32 last_h;
 static u32 last_type;
@@ -260,7 +258,7 @@ void wr_bits(unsigned int adr,
 int dc_print(const char *fmt, ...)
 {
 	if (ppmgr_device.debug_decontour & DCT_PRINT_INFO) {
-		unsigned char buf[256];
+		char buf[256];
 		int len = 0;
 		va_list args;
 
@@ -380,7 +378,6 @@ static void decontour_uninit(void)
 
 irqreturn_t decontour_pre_isr(int irq, void *dev_id)
 {
-	isr_received = 1;
 	complete(&isr_done);
 	dc_print("decontour: isr\n");
 	return IRQ_HANDLED;
@@ -587,7 +584,7 @@ static int decontour_dump_output(u32 w, u32 h, struct dcntr_mem_s *dcntr_mem, in
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 	pos = 0;
-	vfs_write(fp, data, write_size, &pos);
+	vfs_write(fp, (const char *)data, write_size, &pos);
 	vfs_fsync(fp, 0);
 	dc_print("decontour: write %u size to addr%p\n", write_size, data);
 	codec_mm_unmap_phyaddr(data);
@@ -615,7 +612,7 @@ static int decontour_dump_output(u32 w, u32 h, struct dcntr_mem_s *dcntr_mem, in
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 	pos = 0;
-	vfs_write(fp, data, write_size, &pos);
+	vfs_write(fp, (const char *)data, write_size, &pos);
 	vfs_fsync(fp, 0);
 	dc_print("decontour: write %u size to file.addr%p\n", write_size, data);
 	codec_mm_unmap_phyaddr(data);
@@ -626,7 +623,7 @@ static int decontour_dump_output(u32 w, u32 h, struct dcntr_mem_s *dcntr_mem, in
 	dc_print("decontour:dump_4\n");
 	if (!data)
 		return -6;
-	vfs_write(fp, data, write_size, &pos);
+	vfs_write(fp, (const char *)data, write_size, &pos);
 	vfs_fsync(fp, 0);
 	dc_print("decontour: write %u size to file.addr%p\n", write_size, data);
 	codec_mm_unmap_phyaddr(data);
@@ -652,7 +649,7 @@ static int decontour_pre_process(struct vframe_s *vf)
 	u32 reg_grd_ynum;
 	u32 grd_xsize;
 	u32 grd_ysize;
-	u32 grid_wrmif_length;
+	/* u32 grid_wrmif_length; */
 	u32 yflt_wrmif_length;
 	u32 cflt_wrmif_length;
 	int ds_ratio = 0;/*0:(1:1)  1:(1:2)  2:(1:4)*/
@@ -857,8 +854,6 @@ static int decontour_pre_process(struct vframe_s *vf)
 
 	vf->decontour_pre = (void *)dcntr_mem;
 
-	isr_received = 0;
-
 	if (vf->canvas0Addr == (u32)-1) {
 		phy_addr_0 = vf->canvas0_config[0].phy_addr;
 		phy_addr_1 = vf->canvas0_config[1].phy_addr;
@@ -930,7 +925,7 @@ static int decontour_pre_process(struct vframe_s *vf)
 	grd_xsize = reg_grd_xnum << 3;
 	grd_ysize = reg_grd_ynum;
 
-	grid_wrmif_length = 81 * 46 * 8;
+	/* grid_wrmif_length = 81 * 46 * 8; */
 	yflt_wrmif_length = ds_out_width;
 	cflt_wrmif_length = ds_out_width;
 
@@ -1251,7 +1246,7 @@ static int get_input_format(struct vframe_s *vf)
 	int format = GE2D_FORMAT_M24_YUV420;
 	enum ppmgr_source_type soure_type;
 
-	soure_type = get_source_type(vf);
+	soure_type = (enum ppmgr_source_type)get_source_type(vf);
 	switch (soure_type) {
 	case DECODER_8BIT_NORMAL:
 		if (vf->type & VIDTYPE_VIU_422)
@@ -1592,8 +1587,6 @@ static int local_canvas_init(void)
 	return local_canvas_status;
 }
 
-static const struct vframe_provider_s *dec_vfp;
-
 const struct vframe_receiver_op_s *vf_ppmgr_reg_provider(void)
 {
 	const struct vframe_receiver_op_s *r = NULL;
@@ -1636,8 +1629,6 @@ void vf_ppmgr_unreg_provider(void)
 #endif
 	ppmgr_buffer_uninit();
 
-	dec_vfp = NULL;
-
 	ppmgr_device.started = 0;
 
 	mutex_unlock(&ppmgr_mutex);
@@ -1660,7 +1651,6 @@ void vf_ppmgr_reset(int type)
 			return;
 
 		ppmgr_blocking = true;
-		ppmgr_reset_type = type;
 		up(&ppmgr_device.ppmgr_sem);
 
 		last_reset_time = current_reset_time;
@@ -1863,7 +1853,7 @@ static int process_vf_tb_detect(struct vframe_s *vf,
 	u32 v_scale_coef_type =
 		context->config.v_scale_coef_type;
 
-	if (unlikely(!vf))
+	if (unlikely(!vf) || !context)
 		return -1;
 
 	interlace_mode = vf->type & VIDTYPE_TYPEMASK;
@@ -2078,7 +2068,7 @@ static void process_vf_rotate(struct vframe_s *vf,
 	u32 canvas_id;
 	u32 dst_canvas_id;
 	u32 buf_start, buf_start_ref, buf_end;
-	int buf_size;
+	u32 buf_size;
 	int ret = 0;
 	unsigned int cur_angle = 0;
 	int interlace_mode;
@@ -2092,6 +2082,12 @@ static void process_vf_rotate(struct vframe_s *vf,
 
 	if (ppmgr_device.debug_ppmgr_flag)
 		pr_info("ppmgr:rotate\n");
+
+	if (!context) {
+		pr_info("ppmgr:rotate but no ge2d context\n");
+		return;
+	}
+
 	new_vf = vfq_pop(&q_free);
 
 	if (unlikely(!new_vf || !vf)) {
@@ -2509,11 +2505,13 @@ static void process_vf_change(struct vframe_s *vf,
 	unsigned int cur_angle = 0;
 	int ret = 0;
 	u32 buf_start, buf_start_ref, buf_end;
-	int buf_size;
+	u32 buf_size;
 
+	if (!context || !vf || !local_canvas_status)
+		return;
 
 	cur_angle = (ppmgr_device.videoangle + vf->orientation) % 4;
-	if (cur_angle == 0 || ppmgr_device.bypass || !local_canvas_status)
+	if (cur_angle == 0 || ppmgr_device.bypass)
 		return;
 
 	ret = ppmgr_buffer_init(vf->mem_sec);
@@ -3204,9 +3202,6 @@ int ppmgr_buffer_uninit(void)
 int ppmgr_buffer_init(int secure_mode)
 {
 	u32 canvas_width, canvas_height;
-	u32 decbuf_size;
-	unsigned int buf_start;
-	int buf_size;
 	int mem_sec_flag;
 	int flags;
 	struct vinfo_s vinfo = {.width = 1280, .height = 720, };
@@ -3252,8 +3247,6 @@ int ppmgr_buffer_init(int secure_mode)
 	}
 
 	ppmgr_buffer_status = 1;
-	get_ppmgr_buf_info(&buf_start, &buf_size);
-
 	ppmgr_device.vinfo = get_current_vinfo();
 	if (IS_ERR_OR_NULL(ppmgr_device.vinfo)) {
 		pr_info("PPMGRVPP: info: failed to get_currnt_vinfo! Try to MAKE one!");
@@ -3286,23 +3279,17 @@ int ppmgr_buffer_init(int secure_mode)
 		canvas_width = (ppmgr_device.disp_width + 0x1f) & ~0x1f;
 		canvas_height = (ppmgr_device.disp_height + 0x1f) & ~0x1f;
 	}
-	decbuf_size = canvas_width * canvas_height * 3;
 	ppmgr_device.canvas_width = canvas_width;
 	ppmgr_device.canvas_height = canvas_height;
 
 	ppmgr_blocking = false;
 	ppmgr_inited = true;
-	ppmgr_reset_type = 0;
 	//up(&ppmgr_device.ppmgr_sem);
 	return 0;
 }
 
 int start_ppmgr_task(void)
 {
-	enum platform_type_t platform_type;
-
-	platform_type = get_platform_type();
-
 	/*    if (get_cpu_type()>= MESON_CPU_TYPE_MESON6)*/
 	/*	    switch_mod_gate_by_name("ge2d", 1);*/
 	/*#endif*/
@@ -3313,7 +3300,6 @@ int start_ppmgr_task(void)
 		vf_local_init();
 		ppmgr_blocking = false;
 		ppmgr_inited = true;
-		ppmgr_reset_type = 0;
 		ppmgr_buffer_status = 0;
 		ppmgr_quit_flag = false;
 		task = kthread_run(ppmgr_task, 0, "ppmgr");
@@ -3348,7 +3334,7 @@ void stop_ppmgr_task(void)
 #ifdef PPMGR_TB_DETECT
 static int tb_buffer_init(void)
 {
-	int i;
+	ulong i;
 	//int flags = CODEC_MM_FLAGS_DMA_CPU | CODEC_MM_FLAGS_CMA_CLEAR;
 #ifdef CONFIG_AMLOGIC_MEDIA_CODEC_MM
 	int flags = 0;
@@ -3395,7 +3381,7 @@ static int tb_buffer_init(void)
 						     TB_DETECT_H
 						     * TB_DETECT_W);
 			if (ppmgr_device.tb_detect & 0xc) {
-				PPMGRVPP_INFO("detect buff(%d)", i);
+				PPMGRVPP_INFO("detect buff(%ld)", i);
 				PPMGRVPP_INFO(" paddr: %lx, vaddr: %lx\n",
 					      detect_buf[i].paddr,
 					      detect_buf[i].vaddr);

@@ -401,7 +401,7 @@ static int vsync_enter_line_max;
 static int vsync_exit_line_max;
 
 static bool over_sync;
-static int over_sync_count;
+/* static int over_sync_count; */
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 static int vsync_rdma_line_max;
@@ -419,7 +419,7 @@ int toggle_3d_fa_frame = 1;
 /*the A/B register switch in every sync at pause mode. */
 static int pause_one_3d_fl_frame;
 MODULE_PARM_DESC(pause_one_3d_fl_frame, "\n pause_one_3d_fl_frame\n");
-module_param(pause_one_3d_fl_frame, uint, 0664);
+module_param(pause_one_3d_fl_frame, int, 0664);
 
 /*debug info control for skip & repeate vframe case*/
 static unsigned int video_dbg_vf;
@@ -461,7 +461,6 @@ static unsigned int video_3d_format;
 static unsigned int mvc_flag;
 #endif
 unsigned int force_3d_scaler = 3;
-static int mode_3d_changed;
 static int last_mode_3d;
 #endif
 
@@ -688,7 +687,7 @@ static ssize_t pts_enforce_pulldown_write_file(struct file *file,
 	if (copy_from_user(buf, userbuf, count))
 		return -EFAULT;
 	buf[count] = 0;
-	ret = kstrtoint(buf, 0, &write_val);
+	ret = kstrtouint(buf, 0, &write_val);
 	if (ret != 0)
 		return -EINVAL;
 	pr_info("pts_enforce_pulldown: %d->%d\n",
@@ -1675,8 +1674,10 @@ static void video_debugfs_init(void)
 	if (video_debugfs_root)
 		return;
 	video_debugfs_root = debugfs_create_dir("video", NULL);
-	if (!video_debugfs_root)
+	if (!video_debugfs_root) {
 		pr_err("can't create video debugfs dir\n");
+		return;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(video_debugfs_files); i++) {
 		ent = debugfs_create_file(video_debugfs_files[i].name,
@@ -2237,7 +2238,7 @@ static inline struct vframe_s *video_vf_get(void)
 
 static int video_vf_get_states(struct vframe_states *states)
 {
-	int ret = -1;
+	int ret;
 	unsigned long flags;
 
 	spin_lock_irqsave(&lock, flags);
@@ -2310,6 +2311,8 @@ static void dump_vframe_status(const char *name)
 	int ret = -1;
 	struct vframe_states states;
 	struct vframe_provider_s *vfp;
+
+	memset(&states, 0, sizeof(struct vframe_states));
 
 	vfp = vf_get_provider_by_name(name);
 	if (vfp && vfp->ops && vfp->ops->vf_states)
@@ -2607,6 +2610,8 @@ static struct vframe_s *pip_toggle_frame(struct vframe_s *vf)
 	if (cur_pipbuf != vf)
 		vf->type_backup = vf->type;
 
+	if (first_picture && (debug_flag & DEBUG_FLAG_PRINT_TOGGLE_FRAME))
+		pr_info("%s(%p)\n", __func__, vf);
 	cur_pipbuf = vf;
 	return cur_pipbuf;
 }
@@ -2691,6 +2696,8 @@ static struct vframe_s *pip2_toggle_frame(struct vframe_s *vf)
 	if (cur_pipbuf2 != vf)
 		vf->type_backup = vf->type;
 
+	if (first_picture && (debug_flag & DEBUG_FLAG_PRINT_TOGGLE_FRAME))
+		pr_info("%s(%p)\n", __func__, vf);
 	cur_pipbuf2 = vf;
 	return cur_pipbuf2;
 }
@@ -2891,13 +2898,14 @@ static void process_hdmi_video_sync(struct vframe_s *vf)
 					hdmin_need_drop_count = need_drop;
 			}
 		}
+
 		//if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
-			pr_info("required delay:%d, current %d, extra %d, delay %s, drop cnt %d, normal_check:0x%02x\n",
-				last_required_total_delay,
-				vframe_walk_delay,
-				hdmin_delay_duration,
-				hdmin_delay_done ? "false" : "true",
-				need_drop, hdmi_delay_normal_check);
+		pr_info("required delay:%d, current %d, extra %d, delay %s, drop cnt %d, normal_check:0x%02x\n",
+			last_required_total_delay,
+			vframe_walk_delay,
+			hdmin_delay_duration,
+			hdmin_delay_done ? "false" : "true",
+			need_drop, hdmi_delay_normal_check);
 
 		/* retry n times after vfm path reg and first check */
 		if (hdmi_delay_normal_check > 0 &&
@@ -3568,6 +3576,7 @@ static inline bool vpts_expire(struct vframe_s *cur_vf,
 
 		delayed_ms =
 		    calculation_stream_delayed_ms(PTS_TYPE_VIDEO, &t1, &t2);
+		memset(&frame_states, 0, sizeof(struct vframe_states));
 		if (video_vf_get_states(&frame_states) == 0) {
 			u32 pcr = timestamp_pcrscr_get();
 			u32 vpts = timestamp_vpts_get();
@@ -3816,9 +3825,9 @@ static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
 {
 	struct provider_disp_mode_req_s req;
 	char *provider_name = vf_get_provider_name(RECEIVER_NAME);
-	int ret = -1;
+
 	req.vf = vf;
-	req.disp_mode = 0;
+	req.disp_mode = VFRAME_DISP_MODE_NULL;
 	req.req_mode = 1;
 
 	while (provider_name) {
@@ -3828,7 +3837,7 @@ static inline bool video_vf_disp_mode_check(struct vframe_s *vf)
 			vf_get_provider_name(provider_name);
 	}
 	if (provider_name)
-		ret = vf_notify_provider_by_name(provider_name,
+		vf_notify_provider_by_name(provider_name,
 			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
 	if (req.disp_mode == VFRAME_DISP_MODE_OK ||
 		req.disp_mode == VFRAME_DISP_MODE_NULL)
@@ -3872,8 +3881,9 @@ static enum vframe_disp_mode_e video_vf_disp_mode_get(struct vframe_s *vf)
 {
 	struct provider_disp_mode_req_s req;
 	char *provider_name = vf_get_provider_name(RECEIVER_NAME);
+
 	req.vf = vf;
-	req.disp_mode = 0;
+	req.disp_mode = VFRAME_DISP_MODE_NULL;
 	req.req_mode = 0;
 
 	while (provider_name) {
@@ -4252,7 +4262,7 @@ static int dolby_vision_drop_frame(void)
 	}
 	vf = video_vf_get();
 
-	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+	if (vf && (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME))
 		pr_info("drop vf %p, index %d, pts %d\n",
 			vf, vf->omx_index, vf->pts);
 
@@ -4743,10 +4753,9 @@ void set_video_zorder_ext(int layer_index, int zorder)
 void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 			   const struct vinfo_s *vinfo)
 {
-	struct disp_info_s *layer_info = NULL;
+	struct disp_info_s *layer_info;
 	int axis[4];
 	int crop[4];
-	int ret;
 
 	if (!vf)
 		return;
@@ -4768,16 +4777,15 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		crop[1] = vf->crop[1];
 		crop[2] = vf->crop[2];
 		crop[3] = vf->crop[3];
-		_set_video_window(&glayer_info[2], axis);
+		_set_video_window(layer_info, axis);
 		if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
 			vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
-			_set_video_crop(&glayer_info[2], crop);
+			_set_video_crop(layer_info, crop);
 
-		glayer_info[2].zorder = vf->zorder;
+		layer_info->zorder = vf->zorder;
 	}
 
-	ret = layer_swap_frame
-		(vf, layer, false, vinfo);
+	layer_swap_frame(vf, layer, false, vinfo);
 
 	/* FIXME: free correct keep frame */
 	if (!is_local_vf(layer->dispbuf)) {
@@ -4900,10 +4908,9 @@ s32 pip2_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 			  const struct vinfo_s *vinfo)
 {
-	struct disp_info_s *layer_info = NULL;
+	struct disp_info_s *layer_info;
 	int axis[4];
 	int crop[4];
-	int ret;
 
 	if (!vf)
 		return;
@@ -4925,16 +4932,15 @@ void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		crop[1] = vf->crop[1];
 		crop[2] = vf->crop[2];
 		crop[3] = vf->crop[3];
-		_set_video_window(&glayer_info[1], axis);
+		_set_video_window(layer_info, axis);
 		if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
 			vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
-			_set_video_crop(&glayer_info[1], crop);
+			_set_video_crop(layer_info, crop);
 
-		glayer_info[1].zorder = vf->zorder;
+		layer_info->zorder = vf->zorder;
 	}
 
-	ret = layer_swap_frame
-		(vf, layer, false, vinfo);
+	layer_swap_frame(vf, layer, false, vinfo);
 
 	/* FIXME: free correct keep frame */
 	if (!is_local_vf(layer->dispbuf)) {
@@ -5664,6 +5670,8 @@ void set_alpha_scpxn(struct video_layer_s *layer,
 	int win_en = 0;
 	int i;
 
+	memset(&alpha_win, 0, sizeof(struct pip_alpha_scpxn_s));
+
 	if (componser_info)
 		win_num = componser_info->count;
 
@@ -5734,7 +5742,7 @@ void vsync_fisr_in(void)
 static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 {
-	int hold_line;
+	/* int hold_line; */
 	int enc_line;
 	unsigned char frame_par_di_set = 0;
 	s32 vout_type;
@@ -5799,7 +5807,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		cur_vd3_path_id = vd3_path_id;
 
 	vout_type = detect_vout_type(vinfo);
-	hold_line = calc_hold_line();
+	/* hold_line = calc_hold_line(); */
 
 	get_count = 0;
 	get_count_pip = 0;
@@ -6183,7 +6191,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			time_setomxpts_delta = func_div(time_setomxpts -
 				time_setomxpts_last, 1000);
 			if ((time_setomxpts_delta >
-				(4 * vsync_pts_inc * 1000 / 90)) ||
+				((ulong)(4 * vsync_pts_inc) * 1000 / 90)) ||
 				((diff - omx_pts_interval_upper * 3 / 2) > 0) ||
 				((diff - omx_pts_interval_lower * 3 / 2)
 				< 0)) {
@@ -6332,13 +6340,14 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	      vd_layer[0].enabled != vd_layer[0].enabled_status_saved))
 		goto exit;
 
-	fmt = atomic_read(&primary_src_fmt);
+	fmt = (enum vframe_signal_fmt_e)atomic_read(&primary_src_fmt);
 	if (fmt != atomic_read(&cur_primary_src_fmt)) {
 		if (debug_flag & DEBUG_FLAG_TRACE_EVENT) {
 			char *old_str = NULL, *new_str = NULL;
 			enum vframe_signal_fmt_e old_fmt;
 
-			old_fmt = atomic_read(&cur_primary_src_fmt);
+			old_fmt = (enum vframe_signal_fmt_e)
+				atomic_read(&cur_primary_src_fmt);
 			if (old_fmt != VFRAME_SIGNAL_FMT_INVALID)
 				old_str = (char *)src_fmt_str[old_fmt];
 			if (fmt != VFRAME_SIGNAL_FMT_INVALID)
@@ -6654,7 +6663,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					vf->mode_3d_enable) {
 					last_mode_3d =
 						vf->mode_3d_enable;
-					mode_3d_changed = 1;
 				}
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 				video_3d_format = vf->trans_fmt;
@@ -7657,10 +7665,11 @@ SET_FILTER:
 			new_src_fmt = get_dolby_vision_src_format();
 		else
 #endif
-			new_src_fmt = get_cur_source_type(VD1_PATH, VPP_TOP0);
+			new_src_fmt =
+				(int)get_cur_source_type(VD1_PATH, VPP_TOP0);
 #endif
 		if (new_src_fmt > 0 && new_src_fmt < 8)
-			fmt = src_map[new_src_fmt];
+			fmt = (enum vframe_signal_fmt_e)src_map[new_src_fmt];
 		else
 			fmt = VFRAME_SIGNAL_FMT_INVALID;
 		if (fmt != atomic_read(&cur_primary_src_fmt)) {
@@ -7669,7 +7678,8 @@ SET_FILTER:
 				char *old_str = NULL, *new_str = NULL;
 				enum vframe_signal_fmt_e old_fmt;
 
-				old_fmt = atomic_read(&cur_primary_src_fmt);
+				old_fmt = (enum vframe_signal_fmt_e)
+					atomic_read(&cur_primary_src_fmt);
 				if (old_fmt != VFRAME_SIGNAL_FMT_INVALID)
 					old_str = (char *)src_fmt_str[old_fmt];
 				if (fmt != VFRAME_SIGNAL_FMT_INVALID)
@@ -8499,6 +8509,9 @@ static void vsync_fiq_up(void)
 		r = request_irq(video_pre_vsync, &vsync_pre_vsync_isr,
 				IRQF_SHARED, "pre_vsync",
 				(void *)video_dev_id);
+	if (r < 0)
+		pr_info("request irq fail, %d\n", r);
+
 #ifdef CONFIG_MESON_TRUSTZONE
 	if (num_online_cpus() > 1)
 		irq_set_affinity(INT_VIU_VSYNC, cpumask_of(1));
@@ -9046,7 +9059,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		dovi_drop_frame_num = 0;
 		mutex_unlock(&omx_mutex);
 		//init_hdr_info();
-		over_sync_count = 0;
+		/* over_sync_count = 0; */
 /*notify di 3d mode is frame*/
 /*alternative mode,passing two buffer in one frame */
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
@@ -9983,7 +9996,7 @@ static void set_omx_pts(u32 *p)
 	u32 not_reset = p[4];
 	u32 session = p[5];
 	unsigned int try_cnt = 0x1000;
-	bool updateomxpts = true;
+	bool updateomxpts;
 
 	cur_omx_index = frame_num;
 	mutex_lock(&omx_mutex);
@@ -10349,16 +10362,14 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case AMSTREAM_IOC_VF_STATUS:{
-			struct vframe_states vfsta;
 			struct vframe_states states;
 
-			video_vf_get_states(&vfsta);
-			states.vf_pool_size = vfsta.vf_pool_size;
-			states.buf_avail_num = vfsta.buf_avail_num;
-			states.buf_free_num = vfsta.buf_free_num;
-			states.buf_recycle_num = vfsta.buf_recycle_num;
-			if (copy_to_user(argp, &states, sizeof(states)))
-				ret = -EFAULT;
+			ret = -EFAULT;
+			memset(&states, 0, sizeof(struct vframe_states));
+			if (video_vf_get_states(&states) == 0)
+				if (copy_to_user(argp,
+				    &states, sizeof(states)) == 0)
+					ret = 0;
 		}
 		break;
 	case AMSTREAM_IOC_GET_VIDEOPIP2_DISABLE:
@@ -10664,7 +10675,7 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSTREAM_IOC_GET_SOURCE_VIDEO_3D_TYPE:
 #if defined(TV_3D_FUNCTION_OPEN) && defined(CONFIG_AMLOGIC_MEDIA_TVIN)
 	{
-		int source_video_3d_type = VPP_3D_MODE_NULL;
+		u32 source_video_3d_type = VPP_3D_MODE_NULL;
 
 		if (!cur_frame_par)
 			source_video_3d_type = VPP_3D_MODE_NULL;
@@ -11319,7 +11330,7 @@ static ssize_t video_blackout_policy_store(struct class *cla,
 {
 	int r;
 
-	r = kstrtoint(buf, 0, &blackout);
+	r = kstrtouint(buf, 0, &blackout);
 	if (r < 0)
 		return -EINVAL;
 
@@ -11342,7 +11353,7 @@ static ssize_t video_seek_flag_store(struct class *cla,
 {
 	int r;
 
-	r = kstrtoint(buf, 0, &video_seek_flag);
+	r = kstrtouint(buf, 0, &video_seek_flag);
 	if (r < 0)
 		return -EINVAL;
 
@@ -11808,7 +11819,7 @@ static ssize_t video_test_screen_store(struct class *cla,
 	int r;
 	unsigned int data = 0x0;
 
-	r = kstrtoint(buf, 0, &test_screen);
+	r = kstrtouint(buf, 0, &test_screen);
 	if (r < 0)
 		return -EINVAL;
 
@@ -11892,7 +11903,7 @@ static ssize_t video_rgb_screen_store(struct class *cla,
 	u32 yuv_eight;
 
 	/* unsigned data = 0x0; */
-	r = kstrtoint(buf, 0, &rgb_screen);
+	r = kstrtouint(buf, 0, &rgb_screen);
 	if (r < 0)
 		return -EINVAL;
 
@@ -11964,7 +11975,7 @@ static ssize_t video_nonlinear_factor_store(struct class *cla,
 	u32 factor;
 	struct disp_info_s *layer = &glayer_info[0];
 
-	r = kstrtoint(buf, 0, &factor);
+	r = kstrtouint(buf, 0, &factor);
 	if (r < 0)
 		return -EINVAL;
 
@@ -11994,7 +12005,7 @@ static ssize_t video_nonlinear_t_factor_store(struct class *cla,
 	u32 factor;
 	struct disp_info_s *layer = &glayer_info[0];
 
-	r = kstrtoint(buf, 0, &factor);
+	r = kstrtouint(buf, 0, &factor);
 	if (r < 0)
 		return -EINVAL;
 
@@ -12045,7 +12056,7 @@ static ssize_t video_global_output_store(struct class *cla,
 {
 	int r;
 
-	r = kstrtoint(buf, 0, &vd_layer[0].global_output);
+	r = kstrtouint(buf, 0, &vd_layer[0].global_output);
 	if (r < 0)
 		return -EINVAL;
 
@@ -12065,7 +12076,7 @@ static ssize_t video_hold_store(struct class *cla,
 				const char *buf, size_t count)
 {
 	int r;
-	unsigned int value;
+	int value;
 
 	cur_width = 0;
 	cur_height = 0;
@@ -12098,7 +12109,7 @@ static ssize_t video_freerun_mode_store(struct class *cla,
 {
 	int r;
 
-	r = kstrtoint(buf, 0, &freerun_mode);
+	r = kstrtouint(buf, 0, &freerun_mode);
 	if (r < 0)
 		return -EINVAL;
 
@@ -12137,7 +12148,7 @@ static ssize_t threedim_mode_store(struct class *cla,
 	int r;
 	struct vframe_s *dispbuf = NULL;
 
-	r = kstrtoint(buf, 0, &type);
+	r = kstrtouint(buf, 0, &type);
 	if (r < 0)
 		return -EINVAL;
 
@@ -12494,6 +12505,7 @@ static ssize_t vframe_states_show(struct class *cla,
 	unsigned long flags;
 	struct vframe_s *vf;
 
+	memset(&states, 0, sizeof(struct vframe_states));
 	if (video_vf_get_states(&states) == 0) {
 		ret += sprintf(buf + ret, "vframe_pool_size=%d\n",
 			states.vf_pool_size);
@@ -12663,7 +12675,7 @@ static ssize_t trickmode_duration_store(struct class *cla,
 	int r;
 	u32 s_value;
 
-	r = kstrtoint(buf, 0, &s_value);
+	r = kstrtouint(buf, 0, &s_value);
 	if (r < 0)
 		return -EINVAL;
 
@@ -12692,7 +12704,7 @@ static ssize_t video_vsync_pts_inc_upint_store(struct class *cla,
 {
 	int r;
 
-	r = kstrtoint(buf, 0, &vsync_pts_inc_upint);
+	r = kstrtouint(buf, 0, &vsync_pts_inc_upint);
 	if (r < 0)
 		return -EINVAL;
 
@@ -12716,7 +12728,7 @@ static ssize_t slowsync_repeat_enable_store(struct class *cla,
 {
 	int r;
 
-	r = kstrtoint(buf, 0, &slowsync_repeat_enable);
+	r = kstrtouint(buf, 0, &slowsync_repeat_enable);
 	if (r < 0)
 		return -EINVAL;
 
@@ -12739,7 +12751,7 @@ static ssize_t video_vsync_slow_factor_store(struct class *cla,
 {
 	int r;
 
-	r = kstrtoint(buf, 0, &vsync_slow_factor);
+	r = kstrtouint(buf, 0, &vsync_slow_factor);
 	if (r < 0)
 		return -EINVAL;
 
@@ -12753,9 +12765,10 @@ static ssize_t vframe_ready_cnt_show(struct class *cla,
 				     struct class_attribute *attr,
 				     char *buf)
 {
-	int ret = -1;
+	int ret;
 	struct vframe_states states;
 
+	states.buf_avail_num = 0;
 	ret = video_vf_get_states(&states);
 
 	return snprintf(buf, 10, "%d\n", (ret == 0) ?
@@ -12821,7 +12834,7 @@ static ssize_t video_angle_store(struct class *cla,
 	int r;
 	u32 s_value;
 
-	r = kstrtoint(buf, 0, &s_value);
+	r = kstrtouint(buf, 0, &s_value);
 	if (r < 0)
 		return -EINVAL;
 
@@ -13567,7 +13580,7 @@ static ssize_t videopip_blackout_policy_store(struct class *cla,
 {
 	int r;
 
-	r = kstrtoint(buf, 0, &blackout_pip);
+	r = kstrtouint(buf, 0, &blackout_pip);
 	if (r < 0)
 		return -EINVAL;
 
@@ -13587,7 +13600,7 @@ static ssize_t videopip2_blackout_policy_store(struct class *cla,
 {
 	int r;
 
-	r = kstrtoint(buf, 0, &blackout_pip2);
+	r = kstrtouint(buf, 0, &blackout_pip2);
 	if (r < 0)
 		return -EINVAL;
 
@@ -13862,9 +13875,9 @@ static ssize_t videopip_loop_store(struct class *cla,
 				   const char *buf, size_t count)
 {
 	int r;
-	int val;
+	u32 val;
 
-	r = kstrtoint(buf, 0, &val);
+	r = kstrtouint(buf, 0, &val);
 	if (r < 0)
 		return -EINVAL;
 
@@ -13884,9 +13897,9 @@ static ssize_t videopip2_loop_store(struct class *cla,
 				   const char *buf, size_t count)
 {
 	int r;
-	int val;
+	u32 val;
 
-	r = kstrtoint(buf, 0, &val);
+	r = kstrtouint(buf, 0, &val);
 	if (r < 0)
 		return -EINVAL;
 
@@ -13908,7 +13921,7 @@ static ssize_t videopip_global_output_store(struct class *cla,
 {
 	int r;
 
-	r = kstrtoint(buf, 0, &vd_layer[1].global_output);
+	r = kstrtouint(buf, 0, &vd_layer[1].global_output);
 	if (r < 0)
 		return -EINVAL;
 
@@ -13930,7 +13943,7 @@ static ssize_t videopip2_global_output_store(struct class *cla,
 {
 	int r;
 
-	r = kstrtoint(buf, 0, &vd_layer[2].global_output);
+	r = kstrtouint(buf, 0, &vd_layer[2].global_output);
 	if (r < 0)
 		return -EINVAL;
 
@@ -14243,7 +14256,7 @@ s32 set_video_path_select(const char *recv_name, u8 layer_id)
 		new_path_id = VFM_PATH_AUTO;
 	else if (!strcmp(recv_name, "invalid"))
 		new_path_id = VFM_PATH_INVALID;
-	if (layer_info->display_path_id != new_path_id) {
+	if (layer_info->display_path_id != new_path_id && layer) {
 		pr_info("VID: store VD%d path_id changed %d->%d\n",
 			layer_id, layer_info->display_path_id, new_path_id);
 		layer_info->display_path_id = new_path_id;
@@ -14328,7 +14341,7 @@ static ssize_t vpp_crc_store
 {
 	int ret;
 
-	ret = kstrtoint(buf, 0, &vpp_crc_en);
+	ret = kstrtouint(buf, 0, &vpp_crc_en);
 	if (ret < 0)
 		return -EINVAL;
 	return count;
@@ -14355,7 +14368,7 @@ static ssize_t vpp_crc_viu2_store
 {
 	int ret;
 
-	ret = kstrtoint(buf, 0, &vpp_crc_viu2_en);
+	ret = kstrtouint(buf, 0, &vpp_crc_viu2_en);
 	if (ret < 0)
 		return -EINVAL;
 	if (amvideo_meson_dev.cpu_type >= MESON_CPU_MAJOR_ID_SC2_)
@@ -14470,7 +14483,7 @@ static ssize_t pq_data_store(struct class *cla,
 			     const char *buf, size_t count)
 
 {
-	int parsed[4];
+	int parsed[4] = {0, 0, 0, 0};
 	ssize_t buflen;
 	int ret;
 
@@ -14483,7 +14496,8 @@ static ssize_t pq_data_store(struct class *cla,
 		if (parsed[1] < AI_SCENES_MAX && parsed[1] >= 0 &&
 		    parsed[2] < SCENES_VALUE && parsed[2] >= 0 &&
 		    parsed[3] >= 0) {
-			vpp_scenes[parsed[1]].pq_scenes = parsed[1];
+			vpp_scenes[parsed[1]].pq_scenes =
+				(enum ai_scenes)parsed[1];
 			vpp_scenes[parsed[1]].pq_values[parsed[2]] = parsed[3];
 
 		} else {
@@ -14905,7 +14919,7 @@ static ssize_t primary_src_fmt_show(struct class *cla,
 	int ret = 0;
 	enum vframe_signal_fmt_e fmt;
 
-	fmt = atomic_read(&cur_primary_src_fmt);
+	fmt = (enum vframe_signal_fmt_e)atomic_read(&cur_primary_src_fmt);
 	if (fmt != VFRAME_SIGNAL_FMT_INVALID)
 		ret += sprintf(buf + ret, "src_fmt = %s\n",
 			src_fmt_str[fmt]);
@@ -15772,10 +15786,10 @@ static int video_attr_create(void)
 #ifdef TV_REVERSE
 static int vpp_axis_reverse(char *str)
 {
-	unsigned char *ptr = str;
+	char *ptr = str;
 
 	pr_info("%s: bootargs is %s\n", __func__, str);
-	if (strstr(ptr, "1"))
+	if (strstr((const char *)ptr, "1"))
 		reverse = true;
 	else
 		reverse = false;
@@ -16782,7 +16796,7 @@ static int amvideom_probe(struct platform_device *pdev)
 #endif
 	video_keeper_init();
 	for (i = 0; i < AI_SCENES_MAX; i++) {
-		vpp_scenes[i].pq_scenes = i;
+		vpp_scenes[i].pq_scenes = (enum ai_scenes)i;
 		for (j = 0; j < SCENES_VALUE; j++)
 			vpp_scenes[i].pq_values[j] = vpp_pq_data[i][j];
 	}
@@ -17015,7 +17029,7 @@ void __exit video_exit(void)
 }
 
 MODULE_PARM_DESC(debug_flag, "\n debug_flag\n");
-module_param(debug_flag, uint, 0664);
+module_param(debug_flag, int, 0664);
 
 #ifdef TV_3D_FUNCTION_OPEN
 MODULE_PARM_DESC(force_3d_scaler, "\n force_3d_scaler\n");
@@ -17023,17 +17037,16 @@ module_param(force_3d_scaler, uint, 0664);
 
 MODULE_PARM_DESC(video_3d_format, "\n video_3d_format\n");
 module_param(video_3d_format, uint, 0664);
-
 #endif
 
 module_param_named(video_vsync_enter_line_max,
-		   vsync_enter_line_max, uint, 0664);
-
-module_param_named(video_vsync_exit_line_max, vsync_exit_line_max, uint, 0664);
+	vsync_enter_line_max, int, 0664);
+module_param_named(video_vsync_exit_line_max,
+	vsync_exit_line_max, int, 0664);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 MODULE_PARM_DESC(vsync_rdma_line_max, "\n vsync_rdma_line_max\n");
-module_param(vsync_rdma_line_max, uint, 0664);
+module_param(vsync_rdma_line_max, int, 0664);
 #endif
 
 module_param(underflow, uint, 0664);
@@ -17042,10 +17055,10 @@ MODULE_PARM_DESC(underflow, "\n Underflow count\n");
 module_param(next_peek_underflow, uint, 0664);
 MODULE_PARM_DESC(skip, "\n Underflow count\n");
 
-module_param(step_enable, uint, 0664);
+module_param(step_enable, int, 0664);
 MODULE_PARM_DESC(step_enable, "\n step_enable\n");
 
-module_param(step_flag, uint, 0664);
+module_param(step_flag, int, 0664);
 MODULE_PARM_DESC(step_flag, "\n step_flag\n");
 
 /*arch_initcall(video_early_init);*/

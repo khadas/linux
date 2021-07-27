@@ -51,7 +51,6 @@
  *
  ************************************************************************/
 static int ppmgr_enable_flag;
-static int ppmgr_flag_change;
 static int property_change;
 
 static int inited_ppmgr_num;
@@ -59,7 +58,6 @@ static enum platform_type_t platform_type = PLATFORM_MID;
 /*static struct platform_device *ppmgr_core_device = NULL;*/
 struct ppmgr_device_t ppmgr_device;
 
-static struct ppmgr_dev_reg_s ppmgr_dev_reg;
 int ppmgr_secure_debug;
 int ppmgr_secure_mode;
 
@@ -96,9 +94,6 @@ int get_ppmgr_status(void)
 
 void set_ppmgr_status(int flag)
 {
-	if (flag != ppmgr_enable_flag)
-		ppmgr_flag_change = 1;
-
 	if (flag >= 0)
 		ppmgr_enable_flag = flag;
 	else
@@ -222,14 +217,14 @@ static ssize_t angle_show(struct class *cla, struct class_attribute *attr,
 static ssize_t angle_store(struct class *cla, struct class_attribute *attr,
 			   const char *buf, size_t count)
 {
-	long angle;
+	ulong angle;
 	int ret = kstrtoul(buf, 0, &angle);
 
 	if (ret != 0) {
 		PPMGRDRV_ERR("ERROR converting %s to long int!\n", buf);
 		return ret;
 	}
-	if (angle > 3 || angle < 0) {
+	if (angle > 3) {
 		/* size = endp - buf; */
 		return count;
 	}
@@ -256,7 +251,7 @@ static ssize_t orientation_store(struct class *cla,
 				 struct class_attribute *attr,
 				 const char *buf, size_t count)
 {
-	ssize_t ret = -EINVAL; /* , size; */
+	ssize_t ret; /* , size; */
 	unsigned long tmp;
 	/* unsigned angle = simple_strtoul(buf, &endp, 0); */
 	unsigned int angle;
@@ -663,7 +658,7 @@ static ssize_t ppmgr_receiver_store(struct class *cla,
 				    struct class_attribute *attr,
 				    const char *buf, size_t count)
 {
-	long tmp;
+	ulong tmp;
 	int ret;
 
 	if (buf[0] != '0' && buf[0] != '1') {
@@ -702,7 +697,7 @@ static ssize_t platform_type_store(struct class *cla,
 				   struct class_attribute *attr,
 				   const char *buf, size_t count)
 {
-	long tmp;
+	ulong tmp;
 	/* platform_type = simple_strtoul(buf, &endp, 0); */
 	int ret;
 
@@ -711,7 +706,7 @@ static ssize_t platform_type_store(struct class *cla,
 		PPMGRDRV_ERR("ERROR converting %s to long int!\n", buf);
 		return ret;
 	}
-	platform_type = tmp;
+	platform_type = (enum platform_type_t)tmp;
 	/* size = endp - buf; */
 	return count;
 }
@@ -1020,6 +1015,7 @@ static ssize_t ppmgr_vframe_states_show(struct class *cla,
 	int ret = 0;
 	struct vframe_states states;
 
+	memset(&states, 0, sizeof(struct vframe_states));
 	if (vf_ppmgr_get_states(&states) == 0) {
 		ret += sprintf(buf + ret, "vframe_pool_size=%d\n",
 			       states.vf_pool_size);
@@ -1141,10 +1137,6 @@ int ppmgr_set_resource(unsigned long start, unsigned long end, struct device *p)
 	}
 
 	set_ppmgr_buf_info(start, end - start + 1);
-	ppmgr_dev_reg.mem_start = start;
-	ppmgr_dev_reg.mem_end = end;
-	ppmgr_dev_reg.cma_dev = p;
-
 	return 0;
 }
 
@@ -1273,7 +1265,7 @@ int init_ppmgr_device(void)
 		return -1;
 	ppmgr_device.dev = device_create(ppmgr_device.cla, NULL,
 					 MKDEV(ppmgr_device.major, 0),
-					 NULL, ppmgr_device.name);
+					 NULL, "ppmgr");
 	if (IS_ERR(ppmgr_device.dev)) {
 		PPMGRDRV_ERR("create ppmgr device error\n");
 		goto unregister_dev;

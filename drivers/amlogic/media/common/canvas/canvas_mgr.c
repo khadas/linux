@@ -356,7 +356,6 @@ canvas_pool_map_show(struct class *class,
 {
 	struct canvas_pool *pool = get_canvas_pool();
 	int max = min(pool->next_dump_index + 64, pool->canvas_max);
-	int ret;
 	int i;
 	ssize_t size = 0;
 	struct canvas_info info;
@@ -371,7 +370,7 @@ canvas_pool_map_show(struct class *class,
 		i < max && size < PAGE_SIZE - 256; i++) {
 		const char *o1, *o2;
 
-		ret = canvas_pool_get_canvas_info(i, &info);
+		canvas_pool_get_canvas_info(i, &info);
 		canvas_read(i, &canvas);
 		o1 = info.owner ? info.owner : "none";
 		o2 = info.oldowner ? info.oldowner : "none";
@@ -445,12 +444,12 @@ canvas_pool_debug_store(struct class *class,
 			struct class_attribute *attr, const char *buf,
 			size_t size)
 {
-	unsigned int val;
+	u32 val;
 	ssize_t ret = 0;
 	struct canvas_pool *pool = get_canvas_pool();
 
 	/*ret = sscanf(buf, "%d", &val);*/
-	ret = kstrtoint(buf, 0, &val);
+	ret = kstrtouint(buf, 0, &val);
 	if (ret != 0)
 		return -EINVAL;
 	if (val == 1)
