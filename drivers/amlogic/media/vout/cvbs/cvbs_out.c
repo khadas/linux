@@ -1076,6 +1076,8 @@ enum {
 
 	CMD_HELP,
 
+	CMD_SVA_VALUE,
+
 	CMD_MAX
 } debug_cmd_t;
 
@@ -1161,6 +1163,9 @@ static void cvbs_debug_store(const char *buf)
 		cmd = CMD_VP_SET_PLLPATH;
 	} else if (!strncmp(argv[0], "vdac", strlen("vdac"))) {
 		cmd = CMD_VDAC;
+	} else if (!strncmp(argv[0], "cvbs_sva", strlen("cvbs_sva"))) {
+		pr_info("config ccitt033 SVA standard test value\n");
+		cmd = CMD_SVA_VALUE;
 	} else if (!strncmp(argv[0], "help", strlen("help"))) {
 		cmd = CMD_HELP;
 	} else if (!strncmp(argv[0], "cvbs_ver", strlen("cvbs_ver"))) {
@@ -1352,6 +1357,32 @@ static void cvbs_debug_store(const char *buf)
 			cvbs_vdac_output(0);
 
 		break;
+	case CMD_SVA_VALUE: {
+		struct performance_config_s *perfconf = NULL;
+		const struct reg_s *s = NULL;
+		int i = 0;
+
+		perfconf = &cvbs_drv->perf_conf_pal_sva;
+		if (!perfconf)
+			return;
+
+		if (!perfconf->reg_table) {
+			cvbs_log_info("no performance table\n");
+			return;
+		}
+
+		i = 0;
+		s = perfconf->reg_table;
+		while (i < perfconf->reg_cnt) {
+			cvbs_out_reg_write(s->reg, s->val);
+			cvbs_log_info("%s: vcbus reg 0x%04x = 0x%08x\n",
+				      __func__, s->reg, s->val);
+			s++;
+			i++;
+		}
+		cvbs_log_info("%s\n", __func__);
+		break;
+	}
 	case CMD_HELP:
 		pr_info("command format:\n"
 		"\tr c/h/v address_hex\n"
@@ -1439,8 +1470,8 @@ fail_create_class:
 
 /* **************************************************** */
 static char *cvbsout_performance_str[] = {
-	"performance", /* default for pal */
-	"performance_pal",
+	"performance", /* SVA standard value */
+	"performance_pal", /* CTCC standard value */
 	"performance_ntsc",
 };
 
@@ -1464,13 +1495,56 @@ static void cvbsout_get_config(struct device *dev)
 		}
 	}
 
-	/* performance: PAL */
+	/* performance: PAL SVA */
+	cvbs_drv->perf_conf_pal_sva.reg_cnt = 0;
+	cvbs_drv->perf_conf_pal_sva.reg_table = NULL;
+	str = cvbsout_performance_str[0];
+	cnt = 0;
+	while (cnt < CVBS_PERFORMANCE_CNT_MAX) {
+		j = 2 * cnt;
+		ret = of_property_read_u32_index(dev->of_node, str, j, &val);
+		if (ret) {
+			cnt = 0;
+			break;
+		}
+		if (val == MREG_END_MARKER) /* ending */
+			break;
+		cnt++;
+	}
+	if (cnt >= CVBS_PERFORMANCE_CNT_MAX)
+		cnt = 0;
+	if (cnt > 0) {
+		cvbs_log_info("find performance_pal config\n");
+		cvbs_drv->perf_conf_pal_sva.reg_table =
+			kcalloc(cnt, sizeof(struct reg_s), GFP_KERNEL);
+		if (!cvbs_drv->perf_conf_pal_sva.reg_table) {
+			cvbs_log_err("error: failed to alloc %s table\n", str);
+			cnt = 0;
+		}
+		cvbs_drv->perf_conf_pal_sva.reg_cnt = cnt;
+
+		i = 0;
+		s = cvbs_drv->perf_conf_pal_sva.reg_table;
+		while (i < cvbs_drv->perf_conf_pal_sva.reg_cnt) {
+			j = 2 * i;
+			ret = of_property_read_u32_index(dev->of_node,
+				str, j, &val);
+			s->reg = val;
+			j = 2 * i + 1;
+			ret = of_property_read_u32_index(dev->of_node,
+				str, j, &val);
+			s->val = val;
+			/*pr_info("%p: 0x%04x = 0x%x\n", s, s->reg, s->val);*/
+
+			s++;
+			i++;
+		}
+	}
+
+	/* performance: PAL CTCC */
 	cvbs_drv->perf_conf_pal.reg_cnt = 0;
 	cvbs_drv->perf_conf_pal.reg_table = NULL;
 	str = cvbsout_performance_str[1];
-	ret = of_property_read_u32_index(dev->of_node, str, 0, &val);
-	if (ret)
-		str = cvbsout_performance_str[0];
 	cnt = 0;
 	while (cnt < CVBS_PERFORMANCE_CNT_MAX) {
 		j = 2 * cnt;
