@@ -969,6 +969,13 @@
 			status = "okay";
 		};
 
+		amaudio: amaudio {
+			compatible = "amlogic, amaudio";
+			reg = <0x0 0xfe440000 0x0 0x10000>;
+			reg-names = "otp_tee_base";
+			status = "okay";
+		};
+
 		audiobus: audiobus@0xFE330000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			reg = <0x0 0xFE330000 0x0 0x3000>;

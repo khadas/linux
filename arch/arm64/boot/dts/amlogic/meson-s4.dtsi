@@ -259,6 +259,13 @@
 		status = "disabled";
 	};
 
+	amaudio: amaudio {
+		compatible = "amlogic, amaudio";
+		reg = <0x0 0xfe440000 0x0 0x10000>;
+		reg-names = "otp_tee_base";
+		status = "okay";
+	};
+
 	pwrdm: power-domains {
 		compatible = "amlogic,s4-power-domain";
 		#power-domain-cells = <1>;
