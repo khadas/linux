@@ -873,9 +873,12 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	unsigned int sc2_tfbf = 0; /* DI_PRE_CTRL bit [12:11] */
 	struct di_pre_stru_s *ppre = (struct di_pre_stru_s *)pre;
 	static bool last_bypass; //dbg only
+	static bool last_disable_chan2; //dbg only
 
-	if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB))
+	if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB)) {
 		mem_bypass = (pre_vdin_link & 0x30) ? true : false;
+		chan2_disable = ppre->is_disable_chan2;
+	}
 
 	pre_vdin_link &= 0xf;
 
@@ -940,6 +943,11 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	if (last_bypass != mem_bypass) {	//dbg only
 		dbg_reg("mem_bypass %d->%d\n", last_bypass, mem_bypass);
 		last_bypass = mem_bypass;
+	}
+	if (last_disable_chan2 != chan2_disable) {
+		dbg_reg("chan2_disable %d->%d\n",
+			last_disable_chan2, chan2_disable);
+		last_disable_chan2 = chan2_disable;
 	}
 	/*
 	 * enable&disable contwr txt

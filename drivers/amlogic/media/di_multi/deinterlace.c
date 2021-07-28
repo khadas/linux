@@ -1096,7 +1096,8 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 			return 0;
 		}
 		dump_adr = di_buf->hf.phy_addr;
-		nr_size = di_buf->hf.buffer_w * di_buf->hf.buffer_h;
+		nr_size = (unsigned long)di_buf->hf.buffer_w *
+			(unsigned long)di_buf->hf.buffer_h;
 		PR_INF("\tadd:0x%lx;size:0x%lx <%d,%d>\n",
 			dump_adr,
 			nr_size,
@@ -3605,6 +3606,11 @@ void dim_pre_de_process(unsigned int channel)
 			ppre->di_wr_buf->is_bypass_mem = 0;
 		dim_print("%s:is_bypass_mem[%d]\n", __func__,
 			  ppre->di_wr_buf->is_bypass_mem);
+		if (ppre->field_count_for_cont < 1 &&
+		    IS_FIELD_I_SRC(ppre->cur_inp_type))
+			ppre->is_disable_chan2 = 1;
+		else
+			ppre->is_disable_chan2 = 0;
 	}
 
 	dimh_enable_di_pre_aml(&ppre->di_inp_mif,
