@@ -145,7 +145,7 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 					   unsigned int n,
 					   struct meson_clk_pll_data *pll)
 {
-	unsigned int frac_max = (1 << pll->frac.width);
+	unsigned int frac_max = (1 << (pll->frac.width - 2));
 	u64 val = (u64)rate * n;
 
 	/* Bail out if we are already over the requested rate */

@@ -1205,12 +1205,14 @@ static struct sc2_dsu_clk_postmux_nb_data sc2_dsu_clk_postmux0_nb_data = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table sc2_hifi_pll_table[] = {
-	PLL_PARAMS(150, 1, 1), /* DCO = 1806.336M OD = 1 */
+	PLL_PARAMS(163, 1, 1), /* DCO = 3932.16M OD = 1 */
+	/*PLL_PARAMS(150, 1, 1),  DCO = 1806.336M OD = 1 */
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table sc2_hifi_pll_table[] = {
-	PLL_PARAMS(150, 1), /* DCO = 1806.336M */
+	PLL_PARAMS(163, 1), /* DCO = 3932.16M */
+	/*PLL_PARAMS(150, 1),  DCO = 1806.336M */
 	{ /* sentinel */  }
 };
 #endif
@@ -1219,7 +1221,7 @@ static const struct pll_params_table sc2_hifi_pll_table[] = {
  * Internal hifi pll emulation configuration parameters
  */
 static const struct reg_sequence sc2_hifi_init_regs[] = {
-	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x00010e56 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x0001ae14 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00000000 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x6a285c00 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL4,	.def = 0x65771290 },
