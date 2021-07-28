@@ -96,6 +96,8 @@
 #endif
 
 #define IS_I_SRC(vftype) ((vftype) & VIDTYPE_INTERLACE_BOTTOM)
+#define IS_FIELD_I_SRC(vftype) ((vftype) & VIDTYPE_INTERLACE_BOTTOM && \
+				(vftype) & VIDTYPE_VIU_FIELD)
 
 #define IS_COMP_MODE(vftype) ((vftype) & VIDTYPE_COMPRESS)
 #define IS_PROG(vftype) ((vftype & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE)
@@ -484,7 +486,8 @@ struct di_pre_stru_s {
 	/* bit0 for cfg, bit1 for t5dvb*/
 	unsigned int is_bypass_mem	: 2;
 	unsigned int is_bypass_fg	: 1;
-	unsigned int rev1		: 28;
+	unsigned int is_disable_chan2	: 1;
+	unsigned int rev1		: 27;
 	unsigned char prog_proc_type;
 /* set by prog_proc_config when source is vdin,0:use 2 i
  * serial buffer,1:use 1 p buffer,3:use 2 i paralleling buffer
