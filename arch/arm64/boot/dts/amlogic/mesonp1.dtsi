@@ -268,9 +268,9 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>,
+			clocks = <&clkc CLKID_A76_CLK>,
+				<&clkc CLKID_A76_DYN_CLK>,
+				<&clkc CLKID_SYS1_PLL>,
 				<&clkc CLKID_DSU_CLK>,
 				<&clkc CLKID_DSU_DYN_CLK>,
 				<&clkc CLKID_GP1_PLL>;
@@ -303,9 +303,9 @@
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 //			#cooling-cells = <2>;
-			clocks = <&clkc CLKID_CPU_CLK>,
-				<&clkc CLKID_CPU_DYN_CLK>,
-				<&clkc CLKID_SYS_PLL>,
+			clocks = <&clkc CLKID_A76_CLK>,
+				<&clkc CLKID_A76_DYN_CLK>,
+				<&clkc CLKID_SYS1_PLL>,
 				<&clkc CLKID_DSU_CLK>,
 				<&clkc CLKID_DSU_DYN_CLK>,
 				<&clkc CLKID_GP1_PLL>;
@@ -750,7 +750,7 @@
 			opp-microvolt = <969000>;
 		};
 		opp10 {
-			opp-hz = /bits/ 64 <2016000000>;
+			opp-hz = /bits/ 64 <1944000000>;
 			opp-microvolt = <999000>;
 		};
 	};
@@ -800,7 +800,7 @@
 			opp-microvolt = <999000>;
 		};
 		opp10 {
-			opp-hz = /bits/ 64 <2016000000>;
+			opp-hz = /bits/ 64 <1992000000>;
 			opp-microvolt = <1029000>;
 		};
 	};
