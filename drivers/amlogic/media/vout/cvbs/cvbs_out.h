@@ -93,6 +93,7 @@ struct cvbs_drv_s {
 	struct meson_cvbsout_data *cvbs_data;
 	struct performance_config_s perf_conf_pal;
 	struct performance_config_s perf_conf_ntsc;
+	struct performance_config_s perf_conf_pal_sva;
 	struct delayed_work vdac_dwork;
 	unsigned int flag;
 
