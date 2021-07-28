@@ -571,7 +571,7 @@ static int bt_probe(struct platform_device *pdev)
 		goto err_rfk_alloc;
 	}
 
-	rfkill_init_sw_state(bt_rfk, false);
+	rfkill_init_sw_state(bt_rfk, true);
 	ret = rfkill_register(bt_rfk);
 	if (ret) {
 		pr_err("rfkill_register fail\n");
