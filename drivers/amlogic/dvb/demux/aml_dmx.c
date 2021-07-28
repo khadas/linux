@@ -258,9 +258,21 @@ static void _sec_cb(u8 *sec, int len, void *data)
 	    (struct dmx_section_filter *)data;
 	struct sw_demux_sec_feed *sec_feed =
 	    (struct sw_demux_sec_feed *)source_filter->parent;
+	struct dmxdev_filter *dmxdevfilter = source_filter->priv;
+	ssize_t free;
 
 	if (sec_feed->state != DMX_STATE_GO)
 		return;
+
+	spin_lock(&dmxdevfilter->dev->lock);
+	free = dvb_ringbuffer_free(&dmxdevfilter->buffer);
+	if (len > free) {
+		pr_info("dvb-core: pid:0x%0x sec buffer isn't enough\n",
+			sec_feed->pid);
+		spin_unlock(&dmxdevfilter->dev->lock);
+		return;
+	}
+	spin_unlock(&dmxdevfilter->dev->lock);
 
 	if (sec_feed->sec_cb)
 		sec_feed->sec_cb(sec, len, NULL, 0, source_filter, 0);
