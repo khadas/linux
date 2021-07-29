@@ -564,6 +564,8 @@ static int gxtv_demod_dvbc_read_status_timer
 		PR_DBG("%s [id %d]: %s.\n", __func__, demod->id,
 			ilock ? "!!  >> LOCK << !!" : "!! >> UNLOCK << !!");
 		demod->last_lock = ilock;
+		if (ilock == 0)
+			demod->fast_search_finish = 0;
 	}
 
 	return 0;
