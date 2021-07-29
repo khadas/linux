@@ -852,7 +852,7 @@
 	tdma: tdm@0 {
 		compatible = "amlogic, t5-snd-tdma";
 		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-in = <0 1>;
+		dai-tdm-lane-slot-mask-in = <1>;
 		dai-tdm-lane-slot-mask-out = <1 0>;
 		dai-tdm-clk-sel = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
@@ -1185,7 +1185,7 @@
 	tdm_d1_pins: tdm_d1_pin {
 		mux {
 			groups = "tdm_d1";
-			function = "tdmina_lane1";
+			function = "tdmina_lane0";
 		};
 	};
 
