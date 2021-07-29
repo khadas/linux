@@ -19,6 +19,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/amlogic/secmon.h>
 #include "../../thermal/thermal_core.h"
+#include "../../thermal/thermal_hwmon.h"
 
 /*r1p1 thermal sensor version*/
 #define R1P1_TS_CFG_REG1	(0x1 * 4)
@@ -789,6 +790,9 @@ static int meson_tsensor_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register tsensor: %d\n", ret);
 		goto err_thermal;
 	}
+
+	if (thermal_add_hwmon_sysfs(data->tzd))
+		dev_warn(&pdev->dev, "Failed to add hwmon sysfs attributes\n");
 
 	pm_runtime_enable(data->dev);
 	pm_runtime_set_autosuspend_delay(data->dev, R1P1_PM_MAX_TIMEOUT);
