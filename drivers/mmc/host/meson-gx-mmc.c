@@ -54,6 +54,7 @@ struct mmc_gpio {
 };
 
 static struct mmc_host *sdio_host;
+static char *caps2_quirks = "none";
 
 static unsigned int meson_mmc_get_timeout_msecs(struct mmc_data *data)
 {
@@ -3612,9 +3613,16 @@ static int meson_mmc_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev, "error parsing DT: %d\n", ret);
 		goto free_host;
 	}
-
 	device_property_read_u32(&pdev->dev, "card_type",
 				 &host->card_type);
+
+	/* caps2 qurik for eMMC */
+	if (aml_card_type_mmc(host) && caps2_quirks &&
+		!strncmp(caps2_quirks,
+		"mmc-hs400", strlen(caps2_quirks))) {
+		dev_warn(&pdev->dev, "Force HS400\n");
+		mmc->caps2 |= MMC_CAP2_HS400_1_8V | MMC_CAP2_HS200_1_8V_SDR;
+	}
 
 	host->data = (struct meson_mmc_data *)
 		of_device_get_match_data(&pdev->dev);
@@ -3933,6 +3941,9 @@ static struct platform_driver meson_mmc_driver = {
 };
 
 module_platform_driver(meson_mmc_driver);
+
+module_param(caps2_quirks, charp, 0444);
+MODULE_PARM_DESC(caps2_quirks, "Force certain caps2.");
 
 MODULE_DESCRIPTION("Amlogic S905*/GX*/AXG SD/eMMC driver");
 MODULE_AUTHOR("Kevin Hilman <khilman@baylibre.com>");
