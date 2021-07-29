@@ -83,7 +83,7 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 			/* sample may overflow if irq tick changed, ignore it */
 			pr_emerg("%s, bandwidth:%lld large than max :%lld\n",
 				 __func__, mul, mbw);
-			return;
+			//return;
 		}
 		db->cur_sample.total_bandwidth = mul;
 		db->cur_sample.tick = sched_clock();
