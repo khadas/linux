@@ -249,6 +249,10 @@
 		 * post_nub: default is 9
 		 ***************************************************/
 		//post_nub = <9>;
+		/***************************************************
+		 * afbcd enable for t5db
+		 ***************************************************/
+		t5db_afbcd_en = <0>;
 	};
 
 	aml_dtv_demod {
@@ -1854,3 +1858,8 @@
 	status = "okay";
 	power_on-gpios  = <&gpio_ao       GPIOD_2       GPIO_ACTIVE_HIGH>;
 };
+
+&amvideom {
+	vd1_vd2_mux = <0>;
+};
+
