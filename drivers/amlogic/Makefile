@@ -59,6 +59,7 @@ obj-$(CONFIG_AMLOGIC_SOC_INFO) 		+= soc_info/
 obj-$(CONFIG_GATOR)	+= gator-driver/
 obj-$(CONFIG_AMLOGIC_MFD) += mfd/
 obj-$(CONFIG_AMLOGIC_REGULATOR) += regulator/
+obj-$(CONFIG_AMLOGIC_MFH_MODULE)     += mfh/
 
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)
 

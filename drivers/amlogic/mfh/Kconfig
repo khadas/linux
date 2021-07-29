@@ -1,12 +1,10 @@
 # firmware configuration
 #
-menu "AMLOGIC firmware boot"
-
-config AMLOGIC_FIRMWARE
-	bool "firmware bootup support"
+menu "MESON MHU M4 Support"
+config AMLOGIC_MFH_MODULE
+	tristate "firmware bootup support"
 	default n
 	help
 		firmware bootup support.
                 If you want this support, you should say Y here.
-
 endmenu

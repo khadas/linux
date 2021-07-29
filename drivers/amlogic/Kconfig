@@ -165,6 +165,7 @@ source "drivers/amlogic/gator-driver/Kconfig"
 source "drivers/amlogic/global_timer/Kconfig"
 source "drivers/amlogic/mfd/Kconfig"
 source "drivers/amlogic/regulator/Kconfig"
+source "drivers/amlogic/mfh/Kconfig"
 
 endmenu
 endif

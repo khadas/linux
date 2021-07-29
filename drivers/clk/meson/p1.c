@@ -878,7 +878,7 @@ static const struct pll_params_table p1_m4_pll_table[] = {
 };
 #else
 static const struct pll_params_table p1_m4_pll_table[] = {
-	PLL_PARAMS(200, 1), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(200, 2), /*DCO=4800M OD=1200M*/
 	PLL_PARAMS(125, 1), /*DCO=3000M OD=1500M*/
 	{ /* sentinel */  }
 };
@@ -5817,7 +5817,7 @@ static struct clk_regmap p1_m4_clk_0_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_M4_CLK_CTRL,
 		.mask = 0x7,
-		.shift = 12,
+		.shift = 10,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "m4_clk_0_sel",
@@ -5865,13 +5865,12 @@ static struct clk_regmap p1_m4_clk_1_sel = {
 		.offset = CLKCTRL_M4_CLK_CTRL,
 		.mask = 0x7,
 		.shift = 26,
-		.table = mux_table_dsp_clk_sel
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "m4_clk_1_sel",
 		.ops = &clk_regmap_mux_ops,
-		.parent_data = p1_dsp_parent_hws,
-		.num_parents = ARRAY_SIZE(p1_dsp_parent_hws),
+		.parent_data = p1_m4_parent_hws,
+		.num_parents = ARRAY_SIZE(p1_m4_parent_hws),
 	},
 };
 

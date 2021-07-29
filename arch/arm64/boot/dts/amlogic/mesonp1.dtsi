@@ -2803,6 +2803,26 @@
 			size = <16>;
 		};
 	};
+
+	mfh: mfh {
+		compatible = "amlogic, mfh";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		memory-region = <&mfh_fw_reserved>;
+		power-domains = <&pwrdm PDID_P1_M4A>,
+				<&pwrdm PDID_P1_M4B>;
+		power-domain-names = "m4a-core","m4b-core";
+		clocks = <&clkc CLKID_M4_CLK_0>,
+			 <&clkc CLKID_M4_CLK_1>,
+			 <&clkc CLKID_M4_CLK>,
+			 <&clkc CLKID_M4_PLL>;
+		clock-names = "m4_clk0", "m4_clk1", "m4_clk", "mp_pll";
+		mfh-cnt = <2>;
+		mfh-addr-offset = <0x40000>;
+		mfh-name = "mfha",
+			   "mfhb";
+	};
+
 };
 
 &periphs_pinctrl {
