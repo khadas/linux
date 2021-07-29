@@ -164,6 +164,11 @@ void dolby_vision_set_toggle_flag(int flag);
 #define LC_PARAM_RD_UPDATE 0x10
 #define LC_CUR2_RD_UPDATE 0x20
 
+#define CM_SAT_DEBUG_FLAG 0x1
+#define CM_HUE_DEBUG_FLAG 0x2
+#define CM_LUMA_DEBUG_FLAG 0x4
+#define CM_HUE_BY_HIS_DEBUG_FLAG 0x8
+
 enum cm_hist_e {
 	CM_HUE_HIST = 0,
 	CM_SAT_HIST,
@@ -651,6 +656,9 @@ extern bool wb_en;
 extern struct pq_ctrl_s pq_cfg;
 extern struct pq_ctrl_s dv_cfg_bypass;
 extern unsigned int lc_offset;
+
+extern enum ecm_color_type cm_cur_work_color_md;
+extern int cm2_debug;
 
 #define CSC_FLAG_TOGGLE_FRAME	1
 #define CSC_FLAG_CHECK_OUTPUT	2

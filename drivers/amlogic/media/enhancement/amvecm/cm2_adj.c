@@ -25,6 +25,9 @@
 #define NUM_MATRIX_PARAM 7
 #define NUM_COLOR_MAX ecm2colormd_max
 #define NUM_SMTH_PARAM 11
+
+#define NUM_CM_14_COLOR_MAX cm_14_ecm2colormd_max
+
 static uint lpf_coef_matrix_param = NUM_MATRIX_PARAM;
 static uint lpf_coef[NUM_MATRIX_PARAM] = {
 	0, 16, 32, 32, 32, 16, 0
@@ -45,6 +48,21 @@ static uint color_end[NUM_COLOR_MAX] = {
 	6, 10, 13, 15, 17, 22, 24, 28, 31
 };
 
+static uint cm_14_color_key_pts_matrix_param = NUM_CM_14_COLOR_MAX;
+static uint cm_14_color_key_pts[NUM_CM_14_COLOR_MAX] = {
+	2, 4, 7, 9, 11, 13, 14, 16, 18, 20, 22, 25, 28, 30
+};
+
+static uint cm_14_color_start_param = NUM_CM_14_COLOR_MAX;
+static uint cm_14_color_start[NUM_CM_14_COLOR_MAX] = {
+	1, 3, 6, 8, 10, 12, 14, 15, 17, 20, 22, 25, 28, 30
+};
+
+static uint cm_14_color_end_param = NUM_CM_14_COLOR_MAX;
+static uint cm_14_color_end[NUM_CM_14_COLOR_MAX] = {
+	2, 5, 7, 9, 11, 13, 14, 16, 19, 21, 24, 27, 29, 31
+};
+
 static uint smth_coef_hue_matrix_param = NUM_SMTH_PARAM;
 static uint smth_coef_hue[NUM_SMTH_PARAM] = {
 	0, 20, 40, 80, 110, 128, 110, 80, 40, 20, 0
@@ -60,12 +78,13 @@ static uint smth_coef_sat[NUM_SMTH_PARAM] = {
 	40, 60, 85, 105, 115, 120, 115, 105, 85, 60, 30
 };
 
-static char adj_hue_via_s[NUM_COLOR_MAX][5][32];
-static char adj_hue_via_hue[NUM_COLOR_MAX][32];
-static char adj_sat_via_hs[NUM_COLOR_MAX][3][32];
-static char adj_luma_via_hue[NUM_COLOR_MAX][32];
+static char adj_hue_via_s[NUM_CM_14_COLOR_MAX][5][32];
+static char adj_hue_via_hue[NUM_CM_14_COLOR_MAX][32];
+static char adj_sat_via_hs[NUM_CM_14_COLOR_MAX][3][32];
+static char adj_luma_via_hue[NUM_CM_14_COLOR_MAX][32];
 
 static char def_sat_via_hs[3][32];
+//static char def_14_color_sat_via_hs[3][32];
 
 module_param_array(lpf_coef, uint,
 		   &lpf_coef_matrix_param, 0664);
@@ -82,6 +101,18 @@ MODULE_PARM_DESC(color_start, "\n color_start\n");
 module_param_array(color_end, uint,
 		   &color_end_param, 0664);
 MODULE_PARM_DESC(color_end, "\n color_end\n");
+
+module_param_array(cm_14_color_key_pts, uint,
+		   &cm_14_color_key_pts_matrix_param, 0664);
+MODULE_PARM_DESC(cm_14_color_key_pts, "\n cm_14_color_key_pts\n");
+
+module_param_array(cm_14_color_start, uint,
+		   &cm_14_color_start_param, 0664);
+MODULE_PARM_DESC(cm_14_color_start, "\n 14 color_start\n");
+
+module_param_array(cm_14_color_end, uint,
+		   &cm_14_color_end_param, 0664);
+MODULE_PARM_DESC(cm_14_color_end, "\n 14 color_end\n");
 
 module_param_array(smth_coef_hue, uint,
 		   &smth_coef_hue_matrix_param, 0664);
@@ -107,7 +138,7 @@ MODULE_PARM_DESC(smth_coef_sat_matrix_param, "\n smth_coef_sat\n");
 /*static int smth_coef[] = {26, 77, 115, 128, 115, 77, 26};*/
 
 /*original value x100 */
-static int huegain_via_sat5[NUM_COLOR_MAX][5] = {
+static int huegain_via_sat5[NUM_CM_14_COLOR_MAX][5] = {
 	{100, 100, 100, 100, 100},
 	{30, 60, 80, 100, 100},
 	{100, 100, 80, 50, 30},
@@ -117,10 +148,20 @@ static int huegain_via_sat5[NUM_COLOR_MAX][5] = {
 	{100, 100, 100, 100, 100},
 	{100, 100, 100, 100, 100},
 	{100, 100, 100, 100, 100},
+	{100, 100, 100, 100, 100},
+	{100, 100, 100, 100, 100},
+	{100, 100, 100, 100, 100},
+	{100, 100, 100, 100, 100},
+	{100, 100, 100, 100, 100},
 };
 
 /*original value x100 */
-static int satgain_via_sat3[NUM_COLOR_MAX][3] = {
+static int satgain_via_sat3[NUM_CM_14_COLOR_MAX][3] = {
+	{100, 100, 100},
+	{100, 100, 100},
+	{100, 100, 100},
+	{100, 100, 100},
+	{100, 100, 100},
 	{100, 100, 100},
 	{100, 100, 100},
 	{100, 100, 100},
@@ -230,14 +271,38 @@ static void color_adj(int inp_color, int inp_val, int lpf_en,
  * @param colormode [description]
  * @param Adj_Hue_via_S[][32]  [description]
  */
-void cm2_curve_update_hue_by_hs(enum ecm2colormd colormode)
+void cm2_curve_update_hue_by_hs(struct cm_color_md cm_color_md_hue_by_hs)
 {
 	unsigned int i, j, start = 0, end = 0;
 	unsigned int val1[5] = {0}, val2[5] = {0};
 	int temp, reg_node1, reg_node2;
+	int colormode;
 
-	start = color_start[colormode];
-	end = color_end[colormode];
+	if (cm_color_md_hue_by_hs.color_type == cm_9_color) {
+		colormode = cm_color_md_hue_by_hs.cm_9_color_md;
+		start	= color_start[colormode];
+		end		= color_end[colormode];
+	} else {
+		colormode = cm_color_md_hue_by_hs.cm_14_color_md;
+		start	= cm_14_color_start[colormode];
+		end		= cm_14_color_end[colormode];
+	}
+
+	if (cm_color_md_hue_by_hs.color_type == cm_9_color &&
+		cm_color_md_hue_by_hs.cm_9_color_md == ecm2colormd_max) {
+		pr_info("color_type:9 clr, cm_9_color_md=9 error, return!!!\n");
+		return;
+	} else if (cm_color_md_hue_by_hs.color_type == cm_14_color &&
+		cm_color_md_hue_by_hs.cm_14_color_md == cm_14_ecm2colormd_max) {
+		pr_info("color_type:14 clr, cm_14_color_md=14 error, return!!!\n");
+		return;
+	}
+
+	if (cm2_debug & CM_HUE_BY_HIS_DEBUG_FLAG)
+		pr_info("%s:color_type:%d,colormode:%d start:%d end:%d\n",
+				__func__,
+				cm_color_md_hue_by_hs.color_type,
+				colormode, start, end);
 
 	reg_node1 = (CM2_ENH_COEF2_H00 - 0x100) % 8;
 	reg_node2 = (CM2_ENH_COEF3_H00 - 0x100) % 8;
@@ -286,6 +351,9 @@ void cm2_curve_update_hue_by_hs(enum ecm2colormd colormode)
 		}
 
 		for (j = 0; j < 5; j++) {
+			if (cm2_debug & CM_HUE_BY_HIS_DEBUG_FLAG)
+				pr_info("%s:val1[%d]:%d\n",
+					__func__, j, val1[j]);
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
 				      0x100 + i * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val2[j]);
@@ -293,14 +361,38 @@ void cm2_curve_update_hue_by_hs(enum ecm2colormd colormode)
 	}
 }
 
-void cm2_curve_update_hue(enum ecm2colormd colormode)
+void cm2_curve_update_hue(struct cm_color_md cm_color_md_hue)
 {
 	unsigned int i, j, start = 0, end = 0;
 	unsigned int val1[5] = {0};
 	int temp = 0, reg_node;
+	int colormode;
 
-	start = color_start[colormode];
-	end = color_end[colormode];
+	if (cm_color_md_hue.color_type == cm_9_color) {
+		colormode = cm_color_md_hue.cm_9_color_md;
+		start	= color_start[colormode];
+		end		= color_end[colormode];
+	} else {
+		colormode = cm_color_md_hue.cm_14_color_md;
+		start	= cm_14_color_start[colormode];
+		end		= cm_14_color_end[colormode];
+	}
+
+	if (cm_color_md_hue.color_type == cm_9_color &&
+		cm_color_md_hue.cm_9_color_md == ecm2colormd_max) {
+		pr_info("color_type:9 clr, cm_9_color_md=9 error, return!!!\n");
+		return;
+	} else if (cm_color_md_hue.color_type == cm_14_color &&
+		cm_color_md_hue.cm_14_color_md == cm_14_ecm2colormd_max) {
+		pr_info("color_type:14 clr, cm_14_color_md=14 error, return!!!\n");
+		return;
+	}
+
+	if (cm2_debug & CM_HUE_DEBUG_FLAG)
+		pr_info("%s:color_type:%d, colormode:%d start:%d end:%d\n",
+			__func__,
+			cm_color_md_hue.color_type,
+			colormode, start, end);
 
 	reg_node = (CM2_ENH_COEF1_H00 - 0x100) % 8;
 
@@ -320,6 +412,9 @@ void cm2_curve_update_hue(enum ecm2colormd colormode)
 			}
 		}
 		for (j = 0; j < 5; j++) {
+			if (cm2_debug & CM_HUE_DEBUG_FLAG)
+				pr_info("%s:val1[%d]:%d\n",
+					__func__, j, val1[j]);
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
 				      0x100 + i * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val1[j]);
@@ -341,14 +436,38 @@ void cm2_curve_update_hue(enum ecm2colormd colormode)
  * @param colormode [description]
  * @param luma_lut  [description]
  */
-void cm2_curve_update_luma(enum ecm2colormd colormode)
+void cm2_curve_update_luma(struct cm_color_md cm_color_md_luma)
 {
 	unsigned int i, j, start = 0, end = 0;
 	unsigned int val1[5] = {0};
 	int temp = 0, reg_node;
+	int colormode;
 
-	start = color_start[colormode];
-	end = color_end[colormode];
+	if (cm_color_md_luma.color_type == cm_9_color) {
+		colormode = cm_color_md_luma.cm_9_color_md;
+		start	= color_start[colormode];
+		end		= color_end[colormode];
+	} else {
+		colormode = cm_color_md_luma.cm_14_color_md;
+		start	= cm_14_color_start[colormode];
+		end		= cm_14_color_end[colormode];
+	}
+
+	if (cm_color_md_luma.color_type == cm_9_color &&
+		cm_color_md_luma.cm_9_color_md == ecm2colormd_max) {
+		pr_info("color_type:9 clr, cm_9_color_md=9 error, return!!!\n");
+		return;
+	} else if (cm_color_md_luma.color_type == cm_14_color &&
+		cm_color_md_luma.cm_14_color_md == cm_14_ecm2colormd_max) {
+		pr_info("color_type:14 clr, cm_14_color_md=14 error, return!!!\n");
+		return;
+	}
+
+	if (cm2_debug & CM_LUMA_DEBUG_FLAG)
+		pr_info("%s:color_type:%d colormode:%d start:%d end:%d\n",
+			__func__,
+			cm_color_md_luma.color_type,
+			colormode, start, end);
 
 	reg_node = (CM2_ENH_COEF0_H00 - 0x100) % 8;
 
@@ -368,6 +487,9 @@ void cm2_curve_update_luma(enum ecm2colormd colormode)
 			}
 		}
 		for (j = 0; j < 5; j++) {
+			if (cm2_debug & CM_LUMA_DEBUG_FLAG)
+				pr_info("%s:val1[%d]:%d\n",
+					__func__, j, val1[j]);
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
 				      CM2_ENH_COEF0_H00 + i * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val1[j]);
@@ -389,14 +511,37 @@ void cm2_curve_update_luma(enum ecm2colormd colormode)
  * @param colormode [description]
  * @param Adj_Sat_via_HS[3][32]  [description]
  */
-void cm2_curve_update_sat(enum ecm2colormd colormode)
+void cm2_curve_update_sat(struct cm_color_md cm_color_md_sat)
 {
 	unsigned int i, j, start = 0, end = 0;
 	unsigned int val1[5] = {0};
 	int temp = 0, reg_node;
+	int colormode;
 
-	start = color_start[colormode];
-	end = color_end[colormode];
+	if (cm_color_md_sat.color_type == cm_9_color) {
+		colormode = cm_color_md_sat.cm_9_color_md;
+		start	= color_start[colormode];
+		end		= color_end[colormode];
+	} else {
+		colormode = cm_color_md_sat.cm_14_color_md;
+		start	= cm_14_color_start[colormode];
+		end		= cm_14_color_end[colormode];
+	}
+
+	if (cm_color_md_sat.color_type == cm_9_color &&
+		cm_color_md_sat.cm_9_color_md == ecm2colormd_max) {
+		pr_info("color_type:9 clr, cm_9_color_md=9 error, return!!!\n");
+		return;
+	} else if (cm_color_md_sat.color_type == cm_14_color &&
+		cm_color_md_sat.cm_14_color_md == cm_14_ecm2colormd_max) {
+		pr_info("color_type:14 clr, cm_14_color_md=14 error, return!!!\n");
+		return;
+	}
+
+	if (cm2_debug & CM_SAT_DEBUG_FLAG)
+		pr_info("%s:color_type:%d colormode:%d, start:%d, end:%d\n",
+			__func__,
+			cm_color_md_sat.color_type, colormode, start, end);
 
 	reg_node = (CM2_ENH_COEF0_H00 - 0x100) % 8;
 
@@ -425,6 +570,10 @@ void cm2_curve_update_sat(enum ecm2colormd colormode)
 			}
 		}
 		for (j = 0; j < 5; j++) {
+			if (cm2_debug & CM_SAT_DEBUG_FLAG)
+				pr_info("%s:val1[%d]:%d\n",
+					__func__, j, val1[j]);
+
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
 				      CM2_ENH_COEF0_H00 + i * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val1[j]);
@@ -467,9 +616,9 @@ void default_sat_param(unsigned int reg, unsigned int value)
  * @param sat_val   [-100 ~ 100]
  * @param lpf_en    [1:on 0:off]
  */
-void cm2_hue_by_hs(enum ecm2colormd colormode, int hue_val, int lpf_en)
+void cm2_hue_by_hs(struct cm_color_md cm_color_mode, int hue_val, int lpf_en)
 {
-	int inp_color = colormode;
+	int inp_color;
 	/*[-100, 100], color_adj will mapping to value [-128, 127]*/
 	int inp_val = hue_val;
 	int temp;
@@ -478,18 +627,35 @@ void cm2_hue_by_hs(enum ecm2colormd colormode, int hue_val, int lpf_en)
 	int k, i;
 
 	memset(out_lut, 0, sizeof(int) * 32);
-	memset(adj_hue_via_s[colormode], 0, sizeof(char) * 32 * 5);
 	/*pr_info("color mode:%d, input val =%d\n", colormode, hue_val);*/
 
-	color_adj(inp_color, inp_val, lpf_en, lpf_coef,
-		  color_key_pts, smth_coef_hue, out_lut);
+	if (cm_color_mode.color_type == cm_9_color) {
+		inp_color = cm_color_mode.cm_9_color_md;
+		color_adj(inp_color, inp_val, lpf_en, lpf_coef,
+			  color_key_pts, smth_coef_hue, out_lut);
+	} else {
+		inp_color = cm_color_mode.cm_14_color_md;
+		color_adj(inp_color, inp_val, lpf_en, lpf_coef,
+			  cm_14_color_key_pts, smth_coef_hue, out_lut);
+	}
+
+	memset(adj_hue_via_s[inp_color], 0, sizeof(char) * 32 * 5);
+
+	if (cm2_debug & CM_HUE_BY_HIS_DEBUG_FLAG)
+		pr_info("%s: color mode:%d, inp_val:%d lpf_en:%d\n",
+			__func__,
+			inp_color, hue_val, lpf_en);
 
 	for (k = 0; k < 5; k++) {
 		/*pr_info("\n Adj_Hue via %d\n", k);*/
 		for (i = 0; i < 32; i++) {
 			temp = out_lut[i] * huegain_via_sat5[inp_color][k];
-			adj_hue_via_s[colormode][k][i] =
+			adj_hue_via_s[inp_color][k][i] =
 						(char)(rsround(temp) / 100);
+			if (cm2_debug & CM_HUE_BY_HIS_DEBUG_FLAG)
+				pr_info("adj_hue_via_s[%d][%d][%d] =%d\n",
+				inp_color, k, i,
+				adj_hue_via_s[inp_color][k][i]);
 			/*pr_info("%d  ", reg_CM2_Adj_Hue_via_S[k][i]);*/
 		}
 	}
@@ -503,9 +669,9 @@ void cm2_hue_by_hs(enum ecm2colormd colormode, int hue_val, int lpf_en)
  * @param lpf_en    [1:on 0:off]
  */
 
-void cm2_hue(enum ecm2colormd colormode, int hue_val, int lpf_en)
+void cm2_hue(struct cm_color_md cm_color_mode, int hue_val, int lpf_en)
 {
-	int inp_color = colormode;
+	int inp_color;
 	/*[-100, 100], color_adj will mapping to value [-128, 127]*/
 	int inp_val = hue_val;
 	int i;
@@ -513,17 +679,31 @@ void cm2_hue(enum ecm2colormd colormode, int hue_val, int lpf_en)
 	/*int lpf_en = 0;*/
 
 	memset(out_lut, 0, sizeof(int) * 32);
-	memset(adj_hue_via_hue[colormode], 0, sizeof(char) * 32);
-	/*pr_info("color mode:%d, input val =%d\n", colormode, hue_val);*/
 
-	color_adj(inp_color, inp_val, lpf_en, lpf_coef,
-		  color_key_pts, smth_coef_hue, out_lut);
+	if (cm_color_mode.color_type == cm_9_color) {
+		inp_color = cm_color_mode.cm_9_color_md;
+		color_adj(inp_color, inp_val, lpf_en, lpf_coef,
+			  color_key_pts, smth_coef_hue, out_lut);
+	} else {
+		inp_color = cm_color_mode.cm_14_color_md;
+		color_adj(inp_color, inp_val, lpf_en, lpf_coef,
+			  cm_14_color_key_pts, smth_coef_hue, out_lut);
+	}
+
+	memset(adj_hue_via_hue[inp_color], 0, sizeof(char) * 32);
+
+	if (cm2_debug & CM_HUE_DEBUG_FLAG)
+		pr_info("%s: color mode:%d, input val =%d lpf_en:%d\n",
+			__func__,
+			inp_color, hue_val, lpf_en);
 
 	for (i = 0; i < 32; i++) {
-		adj_hue_via_hue[colormode][i] = (char)out_lut[i];
-		/*pr_info("%d  ", reg_CM2_Adj_Hue_via_S[k][i]);*/
+		adj_hue_via_hue[inp_color][i] = (char)out_lut[i];
+		if (cm2_debug & CM_HUE_DEBUG_FLAG)
+			pr_info("adj_hue_via_hue[%d][%d] =%d\n",
+				inp_color, i,
+				adj_hue_via_hue[inp_color][i]);
 	}
-	/*pr_info("\n ---end\n");*/
 }
 
 /**
@@ -532,22 +712,37 @@ void cm2_hue(enum ecm2colormd colormode, int hue_val, int lpf_en)
  * @param sat_val   [-100 ~ 100]
  * @param lpf_en    [1:on 0:off]
  */
-void cm2_luma(enum ecm2colormd colormode, int luma_val, int lpf_en)
+void cm2_luma(struct cm_color_md cm_color_mode, int luma_val, int lpf_en)
 {
 	int out_luma_lut[32];
 	int i;
-	int inp_color = colormode;
+	int inp_color;
 	int inp_val = luma_val;
 
-	/*pr_info("colormode:%d, input val %d\n",colormode, luma_val);*/
-	memset(adj_luma_via_hue[colormode], 0, sizeof(char) * 32);
 	memset(out_luma_lut, 0, sizeof(int) * 32);
 
-	color_adj(inp_color, inp_val, lpf_en, lpf_coef, color_key_pts,
-		  smth_coef_luma, out_luma_lut);
+	if (cm_color_mode.color_type == cm_9_color) {
+		inp_color = cm_color_mode.cm_9_color_md;
+		color_adj(inp_color, inp_val, lpf_en, lpf_coef, color_key_pts,
+			  smth_coef_luma, out_luma_lut);
+	} else {
+		inp_color = cm_color_mode.cm_14_color_md;
+		color_adj(inp_color, inp_val, lpf_en, lpf_coef,
+			cm_14_color_key_pts, smth_coef_luma, out_luma_lut);
+	}
+
+	memset(adj_luma_via_hue[inp_color], 0, sizeof(char) * 32);
+
+	if (cm2_debug & CM_LUMA_DEBUG_FLAG)
+		pr_info("%s: color mode:%d, inp_val =%d lpf_en:%d\n",
+			__func__,
+			inp_color, inp_val, lpf_en);
 
 	for (i = 0; i < 32; i++) {
-		adj_luma_via_hue[colormode][i] = (char)out_luma_lut[i];
+		adj_luma_via_hue[inp_color][i] = (char)out_luma_lut[i];
+		if (cm2_debug & CM_LUMA_DEBUG_FLAG)
+			pr_info("adj_luma_via_hue[%d][%d] =%d\n", inp_color, i,
+				adj_luma_via_hue[inp_color][i]);
 		/*pr_info("%d,", out_luma_lut[i]);*/
 	}
 
@@ -556,35 +751,48 @@ void cm2_luma(enum ecm2colormd colormode, int luma_val, int lpf_en)
 
 /**
  * [cm2_sat adj cm2 saturation gain offset]
- * @param colormode [enum eCM2ColorMd]
+ * @param colormode [struct cm_color_md]
  * @param sat_val   [-100 ~ 100]
  * @param lpf_en    [1:on 0:off]
  */
-void cm2_sat(enum ecm2colormd colormode, int sat_val, int lpf_en)
+void cm2_sat(struct cm_color_md cm_color_mode, int sat_val, int lpf_en)
 {
-	int inp_color = colormode;
+	int inp_color;
 	int inp_val = sat_val;
 
 	int out_sat_lut[32];
 	int k, i;
 	int temp;
 
-	/*pr_info("colormode:%d, input val %d\n",colormode, sat_val);*/
-	memset(adj_sat_via_hs[colormode], 0, sizeof(char) * 32 * 3);
 	memset(out_sat_lut, 0, sizeof(int) * 32);
 
-	color_adj(inp_color, inp_val, lpf_en, lpf_coef, color_key_pts,
-		  smth_coef_sat, out_sat_lut);
+	if (cm_color_mode.color_type == cm_9_color) {
+		inp_color = cm_color_mode.cm_9_color_md;
+		color_adj(inp_color, inp_val, lpf_en, lpf_coef, color_key_pts,
+			  smth_coef_sat, out_sat_lut);
+	} else {
+		inp_color = cm_color_mode.cm_14_color_md;
+		color_adj(inp_color, inp_val, lpf_en, lpf_coef,
+			cm_14_color_key_pts, smth_coef_sat, out_sat_lut);
+	}
+
+	memset(adj_sat_via_hs[inp_color], 0, sizeof(char) * 32 * 3);
+
+	if (cm2_debug & CM_SAT_DEBUG_FLAG)
+		pr_info("%s: color mode:%d, input val =%d lpf_en:%d\n",
+			__func__,
+			inp_color, inp_val, lpf_en);
 
 	for (k = 0; k < 3; k++) {
-		/*pr_info("\n Adj_sat %d\n", k);*/
 		for (i = 0; i < 32; i++) {
 			temp = out_sat_lut[i] * satgain_via_sat3[inp_color][k];
-			adj_sat_via_hs[colormode][k][i] =
+			adj_sat_via_hs[inp_color][k][i] =
 				(char)(rsround(temp) / 100);
-			/*pr_info("%d  ", reg_CM2_Adj_Sat_via_HS[k][i]);*/
+			if (cm2_debug & CM_SAT_DEBUG_FLAG)
+				pr_info("adj_sat_via_hs[%d][%d][%d] =%d\n",
+					inp_color, k, i,
+					adj_sat_via_hs[inp_color][k][i]);
 		}
 	}
-	/*pr_info("\n---end\n");*/
 }
 

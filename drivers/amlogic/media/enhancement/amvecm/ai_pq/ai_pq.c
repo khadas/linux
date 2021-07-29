@@ -117,12 +117,20 @@ int blue_scene_process(int offset, int enable)
 	int base_val = 0;
 	int bld_offset;
 	static int first_frame = 1;
+	struct cm_color_md aipq_color_md;
 
 	if (!enable || !(aipq_en & (1 << BLUE_SCENE))) {
-		cm2_sat(ecm2colormd_cyan, 0, 0);
-		cm2_curve_update_sat(ecm2colormd_cyan);
-		cm2_sat(ecm2colormd_blue, 0, 0);
-		cm2_curve_update_sat(ecm2colormd_blue);
+		aipq_color_md.color_type	 = cm_9_color;
+		aipq_color_md.cm_9_color_md  = ecm2colormd_cyan;
+		aipq_color_md.cm_14_color_md = cm_14_ecm2colormd_max;
+		aipq_color_md.color_value	 = 0;
+
+		cm2_sat(aipq_color_md, 0, 0);
+		cm2_curve_update_sat(aipq_color_md);
+
+		aipq_color_md.cm_9_color_md  = ecm2colormd_blue;
+		cm2_sat(aipq_color_md, 0, 0);
+		cm2_curve_update_sat(aipq_color_md);
 		first_frame = 1;
 		return 0;
 	}
@@ -157,10 +165,16 @@ int blue_scene_process(int offset, int enable)
 			((reg_val - bld_offset) < (base_val + offset) ?
 			(base_val + offset) : (reg_val - bld_offset));
 
-	cm2_sat(ecm2colormd_cyan, reg_val, 0);
-	cm2_curve_update_sat(ecm2colormd_cyan);
-	cm2_sat(ecm2colormd_blue, reg_val, 0);
-	cm2_curve_update_sat(ecm2colormd_blue);
+	aipq_color_md.color_type	 = cm_9_color;
+	aipq_color_md.cm_9_color_md  = ecm2colormd_cyan;
+	aipq_color_md.cm_14_color_md = cm_14_ecm2colormd_max;
+	aipq_color_md.color_value	 = reg_val;
+	cm2_sat(aipq_color_md, reg_val, 0);
+	cm2_curve_update_sat(aipq_color_md);
+
+	aipq_color_md.cm_9_color_md  = ecm2colormd_blue;
+	cm2_sat(aipq_color_md, reg_val, 0);
+	cm2_curve_update_sat(aipq_color_md);
 
 	if (aipq_debug) {
 		pr_aipq_dbg("%s, baseval: %d, regval: %d, offset: %d,bld_ofst: %d, bld_rs: %d\n",
@@ -178,10 +192,15 @@ int green_scene_process(int offset, int enable)
 	int base_val = 0;
 	int bld_offset;
 	static int first_frame = 1;
+	struct cm_color_md aipq_color_md;
 
 	if (!enable || !(aipq_en & (1 << GREEN_SCENE))) {
-		cm2_sat(ecm2colormd_green, 0, 0);
-		cm2_curve_update_sat(ecm2colormd_green);
+		aipq_color_md.color_type	 = cm_9_color;
+		aipq_color_md.cm_9_color_md  = ecm2colormd_green;
+		aipq_color_md.cm_14_color_md = cm_14_ecm2colormd_max;
+		aipq_color_md.color_value	 = 0;
+		cm2_sat(aipq_color_md, 0, 0);
+		cm2_curve_update_sat(aipq_color_md);
 		first_frame = 1;
 		return 0;
 	}
@@ -216,8 +235,12 @@ int green_scene_process(int offset, int enable)
 			((reg_val - bld_offset) < (base_val + offset) ?
 			(base_val + offset) : (reg_val - bld_offset));
 
-	cm2_sat(ecm2colormd_green, reg_val, 0);
-	cm2_curve_update_sat(ecm2colormd_green);
+	aipq_color_md.color_type	 = cm_9_color;
+	aipq_color_md.cm_9_color_md  = ecm2colormd_green;
+	aipq_color_md.cm_14_color_md = cm_14_ecm2colormd_max;
+	aipq_color_md.color_value	 = reg_val;
+	cm2_sat(aipq_color_md, reg_val, 0);
+	cm2_curve_update_sat(aipq_color_md);
 
 	if (aipq_debug) {
 		pr_aipq_dbg("%s, baseval: %d, regval: %d, offset: %d,bld_ofst: %d, bld_rs: %d\n",
@@ -371,10 +394,15 @@ int skintone_scene_process(int offset, int enable)
 	int base_val = 0;
 	int bld_offset;
 	static int first_frame = 1;
+	struct cm_color_md aipq_color_md;
 
 	if (!enable || !(aipq_en & (1 << SKIN_TONE_SCENE))) {
-		cm2_sat(ecm2colormd_skin, 0, 0);
-		cm2_curve_update_sat(ecm2colormd_skin);
+		aipq_color_md.color_type	 = cm_9_color;
+		aipq_color_md.cm_9_color_md  = ecm2colormd_skin;
+		aipq_color_md.cm_14_color_md = cm_14_ecm2colormd_max;
+		aipq_color_md.color_value	 = 0;
+		cm2_sat(aipq_color_md, 0, 0);
+		cm2_curve_update_sat(aipq_color_md);
 		first_frame = 1;
 		return 0;
 	}
@@ -409,8 +437,12 @@ int skintone_scene_process(int offset, int enable)
 			((reg_val - bld_offset) < (base_val + offset) ?
 			(base_val + offset) : (reg_val - bld_offset));
 
-	cm2_sat(ecm2colormd_skin, reg_val, 0);
-	cm2_curve_update_sat(ecm2colormd_skin);
+	aipq_color_md.color_type	 = cm_9_color;
+	aipq_color_md.cm_9_color_md  = ecm2colormd_skin;
+	aipq_color_md.cm_14_color_md = cm_14_ecm2colormd_max;
+	aipq_color_md.color_value	 = reg_val;
+	cm2_sat(aipq_color_md, reg_val, 0);
+	cm2_curve_update_sat(aipq_color_md);
 
 	if (aipq_debug) {
 		pr_aipq_dbg("%s, baseval: %d, regval: %d, offset: %d,bld_ofst: %d, bld_rs: %d\n",
