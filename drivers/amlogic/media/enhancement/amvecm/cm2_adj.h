@@ -32,6 +32,37 @@ enum ecm2colormd {
 	ecm2colormd_max,
 };
 
+enum ecm_14_color_md {
+	cm_14_ecm2colormd_blue_purple = 0,
+	cm_14_ecm2colormd_purple,
+	cm_14_ecm2colormd_purple_red,
+	cm_14_ecm2colormd_red,
+	cm_14_ecm2colormd_skin_cheeks,
+	cm_14_ecm2colormd_skin_hair_cheeks,
+	cm_14_ecm2colormd_skin_yellow,
+	cm_14_ecm2colormd_yellow,
+	cm_14_ecm2colormd_yellow_green,
+	cm_14_ecm2colormd_green,
+	cm_14_ecm2colormd_green_cyan,
+	cm_14_ecm2colormd_cyan,
+	cm_14_ecm2colormd_cyan_blue,
+	cm_14_ecm2colormd_blue,
+	cm_14_ecm2colormd_max,
+};
+
+enum ecm_color_type {
+	cm_9_color = 0,
+	cm_14_color,
+	cm_color_max,
+};
+
+struct cm_color_md {
+	enum ecm_color_type	color_type;//0: 9 color; 1: 14 color
+	enum ecm2colormd	cm_9_color_md;
+	enum ecm_14_color_md cm_14_color_md;
+	int color_value;
+};
+
 /*H00 ~ H31*/
 #define CM2_ENH_COEF0_H00 0x100
 #define CM2_ENH_COEF1_H00 0x101
@@ -51,16 +82,17 @@ enum ecm2colormd {
 #define CM2_ENH_COEF3_H02 0x113
 #define CM2_ENH_COEF4_H02 0x114
 
-void cm2_curve_update_hue_by_hs(enum ecm2colormd colormode);
-void cm2_curve_update_hue(enum ecm2colormd colormode);
-void cm2_curve_update_luma(enum ecm2colormd colormode);
-void cm2_curve_update_sat(enum ecm2colormd colormode);
+void cm2_curve_update_hue_by_hs(struct cm_color_md cm_color_md_hue_by_hs);
+void cm2_curve_update_hue(struct cm_color_md cm_color_md_hue);
+void cm2_curve_update_luma(struct cm_color_md cm_color_md_luma);
+void cm2_curve_update_sat(struct cm_color_md cm_color_md_sat);
 
-void cm2_hue_by_hs(enum ecm2colormd colormode, int hue_val, int lpf_en);
-void cm2_hue(enum ecm2colormd colormode, int hue_val, int lpf_en);
-void cm2_luma(enum ecm2colormd colormode, int luma_val, int lpf_en);
-void cm2_sat(enum ecm2colormd colormode, int sat_val, int lpf_en);
+void cm2_hue_by_hs(struct cm_color_md cm_color_mode, int hue_val, int lpf_en);
+void cm2_hue(struct cm_color_md cm_color_mode, int hue_val, int lpf_en);
+void cm2_luma(struct cm_color_md cm_color_mode, int luma_val, int lpf_en);
+void cm2_sat(struct cm_color_md cm_color_mode, int sat_val, int lpf_en);
 
 void default_sat_param(unsigned int reg, unsigned int value);
+
 #endif
 
