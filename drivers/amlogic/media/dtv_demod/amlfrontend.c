@@ -3050,7 +3050,8 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 	/* loop from 16 to 256 */
 	demod->auto_qam_mode = dvbc_switch_qam(demod->auto_qam_mode);
 	demod_dvbc_set_qam(demod, demod->auto_qam_mode);
-//	demod_dvbc_fsm_reset(demod);
+	if (demod->auto_qam_mode == QAM_MODE_16)
+		demod_dvbc_fsm_reset(demod);
 
 	return 2;
 }
