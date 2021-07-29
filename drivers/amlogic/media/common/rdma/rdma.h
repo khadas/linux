@@ -15,6 +15,9 @@ enum {
 };
 
 extern int has_multi_vpp;
+void vpp1_vsync_rdma_register(void);
+void vpp2_vsync_rdma_register(void);
+void pre_vsync_rdma_register(void);
 void vsync_rdma_config(void);
 void vsync_rdma_config_pre(void);
 void vsync_rdma_vpp1_config(void);

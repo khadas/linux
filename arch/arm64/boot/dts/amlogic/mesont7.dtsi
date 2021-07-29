@@ -3070,7 +3070,7 @@
 		clock-names = "cts_vid_lock_clk";
 	};
 
-	meson-amvideom {
+	amvideom: meson-amvideom {
 		compatible = "amlogic, amvideom-t7";
 		dev_name = "amvideom";
 		status = "okay";

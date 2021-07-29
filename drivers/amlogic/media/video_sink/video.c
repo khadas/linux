@@ -16728,11 +16728,8 @@ static int amvideom_probe(struct platform_device *pdev)
 	int ret = 0;
 	int i, j;
 	int vdtemp = -1;
-
-	vdtemp = of_property_read_u32(pdev->dev.of_node, "vd1_vd2_mux",
-				      &vd1_vd2_mux_dts);
-	if (vdtemp < 0)
-		vd1_vd2_mux_dts = 1;
+	const void *prop;
+	int display_device_cnt = 1;
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
@@ -16765,6 +16762,16 @@ static int amvideom_probe(struct platform_device *pdev)
 	}
 	if (amvideo_meson_dev.max_vd_layers > MAX_VD_LAYERS)
 		return -EINVAL;
+
+	vdtemp = of_property_read_u32(pdev->dev.of_node, "vd1_vd2_mux",
+				      &vd1_vd2_mux_dts);
+	if (vdtemp < 0)
+		vd1_vd2_mux_dts = 1;
+
+	prop = of_get_property(pdev->dev.of_node, "display_device_cnt", NULL);
+	if (prop)
+		display_device_cnt = of_read_ulong(prop, 1);
+
 	set_rdma_func_handler();
 	video_early_init(&amvideo_meson_dev);
 	video_hw_init();
@@ -16795,6 +16802,9 @@ static int amvideom_probe(struct platform_device *pdev)
 		else
 			pr_info("amvideom vsync viu2 irq: %d\n",
 				video_vsync_viu2);
+		/* vpp1 used then register rdma channel */
+		if (display_device_cnt == 2)
+			vpp1_vsync_rdma_register();
 	}
 	if (amvideo_meson_dev.has_vpp2) {
 		/* get interrupt resource */
@@ -16804,6 +16814,9 @@ static int amvideom_probe(struct platform_device *pdev)
 		else
 			pr_info("amvideom vsync viu3 irq: %d\n",
 				video_vsync_viu3);
+		/* vpp2 used then register rdma channel */
+		if (display_device_cnt == 3)
+			vpp2_vsync_rdma_register();
 	}
 	if (amvideo_meson_dev.dev_property.frc_support) {
 		video_pre_vsync = platform_get_irq_byname(pdev, "pre_vsync");
@@ -16812,6 +16825,7 @@ static int amvideom_probe(struct platform_device *pdev)
 		else
 			pr_info("amvideom video pre vsync: %d\n",
 				video_pre_vsync);
+		pre_vsync_rdma_register();
 	}
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&video_early_suspend_handler);

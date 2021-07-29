@@ -919,6 +919,7 @@ struct hw_para_s {
 	u32 osd_reg_check;
 	u32 mif_linear;
 	u32 vpp_num;
+	u32 display_dev_cnt;
 	struct hw_debug_s osd_debug;
 	int out_fence_fd[VIU_COUNT];
 	int in_fd[HW_OSD_COUNT];

@@ -351,7 +351,6 @@ static int osd_shutdown_flag;
 
 unsigned int osd_log_level;
 unsigned int osd_log_module = 1;
-static int display_dev_cnt = 1;
 
 int int_viu_vsync = -ENXIO;
 int int_viu2_vsync = -ENXIO;
@@ -2664,8 +2663,8 @@ static ssize_t show_display_dev_cnt(struct device *device,
 {
 	int i, len = 0;
 
-	len += snprintf(buf, 40, "device cnt: %d\n", display_dev_cnt);
-	for (i = 0; i < display_dev_cnt; i++)
+	len += snprintf(buf, 40, "device cnt: %d\n", osd_hw.display_dev_cnt);
+	for (i = 0; i < osd_hw.display_dev_cnt; i++)
 		len += snprintf(buf + len, 40, "osd table%d:0x%x\n", i,
 				osd_hw.viu_osd_table[i]);
 
@@ -2685,7 +2684,8 @@ static ssize_t store_display_dev_cnt(struct device *device,
 		res = 1;
 	}
 
-	osd_log_info("set display device cnt: %d->%d\n", display_dev_cnt, res);
+	osd_log_info("set display device cnt: %d->%d\n",
+		osd_hw.display_dev_cnt, res);
 	config_osd_table(res);
 
 	return count;
@@ -4642,7 +4642,7 @@ static void config_osd_table(u32 display_device_cnt)
 {
 	int i;
 
-	display_dev_cnt = display_device_cnt;
+	osd_hw.display_dev_cnt = display_device_cnt;
 	/* 1. mark all osd in table */
 	for (i = 0; i < VIU_COUNT; i++)
 		osd_hw.viu_osd_table[i] = 0xffffffff;

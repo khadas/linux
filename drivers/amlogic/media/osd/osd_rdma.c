@@ -2094,13 +2094,17 @@ static int osd_rdma_init(void)
 					NULL, PAGE_SIZE);
 	pr_info("%s:osd rdma handle[0] = %d.\n", __func__,
 		osd_rdma_handle[0]);
-	if (osd_hw.osd_meson_dev.has_vpp1) {
+	if (osd_hw.osd_meson_dev.has_vpp1 &&
+	   osd_hw.display_dev_cnt == 2) {
+		/* vpp1 used then register rdma channel */
 		osd_rdma_handle[1] = rdma_register(&osd_rdma_vpp1_op,
 						NULL, PAGE_SIZE);
 		pr_info("%s:osd rdma handle[1] = %d.\n", __func__,
 			osd_rdma_handle[1]);
 	}
-	if (osd_hw.osd_meson_dev.has_vpp2) {
+	if (osd_hw.osd_meson_dev.has_vpp2 &&
+	   osd_hw.display_dev_cnt == 3) {
+		/* vpp2 used then register rdma channel */
 		osd_rdma_handle[2] = rdma_register(&osd_rdma_vpp2_op,
 						NULL, PAGE_SIZE);
 		pr_info("%s:osd rdma handle[2] = %d.\n", __func__,

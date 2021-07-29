@@ -553,7 +553,7 @@ int rdma_config(int handle, u32 trigger_type)
 	bool auto_start = false;
 	bool rdma_read = false;
 
-	if (handle == 0 || handle >= RDMA_NUM) {
+	if (handle <= 0 || handle >= RDMA_NUM) {
 		pr_info
 		("%s error, (handle == %d) not allowed\n",
 		 __func__, handle);
@@ -1237,6 +1237,36 @@ u32 is_meson_g12b_revb(void)
 		return 0;
 }
 
+void vpp1_vsync_rdma_register(void)
+{
+	int handle;
+
+	handle = rdma_register(get_rdma_ops(VSYNC_RDMA_VPP1),
+			       NULL, RDMA_TABLE_SIZE);
+	set_rdma_handle(VSYNC_RDMA_VPP1, handle);
+}
+EXPORT_SYMBOL(vpp1_vsync_rdma_register);
+
+void vpp2_vsync_rdma_register(void)
+{
+	int handle;
+
+	handle = rdma_register(get_rdma_ops(VSYNC_RDMA_VPP2),
+			       NULL, RDMA_TABLE_SIZE);
+	set_rdma_handle(VSYNC_RDMA_VPP2, handle);
+}
+EXPORT_SYMBOL(vpp2_vsync_rdma_register);
+
+void pre_vsync_rdma_register(void)
+{
+	int handle;
+
+	handle = rdma_register(get_rdma_ops(PRE_VSYNC_RDMA),
+			       NULL, RDMA_TABLE_SIZE);
+	set_rdma_handle(PRE_VSYNC_RDMA, handle);
+}
+EXPORT_SYMBOL(pre_vsync_rdma_register);
+
 static ssize_t show_debug_flag(struct class *class,
 			       struct class_attribute *attr,
 			       char *buf)
@@ -1614,17 +1644,7 @@ static int __init rdma_probe(struct platform_device *pdev)
 	handle = rdma_register(get_rdma_ops(VSYNC_RDMA),
 			       NULL, RDMA_TABLE_SIZE);
 	set_rdma_handle(VSYNC_RDMA, handle);
-	if (has_multi_vpp) {
-		handle = rdma_register(get_rdma_ops(VSYNC_RDMA_VPP1),
-				       NULL, RDMA_TABLE_SIZE);
-		set_rdma_handle(VSYNC_RDMA_VPP1, handle);
-		handle = rdma_register(get_rdma_ops(VSYNC_RDMA_VPP2),
-				       NULL, RDMA_TABLE_SIZE);
-		set_rdma_handle(VSYNC_RDMA_VPP2, handle);
-		handle = rdma_register(get_rdma_ops(PRE_VSYNC_RDMA),
-				       NULL, RDMA_TABLE_SIZE);
-		set_rdma_handle(PRE_VSYNC_RDMA, handle);
-	} else {
+	if (!has_multi_vpp) {
 		handle = rdma_register(get_rdma_ops(VSYNC_RDMA_READ),
 				       NULL, RDMA_TABLE_SIZE);
 		set_rdma_handle(VSYNC_RDMA_READ, handle);

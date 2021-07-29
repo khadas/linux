@@ -12664,9 +12664,11 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 	}
 	if (osd_hw.hw_rdma_en) {
 		osd_rdma_enable(VPU_VPP0, 2);
-		if (osd_hw.osd_meson_dev.has_vpp1)
+		if (osd_hw.osd_meson_dev.has_vpp1 &&
+		   osd_hw.display_dev_cnt == 2)
 			osd_rdma_enable(VPU_VPP1, 2);
-		if (osd_hw.osd_meson_dev.has_vpp2)
+		if (osd_hw.osd_meson_dev.has_vpp2 &&
+		   osd_hw.display_dev_cnt == 3)
 			osd_rdma_enable(VPU_VPP2, 2);
 	} else {
 		osd_hw.afbc_force_reset = 0;
@@ -13218,9 +13220,11 @@ void osd_shutdown_hw(void)
 #endif
 	if (osd_hw.hw_rdma_en) {
 		osd_rdma_enable(VPU_VPP0, 0);
-		if (osd_hw.osd_meson_dev.has_vpp1)
+		if (osd_hw.osd_meson_dev.has_vpp1 &&
+		   osd_hw.display_dev_cnt == 2)
 			osd_rdma_enable(VPU_VPP1, 0);
-		if (osd_hw.osd_meson_dev.has_vpp2)
+		if (osd_hw.osd_meson_dev.has_vpp2 &&
+		   osd_hw.display_dev_cnt == 3)
 			osd_rdma_enable(VPU_VPP2, 0);
 	}
 	pr_info("osd_shutdown\n");
@@ -13254,9 +13258,11 @@ void  osd_freeze_hw(void)
 #endif
 	if (osd_hw.hw_rdma_en) {
 		osd_rdma_enable(VPU_VPP0, 0);
-		if (osd_hw.osd_meson_dev.has_vpp1)
+		if (osd_hw.osd_meson_dev.has_vpp1 &&
+		   osd_hw.display_dev_cnt == 2)
 			osd_rdma_enable(VPU_VPP1, 0);
-		if (osd_hw.osd_meson_dev.has_vpp2)
+		if (osd_hw.osd_meson_dev.has_vpp2 &&
+		   osd_hw.display_dev_cnt == 3)
 			osd_rdma_enable(VPU_VPP2, 0);
 		if (get_backup_reg(VIU_OSD1_BLK0_CFG_W0,
 				   &fb0_cfg_w0_save) != 0)
@@ -13273,9 +13279,11 @@ void osd_thaw_hw(void)
 	pr_debug("osd_thawed\n");
 	if (osd_hw.hw_rdma_en) {
 		osd_rdma_enable(VPU_VPP0, 2);
-		if (osd_hw.osd_meson_dev.has_vpp1)
+		if (osd_hw.osd_meson_dev.has_vpp1 &&
+		   osd_hw.display_dev_cnt == 2)
 			osd_rdma_enable(VPU_VPP1, 2);
-		if (osd_hw.osd_meson_dev.has_vpp2)
+		if (osd_hw.osd_meson_dev.has_vpp2 &&
+		   osd_hw.display_dev_cnt == 3)
 			osd_rdma_enable(VPU_VPP2, 2);
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
@@ -13291,9 +13299,11 @@ void osd_restore_hw(void)
 	osd_reg_write(VIU_OSD1_BLK0_CFG_W0, fb0_cfg_w0_save);
 	if (osd_hw.hw_rdma_en) {
 		osd_rdma_enable(VPU_VPP0, 2);
-		if (osd_hw.osd_meson_dev.has_vpp1)
+		if (osd_hw.osd_meson_dev.has_vpp1 &&
+		   osd_hw.display_dev_cnt == 2)
 			osd_rdma_enable(VPU_VPP1, 2);
-		if (osd_hw.osd_meson_dev.has_vpp2)
+		if (osd_hw.osd_meson_dev.has_vpp2 &&
+		   osd_hw.display_dev_cnt == 3)
 			osd_rdma_enable(VPU_VPP2, 2);
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
