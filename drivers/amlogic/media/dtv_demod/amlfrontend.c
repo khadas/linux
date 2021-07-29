@@ -672,7 +672,7 @@ static int gxtv_demod_dvbc_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 	tmp = qam_read_reg(demod, 0x5) & 0xfff;
 	demod_sts.ch_snr = tmp * 100 / 32;
-	*snr = demod_sts.ch_snr / 100;
+	*snr = demod_sts.ch_snr / 40;
 
 	if (*snr > 100)
 		*snr = 100;
