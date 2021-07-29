@@ -218,6 +218,10 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 		/* set lanes mask acordingly */
 		lane_mask = setting->lane_mask_in;
 
+		if (p_tdm->chipinfo->slot_num_en && setting->slots > 0)
+			aml_tdmin_set_slot_num(p_tdm->actrl, p_tdm->id,
+					       setting->slots);
+
 		for (i = 0; i < p_tdm->lane_cnt; i++) {
 			if (((1 << i) & lane_mask) && lanes) {
 				aml_tdm_set_channel_mask(p_tdm->actrl,
