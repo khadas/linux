@@ -683,10 +683,12 @@ static int frc_probe(struct platform_device *pdev)
 		goto fail_alloc_data_fail;
 	}
 
-	frc_devp->fw_data = NULL;
+	// frc_devp->fw_data = NULL;
 	// frc_devp->fw_data = kzalloc(sizeof(struct frc_fw_data_s), GFP_KERNEL);
-	strncpy(&fw_data.frc_alg_ver[0], &frc_alg_defver[0], strlen(frc_alg_defver));
 	frc_devp->fw_data = &fw_data;
+	memset(frc_devp->fw_data, 0, (sizeof(struct frc_fw_data_s)));
+	strncpy(&fw_data.frc_alg_ver[0], &frc_alg_defver[0],
+			strlen(frc_alg_defver));
 	if (!frc_devp->fw_data) {
 		PR_ERR("%s: frc_dev->fw_data fail\n", __func__);
 		goto fail_alloc_fw_data_fail;
@@ -844,7 +846,11 @@ static void frc_shutdown(struct platform_device *pdev)
 	frc_devp->data = NULL;
 	// kfree(frc_dev);
 	// frc_dev = NULL;
-	PR_FRC("%s:module shutdown done\n", __func__);
+	pwr_ctrl_psci_smc(PDID_T3_FRCTOP, PWR_OFF);
+	pwr_ctrl_psci_smc(PDID_T3_FRCME, PWR_OFF);
+	pwr_ctrl_psci_smc(PDID_T3_FRCMC, PWR_OFF);
+	PR_FRC("%s:module shutdown done with powerdomain\n", __func__);
+
 }
 
 #if CONFIG_PM

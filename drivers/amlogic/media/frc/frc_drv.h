@@ -25,8 +25,9 @@
 #include "frc_interface.h"
 
 // frc_20210720_divided_reg_table
-#define FRC_FW_VER			"2021-0720 frc divided reg table"
-#define FRC_KERDRV_VER                  875
+// frc_20210804_add_powerdown_in_shutdown
+#define FRC_FW_VER			"2021-0804 frc add powdown at shutdown"
+#define FRC_KERDRV_VER                  909
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
