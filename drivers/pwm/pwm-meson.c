@@ -326,7 +326,7 @@ static void meson_pwm_enable(struct meson_pwm *meson, struct pwm_device *pwm)
 	spin_unlock_irqrestore(&meson->lock, flags);
 #ifdef CONFIG_AMLOGIC_MODIFY
 	if (meson->data->extern_clk) {
-		set_clk = clk_get_rate(channel->clk);
+		set_clk = channel->clk_rate;
 		if (set_clk == 0)
 			dev_err(meson->chip.dev, "invalid source clock frequency\n");
 
