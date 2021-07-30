@@ -35,6 +35,7 @@
 #define TRANSIT_INTERVAL (HZ) //1s
 #define DISC_THRE_MIN (UNIT90K / 3)
 #define DISC_THRE_MAX (UNIT90K * 20)
+#define C_THRE (UNIT90K / 50)		/* 20ms */
 
 #define TEN_MS_INTERVAL  (HZ / 100)
 #define MIN_GAP (UNIT90K * 3)		/* 3s */
@@ -1287,8 +1288,7 @@ static void pcr_check(struct sync_session *session)
 				session->last_check_apts = checkin_apts;
 				session->last_check_apts_cnt = 0;
 				if (abs_diff(session->wall_clock,
-					checkin_apts) <=
-						(session->disc_thres_min >> 1))
+					checkin_apts) <= C_THRE)
 					session->pcr_disc_flag &= ~(AUDIO_DISC);
 			}
 			if (flag != session->pcr_disc_flag)
