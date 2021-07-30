@@ -454,8 +454,11 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	pr_dbg("tsn_in:%d, tsn_out:%d\n", tsn_in_reg, tsn_out);
 	advb->dsc_pipeline = tsn_in_reg;
 	//set demod/local
+#ifdef CONFIG_AMLOGIC_TEE
 	tee_demux_config_pipeline(tsn_in_reg, tsn_out);
-
+#else
+	dprint("no define CONFIG_AMLOGIC_TEE\n");
+#endif
 	sid_num  = get_all_sid_info(dmx_dev_num, advb);
 	dmx_init_hw(sid_num, (int *)&sid_info);
 
