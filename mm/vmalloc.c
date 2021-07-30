@@ -35,6 +35,9 @@
 #include <linux/bitops.h>
 #include <linux/rbtree_augmented.h>
 #include <linux/overflow.h>
+#ifdef CONFIG_AMLOGIC_CMA
+#include <linux/amlogic/aml_cma.h>
+#endif
 
 #include <linux/uaccess.h>
 #include <asm/tlbflush.h>
@@ -414,7 +417,15 @@ static atomic_long_t nr_vmalloc_pages;
 
 unsigned long vmalloc_nr_pages(void)
 {
+#ifdef CONFIG_AMLOGIC_CMA
+	unsigned long tmp;
+
+	/* pad cma used to vmalloc*/
+	tmp = get_cma_allocated() - ion_cma_allocated;
+	return atomic_long_read(&nr_vmalloc_pages) + tmp;
+#else
 	return atomic_long_read(&nr_vmalloc_pages);
+#endif
 }
 
 static struct vmap_area *__find_vmap_area(unsigned long addr)

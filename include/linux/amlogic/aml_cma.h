@@ -83,6 +83,7 @@ void put_cma_alloc_ref(void);
 bool cma_page(struct page *page);
 unsigned long get_cma_allocated(void);
 unsigned long get_total_cmapages(void);
+extern unsigned long ion_cma_allocated;
 extern bool cma_first_wm_low;
 extern int cma_debug_level;
 int aml_cma_alloc_range(unsigned long start, unsigned long end);
