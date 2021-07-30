@@ -38,6 +38,7 @@
 #include <linux/oom.h>
 #include <linux/of.h>
 #include <linux/shrinker.h>
+#include <linux/vmalloc.h>
 #include <asm/system_misc.h>
 #include <trace/events/page_isolation.h>
 #ifdef CONFIG_AMLOGIC_PAGE_TRACE
@@ -68,6 +69,16 @@ int cma_debug_level;
 
 DEFINE_SPINLOCK(cma_iso_lock);
 static atomic_t cma_allocate;
+
+/*
+ * We insert a none-mapping vm area to vmalloc space
+ * and dynamic adjust it's size according nr_cma_allocated.
+ * Just in order to let all driver allocated cma size counted
+ * into KernelUsed item for dumpsys meminfo command on Android
+ * layer
+ */
+unsigned long ion_cma_allocated;
+EXPORT_SYMBOL(ion_cma_allocated);
 
 int cma_alloc_ref(void)
 {
@@ -840,7 +851,6 @@ static int __init aml_cma_init(void)
 		pr_err("%s, create sysfs failed\n", __func__);
 		return -1;
 	}
-
 	return 0;
 }
 arch_initcall(aml_cma_init);

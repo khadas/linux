@@ -11,6 +11,9 @@
 #include <linux/cma.h>
 #include <linux/scatterlist.h>
 #include <linux/highmem.h>
+#ifdef CONFIG_AMLOGIC_CMA
+#include <linux/amlogic/aml_cma.h>
+#endif
 
 #include "dev_ion.h"
 
@@ -68,6 +71,9 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	ion_buffer_prep_noncached(buffer);
 
+#ifdef CONFIG_AMLOGIC_CMA
+	ion_cma_allocated += len / PAGE_SIZE;
+#endif
 	return 0;
 
 free_mem:
@@ -85,6 +91,9 @@ static void ion_cma_free(struct ion_buffer *buffer)
 
 	/* release memory */
 	cma_release(cma_heap->cma, pages, nr_pages);
+#ifdef CONFIG_AMLOGIC_CMA
+	ion_cma_allocated -= buffer->size / PAGE_SIZE;
+#endif
 	/* release sg table */
 	sg_free_table(buffer->sg_table);
 	kfree(buffer->sg_table);
