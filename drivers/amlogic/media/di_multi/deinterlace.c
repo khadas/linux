@@ -1641,8 +1641,8 @@ int dim_get_canvas(void)
 		return 1;
 	}
 	cvss->en |= DI_CVS_EN_INP;
-	pr_info("DI: support multi decoding 0x%x~0x%x~0x%x.\n",
-		cvss->inp_idx[0], cvss->inp_idx[1], cvss->inp_idx[2]);
+	PR_INF("cvs inp:0x%x~0x%x~0x%x.\n",
+	       cvss->inp_idx[0], cvss->inp_idx[1], cvss->inp_idx[2]);
 
 	return 0;
 }
@@ -2841,6 +2841,10 @@ void dim_uninit_buf(unsigned int disable_mirror, unsigned int channel)
 	//dim_post_keep_mirror_buffer2(channel);
 
 	mem_release(pch, &blks[0], blk_nub);
+	PR_INF("unreg:2keep[%d], msk:[0x%x,0x%x]\n",
+	       pch->sts_unreg_dis2keep,
+	       pch->sts_unreg_blk_msk,
+	       pch->sts_unreg_pat_mst);
 	mem_2_blk(pch);
 
 	queue_init(channel, 0);
@@ -4990,7 +4994,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				return 11;
 			//vframe = &nins->c.vfm_cp;
 
-			PR_INF("eos\n");
+			dbg_reg("cfg:eos\n");
 			if (ppre->cur_prog_flag == 0		&&
 			    ppre->field_count_for_cont > 0) {
 				if (dip_itf_is_ins(pch) && (vframe->type & VIDTYPE_V4L_EOS))
@@ -5242,20 +5246,20 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				ppre->di_chan2_buf_dup_p = NULL;
 			}
 
-			pr_info("%s:ch[%d]:%ums %dth source change:\n",
-				__func__,
-				channel,
-				jiffies_to_msecs(jiffies_64),
-				ppre->in_seq);
-			pr_info("source change:0x%x/%d/%d/%d=>0x%x/%d/%d/%d\n",
-				ppre->cur_inp_type,
-				ppre->cur_width,
-				ppre->cur_height,
-				ppre->cur_source_type,
-				di_buf->vframe->type,
-				di_buf->vframe->width,
-				di_buf->vframe->height,
-				di_buf->vframe->source_type);
+			PR_INF("%s:ch[%d]:%ums %dth source change:\n",
+			       "pre cfg",
+			       channel,
+			       jiffies_to_msecs(jiffies_64),
+			       ppre->in_seq);
+			PR_INF("source change:0x%x/%d/%d/%d=>0x%x/%d/%d/%d\n",
+			       ppre->cur_inp_type,
+			       ppre->cur_width,
+			       ppre->cur_height,
+			       ppre->cur_source_type,
+			       di_buf->vframe->type,
+			       di_buf->vframe->width,
+			       di_buf->vframe->height,
+			       di_buf->vframe->source_type);
 			if (di_buf->vframe->type & VIDTYPE_COMPRESS) {
 				ppre->cur_width =
 					di_buf->vframe->compWidth;
@@ -8848,7 +8852,7 @@ int dim_process_post_vframe(unsigned int channel)
 		}
 	}
 	if (ready_count == 1 && ready_di_buf->is_eos) {
-		PR_INF("%s:only eos\n", __func__);
+		dbg_reg("%s:ch[%d] only eos\n", __func__, channel);
 		dim_pst_vfm_bypass(pch, ready_di_buf);
 		return 1;
 	}
@@ -8918,12 +8922,12 @@ int dim_process_post_vframe(unsigned int channel)
 				di_buf->di_buf[1]->pre_ref_count = 0;
 				queue_out(channel, tmp_buf[0]);
 				queue_out(channel, tmp_buf[1]);
-				PR_INF("eos:que out 0:t[%d]idx[%d]\n",
-				       tmp_buf[0]->type,
-				       tmp_buf[0]->index);
-				PR_INF("eos:que out 1:t[%d]idx[%d]\n",
-				       tmp_buf[1]->type,
-				       tmp_buf[1]->index);
+				dbg_reg("eos:que out 0:t[%d]idx[%d]\n",
+					tmp_buf[0]->type,
+					tmp_buf[0]->index);
+				dbg_reg("eos:que out 1:t[%d]idx[%d]\n",
+					tmp_buf[1]->type,
+					tmp_buf[1]->index);
 //				tmp = di_buf->di_buf_dup_p[0]->throw_flag;
 //				tmp0 = di_buf->di_buf_dup_p[1]->throw_flag;
 //				tmp1 = di_buf->di_buf_dup_p[2]->throw_flag;
@@ -8941,8 +8945,8 @@ int dim_process_post_vframe(unsigned int channel)
 				di_que_in(channel, QUE_PRE_NO_BUF, tmp_buf[2]);
 				#endif
 				dim_pst_vfm_bypass(pch, tmp_buf[2]);
-				PR_INF("eos:que out 2:t[%d]idx[%d]\n",
-				       tmp_buf[2]->type, tmp_buf[2]->index);
+				dbg_reg("eos:que out 2:t[%d]idx[%d]\n",
+					tmp_buf[2]->type, tmp_buf[2]->index);
 			} else {
 				PR_ERR("tmp_buf[2] is not eos\n");
 			}
@@ -9623,7 +9627,7 @@ void di_unreg_variable(unsigned int channel)
 #if (defined ENABLE_SPIN_LOCK_ALWAYS)
 //ary 2020-12-09	spin_lock_irqsave(&plist_lock, flags);
 #endif
-	pr_info("%s:\n", __func__);
+	dbg_reg("%s:\n", __func__);
 	if (get_datal()->dct_op)
 		get_datal()->dct_op->unreg(pch);
 
@@ -10598,8 +10602,8 @@ void dim_get_vpu_clkb(struct device *dev, struct di_dev_s *pdev)
 		pdev->clkb_min_rate = tmp_clk[0] * 1000000;
 		pdev->clkb_max_rate = tmp_clk[1] * 1000000;
 	}
-	pr_info("DI: vpu clkb <%lu, %lu>\n", pdev->clkb_min_rate,
-		pdev->clkb_max_rate);
+	PR_INF("vpu clkb <%lu, %lu>\n", pdev->clkb_min_rate,
+	       pdev->clkb_max_rate);
 	#ifdef CLK_TREE_SUPPORT
 	if (DIM_IS_IC_EF(SC2))
 		pdev->vpu_clkb = clk_get(dev, "vpu_clkb");

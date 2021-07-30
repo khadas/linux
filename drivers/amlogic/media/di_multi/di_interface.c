@@ -358,6 +358,9 @@ static void cfg_ch_set(struct di_ch_s *pch)
 		cfgsch(pch, 4K, 0);
 	}
 
+	if (!(di_dbg & DBG_M_REG))
+		return;
+	/* debug only */
 	PR_INF("%s:ch[%d]\n",
 	       __func__, pch->ch_id);
 	PR_INF("\tkeep_dec_vf[%d]\n", cfggch(pch, KEEP_DEC_VF));
@@ -381,7 +384,7 @@ int di_create_instance(struct di_init_parm parm)
 	struct di_ch_s *pch;
 	struct dim_itf_s *itf;
 
-	PR_INF("%s:", __func__);
+	dbg_reg("%s:", __func__);
 	ret = reg_idle_ch();
 	if (ret < 0) {
 		PR_ERR("%s:no idle ch\n", __func__);
@@ -450,7 +453,7 @@ int di_create_instance(struct di_init_parm parm)
 
 	cfg_ch_set(pch);
 	mutex_unlock(&pch->itf.lock_reg);
-	PR_INF("%s:ch[%d],tmode[%d]\n", __func__, ch, itf->tmode);
+	PR_INF("%s:ch[%d],tmode[%d]\n", "create", ch, itf->tmode);
 	PR_INF("\tout:0x%x\n", itf->u.dinst.parm.output_format);
 	return ch;
 }
@@ -471,7 +474,7 @@ int di_destroy_instance(int index)
 	unsigned int ch;
 	struct di_ch_s *pch;
 
-	PR_INF("%s:\n", __func__);
+	dbg_reg("%s:\n", __func__);
 	ch = index_2_ch(index);
 	if (ch == ERR_INDEX) {
 		PR_ERR("%s:index overflow\n", __func__);
@@ -568,7 +571,7 @@ enum DI_ERRORTYPE di_empty_input_buffer(int index, struct di_buffer *buffer)
 	if (buffer->flag & DI_FLAG_EOS) {
 		pins->c.vfm_cp.type |= (VIDTYPE_V4L_EOS |
 					VIDTYPE_INTERLACE_TOP); //test only
-		PR_INF("%s:ch[%d] eos\n", __func__, ch);
+		PR_INF("ch[%d] in eos\n", ch);
 	} else {
 		/* @ary_note: eos may be no vf */
 		memcpy(&pins->c.vfm_cp, buffer->vf, sizeof(pins->c.vfm_cp));

@@ -1220,7 +1220,7 @@ void qfp_int(struct qs_cls_s	*pq,
 		pq->flg_lock |= DIM_QUE_LOCK_WR;
 	}
 
-	PR_INF("%s:%s:end\n", __func__, qname);
+	dbg_reg("%s:%s:end\n", __func__, qname);
 }
 
 bool qfp_release(struct qs_cls_s	*pq)
@@ -1353,7 +1353,7 @@ void qbuf_int(struct buf_que_s *pbufq, const struct que_creat_s *cfg,
 	else
 		pbufq->rflg = false;
 
-	PR_INF("%s:%s:end\n", __func__, pbufq->name);
+	dbg_reg("%s:%s:end\n", __func__, pbufq->name);
 }
 
 bool qbuf_release_que(struct buf_que_s *pqbuf)

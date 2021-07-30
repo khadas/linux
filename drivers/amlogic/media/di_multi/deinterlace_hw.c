@@ -4599,9 +4599,9 @@ void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		PR_ERR("[DI] table ptr error.\n");
 		return;
 	}
-	pr_info("[DI]%s hw load 0x%x pq table len %u.\n",
-		__func__, di_pq_ptr->pq_parm.table_name,
-		di_pq_ptr->pq_parm.table_len);
+	PR_INF("load 0x%x pq table len %u.\n",
+	       di_pq_ptr->pq_parm.table_name,
+	       di_pq_ptr->pq_parm.table_len);
 	nr_table = TABLE_NAME_NR | TABLE_NAME_DEBLOCK | TABLE_NAME_DEMOSQUITO;
 	regs_p = (struct am_reg_s *)di_pq_ptr->regs;
 	len = di_pq_ptr->pq_parm.table_len;

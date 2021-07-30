@@ -548,7 +548,7 @@ bool mtask_send_cmd(unsigned int ch, struct mtsk_cmd_s *cmd)
 	else
 		kfifo_in(&fcmd->fifo, cmd, sizeof(struct mtsk_cmd_s));
 
-	fcmd->doing++;
+	atomic_inc(&fcmd->doing);//fcmd->doing++;
 	mtask_wakeup(tsk);
 	return true;
 }
@@ -584,7 +584,7 @@ bool mtask_send_cmd_block(unsigned int ch, struct mtsk_cmd_s *cmd)
 	else
 		kfifo_in(&fcmd->fifo, cmd, sizeof(struct mtsk_cmd_s));
 
-	fcmd->doing++;
+	atomic_inc(&fcmd->doing);//fcmd->doing++;
 	mtask_wakeup(tsk);
 	return true;
 }
@@ -608,12 +608,14 @@ bool mtsk_alloc_block(unsigned int ch, struct mtsk_cmd_s *cmd)
 	mtask_send_cmd(ch, cmd);
 	fcmd = &tsk->fcmd[ch];
 	cnt = 0;
-	while ((fcmd->doing > 0) && (cnt < 200)) { /*wait 2s for finish*/
+	while ((atomic_read(&fcmd->doing) > 0) && (cnt < 200)) {
+		/*wait 2s for finish*/
 		usleep_range(10000, 10001);
 		cnt++;
 	}
-	if (fcmd->doing > 0) {
-		PR_ERR("%s:can't finish[%d]\n", __func__, fcmd->doing);
+	if (atomic_read(&fcmd->doing) > 0) {
+		PR_ERR("%s:can't finish[%d]\n", __func__,
+		       atomic_read(&fcmd->doing));
 		return false;
 	}
 	return true;
@@ -649,12 +651,16 @@ bool mtsk_release_block(unsigned int ch, unsigned int cmd)
 	mtask_send_cmd(ch, &blk_cmd);
 	fcmd = &tsk->fcmd[ch];
 	cnt = 0;
-	while ((fcmd->doing > 0) && (cnt < 200)) { /*wait 2s for finish*/
+	while ((atomic_read(&fcmd->doing) > 0) && (cnt < 200)) {
+		/*wait 2s for finish*/
 		usleep_range(10000, 10001);
 		cnt++;
 	}
-	if (fcmd->doing > 0) {
-		PR_ERR("%s:can't finish[%d]\n", __func__, fcmd->doing);
+	if (atomic_read(&fcmd->doing) > 0) {
+		PR_ERR("%s:can't finish[%d] fix\n", __func__,
+		       atomic_read(&fcmd->doing));
+		/*fix*/
+		atomic_set(&fcmd->doing, 0);
 		return false;
 	}
 	return true;

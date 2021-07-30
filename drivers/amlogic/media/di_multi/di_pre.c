@@ -316,11 +316,12 @@ bool dpre_can_exit(unsigned int ch)
 		if (pre->pre_st <= EDI_PRE_ST4_IDLE)
 			ret = true;
 	}
-	pr_info("%s:ch[%d]:curr[%d]:stat[%s] ret[%d]\n",
-		__func__,
-		ch, pre->curr_ch,
-		dpre_state4_name_get(pre->pre_st),
-		ret);
+	if (!ret)
+		PR_INF("%s:ch[%d]:curr[%d]:stat[%s] ret[%d]\n",
+		       __func__,
+		       ch, pre->curr_ch,
+		       dpre_state4_name_get(pre->pre_st),
+		       ret);
 	return ret;
 }
 
