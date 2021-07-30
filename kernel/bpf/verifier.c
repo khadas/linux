@@ -2689,7 +2689,7 @@ continue_func:
 	goto continue_func;
 }
 
-#ifndef CONFIG_BPF_JIT_ALWAYS_ON
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC
 static int get_callee_stack_depth(struct bpf_verifier_env *env,
 				  const struct bpf_insn *insn, int idx)
 {
@@ -9054,7 +9054,7 @@ out_undo_insn:
 
 static int fixup_call_args(struct bpf_verifier_env *env)
 {
-#ifndef CONFIG_BPF_JIT_ALWAYS_ON
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC
 	struct bpf_prog *prog = env->prog;
 	struct bpf_insn *insn = prog->insnsi;
 	int i, depth;
@@ -9069,7 +9069,7 @@ static int fixup_call_args(struct bpf_verifier_env *env)
 		if (err == -EFAULT)
 			return err;
 	}
-#ifndef CONFIG_BPF_JIT_ALWAYS_ON
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC
 	for (i = 0; i < prog->len; i++, insn++) {
 		if (insn->code != (BPF_JMP | BPF_CALL) ||
 		    insn->src_reg != BPF_PSEUDO_CALL)

@@ -1653,6 +1653,15 @@ config BPF_JIT_ALWAYS_ON
 	  Enables BPF JIT and removes BPF interpreter to avoid
 	  speculative execution of BPF instructions by the interpreter
 
+config BPF_JIT_ALWAYS_ON_AMLOGIC
+	bool "Permanently enable BPF JIT and remove BPF interpreter for Amlogic"
+	default y
+	depends on BPF_SYSCALL && HAVE_EBPF_JIT && BPF_JIT_AMLOGIC
+	help
+	  real effective config for Amlogic
+	  we should disable it in arm
+
+
 config USERFAULTFD
 	bool "Enable userfaultfd() system call"
 	depends on MMU

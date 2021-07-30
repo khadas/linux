@@ -303,6 +303,15 @@ config BPF_JIT
 	  /proc/sys/net/core/bpf_jit_harden   (optional)
 	  /proc/sys/net/core/bpf_jit_kallsyms (optional)
 
+config BPF_JIT_AMLOGIC
+	bool "enable BPF Just In Time compiler for Amlogic"
+	default y
+	depends on HAVE_CBPF_JIT || HAVE_EBPF_JIT
+	depends on MODULES
+	help
+	  real effective config  for Amlogic
+	  we should disable it in arm
+
 config BPF_STREAM_PARSER
 	bool "enable BPF STREAM_PARSER"
 	depends on INET

@@ -558,7 +558,7 @@ struct sk_filter {
 
 DECLARE_STATIC_KEY_FALSE(bpf_stats_enabled_key);
 
-#if IS_ENABLED(CONFIG_BPF_JIT) && IS_ENABLED(CONFIG_AMLOGIC_CFI_CLANG)
+#if IS_ENABLED(CONFIG_BPF_JIT_AMLOGIC) && IS_ENABLED(CONFIG_AMLOGIC_CFI_CLANG)
 /*
  * With JIT, the kernel makes an indirect call to dynamically generated
  * code. Use bpf_call_func to perform additional validation of the call
@@ -582,7 +582,7 @@ static inline unsigned int __nocfi bpf_call_func(const struct bpf_prog *prog,
 {
 	const struct bpf_binary_header *hdr = bpf_jit_binary_hdr(prog);
 
-	if (!IS_ENABLED(CONFIG_BPF_JIT_ALWAYS_ON) && !prog->jited)
+	if (!IS_ENABLED(CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC) && !prog->jited)
 		return __bpf_call_func(prog, ctx);
 
 	/*
@@ -830,7 +830,7 @@ bpf_ctx_narrow_access_offset(u32 off, u32 size, u32 size_default)
 
 static inline void bpf_prog_lock_ro(struct bpf_prog *fp)
 {
-#ifndef CONFIG_BPF_JIT_ALWAYS_ON
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC
 	if (!fp->jited) {
 		set_vm_flush_reset_perms(fp);
 		set_memory_ro((unsigned long)fp, fp->pages);
@@ -992,7 +992,7 @@ bpf_run_sk_reuseport(struct sock_reuseport *reuse, struct sock *sk,
 }
 #endif
 
-#ifdef CONFIG_BPF_JIT
+#ifdef CONFIG_BPF_JIT_AMLOGIC
 extern int bpf_jit_enable;
 extern int bpf_jit_harden;
 extern int bpf_jit_kallsyms;
@@ -1101,7 +1101,7 @@ void bpf_prog_kallsyms_add(struct bpf_prog *fp);
 void bpf_prog_kallsyms_del(struct bpf_prog *fp);
 void bpf_get_prog_name(const struct bpf_prog *prog, char *sym);
 
-#else /* CONFIG_BPF_JIT */
+#else /* CONFIG_BPF_JIT_AMLOGIC */
 
 static inline bool ebpf_jit_enabled(void)
 {
@@ -1161,7 +1161,7 @@ static inline void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
 	sym[0] = '\0';
 }
 
-#endif /* CONFIG_BPF_JIT */
+#endif /* CONFIG_BPF_JIT_AMLOGIC */
 
 void bpf_prog_kallsyms_del_all(struct bpf_prog *fp);
 

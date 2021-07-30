@@ -5275,7 +5275,7 @@ static struct bpf_test tests[] = {
 	{	/* Mainly checking JIT here. */
 		"BPF_MAXINSNS: Ctx heavy transformations",
 		{ },
-#if defined(CONFIG_BPF_JIT_ALWAYS_ON) && defined(CONFIG_S390)
+#if defined(CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC) && defined(CONFIG_S390)
 		CLASSIC | FLAG_EXPECTED_FAIL,
 #else
 		CLASSIC,
@@ -5291,7 +5291,7 @@ static struct bpf_test tests[] = {
 	{	/* Mainly checking JIT here. */
 		"BPF_MAXINSNS: Call heavy transformations",
 		{ },
-#if defined(CONFIG_BPF_JIT_ALWAYS_ON) && defined(CONFIG_S390)
+#if defined(CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC) && defined(CONFIG_S390)
 		CLASSIC | FLAG_NO_DATA | FLAG_EXPECTED_FAIL,
 #else
 		CLASSIC | FLAG_NO_DATA,
@@ -5328,7 +5328,7 @@ static struct bpf_test tests[] = {
 	{
 		"BPF_MAXINSNS: Jump, gap, jump, ...",
 		{ },
-#if defined(CONFIG_BPF_JIT_ALWAYS_ON) && defined(CONFIG_X86)
+#if defined(CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC) && defined(CONFIG_X86)
 		CLASSIC | FLAG_NO_DATA | FLAG_EXPECTED_FAIL,
 #else
 		CLASSIC | FLAG_NO_DATA,
@@ -5350,7 +5350,7 @@ static struct bpf_test tests[] = {
 	{
 		"BPF_MAXINSNS: exec all MSH",
 		{ },
-#if defined(CONFIG_BPF_JIT_ALWAYS_ON) && defined(CONFIG_S390)
+#if defined(CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC) && defined(CONFIG_S390)
 		CLASSIC | FLAG_EXPECTED_FAIL,
 #else
 		CLASSIC,
@@ -5363,7 +5363,7 @@ static struct bpf_test tests[] = {
 	{
 		"BPF_MAXINSNS: ld_abs+get_processor_id",
 		{ },
-#if defined(CONFIG_BPF_JIT_ALWAYS_ON) && defined(CONFIG_S390)
+#if defined(CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC) && defined(CONFIG_S390)
 		CLASSIC | FLAG_EXPECTED_FAIL,
 #else
 		CLASSIC,
