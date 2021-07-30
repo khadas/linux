@@ -1727,7 +1727,7 @@ static void vdin_hist_tgt(struct vdin_dev_s *devp, struct vframe_s *vf)
 	}
 
 	vdin1_hist.ave =
-		vdin1_hist.sum / (vdin1_hist.height * vdin1_hist.width);
+		div_u64(vdin1_hist.sum, (vdin1_hist.height * vdin1_hist.width));
 
 	ave_luma = vdin1_hist.ave;
 	ave_luma = (ave_luma - 16) < 0 ? 0 : (ave_luma - 16);
