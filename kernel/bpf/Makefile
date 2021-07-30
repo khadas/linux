@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 obj-y := core.o
-ifneq ($(CONFIG_BPF_JIT_ALWAYS_ON),y)
+ifneq ($(CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC),y)
 # ___bpf_prog_run() needs GCSE disabled on x86; see 3193c0836f203 for details
 cflags-nogcse-$(CONFIG_X86)$(CONFIG_CC_IS_GCC) := -fno-gcse
 endif

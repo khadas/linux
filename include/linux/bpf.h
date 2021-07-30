@@ -713,7 +713,7 @@ static inline void bpf_long_memcpy(void *dst, const void *src, u32 size)
 int bpf_check(struct bpf_prog **fp, union bpf_attr *attr,
 	      union bpf_attr __user *uattr);
 
-#ifndef CONFIG_BPF_JIT_ALWAYS_ON
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC
 void bpf_patch_call_args(struct bpf_insn *insn, u32 stack_depth);
 #endif
 

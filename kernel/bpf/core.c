@@ -516,9 +516,9 @@ void bpf_prog_kallsyms_del_all(struct bpf_prog *fp)
 	bpf_prog_kallsyms_del(fp);
 }
 
-#ifdef CONFIG_BPF_JIT
+#ifdef CONFIG_BPF_JIT_AMLOGIC
 /* All BPF JIT sysctl knobs here. */
-int bpf_jit_enable   __read_mostly = IS_BUILTIN(CONFIG_BPF_JIT_ALWAYS_ON);
+int bpf_jit_enable   __read_mostly = IS_BUILTIN(CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC);
 int bpf_jit_harden   __read_mostly;
 int bpf_jit_kallsyms __read_mostly;
 long bpf_jit_limit   __read_mostly;
@@ -792,7 +792,7 @@ void __weak bpf_jit_free_exec(void *addr)
 	module_memfree(addr);
 }
 
-#if IS_ENABLED(CONFIG_BPF_JIT) && IS_ENABLED(CONFIG_AMLOGIC_CFI_CLANG)
+#if IS_ENABLED(CONFIG_BPF_JIT_AMLOGIC) && IS_ENABLED(CONFIG_AMLOGIC_CFI_CLANG)
 bool __weak arch_bpf_jit_check_func(const struct bpf_prog *prog)
 {
 	return true;
@@ -1127,7 +1127,7 @@ struct bpf_prog *bpf_jit_blind_constants(struct bpf_prog *prog)
 	clone->blinded = 1;
 	return clone;
 }
-#endif /* CONFIG_BPF_JIT */
+#endif /* CONFIG_BPF_JIT_AMLOGIC */
 
 /* Base function for offset calculation. Needs to go into .text section,
  * therefore keeping it non-static as well; will also be used by JITs
@@ -1299,7 +1299,7 @@ bool bpf_opcode_in_insntable(u8 code)
 	return public_insntable[code];
 }
 
-#ifndef CONFIG_BPF_JIT_ALWAYS_ON
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC
 /**
  *	__bpf_prog_run - run eBPF program on a given context
  *	@regs: is the array of MAX_BPF_EXT_REG eBPF pseudo-registers
@@ -1697,7 +1697,7 @@ static int bpf_check_tail_call(const struct bpf_prog *fp)
 
 static void bpf_prog_select_func(struct bpf_prog *fp)
 {
-#ifndef CONFIG_BPF_JIT_ALWAYS_ON
+#ifndef CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC
 	u32 stack_depth = max_t(u32, fp->aux->stack_depth, 1);
 
 	fp->bpf_func = interpreters[(round_up(stack_depth, 32) / 32) - 1];
@@ -1738,7 +1738,7 @@ struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 		fp = bpf_int_jit_compile(fp);
 		if (!fp->jited) {
 			bpf_prog_free_jited_linfo(fp);
-#ifdef CONFIG_BPF_JIT_ALWAYS_ON
+#ifdef CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC
 			*err = -ENOTSUPP;
 			return fp;
 #endif

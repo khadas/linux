@@ -262,7 +262,7 @@ static int proc_do_rss_key(struct ctl_table *table, int write,
 	return proc_dostring(&fake_table, write, buffer, lenp, ppos);
 }
 
-#ifdef CONFIG_BPF_JIT
+#ifdef CONFIG_BPF_JIT_AMLOGIC
 static int proc_dointvec_minmax_bpf_enable(struct ctl_table *table, int write,
 					   void __user *buffer, size_t *lenp,
 					   loff_t *ppos)
@@ -382,14 +382,14 @@ static struct ctl_table net_core_table[] = {
 		.mode		= 0444,
 		.proc_handler	= proc_do_rss_key,
 	},
-#ifdef CONFIG_BPF_JIT
+#ifdef CONFIG_BPF_JIT_AMLOGIC
 	{
 		.procname	= "bpf_jit_enable",
 		.data		= &bpf_jit_enable,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax_bpf_enable,
-# ifdef CONFIG_BPF_JIT_ALWAYS_ON
+# ifdef CONFIG_BPF_JIT_ALWAYS_ON_AMLOGIC
 		.extra1		= SYSCTL_ONE,
 		.extra2		= SYSCTL_ONE,
 # else
