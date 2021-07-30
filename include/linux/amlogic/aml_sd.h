@@ -398,19 +398,7 @@ void aml_host_bus_fsm_show(struct mmc_host *mmc, int status);
 #define AML_FIXADJ_STEP 4
 #define ADJ_WIN_PRINT_MAXLEN 256
 #define NO_FIXED_ADJ_MID BIT(31)
-#define AML_MV_DLY1_NOMMC(x) { \
-	typeof(x) _x = (x); \
-	((_x) << 0) | ((_x) << 6) | ((_x) << 12) | ((_x) << 18); }
-#define AML_MV_DLY1(x) { \
-	typeof(x) _x = (x); \
-	((_x) << 0) | ((_x) << 6) | ((_x) << 12) | ((_x) << 18) | ((_x) << 24); }
-#define AML_MV_DLY2(x) { \
-	typeof(x) _x = (x); \
-	((_x) << 0) | ((_x) << 6) | ((_x) << 12) | ((_x) << 24); }
 #define AML_MV_DLY2_NOMMC_CMD(x) ((x) << 24)
-#define AML_MV_DLY2_NOCMD(x) { \
-	typeof(x) _x = (x); \
-	((_x) << 0) | ((_x) << 6) | ((_x) << 12); }
 
 #define SD_EMMC_FIXED_ADJ_HS200
 #define EMMC_CMD_WIN_MAX_SIZE	50
