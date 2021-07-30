@@ -312,11 +312,12 @@ bool dpst_can_exit(unsigned int ch)
 		if (pst->state <= EDI_PST_ST_IDLE)
 			ret = true;
 	}
-	pr_info("%s:ch[%d]:curr[%d]:stat[%s] ret[%d]\n",
-		__func__,
-		ch, pst->curr_ch,
-		dpst_state_name_get(pst->state),
-		ret);
+	if (!ret)
+		PR_INF("%s:ch[%d]:curr[%d]:stat[%s] ret[%d]\n",
+		       __func__,
+		       ch, pst->curr_ch,
+		       dpst_state_name_get(pst->state),
+		       ret);
 	return ret;
 }
 

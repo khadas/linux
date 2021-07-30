@@ -1358,8 +1358,8 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 	}
 
 	//afbc_cfg = BITS_EAFBC_CFG_DISABLE;
-	di_pr_info("%s:ver[%d],%s,mode[%d]\n", __func__, pafd_ctr->fb.ver,
-		   afbc_get_version(), pafd_ctr->fb.mode);
+	PR_INF("%s:ver[%d],%s,mode[%d]\n", __func__, pafd_ctr->fb.ver,
+	       afbc_get_version(), pafd_ctr->fb.mode);
 }
 
 /*
@@ -2909,7 +2909,7 @@ static unsigned int v2_afbc_count_buffer_size(unsigned int format,
 	each_blk_bytes = ((((sblk_num * 16 * src_bits + 7) >> 3) +
 			   63) >> 6) << 6;
 	body_buffer_size = ((blk_nub_total * each_blk_bytes) * 113 + 99) / 100;
-	PR_INF("%s:size=0x%x\n", __func__, body_buffer_size);
+	dbg_reg("%s:size=0x%x\n", __func__, body_buffer_size);
 	pafd_ctr->size_afbc_buf = body_buffer_size;
 
 	return body_buffer_size;

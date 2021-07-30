@@ -1580,7 +1580,7 @@ void dcntr_prob(void)
 
 	pcfg = &di_dcnt;
 
-	PR_INF("%s\n", __func__);
+	dbg_reg("%s\n", __func__);
 	memset(pcfg, 0, sizeof(*pcfg));
 
 	if (DIM_IS_IC(T5) || DIM_IS_IC(T3))

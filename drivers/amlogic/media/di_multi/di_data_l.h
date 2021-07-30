@@ -701,7 +701,7 @@ struct dim_fcmd_s {
 	bool release_cmd;
 	unsigned int reg_nub;
 	unsigned int reg_page; /*size >> page_shift*/
-	int doing; /* inc in send_cmd, and set 0 when thread done*/
+	atomic_t doing; /* inc in send_cmd, and set 0 when thread done*/
 	int	sum_alloc; /* alloc ++, releas -- */
 	int	sum_hf_alloc; /* alloc ++, releas -- */
 	unsigned int sum_hf_psize;
@@ -1934,7 +1934,13 @@ struct di_ch_s {
 	struct qs_cls_s		npst_que; /*new interface */
 	struct dim_itf_s itf;
 	void *dct_pre; /* struct di_pre_dct_s */
-
+	/**/
+	unsigned char sts_mem_pre_cfg;
+	unsigned char sts_mem_2_local;
+	unsigned char sts_mem_2_pst;
+	unsigned char	sts_unreg_dis2keep;
+	unsigned int	sts_unreg_blk_msk;
+	unsigned int	sts_unreg_pat_mst;
 	bool en_hf_buf;
 	bool en_hf; //
 };

@@ -298,7 +298,7 @@ bool di_que_alloc(unsigned int ch)
 
 	if (!flg_err) {
 		/*pbm->flg_fifo = 1;*/
-		pr_info("%s:ok\n", __func__);
+		dbg_reg("%s:ok\n", __func__);
 		ret = true;
 	} else {
 		di_que_release(ch);

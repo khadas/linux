@@ -1374,5 +1374,5 @@ void dev_vframe_init(void)
 		vf_provider_init(&pvfm->di_vf_prov, pvfm->name,
 				 &deinterlace_vf_provider, &pvfm->indx);
 	}
-	pr_info("%s finish\n", __func__);
+	dbg_reg("%s finish\n", __func__);
 }

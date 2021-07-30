@@ -853,7 +853,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 
 		break;
 	}
-	fcmd->doing--;
+	atomic_dec(&fcmd->doing);//fcmd->doing--;
 	if (flg_alloc)
 		task_send_ready(25);
 }
@@ -940,7 +940,7 @@ bool mem_alloc_check(struct di_ch_s *pch)
 
 	fcmd = &tsk->fcmd[ch];
 
-	if (fcmd->doing > 0)
+	if (atomic_read(&fcmd->doing) > 0)
 		return false;
 	return true;
 }
@@ -1117,7 +1117,7 @@ void pre_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 	idat_size = flgs.b.page << PAGE_SHIFT;
 
 	if (!idat_size) {
-		PR_INF("%s:no size\n", __func__);
+		dbg_reg("%s:no size\n", __func__);
 		return;
 	}
 	idat->virt = kzalloc(idat_size, GFP_KERNEL);
@@ -1132,7 +1132,7 @@ void pre_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 	idat_size = flgs.b.page;
 
 	if (!idat_size) {
-		PR_INF("%s:no size\n", __func__);
+		dbg_reg("%s:no size\n", __func__);
 		return;
 	}
 	ret = mm_cma_alloc(NULL, idat_size, &omm);
@@ -1171,7 +1171,7 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 	dat_size = flgs.b.page << PAGE_SHIFT;
 
 	if (pdat->flg_alloc || !dat_size) {
-		PR_INF("%s:not alloc:%d,0x%x\n",
+		dbg_reg("%s:not alloc:%d,0x%x\n",
 		       __func__,
 		       pdat->flg_alloc, flg);
 		return;
@@ -1189,7 +1189,7 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 	dat_size = flgs.b.page;
 
 	if (pdat->flg_alloc || !dat_size) {
-		PR_INF("%s:not alloc:%d,0x%x\n",
+		dbg_reg("%s:not alloc:%d,0x%x\n",
 		       __func__,
 		       pdat->flg_alloc, flg);
 		return;
@@ -1613,7 +1613,8 @@ bool mem_cfg_pre(struct di_ch_s *pch)
 		else
 			flg_q = true;
 	}
-	PR_INF("%s:%d\n", __func__, cnt);
+	//PR_INF("%s:%d\n", __func__, cnt);
+	pch->sts_mem_pre_cfg = cnt;
 	return ret;
 }
 
@@ -1673,7 +1674,8 @@ bool mem_cfg_2local(struct di_ch_s *pch)
 		cnt++;
 		length--;
 	}
-	PR_INF("%s: [%d]\n", __func__, cnt);
+	//PR_INF("%s: [%d]\n", __func__, cnt);
+	pch->sts_mem_2_local = cnt;
 
 	if (err_cnt)
 		return false;
@@ -1742,8 +1744,8 @@ bool mem_cfg_2pst(struct di_ch_s *pch)
 		length_pst--;
 	}
 
-	PR_INF("%s: pst[%d]\n", __func__, cnt);
-
+	//PR_INF("%s: pst[%d]\n", __func__, cnt);
+	pch->sts_mem_2_pst = cnt;
 	if (err_cnt)
 		return false;
 	return true;
@@ -1883,7 +1885,7 @@ bool mem_cfg(struct di_ch_s *pch)
 	mm = dim_mm_get(ch);
 	fcmd = &tsk->fcmd[ch];
 
-	if (fcmd->doing > 0)
+	if (atomic_read(&fcmd->doing) > 0)
 		return false;
 
 	pbf_blk = &pch->blk_qb;
@@ -2051,7 +2053,7 @@ bool mem_cfg_realloc(struct di_ch_s *pch) /*temp for re-alloc mem*/
 	ch = pch->ch_id;
 	fcmd = &tsk->fcmd[pch->ch_id];
 
-	if (fcmd->doing > 0)
+	if (atomic_read(&fcmd->doing) > 0)
 		return false;
 
 	pbf_blk = &pch->blk_qb;
@@ -2409,9 +2411,10 @@ void mem_release(struct di_ch_s *pch, struct dim_mm_blk_s **blks, unsigned int b
 
 	qpat_in_ready_msk(pch, pat_mst);
 	//dbg_mem2("%s:blk_mst[0x%x]\n", __func__, blk_mst);
-	PR_INF("%s:blk_mst[0x%x]\n", __func__, blk_mst);
-	PR_INF("%s:pat_mst[0x%x]\n", __func__, pat_mst);
-
+	//PR_INF("%s:blk_mst[0x%x]\n", __func__, blk_mst);
+	//PR_INF("%s:pat_mst[0x%x]\n", __func__, pat_mst);
+	pch->sts_unreg_blk_msk = blk_mst;
+	pch->sts_unreg_pat_mst = pat_mst;
 	pbf_blk = &pch->blk_qb;
 	pbf_mem = &pch->mem_qb;
 	/*QBF_MEM_Q_GET_PRE -> out:QBF_BLK_Q_RCYCLE2*/
@@ -2800,7 +2803,7 @@ bool qpat_in_ready_msk(struct di_ch_s *pch, unsigned int msk)
 				pat_buf->header.index);
 		}
 	}
-	PR_INF("%s:0x%x\n", __func__, msk);
+	dbg_keep("%s:0x%x\n", __func__, msk);
 	if (err)
 		return false;
 	return true;
@@ -3024,7 +3027,7 @@ bool qiat_all_back2_ready(struct di_ch_s *pch)
 		qbuf_in(pbufq, QBF_IAT_Q_READY, index);
 	}
 	len = qbufp_count(pbufq, QBF_IAT_Q_READY);
-	PR_INF("%s:len[%d]\n", __func__, len);
+	dbg_reg("%s:len[%d]\n", __func__, len);
 
 	return true;
 }
@@ -3725,7 +3728,7 @@ static int dim_probe(struct platform_device *pdev)
 		PR_ERR("%s: failed to allocate major number\n", __func__);
 		goto fail_alloc_cdev_region;
 	}
-	PR_INF("%s: major %d\n", __func__, MAJOR(di_pdev->devno));
+	dbg_reg("%s: major %d\n", __func__, MAJOR(di_pdev->devno));
 	di_pdev->pclss = class_create(THIS_MODULE, CLASS_NAME);
 	if (IS_ERR(di_pdev->pclss)) {
 		ret = PTR_ERR(di_pdev->pclss);
@@ -3816,12 +3819,12 @@ static int dim_probe(struct platform_device *pdev)
 
 	di_devp->aisr_irq = platform_get_irq_byname(pdev, "aisr_irq");
 	if (di_devp->aisr_irq  == -ENXIO)
-		PR_INF("cannot get aisr_irq\n");
+		PR_INF("no aisr_irq\n");
 	else
 		PR_INF("aisr_irq:%d\n", di_devp->aisr_irq);
 
-	di_pr_info("%s allocate rdma channel %d.\n", __func__,
-		   di_devp->rdma_handle);
+	//di_pr_info("%s allocate rdma channel %d.\n", __func__,
+	//	   di_devp->rdma_handle);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
 		dim_get_vpu_clkb(&pdev->dev, di_devp);
 		#ifdef CLK_TREE_SUPPORT
@@ -3917,15 +3920,15 @@ static int dim_probe(struct platform_device *pdev)
 
 	dimh_patch_post_update_mc_sw(DI_MC_SW_IC, true);
 
-	pr_info("%s:ok\n", __func__);
+	PR_INF("%s:ok\n", __func__);
 	return ret;
 
 fail_cdev_add:
-	pr_info("%s:fail_cdev_add\n", __func__);
+	PR_WARN("%s:fail_cdev_add\n", __func__);
 	kfree(di_devp->data_l);
 	di_devp->data_l = NULL;
 fail_kmalloc_datal:
-	pr_info("%s:fail_kmalloc datal\n", __func__);
+	PR_WARN("%s:fail_kmalloc datal\n", __func__);
 
 	/*move from init*/
 /*fail_pdrv_register:*/

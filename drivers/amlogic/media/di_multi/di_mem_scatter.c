@@ -457,7 +457,7 @@ void sct_sw_off(struct di_ch_s *pch)
 	ch = pch->ch_id;
 	psct = &pch->msct_top;
 	if (!psct->box) {
-		PR_INF("%s:no box\n", __func__);
+		dbg_reg("%s:no box\n", __func__);
 		return;
 	}
 
