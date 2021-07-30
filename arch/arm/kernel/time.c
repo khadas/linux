@@ -28,6 +28,9 @@
 #include <asm/mach/time.h>
 #include <asm/stacktrace.h>
 #include <asm/thread_info.h>
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/clockchips.h>
+#endif
 
 #if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE) || \
     defined(CONFIG_NVRAM) || defined(CONFIG_NVRAM_MODULE)
@@ -107,5 +110,9 @@ void __init time_init(void)
 		of_clk_init(NULL);
 #endif
 		timer_probe();
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+		tick_setup_hrtimer_broadcast();
+#endif
 	}
 }
