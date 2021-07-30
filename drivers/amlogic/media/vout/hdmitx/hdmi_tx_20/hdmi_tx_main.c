@@ -4521,7 +4521,13 @@ static ssize_t fake_plug_store(struct device *dev,
 	if (strncmp(buf, "0", 1) == 0)
 		hdev->hpd_state = 0;
 
+	/*notify to drm hdmi*/
+	if (hdmitx_device.drm_hpd_cb.callback)
+		hdmitx_device.drm_hpd_cb.callback
+			(hdmitx_device.drm_hpd_cb.data);
+
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, hdev->hpd_state);
+
 	return count;
 }
 
