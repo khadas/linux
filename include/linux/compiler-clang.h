@@ -43,7 +43,7 @@
 # define __noscs
 #endif
 
-#ifdef CONFIG_LTO_CLANG
+#ifdef CONFIG_AMLOGIC_LTO_CLANG
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
 #define __norecordmcount \
 	__attribute__((__section__(".text..ftrace")))
