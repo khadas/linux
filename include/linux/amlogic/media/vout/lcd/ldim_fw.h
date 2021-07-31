@@ -22,8 +22,8 @@
 #define LD_BLKHMAX 32
 #define LD_BLKVMAX 32
 
-#define LD_BLKREGNUM 384  /* maximum support 24*16*/
-#define LD_NUM_PROFILE 8  //16
+#define LD_BLKREGNUM     1536  /* maximum support 24*16*/
+#define LD_NUM_PROFILE   8  //16
 
 struct ld_reg_s {
 	int reg_ld_pic_row_max;            /*u13*/
@@ -255,8 +255,46 @@ struct ld_reg_s {
 	 */
 };
 
-struct fw_dat_s {
-	/* for temporary Firmware algorithm */
+struct ldc_prm_s {
+	int ldc_hist_mode;
+	int ldc_hist_blend_mode;
+	int ldc_hist_blend_alpha;
+	int ldc_hist_adap_blend_max_gain;
+	int ldc_hist_adap_blend_diff_th1;
+	int ldc_hist_adap_blend_diff_th2;
+	int ldc_hist_adap_blend_th0;
+	int ldc_hist_adap_blend_thn;
+	int ldc_hist_adap_blend_gain_0;
+	int ldc_hist_adap_blend_gain_1;
+	int ldc_init_bl_min;
+	int ldc_init_bl_max;
+
+	int ldc_sf_mode;
+	int ldc_sf_gain_up;
+	int ldc_sf_gain_dn;
+	int ldc_sf_tsf_3x3;
+	int ldc_sf_tsf_5x5;
+
+	int ldc_bs_bl_mode;
+	int ldc_glb_apl;
+	int ldc_bs_glb_apl_gain;
+	int ldc_bs_dark_scene_bl_th;
+	int ldc_bs_gain;
+	int ldc_bs_limit_gain;
+	int ldc_bs_loc_apl_gain;
+	int ldc_bs_loc_max_min_gain;
+	int ldc_bs_loc_dark_scene_bl_th;
+
+	int ldc_tf_en;
+	int ldc_tf_sc_flag;
+	int ldc_tf_low_alpha;
+	int ldc_tf_high_alpha;
+	int ldc_tf_low_alpha_sc;
+	int ldc_tf_high_alpha_sc;
+};
+
+struct fw_data_s {
+	/* old */
 	unsigned int *tf_bl_alpha;
 	unsigned int *last_yuv_sum;
 	unsigned int *last_rgb_sum;
@@ -264,9 +302,15 @@ struct fw_dat_s {
 	unsigned int *sf_bl_matrix;
 	unsigned int *tf_bl_matrix;
 	unsigned int *tf_bl_matrix_2;
+
+	/* new */
+	unsigned int *initial_bl;
+	unsigned int *sf_bl;
+	unsigned int *boost_bl;
+	unsigned int *tf_bl;
 };
 
-struct fw_ctrl_config_s {
+struct fw_ctrl_s {
 	unsigned int fw_ld_thsf_l;
 	unsigned int fw_ld_thtf_l;
 	unsigned int fw_ld_thist; /* pre-calc gain */
@@ -315,40 +359,60 @@ struct fw_ctrl_config_s {
 	unsigned int white_area_th_min;
 	unsigned int white_lvl_th_max;
 	unsigned int white_lvl_th_min;
-};
 
-struct ldim_fw_para_s {
-	/* header */
-	unsigned int para_ver;
-	unsigned int para_size;
-	char ver_str[20];
-	unsigned char ver_num;
-	unsigned char valid;
-
-	unsigned char hist_col;
-	unsigned char hist_row;
-
-	/* for debug print */
-	unsigned char fw_hist_print;/*20180525*/
-	unsigned int fw_print_frequent;/*20180606,print every 8 frame*/
-	unsigned int fw_dbgprint_lv;
-
-	struct ld_reg_s *nprm;
-	struct fw_dat_s *fdat;
 	unsigned int *bl_remap_curve; /* size: 16 */
 	unsigned int *fw_ld_whist;    /* size: 16 */
 
-	struct fw_ctrl_config_s *ctrl;
-
-	void (*fw_alg_frm)(struct ldim_fw_para_s *fw_para,
-			   unsigned int *max_matrix,
-			   unsigned int *hist_matrix);
-	void (*fw_alg_para_print)(struct ldim_fw_para_s *fw_para);
+	struct ld_reg_s *nprm;
+	struct ldc_prm_s *prm_ldc;
 };
 
-/* if struct ldim_fw_para_s changed, FW_PARA_VER must be update */
-#define FW_PARA_VER    3
+struct ldim_seg_hist_s {
+	unsigned int weight_avg;
+	unsigned int weight_avg_95;
+	unsigned int max_index;
+	unsigned int min_index;
+};
 
-struct ldim_fw_para_s *aml_ldim_get_fw_para(void);
+struct ldim_stts_s {
+	unsigned int *max_rgb;
+	unsigned int *hist_matrix;
+	unsigned int *global_hist;
+	unsigned int global_hist_sum;
+	unsigned int global_hist_cnt;
+	unsigned int global_apl;
+	struct ldim_seg_hist_s *seg_hist;
+};
+
+struct ldim_fw_s {
+	/* header */
+	unsigned int para_ver;
+	unsigned int para_size;
+	unsigned int fw_ctrl_size;
+	char alg_ver[20];
+	unsigned char fw_sel;
+	unsigned char valid;
+	unsigned char flag;
+
+	unsigned char seg_col;
+	unsigned char seg_row;
+
+	unsigned int bl_matrix_dbg;
+	unsigned char fw_hist_print;
+	unsigned int fw_print_frequent;
+	unsigned int fw_print_lv;
+
+	struct fw_ctrl_s *ctrl;
+	struct fw_data_s *fdat;
+	unsigned int *bl_matrix;
+
+	void (*fw_alg_frm)(struct ldim_fw_s *fw, struct ldim_stts_s *stts);
+	void (*fw_alg_para_print)(struct ldim_fw_s *fw);
+};
+
+/* if struct ldim_fw_s changed, FW_PARA_VER must be update */
+#define FW_PARA_VER    0
+
+struct ldim_fw_s *aml_ldim_get_fw(void);
 
 #endif

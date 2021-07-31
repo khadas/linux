@@ -684,8 +684,10 @@ void ld_func_cfg_ldreg(struct ld_reg_s *reg)
 	}
 }
 
-void ldim_func_profile_update(struct ld_reg_s *nprm, struct ldim_profile_s *profile)
+void ldim_func_profile_update(struct ldim_fw_s *fw,
+			      struct ldim_profile_s *profile)
 {
+	struct ld_reg_s *nprm = fw->ctrl->nprm;
 	int i, j;
 
 	if (!nprm || !profile) {

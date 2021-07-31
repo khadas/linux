@@ -49,7 +49,7 @@ static int global_hw_init_off(struct ldim_dev_driver_s *dev_drv)
 }
 
 static int global_smr(struct aml_ldim_driver_s *ldim_drv,
-		      unsigned short *buf, unsigned char len)
+		      unsigned int *buf, unsigned int len)
 {
 	unsigned int dim_max, dim_min;
 	unsigned int level, val;

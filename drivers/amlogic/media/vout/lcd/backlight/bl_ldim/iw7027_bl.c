@@ -624,8 +624,10 @@ static void ldim_vs_debug_info(struct aml_ldim_driver_s *ldim_drv)
 	pr_info("\n");
 }
 
-static inline void ldim_data_mapping(unsigned short *duty_buf, unsigned int max, unsigned int min,
-				     unsigned int zone_num, unsigned short *mapping)
+static inline void ldim_data_mapping(unsigned int *duty_buf,
+				     unsigned int max, unsigned int min,
+				     unsigned int zone_num,
+				     unsigned short *mapping)
 {
 	unsigned int i, j, val, zone_max;
 
@@ -645,7 +647,8 @@ static inline void ldim_data_mapping(unsigned short *duty_buf, unsigned int max,
 	}
 }
 
-static int iw7027_smr(struct aml_ldim_driver_s *ldim_drv, unsigned short *buf, unsigned char len)
+static int iw7027_smr(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
+		      unsigned int len)
 {
 	struct ldim_dev_driver_s *dev_drv = ldim_drv->dev_drv;
 	unsigned int value_flag = 0;

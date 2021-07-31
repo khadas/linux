@@ -1580,8 +1580,8 @@ static void ldim_dev_probe_func(struct work_struct *work)
 
 	/* get configs */
 	ldim_drv->dev_drv = &ldim_dev_drv;
-	ldim_dev_drv.bl_row = ldim_drv->conf->hist_row;
-	ldim_dev_drv.bl_col = ldim_drv->conf->hist_col;
+	ldim_dev_drv.bl_row = ldim_drv->conf->seg_row;
+	ldim_dev_drv.bl_col = ldim_drv->conf->seg_col;
 	val = ldim_dev_drv.bl_row * ldim_dev_drv.bl_col;
 	ldim_dev_drv.zone_num = val;
 	ldim_dev_drv.bl_mapping = kcalloc(val, sizeof(unsigned short), GFP_KERNEL);

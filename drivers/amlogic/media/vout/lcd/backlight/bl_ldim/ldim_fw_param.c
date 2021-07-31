@@ -12,11 +12,11 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
-#include <linux/amlogic/media/vout/lcd/ldim_alg.h>
+#include <linux/amlogic/media/vout/lcd/ldim_fw.h>
 #include "ldim_drv.h"
 
 static struct ld_reg_s nprm;
-static struct fw_dat_s fdat;
+static struct fw_data_s fdata;
 
 /*bl_matrix remap curve*/
 static unsigned int bl_remap_curve[16] = {
@@ -29,7 +29,45 @@ static unsigned int fw_ld_whist[16] = {
 	288, 320, 352, 384, 416, 448, 480, 512
 };
 
-static struct fw_ctrl_config_s ldim_fw_ctrl = {
+static struct ldc_prm_s ldim_prm_ldc = {
+	.ldc_hist_mode = 3,
+	.ldc_hist_blend_mode = 1,
+	.ldc_hist_blend_alpha = 0x60,
+	.ldc_hist_adap_blend_max_gain = 13,
+	.ldc_hist_adap_blend_diff_th1 = 256,
+	.ldc_hist_adap_blend_diff_th2 = 640,
+	.ldc_hist_adap_blend_th0 = 2,
+	.ldc_hist_adap_blend_thn = 4,
+	.ldc_hist_adap_blend_gain_0 = 0x70,
+	.ldc_hist_adap_blend_gain_1 = 0x40,
+	.ldc_init_bl_min = 0,
+	.ldc_init_bl_max = 4095,
+
+	.ldc_sf_mode = 2,
+	.ldc_sf_gain_up = 0x20,
+	.ldc_sf_gain_dn = 0x0,
+	.ldc_sf_tsf_3x3 = 0x600,
+	.ldc_sf_tsf_5x5 = 0xc00,
+
+	.ldc_bs_bl_mode = 0,
+	.ldc_glb_apl = 4095,
+	.ldc_bs_glb_apl_gain = 0x20,
+	.ldc_bs_dark_scene_bl_th = 0x200,
+	.ldc_bs_gain = 0x20,
+	.ldc_bs_limit_gain = 0x60,
+	.ldc_bs_loc_apl_gain = 0x20,
+	.ldc_bs_loc_max_min_gain = 0x20,
+	.ldc_bs_loc_dark_scene_bl_th = 0x600,
+
+	.ldc_tf_en = 1,
+	.ldc_tf_sc_flag = 0,
+	.ldc_tf_low_alpha = 0x20,
+	.ldc_tf_high_alpha = 0x20,
+	.ldc_tf_low_alpha_sc = 0x40,
+	.ldc_tf_high_alpha_sc = 0x40,
+};
+
+static struct fw_ctrl_s ldim_fw_ctrl = {
 	.fw_ld_thsf_l = 1600,
 	.fw_ld_thtf_l = 256,
 	.fw_ld_thist = 0, /* 0 for default ((vnum * hnum * 5) >> 2) */
@@ -73,37 +111,42 @@ static struct fw_ctrl_config_s ldim_fw_ctrl = {
 	.white_area_th_min = 10,
 	.white_lvl_th_max = 4095,
 	.white_lvl_th_min = 2048,
-};
 
-static struct ldim_fw_para_s ldim_fw_para = {
-	/* header */
-	.para_ver = FW_PARA_VER,
-	.para_size = sizeof(struct ldim_fw_para_s),
-	.ver_str = "not installed",
-	.ver_num = 0,
-	.valid = 0,
-
-	.hist_col = 1,
-	.hist_row = 1,
-
-	/* debug print flag */
-	.fw_hist_print = 0,
-	.fw_print_frequent = 8,
-	.fw_dbgprint_lv = 0,
-
-	.nprm = &nprm,
-	.fdat = &fdat,
 	.bl_remap_curve = bl_remap_curve,
 	.fw_ld_whist = fw_ld_whist,
 
+	.nprm = &nprm,
+	.prm_ldc = &ldim_prm_ldc,
+};
+
+static struct ldim_fw_s ldim_fw = {
+	/* header */
+	.para_ver = FW_PARA_VER,
+	.para_size = sizeof(struct ldim_fw_s),
+	.fw_ctrl_size = sizeof(struct fw_ctrl_s),
+	.alg_ver = "not installed",
+	.fw_sel = 0, /* switch fw, 0=aml_hw_fw, 1=aml_sw_fw, other for custom */
+	.valid = 0,
+	.flag = 0,
+
+	.seg_col = 1,
+	.seg_row = 1,
+
+	.bl_matrix_dbg = 0,
+	.fw_hist_print = 0,
+	.fw_print_frequent = 30,
+	.fw_print_lv = 0,
+
 	.ctrl = &ldim_fw_ctrl,
+	.fdat = &fdata,
+	.bl_matrix = NULL,
 
 	.fw_alg_frm = NULL,
 	.fw_alg_para_print = NULL,
 };
 
-struct ldim_fw_para_s *aml_ldim_get_fw_para(void)
+struct ldim_fw_s *aml_ldim_get_fw(void)
 {
-	return &ldim_fw_para;
+	return &ldim_fw;
 }
-EXPORT_SYMBOL(aml_ldim_get_fw_para);
+EXPORT_SYMBOL(aml_ldim_get_fw);

@@ -20,7 +20,6 @@
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
-#include <linux/amlogic/media/vout/lcd/ldim_alg.h>
 #include "../../lcd_common.h"
 #include "ldim_drv.h"
 

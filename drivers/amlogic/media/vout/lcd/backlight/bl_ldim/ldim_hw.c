@@ -19,7 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
-#include <linux/amlogic/media/vout/lcd/ldim_alg.h>
+#include <linux/amlogic/media/vout/lcd/ldim_fw.h>
 #include "ldim_drv.h"
 #include "ldim_reg.h"
 
@@ -188,7 +188,7 @@ void ldim_hw_vpu_dma_mif_en_tm2b(int rw_sel, int flag)
 		ldim_wr_vcbus_bits(VPU_DMA_RDMIF0_CTRL, en, 16, 1);
 }
 
-void ldim_hw_remap_en(int flag)
+void ldim_hw_remap_en(struct aml_ldim_driver_s *ldim_drv, int flag)
 {
 	if (flag)
 		ldim_wr_reg(0x0a, 0x706);
@@ -401,8 +401,7 @@ void ldim_hw_remap_init_tm2(struct ld_reg_s *nprm, unsigned int ldim_bl_en,
 		    nprm->reg_ld_lut_vhk_txlx[0], 16, LD_NUM_PROFILE * 32);
 
 	/*reg_LD_LUT_Id[16][24]: u3*32*48=u3*1536 */
-	ldim_wr_lut(REG_LD_LUT_ID_BASE_TM2, nprm->reg_ld_lut_id, 4,
-		    LD_BLKREGNUM);
+	ldim_wr_lut(REG_LD_LUT_ID_BASE_TM2, nprm->reg_ld_lut_id, 4, 384);
 
 	/*enable the CBUS configure the RAM*/
 	/*LD_MISC_CTRL0  {reg_blmat_ram_mode,
@@ -991,35 +990,34 @@ void ldim_hw_stts_initial_tm2(unsigned int pic_h, unsigned int pic_v,
 static unsigned int invalid_val_cnt;
 void ldim_hw_stts_read_zone(unsigned int nrow, unsigned int ncol)
 {
-	unsigned int i, j, k;
-	unsigned int n, data32;
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
+	struct ldim_stts_s *stts = ldim_drv->stts;
+	unsigned int i, j, k;
+	unsigned int n, tmp;
 
 	if (invalid_val_cnt > 0xfffffff)
 		invalid_val_cnt = 0;
 
-	ldim_wr_vcbus(LDIM_STTS_HIST_REGION_IDX, ldim_rd_vcbus(LDIM_STTS_HIST_REGION_IDX)
-		& 0xffffc000);
-	data32 = ldim_rd_vcbus(LDIM_STTS_HIST_START_RD_REGION);
+	ldim_wr_vcbus(LDIM_STTS_HIST_REGION_IDX,
+		      ldim_rd_vcbus(LDIM_STTS_HIST_REGION_IDX) & 0xffffc000);
+	tmp = ldim_rd_vcbus(LDIM_STTS_HIST_START_RD_REGION);
 
 	for (i = 0; i < nrow; i++) {
 		for (j = 0; j < ncol; j++) {
-			data32 = ldim_rd_vcbus(LDIM_STTS_HIST_START_RD_REGION);
+			tmp = ldim_rd_vcbus(LDIM_STTS_HIST_START_RD_REGION);
 			n = i * ncol + j;
 			for (k = 0; k < 17; k++) {
-				data32 = ldim_rd_vcbus(LDIM_STTS_HIST_READ_REGION);
+				tmp = ldim_rd_vcbus(LDIM_STTS_HIST_READ_REGION);
 				if (k == 16) {
-					ldim_drv->max_rgb[n * 3] =
-						data32 & 0x3ff;
-					ldim_drv->max_rgb[n * 3 + 1] =
-						(data32 >> 10) & 0x3ff;
-					ldim_drv->max_rgb[n * 3 + 2] =
-						(data32 >> 20) & 0x3ff;
+					stts->max_rgb[n * 3] = tmp & 0x3ff;
+					stts->max_rgb[n * 3 + 1] =
+						(tmp >> 10) & 0x3ff;
+					stts->max_rgb[n * 3 + 2] =
+						(tmp >> 20) & 0x3ff;
 				} else {
-					ldim_drv->hist_matrix[n * 16 + k] =
-						data32;
+					stts->hist_matrix[n * 16 + k] = tmp;
 				}
-				if (!(data32 & 0x40000000))
+				if (!(tmp & 0x40000000))
 					invalid_val_cnt++;
 			}
 		}

@@ -41,7 +41,7 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
-#include <linux/amlogic/media/vout/lcd/ldim_alg.h>
+#include <linux/amlogic/media/vout/lcd/ldim_fw.h>
 #include "../../lcd_common.h"
 #include "ldim_drv.h"
 #include "ldim_reg.h"
@@ -64,8 +64,6 @@ struct ldim_dev_s {
 static struct ldim_dev_s ldim_dev;
 static struct aml_ldim_driver_s ldim_driver;
 
-static unsigned int ldim_vs_cnt;
-
 static spinlock_t ldim_isr_lock;
 static spinlock_t rdma_ldim_isr_lock;
 
@@ -82,17 +80,18 @@ static void ldim_pwm_vs_update(void);
 static void ldim_config_print(void);
 
 static struct aml_ldim_info_s ldim_info;
+static struct aml_ldim_pq_s ldim_pq;
 
 static struct ldim_config_s ldim_config = {
 	.hsize = 3840,
 	.vsize = 2160,
-	.hist_row = 1,
-	.hist_col = 1,
+	.seg_row = 1,
+	.seg_col = 1,
 	.bl_mode = 1,
 	.func_en = 0,
+	.remap_en = 1,
 	.hvcnt_bypass = 0,
 	.dev_index = 0xff,
-	.ldim_info = &ldim_info,
 };
 
 static struct ldim_rmem_s ldim_rmem = {
@@ -126,6 +125,21 @@ static struct ldim_rmem_s ldim_rmem = {
 	.duty_highmem_flag = 0,
 };
 
+static struct ldim_stts_s ldim_stts = {
+	.max_rgb = NULL,
+	.hist_matrix = NULL,
+	.global_hist = NULL,
+	.seg_hist = NULL,
+};
+
+static struct ldim_comp_s ldim_comp = {
+	.ldc_comp_en = 1,
+	.ldc_bl_buf_diff = 0,
+	.ldc_glb_gain = 0x380,
+	.ldc_dth_en = 1,
+	.ldc_dth_bw = 1,
+};
+
 static struct aml_ldim_driver_s ldim_driver = {
 	.valid_flag = 0, /* default invalid, active when bl_ctrl_method=ldim */
 	.static_pic_flag = 0,
@@ -156,12 +170,15 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.conf = &ldim_config,
 	.dev_drv = NULL,
 	.rmem = &ldim_rmem,
-	.hist_matrix = NULL,
-	.max_rgb = NULL,
+
+	.stts = &ldim_stts,
+	.fw = NULL,
+	.comp = &ldim_comp,
+
 	.test_matrix = NULL,
 	.local_bl_matrix = NULL,
 	.bl_matrix_cur = NULL,
-	.fw_para = NULL,
+	.bl_matrix_pre = NULL,
 
 	.init = ldim_on_init,
 	.power_on = ldim_power_on,
@@ -194,10 +211,10 @@ void ldim_remap_ctrl(unsigned char status)
 	if (status) {
 		ldim_driver.matrix_update_en = 0;
 		if (bdrv->data->chip_type == LCD_CHIP_T3 ||
-			bdrv->data->chip_type == LCD_CHIP_T7){
-			lcd_vcbus_setb(LDC_DGB_CTRL, 1, 14, 1);
+			bdrv->data->chip_type == LCD_CHIP_T7) {
+			ldim_hw_remap_en_t7(&ldim_driver, 1);
 		} else {
-			ldim_hw_remap_en(1);
+			ldim_hw_remap_en(&ldim_driver, 1);
 		}
 		msleep(20);
 		if (bdrv->data->chip_type == LCD_CHIP_TM2)
@@ -205,13 +222,15 @@ void ldim_remap_ctrl(unsigned char status)
 		else if (bdrv->data->chip_type == LCD_CHIP_TM2B)
 			ldim_hw_vpu_dma_mif_en_tm2b(LDIM_VPU_DMA_RD, 1);
 		ldim_driver.matrix_update_en = temp;
+		ldim_driver.remap_en = 1;
 	} else {
+		ldim_driver.remap_en = 0;
 		ldim_driver.matrix_update_en = 0;
 		if (bdrv->data->chip_type == LCD_CHIP_T3 ||
-			bdrv->data->chip_type == LCD_CHIP_T7){
-			lcd_vcbus_setb(LDC_DGB_CTRL, 0, 14, 1);
+			bdrv->data->chip_type == LCD_CHIP_T7) {
+			ldim_hw_remap_en_t7(&ldim_driver, 0);
 		} else {
-			ldim_hw_remap_en(0);
+			ldim_hw_remap_en(&ldim_driver, 0);
 		}
 		msleep(20);
 		if (bdrv->data->chip_type == LCD_CHIP_TM2)
@@ -236,11 +255,14 @@ static void ldim_func_ctrl(struct aml_ldim_driver_s *ldim_drv, int flag)
 		/* enable update */
 		ldim_driver.avg_update_en = 1;
 		/*ldim_driver.matrix_update_en = 1;*/
+		ldim_driver.func_en = 1;
 
-		ldim_remap_ctrl(ldim_driver.remap_en);
+		ldim_remap_ctrl(ldim_config.remap_en);
 	} else {
 		/* disable remap */
 		ldim_remap_ctrl(0);
+
+		ldim_driver.func_en = 0;
 		/* disable update */
 		ldim_driver.avg_update_en = 0;
 		/*ldim_driver.matrix_update_en = 0;*/
@@ -261,8 +283,8 @@ static void ldim_stts_initial(unsigned int pic_h, unsigned int pic_v,
 	LDIMPR("%s: %d %d %d %d\n",
 	       __func__, pic_h, pic_v, hist_vnum, hist_hnum);
 
-	ldim_driver.fw_para->hist_col = hist_hnum;
-	ldim_driver.fw_para->hist_row = hist_vnum;
+	ldim_driver.fw->seg_col = hist_hnum;
+	ldim_driver.fw->seg_row = hist_vnum;
 
 	if (!ldim_dev.data) {
 		LDIMERR("%s: invalid data\n", __func__);
@@ -279,7 +301,7 @@ static void ldim_initial(unsigned int pic_h, unsigned int pic_v,
 		  unsigned int blk_mode, unsigned int ldim_bl_en,
 		  unsigned int hvcnt_bypass)
 {
-	if (!ldim_driver.fw_para->nprm) {
+	if (!ldim_driver.fw->ctrl->nprm) {
 		LDIMERR("%s: nprm is null\n", __func__);
 		return;
 	}
@@ -288,24 +310,24 @@ static void ldim_initial(unsigned int pic_h, unsigned int pic_v,
 	       blk_mode, ldim_bl_en, hvcnt_bypass);
 
 	ldim_driver.matrix_update_en = ldim_bl_en;
-	ld_func_cfg_ldreg(ldim_driver.fw_para->nprm);
+	ld_func_cfg_ldreg(ldim_driver.fw->ctrl->nprm);
 	/* config params begin */
 	/* configuration of the panel parameters */
-	ldim_driver.fw_para->nprm->reg_ld_pic_row_max = pic_v;
-	ldim_driver.fw_para->nprm->reg_ld_pic_col_max = pic_h;
+	ldim_driver.fw->ctrl->nprm->reg_ld_pic_row_max = pic_v;
+	ldim_driver.fw->ctrl->nprm->reg_ld_pic_col_max = pic_h;
 	/* Maximum to BLKVMAX  , Maximum to BLKHMAX */
-	ldim_driver.fw_para->nprm->reg_ld_blk_vnum = hist_vnum;
-	ldim_driver.fw_para->nprm->reg_ld_blk_hnum = hist_hnum;
-	ldim_driver.fw_para->nprm->reg_ld_blk_mode = blk_mode;
+	ldim_driver.fw->ctrl->nprm->reg_ld_blk_vnum = hist_vnum;
+	ldim_driver.fw->ctrl->nprm->reg_ld_blk_hnum = hist_hnum;
+	ldim_driver.fw->ctrl->nprm->reg_ld_blk_mode = blk_mode;
 	/*config params end */
-	ld_func_fw_cfg_once(ldim_driver.fw_para->nprm);
+	ld_func_fw_cfg_once(ldim_driver.fw->ctrl->nprm);
 
 	if (!ldim_dev.data) {
 		LDIMERR("%s: invalid data\n", __func__);
 		return;
 	}
 	if (ldim_dev.data->remap_init) {
-		ldim_dev.data->remap_init(ldim_driver.fw_para->nprm,
+		ldim_dev.data->remap_init(ldim_driver.fw->ctrl->nprm,
 					  ldim_bl_en, hvcnt_bypass);
 	}
 }
@@ -315,17 +337,17 @@ static void ldim_drv_init(struct aml_ldim_driver_s *ldim_drv)
 	if (!ldim_drv)
 		return;
 
-	if (ldim_drv->fw_para && ldim_drv->dev_drv) {
-		ldim_func_profile_update(ldim_drv->fw_para->nprm,
+	if (ldim_drv->fw && ldim_drv->dev_drv) {
+		ldim_func_profile_update(ldim_drv->fw,
 					 ldim_drv->dev_drv->bl_profile);
 	}
 
 	ldim_stts_initial(ldim_drv->conf->hsize, ldim_drv->conf->vsize,
-			  ldim_drv->conf->hist_row, ldim_drv->conf->hist_col);
+			  ldim_drv->conf->seg_row, ldim_drv->conf->seg_col);
 	ldim_initial(ldim_config.hsize, ldim_config.vsize,
-		     ldim_config.hist_row, ldim_config.hist_col,
-		     ldim_config.bl_mode, ldim_drv->conf->func_en,
-		     ldim_drv->conf->hvcnt_bypass);
+		     ldim_config.seg_row, ldim_config.seg_col,
+		     ldim_config.bl_mode,  ldim_config.func_en,
+		      ldim_config.hvcnt_bypass);
 }
 
 static int ldim_on_init(void)
@@ -356,7 +378,7 @@ static int ldim_power_on(void)
 	if (ldim_driver.data->drv_init)
 		ldim_driver.data->drv_init(&ldim_driver);
 	if (ldim_driver.data->func_ctrl)
-		ldim_driver.data->func_ctrl(&ldim_driver, ldim_driver.func_en);
+		ldim_driver.data->func_ctrl(&ldim_driver, ldim_config.func_en);
 
 	if (ldim_driver.dev_drv && ldim_driver.dev_drv->power_on)
 		ldim_driver.dev_drv->power_on(&ldim_driver);
@@ -437,57 +459,58 @@ static void ldim_config_print(void)
  */
 static void ldim_vs_arithmetic(struct aml_ldim_driver_s *ldim_drv)
 {
-	struct ld_reg_s *nprm = ldim_driver.fw_para->nprm;
-	unsigned int size, i;
+	struct ld_reg_s *nprm = ldim_driver.fw->ctrl->nprm;
+	unsigned int size;
 
 	if (ldim_driver.top_en == 0)
 		return;
 
-	ldim_hw_stts_read_zone(ldim_driver.conf->hist_row,
-			       ldim_driver.conf->hist_col);
+	ldim_hw_stts_read_zone(ldim_driver.conf->seg_row,
+			       ldim_driver.conf->seg_col);
 
 	if (ldim_driver.alg_en == 0)
 		return;
 
-	if (!ldim_driver.fw_para->fw_alg_frm) {
-		if (ldim_vs_cnt == 0)
-			LDIMERR("%s: ldim_alg ko is not installed\n", __func__);
+	if (!ldim_driver.fw->fw_alg_frm) {
+		if (ldim_drv->dbg_vs_cnt == 0)
+			LDIMERR("%s: ldim_fw ko is not installed\n", __func__);
 		return;
 	}
 
-	ldim_driver.fw_para->fw_alg_frm(ldim_driver.fw_para,
-					ldim_driver.max_rgb,
-					ldim_driver.hist_matrix);
-	size = ldim_driver.conf->hist_row * ldim_driver.conf->hist_col;
-	for (i = 0; i < size; i++)
-		ldim_driver.local_bl_matrix[i] = (unsigned short)nprm->bl_matrix[i];
+	ldim_driver.fw->fw_alg_frm(ldim_driver.fw, ldim_driver.stts);
+	size = ldim_driver.conf->seg_row * ldim_driver.conf->seg_col;
+	memcpy(ldim_driver.local_bl_matrix, nprm->bl_matrix,
+	       size * (sizeof(unsigned int)));
 }
 
 static void ldim_vs_arithmetic_tm2(struct aml_ldim_driver_s *ldim_drv)
 {
-	struct ld_reg_s *nprm = ldim_driver.fw_para->nprm;
+	struct ld_reg_s *nprm = ldim_driver.fw->ctrl->nprm;
 	unsigned int *local_ldim_buf;
 	unsigned int size, i;
 
-	if (!ldim_driver.hist_matrix)
+	if (!ldim_driver.stts->hist_matrix)
 		return;
-	if (!ldim_driver.max_rgb)
+	if (!ldim_driver.stts->max_rgb)
 		return;
 
 	if (ldim_driver.hist_en == 0)
 		return;
 
-	size = ldim_driver.conf->hist_row * ldim_driver.conf->hist_col;
+	size = ldim_driver.conf->seg_row * ldim_driver.conf->seg_col;
 	local_ldim_buf = kcalloc(size * 20, sizeof(unsigned int), GFP_KERNEL);
 	if (!local_ldim_buf)
 		return;
 
 	/*stts_read*/
-	memcpy(local_ldim_buf, ldim_rmem.wr_mem_vaddr1, size * 20 * sizeof(unsigned int));
+	memcpy(local_ldim_buf, ldim_rmem.wr_mem_vaddr1,
+	       size * 20 * sizeof(unsigned int));
 	for (i = 0; i < size; i++) {
-		memcpy(&ldim_driver.hist_matrix[i * 16], &local_ldim_buf[i * 20],
+		memcpy(&ldim_driver.stts->hist_matrix[i * 16],
+		       &local_ldim_buf[i * 20],
 		       16 * sizeof(unsigned int));
-		memcpy(&ldim_driver.max_rgb[i * 3], &local_ldim_buf[(i * 20) + 16],
+		memcpy(&ldim_driver.stts->max_rgb[i * 3],
+		       &local_ldim_buf[(i * 20) + 16],
 		       3 * sizeof(unsigned int));
 	}
 
@@ -496,17 +519,15 @@ static void ldim_vs_arithmetic_tm2(struct aml_ldim_driver_s *ldim_drv)
 		return;
 	}
 
-	if (!ldim_driver.fw_para->fw_alg_frm) {
-		if (ldim_vs_cnt == 0)
-			LDIMERR("%s: ldim_alg ko is not installed\n", __func__);
+	if (!ldim_driver.fw->fw_alg_frm) {
+		if (ldim_driver.dbg_vs_cnt == 0)
+			LDIMERR("%s: ldim_fw ko is not installed\n", __func__);
 		return;
 	}
 
-	ldim_driver.fw_para->fw_alg_frm(ldim_driver.fw_para,
-					ldim_driver.max_rgb,
-					ldim_driver.hist_matrix);
-	for (i = 0; i < size; i++)
-		ldim_driver.local_bl_matrix[i] = (unsigned short)nprm->bl_matrix[i];
+	ldim_driver.fw->fw_alg_frm(ldim_driver.fw, ldim_driver.stts);
+	memcpy(ldim_driver.local_bl_matrix, nprm->bl_matrix,
+	       size * (sizeof(unsigned int)));
 
 	kfree(local_ldim_buf);
 }
@@ -514,14 +535,14 @@ static void ldim_vs_arithmetic_tm2(struct aml_ldim_driver_s *ldim_drv)
 static void ldim_remap_update(void)
 {
 	if (!ldim_dev.data) {
-		if (ldim_vs_cnt == 0)
+		if (ldim_driver.dbg_vs_cnt == 0)
 			LDIMERR("%s: invalid data\n", __func__);
 		return;
 	}
 	if (!ldim_dev.data->remap_update)
 		return;
 
-	ldim_dev.data->remap_update(ldim_driver.fw_para->nprm,
+	ldim_dev.data->remap_update(ldim_driver.fw->ctrl->nprm,
 				    ldim_driver.avg_update_en,
 				    ldim_driver.matrix_update_en);
 }
@@ -535,8 +556,8 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 
 	spin_lock_irqsave(&ldim_isr_lock, flags);
 
-	if (ldim_vs_cnt++ >= 300) /* for debug print */
-		ldim_vs_cnt = 0;
+	if (ldim_driver.dbg_vs_cnt++ >= 300) /* for debug print */
+		ldim_driver.dbg_vs_cnt = 0;
 
 	if (ldim_driver.func_en) {
 		if (ldim_dev.data->vs_arithmetic)
@@ -569,7 +590,7 @@ static void ldim_dev_smr(int update_flag, unsigned int size)
 	if (!dev_drv)
 		return;
 	if (!dev_drv->dev_smr) {
-		if (ldim_vs_cnt == 0)
+		if (ldim_driver.dbg_vs_cnt == 0)
 			LDIMERR("%s: dev_smr is null\n", __func__);
 		return;
 	}
@@ -583,7 +604,7 @@ static void ldim_dev_smr(int update_flag, unsigned int size)
 			if (ret) {
 				/*force update for next vsync*/
 				memset(ldim_driver.bl_matrix_pre, 0xff,
-				       (size * sizeof(unsigned short)));
+				       (size * sizeof(unsigned int)));
 				ldim_driver.level_update = 1;
 			}
 		}
@@ -601,14 +622,16 @@ static void ldim_on_vs_brightness(void)
 	if (ldim_driver.func_bypass)
 		return;
 
-	size = ldim_driver.conf->hist_row * ldim_driver.conf->hist_col;
+	size = ldim_driver.conf->seg_row * ldim_driver.conf->seg_col;
 
 	if (ldim_driver.test_en) {
 		memcpy(ldim_driver.bl_matrix_cur, ldim_driver.test_matrix,
-		       (size * sizeof(unsigned short)));
+		       (size * sizeof(unsigned int)));
 	} else {
-		if (ldim_driver.black_frm_en && ldim_driver.fw_para->ctrl->black_frm) {
-			memset(ldim_driver.bl_matrix_cur, 0, (size * sizeof(unsigned short)));
+		if (ldim_driver.black_frm_en &&
+		    ldim_driver.fw->ctrl->black_frm) {
+			memset(ldim_driver.bl_matrix_cur, 0,
+			       (size * sizeof(unsigned int)));
 		} else {
 			for (i = 0; i < size; i++) {
 				ldim_driver.bl_matrix_cur[i] =
@@ -618,14 +641,14 @@ static void ldim_on_vs_brightness(void)
 		}
 	}
 	update_flag = memcmp(ldim_driver.bl_matrix_cur, ldim_driver.bl_matrix_pre,
-			     (size * sizeof(unsigned short)));
+			     (size * sizeof(unsigned int)));
 
 	ldim_dev_smr(update_flag, size);
 }
 
 static void ldim_off_vs_brightness(void)
 {
-	struct ld_reg_s *nprm = ldim_driver.fw_para->nprm;
+	struct ld_reg_s *nprm = ldim_driver.fw->ctrl->nprm;
 	unsigned int size, i;
 	int update_flag = 0;
 
@@ -634,24 +657,24 @@ static void ldim_off_vs_brightness(void)
 	if (ldim_driver.init_on_flag == 0)
 		return;
 
-	size = ldim_driver.conf->hist_row * ldim_driver.conf->hist_col;
+	size = ldim_driver.conf->seg_row * ldim_driver.conf->seg_col;
 
 	if (ldim_driver.level_update) {
 		ldim_driver.level_update = 0;
 		if (ldim_driver.test_en) {
 			memcpy(ldim_driver.bl_matrix_cur, ldim_driver.test_matrix,
-			       (size * sizeof(unsigned short)));
+			       (size * sizeof(unsigned int)));
 		} else {
 			if (ldim_debug_print)
 				LDIMPR("%s: level update: 0x%x\n", __func__, ldim_driver.litgain);
 			for (i = 0; i < size; i++) {
 				ldim_driver.bl_matrix_cur[i] =
-					(unsigned short)(ldim_driver.litgain);
+					ldim_driver.litgain;
 			}
 		}
 
 		update_flag = memcmp(ldim_driver.bl_matrix_cur, ldim_driver.bl_matrix_pre,
-				     (size * sizeof(unsigned short)));
+				     (size * sizeof(unsigned int)));
 	}
 
 	ldim_dev_smr(update_flag, size);
@@ -701,59 +724,46 @@ static int ldim_release(struct inode *inode, struct file *file)
 
 static void aml_ldim_info_update(void)
 {
-	int i = 0;
-	int j = 0;
-	struct ldim_fw_para_s *fw_para = ldim_driver.fw_para;
-	struct fw_ctrl_config_s *fw_ctrl;
+	struct fw_ctrl_s *fctrl;
+	int i = 0, j = 0;
 
-	ldim_driver.remap_en = ldim_config.ldim_info->remapping_en;
-
-	if (fw_para) {
-		if (fw_para->ctrl) {
-			fw_ctrl = fw_para->ctrl;
-			fw_ctrl->tf_alpha = ldim_config.ldim_info->alpha;
-			fw_ctrl->lpf_method =
-				ldim_config.ldim_info->lpf_method;
-			fw_ctrl->lpf_gain = ldim_config.ldim_info->lpf_gain;
-			fw_ctrl->lpf_res = ldim_config.ldim_info->lpf_res;
-			fw_ctrl->side_blk_diff_th =
-				ldim_config.ldim_info->side_blk_diff_th;
-			fw_ctrl->bbd_th = ldim_config.ldim_info->bbd_th;
-			fw_ctrl->boost_gain = ldim_config.ldim_info->boost_gain;
-			fw_ctrl->rgb_base = ldim_config.ldim_info->rgb_base;
-			fw_ctrl->ld_remap_bypass =
-				ldim_config.ldim_info->ld_remap_bypass;
-			fw_ctrl->ld_tf_step_th =
-				ldim_config.ldim_info->ld_tf_step_th;
-			fw_ctrl->tf_blk_fresh_bl =
-				ldim_config.ldim_info->tf_blk_fresh_bl;
-			fw_ctrl->tf_fresh_bl =
-				ldim_config.ldim_info->tf_fresh_bl;
-			fw_ctrl->fw_ld_thtf_l =
-				ldim_config.ldim_info->fw_ld_thtf_l;
-			fw_ctrl->fw_rgb_diff_th =
-				ldim_config.ldim_info->fw_rgb_diff_th;
-			fw_ctrl->fw_ld_thist =
-				ldim_config.ldim_info->fw_ld_thist;
-		}
-		for (i = 0; i < 16; i++)
-			fw_para->bl_remap_curve[i] =
-				ldim_config.ldim_info->bl_remap_curve[i];
-
-		for (i = 0; i < 16; i++) {
-			fw_para->fw_ld_whist[i] =
-				ldim_config.ldim_info->fw_ld_whist[i];
-		}
+	if (!ldim_driver.fw || ldim_driver.fw->ctrl) {
+		LDIMERR("%s: fw ctrl is null\n", __func__);
+		return;
 	}
+
+	fctrl = ldim_driver.fw->ctrl;
+	fctrl->tf_alpha = ldim_info.alpha;
+	fctrl->lpf_method = ldim_info.lpf_method;
+	fctrl->lpf_gain = ldim_info.lpf_gain;
+	fctrl->lpf_res = ldim_info.lpf_res;
+	fctrl->side_blk_diff_th = ldim_info.side_blk_diff_th;
+	fctrl->bbd_th = ldim_info.bbd_th;
+	fctrl->boost_gain = ldim_info.boost_gain;
+	fctrl->rgb_base = ldim_info.rgb_base;
+	fctrl->ld_remap_bypass = ldim_info.ld_remap_bypass;
+	fctrl->ld_tf_step_th = ldim_info.ld_tf_step_th;
+	fctrl->tf_blk_fresh_bl = ldim_info.tf_blk_fresh_bl;
+	fctrl->tf_fresh_bl = ldim_info.tf_fresh_bl;
+	fctrl->fw_ld_thtf_l = ldim_info.fw_ld_thtf_l;
+	fctrl->fw_rgb_diff_th = ldim_info.fw_rgb_diff_th;
+	fctrl->fw_ld_thist = ldim_info.fw_ld_thist;
+
+	for (i = 0; i < 16; i++)
+		fctrl->bl_remap_curve[i] = ldim_info.bl_remap_curve[i];
+
+	for (i = 0; i < 16; i++)
+		fctrl->fw_ld_whist[i] = ldim_info.fw_ld_whist[i];
 
 	for (i = 0; i < 16; i++) {
 		for (j = 0; j < 32; j++)
-			ld_remap_lut[i][j] =
-			ldim_config.ldim_info->reg_ld_remap_lut[i][j];
+			ld_remap_lut[i][j] = ldim_info.reg_ld_remap_lut[i][j];
 	}
 
-	ldim_driver.func_en = ldim_config.ldim_info->func_en;
-	ldim_func_ctrl(&ldim_driver, ldim_driver.func_en);
+	ldim_config.remap_en = ldim_info.remapping_en;
+	ldim_config.func_en = ldim_info.func_en;
+	if (ldim_driver.data->func_ctrl)
+		ldim_driver.data->func_ctrl(&ldim_driver, ldim_config.func_en);
 }
 
 static void ldim_remap_lut_print(char *buf, int len)
@@ -775,6 +785,90 @@ static void ldim_remap_lut_print(char *buf, int len)
 	}
 }
 
+static void aml_ldim_pq_update(void)
+{
+	struct fw_ctrl_s *fctrl;
+	struct ldim_comp_s *comp;
+	int i = 0, j = 0;
+
+	if (!ldim_driver.fw || ldim_driver.fw->ctrl) {
+		LDIMERR("%s: fw ctrl is null\n", __func__);
+		return;
+	}
+
+	ldim_driver.fw->fw_sel = ldim_pq.fw_sel;
+
+	fctrl = ldim_driver.fw->ctrl;
+
+	fctrl->prm_ldc->ldc_hist_mode = ldim_pq.ldc_hist_mode;
+	fctrl->prm_ldc->ldc_hist_blend_mode = ldim_pq.ldc_hist_blend_mode;
+	fctrl->prm_ldc->ldc_hist_blend_alpha = ldim_pq.ldc_hist_blend_alpha;
+	fctrl->prm_ldc->ldc_hist_adap_blend_max_gain =
+			ldim_pq.ldc_hist_adap_blend_max_gain;
+	fctrl->prm_ldc->ldc_hist_adap_blend_diff_th1 =
+			ldim_pq.ldc_hist_adap_blend_diff_th1;
+	fctrl->prm_ldc->ldc_hist_adap_blend_diff_th2 =
+			ldim_pq.ldc_hist_adap_blend_diff_th2;
+	fctrl->prm_ldc->ldc_hist_adap_blend_th0 =
+			ldim_pq.ldc_hist_adap_blend_th0;
+	fctrl->prm_ldc->ldc_hist_adap_blend_thn =
+			ldim_pq.ldc_hist_adap_blend_thn;
+	fctrl->prm_ldc->ldc_hist_adap_blend_gain_0 =
+			ldim_pq.ldc_hist_adap_blend_gain_0;
+	fctrl->prm_ldc->ldc_hist_adap_blend_gain_1 =
+			ldim_pq.ldc_hist_adap_blend_gain_1;
+	fctrl->prm_ldc->ldc_init_bl_min = ldim_pq.ldc_init_bl_min;
+	fctrl->prm_ldc->ldc_init_bl_max = ldim_pq.ldc_init_bl_max;
+
+	fctrl->prm_ldc->ldc_sf_mode = ldim_pq.ldc_sf_mode;
+	fctrl->prm_ldc->ldc_sf_gain_up = ldim_pq.ldc_sf_gain_up;
+	fctrl->prm_ldc->ldc_sf_gain_dn = ldim_pq.ldc_sf_gain_dn;
+	fctrl->prm_ldc->ldc_sf_tsf_3x3 = ldim_pq.ldc_sf_tsf_3x3;
+	fctrl->prm_ldc->ldc_sf_tsf_5x5 = ldim_pq.ldc_sf_tsf_5x5;
+
+	fctrl->prm_ldc->ldc_bs_bl_mode = ldim_pq.ldc_bs_bl_mode;
+	//fctrl->prm_ldc->ldc_glb_apl = ldim_pq.ldc_glb_apl;
+	fctrl->prm_ldc->ldc_bs_glb_apl_gain = ldim_pq.ldc_bs_glb_apl_gain;
+	fctrl->prm_ldc->ldc_bs_dark_scene_bl_th =
+			ldim_pq.ldc_bs_dark_scene_bl_th;
+	fctrl->prm_ldc->ldc_bs_gain = ldim_pq.ldc_bs_gain;
+	fctrl->prm_ldc->ldc_bs_limit_gain = ldim_pq.ldc_bs_limit_gain;
+	fctrl->prm_ldc->ldc_bs_loc_apl_gain = ldim_pq.ldc_bs_loc_apl_gain;
+	fctrl->prm_ldc->ldc_bs_loc_max_min_gain =
+			ldim_pq.ldc_bs_loc_max_min_gain;
+	fctrl->prm_ldc->ldc_bs_loc_dark_scene_bl_th =
+			ldim_pq.ldc_bs_loc_dark_scene_bl_th;
+
+	fctrl->prm_ldc->ldc_tf_en = ldim_pq.ldc_tf_en;
+	//fctrl->prm_ldc->ldc_tf_sc_flag = ldim_pq.ldc_tf_sc_flag;
+	fctrl->prm_ldc->ldc_tf_low_alpha = ldim_pq.ldc_tf_low_alpha;
+	fctrl->prm_ldc->ldc_tf_high_alpha = ldim_pq.ldc_tf_high_alpha;
+	fctrl->prm_ldc->ldc_tf_low_alpha_sc = ldim_pq.ldc_tf_low_alpha_sc;
+	fctrl->prm_ldc->ldc_tf_high_alpha_sc = ldim_pq.ldc_tf_high_alpha_sc;
+
+	comp = ldim_driver.comp;
+	comp->ldc_bl_buf_diff = ldim_pq.ldc_bl_buf_diff;
+	comp->ldc_glb_gain = ldim_pq.ldc_glb_gain;
+	comp->ldc_dth_en = ldim_pq.ldc_dth_en;
+	comp->ldc_dth_bw = ldim_pq.ldc_dth_bw;
+
+	for (i = 0; i < 16; i++) {
+		for (j = 0; j < 64; j++)
+			ldc_gain_lut_array[i][j] = ldim_pq.ldc_gain_lut[i][j];
+	}
+	for (i = 0; i < 64; i++)
+		ldc_min_gain_lut[i] = ldim_pq.ldc_min_gain_lut[i];
+	for (i = 0; i < 32; i++) {
+		for (j = 0; j < 16; j++)
+			ldc_dither_lut[i][j] = ldim_pq.ldc_dither_lut[i][j];
+	}
+
+	ldim_config.remap_en = ldim_pq.remapping_en;
+	ldim_config.func_en = ldim_pq.func_en;
+	if (ldim_driver.data->func_ctrl)
+		ldim_driver.data->func_ctrl(&ldim_driver, ldim_config.func_en);
+}
+
 static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int i = 0, len = 0;
@@ -783,8 +877,6 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	char *lut_buf;
 	void __user *argp;
 	int mcd_nr;
-
-	memset(&ldim_info, 0, sizeof(struct aml_ldim_info_s));
 
 	mcd_nr = _IOC_NR(cmd);
 	LDIMPR("%s: cmd_dir = 0x%x, cmd_nr = 0x%x\n",
@@ -799,6 +891,7 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	case AML_LDIM_IOC_NR_SET_INFO:
+		memset(&ldim_info, 0, sizeof(struct aml_ldim_info_s));
 		if (copy_from_user(&ldim_info, argp,
 				   sizeof(struct aml_ldim_info_s))) {
 			ret = -EFAULT;
@@ -875,6 +968,20 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			}
 		}
 		break;
+	case AML_LDIM_IOC_NR_GET_INFO_NEW:
+		if (copy_to_user(argp, &ldim_pq,
+				 sizeof(struct aml_ldim_pq_s))) {
+			ret = -EFAULT;
+		}
+		break;
+	case AML_LDIM_IOC_NR_SET_INFO_NEW:
+		memset(&ldim_pq, 0, sizeof(struct aml_ldim_pq_s));
+		if (copy_from_user(&ldim_pq, argp,
+				   sizeof(struct aml_ldim_pq_s))) {
+			ret = -EFAULT;
+		}
+		aml_ldim_pq_update();
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -931,11 +1038,11 @@ int aml_ldim_get_config_dts(struct device_node *child)
 	if ((para[0] * para[1]) > LD_BLKREGNUM) {
 		LDIMERR("zone row*col(%d*%d) is out of support\n", para[0], para[1]);
 	} else {
-		ldim_config.hist_row = para[0];
-		ldim_config.hist_col = para[1];
+		ldim_config.seg_row = para[0];
+		ldim_config.seg_col = para[1];
 	}
 	LDIMPR("get bl_zone row = %d, col = %d\n",
-	       ldim_config.hist_row, ldim_config.hist_col);
+	       ldim_config.seg_row, ldim_config.seg_col);
 
 aml_ldim_get_config_dts_next:
 	/* get bl_mode from dts */
@@ -971,10 +1078,10 @@ int aml_ldim_get_config_unifykey(unsigned char *buf)
 
 	/* ldim: 24byte */
 	/* get bl_ldim_region_row_col 4byte*/
-	ldim_config.hist_row = *(p + LCD_UKEY_BL_LDIM_ROW);
-	ldim_config.hist_col = *(p + LCD_UKEY_BL_LDIM_COL);
+	ldim_config.seg_row = *(p + LCD_UKEY_BL_LDIM_ROW);
+	ldim_config.seg_col = *(p + LCD_UKEY_BL_LDIM_COL);
 	LDIMPR("get bl_zone row = %d, col = %d\n",
-	       ldim_config.hist_row, ldim_config.hist_col);
+	       ldim_config.seg_row, ldim_config.seg_col);
 
 	/* get bl_ldim_mode 1byte*/
 	ldim_config.bl_mode = *(p + LCD_UKEY_BL_LDIM_MODE);
@@ -1031,12 +1138,13 @@ ldim_rmem_err0:
 static int aml_ldim_malloc(struct platform_device *pdev, struct ldim_drv_data_s *data,
 			   unsigned int row, unsigned int col)
 {
-	struct ldim_fw_para_s *fw_para = ldim_driver.fw_para;
+	struct ldim_stts_s *stts = ldim_driver.stts;
+	struct ldim_fw_s *fw = ldim_driver.fw;
 	unsigned int zone_num = row * col;
-	int ret = 0;
+	int i, ret = 0;
 
-	if (!fw_para) {
-		LDIMERR("%s: fw_para is null\n", __func__);
+	if (!fw) {
+		LDIMERR("%s: fw is null\n", __func__);
 		return -1;
 	}
 
@@ -1046,72 +1154,57 @@ static int aml_ldim_malloc(struct platform_device *pdev, struct ldim_drv_data_s 
 			goto ldim_malloc_err0;
 	}
 
-	ldim_driver.hist_matrix = kcalloc((zone_num * 16), sizeof(unsigned int), GFP_KERNEL);
-	if (!ldim_driver.hist_matrix)
+	if (!stts)
+		goto ldim_malloc_err0;
+	stts->hist_matrix = kcalloc((zone_num * 16), sizeof(unsigned int),
+				    GFP_KERNEL);
+	if (!stts->hist_matrix)
 		goto ldim_malloc_err0;
 
-	ldim_driver.max_rgb = kcalloc((zone_num * 3), sizeof(unsigned int), GFP_KERNEL);
-	if (!ldim_driver.max_rgb)
+	stts->max_rgb = kcalloc((zone_num * 3), sizeof(unsigned int),
+				GFP_KERNEL);
+	if (!stts->max_rgb)
 		goto ldim_malloc_err1;
 
-	ldim_driver.test_matrix = kcalloc(zone_num, sizeof(unsigned short), GFP_KERNEL);
-	if (!ldim_driver.test_matrix)
+	ldim_driver.local_bl_matrix = kcalloc(zone_num, sizeof(unsigned int),
+					      GFP_KERNEL);
+	if (!ldim_driver.local_bl_matrix)
 		goto ldim_malloc_err2;
 
-	ldim_driver.local_bl_matrix = kcalloc(zone_num, sizeof(unsigned short), GFP_KERNEL);
-	if (!ldim_driver.local_bl_matrix)
+	ldim_driver.bl_matrix_cur = kcalloc(zone_num, sizeof(unsigned int),
+					    GFP_KERNEL);
+	if (!ldim_driver.bl_matrix_cur)
 		goto ldim_malloc_err3;
 
-	ldim_driver.bl_matrix_cur = kcalloc(zone_num, sizeof(unsigned short), GFP_KERNEL);
-	if (!ldim_driver.bl_matrix_cur)
+	ldim_driver.bl_matrix_pre = kcalloc(zone_num, sizeof(unsigned int),
+					    GFP_KERNEL);
+	if (!ldim_driver.bl_matrix_pre)
 		goto ldim_malloc_err4;
 
-	ldim_driver.bl_matrix_pre = kcalloc(zone_num, sizeof(unsigned short), GFP_KERNEL);
-	if (!ldim_driver.bl_matrix_pre)
+	ldim_driver.test_matrix = kcalloc(zone_num, sizeof(unsigned int),
+					  GFP_KERNEL);
+	if (!ldim_driver.test_matrix)
 		goto ldim_malloc_err5;
-
-	fw_para->fdat->sf_bl_matrix = kcalloc(zone_num, sizeof(unsigned int), GFP_KERNEL);
-	if (!fw_para->fdat->sf_bl_matrix)
-		goto ldim_malloc_err6;
-
-	fw_para->fdat->last_sta1_maxrgb = kcalloc((zone_num * 3), sizeof(unsigned int), GFP_KERNEL);
-	if (!fw_para->fdat->last_sta1_maxrgb)
-		goto ldim_malloc_err7;
-
-	fw_para->fdat->tf_bl_matrix = kcalloc(zone_num, sizeof(unsigned int), GFP_KERNEL);
-	if (!fw_para->fdat->tf_bl_matrix)
-		goto ldim_malloc_err8;
-
-	fw_para->fdat->tf_bl_matrix_2 = kcalloc(zone_num, sizeof(unsigned int), GFP_KERNEL);
-	if (!fw_para->fdat->tf_bl_matrix_2)
-		goto ldim_malloc_err9;
-
-	fw_para->fdat->tf_bl_alpha = kcalloc(zone_num, sizeof(unsigned int), GFP_KERNEL);
-	if (!fw_para->fdat->tf_bl_alpha)
-		goto ldim_malloc_err10;
+	for (i = 0; i < zone_num; i++)
+		ldim_driver.test_matrix[i] = 2048;
 
 	return 0;
 
-ldim_malloc_err10:
-	kfree(ldim_driver.fw_para->fdat->tf_bl_matrix_2);
-ldim_malloc_err9:
-	kfree(ldim_driver.fw_para->fdat->tf_bl_matrix);
-ldim_malloc_err8:
-	kfree(ldim_driver.fw_para->fdat->last_sta1_maxrgb);
-ldim_malloc_err7:
-	kfree(ldim_driver.fw_para->fdat->sf_bl_matrix);
-ldim_malloc_err6:
-	kfree(ldim_driver.bl_matrix_pre);
 ldim_malloc_err5:
-	kfree(ldim_driver.bl_matrix_cur);
+	kfree(ldim_driver.bl_matrix_pre);
+	ldim_driver.bl_matrix_pre = NULL;
 ldim_malloc_err4:
-	kfree(ldim_driver.local_bl_matrix);
+	kfree(ldim_driver.bl_matrix_cur);
+	ldim_driver.bl_matrix_cur = NULL;
 ldim_malloc_err3:
-	kfree(ldim_driver.test_matrix);
+	kfree(ldim_driver.local_bl_matrix);
+	ldim_driver.local_bl_matrix = NULL;
 ldim_malloc_err2:
-	kfree(ldim_driver.max_rgb);
+	kfree(stts->max_rgb);
+	stts->max_rgb = NULL;
 ldim_malloc_err1:
-	kfree(ldim_driver.hist_matrix);
+	kfree(stts->hist_matrix);
+	stts->hist_matrix = NULL;
 ldim_malloc_err0:
 	LDIMERR("%s failed\n", __func__);
 	return -1;
@@ -1152,9 +1245,11 @@ static void aml_ldim_rmem_unmap(unsigned char *vaddr, unsigned int flag)
 static int aml_ldim_malloc_t7(struct platform_device *pdev, struct ldim_drv_data_s *data,
 			      unsigned int row, unsigned int col)
 {
+	struct ldim_stts_s *stts = ldim_driver.stts;
+	struct ldim_fw_s *fw = ldim_driver.fw;
 	unsigned int zone_num = row * col;
 	unsigned int mem_size;
-	int ret = 0;
+	int i, ret = 0;
 
 	/* init reserved memory */
 	ret = of_reserved_mem_device_init(&pdev->dev);
@@ -1208,36 +1303,47 @@ static int aml_ldim_malloc_t7(struct platform_device *pdev, struct ldim_drv_data
 		goto ldim_malloc_t7_err0;
 	}
 
-	ldim_driver.global_hist = kcalloc(64, sizeof(unsigned int), GFP_KERNEL);
-	if (!ldim_driver.global_hist) {
+	if (!stts)
+		goto ldim_malloc_t7_err0;
+
+	stts->global_hist = kcalloc(64, sizeof(unsigned int), GFP_KERNEL);
+	if (!stts->global_hist) {
 		aml_ldim_rmem_unmap(ldim_rmem.duty_vaddr,
 				    ldim_rmem.duty_highmem_flag);
 		goto ldim_malloc_t7_err0;
 	}
 
-	ldim_driver.seg_hist = kcalloc(zone_num, sizeof(*ldim_driver.seg_hist), GFP_KERNEL);
-	if (!ldim_driver.seg_hist)
+	stts->seg_hist = kcalloc(zone_num, sizeof(*stts->seg_hist), GFP_KERNEL);
+	if (!stts->seg_hist)
 		goto ldim_malloc_t7_err1;
 
-	ldim_driver.duty = kcalloc(zone_num, sizeof(unsigned short), GFP_KERNEL);
-	if (!ldim_driver.duty)
+	if (!fw)
+		goto ldim_malloc_t7_err2;
+	fw->bl_matrix = kcalloc(zone_num, sizeof(unsigned int), GFP_KERNEL);
+	if (!fw->bl_matrix)
 		goto ldim_malloc_t7_err2;
 
-	ldim_driver.local_bl_matrix = kcalloc(zone_num, sizeof(unsigned short), GFP_KERNEL);
+	ldim_driver.local_bl_matrix = kcalloc(zone_num, sizeof(unsigned int),
+					      GFP_KERNEL);
 	if (!ldim_driver.local_bl_matrix)
 		goto ldim_malloc_t7_err3;
 
-	ldim_driver.bl_matrix_cur = kcalloc(zone_num, sizeof(unsigned short), GFP_KERNEL);
+	ldim_driver.bl_matrix_cur = kcalloc(zone_num, sizeof(unsigned int),
+					    GFP_KERNEL);
 	if (!ldim_driver.bl_matrix_cur)
 		goto ldim_malloc_t7_err4;
 
-	ldim_driver.bl_matrix_pre = kcalloc(zone_num, sizeof(unsigned short), GFP_KERNEL);
+	ldim_driver.bl_matrix_pre = kcalloc(zone_num, sizeof(unsigned int),
+					    GFP_KERNEL);
 	if (!ldim_driver.bl_matrix_pre)
 		goto ldim_malloc_t7_err5;
 
-	ldim_driver.test_matrix = kcalloc(zone_num, sizeof(unsigned short), GFP_KERNEL);
+	ldim_driver.test_matrix = kcalloc(zone_num, sizeof(unsigned int),
+					  GFP_KERNEL);
 	if (!ldim_driver.test_matrix)
 		goto ldim_malloc_t7_err6;
+	for (i = 0; i < zone_num; i++)
+		ldim_driver.test_matrix[i] = 2048;
 
 	return 0;
 
@@ -1248,20 +1354,20 @@ ldim_malloc_t7_err5:
 ldim_malloc_t7_err4:
 	kfree(ldim_driver.local_bl_matrix);
 ldim_malloc_t7_err3:
-	kfree(ldim_driver.duty);
+	kfree(fw->bl_matrix);
 ldim_malloc_t7_err2:
-	kfree(ldim_driver.seg_hist);
+	kfree(stts->seg_hist);
 ldim_malloc_t7_err1:
-	kfree(ldim_driver.global_hist);
+	kfree(stts->global_hist);
 ldim_malloc_t7_err0:
 	LDIMERR("%s failed\n", __func__);
 	return -1;
 }
 
 static struct ldim_drv_data_s ldim_data_tl1 = {
-	.h_region_max = 31,
-	.v_region_max = 16,
-	.total_region_max = 128,
+	.h_zone_max = 31,
+	.v_zone_max = 16,
+	.total_zone_max = 128,
 	.wr_mem_size = 0,
 	.rd_mem_size = 0,
 
@@ -1275,13 +1381,12 @@ static struct ldim_drv_data_s ldim_data_tl1 = {
 	.drv_init = ldim_drv_init,
 	.func_ctrl = ldim_func_ctrl,
 	.remap_lut_update = NULL,
-	.min_gain_lut_update = NULL,
 };
 
 static struct ldim_drv_data_s ldim_data_tm2 = {
-	.h_region_max = 48,
-	.v_region_max = 32,
-	.total_region_max = 1536,
+	.h_zone_max = 48,
+	.v_zone_max = 32,
+	.total_zone_max = 1536,
 	.wr_mem_size = 0x3000,
 	.rd_mem_size = 0x1000,
 
@@ -1295,13 +1400,12 @@ static struct ldim_drv_data_s ldim_data_tm2 = {
 	.drv_init = ldim_drv_init,
 	.func_ctrl = ldim_func_ctrl,
 	.remap_lut_update = NULL,
-	.min_gain_lut_update = NULL,
 };
 
 static struct ldim_drv_data_s ldim_data_tm2b = {
-	.h_region_max = 48,
-	.v_region_max = 32,
-	.total_region_max = 1536,
+	.h_zone_max = 48,
+	.v_zone_max = 32,
+	.total_zone_max = 1536,
 	.wr_mem_size = 0x3000,
 	.rd_mem_size = 0x1000,
 
@@ -1315,13 +1419,12 @@ static struct ldim_drv_data_s ldim_data_tm2b = {
 	.drv_init = ldim_drv_init,
 	.func_ctrl = ldim_func_ctrl,
 	.remap_lut_update = NULL,
-	.min_gain_lut_update = NULL,
 };
 
 static struct ldim_drv_data_s ldim_data_t7 = {
-	.h_region_max = 48,
-	.v_region_max = 32,
-	.total_region_max = 1536,
+	.h_zone_max = 48,
+	.v_zone_max = 32,
+	.total_zone_max = 1536,
 	.wr_mem_size = 0x400000,
 	.rd_mem_size = 0,
 
@@ -1335,13 +1438,12 @@ static struct ldim_drv_data_s ldim_data_t7 = {
 	.drv_init = ldim_drv_init_t7,
 	.func_ctrl = ldim_func_ctrl_t7,
 	.remap_lut_update = ldc_gain_lut_set_t7,
-	.min_gain_lut_update = ldc_min_gain_lut_set,
 };
 
 static struct ldim_drv_data_s ldim_data_t3 = {
-	.h_region_max = 48,
-	.v_region_max = 32,
-	.total_region_max = 1536,
+	.h_zone_max = 48,
+	.v_zone_max = 32,
+	.total_zone_max = 1536,
 	.wr_mem_size = 0x400000,
 	.rd_mem_size = 0,
 
@@ -1353,9 +1455,8 @@ static struct ldim_drv_data_s ldim_data_t3 = {
 
 	.memory_init = aml_ldim_malloc_t7,
 	.drv_init = ldim_drv_init_t3,
-	.func_ctrl = ldim_func_ctrl_t3,
+	.func_ctrl = ldim_func_ctrl_t7,
 	.remap_lut_update = ldc_gain_lut_set_t3,
-	.min_gain_lut_update = ldc_min_gain_lut_set,
 };
 
 static int ldim_region_num_check(struct ldim_drv_data_s *data)
@@ -1367,20 +1468,20 @@ static int ldim_region_num_check(struct ldim_drv_data_s *data)
 		return -1;
 	}
 
-	if (ldim_config.hist_row > data->v_region_max) {
+	if (ldim_config.seg_row > data->v_zone_max) {
 		LDIMERR("%s: blk row (%d) is out of support (%d)\n",
-			__func__, ldim_config.hist_row, data->v_region_max);
+			__func__, ldim_config.seg_row, data->v_zone_max);
 		return -1;
 	}
-	if (ldim_config.hist_col > data->h_region_max) {
+	if (ldim_config.seg_col > data->h_zone_max) {
 		LDIMERR("%s: blk col (%d) is out of support (%d)\n",
-			__func__, ldim_config.hist_col, data->h_region_max);
+			__func__, ldim_config.seg_col, data->h_zone_max);
 		return -1;
 	}
-	temp = ldim_config.hist_row * ldim_config.hist_col;
-	if (temp > data->total_region_max) {
+	temp = ldim_config.seg_row * ldim_config.seg_col;
+	if (temp > data->total_zone_max) {
 		LDIMERR("%s: blk total region (%d) is out of support (%d)\n",
-			__func__, temp, data->total_region_max);
+			__func__, temp, data->total_zone_max);
 		return -1;
 	}
 
@@ -1393,7 +1494,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 	unsigned int ldim_vsync_irq = 0;
 	struct ldim_dev_s *devp = &ldim_dev;
 	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
-	struct ldim_fw_para_s *fw_para = aml_ldim_get_fw_para();
+	struct ldim_fw_s *fw = aml_ldim_get_fw();
 
 	memset(devp, 0, (sizeof(struct ldim_dev_s)));
 
@@ -1435,18 +1536,18 @@ int aml_ldim_probe(struct platform_device *pdev)
 
 	ldim_driver.level_update = 0;
 
-	if (!fw_para) {
-		LDIMERR("%s: fw_para is null\n", __func__);
+	if (!fw) {
+		LDIMERR("%s: fw is null\n", __func__);
 		return -1;
 	}
-	ldim_driver.fw_para = fw_para;
-	ldim_driver.fw_para->hist_row = ldim_config.hist_row;
-	ldim_driver.fw_para->hist_col = ldim_config.hist_col;
-	ldim_driver.fw_para->valid = 1;
+	ldim_driver.fw = fw;
+	ldim_driver.fw->seg_row = ldim_config.seg_row;
+	ldim_driver.fw->seg_col = ldim_config.seg_col;
+	ldim_driver.fw->valid = 1;
 
 	if (devp->data->memory_init) {
 		ret = devp->data->memory_init(pdev, devp->data,
-			ldim_config.hist_row, ldim_config.hist_col);
+			ldim_config.seg_row, ldim_config.seg_col);
 		if (ret) {
 			LDIMERR("%s failed\n", __func__);
 			goto err;
@@ -1544,14 +1645,9 @@ int aml_ldim_remove(void)
 	struct ldim_dev_s *devp = &ldim_dev;
 	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 
-	kfree(ldim_driver.fw_para->fdat->sf_bl_matrix);
-	kfree(ldim_driver.fw_para->fdat->tf_bl_matrix);
-	kfree(ldim_driver.fw_para->fdat->tf_bl_matrix_2);
-	kfree(ldim_driver.fw_para->fdat->last_sta1_maxrgb);
-	kfree(ldim_driver.fw_para->fdat->tf_bl_alpha);
 	kfree(ldim_driver.bl_matrix_cur);
-	kfree(ldim_driver.hist_matrix);
-	kfree(ldim_driver.max_rgb);
+	kfree(ldim_driver.stts->hist_matrix);
+	kfree(ldim_driver.stts->max_rgb);
 	kfree(ldim_driver.test_matrix);
 	kfree(ldim_driver.local_bl_matrix);
 

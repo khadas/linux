@@ -238,7 +238,11 @@
 #define LDC_GAIN_LUT_CTRL0                         0x1474
 #define LDC_GAIN_LUT_CTRL1                         0x1475
 #define LDC_DGB_CTRL                               0x147a
+#define LDC_RO_BL_MEMORY_IDX                       0x147b
+#define LDC_RO_GLB_HIST_SUM                        0x147c
+#define LDC_RO_GLB_HIST_CNT                        0x147d
 #define LDC_RO_GAIN_SMP_DATA                       0x147f
+#define LDC_RO_PREF_CHK_ERROR                      0x1480
 #define VPU_RDARB_MODE_L2C1                        0x279d
 
 /* *************************************************************************/
