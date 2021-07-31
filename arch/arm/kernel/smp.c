@@ -234,7 +234,11 @@ int platform_can_hotplug_cpu(unsigned int cpu)
 	 * since this is special on a lot of platforms, e.g. because
 	 * of clock tick interrupts.
 	 */
+#ifdef CONFIG_AMLOGIC_MODIFY
+	return 1;
+#else
 	return cpu != 0;
+#endif
 }
 
 static void ipi_teardown(int cpu)
