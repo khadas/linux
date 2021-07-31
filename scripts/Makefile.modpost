@@ -84,11 +84,11 @@ MODPOST += $(subst -i,-n,$(filter -i,$(MAKEFLAGS))) -s -T - $(wildcard vmlinux)
 # find all modules listed in modules.order
 modules := $(sort $(shell cat $(MODORDER)))
 
-# With CONFIG_LTO_CLANG, .o files might be LLVM IR, so we need to link them
+# With CONFIG_AMLOGIC_LTO_CLANG, .o files might be LLVM IR, so we need to link them
 # into actual objects before passing them to modpost
-modpost-ext = $(if $(CONFIG_LTO_CLANG),.lto,)
+modpost-ext = $(if $(CONFIG_AMLOGIC_LTO_CLANG),.lto,)
 
-ifdef CONFIG_LTO_CLANG
+ifdef CONFIG_AMLOGIC_LTO_CLANG
 quiet_cmd_cc_lto_link_modules = LTO [M] $@
 cmd_cc_lto_link_modules =						\
 	$(LD) $(ld_flags) -r -o $(@)					\

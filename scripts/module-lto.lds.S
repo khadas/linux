@@ -2,7 +2,7 @@
 #include <asm/page.h>
 
 /*
- * With CONFIG_LTO_CLANG, LLD always enables -fdata-sections and
+ * With CONFIG_AMLOGIC_LTO_CLANG, LLD always enables -fdata-sections and
  * -ffunction-sections, which increases the size of the final module.
  * Merge the split sections in the final binary.
  */
