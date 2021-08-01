@@ -34,7 +34,7 @@ static void construct_avi_packet(struct hdmitx_dev *hdev)
 	ret = hdmi_avi_infoframe_init(info);
 	if (ret)
 		pr_info("init avi infoframe failed\n");
-	info->colorspace = HDMI_COLORSPACE_YUV444; /* TODO */
+	info->colorspace = para->cs;
 	info->scan_mode = HDMI_SCAN_MODE_NONE;
 	info->colorimetry = HDMI_COLORIMETRY_ITU_709;
 	info->picture_aspect = HDMI_PICTURE_ASPECT_16_9;
@@ -91,79 +91,78 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		hdev->cur_VIC = vic;
 
 	param = hdev->para;
-	if (param) {
-		/* HDMI CT 7-24 Pixel Encoding
-		 * YCbCr to YCbCr Sink
-		 */
-		switch (hdev->rxcap.native_Mode & 0x30) {
-		case 0x20:/*bit5==1, then support YCBCR444 + RGB*/
-		case 0x30:
-			param->cs = HDMI_COLORSPACE_YUV444;
-			break;
-		case 0x10:/*bit4==1, then support YCBCR422 + RGB*/
+	if (!param) {
+		pr_info("%s[%d]\n", __func__, __LINE__);
+		return ret;
+	}
+
+	if (param->cs == HDMI_COLORSPACE_YUV444)
+		if (!(hdev->rxcap.native_Mode & (1 << 5))) {
 			param->cs = HDMI_COLORSPACE_YUV422;
-			break;
-		default:
+			pr_info("change cs from 444 to 422\n");
+		}
+	if (param->cs == HDMI_COLORSPACE_YUV422)
+		if (!(hdev->rxcap.native_Mode & (1 << 4))) {
 			param->cs = HDMI_COLORSPACE_RGB;
+			pr_info("change cs from 422 to rgb\n");
 		}
-		/* For Y420 modes */
-		switch (videocode) {
-		case HDMI_96_3840x2160p50_16x9:
-		case HDMI_97_3840x2160p60_16x9:
-		case HDMI_101_4096x2160p50_256x135:
-		case HDMI_102_4096x2160p60_256x135:
-			//param->cs = COLORSPACE_YUV420; /* TODO */
-			break;
-		default:
-			break;
+	/* For Y420 modes */
+	switch (videocode) {
+	case HDMI_96_3840x2160p50_16x9:
+	case HDMI_97_3840x2160p60_16x9:
+	case HDMI_101_4096x2160p50_256x135:
+	case HDMI_102_4096x2160p60_256x135:
+		//param->cs = COLORSPACE_YUV420; /* TODO */
+		break;
+	default:
+		break;
+	}
+
+	if (param->cs == HDMI_COLORSPACE_RGB)
+		pr_info(VID "rx edid only support RGB format\n");
+
+	if (videocode >= HDMITX_VESA_OFFSET) {
+		hdev->para->cs = HDMI_COLORSPACE_RGB;
+		hdev->para->cd = COLORDEPTH_24B;
+		pr_info("hdmitx: VESA only support RGB format\n");
+	}
+
+	if (hdev->hwop.setdispmode(hdev) >= 0) {
+		construct_avi_packet(hdev);
+
+		/* HDMI CT 7-33 DVI Sink, no HDMI VSDB nor any
+		 * other VSDB, No GB or DI expected
+		 * TMDS_MODE[hdmi_config]
+		 * 0: DVI Mode	   1: HDMI Mode
+		 */
+		if (is_dvi_device(&hdev->rxcap)) {
+			pr_info(VID "Sink is DVI device\n");
+			hdev->hwop.cntlconfig(hdev,
+				CONF_HDMI_DVI_MODE, DVI_MODE);
+		} else {
+			pr_info(VID "Sink is HDMI device\n");
+			hdev->hwop.cntlconfig(hdev,
+				CONF_HDMI_DVI_MODE, HDMI_MODE);
 		}
+		if (videocode == HDMI_95_3840x2160p30_16x9 ||
+		    videocode == HDMI_94_3840x2160p25_16x9 ||
+		    videocode == HDMI_93_3840x2160p24_16x9 ||
+		    videocode == HDMI_98_4096x2160p24_256x135)
+			hdmi_set_vend_spec_infofram(hdev, videocode);
+		else if ((!hdev->flag_3dfp) && (!hdev->flag_3dtb) &&
+			 (!hdev->flag_3dss))
+			hdmi_set_vend_spec_infofram(hdev, 0);
+		else
+			;
 
-		if (param->cs == HDMI_COLORSPACE_RGB)
-			pr_info(VID "rx edid only support RGB format\n");
-
-		if (videocode >= HDMITX_VESA_OFFSET) {
-			hdev->para->cs = HDMI_COLORSPACE_RGB;
-			hdev->para->cd = COLORDEPTH_24B;
-			pr_info("hdmitx: VESA only support RGB format\n");
-		}
-
-		if (hdev->hwop.setdispmode(hdev) >= 0) {
-			construct_avi_packet(hdev);
-
-			/* HDMI CT 7-33 DVI Sink, no HDMI VSDB nor any
-			 * other VSDB, No GB or DI expected
-			 * TMDS_MODE[hdmi_config]
-			 * 0: DVI Mode	   1: HDMI Mode
-			 */
-			if (is_dvi_device(&hdev->rxcap)) {
-				pr_info(VID "Sink is DVI device\n");
-				hdev->hwop.cntlconfig(hdev,
-					CONF_HDMI_DVI_MODE, DVI_MODE);
-			} else {
-				pr_info(VID "Sink is HDMI device\n");
-				hdev->hwop.cntlconfig(hdev,
-					CONF_HDMI_DVI_MODE, HDMI_MODE);
-			}
-			if (videocode == HDMI_95_3840x2160p30_16x9 ||
-			    videocode == HDMI_94_3840x2160p25_16x9 ||
-			    videocode == HDMI_93_3840x2160p24_16x9 ||
-			    videocode == HDMI_98_4096x2160p24_256x135)
-				hdmi_set_vend_spec_infofram(hdev, videocode);
-			else if ((!hdev->flag_3dfp) && (!hdev->flag_3dtb) &&
-				 (!hdev->flag_3dss))
-				hdmi_set_vend_spec_infofram(hdev, 0);
-			else
-				;
-
-			if (hdev->allm_mode) {
-				hdmitx21_construct_vsif(hdev, VT_ALLM, 1, NULL);
-				hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
-					SET_CT_OFF);
-			}
+		if (hdev->allm_mode) {
+			hdmitx21_construct_vsif(hdev, VT_ALLM, 1, NULL);
 			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
-				hdev->ct_mode);
-			ret = 0;
+				SET_CT_OFF);
 		}
+		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+			hdev->ct_mode);
+		ret = 0;
 	}
 	hdmitx_set_spd_info(hdev);
 
