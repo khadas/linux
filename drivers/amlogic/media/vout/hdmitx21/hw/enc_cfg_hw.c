@@ -35,7 +35,7 @@
  */
 static void config_tv_enc_calc(enum hdmi_vic vic)
 {
-	struct hdmi_timing *tp = NULL;
+	const struct hdmi_timing *tp = NULL;
 	struct hdmi_timing timing = {0};
 	const u32 hsync_st = 4; // hsync start pixel count
 	const u32 vsync_st = 1; // vsync start line count

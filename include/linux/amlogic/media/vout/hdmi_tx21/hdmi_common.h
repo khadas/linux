@@ -311,7 +311,7 @@ enum hdmi_3d_type {
 
 struct hdmi_format_para {
 	enum hdmi_color_depth cd; /* cd8, cd10 or cd12 */
-	enum hdmi_colorspace cs; /* rgb, y444, y422, y420 */
+	enum hdmi_colorspace cs; /* 0/1/2/3: rgb/422/444/420 */
 	enum hdmi_color_range cr; /* limit, full */
 	u32 scrambler_en:1;
 	u32 tmds_clk_div40:1;
@@ -346,16 +346,20 @@ enum hdmi_aspect_ratio {
 
 struct vesa_standard_timing;
 
-struct hdmi_format_para *hdmi21_get_fmt_paras(enum hdmi_vic vic);
-struct hdmi_format_para *hdmi21_match_dtd_paras(struct dtd *t);
+struct hdmi_format_para *hdmitx21_match_dtd_paras(struct dtd *t);
+struct hdmi_format_para *hdmitx21_get_vesa_paras(struct vesa_standard_timing
+	*t);
+struct hdmi_format_para *hdmitx21_tst_fmt_name(const char *name,
+	const char *attr);
+const struct hdmi_timing *hdmitx21_gettiming_from_vic(enum hdmi_vic vic);
+const struct hdmi_timing *hdmitx21_gettiming_from_name(const char *name);
+struct hdmi_format_para *hdmitx21_get_fmtpara(const char *mode,
+	const char *attr);
+
 void check21_detail_fmt(void);
-struct hdmi_format_para *hdmi21_get_fmt_name(char const *name, char const *attr);
-struct hdmi_format_para *hdmi21_tst_fmt_name(char const *name, char const *attr);
-struct hdmi_format_para *hdmitx21_get_fmtpara(char *mode);
 u32 hdmi21_get_aud_n_paras(enum hdmi_audio_fs fs,
 				  enum hdmi_color_depth cd,
 				  u32 tmds_clk);
-struct hdmi_format_para *hdmi21_get_vesa_paras(struct vesa_standard_timing *t);
 
 /* HDMI Audio Parmeters */
 /* Refer to CEA-861-D Page 88 */

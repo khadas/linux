@@ -17,7 +17,7 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 
-#define DEVICE_NAME "amhdmitx"
+#define DEVICE_NAME "amhdmitx21"
 
 /* HDMITX driver version */
 #define HDMITX_VER "20201030"

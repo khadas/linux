@@ -37,8 +37,6 @@ int hdmitx21_init_reg_map(struct platform_device *pdev);
 void hdmitx21_set_audioclk(bool en);
 void hdmitx21_disable_clk(struct hdmitx_dev *hdev);
 u32 hdcp21_rd_hdcp22_ver(void);
-struct hdmi_timing *hdmitx21_gettiming_from_vic(enum hdmi_vic vic);
-struct hdmi_timing *hdmitx21_gettiming_from_name(const char *mode);
 void hdmitx_infoframe_send(u8 info_type, u8 *body);
 
 /* there are 2 ways to send out infoframes
