@@ -1004,6 +1004,7 @@ static void session_video_stop(struct sync_session *session)
 		session->clock_start = false;
 		session->start_posted = false;
 		session->v_timeout = false;
+		session->stat = AVS_STAT_INIT;
 		msync_dbg(LOG_INFO, "[%d]%s clock stop\n",
 			session->id, __func__);
 	} else if (session->mode == AVS_MODE_IPTV) {
@@ -1037,6 +1038,7 @@ static void session_audio_stop(struct sync_session *session)
 		session->clock_start = false;
 		session->start_posted = false;
 		session->v_timeout = false;
+		session->stat = AVS_STAT_INIT;
 		msync_dbg(LOG_INFO, "[%d]%d clock stop\n",
 			session->id, __LINE__);
 	} else if (session->audio_switching) {
