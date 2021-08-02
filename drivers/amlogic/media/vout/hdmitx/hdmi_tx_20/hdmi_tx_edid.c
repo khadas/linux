@@ -2877,6 +2877,7 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"1600x1200p60hz", HDMIV_1600x1200p60hz},
 	{"1680x1050p60hz", HDMIV_1680x1050p60hz},
 	{"1920x1200p60hz", HDMIV_1920x1200p60hz},
+	{"2048x1080p24hz", HDMIV_2048x1080p24hz},
 	{"2160x1200p90hz", HDMIV_2160x1200p90hz},
 	{"2560x1440p60hz", HDMIV_2560x1440p60hz},
 	{"2560x1600p60hz", HDMIV_2560x1600p60hz},
