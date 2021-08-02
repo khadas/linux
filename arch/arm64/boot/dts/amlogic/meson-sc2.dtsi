@@ -1047,6 +1047,7 @@
 			clock-names = "stmmaceth", "clkin0", "clkin1";
 			rx-fifo-depth = <4096>;
 			tx-fifo-depth = <2048>;
+			mc_val = <0x4BE0C>;
 			status = "disabled";
 
 			mdio0: mdio {
