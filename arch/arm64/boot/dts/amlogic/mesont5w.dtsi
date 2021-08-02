@@ -283,6 +283,12 @@
 				reg = <0x0 0xf0d0 0x0 0x10>;
 				clocks = <&xtal>;
 			};
+
+			clk-measure@18000 {
+				compatible = "amlogic,meson-t5w-clk-measure";
+				reg = <0x0 0x18000 0x0 0x10>;
+			};
+
 	};
 
 	clkc: clock-controller@0 {

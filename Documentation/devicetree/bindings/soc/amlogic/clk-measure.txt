@@ -19,6 +19,7 @@ Required properties:
 			"amlogic,meson-s4-clk-measure" for S4 SoCs
 			"amlogic,meson-t3-clk-measure" for T3 SoCs
 			"amlogic,meson-p1-clk-measure" for P1 SoCs
+			"amlogic,meson-t5w-clk-measure" for T5W SoCs
 - reg: base address and size of the Clock Measurer register space.
 
 Example:
