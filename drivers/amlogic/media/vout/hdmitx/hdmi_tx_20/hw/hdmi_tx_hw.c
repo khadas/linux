@@ -4232,7 +4232,12 @@ static int hdmitx_tmds_rxsense(void)
 		ret = hd_read_reg(P_HHI_HDMI_PHY_CNTL2) & 0x1;
 		break;
 	case MESON_CPU_ID_SC2:
-		return ret;
+		hd_set_reg_bits(P_ANACTRL_HDMIPHY_CTRL0, 1, 16, 1);
+		hd_set_reg_bits(P_ANACTRL_HDMIPHY_CTRL3, 1, 23, 1);
+		hd_set_reg_bits(P_ANACTRL_HDMIPHY_CTRL3, 0, 24, 1);
+		hd_set_reg_bits(P_ANACTRL_HDMIPHY_CTRL3, 3, 20, 3);
+		ret = hd_read_reg(P_ANACTRL_HDMIPHY_CTRL2) & 0x1;
+		break;
 	case MESON_CPU_ID_GXBB:
 		curr0 = hd_read_reg(P_HHI_HDMI_PHY_CNTL0);
 		curr3 = hd_read_reg(P_HHI_HDMI_PHY_CNTL3);
