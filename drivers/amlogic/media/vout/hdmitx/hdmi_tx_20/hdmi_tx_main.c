@@ -331,7 +331,6 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	const struct vinfo_s *info = hdmitx_get_current_vinfo(NULL);
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)h->param;
 
-	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, 1);
 	if (info && (hdmitx_is_hdmi_vmode(info->name) == 1))
 		hdev->hwop.cntlmisc(&hdmitx_device, MISC_HPLL_FAKE, 0);
 
@@ -355,7 +354,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	set_disp_mode_auto();
 
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, hdev->hpd_state);
-
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, 1);
 	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, hdev->hpd_state);
 	pr_info("amhdmitx: late resume module %d\n", __LINE__);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
