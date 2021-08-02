@@ -17,7 +17,7 @@
 
 /dts-v1/;
 
-#include "partition_mbox_normal.dtsi"
+#include "partition_mbox_normal_P_32.dtsi"
 #include "mesong12b.dtsi"
 #include "mesong12b_skt-panel.dtsi"
 
@@ -587,10 +587,10 @@
 			continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
-			bitclock-master = <&aml_tdmb>;
-			frame-master = <&aml_tdmb>;
-			//bitclock-master = <&tdmbcodec>;
-			//frame-master = <&tdmbcodec>;
+			//bitclock-master = <&aml_tdmb>;
+			//frame-master = <&aml_tdmb>;
+			bitclock-master = <&tdmbcodec>;
+			frame-master = <&tdmbcodec>;
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
@@ -918,7 +918,7 @@
 	aml_tdmb: tdmb {
 		compatible = "amlogic, g12a-snd-tdmb";
 		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-in = <0 1 0 0>;
+		dai-tdm-lane-slot-mask-in = <0 0 1 0>;
 		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
@@ -1154,9 +1154,7 @@
 	};
 	tdmout_b: tdmout_b {
 		mux { /* GPIOA_1, GPIOA_2, GPIOA_3 */
-			groups = "tdmb_sclk",
-				"tdmb_fs",
-				"tdmb_dout0";
+			groups = "tdmb_dout0";
 			function = "tdmb_out";
 			drive-strength = <2>;
 		};
@@ -1164,8 +1162,7 @@
 
 	tdmin_b:tdmin_b {
 		mux { /* GPIOA_4 */
-			groups = "tdmb_din1"
-				/*,"tdmb_slv_sclk", "tdmb_slv_fs"*/;
+                        groups = "tdmb_din2","tdmb_slv_sclk", "tdmb_slv_fs";
 			function = "tdmb_in";
 			drive-strength = <2>;
 		};
