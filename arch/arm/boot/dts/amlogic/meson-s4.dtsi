@@ -241,6 +241,8 @@
 	vrtc: rtc@0xfe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0xfe010288 0x4>;
+		status = "okay";
+		mboxes = <&mailbox_mhu_fifo 1>;
 	};
 
 	audio_data: audio_data {
