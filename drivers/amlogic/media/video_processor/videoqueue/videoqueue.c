@@ -294,6 +294,35 @@ static void videoq_hdmi_video_sync_2(struct video_queue_dev *dev,
 	}
 }
 
+static enum vframe_disp_mode_e vf_disp_mode_get(struct video_queue_dev *dev,
+	struct vframe_s *vf)
+{
+	struct provider_disp_mode_req_s req;
+
+	req.vf = vf;
+	req.disp_mode = VFRAME_DISP_MODE_NULL;
+	req.req_mode = 0;
+
+	if (dev->provider_name)
+		vf_notify_provider_by_name(dev->provider_name,
+			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
+	return req.disp_mode;
+}
+
+void videoqueue_drop_vf(struct video_queue_dev *dev)
+{
+	struct vframe_s *vf;
+	int ret = 0;
+
+	vf = vf_get(dev->vf_receiver_name);
+	if (!vf)
+		return;
+	ret = vf_put(vf, dev->vf_receiver_name);
+	if (ret)
+		vq_print(P_ERROR, "put: FAIL\n");
+	dev->frame_num++;
+}
+
 static void do_file_thread(struct video_queue_dev *dev)
 {
 	struct vframe_s *vf;
@@ -314,6 +343,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 	bool need_continue = false;
 	u32 delay_vsync_count = delay_vsync;
 	char *provider_name = NULL;
+	u32 vframe_disp_mode = VFRAME_DISP_MODE_NULL;
 
 	if (!dev->provider_name) {
 		provider_name = vf_get_provider_name(dev->vf_receiver_name);
@@ -370,20 +400,25 @@ static void do_file_thread(struct video_queue_dev *dev)
 		return;
 
 	while (dev->sync_need_drop && dev->sync_need_drop_count) {
-		vf = vf_get(dev->vf_receiver_name);
-		if (!vf)
-			return;
-		ret = vf_put(vf, dev->vf_receiver_name);
-		if (ret)
-			vq_print(P_ERROR, "put: FAIL\n");
+		videoqueue_drop_vf(dev);
 		vq_print(P_ERROR, "drop omx_index=%d\n", dev->frame_num);
-		dev->frame_num++;
 		dev->sync_need_drop_count--;
 	}
 
 	vf = vf_peek(dev->vf_receiver_name);
 	if (!vf)
 		return;
+
+	vframe_disp_mode = vf_disp_mode_get(dev, vf);
+	if (vframe_disp_mode != VFRAME_DISP_MODE_OK &&
+		vframe_disp_mode != VFRAME_DISP_MODE_NULL)
+		vq_print(P_OTHER, "disp_mode =%d\n", vframe_disp_mode);
+
+	if (vframe_disp_mode == VFRAME_DISP_MODE_SKIP) {
+		vq_print(P_ERROR, "SKIP\n");
+		videoqueue_drop_vf(dev);
+		return;
+	}
 
 	if (!dev->game_mode) {
 		if (delay_vsync_count > 0) {
