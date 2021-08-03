@@ -619,6 +619,7 @@ struct cec_uevent {
 #define CEC_IOC_SET_DEBUG_EN		_IOW(CEC_IOC_MAGIC, 0x14, uint32_t)
 #define CEC_IOC_GET_WK_OTP_MSG	_IOR(CEC_IOC_MAGIC, 0x17, struct st_rx_msg)
 #define CEC_IOC_GET_WK_AS_MSG	_IOR(CEC_IOC_MAGIC, 0x18, struct st_rx_msg)
+#define CEC_IOC_KEY_EVENT _IOW(CEC_IOC_MAGIC, 0x15, uint32_t)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 unsigned long hdmirx_rd_top(unsigned long addr);
