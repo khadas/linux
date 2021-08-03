@@ -683,7 +683,11 @@ el1_da:
 	mrs	x0, DBGWVR2_EL1
 	mov	x1, sp
 	mov	x2, #S_FRAME_SIZE
+#ifdef CONFIG_KASAN
+	bl	__memcpy
+#else
 	bl	memcpy
+#endif
 	add	x17, x0, #S_FRAME_SIZE
 	str	x17, [x0, #S_SP]
 	mrs	x1, esr_el1	/* rebuild parameter for normal handler */
@@ -717,7 +721,11 @@ el1_undef:
 	mrs	x0, DBGWVR2_EL1
 	mov	x1, sp
 	mov	x2, #S_FRAME_SIZE
+#ifdef CONFIG_KASAN
+	bl	__memcpy
+#else
 	bl	memcpy
+#endif
 	add	x17, x0, #S_FRAME_SIZE
 	str	x17, [x0, #S_SP]
 	mrs	x1, esr_el1	/* rebuild parameter for normal handler */
@@ -740,7 +748,11 @@ el1_dbg:
 	mrs	x0, DBGWVR2_EL1
 	mov	x1, sp
 	mov	x2, #S_FRAME_SIZE
+#ifdef CONFIG_KASAN
+	bl	__memcpy
+#else
 	bl	memcpy
+#endif
 	add	x17, x0, #S_FRAME_SIZE
 	str	x17, [x0, #S_SP]
 	mrs	x1, esr_el1	/* rebuild parameter for normal handler */
@@ -796,7 +808,11 @@ el1_irq:
 	mov	x1, sp
 	mov	x2, #S_FRAME_SIZE
 	mov	sp, x0
+#ifdef CONFIG_KASAN
+	bl	__memcpy
+#else
 	bl	memcpy
+#endif
 	add	x17, sp, #S_FRAME_SIZE
 	str	x17, [sp, #S_SP]
 	mrs	x16, DBGWVR3_EL1
