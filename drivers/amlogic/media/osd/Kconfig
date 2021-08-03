@@ -26,7 +26,6 @@ config AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
 	depends on STAGING
 	depends on ANDROID
 	depends on SYNC_FILE
-	depends on SW_SYNC
 	help
 		Select to enable OSD SYNC FENCE.
 		This is the frame buffer device driver.
