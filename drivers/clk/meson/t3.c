@@ -813,7 +813,7 @@ static const struct cpu_dyn_table t3_cpu_dyn_table[] = {
 	CPU_LOW_PARAMS(1000000000, 1, 0, 0),
 };
 
-static const struct clk_parent_data t3_cpu_dyn_clk_sel[] __initconst = {
+static const struct clk_parent_data t3_cpu_dyn_clk_sel[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div2.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -868,7 +868,7 @@ static const struct cpu_dyn_table t3_dsu_dyn_table[] = {
 	CPU_LOW_PARAMS(1500000000, 3, 0, 0),
 };
 
-static const struct clk_parent_data t3_dsu_dyn_clk_sel[] __initconst = {
+static const struct clk_parent_data t3_dsu_dyn_clk_sel[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div2.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -1289,7 +1289,7 @@ static struct clk_fixed_factor t3_mpll_50m_div = {
 	},
 };
 
-static const struct clk_parent_data t3_mpll_50m_sel[] __initconst = {
+static const struct clk_parent_data t3_mpll_50m_sel[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_mpll_50m_div.hw }
 };
@@ -1734,7 +1734,7 @@ static struct clk_regmap t3_rtc_clk = {
 
 /* sys clk */
 static u32 mux_table_sys_ab_clk_sel[] = { 0, 1, 2, 3, 4, 7 };
-static const struct clk_parent_data t3_table_sys_ab_clk_sel[] __initconst = {
+static const struct clk_parent_data t3_table_sys_ab_clk_sel[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div2.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -1964,7 +1964,7 @@ static struct clk_regmap t3_cecb_32k_clkout = {
 	},
 };
 
-static const struct clk_parent_data t3_sc_parent_data[] __initconst = {
+static const struct clk_parent_data t3_sc_parent_data[] = {
 	{ .hw = &t3_fclk_div4.hw },
 	{ .hw = &t3_fclk_div3.hw },
 	{ .hw = &t3_fclk_div5.hw },
@@ -2020,7 +2020,7 @@ static struct clk_regmap t3_sc_clk = {
 };
 
 /*dspa_clk*/
-static const struct clk_parent_data t3_dsp_parent_hws[] __initconst = {
+static const struct clk_parent_data t3_dsp_parent_hws[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div2p5.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -2765,7 +2765,7 @@ static struct clk_regmap t3_hdmi_tx = {
  */
 static u32 mux_table_mali[] = { 0, 3, 4, 5, 6, 7};
 
-static const struct clk_parent_data t3_mali_0_1_parent_data[] __initconst = {
+static const struct clk_parent_data t3_mali_0_1_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div2p5.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -2892,7 +2892,7 @@ static struct clk_regmap t3_mali = {
 	},
 };
 
-static const struct clk_parent_data t3_hdmirx_sys_parent_data[] __initconst = {
+static const struct clk_parent_data t3_hdmirx_sys_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div4.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -3231,7 +3231,7 @@ static struct clk_regmap t3_vid_lock_clk  = {
 };
 
 /* cts_vdec_clk */
-static const struct clk_parent_data t3_dec_parent_hws[] __initconst = {
+static const struct clk_parent_data t3_dec_parent_hws[] = {
 	{ .hw = &t3_fclk_div2p5.hw },
 	{ .hw = &t3_fclk_div3.hw },
 	{ .hw = &t3_fclk_div4.hw },
@@ -4171,7 +4171,7 @@ static struct clk_regmap t3_ge2d_gate = {
 };
 
 /* cts_vdin_meas_clk */
-static const struct clk_parent_data t3_vdin_parent_hws[] __initconst = {
+static const struct clk_parent_data t3_vdin_parent_hws[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div4.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -4228,7 +4228,7 @@ static struct clk_regmap t3_vdin_meas = {
 	},
 };
 
-static const struct clk_parent_data t3_sd_emmc_clk0_parent_data[] __initconst = {
+static const struct clk_parent_data t3_sd_emmc_clk0_parent_data[]  = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div2.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -4438,7 +4438,7 @@ static struct clk_regmap t3_bt_656 = {
 };
 
 /*cts_cdac_clk*/
-static const struct clk_parent_data t3_cdac_parent_data[] __initconst = {
+static const struct clk_parent_data t3_cdac_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div5.hw },
 };
@@ -4492,7 +4492,7 @@ static struct clk_regmap t3_cdac = {
 };
 
 /*spicc clk*/
-static const struct clk_parent_data t3_spicc_parent_hws[] __initconst = {
+static const struct clk_parent_data t3_spicc_parent_hws[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_sys_clk.hw },
 	{ .hw = &t3_fclk_div4.hw },
@@ -4647,7 +4647,7 @@ static struct clk_regmap t3_spicc2 = {
 /* pwm clk */
 /* TODO: need add t3_vid_pll */
 static u32 t3_pwm_clk_table[] = {0, 2, 3};
-static const struct clk_parent_data t3_pwm_parent_data[] __initconst = {
+static const struct clk_parent_data t3_pwm_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div4.hw },
 	{ .hw = &t3_fclk_div3.hw }
@@ -5133,7 +5133,7 @@ static struct clk_regmap t3_pwm_j = {
 	},
 };
 
-static const struct clk_parent_data t3_saradc_sel_clk_sel[] __initconst = {
+static const struct clk_parent_data t3_saradc_sel_clk_sel[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_sys_clk.hw },
 };
@@ -5190,7 +5190,7 @@ static struct clk_regmap t3_saradc = {
 static u32 t3_gen_clk_mux_table[] = { 0, 5, 6, 7, 19, 21, 22,
 				23, 24, 25, 26, 27, 28 };
 
-static const struct clk_parent_data t3_gen_sel_clk_sel[] __initconst = {
+static const struct clk_parent_data t3_gen_sel_clk_sel[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_gp0_pll.hw },
 	{ .hw = &t3_sys1_pll.hw },
@@ -5366,7 +5366,7 @@ static struct clk_regmap t3_ts_clk = {
 };
 
 /*adc extclk in clkl*/
-static const struct clk_parent_data t3_adc_extclk_parent_data[] __initconst = {
+static const struct clk_parent_data t3_adc_extclk_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div4.hw },
 	{ .hw = &t3_fclk_div3.hw },
@@ -5425,7 +5425,7 @@ static struct clk_regmap t3_adc_extclk = {
 };
 
 /*cts demod core*/
-static const struct clk_parent_data t3_cts_demod_core_parent_data[] __initconst = {
+static const struct clk_parent_data t3_cts_demod_core_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div7.hw },
 	{ .hw = &t3_fclk_div4.hw },
@@ -5528,7 +5528,7 @@ static struct clk_regmap t3_cts_demod_core_t2_clk = {
 };
 
 /*cts tcon pll clk*/
-static const struct clk_parent_data t3_cts_tcon_pll_clk_parent_data[] __initconst = {
+static const struct clk_parent_data t3_cts_tcon_pll_clk_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div5.hw },
 	{ .hw = &t3_fclk_div4.hw },

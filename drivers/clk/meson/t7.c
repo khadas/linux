@@ -832,7 +832,7 @@ static const struct cpu_dyn_table t7_cpu_dyn_table[] = {
 	CPU_LOW_PARAMS(1000000000, 1, 0, 0),
 };
 
-static const struct clk_parent_data t7_cpu_dyn_clk_sel[] __initconst = {
+static const struct clk_parent_data t7_cpu_dyn_clk_sel[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_fclk_div2.hw },
 	{ .hw = &t7_fclk_div3.hw },
@@ -875,7 +875,7 @@ static struct clk_regmap t7_cpu_clk = {
 	},
 };
 
-static const struct clk_parent_data t7_a73_dyn_clk_sel[] __initconst = {
+static const struct clk_parent_data t7_a73_dyn_clk_sel[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_fclk_div2.hw },
 	{ .hw = &t7_fclk_div3.hw },
@@ -1409,7 +1409,7 @@ static struct clk_fixed_factor t7_mpll_50m_div = {
 	},
 };
 
-static const struct clk_parent_data t7_mpll_50m_sel[] __initconst = {
+static const struct clk_parent_data t7_mpll_50m_sel[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_mpll_50m_div.hw },
 };
@@ -1812,7 +1812,7 @@ static struct clk_regmap t7_rtc_clk = {
 
 /* sys clk */
 static u32 mux_table_sys_ab_clk_sel[] = { 0, 1, 2, 3, 4, 5, 7 };
-static const struct clk_parent_data t7_table_sys_ab_clk_sel[] __initconst = {
+static const struct clk_parent_data t7_table_sys_ab_clk_sel[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_fclk_div2.hw },
 	{ .hw = &t7_fclk_div3.hw },
@@ -2153,7 +2153,7 @@ static struct clk_regmap t7_cecb_32k_clkout = {
 	},
 };
 
-static const struct clk_parent_data t7_sc_parent_data[] __initconst = {
+static const struct clk_parent_data t7_sc_parent_data[] = {
 	{ .hw = &t7_fclk_div4.hw },
 	{ .hw = &t7_fclk_div3.hw },
 	{ .hw = &t7_fclk_div5.hw },
@@ -2211,7 +2211,7 @@ static struct clk_regmap t7_sc_clk_gate = {
 /*rama_clk*/
 
 /*dspa_clk*/
-static const struct clk_parent_data t7_dsp_parent_hws[] __initconst = {
+static const struct clk_parent_data t7_dsp_parent_hws[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_fclk_div2p5.hw },
 	{ .hw = &t7_fclk_div3.hw },
@@ -3117,7 +3117,7 @@ static struct clk_regmap t7_hdmi_tx = {
 	},
 };
 
-static const struct clk_parent_data t7_hdmitx_sys_parent_data[] __initconst = {
+static const struct clk_parent_data t7_hdmitx_sys_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_fclk_div4.hw },
 	{ .hw = &t7_fclk_div3.hw },
@@ -3670,7 +3670,7 @@ static struct clk_regmap t7_ts_clk_gate = {
  */
 static u32 mux_table_mali[] = { 0, 3, 4, 5, 6};
 
-static const struct clk_parent_data t7_mali_0_1_parent_data[] __initconst = {
+static const struct clk_parent_data t7_mali_0_1_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_fclk_div2p5.hw },
 	{ .hw = &t7_fclk_div3.hw },
@@ -3797,7 +3797,7 @@ static struct clk_regmap t7_mali_mux = {
 };
 
 /* cts_vdec_clk */
-static const struct clk_parent_data t7_dec_parent_hws[] __initconst = {
+static const struct clk_parent_data t7_dec_parent_hws[] = {
 	{ .hw = &t7_fclk_div2p5.hw },
 	{ .hw = &t7_fclk_div3.hw },
 	{ .hw = &t7_fclk_div4.hw },
@@ -4276,7 +4276,7 @@ static struct clk_regmap t7_hevcf_mux = {
 };
 
 /*cts_wave420l_a/b/c_clk*/
-static const struct clk_parent_data t7_wave_parent_data[] __initconst = {
+static const struct clk_parent_data t7_wave_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_fclk_div4.hw },
 	{ .hw = &t7_fclk_div3.hw },
@@ -4476,7 +4476,7 @@ static struct clk_regmap t7_mipi_isp = {
 	},
 };
 
-static const struct clk_parent_data t7_mipi_csi_parent_data[] __initconst = {
+static const struct clk_parent_data t7_mipi_csi_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_gp1_pll.hw },
 	{ .hw = &t7_mpll1.hw },
@@ -5459,7 +5459,7 @@ static struct clk_regmap t7_ge2d_gate = {
 /*cts_hdcp22_skpclk*/
 
 /* cts_vdin_meas_clk */
-static const struct clk_parent_data t7_vdin_parent_hws[] __initconst = {
+static const struct clk_parent_data t7_vdin_parent_hws[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_fclk_div4.hw },
 	{ .hw = &t7_fclk_div3.hw },
@@ -5515,7 +5515,7 @@ static struct clk_regmap t7_vdin_meas_gate = {
 	},
 };
 
-static const struct clk_parent_data t7_sd_emmc_clk0_parent_data[] __initconst = {
+static const struct clk_parent_data t7_sd_emmc_clk0_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_fclk_div2.hw },
 	{ .hw = &t7_fclk_div3.hw },
@@ -5672,7 +5672,7 @@ static struct clk_regmap t7_sd_emmc_b_clk0 = {
 
 /*cts_cdac_clk*/
 
-static const struct clk_parent_data t7_spicc_parent_hws[] __initconst = {
+static const struct clk_parent_data t7_spicc_parent_hws[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_sys_clk.hw },
 	{ .hw = &t7_fclk_div4.hw },
@@ -5967,7 +5967,7 @@ static struct clk_regmap t7_spicc5_gate = {
 
 /*cts_bt656*/
 
-static const struct clk_parent_data t7_pwm_parent_data[] __initconst = {
+static const struct clk_parent_data t7_pwm_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_vid_pll.hw },
 	{ .hw = &t7_fclk_div4.hw },
@@ -6642,7 +6642,7 @@ static struct clk_regmap t7_pwm_ao_h_gate = {
 
 static u32 t7_dsi_meas_table[] = { 0, 1, 2, 3, 6, 7};
 
-static const struct clk_parent_data t7_dsi_meas_parent_data[] __initconst = {
+static const struct clk_parent_data t7_dsi_meas_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_fclk_div4.hw },
 	{ .hw = &t7_fclk_div3.hw },
@@ -6982,7 +6982,7 @@ static struct clk_regmap t7_saradc_gate = {
 static u32 t7_gen_clk_mux_table[] = { 0, 5, 6, 7, 19, 21, 22,
 				23, 24, 25, 26, 27, 28 };
 
-static const struct clk_parent_data t7_gen_clk_parent_names[] __initconst = {
+static const struct clk_parent_data t7_gen_clk_parent_names[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_gp0_pll.hw },
 	{ .hw = &t7_gp1_pll.hw },
