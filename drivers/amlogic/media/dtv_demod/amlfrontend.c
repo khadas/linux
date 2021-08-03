@@ -5860,6 +5860,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 			struct dtv_property *tvp)
 {
 	char v;
+	unsigned char modulation = 0x00;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
@@ -5870,12 +5871,27 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 		tvp->u.data = demod->last_delsys;
 		if (demod->last_delsys == SYS_DVBS || demod->last_delsys == SYS_DVBS2) {
 			v = dvbs_rd_byte(0x932) & 0x60;//bit5.6
-			if (v == 0x40)//bit6=1.bit5=0 means S2
+			modulation = dvbs_rd_byte(0x930) >> 2;
+			if (v == 0x40) {//bit6=1.bit5=0 means S2
 				tvp->u.data = SYS_DVBS2;
-			else if (v == 0x60)//bit6=1.bit5=1 means S
+				if ((modulation >= 0x0c && modulation <= 0x11) ||
+					(modulation >= 0x47 && modulation <= 0x49))
+					tvp->reserved[0] = PSK_8;
+				else if ((modulation >= 0x12 && modulation <= 0x17) ||
+					(modulation >= 0x4a && modulation <= 0x56))
+					tvp->reserved[0] = APSK_16;
+				else if ((modulation >= 0x18 && modulation <= 0x1c) ||
+					(modulation >= 0x57 && modulation <= 0x59))
+					tvp->reserved[0] = APSK_32;
+				else
+					tvp->reserved[0] = QPSK;
+			} else if (v == 0x60) {//bit6=1.bit5=1 means S
 				tvp->u.data = SYS_DVBS;
+				tvp->reserved[0] = QPSK;
+			}
 		}
-		PR_INFO("[id %d] get delivery system : %d\n", demod->id, tvp->u.data);
+		PR_INFO("[id %d] get delivery system : %d,modulation:0x%x\n",
+			demod->id, tvp->u.data, tvp->reserved[0]);
 		break;
 
 	case DTV_DVBT2_PLP_ID:
