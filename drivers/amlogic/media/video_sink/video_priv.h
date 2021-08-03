@@ -402,6 +402,7 @@ struct video_layer_s {
 	bool need_switch_vf;
 	bool do_switch;
 	bool force_black;
+	bool force_disable;
 	u8 vpp_index;
 	u8 vppx_blend_en;
 	bool vd1_vd2_mux;

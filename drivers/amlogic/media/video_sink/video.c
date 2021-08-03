@@ -1819,6 +1819,8 @@ atomic_t video_prop_change = ATOMIC_INIT(0);
 atomic_t status_changed = ATOMIC_INIT(0);
 atomic_t axis_changed = ATOMIC_INIT(0);
 atomic_t video_unreg_flag = ATOMIC_INIT(0);
+atomic_t vt_unreg_flag = ATOMIC_INIT(1);
+atomic_t vt_disable_video_done = ATOMIC_INIT(0);
 atomic_t video_inirq_flag = ATOMIC_INIT(0);
 atomic_t video_pause_flag = ATOMIC_INIT(0);
 int trickmode_duration;
@@ -5782,6 +5784,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	int source_type = 0;
 
 	blend_reg_conflict_detect();
+	if (vd_layer[0].force_disable)
+		atomic_set(&vt_disable_video_done, 1);
+
 	if (video_suspend && video_suspend_cycle >= 1) {
 		if (log_out)
 			pr_info("video suspend, vsync exit\n");
@@ -6051,7 +6056,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	if (cur_frame_par &&
-		glayer_info[0].display_path_id == VFM_PATH_AMVIDEO) {
+		vd1_path_id == VFM_PATH_AMVIDEO) {
 		/*need call every vsync*/
 		if (vf)
 			vlock_process(vf, cur_frame_par);
@@ -7097,7 +7102,7 @@ SET_FILTER:
 		}
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
-		if (glayer_info[0].display_path_id == VFM_PATH_VIDEO_RENDER0 &&
+		if (vd1_path_id == VFM_PATH_VIDEO_RENDER0 &&
 			cur_frame_par) {
 			/*need call every vsync*/
 			if (path3_new_frame)
@@ -7615,6 +7620,24 @@ SET_FILTER:
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		dvel_swap_frame(cur_dispbuf2);
 #endif
+	}
+
+	/* TODO: need check more vd layer, now only vd1 */
+	if (atomic_read(&vt_unreg_flag) && vd_layer[0].dispbuf) {
+		source_type = vd_layer[0].dispbuf->source_type;
+		/* TODO: change new flag to detect video tunnel path */
+		if (source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		    source_type == VFRAME_SOURCE_TYPE_CVBS) {
+			if (!vd_layer[0].force_disable) {
+				safe_switch_videolayer(0, false, true);
+				atomic_set(&vt_disable_video_done, 0);
+			}
+			vd_layer[0].force_disable = true;
+		} else {
+			vd_layer[0].force_disable = false;
+		}
+	} else {
+		vd_layer[0].force_disable = false;
 	}
 
 #if defined(CONFIG_AMLOGIC_MEDIA_FRC)
@@ -15913,7 +15936,7 @@ static int amvideo_notify_callback(struct notifier_block *block,
 				   unsigned long cmd,
 	void *para)
 {
-	u32 *p, val;
+	u32 *p, val, unreg_flag;
 	static struct vd_signal_info_s vd_signal;
 
 	switch (cmd) {
@@ -15938,6 +15961,24 @@ static int amvideo_notify_callback(struct notifier_block *block,
 		vd_signal_notifier_call_chain
 			(VIDEO_SIGNAL_TYPE_CHANGED,
 			&vd_signal);
+		break;
+	case AMVIDEO_UPDATE_VT_REG:
+		p = (u32 *)para;
+		val = p[0]; /* video tunnel id */
+		if (p[1] == 1) { /* path enable */
+			unreg_flag = atomic_read(&vt_unreg_flag);
+			if (unreg_flag > 0)
+				atomic_dec(&vt_unreg_flag);
+		} else { /* path disable */
+			while (atomic_read(&video_inirq_flag) > 0)
+				schedule();
+			atomic_set(&vt_disable_video_done, 0);
+			atomic_inc(&vt_unreg_flag);
+			while (atomic_read(&vt_disable_video_done) > 0)
+				schedule();
+		}
+		pr_info("%s vt reg/unreg: id %d, state:%d\n",
+			__func__, val, p[1]);
 		break;
 	default:
 		break;

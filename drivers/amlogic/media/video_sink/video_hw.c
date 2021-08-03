@@ -751,7 +751,9 @@ struct video_dev_s *get_video_cur_dev(void)
 
 u32 get_video_enabled(void)
 {
-	return vd_layer[0].enabled && vd_layer[0].global_output;
+	return vd_layer[0].enabled &&
+		vd_layer[0].global_output &&
+		!vd_layer[0].force_disable;
 }
 EXPORT_SYMBOL(get_video_enabled);
 
@@ -760,12 +762,14 @@ u32 get_videopip_enabled(void)
 	u32 global_output = 0;
 
 	if (vd_layer[1].vpp_index == VPP0)
-		global_output =
-			vd_layer[1].enabled && vd_layer[1].global_output;
+		global_output = vd_layer[1].enabled &&
+			vd_layer[1].global_output &&
+			!vd_layer[1].force_disable;
 	else if (vd_layer_vpp[0].layer_id == 1 &&
 		vd_layer_vpp[0].vpp_index != VPP0)
 		global_output =  vd_layer_vpp[0].enabled &&
-			vd_layer_vpp[0].global_output;
+			vd_layer_vpp[0].global_output &&
+			!vd_layer_vpp[0].force_disable;
 	return global_output;
 }
 EXPORT_SYMBOL(get_videopip_enabled);
@@ -775,16 +779,19 @@ u32 get_videopip2_enabled(void)
 	u32 global_output = 0;
 
 	if (vd_layer[2].vpp_index == VPP0)
-		global_output =
-			vd_layer[2].enabled && vd_layer[2].global_output;
+		global_output = vd_layer[2].enabled &&
+			vd_layer[2].global_output &&
+			!vd_layer[2].force_disable;
 	else if (vd_layer_vpp[0].layer_id == 2 &&
 		vd_layer_vpp[0].vpp_index != VPP0)
-		global_output =  vd_layer_vpp[0].enabled &&
-			vd_layer_vpp[0].global_output;
+		global_output = vd_layer_vpp[0].enabled &&
+			vd_layer_vpp[0].global_output &&
+			!vd_layer_vpp[0].force_disable;
 	else if (vd_layer_vpp[1].layer_id == 2 &&
 		vd_layer_vpp[1].vpp_index != VPP0)
-		global_output =  vd_layer_vpp[1].enabled &&
-			vd_layer_vpp[1].global_output;
+		global_output = vd_layer_vpp[1].enabled &&
+			vd_layer_vpp[1].global_output &&
+			!vd_layer_vpp[1].force_disable;
 	return global_output;
 }
 EXPORT_SYMBOL(get_videopip2_enabled);
@@ -5919,6 +5926,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 	}
 
 	if ((vd_layer[0].global_output == 0 && !vd_layer[0].force_black) ||
+	    vd_layer[0].force_disable ||
 	    black_threshold_check(0)) {
 		if (vd_layer[0].enabled)
 			force_flush = true;
@@ -5966,6 +5974,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 
 	if (!(mode & COMPOSE_MODE_3D) &&
 	    (vd_layer[1].global_output == 0 ||
+	     vd_layer[1].force_disable ||
 	     black_threshold_check(1))) {
 		if (vd_layer[1].enabled)
 			force_flush = true;
@@ -6396,6 +6405,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 		}
 	}
 	if ((vd_layer[0].global_output == 0 && !vd_layer[0].force_black) ||
+	    vd_layer[0].force_disable ||
 	    black_threshold_check(0)) {
 		if (vd_layer[0].enabled)
 			force_flush = true;
@@ -6435,6 +6445,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 	if (vd_layer[1].vpp_index == VPP0) {
 		if (!(mode & COMPOSE_MODE_3D) &&
 		    (vd_layer[1].global_output == 0 ||
+		     vd_layer[1].force_disable ||
 		     black_threshold_check(1))) {
 			if (vd_layer[1].enabled)
 				force_flush = true;
@@ -6471,6 +6482,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 	}
 	if (vd_layer[2].vpp_index == VPP0) {
 		if ((vd_layer[2].global_output == 0 ||
+		     vd_layer[2].force_disable ||
 		     black_threshold_check(2))) {
 			if (vd_layer[2].enabled)
 				force_flush = true;
@@ -6772,7 +6784,8 @@ void vpp1_blend_update(u32 vpp_index)
 
 	if (vd_layer_vpp[0].vpp_index != VPP0) {
 		if (vd_layer_vpp[0].global_output == 0 ||
-		     black_threshold_check(1)) {
+		    vd_layer_vpp[0].force_disable ||
+		    black_threshold_check(1)) {
 			if (vd_layer_vpp[0].enabled)
 				force_flush = true;
 			vd_layer_vpp[0].enabled = 0;
@@ -6908,7 +6921,8 @@ void vpp2_blend_update(u32 vpp_index)
 
 	if (vd_layer_vpp[1].vpp_index != VPP0) {
 		if (vd_layer_vpp[1].global_output == 0 ||
-			 black_threshold_check(2)) {
+		    vd_layer_vpp[1].force_disable ||
+		    black_threshold_check(2)) {
 			if (vd_layer_vpp[1].enabled)
 				force_flush = true;
 			vd_layer_vpp[1].enabled = 0;

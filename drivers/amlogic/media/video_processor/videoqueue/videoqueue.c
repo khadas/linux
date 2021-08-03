@@ -754,6 +754,19 @@ static int destroy_vt_config(struct video_queue_dev *dev)
 	return ret;
 }
 
+static void videoq_notify_to_amvideo(bool reg)
+{
+	u32 para[2];
+
+	para[0] = 0;
+	para[1] = reg;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+	amvideo_notifier_call_chain(AMVIDEO_UPDATE_VT_REG,
+					    (void *)&para[0]);
+#endif
+}
+
 static int videoqueue_reg_provider(struct video_queue_dev *dev)
 {
 	int ret;
@@ -813,6 +826,8 @@ static int videoqueue_reg_provider(struct video_queue_dev *dev)
 					  dev, dev->vf_receiver_name);
 	dev->fence_thread = kthread_create(vq_fence_thread,
 					   dev, dev->vf_receiver_name);
+	videoq_notify_to_amvideo(true);
+
 	return ret;
 }
 
@@ -826,6 +841,7 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 	int time_left = 0;
 
 	vq_print(P_ERROR, "unreg: in\n");
+	videoq_notify_to_amvideo(false);
 
 	dev->thread_need_stop = true;
 
