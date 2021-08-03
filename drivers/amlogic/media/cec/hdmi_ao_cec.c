@@ -3604,6 +3604,12 @@ static long hdmitx_cec_ioctl(struct file *f,
 			return -EINVAL;
 		}
 		break;
+	case CEC_IOC_KEY_EVENT:
+		input_event(cec_dev->cec_info.remote_cec_dev, EV_KEY,
+				arg & 0xFFF, (arg >> 12) & 0x1);
+		input_sync(cec_dev->cec_info.remote_cec_dev);
+		CEC_INFO("input keyevent %lu\n", arg & 0xFFF);
+		break;
 	default:
 		CEC_ERR("error ioctrl: 0x%x\n", cmd);
 		break;
@@ -4459,6 +4465,25 @@ static int aml_cec_probe(struct platform_device *pdev)
 	cec_dev->cec_info.remote_cec_dev->id.version = 0x0001;
 
 	set_bit(KEY_POWER, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_ENTER, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_UP, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_DOWN, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_LEFT, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_RIGHT, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_HOMEPAGE, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_ESC, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_TAB, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_VOLUMEUP, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_VOLUMEDOWN, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_MUTE, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_PLAYPAUSE, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_STOPCD, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_REWIND, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_FASTFORWARD, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_NEXT, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_PREVIOUS, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_NEXTSONG, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_PREVIOUSSONG, cec_dev->cec_info.remote_cec_dev->keybit);
 
 	if (input_register_device(cec_dev->cec_info.remote_cec_dev)) {
 		CEC_INFO("Failed to register device\n");
