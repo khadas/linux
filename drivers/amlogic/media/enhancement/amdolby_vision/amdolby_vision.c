@@ -7331,12 +7331,14 @@ int is_dovi_frame(struct vframe_s *vf)
 	    ((is_meson_tvmode() && !force_stb_mode) ||
 	    ((is_meson_tm2_stbmode() || is_meson_t7_stbmode()) &&
 	    hdmi_to_stb_policy))) {
-		if (!strcmp(dv_provider, "dv_vdin"))
-			vf_notify_provider_by_name
-			(dv_provider,
+		vf_notify_provider_by_name
+			("dv_vdin",
 			 VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
 			 (void *)&req);
-
+		if (debug_dolby & 2)
+			pr_dolby_dbg("is_dovi: vf %p, emp.size %d, aux_size %d\n",
+				     vf, vf->emp.size,
+				     req.aux_size);
 		if ((req.aux_buf && req.aux_size) ||
 			(dolby_vision_flags & FLAG_FORCE_DOVI_LL))
 			return 1;
@@ -7344,15 +7346,15 @@ int is_dovi_frame(struct vframe_s *vf)
 			return 2;
 		p = vf->emp.addr;
 		if (p && vf->emp.size > 0 &&
-		p[0] == 0x7f &&
-		p[10] == 0x46 &&
-		p[11] == 0xd0) {
+		    p[0] == 0x7f &&
+		    p[10] == 0x46 &&
+		    p[11] == 0xd0) {
 			if (p[13] == 0)
 				return 1;
 			else
 				return 2;
 		}
-			return 0;
+		return 0;
 	} else if (vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
 		if (!strcmp(dv_provider, "dvbldec"))
 			vf_notify_provider_by_name
@@ -9609,8 +9611,8 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			total_comp_size = last_total_comp_size;
 		}
 		if (debug_dolby & 1)
-			pr_dolby_dbg("frame %d pts %lld, format: %s\n",
-			frame_count, vf->pts_us64,
+			pr_dolby_dbg("frame %d, %p, pts %lld, format: %s\n",
+			frame_count, vf, vf->pts_us64,
 			(src_format == FORMAT_HDR10) ? "HDR10" :
 			((src_format == FORMAT_DOVI) ? "DOVI" :
 			((src_format == FORMAT_DOVI_LL) ? "DOVI_LL" :
