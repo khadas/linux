@@ -831,8 +831,11 @@ static int wifi_dev_probe(struct platform_device *pdev)
 #endif
 		if (of_get_property(pdev->dev.of_node,
 				    "dhd_static_buf", NULL)) {
-			WIFI_INFO("dhd_static_buf setup\n");
-			bcmdhd_init_wlan_mem();
+			WIFI_INFO("dhd_static_buf all setup\n");
+			bcmdhd_init_wlan_mem(1);
+		} else {
+			WIFI_INFO("dhd_static_buf little setup\n");
+			bcmdhd_init_wlan_mem(0);
 		}
 
 		plat->plat_info_valid = 1;

@@ -289,7 +289,7 @@ void *bcmdhd_mem_prealloc(int section, unsigned long size)
 }
 EXPORT_SYMBOL(bcmdhd_mem_prealloc);
 
-int bcmdhd_init_wlan_mem(void)
+int bcmdhd_init_wlan_mem(unsigned int all_buf)
 {
 	int i;
 	int j;
@@ -309,107 +309,115 @@ int bcmdhd_init_wlan_mem(void)
 		if (!wlan_static_skb[i])
 			goto err_skb_alloc;
 	}
-
+	if (all_buf == 1) {
 #if defined(BCMDHD_SDIO)
-	wlan_static_skb[i] =
-		dev_alloc_skb(DHD_SKB_4PAGE_BUFSIZE);
-	if (!wlan_static_skb[i])
-		goto err_skb_alloc;
+		wlan_static_skb[i] =
+			dev_alloc_skb(DHD_SKB_4PAGE_BUFSIZE);
+		if (!wlan_static_skb[i])
+			goto err_skb_alloc;
 #endif /* BCMDHD_SDIO */
 
-	wlan_static_prot =
-		kmalloc(DHD_PREALLOC_PROT_SIZE, GFP_KERNEL);
-	if (!wlan_static_prot)
-		goto err_mem_alloc;
+		wlan_static_prot =
+			kmalloc(DHD_PREALLOC_PROT_SIZE, GFP_KERNEL);
+		if (!wlan_static_prot)
+			goto err_mem_alloc;
 
 #if defined(BCMDHD_SDIO)
-	wlan_static_rxbuf =
-		kmalloc(DHD_PREALLOC_RXBUF_SIZE, GFP_KERNEL);
-	if (!wlan_static_rxbuf)
-		goto err_mem_alloc;
+		wlan_static_rxbuf =
+			kmalloc(DHD_PREALLOC_RXBUF_SIZE, GFP_KERNEL);
+		if (!wlan_static_rxbuf)
+			goto err_mem_alloc;
 
-	wlan_static_databuf =
-		kmalloc(DHD_PREALLOC_DATABUF_SIZE, GFP_KERNEL);
-	if (!wlan_static_databuf)
-		goto err_mem_alloc;
+		wlan_static_databuf =
+			kmalloc(DHD_PREALLOC_DATABUF_SIZE, GFP_KERNEL);
+		if (!wlan_static_databuf)
+			goto err_mem_alloc;
 #endif /* BCMDHD_SDIO */
 
-	wlan_static_osl_buf =
-		kmalloc(DHD_PREALLOC_OSL_BUF_SIZE, GFP_KERNEL);
-	if (!wlan_static_osl_buf)
-		goto err_mem_alloc;
+		wlan_static_osl_buf =
+			kmalloc(DHD_PREALLOC_OSL_BUF_SIZE, GFP_KERNEL);
+		if (!wlan_static_osl_buf)
+			goto err_mem_alloc;
 
-	wlan_static_scan_buf0 =
-		kmalloc(DHD_PREALLOC_WIPHY_ESCAN0_SIZE, GFP_KERNEL);
-	if (!wlan_static_scan_buf0)
-		goto err_mem_alloc;
+		wlan_static_scan_buf0 =
+			kmalloc(DHD_PREALLOC_WIPHY_ESCAN0_SIZE, GFP_KERNEL);
+		if (!wlan_static_scan_buf0)
+			goto err_mem_alloc;
 
-	wlan_static_dhd_info_buf =
-		kmalloc(DHD_PREALLOC_DHD_INFO_SIZE, GFP_KERNEL);
-	if (!wlan_static_dhd_info_buf)
-		goto err_mem_alloc;
+		wlan_static_dhd_info_buf =
+			kmalloc(DHD_PREALLOC_DHD_INFO_SIZE, GFP_KERNEL);
+		if (!wlan_static_dhd_info_buf)
+			goto err_mem_alloc;
 
-	wlan_static_dhd_wlfc_info_buf =
-		kmalloc(WLAN_DHD_WLFC_BUF_SIZE, GFP_KERNEL);
-	if (!wlan_static_dhd_wlfc_info_buf)
-		goto err_mem_alloc;
+		wlan_static_dhd_wlfc_info_buf =
+			kmalloc(WLAN_DHD_WLFC_BUF_SIZE, GFP_KERNEL);
+		if (!wlan_static_dhd_wlfc_info_buf)
+			goto err_mem_alloc;
 
 #ifdef BCMDHD_PCIE
-	wlan_static_if_flow_lkup =
-		kmalloc(DHD_PREALLOC_IF_FLOW_LKUP_SIZE, GFP_KERNEL);
-	if (!wlan_static_if_flow_lkup)
-		goto err_mem_alloc;
+		wlan_static_if_flow_lkup =
+			kmalloc(DHD_PREALLOC_IF_FLOW_LKUP_SIZE, GFP_KERNEL);
+		if (!wlan_static_if_flow_lkup)
+			goto err_mem_alloc;
 #endif /* BCMDHD_PCIE */
+	}
 
 	wlan_static_dhd_memdump_ram_buf =
 		kmalloc(DHD_PREALLOC_MEMDUMP_RAM_SIZE, GFP_KERNEL);
 	if (!wlan_static_dhd_memdump_ram_buf)
 		goto err_mem_alloc;
 
-	wlan_static_dhd_wlfc_hanger_buf =
-		kmalloc(DHD_PREALLOC_DHD_WLFC_HANGER_SIZE, GFP_KERNEL);
-	if (!wlan_static_dhd_wlfc_hanger_buf)
-		goto err_mem_alloc;
+	if (all_buf == 1) {
+		wlan_static_dhd_wlfc_hanger_buf =
+			kmalloc(DHD_PREALLOC_DHD_WLFC_HANGER_SIZE, GFP_KERNEL);
+		if (!wlan_static_dhd_wlfc_hanger_buf)
+			goto err_mem_alloc;
 
-	wlan_static_dhd_log_dump_buf =
-		kmalloc(DHD_PREALLOC_DHD_LOG_DUMP_BUF_SIZE, GFP_KERNEL);
-	if (!wlan_static_dhd_log_dump_buf)
-		goto err_mem_alloc;
+		wlan_static_dhd_log_dump_buf =
+			kmalloc(DHD_PREALLOC_DHD_LOG_DUMP_BUF_SIZE, GFP_KERNEL);
+		if (!wlan_static_dhd_log_dump_buf)
+			goto err_mem_alloc;
 
-	wlan_static_dhd_log_dump_buf_ex =
-		kmalloc(DHD_PREALLOC_DHD_LOG_DUMP_BUF_EX_SIZE, GFP_KERNEL);
-	if (!wlan_static_dhd_log_dump_buf_ex)
-		goto err_mem_alloc;
+		wlan_static_dhd_log_dump_buf_ex =
+			kmalloc(DHD_PREALLOC_DHD_LOG_DUMP_BUF_EX_SIZE,
+				GFP_KERNEL);
+		if (!wlan_static_dhd_log_dump_buf_ex)
+			goto err_mem_alloc;
 
-	wlan_static_wl_escan_info_buf =
-		kmalloc(DHD_PREALLOC_WL_WEXT_INFO_SIZE, GFP_KERNEL);
-	if (!wlan_static_wl_escan_info_buf)
-		goto err_mem_alloc;
+		wlan_static_wl_escan_info_buf =
+			kmalloc(DHD_PREALLOC_WL_WEXT_INFO_SIZE, GFP_KERNEL);
+		if (!wlan_static_wl_escan_info_buf)
+			goto err_mem_alloc;
+	}
 
 	wlan_static_fw_verbose_ring_buf =
 		kmalloc(FW_VERBOSE_RING_SIZE, GFP_KERNEL);
 	if (!wlan_static_fw_verbose_ring_buf)
 		goto err_mem_alloc;
 
-	wlan_static_fw_event_ring_buf = kmalloc(FW_EVENT_RING_SIZE, GFP_KERNEL);
-	if (!wlan_static_fw_event_ring_buf)
-		goto err_mem_alloc;
+	if (all_buf == 1) {
+		wlan_static_fw_event_ring_buf =
+			kmalloc(FW_EVENT_RING_SIZE, GFP_KERNEL);
+		if (!wlan_static_fw_event_ring_buf)
+			goto err_mem_alloc;
 
-	wlan_static_dhd_event_ring_buf =
-		kmalloc(DHD_EVENT_RING_SIZE, GFP_KERNEL);
-	if (!wlan_static_dhd_event_ring_buf)
-		goto err_mem_alloc;
+		wlan_static_dhd_event_ring_buf =
+			kmalloc(DHD_EVENT_RING_SIZE, GFP_KERNEL);
+		if (!wlan_static_dhd_event_ring_buf)
+			goto err_mem_alloc;
 
-	wlan_static_nan_event_ring_buf =
-		kmalloc(NAN_EVENT_RING_SIZE, GFP_KERNEL);
-	if (!wlan_static_nan_event_ring_buf)
-		goto err_mem_alloc;
+		wlan_static_nan_event_ring_buf =
+			kmalloc(NAN_EVENT_RING_SIZE, GFP_KERNEL);
+		if (!wlan_static_nan_event_ring_buf)
+			goto err_mem_alloc;
+	}
 
 	pr_info("%s ok\n", __func__);
 	return 0;
 
 err_mem_alloc:
 
+	if (all_buf == 1) {
 		kfree(wlan_static_prot);
 
 #if defined(BCMDHD_SDIO)
@@ -431,8 +439,9 @@ err_mem_alloc:
 #ifdef BCMDHD_PCIE
 		kfree(wlan_static_if_flow_lkup);
 #endif /* BCMDHD_PCIE */
-
+	}
 		kfree(wlan_static_dhd_memdump_ram_buf);
+	if (all_buf == 1) {
 
 		kfree(wlan_static_dhd_wlfc_hanger_buf);
 
@@ -441,15 +450,16 @@ err_mem_alloc:
 		kfree(wlan_static_dhd_log_dump_buf_ex);
 
 		kfree(wlan_static_wl_escan_info_buf);
-
+	}
 #ifdef BCMDHD_PCIE
 		kfree(wlan_static_fw_verbose_ring_buf);
-
+	if (all_buf == 1) {
 		kfree(wlan_static_fw_event_ring_buf);
 
 		kfree(wlan_static_dhd_event_ring_buf);
 
 		kfree(wlan_static_nan_event_ring_buf);
+	}
 #endif /* BCMDHD_PCIE */
 
 	pr_err("%s: Failed to mem_alloc for WLAN\n", __func__);
