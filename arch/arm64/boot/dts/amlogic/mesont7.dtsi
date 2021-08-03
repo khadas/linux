@@ -486,6 +486,8 @@
 		power-domains = <&pwrdm PDID_T7_DSPA>,
 						<&pwrdm PDID_T7_DSPB>;
 		power-domain-names = "dspa", "dspb";
+		//dsp_logbuff = <0x40000000 0x1000 0x40002000 0x1000>;
+		logbuff-polling-period-ms = <50>;
 		status = "okay";
 	};
 

@@ -36,6 +36,17 @@ struct hifi4_shm_info_t {
 	unsigned int size;
 } __packed;
 
+struct dsp_ring_buffer {
+	unsigned int magic;
+	unsigned int basepaddr;
+	unsigned int size;
+	unsigned int head;
+	unsigned int tail;
+	char data[4];
+};
+
+#define DSP_LOGBUFF_MAGIC 0x1234ABCD
+
 #define HIFI4DSP_SHM_CLEAN \
 		_IOWR(HIFI4DSP_IOC_MAGIC, 64, struct hifi4_shm_info_t)
 #define HIFI4DSP_SHM_INV _IOWR(HIFI4DSP_IOC_MAGIC, 65, struct hifi4_shm_info_t)
