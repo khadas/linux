@@ -258,7 +258,7 @@
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-tm2";
 		dev_name = "aml_dtv_demod";
-		status = "disabled";
+		status = "okay";
 
 		//pinctrl-names="dtvdemod_agc";
 		//pinctrl-0=<&dtvdemod_agc>;
@@ -283,7 +283,7 @@
 
 	atv-demod {
 		compatible = "amlogic, atv-demod";
-		status = "disabled";
+		status = "okay";
 		btsc_sap_mode = <1>;
 		interrupts = <0 236 1>;
 		/* pinctrl-names="atvdemod_agc_pins"; */
@@ -300,7 +300,7 @@
 	dvb-extern {
 		compatible = "amlogic, dvb-extern";
 		dev_name = "dvb-extern";
-		status = "disabled";
+		status = "okay";
 
 		fe_num = <1>;
 		fe0_demod = "internal";
@@ -317,7 +317,7 @@
 	dvb-demux {
 		compatible = "amlogic, dvb-demux";
 		dev_name = "dvb-demux";
-		status = "disabled";
+		status = "okay";
 
 		dmx = <&demux>;
 		key_endia = <1>;
@@ -784,7 +784,7 @@
 	tvafe {
 		compatible = "amlogic, tvafe-tm2_b";
 		/*memory-region = <&tvafe_cma_reserved>;*/
-		status = "disabled";
+		status = "okay";
 		flag_cma = <1>;/*1:share with codec_mm;0:cma alone*/
 		cma_size = <5>;/*MByte*/
 		reg = <0x0 0xff654000 0x0 0x2000 /*tvafe reg base*/
@@ -920,7 +920,7 @@
 };
 
 &i2c0 {
-	status = "disabled";
+	status = "okay";
 	clock-frequency = <300000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_dv_pins>;
