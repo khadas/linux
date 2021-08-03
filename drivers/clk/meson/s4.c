@@ -1342,7 +1342,7 @@ static struct clk_regmap s4_rtc_32k_xtal = {
  * pad is from where?
  */
 static u32 rtc_32k_sel[] = {0, 1};
-static const struct clk_parent_data rtc_32k_sel_parent_data[] __initconst = {
+static const struct clk_parent_data rtc_32k_sel_parent_data[] = {
 	{ .hw = &s4_rtc_32k_xtal.hw },
 	{ .hw = &s4_rtc_32k_div.hw },
 	{ .fw_name = "pad",  }
@@ -1383,7 +1383,7 @@ static struct clk_regmap s4_rtc_clk = {
 
 /* sys clk */
 static u32 mux_table_sys_ab_clk_sel[] = { 0, 1, 2, 3, 4, 6, 7 };
-static const struct clk_parent_data sys_ab_clk_parent_data[] __initconst = {
+static const struct clk_parent_data sys_ab_clk_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &s4_fclk_div2.hw },
 	{ .hw = &s4_fclk_div3.hw },
@@ -1731,7 +1731,7 @@ static struct clk_regmap s4_cecb_32k_clkout = {
 };
 
 /*cts_sc_clk*/
-static const struct clk_parent_data s4_sc_parent_data[] __initconst = {
+static const struct clk_parent_data s4_sc_parent_data[] = {
 	{ .hw = &s4_fclk_div4.hw },
 	{ .hw = &s4_fclk_div3.hw },
 	{ .hw = &s4_fclk_div5.hw },
@@ -2426,7 +2426,7 @@ static struct clk_regmap s4_hdmi_tx = {
 };
 
 /*hdmi_clk*/
-static const struct clk_parent_data s4_hdmi_parent_data[] __initconst = {
+static const struct clk_parent_data s4_hdmi_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &s4_fclk_div4.hw },
 	{ .hw = &s4_fclk_div3.hw },
@@ -2528,7 +2528,7 @@ static struct clk_regmap s4_ts_clk_gate = {
  */
 static u32 mux_table_mali[] = { 0, 1, 3, 4, 5, 6, 7 };
 
-static const struct clk_parent_data s4_mali_0_1_parent_data[] __initconst = {
+static const struct clk_parent_data s4_mali_0_1_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &s4_gp0_pll.hw },
 	{ .hw = &s4_fclk_div2p5.hw },
@@ -2657,7 +2657,7 @@ static struct clk_regmap s4_mali_mux = {
 };
 
 /* cts_vdec_clk */
-static const struct clk_parent_data s4_dec_parent_hws[] __initconst = {
+static const struct clk_parent_data s4_dec_parent_hws[] = {
 	{ .hw = &s4_fclk_div2p5.hw },
 	{ .hw = &s4_fclk_div3.hw },
 	{ .hw = &s4_fclk_div4.hw },
@@ -3022,7 +3022,7 @@ static struct clk_regmap s4_vpu = {
 };
 
 /*cts_vpu_clkb*/
-static const struct clk_parent_data vpu_clkb_tmp_parent_hws[] __initconst = {
+static const struct clk_parent_data vpu_clkb_tmp_parent_hws[] = {
 	{ .hw = &s4_vpu.hw },
 	{ .hw = &s4_fclk_div4.hw },
 	{ .hw = &s4_fclk_div5.hw },
@@ -3435,7 +3435,7 @@ static struct clk_regmap s4_hdcp22_esmclk_gate = {
 };
 
 /*cts_hdcp22_skpclk*/
-static const struct clk_parent_data s4_skpclk_parent_hws[] __initconst = {
+static const struct clk_parent_data s4_skpclk_parent_hws[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &s4_fclk_div4.hw },
 	{ .hw = &s4_fclk_div3.hw },
@@ -3491,7 +3491,7 @@ static struct clk_regmap s4_hdcp22_skpclk_gate = {
 };
 
 /* cts_vdin_meas_clk */
-static const struct clk_parent_data s4_vdin_parent_hws[] __initconst = {
+static const struct clk_parent_data s4_vdin_parent_hws[]  = {
 	{ .fw_name = "xtal", },
 	{ .hw = &s4_fclk_div4.hw },
 	{ .hw = &s4_fclk_div3.hw },
@@ -3548,7 +3548,7 @@ static struct clk_regmap s4_vdin_meas_gate = {
 };
 
 /* s4 cts_nand_clk*/
-static const struct clk_parent_data s4_sd_emmc_clk0_parent_data[] __initconst = {
+static const struct clk_parent_data s4_sd_emmc_clk0_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &s4_fclk_div2.hw },
 	{ .hw = &s4_fclk_div3.hw },
@@ -3707,7 +3707,7 @@ static struct clk_regmap s4_sd_emmc_b_clk0 = {
 /*
  * s4d cts_nand_clk
  */
-static const struct clk_parent_data s4d_sd_emmc_clk0_parent_data[] __initconst = {
+static const struct clk_parent_data s4d_sd_emmc_clk0_parent_data[]  = {
 	{ .fw_name = "xtal", },
 	{ .hw = &s4_fclk_div2.hw },
 	{ .hw = &s4_fclk_div3.hw },
@@ -3866,7 +3866,7 @@ static struct clk_regmap s4d_sd_emmc_b_clk0 = {
 /*cts_cdac_clk*/
 
 /*cts_spicc_0/1_clk*/
-static const struct clk_parent_data s4_spicc_parent_hws[] __initconst = {
+static const struct clk_parent_data s4_spicc_parent_hws[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &s4_sys_clk.hw },
 	{ .hw = &s4_fclk_div4.hw },
@@ -3926,7 +3926,7 @@ static struct clk_regmap s4_spicc0_gate = {
 };
 
 /*cts_pwm_*_clk*/
-static const struct clk_parent_data s4_pwm_parent_data[] __initconst = {
+static const struct clk_parent_data s4_pwm_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &s4_vid_pll.hw },
 	{ .hw = &s4_fclk_div4.hw },
@@ -4468,7 +4468,7 @@ static struct clk_regmap s4_saradc_gate = {
 static u32 s4_gen_clk_mux_table[] = { 0, 5, 7, 19, 21, 22,
 				23, 24, 25, 26, 27, 28 };
 
-static const struct clk_parent_data s4_gen_clk_parent_data[] __initconst = {
+static const struct clk_parent_data s4_gen_clk_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &s4_gp0_pll.hw },
 	{ .hw = &s4_hifi_pll.hw },
@@ -4532,7 +4532,7 @@ static struct clk_regmap s4_gen = {
 };
 
 /*demod clk*/
-static const struct clk_parent_data adc_extclk_in_parent_data[] __initconst = {
+static const struct clk_parent_data adc_extclk_in_parent_data[]  = {
 	{ .fw_name = "xtal", },
 	{ .hw = &s4_fclk_div4.hw },
 	{ .hw = &s4_fclk_div3.hw },
