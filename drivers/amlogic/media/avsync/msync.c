@@ -402,6 +402,7 @@ static void wait_work_func(struct work_struct *work)
 			session->id);
 		session->clock_start = true;
 		session->v_timeout = true;
+		session->stat = AVS_STAT_STARTED;
 	}
 
 	if (session->start_policy.policy == AMSYNC_START_ALIGN &&
