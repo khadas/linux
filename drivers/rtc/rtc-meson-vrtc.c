@@ -280,6 +280,14 @@ static void meson_vrtc_shutdown(struct platform_device *pdev)
 	} else {
 		scpi_set_vrtc(now.tv_sec);
 	}
+
+	vrtc->alarm_time = vrtc->alarm_time
+			   - div64_u64(jiffies - last_jiffies, HZ);
+	if (vrtc->alarm_time > 0) {
+		meson_vrtc_set_wakeup_time(vrtc, vrtc->alarm_time);
+		dev_dbg(&pdev->dev, "%s: system will wakeup %llus later\n",
+				__func__, vrtc->alarm_time);
+	}
 }
 #endif
 
