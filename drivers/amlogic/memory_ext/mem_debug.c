@@ -23,6 +23,7 @@
 #include <asm/fixmap.h>
 #include <linux/kasan.h>
 #include <linux/seq_file.h>
+#include <linux/highmem.h>
 
 void dump_mem_layout(char *buf)
 {
@@ -71,6 +72,50 @@ void dump_mem_layout(char *buf)
 		MLM(__phys_to_virt(memblock_start_of_DRAM()),
 		    (unsigned long)high_memory), (unsigned long)memblock_start_of_DRAM());
 #else
+		sprintf(buf, "Virtual kernel memory layout:\n"
+#ifdef CONFIG_AMLOGIC_KASAN32
+					"	 kasan	 : 0x%08lx - 0x%08lx   (%4ld MB)\n"
+#endif
+#ifdef CONFIG_HAVE_TCM
+					"	 DTCM	 : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+					"	 ITCM	 : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+#endif
+					"	 fixmap  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+					"	 vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n"
+					"	 lowmem  : 0x%08lx - 0x%08lx   (%4ld MB)\n"
+#ifdef CONFIG_HIGHMEM
+					"	 pkmap	 : 0x%08lx - 0x%08lx   (%4ld MB)\n"
+#endif
+#ifdef CONFIG_MODULES
+					"	 modules : 0x%08lx - 0x%08lx   (%4ld MB)\n"
+#endif
+					"	   .text : 0x%px" " - 0x%px" "   (%4td kB)\n"
+					"	   .init : 0x%px" " - 0x%px" "   (%4td kB)\n"
+					"	   .data : 0x%px" " - 0x%px" "   (%4td kB)\n"
+					"		.bss : 0x%px" " - 0x%px" "   (%4td kB)\n",
+#ifdef CONFIG_AMLOGIC_KASAN32
+					MLM(KASAN_SHADOW_START, KASAN_SHADOW_END),
+#endif
+
+#ifdef CONFIG_HAVE_TCM
+					MLK(DTCM_OFFSET, (unsigned long) dtcm_end),
+					MLK(ITCM_OFFSET, (unsigned long) itcm_end),
+#endif
+					MLK(FIXADDR_START, FIXADDR_END),
+					MLM(VMALLOC_START, VMALLOC_END),
+					MLM(PAGE_OFFSET, (unsigned long)high_memory),
+#ifdef CONFIG_HIGHMEM
+					MLM(PKMAP_BASE, (PKMAP_BASE) + (LAST_PKMAP) *
+						(PAGE_SIZE)),
+#endif
+#ifdef CONFIG_MODULES
+					MLM(MODULES_VADDR, MODULES_END),
+#endif
+
+					MLK_ROUNDUP(_text, _etext),
+					MLK_ROUNDUP(__init_begin, __init_end),
+					MLK_ROUNDUP(_sdata, _edata),
+					MLK_ROUNDUP(__bss_start, __bss_stop));
 
 #endif
 }
@@ -108,12 +153,21 @@ static const struct file_operations mdebug_ops = {
 static int __init memory_debug_init(void)
 {
 	struct proc_dir_entry *d_mdebug;
+	char *buf;
 
 	d_mdebug = proc_create("mem_debug", 0444, NULL, &mdebug_ops);
 	if (IS_ERR_OR_NULL(d_mdebug)) {
 		pr_err("%s, create proc failed\n", __func__);
 		return -1;
 	}
+	buf = kmalloc(4096, GFP_KERNEL);
+	if (!buf)
+		return -1;
+	/* update only once */
+	dump_mem_layout(buf);
+	pr_info("%s\n", buf);
+	kfree(buf);
+
 
 	return 0;
 }
