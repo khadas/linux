@@ -1217,9 +1217,23 @@ static int ss_trigger(int cmd, int samesource_sel, bool reenable)
 	return 0;
 }
 
+static int ss_free(struct snd_pcm_substream *substream,
+	void *pfrddr, int samesource_sel, int share_lvl)
+{
+	pr_info("%s() samesrc %d, lvl %d\n",
+		__func__, samesource_sel, share_lvl);
+	if (aml_check_sharebuffer_valid(pfrddr,
+			samesource_sel)) {
+		sharebuffer_free(substream,
+			pfrddr, samesource_sel, share_lvl);
+	}
+	return 0;
+}
+
 struct samesrc_ops earctx_ss_ops = {
 	.prepare = ss_prepare,
-	.trigger = ss_trigger
+	.trigger = ss_trigger,
+	.hw_free = ss_free,
 };
 
 const struct soc_enum attended_type_enum =
