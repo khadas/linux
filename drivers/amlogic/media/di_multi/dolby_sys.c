@@ -128,7 +128,8 @@ enum disignal_format_e {
 	FORMAT_HLG = 4,
 	FORMAT_HDR10PLUS = 5,
 	FORMAT_SDR_2020 = 6,
-	FORMAT_MVC = 7
+	FORMAT_MVC = 7,
+	FORMAT_CUVA = 8
 };
 
 struct di_dolby_dev_s {
