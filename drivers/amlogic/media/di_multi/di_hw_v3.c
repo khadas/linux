@@ -582,7 +582,7 @@ static void set_ma_pre_mif_t7(void *pre,
 	//DIM_RDMA_WR_BITS(CONTRD_CTRL1, contprd_mif->canvas_num, 16, 8);
 	op->bwr(CONTRD_CTRL1, 2, 8, 2);
 	op->bwr(CONTRD_CTRL1, 0, 0, 3);
-	di_mif1_linear_rd_cfg(contprd_mif,
+	di_mif1_linear_rd_cfg(contp2rd_mif,
 			      CONTRD_CTRL1,
 			      CONTRD_CTRL2,
 			      CONTRD_BADDR);
@@ -594,7 +594,7 @@ static void set_ma_pre_mif_t7(void *pre,
 	//DIM_RDMA_WR_BITS(CONT2RD_CTRL1, contp2rd_mif->canvas_num, 16, 8);
 	op->bwr(CONT2RD_CTRL1, 2, 8, 2);
 	op->bwr(CONT2RD_CTRL1, 0, 0, 3);
-	di_mif1_linear_rd_cfg(contp2rd_mif,
+	di_mif1_linear_rd_cfg(contprd_mif,
 			      CONT2RD_CTRL1,
 			      CONT2RD_CTRL2,
 			      CONT2RD_BADDR);
