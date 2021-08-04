@@ -286,7 +286,8 @@ static u32 check_dnr_dm_ctrl(u32 org_val, unsigned short width,
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
 	    IS_IC(dil_get_cpuver_flag(), T5)	||
 	    IS_IC(dil_get_cpuver_flag(), T5D)	||
-	    IS_IC(dil_get_cpuver_flag(), T5DB)) {
+	    IS_IC(dil_get_cpuver_flag(), T5DB)  ||
+	    (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))) {
 		/* disable dm chroma when > 720p */
 		if (width > 1280)
 			org_val &= ~(1 << 8);
@@ -340,7 +341,8 @@ static void dnr_config(struct DNR_PARM_s *dnr_parm_p,
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
 	    IS_IC(dil_get_cpuver_flag(), T5)	||
 	    IS_IC(dil_get_cpuver_flag(), T5D)	||
-	    IS_IC(dil_get_cpuver_flag(), T5DB)) {
+	    IS_IC(dil_get_cpuver_flag(), T5DB)  ||
+	    (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))) {
 		if (width > 1280)
 			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 8, 1);
 		else
