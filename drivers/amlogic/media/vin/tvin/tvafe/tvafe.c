@@ -222,15 +222,15 @@ static int tvafe_dec_support(struct tvin_frontend_s *fe, enum tvin_port_e port)
 }
 
 #ifdef CONFIG_CMA
-static void tvafe_cma_alloc(struct tvafe_dev_s *devp)
+static int tvafe_cma_alloc(struct tvafe_dev_s *devp)
 {
 	unsigned int mem_size = devp->cma_mem_size;
 	int flags = CODEC_MM_FLAGS_CMA_FIRST | CODEC_MM_FLAGS_CMA_CLEAR |
 		CODEC_MM_FLAGS_CPU;
 	if (devp->cma_config_en == 0)
-		return;
+		return 0;
 	if (devp->cma_mem_alloc == 1)
-		return;
+		return 0;
 	devp->cma_mem_alloc = 1;
 	if (devp->cma_config_flag == 1) {
 		devp->mem.start = codec_mm_alloc_for_dma("tvafe",
@@ -238,6 +238,7 @@ static void tvafe_cma_alloc(struct tvafe_dev_s *devp)
 		devp->mem.size = mem_size;
 		if (devp->mem.start == 0) {
 			tvafe_pr_err("tvafe codec alloc fail!!!\n");
+			return 1;
 		} else {
 			tvafe_pr_info("mem_start = 0x%x, mem_size = 0x%x\n",
 				devp->mem.start, devp->mem.size);
@@ -257,6 +258,8 @@ static void tvafe_cma_alloc(struct tvafe_dev_s *devp)
 			tvafe_pr_err("tvafe cma mem undefined2.\n");
 		}
 	}
+
+	return 0;
 }
 
 static void tvafe_cma_release(struct tvafe_dev_s *devp)
@@ -413,7 +416,8 @@ static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 #endif
 
 #ifdef CONFIG_CMA
-	tvafe_cma_alloc(devp);
+	if (tvafe_cma_alloc(devp))
+		return 1;
 #endif
 	tvafe_config_init(devp, port);
 	/**enable and reset tvafe clock**/
@@ -834,7 +838,7 @@ static struct tvin_decoder_ops_s tvafe_dec_ops = {
 };
 
 static bool white_pattern_reset_pag(enum tvin_port_e port,
-				    struct tvafe_cvd2_s cvd2)
+				    struct tvafe_cvd2_s *cvd2)
 {
 	if (IS_TVAFE_AVIN_SRC(port)) {
 		if (port == TVIN_PORT_CVBS1) {
@@ -852,7 +856,7 @@ static bool white_pattern_reset_pag(enum tvin_port_e port,
 		}
 
 		if ((av1_plugin_state == 0 || av2_plugin_state == 0) &&
-		      top_init_en && cvd2.info.state_cnt == 3) {
+		      top_init_en && cvd2->info.state_cnt == 3) {
 			white_pattern_pga_reset(port);
 			tvafe_pr_info("av1:%u av2:%u\n", av1_plugin_state,
 				      av2_plugin_state);
@@ -889,7 +893,7 @@ static bool tvafe_is_nosig(struct tvin_frontend_s *fe)
 	if (!IS_TVAFE_SRC(port))
 		return ret;
 
-	if (white_pattern_reset_pag(port, tvafe->cvd2))
+	if (white_pattern_reset_pag(port, &tvafe->cvd2))
 		return true;
 
 	if (tvafe->cvd2.info.smr_cnt++ >= 65536)
