@@ -27,6 +27,9 @@
 #define IEC_BLOCK_USE   (0x1 << 0)
 #define IEC_BLOCK_FMT   (0x1 << 1)
 
+/* EARC differential falling edge modulation audio clk ratio */
+#define EARC_DMAC_MUTIPLIER     5
+
 /* IEC Block Use */
 enum iec_block_use {
 	IEC_BU_CONSUMER,
@@ -213,8 +216,8 @@ struct iec958_chsts {
 };
 
 bool raw_is_4x_clk(enum aud_codec_types codec_type);
-bool raw_is_4x_clk2(enum aud_codec_types codec_type);
-bool raw_is_16x_clk(enum aud_codec_types codec_type);
+
+unsigned int mpll2sys_clk_ratio_by_type(enum aud_codec_types codec_type);
 
 void iec_get_channel_status_info(struct iec958_chsts *chsts,
 				 enum aud_codec_types codec_type,

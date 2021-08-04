@@ -820,7 +820,7 @@ static void earctx_update_clk(struct earc *p_earc,
 			      unsigned int rate)
 {
 	unsigned int multi = audio_multi_clk(p_earc->tx_audio_coding_type);
-	unsigned int nominal_freq = rate * 128 * 5; /* 5, falling edge */
+	unsigned int nominal_freq = rate * 128 * EARC_DMAC_MUTIPLIER;
 	unsigned int freq = nominal_freq * multi;
 
 	dev_info(p_earc->dev, "set %dX normal dmac clk, p_earc->tx_dmac_freq:%d\n",
