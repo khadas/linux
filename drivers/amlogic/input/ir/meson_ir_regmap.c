@@ -175,7 +175,7 @@ static struct meson_ir_reg_map regs_default_rcmm[] = {
 	{REG_REG0,          (7 << 28)  | (0x590 << 12) | 0x13},
 	{REG_STATUS,        (36 << 20) | (29 << 10)},
 	{REG_REG1,         0x9f00},
-	{REG_REG2,         0x1150a},
+	{REG_REG2,         0x3D0A},
 	{REG_DURATN2,      ((43 << 16) | (37 << 0))},
 	{REG_DURATN3,      ((50 << 16) | (44 << 0))},
 	{REG_REG3,         1200 << 0},
@@ -657,7 +657,7 @@ static u32 ir_rcmm_get_custom_code(struct meson_ir_chip  *chip)
 {
 	u32 custom_code;
 
-	custom_code = (chip->r_dev->cur_hardcode >> 8) & 0x03;
+	custom_code = (chip->r_dev->cur_hardcode >> 16) & GENMASK(15, 0);
 	return custom_code;
 }
 
