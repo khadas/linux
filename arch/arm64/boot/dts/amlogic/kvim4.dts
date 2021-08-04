@@ -1719,12 +1719,6 @@
 	};
 };
 
-&ir {
-	status = "okay";
-	pinctrl-0 = <&remote_pins>;
-	pinctrl-names = "default";
-};
-
 &amlvecm {
 	status = "okay";
 	gamma_en = <0>;/*1:enabel ;0:disable*/
