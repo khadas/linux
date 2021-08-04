@@ -1267,15 +1267,15 @@
 &crg_phy_20 {
 	status = "okay";
 	portnum = <1>;
-	gpio-vbus-power = "GPIOM_8";
-	gpios = <&gpio GPIOM_8 GPIO_ACTIVE_HIGH>;
+	gpio-vbus-power = "GPIOY_5";
+	gpios = <&gpio GPIOY_5 GPIO_ACTIVE_HIGH>;
 };
 
 &crg_phy_21 {
 	status = "okay";
 	portnum = <1>;
-	gpio-vbus-power = "GPIOM_9";
-	gpios = <&gpio GPIOM_9 GPIO_ACTIVE_HIGH>;
+//	gpio-vbus-power = "GPIOY_5";
+//	gpios = <&gpio GPIOY_5 GPIO_ACTIVE_HIGH>;
 };
 
 &crg3_phy_20 {
