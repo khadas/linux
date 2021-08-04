@@ -341,6 +341,14 @@ static int sr1_shoot_val[11] = {
 	40, 38, 36, 34, 32, 30, 28, 26, 24, 22, 20
 };
 
+static int sr0_gain_lmt[11] = {
+	5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60
+};
+
+static int sr1_gain_lmt[11] = {
+	20, 25, 28, 30, 35, 38, 40, 45, 50, 55, 60
+};
+
 #define AIPQ_SCENE_MAX 22
 #define AIPQ_FUNC_MAX 10
 int aipq_ofst_table[AIPQ_SCENE_MAX][AIPQ_FUNC_MAX];
@@ -1395,6 +1403,18 @@ void amvecm_fmeter_process(struct vframe_s *vf)
 
 		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_OS_STATIC,
 		sr0_shoot_val[cur_sr_level], 12, 10);
+
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_CON_2CIRHPGAIN_LIMIT,
+		sr1_gain_lmt[cur_sr_level], 24, 8);
+
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_CON_2CIRBPGAIN_LIMIT,
+		sr1_gain_lmt[cur_sr_level], 24, 8);
+
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_CON_2CIRHPGAIN_LIMIT,
+		sr0_gain_lmt[cur_sr_level], 24, 8);
+
+		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_CON_2CIRBPGAIN_LIMIT,
+		sr0_gain_lmt[cur_sr_level], 24, 8);
 	}
 	pre_fmeter_level = cur_fmeter_level;
 }
