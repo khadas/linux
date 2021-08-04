@@ -254,24 +254,24 @@ bool raw_is_4x_clk(enum aud_codec_types codec_type)
 	return is_4x;
 }
 
-bool raw_is_4x_clk2(enum aud_codec_types codec_type)
+/**
+ * TDM, SPDIF and EARC keep same mpll clk frequency(491.52M)
+ * to prevent long time drift. This is to calc multiplier
+ * to the desired clk frequency according to codec type.
+ * As driver has done multiplier to sysclk by raw_is_4x_clk() before.
+ * NOTE: HBR alsa config samplerate is 192000 while DD and DDP config 48000.
+ */
+unsigned int mpll2sys_clk_ratio_by_type(enum aud_codec_types codec_type)
 {
-	bool is_4x = false;
+	unsigned int ratio = 1;
 
 	if (codec_type == AUD_CODEC_TYPE_EAC3)
-		is_4x = true;
+		ratio = 4;
+	else if (codec_type == AUD_CODEC_TYPE_AC3 ||
+	    codec_type == AUD_CODEC_TYPE_DTS)
+		ratio = 16;
 
-	return is_4x;
-}
-
-bool raw_is_16x_clk(enum aud_codec_types codec_type)
-{
-	bool is_16x = false;
-
-	if (codec_type == AUD_CODEC_TYPE_AC3)
-		is_16x = true;
-
-	return is_16x;
+	return ratio;
 }
 
 void iec_get_channel_status_info(struct iec958_chsts *chsts,
