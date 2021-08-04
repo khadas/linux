@@ -7084,11 +7084,16 @@ SET_FILTER:
 		path3_new_frame =
 			gvideo_recv[0]->func->dequeue_frame(gvideo_recv[0]);
 		if (path3_new_frame) {
-			source_type = path3_new_frame->source_type;
 			if (path3_new_frame->flag & VFRAME_FLAG_KEEPED)
 				new_frame_count = 0;
 			else
 				new_frame_count = gvideo_recv[0]->frame_count;
+		} else {
+			if (gvideo_recv[0]->cur_buf) {
+				source_type = gvideo_recv[0]->cur_buf->flag;
+				if (source_type & VFRAME_FLAG_KEEPED)
+					new_frame_count = 0;
+			}
 		}
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
