@@ -3854,6 +3854,16 @@ static int dim_probe(struct platform_device *pdev)
 	else	/*nr10bit_support = di_devp->nr10bit_support;*/
 		dimp_set(edi_mp_nr10bit_support, di_devp->nr10bit_support);
 
+	di_pdev->local_meta_size =
+			LOCAL_META_BUFF_SIZE * DI_CHANNEL_NUB *
+			(MAX_IN_BUF_NUM + MAX_POST_BUF_NUM +
+			(MAX_LOCAL_BUF_NUM * 2)) * sizeof(u8);
+		di_pdev->local_meta_addr = vmalloc(di_pdev->local_meta_size);
+		if (!di_pdev->local_meta_addr) {
+			pr_info("DI: allocate local meta buffer fail\n");
+			di_pdev->local_meta_size = 0;
+	}
+
 	device_create_file(di_devp->dev, &dev_attr_config);
 	device_create_file(di_devp->dev, &dev_attr_debug);
 	device_create_file(di_devp->dev, &dev_attr_dump_pic);
@@ -4009,6 +4019,7 @@ static int dim_remove(struct platform_device *pdev)
 
 	kfree(di_devp->data_l);
 	di_devp->data_l = NULL;
+	vfree(di_pdev->local_meta_addr);
 	kfree(di_pdev);
 	di_pdev = NULL;
 	PR_INF("%s:finish\n", __func__);

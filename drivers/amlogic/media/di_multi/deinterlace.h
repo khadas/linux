@@ -74,8 +74,10 @@
 
 #define DI_POST_GET_LIMIT			8
 #define DI_PRE_READY_LIMIT			4
-/* nrcrc count for slt */
+
 #define MAX_CRC_COUNT_NUM				(10)
+#define LOCAL_META_BUFF_SIZE 0x800 /* 2K size */
+
 /*vframe define*/
 #define vframe_t struct vframe_s
 
@@ -307,6 +309,10 @@ struct di_buf_s {
 	struct dsub_bufv_s	c;
 	unsigned int datacrc;
 	unsigned int nrcrc;
+	/* local meta buffer */
+	u8 *local_meta;
+	u32 local_meta_used_size;
+	u32 local_meta_total_size;
 	bool hf_irq;
 };
 
@@ -416,6 +422,9 @@ struct di_dev_s {
 	/***************************/
 	/*struct di_data_l_s	data_l;*/
 	void *data_l;
+	u8 *local_meta_addr;
+	u32 local_meta_size;
+
 	struct vpu_dev_s *dim_vpu_clk_gate_dev;
 	struct vpu_dev_s *dim_vpu_pd_dec;
 	struct vpu_dev_s *dim_vpu_pd_dec1;

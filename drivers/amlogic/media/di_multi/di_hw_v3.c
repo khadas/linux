@@ -5191,17 +5191,23 @@ void dim_sc2_afbce_rst(unsigned int ec_nub)
 void dim_secure_pre_en(unsigned char ch)
 {
 	if (get_datal()->ch_data[ch].is_tvp == 2) {
-		if (DIM_IS_IC_EF(SC2))
+		if (DIM_IS_IC_EF(SC2)) {
 			DIM_DI_WR(DI_PRE_SEC_IN, 0x3F);//secure
-		else
+		} else {
+		#ifdef CONFIG_AMLOGIC_TEE
 			tee_config_device_state(16, 1);
+		#endif
+		}
 		get_datal()->is_secure_pre = 2;
 		//dbg_mem2("%s:tvp3 pre SECURE:%d\n", __func__, ch);
 	} else {
-		if (DIM_IS_IC_EF(SC2))
+		if (DIM_IS_IC_EF(SC2)) {
 			DIM_DI_WR(DI_PRE_SEC_IN, 0x0);
-		else
+		} else {
+		#ifdef CONFIG_AMLOGIC_TEE
 			tee_config_device_state(16, 0);
+		#endif
+		}
 		get_datal()->is_secure_pre = 1;
 		//dbg_mem2("%s:tvp3 pre NOSECURE:%d\n", __func__, ch);
 	}
@@ -5223,17 +5229,23 @@ void dim_secure_sw_pre(unsigned char ch)
 void dim_secure_pst_en(unsigned char ch)
 {
 	if (get_datal()->ch_data[ch].is_tvp == 2) {
-		if (DIM_IS_IC_EF(SC2))
+		if (DIM_IS_IC_EF(SC2)) {
 			DIM_DI_WR(DI_POST_SEC_IN, 0x1F);//secure
-		else
+		} else {
+		#ifdef CONFIG_AMLOGIC_TEE
 			tee_config_device_state(17, 1);
+		#endif
+		}
 		get_datal()->is_secure_pst = 2;
 		//dbg_mem2("%s:tvp4 PST SECURE:%d\n", __func__, ch);
 	} else {
-		if (DIM_IS_IC_EF(SC2))
+		if (DIM_IS_IC_EF(SC2)) {
 			DIM_DI_WR(DI_POST_SEC_IN, 0x0);
-		else
+		} else {
+		#ifdef CONFIG_AMLOGIC_TEE
 			tee_config_device_state(17, 0);
+		#endif
+		}
 		get_datal()->is_secure_pst = 1;
 		//dbg_mem2("%s:tvp4 pST NOSECURE:%d\n", __func__, ch);
 	}
