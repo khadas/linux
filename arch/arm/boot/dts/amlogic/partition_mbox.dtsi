@@ -7,7 +7,7 @@
 
 / {
     partitions: partitions{
-		parts = <16>;
+		parts = <19>;
 		part-0 = <&recovery>;
 		part-1 = <&frp>;
 		part-2 = <&factory>;
@@ -18,12 +18,15 @@
 		part-7 = <&cri_data>;
 		part-8 = <&param>;
 		part-9 = <&boot>;
-		part-10 = <&rsv>;
-		part-11 = <&metadata>;
-		part-12 = <&vbmeta>;
-		part-13 = <&super>;
-		part-14 = <&cache>;
-		part-15 = <&userdata>;
+		part-10 = <&odm_ext>;
+		part-11 = <&oem>;
+		part-12 = <&rsv>;
+		part-13 = <&metadata>;
+		part-14 = <&vbmeta>;
+		part-15 = <&vbmeta_system>;
+		part-16 = <&super>;
+		part-17 = <&cache>;
+		part-18 = <&userdata>;
 
 		recovery:recovery{
 			pname = "recovery";
@@ -38,7 +41,7 @@
 		factory:factory{
 			pname = "factory";
 			size = <0x0 0x800000>;
-			mask = <1>;
+			mask = <0x11>;
 		};
 		tee:tee{
 			pname = "tee";
@@ -66,6 +69,29 @@
 			size = <0x0 0x800000>;
 			mask = <2>;
 		};
+		param:param{
+			pname = "param";
+			size = <0x0 0x1000000>;
+			mask = <2>;
+		};
+		boot:boot
+		{
+			pname = "boot";
+			size = <0x0 0x4000000>;
+			mask = <1>;
+		};
+		odm_ext:odm_ext
+		{
+			pname = "odm_ext";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		oem:oem
+		{
+			pname = "oem";
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
 		rsv:rsv{
 			pname = "rsv";
 			size = <0x0 0x1000000>;
@@ -81,15 +107,9 @@
 			size = <0x0 0x200000>;
 			mask = <1>;
 		};
-		param:param{
-			pname = "param";
-			size = <0x0 0x1000000>;
-			mask = <2>;
-		};
-		boot:boot
-		{
-			pname = "boot";
-			size = <0x0 0x4000000>;
+		vbmeta_system:vbmeta_system{
+			pname = "vbmeta_system";
+			size = <0x0 0x200000>;
 			mask = <1>;
 		};
 		super:super
