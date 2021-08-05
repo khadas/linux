@@ -3621,6 +3621,9 @@ void dim_pre_de_process(unsigned int channel)
 		else
 			ppre->is_disable_chan2 = 0;
 	}
+	if (IS_ERR_OR_NULL(ppre->di_wr_buf))
+		return;
+	di_lock_irqfiq_save(irq_flag2);
 
 	dimh_enable_di_pre_aml(&ppre->di_inp_mif,
 			       &ppre->di_mem_mif,
@@ -3637,8 +3640,7 @@ void dim_pre_de_process(unsigned int channel)
 			       ppre);
 
 	//dimh_enable_afbc_input(ppre->di_inp_buf->vframe);
-	if (IS_ERR_OR_NULL(ppre->di_wr_buf))
-		return;
+
 	dcntr_set();
 
 	if (dim_afds()) {
@@ -3726,7 +3728,7 @@ void dim_pre_de_process(unsigned int channel)
 	/* must make sure follow part issue without interrupts,
 	 * otherwise may cause watch dog reboot
 	 */
-	di_lock_irqfiq_save(irq_flag2);
+	//di_lock_irqfiq_save(irq_flag2);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		/* enable mc pre mif*/
 		dimh_enable_di_pre_mif(true, dimp_get(edi_mp_mcpre_en));
@@ -3739,9 +3741,9 @@ void dim_pre_de_process(unsigned int channel)
 	}
 	/*dbg_set_DI_PRE_CTRL();*/
 	atomic_set(&get_hw_pre()->flg_wait_int, 1);
+	ppre->pre_de_busy = 1;
 	di_unlock_irqfiq_restore(irq_flag2);
 	/*reinit pre busy flag*/
-	ppre->pre_de_busy = 1;
 	pch->sum_pre++;
 	dim_dbg_pre_cnt(channel, "s3");
 	ppre->irq_time[0] = cur_to_msecs();
