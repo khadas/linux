@@ -822,13 +822,6 @@ static const struct cpu_dyn_table t7_cpu_dyn_table[] = {
 	CPU_LOW_PARAMS(1000000000, 1, 0, 0),
 };
 
-static const struct clk_parent_data t7_cpu_dyn_clk_sel[] = {
-	{ .fw_name = "xtal", },
-	{ .hw = &t7_fclk_div2.hw },
-	{ .hw = &t7_fclk_div3.hw },
-	{ .hw = &t7_fclk_div2p5.hw },
-};
-
 static struct clk_regmap t7_cpu_dyn_clk = {
 	.data = &(struct meson_sec_cpu_dyn_data){
 		.table = t7_cpu_dyn_table,
@@ -868,13 +861,6 @@ static struct clk_regmap t7_cpu_clk = {
 		.num_parents = 2,
 		.flags = CLK_SET_RATE_PARENT,
 	},
-};
-
-static const struct clk_parent_data t7_a73_dyn_clk_sel[] = {
-	{ .fw_name = "xtal", },
-	{ .hw = &t7_fclk_div2.hw },
-	{ .hw = &t7_fclk_div3.hw },
-	{ .hw = &t7_fclk_div2p5.hw },
 };
 
 static struct clk_regmap t7_a73_dyn_clk = {
@@ -1388,11 +1374,6 @@ static struct clk_fixed_factor t7_mpll_50m_div = {
 	},
 };
 
-static const struct clk_parent_data t7_mpll_50m_sel[] = {
-	{ .fw_name = "xtal", },
-	{ .hw = &t7_mpll_50m_div.hw },
-};
-
 static struct clk_regmap t7_mpll_50m = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = ANACTRL_FIXPLL_CTRL3,
@@ -1787,14 +1768,10 @@ static struct clk_regmap t7_rtc_clk = {
 
 /* sys clk */
 static u32 mux_table_sys_ab_clk_sel[] = { 0, 1, 2, 3, 4, 5, 7 };
-static const struct clk_parent_data t7_table_sys_ab_clk_sel[] = {
-	{ .fw_name = "xtal", },
-	{ .hw = &t7_fclk_div2.hw },
-	{ .hw = &t7_fclk_div3.hw },
-	{ .hw = &t7_fclk_div4.hw },
-	{ .hw = &t7_fclk_div5.hw },
-	{ .fw_name = "axi_clk_frcpu",  },
-	{ .hw = &t7_rtc_clk.hw }
+
+static const char * const sys_ab_clk_parent_names[] = {
+	"xtal", "fclk_div2", "fclk_div3", "fclk_div4",
+	"fclk_div5", "axi_clk_frcpu", "rtc_clk"
 };
 
 static struct clk_regmap t7_sysclk_b_sel = {
@@ -6919,20 +6896,10 @@ static struct clk_regmap t7_saradc_gate = {
 static u32 t7_gen_clk_mux_table[] = { 0, 5, 6, 7, 19, 21, 22,
 				23, 24, 25, 26, 27, 28 };
 
-static const struct clk_parent_data t7_gen_clk_parent_names[] = {
-	{ .fw_name = "xtal", },
-	{ .hw = &t7_gp0_pll.hw },
-	{ .hw = &t7_gp1_pll.hw },
-	{ .hw = &t7_hifi_pll.hw },
-	{ .hw = &t7_fclk_div2.hw },
-	{ .hw = &t7_fclk_div3.hw },
-	{ .hw = &t7_fclk_div4.hw },
-	{ .hw = &t7_fclk_div5.hw },
-	{ .hw = &t7_fclk_div7.hw },
-	{ .hw = &t7_mpll0.hw },
-	{ .hw = &t7_mpll1.hw },
-	{ .hw = &t7_mpll2.hw },
-	{ .hw = &t7_mpll3.hw }
+static const char * const t7_gen_clk_parent_names[] = {
+	"xtal", "gp0_pll", "gp1_pll", "hifi_pll", "fclk_div2", "fclk_div3",
+	"fclk_div4", "fclk_div5", "fclk_div7", "mpll0", "mpll1",
+	"mpll2", "mpll3"
 };
 
 static struct clk_regmap t7_gen_sel = {
