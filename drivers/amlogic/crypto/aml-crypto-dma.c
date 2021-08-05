@@ -131,10 +131,11 @@ int aml_dma_crypto_enqueue_req(struct aml_dma_dev *dd,
 			       struct crypto_async_request *req)
 {
 	s32 ret = 0;
+	unsigned long flags;
 
-	mutex_lock(&dd->queue_mutex);
+	spin_lock_irqsave(&dd->queue_lock, flags);
 	ret = crypto_enqueue_request(&dd->queue, req);
-	mutex_unlock(&dd->queue_mutex);
+	spin_unlock_irqrestore(&dd->queue_lock, flags);
 	wake_up_process(dd->kthread);
 
 	return ret;

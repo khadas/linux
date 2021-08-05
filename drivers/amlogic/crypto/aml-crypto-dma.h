@@ -128,8 +128,7 @@ struct aml_dma_dev {
 	unsigned long irq_flags;
 	struct task_struct *kthread;
 	struct crypto_queue	queue;
-	/* mutex to protect queue */
-	struct mutex		queue_mutex;
+	spinlock_t queue_lock; /* spinlock for queue */
 };
 
 u32 swap_ulong32(u32 val);

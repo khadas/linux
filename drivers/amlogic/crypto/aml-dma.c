@@ -107,12 +107,13 @@ static int aml_dma_queue_manage(void *data)
 	struct crypto_async_request *async_req;
 	struct crypto_async_request *backlog;
 	int ret = 0;
+	unsigned long flags;
 
 	do {
-		mutex_lock(&dev->queue_mutex);
+		spin_lock_irqsave(&dev->queue_lock, flags);
 		backlog = crypto_get_backlog(&dev->queue);
 		async_req = crypto_dequeue_request(&dev->queue);
-		mutex_unlock(&dev->queue_mutex);
+		spin_unlock_irqrestore(&dev->queue_lock, flags);
 
 		__set_current_state(TASK_INTERRUPTIBLE);
 
@@ -189,9 +190,10 @@ static int aml_dma_probe(struct platform_device *pdev)
 	dma_dd->irq = res_irq->start;
 	dma_dd->dma_busy = 0;
 	platform_set_drvdata(pdev, dma_dd);
+	spin_lock_init(&dma_dd->dma_lock);
 #if !DMA_IRQ_MODE
 	crypto_init_queue(&dma_dd->queue, AML_DMA_QUEUE_LENGTH);
-	mutex_init(&dma_dd->queue_mutex);
+	spin_lock_init(&dma_dd->queue_lock);
 	dma_dd->kthread = kthread_run(aml_dma_queue_manage,
 				      dma_dd, "aml_crypto");
 	if (IS_ERR(dma_dd->kthread)) {
