@@ -372,11 +372,9 @@ int _alloc_buff(unsigned int len, int sec_level,
 				buf_start, buf_start_virt, len);
 		memset((char *)buf_start_virt, 0, len);
 		if (sec_level) {
-#ifdef CONFIG_AMLOGIC_TEE
 			sec_level = sec_level == 1 ? 0 : sec_level;
 			ret = tee_protect_mem(TEE_MEM_TYPE_DEMUX, sec_level,
 				buf_start, len, handle);
-#endif
 			pr_dbg("%s, protect 0x%lx, len:%d, ret:0x%x\n",
 				__func__, buf_start, len, ret);
 		}
@@ -403,12 +401,10 @@ int _alloc_buff(unsigned int len, int sec_level,
 			buf_start, buf_start_virt, len);
 	memset((char *)buf_start_virt, 0, len);
 	if (sec_level) {
-#ifdef CONFIG_AMLOGIC_TEE
 		sec_level = sec_level == 1 ? 0 : sec_level;
 		//ret = tee_protect_tvp_mem(buf_start, len, handle);
 		ret = tee_protect_mem(TEE_MEM_TYPE_DEMUX, sec_level,
 				buf_start, len, handle);
-#endif
 		pr_dbg("%s, protect 0x%lx, len:%d, ret:0x%x\n",
 				__func__, buf_start, len, ret);
 	}
@@ -425,9 +421,7 @@ void _free_buff(unsigned long buf, unsigned int len, int sec_level,
 	int iret = 0;
 
 	if (sec_level) {
-#ifdef CONFIG_AMLOGIC_TEE
 		tee_unprotect_mem(handle);
-#endif
 		pr_dbg("%s, unprotect handle:%d\n", __func__, handle);
 	}
 
