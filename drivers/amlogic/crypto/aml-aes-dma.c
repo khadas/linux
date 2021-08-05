@@ -149,6 +149,7 @@ static int set_aes_kl_key_iv(struct aml_aes_dev *dd, u32 *key,
 
 		if (swap) {
 			*(piv + 3) = swap_ulong32(*iv);
+			*(piv + 2) = swap_ulong32(*(iv + 1));
 			*(piv + 1) = swap_ulong32(*(iv + 2));
 			*(piv + 0) = swap_ulong32(*(iv + 3));
 		} else {
@@ -1010,7 +1011,7 @@ static struct crypto_alg aes_algs[] = {
 	{
 		.cra_name         = "ecb(aes)",
 		.cra_driver_name  = "ecb-aes-aml",
-		.cra_priority   = 200,
+		.cra_priority   = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 		.cra_blocksize  = AES_BLOCK_SIZE,
 		.cra_ctxsize    = sizeof(struct aml_aes_ctx),
@@ -1031,7 +1032,7 @@ static struct crypto_alg aes_algs[] = {
 	{
 		.cra_name         = "cbc(aes)",
 		.cra_driver_name  = "cbc-aes-aml",
-		.cra_priority   = 200,
+		.cra_priority   = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
 		.cra_blocksize  = AES_BLOCK_SIZE,
 		.cra_ctxsize    = sizeof(struct aml_aes_ctx),
@@ -1112,7 +1113,7 @@ static struct crypto_alg aes_lite_algs[] = {
 	{
 		.cra_name         = "ecb(aes)",
 		.cra_driver_name  = "ecb-aes-lite-aml",
-		.cra_priority   = 200,
+		.cra_priority   = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
 			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize  = AES_BLOCK_SIZE,
@@ -1133,7 +1134,7 @@ static struct crypto_alg aes_lite_algs[] = {
 	{
 		.cra_name         = "cbc(aes)",
 		.cra_driver_name  = "cbc-aes-lite-aml",
-		.cra_priority   = 200,
+		.cra_priority   = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
 			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize  = AES_BLOCK_SIZE,
@@ -1177,7 +1178,7 @@ static struct crypto_alg aes_lite_algs[] = {
 	{
 		.cra_name         = "ecb(aes-kl-aml)",
 		.cra_driver_name  = "ecb-aes-kl-aml",
-		.cra_priority   = 200,
+		.cra_priority   = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
 			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize  = AES_BLOCK_SIZE,
@@ -1198,7 +1199,7 @@ static struct crypto_alg aes_lite_algs[] = {
 	{
 		.cra_name         = "cbc(aes-kl-aml)",
 		.cra_driver_name  = "cbc-aes-kl-aml",
-		.cra_priority   = 200,
+		.cra_priority   = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
 			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize  = AES_BLOCK_SIZE,
@@ -1220,7 +1221,7 @@ static struct crypto_alg aes_lite_algs[] = {
 	{
 		.cra_name         = "ctr(aes-kl-aml)",
 		.cra_driver_name  = "ctr-aes-kl-aml",
-		.cra_priority    = 200,
+		.cra_priority    = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
 			CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize  = AES_BLOCK_SIZE,
