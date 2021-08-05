@@ -2062,6 +2062,7 @@ static int force_disable_dv_backlight;
 static bool dv_control_backlight_status;
 static bool enable_vpu_probe;
 static bool bypass_all_vpp_pq;
+static int use_target_lum_from_cfg;
 
 /*0: not debug mode; 1:force bypass vpp pq; 2:force enable vpp pq*/
 /*3: force do nothing*/
@@ -2073,9 +2074,9 @@ module_param(set_backlight_delay_vsync, int, 0664);
 MODULE_PARM_DESC(set_backlight_delay_vsync,    "\n set_backlight_delay_vsync\n");
 
 s16 brightness_off[8][2] = {
-	{0, 560},   /* DV OTT DM3, DM4  */
-	{160, 480}, /* DV Sink-led DM3, DM4 */
-	{0, 400},   /* DV Source-led DM3, DM4, actually no dm3 for source-led*/
+	{0, 150},   /* DV OTT DM3, DM4  */
+	{0, 150}, /* DV Sink-led DM3, DM4 */
+	{0, 0},   /* DV Source-led DM3, DM4, actually no dm3 for source-led*/
 	{0, 300},   /* HDR OTT DM3, DM4, actually no dm3 for HDR  */
 	{0, 0},    /* HLG OTT DM3, DM4, actually no dm3 for HLG  */
 	{0, 0},    /* reserved1 */
@@ -9051,6 +9052,66 @@ static int is_video_output_off(struct vframe_s *vf)
 	return 0;
 }
 
+static void get_l254_md_buf
+	(char *p_md,
+	 struct ext_level_254_s **level_254,
+	 int md_size)
+{
+	u32 i;
+	u32 ext_len;
+	u32 num_ext;
+	u32 ext_lvl;
+	u32 size;
+
+	*level_254 = NULL;
+	num_ext = ((struct dm_metadata_base_s *)p_md)->num_ext_blocks;
+	size = sizeof(struct dm_metadata_base_s);
+	p_md += sizeof(struct dm_metadata_base_s);
+
+	for (i = 0; i < num_ext; i++) {
+		if (size > MD_BUF_SIZE || size > md_size)
+			break;
+		ext_len = ((p_md[0] << 24) + (p_md[1] << 16) +
+			(p_md[2] << 8) + p_md[3]);
+		p_md += 4;
+		ext_lvl = *p_md++;
+		size += 5;
+
+		if (ext_lvl == 254)
+			*level_254 = (struct ext_level_254_s *)p_md;
+		p_md += ext_len;
+		size += ext_len;
+	}
+}
+
+static enum dm_algo_e check_dm_version
+	(enum signal_format_e src_format,
+	 struct TargetDisplayConfig *config,
+	 char *md_buf,
+	 int md_size)
+{
+	enum dm_algo_e dm_algo = DM_ALGO_DM4;/* by default pick DM4 */
+	struct ext_level_254_s *level_254 = NULL;
+	static int i;
+
+	i++;
+	/*only for DOVI, not contain FORMAT_DOVI_LL*/
+	if (src_format == FORMAT_DOVI && md_buf && md_size > 0) {
+		get_l254_md_buf(md_buf, &level_254, md_size);
+		if (!level_254 ||
+		    level_254->dm_version_index < DM_ALGO_DM4) {
+			if (config->dm31_avail)
+				dm_algo = DM_ALGO_DM31;
+		}
+	}
+	if (debug_dolby & 1) {
+		if (i % 100 == 0)
+			pr_dolby_dbg("dm_algo %s\n",
+				     dm_algo == DM_ALGO_DM4 ? "DM4" : "DM3");
+	}
+	return dm_algo;
+}
+
 static void calculate_panel_max_pq
 	(const struct vinfo_s *vinfo,
 	 struct TargetDisplayConfig *config)
@@ -9058,6 +9119,8 @@ static void calculate_panel_max_pq
 	u32 max_lin = tv_max_lin;
 	u16 max_pq = tv_max_pq;
 
+	if (use_target_lum_from_cfg)
+		return;
 	if (dolby_vision_flags & FLAG_CERTIFICAION)
 		return;
 	if (panel_max_lumin)
@@ -9391,6 +9454,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 	int dump_size = 100;
 	bool run_control_path = true;
 	bool vf_changed = true;
+	enum dm_algo_e dm_algo = DM_ALGO_DM4;/* by default pick DM4 */
 
 	memset(&req, 0, (sizeof(struct provider_aux_req_s)));
 	memset(&el_req, 0, (sizeof(struct provider_aux_req_s)));
@@ -10188,10 +10252,17 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 					NULL);
 		}
 #endif
-		calculate_panel_max_pq
-			(vinfo,
-			 &(((struct pq_config_s *)
-			 pq_config_fake)->target_display_config));
+
+		dm_algo = check_dm_version(src_format, &(((struct pq_config_s *)
+					   pq_config_fake)
+					   ->target_display_config),
+					   md_buf[current_id],
+					   total_md_size);
+
+		calculate_panel_max_pq(vinfo,
+				       &(((struct pq_config_s *)
+				       pq_config_fake)->target_display_config));
+
 		((struct pq_config_s *)
 			pq_config_fake)->target_display_config.tuningMode =
 			dolby_vision_tuning_mode;
@@ -14299,6 +14370,34 @@ static ssize_t amdolby_vision_force_disable_bl_store
 	return count;
 }
 
+static ssize_t	amdolby_vision_use_cfg_target_lum_show
+	(struct class *cla,
+	 struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "use_target_lum_from_cfg: %d\n",
+		       use_target_lum_from_cfg);
+}
+
+static ssize_t amdolby_vision_use_cfg_target_lum_store
+	(struct class *cla,
+	 struct class_attribute *attr,
+	 const char *buf, size_t count)
+{
+	size_t r;
+
+	if (!buf)
+		return count;
+
+	r = kstrtoint(buf, 0, &use_target_lum_from_cfg);
+	if (r != 0)
+		return -EINVAL;
+
+	pr_info("update use_target_lum_from_cfg to %d\n",
+		use_target_lum_from_cfg);
+
+	return count;
+}
+
 /* supported mode: IPT_TUNNEL/HDR10/SDR10 */
 static const int dv_mode_table[6] = {
 	5, /*DOLBY_VISION_OUTPUT_MODE_BYPASS*/
@@ -14795,6 +14894,9 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(force_disable_dv_backlight, 0644,
 	       amdolby_vision_force_disable_bl_show,
 	       amdolby_vision_force_disable_bl_store),
+	__ATTR(use_target_lum_from_cfg, 0644,
+	       amdolby_vision_use_cfg_target_lum_show,
+	       amdolby_vision_use_cfg_target_lum_store),
 	__ATTR_NULL
 };
 

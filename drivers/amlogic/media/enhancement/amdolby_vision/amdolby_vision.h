@@ -572,6 +572,84 @@ struct hdr10_param_s {
 };
 
 #ifdef V2_4
+struct dm_metadata_base_s {
+	/* signal attributes */
+	/* affected_dm_metadata_id<<4|current_dm_metadata_id */
+	unsigned char dm_metadata_id;
+	unsigned char scene_refresh_flag;
+	unsigned char YCCtoRGB_coef0_hi;
+	unsigned char YCCtoRGB_coef0_lo;
+	unsigned char YCCtoRGB_coef1_hi;
+	unsigned char YCCtoRGB_coef1_lo;
+	unsigned char YCCtoRGB_coef2_hi;
+	unsigned char YCCtoRGB_coef2_lo;
+	unsigned char YCCtoRGB_coef3_hi;
+	unsigned char YCCtoRGB_coef3_lo;
+	unsigned char YCCtoRGB_coef4_hi;
+	unsigned char YCCtoRGB_coef4_lo;
+	unsigned char YCCtoRGB_coef5_hi;
+	unsigned char YCCtoRGB_coef5_lo;
+	unsigned char YCCtoRGB_coef6_hi;
+	unsigned char YCCtoRGB_coef6_lo;
+	unsigned char YCCtoRGB_coef7_hi;
+	unsigned char YCCtoRGB_coef7_lo;
+	unsigned char YCCtoRGB_coef8_hi;
+	unsigned char YCCtoRGB_coef8_lo;
+	unsigned char YCCtoRGB_offset0_byte3;
+	unsigned char YCCtoRGB_offset0_byte2;
+	unsigned char YCCtoRGB_offset0_byte1;
+	unsigned char YCCtoRGB_offset0_byte0;
+	unsigned char YCCtoRGB_offset1_byte3;
+	unsigned char YCCtoRGB_offset1_byte2;
+	unsigned char YCCtoRGB_offset1_byte1;
+	unsigned char YCCtoRGB_offset1_byte0;
+	unsigned char YCCtoRGB_offset2_byte3;
+	unsigned char YCCtoRGB_offset2_byte2;
+	unsigned char YCCtoRGB_offset2_byte1;
+	unsigned char YCCtoRGB_offset2_byte0;
+	unsigned char RGBtoLMS_coef0_hi;
+	unsigned char RGBtoLMS_coef0_lo;
+	unsigned char RGBtoLMS_coef1_hi;
+	unsigned char RGBtoLMS_coef1_lo;
+	unsigned char RGBtoLMS_coef2_hi;
+	unsigned char RGBtoLMS_coef2_lo;
+	unsigned char RGBtoLMS_coef3_hi;
+	unsigned char RGBtoLMS_coef3_lo;
+	unsigned char RGBtoLMS_coef4_hi;
+	unsigned char RGBtoLMS_coef4_lo;
+	unsigned char RGBtoLMS_coef5_hi;
+	unsigned char RGBtoLMS_coef5_lo;
+	unsigned char RGBtoLMS_coef6_hi;
+	unsigned char RGBtoLMS_coef6_lo;
+	unsigned char RGBtoLMS_coef7_hi;
+	unsigned char RGBtoLMS_coef7_lo;
+	unsigned char RGBtoLMS_coef8_hi;
+	unsigned char RGBtoLMS_coef8_lo;
+	unsigned char signal_eotf_hi;
+	unsigned char signal_eotf_lo;
+	unsigned char signal_eotf_param0_hi;
+	unsigned char signal_eotf_param0_lo;
+	unsigned char signal_eotf_param1_hi;
+	unsigned char signal_eotf_param1_lo;
+	unsigned char signal_eotf_param2_byte3;
+	unsigned char signal_eotf_param2_byte2;
+	unsigned char signal_eotf_param2_byte1;
+	unsigned char signal_eotf_param2_byte0;
+	unsigned char signal_bit_depth;
+	unsigned char signal_color_space;
+	unsigned char signal_chroma_format;
+	unsigned char signal_full_range_flag;
+	/* source display attributes */
+	unsigned char source_min_PQ_hi;
+	unsigned char source_min_PQ_lo;
+	unsigned char source_max_PQ_hi;
+	unsigned char source_max_PQ_lo;
+	unsigned char source_diagonal_hi;
+	unsigned char source_diagonal_lo;
+	/* extended metadata */
+	unsigned char num_ext_blocks;
+};
+
 struct ext_level_1_s {
 	u8 min_PQ_hi;
 	u8 min_PQ_lo;
@@ -627,6 +705,11 @@ struct ext_level_6_s {
 	u8 max_frame_average_light_level_lo;
 };
 
+struct ext_level_254_s {
+	unsigned char dm_mode;
+	unsigned char dm_version_index;
+};
+
 struct ext_level_255_s {
 	u8 dm_run_mode;
 	u8 dm_run_version;
@@ -646,6 +729,13 @@ struct ext_md_s {
 	struct ext_level_255_s level_255;
 };
 #endif
+
+enum dm_algo_e {
+	DM_ALGO_INVALID = -1,
+	DM_ALGO_DM29 = 0,
+	DM_ALGO_DM31 = 1,
+	DM_ALGO_DM4  = 2
+};
 
 struct dovi_setting_s {
 	struct composer_register_ipcore_s comp_reg;
