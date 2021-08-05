@@ -1651,7 +1651,7 @@ static bool rx_is_timing_stable(void)
 				sig_stable_err_cnt = 0;
 				/*phy setting is fail, need reset phy*/
 				sig_unstable_cnt = sig_unstable_max;
-				rx.phy.cable_clk = 0;
+				rx.clk.cable_clk = 0;
 			}
 			ret = false;
 		}
@@ -2001,7 +2001,7 @@ void fsm_restart(void)
 	vic_check_en = false;
 	/* dvi_check_en = true; */
 	rx.fsm_ext_state = FSM_INIT;
-	rx.phy.cable_clk = 0;
+	rx.clk.cable_clk = 0;
 	rx.phy.pll_rate = 0;
 	rx.phy.phy_bw = 0;
 	rx.phy.pll_bw = 0;
@@ -2889,7 +2889,7 @@ void rx_main_state_machine(void)
 		break;
 	case FSM_INIT:
 		signal_status_init();
-		rx.phy.cable_clk = 0;
+		rx.clk.cable_clk = 0;
 		rx.state = FSM_HPD_HIGH;
 		break;
 	case FSM_HPD_HIGH:
@@ -2907,7 +2907,7 @@ void rx_main_state_machine(void)
 		edid_update_flag = 0;
 		pre_port = rx.port;
 		rx_set_cur_hpd(1, 0);
-		rx.phy.cable_clk = 0;
+		rx.clk.cable_clk = 0;
 		rx.phy.cablesel = 0;
 		set_scdc_cfg(0, 1);
 		/* rx.hdcp.hdcp_version = HDCP_VER_NONE; */
@@ -2927,7 +2927,7 @@ void rx_main_state_machine(void)
 			rx.state = FSM_EQ_START;
 			clk_stable_cnt = 0;
 			clk_unstable_cnt = 0;
-			rx_pr("clk stable=%d\n", rx.phy.cable_clk);
+			rx_pr("clk stable=%d\n", rx.clk.cable_clk);
 			rx.err_code = ERR_NONE;
 			rx.var.de_stable = false;
 			hdmirx_irq_hdcp_enable(true);
@@ -2940,7 +2940,7 @@ void rx_main_state_machine(void)
 			clk_unstable_cnt = 0;
 			if (esd_phy_rst_cnt < esd_phy_rst_max) {
 				hdmirx_phy_init();
-				rx.phy.cable_clk = 0;
+				rx.clk.cable_clk = 0;
 				esd_phy_rst_cnt++;
 			} else {
 				rx.err_code = ERR_NONE;
@@ -2995,7 +2995,7 @@ void rx_main_state_machine(void)
 				rx.state = FSM_WAIT_CLK_STABLE;
 				if (esd_phy_rst_cnt++ < esd_phy_rst_max) {
 					rx.phy.cablesel++;
-					//rx.phy.cable_clk = 0;
+					//rx.clk.cable_clk = 0;
 					//hdmirx_phy_init();
 				} else {
 					esd_phy_rst_cnt = 0;
@@ -3003,7 +3003,7 @@ void rx_main_state_machine(void)
 				}
 			} else if (rx.err_rec_mode == ERR_REC_HPD_RST) {
 				rx_set_cur_hpd(0, 2);
-				rx.phy.cable_clk = 0;
+				rx.clk.cable_clk = 0;
 				rx.state = FSM_INIT;
 				rx.err_rec_mode = ERR_REC_EQ_RETRY;
 			}
@@ -3120,7 +3120,7 @@ void rx_main_state_machine(void)
 				}
 			} else if (rx.err_rec_mode == ERR_REC_HPD_RST) {
 				rx_set_cur_hpd(0, 2);
-				rx.phy.cable_clk = 0;
+				rx.clk.cable_clk = 0;
 				rx.state = FSM_INIT;
 				rx.err_rec_mode = ERR_REC_EQ_RETRY;
 			}
@@ -3160,7 +3160,7 @@ void rx_main_state_machine(void)
 			rx.var.mute_cnt = 0;
 			rx.aud_sr_stable_cnt = 0;
 			rx.aud_sr_unstable_cnt = 0;
-			rx.phy.cable_clk = 0;
+			rx.clk.cable_clk = 0;
 			esd_phy_rst_cnt = 0;
 			if (hdcp22_on) {
 				esm_set_stable(false);
@@ -3202,7 +3202,7 @@ void rx_main_state_machine(void)
 				rx.var.mute_cnt = 0;
 				rx.aud_sr_stable_cnt = 0;
 				rx.aud_sr_unstable_cnt = 0;
-				rx.phy.cable_clk = 0;
+				rx.clk.cable_clk = 0;
 				esd_phy_rst_cnt = 0;
 				if (hdcp22_on) {
 					esm_set_stable(false);
@@ -3265,7 +3265,7 @@ void rx_main_state_machine(void)
 					hdmirx_phy_init();
 					rx.state = FSM_WAIT_CLK_STABLE;
 					/*timing sw at same FRQ*/
-					rx.phy.cable_clk = 0;
+					rx.clk.cable_clk = 0;
 					rx_pr("reqclk err->wait_clk\n");
 				} else if (aud_sts == E_PLLRATE_CHG) {
 					rx_aud_pll_ctl(1);
@@ -3341,9 +3341,10 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size)
 	pos += snprintf(buf + pos, size - pos,
 		"avmute skip: %d\n", rx.avmute_skip);
 	pos += snprintf(buf + pos, size - pos,
-		"TMDS clock: %d\n", rx_measure_clock(MEASURE_CLK_TMDS));
-	pos += snprintf(buf + pos, size - pos,
-		"Pixel clock: %d\n", rx_measure_clock(MEASURE_CLK_PIXEL));
+		"TMDS clock: %d\n", rx.clk.cable_clk);
+	if (rx.chip_id < CHIP_ID_T7)
+		pos += snprintf(buf + pos, size - pos,
+			"Pixel clock: %d\n", rx.clk.pixel_clk);
 	if (drmpkt->des_u.tp1.eotf == EOTF_SDR)
 		pos += snprintf(buf + pos, size - pos,
 		"HDR EOTF: %s\n", "SDR");
@@ -3371,9 +3372,10 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size)
 	pos += snprintf(buf + pos, size - pos,
 		"audio receive data: %d\n", auds_rcv_sts);
 	pos += snprintf(buf + pos, size - pos,
-		"Audio PLL clock: %d\n", rx_measure_clock(MEASURE_CLK_AUD_PLL));
-	pos += snprintf(buf + pos, size - pos,
-		"mpll_div_clk: %d\n", rx_measure_clock(MEASURE_CLK_MPLL));
+		"Audio PLL clock: %d\n", rx.clk.aud_pll);
+	if (rx.chip_id <= CHIP_ID_TXLX)
+		pos += snprintf(buf + pos, size - pos,
+			"mpll_div_clk: %d\n", rx.clk.mpll_clk);
 
 	pos += snprintf(buf + pos, size - pos,
 		"\n\nHDCP info\n\n");
@@ -3436,22 +3438,20 @@ static void dump_clk_status(void)
 	rx_pr("top tmdsclk=%d\n",
 	      rx_get_clock(TOP_HDMI_TMDSCLK));
 	rx_pr("cable clock = %d\n",
-	      rx_measure_clock(MEASURE_CLK_CABLE));
+	      rx.clk.cable_clk);
 	rx_pr("tmds clock = %d\n",
-	      rx_measure_clock(MEASURE_CLK_TMDS));
-	rx_pr("Pixel clock = %d\n",
-	      rx_measure_clock(MEASURE_CLK_PIXEL));
+	      rx.clk.tmds_clk);
+	/*rx_pr("Pixel clock = %d\n",*/
+	      /*rx_measure_clock(MEASURE_CLK_PIXEL));*/
 	rx_pr("audio clock = %d\n",
-	      rx_measure_clock(MEASURE_CLK_AUD_PLL));
-
-	if (log_level & DBG_LOG) {
-		rx_pr("top audio meter clk=%d\n",
-		      rx_get_clock(TOP_HDMI_AUDIOCLK));
-	rx_pr("aud clk in = %d\n",
-	      rx_measure_clock(MEASURE_CLK_AUD_DIV));
-	rx_pr("mpll clock = %d\n",
-	      rx_measure_clock(MEASURE_CLK_MPLL));
-	}
+	      rx.clk.aud_pll);
+	/*rx_pr("top audio meter clk=%d\n",*/
+	      /*rx_get_clock(TOP_HDMI_AUDIOCLK));*/
+	/*rx_pr("aud clk in = %d\n",*/
+	     /* rx_measure_clock(MEASURE_CLK_AUD_DIV));*/
+	if (rx.chip_id <= CHIP_ID_TXLX)
+		rx_pr("mpll clock = %d\n",
+		      rx.clk.mpll_clk);
 }
 
 static void dump_video_status(void)
@@ -3545,8 +3545,6 @@ static void dump_hdcp_status(void)
 		      hdmirx_rd_dwc(DWC_HDCP22_STATUS));
 		rx_pr("sts81c = %x",
 		      hdmirx_rd_dwc(DWC_HDCP22_CONTROL));
-		rx_pr("ESM clock = %d\n",
-	      rx_measure_clock(MEASURE_CLK_ESM));
 	}
 	rx_pr("HDCP14 state:%d\n",
 	      rx.cur.hdcp14_state);
@@ -3892,6 +3890,7 @@ void hdmirx_timer_handler(struct timer_list *t)
 	rx_5v_monitor();
 	rx_check_repeat();
 	rx_dw_edid_monitor();
+	rx_clkmsr_monitor();
 	if (rx.open_fg) {
 		rx_nosig_monitor();
 		rx_cable_clk_monitor();

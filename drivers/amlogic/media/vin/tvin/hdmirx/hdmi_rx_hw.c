@@ -1347,12 +1347,12 @@ void rx_get_audinfo(struct aud_info_s *audio_info)
 	}
 	if (audio_info->cts != 0) {
 		audio_info->arc =
-			(rx_measure_clock(MEASURE_CLK_TMDS) / audio_info->cts) *
+			(rx.clk.tmds_clk / audio_info->cts) *
 			audio_info->n / 128;
 	} else {
 		audio_info->arc = 0;
 	}
-	audio_info->aud_clk = rx_measure_clock(MEASURE_CLK_AUD_PLL);
+	audio_info->aud_clk = rx.clk.aud_pll;
 }
 
 /*
@@ -1469,9 +1469,9 @@ bool is_clk_stable(void)
 	u32 clk = 0;
 
 	if (rx.phy_ver == PHY_VER_TM2) {
-		if (rx.phy.cable_clk <= MAX_TMDS_CLK &&
-		    rx.phy.cable_clk >= MIN_TMDS_CLK)
-			clk = rx.phy.cable_clk;
+		if (rx.clk.cable_clk <= MAX_TMDS_CLK &&
+		    rx.clk.cable_clk >= MIN_TMDS_CLK)
+			clk = rx.clk.cable_clk;
 	} else if (rx.chip_id >= CHIP_ID_TL1) {
 		/* sqofclk */
 		clk = hdmirx_rd_top(TOP_MISC_STAT0) & 0x1;
@@ -2998,12 +2998,9 @@ bool rx_clkrate_monitor(void)
 	/* otherwise,sw can not detect the low-emplitude signal */
 	/* if (rx.state < FSM_WAIT_CLK_STABLE) */
 		/*return changed;*/
-	/* rx.phy.cable_clk = rx_measure_clock(MEASURE_CLK_CABLE); */
 	/*if (is_clk_stable()) { */
-	rx.phy.cable_clk = rx_measure_clock(MEASURE_CLK_CABLE);
-	rx.phy.tmds_clk = rx_measure_clock(MEASURE_CLK_TMDS);
-	pll_band = aml_phy_pll_band(rx.phy.cable_clk, clk_rate);
-	phy_band = aml_cable_clk_band(rx.phy.cable_clk, clk_rate);
+	pll_band = aml_phy_pll_band(rx.clk.cable_clk, clk_rate);
+	phy_band = aml_cable_clk_band(rx.clk.cable_clk, clk_rate);
 	if (rx.phy.pll_bw != pll_band ||
 	    rx.phy.phy_bw != phy_band) {
 		rx.phy.cablesel = 0;
@@ -3967,17 +3964,15 @@ void rx_get_colordepth(void)
 void rx_get_framerate(void)
 {
 	u32 tmp;
-	u32 clk;
 
 	if (rx.chip_id >= CHIP_ID_T7) {
 		tmp = (hdmirx_rd_cor(COR_FRAME_RATE_HI) << 16) |
 			(hdmirx_rd_cor(COR_FRAME_RATE_MI) << 8) |
 			(hdmirx_rd_cor(COR_FRAME_RATE_LO));
-		clk = rx_measure_clock(MEASURE_CLK_PCLK);
 		if (tmp == 0)
 			rx.cur.frame_rate = 0;
 		else
-			rx.cur.frame_rate = clk / (tmp / 100);
+			rx.cur.frame_rate = rx.clk.p_clk / (tmp / 100);
 	} else {
 		tmp = hdmirx_rd_bits_dwc(DWC_MD_VTC, VTOT_CLK);
 		if (tmp == 0)
@@ -4049,7 +4044,7 @@ void rx_get_video_info(void)
 	/* deep color mode */
 	rx_get_colordepth();
 	/* pixel clock */
-	rx.cur.pixel_clk = rx_measure_clock(MEASURE_CLK_PIXEL) / rx.cur.colordepth * 8;
+	/*rx.cur.pixel_clk = rx.clk.pixel_clk / rx.cur.colordepth * 8;*/
 	/* image parameters */
 	rx_get_de_sts();
 	/* interlace */
@@ -4260,6 +4255,46 @@ int rx_get_clock(enum measure_clk_top_e clk_src)
 	return clock;
 }
 
+void rx_clkmsr_monitor(void)
+{
+	schedule_work(&clkmsr_dwork);
+}
+
+void rx_clkmsr_handler(struct work_struct *work)
+{
+	switch (rx.chip_id) {
+	case CHIP_ID_T7:
+	case CHIP_ID_T3:
+		rx.clk.cable_clk = meson_clk_measure(44);
+		rx.clk.tmds_clk = meson_clk_measure(43);
+		rx.clk.aud_pll = meson_clk_measure(104);
+		rx.clk.p_clk = meson_clk_measure(0);
+		break;
+	case CHIP_ID_T5:
+	case CHIP_ID_T5D:
+	case CHIP_ID_TM2:
+	case CHIP_ID_TL1:
+		rx.clk.cable_clk = meson_clk_measure(30);
+		rx.clk.tmds_clk = meson_clk_measure(63);
+		rx.clk.aud_pll = meson_clk_measure(104);
+		rx.clk.pixel_clk = meson_clk_measure(29);
+		break;
+	default:
+		rx.clk.aud_pll = meson_clk_measure(24);
+		rx.clk.pixel_clk = meson_clk_measure(29);
+		rx.clk.tmds_clk = meson_clk_measure(25);
+		if (rx.clk.tmds_clk == 0) {
+			rx.clk.tmds_clk =
+				hdmirx_rd_dwc(DWC_HDMI_CKM_RESULT) & 0xffff;
+			rx.clk.tmds_clk =
+				rx.clk.tmds_clk * 158000 / 4095 * 1000;
+		}
+		if (rx.state == FSM_SIG_READY)
+			/* phy request clk */
+			rx.clk.mpll_clk = meson_clk_measure(27);
+		break;
+	}
+}
 /*
  * function - get clk related with hdmirx
  */
@@ -4319,11 +4354,12 @@ unsigned int rx_measure_clock(enum measure_clk_src_e clksrc)
 			}
 		}
 	} else if (clksrc == MEASURE_CLK_PIXEL) {
-		clock = 1; //meson_clk_measure(29);
-	} else if (clksrc == MEASURE_CLK_AUD_PLL) {
 		if (rx.chip_id >= CHIP_ID_T7)
-			clock = meson_clk_measure(68);
-		else if (rx.chip_id >= CHIP_ID_TL1)
+			clock = 1;
+		else
+			clock = meson_clk_measure(29);
+	} else if (clksrc == MEASURE_CLK_AUD_PLL) {
+		if (rx.chip_id >= CHIP_ID_TL1)
 			clock = meson_clk_measure(104);/*audio vid out*/
 		else
 			clock = meson_clk_measure(24);
@@ -4338,8 +4374,6 @@ unsigned int rx_measure_clock(enum measure_clk_src_e clksrc)
 			clock = 2;//meson_clk_measure(29);/*apll_clk_out_div*/
 		else
 			clock = meson_clk_measure(27);
-	} else if (clksrc == MEASURE_CLK_ESM) {
-		clock = meson_clk_measure(68);
 	} else if (clksrc == MEASURE_CLK_PCLK) {
 		clock = meson_clk_measure(0);
 	}
@@ -4683,7 +4717,7 @@ int rx_debug_rd_reg(const char *buf, char *tmpbuf)
 int rx_get_aud_pll_err_sts(void)
 {
 	int ret = E_AUDPLL_OK;
-	u32 req_clk = 0;//rx_measure_clock(MEASURE_CLK_MPLL);
+	u32 req_clk = 0;
 	u32 aud_clk = 0;//rx.aud_info.aud_clk;
 	u32 phy_pll_rate = 0;//(hdmirx_rd_phy(PHY_MAINFSM_STATUS1) >> 9) & 0x3;
 	u32 aud_pll_cntl = 0;//(rd_reg_hhi(HHI_AUD_PLL_CNTL6) >> 28) & 0x3;
@@ -4691,7 +4725,7 @@ int rx_get_aud_pll_err_sts(void)
 	if (rx.chip_id >= CHIP_ID_TL1)
 		return ret;
 
-	req_clk = rx_measure_clock(MEASURE_CLK_MPLL);
+	req_clk = rx.clk.mpll_clk;
 	aud_clk = rx.aud_info.aud_clk;
 	phy_pll_rate = (hdmirx_rd_phy(PHY_MAINFSM_STATUS1) >> 9) & 0x3;
 	aud_pll_cntl = (rd_reg_hhi(HHI_AUD_PLL_CNTL6) >> 28) & 0x3;
@@ -4887,14 +4921,14 @@ bool is_tmds_clk_stable(void)
 	u32 cableclk;
 
 	if (rx.phy.clk_rate)
-		cableclk = rx.phy.cable_clk * 4;
+		cableclk = rx.clk.cable_clk * 4;
 	else
-		cableclk = rx.phy.cable_clk;
+		cableclk = rx.clk.cable_clk;
 
-	if (abs(cableclk - rx.phy.tmds_clk) > clock_lock_th * MHz) {
+	if (abs(cableclk - rx.clk.tmds_clk) > clock_lock_th * MHz) {
 		if (log_level & VIDEO_LOG)
 			rx_pr("cableclk=%d,tmdsclk=%d,\n",
-			      cableclk / MHz, rx.phy.tmds_clk / MHz);
+			      cableclk / MHz, rx.clk.tmds_clk / MHz);
 		ret = false;
 	} else {
 		ret = true;

@@ -3079,7 +3079,6 @@ enum measure_clk_src_e {
 	MEASURE_CLK_MPLL,
 	MEASURE_CLK_AUD_PLL,
 	MEASURE_CLK_AUD_DIV,
-	MEASURE_CLK_ESM,
 	MEASURE_CLK_PCLK,
 };
 
@@ -3368,4 +3367,6 @@ void rx_hdcp_22_sent_reauth(void);
 bool rx_ecc_err_overflow(void);
 void hdmirx_output_en(bool en);
 void rx_afifo_monitor(void);
+void rx_clkmsr_monitor(void);
+void rx_clkmsr_handler(struct work_struct *work);
 #endif

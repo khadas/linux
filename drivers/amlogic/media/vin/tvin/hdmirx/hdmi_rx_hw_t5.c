@@ -146,7 +146,7 @@ void aml_pll_bw_cfg_t5(void)
 	u32 bw = rx.phy.pll_bw;
 	u32 vco_clk;
 	u32 data, data2;
-	u32 cableclk = rx.phy.cable_clk / KHz;
+	u32 cableclk = rx.clk.cable_clk / KHz;
 	int pll_rst_cnt = 0;
 
 	od_div = apll_tab_t5[bw].od_div;
@@ -287,7 +287,7 @@ void aml_pll_bw_cfg_t5(void)
 		}
 		if (log_level & VIDEO_LOG) {
 			//rx_pr("pll init-cableclk=%d,pixelclk=%d,\n",
-			      //rx.phy.cable_clk / MHz,
+			      //rx.clk.cable_clk / MHz,
 			     // meson_clk_measure(29) / MHz);
 			rx_pr("sq=%d,pll_lock=%d",
 			      hdmirx_rd_top(TOP_MISC_STAT0) & 0x1,
@@ -1823,7 +1823,7 @@ bool aml_get_tmds_valid_t5(void)
 		if (log_level & VIDEO_LOG) {
 			rx_pr("sqo:%x,tmdsclk_valid:%x,align:%x\n",
 			      sqofclk, tmdsclk_valid, tmds_align);
-			rx_pr("cable clk0:%d\n", rx_measure_clock(MEASURE_CLK_CABLE));
+			rx_pr("cable clk0:%d\n", rx.clk.cable_clk);
 			rx_pr("cable clk1:%d\n", rx_get_clock(TOP_HDMI_CABLECLK));
 		}
 		ret = 0;

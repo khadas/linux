@@ -516,8 +516,6 @@ struct aud_info_s {
 };
 
 struct phy_sts {
-	u32 cable_clk;
-	u32 tmds_clk;
 	u32 aud_div;
 	u32 pll_rate;
 	u32 clk_rate;
@@ -529,6 +527,16 @@ struct phy_sts {
 	u32 eq_data[256];
 };
 
+struct clk_msr {
+	u32 cable_clk;
+	u32 tmds_clk;
+	u32 pixel_clk;
+	u32 mpll_clk;
+	u32 aud_pll;
+	u32 adu_div;
+	u32 esm_clk;
+	u32 p_clk;
+};
 struct emp_buff {
 	unsigned int dump_mode;
 	struct page *pg_addr;
@@ -621,6 +629,7 @@ struct rx_s {
 	/* for debug */
 	/*struct pd_infoframe_s dbg_info;*/
 	struct phy_sts phy;
+	struct clk_msr clk;
 	struct emp_buff empbuff;
 	u32 arc_port;
 	enum edid_ver_e edid_ver;
@@ -656,6 +665,8 @@ extern struct workqueue_struct	*esm_wq;
 extern struct delayed_work	repeater_dwork;
 extern struct work_struct	amlphy_dwork;
 extern struct workqueue_struct	*amlphy_wq;
+extern struct work_struct     clkmsr_dwork;
+extern struct workqueue_struct *clkmsr_wq;
 extern struct workqueue_struct	*repeater_wq;
 extern struct tasklet_struct rx_tasklet;
 extern struct device *hdmirx_dev;
