@@ -44,7 +44,6 @@ unsigned int tsout_get_ready(void)
 
 static void tee_tsout_config_sid_table(u32 sid, u32 begin, u32 length)
 {
-#ifdef CONFIG_AMLOGIC_TEE
 	struct tee_dmx_sid_table_param param = {0};
 	int ret = -1;
 
@@ -57,9 +56,6 @@ static void tee_tsout_config_sid_table(u32 sid, u32 begin, u32 length)
 	ret = tee_demux_set(TEE_DMX_SET_SID_TABLE,
 			(void *)&param, sizeof(param));
 	pr_dbg("[demux] %s ret:%d\n", __func__, ret);
-#else
-	return;
-#endif
 }
 
 void tsout_config_sid_table(u32 sid, u32 begin, u32 length)
@@ -92,7 +88,6 @@ void tsout_config_sid_table(u32 sid, u32 begin, u32 length)
 
 static void tee_tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id)
 {
-#ifdef CONFIG_AMLOGIC_TEE
 	struct tee_dmx_ts_table_param param = {0};
 	int ret = -1;
 
@@ -107,9 +102,6 @@ static void tee_tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 
 	ret = tee_demux_set(TEE_DMX_SET_TS_TABLE,
 			(void *)&param, sizeof(param));
 	pr_dbg("[demux] %s ret:%d\n", __func__, ret);
-#else
-	return;
-#endif
 }
 
 void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id)
@@ -157,7 +149,6 @@ void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id)
 static void tee_tsout_config_es_table(u32 es_entry, int pid,
 			   u32 sid, u32 reset, u32 dup_ok, u8 fmt)
 {
-#ifdef CONFIG_AMLOGIC_TEE
 	struct tee_dmx_es_table_param param = {0};
 	int ret = -1;
 
@@ -174,9 +165,6 @@ static void tee_tsout_config_es_table(u32 es_entry, int pid,
 	ret = tee_demux_set(TEE_DMX_SET_ES_TABLE,
 			(void *)&param, sizeof(param));
 	pr_dbg("[demux] %s ret:%d\n", __func__, ret);
-#else
-	return;
-#endif
 }
 
 void tsout_config_es_table(u32 es_entry, int pid,
@@ -214,16 +202,12 @@ void tsout_config_es_table(u32 es_entry, int pid,
 
 static void tee_tsout_config_pcr_table(u32 pcr_entry, u32 pcr_pid, u32 sid)
 {
-#ifdef CONFIG_AMLOGIC_TEE
 	struct tee_dmx_pcr_table_param param = {0};
 
 	param.pcr_entry = pcr_entry;
 	param.pcr_pid = pcr_pid;
 	param.sid = sid;
 	tee_demux_set(TEE_DMX_SET_PCR_TABLE, (void *)&param, sizeof(param));
-#else
-	return;
-#endif
 }
 
 void tsout_config_pcr_table(u32 pcr_entry, u32 pcr_pid, u32 sid)
@@ -302,7 +286,6 @@ void dsc_config_ready(int dsc_type)
 
 static void tee_dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
 {
-#ifdef CONFIG_AMLOGIC_TEE
 	struct tee_dmx_pid_table_param param = {0};
 	int ret = -1;
 
@@ -329,9 +312,6 @@ static void tee_dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_ty
 	pr_dbg("[demux] %s ret:%d\n", __func__, ret);
 	dsc_get_ready(dsc_type);
 	dsc_config_ready(dsc_type);
-#else
-	return;
-#endif
 }
 
 void dsc_config_pid_table(struct dsc_pid_table *pid_entry, int dsc_type)
@@ -586,9 +566,7 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 	int times = 0;
 	unsigned int cnt = 0;
 	struct tee_dmx_dma_desc_param param = {0};
-#ifdef CONFIG_AMLOGIC_TEE
 	int ret = -1;
-#endif
 
 	if (enable) {
 		do {
@@ -599,13 +577,12 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 		param.address = pchan->memdescs->bits.address;
 		param.len = pchan->memdescs->bits.byte_length;
 		param.buffer_id = pchan->id;
-#ifdef CONFIG_AMLOGIC_TEE
+
 		if (is_security_dmx == TEE_DMX_ENABLE)
 			ret = tee_demux_set(TEE_DMX_SET_DMA_DESC,
 					(void *)&param, sizeof(param));
 		pr_dbg("[demux] %s ret:%d\n", __func__, ret);
 
-#endif
 		WRITE_CBUS_REG(TS_DMA_WCH_ADDR(pchan->id), desc);
 		WRITE_CBUS_REG(TS_DMA_WCH_LEN(pchan->id), total_size);
 
@@ -624,13 +601,12 @@ void wdma_config_enable(struct chan_id *pchan, int enable,
 		param.address = 0;
 		param.len = 0;
 		param.buffer_id = pchan->id;
-#ifdef CONFIG_AMLOGIC_TEE
+
 		if (is_security_dmx == TEE_DMX_ENABLE)
 			ret = tee_demux_set(TEE_DMX_SET_DMA_DESC,
 					(void *)&param, sizeof(param));
 		pr_dbg("[demux] %s ret:%d\n", __func__, ret);
 
-#endif
 		WRITE_CBUS_REG(TS_DMA_WCH_ADDR(pchan->id), 0);
 		WRITE_CBUS_REG(TS_DMA_WCH_LEN(pchan->id), 0);
 
