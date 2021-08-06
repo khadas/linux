@@ -2371,3 +2371,8 @@ void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 	__arm_dma_free(dev, size, cpu_addr, dma_handle, attrs, false);
 }
 #endif /* CONFIG_SWIOTLB */
+
+void arch_dma_prep_coherent(struct page *page, size_t size)
+{
+	__dma_page_cpu_to_dev(page, 0, size, DMA_TO_DEVICE);
+}
