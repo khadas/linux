@@ -1101,6 +1101,7 @@ static int tas5805m_snd_resume(struct snd_soc_component *component)
 		goto err;
 	}
 
+	tas5805m_mute(component, tas5805m->mute);
 	tas5805m_set_volume(component, tas5805m->vol);
 	tas5805m_set_bias_level(component, SND_SOC_BIAS_STANDBY);
 
