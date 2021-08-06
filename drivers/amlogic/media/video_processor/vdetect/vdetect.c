@@ -44,6 +44,7 @@
 #define PRINT_THREADINFO	0X0004
 #define PRINT_PATHINFO		0X0008
 #define PRINT_TIMESTAMP		0X0010
+#define PRINT_MN_SET_FLOW	0X0020
 #define PRINT_PATH_OTHER	0X0040
 #define PRINT_CAP_OTHER		0X0080
 
@@ -56,6 +57,9 @@ static int aipq_enable;
 static u32 vid_limit = 32;
 static unsigned int vdetect_base = 40;
 
+static u32 frame_number;
+static struct vdetect_frame_nn_info frame_nn_info[MAX_NN_INFO_BUF_COUNT];
+static u32 nn_frame_num;
 int vdetect_print(int index, int debug_flag, const char *fmt, ...)
 {
 	if ((detect_debug & debug_flag) ||
@@ -308,28 +312,21 @@ static struct vframe_s *vdetect_vf_get(void *op_arg)
 {
 	struct vframe_s *vf;
 	struct vdetect_dev *dev = (struct vdetect_dev *)op_arg;
-	int i = 0;
 
 	vf = vf_get(dev->recv_name);
 
 	if (!vf)
 		return NULL;
 
-	for (i = 0; i < AI_PQ_TOP; i++) {
-		if (aipq_enable) {
-			vf->nn_value[i].maxclass = dev->nn_value[i].maxclass;
-			vf->nn_value[i].maxprob = dev->nn_value[i].maxprob;
-			vf->ai_pq_enable = true;
-		} else {
-			vf->nn_value[i].maxclass = 0;
-			vf->nn_value[i].maxprob = 0;
-			vf->ai_pq_enable = false;
-		}
-	}
+	vf->nn_value[AI_PQ_TOP - 1].maxclass = dev->vf_num;
+	dev->vf_num++;
 
-	if (vf->flag & VFRAME_FLAG_GAME_MODE) {
+	if (vf->flag & VFRAME_FLAG_GAME_MODE ||
+		vf->width > 3840 ||
+		vf->height > 2160) {
 		dev->last_vf = NULL;
-		vf->ai_pq_enable = false;
+	} else {
+		vf->flag |= VFRAME_FLAG_THROUGH_VDETECT;
 	}
 
 	if (atomic_read(&dev->vdect_status) != VDETECT_PREPARE)
@@ -1189,14 +1186,20 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 	case VFRAME_EVENT_PROVIDER_REG:
 		vf_reg_provider(&dev->prov);
 		vdetect_print(dev->inst, PRINT_PATHINFO, "reg\n");
+		memset(frame_nn_info, 0, sizeof(frame_nn_info));
+		dev->vf_num = 0;
 		for (i = 0; i < AI_PQ_TOP; i++) {
 			dev->nn_value[i].maxclass = 0;
 			dev->nn_value[i].maxprob = 0;
 		}
+		mutex_lock(&dev->vf_mutex);
+		atomic_set(&dev->is_dev_reged, 1);
+		mutex_unlock(&dev->vf_mutex);
 		break;
 	case VFRAME_EVENT_PROVIDER_UNREG:
 		mutex_lock(&dev->vf_mutex);
 		atomic_set(&dev->vdect_status, VDETECT_DROP_VF);
+		atomic_set(&dev->is_dev_reged, 0);
 		mutex_unlock(&dev->vf_mutex);
 		atomic_set(&dev->is_playing, 0);
 		vf_unreg_provider(&dev->prov);
@@ -1346,7 +1349,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	if (!dev->last_vf) {
 		vdetect_print(dev->inst, PRINT_CAP_OTHER,
-			      "%s: game mode no need ai.\n", __func__);
+			      "%s: no need ai pq.\n", __func__);
 		return -EAGAIN;
 	}
 
@@ -1357,6 +1360,15 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	ret = videobuf_dqbuf(&dev->vbuf_queue, p, file->f_flags & O_NONBLOCK);
 	if (ret >= 0) {
+		mutex_lock(&dev->vf_mutex);
+		if (atomic_read(&dev->is_dev_reged) == 1) {
+			frame_number =
+				dev->last_vf->nn_value[AI_PQ_TOP - 1].maxclass;
+			vdetect_print(dev->inst, PRINT_MN_SET_FLOW,
+					      "%d: get nn info from %d frame\n",
+					      __LINE__, frame_number);
+		}
+		mutex_unlock(&dev->vf_mutex);
 		vdetect_print(dev->inst, PRINT_CAPTUREINFO,
 			      "%s ret: %d, index: %d\n",
 			      __func__, ret, p->index);
@@ -1513,21 +1525,72 @@ static int vidioc_s_parm(struct file *file, void *priv,
 {
 	struct vdetect_dev *dev = NULL;
 	int i, j;
+	struct nn_value_t last_saved_val[AI_PQ_TOP];
+	struct nn_value_t temp_val[AI_PQ_TOP];
+	int buf_num, last_saved_num, behind_count;
 
 	dev = video_drvdata(file);
 
 	vdetect_print(dev->inst, PRINT_CAPTUREINFO,
 		      "%s line: %d\n", __func__, __LINE__);
 	if (parms->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		for (i = 0; i < AI_PQ_TOP; i++) {
+		vdetect_print(dev->inst, PRINT_MN_SET_FLOW,
+				      "set nn info for %d frame\n",
+				      frame_number);
+		if (nn_frame_num == 0)
+			buf_num = MAX_NN_INFO_BUF_COUNT - 1;
+		else
+			buf_num = nn_frame_num - 1;
+
+		last_saved_num = frame_nn_info[buf_num].nn_frame_num;
+		if (last_saved_num != 0) {
+			memset(last_saved_val, 0, sizeof(last_saved_val));
+			memcpy(last_saved_val,
+				frame_nn_info[buf_num].nn_value,
+				sizeof(last_saved_val));
+
+			behind_count = frame_number - last_saved_num;
+			for (i = 1; i < behind_count; i++) {
+				memset(temp_val, 0, sizeof(temp_val));
+				frame_nn_info[nn_frame_num].nn_frame_num =
+					last_saved_num + i;
+				for (j = 0; j < AI_PQ_TOP - 1; j++) {
+					temp_val[j].maxclass =
+						last_saved_val[j].maxclass;
+					temp_val[j].maxprob =
+						last_saved_val[j].maxclass;
+				}
+				temp_val[AI_PQ_TOP - 1].maxprob =
+					last_saved_num;
+				memcpy(frame_nn_info[nn_frame_num].nn_value,
+					temp_val,
+					sizeof(temp_val));
+				nn_frame_num++;
+				if (nn_frame_num == MAX_NN_INFO_BUF_COUNT)
+					nn_frame_num = 0;
+			}
+		}
+
+		frame_nn_info[nn_frame_num].nn_frame_num = frame_number;
+		memset(temp_val, 0, sizeof(temp_val));
+		for (i = 0; i < AI_PQ_TOP - 1; i++) {
 			j = 4 * i;
-			dev->nn_value[i].maxclass = parms->parm.raw_data[j];
-			dev->nn_value[i].maxprob = parms->parm.raw_data[j + 1]
+			temp_val[i].maxclass = parms->parm.raw_data[j];
+			temp_val[i].maxprob = parms->parm.raw_data[j + 1]
 				+ (parms->parm.raw_data[j + 2] << 8)
 				+ (parms->parm.raw_data[j + 3] << 16);
 		}
+		temp_val[AI_PQ_TOP - 1].maxprob = frame_number;
+		memcpy(frame_nn_info[nn_frame_num].nn_value,
+			temp_val,
+			sizeof(temp_val));
+		nn_frame_num++;
+
+		if (nn_frame_num == MAX_NN_INFO_BUF_COUNT)
+			nn_frame_num = 0;
 	}
-	for (i = 0; i < AI_PQ_TOP; i++) {
+
+	for (i = 0; i < AI_PQ_TOP - 1; i++) {
 		vdetect_print(dev->inst, PRINT_CAPTUREINFO,
 			      "top %d, vnn result: %s\n",
 			      i,
@@ -1871,6 +1934,67 @@ int vdetect_assign_map(char **receiver_name, int *inst)
 	return -ENODEV;
 }
 EXPORT_SYMBOL(vdetect_assign_map);
+
+int vdetect_get_frame_nn_info(struct vframe_s *vframe)
+{
+	int ret = -ENODEV;
+	int i, j, work_frame_num, check_flag;
+
+	if (IS_ERR_OR_NULL(vframe)) {
+		vdetect_print(0, PRINT_MN_SET_FLOW,
+			"%s: NULL params.\n",
+			__func__);
+		return ret;
+	}
+
+	if (!(vframe->flag & VFRAME_FLAG_THROUGH_VDETECT)) {
+		vframe->ai_pq_enable = false;
+		vdetect_print(0, PRINT_MN_SET_FLOW,
+			"%s: no need ai-pq.\n",
+			__func__);
+		return 0;
+	}
+
+	work_frame_num = vframe->nn_value[AI_PQ_TOP - 1].maxclass;
+	for (i = 0; i < MAX_NN_INFO_BUF_COUNT; i++) {
+		if (work_frame_num == frame_nn_info[i].nn_frame_num) {
+			vdetect_print(0, PRINT_MN_SET_FLOW,
+				"buf[%d] save nn for %d frame.\n",
+				i, work_frame_num);
+			for (j = 0; j < AI_PQ_TOP - 1; j++) {
+				vframe->nn_value[j].maxclass =
+					frame_nn_info[i].nn_value[j].maxclass;
+				vframe->nn_value[j].maxprob =
+					frame_nn_info[i].nn_value[j].maxprob;
+			}
+			ret = 0;
+			break;
+		}
+	}
+
+	if (ret == 0) {
+		check_flag = frame_nn_info[i].nn_value[AI_PQ_TOP - 1].maxprob;
+		if (check_flag != frame_nn_info[i].nn_frame_num) {
+			vdetect_print(0, PRINT_MN_SET_FLOW,
+				"%d frame no nn param.\n",
+				work_frame_num);
+		}
+	}
+
+	if (aipq_enable)
+		vframe->ai_pq_enable = true;
+	else
+		vframe->ai_pq_enable = false;
+
+	if (i == MAX_NN_INFO_BUF_COUNT) {
+		vdetect_print(0, PRINT_MN_SET_FLOW,
+			"don't save %d frame nn info.\n",
+			work_frame_num);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(vdetect_get_frame_nn_info);
 
 static int vdetect_alloc_map(int *inst)
 {
