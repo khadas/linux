@@ -31,6 +31,7 @@ static int am_meson_fbdev_alloc_fb_gem(struct fb_info *info)
 	struct drm_device *dev = helper->dev;
 	size_t size = info->fix.smem_len;
 	struct am_meson_gem_object *meson_gem;
+	void *vaddr;
 
 	if (!fbdev->fb_gem) {
 		meson_gem = am_meson_gem_object_create(dev, 0, size);
@@ -46,6 +47,10 @@ static int am_meson_fbdev_alloc_fb_gem(struct fb_info *info)
 			return -EINVAL;
 		}
 		meson_fb->bufp[0] = meson_gem;
+		vaddr = ion_heap_map_kernel(meson_gem->ionbuffer->heap,
+					meson_gem->ionbuffer);
+		info->screen_base = (char __iomem *)vaddr;
+
 		DRM_DEBUG("alloc memory %d done\n", (u32)size);
 	} else {
 		DRM_DEBUG("no need repeate alloc memory %d\n", (u32)size);
