@@ -1,0 +1,15 @@
+#
+# AMLOGIC VRR Driver configuration
+#
+
+comment "Amlogic VRR Drivers"
+
+menu "Amlogic VRR Driver"
+
+config AMLOGIC_MEDIA_VRR
+        bool "Amlogic VRR driver"
+        default n
+        help
+            Amlogic VRR module init
+            select to enable amlogic VRR driver
+endmenu

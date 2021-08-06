@@ -25,6 +25,7 @@
 #endif
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/media/vrr/vrr.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
@@ -33,6 +34,7 @@
 #include "../lcd_common.h"
 
 static int lcd_init_on_flag;
+static struct vrr_device_s *lcd_vrr_dev;
 
 /* ************************************************** *
  * lcd mode function
@@ -925,11 +927,27 @@ int lcd_mode_tv_init(struct aml_lcd_drv_s *pdrv)
 		break;
 	}
 
+	lcd_vrr_dev = kzalloc(sizeof(*lcd_vrr_dev), GFP_KERNEL);
+	if (lcd_vrr_dev) {
+		sprintf(lcd_vrr_dev->name, "lcd%d_dev", pdrv->index);
+		lcd_vrr_dev->output_src = VRR_OUTPUT_ENCL;
+		if (pdrv->config.timing.fr_adjust_type == 2) /* vtotal adj */
+			lcd_vrr_dev->enable = 1;
+		else
+			lcd_vrr_dev->enable = 0;
+		lcd_vrr_dev->vmax = pdrv->config.basic.v_period_max;
+		lcd_vrr_dev->vmin = pdrv->config.basic.v_period_min;
+		aml_vrr_register_device(lcd_vrr_dev, pdrv->index);
+	}
+
 	return 0;
 }
 
 int lcd_mode_tv_remove(struct aml_lcd_drv_s *pdrv)
 {
+	if (lcd_vrr_dev)
+		aml_vrr_unregister_device(pdrv->index);
+
 	switch (pdrv->config.basic.lcd_type) {
 	case LCD_VBYONE:
 		lcd_vbyone_interrupt_down(pdrv);

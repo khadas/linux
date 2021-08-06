@@ -10,6 +10,8 @@ include drivers/amlogic/media/osd/Makefile
 
 include drivers/amlogic/media/vout/Makefile
 
+include drivers/amlogic/media/vrr/Makefile
+
 include drivers/amlogic/media/deinterlace/Makefile
 
 include drivers/amlogic/media/di_multi/Makefile

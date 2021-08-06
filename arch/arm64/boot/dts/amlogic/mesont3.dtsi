@@ -1335,6 +1335,12 @@
 		status = "okay";
 	};
 
+	vrr0: vrr0 {
+		compatible = "amlogic, vrr-t3";
+		status = "okay";
+		index = <0>;
+	};
+
 	canvas: canvas {
 		compatible = "amlogic, meson, canvas";
 		status = "okay";

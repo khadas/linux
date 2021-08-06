@@ -63,6 +63,7 @@ static int __init media_main_init(void)
 	call_sub_init(vdec_reg_ops_init);
 	call_sub_init(vpu_init);
 	call_sub_init(aml_vclk_init_module);
+	call_sub_init(vrr_init);
 	call_sub_init(amcanvas_init);
 	call_sub_init(amrdma_init);
 	call_sub_init(vout_mux_init);

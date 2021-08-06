@@ -174,6 +174,15 @@ static inline int aml_vdac_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VRR
+int __init vrr_init(void);
+#else
+static int vrr_init(void)
+{
+	return 0;
+}
+#endif
+
 int gp_pll_init(void);
 
 #ifdef CONFIG_AMLOGIC_ION
