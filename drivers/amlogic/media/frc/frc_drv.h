@@ -26,8 +26,9 @@
 
 // frc_20210720_divided_reg_table
 // frc_20210804_add_powerdown_in_shutdown
-#define FRC_FW_VER			"2021-0804 frc add powdown at shutdown"
-#define FRC_KERDRV_VER                  909
+// frc_20210806 frc support 4k1k@120hz
+#define FRC_FW_VER			"2021-0806 frc support 4k1k@120hz"
+#define FRC_KERDRV_VER                  934
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
@@ -343,5 +344,6 @@ struct frc_dev_s {
 };
 
 struct frc_dev_s *get_frc_devp(void);
+void get_vout_info(struct frc_dev_s *frc_devp);
 struct frc_fw_data_s *get_fw_data(void);
 #endif

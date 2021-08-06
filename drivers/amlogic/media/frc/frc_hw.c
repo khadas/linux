@@ -610,7 +610,6 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	pr_frc(log, "ENCL_VIDEO_VAVON_BLINE:%d\n", frc_top->vfb);
 	reg_mc_out_line = (frc_top->vfb / 4) * 3;// 3/4 point of front vblank
 	reg_me_dly_vofst = reg_mc_out_line;
-
 	if (frc_top->hsize <= 1920 && (frc_top->hsize * frc_top->vsize <= 1920 * 1080)) {
 		frc_top->is_me1mc4 = 0;/*me:mc 1:2*/
 		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 0, 0, 1); //8*8 align
@@ -629,9 +628,15 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 		mc_frm_dly = 28;   // reg readback (14)  under 333MHz
 		// mevp_frm_dly = 260;   // under 400MHz
 		// mc_frm_dly = 28;      // under 400MHz
+	} else if (frc_top->out_hsize == 3840 && frc_top->out_vsize == 1080) {
+		reg_mc_out_line = (frc_top->vfb / 2) * 1;
+		reg_me_dly_vofst = reg_mc_out_line;
+		mevp_frm_dly = 222; // reg readback  under 333MHz
+		mc_frm_dly = 24;   // reg readback (34)  under 333MHz
+		pr_frc(log, "4k1k_mc_frm_dly:%d\n", mc_frm_dly);
 	} else {
 		mevp_frm_dly = 140;
-		mc_frm_dly   = 10 ;//inp performace issue, need frc_clk >  enc0_clk
+		mc_frm_dly = 10;
 	}
 
 	//memc_frm_dly
@@ -641,7 +646,9 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	frc_vporch_cal    = memc_frm_dly - reg_mc_out_line;
 	WRITE_FRC_REG(FRC_REG_TOP_CTRL27, frc_vporch_cal);
 
-	if (frc_top->out_hsize > 1920 && frc_top->out_vsize > 1080) {
+	if ((frc_top->out_hsize > 1920 && frc_top->out_vsize > 1080) ||
+		(frc_top->out_hsize == 3840 && frc_top->out_vsize == 1080 &&
+		frc_devp->out_sts.out_framerate > 80)) {
 		/*
 		 * MEMC 4K ENCL setting, vlock will change the ENCL_VIDEO_MAX_LNCNT,
 		 * so need dynamic change this register

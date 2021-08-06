@@ -655,13 +655,18 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 void get_vout_info(struct frc_dev_s *frc_devp)
 {
 	struct vinfo_s *vinfo = get_current_vinfo();
-
+	u32  tmpframterate = 0;
 	frc_devp->out_sts.vout_height = vinfo->height;
 	frc_devp->out_sts.vout_width = vinfo->width;
-
-	frc_devp->out_sts.out_framerate =
-			(vinfo->sync_duration_num * 100) / vinfo->sync_duration_den;
-	pr_frc(1, "vout: %d, %d\n", frc_devp->out_sts.vout_width, frc_devp->out_sts.vout_height);
+	tmpframterate =
+	(vinfo->sync_duration_num * 100 / vinfo->sync_duration_den) / 100;
+	if (frc_devp->out_sts.out_framerate != tmpframterate) {
+		frc_devp->out_sts.out_framerate = tmpframterate;
+		pr_frc(0, "vout:w-%d,h-%d,rate-%d\n",
+				frc_devp->out_sts.vout_width,
+				frc_devp->out_sts.vout_height,
+				frc_devp->out_sts.out_framerate);
+	}
 }
 
 static int frc_probe(struct platform_device *pdev)

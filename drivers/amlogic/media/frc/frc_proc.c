@@ -205,7 +205,7 @@ irqreturn_t frc_output_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	mc_undown_read(devp);
-
+	get_vout_info(devp);
 	if (devp->dbg_reg_monitor_o)
 		frc_out_reg_monitor(devp);
 
@@ -224,7 +224,6 @@ void frc_output_tasklet_pro(unsigned long arg)
 		return;
 	if (!devp->probe_ok || !devp->power_on_flag)
 		return;
-
 	devp->out_sts.vs_tsk_cnt++;
 	if (!devp->frc_fw_pause) {
 		if (pfw_data->scene_detect_output)

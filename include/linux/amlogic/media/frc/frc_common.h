@@ -101,11 +101,10 @@ enum eFRC_POS {
 };
 
 enum efrc_memc_level {
-	FRC_MEMC_LOW      = 1,
-	FRC_MEMC_MID      = 2,
-	FRC_MEMC_HIGH     = 3,
+	FRC_MEMC_LOW      = 4,
+	FRC_MEMC_MID      = 7,
+	FRC_MEMC_HIGH     = 10,
 };
-
 
 enum efrc_memc_dbg_type {
 	MEMC_DBG_BBD_FINAL_LINE   = 0x01,
