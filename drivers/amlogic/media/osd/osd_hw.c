@@ -8589,8 +8589,8 @@ static void osd_set_freescale(u32 index,
 			dst_y_start = osd_hw.dst_data[index].y *
 					blending->screen_ratio_h_den /
 					blending->screen_ratio_h_num;
-			dst_frm_w = blending->dst_data.w;
-			dst_frm_h = blending->dst_data.h;
+			dst_frm_w = blending->dst_frm_w;
+			dst_frm_h = blending->dst_frm_h;
 
 			width = osd_hw.dst_data[index].w *
 				blending->screen_ratio_w_den /
@@ -10735,7 +10735,12 @@ static int osd_setting_order(u32 output_index)
 		osd_hw.disp_info[output_index].position_h;
 	blending->screen_ratio_h_den =
 		osd_hw.disp_info[output_index].background_h;
-
+	blending->dst_frm_w = blending->vinfo_width *
+		blending->screen_ratio_w_den /
+		blending->screen_ratio_w_num;
+	blending->dst_frm_h = blending->vinfo_height *
+		blending->screen_ratio_h_den /
+		blending->screen_ratio_h_num;
 	if (osd_hw.osd_preblend_en) {
 		int adjust = 0;
 		struct hw_osd_blending_s blending_backup;

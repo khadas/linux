@@ -729,6 +729,8 @@ struct hw_osd_blending_s {
 	u32 screen_ratio_w_den;
 	u32 screen_ratio_h_num;
 	u32 screen_ratio_h_den;
+	u32 dst_frm_w;
+	u32 dst_frm_h;
 	struct dispdata_s dst_data;
 	struct osd_blend_reg_s osd_blend_reg;
 	struct vpp0_blend_reg_s vpp0_blend_reg;
