@@ -64,6 +64,7 @@ if AMLOGIC_MEDIA_DRIVERS
 source "drivers/amlogic/media/camera/Kconfig"
 source "drivers/amlogic/media/video_sink/Kconfig"
 source "drivers/amlogic/media/vout/Kconfig"
+source "drivers/amlogic/media/vrr/Kconfig"
 source "drivers/amlogic/media/osd/Kconfig"
 source "drivers/amlogic/media/deinterlace/Kconfig"
 source "drivers/amlogic/media/di_multi/Kconfig"

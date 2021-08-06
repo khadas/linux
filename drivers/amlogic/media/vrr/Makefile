@@ -1,0 +1,7 @@
+#
+# AMLOGIC VRR
+#
+
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VRR) += vrr/vrr_drv.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VRR) += vrr/vrr_notify.o
+

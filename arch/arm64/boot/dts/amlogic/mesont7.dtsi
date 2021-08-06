@@ -2663,6 +2663,24 @@
 		status = "okay";
 	};
 
+	vrr0: vrr0 {
+		compatible = "amlogic, vrr-t3";
+		status = "okay";
+		index = <0>;
+	};
+
+	vrr1: vrr1 {
+		compatible = "amlogic, vrr-t3";
+		status = "okay";
+		index = <1>;
+	};
+
+	vrr2: vrr2 {
+		compatible = "amlogic, vrr-t3";
+		status = "okay";
+		index = <2>;
+	};
+
 	ir: ir@8000 {
 		compatible = "amlogic, meson-ir";
 		reg = <0x0 0xfe084040 0x0 0xA4>,
