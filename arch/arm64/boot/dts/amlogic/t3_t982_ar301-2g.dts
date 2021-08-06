@@ -1394,6 +1394,13 @@
 	pinctrl-names = "sd_default",
 			"sd_1bit_pins",
 			"clk-gate";
+	clocks = <&clkc CLKID_SYS_CLK_SD_EMMC_B>,
+			<&clkc CLKID_SD_EMMC_B_CLK_SEL>,
+			 <&clkc CLKID_SD_EMMC_B_CLK>,
+			 <&xtal>,
+			 <&clkc CLKID_FCLK_DIV2>;
+	clock-names = "core", "mux0", "mux1",
+			"clkin0", "clkin1";
 	bus-width = <4>;
 	cap-sd-highspeed;
 //	sd-uhs-sdr12;
@@ -1402,6 +1409,7 @@
 //	sd_uhs-sdr104;
 	max-frequency = <200000000>;
 
+	card_type = <5>;
 	disable-wp;
 //	amlogic,dram-access-quirk;
 
