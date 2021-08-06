@@ -387,7 +387,23 @@ void videoqueue_pcrscr_update(s32 inc, u32 base);
 #ifdef CONFIG_AMLOGIC_VDETECT
 int vdetect_get_frame_nn_info(struct vframe_s *vframe);
 #endif
-u32 get_hdmin_delay_duration(void);
+u32 get_tvin_delay_start(void);
+void set_tvin_delay_start(u32 start);
+u32 get_tvin_delay_duration(void);
+void set_tvin_delay_duration(u32 time);
+u32 get_tvin_delay(void);
+u32 get_tvin_delay_max_ms(void);
+u32 get_tvin_delay_min_ms(void);
+
 void vpu_module_clk_enable(u32 vpp_index, u32 module, bool async);
 void vpu_module_clk_disable(u32 vpp_index, u32 module, bool async);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+int frc_get_video_latency(void);
+#endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
+int get_vdin_add_delay_num(void);
+#endif
+
 #endif /* VIDEO_H */

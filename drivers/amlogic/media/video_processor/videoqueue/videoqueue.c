@@ -43,8 +43,10 @@
 #define P_OTHER		0X1
 #define P_FENCE		0X2
 #define P_SYNC		0X4
+#define P_AVSYNC	0X8
 
 #define UNDEQUEU_COUNT 4
+#define CHECK_DELAYE_COUNT 6
 
 static unsigned int n_devs = 1;
 static int print_close;
@@ -58,6 +60,7 @@ static int dump_index_last;
 static u64 vframe_get_delay;
 static int force_delay_ms;
 static int game_mode;
+static int force_game_mode;
 
 int vq_print(int debug_flag, const char *fmt, ...)
 {
@@ -227,21 +230,20 @@ static void file_pop_display_q(struct video_queue_dev *dev,
 	}
 }
 
+/*
 static void videoq_hdmi_video_sync(struct video_queue_dev *dev,
 	struct vframe_s *vf)
 {
 	u64 audio_need_delay;
 
-	if (!dev->provider_name || strcmp(dev->provider_name, "dv_vdin"))
-		return;
-
-	audio_need_delay = get_hdmin_delay_duration();
+	audio_need_delay = get_tvin_delay_duration();
 
 	if (audio_need_delay == 0)
 		return;
 
 	vframe_get_delay = (int)div_u64(((jiffies_64 -
 		vf->ready_jiffies64) * 1000), HZ);
+	vframe_get_delay -= vf->duration / 96;
 	if (dev->check_sync_count == 0)
 		vq_print(P_ERROR, "audio need =%lld, first delay=%lld\n",
 			audio_need_delay, vframe_get_delay);
@@ -254,43 +256,50 @@ static void videoq_hdmi_video_sync(struct video_queue_dev *dev,
 		return;
 	}
 }
+*/
 
 static void videoq_hdmi_video_sync_2(struct video_queue_dev *dev,
 	struct vframe_s *vf)
 {
 	u64 audio_need_delay;
 	u64 vframe_delay;
-	int update_value = 0;
+	s64 vdin_delay;
 	int need_drop = 0;
 	u32 vsync_pts64 = vsync_pts64_inc;
+	s64 diff = 0;
+	u64 actual_delay = 0;
+	u64 frc_delay = 0;
 
-	if (!dev->provider_name || strcmp(dev->provider_name, "dv_vdin"))
-		return;
-
-	audio_need_delay = get_hdmin_delay_duration();
+	audio_need_delay = get_tvin_delay_duration();
 	if (audio_need_delay == 0)
 		return;
 
+	vdin_delay = vf->duration / 96;
 	vframe_delay = (int)div_u64(((jiffies_64 -
 		vf->ready_jiffies64) * 1000), HZ);
-
-	if (audio_need_delay * 1000 > vframe_delay * 1000 +
-			3 * vsync_pts64 + vsync_pts64 / 2) {
+	vframe_delay -= vdin_delay;
+	actual_delay = vframe_delay * 1000 + 3 * vsync_pts64;
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+	frc_delay = frc_get_video_latency();
+	frc_delay = frc_delay * 1000;
+#endif
+	actual_delay += frc_delay;
+	diff = actual_delay - audio_need_delay * 1000;
+	if (diff > vdin_delay * 1000 / 2) {
+		diff = div_u64(diff, 1000);
+		need_drop = div_u64(diff + vdin_delay / 2, vdin_delay);
+		if (need_drop > 0)
+			dev->sync_need_drop = true;
+		vq_print(P_AVSYNC, "drop=%d,delay=%lld,actual=%lld,need=%lld\n",
+			need_drop, vframe_delay,
+			actual_delay, audio_need_delay);
+		dev->sync_need_drop_count = need_drop;
+	} else if (diff + vdin_delay * 1000 / 2 < 0) {
 		vq_print(P_SYNC, "delay: audio need =%lld, delay=%lld\n",
 			audio_need_delay, vframe_delay);
 		dev->sync_need_delay = true;
-		vq_print(P_ERROR, "need_delay delay =%lld, need=%lld\n",
-			vframe_delay, audio_need_delay);
-	} else {
-		update_value = vframe_delay * 1000 +
-			3 * vsync_pts64 + vsync_pts64 / 2 -
-			audio_need_delay * 1000;
-		need_drop = update_value / vsync_pts64;
-		if (need_drop > 0) {
-			dev->sync_need_drop = true;
-			vq_print(P_ERROR, "need_drop count =%d\n", need_drop);
-		}
-		dev->sync_need_drop_count = need_drop;
+		vq_print(P_AVSYNC, "need delay=%lld,actual=%lld,need=%lld\n",
+			vframe_delay, actual_delay, audio_need_delay);
 	}
 }
 
@@ -341,7 +350,6 @@ static void do_file_thread(struct video_queue_dev *dev)
 	u32 vsync_diff = 0;
 	struct vframe_states states;
 	bool need_continue = false;
-	u32 delay_vsync_count = delay_vsync;
 	char *provider_name = NULL;
 	u32 vframe_disp_mode = VFRAME_DISP_MODE_NULL;
 
@@ -354,7 +362,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 				vf_get_provider_name(provider_name);
 		}
 		dev->provider_name = provider_name;
-		pr_info("videoqueue: provider name: %s\n",
+		vq_print(P_SYNC, "videoqueue: provider name: %s\n",
 			dev->provider_name ? dev->provider_name : "NULL");
 	}
 
@@ -382,7 +390,8 @@ static void do_file_thread(struct video_queue_dev *dev)
 			return;
 	}
 
-	if (vf->flag & VFRAME_FLAG_GAME_MODE && !dev->game_mode) {
+	if ((vf->flag & VFRAME_FLAG_GAME_MODE || force_game_mode) &&
+		!dev->game_mode) {
 		dev->game_mode = true;
 		game_mode = 1;
 		ret = vt_send_cmd(dev->dev_session, dev->tunnel_id,
@@ -396,13 +405,22 @@ static void do_file_thread(struct video_queue_dev *dev)
 	dev->sync_need_drop = false;
 	dev->sync_need_drop_count = 0;
 
+	if (dev->frame_num == HDMI_DELAY_FIRST_CHECK_COUNT ||
+		dev->frame_num == 1)
+		dev->need_check_delay_count = CHECK_DELAYE_COUNT;
+	if (get_tvin_delay_start()) {
+		vq_print(P_ERROR, "tvin delay start\n");
+		dev->need_check_delay_count = CHECK_DELAYE_COUNT;
+		set_tvin_delay_start(0);
+	}
+
 	/*step 1: audio required*/
 	if (!sync_start) {
-		videoq_hdmi_video_sync(dev, vf);
-	} else if (dev->frame_num >= HDMI_DELAY_FIRST_CHECK_COUNT &&
-		dev->frame_num <= HDMI_DELAY_FIRST_CHECK_COUNT + 5) {
+		vq_print(P_ERROR, "queue first frame\n");
+	} else if (dev->need_check_delay_count > 0) {
 	/*step 2: recheck video sync after hdmi-in start*/
 		videoq_hdmi_video_sync_2(dev, vf);
+		dev->need_check_delay_count--;
 	}
 
 	if (dev->sync_need_delay)
@@ -410,7 +428,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 
 	while (dev->sync_need_drop && dev->sync_need_drop_count) {
 		videoqueue_drop_vf(dev);
-		vq_print(P_ERROR, "drop omx_index=%d\n", dev->frame_num);
+		vq_print(P_AVSYNC, "drop omx_index=%d\n", dev->frame_num);
 		dev->sync_need_drop_count--;
 	}
 
@@ -429,9 +447,9 @@ static void do_file_thread(struct video_queue_dev *dev)
 		return;
 	}
 
-	if (!dev->game_mode) {
-		if (delay_vsync_count > 0) {
-			delay_vsync_count--;
+	if (!dev->game_mode && !sync_start) {
+		if (dev->delay_vsync_count > 0) {
+			dev->delay_vsync_count--;
 			vq_print(P_SYNC, "delay one vsync\n");
 			return;
 		}
@@ -506,6 +524,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 
 	vframe_get_delay = (int)div_u64(((jiffies_64 -
 			vf->ready_jiffies64) * 1000), HZ);
+	vframe_get_delay -= vf->duration / 96;
 	dev->pts_last = pts;
 	vf_get_states_by_name(dev->vf_receiver_name, &states);
 
@@ -694,6 +713,7 @@ static int vq_file_thread(void *data)
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
+	dev->delay_vsync_count = delay_vsync;
 
 	while (1) {
 		if (kthread_should_stop())
@@ -800,6 +820,7 @@ static int videoqueue_reg_provider(struct video_queue_dev *dev)
 	dev->tunnel_id = 0;
 	dev->check_sync_count = 0;
 	dev->provider_name = NULL;
+	dev->need_check_delay_count = 0;
 	vframe_get_delay = 0;
 	dev->game_mode = false;
 	game_mode = 0;
@@ -905,7 +926,7 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 
 	while (kfifo_len(&dev->display_q) > 0) {
 		if (kfifo_get(&dev->display_q, &disp_file)) {
-			vq_print(P_ERROR, "unreg: disp_list keep vf\n");
+			vq_print(P_OTHER, "unreg: disp_list keep vf\n");
 			if (disp_file)
 				v4lvideo_keep_vf(disp_file);
 		}
@@ -1164,6 +1185,31 @@ static ssize_t game_mode_store(struct class *cla,
 	return count;
 }
 
+static ssize_t force_game_mode_show(struct class *cla,
+			       struct class_attribute *attr,
+			       char *buf)
+{
+	return snprintf(buf, 80,
+			"current force_game_mode is %d\n",
+			force_game_mode);
+}
+
+static ssize_t force_game_mode_store(struct class *cla,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	force_game_mode = tmp;
+	return count;
+}
+
 static CLASS_ATTR_RW(print_close);
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RO(buf_count);
@@ -1172,6 +1218,7 @@ static CLASS_ATTR_RW(delay_vsync);
 static CLASS_ATTR_RO(vframe_get_delay);
 static CLASS_ATTR_RW(force_delay_ms);
 static CLASS_ATTR_RW(game_mode);
+static CLASS_ATTR_RW(force_game_mode);
 
 static struct attribute *videoqueue_class_attrs[] = {
 	&class_attr_print_close.attr,
@@ -1182,6 +1229,7 @@ static struct attribute *videoqueue_class_attrs[] = {
 	&class_attr_vframe_get_delay.attr,
 	&class_attr_force_delay_ms.attr,
 	&class_attr_game_mode.attr,
+	&class_attr_force_game_mode.attr,
 	NULL
 };
 

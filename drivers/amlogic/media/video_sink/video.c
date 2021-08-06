@@ -1847,6 +1847,7 @@ static u32 toggle_same_count;
 static int hdmin_delay_start;
 static int hdmin_delay_start_time;
 static int hdmin_delay_duration;
+static int hdmin_delay_min_ms;
 static int hdmin_delay_max_ms = 128;
 static int hdmin_delay_done = true;
 static int hdmin_need_drop_count;
@@ -1865,12 +1866,6 @@ static u8 enable_hdmi_delay_normal_check = 1;
 
 /* video_inuse */
 u32 video_inuse;
-
-u32 get_hdmin_delay_duration(void)
-{
-	return last_required_total_delay;
-}
-EXPORT_SYMBOL(get_hdmin_delay_duration);
 
 void set_freerun_mode(int mode)
 {
@@ -4391,6 +4386,208 @@ static void dmc_adjust_for_mali_vpu(unsigned int width,
 }
 #endif
 
+#define VDIN_KEEP_COUNT 1
+#define DI_KEEP_COUNT_P 1
+#define DI_KEEP_COUNT_I 2
+#define DIS_PATH_DELAY_COUNT 3
+#define VDIN_BUF_COUNT 11
+#define DI_MAX_OUT_COUNT 9
+
+static void hdmi_in_delay_maxmin_reset(void)
+{
+	hdmin_delay_min_ms = 0;
+	hdmin_delay_max_ms = 0;
+}
+
+static void hdmi_in_delay_maxmin_old(struct vframe_s *vf)
+{
+	u64 vdin_vsync = 0;
+	u64 vpp_vsync = 0;
+	u32 vdin_count = 0;
+	int di_keep_count = 0;
+	u64 hdmin_delay_min = 0;
+	u64 hdmin_delay_max = 0;
+	int buf_cnt;
+	struct vinfo_s *video_info;
+	u64 memc_delay = 0;
+	int vdin_keep_count = VDIN_KEEP_COUNT;
+
+	if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+		vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
+		return;
+
+	if (vf->type & VIDTYPE_DI_PW) {
+		if (vf->type_original & VIDTYPE_INTERLACE)
+			di_keep_count = DI_KEEP_COUNT_I;
+		else
+			di_keep_count = DI_KEEP_COUNT_P;
+	}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
+	vdin_keep_count += get_vdin_add_delay_num();
+#endif
+
+	video_info = get_current_vinfo();
+	if (video_info->sync_duration_num > 0) {
+		vpp_vsync = video_info->sync_duration_den;
+		vpp_vsync = vpp_vsync * 1000000;
+		vpp_vsync = div64_u64(vpp_vsync,
+			video_info->sync_duration_num);
+	}
+
+	vdin_vsync = vf->duration;
+	vdin_vsync = vdin_vsync * 1000;
+	vdin_vsync = div64_u64(vdin_vsync, 96);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+	memc_delay = frc_get_video_latency();
+#endif
+
+	/*pre: vdin keep 1, di keep 1/2(one process,one for I frame), total 2/3
+	 *rdma one vpp vsync, one for next vsync to peek
+	 *if do di: count = (1 + 1/2) * vdin_vsync + vpp_vsync * 2;
+	 *if no di: count = (1 + 0) * vdin_vsync + vpp_vsync * 2;
+	 */
+	hdmin_delay_min = (vdin_keep_count + di_keep_count) * vdin_vsync
+			+ vpp_vsync * 2;
+	hdmin_delay_min_ms = div64_u64(hdmin_delay_min, 1000);
+	hdmin_delay_min_ms += memc_delay;
+
+	/*vdin total 10 buf, one for vdin next write, one is on display, 8 left
+	 */
+	buf_cnt = video_vdin_buf_info_get();
+	if (buf_cnt <= 2)
+		return;
+	vdin_count = buf_cnt - 1 - 1;
+
+	hdmin_delay_max = vdin_count * vdin_vsync;
+	hdmin_delay_max_ms = div64_u64(hdmin_delay_max, 1000);
+	hdmin_delay_max_ms += memc_delay;
+}
+
+static void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
+{
+	u64 vdin_vsync = 0;
+	u64 vpp_vsync = 0;
+	u32 vdin_count = 0;
+	u32 vpp_count = 0;
+	int di_keep_count = 0;
+	bool do_di = false;
+	bool di_has_vdin_vf = false;
+	u64 hdmin_delay_min = 0;
+	u64 hdmin_delay_max = 0;
+	u64 memc_delay = 0;
+	int vdin_keep_count = VDIN_KEEP_COUNT;
+
+	if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+		vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
+		return;
+
+	if (vf->type & VIDTYPE_DI_PW) {
+		if (vf->type_original & VIDTYPE_INTERLACE)
+			di_keep_count = DI_KEEP_COUNT_I;
+		else
+			di_keep_count = DI_KEEP_COUNT_P;
+		do_di = true;
+		if (vf->flag & VFRAME_FLAG_DOUBLE_FRAM)
+			di_has_vdin_vf = true;
+	}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
+	vdin_keep_count += get_vdin_add_delay_num();
+#endif
+
+	vdin_vsync = vf->duration;
+	vdin_vsync = vdin_vsync * 1000;
+	vdin_vsync = div64_u64(vdin_vsync, 96);
+
+	vpp_vsync = vsync_pts_inc_scale;
+	vpp_vsync = vpp_vsync * 1000000;
+	vpp_vsync = div64_u64(vpp_vsync, vsync_pts_inc_scale_base);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+	memc_delay = frc_get_video_latency();
+#endif
+
+	/*pre: vdin keep 1, di keep 1/2(if do di, one process), total 2/3
+	 *I frame di will keep two, P frame keep one,
+	 *post:disp path 3 buf delay(vq->vpp 2 buf, rdma one buf),
+	 *one for vq next vsync to get, total 4;
+	 *if do di: count = (1 + 1/2) * vdin_vsync + 4 * vpp_vsync;
+	 *if no di: count = (1 + 0) * vdin_vsync + 4 * vpp_vsync;
+	 */
+	hdmin_delay_min = (vdin_keep_count + di_keep_count) * vdin_vsync +
+		(DIS_PATH_DELAY_COUNT + 1) * vpp_vsync;
+	hdmin_delay_min_ms = div64_u64(hdmin_delay_min, 1000);
+	hdmin_delay_min_ms += memc_delay;
+
+	/*case 1:vdin vf sent to vpp:
+	 *vdin total 11 buf, one for vdin next write, one is on display, 9 left
+	 *disp path 3 buf delay(vq->vpp 2 buf, rdma one buf),
+	 *one for vq next vsync to get, 5 left
+	 *count = VDIN_BUF_COUNT - 1 -1 -DIS_PATH_DELAY_COUNT - 1 = 5;
+	 *total delay = 5 * vdin_vsync + 3 * vpp_vsync;
+	 *
+	 * case 2:vdin vf not sent to vpp:
+	 *2.1:di max out 9,one on display, one for vq next vsync to get, 7 left
+	 *2.2:vdin total 11, one for vdin next write, di keep 1/2 buf, 9/8 left
+	 *count = (7 + 9/8) * vdin_vsync+ 3 * vpp_vsync;
+	 */
+	if (di_has_vdin_vf || !do_di) {
+		vdin_count = VDIN_BUF_COUNT - 2 - DIS_PATH_DELAY_COUNT - 1;
+		vpp_count = DIS_PATH_DELAY_COUNT;
+	} else {
+		vdin_count = DI_MAX_OUT_COUNT - 2 +
+			VDIN_BUF_COUNT - 1 - di_keep_count;
+		vpp_count = DIS_PATH_DELAY_COUNT;
+	}
+	hdmin_delay_max = vdin_count * vdin_vsync + vpp_count * vpp_vsync;
+	hdmin_delay_max_ms = div64_u64(hdmin_delay_max, 1000);
+	hdmin_delay_max_ms += memc_delay;
+}
+
+u32 get_tvin_delay_start(void)
+{
+	return hdmin_delay_start;
+}
+EXPORT_SYMBOL(get_tvin_delay_start);
+
+void set_tvin_delay_start(u32 start)
+{
+	hdmin_delay_start = start;
+}
+EXPORT_SYMBOL(set_tvin_delay_start);
+
+u32 get_tvin_delay_duration(void)
+{
+	return last_required_total_delay;
+}
+EXPORT_SYMBOL(get_tvin_delay_duration);
+
+void set_tvin_delay_duration(u32 time)
+{
+	last_required_total_delay = time;
+}
+EXPORT_SYMBOL(set_tvin_delay_duration);
+
+u32 get_tvin_delay(void)
+{
+	return vframe_walk_delay;
+}
+EXPORT_SYMBOL(get_tvin_delay);
+
+u32 get_tvin_delay_max_ms(void)
+{
+	return hdmin_delay_max_ms;
+}
+EXPORT_SYMBOL(get_tvin_delay_max_ms);
+
+u32 get_tvin_delay_min_ms(void)
+{
+	return hdmin_delay_min_ms;
+}
+EXPORT_SYMBOL(get_tvin_delay_min_ms);
+
 /*ret = 0: no need delay*/
 /*ret = 1: need to delay*/
 static int hdmi_in_delay_check(struct vframe_s *vf)
@@ -6051,22 +6248,14 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	toggle_cnt = 0;
 	vsync_count++;
 	timer_count++;
-	if (display_frame_count == 0 && vf &&
+
+	/*the first/second vf di maybe bypass, So we need to calculate the
+	 *first three frames
+	 */
+	if (display_frame_count < 3 && vf &&
 	    (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
-	    vf->source_type == VFRAME_SOURCE_TYPE_CVBS)) {
-		int buf_cnt = video_vdin_buf_info_get();
-
-		if (buf_cnt > 2) {
-			struct vinfo_s *video_info;
-
-			video_info = get_current_vinfo();
-			if (video_info->sync_duration_num > 0)
-				hdmin_delay_max_ms = 1000 *
-				video_info->sync_duration_den /
-				video_info->sync_duration_num
-				* (buf_cnt - 2);
-		}
-	}
+	    vf->source_type == VFRAME_SOURCE_TYPE_CVBS))
+		hdmi_in_delay_maxmin_old(vf);
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	if (cur_frame_par &&
@@ -7102,16 +7291,25 @@ SET_FILTER:
 	if (gvideo_recv[0]) {
 		path3_new_frame =
 			gvideo_recv[0]->func->dequeue_frame(gvideo_recv[0]);
-		if (path3_new_frame) {
-			if (path3_new_frame->flag & VFRAME_FLAG_KEEPED)
+		if (path3_new_frame &&
+			path3_new_frame->flag & VFRAME_FLAG_KEEPED) {
+			new_frame_count = 0;
+			source_type = path3_new_frame->source_type;
+			if (source_type == VFRAME_SOURCE_TYPE_HDMI ||
+				source_type == VFRAME_SOURCE_TYPE_CVBS)
+				hdmi_in_delay_maxmin_reset();
+		} else if (path3_new_frame) {
+			new_frame_count = gvideo_recv[0]->frame_count;
+			hdmi_in_delay_maxmin_new(path3_new_frame);
+		} else if (gvideo_recv[0]->cur_buf) {
+			vf = gvideo_recv[0]->cur_buf;
+			source_type = vf->flag;
+			if (source_type & VFRAME_FLAG_KEEPED) {
 				new_frame_count = 0;
-			else
-				new_frame_count = gvideo_recv[0]->frame_count;
-		} else {
-			if (gvideo_recv[0]->cur_buf) {
-				source_type = gvideo_recv[0]->cur_buf->flag;
-				if (source_type & VFRAME_FLAG_KEEPED)
-					new_frame_count = 0;
+				source_type = vf->source_type;
+				if (source_type == VFRAME_SOURCE_TYPE_HDMI ||
+					source_type == VFRAME_SOURCE_TYPE_CVBS)
+					hdmi_in_delay_maxmin_reset();
 			}
 		}
 
@@ -7635,6 +7833,12 @@ SET_FILTER:
 	} else if (new_frame) {
 		vframe_walk_delay = (int)div_u64(((jiffies_64 -
 			new_frame->ready_jiffies64) * 1000), HZ);
+		vframe_walk_delay += 1000 *
+			vsync_pts_inc_scale / vsync_pts_inc_scale_base;
+		vframe_walk_delay -= new_frame->duration / 96;
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+		vframe_walk_delay += frc_get_video_latency();
+#endif
 		primary_swap_frame(&vd_layer[0], new_frame, __LINE__);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		dvel_swap_frame(cur_dispbuf2);
@@ -9133,6 +9337,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		dovi_drop_flag = false;
 		dovi_drop_frame_num = 0;
 		mutex_unlock(&omx_mutex);
+		hdmi_in_delay_maxmin_reset();
 		//init_hdr_info();
 		/* over_sync_count = 0; */
 /*notify di 3d mode is frame*/
@@ -12317,6 +12522,29 @@ static ssize_t hdmin_delay_start_store(struct class *class,
 	return count;
 }
 
+static ssize_t hdmin_delay_min_ms_show(struct class *class,
+				      struct class_attribute *attr,
+				      char *buf)
+{
+	return sprintf(buf, "%d\n", hdmin_delay_min_ms);
+}
+
+static ssize_t hdmin_delay_min_ms_store(struct class *class,
+				       struct class_attribute *attr,
+				       const char *buf,
+				       size_t count)
+{
+	int r;
+	int value;
+
+	r = kstrtoint(buf, 0, &value);
+	if (r < 0)
+		return -EINVAL;
+	hdmin_delay_min_ms = value;
+	pr_info("[%s] hdmin_delay_min_ms:%d\n", __func__, value);
+	return count;
+}
+
 static ssize_t hdmin_delay_max_ms_show(struct class *class,
 				      struct class_attribute *attr,
 				      char *buf)
@@ -15473,6 +15701,18 @@ static ssize_t power_ctrl_store(struct class *cla,
 	return count;
 }
 
+static ssize_t frc_delay_show(struct class *class,
+				      struct class_attribute *attr,
+				      char *buf)
+{
+	u32 frc_delay = 0;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+	frc_delay += frc_get_video_latency();
+#endif
+	return sprintf(buf, "%d\n", frc_delay);
+}
+
 #endif
 
 static struct class_attribute amvideo_class_attrs[] = {
@@ -15633,6 +15873,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       hdmin_delay_duration_show,
 	       hdmin_delay_duration_store),
+	__ATTR(hdmin_delay_min_ms,
+	       0664,
+	       hdmin_delay_min_ms_show,
+	       hdmin_delay_min_ms_store),
 	__ATTR(hdmin_delay_max_ms,
 	       0664,
 	       hdmin_delay_max_ms_show,
@@ -15920,6 +16164,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       power_ctrl_show,
 	       power_ctrl_store),
 #endif
+	__ATTR(frc_delay,
+	       0664,
+	       frc_delay_show,
+	       NULL),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -15929,6 +16177,7 @@ static struct class_attribute amvideo_poll_class_attrs[] = {
 	__ATTR_RO(video_state),
 	__ATTR_RO(primary_src_fmt),
 	__ATTR_RO(status_changed),
+	__ATTR_RO(frc_delay),
 	__ATTR_NULL
 };
 
@@ -16114,6 +16363,7 @@ static int amvideo_notify_callback(struct notifier_block *block,
 			&vd_signal);
 		break;
 	case AMVIDEO_UPDATE_VT_REG:
+		hdmi_in_delay_maxmin_reset();
 		p = (u32 *)para;
 		val = p[0]; /* video tunnel id */
 		if (p[1] == 1) { /* path enable */

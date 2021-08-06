@@ -66,6 +66,8 @@ struct video_queue_dev {
 	bool sync_need_drop;
 	u32 sync_need_drop_count;
 	u64 ready_time;
+	u32 delay_vsync_count;
+	u32 need_check_delay_count;
 };
 
 #define videoqueue_IOC_MAGIC  'I'
