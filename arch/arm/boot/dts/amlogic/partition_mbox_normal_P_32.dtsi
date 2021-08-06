@@ -102,7 +102,7 @@
 		system:system
 		{
 			pname = "system";
-			size = <0x0 0x50000000>;
+			size = <0x0 0x64000000>;
 			mask = <1>;
 		};
 		product:product{
