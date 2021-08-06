@@ -17,6 +17,10 @@
 
 	aliases {
 		serial0 = &uart_B;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
 	};
 
 	memory@00000000 {
@@ -39,4 +43,11 @@
 		};
 
 	}; /* end of reserved-memory */
+
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_ao_pins1>;
+	status = "disabled";
 };

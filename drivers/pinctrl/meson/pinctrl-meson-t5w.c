@@ -1372,13 +1372,12 @@ static const char * const i2c0_groups[] = {
 };
 
 static const char * const i2c1_groups[] = {
-	"i2c1_sck_h", "i2c1_sda_h",
 	"i2c1_sck_c", "i2c1_sda_c"
 };
 
 static const char * const i2c2_groups[] = {
 	"i2c2_sck_h20", "i2c2_sda_h21", "i2c2_sck_h10", "i2c2_sda_h11",
-	"i2c2_sck_h24", "i2c2_sda_h25",
+	"i2c2_sck_h24", "i2c2_sda_h25", "i2c2_sck_m", "i2c2_sck_m"
 };
 
 static const char * const i2c3_groups[] = {
