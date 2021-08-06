@@ -477,6 +477,7 @@ struct vdin_dev_s {
 	unsigned int vdin_delay_vfe2rdlist;
 	unsigned int curr_field_type;
 	unsigned int curr_dv_flag;
+	unsigned int drop_hdr_set_sts;
 
 	char name[15];
 	/* bit0 TVIN_PARM_FLAG_CAP bit31: TVIN_PARM_FLAG_WORK_ON */

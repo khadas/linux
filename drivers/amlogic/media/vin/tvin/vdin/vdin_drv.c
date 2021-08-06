@@ -177,6 +177,14 @@ unsigned int vdin_drop_num = 2;
 module_param(vdin_drop_num, uint, 0664);
 MODULE_PARM_DESC(vdin_drop_num, "vdin_drop_num");
 
+int vdin_isr_drop;
+module_param(vdin_isr_drop, int, 0664);
+MODULE_PARM_DESC(vdin_isr_drop, "vdin_isr_drop vdin debug");
+
+unsigned int vdin_isr_drop_num;
+module_param(vdin_isr_drop_num, uint, 0664);
+MODULE_PARM_DESC(vdin_isr_drop_num, "vdin_isr_drop_num");
+
 enum vdin_vf_put_md vdin_frame_work_mode = VDIN_VF_PUT;
 module_param(vdin_frame_work_mode, uint, 0664);
 MODULE_PARM_DESC(vdin_frame_work_mode, "vdin_frame_work_mode");
@@ -917,6 +925,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	devp->unreliable_vs_cnt = 0;
 	devp->unreliable_vs_cnt_pre = 0;
 	devp->unreliable_vs_idx = 0;
+	devp->drop_hdr_set_sts = 3;
+	vdin_isr_drop = vdin_isr_drop_num;
 
 	/* write vframe as default */
 	devp->vframe_wr_en = 1;
@@ -1978,6 +1988,12 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 
+	if (vdin_isr_drop) {
+		vdin_isr_drop--;
+		vdin_drop_frame_info(devp, "drop debug");
+		return IRQ_HANDLED;
+	}
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (for_dolby_vision_certification())
 		vdin_set_crc_pulse(devp);
@@ -1994,6 +2010,15 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			vdin_vf_skip_all_disp(devp->vfp);
 			return IRQ_HANDLED;
 		}
+
+		if (devp->prop.vdin_hdr_flag &&
+		    devp->prop.hdr_info.hdr_state == HDR_STATE_SET &&
+		    devp->drop_hdr_set_sts) {
+			devp->drop_hdr_set_sts--;
+			vdin_drop_frame_info(devp, "hdr set status");
+			return IRQ_HANDLED;
+		}
+		devp->drop_hdr_set_sts = 0;
 	}
 
 	cur_ms = jiffies_to_msecs(jiffies);

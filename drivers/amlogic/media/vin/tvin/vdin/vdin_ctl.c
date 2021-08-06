@@ -5235,7 +5235,7 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 		&vf->prop.master_display_colour;
 	u32 val = 0;
 
-	if (devp->prop.hdr_info.hdr_state == HDR_STATE_GET) {
+	if (devp->prop.hdr_info.hdr_state != HDR_STATE_NULL) {
 		if (vdin_hdr_sei_error_check(devp) == 1) {
 			vf_dp->present_flag = false;
 			vf->signal_type &= ~(1 << 29);
