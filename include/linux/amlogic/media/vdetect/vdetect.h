@@ -16,6 +16,7 @@
 
 #define RECEIVER_NAME_SIZE 32
 #define PROVIDER_NAME_SIZE 32
+#define MAX_NN_INFO_BUF_COUNT 16
 
 enum vdetect_vf_status {
 	VDETECT_INIT = 0,
@@ -68,6 +69,11 @@ struct vdetect_dmaqueue {
 #endif
 };
 
+struct vdetect_frame_nn_info {
+	u32 nn_frame_num;
+	struct nn_value_t nn_value[AI_PQ_TOP];
+};
+
 struct vdetect_dev {
 	struct list_head vdetect_devlist;
 	struct v4l2_device v4l2_dev;
@@ -81,6 +87,8 @@ struct vdetect_dev {
 	struct timeval begin_time;
 	atomic_t is_playing;
 	bool set_format_flag;
+	u32 vf_num;
+	atomic_t is_dev_reged;
 	struct vframe_s *last_vf;
 	struct vframe_s *ge2d_vf;
 	atomic_t vdect_status;

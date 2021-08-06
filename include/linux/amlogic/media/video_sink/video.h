@@ -19,6 +19,8 @@
 #ifndef VIDEO_H
 #define VIDEO_H
 
+#include <linux/amlogic/media/vfm/vframe.h>
+
 #define MAX_VD_LAYERS 3
 
 #define LAYER2_ALPHA  BIT(17)
@@ -368,6 +370,10 @@ void vsync_notify_videosync(void);
 #ifdef CONFIG_AMLOGIC_VIDEOQUEUE
 void vsync_notify_videoqueue(void);
 void videoqueue_pcrscr_update(s32 inc, u32 base);
+#endif
+
+#ifdef CONFIG_AMLOGIC_VDETECT
+int vdetect_get_frame_nn_info(struct vframe_s *vframe);
 #endif
 u32 get_hdmin_delay_duration(void);
 

@@ -32,7 +32,6 @@
 #include <linux/ctype.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/utils/amstream.h>
@@ -8419,6 +8418,9 @@ SET_FILTER:
 		pq_process_debug[1] = ai_pq_disable;
 		pq_process_debug[2] = ai_pq_debug;
 		pq_process_debug[3] = ai_pq_policy;
+#ifdef CONFIG_AMLOGIC_VDETECT
+		vdetect_get_frame_nn_info(vd_layer[0].dispbuf);
+#endif
 		vf_pq_process(vd_layer[0].dispbuf, vpp_scenes, pq_process_debug);
 		if (ai_pq_debug > 0x10) {
 			ai_pq_debug--;
@@ -14724,7 +14726,7 @@ static ssize_t cur_ai_scenes_show(struct class *cla,
 	    vd_layer[0].global_output == 0)
 		return 0;
 	count = 0;
-	while (i < AI_PQ_TOP) {
+	while (i < AI_PQ_TOP - 1) {
 		count += sprintf(buf + count, "%d:",
 			nn_scenes_value[i].maxclass);
 		count += sprintf(buf + count, "%d;",
