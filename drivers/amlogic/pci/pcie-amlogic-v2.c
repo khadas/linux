@@ -22,6 +22,10 @@
 #include "../drivers/pci/controller/dwc/pcie-designware.h"
 #include "pcie-amlogic.h"
 #include <linux/clk-provider.h>
+#include <asm/sections.h>
+#include <linux/amlogic/tee.h>
+
+static u32 handle;
 
 struct amlogic_pcie {
 	struct dw_pcie		*pci;
@@ -802,6 +806,13 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 
 	if (pwr_ctl)
 		power_switch_to_pcie(amlogic_pcie->phy);
+
+	tee_protect_mem_by_type(TEE_MEM_TYPE_KERNEL,
+		roundup(virt_to_phys((void *)_text),
+		TEE_MEM_ALIGN_SIZE),
+		rounddown(virt_to_phys((void *)_end),
+		TEE_MEM_ALIGN_SIZE),
+		&handle);
 
 	if (!amlogic_pcie->phy->phy_base) {
 		phy_base = platform_get_resource_byname(
