@@ -644,13 +644,13 @@ static const unsigned int spi0_mosi_h10_pins[]		= { GPIOH_10 };
 static const unsigned int spi0_clk_h11_pins[]		= { GPIOH_11 };
 static const unsigned int spi0_ss2_h12_pins[]		= { GPIOH_12 };
 static const unsigned int tdm_d3_h13_pins[]		= { GPIOH_13 };
-static const unsigned int mclk_1_pins[]			= { GPIOH_14 };
+static const unsigned int mclk_1_h_pins[]		= { GPIOH_14 };
 static const unsigned int tdm_fs1_h_pins[]		= { GPIOH_15 };
 static const unsigned int tdm_sclk1_h_pins[]		= { GPIOH_16 };
 static const unsigned int tdm_d0_h_pins[]		= { GPIOH_17 };
 static const unsigned int tdm_d1_h_pins[]		= { GPIOH_18 };
 static const unsigned int tdm_d2_h_pins[]		= { GPIOH_19 };
-static const unsigned int tdm_d3_h_pins[]		= { GPIOH_20 };
+static const unsigned int tdm_d3_h20_pins[]		= { GPIOH_20 };
 static const unsigned int tdm_d4_h_pins[]		= { GPIOH_21 };
 static const unsigned int tdm_d5_h_pins[]		= { GPIOH_22 };
 static const unsigned int tdm_d6_h_pins[]		= { GPIOH_23 };
@@ -1065,6 +1065,8 @@ static struct meson_pmx_group meson_t5w_periphs_groups[] __initdata = {
 	GROUP(pwm_e_z,			5),
 	GROUP(pwm_g_z,			5),
 	GROUP(pwm_h_z,			5),
+	GROUP(spi1_ss0_z,		5),
+	GROUP(spi1_miso_z,		5),
 
 	GROUP(cicam_a12,		6),
 	GROUP(pdm_din1_z1,		6),
@@ -1124,12 +1126,16 @@ static struct meson_pmx_group meson_t5w_periphs_groups[] __initdata = {
 	GROUP(spi0_clk_h11,		2),
 	GROUP(spi0_ss2_h12,		2),
 	GROUP(tdm_d3_h13,		2),
-	GROUP(mclk_1,			2),
+	GROUP(mclk_1_h,			2),
 	GROUP(tdm_sclk1_h,		2),
 	GROUP(tdm_fs1_h,		2),
 	GROUP(tdm_d0_h,			2),
 	GROUP(tdm_d1_h,			2),
 	GROUP(tdm_d2_h,			2),
+	GROUP(tdm_d3_h20,		2),
+	GROUP(tdm_d4_h,			2),
+	GROUP(tdm_d5_h,			2),
+	GROUP(tdm_d6_h,			2),
 
 	GROUP(tcon_sfc_h0,		3),
 	GROUP(tcon_sfc_h8,		3),
@@ -1239,6 +1245,8 @@ static struct meson_pmx_group meson_t5w_periphs_groups[] __initdata = {
 	GROUP(spi0_ss2_m,		3),
 	GROUP(i2c2_sck_m,		3),
 	GROUP(i2c2_sda_m,		3),
+	GROUP(i2c3_sck_m,		3),
+	GROUP(i2c3_sda_m,		3),
 
 	/* BANK M func4 */
 	GROUP(pwm_d_m1,			4),
@@ -1357,11 +1365,15 @@ static const char * const sdcard_groups[] = {
 };
 
 static const char * const tdm_groups[] = {
+	"tdm_fs1_c", "tdm_sclk1_c", "tdm_d4_c", "tdm_d5_c", "tdm_d6_c",
+	"tdm_d7_c",
+
 	"tdm_fs2_z", "tdm_sclk2_z", "tdm_d4_z", "tdm_d5_z", "tdm_d6_z",
 	"tdm_d7_z", "tdm_d1_z", "tdm_d0_z", "tdm_sclk1_z", "tdm_fs1_z",
 
 	"tdm_sclk1_h", "tdm_fs1_h", "tdm_d0_h", "tdm_d1_h", "tdm_d2_h",
-	"tdm_d3_h14", "tdm_fs2_h", "tdm_sclk2_h",
+	"tdm_d3_h14", "tdm_fs2_h", "tdm_sclk2_h", "tdm_d3_h6", "tdm_d3_h13",
+	"tdm_d4_h", "tdm_d5_h", "tdm_d6_h",
 
 	"tdm_fs2_m", "tdm_sclk2_m", "tdm_d4_m", "tdm_d5_m", "tdm_d6_m",
 	"tdm_d7_m"
@@ -1458,13 +1470,17 @@ static const char * const sync_3d_out_groups[] = {
 
 static const char * const spi0_groups[] = {
 	"spi0_ss1_h8", "spi0_miso_h9", "spi0_mosi_h10", "spi0_clk_h11",
-	"spi0_ss2_h12", "spi0_clk_h14", "spi0_ss1_h19",
+	"spi0_ss2_h12", "spi0_clk_h14", "spi0_ss1_h19", "spi0_ss0_h7",
 
 	"spi0_miso_z", "spi0_mosi_z", "spi0_clk_z", "spi0_ss0_z",
 	"spi0_ss1_z", "spi0_ss2_z", "spi0_ss1_z3",
 
 	"spi0_miso_m", "spi0_mosi_m", "spi0_clk_m", "spi0_ss0_m", "spi0_ss1_m",
 	"spi0_ss2_m"
+};
+
+static const char * const spi1_groups[] = {
+	"spi1_ss0_z", "spi1_miso_z",
 };
 
 static const char * const spi2_groups[] = {
@@ -1475,11 +1491,15 @@ static const char * const spi2_groups[] = {
 };
 
 static const char * const mclk_groups[] = {
-	"mclk_2_z", "mclk_1_z",
+	"mclk_2_z", "mclk_1_z", "mclk_1_h", "mclk_2_m"
 };
 
-static const char * const spdif_out_groups[] = {
+static const char * const spdif_out_a_groups[] = {
 	"spdif_out_a_z19", "spdif_out_a_z2",
+};
+
+static const char * const spdif_out_b_groups[] = {
+	"spdif_out_b"
 };
 
 static const char * const spdif_in_groups[] = {
@@ -1503,7 +1523,7 @@ static const char * const cicam_groups[] = {
 	"cicam_data4", "cicam_data5", "cicam_data6", "cicam_data7",
 
 	"cicam_cen", "cicam_oen", "cicam_wen", "cicam_iordn", "cicam_iowrn",
-	"cicam_reset", "cicam_cdn", "cicam_en"
+	"cicam_reset", "cicam_waitn"
 };
 
 static const char * const iso7816_groups[] = {
@@ -1592,7 +1612,8 @@ static struct meson_pmx_func meson_t5w_periphs_functions[] __initdata = {
 	FUNCTION(spi0),
 	FUNCTION(spi2),
 	FUNCTION(mclk),
-	FUNCTION(spdif_out),
+	FUNCTION(spdif_out_a),
+	FUNCTION(spdif_out_b),
 	FUNCTION(spdif_in),
 	FUNCTION(vx1),
 	FUNCTION(eth),
