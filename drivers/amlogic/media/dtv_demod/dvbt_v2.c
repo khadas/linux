@@ -107,7 +107,8 @@ static unsigned int calcul_src_gain_m(int bw, int s_r)
 {
 	unsigned int src_gain = 0;
 
-	src_gain = (4096 * 4 * 64 * bw) / (7 * 8 * s_r * 2);
+//	src_gain = (4096 * 4 * 64 * bw) / (7 * 8 * s_r * 2);
+	src_gain = ((1 << 20) * bw) / (56 * s_r);
 
 	return src_gain;
 }
@@ -948,34 +949,111 @@ const unsigned int iir_tab_coef1[28][6] = {
 
 struct st_chip_register_t reset368dvbt_val[] =	 /*init minimum setting STV368+TDA18212 RF=474MHz*/
 {
+//	{R368TER_P1AGC_TARG, 0x64 },/* P1AGC_TARG */
+//	{R368TER_CAS_CONF1, 0x94 },/* CAS_CONF1 */
+//	{R368TER_CAS_CCSMU, 0x33 },/* CAS_CCSMU */
+//	{R368TER_CAS_CCDCCI, 0x7f },/* CAS_CCDCCI */
+//	{R368TER_CAS_CCDNOCCI, 0x1a },/* CAS_CCDNOCCI */
+//	/* BZ49942:This is to improve the performances of 2kFFT mode in presence of Rayleigh echo */
+//	{R368TER_FFT_FACTOR_2K_S2, 0x02 },
+//	{R368TER_FFT_FACTOR_8K_S2, 0x02 },
+//	{R368TER_P1_CTRL, 0x20 },/* P1_CTRL */
+//	{R368TER_P1_DIV, 0xc0 },/* P1_DIV */
+//	{R368TER_DVBT_CTRL, 0x20 },/* DVBT_CTRL */
+//	{R368TER_SCENARII_CFG, 0x0a },/* SCENARII_CFG */
+//	{R368TER_SYMBOL_TEMPO, 0x08 },/* SYMBOL_TEMPO */
+//	{R368TER_CHC_TI0, 0xb0 },/* CHC_TI0 */
+//	{R368TER_CHC_TRIG0, 0x58 },/* CHC_TRIG0 */
+//	{R368TER_CHC_TRIG1, 0x44 },/* CHC_TRIG1 */
+//	{R368TER_CHC_TRIG2, 0x70 },/* CHC_TRIG2 */
+//	{R368TER_CHC_TRIG3, 0x88 },/* CHC_TRIG2 */
+//	{R368TER_CHC_TRIG4, 0x40 },/* CHC_TRIG4 */
+//	{R368TER_CHC_TRIG5, 0x8b },/* CHC_TRIG5 */
+//	{R368TER_CHC_TRIG6, 0x89 },/* CHC_TRIG6 */
+//	{R368TER_CHC_SNR10, 0xc9 },/* CHC_SNR10 */
+//	{R368TER_CHC_SNR11, 0x0c },  /* CHC_SNR11 */
+//	{R368TER_NSCALE_DVBT_0, 0x64 },/* NSCALE_DVBT_0 */
+//	{R368TER_NSCALE_DVBT_1, 0x8c },/* NSCALE_DVBT_1 */
+//	{R368TER_NSCALE_DVBT_2, 0xc8 },/* NSCALE_DVBT_2 */
+//	{R368TER_NSCALE_DVBT_3, 0x78 },/* NSCALE_DVBT_3 */
+//	{R368TER_NSCALE_DVBT_4, 0x75 },/* NSCALE_DVBT_4 */
+//	{R368TER_NSCALE_DVBT_5, 0xaa },/* NSCALE_DVBT_5 */
+//	{R368TER_NSCALE_DVBT_6, 0xaa },/* NSCALE_DVBT_6 */
+//	{R368TER_IDM_RD_DVBT_1, 0x55 },/* IDM_RD_DVBT_1 */
+//	{R368TER_IDM_RD_DVBT_2, 0x15 } /* IDM_RD_DVBT_2 */
+
+	{R368TER_IQFE_AGC_CONF0, 0x48 },/* IQFE_AGC_CONF0 */
+	{R368TER_IQFE_AGC_CONF1, 0x8C },/* IQFE_AGC_CONF0 */
+	{R368TER_IQFE_AGC_CONF2, 0x60 },/* IQFE_AGC_CONF2 */
+	{R368TER_IQFE_AGC_CONF3, 0x76 },/* IQFE_AGC_CONF3 */
+	{R368TER_IQFE_AGC_CONF4, 0x38 },/* IQFE_AGC_CONF4 */
+	{R368TER_AGC_TARGETI0, 0xbe },/* AGC_TARGETI0 */
+	{R368TER_AGC_TARGETI1, 0x00 },/* AGC_TARGETI0 */
+	{R368TER_AGC_TARGETQ0, 0xbe },/* AGC_TARGETQ0 */
+	{R368TER_AGC_TARGETQ1, 0x00 },/* AGC_TARGETQ0 */
+	{R368TER_AGC_CONF5, 0x66 },/* AGC_CONF5 */
+	{R368TER_AGC_CONF6, 0x70 },/* AGC_CONF6 */
+	{R368TER_LOCK_DET1_0, 0x20 },/* LOCK_DET1_0 */
+	{R368TER_LOCK_DET1_1, 0x00 },/* LOCK_DET1_1 */
+	{R368TER_LOCK_DET2_0, 0x20 },/* LOCK_DET2_0 */
+	{R368TER_LOCK_DET2_1, 0x00 },/* LOCK_DET2_1 */
+	{R368TER_LOCK_DET3_0, 0x20 },/* LOCK_DET3_0 */
+	{R368TER_LOCK_DET3_1, 0x00 },/* LOCK_DET3_1 */
+	{R368TER_LOCK_DET4_0, 0x20 },/* LOCK_DET4_0 */
+	{R368TER_LOCK_DET4_1, 0x00 },/* LOCK_DET4_1 */
+	{R368TER_LOCK_N, 0x50 },/* LOCK_N */
+//	{R368TER_INC_CONF0, 0x05 },/* INC_is 'ON' */
+//	{R368TER_INC_CONF1, 0xff },/* INC_is 'ON' */
+//	{R368TER_INC_CONF2, 0x23 },/* INC_is 'ON' */
+//	{R368TER_INC_CONF3, 0x0a },/* INC_is 'ON' */
+//	{R368TER_INC_CONF4, 0x3f },/* INC_is 'ON' */
+//	{R368TER_INC_BRSTCNT0, 0x6c },/* INC_BRSTCNT0 */
+//	{R368TER_INC_BRSTCNT1, 0x0c },/* INC_BRSTCNT1 */
+	{R368TER_DCCOMP, 0x03 },/* DCCOMP */
+	{R368TER_SRC_CONF1, 0x1a },/* SRC_CONF1 */
 	{R368TER_P1AGC_TARG, 0x64 },/* P1AGC_TARG */
 	{R368TER_CAS_CONF1, 0x94 },/* CAS_CONF1 */
 	{R368TER_CAS_CCSMU, 0x33 },/* CAS_CCSMU */
 	{R368TER_CAS_CCDCCI, 0x7f },/* CAS_CCDCCI */
 	{R368TER_CAS_CCDNOCCI, 0x1a },/* CAS_CCDNOCCI */
-	/* BZ49942:This is to improve the performances of 2kFFT mode in presence of Rayleigh echo */
-	{R368TER_FFT_FACTOR_2K_S2, 0x02 },
+	{R368TER_FFT_FACTOR_2K_S2, 0x02 },/* FFT_FACTOR_2K_S2 */
 	{R368TER_FFT_FACTOR_8K_S2, 0x02 },
 	{R368TER_P1_CTRL, 0x20 },/* P1_CTRL */
 	{R368TER_P1_DIV, 0xc0 },/* P1_DIV */
+	{R368TER_TFO_GAIN, 0x20 },/* TFO_GAIN */
+	{R368TER_TFO_GAIN_CONV, 0x80 },/* TFO_GAIN_CONV */
+	{R368TER_CFO_GAIN, 0x20 },/* CFO_GAIN */
+	{R368TER_CFO_GAIN_CONV, 0x0a },/* CFO_GAIN_CONV */
+	{R368TER_TFO_COEFF0, 0x7f },/* TFO_COEFF0 */
+	{R368TER_TFO_COEFF1, 0x00 },/* TFO_COEFF1 */
+	{R368TER_TFO_COEFF2, 0x00 },/* TFO_COEFF2 */
+	{R368TER_CFO_COEFF0, 0x7f },/* CFO_COEFF0 */
+	{R368TER_CFO_COEFF1, 0x00 },/* CFO_COEFF1 */
+	{R368TER_CFO_COEFF2, 0x00 },/* CFO_COEFF2 */
 	{R368TER_DVBT_CTRL, 0x20 },/* DVBT_CTRL */
+	{R368TER_CORREL_CTL, 0x11 },/* CORREL_CTL */
 	{R368TER_SCENARII_CFG, 0x0a },/* SCENARII_CFG */
 	{R368TER_SYMBOL_TEMPO, 0x08 },/* SYMBOL_TEMPO */
 	{R368TER_CHC_TI0, 0xb0 },/* CHC_TI0 */
 	{R368TER_CHC_TRIG0, 0x58 },/* CHC_TRIG0 */
 	{R368TER_CHC_TRIG1, 0x44 },/* CHC_TRIG1 */
-	{R368TER_CHC_TRIG2, 0x70 },/* CHC_TRIG2 */
+	{R368TER_CHC_TRIG2, 0x00 },/* CHC_TRIG2 */
 	{R368TER_CHC_TRIG3, 0x88 },/* CHC_TRIG2 */
 	{R368TER_CHC_TRIG4, 0x40 },/* CHC_TRIG4 */
 	{R368TER_CHC_TRIG5, 0x8b },/* CHC_TRIG5 */
 	{R368TER_CHC_TRIG6, 0x89 },/* CHC_TRIG6 */
+	{R368TER_CHC_TRIG7, 0x00 },/* CHC_TRIG7 */
+	{R368TER_CHC_TRIG8, 0x00 },/* CHC_TRIG8 */
+	{R368TER_CHC_TRIG9, 0x00 },/* CHC_TRIG9 */
 	{R368TER_CHC_SNR10, 0xc9 },/* CHC_SNR10 */
-	{R368TER_CHC_SNR11, 0x0c },  /* CHC_SNR11 */
+	{R368TER_CHC_SNR11, 0x0c }, /* CHC_SNR11 */
+	/*PJ/DB/TA 02/2014 added for proper DVB-T operation*/
+	{R368TER_DVBT_CONF, 0x0c },/* DVBT_CONF */
 	{R368TER_NSCALE_DVBT_0, 0x64 },/* NSCALE_DVBT_0 */
 	{R368TER_NSCALE_DVBT_1, 0x8c },/* NSCALE_DVBT_1 */
 	{R368TER_NSCALE_DVBT_2, 0xc8 },/* NSCALE_DVBT_2 */
 	{R368TER_NSCALE_DVBT_3, 0x78 },/* NSCALE_DVBT_3 */
-	{R368TER_NSCALE_DVBT_4, 0x75 },/* NSCALE_DVBT_4 */
+	{R368TER_NSCALE_DVBT_4, 0x97 },/* NSCALE_DVBT_4 */
 	{R368TER_NSCALE_DVBT_5, 0xaa },/* NSCALE_DVBT_5 */
 	{R368TER_NSCALE_DVBT_6, 0xaa },/* NSCALE_DVBT_6 */
 	{R368TER_IDM_RD_DVBT_1, 0x55 },/* IDM_RD_DVBT_1 */
@@ -1119,6 +1197,9 @@ void dvbt_reg_initial(unsigned int bw)
 	int bw_cov, i;
 	enum channel_bw_e bandwidth;
 	unsigned int s_r, if_tuner_freq, tmp;
+	unsigned int temp_bw = 0;
+	int temp_bw1 = 0;
+	int temp_bw2 = 0;
 
 	/* 24M */
 	s_r = 54;
@@ -1179,25 +1260,25 @@ void dvbt_reg_initial(unsigned int bw)
 	dvbt_t2_wrb(0x841, 0x08);
 	dvbt_t2_wrb(0x1590, 0x80);
 	dvbt_t2_wrb(0x1593, 0x80);
-	dvbt_t2_wrb(0x1594, 0x00);
-	dvbt_t2_wrb(0x15b0, 0x55);
-	dvbt_t2_wrb(0x15b1, 0x35);
-	dvbt_t2_wrb(0x15b2, 0x30);
-	dvbt_t2_wrb(0x15b3, 0x0c);
-	dvbt_t2_wrb(0x2830, 0x20);
-	dvbt_t2_wrb(0x2890, 0xc3);
-	dvbt_t2_wrb(0x2891, 0x30);
-	dvbt_t2_wrb(0x2892, 0x0c);
-	dvbt_t2_wrb(0x2893, 0x03);
+	dvbt_t2_wrb(0x1594, 0x01);
+	//dvbt_t2_wrb(0x15b0, 0x55);
+	//dvbt_t2_wrb(0x15b1, 0x35);
+	//dvbt_t2_wrb(0x15b2, 0x30);
+	//dvbt_t2_wrb(0x15b3, 0x0c);
+	//dvbt_t2_wrb(0x2830, 0x20);
+	//dvbt_t2_wrb(0x2890, 0xc3);
+	//dvbt_t2_wrb(0x2891, 0x30);
+	//dvbt_t2_wrb(0x2892, 0x0c);
+	//dvbt_t2_wrb(0x2893, 0x03);
 	/* increase agc target to make signal strong enouth for locking */
 	dvbt_t2_wrb(0x15d6, 0xa0);
-	dvbt_t2_wrb(0x2751, 0xf0);
-	dvbt_t2_wrb(0x2752, 0x3c);
-	dvbt_t2_wrb(0x2815, 0x03);
-	dvbt_t2_wr_byte_bits(0x2906, 0, 3, 4);
+	//dvbt_t2_wrb(0x2751, 0xf0);
+	//dvbt_t2_wrb(0x2752, 0x3c);
+	//dvbt_t2_wrb(0x2815, 0x03);
+	//dvbt_t2_wr_byte_bits(0x2906, 0, 3, 4);
 
-	dvbt_t2_wrb(0x2900, 0x00);
-	dvbt_t2_wrb(0x2900, 0x20);
+	//dvbt_t2_wrb(0x2900, 0x00);
+	//dvbt_t2_wrb(0x2900, 0x20);
 
 	if (bandwidth == CHAN_BW_1M7) {
 		dvbt_t2_wrb(0x15a0, (dvbt_t2_rdb(0x15a0) & 0xef) | (1 << 4));
@@ -1305,6 +1386,49 @@ void dvbt_reg_initial(unsigned int bw)
 	for (i = 0; i < (sizeof(reset368dvbt_val) / sizeof(struct st_chip_register_t)); i++)
 		dvbt_t2_wrb(reset368dvbt_val[i].addr, reset368dvbt_val[i].value);
 
+	dvbt_t2_wrb(0x2815, 0x03);
+	dvbt_t2_wrb(0x2751, 0xf0);
+	dvbt_t2_wrb(0x2752, 0x3c);
+	dvbt_t2_wrb(0x53c, 0x6f);
+	dvbt_t2_wrb(0x2906, (dvbt_t2_rdb(0x2906) & 0xfe) | (1));
+	dvbt_t2_wrb(0x28fd, 0x00);
+	dvbt_t2_wrb(0x1500, 0x00);
+	dvbt_t2_wrb(R368TER_FEPATH_CONF0, (dvbt_t2_rdb(R368TER_FEPATH_CONF0) & 0xfe) | (1));
+
+	temp_bw1 = (((1 << 11) * 100) / (914 * bandwidth));
+	temp_bw2 = 125 - (100 * bandwidth / 2);
+
+	switch (bandwidth) {
+	case 6:
+		temp_bw = 2;
+		break;
+
+	case 7:
+		temp_bw = 3;
+		break;
+
+	case 8:
+	default:
+		temp_bw = 4;
+		break;
+	}
+
+	dvbt_t2_wrb(0x15d0, (dvbt_t2_rdb(0x15d0) & 0xfd) | (1 << 1));
+	dvbt_t2_wrb(0x15d0, (dvbt_t2_rdb(0x15d0) & 0xef));
+	dvbt_t2_wrb(0x15d1, (dvbt_t2_rdb(0x15d1) & 0x7f) | (1 << 7));
+	dvbt_t2_wrb(0x15d2, (unsigned char)((temp_bw1 * temp_bw2) / 100));
+	dvbt_t2_wrb(0x15d4, (unsigned char)((temp_bw1 * temp_bw2) / 100));
+	dvbt_t2_wrb(0x15d1, (dvbt_t2_rdb(0x15d1) & 0xf8) | (temp_bw));
+	dvbt_t2_wrb(0x15d8, 0x7f);
+	dvbt_t2_wrb(0x15d9, 0x1a);
+	dvbt_t2_wrb(0x2a2a, dvbt_t2_rdb(0x2a2a) & 0x0f);
+//	dvbt_t2_wrb(0x15a3, 0x0a);
+	dvbt_t2_wrb(0x15d6, 0xa0);
+	dvbt_t2_wrb(0x2906, dvbt_t2_rdb(0x2906) & 0x87);
+
+	dvbt_t2_wrb(0x2830, 0x20);
+	dvbt_t2_wrb(R368TER_DVBT_CTRL, 0x00);
+	dvbt_t2_wrb(R368TER_DVBT_CTRL, 0x20);
 	PR_DVBT("DVB-T init ok.\n");
 }
 
