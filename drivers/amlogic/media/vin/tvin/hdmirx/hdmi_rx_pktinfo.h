@@ -28,6 +28,11 @@
 
 #define EMP_TYPE_VSIF		1
 #define EMP_TYPE_VTEM		2
+#define EMP_TYPE_HDR		3
+
+#define DV_NULL		0
+#define DV_VSIF		1
+#define DV_EMP		2
 
 enum vsi_state_e {
 	E_VSI_NULL,

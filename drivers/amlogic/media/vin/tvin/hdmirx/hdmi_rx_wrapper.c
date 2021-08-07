@@ -882,6 +882,8 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 			rx_pr("dp2-irq2-%x\n", rx_depack2_intr2);
 		if (rx_get_bits(rx_depack2_intr2, _BIT(4)))
 			emp_type |= EMP_TYPE_VSIF;
+		if (rx_get_bits(rx_depack2_intr2, _BIT(2)))
+			emp_type |= EMP_TYPE_HDR;
 	}
 
 	if (hdcp_2x_ecc_intr) {
@@ -3358,8 +3360,8 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size)
 		pos += snprintf(buf + pos, size - pos,
 		"HDR EOTF: %s\n", "HLG");
 	pos += snprintf(buf + pos, size - pos,
-		"Dolby Vision: %s\n",
-		(rx.vs_info_details.dolby_vision ? "on" : "off"));
+		"Dolby Vision: %d\n",
+		rx.vs_info_details.dolby_vision_flag);
 
 	pos += snprintf(buf + pos, size - pos,
 		"\n\nAudio info\n\n");
@@ -3482,13 +3484,11 @@ static void dump_video_status(void)
 	rx_pr("skip frame=%d\n", rx.skip);
 	rx_pr("avmute_skip:0x%x\n", rx.avmute_skip);
 	rx_pr("ecc cnt:%d\n", rx.ecc_err);
-	if (log_level & VSI_LOG) {
-		rx_pr("****vs_info_details:*****\n");
-		rx_pr("hdr10plus = %d\n", rx.vs_info_details.hdr10plus);
-		rx_pr("allm_mode = %d\n", rx.vs_info_details.allm_mode);
-		rx_pr("dolby_vision = %d\n", rx.vs_info_details.dolby_vision);
-		rx_pr("dv ll = %d\n", rx.vs_info_details.low_latency);
-	}
+	rx_pr("****vs_info_details:*****\n");
+	rx_pr("hdr10plus = %d\n", rx.vs_info_details.hdr10plus);
+	rx_pr("allm_mode = %d\n", rx.vs_info_details.allm_mode);
+	rx_pr("dolby_vision = %d\n", rx.vs_info_details.dolby_vision_flag);
+	rx_pr("dv ll = %d\n", rx.vs_info_details.low_latency);
 	rx_pr("VTEM = %d\n", rx.vrr_en);
 	rx_pr("DRM = %d\n", rx_pkt_chk_attach_drm());
 	dump_clk_status();

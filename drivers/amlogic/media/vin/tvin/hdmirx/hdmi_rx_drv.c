@@ -931,10 +931,11 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 			rx_pr("1:4K3D;2:vsi21;3:HDR10+;4:DV10;5:DV15\n");
 		}
 		prop->trans_fmt = TVIN_TFMT_2D;
-		prop->dolby_vision = false;
+		prop->dolby_vision = DV_NULL;
 		prop->hdr10p_info.hdr10p_on = false;
 		last_vsi_state = rx.vs_info_details.vsi_state;
 	}
+	prop->dolby_vision = rx.vs_info_details.dolby_vision_flag;
 	switch (rx.vs_info_details.vsi_state) {
 	case E_VSI_HDR10PLUS:
 		prop->hdr10p_info.hdr10p_on = rx.vs_info_details.hdr10plus;
@@ -943,9 +944,8 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 		break;
 	case E_VSI_DV10:
 	case E_VSI_DV15:
-		prop->dolby_vision = rx.vs_info_details.dolby_vision;
 		prop->low_latency = rx.vs_info_details.low_latency;
-		if (rx.vs_info_details.dolby_vision) {
+		if (rx.vs_info_details.dolby_vision_flag == DV_VSIF) {
 			memcpy(&prop->dv_vsif_raw,
 			       &rx_pkt.vs_info, 3);
 			memcpy((char *)(&prop->dv_vsif_raw) + 3,

@@ -5232,12 +5232,6 @@ void rx_emp_field_done_irq(void)
 			       (char *)(dts_addr + 32 * i), 31);
 		/*emp field dont irq counter*/
 		rx.empbuff.irqcnt++;
-		rx.empbuff.ogi_id = emp_buf[6];
-		rx.empbuff.emp_tagid = emp_buf[10] +
-			(emp_buf[11] << 8) +
-			(emp_buf[12] << 16);
-		rx.empbuff.data_ver = emp_buf[13];
-		rx.empbuff.emp_content_type = emp_buf[19];
 	}
 }
 

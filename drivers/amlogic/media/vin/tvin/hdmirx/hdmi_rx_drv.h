@@ -453,7 +453,7 @@ struct vsi_info_s {
 	unsigned char vd_fmt;
 	unsigned char _3d_structure;
 	unsigned char _3d_ext_data;
-	bool dolby_vision;
+	u8 dolby_vision_flag;
 	bool low_latency;
 	bool backlt_md_bit;
 	unsigned int eff_tmax_pq;

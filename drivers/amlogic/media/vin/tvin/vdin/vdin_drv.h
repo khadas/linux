@@ -406,7 +406,7 @@ struct vdin_dv_s {
 	void *meta_data_raw_vbuff0;/*for t7*/
 	void *meta_data_raw_buff1;/*for t7*/
 	unsigned int dv_flag_cnt;/*cnt for no dv input*/
-	bool dv_flag;
+	u8 dv_flag;
 	bool dv_config;
 	bool dv_path_idx;
 	bool dv_crc_check;/*0:fail;1:ok*/
