@@ -875,7 +875,7 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	int strength_limit = THRD_TUNER_STRENTH_DVBT;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-	unsigned int tps_coderate, ts_fifo_cnt = 0, ts_cnt = 0;
+	unsigned int tps_coderate, ts_fifo_cnt = 0, ts_cnt = 0, fec_rate = 0;
 
 	strenth = tuner_get_ch_power(fe);
 	if (devp->tuner_strength_limit)
@@ -925,8 +925,8 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			dvbt_t2_wr_byte_bits(0x572, 0, 0, 1);
 			dvbt_t2_rdb(0x2913);
 
-			if (dvbt_t2_rdb(0x3760) >> 5 & 1)
-				tps_coderate = dvbt_t2_rdb(0x2913) >> 4 & 0x7;
+			if ((dvbt_t2_rdb(0x3760) >> 5) & 1)
+				tps_coderate = (dvbt_t2_rdb(0x2913) >> 4) & 0x7;
 			else
 				tps_coderate = dvbt_t2_rdb(0x2913) & 0x7;
 
@@ -968,6 +968,50 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			ts_cnt++;
 			usleep_range(10000, 10001);
 		} while (ts_fifo_cnt < 4 && ts_cnt <= 10);
+
+		dvbt_t2_wrb(R368TER_FFT_FACTOR_2K_S2, 0x02);
+		dvbt_t2_wrb(R368TER_CAS_CCDCCI, 0x7f);
+		dvbt_t2_wrb(R368TER_CAS_CCDNOCCI, 0x1a);
+		dvbt_t2_wrb(0x2906, (dvbt_t2_rdb(0x2906) & 0x87) | (1 << 4));
+
+		if ((dvbt_t2_rdb(0x3760) & 0x20) == 0x20)
+			fec_rate = (dvbt_t2_rdb(R368TER_TPS_RCVD3) & 0x70) >> 4;
+		else
+			fec_rate = dvbt_t2_rdb(R368TER_TPS_RCVD3) & 0x07;
+
+//		if (((dvbt_t2_rdb(0x2914) & 0x0f) == 0) &&
+//				((dvbt_t2_rdb(0x2912) & 0x03) == 2) &&
+//					(fec_rate == 3 || fec_rate == 4))
+//			dvbt_t2_wrb(R368TER_INC_CONF3, 0x0d);
+//		else
+//			dvbt_t2_wrb(R368TER_INC_CONF3, 0x0a);
+	} else {
+		if (((dvbt_t2_rdb(0x2901) & 0x0f) == 0x09) && ((dvbt_t2_rdb(0x2901) & 0x40) == 0x40)) {
+			if (dvbt_t2_rdb(0x805) == 0x01)
+				dvbt_t2_wrb(0x805, 0x02);
+			if ((dvbt_t2_rdb(0x581) & 0x80) != 0x80) {
+				if (dvbt_t2_rdb(0x805) == 2) {
+					if ((dvbt_t2_rdb(0x3760) & 0x20) == 0x20)
+						tps_coderate = (dvbt_t2_rdb(0x2913) >> 4) & 0x07;
+					else
+						tps_coderate = dvbt_t2_rdb(0x2913) & 0x07;
+
+					dvbt_t2_wrb(0x53c, 0x6f);
+
+					if (tps_coderate == 0)
+						dvbt_t2_wrb(0x5d1, 0x78);
+					else
+						dvbt_t2_wrb(0x5d1, 0x60);
+
+					dvbt_t2_wrb(0x805, 0x03);
+				}
+			}
+		} else {
+			if ((dvbt_t2_rdb(0x2901) & 0x20) == 0x20) {
+				dvbt_t2_wrb(0x15d6, 0x50);
+				dvbt_t2_wrb(0x805, 0x01);
+			}
+		}
 	}
 
 	if (ilock && ts_fifo_cnt < 4)
