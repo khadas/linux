@@ -781,12 +781,18 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	pheader->pts_dts_flag = last_header[2] & 0xF;
 	pheader->dts = last_header[3] & 0x1;
 	pheader->dts <<= 32;
-	pheader->dts |= last_header[11] << 24
-	    | last_header[10] << 16 | last_header[9] << 8 | last_header[8];
+	pheader->dts |= ((__u64)last_header[11]) << 24
+	    | ((__u64)last_header[10]) << 16
+	    | ((__u64)last_header[9]) << 8
+	    | ((__u64)last_header[8]);
+	pheader->dts &= 0x1FFFFFFFF;
+
 	pheader->pts = last_header[3] >> 1 & 0x1;
 	pheader->pts <<= 32;
-	pheader->pts |= last_header[15] << 24
-	    | last_header[14] << 16 | last_header[13] << 8 | last_header[12];
+	pheader->pts |= ((__u64)last_header[15]) << 24
+	    | ((__u64)last_header[14]) << 16
+	    | ((__u64)last_header[13]) << 8
+	    | ((__u64)last_header[12]);
 
 	pheader->pts &= 0x1FFFFFFFF;
 	last_es_bytes = last_header[7] << 24
