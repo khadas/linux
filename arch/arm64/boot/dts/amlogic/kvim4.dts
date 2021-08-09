@@ -1680,6 +1680,10 @@
 	uart-has-rtscts;
 };
 
+&state_led {
+	status = "okay";
+};
+
 &pwmao_ab {
 	status = "okay";
 };
