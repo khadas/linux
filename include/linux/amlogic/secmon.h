@@ -18,5 +18,7 @@ void meson_sm_mutex_lock(void);
 void meson_sm_mutex_unlock(void);
 void __iomem *get_meson_sm_input_base(void);
 void __iomem *get_meson_sm_output_base(void);
+unsigned int get_secmon_sharemem_in_size(void);
+unsigned int get_secmon_sharemem_out_size(void);
 
 #endif

@@ -34,6 +34,10 @@ static unsigned int secmon_size;
 static DEFINE_MUTEX(sharemem_mutex);
 #define DEV_REGISTERED 1
 #define DEV_UNREGISTED 0
+
+unsigned int sharemem_in_size = IN_SIZE;
+unsigned int sharemem_out_size = OUT_SIZE;
+
 static int secmon_dev_registered = DEV_UNREGISTED;
 static long get_sharemem_info(unsigned int function_id)
 {
@@ -42,6 +46,19 @@ static long get_sharemem_info(unsigned int function_id)
 	arm_smccc_smc(function_id, 0, 0, 0, 0, 0, 0, 0, &res);
 
 	return res.a0;
+}
+
+static void get_sharemem_size(unsigned int function_id)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(function_id, 1, 0, 0, 0, 0, 0, 0, &res);
+	if (res.a0 != -1)
+		sharemem_in_size =  res.a0;
+
+	arm_smccc_smc(function_id, 2, 0, 0, 0, 0, 0, 0, &res);
+	if (res.a0 != -1)
+		sharemem_out_size =  res.a0;
 }
 
 #define RESERVE_MEM_SIZE	0x300000
@@ -71,6 +88,9 @@ static int secmon_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(np, "out_base_func", &id))
 		phy_out_base = get_sharemem_info(id);
 
+	if (!of_property_read_u32(np, "inout_size_func", &id))
+		get_sharemem_size(id);
+
 	if (of_property_read_u32(np, "reserve_mem_size", &secmon_size)) {
 		pr_err("can't get reserve_mem_size, use default value\n");
 		secmon_size = RESERVE_MEM_SIZE;
@@ -95,7 +115,7 @@ static int secmon_probe(struct platform_device *pdev)
 	if (pfn_valid(__phys_to_pfn(phy_in_base)))
 		sharemem_in_base = (void __iomem *)__phys_to_virt(phy_in_base);
 	else
-		sharemem_in_base = ioremap_cache(phy_in_base, IN_SIZE);
+		sharemem_in_base = ioremap_cache(phy_in_base, sharemem_in_size);
 
 	if (!sharemem_in_base) {
 		pr_info("secmon share mem in buffer remap fail!\n");
@@ -106,7 +126,8 @@ static int secmon_probe(struct platform_device *pdev)
 		sharemem_out_base = (void __iomem *)
 				__phys_to_virt(phy_out_base);
 	else
-		sharemem_out_base = ioremap_cache(phy_out_base, OUT_SIZE);
+		sharemem_out_base = ioremap_cache(phy_out_base,
+				sharemem_out_size);
 
 	if (!sharemem_out_base) {
 		pr_info("secmon share mem out buffer remap fail!\n");
@@ -201,3 +222,15 @@ long get_secmon_phy_output_base(void)
 {
 	return phy_out_base;
 }
+
+unsigned int get_secmon_sharemem_in_size(void)
+{
+	return sharemem_in_size;
+}
+EXPORT_SYMBOL(get_secmon_sharemem_in_size);
+unsigned int get_secmon_sharemem_out_size(void)
+{
+	return sharemem_out_size;
+}
+EXPORT_SYMBOL(get_secmon_sharemem_out_size);
+
