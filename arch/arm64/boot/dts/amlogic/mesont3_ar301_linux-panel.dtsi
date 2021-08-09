@@ -532,6 +532,7 @@
 	local_dimming_device {
 		compatible = "amlogic, ldim_dev";
 		status = "okay";
+		key_valid = <0>;
 		pinctrl-names = "ldim_pwm",
 			"ldim_pwm_vs",
 			"ldim_pwm_off";
