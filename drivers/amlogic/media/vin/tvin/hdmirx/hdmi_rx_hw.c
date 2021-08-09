@@ -4417,7 +4417,9 @@ bool is_wr_only_reg(u32 addr)
 {
 	int i;
 
-	/*sizeof(wr_only_register)/sizeof(u32)*/
+	if (rx.chip_id >= CHIP_ID_T7)
+		return false;
+
 	for (i = 0; i < sizeof(wr_only_register) / sizeof(u32); i++) {
 		if (addr == wr_only_register[i])
 			return true;
@@ -4563,6 +4565,9 @@ void dump_reg(void)
 		print_reg(0x8e0, 0x8e0);
 		print_reg(0x8fc, 0x8fc);
 		print_reg(0xf60, 0xffc);
+	} else {
+		print_reg(0, 0x3ff);
+		print_reg(0x1001, 0x1f78);
 	}
 }
 

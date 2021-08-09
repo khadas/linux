@@ -24,6 +24,7 @@
 #include <linux/of_gpio.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/sound/hdmi_earc.h>
+#include <linux/sched/clock.h>
 
 /* Local include */
 #include "hdmi_rx_repeater.h"
@@ -64,6 +65,7 @@ static int err_dbg_cnt_max;
 static int aud_sr_stb_max;
 static int audio_coding_type;
 static int audio_channel_count;
+int irq_err_max = 10;
 int clk_unstable_cnt;
 static int clk_unstable_max;
 int clk_stable_cnt;
@@ -744,10 +746,12 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	//u32 rx_top_intr_stat = 0;
 	//bool irq_need_clr = 0;
 	/* clear interrupt quickly */
-
 	hdcp_2x_ecc_intr = hdmirx_rd_cor(HDCP2X_RX_ECC_INTR);
-	if (hdcp_2x_ecc_intr != 0)
+	if (hdcp_2x_ecc_intr != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("1-%x\n", hdcp_2x_ecc_intr);
 		hdmirx_wr_cor(HDCP2X_RX_ECC_INTR, hdcp_2x_ecc_intr);
+	}
 	grp_intr1 = hdmirx_rd_cor(RX_GRP_INTR1_STAT_PWD_IVCRX);
 	if (grp_intr1 != 0) {
 		if (log_level & DBG1_LOG)
@@ -755,70 +759,115 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 		hdmirx_wr_cor(RX_GRP_INTR1_STAT_PWD_IVCRX, grp_intr1);
 	}
 	intr_0 = hdmirx_rd_cor(RX_DEPACK_INTR0_DP2_IVCRX);
-	if (intr_0 != 0)
+	if (intr_0 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("3-%x\n", intr_0);
 		hdmirx_wr_cor(RX_DEPACK_INTR0_DP2_IVCRX, intr_0);
+	}
 	intr_1 = hdmirx_rd_cor(RX_DEPACK_INTR1_DP2_IVCRX);
-	if (intr_1 != 0)
+	if (intr_1 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("4-%x\n", intr_1);
 		hdmirx_wr_cor(RX_DEPACK_INTR1_DP2_IVCRX, intr_1);
+	}
 	intr_2 = hdmirx_rd_cor(RX_DEPACK_INTR2_DP2_IVCRX);
-	if (intr_2 != 0)
+	if (intr_2 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("5-%x\n", intr_2);
 		hdmirx_wr_cor(RX_DEPACK_INTR2_DP2_IVCRX, intr_2);
+	}
 	intr_3 = hdmirx_rd_cor(RX_DEPACK_INTR3_DP2_IVCRX);
-	if (intr_3 != 0)
+	if (intr_3 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("6-%x\n", intr_3);
 		hdmirx_wr_cor(RX_DEPACK_INTR3_DP2_IVCRX, intr_3);
+	}
 	intr_4 = hdmirx_rd_cor(RX_DEPACK_INTR4_DP2_IVCRX);
-	if (intr_4 != 0)
+	if (intr_4 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("7-%x\n", intr_4);
 		hdmirx_wr_cor(RX_DEPACK_INTR4_DP2_IVCRX, intr_4);
+	}
 	intr_5 = hdmirx_rd_cor(RX_DEPACK_INTR5_DP2_IVCRX);
-	if (intr_5 != 0)
+	if (intr_5 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("8-%x\n", intr_5);
 		hdmirx_wr_cor(RX_DEPACK_INTR5_DP2_IVCRX, intr_5);
+	}
 	intr_6 = hdmirx_rd_cor(RX_DEPACK_INTR6_DP2_IVCRX);
-	if (intr_6 != 0)
+	if (intr_6 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("9-%x\n", intr_6);
 		hdmirx_wr_cor(RX_DEPACK_INTR6_DP2_IVCRX, intr_6);
-
+	}
 	rx_intr_1 = hdmirx_rd_cor(RX_INTR1_PWD_IVCRX);
-	if (rx_intr_1 != 0)
+	if (rx_intr_1 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("10-%x\n", rx_intr_1);
 		hdmirx_wr_cor(RX_INTR1_PWD_IVCRX, rx_intr_1);
+	}
 	rx_intr_2 = hdmirx_rd_cor(RX_INTR2_PWD_IVCRX);
-	if (rx_intr_2 != 0)
+	if (rx_intr_2 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("11-%x\n", rx_intr_2);
 		hdmirx_wr_cor(RX_INTR2_PWD_IVCRX, rx_intr_2);
+	}
 	rx_intr_3 = hdmirx_rd_cor(RX_INTR3_PWD_IVCRX);
-	if (rx_intr_3 != 0)
+	if (rx_intr_3 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("12-%x\n", rx_intr_3);
 		hdmirx_wr_cor(RX_INTR3_PWD_IVCRX, rx_intr_3);
+	}
 	rx_intr_4 = hdmirx_rd_cor(RX_INTR4_PWD_IVCRX);
 	if (rx_intr_4 != 0) {
 		if (log_level & DBG1_LOG)
-			rx_pr("rx_intr_4-%x\n", rx_intr_4);
+			rx_pr("13-%x\n", rx_intr_4);
 		hdmirx_wr_cor(RX_INTR4_PWD_IVCRX, rx_intr_4);
 	}
 	rx_intr_5 = hdmirx_rd_cor(RX_INTR5_PWD_IVCRX);
-	if (rx_intr_5 != 0)
+	if (rx_intr_5 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("14-%x\n", rx_intr_5);
 		hdmirx_wr_cor(RX_INTR5_PWD_IVCRX, rx_intr_5);
-
+	}
 	rx_depack2_intr0 = hdmirx_rd_cor(RX_DEPACK2_INTR0_DP0B_IVCRX);
-	if (rx_depack2_intr0 != 0)
+	if (rx_depack2_intr0 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("15-%x\n", rx_depack2_intr0);
 		hdmirx_wr_cor(RX_DEPACK2_INTR0_DP0B_IVCRX, rx_depack2_intr0);
+	}
 	rx_depack2_intr1 = hdmirx_rd_cor(RX_DEPACK2_INTR1_DP0B_IVCRX);
-	if (rx_depack2_intr1 != 0)
+	if (rx_depack2_intr1 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("16-%x\n", rx_depack2_intr1);
 		hdmirx_wr_cor(RX_DEPACK2_INTR1_DP0B_IVCRX, rx_depack2_intr1);
+	}
 	rx_depack2_intr2 = hdmirx_rd_cor(RX_DEPACK2_INTR2_DP0B_IVCRX);
-	if (rx_depack2_intr2 != 0)
+	if (rx_depack2_intr2 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("17-%x\n", rx_depack2_intr2);
 		hdmirx_wr_cor(RX_DEPACK2_INTR2_DP0B_IVCRX, rx_depack2_intr2);
-
+	}
 	//hdcp1x
 	rx_hdcp1x_intr0 = hdmirx_rd_cor(RX_HDCP1X_INTR0_HDCP1X_IVCRX);
-	if (rx_hdcp1x_intr0 != 0)
+	if (rx_hdcp1x_intr0 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("18-%x\n", rx_hdcp1x_intr0);
 		hdmirx_wr_cor(RX_HDCP1X_INTR0_HDCP1X_IVCRX, rx_hdcp1x_intr0);
-
+	}
 	//hdcp2x
 	rx_hdcp2x_intr0 = hdmirx_rd_cor(CP2PAX_INTR0_HDCP2X_IVCRX);
-	if (rx_hdcp2x_intr0 != 0)
+	if (rx_hdcp2x_intr0 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("19-%x\n", rx_hdcp2x_intr0);
 		hdmirx_wr_cor(CP2PAX_INTR0_HDCP2X_IVCRX, rx_hdcp2x_intr0);
-
+	}
 	rx_hdcp2x_intr1 = hdmirx_rd_cor(CP2PAX_INTR1_HDCP2X_IVCRX);
-	if (rx_hdcp2x_intr1 != 0)
+	if (rx_hdcp2x_intr1 != 0) {
+		if (log_level & DBG1_LOG)
+			rx_pr("20-%x\n", rx_hdcp2x_intr1);
 		hdmirx_wr_cor(CP2PAX_INTR1_HDCP2X_IVCRX, rx_hdcp2x_intr1);
-
+	}
 	if (rx_hdcp1x_intr0) {
 		if (log_level & IRQ_LOG)
 			rx_pr("irq_hdcp1-%x\n", rx_hdcp1x_intr0);
@@ -917,13 +966,28 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 
 irqreturn_t irq_handler(int irq, void *params)
 {
+	unsigned long hdmirx_top_intr_stat;
+	unsigned long long cur_clks, irq_duration;
+	static unsigned long long last_clks;
+	static u32 irq_err_cnt;
 	int error = 0;
 	u8 tmp = 0;
-	unsigned long hdmirx_top_intr_stat;
-	static u32 pre_ms, cur_ms;
-	static u32 err_vsync;
-	//u8 hdcp_2x_ecc_intr;
 
+	cur_clks = sched_clock();
+	irq_duration = cur_clks - last_clks;
+	last_clks = cur_clks;
+	if (log_level & DBG1_LOG) {
+		if (irq_duration <= 1000000) {
+			rx_pr("!:%ld\n", irq_duration);
+			irq_err_cnt++;
+		} else {
+			irq_err_cnt = 0;
+		}
+		if (irq_err_cnt >= irq_err_max) {
+			log_level &= ~DBG1_LOG;
+			irq_err_cnt = 0;
+		}
+	}
 	if (params == 0) {
 		rx_pr("%s: %s\n", __func__,
 		      "RX IRQ invalid parameter");
@@ -998,35 +1062,6 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 				}
 				rx_update_sig_info();
 			}
-			cur_ms = jiffies_to_msecs(jiffies);
-			if (cur_ms - pre_ms <= 3)
-				err_vsync++;
-			else
-				err_vsync = 0;
-			pre_ms = cur_ms;
-			if (err_vsync >= vsync_err_cnt_max) {
-				if (rx.state >= FSM_SIG_STABLE) {
-					rx.state = FSM_SIG_WAIT_STABLE;
-					rx_pr("vsync!\n");
-					err_vsync = 0;
-					hdmirx_output_en(false);
-					hdmirx_top_irq_en(false);
-				}
-			}
-			//hdcp_2x_ecc_intr = hdmirx_rd_cor(HDCP2X_RX_ECC_INTR);
-			//if (hdcp_2x_ecc_intr != 0) {
-				//hdmirx_wr_cor(HDCP2X_RX_ECC_INTR, hdcp_2x_ecc_intr);
-				//if (log_level & IRQ_LOG)
-					//rx_pr("ecc_err-%x\n", hdcp_2x_ecc_intr);
-				////if (hdcp22_auth_sts == HDCP22_AUTH_STATE_SUCCESS)  {
-				////if (rx.cur.hdcp22_state == 3) {
-				//if (hdcp22_reauth_enable) {
-					//rx_hdcp_22_sent_reauth();
-					//if (rx.state >= FSM_SIG_STABLE)
-						//rx.state = FSM_SIG_WAIT_STABLE;
-				//}
-				////}
-			//}
 			if (log_level & 0x400)
 				rx_pr("[isr] DE rise.\n");
 		}
@@ -1867,7 +1902,7 @@ void rx_dwc_reset(void)
 	if (log_level & VIDEO_LOG)
 		rx_pr("%s-%d.\n", __func__, rst_lvl);
 	rx_sw_reset(rst_lvl);
-	rx_irq_en(true);
+	//rx_irq_en(true);
 	/* for hdcp1.4 interact very early cases, don't do
 	 * esm reset to avoid interaction be interferenced.
 	 */
@@ -2131,7 +2166,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(pwr_sts_to_esm, i++);
 	pr_var(log_level, i++);
 	pr_var(rx5v_debug_en, i++);
-	pr_var(clk_unstable_cnt, i++);
+	pr_var(irq_err_max, i++);
 	pr_var(clk_unstable_max, i++);
 	pr_var(clk_stable_cnt, i++);
 	pr_var(clk_stable_max, i++);
@@ -2319,8 +2354,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(pwr_sts_to_esm, index);
 	if (set_pr_var(tmpbuf, var_to_str(rx5v_debug_en), &rx5v_debug_en, value))
 		return pr_var(rx5v_debug_en, index);
-	if (set_pr_var(tmpbuf, var_to_str(clk_unstable_cnt), &clk_unstable_cnt, value))
-		return pr_var(clk_unstable_cnt, index);
+	if (set_pr_var(tmpbuf, var_to_str(irq_err_max), &irq_err_max, value))
+		return pr_var(irq_err_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(clk_unstable_max), &clk_unstable_max, value))
 		return pr_var(clk_unstable_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(clk_stable_cnt), &clk_stable_cnt, value))
@@ -2619,6 +2654,7 @@ void hdmirx_close_port(void)
 	/* when exit hdmi, disable termination & hpd of specific port */
 	if (disable_port_en)
 		rx_set_port_hpd(disable_port_num, 0);
+	hdmirx_top_irq_en(false);
 	/* extcon_set_state_sync(rx.rx_excton_open, EXTCON_DISP_HDMI, 0); */
 	/* after port close, stop count DE/AVI infoframe */
 	rx.var.de_stable = false;
@@ -3156,7 +3192,8 @@ void rx_main_state_machine(void)
 			/* need to clr to none, for dishNXT box */
 			rx.hdcp.hdcp_version = HDCP_VER_NONE;
 			//rx_sw_reset(2);
-			hdmirx_output_en(true);
+			hdmirx_top_irq_en(false);
+			hdmirx_output_en(false);
 			hdmirx_hbr2spdif(0);
 			rx.state = FSM_WAIT_CLK_STABLE;
 			vic_check_en = false;
@@ -3199,7 +3236,8 @@ void rx_main_state_machine(void)
 				/* need to clr to none, for dishNXT box */
 				rx.hdcp.hdcp_version = HDCP_VER_NONE;
 				//rx_sw_reset(2);
-				hdmirx_output_en(true);
+				hdmirx_top_irq_en(false);
+				hdmirx_output_en(false);
 				hdmirx_hbr2spdif(0);
 				rx.state = FSM_WAIT_CLK_STABLE;
 				vic_check_en = false;
@@ -3882,6 +3920,7 @@ void rx_hpd_monitor(void)
 		hpd_wait_cnt2 = 0;
 	}
 }
+
 void hdmirx_timer_handler(struct timer_list *t)
 {
 	struct hdmirx_dev_s *devp = from_timer(devp, t, timer);

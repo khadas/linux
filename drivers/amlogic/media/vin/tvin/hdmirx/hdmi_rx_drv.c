@@ -3117,7 +3117,7 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 
 	hdevp = platform_get_drvdata(pdev);
 	del_timer_sync(&hdevp->timer);
-	rx_irq_en(false);
+	hdmirx_top_irq_en(false);
 	hdmirx_output_en(false);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	/* if early suspend not called, need to pw down phy here */
