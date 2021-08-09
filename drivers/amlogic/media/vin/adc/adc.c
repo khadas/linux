@@ -827,6 +827,8 @@ void adc_pll_down(void)
 		return;
 	struct adc_pll_reg_addr *pll_addr = &adc_devp->plat_data->pll_addr;
 
+	pr_info("adc: %s\n", __func__);
+
 	if (!adc_devp->pll_flg && is_meson_tl1_cpu() &&
 	    adc_rd_hiu_bits(pll_addr->adc_pll_cntl_0, 28, 1)) {
 		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0, 0, 28, 1);
@@ -892,6 +894,9 @@ static void adc_dump_regs(void)
 	struct adc_reg_addr *adc_addr = &adc_devp->plat_data->adc_addr;
 	struct adc_pll_reg_addr *pll_addr = &adc_devp->plat_data->pll_addr;
 
+	if (adc_devp)
+		pr_info("pll_flag=0x%x\n", adc_devp->pll_flg);
+
 	pr_info("AFE_VAFE_CTRL0:0x%x\n", adc_rd_afe(AFE_VAFE_CTRL0));
 	pr_info("AFE_VAFE_CTRL1:0x%x\n", adc_rd_afe(AFE_VAFE_CTRL1));
 	pr_info("AFE_VAFE_CTRL2:0x%x\n", adc_rd_afe(AFE_VAFE_CTRL2));
@@ -905,6 +910,8 @@ static void adc_dump_regs(void)
 		adc_rd_hiu(adc_addr->dadc_cntl_4));
 	pr_info("HHI_S2_DADC_CNTL(0x%x):0x%x\n", adc_addr->s2_dadc_cntl,
 		adc_rd_hiu(adc_addr->s2_dadc_cntl));
+	pr_info("HHI_S2_DADC_CNTL2(0x%x):0x%x\n", adc_addr->s2_dadc_cntl_2,
+		adc_rd_hiu(adc_addr->s2_dadc_cntl_2));
 	pr_info("HHI_ADC_PLL_CNTL0(0x%x):0x%x\n", pll_addr->adc_pll_cntl_0,
 		adc_rd_hiu(pll_addr->adc_pll_cntl_0));
 	pr_info("HHI_ADC_PLL_CNTL1(0x%x):0x%x\n", pll_addr->adc_pll_cntl_1,
@@ -921,6 +928,9 @@ static void adc_dump_regs(void)
 		adc_rd_hiu(pll_addr->adc_pll_cntl_6));
 	pr_info("HHI_VDAC_CNTL0(0x%x):0x%x\n", adc_addr->vdac_cntl_0,
 		adc_rd_hiu(adc_addr->vdac_cntl_0));
+
+	pr_info("HHI_VDAC_CNTL1_T5(0x%x):0x%x\n", HHI_VDAC_CNTL1_T5,
+		adc_rd_hiu(HHI_VDAC_CNTL1_T5));
 }
 
 static ssize_t adc_store(struct device *dev, struct device_attribute *attr,
@@ -938,6 +948,8 @@ static ssize_t adc_store(struct device *dev, struct device_attribute *attr,
 
 	if (parm[0] && !strcmp(parm[0], "state")) {
 		pr_info("adc state\n");
+	} else if (parm[0] && !strcmp(parm[0], "down")) {
+		adc_pll_down();
 	} else if (parm[0] && !strcmp(parm[0], "dump_reg")) {
 		adc_dump_regs();
 	} else if (parm[0] && !strcmp(parm[0], "debug")) {
@@ -978,25 +990,6 @@ static struct class adc_class = {
 	.name = ADC_DEV_NAME,
 	.devnode = adc_class_devnode,
 };
-
-static int adc_pm_prepare(struct device *dev)
-{
-	return 0;
-}
-
-static void adc_pm_complete(struct device *dev)
-{
-}
-
-static int adc_suspend_noirq(struct device *dev)
-{
-	return 0;
-}
-
-static int adc_resume_noirq(struct device *dev)
-{
-	return 0;
-}
 
 static int adc_open(struct inode *inode, struct file *file)
 {
@@ -1072,10 +1065,17 @@ static int adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int adc_suspend(struct platform_device *pdev,
-		       pm_message_t state)
+static void adc_shutdown(struct platform_device *pdev)
 {
+	adc_pll_down();
+	pr_info("adc: %s\n", __func__);
+}
+
+#ifdef CONFIG_PM
+static int adc_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	adc_pll_down();
+	pr_info("adc: %s\n", __func__);
 	return 0;
 }
 
@@ -1084,13 +1084,6 @@ static int adc_resume(struct platform_device *pdev)
 	return 0;
 }
 #endif
-
-static const struct dev_pm_ops adc_pm = {
-	.prepare  = adc_pm_prepare,
-	.complete = adc_pm_complete,
-	.suspend_noirq = adc_suspend_noirq,
-	.resume_noirq = adc_resume_noirq,
-};
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct adc_platform_data_s adc_data_txl = {
@@ -1296,16 +1289,13 @@ static struct platform_driver adc_driver = {
 	.driver = {
 		.name  = "tvinadc",
 		.owner = THIS_MODULE,
-	#ifdef CONFIG_PM
-		.pm = &adc_pm,
-	#endif
 	#ifdef CONFIG_OF
 		.of_match_table = adc_dt_match,
 	#endif
 	},
 	.probe  = adc_probe,
 	.remove = adc_remove,
-
+	.shutdown = adc_shutdown,
 #ifdef CONFIG_PM
 	.suspend = adc_suspend,
 	.resume  = adc_resume,

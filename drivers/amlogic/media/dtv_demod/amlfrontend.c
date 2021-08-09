@@ -4845,10 +4845,6 @@ static void aml_dtvdemod_shutdown(struct platform_device *pdev)
 
 	devp->state = DTVDEMOD_ST_IDLE;
 
-#ifdef CONFIG_AMLOGIC_MEDIA_ADC
-	adc_pll_down();
-#endif
-
 	mutex_unlock(&amldtvdemod_device_mutex);
 }
 
@@ -4916,10 +4912,6 @@ static __maybe_unused int dtv_demod_pm_suspend(struct device *dev)
 			(struct amldtvdemod_device_s *)platform_get_drvdata(pdev);
 
 	ret = dtvdemod_leave_mode(devp);
-
-#ifdef CONFIG_AMLOGIC_MEDIA_ADC
-	adc_pll_down();
-#endif
 
 	PR_INFO("%s ret %d, OK.\n", __func__, ret);
 

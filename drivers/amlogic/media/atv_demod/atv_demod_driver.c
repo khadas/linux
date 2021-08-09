@@ -807,9 +807,6 @@ static void aml_atvdemod_shutdown(struct platform_device *pdev)
 	struct aml_atvdemod_device *dev = platform_get_drvdata(pdev);
 
 	v4l2_frontend_shutdown(&dev->v4l2_fe);
-#ifdef CONFIG_AMLOGIC_MEDIA_ADC
-	adc_pll_down();
-#endif
 
 	pr_info("%s: OK.\n", __func__);
 }

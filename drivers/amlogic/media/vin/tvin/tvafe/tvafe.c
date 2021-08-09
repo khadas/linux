@@ -1988,10 +1988,6 @@ static void tvafe_drv_shutdown(struct platform_device *pdev)
 		W_APB_BIT(TVFE_VAFE_CTRL0, 0, 19, 1);
 		W_APB_BIT(TVFE_VAFE_CTRL1, 0, 8, 1);
 	}
-
-#ifdef CONFIG_AMLOGIC_MEDIA_ADC
-	adc_pll_down();
-#endif
 	tvafe_pr_info("%s: tvafe sutdown ok.\n", __func__);
 }
 
