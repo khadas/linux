@@ -10,6 +10,7 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
 #include <linux/amlogic/media/vout/hdmi_tx/meson_drm_hdmitx.h>
+#include <media/cec-notifier.h>
 
 enum {
 	HDCP_STATE_START = 0,
@@ -46,6 +47,9 @@ struct am_hdmi_tx {
 	 *colorspace/colordepth from sysfs.
 	 */
 	struct drm_property *update_attr_prop;
+#ifdef CONFIG_CEC_NOTIFIER
+	struct cec_notifier	*cec_notifier;
+#endif
 };
 
 struct am_hdmitx_connector_state {

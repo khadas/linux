@@ -5,8 +5,12 @@
 
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
+#ifdef CONFIG_AMLOGIC_HDMITX
+#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
+#endif
+#include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2021/07/10: transfer cec wakeup msg to uplayer"
+#define CEC_DRIVER_VERSION     "2021/07/30: add linux std cec framework"
 
 #define CEC_DEV_NAME		"cec"
 
@@ -19,6 +23,10 @@
 #define HR_DELAY(n)		(ktime_set(0, (n) * 1000 * 1000))
 
 #define MAX_INT				0x7ffffff
+
+/* cec driver function config */
+#define CEC_FREEZE_WAKE_UP
+#define CEC_MAIL_BOX
 
 enum cec_chip_ver {
 	CEC_CHIP_GXL = 0,
@@ -104,6 +112,7 @@ enum {
 #define CEC_B_ARB_TIME 8
 
 #define CEC_MSG_BUFF_MAX	30
+#define PHY_ADDR_LEN 4
 
 struct cec_platform_data_s {
 	enum cec_chip_ver chip_id;
@@ -659,30 +668,7 @@ void wr_reg_hhi(unsigned int offset, unsigned int val)
 }
 
 #endif
-
-int hdmirx_get_connect_info(void);
-
-unsigned int aocec_rd_reg(unsigned long addr);
-void aocec_wr_reg(unsigned long addr, unsigned long data);
 void cecb_irq_handle(void);
-void cec_logicaddr_set(int l_add);
-void cec_arbit_bit_time_set(u32 bit_set, u32 time_set, u32 flag);
-void cec_irq_enable(bool enable);
-void aocec_irq_enable(bool enable);
-void dump_reg(void);
-void cec_status(void);
-void cec_hw_reset(u32 cec_sel);
-void cec_restore_logical_addr(u32 cec_sel, u32 addr_en);
-void cec_logicaddr_add(u32  cec_sel, u32 l_add);
-int dump_cecrx_reg(char *b);
-void cec_clear_all_logical_addr(unsigned int cec_sel);
-void cec_ap_add_logical_addr(u32 l_addr);
-void cec_ap_set_dev_type(u32 type);
-void cec_ap_rm_logical_addr(u32 addr);
-void cec_new_msg_push(void);
-unsigned int cec_config2_phyaddr(unsigned int value, bool wr_flag);
-unsigned int cec_config2_logaddr(unsigned int value, bool wr_flag);
-unsigned int cec_config2_devtype(unsigned int value, bool wr_flag);
-unsigned int cec_config(unsigned int value, bool wr_flag);
+int cec_ll_tx(const unsigned char *msg, unsigned char len);
 
 #endif	/* __AO_CEC_H__ */
