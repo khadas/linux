@@ -1819,7 +1819,7 @@ atomic_t video_prop_change = ATOMIC_INIT(0);
 atomic_t status_changed = ATOMIC_INIT(0);
 atomic_t axis_changed = ATOMIC_INIT(0);
 atomic_t video_unreg_flag = ATOMIC_INIT(0);
-atomic_t vt_unreg_flag = ATOMIC_INIT(1);
+atomic_t vt_unreg_flag = ATOMIC_INIT(0);
 atomic_t vt_disable_video_done = ATOMIC_INIT(0);
 atomic_t video_inirq_flag = ATOMIC_INIT(0);
 atomic_t video_pause_flag = ATOMIC_INIT(0);
@@ -15024,6 +15024,15 @@ static ssize_t blend_conflict_show(struct class *cla,
 	return sprintf(buf, "blend_conflict_cnt: %d\n", blend_conflict_cnt);
 }
 
+static ssize_t force_disable_show(struct class *cla,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "force_disable: %d %d %d\n",
+		vd_layer[0].force_disable ? 1 : 0,
+		vd_layer[1].force_disable ? 1 : 0,
+		vd_layer[2].force_disable ? 1 : 0);
+}
+
 static ssize_t vd1_vd2_mux_show(struct class *cla,
 				struct class_attribute *attr,
 				char *buf)
@@ -15703,6 +15712,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       vd_attach_vpp_show,
 	       vd_attach_vpp_store),
 	__ATTR_RO(blend_conflict),
+	__ATTR_RO(force_disable),
 	__ATTR(enable_hdmi_delay_normal_check,
 	       0664,
 	       enable_hdmi_delay_check_show,
