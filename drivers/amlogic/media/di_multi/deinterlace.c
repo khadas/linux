@@ -10050,8 +10050,7 @@ static void di_pre_size_change(unsigned short width,
 			DIM_RDMA_WR(MCDI_FIELD_MV, 0);
 		}
 	}
-	if (channel == 0 ||
-	    (channel == 1 && !get_reg_flag(0)))
+	if (get_reg_flag_all())
 		di_load_pq_table();
 
 	if (de_devp->nrds_enable)
