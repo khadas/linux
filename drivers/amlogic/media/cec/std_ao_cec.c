@@ -57,9 +57,13 @@ static struct early_suspend aocec_suspend_handler;
 #include "hdmi_tx_cec_20.h"
 #include "hdmi_ao_cec.h"
 #include "hdmi_aocec_api.h"
+#include <media/cec.h>
+#include <media/cec-notifier.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 #include "../vin/tvin/hdmirx/hdmi_rx_drv_ext.h"
 #endif
+
+#define STD_CEC_NAME "std_cec"
 
 DECLARE_WAIT_QUEUE_HEAD(cec_msg_wait_queue);
 
@@ -80,9 +84,21 @@ static unsigned char rx_msg[MAX_MSG];
 static unsigned char rx_len;
 static unsigned int  new_msg;
 static bool pin_status;
+
+struct st_ao_cec {
+#ifdef CONFIG_CEC_NOTIFIER
+	struct cec_notifier *tx_notify;
+#endif
+	struct cec_adapter *adap;
+	struct cec_msg rx_msg;
+	u8 tx_result;
+	struct work_struct work_cec_tx;
+};
+
+static struct st_ao_cec std_ao_cec;
+
 static void cec_store_msg_to_buff(unsigned char len, unsigned char *msg);
 static void cec_new_msg_push(void);
-static void cec_stored_msg_push(void);
 
 #ifdef CONFIG_AMLOGIC_HDMITX
 static int hdmitx_notify_callback(struct notifier_block *block,
@@ -183,16 +199,8 @@ void cecb_irq_handle(void)
 		cec_tx_result = CEC_FAIL_NONE;
 		dprintk(L_2, "irqflg:TX_DONE\n");
 		complete(&cec_dev->tx_ok);
-	}
-	lock = hdmirx_cec_read(DWC_CEC_LOCK);
-	/* EOM irq, message is coming */
-	if ((intr_cec & CEC_IRQ_RX_EOM) || lock) {
-		cecb_pick_msg(rx_msg, &rx_len);
-		dprintk(L_2, "irqflg:RX_EOM\n");
-		cec_store_msg_to_buff(rx_len, rx_msg);
-		cec_new_msg_push();
-		dwork = &cec_dev->cec_work;
-		mod_delayed_work(cec_dev->cec_thread, dwork, 0);
+		std_ao_cec.tx_result = CEC_TX_STATUS_OK;
+		schedule_work(&std_ao_cec.work_cec_tx);
 	}
 
 	/* TX error irq flags */
@@ -202,20 +210,46 @@ void cecb_irq_handle(void)
 		if (intr_cec & CEC_IRQ_TX_NACK) {
 			cec_tx_result = CEC_FAIL_NACK;
 			dprintk(L_2, "irqflg:TX_NACK\n");
+			std_ao_cec.tx_result = CEC_TX_STATUS_NACK;
+			schedule_work(&std_ao_cec.work_cec_tx);
 		} else if (intr_cec & CEC_IRQ_TX_ARB_LOST) {
 			cec_tx_result = CEC_FAIL_BUSY;
 			/* clear start */
 			hdmirx_cec_write(DWC_CEC_TX_CNT, 0);
 			hdmirx_set_bits_dwc(DWC_CEC_CTRL, 0, 0, 3);
 			dprintk(L_2, "irqflg:ARB_LOST\n");
+			std_ao_cec.tx_result = CEC_TX_STATUS_ARB_LOST;
+			schedule_work(&std_ao_cec.work_cec_tx);
 		} else if (intr_cec & CEC_IRQ_TX_ERR_INITIATOR) {
 			dprintk(L_2, "irqflg:INITIATOR\n");
 			cec_tx_result = CEC_FAIL_OTHER;
+			std_ao_cec.tx_result = CEC_TX_STATUS_ERROR;
+			schedule_work(&std_ao_cec.work_cec_tx);
 		} else {
 			dprintk(L_2, "irqflg:Other\n");
 			cec_tx_result = CEC_FAIL_OTHER;
+			std_ao_cec.tx_result = CEC_TX_STATUS_ERROR;
+			schedule_work(&std_ao_cec.work_cec_tx);
 		}
 		complete(&cec_dev->tx_ok);
+	}
+
+	/* The CEC driver should always process the transmit
+	 * interrupts first before handling the receive
+	 * interrupt. The framework expects to see the
+	 * cec_transmit_done call before the cec_received_msg
+	 * call, otherwise it can get confused if the received
+	 * message was in reply to the transmitted message.
+	 */
+	lock = hdmirx_cec_read(DWC_CEC_LOCK);
+	/* EOM irq, message is coming */
+	if ((intr_cec & CEC_IRQ_RX_EOM) || lock) {
+		cecb_pick_msg(rx_msg, &rx_len);
+		dprintk(L_2, "irqflg:RX_EOM\n");
+		cec_store_msg_to_buff(rx_len, rx_msg);
+		cec_new_msg_push();
+		dwork = &cec_dev->cec_work;
+		mod_delayed_work(cec_dev->cec_thread, dwork, 0);
 	}
 
 	/* RX error irq flag */
@@ -289,6 +323,10 @@ static int ceca_rx_irq_handle(unsigned char *msg, unsigned char *len)
 		/*CEC_INFO("discard msg\n");*/
 		return -1;
 	}
+	std_ao_cec.rx_msg.len = *len;
+	if (std_ao_cec.rx_msg.len <= CEC_MAX_MSG_SIZE)
+		memcpy(std_ao_cec.rx_msg.msg, msg, std_ao_cec.rx_msg.len);
+	cec_received_msg(std_ao_cec.adap, &std_ao_cec.rx_msg);
 
 	return ret;
 }
@@ -302,11 +340,15 @@ static void ceca_tx_irq_handle(void)
 	case TX_DONE:
 		aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
 		cec_tx_result = CEC_FAIL_NONE;
+		std_ao_cec.tx_result = CEC_TX_STATUS_OK;
+		schedule_work(&std_ao_cec.work_cec_tx);
 		break;
 
 	case TX_BUSY:
 		CEC_ERR("TX_BUSY\n");
 		cec_tx_result = CEC_FAIL_BUSY;
+		std_ao_cec.tx_result = CEC_TX_STATUS_ARB_LOST;
+		schedule_work(&std_ao_cec.work_cec_tx);
 		break;
 
 	case TX_ERROR:
@@ -317,11 +359,15 @@ static void ceca_tx_irq_handle(void)
 			cec_restore_logical_addr(CEC_A,
 						 cec_dev->cec_info.addr_enable);
 		cec_tx_result = CEC_FAIL_NACK;
+		std_ao_cec.tx_result = CEC_TX_STATUS_NACK;
+		schedule_work(&std_ao_cec.work_cec_tx);
 		break;
 
 	case TX_IDLE:
 		CEC_ERR("TX_IDLE\n");
 		cec_tx_result = CEC_FAIL_OTHER;
+		std_ao_cec.tx_result = CEC_TX_STATUS_ERROR;
+		schedule_work(&std_ao_cec.work_cec_tx);
 		break;
 	default:
 		break;
@@ -545,15 +591,6 @@ static void cec_new_msg_push(void)
 		/* uevent to notify cec msg received */
 		queue_delayed_work(cec_dev->cec_rx_event_wq,
 				   &cec_dev->work_cec_rx, 0);
-	}
-}
-
-static void cec_stored_msg_push(void)
-{
-	if (cec_config(0, 0) & CEC_FUNC_CFG_CEC_ON) {
-		wake_up(&cec_msg_wait_queue);
-		queue_delayed_work(cec_dev->cec_rx_event_wq,
-				   &cec_dev->work_cec_rx, CEC_NOTIFY_DELAY);
 	}
 }
 
@@ -1115,10 +1152,44 @@ static ssize_t cmdb_store(struct class *cla, struct class_attribute *attr,
 	return count;
 }
 
+/* extracted wakeup info for TV */
 static ssize_t wake_up_show(struct class *cla,
 			    struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%x\n", *((unsigned int *)&cec_dev->wakup_data));
+}
+
+/* wakeup reason, 0x8 means wakeup by CEC msg */
+static ssize_t wake_up_reason_show(struct class *cla,
+			    struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%x\n", cec_dev->wakeup_reason);
+}
+
+/* primary one touch play message of wakeup */
+static ssize_t wake_up_otp_show(struct class *cla,
+			    struct class_attribute *attr, char *buf)
+{
+	unsigned char i = 0;
+	int pos = 0;
+
+	for (i = 0; i < cec_dev->cec_wk_otp_msg[0]; i++)
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"%02x\n", cec_dev->cec_wk_otp_msg[i + 1]);
+	return pos;
+}
+
+/* primary active source msg of wakeup */
+static ssize_t wake_up_as_show(struct class *cla,
+			    struct class_attribute *attr, char *buf)
+{
+	unsigned char i = 0;
+	int pos = 0;
+
+	for (i = 0; i < cec_dev->cec_wk_as_msg[0]; i++)
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"%02x\n", cec_dev->cec_wk_as_msg[i + 1]);
+	return pos;
 }
 
 static ssize_t fun_cfg_store(struct class *cla, struct class_attribute *attr,
@@ -1382,413 +1453,6 @@ static ssize_t dbg_show(struct class *cla,
 	return 0;
 }
 
-/******************** cec hal interface ***************************/
-static int hdmitx_cec_open(struct inode *inode, struct file *file)
-{
-	if (atomic_add_return(1, &cec_dev->cec_info.open_count)) {
-		cec_dev->cec_info.hal_ctl = 1;
-		/* set default logical addr flag for uboot */
-		cec_config2_logaddr(0xf, 1);
-	}
-	return 0;
-}
-
-static int hdmitx_cec_release(struct inode *inode, struct file *file)
-{
-	if (!atomic_sub_return(1, &cec_dev->cec_info.open_count))
-		cec_dev->cec_info.hal_ctl = 0;
-	return 0;
-}
-
-static ssize_t hdmitx_cec_read(struct file *f, char __user *buf,
-			       size_t size, loff_t *p)
-{
-	int ret;
-	unsigned int idx;
-	unsigned int len = 0;
-	static unsigned int store_msg_rd_idx;
-
-	if (!cec_dev)
-		return 0;
-
-	cec_dev->framework_on = 1;
-	if (cec_dev->msg_num) {
-		cec_dev->msg_num--;
-		idx = store_msg_rd_idx;
-		len = cec_dev->msgbuff[idx].len;
-		store_msg_rd_idx++;
-		if (copy_to_user(buf, &cec_dev->msgbuff[idx].msg[0], len))
-			return -EINVAL;
-		CEC_INFO("read msg from buff len=%d\n", len);
-		/* notify uplayer to read all stored msg */
-		if (cec_dev->msg_num > 0)
-			cec_stored_msg_push();
-		return len;
-	}
-	store_msg_rd_idx = 0;
-
-	/*CEC_ERR("read msg start\n");*/
-	ret = wait_for_completion_timeout(&cec_dev->rx_ok, CEC_FRAME_DELAY);
-	if (ret <= 0) {
-		/*CEC_ERR("read msg ret=0\n");*/
-		return ret;
-	}
-
-	if (rx_len == 0) {
-		/*CEC_ERR("read msg rx_len=0\n");*/
-		return 0;
-	}
-
-	/* CEC off, cec IP will receive boradcast msg
-	 * needn't transfer these msgs to cec framework
-	 * discard the msg
-	 */
-	if (!(cec_config(0, 0) & CEC_FUNC_CFG_CEC_ON)) {
-		new_msg = 0;
-		return 0;
-	}
-
-	new_msg = 0;
-	/*CEC_ERR("read msg end\n");*/
-	if (copy_to_user(buf, rx_msg, rx_len))
-		return -EINVAL;
-	/*CEC_INFO("read msg len=%d\n", rx_len);*/
-	return rx_len;
-}
-
-static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
-				size_t size, loff_t *p)
-{
-	unsigned char tempbuf[16] = {};
-	int ret = CEC_FAIL_OTHER;
-	unsigned int cec_cfg;
-
-	if (stdbgflg.hal_cmd_bypass)
-		return -EINVAL;
-
-	if (size > 16)
-		size = 16;
-	if (size <= 0)
-		return -EINVAL;
-
-	if (copy_from_user(tempbuf, buf, size))
-		return -EINVAL;
-
-	/*osd name configed in android prop file*/
-	if ((size > 0 && size < 16) && tempbuf[1] == CEC_OC_SET_OSD_NAME) {
-		memset(cec_dev->cec_info.osd_name, 0, 16);
-		memcpy(cec_dev->cec_info.osd_name, &tempbuf[2], (size - 2));
-		cec_dev->cec_info.osd_name[15] = (size - 2);
-	}
-
-	cec_cfg = cec_config(0, 0);
-	if (cec_cfg & CEC_FUNC_CFG_CEC_ON) {
-		/*cec module on*/
-		ret = cec_ll_tx(tempbuf, size);
-	}
-	return ret;
-}
-
-static long hdmitx_cec_ioctl(struct file *f,
-			     unsigned int cmd, unsigned long arg)
-{
-	void __user *argp = (void __user *)arg;
-	unsigned int tmp;
-	struct hdmi_port_info *port;
-	unsigned int a, i = 0;
-	struct st_rx_msg wk_msg;
-	/*struct hdmitx_dev *tx_dev;*/
-	/*unsigned int tx_hpd;*/
-
-	mutex_lock(&cec_dev->cec_ioctl_mutex);
-	switch (cmd) {
-	case CEC_IOC_GET_PHYSICAL_ADDR:
-		/*check_physical_addr_valid(20);*/
-		/* physical address for TV or repeator */
-		tmp = cec_get_cur_phy_addr();
-		if (cec_dev->dev_type != CEC_TV_ADDR && tmp != 0 &&
-		    tmp != 0xffff)
-			cec_dev->phy_addr = tmp;
-
-		if (!phy_addr_test) {
-			cec_config2_phyaddr(cec_dev->phy_addr, 1);
-			/*CEC_INFO("type %d, save phy_addr:0x%x\n",*/
-			/*	 (unsigned int)cec_dev->dev_type,*/
-			/*	 cec_dev->phy_addr);*/
-		} else {
-			tmp = cec_dev->phy_addr;
-		}
-
-		if (copy_to_user(argp, &cec_dev->phy_addr, _IOC_SIZE(cmd))) {
-			mutex_unlock(&cec_dev->cec_ioctl_mutex);
-			return -EINVAL;
-		}
-		break;
-
-	case CEC_IOC_GET_VERSION:
-		tmp = cec_dev->cec_info.cec_version;
-		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd))) {
-			mutex_unlock(&cec_dev->cec_ioctl_mutex);
-			return -EINVAL;
-		}
-		break;
-
-	case CEC_IOC_GET_VENDOR_ID:
-		tmp = cec_dev->cec_info.vendor_id;
-		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd))) {
-			mutex_unlock(&cec_dev->cec_ioctl_mutex);
-			return -EINVAL;
-		}
-		break;
-
-	case CEC_IOC_GET_PORT_NUM:
-		tmp = cec_dev->port_num;
-		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd))) {
-			mutex_unlock(&cec_dev->cec_ioctl_mutex);
-			return -EINVAL;
-		}
-		break;
-
-	case CEC_IOC_GET_PORT_INFO:
-		port = kcalloc(cec_dev->port_num, sizeof(*port), GFP_KERNEL);
-		if (!port) {
-			CEC_ERR("no memory\n");
-			mutex_unlock(&cec_dev->cec_ioctl_mutex);
-			return -EINVAL;
-		}
-		check_physical_addr_valid(20);	/*delay time:20 x 100ms*/
-		init_cec_port_info(port, cec_dev);
-		if (copy_to_user(argp, port, sizeof(*port) *
-				cec_dev->port_num))
-			CEC_ERR("err get port info\n");
-
-		kfree(port);
-		break;
-
-	case CEC_IOC_SET_OPTION_WAKEUP:
-		tmp = cec_config(0, 0);
-		if (arg)
-			tmp |= CEC_FUNC_CFG_AUTO_POWER_ON;
-		else
-			tmp &= ~(CEC_FUNC_CFG_AUTO_POWER_ON);
-
-		if (tmp & CEC_IOC_SET_OPTION_ENALBE_CEC) {
-			if (tmp & CEC_FUNC_CFG_AUTO_POWER_ON)
-				hdmirx_set_cec_cfg(2);
-			else
-				hdmirx_set_cec_cfg(1);
-		} else {
-			hdmirx_set_cec_cfg(0);
-		}
-
-		cec_config(tmp, 1);
-		break;
-
-	case CEC_IOC_SET_AUTO_DEVICE_OFF:
-		tmp = cec_config(0, 0);
-		if (arg)
-			tmp |= CEC_FUNC_CFG_AUTO_STANDBY;
-		else
-			tmp &= ~(CEC_FUNC_CFG_AUTO_STANDBY);
-		cec_config(tmp, 1);
-		break;
-
-	case CEC_IOC_SET_OPTION_ENALBE_CEC:
-		a = cec_config(0, 0);
-		if (arg)
-			a |= CEC_FUNC_CFG_CEC_ON;
-		else
-			a &= ~(CEC_FUNC_CFG_CEC_ON);
-
-		if (a & CEC_IOC_SET_OPTION_ENALBE_CEC) {
-			if (a & CEC_FUNC_CFG_AUTO_POWER_ON)
-				hdmirx_set_cec_cfg(2);
-			else
-				hdmirx_set_cec_cfg(1);
-		} else {
-			hdmirx_set_cec_cfg(0);
-		}
-
-		cec_config(a, 1);
-
-		tmp = (1 << HDMI_OPTION_ENABLE_CEC);
-		if (arg) {
-			cec_dev->hal_flag |= tmp;
-			cec_pre_init();
-		} else {
-			cec_dev->hal_flag &= ~(tmp);
-			/*CEC_INFO("disable CEC\n");*/
-			/*cec_keep_reset();*/
-			cec_clear_all_logical_addr(ee_cec);
-		}
-		break;
-
-	case CEC_IOC_SET_OPTION_SYS_CTRL:
-		tmp = (1 << HDMI_OPTION_SYSTEM_CEC_CONTROL);
-		/* now framework ready to handle msg, if there's
-		 * any msg received or stored, notify framework
-		 * to read, including CEC wakeup msg
-		 */
-		if (arg) {
-			cec_dev->hal_flag |= tmp;
-			if (new_msg || cec_dev->msg_num > 0)
-				cec_stored_msg_push();
-			CEC_ERR("CEC framework ctrl enabled\n");
-		} else {
-			cec_dev->hal_flag &= ~(tmp);
-			CEC_ERR("CEC framework ctrl disabled\n");
-		}
-
-		cec_dev->hal_flag |= (1 << HDMI_OPTION_SERVICE_FLAG);
-		break;
-
-	case CEC_IOC_SET_OPTION_SET_LANG:
-		cec_dev->cec_info.menu_lang = arg;
-		break;
-
-	case CEC_IOC_GET_CONNECT_STATUS:
-		if (copy_from_user(&a, argp, _IOC_SIZE(cmd))) {
-			mutex_unlock(&cec_dev->cec_ioctl_mutex);
-			return -EINVAL;
-		}
-
-		/* mixed for rx & tx */
-		/* a is current port idx, 0: tx device */
-		if (a != 0) {
-			tmp = hdmirx_get_connect_info() & 0xF;
-			for (i = 0; i < CEC_PHY_PORT_NUM; i++) {
-				if (((cec_dev->port_seq >> i * 4) & 0xF) == a)
-					break;
-			}
-			dprintk(L_3, "phy port:%d, ui port:%d\n", i, a);
-
-			if ((tmp & (1 << i)) && a != 0xF)
-				tmp = 1;
-			else
-				tmp = 0;
-		} else {
-			tmp = cec_dev->tx_dev->hpd_state;
-		}
-		/*CEC_ERR("port id:%d, sts:%d\n", a, tmp);*/
-		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd))) {
-			mutex_unlock(&cec_dev->cec_ioctl_mutex);
-			return -EINVAL;
-		}
-		break;
-
-	case CEC_IOC_ADD_LOGICAL_ADDR:
-		cec_ap_add_logical_addr(arg & 0xf);
-		break;
-
-	case CEC_IOC_CLR_LOGICAL_ADDR:
-		cec_ap_clear_logical_addr();
-		break;
-
-	case CEC_IOC_SET_DEV_TYPE:
-		cec_ap_set_dev_type(arg);
-		cec_config2_devtype(cec_dev->dev_type, 1);
-		break;
-
-	case CEC_IOC_SET_ARC_ENABLE:
-		/*CEC_INFO("Ioc set arc pin\n");*/
-		cec_enable_arc_pin(arg);
-		break;
-
-	case CEC_IOC_GET_BOOT_ADDR:
-		tmp = (cec_dev->wakup_data.wk_logic_addr << 16) |
-				cec_dev->wakup_data.wk_phy_addr;
-		CEC_ERR("Boot addr:%#x\n", (unsigned int)tmp);
-		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd))) {
-			mutex_unlock(&cec_dev->cec_ioctl_mutex);
-			return -EINVAL;
-		}
-		break;
-
-	case CEC_IOC_GET_BOOT_REASON:
-		tmp = cec_dev->wakeup_reason;
-		/*CEC_ERR("Boot reason:%#x\n", (unsigned int)tmp);*/
-		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd))) {
-			mutex_unlock(&cec_dev->cec_ioctl_mutex);
-			return -EINVAL;
-		}
-		break;
-
-	case CEC_IOC_SET_FREEZE_MODE:
-		/* system enter power down freeze mode
-		 * need save current device type and logical addr
-		 */
-		cec_save_pre_setting();
-		/*CEC_ERR("need enter freeze mode\n");*/
-		break;
-
-	case CEC_IOC_GET_BOOT_PORT:
-		tmp = cec_dev->wakup_data.wk_port_id;
-		/*CEC_ERR("Boot port:%#x\n", (unsigned int)tmp);*/
-		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd))) {
-			mutex_unlock(&cec_dev->cec_ioctl_mutex);
-			return -EINVAL;
-		}
-		break;
-	case CEC_IOC_SET_DEBUG_EN:
-		cec_msg_dbg_en = arg & 0xff;
-		break;
-	case CEC_IOC_GET_WK_OTP_MSG:
-		memset(&wk_msg, 0x0, sizeof(wk_msg));
-		wk_msg.len = cec_dev->cec_wk_otp_msg[0];
-		memcpy(wk_msg.msg, &cec_dev->cec_wk_otp_msg[1],
-		       sizeof(wk_msg.len));
-		if (copy_to_user(argp, &wk_msg, _IOC_SIZE(cmd))) {
-			mutex_unlock(&cec_dev->cec_ioctl_mutex);
-			return -EINVAL;
-		}
-		break;
-	case CEC_IOC_GET_WK_AS_MSG:
-		memset(&wk_msg, 0x0, sizeof(wk_msg));
-		wk_msg.len = cec_dev->cec_wk_as_msg[0];
-		memcpy(wk_msg.msg, &cec_dev->cec_wk_as_msg[1],
-		       sizeof(wk_msg.len));
-		if (copy_to_user(argp, &wk_msg, _IOC_SIZE(cmd))) {
-			mutex_unlock(&cec_dev->cec_ioctl_mutex);
-			return -EINVAL;
-		}
-		break;
-	case CEC_IOC_KEY_EVENT:
-		input_event(cec_dev->cec_info.remote_cec_dev, EV_KEY,
-				arg & 0xFFF, (arg >> 12) & 0x1);
-		input_sync(cec_dev->cec_info.remote_cec_dev);
-		CEC_INFO("input keyevent %lu\n", arg & 0xFFF);
-		break;
-	default:
-		CEC_ERR("error ioctrl: 0x%x\n", cmd);
-		break;
-	}
-	mutex_unlock(&cec_dev->cec_ioctl_mutex);
-	return 0;
-}
-
-#ifdef CONFIG_COMPAT
-static long hdmitx_cec_compat_ioctl(struct file *f,
-				    unsigned int cmd, unsigned long arg)
-{
-	arg = (unsigned long)compat_ptr(arg);
-	return hdmitx_cec_ioctl(f, cmd, arg);
-}
-#endif
-
-/*
- * For android framework check new message
- */
-static unsigned int cec_poll(struct file *filp, poll_table *wait)
-{
-	unsigned int mask = 0;
-
-	poll_wait(filp, &cec_msg_wait_queue, wait);
-	if (new_msg || cec_dev->msg_num > 0)
-		mask |= POLLIN | POLLRDNORM;
-
-	return mask;
-}
-
 /* for improve rw permission */
 static char *aml_cec_class_devnode(struct device *dev, umode_t *mode)
 {
@@ -1810,6 +1474,9 @@ static CLASS_ATTR_RO(pin_status);
 static CLASS_ATTR_RO(cec_version);
 static CLASS_ATTR_RO(arc_port);
 static CLASS_ATTR_RO(wake_up);
+static CLASS_ATTR_RO(wake_up_reason);
+static CLASS_ATTR_RO(wake_up_otp);
+static CLASS_ATTR_RO(wake_up_as);
 static CLASS_ATTR_RW(port_seq);
 static CLASS_ATTR_RW(physical_addr);
 static CLASS_ATTR_RW(vendor_id);
@@ -1832,6 +1499,9 @@ static struct attribute *aocec_class_attrs[] = {
 	&class_attr_cec_version.attr,
 	&class_attr_arc_port.attr,
 	&class_attr_wake_up.attr,
+	&class_attr_wake_up_reason.attr,
+	&class_attr_wake_up_otp.attr,
+	&class_attr_wake_up_as.attr,
 	&class_attr_port_seq.attr,
 	&class_attr_physical_addr.attr,
 	&class_attr_vendor_id.attr,
@@ -1850,19 +1520,6 @@ static struct class aocec_class = {
 	.owner = THIS_MODULE,
 	.class_groups = aocec_class_groups,
 	.devnode = aml_cec_class_devnode,
-};
-
-static const struct file_operations hdmitx_cec_fops = {
-	.owner          = THIS_MODULE,
-	.open           = hdmitx_cec_open,
-	.read           = hdmitx_cec_read,
-	.write          = hdmitx_cec_write,
-	.release        = hdmitx_cec_release,
-	.unlocked_ioctl = hdmitx_cec_ioctl,
-	.poll		= cec_poll,
-#ifdef CONFIG_COMPAT
-	.compat_ioctl   = hdmitx_cec_compat_ioctl,
-#endif
 };
 
 /************************ cec high level code *****************************/
@@ -1975,7 +1632,6 @@ static const struct cec_platform_data_s cec_g12b_data = {
 	.share_io = false,
 	.reg_tab_group = cec_reg_group_old,
 };
-
 
 static const struct cec_platform_data_s cec_sm1_data = {
 	.chip_id = CEC_CHIP_SM1,
@@ -2168,8 +1824,6 @@ static int __of_irq_count(struct device_node *dev)
 /* handler for both hdmitx & rx */
 static void cec_hdmi_plug_handler(struct work_struct *work)
 {
-	/* struct ao_cec_dev *pcec_dev = container_of((struct delayed_work *)work, */
-		/* struct ao_cec_dev, work_hdmitx_plug); */
 	unsigned int tmp = 0;
 
 #ifdef CONFIG_AMLOGIC_HDMITX
@@ -2184,19 +1838,154 @@ static void cec_hdmi_plug_handler(struct work_struct *work)
 
 static void cec_rx_uevent_handler(struct work_struct *work)
 {
-	/* struct ao_cec_dev *pcec_dev = container_of((struct delayed_work *)work, */
-		/* struct ao_cec_dev, work_cec_rx); */
 	/* notify framework to read cec msg */
 	cec_set_uevent(CEC_RX_MSG, 1);
 	/* clear notify */
 	cec_set_uevent(CEC_RX_MSG, 0);
+
+	std_ao_cec.rx_msg.len = rx_len;
+	if (std_ao_cec.rx_msg.len <= CEC_MAX_MSG_SIZE)
+		memcpy(std_ao_cec.rx_msg.msg, rx_msg, std_ao_cec.rx_msg.len);
+	cec_received_msg(std_ao_cec.adap, &std_ao_cec.rx_msg);
 }
 
-static int aml_cec_probe(struct platform_device *pdev)
+/* --------For CEC framework interface-------- */
+
+/* This callback enables or disables the CEC hardware.
+ * Enabling the CEC hardware means powering it up in
+ * a state where no logical addresses are claimed.
+ * This op assumes that the physical address
+ * (adap->phys_addr) is valid when enable is true
+ * and will not change while the CEC adapter remains
+ * enabled. The initial state of the CEC adapter
+ * after calling cec_allocate_adapter() is disabled.
+ */
+static int ao_cec_adap_enable(struct cec_adapter *adap, bool enable)
 {
-	struct device *cdev;
+	CEC_INFO("%s enable: %d\n", __func__, enable);
+	if (!enable) {
+		/* disable CEC HW */
+		return 0;
+	}
+	cec_hw_init();
+	return 0;
+}
+
+/* if logical_addr == CEC_LOG_ADDR_INVALID then
+ * all programmed logical addresses are to be erased.
+ * Otherwise the given logical address should be
+ * programmed. If the maximum number of available
+ * logical addresses is exceeded, then it should
+ * return -ENXIO. Once a logical address is programmed
+ * the CEC hardware can receive directed messages
+ * to that address. Note that adap_log_addr must
+ * return 0 if logical_addr is CEC_LOG_ADDR_INVALID.
+ */
+
+static int ao_cec_set_log_addr(struct cec_adapter *adap, u8 logical_addr)
+{
+	unsigned char cur_log_addr_num = 0;
+	unsigned char i = 0;
+
+	CEC_INFO("%s enable: %x\n", __func__, logical_addr);
+	for (i = 0; i < 16; i++) {
+		if (((cec_dev->cec_info.addr_enable >> i) & 0x1) == 0x1)
+			cur_log_addr_num++;
+	}
+	if (logical_addr == CEC_LOG_ADDR_INVALID) {
+		cec_ap_clear_logical_addr();
+		return 0;
+	} else if (cur_log_addr_num > MAX_LOG_ADDR_CNT) {
+		/* log_addr_num > maximum number of available */
+		CEC_ERR("exceed the maximum supportted log addr\n");
+		return -ENXIO;
+	}
+	cec_ap_add_logical_addr(logical_addr);
+	return 0;
+}
+
+static void ao_cec_tx_work(struct work_struct *work)
+{
+	struct st_ao_cec *ao_cec = container_of(work,
+			struct st_ao_cec, work_cec_tx);
+
+	cec_transmit_attempt_done(ao_cec->adap, ao_cec->tx_result);
+}
+
+/* The attempts argument is the suggested number of
+ * attempts for the transmit. The signal_free_time
+ * is the number of data bit periods that the adapter
+ * should wait when the line is free before attempting
+ * to send a message. This value depends on whether
+ * this transmit is a retry, a message from a new
+ * initiator or a new message for the same initiator.
+ * Most hardware will handle this automatically,
+ * but in some cases this information is needed.
+ * The CEC_FREE_TIME_TO_USEC macro can be used to
+ * convert signal_free_time to microseconds
+ * (one data bit period is 2.4 ms)
+ */
+static int ao_cec_transmit(struct cec_adapter *adap, u8 attempts,
+				 u32 signal_free_time, struct cec_msg *msg)
+{
+	CEC_INFO("%s\n", __func__);
+	if (!msg)
+		return -1;
+	cec_ll_tx(msg->msg, msg->len);
+
+	return 0;
+}
+
+/* This optional callback can be used to show the status
+ * of the CEC hardware. The status is available through
+ * debugfs: cat /sys/kernel/debug/cec/cecX/status
+ */
+void aml_adap_status(struct cec_adapter *adap, struct seq_file *file)
+{
+	cec_status();
+}
+
+/* To free any resources when the adapter is deleted,
+ * This optional callback can be used to free any
+ * resources that might have been allocated by
+ * the driver. It's called from cec_delete_adapter.
+ */
+void aml_adap_free(struct cec_adapter *adap)
+{
+}
+
+static const struct cec_adap_ops ao_cec_ops = {
+	/* Low-level callbacks */
+	.adap_enable = ao_cec_adap_enable,
+	.adap_log_addr = ao_cec_set_log_addr,
+	.adap_transmit = ao_cec_transmit,
+	.adap_status = aml_adap_status,
+	.adap_free = aml_adap_free,
+
+	/* Error injection callbacks */
+	/* High-level CEC message callback */
+
+	/* If the driver wants to process a CEC message,
+	 * then it can implement this callback. If it
+	 * doesn't want to handle this message, then it
+	 * should return -ENOMSG, otherwise the CEC
+	 * framework assumes it processed this message
+	 * and it will not do anything with it.
+	 */
+	/* int (*received)(struct cec_adapter *adap, struct cec_msg *msg); */
+};
+
+/* --------end of CEC framework interface-------- */
+
+static int aml_aocec_probe(struct platform_device *pdev)
+{
 	int ret = 0;
 	const struct of_device_id *of_id;
+#ifdef CONFIG_CEC_NOTIFIER
+#ifdef CONFIG_DRM_MESON_HDMI
+	struct device *hdmi_tx_dev;
+#endif
+#endif
 #ifdef CONFIG_OF
 	struct device_node *node = pdev->dev.of_node;
 	int r;
@@ -2214,7 +2003,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	}
 
 	cec_dev = devm_kzalloc(&pdev->dev, sizeof(struct ao_cec_dev),
-			       GFP_KERNEL);
+				   GFP_KERNEL);
 	if (IS_ERR(cec_dev)) {
 		dev_err(&pdev->dev, "device malloc err!\n");
 		ret = -ENOMEM;
@@ -2239,24 +2028,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto tag_cec_class_reg;
 	}
-	pdev->dev.class = &aocec_class;
-	r = register_chrdev(0, CEC_DEV_NAME,
-			    &hdmitx_cec_fops);
-	if (r < 0) {
-		CEC_ERR("alloc chrdev failed\n");
-		ret = -EINVAL;
-		goto tag_cec_chr_reg_err;
-	}
-	cec_dev->cec_info.dev_no = r;
-	/*CEC_INFO("alloc chrdev %x\n", cec_dev->cec_info.dev_no);*/
-	cdev = device_create(&aocec_class, &pdev->dev,
-			     MKDEV(cec_dev->cec_info.dev_no, 0),
-			     NULL, CEC_DEV_NAME);
-	if (IS_ERR(cdev)) {
-		CEC_ERR("create chrdev failed, dev:%p\n", cdev);
-		ret = -EINVAL;
-		goto tag_cec_device_create_err;
-	}
 
 	/*get compatible matched device, to get chip related data*/
 	of_id = of_match_device(aml_cec_dt_match, &pdev->dev);
@@ -2279,48 +2050,6 @@ static int aml_cec_probe(struct platform_device *pdev)
 	mutex_init(&cec_dev->cec_ioctl_mutex);
 	mutex_init(&cec_dev->cec_uevent_mutex);
 	spin_lock_init(&cec_dev->cec_reg_lock);
-	cec_dev->cec_info.remote_cec_dev = input_allocate_device();
-	if (!cec_dev->cec_info.remote_cec_dev) {
-		CEC_INFO("No enough memory\n");
-		ret = -ENOMEM;
-		goto tag_cec_alloc_input_err;
-	}
-
-	cec_dev->cec_info.remote_cec_dev->name = "cec_input";
-
-	cec_dev->cec_info.remote_cec_dev->evbit[0] = BIT_MASK(EV_KEY);
-	cec_dev->cec_info.remote_cec_dev->keybit[BIT_WORD(BTN_0)] =
-		BIT_MASK(BTN_0);
-	cec_dev->cec_info.remote_cec_dev->id.bustype = BUS_ISA;
-	cec_dev->cec_info.remote_cec_dev->id.vendor = 0x1b8e;
-	cec_dev->cec_info.remote_cec_dev->id.product = 0x0cec;
-	cec_dev->cec_info.remote_cec_dev->id.version = 0x0001;
-
-	set_bit(KEY_POWER, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_ENTER, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_UP, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_DOWN, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_LEFT, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_RIGHT, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_HOMEPAGE, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_ESC, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_TAB, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_VOLUMEUP, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_VOLUMEDOWN, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_MUTE, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_PLAYPAUSE, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_STOPCD, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_REWIND, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_FASTFORWARD, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_NEXT, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_PREVIOUS, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_NEXTSONG, cec_dev->cec_info.remote_cec_dev->keybit);
-	set_bit(KEY_PREVIOUSSONG, cec_dev->cec_info.remote_cec_dev->keybit);
-
-	if (input_register_device(cec_dev->cec_info.remote_cec_dev)) {
-		CEC_INFO("Failed to register device\n");
-		input_free_device(cec_dev->cec_info.remote_cec_dev);
-	}
 
 	/* config: read from dts */
 	r = of_property_read_u32(node, "cec_sel", &cec_dev->cec_num);
@@ -2370,7 +2099,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ao_exit");
 	if (res) {
 		base = devm_ioremap(&pdev->dev, res->start,
-				    res->end - res->start);
+					res->end - res->start);
 		if (!base) {
 			CEC_ERR("Unable to map ao_exit base\n");
 			goto tag_cec_reg_map_err;
@@ -2383,7 +2112,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ao");
 	if (res) {
 		base = devm_ioremap(&pdev->dev, res->start,
-				    res->end - res->start);
+					res->end - res->start);
 		if (!base) {
 			CEC_ERR("Unable to map ao base\n");
 			goto tag_cec_reg_map_err;
@@ -2397,7 +2126,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmirx");
 	if (res) {
 		base = devm_ioremap(&pdev->dev, res->start,
-				    res->end - res->start);
+					res->end - res->start);
 		if (!base) {
 			CEC_ERR("Unable to map hdmirx base\n");
 			goto tag_cec_reg_map_err;
@@ -2410,7 +2139,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hhi");
 	if (res) {
 		base = devm_ioremap(&pdev->dev, res->start,
-				    res->end - res->start);
+					res->end - res->start);
 		if (!base) {
 			CEC_ERR("Unable to map hhi base\n");
 			goto tag_cec_reg_map_err;
@@ -2423,7 +2152,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "periphs");
 	if (res) {
 		base = devm_ioremap(&pdev->dev, res->start,
-				    res->end - res->start);
+					res->end - res->start);
 		if (!base) {
 			CEC_ERR("Unable to map periphs base\n");
 			goto tag_cec_reg_map_err;
@@ -2463,7 +2192,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	}
 	vend = &cec_dev->v_data;
 	r = of_property_read_string(node, "vendor_name",
-				    (const char **)&vend->vendor_name);
+					(const char **)&vend->vendor_name);
 	if (r)
 		dprintk(L_4, "not find vendor name\n");
 
@@ -2473,12 +2202,12 @@ static int aml_cec_probe(struct platform_device *pdev)
 	cec_dev->cec_info.vendor_id = vend->vendor_id;
 
 	r = of_property_read_string(node, "product_desc",
-				    (const char **)&vend->product_desc);
+					(const char **)&vend->product_desc);
 	if (r)
 		dprintk(L_4, "not find product desc\n");
 
 	r = of_property_read_string(node, "cec_osd_string",
-				    (const char **)&vend->cec_osd_string);
+					(const char **)&vend->cec_osd_string);
 	if (r) {
 		dprintk(L_4, "not find cec osd string\n");
 		strcpy(vend->cec_osd_string, "AML TV/BOX");
@@ -2573,7 +2302,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	}
 
 	last_cec_msg = devm_kzalloc(&pdev->dev, sizeof(*last_cec_msg),
-				    GFP_KERNEL);
+					GFP_KERNEL);
 	if (!last_cec_msg) {
 		CEC_ERR("allocate last_cec_msg failed\n");
 		ret = -ENOMEM;
@@ -2598,7 +2327,8 @@ static int aml_cec_probe(struct platform_device *pdev)
 	}
 	/* for hdmitx/rx plug uevent report */
 	cec_dev->hdmi_plug_wq = alloc_workqueue("cec_hdmi_plug",
-						WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
+						WQ_HIGHPRI |
+						WQ_CPU_INTENSIVE, 0);
 	if (!cec_dev->hdmi_plug_wq) {
 		CEC_INFO("create hdmi_plug_wq failed\n");
 		ret = -EFAULT;
@@ -2607,14 +2337,17 @@ static int aml_cec_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&cec_dev->work_hdmi_plug, cec_hdmi_plug_handler);
 	/* for cec rx msg uevent report */
 	cec_dev->cec_rx_event_wq = alloc_workqueue("cec_rx_event",
-						   WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
+						   WQ_HIGHPRI |
+						   WQ_CPU_INTENSIVE, 0);
 	if (!cec_dev->cec_rx_event_wq) {
 		CEC_INFO("create cec_rx_event_wq failed\n");
 		ret = -EFAULT;
 		goto tag_cec_rx_event_wq_err;
 	}
 	INIT_DELAYED_WORK(&cec_dev->work_cec_rx, cec_rx_uevent_handler);
-	#ifdef CEC_FREEZE_WAKE_UP
+	/* notify cec framework tx done */
+	INIT_WORK(&std_ao_cec.work_cec_tx, ao_cec_tx_work);
+#ifdef CEC_FREEZE_WAKE_UP
 	/*freeze wakeup init*/
 	device_init_wakeup(&pdev->dev, 1);
 	/*CEC_INFO("dev init wakeup\n");*/
@@ -2627,18 +2360,18 @@ static int aml_cec_probe(struct platform_device *pdev)
 		else
 			dev_pm_set_wake_irq(&pdev->dev, cec_dev->irq_cecb);
 	}
-	#endif
+#endif
 	INIT_DELAYED_WORK(&cec_dev->cec_work, cec_task);
 	queue_delayed_work(cec_dev->cec_thread, &cec_dev->cec_work, 0);
 	tasklet_init(&ceca_tasklet, ceca_tasklet_pro,
-		     (unsigned long)cec_dev);
+			 (unsigned long)cec_dev);
 #ifdef CONFIG_AMLOGIC_HDMITX
 	hdmitx_event_notifier_regist(&hdmitx_notifier_nb);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 	register_cec_callback(hdmirx_notify_callback);
 #endif
-	#ifdef CEC_MAIL_BOX
+#ifdef CEC_MAIL_BOX
 	cec_get_wakeup_reason();
 	cec_dev->msg_idx = 0;
 	cec_dev->msg_num = 0;
@@ -2654,12 +2387,73 @@ static int aml_cec_probe(struct platform_device *pdev)
 			cec_store_msg_to_buff(cec_dev->cec_wk_as_msg[0],
 					      &cec_dev->cec_wk_as_msg[1]);
 	}
-	#endif
+#endif
 	cec_irq_enable(true);
+
+	/* Must be 1 <= available_las <= CEC_MAX_LOG_ADDRS. */
+	/* std_ao_cec is priv data */
+	std_ao_cec.adap = cec_allocate_adapter(&ao_cec_ops, &std_ao_cec,
+						STD_CEC_NAME,
+						CEC_CAP_DEFAULTS |
+						/* CEC_CAP_CONNECTOR_INFO | */
+						CEC_CAP_PHYS_ADDR,
+						MAX_LOG_ADDR_CNT);
+	if (IS_ERR(std_ao_cec.adap)) {
+		ret = -EFAULT;
+		pr_info("%s cec_allocate_adapter fail\n", __func__);
+		goto tag_cec_allocate_adapter_fail;
+	}
+	std_ao_cec.adap->owner = THIS_MODULE;
+
+	/* register the /dev/cecX device node and the remote control device */
+	ret = cec_register_adapter(std_ao_cec.adap, &pdev->dev);
+	if (ret < 0) {
+		/* if cec_register_adapter() fails,
+		 * then call cec_delete_adapter() to clean up
+		 */
+		cec_delete_adapter(std_ao_cec.adap);
+		ret = -EFAULT;
+		pr_info("%s cec_register_adapter fail\n", __func__);
+		goto tag_cec_allocate_adapter_fail;
+	}
+	/* find or create a new cec_notifier for the given device.
+	 * if notifier register fail, continue without notifier
+	 */
+#ifdef CONFIG_CEC_NOTIFIER
+#ifdef CONFIG_DRM_MESON_HDMI
+	hdmi_tx_dev = cec_notifier_parse_hdmi_phandle(&pdev->dev);
+	if (IS_ERR(hdmi_tx_dev)) {
+		pr_info("%s cec_notifier_parse_hdmi_phandle fail\n", __func__);
+		/* goto register_notifier_fail; */
+	} else {
+		std_ao_cec.tx_notify =
+			cec_notifier_cec_adap_register(hdmi_tx_dev,
+						       "hdmitx",
+						       std_ao_cec.adap);
+		if (!std_ao_cec.tx_notify) {
+			pr_info("cec_notifier_cec_adap_register fail\n");
+			/* goto register_notifier_fail; */
+		}
+	}
+#endif
+#endif
 	CEC_ERR("%s success end\n", __func__);
 	cec_dev->probe_finish = true;
 	return 0;
-
+#ifdef CONFIG_CEC_NOTIFIER
+#ifdef CONFIG_DRM_MESON_HDMI
+/* register_notifier_fail: */
+	/* cec_unregister_adapter(std_ao_cec.adap); */
+#endif
+#endif
+tag_cec_allocate_adapter_fail:
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+	unregister_cec_callback();
+#endif
+#ifdef CONFIG_AMLOGIC_HDMITX
+	hdmitx_event_notifier_unregist(&hdmitx_notifier_nb);
+#endif
+	destroy_workqueue(cec_dev->cec_rx_event_wq);
 tag_cec_rx_event_wq_err:
 	destroy_workqueue(cec_dev->hdmi_plug_wq);
 tag_hdmi_plug_wq_err:
@@ -2679,23 +2473,30 @@ tag_cec_msg_alloc_err:
 			free_irq(cec_dev->irq_ceca, (void *)cec_dev);
 	}
 tag_cec_reg_map_err:
-	input_free_device(cec_dev->cec_info.remote_cec_dev);
-tag_cec_alloc_input_err:
-	device_destroy(&aocec_class, MKDEV(cec_dev->cec_info.dev_no, 0));
-tag_cec_device_create_err:
-	unregister_chrdev(cec_dev->cec_info.dev_no, CEC_DEV_NAME);
-tag_cec_chr_reg_err:
 	class_unregister(&aocec_class);
 tag_cec_class_reg:
 	devm_kfree(&pdev->dev, cec_dev);
 tag_cec_devm_err:
-	CEC_ERR("%s fail\n", __func__);
+	pr_info("%s fail\n", __func__);
 	return ret;
 }
 
-static int aml_cec_remove(struct platform_device *pdev)
+static int aml_aocec_remove(struct platform_device *pdev)
 {
-	/*CEC_INFO("%s\n", __func__);*/
+#ifdef CONFIG_CEC_NOTIFIER
+#ifdef CONFIG_DRM_MESON_HDMI
+	cec_notifier_cec_adap_unregister(std_ao_cec.tx_notify);
+#endif
+#endif
+	/* Note: if cec_register_adapter() fails, then call cec_delete_adapter()
+	 * to clean up. But if cec_register_adapter() succeeded, then only call
+	 * cec_unregister_adapter() to clean up, never cec_delete_adapter(). The
+	 * unregister function will delete the adapter automatically once the
+	 * last user of that /dev/cecX device has closed its file handle.
+	 */
+	if (std_ao_cec.adap)
+		cec_unregister_adapter(std_ao_cec.adap);
+	CEC_INFO("%s\n", __func__);
 	if (cec_dev->cec_num > ENABLE_ONE_CEC) {
 		free_irq(cec_dev->irq_ceca, (void *)cec_dev);
 		free_irq(cec_dev->irq_cecb, (void *)cec_dev);
@@ -2729,6 +2530,7 @@ static int aml_cec_remove(struct platform_device *pdev)
 	unregister_chrdev(cec_dev->cec_info.dev_no, CEC_DEV_NAME);
 	class_unregister(&aocec_class);
 	kfree(cec_dev);
+
 	return 0;
 }
 
@@ -2915,7 +2717,7 @@ static const struct dev_pm_ops aml_cec_pm = {
 };
 #endif
 
-static void aml_cec_shutdown(struct platform_device *pdev)
+static void aml_aocec_shutdown(struct platform_device *pdev)
 {
 	/*CEC_ERR("%s\n", __func__);*/
 	cec_save_mail_box();
@@ -2923,9 +2725,9 @@ static void aml_cec_shutdown(struct platform_device *pdev)
 	cec_dev->cec_suspend = CEC_PW_STANDBY;
 }
 
-static struct platform_driver aml_cec_driver = {
+static struct platform_driver aml_aocec_driver = {
 	.driver = {
-		.name  = "cectx",
+		.name  = "ao_cec_drv",
 		.owner = THIS_MODULE,
 	#ifdef CONFIG_PM
 		.pm     = &aml_cec_pm,
@@ -2934,23 +2736,22 @@ static struct platform_driver aml_cec_driver = {
 		.of_match_table = aml_cec_dt_match,
 	#endif
 	},
-	.shutdown = aml_cec_shutdown,
-	.probe  = aml_cec_probe,
-	.remove = aml_cec_remove,
+	.shutdown = aml_aocec_shutdown,
+	.probe  = aml_aocec_probe,
+	.remove = aml_aocec_remove,
 };
 
 int __init cec_init(void)
 {
 	int ret;
 
-	ret = platform_driver_register(&aml_cec_driver);
-	/*pr_info("cec_init ret:0x%x\n", __func__, ret);*/
+	ret = platform_driver_register(&aml_aocec_driver);
 
 	return ret;
 }
 
 void __exit cec_uninit(void)
 {
-	platform_driver_unregister(&aml_cec_driver);
+	platform_driver_unregister(&aml_aocec_driver);
 }
 

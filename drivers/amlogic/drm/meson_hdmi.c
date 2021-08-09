@@ -746,11 +746,25 @@ static void am_meson_hdmi_connector_init_property(struct drm_device *drm_dev,
 static void meson_hdmitx_hpd_cb(void *data)
 {
 	struct am_hdmi_tx *am_hdmi = (struct am_hdmi_tx *)data;
+#ifdef CONFIG_CEC_NOTIFIER
+	struct edid *pedid;
+#endif
 
 	DRM_INFO("drm hdmitx hpd notify\n");
 	if (drm_hdmitx_detect_hpd() == 0 && !am_hdmi->android_path)
 		meson_hdmitx_disconnect_hdcp();
-
+#ifdef CONFIG_CEC_NOTIFIER
+	if (drm_hdmitx_detect_hpd()) {
+		DRM_INFO("%s[%d]\n", __func__, __LINE__);
+		pedid = (struct edid *)drm_hdmitx_get_raw_edid();
+		cec_notifier_set_phys_addr_from_edid(am_hdmi->cec_notifier,
+						     pedid);
+	} else {
+		DRM_INFO("%s[%d]\n", __func__, __LINE__);
+		cec_notifier_set_phys_addr(am_hdmi->cec_notifier,
+					   CEC_PHYS_ADDR_INVALID);
+	}
+#endif
 	drm_helper_hpd_irq_event(am_hdmi->base.connector.dev);
 }
 
@@ -854,13 +868,22 @@ static int am_meson_hdmi_probe(struct platform_device *pdev)
 				DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
 		}
 	}
-
+#ifdef CONFIG_CEC_NOTIFIER
+	am_hdmi_info.cec_notifier = cec_notifier_get(&pdev->dev);
+#endif
 	return component_add(&pdev->dev, &am_meson_hdmi_ops);
 }
 
 static int am_meson_hdmi_remove(struct platform_device *pdev)
 {
 	meson_hdcp_exit();
+#ifdef CONFIG_CEC_NOTIFIER
+	if (am_hdmi_info.cec_notifier) {
+		cec_notifier_set_phys_addr(am_hdmi_info.cec_notifier,
+					   CEC_PHYS_ADDR_INVALID);
+		cec_notifier_put(am_hdmi_info.cec_notifier);
+	}
+#endif
 	component_del(&pdev->dev, &am_meson_hdmi_ops);
 	return 0;
 }
