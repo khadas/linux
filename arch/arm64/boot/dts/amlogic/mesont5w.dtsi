@@ -362,6 +362,11 @@
 		status = "okay";
 	};
 
+	pwrdm: power-domains {
+		compatible = "amlogic,t5w-power-domain";
+		#power-domain-cells = <1>;
+		status = "okay";
+	};
 }; /* end of / */
 
 &pinctrl_periphs {

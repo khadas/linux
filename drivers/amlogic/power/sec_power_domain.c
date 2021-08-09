@@ -403,6 +403,20 @@ static struct sec_pm_domain_data p1_pm_domain_data = {
 	.domains_count = ARRAY_SIZE(p1_pm_domains),
 };
 
+static struct sec_pm_private_domain t5w_pm_domains[] __initdata = {
+	[PDID_T5_DOS_HEVC] = POWER_DOMAIN(hevc, PDID_T5_DOS_HEVC,
+		DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_T5_VPU_HDMI] = POWER_DOMAIN(vpu, PDID_T5_VPU_HDMI, DOMAIN_INIT_ON,
+		GENPD_FLAG_ALWAYS_ON),
+	[PDID_T5_DEMOD] = POWER_DOMAIN(demod, PDID_T5_DEMOD, DOMAIN_INIT_ON,
+		GENPD_FLAG_ALWAYS_ON),
+};
+
+static struct sec_pm_domain_data t5w_pm_domain_data __initdata = {
+	.domains = t5w_pm_domains,
+	.domains_count = ARRAY_SIZE(t5w_pm_domains),
+};
+
 static int sec_pd_probe(struct platform_device *pdev)
 {
 	int ret, i;
@@ -543,6 +557,10 @@ static const struct of_device_id pd_match_table[] = {
 	{
 		.compatible = "amlogic,p1-power-domain",
 		.data = &p1_pm_domain_data,
+	},
+	{
+		.compatible = "amlogic,t5w-power-domain",
+		.data = &t5w_pm_domain_data,
 	},
 	{}
 };
