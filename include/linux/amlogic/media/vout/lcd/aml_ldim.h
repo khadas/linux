@@ -201,12 +201,14 @@ struct ldim_rmem_s {
 	unsigned int duty_highmem_flag;
 };
 
-#define LDIM_INIT_ON_MAX     300
-#define LDIM_INIT_OFF_MAX    20
+#define LDIM_DEV_NAME_MAX    30
+#define LDIM_INIT_ON_MAX     1000
+#define LDIM_INIT_OFF_MAX    24
 struct ldim_dev_driver_s {
 	unsigned char index;
-	char name[20];
-	char pinmux_name[20];
+	char name[LDIM_DEV_NAME_MAX];
+	char pinmux_name[LDIM_DEV_NAME_MAX];
+	unsigned char key_valid;
 	unsigned char type;
 	int cs_hold_delay;
 	int cs_clk_delay;
