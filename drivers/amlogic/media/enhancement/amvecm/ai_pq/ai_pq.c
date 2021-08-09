@@ -66,6 +66,11 @@ EXPORT_SYMBOL(detected_scenes);
 struct adap_param_setting_s adaptive_param;
 struct adap_param_setting_s *adap_param;
 
+int aipq_saturation_hue_get_base_val(void)
+{
+	return adap_param->satur_param.satur_hue_mab;
+}
+
 /*base value : from db
  *reg value : last frame setting
  *offset : target offset for the scene
@@ -424,21 +429,23 @@ int saturation_scene_process(int offset, int enable)
 	int base_val;
 	int bld_offset;
 	static int first_frame = 1;
+	static int base_val_pre;
 
 	base_val = adap_param->satur_param.satur_hue_mab >> 16;
 	adap_param->satur_param.offset = offset;
 
 	if (!enable || !(aipq_en & (1 << SATURATION_SCENE))) {
-		amvecm_set_saturation_hue(base_val << 16);
+		amvecm_saturation_hue_update(0);
 		first_frame = 1;
 		return 0;
 	}
 
-	if (first_frame == 1) {
+	if (first_frame == 1 || base_val_pre != base_val) {
 		reg_val = base_val;
 		first_frame = 0;
 	}
 
+	base_val_pre = base_val;
 	bld_offset = smooth_process(base_val, reg_val, offset, bld_rs);
 
 	if (bld_offset == 0) {
@@ -471,7 +478,8 @@ int saturation_scene_process(int offset, int enable)
 		aipq_debug--;
 	}
 
-	amvecm_set_saturation_hue(reg_val << 16);
+	amvecm_saturation_hue_update((reg_val - base_val) << 16);
+	//amvecm_set_saturation_hue(reg_val << 16);
 	return 0;
 }
 

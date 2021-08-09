@@ -313,6 +313,7 @@ unsigned int gmv_th = 17;
 
 int pre_fmeter_level = 0, cur_fmeter_level = 0, fmeter_flag = 0;
 int cur_sr_level = 5;
+int sat_hue_offset_val;
 
 static int wb_init_bypass_coef[24] = {
 	0, 0, 0, /* pre offset */
@@ -1635,6 +1636,17 @@ void eye_prot_update(struct eye_protect_s *eye_prot)
 	}
 }
 
+void amvecm_saturation_hue_update(int offset_val)
+{
+	sat_hue_offset_val = offset_val;
+	pq_user_latch_flag |= PQ_USER_CMS_SAT_HUE;
+	if (debug_amvecm & 8)
+		pr_info("[amvecm..] %s: saturation_hue:%d offset=%d\n",
+		__func__,
+		vdj_mode_s.saturation_hue,
+		sat_hue_offset_val);
+}
+
 void amvecm_video_latch(void)
 {
 	pc_mode_process();
@@ -2562,10 +2574,13 @@ static long amvecm_ioctl(struct file *file,
 			ret = amvecm_set_brightness2(vdj_mode_s.brightness2);
 		}
 		if (vdj_mode_flg & VDJ_FLAG_SAT_HUE)	{ /*saturation_hue*/
-			ret =
-			amvecm_set_saturation_hue(vdj_mode_s.saturation_hue);
 			/*ai pq get saturation*/
 			aipq_base_satur_param(vdj_mode_s.saturation_hue);
+			//ret =
+			//amvecm_set_saturation_hue(vdj_mode_s.saturation_hue);
+			pq_user_latch_flag |= PQ_USER_CMS_SAT_HUE;
+			pr_amvecm_dbg("vdj_mode_s.saturation_hue:%d\n",
+				vdj_mode_s.saturation_hue);
 		}
 		if (vdj_mode_flg & VDJ_FLAG_SAT_HUE_POST) {
 			/*saturation_hue_post*/
@@ -5473,6 +5488,7 @@ void amvecm_sr1_derection_enable(unsigned int enable)
 void pq_user_latch_process(void)
 {
 	int i = 0;
+	int sat_hue_val = 0;
 
 	if (pq_user_latch_flag & PQ_USER_BLK_EN) {
 		pq_user_latch_flag &= ~PQ_USER_BLK_EN;
@@ -5574,6 +5590,11 @@ void pq_user_latch_process(void)
 				}
 			}
 		}
+	} else if (pq_user_latch_flag & PQ_USER_CMS_SAT_HUE) {
+		pq_user_latch_flag &= ~PQ_USER_CMS_SAT_HUE;
+		sat_hue_val =
+			aipq_saturation_hue_get_base_val() + sat_hue_offset_val;
+		amvecm_set_saturation_hue(sat_hue_val);
 	}
 }
 

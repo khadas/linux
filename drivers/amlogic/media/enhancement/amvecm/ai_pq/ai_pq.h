@@ -53,6 +53,8 @@ struct adap_param_setting_s {
 };
 
 extern struct adap_param_setting_s adaptive_param;
+
+int aipq_saturation_hue_get_base_val(void);
 int ai_detect_scene_init(void);
 int adaptive_param_init(void);
 

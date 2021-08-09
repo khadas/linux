@@ -118,6 +118,7 @@ void dolby_vision_set_toggle_flag(int flag);
 #define VPP_DEMO_CM_EN              BIT(0)
 
 /*PQ USER LATCH*/
+#define PQ_USER_CMS_SAT_HUE        BIT(24)
 #define PQ_USER_CMS_CURVE_HUE_HS   BIT(23)
 #define PQ_USER_CMS_CURVE_HUE      BIT(22)
 #define PQ_USER_CMS_CURVE_LUMA     BIT(21)
@@ -688,6 +689,7 @@ bool di_api_mov_sel(unsigned int mode,
 enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path, enum vpp_index vpp_index);
 
 int amvecm_set_saturation_hue(int mab);
+void amvecm_saturation_hue_update(int offset_val);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 int frc_set_seg_display(u8 enable, u8 seg1, u8 seg2, u8 seg3);
@@ -710,7 +712,6 @@ struct single_scene_s {
 	int enable;
 	int (*func)(int offset, int enable);
 };
-
 extern struct single_scene_s detected_scenes[SCENE_MAX];
 u32 hdr_set(u32 module_sel, u32 hdr_process_select, enum vpp_index vpp_index);
 int dv_pq_ctl(enum dv_pq_ctl_e ctl);
