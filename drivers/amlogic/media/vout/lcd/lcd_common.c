@@ -567,7 +567,8 @@ int lcd_power_load_from_dts(struct lcd_config_s *pconf,
 					lcd_cpu_gpio_probe(index);
 				break;
 			case LCD_POWER_TYPE_EXTERN:
-				lcd_extern_index_lut_add(index);
+				if (pconf->extern_index == 0xff)
+					pconf->extern_index = index;
 				break;
 			default:
 				break;
@@ -639,7 +640,7 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 				lcd_cpu_gpio_probe(index);
 			break;
 		case LCD_POWER_TYPE_EXTERN:
-			lcd_extern_index_lut_add(index);
+			pconf->extern_index = index;
 			break;
 		case LCD_POWER_TYPE_CLK_SS:
 			temp = pconf->lcd_power->power_on_step[i].value;
@@ -696,7 +697,8 @@ int lcd_power_load_from_unifykey(struct lcd_config_s *pconf,
 				lcd_cpu_gpio_probe(index);
 			break;
 		case LCD_POWER_TYPE_EXTERN:
-			lcd_extern_index_lut_add(index);
+			if (pconf->extern_index == 0xff)
+				pconf->extern_index = index;
 			break;
 		default:
 			break;
