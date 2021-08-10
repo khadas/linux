@@ -88,6 +88,12 @@ struct frc_fw_data_s *frc_get_fw_data(void)
 }
 EXPORT_SYMBOL(frc_get_fw_data);
 
+u32 sizeof_frc_fw_data_struct(void)
+{
+	return sizeof(struct frc_fw_data_s);
+}
+EXPORT_SYMBOL(sizeof_frc_fw_data_struct);
+
 ssize_t frc_reg_show(struct class *class,
 	struct class_attribute *attr,
 	char *buf)
@@ -318,9 +324,12 @@ static int frc_attach_pd(struct frc_dev_s *devp)
 void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 {
 	struct frc_data_s *frc_data;
+	struct frc_fw_data_s *pfw_data;
+
 	enum chip_id chip;
 
 	frc_data = (struct frc_data_s *)devp->data;
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	chip = frc_data->match_data->chip;
 
 #define K_MEMC_CLK_DIS
@@ -349,6 +358,8 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 			frc_buf_config(devp);
 			frc_internal_initial(devp);
 			frc_hw_initial(devp);
+			if (pfw_data->frc_fw_reinit)
+				pfw_data->frc_fw_reinit();
 		} else {
 #ifdef K_MEMC_CLK_DIS
 			pwr_ctrl_psci_smc(PDID_T3_FRCTOP, PWR_OFF);
@@ -698,6 +709,8 @@ static int frc_probe(struct platform_device *pdev)
 		PR_ERR("%s: frc_dev->fw_data fail\n", __func__);
 		goto fail_alloc_fw_data_fail;
 	}
+	PR_FRC("%s fw_data st size:%d", __func__, sizeof_frc_fw_data_struct());
+
 	ret = alloc_chrdev_region(&frc_devp->devno, 0, FRC_DEVNO, FRC_NAME);
 	if (ret < 0) {
 		PR_ERR("%s: alloc region fail\n", __func__);
@@ -866,7 +879,7 @@ static int frc_suspend(struct platform_device *pdev, pm_message_t state)
 	devp = get_frc_devp();
 	if (!devp)
 		return -1;
-
+	PR_FRC("%s ...\n", __func__);
 	frc_power_domain_ctrl(devp, 0);
 	if (devp->power_on_flag)
 		devp->power_on_flag = false;
@@ -881,7 +894,7 @@ static int frc_resume(struct platform_device *pdev)
 	devp = get_frc_devp();
 	if (!devp)
 		return -1;
-
+	PR_FRC("%s ...\n", __func__);
 	frc_power_domain_ctrl(devp, 1);
 	if (!devp->power_on_flag)
 		devp->power_on_flag = true;

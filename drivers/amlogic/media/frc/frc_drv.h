@@ -27,7 +27,8 @@
 // frc_20210720_divided_reg_table
 // frc_20210804_add_powerdown_in_shutdown
 // frc_20210806 frc support 4k1k@120hz
-#define FRC_FW_VER			"2021-0806 frc support 4k1k@120hz"
+// frc_20210811_add_reinit_fw_alg_when_resume
+#define FRC_FW_VER			"2021-0811 add_reinit_fw_alg"
 #define FRC_KERDRV_VER                  934
 
 #define FRC_DEVNO	1

@@ -219,12 +219,12 @@ struct frc_fw_data_s {
 	struct frc_holdline_s holdline_parm;
 	void (*frc_input_cfg)(struct frc_fw_data_s *fw_data);
 	void (*frc_memc_level)(struct frc_fw_data_s *fw_data);
-
 	ssize_t (*frc_alg_dbg_show)(struct frc_fw_data_s *fw_data,
 					enum efrc_memc_dbg_type dbg_type, char *buf);
 	ssize_t (*frc_alg_dbg_stor)(struct frc_fw_data_s *fw_data,
 					enum efrc_memc_dbg_type dbg_type, char *buf, size_t count);
 	u8 frc_alg_ver[32];
+	void (*frc_fw_reinit)(void);
 };
 
 extern int frc_dbg_en;
