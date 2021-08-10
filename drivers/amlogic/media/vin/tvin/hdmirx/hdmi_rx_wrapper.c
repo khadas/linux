@@ -319,6 +319,7 @@ void hdmirx_fsm_var_init(void)
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
 	default:
+		hbr_force_8ch = 1; //use it to enable hdr2spdif
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
 		dwc_rst_wait_cnt_max = 30;
@@ -3156,6 +3157,7 @@ void rx_main_state_machine(void)
 			rx.hdcp.hdcp_version = HDCP_VER_NONE;
 			//rx_sw_reset(2);
 			hdmirx_output_en(true);
+			hdmirx_hbr2spdif(0);
 			rx.state = FSM_WAIT_CLK_STABLE;
 			vic_check_en = false;
 			rx.skip = 0;
@@ -3198,6 +3200,7 @@ void rx_main_state_machine(void)
 				rx.hdcp.hdcp_version = HDCP_VER_NONE;
 				//rx_sw_reset(2);
 				hdmirx_output_en(true);
+				hdmirx_hbr2spdif(0);
 				rx.state = FSM_WAIT_CLK_STABLE;
 				vic_check_en = false;
 				rx.skip = 0;

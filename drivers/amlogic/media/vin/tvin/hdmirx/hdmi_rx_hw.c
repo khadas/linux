@@ -2614,7 +2614,7 @@ void clk_init_cor(void)
 	data32 |= (0 << 7);// [7]	  tmds_ch1_clk_inv
 	data32 |= (0 << 6);// [6]	  tmds_ch0_clk_inv
 	data32 |= (0 << 5);// [5]	  pll4x_cfg
-	data32 |= (1 << 4);// [4]	  force_pll4x
+	data32 |= (0 << 4);// [4]	  force_pll4x
 	data32 |= (0 << 3);// [3]	  phy_clk_inv
 	hdmirx_wr_top(TOP_CLK_CNTL,	data32);
 }
@@ -3048,17 +3048,19 @@ void rx_afifo_monitor(void)
 		return;
 	if (hdmirx_rd_cor(RX_INTR4_PWD_IVCRX) & 2) {
 		hdmirx_wr_cor(RX_INTR4_PWD_IVCRX, 2);
-		afifo_moniter_cnt++;
+		if (afifo_moniter_cnt < 0x100)
+			afifo_moniter_cnt++;
 		if (log_level & AUDIO_LOG)
 			rx_pr("afifo overflow\n");
 	} else {
-		if (afifo_moniter_cnt)
+		if (afifo_moniter_cnt && afifo_moniter_cnt <= 0x100)
 			afifo_moniter_cnt--;
 	}
-	if (afifo_moniter_cnt > 5 &&
-		afifo_moniter_cnt < 0x100) {
+	if (afifo_moniter_cnt > 20 &&
+		afifo_moniter_cnt <= 0x100) {
 		afifo_moniter_cnt = 0;
 		hdmirx_output_en(false);
+		hdmirx_hbr2spdif(0);
 		rx_set_cur_hpd(0, 5);
 		rx.state = FSM_5V_LOST;
 		rx_pr("!!force reset\n");
@@ -3500,8 +3502,20 @@ void hdcp_init_t7(void)
 	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x2);
 }
 
+void hdmirx_hbr2spdif(u8 val)
+{
+	if (rx.chip_id < CHIP_ID_T7)
+		return;
+
+	if (hdmirx_rd_cor(RX_AUDP_STAT_DP2_IVCRX) & _BIT(6))
+		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(15), val);
+	else
+		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(15), 0);
+}
 void hdmirx_output_en(bool en)
 {
+	if (rx.chip_id < CHIP_ID_T7)
+		return;
 	if (en)
 		hdmirx_wr_top(TOP_OVID_OVERRIDE0, 0);
 	else
@@ -4188,6 +4202,7 @@ void hdmirx_config_audio(void)
 	if (rx.chip_id >= CHIP_ID_T7) {
 		/* set MCLK for I2S/SPDIF */
 		hdmirx_wr_cor(AAC_MCLK_SEL_AUD_IVCRX, 0x80);
+		hdmirx_hbr2spdif(1);
 	} else {
 		/* if audio layout bit = 1, set audio channel map
 		 * according to audio speaker allocation, if layout

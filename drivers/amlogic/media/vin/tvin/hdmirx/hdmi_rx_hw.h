@@ -3366,6 +3366,8 @@ void aml_phy_get_trim_val_t7(void);
 void rx_hdcp_22_sent_reauth(void);
 bool rx_ecc_err_overflow(void);
 void hdmirx_output_en(bool en);
+void hdmirx_hbr2spdif(u8 val);
+
 void rx_afifo_monitor(void);
 void rx_clkmsr_monitor(void);
 void rx_clkmsr_handler(struct work_struct *work);

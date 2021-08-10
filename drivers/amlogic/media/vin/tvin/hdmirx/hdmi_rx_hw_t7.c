@@ -2041,13 +2041,13 @@ void rx_set_aud_output_t7(u32 param)
 		hdmirx_wr_cor(RX_TDM_CTRL1_AUD_IVCRX, 0x00);
 		hdmirx_wr_cor(RX_TDM_CTRL2_AUD_IVCRX, 0x10);
 		hdmirx_wr_cor(AAC_MCLK_SEL_AUD_IVCRX, 0x80); //I2S
-		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(15), 0);
+		//hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(15), 0);
 		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(4), 1);
 	} else {
 		hdmirx_wr_cor(RX_TDM_CTRL1_AUD_IVCRX, 0x00);
 		hdmirx_wr_cor(RX_TDM_CTRL2_AUD_IVCRX, 0x10);
 		hdmirx_wr_cor(AAC_MCLK_SEL_AUD_IVCRX, 0x80); //SPDIF
-		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(15), 1);
+		//hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(15), 1);
 		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(4), 0);
 	}
 }
