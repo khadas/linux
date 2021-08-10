@@ -210,6 +210,7 @@ struct vt_instance {
 
 	struct dentry *debug_root;
 	int fcount;
+	bool used;
 
 	DECLARE_KFIFO_PTR(fifo_to_consumer, struct vt_buffer*);
 	DECLARE_KFIFO_PTR(fifo_to_producer, struct vt_buffer*);
