@@ -327,6 +327,11 @@ static struct vframe_s *vdetect_vf_get(void *op_arg)
 		}
 	}
 
+	if (vf->flag & VFRAME_FLAG_GAME_MODE) {
+		dev->last_vf = NULL;
+		vf->ai_pq_enable = false;
+	}
+
 	if (atomic_read(&dev->vdect_status) != VDETECT_PREPARE)
 		dev->last_vf = vf;
 
@@ -1336,6 +1341,12 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	if (!aipq_enable)  {
 		vdetect_print(dev->inst, PRINT_CAP_OTHER,
 			      "%s aipq function stop\n", __func__);
+		return -EAGAIN;
+	}
+
+	if (!dev->last_vf) {
+		vdetect_print(dev->inst, PRINT_CAP_OTHER,
+			      "%s: game mode no need ai.\n", __func__);
 		return -EAGAIN;
 	}
 
