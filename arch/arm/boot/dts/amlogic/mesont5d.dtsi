@@ -2439,8 +2439,16 @@
 	};
 	ci_ts_pins: ci_ts_pins {
 		mux {
-			groups =  "tsout_clk", "tsout_sop", "tsout_valid", "tsout_d0", "tsout_d1",
-			"tsout_d2", "tsout_d3", "tsout_d4", "tsout_d5", "tsout_d6", "tsout_d7";
+			groups = "tsout_sop",
+			"tsout_valid",
+			"tsout_d0",
+			"tsout_d1",
+			"tsout_d2",
+			"tsout_d3",
+			"tsout_d4",
+			"tsout_d5",
+			"tsout_d6",
+			"tsout_d7";
 			function = "tsout";
 		};
 	};
@@ -2452,7 +2460,18 @@
 			function = "cicam";
 		};
 	};
-
+	ci_ts_clk_pins: ci_ts_clk_pins {
+		mux {
+			groups =  "tsout_clk";
+			function = "tsout";
+		};
+	};
+	ci_gpio_pins: ci_gpio_pins {
+		mux {
+			groups =  "GPIOZ_7";
+			function = "gpio_periphs";
+		};
+	};
 	mclk_1_pins: mclk_1_pin {
 		mux { /* GPIOH_14 */
 			groups = "mclk_1";

@@ -88,7 +88,7 @@
 			size = <0x0>;
 			/*alignment = <0x100000>;*/
 			//no-map;
-			alloc-ranges = <0x0 0x3f400000>;
+			alloc-ranges = <0x0 0x3f000000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -101,17 +101,17 @@
 			 * size = 1920 * 1080 * 3 * 4
 			 *(RGBA: 4 bytes/pixel) + 4M(10% * afbc)
 			 */
-			size = <0x01000000>;
+			size = <0x00000000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x3f400000>;
+			alloc-ranges = <0x0 0x3f000000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1280x720x4x3 round up 4M align */
-			size = <0xc00000>;
+			/* 1920x1080x4x3 round up 4M align */
+			size = <0x1c00000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x3f400000>;
+			alloc-ranges = <0x0 0x3f000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -127,11 +127,10 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 420 mode:1280x720x2x4=8MB */
-			/* 444 mode:1280x720x3x4=12MB */
-			size = <0x800000>;
+			/* 1920x1080x2x4  =16 M */
+			size = <0x1400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x3f400000>;
+			alloc-ranges = <0x0 0x3f000000>;
 		};
 
 		/* demod_reserved:linux,demod {
@@ -143,15 +142,14 @@
 		 * };
 		 */
 
-		/* demod_cma_reserved:linux,demod_cma {
-		 *		compatible = "shared-dma-pool";
-		 *		reusable;
-		 *		//8M
-		 *		size = <0x0800000>;
-		 *		alignment = <0x400000>;
-		 *	alloc-ranges = <0x0 0x3f400000>;
-		 *};
-		 */
+		demod_cma_reserved:linux,demod_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 40M */
+			size = <0x02800000>;
+			alignment = <0x400000>;
+			alloc-ranges = <0x0 0x3f000000>;
+		};
 
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
@@ -252,11 +250,11 @@
 		 ***************************************************/
 		//post_nub = <9>;
 	};
-#if 0
+
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-t5d-revB";
 		dev_name = "aml_dtv_demod";
-		status = "disabled";
+		status = "okay";
 		diseqc_name = "sgm_41286";
 		pinctrl-names="if_agc_pins", "diseqc", "rf_agc_pins";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
@@ -283,7 +281,7 @@
 		cma_mem_size = <8>;
 		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
 	};
-#endif
+
 	/* Audio Related start */
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
@@ -450,10 +448,10 @@
 		dev_name = "dvb-extern";
 		status = "okay";
 
-		fe_num = <0>;
+		fe_num = <1>;
 		fe0_demod = "internal";
 
-		tuner_num = <1>; /* tuner number, multi tuner support */
+		tuner_num = <2>; /* tuner number, multi tuner support */
 		tuner0_name = "mxl661_tuner";
 		tuner0_i2c_adap = <&i2c0>;
 		tuner0_i2c_addr = <0x60>;
@@ -495,8 +493,29 @@
 		&clkc CLKID_AHB_ARB0
 		&clkc CLKID_PARSER0>;
 		clock-names = "demux", "ahbarb0", "parser_top";
+		pinctrl-names = "p_ts2";
+		pinctrl-0 = <&dvb_p_ts2_pins>;
 	};
-
+	dvbci {
+		compatible = "amlogic, dvbci";
+		dev_name = "dvbci";
+		/* 0=iobus,1=spi,2=cimax,3=spi-t312 4:T5D,ci bus*/
+		io_type = <4>;
+		/*gpio pin define*/
+		pinctrl-names= "ci_ts_pins", "ci_addr_pins";
+		pinctrl-0=<&dvb_ci_bus_pins &ci_ts_pins>;
+		pinctrl-1=<&dvb_ci_bus_pins &ci_addr_pins>;
+		/*irq define*/
+		interrupts = <0 186 1
+				0 187 1>;
+		interrupt-names = "irq_cmp",
+					"irq_timeout";
+		dvbci_io {
+			/*gpio define  GPIOM_27 GPIOM_28*/
+			cd_pin1 = <&gpio       GPIOM_27       GPIO_ACTIVE_HIGH>;
+			pwr_pin = <&gpio       GPIOM_28       GPIO_ACTIVE_HIGH>;
+		};
+	};
 	tvafe_avin_detect {
 		compatible = "amlogic, t5d_tvafe_avin_detect";
 		status = "okay";
@@ -545,7 +564,7 @@
 		 *if support 1080p-YUV422-8BIT-WR:1920*1080*2*4 ~= 16M
 		 *worst case:(4096*2160*4 + 2M(afbce issue)) *6buf = 214.5M
 		 */
-		cma_size = <50>;
+		cma_size = <208>;
 		frame_buff_num = <10>;
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
@@ -593,10 +612,6 @@
 		flag_cma = <0>;
 		interrupts = <0 85 1>;
 		rdma-irq = <4>;
-		/*clocks = <&clkc CLKID_FCLK_DIV5>,
-		 *	<&clkc CLKID_VDIN_MEAS_COMP>;
-		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
-		 */
 		vdin_id = <1>;
 		frame_buff_num = <4>;
 		/*vdin write mem color depth support:
@@ -635,7 +650,7 @@
 
 	vbi {
 		compatible = "amlogic, vbi";
-		status = "disable";
+		status = "okay";
 		interrupts = <0 83 1>;
 	};
 
@@ -1215,11 +1230,12 @@
 		 */
 		samesource_sel = <3>;
 
-		pinctrl-names = "tdm_pins";
+		pinctrl-names = "tdm_pins","tdmout_a_gpio";
 		pinctrl-0 = <&mclk_1_pins
 			&tdmout_b_pins
 			&tdm_d0_pins
 			&tdm_clk_pins>;
+		pinctrl-1 = <&tdmout_a_gpio>;
 
 		/* In for ACODEC_ADC */
 		acodec_adc = <1>;
@@ -1568,6 +1584,17 @@
 		};
 	};
 
+	tdmout_a_gpio: tdmout_a_gpio {
+		mux { /* GPIOH_14, GPIOH_15, GPIOH_16, GPIOH_17 */
+			groups ="GPIOH_14",
+				"GPIOH_15",
+				"GPIOH_16",
+				"GPIOH_17";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
+
 	pdmin: pdmin {
 		mux { /* GPIOH_19, GPIOH_18 */
 			groups = "pdm_dclk_h",
@@ -1742,8 +1769,8 @@
 
 &meson_fb {
 	status = "okay";
-	display_size_default = <1280 720 1280 2160 32>;
-	mem_size = <0x00800000 0xb00000 0x100000 0x100000 0x400000>;
+	display_size_default = <1920 1080 1920 2160 32>;
+	mem_size = <0x00800000 0x1980000 0x100000 0x800000>;
 	logo_addr = "0x3f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */

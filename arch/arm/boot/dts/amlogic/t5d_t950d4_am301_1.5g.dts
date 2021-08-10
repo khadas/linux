@@ -88,7 +88,7 @@
 			size = <0x0>;
 			/*alignment = <0x100000>;*/
 			//no-map;
-			alloc-ranges = <0x0 0x3f400000>;
+			alloc-ranges = <0x0 0x3f000000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -101,9 +101,9 @@
 			 * size = 1920 * 1080 * 3 * 4
 			 *(RGBA: 4 bytes/pixel) + 4M(10% * afbc)
 			 */
-			size = <0x01000000>;
+			size = <0x00000000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x3f400000>;
+			alloc-ranges = <0x0 0x3f000000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
@@ -567,7 +567,7 @@
 		 *if support 1080p-YUV422-8BIT-WR:1920*1080*2*4 ~= 16M
 		 *worst case:(4096*2160*4 + 2M(afbce issue)) *6buf = 214.5M
 		 */
-		cma_size = <50>;
+		cma_size = <208>;
 		frame_buff_num = <10>;
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
@@ -1237,11 +1237,12 @@
 		 */
 		samesource_sel = <3>;
 
-		pinctrl-names = "tdm_pins";
+		pinctrl-names = "tdm_pins","tdmout_a_gpio";
 		pinctrl-0 = <&mclk_1_pins
 			&tdmout_b_pins
 			&tdm_d0_pins
 			&tdm_clk_pins>;
+		pinctrl-1 = <&tdmout_a_gpio>;
 
 		/* In for ACODEC_ADC */
 		acodec_adc = <1>;
@@ -1587,6 +1588,17 @@
 				"tdm_d0";
 			function = "tdm";
 			bias-pull-down;
+		};
+	};
+
+	tdmout_a_gpio: tdmout_a_gpio {
+		mux { /* GPIOH_14, GPIOH_15, GPIOH_16, GPIOH_17 */
+			groups ="GPIOH_14",
+				"GPIOH_15",
+				"GPIOH_16",
+				"GPIOH_17";
+			function = "gpio_periphs";
+			output-low;
 		};
 	};
 
