@@ -877,7 +877,7 @@ static int config_ge2d_data(struct composer_dev *dev,
 }
 
 static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
-					 struct file *file_vf)
+					 struct file *file_vf, bool need_dw)
 {
 	struct vframe_s *vf = NULL;
 	bool is_dec_vf = false;
@@ -888,7 +888,9 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 	if (is_dec_vf) {
 		vf =
 		dmabuf_get_vframe((struct dma_buf *)(file_vf->private_data));
-		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME))
+		if (vf->vf_ext &&
+			(vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME) &&
+			!need_dw)
 			vf = vf->vf_ext;
 		dmabuf_put_vframe((struct dma_buf *)(file_vf->private_data));
 		vc_print(dev->index, PRINT_OTHER, "vf is from decoder\n");
@@ -938,6 +940,7 @@ static void vframe_composer(struct composer_dev *dev)
 	struct componser_info_t *componser_info;
 	bool is_dec_vf = false, is_v4l_vf = false;
 	bool is_tvp = false;
+	bool need_dw = false;
 
 	do_gettimeofday(&begin_time);
 
@@ -1041,11 +1044,14 @@ static void vframe_composer(struct composer_dev *dev)
 		is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
 		is_v4l_vf =
 		is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+		if (vframe_info[i]->transform != 0 || count != 1)
+			need_dw = true;
 		if (vframe_info[vf_dev[i]]->type == 1) {
 			if (is_dec_vf || is_v4l_vf) {
 				vc_print(dev->index, PRINT_OTHER,
 					 "%s dma buffer is vf\n", __func__);
-				scr_vf = get_vf_from_file(dev, file_vf);
+				scr_vf =
+					get_vf_from_file(dev, file_vf, need_dw);
 				if (!scr_vf) {
 					vc_print(dev->index,
 						 PRINT_ERROR, "get vf NULL\n");
@@ -1066,7 +1072,8 @@ static void vframe_composer(struct composer_dev *dev)
 			if (is_dec_vf || is_v4l_vf) {
 				vc_print(dev->index, PRINT_OTHER,
 					 "%s type 0 is vf\n", __func__);
-				scr_vf = get_vf_from_file(dev, file_vf);
+				scr_vf =
+					get_vf_from_file(dev, file_vf, need_dw);
 			}
 			if (!scr_vf) {
 				vc_print(dev->index,
@@ -1397,7 +1404,7 @@ static void video_composer_task(struct composer_dev *dev)
 		is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
 		if (frame_info->type == 0) {
 			if (is_dec_vf || is_v4l_vf)
-				vf = get_vf_from_file(dev, file_vf);
+				vf = get_vf_from_file(dev, file_vf, false);
 			vc_print(dev->index, PRINT_OTHER,
 				 "%s type 0 is vf\n", __func__);
 			if (!vf) {
@@ -1408,7 +1415,7 @@ static void video_composer_task(struct composer_dev *dev)
 			video_wait_decode_fence(dev, vf);
 		} else if (frame_info->type == 1) {
 			if (is_dec_vf || is_v4l_vf) {
-				vf = get_vf_from_file(dev, file_vf);
+				vf = get_vf_from_file(dev, file_vf, false);
 				vc_print(dev->index, PRINT_OTHER,
 					 "%s dma is vf\n", __func__);
 				if (!vf) {
@@ -1873,6 +1880,7 @@ static void set_frames_info(struct composer_dev *dev,
 	int channel = -1;
 	bool is_tvp = false, is_used = false;
 	bool is_repeat = true;
+	bool need_dw = false;
 
 	if (debug_vd_layer)
 		channel = choose_video_layer[dev->index] - 1;
@@ -2032,7 +2040,9 @@ static void set_frames_info(struct composer_dev *dev,
 		is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
 		is_v4l_vf =
 		is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
-
+		if (frames_info->frame_info[j].transform != 0 ||
+			frames_info->frame_count != 1)
+			need_dw = true;
 		if (type == 0 || type == 1) {
 			vc_print(dev->index, PRINT_FENCE,
 				 "received_cnt=%lld,new_cnt=%lld,i=%d,z=%d,DMA_fd=%d\n",
@@ -2055,7 +2065,7 @@ static void set_frames_info(struct composer_dev *dev,
 					 "%s dma buffer not vf\n", __func__);
 				continue;
 			}
-			vf = get_vf_from_file(dev, file_vf);
+			vf = get_vf_from_file(dev, file_vf, need_dw);
 			vc_print(dev->index, PRINT_OTHER,
 				 "%s type is %d and get vf\n",
 				 __func__, type);
