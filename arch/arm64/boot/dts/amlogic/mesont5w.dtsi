@@ -8,6 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/amlogic,meson-t5w-reset.h>
 #include <dt-bindings/clock/t5w-clkc.h>
+#include <dt-bindings/mailbox/amlogic,mbox.h>
 
 / {
 	compatible = "amlogic";
@@ -367,6 +368,34 @@
 		#power-domain-cells = <1>;
 		status = "okay";
 	};
+
+	mbox_pl: mhu@ff63c420 {
+		status = "okay";
+		compatible = "amlogic, meson_mhu_pl";
+		reg = <0x0 0xff63c420 0x0 0x4>,   /*from ao sts registers */
+		      <0x0 0xff63c428 0x0 0x4>,   /*to ao set registers */
+		      <0x0 0xff63c430 0x0 0x4>,   /*to ao clr registers */
+		      <0x0 0xfffc7400 0x0 0x400>;   /*to ao payload */
+		interrupts = <0 210 1>,  /* ap Rev se*/
+			     <0 136 1>;  /* ap Send se*/
+		mbox-names = "ao_dev",
+			     "ap_to_ao";
+		#mbox-cells = <1>;
+		mboxes = <&mbox_pl 0>,
+			 <&mbox_pl 1>;
+		mbox-nums = <2>;
+		mbox-mb = <1>;
+	};
+
+	mbox_user: mbox-user@0 {
+		status = "okay";
+		compatible = "amlogic, meson-mbox-user";
+		mbox-nums = <1>;
+		mbox-names = "ree2aocpu";
+		mboxes = <&mbox_pl 1>;
+		mbox-dests = <MAILBOX_AOCPU>;
+	};
+
 }; /* end of / */
 
 &pinctrl_periphs {
