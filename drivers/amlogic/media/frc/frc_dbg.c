@@ -403,6 +403,11 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			frc_set_seg_display((u8)val1, 8, 8, 8);
+	} else if (!strcmp(parm[0], "set_demo")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_memc_set_demo((u8)val1);
 	}
 exit:
 	kfree(buf_orig);
