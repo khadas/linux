@@ -2024,6 +2024,7 @@
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1";
 			card_type = <5>;
+			use_intf3_tuning;
 			mmc_debug_flag;
 			//resets = <&reset RESET_SD_EMMC_B>;
 		};
