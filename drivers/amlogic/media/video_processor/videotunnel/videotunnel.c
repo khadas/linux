@@ -368,6 +368,7 @@ static struct vt_instance *vt_instance_create_lock(struct vt_dev *dev)
 	instance->dev = dev;
 	instance->fcount = 0;
 	instance->mode = VT_MODE_NONE_BLOCK;
+	instance->used = false;
 
 	mutex_init(&instance->lock);
 	mutex_init(&instance->cmd_lock);
@@ -741,8 +742,12 @@ static int vt_alloc_id_process(struct vt_alloc_id_data *data,
 	for (n = rb_first(&dev->instances); n; n = rb_next(n)) {
 		instance = rb_entry(n, struct vt_instance, node);
 		mutex_lock(&instance->lock);
-		if (!instance->consumer && !instance->producer) {
+		/* no consumer and producer, not new alloced */
+		if (!instance->consumer &&
+		    !instance->producer &&
+		    instance->used) {
 			data->tunnel_id = instance->id;
+			instance->used = false;
 			vt_debug(VT_DEBUG_USER, "vt alloc find instance [%d], ref %d\n",
 				 instance->id,
 				 atomic_read(&instance->ref.refcount.refs));
@@ -923,6 +928,7 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 	}
 	session->cid = vt_get_connected_id();
 	session->role = data->role;
+	instance->used = true;
 
 	vt_debug(VT_DEBUG_USER, "vt [%d] %s-%d connect, instance ref %d\n",
 		 instance->id,
