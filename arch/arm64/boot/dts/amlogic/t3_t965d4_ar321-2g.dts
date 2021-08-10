@@ -993,12 +993,12 @@
 				&clkc CLKID_MPLL1>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
 
-		pinctrl-names = "tdm_pins";
+		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
 		pinctrl-0 = </* &mclk_1_pins */
 			&tdm_b_pins
 			&tdm_d0_pins
 			&tdm_clk_pins>;
-
+		pinctrl-1 = <&tdmout_a_gpio>;
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -1551,6 +1551,16 @@
 				"tdm_fs1_h15",
 				"tdm_d0_h17";
 			function = "tdm";
+		};
+	};
+
+	tdmout_a_gpio: tdmout_a_gpio {
+		mux { /* GPIOH_15, GPIOH_16, GPIOH_17 */
+			groups ="GPIOH_15",
+				"GPIOH_16",
+				"GPIOH_17";
+			function = "gpio_periphs";
+			output-low;
 		};
 	};
 
