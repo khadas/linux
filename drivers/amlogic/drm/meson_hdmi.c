@@ -208,6 +208,7 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 	struct hdmi_format_para *hdmi_para;
 	struct hdmi_cea_timing *timing;
 	char *strp = NULL;
+	u32 num, den;
 
 	edid = (struct edid *)drm_hdmitx_get_raw_edid();
 	drm_connector_update_edid_property(connector, edid);
@@ -246,9 +247,9 @@ int am_hdmi_tx_get_modes(struct drm_connector *connector)
 			}
 
 			mode->type = DRM_MODE_TYPE_DRIVER;
-			mode->vrefresh =
-				(int)hdmi_para->hdmitx_vinfo.sync_duration_den /
-				hdmi_para->hdmitx_vinfo.sync_duration_num;
+			num = hdmi_para->hdmitx_vinfo.sync_duration_num;
+			den = hdmi_para->hdmitx_vinfo.sync_duration_den;
+			mode->vrefresh = (int)DIV_ROUND_CLOSEST(num, den);
 			mode->clock = timing->pixel_freq;
 			mode->hdisplay = timing->h_active;
 			mode->hsync_start = timing->h_active + timing->h_front;
