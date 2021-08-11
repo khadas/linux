@@ -35,6 +35,10 @@
 #include "meson_vpu_pipeline.h"
 
 #define AM_VOUT_NULL_MODE "null"
+/* vpp crc */
+#define VPP_RO_CRCSUM           0x1db2
+#define VPP_CRC_CHK             0x1db3
+
 static int irq_init_done;
 static struct platform_device *gp_dev;
 static unsigned long gem_mem_start, gem_mem_size;
@@ -93,6 +97,20 @@ char *am_meson_crtc_get_voutmode(struct drm_display_mode *mode)
 		return name;
 }
 
+static void meson_drm_handle_vpp_crc(struct am_meson_crtc *amcrtc)
+{
+	u32 crc;
+	struct drm_crtc *crtc = &amcrtc->base;
+
+	if (amcrtc->vpp_crc_enable && cpu_after_eq(MESON_CPU_MAJOR_ID_SM1)) {
+		meson_vpu_write_reg(VPP_CRC_CHK, 1);
+		crc = meson_vpu_read_reg(VPP_RO_CRCSUM);
+		drm_crtc_add_crc_entry(crtc, true,
+				       drm_crtc_accurate_vblank_count(crtc),
+				       &crc);
+	}
+}
+
 void am_meson_crtc_handle_vsync(struct am_meson_crtc *amcrtc)
 {
 	unsigned long flags;
@@ -118,6 +136,8 @@ void am_meson_crtc_handle_vsync(struct am_meson_crtc *amcrtc)
 		amcrtc->event = NULL;
 	}
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
+	meson_drm_handle_vpp_crc(amcrtc);
 }
 
 void am_meson_crtc_irq(struct meson_drm *priv)

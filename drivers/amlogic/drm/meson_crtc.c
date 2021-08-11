@@ -169,6 +169,69 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tglobal_afbc=%u\n", mvps->global_afbc);
 }
 
+static const char * const pipe_crc_sources[] = {"vpp1", "NULL"};
+
+static const char *const *meson_crtc_get_crc_sources(struct drm_crtc *crtc,
+						     size_t *count)
+{
+	*count = ARRAY_SIZE(pipe_crc_sources);
+	return pipe_crc_sources;
+}
+
+static int meson_crc_parse_source(const char *source, bool *enabled)
+{
+	int i;
+	int count = ARRAY_SIZE(pipe_crc_sources);
+
+	if (!source) {
+		*enabled = false;
+		return 0;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (!strcmp(pipe_crc_sources[i], source))
+			break;
+	}
+
+	if (i >= count) {
+		*enabled = false;
+		return -EINVAL;
+	} else if (!strcmp(pipe_crc_sources[i], "NULL")) {
+		*enabled  = false;
+	} else {
+		*enabled = true;
+	}
+
+	return 0;
+}
+
+static int meson_crtc_set_crc_source(struct drm_crtc *crtc, const char *source)
+{
+	bool enabled = false;
+	int ret = 0;
+	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
+
+	ret = meson_crc_parse_source(source, &enabled);
+	amcrtc->vpp_crc_enable = enabled;
+
+	return ret;
+}
+
+static int meson_crtc_verify_crc_source(struct drm_crtc *crtc,
+					const char *source, size_t *values_cnt)
+{
+	bool enabled;
+
+	if (meson_crc_parse_source(source, &enabled) < 0) {
+		DRM_ERROR("unknown source %s\n", source);
+		return -EINVAL;
+	}
+
+	*values_cnt = 1;
+
+	return 0;
+}
+
 static const struct drm_crtc_funcs am_meson_crtc_funcs = {
 	.atomic_destroy_state	= meson_crtc_destroy_state,
 	.atomic_duplicate_state = meson_crtc_duplicate_state,
@@ -179,6 +242,9 @@ static const struct drm_crtc_funcs am_meson_crtc_funcs = {
 	.atomic_get_property = meson_crtc_atomic_get_property,
 	.atomic_set_property = meson_crtc_atomic_set_property,
 	.atomic_print_state = meson_crtc_atomic_print_state,
+	.get_crc_sources	= meson_crtc_get_crc_sources,
+	.set_crc_source		= meson_crtc_set_crc_source,
+	.verify_crc_source	= meson_crtc_verify_crc_source,
 };
 
 static bool am_meson_crtc_mode_fixup(struct drm_crtc *crtc,
