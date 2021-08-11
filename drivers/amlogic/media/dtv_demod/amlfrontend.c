@@ -710,7 +710,7 @@ static int Gxtv_Demod_Dvbc_Init(struct aml_dtvdemod *demod, int mode)
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		sys.adc_clk = ADC_CLK_24M;
-		sys.demod_clk = DEMOD_CLK_250M;
+		sys.demod_clk = DEMOD_CLK_167M;
 		demod->demod_status.tmp = CRY_MODE;
 	}
 
@@ -731,7 +731,7 @@ static int Gxtv_Demod_Dvbc_Init(struct aml_dtvdemod *demod, int mode)
 	if (devp->data->hw_ver == DTVDEMOD_HW_S4 || devp->data->hw_ver == DTVDEMOD_HW_S4D)
 		dd_hiu_reg_write(0x80, 0x501);
 	else if (devp->data->hw_ver >= DTVDEMOD_HW_TL1)
-		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x501);
+		dd_hiu_reg_write(dig_clk->demod_clk_ctl, 0x502);
 
 	demod_set_sys(demod, &sys);
 

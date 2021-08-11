@@ -348,7 +348,8 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod)
 	/* modified 0x44 0x48 */
 	qam_write_reg(demod, 0x11, (symb_rate & 0xffff) * 256);
 	/* support CI+ card */
-	qam_write_bits(demod, 0x11, 0x98, 24, 8);
+	//ts_clk and ts_data direction 0x98 0x90
+	qam_write_bits(demod, 0x11, 0x90, 24, 8);
 	/* blind search, configure max symbol_rate      for 7218  fb=3.6M */
 	/*dvbc_write_reg(QAM_BASE+0x048, 3600*256);*/
 	/* // configure min symbol_rate fb = 6.95M*/
