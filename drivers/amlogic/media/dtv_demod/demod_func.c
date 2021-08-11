@@ -1017,7 +1017,7 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 				front_write_bits(AFIFO_ADC, nco_rate, AFIFO_NCO_RATE_BIT,
 						 AFIFO_NCO_RATE_WID);
 			}
-
+			front_write_reg(SFIFO_OUT_LENS, 0x05);
 			front_write_bits(AFIFO_ADC, 1, ADC_2S_COMPLEMENT_BIT,
 					 ADC_2S_COMPLEMENT_WID);
 		}
