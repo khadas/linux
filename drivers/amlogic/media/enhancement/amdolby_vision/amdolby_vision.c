@@ -74,6 +74,7 @@
 #include <linux/amlogic/gki_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/media/utils/am_com.h>
+#include "../../common/vfm/vfm.h"
 
 DEFINE_SPINLOCK(dovi_lock);
 
@@ -7394,7 +7395,7 @@ bool is_dovi_dual_layer_frame(struct vframe_s *vf)
 	if (!vf)
 		return false;
 
-	if ((is_meson_sc2() || is_meson_s4d()) && !enable_fel)
+	if (!enable_fel)
 		return false;
 
 	fmt = get_vframe_src_fmt(vf);
@@ -9455,6 +9456,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 	bool run_control_path = true;
 	bool vf_changed = true;
 	enum dm_algo_e dm_algo = DM_ALGO_DM4;/* by default pick DM4 */
+	char *dvel_provider = NULL;
 
 	memset(&req, 0, (sizeof(struct provider_aux_req_s)));
 	memset(&el_req, 0, (sizeof(struct provider_aux_req_s)));
@@ -9890,9 +9892,12 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			 req.aux_size, req.dv_enhance_exist);
 		if (src_format != FORMAT_DOVI && !req.dv_enhance_exist)
 			memset(&req, 0, sizeof(req));
-		if (req.dv_enhance_exist &&
-		    toggle_mode == 1 &&
-		    (!((is_meson_sc2() || is_meson_s4d()) && !enable_fel))) {
+
+		/* check dvel decoder is active, if active, should */
+		/* get/put el data, otherwise, bl is stuck */
+		dvel_provider = vf_get_provider_name(DVEL_RECV_NAME);
+		if (req.dv_enhance_exist && toggle_mode == 1 &&
+		    dvel_provider && !strcmp(dvel_provider, "dveldec")) {
 			el_vf = dvel_vf_get();
 			if (el_vf && (el_vf->pts_us64 == vf->pts_us64 ||
 				      !(dolby_vision_flags &
@@ -9970,7 +9975,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			dolby_vision_vf_add(vf, NULL);
 		}
 
-		if (toggle_mode == 0 && req.dv_enhance_exist)
+		if (req.dv_enhance_exist)
 			el_flag = 1;
 
 		if (toggle_mode != 2) {
@@ -9992,10 +9997,8 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			meta_flag_bl = 0;
 		}
 
-		if ((is_meson_tm2_stbmode() || is_meson_sc2() ||
-			is_meson_t7_stbmode() || is_meson_s4d()) &&
-		    (el_flag && !mel_flag &&
-		    ((dolby_vision_flags & FLAG_CERTIFICAION) == 0)) &&
+		if (el_flag && !mel_flag &&
+		    ((dolby_vision_flags & FLAG_CERTIFICAION) == 0) &&
 		    !enable_fel) {
 			el_flag = 0;
 			dolby_vision_el_disable = true;
