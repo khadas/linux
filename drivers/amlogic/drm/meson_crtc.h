@@ -64,6 +64,8 @@ struct am_meson_crtc {
 	int dump_counts;
 	int dump_index;
 	char osddump_path[64];
+
+	int vpp_crc_enable;
 };
 
 #define to_am_meson_crtc(x) container_of(x, \
