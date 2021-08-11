@@ -1946,7 +1946,7 @@ struct TargetDisplayConfig *DV_cfg[2] = {
 };
 #endif
 
-static unsigned int debug_dolby;
+unsigned int debug_dolby;
 module_param(debug_dolby, uint, 0664);
 MODULE_PARM_DESC(debug_dolby, "\n debug_dolby\n");
 
