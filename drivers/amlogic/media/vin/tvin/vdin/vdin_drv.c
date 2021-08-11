@@ -2103,7 +2103,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		devp->frame_drop_num--;
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_DROP_FRAME;
 		vdin_drop_frame_info(devp, "drop frame");
-		vdin_drop_cnt++;
 		goto irq_handled;
 	}
 	stamp = vdin_get_meas_vstamp(offset);
