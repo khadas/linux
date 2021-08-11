@@ -395,7 +395,7 @@ int dmabuf_bind_uvm_alloc(struct dma_buf *dmabuf, struct uvm_alloc_info *info)
 	struct uvm_alloc *ua;
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 
@@ -428,7 +428,7 @@ int dmabuf_bind_uvm_delay_alloc(struct dma_buf *dmabuf,
 	struct uvm_alloc *ua;
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 
@@ -448,7 +448,7 @@ int dmabuf_set_vframe(struct dma_buf *dmabuf, struct vframe_s *vf,
 	struct uvm_handle *handle;
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 
@@ -468,7 +468,7 @@ struct vframe_s *dmabuf_get_vframe(struct dma_buf *dmabuf)
 	struct uvm_handle *handle;
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -484,7 +484,7 @@ int dmabuf_put_vframe(struct dma_buf *dmabuf)
 	struct uvm_handle *handle;
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 
@@ -499,7 +499,7 @@ bool is_valid_mod_type(struct dma_buf *dmabuf,
 	struct uvm_handle *handle;
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(1, "dmabuf is not uvm.\n");
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return 0;
 	}
 
@@ -516,7 +516,7 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 	struct uvm_hook_mod *uhmod;
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 
@@ -560,7 +560,7 @@ int meson_uvm_getinfo(int shared_fd, int mode_type, char *buf)
 	dmabuf = dma_buf_get(shared_fd);
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 
@@ -603,8 +603,14 @@ int meson_uvm_setinfo(int shared_fd, int mode_type, char *buf)
 	int ret = 0;
 
 	dmabuf = dma_buf_get(shared_fd);
-	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	if (!dmabuf_is_uvm(dmabuf)) {
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
+		dma_buf_put(dmabuf);
 		return -EINVAL;
 	}
 
@@ -669,7 +675,7 @@ struct uvm_hook_mod *uvm_get_hook_mod(struct dma_buf *dmabuf,
 	struct uvm_hook_mod *uhmod = NULL;
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -703,7 +709,7 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 	UVM_PRINTK(1, "%s called, mod_type%d.\n", __func__, type);
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm.\n");
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 

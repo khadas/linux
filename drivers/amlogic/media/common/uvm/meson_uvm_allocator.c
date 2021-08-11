@@ -418,7 +418,7 @@ static int mua_attach(int fd, int type, char *buf)
 		type, buf);
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		MUA_PRINTK(0, "dmabuf is not uvm.\n");
+		MUA_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 	if (info.type >= VF_SRC_DECODER && info.type < PROCESS_INVALID)
@@ -437,7 +437,7 @@ static int mua_detach(int fd, int type)
 
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
-		MUA_PRINTK(0, "dmabuf is not uvm.\n");
+		MUA_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 	handle = dmabuf->priv;
