@@ -9209,7 +9209,13 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 			di_buf->flg_nv21 = di_buf_i->flg_nv21;
 			pp_drop_frame(di_buf, channel);
 			#ifdef HOLD_ONE_FRAME
-			di_que_in(channel, QUE_PRE_NO_BUF, ready_di_buf);
+			di_que_in(channel, QUE_PRE_NO_BUF, ready_di_buf); //mark
+			#else
+			if (ready_di_buf->is_bypass_mem) {
+				pp_buf_clear(ready_di_buf);
+				di_que_in(channel, QUE_PRE_NO_BUF,
+					  ready_di_buf);
+			}
 			#endif
 			frame_count++;
 
