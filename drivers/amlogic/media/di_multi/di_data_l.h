@@ -971,6 +971,7 @@ enum EDI_MP_UI_T {
 	edi_mp_hdr_en,
 	edi_mp_hdr_mode,
 	edi_mp_hdr_ctrl,
+	edi_mp_clock_low_ratio,//set low ratio of vpu clkb
 	EDI_MP_SUB_DI_E,
 	/**************************************/
 	EDI_MP_SUB_NR_B,
@@ -1061,7 +1062,6 @@ enum EDI_MP_UI_T {
 
 	EDI_MP_SUB_3D_E,
 	/**************************************/
-	edi_mp_clock_low_ratio,//set low ratio of vpu clkb
 	EDI_MP_UI_T_END,
 };
 

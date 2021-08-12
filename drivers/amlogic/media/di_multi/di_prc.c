@@ -795,6 +795,8 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 			edi_mp_hdr_mode, 1},
 	[edi_mp_hdr_ctrl]  = {"hdr_ctrl:uint:0",
 			edi_mp_hdr_ctrl, 0},
+	[edi_mp_clock_low_ratio]  = {"clock_low_ratio:0:not set",
+				edi_mp_clock_low_ratio, 60000000},
 	[EDI_MP_SUB_DI_E]  = {"di end-------",
 				EDI_MP_SUB_DI_E, 0},
 	/**************************************/
@@ -969,8 +971,6 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 				EDI_MP_SUB_3D_E, 0},
 
 	/**************************************/
-	[edi_mp_clock_low_ratio]  = {"clock_low_ratio:long?",
-				edi_mp_clock_low_ratio, 60000000},
 	[EDI_MP_UI_T_END]  = {"module para top end ", EDI_MP_UI_T_END, 0},
 };
 
