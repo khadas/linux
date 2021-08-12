@@ -443,6 +443,14 @@ int mmc_of_parse(struct mmc_host *host)
 		mmc->run_pxp_flag = 1;
 	else
 		mmc->run_pxp_flag = 0;
+
+	if (device_property_read_bool(dev, "supports-cqe"))
+		mmc->enable_hwcq = true;
+	else
+		mmc->enable_hwcq = false;
+
+	if (device_property_read_bool(dev, "use-64bit-dma"))
+		mmc->flags |= AML_USE_64BIT_DMA;
 #endif
 	return mmc_pwrseq_alloc(host);
 }

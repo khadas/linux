@@ -457,9 +457,11 @@ int mmc_cqe_start_req(struct mmc_host *host, struct mmc_request *mrq)
 	 * active requests i.e. this is the first.  Note, re-tuning will call
 	 * ->cqe_off().
 	 */
+#ifndef CONFIG_MMC_MESON_GX
 	err = mmc_retune(host);
 	if (err)
 		goto out_err;
+#endif
 
 	mrq->host = host;
 

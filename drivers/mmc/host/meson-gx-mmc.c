@@ -38,6 +38,8 @@
 #include <linux/sched/clock.h>
 #include <linux/debugfs.h>
 
+#include "meson-cqhci.h"
+
 struct mmc_gpio {
 	struct gpio_desc *ro_gpio;
 	struct gpio_desc *cd_gpio;
@@ -2709,8 +2711,13 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	if (!host->cmd && aml_card_type_mmc(host)) {
-		pr_debug("ignore irq.[%s]status:0x%x\n",
-			__func__, readl(host->regs + SD_EMMC_STATUS));
+		pr_debug("ignore irq.[%s]\n",
+			__func__);
+		if (host->mmc->cqe_on) {
+			pr_debug("[%s][%d]Enter cqe irq\n",
+				__func__, __LINE__);
+			aml_cqhci_irq(host);
+		}
 		return IRQ_HANDLED;
 	}
 
@@ -3941,7 +3948,7 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	}
 
 	mmc->ops = &meson_mmc_ops;
-	mmc_add_host(mmc);
+	amlogic_add_host(host);
 
 	if (aml_card_type_non_sdio(host) && host->sd_uart_init) {
 		struct mmc_gpio *ctx = mmc->slot.handler_priv;

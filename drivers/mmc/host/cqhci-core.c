@@ -19,6 +19,9 @@
 
 #include "cqhci.h"
 #include "cqhci-crypto.h"
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/amlogic/aml_sd.h>
+#endif
 
 #define DCMD_SLOT 31
 #define NUM_SLOTS 32
@@ -163,6 +166,10 @@ static void cqhci_dumpregs(struct cqhci_host *cq_host)
 static int cqhci_host_alloc_tdl(struct cqhci_host *cq_host)
 {
 	int i = 0;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct mmc_host *mmc = cq_host->mmc;
+	struct meson_host *host = mmc_priv(mmc);
+#endif
 
 	/* task descriptor can be 64/128 bit irrespective of arch */
 	if (cq_host->caps & CQHCI_TASK_DESC_SZ_128) {
@@ -207,21 +214,30 @@ static int cqhci_host_alloc_tdl(struct cqhci_host *cq_host)
 	 * setup each link-desc memory offset per slot-number to
 	 * the descriptor table.
 	 */
+#ifndef CONFIG_AMLOGIC_MODIFY
 	cq_host->desc_base = dmam_alloc_coherent(mmc_dev(cq_host->mmc),
 						 cq_host->desc_size,
 						 &cq_host->desc_dma_base,
 						 GFP_KERNEL);
 	if (!cq_host->desc_base)
 		return -ENOMEM;
+#else
+	cq_host->desc_base = host->regs + SD_EMMC_SRAM_DESC_BUF_OFF;
+	cq_host->desc_dma_base = host->res[0]->start +
+		SD_EMMC_SRAM_DESC_BUF_OFF;
+
+#endif
 
 	cq_host->trans_desc_base = dmam_alloc_coherent(mmc_dev(cq_host->mmc),
 					      cq_host->data_size,
 					      &cq_host->trans_desc_dma_base,
 					      GFP_KERNEL);
 	if (!cq_host->trans_desc_base) {
+#ifndef CONFIG_AMLOGIC_MODIFY
 		dmam_free_coherent(mmc_dev(cq_host->mmc), cq_host->desc_size,
 				   cq_host->desc_base,
 				   cq_host->desc_dma_base);
+#endif
 		cq_host->desc_base = NULL;
 		cq_host->desc_dma_base = 0;
 		return -ENOMEM;
@@ -398,9 +414,11 @@ static void cqhci_disable(struct mmc_host *mmc)
 			   cq_host->trans_desc_base,
 			   cq_host->trans_desc_dma_base);
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	dmam_free_coherent(mmc_dev(mmc), cq_host->desc_size,
 			   cq_host->desc_base,
 			   cq_host->desc_dma_base);
+#endif
 
 	cq_host->trans_desc_base = NULL;
 	cq_host->desc_base = NULL;
@@ -525,7 +543,9 @@ static void cqhci_prep_dcmd_desc(struct mmc_host *mmc,
 	u64 data = 0;
 	u8 resp_type;
 	u8 *desc;
+#ifndef CONFIG_AMLOGIC_MODIFY
 	__le64 *dataddr;
+#endif
 	struct cqhci_host *cq_host = mmc->cqe_private;
 	u8 timing;
 
@@ -557,8 +577,21 @@ static void cqhci_prep_dcmd_desc(struct mmc_host *mmc,
 	desc = (u8 *)task_desc;
 	pr_debug("%s: cqhci: dcmd: cmd: %d timing: %d resp: %d\n",
 		 mmc_hostname(mmc), mrq->cmd->opcode, timing, resp_type);
+
+#ifndef CONFIG_AMLOGIC_MODIFY
 	dataddr = (__le64 __force *)(desc + 4);
 	dataddr[0] = cpu_to_le64((u64)mrq->cmd->arg);
+#else
+	if (cq_host->dma64) {
+		__le64 *dataddr = (__le64 __force *)(desc + 4);
+
+		dataddr[0] = cpu_to_le64((u64)mrq->cmd->arg);
+	} else {
+		__le32 *dataddr = (__le32 __force *)(desc + 4);
+
+		dataddr[0] = cpu_to_le32(mrq->cmd->arg);
+	}
+#endif
 
 }
 
