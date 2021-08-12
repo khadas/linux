@@ -1368,10 +1368,8 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 	kfifo_put(&instance->fifo_to_producer, buffer);
 	mutex_unlock(&instance->lock);
 
-	if (instance->producer) {
+	if (instance->producer)
 		wake_up_interruptible(&instance->wait_producer);
-		wake_up_interruptible(&instance->producer->wait_producer);
-	}
 
 	vt_debug(VT_DEBUG_BUFFERS,
 		 "vt [%d] releasebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%p) timestamp(%lld)\n",
