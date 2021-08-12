@@ -223,12 +223,8 @@ struct stchip_register_t {
 void st_dvbs2_init(void);
 void tuner_set_params(struct dvb_frontend *fe);
 int tuner_get_ch_power(struct dvb_frontend *fe);
-int tuner_get_ch_power2(struct dvb_frontend *fe);
-
-u16 tuner_get_ch_power3(struct dvb_frontend *fe);
 
 int dtmb_get_power_strength(int agc_gain);
-
 int dvbc_get_power_strength(int agc_gain, int tuner_strength);
 int j83b_get_power_strength(int agc_gain, int tuner_strength);
 int atsc_get_power_strength(int agc_gain, int tuner_strength);
@@ -622,4 +618,5 @@ void aml_demod_exit(void);
 unsigned int write_riscv_ram(void);
 unsigned int dvbs_get_quality(void);
 void dvbs2_reg_initial(unsigned int symb_rate);
+int dvbs_get_signal_strength_off(void);
 #endif

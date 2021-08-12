@@ -168,7 +168,7 @@ static long aml_demod_ioctl(struct file *file,
 		break;
 
 	case AML_DEMOD_GET_RSSI:
-		strength = tuner_get_ch_power2(&demod->frontend);
+		strength = tuner_get_ch_power(&demod->frontend);
 
 		if (strength < 0)
 			strength = 0 - strength;

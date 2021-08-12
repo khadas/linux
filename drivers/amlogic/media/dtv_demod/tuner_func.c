@@ -43,54 +43,6 @@ int tuner_get_ch_power(struct dvb_frontend *fe)
 	return strength;
 }
 
-int tuner_get_ch_power2(struct dvb_frontend *fe)
-{
-	int strength = 0;
-#ifdef CONFIG_AMLOGIC_DVB_COMPAT
-	s16 strengtha = 0;
-
-	if (fe != NULL) {
-		if (fe->ops.tuner_ops.get_strength) {
-			fe->ops.tuner_ops.get_strength(fe, &strengtha);
-			//strength = strengtha - 256;
-			strength = (int)strengtha;
-		} else {
-			PR_INFO("no tuner get_strength\n");
-		}
-	}
-#endif
-
-	return strength;
-}
-
-u16 tuner_get_ch_power3(struct dvb_frontend *fe)
-{
-	u16 strength = 0;
-#ifdef CONFIG_AMLOGIC_DVB_COMPAT
-	s16 strengtha = 0;
-
-	if (fe != NULL) {
-
-		if (fe->ops.tuner_ops.get_strength) {
-			fe->ops.tuner_ops.get_strength(fe, &strengtha);
-			/*from negative to positive*/
-			if (strengtha < -100)
-				strength = 0;
-			else if (strengtha > -20)
-				strength = 100;
-			else
-				strength = (strengtha + 100) * 100 / 80;
-
-		} else {
-			PR_INFO("no tuner get_strength\n");
-		}
-	}
-#endif
-
-	return strength;
-}
-
-
 struct dvb_tuner_info *tuner_get_info(int type, int mode)
 {
 	/*type :  0-NULL, 1-DCT7070, 2-Maxliner, 3-FJ2207, 4-TD1316 */
