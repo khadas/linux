@@ -8906,10 +8906,12 @@ int dim_process_post_vframe(unsigned int channel)
 				break;
 		}
 	}
-	if (ready_count == 1 && ready_di_buf->is_eos) {
+	if (ready_di_buf->is_eos) {
 		dbg_reg("%s:ch[%d] only eos\n", __func__, channel);
 		dim_pst_vfm_bypass(pch, ready_di_buf);
-		return 1;
+		if (ready_count > 1)
+			return 1;
+		return 0;
 	}
 	if (ready_di_buf->is_nbypass) {
 		dbg_bypass("%s:bypass?\n", __func__);
