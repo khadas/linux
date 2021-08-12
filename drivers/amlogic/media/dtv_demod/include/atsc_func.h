@@ -69,6 +69,7 @@ void atsc_reset(void);
 int atsc_find(unsigned int data, unsigned int *ptable, int len);
 
 int atsc_read_snr(void);
+int atsc_read_snr_10(void);
 
 unsigned int atsc_read_ser(void);
 

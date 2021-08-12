@@ -671,20 +671,15 @@ static int gxtv_demod_dvbc_read_signal_strength
 
 static int gxtv_demod_dvbc_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	u32 tmp;
-	struct aml_demod_sts demod_sts;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
 	if (!devp->demod_thread)
 		return 0;
 
-	tmp = qam_read_reg(demod, 0x5) & 0xfff;
-	demod_sts.ch_snr = tmp * 100 / 32;
-	*snr = demod_sts.ch_snr / 40;
+	*snr = (qam_read_reg(demod, 0x5) & 0xfff) * 10 / 32;
 
-	if (*snr > 100)
-		*snr = 100;
+	PR_DVBC("demod[%d] snr is %d.%d\n", demod->id, *snr / 10, *snr % 10);
 
 	return 0;
 }
@@ -1100,7 +1095,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		snr = val >> 13;
 		l1post = (val >> 30) & 0x1;
 	} else {
-		snr = val;
+		snr = (dvbt_t2_rdb(0x2a09) << 8) | dvbt_t2_rdb(0x2a08);
 		cr = (dvbt_t2_rdb(0x8c3) >> 1) & 0x7;
 		modu = (dvbt_t2_rdb(0x8c3) >> 4) & 0x7;
 		ldpc = dvbt_t2_rdb(0xa50);
@@ -1234,8 +1229,10 @@ static int gxtv_demod_dvbt_isdbt_read_snr(struct dvb_frontend *fe, u16 *snr)
 		return 0;
 
 	*snr = dvbt_get_status_ops()->get_snr(&demod_sta/*, &demod_i2c*/);
-	*snr /= 8;
-	PR_DBGL("demod [id %d] snr is %d dbm\n", demod->id, *snr);
+	*snr = *snr * 10 / 8;
+
+	PR_DBGL("demod[%d] snr is %d.%d\n", demod->id, *snr / 10, *snr % 10);
+
 	return 0;
 }
 
@@ -1248,15 +1245,9 @@ static int dvbt_read_snr(struct dvb_frontend *fe, u16 *snr)
 		return 0;
 
 	*snr = ((dvbt_t2_rdb(CHC_CIR_SNR1) & 0x7) << 8) | dvbt_t2_rdb(CHC_CIR_SNR0);
-	*snr = *snr * 3 / 64;
+	*snr = *snr * 30 / 64;
 
-	/* 1-34db, mappting to 0-100% */
-	*snr = *snr * 100 / 34;
-
-	if (*snr > 100)
-		*snr = 100;
-
-	PR_DVBT("demod [id %d] signal quality is %d%%\n", demod->id, *snr);
+	PR_DVBT("demod[%d] snr is %d.%d\n", demod->id, *snr / 10, *snr % 10);
 
 	return 0;
 }
@@ -1284,16 +1275,9 @@ static int dvbt2_read_snr(struct dvb_frontend *fe, u16 *snr)
 		val |= dvbt_t2_rdb(0x2a08);
 	}
 
-	*snr = val & 0x7ff;
-	*snr = *snr * 3 / 64;
+	*snr = (val & 0x7ff) * 30 / 64 + 3;
 
-	/* 1-34db, mappting to 0-100% */
-	*snr = *snr * 100 / 34;
-
-	if (*snr > 100)
-		*snr = 100;
-
-	PR_DVBT("demod [id %d] signal quality is %d%%\n", demod->id, *snr);
+	PR_DVBT("demod[%d] snr is %d.%d\n", demod->id, *snr / 10, *snr % 10);
 
 	return 0;
 }
@@ -1302,16 +1286,13 @@ static int dvbs_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-	unsigned int quality_snr = 0;
 
 	if (!devp->demod_thread)
 		return 0;
 
-	quality_snr = dvbs_get_quality();
+	*snr = (u16)dvbs_get_quality();
 
-	*snr = quality_snr / 10;
-
-	PR_DVBS("demod [id %d] snr is %d dbm\n", demod->id, *snr);
+	PR_DVBS("demod[%d] snr is %d.%d\n", demod->id, *snr / 10, *snr % 10);
 
 	return 0;
 }
@@ -1757,10 +1738,12 @@ static int gxtv_demod_atsc_read_snr(struct dvb_frontend *fe, u16 *snr)
 
 	if ((c->modulation <= QAM_AUTO)	&& (c->modulation != QPSK)) {
 		dvbc_status(demod, &demod_sts, NULL);
-		*snr = demod_sts.ch_snr / 100;
+		*snr = demod_sts.ch_snr / 10;
 	} else if (c->modulation > QAM_AUTO) {
-		*snr = atsc_read_snr();
+		*snr = atsc_read_snr_10();
 	}
+
+	PR_ATSC("demod[%d] snr is %d.%d\n", demod->id, *snr / 10, *snr % 10);
 
 	return 0;
 }
@@ -2798,7 +2781,9 @@ static int gxtv_demod_dtmb_read_snr(struct dvb_frontend *fe, u16 *snr)
 	/* tmp = dtmb_read_reg(DTMB_TOP_FEC_LOCK_SNR);*/
 	tmp = dtmb_reg_r_che_snr();
 
-	*snr = convert_snr(tmp);
+	*snr = convert_snr(tmp) * 10;
+
+	PR_DTMB("demod snr is %d.%d\n", *snr / 10, *snr % 10);
 
 	return 0;
 }
