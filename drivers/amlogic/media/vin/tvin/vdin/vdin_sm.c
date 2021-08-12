@@ -272,6 +272,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 						__func__,
 						signal_chg, pre_dv_flag,
 						cur_dv_flag);
+				if (pre_dv_flag == 2)
+					nosig2_unstable_cnt = 150;
 				pre_prop->dolby_vision = prop->dolby_vision;
 				devp->dv.dv_flag = prop->dolby_vision;
 			}
@@ -676,13 +678,21 @@ void tvin_smr(struct vdin_dev_s *devp)
 				sm_print_unstable = 0;
 			}
 		} else {
+			if (IS_TVAFE_SRC(port))
+				nosig2_unstable_cnt = 2;
 			++sm_p->exit_nosig_cnt;
 			if (sm_p->exit_nosig_cnt >= nosig2_unstable_cnt) {
 				tvin_smr_init_counter(devp->index);
 				sm_p->state = TVIN_SM_STATUS_UNSTABLE;
-				if (sm_debug_enable)
+				if (sm_debug_enable) {
 					pr_info("[smr.%d] no signal --> unstable\n",
 						devp->index);
+					pr_info("unstable_cnt:0x%x\n",
+						nosig2_unstable_cnt);
+				}
+				if (IS_HDMI_SRC(port))
+					nosig2_unstable_cnt = 20;
+
 				sm_print_nosig  = 0;
 				sm_print_unstable = 0;
 			}

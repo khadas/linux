@@ -40,7 +40,7 @@
 #define VF_FLAG_NORMAL_FRAME		 0x00000001
 #define VF_FLAG_FREEZED_FRAME		 0x00000002
 #define VFRAME_DISP_MAX_NUM 20
-#define VDIN_CANVAS_MAX_CNT	11
+#define VDIN_CANVAS_MAX_CNT	12
 #define VDIN_VF_POOL_FREEZE              0x00000001
 #define ISR_LOG_EN
 
@@ -114,6 +114,8 @@ struct vf_pool {
 	unsigned int max_size, size;
 	struct vf_entry *master;
 	struct vf_entry *slave;
+	struct vf_entry *last_vfe;
+	struct vf_entry *last_last_vfe;
 	struct list_head wr_list; /* vf_entry */
 	spinlock_t wr_lock;
 	unsigned int wr_list_size;
@@ -189,6 +191,7 @@ void vdin_vf_unfreeze(struct vf_pool *p);
 void vdin_dump_vf_state(struct vf_pool *p);
 void vdin_dump_vf_state_seq(struct vf_pool *p, struct seq_file *seq);
 
+void vdin_vf_skip_all_disp(struct vf_pool *p);
 void vdin_vf_disp_mode_update(struct vf_entry *vfe, struct vf_pool *p);
 void vdin_vf_disp_mode_skip(struct vf_pool *p);
 #endif /* __VDIN_VF_H */
