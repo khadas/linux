@@ -17,6 +17,7 @@
 
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/cpu_version.h>
+#include <linux/amlogic/iomap.h>
 #include <linux/amlogic/reboot.h>
 //#include <asm/compiler.h>
 #include <linux/kdebug.h>
@@ -29,6 +30,37 @@ static void __iomem *reboot_reason_vaddr;
 static u32 psci_function_id_restart;
 static u32 psci_function_id_poweroff;
 static char *kernel_panic;
+
+static struct reboot_reason_str reboot_reason_name[] = {
+	[MESON_COLD_REBOOT] = { .name = "cold reboot" },
+	[MESON_NORMAL_BOOT] = { .name = "normal boot" },
+	[MESON_FACTORY_RESET_REBOOT] = { .name = "factory reset reboot" },
+	[MESON_UPDATE_REBOOT] = { .name = "update reboot" },
+	[MESON_FASTBOOT_REBOOT] = { .name = "fastboot reboot" },
+	[MESON_UBOOT_SUSPEND] = { .name = "uboot suspend" },
+	[MESON_HIBERNATE] = { .name = "hibernate" },
+	[MESON_BOOTLOADER_REBOOT] = { .name = "bootloader reboot" },
+	[MESON_RPMBP_REBOOT] = { .name = "rpmbp reboot" },
+	[MESON_QUIESCENT_REBOOT] = { .name = "quiescent reboot" },
+	[MESON_CRASH_REBOOT] = { .name = "crash reboot" },
+	[MESON_KERNEL_PANIC] = { .name = "kernel panic" },
+	[MESON_RECOVERY_QUIESCENT_REBOOT] = {
+		.name = "recovery quiescent reboot" },
+	[MESON_FFV_REBOOT] = { .name = "ffv reboot" },
+};
+
+u32 get_reboot_reason(void)
+{
+	u32 value;
+	u32 reboot_reason;
+
+	value = readl(reboot_reason_vaddr);
+	reboot_reason = (value >> 12) & 0xf;
+
+	return reboot_reason;
+}
+EXPORT_SYMBOL_GPL(get_reboot_reason);
+
 static u32 parse_reason(const char *cmd)
 {
 	u32 reboot_reason = MESON_NORMAL_BOOT;
@@ -70,6 +102,7 @@ static u32 parse_reason(const char *cmd)
 	}
 
 	pr_info("reboot reason %d\n", reboot_reason);
+
 	return reboot_reason;
 }
 
@@ -132,13 +165,14 @@ static struct notifier_block panic_notifier = {
 ssize_t reboot_reason_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
-	unsigned int value, len;
+	unsigned int value, len, reboot_reason;
 
 	if (!reboot_reason_vaddr)
 		return 0;
 	value = readl(reboot_reason_vaddr);
-	value = (value >> 12) & 0xf;
-	len = sprintf(buf, "%d\n", value);
+	reboot_reason = ((value >> 12) & 0xf);
+	len = sprintf(buf, "reboot reason = %d, %s\n", reboot_reason,
+		      reboot_reason_name[reboot_reason].name);
 
 	return len;
 }
@@ -192,7 +226,6 @@ static int aml_restart_probe(struct platform_device *pdev)
 {
 	u32 id;
 	int ret;
-	u32 paddr = 0;
 
 	if (!of_property_read_u32(pdev->dev.of_node, "sys_reset", &id)) {
 		psci_function_id_restart = id;
@@ -204,12 +237,15 @@ static int aml_restart_probe(struct platform_device *pdev)
 		pm_power_off = do_aml_poweroff;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "reboot_reason_addr", &paddr);
-	if (!ret) {
-		pr_debug("reboot_reason paddr: 0x%x\n", paddr);
-		reboot_reason_vaddr = ioremap(paddr, 0x4);
-		device_create_file(&pdev->dev, &dev_attr_reboot_reason);
+	reboot_reason_vaddr = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(reboot_reason_vaddr))
+		return PTR_ERR(reboot_reason_vaddr);
+
+	ret = device_create_file(&pdev->dev, &dev_attr_reboot_reason);
+	if (ret != 0) {
+		pr_err("%s, device create file failed, ret = %d!\n",
+		       __func__, ret);
+		return ret;
 	}
 
 	if (of_property_read_bool(pdev->dev.of_node,
