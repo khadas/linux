@@ -1514,3 +1514,33 @@ unsigned int dvbs_get_freq_offset(unsigned int *polarity)
 
 	return freq_offset;
 }
+
+#define SIGNAL_STRENGTH_READ_TIMES 50
+static unsigned char s_aStrengthVal[] = {
+	0xd3,
+	0xd5, 0xd2, 0xd0, 0xce, 0xcb,
+	0xc8, 0xc5, 0xc2, 0xbe, 0xb9,
+	0xb4, 0xad, 0xa7, 0xa3, 0xa1,
+	0x9e, 0x9c, 0x99, 0x97, 0x94,
+	0x91, 0x8b, 0x8e, 0x87, 0x83,
+	0x7e, 0x79, 0x73, 0x68
+};
+
+int dvbs_get_signal_strength_off(void)
+{
+	int i;
+	unsigned int val = 0;
+
+	for (i = 0; i < SIGNAL_STRENGTH_READ_TIMES; i++)
+		val += dvbs_rd_byte(0x91a);
+	val /= SIGNAL_STRENGTH_READ_TIMES;
+
+	for (i = 1; i < sizeof(s_aStrengthVal); i++) {
+		if (val >= s_aStrengthVal[i])
+			break;
+	}
+
+	PR_DVBS("average value level val=0x%x\n", val);
+
+	return -i;
+}
