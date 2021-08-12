@@ -530,7 +530,7 @@ static int gxtv_demod_dvbc_read_status_timer
 
 	/*check tuner*/
 	if (!timer_tuner_not_enough(demod)) {
-		strenth = tuner_get_ch_power2(fe);
+		strenth = tuner_get_ch_power(fe);
 
 		/*agc control,fine tune strength*/
 		if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
@@ -647,26 +647,24 @@ static int gxtv_demod_dvbc_read_ber(struct dvb_frontend *fe, u32 *ber)
 }
 
 static int gxtv_demod_dvbc_read_signal_strength
-	(struct dvb_frontend *fe, u16 *strength)
+	(struct dvb_frontend *fe, s16 *strength)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	int tuner_sr;
 
+	tuner_sr = tuner_get_ch_power(fe);
 	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
-		tuner_sr = tuner_get_ch_power2(fe);
 		tuner_sr += 22;
 
 		if (tuner_sr <= -80)
 			tuner_sr = dvbc_get_power_strength(
 				qam_read_reg(demod, 0x27) & 0x7ff, tuner_sr);
-
-		if (tuner_sr < -100)
-			*strength = 0;
-		else
-			*strength = tuner_sr + 100;
-	} else {
-		*strength = tuner_get_ch_power3(fe);
+		tuner_sr += 10;
+	} else if (!strncmp(fe->ops.tuner_ops.info.name, "mxl661", 6)) {
+		tuner_sr += 3;
 	}
+
+	*strength = (s16)tuner_sr;
 
 	return 0;
 }
@@ -1188,7 +1186,7 @@ static int dvbt_read_ber(struct dvb_frontend *fe, u32 *ber)
 }
 
 static int gxtv_demod_dvbt_read_signal_strength
-	(struct dvb_frontend *fe, u16 *strength)
+	(struct dvb_frontend *fe, s16 *strength)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
@@ -1196,14 +1194,18 @@ static int gxtv_demod_dvbt_read_signal_strength
 	if (!devp->demod_thread)
 		return 0;
 
-	*strength = tuner_get_ch_power3(fe);
+	*strength = (s16)tuner_get_ch_power(fe);
+	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4))
+		*strength += 8;
+	else if (!strncmp(fe->ops.tuner_ops.info.name, "mxl661", 6))
+		*strength += 3;
 
 	PR_DBGL("demod [id %d] tuner strength is %d dbm\n", demod->id, *strength);
 	return 0;
 }
 
 static int dtvdemod_dvbs_read_signal_strength
-	(struct dvb_frontend *fe, u16 *strength)
+	(struct dvb_frontend *fe, s16 *strength)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
@@ -1211,7 +1213,11 @@ static int dtvdemod_dvbs_read_signal_strength
 	if (!devp->demod_thread)
 		return 0;
 
-	*strength = tuner_get_ch_power3(fe);
+	*strength = (s16)tuner_get_ch_power(fe);
+	if (*strength <= -57) {
+		PR_DBGL("tuner strength = %d dbm\n", *strength);
+		*strength += dvbs_get_signal_strength_off();
+	}
 
 	PR_DBGL("demod [id %d] tuner strength is %d dbm\n", demod->id, *strength);
 
@@ -1682,7 +1688,7 @@ static int gxtv_demod_atsc_read_status
 	if (aml_demod_debug & DBG_ATSC) {
 		if (demod->atsc_dbg_lst_status != s || demod->last_lock != ilock) {
 			/* check tuner */
-			strength = tuner_get_ch_power2(fe);
+			strength = tuner_get_ch_power(fe);
 
 			PR_ATSC("s=%d(1 is lock),lock=%d\n", s, ilock);
 			PR_ATSC("[rsj_test]freq[%d] strength[%d]\n",
@@ -1718,33 +1724,27 @@ static int gxtv_demod_atsc_read_ber(struct dvb_frontend *fe, u32 *ber)
 }
 
 static int gxtv_demod_atsc_read_signal_strength
-	(struct dvb_frontend *fe, u16 *strength)
+	(struct dvb_frontend *fe, s16 *strength)
 {
-	int strenth;
-
-	strenth = tuner_get_ch_power(fe);
-
+	int tn_sr = tuner_get_ch_power(fe);
+	unsigned int v = 0;
 	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
 		if ((fe->dtv_property_cache.modulation <= QAM_AUTO) &&
 			(fe->dtv_property_cache.modulation != QPSK))
-			strenth += 18;
+			tn_sr += 18;
 		else {
-			strenth += 15;
-			if (strenth <= -80)
-				strenth = atsc_get_power_strength(
-					atsc_read_reg_v4(0x44) & 0xfff,
-						strenth);
+			tn_sr += 15;
+			if (tn_sr <= -80) {
+				v = atsc_read_reg_v4(0x44) & 0xfff;
+				tn_sr = atsc_get_power_strength(v, tn_sr);
+			}
 		}
+		tn_sr += 8;
+	} else if (!strncmp(fe->ops.tuner_ops.info.name, "mxl661", 6)) {
+		tn_sr += 3;
+	}
 
-		if (strenth < -100)
-			*strength = 0;
-		else
-			*strength = strenth + 100;
-	} else
-		*strength = tuner_get_ch_power3(fe);
-
-	if (*strength > 100)
-		*strength = 100;
+	*strength = (s16)tn_sr;
 
 	return 0;
 }
@@ -2779,20 +2779,14 @@ static int gxtv_demod_dtmb_read_ber(struct dvb_frontend *fe, u32 *ber)
 }
 
 static int gxtv_demod_dtmb_read_signal_strength
-		(struct dvb_frontend *fe, u16 *strength)
+		(struct dvb_frontend *fe, s16 *strength)
 {
-	int tuner_sr;
-
+	int tuner_sr = tuner_get_ch_power(fe);
 	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
-		tuner_sr = tuner_get_ch_power2(fe);
 		tuner_sr += 16;
+	}
+	*strength = (s16)tuner_sr;
 
-		if (tuner_sr < -100)
-			*strength = 0;
-		else
-			*strength = tuner_sr + 100;
-	} else
-		*strength = tuner_get_ch_power3(fe);
 	return 0;
 }
 
@@ -2993,7 +2987,7 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		return 2;
 	}
 
-	if (tuner_get_ch_power2(fe) < -87) {
+	if (tuner_get_ch_power(fe) < -87) {
 		demod->auto_no_sig_cnt = 0;
 		demod->auto_times = 0;
 		*delay = HZ / 4;
@@ -3080,7 +3074,7 @@ static unsigned int dvbc_fast_search(struct dvb_frontend *fe, unsigned int *dela
 		return 2;
 	}
 
-	if (tuner_get_ch_power2(fe) < -87) {
+	if (tuner_get_ch_power(fe) < -87) {
 		demod->times = 0;
 		demod->no_sig_cnt = 0;
 		*delay = HZ / 4;
@@ -5640,31 +5634,31 @@ static int aml_dtvdm_read_signal_strength(struct dvb_frontend *fe,
 	switch (delsys) {
 	case SYS_DVBS:
 	case SYS_DVBS2:
-		ret = dtvdemod_dvbs_read_signal_strength(fe, strength);
+		ret = dtvdemod_dvbs_read_signal_strength(fe, (s16 *)strength);
 		break;
 
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
-		ret = gxtv_demod_dvbc_read_signal_strength(fe, strength);
+		ret = gxtv_demod_dvbc_read_signal_strength(fe, (s16 *)strength);
 		break;
 
 	case SYS_DVBT:
 	case SYS_DVBT2:
-		ret = gxtv_demod_dvbt_read_signal_strength(fe, strength);
+		ret = gxtv_demod_dvbt_read_signal_strength(fe, (s16 *)strength);
 		break;
 
 	case SYS_ISDBT:
-		ret = gxtv_demod_dvbt_read_signal_strength(fe, strength);
+		ret = gxtv_demod_dvbt_read_signal_strength(fe, (s16 *)strength);
 		break;
 
 	case SYS_ATSC:
 	case SYS_ATSCMH:
 	case SYS_DVBC_ANNEX_B:
-		ret = gxtv_demod_atsc_read_signal_strength(fe, strength);
+		ret = gxtv_demod_atsc_read_signal_strength(fe, (s16 *)strength);
 		break;
 
 	case SYS_DTMB:
-		ret = gxtv_demod_dtmb_read_signal_strength(fe, strength);
+		ret = gxtv_demod_dtmb_read_signal_strength(fe, (s16 *)strength);
 		break;
 
 	default:

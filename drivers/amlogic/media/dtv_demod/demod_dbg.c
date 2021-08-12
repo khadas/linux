@@ -266,7 +266,7 @@ static void seq_dump_status(struct seq_file *seq)
 
 	list_for_each_entry(demod, &devp->demod_list, list) {
 		seq_printf(seq, "demod [id %d]:\n", demod->id);
-		strength = tuner_get_ch_power2(&demod->frontend);
+		strength = tuner_get_ch_power(&demod->frontend);
 		seq_printf(seq, "cur delsys: %s\n", dtvdemod_get_cur_delsys(demod->last_delsys));
 		seq_printf(seq, "freq: %d\n", demod->freq);
 
@@ -793,7 +793,7 @@ static void info_show(void)
 	PR_INFO("version: %s.\n", DTVDEMOD_VER);
 
 	list_for_each_entry(demod, &devp->demod_list, list) {
-		strength = tuner_get_ch_power2(&demod->frontend);
+		strength = tuner_get_ch_power(&demod->frontend);
 
 		c = &demod->frontend.dtv_property_cache;
 
@@ -1345,7 +1345,7 @@ static ssize_t dtmb_para_show(struct class *cls,
 		return 0;
 
 	if (dtmb_mode == DTMB_READ_STRENGTH) {
-		strength = tuner_get_ch_power2(&demod->frontend);
+		strength = tuner_get_ch_power(&demod->frontend);
 		if (strength <= -56) {
 			dtmb_read_agc(DTMB_D9_IF_GAIN, &agc_if_gain[0]);
 			strength = dtmb_get_power_strength(agc_if_gain[0]);
@@ -1407,7 +1407,7 @@ static ssize_t atsc_para_show(struct class *cls,
 		return 0;
 
 	if (atsc_mode_para == ATSC_READ_STRENGTH) {
-		strength = tuner_get_ch_power2(&demod->frontend);
+		strength = tuner_get_ch_power(&demod->frontend);
 		return sprintf(buf, "strength is %d\n", strength);
 	} else if (atsc_mode_para == ATSC_READ_SNR) {
 		snr = atsc_read_snr();
