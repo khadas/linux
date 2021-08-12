@@ -153,6 +153,10 @@ int vdin_dbg_en;
 module_param(vdin_dbg_en, int, 0664);
 MODULE_PARM_DESC(vdin_dbg_en, "enable/disable vdin debug information");
 
+int vdin_delay_num = 1;
+module_param(vdin_delay_num, int, 0664);
+MODULE_PARM_DESC(vdin_delay_num, "vdin_delay_num vdin debug information");
+
 static bool vdin_time_en;
 module_param(vdin_time_en, bool, 0664);
 MODULE_PARM_DESC(vdin_time_en, "enable/disable vdin debug information");
@@ -621,6 +625,16 @@ static void vdin_double_write_confirm(struct vdin_dev_s *devp)
 #endif
 }
 
+static u32 vdin_is_delay_vfe2rdlist(struct vdin_dev_s *devp)
+{
+	if (devp->index == 0 && !game_mode &&
+	    devp->work_mode != VDIN_WORK_MD_V4L) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
 /*
  * 1. config canvas base on  canvas_config_mode
  *		0: canvas_config in driver probe
@@ -851,6 +865,12 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	vdin_hw_enable(devp);
 	vdin_set_dolby_tunnel(devp);
 	vdin_write_mif_or_afbce_init(devp);
+	sts = vdin_is_delay_vfe2rdlist(devp);
+	if (sts) {
+		devp->vdin_delay_vfe2rdlist = vdin_delay_num;
+	} else {
+		devp->vdin_delay_vfe2rdlist = 0;
+	}
 
 	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
 	    devp->frontend &&
@@ -1811,27 +1831,46 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 			receiver_vf_put(&vfe->vf, devp->vfp);
 		ret = -1;
 	} else if (vfe) {
+		if (devp->vdin_delay_vfe2rdlist == 0) {
+			devp->vfp->last_last_vfe = vfe;
+		} else if (devp->vdin_delay_vfe2rdlist == 1 &&
+		    !devp->vfp->last_last_vfe) {
+			devp->vfp->last_last_vfe = vfe;
+			return ret;
+		} else if ((devp->vdin_delay_vfe2rdlist == 2) &&
+			   (!devp->vfp->last_vfe ||
+			   !devp->vfp->last_last_vfe)) {
+			devp->vfp->last_last_vfe = devp->vfp->last_vfe;
+			devp->vfp->last_vfe = vfe;
+			return ret;
+		}
+
 		/*put one frame to receiver*/
 		if (devp->work_mode == VDIN_WORK_MD_V4L) {
-			ret_v4l = vdin_v4l2_if_isr(devp, &vfe->vf);
+			ret_v4l = vdin_v4l2_if_isr(devp,
+					&devp->vfp->last_last_vfe->vf);
 			/*v4l put fail, need recycle vframe to write list*/
 			if (ret_v4l) {
-				receiver_vf_put(&vfe->vf, devp->vfp);
+				receiver_vf_put(&devp->vfp->last_last_vfe->vf,
+						devp->vfp);
 				return -1;
 			}
 			devp->puted_frame_cnt++;
 		} else {
-			provider_vf_put(vfe, devp->vfp);
+			provider_vf_put(devp->vfp->last_last_vfe, devp->vfp);
 			devp->puted_frame_cnt++;
 		}
 
-		vfe->vf.ready_clock[1] = sched_clock();
+		devp->vfp->last_last_vfe->vf.ready_clock[1] = sched_clock();
 
-		if (vdin_time_en)
+		if (vdin_time_en) {
 			pr_info("vdin.%d put latency %lld us.first %lld us\n",
 				devp->index,
-				func_div(vfe->vf.ready_clock[1], 1000),
-				func_div(vfe->vf.ready_clock[0], 1000));
+			func_div(devp->vfp->last_last_vfe->vf.ready_clock[1],
+				 1000),
+			func_div(devp->vfp->last_last_vfe->vf.ready_clock[0],
+				 1000));
+		}
 
 		if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
 			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -1845,6 +1884,13 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 				vf_notify_receiver(devp->name,
 						   VFRAME_EVENT_PROVIDER_VFRAME_READY,
 						   NULL);
+		}
+
+		if (devp->vdin_delay_vfe2rdlist == 1) {
+			devp->vfp->last_last_vfe = vfe;
+		} else if (devp->vdin_delay_vfe2rdlist == 2) {
+			devp->vfp->last_last_vfe = devp->vfp->last_vfe;
+			devp->vfp->last_vfe = vfe;
 		}
 	}
 	return ret;
@@ -1943,7 +1989,13 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		if (vdin_get_prop_in_vs_en)
 			sm_ops->get_sig_property(devp->frontend, &devp->prop);
 		vdin_vs_proc_monitor(devp);
+		if (devp->dv.chg_cnt) {
+			vdin_drop_frame_info(devp, "dv chg");
+			vdin_vf_skip_all_disp(devp->vfp);
+			return IRQ_HANDLED;
+		}
 	}
+
 	cur_ms = jiffies_to_msecs(jiffies);
 	if (cur_ms - pre_ms <= 1)
 		err_vsync++;
@@ -2068,6 +2120,10 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			devp->last_wr_vfe->vf.dv_crc_sts =
 				devp->dv.dv_crc_check;
 
+		if (vdin_isr_monitor & BIT(5))
+			pr_info("%s:send frame dv_late:%x, sig_type:%x\n",
+				__func__, devp->dv.low_latency,
+				devp->last_wr_vfe->vf.signal_type);
 		vdin_vframe_put_and_recycle(devp, devp->last_wr_vfe, put_md);
 
 		/*skip policy process*/

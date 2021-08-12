@@ -268,6 +268,7 @@ enum vdin_vf_put_md {
 #define VDIN_ISR_MONITOR_RATIO	BIT(2)
 #define VDIN_ISR_MONITOR_GAME	BIT(4)
 #define VDIN_ISR_MONITOR_VS	BIT(5)
+#define VDIN_ISR_MONITOR_VF	BIT(6)
 
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
@@ -473,6 +474,7 @@ struct vdin_dev_s {
 	enum vdin_matrix_csc_e csc_idx;
 	struct vf_entry *curr_wr_vfe;
 	struct vf_entry *last_wr_vfe;
+	unsigned int vdin_delay_vfe2rdlist;
 	unsigned int curr_field_type;
 	unsigned int curr_dv_flag;
 

@@ -385,6 +385,8 @@ int vf_pool_init(struct vf_pool *p, int size)
 	p->rd_list_size = 0;
 	p->fz_list_size = 0;
 	p->tmp_list_size = 0;
+	p->last_vfe = NULL;
+	p->last_last_vfe = NULL;
 	/* initialize provider write list */
 	for (i = 0; i < size; i++) {
 		p->dv_buf_size[i] = 0;
@@ -912,6 +914,7 @@ void vdin_dump_vf_state(struct vf_pool *p)
 	struct vf_entry *pos = NULL, *tmp = NULL;
 
 	pr_info("buffers in writeable list:\n");
+	pr_info("wr list:0x%x\n", p->wr_list_size);
 	spin_lock_irqsave(&p->wr_lock, flags);
 	list_for_each_entry_safe(pos, tmp, &p->wr_list, list) {
 		pr_info("index: %2u,status %u, canvas index0: 0x%x,",
@@ -923,6 +926,7 @@ void vdin_dump_vf_state(struct vf_pool *p)
 	spin_unlock_irqrestore(&p->wr_lock, flags);
 
 	pr_info("buffer in readable list:\n");
+	pr_info("rd list:0x%x\n", p->rd_list_size);
 	spin_lock_irqsave(&p->rd_lock, flags);
 	list_for_each_entry_safe(pos, tmp, &p->rd_list, list) {
 		pr_info("index: %u,status %u, canvas index0: 0x%x,",
@@ -1010,6 +1014,14 @@ void vdin_dump_vf_state_seq(struct vf_pool *p, struct seq_file *seq)
 	}
 	spin_unlock_irqrestore(&p->tmp_lock, flags);
 	seq_printf(seq, "buffer get count %d.\n", atomic_read(&p->buffer_cnt));
+}
+
+void vdin_vf_skip_all_disp(struct vf_pool *p)
+{
+	unsigned int i;
+
+	for (i = 0; i < VFRAME_DISP_MAX_NUM; i++)
+		p->disp_mode[i] = VFRAME_DISP_MODE_SKIP;
 }
 
 /*update the vframe disp_mode
