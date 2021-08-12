@@ -43,6 +43,8 @@
 #define CLKCTRL_GE2DCLK_CTRL                       (0x0043  << 2)
 #define CLKCTRL_M4_CLK_CTRL                        (0x0044  << 2)
 #define CLKCTRL_TS_CLK_CTRL                        (0x0056  << 2)
+#define CLKCTRL_USB_CLK_CTRL                       (0x0057  << 2)
+#define CLKCTRL_USB_CLK_CTRL1                      (0x0058  << 2)
 #define CLKCTRL_ETH_CLK_CTRL                       (0x0059  << 2)
 #define CLKCTRL_NAND_CLK_CTRL                      (0x005a  << 2)
 #define CLKCTRL_SD_EMMC_CLK_CTRL                   (0x005b  << 2)
@@ -168,7 +170,11 @@
 #define ANACTRL_MCLK_PLL_CNTL7                     (0x00c7  << 2)
 #define ANACTRL_MCLK_PLL_CNTL8                     (0x00c8  << 2)
 #define ANACTRL_MCLK_PLL_CNTL9                     (0x00c9  << 2)
-#define ANACTRL_MCLK_PLL_STS                       (0x00ca  << 2)
+#define ANACTRL_MCLK_PLL_CNTL10                    (0x00ca  << 2)
+#define ANACTRL_MCLK_PLL_CNTL11                    (0x00cb  << 2)
+#define ANACTRL_MCLK_PLL_CNTL12                    (0x00cc  << 2)
+#define ANACTRL_MCLK_PLL_CNTL13                    (0x00cd  << 2)
+#define ANACTRL_MCLK_PLL_STS                       (0x00d2  << 2)
 
 #define SECURE_PLL_CLK			0x82000098
 #define SECURE_CPU_CLK			0x82000099
