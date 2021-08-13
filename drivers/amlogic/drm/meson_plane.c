@@ -632,6 +632,149 @@ bool am_meson_vpu_check_video_format_mod(struct drm_plane *plane,
 	return false;
 }
 
+static void meson_osd_plane_atomic_print_state(struct drm_printer *p,
+		const struct drm_plane_state *state)
+{
+	struct drm_plane *plane;
+	struct meson_vpu_osd_layer_info *plane_info;
+	struct meson_vpu_pipeline_state *mvps;
+	struct am_osd_plane *osd_plane;
+	struct meson_drm *drv;
+	struct drm_private_state *obj_state;
+
+	if (!state) {
+		DRM_INFO("%s state/meson_drm is NULL!\n", __func__);
+		return;
+	}
+
+	plane = state->plane;
+	if (!plane) {
+		DRM_INFO("%s drm_plane is NULL!\n", __func__);
+		return;
+	}
+
+	osd_plane = to_am_osd_plane(plane);
+	DRM_DEBUG("%s [%d]\n", __func__, osd_plane->plane_index);
+
+	drv = osd_plane->drv;
+	if (!drv || !drv->pipeline) {
+		DRM_INFO("%s private state or pipeline is NULL!\n", __func__);
+		return;
+	}
+
+	obj_state = drv->pipeline->obj.state;
+	if (!obj_state) {
+		DRM_ERROR("null pipeline obj state!\n");
+		return;
+	}
+
+	mvps = container_of(obj_state, struct meson_vpu_pipeline_state, obj);
+
+	if (!mvps || osd_plane->plane_index >= MESON_MAX_OSDS) {
+		DRM_INFO("%s mvps/osd_plane is NULL!\n", __func__);
+		return;
+	}
+
+	plane_info = &mvps->plane_info[osd_plane->plane_index];
+
+	drm_printf(p, "\tmeson osd plane %d info:\n", osd_plane->plane_index);
+	drm_printf(p, "\t\tsrc_x=%u\n", plane_info->src_x);
+	drm_printf(p, "\t\tsrc_y=%u\n", plane_info->src_y);
+	drm_printf(p, "\t\tsrc_w=%u\n", plane_info->src_w);
+	drm_printf(p, "\t\tsrc_h=%u\n", plane_info->src_h);
+	drm_printf(p, "\t\tdst_w=%u\n", plane_info->dst_w);
+	drm_printf(p, "\t\tdst_h=%u\n", plane_info->dst_h);
+	drm_printf(p, "\t\tdst_x=%d\n", plane_info->dst_x);
+	drm_printf(p, "\t\tdst_y=%d\n", plane_info->dst_y);
+	drm_printf(p, "\t\tfb_w=%u\n", plane_info->fb_w);
+	drm_printf(p, "\t\tfb_h=%u\n", plane_info->fb_h);
+	drm_printf(p, "\t\tzorder=%u\n", plane_info->zorder);
+	drm_printf(p, "\t\tbyte_stride=%u\n", plane_info->byte_stride);
+	drm_printf(p, "\t\tpixel_format=%u\n", plane_info->pixel_format);
+	drm_printf(p, "\t\tphy_addr=0x%llx\n", plane_info->phy_addr);
+	drm_printf(p, "\t\tplane_index=%u\n", plane_info->plane_index);
+	drm_printf(p, "\t\tenable=%u\n", plane_info->enable);
+	drm_printf(p, "\t\tratio_x=%u\n", plane_info->ratio_x);
+	drm_printf(p, "\t\tafbc_inter_format=%u\n",
+					plane_info->afbc_inter_format);
+	drm_printf(p, "\t\tafbc_en=%u\n", plane_info->afbc_en);
+	drm_printf(p, "\t\tfb_size=%u\n", plane_info->fb_size);
+	drm_printf(p, "\t\tpixel_blend=%u\n", plane_info->pixel_blend);
+	drm_printf(p, "\t\trotation=%u\n", plane_info->rotation);
+	drm_printf(p, "\t\tblend_bypass=%u\n", plane_info->blend_bypass);
+	drm_printf(p, "\t\tglobal_alpha=%u\n", plane_info->global_alpha);
+}
+
+static void meson_video_plane_atomic_print_state(struct drm_printer *p,
+		const struct drm_plane_state *state)
+{
+	struct drm_plane *plane;
+	struct meson_vpu_video_layer_info *plane_info;
+	struct meson_vpu_pipeline_state *mvps;
+	struct am_video_plane *video_plane;
+	struct meson_drm *drv;
+	struct drm_private_state *obj_state;
+
+	if (!state) {
+		DRM_INFO("%s state/meson_drm is NULL!\n", __func__);
+		return;
+	}
+
+	plane = state->plane;
+	if (!plane) {
+		DRM_INFO("%s drm_plane is NULL!\n", __func__);
+		return;
+	}
+
+	video_plane = to_am_video_plane(plane);
+	DRM_DEBUG("%s [%d]\n", __func__, video_plane->plane_index);
+
+	drv = video_plane->drv;
+	if (!drv || !drv->pipeline) {
+		DRM_INFO("%s private state is NULL!\n", __func__);
+		return;
+	}
+
+	obj_state = drv->pipeline->obj.state;
+	if (!obj_state) {
+		DRM_ERROR("null pipeline obj state!\n");
+		return;
+	}
+
+	mvps = container_of(obj_state, struct meson_vpu_pipeline_state, obj);
+
+	if (!mvps || video_plane->plane_index >= MESON_MAX_VIDEO) {
+		DRM_INFO("%s mvps/video_plane is NULL!\n", __func__);
+		return;
+	}
+
+	plane_info = &mvps->video_plane_info[video_plane->plane_index];
+
+	drm_printf(p, "\tmeson video plane %d info:\n",
+					video_plane->plane_index);
+	drm_printf(p, "\t\tsrc_x=%u\n", plane_info->src_x);
+	drm_printf(p, "\t\tsrc_y=%u\n", plane_info->src_y);
+	drm_printf(p, "\t\tsrc_w=%u\n", plane_info->src_w);
+	drm_printf(p, "\t\tsrc_h=%u\n", plane_info->src_h);
+	drm_printf(p, "\t\tdst_w=%u\n", plane_info->dst_w);
+	drm_printf(p, "\t\tdst_h=%u\n", plane_info->dst_h);
+	drm_printf(p, "\t\tdst_x=%d\n", plane_info->dst_x);
+	drm_printf(p, "\t\tdst_y=%d\n", plane_info->dst_y);
+	drm_printf(p, "\t\tzorder=%u\n", plane_info->zorder);
+	drm_printf(p, "\t\tbyte_stride=%u\n", plane_info->byte_stride);
+	drm_printf(p, "\t\tpixel_format=%u\n", plane_info->pixel_format);
+	drm_printf(p, "\t\tphy_addr[0]=0x%llx\n", plane_info->phy_addr[0]);
+	drm_printf(p, "\t\tphy_addr[1]=0x%llx\n", plane_info->phy_addr[1]);
+	drm_printf(p, "\t\tplane_index=%u\n", plane_info->plane_index);
+	drm_printf(p, "\t\tenable=%u\n", plane_info->enable);
+	drm_printf(p, "\t\tratio_x=%u\n", plane_info->ratio_x);
+	drm_printf(p, "\t\tfb_size[0]=%u\n", plane_info->fb_size[0]);
+	drm_printf(p, "\t\tfb_size[1]=%u\n", plane_info->fb_size[1]);
+	drm_printf(p, "\t\tpixel_blend=%u\n", plane_info->pixel_blend);
+	/*TODO: vframe_s */
+	drm_printf(p, "\t\tis_uvm=%u\n", plane_info->is_uvm);
+}
+
 static const struct drm_plane_funcs am_osd_plane_funs = {
 	.update_plane		= drm_atomic_helper_update_plane,
 	.disable_plane		= drm_atomic_helper_disable_plane,
@@ -642,6 +785,7 @@ static const struct drm_plane_funcs am_osd_plane_funs = {
 	.atomic_set_property = meson_plane_atomic_set_property,
 	.atomic_get_property = meson_plane_atomic_get_property,
 	.format_mod_supported = am_meson_vpu_check_format_mod,
+	.atomic_print_state = meson_osd_plane_atomic_print_state,
 };
 
 static const struct drm_plane_funcs am_video_plane_funs = {
@@ -654,6 +798,7 @@ static const struct drm_plane_funcs am_video_plane_funs = {
 	.atomic_set_property = meson_plane_atomic_set_property,
 	.atomic_get_property = meson_plane_atomic_get_property,
 	.format_mod_supported = am_meson_vpu_check_video_format_mod,
+	.atomic_print_state = meson_video_plane_atomic_print_state,
 };
 
 static int meson_plane_prepare_fb(struct drm_plane *plane,
