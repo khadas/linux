@@ -1088,8 +1088,7 @@ void rx_pkt_get_amp_ex(void *pktinfo)
 	}
 
 	/*memset(pkt, 0, sizeof(struct pd_infoframe_s));*/
-	if (rx.chip_id != CHIP_ID_TXHD &&
-		rx.chip_id != CHIP_ID_T5D) {
+	if (rx.chip_id != CHIP_ID_TXHD) {
 		HB = hdmirx_rd_dwc(DWC_PDEC_AMP_HB);
 		pkt->HB = (HB << 8) | PKT_TYPE_AUD_META;
 		pkt->PB0 = hdmirx_rd_dwc(DWC_PDEC_AMP_PB0);
@@ -1169,8 +1168,7 @@ void rx_pkt_get_drm_ex(void *pktinfo)
 	}
 
 	drmpkt->pkttype = PKT_TYPE_INFOFRAME_DRM;
-	if (rx.chip_id != CHIP_ID_TXHD &&
-		rx.chip_id != CHIP_ID_T5D) {
+	if (rx.chip_id != CHIP_ID_TXHD) {
 		drmpkt->length = (hdmirx_rd_dwc(DWC_PDEC_DRM_HB) >> 8);
 		drmpkt->version = hdmirx_rd_dwc(DWC_PDEC_DRM_HB);
 
