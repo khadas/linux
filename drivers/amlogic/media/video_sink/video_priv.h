@@ -181,6 +181,7 @@ struct video_dev_s {
 	u32 aisr_demo_ystart;
 	u32 aisr_demo_xend;
 	u32 aisr_demo_yend;
+	bool power_ctrl;
 	struct hw_pps_reg_s aisr_pps_reg;
 	struct vpp_frame_par_s aisr_frame_parms;
 	struct rdma_fun_s rdma_func[RDMA_INTERFACE_NUM];
