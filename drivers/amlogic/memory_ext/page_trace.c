@@ -1647,9 +1647,11 @@ static void update_file_cache(struct filecache_stat *fs,
 						continue;
 
 					t++;
+				#ifndef CONFIG_KASAN
 					if (PageCmaAllocating(page))
 						l = 1;
 					else
+				#endif
 						l = 0;
 					tl += l;
 					mc = page_mapcount(page);

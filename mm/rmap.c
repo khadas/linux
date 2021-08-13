@@ -1411,13 +1411,13 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 					 * Holding pte lock, we do *not* need
 					 * mmap_sem here
 					 */
-				#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && !defined(CONFIG_KASAN)
 					/* only keep refault pages */
 					if (PageCmaAllocating(page))
 						mlock_vma_page(page);
-				#else
+#else
 					mlock_vma_page(page);
-				#endif
+#endif
 				}
 				ret = false;
 				page_vma_mapped_walk_done(&pvmw);
