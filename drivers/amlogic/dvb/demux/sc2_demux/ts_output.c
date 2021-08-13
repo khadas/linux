@@ -137,6 +137,7 @@ struct out_elem {
 	unsigned int aucpu_pts_r_offset;
 
 	struct dump_file dump_file;
+	u8 use_external_mem;
 };
 
 struct sid_entry {
@@ -2205,6 +2206,7 @@ int ts_output_close(struct out_elem *pout)
 		SC2_bufferid_dealloc(pout->pchan1);
 		pout->pchan1 = NULL;
 	}
+	pout->use_external_mem = 0;
 
 	pout->used = 0;
 	return 0;
@@ -2408,8 +2410,10 @@ int ts_output_set_sec_mem(struct out_elem *pout,
 {
 	pr_dbg("%s size:0x%0x\n", __func__, size);
 
-	if (pout && pout->pchan)
+	if (pout && pout->pchan) {
 		SC2_bufferid_set_sec_mem(pout->pchan, buf, size);
+		pout->use_external_mem = 1;
+	}
 	return 0;
 }
 
@@ -2656,9 +2660,16 @@ int ts_output_dump_info(char *buf)
 			total += r;
 
 			r = sprintf(buf,
-				    "free size:0x%0x, rp:0x%0x, wp:0x%0x\n",
+				    "free size:0x%0x, rp:0x%0x, wp:0x%0x, ",
 				    free_size, pout->pchan->r_offset,
 					wp_offset);
+			buf += r;
+			total += r;
+
+			if (pout->use_external_mem == 1)
+				r = sprintf(buf, "mem mode:secure\n");
+			else
+				r = sprintf(buf, "mem mode:noraml\n");
 			buf += r;
 			total += r;
 
@@ -2715,9 +2726,21 @@ int ts_output_dump_info(char *buf)
 			total += r;
 
 			r = sprintf(buf,
-				    "free size:0x%0x, rp:0x%0x, wp:0x%0x\n",
+				    "free size:0x%0x, rp:0x%0x, wp:0x%0x, ",
 				    free_size, es_slot->pout->pchan->r_offset,
 					wp_offset);
+			buf += r;
+			total += r;
+
+			if (aml_aucpu_strm_get_load_firmware_status() != 0) {
+				r = sprintf(buf, "aucpu:no load\n");
+			} else {
+				if (es_slot->pout->aucpu_start)
+					r = sprintf(buf, "aucpu:using\n");
+				else
+					r = sprintf(buf, "aucpu:no\n");
+			}
+
 			buf += r;
 			total += r;
 
@@ -2774,9 +2797,27 @@ int ts_output_dump_info(char *buf)
 			buf += r;
 			total += r;
 
+			if (es_slot->pout->aucpu_pts_start)
+				r = sprintf(buf, "h mode:aucpu, ");
+			else
+				r = sprintf(buf, "h mode:normal, ");
+			buf += r;
+			total += r;
+
 			r = sprintf(buf,
-				    "sec_level:0x%0x\n",
+				    "sec_level:0x%0x, ",
 				    es_slot->pout->pchan->sec_level);
+			buf += r;
+			total += r;
+
+			if (aml_aucpu_strm_get_load_firmware_status() != 0) {
+				r = sprintf(buf, "aucpu:no load\n");
+			} else {
+				if (es_slot->pout->aucpu_start)
+					r = sprintf(buf, "aucpu:using\n");
+				else
+					r = sprintf(buf, "aucpu:no\n");
+			}
 			buf += r;
 			total += r;
 
@@ -2834,8 +2875,19 @@ int ts_output_dump_info(char *buf)
 			total += r;
 
 			r = sprintf(buf,
-				    "free size:0x%0x, wp:0x%0x\n",
+				    "free size:0x%0x, wp:0x%0x, ",
 				    free_size, wp_offset);
+			buf += r;
+			total += r;
+
+			if (aml_aucpu_strm_get_load_firmware_status() != 0) {
+				r = sprintf(buf, "aucpu:no load\n");
+			} else {
+				if (es_slot->pout->aucpu_start)
+					r = sprintf(buf, "aucpu:using\n");
+				else
+					r = sprintf(buf, "aucpu:no\n");
+			}
 			buf += r;
 			total += r;
 
