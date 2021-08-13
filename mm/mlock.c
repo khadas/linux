@@ -612,6 +612,27 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
 		if (tmp > end)
 			tmp = end;
 		error = mlock_fixup(vma, &prev, nstart, tmp, newflags);
+	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+		if (vma->vm_file && vma->vm_file->f_mapping) {
+			struct inode *host;
+
+			host = vma->vm_file->f_mapping->host;
+			if ((flags & (VM_LOCKED | VM_LOCKONFAULT))) {
+				set_bit(AS_LOCK_MAPPING,
+					&vma->vm_file->f_mapping->flags);
+				atomic_inc(&host->i_count);
+			} else {
+				atomic_dec(&host->i_count);
+				clear_bit(AS_LOCK_MAPPING,
+					  &vma->vm_file->f_mapping->flags);
+			}
+			pr_info("%s lock mapping:%px, f:%lx\n",
+				flags & (VM_LOCKED | VM_LOCKONFAULT) ?
+				"Mark" : "Clear",
+				vma->vm_file->f_mapping,
+				vma->vm_file->f_mapping->flags);
+		}
+	#endif
 		if (error)
 			break;
 		nstart = tmp;
