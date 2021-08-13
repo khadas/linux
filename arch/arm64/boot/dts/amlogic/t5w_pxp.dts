@@ -41,9 +41,55 @@
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
 		};
+	};
+}; /* end of reserved-memory */
 
-	}; /* end of reserved-memory */
+/* SD card */
+&sd_emmc_b {
+	status = "okay";
+	pinctrl-0 = <&sd_all_pins>;
+	pinctrl-1 = <&sd_1bit_pins>;
+	pinctrl-2 = <&sd_clk_gate_pins>;
+	pinctrl-names = "sd_default",
+			"sd_1bit_pins",
+			"clk-gate";
+	bus-width = <4>;
+	cap-sd-highspeed;
+//	sd-uhs-sdr12;
+//	sd-uhs-sdr25;
+//	sd-uhs-sdr50;
+//	sd_uhs-sdr104;
+	max-frequency = <200000000>;
 
+	disable-wp;
+	non-removable;
+//	amlogic,dram-access-quirk;
+
+	cd-gpios = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
+//	dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
+	//vmmc-supply = <&vddao_3v3>;
+	//vqmmc-supply = <&emmc_1v8>;
+};
+
+&sd_emmc_c {
+	status = "okay";
+	pinctrl-names = "default", "clk-gate";
+	pinctrl-0 = <&emmc_clk_cmd_pins>;
+	pinctrl-1 = <&emmc_conf_pull_up &emmc_conf_pull_done>;
+	pinctrl-2 = <&emmc_pins_sleep>;
+
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	//mmc-ddr-1_8v;
+//	mmc-hs200-1_8v;
+//	mmc-hs400-1_8v;
+	max-frequency = <200000000>;
+	non-removable;
+	disable-wp;
+
+//	mmc-pwrseq = <&emmc_pwrseq>;
+//	vmmc-supply = <&vddao_3v3>;
+//	vqmmc-supply = <&vddao_1v8>;
 };
 
 &i2c1 {
