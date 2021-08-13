@@ -49,6 +49,7 @@
 
 static struct vt_dev *vdev;
 static struct mutex debugfs_mutex;
+static struct vt_instance dummy_instance;
 
 enum {
 	VT_DEBUG_NONE             = 0,
@@ -757,17 +758,21 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 
 	mutex_lock(&dev->instance_lock);
 	instance = idr_find(&dev->instance_idr, id);
-	if (!instance) {
-		while ((ret = idr_alloc(&dev->instance_idr,
-					NULL, 0,
-					MAX_VIDEO_TUNNEL_ID, GFP_KERNEL))
-				<= id) {
-			if (ret == id)
-				break;
-			else if (ret < 0) {
-				pr_err("Connect to vt [%d] idr alloc fail:%d\n", id, ret);
-				mutex_unlock(&dev->instance_lock);
-				return ret;
+	if (!instance || instance == &dummy_instance) {
+		if (!instance) {
+			while ((ret = idr_alloc(&dev->instance_idr,
+						&dummy_instance, 0,
+						MAX_VIDEO_TUNNEL_ID,
+						GFP_KERNEL))
+					<= id) {
+				if (ret == id) {
+					break;
+				} else if (ret < 0) {
+					pr_err("Connect to vt [%d] idr alloc fail:%d\n",
+					       id, ret);
+					mutex_unlock(&dev->instance_lock);
+					return ret;
+				}
 			}
 		}
 
