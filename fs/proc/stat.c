@@ -104,6 +104,44 @@ static void show_all_irqs(struct seq_file *p)
 	show_irq_gap(p, nr_irqs - next);
 }
 
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+u64 get_iow_time(u64 *cpu)
+{
+	u64 user, nice, system, idle, iowait, irq, softirq, steal;
+	u64 guest, guest_nice;
+	int i;
+
+	user       = 0;
+	nice       = 0;
+	system     = 0;
+	idle       = 0;
+	iowait     = 0;
+	irq        = 0;
+	softirq    = 0;
+	steal      = 0;
+	guest      = 0;
+	guest_nice = 0;
+
+	for_each_possible_cpu(i) {
+		struct kernel_cpustat *kcs = &kcpustat_cpu(i);
+
+		user += kcpustat_cpu(i).cpustat[CPUTIME_USER];
+		nice += kcpustat_cpu(i).cpustat[CPUTIME_NICE];
+		system += kcpustat_cpu(i).cpustat[CPUTIME_SYSTEM];
+		idle += get_idle_time(kcs, i);
+		iowait += get_iowait_time(kcs, i);
+		irq += kcpustat_cpu(i).cpustat[CPUTIME_IRQ];
+		softirq += kcpustat_cpu(i).cpustat[CPUTIME_SOFTIRQ];
+		steal += kcpustat_cpu(i).cpustat[CPUTIME_STEAL];
+		guest += kcpustat_cpu(i).cpustat[CPUTIME_GUEST];
+		guest_nice += kcpustat_cpu(i).cpustat[CPUTIME_GUEST_NICE];
+	}
+	*cpu = user + nice + system + idle + iowait + irq + softirq + steal +
+	       guest + guest_nice;
+	return iowait;
+}
+#endif
+
 static int show_stat(struct seq_file *p, void *v)
 {
 	int i, j;

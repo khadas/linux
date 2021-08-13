@@ -109,7 +109,20 @@ struct slab_stack_master {
 };
 #endif
 
+#define MAX_FCT		2048
+struct file_cache_trace {
+	unsigned int count;
+	unsigned int active_count;
+	unsigned int inactive_count;
+	unsigned int lock_count;
+	unsigned int mapcnt;
+	unsigned long off;		/* for find out vma */
+	struct address_space *mapping;
+	struct rb_node entry;
+};
+
 #ifdef CONFIG_AMLOGIC_PAGE_TRACE
+u64 get_iow_time(u64 *cpu);
 extern unsigned int cma_alloc_trace;
 unsigned long unpack_ip(struct page_trace *trace);
 unsigned int pack_ip(unsigned long ip, int order, gfp_t flag);
@@ -133,6 +146,10 @@ int slab_trace_remove_object(void *object, struct kmem_cache *s);
 int get_cache_max_order(struct kmem_cache *s);
 #endif
 #else
+static inline u64 get_iow_time(u64 *cpu)
+{
+	return 0;
+}
 static inline unsigned long unpack_ip(struct page_trace *trace)
 {
 	return 0;
