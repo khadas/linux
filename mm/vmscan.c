@@ -1353,13 +1353,13 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		if (page_mapped(page)) {
 			enum ttu_flags flags = ttu_flags | TTU_BATCH_FLUSH;
 
-		#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && !defined(CONFIG_KASAN)
 			/* shrink pages which not on unevictable list */
 			if (test_bit(AS_LOCK_MAPPING, &mapping->flags) &&
 			    !PageCmaAllocating(page) &&
 			    !PageMlocked(page))
 				flags |= TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
-		#endif
+#endif
 
 			if (unlikely(PageTransHuge(page)))
 				flags |= TTU_SPLIT_HUGE_PMD;
