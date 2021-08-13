@@ -3179,8 +3179,8 @@ int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
 		return 0;
 
 	vinfo = get_current_vinfo();
-	if (!vinfo) {
-		pr_info("current vinfo NULL\n");
+	if (!vinfo || !vinfo->name) {
+		pr_info("current vinfo or name NULL\n");
 		return -1;
 	}
 	if (vlock_debug & VLOCK_DEBUG_INFO)

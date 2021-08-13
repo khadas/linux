@@ -3846,7 +3846,8 @@ int hdr10_primaries_changed(struct vframe_master_display_colour_s *p_mdc,
 
 uint32_t sink_dv_support(const struct vinfo_s *vinfo)
 {
-	if (!vinfo || !vinfo->vout_device || !vinfo->vout_device->dv_info)
+	if (!vinfo || !vinfo->name || !vinfo->vout_device ||
+	    !vinfo->vout_device->dv_info)
 		return 0;
 	if (vinfo->vout_device->dv_info->ieeeoui != 0x00d046)
 		return 0;
@@ -6734,7 +6735,7 @@ static int sink_support_hdr10_plus(const struct vinfo_s *vinfo)
 
 bool is_vinfo_available(const struct vinfo_s *vinfo)
 {
-	if (!vinfo)
+	if (!vinfo || !vinfo->name)
 		return false;
 	else
 		return strcmp(vinfo->name, "invalid") &&

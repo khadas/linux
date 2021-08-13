@@ -1987,8 +1987,8 @@ int osd_notify_callback(struct notifier_block *block,
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	vinfo = get_current_vinfo();
 #endif
-	if (!vinfo) {
-		osd_log_err("current vinfo NULL\n");
+	if (!vinfo || !vinfo->name) {
+		osd_log_err("current vinfo or name NULL\n");
 		return -1;
 	}
 	osd_log_info("current vmode=%s, cmd: 0x%lx\n",
@@ -2104,8 +2104,8 @@ int osd_notify_callback_viu2(struct notifier_block *block,
 	vinfo = get_current_vinfo2();
 #endif
 
-	if (!vinfo) {
-		osd_log_err("current vinfo NULL\n");
+	if (!vinfo || !vinfo->name) {
+		osd_log_err("current vinfo or name NULL\n");
 		return -1;
 	}
 	osd_log_info("current vmode=%s, cmd: 0x%lx\n",

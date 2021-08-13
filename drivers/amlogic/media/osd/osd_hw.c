@@ -2392,7 +2392,7 @@ static s64 get_adjust_vsynctime(u32 output_index)
 	s64 adjust_nsec;
 
 	vinfo = get_current_vinfo();
-	if (vinfo && (!strcmp(vinfo->name, "invalid") ||
+	if (vinfo && vinfo->name && (!strcmp(vinfo->name, "invalid") ||
 		      !strcmp(vinfo->name, "null"))) {
 		active_begin_line = get_active_begin_line(output_index);
 		line = get_enter_encp_line(output_index);
@@ -3580,8 +3580,9 @@ static void osd_wait_vsync_hw_viux(u32 output_index)
 				break;
 
 			};
-			if (vinfo && (!strcmp(vinfo->name, "invalid") ||
-				      !strcmp(vinfo->name, "null")))
+			if (vinfo && vinfo->name &&
+			    (!strcmp(vinfo->name, "invalid") ||
+			     !strcmp(vinfo->name, "null")))
 				timeout = msecs_to_jiffies(1);
 			else
 				timeout = msecs_to_jiffies(1000);
@@ -3683,7 +3684,7 @@ int osd_set_scan_mode(u32 index)
 		else if (output_index == VIU2)
 			vinfo = get_current_vinfo2();
 #endif
-	if (vinfo && (strcmp(vinfo->name, "invalid") &&
+	if (vinfo && vinfo->name && (strcmp(vinfo->name, "invalid") &&
 		      strcmp(vinfo->name, "null"))) {
 		osd_hw.scale_workaround = 0;
 		if (osd_auto_adjust_filter) {
@@ -4369,7 +4370,7 @@ void osd_get_window_axis_hw(u32 index, s32 *x0, s32 *y0, s32 *x1, s32 *y1)
 		else if (output_index == VIU2)
 			vinfo = get_current_vinfo2();
 #endif
-		if (vinfo && (strcmp(vinfo->name, "invalid") &&
+		if (vinfo && vinfo->name && (strcmp(vinfo->name, "invalid") &&
 			      strcmp(vinfo->name, "null"))) {
 			if (is_interlaced(vinfo)) {
 				height = osd_hw.free_dst_data_backup[index]
@@ -4419,7 +4420,7 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 		vinfo = get_current_vinfo2();
 #endif
 	mutex_lock(&osd_mutex);
-	if (vinfo && (strcmp(vinfo->name, "invalid") &&
+	if (vinfo && vinfo->name && (strcmp(vinfo->name, "invalid") &&
 		      strcmp(vinfo->name, "null"))) {
 		if (is_interlaced(vinfo)) {
 			temp_y0 = y0 / 2;
@@ -5836,8 +5837,8 @@ static void osd_pan_display_single_fence(struct osd_fence_map_s *fence_map)
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	vinfo = get_current_vinfo();
 #endif
-	if (!vinfo || (!strcmp(vinfo->name, "invalid") ||
-		       !strcmp(vinfo->name, "null")))
+	if (!vinfo || !vinfo->name || (!strcmp(vinfo->name, "invalid") ||
+	    !strcmp(vinfo->name, "null")))
 		goto out;
 
 	osd_hw.vinfo_width[output_index] = vinfo->width;
@@ -6299,10 +6300,17 @@ static void _osd_pan_display_layers_fence
 		return;
 	}
 
-	if (!vinfo || (!strcmp(vinfo->name, "invalid") ||
-		       !strcmp(vinfo->name, "null")))
+	if (!vinfo || !vinfo->name || (!strcmp(vinfo->name, "invalid") ||
+	    !strcmp(vinfo->name, "null"))) {
+		if (!vinfo) {
+			osd_log_dbg(MODULE_BASE, "vinfo is NULL\n");
+			goto out;
+		}
+		if (!vinfo->name)
+			osd_log_dbg(MODULE_BASE, "vinfo->name is NULL\n");
 		/* vout is null, release fence & buf file. */
 		goto out;
+	}
 
 	osd_hw.vinfo_width[output_index] = vinfo->width;
 	osd_hw.vinfo_height[output_index] = vinfo->field_height;
@@ -12704,7 +12712,7 @@ void osd_init_viu2(void)
 	struct vinfo_s *vinfo;
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	vinfo = get_current_vinfo2();
-	if (vinfo && (strcmp(vinfo->name, "invalid") &&
+	if (vinfo && vinfo->name && (strcmp(vinfo->name, "invalid") &&
 		      strcmp(vinfo->name, "null")))
 		set_viu2_format(vinfo->viu_color_fmt);
 #endif
@@ -13098,7 +13106,7 @@ void  osd_suspend_hw(void)
 					struct vinfo_s *vinfo = NULL;
 
 					vinfo = get_current_vinfo2();
-					if (vinfo &&
+					if (vinfo && vinfo->name &&
 					    (!strncmp(vinfo->name, "null", 4) ||
 					     !strncmp(vinfo->name, "invalid", 7)
 					    )
@@ -13180,7 +13188,7 @@ void osd_resume_hw(void)
 					struct vinfo_s *vinfo = NULL;
 
 					vinfo = get_current_vinfo2();
-					if (vinfo &&
+					if (vinfo && vinfo->name &&
 					    (!strncmp(vinfo->name, "null", 4) ||
 					     !strncmp(vinfo->name, "invalid", 7)
 					    )
@@ -13959,10 +13967,10 @@ void osd_page_flip(struct osd_plane_map_s *plane_map)
 	else if (output_index == VIU2)
 		vinfo = get_current_vinfo2();
 #endif
-	if (!vinfo || (!strcmp(vinfo->name, "invalid") ||
-		       !strcmp(vinfo->name, "null"))) {
+	if (!vinfo || !vinfo->name || (!strcmp(vinfo->name, "invalid") ||
+	    !strcmp(vinfo->name, "null")))
 		return;
-	}
+
 	osd_hw.vinfo_width[output_index] = vinfo->width;
 	osd_hw.vinfo_height[output_index] = vinfo->height;
 
