@@ -309,6 +309,18 @@ enum {
 	VPP_SEP_COEF_HORZ_CHROMA_PARTB = 0x5 << 17,
 };
 
+enum vpu_module_e {
+	VD1_SCALER,
+	VD2_SCALER,
+	SR0,
+	SR1,
+	VD1_HDR_CORE,
+	VD2_HDR_CORE,
+	OSD1_HDR_CORE,
+	OSD2_HDR_CORE,
+	DV_TVCORE,
+};
+
 #define AMVIDEO_UPDATE_OSD_MODE	0x00000001
 #define AMVIDEO_UPDATE_PREBLEND_MODE	0x00000002
 #define AMVIDEO_UPDATE_SIGNAL_MODE      0x00000003
@@ -376,5 +388,6 @@ void videoqueue_pcrscr_update(s32 inc, u32 base);
 int vdetect_get_frame_nn_info(struct vframe_s *vframe);
 #endif
 u32 get_hdmin_delay_duration(void);
-
+void vpu_module_clk_enable(u32 vpp_index, u32 module, bool async);
+void vpu_module_clk_disable(u32 vpp_index, u32 module, bool async);
 #endif /* VIDEO_H */

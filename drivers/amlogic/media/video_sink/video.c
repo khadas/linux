@@ -15417,6 +15417,42 @@ static ssize_t aisr_demo_axis_store(struct class *cla,
 	return count;
 }
 
+static ssize_t power_ctrl_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "power_ctrl: %d\n", cur_dev->power_ctrl);
+}
+
+static ssize_t power_ctrl_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int ret;
+	int res;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+	if (res) {
+		pr_info("enable power_ctrl, disable vd scaler/SR clk\n");
+		cur_dev->power_ctrl = res;
+		vpu_module_clk_disable(VPP0, VD1_SCALER, 1);
+		vpu_module_clk_disable(VPP0, VD2_SCALER, 1);
+		vpu_module_clk_disable(VPP0, SR0, 1);
+		vpu_module_clk_disable(VPP0, SR1, 1);
+	} else {
+		pr_info("disable power_ctrl, enable vd scaler/SR clk\n");
+		vpu_module_clk_enable(VPP0, VD1_SCALER, 1);
+		vpu_module_clk_enable(VPP0, VD2_SCALER, 1);
+		vpu_module_clk_enable(VPP0, SR0, 1);
+		vpu_module_clk_enable(VPP0, SR1, 1);
+		cur_dev->power_ctrl = res;
+	}
+	return count;
+}
+
 #endif
 
 static struct class_attribute amvideo_class_attrs[] = {
@@ -15859,6 +15895,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       aisr_demo_axis_show,
 	       aisr_demo_axis_store),
+	__ATTR(power_ctrl,
+	       0664,
+	       power_ctrl_show,
+	       power_ctrl_store),
 #endif
 };
 
@@ -16893,6 +16933,7 @@ static int amvideom_probe(struct platform_device *pdev)
 		memcpy(&amvideo_meson_dev.dev_property, &t3_dev_property,
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;
+		cur_dev->power_ctrl = true;
 	} else {
 		memcpy(&amvideo_meson_dev.dev_property, &legcy_dev_property,
 		       sizeof(struct video_device_hw_s));

@@ -391,12 +391,16 @@ static struct vpu_dev_s *vpu_prime_dolby_ram;
 #define enable_video_layer()  \
 	do { \
 		VD1_MEM_POWER_ON(); \
+		vpu_module_clk_enable(vd_layer[0].vpp_index, VD1_SCALER, 1); \
+		vpu_module_clk_enable(vd_layer[0].vpp_index, SR0, 0); \
+		vpu_module_clk_enable(vd_layer[0].vpp_index, SR1, 0); \
 		VIDEO_LAYER_ON(); \
 	} while (0)
 
 #define enable_video_layer2()  \
 	do { \
 		VD2_MEM_POWER_ON(); \
+		vpu_module_clk_enable(vd_layer[1].vpp_index, VD2_SCALER, 1); \
 		if (vd_layer[1].vpp_index == VPP0) \
 			VIDEO_LAYER2_ON(); \
 		if (vd_layer_vpp[0].vpp_index != VPP0 && vd_layer_vpp[0].layer_id == 1) \
@@ -961,6 +965,221 @@ static u32 is_crop_left_odd(struct vpp_frame_par_s *frame_par)
 /*********************************************************
  * vd HW APIs
  *********************************************************/
+void vpu_module_clk_enable(u32 vpp_index, u32 module, bool async)
+{
+	if (!cur_dev->power_ctrl)
+		return;
+	if (async) {
+		switch (module) {
+		case VD1_SCALER:
+			WRITE_VCBUS_REG_BITS
+			(VPP_SC_GCLK_CTRL_T7,
+			0x0, 0, 16);
+		break;
+		case VD2_SCALER:
+			WRITE_VCBUS_REG_BITS
+			(VD2_SC_GCLK_CTRL_T7,
+			0x0, 0, 16);
+		break;
+		case SR0:
+			WRITE_VCBUS_REG_BITS
+			(VPP_SRSCL_GCLK_CTRL,
+			0x0, 0, 8);
+		break;
+		case SR1:
+			WRITE_VCBUS_REG_BITS
+			(VPP_SRSCL_GCLK_CTRL,
+			0x0, 8, 8);
+		break;
+		case VD1_HDR_CORE:
+			WRITE_VCBUS_REG_BITS
+			(VD1_HDR2_CLK_GATE,
+			0x0, 0, 30);
+		break;
+		case VD2_HDR_CORE:
+			WRITE_VCBUS_REG_BITS
+			(VD2_HDR2_CLK_GATE,
+			0x0, 0, 30);
+		break;
+		case OSD1_HDR_CORE:
+			WRITE_VCBUS_REG_BITS
+			(OSD1_HDR2_CLK_GATE,
+			0x0, 0, 30);
+		break;
+		case OSD2_HDR_CORE:
+			WRITE_VCBUS_REG_BITS
+			(OSD2_HDR2_CLK_GATE,
+			0x0, 0, 30);
+		break;
+		case DV_TVCORE:
+			WRITE_VCBUS_REG_BITS
+			(VPU_CLK_GATE,
+			1, 4, 1);
+		break;
+		}
+
+	} else {
+		switch (module) {
+		case VD1_SCALER:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VPP_SC_GCLK_CTRL_T7,
+			0x0, 0, 16);
+		break;
+		case VD2_SCALER:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VD2_SC_GCLK_CTRL_T7,
+			0x0, 0, 16);
+		break;
+		case SR0:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VPP_SRSCL_GCLK_CTRL,
+			0x0, 0, 8);
+		break;
+		case SR1:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VPP_SRSCL_GCLK_CTRL,
+			0x0, 8, 8);
+		break;
+		case VD1_HDR_CORE:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VD1_HDR2_CLK_GATE,
+			0x0, 0, 30);
+		break;
+		case VD2_HDR_CORE:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VD2_HDR2_CLK_GATE,
+			0x0, 0, 30);
+		break;
+		case OSD1_HDR_CORE:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(OSD1_HDR2_CLK_GATE,
+			0x0, 0, 30);
+		break;
+		case OSD2_HDR_CORE:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(OSD2_HDR2_CLK_GATE,
+			0x0, 0, 30);
+		break;
+		case DV_TVCORE:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VPU_CLK_GATE,
+			1, 4, 1);
+		break;
+		}
+	}
+}
+
+void vpu_module_clk_disable(u32 vpp_index, u32 module, bool async)
+{
+	if (!cur_dev->power_ctrl)
+		return;
+	if (async) {
+		switch (module) {
+		case VD1_SCALER:
+			WRITE_VCBUS_REG_BITS
+			(VPP_SC_GCLK_CTRL_T7,
+			0x5554, 0, 16);
+		break;
+		case VD2_SCALER:
+			WRITE_VCBUS_REG_BITS
+			(VD2_SC_GCLK_CTRL_T7,
+			0x5554, 0, 16);
+		break;
+		case SR0:
+			if ((READ_VCBUS_REG(VPP_SRSCL_GCLK_CTRL) &
+			    0xff) != 0x05)
+				WRITE_VCBUS_REG_BITS
+				(VPP_SRSCL_GCLK_CTRL,
+				0x05, 0, 8);
+		break;
+		case SR1:
+			if ((READ_VCBUS_REG(VPP_SRSCL_GCLK_CTRL) &
+			    0xff00) != 0x0500)
+				WRITE_VCBUS_REG_BITS
+				(VPP_SRSCL_GCLK_CTRL,
+				0x05, 8, 8);
+		break;
+		case VD1_HDR_CORE:
+			WRITE_VCBUS_REG_BITS
+			(VD1_HDR2_CLK_GATE,
+			0x15555555, 0, 30);
+		break;
+		case VD2_HDR_CORE:
+			WRITE_VCBUS_REG_BITS
+			(VD2_HDR2_CLK_GATE,
+			0x15555555, 0, 30);
+		break;
+		case OSD1_HDR_CORE:
+			WRITE_VCBUS_REG_BITS
+			(OSD1_HDR2_CLK_GATE,
+			0x15555555, 0, 30);
+		break;
+		case OSD2_HDR_CORE:
+			WRITE_VCBUS_REG_BITS
+			(OSD2_HDR2_CLK_GATE,
+			0x15555555, 0, 30);
+		break;
+		case DV_TVCORE:
+			WRITE_VCBUS_REG_BITS
+			(VPU_CLK_GATE,
+			0, 4, 1);
+		break;
+		}
+	} else {
+		switch (module) {
+		case VD1_SCALER:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VPP_SC_GCLK_CTRL_T7,
+			0x5554, 0, 16);
+		break;
+		case VD2_SCALER:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VD2_SC_GCLK_CTRL_T7,
+			0x5554, 0, 16);
+		break;
+		case SR0:
+			if ((READ_VCBUS_REG(VPP_SRSCL_GCLK_CTRL) &
+			    0xff) != 0x05)
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(VPP_SRSCL_GCLK_CTRL,
+				0x05, 0, 8);
+		break;
+		case SR1:
+			if ((READ_VCBUS_REG(VPP_SRSCL_GCLK_CTRL) &
+			    0xff00) != 0x0500)
+				cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(VPP_SRSCL_GCLK_CTRL,
+				0x05, 8, 8);
+		break;
+		case VD1_HDR_CORE:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VD1_HDR2_CLK_GATE,
+			0x15555555, 0, 30);
+		break;
+		case VD2_HDR_CORE:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VD2_HDR2_CLK_GATE,
+			0x15555555, 0, 30);
+		break;
+		case OSD1_HDR_CORE:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(OSD1_HDR2_CLK_GATE,
+			0x15555555, 0, 30);
+		break;
+		case OSD2_HDR_CORE:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(OSD2_HDR2_CLK_GATE,
+			0x15555555, 0, 30);
+		break;
+		case DV_TVCORE:
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VPU_CLK_GATE,
+			0, 4, 1);
+		break;
+		}
+	}
+}
+
 void safe_switch_videolayer(u8 layer_id, bool on, bool async)
 {
 	if (layer_id == 0xff)
@@ -2673,6 +2892,7 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_pps_reg->vd_sc_misc,
 			sc_misc_val);
+		vpu_module_clk_enable(vpp_index, VD1_SCALER, 0);
 	} else {
 		setting->sc_v_enable = false;
 		setting->sc_h_enable = false;
@@ -2680,6 +2900,7 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 			(vd_pps_reg->vd_sc_misc,
 			0, VPP_SC_TOP_EN_BIT,
 			VPP_SC_TOP_EN_WID);
+		vpu_module_clk_disable(vpp_index, VD1_SCALER, 0);
 	}
 
 	/* horitontal filter settings */
@@ -3391,6 +3612,8 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 		cur_dev->rdma_func[vpp_index].rdma_wr
 			(vd_pps_reg->vd_sc_misc,
 			sc_misc_val);
+		if (layer_id == 1)
+			vpu_module_clk_enable(vpp_index, VD2_SCALER, 0);
 	} else {
 		setting->sc_v_enable = false;
 		setting->sc_h_enable = false;
@@ -3398,6 +3621,8 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 			(vd_pps_reg->vd_sc_misc,
 			0, VPP_SC_TOP_EN_BIT,
 			VPP_SC_TOP_EN_WID);
+		if (layer_id == 1)
+			vpu_module_clk_disable(vpp_index, VD2_SCALER, 0);
 	}
 
 	/* horitontal filter settings */
@@ -4012,6 +4237,7 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 {
 	u32 misc_off;
 	u8 vpp_index;
+	static bool first_set = true;
 
 	if (!layer)
 		return;
@@ -4058,6 +4284,12 @@ static void disable_vd1_blend(struct video_layer_s *layer)
 		cur_dev->rdma_func[vpp_index].rdma_wr(VPP_SRSHARP0_CTRL, 0);
 		cur_dev->rdma_func[vpp_index].rdma_wr(VPP_SRSHARP1_CTRL, 0);
 	}
+	vpu_module_clk_disable(vpp_index, VD1_SCALER, 0);
+	if (!first_set) {
+		vpu_module_clk_disable(vpp_index, SR0, 0);
+		vpu_module_clk_disable(vpp_index, SR1, 0);
+	}
+	first_set = false;
 
 	if (layer->dispbuf &&
 	    is_local_vf(layer->dispbuf)) {
@@ -4093,6 +4325,8 @@ static void disable_vd2_blend(struct video_layer_s *layer)
 			gvideo_recv[1] ? &gvideo_recv[1]->local_buf : NULL);
 	cur_dev->rdma_func[vpp_index].rdma_wr(layer->vd_afbc_reg.afbc_enable, 0);
 	cur_dev->rdma_func[vpp_index].rdma_wr(layer->vd_mif_reg.vd_if0_gen_reg, 0);
+
+	vpu_module_clk_disable(vpp_index, VD2_SCALER, 0);
 
 	if (layer->dispbuf &&
 	    is_local_vf(layer->dispbuf)) {

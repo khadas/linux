@@ -2815,13 +2815,18 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 			if (((tmp_data >> 1) & 0x1) != 0)
 				VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP0_CTRL,
 						       0, 1, 1);
+			if ((tmp_data & 0x1) != 0)
+				VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP0_CTRL,
+						       0, 0, 1);
+			vpu_module_clk_disable(VPP0, SR0, 0);
 		} else {
 			if (((tmp_data >> 1) & 0x1) != 1)
 				VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP0_CTRL,
 						       1, 1, 1);
-		}
-		if ((tmp_data & 0x1) != 1)
+			if ((tmp_data & 0x1) != 1)
+				vpu_module_clk_enable(VPP0, SR0, 0);
 			VSYNC_WR_MPEG_REG_BITS(VPP_SRSHARP0_CTRL, 1, 0, 1);
+		}
 	}
 	tmp_data = VSYNC_RD_MPEG_REG(VPP_SRSHARP1_CTRL);
 	if (sr0_sr1_refresh) {
