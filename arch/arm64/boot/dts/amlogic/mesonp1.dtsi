@@ -1711,12 +1711,14 @@
 		//	<&clkc CLKID_HEVCF_MUX>,
 		//	<&clkc CLKID_HEVCB_MUX>;
 	};
-
 	csiphy0: csiphy0@ff918000 {
-		compatible = "amlogic, csiphy0";
+		compatible = "amlogic, csiphy";
 		reg = <0x0 0xff918000 0x0 0x3000>,
 				<0x0 0xff9a0000 0x0 0x400>;
-		reg-names = "csi_phy0","csi_aphy";
+		reg-names = "csi_phy","csi_aphy";
+		power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
+		clocks = <&clkc CLKID_CSIPHY0>;
+		clock-names = "cts_mipi_csi_phy_clk";
 	};
 
 	adapter0: adapter0@ff918000 {
@@ -1729,15 +1731,150 @@
 		compatible = "amlogic, isp";
 		reg = <0x0 0xff900000 0x0 0x10000>;
 		/* interrupt-parent = <&intc>; */
+		power-domains = <&pwrdm PDID_P1_ISP_A>;
+		clocks = <&clkc CLKID_ISP0>;
+		clock-names = "cts_mipi_isp_clk";
 		interrupts = <0 97 1>;
 	};
 
 	camera0 {
+		status = "okay";
 		compatible = "amlogic, camera";
 		index = <0>;
 		csiphy = <&csiphy0>;
 		adapter = <&adapter0>;
 		isp = <&isp0>;
+	};
+
+	csiphy1: csiphy1@ff938000 {
+		compatible = "amlogic, csiphy";
+		reg = <0x0 0xff938000 0x0 0x3000>,
+				<0x0 0xff9a0000 0x0 0x400>;
+		reg-names = "csi_phy","csi_aphy";
+		power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
+		clocks = <&clkc CLKID_CSIPHY1>;
+		clock-names = "cts_mipi_csi_phy_clk";
+	};
+
+	adapter1: adapter1@ff938000 {
+		compatible = "amlogic, adapter";
+		reg = <0x0 0xff938000 0x0 0x6000>;
+		reg-names = "adapter";
+	};
+
+	isp1: isp1@ff920000 {
+		compatible = "amlogic, isp";
+		reg = <0x0 0xff920000 0x0 0x10000>;
+		/* interrupt-parent = <&intc>; */
+		power-domains = <&pwrdm PDID_P1_ISP_B>;
+		clocks = <&clkc CLKID_ISP1>;
+		clock-names = "cts_mipi_isp_clk";
+		interrupts = <0 105 1>;
+	};
+
+	camera1 {
+		status = "okay";
+		compatible = "amlogic, camera";
+		index = <1>;
+		csiphy = <&csiphy1>;
+		adapter = <&adapter1>;
+		isp = <&isp1>;
+	};
+
+	csiphy2: csiphy2@ff958000 {
+		compatible = "amlogic, csiphy";
+		reg = <0x0 0xff958000 0x0 0x3000>,
+				<0x0 0xff9a0000 0x0 0x400>;
+		reg-names = "csi_phy","csi_aphy";
+		power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
+		clocks = <&clkc CLKID_CSIPHY2>;
+		clock-names = "cts_mipi_csi_phy_clk";
+	};
+
+	adapter2: adapter2@ff958000 {
+		compatible = "amlogic, adapter";
+		reg = <0x0 0xff958000 0x0 0x6000>;
+		reg-names = "adapter";
+	};
+
+	isp2: isp2@ff940000 {
+		compatible = "amlogic, isp";
+		reg = <0x0 0xff940000 0x0 0x10000>;
+		/* interrupt-parent = <&intc>; */
+		power-domains = <&pwrdm PDID_P1_ISP_C>;
+		clocks = <&clkc CLKID_ISP2>;
+		clock-names = "cts_mipi_isp_clk";
+		interrupts = <0 113 1>;
+	};
+
+	camera2 {
+		status = "okay";
+		compatible = "amlogic, camera";
+		index = <2>;
+		csiphy = <&csiphy2>;
+		adapter = <&adapter2>;
+		isp = <&isp2>;
+	};
+
+	csiphy3: csiphy3@ff978000 {
+		compatible = "amlogic, csiphy";
+		reg = <0x0 0xff978000 0x0 0x3000>,
+				<0x0 0xff9a0000 0x0 0x400>;
+		reg-names = "csi_phy","csi_aphy";
+		power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
+		clocks = <&clkc CLKID_CSIPHY3>;
+		clock-names = "cts_mipi_csi_phy_clk";
+	};
+
+	adapter3: adapter3@ff978000 {
+		compatible = "amlogic, adapter";
+		reg = <0x0 0xff978000 0x0 0x6000>;
+		reg-names = "adapter";
+	};
+
+	isp3: isp3@ff960000 {
+		compatible = "amlogic, isp";
+		reg = <0x0 0xff960000 0x0 0x10000>;
+		/* interrupt-parent = <&intc>; */
+		power-domains = <&pwrdm PDID_P1_ISP_D>;
+		clocks = <&clkc CLKID_ISP3>;
+		clock-names = "cts_mipi_isp_clk";
+		interrupts = <0 121 1>;
+	};
+
+	camera3 {
+		status = "okay";
+		compatible = "amlogic, camera";
+		index = <3>;
+		csiphy = <&csiphy3>;
+		adapter = <&adapter3>;
+		isp = <&isp3>;
+	};
+
+	csiphy4: csiphy4@ff998000 {
+		compatible = "amlogic, csiphy";
+		reg = <0x0 0xff998000 0x0 0x3000>,
+				<0x0 0xff9a0000 0x0 0x400>;
+		reg-names = "csi_phy","csi_aphy";
+		power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
+		clocks = <&clkc CLKID_CSIPHY4>;
+		clock-names = "cts_mipi_csi_phy_clk";
+	};
+
+	adapter4: adapter4@ff998000 {
+		compatible = "amlogic, adapter";
+		reg = <0x0 0xff998000 0x0 0x6000>,
+				<0x0 0xff980000 0x0 0x1000>;
+		reg-names = "adapter","wrmif";
+		interrupts = <0 81 1>;
+	};
+
+	camera4 {
+		status = "okay";
+		compatible = "amlogic, camera";
+		index = <4>;
+		csiphy = <&csiphy4>;
+		adapter = <&adapter4>;
 	};
 
 	vdec {

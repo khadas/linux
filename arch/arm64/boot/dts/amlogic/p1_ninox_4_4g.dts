@@ -138,7 +138,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0x8000000>;
+			size = <0x0 0xB000000>;
 			alignment = <0x0 0x400000>;
 		};
 
@@ -1476,25 +1476,120 @@
 	};
 };
 
-&i2c2 {
+&i2c6 {
 	status = "okay";
 	clock-frequency = <100000>;
-	pinctrl-names = "default";//, "sleep"
-	pinctrl-0 = <&i2c2_pins1>;
-	//pinctrl-1 = <&i2c2_sleep_pins1>;
-	imx290_0: sensor0@1a {
-		compatible = "sony, imx290";
-		reg = <0x1a>;
-		clock-frequency = <37125000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c6_pins1>;
+	ov20381_0: sensor0@36 {
+		compatible = "omnivision, ov20381";
+		reg = <0x36>;
+		pwr-gpios = <&gpio GPIOK_29 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio GPIOC_2 GPIO_ACTIVE_HIGH>;
+		assigned-clocks = <&clkc CLKID_MCLK_0_SEL>;
+		assigned-clock-parents = <&xtal>;
+		clocks = <&clkc CLKID_MCLK_0>;
+		clock-names = "mclk";
+		clock-frequency = <24000000>;
 		port {
-			imx290_0_ep: endpoint {
+		ov20381_0_ep: endpoint {
 			data-lanes = <0 1 2 3>;
-			link-frequencies = /bits/ 64 <445500000>;
+			link-frequencies = /bits/ 64 <960000000>;
 			remote-endpoint = <&csiphy0_ep>;
 			};
 		};
 	};
 
+	ov20381_1: sensor0@21 {
+		compatible = "omnivision, ov20381";
+		reg = <0x21>;
+		//pwr-gpios = <&gpio GPIOK_29 GPIO_ACTIVE_HIGH>;
+		//pwdn-gpios = <&gpio GPIOC_2 GPIO_ACTIVE_HIGH>;
+		assigned-clocks = <&clkc CLKID_MCLK_0_SEL>;
+		assigned-clock-parents = <&xtal>;
+		clocks = <&clkc CLKID_MCLK_0>;
+		clock-names = "mclk";
+		clock-frequency = <24000000>;
+		port {
+		ov20381_1_ep: endpoint {
+			data-lanes = <0 1 2 3>;
+			link-frequencies = /bits/ 64 <960000000>;
+			remote-endpoint = <&csiphy1_ep>;
+			};
+		};
+	};
+};
+
+&i2c7 {
+	status = "okay";
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c7_pins2>;
+	ov9285_2: sensor0@60 {
+		compatible = "omnivision, ov9285";
+		reg = <0x60>;
+		pwr-gpios = <&gpio GPIOK_6 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
+		vddcam-supply = <&VDDCAM>;
+		viocam-supply = <&VIOCAM>;
+		assigned-clocks = <&clkc CLKID_MCLK_2_SEL>;
+		assigned-clock-parents = <&xtal>;
+		clocks = <&clkc CLKID_MCLK_2>;
+		clock-names = "mclk";
+		clock-frequency = <24000000>;
+		port {
+		ov9285_2_ep: endpoint {
+			data-lanes = <0 1>;
+			link-frequencies = /bits/ 64 <800000000>;
+			remote-endpoint = <&csiphy2_ep>;
+			};
+		};
+	};
+	ov9285_3: sensor0@10 {
+		compatible = "omnivision, ov9285";
+		reg = <0x10>;
+		//pwr-gpios = <&gpio GPIOC_11 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio GPIOC_11 GPIO_ACTIVE_HIGH>;
+		vddcam-supply = <&VDDCAM>;
+		viocam-supply = <&VIOCAM>;
+		assigned-clocks = <&clkc CLKID_MCLK_2_SEL>;
+		assigned-clock-parents = <&xtal>;
+		clocks = <&clkc CLKID_MCLK_2>;
+		clock-names = "mclk";
+		clock-frequency = <24000000>;
+		port {
+		ov9285_3_ep: endpoint {
+			data-lanes = <2 3>;
+			link-frequencies = /bits/ 64 <800000000>;
+			remote-endpoint = <&csiphy3_ep>;
+			};
+		};
+	};
+};
+
+&i2c8 {
+	status = "okay";
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c8_pins1>;
+	ov32b40: sensor0@36 {
+		compatible = "omnivision, ov32b40";
+		reg = <0x36>;
+		pwr-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio GPIOK_30 GPIO_ACTIVE_HIGH>;
+		assigned-clocks = <&clkc CLKID_MCLK_3_SEL>;
+		assigned-clock-parents = <&xtal>;
+		clocks = <&clkc CLKID_MCLK_3>;
+		clock-names = "mclk";
+		clock-frequency = <24000000>;
+		port {
+			ov32b40_ep: endpoint {
+			data-lanes = <0 1>;
+			link-frequencies = /bits/ 64 <852000000>;
+			remote-endpoint = <&csiphy4_ep>;
+			};
+		};
+	};
 };
 
 &i2c5 {
@@ -1506,12 +1601,68 @@
 		csiphy0_ep: endpoint {
 		clock-lanes = <4>;
 		data-lanes = <0 1 2 3>;
-		remote-endpoint = <&imx290_0_ep>;
+		remote-endpoint = <&ov20381_0_ep>;
 		};
 	};
 };
 
 &isp0 {
+	memory-region = <&camera_cma_reserved>;
+};
+
+&csiphy1 {
+	port {
+		csiphy1_ep: endpoint {
+		clock-lanes = <4>;
+		data-lanes = <0 1 2 3>;
+		remote-endpoint = <&ov20381_1_ep>;
+		};
+	};
+};
+
+&isp1 {
+	memory-region = <&camera_cma_reserved>;
+};
+
+&csiphy2 {
+	port {
+		csiphy2_ep: endpoint {
+		clock-lanes = <2>;
+		data-lanes = <0 1>;
+		remote-endpoint = <&ov9285_2_ep>;
+		};
+	};
+};
+
+&isp2 {
+	memory-region = <&camera_cma_reserved>;
+};
+
+&csiphy3 {
+	port {
+		csiphy3_ep: endpoint {
+		clock-lanes = <5>;
+		data-lanes = <3 4>;
+		remote-endpoint = <&ov9285_3_ep>;
+		};
+	};
+};
+
+&isp3 {
+	memory-region = <&camera_cma_reserved>;
+};
+
+&csiphy4 {
+	port {
+		csiphy4_ep: endpoint {
+		clock-lanes = <2>;
+		data-lanes = <0 1>;
+		remote-endpoint = <&ov32b40_ep>;
+		};
+	};
+};
+
+&adapter4 {
 	memory-region = <&camera_cma_reserved>;
 };
 
