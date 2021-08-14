@@ -4030,8 +4030,8 @@ static bool __restore_locked_page(struct page *page, struct vm_area_struct *vma,
 
 		ret = insert_page(vma, addr, page, vma->vm_page_prot);
 		pr_debug("%s, restore page:%lx for addr:%lx, vma:%px, ret:%d, old_pte:%llx\n",
-			__func__,  page_to_pfn(page),
-			addr, vma, ret, pte_val(old_pte));
+			__func__,  page_to_pfn(page), addr, vma, ret,
+			(unsigned long long)pte_val(old_pte));
 		return ret ? false : true;
 	}
 	return true; /* keep loop */
@@ -4156,7 +4156,7 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 		if (page && !PageMlocked(page)) {
 			if (page->mapping && trylock_page(page)) {
 				pr_debug("fault on locked, new pte:%llx, addr:%lx, page:%lx, %lx, ret:%x, mapping:%px f:%lx\n",
-					pte_val(pte),
+					(unsigned long long)pte_val(pte),
 					address, page_to_pfn(page),
 					page->flags, ret,
 					mapping, mapping->flags);
