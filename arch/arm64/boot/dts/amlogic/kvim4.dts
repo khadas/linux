@@ -889,7 +889,7 @@
 		key_tolerance = <40 40 40 40>;
 	};
 
-	gpio_keypad{
+	gpio_keypad {
 		compatible = "amlogic, gpio_keypad";
 		status = "okay";
 		scan_period = <20>;
@@ -897,7 +897,7 @@
 		key_name = "power";
 		key_code = <KEY_POWER>;
 		key_type = <EV_KEY>;
-		key-gpios = <&gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
+		key-gpios = <&gpio  GPIOD_4  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
 	sd_3v3: regulator-sd_3v3 {
