@@ -1355,7 +1355,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 
 #if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && !defined(CONFIG_KASAN)
 			/* shrink pages which not on unevictable list */
-			if (test_bit(AS_LOCK_MAPPING, &mapping->flags) &&
+			if (mapping &&
+			    test_bit(AS_LOCK_MAPPING, &mapping->flags) &&
 			    !PageCmaAllocating(page) &&
 			    !PageMlocked(page))
 				flags |= TTU_IGNORE_MLOCK | TTU_IGNORE_ACCESS;
