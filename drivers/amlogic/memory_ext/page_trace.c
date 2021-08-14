@@ -1757,7 +1757,7 @@ static int filecache_show(struct seq_file *m, void *arg)
 			small_inactive += fct[i].inactive_count;
 			continue;
 		}
-		seq_printf(m, "   %6u, %6u,   %6u, %6u, %4d, %3u, %s\n",
+		seq_printf(m, "   %6lu, %6lu,   %6lu, %6u, %4ld, %3u, %s\n",
 			   K(fct[i].count), K(fct[i].active_count),
 			   K(fct[i].inactive_count), fct[i].mapcnt,
 			   K(fct[i].lock_count),
@@ -1765,10 +1765,10 @@ static int filecache_show(struct seq_file *m, void *arg)
 			   parse_fct_name(&fct[i], fname));
 	}
 	iow = get_iow_time(&cputime);
-	seq_printf(m, "small files:%u, cache:%u [%u/%u] KB, time:%ld\n",
+	seq_printf(m, "small files:%u, cache:%lu [%lu/%lu] KB, time:%ld\n",
 		   small_files, K(small_fcache),
 		   K(small_inactive), K(small_active), tick);
-	seq_printf(m, "total:%u KB, nomap[I/A]:%u [%u/%u] KB, locked:%u KB, files:%u\n",
+	seq_printf(m, "total:%lu KB, nomap[I/A]:%lu [%lu/%lu] KB, locked:%lu KB, files:%u\n",
 		   K(fs.total), K(fs.nomap[0]),
 		   K(fs.nomap[1]), K(fs.nomap[2]),
 		   K(fs.nomap[3]),
