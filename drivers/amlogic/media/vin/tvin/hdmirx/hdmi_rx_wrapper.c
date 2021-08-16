@@ -2044,6 +2044,7 @@ void fsm_restart(void)
 	rx.phy.phy_bw = 0;
 	rx.phy.pll_bw = 0;
 	rx.aml_phy.force_sqo = 0;
+	i2c_err_cnt = 0;
 	rx_pr("force_fsm_init\n");
 }
 
@@ -2601,6 +2602,7 @@ void hdmirx_open_port(enum tvin_port_e port)
 	rx.no_signal = false;
 	rx.wait_no_sig_cnt = 0;
 	vic_check_en = false;
+	i2c_err_cnt = 0;
 	/* dvi_check_en = true; */
 	if (hdmirx_repeat_support())
 		rx.hdcp.repeat = repeat_plug;
@@ -2983,7 +2985,7 @@ void rx_main_state_machine(void)
 			} else {
 				rx.err_code = ERR_NONE;
 				rx.state = FSM_HPD_LOW;
-				rx_ddc_calibration(true);
+				rx_i2c_err_monitor();
 				esd_phy_rst_cnt = 0;
 				break;
 			}
