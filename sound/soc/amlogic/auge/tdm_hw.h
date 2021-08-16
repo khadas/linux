@@ -66,7 +66,7 @@ void aml_tdm_arb_config(struct aml_audio_controller *actrl);
 
 void aml_tdm_fifo_reset(struct aml_audio_controller *actrl,
 	int stream, int index);
-void aml_tdmout_enable_gain(int tdmout_id, int en);
+void aml_tdmout_enable_gain(int tdmout_id, int en, int gain_ver);
 
 int tdmout_get_frddr_type(int bitwidth);
 

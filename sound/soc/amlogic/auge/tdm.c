@@ -1089,14 +1089,8 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 
 			aml_frddr_enable(p_tdm->fddr, true);
 			udelay(100);
-			/* unmute tdm playback to avoid underrun nosie
-			 * only t5&t5d use
-			 */
-			if (p_tdm->chipinfo->need_mute_tdm)
-				aml_tdm_mute_playback(p_tdm->actrl, p_tdm->id,
-					false, p_tdm->lane_cnt);
-			else
-				aml_tdmout_enable_gain(p_tdm->id, false);
+			aml_tdmout_enable_gain(p_tdm->id, false,
+					p_tdm->chipinfo->gain_ver);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_mute(p_tdm, false);
 		} else {
@@ -1130,15 +1124,8 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			dev_dbg(substream->pcm->card->dev,
 				 "TDM[%d] Playback stop\n",
 				 p_tdm->id);
-			/*don't change this flow*/
-			/* mute tdm playback to avoid underrun nosie
-			 * only t5&t5d use
-			 */
-			if (p_tdm->chipinfo->need_mute_tdm)
-				aml_tdm_mute_playback(p_tdm->actrl, p_tdm->id,
-					true, p_tdm->lane_cnt);
-			else
-				aml_tdmout_enable_gain(p_tdm->id, true);
+			aml_tdmout_enable_gain(p_tdm->id, true,
+					p_tdm->chipinfo->gain_ver);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_mute(p_tdm, true);
 			aml_aed_top_enable(p_tdm->fddr, false);

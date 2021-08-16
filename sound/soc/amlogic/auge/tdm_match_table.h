@@ -6,6 +6,8 @@
 #ifndef __TDM_MATCH_TABLE_H__
 #define __TDM_MATCH_TABLE_H__
 
+#include "tdm_gain_version.h"
+
 /* For OE function V1:
  * OE is set by EE_AUDIO_TDMOUT_A_CTRL0 & EE_AUDIO_TDMOUT_A_CTRL1
  */
@@ -57,9 +59,7 @@ struct tdm_chipinfo {
 	struct src_table *tdmin_srcs;
 	bool slot_num_en;
 	bool chnum_en;
-
-	/* only for t5&t5d*/
-	bool need_mute_tdm;
+	int  gain_ver;
 };
 
 #define SRC_TDMIN_A     "tdmin_a"
@@ -126,6 +126,7 @@ struct tdm_chipinfo g12a_tdma_chipinfo = {
 	.mclkpad_no_offset = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.chnum_en = true,
+	.gain_ver = GAIN_VER1,
 };
 
 struct tdm_chipinfo g12a_tdmb_chipinfo = {
@@ -136,6 +137,7 @@ struct tdm_chipinfo g12a_tdmb_chipinfo = {
 	.mclkpad_no_offset = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.chnum_en = true,
+	.gain_ver = GAIN_VER1,
 };
 
 struct tdm_chipinfo g12a_tdmc_chipinfo = {
@@ -146,6 +148,7 @@ struct tdm_chipinfo g12a_tdmc_chipinfo = {
 	.mclkpad_no_offset = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.chnum_en = true,
+	.gain_ver = GAIN_VER1,
 };
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -159,6 +162,7 @@ struct tdm_chipinfo tl1_tdma_chipinfo = {
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.chnum_en = true,
+	.gain_ver = GAIN_VER1,
 };
 
 struct tdm_chipinfo tl1_tdmb_chipinfo = {
@@ -171,6 +175,7 @@ struct tdm_chipinfo tl1_tdmb_chipinfo = {
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.chnum_en = true,
+	.gain_ver = GAIN_VER1,
 };
 
 struct tdm_chipinfo tl1_tdmc_chipinfo = {
@@ -183,6 +188,7 @@ struct tdm_chipinfo tl1_tdmc_chipinfo = {
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.chnum_en = true,
+	.gain_ver = GAIN_VER1,
 };
 #endif
 
@@ -196,6 +202,7 @@ struct tdm_chipinfo sm1_tdma_chipinfo = {
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.chnum_en = true,
+	.gain_ver = GAIN_VER2,
 };
 
 struct tdm_chipinfo sm1_tdmb_chipinfo = {
@@ -208,6 +215,7 @@ struct tdm_chipinfo sm1_tdmb_chipinfo = {
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.chnum_en = true,
+	.gain_ver = GAIN_VER2,
 };
 
 struct tdm_chipinfo sm1_tdmc_chipinfo = {
@@ -220,6 +228,7 @@ struct tdm_chipinfo sm1_tdmc_chipinfo = {
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.chnum_en = true,
+	.gain_ver = GAIN_VER2,
 };
 
 struct tdm_chipinfo tm2_tdma_chipinfo = {
@@ -233,6 +242,7 @@ struct tdm_chipinfo tm2_tdma_chipinfo = {
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.chnum_en = true,
+	.gain_ver = GAIN_VER2,
 };
 
 struct tdm_chipinfo tm2_tdmb_chipinfo = {
@@ -246,6 +256,7 @@ struct tdm_chipinfo tm2_tdmb_chipinfo = {
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.chnum_en = true,
+	.gain_ver = GAIN_VER2,
 };
 
 struct tdm_chipinfo tm2_tdmc_chipinfo = {
@@ -259,6 +270,7 @@ struct tdm_chipinfo tm2_tdmc_chipinfo = {
 	.async_fifo  = true,
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.chnum_en = true,
+	.gain_ver = GAIN_VER2,
 };
 
 struct tdm_chipinfo tm2_revb_tdma_chipinfo = {
@@ -274,6 +286,7 @@ struct tdm_chipinfo tm2_revb_tdma_chipinfo = {
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.slot_num_en = true,
 	.chnum_en = false,
+	.gain_ver = GAIN_VER3,
 };
 
 struct tdm_chipinfo tm2_revb_tdmb_chipinfo = {
@@ -289,6 +302,7 @@ struct tdm_chipinfo tm2_revb_tdmb_chipinfo = {
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.slot_num_en = true,
 	.chnum_en = false,
+	.gain_ver = GAIN_VER3,
 };
 
 struct tdm_chipinfo tm2_revb_tdmc_chipinfo = {
@@ -304,6 +318,7 @@ struct tdm_chipinfo tm2_revb_tdmc_chipinfo = {
 	.tdmin_srcs = &tdmin_srcs_v1[0],
 	.slot_num_en = true,
 	.chnum_en = false,
+	.gain_ver = GAIN_VER3,
 };
 
 struct tdm_chipinfo t5_tdma_chipinfo = {
@@ -319,7 +334,7 @@ struct tdm_chipinfo t5_tdma_chipinfo = {
 	.tdmin_srcs = &tdmin_srcs_v2[0],
 	.slot_num_en = true,
 	.chnum_en = false,
-	.need_mute_tdm = true,
+	.gain_ver = GAIN_VER3,
 };
 
 struct tdm_chipinfo t5_tdmb_chipinfo = {
@@ -335,7 +350,7 @@ struct tdm_chipinfo t5_tdmb_chipinfo = {
 	.tdmin_srcs = &tdmin_srcs_v2[0],
 	.slot_num_en = true,
 	.chnum_en = false,
-	.need_mute_tdm = true,
+	.gain_ver = GAIN_VER3,
 };
 
 struct tdm_chipinfo t5_tdmc_chipinfo = {
@@ -351,7 +366,7 @@ struct tdm_chipinfo t5_tdmc_chipinfo = {
 	.tdmin_srcs = &tdmin_srcs_v2[0],
 	.slot_num_en = true,
 	.chnum_en = false,
-	.need_mute_tdm = true,
+	.gain_ver = GAIN_VER3,
 };
 
 struct tdm_chipinfo t7_tdma_chipinfo = {
@@ -367,6 +382,7 @@ struct tdm_chipinfo t7_tdma_chipinfo = {
 	.tdmin_srcs = &tdmin_srcs_v3[0],
 	.slot_num_en = true,
 	.chnum_en = false,
+	.gain_ver = GAIN_VER3,
 };
 
 struct tdm_chipinfo t7_tdmb_chipinfo = {
@@ -382,6 +398,7 @@ struct tdm_chipinfo t7_tdmb_chipinfo = {
 	.tdmin_srcs = &tdmin_srcs_v3[0],
 	.slot_num_en = true,
 	.chnum_en = false,
+	.gain_ver = GAIN_VER3,
 };
 
 struct tdm_chipinfo t7_tdmc_chipinfo = {
@@ -397,6 +414,7 @@ struct tdm_chipinfo t7_tdmc_chipinfo = {
 	.tdmin_srcs = &tdmin_srcs_v3[0],
 	.slot_num_en = true,
 	.chnum_en = false,
+	.gain_ver = GAIN_VER3,
 };
 
 static const struct of_device_id aml_tdm_device_id[] = {

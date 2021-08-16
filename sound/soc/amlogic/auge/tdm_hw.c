@@ -8,6 +8,7 @@
 
 #include "tdm_hw.h"
 #include "iomap.h"
+#include "tdm_gain_version.h"
 
 #define MST_CLK_INVERT_PH0_PAD_BCLK       BIT(0)
 #define MST_CLK_INVERT_PH0_PAD_FCLK       BIT(1)
@@ -642,14 +643,32 @@ void aml_tdmout_get_aed_info(int tdmout_id,
 		*frddrtype = (val >> 4) & 0x7;
 }
 
-void aml_tdmout_enable_gain(int tdmout_id, int en)
+void aml_tdmout_enable_gain(int tdmout_id, int en, int gain_ver)
 {
 	unsigned int reg, offset;
 
-	offset = EE_AUDIO_TDMOUT_B_CTRL1
-			- EE_AUDIO_TDMOUT_A_CTRL1;
-	reg = EE_AUDIO_TDMOUT_A_CTRL1 + offset * tdmout_id;
-	audiobus_update_bits(reg, 0x1 << 26, !!en << 26);
+	switch (gain_ver) {
+	case GAIN_VER1:
+		offset = EE_AUDIO_TDMOUT_B_CTRL1
+				- EE_AUDIO_TDMOUT_A_CTRL1;
+		reg = EE_AUDIO_TDMOUT_A_CTRL1 + offset * tdmout_id;
+		audiobus_update_bits(reg, 0x1 << 26, !!en << 26);
+		break;
+	case GAIN_VER2:
+		offset = EE_AUDIO_TDMOUT_B_CTRL1
+				- EE_AUDIO_TDMOUT_A_CTRL1;
+		reg = EE_AUDIO_TDMOUT_A_CTRL1 + offset * tdmout_id;
+		audiobus_update_bits(reg, 0x1 << 7, !!en << 7);
+		break;
+	case GAIN_VER3:
+		offset = EE_AUDIO_TDMOUT_B_GAIN_EN - EE_AUDIO_TDMOUT_A_GAIN_EN;
+		reg = EE_AUDIO_TDMOUT_A_GAIN_EN + offset * tdmout_id;
+		if (en)
+			audiobus_update_bits(reg, 0xFF << 0, 0xFF << 0);
+		else
+			audiobus_update_bits(reg, 0xFF << 0, 0x0 << 0);
+		break;
+	}
 }
 
 void aml_tdm_mclk_pad_select(struct aml_audio_controller *actrl,
