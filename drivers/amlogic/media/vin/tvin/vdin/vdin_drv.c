@@ -2045,7 +2045,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 				dv_work_delby);
 		} else if (((dv_dbg_mask & DV_UPDATE_DATA_MODE_DELBY_WORK) == 0) &&
 			   devp->dv.dv_config && !devp->dv.low_latency &&
-			   (devp->prop.emp_data.size == 0)) {
+			   (devp->prop.dolby_vision == 1)) {
 			vdin_dolby_buffer_update(devp,
 						 devp->last_wr_vfe->vf.index);
 			vdin_dolby_addr_update(devp,
@@ -2352,7 +2352,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		} else if (((dv_dbg_mask &
 			      DV_UPDATE_DATA_MODE_DELBY_WORK) == 0) &&
 			   devp->dv.dv_config && !devp->dv.low_latency &&
-			   (devp->prop.emp_data.size == 0)) {
+			   (devp->prop.dolby_vision == 1)) {
 			vdin_dolby_buffer_update(devp, curr_wr_vfe->vf.index);
 			vdin_dolby_addr_update(devp, next_wr_vfe->vf.index);
 		} else {
@@ -2689,7 +2689,7 @@ static void vdin_dv_dwork(struct work_struct *work)
 		pr_info("%s, dwork error !!!\n", __func__);
 		return;
 	}
-	if (devp->dv.dv_config && devp->prop.emp_data.size == 0 &&
+	if (devp->dv.dv_config && devp->prop.dolby_vision == 1 &&
 	    !devp->dv.low_latency) {
 		vdin_dolby_buffer_update(devp, devp->dv.dv_cur_index);
 		vdin_dolby_addr_update(devp, devp->dv.dv_next_index);
