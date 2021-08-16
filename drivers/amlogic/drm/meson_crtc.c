@@ -135,6 +135,40 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 	return ret;
 }
 
+static void meson_crtc_atomic_print_state(struct drm_printer *p,
+		const struct drm_crtc_state *state)
+{
+	struct am_meson_crtc_state *cstate =
+			container_of(state, struct am_meson_crtc_state, base);
+	struct am_meson_crtc *meson_crtc = to_am_meson_crtc(cstate->base.crtc);
+	struct meson_drm *priv = meson_crtc->priv;
+	struct meson_vpu_pipeline_state *mvps;
+	struct drm_private_state *obj_state;
+
+	obj_state = priv->pipeline->obj.state;
+	if (!obj_state) {
+		DRM_ERROR("null pipeline obj state!\n");
+		return;
+	}
+
+	mvps = container_of(obj_state, struct meson_vpu_pipeline_state, obj);
+	if (!mvps) {
+		DRM_INFO("%s mvps is NULL!\n", __func__);
+		return;
+	}
+
+	drm_printf(p, "\tmeson crtc state:\n");
+	drm_printf(p, "\t\thdr_policy=%u\n", cstate->hdr_policy);
+	drm_printf(p, "\t\tdv_policy=%u\n", cstate->dv_policy);
+	drm_printf(p, "\t\tuboot_mode_init=%u\n", cstate->uboot_mode_init);
+
+	drm_printf(p, "\tmeson vpu pipeline state:\n");
+	drm_printf(p, "\t\tenable_blocks=%llu\n", mvps->enable_blocks);
+	drm_printf(p, "\t\tnum_plane=%u\n", mvps->num_plane);
+	drm_printf(p, "\t\tnum_plane_video=%u\n", mvps->num_plane_video);
+	drm_printf(p, "\t\tglobal_afbc=%u\n", mvps->global_afbc);
+}
+
 static const struct drm_crtc_funcs am_meson_crtc_funcs = {
 	.atomic_destroy_state	= meson_crtc_destroy_state,
 	.atomic_duplicate_state = meson_crtc_duplicate_state,
@@ -144,6 +178,7 @@ static const struct drm_crtc_funcs am_meson_crtc_funcs = {
 	.set_config             = meson_crtc_set_mode,
 	.atomic_get_property = meson_crtc_atomic_get_property,
 	.atomic_set_property = meson_crtc_atomic_set_property,
+	.atomic_print_state = meson_crtc_atomic_print_state,
 };
 
 static bool am_meson_crtc_mode_fixup(struct drm_crtc *crtc,

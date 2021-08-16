@@ -80,11 +80,11 @@
 				remote-endpoint = <&hdmi_in_vpu>;
 			};
 			vpu_out_cvbs: endpoint@1 {
-				reg = <0>;
+				reg = <1>;
 				remote-endpoint = <&cvbs_in_vpu>;
 			};
 			vpu_out_lcd: endpoint@2 {
-				reg = <1>;
+				reg = <2>;
 				remote-endpoint = <&lcd_in_vpu>;
 			};
 		};
