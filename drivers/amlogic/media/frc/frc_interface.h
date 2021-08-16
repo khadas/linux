@@ -29,6 +29,7 @@ enum frc_state_e {
 #define FRC_IOC_SET_INPUT_VS_RATE	_IOW(FRC_IOC_MAGIC, 0x05, unsigned int)
 #define FRC_IOC_SET_MEMC_ON_OFF		_IOW(FRC_IOC_MAGIC, 0x06, unsigned int)
 #define FRC_IOC_SET_MEMC_LEVEL		_IOW(FRC_IOC_MAGIC, 0x07, unsigned int)
+#define FRC_IOC_SET_MEMC_DMEO_MODE	_IOW(FRC_IOC_MAGIC, 0x08, unsigned int)
 
 int frc_input_handle(struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts);
 int frc_set_mode(enum frc_state_e state);
@@ -37,6 +38,5 @@ int frc_is_on(void);
 int frc_is_supported(void);
 int frc_memc_set_level(u8 level);
 int frc_set_seg_display(u8 enable, u8 seg1, u8 seg2, u8 seg3);
-
 
 #endif

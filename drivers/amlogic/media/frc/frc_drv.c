@@ -272,7 +272,16 @@ static long frc_ioctl(struct file *file,
 			break;
 		}
 		frc_memc_set_level(data);
-		pr_frc(1, "SET_MEMC_LEVEL:%d\n", data);
+		// pr_frc(1, "SET_MEMC_LEVEL:%d\n", data);
+		break;
+
+	case FRC_IOC_SET_MEMC_DMEO_MODE:
+		if (copy_from_user(&data, argp, sizeof(u32))) {
+			ret = -EFAULT;
+			break;
+		}
+		frc_memc_set_demo(data);
+		// pr_frc(1, "SET_MEMC_DEMO:%d\n", data);
 		break;
 	}
 
