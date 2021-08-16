@@ -4139,7 +4139,7 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 		}
 	}
 
-#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && !defined(CONFIG_KASAN)
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 	ret = handle_pte_fault(&vmf);
 	/* Android lock it but not access it */
 	if (vma->vm_file && !(vma->vm_flags & VM_LOCKED))
@@ -4163,7 +4163,9 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 				lru_add_drain();  /* push cached pages to LRU */
 				mlock_vma_page(page);
 				/* Set this flag to avoid shrink again */
+			#ifndef CONFIG_KASAN
 				SetPageCmaAllocating(page);
+			#endif
 				unlock_page(page);
 				need_restore = 1;
 			}
