@@ -626,7 +626,7 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
 				clear_bit(AS_LOCK_MAPPING,
 					  &vma->vm_file->f_mapping->flags);
 			}
-			pr_info("%s lock mapping:%px, f:%lx\n",
+			pr_debug("%s lock mapping:%px, f:%lx\n",
 				flags & (VM_LOCKED | VM_LOCKONFAULT) ?
 				"Mark" : "Clear",
 				vma->vm_file->f_mapping,
