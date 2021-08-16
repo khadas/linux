@@ -164,6 +164,8 @@
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
+		reg = <0x0 0xff80023c 0x0 0x4>; /* AO_SEC_SD_CFG15 */
+		status = "okay";
 	};
 
 	video_composer {

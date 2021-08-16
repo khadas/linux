@@ -18,3 +18,9 @@
 #define	MESON_KERNEL_PANIC					12
 #define MESON_RECOVERY_QUIESCENT_REBOOT				14
 #define MESON_FFV_REBOOT					15
+
+struct reboot_reason_str {
+	char *name;
+};
+
+u32 get_reboot_reason(void);
