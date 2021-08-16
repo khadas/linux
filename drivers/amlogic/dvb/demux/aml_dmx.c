@@ -1491,7 +1491,8 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 		dsc_set_sid(demux->id, INPUT_LOCAL, demux->local_sid);
 	} else if (hw_source >= FRONTEND_TS0 && hw_source <= FRONTEND_TS7) {
 		demux->ts_index = hw_source - FRONTEND_TS0;
-		if (advb->ts[demux->ts_index].ts_sid != -1) {
+		if (advb->ts[demux->ts_index].ts_sid != -1 &&
+			advb->ts[demux->ts_index].ts_sid != demux->demod_sid) {
 			demux->demod_sid = advb->ts[demux->ts_index].ts_sid;
 			ts_output_update_filter(demux->id, demux->demod_sid);
 			dsc_set_sid(demux->id, INPUT_DEMOD, demux->demod_sid);
