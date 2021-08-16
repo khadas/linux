@@ -111,6 +111,7 @@ int hdcp_tee_path;
 
 /* emp buffer */
 char emp_buf[1024];
+int i2c_err_cnt;
 
 /*------------------------variable define end------------------------------*/
 
@@ -3030,6 +3031,7 @@ bool rx_clkrate_monitor(void)
 	if (changed) {
 		if (rx.state >= FSM_WAIT_CLK_STABLE)
 			rx.state = FSM_WAIT_CLK_STABLE;
+		i2c_err_cnt = 0;
 	}
 	return changed;
 }
@@ -3541,7 +3543,6 @@ void hdmirx_hw_config(void)
 	hdmirx_irq_hdcp_enable(false);
 	if (rx.chip_id >= CHIP_ID_T7)
 		hdcp_init_t7();
-	rx_ddc_calibration(false);
 	packet_init();
 	if (rx.chip_id >= CHIP_ID_TL1)
 		aml_phy_switch_port();
@@ -5483,39 +5484,20 @@ todo:
 	}
 }
 
-void rx_ddc_calibration(bool en)
+/*
+ * for Nvdia PC long detection time issue
+ */
+void rx_i2c_err_monitor(void)
 {
-	u32 data32 = 0;
+	int data32 = 0;
 
-	if (en) {
-		data32 = 0;
-		/* SDA filter internal clk div */
-		data32 |= 2 << 29; /* change to 2 for nvidia pc */
-		/* SDA sampling clk div */
-		data32 |= 0x9 << 16; /* change to 8 for nvidia pc */
-		/* SCL filter internal clk div */
-		data32 |= 1 << 13;
-		/* SCL sampling clk div */
-		data32 |= 1 << 0;
-		hdmirx_wr_top(TOP_INFILTER_I2C0, data32);
-		hdmirx_wr_top(TOP_INFILTER_I2C1, data32);
-		hdmirx_wr_top(TOP_INFILTER_I2C2, data32);
-		hdmirx_wr_top(TOP_INFILTER_I2C3, data32);
-	} else {
-		data32 = 0;
-		/* SDA filter internal clk div */
-		data32 |= 1 << 29; /* change to 2 for nvidia pc */
-		/* SDA sampling clk div */
-		data32 |= 0x1 << 16; /* change to 8 for nvidia pc */
-		/* SCL filter internal clk div */
-		data32 |= 1 << 13;
-		/* SCL sampling clk div */
-		data32 |= 1 << 0;
-		hdmirx_wr_top(TOP_INFILTER_I2C0, data32);
-		hdmirx_wr_top(TOP_INFILTER_I2C1, data32);
-		hdmirx_wr_top(TOP_INFILTER_I2C2, data32);
-		hdmirx_wr_top(TOP_INFILTER_I2C3, data32);
-	}
+	i2c_err_cnt++;
+	data32 = hdmirx_rd_top(TOP_EDID_GEN_CNTL);
+	if ((i2c_err_cnt % 2) == 0)
+		data32 = ((data32 & (~0xff)) | 0x9);
+	else
+		data32 = ((data32 & (~0xff)) | 0x4f);
+	hdmirx_wr_top(TOP_EDID_GEN_CNTL,  data32);
 }
 
 bool rx_ecc_err_overflow(void)

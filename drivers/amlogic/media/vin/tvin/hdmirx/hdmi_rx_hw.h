@@ -3158,6 +3158,7 @@ extern bool hpd_to_esm;
 extern u32 term_cal_val;
 extern u32 phy_trim_val;
 extern u32 hdcp22_reauth_enable;
+extern int i2c_err_cnt;
 
 void rx_get_best_eq_setting(void);
 void wr_reg_hhi(unsigned int offset, unsigned int val);
@@ -3371,4 +3372,5 @@ void hdmirx_hbr2spdif(u8 val);
 void rx_afifo_monitor(void);
 void rx_clkmsr_monitor(void);
 void rx_clkmsr_handler(struct work_struct *work);
+void rx_i2c_err_monitor(void);
 #endif
