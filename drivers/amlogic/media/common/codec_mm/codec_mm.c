@@ -113,6 +113,8 @@ static u32 default_tvp_pool_size_1;
 static u32 default_tvp_pool_size_2;
 static u32 tvp_dynamic_increase_disable;
 static u32 tvp_dynamic_alloc_max_size;
+static u32 tvp_dynamic_alloc_force_small_segment;
+static u32 tvp_dynamic_alloc_force_small_segment_size;
 
 #define TVP_POOL_SEGMENT_MAX_USED 4
 #define TVP_MAX_SLOT 8
@@ -2186,10 +2188,60 @@ static void codec_mm_tvp_segment_init(void)
 	tvp_dynamic_alloc_max_size = size;
 }
 
+static int codec_mm_calc_init_pool_count(void)
+{
+	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	struct extpool_mgt_s *tvp_pool = &mgt->tvp_pool;
+	u32 size = default_tvp_pool_segment_size[tvp_pool->slot_num];
+	u32 need_pool_count = 0;
+	u32 last_segment_size = 0;
+	u32 segment_size[TVP_POOL_SEGMENT_MAX_USED] = { 0 };
+	u32 i = 0;
+
+	if (tvp_dynamic_alloc_force_small_segment) {
+		if (tvp_dynamic_alloc_force_small_segment_size == 0)
+			tvp_dynamic_alloc_force_small_segment_size =
+				50 * 1024 * 1024;
+		need_pool_count =
+			size / tvp_dynamic_alloc_force_small_segment_size;
+		if (need_pool_count > TVP_POOL_SEGMENT_MAX_USED)
+			return 1;
+		for (i = 0; i < need_pool_count; i++)
+			segment_size[i] =
+				tvp_dynamic_alloc_force_small_segment_size;
+		last_segment_size =
+			size % tvp_dynamic_alloc_force_small_segment_size;
+		if (last_segment_size >= DEFAULT_TVP_SEGMENT_MIN_SIZE) {
+			segment_size[need_pool_count] = last_segment_size;
+			need_pool_count++;
+		}
+		if (need_pool_count > TVP_POOL_SEGMENT_MAX_USED - 1)
+			need_pool_count = TVP_POOL_SEGMENT_MAX_USED - 1;
+		last_segment_size = mgt->total_codec_mem_size - 2 * SZ_1M;
+		for (i = 0; i < TVP_POOL_SEGMENT_MAX_USED - 1; i++) {
+			if (i < need_pool_count) {
+				last_segment_size -= segment_size[i];
+				default_tvp_pool_segment_size[i] =
+					segment_size[i];
+			} else {
+				last_segment_size -=
+					default_tvp_pool_segment_size[i];
+			}
+		}
+		default_tvp_pool_segment_size[TVP_POOL_SEGMENT_MAX_USED - 1] =
+			last_segment_size;
+	} else {
+		need_pool_count = 1;
+	}
+	return need_pool_count;
+}
+
 int codec_mm_enable_tvp(int size, int flags)
 {
 	int ret;
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	u32 count = 0;
+	u32 i = 0;
 
 	mutex_lock(&mgt->tvp_protect_lock);
 	if (mgt->tvp_pool.slot_num <= 0)
@@ -2216,19 +2268,49 @@ int codec_mm_enable_tvp(int size, int flags)
 		}
 	} else {
 		if (mgt->tvp_pool.slot_num <= 0) {
-			ret = codec_mm_tvp_pool_alloc_by_slot(&mgt->tvp_pool,
-				0, flags);
-			if (ret) {
-				ret = 0;
+			count = codec_mm_calc_init_pool_count();
+			if (count > 1) {
+				for (i = 0; i < count; i++) {
+					ret =
+					codec_mm_tvp_pool_alloc_by_slot
+					(&mgt->tvp_pool, 0, flags);
+					if (ret) {
+						ret = 0;
+						continue;
+					}
+					if (i == 0) {
+						pr_info("tvp enable failed\n");
+						mutex_unlock
+						(&mgt->tvp_protect_lock);
+						return -1;
+					}
+					break;
+				}
 				if (mgt->tvp_enable != 2)
 					mgt->tvp_enable = flags;
 				if (tvp_mode > 0)
-					atomic_add_return(1, &mgt->tvp_user_count);
-				pr_info("enable tvp for %d\n", flags);
+					atomic_add_return(1,
+						&mgt->tvp_user_count);
+				pr_info("enable tvp %d %d %d %d\n",
+					flags, count, i, atomic_read
+					(&mgt->tvp_user_count));
 			} else {
-				pr_info("tvp enable failed size %d\n", size);
-				mutex_unlock(&mgt->tvp_protect_lock);
-				return -1;
+				ret = codec_mm_tvp_pool_alloc_by_slot
+					(&mgt->tvp_pool, 0, flags);
+				if (ret) {
+					ret = 0;
+					if (mgt->tvp_enable != 2)
+						mgt->tvp_enable = flags;
+					if (tvp_mode > 0)
+						atomic_add_return(1,
+							&mgt->tvp_user_count);
+					pr_info("enable tvp for %d\n", flags);
+				} else {
+					pr_info("tvp enable failed size %d\n",
+						size);
+					mutex_unlock(&mgt->tvp_protect_lock);
+					return -1;
+				}
 			}
 		} else {
 			ret = 0;
@@ -3111,3 +3193,9 @@ module_param(tvp_mode, uint, 0664);
 MODULE_PARM_DESC(tvp_mode, "\n tvp module\n");
 module_param(tvp_dynamic_increase_disable, uint, 0664);
 MODULE_PARM_DESC(tvp_dynamic_increase_disable, "\n disable tvp_dynamic_increase\n");
+module_param(tvp_dynamic_alloc_force_small_segment, uint, 0664);
+MODULE_PARM_DESC(tvp_dynamic_alloc_force_small_segment,
+	"\n enable tvp_dynamic_alloc_force_small_segment\n");
+module_param(tvp_dynamic_alloc_force_small_segment_size, uint, 0664);
+MODULE_PARM_DESC(tvp_dynamic_alloc_force_small_segment_size,
+	"\n setting tvp_dynamic_alloc_force_small_segment_size\n");
