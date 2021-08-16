@@ -150,6 +150,7 @@ struct earc {
 	u8 cds_data[CDS_MAX_BYTES];
 	enum sharebuffer_srcs samesource_sel;
 	struct samesource_info ss_info;
+	bool earctx_on;
 };
 
 static struct earc *s_earc;
@@ -555,6 +556,7 @@ static int earc_open(struct snd_pcm_substream *substream)
 		dev, EARC_BUFFER_BYTES / 2, EARC_BUFFER_BYTES);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		p_earc->earctx_on = true;
 		/* select hdmirx arc source from earctx spdif */
 		arc_earc_source_select(EARCTX_SPDIF_TO_HDMIRX);
 		p_earc->fddr = aml_audio_register_frddr(dev,
@@ -589,10 +591,12 @@ static int earc_close(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct earc *p_earc = runtime->private_data;
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		p_earc->earctx_on = false;
 		aml_audio_unregister_frddr(p_earc->dev, substream);
-	else
+	} else {
 		aml_audio_unregister_toddr(p_earc->dev, substream);
+	}
 
 	runtime->private_data = NULL;
 	snd_pcm_lib_preallocate_free(substream);
@@ -1197,6 +1201,10 @@ static int ss_prepare(struct snd_pcm_substream *substream,
 			int share_lvl,
 			int separated)
 {
+	if (s_earc->earctx_on) {
+		pr_debug("%s earctx priority\n", __func__);
+		return 0;
+	}
 	pr_debug("%s() %d, lvl %d\n", __func__, __LINE__, share_lvl);
 	sharebuffer_prepare(substream,
 		pfrddr,
@@ -1211,6 +1219,10 @@ static int ss_prepare(struct snd_pcm_substream *substream,
 
 static int ss_trigger(int cmd, int samesource_sel, bool reenable)
 {
+	if (s_earc->earctx_on) {
+		pr_debug("%s earctx priority\n", __func__);
+		return 0;
+	}
 	pr_debug("%s() ss %d\n", __func__, samesource_sel);
 	sharebuffer_trigger(cmd, samesource_sel, reenable);
 
@@ -1220,6 +1232,10 @@ static int ss_trigger(int cmd, int samesource_sel, bool reenable)
 static int ss_free(struct snd_pcm_substream *substream,
 	void *pfrddr, int samesource_sel, int share_lvl)
 {
+	if (s_earc->earctx_on) {
+		pr_debug("%s earctx priority\n", __func__);
+		return 0;
+	}
 	pr_info("%s() samesrc %d, lvl %d\n",
 		__func__, samesource_sel, share_lvl);
 	if (aml_check_sharebuffer_valid(pfrddr,
