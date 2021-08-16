@@ -24,6 +24,8 @@
 
 /* Amlogic headers */
 #include <linux/amlogic/media/vfm/vframe.h>
+#include <linux/amlogic/media/utils/vformat.h>
+
 struct vframe_states {
 	int vf_pool_size;
 	int buf_free_num;
@@ -62,6 +64,7 @@ struct provider_aux_req_s {
 	int dv_enhance_exist;
 	int low_latency;
 	struct tvin_dv_vsif_s dv_vsif;/*dolby vsi info*/
+	enum vformat_e format;
 };
 
 struct provider_disp_mode_req_s {
