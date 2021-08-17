@@ -1072,11 +1072,11 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 void set_j83b_filter_reg_v4(struct aml_dtvdemod *demod)
 {
 	//j83_1
-	qam_write_reg(demod, 0x40, 0x36333c0d);
-	qam_write_reg(demod, 0x41, 0xa110d01);
-	qam_write_reg(demod, 0x42, 0xf0e4ea7a);
-	qam_write_reg(demod, 0x43, 0x3c0010);
-	qam_write_reg(demod, 0x44, 0x7e0065);
+	qam_write_reg(demod, 0x40, 0x3F010201);//25M:0x36333c0d
+	qam_write_reg(demod, 0x41, 0xA003A3B);//25M:0xa110d01
+	qam_write_reg(demod, 0x42, 0xE1EE030E);//25M:0xf0e4ea7a
+	qam_write_reg(demod, 0x43, 0x2601F2);//25M:0x3c0010
+	qam_write_reg(demod, 0x44, 0x9B006B);//25M:0x7e0065
 
 	//j83_2
 	qam_write_reg(demod, 0x45, 0xb3a1905);
