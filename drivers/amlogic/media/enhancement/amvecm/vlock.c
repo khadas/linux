@@ -1878,8 +1878,8 @@ void vlock_enable_step3_auto_enc(struct stvlock_sig_sts *pvlock)
 	stbdec_win0 = READ_VPP_REG(VPU_VLOCK_STBDET_WIN0_WIN1 + offset_vlck) & 0xff;
 	stbdec_win1 = (READ_VPP_REG(VPU_VLOCK_STBDET_WIN0_WIN1 + offset_vlck) >> 8) & 0xff;
 
-	th0 = (oa * stbdec_win0 * 5) / vinfo->vtotal;
-	th1 = (oa * stbdec_win1 * 6) / vinfo->vtotal;
+	th0 = (oa * stbdec_win0 * 7) / vinfo->vtotal;
+	th1 = (oa * stbdec_win1 * 8) / vinfo->vtotal;
 
 	WRITE_VPP_REG(VPU_VLOCK_WIN0_TH + offset_vlck, th0);
 	WRITE_VPP_REG(VPU_VLOCK_WIN1_TH + offset_vlck, th1);
