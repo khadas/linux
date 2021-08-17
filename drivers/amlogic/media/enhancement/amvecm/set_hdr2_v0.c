@@ -23,6 +23,7 @@
 #include <linux/errno.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/amvecm/amvecm.h>
+#include <linux/amlogic/media/video_sink/video.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
@@ -2544,6 +2545,40 @@ void clip_func_after_ootf(int mtx_gamut_mode,
 		clip_max, 8, 6, vpp_sel);
 }
 
+void hdr_gclk_ctrl_switch(enum hdr_module_sel module_sel,
+	enum hdr_process_sel hdr_process_select,
+	int vpp_sel)
+{
+	bool enable = true;
+
+	if (hdr_process_select & HDR_BYPASS)
+		enable = false;
+	else
+		enable = true;
+
+	if (enable) {
+		/* async: 1, effective immediately */
+		if (module_sel == VD1_HDR)
+			vpu_module_clk_enable(vpp_sel, VD1_HDR_CORE, 1);
+		else if (module_sel == VD2_HDR)
+			vpu_module_clk_enable(vpp_sel, VD2_HDR_CORE, 1);
+		else if (module_sel == OSD1_HDR)
+			vpu_module_clk_enable(vpp_sel, OSD1_HDR_CORE, 1);
+		else if (module_sel == OSD2_HDR)
+			vpu_module_clk_enable(vpp_sel, OSD2_HDR_CORE, 1);
+	} else {
+		/* async: 0, rdma delay a vsync */
+		if (module_sel == VD1_HDR)
+			vpu_module_clk_disable(vpp_sel, VD1_HDR_CORE, 0);
+		else if (module_sel == VD2_HDR)
+			vpu_module_clk_disable(vpp_sel, VD2_HDR_CORE, 0);
+		else if (module_sel == OSD1_HDR)
+			vpu_module_clk_disable(vpp_sel, OSD1_HDR_CORE, 0);
+		else if (module_sel == OSD2_HDR)
+			vpu_module_clk_disable(vpp_sel, OSD2_HDR_CORE, 0);
+	}
+}
+
 struct hdr_proc_lut_param_s hdr_lut_param;
 
 enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
@@ -3295,6 +3330,11 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		hdr_mtx_param.p_sel = hdr_process_select;
 	}
 
+	/* enable hdr: first enable X_HDR2_CLK_GATE */
+	/* then enable hdr mode */
+	if (!(hdr_process_select & HDR_BYPASS))
+		hdr_gclk_ctrl_switch(module_sel, hdr_process_select, vpp_sel);
+
 	set_hdr_matrix(module_sel, HDR_IN_MTX,
 		&hdr_mtx_param, NULL, NULL, vpp_index);
 	set_eotf_lut(module_sel, &hdr_lut_param, vpp_index);
@@ -3313,6 +3353,11 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 			clip_func_after_ootf(hdr_mtx_param.mtx_gamut_mode,
 				module_sel, vpp_index);
 	}
+
+	/* disable hdr: first disable X_HDR2_CTRL bit13, */
+	/* then disable X_HDR2_CLK_GATE */
+	if (hdr_process_select & HDR_BYPASS)
+		hdr_gclk_ctrl_switch(module_sel, hdr_process_select, vpp_sel);
 
 	return hdr_process_select;
 }
