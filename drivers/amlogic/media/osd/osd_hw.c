@@ -6267,6 +6267,93 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 	}
 }
 
+static void check_and_reverse_axis(int start_index, int osd_count,
+				   int output_index, struct vinfo_s *vinfo,
+				   struct osd_layers_fence_map_s *fence_map)
+{
+	struct layer_fence_map_s *layer_map = NULL;
+	u32 is_reverse_disp = REVERSE_FALSE;
+	u32 min_x = 0xffff, min_y = 0xffff, max_x = 0, max_y = 0;
+	u32 layer_x = 0, layer_y = 0;
+	u32 disp_range_x = 0, disp_range_y = 0;
+
+	struct display_flip_info_s *disp_info = &fence_map->disp_info;
+	int i;
+
+	/* reverse layer dst x & y */
+	for (i = start_index; i < osd_count; i++) {
+		layer_map = &fence_map->layer_map[i];
+		if (!layer_map->enable || !validate_osd(i, output_index))
+			continue;
+		osd_log_dbg2(MODULE_RENDER,
+			     "osd%d orin dst(x:%d y:%d w:%d h:%d)\n",
+			     i, layer_map->dst_x, layer_map->dst_y,
+			     layer_map->dst_w, layer_map->dst_h);
+
+		if (min_x > layer_map->dst_x)
+			min_x = layer_map->dst_x;
+		if (min_y > layer_map->dst_y)
+			min_y = layer_map->dst_y;
+		if (max_x < (layer_map->dst_x + layer_map->dst_w - 1))
+			max_x = layer_map->dst_x + layer_map->dst_w - 1;
+		if (max_y < (layer_map->dst_y + layer_map->dst_h - 1))
+			max_y = layer_map->dst_y + layer_map->dst_h - 1;
+
+		if (osd_hw.osd_reverse[i] == REVERSE_TRUE) {
+			layer_x = vinfo->width - layer_map->dst_x -
+					layer_map->dst_w;
+			layer_y = vinfo->height - layer_map->dst_y -
+					layer_map->dst_h;
+			is_reverse_disp = REVERSE_TRUE;
+		} else if (osd_hw.osd_reverse[i] == REVERSE_X) {
+			layer_x = vinfo->width - layer_map->dst_x -
+					layer_map->dst_w;
+			layer_y = layer_map->dst_y;
+			is_reverse_disp = REVERSE_X;
+		} else if (osd_hw.osd_reverse[i] == REVERSE_Y) {
+			layer_x = layer_map->dst_x;
+			layer_y = vinfo->height - layer_map->dst_y -
+					layer_map->dst_h;
+			is_reverse_disp = REVERSE_Y;
+		} else {
+			layer_x = layer_map->dst_x;
+			layer_y = layer_map->dst_y;
+		}
+		layer_map->dst_x = layer_x;
+		layer_map->dst_y = layer_y;
+
+		osd_log_dbg2(MODULE_RENDER,
+			     "osd%d adjust dst(x:%d y:%d w:%d h:%d)\n",
+			     i, layer_map->dst_x, layer_map->dst_y,
+			     layer_map->dst_w, layer_map->dst_h);
+	}
+
+	osd_log_dbg2(MODULE_RENDER, "orin disp(x:%d y:%d w:%d h:%d)\n",
+		    disp_info->position_x, disp_info->position_y,
+		    disp_info->position_w, disp_info->position_h);
+
+	/* reverse disp position dst x & y */
+	if (is_reverse_disp == REVERSE_TRUE) {
+		disp_range_x = vinfo->width - max_x - 1;
+		disp_range_y = vinfo->height - max_y - 1;
+	} else if (is_reverse_disp == REVERSE_X) {
+		disp_range_x = vinfo->width - max_x - 1;
+		disp_range_y = min_y;
+	} else if (is_reverse_disp == REVERSE_Y) {
+		disp_range_x = min_x;
+		disp_range_y = vinfo->height - max_y - 1;
+	} else {
+		disp_range_x = min_x;
+		disp_range_y = min_y;
+	}
+	disp_info->position_x = disp_range_x;
+	disp_info->position_y = disp_range_y;
+
+	osd_log_dbg2(MODULE_RENDER, "adjust disp(x:%d y:%d w:%d h:%d)\n",
+		    disp_info->position_x, disp_info->position_y,
+		    disp_info->position_w, disp_info->position_h);
+}
+
 static void _osd_pan_display_layers_fence
 	(u32 output_index,
 	 struct vinfo_s *vinfo,
@@ -6314,6 +6401,10 @@ static void _osd_pan_display_layers_fence
 
 	osd_hw.vinfo_width[output_index] = vinfo->width;
 	osd_hw.vinfo_height[output_index] = vinfo->field_height;
+
+	check_and_reverse_axis(start_index, osd_count, output_index,
+			       vinfo, fence_map);
+
 	memcpy(&osd_hw.disp_info[output_index], &fence_map->disp_info,
 	       sizeof(struct display_flip_info_s));
 
