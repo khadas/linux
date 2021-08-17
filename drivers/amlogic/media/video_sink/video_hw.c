@@ -1102,22 +1102,22 @@ void vpu_module_clk_disable(u32 vpp_index, u32 module, bool async)
 		case VD1_HDR_CORE:
 			WRITE_VCBUS_REG_BITS
 			(VD1_HDR2_CLK_GATE,
-			0x15555555, 0, 30);
+			0x11555555, 0, 30);
 		break;
 		case VD2_HDR_CORE:
 			WRITE_VCBUS_REG_BITS
 			(VD2_HDR2_CLK_GATE,
-			0x15555555, 0, 30);
+			0x11555555, 0, 30);
 		break;
 		case OSD1_HDR_CORE:
 			WRITE_VCBUS_REG_BITS
 			(OSD1_HDR2_CLK_GATE,
-			0x15555555, 0, 30);
+			0x11555555, 0, 30);
 		break;
 		case OSD2_HDR_CORE:
 			WRITE_VCBUS_REG_BITS
 			(OSD2_HDR2_CLK_GATE,
-			0x15555555, 0, 30);
+			0x11555555, 0, 30);
 		break;
 		case DV_TVCORE:
 			WRITE_VCBUS_REG_BITS
@@ -1154,22 +1154,22 @@ void vpu_module_clk_disable(u32 vpp_index, u32 module, bool async)
 		case VD1_HDR_CORE:
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(VD1_HDR2_CLK_GATE,
-			0x15555555, 0, 30);
+			0x11555555, 0, 30);
 		break;
 		case VD2_HDR_CORE:
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(VD2_HDR2_CLK_GATE,
-			0x15555555, 0, 30);
+			0x11555555, 0, 30);
 		break;
 		case OSD1_HDR_CORE:
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(OSD1_HDR2_CLK_GATE,
-			0x15555555, 0, 30);
+			0x11555555, 0, 30);
 		break;
 		case OSD2_HDR_CORE:
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(OSD2_HDR2_CLK_GATE,
-			0x15555555, 0, 30);
+			0x11555555, 0, 30);
 		break;
 		case DV_TVCORE:
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
