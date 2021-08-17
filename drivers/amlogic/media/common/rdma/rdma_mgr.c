@@ -68,6 +68,7 @@ static int rdma_force_reset = -1;
 static int rdma_trace_num;
 static int rdma_trace_enable;
 static u32 rdma_trace_reg[MAX_TRACE_NUM];
+static int rdma_table_size = RDMA_TABLE_SIZE;
 
 struct rdma_regadr_s {
 	u32 rdma_ahb_start_addr;
@@ -993,7 +994,6 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 	} else {
 		int i;
 
-		if (debug_flag & 4)
 			pr_info("%s(%d, %x, %x ,%d) buf overflow\n",
 				__func__, rdma_watchdog_count,
 				handle, adr, val);
@@ -1242,7 +1242,7 @@ void vpp1_vsync_rdma_register(void)
 	int handle;
 
 	handle = rdma_register(get_rdma_ops(VSYNC_RDMA_VPP1),
-			       NULL, RDMA_TABLE_SIZE);
+			       NULL, rdma_table_size);
 	set_rdma_handle(VSYNC_RDMA_VPP1, handle);
 }
 EXPORT_SYMBOL(vpp1_vsync_rdma_register);
@@ -1252,7 +1252,7 @@ void vpp2_vsync_rdma_register(void)
 	int handle;
 
 	handle = rdma_register(get_rdma_ops(VSYNC_RDMA_VPP2),
-			       NULL, RDMA_TABLE_SIZE);
+			       NULL, rdma_table_size);
 	set_rdma_handle(VSYNC_RDMA_VPP2, handle);
 }
 EXPORT_SYMBOL(vpp2_vsync_rdma_register);
@@ -1262,7 +1262,7 @@ void pre_vsync_rdma_register(void)
 	int handle;
 
 	handle = rdma_register(get_rdma_ops(PRE_VSYNC_RDMA),
-			       NULL, RDMA_TABLE_SIZE);
+			       NULL, rdma_table_size);
 	set_rdma_handle(PRE_VSYNC_RDMA, handle);
 }
 EXPORT_SYMBOL(pre_vsync_rdma_register);
@@ -1531,7 +1531,6 @@ static int __init rdma_probe(struct platform_device *pdev)
 	int int_rdma;
 	int handle;
 	const void *prop;
-	int rdma_table_size;
 	struct rdma_device_info *info = &rdma_info;
 
 	int_rdma = platform_get_irq_byname(pdev, "rdma");
@@ -1642,11 +1641,11 @@ static int __init rdma_probe(struct platform_device *pdev)
 	info->rdma_dev = pdev;
 
 	handle = rdma_register(get_rdma_ops(VSYNC_RDMA),
-			       NULL, RDMA_TABLE_SIZE);
+			       NULL, rdma_table_size);
 	set_rdma_handle(VSYNC_RDMA, handle);
 	if (!has_multi_vpp) {
 		handle = rdma_register(get_rdma_ops(VSYNC_RDMA_READ),
-				       NULL, RDMA_TABLE_SIZE);
+				       NULL, rdma_table_size);
 		set_rdma_handle(VSYNC_RDMA_READ, handle);
 	}
 	create_rdma_mgr_class();
