@@ -25,4 +25,13 @@ config AMLOGIC_M8B_CEC
 		HDMI CEC driver support for m8/m8b chips
 		Select if your chip belongs
 
+config AMLOGIC_LINUX_STD_CEC
+	tristate "Linux Standard cec driver support"
+	depends on AMLOGIC_CEC
+	select CEC_CORE
+	select CEC_NOTIFIER
+	help
+		Linux Standard cec driver provide cec support for Amlogic SOC chips
+		select if need Linux Standard cec framework support
+
 endchoice	#AMLOGIC_CEC
