@@ -2754,8 +2754,7 @@ void rx_5v_monitor(void)
 			rx.err_code = ERR_5V_LOST;
 			vic_check_en = false;
 			/* dvi_check_en = true; */
-			if (!rx.open_fg)
-				pre_port = 0xff;
+			pre_port = 0xff;
 		}
 	}
 	rx.cur_5v_sts = (pwr_sts >> rx.port) & 1;
