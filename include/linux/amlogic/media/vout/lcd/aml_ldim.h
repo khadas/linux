@@ -163,6 +163,8 @@ struct ldim_profile_s {
 
 struct ldim_rmem_s {
 	unsigned char flag;
+	unsigned int hist_fid;
+	unsigned int duty_fid;
 
 	void *wr_mem_vaddr1;
 	phys_addr_t wr_mem_paddr1;
@@ -298,7 +300,8 @@ struct aml_ldim_driver_s {
 	unsigned char func_bypass;  /* for lcd bist pattern */
 	unsigned char dev_smr_bypass;
 	unsigned char brightness_bypass;
-	unsigned char test_en;
+	unsigned char test_bl_en;
+	unsigned char test_remap_en;
 	unsigned char avg_update_en;
 	unsigned char matrix_update_en;
 	unsigned char alg_en;
