@@ -3017,9 +3017,9 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 	PR_DVBC("fast search : times = %d, %s\n", demod->auto_times, qam_name);
 
 	if (demod->auto_qam_mode == QAM_MODE_256) {
-		*delay = HZ / 7;
+		*delay = HZ / 2;//500ms
 	} else {
-		*delay = HZ / 8;//125ms
+		*delay = HZ / 5;//200ms
 	}
 
 	if ((qam_read_reg(demod, 0x31) & 0xf) < 3) {
