@@ -1611,6 +1611,9 @@ struct urb {
 	int error_count;		/* (return) number of ISO errors */
 	void *context;			/* (in) context for completion */
 	usb_complete_t complete;	/* (in) completion routine */
+#ifdef CONFIG_AMLOGIC_USB
+	int need_event_data;
+#endif
 	struct usb_iso_packet_descriptor iso_frame_desc[0];
 					/* (in) ISO ONLY */
 	ANDROID_KABI_RESERVE(1);
