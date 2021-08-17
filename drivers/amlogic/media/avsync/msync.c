@@ -487,6 +487,7 @@ static void use_pcr_clock(struct sync_session *session, bool enable, u32 pts)
 		session_set_wall_clock(session, pts);
 	}
 	session->clock_start = true;
+	session->stat = AVS_STAT_STARTED;
 }
 
 #if 0
@@ -916,6 +917,7 @@ static u32 session_audio_start(struct sync_session *session,
 				session->stat = AVS_STAT_STARTING;
 			} else {
 				session->clock_start = true;
+				session->stat = AVS_STAT_STARTED;
 			}
 		}
 	} else if (session->mode == AVS_MODE_IPTV) {
