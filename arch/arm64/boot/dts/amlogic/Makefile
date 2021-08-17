@@ -13,6 +13,7 @@ dtb-y += t7_a311d2_an408.dtb
 dtb-y += t7_a311d2_an409.dtb
 dtb-y += t7_pop1_an40a1.dtb
 dtb-y += t7_pop1_t319.dtb
+dtb-y += kvim4.dtb
 dtb-y += sc2_s905x4_ah212.dtb
 dtb-y += sc2_s905x4_ah212_drm.dtb
 dtb-y += sc2_s905x4_ah212_mxl258c.dtb
