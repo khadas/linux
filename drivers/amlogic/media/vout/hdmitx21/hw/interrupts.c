@@ -200,12 +200,15 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 		}
 	}
 next:
+	/* already called top_intr.callback, next others */
+	pint++;
 	for (i = 1; i < sizeof(union intr_u) / sizeof(struct intr_t); i++) {
-		val = pint[i].st_data;
-		if (val) {
-			pint[i].callback(pint);
-			pint[i].st_data = 0;
+		if (pint->st_data) {
+			val = pint->st_data;
+			pint->callback(pint);
+			pint->st_data = 0;
 		}
+		pint++;
 	}
 }
 

@@ -8,173 +8,294 @@
 #include <linux/string.h>
 #include "hdmi_param.h"
 
-static struct hdmi_format_para *all_fmt_paras[] = {
-	NULL,
-};
-
-struct hdmi_format_para *hdmi21_get_fmt_paras(enum hdmi_vic vic)
+inline const struct hdmi_timing *hdmitx21_get_timing_para0(void)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-
-	return hdev->para;
+	return &hdmi_timing_all[0];
 }
 
-struct hdmi_format_para *hdmi21_match_dtd_paras(struct dtd *t)
+inline int hdmitx21_timing_size(void)
+{
+	return ARRAY_SIZE(hdmi_timing_all);
+}
+
+static struct parse_cd parse_cd_[] = {
+	{COLORDEPTH_24B, "8bit",},
+	{COLORDEPTH_30B, "10bit"},
+	{COLORDEPTH_36B, "12bit"},
+	{COLORDEPTH_48B, "16bit"},
+};
+
+static struct parse_cs parse_cs_[] = {
+	{HDMI_COLORSPACE_RGB, "rgb",},
+	{HDMI_COLORSPACE_YUV422, "422",},
+	{HDMI_COLORSPACE_YUV444, "444",},
+	{HDMI_COLORSPACE_YUV420, "420",},
+};
+
+static struct parse_cr parse_cr_[] = {
+	{COLORRANGE_LIM, "limit",},
+	{COLORRANGE_FUL, "full",},
+};
+
+/* parse the name string to cs/cd/cr */
+static void _parse_hdmi_attr(char const *name,
+	enum hdmi_colorspace *cs,
+	enum hdmi_color_depth *cd,
+	enum hdmi_color_range *cr)
 {
 	int i;
+
+	if (!cs || !cd || !cr)
+		return;
+	if (!name) {
+		/* assign defalut value*/
+		*cs = HDMI_COLORSPACE_RGB;
+		*cd = COLORDEPTH_24B;
+		*cr = COLORRANGE_FUL;
+		return;
+	}
+
+	/* parse color depth */
+	for (i = 0; i < sizeof(parse_cd_) / sizeof(struct parse_cd); i++) {
+		if (strstr(name, parse_cd_[i].name)) {
+			*cd = parse_cd_[i].cd;
+			break;
+		}
+	}
+	/* set default value */
+	if (i == sizeof(parse_cd_) / sizeof(struct parse_cd))
+		*cd = COLORDEPTH_24B;
+
+	/* parse color space */
+	for (i = 0; i < sizeof(parse_cs_) / sizeof(struct parse_cs); i++) {
+		if (strstr(name, parse_cs_[i].name)) {
+			*cs = parse_cs_[i].cs;
+			break;
+		}
+	}
+	/* set default value */
+	if (i == sizeof(parse_cs_) / sizeof(struct parse_cs))
+		*cs = HDMI_COLORSPACE_RGB;
+
+	/* parse color range */
+	for (i = 0; i < sizeof(parse_cr_) / sizeof(struct parse_cr); i++) {
+		if (strstr(name, parse_cr_[i].name)) {
+			*cr = parse_cr_[i].cr;
+			break;
+		}
+	}
+	/* set default value */
+	if (i == sizeof(parse_cr_) / sizeof(struct parse_cr))
+		*cr = COLORRANGE_FUL;
+}
+
+static u32 _calc_tmds_clk(u32 pixel_freq, enum hdmi_colorspace cs,
+	enum hdmi_color_depth cd)
+{
+	u32 tmds_clk = pixel_freq;
+
+	if (cs == HDMI_COLORSPACE_YUV420)
+		tmds_clk = tmds_clk / 2;
+	if (cs != HDMI_COLORSPACE_YUV422) {
+		switch (cd) {
+		case COLORDEPTH_48B:
+			tmds_clk *= 2;
+			break;
+		case COLORDEPTH_36B:
+			tmds_clk = tmds_clk * 3 / 2;
+			break;
+		case COLORDEPTH_30B:
+			tmds_clk = tmds_clk * 5 / 4;
+			break;
+		case COLORDEPTH_24B:
+		default:
+			break;
+		}
+	}
+
+	return tmds_clk;
+}
+
+static bool _tst_fmt_name(struct hdmi_format_para *para,
+	char const *name, char const *attr)
+{
+	int i;
+	const struct hdmi_timing *timing = hdmitx21_get_timing_para0();
+
+	if (!para || !name || !attr)
+		return 0;
+	/* check sname first */
+	for (i = 0; i < hdmitx21_timing_size(); i++) {
+		if (timing->sname && strstr(name, timing->sname)) {
+			para->timing = *timing;
+			goto next;
+		}
+		timing++;
+	}
+
+	/* check name */
+	timing = hdmitx21_get_timing_para0();
+	for (i = 0; i < hdmitx21_timing_size(); i++) {
+		if (strstr(name, timing->name)) {
+			para->timing = *timing;
+			break;
+		}
+		timing++;
+	}
+	if (i == hdmitx21_timing_size())
+		return 0;
+next:
+	_parse_hdmi_attr(attr, &para->cs, &para->cd, &para->cr);
+
+	para->tmds_clk = _calc_tmds_clk(timing->pixel_freq, para->cs, para->cd);
+
+	return 1;
+}
+
+struct hdmi_format_para *hdmitx21_match_dtd_paras(struct dtd *t)
+{
+	int i;
+	const struct hdmi_timing *timing = hdmitx21_get_timing_para0();
 
 	if (!t)
 		return NULL;
-	for (i = 0; all_fmt_paras[i]; i++) {
-		if ((abs(all_fmt_paras[i]->timing.pixel_freq / 10
-		    - t->pixel_clock) <= (t->pixel_clock + 1000) / 1000) &&
-		    t->h_active == all_fmt_paras[i]->timing.h_active &&
-		    t->h_blank == all_fmt_paras[i]->timing.h_blank &&
-		    t->v_active == all_fmt_paras[i]->timing.v_active &&
-		    t->v_blank == all_fmt_paras[i]->timing.v_blank &&
-		    t->h_sync_offset == all_fmt_paras[i]->timing.h_front &&
-		    t->h_sync == all_fmt_paras[i]->timing.h_sync &&
-		    t->v_sync_offset == all_fmt_paras[i]->timing.v_front &&
-		    t->v_sync == all_fmt_paras[i]->timing.v_sync
-		    )
-			return all_fmt_paras[i];
+
+	for (i = 0; i < hdmitx21_timing_size(); i++) {
+		if ((abs(timing->pixel_freq / 10 - t->pixel_clock) <=
+			(t->pixel_clock + 1000) / 1000) &&
+		    t->h_active == timing->h_active &&
+		    t->h_blank == timing->h_blank &&
+		    t->v_active == timing->v_active &&
+		    t->v_blank == timing->v_blank &&
+		    t->h_sync_offset == timing->h_front &&
+		    t->h_sync == timing->h_sync &&
+		    t->v_sync_offset == timing->v_front &&
+		    t->v_sync == timing->v_sync)
+			return NULL; /* TODO */
+		timing++;
 	}
-
+	if (i == hdmitx21_timing_size())
+		return NULL;
 	return NULL;
 }
 
-struct hdmi_format_para *hdmi21_get_vesa_paras(struct vesa_standard_timing *t)
+struct hdmi_format_para *hdmitx21_get_vesa_paras(struct vesa_standard_timing *t)
 {
 	return NULL;
 }
 
-/*
- * Parameter 'name' can be 1080p60hz, or 1920x1080p60hz
- * or 3840x2160p60hz, 2160p60hz
- * or 3840x2160p60hz420, 2160p60hz420 (Y420 mode)
- */
-struct hdmi_format_para *hdmi21_get_fmt_name(char const *name, char const *attr)
-{
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-
-	return hdev->para;
-}
-
-static inline void copy_para(struct hdmi_format_para *des,
-			     struct hdmi_format_para *src)
-{
-	if (!des || !src)
-		return;
-	memcpy(des, src, sizeof(struct hdmi_format_para));
-}
-
-struct hdmi_format_para *hdmi21_tst_fmt_name(char const *name, char const *attr)
+struct hdmi_format_para *hdmitx21_tst_fmt_name(const char *name,
+	const char *attr)
 {
 	static struct hdmi_format_para para;
-	int i;
+
+	if (!name)
+		return NULL;
+
+	if (!attr)
+		attr = "rgb,8bit";
 
 	memset(&para, 0, sizeof(para));
-	/* check sname first */
-	for (i = 0; i < ARRAY_SIZE(hdmi_timing_all); i++) {
-		if (hdmi_timing_all[i].sname &&
-		    (strstr(name, hdmi_timing_all[i].sname))) {
-			para.timing = hdmi_timing_all[i];
-			break;
-		}
-	}
-	if (i == ARRAY_SIZE(hdmi_timing_all)) {
-		/* check name */
-		for (i = 0; i < ARRAY_SIZE(hdmi_timing_all); i++) {
-			if (strstr(name, hdmi_timing_all[i].name)) {
-				para.timing = hdmi_timing_all[i];
-				break;
-			}
-		}
-	}
-
-	return &para;
+	if (_tst_fmt_name(&para, name, attr))
+		return &para;
+	else
+		return NULL;
 }
 
-struct hdmi_timing *hdmitx21_gettiming_from_name(const char *mode)
+const struct hdmi_timing *hdmitx21_gettiming_from_vic(enum hdmi_vic vic)
 {
+	const struct hdmi_timing *timing = hdmitx21_get_timing_para0();
 	int i;
 
-	/* check sname first */
-	for (i = 0; i < ARRAY_SIZE(hdmi_timing_all); i++) {
-		if (hdmi_timing_all[i].sname &&
-		    (strcmp(hdmi_timing_all[i].sname, mode) == 0))
+	for (i = 0; i < hdmitx21_timing_size(); i++) {
+		if (timing->vic == vic)
 			break;
+		timing++;
 	}
-	if (i < ARRAY_SIZE(hdmi_timing_all))
-		return (struct hdmi_timing *)&hdmi_timing_all[i];
+	if (i == hdmitx21_timing_size())
+		return NULL;
 
-	/* check name */
-	for (i = 0; i < ARRAY_SIZE(hdmi_timing_all); i++) {
-		if (strcmp(hdmi_timing_all[i].name, mode) == 0)
-			break;
-	}
-	if (i < ARRAY_SIZE(hdmi_timing_all))
-		return (struct hdmi_timing *)&hdmi_timing_all[i];
-
-	return NULL;
-}
-
-struct hdmi_timing *hdmitx21_gettiming_from_vic(enum hdmi_vic vic)
-{
-	struct hdmi_timing *timing = NULL;
-	int i;
-
-	/* check sname first */
-	for (i = 0; i < ARRAY_SIZE(hdmi_timing_all); i++) {
-		if (hdmi_timing_all[i].vic == vic) {
-			timing = (struct hdmi_timing *)&hdmi_timing_all[i];
-			break;
-		}
-	}
 	return timing;
 }
 
-struct hdmi_format_para *hdmitx21_get_fmtpara(char *mode)
+const struct hdmi_timing *hdmitx21_gettiming_from_name(const char *name)
+{
+	const struct hdmi_timing *timing = hdmitx21_get_timing_para0();
+	int i;
+
+	/* check sname first */
+	for (i = 0; i < hdmitx21_timing_size(); i++) {
+		if (timing->sname && strstr(timing->sname, name))
+			goto next;
+		timing++;
+	}
+
+	timing = hdmitx21_get_timing_para0();
+	for (i = 0; i < hdmitx21_timing_size(); i++) {
+		if (strncmp(timing->name, name, strlen(timing->name)) == 0)
+			break;
+		timing++;
+	}
+	if (i == hdmitx21_timing_size())
+		return NULL;
+next:
+	return timing;
+}
+
+/*
+ * Parameter 'name' can should be full name as 1920x1080p60hz,
+ * 3840x2160p60hz, etc
+ * attr strings likes as '444,8bit'
+ */
+struct hdmi_format_para *hdmitx21_get_fmtpara(const char *mode,
+	const char *attr)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	struct hdmi_timing *timing;
+	const struct hdmi_timing *timing;
 	struct vinfo_s *tx_vinfo = &hdev->para->hdmitx_vinfo;
+	struct hdmi_format_para *para = hdev->para;
+
+	if (!mode || !attr)
+		return NULL;
 
 	timing = hdmitx21_gettiming_from_name(mode);
-	if (timing) {
-		hdev->para->timing = *timing;
-		hdev->para->cs = HDMI_COLORSPACE_YUV444;
-		hdev->para->cd = COLORDEPTH_24B;
-		/* manually assign hdmitx_vinfo from timing */
-		tx_vinfo->name = timing->sname ? timing->sname : timing->name;
-		tx_vinfo->mode = VMODE_HDMI;
-		tx_vinfo->frac = 0; /* TODO */
-		tx_vinfo->width = timing->h_active;
-		tx_vinfo->height = timing->v_active;
-		tx_vinfo->field_height = timing->pi_mode ? timing->v_active : timing->v_active / 2;
-		tx_vinfo->aspect_ratio_num = timing->h_pict;
-		tx_vinfo->aspect_ratio_den = timing->v_pict;
-		if (timing->v_freq % 1000 == 0) {
-			tx_vinfo->sync_duration_num = timing->v_freq / 1000;
-			tx_vinfo->sync_duration_den = 1;
-		} else {
-			tx_vinfo->sync_duration_num = timing->v_freq;
-			tx_vinfo->sync_duration_den = 1000;
-		}
-		tx_vinfo->video_clk = timing->pixel_freq;
-		tx_vinfo->htotal = timing->h_total;
-		tx_vinfo->vtotal = timing->v_total;
-		tx_vinfo->fr_adj_type = VOUT_FR_ADJ_HDMI;
-		tx_vinfo->viu_color_fmt = COLOR_FMT_YUV444;
-		tx_vinfo->viu_mux = timing->pi_mode ? VIU_MUX_ENCP : VIU_MUX_ENCI;
-		/* 1080i use the ENCP, not ENCI */
-		if (strncmp(timing->name, "1080i", 5) == 0)
-			tx_vinfo->viu_mux = VIU_MUX_ENCP;
-
-		return hdev->para;
-	} else {
+	if (!timing)
 		return NULL;
+
+	para->timing = *timing;
+	_parse_hdmi_attr(attr, &para->cs, &para->cd, &para->cr);
+
+	para->tmds_clk = _calc_tmds_clk(para->timing.pixel_freq,
+		para->cs, para->cd);
+
+	/* manually assign hdmitx_vinfo from timing */
+	tx_vinfo->name = timing->sname ? timing->sname : timing->name;
+	tx_vinfo->mode = VMODE_HDMI;
+	tx_vinfo->frac = 0; /* TODO */
+	tx_vinfo->width = timing->h_active;
+	tx_vinfo->height = timing->v_active;
+	tx_vinfo->field_height = timing->pi_mode ?
+		timing->v_active : timing->v_active / 2;
+	tx_vinfo->aspect_ratio_num = timing->h_pict;
+	tx_vinfo->aspect_ratio_den = timing->v_pict;
+	if (timing->v_freq % 1000 == 0) {
+		tx_vinfo->sync_duration_num = timing->v_freq / 1000;
+		tx_vinfo->sync_duration_den = 1;
+	} else {
+		tx_vinfo->sync_duration_num = timing->v_freq;
+		tx_vinfo->sync_duration_den = 1000;
 	}
+	tx_vinfo->video_clk = timing->pixel_freq;
+	tx_vinfo->htotal = timing->h_total;
+	tx_vinfo->vtotal = timing->v_total;
+	tx_vinfo->fr_adj_type = VOUT_FR_ADJ_HDMI;
+	tx_vinfo->viu_color_fmt = COLOR_FMT_YUV444;
+	tx_vinfo->viu_mux = timing->pi_mode ? VIU_MUX_ENCP : VIU_MUX_ENCI;
+	/* 1080i use the ENCP, not ENCI */
+	if (strstr(timing->name, "1080i"))
+		tx_vinfo->viu_mux = VIU_MUX_ENCP;
+
+	return hdev->para;
 }
 
 /* For check all format parameters only */

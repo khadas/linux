@@ -1833,9 +1833,12 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 		audio_packet_type = 2;
 	else
 		audio_packet_type = 9;
-	if (para->timing.pixel_freq > 340000) {
+	if (para->tmds_clk > 340000) {
 		para->scrambler_en = 1;
 		para->tmds_clk_div40 = 1;
+	} else {
+		para->scrambler_en = 0;
+		para->tmds_clk_div40 = 0;
 	}
 	color_depth = para->cd;
 	output_color_format = para->cs;
@@ -1924,12 +1927,14 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	//---------------
 	csc_en = (input_color_format != output_color_format ||
 		  input_color_range  != output_color_range) ? 1 : 0;
-	if (csc_en) {
-		//some common register are configuration here TODO why config this value ??
-		hdmitx21_wr_reg(VP_CMS_CSC0_MULTI_CSC_CONFIG_IVCTX, 0x00);
+	//some common register are configuration here TODO why config this value
+	hdmitx21_wr_reg(VP_CMS_CSC0_MULTI_CSC_CONFIG_IVCTX, 0x00);
+	hdmitx21_wr_reg((VP_CMS_CSC0_MULTI_CSC_CONFIG_IVCTX + 1), 0x08);
+	hdmitx21_wr_reg(VP_CMS_CSC1_MULTI_CSC_CONFIG_IVCTX, 0x00);
+	hdmitx21_wr_reg((VP_CMS_CSC1_MULTI_CSC_CONFIG_IVCTX + 1), 0x08);
+	if (output_color_format == HDMI_COLORSPACE_RGB) {
+		hdmitx21_wr_reg(VP_CMS_CSC0_MULTI_CSC_CONFIG_IVCTX, 0x65);
 		hdmitx21_wr_reg((VP_CMS_CSC0_MULTI_CSC_CONFIG_IVCTX + 1), 0x08);
-		hdmitx21_wr_reg(VP_CMS_CSC1_MULTI_CSC_CONFIG_IVCTX, 0x00);
-		hdmitx21_wr_reg((VP_CMS_CSC1_MULTI_CSC_CONFIG_IVCTX + 1), 0x08);
 	}
 
 	// [5:4] disable_lsbs_cr / [3:2] disable_lsbs_cb / [1:0] disable_lsbs_y
@@ -1940,84 +1945,43 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	data8 |= ((6 - color_depth) << 0);
 	hdmitx21_wr_reg(VP_INPUT_MASK_IVCTX, data8);
 
-	//444 to 422
-	if (input_color_format == HDMI_COLOR_FORMAT_444 &&
-	    output_color_format == HDMI_COLORSPACE_YUV422) {
-		hdmitx21_wr_reg(VP_CMS_CSC1_C444_C422_CONFIG_IVCTX, 0x01); //444-422
-	}
+	// [11: 9] select_cr: 0=y; 1=cb; 2=Cr; 3={cr[11:4],cb[7:4]};
+	//                    4={cr[3:0],y[3:0],cb[3:0]};
+	//                    5={y[3:0],cr[3:0],cb[3:0]};
+	//                    6={cb[3:0],y[3:0],cr[3:0]};
+	//                    7={y[3:0],cb[3:0],cr[3:0]}.
+	// [ 8: 6] select_cb: 0=y; 1=cb; 2=Cr; 3={cr[11:4],cb[7:4]};
+	//                    4={cr[3:0],y[3:0],cb[3:0]};
+	//                    5={y[3:0],cr[3:0],cb[3:0]};
+	//                    6={cb[3:0],y[3:0],cr[3:0]};
+	//                    7={y[3:0],cb[3:0],cr[3:0]}.
+	// [ 5: 3] select_y : 0=y; 1=cb; 2=Cr; 3={y[11:4],cb[7:4]};
+	//                    4={cb[3:0],cr[3:0],y[3:0]};
+	//                    5={cr[3:0],cb[3:0],y[3:0]};
+	//                    6={y[3:0],cb[3:0],cr[3:0]};
+	//                    7={y[3:0],cr[3:0],cb[3:0]}.
+	// [    2] reverse_cr
+	// [    1] reverse_cb
+	// [ 0] reverse_y
+	data32 = 0;
+	data32 |= (2 << 9);
+	data32 |= (1 << 6);
+	data32 |= (0 << 3);
+	data32 |= (0 << 2);
+	data32 |= (0 << 1);
+	data32 |= (0 << 0);
+	hdmitx21_wr_reg(VP_OUTPUT_MAPPING_IVCTX, data32 & 0xff);
+	hdmitx21_wr_reg((VP_OUTPUT_MAPPING_IVCTX + 1), (data32 >> 8) & 0xff);
 
-	// Output 422
-	if (output_color_format == HDMI_COLORSPACE_YUV422) {
-		// [11: 9] select_cr: 0=y; 1=cb; 2=Cr; 3={cr[11:4],cb[7:4]};
-		//                    4={cr[3:0],y[3:0],cb[3:0]}; 5={y[3:0],cr[3:0],cb[3:0]};
-		//                    6={cb[3:0],y[3:0],cr[3:0]}; 7={y[3:0],cb[3:0],cr[3:0]}.
-		// [ 8: 6] select_cb: 0=y; 1=cb; 2=Cr; 3={cr[11:4],cb[7:4]};
-		//                    4={cr[3:0],y[3:0],cb[3:0]}; 5={y[3:0],cr[3:0],cb[3:0]};
-		//                    6={cb[3:0],y[3:0],cr[3:0]}; 7={y[3:0],cb[3:0],cr[3:0]}.
-		// [ 5: 3] select_y : 0=y; 1=cb; 2=Cr; 3={y[11:4],cb[7:4]};
-		//                    4={cb[3:0],cr[3:0],y[3:0]}; 5={cr[3:0],cb[3:0],y[3:0]};
-		//                    6={y[3:0],cb[3:0],cr[3:0]}; 7={y[3:0],cr[3:0],cb[3:0]}.
-		// [    2] reverse_cr
-		// [    1] reverse_cb
-		// [ 0] reverse_y
-		data32 = 0;
-		data32 |= (2 << 9);
-		data32 |= (4 << 6);
-		data32 |= (0 << 3);
-		data32 |= (0 << 2);
-		data32 |= (0 << 1);
-		data32 |= (0 << 0);
-		hdmitx21_wr_reg(VP_OUTPUT_MAPPING_IVCTX, data32 & 0xff);
-		//mapping for yuv422 12bit
-		hdmitx21_wr_reg((VP_OUTPUT_MAPPING_IVCTX + 1), (data32 >> 8) & 0xff);
+	// [5:4] disable_lsbs_cr / [3:2] disable_lsbs_cb / [1:0] disable_lsbs_y
+	// 0=12bit; 1=10bit(disable 2-LSB),
+	// 2=8bit(disable 4-LSB), 3=6bit(disable 6-LSB)
+	data8 = 0;
+	data8 |= (0 << 4);
+	data8 |= (0 << 2);
+	data8 |= (0 << 0);
+	hdmitx21_wr_reg(VP_OUTPUT_MASK_IVCTX, data8);
 
-		// [5:4] disable_lsbs_cr / [3:2] disable_lsbs_cb / [1:0] disable_lsbs_y
-		// 0=12bit; 1=10bit(disable 2-LSB), 2=8bit(disable 4-LSB), 3=6bit(disable 6-LSB)
-		data8 = 0;
-		data8 |= (2 << 4);
-		data8 |= (2 << 2);
-		data8 |= (2 << 0);
-		hdmitx21_wr_reg(VP_OUTPUT_MASK_IVCTX, data8);
-	} else {
-		// [11: 9] select_cr: 0=y; 1=cb; 2=Cr; 3={cr[11:4],cb[7:4]};
-		//                    4={cr[3:0],y[3:0],cb[3:0]}; 5={y[3:0],cr[3:0],cb[3:0]};
-		//                    6={cb[3:0],y[3:0],cr[3:0]}; 7={y[3:0],cb[3:0],cr[3:0]}.
-		// [ 8: 6] select_cb: 0=y; 1=cb; 2=Cr; 3={cr[11:4],cb[7:4]};
-		//                    4={cr[3:0],y[3:0],cb[3:0]}; 5={y[3:0],cr[3:0],cb[3:0]};
-		//                    6={cb[3:0],y[3:0],cr[3:0]}; 7={y[3:0],cb[3:0],cr[3:0]}.
-		// [ 5: 3] select_y : 0=y; 1=cb; 2=Cr; 3={y[11:4],cb[7:4]};
-		//                    4={cb[3:0],cr[3:0],y[3:0]}; 5={cr[3:0],cb[3:0],y[3:0]};
-		//                    6={y[3:0],cb[3:0],cr[3:0]}; 7={y[3:0],cr[3:0],cb[3:0]}.
-		// [    2] reverse_cr
-		// [    1] reverse_cb
-		// [ 0] reverse_y
-		data32 = 0;
-		data32 |= (2 << 9);
-		data32 |= (1 << 6);
-		data32 |= (0 << 3);
-		data32 |= (0 << 2);
-		data32 |= (0 << 1);
-		data32 |= (0 << 0);
-		hdmitx21_wr_reg(VP_OUTPUT_MAPPING_IVCTX, data32 & 0xff);
-		hdmitx21_wr_reg((VP_OUTPUT_MAPPING_IVCTX + 1), (data32 >> 8) & 0xff);
-
-		// [5:4] disable_lsbs_cr / [3:2] disable_lsbs_cb / [1:0] disable_lsbs_y
-		// 0=12bit; 1=10bit(disable 2-LSB), 2=8bit(disable 4-LSB), 3=6bit(disable 6-LSB)
-		data8 = 0;
-		data8 |= (0 << 4);
-		data8 |= (0 << 2);
-		data8 |= (0 << 0);
-		hdmitx21_wr_reg(VP_OUTPUT_MASK_IVCTX, data8);
-	}
-
-	//444 to 420
-	if (input_color_format == HDMI_COLOR_FORMAT_444 &&
-	    output_color_format == HDMI_COLORSPACE_YUV420) {
-		hdmitx21_wr_reg(VP_CMS_CSC1_C444_C422_CONFIG_IVCTX, 0x01);  //444-422
-		hdmitx21_wr_reg(VP_CMS_CSC1_C422_C420_CONFIG_IVCTX, 0x01); //422-420
-		hdmitx21_wr_reg(VP_OUTPUT_FORMAT_IVCTX, 0x00);
-		hdmitx21_wr_reg((VP_OUTPUT_FORMAT_IVCTX + 1), 0x04); //luma demux
-	}
 	//---------------
 	// config I2S
 	//---------------
@@ -2233,18 +2197,8 @@ static void hdmitx_csc_config(u8 input_color_format,
 
 static void hdmitx_set_hw(struct hdmitx_dev *hdev)
 {
-	enum hdmi_vic vic = HDMI_0_UNKNOWN;
-	struct hdmi_format_para *para = NULL;
-
-	vic = (enum hdmi_vic)hdev->para->timing.vic;
-	para = hdmi21_get_fmt_paras(vic);
-	if (!para) {
-		pr_info("error at %s[%d] vic = %d\n", __func__, __LINE__, vic);
-		return;
-	}
-
-	pr_info(HW " config hdmitx IP vic = %d cd:%d cs: %d\n", vic,
-		hdev->para->cd, hdev->para->cs);
+	pr_info(HW " config hdmitx IP vic = %d cd:%d cs: %d\n",
+		hdev->para->timing.vic, hdev->para->cd, hdev->para->cs);
 
 	config_hdmi21_tx(hdev);
 }
