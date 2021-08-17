@@ -323,7 +323,7 @@ void arc_earc_source_select(int src)
 void arc_enable(bool enable, int version)
 {
 	/* can't disable earc as the heartbeat lost */
-	if (aml_get_earctx_attended_type() == ATNDTYP_EARC && !enable)
+	if (aml_get_earctx_connected_device_type() == ATNDTYP_EARC && !enable)
 		return;
 
 	if (is_earc_spdif()) {

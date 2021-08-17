@@ -151,6 +151,13 @@ struct earc {
 	enum sharebuffer_srcs samesource_sel;
 	struct samesource_info ss_info;
 	bool earctx_on;
+	/*
+	 * The device(eARC Rx) type, our chip is eARC Tx
+	 * ATNDTYP_DISCNCT: For nothing device connected
+	 * ATNDTYP_ARC: The device(eARC Rx) is ARC device
+	 * ATNDTYP_EARC: The device(eARC Rx) is eARC device
+	 */
+	enum attend_type earctx_connected_device_type;
 };
 
 static struct earc *s_earc;
@@ -202,12 +209,12 @@ bool aml_get_earctx_enable(void)
 	return false;
 }
 
-enum attend_type aml_get_earctx_attended_type(void)
+enum attend_type aml_get_earctx_connected_device_type(void)
 {
 	if (!s_earc)
 		return -ENOTCONN;
 
-	return earctx_cmdc_get_attended_type(s_earc->tx_cmdc_map);
+	return s_earc->earctx_connected_device_type;
 }
 
 void aml_earctx_enable_d2a(int enable)
@@ -431,6 +438,7 @@ static void earctx_update_attend_event(struct earc *p_earc,
 {
 	if (state) {
 		if (is_earc) {
+			p_earc->earctx_connected_device_type = ATNDTYP_EARC;
 			extcon_set_state_sync(p_earc->tx_edev,
 					      EXTCON_EARCTX_ATNDTYP_ARC,
 					      false);
@@ -438,6 +446,7 @@ static void earctx_update_attend_event(struct earc *p_earc,
 					      EXTCON_EARCTX_ATNDTYP_EARC,
 					      state);
 		} else {
+			p_earc->earctx_connected_device_type = ATNDTYP_ARC;
 			extcon_set_state_sync(p_earc->tx_edev,
 					      EXTCON_EARCTX_ATNDTYP_ARC,
 					      state);
@@ -2221,10 +2230,15 @@ void earc_hdmirx_hpdst(int earc_port, bool st)
 	dev_info(p_earc->dev, "HDMIRX cable port:%d is %s\n",
 		 earc_port,
 		 st ? "plugin" : "plugout");
-
-	/* release earctx same source when cable plug out */
-	if (!st)
+	if (!st) {
+		/* set discnnect when cable plugout */
+		p_earc->earctx_connected_device_type = ATNDTYP_DISCNCT;
+		/* release earctx same source when cable plug out */
 		aml_check_and_release_sharebuffer(NULL, EARCTX_DMAC);
+	} else {
+		/* set ARC type as defaule when cable plugin */
+		p_earc->earctx_connected_device_type = ATNDTYP_ARC;
+	}
 	if (!p_earc->tx_bootup_auto_cal) {
 		p_earc->tx_bootup_auto_cal = true;
 		p_earc->event |= EVENT_TX_ANA_AUTO_CAL;
