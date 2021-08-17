@@ -419,6 +419,7 @@ static int _gpio_out(struct gpio_desc *gpio, int val, const char *owner);
 static int smc_default_init(struct smc_dev *smc);
 static int smc_hw_set_param(struct smc_dev *smc);
 static int smc_hw_reset(struct smc_dev *smc);
+static int smc_hw_hot_reset(struct smc_dev *smc);
 static int smc_hw_active(struct smc_dev *smc);
 static int smc_hw_deactive(struct smc_dev *smc);
 static int smc_hw_get_status(struct smc_dev *smc, int *sret);
@@ -1743,6 +1744,95 @@ static int smc_hw_reset(struct smc_dev *smc)
 	return ret;
 }
 
+static int smc_hw_hot_reset(struct smc_dev *smc)
+{
+	unsigned long flags;
+	int ret;
+	unsigned long sc_reg0 = SMC_READ_REG(REG0);
+	struct smccard_hw_reg0 *sc_reg0_reg = (void *)&sc_reg0;
+	unsigned long sc_int;
+	struct smc_interrupt_reg *sc_int_reg = (void *)&sc_int;
+
+	pr_dbg("smc read reg0 0x%lx\n", sc_reg0);
+
+	spin_lock_irqsave(&smc->slock, flags);
+	if (smc->cardin)
+		ret = 0;
+	else
+		ret = -ENODEV;
+	spin_unlock_irqrestore(&smc->slock, flags);
+
+	if (ret >= 0) {
+		/*Reset */
+		if (smc->active) {
+			smc_reset_prepare(smc);
+
+			sc_reg0_reg->rst_level = RESET_ENABLE;
+			sc_reg0_reg->enable = 0;
+			sc_reg0_reg->clk_en = 1;
+			SMC_WRITE_REG(REG0, sc_reg0);
+			smc_clk_enable(sc_reg0_reg->clk_en);
+#ifdef RST_FROM_PIO
+			_gpio_out(smc->reset_pin, RESET_ENABLE,
+				  SMC_RESET_PIN_NAME);
+#endif
+			/*te <= 400/f*/
+			usleep_range(400 * 1000 / smc->param.freq - 20,
+				     400 * 1000 / smc->param.freq);
+
+			/*disable receive interrupt */
+			sc_int = SMC_READ_REG(INTR);
+			sc_int_reg->recv_fifo_bytes_threshold_int_mask = 0;
+			SMC_WRITE_REG(INTR, sc_int | 0x3FF);
+
+			sc_reg0_reg->rst_level = RESET_DISABLE;
+			sc_reg0_reg->start_atr = 1;
+			sc_reg0_reg->enable = 1;
+			SMC_WRITE_REG(REG0, sc_reg0);
+#ifdef RST_FROM_PIO
+			_gpio_out(smc->reset_pin, RESET_DISABLE,
+				  SMC_RESET_PIN_NAME);
+#endif
+			/*tf >= 400/f && <= 40000/f*/
+			usleep_range(400 * 1000 / smc->param.freq + 20,
+				     40000 * 1000 / smc->param.freq);
+		}
+#if defined(ATR_FROM_INT)
+		/*enable receive interrupt */
+		sc_int = SMC_READ_REG(INTR);
+		sc_int_reg->recv_fifo_bytes_threshold_int_mask = 1;
+		SMC_WRITE_REG(INTR, sc_int | 0x3FF);
+#endif
+
+		/*msleep(atr_delay); */
+		ret = smc_hw_read_atr(smc);
+
+#ifdef SW_INVERT
+		smc->atr_mode = 0;
+#endif
+
+#if defined(ATR_FROM_INT)
+		/*disable receive interrupt */
+		sc_int = SMC_READ_REG(INTR);
+		sc_int_reg->recv_fifo_bytes_threshold_int_mask = 0;
+		SMC_WRITE_REG(INTR, sc_int | 0x3FF);
+#endif
+
+		/*Disable ATR */
+		sc_reg0 = SMC_READ_REG(REG0);
+		//              sc_reg0_reg->start_atr_en = 0;
+		sc_reg0_reg->start_atr = 0;
+		SMC_WRITE_REG(REG0, sc_reg0);
+
+#ifndef DISABLE_RECV_INT
+		sc_int_reg->recv_fifo_bytes_threshold_int_mask = 1;
+#endif
+		SMC_WRITE_REG(INTR, sc_int | 0x3FF);
+	}
+
+	return ret;
+}
+
 static int smc_hw_get_status(struct smc_dev *smc, int *sret)
 {
 	unsigned long flags;
@@ -1754,7 +1844,7 @@ static int smc_hw_get_status(struct smc_dev *smc, int *sret)
 
 #ifdef DET_FROM_PIO
 	cardin = _gpio_in(smc->detect_pin, OWNER_NAME);
-	pr_dbg("get_status: card detect: %d\n", smc->cardin);
+	//	pr_dbg("get_status: card detect: %d\n", smc->cardin);
 	if (!cardin) {
 		if (smc->use_enable_pin)
 			_gpio_out(smc->enable_pin,
@@ -2621,8 +2711,17 @@ static long smc_ioctl(struct file *file, unsigned int cmd, ulong arg)
 				cr = copy_to_user((void *)arg, &smc->atr,
 						  sizeof(struct am_smc_atr));
 			mutex_unlock(&smc->lock);
-		}
-		break;
+	} break;
+	case AMSMC_IOC_HOT_RESET: {
+		ret = mutex_lock_interruptible(&smc->lock);
+		if (ret)
+			return ret;
+		ret = smc_hw_hot_reset(smc);
+		if (ret >= 0)
+			cr = copy_to_user((void *)arg, &smc->atr,
+					  sizeof(struct am_smc_atr));
+		mutex_unlock(&smc->lock);
+	} break;
 	case AMSMC_IOC_GET_STATUS:
 		{
 			int status;
