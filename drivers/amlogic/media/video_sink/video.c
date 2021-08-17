@@ -15360,6 +15360,57 @@ static ssize_t color_th_store(struct class *cla,
 	color_th = tmp;
 	return count;
 }
+
+static ssize_t aisr_demo_en_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "aisr_demo_en: %d\n", cur_dev->aisr_demo_en);
+}
+
+static ssize_t aisr_demo_en_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int ret;
+	int res;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+
+	cur_dev->aisr_demo_en = res;
+	aisr_demo_enable();
+	return count;
+}
+
+static ssize_t aisr_demo_axis_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "aisr_demo_axis: %d,%d,%d,%d\n",
+		cur_dev->aisr_demo_xstart,
+		cur_dev->aisr_demo_ystart,
+		cur_dev->aisr_demo_xend,
+		cur_dev->aisr_demo_yend);
+}
+
+static ssize_t aisr_demo_axis_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int parsed[4];
+
+	if (likely(parse_para(buf, 4, parsed) == 4)) {
+		cur_dev->aisr_demo_xstart = parsed[0];
+		cur_dev->aisr_demo_ystart = parsed[1];
+		cur_dev->aisr_demo_xend = parsed[2];
+		cur_dev->aisr_demo_yend = parsed[3];
+		aisr_demo_axis_set();
+	}
+	return count;
+}
+
 #endif
 
 static struct class_attribute amvideo_class_attrs[] = {
@@ -15794,6 +15845,14 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       color_th_show,
 	       color_th_store),
+	__ATTR(aisr_demo_en,
+	       0664,
+	       aisr_demo_en_show,
+	       aisr_demo_en_store),
+	__ATTR(aisr_demo_axis,
+	       0664,
+	       aisr_demo_axis_show,
+	       aisr_demo_axis_store),
 #endif
 };
 

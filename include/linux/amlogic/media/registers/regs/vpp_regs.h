@@ -571,6 +571,9 @@
 #define AISR_POST_CTRL                             0x2e5a
 #define AISR_POST_SIZE                             0x2e5b
 
+#define DEMO_MODE_WINDO_CTRL0                      0x5380
+#define DEMO_MODE_WINDO_CTRL1                      0x5381
+
 #define VPP_SR0_IN_SIZE                            0x1d97
 #define VPP_SR1_IN_SIZE                            0x1d98
 

@@ -9657,6 +9657,32 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 		aisr_sr1_nn_enable(0);
 }
 
+void aisr_demo_enable(void)
+{
+	cur_dev->rdma_func[VPP0].rdma_wr_bits
+		(DEMO_MODE_WINDO_CTRL0,
+		cur_dev->aisr_demo_en, 29, 1);
+	cur_dev->rdma_func[VPP0].rdma_wr_bits
+		(DEMO_MODE_WINDO_CTRL0,
+		1, 12, 4);
+}
+
+void aisr_demo_axis_set(void)
+{
+	cur_dev->rdma_func[VPP0].rdma_wr_bits
+		(DEMO_MODE_WINDO_CTRL0,
+		cur_dev->aisr_demo_xstart, 16, 12);
+	cur_dev->rdma_func[VPP0].rdma_wr_bits
+		(DEMO_MODE_WINDO_CTRL0,
+		cur_dev->aisr_demo_xend, 0, 12);
+	cur_dev->rdma_func[VPP0].rdma_wr_bits
+		(DEMO_MODE_WINDO_CTRL1,
+		cur_dev->aisr_demo_ystart, 16, 12);
+	cur_dev->rdma_func[VPP0].rdma_wr_bits
+		(DEMO_MODE_WINDO_CTRL1,
+		cur_dev->aisr_demo_yend, 0, 12);
+}
+
 /*********************************************************
  * Init APIs
  *********************************************************/

@@ -176,6 +176,11 @@ struct video_dev_s {
 	int scaler_sep_coef_en;
 	int pps_auto_calc;
 	bool di_hf_y_reverse;
+	bool aisr_demo_en;
+	u32 aisr_demo_xstart;
+	u32 aisr_demo_ystart;
+	u32 aisr_demo_xend;
+	u32 aisr_demo_yend;
 	struct hw_pps_reg_s aisr_pps_reg;
 	struct vpp_frame_par_s aisr_frame_parms;
 	struct rdma_fun_s rdma_func[RDMA_INTERFACE_NUM];
@@ -710,6 +715,8 @@ s32 config_aisr_pps(struct video_layer_s *layer,
 			 struct scaler_setting_s *aisr_setting);
 s32 config_aisr_position(struct video_layer_s *layer,
 			     struct aisr_setting_s *aisr_mif_setting);
+void aisr_demo_enable(void);
+void aisr_demo_axis_set(void);
 void pre_process_for_3d(struct vframe_s *vf);
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void vsync_rdma_process(void);
