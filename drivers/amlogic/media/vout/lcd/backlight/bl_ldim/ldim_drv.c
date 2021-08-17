@@ -152,7 +152,8 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.black_frm_en = 0,
 	.func_bypass = 0,
 	.brightness_bypass = 0,
-	.test_en = 0,
+	.test_bl_en = 0,
+	.test_remap_en = 0,
 	.avg_update_en = 0,
 	.matrix_update_en = 0,
 	.alg_en = 0,
@@ -624,7 +625,7 @@ static void ldim_on_vs_brightness(void)
 
 	size = ldim_driver.conf->seg_row * ldim_driver.conf->seg_col;
 
-	if (ldim_driver.test_en) {
+	if (ldim_driver.test_bl_en) {
 		memcpy(ldim_driver.bl_matrix_cur, ldim_driver.test_matrix,
 		       (size * sizeof(unsigned int)));
 	} else {
@@ -661,7 +662,7 @@ static void ldim_off_vs_brightness(void)
 
 	if (ldim_driver.level_update) {
 		ldim_driver.level_update = 0;
-		if (ldim_driver.test_en) {
+		if (ldim_driver.test_bl_en) {
 			memcpy(ldim_driver.bl_matrix_cur, ldim_driver.test_matrix,
 			       (size * sizeof(unsigned int)));
 		} else {

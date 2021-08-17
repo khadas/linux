@@ -660,22 +660,32 @@ static void ldc_rmem_global_hist_get(struct aml_ldim_driver_s *ldim_drv)
 	ldim_drv->fw->ctrl->prm_ldc->ldc_glb_apl = stts->global_apl;
 }
 
+static unsigned int ldc_seg_hist_offset[2] = {
+	0,
+	(LDC_SEG_HIST1_OFFSET - LDC_SEG_HIST0_OFFSET)
+};
+
 static void ldc_rmem_seg_hist_get(struct aml_ldim_driver_s *ldim_drv)
 {
 	struct ldim_seg_hist_s *seg_hist;
 	unsigned char *buf, *p;
-	unsigned int row, col, index, temp = 0;
+	unsigned int fid, row, col, index, temp = 0;
 	int i, j, k;
 
 	if (!ldim_drv->stts->seg_hist) {
 		LDIMERR("%s: seg_hist buf is null\n", __func__);
 		return;
 	}
+	if (!ldim_drv->rmem->seg_hist_vaddr) {
+		LDIMERR("%s: duty_vaddr is null\n", __func__);
+		return;
+	}
+
+	fid = lcd_vcbus_getb(LDC_RO_BL_MEMORY_IDX, 8, 1) & 0x1;
+	ldim_drv->rmem->hist_fid = fid;
 
 	seg_hist = ldim_drv->stts->seg_hist;
-	buf = ldim_drv->rmem->seg_hist_vaddr;
-	if (!buf)
-		return;
+	buf = ldim_drv->rmem->seg_hist_vaddr + ldc_seg_hist_offset[fid];
 
 	row = ldim_drv->conf->seg_row;
 	col = ldim_drv->conf->seg_col;
@@ -699,11 +709,18 @@ static void ldc_rmem_seg_hist_get(struct aml_ldim_driver_s *ldim_drv)
 	}
 }
 
+static unsigned int ldc_duty_offset[4] = {
+	0,
+	(LDC_SEG_DUTY1_OFFSET - LDC_SEG_DUTY0_OFFSET),
+	(LDC_SEG_DUTY2_OFFSET - LDC_SEG_DUTY0_OFFSET),
+	(LDC_SEG_DUTY3_OFFSET - LDC_SEG_DUTY0_OFFSET)
+};
+
 static void ldc_rmem_duty_get(struct aml_ldim_driver_s *ldim_drv)
 {
 	unsigned int *bl_matrix;
 	unsigned char *buf, *p;
-	unsigned int row, col, n, zone_num, index;
+	unsigned int fid, row, col, n, zone_num, index;
 	unsigned int temp = 0, m, max;
 	int i, j, k;
 
@@ -711,11 +728,16 @@ static void ldc_rmem_duty_get(struct aml_ldim_driver_s *ldim_drv)
 		LDIMERR("%s: bl_matrix buf is null\n", __func__);
 		return;
 	}
+	if (!ldim_drv->rmem->duty_vaddr) {
+		LDIMERR("%s: duty_vaddr is null\n", __func__);
+		return;
+	}
+
+	fid = lcd_vcbus_getb(LDC_RO_BL_MEMORY_IDX, 4, 4) & 0x3;
+	ldim_drv->rmem->duty_fid = fid;
 
 	bl_matrix = ldim_drv->fw->bl_matrix;
-	buf = ldim_drv->rmem->duty_vaddr;
-	if (!buf)
-		return;
+	buf = ldim_drv->rmem->duty_vaddr + ldc_duty_offset[fid];
 
 	row = ldim_drv->conf->seg_row;
 	col = ldim_drv->conf->seg_col;
@@ -754,12 +776,12 @@ static void ldc_rmem_duty_get(struct aml_ldim_driver_s *ldim_drv)
 	}
 }
 
-static void ldc_rmem_duty_set(struct aml_ldim_driver_s *ldim_drv, int frm_index)
+static void ldc_rmem_duty_set(struct aml_ldim_driver_s *ldim_drv)
 {
 	unsigned int *bl_matrix;
 	unsigned char *buf, *p;
-	unsigned int row, col, n, zone_num, index;
-	unsigned int temp = 0, max, offset;
+	unsigned int fid, row, col, n, zone_num, index;
+	unsigned int temp = 0, max;
 	int i, j, k;
 
 	if (!ldim_drv->fw->bl_matrix) {
@@ -773,25 +795,19 @@ static void ldc_rmem_duty_set(struct aml_ldim_driver_s *ldim_drv, int frm_index)
 
 	bl_matrix = ldim_drv->fw->bl_matrix;
 
-	if (frm_index == 1)
-		offset = LDC_SEG_DUTY1_OFFSET - LDC_SEG_DUTY0_OFFSET;
-	else if (frm_index == 2)
-		offset = LDC_SEG_DUTY2_OFFSET - LDC_SEG_DUTY0_OFFSET;
-	else if (frm_index == 3)
-		offset = LDC_SEG_DUTY3_OFFSET - LDC_SEG_DUTY0_OFFSET;
-	else
-		offset = 0;
-	buf = ldim_drv->rmem->duty_vaddr + offset;
-
-	if (frm_index == 1)
-		memset(buf, 0, 0xa00);
-	else if (frm_index == 2)
-		memset(buf, 0x3f, 0xa00);
-	else if (frm_index == 3)
-		memset(buf, 0xff, 0xa00);
-
-	if (frm_index > 0)
-		return;
+	if (ldim_drv->test_remap_en) {
+		ldim_drv->rmem->duty_fid = 0;
+		fid = ldim_drv->rmem->duty_fid;
+		buf = ldim_drv->rmem->duty_vaddr;
+		memset(buf + ldc_duty_offset[1], 0, 0xa00);
+		memset(buf + ldc_duty_offset[2], 0x1f, 0xa00);
+		memset(buf + ldc_duty_offset[3], 0xff, 0xa00);
+	} else {
+		ldim_drv->rmem->duty_fid++;
+		ldim_drv->rmem->duty_fid %= 4;
+		fid = ldim_drv->rmem->duty_fid;
+		buf = ldim_drv->rmem->duty_vaddr + ldc_duty_offset[fid];
+	}
 
 	row = ldim_drv->conf->seg_row;
 	col = ldim_drv->conf->seg_col;
@@ -816,6 +832,8 @@ static void ldc_rmem_duty_set(struct aml_ldim_driver_s *ldim_drv, int frm_index)
 				p[j * n + k] = (temp >> (k * 8)) & 0xff;
 		}
 	}
+
+	lcd_vcbus_setb(LDC_CTRL_MISC0, fid, 23, 2);
 }
 
 void ldim_hw_remap_en_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
@@ -844,7 +862,7 @@ void ldim_config_update_t7(struct aml_ldim_driver_s *ldim_drv)
 
 void ldim_vs_arithmetic_t7(struct aml_ldim_driver_s *ldim_drv)
 {
-	unsigned int size, i;
+	unsigned int size;
 
 	if (!ldim_drv->stts)
 		return;
@@ -877,8 +895,7 @@ void ldim_vs_arithmetic_t7(struct aml_ldim_driver_s *ldim_drv)
 		ldim_drv->fw->fw_alg_frm(ldim_drv->fw, ldim_drv->stts);
 		memcpy(ldim_drv->local_bl_matrix, ldim_drv->fw->bl_matrix,
 		       size * (sizeof(unsigned int)));
-		for (i = 0; i < 4; i++)
-			ldc_rmem_duty_set(ldim_drv, i);
+		ldc_rmem_duty_set(ldim_drv);
 	}
 }
 
