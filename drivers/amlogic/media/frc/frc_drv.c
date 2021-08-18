@@ -201,6 +201,7 @@ static long frc_ioctl(struct file *file,
 	struct frc_dev_s *devp;
 	void __user *argp = (void __user *)arg;
 	u32 data;
+	u8  tmpver[32];
 
 	devp = file->private_data;
 	if (!devp)
@@ -283,6 +284,13 @@ static long frc_ioctl(struct file *file,
 		frc_memc_set_demo(data);
 		// pr_frc(1, "SET_MEMC_DEMO:%d\n", data);
 		break;
+
+	case FRC_IOC_GET_MEMC_VERSION:
+		strncpy(&tmpver[0], &fw_data.frc_alg_ver[0], sizeof(u8) * 32);
+		if (copy_to_user(argp, tmpver, sizeof(u8) * 32))
+			ret = -EFAULT;
+		break;
+
 	}
 
 	return ret;
