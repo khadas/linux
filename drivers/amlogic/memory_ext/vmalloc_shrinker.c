@@ -188,7 +188,8 @@ int handle_vmalloc_fault(struct pt_regs *regs, unsigned long faddr)
 	ptep = vmalloc_page_pte(addr, NULL);
 	if (pte_present(*ptep)) {
 		local_irq_restore(iflag);
-		D("pte already exist:%lx:%lx\n", addr, pte_val(*ptep));
+		D("pte already exist:%lx:%lx\n", addr,
+			(unsigned long)pte_val(*ptep));
 		return 0;
 	}
 
@@ -216,7 +217,8 @@ int handle_vmalloc_fault(struct pt_regs *regs, unsigned long faddr)
 		bit_spin_unlock(PTE_LOCK_BIT, (unsigned long *)ptep);
 		local_irq_restore(iflag);
 		if (pte_present(*ptep)) {
-			D("pte1 already exist:%lx:%lx\n", addr, pte_val(*ptep));
+			D("pte1 already exist:%lx:%lx\n",
+				addr, (unsigned long)pte_val(*ptep));
 		} else {
 			E("can't find zs mem for addr:%lx %lx\n", addr, faddr);
 		}
@@ -461,9 +463,9 @@ next:
 		else /* no suitable page for compress */
 			vs->last_vaddr = va->va_end;
 		vs->scanned_pages += scanned;
-		D("scan done, reclaimed pages:%5d, zspage:%5d, bytes:%d, restore:%d, scanned:%ld, cached:%2d\n",
+		D("scan done, reclaimed pages:%5d, zspage:%5ld, bytes:%d, restore:%d, scanned:%ld, cached:%2d\n",
 			atomic_read(&vs->reclaimed_pages),
-				zs_get_total_pages(vs->mem_pool),
+			zs_get_total_pages(vs->mem_pool),
 			atomic_read(&vs->zram_used_size),
 			atomic_read(&vs->restored_cnt),
 			vs->scanned_pages, vs->cached_pages);
@@ -559,12 +561,12 @@ static int vmalloc_shrinker_show(struct seq_file *m, void *arg)
 	bytes = zs_get_total_pages(vs->mem_pool) * PAGE_SIZE;
 	seq_printf(m, "reclaimed pages:%9d\n",
 		   atomic_read(&vs->reclaimed_pages));
-	seq_printf(m, "zram used pages:%9d\n",
+	seq_printf(m, "zram used pages:%9ld\n",
 		   zs_get_total_pages(vs->mem_pool));
 	seq_printf(m, "zram used bytes:%9d\n",
 		   atomic_read(&vs->zram_used_size));
-	seq_printf(m, "zram usage ratio:%8d%%\n",
-		   atomic_read(&vs->zram_used_size) * 100 / bytes);
+	seq_printf(m, "zram usage ratio:%8ld%%\n",
+		   atomic_read(&vs->zram_used_size) * 100UL / bytes);
 	seq_printf(m, "fault count:    %9d\n", atomic_read(&vs->restored_cnt));
 	seq_printf(m, "total scanned:  %9ld\n", vs->scanned_pages);
 	return 0;
