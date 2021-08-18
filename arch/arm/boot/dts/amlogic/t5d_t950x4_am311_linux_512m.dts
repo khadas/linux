@@ -66,9 +66,9 @@
 		lcd_tcon_reserved:linux,lcd_tcon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x00800000>;
+			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x1f000000 0x00800000>;
+			alloc-ranges = <0x1f000000 0x800000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -109,8 +109,7 @@
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1280x720x4x3 round up 4M align */
-			size = <0x0000000>;
+			size = <0x000000>;
 			alignment = <0x400000>;
 		};
 
@@ -1128,7 +1127,7 @@
 		compatible = "amlogic, t5-snd-tdmb";
 		#sound-dai-cells = <0>;
 
-		dai-tdm-lane-slot-mask-in = <1 0>;
+		dai-tdm-lane-slot-mask-in = <1 0 0 0>;
 		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
 

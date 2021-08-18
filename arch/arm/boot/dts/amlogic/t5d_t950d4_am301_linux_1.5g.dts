@@ -89,7 +89,7 @@
 			size = <0x0>;
 			/*alignment = <0x100000>;*/
 			//no-map;
-			//alloc-ranges = <0x0 0x3f000000>;
+			alloc-ranges = <0x0 0x3f000000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -564,10 +564,14 @@
 		frame_buff_num = <10>;
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
+		/*clocks = <&clkc CLKID_FCLK_DIV5>,
+		 *	<&clkc CLKID_VDIN_MEAS_COMP>;
+		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
+		 */
+		vdin_id = <0>;
 		clocks = <&clkc CLKID_FCLK_DIV5>,
 			<&peripheral_clkc CLKID_VDIN_MEAS_GATE>;
 		clock-names = "fclk_div5", "cts_vdin_meas_clk";
-		vdin_id = <0>;
 		/*vdin write mem color depth support:
 		 * bit0:support 8bit
 		 * bit1:support 9bit
@@ -604,6 +608,10 @@
 		flag_cma = <0>;
 		interrupts = <0 85 1>;
 		rdma-irq = <4>;
+		/*clocks = <&clkc CLKID_FCLK_DIV5>,
+		 *	<&clkc CLKID_VDIN_MEAS_COMP>;
+		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
+		 */
 		vdin_id = <1>;
 		/*vdin write mem color depth support:
 		 *bit0:support 8bit
@@ -990,6 +998,63 @@
 		reg = <0xFF80023c 0x4
 			   0xFF800000 0x400>;
 		reg-names = "ao_exit","ao";
+	};
+
+	cpu_opp_table0: cpu_opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <780000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <780000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <780000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <667000000>;
+			opp-microvolt = <780000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <800000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <800000>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <1404000000>;
+			opp-microvolt = <810000>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <830000>;
+		};
+		opp08 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <870000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <950000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <1010000>;
+		};
+	};
+
+	cpufreq-meson {
+		compatible = "amlogic, cpufreq-meson";
+	//	pinctrl-names = "default";
+	//	pinctrl-0 = <&pwm_ao_d_pins3>;
+		status = "okay";
 	};
 
 	atv-demod {
@@ -1710,7 +1775,7 @@
 
 &drm_vpu {
 	status = "okay";
-	logo_addr = "0x5f800000";
+	logo_addr = "0x3f800000";
 };
 
 &drm_amhdmitx {
@@ -1794,4 +1859,3 @@
 &amvideom {
 	vd1_vd2_mux = <0>;
 };
-
