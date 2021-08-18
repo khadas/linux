@@ -8998,7 +8998,9 @@ void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 		cnt++;
 
 		trace_iterator_reset(&iter);
+#ifndef CONFIG_AMLOGIC_MODIFY
 		iter.iter_flags |= TRACE_FILE_LAT_FMT;
+#endif
 
 		if (trace_find_next_entry_inc(&iter) != NULL) {
 			int ret;
