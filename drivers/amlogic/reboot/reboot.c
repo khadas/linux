@@ -238,14 +238,11 @@ static int aml_restart_probe(struct platform_device *pdev)
 	}
 
 	reboot_reason_vaddr = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(reboot_reason_vaddr))
-		return PTR_ERR(reboot_reason_vaddr);
-
-	ret = device_create_file(&pdev->dev, &dev_attr_reboot_reason);
-	if (ret != 0) {
-		pr_err("%s, device create file failed, ret = %d!\n",
-		       __func__, ret);
-		return ret;
+	if (!IS_ERR(reboot_reason_vaddr)) {
+		ret = device_create_file(&pdev->dev, &dev_attr_reboot_reason);
+		if (ret != 0)
+			pr_err("%s, device create file failed, ret = %d!\n",
+			       __func__, ret);
 	}
 
 	if (of_property_read_bool(pdev->dev.of_node,
