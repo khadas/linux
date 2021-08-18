@@ -151,6 +151,7 @@ struct earc {
 	struct snd_pcm_substream *substreams[2];
 
 	struct work_struct rx_dmac_int_work;
+	struct work_struct tx_resume_work;
 	u8 cds_data[CDS_MAX_BYTES];
 	enum sharebuffer_srcs samesource_sel;
 	struct samesource_info ss_info;
@@ -462,7 +463,9 @@ static void earctx_update_attend_event(struct earc *p_earc,
 			p_earc->earctx_connected_device_type = ATNDTYP_EARC;
 			audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_EARC);
 		} else {
-			p_earc->earctx_connected_device_type = ATNDTYP_ARC;
+			/* if the connected device is earc, lost HB still is earc device */
+			if (p_earc->earctx_connected_device_type != ATNDTYP_EARC)
+				p_earc->earctx_connected_device_type = ATNDTYP_ARC;
 			audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_ARC);
 		}
 	} else {
@@ -1678,18 +1681,8 @@ int earctx_set_mute(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-int earctx_set_earc_mode(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
+static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode)
 {
-	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
-	struct earc *p_earc = dev_get_drvdata(component->dev);
-	int earc_mode = ucontrol->value.integer.value[0];
-
-	if (!p_earc || IS_ERR(p_earc->tx_cmdc_map) || p_earc->tx_earc_mode == earc_mode)
-		return 0;
-
-	p_earc->tx_earc_mode = earc_mode;
-
 	/* set arc initiated and arc_enable */
 	earctx_cmdc_arc_connect(p_earc->tx_cmdc_map, !earc_mode);
 	/* set earc mode */
@@ -1701,11 +1694,34 @@ int earctx_set_earc_mode(struct snd_kcontrol *kcontrol,
 		rx_earc_hpd_cntl(); /* reset hpd */
 	}
 #endif
+}
+
+static void tx_resume_work_func(struct work_struct *p_work)
+{
+	struct earc *p_earc = container_of(p_work, struct earc, tx_resume_work);
+
+	msleep(2500);
+	pr_info("%s reset hpd\n", __func__);
+	earctx_set_earc_mode(p_earc, true);
+}
+
+int earctx_earc_mode_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	int earc_mode = ucontrol->value.integer.value[0];
+
+	if (!p_earc || IS_ERR(p_earc->tx_cmdc_map) || p_earc->tx_earc_mode == earc_mode)
+		return 0;
+
+	p_earc->tx_earc_mode = earc_mode;
+	earctx_set_earc_mode(p_earc, earc_mode);
 
 	return 0;
 }
 
-int earctx_get_earc_mode(struct snd_kcontrol *kcontrol,
+int earctx_earc_mode_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
@@ -1991,8 +2007,8 @@ static const struct snd_kcontrol_new earc_controls[] = {
 
 	SOC_SINGLE_BOOL_EXT("eARC_TX eARC Mode",
 			    0,
-			    earctx_get_earc_mode,
-			    earctx_set_earc_mode),
+			    earctx_earc_mode_get,
+			    earctx_earc_mode_put),
 
 	SOC_SINGLE_EXT("eARC_RX Audio Sample Frequency",
 		       0, 0, 384000, 0,
@@ -2437,6 +2453,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 #endif
 		earctx_ss_ops.private = p_earc;
 		register_samesrc_ops(SHAREBUFFER_EARCTX, &earctx_ss_ops);
+		INIT_WORK(&p_earc->tx_resume_work, tx_resume_work_func);
 	}
 
 	if ((!IS_ERR(p_earc->rx_top_map)) ||
@@ -2463,6 +2480,20 @@ int earc_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int earc_platform_resume(struct platform_device *pdev)
+{
+	struct earc *p_earc = dev_get_drvdata(&pdev->dev);
+
+	/* earc device, and the state is arc, need recovery earc */
+	if (!IS_ERR(p_earc->tx_cmdc_map) &&
+	    p_earc->tx_earc_mode &&
+	    p_earc->earctx_connected_device_type == ATNDTYP_EARC &&
+	    earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC)
+		schedule_work(&p_earc->tx_resume_work);
+
+	return 0;
+}
+
 struct platform_driver earc_driver = {
 	.driver = {
 		.name           = DRV_NAME,
@@ -2470,6 +2501,7 @@ struct platform_driver earc_driver = {
 	},
 	.probe = earc_platform_probe,
 	.remove = earc_platform_remove,
+	.resume  = earc_platform_resume,
 };
 
 int __init earc_init(void)
