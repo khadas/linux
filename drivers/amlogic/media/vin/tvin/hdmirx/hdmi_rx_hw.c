@@ -4191,6 +4191,7 @@ void hdmirx_config_video(void)
 	}
 	rx_sw_reset_t7(2);
 	hdmirx_output_en(true);
+	rx_irq_en(true);
 	hdmirx_top_irq_en(true);
 }
 
@@ -4490,7 +4491,10 @@ void print_reg(uint start_addr, uint end_addr)
 		if ((i - start_addr) % (sizeof(uint) * 4) == 0)
 			rx_pr("[0x%-4x] ", i);
 		if (!is_wr_only_reg(i))
-			rx_pr("0x%-8x,", hdmirx_rd_dwc(i));
+			if (rx.chip_id >= CHIP_ID_T7)
+				rx_pr("0x%-8x,", hdmirx_rd_cor(i));
+			else
+				rx_pr("0x%-8x,", hdmirx_rd_dwc(i));
 		else
 			rx_pr("xxxxxx    ,");
 
@@ -4551,7 +4555,7 @@ void dump_reg(void)
 		dump_reg_phy();
 	}
 
-	if (rx.chip_id <= CHIP_ID_T7) {
+	if (rx.chip_id < CHIP_ID_T7) {
 		rx_pr("\n**Controller registers**\n");
 		rx_pr("[addr ]  addr + 0x0,");
 		rx_pr("addr + 0x4,  addr + 0x8,");
@@ -4566,7 +4570,8 @@ void dump_reg(void)
 		print_reg(0x8fc, 0x8fc);
 		print_reg(0xf60, 0xffc);
 	} else {
-		print_reg(0, 0x3ff);
+		print_reg(0x0, 0xfe);
+		print_reg(0x300, 0x3ff);
 		print_reg(0x1001, 0x1f78);
 	}
 }
