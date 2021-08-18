@@ -1149,6 +1149,71 @@ static struct stchip_register_t l2a_def_val_local[] = {
 	{0xffff,    0},/*table end*/
 };
 
+static struct fe_lla_lookup_t fe_l2a_s1_cn_lookup = {
+	90,
+	{
+		{ -35, 9474 }, { -30, 9449 }, { -25, 9381 }, { -20, 9300 },
+		{ -15, 9240 }, {-10, 9155 }, {-5, 9046 }, { 0, 8943 },
+		{ 5, 8813 }, { 10, 8688 }, { 15, 8539 }, { 20, 8328 },
+		{ 25, 8151 }, { 30, 7989 }, { 33, 7762 }, { 36, 7701 },
+		{ 39, 7574 }, { 42, 7399 }, { 45, 7283 }, { 48, 7116 },
+		{ 51, 6952 }, { 54, 6796 }, { 57, 6641 }, { 60, 6477 },
+		{ 63, 6327 }, { 66, 6151 }, { 69, 5987 }, { 72, 5810 },
+		{ 75, 5661 }, { 78, 5494 }, { 81, 5333 }, { 84, 5176 },
+		{ 87, 5032 }, { 90, 4851 }, { 93, 4701 }, { 96, 4566 },
+		{ 99, 4435 }, { 102, 4279 }, { 105, 4149 }, { 108, 4021 },
+		{ 111, 3872 }, { 114, 3762 }, { 117, 3637 }, { 120, 3526 },
+		{ 123, 3412 }, { 126, 3298 }, { 129, 3192 }, { 132, 3083 },
+		{ 135, 2988 }, { 138, 2886 }, { 141, 2796 }, { 144, 2703 },
+		{ 147, 2621 }, { 150, 2534 }, { 160, 2261 }, { 170, 2030 },
+		{ 180, 1827 }, { 190, 1618 }, { 200, 1464 }, { 210, 1308 },
+		{ 220, 1177 }, { 230, 1067 }, { 240, 964 }, { 250, 871 },
+		{ 260, 785 }, { 270,  722 }, { 280, 674 }, { 290, 623 },
+		{ 300, 582 }, { 310,  534 }, { 320, 515 }, { 330, 482 },
+		{ 340, 458 }, { 350,  440 }, { 360, 425 }, { 370, 412 },
+		{ 380, 422 }, { 390,  408 }, { 400, 383 }, { 410, 385 },
+		{ 420, 376 }, { 430,  384 }, { 440, 382 }, { 450, 376 },
+		{ 460, 379 }, { 470,  370 }, { 480, 381 }, { 490, 371 },
+		{ 500, 371 }, { 510,  369 },
+	}
+};
+
+static struct fe_lla_lookup_t fe_l2a_s2_cn_lookup = {
+	90,
+	{
+		{ -35, 13780 }, { -30, 13393 }, { -25, 12984 },
+		{ -20, 12618 }, { -15, 12265 }, { -10, 11823 },
+		{ -5, 11498 }, { 0, 11034 }, { 5, 10660 },
+		{ 10, 10330 }, {  15, 9828 }, { 20, 9515 },
+		{ 25, 9052 }, {  30, 8613 }, { 33, 8487 },
+		{ 36, 8162 }, {  39, 7956 }, { 42,  7753 },
+		{ 45, 7547 }, {  48, 7328 }, { 51, 7081 },
+		{ 54, 6934 }, {  57, 6702 }, { 60, 6544 },
+		{ 63, 6362 }, {  66, 6141 }, { 69, 5949 },
+		{ 72, 5750 }, {  75, 5669 }, { 78, 5502 },
+		{ 81, 5263 }, {  84, 5047 }, { 87, 4954 },
+		{ 90, 4835 }, {  93, 4637 }, { 96, 4529 },
+		{ 99, 4363 }, { 102, 4231 }, { 105, 4073 },
+		{ 108, 3930 }, { 111, 3830 }, { 114, 3735 },
+		{ 117, 3572 }, { 120, 3487 }, { 123, 3391 },
+		{ 126, 3237 }, { 129, 3114 }, { 132, 3027 },
+		{ 135, 2954 }, { 138, 2847 }, { 141, 2777 },
+		{ 144, 2683 }, { 147, 2553 }, { 150, 2497 },
+		{ 160, 2260 }, { 170, 2011 }, { 180, 1792 },
+		{ 190, 1583 }, { 200, 1461 }, { 210, 1295 },
+		{ 220, 1167 }, { 230, 1050 }, { 240, 961 },
+		{ 250, 884 }, { 260, 812 }, { 270, 735 },
+		{ 280, 668 }, { 290, 623 }, { 300, 574 },
+		{ 310, 555 }, { 320, 527 }, { 330, 495 },
+		{ 340, 463 }, { 350, 460 }, { 360, 462 },
+		{ 370, 430 }, { 380, 420 }, { 390, 434 },
+		{ 400, 404 }, { 410, 408 }, { 420, 398 },
+		{ 430, 401 }, { 440, 395 }, { 450, 400 },
+		{ 460,  388 }, { 470, 419 }, { 480, 418 },
+		{ 490,  403 }, { 500, 394 }, { 510, 396 },
+	}
+};
+
 void demod_init_local(void)
 {
 	unsigned int reg = 0;
@@ -1367,3 +1432,60 @@ void dvbs_check_status(struct seq_file *seq)
 	}
 }
 
+unsigned int dvbs_get_quality(void)
+{
+	unsigned int noisefield1, noisefield0;
+	unsigned int c_n = -100, regval, imin, imax, i;
+	unsigned int fld_value[2];
+	struct fe_lla_lookup_t *lookup;
+
+	if ((dvbs_rd_byte(0x932) & 0x60) >> 5 == 0x2) {
+		lookup = &fe_l2a_s2_cn_lookup;
+		//If DVBS2 use PLH normilized noise indicators
+		noisefield1 = 0xaa4;
+		noisefield0 = 0xaa5;
+	} else {
+		lookup = &fe_l2a_s1_cn_lookup;
+		//if not DVBS2 use symbol normalized noise indicators
+		noisefield1 = 0xaa0;
+		noisefield0 = 0xaa1;
+	}
+
+	fld_value[0] = dvbs_rd_byte(0x934) & 0x08;
+	if (fld_value[0]) {
+		if (lookup->size) {
+			regval = 0;
+			for (i = 0; i < 8; i++) {
+				fld_value[0] = dvbs_rd_byte(noisefield1) & 0xff;
+				fld_value[1] = dvbs_rd_byte(noisefield0) & 0xff;
+				regval += (fld_value[0] << 8) + fld_value[1];
+			}
+			regval /= 8;
+			imin = 0;
+			imax = lookup->size - 1;
+			if ((lookup->table[imin].regval <= regval &&
+				regval <= lookup->table[imax].regval) ||
+				(lookup->table[imin].regval >= regval &&
+				regval >= lookup->table[imax].regval)) {
+				while ((imax - imin) > 1) {
+					i = (imax + imin) >> 1;
+					if ((lookup->table[imin].regval <= regval &&
+						regval <= lookup->table[i].regval) ||
+						(lookup->table[imin].regval >= regval &&
+						regval >= lookup->table[i].regval))
+						imax = i;
+					else
+						imin = i;
+				}
+
+				c_n = ((regval - lookup->table[imin].regval) *
+				(lookup->table[imax].realval - lookup->table[imin].realval) /
+				(lookup->table[imax].regval - lookup->table[imin].regval)) +
+				lookup->table[imin].realval;
+			} else if (regval < lookup->table[imin].regval) {
+				c_n = 1000;
+			}
+		}
+	}
+	return c_n;
+}

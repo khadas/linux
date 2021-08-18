@@ -20,6 +20,16 @@ enum diseq_irq_flag {
 	DISEQ_IRQRXEND = 0x40
 };
 
+struct fe_lla_lookpoint_t {
+	s32 realval;	//real value
+	s32 regval;	//binary value
+};
+
+struct fe_lla_lookup_t {
+	s32 size;	//Size of the lookup table
+	struct fe_lla_lookpoint_t table[500];	//Lookup table
+};
+
 #define DVBS_REG_MRELEASE	0x100
 #define DVBS_REG_DEVICE_ID	0x101
 

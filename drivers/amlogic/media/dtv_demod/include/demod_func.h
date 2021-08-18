@@ -620,4 +620,5 @@ int aml_demod_init(void);
 void aml_demod_exit(void);
 unsigned int write_riscv_ram(void);
 void dvbs2_reg_initial(unsigned int symb_rate);
+unsigned int dvbs_get_quality(void);
 #endif

@@ -1262,11 +1262,15 @@ static int dvbs_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	unsigned int quality_snr = 0;
 
 	if (!devp->demod_thread)
 		return 0;
 
-	*snr = (dvbs_rd_byte(CNR_HIGH) << 8) | dvbs_rd_byte(CNR_LOW);
+	quality_snr = dvbs_get_quality();
+
+	*snr = quality_snr / 10;
+
 	PR_DVBS("demod [id %d] snr is %d dbm\n", demod->id, *snr);
 
 	return 0;
