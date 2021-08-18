@@ -518,7 +518,6 @@ meson_plane_duplicate_state(struct drm_plane *plane)
 
 	__drm_atomic_helper_plane_duplicate_state(plane,
 						  &meson_plane_state->base);
-
 	return &meson_plane_state->base;
 }
 
@@ -693,6 +692,7 @@ static void meson_osd_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tpixel_format=%u\n", plane_info->pixel_format);
 	drm_printf(p, "\t\tphy_addr=0x%llx\n", plane_info->phy_addr);
 	drm_printf(p, "\t\tplane_index=%u\n", plane_info->plane_index);
+	drm_printf(p, "\t\tuhd_plane_index=%u\n", plane_info->uhd_plane_index);
 	drm_printf(p, "\t\tenable=%u\n", plane_info->enable);
 	drm_printf(p, "\t\tratio_x=%u\n", plane_info->ratio_x);
 	drm_printf(p, "\t\tafbc_inter_format=%u\n",
@@ -703,6 +703,7 @@ static void meson_osd_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\trotation=%u\n", plane_info->rotation);
 	drm_printf(p, "\t\tblend_bypass=%u\n", plane_info->blend_bypass);
 	drm_printf(p, "\t\tglobal_alpha=%u\n", plane_info->global_alpha);
+	drm_printf(p, "\t\tscaling_filter=%u\n", plane_info->scaling_filter);
 }
 
 static void meson_video_plane_atomic_print_state(struct drm_printer *p,
@@ -861,8 +862,8 @@ static int meson_plane_atomic_check(struct drm_plane *plane,
 	plane_info->zorder = state->zpos;
 	plane_info->pixel_blend = state->pixel_blend_mode;
 	plane_info->global_alpha = state->alpha;
-
 	plane_info->scaling_filter = (u32)state->scaling_filter;
+
 	mvps->plane_index[osd_plane->plane_index] = osd_plane->plane_index;
 	meson_plane_position_calc(plane_info, state, mvps->pipeline);
 	ret = meson_plane_check_size_range(plane_info);

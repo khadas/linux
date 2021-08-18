@@ -640,7 +640,7 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 		// sum the combination result to check osd blend block
 		ret = vpu_pipeline_check_block(combination,
 					       num_planes, mvps, state);
-		if (!ret)
+		if (!ret || ret == -EINVAL)
 			break;
 		vpu_pipeline_clean_block(combination, num_planes, mvps, state);
 		i++;
