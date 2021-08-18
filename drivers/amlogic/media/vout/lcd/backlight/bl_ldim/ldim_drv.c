@@ -35,6 +35,7 @@
 #include <linux/cma.h>
 #include <linux/dma-contiguous.h>
 #include <linux/dma-mapping.h>
+#include <linux/sched/clock.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
@@ -167,6 +168,8 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.brightness_level = 0,
 	.litgain = LD_DATA_MAX,
 	.irq_cnt = 0,
+	.arithmetic_time = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	.xfer_time = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 
 	.conf = &ldim_config,
 	.dev_drv = NULL,
@@ -548,8 +551,24 @@ static void ldim_remap_update(void)
 				    ldim_driver.matrix_update_en);
 }
 
+static void ldim_time_sort_save(unsigned long long *table,
+				unsigned long long data)
+{
+	int i, j;
+
+	for (i = 9; i >= 0; i--) {
+		if (data > table[i]) {
+			for (j = 0; j < i; j++)
+				table[j] = table[j + 1];
+			table[i] = data;
+			break;
+		}
+	}
+}
+
 static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 {
+	unsigned long long local_time[3];
 	unsigned long flags;
 
 	if (ldim_driver.init_on_flag == 0)
@@ -561,8 +580,12 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 		ldim_driver.dbg_vs_cnt = 0;
 
 	if (ldim_driver.func_en) {
+		local_time[0] = sched_clock();
 		if (ldim_dev.data->vs_arithmetic)
 			ldim_dev.data->vs_arithmetic(&ldim_driver);
+		local_time[1] = sched_clock();
+		local_time[2] = local_time[1] - local_time[0];
+		ldim_time_sort_save(ldim_driver.arithmetic_time, local_time[2]);
 		/*schedule_work(&ldim_on_vs_work);*/
 		queue_work(ldim_queue, &ldim_on_vs_work);
 		ldim_remap_update();
@@ -614,6 +637,7 @@ static void ldim_dev_smr(int update_flag, unsigned int size)
 
 static void ldim_on_vs_brightness(void)
 {
+	unsigned long long local_time[3];
 	unsigned int size, i;
 	int update_flag = 0;
 
@@ -622,6 +646,8 @@ static void ldim_on_vs_brightness(void)
 
 	if (ldim_driver.func_bypass)
 		return;
+
+	local_time[0] = sched_clock();
 
 	size = ldim_driver.conf->seg_row * ldim_driver.conf->seg_col;
 
@@ -645,18 +671,22 @@ static void ldim_on_vs_brightness(void)
 			     (size * sizeof(unsigned int)));
 
 	ldim_dev_smr(update_flag, size);
+
+	local_time[1] = sched_clock();
+	local_time[2] = local_time[1] - local_time[0];
+	ldim_time_sort_save(ldim_driver.xfer_time, local_time[2]);
 }
 
 static void ldim_off_vs_brightness(void)
 {
-	struct ld_reg_s *nprm = ldim_driver.fw->ctrl->nprm;
+	unsigned long long local_time[3];
 	unsigned int size, i;
 	int update_flag = 0;
 
-	if (!nprm)
-		return;
 	if (ldim_driver.init_on_flag == 0)
 		return;
+
+	local_time[0] = sched_clock();
 
 	size = ldim_driver.conf->seg_row * ldim_driver.conf->seg_col;
 
@@ -679,6 +709,10 @@ static void ldim_off_vs_brightness(void)
 	}
 
 	ldim_dev_smr(update_flag, size);
+
+	local_time[1] = sched_clock();
+	local_time[2] = local_time[1] - local_time[0];
+	ldim_time_sort_save(ldim_driver.xfer_time, local_time[2]);
 }
 
 static void ldim_on_update_brightness(struct work_struct *work)
@@ -846,6 +880,12 @@ static void aml_ldim_pq_update(void)
 	fctrl->prm_ldc->ldc_tf_high_alpha = ldim_pq.ldc_tf_high_alpha;
 	fctrl->prm_ldc->ldc_tf_low_alpha_sc = ldim_pq.ldc_tf_low_alpha_sc;
 	fctrl->prm_ldc->ldc_tf_high_alpha_sc = ldim_pq.ldc_tf_high_alpha_sc;
+
+	fctrl->prm_ldc->ldc_dimming_curve_en = ldim_pq.ldc_dimming_curve_en;
+	fctrl->prm_ldc->ldc_sc_hist_diff_th = ldim_pq.ldc_sc_hist_diff_th;
+	fctrl->prm_ldc->ldc_sc_apl_diff_th = ldim_pq.ldc_sc_apl_diff_th;
+	for (i = 0; i < 16; i++)
+		fctrl->bl_remap_curve[i] = ldim_pq.bl_remap_curve[i];
 
 	comp = ldim_driver.comp;
 	comp->ldc_bl_buf_diff = ldim_pq.ldc_bl_buf_diff;
