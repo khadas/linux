@@ -291,6 +291,10 @@ struct ldc_prm_s {
 	int ldc_tf_high_alpha;
 	int ldc_tf_low_alpha_sc;
 	int ldc_tf_high_alpha_sc;
+
+	int ldc_dimming_curve_en;
+	int ldc_sc_hist_diff_th;
+	int ldc_sc_apl_diff_th;
 };
 
 struct fw_data_s {
@@ -304,10 +308,11 @@ struct fw_data_s {
 	unsigned int *tf_bl_matrix_2;
 
 	/* new */
-	unsigned int *initial_bl;
-	unsigned int *sf_bl;
-	unsigned int *boost_bl;
-	unsigned int *tf_bl;
+	unsigned int *initial_bl;  //1
+	unsigned int *mapping_bl;  //2
+	unsigned int *sf_bl;       //3
+	unsigned int *boost_bl;    //4
+	unsigned int *tf_bl;       //5
 };
 
 struct fw_ctrl_s {

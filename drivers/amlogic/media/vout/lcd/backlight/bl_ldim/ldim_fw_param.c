@@ -20,8 +20,8 @@ static struct fw_data_s fdata;
 
 /*bl_matrix remap curve*/
 static unsigned int bl_remap_curve[16] = {
-	612, 654, 721, 851, 1001, 1181, 1339, 1516,
-	1738, 1948, 2152, 2388, 2621, 2889, 3159, 3502
+	0, 256, 512, 768, 1024, 1280, 1536, 1792,
+	2048, 2304, 2560, 2816, 3072, 3328, 3584, 3840
 };
 
 static unsigned int fw_ld_whist[16] = {
@@ -65,6 +65,10 @@ static struct ldc_prm_s ldim_prm_ldc = {
 	.ldc_tf_high_alpha = 0x20,
 	.ldc_tf_low_alpha_sc = 0x40,
 	.ldc_tf_high_alpha_sc = 0x40,
+
+	.ldc_dimming_curve_en = 1,
+	.ldc_sc_hist_diff_th = (3840 * 2160) / 3,
+	.ldc_sc_apl_diff_th = (24 << 4),
 };
 
 static struct fw_ctrl_s ldim_fw_ctrl = {

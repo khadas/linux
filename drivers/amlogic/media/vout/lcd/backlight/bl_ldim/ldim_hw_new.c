@@ -654,7 +654,7 @@ static void ldc_rmem_global_hist_get(struct aml_ldim_driver_s *ldim_drv)
 
 	stts->global_hist_sum = lcd_vcbus_read(LDC_RO_GLB_HIST_SUM);
 	stts->global_hist_cnt = lcd_vcbus_read(LDC_RO_GLB_HIST_CNT);
-	stts->global_apl =
+	stts->global_apl = (stts->global_hist_cnt == 0) ? 0xfff :
 		(stts->global_hist_sum / stts->global_hist_cnt) << 4;
 	lcd_vcbus_setb(LDC_REG_BS_MODE, stts->global_apl, 0, 12);
 	ldim_drv->fw->ctrl->prm_ldc->ldc_glb_apl = stts->global_apl;

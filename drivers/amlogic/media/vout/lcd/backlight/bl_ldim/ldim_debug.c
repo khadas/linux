@@ -1094,6 +1094,23 @@ static int ldim_attr_tuning_new(struct aml_ldim_driver_s *ldim_drv, char **parm)
 			dbg_attr.data = prm->ldc_init_bl_max;
 		}
 		pr_info("ldc_init_bl_max = %d\n", prm->ldc_init_bl_max);
+	} else if (!strcmp(parm[0], "ldc_dimming_curve_en")) {
+		if (parm[1]) {
+			if (!strcmp(parm[1], "r")) {
+				dbg_attr.cmd = LDIM_DBG_ATTR_CMD_RD;
+				dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
+				dbg_attr.data = prm->ldc_dimming_curve_en;
+				goto ldim_attr_tuning_new_end;
+			}
+			if (kstrtouint(parm[1], 10, &val) < 0)
+				goto ldim_attr_tuning_new_err;
+			prm->ldc_dimming_curve_en = val;
+			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
+			dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
+			dbg_attr.data = prm->ldc_dimming_curve_en;
+		}
+		pr_info("ldc_dimming_curve_en = %d\n",
+			prm->ldc_dimming_curve_en);
 	} else if (!strcmp(parm[0], "ldc_sf_mode")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
@@ -1409,6 +1426,40 @@ static int ldim_attr_tuning_new(struct aml_ldim_driver_s *ldim_drv, char **parm)
 		}
 		pr_info("ldc_tf_high_alpha_sc = %d\n",
 			prm->ldc_tf_high_alpha_sc);
+	} else if (!strcmp(parm[0], "ldc_sc_hist_diff_th")) {
+		if (parm[1]) {
+			if (!strcmp(parm[1], "r")) {
+				dbg_attr.cmd = LDIM_DBG_ATTR_CMD_RD;
+				dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
+				dbg_attr.data = prm->ldc_sc_hist_diff_th;
+				goto ldim_attr_tuning_new_end;
+			}
+			if (kstrtouint(parm[1], 10, &val) < 0)
+				goto ldim_attr_tuning_new_err;
+			prm->ldc_sc_hist_diff_th = val;
+			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
+			dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
+			dbg_attr.data = prm->ldc_sc_hist_diff_th;
+		}
+		pr_info("ldc_sc_hist_diff_th = %d\n",
+			prm->ldc_sc_hist_diff_th);
+	} else if (!strcmp(parm[0], "ldc_sc_apl_diff_th")) {
+		if (parm[1]) {
+			if (!strcmp(parm[1], "r")) {
+				dbg_attr.cmd = LDIM_DBG_ATTR_CMD_RD;
+				dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
+				dbg_attr.data = prm->ldc_sc_apl_diff_th;
+				goto ldim_attr_tuning_new_end;
+			}
+			if (kstrtouint(parm[1], 10, &val) < 0)
+				goto ldim_attr_tuning_new_err;
+			prm->ldc_sc_apl_diff_th = val;
+			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
+			dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
+			dbg_attr.data = prm->ldc_sc_apl_diff_th;
+		}
+		pr_info("ldc_sc_apl_diff_th = %d\n",
+			prm->ldc_sc_apl_diff_th);
 	} else if (!strcmp(parm[0], "ldc_bl_buf_diff")) {
 		if (parm[1]) {
 			if (!strcmp(parm[1], "r")) {
@@ -2498,11 +2549,12 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			ldim_debug_print = (unsigned char)val1;
 		}
 		pr_info("ldim_debug_print = %d\n", ldim_debug_print);
-	} else if (!strcmp(parm[0], "alg")) {
+	} else if ((!strcmp(parm[0], "alg")) ||
+		   (!strcmp(parm[0], "fw"))) {
 		if (fw->fw_alg_para_print)
 			fw->fw_alg_para_print(fw);
 		else
-			pr_info("ldim_alg para_print is null\n");
+			pr_info("ldim_fw para_print is null\n");
 	} else {
 		pr_info("no support cmd!!!\n");
 	}
@@ -3221,6 +3273,24 @@ static void ldc_gain_lut_load(struct aml_ldim_driver_s *ldim_drv, char *path)
 	kfree(buf);
 }
 
+static void ldim_time_print(unsigned long long *table)
+{
+	unsigned int len, i;
+	char *buf;
+
+	buf = kcalloc(1024, sizeof(char), GFP_KERNEL);
+	if (!buf)
+		return;
+
+	len = 0;
+	for (i = 0; i < 9; i++)
+		len += sprintf(buf + len, " %lld,", table[i]);
+	len += sprintf(buf + len, " %lld", table[9]);
+	pr_info("%s\n", buf);
+
+	kfree(buf);
+}
+
 static ssize_t ldim_debug_store(struct class *class, struct class_attribute *attr,
 				const char *buf, size_t len)
 {
@@ -3356,6 +3426,11 @@ static ssize_t ldim_debug_store(struct class *class, struct class_attribute *att
 		lcd_vcbus_setb(LDC_DGB_CTRL, i, 1, 4);
 		lcd_vcbus_setb(LDC_DGB_CTRL, temp, 5, 4);
 		lcd_vcbus_setb(LDC_DGB_CTRL, 1, 0, 1);
+	} else if (!strcmp(parm[0], "time")) {
+		pr_info("arithmetic_time:\n");
+		ldim_time_print(ldim_drv->arithmetic_time);
+		pr_info("xfer_time:\n");
+		ldim_time_print(ldim_drv->xfer_time);
 	} else if (!strcmp(parm[0], "reg")) {
 		//dump reg todo
 	} else if (!strcmp(parm[0], "save")) { /* save buf to bin */

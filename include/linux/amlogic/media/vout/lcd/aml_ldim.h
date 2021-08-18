@@ -119,6 +119,11 @@ struct aml_ldim_pq_s {
 	unsigned int ldc_tf_low_alpha_sc;
 	unsigned int ldc_tf_high_alpha_sc;
 
+	unsigned int ldc_dimming_curve_en;
+	unsigned int ldc_sc_hist_diff_th;
+	unsigned int ldc_sc_apl_diff_th;
+	unsigned int bl_remap_curve[16];
+
 	/* comp parameters */
 	unsigned int ldc_bl_buf_diff;
 	unsigned int ldc_glb_gain;
@@ -319,6 +324,8 @@ struct aml_ldim_driver_s {
 	unsigned int litgain;
 	unsigned int dbg_vs_cnt;
 	unsigned int irq_cnt;
+	unsigned long long arithmetic_time[10];
+	unsigned long long xfer_time[10];
 
 	struct ldim_drv_data_s *data;
 	struct ldim_config_s *conf;
