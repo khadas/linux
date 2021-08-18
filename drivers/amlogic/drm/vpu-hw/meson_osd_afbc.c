@@ -250,19 +250,51 @@ static void osd_afbc_enable(u32 osd_index, bool flag)
 	}
 }
 
+/*only supports one 4k fb at most for osd plane*/
+static
+int osd_afbc_check_uhd_count(struct meson_vpu_osd_layer_info *plane_info,
+				struct meson_vpu_pipeline_state *mvps)
+{
+	int cnt;
+	int uhd_plane_sum = 0;
+	int ret = 0;
+
+	if (plane_info->src_w >= MESON_OSD_INPUT_W_LIMIT &&
+		plane_info->src_h >= MESON_OSD_INPUT_H_LIMIT) {
+		plane_info->uhd_plane_index = 1;
+	} else {
+		plane_info->uhd_plane_index = 0;
+	}
+	for (cnt = 0; cnt < MESON_MAX_OSDS; cnt++) {
+		uhd_plane_sum += mvps->plane_info[cnt].uhd_plane_index;
+		if (uhd_plane_sum > 1)
+			return -EINVAL;
+	}
+	return ret;
+}
+
 static int osd_afbc_check_state(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps)
 {
 	struct meson_vpu_afbc *afbc = to_afbc_block(vblk);
+	struct meson_vpu_osd_layer_info *plane_info;
+	u32 osd_index;
+	int ret;
 
-	//vpu_block_check_input(vblk, state, mvps);
+	osd_index = vblk->index;
+	plane_info = &mvps->plane_info[osd_index];
 
 	if (state->checked)
 		return 0;
 
 	state->checked = true;
-
+	ret = osd_afbc_check_uhd_count(plane_info, mvps);
+	if (ret < 0) {
+		DRM_INFO("plane%d,uhd osd plane is greater than 1,return!\n",
+			 osd_index);
+		return ret;
+	}
 	DRM_DEBUG("%s check_state called.\n", afbc->base.name);
 
 	return 0;

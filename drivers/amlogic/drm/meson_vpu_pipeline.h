@@ -29,6 +29,7 @@
 /*ratio base for scaler calc;maybe need bigger than 1000*/
 #define RATIO_BASE 1000
 #define MESON_OSD_INPUT_W_LIMIT 3840
+#define MESON_OSD_INPUT_H_LIMIT 2160
 
 #define MAX_DIN_NUM 4
 #define MAX_DOUT_NUM 2
@@ -157,6 +158,7 @@ struct meson_vpu_osd_layer_info {
 	u32 pixel_format;
 	u64 phy_addr;
 	u32 plane_index;
+	u32 uhd_plane_index;
 	u32 enable;
 	u32 ratio_x;/*input_w/output_w*/
 	u32 afbc_inter_format;
