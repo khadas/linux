@@ -565,6 +565,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
+
 			suffix-name = "alsaPORT-pcm";
 			tdmacpu: cpu {
 				sound-dai = <&aml_tdma>;
@@ -605,7 +606,7 @@
 			};
 			tdmbcodec: codec {
 				sound-dai = <&dummy_codec &dummy_codec
-				&amlogic_codec>;
+				&amlogic_codec &es8316>;
 			};
 		};
 
@@ -662,6 +663,7 @@
 			};
 		};
 	};
+
 	audiolocker: locker {
 		compatible = "amlogic, audiolocker";
 		clocks = <&clkaudio CLKID_AUDIO_LOCKER_OUT
@@ -878,6 +880,16 @@
 		compatible = "khadas-tca6408";
 		reg = <0x20>;
 	};
+
+        es8316: es8316@10 {
+                compatible = "everest,es8316";
+                #sound-dai-cells = <0>;
+                reg = <0x10>;
+                status = "okay";
+                spk-con-gpio = <&gpio GPIOA_11 0>;
+                spk-mute-gpio = <&gpio GPIOA_12 0>;
+        };
+
 
 	khadas-kxtj3 {
 		compatible = "kxtj3";
