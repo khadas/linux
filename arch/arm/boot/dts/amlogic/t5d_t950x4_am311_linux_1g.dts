@@ -66,9 +66,9 @@
 		lcd_tcon_reserved:linux,lcd_tcon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x00800000>;
+			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x3f000000 0x00800000>;
+			alloc-ranges = <0x3f000000 0x800000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -108,8 +108,7 @@
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1280x720x4x3 round up 4M align */
-			size = <0x0000000>;
+			size = <0x000000>;
 			alignment = <0x400000>;
 		};
 
@@ -145,7 +144,7 @@
 		demod_cma_reserved:linux,demod_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			//8M
+			/* 40M */
 			size = <0x2800000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x0 0x3f000000>;
@@ -1754,7 +1753,7 @@
 	};
 
 	tas5805: tas5805@2e {
-		compatible = "ti, tas5805";
+		compatible = "ti,tas5805";
 		#sound-dai-cells = <0>;
 		codec_name = "tas5805";
 		reg = <0x2e>;
