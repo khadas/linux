@@ -15442,12 +15442,22 @@ static ssize_t power_ctrl_store(struct class *cla,
 		vpu_module_clk_disable(VPP0, VD2_SCALER, 1);
 		vpu_module_clk_disable(VPP0, SR0, 1);
 		vpu_module_clk_disable(VPP0, SR1, 1);
+		vpu_module_clk_disable(VPP0, VD1_HDR_CORE, 1);
+		vpu_module_clk_disable(VPP0, VD2_HDR_CORE, 1);
+		vpu_module_clk_disable(VPP0, OSD1_HDR_CORE, 1);
+		vpu_module_clk_disable(VPP0, OSD2_HDR_CORE, 1);
+		vpu_module_clk_disable(VPP0, DV_TVCORE, 1);
 	} else {
 		pr_info("disable power_ctrl, enable vd scaler/SR clk\n");
 		vpu_module_clk_enable(VPP0, VD1_SCALER, 1);
 		vpu_module_clk_enable(VPP0, VD2_SCALER, 1);
 		vpu_module_clk_enable(VPP0, SR0, 1);
 		vpu_module_clk_enable(VPP0, SR1, 1);
+		vpu_module_clk_enable(VPP0, VD1_HDR_CORE, 1);
+		vpu_module_clk_enable(VPP0, VD2_HDR_CORE, 1);
+		vpu_module_clk_enable(VPP0, OSD1_HDR_CORE, 1);
+		vpu_module_clk_enable(VPP0, OSD2_HDR_CORE, 1);
+		vpu_module_clk_enable(VPP0, DV_TVCORE, 1);
 		cur_dev->power_ctrl = res;
 	}
 	return count;
