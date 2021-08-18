@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# GPIO infrastructure and drivers
+#
+
+config REGULATOR_BD2657
+	tristate "ROHM BD2657 Power Regulator"
+	depends on MFD_ROHM_BD2657
+	help
+	  This driver supports voltage regulators on ROHM BD2657 PMIC.
+	  Say y to enable support for four software controllable buck
+	  regulators.
+
+	  The driver can also be built as a module. If so, the module
+	  will be called bd2657-regulator.
+
+
+
+
+
+

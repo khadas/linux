@@ -82,6 +82,30 @@ Example:
 		};
 	};
 
+	pmic: pmic@4b {
+		compatible = "rohm,bd71888";
+		reg = <0x4b>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <29 GPIO_ACTIVE_LOW>;
+		interrupt-names = "irq";
+		#clock-cells = <0>;
+		clocks = <&osc 0>;
+		clock-output-names = "bd71888-32k-out";
+		rohm,reset-snvs-powered;
+
+		regulators {
+			buck1: BUCK1 {
+				regulator-name = "buck1";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-ramp-delay = <1250>;
+			};
+			// [...]
+		};
+	};
+
 	/* Clock consumer node */
 	rtc@0 {
 		compatible = "company,my-rtc";

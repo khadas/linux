@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+
+config MFD_ROHM_BD2657
+	tristate "ROHM BD2657 Power Management IC"
+	depends on I2C=y
+	depends on OF
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select MFD_CORE
+	help
+	  Select this option to get support for the ROHM BD2657
+	  Power Management ICs. BD2657 is intended to be used for systems
+	  powered by one Li-Ion or Li-Ion polymer battery cell, or by an
+	  input from 2.85 V to 5.5 V. The device provides 4 buck
+	  converters supporting dynamic voltage scaling. Programmable
+	  output voltage, sequencing and power state control support a
+	  wide variety of processors and system implementations.
+
+
+
+
+

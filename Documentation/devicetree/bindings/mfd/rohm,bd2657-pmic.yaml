@@ -1,0 +1,113 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/rohm,bd2657-pmic.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ROHM BD2657 Power Management Integrated Circuit bindings
+
+maintainers:
+  - Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>
+
+description: |
+  The BD2657SWV is a Power Management Integrated Circuit available in
+  28pins-USMP028X3527 package and dedicated to application powered by one
+  Li-Ion or Li-Ion polymer battery cell, or by an input from 2.85 V to
+  5.5 V. The device provides 4 dynamic voltage scaling capable buck
+  converters and is designed to support various power requirements. The
+  BD2657 also provides two GPOs and a power-button connectivity.
+
+properties:
+  compatible:
+    const: rohm,bd2657
+
+  reg:
+    description:
+      I2C slave address.
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  gpio-controller: true
+
+  "#gpio-cells":
+    const: 2
+    description: |
+      The first cell is the pin number and the second cell is used to specify
+      flags. See ../gpio/gpio.txt for more information.
+
+  regulators:
+    $ref: ../regulator/rohm,bd2657-regulator.yaml
+    description:
+      List of child nodes that specify the regulators.
+  rohm,power-button-connected:
+    description: Power-button is connected to PMIC.
+    type: boolean
+
+  rohm,output-power-state-gpio:
+    description: |
+      GPIO0 is used to advertice the PMIC power state and is not used as SW
+      controllable GPIO pin.
+    type: boolean
+
+  gpio-reserved-ranges:
+    description: |
+      Usage of BD2657 GPIO0 pin can be changed by the register. Usage of
+      the GPIO1 pin depends on OTP. GPIO0 can be used to advertice the
+      PMIC power-state and GPIO1 pin may be used as PMIC_EN signal input.
+      You should set this property to mark the pins which are not used for GPIO.
+      Please see the ../gpio/gpio.txt for more information.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/leds/common.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        pmic: pmic@6a {
+            compatible = "rohm,bd2657";
+            reg = <0x6a>;
+
+            interrupt-parent = <&gpio1>;
+            interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
+
+            gpio-controller;
+            #gpio-cells = <2>;
+            gpio-reserved-ranges = <0 1>;
+
+            regulators {
+                buck1: BUCK1 {
+                    regulator-name = "buck1";
+                    regulator-min-microvolt = <500000>;
+                    regulator-max-microvolt = <2000000>;
+                    regulator-ramp-delay = <2500>;
+                };
+                buck2: BUCK2 {
+                    regulator-name = "buck2";
+                    regulator-min-microvolt = <500000>;
+                    regulator-max-microvolt = <2000000>;
+                    regulator-ramp-delay = <2500>;
+                };
+                buck3: BUCK3 {
+                    regulator-name = "buck3";
+                    regulator-min-microvolt = <1200000>;
+                    regulator-max-microvolt = <2000000>;
+                };
+                buck4: BUCK4 {
+                    regulator-name = "buck4";
+                    regulator-min-microvolt = <1000000>;
+                    regulator-max-microvolt = <1800000>;
+                };
+            };
+        };
+    };
