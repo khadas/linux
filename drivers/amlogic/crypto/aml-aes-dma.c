@@ -1504,6 +1504,7 @@ static int aml_aes_remove(struct platform_device *pdev)
 	spin_lock(&aml_aes.lock);
 	list_del(&aes_dd->list);
 	spin_unlock(&aml_aes.lock);
+	aml_aes_buff_cleanup(aes_dd);
 
 	aml_aes_unregister_algs(aes_dd, aes_info);
 #if DMA_IRQ_MODE
@@ -1524,12 +1525,12 @@ static struct platform_driver aml_aes_driver = {
 	},
 };
 
-int aml_aes_driver_init(void)
+int __init aml_aes_driver_init(void)
 {
 	return platform_driver_register(&aml_aes_driver);
 }
 
-void aml_aes_driver_exit(void)
+void __exit aml_aes_driver_exit(void)
 {
 	platform_driver_unregister(&aml_aes_driver);
 }
