@@ -201,6 +201,9 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
 	struct page *page;
 	spinlock_t *ptl;
 	pte_t *ptep, pte;
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	struct address_space *mapping;
+#endif
 
 retry:
 	if (unlikely(pmd_bad(*pmd)))
@@ -308,7 +311,9 @@ retry:
 		 */
 		if (page->mapping && trylock_page(page)) {
 		#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
-			if (test_bit(AS_LOCK_MAPPING, &page->mapping->flags) &&
+			mapping = page_mapping(page);
+			if (mapping &&
+			    test_bit(AS_LOCK_MAPPING, &mapping->flags) &&
 			    sysctrl_shrink_unevictable) {
 				unlock_page(page);
 			} else {
