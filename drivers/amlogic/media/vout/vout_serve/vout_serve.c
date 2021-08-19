@@ -901,8 +901,6 @@ static int aml_vout_probe(struct platform_device *pdev)
 
 	aml_vout_get_dt_info(pdev);
 
-	aml_vout_get_dt_info(pdev);
-
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
 	early_suspend.suspend = aml_vout_early_suspend;

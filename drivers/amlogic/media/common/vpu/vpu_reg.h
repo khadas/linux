@@ -56,6 +56,7 @@
 
 #define HHI_VPU_CLK_CNTL             0x6f
 #define HHI_VAPBCLK_CNTL             0x7d
+#define HHI_VPU_CLK_CTRL             0x6f
 
 #define CLKCTRL_VPU_CLK_CTRL         0x003a
 #define CLKCTRL_VAPBCLK_CTRL         0x003f

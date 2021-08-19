@@ -451,6 +451,50 @@
 		mbox-dests = <MAILBOX_AOCPU>;
 	};
 
+	vpu: vpu {
+		compatible = "amlogic, vpu-t5w";
+		status = "okay";
+		clocks = <&clkc CLKID_VAPB>,
+			<&clkc CLKID_VPU_0>,
+			<&clkc CLKID_VPU_1>,
+			<&clkc CLKID_VPU>,
+			<&clkc CLKID_CLK81_VPU_INTR>;
+		clock-names = "vapb_clk",
+			"vpu_clk0",
+			"vpu_clk1",
+			"vpu_clk",
+			"vpu_intr_gate";
+		reg = <0x0 0xff646000 0x0 0x200   /* clk */
+		       0x0 0xff644000 0x0 0x100     /* pwrctrl */
+		       0x0 0xff900000 0x0 0xa000>; /* vcbus */
+		clk_level = <7>;
+		/* 0: 100.0M    1: 166.7M    2: 200.0M    3: 250.0M */
+		/* 4: 333.3M    5: 400.0M */
+	};
+
+	vclk_serve: vclk_serve {
+		compatible = "amlogic, vclk_serve";
+		status = "okay";
+		reg = <0x0 0xff63c000 0x0 0x400    /* ana reg */
+		       0x0 0xff646000 0x0 0x4a0>; /* clk reg */
+	};
+
+	vout_mux: vout_mux {
+		compatible = "amlogic, vout_mux";
+		status = "okay";
+	};
+
+	vout: vout {
+		compatible = "amlogic, vout";
+		status = "okay";
+
+		/* fr_policy:
+		 *    0: disable
+		 *    1: nearby (only for 60->59.94 and 30->29.97)
+		 *    2: force (60/50/30/24/59.94/23.97)
+		 */
+		fr_policy = <0>;
+	};
 }; /* end of / */
 
 &pinctrl_periphs {

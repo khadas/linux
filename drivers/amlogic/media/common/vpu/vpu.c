@@ -2062,6 +2062,44 @@ static struct vpu_data_s vpu_data_t5d = {
 	.mempd_get = vpu_vmod_mem_pd_get_new,
 };
 
+static struct vpu_data_s vpu_data_t5w = {
+	.chip_type = VPU_CHIP_T5W,
+	.chip_name = "t5w",
+
+	.clk_level_dft = CLK_LEVEL_DFT_G12A,
+	.clk_level_max = CLK_LEVEL_MAX_G12A,
+	.fclk_div_table = fclk_div_table_g12a,
+	.reg_map_table = vpu_reg_table_new,
+
+	.vpu_clk_reg = HHI_VPU_CLK_CTRL,
+	.vapb_clk_reg = HHI_VAPBCLK_CNTL,
+
+	.gp_pll_valid = 0,
+	.mem_pd_reg[0] = PWRCTRL_MEM_PD3_T5,
+	.mem_pd_reg[1] = PWRCTRL_MEM_PD4_T5,
+	.mem_pd_reg[2] = PWRCTRL_MEM_PD5_T5,
+	.mem_pd_reg[3] = PWRCTRL_MEM_PD6_T5,
+	.mem_pd_reg[4] = PWRCTRL_MEM_PD7_T5,
+	.mem_pd_reg_flag = 1,
+
+	.pwrctrl_id_table = vpu_pwrctrl_id_table,
+
+	.power_table = NULL,
+	.iso_table = NULL,
+	.reset_table = NULL,
+	.module_init_table = NULL,
+
+	.mem_pd_table = vpu_mem_pd_t5,
+	.clk_gate_table = NULL,
+
+	.power_on = NULL,
+	.power_off = NULL,
+//	.power_on = vpu_power_on_new,
+//	.power_off = vpu_power_off_new,
+	.mempd_switch = vpu_vmod_mem_pd_switch_new,
+	.mempd_get = vpu_vmod_mem_pd_get_new,
+};
+
 static struct vpu_data_s vpu_data_t7 = {
 	.chip_type = VPU_CHIP_T7,
 	.chip_name = "t7",
@@ -2260,6 +2298,10 @@ static const struct of_device_id vpu_of_table[] = {
 	{
 		.compatible = "amlogic, vpu-t3",
 		.data = &vpu_data_t3,
+	},
+	{
+		.compatible = "amlogic, vpu-t5w",
+		.data = &vpu_data_t5w,
 	},
 	{}
 };
