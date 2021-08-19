@@ -44,6 +44,7 @@ dtb-y += s4d_s905y4_ap222.dtb
 dtb-y += s4d_s905c3_ap232.dtb
 dtb-y += s4d_s905c3_ap232_drm.dtb
 dtb-y += s4d_s905c3_ap232_drm_1g.dtb
+dtb-y += s4d_s905c3_ap232_mxl258c_drm.dtb
 dtb-y += s4d_s905y4_ap222_drm.dtb
 dtb-y += s4d_s905y4_ap222_drm_1g.dtb
 dtb-y += s4d_s905y4_ap229.dtb
