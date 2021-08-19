@@ -84,25 +84,45 @@ static int tpi_info_get(u8 sel, u8 *data)
 	return 31; /* fixed value */
 }
 
+void dump_infoframe_packets(void)
+{
+	int i, j;
+	u8 body[32] = {0};
+
+	for (i = 0; i < 17; i++) {
+		tpi_info_get(i, body);
+		body[31] = hdmitx21_rd_reg(TPI_INFO_EN_IVCTX);
+		pr_info("dump hdmi infoframe[%d]\n", i);
+		for (j = 0; j < 32; j += 8)
+			pr_info("%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				body[j + 0], body[j + 1],
+				body[j + 2], body[j + 3],
+				body[j + 4], body[j + 5],
+				body[j + 6], body[j + 7]);
+		memset(body, 0, sizeof(body));
+	}
+}
+
 static int _tpi_infoframe_wrrd(u8 wr, u8 info_type, u8 *body)
 {
 	u8 sel;
 
+	/* the bank index is fixed */
 	switch (info_type) {
 	case HDMI_INFOFRAME_TYPE_AVI:
 		sel = 0;
 		break;
-	case HDMI_INFOFRAME_TYPE_VENDOR:
-		sel = 1;
-		break;
-	case HDMI_INFOFRAME_TYPE_DRM:
+	case HDMI_INFOFRAME_TYPE_AUDIO:
 		sel = 2;
 		break;
-	case HDMI_INFOFRAME_TYPE_AUDIO:
+	case HDMI_INFOFRAME_TYPE_SPD:
 		sel = 3;
 		break;
-	case HDMI_INFOFRAME_TYPE_SPD:
-		sel = 16;
+	case HDMI_INFOFRAME_TYPE_VENDOR:
+		sel = 5;
+		break;
+	case HDMI_INFOFRAME_TYPE_DRM:
+		sel = 6;
 		break;
 	default:
 		pr_info("%s[%d] wrong info_type %d\n", __func__, __LINE__, info_type);

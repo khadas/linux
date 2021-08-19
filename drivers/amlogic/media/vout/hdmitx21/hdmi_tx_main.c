@@ -464,6 +464,8 @@ static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev)
 
 	mutex_lock(&getedid_mutex);
 	hdrinfo_to_vinfo(info, hdev);
+	if (hdev->para && hdev->para->cd == COLORDEPTH_24B)
+		memset(&info->hdr_info, 0, sizeof(struct hdr_info));
 	rxlatency_to_vinfo(info, &hdev->rxcap);
 	hdmitx_vdev.dv_info = &hdev->rxcap.dv_info;
 	mutex_unlock(&getedid_mutex);
@@ -1114,7 +1116,8 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	u8 drm_hb[3] = {0x87, 0x1, 26};
-	static u8 drm_db[28] = {0x0};
+	static u8 db[28] = {0x0};
+	u8 *drm_db = &db[1]; /* db[0] is the checksum */
 
 	hdmi_debug();
 	init_drm_db0(hdev, &drm_db[0]);
@@ -1223,12 +1226,12 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 			hdmi_drm_infoframe_set(NULL);
 			hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);
 		} else if (hdev->sdr_hdr_feature == 1) {
-			memset(drm_db, 0, sizeof(drm_db));
-			hdmi_drm_infoframe_rawset(drm_hb, drm_db);
+			memset(db, 0, sizeof(db));
+			hdmi_drm_infoframe_rawset(drm_hb, db);
 			hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);
 		} else {
 			drm_db[0] = 0x02; /* SMPTE ST 2084 */
-			hdmi_drm_infoframe_rawset(drm_hb, drm_db);
+			hdmi_drm_infoframe_rawset(drm_hb, db);
 			hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);
 		}
 		return;
@@ -1259,19 +1262,19 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	case 1:
 		/*standard HDR*/
 		drm_db[0] = 0x02; /* SMPTE ST 2084 */
-		hdmi_drm_infoframe_rawset(drm_hb, drm_db);
+		hdmi_drm_infoframe_rawset(drm_hb, db);
 		hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);
 		break;
 	case 2:
 		/*non standard*/
 		drm_db[0] = 0x02; /* no standard SMPTE ST 2084 */
-		hdmi_drm_infoframe_rawset(drm_hb, drm_db);
+		hdmi_drm_infoframe_rawset(drm_hb, db);
 		hdmi_avi_infoframe_config(CONF_AVI_BT2020, CLR_AVI_BT2020);
 		break;
 	case 3:
 		/*HLG*/
 		drm_db[0] = 0x03;/* HLG is 0x03 */
-		hdmi_drm_infoframe_rawset(drm_hb, drm_db);
+		hdmi_drm_infoframe_rawset(drm_hb, db);
 		hdmi_avi_infoframe_config(CONF_AVI_BT2020, SET_AVI_BT2020);
 		break;
 	case 0:
