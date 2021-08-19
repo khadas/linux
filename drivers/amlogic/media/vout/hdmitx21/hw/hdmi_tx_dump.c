@@ -94,4 +94,5 @@ void dump_hdmitx_reg(void)
 	dumpcor(D_HDR_GEN_CTL_IVCTX, D_HDR_SPARE_9_IVCTX);
 	// 0x00000f80 - 0x00000fa9
 	dumpcor(DSC_PKT_GEN_CTL_IVCTX, DSC_PKT_SPARE_9_IVCTX);
+	dump_infoframe_packets();
 }
