@@ -69,12 +69,12 @@ struct meson_crypto_dev_data {
 
 struct meson_crypto_dev_data meson_sc2_data = {
 	.status = TXLX_DMA_STS0,
-	.algo_cap = (CAP_AES | CAP_TDES),
+	.algo_cap = (CAP_AES | CAP_TDES | CAP_DES),
 };
 
 struct meson_crypto_dev_data meson_s4d_data = {
 	.status = TXLX_DMA_STS0,
-	.algo_cap = (CAP_AES | CAP_TDES | CAP_S17),
+	.algo_cap = (CAP_AES | CAP_TDES | CAP_DES | CAP_S17),
 };
 
 struct cipher_data {
@@ -665,7 +665,9 @@ int __crypto_run_physical(struct crypto_session *ses_ptr,
 	dsc[0].src_addr = (u32)(0xffffff00 | ses_ptr->cdata.kte);
 	dsc[0].tgt_addr = 0;
 	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen;
+	/* HW bug, key length needs to stay at 16 */
+	dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
+				  16 : ses_ptr->cdata.keylen;
 	dsc[0].dsc_cfg.b.mode = MODE_KEY;
 	dsc[0].dsc_cfg.b.eoc = 0;
 	dsc[0].dsc_cfg.b.owner = 1;
@@ -921,7 +923,9 @@ int __crypto_run_virt_to_phys(struct crypto_session *ses_ptr,
 	dsc[0].src_addr = (u32)(0xffffff00 | ses_ptr->cdata.kte);
 	dsc[0].tgt_addr = 0;
 	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen;
+	/* HW bug, key length needs to stay at 16 */
+	dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
+				  16 : ses_ptr->cdata.keylen;
 	dsc[0].dsc_cfg.b.mode = MODE_KEY;
 	dsc[0].dsc_cfg.b.eoc = 0;
 	dsc[0].dsc_cfg.b.owner = 1;
@@ -1160,7 +1164,9 @@ int __crypto_run_phys_to_virt(struct crypto_session *ses_ptr,
 	dsc[0].src_addr = (u32)(0xffffff00 | ses_ptr->cdata.kte);
 	dsc[0].tgt_addr = 0;
 	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen;
+	/* HW bug, key length needs to stay at 16 */
+	dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
+				  16 : ses_ptr->cdata.keylen;
 	dsc[0].dsc_cfg.b.mode = MODE_KEY;
 	dsc[0].dsc_cfg.b.eoc = 0;
 	dsc[0].dsc_cfg.b.owner = 1;
@@ -1411,7 +1417,9 @@ int __crypto_run_virtual(struct crypto_session *ses_ptr,
 	dsc[0].src_addr = (u32)(0xffffff00 | ses_ptr->cdata.kte);
 	dsc[0].tgt_addr = 0;
 	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen;
+	/* HW bug, key length needs to stay at 16 */
+	dsc[0].dsc_cfg.b.length = ses_ptr->cdata.keylen <= 16 ?
+				  16 : ses_ptr->cdata.keylen;
 	dsc[0].dsc_cfg.b.mode = MODE_KEY;
 	dsc[0].dsc_cfg.b.eoc = 0;
 	dsc[0].dsc_cfg.b.owner = 1;
@@ -2049,17 +2057,23 @@ error:
 static int aml_crypto_dev_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	static struct aml_crypto_dev *dd;
+	static struct aml_crypto_dev *crypto_dd;
 	const struct of_device_id *match;
 
-	dd = platform_get_drvdata(pdev);
-	if (!dd)
+	crypto_dd = platform_get_drvdata(pdev);
+	if (!crypto_dd)
 		return -ENODEV;
 	match = of_match_device(aml_crypto_dev_dt_match, &pdev->dev);
 	if (!match) {
 		dev_err(dev, "%s: cannot find match dt\n", __func__);
 		return -EINVAL;
 	}
+
+#if !USE_BUSY_POLLING
+	devm_free_irq(dev, crypto_dd->irq, crypto_dd);
+#endif
+
+	misc_deregister(&aml_crypto_device);
 	return 0;
 }
 
@@ -2073,12 +2087,12 @@ static struct platform_driver aml_crypto_dev_driver = {
 	},
 };
 
-int aml_crypto_device_driver_init(void)
+int __init aml_crypto_device_driver_init(void)
 {
 	return platform_driver_register(&aml_crypto_dev_driver);
 }
 
-void aml_crypto_device_driver_exit(void)
+void __exit aml_crypto_device_driver_exit(void)
 {
 	platform_driver_unregister(&aml_crypto_dev_driver);
 }

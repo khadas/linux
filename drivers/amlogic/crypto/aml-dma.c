@@ -227,6 +227,7 @@ dma_err:
 static int aml_dma_remove(struct platform_device *pdev)
 {
 	struct aml_dma_dev *dma_dd;
+	struct device *dev = &pdev->dev;
 
 	dma_dd = platform_get_drvdata(pdev);
 	if (!dma_dd)
@@ -234,6 +235,7 @@ static int aml_dma_remove(struct platform_device *pdev)
 #if !DMA_IRQ_MODE
 	kthread_stop(dma_dd->kthread);
 #endif
+	of_platform_depopulate(dev);
 	debugfs_remove_recursive(aml_dma_debug_dent);
 
 	return 0;
@@ -252,6 +254,7 @@ static struct platform_driver aml_dma_driver = {
 static int __init aml_dma_driver_init(void)
 {
 	int ret;
+
 #if ENABLE_SHA
 	ret = aml_sha_driver_init();
 	if (ret)
@@ -301,6 +304,7 @@ module_init(aml_dma_driver_init);
 
 static void __exit aml_dma_driver_exit(void)
 {
+	platform_driver_unregister(&aml_dma_driver);
 #if ENABLE_SHA
 	aml_sha_driver_exit();
 #endif
@@ -313,7 +317,6 @@ static void __exit aml_dma_driver_exit(void)
 #if ENABLE_CRYPTO_DEV
 	aml_crypto_device_driver_exit();
 #endif
-	platform_driver_unregister(&aml_dma_driver);
 }
 module_exit(aml_dma_driver_exit);
 

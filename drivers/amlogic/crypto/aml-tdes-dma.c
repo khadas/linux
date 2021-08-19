@@ -1503,6 +1503,7 @@ static int aml_tdes_remove(struct platform_device *pdev)
 	list_del(&tdes_dd->list);
 	spin_unlock(&aml_tdes.lock);
 
+	aml_tdes_buff_cleanup(tdes_dd);
 	aml_tdes_unregister_algs(tdes_dd, tdes_info);
 
 	tasklet_kill(&tdes_dd->done_task);
@@ -1528,7 +1529,7 @@ int __init aml_tdes_driver_init(void)
 	return platform_driver_register(&aml_tdes_driver);
 }
 
-void aml_tdes_driver_exit(void)
+void __exit aml_tdes_driver_exit(void)
 {
 	platform_driver_unregister(&aml_tdes_driver);
 }

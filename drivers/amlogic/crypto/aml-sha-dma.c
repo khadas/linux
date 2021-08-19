@@ -1670,7 +1670,7 @@ int __init aml_sha_driver_init(void)
 	return platform_driver_register(&aml_sha_driver);
 }
 
-void aml_sha_driver_exit(void)
+void __exit aml_sha_driver_exit(void)
 {
 	platform_driver_unregister(&aml_sha_driver);
 }
