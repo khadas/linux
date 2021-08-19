@@ -254,6 +254,15 @@ bool raw_is_4x_clk(enum aud_codec_types codec_type)
 	return is_4x;
 }
 
+bool raw_is_hbr_audio(enum aud_codec_types codec_type)
+{
+	if (codec_type == AUD_CODEC_TYPE_TRUEHD ||
+	    codec_type == AUD_CODEC_TYPE_DTS_HD_MA)
+		return true;
+
+	return false;
+}
+
 /**
  * TDM, SPDIF and EARC keep same mpll clk frequency(491.52M)
  * to prevent long time drift. This is to calc multiplier
@@ -263,15 +272,17 @@ bool raw_is_4x_clk(enum aud_codec_types codec_type)
  */
 unsigned int mpll2sys_clk_ratio_by_type(enum aud_codec_types codec_type)
 {
-	unsigned int ratio = 1;
+	/* pcm format mpll clk ratio: 491520000/6144000/EARC_DMAC_MUTIPLIER */
+	unsigned int ratio = 16;
 
-	if (codec_type == AUD_CODEC_TYPE_EAC3)
-		ratio = 4;
-	else if (codec_type == AUD_CODEC_TYPE_AC3 ||
-	    codec_type == AUD_CODEC_TYPE_DTS)
-		ratio = 16;
+	if (raw_is_4x_clk(codec_type)) {
+		if (raw_is_hbr_audio(codec_type))
+			ratio = 1;
+		else
+			ratio = 4;
+	}
 
-	return ratio;
+	return ratio * EARC_DMAC_MUTIPLIER;
 }
 
 void iec_get_channel_status_info(struct iec958_chsts *chsts,
