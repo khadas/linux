@@ -856,7 +856,8 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 		if (!strncmp(opt, "size", 4))
 			resman_parser_kv(opt, "size", &score);
 		else if (!strcmp(opt, "single"))
-			score = resource->d.codec_mm.total;
+		/*single mode,3/4 codec mm size is enough*/
+			score = resource->d.codec_mm.total*3/4;
 		else if (!strcmp(opt, "uhd"))
 			score = resource->d.codec_mm.uhd;
 		else if (!strcmp(opt, "secure"))
