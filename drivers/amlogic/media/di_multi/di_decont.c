@@ -35,6 +35,17 @@
 #include "register.h"
 #include "di_prc.h"
 
+/************************************************
+ * dbg_dct
+ *	bit 0: disable dct pre //used for enable decontour
+ *	bit 1: disable dct post
+ *	bit 2: disable: di_pq_db_setting
+ *	bit 4: grid_use_fix
+ *	bit 5: nset
+ *	bit 6:8: pq ?
+ *		dcntr dynamic used dbg_dct BIT:6-8
+ *	bit 12:13: demo mode (old is bit 8:9)
+ ************************************************/
 /*bit 4: grid use fix */
 /*bit 9:8: demo left /riht */
 static unsigned int dbg_dct;
@@ -1447,7 +1458,7 @@ void dcntr_check(struct vframe_s *vfm)
 		}
 	}
 
-	demo = (dbg_dct & 0x300) >> 8;
+	demo = (dbg_dct & 0x3000) >> 12;
 	if (pcfg->demo != demo || chg) {
 		pcfg->demo = demo;
 		pcfg->n_demo = 1;

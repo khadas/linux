@@ -2417,6 +2417,20 @@ static int dbg_mif_print_show(struct seq_file *s, void *v)
 	}
 	return 0;
 }
+
+/*hdr*/
+static int hdr_vd1_reg_show(struct seq_file *s, void *v)
+{
+	dim_dbg_hdr_reg1(s, v, 1);
+	return 0;
+}
+
+static int hdr_di_reg_show(struct seq_file *s, void *v)
+{
+	dim_dbg_hdr_reg1(s, v, 8);
+	return 0;
+}
+
 /**********************/
 DEFINE_SEQ_SHOW_ONLY(dim_reg_cue_int);
 DEFINE_SEQ_SHOW_ONLY(policy);
@@ -2497,6 +2511,11 @@ DEFINE_SEQ_SHOW_ONLY(mif_if2_reg);
 DEFINE_SEQ_SHOW_ONLY(mif_nr_reg);
 DEFINE_SEQ_SHOW_ONLY(mif_wr_reg);
 DEFINE_SEQ_SHOW_ONLY(reg_contr);
+
+/* hdr */
+DEFINE_SEQ_SHOW_ONLY(hdr_vd1_reg);
+DEFINE_SEQ_SHOW_ONLY(hdr_di_reg);
+DEFINE_SEQ_SHOW_ONLY(dim_dbg_hdr_para);
 
 /* hw */
 DEFINE_SEQ_SHOW_ONLY(hw_info);
@@ -2589,6 +2608,9 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"reg_mif_if2", S_IFREG | 0644, &mif_if2_reg_fops},
 	{"reg_mif_nr", S_IFREG | 0644, &mif_nr_reg_fops},
 	{"reg_mif_wr", S_IFREG | 0644, &mif_wr_reg_fops},
+	{"reg_hdr_vd1", S_IFREG | 0644, &hdr_vd1_reg_fops},
+	{"reg_hdr_di", S_IFREG | 0644, &hdr_di_reg_fops},
+	{"hdr_rpara", S_IFREG | 0644, &dim_dbg_hdr_para_fops},
 	{"regmif", S_IFREG | 0644, &dbg_mif_print_fops},
 	{"hw_info", S_IFREG | 0644, &hw_info_fops},
 	{"dct_mif", S_IFREG | 0644, &dbg_dct_mif_fops},

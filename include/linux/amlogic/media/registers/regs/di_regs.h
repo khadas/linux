@@ -18,6 +18,7 @@
 /* DI HDR */
 #define DI_HDR_IN_HSIZE                 0x376e
 #define DI_HDR_IN_VSIZE                 0x376f
+#ifdef HIS_CODE
 #define DI_HDR2_CTRL                    0x3800
 #define DI_HDR2_CLK_GATE                0x3881
 #define DI_HDR2_MATRIXI_COEF00_01       0x3882
@@ -78,4 +79,71 @@
 #define DI_HDR2_PROC_WIN2               0x38BA
 #define DI_HDR2_MATRIXI_EN_CTRL         0x38BB
 #define DI_HDR2_MATRIXO_EN_CTRL         0x38BC
+#else
+/* cp from vpp_hdr_regs.h for hdr */
+#define DI_HDR2_CTRL                      0x3770
+#define DI_HDR2_CLK_GATE                  0x3771
+#define DI_HDR2_MATRIXI_COEF00_01         0x3772
+#define DI_HDR2_MATRIXI_COEF02_10         0x3773
+#define DI_HDR2_MATRIXI_COEF11_12         0x3774
+#define DI_HDR2_MATRIXI_COEF20_21         0x3775
+#define DI_HDR2_MATRIXI_COEF22            0x3776
+#define DI_HDR2_MATRIXI_COEF30_31         0x3777
+#define DI_HDR2_MATRIXI_COEF32_40         0x3778
+#define DI_HDR2_MATRIXI_COEF41_42         0x3779
+#define DI_HDR2_MATRIXI_OFFSET0_1         0x377a
+#define DI_HDR2_MATRIXI_OFFSET2           0x377b
+#define DI_HDR2_MATRIXI_PRE_OFFSET0_1     0x377c
+#define DI_HDR2_MATRIXI_PRE_OFFSET2       0x377d
+#define DI_HDR2_MATRIXO_COEF00_01         0x377e
+#define DI_HDR2_MATRIXO_COEF02_10         0x377f
+#define DI_HDR2_MATRIXO_COEF11_12         0x3780
+#define DI_HDR2_MATRIXO_COEF20_21         0x3781
+#define DI_HDR2_MATRIXO_COEF22            0x3782
+#define DI_HDR2_MATRIXO_COEF30_31         0x3783
+#define DI_HDR2_MATRIXO_COEF32_40         0x3784
+#define DI_HDR2_MATRIXO_COEF41_42         0x3785
+#define DI_HDR2_MATRIXO_OFFSET0_1         0x3786
+#define DI_HDR2_MATRIXO_OFFSET2           0x3787
+#define DI_HDR2_MATRIXO_PRE_OFFSET0_1     0x3788
+#define DI_HDR2_MATRIXO_PRE_OFFSET2       0x3789
+#define DI_HDR2_MATRIXI_CLIP              0x378a
+#define DI_HDR2_MATRIXO_CLIP              0x378b
+#define DI_HDR2_CGAIN_OFFT                0x378c
+#define DI_EOTF_LUT_ADDR_PORT             0x378e
+#define DI_EOTF_LUT_DATA_PORT             0x378f
+#define DI_OETF_LUT_ADDR_PORT             0x3790
+#define DI_OETF_LUT_DATA_PORT             0x3791
+#define DI_CGAIN_LUT_ADDR_PORT            0x3792
+#define DI_CGAIN_LUT_DATA_PORT            0x3793
+#define DI_HDR2_CGAIN_COEF0               0x3794
+#define DI_HDR2_CGAIN_COEF1               0x3795
+#define DI_OGAIN_LUT_ADDR_PORT            0x3796
+#define DI_OGAIN_LUT_DATA_PORT            0x3797
+#define DI_HDR2_ADPS_CTRL                 0x3798
+#define DI_HDR2_ADPS_ALPHA0               0x3799
+#define DI_HDR2_ADPS_ALPHA1               0x379a
+#define DI_HDR2_ADPS_BETA0                0x379b
+#define DI_HDR2_ADPS_BETA1                0x379c
+#define DI_HDR2_ADPS_BETA2                0x379d
+#define DI_HDR2_ADPS_COEF0                0x379e
+#define DI_HDR2_ADPS_COEF1                0x379f
+#define DI_HDR2_GMUT_CTRL                 0x37a0
+#define DI_HDR2_GMUT_COEF0                0x37a1
+#define DI_HDR2_GMUT_COEF1                0x37a2
+#define DI_HDR2_GMUT_COEF2                0x37a3
+#define DI_HDR2_GMUT_COEF3                0x37a4
+#define DI_HDR2_GMUT_COEF4                0x37a5
+#define DI_HDR2_PIPE_CTRL1                0x37a6
+#define DI_HDR2_PIPE_CTRL2                0x37a7
+#define DI_HDR2_PIPE_CTRL3                0x37a8
+#define DI_HDR2_PROC_WIN1                 0x37a9
+#define DI_HDR2_PROC_WIN2                 0x37aa
+#define DI_HDR2_MATRIXI_EN_CTRL           0x37ab
+#define DI_HDR2_MATRIXO_EN_CTRL           0x37ac
+#define DI_HDR2_HIST_CTRL                 0x37ad
+#define DI_HDR2_HIST_H_START_END          0x37ae
+#define DI_HDR2_HIST_V_START_END          0x37af
+
+#endif
 #endif

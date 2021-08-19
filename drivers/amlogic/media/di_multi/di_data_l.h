@@ -148,6 +148,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_T5DB_P_NOTNR_THD, /**/
 	EDI_CFG_DCT,
 	EDI_CFG_T5DB_AFBCD_EN,
+	EDI_CFG_HDR_EN,
 	EDI_CFG_END,
 };
 
@@ -294,6 +295,18 @@ struct di_dbg_func_s {
 	void (*func)(unsigned int para);
 	char *name;
 	char *info;
+};
+
+/* hdr */
+#define DIM_C_HDR_DATA_CODE (0x12300)
+struct di_hdr_ops_s {
+	unsigned int (*get_data_size)(void);
+	bool (*init)(void);
+	bool (*unreg_setting)(void);
+	bool (*get_setting)(struct vframe_s *vfm);
+	bool (*get_change)(struct vframe_s *vfm, unsigned int force_change);
+	unsigned char (*get_pre_post)(void);
+	void (*set)(unsigned char pre_post);
 };
 
 /*register*/
@@ -955,7 +968,9 @@ enum EDI_MP_UI_T {
 	edi_mp_mcdebug_mode,
 	edi_mp_pldn_ctrl_rflsh,
 	edi_mp_pstcrc_ctrl,
-
+	edi_mp_hdr_en,
+	edi_mp_hdr_mode,
+	edi_mp_hdr_ctrl,
 	EDI_MP_SUB_DI_E,
 	/**************************************/
 	EDI_MP_SUB_NR_B,
@@ -2163,6 +2178,7 @@ struct di_data_l_s {
 	/*di ops for other module */
 	/*struct di_ext_ops *di_api; */
 	const struct di_meson_data *mdata;
+	void *hw_hdr; /*struct di_hdr_s*/
 	unsigned char hf_src_cnt;//
 	unsigned char hf_owner;	//
 	bool	hf_busy;//
@@ -2202,6 +2218,8 @@ struct di_data_l_s {
 #define DBG_M_DCT		DI_BIT22
 #define DBG_M_PDCT		DI_BIT23 //pre dct
 #define DBG_M_PP		DI_BIT24
+#define DBG_M_HDR		DI_BIT25
+
 #define DBG_M_IC		DI_BIT28
 #define DBG_M_RESET_PRE		DI_BIT29
 extern unsigned int di_dbg;
@@ -2243,6 +2261,7 @@ extern unsigned int di_dbg;
 #define dbg_nq(fmt, args ...)		dbg_m(DBG_M_NQ, fmt, ##args)
 #define dbg_pp(fmt, args ...)		dbg_m(DBG_M_PP, fmt, ##args)
 #define dbg_dctp(fmt, args ...)		dbg_m(DBG_M_PDCT, fmt, ##args)
+#define dbg_hdr(fmt, args ...)		dbg_m(DBG_M_HDR, fmt, ##args)
 
 #define dbg_bypass(fmt, args ...)	dbg_m(DBG_M_BPASS, fmt, ##args)
 #define dbg_ic(fmt, args ...)		dbg_m(DBG_M_IC, fmt, ##args)
@@ -2814,6 +2833,7 @@ static inline void p_ref_set_buf(struct di_buf_s *buf,
  * ic support information
  ************************************************/
 #define IC_SUPPORT_DECONTOUR	DI_BIT0
+#define IC_SUPPORT_HDR		DI_BIT1
 
 #define IS_IC_SUPPORT(cc)	(get_datal()->mdata->support & \
 				IC_SUPPORT_##cc ? true : false)
