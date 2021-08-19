@@ -44,7 +44,11 @@ unsigned long __read_mostly watchdog_enabled;
 int __read_mostly watchdog_user_enabled = 1;
 int __read_mostly nmi_watchdog_user_enabled = NMI_WATCHDOG_DEFAULT;
 int __read_mostly soft_watchdog_user_enabled = 1;
+#ifdef CONFIG_AMLOGIC_MODIFY
+int __read_mostly watchdog_thresh = 5;
+#else
 int __read_mostly watchdog_thresh = 10;
+#endif
 static int __read_mostly nmi_watchdog_available;
 
 static struct cpumask watchdog_allowed_mask __read_mostly;
