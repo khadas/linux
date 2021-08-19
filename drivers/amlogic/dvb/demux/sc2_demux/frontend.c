@@ -27,6 +27,7 @@
 #include "../aml_dvb.h"
 //#include "demod_gt.h"
 #include <linux/amlogic/aml_dvb_extern.h>
+#include <linux/amlogic/tee.h>
 
 #include "sc2_control.h"
 #include "../dmx_log.h"
@@ -263,6 +264,16 @@ static void ts_process(struct platform_device *pdev)
 		ret = of_property_read_string(pdev->dev.of_node, buf, &str);
 		if (!ret)
 			set_dvb_ts(pdev, advb, i, str);
+	}
+	memset(buf, 0, 32);
+	snprintf(buf, sizeof(buf), "tsinb");
+	ret = of_property_read_u32(pdev->dev.of_node, buf, &value);
+	if (!ret) {
+		ret = tee_demux_config_pad(0xfe0040a8, value);
+		dprint("tsinb=%d, ret:%d\n", value, ret);
+		demod_config_tsind_clk(0);
+	} else {
+		dprint("no tsinb setting\n");
 	}
 }
 
