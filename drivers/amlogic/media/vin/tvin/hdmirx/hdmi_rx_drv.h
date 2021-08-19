@@ -40,6 +40,7 @@
 #define IRQ_LOG		0x2000
 #define COR_LOG		0x4000
 #define DBG1_LOG    0x8000
+#define ECC_LOG		0x10000
 /* fix driver crash when kernel bootup */
 #define RX_VER1 "ver.2021/05/26"
 
@@ -636,7 +637,8 @@ struct rx_s {
 	bool arc_5vsts;
 	u32 vsync_cnt;
 	bool vrr_en;
-	bool ecc_err;
+	u32 ecc_err;
+	u32 ecc_err_frames_cnt;
 #ifdef CONFIG_AMLOGIC_HDMITX
 	struct notifier_block tx_notify;
 #endif

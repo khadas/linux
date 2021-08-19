@@ -2544,6 +2544,9 @@
 #define HDCP2X_RX_ECC_CTRL				0x1d90
 #define HDCP2X_RX_ECC_CNT2CHK_0			0x1d91
 #define HDCP2X_RX_ECC_CNT2CHK_1			0x1d92
+#define HDCP2X_RX_ECC_FRM_ERR_THR_0		0x1d96
+#define HDCP2X_RX_ECC_FRM_ERR_THR_1		0x1d97
+#define HDCP2X_RX_ECC_CONS_ERR_THR		0x1d98
 #define HDCP2X_RX_ECC_GVN_FRM_ERR_THR_0		0x1d9B
 #define HDCP2X_RX_ECC_GVN_FRM_ERR_THR_1		0x1d9C
 #define HDCP2X_RX_ECC_GVN_FRM_ERR_THR_2		0x1d9D
@@ -3159,6 +3162,8 @@ extern u32 term_cal_val;
 extern u32 phy_trim_val;
 extern u32 hdcp22_reauth_enable;
 extern int i2c_err_cnt;
+extern u32 rx_ecc_err_thres;
+extern u32 rx_ecc_err_frames;
 
 void rx_get_best_eq_setting(void);
 void wr_reg_hhi(unsigned int offset, unsigned int val);
@@ -3365,10 +3370,11 @@ void rx_set_aud_output_t7(u32 param);
 void rx_sw_reset_t7(int level);
 void aml_phy_get_trim_val_t7(void);
 void rx_hdcp_22_sent_reauth(void);
-bool rx_ecc_err_overflow(void);
+u32 rx_get_ecc_err(void);
+u32 rx_get_ecc_pkt_cnt(void);
 void hdmirx_output_en(bool en);
 void hdmirx_hbr2spdif(u8 val);
-
+void rx_hdcp_monitor(void);
 void rx_afifo_monitor(void);
 void rx_clkmsr_monitor(void);
 void rx_clkmsr_handler(struct work_struct *work);
