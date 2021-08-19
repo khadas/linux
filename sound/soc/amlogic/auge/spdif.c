@@ -698,8 +698,7 @@ static int spdif_clk_set(struct snd_kcontrol *kcontrol,
 	value = value - 1000000;
 	sysclk += value;
 
-	mpll_freq = sysclk * EARC_DMAC_MUTIPLIER *
-			mpll2sys_clk_ratio_by_type(p_spdif->codec_type);
+	mpll_freq = sysclk * mpll2sys_clk_ratio_by_type(p_spdif->codec_type);
 	p_spdif->sysclk_freq = sysclk;
 	clk_set_rate(p_spdif->sysclk, mpll_freq);
 	clk_set_rate(p_spdif->clk_spdifout, p_spdif->sysclk_freq);
@@ -1483,7 +1482,6 @@ static void aml_set_spdifclk(struct aml_spdif *p_spdif)
 	unsigned int mpll_freq = 0;
 
 	if (p_spdif->sysclk_freq) {
-		unsigned int mul = EARC_DMAC_MUTIPLIER;
 		int ret;
 
 		if (raw_is_4x_clk(p_spdif->codec_type)) {
@@ -1492,7 +1490,7 @@ static void aml_set_spdifclk(struct aml_spdif *p_spdif)
 		} else {
 			pr_debug("set normal 512 fs /4 fs\n");
 		}
-		mpll_freq = p_spdif->sysclk_freq * mul *
+		mpll_freq = p_spdif->sysclk_freq *
 				mpll2sys_clk_ratio_by_type(p_spdif->codec_type);
 
 		clk_set_rate(p_spdif->sysclk, mpll_freq);
