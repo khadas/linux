@@ -282,7 +282,7 @@ unsigned int pq_user_latch_flag;
 module_param(pq_user_latch_flag, uint, 0664);
 MODULE_PARM_DESC(pq_user_latch_flag, "\n pq_user_latch_flag\n");
 
-unsigned int fmeter_debug;/* for fmeter debug */
+unsigned int fmeter_debug = 255;/* for fmeter debug */
 module_param(fmeter_debug, uint, 0664);
 MODULE_PARM_DESC(fmeter_debug, "\n fmeter_debug\n");
 
@@ -1340,7 +1340,7 @@ void amvecm_fmeter_process(struct vframe_s *vf)
 		if (fmeter_debug == 1)
 			frc_set_seg_display(1, fmeter_score_hundred,
 				fmeter_score_ten, fmeter_score_unit);
-		else
+		if (fmeter_debug == 0)
 			frc_set_seg_display(0, 0, 0, 0);
 #endif
 
