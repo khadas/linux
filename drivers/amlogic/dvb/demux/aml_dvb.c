@@ -47,6 +47,7 @@ static int debug_dvb = 1;
 module_param(debug_dvb, int, 0644);
 
 #define CARD_NAME "amlogic-dvb"
+#define DVB_VERSION "V2.02"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
@@ -420,7 +421,7 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	int sid_num = 0;
 	int valid_ts = 0;
 
-	dprint("probe amlogic dvb driver\n");
+	dprint("probe amlogic dvb driver [%s].\n", DVB_VERSION);
 
 	advb = &aml_dvb_device;
 	memset(advb, 0, sizeof(aml_dvb_device));

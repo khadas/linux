@@ -197,6 +197,13 @@ static void set_dvb_ts(struct platform_device *pdev,
 		advb->ts[i].mode = AM_TS_DISABLE;
 		advb->ts[i].pinctrl = NULL;
 	}
+
+	if (IS_ERR_OR_NULL(advb->ts[i].pinctrl))
+		dprint("ts%d:pinctrl:%p Fail.\n",
+				i, advb->ts[i].pinctrl);
+	else
+		dprint("ts%d:pinctrl:%p OK.\n",
+				i, advb->ts[i].pinctrl);
 }
 
 static void ts_process(struct platform_device *pdev)
