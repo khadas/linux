@@ -824,18 +824,12 @@ void demod_config_in(u8 port, u8 wire_type)
 	if (wire_type == DEMOD_3WIRE) {
 		data |= 1 << FEC_S2P_SEL;
 		data |= (0x1 << FEC_S2P_3WIRE);
-		if (port == DEMOD_FEC_B)
-			data |= DEMOD_1_SERIAL << TS_S_OR_P_SEL1;
-		else if (port == DEMOD_FEC_A)
-			data |= DEMOD_1_SERIAL << TS_S_OR_P_SEL1;
+		data |= DEMOD_1_SERIAL << TS_S_OR_P_SEL1;
 
 	} else if (wire_type == DEMOD_4WIRE) {
 		data |= 1 << FEC_S2P_SEL;
 		data |= (0 << FEC_S2P_3WIRE);
-		if (port == DEMOD_FEC_B)
-			data |= DEMOD_1_SERIAL << TS_S_OR_P_SEL1;
-		else if (port == DEMOD_FEC_A)
-			data |= DEMOD_1_SERIAL << TS_S_OR_P_SEL1;
+		data |= DEMOD_1_SERIAL << TS_S_OR_P_SEL1;
 	} else {
 		if (port == DEMOD_FEC_B || port == DEMOD_FEC_C)
 			data |= DEMOD_1_PARALLEL << TS_S_OR_P_SEL1;
@@ -844,6 +838,17 @@ void demod_config_in(u8 port, u8 wire_type)
 	}
 	WRITE_CBUS_REG(DEMOD_PATH_CTRL(port), data);
 	pr_dbg("%s data:0x%0x\n", __func__, data);
+}
+
+void demod_config_tsind_clk(u8 b)
+{
+	unsigned int data = 0;
+
+	data = READ_CBUS_REG(DEMOD_PATH_CTRL(3));
+
+	data &= ~(0x1 << PATH_CTRL_RSVD2);
+
+	WRITE_CBUS_REG(DEMOD_PATH_CTRL(3), data);
 }
 
 void demux_config_pipeline(int tsn_in, int tsn_out)
