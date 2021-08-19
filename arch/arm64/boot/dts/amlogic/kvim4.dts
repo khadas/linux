@@ -527,10 +527,6 @@
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
-		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio GPIOH_2 GPIO_ACTIVE_HIGH>;
-		//spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
-
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
 
@@ -916,8 +912,8 @@
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&mclk_1_pins
 			&tdm_a_pins
-			&tdm_d4_pins
-			&tdm_d5_pins
+			&tdm_d2_pins
+			&tdm_d3_pins
 			&tdm_clk_pins>;
 
 		/*
@@ -1565,11 +1561,11 @@
 	};
 
 	tdm_a_pins: tdm_a_pin {
-		mux { /* GPIOT_1, GPIOT_2, GPIOT_5, GPIOT_6 */
+		mux { /* GPIOT_1, GPIOT_2, GPIOT_3, GPIOT_4 */
 			groups = "tdm_sclk1",
 				"tdm_fs1",
-				"tdm_d4",
-				"tdm_d5";
+				"tdm_d2",
+				"tdm_d3";
 			function = "tdm";
 		};
 	};
@@ -1644,16 +1640,16 @@
 };
 
 &pinctrl_audio {
-	tdm_d4_pins: tdm_d4_pin {
+	tdm_d2_pins: tdm_d2_pin {
 		mux {
-			groups = "tdm_d4";
+			groups = "tdm_d2";
 			function = "tdmouta_lane0";
 		};
 	};
 
-	tdm_d5_pins: tdm_d5_pin {
+	tdm_d3_pins: tdm_d3_pin {
 		mux {
-			groups = "tdm_d5";
+			groups = "tdm_d3";
 			function = "tdmouta_lane1";
 		};
 	};
