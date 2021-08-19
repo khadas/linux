@@ -687,7 +687,7 @@ static int vq_file_thread(void *data)
 	sched_setscheduler(current, SCHED_FIFO, &param);
 
 	while (1) {
-		if (kthread_should_stop())
+		if (kthread_should_stop() || dev->thread_need_stop)
 			break;
 		wait_event_interruptible_timeout(file_wq,
 			wakeup | dev->thread_need_stop,
@@ -708,7 +708,7 @@ static int vq_fence_thread(void *data)
 	sched_setscheduler(current, SCHED_FIFO, &param);
 
 	while (1) {
-		if (kthread_should_stop())
+		if (kthread_should_stop() || dev->thread_need_stop)
 			break;
 		wait_event_interruptible_timeout(dev->fence_wq,
 				 kfifo_len(&dev->dq_info_q) > 0 ||
@@ -841,9 +841,10 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 	int time_left = 0;
 
 	vq_print(P_ERROR, "unreg: in\n");
-	videoq_notify_to_amvideo(false);
 
 	dev->thread_need_stop = true;
+
+	videoq_notify_to_amvideo(false);
 
 	if (dev->file_thread)
 		kthread_stop(dev->file_thread);
@@ -880,6 +881,7 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 		if (ret < 0)
 			vq_print(P_ERROR, "set game mode false err\n");
 	}
+
 	ret = destroy_vt_config(dev);
 	if (ret < 0)
 		return ret;
