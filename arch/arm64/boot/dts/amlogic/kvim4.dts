@@ -1637,6 +1637,16 @@
 			output-low;
 		};
 	};
+
+	e_uart_pins_no_cts_rts:e_uart {
+		mux {
+			groups = "uart_e_tx",
+					"uart_e_rx";
+			bias-pull-up;
+			output-high;
+			function = "uart_e";
+		};
+	};
 };
 
 &pinctrl_audio {
@@ -1711,6 +1721,12 @@
 &uart_C {
 	status = "okay";
 	uart-has-rtscts;
+};
+
+&uart_E {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&e_uart_pins_no_cts_rts>;
 };
 
 &state_led {
