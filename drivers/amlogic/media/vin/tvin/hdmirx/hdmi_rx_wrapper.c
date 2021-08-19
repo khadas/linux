@@ -116,7 +116,7 @@ module_param(esm_auth_fail_en, bool, 0664);
 /* to inform hdcp_rx22 whether there's any device connected */
 u32 pwr_sts_to_esm;
 static int hdcp22_capable_sts = 0xff;
-static int hdcp22_auth_sts = 0xff;
+bool esm_error_flag;
 
 /*the esm reset flag for hdcp_rx22*/
 bool esm_reset_flag;
@@ -132,9 +132,9 @@ bool enable_hdcp22_esm_log;
 MODULE_PARM_DESC(enable_hdcp22_esm_log, "\n enable_hdcp22_esm_log\n");
 module_param(enable_hdcp22_esm_log, bool, 0664);
 
-bool esm_error_flag;
-MODULE_PARM_DESC(esm_error_flag, "\n esm_error_flag\n");
-module_param(esm_error_flag, bool, 0664);
+int hdcp22_auth_sts = 0xff;
+MODULE_PARM_DESC(hdcp22_auth_sts, "\n hdcp22_auth_sts\n");
+module_param(hdcp22_auth_sts, int, 0664);
 
 bool hdcp22_esm_reset2;
 MODULE_PARM_DESC(hdcp22_esm_reset2, "\n hdcp22_esm_reset2\n");
@@ -972,6 +972,8 @@ irqreturn_t irq_handler(int irq, void *params)
 	static u32 irq_err_cnt;
 	int error = 0;
 	u8 tmp = 0;
+	u32 ecc_err_tmp;
+	u32 ecc_pkt_cnt;
 
 	cur_clks = sched_clock();
 	irq_duration = cur_clks - last_clks;
@@ -1059,6 +1061,22 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 					emp_type &= (~EMP_TYPE_VTEM);
 				} else {
 					rx.vrr_en = false;
+				}
+				if (rx.cur.hdcp22_state & 1) {
+					ecc_err_tmp = rx_get_ecc_err();
+					ecc_pkt_cnt = rx_get_ecc_pkt_cnt();
+					if (log_level & ECC_LOG)
+						rx_pr("ecc:%d-%d\n",
+							  ecc_err_tmp,
+							  ecc_pkt_cnt);
+					if (ecc_err_tmp && ecc_pkt_cnt) {
+						rx.ecc_err_frames_cnt++;
+						rx.ecc_err += ecc_err_tmp;
+						skip_frame(2);
+					} else {
+						rx.ecc_err = 0;
+						rx.ecc_err_frames_cnt = 0;
+					}
 				}
 				rx_update_sig_info();
 			}
@@ -1246,6 +1264,11 @@ static bool fmt_vic_abnormal(void)
 			    rx.vs_info_details._3d_structure == 0)) {
 		if (log_level & VIDEO_LOG)
 			rx_pr("avi abnormal for 3dmode\n");
+		return true;
+	} else if ((rx.cur.hdcp22_state & 1) &&
+			   rx.cur.hdcp14_state == 3) {
+		if (log_level & VIDEO_LOG)
+			rx_pr("hdcp sts err\n");
 		return true;
 	}
 	return false;
@@ -1696,7 +1719,7 @@ static bool rx_is_timing_stable(void)
 	}
 	if (stable_check_lvl & ECC_ERR_CNT_EN) {
 		if (rx.cur.hdcp22_state == 3)
-			rx.ecc_err = rx_ecc_err_overflow();
+			rx.ecc_err = rx_get_ecc_err();
 
 		if (rx.ecc_err) {
 			ret = false;
@@ -2191,6 +2214,8 @@ void rx_get_global_variable(const char *buf)
 	pr_var(afifo_moniter_cnt, i++);
 	pr_var(auto_aclk_mute, i++);
 	pr_var(aud_avmute_en, i++);
+	pr_var(rx_ecc_err_thres, i++);
+	pr_var(rx_ecc_err_frames, i++);
 	pr_var(aud_mute_sel, i++);
 	pr_var(md_ists_en, i++);
 	pr_var(pdec_ists_en, i++);
@@ -2403,6 +2428,12 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(auto_aclk_mute, index);
 	if (set_pr_var(tmpbuf, var_to_str(aud_avmute_en), &aud_avmute_en, value))
 		return pr_var(aud_avmute_en, index);
+	if (set_pr_var(tmpbuf, var_to_str(rx_ecc_err_thres),
+		&rx_ecc_err_thres, value))
+		return pr_var(rx_ecc_err_thres, index);
+	if (set_pr_var(tmpbuf, var_to_str(rx_ecc_err_frames),
+		&rx_ecc_err_frames, value))
+		return pr_var(rx_ecc_err_frames, index);
 	if (set_pr_var(tmpbuf, var_to_str(aud_mute_sel), &aud_mute_sel, value))
 		return pr_var(aud_mute_sel, index);
 	if (set_pr_var(tmpbuf, var_to_str(md_ists_en), &md_ists_en, value))
@@ -3123,6 +3154,7 @@ void rx_main_state_machine(void)
 				rx.aud_sr_stable_cnt = 0;
 				rx.aud_sr_unstable_cnt = 0;
 				rx.no_signal = false;
+				rx.ecc_err = 0;
 				clk_chg_cnt = 0;
 				/*memset(&rx.aud_info, 0,*/
 					/*sizeof(struct aud_info_s));*/
@@ -3941,6 +3973,7 @@ void hdmirx_timer_handler(struct timer_list *t)
 			if (!sm_pause) {
 				rx_clkrate_monitor();
 				rx_afifo_monitor();
+				rx_hdcp_monitor();
 				rx_main_state_machine();
 				hdcp22_decrypt_monitor();
 				rx_ext_state_monitor();

@@ -66,6 +66,8 @@ int auto_aclk_mute = 2;
 int aud_avmute_en = 1;
 int aud_mute_sel = 2;
 int force_clk_rate;
+u32 rx_ecc_err_thres = 100;
+u32 rx_ecc_err_frames = 50;
 int md_ists_en = VIDEO_MODE;
 int pdec_ists_en;/* = AVI_CKS_CHG | DVIDET | DRM_CKS_CHG | DRM_RCV_EN;*/
 u32 packet_fifo_cfg;
@@ -3069,6 +3071,24 @@ void rx_afifo_monitor(void)
 	}
 }
 
+void rx_hdcp_monitor(void)
+{
+	if (rx.cur.hdcp22_state & 1 &&
+		rx.state == FSM_SIG_READY) {
+		if (rx.ecc_err_frames_cnt >= rx_ecc_err_frames) {
+			if (hdcp22_reauth_enable) {
+				skip_frame(5);
+				rx_hdcp_22_sent_reauth();
+				rx_pr("reauth-err:%d\n", rx.ecc_err);
+				if (rx.state >= FSM_SIG_STABLE)
+					rx.state = FSM_SIG_WAIT_STABLE;
+				rx.ecc_err = 0;
+				rx.ecc_err_frames_cnt = 0;
+			}
+		}
+	}
+}
+
 /*
  * rx_hdcp_init - hdcp1.4 init and enable
  */
@@ -3475,12 +3495,12 @@ void cor_init(void)
 	hdmirx_wr_cor(DEC_AV_MUTE_DP2_IVCRX, 0x20);
 
 	// hdcp 2x ECC detection enable  mode 3
-	hdmirx_wr_cor(HDCP2X_RX_ECC_CTRL, 7);
-	hdmirx_wr_cor(HDCP2X_RX_ECC_CNT2CHK_0, 60);
-	hdmirx_wr_cor(HDCP2X_RX_ECC_GVN_FRM_ERR_THR_0, 0xff);
-	hdmirx_wr_cor(HDCP2X_RX_ECC_GVN_FRM_ERR_THR_1, 0xf);
+	hdmirx_wr_cor(HDCP2X_RX_ECC_CTRL, 3);
+	hdmirx_wr_cor(HDCP2X_RX_ECC_CONS_ERR_THR, 50);
+	hdmirx_wr_cor(HDCP2X_RX_ECC_FRM_ERR_THR_0, 0x1);
+	hdmirx_wr_cor(HDCP2X_RX_ECC_FRM_ERR_THR_1, 0x0);
 	//hdmirx_wr_cor(HDCP2X_RX_ECC_GVN_FRM_ERR_THR_2, 0xff);
-	hdmirx_wr_cor(HDCP2X_RX_GVN_FRM, 30);
+	//hdmirx_wr_cor(HDCP2X_RX_GVN_FRM, 30);
 }
 
 void hdcp_init_t7(void)
@@ -5500,22 +5520,32 @@ void rx_i2c_err_monitor(void)
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL,  data32);
 }
 
-bool rx_ecc_err_overflow(void)
+u32 rx_get_ecc_pkt_cnt(void)
 {
-	bool ret = false;
+	u32 pkt_cnt;
 
-	if ((hdmirx_rd_cor(RX_HDCP_ERR2_DP2_IVCRX) == 0xff) &&
-		(hdmirx_rd_cor(RX_HDCP_ERR_DP2_IVCRX) == 0xff))
-		ret = true;
+	pkt_cnt = hdmirx_rd_cor(RX_PKT_CNT_DP2_IVCRX) |
+			(hdmirx_rd_cor(RX_PKT_CNT2_DP2_IVCRX) << 8);
+
+	return pkt_cnt;
+}
+
+u32 rx_get_ecc_err(void)
+{
+	u32 err_cnt;
+
 	hdmirx_wr_cor(RX_ECC_CTRL_DP2_IVCRX, 3);
+	err_cnt = hdmirx_rd_cor(RX_HDCP_ERR_DP2_IVCRX) |
+			(hdmirx_rd_cor(RX_HDCP_ERR2_DP2_IVCRX) << 8);
 
-	return ret;
+	return err_cnt;
 }
 
 void rx_hdcp_22_sent_reauth(void)
 {
 	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x0);
-	hdmirx_wr_cor(RX_ECC_CTRL_DP2_IVCRX, 3);
+	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x0);
+	//hdmirx_wr_cor(RX_ECC_CTRL_DP2_IVCRX, 3);
 	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x80);
 }
 
