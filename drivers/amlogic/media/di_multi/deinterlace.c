@@ -3667,6 +3667,9 @@ void dim_pre_de_process(unsigned int channel)
 	}
 	if (IS_ERR_OR_NULL(ppre->di_wr_buf))
 		return;
+	if (dim_hdr_ops() && ppre->di_wr_buf->c.en_hdr)
+		dim_hdr_ops()->set(1);
+
 	di_lock_irqfiq_save(irq_flag2);
 
 	dimh_enable_di_pre_aml(&ppre->di_inp_mif,
@@ -4966,6 +4969,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 	enum EDPST_OUT_MODE tmpmode;
 	unsigned int pps_w, pps_h;
 	u32 typetmp;
+	unsigned char chg_hdr = 0;
 
 	pch = get_chdata(channel);
 
@@ -5456,6 +5460,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			}
 #endif
 			ppre->field_count_for_cont = 0;
+			chg_hdr++;
 		} else if (ppre->cur_prog_flag == 0) {
 			#ifdef MARK_SC2
 			/* check if top/bot interleaved */
@@ -5743,6 +5748,9 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		}
 		dcntr_check(vframe);
 		//dcntr_check(&ppre->vfm_cpy);
+		if (dim_hdr_ops() &&
+		    dim_hdr_ops()->get_change(vframe, chg_hdr))
+			dim_hdr_ops()->get_setting(vframe);
 	}
 	/*dim_dbg_pre_cnt(channel, "cfg");*/
 	/* di_wr_buf */
@@ -5787,6 +5795,15 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			di_buf->di_buf_post->hf_done = 0;
 			dbg_ic("hf:i cfg:%px:%d\n", &di_buf->di_buf_post->hf,
 				di_buf->di_buf_post->en_hf);
+
+			/*hdr*/
+			di_buf->di_buf_post->c.en_hdr = false;
+			di_buf->c.en_hdr = false;
+			if (dim_hdr_ops()) {
+				if (dim_hdr_ops()->get_pre_post == 0)
+					di_buf->di_buf_post->c.en_hdr = true;
+			}
+
 			dim_pqrpt_init(&di_buf->di_buf_post->pq_rpt);
 			if (dip_itf_is_ins(pch) && dim_dbg_new_int(2))
 				dim_dbg_buffer2(di_buf->di_buf_post->c.buffer, 3);
@@ -5825,6 +5842,13 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			return 22;
 		}
 		mem_resize_buf(pch, di_buf);
+		/* hdr */
+		di_buf->c.en_hdr = false;
+		di_buf->di_buf_post->c.en_hdr = false;
+		if (dim_hdr_ops() &&
+		    dim_hdr_ops()->get_pre_post() == 1)
+			di_buf->c.en_hdr = true;
+
 		di_buf->post_proc_flag = 0;
 		di_buf->canvas_config_flag = 1;
 		di_buf->di_wr_linked_buf = NULL;
@@ -7348,6 +7372,8 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 	}
 
 	dim_secure_sw_post(channel);
+	if (dim_hdr_ops() && di_buf->c.en_hdr)
+		dim_hdr_ops()->set(0);
 
 	dim_ddbg_mod_save(EDI_DBG_MOD_POST_SETB, channel, ppost->frame_cnt);
 	dbg_post_cnt(channel, "ps1");
@@ -9730,6 +9756,8 @@ void di_unreg_setting(void)
 	set_hw_reg_flg(false);
 	if (get_datal()->dct_op)
 		get_datal()->dct_op->unreg_all();
+	if (dim_hdr_ops())
+		dim_hdr_ops()->unreg_setting();
 
 	dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
 	post_close_new();	/*2018-11-29*/
@@ -10320,7 +10348,8 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 			   first_field_type, channel);
 	get_ops_nr()->cue_int(vframe);
 	dim_ddbg_mod_save(EDI_DBG_MOD_REGE, channel, 0);
-
+	if (dim_hdr_ops())
+		dim_hdr_ops()->init();
 	/*--------------------------*/
 	/*test*/
 	dimh_int_ctr(0, 0, 0, 0, 0, 0);

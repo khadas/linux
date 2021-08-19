@@ -37,6 +37,7 @@
  ***********************************************/
 #define DIM_OUT_NV21	(1)
 //#define TEST_PIP	(1)
+
 /************************************************
  * from t7 cvs address is ulong
  ************************************************/
@@ -186,6 +187,7 @@ struct dsub_bufv_s {
 	void *in; /* struct dim_nins_s */
 	bool in_noback; /* this is for dec reset */
 	bool src_is_i;
+	bool en_hdr;
 	void *buffer;	/*for new interface */
 };
 

@@ -229,6 +229,12 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_T5DB_AFBCD_EN,
 			0,
 			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_HDR_EN]  = {"hdr_en",
+			/* 0:disable;	*/
+			/* 1:enable;	*/
+			EDI_CFG_HDR_EN,
+			0,
+			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
 
@@ -783,7 +789,12 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 			edi_mp_pldn_ctrl_rflsh, 1},
 	[edi_mp_pstcrc_ctrl]  = {"edi_mp_pstcrc_ctrl:uint:1",
 			edi_mp_pstcrc_ctrl, 1},
-
+	[edi_mp_hdr_en]  = {"hdr_en:bool:0",
+			edi_mp_hdr_en, 0},
+	[edi_mp_hdr_mode]  = {"hdr_mode:uint:1:HDR_BYPASS",
+			edi_mp_hdr_mode, 1},
+	[edi_mp_hdr_ctrl]  = {"hdr_ctrl:uint:0",
+			edi_mp_hdr_ctrl, 0},
 	[EDI_MP_SUB_DI_E]  = {"di end-------",
 				EDI_MP_SUB_DI_E, 0},
 	/**************************************/

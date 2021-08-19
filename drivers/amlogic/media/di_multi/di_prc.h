@@ -362,6 +362,13 @@ struct dim_nins_s *nins_dct_get(struct di_ch_s *pch);
 struct dim_nins_s *nins_dct_get_bypass(struct di_ch_s *pch);
 bool nins_dct_2_done(struct di_ch_s *pch, struct dim_nins_s *nins);
 
+/* hdr */
+void dim_hdr_prob(void);
+void dim_hdr_remove(void);
+const struct di_hdr_ops_s *dim_hdr_ops(void);
+int dim_dbg_hdr_reg1(struct seq_file *s, void *v, unsigned int indx);
+int dim_dbg_hdr_para_show(struct seq_file *s, void *v);
+
 /*************************************************/
 
 void dbg_regs_tab(struct seq_file *s, const struct regs_t *pregtab,

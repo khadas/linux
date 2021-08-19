@@ -3661,7 +3661,7 @@ static const struct di_meson_data  data_s4 = {
 static const struct di_meson_data  data_t3 = {
 	.name = "dim_t3",
 	.ic_id	= DI_IC_ID_T3,
-	.support = IC_SUPPORT_DECONTOUR
+	.support = IC_SUPPORT_DECONTOUR | IC_SUPPORT_HDR
 };
 
 /* #ifdef CONFIG_USE_OF */
@@ -3919,6 +3919,7 @@ static int dim_probe(struct platform_device *pdev)
 	dct_pre_prob(pdev);
 	dcntr_prob();
 	dip_prob_ch();
+	dim_hdr_prob();
 
 	task_start();
 	mtask_start();
@@ -3978,6 +3979,7 @@ static int dim_remove(struct platform_device *pdev)
 		//qiat_clear_buf(pch);
 		dim_sec_release(pch);
 	}
+	dim_hdr_remove();
 	di_set_flg_hw_int(false);
 
 	task_stop();
