@@ -146,5 +146,6 @@ void set21_hpll_od3_t7(u32 div);
 void set21_hpll_sspll_t7(enum hdmi_vic vic);
 
 void dump_hdmitx_reg(void);
+void dump_infoframe_packets(void);
 
 #endif
