@@ -637,6 +637,7 @@ struct rx_s {
 	bool arc_5vsts;
 	u32 vsync_cnt;
 	bool vrr_en;
+	u8 afifo_sts;
 	u32 ecc_err;
 	u32 ecc_err_frames_cnt;
 #ifdef CONFIG_AMLOGIC_HDMITX

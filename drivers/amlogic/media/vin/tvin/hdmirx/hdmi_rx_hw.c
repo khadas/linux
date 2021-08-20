@@ -59,7 +59,9 @@ int hdcp_enc_mode;
 /* top_irq_en bit[16:13] hdcp_sts */
 /* bit27 DE rise */
 int top_intr_maskn_value;
-u32 afifo_moniter_cnt;
+u32 afifo_overflow_cnt;
+u32 afifo_underflow_cnt;
+int rx_afifo_dbg_en;
 bool hdcp_enable = 1;
 int acr_mode;
 int auto_aclk_mute = 2;
@@ -1380,8 +1382,9 @@ void rx_get_audio_status(struct rx_audio_stat_s *aud_sts)
 				aud_sts->afifo_thres_pass &&
 				!rx.aud_info.aud_mute_en;
 		} else {
+			if ((rx.afifo_sts & 3) == 0)
+				aud_sts->aud_stb_flag = true;
 			aud_sts->aud_rcv_packet = rx.aud_info.aud_packet_received;
-			aud_sts->aud_stb_flag = true;
 			aud_sts->aud_sr = rx.aud_info.real_sr;
 			memcpy(aud_sts->ch_sts, &rx.aud_info.ch_sts, 7);
 		}
@@ -3040,35 +3043,43 @@ bool rx_clkrate_monitor(void)
 
 void rx_afifo_monitor(void)
 {
-	static u8 cnt;
-
-	if (cnt++ >= 5)
-		cnt = 0;
-	else
-		return;
 	if (rx.chip_id < CHIP_ID_T7)
 		return;
 	if (rx.state != FSM_SIG_READY)
 		return;
-	if (hdmirx_rd_cor(RX_INTR4_PWD_IVCRX) & 2) {
-		hdmirx_wr_cor(RX_INTR4_PWD_IVCRX, 2);
-		if (afifo_moniter_cnt < 0x100)
-			afifo_moniter_cnt++;
+	if (rx_afifo_dbg_en)
+		return;
+
+	rx.afifo_sts = hdmirx_rd_cor(RX_INTR4_PWD_IVCRX) & 3;
+	hdmirx_wr_cor(RX_INTR4_PWD_IVCRX, 3);
+	if (rx.afifo_sts & 2) {
+		afifo_overflow_cnt++;
 		if (log_level & AUDIO_LOG)
-			rx_pr("afifo overflow\n");
+			rx_pr("overflow\n");
+	} else if (rx.afifo_sts & 1) {
+		afifo_underflow_cnt++;
+		rx_aud_fifo_rst();
+		if (log_level & AUDIO_LOG)
+			rx_pr("underflow\n");
 	} else {
-		if (afifo_moniter_cnt && afifo_moniter_cnt <= 0x100)
-			afifo_moniter_cnt--;
+		if (afifo_overflow_cnt)
+			afifo_overflow_cnt--;
+		if (afifo_underflow_cnt)
+			afifo_underflow_cnt--;
 	}
-	if (afifo_moniter_cnt > 20 &&
-		afifo_moniter_cnt <= 0x100) {
-		afifo_moniter_cnt = 0;
+	if (afifo_overflow_cnt > 150) {
+		afifo_overflow_cnt = 0;
 		hdmirx_output_en(false);
 		hdmirx_hbr2spdif(0);
 		rx_set_cur_hpd(0, 5);
 		rx.state = FSM_5V_LOST;
 		rx_pr("!!force reset\n");
 	}
+	//if (afifo_underflow_cnt) {
+		//afifo_underflow_cnt = 0;
+		//rx_aud_fifo_rst();
+		//rx_pr("!!pll rst\n");
+	//}
 }
 
 void rx_hdcp_monitor(void)
@@ -3628,6 +3639,10 @@ void hdmirx_hw_probe(void)
 void rx_audio_pll_sw_update(void)
 {
 	hdmirx_wr_bits_top(TOP_ACR_CNTL_STAT, _BIT(11), 1);
+
+	hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 1);
+	udelay(1);
+	hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 0);
 }
 
 /*
@@ -3689,6 +3704,23 @@ bool is_aud_pll_error(void)
 	if ((ret) && (log_level & AUDIO_LOG))
 		rx_pr("clk:%d,128fs:%d,512fs:%d,\n", clk, aud_128fs, aud_512fs);
 	return ret;
+}
+
+void rx_aud_fifo_rst(void)
+{
+	//u8 tmp;
+
+	hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 1);
+	udelay(1);
+	hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(1), 0);
+	//tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+	//tmp &= ~(1 << 8);// [	8] clk_en for cts_hdmirx_aud_pll_clk
+	//wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+	//udelay(2);
+	//tmp |= (1 << 8);// [	8] clk_en for cts_hdmirx_aud_pll_clk
+	//wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+	//if (log_level & AUDIO_LOG)
+		//rx_pr("aud pll rst\n");
 }
 
 /*

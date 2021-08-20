@@ -3128,7 +3128,7 @@ extern unsigned int hdmirx_ctrl_port;
 extern int acr_mode;
 extern int hdcp_enc_mode;
 extern int force_clk_rate;
-extern u32 afifo_moniter_cnt;
+extern int rx_afifo_dbg_en;
 extern int auto_aclk_mute;
 extern int aud_avmute_en;
 extern int aud_mute_sel;
@@ -3379,4 +3379,5 @@ void rx_afifo_monitor(void);
 void rx_clkmsr_monitor(void);
 void rx_clkmsr_handler(struct work_struct *work);
 void rx_i2c_err_monitor(void);
+void rx_aud_fifo_rst(void);
 #endif
