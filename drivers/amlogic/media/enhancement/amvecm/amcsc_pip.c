@@ -984,6 +984,7 @@ void hdmi_packet_process(int signal_change_flag,
 
 	switch (output_format) {
 	case BT709:
+	case BT_BYPASS:
 		send_info.features =
 			/* default 709 limit */
 			(0 << 30) /*sdr output 709*/
@@ -1047,7 +1048,6 @@ void hdmi_packet_process(int signal_change_flag,
 		break;
 	case UNKNOWN_FMT:
 	case BT2100_IPT:
-	case BT_BYPASS:
 		/* handle by dolby vision */
 		return;
 	}
