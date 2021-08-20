@@ -2211,7 +2211,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(en_4k_timing, i++);
 	pr_var(acr_mode, i++);
 	pr_var(force_clk_rate, i++);
-	pr_var(afifo_moniter_cnt, i++);
+	pr_var(rx_afifo_dbg_en, i++);
 	pr_var(auto_aclk_mute, i++);
 	pr_var(aud_avmute_en, i++);
 	pr_var(rx_ecc_err_thres, i++);
@@ -2422,8 +2422,9 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(acr_mode, index);
 	if (set_pr_var(tmpbuf, var_to_str(force_clk_rate), &force_clk_rate, value))
 		return pr_var(force_clk_rate, index);
-	if (set_pr_var(tmpbuf, var_to_str(afifo_moniter_cnt), &afifo_moniter_cnt, value))
-		return pr_var(afifo_moniter_cnt, index);
+	if (set_pr_var(tmpbuf, var_to_str(rx_afifo_dbg_en),
+					&rx_afifo_dbg_en, value))
+		return pr_var(rx_afifo_dbg_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(auto_aclk_mute), &auto_aclk_mute, value))
 		return pr_var(auto_aclk_mute, index);
 	if (set_pr_var(tmpbuf, var_to_str(aud_avmute_en), &aud_avmute_en, value))
