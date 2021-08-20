@@ -53,6 +53,12 @@ static void construct_avi_packet(struct hdmitx_dev *hdev)
 	info->ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	info->content_type = HDMI_CONTENT_TYPE_GRAPHICS;
 	info->pixel_repeat = 0;
+	if (para->timing.pi_mode == 0) { /* interlaced modes */
+		if (para->timing.h_active == 1440)
+			info->pixel_repeat = 1;
+		if (para->timing.h_active == 2880)
+			info->pixel_repeat = 3;
+	}
 	info->top_bar = 0;
 	info->bottom_bar = 0;
 	info->left_bar = 0;

@@ -1212,6 +1212,17 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			hd21_write_reg(VENC_VIDEO_TST_VDCNT_STSET, value);
 			return;
 		}
+		if (strncmp(tmpbuf + 4, "auto", 4) == 0) {
+			const struct hdmi_timing *t;
+
+			if (!hdev->para)
+				return;
+			t = &hdev->para->timing;
+			value = t->h_active;
+			hd21_write_reg(VENC_VIDEO_TST_MDSEL, 1);
+			hd21_write_reg(VENC_VIDEO_TST_CLRBAR_WIDTH, value / 8);
+			return;
+		}
 		hd21_write_reg(VENC_VIDEO_TST_MDSEL, 1);
 		value = 1920;
 		ret = kstrtoul(tmpbuf + 4, 10, &value);
