@@ -97,6 +97,10 @@ struct dnlp_alg_param_s {
 	unsigned int dnlp_ve_hist_cur_gain_precise;
 	unsigned int dnlp_reg_mono_binrang_st;
 	unsigned int dnlp_reg_mono_binrang_ed;
+	unsigned int dnlp_c_hist_gain_base;
+	unsigned int dnlp_s_hist_gain_base;
+	unsigned int dnlp_mvreflsh_offset;
+	unsigned int dnlp_luma_avg_th;
 };
 
 struct dnlp_parse_cmd_s {
@@ -134,6 +138,8 @@ extern int *reg_blk_boost_12_copy;
 extern int *reg_adp_ofset_20_copy;
 extern int *reg_mono_protect_copy;
 extern int *reg_trend_wht_expand_lut8_copy;
+extern int *c_hist_gain_copy;
+extern int *s_hist_gain_copy;
 
 extern int *ro_luma_avg4_copy;
 extern int *ro_var_d8_copy;

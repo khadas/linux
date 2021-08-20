@@ -77,6 +77,8 @@ int *reg_blk_boost_12_copy;
 int *reg_adp_ofset_20_copy;
 int *reg_mono_protect_copy;
 int *reg_trend_wht_expand_lut8_copy;
+int *c_hist_gain_copy;
+int *s_hist_gain_copy;
 
 int *ro_luma_avg4_copy;
 int *ro_var_d8_copy;
@@ -186,6 +188,10 @@ struct dnlp_parse_cmd_s dnlp_parse_cmd[] = {
 		&dnlp_alg_param.dnlp_ve_hist_cur_gain_precise},
 	{"reg_mono_binrang_st", &dnlp_alg_param.dnlp_reg_mono_binrang_st},
 	{"reg_mono_binrang_ed", &dnlp_alg_param.dnlp_reg_mono_binrang_ed},
+	{"c_hist_gain_base", &dnlp_alg_param.dnlp_c_hist_gain_base},
+	{"s_hist_gain_base", &dnlp_alg_param.dnlp_s_hist_gain_base},
+	{"mvreflsh_offset", &dnlp_alg_param.dnlp_mvreflsh_offset},
+	{"luma_avg_th", &dnlp_alg_param.dnlp_luma_avg_th},
 	{"", NULL}
 };
 
@@ -204,6 +210,8 @@ void dnlp_alg_param_copy(void)
 	reg_mono_protect_copy = dnlp_dbg_rw_param->reg_mono_protect;
 	reg_trend_wht_expand_lut8_copy =
 		dnlp_dbg_rw_param->reg_trend_wht_expand_lut8;
+	c_hist_gain_copy = dnlp_dbg_rw_param->c_hist_gain;
+	s_hist_gain_copy = dnlp_dbg_rw_param->s_hist_gain;
 
 	ro_luma_avg4_copy = dnlp_dbg_ro_param->ro_luma_avg4;
 	ro_var_d8_copy = dnlp_dbg_ro_param->ro_var_d8;
@@ -316,6 +324,10 @@ void dnlp_alg_param_init(void)
 	dnlp_alg_param.dnlp_ve_hist_cur_gain_precise = 8;
 	dnlp_alg_param.dnlp_reg_mono_binrang_st = 7;
 	dnlp_alg_param.dnlp_reg_mono_binrang_ed = 26;
+	dnlp_alg_param.dnlp_c_hist_gain_base = 128;
+	dnlp_alg_param.dnlp_s_hist_gain_base = 128;
+	dnlp_alg_param.dnlp_mvreflsh_offset = 0;
+	dnlp_alg_param.dnlp_luma_avg_th = 50;
 
 	if (dnlp_alg_function) {
 		dnlp_alg_function->dnlp_para_set(&dnlp_alg_output,
@@ -598,6 +610,10 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 	       sizeof(int) * REG_MONO_PROT_LEN);
 	memcpy(reg_trend_wht_expand_lut8_copy, p->ve_reg_trend_wht_expand_lut8,
 	       sizeof(int) * TREND_WHT_EXP_LUT_LEN);
+	memcpy(c_hist_gain_copy, p->ve_c_hist_gain,
+	       sizeof(int) * C_HIST_GAIN_LEN);
+	memcpy(s_hist_gain_copy, p->ve_s_hist_gain,
+	       sizeof(int) * S_HIST_GAIN_LEN);
 
 	if (ve_en != p->param[ve_dnlp_enable] ||
 	    dnlp_sel != p->param[ve_dnlp_sel] ||
@@ -724,7 +740,15 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 		dnlp_alg_param.dnlp_reg_mono_binrang_st !=
 			p->param[ve_dnlp_reg_mono_binrang_st] ||
 		dnlp_alg_param.dnlp_reg_mono_binrang_ed !=
-			p->param[ve_dnlp_reg_mono_binrang_ed]) {
+			p->param[ve_dnlp_reg_mono_binrang_ed] ||
+		dnlp_alg_param.dnlp_c_hist_gain_base !=
+			p->param[ve_dnlp_c_hist_gain_base] ||
+		dnlp_alg_param.dnlp_s_hist_gain_base !=
+			p->param[ve_dnlp_s_hist_gain_base] ||
+		dnlp_alg_param.dnlp_mvreflsh_offset !=
+			p->param[ve_dnlp_mvreflsh_offset] ||
+		dnlp_alg_param.dnlp_luma_avg_th !=
+			p->param[ve_dnlp_luma_avg_th]) {
 		if (dnlp_insmod_ok)
 			*menu_chg_en_copy = 1;
 	} else {
@@ -843,6 +867,14 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 		p->param[ve_dnlp_reg_mono_binrang_st];
 	dnlp_alg_param.dnlp_reg_mono_binrang_ed =
 		p->param[ve_dnlp_reg_mono_binrang_ed];
+	dnlp_alg_param.dnlp_c_hist_gain_base =
+		p->param[ve_dnlp_c_hist_gain_base];
+	dnlp_alg_param.dnlp_s_hist_gain_base =
+		p->param[ve_dnlp_s_hist_gain_base];
+	dnlp_alg_param.dnlp_mvreflsh_offset =
+		p->param[ve_dnlp_mvreflsh_offset];
+	dnlp_alg_param.dnlp_luma_avg_th =
+		p->param[ve_dnlp_luma_avg_th];
 
 	if (dnlp_insmod_ok == 0)
 		return;

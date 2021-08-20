@@ -3207,6 +3207,48 @@ static ssize_t amvecm_dnlp_debug_store(struct class *cla,
 					pr_info("%d\n",
 						gain_var_lut49_copy[val]);
 			}
+		} else if (!strcmp(parm[1], "c_hist_gain")) {
+			if (!parm[2]) {
+				pr_info("error cmd\n");
+				goto free_buf;
+			} else if (!strcmp(parm[2], "all")) {
+				for (i = 0; i < 65; i++)
+					d_convert_str(c_hist_gain_copy[i],
+						      i, stemp, 4, 10);
+				memcpy(dnlp_rd_curve, stemp,
+					sizeof(char) * 4 * 65);
+				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
+			} else {
+				if (kstrtoul(parm[2], 10, &val) < 0)
+					goto free_buf;
+
+				if (val > 64 || val < 0)
+					pr_info("error cmd\n");
+				else
+					pr_info("%d\n",
+						c_hist_gain_copy[val]);
+			}
+		} else if (!strcmp(parm[1], "s_hist_gain")) {
+			if (!parm[2]) {
+				pr_info("error cmd\n");
+				goto free_buf;
+			} else if (!strcmp(parm[2], "all")) {
+				for (i = 0; i < 65; i++)
+					d_convert_str(s_hist_gain_copy[i],
+						      i, stemp, 4, 10);
+				memcpy(dnlp_rd_curve, stemp,
+					sizeof(char) * 4 * 65);
+				dnlp_dbg_flag |= DNLP_CV_RD_UPDATE;
+			} else {
+				if (kstrtoul(parm[2], 10, &val) < 0)
+					goto free_buf;
+
+				if (val > 64 || val < 0)
+					pr_info("error cmd\n");
+				else
+					pr_info("%d\n",
+						s_hist_gain_copy[val]);
+			}
 		} else if (!strcmp(parm[1], "wext_gain")) {
 			if (!parm[2]) {
 				pr_info("error cmd\n");
@@ -3552,6 +3594,48 @@ static ssize_t amvecm_dnlp_debug_store(struct class *cla,
 					pr_info("error cmd\n");
 				else
 					gain_var_lut49_copy[num] = val;
+			}
+		} else if (!strcmp(parm[1], "c_hist_gain")) {
+			if (!parm[2]) {
+				pr_info("error cmd\n");
+				goto free_buf;
+			} else if (!strcmp(parm[2], "all")) {
+				str_sapr_to_d(parm[3], curve_val, 5);
+				for (i = 0; i < 65; i++)
+					c_hist_gain_copy[i] = curve_val[i];
+			} else {
+				if (kstrtoul(parm[2], 10, &val) < 0)
+					goto free_buf;
+
+				num = val;
+				if (kstrtoul(parm[3], 10, &val) < 0)
+					goto free_buf;
+
+				if (num > 64)
+					pr_info("error cmd\n");
+				else
+					c_hist_gain_copy[num] = val;
+			}
+		} else if (!strcmp(parm[1], "s_hist_gain")) {
+			if (!parm[2]) {
+				pr_info("error cmd\n");
+				goto free_buf;
+			} else if (!strcmp(parm[2], "all")) {
+				str_sapr_to_d(parm[3], curve_val, 5);
+				for (i = 0; i < 65; i++)
+					s_hist_gain_copy[i] = curve_val[i];
+			} else {
+				if (kstrtoul(parm[2], 10, &val) < 0)
+					goto free_buf;
+
+				num = val;
+				if (kstrtoul(parm[3], 10, &val) < 0)
+					goto free_buf;
+
+				if (num > 64)
+					pr_info("error cmd\n");
+				else
+					s_hist_gain_copy[num] = val;
 			}
 		} else if (!strcmp(parm[1], "wext_gain")) {
 			if (!parm[2]) {
