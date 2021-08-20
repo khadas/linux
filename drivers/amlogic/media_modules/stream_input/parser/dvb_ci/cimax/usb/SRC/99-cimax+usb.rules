@@ -1,0 +1,4 @@
+BUS=="usb", ACTION=="add", SYSFS{idProduct}=="2F00", SYSFS{idVendor}=="1B0D"
+KERNEL=="cimaxusb[0-9]", GROUP="users"
+
+

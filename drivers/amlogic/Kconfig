@@ -144,5 +144,6 @@ source "drivers/amlogic/cpu_info/Kconfig"
 source "drivers/amlogic/ethernet/phy/Kconfig"
 source "drivers/amlogic/soc_info/Kconfig"
 source "drivers/amlogic/gator-driver/Kconfig"
+source "drivers/amlogic/media_modules/Kconfig"
 endmenu
 endif
