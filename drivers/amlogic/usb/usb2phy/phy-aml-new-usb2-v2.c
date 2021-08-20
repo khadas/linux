@@ -66,7 +66,7 @@ static void set_usb_phy_trim_tuning
 	if (aml_phy->phy_version == 0)
 		return;
 
-	if (port > aml_phy->portnum)
+	if (port >= aml_phy->portnum)
 		return;
 	if (default_val == aml_phy->phy_trim_state[port]) {
 		if (default_val == 0)

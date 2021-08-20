@@ -2211,7 +2211,7 @@ void usb_disconnect(struct usb_device **pdev)
 	dev_info(&udev->dev, "USB disconnect, device number %d\n",
 			udev->devnum);
 #ifdef CONFIG_AMLOGIC_USB
-	if (udev->portnum > 0)
+	if (udev->portnum > 0 && udev->level == 1)
 		usb_phy_trim_tuning(hcd->usb_phy, udev->portnum - 1, 1);
 #endif
 	/*
@@ -5161,7 +5161,6 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 		status = hub_power_remaining(hub);
 		if (status)
 			dev_dbg(hub->intfdev, "%dmA power budget left\n", status);
-
 		return;
 
 loop_disable:
@@ -5181,9 +5180,10 @@ loop:
 				   KOBJ_CHANGE, device_enum_fail);
 		dev_err(&port_dev->dev,
 			"Device no response\n");
-		usb_phy_trim_tuning(hcd->usb_phy, port1 - 1, 1);
+		if (hdev->level == 0)
+			usb_phy_trim_tuning(hcd->usb_phy, port1 - 1, 1);
 	}
-	if (SET_CONFIG_TRIES == (i + 2))
+	if (SET_CONFIG_TRIES == (i + 2) && hdev->level == 0)
 		usb_phy_trim_tuning(hcd->usb_phy, port1 - 1, 0);
 #endif
 		usb_ep0_reinit(udev);
