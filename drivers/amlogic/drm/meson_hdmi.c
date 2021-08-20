@@ -463,7 +463,9 @@ void am_hdmitx_reset(struct drm_connector *connector)
 	hdmitx_state->base.content_protection = am_hdmi_info.hdcp_request_content_protection;
 
 	/*drm api need update state, so need delay attch when create state.*/
-	drm_connector_attach_max_bpc_property(connector, 8, HDMITX_MAX_BPC);
+	if (!connector->max_bpc_property)
+		drm_connector_attach_max_bpc_property
+				(connector, 8, HDMITX_MAX_BPC);
 }
 
 static bool meson_hdmitx_is_hdcp_running(void)
