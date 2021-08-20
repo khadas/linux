@@ -17,7 +17,6 @@
 #include <linux/kallsyms.h>
 #include "efuse.h"
 #include "unifykey.h"
-#include "efuse_burn.h"
 
 static int __init efuse_unifykey_init(void)
 {
@@ -33,12 +32,6 @@ static int __init efuse_unifykey_init(void)
 		return ret;
 	}
 
-	ret = aml_efuse_burn_init();
-	if (ret) {
-		aml_efuse_burn_exit();
-		return ret;
-	}
-
 	return 0;
 }
 
@@ -46,7 +39,6 @@ static void __exit efuse_unifykey_exit(void)
 {
 	aml_efuse_exit();
 	aml_unifykeys_exit();
-	aml_efuse_burn_exit();
 }
 
 module_init(efuse_unifykey_init);
