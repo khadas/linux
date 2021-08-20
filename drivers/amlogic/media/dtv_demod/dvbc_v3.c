@@ -292,7 +292,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 //		!is_meson_t5d_cpu())
 //		qam_write_reg(demod, SYMB_CNT_CFG, 0xffff8ffe);
 //	else
-//		qam_write_reg(demod, SYMB_CNT_CFG, 0xffff8ffe);//change 0xffff03ff
+//		qam_write_reg(demod, SYMB_CNT_CFG, 0xffff03ff);//change 0xffff03ff
 	qam_write_reg(demod, SYMB_CNT_CFG, 0xffff8ffe);//change 0xffff03ff
 	/* adc_cnt, symb_cnt    by raymond 20121213 */
 	if (clk_freq == 0)

@@ -60,9 +60,10 @@
 /*  V1.0.17  DVBS blind scan change                 */
 /*  V1.0.18  dvbt 8K QPSK search failed            */
 /*  V1.0.19  22K will off after diseqc send        */
-/*  V1.0.20  ci card mode do not change in other mode        */
+/*  V1.0.20  ci card mode do not change in other mode */
+/*  V1.0.21  dvbc C/N worse                         */
 /****************************************************/
-#define AMLDTVDEMOD_VER "V1.0.20"
+#define AMLDTVDEMOD_VER "V1.0.21"
 
 MODULE_PARM_DESC(auto_search_std, "\n\t\t atsc-c std&hrc search");
 static unsigned int auto_search_std;
@@ -2967,15 +2968,15 @@ static enum qam_md_e dvbc_switch_qam(enum qam_md_e qam_mode)
 		break;
 
 	case QAM_MODE_64:
-		ret = QAM_MODE_32;
+		ret = QAM_MODE_128;
 		break;
 
 	case QAM_MODE_128:
-		ret = QAM_MODE_64;
+		ret = QAM_MODE_32;
 		break;
 
 	case QAM_MODE_256:
-		ret = QAM_MODE_128;
+		ret = QAM_MODE_64;
 		break;
 
 	default:
