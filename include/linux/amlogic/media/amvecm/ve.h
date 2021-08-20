@@ -63,6 +63,8 @@ struct ve_bext_s {
 #define REG_ADP_OFSET_LEN 20
 #define REG_MONO_PROT_LEN 6
 #define TREND_WHT_EXP_LUT_LEN 9
+#define C_HIST_GAIN_LEN 65
+#define S_HIST_GAIN_LEN 65
 #define DNLP_PARM_MAX_NUM 100
 #define DNLP_VPP_HIST_BIN_NUM 64
 #define HDR_HIST_BIN_NUM 128
@@ -106,6 +108,8 @@ struct ve_dnlp_curve_param_s {
 	unsigned int ve_reg_adp_ofset_20[REG_ADP_OFSET_LEN];
 	unsigned int ve_reg_mono_protect[REG_MONO_PROT_LEN];
 	unsigned int ve_reg_trend_wht_expand_lut8[TREND_WHT_EXP_LUT_LEN];
+	unsigned int ve_c_hist_gain[C_HIST_GAIN_LEN];
+	unsigned int ve_s_hist_gain[S_HIST_GAIN_LEN];
 	unsigned int param[DNLP_PARM_MAX_NUM];
 };
 
@@ -187,6 +191,10 @@ enum dnlp_param_e {
 	ve_dnlp_ve_hist_cur_gain_precise,
 	ve_dnlp_reg_mono_binrang_st,
 	ve_dnlp_reg_mono_binrang_ed,
+	ve_dnlp_c_hist_gain_base,
+	ve_dnlp_s_hist_gain_base,
+	ve_dnlp_mvreflsh_offset,
+	ve_dnlp_luma_avg_th,
 	ve_dnlp_param_max,
 };
 
@@ -203,6 +211,8 @@ enum dnlp_curve_e {
 	ve_reg_adp_ofset_20,
 	ve_reg_mono_protect,
 	ve_reg_trend_wht_expand_lut8,
+	ve_c_hist_gain = 1019,
+	ve_s_hist_gain,
 };
 #else
 struct ve_dnlp_s {
