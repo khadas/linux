@@ -885,12 +885,12 @@ static struct meson_pmx_group meson_p1_periphs_groups[] = {
 	GROUP(i2c8_sda_e,		2),
 
 	/* BANK C func1 */
-	GROUP(i2c6_sck_c,		2),
-	GROUP(i2c6_sda_c,		2),
-	GROUP(i2c7_sck_c,		2),
-	GROUP(i2c7_sda_c,		2),
-	GROUP(i2c8_sck_c,		2),
-	GROUP(i2c8_sda_c,		2),
+	GROUP(i2c6_sck_c,		1),
+	GROUP(i2c6_sda_c,		1),
+	GROUP(i2c7_sck_c,		1),
+	GROUP(i2c7_sda_c,		1),
+	GROUP(i2c8_sck_c,		1),
+	GROUP(i2c8_sda_c,		1),
 
 	/* BANK C func2 */
 	GROUP(i2c6_slave_sck,		2),
