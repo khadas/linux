@@ -559,7 +559,13 @@ int meson_uvm_getinfo(int shared_fd, int mode_type, char *buf)
 	UVM_PRINTK(1, "uvm_getinfo: shared_fd=%d, mode_type=%d\n", shared_fd, mode_type);
 	dmabuf = dma_buf_get(shared_fd);
 
-	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		UVM_PRINTK(0, "Invalid dmabuf %s %d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	if (!dmabuf_is_uvm(dmabuf)) {
+		dma_buf_put(dmabuf);
 		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
@@ -604,7 +610,7 @@ int meson_uvm_setinfo(int shared_fd, int mode_type, char *buf)
 
 	dmabuf = dma_buf_get(shared_fd);
 	if (IS_ERR_OR_NULL(dmabuf)) {
-		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
+		UVM_PRINTK(0, "invalid dmabuf. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 

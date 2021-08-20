@@ -417,10 +417,18 @@ static int mua_attach(int fd, int type, char *buf)
 	MUA_PRINTK(1, "core_attach: type:%d buf:%s.\n",
 		type, buf);
 	dmabuf = dma_buf_get(fd);
-	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
+
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		MUA_PRINTK(0, "Invalid dmabuf %s %d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	if (!dmabuf_is_uvm(dmabuf)) {
+		dma_buf_put(dmabuf);
 		MUA_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
+
 	if (info.type >= VF_SRC_DECODER && info.type < PROCESS_INVALID)
 		ret = uvm_attach_hook_mod(dmabuf, &info);
 
@@ -436,10 +444,18 @@ static int mua_detach(int fd, int type)
 	struct uvm_handle *handle = NULL;
 
 	dmabuf = dma_buf_get(fd);
-	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
+
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		MUA_PRINTK(0, "Invalid dmabuf %s %d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	if (!dmabuf_is_uvm(dmabuf)) {
+		dma_buf_put(dmabuf);
 		MUA_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
+
 	handle = dmabuf->priv;
 
 	MUA_PRINTK(1, "[%s]: dmabuf %p.\n",  __func__, dmabuf);
