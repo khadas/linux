@@ -34,6 +34,13 @@
 #include <linux/irq.h>
 #include <linux/regmap.h>
 #include "es8316.h"
+#include <linux/iio/consumer.h>
+#include <dt-bindings/iio/adc/amlogic-saradc.h>
+#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
+
+
+
+
 
 #define INVALID_GPIO -1
 #define GPIO_LOW  0
@@ -86,6 +93,17 @@ struct es8316_priv {
 
 	int pwr_count;
 };
+
+struct es8316_adc_hp_det {
+	struct delayed_work work;
+	unsigned int chan;
+	int value;
+	int tolerance;
+	struct iio_channel *pchan[SARADC_CH_NUM];
+};
+
+
+
 
 /*
  * es8316_reset
@@ -1047,6 +1065,21 @@ static void hp_work(struct work_struct *work)
 	}
 }
 
+static void hp_det_work(struct work_struct *work)
+{
+	struct es8316_adc_hp_det *hp;
+	int value;
+	hp = container_of(work, struct es8316_adc_hp_det, work.work);
+	if (iio_read_channel_processed(hp->pchan[hp->chan],&value) >= 0) {
+		if ((value >= hp->value - hp->tolerance) && (value <= hp->value + hp->tolerance)) {
+		    hdmitx_ext_set_audio_output(1);
+        }else{
+			hdmitx_ext_set_audio_output(0);//disable hdmi audio output
+		}
+	}
+   queue_delayed_work(system_wq, &hp->work,msecs_to_jiffies(500));
+}
+
 static int es8316_probe(struct snd_soc_codec *codec)
 {
 	struct es8316_priv *es8316 = snd_soc_codec_get_drvdata(codec);
@@ -1128,11 +1161,84 @@ static struct snd_soc_codec_driver soc_codec_dev_es8316 = {
 	},
 };
 
+static int es8316_adc_hp_det_get_devtree_pdata(struct device *dev,
+			struct es8316_adc_hp_det *hp)
+{
+	int ret;
+	int state = 0;
+	struct of_phandle_args chanspec;
+
+	if (!dev->of_node) {
+		dev_err(dev, "failed to get device node\n");
+		return -EINVAL;
+	}
+
+
+	ret = of_parse_phandle_with_args(dev->of_node,
+		"io-channels", "#io-channel-cells", 0, &chanspec);
+	if (ret)
+		return ret;
+
+	if (!chanspec.args_count)
+		return -EINVAL;
+
+	if (chanspec.args[0] >= SARADC_CH_NUM) {
+		dev_err(dev, "invalid channel index[%u]\n",
+				chanspec.args[0]);
+		return -EINVAL;
+	}
+
+	hp->pchan[chanspec.args[0]] = devm_iio_channel_get(dev,
+			NULL);
+	if (IS_ERR(hp->pchan[chanspec.args[0]]))
+		return PTR_ERR(hp->pchan[chanspec.args[0]]);
+
+	ret = of_property_read_u32_index(dev->of_node,
+		"hp_chan", 0, &hp->chan);
+	if (ret < 0) {
+		dev_err(dev, "invalid hp chan index\n");
+		state = -EINVAL;
+		goto err;
+	}
+
+	if (!hp->pchan[hp->chan]) {
+		dev_err(dev, "invalid channel[%u], please enable it first by DTS\n",
+				hp->chan);
+		state = -EINVAL;
+		goto err;
+	}
+
+	ret = of_property_read_u32_index(dev->of_node,
+		"hp_val", 0, &hp->value);
+	if (ret < 0) {
+		dev_err(dev, "invalid hp value index\n");
+		state = -EINVAL;
+		goto err;
+	}
+
+	ret = of_property_read_u32_index(dev->of_node,
+		"hp_tolerance", 0, &hp->tolerance);
+	if (ret < 0) {
+		dev_err(dev, "invalid hp tolerance index\n");
+		state = -EINVAL;
+		goto err;
+	}
+
+return 0;
+err:
+
+	return state;
+
+}
+
+
 static int es8316_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct es8316_priv *es8316;
+	struct es8316_adc_hp_det *hp;
 	int ret = -1;
+	int hpret = -1;
 	int hp_irq;
 	enum of_gpio_flags flags;
 	struct device_node *np = i2c->dev.of_node;
@@ -1140,7 +1246,9 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	es8316 = devm_kzalloc(&i2c->dev, sizeof(*es8316), GFP_KERNEL);
 	if (!es8316)
 		return -ENOMEM;
-
+	hp = kzalloc(sizeof(struct es8316_adc_hp_det), GFP_KERNEL);
+	if (!hp)
+		return -ENOMEM;
 	es8316->debounce_time = 200;
 	es8316->hp_det_invert = 0;
 	es8316->pwr_count = 0;
@@ -1222,6 +1330,12 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 				     &soc_codec_dev_es8316,
 				     &es8316_dai, 1);
 	printk("es8316_i2c_probe %d\n",__LINE__);
+	hpret = es8316_adc_hp_det_get_devtree_pdata(&i2c->dev,hp);
+	if(hpret == 0) {
+	INIT_DELAYED_WORK(&hp->work, hp_det_work);
+	mod_delayed_work(system_wq,&hp->work,
+				      msecs_to_jiffies(500));
+	}
 	return ret;
 }
 
