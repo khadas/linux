@@ -53,13 +53,20 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr)
 	struct hf_info_t *hf_info;
 
 	dmabuf = dma_buf_get(shared_fd);
-	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
+
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		nn_print(PRINT_ERROR,
+			"Invalid dmabuf %s %d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	if (!dmabuf_is_uvm(dmabuf)) {
 		nn_print(PRINT_ERROR,
 			"%s: dmabuf is not uvm.dmabuf=%px, shared_fd=%d\n",
 			__func__, dmabuf, shared_fd);
+		dma_buf_put(dmabuf);
 		return -EINVAL;
 	}
-	dma_buf_put(dmabuf);
 
 	is_dec_vf = is_valid_mod_type(dmabuf, VF_SRC_DECODER);
 	is_v4l_vf = is_valid_mod_type(dmabuf, VF_PROCESS_V4LVIDEO);
@@ -71,6 +78,7 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr)
 		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
 		if (IS_ERR_OR_NULL(uhmod) || !uhmod->arg) {
 			nn_print(PRINT_ERROR, "get_fh err: no v4lvideo\n");
+			dma_buf_put(dmabuf);
 			return -EINVAL;
 		}
 		file_private_data = uhmod->arg;
@@ -98,8 +106,10 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr)
 		}
 	} else {
 		nn_print(PRINT_ERROR, "not find vf\n");
+		dma_buf_put(dmabuf);
 		return -EINVAL;
 	}
+	dma_buf_put(dmabuf);
 	return 0;
 }
 
@@ -153,21 +163,30 @@ int attach_nn_hook_mod_info(int shared_fd,
 	}
 
 	dmabuf = dma_buf_get(shared_fd);
-	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
+
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		nn_print(PRINT_ERROR,
+			"Invalid dmabuf %s %d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	if (!dmabuf_is_uvm(dmabuf)) {
 		nn_print(PRINT_ERROR,
 			"attach:dmabuf is not uvm.dmabuf=%px, shared_fd=%d\n",
 			dmabuf, shared_fd);
+		dma_buf_put(dmabuf);
 		return -EINVAL;
 	}
-	dma_buf_put(dmabuf);
 
 	handle = dmabuf->priv;
 	uhmod = uvm_get_hook_mod(dmabuf, PROCESS_NN);
 	if (IS_ERR_OR_NULL(uhmod)) {
 		nn_sr = kzalloc(sizeof(*nn_sr), GFP_KERNEL);
 		nn_print(PRINT_OTHER, "attach:first attach, need alloc\n");
-		if (!nn_sr)
+		if (!nn_sr) {
+			dma_buf_put(dmabuf);
 			return -ENOMEM;
+		}
 	} else {
 		uvm_put_hook_mod(dmabuf, PROCESS_NN);
 		attached = true;
@@ -175,6 +194,7 @@ int attach_nn_hook_mod_info(int shared_fd,
 		if (!nn_sr) {
 			nn_print(PRINT_ERROR,
 				"attach:nn_sr is null, dmabuf=%p\n", dmabuf);
+			dma_buf_put(dmabuf);
 			return -EINVAL;
 		}
 		nn_print(PRINT_OTHER, "nn_sr=%px\n", nn_sr);
@@ -206,6 +226,8 @@ int attach_nn_hook_mod_info(int shared_fd,
 		nn_sr->fence = sync_file_get_fence(ai_sr_info->fence_fd);
 	else
 		nn_sr->fence = NULL;
+
+	dma_buf_put(dmabuf);
 
 	if (attached)
 		return 0;
