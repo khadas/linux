@@ -1,0 +1,85 @@
+The following examples shows how to use the cimax+usb driver.
+All structures and macro are defined in file cimax+usb-driver.h.
+
+
+1.Open the device cimax+usb
+===========================
+/* open device */
+dev = open("/dev/cimaxusb0", O_RDWR);
+/* select USB alt_setting */
+ioctl(dev, DEVICE_IOC_SELECT_INTF, alt_setting);
+
+
+2.Close the device cimax+usb
+============================
+/* unlock read queue */
+ioctl(dev, DEVICE_IOC_UNLOCK_READ, 0);
+/* close device */
+close(dev);
+
+
+3.Send a CI message to a CAM through the device
+===============================================
+/* Send CAM A Reset command */
+uint8 command[5] = {0x01,    /* Command       */
+										0x01,    /* Counter       */
+										0x00,    /* MSB data size */
+										0x01,    /* LSB data size */
+										0x00};   /* data          */
+uint8 response[4100];
+struct ioctl_data_s stData;
+stData.txData = command;
+stData.txSize = 5;
+stData.rxData = response;
+stData.rxSize = 4100;
+ioctl(dev, DEVICE_IOC_CI_WRITE, &stData);
+
+/* Send CAM B Get CIS command */
+uint8 command[5] = {0x82,    /* Command       */
+										0x01,    /* Counter       */
+										0x00,    /* MSB data size */
+										0x00};   /* LSB data size */
+uint8 response[4100];
+struct ioctl_data_s stData;
+stData.txData = command;
+stData.txSize = 4;
+stData.rxData = response;
+stData.rxSize = 4100;
+ioctl(dev, DEVICE_IOC_CI_WRITE, &stData);
+
+
+4.Send a Transport Stream to a CAM through the device
+=====================================================
+/* Send to CAM A */
+struct rw_data_s rwData;
+rwData.type = DEVICE_TYPE_TS_WRITE;
+rwData.moduleId = 0; /* CAM A */
+rwData.data = stream;
+rwData.size = size;
+rwData.copiedSize = 0;
+write(dev, &rwData, sizeof(struct rw_data_s));
+
+
+5.Read a Transport Stream from a CAM through the device
+=======================================================
+/* Read from CAM B */
+struct rw_data_s rwData;
+rwData.type = DEVICE_TYPE_TS_READ;
+rwData.moduleId = 1; /* CAM B */
+rwData.data = stream;
+rwData.size = size;
+rwData.copiedSize = 0;
+read(dev, &rwData, sizeof(struct rw_data_s));
+
+
+6.Read a CI message from a CAM through the device
+=================================================
+/* Read from CAM A */
+uint8 response[4096];
+struct rw_data_s rwData;
+rwData.type = DEVICE_TYPE_CI_READ;
+rwData.moduleId = 0; /* CAM A */
+rwData.data = response;
+rwData.size = 4096;
+rwData.copiedSize = 0;
+read(dev, &rwData, sizeof(struct rw_data_s));

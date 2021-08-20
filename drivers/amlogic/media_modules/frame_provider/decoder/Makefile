@@ -1,0 +1,13 @@
+obj-y	+=	utils/
+obj-y	+=	mpeg12/
+obj-y	+=	mpeg4/
+obj-y	+=	vc1/
+obj-y	+=	h264/
+obj-y	+=	h264_multi/
+obj-y	+=	h265/
+obj-y	+=	vp9/
+obj-y	+=	mjpeg/
+obj-y	+=	avs/
+obj-y	+=	avs2/
+obj-y	+=	avs_multi/
+obj-y	+=	vav1/
