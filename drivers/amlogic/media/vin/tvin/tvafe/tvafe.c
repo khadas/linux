@@ -416,8 +416,10 @@ static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 #endif
 
 #ifdef CONFIG_CMA
-	if (tvafe_cma_alloc(devp))
+	if (tvafe_cma_alloc(devp)) {
+		mutex_unlock(&devp->afe_mutex);
 		return 1;
+	}
 #endif
 	tvafe_config_init(devp, port);
 	/**enable and reset tvafe clock**/
