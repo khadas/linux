@@ -22,12 +22,6 @@
 #define EFUSE_CALI_SUBITEM_USBCCLOGIC	0x10A
 #define EFUSE_CALI_SUBITEM_BC		0x10B
 
-#define EFUSE_LOCK_SUBITEM_BASE          0x1000
-#define EFUSE_LOCK_SUBITEM_DGPK1_KEY     0x1000
-#define EFUSE_LOCK_SUBITEM_DGPK2_KEY     0x1001
-#define EFUSE_LOCK_SUBITEM_AUDIO_V_ID    0x1002
-#define EFUSE_LOCK_SUBITEM_MAX           0X1FFF
-
 struct efusekey_info {
 	char keyname[EFUSE_KEY_NAME_LEN];
 	unsigned int offset;
@@ -40,6 +34,5 @@ ssize_t efuse_user_attr_store(char *name, const char *buf, size_t count);
 ssize_t efuse_user_attr_read(char *name, char *buf);
 
 int efuse_amlogic_cali_item_read(unsigned int item);
-int efuse_amlogic_check_lockable_item(unsigned int item);
 
 #endif

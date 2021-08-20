@@ -25,12 +25,6 @@ static struct aml_efuse_key efuse_key = {
 	.infos    = NULL,
 };
 
-static struct aml_efuse_lockable_check efusecheck = {
-	.main_cmd = 0,
-	.item_num = 0,
-	.infos = NULL,
-};
-
 struct aml_efuse_cmd efuse_cmd;
 unsigned int efuse_pattern_size;
 
@@ -83,40 +77,6 @@ int efuse_getinfo(char *item, struct efusekey_info *info)
 	}
 	if (ret < 0)
 		pr_err("%s item not found.\n", item);
-	return ret;
-}
-
-/*return: 0:is configurated, -1: don't cfg*/
-int efuse_burn_lockable_is_cfg(char *itemname)
-{
-	int ret = -1;
-	int i;
-
-	for (i = 0; i < efusecheck.item_num; i++) {
-		if (strcmp(itemname, efusecheck.infos[i].itemname) == 0) {
-			ret = 0;
-			break;
-		}
-	}
-	return ret;
-}
-
-/*
- * retrun: 1:burned(wrote), 0: not write, -1: fail
- */
-int efuse_burn_check_burned(char *itemname)
-{
-	int i;
-	int ret = -1;
-	int subcmd;
-
-	for (i = 0; i < efusecheck.item_num; i++) {
-		if (strcmp(itemname, efusecheck.infos[i].itemname) == 0) {
-			subcmd = efusecheck.infos[i].subcmd;
-			ret = efuse_amlogic_check_lockable_item(subcmd);
-			break;
-		}
-	}
 	return ret;
 }
 
@@ -674,66 +634,6 @@ static ssize_t secureboot_check_show(struct class *cla,
 	return n;
 }
 
-static ssize_t checkburn_show(struct class *cla,
-			     struct class_attribute *attr, char *buf)
-{
-	ssize_t n = 0;
-	struct aml_efuse_dev *efuse_dev;
-
-	efuse_dev = container_of(cla, struct aml_efuse_dev, cls);
-	if (efuse_dev->name[0]) {
-		if (efuse_burn_lockable_is_cfg(efuse_dev->name) == 0) {
-			n = efuse_burn_check_burned(efuse_dev->name);
-			if (n == 1)
-				n = sprintf(buf, "wrote");
-			else if (n == 0)
-				n = sprintf(buf, "notwrite");
-			else
-				n = sprintf(buf, "error");
-		} else {
-			n = sprintf(buf, "nocfg");
-		}
-	} else {
-		n = sprintf(buf, "unknown");
-	}
-	return n;
-}
-
-static ssize_t checkburn_store(struct class *cla,
-			      struct class_attribute *attr,
-			      const char *buf, size_t count)
-{
-	ssize_t n = 0;
-	struct aml_efuse_dev *efuse_dev;
-
-	efuse_dev = container_of(cla, struct aml_efuse_dev, cls);
-
-	n = strlen(buf);
-	pr_notice("%s:%d %s,n=%d\n", __func__, __LINE__, buf, n);
-
-	n--; //discard '\n'
-	if (n >= EFUSE_CHECK_NAME_LEN)
-		n = EFUSE_CHECK_NAME_LEN - 1;
-
-	memset(efuse_dev->name, 0, sizeof(efuse_dev->name));
-	memcpy(efuse_dev->name, buf, n);
-
-	return count;
-}
-
-static ssize_t checklist_show(struct class *cla,
-			     struct class_attribute *attr, char *buf)
-{
-	int i;
-	ssize_t n = 0;
-
-	for (i = 0; i < efusecheck.item_num; i++) {
-		n += sprintf(&buf[n], efusecheck.infos[i].itemname);
-		n += sprintf(&buf[n], "\n");
-	}
-	return n;
-}
-
 static int key_item_parse_dt(const struct device_node *np_efusekey,
 			     int index, struct efusekey_info *infos)
 {
@@ -850,127 +750,6 @@ exit:
 	return ret;
 }
 
-static int check_item_parse_dt(const struct device_node *np_efusecheck,
-			     int index, struct lockable_info *infos)
-{
-	const phandle *phandle;
-	struct device_node *np_check;
-	char *propname;
-	const char *checkname;
-	int ret;
-	int name_size;
-
-	propname = kasprintf(GFP_KERNEL, "check%d", index);
-
-	phandle = of_get_property(np_efusecheck, propname, NULL);
-	if (!phandle) {
-		ret = -EINVAL;
-		pr_err("failed to find match %s\n", propname);
-		goto exit;
-	}
-	np_check = of_find_node_by_phandle(be32_to_cpup(phandle));
-	if (!np_check) {
-		ret = -EINVAL;
-		pr_err("failed to find device node %s\n", propname);
-		goto exit;
-	}
-
-	ret = of_property_read_string(np_check, "checkname", &checkname);
-	if (ret < 0) {
-		pr_err("failed to get checkname item\n");
-		goto exit;
-	}
-
-	name_size = EFUSE_CHECK_NAME_LEN - 1;
-	memcpy(infos[index].itemname, checkname,
-	       strlen(checkname) > name_size ? name_size : strlen(checkname));
-
-	ret = of_property_read_u32(np_check, "subcmd",
-				   &infos[index].subcmd);
-	if (ret < 0) {
-		pr_err("failed to get subcmd item\n");
-		goto exit;
-	}
-
-	pr_info("efusecheck name: %15s subcmd: 0x%16x\n",
-		infos[index].itemname,
-		infos[index].subcmd);
-
-	ret = 0;
-
-exit:
-	kfree(propname);
-	return ret;
-}
-
-static int get_efusecheck_info(struct device_node *np)
-{
-	const phandle *phandle;
-	struct device_node *np_ec = NULL;
-	int index;
-	int ret;
-
-	phandle = of_get_property(np, "check", NULL);
-	if (!phandle) {
-		ret = -EINVAL;
-		pr_err("failed to find match efuse key\n");
-		goto exit;
-	}
-	np_ec = of_find_node_by_phandle(be32_to_cpup(phandle));
-	if (!np_ec) {
-		ret = -EINVAL;
-		pr_err("failed to find device node efusekey\n");
-		goto exit;
-	}
-
-	ret = of_property_read_u32(np_ec, "maincmd",
-			&efusecheck.main_cmd);
-	if (ret < 0) {
-		efusecheck.main_cmd = EFUSE_READ_CALI_ITEM;
-		pr_err("don't cfg efusecheck maincmd, used default:0x%x\n",
-				efusecheck.main_cmd);
-		pr_notice("don't cfg efusecheck maincmd, used default:0x%x\n",
-				efusecheck.main_cmd);
-	} else {
-		pr_info("efuse check maincmd:0x%x\n",
-			efusecheck.main_cmd);
-	}
-
-	ret = of_property_read_u32(np_ec, "checknum", &efusecheck.item_num);
-	if (ret < 0) {
-		pr_err("failed to get efusecheck num item\n");
-		goto exit;
-	}
-
-	if (efusecheck.item_num <= 0) {
-		ret = -EINVAL;
-		pr_err("efusecheck num config error\n");
-		goto exit;
-	}
-	pr_info("efusecheck num: %d\n", efusecheck.item_num);
-
-	efusecheck.infos = kzalloc((sizeof(struct lockable_info))
-		* efusecheck.item_num, GFP_KERNEL);
-	if (!efusecheck.infos) {
-		ret = -ENOMEM;
-		pr_err("fail to alloc enough mem for efusecheck_item\n");
-		goto exit;
-	}
-
-	for (index = 0; index < efusecheck.item_num; index++) {
-		ret = check_item_parse_dt(np_ec, index, efusecheck.infos);
-		if (ret < 0) {
-			kfree(efusecheck.infos);
-			goto exit;
-		}
-	}
-
-	return 0;
-
-exit:
-	return ret;
-}
-
 static EFUSE_CLASS_ATTR(userdata);
 static EFUSE_CLASS_ATTR(mac);
 static EFUSE_CLASS_ATTR(mac_bt);
@@ -978,8 +757,6 @@ static EFUSE_CLASS_ATTR(mac_wifi);
 static EFUSE_CLASS_ATTR(usid);
 static CLASS_ATTR_WO(amlogic_set);
 static CLASS_ATTR_RO(secureboot_check);
-static EFUSE_CLASS_ATTR(checkburn);
-static CLASS_ATTR_RO(checklist);
 
 static struct attribute *efuse_calss_attrs[] = {
 	&class_attr_userdata.attr,
@@ -989,8 +766,6 @@ static struct attribute *efuse_calss_attrs[] = {
 	&class_attr_usid.attr,
 	&class_attr_amlogic_set.attr,
 	&class_attr_secureboot_check.attr,
-	&class_attr_checkburn.attr,
-	&class_attr_checklist.attr,
 	NULL,
 };
 
@@ -1093,7 +868,6 @@ static int efuse_probe(struct platform_device *pdev)
 	}
 
 	get_efusekey_info(np);
-	get_efusecheck_info(np);
 
 	ret = alloc_chrdev_region(&efuse_dev->devno, 0, 1, EFUSE_DEVICE_NAME);
 	if (ret < 0) {

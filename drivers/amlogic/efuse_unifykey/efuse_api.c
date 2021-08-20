@@ -174,31 +174,6 @@ int efuse_amlogic_cali_item_read(unsigned int item)
 }
 EXPORT_SYMBOL_GPL(efuse_amlogic_cali_item_read);
 
-/*
- *retrun: 1: wrote, 0: not write, -1: fail or not support
- */
-int efuse_amlogic_check_lockable_item(unsigned int item)
-{
-	struct arm_smccc_res res;
-
-	/* range check */
-	if (item < EFUSE_LOCK_SUBITEM_BASE ||
-		item > EFUSE_LOCK_SUBITEM_MAX)
-		return -EINVAL;
-
-	mutex_lock(&efuse_lock);
-
-	do {
-		arm_smccc_smc((unsigned long)EFUSE_READ_CALI_ITEM,
-			(unsigned long)item,
-			0, 0, 0, 0, 0, 0, &res);
-	} while (0);
-
-	mutex_unlock(&efuse_lock);
-	return res.a0;
-}
-EXPORT_SYMBOL_GPL(efuse_amlogic_check_lockable_item);
-
 unsigned long efuse_amlogic_set(char *buf, size_t count)
 {
 	unsigned long ret;
