@@ -74,8 +74,8 @@
 			operating-points-v2 = <&a55_opp_table0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
-//			capacity-dmips-mhz = <1024>;
-//			dynamic-power-coefficient = <550>;
+			capacity-dmips-mhz = <512>;
+			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
 			cpu-supply = <&vddcpub>;
 			cpu_supply_external_used;
@@ -109,8 +109,8 @@
 			operating-points-v2 = <&a55_opp_table0>;
 			voltage-tolerance = <0>;
 //			clock-latency = <50000>;
-//			capacity-dmips-mhz = <1024>;
-//			dynamic-power-coefficient = <550>;
+			capacity-dmips-mhz = <512>;
+			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
 			cpu-supply = <&vddcpub>;
 			cpu_supply_external_used;
@@ -144,8 +144,8 @@
 			operating-points-v2 = <&a55_opp_table0>;
 			voltage-tolerance = <0>;
 //			clock-latency = <50000>;
-//			capacity-dmips-mhz = <1024>;
-//			dynamic-power-coefficient = <550>;
+			capacity-dmips-mhz = <512>;
+			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
 			cpu-supply = <&vddcpub>;
 			cpu_supply_external_used;
@@ -179,8 +179,8 @@
 			operating-points-v2 = <&a55_opp_table0>;
 			voltage-tolerance = <0>;
 //			clock-latency = <50000>;
-//			capacity-dmips-mhz = <1024>;
-//			dynamic-power-coefficient = <550>;
+			capacity-dmips-mhz = <512>;
+			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
 			cpu-supply = <&vddcpub>;
 			cpu_supply_external_used;
@@ -214,8 +214,8 @@
 			operating-points-v2 = <&a55_opp_table0>;
 			voltage-tolerance = <0>;
 //			clock-latency = <50000>;
-//			capacity-dmips-mhz = <632>;
-//			dynamic-power-coefficient = <110>;
+			capacity-dmips-mhz = <512>;
+			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
 			cpu-supply = <&vddcpub>;
 			cpu_supply_external_used;
@@ -249,8 +249,8 @@
 			operating-points-v2 = <&a55_opp_table0>;
 			voltage-tolerance = <0>;
 //			clock-latency = <50000>;
-//			capacity-dmips-mhz = <632>;
-//			dynamic-power-coefficient = <110>;
+			capacity-dmips-mhz = <512>;
+			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
 			cpu-supply = <&vddcpub>;
 			cpu_supply_external_used;
@@ -284,8 +284,8 @@
 			operating-points-v2 = <&a76_opp_table0>;
 			voltage-tolerance = <0>;
 //			clock-latency = <50000>;
-//			capacity-dmips-mhz = <632>;
-//			dynamic-power-coefficient = <110>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <512>;
 //			#cooling-cells = <2>;
 			cpu-supply = <&vddcpua>;
 			dsu-supply = <&vddcpub>;
@@ -319,8 +319,8 @@
 			operating-points-v2 = <&a76_opp_table0>;
 			voltage-tolerance = <0>;
 //			clock-latency = <50000>;
-//			capacity-dmips-mhz = <632>;
-//			dynamic-power-coefficient = <110>;
+			capacity-dmips-mhz = <1024>;
+			dynamic-power-coefficient = <512>;
 //			#cooling-cells = <2>;
 			cpu-supply = <&vddcpua>;
 			dsu-supply = <&vddcpub>;
