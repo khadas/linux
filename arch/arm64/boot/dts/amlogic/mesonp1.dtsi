@@ -574,11 +574,12 @@
 
 	jtag {
 		compatible = "amlogic, jtag";
-		status = "disabled";
-		select = "disable"; /* disable/jtag_a/jtag_b */
-		pinctrl-names="jtag_a_pins", "jtag_b_pins";
+		status = "okay";
+		select = "disable"; /* disable/jtag_a */
+		//amlogic,support-jtag-trace;
+		pinctrl-names="jtag_a_pins", "jtag_trace_pins";
 		pinctrl-0=<&jtag_a_pins>;
-		pinctrl-1=<&jtag_b_pins>;
+		pinctrl-1=<&jtag_trace_pins>;
 	};
 
 	hifi4dsp: hifi4dsp {
@@ -3161,13 +3162,27 @@
 		};
 	};
 
-	jtag_b_pins: jtag_b_pin {
+	jtag_trace_pins: jtag_trace_pin {
 		mux {
-			groups = "jtag_b_tdi",
-				 "jtag_b_tdo",
-				 "jtag_b_clk",
-				 "jtag_b_tms";
-			function = "jtag_b";
+			groups = "jtag_trace_clka",
+				"jtag_trace_ctl",
+				"jtag_trace_d0",
+				"jtag_trace_d1",
+				"jtag_trace_d2",
+				"jtag_trace_d3",
+				"jtag_trace_d4",
+				"jtag_trace_d5",
+				"jtag_trace_d6",
+				"jtag_trace_d7",
+				"jtag_trace_d8",
+				"jtag_trace_d9",
+				"jtag_trace_d10",
+				"jtag_trace_d11",
+				"jtag_trace_d12",
+				"jtag_trace_d13",
+				"jtag_trace_d14",
+				"jtag_trace_d15";
+			function = "jtag_trace";
 		};
 	};
 

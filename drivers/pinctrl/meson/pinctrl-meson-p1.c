@@ -534,6 +534,12 @@ static const unsigned int spi_d_ss1_pins[]		= { GPIOX_15 };
 static const unsigned int spi_d_ss2_pins[]		= { GPIOX_16 };
 static const unsigned int spi_d_ss3_pins[]		= { GPIOX_17 };
 static const unsigned int spi_c_ss2_pins[]		= { GPIOX_18 };
+static const unsigned int jtag_trace_clka_pins[]	= { GPIOX_26 };
+static const unsigned int jtag_trace_ctl_pins[]		= { GPIOX_27 };
+static const unsigned int jtag_trace_d0_pins[]		= { GPIOX_28 };
+static const unsigned int jtag_trace_d1_pins[]		= { GPIOX_29 };
+static const unsigned int jtag_trace_d2_pins[]		= { GPIOX_30 };
+static const unsigned int jtag_trace_d3_pins[]		= { GPIOX_31 };
 
 /* BANK X func3 */
 static const unsigned int spi_d_clk_x_pins[]		= { GPIOX_0 };
@@ -596,6 +602,18 @@ static const unsigned int uart_mop2_tx_z_pins[]		= { GPIOZ_1 };
 /* BANK Y func2 */
 static const unsigned int uart_mop1_rx_y_pins[]		= { GPIOY_0 };
 static const unsigned int uart_mop1_tx_y_pins[]		= { GPIOY_1 };
+static const unsigned int jtag_trace_d4_pins[]		= { GPIOY_2 };
+static const unsigned int jtag_trace_d5_pins[]		= { GPIOY_3 };
+static const unsigned int jtag_trace_d6_pins[]		= { GPIOY_4 };
+static const unsigned int jtag_trace_d7_pins[]		= { GPIOY_5 };
+static const unsigned int jtag_trace_d8_pins[]		= { GPIOY_6 };
+static const unsigned int jtag_trace_d9_pins[]		= { GPIOY_7 };
+static const unsigned int jtag_trace_d10_pins[]		= { GPIOY_8 };
+static const unsigned int jtag_trace_d11_pins[]		= { GPIOY_9 };
+static const unsigned int jtag_trace_d12_pins[]		= { GPIOY_10 };
+static const unsigned int jtag_trace_d13_pins[]		= { GPIOY_11 };
+static const unsigned int jtag_trace_d14_pins[]		= { GPIOY_12 };
+static const unsigned int jtag_trace_d15_pins[]		= { GPIOY_13 };
 
 /* BANK Y func3 */
 static const unsigned int uart_mop2_rx_y_pins[]		= { GPIOY_0 };
@@ -1098,6 +1116,12 @@ static struct meson_pmx_group meson_p1_periphs_groups[] = {
 	GROUP(spi_d_ss2,		2),
 	GROUP(spi_d_ss3,		2),
 	GROUP(spi_c_ss2,		2),
+	GROUP(jtag_trace_clka,		2),
+	GROUP(jtag_trace_ctl,		2),
+	GROUP(jtag_trace_d0,		2),
+	GROUP(jtag_trace_d1,		2),
+	GROUP(jtag_trace_d2,		2),
+	GROUP(jtag_trace_d3,		2),
 
 	/* BANK X func3 */
 	GROUP(spi_d_clk_x,		3),
@@ -1160,6 +1184,18 @@ static struct meson_pmx_group meson_p1_periphs_groups[] = {
 	/* BANK Y func2 */
 	GROUP(uart_mop1_rx_y,		2),
 	GROUP(uart_mop1_tx_y,		2),
+	GROUP(jtag_trace_d4,		2),
+	GROUP(jtag_trace_d5,		2),
+	GROUP(jtag_trace_d6,		2),
+	GROUP(jtag_trace_d7,		2),
+	GROUP(jtag_trace_d8,		2),
+	GROUP(jtag_trace_d9,		2),
+	GROUP(jtag_trace_d10,		2),
+	GROUP(jtag_trace_d11,		2),
+	GROUP(jtag_trace_d12,		2),
+	GROUP(jtag_trace_d13,		2),
+	GROUP(jtag_trace_d14,		2),
+	GROUP(jtag_trace_d15,		2),
 
 	/* BANK Y func3 */
 	GROUP(uart_mop2_rx_y,		3),
@@ -1295,6 +1331,14 @@ static const char * const gen_clk_groups[] = {
 
 static const char * const jtag_a_groups[] = {
 	"jtag_a_clk", "jtag_a_tms", "jtag_a_tdi", "jtag_a_tdo"
+};
+
+static const char * const jtag_trace_groups[] = {
+	"jtag_trace_clka", "jtag_trace_ctl", "jtag_trace_d0", "jtag_trace_d1",
+	"jtag_trace_d2", "jtag_trace_d3", "jtag_trace_d4", "jtag_trace_d5",
+	"jtag_trace_d6", "jtag_trace_d7", "jtag_trace_d8", "jtag_trace_d9",
+	"jtag_trace_d10", "jtag_trace_d11", "jtag_trace_d12", "jtag_trace_d13",
+	"jtag_trace_d14", "jtag_trace_d15"
 };
 
 static const char * const uart_a_groups[] = {
@@ -1563,6 +1607,7 @@ static struct meson_pmx_func meson_p1_periphs_functions[] = {
 	FUNCTION(sdio),
 	FUNCTION(gen_clk),
 	FUNCTION(jtag_a),
+	FUNCTION(jtag_trace),
 	FUNCTION(uart_a),
 	FUNCTION(uart_b),
 	FUNCTION(uart_c),
