@@ -124,6 +124,8 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "force_en = %d, force_hsize = %d, force_vsize = %d\n",
 		devp->force_size.force_en, devp->force_size.force_hsize,
 		devp->force_size.force_vsize);
+	pr_frc(0, "get_video_latency = %d\n", frc_get_video_latency());
+
 
 }
 
@@ -131,8 +133,9 @@ ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf)
 {
 	ssize_t len = 0;
 
-	len += sprintf(buf + len, "status\t: print frc internal status\n");
-	len += sprintf(buf + len, "dbg_level=%d\n", frc_dbg_en);
+	len += sprintf(buf + len, "status:%d\t: (%s)\n", devp->frc_sts.state,
+				frc_state_ary[devp->frc_sts.state]);
+	len += sprintf(buf + len, "dbg_level\t: %d\n", frc_dbg_en);
 	len += sprintf(buf + len, "dbg_mode\t: 0:disable 1:enable 2:bypass\n");
 	len += sprintf(buf + len, "dbg_ratio\t: set debug input ratio\n");
 	len += sprintf(buf + len, "dbg_force\t: force debug mode\n");

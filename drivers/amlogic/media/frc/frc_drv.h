@@ -30,8 +30,10 @@
 // frc_20210811_add_reinit_fw_alg_when_resume
 // frc_20210812 frc add demo function
 // frc_20210818 frc add read version function
-#define FRC_FW_VER			"2021-0818 frc read version ioctl"
-#define FRC_KERDRV_VER                  939
+// frc_20210824 frc video delay interface
+
+#define FRC_FW_VER			"2021-0824 frc video delay interface"
+#define FRC_KERDRV_VER                  980
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
