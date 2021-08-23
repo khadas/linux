@@ -42,6 +42,16 @@ config AMLOGIC_RAMDUMP
 		whole ram to /data/ partition. Which can be used for analyze
 		crash reason.
 
+config AMLOGIC_KDUMP
+	bool "Amlogic KDUMP support"
+	depends on KEXEC_CORE
+	default n
+	help
+		kdump support for amlogic android platform, when system is rebooted
+		after panic/watch dog reboot, you may need this option to save
+		whole ram to /data/ partition. Which can be used for analyze
+		crash reason.
+
 config AMLOGIC_CMA
 	bool "Amlogic CMA change"
 	depends on AMLOGIC_MEMORY_EXTEND

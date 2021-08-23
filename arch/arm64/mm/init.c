@@ -106,6 +106,10 @@ static void __init reserve_crashkernel(void)
 
 	crashk_res.start = crash_base;
 	crashk_res.end = crash_base + crash_size - 1;
+
+#ifdef CONFIG_AMLOGIC_KDUMP
+	strcat(boot_command_line, " androidboot.kdump=1 ");
+#endif
 }
 #else
 static void __init reserve_crashkernel(void)
