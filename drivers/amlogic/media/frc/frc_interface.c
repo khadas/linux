@@ -105,25 +105,32 @@ int frc_set_mode(enum frc_state_e state)
 int frc_get_video_latency(void)
 {
 	struct frc_dev_s *devp = get_frc_devp();
-	u32 out_frm_dly_num;
+	// u32 out_frm_dly_num;
 	struct vinfo_s *vinfo = get_current_vinfo();
-	u32 vout_hz;
-	u32 delay_time;/*ms*/
+	u32 vout_hz = 0;
+	u32 delay_time = 0;   /*ms*/
+	u32 delay = 0;   /*ms*/
 
+	if (vinfo && vinfo->sync_duration_den != 0)
+		vout_hz = vinfo->sync_duration_num / vinfo->sync_duration_den;
+	// out_frm_dly_num = READ_FRC_BITS(FRC_REG_TOP_CTRL9, 24, 4);
+	if (vout_hz != 0)
+		delay = 35 * 100 / vout_hz;
+	// delay_time = out_frm_dly_num;
 	if (!devp || !vinfo)
 		return 0;
-
-	if (devp->frc_sts.state == FRC_STATE_BYPASS || devp->frc_sts.state == FRC_STATE_DISABLE)
-		return 0;
-
-	if (devp->frc_sts.state == FRC_STATE_ENABLE) {
-		vout_hz = vinfo->sync_duration_num / vinfo->sync_duration_den;
-		out_frm_dly_num = READ_FRC_BITS(FRC_REG_TOP_CTRL9, 24, 4);
-		delay_time = out_frm_dly_num * (1000 / vout_hz);
-		return delay_time;
+	if (devp->frc_sts.auto_ctrl == 1) {
+		if (devp->in_sts.vf_sts == VFRAME_NO)
+			delay_time = delay;
+		else if (devp->frc_sts.state == FRC_STATE_BYPASS ||
+				devp->frc_sts.state == FRC_STATE_DISABLE)
+			delay_time = 0;
+		else if (devp->frc_sts.state == FRC_STATE_ENABLE)
+			delay_time = delay;
+	} else {
+		delay_time = 0;
 	}
-
-	return 0;
+	return delay_time;
 }
 EXPORT_SYMBOL(frc_get_video_latency);
 

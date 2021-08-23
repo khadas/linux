@@ -256,7 +256,7 @@ static long frc_ioctl(struct file *file,
 			ret = -EFAULT;
 			break;
 		}
-
+		pr_frc(1, "set memc_autoctrl:%d\n", data);
 		if (data) {
 			devp->frc_sts.auto_ctrl = true;
 			devp->frc_sts.re_config = true;

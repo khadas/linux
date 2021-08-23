@@ -719,10 +719,10 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 
 	/*protect mode, enable: memc delay 2 frame*/
 	/*disable: memc delay n frame, n depend on candence, for debug*/
-	// if(frc_top->frc_prot_mode) {
-	//	WRITE_FRC_BITS(FRC_REG_TOP_CTRL9 ,1,24,4);//dly_num =1
-	//	WRITE_FRC_BITS(FRC_REG_TOP_CTRL17,1,8 ,1);//buf prot open
-	//}
+	if (frc_top->frc_prot_mode) {
+		WRITE_FRC_BITS(FRC_REG_TOP_CTRL9, 1, 24, 4);//dly_num =1
+		WRITE_FRC_BITS(FRC_REG_TOP_CTRL17, 1, 8, 1);//buf prot open
+	}
 }
 
 /*buffer number can dynamic kmalloc,  film_hwfw_sel ????*/
@@ -1106,77 +1106,77 @@ void config_phs_regs(enum frc_ratio_mode_type frc_ratio_mode,
 		else if(film_mode == EN_FILM22) {
 			reg_ip_film_end    = 0x2;
 			reg_frc_pd_pat_num = 2;
-			reg_out_frm_dly_num= 4;
+			reg_out_frm_dly_num = 4;
 		}
 		else if(film_mode == EN_FILM32) {
 			reg_ip_film_end    = 0x12;
 			reg_frc_pd_pat_num = 5;
-			reg_out_frm_dly_num= 10;
+			reg_out_frm_dly_num = 10;
 		}
 		else if(film_mode == EN_FILM3223) {
 			reg_ip_film_end    = 0x24a;
 			reg_frc_pd_pat_num = 10;
-			reg_out_frm_dly_num= 15;
+			reg_out_frm_dly_num = 15;
 		}
 		else if(film_mode == EN_FILM2224) {
 			reg_ip_film_end    = 0x22a;
 			reg_frc_pd_pat_num = 10;
-			reg_out_frm_dly_num= 15;
+			reg_out_frm_dly_num = 15;
 		}
 		else if(film_mode == EN_FILM32322) {
 			reg_ip_film_end    = 0x94a;
 			reg_frc_pd_pat_num = 12;
-			reg_out_frm_dly_num= 15;
+			reg_out_frm_dly_num = 15;
 		}
 		else if(film_mode == EN_FILM44) {
 			reg_ip_film_end    = 0x8;
 			reg_frc_pd_pat_num = 4;
-			reg_out_frm_dly_num= 8;
+			reg_out_frm_dly_num = 8;
 		}
 		else if(film_mode == EN_FILM21111) {
 			reg_ip_film_end    = 0x2f;
 			reg_frc_pd_pat_num = 6;
-			reg_out_frm_dly_num= 10;
+			reg_out_frm_dly_num = 10;
 		}
 		else if(film_mode == EN_FILM23322) {
 			reg_ip_film_end    = 0x92a;
 			reg_frc_pd_pat_num = 12;
-			reg_out_frm_dly_num= 15;
+			reg_out_frm_dly_num = 15;
 		}
 		else if(film_mode == EN_FILM2111) {
 			reg_ip_film_end    = 0x17;
 			reg_frc_pd_pat_num = 5;
-			reg_out_frm_dly_num= 10;
+			reg_out_frm_dly_num = 10;
 		}
 		else if(film_mode == EN_FILM22224) {
 			reg_ip_film_end    = 0x8aa;
 			reg_frc_pd_pat_num = 12;
-			reg_out_frm_dly_num= 15;
+			reg_out_frm_dly_num = 15;
 		}
 		else if(film_mode == EN_FILM33) {
 			reg_ip_film_end    = 0x4;
 			reg_frc_pd_pat_num = 3;
-			reg_out_frm_dly_num= 6;
+			reg_out_frm_dly_num = 6;
 		}
 		else if(film_mode == EN_FILM334) {
 			reg_ip_film_end    = 0x224;
 			reg_frc_pd_pat_num = 10;
-			reg_out_frm_dly_num= 15;
+			reg_out_frm_dly_num = 15;
 		}
 		else if(film_mode == EN_FILM55) {
 			reg_ip_film_end    = 0x10;
 			reg_frc_pd_pat_num = 5;
-			reg_out_frm_dly_num= 10;
+			reg_out_frm_dly_num = 10;
 		}
 		else if(film_mode == EN_FILM64) {
 			reg_ip_film_end    = 0x208;
 			reg_frc_pd_pat_num = 10;
-			reg_out_frm_dly_num= 15;
+			reg_out_frm_dly_num = 15;
 		}
 		else if(film_mode == EN_FILM66) {
 			reg_ip_film_end    = 0x20;
 			reg_frc_pd_pat_num = 6;
-			reg_out_frm_dly_num= 15;
+			reg_out_frm_dly_num = 15;
 		}
 		else if(film_mode == EN_FILM87) {
 			 //memc need pre-load 3 different frames, so at least input 8+7+8=23 frames,
@@ -1188,7 +1188,7 @@ void config_phs_regs(enum frc_ratio_mode_type frc_ratio_mode,
 		else if(film_mode == EN_FILM212) {
 			reg_ip_film_end    = 0x15;
 			reg_frc_pd_pat_num = 5;
-			reg_out_frm_dly_num= 15;
+			reg_out_frm_dly_num = 15;
 		}
 		else {
 			  pr_frc(0, "==== USE ERROR CANDENCE ====\n");
@@ -1216,7 +1216,6 @@ void config_phs_regs(enum frc_ratio_mode_type frc_ratio_mode,
 		}
 
 	}
-
 	WRITE_FRC_BITS(FRC_REG_TOP_CTRL18,(inp_frm_vld_lut >> 0 ) & 0xffffffff , 0  ,32 );//input [63:0] reg_inp_frm_vld_lut;
 	WRITE_FRC_BITS(FRC_REG_TOP_CTRL19,(inp_frm_vld_lut >> 32) & 0xffffffff , 0  ,32 );//input [63:0] reg_inp_frm_vld_lut;
 
@@ -2075,10 +2074,6 @@ void frc_internal_initial(struct frc_dev_s *frc_devp)
 	cfg_mc_loss(frc_top->mc_loss_en);
 	/*protect mode, enable: memc delay 2 frame*/
 	/*disable: memc delay n frame, n depend on candence, for debug*/
-	if (frc_top->frc_prot_mode) {
-		WRITE_FRC_BITS(FRC_REG_TOP_CTRL9, 1, 24, 4);//dly_num =1
-		WRITE_FRC_BITS(FRC_REG_TOP_CTRL17, 1, 8, 1);//buf prot open
-	}
 	pr_frc(0, "%s\n", __func__);
 	return;
 }
