@@ -233,8 +233,8 @@ int atsc_get_power_strength(int agc_gain, int tuner_strength);
 int dvbt_isdbt_set_ch(struct aml_dtvdemod *demod,
 		struct aml_demod_dvbt *demod_dvbt);
 unsigned int dvbt_set_ch(struct aml_dtvdemod *demod,
-		struct aml_demod_dvbt *demod_dvbt);
-int dvbt2_set_ch(struct aml_dtvdemod *demod);
+		struct aml_demod_dvbt *demod_dvbt, struct dvb_frontend *fe);
+int dvbt2_set_ch(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
 
 struct demod_status_ops {
 	int (*get_status)(void);

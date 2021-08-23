@@ -827,7 +827,7 @@ struct st_chip_register_t reset368_dvbt2_val[] = {
 	{R368TER_P1_SYMBCFG2, 0x55}
 };
 
-void dvbt2_init(struct aml_dtvdemod *demod)
+void dvbt2_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 {
 	/* bandwidth: 1=8M,2=7M,3=6M,4=5M,5=1.7M */
 	int i;
@@ -872,6 +872,17 @@ void dvbt2_init(struct aml_dtvdemod *demod)
 	dvbt_t2_wrb(0x80e, 0xff);
 	dvbt_t2_wrb(0x80f, 0xff);
 	dvbt_t2_wrb(0x01a, 0x14);
+
+	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
+		PR_INFO("r842 tuner,set r842 dvbt2 config\n");
+		dvbt_t2_wrb(0x821, 0x70);
+		dvbt_t2_wrb(0x824, 0xa0);
+		dvbt_t2_wrb(0x825, 0x10);
+		dvbt_t2_wrb(0x827, 0x50);
+	} else {
+		PR_INFO("not r842 tuner,set default dvbt2 config\n");
+	}
+
 	dvbt_t2_wrb(0x1560, 0x50);
 	dvbt_t2_wrb(0x1561, 0x29);
 	dvbt_t2_wrb(0x1563, 0x56);
@@ -1115,7 +1126,7 @@ static void download_fw_to_sram(struct amldtvdemod_device_s *devp)
 	}
 }
 
-void dvbt2_riscv_init(struct aml_dtvdemod *demod)
+void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 {
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
@@ -1143,7 +1154,7 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod)
 		download_fw_to_sram(devp);
 
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-	dvbt2_init(demod);
+	dvbt2_init(demod, fe);
 
 	switch (demod->bw) {
 	case BANDWIDTH_8_MHZ:
@@ -1186,12 +1197,12 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod)
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 }
 
-void dvbt2_reset(struct aml_dtvdemod *demod)
+void dvbt2_reset(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 {
-	dvbt2_riscv_init(demod);
+	dvbt2_riscv_init(demod, fe);
 }
 
-void dvbt_reg_initial(unsigned int bw)
+void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 {
 	/* bandwidth: 1=8M,2=7M,3=6M,4=5M,5=1.7M */
 	int bw_cov, i;
@@ -1254,9 +1265,20 @@ void dvbt_reg_initial(unsigned int bw)
 	dvbt_t2_wrb(0x0009, 0x00);
 	dvbt_t2_wrb(0x000a, 0x00);
 	dvbt_t2_wrb(0x19, 0x32);
-	dvbt_t2_wrb(0x824, 0xa0);
-	dvbt_t2_wrb(0x825, 0x70);
-	dvbt_t2_wrb(0x827, 0x00);
+
+	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
+		PR_INFO("r842 tuner,set r842 dvbt config\n");
+		dvbt_t2_wrb(0x821, 0x70);
+		dvbt_t2_wrb(0x824, 0xf0);
+		dvbt_t2_wrb(0x825, 0x10);
+		dvbt_t2_wrb(0x827, 0x50);
+	} else {
+		PR_INFO("not r842 tuner,set default dvbt config\n");
+		dvbt_t2_wrb(0x824, 0xa0);
+		dvbt_t2_wrb(0x825, 0x70);
+		dvbt_t2_wrb(0x827, 0x00);
+	}
+
 	dvbt_t2_wrb(0x841, 0x08);
 	dvbt_t2_wrb(0x1590, 0x80);
 	dvbt_t2_wrb(0x1593, 0x80);
@@ -1433,7 +1455,7 @@ void dvbt_reg_initial(unsigned int bw)
 }
 
 unsigned int dvbt_set_ch(struct aml_dtvdemod *demod,
-		struct aml_demod_dvbt *demod_dvbt)
+		struct aml_demod_dvbt *demod_dvbt, struct dvb_frontend *fe)
 {
 	int ret = 0;
 	u8_t demod_mode = 1;
@@ -1478,17 +1500,17 @@ unsigned int dvbt_set_ch(struct aml_dtvdemod *demod,
 		demod_mode = 2;
 
 	demod->bw = bw;
-	dvbt_reg_initial(bw);
+	dvbt_reg_initial(bw, fe);
 	PR_DVBT("DVBT mode\n");
 
 	return ret;
 }
 
-int dvbt2_set_ch(struct aml_dtvdemod *demod)
+int dvbt2_set_ch(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 {
 	int ret = 0;
 
-	dvbt2_riscv_init(demod);
+	dvbt2_riscv_init(demod, fe);
 
 	return ret;
 }
