@@ -85,6 +85,12 @@ enum pst_hist_pos {
 	POS_MAX
 };
 
+enum pw_state_e {
+	PW_ON = 0,
+	PW_OFF,
+	PW_MAX,
+};
+
 extern unsigned int gamma_loadprotect_en;
 extern struct ve_hist_s video_ve_hist;
 void ve_hist_gamma_reset(void);
@@ -227,5 +233,6 @@ void vpp_pst_hist_sta_config(int en,
 	struct vinfo_s *vinfo);
 void vpp_pst_hist_sta_read(unsigned int *hist);
 void eye_proc(int *rgb, int mtx_on);
+void set_vpp_enh_clk(struct vframe_s *vf, struct vframe_s *rpt_vf);
 #endif
 
