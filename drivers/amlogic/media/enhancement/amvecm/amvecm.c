@@ -1775,6 +1775,9 @@ int amvecm_on_vs(struct vframe_s *vf,
 	if (probe_ok == 0)
 		return 0;
 
+	if (vd_path == VD1_PATH)
+		set_vpp_enh_clk(toggle_vf, vf);
+
 #ifdef T7_BRINGUP_MULTI_VPP
 	// todo, will not support in pxp bringup stage
 	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7 &&

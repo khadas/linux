@@ -2702,3 +2702,55 @@ void eye_proc(int *rgb, int mtx_on)
 	VSYNC_WRITE_VPP_REG(matrix_pre_offset2, (pre_offset[2] & 0x7ff));
 }
 
+/*t3 for power consumption, disable clock
+ *modules only before post blend can be disable
+ *because after postblend it used for color temperature
+ *or color corection
+ */
+static void vpp_enhence_clk_ctl(int en)
+{
+	VSYNC_WRITE_VPP_REG_BITS(VPP_GCLK_CTRL0, en, 6, 2); /*blue stretch*/
+	VSYNC_WRITE_VPP_REG_BITS(VPP_GCLK_CTRL1,
+		(en | (en << 2)), 0, 4); /*cm*/
+	VSYNC_WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL,
+		(en | (en << 2)), 24, 4); /*ble, chroma coring*/
+}
+
+void set_vpp_enh_clk(struct vframe_s *vf, struct vframe_s *rpt_vf)
+{
+	/*cm / blue stretch/ black extension/ chroma coring*/
+	/*other modules(sr0/sr1/dnlp/lc disable in amvideo)*/
+	/*en: 1 disable clock,  0: enable clock*/
+	static enum pw_state_e pre_state = PW_MAX;
+	enum pw_state_e pw_state = PW_MAX;
+
+	if (get_cpu_type() < MESON_CPU_MAJOR_ID_T3)
+		return;
+
+	if (vf || rpt_vf)
+		pw_state = PW_ON;
+	else
+		pw_state = PW_OFF;
+
+	switch (pw_state) {
+	case PW_ON:
+		if (pre_state != PW_ON) {
+			vpp_enhence_clk_ctl(PW_ON);
+			pre_state = pw_state;
+			pr_amve_dbg("PW_ON: pre_state: %d\n", pre_state);
+		}
+		break;
+	case PW_OFF:
+		if (pre_state != PW_OFF) {
+			vpp_enhence_clk_ctl(PW_OFF);
+			pre_state = pw_state;
+			pr_amve_dbg("PW_OFF: pre_state: %d\n", pre_state);
+		}
+		break;
+	case PW_MAX:
+	default:
+		pre_state = PW_MAX;
+		break;
+	}
+}
+
