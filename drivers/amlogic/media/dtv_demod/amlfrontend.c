@@ -1078,7 +1078,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	if (strenth < strength_limit) {
 		if (!(no_signal_cnt++ % 20))
-			dvbt2_reset(demod);
+			dvbt2_reset(demod, fe);
 		unlock_cnt = 0;
 		*status = FE_TIMEDOUT;
 		demod->last_status = *status;
@@ -1189,7 +1189,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		unlock_cnt = 0;
 	if (unlock_cnt >= RESET_IN_UNLOCK_TIMES) {
 		unlock_cnt = 0;
-		dvbt2_reset(demod);
+		dvbt2_reset(demod, fe);
 	}
 
 	if (*status == 0)
@@ -1418,7 +1418,7 @@ static int dvbt_set_frontend(struct dvb_frontend *fe)
 	real_para_clear(&demod->real_para);
 
 	tuner_set_params(fe);
-	dvbt_set_ch(demod, &param);
+	dvbt_set_ch(demod, &param, fe);
 	demod->time_start = jiffies_to_msecs(jiffies);
 	/* wait tuner stable */
 	msleep(30);
@@ -1442,7 +1442,7 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 	real_para_clear(&demod->real_para);
 
 	tuner_set_params(fe);
-	dvbt2_set_ch(demod);
+	dvbt2_set_ch(demod, fe);
 	demod->time_start = jiffies_to_msecs(jiffies);
 	/* wait tuner stable */
 	msleep(30);
@@ -2336,7 +2336,7 @@ static int dvbt_isdbt_tune(struct dvb_frontend *fe, bool re_tune,
 	return 0;
 }
 
-static void dvbt_rst_demod(struct aml_dtvdemod *demod)
+static void dvbt_rst_demod(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 {
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
@@ -2355,7 +2355,7 @@ static void dvbt_rst_demod(struct aml_dtvdemod *demod)
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 	}
 
-	dvbt_reg_initial(demod->bw);
+	dvbt_reg_initial(demod->bw, fe);
 }
 
 static int dvbt_tune(struct dvb_frontend *fe, bool re_tune,
@@ -2415,7 +2415,7 @@ static int dvbt_tune(struct dvb_frontend *fe, bool re_tune,
 
 	if (((demod->t_cnt % 5) == 2 && (fsm & 0xf) < 9) ||
 	    (demod->t_cnt >= 5 && (fsm & 0xf) == 9 && (fsm >> 6 & 1) && (*status != 0x1f))) {
-		dvbt_rst_demod(demod);
+		dvbt_rst_demod(demod, fe);
 		demod->t_cnt = 0;
 		PR_INFO("[id %d] rst, tps or ts unlock\n", demod->id);
 	}

@@ -498,15 +498,15 @@ enum ldpc_ite_md {
 #define CHC_CIR_SNR1	0x2a09
 
 extern const unsigned int minimum_snr_x10[4][6];
-void dvbt2_init(struct aml_dtvdemod *demod);
+void dvbt2_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
 unsigned int dtvdemod_calcul_get_field(unsigned int memory_base, unsigned int nb_bits_shift,
 					unsigned int var_size);
 void dtvdemod_get_plp(struct amldtvdemod_device_s *devp, struct dtv_property *tvp);
 void dtvdemod_get_plp_dbg(void);
 void dtvdemod_set_plpid(char id);
-void dvbt_reg_initial(unsigned int bw);
-void dvbt2_reset(struct aml_dtvdemod *demod);
-void dvbt2_riscv_init(struct aml_dtvdemod *demod);
+void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe);
+void dvbt2_reset(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
+void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
 void dvbt2_info(struct seq_file *seq);
 void dvbt_info(struct aml_dtvdemod *demod, struct seq_file *seq);
 #endif

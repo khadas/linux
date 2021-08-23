@@ -21,6 +21,7 @@
 /*  V1.0.26  weak signal sidplay after dvbs search*/
 /*  V1.0.27  s4d remove dvbs blindscan fastsearch threadhold*/
 /*  V1.0.28  fix the hang when read mplp info in DVBT system*/
+/*  V1.0.29  add auto recognition t/t2 r842 config*/
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -37,9 +38,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.0.28"
+#define AMLDTVDEMOD_VER "V1.0.29"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
-#define DTVDEMOD_VER	"2021/11/09: fix the hang when read mplp info in DVBT system"
+#define DTVDEMOD_VER	"2021/11/22: add auto recognition t/t2 r842 config"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
