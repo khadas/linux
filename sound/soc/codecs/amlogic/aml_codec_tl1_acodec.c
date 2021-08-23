@@ -940,11 +940,12 @@ static void aml_tl1_acodec_shutdown(struct platform_device *pdev)
 
 	aml_acodec = platform_get_drvdata(pdev);
 	component = aml_acodec->component;
-	if (component)
-		tl1_acodec_remove(component);
 
 	if (!IS_ERR(aml_acodec->acodec_clk))
 		clk_disable_unprepare(aml_acodec->acodec_clk);
+
+	if (component)
+		tl1_acodec_dai_set_bias_level(component, SND_SOC_BIAS_OFF);
 }
 
 static const struct of_device_id aml_tl1_acodec_dt_match[] = {
