@@ -501,6 +501,45 @@
 		 */
 		fr_policy = <0>;
 	};
+
+	rdma {
+		compatible = "amlogic, meson-t3, rdma";
+		status = "okay";
+		interrupts = <GIC_SPI 89 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "rdma";
+		/* after sc2 */
+		reset-names = "rdma";
+		resets = <&reset RESET_RDMA>;
+		rdma_table_page_count = <16>;
+	};
+
+	codec_io: codec_io {
+		compatible = "amlogic, meson-t5w, codec-io";
+		status = "okay";
+		#address-cells=<2>;
+		#size-cells=<2>;
+		ranges;
+		reg =   <0x0 0xffd00000 0x0 0x2000>,
+			<0x0 0xff620000 0x0 0x10000>,
+			<0x0 0xff63c000 0x0 0x2000>,
+			<0x0 0xff800000 0x0 0x10000>,
+			<0x0 0xff900000 0x0 0x40000>,
+			<0x0 0xff638000 0x0 0x2000>,
+			<0x0 0xff630000 0x0 0x2000>;
+		reg-names = "cbus",
+			    "dosbus",
+			    "hiubus",
+			    "aobus",
+			    "vcbus",
+			    "dmcbus",
+			    "efusebus";
+	};
+
+	canvas: canvas {
+		compatible = "amlogic, meson, canvas";
+		status = "okay";
+		reg = <0x0 0xfe036048 0x0 0x2000>;
+	};
 }; /* end of / */
 
 &pinctrl_periphs {
