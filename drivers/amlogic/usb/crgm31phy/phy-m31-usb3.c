@@ -55,9 +55,6 @@ static void amlogic_usb3_m31_shutdown(struct usb_phy *x)
 			(phy->reset_level - mask)));
 	}
 
-	if (phy->phy.flags == AML_USB3_PHY_ENABLE)
-		clk_disable_unprepare(phy->clk);
-
 	phy->suspend_flag = 1;
 }
 
@@ -87,8 +84,6 @@ static int amlogic_usb3_m31_init(struct usb_phy *x)
 	}
 
 	if (phy->suspend_flag) {
-		if (phy->phy.flags == AML_USB3_PHY_ENABLE)
-			clk_prepare_enable(phy->clk);
 		phy->suspend_flag = 0;
 		return 0;
 	}
@@ -225,19 +220,6 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 		writel(r0.d32, phy->phy3_cfg);
 		usleep_range(90, 100);
 
-		phy->clk = devm_clk_get(dev, "pcie_refpll");
-		if (IS_ERR(phy->clk)) {
-			dev_err(dev, "Failed to get usb3 bus clock\n");
-			ret = PTR_ERR(phy->clk);
-			return ret;
-		}
-
-		ret = clk_prepare_enable(phy->clk);
-		if (ret) {
-			dev_err(dev, "Failed to enable usb3 bus clock\n");
-			ret = PTR_ERR(phy->clk);
-			return ret;
-		}
 		phy->phy.flags = AML_USB3_PHY_ENABLE;
 	}
 

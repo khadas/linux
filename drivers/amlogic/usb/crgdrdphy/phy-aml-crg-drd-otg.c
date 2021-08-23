@@ -37,7 +37,10 @@ struct amlogic_crg_otg {
 	void __iomem    *phy3_cfg_r4;
 	void __iomem    *phy3_cfg_r5;
 	void __iomem    *usb2_phy_cfg;
+	void __iomem    *m31_phy_cfg;
 	struct delayed_work     work;
+	struct gpio_desc *usb_gpio_desc;
+	int vbus_power_pin;
 };
 
 bool crg_force_device_mode;
@@ -59,6 +62,25 @@ __setup("otg_device=", force_otg_mode);
 
 static void set_mode
 	(unsigned long reg_addr, int mode, unsigned long phy3_addr);
+
+static void set_usb_vbus_power
+	(struct gpio_desc *usb_gd, int pin, char is_power_on)
+{
+	if (is_power_on)
+		/*set vbus on by gpio*/
+		gpiod_direction_output(usb_gd, 1);
+	else
+		/*set vbus off by gpio first*/
+		gpiod_direction_output(usb_gd, 0);
+}
+
+static void amlogic_m31_set_vbus_power
+		(struct amlogic_crg_otg *phy, char is_power_on)
+{
+	if (phy->vbus_power_pin != -1)
+		set_usb_vbus_power(phy->usb_gpio_desc,
+				   phy->vbus_power_pin, is_power_on);
+}
 
 static int amlogic_crg_otg_init(struct amlogic_crg_otg *phy)
 {
@@ -114,12 +136,14 @@ static void amlogic_crg_otg_work(struct work_struct *work)
 	if (reg2.b.iddig_curr == 0) {
 		/* to do*/
 		crg_gadget_exit();
+		amlogic_m31_set_vbus_power(phy, 1);
 		set_mode(reg_addr, HOST_MODE, phy3_addr);
 		crg_init();
 	} else {
 		/* to do*/
 		crg_exit();
 		set_mode(reg_addr, DEVICE_MODE, phy3_addr);
+		amlogic_m31_set_vbus_power(phy, 0);
 		crg_gadget_init();
 		if (UDC_exist_flag != 1) {
 			ret = crg_otg_write_UDC(crg_UDC_name);
@@ -155,6 +179,9 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	void __iomem *usb3_phy_base;
 	unsigned int usb3_phy_mem;
 	unsigned int usb3_phy_mem_size = 0;
+	void __iomem *m31_phy_base;
+	unsigned int m31_phy_mem;
+	unsigned int m31_phy_mem_size = 0;
 	const void *prop;
 	int irq;
 	int retval;
@@ -163,6 +190,19 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	union u2p_r2_v2 reg2;
 	unsigned long reg_addr;
 	const char *udc_name = NULL;
+	const char *gpio_name = NULL;
+	int gpio_vbus_power_pin = -1;
+	struct gpio_desc *usb_gd = NULL;
+	u32 val;
+
+	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
+	if (gpio_name) {
+		gpio_vbus_power_pin = 1;
+		usb_gd = devm_gpiod_get_index
+			(&pdev->dev, NULL, 0, GPIOD_OUT_LOW);
+		if (IS_ERR(usb_gd))
+			return -1;
+	}
 
 	prop = of_get_property(dev->of_node, "controller-type", NULL);
 	if (prop)
@@ -234,6 +274,8 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	phy->dev		= dev;
 	phy->usb2_phy_cfg	= usb2_phy_base;
 	phy->phy3_cfg = usb3_phy_base;
+	phy->vbus_power_pin = gpio_vbus_power_pin;
+	phy->usb_gpio_desc = usb_gd;
 
 	INIT_DELAYED_WORK(&phy->work, amlogic_crg_otg_work);
 
@@ -242,6 +284,28 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 	pm_runtime_enable(phy->dev);
 
 	if (otg) {
+		retval = of_property_read_u32
+			(dev->of_node, "m31-phy-reg", &m31_phy_mem);
+		if (retval < 0)
+			goto NO_M31;
+
+		retval = of_property_read_u32
+			(dev->of_node, "m31-phy-reg-size", &m31_phy_mem_size);
+		if (retval < 0)
+			goto NO_M31;
+
+		m31_phy_base = devm_ioremap_nocache
+			(&pdev->dev, (resource_size_t)m31_phy_mem,
+			(unsigned long)m31_phy_mem_size);
+		if (!m31_phy_base)
+			goto NO_M31;
+
+		phy->m31_phy_cfg = m31_phy_base;
+
+		val = readl(phy->m31_phy_cfg + 0x8);
+		val |= 1;
+		writel(val, phy->m31_phy_cfg + 0x8);
+NO_M31:
 		irq = platform_get_irq(pdev, 0);
 		if (irq < 0)
 			return -ENODEV;
@@ -261,9 +325,11 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 		if (crg_force_device_mode || controller_type == USB_DEVICE_ONLY) {
 			set_mode((unsigned long)phy->usb2_phy_cfg,
 				DEVICE_MODE, (unsigned long)phy->phy3_cfg);
+			amlogic_m31_set_vbus_power(phy, 0);
 			crg_gadget_init();
 		} else if (controller_type == USB_HOST_ONLY) {
 			crg_init();
+			amlogic_m31_set_vbus_power(phy, 1);
 			set_mode((unsigned long)phy->usb2_phy_cfg,
 				HOST_MODE, (unsigned long)phy->phy3_cfg);
 		}
@@ -271,12 +337,14 @@ static int amlogic_crg_otg_probe(struct platform_device *pdev)
 		reg_addr = ((unsigned long)phy->usb2_phy_cfg);
 		reg2.d32 = readl((void __iomem *)(reg_addr + 8));
 		if (reg2.b.iddig_curr == 0) {
+			amlogic_m31_set_vbus_power(phy, 1);
 			set_mode(reg_addr, HOST_MODE,
 				(unsigned long)phy->phy3_cfg);
 			crg_init();
 		} else {
 			set_mode(reg_addr, DEVICE_MODE,
 				(unsigned long)phy->phy3_cfg);
+			amlogic_m31_set_vbus_power(phy, 0);
 			crg_gadget_init();
 		}
 		reg2.b.usb_iddig_irq = 0;
