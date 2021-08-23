@@ -1499,15 +1499,10 @@
 		};
 
 		arm_pmu {
-			compatible = "arm,armv8-pmuv3";
-			/* clusterb-enabled; */
+			compatible = "arm,cortex-a55-pmu";
 			interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0 0xff634680 0 0x4>;
 			cpumasks = <0xf>;
-			/* default 10ms */
-			relax-timer-ns = <10000000>;
-			/* default 10000us */
-			max-wait-cnt = <10000>;
 		};
 
 		gic: interrupt-controller@ffc01000 {
