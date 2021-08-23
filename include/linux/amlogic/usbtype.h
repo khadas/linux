@@ -19,6 +19,7 @@
 #define USB_HOST_ONLY	1
 #define USB_DEVICE_ONLY  2
 #define	USB_OTG          3
+#define USB_M31          4
 
 #define USB_BC_MODE_DISCONNECT	0	/* Disconnected */
 #define USB_BC_MODE_SDP		1	/* PC */
