@@ -45,7 +45,7 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Wno-date-time                      \
 	-Dlinux -DLINUX -DBCMDRIVER                                           \
 	-Wno-maybe-uninitialized -Werror -Wno-format-security                 \
 	-Wno-unknown-warning-option -Wno-sometimes-uninitialized              \
-	-Wno-parentheses-equality                                             \
+	-Wno-parentheses-equality -Wno-implicit-fallthrough                   \
 	-DBCMDONGLEHOST -DBCMDMA32 -DBCMFILEIMAGE                             \
 	-DDHDTHREAD -DDHD_DEBUG -DSHOW_EVENTS -DGET_OTP_MAC_ENABLE            \
 	-DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT -DSUPPORT_PM2_ONLY             \
