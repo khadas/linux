@@ -1655,6 +1655,12 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	u32 inst_id = dev->inst;
 
 	mutex_lock(&dev->mutex_input);
+
+	if (!dev->receiver_register) {
+		mutex_unlock(&dev->mutex_input);
+		return -EAGAIN;
+	}
+
 	buf = v4l2q_peek(&dev->input_queue);
 	if (!buf) {
 		dprintk(dev, 3, "No active queue to serve\n");
