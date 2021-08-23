@@ -193,48 +193,6 @@ static void armpmu_free_irqs(struct arm_pmu *armpmu)
 
 struct amlpmu_context amlpmu_ctx;
 
-static enum hrtimer_restart amlpmu_relax_timer_func(struct hrtimer *timer)
-{
-	struct amlpmu_context *ctx = &amlpmu_ctx;
-	struct amlpmu_cpuinfo *ci;
-
-	ci = per_cpu_ptr(ctx->cpuinfo, 0);
-
-	pr_info("enable cpu0_irq %d again, irq cnt = %lu\n",
-		ci->irq_num,
-		ci->valid_irq_cnt);
-	enable_irq(ci->irq_num);
-
-	return HRTIMER_NORESTART;
-}
-
-void amlpmu_relax_timer_start(int other_cpu)
-{
-	struct amlpmu_cpuinfo *ci;
-	int cpu;
-	struct amlpmu_context *ctx = &amlpmu_ctx;
-
-	cpu = smp_processor_id();
-	WARN_ON(cpu != 0);
-
-	ci = per_cpu_ptr(ctx->cpuinfo, 0);
-
-	pr_warn("wait cpu %d fixup done timeout, main cpu irq cnt = %lu\n",
-		other_cpu,
-		ci->valid_irq_cnt);
-
-	if (hrtimer_active(&ctx->relax_timer)) {
-		pr_alert("relax_timer already active, return!\n");
-		return;
-	}
-
-	disable_irq_nosync(ci->irq_num);
-
-	hrtimer_start(&ctx->relax_timer,
-		      ns_to_ktime(ctx->relax_timer_ns),
-		      HRTIMER_MODE_REL);
-}
-
 static void amlpmu_fix_setup_affinity(int irq)
 {
 	int cluster_index = 0;
@@ -548,24 +506,6 @@ static int amlpmu_init(struct platform_device *pdev, struct arm_pmu *pmu)
 	}
 	pr_info("cpumasks 0x%0x, 0x%0x\n", cpumasks[0], cpumasks[1]);
 
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "relax-timer-ns",
-				   &ctx->relax_timer_ns);
-	if (ret) {
-		pr_err("read prop relax-timer-ns failed, ret = %d\n", ret);
-		ret = -EINVAL;
-		goto free;
-	}
-
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "max-wait-cnt",
-				    &ctx->max_wait_cnt);
-	if (ret) {
-		pr_err("read prop max-wait-cnt failed, ret = %d\n", ret);
-		ret = -EINVAL;
-		goto free;
-	}
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		pr_err("get clusterA irq failed, %d\n", irq);
@@ -598,11 +538,6 @@ static int amlpmu_init(struct platform_device *pdev, struct arm_pmu *pmu)
 	}
 
 	amlpmu_fix_setup_affinity(ctx->irqs[0]);
-
-	hrtimer_init(&ctx->relax_timer,
-		     CLOCK_MONOTONIC,
-		     HRTIMER_MODE_REL);
-	ctx->relax_timer.function = amlpmu_relax_timer_func;
 
 	if (!ctx->clusterb_enabled)
 		return 0;

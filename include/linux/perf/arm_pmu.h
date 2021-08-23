@@ -245,16 +245,6 @@ struct amlpmu_context {
 	int irqs[MAX_CLUSTER_NR];
 	struct cpumask cpumasks[MAX_CLUSTER_NR];
 	int first_cpus[MAX_CLUSTER_NR];
-
-	/*
-	 * In main pmu irq route wait for other cpu fix done may cause lockup,
-	 * when lockup we disable main irq for a while.
-	 * relax_timer will enable main irq again.
-	 */
-	struct hrtimer relax_timer;
-
-	unsigned int relax_timer_ns;
-	unsigned int max_wait_cnt;
 };
 
 extern struct amlpmu_context amlpmu_ctx;
