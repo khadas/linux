@@ -373,6 +373,7 @@ static void lcd_lvds_control_set(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_CHIP_T5:
 	case LCD_CHIP_T5D:
+	case LCD_CHIP_T5W:
 		/* lvds channel:    //tx 12 channels
 		 *    0: d0_a
 		 *    1: d1_a

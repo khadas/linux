@@ -1197,6 +1197,7 @@ int lcd_phy_config_init(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_CHIP_T5:
 	case LCD_CHIP_T5D:
+	case LCD_CHIP_T5W:
 		lcd_phy_ctrl = &lcd_phy_ctrl_t5;
 		break;
 	case LCD_CHIP_T7:

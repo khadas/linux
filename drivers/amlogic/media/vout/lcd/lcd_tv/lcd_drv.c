@@ -187,7 +187,8 @@ static void lcd_lvds_control_set(struct aml_lcd_drv_s *pdrv)
 		fifo_mode = 0x1;
 
 	if (pdrv->data->chip_type == LCD_CHIP_T7 ||
-	    pdrv->data->chip_type == LCD_CHIP_T3) {
+	    pdrv->data->chip_type == LCD_CHIP_T3 ||
+	    pdrv->data->chip_type == LCD_CHIP_T5W) {
 		reg_lvds_pack_ctrl = LVDS_PACK_CNTL_ADDR_T7 + offset;
 		reg_lvds_gen_ctrl = LVDS_GEN_CNTL_T7 + offset;
 		lcd_vcbus_write(LVDS_SER_EN_T7 + offset, 0xfff);
@@ -314,6 +315,7 @@ static void lcd_lvds_control_set(struct aml_lcd_drv_s *pdrv)
 		lcd_vcbus_write(P2P_BIT_REV_T7 + offset, 2);
 		break;
 	case LCD_CHIP_T3:
+	case LCD_CHIP_T5W:
 		/* lvds channel:    //tx 12 channels
 		 *    0: d0_a
 		 *    1: d1_a

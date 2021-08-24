@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "mesont5w.dtsi"
+#include "mesont5w_pxp-panel.dtsi"
 
 / {
 	model = "Amlogic T5W PXP";

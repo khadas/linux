@@ -108,6 +108,13 @@ static unsigned int lcd_reg_dump_clk_t5[] = {
 	LCD_DEBUG_REG_END
 };
 
+static unsigned int lcd_reg_dump_clk_t5w[] = {
+	HHI_VIID_CLK0_DIV,
+	HHI_VIID_CLK0_CTRL,
+	HHI_VID_CLK0_CTRL2,
+	LCD_DEBUG_REG_END
+};
+
 static unsigned int lcd_reg_dump_pll_t7_0[] = {
 	ANACTRL_TCON_PLL0_CNTL0,
 	ANACTRL_TCON_PLL0_CNTL1,

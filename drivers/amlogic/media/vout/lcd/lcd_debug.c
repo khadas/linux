@@ -6381,6 +6381,14 @@ static struct lcd_debug_info_reg_s lcd_debug_info_reg_t5 = {
 	.prbs_test = aml_lcd_prbs_test,
 };
 
+static struct lcd_debug_info_reg_s lcd_debug_info_reg_t5w = {
+	.reg_pll_table = lcd_reg_dump_pll_t5,
+	.reg_clk_table = lcd_reg_dump_clk_t5w,
+	.reg_encl_table = lcd_reg_dump_encl_tl1,
+	.reg_pinmux_table = lcd_reg_dump_pinmux_t5,
+	.prbs_test = aml_lcd_prbs_test,
+};
+
 static struct lcd_debug_info_reg_s lcd_debug_info_reg_t7_0 = {
 	.reg_pll_table = lcd_reg_dump_pll_t7_0,
 	.reg_clk_table = lcd_reg_dump_clk_t7_0,
@@ -6485,6 +6493,9 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv)
 	case LCD_CHIP_T5:
 	case LCD_CHIP_T5D:
 		lcd_debug_info_reg = &lcd_debug_info_reg_t5;
+		break;
+	case LCD_CHIP_T5W:
+		lcd_debug_info_reg = &lcd_debug_info_reg_t5w;
 		break;
 	case LCD_CHIP_T7:
 		switch (pdrv->index) {

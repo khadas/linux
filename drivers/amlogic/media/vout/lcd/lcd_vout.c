@@ -1604,6 +1604,16 @@ static struct lcd_data_s lcd_data_t3 = {
 	.offset_venc_data = {0x0, 0x100, 0x0},
 };
 
+static struct lcd_data_s lcd_data_t5w = {
+	.chip_type = LCD_CHIP_T5W,
+	.chip_name = "t5w",
+	.reg_map_table = &lcd_reg_t5[0],
+	.drv_max = 1,
+	.offset_venc = {0},
+	.offset_venc_if = {0},
+	.offset_venc_data = {0},
+};
+
 static const struct of_device_id lcd_dt_match_table[] = {
 	{
 		.compatible = "amlogic, lcd-g12a",
@@ -1640,6 +1650,10 @@ static const struct of_device_id lcd_dt_match_table[] = {
 	{
 		.compatible = "amlogic, lcd-t3",
 		.data = &lcd_data_t3,
+	},
+	{
+		.compatible = "amlogic, lcd-t5w",
+		.data = &lcd_data_t5w,
 	},
 	{}
 };

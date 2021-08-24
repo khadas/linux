@@ -3434,6 +3434,12 @@ static struct bl_data_s bl_data_t3 = {
 	.pwm_vs_flag = 1,
 };
 
+static struct bl_data_s bl_data_t5w = {
+	.chip_type = LCD_CHIP_T5W,
+	.chip_name = "t5w",
+	.pwm_vs_flag = 1,
+};
+
 static const struct of_device_id bl_dt_match_table[] = {
 	{
 		.compatible = "amlogic, backlight-g12a",
@@ -3476,6 +3482,10 @@ static const struct of_device_id bl_dt_match_table[] = {
 	{
 		.compatible = "amlogic, backlight-t3",
 		.data = &bl_data_t3,
+	},
+	{
+		.compatible = "amlogic, backlight-t5w",
+		.data = &bl_data_t5w,
 	},
 	{}
 };
