@@ -240,7 +240,9 @@ static struct aad_debug_param_s aad_dbg_parm = {
 
 static char aad_ver[32] = "aad_v1_20210621";
 int cur_o_gain[3] = {4096, 4096, 4096};
+#ifdef CONFIG_AMLOGIC_LCD
 static u32 pre_backlight;
+#endif
 struct aad_fw_param_s fw_aad_parm = {
 	.fw_aad_en = 0,
 	.fw_aad_status = 0,

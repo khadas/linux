@@ -1833,7 +1833,11 @@ int vpp_set_lut3d(int bfromkey,
 		  unsigned int p3dlut_in[][3],
 		  int blut3dcheck)
 {
+#ifdef CONFIG_AMLOGIC_LCD
 	int i, key_len, key_count, ret, offset = 0;
+#else
+	int i, key_len, key_count, offset = 0;
+#endif
 	int d0, d1, d2, counter, size, index0, index1, idn;
 	u32 dwtemp, ctltemp, wrgb[3];
 	unsigned int combine3 = 0;
@@ -1863,15 +1867,17 @@ int vpp_set_lut3d(int bfromkey,
 		}
 
 		if (bfromkey == 1) {
+#ifdef CONFIG_AMLOGIC_LCD
 			ret =
 			lcd_unifykey_get_no_header("lcd_3dlut",
 						   (unsigned char *)pkeylutall,
 						   &key_len);
-			if (ret) {
+			if (ret < 0) {
 				kfree(pkeylutall);
 				kfree(pkeylut);
 				return 1;
 			}
+#endif
 		} else if (bfromkey == 2) {
 			fp = filp_open(LUT3DBIN_PATH, O_RDONLY, 0);
 			if (IS_ERR(fp)) {

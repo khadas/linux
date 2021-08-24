@@ -268,8 +268,11 @@ static void ts_process(struct platform_device *pdev)
 
 int frontend_probe(struct platform_device *pdev)
 {
+#if (defined CONFIG_AMLOGIC_DVB_EXTERN ||\
+		defined CONFIG_AMLOGIC_DVB_EXTERN_MODULE)
 	int ret = 0;
 	struct aml_dvb *advb = aml_get_dvb_device();
+#endif
 
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node)

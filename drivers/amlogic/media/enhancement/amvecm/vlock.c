@@ -393,7 +393,9 @@ u32 vlock_get_panel_pll_frac(struct stvlock_sig_sts *pvlock)
 
 void vlock_set_panel_pll_m(struct stvlock_sig_sts *pvlock, u32 val)
 {
+#ifdef CONFIG_AMLOGIC_LCD
 	u32 m = val;
+#endif
 
 	if (!pvlock)
 		return;
@@ -401,7 +403,7 @@ void vlock_set_panel_pll_m(struct stvlock_sig_sts *pvlock, u32 val)
 	if (pvlock->dtdata->vlk_pll_sel == vlock_pll_sel_hdmi) {
 		amvecm_hiu_reg_write(HHI_HDMI_PLL_CNTL, val);
 	} else {
-		if (pvlock->dtdata->vlk_chip >= vlock_chip_t7)
+		if (pvlock->dtdata->vlk_chip >= vlock_chip_t7) {
 			if (pvlock->idx == VLOCK_ENC0)
 				vlock_reg_wt_bits(REG_MAP_ANACTRL,
 						  ANACTRL_TCON_PLL0_CNTL0, val, 0, 8);
@@ -414,6 +416,7 @@ void vlock_set_panel_pll_m(struct stvlock_sig_sts *pvlock, u32 val)
 			else
 				vlock_reg_wt_bits(REG_MAP_ANACTRL,
 						  ANACTRL_TCON_PLL0_CNTL0, val, 0, 8);
+		}
 #ifdef CONFIG_AMLOGIC_LCD
 		else
 			lcd_vlock_m_update(m);
@@ -423,7 +426,9 @@ void vlock_set_panel_pll_m(struct stvlock_sig_sts *pvlock, u32 val)
 
 void vlock_set_panel_pll_frac(struct stvlock_sig_sts *pvlock, u32 val)
 {
+#ifdef CONFIG_AMLOGIC_LCD
 	u32 frac = val;
+#endif
 
 	if (!pvlock)
 		return;
@@ -431,7 +436,7 @@ void vlock_set_panel_pll_frac(struct stvlock_sig_sts *pvlock, u32 val)
 	if (pvlock->dtdata->vlk_pll_sel == vlock_pll_sel_hdmi) {
 		amvecm_hiu_reg_write(HHI_HDMI_PLL_CNTL2, val);
 	} else {
-		if (pvlock->dtdata->vlk_chip >= vlock_chip_t7)
+		if (pvlock->dtdata->vlk_chip >= vlock_chip_t7) {
 			if (pvlock->idx == VLOCK_ENC0)
 				vlock_reg_wt_bits(REG_MAP_ANACTRL,
 						  ANACTRL_TCON_PLL0_CNTL1, val, 0, 19);
@@ -444,6 +449,7 @@ void vlock_set_panel_pll_frac(struct stvlock_sig_sts *pvlock, u32 val)
 			else
 				vlock_reg_wt_bits(REG_MAP_ANACTRL,
 						  ANACTRL_TCON_PLL0_CNTL1, val, 0, 19);
+		}
 #ifdef CONFIG_AMLOGIC_LCD
 		else
 			lcd_vlock_frac_update(frac);
