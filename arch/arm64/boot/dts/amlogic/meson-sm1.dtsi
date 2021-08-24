@@ -803,6 +803,7 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges = <0x0 0x0 0x0 0xFF660000 0x0 0x3000>;
+		chip_id = <0x2B>;
 		clkaudio: audio_clocks {
 			compatible = "amlogic, sm1-audio-clocks";
 			#clock-cells = <1>;

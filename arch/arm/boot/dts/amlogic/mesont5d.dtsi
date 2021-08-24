@@ -977,7 +977,7 @@
 			#size-cells = <1>;
 			reg = <0xff600000 0x3000>;
 			ranges = <0 0xff600000 0x3000>;
-
+			chip_id = <0x35>;
 			clkaudio:audio_clocks {
 				compatible = "amlogic, t5-audio-clocks";
 				#clock-cells = <1>;

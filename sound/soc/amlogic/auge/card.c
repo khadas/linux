@@ -30,6 +30,7 @@
 #include "regs.h"
 #include "../common/misc.h"
 #include "../common/audio_uevent.h"
+#include "audio_controller.h"
 //#include <linux/amlogic/media/sound/debug.h>
 
 /*the same as audio hal type define!*/
@@ -194,11 +195,22 @@ static int aml_audio_hal_format_set_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int aml_chip_id_get(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	(void)kcontrol;
+	ucontrol->value.integer.value[0] = aml_return_chip_id();
+	return 0;
+}
+
 static const struct snd_kcontrol_new snd_user_controls[] = {
 	SOC_ENUM_EXT("Audio HAL Format",
 		     audio_hal_format_enum,
 		     aml_audio_hal_format_get_enum,
-		     aml_audio_hal_format_set_enum)
+		     aml_audio_hal_format_set_enum),
+
+	SND_SOC_BYTES_EXT("AML chip id", 1,
+			aml_chip_id_get, NULL)
 };
 
 static void jack_audio_start_timer(struct aml_card_data *card_data,
