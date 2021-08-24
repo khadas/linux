@@ -1139,7 +1139,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0xFE330000 0x3000>;
-
+			chip_id = <0x37>;
 			power-domains = <&pwrdm PDID_S4_AUDIO>;
 
 			clkaudio: audio_clocks {

@@ -1800,6 +1800,7 @@
 			ranges = <0x0 0x0 0x0 0xFE330000 0x0 0x3000>;
 
 			power-domains = <&pwrdm PDID_T7_AUDIO>;
+			chip_id = <0x36>;
 			status = "okay";
 
 			clkaudio: audio_clocks {
