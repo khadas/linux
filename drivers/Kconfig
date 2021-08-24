@@ -232,4 +232,6 @@ source "drivers/counter/Kconfig"
 
 source "drivers/amlogic/Kconfig"
 
+source "drivers/gpu/arm/Kconfig"
+
 endmenu
