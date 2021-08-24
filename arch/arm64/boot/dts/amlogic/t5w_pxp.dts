@@ -42,6 +42,46 @@
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
 		};
+
+		logo_reserved:linux,meson-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* keep sync with fb */
+			/* fox example:logo_addr = "0x3f800000"*/
+			size = <0x0 0x800000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x3f800000 0x0 0x800000>;
+		};
+
+		ion_cma_reserved:linux,ion-dev {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* device/amlogic/xxx/BoardConfig.mk
+			 *        |HWC_PRIMARY_FRAMEBUFFER_WIDTH := 1920
+			 *        |HWC_PRIMARY_FRAMEBUFFER_HEIGHT := 1080
+			 *        |NUM_FRAMEBUFFER_SURFACE_BUFFERS := 3
+			 * size = 1920 * 1080 * 3 * 4
+			 * (RGBA: 4 bytes/pixel) + 4M(10% * afbc)
+			 */
+			size = <0x0 0x00400000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
+		};
+
+		ion_fb_reserved:linux,ion-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1280x720x4x3 round up 4M align */
+			size = <0x0 0xc00000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
+		};
+	};
+
+	ionvideo {
+		compatible = "amlogic, ionvideo";
+		dev_name = "ionvideo";
+		status = "okay";
 	};
 }; /* end of reserved-memory */
 
@@ -97,4 +137,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_ao_pins1>;
 	status = "disabled";
+};
+
+&fb {
+	status = "okay";
+	display_size_default = <1920 1080 1920 2160 32>;
+	mem_size = <0x00800000 0x1980000 0x100000 0x100000>;
+	logo_addr = "0x3f800000";
+	/* display_device_cnt = <2>; */ /* for dual screen upport */
+	mem_alloc = <1>;
+	pxp_mode = <1>; /** 0:normal mode 1:pxp mode */
 };

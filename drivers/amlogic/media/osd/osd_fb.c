@@ -4565,6 +4565,8 @@ static struct osd_device_hw_s legcy_dev_property = {
 	.has_multi_vpp = 0,
 	.new_blend_bypass = 0,
 	.path_ctrl_independ = 0,
+	.remove_afbc = 0,
+	.remove_pps = 0,
 };
 
 static struct osd_device_hw_s t7_dev_property = {
@@ -4574,6 +4576,8 @@ static struct osd_device_hw_s t7_dev_property = {
 	.has_multi_vpp = 1,
 	.new_blend_bypass = 1,
 	.path_ctrl_independ = 0,
+	.remove_afbc = 0,
+	.remove_pps = 0,
 };
 
 static struct osd_device_hw_s t3_dev_property = {
@@ -4583,6 +4587,19 @@ static struct osd_device_hw_s t3_dev_property = {
 	.has_multi_vpp = 1,
 	.new_blend_bypass = 1,
 	.path_ctrl_independ = 1,
+	.remove_afbc = 0,
+	.remove_pps = 0,
+};
+
+static struct osd_device_hw_s t5w_dev_property = {
+	.t7_display = 1,
+	.has_8G_addr = 1,
+	.multi_afbc_core = 1,
+	.has_multi_vpp = 1,
+	.new_blend_bypass = 1,
+	.path_ctrl_independ = 1,
+	.remove_afbc = 3,
+	.remove_pps = 3,
 };
 
 static struct osd_device_data_s osd_s4 = {
@@ -4607,6 +4624,25 @@ static struct osd_device_data_s osd_t3 = {
 	.afbc_type = MALI_AFBC,
 	.osd_count = 3,
 	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 1,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
+	.mif_linear = 1,
+	.has_vpp1 = 1,
+	.has_vpp2 = 0,
+};
+
+static struct osd_device_data_s osd_t5w = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_T5W,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 3,
+	.has_deband = 0,
 	.has_lut = 1,
 	.has_rdma = 1,
 	.has_dolby_vision = 1,
@@ -4703,6 +4739,10 @@ static const struct of_device_id meson_fb_dt_match[] = {
 	{
 		.compatible = "amlogic, fb-t3",
 		.data = &osd_t3,
+	},
+	{
+		.compatible = "amlogic, fb-t5w",
+		.data = &osd_t5w,
 	},
 	{},
 };
@@ -4801,6 +4841,9 @@ static int __init osd_probe(struct platform_device *pdev)
 		       sizeof(struct osd_device_hw_s));
 	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T3)
 		memcpy(&osd_dev_hw, &t3_dev_property,
+		       sizeof(struct osd_device_hw_s));
+	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T5W)
+		memcpy(&osd_dev_hw, &t5w_dev_property,
 		       sizeof(struct osd_device_hw_s));
 	else
 		memcpy(&osd_dev_hw, &legcy_dev_property,

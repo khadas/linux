@@ -291,6 +291,7 @@ enum cpuid_type_e {
 	__MESON_CPU_MAJOR_ID_T7,
 	__MESON_CPU_MAJOR_ID_S4,
 	__MESON_CPU_MAJOR_ID_T3,
+	__MESON_CPU_MAJOR_ID_T5W,
 	__MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -568,6 +569,8 @@ struct osd_device_hw_s {
 	u32 has_multi_vpp;
 	u32 new_blend_bypass;
 	u32 path_ctrl_independ;
+	u32 remove_afbc;
+	u32 remove_pps;
 };
 
 struct hw_osd_reg_s {
@@ -932,5 +935,7 @@ struct hw_para_s {
 	struct osd_rdma_fun_s osd_rdma_func[VIU_COUNT];
 	u32 viu_osd_table[VIU_COUNT];
 	u32 blend_mode[HW_OSD_COUNT];
+	bool afbc_support[HW_OSD_COUNT];
+	bool pps_support[HW_OSD_COUNT];
 };
 #endif /* _OSD_H_ */

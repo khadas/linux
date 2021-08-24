@@ -2989,6 +2989,7 @@ static u32 osd_get_hw_reset_flag(u32 output_index)
 		break;
 	case __MESON_CPU_MAJOR_ID_T7:
 	case __MESON_CPU_MAJOR_ID_T3:
+	case __MESON_CPU_MAJOR_ID_T5W:
 		{
 		int i, afbc_enable = 0;
 		u32 mali_afbc_reset;
@@ -5338,8 +5339,12 @@ int osd_get_capbility(u32 index)
 				| OSD_UBOOT_LOGO | vpp_top
 				| OSD_PRIMARY | (afbc ? OSD_AFBC : 0);
 		else if (index < osd_hw.osd_meson_dev.viu1_osd_count)
-			capbility |= OSD_LAYER_ENABLE | OSD_FREESCALE |
-				     vpp_top | (afbc ? OSD_AFBC : 0);
+			capbility |= OSD_LAYER_ENABLE |
+				vpp_top |
+				(osd_hw.pps_support[index] ?
+				OSD_FREESCALE : 0) |
+				((afbc && osd_hw.afbc_support[index]) ?
+				OSD_AFBC : 0);
 		else if (index == osd_hw.osd_meson_dev.viu2_index)
 			capbility |= OSD_LAYER_ENABLE | vpp_top;
 	} else if (osd_hw.osd_meson_dev.osd_ver == OSD_NORMAL) {
@@ -6215,6 +6220,8 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 			osd_hw.screen_size[index] =
 				layer_map->byte_stride * layer_map->src_h;
 		} else {
+			if (!osd_hw.afbc_support[index])
+				pr_err("osd%d: not support afbc\n", index);
 			osd_hw.osd_afbcd[index].phy_addr = ext_addr;
 			if (osd_hw.osd_meson_dev.afbc_type ==
 				MESON_AFBC) {
@@ -11286,11 +11293,16 @@ static void osd_setting_viux(u32 output_index)
 		osd_rdma_wr_bits_op rdma_wr_bits = rdma_func->osd_rdma_wr_bits;
 
 		/* enable free_scale */
-		osd_hw.free_scale_enable[index] = 0x10001;
-		osd_hw.free_scale[index].h_enable = 1;
-		osd_hw.free_scale[index].v_enable = 1;
-		osd_hw.free_scale_mode[index] = 1;
-
+		if (osd_hw.pps_support[index]) {
+			osd_hw.free_scale_enable[index] = 0x10001;
+			osd_hw.free_scale[index].h_enable = 1;
+			osd_hw.free_scale[index].v_enable = 1;
+			osd_hw.free_scale_mode[index] = 1;
+		} else {
+			osd_hw.free_scale_enable[index] = 0x0;
+			osd_hw.free_scale[index].h_enable = 0;
+			osd_hw.free_scale[index].v_enable = 0;
+		}
 		osd_hw.free_src_data[index].x_start =
 			osd_hw.src_data[index].x;
 		osd_hw.free_src_data[index].x_end =
@@ -12397,7 +12409,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_t7[0],
 		       sizeof(struct hw_osd_reg_s) *
 		       osd_hw.osd_meson_dev.osd_count);
-	} else if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_T3) {
+	} else if (osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_T3 ||
+		   osd_meson->cpu_id == __MESON_CPU_MAJOR_ID_T5W) {
 		/* 4 or 3 OSD, multi_afbc_core */
 		memcpy(&hw_osd_reg_array[0], &hw_osd_reg_array_t3[0],
 		       sizeof(struct hw_osd_reg_s) *
@@ -12661,6 +12674,14 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		osd_hw.afbc_err_cnt[idx] = 0;
 		osd_hw.blend_bypass[idx] = 0;
 		osd_hw.osd_deband_enable[idx] = 1;
+		if (osd_dev_hw.remove_afbc == idx + 1)
+			osd_hw.afbc_support[idx] = false;
+		else
+			osd_hw.afbc_support[idx] = true;
+		if (osd_dev_hw.remove_pps == idx + 1)
+			osd_hw.pps_support[idx] = false;
+		else
+			osd_hw.pps_support[idx] = true;
 		/*
 		 * osd_hw.rotation_pandata[idx].x_start = 0;
 		 * osd_hw.rotation_pandata[idx].y_start = 0;
