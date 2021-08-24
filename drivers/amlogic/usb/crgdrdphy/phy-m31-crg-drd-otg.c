@@ -46,6 +46,7 @@ struct hd3s3200_priv {
 	struct gpio_desc *idgpiodesc;
 	struct gpio_desc *usb_gpio_desc;
 	int vbus_power_pin;
+	int current_mode;
 };
 
 bool m31_crg_force_device_mode;
@@ -75,6 +76,21 @@ static u8 aml_m31_i2c_read(struct i2c_client *client, u16 reg)
 			"Failed to read from register 0x%03x, err %d\n",
 			(int)reg, err);
 		return 0x00;	/* Arbitrary */
+	}
+
+	return err;
+}
+
+static u8 aml_m31_i2c_write(struct i2c_client *client, u16 reg, u16 val)
+{
+	int err;
+
+	err = i2c_smbus_write_byte_data(client, reg & 0xff, val);
+	if (err < 0) {
+		dev_err(&client->dev,
+			"Failed to set bank to %d, err %d\n",
+			(int)val, err);
+		return 0x00;
 	}
 
 	return err;
@@ -124,30 +140,40 @@ static void amlogic_m31_crg_otg_work(struct work_struct *work)
 		return;
 	}
 
-	current_mode = ((current_mode >> 6) & 0x3);
 	dev_info(hd3s3200->dev, "work current_mode is 0x%x\n", current_mode);
+	current_mode = ((current_mode >> 6) & 0x3);
 
 	if (current_mode == 1) {
 		/* to do*/
-		crg_gadget_exit();
-		amlogic_m31_set_vbus_power(hd3s3200, 1);
-		set_mode(HOST_MODE);
-		crg_init();
-	} else {
+		if (hd3s3200->current_mode != 1) {
+			if (hd3s3200->current_mode == 2)
+				crg_gadget_exit();
+			amlogic_m31_set_vbus_power(hd3s3200, 1);
+			set_mode(HOST_MODE);
+			crg_init();
+			hd3s3200->current_mode = 1;
+		}
+	} else if (current_mode == 2) {
 		/* to do*/
-		crg_exit();
-		set_mode(DEVICE_MODE);
-		amlogic_m31_set_vbus_power(hd3s3200, 0);
-		crg_gadget_init();
-		if (UDC_exist_flag != 1) {
-			ret = crg_otg_write_UDC(crg_UDC_name);
-			if (ret == 0 || ret == -EBUSY)
-				UDC_exist_flag = 1;
+		if (hd3s3200->current_mode != 2) {
+			if (hd3s3200->current_mode == 1)
+				crg_exit();
+			set_mode(DEVICE_MODE);
+			amlogic_m31_set_vbus_power(hd3s3200, 0);
+			crg_gadget_init();
+			if (UDC_exist_flag != 1) {
+				ret = crg_otg_write_UDC(crg_UDC_name);
+				if (ret == 0 || ret == -EBUSY)
+					UDC_exist_flag = 1;
+			}
+			hd3s3200->current_mode = 2;
 		}
 	}
+
+	aml_m31_i2c_write(hd3s3200->i2c, 9, 0x10);
 }
 
-static irqreturn_t phy_m31_id_gpio_detect_irq(int irq, void *dev)
+static irqreturn_t phy_m31_gpio_detect_irq(int irq, void *dev)
 {
 	struct hd3s3200_priv *hd3s3200 = (struct hd3s3200_priv *)dev;
 
@@ -158,30 +184,32 @@ static irqreturn_t phy_m31_id_gpio_detect_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int phy_m31_id_pin_config(struct hd3s3200_priv *hd3s3200)
+static int phy_m31_detect_pin_config(struct hd3s3200_priv *hd3s3200)
 {
 	int ret;
 	struct gpio_desc *desc;
-	int id_irqnr;
+	int detect_irqnr;
 
 	desc = gpiod_get_index(hd3s3200->dev, NULL, 1, GPIOD_IN);
-	if (IS_ERR(desc)) {
-		pr_err("fail to get id-gpioirq\n");
+	if (IS_ERR(desc))
 		return -1;
-	}
+
+	ret = gpiod_set_pull(desc, GPIOD_PULL_DIS);
+	if (ret < 0)
+		return -1;
 
 	hd3s3200->idgpiodesc = desc;
 
-	id_irqnr = gpiod_to_irq(desc);
+	detect_irqnr = gpiod_to_irq(desc);
 
-	ret = devm_request_irq(hd3s3200->dev, id_irqnr,
-			       phy_m31_id_gpio_detect_irq,
-			       ID_GPIO_IRQ_FLAGS,
+	ret = devm_request_irq(hd3s3200->dev, detect_irqnr,
+			       phy_m31_gpio_detect_irq,
+			       ID_GPIO_IRQ_FLAGS | IRQF_TRIGGER_RISING,
 			       "phy_aml_id_gpio_detect", hd3s3200);
 
 	if (ret) {
-		pr_err("failed to request ret=%d, id_irqnr=%d\n",
-		       ret, id_irqnr);
+		pr_err("failed to request ret=%d, detect_irqnr=%d\n",
+		       ret, detect_irqnr);
 		return -ENODEV;
 	}
 
@@ -258,7 +286,7 @@ static int hd3s3200_i2c_probe(struct i2c_client *i2c,
 	INIT_DELAYED_WORK(&hd3s3200->work, amlogic_m31_crg_otg_work);
 
 	if (otg)
-		phy_m31_id_pin_config(hd3s3200);
+		phy_m31_detect_pin_config(hd3s3200);
 
 	amlogic_m31_crg_otg_init(hd3s3200);
 
@@ -275,18 +303,12 @@ static int hd3s3200_i2c_probe(struct i2c_client *i2c,
 		}
 	} else {
 		current_mode = aml_m31_i2c_read(hd3s3200->i2c, 9);
+		dev_info(&i2c->dev, "current_mode is 0x%x\n", current_mode);
 		current_mode = ((current_mode >> 6) & 0x3);
-		dev_info(&i2c->dev, "probe current_mode is 0x%x\n",
+		dev_info(&i2c->dev, "current_mode is 0x%x\n",
 			 current_mode);
-		if (current_mode == 1) {
-			amlogic_m31_set_vbus_power(hd3s3200, 1);
-			set_mode(HOST_MODE);
-			crg_init();
-		} else {
-			set_mode(DEVICE_MODE);
-			amlogic_m31_set_vbus_power(hd3s3200, 0);
-			crg_gadget_init();
-		}
+		aml_m31_i2c_write(hd3s3200->i2c, 9, 0x10);
+		hd3s3200->current_mode = 0;
 	}
 
 	return 0;

@@ -1158,8 +1158,25 @@
 	status = "disabled";
 };
 
-&crg21_otg {
+&i2c10 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0=<&i2c10_pins1>;
+
+	hd3s3200: hd3s3200@67 {
+		compatible = "ti, hd3s3200";
+		reg = <0x47>;
+		controller-type = <3>;
+		gpio-vbus-power = "GPIOY_14";
+		gpios = <&gpio GPIOY_14 GPIO_ACTIVE_HIGH
+		&gpio GPIOZ_3  GPIO_ACTIVE_LOW>;
+		udc-name = "fde00000.crgudc2";
+		status = "okay";
+	};
+};
+
+&crg21_otg {
+	status = "disable";
 	controller-type = <2>;
 	gpio-vbus-power = "GPIOY_14";
 	gpios = <&gpio GPIOY_14 GPIO_ACTIVE_HIGH>;
