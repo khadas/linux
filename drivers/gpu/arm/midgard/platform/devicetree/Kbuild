@@ -1,0 +1,39 @@
+#
+# (C) COPYRIGHT 2012-2017 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU licence.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, you can access it online at
+# http://www.gnu.org/licenses/gpl-2.0.html.
+#
+# SPDX-License-Identifier: GPL-2.0
+#
+#
+
+
+USE_GPPLL?=0
+ifdef CONFIG_AM_VIDEO
+    USE_GPPLL:=1
+endif
+
+ccflags-y += -DAMLOGIC_GPU_USE_GPPLL=$(USE_GPPLL)
+
+mali_kbase-y += \
+	$(MALI_PLATFORM_DIR)/mali_kbase_config_devicetree.o \
+	$(MALI_PLATFORM_DIR)/mali_kbase_runtime_pm.o \
+	$(MALI_PLATFORM_DIR)/mali_clock.o \
+	$(MALI_PLATFORM_DIR)/mpgpu.o \
+	$(MALI_PLATFORM_DIR)/meson_main2.o \
+	$(MALI_PLATFORM_DIR)/platform_gx.o \
+	$(MALI_PLATFORM_DIR)/scaling.o \
+	$(MALI_PLATFORM_DIR)/mali_kbase_runtime_pm.o \
+	$(MALI_PLATFORM_DIR)/mali_kbase_config_devicetree.o
