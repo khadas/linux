@@ -30,6 +30,7 @@
 #include <linux/mm.h>
 #include <linux/reboot.h>
 #include <linux/memblock.h>
+#include <linux/sched/clock.h>
 #include <linux/amlogic/ramdump.h>
 #include <linux/amlogic/reboot.h>
 #include <linux/arm-smccc.h>
