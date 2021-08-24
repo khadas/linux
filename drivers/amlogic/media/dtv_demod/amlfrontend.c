@@ -2370,7 +2370,7 @@ static int dvbt_tune(struct dvb_frontend *fe, bool re_tune,
 	fsm = dvbt_t2_rdb(DVBT_STATUS);
 
 	if (((demod->t_cnt % 5) == 2 && (fsm & 0xf) < 9) ||
-	    (demod->t_cnt == 5 && (fsm & 0xf) == 9 && (fsm >> 6 & 1) && (*status != 0x1f))) {
+	    ((demod->t_cnt % 5) == 2 && (fsm & 0xf) == 9 && (fsm >> 6 & 1) && (*status != 0x1f))) {
 		dvbt_rst_demod(demod);
 		demod->t_cnt = 0;
 		PR_INFO("[id %d] rst, tps or ts unlock\n", demod->id);
