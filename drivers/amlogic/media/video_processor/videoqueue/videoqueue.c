@@ -687,8 +687,12 @@ static int vq_file_thread(void *data)
 	sched_setscheduler(current, SCHED_FIFO, &param);
 
 	while (1) {
-		if (kthread_should_stop() || dev->thread_need_stop)
+		if (kthread_should_stop())
 			break;
+		if (dev->thread_need_stop) {
+			usleep_range(1000, 2000);
+			continue;
+		}
 		wait_event_interruptible_timeout(file_wq,
 			wakeup | dev->thread_need_stop,
 			msecs_to_jiffies(50));
@@ -708,8 +712,12 @@ static int vq_fence_thread(void *data)
 	sched_setscheduler(current, SCHED_FIFO, &param);
 
 	while (1) {
-		if (kthread_should_stop() || dev->thread_need_stop)
+		if (kthread_should_stop())
 			break;
+		if (dev->thread_need_stop) {
+			usleep_range(1000, 2000);
+			continue;
+		}
 		wait_event_interruptible_timeout(dev->fence_wq,
 				 kfifo_len(&dev->dq_info_q) > 0 ||
 				 dev->thread_need_stop,
@@ -844,6 +852,10 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 
 	dev->thread_need_stop = true;
 
+	wake_up_interruptible(&dev->fence_wq);
+	wakeup = 1;
+	wake_up_interruptible(&file_wq);
+
 	videoq_notify_to_amvideo(false);
 
 	if (dev->file_thread)
@@ -851,10 +863,6 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 
 	if (dev->fence_thread)
 		kthread_stop(dev->fence_thread);
-
-	wake_up_interruptible(&dev->fence_wq);
-	wakeup = 1;
-	wake_up_interruptible(&file_wq);
 
 	time_left = wait_for_completion_timeout(&dev->file_thread_done,
 						msecs_to_jiffies(500));
