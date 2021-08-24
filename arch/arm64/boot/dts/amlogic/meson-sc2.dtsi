@@ -782,7 +782,7 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xFE330000 0x0 0x3000>;
-
+			chip_id = <0x32>;
 			power-domains = <&pwrdm PDID_SC2_AUDIO>;
 
 			clkaudio: audio_clocks {

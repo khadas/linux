@@ -90,6 +90,7 @@
 			#size-cells = <1>;
 			reg = <0xff600000 0x3000>;
 			ranges = <0x0 0xff600000 0x3000>;
+			chip_id = <0x2F>;
 
 			clkaudio:audio_clocks {
 				compatible = "amlogic, tm2-audio-clocks";
