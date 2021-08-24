@@ -2345,7 +2345,7 @@
 	ion_dev {
 		compatible = "amlogic, ion_dev";
 		memory-region = <&ion_cma_reserved>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	fb: fb {
