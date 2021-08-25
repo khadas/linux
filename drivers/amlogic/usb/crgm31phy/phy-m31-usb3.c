@@ -33,26 +33,28 @@ static int amlogic_usb3_m31_suspend(struct usb_phy *x, int suspend)
 static void amlogic_usb3_m31_shutdown(struct usb_phy *x)
 {
 	struct amlogic_usb_m31 *phy = phy_to_m31usb(x);
-	u32 val, temp = 0;
+	u32 val, temp, shift = 0;
 	size_t mask = 0;
 
 	if (phy->portnum > 0) {
 		mask = (size_t)phy->reset_regs & 0xf;
+		shift = (phy->m31phy_reset_level_bit % 32) * 4;
 		temp = 1 << phy->m31phy_reset_level_bit;
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask) + 0x4));
+			(phy->reset_level - mask) + shift));
 		writel((val & (~temp)), (void __iomem	*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask) + 0x4));
+			(phy->reset_level - mask) + shift));
 
 		temp = 1 << phy->m31ctl_reset_level_bit;
+		shift = (phy->m31ctl_reset_level_bit % 32) * 4;
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask)));
+			(phy->reset_level - mask) + shift));
 		writel((val & (~temp)), (void __iomem	*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask)));
+			(phy->reset_level - mask) + shift));
 	}
 
 	phy->suspend_flag = 1;
@@ -61,26 +63,28 @@ static void amlogic_usb3_m31_shutdown(struct usb_phy *x)
 static int amlogic_usb3_m31_init(struct usb_phy *x)
 {
 	struct amlogic_usb_m31 *phy = phy_to_m31usb(x);
-	u32 val, temp = 0;
+	u32 val, temp, shift = 0;
 	size_t mask = 0;
 
 	if (phy->portnum > 0) {
 		mask = (size_t)phy->reset_regs & 0xf;
 		temp = 1 << phy->m31phy_reset_level_bit;
+		shift = (phy->m31phy_reset_level_bit % 32) * 4;
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask) + 0x4));
+			(phy->reset_level - mask) + shift));
 		writel((val | (temp)), (void __iomem	*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask) + 0x4));
+			(phy->reset_level - mask) + shift));
 
 		temp = 1 << phy->m31ctl_reset_level_bit;
+		shift = (phy->m31ctl_reset_level_bit % 32) * 4;
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask)));
+			(phy->reset_level - mask) + shift));
 		writel((val | (temp)), (void __iomem	*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask)));
+			(phy->reset_level - mask) + shift));
 	}
 
 	if (phy->suspend_flag) {
@@ -217,6 +221,7 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 		r0.b.TX_ENABLE_N = 1;
 		r0.b.TX_SE0 = 0;
 		r0.b.FSLSSERIALMODE = 0;
+
 		writel(r0.d32, phy->phy3_cfg);
 		usleep_range(90, 100);
 

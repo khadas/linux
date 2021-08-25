@@ -1826,7 +1826,7 @@
 		reset-level = <0x40>;
 		phy-reg = <0xfe02a000>;
 		phy-reg-size = <0x2000>;
-		m31phy-reset-level-bit = <13>;
+		m31phy-reset-level-bit = <45>;
 		m31ctl-reset-level-bit = <6>;
 	};
 
