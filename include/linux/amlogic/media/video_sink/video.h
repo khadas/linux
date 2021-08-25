@@ -304,6 +304,8 @@ enum {
 #define VPP_COEF_INDEX_MASK     0x7f
 #define VPP_COEF_INDEX_BIT      0
 
+#define VIDEO_USE_4K_RAM        0x100
+
 enum {
 	VPP_SEP_COEF_VERT_LUMA         = 0x0 << 17,
 	VPP_SEP_COEF_VERT_CHROMA       = 0x1 << 17,

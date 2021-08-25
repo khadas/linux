@@ -671,7 +671,7 @@ static u32 reference_zorder = 128;
 static u32 vpp_hold_line = 8;
 static unsigned int cur_vf_flag;
 static u32 vpp_ofifo_size = 0x1000;
-static u32 conv_lbuf_len = 0x100;
+static u32 conv_lbuf_len[MAX_VD_LAYER] = {0x100, 0x100, 0x100};
 
 static const enum f2v_vphase_type_e vpp_phase_table[4][3] = {
 	{F2V_P2IT, F2V_P2IB, F2V_P2P},	/* VIDTYPE_PROGRESSIVE */
@@ -1586,10 +1586,16 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		type &= ~VIDTYPE_COMPRESS;
 
 	if (type & VIDTYPE_COMPRESS) {
-		if (cur_dev->t7_display)
+		if (cur_dev->t7_display) {
+			if (conv_lbuf_len[layer->layer_id] == VIDEO_USE_4K_RAM)
+				r = 3;
+			else
+				r = 1;
+
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(vd_afbc_reg->afbc_top_ctrl,
-				3, 13, 2);
+				 r, 13, 2);
+		}
 		if (!legacy_vpp || is_meson_txlx_cpu())
 			burst_len = 2;
 		r = (3 << 24) |
@@ -1627,7 +1633,7 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 		}
 		cur_dev->rdma_func[vpp_index].rdma_wr(vd_afbc_reg->afbc_enable, r);
 
-		r = conv_lbuf_len;
+		r = conv_lbuf_len[layer->layer_id];
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			if ((type & VIDTYPE_VIU_444) ||
 			    (type & VIDTYPE_RGB_444))
@@ -2101,10 +2107,17 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 		type &= ~VIDTYPE_COMPRESS;
 
 	if (type & VIDTYPE_COMPRESS) {
-		if (cur_dev->t7_display)
+		if (cur_dev->t7_display) {
+			if (conv_lbuf_len[layer->layer_id] == VIDEO_USE_4K_RAM)
+				r = 3;
+			else
+				r = 1;
+
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
 				(vd_afbc_reg->afbc_top_ctrl,
-				3, 13, 2);
+				 r, 13, 2);
+		}
+
 		if (!legacy_vpp || is_meson_txlx_cpu())
 			burst_len = 2;
 		r = (3 << 24) |
@@ -2140,7 +2153,7 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 		}
 		cur_dev->rdma_func[vpp_index].rdma_wr(vd_afbc_reg->afbc_enable, r);
 
-		r = conv_lbuf_len;
+		r = conv_lbuf_len[layer_id];
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			if ((type & VIDTYPE_VIU_444) ||
 			    (type & VIDTYPE_RGB_444))
@@ -10713,7 +10726,8 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	vd_layer[1].layer_alpha = legacy_vpp ? 0x1ff : 0x100;
 	vd_layer[2].layer_alpha = legacy_vpp ? 0x1ff : 0x100;
 	vpp_ofifo_size = p_amvideo->ofifo_size;
-	conv_lbuf_len = p_amvideo->afbc_conv_lbuf_len;
+	memcpy(conv_lbuf_len, p_amvideo->afbc_conv_lbuf_len,
+	       sizeof(u32) * MAX_VD_LAYER);
 
 	INIT_WORK(&vpu_delay_work, do_vpu_delay_work);
 

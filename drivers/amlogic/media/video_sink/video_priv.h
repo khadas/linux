@@ -445,6 +445,7 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_S4_,
 	MESON_CPU_MAJOR_ID_T5D_REVB_,
 	MESON_CPU_MAJOR_ID_T3_,
+	MESON_CPU_MAJOR_ID_T5W_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -477,7 +478,7 @@ struct amvideo_device_data_s {
 	u32 src_width_max[MAX_VD_LAYER];
 	u32 src_height_max[MAX_VD_LAYER];
 	u32 ofifo_size;
-	u32 afbc_conv_lbuf_len;
+	u32 afbc_conv_lbuf_len[MAX_VD_LAYER];
 	u8 mif_linear;
 	u8 t7_display;
 	u8 max_vd_layers;
