@@ -157,6 +157,8 @@ static struct clk *aml_smartcard_clk;
 #ifdef MEASURE_GUARD_TIME_BY_SW
 static s64 etu_nsec;
 static s64 total_guard_time_nsec;
+static s64 prev_transmit_time_nsec;
+
 #endif
 
 static void debug_write(const char __user *buf, size_t count)
@@ -1252,6 +1254,7 @@ static int smc_hw_setup(struct smc_dev *smc)
 	reg6->bwi = smc->param.bwi;
 
 #ifdef MEASURE_GUARD_TIME_BY_SW
+	prev_transmit_time_nsec = 0;
 	etu_nsec = div64_s64((s64)smc->param.f * 1000000,
 			     ((s64)smc->param.d * (s64)smc->param.freq));
 	total_guard_time_nsec = (12 + smc->param.n) * etu_nsec;
@@ -1924,6 +1927,7 @@ static int smc_hw_start_send(struct smc_dev *smc)
 #endif
 		SMC_WRITE_REG(FIFO, byte);
 		pr_dbg("send 1st byte to hw\n");
+		prev_transmit_time_nsec = ktime_to_ns(ktime_get());
 	}
 
 	return 0;
@@ -2048,10 +2052,6 @@ static int transmit_chars(struct smc_dev *smc)
 	u8 byte;
 	int start = smc->send_start;
 
-#ifdef MEASURE_GUARD_TIME_BY_SW
-	s64 prev_time_nsec = 0;
-#endif
-
 	while (1) {
 		status = SMC_READ_REG(STATUS);
 		if (smc->send_end == start || status_r->xmit_fifo_full)
@@ -2066,11 +2066,11 @@ static int transmit_chars(struct smc_dev *smc)
 #endif
 #ifdef MEASURE_GUARD_TIME_BY_SW
 		//just wait until current time > prev time + total guard time if necessary
-		while ((ktime_to_ns(ktime_get()) - prev_time_nsec) <
+		while ((ktime_to_ns(ktime_get()) - prev_transmit_time_nsec) <
 		       total_guard_time_nsec)
-			;
+			usleep_range(1, 10);
 
-		prev_time_nsec = ktime_to_ns(ktime_get());
+		prev_transmit_time_nsec = ktime_to_ns(ktime_get());
 #endif
 		SMC_WRITE_REG(FIFO, byte);
 		cnt++;
@@ -2460,12 +2460,19 @@ static int smc_dev_init(struct smc_dev *smc, int id)
 
 	request_fiq(smc->irq_num, &smc_irq_handler);
 #else
+#ifdef MEASURE_GUARD_TIME_BY_SW
+	smc->irq_num = request_threaded_irq(smc->irq_num,
+		NULL, smc_irq_handler, //smc_irq_thread_handler,
+		IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_RISING,
+		"smc", smc);
+#else
 	smc->irq_num = request_irq(smc->irq_num,
 				   (irq_handler_t)smc_irq_handler,
 				   IRQF_SHARED | IRQF_TRIGGER_RISING,
 				   "smc", smc);
+#endif
 	if (smc->irq_num < 0) {
-		pr_error("request irq error!\n");
+		pr_error("request irq error %d!\n", smc->irq_num);
 		smc_dev_deinit(smc);
 		return -1;
 	}
