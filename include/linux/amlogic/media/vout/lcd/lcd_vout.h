@@ -214,6 +214,7 @@ struct ttl_config_s {
 #define LVDS_PHY_CLK_VSWING_DFT    0
 #define LVDS_PHY_CLK_PREEM_DFT     0
 struct lvds_config_s {
+	unsigned int lvds_vswing;
 	unsigned int lvds_repack;
 	unsigned int dual_port;
 	unsigned int pn_swap;
@@ -479,6 +480,7 @@ struct lcd_config_s {
 #define LCD_INIT_LEVEL_NORMAL         0
 #define LCD_INIT_LEVEL_PWR_OFF        1
 #define LCD_INIT_LEVEL_KERNEL_ON      2
+#define LCD_INIT_LEVEL_KERNEL_OFF     3
 
 /*
  *bit[31:20]: reserved
