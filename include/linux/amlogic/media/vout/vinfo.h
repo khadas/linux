@@ -104,7 +104,9 @@ struct cuva_info {
 
 struct hdr_info {
 /* RX EDID hdr support types */
+	/* hdr_support: bit0/SDR bit1/HDR bit2/SMPTE2084 bit3/HLG */
 	u32 hdr_support;
+	unsigned char static_metadata_type1;
 	unsigned char rawdata[7];
 /*
  *dynamic_info[0] expresses type1's parameters certainly
