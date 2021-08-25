@@ -7121,7 +7121,11 @@ SET_FILTER:
 			cur_frame_par) {
 			/*need call every vsync*/
 			if (path3_new_frame)
-				vlock_process(path3_new_frame, cur_frame_par);
+				vlock_process(path3_new_frame,
+					cur_frame_par);
+			else if (vd_layer[0].dispbuf)
+				vlock_process(vd_layer[0].dispbuf,
+					cur_frame_par);
 			else
 				vlock_process(NULL, cur_frame_par);
 		}
