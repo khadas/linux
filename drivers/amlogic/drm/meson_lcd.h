@@ -17,6 +17,8 @@ struct am_drm_lcd_s {
 	struct aml_lcd_drv_s *lcd_drv;
 	struct drm_display_mode *mode;
 	struct display_timing *timing;
+	u32 prev_vrefresh;
+	int prev_active;
 };
 
 #define connector_to_am_lcd(x) \

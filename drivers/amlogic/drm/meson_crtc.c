@@ -201,6 +201,8 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
 	struct am_meson_crtc_state *meson_crtc_state = to_am_meson_crtc_state(crtc->state);
 	struct meson_vpu_pipeline *pipeline = amcrtc->pipeline;
+	const struct vinfo_s *info = NULL;
+	unsigned int fr;
 
 	DRM_INFO("%s:in\n", __func__);
 	if (!adjusted_mode) {
@@ -216,7 +218,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		DRM_ERROR("no matched vout mode\n");
 		return;
 	}
-
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &mode);
 	if (mode == VMODE_DUMMY_ENCL ||
 		mode == VMODE_DUMMY_ENCI ||
 		mode == VMODE_DUMMY_ENCP) {
@@ -231,11 +233,16 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		update_vout_viu();
 	}
 	set_vout_mode_name(name);
+	info = get_current_vinfo();
+	fr = info->sync_duration_num * 100 / info->sync_duration_den;
+	DRM_INFO("%s: vinfo: mode:%s(%d), frame_rate:%d.%02dHz\n",
+		__func__, info->name, info->mode, (fr / 100), (fr % 100));
 
 	memcpy(&pipeline->mode, adjusted_mode,
 	       sizeof(struct drm_display_mode));
 	drm_crtc_vblank_on(crtc);
 	enable_irq(amcrtc->irq);
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &mode);
 	DRM_INFO("%s-%d:out\n", __func__, meson_crtc_state->uboot_mode_init);
 }
 

@@ -21,7 +21,7 @@
 
 static struct am_drm_lcd_s *am_drm_lcd;
 
-static struct drm_display_mode am_lcd_mode = {
+static struct drm_display_mode tablet_lcd_mode = {
 	.name = "panel",
 	.status = 0,
 	.clock = 74250,
@@ -37,6 +37,101 @@ static struct drm_display_mode am_lcd_mode = {
 	.vscan = 0,
 	.vrefresh = 60,
 };
+
+static struct drm_display_mode tv_lcd_mode_ref[] = {
+	{ /* 600p */
+		.name = "600p",
+		.status = 0,
+		.clock = 40234,
+		.hdisplay = 1024,
+		.hsync_start = 1026,
+		.hsync_end = 1034,
+		.htotal = 1056,
+		.hskew = 0,
+		.vdisplay = 600,
+		.vsync_start = 624,
+		.vsync_end = 630,
+		.vtotal = 635,
+		.vscan = 0,
+		.vrefresh = 60,
+	},
+	{ /* 768p */
+		.name = "768p",
+		.status = 0,
+		.clock = 75442,
+		.hdisplay = 1366,
+		.hsync_start = 1390,
+		.hsync_end = 1430,
+		.htotal = 1560,
+		.hskew = 0,
+		.vdisplay = 768,
+		.vsync_start = 773,
+		.vsync_end = 788,
+		.vtotal = 806,
+		.vscan = 0,
+		.vrefresh = 60,
+	},
+	{ /* 1080p */
+		.name = "1080p",
+		.status = 0,
+		.clock = 148500,
+		.hdisplay = 1920,
+		.hsync_start = 1930,
+		.hsync_end = 1970,
+		.htotal = 2200,
+		.hskew = 0,
+		.vdisplay = 1080,
+		.vsync_start = 1090,
+		.vsync_end = 1100,
+		.vtotal = 1125,
+		.vscan = 0,
+		.vrefresh = 60,
+	},
+	{ /* 2160p */
+		.name = "2160p",
+		.status = 0,
+		.clock = 594000,
+		.hdisplay = 3840,
+		.hsync_start = 4000,
+		.hsync_end = 4060,
+		.htotal = 4400,
+		.hskew = 0,
+		.vdisplay = 2160,
+		.vsync_start = 2200,
+		.vsync_end = 2210,
+		.vtotal = 2250,
+		.vscan = 0,
+		.vrefresh = 60,
+	},
+	{ /* invalid */
+		.name = "invalid",
+		.status = 0,
+		.clock = 148500,
+		.hdisplay = 1920,
+		.hsync_start = 1930,
+		.hsync_end = 1970,
+		.htotal = 2200,
+		.hskew = 0,
+		.vdisplay = 1080,
+		.vsync_start = 1090,
+		.vsync_end = 1100,
+		.vtotal = 1125,
+		.vscan = 0,
+		.vrefresh = 60,
+	},
+};
+
+static unsigned int lcd_std_frame_rate[] = {
+	60,
+	59,
+	50,
+	48,
+	47
+};
+
+#define DRM_LCD_TV_MODE_CNT_MAX    5
+static struct drm_display_mode tv_lcd_mode[DRM_LCD_TV_MODE_CNT_MAX];
+static int lcd_tv_mode_cnt;
 
 static struct display_timing am_lcd_timing = {
 	.pixelclock = { 55000000, 65000000, 75000000 },
@@ -54,11 +149,50 @@ static struct display_timing am_lcd_timing = {
 /* ***************************************************************** */
 /*     drm driver function                                           */
 /* ***************************************************************** */
+
+char *am_lcd_get_voutmode(struct drm_connector *connector,
+		struct drm_display_mode *mode)
+{
+	int i;
+	struct am_drm_lcd_s *lcd;
+	struct lcd_config_s *pconf;
+	struct drm_display_mode *native_mode;
+
+	lcd = connector_to_am_lcd(connector);
+	if (!lcd)
+		return NULL;
+	if (!lcd->lcd_drv)
+		return NULL;
+
+	pconf = &lcd->lcd_drv->config;
+	switch (lcd->lcd_drv->mode) {
+	case LCD_MODE_TV:
+		for (i = 0; i < lcd_tv_mode_cnt; i++) {
+			native_mode = &tv_lcd_mode[i];
+			if (native_mode->hdisplay == mode->hdisplay &&
+			    native_mode->vdisplay == mode->vdisplay &&
+			    native_mode->vrefresh == mode->vrefresh)
+				return native_mode->name;
+		}
+		break;
+	case LCD_MODE_TABLET:
+		native_mode = &tablet_lcd_mode;
+		if (native_mode->hdisplay == mode->hdisplay &&
+			native_mode->vdisplay == mode->vdisplay &&
+			native_mode->vrefresh == mode->vrefresh)
+			return native_mode->name;
+		break;
+	default:
+		break;
+	}
+	return NULL;
+}
+
 static int am_lcd_connector_get_modes(struct drm_connector *connector)
 {
-	struct drm_display_mode *mode;
+	struct drm_display_mode *mode, *native_mode;
 	struct am_drm_lcd_s *lcd;
-	int count = 0;
+	int i;
 
 	lcd = connector_to_am_lcd(connector);
 
@@ -67,32 +201,47 @@ static int am_lcd_connector_get_modes(struct drm_connector *connector)
 		__func__, lcd->mode->name,
 		lcd->mode->hdisplay, lcd->mode->vdisplay);
 
-	mode = drm_mode_duplicate(connector->dev, lcd->mode);
-	if (mode) {
-		DRM_DEBUG("am_drm_lcd: %s: drm mode [%s] display size: %d x %d\n",
-			__func__, mode->name, mode->hdisplay, mode->vdisplay);
-	}
-	DRM_DEBUG("am_drm_lcd: %s: lcd config size: %d x %d\n",
-		__func__, lcd->lcd_drv->config.basic.h_active,
-		lcd->lcd_drv->config.basic.v_active);
+	switch (lcd->lcd_drv->mode) {
+	case LCD_MODE_TV:
+		for (i = 0; i < lcd_tv_mode_cnt; i++) {
+			native_mode = &tv_lcd_mode[i];
+			if (strstr(native_mode->name, "invalid"))
+				continue;
 
-	if (mode) {
+			mode = drm_mode_duplicate(connector->dev, native_mode);
+			if (!mode) {
+				DRM_INFO("[%s:%d]duplicate failed\n", __func__,
+					 __LINE__);
+				return 0;
+			}
+
+			drm_mode_probed_add(connector, mode);
+		}
+		break;
+	case LCD_MODE_TABLET:
+		native_mode = &tablet_lcd_mode;
+		mode = drm_mode_duplicate(connector->dev, native_mode);
+		if (!mode) {
+			DRM_INFO("[%s:%d]duplicate failed\n", __func__,
+				 __LINE__);
+			return 0;
+		}
 		drm_mode_probed_add(connector, mode);
-		count = 1;
-		DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
-	} else {
-		DRM_ERROR("am_drm_lcd: %s %d: drm_display_mode is null\n",
-			  __func__, __LINE__);
+		break;
+	default:
+		break;
 	}
-	DRM_DEBUG("***************************************************\n");
 
-	return count;
+	return 0;
 }
 
-enum drm_mode_status am_lcd_connector_mode_valid(struct drm_connector *connector,
+enum drm_mode_status
+am_lcd_connector_mode_valid(struct drm_connector *connector,
 		struct drm_display_mode *mode)
 {
+	int i;
 	struct am_drm_lcd_s *lcd;
+	struct drm_display_mode *native_mode;
 
 	lcd = connector_to_am_lcd(connector);
 	if (!lcd)
@@ -106,14 +255,34 @@ enum drm_mode_status am_lcd_connector_mode_valid(struct drm_connector *connector
 		__func__, lcd->lcd_drv->config.basic.h_active,
 		lcd->lcd_drv->config.basic.v_active);
 
-	if (mode->hdisplay != lcd->lcd_drv->config.basic.h_active)
-		return MODE_BAD_WIDTH;
-	if (mode->vdisplay != lcd->lcd_drv->config.basic.v_active)
-		return MODE_BAD_WIDTH;
+	switch (lcd->lcd_drv->mode) {
+	case LCD_MODE_TV:
+		for (i = 0; i < lcd_tv_mode_cnt; i++) {
+			native_mode = &tv_lcd_mode[i];
+			if (strstr(native_mode->name, "invalid"))
+				continue;
+			if (native_mode->hdisplay == mode->hdisplay &&
+				native_mode->vdisplay == mode->vdisplay &&
+				native_mode->vrefresh == mode->vrefresh)
+				return MODE_OK;
+		}
+		break;
+	case LCD_MODE_TABLET:
+		native_mode = &tablet_lcd_mode;
+		if (native_mode->hdisplay == mode->hdisplay &&
+			native_mode->vdisplay == mode->vdisplay &&
+			native_mode->vrefresh == mode->vrefresh)
+			return MODE_OK;
+		break;
+	default:
+		break;
+	}
 
-	DRM_DEBUG("am_drm_lcd: %s %d: check mode OK\n", __func__, __LINE__);
+	DRM_DEBUG("hdisplay = %d\nvdisplay = %d\n"
+		  "vrefresh = %d\n", mode->hdisplay,
+		  mode->vdisplay, mode->vrefresh);
 
-	return MODE_OK;
+	return MODE_NOMODE;
 }
 
 static const struct drm_connector_helper_funcs am_lcd_connector_helper_funcs = {
@@ -123,8 +292,8 @@ static const struct drm_connector_helper_funcs am_lcd_connector_helper_funcs = {
 	//.atomic_best_encoder
 };
 
-static enum drm_connector_status am_lcd_connector_detect(struct drm_connector *connector,
-			bool force)
+static enum drm_connector_status
+am_lcd_connector_detect(struct drm_connector *connector, bool force)
 {
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 	return connector_status_connected;
@@ -165,7 +334,8 @@ static void am_lcd_connector_reset(struct drm_connector *connector)
 	drm_atomic_helper_connector_reset(connector);
 }
 
-static struct drm_connector_state *am_lcd_connector_duplicate_state(struct drm_connector *connector)
+static struct drm_connector_state *
+am_lcd_connector_duplicate_state(struct drm_connector *connector)
 {
 	struct drm_connector_state *state;
 
@@ -205,11 +375,12 @@ static void am_lcd_encoder_enable(struct drm_encoder *encoder,
 {
 	enum vmode_e vmode = get_current_vmode();
 	struct am_drm_lcd_s *lcd = encoder_to_am_lcd(encoder);
-	struct am_meson_crtc_state *meson_crtc_state = to_am_meson_crtc_state(encoder->crtc->state);
+	struct drm_display_mode *mode = &encoder->crtc->mode;
+	struct am_meson_crtc_state *meson_crtc_state =
+				to_am_meson_crtc_state(encoder->crtc->state);
+	struct drm_crtc *crtc = encoder->crtc;
 
-	if (!lcd)
-		return;
-	if (!lcd->lcd_drv)
+	if (!lcd || !lcd->lcd_drv)
 		return;
 
 	if (vmode == VMODE_LCD)
@@ -221,26 +392,40 @@ static void am_lcd_encoder_enable(struct drm_encoder *encoder,
 		vmode |= VMODE_INIT_BIT_MASK;
 
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
+
+	if (lcd->lcd_drv->mode == LCD_MODE_TV &&
+		crtc->enabled && !crtc->state->active_changed &&
+		lcd->prev_vrefresh != mode->vrefresh) {
+		DRM_DEBUG("am_drm_lcd: %s pre_active:%d, pre_vrefresh:%u\n",
+			__func__, crtc->enabled, mode->vrefresh);
+		lcd->prev_vrefresh = mode->vrefresh;
+		return;
+	}
+
+	lcd->prev_vrefresh = mode->vrefresh;
+
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &vmode);
 	mutex_lock(&lcd_power_mutex);
 	aml_lcd_notifier_call_chain(LCD_EVENT_PREPARE, (void *)lcd->lcd_drv);
-	aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE, (void *)lcd->lcd_drv);
-
-	lcd->lcd_drv->config.retry_enable_cnt = 0;
-	while (lcd->lcd_drv->config.retry_enable_flag) {
-		if (lcd->lcd_drv->config.retry_enable_cnt++ >=
-			LCD_ENABLE_RETRY_MAX)
-			break;
-		DRM_DEBUG("am_drm_lcd: retry enable...%d\n",
-			lcd->lcd_drv->config.retry_enable_cnt);
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF,
-					    (void *)lcd->lcd_drv);
-		msleep(1000);
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON,
-					    (void *)lcd->lcd_drv);
+	if (lcd->lcd_drv->boot_ctrl->init_level !=
+	    LCD_INIT_LEVEL_KERNEL_OFF) {
+		aml_lcd_notifier_call_chain(LCD_EVENT_ENABLE,
+							(void *)lcd->lcd_drv);
+		lcd->lcd_drv->config.retry_enable_cnt = 0;
+		while (lcd->lcd_drv->config.retry_enable_flag) {
+			if (lcd->lcd_drv->config.retry_enable_cnt++ >=
+				LCD_ENABLE_RETRY_MAX)
+				break;
+			DRM_DEBUG("am_drm_lcd: retry enable...%d\n",
+				lcd->lcd_drv->config.retry_enable_cnt);
+			aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF,
+						    (void *)lcd->lcd_drv);
+			msleep(1000);
+			aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON,
+						    (void *)lcd->lcd_drv);
+		}
+		lcd->lcd_drv->config.retry_enable_cnt = 0;
 	}
-	lcd->lcd_drv->config.retry_enable_cnt = 0;
-
 	mutex_unlock(&lcd_power_mutex);
 	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &vmode);
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
@@ -250,29 +435,43 @@ static void am_lcd_encoder_disable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
 	struct am_drm_lcd_s *lcd = encoder_to_am_lcd(encoder);
+	struct drm_crtc *crtc = encoder->crtc;
 
-	if (!lcd)
+	if (!lcd || !lcd->lcd_drv)
 		return;
-	if (!lcd->lcd_drv)
+
+	DRM_DEBUG("am_drm_lcd:%s, active:%d, vrefresh:%u, %u\n", __func__,
+		crtc->state->enable, lcd->prev_vrefresh,
+			crtc->state->mode.vrefresh);
+	if (lcd->lcd_drv->mode == LCD_MODE_TV && crtc->state->enable) {
+		pr_info("am_drm_lcd: %s, skip lcd disable.\n", __func__);
 		return;
+	}
 
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 	mutex_lock(&lcd_power_mutex);
 	aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)lcd->lcd_drv);
 	aml_lcd_notifier_call_chain(LCD_EVENT_UNPREPARE, (void *)lcd->lcd_drv);
 	mutex_unlock(&lcd_power_mutex);
+
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
+}
+
+static void am_lcd_encoder_commit(struct drm_encoder *encoder)
+{
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 }
 
 static int am_lcd_encoder_atomic_check(struct drm_encoder *encoder,
-	struct drm_crtc_state *crtc_state,
-	struct drm_connector_state *conn_state)
+				       struct drm_crtc_state *crtc_state,
+				struct drm_connector_state *conn_state)
 {
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 	return 0;
 }
 
 static const struct drm_encoder_helper_funcs am_lcd_encoder_helper_funcs = {
+	.commit = am_lcd_encoder_commit,
 	.atomic_mode_set = am_lcd_encoder_mode_set,
 	.atomic_enable = am_lcd_encoder_enable,
 	.atomic_disable = am_lcd_encoder_disable,
@@ -280,16 +479,14 @@ static const struct drm_encoder_helper_funcs am_lcd_encoder_helper_funcs = {
 };
 
 static const struct drm_encoder_funcs am_lcd_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
+	.destroy        = drm_encoder_cleanup,
 };
 
 static int am_lcd_disable(struct drm_panel *panel)
 {
 	struct am_drm_lcd_s *lcd = drm_plane_to_am_hdmi(panel);
 
-	if (!lcd)
-		return -ENODEV;
-	if (!lcd->lcd_drv)
+	if (!lcd || !lcd->lcd_drv)
 		return -ENODEV;
 
 	mutex_lock(&lcd_power_mutex);
@@ -303,9 +500,7 @@ static int am_lcd_unprepare(struct drm_panel *panel)
 {
 	struct am_drm_lcd_s *lcd = drm_plane_to_am_hdmi(panel);
 
-	if (!lcd)
-		return -ENODEV;
-	if (!lcd->lcd_drv)
+	if (!lcd || !lcd->lcd_drv)
 		return -ENODEV;
 
 	mutex_lock(&lcd_power_mutex);
@@ -319,9 +514,7 @@ static int am_lcd_prepare(struct drm_panel *panel)
 {
 	struct am_drm_lcd_s *lcd = drm_plane_to_am_hdmi(panel);
 
-	if (!lcd)
-		return -ENODEV;
-	if (!lcd->lcd_drv)
+	if (!lcd || !lcd->lcd_drv)
 		return -ENODEV;
 
 	mutex_lock(&lcd_power_mutex);
@@ -335,9 +528,7 @@ static int am_lcd_enable(struct drm_panel *panel)
 {
 	struct am_drm_lcd_s *lcd = drm_plane_to_am_hdmi(panel);
 
-	if (!lcd)
-		return -ENODEV;
-	if (!lcd->lcd_drv)
+	if (!lcd || !lcd->lcd_drv)
 		return -ENODEV;
 
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
@@ -392,9 +583,7 @@ static int am_lcd_get_timings(struct drm_panel *panel,
 {
 	struct am_drm_lcd_s *lcd = drm_plane_to_am_hdmi(panel);
 
-	if (!lcd)
-		return 0;
-	if (!lcd->timing)
+	if (!lcd || !lcd->timing)
 		return 0;
 
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
@@ -416,11 +605,70 @@ static const struct drm_panel_funcs am_drm_lcd_funcs = {
 	.get_timings = am_lcd_get_timings,
 };
 
+static void am_drm_lcd_connector_tv_mode_init(struct am_drm_lcd_s *lcd)
+{
+	struct drm_display_mode *native_mode;
+	int i;
+
+	if (!lcd->lcd_drv) {
+		DRM_DEBUG("invalid lcd driver\n");
+		return;
+	}
+
+	if (lcd->lcd_drv->mode != LCD_MODE_TV)
+		return;
+
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
+
+	switch (lcd->lcd_drv->config.basic.v_active) {
+	case 600:
+		native_mode = &tv_lcd_mode_ref[0];
+		break;
+	case 768:
+		native_mode = &tv_lcd_mode_ref[1];
+		break;
+	case 1080:
+		native_mode = &tv_lcd_mode_ref[2];
+		break;
+	case 2160:
+		native_mode = &tv_lcd_mode_ref[3];
+		break;
+	default:
+		native_mode = &tv_lcd_mode_ref[4];
+		DRM_DEBUG("invalid lcd mode\n");
+		break;
+	}
+
+	lcd_tv_mode_cnt = 0;
+	for (i = 0; i < DRM_LCD_TV_MODE_CNT_MAX; i++) {
+		memset(&tv_lcd_mode[i], 0, sizeof(struct drm_display_mode));
+		sprintf(tv_lcd_mode[i].name, "invalid");
+	}
+	for (i = 0; i < ARRAY_SIZE(lcd_std_frame_rate); i++) {
+		if (strstr(native_mode->name, "invalid"))
+			continue;
+		if (i >= DRM_LCD_TV_MODE_CNT_MAX)
+			break;
+
+		memcpy(&tv_lcd_mode[i], native_mode,
+		       sizeof(struct drm_display_mode));
+		memset(tv_lcd_mode[i].name, 0, DRM_DISPLAY_MODE_LEN);
+		sprintf(tv_lcd_mode[i].name, "%s%dhz",
+			native_mode->name, lcd_std_frame_rate[i]);
+		tv_lcd_mode[i].vrefresh = lcd_std_frame_rate[i];
+		lcd_tv_mode_cnt++;
+	}
+
+	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
+}
+
 static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 {
 	struct lcd_config_s *pconf;
+	unsigned int frame_rate;
 	unsigned short tmp;
 	char *vout_mode;
+	int i;
 
 	if (!lcd->lcd_drv) {
 		DRM_DEBUG("invalid lcd driver\n");
@@ -432,7 +680,25 @@ static void am_drm_lcd_display_mode_timing_init(struct am_drm_lcd_s *lcd)
 	pconf = &lcd->lcd_drv->config;
 	vout_mode = get_vout_mode_internal();
 
-	lcd->mode = &am_lcd_mode;
+	if (lcd->lcd_drv->mode == LCD_MODE_TV) {
+		lcd->mode = NULL;
+		frame_rate = pconf->timing.sync_duration_num /
+			pconf->timing.sync_duration_den;
+		for (i = 0; i < ARRAY_SIZE(lcd_std_frame_rate); i++) {
+			if (i >= DRM_LCD_TV_MODE_CNT_MAX)
+				break;
+			if (frame_rate == lcd_std_frame_rate[i]) {
+				lcd->mode = &tv_lcd_mode[i];
+				break;
+			}
+		}
+		if (!lcd->mode) {
+			lcd->mode = &tv_lcd_mode_ref[4];
+			DRM_DEBUG("invalid lcd mode\n");
+		}
+	} else {
+		lcd->mode = &tablet_lcd_mode;
+	}
 	lcd->timing = &am_lcd_timing;
 
 	if (vout_mode) {
@@ -592,6 +858,7 @@ static int am_meson_lcd_bind(struct device *dev, struct device *master,
 	 * avoid init with null info when lcd probe with unifykey case.
 	 */
 	vout_register_client(&am_drm_lcd_notifier_nb);
+	am_drm_lcd_connector_tv_mode_init(am_drm_lcd);
 	am_drm_lcd_display_mode_timing_init(am_drm_lcd);
 
 	drm_panel_init(&am_drm_lcd->panel);
