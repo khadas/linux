@@ -7626,7 +7626,8 @@ SET_FILTER:
 	/* setting video display property in underflow mode */
 	if (!new_frame &&
 	    vd_layer[0].dispbuf &&
-	    vd_layer[0].property_changed) {
+	    (vd_layer[0].property_changed ||
+	     is_picmode_changed(0, vd_layer[0].dispbuf))) {
 		primary_swap_frame(&vd_layer[0], vd_layer[0].dispbuf, __LINE__);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		dvel_swap_frame(cur_dispbuf2);
@@ -7977,7 +7978,8 @@ SET_FILTER:
 	/* setting video display property in underflow mode */
 	if (!new_frame2 &&
 	    vd_layer[1].dispbuf &&
-	    vd_layer[1].property_changed) {
+	    (vd_layer[1].property_changed ||
+	     is_picmode_changed(1, vd_layer[1].dispbuf))) {
 		pip_swap_frame(&vd_layer[1], vd_layer[1].dispbuf, vinfo);
 		need_disable_vd2 = false;
 	} else if (new_frame2) {
@@ -8252,7 +8254,8 @@ SET_FILTER:
 		/* setting video display property in underflow mode */
 		if (!new_frame3 &&
 		    vd_layer[2].dispbuf &&
-		    vd_layer[2].property_changed) {
+		    (vd_layer[2].property_changed ||
+		     is_picmode_changed(2, vd_layer[2].dispbuf))) {
 			pip2_swap_frame(&vd_layer[2], vd_layer[2].dispbuf, vinfo);
 			need_disable_vd3 = false;
 		} else if (new_frame3) {

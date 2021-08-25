@@ -7303,6 +7303,15 @@ static bool is_vframe_changed
 	return false;
 }
 
+bool is_picmode_changed(u8 layer_id, struct vframe_s *vf)
+{
+	if (vf &&
+	    memcmp(&vf->pic_mode, &gpic_info[layer_id],
+			sizeof(struct vframe_pic_mode_s)))
+		return true;
+	return false;
+}
+
 static bool is_sr_phase_changed(void)
 {
 	struct sr_info_s *sr;
