@@ -5065,8 +5065,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	/* If RX  support 2084 or hlg , and the hdr_src_feature is 2020
 	 *  then enable HDR send out
 	 */
-	if ((hdev->rxcap.hdr_sup_eotf_smpte_st_2084 ||
-	     hdev->rxcap.hdr_sup_eotf_hlg) &&
+	if ((hdev->rxcap.hdr_info2.hdr_support & 0xc) &&
 	    hdev->hdr_color_feature == C_BT2020) {
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_DATAUTO3, 1, 6, 1);
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_PACKET_TX_EN, 1, 7, 1);
