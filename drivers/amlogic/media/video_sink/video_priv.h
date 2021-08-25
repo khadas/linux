@@ -492,6 +492,7 @@ bool is_di_post_link_on(void);
 bool is_di_post_mode(struct vframe_s *vf);
 bool is_afbc_enabled(u8 layer_id);
 bool is_local_vf(struct vframe_s *vf);
+bool is_picmode_changed(u8 layer_id, struct vframe_s *vf);
 
 void safe_switch_videolayer(u8 layer_id,
 			    bool on, bool async);

@@ -6996,6 +6996,15 @@ static bool is_vframe_changed
 	return false;
 }
 
+bool is_picmode_changed(u8 layer_id, struct vframe_s *vf)
+{
+	if (vf &&
+	    memcmp(&vf->pic_mode, &gpic_info[layer_id],
+			sizeof(struct vframe_pic_mode_s)))
+		return true;
+	return false;
+}
+
 int get_layer_display_canvas(u8 layer_id)
 {
 	int ret = -1;
