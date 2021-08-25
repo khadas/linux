@@ -419,10 +419,11 @@ static noinline void show_fault_stack(unsigned long addr, struct pt_regs *regs)
 	while (1) {
 		int ret;
 
-		dump_backtrace_entry(frame.pc, frame.fp, sp);
 	#ifdef CONFIG_ARM64
+		dump_backtrace_entry(frame.pc, frame.fp, sp);
 		ret = unwind_frame(current, &frame);
 	#elif defined(CONFIG_ARM)
+		dump_backtrace_entry(frame.pc, frame.fp, frame.sp);
 		ret = unwind_frame(&frame);
 	#endif
 		if (ret < 0)
