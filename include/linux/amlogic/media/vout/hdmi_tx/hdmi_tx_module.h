@@ -142,25 +142,14 @@ struct rx_cap {
 	unsigned int cnc3:1; /* Game */
 	unsigned int mdelta:1;
 	unsigned int fva:1;
-	unsigned int hdr_sup_eotf_sdr:1;
-	unsigned int hdr_sup_eotf_hdr:1;
-	unsigned int hdr_sup_eotf_smpte_st_2084:1;
-	unsigned int hdr_sup_eotf_hlg:1;
-	unsigned int hdr_sup_SMD_type1:1;
-	unsigned int hdmi2ver;
-	unsigned char hdr_lum_max;
-	unsigned char hdr_lum_avg;
-	unsigned char hdr_lum_min;
-	unsigned char hdr_rawdata[7];
-	struct hdr_dynamic_struct hdr_dynamic_info[4];
-	struct hdr10_plus_info hdr10plus_info;
+	struct hdr_info hdr_info;
 	struct dv_info dv_info;
-	/* When hdr_priority is 1, then dv_info will be all 0
-	 * And select HDR10 to DolbyVision from HDR priority,
-	 * System won't get real dv_cap, but can get real dv_cap2
+	/* When hdr_priority is 1, then dv_info will be all 0;
+	 * when hdr_priority is 2, then dv_info/hdr_info will be all 0
+	 * App won't get real dv_cap/hdr_cap, but can get real dv_cap2/hdr_cap2
 	 */
+	struct hdr_info hdr_info2;
 	struct dv_info dv_info2;
-	struct cuva_info cuva_info;
 	unsigned char IDManufacturerName[4];
 	unsigned char IDProductCode[2];
 	unsigned char IDSerialNumber[4];
