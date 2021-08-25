@@ -184,6 +184,8 @@ ENDPROC(__und_invalid)
 #else /* !CONFIG_AMLOGIC_VMAP */
 	sub	sp, sp, #(SVC_REGS_SIZE + \stack_hole - 4)
 #endif /* CONFIG_AMLOGIC_VMAP */
+#ifdef CONFIG_AMLOGIC_VMAP
+	.if !\vmap
 #ifdef CONFIG_THUMB2_KERNEL
  SPFIX(	str	r0, [sp]	)	@ temporarily saved
  SPFIX(	mov	r0, sp		)
@@ -193,6 +195,8 @@ ENDPROC(__und_invalid)
  SPFIX(	tst	sp, #4		)
 #endif
  SPFIX(	subeq	sp, sp, #4	)
+	.endif
+#endif
 	stmia	sp, {r1 - r12}
 
 	ldmia	r0, {r3 - r5}
@@ -200,14 +204,12 @@ ENDPROC(__und_invalid)
 	mov	r6, #-1			@  ""  ""      ""       ""
 #ifdef CONFIG_AMLOGIC_VMAP
 	.if \vmap
-	ldr	r2, [sp, #(TI_VMAP_BACK_SP + SVC_REGS_SIZE - 4)]
+	ldr     r2, [sp, #(TI_VMAP_BACK_SP + SVC_REGS_SIZE - 4)]
 	.else
 	add	r2, sp, #(SVC_REGS_SIZE + \stack_hole - 4)
-	.endif
-#else
-	add	r2, sp, #(SVC_REGS_SIZE + \stack_hole - 4)
-#endif
  SPFIX(	addeq	r2, r2, #4	)
+	.endif
+#endif
 	str	r3, [sp, #-4]!		@ save the "real" r0 copied
 					@ from the exception stack
 
@@ -294,6 +296,8 @@ __dabt_svc:
 	/* re-build context for normal abort handler */
 	ldr	r0, [sp, #(SVC_REGS_SIZE + TI_VMAP_BACK_SP)]
 	sub	r0, #SVC_REGS_SIZE
+	tst	r0, #4
+	subne	r0, r0, #4
 	mov	r1, sp
 	mov	r2, #SVC_REGS_SIZE
 #ifdef CONFIG_AMLOGIC_KASAN32
@@ -390,6 +394,8 @@ __pabt_svc:
 	/* re-build context for normal abort handler */
 	ldr	r0, [sp, #(SVC_REGS_SIZE + TI_VMAP_BACK_SP)]
 	sub	r0, #SVC_REGS_SIZE
+	tst	r0, #4
+	subne	r0, r0, #4
 	mov	r1, sp
 	mov	r2, #SVC_REGS_SIZE
 #ifdef CONFIG_AMLOGIC_KASAN32
