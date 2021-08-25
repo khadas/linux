@@ -4361,7 +4361,7 @@ static int crg_vbus_detect_thread(void *data)
 
 void amlogic_crg_m31_phy_init(struct crg_gadget_dev *crg_udc)
 {
-#define M31_SETTING 0x1E30CE89
+#define M31_SETTING 0x1E30CEB9
 	writel(1, crg_udc->phy_reg_addr + 0x8);
 	udelay(9);
 
@@ -4434,8 +4434,11 @@ static int crg_udc_probe(struct platform_device *pdev)
 			crg_udc->controller_type = controller_type;
 
 			prop = of_get_property(of_node, "port-speed", NULL);
-			if (prop)
+			if (prop) {
 				port_speed = of_read_ulong(prop, 1);
+				crg_udc->gadget.max_speed = port_speed;
+				crg_udc->gadget.speed = port_speed;
+			}
 
 			retval = of_property_read_u32(of_node, "phy-reg", &p_phy_reg_addr);
 			if (retval < 0)

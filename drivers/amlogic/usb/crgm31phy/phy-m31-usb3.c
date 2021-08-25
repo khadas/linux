@@ -211,6 +211,12 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 
 	/* set the phy from pcie to usb3 */
 	if (phy->portnum > 0) {
+		writel(0x1, phy->phy3_cfg + 0x8);
+		usleep_range(90, 100);
+
+		writel(0, phy->phy3_cfg + 0xc);
+		usleep_range(90, 100);
+
 		r0.d32 = readl(phy->phy3_cfg);
 		r0.b.PHY_SEL = 0;
 		r0.b.U3_HOST_PHY = 1;
