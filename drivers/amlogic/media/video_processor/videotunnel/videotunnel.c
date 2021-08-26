@@ -352,6 +352,7 @@ static struct vt_instance *vt_instance_create_lock(struct vt_dev *dev)
 
 	init_waitqueue_head(&instance->wait_producer);
 	init_waitqueue_head(&instance->wait_consumer);
+	init_waitqueue_head(&instance->wait_cmd);
 
 	/* set the buffer pool status to free */
 	for (i = 0; i < VT_POOL_SIZE; i++)
@@ -435,6 +436,8 @@ static struct vt_session *vt_session_create_internal(struct vt_dev *dev,
 	session->task = task;
 	session->role = VT_ROLE_INVALID;
 	session->mode = VT_MODE_BLOCK;
+	session->cmd_status = 0;
+
 	init_waitqueue_head(&session->wait_producer);
 	init_waitqueue_head(&session->wait_consumer);
 	init_waitqueue_head(&session->wait_cmd);
@@ -943,8 +946,11 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 	else
 		vt_debug(VT_DEBUG_CMD, "data:%d\n", cmd->cmd_data);
 
-	if (instance->consumer)
+	wake_up_interruptible(&instance->wait_cmd);
+	if (instance->consumer) {
+		instance->consumer->cmd_status++;
 		wake_up_interruptible(&instance->consumer->wait_cmd);
+	}
 
 	return 0;
 }
@@ -974,7 +980,7 @@ static int vt_recv_cmd_process(struct vt_ctrl_data *data,
 		if (session->mode != VT_MODE_BLOCK)
 			return -EAGAIN;
 
-		ret = wait_event_interruptible_timeout(session->wait_cmd,
+		ret = wait_event_interruptible_timeout(instance->wait_cmd,
 						       vt_has_cmd(instance),
 						       msecs_to_jiffies(VT_CMD_WAIT_MS));
 
@@ -1022,6 +1028,60 @@ static int vt_recv_cmd_process(struct vt_ctrl_data *data,
 	return 0;
 }
 
+/*
+ * buffer_or_cmd indicate poll buffer or cmd, 1 is buffer and 0 is cmd
+ */
+static int vt_poll_ready(struct vt_session *session, int buffer_or_cmd)
+{
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance = NULL;
+	struct rb_node *n = NULL;
+	int size = 0;
+
+	mutex_lock(&dev->instance_lock);
+	for (n = rb_first(&dev->instances); n; n = rb_next(n)) {
+		instance = rb_entry(n, struct vt_instance, node);
+		mutex_lock(&instance->lock);
+		if (instance->producer && instance->producer == session) {
+			size += kfifo_len(&instance->fifo_to_producer);
+		} else if (instance->consumer &&
+			   instance->consumer == session) {
+			if (buffer_or_cmd == 1 && session->mode == VT_MODE_GAME)
+				size += kfifo_len(&instance->fifo_to_consumer);
+			if (buffer_or_cmd == 0)
+				size += kfifo_len(&instance->fifo_cmd);
+		}
+		mutex_unlock(&instance->lock);
+	}
+	mutex_unlock(&dev->instance_lock);
+
+	return size;
+}
+
+static int vt_poll_cmd_process(struct vt_ctrl_data *data,
+			       struct vt_session *session)
+{
+	int time_out = data->video_cmd_data;
+	int ret = 0;
+
+	if (vt_poll_ready(session, 0) > 0)
+		return POLLIN | POLLRDNORM;
+
+	/* no ready cmd */
+	session->cmd_status = 0;
+	ret = wait_event_interruptible_timeout(session->wait_cmd,
+					       session->cmd_status > 0,
+					       msecs_to_jiffies(time_out));
+	/* timeout */
+	if (ret == 0)
+		return 0;
+
+	if (vt_poll_ready(session, 0) > 0)
+		return POLLIN | POLLRDNORM;
+	else
+		return -EAGAIN;
+}
+
 static int vt_ctrl_process(struct vt_ctrl_data *data,
 			   struct vt_session *session)
 {
@@ -1056,6 +1116,10 @@ static int vt_ctrl_process(struct vt_ctrl_data *data,
 	}
 	case VT_CTRL_SET_BLOCK_MODE: {
 		session->mode = VT_MODE_BLOCK;
+		break;
+	}
+	case VT_CTRL_POLL_CMD: {
+		ret = vt_poll_cmd_process(data, session);
 		break;
 	}
 	default:
@@ -1502,29 +1566,6 @@ static long vt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
-static int vt_poll_ready(struct vt_session *session)
-{
-	struct vt_dev *dev = session->dev;
-	struct vt_instance *instance = NULL;
-	struct rb_node *n = NULL;
-	int size = 0;
-
-	mutex_lock(&dev->instance_lock);
-	for (n = rb_first(&dev->instances); n; n = rb_next(n)) {
-		instance = rb_entry(n, struct vt_instance, node);
-		mutex_lock(&instance->lock);
-		if (instance->producer && instance->producer == session)
-			size += kfifo_len(&instance->fifo_to_producer);
-		else if (instance->consumer && instance->consumer == session &&
-			 session->mode == VT_MODE_GAME)
-			size += kfifo_len(&instance->fifo_to_consumer);
-		mutex_unlock(&instance->lock);
-	}
-	mutex_unlock(&dev->instance_lock);
-
-	return size;
-}
-
 /*
  * for producer side, support poll buffer
  * for consumer side, now only support poll cmd
@@ -1547,7 +1588,7 @@ static __poll_t vt_poll(struct file *filp, struct poll_table_struct *wait)
 		poll_wait(filp, &session->wait_consumer, wait);
 	}
 
-	if (vt_poll_ready(session) > 0)
+	if (vt_poll_ready(session, 1) > 0)
 		return POLLIN | POLLRDNORM;
 	else
 		return 0;

@@ -106,6 +106,7 @@ struct vt_session {
 	struct task_struct *task;
 	long cid;
 	enum vt_mode_e mode;
+	int cmd_status;
 
 	wait_queue_head_t wait_consumer;
 	wait_queue_head_t wait_producer;
@@ -178,6 +179,7 @@ struct vt_instance {
 	wait_queue_head_t wait_consumer;
 	struct vt_session *producer;
 	wait_queue_head_t wait_producer;
+	wait_queue_head_t wait_cmd;
 
 	struct mutex cmd_lock; /* protect cmd fifo */
 	DECLARE_KFIFO_PTR(fifo_cmd, struct vt_cmd*);
