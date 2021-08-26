@@ -927,7 +927,7 @@
 		/* In for ACODEC_ADC */
 		acodec_adc = <1>;
 		/*enable default mclk(12.288M), before extern codec start*/
-		start_clk_enable = <1>;
+		start_clk_enable = <0>;
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
