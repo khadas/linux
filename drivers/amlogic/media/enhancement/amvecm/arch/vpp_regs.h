@@ -883,6 +883,7 @@
 #define SRSHARP1_FMETER_H_FILTER1_9TAP_1      0x536e
 #define SRSHARP1_FMETER_H_FILTER2_9TAP_0      0x536f
 #define SRSHARP1_FMETER_H_FILTER2_9TAP_1      0x5370
+#define NN_ADP_CORING                         0x5392
 
 /*ve dither*/
 #define VPP_VE_DITHER_CTRL		0x3120

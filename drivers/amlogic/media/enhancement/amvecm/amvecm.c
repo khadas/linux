@@ -350,6 +350,10 @@ static int sr1_gain_lmt[11] = {
 	20, 25, 28, 30, 35, 38, 40, 45, 50, 55, 60
 };
 
+static int nn_coring[11] = {
+	10, 8, 6, 4, 3, 2, 1, 1, 1, 1, 1
+};
+
 #define AIPQ_SCENE_MAX 22
 #define AIPQ_FUNC_MAX 10
 int aipq_ofst_table[AIPQ_SCENE_MAX][AIPQ_FUNC_MAX];
@@ -1416,6 +1420,9 @@ void amvecm_fmeter_process(struct vframe_s *vf)
 
 		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_CON_2CIRBPGAIN_LIMIT,
 		sr0_gain_lmt[cur_sr_level], 24, 8);
+
+		VSYNC_WRITE_VPP_REG_BITS(NN_ADP_CORING,
+		nn_coring[cur_sr_level], 8, 8);
 	}
 	pre_fmeter_level = cur_fmeter_level;
 }
