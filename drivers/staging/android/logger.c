@@ -421,17 +421,30 @@ static ssize_t logger_write_iter(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct logger_log *log = file_get_log(iocb->ki_filp);
 	struct logger_entry header;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct timespec now;
+#else
 	ktime_t now;
+#endif
 	size_t len, count, w_off;
 
 	count = min_t(size_t, iov_iter_count(from), LOGGER_ENTRY_MAX_PAYLOAD);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	now = ktime_to_timespec(ktime_get());
+#else
 	now = ktime_get();
+#endif
 
 	header.pid = current->tgid;
 	header.tid = current->pid;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	header.nsec = now.tv_nsec;
+	header.sec = now.tv_sec;
+#else
 	header.nsec = (s32)do_div(now, 1000000000);
 	header.sec = (s32)now;
+#endif
 	header.euid = current_euid();
 	header.len = count;
 	header.hdr_size = sizeof(struct logger_entry);
