@@ -2861,11 +2861,6 @@ static bool hdmitx_limited_1080p(void)
 	return res_1080p;
 }
 
-static bool hdmitx_limited_hdcp14(void)
-{
-	return hdmitx_limited_1080p();
-}
-
 /**/
 static ssize_t disp_cap_show(struct device *dev,
 			     struct device_attribute *attr,
@@ -4100,8 +4095,8 @@ static ssize_t hdcp_lstore_show(struct device *dev,
 		hdmitx_device.lstore = 0;
 		if (hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_14_LSTORE, 0))
 			hdmitx_device.lstore += 1;
-		if (hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_22_LSTORE, 0) &&
-		    !hdmitx_limited_hdcp14())
+		if (hdmitx_device.hwop.cntlddc(&hdmitx_device,
+			DDC_HDCP_22_LSTORE, 0))
 			hdmitx_device.lstore += 2;
 	}
 	if ((hdmitx_device.lstore & 0x3) == 0x3) {
@@ -7321,8 +7316,8 @@ int drm_hdmitx_get_hdcp_cap(void)
 		hdmitx_device.lstore = 0;
 		if (hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_14_LSTORE, 0))
 			hdmitx_device.lstore += 1;
-		if (hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_22_LSTORE, 0) &&
-		    !hdmitx_limited_hdcp14())
+		if (hdmitx_device.hwop.cntlddc(&hdmitx_device,
+			DDC_HDCP_22_LSTORE, 0))
 			hdmitx_device.lstore += 2;
 	}
 	return hdmitx_device.lstore & 0x3;
