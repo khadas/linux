@@ -6,8 +6,6 @@
 #ifndef _DV_H_
 #define _DV_H_
 
-#define V1_5
-#define V2_4
 
 #include <linux/types.h>
 #include <linux/amlogic/media/vout/vinfo.h>
@@ -44,6 +42,10 @@
 struct vframe_s;
 #define MD_BUF_SIZE 1024
 #define COMP_BUF_SIZE 8196
+
+#define DV_SEI 0x01000000
+#define DV_AV1_SEI 0x14000000
+#define HDR10P 0x02000000
 
 enum pq_item_e {
 	PQ_BRIGHTNESS = 0,     /*Brightness */
@@ -82,6 +84,15 @@ struct dv_config_file_s {
 	unsigned char cfg_name[256];
 } __aligned(8);
 
+struct ambient_cfg_s {
+	u32 update_flag;
+	u32 ambient; /* 1<<16 */
+	u32 t_rearLum;
+	u32 t_frontLux;
+	u32 t_whiteX; /* 1<<15 */
+	u32 t_whiteY; /* 1<<15 */
+} __aligned(8);
+
 #define DV_M 'D'
 
 /* get Number of Picture Mode */
@@ -114,12 +125,11 @@ struct dv_config_file_s {
 /* set Amlogic_cfg.txt and dv_config.bin dir */
 #define DV_IOC_SET_DV_CONFIG_FILE _IOW((DV_M), 0x9, struct dv_config_file_s)
 
-/*1: disable dv GD, 0: restore dv GD*/
-#define DV_IOC_CONFIG_DV_BL _IOW((DV_M), 0xa, int)
+/* set ambient light */
+#define DV_IOC_SET_DV_AMBIENT _IOW((DV_M), 0xa, struct ambient_cfg_s)
 
-#define DV_SEI 0x01000000
-#define DV_AV1_SEI 0x14000000
-#define HDR10P 0x02000000
+/*1: disable dv GD, 0: restore dv GD*/
+#define DV_IOC_CONFIG_DV_BL _IOW((DV_M), 0xb, int)
 
 extern unsigned int debug_dolby;
 
