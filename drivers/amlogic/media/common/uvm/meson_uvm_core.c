@@ -59,6 +59,7 @@ static struct sg_table
 	struct uvm_alloc *ua;
 	struct sg_table *sgt;
 	bool gpu_access = false;
+	bool skip_realloc = false;
 
 	if (strstr(dev_name(attachment->dev), "bifrost") ||
 		strstr(dev_name(attachment->dev), "mali")) {
@@ -70,11 +71,13 @@ static struct sg_table
 	ua = handle->ua;
 
 	UVM_PRINTK(1, "%s called, %s. gpu_access:%d\n", __func__, current->comm, gpu_access);
+	if (ua->flags & BIT(UVM_SKIP_REALLOC))
+		skip_realloc = true;
 
 	if (ua->flags & BIT(UVM_DELAY_ALLOC) && gpu_access)
 		ua->delay_alloc(dmabuf, ua->obj);
 
-	if (ua->flags & BIT(UVM_IMM_ALLOC) && gpu_access && ua->scalar > 1) {
+	if (ua->flags & BIT(UVM_IMM_ALLOC) && gpu_access && !skip_realloc) {
 		UVM_PRINTK(1, "begin ua->gpu_realloc. size: %zu scalar: %d\n",
 					ua->size, ua->scalar);
 		if (ua->gpu_realloc(dmabuf, ua->obj, ua->scalar)) {
