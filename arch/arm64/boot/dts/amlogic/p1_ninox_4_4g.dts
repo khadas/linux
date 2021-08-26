@@ -599,7 +599,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&dummy_codec &tas5805m &tas5805mb>;
 			};
 		};
 		aml-audio-card,dai-link@4 {
@@ -1587,6 +1587,24 @@
 
 &i2c5 {
 	clock-frequency = <400000>;
+	tas5805m: tas5805m@2d {
+		compatible = "ti,tas5805m_0";
+		#sound-dai-cells = <0>;
+		reg = <0x2d>;
+		power-gpio = <&gpio GPIOW_17 0>;
+		reset-gpio = <&gpio GPIOW_12 0>;
+		speaker-config = <0>;
+		status = "okay";
+	};
+	tas5805mb: tas5805mb@2e {
+		compatible = "ti,tas5805m_1";
+		#sound-dai-cells = <0>;
+		reg = <0x2e>;
+		power-gpio = <&gpio GPIOW_17 0>;
+		reset-gpio = <&gpio GPIOW_12 0>;
+		speaker-config = <0>;
+		status = "okay";
+	};
 };
 
 &csiphy0 {
