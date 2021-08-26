@@ -1553,7 +1553,7 @@
 			reg = <0x0 0xfe088000 0x0 0x800>,
 				<0x0 0xfe00016c 0x0 0x4>,
 				<0x0 0xfe004030 0x0 0x4>;
-			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			clocks = <&clkc CLKID_SYS_CLK_SD_EMMC_A>,
 				<&clkc CLKID_SD_EMMC_A_CLK_SEL>,
@@ -1565,7 +1565,6 @@
 			card_type = <3>;
 			cap-sdio-irq;
 			keep-power-in-suspend;
-			src_clk_rate = <1152000000>;
 			//use_intf3_tuning;
 			mmc_debug_flag;
 			//resets = <&reset RESET_SD_EMMC_A>;
@@ -3058,7 +3057,7 @@
 
 	sdio_clk_gate_pins: sdio_clk_gate {
 		mux {
-			groups = "GPIOX_4";
+			groups = "GPIOM_4";
 			function = "gpio_periphs";
 			bias-pull-down;
 			drive-strength-microamp = <4000>;

@@ -1488,7 +1488,7 @@
 
 /* SDIO */
 &sd_emmc_a {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&sdio_pins>;
 	pinctrl-1 = <&sdio_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -1743,9 +1743,9 @@
 };
 
 &aml_wifi{
-	status = "disabled";
-	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
-	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
+	status = "okay";
+	interrupt-gpios = <&gpio  GPIOY_10  GPIO_ACTIVE_HIGH>;
+	power_on-gpios = <&gpio   GPIOY_13  GPIO_ACTIVE_HIGH>;
 };
 
 &aml_bt {
@@ -1755,9 +1755,9 @@
 };
 
 &pwm_ab {
-	//pinctrl-0 = <&pwm_a_pins>;
+	pinctrl-0 = <&pwm_a_pins2>;
 	pinctrl-names = "default";
-	status = "disabled";
+	status = "okay";
 };
 
 &irblaster {
