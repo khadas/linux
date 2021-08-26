@@ -4372,15 +4372,15 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 	case MISC_AUDIO_RESET:
 		 /* bit3: i2s_rst bit4: spdif_rst */
 		hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, 0xe7);
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF0, 1, 7, 1);
 		hdmitx_wr_reg(HDMITX_DWC_AUD_N1,
 			      hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
-		 /* twice again */
+		udelay(1);
 		hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, 0xe7);
+		hdmitx_set_reg_bits(HDMITX_DWC_AUD_SPDIF0, 1, 7, 1);
 		hdmitx_wr_reg(HDMITX_DWC_AUD_N1,
 			      hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
-		hdmitx_wr_reg(HDMITX_DWC_MC_SWRSTZREQ, 0xe7);
-		hdmitx_wr_reg(HDMITX_DWC_AUD_N1,
-			      hdmitx_rd_reg(HDMITX_DWC_AUD_N1));
+		udelay(1);
 		break;
 	case MISC_DIS_HPLL:
 		/* RESET set as 1, delay 50us, Enable set as 0 */
