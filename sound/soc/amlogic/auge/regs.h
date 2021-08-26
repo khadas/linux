@@ -1498,6 +1498,8 @@ struct register_table {
 #define EE_AUDIO_DAT_PAD_CTRLD             0x39D
 #define EE_AUDIO_DAT_PAD_CTRLE             0x39E
 #define EE_AUDIO_DAT_PAD_CTRLF             0x39F
+#define EE_AUDIO_DAT_PAD_CTRLG             0x3a5
+#define EE_AUDIO_DAT_PAD_CTRLH             0x3a6
 
 #define EE_AUDIO_MCLK_PAD_CTRL0            0x3A0
 #define EE_AUDIO_MCLK_PAD_CTRL1            0x3A1

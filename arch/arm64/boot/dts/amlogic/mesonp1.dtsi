@@ -3418,21 +3418,32 @@
 			function = "spdif_in";
 		};
 	};
-
+	mclk_0_pins: mclk_0_pin {
+		mux { /* GPIOT_14 */
+			groups = "mclk_0";
+			function = "mclk";
+		};
+	};
 	mclk_1_pins: mclk_1_pin {
-		mux { /* GPIOT_0 */
-			groups = "mclk1";
+		mux { /* GPIOT_19 */
+			groups = "mclk_1";
 			function = "mclk";
 		};
 	};
 
 	mclk_2_pins: mclk_2_pin {
-		mux { /* GPIOT_13 */
-			groups = "mclk2";
+		mux { /* GPIOT_K8 */
+			groups = "mclk_2";
 			function = "mclk";
 		};
 	};
 
+	mclk_3_pins: mclk_3_pin {
+		mux { /* GPIOT_W0 */
+			groups = "mclk_3_w";
+			function = "mclk";
+		};
+	};
 	lcd_vbyone_a_pins: lcd_vbyone_a_pin {
 		mux {
 			groups = "vx1_a_htpdn","vx1_a_lockn";

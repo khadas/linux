@@ -2102,7 +2102,7 @@ static struct ddr_chipinfo t5_ddr_chipinfo = {
 };
 
 static struct ddr_chipinfo p1_ddr_chipinfo = {
-	.same_src_fn           = false,
+	.same_src_fn           = true,
 	.ugt                   = true,
 	.src_sel_ctrl          = true,
 	.asrc_src_sel_ctrl     = true,

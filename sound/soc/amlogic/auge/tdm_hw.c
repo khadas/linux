@@ -638,7 +638,7 @@ void aml_tdm_set_channel_mask(struct aml_audio_controller *actrl,
 			lane -= LANE_MAX1;
 		} else {
 			if (index == 3) {
-				reg = EE_AUDIO_TDMOUT_D_MASK4;
+				reg = EE_AUDIO_TDMOUT_D_MASK0;
 			} else if (index < 3) {
 				offset = EE_AUDIO_TDMOUT_B_MASK0
 					- EE_AUDIO_TDMOUT_A_MASK0;

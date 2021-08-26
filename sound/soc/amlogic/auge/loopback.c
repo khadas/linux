@@ -68,17 +68,30 @@ struct lb_src_table tdmin_lb_src_table[TDMINLB_SRC_MAX] = {
 
 static char *tdmin_lb_src2str(enum datalb_src src)
 {
+	int i = 0;
 	if (src >= TDMINLB_SRC_MAX)
 		src = TDMINLB_TDMOUTA;
-
-	return tdmin_lb_src_table[src].name;
+	for (i = 0; i < TDMINLB_SRC_MAX; i++) {
+		if (tdmin_lb_src_table[i].src == src)
+			break;
+	}
+	if (i >= TDMINLB_SRC_MAX)
+		i =  0;
+	return tdmin_lb_src_table[i].name;
 }
 
 static char *loopback_src_table(enum datain_src src)
 {
+	int i = 0;
 	if (src >= DATAIN_MAX)
 		src = DATAIN_PDM;
-	return loopback_data_table[src].name;
+	for (i = 0; i < DATAIN_MAX; i++) {
+		if (loopback_data_table[i].src == src)
+			break;
+	}
+	if (i >= DATAIN_MAX)
+		i = 0;
+	return loopback_data_table[i].name;
 }
 struct loopback {
 	struct device *dev;
@@ -534,15 +547,17 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 
 		lb_set_datain_cfg(p_loopback->id, &datain_cfg);
 		/*p1 add tdm d and pdm b*/
-		if (datain_cfg.src >= DATAIN_TDMD) {
-			src_str = loopback_src_table(p_loopback->datain_src);
-			conf = p_loopback->chipinfo->srcs;
-			for (; conf->name[0]; conf++) {
-				if (strncmp(conf->name, src_str, strlen(src_str)) == 0)
-					break;
-			}
-			loopback_src_set(p_loopback->id, conf);
+		src_str = loopback_src_table(p_loopback->datain_src);
+		conf = p_loopback->chipinfo->srcs;
+		for (; conf->name[0]; conf++) {
+			if (strncmp(conf->name, src_str, strlen(src_str)) == 0)
+				break;
 		}
+		pr_info("data name:%s\n", conf->name);
+		if (p_loopback->chipinfo->multi_bits_lbsrcs == 1)
+			loopback_src_set(p_loopback->id, conf, 1);
+		else
+			loopback_src_set(p_loopback->id, conf, 0);
 	}
 
 	if (p_loopback->datalb_chnum > 0) {
@@ -605,27 +620,31 @@ static void datatin_pdm_cfg(struct snd_pcm_runtime *runtime,
 {
 	unsigned int bit_depth = snd_pcm_format_width(runtime->format);
 	unsigned int osr;
+	int pdm_id = 0;
 	struct pdm_info info;
 	struct aml_pdm *pdm = (struct aml_pdm *)p_loopback->mic_src;
 	int gain_index = 0;
-	if (!pdm)
-		return;
-	if (!pdm->chipinfo)
-		return;
-	gain_index = pdm->pdm_gain_index;
 
+	if (pdm)
+		gain_index = pdm->pdm_gain_index;
+	if (pdm && pdm->chipinfo)
+		pdm_id = pdm->chipinfo->id;
+	if (p_loopback->datain_src == DATAIN_PDM)
+		pdm_id = 0;
+	else if (p_loopback->datain_src == DATAIN_PDMB)
+		pdm_id = 1;
 	info.bitdepth = bit_depth;
 	info.channels = p_loopback->datain_chnum;
 	info.lane_masks = p_loopback->datain_lane_mask;
 	info.dclk_idx = p_loopback->dclk_idx;
 	info.bypass = 0;
 	info.sample_count = pdm_get_sample_count(0, p_loopback->dclk_idx);
-	aml_pdm_ctrl(&info, pdm->chipinfo->id);
+	aml_pdm_ctrl(&info, pdm_id);
 
 	/* filter for pdm */
 	osr = pdm_get_ors(p_loopback->dclk_idx, runtime->rate);
 
-	aml_pdm_filter_ctrl(gain_index, osr, 1, pdm->chipinfo->id);
+	aml_pdm_filter_ctrl(gain_index, osr, 1, pdm_id);
 }
 
 static int loopback_dai_prepare(struct snd_pcm_substream *ss,
@@ -694,6 +713,7 @@ static int loopback_dai_prepare(struct snd_pcm_substream *ss,
 		case DATAIN_SPDIF:
 			break;
 		case DATAIN_PDM:
+		case DATAIN_PDMB:
 			datatin_pdm_cfg(runtime, p_loopback);
 			break;
 		case DATAIN_LOOPBACK:
@@ -715,6 +735,7 @@ static int loopback_dai_prepare(struct snd_pcm_substream *ss,
 		case TDMINLB_PAD_TDMINA:
 		case TDMINLB_PAD_TDMINB:
 		case TDMINLB_PAD_TDMINC:
+		case TDMINLB_PAD_TDMIND:
 			break;
 		case TDMINLB_PAD_TDMINA_D:
 		case TDMINLB_PAD_TDMINB_D:

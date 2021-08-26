@@ -1403,6 +1403,12 @@ static int aml_set_default_tdm_clk(struct aml_tdm *tdm)
 	unsigned int ratio = aml_mpll_mclk_ratio(mclk);
 	unsigned int lrclk_hi;
 	unsigned int pll = mclk * ratio;
+	/*set default i2s  timing sequence*/
+	int fmt = SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_I2S
+	| SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CONT;
+
+	aml_tdm_set_fmt(tdm, fmt, 1);
+	/*set default i2s clk for codec sequence*/
 
 	/*set default i2s clk for codec sequence*/
 	tdm->setting.bclk_lrclk_ratio = 64;

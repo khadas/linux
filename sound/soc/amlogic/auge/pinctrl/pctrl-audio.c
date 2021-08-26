@@ -289,7 +289,26 @@ static const struct audio_pmx_func audio_functions[] = {
 	FUNCTION(tdm_clk_oute, tdm_clk),
 	FUNCTION(tdm_clk_outf, tdm_clk),
 
-	FUNCTION(tdm_clk_in, tdm_clk)
+	FUNCTION(tdm_clk_in, tdm_clk),
+
+	FUNCTION(tdmind_lane0, tdm),
+	FUNCTION(tdmind_lane1, tdm),
+	FUNCTION(tdmind_lane2, tdm),
+	FUNCTION(tdmind_lane3, tdm),
+	FUNCTION(tdmind_lane4, tdm),
+	FUNCTION(tdmind_lane5, tdm),
+	FUNCTION(tdmind_lane6, tdm),
+	FUNCTION(tdmind_lane7, tdm),
+
+	FUNCTION(tdmoutd_lane0, tdm),
+	FUNCTION(tdmoutd_lane1, tdm),
+	FUNCTION(tdmoutd_lane2, tdm),
+	FUNCTION(tdmoutd_lane3, tdm),
+	FUNCTION(tdmoutd_lane4, tdm),
+	FUNCTION(tdmoutd_lane5, tdm),
+	FUNCTION(tdmoutd_lane6, tdm),
+	FUNCTION(tdmoutd_lane7, tdm),
+
 };
 
 static int ap_get_functions_count(struct pinctrl_dev *pctldev)
@@ -327,6 +346,10 @@ struct ap_data {
 #define FUNC_TDM_CLK_OUT_LAST      53
 #define FUNC_TDM_CLK_IN_START      54
 #define FUNC_TDM_CLK_IN_LAST       54
+#define FUNC_TDMD_DIN_START        55
+#define FUNC_TDMD_DIN_LAST         62
+#define FUNC_TDMD_DOUT_START       63
+#define FUNC_TDMD_DOUT_LAST        70
 
 #define GRP_TDM_SCLK_START         32
 
@@ -371,11 +394,28 @@ static int ap_set_mux(struct pinctrl_dev *pctldev,
 			val |= 1 << 3;
 		aml_audiobus_update_bits(actrl, addr,
 			0xf << offset, val << offset);
+	} else if (selector < FUNC_TDMD_DIN_LAST) {
+		base = EE_AUDIO_DAT_PAD_CTRLG;
+		addr = base + (selector - FUNC_TDMD_DIN_START) / 4;
+		offset = ((selector - FUNC_TDMD_DIN_START) % 4) * 8;
+		val = group;
+		aml_audiobus_update_bits(actrl, addr,
+					0x1f << offset, val << offset);
+		aml_audiobus_update_bits(actrl, EE_AUDIO_DAT_PAD_CTRLF,
+					1 << val, 1 << val);
+	} else if (selector < FUNC_TDMD_DOUT_LAST) {
+		base = EE_AUDIO_DAT_PAD_CTRL6;
+		addr = group / 4 + base;
+		offset = (group % 4) * 8;
+		val = (selector - FUNC_TDMD_DOUT_START) + 24;
+		aml_audiobus_update_bits(actrl, addr,
+			0x1f << offset, val << offset);
+		aml_audiobus_update_bits(actrl, EE_AUDIO_DAT_PAD_CTRLF,
+			1 << val, 0);
 	} else {
 		dev_err(ap->dev, "%s() unsupport selector: %d, grp %d\n",
 			__func__, selector, group);
 	}
-
 	pr_debug("%s(), addr %#x, offset %d, val %d\n",
 		__func__, addr, offset, val);
 	return 0;

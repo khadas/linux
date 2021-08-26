@@ -968,9 +968,15 @@ static void pdm_platform_late_resume(struct early_suspend *h)
 	}
 };
 
-static struct early_suspend pdm_platform_early_suspend_handler = {
-	.suspend = pdm_platform_early_suspend,
-	.resume  = pdm_platform_late_resume,
+static struct early_suspend pdm_platform_early_suspend_handler[] = {
+	{
+		.suspend = pdm_platform_early_suspend,
+		.resume  = pdm_platform_late_resume,
+	},
+	{
+		.suspend = pdm_platform_early_suspend,
+		.resume  = pdm_platform_late_resume,
+	},
 };
 #endif
 
@@ -984,6 +990,7 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct pdm_chipinfo *p_chipinfo;
 	int ret;
+	int pdm_id = 0;
 
 	p_pdm = devm_kzalloc(&pdev->dev, sizeof(struct aml_pdm), GFP_KERNEL);
 	if (!p_pdm) {
@@ -1001,6 +1008,7 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 	}
 	p_pdm->chipinfo = p_chipinfo;
 	p_pdm->pdm_id = p_chipinfo->id;
+	pdm_id = p_pdm->pdm_id;
 	/* get audio controller */
 	node_prt = of_get_parent(node);
 	if (!node_prt)
@@ -1118,10 +1126,9 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 	pr_info("%s, register soc platform\n", __func__);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-	pdm_platform_early_suspend_handler.param = pdev;
-	register_early_suspend(&pdm_platform_early_suspend_handler);
+	pdm_platform_early_suspend_handler[p_pdm->pdm_id].param = pdev;
+	register_early_suspend(&pdm_platform_early_suspend_handler[pdm_id]);
 #endif
-
 	return 0;
 
 err:
@@ -1132,14 +1139,14 @@ err:
 static int aml_pdm_platform_remove(struct platform_device *pdev)
 {
 	struct aml_pdm *p_pdm = dev_get_drvdata(&pdev->dev);
-
+	int pdm_id = p_pdm->pdm_id;
 	clk_disable_unprepare(p_pdm->sysclk_srcpll);
 	clk_disable_unprepare(p_pdm->clk_pdm_dclk);
 
 	snd_soc_unregister_component(&pdev->dev);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
-	register_early_suspend(&pdm_platform_early_suspend_handler);
+	register_early_suspend(&pdm_platform_early_suspend_handler[pdm_id]);
 #endif
 
 	return 0;
