@@ -10579,7 +10579,7 @@ static void set_osd_blend_reg(struct osd_blend_reg_s *osd_blend_reg)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		update_graphic_width_height(dv_core2_hsize, dv_core2_vsize);
 		if (!update_to_dv) {
-			/* update_graphic_status(); */
+			update_graphic_status();
 			update_to_dv = true;
 		}
 #endif

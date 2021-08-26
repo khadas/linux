@@ -17,51 +17,39 @@
 #ifndef _AMDV_H_
 #define _AMDV_H_
 
-#define V1_5
-#define V1_6_1
-#define V2_4
 /*  driver version */
 #define DRIVER_VER "20181220"
 
 #include <linux/types.h>
 
-/*#define DEF_G2L_LUT_SIZE_2P        8*/
-#define DEF_G2L_LUT_SIZE           BIT(8) /*(1 << DEF_G2L_LUT_SIZE_2P)*/
+#define G2L_LUT_LEN         BIT(8)
 
-#ifdef V2_4
-#define EXT_MD_AVAIL_LEVEL_1 BIT(0)
-#define EXT_MD_AVAIL_LEVEL_2 BIT(1)
-#define EXT_MD_AVAIL_LEVEL_4 BIT(2)
-#define EXT_MD_AVAIL_LEVEL_5 BIT(3)
-#define EXT_MD_AVAIL_LEVEL_6 BIT(4)
-#define EXT_MD_AVAIL_LEVEL_255 BIT(31)
-#endif
-#define PQ2G_LUT_SIZE (4 + 1024 * 4 + 16 * 3)
-#define GM_LUT_HDR_SIZE  (13 + 2 * 9)
-#define LUT_DIM          17
-#define GM_LUT_SIZE      (3 * LUT_DIM * LUT_DIM * LUT_DIM * 2)
-#define BACLIGHT_LUT_SIZE 4096
-#define BLU_LUT_SIZE 5
-#define AMB_LUT_SIZE 8
-#define TUNING_LUT_ENTRIES 14
-#define DM4_TUNING_LUT_ENTRIES 7
+#define EXT_MD_LEVEL_1      BIT(0)
+#define EXT_MD_LEVEL_2      BIT(1)
+#define EXT_MD_LEVEL_4      BIT(2)
+#define EXT_MD_LEVEL_5      BIT(3)
+#define EXT_MD_LEVEL_6      BIT(4)
+#define EXT_MD_LEVEL_255    BIT(31)
+#define BACKLIGHT_LUT_SIZE  4096
+#define AMBIENT_LUT_SIZE    8
+#define TUNING_LUT_SIZE     14
+#define DM4_TUNING_LUT_SIZE 7
 
-#define TUNINGMODE_FORCE_ABSOLUTE        0x1
-#define TUNINGMODE_EXTLEVEL1_DISABLE     0x2
-#define TUNINGMODE_EXTLEVEL2_DISABLE     0x4
-#define TUNINGMODE_EXTLEVEL4_DISABLE     0x8
-#define TUNINGMODE_EXTLEVEL5_DISABLE     0x10
-#define TUNINGMODE_EL_FORCEDDISABLE      0x20
+#define TUNING_MODE_FORCE_ABSOLUTE         0x1
+#define TUNING_MODE_EXTLEVEL_1_DISABLE     0x2
+#define TUNING_MODE_EXTLEVEL_2_DISABLE     0x4
+#define TUNING_MODE_EXTLEVEL_4_DISABLE     0x8
+#define TUNING_MODE_EXTLEVEL_5_DISABLE     0x10
+#define TUNING_MODE_EL_FORCE_DISABLE       0x20
 
-#define VPP_VD1_DSC_CTRL                           0x1a83
-#define VIU_VD1_PATH_CTRL                          0x1a73
-#define VPP_VD2_DSC_CTRL                           0x1a84
-#define VPP_VD3_DSC_CTRL                           0x1a85
-#define DOLBY_PATH_SWAP_CTRL1                      0x1a70
-#define DOLBY_PATH_SWAP_CTRL2                      0x1a71
-#define MALI_AFBCD_TOP_CTRL                        0x1a0f
-#define MALI_AFBCD1_TOP_CTRL                       0x1a55
-
+#define VPP_VD1_DSC_CTRL                   0x1a83
+#define VIU_VD1_PATH_CTRL                  0x1a73
+#define VPP_VD2_DSC_CTRL                   0x1a84
+#define VPP_VD3_DSC_CTRL                   0x1a85
+#define DOLBY_PATH_SWAP_CTRL1              0x1a70
+#define DOLBY_PATH_SWAP_CTRL2              0x1a71
+#define MALI_AFBCD_TOP_CTRL                0x1a0f
+#define MALI_AFBCD1_TOP_CTRL               0x1a55
 
 enum core1_switch_type {
 	NO_SWITCH = 0,
@@ -86,265 +74,149 @@ enum core_type {
 	DOLBY_CORE2C,
 };
 
-/*! @brief Output CSC configuration.*/
 # pragma pack(push, 1)
-struct TgtOutCscCfg {
-	s32   lms2RgbMat[3][3]; /**<@brief  LMS to RGB matrix */
-	s32   lms2RgbMatScale;  /**<@brief  LMS 2 RGB matrix scale */
-//#ifdef V1_6_1
-//	s32   reserved[4];
-//#else
-	u8   whitePoint[3];    /**<@brief  White point */
-	u8   whitePointScale;  /**<@brief  White point scale */
-	s32   reserved[3];
-//#endif
+struct tgt_out_csc_cfg {
+	s32  lms2rgb_mat[3][3];
+	s32  lms2rgb_mat_scale;
+	u8   white_point[3];
+	u8   white_point_scale;
+	s32  reserved[3];
 };
 #pragma pack(pop)
 
-/*! @brief Global dimming configuration.*/
 # pragma pack(push, 1)
-struct TgtGDCfg {
-	s32   gdEnable;
-	u32  gdWMin;
-	u32  gdWMax;
-	u32  gdWMm;
-	u32  gdWDynRngSqrt;
-	u32  gdWeightMean;
-	u32  gdWeightStd;
-	u32  gdDelayMilliSec_hdmi;
-	s32   gdRgb2YuvExt;
-	s32   gdM33Rgb2Yuv[3][3];
-	s32   gdM33Rgb2YuvScale2P;
-	s32   gdRgb2YuvOffExt;
-	s32   gdV3Rgb2YuvOff[3];
-	u32  gdUpBound;
-	u32  gdLowBound;
-	u32  lastMaxPq;
-	u16  gdWMinPq;
-	u16  gdWMaxPq;
-	u16  gdWMmPq;
-	u16  gdTriggerPeriod;
-	u32  gdTriggerLinThresh;
-	u32  gdDelayMilliSec_ott;
-#ifdef V1_6_1
-	s16   gdRiseWeight;      /*Back light rise weight signed Q3.12 */
-	s16   gdFallWeight;      /*Back light fall weight signed Q3.12 */
-	u32  gdDelayMilliSec_ll;/*Back light delay for LL case */
-	u32  gdContrast;
+struct tgt_gc_cfg {
+	s32   gd_enable;
+	u32  gd_wmin;
+	u32  gd_wmax;
+	u32  gd_wmm;
+	u32  gd_wdyn_rng_sqrt;
+	u32  gd_weight_mean;
+	u32  gd_weight_std;
+	u32  gd_delay_msec_hdmi;
+	s32  gd_rgb2yuv_ext;
+	s32  gd_m33_rgb2yuv[3][3];
+	s32  gd_m33_rgb2yuv_scale2p;
+	s32  gd_rgb2yuv_off_ext;
+	s32  gd_rgb2yuv_off[3];
+	u32  gd_up_bound;
+	u32  gd_low_bound;
+	u32  last_max_pq;
+	u16  gd_wmin_pq;
+	u16  gd_wmax_pq;
+	u16  gd_wm_pq;
+	u16  gd_trigger_period;
+	u32  gd_trigger_lin_thresh;
+	u32  gd_delay_msec_ott;
+	s16  gd_rise_weight;
+	s16  gd_fall_weight;
+	u32  gd_delay_msec_ll;
+	u32  gd_contrast;
 	u32  reserved[3];
-#else
-#ifdef V1_5
-	u32  reserved[6];
-#else
-	u32  reserved[9];
-#endif
-#endif
 };
-
 #pragma pack(pop)
 
-#ifdef V1_6_1
-#define AMBIENT_UPD_FRONT     (u32)(1 << 0)
-#define AMBIENT_UPD_REAR      (u32)(1 << 1)
-#define AMBIENT_UPD_WHITEXY   (u32)(1 << 2)
-#define AMBIENT_UPD_MODE      (u32)(1 << 3)
-
-struct ambient_cfg_s {
-	u32 update_flag;
-	u32 ambient; /* 1 << 16 */
-	u32 tRearLum;
-	u32 tFrontLux;
-	u32 tWhiteX; /* 1 << 15 */
-	u32 tWhiteY; /* 1 << 15 */
-};
-
-/*! @brief Ambient light configuration.*/
 # pragma pack(push, 1)
-struct AmbientCfg {
+struct ambient_cfg {
 	u32 ambient;
-	u32 tFrontLux;
-	u32 tFrontLuxScale;
-	u32 tRearLum;
-	u32 tRearLumScale;
-	u32 tWhitexy[2];
-	u32 tSurroundReflection;
-	u32 tScreenReflection;
-	u32 alDelay;
-	u32 alRise;
-	u32 alFall;
+	u32 t_front_lux;
+	u32 t_front_lux_scale;
+	u32 t_rear_lum;
+	u32 t_rear_lum_scale;
+	u32 t_whitexy[2];
+	u32 t_surround_reflection;
+	u32 t_screen_reflection;
+	u32 al_delay;
+	u32 al_rise;
+	u32 al_fall;
 };
-
 #pragma pack(pop)
 
-/*! @brief Adaptive Boost configuration.*/
 # pragma pack(push, 1)
-struct TgtABCfg {
-	s32   abEnable;             /*Adaptive boost enabled */
-	u32  abHighestTmax;        /*Adaptive boost highest Tmax */
-	u32  abLowestTmax;         /*Adaptive boost lowest Tmax  */
-	s16   abRiseWeight;         /*Back light rise weight signed Q3.12 */
-	s16   abFallWeight;         /*Back light fall weight signed Q3.12 */
-	u32  abDelayMilliSec_hdmi; /*Back light delay for HDMI case */
-	u32  abDelayMilliSec_ott;  /*Back light delay for OTT case */
-	u32  abDelayMilliSec_ll;   /*Back light delay for LL case */
+struct tgt_ab_cfg {
+	s32  ab_enable;
+	u32  ab_highest_tmax;
+	u32  ab_lowest_tmax;
+	s16  ab_rise_weight;
+	s16  ab_fall_weight;
+	u32  ab_delay_msec_hdmi;
+	u32  ab_delay_msec_ott;
+	u32  ab_delay_msec_ll;
 	u32  reserved[3];
 };
-
 #pragma pack(pop)
 
 # pragma pack(push, 1)
-struct TargetDisplayConfig {
-	u16 gamma;        /*Gamma */
-	u16 eotf;         /*Target EOTF */
-	u16 rangeSpec;    /*Target Range */
-	u16 maxPq;        /*Target max luminance in PQ */
-	u16 minPq;        /*Target min luminance in PQ */
-	u16 maxPq_dm3;    /*Target max luminance for DM3 in PQ  */
-	s32  min_lin;      /*Target min luminance in linear scale 2^18 */
-	s32  max_lin;      /*Target max luminance in linear scale 2^18 */
-	s32  max_lin_dm3;  /*Target max luminance for DM 3*/
-	s32  tPrimaries[8];/*Target primaries */
-	u16 mSWeight;  /*Multi-scale Weight,maybe overwritten by metadata*/
-	s16  trimSlopeBias;  /*Trim Slope bias */
-	s16  trimOffsetBias; /*Trim Offset bias */
-	s16  trimPowerBias;      /*Trim Power bias */
-	s16  msWeightBias;       /*Multi-scale weight bias */
-	s16  chromaWeightBias;   /*Tone mapping chroma weight bias */
-	s16  saturationGainBias; /*Tone mapping saturation gain bias */
-	u16 tuningMode;         /*Tuning Mode */
-	s16  brightness;         /*Brightness */
-	s16  contrast;           /*Contrast */
-	s16  dColorShift;        /*ColorShift */
-	s16  dSaturation;        /*Saturation */
-	s16  dBacklight;         /*Backlight */
-	s16  dbgExecParamsPrintPeriod; /*Print reg values every n-th frame*/
-	s16  dbgDmMdPrintPeriod;       /*Print DM metadata*/
-	s16  dbgDmCfgPrintPeriod;      /*Print DM configuration*/
-	struct TgtGDCfg  gdConfig;         /*Global Dimming configuration */
-	struct TgtABCfg  abConfig;         /*Adaptive boost configuration */
-	struct AmbientCfg ambientConfig;   /*Ambient light configuration */
-	u8  vsvdb[7];
-	u8  dm31_avail;
-	u8  reference_mode_dark_id;
-	u8  applyL11;
-	u8  reserved1[1];
-	s16  backlight_scaler;       /*Backlight Scaler */
-	struct TgtOutCscCfg ocscConfig;  /*Output CSC configuration */
-	s16  brightnessPreservation; /*Brightness preservation */
-	u8  num_total_viewing_modes;/*Num of total viewing modes in cfg*/
-	u8  viewing_mode_valid;     /*1 if the viewing mode is valid*/
-	u32 ambientFrontLux[AMB_LUT_SIZE];
-	u32 ambientCompLevel[AMB_LUT_SIZE];
-	s16  midPQBiasLut[TUNING_LUT_ENTRIES];       /**<@brief  Mid PQ Bias Lut */
-	s16  slopeBiasLut[TUNING_LUT_ENTRIES];       /**<@brief  Slope Bias Lut */
-	s16  backlightBiasLut[TUNING_LUT_ENTRIES];   /**<@brief  Backlight Bias Lut */
-	s16  userBrightnessUIlut[DM4_TUNING_LUT_ENTRIES];
-	s16  padding2;
-	s16  bluPwm[BLU_LUT_SIZE];
-	s16  bluLight[BLU_LUT_SIZE];
-	s16  padding[36];
-};
-
-#pragma pack(pop)
-
-#else
-/*! @defgroup general Enumerations and data structures*/
-# pragma pack(push, 1)
-struct TargetDisplayConfig {
-	u16 gain;
-	u16 offset;
-	u16 gamma;         /**<@brief  Gamma */
+struct target_config {
+	u16 gamma;
 	u16 eotf;
-	u16 bitDepth;      /**<@brief  Bit Depth */
-	u16 rangeSpec;
-	u16 diagSize;      /**<@brief  Diagonal Size */
-	u16 maxPq;
-	u16 minPq;
-	u16 mSWeight;
-	u16 mSEdgeWeight;
-	s16  minPQBias;
-	s16  midPQBias;
-	s16  maxPQBias;
-	s16  trimSlopeBias;
-	s16  trimOffsetBias;
-	s16  trimPowerBias;
-	s16  msWeightBias;
-	s16  brightness;         /**<@brief  Brighness */
-	s16  contrast;           /**<@brief  Contrast */
-	s16  chromaWeightBias;
-	s16  saturationGainBias;
-	u16 chromaWeight;
-	u16 saturationGain;
-	u16 crossTalk;
-	u16 tuningMode;
-	s16  reserved0;
-	s16  dbgExecParamsPrintPeriod;
-	s16  dbgDmMdPrintPeriod;
-	s16  dbgDmCfgPrintPeriod;
-	u16 maxPq_dupli;
-	u16 minPq_dupli;
-	s32  keyWeight;
-	s32  intensityVectorWeight;
-	s32  chromaVectorWeight;
-	s16  chip_fpga_lowcomplex;
-	s16  midPQBiasLut[TUNING_LUT_ENTRIES];
-	s16  saturationGainBiasLut[TUNING_LUT_ENTRIES];
-	s16  chromaWeightBiasLut[TUNING_LUT_ENTRIES];
-	s16  slopeBiasLut[TUNING_LUT_ENTRIES];
-	s16  offsetBiasLut[TUNING_LUT_ENTRIES];
-	s16  backlightBiasLut[TUNING_LUT_ENTRIES];
-	struct TgtGDCfg gdConfig;
-#ifdef V1_5
-	u8  vsvdb[7];
-	u8  reserved1[5];
-#endif
-	s32  min_lin;
-	s32  max_lin;
-	s16  backlight_scaler;
-	s32  min_lin_dupli;
-	s32  max_lin_dupli;
-	struct TgtOutCscCfg ocscConfig;
-#ifdef V1_5
-	s16  reserved2;
-#else
-	s16  reserved00;
-#endif
-	s16  brightnessPreservation;
-	s32  iintensityVectorWeight;
-	s32  ichromaVectorWeight;
-	s16  isaturationGainBias;
-	s16  chip_12b_ocsc;
-	s16  chip_512_tonecurve;
-	s16  chip_nolvl5;
-	s16  padding[8];
+	u16 range_spec;
+	u16 max_pq;
+	u16 min_pq;
+	u16 max_pq_dm3;
+	s32 min_lin;
+	s32 max_lin;
+	s32 max_lin_dm3;
+	s32 t_primaries[8];
+	u16 m_sweight;
+	s16 trim_slope_bias;
+	s16 trim_offset_bias;
+	s16 trim_power_bias;
+	s16 ms_weight_bias;
+	s16 chroma_weight_bias;
+	s16 saturation_gain_bias;
+	u16 tuning_mode;
+	s16 d_brightness;
+	s16 d_contrast;
+	s16 d_color_shift;
+	s16 d_saturation;
+	s16 d_backlight;
+	s16 dbg_exec_params_print_period;
+	s16 dbg_dm_md_print_period;
+	s16 dbg_dm_cfg_print_period;
+	struct tgt_gc_cfg gd_config;
+	struct tgt_ab_cfg ab_config;
+	struct ambient_cfg ambient_config;
+	u8 vsvdb[7];
+	u8 dm31_avail;
+	u8 ref_mode_dark_id;
+	u8 apply_l11;
+	u8 reserved1[1];
+	s16 backlight_scaler;
+	struct tgt_out_csc_cfg ocsc_config;
+	s16 bright_preservation;
+	u8 total_viewing_modes_num;
+	u8 viewing_mode_valid;
+	u32 ambient_frontlux[AMBIENT_LUT_SIZE];
+	u32 ambient_complevel[AMBIENT_LUT_SIZE];
+	s16 mid_pq_bias_lut[TUNING_LUT_SIZE];
+	s16 slope_bias_lut[TUNING_LUT_SIZE];
+	s16 backlight_bias_lut[TUNING_LUT_SIZE];
+	s16 user_brightness_ui_lut[DM4_TUNING_LUT_SIZE];
+	s16 padding2;
+	s16 blu_pwm[5];
+	s16 blu_light[5];
+	s16 padding[36];
 };
-
 #pragma pack(pop)
-#endif
-/*! @brief PQ config main data structure.*/
-struct pq_config_s {
-#ifndef V1_6_1
-	unsigned char default_gm_lut[GM_LUT_HDR_SIZE + GM_LUT_SIZE];
-	unsigned char gd_gm_lut_min[GM_LUT_HDR_SIZE + GM_LUT_SIZE];
-	unsigned char gd_gm_lut_max[GM_LUT_HDR_SIZE + GM_LUT_SIZE];
-	unsigned char pq2gamma[sizeof(s32) * PQ2G_LUT_SIZE];
-#endif
-	unsigned char backlight_lut[BACLIGHT_LUT_SIZE];
-	struct TargetDisplayConfig target_display_config;
+
+struct pq_config {
+	unsigned char backlight_lut[BACKLIGHT_LUT_SIZE];
+	struct target_config tdc;
 };
 
-enum input_mode_e {
-	INPUT_MODE_OTT  = 0,
-	INPUT_MODE_HDMI = 1
+enum input_mode_enum {
+	IN_MODE_OTT  = 0,
+	IN_MODE_HDMI = 1
 };
 
-struct ui_menu_params_s {
-	u16 u16BackLightUIVal;
-	u16 u16BrightnessUIVal;
-	u16 u16ContrastUIVal;
+struct ui_menu_params {
+	u16 u16_backlight_ui_val;
+	u16 u16_brightness_ui_val;
+	u16 u16_contrast_ui_val;
 };
 
-enum signal_format_e {
+enum signal_format_enum {
 	FORMAT_INVALID = -1,
 	FORMAT_DOVI = 0,
 	FORMAT_HDR10 = 1,
@@ -356,410 +228,306 @@ enum signal_format_e {
 	FORMAT_MVC = 7
 };
 
-enum priority_mode_e {
-	VIDEO_PRIORITY = 0,
-	GRAPHIC_PRIORITY = 1,
-	/* same as video priority, but will only switch to video*/
-	/* priority after scene refresh flag has been received */
-	VIDEO_PRIORITY_DELAYED = 2
+enum priority_mode_enum  {
+	V_PRIORITY = 0,
+	G_PRIORITY = 1,
+	VIDEO_PRIORITY_DELAY = 2
 };
 
-enum cp_signal_range_e {
-	SIG_RANGE_SMPTE = 0,  /* head range */
-	SIG_RANGE_FULL  = 1,  /* full range */
-	SIG_RANGE_SDI   = 2           /* PQ */
+enum cp_signal_range_enum  {
+	SIGNAL_RANGE_SMPTE = 0,
+	SIGNAL_RANGE_FULL  = 1,
+	SIGNAL_RANGE_SDI   = 2
 };
 
-enum graphics_format_e {
-	GF_SDR_YUV = 0,  /* BT.709 YUV BT1886 */
-	GF_SDR_RGB = 1,  /* BT.709 RGB BT1886 */
-	GF_HDR_YUV = 2,  /* BT.2020 YUV PQ */
-	GF_HDR_RGB = 3   /* BT.2020 RGB PQ */
+enum graphics_format_enum  {
+	G_SDR_YUV = 0,
+	G_SDR_RGB = 1,
+	G_HDR_YUV = 2,
+	G_HDR_RGB = 3
 };
 
-struct run_mode_s {
-	u16 width;
-	u16 height;
-	u16 el_width;
-	u16 el_height;
-	u16 hdmi_mode;
-};
-
-struct composer_register_ipcore_s {
+struct composer_reg_ipcore {
 	/* offset 0xc8 */
-	u32 Composer_Mode;
-	u32 VDR_Resolution;
-	u32 Bit_Depth;
-	u32 Coefficient_Log2_Denominator;
-	u32 BL_Num_Pivots_Y;
-	u32 BL_Pivot[5];
-	u32 BL_Order;
-	u32 BL_Coefficient_Y[8][3];
-	u32 EL_NLQ_Offset_Y;
-	u32 EL_Coefficient_Y[3];
-	u32 Mapping_IDC_U;
-	u32 BL_Num_Pivots_U;
-	u32 BL_Pivot_U[3];
-	u32 BL_Order_U;
-	u32 BL_Coefficient_U[4][3];
-	u32 MMR_Coefficient_U[22][2];
-	u32 MMR_Order_U;
-	u32 EL_NLQ_Offset_U;
-	u32 EL_Coefficient_U[3];
-	u32 Mapping_IDC_V;
-	u32 BL_Num_Pivots_V;
-	u32 BL_Pivot_V[3];
-	u32 BL_Order_V;
-	u32 BL_Coefficient_V[4][3];
-	u32 MMR_Coefficient_V[22][2];
-	u32 MMR_Order_V;
-	u32 EL_NLQ_Offset_V;
-	u32 EL_Coefficient_V[3];
+	u32 composer_mode;
+	u32 vdr_resolution;
+	u32 bit_depth;
+	u32 coefficient_log2_denominator;
+	u32 bl_num_pivots_y;
+	u32 bl_pivot[5];
+	u32 bl_order;
+	u32 bl_coefficient_y[8][3];
+	u32 el_nlq_offset_y;
+	u32 el_coefficient_y[3];
+	u32 mapping_idc_u;
+	u32 bl_num_pivots_u;
+	u32 bl_pivot_u[3];
+	u32 bl_order_u;
+	u32 bl_coefficient_u[4][3];
+	u32 mmr_coefficient_u[22][2];
+	u32 mmr_order_u;
+	u32 el_nlq_offset_u;
+	u32 el_coefficient_u[3];
+	u32 mapping_idc_v;
+	u32 bl_num_pivots_v;
+	u32 bl_pivot_v[3];
+	u32 bl_order_v;
+	u32 bl_coefficient_v[4][3];
+	u32 mmr_coefficient_v[22][2];
+	u32 mmr_order_v;
+	u32 el_nlq_off_v;
+	u32 el_coefficient_v[3];
 };
 
-/** @brief DM registers for IPCORE 1 */
-struct dm_register_ipcore_1_s {
-	u32 SRange;
-	u32 Srange_Inverse;
-	u32 Frame_Format_1;
-	u32 Frame_Format_2;
-	u32 Frame_Pixel_Def;
-	u32 Y2RGB_Coefficient_1;
-	u32 Y2RGB_Coefficient_2;
-	u32 Y2RGB_Coefficient_3;
-	u32 Y2RGB_Coefficient_4;
-	u32 Y2RGB_Coefficient_5;
-	u32 Y2RGB_Offset_1;
-	u32 Y2RGB_Offset_2;
-	u32 Y2RGB_Offset_3;
-	u32 EOTF;
-/*	u32 Sparam_1;*/
-/*	u32 Sparam_2;*/
-/*	u32 Sgamma; */
-	u32 A2B_Coefficient_1;
-	u32 A2B_Coefficient_2;
-	u32 A2B_Coefficient_3;
-	u32 A2B_Coefficient_4;
-	u32 A2B_Coefficient_5;
-	u32 C2D_Coefficient_1;
-	u32 C2D_Coefficient_2;
-	u32 C2D_Coefficient_3;
-	u32 C2D_Coefficient_4;
-	u32 C2D_Coefficient_5;
-	u32 C2D_Offset;
-	u32 Active_area_left_top;
-	u32 Active_area_bottom_right;
+struct dm_reg_ipcore1 {
+	u32 s_range;
+	u32 s_range_inverse;
+	u32 frame_fmt1;
+	u32 frame_fmt2;
+	u32 frame_pixel_def;
+	u32 y2rgb_coeff1;
+	u32 y2rgb_coeff2;
+	u32 y2rgb_coeff3;
+	u32 y2rgb_coeff4;
+	u32 y2rgb_coeff5;
+	u32 y2rgb_off1;
+	u32 y2rgb_off2;
+	u32 y2rgb_off3;
+	u32 eotf;
+	u32 a2b_coeff1;
+	u32 a2b_coeff2;
+	u32 a2b_coeff3;
+	u32 a2b_coeff4;
+	u32 a2b_coeff5;
+	u32 c2d_coeff1;
+	u32 c2d_coeff2;
+	u32 c2d_coeff3;
+	u32 c2d_coeff4;
+	u32 c2d_coeff5;
+	u32 c2d_off;
+	u32 active_left_top;
+	u32 active_bottom_right;
 };
 
-/** @brief DM registers for IPCORE 2 */
-struct dm_register_ipcore_2_s {
-	u32 SRange;
-	u32 Srange_Inverse;
-	u32 Y2RGB_Coefficient_1;
-	u32 Y2RGB_Coefficient_2;
-	u32 Y2RGB_Coefficient_3;
-	u32 Y2RGB_Coefficient_4;
-	u32 Y2RGB_Coefficient_5;
-	u32 Y2RGB_Offset_1;
-	u32 Y2RGB_Offset_2;
-	u32 Y2RGB_Offset_3;
-	u32 Frame_Format;
-	u32 EOTF;
-	u32 A2B_Coefficient_1;
-	u32 A2B_Coefficient_2;
-	u32 A2B_Coefficient_3;
-	u32 A2B_Coefficient_4;
-	u32 A2B_Coefficient_5;
-	u32 C2D_Coefficient_1;
-	u32 C2D_Coefficient_2;
-	u32 C2D_Coefficient_3;
-	u32 C2D_Coefficient_4;
-	u32 C2D_Coefficient_5;
-	u32 C2D_Offset;
-	u32 VDR_Resolution;
+struct dm_reg_ipcore2 {
+	u32 s_range;
+	u32 s_range_inverse;
+	u32 y2rgb_coeff1;
+	u32 y2rgb_coeff2;
+	u32 y2rgb_coeff3;
+	u32 y2rgb_coeff4;
+	u32 y2rgb_coeff5;
+	u32 y2rgb_off1;
+	u32 y2rgb_off2;
+	u32 y2rgb_off3;
+	u32 frame_fmt;
+	u32 eotf;
+	u32 a2b_coeff1;
+	u32 a2b_coeff2;
+	u32 a2b_coeff3;
+	u32 a2b_coeff4;
+	u32 a2b_coeff5;
+	u32 c2d_coeff1;
+	u32 c2d_coeff2;
+	u32 c2d_coeff3;
+	u32 c2d_coeff4;
+	u32 c2d_coeff5;
+	u32 c2d_off;
+	u32 vdr_res;
 };
 
-/** @brief DM registers for IPCORE 3 */
-struct dm_register_ipcore_3_s {
-	u32 D2C_coefficient_1;
-	u32 D2C_coefficient_2;
-	u32 D2C_coefficient_3;
-	u32 D2C_coefficient_4;
-	u32 D2C_coefficient_5;
-	u32 B2A_Coefficient_1;
-	u32 B2A_Coefficient_2;
-	u32 B2A_Coefficient_3;
-	u32 B2A_Coefficient_4;
-	u32 B2A_Coefficient_5;
-	u32 Eotf_param_1;
-	u32 Eotf_param_2;
-	u32 IPT_Scale;
-	u32 IPT_Offset_1;
-	u32 IPT_Offset_2;
-	u32 IPT_Offset_3;
-	u32 Output_range_1;
-	u32 Output_range_2;
-	u32 RGB2YUV_coefficient_register1;
-	u32 RGB2YUV_coefficient_register2;
-	u32 RGB2YUV_coefficient_register3;
-	u32 RGB2YUV_coefficient_register4;
-	u32 RGB2YUV_coefficient_register5;
-	u32 RGB2YUV_offset_0;
-	u32 RGB2YUV_offset_1;
-	u32 RGB2YUV_offset_2;
+struct dm_reg_ipcore3 {
+	u32 d2c_coeff1;
+	u32 d2c_coeff2;
+	u32 d2c_coeff3;
+	u32 d2c_coeff4;
+	u32 d2c_coeff5;
+	u32 b2a_coeff1;
+	u32 b2a_coeff2;
+	u32 b2a_coeff3;
+	u32 b2a_coeff4;
+	u32 b2a_coeff5;
+	u32 eotf_param1;
+	u32 eotf_param2;
+	u32 ipt_scale;
+	u32 ipt_off1;
+	u32 ipt_off2;
+	u32 ipt_off3;
+	u32 output_range1;
+	u32 output_range2;
+	u32 rgb2yuv_coeff_reg1;
+	u32 rgb2yuv_coeff_reg2;
+	u32 rgb2yuv_coeff_reg3;
+	u32 rgb2yuv_coeff_reg4;
+	u32 rgb2yuv_coeff_reg5;
+	u32 rgb2yuv_off0;
+	u32 rgb2yuv_off1;
+	u32 rgb2yuv_off2;
 };
 
-/** @brief DM luts for IPCORE 1 and 2 */
-struct dm_lut_ipcore_s {
-	u32 TmLutI[64 * 4];
-	u32 TmLutS[64 * 4];
-	u32 SmLutI[64 * 4];
-	u32 SmLutS[64 * 4];
-	u32 G2L[DEF_G2L_LUT_SIZE];
+/*dm luts for core1 and core2 */
+struct dm_lut_ipcore {
+	u32 tm_lut_i[64 * 4];
+	u32 tm_lut_s[64 * 4];
+	u32 sm_lut_i[64 * 4];
+	u32 sm_lut_s[64 * 4];
+	u32 g_2_l[G2L_LUT_LEN];
 };
 
-/** @brief hdmi metadata for IPCORE 3 */
-struct md_reister_ipcore_3_s {
+/*hdmi metadata for core3 */
+struct md_reg_ipcore3 {
 	u32 raw_metadata[512];
 	u32 size;
 };
 
-struct hdr_10_infoframe_s {
-	u8 infoframe_type_code;
-	u8 infoframe_version_number;
-	u8 length_of_info_frame;
-	u8 data_byte_1;
-	u8 data_byte_2;
-	u8 display_primaries_x_0_LSB;
-	u8 display_primaries_x_0_MSB;
-	u8 display_primaries_y_0_LSB;
-	u8 display_primaries_y_0_MSB;
-	u8 display_primaries_x_1_LSB;
-	u8 display_primaries_x_1_MSB;
-	u8 display_primaries_y_1_LSB;
-	u8 display_primaries_y_1_MSB;
-	u8 display_primaries_x_2_LSB;
-	u8 display_primaries_x_2_MSB;
-	u8 display_primaries_y_2_LSB;
-	u8 display_primaries_y_2_MSB;
-	u8 white_point_x_LSB;
-	u8 white_point_x_MSB;
-	u8 white_point_y_LSB;
-	u8 white_point_y_MSB;
-	u8 max_display_mastering_luminance_LSB;
-	u8 max_display_mastering_luminance_MSB;
-	u8 min_display_mastering_luminance_LSB;
-	u8 min_display_mastering_luminance_MSB;
-	u8 max_content_light_level_LSB;
-	u8 max_content_light_level_MSB;
-	u8 max_frame_average_light_level_LSB;
-	u8 max_frame_average_light_level_MSB;
+struct hdr10_infoframe {
+	u8 type_code;
+	u8 version_number;
+	u8 len_of_info_frame;
+	u8 data_byte1;
+	u8 data_byte2;
+	u8 primaries_x_0_lsb;
+	u8 primaries_x_0_msb;
+	u8 primaries_y_0_lsb;
+	u8 primaries_y_0_msb;
+	u8 primaries_x_1_lsb;
+	u8 primaries_x_1_msb;
+	u8 primaries_y_1_lsb;
+	u8 primaries_y_1_msb;
+	u8 primaries_x_2_lsb;
+	u8 primaries_x_2_msb;
+	u8 primaries_y_2_lsb;
+	u8 primaries_y_2_msb;
+	u8 white_point_x_lsb;
+	u8 white_point_x_msb;
+	u8 white_point_y_lsb;
+	u8 white_point_y_msb;
+	u8 max_display_mastering_lum_lsb;
+	u8 max_display_mastering_lum_msb;
+	u8 min_display_mastering_lum_lsb;
+	u8 min_display_mastering_lum_msb;
+	u8 max_content_light_level_lsb;
+	u8 max_content_light_level_msb;
+	u8 max_frame_avg_light_level_lsb;
+	u8 max_frame_avg_light_level_msb;
 };
 
-struct hdr10_param_s {
-	u32 min_display_mastering_luminance;
-	u32 max_display_mastering_luminance;
-	u16 Rx;
-	u16 Ry;
-	u16 Gx;
-	u16 Gy;
-	u16 Bx;
-	u16 By;
-	u16 Wx;
-	u16 Wy;
+struct hdr10_parameter {
+	u32 min_display_mastering_lum;
+	u32 max_display_mastering_lum;
+	u16 r_x;
+	u16 r_y;
+	u16 g_x;
+	u16 g_y;
+	u16 b_x;
+	u16 b_y;
+	u16 w_x;
+	u16 w_y;
 	u16 max_content_light_level;
-	u16 max_pic_average_light_level;
+	u16 max_frame_avg_light_level;
 };
 
-#ifdef V2_4
-struct dm_metadata_base_s {
-	/* signal attributes */
-	/* affected_dm_metadata_id<<4|current_dm_metadata_id */
-	unsigned char dm_metadata_id;
-	unsigned char scene_refresh_flag;
-	unsigned char YCCtoRGB_coef0_hi;
-	unsigned char YCCtoRGB_coef0_lo;
-	unsigned char YCCtoRGB_coef1_hi;
-	unsigned char YCCtoRGB_coef1_lo;
-	unsigned char YCCtoRGB_coef2_hi;
-	unsigned char YCCtoRGB_coef2_lo;
-	unsigned char YCCtoRGB_coef3_hi;
-	unsigned char YCCtoRGB_coef3_lo;
-	unsigned char YCCtoRGB_coef4_hi;
-	unsigned char YCCtoRGB_coef4_lo;
-	unsigned char YCCtoRGB_coef5_hi;
-	unsigned char YCCtoRGB_coef5_lo;
-	unsigned char YCCtoRGB_coef6_hi;
-	unsigned char YCCtoRGB_coef6_lo;
-	unsigned char YCCtoRGB_coef7_hi;
-	unsigned char YCCtoRGB_coef7_lo;
-	unsigned char YCCtoRGB_coef8_hi;
-	unsigned char YCCtoRGB_coef8_lo;
-	unsigned char YCCtoRGB_offset0_byte3;
-	unsigned char YCCtoRGB_offset0_byte2;
-	unsigned char YCCtoRGB_offset0_byte1;
-	unsigned char YCCtoRGB_offset0_byte0;
-	unsigned char YCCtoRGB_offset1_byte3;
-	unsigned char YCCtoRGB_offset1_byte2;
-	unsigned char YCCtoRGB_offset1_byte1;
-	unsigned char YCCtoRGB_offset1_byte0;
-	unsigned char YCCtoRGB_offset2_byte3;
-	unsigned char YCCtoRGB_offset2_byte2;
-	unsigned char YCCtoRGB_offset2_byte1;
-	unsigned char YCCtoRGB_offset2_byte0;
-	unsigned char RGBtoLMS_coef0_hi;
-	unsigned char RGBtoLMS_coef0_lo;
-	unsigned char RGBtoLMS_coef1_hi;
-	unsigned char RGBtoLMS_coef1_lo;
-	unsigned char RGBtoLMS_coef2_hi;
-	unsigned char RGBtoLMS_coef2_lo;
-	unsigned char RGBtoLMS_coef3_hi;
-	unsigned char RGBtoLMS_coef3_lo;
-	unsigned char RGBtoLMS_coef4_hi;
-	unsigned char RGBtoLMS_coef4_lo;
-	unsigned char RGBtoLMS_coef5_hi;
-	unsigned char RGBtoLMS_coef5_lo;
-	unsigned char RGBtoLMS_coef6_hi;
-	unsigned char RGBtoLMS_coef6_lo;
-	unsigned char RGBtoLMS_coef7_hi;
-	unsigned char RGBtoLMS_coef7_lo;
-	unsigned char RGBtoLMS_coef8_hi;
-	unsigned char RGBtoLMS_coef8_lo;
-	unsigned char signal_eotf_hi;
-	unsigned char signal_eotf_lo;
-	unsigned char signal_eotf_param0_hi;
-	unsigned char signal_eotf_param0_lo;
-	unsigned char signal_eotf_param1_hi;
-	unsigned char signal_eotf_param1_lo;
-	unsigned char signal_eotf_param2_byte3;
-	unsigned char signal_eotf_param2_byte2;
-	unsigned char signal_eotf_param2_byte1;
-	unsigned char signal_eotf_param2_byte0;
-	unsigned char signal_bit_depth;
-	unsigned char signal_color_space;
-	unsigned char signal_chroma_format;
-	unsigned char signal_full_range_flag;
-	/* source display attributes */
-	unsigned char source_min_PQ_hi;
-	unsigned char source_min_PQ_lo;
-	unsigned char source_max_PQ_hi;
-	unsigned char source_max_PQ_lo;
-	unsigned char source_diagonal_hi;
-	unsigned char source_diagonal_lo;
-	/* extended metadata */
-	unsigned char num_ext_blocks;
+struct ext_level_1 {
+	u8 min_pq_h;
+	u8 min_pq_l;
+	u8 max_pq_h;
+	u8 max_pq_l;
+	u8 avg_pq_h;
+	u8 avg_pq_l;
 };
 
-struct ext_level_1_s {
-	u8 min_PQ_hi;
-	u8 min_PQ_lo;
-	u8 max_PQ_hi;
-	u8 max_PQ_lo;
-	u8 avg_PQ_hi;
-	u8 avg_PQ_lo;
+struct ext_level_2 {
+	u8 target_max_pq_h;
+	u8 target_max_pq_l;
+	u8 trim_slope_h;
+	u8 trim_slope_l;
+	u8 trim_off_h;
+	u8 trim_off_l;
+	u8 trim_power_h;
+	u8 trim_power_l;
+	u8 trim_chroma_weight_h;
+	u8 trim_chroma_weight_l;
+	u8 trim_sat_gain_h;
+	u8 trim_sat_gain_l;
+	u8 ms_weight_h;
+	u8 ms_weight_l;
 };
 
-struct ext_level_2_s {
-	u8 target_max_PQ_hi;
-	u8 target_max_PQ_lo;
-	u8 trim_slope_hi;
-	u8 trim_slope_lo;
-	u8 trim_offset_hi;
-	u8 trim_offset_lo;
-	u8 trim_power_hi;
-	u8 trim_power_lo;
-	u8 trim_chroma_weight_hi;
-	u8 trim_chroma_weight_lo;
-	u8 trim_saturation_gain_hi;
-	u8 trim_saturation_gain_lo;
-	u8 ms_weight_hi;
-	u8 ms_weight_lo;
+struct ext_level_4 {
+	u8 anchor_pq_h;
+	u8 anchor_pq_l;
+	u8 anchor_power_h;
+	u8 anchor_power_l;
 };
 
-struct ext_level_4_s {
-	u8 anchor_PQ_hi;
-	u8 anchor_PQ_lo;
-	u8 anchor_power_hi;
-	u8 anchor_power_lo;
+struct ext_level_5 {
+	u8 active_area_left_off_h;
+	u8 active_area_left_off_l;
+	u8 active_area_right_off_h;
+	u8 active_area_right_off_l;
+	u8 active_area_top_off_h;
+	u8 active_area_top_off_l;
+	u8 active_area_bot_off_h;
+	u8 active_area_bot_off_l;
 };
 
-struct ext_level_5_s {
-	u8 active_area_left_offset_hi;
-	u8 active_area_left_offset_lo;
-	u8 active_area_right_offset_hi;
-	u8 active_area_right_offset_lo;
-	u8 active_area_top_offset_hi;
-	u8 active_area_top_offset_lo;
-	u8 active_area_bottom_offset_hi;
-	u8 active_area_bottom_offset_lo;
+struct ext_level_6 {
+	u8 max_display_mastering_lum_h;
+	u8 max_display_mastering_lum_l;
+	u8 min_display_mastering_lum_h;
+	u8 min_display_mastering_lum_l;
+	u8 max_content_light_level_h;
+	u8 max_content_light_level_l;
+	u8 max_frame_avg_light_level_h;
+	u8 max_frame_avg_light_level_l;
 };
 
-struct ext_level_6_s {
-	u8 max_display_mastering_luminance_hi;
-	u8 max_display_mastering_luminance_lo;
-	u8 min_display_mastering_luminance_hi;
-	u8 min_display_mastering_luminance_lo;
-	u8 max_content_light_level_hi;
-	u8 max_content_light_level_lo;
-	u8 max_frame_average_light_level_hi;
-	u8 max_frame_average_light_level_lo;
+struct ext_level_254 {
+	u8 mode;
+	u8 version_index;
 };
 
-struct ext_level_254_s {
-	unsigned char dm_mode;
-	unsigned char dm_version_index;
-};
-
-struct ext_level_255_s {
-	u8 dm_run_mode;
-	u8 dm_run_version;
-	u8 dm_debug0;
-	u8 dm_debug1;
-	u8 dm_debug2;
-	u8 dm_debug3;
+struct ext_level_255 {
+	u8 run_mode;
+	u8 run_version;
+	u8 dm_debug_0;
+	u8 dm_debug_1;
+	u8 dm_debug_2;
+	u8 dm_debug_3;
 };
 
 struct ext_md_s {
-	u32 available_level_mask;
-	struct ext_level_1_s level_1;
-	struct ext_level_2_s level_2;
-	struct ext_level_4_s level_4;
-	struct ext_level_5_s level_5;
-	struct ext_level_6_s level_6;
-	struct ext_level_255_s level_255;
-};
-#endif
-
-enum dm_algo_e {
-	DM_ALGO_INVALID = -1,
-	DM_ALGO_DM29 = 0,
-	DM_ALGO_DM31 = 1,
-	DM_ALGO_DM4  = 2
+	u32 avail_level_mask;
+	struct ext_level_1 level_1;
+	struct ext_level_2 level_2;
+	struct ext_level_4 level_4;
+	struct ext_level_5 level_5;
+	struct ext_level_6 level_6;
+	struct ext_level_255 level_255;
 };
 
 struct dovi_setting_s {
-	struct composer_register_ipcore_s comp_reg;
-	struct dm_register_ipcore_1_s dm_reg1;
-	struct dm_register_ipcore_2_s dm_reg2;
-	struct dm_register_ipcore_3_s dm_reg3;
-	struct dm_lut_ipcore_s dm_lut1;
-	struct dm_lut_ipcore_s dm_lut2;
+	struct composer_reg_ipcore comp_reg;
+	struct dm_reg_ipcore1 dm_reg1;
+	struct dm_reg_ipcore2 dm_reg2;
+	struct dm_reg_ipcore3 dm_reg3;
+	struct dm_lut_ipcore dm_lut1;
+	struct dm_lut_ipcore dm_lut2;
 	/* for dovi output */
-	struct md_reister_ipcore_3_s md_reg3;
+	struct md_reg_ipcore3 md_reg3;
 	/* for hdr10 output */
-	struct hdr_10_infoframe_s hdr_info;
+	struct hdr10_infoframe hdr_info;
 	/* current process */
-	enum signal_format_e src_format;
-	enum signal_format_e dst_format;
+	enum signal_format_enum src_format;
+	enum signal_format_enum dst_format;
 	/* enhanced layer */
 	bool el_flag;
 	bool el_halfsize_flag;
 	/* frame width & height */
 	u32 video_width;
 	u32 video_height;
-#ifdef V2_4
 	/* use for stb 2.4 */
-	enum graphics_format_e g_format;
+	enum graphics_format_enum g_format;
 	u32 g_bitdepth;
 	u32 dovi2hdr10_nomapping;
 	u32 use_ll_flag;
@@ -774,7 +542,6 @@ struct dovi_setting_s {
 	u32 vsvdb_len;
 	u32 vsvdb_changed;
 	u32 mode_changed;
-#endif
 };
 
 struct dv_cfg_info_s {
@@ -806,34 +573,33 @@ struct tv_input_info_s {
 	s32 debug_buf[498];
 };
 
-#ifdef V1_6_1
-#define PREFIX_SEI_NUT 39
-#define SUFFIX_SEI_NUT 40
-#define SEI_USER_DATA_REGISTERED_ITU_T_T35 4
-#define SEI_MASTERING_DISPLAY_COLOUR_VOLUME 137
+#define PREFIX_SEI_NUT_NAL 39
+#define SUFFIX_SEI_NUT_NAL 40
+#define SEI_TYPE_USERDATA_REGISTERED_ITUT_T35 4
+#define SEI_TYPE_MASTERING_DISP_COLOUR_VOLUME 137
 
-#define MAX_LENGTH_2086_SEI 256
-#define MAX_LENGTH_2094_SEI 256
+#define MAX_LEN_2086_SEI 256
+#define MAX_LEN_2094_SEI 256
 
-/* VUI parameters required to generate Dolby Vision metadata for ATSC 3.0*/
-struct _dv_vui_param_s_ {
-	s32  i_video_format;
-	s32      b_video_full_range;
-	s32      b_colour_description;
-	s32  i_colour_primaries;
-	s32  i_transfer_characteristics;
-	s32  i_matrix_coefficients;
+/* vui params for ATSC 3.0*/
+struct dv_vui_parameters {
+	s32  video_fmt_i;
+	s32  video_fullrange_b;
+	s32  color_description_b;
+	s32  color_primaries_i;
+	s32  trans_characteristic_i;
+	s32  matrix_coeff_i;
 };
 
-/* Data structure that combines all ATSC related parameters.*/
-struct _dv_atsc_s_ {
-	struct _dv_vui_param_s_  vui_param;
-	u32 length_2086_sei;
-	u8  payload_2086_sei[MAX_LENGTH_2086_SEI];
-	u32 length_2094_sei;
-	u8  payload_2094_sei[MAX_LENGTH_2094_SEI];
+/* atsc related params.*/
+struct dv_atsc {
+	struct dv_vui_parameters vui_param;
+	u32 len_2086_sei;
+	u8  sei_2086[MAX_LEN_2086_SEI];
+	u32 len_2094_sei;
+	u8  sei_2094[MAX_LEN_2094_SEI];
 };
-#endif
+
 enum cpuID_e {
 	_CPU_MAJOR_ID_GXM,
 	_CPU_MAJOR_ID_TXLX,
@@ -858,65 +624,55 @@ struct amdolby_vision_port_t {
 	void *runtime;
 };
 
-int control_path(enum signal_format_e in_format,
-	enum signal_format_e out_format,
-	char *in_comp, int in_comp_size,
-	char *in_md, int in_md_size,
-	enum priority_mode_e set_priority,
-	int set_bit_depth, int set_chroma_format, int set_yuv_range,
-	int set_graphic_min_lum, int set_graphic_max_lum,
-	int set_target_min_lum, int set_target_max_lum,
-	int set_no_el,
-	struct hdr10_param_s *hdr10_param,
-	struct dovi_setting_s *output);
+int control_path
+	(enum signal_format_enum in_format,
+	 enum signal_format_enum out_format,
+	 char *in_comp, int in_comp_size,
+	 char *in_md, int in_md_size,
+	 enum priority_mode_enum set_priority,
+	 int set_bit_depth, int set_chroma_format, int set_yuv_range,
+	 int set_graphic_min_lum, int set_graphic_max_lum,
+	 int set_target_min_lum, int set_target_max_lum,
+	 int set_no_el,
+	 struct hdr10_parameter *hdr10_param,
+	 struct dovi_setting_s *output);
 
 struct tv_dovi_setting_s {
 	u64 core1_reg_lut[3754];
 	/* current process */
-	enum signal_format_e src_format;
-	enum signal_format_e dst_format;
+	enum signal_format_enum src_format;
+	enum signal_format_enum dst_format;
 	/* enhanced layer */
 	bool el_flag;
 	bool el_halfsize_flag;
 	/* frame width & height */
 	u32 video_width;
 	u32 video_height;
-	enum input_mode_e input_mode;
+	enum input_mode_enum input_mode;
 	u16 backlight;
 };
 
-#ifdef V1_6_1
-int tv_control_path(enum signal_format_e in_format,
-	enum input_mode_e in_mode,
-	char *in_comp, int in_comp_size,
-	char *in_md, int in_md_size,
-	int set_bit_depth, int set_chroma_format, int set_yuv_range,
-	struct pq_config_s *pq_config,
-	struct ui_menu_params_s *menu_param,
-	int set_no_el,
-	struct hdr10_param_s *hdr10_param,
-	struct tv_dovi_setting_s *output,
-	char *vsem_if, int vsem_if_size,
-	struct ambient_cfg_s *ambient_cfg,
-	struct tv_input_info_s *input_info);
-#else
-int tv_control_path(enum signal_format_e in_format,
-	enum input_mode_e in_mode,
-	char *in_comp, int in_comp_size,
-	char *in_md, int in_md_size,
-	int set_bit_depth, int set_chroma_format, int set_yuv_range,
-	struct pq_config_s *pq_config,
-	struct ui_menu_params_s *menu_param,
-	int set_no_el,
-	struct hdr10_param_s *hdr10_param,
-	struct tv_dovi_setting_s *output);
+int tv_control_path
+	(enum signal_format_enum in_format,
+	 enum input_mode_enum in_mode,
+	 char *in_comp, int in_comp_size,
+	 char *in_md, int in_md_size,
+	 int set_bit_depth, int set_chroma_format, int set_yuv_range,
+	 struct pq_config *pq_config,
+	 struct ui_menu_params *menu_param,
+	 int set_no_el,
+	 struct hdr10_parameter *hdr10_param,
+	 struct tv_dovi_setting_s *output,
+	 char *vsem_if, int vsem_if_size,
+	 struct ambient_cfg_s *ambient_cfg,
+	 struct tv_input_info_s *input_info);
 
-#endif
 void *metadata_parser_init(int flag);
 int metadata_parser_reset(int flag);
-int metadata_parser_process(char  *src_rpu, int rpu_len,
-	char  *dst_comp, int *comp_len,
-	char  *dst_md, int *md_len, bool src_eos);
+int metadata_parser_process
+	(char  *src_rpu, int rpu_len,
+	 char  *dst_comp, int *comp_len,
+	 char  *dst_md, int *md_len, bool src_eos);
 void metadata_parser_release(void);
 
 struct dolby_vision_func_s {
@@ -924,47 +680,37 @@ struct dolby_vision_func_s {
 	void * (*metadata_parser_init)(int flag);
 	/*flag: bit0 flag, bit1 0->dv, 1->atsc*/
 	int (*metadata_parser_reset)(int flag);
-	int (*metadata_parser_process)(char  *src_rpu, int rpu_len,
-		char  *dst_comp, int *comp_len,
-		char  *dst_md, int *md_len, bool src_eos);
+	int (*metadata_parser_process)
+		(char  *src_rpu, int rpu_len,
+		 char  *dst_comp, int *comp_len,
+		 char  *dst_md, int *md_len, bool src_eos);
 	void (*metadata_parser_release)(void);
-	int (*control_path)(enum signal_format_e in_format,
-		enum signal_format_e out_format,
-		char *in_comp, int in_comp_size,
-		char *in_md, int in_md_size,
-		enum priority_mode_e set_priority,
-		int set_bit_depth, int set_chroma_format, int set_yuv_range,
-		int set_graphic_min_lum, int set_graphic_max_lum,
-		int set_target_min_lum, int set_target_max_lum,
-		int set_no_el,
-		struct hdr10_param_s *hdr10_param,
-		struct dovi_setting_s *output);
-#ifdef V1_6_1
-	int (*tv_control_path)(enum signal_format_e in_format,
-		enum input_mode_e in_mode,
-		char *in_comp, int in_comp_size,
-		char *in_md, int in_md_size,
-		int set_bit_depth, int set_chroma_format, int set_yuv_range,
-		struct pq_config_s *pq_config,
-		struct ui_menu_params_s *menu_param,
-		int set_no_el,
-		struct hdr10_param_s *hdr10_param,
-		struct tv_dovi_setting_s *output,
-		char *vsem_if, int vsem_if_size,
-		struct ambient_cfg_s *ambient_cfg,
-		struct tv_input_info_s *input_info);
-#else
-	int (*tv_control_path)(enum signal_format_e in_format,
-		enum input_mode_e in_mode,
-		char *in_comp, int in_comp_size,
-		char *in_md, int in_md_size,
-		int set_bit_depth, int set_chroma_format, int set_yuv_range,
-		struct pq_config_s *pq_config,
-		struct ui_menu_params_s *menu_param,
-		int set_no_el,
-		struct hdr10_param_s *hdr10_param,
-		struct tv_dovi_setting_s *output);
-#endif
+	int (*control_path)
+		(enum signal_format_enum in_format,
+		 enum signal_format_enum out_format,
+		 char *in_comp, int in_comp_size,
+		 char *in_md, int in_md_size,
+		 enum priority_mode_enum set_priority,
+		 int set_bit_depth, int set_chroma_format, int set_yuv_range,
+		 int set_graphic_min_lum, int set_graphic_max_lum,
+		 int set_target_min_lum, int set_target_max_lum,
+		 int set_no_el,
+		 struct hdr10_parameter *hdr10_param,
+		 struct dovi_setting_s *output);
+	int (*tv_control_path)
+		(enum signal_format_enum in_format,
+		 enum input_mode_enum in_mode,
+		 char *in_comp, int in_comp_size,
+		 char *in_md, int in_md_size,
+		 int set_bit_depth, int set_chroma_format, int set_yuv_range,
+		 struct pq_config *pq_config,
+		 struct ui_menu_params *menu_param,
+		 int set_no_el,
+		 struct hdr10_parameter *hdr10_param,
+		 struct tv_dovi_setting_s *output,
+		 char *vsem_if, int vsem_if_size,
+		 struct ambient_cfg_s *ambient_cfg,
+		 struct tv_input_info_s *input_info);
 };
 
 int register_dv_functions(const struct dolby_vision_func_s *func);
