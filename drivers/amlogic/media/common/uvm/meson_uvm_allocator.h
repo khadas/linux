@@ -25,6 +25,7 @@
 #define MUA_DELAY_ALLOC      BIT(UVM_DELAY_ALLOC)
 #define MUA_FAKE_ALLOC       BIT(UVM_FAKE_ALLOC)
 #define MUA_USAGE_PROTECTED  BIT(UVM_SECURE_ALLOC)
+#define MUA_SKIP_REALLOC     BIT(UVM_SKIP_REALLOC)
 #define MUA_DETACH           BIT(UVM_DETACH_FLAG)
 #define ION_FLAG_PROTECTED   BIT(31)
 #define META_DATA_SIZE       (256)
@@ -47,6 +48,7 @@ struct mua_buffer {
 	int commit_display;
 	u32 index;
 	u32 ion_flags;
+	u32 align;
 };
 
 struct mua_device {
