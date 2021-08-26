@@ -79,7 +79,7 @@ static int meson_uvm_fill_pattern(struct mua_buffer *buffer, struct dma_buf *dma
 	val_data.phy_addr[0] = buffer->paddr;
 	MUA_PRINTK(1, "%s. width=%d height=%d byte_stride=%d\n",
 			__func__, buffer->width, buffer->height, buffer->byte_stride);
-	v4lvideo_data_copy(&val_data, dmabuf);
+	v4lvideo_data_copy(&val_data, dmabuf, buffer->align);
 
 	vunmap(vaddr);
 	return 0;
@@ -284,6 +284,7 @@ static int mua_handle_alloc(struct dma_buf *dmabuf, struct uvm_alloc_data *data,
 	buffer->width = data->width;
 	buffer->height = data->height;
 	buffer->ion_flags = data->flags;
+	buffer->align = data->align;
 
 	if (data->flags & MUA_USAGE_PROTECTED)
 		ion_flags |= ION_FLAG_PROTECTED;
