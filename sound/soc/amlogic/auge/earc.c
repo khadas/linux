@@ -565,7 +565,6 @@ static int earc_open(struct snd_pcm_substream *substream)
 		dev, EARC_BUFFER_BYTES / 2, EARC_BUFFER_BYTES);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		p_earc->earctx_on = true;
 		/* select hdmirx arc source from earctx spdif */
 		arc_earc_source_select(EARCTX_SPDIF_TO_HDMIRX);
 		p_earc->fddr = aml_audio_register_frddr(dev,
@@ -576,6 +575,7 @@ static int earc_open(struct snd_pcm_substream *substream)
 			dev_err(dev, "failed to claim frddr\n");
 			goto err_ddr;
 		}
+		p_earc->earctx_on = true;
 	} else {
 		p_earc->tddr = aml_audio_register_toddr(dev,
 			p_earc->actrl,
@@ -899,7 +899,7 @@ int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_type)
 
 	fr = s_earc->fddr;
 	/* Update dmac clk ? */
-	if (fr) {
+	if (s_earc->earctx_on) {
 		channels = fr->channels;
 		rate = fr->rate;
 	} else {
