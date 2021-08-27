@@ -1600,13 +1600,29 @@ static int earctx_cmdc_set_reg(struct regmap *cmdc_map, int dev_id, int offset,
 	return ret;
 }
 
-int earctx_cmdc_get_stat_bits(struct regmap *cmdc_map)
+/*
+ * EARC_TX_CMDC_STATUS0:
+ * bit 31: reserved, ro_cmdc_status0, unsigned, R0, default = 0
+ * bit 30: rx_stat_chng
+ * bit 29: rx_cap_chng
+ * bit 28: rx_earc_HPD
+ * bit 27: tx_earc_valid
+ * bit 26: tx_stat_chng_conf
+ * bit 25: tx_cap_chng_conf
+ * bit 24: hdmi_HPD
+ */
+int earctx_cmdc_get_tx_stat_bits(struct regmap *cmdc_map)
+{
+	return mmio_read(cmdc_map, EARC_TX_CMDC_STATUS0) >> 24;
+}
+
+int earctx_cmdc_get_rx_stat_bits(struct regmap *cmdc_map)
 {
 	u8 stat_bits;
 
 	earctx_cmdc_get_reg(cmdc_map,
 			    STAT_CTRL_DEV_ID,
-			    EARCTX_STAT_REG,
+			    EARCRX_STAT_REG,
 			    &stat_bits,
 			    1);
 
