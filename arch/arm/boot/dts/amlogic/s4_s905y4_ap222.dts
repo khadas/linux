@@ -6,13 +6,12 @@
 /dts-v1/;
 
 #include "meson-s4.dtsi"
-#include "mesons4_drm.dtsi"
 #include "partition_mbox_ab.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "s4_s805x2_aq222";
+	amlogic-dt-id = "s4_s905y4_ap222";
 	compatible = "amlogic, s4";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
@@ -36,7 +35,7 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x40000000>;
+		linux,usable-memory = <0x0 0x80000000>;
 	};
 
 	reserved-memory {
@@ -65,22 +64,22 @@
 		logo_reserved:linux,meson-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x400000>;
+			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x3fc00000 0x400000>;
+			alloc-ranges = <0x7f800000 0x800000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x000000>;
+			size = <0x6400000>;
 			alignment = <0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1280x720x4x4 round up 4M align */
-			size = <0x1000000>;
+			/* 1920x1080x4x3 round up 4M align */
+			size = <0x1c00000>;
 			alignment = <0x400000>;
 		};
 		/*di CMA pool */
@@ -94,8 +93,8 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			//size = <0x0B000000>;
-			//size = <0x0>;
+			//size = <0x0 0x0B000000>;
+			//size = <0x0 0x0>;
 			alignment = <0x400000>;
 		};
 
@@ -109,7 +108,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x9400000>;
+			size = <0x1b000000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
 		};
@@ -136,9 +135,10 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 420 mode:1280x720x2x4=8MB */
-			/* 444 mode:1280x720x3x4=12MB */
-			size = <0x000000>;
+			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			 * 1920x1080x2x5 = 20 M
+			 */
+			size = <0x01400000>;
 			alignment = <0x400000>;
 		};
 
@@ -155,7 +155,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 20M */
-		/*	size = <0x1400000>;*/
+			size = <0x1400000>;
 			alignment = <0x400000>;
 		};
 	};
@@ -210,7 +210,7 @@
 	dvb-extern {
 		compatible = "amlogic, dvb-extern";
 		dev_name = "dvb-extern";
-		status = "disabled";
+		status = "okay";
 
 		/* dvb hardware main power. */
 		dvb_power_gpio = <&gpio GPIOZ_5 GPIO_ACTIVE_HIGH>;
@@ -270,7 +270,7 @@
 	dvb-demux {
 		compatible = "amlogic sc2, dvb-demux";
 		dev_name = "dvb-demux";
-		status = "disabled";
+		status = "okay";
 
 		reg = <0xfe000000 0x480000>;
 
@@ -361,15 +361,14 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
-		post_nub = <10>;
 	};
 
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-s4";
 		dev_name = "aml_dtv_demod";
-		status = "disabled";
+		status = "okay";
 		/* diseqc_name = "sgm_41286"; */
-		pinctrl-names="dtvdemod_if_agc_pins";
+		pinctrl-names="if_agc_pins";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
 		/* pinctrl-1=<&diseqc_out>; */
 		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
@@ -819,34 +818,34 @@
 
 &CPU0 {
 	multi_tables_available;
-	operating-points-v2 = <&s805x2_opp_table0>,
-		<&s805x2_opp_table1>,
-		<&s805x2_opp_table2>,
-		<&s805x2_opp_table3>;
+	operating-points-v2 = <&s905y4_opp_table0>,
+		<&s905y4_opp_table1>,
+		<&s905y4_opp_table2>,
+		<&s905y4_opp_table3>;
 };
 
 &CPU1 {
 	multi_tables_available;
-	operating-points-v2 = <&s805x2_opp_table0>,
-		<&s805x2_opp_table1>,
-		<&s805x2_opp_table2>,
-		<&s805x2_opp_table3>;
+	operating-points-v2 = <&s905y4_opp_table0>,
+		<&s905y4_opp_table1>,
+		<&s905y4_opp_table2>,
+		<&s905y4_opp_table3>;
 };
 
 &CPU2 {
 	multi_tables_available;
-	operating-points-v2 = <&s805x2_opp_table0>,
-		<&s805x2_opp_table1>,
-		<&s805x2_opp_table2>,
-		<&s805x2_opp_table3>;
+	operating-points-v2 = <&s905y4_opp_table0>,
+		<&s905y4_opp_table1>,
+		<&s905y4_opp_table2>,
+		<&s905y4_opp_table3>;
 };
 
 &CPU3 {
 	multi_tables_available;
-	operating-points-v2 = <&s805x2_opp_table0>,
-		<&s805x2_opp_table1>,
-		<&s805x2_opp_table2>,
-		<&s805x2_opp_table3>;
+	operating-points-v2 = <&s905y4_opp_table0>,
+		<&s905y4_opp_table1>,
+		<&s905y4_opp_table2>,
+		<&s905y4_opp_table3>;
 };
 
 &audiobus {
@@ -908,6 +907,7 @@
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
+
 		status = "okay";
 	};
 
@@ -1457,39 +1457,20 @@
 };
 
 &fb {
-	status = "disabled";
+	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000>;
-	logo_addr = "0x3fc00000";
+	logo_addr = "0x7f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
-&drm_vpu {
-	status = "okay";
-	logo_addr = "0x3fc00000";
-
-};
 &amhdmitx {
-	res_1080p = <1>;
 	status = "okay";
-};
-
-&drm_amhdmitx {
-	status = "okay";
-	hdcp = "disabled";
-};
-
-&drm_amcvbsout {
-	status = "okay";
-};
-
-&drm_lcd {
-	status = "disabled";
 };
 
 &vpu {
-	clk_level = <5>;
+	clk_level = <7>;
 };
 
 /*if you want to use vdin just modify status to "ok"*/
@@ -1514,7 +1495,6 @@
 &vdin1 {
 	/*compatible = "amlogic, vdin-sc2";*/
 	memory-region = <&vdin1_cma_reserved>;
-	frame_buff_num = <4>;
 	/*status = "disabled";*/
 	/*vdin write mem color depth support:
 	 *bit0:support 8bit
@@ -1534,6 +1514,7 @@
 &aml_bt {
 	status = "okay";
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
+	bt_en-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	btwakeup-gpios = <&gpio    GPIOX_18 GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
 };
@@ -1549,19 +1530,11 @@
 	uart-has-rtscts;
 };
 
-&vdec_cpu_ver {
-	compatible = "amlogic, cpu-major-id-s4-805x2";
-};
-
 &gpu {
 	tbl =  <&dvfs285_cfg
 		&dvfs400_cfg
 		&dvfs500_cfg
 		&dvfs666_cfg
-		&dvfs800_cfg
-		&dvfs800_cfg>;
-};
-
-&cma_shrinker {
-	free = <3840 24288 28528 32600 32768 36624>;
+		&dvfs850_cfg
+		&dvfs850_cfg>;
 };

@@ -12,7 +12,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "s4_s805x2_aq222";
+	amlogic-dt-id = "s4_s905y4_ap223";
 	compatible = "amlogic, s4";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
@@ -36,7 +36,7 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x40000000>;
+		linux,usable-memory = <0x0 0x80000000>;
 	};
 
 	reserved-memory {
@@ -65,22 +65,22 @@
 		logo_reserved:linux,meson-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x400000>;
+			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x3fc00000 0x400000>;
+			alloc-ranges = <0x7f800000 0x800000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x000000>;
+			size = <0x5c00000>;
 			alignment = <0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1280x720x4x4 round up 4M align */
-			size = <0x1000000>;
+			/* 1920x1080x4x4 round up 4M align */
+			size = <0x2400000>;
 			alignment = <0x400000>;
 		};
 		/*di CMA pool */
@@ -94,8 +94,8 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			//size = <0x0B000000>;
-			//size = <0x0>;
+			//size = <0x0 0x0B000000>;
+			//size = <0x0 0x0>;
 			alignment = <0x400000>;
 		};
 
@@ -109,7 +109,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x9400000>;
+			size = <0x1b000000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
 		};
@@ -136,9 +136,10 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 420 mode:1280x720x2x4=8MB */
-			/* 444 mode:1280x720x3x4=12MB */
-			size = <0x000000>;
+			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			 * 1920x1080x2x5 = 20 M
+			 */
+			size = <0x01400000>;
 			alignment = <0x400000>;
 		};
 
@@ -155,7 +156,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 20M */
-		/*	size = <0x1400000>;*/
+			size = <0x1400000>;
 			alignment = <0x400000>;
 		};
 	};
@@ -361,7 +362,6 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
-		post_nub = <10>;
 	};
 
 	aml_dtv_demod {
@@ -369,7 +369,7 @@
 		dev_name = "aml_dtv_demod";
 		status = "disabled";
 		/* diseqc_name = "sgm_41286"; */
-		pinctrl-names="dtvdemod_if_agc_pins";
+		pinctrl-names="if_agc_pins";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
 		/* pinctrl-1=<&diseqc_out>; */
 		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
@@ -560,8 +560,8 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
-		spk_mute-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_LOW>;
+		//avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		//spk_mute-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_LOW>;
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
@@ -652,7 +652,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				sound-dai = <&amlogic_codec /*&ad82584f_62*/>;
+				sound-dai = <&dummy_codec /*&ad82584f_62*/>;
 			};
 		};
 
@@ -781,7 +781,7 @@
 	tlc59116: tlc59116@60 {
 		compatible = "amlogic,tlc59116_led";
 		reg = <0x60>;
-		status = "okay";
+		status = "disabled";
 
 		led0 {
 			default_colors = <0 0 0>;
@@ -819,34 +819,34 @@
 
 &CPU0 {
 	multi_tables_available;
-	operating-points-v2 = <&s805x2_opp_table0>,
-		<&s805x2_opp_table1>,
-		<&s805x2_opp_table2>,
-		<&s805x2_opp_table3>;
+	operating-points-v2 = <&s905y4_opp_table0>,
+		<&s905y4_opp_table1>,
+		<&s905y4_opp_table2>,
+		<&s905y4_opp_table3>;
 };
 
 &CPU1 {
 	multi_tables_available;
-	operating-points-v2 = <&s805x2_opp_table0>,
-		<&s805x2_opp_table1>,
-		<&s805x2_opp_table2>,
-		<&s805x2_opp_table3>;
+	operating-points-v2 = <&s905y4_opp_table0>,
+		<&s905y4_opp_table1>,
+		<&s905y4_opp_table2>,
+		<&s905y4_opp_table3>;
 };
 
 &CPU2 {
 	multi_tables_available;
-	operating-points-v2 = <&s805x2_opp_table0>,
-		<&s805x2_opp_table1>,
-		<&s805x2_opp_table2>,
-		<&s805x2_opp_table3>;
+	operating-points-v2 = <&s905y4_opp_table0>,
+		<&s905y4_opp_table1>,
+		<&s905y4_opp_table2>,
+		<&s905y4_opp_table3>;
 };
 
 &CPU3 {
 	multi_tables_available;
-	operating-points-v2 = <&s805x2_opp_table0>,
-		<&s805x2_opp_table1>,
-		<&s805x2_opp_table2>,
-		<&s805x2_opp_table3>;
+	operating-points-v2 = <&s905y4_opp_table0>,
+		<&s905y4_opp_table1>,
+		<&s905y4_opp_table2>,
+		<&s905y4_opp_table3>;
 };
 
 &audiobus {
@@ -908,6 +908,7 @@
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
+
 		status = "okay";
 	};
 
@@ -1246,7 +1247,7 @@
 &dwc2_a {
 	status = "okay";
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
-	controller-type = <3>;
+	controller-type = <1>;
 };
 
 &crg {
@@ -1261,7 +1262,7 @@
 &usb3_phy_v2 {
 	status = "okay";
 	portnum = <0>;
-	otg = <1>;
+	otg = <0>;
 	/*gpio-vbus-power = "GPIOH_6";*/
 	/*gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;*/
 };
@@ -1300,7 +1301,7 @@
 
 /* SD card */
 &sd_emmc_b {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&sdcard_pins>;
 	pinctrl-1 = <&sdcard_clk_gate_pins>;
 	pinctrl-2 = <&sd_1bit_pins>;
@@ -1431,13 +1432,13 @@
 };
 
 &ethmac {
-	status = "okay";
+	status = "disabled";
 	phy-handle = <&internal_ephy>;
 	phy-mode = "rmii";
 };
 
 &ir {
-	status = "okay";
+	status = "disabled";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
 };
@@ -1460,18 +1461,18 @@
 	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000>;
-	logo_addr = "0x3fc00000";
+	logo_addr = "0x7f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
 &drm_vpu {
 	status = "okay";
-	logo_addr = "0x3fc00000";
+	logo_addr = "0x7f800000";
 
 };
+
 &amhdmitx {
-	res_1080p = <1>;
 	status = "okay";
 };
 
@@ -1489,7 +1490,7 @@
 };
 
 &vpu {
-	clk_level = <5>;
+	clk_level = <7>;
 };
 
 /*if you want to use vdin just modify status to "ok"*/
@@ -1514,7 +1515,6 @@
 &vdin1 {
 	/*compatible = "amlogic, vdin-sc2";*/
 	memory-region = <&vdin1_cma_reserved>;
-	frame_buff_num = <4>;
 	/*status = "disabled";*/
 	/*vdin write mem color depth support:
 	 *bit0:support 8bit
@@ -1549,19 +1549,20 @@
 	uart-has-rtscts;
 };
 
-&vdec_cpu_ver {
-	compatible = "amlogic, cpu-major-id-s4-805x2";
-};
-
 &gpu {
 	tbl =  <&dvfs285_cfg
 		&dvfs400_cfg
 		&dvfs500_cfg
 		&dvfs666_cfg
-		&dvfs800_cfg
-		&dvfs800_cfg>;
+		&dvfs850_cfg
+		&dvfs850_cfg>;
 };
 
-&cma_shrinker {
-	free = <3840 24288 28528 32600 32768 36624>;
+/*&vdac {
+ *	status = "disabled";
+ *};
+ */
+
+&amlogic_codec {
+	status = "disabled";
 };

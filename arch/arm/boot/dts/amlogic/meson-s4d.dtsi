@@ -27,7 +27,7 @@
 		CPU0:cpu@0 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a55","arm,armv8";
-			reg = <0x0>;
+			reg = <0x0 0x0>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			dynamic-power-coefficient = <230>;
@@ -38,6 +38,7 @@
 			clock-names = "core_clk",
 				"low_freq_clk_parent",
 				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
@@ -46,7 +47,7 @@
 		CPU1:cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a55","arm,armv8";
-			reg = <0x1>;
+			reg = <0x0 0x1>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			dynamic-power-coefficient = <230>;
@@ -57,6 +58,7 @@
 			clock-names = "core_clk",
 				"low_freq_clk_parent",
 				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
@@ -65,7 +67,7 @@
 		CPU2:cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a55","arm,armv8";
-			reg = <0x2>;
+			reg = <0x0 0x2>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			dynamic-power-coefficient = <230>;
@@ -76,6 +78,7 @@
 			clock-names = "core_clk",
 				"low_freq_clk_parent",
 				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
@@ -84,7 +87,7 @@
 		CPU3:cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a55","arm,armv8";
-			reg = <0x3>;
+			reg = <0x0 0x3>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			dynamic-power-coefficient = <230>;
@@ -95,6 +98,7 @@
 			clock-names = "core_clk",
 				"low_freq_clk_parent",
 				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
@@ -131,7 +135,7 @@
 	timer_bc {
 		compatible = "amlogic,bc-timer";
 		status = "disabled";
-		reg= <0xfe0100D8 0x4 0xfe0100DC 0x4>;
+		reg= <0xfe0100D8 0x4 0x0 0xfe0100DC 0x0 0x4>;
 		timer_name = "Meson TimerD";
 		clockevent-rating=<300>;
 		clockevent-shift=<20>;
@@ -145,7 +149,7 @@
 	};
 
 	arm_pmu {
-		compatible = "arm,cortex-a15-pmu";
+		compatible = "arm,armv8-pmuv3";
 		private-interrupts;
 		/* clusterb-enabled; */
 		interrupts = <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>,
@@ -202,6 +206,7 @@
 		memory-region = <&secmon_reserved>;
 		in_base_func = <0x82000020>;
 		out_base_func = <0x82000021>;
+		inout_size_func = <0x8200002a>;
 		reserve_mem_size = <0x03300000>;
 	};
 
@@ -241,8 +246,6 @@
 	vrtc: rtc@0xfe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0xfe010288 0x4>;
-		status = "okay";
-		mboxes = <&mailbox_mhu_fifo 1>;
 	};
 
 	audio_data: audio_data {
@@ -343,451 +346,6 @@
 		status = "disabled";
 	};
 
-	s805x2_opp_table0: s805x2_opp_table0 {
-		compatible = "operating-points-v2";
-		status = "okay";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <769000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <769000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <769000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <666000000>;
-			opp-microvolt = <769000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <769000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <769000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <799000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <829000>;
-		};
-		opp08 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <869000>;
-		};
-		opp09 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <909000>;
-		};
-		opp10 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <1009000>;
-		};
-	};
-
-	s805x2_opp_table1: s805x2_opp_table1 {
-		compatible = "operating-points-v2";
-		status = "okay";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <769000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <769000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <769000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <666000000>;
-			opp-microvolt = <769000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <769000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <769000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <799000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <829000>;
-		};
-		opp08 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <869000>;
-		};
-		opp09 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <909000>;
-		};
-		opp10 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <1009000>;
-		};
-	};
-
-	s805x2_opp_table2: s805x2_opp_table2 {
-		compatible = "operating-points-v2";
-		status = "okay";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <759000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <759000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <759000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <666000000>;
-			opp-microvolt = <759000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <759000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <759000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <759000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <769000>;
-		};
-		opp08 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <799000>;
-		};
-		opp09 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <829000>;
-		};
-		opp10 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <999000>;
-		};
-	};
-
-	s805x2_opp_table3: s805x2_opp_table3 {
-		compatible = "operating-points-v2";
-		status = "okay";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <759000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <759000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <759000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <666000000>;
-			opp-microvolt = <759000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <759000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <759000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <759000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <759000>;
-		};
-		opp08 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <769000>;
-		};
-		opp09 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <809000>;
-		};
-		opp10 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <939000>;
-		};
-	};
-
-	s905y4_opp_table0: s905y4_opp_table0 {
-		compatible = "operating-points-v2";
-		status = "okay";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <769000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <769000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <769000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <666000000>;
-			opp-microvolt = <769000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <769000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <769000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <799000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <829000>;
-		};
-		opp08 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <869000>;
-		};
-		opp09 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <909000>;
-		};
-		opp10 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <959000>;
-		};
-		opp11 {
-			opp-hz = /bits/ 64 <1908000000>;
-			opp-microvolt = <979000>;
-		};
-		opp12 {
-			opp-hz = /bits/ 64 <2004000000>;
-			opp-microvolt = <1009000>;
-		};
-	};
-
-	s905y4_opp_table1: s905y4_opp_table1 {
-		compatible = "operating-points-v2";
-		status = "okay";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <769000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <769000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <769000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <666000000>;
-			opp-microvolt = <769000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <769000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <769000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <799000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <829000>;
-		};
-		opp08 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <869000>;
-		};
-		opp09 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <909000>;
-		};
-		opp10 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <959000>;
-		};
-		opp11 {
-			opp-hz = /bits/ 64 <1908000000>;
-			opp-microvolt = <979000>;
-		};
-		opp12 {
-			opp-hz = /bits/ 64 <2004000000>;
-			opp-microvolt = <1009000>;
-		};
-	};
-
-	s905y4_opp_table2: s905y4_opp_table2 {
-		compatible = "operating-points-v2";
-		status = "okay";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <759000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <759000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <759000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <666000000>;
-			opp-microvolt = <759000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <759000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <759000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <759000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <769000>;
-		};
-		opp08 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <799000>;
-		};
-		opp09 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <829000>;
-		};
-		opp10 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <929000>;
-		};
-		opp11 {
-			opp-hz = /bits/ 64 <1908000000>;
-			opp-microvolt = <959000>;
-		};
-		opp12 {
-			opp-hz = /bits/ 64 <2004000000>;
-			opp-microvolt = <999000>;
-		};
-	};
-
-	s905y4_opp_table3: s905y4_opp_table3 {
-		compatible = "operating-points-v2";
-		status = "okay";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <759000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <759000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <759000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <666000000>;
-			opp-microvolt = <759000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <759000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <759000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <759000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <759000>;
-		};
-		opp08 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <769000>;
-		};
-		opp09 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <809000>;
-		};
-		opp10 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <889000>;
-		};
-		opp11 {
-			opp-hz = /bits/ 64 <1908000000>;
-			opp-microvolt = <909000>;
-		};
-		opp12 {
-			opp-hz = /bits/ 64 <2004000000>;
-			opp-microvolt = <939000>;
-		};
-	};
-
-	cpufreq-meson {
-		compatible = "amlogic, cpufreq-meson";
-		status = "okay";
-	};
-
 	saradc: saradc@fe026000 {
 		compatible = "amlogic,meson-g12a-saradc",
 			   "amlogic,meson-saradc";
@@ -817,7 +375,7 @@
 			ranges = <0x0 0xfe000000 0x480000>;
 
 			clkc: clock-controller {
-				compatible = "amlogic,s4-clkc";
+				compatible = "amlogic,s4d-clkc";
 				#clock-cells = <1>;
 				reg = <0x0 0x49c>,
 				      <0x8000 0x348>,
@@ -1175,8 +733,8 @@
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
 			status = "okay";
-			#address-cells=<1>;
-			#size-cells=<1>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 			ranges;
 			pdm_bus {
 				reg = <0xFE331000 0x400>;
@@ -1250,9 +808,9 @@
 			interrupt-map-mask = <0 0 0 0>;
 			interrupt-map = <0 0 0 0 &gic GIC_SPI 143 IRQ_TYPE_EDGE_RISING>;
 			device_type = "pci";
-			ranges = <0x81000000 0 0 0xf5600000 0 0x100000
+			ranges = <0 0 0xf5600000 0x0 0x0 0x100000
 				/* downstream I/O */
-				0x82000000 0 0xf5700000 0xf5700000 0 0x1900000>;
+				0 0x0 0xf5700000 0 0x0 0x1900000>;
 				/* non-prefetchable memory */
 			num-lanes = <1>;
 			pcie-num = <1>;
@@ -1288,14 +846,16 @@
 				<&clkc CLKID_SD_EMMC_C_CLK_MUX>,
 				 <&clkc CLKID_SD_EMMC_C_CLK>,
 				 <&xtal>,
-				 <&clkc CLKID_HIFI_PLL>,
-				 <&clkc CLKID_HIFI_PLL>;
+				 <&clkc CLKID_GP1_PLL>,
+				 <&clkc CLKID_GP1_PLL>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1", "clkin2";
 			card_type = <1>;
 			ignore_desc_busy;
 			mmc_debug_flag;
 			src_clk_rate = <1152000000>;
+			tx_delay = <8>;
+			nwr_cnt = <0>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
 
@@ -1474,7 +1034,7 @@
 			"pwrc-hevc";
 	};
 	vdec_cpu_ver: cpu_ver_name {
-		compatible = "amlogic, cpu-major-id-s4";
+		compatible = "amlogic, cpu-major-id-s4d";
 	};
 	vcodec_dec {
 		compatible = "amlogic, vcodec-dec";
@@ -1558,7 +1118,7 @@
 		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
 		 */
 		vendor_id = <0xffffff>;
-		product_desc = "S4"; /* Max Chars: 16    */
+		product_desc = "S4D"; /* Max Chars: 16    */
 		cec_osd_string = "AML_MBOX"; /* Max Chars: 14    */
 		cec_version = <5>;/*5:1.4;6:2.0*/
 		port_num = <1>;
@@ -1606,6 +1166,13 @@
 			status = "okay";
 		};
 
+		crypto {
+			compatible = "amlogic,crypto_s4d";
+			dev_name = "aml_crypto_dev";
+			status = "okay";
+			thread = /bits/ 8 <0x5>;
+			interrupts = <0 29 1>;
+		};
 	};
 
 	rng {
@@ -1625,7 +1192,7 @@
 	};
 
 	codec_io: codec_io {
-		compatible = "amlogic, meson-s4, codec-io";
+		compatible = "amlogic, meson-s4d, codec-io";
 		status = "okay";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -1689,7 +1256,7 @@
 		};
 	};
 	vpu: vpu {
-		compatible = "amlogic, vpu-s4";
+		compatible = "amlogic, vpu-s4d";
 		status = "okay";
 		reg =	<0xfe000000 0x100    /* clk */
 			 0xfe00c000 0x70     /* pwrctrl */
@@ -1727,7 +1294,7 @@
 	};
 
 	vdac {
-		compatible = "amlogic, vdac-s4";
+		compatible = "amlogic, vdac-s4d";
 		status = "okay";
 	};
 
@@ -1749,7 +1316,7 @@
 	};
 
 	adc: adc {
-		compatible = "amlogic, adc-s4";
+		compatible = "amlogic, adc-s4d";
 		status = "okay";
 		reg = <0xff654000 0x2000/* afe reg base */
 			0xfe008000 0x2000/* hiu base */
@@ -1881,7 +1448,7 @@
 
 	/*if you want to use vdin just modify status to "ok"*/
 	vdin0: vdin0 {
-		compatible = "amlogic, vdin-s4";
+		compatible = "amlogic, vdin-s4d";
 		dev_name = "vdin0";
 		status = "okay";
 		reserve-iomap = "true";
@@ -1901,7 +1468,7 @@
 		vdin_id = <0>;
 	};
 	vdin1: vdin1 {
-		compatible = "amlogic, vdin-s4";
+		compatible = "amlogic, vdin-s4d";
 		dev_name = "vdin1";
 		status = "okay";
 		reserve-iomap = "true";
@@ -1957,7 +1524,7 @@
 		compatible = "amlogic, aml-wifi";
 		status = "disabled";
 		irq_trigger_type = "GPIO_IRQ_LOW";
-		//dhd_static_buf; /* if use bcm wifi, config dhd_static_buf */
+		dhd_static_buf; /* if use bcm wifi, config dhd_static_buf */
 		//pinctrl-0 = <&pwm_e_pins>;
 		//pinctrl-names = "default";
 		pwm_config = <&wifi_pwm_conf>;
@@ -2391,9 +1958,24 @@
 
 	dtvdemod_if_agc_pins: dtvdemod_if_agc_pins {
 		mux {
-			groups = "dtv_a_if_agc_z6",
+			groups = "dtv_a_if_agc_z10",
 				"dtv_b_if_agc";
 			function = "dtv";
+		};
+	};
+
+	dtvdemod_rf_agc_pins: dtvdemod_rf_agc_pins {
+		mux {
+			groups = "dtv_a_rf_agc";
+			function = "dtv";
+		};
+	};
+
+	diseqc_out: diseqc_out {
+		mux {
+			groups = "diseqc_out";
+			function = "diseqc_out";
+			bias-pull-down;
 		};
 	};
 

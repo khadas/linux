@@ -12,7 +12,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "s4_s805x2_aq222";
+	amlogic-dt-id = "s4_s805x2_aq229_1g";
 	compatible = "amlogic, s4";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
@@ -94,8 +94,8 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			//size = <0x0B000000>;
-			//size = <0x0>;
+			//size = <0x0 0x0B000000>;
+			//size = <0x0 0x0>;
 			alignment = <0x400000>;
 		};
 
@@ -109,7 +109,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x9400000>;
+			size = <0xb400000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
 		};
@@ -136,26 +136,10 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 420 mode:1280x720x2x4=8MB */
-			/* 444 mode:1280x720x3x4=12MB */
-			size = <0x000000>;
-			alignment = <0x400000>;
-		};
-
-		/* demod_reserved:linux,demod {
-		 *	compatible = "amlogic, demod-mem";
-		 *	size = <0x6400000>; //8M //100m 0x6400000
-		 *	alloc-ranges = <0x0 0x30000000>;
-		 *	//multi-use;
-		 *	//no-map;
-		 * };
-		 */
-
-		demod_cma_reserved:linux,demod_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* 20M */
-		/*	size = <0x1400000>;*/
+			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			 * 1920x1080x2x5 = 20 M
+			 */
+			size = <0x0800000>;
 			alignment = <0x400000>;
 		};
 	};
@@ -362,36 +346,6 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 		post_nub = <10>;
-	};
-
-	aml_dtv_demod {
-		compatible = "amlogic, ddemod-s4";
-		dev_name = "aml_dtv_demod";
-		status = "disabled";
-		/* diseqc_name = "sgm_41286"; */
-		pinctrl-names="dtvdemod_if_agc_pins";
-		pinctrl-0=<&dtvdemod_if_agc_pins>;
-		/* pinctrl-1=<&diseqc_out>; */
-		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
-		/* lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>; */
-		/* interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>; */
-		/* interrupt-names = "demod_isr"; */
-
-		power-domains = <&pwrdm PDID_S4_DEMOD>;
-		/* clocks = <&clkc CLKID_DAC_CLK>; */
-		/* clock-names = "vdac_clk_gate"; */
-
-		reg = <0xfe350000 0x10000	/* dtv demod base */
-			   0xfe000000 0x2000	/* div base */
-			   0xff800000 0x1000	/* io_aobus_base */
-			   0xffd01000 0x1000	/* reset */
-			>;
-
-		dtv_demod0_mem = <0>;	// need move to aml_dtv_demod ?
-		spectrum = <1>;
-		cma_flag = <1>;
-		cma_mem_size = <8>;
-		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
 	};
 
 	provisionkey {
@@ -728,30 +682,6 @@
 		dividor = <49>; /* locker's parent */
 		status = "disabled";
 	};/* Audio Related end */
-
-	adc_keypad {
-		compatible = "amlogic, adc_keypad";
-		status = "okay";
-		key_name = "standby", "vol+", "vol-";
-		key_num = <3>;
-		io-channels = <&saradc 0>;
-		io-channel-names = "key-chan-0";
-		key_chan = <0 0 0>;
-		key_code = <116 115 114>;
-		key_val = <20 910 630>; //val=voltage/1800mV*1023
-		key_tolerance = <40 40 40>;
-	};
-
-	gpio_keypad{
-		compatible = "amlogic, gpio_keypad";
-		status = "okay";
-		scan_period = <20>;
-		key_num = <1>;
-		key_name = "bluetooth";
-		key_code = <600>;
-		key-gpios = <&gpio  GPIOD_2  GPIO_ACTIVE_HIGH>;
-		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
-	};
 };
 
 &pwm_ij {
@@ -781,7 +711,7 @@
 	tlc59116: tlc59116@60 {
 		compatible = "amlogic,tlc59116_led";
 		reg = <0x60>;
-		status = "okay";
+		status = "disabled";
 
 		led0 {
 			default_colors = <0 0 0>;
@@ -908,6 +838,7 @@
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
+
 		status = "okay";
 	};
 
@@ -1460,7 +1391,7 @@
 	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000>;
-	logo_addr = "0x3fc00000";
+	logo_addr = "0x3f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
@@ -1470,6 +1401,7 @@
 	logo_addr = "0x3fc00000";
 
 };
+
 &amhdmitx {
 	res_1080p = <1>;
 	status = "okay";
@@ -1514,7 +1446,6 @@
 &vdin1 {
 	/*compatible = "amlogic, vdin-sc2";*/
 	memory-region = <&vdin1_cma_reserved>;
-	frame_buff_num = <4>;
 	/*status = "disabled";*/
 	/*vdin write mem color depth support:
 	 *bit0:support 8bit
@@ -1526,13 +1457,13 @@
 };
 
 &aml_wifi{
-	status = "okay";
+	status = "disabled";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };
 
 &aml_bt {
-	status = "okay";
+	status = "disabled";
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	btwakeup-gpios = <&gpio    GPIOX_18 GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
@@ -1563,5 +1494,5 @@
 };
 
 &cma_shrinker {
-	free = <3840 24288 28528 32600 32768 36624>;
+	free = <7680 24288 28528 32600 32768 36624>;
 };

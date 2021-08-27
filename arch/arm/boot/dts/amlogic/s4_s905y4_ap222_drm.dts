@@ -371,8 +371,8 @@
 		dev_name = "aml_dtv_demod";
 		status = "okay";
 		/* diseqc_name = "sgm_41286"; */
-		pinctrl-names="dtvdemod_agc_pins";
-		pinctrl-0=<&dtvdemod_agc_pins>;
+		pinctrl-names="dtvdemod_if_agc_pins";
+		pinctrl-0=<&dtvdemod_if_agc_pins>;
 		/* pinctrl-1=<&diseqc_out>; */
 		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
 		/* lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>; */

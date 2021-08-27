@@ -6,13 +6,12 @@
 /dts-v1/;
 
 #include "meson-s4.dtsi"
-#include "mesons4_drm.dtsi"
 #include "partition_mbox_ab.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "s4_s805x2_aq222";
+	amlogic-dt-id = "s4_s805x2_aq222_1g";
 	compatible = "amlogic, s4";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
@@ -57,9 +56,9 @@
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x3400000>;
+			size = <0x400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x05000000 0x3400000>;
+			alloc-ranges = <0x05000000 0x400000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -73,14 +72,14 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x000000>;
+			size = <0x400000>;
 			alignment = <0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1280x720x4x4 round up 4M align */
-			size = <0x1000000>;
+			/* 1280x720x4x3 round up 4M align */
+			size = <0xc00000>;
 			alignment = <0x400000>;
 		};
 		/*di CMA pool */
@@ -94,8 +93,8 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			//size = <0x0B000000>;
-			//size = <0x0>;
+			//size = <0x0 0x0B000000>;
+			//size = <0x0 0x0>;
 			alignment = <0x400000>;
 		};
 
@@ -369,7 +368,7 @@
 		dev_name = "aml_dtv_demod";
 		status = "disabled";
 		/* diseqc_name = "sgm_41286"; */
-		pinctrl-names="dtvdemod_if_agc_pins";
+		pinctrl-names="if_agc_pins";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
 		/* pinctrl-1=<&diseqc_out>; */
 		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
@@ -908,6 +907,7 @@
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
+
 		status = "okay";
 	};
 
@@ -1457,35 +1457,17 @@
 };
 
 &fb {
-	status = "disabled";
-	display_size_default = <1920 1080 1920 2160 32>;
-	mem_size = <0x00800000 0x1980000 0x100000>;
+	status = "okay";
+	display_size_default = <1280 720 1280 2160 32>;
+	mem_size = <0x00400000 0x00b00000 0x100000>;
 	logo_addr = "0x3fc00000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
-&drm_vpu {
-	status = "okay";
-	logo_addr = "0x3fc00000";
-
-};
 &amhdmitx {
 	res_1080p = <1>;
 	status = "okay";
-};
-
-&drm_amhdmitx {
-	status = "okay";
-	hdcp = "disabled";
-};
-
-&drm_amcvbsout {
-	status = "okay";
-};
-
-&drm_lcd {
-	status = "disabled";
 };
 
 &vpu {
@@ -1563,5 +1545,5 @@
 };
 
 &cma_shrinker {
-	free = <3840 24288 28528 32600 32768 36624>;
+	free = <7680 24288 28528 32600 32768 36624>;
 };
