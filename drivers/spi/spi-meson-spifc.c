@@ -17,6 +17,7 @@
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 #include <linux/types.h>
+#include <linux/gpio.h>
 
 /* register map */
 #define REG_CMD			0x00
@@ -282,6 +283,47 @@ static void meson_spifc_hw_init(struct meson_spifc *spifc)
 	regmap_update_bits(spifc->regmap, REG_SLAVE, SLAVE_OP_MODE, 0);
 }
 
+static int meson_spifc_setup(struct spi_device *spi)
+{
+    int ret = 0;
+
+    if (!spi->controller_state)
+	spi->controller_state = spi_master_get_devdata(spi->master);
+    else if (gpio_is_valid(spi->cs_gpio))
+	goto out_gpio;
+    else if (spi->cs_gpio == -ENOENT)
+	return 0;
+
+    if (gpio_is_valid(spi->cs_gpio)) {
+	ret = gpio_request(spi->cs_gpio, dev_name(&spi->dev));
+	if (ret) {
+	    dev_err(&spi->dev, "failed to request cs gpio\n");
+	    return ret;
+	}
+#ifndef CONFIG_AMLOGIC_MODIFY
+    }
+#else
+    } else {
+	dev_err(&spi->dev, "cs gpio invalid\n");
+	return 0;
+    }
+#endif
+
+out_gpio:
+    ret = gpio_direction_output(spi->cs_gpio,
+	    !(spi->mode & SPI_CS_HIGH));
+
+    return ret;
+}
+
+static void meson_spifc_cleanup(struct spi_device *spi)
+{
+    if (gpio_is_valid(spi->cs_gpio))
+	gpio_free(spi->cs_gpio);
+
+    spi->controller_state = NULL;
+}
+
 static int meson_spifc_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
@@ -334,6 +376,8 @@ static int meson_spifc_probe(struct platform_device *pdev)
 	master->transfer_one = meson_spifc_transfer_one;
 	master->min_speed_hz = rate >> 6;
 	master->max_speed_hz = rate >> 1;
+	master->setup = meson_spifc_setup;
+	master->cleanup = meson_spifc_cleanup;
 
 	meson_spifc_hw_init(spifc);
 
