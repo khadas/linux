@@ -58,7 +58,7 @@ static u32 vid_limit = 32;
 static unsigned int vdetect_base = 40;
 
 static u32 frame_number;
-static struct vdetect_frame_nn_info frame_nn_info[MAX_NN_INFO_BUF_COUNT];
+static struct vdetect_frame_nn_info nn_info[MAX_NN_INFO_BUF_COUNT];
 static u32 nn_frame_num;
 int vdetect_print(int index, int debug_flag, const char *fmt, ...)
 {
@@ -1186,7 +1186,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 	case VFRAME_EVENT_PROVIDER_REG:
 		vf_reg_provider(&dev->prov);
 		vdetect_print(dev->inst, PRINT_PATHINFO, "reg\n");
-		memset(frame_nn_info, 0, sizeof(frame_nn_info));
+		memset(nn_info, 0, sizeof(nn_info));
 		dev->vf_num = 0;
 		for (i = 0; i < AI_PQ_TOP; i++) {
 			dev->nn_value[i].maxclass = 0;
@@ -1526,79 +1526,74 @@ static int vidioc_s_parm(struct file *file, void *priv,
 	struct vdetect_dev *dev = NULL;
 	int i, j;
 	struct nn_value_t last_saved_val[AI_PQ_TOP];
-	struct nn_value_t temp_val[AI_PQ_TOP];
 	int buf_num, last_saved_num, behind_count;
 
 	dev = video_drvdata(file);
 
-	vdetect_print(dev->inst, PRINT_CAPTUREINFO,
-		      "%s line: %d\n", __func__, __LINE__);
-	if (parms->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		vdetect_print(dev->inst, PRINT_MN_SET_FLOW,
-				      "set nn info for %d frame\n",
-				      frame_number);
-		if (nn_frame_num == 0)
-			buf_num = MAX_NN_INFO_BUF_COUNT - 1;
-		else
-			buf_num = nn_frame_num - 1;
+	if (parms->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		vdetect_print(dev->inst, PRINT_CAPTUREINFO,
+				"not video capture.\n");
+		return 0;
+	}
 
-		last_saved_num = frame_nn_info[buf_num].nn_frame_num;
-		if (last_saved_num != 0) {
-			memset(last_saved_val, 0, sizeof(last_saved_val));
-			memcpy(last_saved_val,
-				frame_nn_info[buf_num].nn_value,
-				sizeof(last_saved_val));
+	vdetect_print(dev->inst, PRINT_MN_SET_FLOW,
+			"set nn info for %d frame\n",
+			frame_number);
+	if (nn_frame_num == 0)
+		buf_num = MAX_NN_INFO_BUF_COUNT - 1;
+	else
+		buf_num = nn_frame_num - 1;
 
-			behind_count = frame_number - last_saved_num;
-			for (i = 1; i < behind_count; i++) {
-				memset(temp_val, 0, sizeof(temp_val));
-				frame_nn_info[nn_frame_num].nn_frame_num =
-					last_saved_num + i;
-				for (j = 0; j < AI_PQ_TOP - 1; j++) {
-					temp_val[j].maxclass =
-						last_saved_val[j].maxclass;
-					temp_val[j].maxprob =
-						last_saved_val[j].maxclass;
-				}
-				temp_val[AI_PQ_TOP - 1].maxprob =
-					last_saved_num;
-				memcpy(frame_nn_info[nn_frame_num].nn_value,
-					temp_val,
-					sizeof(temp_val));
-				nn_frame_num++;
-				if (nn_frame_num == MAX_NN_INFO_BUF_COUNT)
-					nn_frame_num = 0;
-			}
-		}
-
-		frame_nn_info[nn_frame_num].nn_frame_num = frame_number;
-		memset(temp_val, 0, sizeof(temp_val));
+	last_saved_num = nn_info[buf_num].nn_frame_num;
+	if (last_saved_num != 0) {
+		memset(last_saved_val, 0, sizeof(last_saved_val));
 		for (i = 0; i < AI_PQ_TOP - 1; i++) {
-			j = 4 * i;
-			temp_val[i].maxclass = parms->parm.raw_data[j];
-			temp_val[i].maxprob = parms->parm.raw_data[j + 1]
-				+ (parms->parm.raw_data[j + 2] << 8)
-				+ (parms->parm.raw_data[j + 3] << 16);
+			last_saved_val[i].maxclass =
+				nn_info[buf_num].nn_value[i].maxclass;
+			last_saved_val[i].maxprob =
+				nn_info[buf_num].nn_value[i].maxprob;
 		}
-		temp_val[AI_PQ_TOP - 1].maxprob = frame_number;
-		memcpy(frame_nn_info[nn_frame_num].nn_value,
-			temp_val,
-			sizeof(temp_val));
-		nn_frame_num++;
 
-		if (nn_frame_num == MAX_NN_INFO_BUF_COUNT)
-			nn_frame_num = 0;
+		behind_count = frame_number - last_saved_num;
+		for (i = 1; i < behind_count; i++) {
+			nn_info[nn_frame_num].nn_frame_num =
+				last_saved_num + i;
+			for (j = 0; j < AI_PQ_TOP - 1; j++) {
+				nn_info[nn_frame_num].nn_value[j].maxclass =
+					last_saved_val[j].maxclass;
+				nn_info[nn_frame_num].nn_value[j].maxprob =
+					last_saved_val[j].maxprob;
+			}
+			nn_info[nn_frame_num].nn_value[AI_PQ_TOP - 1].maxprob =
+				last_saved_num;
+			nn_frame_num++;
+			if (nn_frame_num == MAX_NN_INFO_BUF_COUNT)
+				nn_frame_num = 0;
+		}
 	}
 
+	nn_info[nn_frame_num].nn_frame_num = frame_number;
 	for (i = 0; i < AI_PQ_TOP - 1; i++) {
+		j = 4 * i;
+		nn_info[nn_frame_num].nn_value[i].maxclass =
+			parms->parm.raw_data[j];
+		nn_info[nn_frame_num].nn_value[i].maxprob =
+			parms->parm.raw_data[j + 1]
+			+ (parms->parm.raw_data[j + 2] << 8)
+			+ (parms->parm.raw_data[j + 3] << 16);
 		vdetect_print(dev->inst, PRINT_CAPTUREINFO,
-			      "top %d, vnn result: %s\n",
-			      i,
-			      result_vnn[dev->nn_value[i].maxclass]);
-		vdetect_print(dev->inst, PRINT_CAPTUREINFO,
-			      "probability: %d\n",
-			      dev->nn_value[i].maxprob);
+			"top %d, vnn result: %s, probability: %d.\n",
+			i,
+			result_vnn[nn_info[nn_frame_num].nn_value[i].maxclass],
+			nn_info[nn_frame_num].nn_value[i].maxprob);
 	}
+	nn_info[nn_frame_num].nn_value[AI_PQ_TOP - 1].maxprob =
+		frame_number;
+	nn_frame_num++;
+
+	if (nn_frame_num == MAX_NN_INFO_BUF_COUNT)
+		nn_frame_num = 0;
+
 	return 0;
 }
 
@@ -1957,27 +1952,24 @@ int vdetect_get_frame_nn_info(struct vframe_s *vframe)
 
 	work_frame_num = vframe->nn_value[AI_PQ_TOP - 1].maxclass;
 	for (i = 0; i < MAX_NN_INFO_BUF_COUNT; i++) {
-		if (work_frame_num == frame_nn_info[i].nn_frame_num) {
+		if (work_frame_num == nn_info[i].nn_frame_num) {
 			vdetect_print(0, PRINT_MN_SET_FLOW,
 				"buf[%d] save nn for %d frame.\n",
 				i, work_frame_num);
 			for (j = 0; j < AI_PQ_TOP - 1; j++) {
 				vframe->nn_value[j].maxclass =
-					frame_nn_info[i].nn_value[j].maxclass;
+					nn_info[i].nn_value[j].maxclass;
 				vframe->nn_value[j].maxprob =
-					frame_nn_info[i].nn_value[j].maxprob;
+					nn_info[i].nn_value[j].maxprob;
+			}
+			check_flag = nn_info[i].nn_value[AI_PQ_TOP - 1].maxprob;
+			if (check_flag != nn_info[i].nn_frame_num) {
+				vdetect_print(0, PRINT_MN_SET_FLOW,
+					"%d frame no nn param.\n",
+					work_frame_num);
 			}
 			ret = 0;
 			break;
-		}
-	}
-
-	if (ret == 0) {
-		check_flag = frame_nn_info[i].nn_value[AI_PQ_TOP - 1].maxprob;
-		if (check_flag != frame_nn_info[i].nn_frame_num) {
-			vdetect_print(0, PRINT_MN_SET_FLOW,
-				"%d frame no nn param.\n",
-				work_frame_num);
 		}
 	}
 
