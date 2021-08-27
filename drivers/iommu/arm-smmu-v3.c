@@ -34,6 +34,7 @@
 #include <linux/amba/bus.h>
 #ifdef CONFIG_AMLOGIC_MODIFY
 #include <asm/cacheflush.h>
+#include <dt-bindings/memory/meson-p1-sid-map.h>
 #endif
 
 /* MMIO registers */
@@ -3705,6 +3706,112 @@ err_reset_pci_ops: __maybe_unused;
 	return err;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int init_streamid_reg(u32 *paddr)
+{
+	int i = 0;
+	u32 ctrl_tmp;
+
+	unsigned int p1_sid_array[] = {
+		/* MMU_CTRL_SID_REG0 */
+		P1_SID_MOP_A,
+		P1_SID_MOP_B,
+		/* MMU_CTRL_SID_REG1 */
+		P1_SID_DEP_A,
+		P1_SID_DEP_B,
+		/* MMU_CTRL_SID_REG2 */
+		P1_SID_VFE,
+		P1_SID_GE2D,
+		/* MMU_CTRL_SID_REG3 */
+		P1_SID_DEWARP_A,
+		P1_SID_DEWARP_B,
+		/* MMU_CTRL_SID_REG4 */
+		P1_SID_DEWARP_C,
+		P1_SID_RESERVED,
+		/* MMU_CTRL_SID_REG5 */
+		P1_SID_NNA_A,
+		P1_SID_NNA_B,
+		/* MMU_CTRL_SID_REG6 */
+		P1_SID_NNA_C,
+		P1_SID_NNA_D,
+		/* MMU_CTRL_SID_REG7 */
+		P1_SID_NNA_E,
+		P1_SID_NNA_F,
+		/* MMU_CTRL_SID_REG8 */
+		P1_SID_USB3_A,
+		P1_SID_USB3_B,
+		/* MMU_CTRL_SID_REG9 */
+		P1_SID_USB3_C,
+		P1_SID_PCIE,
+		/* MMU_CTRL_SID_REG10 */
+		P1_SID_M4,
+		P1_SID_DSP_A,
+		/* MMU_CTRL_SID_REG11 */
+		P1_SID_DSP_B,
+		P1_SID_AOCPU,
+		/* MMU_CTRL_SID_REG12 */
+		P1_SID_JTAG,
+		P1_SID_DEV0_P0_SPICC0,
+		/* MMU_CTRL_SID_REG13 */
+		P1_SID_DEV0_P1_SPICC1,
+		P1_SID_DEV0_P2_RESERVED,
+		/* MMU_CTRL_SID_REG14 */
+		P1_SID_DEV0_P3_SDEMMCA,
+		P1_SID_DEV0_P4_RESERVED,
+		/* MMU_CTRL_SID_REG15 */
+		P1_SID_DEV0_P5_SPICC2,
+		P1_SID_DEV0_P6_RESERVED,
+		/* MMU_CTRL_SID_REG16 */
+		P1_SID_DEV0_P7_RESERVED,
+		P1_SID_DEV1_P0_RESERVED,
+		/* MMU_CTRL_SID_REG17 */
+		P1_SID_DEV1_P1_RESERVED,
+		P1_SID_DEV1_P2_ETH,
+		/* MMU_CTRL_SID_REG18 */
+		P1_SID_DEV1_P3_AIFIFO,
+		P1_SID_DEV1_P4_AUDMA,
+		/* MMU_CTRL_SID_REG19 */
+		P1_SID_DEV1_P5_SPICC3,
+		P1_SID_DEV1_P6_SPICC4,
+		/* MMU_CTRL_SID_REG20 */
+		P1_SID_DEV1_P7_SPICC5,
+		P1_SID_DEV2_P0_AUDIO,
+		/* MMU_CTRL_SID_REG21 */
+		P1_SID_DEV2_P1_RESERVED,
+		P1_SID_DEV2_P2_RESERVED,
+		/* MMU_CTRL_SID_REG22 */
+		P1_SID_DEV2_P3_RESERVED,
+		P1_SID_DEV2_P4_RESERVED,
+		/* MMU_CTRL_SID_REG23 */
+		P1_SID_DEV2_P5_RESERVED,
+		P1_SID_DEV2_P6_RESERVED,
+		/* MMU_CTRL_SID_REG24 */
+		P1_SID_DEV2_P7_RESERVED,
+		P1_SID_EMMC,
+		/* MMU_CTRL_SID_REG25 */
+		P1_SID_DMA,
+		P1_SID_RESERVED,
+		/* MMU_CTRL_SID_REG26 */
+		P1_SID_ISP_A,
+		P1_SID_ISP_B,
+		/* MMU_CTRL_SID_REG27 */
+		P1_SID_ISP_C,
+		P1_SID_ISP_D,
+		/* MMU_CTRL_SID_REG28 */
+		P1_SID_ISP_E,
+		P1_SID_RESERVED
+	};
+
+	for (i = 0; i < 29; i++) {
+		ctrl_tmp = p1_sid_array[2 * i] +
+			   (p1_sid_array[2 * i + 1] << 16);
+		writel_relaxed(ctrl_tmp, paddr + i);
+	}
+
+	return 0;
+}
+#endif
+
 static int arm_smmu_device_probe(struct platform_device *pdev)
 {
 	int irq, ret;
@@ -3715,7 +3822,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	bool bypass;
 #ifdef CONFIG_AMLOGIC_MODIFY
 	int i = 0;
-	void __iomem *smmu_ctrl_base;
+	void __iomem *smmu_ctrl_base, *smmu_ctrl_sid_base;
 	u32 ctrl_tmp;
 #endif
 
@@ -3766,6 +3873,14 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 
 	__flush_dcache_area(smmu_ctrl_base, 0x80);
 	devm_iounmap(dev, smmu_ctrl_base);
+
+	/* init the stream ID in MMU_CTRL_SID_REGx */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+	smmu_ctrl_sid_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(smmu_ctrl_sid_base))
+		return PTR_ERR(smmu->base);
+
+	init_streamid_reg(smmu_ctrl_sid_base);
 #endif
 
 	/* Interrupt lines */
