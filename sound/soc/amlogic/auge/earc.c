@@ -153,7 +153,8 @@ struct earc {
 
 	struct work_struct rx_dmac_int_work;
 	struct work_struct tx_resume_work;
-	u8 cds_data[CDS_MAX_BYTES];
+	u8 rx_cds_data[CDS_MAX_BYTES];
+	u8 tx_cds_data[CDS_MAX_BYTES];
 	enum sharebuffer_srcs samesource_sel;
 	struct samesource_info ss_info;
 	bool earctx_on;
@@ -168,6 +169,8 @@ struct earc {
 	unsigned int rx_status1;
 	bool tx_earc_mode;
 	bool tx_reset_hpd;
+	int tx_state;
+	u8 tx_latency;
 };
 
 static struct earc *s_earc;
@@ -390,7 +393,7 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 		u8 latency = EARCRX_DEFAULT_LATENCY;
 
 		earcrx_cmdc_set_latency(p_earc->rx_cmdc_map, &latency);
-		earcrx_cmdc_set_cds(p_earc->rx_cmdc_map, p_earc->cds_data);
+		earcrx_cmdc_set_cds(p_earc->rx_cmdc_map, p_earc->rx_cds_data);
 		earcrx_update_attend_event(p_earc,
 					   true, true);
 
@@ -507,8 +510,24 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 		dev_info(p_earc->dev, "EARCTX_CMDC_DISC1\n");
 	if (status0 & INT_EARCTX_CMDC_DISC2)
 		dev_info(p_earc->dev, "INT_EARCTX_CMDC_DISC2\n");
-	if (status0 & INT_EARCTX_CMDC_STATUS_CH)
-		dev_info(p_earc->dev, "EARCTX_CMDC_STATUS_CH\n");
+	if (status0 & INT_EARCTX_CMDC_STATUS_CH) {
+		int state = earctx_cmdc_get_tx_stat_bits(p_earc->tx_cmdc_map);
+
+		dev_info(p_earc->dev, "EARCTX_CMDC_STATUS_CH tx state: 0x%x, last state: 0x%x\n",
+			state, p_earc->tx_state);
+		/*
+		 * bit 1: tx_stat_chng_conf
+		 * bit 2: tx_cap_chng_conf
+		 */
+		if ((p_earc->tx_state & (0x1 << 2) && !(state & (0x1 << 2))) ||
+		    (p_earc->tx_state & (0x1 << 1) && !(state & (0x1 << 1)))) {
+			earctx_cmdc_get_latency(p_earc->tx_cmdc_map,
+				&p_earc->tx_latency);
+			earctx_cmdc_get_cds(p_earc->tx_cmdc_map,
+				p_earc->tx_cds_data);
+		}
+		p_earc->tx_state = state;
+	}
 	if (status0 & INT_EARCTX_CMDC_HB_STATUS)
 		dev_dbg(p_earc->dev, "EARCTX_CMDC_HB_STATUS\n");
 	if (status0 & INT_EARCTX_CMDC_LOSTHB)
@@ -1424,7 +1443,7 @@ static int earcrx_get_cds(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	for (i = 0; i < bytes_ext->max; i++)
-		*value++ = p_earc->cds_data[i];
+		*value++ = p_earc->rx_cds_data[i];
 
 	return 0;
 }
@@ -1439,11 +1458,11 @@ static int earcrx_set_cds(struct snd_kcontrol *kcontrol,
 	if (!p_earc || IS_ERR(p_earc->rx_cmdc_map))
 		return 0;
 
-	memcpy(p_earc->cds_data, ucontrol->value.bytes.data, CDS_MAX_BYTES);
+	memcpy(p_earc->rx_cds_data, ucontrol->value.bytes.data, CDS_MAX_BYTES);
 
 	state = earcrx_cmdc_get_state(p_earc->rx_cmdc_map);
 	if (state == CMDC_ST_EARC)
-		earcrx_cmdc_set_cds(p_earc->rx_cmdc_map, p_earc->cds_data);
+		earcrx_cmdc_set_cds(p_earc->rx_cmdc_map, p_earc->rx_cds_data);
 
 	return 0;
 }

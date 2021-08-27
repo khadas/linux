@@ -319,7 +319,8 @@ void earcrx_cmdc_set_latency(struct regmap *cmdc_map, u8 *latency);
 void earcrx_cmdc_get_cds(struct regmap *cmdc_map, u8 *cds);
 void earcrx_cmdc_set_cds(struct regmap *cmdc_map, u8 *cds);
 
-int earctx_cmdc_get_stat_bits(struct regmap *cmdc_map);
+int earctx_cmdc_get_tx_stat_bits(struct regmap *cmdc_map);
+int earctx_cmdc_get_rx_stat_bits(struct regmap *cmdc_map);
 void earctx_cmdc_clr_stat_bits(struct regmap *cmdc_map, int stat_bits);
 void earctx_cmdc_set_hdmi_hpd_bit(struct regmap *cmdc_map, bool is_high);
 void earctx_cmdc_set_hb_valid_bit(struct regmap *cmdc_map, bool hb_valid);
