@@ -532,6 +532,8 @@
 
 		status = "okay";
 
+#if 0
+
 		aml-audio-card,dai-link@0 {
 			format = "i2s";
 			mclk-fs = <256>;
@@ -562,6 +564,8 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
+
+#endif
 
 		aml-audio-card,dai-link@1 {
 			format = "i2s";
@@ -931,7 +935,7 @@
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
-		status = "okay";
+		status = "disabled";
 
 		/* !!!For --TV platform-- ONLY */
 		Channel_Mask {
