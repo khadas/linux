@@ -1587,7 +1587,7 @@
 			tx-fifo-depth = <2048>;
 			/*1:inphy; 2:exphy;*/
 			internal_phy = <2>;
-			cali_val = <0x10000>;
+			cali_val = <0x6A0000>;
 			status = "disabled";
 			ext_mdio: mdio {
 				#address-cells = <1>;
