@@ -373,6 +373,15 @@ static void do_file_thread(struct video_queue_dev *dev)
 		return;
 	}
 
+	if (vf->width == 0 || vf->height == 0) {
+		vq_print(P_ERROR, "vframe param invalid.\n");
+		vf_get(dev->vf_receiver_name);
+		vf_put(vf, dev->vf_receiver_name);
+		vf = vf_peek(dev->vf_receiver_name);
+		if (!vf)
+			return;
+	}
+
 	if (vf->flag & VFRAME_FLAG_GAME_MODE && !dev->game_mode) {
 		dev->game_mode = true;
 		game_mode = 1;
