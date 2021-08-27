@@ -5594,6 +5594,12 @@ void pq_user_latch_process(void)
 		pq_user_latch_flag &= ~PQ_USER_CMS_SAT_HUE;
 		sat_hue_val =
 			aipq_saturation_hue_get_base_val() + sat_hue_offset_val;
+		/* ai_pq switch on, */
+		/* if satuaration val(sat_hue_val  >> 16) > max val(511), */
+		/*	saturation val can not add sat offset val. */
+		if ((sat_hue_val  >> 16) > 511)
+			sat_hue_val = aipq_saturation_hue_get_base_val();
+
 		amvecm_set_saturation_hue(sat_hue_val);
 	}
 }
