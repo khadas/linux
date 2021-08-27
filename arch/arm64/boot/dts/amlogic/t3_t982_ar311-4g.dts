@@ -33,7 +33,8 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x000000 0x0 0xe0000000>;
+		linux,usable-memory = <0x0 0x000000 0x0 0xe0000000
+				       0x1 0x000000 0x0 0x20000000>;
 	};
 
 	reserved-memory {
@@ -90,6 +91,7 @@
 			reusable;
 			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
@@ -97,6 +99,7 @@
 			/* 1920x1080x4x3 round up 4M align */
 			size = <0x0 0x1c00000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -118,6 +121,7 @@
 			 */
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -127,6 +131,7 @@
 			size = <0x0 0x1BC00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*di CMA pool */
@@ -179,6 +184,7 @@
 			size = <0x0 0x0d400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 			/*alloc-ranges = <0x0 0x0 0x0 0x3f800000>;*/
 		};
 
@@ -189,6 +195,7 @@
 			size = <0x0 0x00800000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		ldc_mem_reserved:linux,ldc_mem {
@@ -196,6 +203,7 @@
 			reusable;
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 	};
 	codec_mm {
