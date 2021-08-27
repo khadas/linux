@@ -6,8 +6,7 @@
 /dts-v1/;
 
 #include "meson-s4.dtsi"
-#include "mesons4_drm.dtsi"
-#include "partition_normal_linux.dtsi"
+#include "partition_mbox_ab.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
@@ -73,18 +72,16 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x8000000>;
+			size = <0x5c00000>;
 			alignment = <0x400000>;
 		};
-
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1920x1080x4x3 round up 4M align */
-			size = <0x0000000>;
+			/* 1920x1080x4x4 round up 4M align */
+			size = <0x2400000>;
 			alignment = <0x400000>;
 		};
-
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
 			compatible = "shared-dma-pool";
@@ -96,8 +93,8 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			//size = <0x0B000000>;
-			//size = <0x0>;
+			//size = <0x0 0x0B000000>;
+			//size = <0x0 0x0>;
 			alignment = <0x400000>;
 		};
 
@@ -186,23 +183,26 @@
 		clk_path = <0>;
 
 		/* performance: reg_address, reg_value */
-		/* tm2 */
-		performance = <0x1bf0  0x9
+		/* s4 */
+		performance_pal = <0x1bf0  0x9 /* default Matrx625 CTCC value*/
+			0x1b12  0x80c0
+			0x1b05  0xf7
 			0x1b56  0x333
-			0x1b12  0x8080
+			0x1c59  0xf25c
+			0xffff  0x0>; /* ending flag */
+		performance = <0x1bf0  0x9 /* ccitt033 SVA value */
+			0x1b12  0x8040
 			0x1b05  0xfd
-			0x1c59  0xf850
-			0xffff  0x0>; /* ending flag */
-		performance_sarft = <0x1bf0  0x9
 			0x1b56  0x333
-			0x1b12  0x0
-			0x1b05  0x9
-			0x1c59  0xfc48
+			0x1c59  0xf654
 			0xffff  0x0>; /* ending flag */
-		performance_revB_telecom = <0x1bf0  0x9
-			0x1b56  0x546
-			0x1b12  0x8080
-			0x1b05  0x9
+		performance_ntsc = <0x1bf0  0x9
+			0x1b12  0x8020
+			0x1b03  0x0
+			0x1b04  0x0
+			0x1b05  0x0
+			0x1b06  0x0
+			0x1b56  0x333
 			0x1c59  0xf850
 			0xffff  0x0>; /* ending flag */
 	};
@@ -217,54 +217,97 @@
 		dvb_power_value = <1>;
 		dvb_power_dir = <0>; /* 0: out, 1: in. */
 
-		fe_num = <3>; /* interal 2 * dvb-c, extern 1 * dvb-s */
-		fe0_demod = "internal";
-		fe0_tuner0 = <0>; /* use tuner0 */
+		fe_num = <4>;
 
-		fe1_demod = "internal";
-		fe1_tuner0 = <1>; /* use tuner1 */
+		/* header: max 12 bytes */
+		/* data: The same as demux */
+		fe0_ts_header_bytes = <4>;
+		fe0_ts_header_data = <0x20 0x0>;
 
-		fe2_demod = "cxd2856";
+		fe1_ts_header_bytes = <4>;
+		fe1_ts_header_data = <0x21 0x0>;
+
+		fe2_ts_header_bytes = <4>;
+		fe2_ts_header_data = <0x22 0x0>;
+
+		fe3_ts_header_bytes = <4>;
+		fe3_ts_header_data = <0x23 0x0>;
+
+		fe0_demod = "MXL258C";
+		fe0_i2c_adap_id = <&i2c4>;
+		fe0_demod_i2c_addr = <0x50>;
+		fe0_demod_code = <0x254c>;
+
+		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
+		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
+		/* not require in parallel mode */
+		fe0_ts_mux_mode = <1>;
+		/* 10, 21, 25, 28, 42, 56, 84, 112 (MHz). */
+		fe0_ts_clk = <112>;
+		fe0_reset_value = <0>;
+		fe0_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
+		fe0_reset_dir = <0>; /* 0:out, 1:in */
+		/*fe0_ant_poweron_value = <0>;*/
+		/*fe0_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;*/
+		fe0_ts = <0>; /* select tsin port */
+		fe0_ts_out_mode = <0>; /* 0: serial, 1: parallel. */
+
+		fe1_demod = "MXL258C";
+		fe1_i2c_adap_id = <&i2c4>;
+		fe1_demod_i2c_addr = <0x50>;
+		fe1_demod_code = <0x254c>;
+
+		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
+		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
+		/* not require in parallel mode */
+		fe1_ts_mux_mode = <1>;
+		/* 10, 21, 25, 28, 42, 56, 84, 112 (MHz). */
+		fe1_ts_clk = <112>;
+		fe1_reset_value = <0>;
+		fe1_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
+		fe1_reset_dir = <0>; /* 0:out, 1:in */
+		/*fe1_ant_poweron_value = <0>;*/
+		/*fe1_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;*/
+		fe1_ts = <0>; /* select tsin port */
+		fe1_ts_out_mode = <0>; /* 0: serial, 1: parallel. */
+
+		fe2_demod = "MXL258C";
 		fe2_i2c_adap_id = <&i2c4>;
-		fe2_demod_i2c_addr = <0xD8>;
+		fe2_demod_i2c_addr = <0x50>;
+		fe2_demod_code = <0x254c>;
+
+		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
+		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
+		/* not require in parallel mode */
+		fe2_ts_mux_mode = <1>;
+		/* 10, 21, 25, 28, 42, 56, 84, 112 (MHz). */
+		fe2_ts_clk = <112>;
 		fe2_reset_value = <0>;
 		fe2_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
-		fe2_reset_dir = <0>; /* 0: out, 1: in. */
-		fe2_ant_poweron_value = <0>;
-		fe2_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
-		fe2_ts = <0>;
-		fe2_tuner1 = <3>; /* use tuner3, only S. */
+		fe2_reset_dir = <0>; /* 0:out, 1:in */
+		/*fe2_ant_poweron_value = <0>;*/
+		/*fe2_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;*/
+		fe2_ts = <0>; /* select tsin port */
+		fe2_ts_out_mode = <0>; /* 0: serial, 1: parallel. */
 
-		tuner_num = <4>; /* tuner number, multi tuner support */
-		tuner0_name = "r836_tuner";
-		tuner0_i2c_adap = <&i2c3>;
-		tuner0_i2c_addr = <0x1a>; /* 7bit */
-		tuner0_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
-		tuner0_xtal_mode = <0>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(3)
-					 */
-		tuner0_xtal_cap = <16>;
-		tuner0_lt_out = <1>;
+		fe3_demod = "MXL258C";
+		fe3_i2c_adap_id = <&i2c4>;
+		fe3_demod_i2c_addr = <0x50>;
+		fe3_demod_code = <0x254c>;
 
-		tuner1_name = "r836_tuner";
-		tuner1_i2c_adap = <&i2c3>;
-		tuner1_i2c_addr = <0x3a>; /* 7bit */
-		tuner1_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
-		tuner1_xtal_mode = <0>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(3)
-					 */
-		tuner1_xtal_cap = <16>;
-		tuner1_lt_out = <1>;
-
-		tuner2_name = "av2018_tuner";
-		tuner2_i2c_adap = <&i2c3>;
-		tuner2_i2c_addr = <0xC4>; /* 8bit */
-		tuner2_lt_out = <1>;
-
-		tuner3_name = "av2018_tuner";
-		tuner3_lt_out = <1>;
+		/* 0: NO_MUX_4, 1: MUX_1, 2: MUX_2, 3: MUX_3. */
+		/* 4: MUX_4, 5: MUX_2_B, 6: NO_MUX_2.*/
+		/* not require in parallel mode */
+		fe3_ts_mux_mode = <1>;
+		/* 10, 21, 25, 28, 42, 56, 84, 112 (MHz). */
+		fe3_ts_clk = <112>;
+		fe3_reset_value = <0>;
+		fe3_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
+		fe3_reset_dir = <0>; /* 0:out, 1:in */
+		/*fe3_ant_poweron_value = <0>;*/
+		/*fe3_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;*/
+		fe3_ts = <0>; /* select tsin port */
+		fe3_ts_out_mode = <0>; /* 0: serial, 1: parallel. */
 	};
 
 	dvb-demux {
@@ -279,23 +322,64 @@
 		tsn_from = "demod";
 
 		/*single demod setting */
-		ts0_sid = <0x20>;
+		/*ts will bind with dmx device*/
+		//ts0_sid = <0x20>;
 		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
 		ts0_control = <0x0>;
-		ts0_invert = <0>;
 
-		ts1_sid = <0x21>;
+		/* tsinB: parallel, serial-4wire, serial-3wire */
+		//ts1_sid = <0x22>;
 		ts1 = "parallel";
 		ts1_control = <0x0>;
-		ts1_invert = <0>;
 
-		ts2_sid = <0x22>;
-		ts2 = "parallel";
+		//ts2_sid = <0x22>;
+		ts2 = "serial-4wire"; /* tsinC: serial-4wire, serial-3wire */
 		ts2_control = <0x0>;
-		ts2_invert = <0>;
 
+		//ts3_sid = <0x23>;
+		ts3 = "serial-4wire"; /* tsinD: serial-4wire, serial-3wire */
+		ts3_control = <0x0>;
+
+		/*multi demod setting, such as maxlinear demod*/
+		/*attention: ts how to bind to dmx device
+		 * it should set sid in maxlinear driver
+		 * sid list:
+		 * dmx0 sid:0x20
+		 * dmx1 sid:0x21
+		 * ...
+		 * dmx31 sid:0x2F
+		 */
+		ts0_header_len = <4>;
+		ts0_header = <0x20 0x0>;
+		ts0_sid_offset = <1>;
+
+		ts1_header_len = <4>;
+		ts1_header = <0x21 0x0>;
+		ts1_sid_offset = <1>;
+
+		ts2_header_len = <4>;
+		ts2_header = <0x22 0x0>;
+		ts2_sid_offset = <1>;
+
+		ts3_header_len = <4>;
+		ts3_header = <0x23 0x0>;
+		ts3_sid_offset = <1>;
+
+		/* serial */
 		pinctrl-names = "s_ts0";
 		pinctrl-0 = <&dvb_s_ts0_pins>;
+		//pinctrl-names = "s_ts0", "s_ts1", "s_ts2", "s_ts3";
+		//pinctrl-0 = <&dvb_s_ts0_pins>;
+		//pinctrl-1 = <&dvb_s_ts1_pins>;
+		//pinctrl-2 = <&dvb_s_ts2_pins>;
+		//pinctrl-3 = <&dvb_s_ts3_pins>;
+
+		/* parallel */
+		//pinctrl-names = "p_ts0", "p_ts1", "p_ts2", "p_ts3";
+		//pinctrl-0 = <&dvb_p_ts1_pins>;
+		//pinctrl-1 = <&dvb_p_ts1_pins>;
+		//pinctrl-2 = <&dvb_p_ts1_pins>;
+		//pinctrl-3 = <&dvb_p_ts1_pins>;
 	};
 
 	ionvideo {
@@ -368,7 +452,7 @@
 		dev_name = "aml_dtv_demod";
 		status = "okay";
 		/* diseqc_name = "sgm_41286"; */
-		pinctrl-names="dtvdemod_if_agc_pins";
+		pinctrl-names="if_agc_pins";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
 		/* pinctrl-1=<&diseqc_out>; */
 		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
@@ -595,7 +679,7 @@
 		aml-audio-card,dai-link@1 {
 			format = "i2s";// "dsp_a";
 			mclk-fs = <256>;
-			continuous-clock;
+			//continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
@@ -607,6 +691,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
+			suffix-name = "alsaPORT-i2s2hdmi";
 			cpu {
 				sound-dai = <&tdmb>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -623,7 +708,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				sound-dai = <&amlogic_codec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -650,7 +735,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&amlogic_codec /*&ad82584f_62*/>;
 			};
 		};
 
@@ -736,7 +821,7 @@
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0 0>;
 		key_code = <116 115 114>;
-		key_val = <0 512 891>; //val=voltage/1800mV*1023
+		key_val = <20 910 630>; //val=voltage/1800mV*1023
 		key_tolerance = <40 40 40>;
 	};
 
@@ -851,7 +936,7 @@
 	tdma: tdm@0 {
 		compatible = "amlogic, t5-snd-tdma";
 		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-in = <1>;
+		dai-tdm-lane-slot-mask-in = <0 1>;
 		dai-tdm-lane-slot-mask-out = <1 0>;
 		dai-tdm-clk-sel = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
@@ -869,12 +954,29 @@
 	tdmb: tdm@1 {
 		compatible = "amlogic, t5-snd-tdmb";
 		#sound-dai-cells = <0>;
+		dai-tdm-lane-slot-mask-in = <0 1 0 0>;
 		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-				&clkaudio CLKID_AUDIO_MCLK_PAD0
 				&clkc CLKID_MPLL1>;
-		clock-names = "mclk", "mclk_pad",  "clk_srcpll";
+		clock-names = "mclk", "clk_srcpll";
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = </*&tdmb_mclk &tdmout_b &tdmin_b*/>;
+
+		i2s2hdmi = <1>;
+		status = "okay";
+	};
+
+	tdmc: tdm@2 {
+		compatible = "amlogic, t5-snd-tdmc";
+		#sound-dai-cells = <0>;
+		dai-tdm-lane-slot-mask-in = <1>;
+		dai-tdm-lane-slot-mask-out = <1>;
+		dai-tdm-clk-sel = <2>;
+		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
+				&clkaudio CLKID_AUDIO_MCLK_PAD0
+				&clkc CLKID_MPLL2>;
+		clock-names = "mclk", "mclk_pad", "clk_srcpll";
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -889,24 +991,6 @@
 
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
-
-		status = "okay";
-
-		/* !!!For --TV platform-- ONLY */
-		Channel_Mask {
-			/*i2s has 4 pins, 8channel, mux output*/
-			Spdif_samesource_Channel_Mask = "i2s_2/3";
-		};
-	};
-
-	tdmc: tdm@2 {
-		compatible = "amlogic, t5-snd-tdmc";
-		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-out = <1>;
-		dai-tdm-clk-sel = <2>;
-		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
-				&clkc CLKID_MPLL2>;
-		clock-names = "mclk", "clk_srcpll";
 
 		status = "okay";
 	};
@@ -1162,7 +1246,7 @@
 		 * 3:spdifout
 		 * 4:spdifout_b
 		 */
-		eqdrc_module = <1>;
+		eqdrc_module = <2>;
 		/* max 0xf, each bit for one lane, usually one lane */
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
@@ -1182,7 +1266,7 @@
 	tdm_d1_pins: tdm_d1_pin {
 		mux {
 			groups = "tdm_d1";
-			function = "tdmina_lane0";
+			function = "tdmina_lane1";
 		};
 	};
 
@@ -1237,6 +1321,24 @@
 			function = "tsin_a";
 		};
 	};
+
+	//dvb_p_ts1_pins: dvb_p_ts1_pins {
+	//	tsin_b {
+	//		groups = "tsin_b_sop",
+	//		"tsin_b_valid",
+	//		"tsin_b_clk",
+	//		"tsin_b_fail",
+	//		"tsin_b_din0",
+	//		"tsin_b_din1",
+	//		"tsin_b_din2",
+	//		"tsin_b_din3",
+	//		"tsin_b_din4",
+	//		"tsin_b_din5",
+	//		"tsin_b_din6",
+	//		"tsin_b_din7";
+	//		function = "tsin_b";
+	//	};
+	//};
 }; /* end of periphs_pinctrl */
 
 &audio_data {
@@ -1457,7 +1559,7 @@
 };
 
 &fb {
-	status = "disabled";
+	status = "ok";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000>;
 	logo_addr = "0x7f800000";
@@ -1465,28 +1567,8 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
-&drm_vpu {
-	status = "okay";
-	logo_addr = "0x7f800000";
-
-};
-
 &amhdmitx {
 	status = "okay";
-	hdcp_ctl_lvl = <1>;
-};
-
-&drm_amhdmitx {
-	status = "okay";
-	hdcp = "disabled";
-};
-
-&drm_amcvbsout {
-	status = "okay";
-};
-
-&drm_lcd {
-	status = "disabled";
 };
 
 &vpu {
@@ -1534,6 +1616,7 @@
 &aml_bt {
 	status = "okay";
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
+	bt_en-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	btwakeup-gpios = <&gpio    GPIOX_18 GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
 };
@@ -1557,9 +1640,3 @@
 		&dvfs850_cfg
 		&dvfs850_cfg>;
 };
-
-&amlogic_codec {
-    tocodec_inout = <1>;
-    tdmout_index = <1>;
-};
-
