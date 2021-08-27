@@ -566,7 +566,7 @@ static int ldim_int_table_dbg_print(char *buf, unsigned int n,
 {
 	unsigned int i, len = 0;
 
-	len = sprintf(buf, "for_tool:%d", n);
+	len = sprintf(buf, "for_tool:");
 	for (i = 0; i < n; i++)
 		len += sprintf(buf + len, " %d", table[i]);
 	len += sprintf(buf + len, "\n");
@@ -603,7 +603,7 @@ static int ldim_min_gain_lut_dbg_print(char *buf)
 	unsigned int j, len = 0;
 	unsigned int *table;
 
-	len = sprintf(buf, "for_tool: 64");
+	len = sprintf(buf, "for_tool:");
 	table = ldc_min_gain_lut;
 	for (j = 0; j < 64; j++)
 		len += sprintf(buf + len, " %d", table[j]);
