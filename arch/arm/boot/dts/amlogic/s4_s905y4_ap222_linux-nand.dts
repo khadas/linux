@@ -76,15 +76,12 @@
 			size = <0x8000000>;
 			alignment = <0x400000>;
 		};
-
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 1920x1080x4x3 round up 4M align */
 			size = <0x0000000>;
 			alignment = <0x400000>;
 		};
-
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
 			compatible = "shared-dma-pool";
@@ -96,8 +93,8 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			//size = <0x0B000000>;
-			//size = <0x0>;
+			//size = <0x0 0x0B000000>;
+			//size = <0x0 0x0>;
 			alignment = <0x400000>;
 		};
 
@@ -186,23 +183,26 @@
 		clk_path = <0>;
 
 		/* performance: reg_address, reg_value */
-		/* tm2 */
-		performance = <0x1bf0  0x9
+		/* s4 */
+		performance_pal = <0x1bf0  0x9 /* default Matrx625 CTCC value*/
+			0x1b12  0x80c0
+			0x1b05  0xf7
 			0x1b56  0x333
-			0x1b12  0x8080
+			0x1c59  0xf25c
+			0xffff  0x0>; /* ending flag */
+		performance = <0x1bf0  0x9 /* ccitt033 SVA value */
+			0x1b12  0x8040
 			0x1b05  0xfd
-			0x1c59  0xf850
-			0xffff  0x0>; /* ending flag */
-		performance_sarft = <0x1bf0  0x9
 			0x1b56  0x333
-			0x1b12  0x0
-			0x1b05  0x9
-			0x1c59  0xfc48
+			0x1c59  0xf654
 			0xffff  0x0>; /* ending flag */
-		performance_revB_telecom = <0x1bf0  0x9
-			0x1b56  0x546
-			0x1b12  0x8080
-			0x1b05  0x9
+		performance_ntsc = <0x1bf0  0x9
+			0x1b12  0x8020
+			0x1b03  0x0
+			0x1b04  0x0
+			0x1b05  0x0
+			0x1b06  0x0
+			0x1b56  0x333
 			0x1c59  0xf850
 			0xffff  0x0>; /* ending flag */
 	};
@@ -368,7 +368,7 @@
 		dev_name = "aml_dtv_demod";
 		status = "okay";
 		/* diseqc_name = "sgm_41286"; */
-		pinctrl-names="dtvdemod_if_agc_pins";
+		pinctrl-names="if_agc_pins";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
 		/* pinctrl-1=<&diseqc_out>; */
 		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
@@ -554,6 +554,7 @@
 		};
 	};//End efusekey
 	/* Audio Related start */
+
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
@@ -607,6 +608,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
+			suffix-name = "alsaPORT-i2s";
 			cpu {
 				sound-dai = <&tdmb>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -640,7 +642,6 @@
 			//bitclock-master = <&tdmccodec>;
 			//frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-i2s";
 			cpu {
 				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -727,6 +728,62 @@
 		status = "disabled";
 	};/* Audio Related end */
 
+	cpu_opp_table0: cpu_opp_table0 {
+		compatible = "operating-points-v2";
+		status = "okay";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <779000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <779000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <779000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <666000000>;
+			opp-microvolt = <799000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <819000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <829000>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <1404000000>;
+			opp-microvolt = <839000>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <849000>;
+		};
+		opp08 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <879000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <949000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <999000>;
+		};
+	};
+
+	cpufreq-meson {
+		compatible = "amlogic, cpufreq-meson";
+		status = "okay";
+	};
+
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
@@ -736,7 +793,7 @@
 		io-channel-names = "key-chan-0";
 		key_chan = <0 0 0>;
 		key_code = <116 115 114>;
-		key_val = <0 512 891>; //val=voltage/1800mV*1023
+		key_val = <20 910 630>; //val=voltage/1800mV*1023
 		key_tolerance = <40 40 40>;
 	};
 
@@ -815,38 +872,6 @@
 	status = "okay";
 };
 
-&CPU0 {
-	multi_tables_available;
-	operating-points-v2 = <&s905y4_opp_table0>,
-		<&s905y4_opp_table1>,
-		<&s905y4_opp_table2>,
-		<&s905y4_opp_table3>;
-};
-
-&CPU1 {
-	multi_tables_available;
-	operating-points-v2 = <&s905y4_opp_table0>,
-		<&s905y4_opp_table1>,
-		<&s905y4_opp_table2>,
-		<&s905y4_opp_table3>;
-};
-
-&CPU2 {
-	multi_tables_available;
-	operating-points-v2 = <&s905y4_opp_table0>,
-		<&s905y4_opp_table1>,
-		<&s905y4_opp_table2>,
-		<&s905y4_opp_table3>;
-};
-
-&CPU3 {
-	multi_tables_available;
-	operating-points-v2 = <&s905y4_opp_table0>,
-		<&s905y4_opp_table1>,
-		<&s905y4_opp_table2>,
-		<&s905y4_opp_table3>;
-};
-
 &audiobus {
 	tdma: tdm@0 {
 		compatible = "amlogic, t5-snd-tdma";
@@ -891,12 +916,6 @@
 		clk_tuning_enable = <1>;
 
 		status = "okay";
-
-		/* !!!For --TV platform-- ONLY */
-		Channel_Mask {
-			/*i2s has 4 pins, 8channel, mux output*/
-			Spdif_samesource_Channel_Mask = "i2s_2/3";
-		};
 	};
 
 	tdmc: tdm@2 {
@@ -938,7 +957,7 @@
 	spdifb: spdif@1 {
 		compatible = "amlogic, tm2-revb-snd-spdif-b";
 		#sound-dai-cells = <0>;
-		clocks = <&clkc CLKID_MPLL1 /*CLKID_HIFI_PLL*/
+		clocks = <&clkc CLKID_MPLL0 /*CLKID_HIFI_PLL*/
 				&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_B
 				&clkaudio CLKID_AUDIO_SPDIFOUT_B>;
 		clock-names = "sysclk",
@@ -1470,9 +1489,9 @@
 	logo_addr = "0x7f800000";
 
 };
-
 &amhdmitx {
 	status = "okay";
+	/* hdcp ctrl 0: sysctrl, 1: drv, 2: linux app */
 	hdcp_ctl_lvl = <1>;
 };
 
@@ -1559,7 +1578,6 @@
 };
 
 &amlogic_codec {
-    tocodec_inout = <1>;
-    tdmout_index = <1>;
+	tocodec_inout = <1>;
+	tdmout_index = <1>;
 };
-
