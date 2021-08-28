@@ -33,7 +33,7 @@ static int netevent_handler(struct notifier_block *nb,
 	struct evl_net_neigh_cache *cache;
  	struct neighbour *neigh = arg;
 
-	spin_lock(&cache_lock);
+	spin_lock_bh(&cache_lock);
 
 	list_for_each_entry(cache, &cache_list, next) {
 		if (event != NETEVENT_NEIGH_UPDATE)
@@ -42,23 +42,23 @@ static int netevent_handler(struct notifier_block *nb,
 			update_neigh_cache(cache, neigh);
 	}
 
-	spin_unlock(&cache_lock);
+	spin_unlock_bh(&cache_lock);
 
 	return NOTIFY_DONE;
 }
 
 static void register_neigh_cache(struct evl_net_neigh_cache *cache)
 {
-	spin_lock(&cache_lock);
+	spin_lock_bh(&cache_lock);
 	list_add(&cache->next, &cache_list);
-	spin_unlock(&cache_lock);
+	spin_unlock_bh(&cache_lock);
 }
 
 static void unregister_neigh_cache(struct evl_net_neigh_cache *cache)
 {
-	spin_lock(&cache_lock);
+	spin_lock_bh(&cache_lock);
 	list_del(&cache->next);
-	spin_unlock(&cache_lock);
+	spin_unlock_bh(&cache_lock);
 }
 
 static struct notifier_block evl_netevent_notifier __read_mostly = {
