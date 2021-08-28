@@ -17,7 +17,7 @@
 #define	MESON_RESCUEPARTY_REBOOT			11
 #define	MESON_KERNEL_PANIC					12
 #define MESON_RECOVERY_QUIESCENT_REBOOT				14
-#define MESON_FFV_REBOOT					15
+#define MESON_TEST_REBOOT					15
 
 struct reboot_reason_str {
 	char *name;
