@@ -285,6 +285,35 @@ unsigned int mpll2sys_clk_ratio_by_type(enum aud_codec_types codec_type)
 	return ratio * EARC_DMAC_MUTIPLIER;
 }
 
+unsigned int mpll2dmac_clk_ratio_by_type(enum audio_coding_types coding_type)
+{
+	/* pcm format mpll clk ratio: 491520000/(6144000*EARC_DMAC_MUTIPLIER)*/
+	unsigned int ratio;
+
+	switch (coding_type) {
+	case AUDIO_CODING_TYPE_MULTICH_16CH_LPCM:
+		ratio = 2;
+		break;
+	case AUDIO_CODING_TYPE_MULTICH_8CH_LPCM:
+		ratio = 4;
+		break;
+	case AUDIO_CODING_TYPE_EAC3:
+	case AUDIO_CODING_TYPE_DTS_HD:
+	case AUDIO_CODING_TYPE_AC3_LAYOUT_B:
+		ratio = 4;
+		break;
+	case AUDIO_CODING_TYPE_DTS_HD_MA:
+	case AUDIO_CODING_TYPE_MLP:
+	case AUDIO_CODING_TYPE_MULTICH_32CH_LPCM:
+		ratio = 1;
+		break;
+	default:
+		ratio = 16;
+	}
+
+	return ratio;
+}
+
 void iec_get_channel_status_info(struct iec958_chsts *chsts,
 	enum aud_codec_types codec_type,
 	unsigned int rate)

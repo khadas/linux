@@ -833,8 +833,9 @@ static void earctx_update_clk(struct earc *p_earc,
 			      unsigned int rate)
 {
 	unsigned int multi = audio_multi_clk(p_earc->tx_audio_coding_type);
-	unsigned int nominal_freq = rate * 128 * EARC_DMAC_MUTIPLIER;
-	unsigned int freq = nominal_freq * multi;
+	unsigned int freq = rate * 128 * EARC_DMAC_MUTIPLIER * multi;
+	unsigned int mpll_freq = freq *
+		mpll2dmac_clk_ratio_by_type(p_earc->tx_audio_coding_type);
 
 	dev_info(p_earc->dev, "set %dX normal dmac clk, p_earc->tx_dmac_freq:%d\n",
 		multi, p_earc->tx_dmac_freq);
@@ -844,14 +845,14 @@ static void earctx_update_clk(struct earc *p_earc,
 		rate,
 		freq,
 		clk_get_rate(p_earc->clk_tx_dmac),
-		nominal_freq * 16,
+		mpll_freq,
 		clk_get_rate(p_earc->clk_tx_dmac_srcpll));
 
 	if (freq == p_earc->tx_dmac_freq)
 		return;
 
 	/* same with tdm mpll */
-	clk_set_rate(p_earc->clk_tx_dmac_srcpll, nominal_freq * 16);
+	clk_set_rate(p_earc->clk_tx_dmac_srcpll, mpll_freq);
 	p_earc->tx_dmac_freq = freq;
 	clk_set_rate(p_earc->clk_tx_dmac, freq);
 }

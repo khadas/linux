@@ -218,7 +218,7 @@ struct iec958_chsts {
 bool raw_is_4x_clk(enum aud_codec_types codec_type);
 
 unsigned int mpll2sys_clk_ratio_by_type(enum aud_codec_types codec_type);
-
+unsigned int mpll2dmac_clk_ratio_by_type(enum audio_coding_types coding_type);
 void iec_get_channel_status_info(struct iec958_chsts *chsts,
 				 enum aud_codec_types codec_type,
 				 unsigned int rate);
