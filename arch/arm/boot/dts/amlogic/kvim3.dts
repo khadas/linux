@@ -871,11 +871,11 @@
                 ti,otg-current = <500000>;
                 ti,input-current = <500000>;
                 pd-charge-only = <0>;
-                status = "okay";
+                status = "disabled";
         };
 
        cw201x {
-                status = "okay";
+                status = "disabled";
                 compatible = "cw201x";
                 reg = <0x62>;
                 bat_config_info = <0x15 0x7F 0x6E 0x66 0x65 0x5C 0x5B 0x59
@@ -925,7 +925,7 @@
                 compatible = "everest,es8316";
                 #sound-dai-cells = <0>;
                 reg = <0x10>;
-                status = "okay";
+                status = "disabled";
                 spk-con-gpio = <&gpio GPIOA_11 0>;
                 spk-mute-gpio = <&gpio GPIOA_12 0>;
                 io-channels = <&saradc SARADC_CH3>;
