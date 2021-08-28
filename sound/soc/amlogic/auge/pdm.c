@@ -757,7 +757,7 @@ static int aml_pdm_dai_set_sysclk(struct snd_soc_dai *cpu_dai,
 	clk_set_rate(p_pdm->clk_pdm_sysclk, 133333351);
 
 	if (dclk_srcpll_freq == 0)
-		clk_set_rate(p_pdm->dclk_srcpll, 24576000);
+		clk_set_rate(p_pdm->dclk_srcpll, 24576000 * 20);
 
 	clk_set_rate(p_pdm->clk_pdm_dclk,
 		pdm_dclkidx2rate(dclk_idx));
