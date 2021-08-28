@@ -46,7 +46,7 @@ static struct reboot_reason_str reboot_reason_name[] = {
 	[MESON_KERNEL_PANIC] = { .name = "kernel panic" },
 	[MESON_RECOVERY_QUIESCENT_REBOOT] = {
 		.name = "recovery quiescent reboot" },
-	[MESON_FFV_REBOOT] = { .name = "ffv reboot" },
+	[MESON_TEST_REBOOT] = { .name = "test reboot" },
 };
 
 u32 get_reboot_reason(void)
@@ -94,8 +94,8 @@ static u32 parse_reason(const char *cmd)
 			 strcmp(cmd, "quiescent,recovery") == 0 ||
 			 strcmp(cmd, "quiescent,factory_reset") == 0)
 			reboot_reason = MESON_RECOVERY_QUIESCENT_REBOOT;
-		else if (strcmp(cmd, "ffv_reboot") == 0)
-			reboot_reason = MESON_FFV_REBOOT;
+		else if (strcmp(cmd, "reboot_test") == 0)
+			reboot_reason = MESON_TEST_REBOOT;
 	} else {
 		if (kernel_panic) {
 			if (strcmp(kernel_panic, "kernel_panic") == 0)
