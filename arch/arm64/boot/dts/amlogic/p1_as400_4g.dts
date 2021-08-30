@@ -1266,14 +1266,14 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c9_pins1>;
-	status = "disabled";
+	status = "okay";
 	#address-cells = <1>;
     #size-cells = <0>;
     pmic2657: pmic@6a {
 		compatible = "rohm,bd2657";
 		reg = <0x6a>;
 		interrupt-parent = <&gpio_intc>;
-		interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <29 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cpu-irq";
 		gpio-controller;
 		#gpio-cells = <2>;
