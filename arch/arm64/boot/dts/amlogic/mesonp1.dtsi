@@ -77,12 +77,13 @@
 			capacity-dmips-mhz = <512>;
 			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
-			cpu-supply = <&vddcpub>;
+			cpu-supply = <&VDD_CPUA>;
 			cpu_supply_external_used;
-			dsu-opp-table = <1200000 799000 1500000 869000>;
+			dsu-opp-table = <1200000 880000 1500000 940000>;
 			dsu_clock_shared;
 			dsu-low-rate = <1000000>;
-			cpufreq_voltage_set_skip;
+//			cpufreq_voltage_set_skip;
+			cpu_reg_use_buck;
 			dvfs_sibling_core_num = <6>;
 			dvfs_sibling_cores = <0 1 2 3 4 5>;
 		};
@@ -112,12 +113,13 @@
 			capacity-dmips-mhz = <512>;
 			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
-			cpu-supply = <&vddcpub>;
+			cpu-supply = <&VDD_CPUA>;
 			cpu_supply_external_used;
-			dsu-opp-table = <1200000 799000 1500000 869000>;
+			dsu-opp-table = <1200000 880000 1500000 940000>;
 			dsu_clock_shared;
 			dsu-low-rate = <1000000>;
-			cpufreq_voltage_set_skip;
+//			cpufreq_voltage_set_skip;
+			cpu_reg_use_buck;
 			dvfs_sibling_core_num = <6>;
 			dvfs_sibling_cores = <0 1 2 3 4 5>;
 		};
@@ -147,12 +149,13 @@
 			capacity-dmips-mhz = <512>;
 			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
-			cpu-supply = <&vddcpub>;
+			cpu-supply = <&VDD_CPUA>;
 			cpu_supply_external_used;
-			dsu-opp-table = <1200000 799000 1500000 869000>;
+			dsu-opp-table = <1200000 880000 1500000 940000>;
 			dsu_clock_shared;
 			dsu-low-rate = <1000000>;
-			cpufreq_voltage_set_skip;
+//			cpufreq_voltage_set_skip;
+			cpu_reg_use_buck;
 			dvfs_sibling_core_num = <6>;
 			dvfs_sibling_cores = <0 1 2 3 4 5>;
 		};
@@ -182,12 +185,13 @@
 			capacity-dmips-mhz = <512>;
 			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
-			cpu-supply = <&vddcpub>;
+			cpu-supply = <&VDD_CPUA>;
 			cpu_supply_external_used;
-			dsu-opp-table = <1200000 799000 1500000 869000>;
+			dsu-opp-table = <1200000 880000 1500000 940000>;
 			dsu_clock_shared;
 			dsu-low-rate = <1000000>;
-			cpufreq_voltage_set_skip;
+//			cpufreq_voltage_set_skip;
+			cpu_reg_use_buck;
 			dvfs_sibling_core_num = <6>;
 			dvfs_sibling_cores = <0 1 2 3 4 5>;
 		};
@@ -217,12 +221,13 @@
 			capacity-dmips-mhz = <512>;
 			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
-			cpu-supply = <&vddcpub>;
+			cpu-supply = <&VDD_CPUA>;
 			cpu_supply_external_used;
-			dsu-opp-table = <1200000 799000 1500000 869000>;
+			dsu-opp-table = <1200000 880000 1500000 940000>;
 			dsu_clock_shared;
 			dsu-low-rate = <1000000>;
-			cpufreq_voltage_set_skip;
+//			cpufreq_voltage_set_skip;
+			cpu_reg_use_buck;
 			dvfs_sibling_core_num = <6>;
 			dvfs_sibling_cores = <0 1 2 3 4 5>;
 		};
@@ -252,12 +257,13 @@
 			capacity-dmips-mhz = <512>;
 			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
-			cpu-supply = <&vddcpub>;
+			cpu-supply = <&VDD_CPUA>;
 			cpu_supply_external_used;
-			dsu-opp-table = <1200000 799000 1500000 869000>;
+			dsu-opp-table = <1200000 880000 1500000 940000>;
 			dsu_clock_shared;
 			dsu-low-rate = <1000000>;
-			cpufreq_voltage_set_skip;
+//			cpufreq_voltage_set_skip;
+			cpu_reg_use_buck;
 			dvfs_sibling_core_num = <6>;
 			dvfs_sibling_cores = <0 1 2 3 4 5>;
 		};
@@ -287,12 +293,13 @@
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <512>;
 //			#cooling-cells = <2>;
-			cpu-supply = <&vddcpua>;
-			dsu-supply = <&vddcpub>;
-			dsu-opp-table = <1200000 799000 1500000 869000>;
+			cpu-supply = <&VDD_CPUB>;
+			dsu-supply = <&VDD_CPUA>;
+			dsu-opp-table = <1200000 870000 1500000 910000>;
 			dsu_clock_shared;
 			dsu-low-rate = <1000000>;
-			cpufreq_voltage_set_skip;
+//			cpufreq_voltage_set_skip;
+			cpu_reg_use_buck;
 			dvfs_sibling_core_num = <2>;
 			dvfs_sibling_cores = <6 7>;
 		};
@@ -322,12 +329,13 @@
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <512>;
 //			#cooling-cells = <2>;
-			cpu-supply = <&vddcpua>;
-			dsu-supply = <&vddcpub>;
-			dsu-opp-table = <1200000 799000 1500000 869000>;
+			cpu-supply = <&VDD_CPUB>;
+			dsu-supply = <&VDD_CPUA>;
+			dsu-opp-table = <1200000 870000 1500000 910000>;
 			dsu_clock_shared;
 			dsu-low-rate = <1000000>;
-			cpufreq_voltage_set_skip;
+//			cpufreq_voltage_set_skip;
+			cpu_reg_use_buck;
 			dvfs_sibling_core_num = <2>;
 			dvfs_sibling_cores = <6 7>;
 		};
@@ -713,47 +721,47 @@
 
 		opp00 {
 			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <739000>;
+			opp-microvolt = <840000>;
 		};
 		opp01 {
 			opp-hz = /bits/ 64 <666000000>;
-			opp-microvolt = <739000>;
+			opp-microvolt = <840000>;
 		};
 		opp02 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <769000>;
+			opp-microvolt = <850000>;
 		};
 		opp03 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <799000>;
+			opp-microvolt = <870000>;
 		};
 		opp04 {
 			opp-hz = /bits/ 64 <1392000000>;
-			opp-microvolt = <829000>;
+			opp-microvolt = <890000>;
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <1512000000>;
-			opp-microvolt = <869000>;
+			opp-microvolt = <910000>;
 		};
 		opp06 {
 			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <899000>;
+			opp-microvolt = <930000>;
 		};
 		opp07 {
 			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <919000>;
+			opp-microvolt = <950000>;
 		};
 		opp08 {
 			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <939000>;
+			opp-microvolt = <970000>;
 		};
 		opp09 {
 			opp-hz = /bits/ 64 <1896000000>;
-			opp-microvolt = <969000>;
+			opp-microvolt = <990000>;
 		};
 		opp10 {
 			opp-hz = /bits/ 64 <1944000000>;
-			opp-microvolt = <999000>;
+			opp-microvolt = <1010000>;
 		};
 	};
 
@@ -763,47 +771,47 @@
 
 		opp00 {
 			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <739000>;
+			opp-microvolt = <840000>;
 		};
 		opp01 {
 			opp-hz = /bits/ 64 <666000000>;
-			opp-microvolt = <739000>;
+			opp-microvolt = <840000>;
 		};
 		opp02 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <769000>;
+			opp-microvolt = <870000>;
 		};
 		opp03 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <789000>;
+			opp-microvolt = <880000>;
 		};
 		opp04 {
 			opp-hz = /bits/ 64 <1392000000>;
-			opp-microvolt = <819000>;
+			opp-microvolt = <920000>;
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <1512000000>;
-			opp-microvolt = <869000>;
+			opp-microvolt = <940000>;
 		};
 		opp06 {
 			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <909000>;
+			opp-microvolt = <960000>;
 		};
 		opp07 {
 			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <959000>;
+			opp-microvolt = <980000>;
 		};
 		opp08 {
 			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <979000>;
+			opp-microvolt = <990000>;
 		};
 		opp09 {
 			opp-hz = /bits/ 64 <1896000000>;
-			opp-microvolt = <999000>;
+			opp-microvolt = <1000000>;
 		};
 		opp10 {
 			opp-hz = /bits/ 64 <1992000000>;
-			opp-microvolt = <1029000>;
+			opp-microvolt = <1010000>;
 		};
 	};
 

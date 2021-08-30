@@ -845,10 +845,12 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 		       PTR_ERR(cpu_reg));
 		cpu_reg = NULL;
 	}
-	dsu_reg = devm_regulator_get(cpu_dev, DSU_SUPPLY);
+	dsu_reg = regulator_get_optional(cpu_dev, DSU_SUPPLY);
 	if (IS_ERR(dsu_reg)) {
-		pr_err("failed to get dsu_regulator.\n");
+		pr_info("[cluster%d]get dsu_regulator failed.\n", cur_cluster);
 		dsu_reg = NULL;
+	} else {
+		pr_info("[cluster%d]get dsu_regulator succeed.\n", cur_cluster);
 	}
 
 	cpu_supply_external_used = of_property_read_bool(np, "cpu_supply_external_used");
@@ -939,6 +941,8 @@ free_opp_table:
 free_reg:
 	if (!IS_ERR(cpu_reg))
 		devm_regulator_put(cpu_reg);
+	if (!IS_ERR(dsu_reg))
+		regulator_put(dsu_reg);
 free_clk:
 	if (!IS_ERR(clk[cur_cluster]))
 		clk_put(clk[cur_cluster]);
@@ -1045,7 +1049,7 @@ static void meson_get_cluster_cores(void)
 				if (!of_property_read_u32_array(np, "dvfs_sibling_cores",
 							&cores[0], core_num)) {
 					for (i = 0; i < core_num; i++) {
-						pr_info("[%s %d]cpu%d->cluster%d\n",
+						pr_debug("[%s %d]cpu%d->cluster%d\n",
 							__func__, __LINE__, cores[i], cluster_id);
 						cpumask_set_cpu(cores[i],
 								&cluster_cpus[cluster_id]);

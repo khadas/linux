@@ -1891,35 +1891,3 @@
 &vddcpub {
 	status = "disabled";
 };
-
-&CPU0 {
-	cpu-supply = <&vddcpua>;
-};
-
-//	&CPU1 {
-//		cpu-supply = <&vddcpua>;
-//	};
-//
-//	&CPU2 {
-//		cpu-supply = <&vddcpua>;
-//	};
-//
-//	&CPU3 {
-//		cpu-supply = <&vddcpua>;
-//	};
-//
-//	&CPU4 {
-//		cpu-supply = <&vddcpub>;
-//	};
-//
-//	&CPU5 {
-//		cpu-supply = <&vddcpub>;
-//	};
-//
-//	&CPU6 {
-//		cpu-supply = <&vddcpub>;
-//	};
-//
-//	&CPU7 {
-//		cpu-supply = <&vddcpub>;
-//	};
