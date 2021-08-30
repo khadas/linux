@@ -15,6 +15,7 @@
 /* video info event flags */
 #define VIDEO_INFO_CHANGE_NONE      0x0000
 #define VIDEO_SIZE_CHANGE_EVENT     0x0001
+#define VIDEO_AISR_FRAME_EVENT      0x0004
 
 enum vd_format_e {
 	SIGNAL_INVALID = -1,

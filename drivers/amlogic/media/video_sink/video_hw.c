@@ -78,6 +78,7 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>
 #endif
+#include <linux/amlogic/media/video_sink/video_signal_notify.h>
 struct video_layer_s vd_layer[MAX_VD_LAYER];
 struct disp_info_s glayer_info[MAX_VD_LAYER];
 
@@ -9032,12 +9033,14 @@ void aisr_reshape_addr_set(struct video_layer_s *layer,
 			31, 1);
 		cur_dev->scaler_sep_coef_en = 0;
 		cur_dev->aisr_enable = 0;
+		video_info_change_status &= ~VIDEO_AISR_FRAME_EVENT;
 		return;
 	}
 	cur_dev->scaler_sep_coef_en = 1;
 	cur_dev->aisr_enable = 1;
 	aisr_stride = aisr_mif_setting->src_align_w;
 	aisr_align_h = aisr_mif_setting->src_align_h;
+	video_info_change_status |= VIDEO_AISR_FRAME_EVENT;
 
 	for (i = 0; i < 4; i++)
 		for (j = 0; j < 4; j++)
@@ -9391,8 +9394,10 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 		return;
 	if (!aisr_enable) {
 		aisr_sr1_nn_enable(0);
+		video_info_change_status &= ~VIDEO_AISR_FRAME_EVENT;
 		return;
 	}
+	video_info_change_status |= VIDEO_AISR_FRAME_EVENT;
 	layer_id = layer->layer_id;
 	frame_par = setting->frame_par;
 	vpp_filter = &frame_par->vpp_filter;
