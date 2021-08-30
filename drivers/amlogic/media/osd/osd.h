@@ -905,8 +905,13 @@ struct hw_para_s {
 	u32 osd_preblend_en; /* only for viu1 */
 	u32 fix_target_width;
 	u32 fix_target_height;
+	u32 preblend_pps_w_den;
+	u32 preblend_pps_h_den;
+	u32 preblend_pps_w_num;
+	u32 preblend_pps_h_num;
 	u32 adjust_position_x;
 	u32 adjust_position_y;
+	u32 preblend_y_offset;
 	u32 rdma_trace_enable;
 	u32 rdma_trace_num;
 	u32 rdma_trace_reg[MAX_TRACE_NUM];
