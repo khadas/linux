@@ -37,6 +37,8 @@ struct dummy_venc_data_s {
 	unsigned int vid2_clk_ctrl_reg;
 	unsigned int vid2_clk_div_reg;
 
+	unsigned int projection_valid;
+
 	void (*clktree_probe)(struct device *dev);
 	void (*clktree_remove)(struct device *dev);
 	void (*encp_clk_gate_switch)(int flag);
@@ -75,26 +77,8 @@ static struct dummy_venc_driver_s *dummy_encl_drv;
  * **********************************************************
  */
 static unsigned int dummy_encp_index = 0xff;
+static struct vinfo_s *dummy_encp_infos;
 static struct vinfo_s dummy_encp_vinfo[] = {
-	{
-		.name              = "dummy_panel",
-		.mode              = VMODE_DUMMY_ENCP,
-		.frac              = 0,
-		.width             = 1920,
-		.height            = 1080,
-		.field_height      = 1080,
-		.aspect_ratio_num  = 16,
-		.aspect_ratio_den  = 9,
-		.sync_duration_num = 60,
-		.sync_duration_den = 1,
-		.video_clk         = 148500000,
-		.htotal            = 2200,
-		.vtotal            = 1125,
-		.fr_adj_type       = VOUT_FR_ADJ_NONE,
-		.viu_color_fmt     = COLOR_FMT_RGB444,
-		.viu_mux           = VIU_MUX_ENCP,
-		.vout_device       = NULL,
-	},
 	{
 		.name              = "dummy_p",
 		.mode              = VMODE_DUMMY_ENCP,
@@ -113,6 +97,66 @@ static struct vinfo_s dummy_encp_vinfo[] = {
 		.viu_color_fmt     = COLOR_FMT_YUV444,
 		.viu_mux           = VIU_MUX_ENCP,
 		.vout_device       = NULL,
+	},
+	{
+		.name              = "dummy_panel",
+		.mode              = VMODE_DUMMY_ENCP,
+		.frac              = 0,
+		.width             = 1920,
+		.height            = 1080,
+		.field_height      = 1080,
+		.aspect_ratio_num  = 16,
+		.aspect_ratio_den  = 9,
+		.sync_duration_num = 60,
+		.sync_duration_den = 1,
+		.video_clk         = 148500000,
+		.htotal            = 2200,
+		.vtotal            = 1125,
+		.fr_adj_type       = VOUT_FR_ADJ_NONE,
+		.viu_color_fmt     = COLOR_FMT_RGB444,
+		.viu_mux           = VIU_MUX_ENCP,
+		.vout_device       = NULL,
+	}
+};
+
+static struct vinfo_s dummy_encp_vinfo_t7[] = {
+	{
+		.name              = "dummy_p",
+		.mode              = VMODE_DUMMY_ENCP,
+		.frac              = 0,
+		.width             = 720,
+		.height            = 480,
+		.field_height      = 480,
+		.aspect_ratio_num  = 4,
+		.aspect_ratio_den  = 3,
+		.sync_duration_num = 50,
+		.sync_duration_den = 1,
+		.video_clk         = 25000000,
+		.htotal            = 952,
+		.vtotal            = 525,
+		.fr_adj_type       = VOUT_FR_ADJ_NONE,
+		.viu_color_fmt     = COLOR_FMT_YUV444,
+		.viu_mux           = VIU_MUX_ENCP,
+		.vout_device       = NULL,
+	},
+	{//no dummy_panel for t7/t3, use projection function in lcd driver
+		.name              = "dummy_panel",
+		.mode              = VMODE_DUMMY_ENCP,
+		.frac              = 0,
+		.width             = 1920,
+		.height            = 1080,
+		.field_height      = 1080,
+		.aspect_ratio_num  = 16,
+		.aspect_ratio_den  = 9,
+		.sync_duration_num = 60,
+		.sync_duration_den = 1,
+		.video_clk         = 148500000,
+		.htotal            = 2200,
+		.vtotal            = 1125,
+		.fr_adj_type       = VOUT_FR_ADJ_NONE,
+		.viu_color_fmt     = COLOR_FMT_RGB444,
+		.viu_mux           = VIU_MUX_PROJECT,
+		.vout_device       = NULL,
 	}
 };
 
@@ -122,7 +166,7 @@ static void dummy_encp_venc_set(void)
 
 	VOUTPR("%s: dummy_encp_index=%d\n", __func__, dummy_encp_index);
 
-	if (dummy_encp_index == 0) {
+	if (dummy_encp_index == 1) {
 		vout_vcbus_write(ENCP_VIDEO_EN, 0);
 
 		vout_vcbus_write(ENCP_VIDEO_MODE, 0x8000);
@@ -191,7 +235,7 @@ static void dummy_encp_clk_ctrl(int flag)
 	if (!dummy_venc_data)
 		return;
 
-	if (dummy_encp_index == 0) {
+	if (dummy_encp_index == 1) {
 		if (flag) {
 			temp = vout_clk_getb(dummy_venc_data->vid2_clk_div_reg,
 					     ENCL_CLK_SEL, 4);
@@ -291,7 +335,7 @@ static void dummy_encp_vinfo_update(void)
 	const struct vinfo_s *vinfo = NULL;
 
 	/* only dummy_panel need update vinfo */
-	if (dummy_encp_index != 0)
+	if (dummy_encp_index == 0)
 		return;
 
 	if (dummy_encp_drv->viu_sel == 1) {
@@ -311,17 +355,20 @@ static void dummy_encp_vinfo_update(void)
 	if (!vinfo)
 		return;
 
-	dummy_encp_vinfo[0].width = vinfo->width;
-	dummy_encp_vinfo[0].height = vinfo->height;
-	dummy_encp_vinfo[0].field_height = vinfo->field_height;
-	dummy_encp_vinfo[0].aspect_ratio_num = vinfo->aspect_ratio_num;
-	dummy_encp_vinfo[0].aspect_ratio_den = vinfo->aspect_ratio_den;
-	dummy_encp_vinfo[0].sync_duration_num = vinfo->sync_duration_num;
-	dummy_encp_vinfo[0].sync_duration_den = vinfo->sync_duration_den;
-	dummy_encp_vinfo[0].video_clk = vinfo->video_clk;
-	dummy_encp_vinfo[0].htotal = vinfo->htotal;
-	dummy_encp_vinfo[0].vtotal = vinfo->vtotal;
-	dummy_encp_vinfo[0].viu_color_fmt = vinfo->viu_color_fmt;
+	if (!dummy_encp_infos)
+		return;
+
+	dummy_encp_infos->width = vinfo->width;
+	dummy_encp_infos->height = vinfo->height;
+	dummy_encp_infos->field_height = vinfo->field_height;
+	dummy_encp_infos->aspect_ratio_num = vinfo->aspect_ratio_num;
+	dummy_encp_infos->aspect_ratio_den = vinfo->aspect_ratio_den;
+	dummy_encp_infos->sync_duration_num = vinfo->sync_duration_num;
+	dummy_encp_infos->sync_duration_den = vinfo->sync_duration_den;
+	dummy_encp_infos->video_clk = vinfo->video_clk;
+	dummy_encp_infos->htotal = vinfo->htotal;
+	dummy_encp_infos->vtotal = vinfo->vtotal;
+	dummy_encp_infos->viu_color_fmt = vinfo->viu_color_fmt;
 }
 
 static struct vinfo_s *dummy_encp_get_current_info(void *data)
@@ -329,7 +376,7 @@ static struct vinfo_s *dummy_encp_get_current_info(void *data)
 	if (dummy_encp_index > 1)
 		return NULL;
 
-	return &dummy_encp_vinfo[dummy_encp_index];
+	return dummy_encp_infos;
 }
 
 static int dummy_encp_set_current_vmode(enum vmode_e mode, void *data)
@@ -366,11 +413,25 @@ static enum vmode_e dummy_encp_validate_vmode(char *name, unsigned int frac,
 	if (frac)
 		return VMODE_MAX;
 
-	for (i = 0; i < 2; i++) {
-		if (strcmp(dummy_encp_vinfo[i].name, name) == 0) {
-			vmode = dummy_encp_vinfo[i].mode;
-			dummy_encp_index = i;
-			break;
+	dummy_encp_infos = NULL;
+	if (dummy_venc_data && dummy_venc_data->projection_valid) {
+		for (i = 0; i < 2; i++) {
+			if (strcmp(dummy_encp_vinfo_t7[i].name, name) == 0) {
+				dummy_encp_infos = &dummy_encp_vinfo_t7[i];
+				vmode = dummy_encp_vinfo_t7[i].mode;
+				dummy_encp_index = i;
+				break;
+			}
+		}
+
+	} else {
+		for (i = 0; i < 2; i++) {
+			if (strcmp(dummy_encp_vinfo[i].name, name) == 0) {
+				dummy_encp_infos = &dummy_encp_vinfo[i];
+				vmode = dummy_encp_vinfo[i].mode;
+				dummy_encp_index = i;
+				break;
+			}
 		}
 	}
 
@@ -389,6 +450,7 @@ static int dummy_encp_disable(enum vmode_e cur_vmod, void *data)
 {
 	dummy_encp_drv->status = 0;
 	dummy_encp_drv->vout_valid = 0;
+
 	dummy_encp_index = 0xff;
 
 	vout_vcbus_write(ENCP_VIDEO_EN, 0); /* disable encp */
@@ -1132,7 +1194,7 @@ static int dummy_encp_vout_notify_callback(struct notifier_block *block,
 
 	if (dummy_encp_drv->status == 0)
 		return 0;
-	if (dummy_encp_index != 0)
+	if (dummy_encp_index == 0)
 		return 0;
 
 	switch (cmd) {
@@ -1158,7 +1220,7 @@ static int dummy_encp_vout2_notify_callback(struct notifier_block *block,
 
 	if (dummy_encp_drv->status == 0)
 		return 0;
-	if (dummy_encp_index != 0)
+	if (dummy_encp_index == 0)
 		return 0;
 
 	switch (cmd) {
@@ -1484,6 +1546,8 @@ static struct dummy_venc_data_s dummy_venc_match_data = {
 	.vid2_clk_ctrl_reg = HHI_VIID_CLK_CNTL,
 	.vid2_clk_div_reg = HHI_VIID_CLK_DIV,
 
+	.projection_valid = 0,
+
 	.clktree_probe = dummy_venc_clktree_probe,
 	.clktree_remove = dummy_venc_clktree_remove,
 	.encp_clk_gate_switch = dummy_encp_clk_gate_switch,
@@ -1498,6 +1562,8 @@ static struct dummy_venc_data_s dummy_venc_match_data_sc2 = {
 	.vid2_clk_ctrl_reg = CLKCTRL_VIID_CLK_CTRL,
 	.vid2_clk_div_reg = CLKCTRL_VIID_CLK_DIV,
 
+	.projection_valid = 0,
+
 	.clktree_probe = NULL,
 	.clktree_remove = NULL,
 	.encp_clk_gate_switch = NULL,
@@ -1511,6 +1577,8 @@ static struct dummy_venc_data_s dummy_venc_match_data_t7 = {
 	.vid_clk_div_reg = CLKCTRL_VID_CLK0_DIV,
 	.vid2_clk_ctrl_reg = CLKCTRL_VIID_CLK0_CTRL,
 	.vid2_clk_div_reg = CLKCTRL_VIID_CLK0_DIV,
+
+	.projection_valid = 1,
 
 	.clktree_probe = NULL,
 	.clktree_remove = NULL,

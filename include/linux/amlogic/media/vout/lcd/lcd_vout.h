@@ -562,6 +562,7 @@ struct aml_lcd_drv_s {
 	unsigned char probe_done;
 	unsigned char viu_sel;
 	unsigned char gamma_en_flag;
+	unsigned char projection_en;
 	unsigned char vsync_none_timer_flag;
 	char vsync_isr_name[3][15];
 	char vbyone_isr_name[10];

@@ -32,6 +32,7 @@ enum viu_mux_e {
 	VIU_MUX_ENCI,
 	VIU_MUX_ENCP,
 	VIU_MUX_MAX,
+	VIU_MUX_PROJECT,
 };
 
 enum vout_fr_adj_type_e {

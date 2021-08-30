@@ -90,6 +90,9 @@ static void vout_viu_mux_update_default(int index, unsigned int mux_sel)
 static void vout_viu_mux_update_t7(int index, unsigned int mux_sel)
 {
 	unsigned int viu_bit = 0xff, venc_idx;
+	unsigned int viu_sel;
+	unsigned int viu_value = 0;
+	unsigned int reg_value = 0;
 
 	switch (index) {
 	case 1:
@@ -105,11 +108,25 @@ static void vout_viu_mux_update_t7(int index, unsigned int mux_sel)
 		VOUTERR("%s: invalid index %d\n", __func__, index);
 		return;
 	}
+	viu_sel = mux_sel & 0xf;
 	venc_idx = (mux_sel >> 4) & 0xf;
 
 	/* viu_mux: viu0_sel: 0=venc0, 1=venc1, 2=venc2, 3=invalid */
-	if (viu_bit != 0xff)
-		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, venc_idx, viu_bit, 2);
+	if (viu_bit != 0xff) {
+		if (viu_sel == VIU_MUX_PROJECT) {
+			reg_value = vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL);
+			venc_idx = reg_value & 0xc;
+			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, venc_idx,
+					viu_bit, 2);
+			viu_value = reg_value & 0x3;
+			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, reg_value,
+					2, 2);
+			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, 1, 8, 1);
+		} else {
+			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, venc_idx,
+					viu_bit, 2);
+		}
+	}
 
 	/*VOUTPR("%s: index=%d, mux_sel=0x%x, venc_idx=%d\n",
 	 *	__func__, index, mux_sel, venc_idx);
@@ -122,6 +139,9 @@ static void vout_viu_mux_update_t7(int index, unsigned int mux_sel)
 static void vout_viu_mux_update_t3(int index, unsigned int mux_sel)
 {
 	unsigned int viu_bit = 0xff, venc_idx;
+	unsigned int viu_sel;
+	unsigned int viu_value = 0;
+	unsigned int reg_value = 0;
 
 	switch (index) {
 	case 1:
@@ -130,19 +150,36 @@ static void vout_viu_mux_update_t3(int index, unsigned int mux_sel)
 	case 2:
 		viu_bit = 2;
 		break;
+	case 3:
+		viu_bit = 4;
+		break;
 	default:
 		VOUTERR("%s: invalid index %d\n", __func__, index);
 		return;
 	}
+	viu_sel = mux_sel & 0xf;
 	venc_idx = (mux_sel >> 4) & 0xf;
 
 	/* viu_mux: viu0_sel: 0=venc0, 1=venc1, 2=venc2, 3=invalid */
-	if (viu_bit != 0xff)
-		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, venc_idx, viu_bit, 2);
+	if (viu_bit != 0xff) {
+		if (viu_sel == VIU_MUX_PROJECT) {
+			reg_value = vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL);
+			venc_idx = reg_value & 0xc;
+			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, venc_idx,
+					viu_bit, 2);
+			viu_value = reg_value & 0x3;
+			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, reg_value,
+					2, 2);
+			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, 1, 8, 1);
+		} else {
+			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, venc_idx,
+					viu_bit, 2);
+		}
+	}
 
-	/*VOUTPR("%s: index=%d, mux_sel=0x%x, venc_idx=%d\n",
-	 *	__func__, index, mux_sel, venc_idx);
-	 *VOUTPR("%s: 0x%04x=0x%08x\n",
+	/* VOUTPR("%s: index=%d, mux_sel=0x%x, venc_idx=%d\n",
+	 *       __func__, index, mux_sel, venc_idx);
+	 * VOUTPR("%s: 0x%04x=0x%08x\n",
 	 *	__func__, VPU_VIU_VENC_MUX_CTRL,
 	 *	vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL));
 	 */
