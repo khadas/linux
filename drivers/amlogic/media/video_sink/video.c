@@ -606,6 +606,14 @@ int video_property_notify(int flag)
 	return 0;
 }
 
+void get_video_axis_offset(s32 *x_offset, s32 *y_offset)
+{
+	struct disp_info_s *layer = &glayer_info[0];
+
+	*x_offset = layer->layer_left;
+	*y_offset = layer->layer_top;
+}
+
 #if defined(PTS_LOGGING)
 static ssize_t pts_pattern_enter_cnt_read_file(struct file *file,
 					       char __user *userbuf,

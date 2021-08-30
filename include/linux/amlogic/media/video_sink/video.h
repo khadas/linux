@@ -409,5 +409,5 @@ int get_vdin_add_delay_num(void);
 #endif
 u32 get_playback_delay_duration(void);
 void vdin_start_notify_vpp(struct tvin_to_vpp_info_s *tvin_info);
-
+void get_video_axis_offset(s32 *x_offset, s32 *y_offset);
 #endif /* VIDEO_H */
