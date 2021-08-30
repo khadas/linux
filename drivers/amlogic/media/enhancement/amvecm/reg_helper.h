@@ -124,7 +124,7 @@ static inline u32 get_sr0_dnlp2_offset(void)
 {
 	/* SHARP0_DNLP_00 shfit*/
 	if (cpu_after_eq_t7())
-		return 0x1300;
+		return 0x1200;
 	else if (cpu_after_eq_tm2b())
 		return 0x1200;
 
@@ -133,7 +133,7 @@ static inline u32 get_sr0_dnlp2_offset(void)
 
 static inline u32 get_sr1_dnlp2_offset(void)
 {
-	/* SHARP0_DNLP_00 shfit*/
+	/* SHARP1_DNLP_00 shfit*/
 	if (cpu_after_eq_t7())
 		return 0x1300;
 	else if (cpu_after_eq_tm2b())
