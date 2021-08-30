@@ -849,6 +849,24 @@ void dimh_int_ctr(unsigned int set_mod, unsigned char ma_en,
 	}
 }
 
+/*
+ * DI_SUB_WRARB_REQEN_SLV	0x37c7,
+ * bit0 : cont wr
+ * bit1 : mtn wr
+ * bit2 : mc info wr
+ * bit3 : mc vec wr
+ * bit4 : nr ds wr
+ */
+void dimh_set_slv_mcvec(unsigned int en)
+{
+	DIM_RDMA_WR_BITS(DI_SUB_WRARB_REQEN_SLV, en, 3, 1);
+}
+
+unsigned int dimh_get_slv_mcvec(void)
+{
+	return DIM_RDMA_RD_BITS(DI_SUB_WRARB_REQEN_SLV, 3, 1);
+}
+
 static void dimh_pre_mif_set(struct DI_SIM_MIF_s *cfg_mif,
 			     unsigned int urgent,
 			     unsigned int ddr_en);
