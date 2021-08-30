@@ -387,10 +387,8 @@ static snd_pcm_uframes_t extn_pointer(struct snd_pcm_substream *substream)
 		addr = aml_toddr_get_position(p_extn->tddr);
 
 	frames = bytes_to_frames(runtime, addr - start_addr);
-	if (frames > runtime->buffer_size) {
+	if (frames > runtime->buffer_size)
 		frames = 0;
-		pr_err("hw pointer is invalid: %s\n", __func__);
-	}
 
 	return frames;
 }
