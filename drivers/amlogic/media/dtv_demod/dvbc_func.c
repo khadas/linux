@@ -286,7 +286,8 @@ void dvbc_kill_cci_task(void)
 #endif
 
 
-int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc)
+int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc,
+		struct dvb_frontend *fe)
 {
 	int ret = 0;
 	u16 symb_rate;
@@ -327,7 +328,7 @@ int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc)
 	if (is_meson_gxtvbb_cpu() || is_meson_txl_cpu())
 		dvbc_reg_initial_old(demod);
 	else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX) && !is_meson_txhd_cpu())
-		dvbc_reg_initial(demod);
+		dvbc_reg_initial(demod, fe);
 
 	return ret;
 }

@@ -793,7 +793,7 @@ static int gxtv_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 	demod->last_lock = -1;
 
 	tuner_set_params(fe);/*aml_fe_analog_set_frontend(fe);*/
-	dvbc_set_ch(demod, &param);
+	dvbc_set_ch(demod, &param, fe);
 
 	/*0xf33 dvbc mode, 0x10f33 j.83b mode*/
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX) && !is_meson_txhd_cpu())
@@ -1845,7 +1845,7 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 		else
 			param_j83b.symb_rate = 5361;
 
-		dvbc_set_ch(demod, &param_j83b);
+		dvbc_set_ch(demod, &param_j83b, fe);
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			qam_write_reg(demod, 0x7, 0x10f33);
@@ -1939,7 +1939,7 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 				param_j83b.symb_rate = 5361;
 			else
 				param_j83b.symb_rate = 5361;
-			dvbc_set_ch(demod, &param_j83b);
+			dvbc_set_ch(demod, &param_j83b, fe);
 
 			msleep(std_lock_timeout);
 			s = amdemod_stat_islock(demod, SYS_DVBC_ANNEX_A);
@@ -1960,7 +1960,7 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 					param_j83b.symb_rate = 5361;
 				else
 					param_j83b.symb_rate = 5361;
-				dvbc_set_ch(demod, &param_j83b);
+				dvbc_set_ch(demod, &param_j83b, fe);
 			}
 		} else {
 			param_j83b.ch_freq = (c->frequency - 1250000) / 1000;
@@ -1975,7 +1975,7 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 				param_j83b.symb_rate = 5361;
 			else
 				param_j83b.symb_rate = 5361;
-			dvbc_set_ch(demod, &param_j83b);
+			dvbc_set_ch(demod, &param_j83b, fe);
 		}
 	}
 	PR_DBG("atsc_mode is %d\n", demod->atsc_mode);

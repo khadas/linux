@@ -252,7 +252,8 @@ struct demod_status_ops *dvbt_get_status_ops(void);
 
 /* dvbc */
 
-int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc);
+int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc,
+		struct dvb_frontend *fe);
 int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts,
 		struct seq_file *seq);
 int dvbc_isr_islock(void);
@@ -273,7 +274,7 @@ void dvbc_kill_cci_task(struct aml_dtvdemod *demod);
 void dvbc_reg_initial_old(struct aml_dtvdemod *demod);
 
 /*txlx*/
-void dvbc_reg_initial(struct aml_dtvdemod *demod);
+void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
 void demod_dvbc_set_qam(struct aml_dtvdemod *demod, unsigned int qam);
 void dvbc_init_reg_ext(struct aml_dtvdemod *demod);
 u32 dvbc_get_ch_sts(struct aml_dtvdemod *demod);

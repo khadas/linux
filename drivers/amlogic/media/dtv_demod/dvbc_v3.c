@@ -223,7 +223,7 @@ void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam)
 	}
 }
 
-void dvbc_reg_initial(struct aml_dtvdemod *demod)
+void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 {
 	u32 clk_freq;
 	u32 adc_freq;
@@ -263,7 +263,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod)
 	/* Sw disable demod */
 	qam_write_reg(demod, 0x7, qam_read_reg(demod, 0x7) | (1 << 0));
 
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		if (agc_mode == 1) {
 			qam_write_reg(demod, 0x25,
 				qam_read_reg(demod, 0x25) & ~(0x1 << 10));
@@ -274,6 +274,12 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod)
 				qam_read_reg(demod, 0x3d) | 0xf);
 		#endif
 		}
+
+		if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
+			qam_write_reg(demod, 0x25,
+				(qam_read_reg(demod, 0x25) & 0xFFFFFFF0) | 0xe);
+		}
+	}
 
 	/* Sw enable demod */
 	qam_write_reg(demod, 0x0, 0x0);

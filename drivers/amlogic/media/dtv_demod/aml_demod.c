@@ -213,7 +213,8 @@ static long aml_demod_ioctl(struct file *file,
 
 	case AML_DEMOD_DVBC_SET_CH:
 		pr_dbg("Ioctl DVB-C Set Channel.\n");
-		dvbc_set_ch(demod, (struct aml_demod_dvbc *)arg);
+		dvbc_set_ch(demod, (struct aml_demod_dvbc *)arg,
+			&demod->frontend);
 		break;
 
 	case AML_DEMOD_DVBC_GET_CH:
