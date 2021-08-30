@@ -133,6 +133,7 @@ static const struct bd2657_data bd2657_desc_template[] = {
 			.of_match = of_match_ptr("BUCK1"),
 			.regulators_node = of_match_ptr("regulators"),
 			.id = BD2657_BUCK0,
+			.n_voltages = BD2657_BUCK_NUM_VOLTS,
 			.ops = &bd2657_buck_ops,
 			.type = REGULATOR_VOLTAGE,
 			.linear_ranges = bd2657_buck_volts,
