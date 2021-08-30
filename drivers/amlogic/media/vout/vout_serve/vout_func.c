@@ -150,9 +150,8 @@ static inline int vout_func_check_state(int index, unsigned int state,
 					struct vout_server_s *p_server)
 {
 	if (state & ~(1 << index)) {
-		/*VOUTERR("vout%d: server %s is activated by another vout\n",
-		 *	index, p_server->name);
-		 */
+		VOUTERR("vout%d: server %s is activated by another vout\n",
+			index, p_server->name);
 		return -1;
 	}
 
@@ -386,21 +385,28 @@ enum vmode_e vout_func_validate_vmode(int index, char *name, unsigned int frac)
 	}
 	p_module->next_vout_server = NULL;
 	list_for_each_entry(p_server, &p_module->vout_server_list, list) {
+		/*pr_info("%s: start: index=%d, server_name=%s, data=%px\n",
+		 *	__func__, index, p_server->name,
+		 *	p_server->data);
+		 */
 		data = p_server->data;
 		/* check state for another vout */
 		if (p_server->op.get_state) {
 			state = p_server->op.get_state(data);
-			if (vout_func_check_state(index, state, p_server))
+			if (vout_func_check_state(index, state, p_server)) {
+			/*	pr_info("check state: %d\n", state);*/
 				continue;
+			}
 		}
 		if (p_server->op.validate_vmode) {
 			ret = p_server->op.validate_vmode(name, frac, data);
 			if (ret != VMODE_MAX) { /* valid vmode find. */
 				p_module->next_vout_server = p_server;
-				/*pr_info("%s: next: index=%d, server_name=%s, data=%px\n",
-				 *	__func__, index, p_module->next_vout_server->name,
-				 *	p_module->next_vout_server->data);
-				 */
+		/* pr_info("%s: next: index=%d, server_name=%s, data=%px\n",
+		 *	__func__, index,
+		 *	p_module->next_vout_server->name,
+		 *	p_module->next_vout_server->data);
+		 */
 				break;
 			}
 		}
@@ -654,7 +660,7 @@ int vout_func_vout_register_server(int index,
 		VOUTERR("vout%d: server name is NULL\n", index);
 		return -1;
 	}
-	/* VOUTPR("vout%d: register server: %s\n", index, mem_server->name);*/
+	VOUTPR("vout%d: register server: %s\n", index, mem_server->name);
 
 	mutex_lock(&vout_mutex);
 
