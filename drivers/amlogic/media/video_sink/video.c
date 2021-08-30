@@ -7658,6 +7658,13 @@ SET_FILTER:
 	} else {
 		vd_layer[0].force_disable = false;
 	}
+	if (cur_frame_par) {
+		if (cur_dev->aisr_enable &&
+		   cur_dev->aisr_frame_parms.aisr_enable)
+			cur_frame_par->aisr_enable = 1;
+		else
+			cur_frame_par->aisr_enable = 0;
+	}
 
 #if defined(CONFIG_AMLOGIC_MEDIA_FRC)
 	frc_input_handle(vd_layer[0].dispbuf, cur_frame_par);
