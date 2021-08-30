@@ -2542,7 +2542,6 @@
 			function = "gpio_periphs";
 			output-high;
 			bias-pull-up;
-			drive-strength = <3>;
 		};
 	};
 
@@ -2552,7 +2551,6 @@
 			function = "gpio_periphs";
 			output-high;
 			bias-pull-up;
-			drive-strength = <3>;
 		};
 	};
 
@@ -2562,7 +2560,6 @@
 			function = "gpio_periphs";
 			output-high;
 			bias-pull-up;
-			drive-strength = <3>;
 		};
 	};
 
@@ -2572,7 +2569,6 @@
 			function = "gpio_periphs";
 			output-low;
 			bias-pull-up;
-			drive-strength = <3>;
 		};
 	};
 
@@ -2582,7 +2578,6 @@
 			function = "gpio_periphs";
 			output-low;
 			bias-pull-up;
-			drive-strength = <3>;
 		};
 	};
 
@@ -2592,7 +2587,6 @@
 			function = "gpio_periphs";
 			output-low;
 			bias-pull-up;
-			drive-strength = <3>;
 		};
 	};
 };
