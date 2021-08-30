@@ -3664,6 +3664,16 @@ void dim_pre_de_process(unsigned int channel)
 			ppre->is_disable_chan2 = 1;
 		else
 			ppre->is_disable_chan2 = 0;
+		//when p mode/frist frame ,set 0 to reset the mc vec wr,
+		//second frame write back to 1,from vlsi feijun.fan for DMC bug
+
+		if (ppre->field_count_for_cont < 1 &&
+		    IS_PROG(ppre->cur_inp_type)) {
+			dimh_set_slv_mcvec(0);
+		} else {
+			if (!dimh_get_slv_mcvec())
+				dimh_set_slv_mcvec(1);
+		}
 	}
 	if (IS_ERR_OR_NULL(ppre->di_wr_buf))
 		return;

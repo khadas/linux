@@ -544,6 +544,8 @@ void dim_pulldown_info_clear_g12a(void);
 void dimh_combing_pd22_window_config(unsigned int width, unsigned int height);
 void dimh_hw_init(bool pulldown_en, bool mc_enable);
 void dimh_hw_uninit(void);
+void dimh_set_slv_mcvec(unsigned int en);
+unsigned int dimh_get_slv_mcvec(void);
 void dimh_enable_di_pre_aml(struct DI_MIF_S	*di_inp_mif,
 			    struct DI_MIF_S	*di_mem_mif,
 			    struct DI_MIF_S	*di_chan2_mif,
