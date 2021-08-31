@@ -11,6 +11,12 @@
 #include <sound/pcm.h>
 #include <sound/control.h>
 
+enum trigger_state {
+	TRIGGER_STOP = 0,
+	TRIGGER_START_ALSA_BUF,
+	TRIGGER_START_VAD_BUF
+};
+
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
 extern const struct soc_enum atv_audio_status_enum;
 

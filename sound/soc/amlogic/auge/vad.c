@@ -572,11 +572,16 @@ void vad_update_buffer(bool isvadbuf)
 	unsigned int rd_th;
 
 	if (!p_vad || !p_vad->en || !p_vad->tddr ||
-		!p_vad->tddr->in_use || !p_vad->tddr->actrl)
+	    !p_vad->tddr->in_use || !p_vad->tddr->actrl) {
+		pr_err("%s, happened error\n", __func__);
 		return;
+	}
 
-	if (p_vad->a2v_buf == isvadbuf)
+	if (p_vad->a2v_buf == isvadbuf) {
+		pr_err("%s, p_vad->a2v_buf %d, isvadbuf %d\n",
+			__func__, p_vad->a2v_buf, isvadbuf);
 		return;
+	}
 	p_vad->a2v_buf = isvadbuf;
 
 	if (isvadbuf) {	/* switch to vad buffer */
