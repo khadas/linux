@@ -1356,19 +1356,19 @@ static int smc_hw_deactive(struct smc_dev *smc)
 		unsigned long sc_reg0 = SMC_READ_REG(REG0);
 		struct smccard_hw_reg0 *sc_reg0_reg = (void *)&sc_reg0;
 
-		sc_reg0_reg->rst_level = RESET_ENABLE;
-		sc_reg0_reg->enable = 1;
-		sc_reg0_reg->start_atr = 0;
-//              sc_reg0_reg->start_atr_en = 0;
-		sc_reg0_reg->clk_en = 0;
-		SMC_WRITE_REG(REG0, sc_reg0);
-		smc_clk_enable(sc_reg0_reg->clk_en);
-
 #ifdef RST_FROM_PIO
 		_gpio_out(smc->reset_pin, RESET_ENABLE, SMC_RESET_PIN_NAME);
 		//_gpio_out(smc->reset_pin, RESET_DISABLE, SMC_RESET_PIN_NAME);
 #endif
 		usleep_range(200, 400);
+
+		sc_reg0_reg->rst_level = RESET_ENABLE;
+		sc_reg0_reg->enable = 1;
+		sc_reg0_reg->start_atr = 0;
+//		sc_reg0_reg->start_atr_en = 0;
+		sc_reg0_reg->clk_en = 0;
+		SMC_WRITE_REG(REG0, sc_reg0);
+		smc_clk_enable(sc_reg0_reg->clk_en);
 
 		if (smc->reset) {
 			smc->reset(NULL, 1);
@@ -2848,6 +2848,7 @@ static int smc_probe(struct platform_device *pdev)
 	} else {
 		clk_set_rate(aml_smartcard_clk, 4000000);
 	}
+
 	if (smc) {
 		smc->init = 1;
 		smc->pdev = pdev;
