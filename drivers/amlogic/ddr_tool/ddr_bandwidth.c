@@ -70,15 +70,10 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	}
 	if (db->ops && db->ops->get_freq)
 		freq = db->ops->get_freq(db);
-	mul  = dg->all_grant;
-	mul *= 10000ULL;
-	do_div(mul, db->bytes_per_cycle);
 	cnt  = db->clock_count;
-	do_div(mul, cnt);
-	db->cur_sample.total_usage = mul;
 	if (freq) {
 		/* calculate in KB */
-		mbw  = (u64)freq * db->bytes_per_cycle;
+		mbw  = (u64)freq * db->bytes_per_cycle * db->dmc_number;
 		mbw /= 1024;	/* theoretic max bandwidth */
 		mul  = dg->all_grant;
 		mul *= freq;
@@ -91,6 +86,9 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 			//return;
 		}
 		db->cur_sample.total_bandwidth = mul;
+		mul *= 10000ULL;
+		do_div(mul, mbw);
+		db->cur_sample.total_usage = mul;
 		db->cur_sample.tick = sched_clock();
 		for (i = 0; i < db->channels; i++) {
 			mul  = dg->channel_grant[i];
