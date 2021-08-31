@@ -8008,6 +8008,10 @@ int amvecm_matrix_process(struct vframe_s *vf,
 
 	if (vd_path == VD1_PATH) {
 		if (is_dolby_vision_on()) {
+			if (!dovi_on)
+				hdr_func(VD1_HDR, HDR_BYPASS,
+					 get_current_vinfo(),
+					 NULL, vpp_index);
 			dovi_on = true;
 			if (video_process_status[vd_path]
 			    == HDR_MODULE_BYPASS &&

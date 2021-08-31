@@ -3409,11 +3409,11 @@ static int dolby_core1_set
 		}
 	}
 
-	if (is_meson_tm2_stbmode() ||
+	if ((is_meson_tm2_stbmode() ||
 	    is_meson_g12() ||
 	    is_meson_sc2() ||
 	    is_meson_t7_stbmode() ||
-	    is_meson_s4d()) {
+	    is_meson_s4d()) && bl_enable) {
 		if (get_dv_vpu_mem_power_status(VPU_DOLBY1A) == VPU_MEM_POWER_DOWN ||
 			get_dv_mem_power_flag(VPU_DOLBY1A) ==
 			VPU_MEM_POWER_DOWN)

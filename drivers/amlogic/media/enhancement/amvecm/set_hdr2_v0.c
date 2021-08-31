@@ -2610,6 +2610,10 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	bool always_full_func = false;
 	int vpp_sel;
 
+	pr_csc(16, "hdr func: hdr module=%d, select=%x\n",
+	       module_sel,
+	       hdr_process_select);
+
 	if (disable_flush_flag)
 		return hdr_process_select;
 
