@@ -7,5 +7,6 @@
 #define __CLK_MEASURE_H__
 
 int meson_clk_measure(unsigned int id);
+int meson_clk_measure_with_precision(unsigned int id, unsigned int precision);
 
 #endif
