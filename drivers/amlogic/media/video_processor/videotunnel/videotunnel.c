@@ -929,13 +929,19 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 	cmd->cmd = data->video_cmd;
 	cmd->cmd_data = data->video_cmd_data;
 	cmd->client_id = session->pid;
+	cmd->source_crop = data->source_crop;
 
 	mutex_lock(&instance->cmd_lock);
 	kfifo_put(&instance->fifo_cmd, cmd);
 	mutex_unlock(&instance->cmd_lock);
 
-	vt_debug(VT_DEBUG_CMD, "vt [%d] send cmd:%d data:%d\n",
-		 instance->id, cmd->cmd, cmd->cmd_data);
+	vt_debug(VT_DEBUG_CMD, "vt [%d] send cmd:%d ", instance->id, cmd->cmd);
+	if (cmd->cmd == VT_VIDEO_SET_SOURCE_CROP)
+		vt_debug(VT_DEBUG_CMD, "source crop (%d %d %d %d)\n",
+			 cmd->source_crop.left, cmd->source_crop.top,
+			 cmd->source_crop.right, cmd->source_crop.bottom);
+	else
+		vt_debug(VT_DEBUG_CMD, "data:%d\n", cmd->cmd_data);
 
 	if (instance->consumer)
 		wake_up_interruptible(&instance->consumer->wait_cmd);
@@ -985,12 +991,19 @@ static int vt_recv_cmd_process(struct vt_ctrl_data *data,
 		return -EAGAIN;
 	}
 
-	vt_debug(VT_DEBUG_CMD, "vt [%d] recv cmd:%d data:%d\n",
-		 instance->id, vcmd->cmd, vcmd->cmd_data);
+	vt_debug(VT_DEBUG_CMD, "vt [%d] recv cmd:%d ", instance->id, vcmd->cmd);
+
+	if (vcmd->cmd == VT_VIDEO_SET_SOURCE_CROP)
+		vt_debug(VT_DEBUG_CMD, "source crop (%d %d %d %d)\n",
+			 vcmd->source_crop.left, vcmd->source_crop.top,
+			 vcmd->source_crop.right, vcmd->source_crop.bottom);
+	else
+		vt_debug(VT_DEBUG_CMD, "data:%d\n", vcmd->cmd_data);
 
 	data->video_cmd = vcmd->cmd;
 	data->video_cmd_data = vcmd->cmd_data;
 	data->client_id = vcmd->client_id;
+	data->source_crop = vcmd->source_crop;
 
 	if (vcmd->cmd == VT_VIDEO_SET_GAME_MODE) {
 		if (!vcmd->cmd_data)

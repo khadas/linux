@@ -44,10 +44,18 @@ enum vt_video_cmd_e {
 	VT_VIDEO_SET_STATUS,
 	VT_VIDEO_GET_STATUS,
 	VT_VIDEO_SET_GAME_MODE,
+	VT_VIDEO_SET_SOURCE_CROP,
 };
 
 struct vt_alloc_id_data {
 	int tunnel_id;
+};
+
+struct vt_krect {
+	int left;
+	int top;
+	int right;
+	int bottom;
 };
 
 struct vt_ctrl_data {
@@ -57,6 +65,7 @@ struct vt_ctrl_data {
 	enum vt_video_cmd_e video_cmd;
 	int video_cmd_data;
 	int client_id;
+	struct vt_krect source_crop;
 };
 
 /**

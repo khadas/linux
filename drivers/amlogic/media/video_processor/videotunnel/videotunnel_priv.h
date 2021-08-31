@@ -146,6 +146,7 @@ struct vt_cmd {
 	enum vt_video_cmd_e cmd;
 	int cmd_data;
 	int client_id;
+	struct vt_krect source_crop;
 };
 
 /*
