@@ -57,6 +57,15 @@
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
+
+//#define SPECIAL_FUNC_EN
+#ifdef SPECIAL_FUNC_EN
+//bit0 portA bit1 portB bit2 portC
+#define EDID_DETECT_PORT  2
+#else
+#define EDID_DETECT_PORT  7
+#endif
+
 enum chip_id_e {
 	CHIP_ID_GXTVBB,
 	CHIP_ID_TXL,
@@ -642,6 +651,7 @@ struct rx_s {
 	u8 afifo_sts;
 	u32 ecc_err;
 	u32 ecc_err_frames_cnt;
+	bool ddc_filter_en;
 #ifdef CONFIG_AMLOGIC_HDMITX
 	struct notifier_block tx_notify;
 #endif

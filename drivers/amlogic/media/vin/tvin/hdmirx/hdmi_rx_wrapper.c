@@ -252,8 +252,8 @@ void hdmirx_fsm_var_init(void)
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
 		dwc_rst_wait_cnt_max = 1;
-		clk_unstable_max = 10;
-		esd_phy_rst_max = 80;
+		clk_unstable_max = 100;
+		esd_phy_rst_max = 8;
 		pll_unlock_max = 30;
 		stable_check_lvl = 0x7cf;
 		pll_lock_max = 5;
@@ -277,8 +277,8 @@ void hdmirx_fsm_var_init(void)
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
 		dwc_rst_wait_cnt_max = 30;
-		clk_unstable_max = 10;
-		esd_phy_rst_max = 80;
+		clk_unstable_max = 100;
+		esd_phy_rst_max = 8;
 		pll_unlock_max = 30;
 		stable_check_lvl = 0x7cf;
 		pll_lock_max = 5;
@@ -301,8 +301,8 @@ void hdmirx_fsm_var_init(void)
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
 		dwc_rst_wait_cnt_max = 110;
-		clk_unstable_max = 200;
-		esd_phy_rst_max = 2;
+		clk_unstable_max = 100;
+		esd_phy_rst_max = 4;
 		pll_unlock_max = 30;
 		stable_check_lvl = 0x17df;
 		pll_lock_max = 2;
@@ -325,8 +325,8 @@ void hdmirx_fsm_var_init(void)
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
 		dwc_rst_wait_cnt_max = 30;
-		clk_unstable_max = 10;
-		esd_phy_rst_max = 80;
+		clk_unstable_max = 100;
+		esd_phy_rst_max = 8;
 		pll_unlock_max = 30;
 		stable_check_lvl = 0x7df;
 		pll_lock_max = 2;
@@ -2051,7 +2051,7 @@ void fsm_restart(void)
 	hdmirx_hw_config();
 	set_scdc_cfg(1, 0);
 	vic_check_en = false;
-	/* dvi_check_en = true; */
+	dvi_check_en = true;
 	rx.fsm_ext_state = FSM_INIT;
 	rx.clk.cable_clk = 0;
 	rx.phy.pll_rate = 0;
@@ -2626,34 +2626,40 @@ void hdmirx_open_port(enum tvin_port_e port)
 	rx.wait_no_sig_cnt = 0;
 	vic_check_en = false;
 	i2c_err_cnt = 0;
-	/* dvi_check_en = true; */
+	dvi_check_en = true;
+	rx.ddc_filter_en = false;
 	if (hdmirx_repeat_support())
 		rx.hdcp.repeat = repeat_plug;
 	else
 		rx.hdcp.repeat = 0;
-	if (pre_port != rx.port ||
+	if (is_special_func_en()) {
+		rx.state = FSM_HPD_HIGH;
+	} else if (!rx_need_support_fastswitch() &&
+		(pre_port != rx.port ||
 	    (rx_get_cur_hpd_sts() == 0) ||
 	    /* when open specific port, force to enable it */
-	    (disable_port_en && rx.port == disable_port_num)) {
+	    (disable_port_en && rx.port == disable_port_num))) {
 		rx_esm_reset(1);
 		if (rx.state > FSM_HPD_LOW)
 			rx.state = FSM_HPD_LOW;
 		wait_ddc_idle();
+		rx_i2c_init();
 		rx_set_cur_hpd(0, 0);
 		/* need reset the whole module when switch port */
 		if (need_update_edid())
 			hdmi_rx_top_edid_update();
-		hdmirx_hw_config();
+		//hdmirx_hw_config();
 	} else {
 		if (rx.state >= FSM_SIG_STABLE)
 			rx.state = FSM_SIG_STABLE;
-		else if (rx.state >= FSM_HPD_HIGH)
+		else
 			rx.state = FSM_HPD_HIGH;
 	}
 	edid_update_flag = 0;
 	rx_pkt_initial();
 	rx.fsm_ext_state = FSM_NULL;
 	sm_pause = fsmst;
+	rx.pre_state = rx.state;
 	if (rx.phy_ver >= PHY_VER_TM2)
 		rx.aml_phy.pre_int = 1;
 	/* extcon_set_state_sync(rx.rx_excton_open, EXTCON_DISP_HDMI, 1); */
@@ -2780,7 +2786,7 @@ void rx_5v_monitor(void)
 			set_fsm_state(FSM_5V_LOST);
 			rx.err_code = ERR_5V_LOST;
 			vic_check_en = false;
-			/* dvi_check_en = true; */
+			dvi_check_en = true;
 			pre_port = 0xff;
 		}
 	}
@@ -2956,9 +2962,13 @@ void rx_main_state_machine(void)
 		if (rx.cur_5v_sts == 0)
 			break;
 		hpd_wait_cnt++;
-		if (rx_get_cur_hpd_sts() == 0 &&
-		    rx_hpd_keep_low()) {
-			break;
+		if (rx_get_cur_hpd_sts() == 0) {
+			if (rx_hpd_keep_low())
+				break;
+			hdmirx_hw_config();
+		} else if ((pre_port != rx.port) &&
+			(!rx_need_support_fastswitch())) {
+			hdmirx_hw_config();
 		}
 		hpd_wait_cnt = 0;
 		clk_unstable_cnt = 0;
@@ -2976,7 +2986,7 @@ void rx_main_state_machine(void)
 	case FSM_WAIT_CLK_STABLE:
 		if (rx.cur_5v_sts == 0)
 			break;
-		if (rx.cableclk_stb_flg) {
+		if (rx.cableclk_stb_flg && !rx.ddc_filter_en) {
 			if (clk_unstable_cnt != 0) {
 				if (clk_stable_cnt < clk_stable_max) {
 					clk_stable_cnt++;
@@ -2998,7 +3008,8 @@ void rx_main_state_machine(void)
 				break;
 			}
 			clk_unstable_cnt = 0;
-			if (esd_phy_rst_cnt < esd_phy_rst_max) {
+			if (esd_phy_rst_cnt < esd_phy_rst_max &&
+				!rx.ddc_filter_en) {
 				hdmirx_phy_init();
 				rx.clk.cable_clk = 0;
 				esd_phy_rst_cnt++;
@@ -3006,6 +3017,8 @@ void rx_main_state_machine(void)
 				rx.err_code = ERR_NONE;
 				rx.state = FSM_HPD_LOW;
 				rx_i2c_err_monitor();
+				hdmi_rx_top_edid_update();
+				rx.ddc_filter_en = false;
 				esd_phy_rst_cnt = 0;
 				break;
 			}
@@ -3030,7 +3043,7 @@ void rx_main_state_machine(void)
 			pll_lock_cnt = 0;
 			pll_unlock_cnt = 0;
 			clk_chg_cnt = 0;
-			esd_phy_rst_cnt = 0;
+			//esd_phy_rst_cnt = 0;
 		}
 		break;
 	case FSM_SIG_UNSTABLE:
@@ -3131,6 +3144,7 @@ void rx_main_state_machine(void)
 				 * recognition to DVI of low probability
 				 */
 				if (rx.pre.sw_dvi && dvi_check_en &&
+					is_ddc_filter_en() &&
 				    rx.hdcp.hdcp_version == HDCP_VER_NONE) {
 					rx.state = FSM_HPD_LOW;
 					dvi_check_en = false;
@@ -3163,6 +3177,7 @@ void rx_main_state_machine(void)
 				#endif
 				sig_stable_err_cnt = 0;
 				esd_phy_rst_cnt = 0;
+				rx.ddc_filter_en = false;
 			}
 		} else {
 			sig_stable_cnt = 0;
@@ -3916,6 +3931,7 @@ void hdmirx_timer_handler(struct timer_list *t)
 			if (!sm_pause) {
 				rx_clkrate_monitor();
 				rx_afifo_monitor();
+				rx_ddc_active_monitor();
 				rx_hdcp_monitor();
 				rx_main_state_machine();
 				hdcp22_decrypt_monitor();

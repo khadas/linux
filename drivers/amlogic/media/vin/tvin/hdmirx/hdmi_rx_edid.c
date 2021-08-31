@@ -1799,6 +1799,10 @@ bool hdmi_rx_top_edid_update(void)
 
 	if (edid_index >= EDID_LIST_NUM)
 		return false;
+
+	hdmirx_wr_top(TOP_SW_RESET, 0x2);
+	udelay(1);
+	hdmirx_wr_top(TOP_SW_RESET, 0);
 	/* get edid from buffer, return buffer addr */
 	size = rx_get_edid_size(edid_index);
 

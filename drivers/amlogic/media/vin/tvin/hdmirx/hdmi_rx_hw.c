@@ -1577,7 +1577,7 @@ void set_scdc_cfg(int hpdlow, int pwrprovided)
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
 	default:
-		hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, pwrprovided);
+		//hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, pwrprovided);
 		break;
 	}
 }
@@ -1758,22 +1758,10 @@ void rx_set_suspend_edid_clk(bool en)
 	}
 }
 
-/*
- * TOP_init - hdmirx top initialization
- */
-static int TOP_init(void)
+void rx_i2c_init(void)
 {
-	int err = 0;
 	int data32 = 0;
 
-	if (rx.chip_id >= CHIP_ID_T7) {
-		rx_hdcp22_wr_top(TOP_SECURE_MODE,  1);
-		/* Filter 100ns glitch */
-		hdmirx_wr_top(TOP_AUDPLL_LOCK_FILTER,  32);
-		data32  = 0;
-		data32 |= (1 << 1);// [1:0]  sel
-		hdmirx_wr_top(TOP_PHYIF_CNTL0, data32);
-	}
 	data32 |= (0xf	<< 13); /* bit[16:13] */
 	data32 |= 0	<< 11;
 	data32 |= 0	<< 10;
@@ -1797,7 +1785,7 @@ static int TOP_init(void)
 	/* SDA filter internal clk div */
 	data32 |= 1 << 29;
 	/* SDA sampling clk div */
-	data32 |= 0x1 << 16;
+	data32 |= 1 << 16;
 	/* SCL filter internal clk div */
 	data32 |= 1 << 13;
 	/* SCL sampling clk div */
@@ -1806,7 +1794,25 @@ static int TOP_init(void)
 	hdmirx_wr_top(TOP_INFILTER_I2C1, data32);
 	hdmirx_wr_top(TOP_INFILTER_I2C2, data32);
 	hdmirx_wr_top(TOP_INFILTER_I2C3, data32);
+}
 
+/*
+ * TOP_init - hdmirx top initialization
+ */
+static int TOP_init(void)
+{
+	int err = 0;
+	int data32 = 0;
+
+	if (rx.chip_id >= CHIP_ID_T7) {
+		rx_hdcp22_wr_top(TOP_SECURE_MODE,  1);
+		/* Filter 100ns glitch */
+		hdmirx_wr_top(TOP_AUDPLL_LOCK_FILTER,  32);
+		data32  = 0;
+		data32 |= (1 << 1);// [1:0]  sel
+		hdmirx_wr_top(TOP_PHYIF_CNTL0, data32);
+	}
+	rx_i2c_init();
 	data32 = 0;
 	if (rx.chip_id >= CHIP_ID_T7) {
 		/*420to444_en*/
@@ -3102,6 +3108,36 @@ void rx_hdcp_monitor(void)
 	}
 }
 
+bool is_special_func_en(void)
+{
+	bool ret = false;
+
+	#ifdef SPECIAL_FUNC_EN
+		if (rx.port == E_PORT2)
+			ret = true;
+	#endif
+
+	return ret;
+}
+
+bool rx_need_support_fastswitch(void)
+{
+	bool ret = false;
+
+	if (rx.chip_id <= CHIP_ID_T7)
+		return ret;
+
+#ifdef SPECIAL_FUNC_EN
+	if (rx.boot_flag && rx.port == E_PORT0) {
+		if (hdmirx_rd_cor(SCDCS_TMDS_CONFIG_SCDC_IVCRX) & 2)
+			ret = true;
+		rx_pr("pc port first boot\n");
+	}
+#endif
+
+	return ret;
+}
+
 /*
  * rx_hdcp_init - hdcp1.4 init and enable
  */
@@ -3586,6 +3622,7 @@ void hdmirx_hbr2spdif(u8 val)
 	else
 		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(15), 0);
 }
+
 void hdmirx_output_en(bool en)
 {
 	if (rx.chip_id < CHIP_ID_T7)
@@ -3595,11 +3632,12 @@ void hdmirx_output_en(bool en)
 	else
 		hdmirx_wr_top(TOP_OVID_OVERRIDE0, 0x80000000);
 }
+
 void hdmirx_hw_config(void)
 {
 	rx_pr("%s port:%d\n", __func__, rx.port);
 	hdmirx_top_sw_reset();
-	//TOP_init();
+	//rx_i2c_init();
 	hdmirx_output_en(false);
 	if (rx.chip_id >= CHIP_ID_T7) {
 		cor_init();
@@ -5589,13 +5627,75 @@ void rx_i2c_err_monitor(void)
 {
 	int data32 = 0;
 
+	if (!(rx.ddc_filter_en || is_ddc_filter_en()))
+		return;
+
 	i2c_err_cnt++;
 	data32 = hdmirx_rd_top(TOP_EDID_GEN_CNTL);
-	if ((i2c_err_cnt % 2) == 0)
+	if ((i2c_err_cnt % 3) != 1)
 		data32 = ((data32 & (~0xff)) | 0x9);
 	else
 		data32 = ((data32 & (~0xff)) | 0x4f);
 	hdmirx_wr_top(TOP_EDID_GEN_CNTL,  data32);
+	if (log_level & EDID_LOG)
+		rx_pr("data32: 0x%x,\n", data32);
+}
+
+bool is_ddc_filter_en(void)
+{
+	bool ret = false;
+	int data32 = 0;
+
+	data32 = hdmirx_rd_top(TOP_EDID_GEN_CNTL);
+	if ((data32 & 0xff) > 0x10)
+		ret = true;
+
+	return ret;
+}
+
+/*
+ * FUNC: rx_ddc_active_monitor
+ * ddc active monitor
+ */
+void rx_ddc_active_monitor(void)
+{
+	u32 temp = 0;
+
+	if (rx.state != FSM_WAIT_CLK_STABLE)
+		return;
+
+	if (!((1 << rx.port) & EDID_DETECT_PORT))
+		return;
+
+	//if (rx.ddc_filter_en)
+		//return;
+
+	switch (rx.port) {
+	case E_PORT0:
+		temp = hdmirx_rd_top(TOP_EDID_GEN_STAT);
+		break;
+	case E_PORT1:
+		temp = hdmirx_rd_top(TOP_EDID_GEN_STAT_B);
+		break;
+	case E_PORT2:
+		temp = hdmirx_rd_top(TOP_EDID_GEN_STAT_C);
+		break;
+	case E_PORT3:
+		temp = hdmirx_rd_top(TOP_EDID_GEN_STAT_D);
+		break;
+	default:
+		break;
+	}
+
+	if (temp & 0xff) {
+		rx.ddc_filter_en = true;
+		if (log_level & EDID_LOG)
+			rx_pr("port: %d, edid_status: 0x%x,\n", rx.port, temp);
+	} else {
+		if ((log_level & EDID_LOG) && rx.ddc_filter_en)
+			rx_pr("port: %d, edid_status: 0x%x,\n", rx.port, temp);
+		rx.ddc_filter_en = false;
+	}
 }
 
 u32 rx_get_ecc_pkt_cnt(void)
