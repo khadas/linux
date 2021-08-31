@@ -110,6 +110,7 @@ struct loopback {
 	bool vad_buf_recovery;
 
 	void *mic_src;
+	enum trigger_state loopback_trigger_state;
 };
 
 static struct loopback *loopback_priv[2];
@@ -600,9 +601,12 @@ static int loopback_dai_prepare(struct snd_pcm_substream *ss,
 	struct toddr_fmt fmt;
 	unsigned int src;
 
-	if (vad_lb_is_running(p_loopback->id) &&
-	    pm_audio_is_suspend())
+	if (p_loopback->loopback_trigger_state == TRIGGER_START_ALSA_BUF ||
+	    p_loopback->loopback_trigger_state == TRIGGER_START_VAD_BUF) {
+		pr_err("%s, trigger state is %d\n", __func__,
+			p_loopback->loopback_trigger_state);
 		return 0;
+	}
 
 	if (p_loopback->id == 0)
 		src = LOOPBACK_A;
@@ -749,49 +753,53 @@ static int loopback_dai_trigger(struct snd_pcm_substream *ss,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (vad_lb_is_running(p_loopback->id) &&
-		    pm_audio_is_suspend()) {
-			pm_audio_set_suspend(false);
+		dev_info(ss->pcm->card->dev, "Loopback Capture enable\n");
+		if (p_loopback->loopback_trigger_state ==
+		    TRIGGER_START_VAD_BUF) {
 			/* VAD switch to alsa buffer */
 			vad_update_buffer(false);
-			audio_toddr_irq_enable(p_loopback->tddr,
-					       true);
-			break;
+			audio_toddr_irq_enable(p_loopback->tddr, true);
+		} else {
+			if (p_loopback->datain_chnum > 0)
+				loopback_mic_src_fifo_reset(p_loopback,
+							    ss->stream);
+
+			tdminlb_fifo_enable(true);
+
+			aml_toddr_enable(p_loopback->tddr, true);
+			/* loopback */
+			if (p_loopback->chipinfo)
+				lb_enable(p_loopback->id,
+					  true,
+					  p_loopback->chipinfo->chnum_en);
+			else
+				lb_enable(p_loopback->id, true, true);
+			/* tdminLB */
+			tdminlb_enable(p_loopback->datalb_src, true);
+			/* pdm */
+			if (p_loopback->datain_chnum > 0)
+				loopback_mic_src_trigger(p_loopback,
+					ss->stream, true);
 		}
-
-		dev_info(ss->pcm->card->dev, "Loopback Capture enable\n");
-
-		if (p_loopback->datain_chnum > 0)
-			loopback_mic_src_fifo_reset(p_loopback, ss->stream);
-
-		tdminlb_fifo_enable(true);
-
-		aml_toddr_enable(p_loopback->tddr, true);
-		/* loopback */
-		if (p_loopback->chipinfo)
-			lb_enable(p_loopback->id,
-				  true,
-				  p_loopback->chipinfo->chnum_en);
-		else
-			lb_enable(p_loopback->id, true, true);
-		/* tdminLB */
-		tdminlb_enable(p_loopback->datalb_src, true);
-		/* pdm */
-		if (p_loopback->datain_chnum > 0)
-			loopback_mic_src_trigger(p_loopback,
-				ss->stream, true);
+		p_loopback->loopback_trigger_state = TRIGGER_START_ALSA_BUF;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		dev_info(ss->pcm->card->dev, "Loopback Capture disable\n");
 		if (vad_lb_is_running(p_loopback->id) &&
-		    pm_audio_is_suspend()) {
+		    pm_audio_is_suspend() &&
+		    p_loopback->loopback_trigger_state ==
+			TRIGGER_START_ALSA_BUF) {
 			/* switch to VAD buffer */
 			vad_update_buffer(true);
-			audio_toddr_irq_enable(p_loopback->tddr,
-					       false);
+			audio_toddr_irq_enable(p_loopback->tddr, false);
+			p_loopback->loopback_trigger_state =
+				TRIGGER_START_VAD_BUF;
 			break;
 		}
+		if (p_loopback->loopback_trigger_state == TRIGGER_STOP)
+			break;
 
 		if (p_loopback->datain_chnum > 0)
 			loopback_mic_src_trigger(p_loopback,
@@ -807,7 +815,6 @@ static int loopback_dai_trigger(struct snd_pcm_substream *ss,
 		/* tdminLB */
 		tdminlb_fifo_enable(false);
 		tdminlb_enable(p_loopback->datalb_src, false);
-		dev_info(ss->pcm->card->dev, "Loopback Capture disable\n");
 
 		toddr_stopped =
 			aml_toddr_burst_finished(p_loopback->tddr);
@@ -815,6 +822,7 @@ static int loopback_dai_trigger(struct snd_pcm_substream *ss,
 			aml_toddr_enable(p_loopback->tddr, false);
 		else
 			pr_err("%s(), toddr may be stuck\n", __func__);
+		p_loopback->loopback_trigger_state = TRIGGER_STOP;
 		break;
 	default:
 		return -EINVAL;

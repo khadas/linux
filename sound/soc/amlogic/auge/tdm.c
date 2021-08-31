@@ -37,7 +37,7 @@
 #include "tdm_match_table.h"
 #include "effects_v2.h"
 #include "spdif.h"
-
+#include "../common/misc.h"
 #include "../common/debug.h"
 
 #define DRV_NAME "snd_tdm"
@@ -108,6 +108,7 @@ struct aml_tdm {
 	/* whether vad buffer is used, for xrun */
 	bool vad_buf_occupation;
 	bool vad_buf_recovery;
+	enum trigger_state tdm_trigger_state;
 };
 
 #define TDM_BUFFER_BYTES (512 * 1024)
@@ -1009,8 +1010,12 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		unsigned int toddr_type;
 		struct toddr_fmt fmt;
 
-		if (vad_tdm_is_running(p_tdm->id) && pm_audio_is_suspend())
+		if (p_tdm->tdm_trigger_state == TRIGGER_START_ALSA_BUF ||
+		    p_tdm->tdm_trigger_state == TRIGGER_START_VAD_BUF) {
+			pr_err("%s, trigger state is %d\n", __func__,
+				p_tdm->tdm_trigger_state);
 			return 0;
+		}
 
 		switch (bit_depth) {
 		case 8:
@@ -1055,12 +1060,11 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
-		    vad_tdm_is_running(p_tdm->id) &&
-		    pm_audio_is_suspend()) {
-			pm_audio_set_suspend(false);
+		    p_tdm->tdm_trigger_state == TRIGGER_START_VAD_BUF) {
 			/* VAD switch to alsa buffer */
 			vad_update_buffer(false);
 			audio_toddr_irq_enable(p_tdm->tddr, true);
+			p_tdm->tdm_trigger_state = TRIGGER_START_ALSA_BUF;
 			break;
 		}
 
@@ -1100,6 +1104,7 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			aml_toddr_enable(p_tdm->tddr, 1);
 			aml_tdm_enable(p_tdm->actrl,
 				substream->stream, p_tdm->id, true);
+			p_tdm->tdm_trigger_state = TRIGGER_START_ALSA_BUF;
 		}
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -1107,10 +1112,12 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
 		    vad_tdm_is_running(p_tdm->id) &&
-		    pm_audio_is_suspend()) {
+		    pm_audio_is_suspend() &&
+			p_tdm->tdm_trigger_state == TRIGGER_START_ALSA_BUF) {
 			/* switch to VAD buffer */
 			vad_update_buffer(true);
 			audio_toddr_irq_enable(p_tdm->tddr, false);
+			p_tdm->tdm_trigger_state = TRIGGER_START_VAD_BUF;
 			break;
 		}
 
@@ -1141,6 +1148,8 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 		} else {
 			bool toddr_stopped = false;
 
+			if (p_tdm->tdm_trigger_state == TRIGGER_STOP)
+				break;
 			aml_tdm_enable(p_tdm->actrl,
 				substream->stream, p_tdm->id, false);
 			dev_info(substream->pcm->card->dev,
@@ -1152,6 +1161,7 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 				aml_toddr_enable(p_tdm->tddr, false);
 			else
 				pr_err("%s(), toddr may be stuck\n", __func__);
+			p_tdm->tdm_trigger_state = TRIGGER_STOP;
 		}
 
 		break;

@@ -8,6 +8,7 @@
 
 #include <linux/clk.h>
 #include <linux/pinctrl/consumer.h>
+#include "../common/misc.h"
 
 #define DEFAULT_FS_RATIO		256
 
@@ -97,6 +98,7 @@ struct aml_pdm {
 	int pdm_gain_index;
 
 	int train_sample_count;
+	enum trigger_state pdm_trigger_state;
 };
 
 int pdm_get_train_sample_count_from_dts(void);

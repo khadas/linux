@@ -604,8 +604,12 @@ static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
 	unsigned int osr = 192, filter_mode, dclk_idx;
 	struct pdm_info info;
 
-	if (vad_pdm_is_running() && pm_audio_is_suspend())
+	if (p_pdm->pdm_trigger_state == TRIGGER_START_ALSA_BUF ||
+	    p_pdm->pdm_trigger_state == TRIGGER_START_VAD_BUF) {
+		pr_err("%s, trigger state is %d\n", __func__,
+			p_pdm->pdm_trigger_state);
 		return 0;
+	}
 
 	p_pdm->rate = runtime->rate;
 
@@ -701,38 +705,39 @@ static int aml_pdm_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		if (vad_pdm_is_running() && pm_audio_is_suspend()) {
-			pm_audio_set_suspend(false);
+		dev_info(substream->pcm->card->dev, "PDM Capture start\n");
+		if (p_pdm->pdm_trigger_state == TRIGGER_START_VAD_BUF) {
 			/* VAD switch to alsa buffer */
 			vad_update_buffer(false);
 			audio_toddr_irq_enable(p_pdm->tddr, true);
-			break;
+		} else {
+			pdm_fifo_reset();
+			aml_toddr_enable(p_pdm->tddr, 1);
+			pdm_enable(1);
 		}
-		pdm_fifo_reset();
-
-		dev_info(substream->pcm->card->dev, "PDM Capture start\n");
-		aml_toddr_enable(p_pdm->tddr, 1);
-		pdm_enable(1);
-
+		p_pdm->pdm_trigger_state = TRIGGER_START_ALSA_BUF;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		if (vad_pdm_is_running() && pm_audio_is_suspend()) {
+		dev_info(substream->pcm->card->dev, "PDM Capture stop\n");
+		if (vad_pdm_is_running() && pm_audio_is_suspend() &&
+		    p_pdm->pdm_trigger_state == TRIGGER_START_ALSA_BUF) {
 			/* switch to VAD buffer */
 			vad_update_buffer(true);
 			audio_toddr_irq_enable(p_pdm->tddr, false);
+			p_pdm->pdm_trigger_state = TRIGGER_START_VAD_BUF;
 			break;
 		}
-
+		if (p_pdm->pdm_trigger_state == TRIGGER_STOP)
+			break;
 		pdm_enable(0);
-		dev_info(substream->pcm->card->dev, "PDM Capture stop\n");
-
 		toddr_stopped = aml_toddr_burst_finished(p_pdm->tddr);
 		if (toddr_stopped)
 			aml_toddr_enable(p_pdm->tddr, false);
 		else
 			pr_err("%s(), toddr may be stuck\n", __func__);
+		p_pdm->pdm_trigger_state = TRIGGER_STOP;
 		break;
 	default:
 		return -EINVAL;
