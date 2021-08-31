@@ -2789,13 +2789,23 @@
 		#size-cells=<2>;
 		status = "okay";
 		compatible = "amlogic, aml-gdc-v2";
-		reg = <0 0xfe040000 0 0x000015c>;
-		interrupts = <GIC_SPI 59 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "amlgdc";
-		clocks = <&clkc CLKID_DEWARPA>;
-		clock-names = "clk_gate";
+		reg = <0 0xfe040000 0 0x000015c>,
+			<0 0xfe03e000 0 0x000015c>,
+			<0 0xfe03c000 0 0x000015c>;
+		interrupts = <GIC_SPI 59 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 60 IRQ_TYPE_EDGE_RISING>,
+			<GIC_SPI 61 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "amlgdc", "amlgdc1", "amlgdc2";
+		clocks = <&clkc CLKID_DEWARPA>,
+			<&clkc CLKID_DEWARPB>,
+			<&clkc CLKID_DEWARPC>;
+		clock-names = "clk_gate",
+				"clk_gate1",
+				"clk_gate2";
 		clk-rate = <800000000>;
-		power-domains = <&pwrdm PDID_P1_DEWA>;
+		power-domains = <&pwrdm PDID_P1_DEWA>,
+				<&pwrdm PDID_P1_DEWB>,
+				<&pwrdm PDID_P1_DEWC>;
 	};
 
 	mhu_fifo: mhu@0 {

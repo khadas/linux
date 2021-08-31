@@ -28,6 +28,22 @@ enum {
 	GATE
 };
 
+enum {
+	CORE,
+	AXI,
+	MUX_GATE,
+	MUX_SEL,
+	CLK_GATE,
+	CLK_NAME_NUM
+};
+
+enum {
+	CORE_0,
+	CORE_1,
+	CORE_2,
+	CORE_NUM
+};
+
 struct gdc_device_data_s {
 	int dev_type;
 	int clk_type;
@@ -35,31 +51,37 @@ struct gdc_device_data_s {
 	int ext_msb_8g;
 	int bit_width_ext; /* 8/10/12/16bit support */
 	int gamma_support; /* gamma support */
+	int core_cnt;      /* total core count */
 };
 
 struct meson_gdc_dev_t {
+	struct miscdevice misc_dev;
 	int irq;
 	int probed;
 	struct platform_device *pdev;
-	struct miscdevice misc_dev;
 	char *config_out_file;
 	int config_out_path_defined;
 	int trace_mode_enable;
 	int reg_store_mode_enable;
 	int clk_type;
 	union {
-		struct clk *clk_core;
-		struct clk *clk_gate;
+		struct clk *clk_core[CORE_NUM];
+		struct clk *clk_gate[CORE_NUM];
 	};
-	struct clk *clk_axi; /* not used for clk_gate only cases */
+	struct clk *clk_axi[CORE_NUM]; /* not used for clk_gate only cases */
 	int ext_msb_8g;
 	int bit_width_ext;
 	int gamma_support;
+	int core_cnt;
+	struct gdc_pd pd[CORE_NUM];
+	u32 is_idle[CORE_NUM]; /* indicate the core status, 0:busy 1:idle */
+	ktime_t time_stamp[CORE_NUM]; /* start time stamp */
+	struct gdc_queue_item_s *current_item[CORE_NUM];
 };
 
 struct gdc_event_s {
 	struct completion d_com;
-	struct completion process_complete;
+	struct completion process_complete[CORE_NUM];
 	/* for queue switch and create destroy queue. */
 	spinlock_t sem_lock;
 	struct semaphore cmd_in_sem;
@@ -76,6 +98,11 @@ struct gdc_manager_s {
 	int process_queue_state; //thread running flag
 	struct meson_gdc_dev_t *gdc_dev;
 	struct meson_gdc_dev_t *aml_gdc_dev;
+};
+
+struct gdc_irq_data_s {
+	u32 dev_type;
+	u32 core_id;
 };
 
 extern struct gdc_manager_s gdc_manager;
@@ -145,7 +172,7 @@ extern struct gdc_manager_s gdc_manager;
 // args: data (32-bit)
 static inline u32 gdc_id_api_read(void)
 {
-	return system_gdc_read_32(0x00L);
+	return system_gdc_read_32(0x00L, 0);
 }
 
 // ----------------------------------- //
@@ -160,7 +187,7 @@ static inline u32 gdc_id_api_read(void)
 // args: data (32-bit)
 static inline u32 gdc_id_product_read(void)
 {
-	return system_gdc_read_32(0x04L);
+	return system_gdc_read_32(0x04L, 0);
 }
 
 // ----------------------------------- //
@@ -175,7 +202,7 @@ static inline u32 gdc_id_product_read(void)
 // args: data (32-bit)
 static inline u32 gdc_id_version_read(void)
 {
-	return system_gdc_read_32(0x08L);
+	return system_gdc_read_32(0x08L, 0);
 }
 
 // ----------------------------------- //
@@ -190,7 +217,7 @@ static inline u32 gdc_id_version_read(void)
 // args: data (32-bit)
 static inline u32 gdc_id_revision_read(void)
 {
-	return system_gdc_read_32(0x0cL);
+	return system_gdc_read_32(0x0cL, 0);
 }
 
 // ----------------------------------- //
@@ -212,29 +239,31 @@ static inline u32 gdc_id_revision_read(void)
 #define GDC_CONFIG_ADDR_OFFSET (0x10)
 #define GDC_CONFIG_ADDR_MASK (0xffffffff)
 
-static inline void gdc_coef_addr_write(ulong data)
+static inline void gdc_coef_addr_write(ulong data, u32 core_id)
 {
 	gdc_log(LOG_DEBUG, "coef paddr: 0x%lx\n", data);
-	system_gdc_write_32(ISP_DWAP_TOP_COEF_CTRL0, data >> 4);
-	system_gdc_write_32(ISP_DWAP_TOP_COEF_CTRL1, AML_GDC_COEF_SIZE);
+	system_gdc_write_32(ISP_DWAP_TOP_COEF_CTRL0, data >> 4, core_id);
+	system_gdc_write_32(ISP_DWAP_TOP_COEF_CTRL1, AML_GDC_COEF_SIZE,
+			    core_id);
 }
 
-static inline void gdc_aml_cfg_addr_write(ulong data)
+static inline void gdc_aml_cfg_addr_write(ulong data, u32 core_id)
 {
-	u32 curr = system_gdc_read_32(ISP_DWAP_TOP_CMD_CTRL1);
+	u32 curr = system_gdc_read_32(ISP_DWAP_TOP_CMD_CTRL1, core_id);
 
 	gdc_log(LOG_DEBUG, " cfg paddr: 0x%lx\n", data);
-	system_gdc_write_32(ISP_DWAP_TOP_CMD_CTRL0, data >> 4);
-	system_gdc_write_32(ISP_DWAP_TOP_CMD_CTRL1, AML_GDC_CFG_STRIDE | curr);
+	system_gdc_write_32(ISP_DWAP_TOP_CMD_CTRL0, data >> 4, core_id);
+	system_gdc_write_32(ISP_DWAP_TOP_CMD_CTRL1, AML_GDC_CFG_STRIDE | curr,
+			    core_id);
 }
 
-static inline void gdc_mesh_addr_write(ulong data)
+static inline void gdc_mesh_addr_write(ulong data, u32 core_id)
 {
 	gdc_log(LOG_DEBUG, "mesh paddr: 0x%lx\n", data);
-	system_gdc_write_32(ISP_DWAP_TOP_MESH_CTRL0, data >> 4);
+	system_gdc_write_32(ISP_DWAP_TOP_MESH_CTRL0, data >> 4, core_id);
 }
 
-static inline void gdc_bit_width_write(u32 format)
+static inline void gdc_bit_width_write(u32 format, u32 core_id)
 {
 	u32 curr = 0;
 	u32 bitw = 0;
@@ -258,20 +287,21 @@ static inline void gdc_bit_width_write(u32 format)
 	}
 	gdc_log(LOG_DEBUG, "bit width:%d\n", bitw);
 
-	curr = system_gdc_read_32(ISP_DWAP_TOP_CMD_CTRL1);
+	curr = system_gdc_read_32(ISP_DWAP_TOP_CMD_CTRL1, core_id);
 	system_gdc_write_32(ISP_DWAP_TOP_CMD_CTRL1,
-			    (curr & 0x3fffffff) | (bitw << 30));
+			    (curr & 0x3fffffff) | (bitw << 30), core_id);
 
-	curr = system_gdc_read_32(ISP_DWAP_GAMMA_CTRL);
+	curr = system_gdc_read_32(ISP_DWAP_GAMMA_CTRL, core_id);
 	system_gdc_write_32(ISP_DWAP_GAMMA_CTRL,
-			    (curr & 0xfffffff3) | (bitw << 2));
+			    (curr & 0xfffffff3) | (bitw << 2), core_id);
 }
 
 // args: data (32-bit)
-static inline void gdc_config_addr_write(u32 msb, u32 data, u32 dev_type)
+static inline void gdc_config_addr_write(u32 msb, u32 data, u32 dev_type,
+					 u32 core_id)
 {
 	if (dev_type == ARM_GDC) {
-		system_gdc_write_32(0x10L, data);
+		system_gdc_write_32(0x10L, data, core_id);
 	} else {
 		ulong fw_addr = ((u64)msb << 32) + data;
 		struct page *page = phys_to_page(fw_addr);
@@ -282,9 +312,10 @@ static inline void gdc_config_addr_write(u32 msb, u32 data, u32 dev_type)
 
 		fw_addr += fw_offset;
 
-		gdc_coef_addr_write(fw_addr);
-		gdc_mesh_addr_write(fw_addr + coef_size);
-		gdc_aml_cfg_addr_write(fw_addr + coef_size + mesh_size);
+		gdc_coef_addr_write(fw_addr, core_id);
+		gdc_mesh_addr_write(fw_addr + coef_size, core_id);
+		gdc_aml_cfg_addr_write(fw_addr + coef_size + mesh_size,
+				       core_id);
 
 		kunmap(page);
 
@@ -299,7 +330,7 @@ static inline void gdc_config_addr_write(u32 msb, u32 data, u32 dev_type)
 
 static inline u32 gdc_config_addr_read(void)
 {
-	return system_gdc_read_32(0x10L);
+	return system_gdc_read_32(0x10L, 0);
 }
 
 // ----------------------------------- //
@@ -316,15 +347,15 @@ static inline u32 gdc_config_addr_read(void)
 #define GDC_CONFIG_SIZE_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_config_size_write(u32 data, u32 dev_type)
+static inline void gdc_config_size_write(u32 data, u32 dev_type, u32 core_id)
 {
 	if (dev_type == ARM_GDC)
-		system_gdc_write_32(0x14L, data);
+		system_gdc_write_32(0x14L, data, core_id);
 }
 
 static inline u32 gdc_config_size_read(void)
 {
-	return system_gdc_read_32(0x14L);
+	return system_gdc_read_32(0x14L, 0);
 }
 
 // ----------------------------------- //
@@ -341,23 +372,25 @@ static inline u32 gdc_config_size_read(void)
 #define GDC_DATAIN_WIDTH_MASK (0xffff)
 
 // args: data (16-bit)
-static inline void gdc_datain_width_write(u16 data, u32 dev_type)
+static inline void gdc_datain_width_write(u16 data, u32 dev_type, u32 core_id)
 {
 	u32 curr;
 
 	if (dev_type == ARM_GDC) {
-		curr = system_gdc_read_32(0x20L);
-		system_gdc_write_32(0x20L, ((curr & 0xffff0000) | data));
+		curr = system_gdc_read_32(0x20L, core_id);
+		system_gdc_write_32(0x20L, ((curr & 0xffff0000) | data),
+				    core_id);
 	} else {
-		curr = system_gdc_read_32(ISP_DWAP_TOP_SRC_FSIZE);
+		curr = system_gdc_read_32(ISP_DWAP_TOP_SRC_FSIZE, core_id);
 		system_gdc_write_32(ISP_DWAP_TOP_SRC_FSIZE,
-				    ((curr & 0x0000ffff) | (data << 16)));
+				    ((curr & 0x0000ffff) | (data << 16)),
+				    core_id);
 	}
 }
 
 static inline uint16_t gdc_datain_width_read(void)
 {
-	return (uint16_t)((system_gdc_read_32(0x20L) & 0xffff) >> 0);
+	return (uint16_t)((system_gdc_read_32(0x20L, 0) & 0xffff) >> 0);
 }
 
 // ----------------------------------- //
@@ -374,23 +407,25 @@ static inline uint16_t gdc_datain_width_read(void)
 #define GDC_DATAIN_HEIGHT_MASK (0xffff)
 
 // args: data (16-bit)
-static inline void gdc_datain_height_write(u16 data, u32 dev_type)
+static inline void gdc_datain_height_write(u16 data, u32 dev_type, u32 core_id)
 {
 	u32 curr = 0;
 
 	if (dev_type == ARM_GDC) {
-		curr = system_gdc_read_32(0x24L);
-		system_gdc_write_32(0x24L, ((curr & 0xffff0000) | data));
+		curr = system_gdc_read_32(0x24L, core_id);
+		system_gdc_write_32(0x24L, ((curr & 0xffff0000) | data),
+				    core_id);
 	} else {
-		curr = system_gdc_read_32(ISP_DWAP_TOP_SRC_FSIZE);
+		curr = system_gdc_read_32(ISP_DWAP_TOP_SRC_FSIZE, core_id);
 		system_gdc_write_32(ISP_DWAP_TOP_SRC_FSIZE,
-				    ((curr & 0xffff0000) | data));
+				    ((curr & 0xffff0000) | data),
+				    core_id);
 	}
 }
 
 static inline uint16_t gdc_datain_height_read(void)
 {
-	return (uint16_t)((system_gdc_read_32(0x24L) & 0xffff) >> 0);
+	return (uint16_t)((system_gdc_read_32(0x24L, 0) & 0xffff) >> 0);
 }
 
 // ----------------------------------- //
@@ -409,18 +444,19 @@ static inline uint16_t gdc_datain_height_read(void)
 #define GDC_DATA1IN_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data1in_addr_write(u32 msb, u32 data, u32 dev_type)
+static inline void gdc_data1in_addr_write(u32 msb, u32 data, u32 dev_type,
+					  u32 core_id)
 {
 	if (dev_type == ARM_GDC)
-		system_gdc_write_32(0x28L, data);
+		system_gdc_write_32(0x28L, data, core_id);
 	else
 		system_gdc_write_32(ISP_DWAP_TOP_SRC_Y_CTRL0,
-				    (((u64)msb << 32) + data) >> 4);
+				    (((u64)msb << 32) + data) >> 4, core_id);
 }
 
 static inline u32 gdc_data1in_addr_read(void)
 {
-	return system_gdc_read_32(0x28L);
+	return system_gdc_read_32(0x28L, 0);
 }
 
 // ----------------------------------- //
@@ -439,19 +475,20 @@ static inline u32 gdc_data1in_addr_read(void)
 #define GDC_DATA1IN_LINE_OFFSET_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data1in_line_offset_write(u32 data, u32 dev_type)
+static inline void gdc_data1in_line_offset_write(u32 data, u32 dev_type,
+						 u32 core_id)
 {
 	if (dev_type == ARM_GDC) {
-		system_gdc_write_32(0x2cL, data);
+		system_gdc_write_32(0x2cL, data, core_id);
 	} else {
 		data = DEWARP_STRIDE_ALIGN(data);
-		system_gdc_write_32(ISP_DWAP_TOP_SRC_Y_CTRL1, data);
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_Y_CTRL1, data, core_id);
 	}
 }
 
 static inline u32 gdc_data1in_line_offset_read(void)
 {
-	return system_gdc_read_32(0x2cL);
+	return system_gdc_read_32(0x2cL, 0);
 }
 
 // ----------------------------------- //
@@ -470,18 +507,19 @@ static inline u32 gdc_data1in_line_offset_read(void)
 #define GDC_DATA2IN_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data2in_addr_write(u32 msb, u32 data, u32 dev_type)
+static inline void gdc_data2in_addr_write(u32 msb, u32 data, u32 dev_type,
+					  u32 core_id)
 {
 	if (dev_type == ARM_GDC)
-		system_gdc_write_32(0x30L, data);
+		system_gdc_write_32(0x30L, data, core_id);
 	else
 		system_gdc_write_32(ISP_DWAP_TOP_SRC_U_CTRL0,
-				    (((u64)msb << 32) + data) >> 4);
+				    (((u64)msb << 32) + data) >> 4, core_id);
 }
 
 static inline u32 gdc_data2in_addr_read(void)
 {
-	return system_gdc_read_32(0x30L);
+	return system_gdc_read_32(0x30L, 0);
 }
 
 // ----------------------------------- //
@@ -500,19 +538,20 @@ static inline u32 gdc_data2in_addr_read(void)
 #define GDC_DATA2IN_LINE_OFFSET_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data2in_line_offset_write(u32 data, u32 dev_type)
+static inline void gdc_data2in_line_offset_write(u32 data, u32 dev_type,
+						 u32 core_id)
 {
 	if (dev_type == ARM_GDC) {
-		system_gdc_write_32(0x34L, data);
+		system_gdc_write_32(0x34L, data, core_id);
 	} else {
 		data = DEWARP_STRIDE_ALIGN(data);
-		system_gdc_write_32(ISP_DWAP_TOP_SRC_U_CTRL1, data);
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_U_CTRL1, data, core_id);
 	}
 }
 
 static inline u32 gdc_data2in_line_offset_read(void)
 {
-	return system_gdc_read_32(0x34L);
+	return system_gdc_read_32(0x34L, 0);
 }
 
 // ----------------------------------- //
@@ -531,18 +570,19 @@ static inline u32 gdc_data2in_line_offset_read(void)
 #define GDC_DATA3IN_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data3in_addr_write(u32 msb, u32 data, u32 dev_type)
+static inline void gdc_data3in_addr_write(u32 msb, u32 data, u32 dev_type,
+					  u32 core_id)
 {
 	if (dev_type == ARM_GDC)
-		system_gdc_write_32(0x38L, data);
+		system_gdc_write_32(0x38L, data, core_id);
 	else
 		system_gdc_write_32(ISP_DWAP_TOP_SRC_V_CTRL0,
-				    (((u64)msb << 32) + data) >> 4);
+				    (((u64)msb << 32) + data) >> 4, core_id);
 }
 
 static inline u32 gdc_data3in_addr_read(void)
 {
-	return system_gdc_read_32(0x38L);
+	return system_gdc_read_32(0x38L, 0);
 }
 
 // ----------------------------------- //
@@ -562,19 +602,20 @@ static inline u32 gdc_data3in_addr_read(void)
 #define GDC_DATA3IN_LINE_OFFSET_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data3in_line_offset_write(u32 data, u32 dev_type)
+static inline void gdc_data3in_line_offset_write(u32 data, u32 dev_type,
+						 u32 core_id)
 {
 	if (dev_type == ARM_GDC) {
-		system_gdc_write_32(0x3cL, data);
+		system_gdc_write_32(0x3cL, data, core_id);
 	} else {
 		data = DEWARP_STRIDE_ALIGN(data);
-		system_gdc_write_32(ISP_DWAP_TOP_SRC_V_CTRL1, data);
+		system_gdc_write_32(ISP_DWAP_TOP_SRC_V_CTRL1, data, core_id);
 	}
 }
 
 static inline u32 gdc_data3in_line_offset_read(void)
 {
-	return system_gdc_read_32(0x3cL);
+	return system_gdc_read_32(0x3cL, 0);
 }
 
 // ----------------------------------- //
@@ -591,23 +632,25 @@ static inline u32 gdc_data3in_line_offset_read(void)
 #define GDC_DATAOUT_WIDTH_MASK (0xffff)
 
 // args: data (16-bit)
-static inline void gdc_dataout_width_write(u16 data, u32 dev_type)
+static inline void gdc_dataout_width_write(u16 data, u32 dev_type, u32 core_id)
 {
 	u32 curr;
 
 	if (dev_type == ARM_GDC) {
-		curr = system_gdc_read_32(0x40L);
-		system_gdc_write_32(0x40L, ((curr & 0xffff0000) | data));
+		curr = system_gdc_read_32(0x40L, core_id);
+		system_gdc_write_32(0x40L, ((curr & 0xffff0000) | data),
+				    core_id);
 	} else {
-		curr = system_gdc_read_32(ISP_DWAP_TOP_DST_FSIZE);
+		curr = system_gdc_read_32(ISP_DWAP_TOP_DST_FSIZE, core_id);
 		system_gdc_write_32(ISP_DWAP_TOP_DST_FSIZE,
-				    ((curr & 0x0000ffff) | (data << 16)));
+				    ((curr & 0x0000ffff) | (data << 16)),
+				    core_id);
 	}
 }
 
 static inline uint16_t gdc_dataout_width_read(void)
 {
-	return (uint16_t)((system_gdc_read_32(0x40L) & 0xffff) >> 0);
+	return (uint16_t)((system_gdc_read_32(0x40L, 0) & 0xffff) >> 0);
 }
 
 // ----------------------------------- //
@@ -624,23 +667,24 @@ static inline uint16_t gdc_dataout_width_read(void)
 #define GDC_DATAOUT_HEIGHT_MASK (0xffff)
 
 // args: data (16-bit)
-static inline void gdc_dataout_height_write(u16 data, u32 dev_type)
+static inline void gdc_dataout_height_write(u16 data, u32 dev_type, u32 core_id)
 {
 	u32 curr;
 
 	if (dev_type == ARM_GDC) {
-		curr = system_gdc_read_32(0x44L);
-		system_gdc_write_32(0x44L, ((curr & 0xffff0000) | data));
+		curr = system_gdc_read_32(0x44L, core_id);
+		system_gdc_write_32(0x44L, ((curr & 0xffff0000) | data),
+				    core_id);
 	} else {
-		curr = system_gdc_read_32(ISP_DWAP_TOP_DST_FSIZE);
+		curr = system_gdc_read_32(ISP_DWAP_TOP_DST_FSIZE, core_id);
 		system_gdc_write_32(ISP_DWAP_TOP_DST_FSIZE,
-				    ((curr & 0xffff0000) | data));
+				    ((curr & 0xffff0000) | data), core_id);
 	}
 }
 
 static inline uint16_t gdc_dataout_height_read(void)
 {
-	return (uint16_t)((system_gdc_read_32(0x44L) & 0xffff) >> 0);
+	return (uint16_t)((system_gdc_read_32(0x44L, 0) & 0xffff) >> 0);
 }
 
 // ----------------------------------- //
@@ -659,18 +703,19 @@ static inline uint16_t gdc_dataout_height_read(void)
 #define GDC_DATA1OUT_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data1out_addr_write(u32 msb, u32 data, u32 dev_type)
+static inline void gdc_data1out_addr_write(u32 msb, u32 data, u32 dev_type,
+					   u32 core_id)
 {
 	if (dev_type == ARM_GDC)
-		system_gdc_write_32(0x48L, data);
+		system_gdc_write_32(0x48L, data, core_id);
 	else
 		system_gdc_write_32(ISP_DWAP_TOP_DST_Y_CTRL0,
-				    (((u64)msb << 32) + data) >> 4);
+				    (((u64)msb << 32) + data) >> 4, core_id);
 }
 
 static inline u32 gdc_data1out_addr_read(void)
 {
-	return system_gdc_read_32(0x48L);
+	return system_gdc_read_32(0x48L, 0);
 }
 
 // ----------------------------------- //
@@ -689,19 +734,20 @@ static inline u32 gdc_data1out_addr_read(void)
 #define GDC_DATA1OUT_LINE_OFFSET_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data1out_line_offset_write(u32 data, u32 dev_type)
+static inline void gdc_data1out_line_offset_write(u32 data, u32 dev_type,
+						  u32 core_id)
 {
 	if (dev_type == ARM_GDC) {
-		system_gdc_write_32(0x4cL, data);
+		system_gdc_write_32(0x4cL, data, core_id);
 	} else {
 		data = DEWARP_STRIDE_ALIGN(data);
-		system_gdc_write_32(ISP_DWAP_TOP_DST_Y_CTRL1, data);
+		system_gdc_write_32(ISP_DWAP_TOP_DST_Y_CTRL1, data, core_id);
 	}
 }
 
 static inline u32 gdc_data1out_line_offset_read(void)
 {
-	return system_gdc_read_32(0x4cL);
+	return system_gdc_read_32(0x4cL, 0);
 }
 
 // ----------------------------------- //
@@ -719,18 +765,19 @@ static inline u32 gdc_data1out_line_offset_read(void)
 #define GDC_DATA2OUT_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data2out_addr_write(u32 msb, u32 data, u32 dev_type)
+static inline void gdc_data2out_addr_write(u32 msb, u32 data, u32 dev_type,
+					   u32 core_id)
 {
 	if (dev_type == ARM_GDC)
-		system_gdc_write_32(0x50L, data);
+		system_gdc_write_32(0x50L, data, core_id);
 	else
 		system_gdc_write_32(ISP_DWAP_TOP_DST_U_CTRL0,
-				    (((u64)msb << 32) + data) >> 4);
+				    (((u64)msb << 32) + data) >> 4, core_id);
 }
 
 static inline u32 gdc_data2out_addr_read(void)
 {
-	return system_gdc_read_32(0x50L);
+	return system_gdc_read_32(0x50L, 0);
 }
 
 // ----------------------------------- //
@@ -749,19 +796,20 @@ static inline u32 gdc_data2out_addr_read(void)
 #define GDC_DATA2OUT_LINE_OFFSET_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data2out_line_offset_write(u32 data, u32 dev_type)
+static inline void gdc_data2out_line_offset_write(u32 data, u32 dev_type,
+						  u32 core_id)
 {
 	if (dev_type == ARM_GDC) {
-		system_gdc_write_32(0x54L, data);
+		system_gdc_write_32(0x54L, data, core_id);
 	} else {
 		data = DEWARP_STRIDE_ALIGN(data);
-		system_gdc_write_32(ISP_DWAP_TOP_DST_U_CTRL1, data);
+		system_gdc_write_32(ISP_DWAP_TOP_DST_U_CTRL1, data, core_id);
 	}
 }
 
 static inline u32 gdc_data2out_line_offset_read(void)
 {
-	return system_gdc_read_32(0x54L);
+	return system_gdc_read_32(0x54L, 0);
 }
 
 // ----------------------------------- //
@@ -779,18 +827,19 @@ static inline u32 gdc_data2out_line_offset_read(void)
 #define GDC_DATA3OUT_ADDR_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data3out_addr_write(u32 msb, u32 data, u32 dev_type)
+static inline void gdc_data3out_addr_write(u32 msb, u32 data, u32 dev_type,
+					   u32 core_id)
 {
 	if (dev_type == ARM_GDC)
-		system_gdc_write_32(0x58L, data);
+		system_gdc_write_32(0x58L, data, core_id);
 	else
 		system_gdc_write_32(ISP_DWAP_TOP_DST_V_CTRL0,
-				    (((u64)msb << 32) + data) >> 4);
+				    (((u64)msb << 32) + data) >> 4, core_id);
 }
 
 static inline u32 gdc_data3out_addr_read(void)
 {
-	return system_gdc_read_32(0x58L);
+	return system_gdc_read_32(0x58L, 0);
 }
 
 // ----------------------------------- //
@@ -809,19 +858,20 @@ static inline u32 gdc_data3out_addr_read(void)
 #define GDC_DATA3OUT_LINE_OFFSET_MASK (0xffffffff)
 
 // args: data (32-bit)
-static inline void gdc_data3out_line_offset_write(u32 data, u32 dev_type)
+static inline void gdc_data3out_line_offset_write(u32 data, u32 dev_type,
+						  u32 core_id)
 {
 	if (dev_type == ARM_GDC) {
-		system_gdc_write_32(0x5cL, data);
+		system_gdc_write_32(0x5cL, data, core_id);
 	} else {
 		data = DEWARP_STRIDE_ALIGN(data);
-		system_gdc_write_32(ISP_DWAP_TOP_DST_V_CTRL1, data);
+		system_gdc_write_32(ISP_DWAP_TOP_DST_V_CTRL1, data, core_id);
 	}
 }
 
 static inline u32 gdc_data3out_line_offset_read(void)
 {
-	return system_gdc_read_32(0x5cL);
+	return system_gdc_read_32(0x5cL, 0);
 }
 
 // ----------------------------------- //
@@ -840,7 +890,7 @@ static inline u32 gdc_data3out_line_offset_read(void)
 // args: data (32-bit)
 static inline u32 gdc_status_read(void)
 {
-	return system_gdc_read_32(0x60L);
+	return system_gdc_read_32(0x60L, 0);
 }
 
 // ----------------------------------- //
@@ -860,14 +910,15 @@ static inline u32 gdc_status_read(void)
 // args: data (1-bit)
 static inline void gdc_busy_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x60L);
+	u32 curr = system_gdc_read_32(0x60L, 0);
 
-	system_gdc_write_32(0x60L, ((data & 0x1) << 0) | (curr & 0xfffffffe));
+	system_gdc_write_32(0x60L, ((data & 0x1) << 0) | (curr & 0xfffffffe),
+			    0);
 }
 
 static inline uint8_t gdc_busy_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x60L) & 0x1) >> 0);
+	return (uint8_t)((system_gdc_read_32(0x60L, 0) & 0x1) >> 0);
 }
 
 // ----------------------------------- //
@@ -886,15 +937,15 @@ static inline uint8_t gdc_busy_read(void)
 // args: data (1-bit)
 static inline void gdc_error_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x60L);
+	u32 curr = system_gdc_read_32(0x60L, 0);
 	u32 val = ((data & 0x1) << 1) | (curr & 0xfffffffd);
 
-	system_gdc_write_32(0x60L, val);
+	system_gdc_write_32(0x60L, val, 0);
 }
 
 static inline uint8_t gdc_error_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x60L) & 0x2) >> 1);
+	return (uint8_t)((system_gdc_read_32(0x60L, 0) & 0x2) >> 1);
 }
 
 // ----------------------------------- //
@@ -909,15 +960,15 @@ static inline uint8_t gdc_error_read(void)
 // args: data (6-bit)
 static inline void gdc_reserved_for_future_use_1_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x60L);
+	u32 curr = system_gdc_read_32(0x60L, 0);
 	u32 val = ((data & 0x3f) << 2) | (curr & 0xffffff03);
 
-	system_gdc_write_32(0x60L, val);
+	system_gdc_write_32(0x60L, val, 0);
 }
 
 static inline uint8_t gdc_reserved_for_future_use_1_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x60L) & 0xfc) >> 2);
+	return (uint8_t)((system_gdc_read_32(0x60L, 0) & 0xfc) >> 2);
 }
 
 // ----------------------------------- //
@@ -936,15 +987,15 @@ static inline uint8_t gdc_reserved_for_future_use_1_read(void)
 // args: data (1-bit)
 static inline void gdc_configuration_error_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x60L);
+	u32 curr = system_gdc_read_32(0x60L, 0);
 	u32 val =  ((data & 0x1) << 8) | (curr & 0xfffffeff);
 
-	system_gdc_write_32(0x60L, val);
+	system_gdc_write_32(0x60L, val, 0);
 }
 
 static inline uint8_t gdc_configuration_error_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x60L) & 0x100) >> 8);
+	return (uint8_t)((system_gdc_read_32(0x60L, 0) & 0x100) >> 8);
 }
 
 // ----------------------------------- //
@@ -963,15 +1014,15 @@ static inline uint8_t gdc_configuration_error_read(void)
 // args: data (1-bit)
 static inline void gdc_user_abort_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x60L);
+	u32 curr = system_gdc_read_32(0x60L, 0);
 	u32 val = ((data & 0x1) << 9) | (curr & 0xfffffdff);
 
-	system_gdc_write_32(0x60L, val);
+	system_gdc_write_32(0x60L, val, 0);
 }
 
 static inline uint8_t gdc_user_abort_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x60L) & 0x200) >> 9);
+	return (uint8_t)((system_gdc_read_32(0x60L, 0) & 0x200) >> 9);
 }
 
 // ----------------------------------- //
@@ -990,15 +1041,15 @@ static inline uint8_t gdc_user_abort_read(void)
 // args: data (1-bit)
 static inline void gdc_axi_reader_error_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x60L);
+	u32 curr = system_gdc_read_32(0x60L, 0);
 	u32 val = ((data & 0x1) << 10) | (curr & 0xfffffbff);
 
-	system_gdc_write_32(0x60L, val);
+	system_gdc_write_32(0x60L, val, 0);
 }
 
 static inline uint8_t gdc_axi_reader_error_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x60L) & 0x400) >> 10);
+	return (uint8_t)((system_gdc_read_32(0x60L, 0) & 0x400) >> 10);
 }
 
 // ----------------------------------- //
@@ -1017,15 +1068,15 @@ static inline uint8_t gdc_axi_reader_error_read(void)
 // args: data (1-bit)
 static inline void gdc_axi_writer_error_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x60L);
+	u32 curr = system_gdc_read_32(0x60L, 0);
 	u32 val = ((data & 0x1) << 11) | (curr & 0xfffff7ff);
 
-	system_gdc_write_32(0x60L, val);
+	system_gdc_write_32(0x60L, val, 0);
 }
 
 static inline uint8_t gdc_axi_writer_error_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x60L) & 0x800) >> 11);
+	return (uint8_t)((system_gdc_read_32(0x60L, 0) & 0x800) >> 11);
 }
 
 // ----------------------------------- //
@@ -1044,15 +1095,15 @@ static inline uint8_t gdc_axi_writer_error_read(void)
 // args: data (1-bit)
 static inline void gdc_unaligned_access_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x60L);
+	u32 curr = system_gdc_read_32(0x60L, 0);
 	u32 val = ((data & 0x1) << 12) | (curr & 0xffffefff);
 
-	system_gdc_write_32(0x60L, val);
+	system_gdc_write_32(0x60L, val, 0);
 }
 
 static inline uint8_t gdc_unaligned_access_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x60L) & 0x1000) >> 12);
+	return (uint8_t)((system_gdc_read_32(0x60L, 0) & 0x1000) >> 12);
 }
 
 // ----------------------------------- //
@@ -1074,15 +1125,15 @@ static inline uint8_t gdc_unaligned_access_read(void)
 // args: data (1-bit)
 static inline void gdc_incompatible_configuration_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x60L);
+	u32 curr = system_gdc_read_32(0x60L, 0);
 	u32 val = ((data & 0x1) << 13) | (curr & 0xffffdfff);
 
-	system_gdc_write_32(0x60L, val);
+	system_gdc_write_32(0x60L, val, 0);
 }
 
 static inline uint8_t gdc_incompatible_configuration_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x60L) & 0x2000) >> 13);
+	return (uint8_t)((system_gdc_read_32(0x60L, 0) & 0x2000) >> 13);
 }
 
 // ----------------------------------- //
@@ -1097,15 +1148,15 @@ static inline uint8_t gdc_incompatible_configuration_read(void)
 // args: data (18-bit)
 static inline void gdc_reserved_for_future_use_2_write(u32 data)
 {
-	u32 curr = system_gdc_read_32(0x60L);
+	u32 curr = system_gdc_read_32(0x60L, 0);
 	u32 val =  ((data & 0x3ffff) << 14) | (curr & 0x3fff);
 
-	system_gdc_write_32(0x60L, val);
+	system_gdc_write_32(0x60L, val, 0);
 }
 
 static inline u32 gdc_reserved_for_future_use_2_read(void)
 {
-	return (u32)((system_gdc_read_32(0x60L) & 0xffffc000) >> 14);
+	return (u32)((system_gdc_read_32(0x60L, 0) & 0xffffc000) >> 14);
 }
 
 // ----------------------------------- //
@@ -1120,12 +1171,12 @@ static inline u32 gdc_reserved_for_future_use_2_read(void)
 // args: data (32-bit)
 static inline void gdc_config_write(u32 data)
 {
-	system_gdc_write_32(0x64L, data);
+	system_gdc_write_32(0x64L, data, 0);
 }
 
 static inline u32 gdc_config_read(void)
 {
-	return system_gdc_read_32(0x64L);
+	return system_gdc_read_32(0x64L, 0);
 }
 
 // ----------------------------------- //
@@ -1144,53 +1195,53 @@ static inline u32 gdc_config_read(void)
 #define GDC_START_FLAG_MASK (0x1)
 
 // args: data (1-bit)
-static inline void gdc_start_flag_write(u8 data, u32 dev_type)
+static inline void gdc_start_flag_write(u8 data, u32 dev_type, u32 core_id)
 {
 	if (dev_type == ARM_GDC) {
-		u32 curr = system_gdc_read_32(0x64L);
+		u32 curr = system_gdc_read_32(0x64L, core_id);
 		u32 val = ((data & 0x1) << 0) | (curr & 0xfffffffe);
 
-		system_gdc_write_32(0x64L, val);
+		system_gdc_write_32(0x64L, val, core_id);
 	} else {
 		if (data) {
 			/* secure mem access */
-			u32 sec_bit = system_gdc_read_32(ISP_DWAP_TOP_CTRL0) &
-				      (1 << 5);
+			u32 sec_bit = system_gdc_read_32(ISP_DWAP_TOP_CTRL0,
+							 core_id) & (1 << 5);
 			u32 val = 0;
 
 			val = sec_bit |
 			      1 << 30 | /* reg_sw_rst */
 			      0 << 16 | /* reg_stdly_num */
 			      1 << 2  ; /* reg_hs_sel */
-			system_gdc_write_32(ISP_DWAP_TOP_CTRL0, val);
+			system_gdc_write_32(ISP_DWAP_TOP_CTRL0, val, core_id);
 
 			val = sec_bit | 1 << 31 | 1 << 2;  /* reg_frm_rst */
-			system_gdc_write_32(ISP_DWAP_TOP_CTRL0, val);
+			system_gdc_write_32(ISP_DWAP_TOP_CTRL0, val, core_id);
 		}
 	}
 }
 
-static inline void gdc_secure_set(u8 data, u32 dev_type)
+static inline void gdc_secure_set(u8 data, u32 dev_type, u32 core_id)
 {
 	if (dev_type == ARM_GDC) {
 		#ifdef CONFIG_AMLOGIC_TEE
 		tee_config_device_state(DMC_DEV_ID_GDC, data);
 		#endif
 	} else {
-		u32 val = system_gdc_read_32(ISP_DWAP_TOP_CTRL0);
+		u32 val = system_gdc_read_32(ISP_DWAP_TOP_CTRL0, core_id);
 
 		if (data)
 			val |= 1 << 5;
 		else
 			val &= ~(1 << 5);
-		system_gdc_write_32(ISP_DWAP_TOP_CTRL0, val);
+		system_gdc_write_32(ISP_DWAP_TOP_CTRL0, val, core_id);
 	}
 	gdc_log(LOG_DEBUG, "secure mode:%d, dev_type:%d\n", data, dev_type);
 }
 
 static inline uint8_t gdc_start_flag_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x64L) & 0x1) >> 0);
+	return (uint8_t)((system_gdc_read_32(0x64L, 0) & 0x1) >> 0);
 }
 
 // ----------------------------------- //
@@ -1212,19 +1263,19 @@ static inline uint8_t gdc_start_flag_read(void)
 #define GDC_STOP_FLAG_MASK (0x2)
 
 // args: data (1-bit)
-static inline void gdc_stop_flag_write(u8 data, u32 dev_type)
+static inline void gdc_stop_flag_write(u8 data, u32 dev_type, u32 core_id)
 {
 	if (dev_type == ARM_GDC) {
-		u32 curr = system_gdc_read_32(0x64L);
+		u32 curr = system_gdc_read_32(0x64L, core_id);
 		u32 val = ((data & 0x1) << 1) | (curr & 0xfffffffd);
 
-		system_gdc_write_32(0x64L, val);
+		system_gdc_write_32(0x64L, val, core_id);
 	}
 }
 
 static inline uint8_t gdc_stop_flag_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x64L) & 0x2) >> 1);
+	return (uint8_t)((system_gdc_read_32(0x64L, 0) & 0x2) >> 1);
 }
 
 // ----------------------------------- //
@@ -1239,15 +1290,15 @@ static inline uint8_t gdc_stop_flag_read(void)
 // args: data (30-bit)
 static inline void gdc_reserved_for_future_use_3_write(u32 data)
 {
-	u32 curr = system_gdc_read_32(0x64L);
+	u32 curr = system_gdc_read_32(0x64L, 0);
 	u32 val =  ((data & 0x3fffffff) << 2) | (curr & 0x3);
 
-	system_gdc_write_32(0x64L, val);
+	system_gdc_write_32(0x64L, val, 0);
 }
 
 static inline u32 gdc_reserved_for_future_use_3_read(void)
 {
-	return (u32)((system_gdc_read_32(0x64L) & 0xfffffffc) >> 2);
+	return (u32)((system_gdc_read_32(0x64L, 0) & 0xfffffffc) >> 2);
 }
 
 // ----------------------------------- //
@@ -1262,7 +1313,7 @@ static inline u32 gdc_reserved_for_future_use_3_read(void)
 // args: data (32-bit)
 static inline u32 gdc_capability_mask_read(void)
 {
-	return system_gdc_read_32(0x68L);
+	return system_gdc_read_32(0x68L, 0);
 }
 
 // ----------------------------------- //
@@ -1281,15 +1332,15 @@ static inline u32 gdc_capability_mask_read(void)
 // args: data (1-bit)
 static inline void gdc_eight_bit_data_suppoirted_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val = ((data & 0x1) << 0) | (curr & 0xfffffffe);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_eight_bit_data_suppoirted_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x1) >> 0);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x1) >> 0);
 }
 
 // ----------------------------------- //
@@ -1308,15 +1359,15 @@ static inline uint8_t gdc_eight_bit_data_suppoirted_read(void)
 // args: data (1-bit)
 static inline void gdc_ten_bit_data_supported_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val = ((data & 0x1) << 1) | (curr & 0xfffffffd);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_ten_bit_data_supported_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x2) >> 1);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x2) >> 1);
 }
 
 // ----------------------------------- //
@@ -1335,15 +1386,15 @@ static inline uint8_t gdc_ten_bit_data_supported_read(void)
 // args: data (1-bit)
 static inline void gdc_grayscale_supported_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val = ((data & 0x1) << 2) | (curr & 0xfffffffb);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_grayscale_supported_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x4) >> 2);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x4) >> 2);
 }
 
 // ----------------------------------- //
@@ -1362,15 +1413,15 @@ static inline uint8_t gdc_grayscale_supported_read(void)
 // args: data (1-bit)
 static inline void gdc_rgba888_supported_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val =  ((data & 0x1) << 3) | (curr & 0xfffffff7);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_rgba888_supported_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x8) >> 3);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x8) >> 3);
 }
 
 // ----------------------------------- //
@@ -1389,15 +1440,15 @@ static inline uint8_t gdc_rgba888_supported_read(void)
 // args: data (1-bit)
 static inline void gdc_rgb_yuv444_planar_supported_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val = ((data & 0x1) << 4) | (curr & 0xffffffef);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_rgb_yuv444_planar_supported_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x10) >> 4);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x10) >> 4);
 }
 
 // ----------------------------------- //
@@ -1416,15 +1467,15 @@ static inline uint8_t gdc_rgb_yuv444_planar_supported_read(void)
 // args: data (1-bit)
 static inline void gdc_yuv_semiplanar_supported_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val = ((data & 0x1) << 5) | (curr & 0xffffffdf);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_yuv_semiplanar_supported_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x20) >> 5);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x20) >> 5);
 }
 
 // ----------------------------------- //
@@ -1443,15 +1494,15 @@ static inline uint8_t gdc_yuv_semiplanar_supported_read(void)
 // args: data (1-bit)
 static inline void gdc_yuv422_linear_mode_supported_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val =  ((data & 0x1) << 6) | (curr & 0xffffffbf);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_yuv422_linear_mode_supported_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x40) >> 6);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x40) >> 6);
 }
 
 // ----------------------------------- //
@@ -1470,15 +1521,15 @@ static inline uint8_t gdc_yuv422_linear_mode_supported_read(void)
 // args: data (1-bit)
 static inline void gdc_rgb10_10_10_supported_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val =  ((data & 0x1) << 7) | (curr & 0xffffff7f);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_rgb10_10_10_supported_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x80) >> 7);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x80) >> 7);
 }
 
 // ----------------------------------- //
@@ -1497,15 +1548,15 @@ static inline uint8_t gdc_rgb10_10_10_supported_read(void)
 // args: data (1-bit)
 static inline void gdc_bicubic_interpolation_supported_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val =  ((data & 0x1) << 8) | (curr & 0xfffffeff);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_bicubic_interpolation_supported_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x100) >> 8);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x100) >> 8);
 }
 
 // ----------------------------------- //
@@ -1525,15 +1576,15 @@ static inline uint8_t gdc_bicubic_interpolation_supported_read(void)
 static inline void
 gdc_bilinear_interpolation_mode_1_supported_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val =  ((data & 0x1) << 9) | (curr & 0xfffffdff);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_bilinear_interpolation_mode_1_supported_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x200) >> 9);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x200) >> 9);
 }
 
 // ----------------------------------- //
@@ -1553,15 +1604,15 @@ static inline uint8_t gdc_bilinear_interpolation_mode_1_supported_read(void)
 static inline void
 gdc_bilinear_interpolation_mode_2_supported_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val =  ((data & 0x1) << 10) | (curr & 0xfffffbff);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_bilinear_interpolation_mode_2_supported_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x400) >> 10);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x400) >> 10);
 }
 
 // ----------------------------------- //
@@ -1581,16 +1632,16 @@ static inline uint8_t gdc_bilinear_interpolation_mode_2_supported_read(void)
 static inline void
 gdc_output_of_interpolation_coordinates_supported_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val = ((data & 0x1) << 11) | (curr & 0xfffff7ff);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t
 gdc_output_of_interpolation_coordinates_supported_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x800) >> 11);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x800) >> 11);
 }
 
 // ----------------------------------- //
@@ -1605,15 +1656,15 @@ gdc_output_of_interpolation_coordinates_supported_read(void)
 // args: data (4-bit)
 static inline void gdc_reserved_for_future_use_4_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val = ((data & 0xf) << 12) | (curr & 0xffff0fff);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_reserved_for_future_use_4_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0xf000) >> 12);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0xf000) >> 12);
 }
 
 // ----------------------------------- //
@@ -1632,15 +1683,15 @@ static inline uint8_t gdc_reserved_for_future_use_4_read(void)
 // args: data (3-bit)
 static inline void gdc_size_of_output_cache_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val =  ((data & 0x7) << 16) | (curr & 0xfff8ffff);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_size_of_output_cache_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x70000) >> 16);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x70000) >> 16);
 }
 
 // ----------------------------------- //
@@ -1659,15 +1710,15 @@ static inline uint8_t gdc_size_of_output_cache_read(void)
 // args: data (5-bit)
 static inline void gdc_size_of_tile_cache_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val =  ((data & 0x1f) << 19) | (curr & 0xff07ffff);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_size_of_tile_cache_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0xf80000) >> 19);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0xf80000) >> 19);
 }
 
 // ----------------------------------- //
@@ -1686,15 +1737,15 @@ static inline uint8_t gdc_size_of_tile_cache_read(void)
 // args: data (3-bit)
 static inline void gdc_nuimber_of_polyphase_filter_banks_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val = ((data & 0x7) << 24) | (curr & 0xf8ffffff);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_nuimber_of_polyphase_filter_banks_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x7000000) >> 24);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x7000000) >> 24);
 }
 
 // ----------------------------------- //
@@ -1713,15 +1764,15 @@ static inline uint8_t gdc_nuimber_of_polyphase_filter_banks_read(void)
 // args: data (3-bit)
 static inline void gdc_axi_data_width_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val = ((data & 0x7) << 27) | (curr & 0xc7ffffff);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_axi_data_width_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0x38000000) >> 27);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x38000000) >> 27);
 }
 
 // ----------------------------------- //
@@ -1736,15 +1787,15 @@ static inline uint8_t gdc_axi_data_width_read(void)
 // args: data (2-bit)
 static inline void gdc_reserved_for_future_use_5_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0x68L);
+	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val = ((data & 0x3) << 30) | (curr & 0x3fffffff);
 
-	system_gdc_write_32(0x68L, val);
+	system_gdc_write_32(0x68L, val, 0);
 }
 
 static inline uint8_t gdc_reserved_for_future_use_5_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0x68L) & 0xc0000000) >> 30);
+	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0xc0000000) >> 30);
 }
 
 // ----------------------------------- //
@@ -1765,15 +1816,15 @@ static inline uint8_t gdc_reserved_for_future_use_5_read(void)
 // args: data (12-bit)
 static inline void gdc_default_ch1_write(uint16_t data)
 {
-	u32 curr = system_gdc_read_32(0x70L);
+	u32 curr = system_gdc_read_32(0x70L, 0);
 	u32  val = ((data & 0xfff) << 0) | (curr & 0xfffff000);
 
-	system_gdc_write_32(0x70L, val);
+	system_gdc_write_32(0x70L, val, 0);
 }
 
 static inline uint16_t gdc_default_ch1_read(void)
 {
-	return (uint16_t)((system_gdc_read_32(0x70L) & 0xfff) >> 0);
+	return (uint16_t)((system_gdc_read_32(0x70L, 0) & 0xfff) >> 0);
 }
 
 // ----------------------------------- //
@@ -1794,15 +1845,15 @@ static inline uint16_t gdc_default_ch1_read(void)
 // args: data (12-bit)
 static inline void gdc_default_ch2_write(uint16_t data)
 {
-	u32 curr = system_gdc_read_32(0x74L);
+	u32 curr = system_gdc_read_32(0x74L, 0);
 	u32 val = ((data & 0xfff) << 0) | (curr & 0xfffff000);
 
-	system_gdc_write_32(0x74L, val);
+	system_gdc_write_32(0x74L, val, 0);
 }
 
 static inline uint16_t gdc_default_ch2_read(void)
 {
-	return (uint16_t)((system_gdc_read_32(0x74L) & 0xfff) >> 0);
+	return (uint16_t)((system_gdc_read_32(0x74L, 0) & 0xfff) >> 0);
 }
 
 // ----------------------------------- //
@@ -1823,15 +1874,15 @@ static inline uint16_t gdc_default_ch2_read(void)
 // args: data (12-bit)
 static inline void gdc_default_ch3_write(uint16_t data)
 {
-	u32 curr = system_gdc_read_32(0x78L);
+	u32 curr = system_gdc_read_32(0x78L, 0);
 	u32 val = ((data & 0xfff) << 0) | (curr & 0xfffff000);
 
-	system_gdc_write_32(0x78L, val);
+	system_gdc_write_32(0x78L, val, 0);
 }
 
 static inline uint16_t gdc_default_ch3_read(void)
 {
-	return (uint16_t)((system_gdc_read_32(0x78L) & 0xfff) >> 0);
+	return (uint16_t)((system_gdc_read_32(0x78L, 0) & 0xfff) >> 0);
 }
 
 // ----------------------------------- //
@@ -1854,7 +1905,7 @@ static inline uint16_t gdc_default_ch3_read(void)
 // args: data (32-bit)
 static inline u32 gdc_diagnostics_cfg_stall_count0_read(void)
 {
-	return system_gdc_read_32(0x80L);
+	return system_gdc_read_32(0x80L, 0);
 }
 
 // ----------------------------------- //
@@ -1873,7 +1924,7 @@ static inline u32 gdc_diagnostics_cfg_stall_count0_read(void)
 // args: data (32-bit)
 static inline u32 gdc_diagnostics_cfg_stall_count1_read(void)
 {
-	return system_gdc_read_32(0x84L);
+	return system_gdc_read_32(0x84L, 0);
 }
 
 // ----------------------------------- //
@@ -1892,7 +1943,7 @@ static inline u32 gdc_diagnostics_cfg_stall_count1_read(void)
 // args: data (32-bit)
 static inline u32 gdc_diagnostics_cfg_stall_count2_read(void)
 {
-	return system_gdc_read_32(0x88L);
+	return system_gdc_read_32(0x88L, 0);
 }
 
 // ----------------------------------- //
@@ -1911,7 +1962,7 @@ static inline u32 gdc_diagnostics_cfg_stall_count2_read(void)
 // args: data (32-bit)
 static inline u32 gdc_diagnostics_cfg_stall_count3_read(void)
 {
-	return system_gdc_read_32(0x8cL);
+	return system_gdc_read_32(0x8cL, 0);
 }
 
 // ----------------------------------- //
@@ -1930,7 +1981,7 @@ static inline u32 gdc_diagnostics_cfg_stall_count3_read(void)
 // args: data (32-bit)
 static inline u32 gdc_diagnostics_cfg_stall_count4_read(void)
 {
-	return system_gdc_read_32(0x90L);
+	return system_gdc_read_32(0x90L, 0);
 }
 
 // ----------------------------------- //
@@ -1949,7 +2000,7 @@ static inline u32 gdc_diagnostics_cfg_stall_count4_read(void)
 // args: data (32-bit)
 static inline u32 gdc_diagnostics_int_read_stall_count_read(void)
 {
-	return system_gdc_read_32(0x94L);
+	return system_gdc_read_32(0x94L, 0);
 }
 
 // ----------------------------------- //
@@ -1968,7 +2019,7 @@ static inline u32 gdc_diagnostics_int_read_stall_count_read(void)
 // args: data (32-bit)
 static inline u32 gdc_diagnostics_int_coord_stall_count_read(void)
 {
-	return system_gdc_read_32(0x98L);
+	return system_gdc_read_32(0x98L, 0);
 }
 
 // ----------------------------------- //
@@ -1987,7 +2038,7 @@ static inline u32 gdc_diagnostics_int_coord_stall_count_read(void)
 // args: data (32-bit)
 static inline u32 gdc_diagnostics_int_write_wait_count_read(void)
 {
-	return system_gdc_read_32(0x9cL);
+	return system_gdc_read_32(0x9cL, 0);
 }
 
 // ----------------------------------- //
@@ -2006,7 +2057,7 @@ static inline u32 gdc_diagnostics_int_write_wait_count_read(void)
 // args: data (32-bit)
 static inline u32 gdc_diagnostics_wrt_write_wait_count_read(void)
 {
-	return system_gdc_read_32(0xa0L);
+	return system_gdc_read_32(0xa0L, 0);
 }
 
 // ----------------------------------- //
@@ -2026,7 +2077,7 @@ static inline u32 gdc_diagnostics_wrt_write_wait_count_read(void)
 // args: data (32-bit)
 static inline u32 gdc_diagnostics_int_dual_count_read(void)
 {
-	return system_gdc_read_32(0xa4L);
+	return system_gdc_read_32(0xa4L, 0);
 }
 
 // ----------------------------------------------------//
@@ -2049,15 +2100,15 @@ static inline u32 gdc_diagnostics_int_dual_count_read(void)
 // args: data (4-bit)
 static inline void gdc_axi_settings_config_reader_max_arlen_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0xa8L);
+	u32 curr = system_gdc_read_32(0xa8L, 0);
 	u32 val = ((data & 0xf) << 0) | (curr & 0xfffffff0);
 
-	system_gdc_write_32(0xa8L, val);
+	system_gdc_write_32(0xa8L, val, 0);
 }
 
 static inline uint8_t gdc_axi_settings_config_reader_max_arlen_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0xa8L) & 0xf) >> 0);
+	return (uint8_t)((system_gdc_read_32(0xa8L, 0) & 0xf) >> 0);
 }
 
 // ----------------------------------- //
@@ -2083,15 +2134,15 @@ static inline uint8_t gdc_axi_settings_config_reader_max_arlen_read(void)
 static inline void
 gdc_axi_settings_config_reader_fifo_watermark_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0xa8L);
+	u32 curr = system_gdc_read_32(0xa8L, 0);
 	u32 val = ((data & 0xff) << 8) | (curr & 0xffff00ff);
 
-	system_gdc_write_32(0xa8L, val);
+	system_gdc_write_32(0xa8L, val, 0);
 }
 
 static inline uint8_t gdc_axi_settings_config_reader_fifo_watermark_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0xa8L) & 0xff00) >> 8);
+	return (uint8_t)((system_gdc_read_32(0xa8L, 0) & 0xff00) >> 8);
 }
 
 // ----------------------------------- //
@@ -2111,15 +2162,15 @@ static inline uint8_t gdc_axi_settings_config_reader_fifo_watermark_read(void)
 static inline void
 gdc_axi_settings_config_reader_rxact_maxostand_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0xa8L);
+	u32 curr = system_gdc_read_32(0xa8L, 0);
 	u32 val = ((data & 0xff) << 16) | (curr & 0xff00ffff);
 
-	system_gdc_write_32(0xa8L, val);
+	system_gdc_write_32(0xa8L, val, 0);
 }
 
 static inline uint8_t gdc_axi_settings_config_reader_rxact_maxostand_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0xa8L) & 0xff0000) >> 16);
+	return (uint8_t)((system_gdc_read_32(0xa8L, 0) & 0xff0000) >> 16);
 }
 
 // ----------------------------------- //
@@ -2139,15 +2190,15 @@ static inline uint8_t gdc_axi_settings_config_reader_rxact_maxostand_read(void)
 // args: data (4-bit)
 static inline void gdc_axi_settings_tile_reader_max_arlen_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0xacL);
+	u32 curr = system_gdc_read_32(0xacL, 0);
 	u32 val = ((data & 0xf) << 0) | (curr & 0xfffffff0);
 
-	system_gdc_write_32(0xacL, val);
+	system_gdc_write_32(0xacL, val, 0);
 }
 
 static inline uint8_t gdc_axi_settings_tile_reader_max_arlen_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0xacL) & 0xf) >> 0);
+	return (uint8_t)((system_gdc_read_32(0xacL, 0) & 0xf) >> 0);
 }
 
 // ----------------------------------- //
@@ -2172,15 +2223,15 @@ static inline uint8_t gdc_axi_settings_tile_reader_max_arlen_read(void)
 static inline void
 gdc_axi_settings_tile_reader_fifo_watermark_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0xacL);
+	u32 curr = system_gdc_read_32(0xacL, 0);
 	u32 val = ((data & 0xff) << 8) | (curr & 0xffff00ff);
 
-	system_gdc_write_32(0xacL, val);
+	system_gdc_write_32(0xacL, val, 0);
 }
 
 static inline uint8_t gdc_axi_settings_tile_reader_fifo_watermark_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0xacL) & 0xff00) >> 8);
+	return (uint8_t)((system_gdc_read_32(0xacL, 0) & 0xff00) >> 8);
 }
 
 // ----------------------------------- //
@@ -2201,15 +2252,15 @@ static inline uint8_t gdc_axi_settings_tile_reader_fifo_watermark_read(void)
 static inline void
 gdc_axi_settings_tile_reader_rxact_maxostand_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0xacL);
+	u32 curr = system_gdc_read_32(0xacL, 0);
 	u32 val = ((data & 0xff) << 16) | (curr & 0xff00ffff);
 
-	system_gdc_write_32(0xacL, val);
+	system_gdc_write_32(0xacL, val, 0);
 }
 
 static inline uint8_t gdc_axi_settings_tile_reader_rxact_maxostand_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0xacL) & 0xff0000) >> 16);
+	return (uint8_t)((system_gdc_read_32(0xacL, 0) & 0xff0000) >> 16);
 }
 
 // ----------------------------------- //
@@ -2229,15 +2280,15 @@ static inline uint8_t gdc_axi_settings_tile_reader_rxact_maxostand_read(void)
 // args: data (4-bit)
 static inline void gdc_axi_settings_tile_writer_max_awlen_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0xb0L);
+	u32 curr = system_gdc_read_32(0xb0L, 0);
 	u32 val = ((data & 0xf) << 0) | (curr & 0xfffffff0);
 
-	system_gdc_write_32(0xb0L, val);
+	system_gdc_write_32(0xb0L, val, 0);
 }
 
 static inline uint8_t gdc_axi_settings_tile_writer_max_awlen_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0xb0L) & 0xf) >> 0);
+	return (uint8_t)((system_gdc_read_32(0xb0L, 0) & 0xf) >> 0);
 }
 
 // ----------------------------------- //
@@ -2262,16 +2313,16 @@ static inline uint8_t gdc_axi_settings_tile_writer_max_awlen_read(void)
 static inline void
 gdc_axi_settings_tile_writer_fifo_watermark_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0xb0L);
+	u32 curr = system_gdc_read_32(0xb0L, 0);
 	u32 val = ((data & 0xff) << 8) | (curr & 0xffff00ff);
 
-	system_gdc_write_32(0xb0L, val);
+	system_gdc_write_32(0xb0L, val, 0);
 }
 
 static inline uint8_t
 gdc_axi_settings_tile_writer_fifo_watermark_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0xb0L) & 0xff00) >> 8);
+	return (uint8_t)((system_gdc_read_32(0xb0L, 0) & 0xff00) >> 8);
 }
 
 // ----------------------------------- //
@@ -2292,15 +2343,15 @@ gdc_axi_settings_tile_writer_fifo_watermark_read(void)
 static inline void
 gdc_axi_settings_tile_writer_wxact_maxostand_write(uint8_t data)
 {
-	u32 curr = system_gdc_read_32(0xb0L);
+	u32 curr = system_gdc_read_32(0xb0L, 0);
 	u32 val = ((data & 0xff) << 16) | (curr & 0xff00ffff);
 
-	system_gdc_write_32(0xb0L, val);
+	system_gdc_write_32(0xb0L, val, 0);
 }
 
 static inline uint8_t gdc_axi_settings_tile_writer_wxact_maxostand_read(void)
 {
-	return (uint8_t)((system_gdc_read_32(0xb0L) & 0xff0000) >> 16);
+	return (uint8_t)((system_gdc_read_32(0xb0L, 0) & 0xff0000) >> 16);
 }
 
 // ----------------------------------- //

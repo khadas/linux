@@ -41,30 +41,36 @@
 int gdc_log_level;
 struct gdc_manager_s gdc_manager;
 static int kthread_created;
+static struct gdc_irq_handle_wq irq_handle_wq[CORE_NUM];
 
 #define DEF_CLK_RATE 800000000
+#define WAIT_THRESHOLD 1000
 
 static struct gdc_device_data_s arm_gdc_clk2 = {
 	.dev_type = ARM_GDC,
 	.clk_type = CORE_AXI,
+	.core_cnt = 1
 };
 
 static struct gdc_device_data_s arm_gdc = {
 	.dev_type = ARM_GDC,
 	.clk_type = MUXGATE_MUXSEL_GATE,
-	.ext_msb_8g = 1
+	.ext_msb_8g = 1,
+	.core_cnt = 1
 };
 
 static struct gdc_device_data_s aml_gdc = {
 	.dev_type = AML_GDC,
 	.clk_type = MUXGATE_MUXSEL_GATE,
+	.core_cnt = 1
 };
 
 static struct gdc_device_data_s aml_gdc_v2 = {
 	.dev_type = AML_GDC,
 	.clk_type = GATE,
 	.bit_width_ext = 1,
-	.gamma_support = 1
+	.gamma_support = 1,
+	.core_cnt = 3
 };
 
 static const struct of_device_id gdc_dt_match[] = {
@@ -80,6 +86,21 @@ static const struct of_device_id amlgdc_dt_match[] = {
 	{} };
 
 MODULE_DEVICE_TABLE(of, amlgdc_dt_match);
+
+static char *clk_name[CLK_NAME_NUM][CORE_NUM] = {
+	{"core", "core1", "core2"},
+	{"axi",  "axi1",  "axi2"},
+	{"mux_gate", "mux_gate1", "mux_gate2"},
+	{"mux_sel",  "mux_sel1",  "mux_sel2"},
+	{"clk_gate", "clk_gate1", "clk_gate2"}
+};
+
+static char *irq_name[HW_TYPE][CORE_NUM] = {
+	{"gdc",     "gdc1",     "gdc2"},
+	{"amlgdc",  "amlgdc1",  "amlgdc2"},
+};
+
+static struct gdc_irq_data_s irq_data[HW_TYPE][CORE_NUM];
 
 static void meson_gdc_cache_flush(struct device *dev,
 				  dma_addr_t addr,
@@ -1746,16 +1767,21 @@ static ssize_t dump_reg_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	ssize_t len = 0;
-	int i;
+	int core_id;
 	struct meson_gdc_dev_t *gdc_dev =
 				(struct meson_gdc_dev_t *)dev_get_drvdata(dev);
+	u32 dev_type = 0;
+
+	if (gdc_dev == gdc_manager.aml_gdc_dev)
+		dev_type = AML_GDC;
+	else
+		dev_type = ARM_GDC;
 
 	if (gdc_dev->reg_store_mode_enable) {
-		len += sprintf(buf + len, "gdc adapter register below\n");
-		for (i = 0; i <= 0xff; i += 4) {
-			len += sprintf(buf + len,
-					"\t[0xff950000 + 0x%08x, 0x%-8x\n",
-						i, system_gdc_read_32(i));
+		for (core_id = 0; core_id < gdc_dev->core_cnt; core_id++) {
+			if (gdc_dev->pd[core_id].status == 1) {
+				dump_gdc_regs(dev_type, core_id);
+			}
 		}
 	} else {
 		len += sprintf(buf + len,
@@ -1878,21 +1904,88 @@ static ssize_t config_out_path_store(struct device *dev,
 
 static DEVICE_ATTR_RW(config_out_path);
 
+void irq_handle_func(struct work_struct *work)
+{
+	struct gdc_irq_handle_wq *irq_handle_wq =
+		container_of(work, struct gdc_irq_handle_wq, work);
+	struct gdc_queue_item_s *current_item = irq_handle_wq->current_item;
+	u32 dev_type = current_item->cmd.dev_type;
+	u32 core_id = current_item->core_id;
+	struct gdc_context_s *current_wq = NULL;
+	u32 block_mode = 0, time_cost;
+	ktime_t diff_time = 0;
+	struct meson_gdc_dev_t *gdc_dev = GDC_DEV_T(dev_type);
+	u32 trace_mode_enable = gdc_dev->trace_mode_enable;
+
+	current_item = gdc_dev->current_item[core_id];
+	current_wq = current_item->context;
+	block_mode = current_item->cmd.wait_done_flag;
+
+	diff_time = ktime_sub(ktime_get(), gdc_dev->time_stamp[core_id]);
+	time_cost = ktime_to_ms(diff_time);
+
+	if (time_cost > WAIT_THRESHOLD) {
+		if (dev_type == ARM_GDC)
+			gdc_log(LOG_ERR, "gdc timeout, status = 0x%x\n",
+				gdc_status_read());
+		else
+			gdc_log(LOG_ERR, "aml gdc timeout\n");
+
+		if (trace_mode_enable >= 2) {
+			/* dump regs */
+			dump_gdc_regs(dev_type, core_id);
+			/* dump config buffer */
+			dump_config_file(&current_item->cmd.gdc_config,
+					 dev_type);
+		}
+	} else if (trace_mode_enable == 1) {
+		gdc_log(LOG_ERR, "core%d gdc process time = %d ms\n",
+			core_id, time_cost);
+	}
+
+	recycle_resource(current_item, core_id);
+
+	/* for block mode, notify item cmd done */
+	if (block_mode) {
+		current_item->cmd.wait_done_flag = 0;
+		wake_up_interruptible(&current_wq->cmd_complete);
+	}
+
+	gdc_dev->is_idle[core_id] = 1;
+
+	/* notify thread for next process */
+	if (gdc_manager.event.cmd_in_sem.count == 0)
+		up(&gdc_manager.event.cmd_in_sem);
+
+	/* if context is tring to exit */
+	if (current_wq->gdc_request_exit)
+		complete(&gdc_manager.event.process_complete[core_id]);
+}
+
 irqreturn_t gdc_interrupt_handler(int irq, void *param)
 {
-	complete(&gdc_manager.event.d_com);
+	u32 dev_type = ((struct gdc_irq_data_s *)param)->dev_type;
+	u32 core_id = ((struct gdc_irq_data_s *)param)->core_id;
+	struct gdc_queue_item_s *current_item = NULL;
+
+	current_item = GDC_DEV_T(dev_type)->current_item[core_id];
+
+	irq_handle_wq[core_id].current_item = current_item;
+	schedule_work(&irq_handle_wq[core_id].work);
+
 	return IRQ_HANDLED;
 }
 
 static int gdc_platform_probe(struct platform_device *pdev)
 {
-	int rc = -1, clk_rate = 0;
+	int rc = -1, clk_rate = 0, i = 0, irq;
 	struct resource *gdc_res;
 	struct meson_gdc_dev_t *gdc_dev = NULL;
 	const struct of_device_id *match;
 	struct gdc_device_data_s *gdc_data;
 	const char *drv_name = pdev->dev.driver->name;
 	char *config_out_file;
+	u32 dev_type;
 
 	match = of_match_node(gdc_dt_match, pdev->dev.of_node);
 	if (!match) {
@@ -1904,20 +1997,7 @@ static int gdc_platform_probe(struct platform_device *pdev)
 	}
 
 	gdc_data = (struct gdc_device_data_s *)match->data;
-
-	// Initialize irq
-	gdc_res = platform_get_resource(pdev,
-					IORESOURCE_MEM, 0);
-	if (!gdc_res) {
-		gdc_log(LOG_ERR, "Error, no IORESOURCE_MEM DT!\n");
-		return -ENOMEM;
-	}
-
-	if (init_gdc_io(pdev->dev.of_node, gdc_data->dev_type) != 0) {
-		gdc_log(LOG_ERR, "Error on mapping gdc memory!\n");
-		return -ENOMEM;
-	}
-
+	dev_type = gdc_data->dev_type;
 	rc = of_reserved_mem_device_init(&pdev->dev);
 	if (rc != 0)
 		gdc_log(LOG_INFO, "reserve_mem is not used\n");
@@ -1938,113 +2018,146 @@ static int gdc_platform_probe(struct platform_device *pdev)
 		goto free_config;
 	}
 
+	if (dev_type == ARM_GDC)
+		gdc_manager.gdc_dev = gdc_dev;
+	else
+		gdc_manager.aml_gdc_dev = gdc_dev;
+
 	gdc_dev->config_out_file = config_out_file;
 	gdc_dev->clk_type = gdc_data->clk_type;
 	gdc_dev->bit_width_ext = gdc_data->bit_width_ext;
 	gdc_dev->gamma_support = gdc_data->gamma_support;
 	gdc_dev->pdev = pdev;
 	gdc_dev->ext_msb_8g = gdc_data->ext_msb_8g;
+	gdc_dev->core_cnt = gdc_data->core_cnt;
 
 	gdc_dev->misc_dev.minor = MISC_DYNAMIC_MINOR;
 	gdc_dev->misc_dev.name = drv_name;
 	gdc_dev->misc_dev.fops = &meson_gdc_fops;
 
-	gdc_dev->irq = platform_get_irq(pdev, 0);
-	if (gdc_dev->irq < 0) {
-		gdc_log(LOG_DEBUG, "cannot find irq for gdc\n");
-		rc = -EINVAL;
+	for (i = 0; i < gdc_dev->core_cnt; i++) {
+		gdc_res = platform_get_resource(pdev,
+						IORESOURCE_MEM, i);
+		if (!gdc_res) {
+			gdc_log(LOG_ERR, "Error, no IORESOURCE_MEM DT!\n");
+			goto free_config;
+		}
+	}
+
+	if (init_gdc_io(pdev->dev.of_node, dev_type) != 0) {
+		gdc_log(LOG_ERR, "Error on mapping gdc memory!\n");
 		goto free_config;
+	}
+
+	/* irq init */
+	for (i = 0; i < gdc_dev->core_cnt; i++) {
+		irq = platform_get_irq(pdev, i);
+		if (gdc_dev->irq < 0) {
+			gdc_log(LOG_DEBUG, "cannot find irq for gdc\n");
+			rc = -EINVAL;
+			goto free_config;
+		}
+
+		gdc_log(LOG_DEBUG, "request irq:%s\n",
+			irq_name[dev_type][i]);
+		irq_data[dev_type][i].dev_type = dev_type;
+		irq_data[dev_type][i].core_id = i;
+		rc = devm_request_irq(&pdev->dev, irq,
+				      gdc_interrupt_handler,
+				      IRQF_SHARED,
+				      irq_name[dev_type][i],
+				      &irq_data[dev_type][i]);
+		if (rc != 0) {
+			gdc_log(LOG_ERR, "cannot create irq func gdc\n");
+			goto free_config;
+		}
 	}
 
 	rc = of_property_read_u32(pdev->dev.of_node, "clk-rate", &clk_rate);
 	if (rc < 0)
 		clk_rate = DEF_CLK_RATE;
 
-	if (gdc_data->clk_type == CORE_AXI) {
-		/* core clk */
-		gdc_dev->clk_core = devm_clk_get(&pdev->dev, "core");
-		if (IS_ERR(gdc_dev->clk_core)) {
-			gdc_log(LOG_ERR, "cannot get gdc core clk\n");
-		} else {
-			clk_set_rate(gdc_dev->clk_core, clk_rate);
-			clk_prepare_enable(gdc_dev->clk_core);
-			rc = clk_get_rate(gdc_dev->clk_core);
-			gdc_log(LOG_INFO, "%s core clk is %d MHZ\n",
-				drv_name, rc / 1000000);
-		}
+	for (i = 0; i < gdc_dev->core_cnt; i++) {
+		if (gdc_data->clk_type == CORE_AXI) {
+			/* core clk */
+			gdc_dev->clk_core[i] = devm_clk_get(&pdev->dev,
+							    clk_name[CORE][i]);
+			if (IS_ERR(gdc_dev->clk_core[i])) {
+				gdc_log(LOG_ERR, "cannot get gdc core clk\n");
+			} else {
+				clk_set_rate(gdc_dev->clk_core[i], clk_rate);
+				clk_prepare_enable(gdc_dev->clk_core[i]);
+				rc = clk_get_rate(gdc_dev->clk_core[i]);
+				gdc_log(LOG_INFO, "%s core clk is %d MHZ\n",
+					clk_name[CORE][i], rc / 1000000);
+			}
 
-		/* axi clk */
-		gdc_dev->clk_axi = devm_clk_get(&pdev->dev, "axi");
-		if (IS_ERR(gdc_dev->clk_axi)) {
-			gdc_log(LOG_ERR, "cannot get gdc axi clk\n");
-		} else {
-			clk_set_rate(gdc_dev->clk_axi, clk_rate);
-			clk_prepare_enable(gdc_dev->clk_axi);
-			rc = clk_get_rate(gdc_dev->clk_axi);
-			gdc_log(LOG_INFO, "%s axi clk is %d MHZ\n",
-				drv_name, rc / 1000000);
-		}
-	} else if (gdc_data->clk_type == MUXGATE_MUXSEL_GATE) {
-		struct clk *mux_gate = NULL;
-		struct clk *mux_sel = NULL;
+			/* axi clk */
+			gdc_dev->clk_axi[i] = devm_clk_get(&pdev->dev,
+							   clk_name[AXI][i]);
+			if (IS_ERR(gdc_dev->clk_axi[i])) {
+				gdc_log(LOG_ERR, "cannot get gdc axi clk\n");
+			} else {
+				clk_set_rate(gdc_dev->clk_axi[i], clk_rate);
+				clk_prepare_enable(gdc_dev->clk_axi[i]);
+				rc = clk_get_rate(gdc_dev->clk_axi[i]);
+				gdc_log(LOG_INFO, "%s axi clk is %d MHZ\n",
+					clk_name[AXI][i], rc / 1000000);
+			}
+		} else if (gdc_data->clk_type == MUXGATE_MUXSEL_GATE) {
+			struct clk *mux_gate = NULL;
+			struct clk *mux_sel = NULL;
 
-		/* mux_gate */
-		mux_gate = devm_clk_get(&pdev->dev, "mux_gate");
-		if (IS_ERR(mux_gate))
-			gdc_log(LOG_ERR, "cannot get gdc mux_gate\n");
+			/* mux_gate */
+			mux_gate = devm_clk_get(&pdev->dev,
+						clk_name[MUX_GATE][i]);
+			if (IS_ERR(mux_gate))
+				gdc_log(LOG_ERR, "cannot get gdc mux_gate\n");
 
-		/* mux_sel */
-		mux_sel = devm_clk_get(&pdev->dev, "mux_sel");
-		if (IS_ERR(mux_gate))
-			gdc_log(LOG_ERR, "cannot get gdc mux_sel\n");
+			/* mux_sel */
+			mux_sel = devm_clk_get(&pdev->dev,
+					       clk_name[MUX_SEL][i]);
+			if (IS_ERR(mux_gate))
+				gdc_log(LOG_ERR, "cannot get gdc mux_sel\n");
 
-		clk_set_parent(mux_sel, mux_gate);
+			clk_set_parent(mux_sel, mux_gate);
 
-		/* clk_gate */
-		gdc_dev->clk_gate = devm_clk_get(&pdev->dev, "clk_gate");
-		if (IS_ERR(gdc_dev->clk_gate)) {
-			gdc_log(LOG_ERR, "cannot get gdc clk_gate\n");
-		} else {
-			clk_set_rate(gdc_dev->clk_gate, clk_rate);
-			clk_prepare_enable(gdc_dev->clk_gate);
-			rc = clk_get_rate(gdc_dev->clk_gate);
-			gdc_log(LOG_INFO, "%s clk_gate is %d MHZ\n",
-				drv_name, rc / 1000000);
-		}
-	} else if (gdc_data->clk_type == GATE) {
-		/* clk_gate */
-		gdc_dev->clk_gate = devm_clk_get(&pdev->dev, "clk_gate");
-		if (IS_ERR(gdc_dev->clk_gate)) {
-			gdc_log(LOG_ERR, "cannot get gdc clk_gate\n");
-		} else {
-			clk_set_rate(gdc_dev->clk_gate, clk_rate);
-			clk_prepare_enable(gdc_dev->clk_gate);
-			rc = clk_get_rate(gdc_dev->clk_gate);
-			gdc_log(LOG_INFO, "%s clk_gate is %d MHZ\n",
-				drv_name, rc / 1000000);
+			/* clk_gate */
+			gdc_dev->clk_gate[i] =
+				devm_clk_get(&pdev->dev, clk_name[CLK_GATE][i]);
+			if (IS_ERR(gdc_dev->clk_gate[i])) {
+				gdc_log(LOG_ERR, "cannot get gdc clk_gate\n");
+			} else {
+				clk_set_rate(gdc_dev->clk_gate[i], clk_rate);
+				clk_prepare_enable(gdc_dev->clk_gate[i]);
+				rc = clk_get_rate(gdc_dev->clk_gate[i]);
+				gdc_log(LOG_INFO, "%s clk_gate is %d MHZ\n",
+					clk_name[CLK_GATE][i], rc / 1000000);
+			}
+		} else if (gdc_data->clk_type == GATE) {
+			/* clk_gate */
+			gdc_dev->clk_gate[i] =
+				devm_clk_get(&pdev->dev, clk_name[CLK_GATE][i]);
+			if (IS_ERR(gdc_dev->clk_gate[i])) {
+				gdc_log(LOG_ERR, "cannot get gdc clk_gate\n");
+			} else {
+				clk_set_rate(gdc_dev->clk_gate[i], clk_rate);
+				clk_prepare_enable(gdc_dev->clk_gate[i]);
+				rc = clk_get_rate(gdc_dev->clk_gate[i]);
+				gdc_log(LOG_INFO, "%s clk_gate is %d MHZ\n",
+					clk_name[CLK_GATE][i], rc / 1000000);
+			}
 		}
 	}
-
 	/* 8g memory support */
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
 	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 
-	rc = devm_request_irq(&pdev->dev, gdc_dev->irq,
-			      gdc_interrupt_handler,
-			      IRQF_SHARED, drv_name, gdc_dev);
-	if (rc != 0)
-		gdc_log(LOG_ERR, "cannot create irq func gdc\n");
-
-	if (!kthread_created) {
-		gdc_wq_init();
-		kthread_created = 1;
-	}
-
 	rc = misc_register(&gdc_dev->misc_dev);
 	if (rc < 0) {
-		dev_err(&pdev->dev,
-			"misc_register() for minor %d failed\n",
+		gdc_log(LOG_ERR, "misc_register() for minor %d failed\n",
 			gdc_dev->misc_dev.minor);
+		goto free_config;
 	}
 	device_create_file(gdc_dev->misc_dev.this_device,
 			   &dev_attr_dump_reg);
@@ -2058,24 +2171,41 @@ static int gdc_platform_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gdc_dev);
 	dev_set_drvdata(gdc_dev->misc_dev.this_device, gdc_dev);
 
-	if (gdc_data->clk_type == CORE_AXI) {
-		clk_disable_unprepare(gdc_dev->clk_core);
-		clk_disable_unprepare(gdc_dev->clk_axi);
-	} else if (gdc_data->clk_type == MUXGATE_MUXSEL_GATE) {
-		clk_disable_unprepare(gdc_dev->clk_gate);
+	for (i = 0; i < gdc_dev->core_cnt; i++) {
+		if (gdc_data->clk_type == CORE_AXI) {
+			clk_disable_unprepare(gdc_dev->clk_core[i]);
+			clk_disable_unprepare(gdc_dev->clk_axi[i]);
+		} else if (gdc_data->clk_type == MUXGATE_MUXSEL_GATE ||
+			   gdc_data->clk_type == GATE) {
+			clk_disable_unprepare(gdc_dev->clk_gate[i]);
+		}
+		GDC_DEV_T(dev_type)->is_idle[i] = 1;
 	}
 
-	if (gdc_data->dev_type == ARM_GDC) {
-		gdc_manager.gdc_dev = gdc_dev;
+	/* power domain init */
+	rc = gdc_pwr_init(&pdev->dev, gdc_dev->pd, dev_type);
+	if (rc) {
+		gdc_pwr_remove(gdc_dev->pd);
+		gdc_log(LOG_ERR,
+			"power domain init failed %d\n",
+			rc);
+		goto free_config;
+	}
+
+	if (!kthread_created) {
+		gdc_wq_init();
+
+		for (i = 0; i < gdc_dev->core_cnt; i++)
+			INIT_WORK(&irq_handle_wq[i].work, irq_handle_func);
+		kthread_created = 1;
+	}
+
+	if (dev_type == ARM_GDC)
 		gdc_manager.gdc_dev->probed = 1;
-	} else {
-		gdc_manager.aml_gdc_dev = gdc_dev;
+	else
 		gdc_manager.aml_gdc_dev->probed = 1;
-	}
 
-	pm_runtime_enable(&pdev->dev);
-
-	return rc;
+	return 0;
 
 free_config:
 	kfree(config_out_file);
@@ -2101,7 +2231,7 @@ static int gdc_platform_remove(struct platform_device *pdev)
 	kfree(gdc_dev->config_out_file);
 	gdc_dev->config_out_file = NULL;
 	gdc_wq_deinit();
-
+	gdc_pwr_remove(gdc_dev->pd);
 	misc_deregister(misc_dev);
 	return 0;
 }

@@ -19,7 +19,8 @@
 
 enum {
 	ARM_GDC,
-	AML_GDC
+	AML_GDC,
+	HW_TYPE
 };
 
 struct aml_dma_cfg {

@@ -254,6 +254,13 @@ struct gdc_settings_with_fw {
 	struct fw_info_s fw_info;
 };
 
+struct gdc_pd {
+	/* powerdomain virtual device */
+	struct device *dev;
+	/* on:1 off:0 */
+	u32 status;
+};
+
 /**
  *   Configure the output gdc configuration
  *
@@ -267,14 +274,15 @@ struct gdc_settings_with_fw {
  *   @return 0 - success
  *	 -1 - fail.
  */
-int gdc_init(struct gdc_cmd_s *gdc_cmd, struct gdc_dma_cfg_t *dma_cfg);
+int gdc_init(struct gdc_cmd_s *gdc_cmd, struct gdc_dma_cfg_t *dma_cfg,
+	     u32 core_id);
 /**
  *   This function stops the gdc block
  *
  *   @param  gdc_cmd_s - overall gdc settings and state
  *
  */
-void gdc_stop(struct gdc_cmd_s *gdc_cmd);
+void gdc_stop(struct gdc_cmd_s *gdc_cmd, u32 core_id);
 
 /**
  *   This function starts the gdc block
@@ -284,7 +292,7 @@ void gdc_stop(struct gdc_cmd_s *gdc_cmd);
  *   @param  gdc_cmd_s - overall gdc settings and state
  *
  */
-void gdc_start(struct gdc_cmd_s *gdc_cmd);
+void gdc_start(struct gdc_cmd_s *gdc_cmd, u32 core_id);
 
 /**
  *   This function points gdc to
@@ -307,25 +315,30 @@ void gdc_start(struct gdc_cmd_s *gdc_cmd);
 int gdc_process(struct gdc_cmd_s *gdc_cmd,
 		u32 y_base_addr,
 		u32 uv_base_addr,
-		struct gdc_dma_cfg_t *dma_cfg);
+		struct gdc_dma_cfg_t *dma_cfg,
+		u32 core_id);
 int gdc_process_yuv420p(struct gdc_cmd_s *gdc_cmd,
 			u32 y_base_addr,
 			u32 u_base_addr,
 			u32 v_base_addr,
-			struct gdc_dma_cfg_t *dma_cfg);
+			struct gdc_dma_cfg_t *dma_cfg,
+			u32 core_id);
 int gdc_process_y_grey(struct gdc_cmd_s *gdc_cmd,
 		       u32 y_base_addr,
-		       struct gdc_dma_cfg_t *dma_cfg);
+		       struct gdc_dma_cfg_t *dma_cfg,
+		       u32 core_id);
 int gdc_process_yuv444p(struct gdc_cmd_s *gdc_cmd,
 			u32 y_base_addr,
 			u32 u_base_addr,
 			u32 v_base_addr,
-			struct gdc_dma_cfg_t *dma_cfg);
+			struct gdc_dma_cfg_t *dma_cfg,
+			u32 core_id);
 int gdc_process_rgb444p(struct gdc_cmd_s *gdc_cmd,
 			u32 y_base_addr,
 			u32 u_base_addr,
 			u32 v_base_addr,
-			struct gdc_dma_cfg_t *dma_cfg);
+			struct gdc_dma_cfg_t *dma_cfg,
+			u32 core_id);
 
 /**
  *   This function gets the GDC output frame addresses
@@ -355,10 +368,14 @@ int gdc_get_frame(struct gdc_cmd_s *gdc_cmd);
  *   @return 0 - success
  *	 -1 - no interrupt from GDC.
  */
-int gdc_run(struct gdc_cmd_s *g, struct gdc_dma_cfg_t *dma_cfg);
+int gdc_run(struct gdc_cmd_s *g, struct gdc_dma_cfg_t *dma_cfg, u32 core_id);
 
 s32 init_gdc_io(struct device_node *dn, u32 dev_type);
 
-int gdc_pwr_config(bool enable, u32 dev_type);
+int gdc_pwr_init(struct device *dev, struct gdc_pd *pd, u32 dev_type);
+
+int gdc_pwr_config(bool enable, u32 dev_type, u32 core_id);
+
+void gdc_pwr_remove(struct gdc_pd *pd);
 
 #endif
