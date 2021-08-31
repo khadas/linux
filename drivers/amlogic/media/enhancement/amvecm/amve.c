@@ -2098,9 +2098,6 @@ int vpp_enable_lut3d(int enable)
 {
 	u32 temp;
 
-	if (!lut3d_en)
-		return 1;
-
 	WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 0);
 
 	temp  = READ_VPP_REG(VPP_LUT3D_CTRL);

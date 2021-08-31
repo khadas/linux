@@ -4179,6 +4179,11 @@ int signal_type_changed(struct vframe_s *vf,
 		pr_csc(1, "ootf curve changed.\n");
 	}
 
+	if (vecm_latch_flag & FLAG_COLORPRI_LATCH) {
+		change_flag |= SIG_PRI_INFO;
+		vecm_latch_flag &= ~FLAG_COLORPRI_LATCH;
+	}
+
 	if (vf->type & VIDTYPE_RGB_444) {
 		if (cur_rgb_type[vd_path] !=
 		   (vf->type & VIDTYPE_RGB_444)) {

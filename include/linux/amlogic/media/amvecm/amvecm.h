@@ -68,7 +68,7 @@ void dolby_vision_set_toggle_flag(int flag);
 #endif // FMETER_SCORE
 
 /* struct ve_dnlp_s          video_ve_dnlp; */
-#define FLAG_RSV31              BIT(31)
+#define FLAG_COLORPRI_LATCH     BIT(31)
 #define FLAG_VADJ1_COLOR        BIT(30)
 #define FLAG_VE_DNLP            BIT(29)
 #define FLAG_VE_NEW_DNLP        BIT(28)
@@ -568,6 +568,16 @@ struct table_3dlut_s {
 #define AMVECM_IOC_SET_3D_LUT  _IO(_VE_CM, 0x6d)
 #define AMVECM_IOC_LOAD_3D_LUT  _IO(_VE_CM, 0x6e)
 #define AMVECM_IOC_SET_3D_LUT_ORDER  _IO(_VE_CM, 0x6f)
+
+#define AMVECM_IOC_3D_LUT_EN  _IO(_VE_CM, 0x79)
+#define AMVECM_IOC_COLOR_PRI_EN  _IO(_VE_CM, 0x7a)
+
+struct primary_s {
+	u32 src[8];
+	u32 dest[8];
+};
+
+#define AMVECM_IOC_COLOR_PRIMARY _IOW(_VE_CM, 0x7b, struct primary_s)
 
 enum vlk_chiptype {
 	vlock_chip_txl,

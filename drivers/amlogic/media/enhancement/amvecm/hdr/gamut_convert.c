@@ -370,11 +370,12 @@ static u32 std_bt709_white_point[2] = {
 	0.3127 * NORM + 0.5, 0.3290 * NORM + 0.5
 };
 
-uint force_primay;
-module_param(force_primay, uint, 0664);
-MODULE_PARM_DESC(force_primay, "\n force_primay\n");
+uint force_primary;
+module_param(force_primary, uint, 0664);
+MODULE_PARM_DESC(force_primary, "\n force_primary\n");
+
 uint num_force_primary = 8;
-static u32 force_src_primary[8] = {
+u32 force_src_primary[8] = {
 	0.708 * NORM + 0.5, 0.292 * NORM + 0.5,	/* R */
 	0.17 * NORM + 0.5, 0.797 * NORM + 0.5,	/* G */
 	0.131 * NORM + 0.5, 0.046 * NORM + 0.5,	/* B */
@@ -382,7 +383,8 @@ static u32 force_src_primary[8] = {
 };
 module_param_array(force_src_primary, uint, &num_force_primary, 0664);
 MODULE_PARM_DESC(force_src_primary, "\n force_src_primary\n");
-static u32 force_dst_primary[8] = {
+
+u32 force_dst_primary[8] = {
 	0.64 * NORM + 0.5, 0.33 * NORM + 0.5,	/* R */
 	0.30 * NORM + 0.5, 0.60 * NORM + 0.5,	/* G */
 	0.15 * NORM + 0.5, 0.06 * NORM + 0.5,	/* B */
@@ -453,7 +455,7 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 			}
 	}
 
-	if (force_primay) {
+	if (force_primary) {
 		for (i = 0; i < 4; i++)
 			for (j = 0; j < 2; j++) {
 				src_prmy[i][j] =

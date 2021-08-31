@@ -81,6 +81,7 @@
 #include "util/enc_dec.h"
 #include "cabc_aadc/cabc_aadc_fw.h"
 #include "hdr/am_hdr10_tmo_fw.h"
+#include "hdr/gamut_convert.h"
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -2274,6 +2275,8 @@ static long amvecm_ioctl(struct file *file,
 	struct db_cabc_param_s db_cabc_param;
 	struct db_aad_param_s db_aad_param;
 	struct eye_protect_s *eye_prot = NULL;
+	int tmp;
+	struct primary_s color_pr;
 
 	if (debug_amvecm & 2)
 		pr_info("[amvecm..] %s: cmd_nr = 0x%x\n",
@@ -2472,6 +2475,40 @@ static long amvecm_ioctl(struct file *file,
 			lut3d_order = lut_order;
 		}
 
+		break;
+	case AMVECM_IOC_3D_LUT_EN:
+		if (copy_from_user(&tmp,
+				   (void __user *)arg,
+				   sizeof(int))) {
+			ret = -EFAULT;
+		} else {
+			lut3d_en = tmp;
+			lut3d_en &= 0x1;
+			vpp_enable_lut3d(lut3d_en);
+		}
+		break;
+	case AMVECM_IOC_COLOR_PRI_EN:
+		if (copy_from_user(&tmp,
+				   (void __user *)arg,
+				   sizeof(int))) {
+			ret = -EFAULT;
+		} else {
+			force_primary = tmp;
+			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
+		}
+		break;
+	case AMVECM_IOC_COLOR_PRIMARY:
+		if (copy_from_user(&color_pr,
+				   (void __user *)arg,
+				   sizeof(struct primary_s))) {
+			ret = -EFAULT;
+		} else {
+			memcpy(force_src_primary, color_pr.src,
+				8 * sizeof(u32));
+			memcpy(force_dst_primary, color_pr.dest,
+				8 * sizeof(u32));
+			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
+		}
 		break;
 	/*VLOCK*/
 	case AMVECM_IOC_VLOCK_EN:
