@@ -127,10 +127,10 @@ void hdr_proc(struct vframe_s *vf,
 	int i, index;
 
 	/* RGB / YUV vdin input handling  prepare extra op code or info */
-	if (vf->type & VIDTYPE_RGB_444 && !is_dolby_vision_enable())
+	if (vf->type & VIDTYPE_RGB_444 && !is_dolby_vision_on())
 		hdr_process_select |= RGB_VDIN;
 
-	if (limit_full && !is_dolby_vision_enable())
+	if (limit_full && !is_dolby_vision_on())
 		hdr_process_select |= FULL_VDIN;
 	/* RGB / YUV input handling */
 
@@ -149,9 +149,10 @@ void hdr_proc(struct vframe_s *vf,
 		}
 	}
 
-	pr_csc(8, "am_vecm: hdr module=%s, process=%s\n",
+	pr_csc(8, "am_vecm: hdr module=%s, process=%s, dv %d\n",
 	       module_str[module_sel],
-	       process_str[index]);
+	       process_str[index],
+	       is_dolby_vision_on());
 
 	if (module_sel == 1)
 		process_id[0] = index;
