@@ -21,6 +21,9 @@
 #ifndef GAMUT_H
 #define GAMUT_H
 
+extern uint force_primary;
+extern u32 force_src_primary[8];
+extern u32 force_dst_primary[8];
 int gamut_convert_process(struct vinfo_s *vinfo,
 			  enum hdr_type_e *source_type,
 			  enum vd_path_e vd_path,
