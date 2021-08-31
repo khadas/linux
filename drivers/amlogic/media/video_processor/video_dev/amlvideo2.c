@@ -117,6 +117,13 @@ static unsigned int debug;
 #define TEST_LATENCY
 #define DEF_FRAMERATE 30
 static unsigned int mirror_value;
+static int amlvideo2_total_get_count;
+module_param(amlvideo2_total_get_count, uint, 0664);
+MODULE_PARM_DESC(amlvideo2_total_get_count, "amlvideo2_total_get_count");
+
+static int amlvideo2_total_put_count;
+module_param(amlvideo2_total_put_count, uint, 0664);
+MODULE_PARM_DESC(amlvideo2_total_put_count, "amlvideo2_total_put_count");
 
 static unsigned int vid_limit = 50;
 module_param_named(video2_vid_limit, vid_limit, uint, 0644);
@@ -3762,6 +3769,7 @@ void vf_inqueue(struct vframe_s *vf, struct amlvideo2_node *node)
 	vfp = vf_get_receiver(name);
 	if (!vfp) {
 		vf_put(vf, name);
+		amlvideo2_total_put_count++;
 		return;
 	}
 
@@ -3858,6 +3866,8 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 			if (amlvideo2_dbg_en & 2)
 				pr_info("while 1.\n");
 			vf = vf_get(node->recv.name);
+			if (vf)
+				amlvideo2_total_get_count++;
 			vf_inqueue(vf, node);
 			if (vf) {
 				fh->src_width  =  vf->width;
@@ -3893,6 +3903,8 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 			if (amlvideo2_dbg_en & 2)
 				pr_info("while 2.\n");
 			vf = vf_get(node->recv.name);
+			if (vf)
+				amlvideo2_total_get_count++;
 			vf_inqueue(vf, node);
 		}
 		goto unlock;
@@ -3912,6 +3924,8 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 		/* drop the frame to get the last one */
 		if (!vfq_full(&node->q_ready)) {
 			vf = vf_get(node->recv.name);
+			if (vf)
+				amlvideo2_total_get_count++;
 			if (vf->type & VIDTYPE_V4L_EOS) {
 				vf_inqueue(vf, node);
 				goto unlock;
@@ -3929,6 +3943,8 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 				vf_inqueue(vf, node);
 				if (!vfq_full(&node->q_ready)) {
 					vf = vf_get(node->recv.name);
+					if (vf)
+						amlvideo2_total_get_count++;
 					if (vf &&
 					    ((vf->type & VIDTYPE_TYPEMASK) ==
 					     VIDTYPE_INTERLACE_TOP) &&
@@ -4077,6 +4093,8 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 		if (amlvideo2_dbg_en & 2)
 			pr_info("while 5.\n");
 		vf = vf_get(node->recv.name);
+		if (vf)
+			amlvideo2_total_get_count++;
 		vf_inqueue(vf, node);
 	}
 	dpr_err(node->vid_dev, 1, "filled buffer %p\n", buf);
@@ -4216,6 +4234,7 @@ static int amlvideo2_thread(void *data)
 		if (node->recv.name &&
 		    (!vf_get_receiver(node->recv.name))) {
 			vf_put(node->tmp_vf, node->recv.name);
+			amlvideo2_total_put_count++;
 		}
 		node->tmp_vf = NULL;
 	}
@@ -4406,6 +4425,7 @@ static void amlvideo2_vf_put(struct vframe_s *vf, void *op_arg)
 	if (amlvideo2_dbg_en & 8)
 		pr_info("amlvideo2 vf put .\n");
 	vf_put(vf, name);
+	amlvideo2_total_put_count++;
 }
 
 static int amlvideo2_event_cb(int type, void *data, void *private_data)
@@ -5120,6 +5140,7 @@ int amlvideo2_notify_callback(struct notifier_block *block, unsigned long cmd,
 			recycle_vf = vfq_pop(&node->q_ready);
 			while (recycle_vf) {
 				vf_put(recycle_vf, node->recv.name);
+				amlvideo2_total_put_count++;
 				recycle_vf = vfq_pop(&node->q_ready);
 			}
 			if (amlvideo2_dbg_en & 4)
@@ -6177,6 +6198,8 @@ static int amlvideo2_receiver_event_fun(int type, void *data,
 		vfq_init(&node->q_ready,
 			 node->amlvideo2_pool_size,
 			 (struct vframe_s **)&node->amlvideo2_pool_ready[0]);
+		amlvideo2_total_get_count = 0;
+		amlvideo2_total_put_count = 0;
 		break;
 	case VFRAME_EVENT_PROVIDER_UNREG:
 		node->provide_ready = 0;

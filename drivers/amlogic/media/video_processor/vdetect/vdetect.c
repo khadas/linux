@@ -53,6 +53,10 @@ static int detect_dump;
 static int detect_thread;
 static int tv_add_vdetect;
 static int aipq_enable;
+static int post_get_count;
+static int post_put_count;
+static int pre_put_count;
+static DEFINE_SPINLOCK(lock);
 
 static u32 vid_limit = 32;
 static unsigned int vdetect_base = 40;
@@ -312,6 +316,7 @@ static struct vframe_s *vdetect_vf_get(void *op_arg)
 {
 	struct vframe_s *vf;
 	struct vdetect_dev *dev = (struct vdetect_dev *)op_arg;
+	unsigned long flags;
 
 	vf = vf_get(dev->recv_name);
 
@@ -320,6 +325,7 @@ static struct vframe_s *vdetect_vf_get(void *op_arg)
 
 	vf->nn_value[AI_PQ_TOP - 1].maxclass = dev->vf_num;
 	dev->vf_num++;
+	post_get_count++;
 
 	if (vf->flag & VFRAME_FLAG_GAME_MODE ||
 		vf->width > 3840 ||
@@ -329,8 +335,10 @@ static struct vframe_s *vdetect_vf_get(void *op_arg)
 		vf->flag |= VFRAME_FLAG_THROUGH_VDETECT;
 	}
 
+	spin_lock_irqsave(&lock, flags);
 	if (atomic_read(&dev->vdect_status) != VDETECT_PREPARE)
 		dev->last_vf = vf;
+	spin_unlock_irqrestore(&lock, flags);
 
 	if (atomic_read(&dev->is_playing) == 0) {
 		atomic_set(&dev->is_playing, 1);
@@ -344,12 +352,19 @@ static struct vframe_s *vdetect_vf_get(void *op_arg)
 static void vdetect_vf_put(struct vframe_s *vf, void *op_arg)
 {
 	struct vdetect_dev *dev = (struct vdetect_dev *)op_arg;
+	unsigned long lock_flag;
 
+	spin_lock_irqsave(&lock, lock_flag);
 	if (atomic_read(&dev->vdect_status) == VDETECT_PREPARE ||
-	    (vf->flag & VFRAME_FLAG_VIDEO_VDETECT))
+	    (vf->flag & VFRAME_FLAG_VIDEO_VDETECT)) {
 		vf->flag |= VFRAME_FLAG_VIDEO_VDETECT_PUT;
-	else
+		spin_unlock_irqrestore(&lock, lock_flag);
+	} else {
+		spin_unlock_irqrestore(&lock, lock_flag);
 		vf_put(vf, dev->recv_name);
+		pre_put_count++;
+	}
+	post_put_count++;
 }
 
 static int get_source_type(struct vframe_s *vf)
@@ -607,7 +622,7 @@ static int vdetect_ge2d_process(struct config_para_ex_s *ge2d_config,
 	int interlace_mode;
 	int output_canvas = output->canvas_id;
 	int input_width, input_height;
-
+	unsigned long lock_flag;
 	vdetect_print(dev->inst, PRINT_CAPTUREINFO,
 		      "%s line: %d\n", __func__, __LINE__);
 	memset(ge2d_config, 0, sizeof(struct config_para_ex_s));
@@ -747,14 +762,21 @@ static int vdetect_ge2d_process(struct config_para_ex_s *ge2d_config,
 		return -2;
 	}
 
+	spin_lock_irqsave(&lock, lock_flag);
 	if (vf->flag & VFRAME_FLAG_VIDEO_VDETECT)
 		vf->flag &= ~VFRAME_FLAG_VIDEO_VDETECT;
 
 	if (vf->flag & VFRAME_FLAG_VIDEO_VDETECT_PUT) {
 		vf->flag &= ~VFRAME_FLAG_VIDEO_VDETECT_PUT;
+		spin_unlock_irqrestore(&lock, lock_flag);
 		vf_put(vf, dev->recv_name);
+		pre_put_count++;
 		vdetect_print(dev->inst, PRINT_CAPTUREINFO,
-			      "%s put vf buffer!\n", __func__);
+			"%s put vf buffer!\n", __func__);
+	} else {
+		spin_unlock_irqrestore(&lock, lock_flag);
+		vdetect_print(dev->inst, PRINT_CAPTUREINFO,
+			"ge2d don't put!\n");
 	}
 	mutex_unlock(&dev->vf_mutex);
 
@@ -772,6 +794,7 @@ static int vdetect_fill_buffer(struct vdetect_dev *dev)
 	int ret = 0;
 	void *vbuf = NULL;
 	unsigned long flags = 0;
+	unsigned long flag;
 	mm_segment_t old_fs;
 	struct file *filp_scr = NULL;
 	struct canvas_s cd;
@@ -784,13 +807,13 @@ static int vdetect_fill_buffer(struct vdetect_dev *dev)
 
 	if (dev->ge2d_vf == dev->last_vf) {
 		vdetect_print(dev->inst, PRINT_CAPTUREINFO,
-			      "the same frame!\n");
+			"%s: the same frame!\n", __func__);
 		return -1;
 	}
 
 	if (IS_ERR_OR_NULL(dev->last_vf)) {
 		vdetect_print(dev->inst, PRINT_ERROR,
-			      "%s vf is NULL!\n", __func__);
+			"%s: vf is NULL!\n", __func__);
 		return -1;
 	}
 
@@ -799,7 +822,7 @@ static int vdetect_fill_buffer(struct vdetect_dev *dev)
 	if (list_empty(&dma_q->active)) {
 		spin_unlock_irqrestore(&dev->slock, flags);
 		vdetect_print(dev->inst, PRINT_ERROR,
-			      "dma queue is inactive!\n");
+			"%s: dma queue is inactive!\n", __func__);
 		return -1;
 	}
 
@@ -836,10 +859,14 @@ static int vdetect_fill_buffer(struct vdetect_dev *dev)
 			      "%s line: %d\n", __func__, __LINE__);
 		goto fail;
 	}
+
+	spin_lock_irqsave(&lock, flag);
 	atomic_set(&dev->vdect_status, VDETECT_PREPARE);
 	dev->last_vf->flag |= VFRAME_FLAG_VIDEO_VDETECT;
 	dev->ge2d_vf = dev->last_vf;
 	atomic_set(&dev->vdect_status, VDETECT_INIT);
+	spin_unlock_irqrestore(&lock, flag);
+
 	vdetect_print(dev->inst, PRINT_CAPTUREINFO,
 		      "%s line: %d\n", __func__, __LINE__);
 
@@ -902,6 +929,7 @@ static int vdetect_fill_buffer(struct vdetect_dev *dev)
 		if (dev->ge2d_vf->flag & VFRAME_FLAG_VIDEO_VDETECT_PUT) {
 			dev->ge2d_vf->flag &= ~VFRAME_FLAG_VIDEO_VDETECT_PUT;
 			vf_put(dev->ge2d_vf, dev->recv_name);
+			pre_put_count++;
 		}
 		mutex_unlock(&dev->vf_mutex);
 		dev->ge2d_vf = NULL;
@@ -1195,6 +1223,9 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		mutex_lock(&dev->vf_mutex);
 		atomic_set(&dev->is_dev_reged, 1);
 		mutex_unlock(&dev->vf_mutex);
+		post_get_count = 0;
+		pre_put_count = 0;
+		post_put_count = 0;
 		break;
 	case VFRAME_EVENT_PROVIDER_UNREG:
 		mutex_lock(&dev->vf_mutex);
@@ -2120,7 +2151,15 @@ static const struct file_operations vdetect_fops = {
 static ssize_t vdetect_debug_show(struct class *class,
 				  struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "vdetect debug: %d\n", detect_debug);
+	return sprintf(buf, "%-18s=%d\n%-18s=%d\n%-18s=%d\n%-18s=%d\n",
+			"detect_debug",
+			detect_debug,
+			"post_get_count",
+			post_get_count,
+			"post_put_count",
+			post_put_count,
+			"pre_put_count",
+			pre_put_count);
 }
 
 static ssize_t vdetect_debug_store(struct class *class,
