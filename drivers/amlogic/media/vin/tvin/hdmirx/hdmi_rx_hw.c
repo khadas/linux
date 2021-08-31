@@ -2470,23 +2470,22 @@ void hdmirx_hdcp22_esm_rst(void)
 /*
  * hdmirx_hdcp22_init - hdcp2.2 initialization
  */
-int rx_is_hdcp22_support(void)
+void rx_is_hdcp22_support(void)
 {
-	int ret = 0;
 	int temp;
 
+	if (rx.chip_id >= CHIP_ID_T7)
+		return;
 	temp = rx_sec_set_duk(hdmirx_repeat_support());
 	if (temp > 0) {
 		rx_hdcp22_wr_top(TOP_SKP_CNTL_STAT, 7);
-		ret = 1;
+		hdcp22_on = 1;
 		if (temp == 2)
 			rx_pr("2.2 test key!!!\n");
 	} else {
-		ret = 0;
+		hdcp22_on = 0;
 	}
-	rx_pr("hdcp22 == %d\n", ret);
-
-	return ret;
+	rx_pr("hdcp22 == %d\n", hdcp22_on);
 }
 
 /*
@@ -2512,7 +2511,7 @@ void hdmirx_hdcp22_hpd(bool value)
 void hdcp_22_off(void)
 {
 	if (rx.chip_id >= CHIP_ID_T7) {
-		//TODO..
+		return;
 	} else {
 		/* note: can't pull down hpd before enter suspend */
 		/* it will stop cec wake up func if EE domain still working */
@@ -3085,6 +3084,8 @@ void rx_afifo_monitor(void)
 
 void rx_hdcp_monitor(void)
 {
+	if (rx.chip_id < CHIP_ID_T7)
+		return;
 	if (rx.cur.hdcp22_state & 1 &&
 		rx.state == FSM_SIG_READY) {
 		if (rx.ecc_err_frames_cnt >= rx_ecc_err_frames) {
@@ -3220,6 +3221,45 @@ void rx_sw_reset(int level)
 		hdmirx_wr_dwc(DWC_DMI_SW_RST, data32);
 		hdmirx_audio_fifo_rst();
 		hdmirx_packet_fifo_rst();
+	}
+}
+
+void rx_esm_reset(int level)
+{
+	if (rx.chip_id >= CHIP_ID_T7 || !hdcp22_on)
+		return;
+	if (level == 0) {//for state machine
+		esm_set_stable(false);
+		if (esm_recovery_mode
+			== ESM_REC_MODE_RESET)
+			esm_set_reset(true);
+		/* for some hdcp2.2 devices which
+		 * don't retry 2.2 interaction
+		 * continuously and don't response
+		 * to re-auth, such as chroma 2403,
+		 * esm needs to be on work even
+		 * before tmds is valid so that to
+		 * not miss 2.2 interaction
+		 */
+		/* else */
+			/* rx_esm_tmdsclk_en(false); */
+	} else if (level == 1) {//for open port
+		esm_set_stable(false);
+		esm_set_reset(true);
+		if (esm_recovery_mode == ESM_REC_MODE_TMDS)
+			rx_esm_tmdsclk_en(false);
+	} else if (level == 2) {//for fsm_restart&signal_status_init
+		if (esm_recovery_mode == ESM_REC_MODE_TMDS)
+			rx_esm_tmdsclk_en(false);
+		esm_set_stable(false);
+	} else if (level == 3) {//for dwc_reset
+		if (rx.hdcp.hdcp_version != HDCP_VER_14) {
+			if (esm_recovery_mode == ESM_REC_MODE_TMDS)
+				rx_esm_tmdsclk_en(true);
+			esm_set_stable(true);
+			if (rx.hdcp.hdcp_version == HDCP_VER_22)
+				hdmirx_hdcp22_reauth();
+		}
 	}
 }
 
@@ -4490,6 +4530,8 @@ void rx_debug_load22key(void)
 	int ret = 0;
 	int wait_kill_done_cnt = 0;
 
+	if (rx.chip_id >= CHIP_ID_T7)
+		return;
 	ret = rx_sec_set_duk(hdmirx_repeat_support());
 	rx_pr("22 = %d\n", ret);
 	if (ret) {
@@ -5584,4 +5626,3 @@ void rx_hdcp_22_sent_reauth(void)
 	//hdmirx_wr_cor(RX_ECC_CTRL_DP2_IVCRX, 3);
 	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x80);
 }
-

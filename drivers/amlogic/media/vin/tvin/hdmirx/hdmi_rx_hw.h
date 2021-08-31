@@ -3379,4 +3379,6 @@ void rx_clkmsr_monitor(void);
 void rx_clkmsr_handler(struct work_struct *work);
 void rx_i2c_err_monitor(void);
 void rx_aud_fifo_rst(void);
+void rx_esm_reset(int level);
+void hdmirx_hdcp22_reauth(void);
 #endif
