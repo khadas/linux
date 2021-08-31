@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/highmem.h>
+#include <linux/amlogic/clk_measure.h>
 
 /* Local include */
 #include "hdmi_rx_eq.h"
@@ -4334,24 +4335,26 @@ void rx_clkmsr_handler(struct work_struct *work)
 	switch (rx.chip_id) {
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
-		rx.clk.cable_clk = meson_clk_measure(44);
-		rx.clk.tmds_clk = meson_clk_measure(43);
-		rx.clk.aud_pll = meson_clk_measure(104);
-		rx.clk.p_clk = meson_clk_measure(0);
+		/* to decrease cpu loading of clk_msr work queue */
+		/* 64: clk_msr resample time 32us,previous setting is 640us */
+		rx.clk.cable_clk = meson_clk_measure_with_precision(44, 32);
+		rx.clk.tmds_clk = meson_clk_measure_with_precision(43, 32);
+		rx.clk.aud_pll = meson_clk_measure_with_precision(104, 32);
+		rx.clk.p_clk = meson_clk_measure_with_precision(0, 32);
 		break;
 	case CHIP_ID_T5:
 	case CHIP_ID_T5D:
 	case CHIP_ID_TM2:
 	case CHIP_ID_TL1:
-		rx.clk.cable_clk = meson_clk_measure(30);
-		rx.clk.tmds_clk = meson_clk_measure(63);
-		rx.clk.aud_pll = meson_clk_measure(104);
-		rx.clk.pixel_clk = meson_clk_measure(29);
+		rx.clk.cable_clk = meson_clk_measure_with_precision(30, 32);
+		rx.clk.tmds_clk = meson_clk_measure_with_precision(63, 32);
+		rx.clk.aud_pll = meson_clk_measure_with_precision(104, 32);
+		rx.clk.pixel_clk = meson_clk_measure_with_precision(29, 32);
 		break;
 	default:
-		rx.clk.aud_pll = meson_clk_measure(24);
-		rx.clk.pixel_clk = meson_clk_measure(29);
-		rx.clk.tmds_clk = meson_clk_measure(25);
+		rx.clk.aud_pll = meson_clk_measure_with_precision(24, 32);
+		rx.clk.pixel_clk = meson_clk_measure_with_precision(29, 32);
+		rx.clk.tmds_clk = meson_clk_measure_with_precision(25, 32);
 		if (rx.clk.tmds_clk == 0) {
 			rx.clk.tmds_clk =
 				hdmirx_rd_dwc(DWC_HDMI_CKM_RESULT) & 0xffff;
@@ -4360,7 +4363,8 @@ void rx_clkmsr_handler(struct work_struct *work)
 		}
 		if (rx.state == FSM_SIG_READY)
 			/* phy request clk */
-			rx.clk.mpll_clk = meson_clk_measure(27);
+			rx.clk.mpll_clk =
+				meson_clk_measure_with_precision(27, 32);
 		break;
 	}
 }
