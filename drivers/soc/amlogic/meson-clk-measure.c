@@ -1626,6 +1626,22 @@ int meson_clk_measure(unsigned int id)
 }
 EXPORT_SYMBOL_GPL(meson_clk_measure);
 
+int meson_clk_measure_with_precision(unsigned int id, unsigned int precision)
+{
+	struct meson_msr_id *clk_msr_id = NULL;
+	int val;
+
+	clk_msr_id = &glo_meson_msr->data->msr_table[id];
+
+	val = meson_measure_id(clk_msr_id, precision);
+	if (val < 0) {
+		pr_err("measure failed\n");
+		return val;
+	}
+	return val;
+}
+EXPORT_SYMBOL_GPL(meson_clk_measure_with_precision);
+
 static int clk_msr_show(struct seq_file *s, void *data)
 {
 	struct meson_msr_id *clk_msr_id = s->private;
