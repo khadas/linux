@@ -2993,10 +2993,11 @@ static int vdin_release(struct inode *inode, struct file *file)
 
 	/* free irq */
 	if (devp->flags & VDIN_FLAG_ISR_REQ) {
+		devp->flags &= (~VDIN_FLAG_ISR_REQ);
 		free_irq(devp->irq, (void *)devp);
 		if (vdin_dbg_en)
-			pr_info("%s vdin.%d free vs irq\n", __func__,
-				devp->index);
+			pr_info("%s vdin.%d free vs irq:%d\n", __func__,
+				devp->index, devp->irq);
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->index == 0 &&
 		    devp->vpu_crash_irq > 0) {
@@ -3024,7 +3025,6 @@ static int vdin_release(struct inode *inode, struct file *file)
 			pr_info("%s vdin.%d free_irq\n", __func__,
 				devp->index);
 	}
-	devp->flags &= (~VDIN_FLAG_ISR_REQ);
 
 	file->private_data = NULL;
 
