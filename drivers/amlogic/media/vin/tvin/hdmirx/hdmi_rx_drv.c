@@ -1688,10 +1688,7 @@ static ssize_t hdcp22_onoff_show(struct device *dev,
 {
 	int pos = 0;
 
-	if (rx.chip_id >= CHIP_ID_T7)
-		;//TODO
-	else
-		return sprintf(buf, "%d", hdcp22_on);
+	return sprintf(buf, "%d", hdcp22_on);
 	return pos;
 }
 
@@ -2936,7 +2933,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (hdcp_tee_path)
 		hdcp22_on = 1;
 	else
-		hdcp22_on = rx_is_hdcp22_support();
+		rx_is_hdcp22_support();
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "aud_compose_type",
 				   &aud_compose_type);
@@ -3088,6 +3085,8 @@ static int aml_hdcp22_pm_notify(struct notifier_block *nb,
 {
 	int delay = 0;
 
+	if (rx.chip_id >= CHIP_ID_T7)
+		return NOTIFY_OK;
 	if (event == PM_SUSPEND_PREPARE && hdcp22_on) {
 		rx_pr("PM_SUSPEND_PREPARE\n");
 		hdcp22_kill_esm = 1;

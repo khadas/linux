@@ -759,7 +759,7 @@ extern int rx_audio_block_len;
 extern u8 rx_audio_block[MAX_AUDIO_BLK_LEN];
 
 /* for other modules */
-int rx_is_hdcp22_support(void);
+void rx_is_hdcp22_support(void);
 int rx_hdcp22_send_uevent(int val);
 
 //#define RX_VER0 "ver.2021/06/21"

@@ -1062,20 +1062,26 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 				} else {
 					rx.vrr_en = false;
 				}
-				if (rx.cur.hdcp22_state & 1) {
-					ecc_err_tmp = rx_get_ecc_err();
-					ecc_pkt_cnt = rx_get_ecc_pkt_cnt();
-					if (log_level & ECC_LOG)
-						rx_pr("ecc:%d-%d\n",
-							  ecc_err_tmp,
-							  ecc_pkt_cnt);
-					if (ecc_err_tmp && ecc_pkt_cnt) {
-						rx.ecc_err_frames_cnt++;
-						rx.ecc_err += ecc_err_tmp;
-						skip_frame(2);
-					} else {
-						rx.ecc_err = 0;
-						rx.ecc_err_frames_cnt = 0;
+				if (rx.chip_id >= CHIP_ID_T7) {
+					if (rx.cur.hdcp22_state & 1) {
+						ecc_err_tmp = rx_get_ecc_err();
+						ecc_pkt_cnt =
+						rx_get_ecc_pkt_cnt();
+						if (log_level & ECC_LOG)
+							rx_pr("ecc:%d-%d\n",
+							ecc_err_tmp,
+							ecc_pkt_cnt);
+						if (ecc_err_tmp &&
+							ecc_pkt_cnt) {
+							rx.ecc_err_frames_cnt++;
+							rx.ecc_err +=
+							ecc_err_tmp;
+							skip_frame(2);
+						} else {
+							rx.ecc_err = 0;
+							rx.ecc_err_frames_cnt =
+								0;
+						}
 					}
 				}
 				rx_update_sig_info();
@@ -1804,11 +1810,7 @@ static void signal_status_init(void)
 	rx.err_rec_mode = ERR_REC_EQ_RETRY;
 	rx.err_code = ERR_NONE;
 	rx_irq_en(false);
-	if (hdcp22_on) {
-		if (esm_recovery_mode == ESM_REC_MODE_TMDS)
-			rx_esm_tmdsclk_en(false);
-		esm_set_stable(false);
-	}
+	rx_esm_reset(2);
 	set_scdc_cfg(1, 0);
 	rx.state = FSM_INIT;
 	rx.fsm_ext_state = FSM_NULL;
@@ -1929,14 +1931,7 @@ void rx_dwc_reset(void)
 	/* for hdcp1.4 interact very early cases, don't do
 	 * esm reset to avoid interaction be interferenced.
 	 */
-	if (hdcp22_on &&
-	    rx.hdcp.hdcp_version != HDCP_VER_14) {
-		if (esm_recovery_mode == ESM_REC_MODE_TMDS)
-			rx_esm_tmdsclk_en(true);
-		esm_set_stable(true);
-		if (rx.hdcp.hdcp_version == HDCP_VER_22)
-			hdmirx_hdcp22_reauth();
-	}
+	rx_esm_reset(3);
 }
 
 bool rx_hpd_keep_low(void)
@@ -2051,11 +2046,7 @@ bool is_unnormal_format(u8 wait_cnt)
 
 void fsm_restart(void)
 {
-	if (hdcp22_on) {
-		if (esm_recovery_mode == ESM_REC_MODE_TMDS)
-			rx_esm_tmdsclk_en(false);
-		esm_set_stable(false);
-	}
+	rx_esm_reset(2);
 	hdmi_rx_top_edid_update();
 	hdmirx_hw_config();
 	set_scdc_cfg(1, 0);
@@ -2640,22 +2631,11 @@ void hdmirx_open_port(enum tvin_port_e port)
 		rx.hdcp.repeat = repeat_plug;
 	else
 		rx.hdcp.repeat = 0;
-	if (hdcp_tee_path)
-		hdcp22_on = rx_is_hdcp22_support();
 	if (pre_port != rx.port ||
 	    (rx_get_cur_hpd_sts() == 0) ||
 	    /* when open specific port, force to enable it */
 	    (disable_port_en && rx.port == disable_port_num)) {
-		if (hdcp22_on) {
-			esm_set_stable(false);
-			esm_set_reset(true);
-			if (esm_recovery_mode == ESM_REC_MODE_TMDS)
-				rx_esm_tmdsclk_en(false);
-			/*hpd_to_esm = 1;*/
-			/* switch_set_state(&rx.hpd_sdev, 0x01); */
-			if (log_level & VIDEO_LOG)
-				rx_pr("switch_set_state:%d\n", pwr_sts);
-		}
+		rx_esm_reset(1);
 		if (rx.state > FSM_HPD_LOW)
 			rx.state = FSM_HPD_LOW;
 		wait_ddc_idle();
@@ -2756,6 +2736,19 @@ u8 rx_update_fastswitch_sts(u8 sts)
 	return 1;
 }
 
+/* inform hdcp_rx22 the 5v sts of rx to control delay time */
+void rx_5v_sts_to_esm(unsigned int pwr)
+{
+	if (rx.chip_id >= CHIP_ID_T7)
+		return;
+	if (hdcp22_on) {
+		if (!pwr)
+			pwr_sts_to_esm = true;
+		else
+			pwr_sts_to_esm = false;
+	}
+}
+
 /* ---------------------------------------------------------- */
 /* func:         port A,B,C,D  hdmitx-5v monitor & HPD control */
 /* note:         G9TV portD no used */
@@ -2793,12 +2786,7 @@ void rx_5v_monitor(void)
 	}
 	rx.cur_5v_sts = (pwr_sts >> rx.port) & 1;
 	/* inform hdcp_rx22 the 5v sts of rx */
-	if (hdcp22_on) {
-		if (!pwr_sts)
-			pwr_sts_to_esm = true;
-		else
-			pwr_sts_to_esm = false;
-	}
+	rx_5v_sts_to_esm(pwr_sts);
 	tmp_arc_5v = (pwr_sts >> rx.arc_port) & 1;
 	if (earc_hdmirx_hpdst && rx.arc_5vsts != tmp_arc_5v) {
 		rx.arc_5vsts = tmp_arc_5v;
@@ -3237,22 +3225,7 @@ void rx_main_state_machine(void)
 			rx.aud_sr_unstable_cnt = 0;
 			rx.clk.cable_clk = 0;
 			esd_phy_rst_cnt = 0;
-			if (hdcp22_on) {
-				esm_set_stable(false);
-				if (esm_recovery_mode
-					== ESM_REC_MODE_RESET)
-					esm_set_reset(true);
-				/* for some hdcp2.2 devices which
-				 * don't retry 2.2 interaction
-				 * continuously and don't response
-				 * to re-auth, such as chroma 2403,
-				 * esm needs to be on work even
-				 * before tmds is valid so that to
-				 * not miss 2.2 interaction
-				 */
-				/* else */
-					/* rx_esm_tmdsclk_en(false); */
-			}
+			rx_esm_reset(0);
 			break;
 		} else if (!rx_is_timing_stable()) {
 			skip_frame(skip_frame_cnt);
@@ -3281,22 +3254,7 @@ void rx_main_state_machine(void)
 				rx.aud_sr_unstable_cnt = 0;
 				rx.clk.cable_clk = 0;
 				esd_phy_rst_cnt = 0;
-				if (hdcp22_on) {
-					esm_set_stable(false);
-					if (esm_recovery_mode
-						== ESM_REC_MODE_RESET)
-						esm_set_reset(true);
-					/* for some hdcp2.2 devices which
-					 * don't retry 2.2 interaction
-					 * continuously and don't response
-					 * to re-auth, such as chroma 2403,
-					 * esm needs to be on work even
-					 * before tmds is valid so that to
-					 * not miss 2.2 interaction
-					 */
-					/* else */
-						/* rx_esm_tmdsclk_en(false); */
-				}
+				rx_esm_reset(0);
 				break;
 			}
 		} else {
@@ -3453,6 +3411,8 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size)
 	if (rx.chip_id <= CHIP_ID_TXLX)
 		pos += snprintf(buf + pos, size - pos,
 			"mpll_div_clk: %d\n", rx.clk.mpll_clk);
+	pos += snprintf(buf + pos, size - pos,
+		"edid_select_ver: %s\n", edid_slt == EDID_V20 ? "2.0" : "1.4");
 
 	pos += snprintf(buf + pos, size - pos,
 		"\n\nHDCP info\n\n");
@@ -3476,6 +3436,8 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size)
 			"Source Physical address: %d.0.0.0\n", 4);
 	pos += snprintf(buf + pos, size - pos,
 		"HDCP1.4 secure: %d\n", rx_set_hdcp14_secure_key());
+	if (rx.chip_id >= CHIP_ID_T7)
+		return pos;
 	if (hdcp22_on) {
 		pos += snprintf(buf + pos, size - pos,
 			"HDCP22_ON: %d\n", hdcp22_on);
@@ -3488,8 +3450,6 @@ unsigned int hdmirx_show_info(unsigned char *buf, int size)
 		pos += snprintf(buf + pos, size - pos,
 			"sts0x81c: 0x%x\n", hdmirx_rd_dwc(DWC_HDCP22_CONTROL));
 	}
-	pos += snprintf(buf + pos, size - pos,
-		"edid_select_ver: %s\n", edid_slt == EDID_V20 ? "2.0" : "1.4");
 
 	return pos;
 }
@@ -3603,24 +3563,6 @@ static void dump_audio_status(void)
 static void dump_hdcp_status(void)
 {
 	rx_pr("HDCP version:%d\n", rx.hdcp.hdcp_version);
-	if (hdcp22_on) {
-		rx_pr("HDCP22 sts = %x\n",
-		      rx_hdcp22_rd_reg(0x60));
-		rx_pr("HDCP22_on = %d\n",
-		      hdcp22_on);
-		rx_pr("HDCP22_auth_sts = %d\n",
-		      hdcp22_auth_sts);
-		rx_pr("HDCP22_capable_sts = %d\n",
-		      hdcp22_capable_sts);
-		rx_pr("video_stable_to_esm = %d\n",
-		      video_stable_to_esm);
-		rx_pr("hpd_to_esm = %d\n",
-		      hpd_to_esm);
-		rx_pr("sts8fc = %x",
-		      hdmirx_rd_dwc(DWC_HDCP22_STATUS));
-		rx_pr("sts81c = %x",
-		      hdmirx_rd_dwc(DWC_HDCP22_CONTROL));
-	}
 	rx_pr("HDCP14 state:%d\n",
 	      rx.cur.hdcp14_state);
 	rx_pr("HDCP22 state:%d\n",
