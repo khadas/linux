@@ -1594,7 +1594,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 
 	/* need change clock gate as freerun when mtx on directly, not rdma op */
 	/* Now only operate osd1/vd1/vd2 hdr core */
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_S4) {
+	if ((get_cpu_type() <= MESON_CPU_MAJOR_ID_S4D) &&
+		(get_cpu_type() != MESON_CPU_MAJOR_ID_T3)) {
 		if (hdr_clk_gate != 0) {
 			cur_hdr_ctrl =
 				VSYNC_READ_VPP_REG_VPP_SEL(hdr_ctrl, vpp_sel);
@@ -1611,7 +1612,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 
 	/* recover the clock gate as auto gate by rdma op when mtx off */
 	/* Now only operate osd1/vd1/vd2 hdr core */
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_S4) {
+	if ((get_cpu_type() <= MESON_CPU_MAJOR_ID_S4D) &&
+		(get_cpu_type() != MESON_CPU_MAJOR_ID_T3)) {
 		if (hdr_clk_gate != 0 && !hdr_mtx_param->mtx_on)
 			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_clk_gate,
 				0, 0, 12, vpp_sel);
@@ -2551,21 +2553,25 @@ void hdr_gclk_ctrl_switch(enum hdr_module_sel module_sel,
 {
 	bool enable = true;
 
+	/* only support T3 */
+	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T3)
+		return;
+
 	if (hdr_process_select & HDR_BYPASS)
 		enable = false;
 	else
 		enable = true;
 
 	if (enable) {
-		/* async: 1, effective immediately */
+		/* async: 0, rdma delay a vsync */
 		if (module_sel == VD1_HDR)
-			vpu_module_clk_enable(vpp_sel, VD1_HDR_CORE, 1);
+			vpu_module_clk_enable(vpp_sel, VD1_HDR_CORE, 0);
 		else if (module_sel == VD2_HDR)
-			vpu_module_clk_enable(vpp_sel, VD2_HDR_CORE, 1);
+			vpu_module_clk_enable(vpp_sel, VD2_HDR_CORE, 0);
 		else if (module_sel == OSD1_HDR)
-			vpu_module_clk_enable(vpp_sel, OSD1_HDR_CORE, 1);
+			vpu_module_clk_enable(vpp_sel, OSD1_HDR_CORE, 0);
 		else if (module_sel == OSD2_HDR)
-			vpu_module_clk_enable(vpp_sel, OSD2_HDR_CORE, 1);
+			vpu_module_clk_enable(vpp_sel, OSD2_HDR_CORE, 0);
 	} else {
 		/* async: 0, rdma delay a vsync */
 		if (module_sel == VD1_HDR)

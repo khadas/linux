@@ -391,16 +391,12 @@ static struct vpu_dev_s *vpu_prime_dolby_ram;
 #define enable_video_layer()  \
 	do { \
 		VD1_MEM_POWER_ON(); \
-		vpu_module_clk_enable(vd_layer[0].vpp_index, VD1_SCALER, 1); \
-		vpu_module_clk_enable(vd_layer[0].vpp_index, SR0, 0); \
-		vpu_module_clk_enable(vd_layer[0].vpp_index, SR1, 0); \
 		VIDEO_LAYER_ON(); \
 	} while (0)
 
 #define enable_video_layer2()  \
 	do { \
 		VD2_MEM_POWER_ON(); \
-		vpu_module_clk_enable(vd_layer[1].vpp_index, VD2_SCALER, 1); \
 		if (vd_layer[1].vpp_index == VPP0) \
 			VIDEO_LAYER2_ON(); \
 		if (vd_layer_vpp[0].vpp_index != VPP0 && vd_layer_vpp[0].layer_id == 1) \
@@ -1138,18 +1134,14 @@ void vpu_module_clk_disable(u32 vpp_index, u32 module, bool async)
 			0x5554, 0, 16);
 		break;
 		case SR0:
-			if ((READ_VCBUS_REG(VPP_SRSCL_GCLK_CTRL) &
-			    0xff) != 0x05)
-				cur_dev->rdma_func[vpp_index].rdma_wr_bits
-				(VPP_SRSCL_GCLK_CTRL,
-				0x05, 0, 8);
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VPP_SRSCL_GCLK_CTRL,
+			0x05, 0, 8);
 		break;
 		case SR1:
-			if ((READ_VCBUS_REG(VPP_SRSCL_GCLK_CTRL) &
-			    0xff00) != 0x0500)
-				cur_dev->rdma_func[vpp_index].rdma_wr_bits
-				(VPP_SRSCL_GCLK_CTRL,
-				0x05, 8, 8);
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VPP_SRSCL_GCLK_CTRL,
+			0x05, 8, 8);
 		break;
 		case VD1_HDR_CORE:
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits
@@ -2812,6 +2804,8 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 	misc_off = setting->misc_reg_offt;
 	vpp_index = layer->vpp_index;
 	/* vpp super scaler */
+	vpu_module_clk_enable(vd_layer[0].vpp_index, SR0, 0);
+	vpu_module_clk_enable(vd_layer[0].vpp_index, SR1, 0);
 	vpp_set_super_scaler_regs
 		(frame_par->supscl_path,
 		frame_par->supsc0_enable,

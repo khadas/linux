@@ -75,6 +75,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/media/utils/am_com.h>
 #include "../../common/vfm/vfm.h"
+#include <linux/amlogic/media/utils/vdec_reg.h>
 
 DEFINE_SPINLOCK(dovi_lock);
 
@@ -2360,6 +2361,13 @@ static int WRITE_VPP_DV_REG(u32 adr, const u32 val)
 	return 0;
 }
 
+static int WRITE_VPP_DV_REG_BITS(u32 adr, const u32 val, u32 start, u32 len)
+{
+	adr = addr_map(adr);
+	WRITE_VCBUS_REG_BITS(adr, val, start, len);
+	return 0;
+}
+
 void amdolby_vision_wakeup_queue(void)
 {
 	struct amdolby_vision_dev_s *devp = &amdolby_vision_dev;
@@ -2954,8 +2962,14 @@ static int tv_dolby_core1_set
 	    (dolby_vision_flags & FLAG_DISABE_CORE_SETTING))
 		return 0;
 
-	if (is_meson_t3())
+	if (is_meson_t3() && bl_enable) {
 		VSYNC_WR_DV_REG_BITS(VPP_TOP_VTRL, 0, 0, 1); //DOLBY TV select
+		//T3 enable tvcore clk
+		if (!dolby_vision_on) {/*enable once*/
+			vpu_module_clk_enable(0, DV_TVCORE, 1);
+			vpu_module_clk_enable(0, DV_TVCORE, 0);
+		}
+	}
 
 	adjust_vpotch_tv();
 	if (is_meson_tm2() || is_meson_t7() || is_meson_t3()) {
@@ -5202,9 +5216,6 @@ void enable_dolby_vision(int enable)
 						hdr_vd1_off(VPP_TOP0);
 					if ((dolby_vision_mask & 1) &&
 						dovi_setting_video_flag) {
-						//T3 enable tvcore clk
-						vpu_module_clk_enable
-							(0, DV_TVCORE, 1);
 						/*enable tv core*/
 						/* T3 is not the same as T7 */
 						VSYNC_WR_DV_REG_BITS
@@ -14445,37 +14456,37 @@ unsigned int dolby_vision_check_enable(void)
 				/* core1a */
 				dv_mem_power_off(VPU_DOLBY1A);
 				dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
-				VSYNC_WR_DV_REG
+				WRITE_VPP_DV_REG
 					(DOLBY_CORE1A_CLKGATE_CTRL,
 					0x55555455);
 				/* core1b */
 				dv_mem_power_off(VPU_DOLBY1B);
-				VSYNC_WR_DV_REG
+				WRITE_VPP_DV_REG
 					(DOLBY_CORE1B_CLKGATE_CTRL,
 					0x55555455);
 				/* core2 */
 				dv_mem_power_off(VPU_DOLBY2);
-				VSYNC_WR_DV_REG
+				WRITE_VPP_DV_REG
 					(DOLBY_CORE2A_CLKGATE_CTRL,
 					0x55555555);
 				/* core3 */
 				dv_mem_power_off(VPU_DOLBY_CORE3);
-				VSYNC_WR_DV_REG
+				WRITE_VPP_DV_REG
 					(DOLBY_CORE3_CLKGATE_CTRL,
 					0x55555555);
 			}
 			/* tv core */
-			VSYNC_WR_DV_REG(DOLBY_TV_AXI2DMA_CTRL0,
+			WRITE_VPP_DV_REG(DOLBY_TV_AXI2DMA_CTRL0,
 				0x01000042);
-			VSYNC_WR_DV_REG_BITS
+			WRITE_VPP_DV_REG_BITS
 				(DOLBY_TV_SWAP_CTRL7,
 				0xf, 4, 4);
 			dv_mem_power_off(VPU_DOLBY0);
-			VSYNC_WR_DV_REG
+			WRITE_VPP_DV_REG
 				(DOLBY_TV_CLKGATE_CTRL,
 				0x55555555);
 			if (is_meson_t3())/*disable tvcore clk since t3*/
-				vpu_module_clk_disable(0, DV_TVCORE, 0);
+				vpu_module_clk_disable(0, DV_TVCORE, 1);
 			pr_info("dovi disable in uboot\n");
 		}
 	}
@@ -14593,34 +14604,34 @@ unsigned int dolby_vision_check_enable(void)
 			/* core1a */
 			dv_mem_power_off(VPU_DOLBY1A);
 			dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
-			VSYNC_WR_DV_REG
+			WRITE_VPP_DV_REG
 				(DOLBY_CORE1A_CLKGATE_CTRL,
 				0x55555455);
 			/* core1b */
 			dv_mem_power_off(VPU_DOLBY1B);
-			VSYNC_WR_DV_REG
+			WRITE_VPP_DV_REG
 				(DOLBY_CORE1B_CLKGATE_CTRL,
 				0x55555455);
 			/* core2 */
 			dv_mem_power_off(VPU_DOLBY2);
-			VSYNC_WR_DV_REG
+			WRITE_VPP_DV_REG
 				(DOLBY_CORE2A_CLKGATE_CTRL,
 				0x55555555);
 			/* core3 */
 			dv_mem_power_off(VPU_DOLBY_CORE3);
-			VSYNC_WR_DV_REG
+			WRITE_VPP_DV_REG
 				(DOLBY_CORE3_CLKGATE_CTRL,
 				0x55555555);
 			/*tm2/t7 has tvcore, should also power off tvcore*/
 			if (is_meson_tm2_stbmode() || is_meson_t7_stbmode()) {
 				/* tv core */
-				VSYNC_WR_DV_REG(DOLBY_TV_AXI2DMA_CTRL0,
+				WRITE_VPP_DV_REG(DOLBY_TV_AXI2DMA_CTRL0,
 					0x01000042);
-				VSYNC_WR_DV_REG_BITS
+				WRITE_VPP_DV_REG_BITS
 					(DOLBY_TV_SWAP_CTRL7,
 					0xf, 4, 4);
 				dv_mem_power_off(VPU_DOLBY0);
-				VSYNC_WR_DV_REG
+				WRITE_VPP_DV_REG
 					(DOLBY_TV_CLKGATE_CTRL,
 					0x55555555);
 			}
