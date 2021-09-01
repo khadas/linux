@@ -350,12 +350,14 @@ static void cfg_ch_set(struct di_ch_s *pch)
 			PR_INF("%s:format not set\n", __func__);
 			break;
 		}
+		cfgsch(pch, DW_EN, 0);
 	}
 	cfgsch(pch, KEEP_DEC_VF, 0); // for all new_interface
 	if (dip_itf_is_ins_exbuf(pch)) {
 		//cfgsch(pch, KEEP_DEC_VF, 0);
 		cfgsch(pch, ALLOC_SCT, 0);
 		cfgsch(pch, 4K, 0);
+		cfgsch(pch, DW_EN, 0);
 	}
 
 	if (!(di_dbg & DBG_M_REG))
@@ -366,8 +368,9 @@ static void cfg_ch_set(struct di_ch_s *pch)
 	PR_INF("\tkeep_dec_vf[%d]\n", cfggch(pch, KEEP_DEC_VF));
 	PR_INF("\tout_fmt[%d][%d]\n", cfggch(pch, POUT_FMT),
 		cfggch(pch, IOUT_FMT));
-	PR_INF("\talloc_sct[%d],4K[%d]\n", cfggch(pch, ALLOC_SCT),
-		cfggch(pch, 4K));
+	PR_INF("\talloc_sct[%d],4K[%d],dw[%d]\n", cfggch(pch, ALLOC_SCT),
+		cfggch(pch, 4K),
+		cfggch(pch, DW_EN));
 	PR_INF("\ttvp:%d\n",
 	       parm->output_format & DI_OUTPUT_TVP ? 1 : 0);
 }
@@ -421,21 +424,6 @@ int di_create_instance(struct di_init_parm parm)
 		       itf->u.dinst.parm.work_mode);
 	}
 
-	//option:
-	#ifdef MARK_HIS//ary 2020-12-10 tmp
-	/*ops in*/
-	memcpy(&pintf->opsi, &inst_in_ops, sizeof(struct dim_itf_ops_s));
-	pintf->op_dvfm_fill = dvfm_fill_in_ins;
-	if (pintf->tmode == EDIM_TMODE_2_PW_OUT) {
-		pintf->op_post_done = dim_post_de_done_buf_config_ins;
-		pintf->op_ins_2_doing = ins_2_doing;
-	} else if (pintf->tmode == EDIM_TMODE_3_PW_LOCAL) {
-		pintf->op_post_done = dim_post_de_done_buf_config_ins_local;
-		pintf->op_ins_2_doing = NULL;
-	} else {
-		pintf->op_ins_2_doing = NULL;
-	}
-	#endif
 	//reg:
 	mutex_lock(&pch->itf.lock_reg);
 	pch->sum_reg_cnt++;
@@ -450,8 +438,8 @@ int di_create_instance(struct di_init_parm parm)
 		itf->op_fill_ready	= ndrd_m1_fill_ready;
 		itf->op_ready_out	= dip_itf_ndrd_ins_m1_out;
 	}
-
-	cfg_ch_set(pch);
+	itf->op_cfg_ch_set	= cfg_ch_set;
+	//cfg_ch_set(pch);
 	mutex_unlock(&pch->itf.lock_reg);
 	PR_INF("%s:ch[%d],tmode[%d]\n", "create", ch, itf->tmode);
 	PR_INF("\tout:0x%x\n", itf->u.dinst.parm.output_format);

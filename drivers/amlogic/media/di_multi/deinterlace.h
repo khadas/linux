@@ -189,6 +189,7 @@ struct dsub_bufv_s {
 	bool src_is_i;
 	bool en_hdr;
 	void *buffer;	/*for new interface */
+	struct dvfm_s dvframe;
 };
 
 struct di_buf_s {
@@ -316,6 +317,7 @@ struct di_buf_s {
 	u32 local_meta_used_size;
 	u32 local_meta_total_size;
 	bool hf_irq;
+	bool dw_have;
 };
 
 #define RDMA_DET3D_IRQ			0x20
@@ -558,6 +560,8 @@ struct di_pre_stru_s {
 	struct vframe_s		vfm_cpy;
 	unsigned int		h_size; //real di h_size
 	unsigned int		v_size;	//real di v_size
+	struct SHRK_S shrk_cfg;
+	struct dvfm_s dw_wr_dvfm;
 };
 
 struct dim_fmt_s;

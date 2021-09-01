@@ -531,7 +531,7 @@ void pd_device_files_add(struct device *dev)
 
 void pd_device_files_del(struct device *dev)
 {
-	device_create_file(dev, &dev_attr_pd_param);
+	device_remove_file(dev, &dev_attr_pd_param);
 }
 #ifdef DEBUG_SUPPORT
 module_param_named(flm22_sure_num, flm22_sure_num, uint, 0644);

@@ -235,6 +235,13 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_HDR_EN,
 			0,
 			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_DW_EN]  = {"dw_en",
+			/* 0:disable;	*/
+			/* bit 1:enable for 4k */
+			/* bit 2:enable for 1080p to-do */
+			EDI_CFG_DW_EN,
+			0,
+			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
 
@@ -389,6 +396,11 @@ void di_cfg_top_dts(void)
 			PR_WARN("pout:from:%d->0\n", cfgg(POUT_FMT));
 			cfgs(POUT_FMT, 0);
 		}
+	}
+	/* dw */
+	if (cfgg(DW_EN) && !IS_IC_SUPPORT(DW)) {
+		PR_WARN("dw not support\n");
+		cfgs(DW_EN, 0);
 	}
 }
 
@@ -797,6 +809,18 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 			edi_mp_hdr_ctrl, 0},
 	[edi_mp_clock_low_ratio]  = {"clock_low_ratio:0:not set",
 				edi_mp_clock_low_ratio, 60000000},
+	/********************
+	 * edi_mp_shr_cfg
+	 * b[31]	cfg enable
+	 * b[7:0]	mode;
+	 *	[7]:	en
+	 *	[4:5]:	v
+	 *	[0:1]:	h
+	 * b[15:8]:	o mode; [15]: en;
+	 * b[16]:	show dw;
+	 ********************/
+	[edi_mp_shr_cfg]  = {"shr_mode_w:uint:0:disable;0",
+				edi_mp_shr_cfg, 0x0},
 	[EDI_MP_SUB_DI_E]  = {"di end-------",
 				EDI_MP_SUB_DI_E, 0},
 	/**************************************/
@@ -2847,9 +2871,10 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 
 	/* bypass state */
 	dim_bypass_st_clear(pch);
-	/* dw */
-	dw_int();
+	if (pch->itf.op_cfg_ch_set)
+		pch->itf.op_cfg_ch_set(pch);
 	di_hf_reg(pch);
+	dim_dw_reg(pch);
 	/* check format */
 	if (!dip_itf_is_ins_exbuf(pch)) {
 		if (cfggch(pch, POUT_FMT) < 3 &&
@@ -5075,12 +5100,6 @@ void dip_init_pq_ops(void)
 		else
 			get_datal()->hop_l1 = &dim_ops_l1_v3;
 		di_attach_ops_v3(&get_datal()->hop_l2);
-	#ifdef MARK_SC2
-		if (get_datal()->hop_l2)
-			PR_INF("%s\n", opl2()->info.name);
-		else
-			PR_INF("%s\n", "op12 failed");
-	#endif
 	}
 	PR_INF("%s:%d:%s\n", "init ops", ic_id, opl1()->info.name);
 	pq_sv_db_ini();
@@ -5375,7 +5394,9 @@ bool di_hf_size_check(struct DI_SIM_MIF_s *w_mif)
 	unsigned int y_size = w_mif->end_y + 1;
 	bool ret = false;
 
-	if (x_size <= 1920 && y_size <= 1080)
+	if (!w_mif->is_dw	&&
+	    x_size <= 1920	&&
+	    y_size <= 1080)
 		ret = true;
 
 	return ret;
@@ -5407,6 +5428,360 @@ void dim_dbg_seq_hf(struct hf_info_t *hf, struct seq_file *seq)
 }
 
 /**********************************/
+void dim_dvf_cp(struct dvfm_s *dvfm, struct vframe_s *vfm, unsigned int indx)
+{
+	if (!dvfm || !vfm)
+		return;
+	dvfm->type = vfm->type;
+	dvfm->canvas0Addr = vfm->canvas0Addr;
+	dvfm->canvas1Addr = vfm->canvas1Addr;
+	dvfm->compHeadAddr	= vfm->compHeadAddr;
+	dvfm->compBodyAddr	= vfm->compBodyAddr;
+	dvfm->plane_num		= vfm->plane_num;
+	memcpy(&dvfm->canvas0_config[0], &vfm->canvas0_config[0],
+	      sizeof(vfm->canvas0_config[0]) * 2);
+
+	dvfm->width = vfm->width;
+	dvfm->height = vfm->height;
+	dvfm->bitdepth = vfm->bitdepth;
+	dvfm->decontour_pre = vfm->decontour_pre;
+}
+
+/* 0:default; 1: nv21; 2: nv12;*/
+void dim_dvf_type_p_chage(struct dvfm_s *dvfm, unsigned int type)
+{
+	if (!dvfm)
+		return;
+	/* set vframe bit info */
+	dvfm->bitdepth &= ~(BITDEPTH_MASK);
+	dvfm->bitdepth &= ~(FULL_PACK_422_MODE);
+
+	if (type == 0) {
+		if (dimp_get(edi_mp_di_force_bit_mode) == 10) {
+			dvfm->bitdepth |= (BITDEPTH_Y10 |
+					   BITDEPTH_U10 |
+					   BITDEPTH_V10);
+			if (dimp_get(edi_mp_full_422_pack))
+				dvfm->bitdepth |= (FULL_PACK_422_MODE);
+		} else {
+			dvfm->bitdepth |= (BITDEPTH_Y8 |
+					   BITDEPTH_U8 |
+					   BITDEPTH_V8);
+		}
+		dvfm->type = VIDTYPE_PROGRESSIVE |
+			       VIDTYPE_VIU_422 |
+			       VIDTYPE_VIU_SINGLE_PLANE |
+			       VIDTYPE_VIU_FIELD;
+	} else {
+		/* nv 21 */
+		if (type == 1)
+			dvfm->type = VIDTYPE_VIU_NV21 |
+			       VIDTYPE_VIU_FIELD;
+		else
+			dvfm->type = VIDTYPE_VIU_NV12 |
+			       VIDTYPE_VIU_FIELD;
+		dvfm->bitdepth |= (BITDEPTH_Y8	|
+				  BITDEPTH_U8	|
+				  BITDEPTH_V8);
+	}
+}
+
+void dim_dvf_config_canvas(struct dvfm_s *dvfm)
+{
+	int i;
+
+	if (dvfm->plane_num > 2) {
+		PR_ERR("%s:plan overflow %d\n", __func__, dvfm->plane_num);
+		return;
+	}
+
+	for (i = 0; i < dvfm->plane_num; i++)
+		canvas_config_config(dvfm->cvs_nu[i],
+				     &dvfm->canvas0_config[i]);
+}
+
+/*****************************************************
+ * double write test
+ *****************************************************/
+
+static const struct mm_size_in_s cdw_info = {
+	.w	= 960,
+	.h	= 540,
+	.p_as_i	= 0,
+	.is_i	= 0,
+	.en_afbce	= 0,
+	.mode	= EDPST_MODE_NV21_8BIT,
+	.out_format = 1 /* yuv 422 10 bit */
+};
+
+static const struct SHRK_S cdw_sk = {
+	.hsize_in	= 960,
+	.vsize_in	= 540,
+	.h_shrk_mode	= 1,
+	.v_shrk_mode	= 1,
+	.shrk_en	= 1,
+	.frm_rst	= 0,
+};
+
+struct dw_s *dim_getdw(void)
+{
+	return &get_datal()->dw_d;
+}
+
+static int cnt_mm_info_simple_p(struct mm_size_out_s *info)
+{
+	struct mm_size_in_s	*in;
+	struct mm_size_p_nv21	*pnv21;
+	struct mm_size_p	*po;
+
+	unsigned int tmpa, tmpb;
+	unsigned int height;
+	unsigned int width;
+	unsigned int canvas_height;
+
+	unsigned int nr_width;
+	unsigned int canvas_align_width = 32;
+
+	in = &info->info_in;
+
+	height	= in->h;
+	canvas_height = roundup(height, 32);
+	width	= in->w;
+	nr_width = width;
+
+	/**********************************************/
+	/* count buf info */
+	/**********************************************/
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
+		canvas_align_width = 64;
+
+	if (in->mode == EDPST_MODE_422_10BIT_PACK)
+		nr_width = (width * 5) / 4;
+	else if (in->mode == EDPST_MODE_422_10BIT)
+		nr_width = (width * 3) / 2;
+	else
+		nr_width = width;
+
+	if (in->is_i || in->p_as_i) {
+		//PR_ERR("%s:have i flg\n", __func__);
+		return -1;
+	}
+	/* p */
+	//nr_width = roundup(nr_width, canvas_align_width);
+
+	if (in->mode == EDPST_MODE_NV21_8BIT) {
+		nr_width = roundup(nr_width, canvas_align_width);
+		in->o_mode = 1;
+		pnv21 = &info->nv21;
+		tmpa = (nr_width * canvas_height) >> 1;/*uv*/
+		tmpb = roundup(tmpa, PAGE_SIZE);
+		tmpa = roundup(nr_width * canvas_height, PAGE_SIZE);
+
+		pnv21->size_buf_uv	= tmpb;
+		pnv21->off_y		= tmpa;
+		pnv21->size_buf		= tmpa;
+		pnv21->size_total = tmpa + tmpb;
+		pnv21->size_page = pnv21->size_total >> PAGE_SHIFT;
+		pnv21->cvs_w	= nr_width;
+		pnv21->cvs_h	= canvas_height;
+	} else {
+		/* 422 */
+		in->o_mode = 2;
+		po = &info->p;
+		tmpa = roundup(nr_width * canvas_height * 2, PAGE_SIZE);
+		po->size_buf = tmpa;
+
+		po->size_total = po->size_buf;
+		po->size_page = po->size_total >> PAGE_SHIFT;
+		po->cvs_w	= nr_width << 1;
+		po->cvs_h	= canvas_height;
+	}
+
+	return 0;
+}
+
+void dw_fill_outvf(struct vframe_s *vfm,
+		   struct di_buf_s *di_buf)
+{
+	struct canvas_config_s *cvsp;
+	struct dw_s *pdw;
+
+	pdw = dim_getdw();
+
+	memcpy(vfm, di_buf->vframe, sizeof(*vfm));
+
+	/* canvas */
+	vfm->canvas0Addr = (u32)-1;
+
+	vfm->plane_num = 1;
+	cvsp = &vfm->canvas0_config[0];
+	cvsp->phy_addr = di_buf->dw_adr;
+	cvsp->block_mode = 0;
+	cvsp->endian = 0;
+	cvsp->width = pdw->size_info.p.cvs_w;
+	cvsp->height = pdw->size_info.p.cvs_h;
+
+	pdw->shrk_cfg.hsize_in = vfm->width;
+	pdw->shrk_cfg.vsize_in = vfm->height;
+
+	vfm->height = vfm->height >> (pdw->shrk_cfg.v_shrk_mode + 1);
+	vfm->width = vfm->width >> (pdw->shrk_cfg.h_shrk_mode + 1);
+#ifdef NV21_DBG
+	if (cfg_vf)
+		vfm->type = cfg_vf;
+#endif
+}
+
+void dim_dw_prob(void)
+{
+	struct dw_s *pdw;
+
+	if (!IS_IC_SUPPORT(DW))
+		return;
+
+	pdw = dim_getdw();
+	memcpy(&pdw->size_info.info_in, &cdw_info,
+	       sizeof(pdw->size_info.info_in));
+	cnt_mm_info_simple_p(&pdw->size_info);
+
+	memcpy(&pdw->shrk_cfg, &cdw_sk, sizeof(pdw->shrk_cfg));
+	pdw->state_en = true;
+}
+
+void dim_dw_reg(struct di_ch_s *pch)
+{
+	unsigned int dbg_cfg;
+	struct dw_s *pdw;
+
+	pch->en_dw_mem = false;
+	if (IS_IC_SUPPORT(DW)	&&
+	    !pch->cst_no_dw	&&
+	    cfggch(pch, DW_EN))
+		pch->en_dw = true;
+	else
+		pch->en_dw = false;
+
+	if (!pch->en_dw)
+		return;
+	/* cfg dbg */
+	dbg_cfg = di_mp_uit_get(edi_mp_shr_cfg);
+	pdw = dim_getdw();
+	if (dbg_cfg & DI_BIT31) {
+		/********************
+		 * edi_mp_shr_cfg
+		 * b[31]	cfg enable
+		 * b[7:0]	mode;
+		 *	[7]:	en
+		 *	[4:5]:	v
+		 *	[0:1]:	h
+		 * b[15:8]:	o mode; [15]: en;
+		 * b[16]:	show dw;
+		 ********************/
+		if (dbg_cfg & DI_BIT7) {
+			pdw->shrk_cfg.h_shrk_mode = dbg_cfg & 0x03;
+			pdw->shrk_cfg.v_shrk_mode = (dbg_cfg & 0x30) >> 4;
+			PR_INF("dw dbg:mode:%d,%d\n",
+			       pdw->shrk_cfg.h_shrk_mode,
+			       pdw->shrk_cfg.v_shrk_mode);
+		}
+		if (dbg_cfg & DI_BIT15) {
+			pdw->size_info.info_in.out_format =
+				(dbg_cfg & 0x300) >> 8;
+			PR_INF("dw dbg:out:%d\n",
+			       pdw->size_info.info_in.out_format);
+		}
+		pdw->dbg_show_dw = (dbg_cfg & DI_BIT16) ? true : false;
+		PR_INF("dw dbg:show:%d\n",
+		       pdw->dbg_show_dw);
+		pdw->state_cfg_by_dbg = true;
+	}
+
+	dbg_reg("%s:[%d]\n", __func__, pch->en_dw);
+}
+
+void dim_dw_unreg_setting(void)
+{
+	if (IS_IC_SUPPORT(DW))
+		opl1()->shrk_disable(&di_pre_regset);
+}
+
+/* used for signel change */
+void dim_dw_pre_para_init(struct di_ch_s *pch, struct dim_nins_s *nins)
+{
+	struct SHRK_S *shrk_cfg;
+	struct dvfm_s *wdvfm;
+	struct di_pre_stru_s *ppre;
+	struct canvas_config_s *pcvs;
+	unsigned int h_mode, v_mode;
+	struct di_cvs_s *cvss;
+
+	if (!pch || !nins)
+		return;
+
+	cvss = &get_datal()->cvs;
+	ppre = get_pre_stru(pch->ch_id);
+	shrk_cfg = &ppre->shrk_cfg;
+	memcpy(shrk_cfg, &dim_getdw()->shrk_cfg, sizeof(*shrk_cfg));
+	wdvfm	= &ppre->dw_wr_dvfm;
+
+	shrk_cfg->shrk_en = 1;
+	shrk_cfg->pre_post = 1;
+	shrk_cfg->hsize_in = ppre->cur_width;
+	shrk_cfg->vsize_in = ppre->cur_height;
+	h_mode = dim_getdw()->shrk_cfg.h_shrk_mode + 1;
+	v_mode = dim_getdw()->shrk_cfg.v_shrk_mode + 1;
+	shrk_cfg->out_h = ppre->cur_width >> h_mode;
+	shrk_cfg->out_v = ppre->cur_height >> v_mode;
+	//memcpy(wdvfm, nins->c.dvfm, sizeof(*wdvfm));
+	wdvfm->width = shrk_cfg->out_h;
+	wdvfm->height = shrk_cfg->out_v;
+
+	wdvfm->buf_hsize = dim_getdw()->size_info.info_in.w;
+
+	pcvs = &wdvfm->canvas0_config[0];
+	if (dim_getdw()->size_info.info_in.mode
+		>= EDPST_MODE_422_10BIT_PACK) {
+		wdvfm->plane_num = 1;
+		pcvs->width = dim_getdw()->size_info.p.cvs_w;
+		pcvs->height = dim_getdw()->size_info.p.cvs_h;
+		pcvs->block_mode = 0;
+		pcvs->endian = 0;
+		wdvfm->cvs_nu[0] = cvss->pre_idx[0][4];
+	} else {
+		/*nv21 | nv 12 */
+		wdvfm->plane_num = 2;
+		pcvs->width = dim_getdw()->size_info.nv21.cvs_w;
+		pcvs->height = dim_getdw()->size_info.nv21.cvs_h;
+		/*temp*/
+		pcvs->block_mode = 0;
+		pcvs->endian = 0;
+
+		pcvs = &wdvfm->canvas0_config[1];
+		pcvs->width = dim_getdw()->size_info.nv21.cvs_w;
+		pcvs->height = dim_getdw()->size_info.nv21.cvs_h;
+		wdvfm->cvs_nu[0] = cvss->pre_idx[0][4];
+		wdvfm->cvs_nu[1] = cvss->post_idx[1][2];
+	}
+	dim_dvf_type_p_chage(&ppre->dw_wr_dvfm,
+			dim_getdw()->size_info.info_in.out_format);
+}
+
+/* use wr_di buffer to fill dvmf phy address */
+void dw_pre_sync_addr(struct dvfm_s *wdvfm, struct di_buf_s *di_buf)
+{
+	if (!wdvfm || !di_buf) {
+		PR_ERR("%s:is null\n", __func__);
+		return;
+	}
+	wdvfm->canvas0_config[0].phy_addr = di_buf->dw_adr;
+	if (wdvfm->plane_num == 1)
+		return;
+	wdvfm->canvas0_config[1].phy_addr = di_buf->dw_adr +
+		dim_getdw()->size_info.nv21.off_y;
+}
+
+/**********************************/
+
 void dip_clean_value(void)
 {
 	unsigned int ch;

@@ -353,6 +353,8 @@ int dbg_dct_contr_show(struct seq_file *s, void *v);
 void dim_dbg_dct_info(struct dcntr_mem_s *pprecfg);
 /* dct pre */
 void dct_pre_prob(struct platform_device *pdev);
+void dct_pre_revome(struct platform_device *pdev);
+
 int dct_pre_ch_show(struct seq_file *s, void *v);
 int dct_pre_reg_show(struct seq_file *s, void *v);
 int dct_pre_show(struct seq_file *s, void *v);
@@ -368,6 +370,18 @@ void dim_hdr_remove(void);
 const struct di_hdr_ops_s *dim_hdr_ops(void);
 int dim_dbg_hdr_reg1(struct seq_file *s, void *v, unsigned int indx);
 int dim_dbg_hdr_para_show(struct seq_file *s, void *v);
+
+/* double write and dvf */
+void dim_dvf_cp(struct dvfm_s *dvfm, struct vframe_s *vfm, unsigned int indx);
+void dim_dvf_type_p_chage(struct dvfm_s *dvfm, unsigned int type);
+void dim_dvf_config_canvas(struct dvfm_s *dvfm);
+
+struct dw_s *dim_getdw(void);
+void dim_dw_prob(void);
+void dim_dw_reg(struct di_ch_s *pch);
+void dim_dw_unreg_setting(void);
+void dim_dw_pre_para_init(struct di_ch_s *pch, struct dim_nins_s *nins);
+void dw_pre_sync_addr(struct dvfm_s *wdvfm, struct di_buf_s *di_buf);
 
 /*************************************************/
 

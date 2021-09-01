@@ -340,8 +340,9 @@ struct DI_SIM_MIF_s {
 	unsigned int	src_i		:1; /* ary add for sc2 */
 	unsigned int	reg_swap	:1;
 	unsigned int	linear		: 1;
-	unsigned int		buf_crop_en : 1;
-	unsigned int	reserved	: 3;
+	unsigned int	buf_crop_en	: 1;
+	unsigned int	is_dw		: 1;
+	unsigned int	reserved	: 2;
 	unsigned int	per_bits	: 8; /* for t7 */
 
 	unsigned int	buf_hsize;
@@ -728,8 +729,34 @@ struct regs_t {
 	char *name;
 };
 
+/* use this to replace vframe_s in di */
+struct dvfm_s {
+	/*from vframe_s */
+	unsigned int type;
+	unsigned int canvas0Addr;
+	unsigned int canvas1Addr;
+	unsigned int compHeadAddr;
+	unsigned int compBodyAddr;
+	unsigned int plane_num;
+	struct canvas_config_s canvas0_config[2];
+	unsigned int width;
+	unsigned int height;
+	unsigned int bitdepth;
+	unsigned int flag;
+	void *decontour_pre;
+
+	/* below is for di */
+	unsigned int nub_in_frm;// 1~ xx
+	unsigned int vfm_type_in;
+	unsigned int sts_di; /* dbg only */
+	unsigned int cvs_nu[2];//tmp
+	unsigned int buf_hsize;
+	bool is_dw;
+};
+
 struct di_buf_s;
 struct di_win_s;
+struct SHRK_S;
 
 struct dim_hw_opsv_s {
 	struct dim_hw_opsv_info_s	info;
@@ -757,12 +784,19 @@ struct dim_hw_opsv_s {
 			   /*struct di_buf_s *di_buf,*/
 			   void *di_vf,
 			   struct di_win_s *win);
+	void (*wr_cfg_mif_dvfm)(struct DI_SIM_MIF_s *wr_mif,
+			enum EDI_MIFSM index,
+			struct dvfm_s *dvfm,
+			struct di_win_s *win);
 	void (*wrmif_set)(struct DI_SIM_MIF_s *cfg_mif,
 			  const struct reg_acc *ops,
 			  enum EDI_MIFSM mifsel);
 	void (*wrmif_sw_buf)(struct DI_SIM_MIF_s *cfg_mif,
 			     const struct reg_acc *ops,
 			     enum EDI_MIFSM mifsel);
+	void (*shrk_set)(struct SHRK_S *srkcfg,
+			 const struct reg_acc *op);
+	void (*shrk_disable)(const struct reg_acc *opin);
 	/* for t7 */
 	void (*pre_ma_mif_set)(void *ppre,
 			       unsigned short urgent);
@@ -823,7 +857,10 @@ struct SHRK_S {
 	unsigned int v_shrk_mode : 4;
 	unsigned int shrk_en : 1;
 	unsigned int frm_rst : 1;
-	unsigned int rev : 22;
+	unsigned int pre_post : 1;
+	unsigned int rev : 21;
+	unsigned int out_h;
+	unsigned int out_v;
 };
 
 struct mm_size_in_s {
@@ -834,11 +871,14 @@ struct mm_size_in_s {
 	unsigned int p_as_i	: 1; /* working mode */
 	unsigned int is_i	: 1;
 	unsigned int en_afbce	: 1;
+	unsigned int rev2	: 1;
+
 	unsigned int mode	: 4;	/* EDPST_MODE */
+	unsigned int out_format : 4; /* 0:default; 1: nv21; 2: nv12;*/
 
 	/* 1: nv21; 2: pother; 3: i */
 	unsigned int o_mode	: 4; /*cnt by */
-	unsigned int rev1	: 20;
+	unsigned int rev1	: 16;
 
 //	};
 
@@ -873,17 +913,8 @@ struct mm_size_out_s {
 	};
 };
 
-struct dw_s {
-	struct mm_size_out_s size_info;
-	struct SHRK_S shrk_cfg;
-
-};
-
-struct dw_s *dim_getdw(void);
-void dw_int(void);
 void dw_fill_outvf(struct vframe_s *vfm,
 		   struct di_buf_s *di_buf);
-unsigned int dw_get_h(void);
 
 void di_mif1_linear_rd_cfg(struct DI_SIM_MIF_s *mif,
 			unsigned int CTRL1,
@@ -897,5 +928,6 @@ bool dip_is_linear(void);
 bool dim_dbg_cfg_post_byapss(void);
 void dbg_reg_mem(unsigned int dbgid);
 bool dim_aisr_test(struct DI_SIM_MIF_s *mif, bool sel);//test only
+extern const struct reg_acc di_pst_regset;
 
 #endif

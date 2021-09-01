@@ -2037,6 +2037,17 @@ void dct_pre_prob(struct platform_device *pdev)
 	get_datal()->dct_op = NULL;
 }
 
+void dct_pre_revome(struct platform_device *pdev)
+{
+	struct di_hdct_s  *dct;
+
+	dct = &get_datal()->hw_dct;
+	if (dct->statust & DCT_PRE_LST_CVS) {
+		ops_ext()->cvs_free_table(&dct->cvs_dct[0], 6);
+		dct->statust &= (~DCT_PRE_LST_CVS);
+	}
+}
+
 void dim_dbg_dct_info_show(struct seq_file *s, void *v,
 			   struct dcntr_mem_s *pprecfg)
 {

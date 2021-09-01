@@ -1290,7 +1290,7 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		}
 		buf_p->afbc_adr	= buf_p->adr_start;
 		buf_p->dw_adr = buf_p->afbc_adr + mm->cfg.afbci_size;
-		buf_p->nr_adr = buf_p->dw_adr + mm->cfg.dw_size;
+		buf_p->nr_adr = buf_p->dw_adr;// + mm->cfg.dw_size;
 		buf_p->buf_hsize	= mm->cfg.ibuf_hsize;
 		/* count afbct setting and crc */
 		if (dim_afds() && mm->cfg.afbci_size) {
@@ -1355,7 +1355,7 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		dbg_mem2("\t:afbct_adr\t[0x%lx]\n", buf_p->afbct_adr);
 		dbg_mem2("\t:afbc_adr\t[0x%lx]\n", buf_p->afbc_adr);
 
-		dbg_mem2("\t:dw_adr\t[0x%lx]\n", buf_p->dw_adr);
+		//dbg_mem2("\t:dw_adr\t[0x%lx]\n", buf_p->dw_adr);
 
 		dbg_mem2("\t:mtn_adr\t[0x%lx]\n", buf_p->mtn_adr);
 		dbg_mem2("\t:cnt_adr\t[0x%lx]\n", buf_p->cnt_adr);
@@ -3636,6 +3636,7 @@ static const struct di_meson_data  data_tm2_vb = {
 static const struct di_meson_data  data_sc2 = {
 	.name = "dim_sc2",
 	.ic_id	= DI_IC_ID_SC2,
+	.support = IC_SUPPORT_DW
 };
 
 static const struct di_meson_data  data_t5 = {
@@ -3646,6 +3647,7 @@ static const struct di_meson_data  data_t5 = {
 static const struct di_meson_data  data_t7 = {
 	.name = "dim_t7",
 	.ic_id	= DI_IC_ID_T7,
+	.support = IC_SUPPORT_DW
 };
 
 static const struct di_meson_data  data_t5d_va = {
@@ -3666,7 +3668,9 @@ static const struct di_meson_data  data_s4 = {
 static const struct di_meson_data  data_t3 = {
 	.name = "dim_t3",
 	.ic_id	= DI_IC_ID_T3,
-	.support = IC_SUPPORT_DECONTOUR | IC_SUPPORT_HDR
+	.support = IC_SUPPORT_DECONTOUR	|
+		   IC_SUPPORT_HDR	|
+		   IC_SUPPORT_DW
 };
 
 /* #ifdef CONFIG_USE_OF */
@@ -3923,6 +3927,7 @@ static int dim_probe(struct platform_device *pdev)
 	dim_polic_prob();
 	dct_pre_prob(pdev);
 	dcntr_prob();
+	dim_dw_prob();
 	dip_prob_ch();
 	dim_hdr_prob();
 
@@ -3973,6 +3978,7 @@ static int dim_remove(struct platform_device *pdev)
 
 	dimh_hw_uninit();
 
+	dct_pre_revome(pdev);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		clk_disable_unprepare(di_devp->vpu_clkb);
 
@@ -4027,6 +4033,7 @@ static int dim_remove(struct platform_device *pdev)
 	kfree(di_devp->data_l);
 	di_devp->data_l = NULL;
 	vfree(di_pdev->local_meta_addr);
+	di_pdev->local_meta_addr = NULL;
 	kfree(di_pdev);
 	di_pdev = NULL;
 	PR_INF("%s:finish\n", __func__);

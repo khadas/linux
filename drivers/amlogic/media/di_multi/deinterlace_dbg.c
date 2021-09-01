@@ -47,6 +47,7 @@
 #include "di_post.h"
 #include "di_reg_v2.h"
 #include "di_vframe.h"
+#include "di_dbg.h"
 
 /*2018-07-18 add debugfs*/
 #include <linux/seq_file.h>
@@ -636,6 +637,10 @@ int dim_dump_mif_size_state_show(struct seq_file *seq,
 	di_pre_stru_p = get_pre_stru(channel);
 	di_post_stru_p = get_post_stru(channel);
 
+	if (di_pre_stru_p->shrk_cfg.shrk_en) {
+		seq_puts(seq, "======pre dw_wr_dvfm======\n");
+		seq_file_dvfm(seq, v, &di_pre_stru_p->dw_wr_dvfm);
+	}
 	seq_puts(seq, "======pre mif status======\n");
 	seq_printf(seq, "DI_PRE_CTRL=0x%x\n", RD(DI_PRE_CTRL));
 	seq_printf(seq, "DI_PRE_SIZE=0x%x\n", RD(DI_PRE_SIZE));
@@ -1027,9 +1032,13 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 
 	dump_state_flag = 1;
 	seq_printf(seq, "%s:ch[%d]\n", __func__, channel);
-	seq_printf(seq, "version %s, init_flag %d\n",
+	seq_printf(seq, "version %s, init_flag %d, dw[%d:%d:%d:%d]\n",
 		   version_s,
-		   get_init_flag(channel));
+		   get_init_flag(channel),
+		   get_datal()->dw_d.state_en,
+		   get_datal()->dw_d.state_cfg_by_dbg,
+		   pch->en_dw,
+		   pch->en_dw_mem);
 	seq_printf(seq, "bypass:need:%d,0x%x\n",
 		   pch->bypass.b.need_bypass,
 		   pch->bypass.b.reason_n);

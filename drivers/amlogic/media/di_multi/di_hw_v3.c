@@ -693,13 +693,6 @@ static void pre_enable_mc_t7(struct DI_MC_MIF_s *mcinford_mif,
 	di_mcmif_linear_wr_cfg(mcinfowr_mif, MCINFWR_STRIDE, MCINFWR_BADDR);
 }
 
-unsigned int dw_get_h(void)
-{	//bit 15: enable dw
-	//bit 14: show
-	//bit 13: shrk en
-	return ((sc2_reg_mask >> 8) & 0x3);
-}
-
 /*************************************************/
 
 #define DI_SCALAR_DISABLE	(1)
@@ -1475,7 +1468,8 @@ static unsigned int set_afbce_cfg_v1(int index,
 
 } /* set_afbce_cfg_v1 */
 
-static void set_shrk(struct SHRK_S *srkcfg, const struct reg_acc *opin)
+/* for double write function */
+static void set_shrk_ch(struct SHRK_S *srkcfg, const struct reg_acc *opin)
 {
 	const struct reg_acc *op;
 
@@ -1484,26 +1478,33 @@ static void set_shrk(struct SHRK_S *srkcfg, const struct reg_acc *opin)
 	else
 		op = opin;
 
-	op->wr((DI_DIWR_SHRK_CTRL),
-		((srkcfg->h_shrk_mode & 0x3) << 8)  |
-		((srkcfg->v_shrk_mode & 0x3) << 6)  |
-		((srkcfg->shrk_en & 0x1)     << 0)
-		);
+	if (!srkcfg->shrk_en) {
+		op->bwr(DI_DIWR_SHRK_CTRL, 0, 0, 1);
+		return;
+	}
+	/* pre / post select: 1: pre; 0; post */
+	op->bwr(DI_TOP_CTRL1, srkcfg->pre_post, 27, 1);
 
-/*	stimulus_display("==hshrk_mode== %0x\n", srkcfg->h_shrk_mode);*/
-/*	stimulus_display("==vshrk_mode== %0x\n", srkcfg->v_shrk_mode);*/
+	op->wr(DI_DIWR_SHRK_CTRL,
+	       ((srkcfg->h_shrk_mode & 0x3) << 8)  |
+	       ((srkcfg->v_shrk_mode & 0x3) << 6)  |
+	       ((srkcfg->shrk_en & 0x1)     << 0));
 
-	op->wr((DI_DIWR_SHRK_SIZE),
-		((srkcfg->hsize_in & 0x1fff) << 13) |  // reg_frm_hsize
-		((srkcfg->vsize_in & 0x1fff) << 0)    // reg_frm_vsize
-		);
+	op->wr(DI_DIWR_SHRK_SIZE,
+	       ((srkcfg->hsize_in & 0x1fff) << 13) |	// reg_frm_hsize
+	       ((srkcfg->vsize_in & 0x1fff) << 0));	// reg_frm_vsize
+
 	op->bwr(DI_DIWR_SHRK_CTRL, srkcfg->frm_rst, 1, 1);
 }
 
-static void set_shrk_disable(void)
+static void set_shrk_disable(const struct reg_acc *opin)
 {
-	const struct reg_acc *op = &di_pre_regset;
+	const struct reg_acc *op;
 
+	if (!opin)
+		op = &di_pre_regset;
+	else
+		op = opin;
 	op->bwr(DI_DIWR_SHRK_CTRL, 0, 0, 1);
 }
 
@@ -2075,7 +2076,7 @@ static const struct reg_t rtab_sc2_contr_bits_tab[] = {
 	/*--------------------------*/
 	{DI_TOP_PRE_CTRL, 0, 2, 0, "DI_TOP_PRE_CTRL",
 		"nrwr_path_sel",
-		"0: none; 1: normal;2: afbce"},
+		"bit 0: mif; 1: afbce"},
 	{DI_TOP_PRE_CTRL, 30, 2, 0, "",
 			"pre_frm_sel",
 			"0:internal  1:pre-post link  2:viu  3:vcp(vdin)"},
@@ -2581,6 +2582,68 @@ void wr_mif_cfg_v3(struct DI_SIM_MIF_s *wr_mif,
 			wr_mif->end_y = vf->height / 2 - 1;
 		else
 			wr_mif->end_y = vf->height - 1;
+	}
+}
+
+/* for dw 2021-08-25 copy from wr_mif_cfg_v3 */
+void wr_mif_cfg_by_dvfm(struct DI_SIM_MIF_s *wr_mif,
+			enum EDI_MIFSM index,
+			struct dvfm_s *dvfm,
+			struct di_win_s *win)
+{
+	unsigned int bitdepth;
+
+	if (!wr_mif || !dvfm)
+		return;
+	wr_mif->canvas_num = dvfm->cvs_nu[0] & 0xff;
+	if (dvfm->plane_num == 2)
+		wr_mif->canvas_num |= ((dvfm->cvs_nu[1] & 0xff) << 8);
+
+	dim_print("%s:w[%d]\n", __func__, dvfm->width);
+	wr_mif->start_x = 0;
+	wr_mif->end_x = dvfm->width - 1;
+	wr_mif->start_y = 0;
+	//tmp for t7:
+	wr_mif->buf_crop_en	= 1;
+	//wr_mif->buf_hsize	= 1920;
+	wr_mif->buf_hsize	= dvfm->buf_hsize;
+	bitdepth = dvfm->bitdepth;
+	if (bitdepth & BITDEPTH_Y10) {
+		if (dvfm->type & VIDTYPE_VIU_444) {
+			wr_mif->bit_mode = (bitdepth & FULL_PACK_422_MODE) ?
+						3 : 2;
+		} else {
+			wr_mif->bit_mode = (bitdepth & FULL_PACK_422_MODE) ?
+						3 : 1;
+		}
+	} else {
+		wr_mif->bit_mode = 0;
+	}
+
+	/* video mode */
+	if (dvfm->type & (VIDTYPE_VIU_444 | VIDTYPE_RGB_444))
+		wr_mif->video_mode = 2;
+	else if (dvfm->type & VIDTYPE_VIU_422)
+		wr_mif->video_mode = 1;
+	else /* nv21 or nv12 */
+		wr_mif->video_mode = 0;
+
+	/* separate */
+	if (dvfm->type & VIDTYPE_VIU_422)
+		wr_mif->set_separate_en = 0;
+	else if (dvfm->type & (VIDTYPE_VIU_NV12 | VIDTYPE_VIU_NV21))
+		wr_mif->set_separate_en = 2; /*nv12 ? nv 21?*/
+
+	if (index == EDI_MIFSM_NR) {
+		if (wr_mif->src_i)
+			wr_mif->end_y = dvfm->height / 2 - 1;
+		else
+			wr_mif->end_y = dvfm->height - 1;
+	} else {
+		if (dim_dbg_cfg_post_byapss())
+			wr_mif->end_y = dvfm->height / 2 - 1;
+		else
+			wr_mif->end_y = dvfm->height - 1;
 	}
 }
 
@@ -5317,151 +5380,6 @@ void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg)
 	}
 }
 
-int cnt_mm_info_simple_p(struct mm_size_out_s *info)
-{
-	struct mm_size_in_s	*in;
-	struct mm_size_p_nv21	*pnv21;
-	struct mm_size_p	*po;
-
-	unsigned int tmpa, tmpb;
-	unsigned int height;
-	unsigned int width;
-	unsigned int canvas_height;
-
-	unsigned int nr_width;
-	unsigned int canvas_align_width = 32;
-
-	in = &info->info_in;
-
-	height	= in->h;
-	canvas_height = roundup(height, 32);
-	width	= in->w;
-	nr_width = width;
-
-	/**********************************************/
-	/* count buf info */
-	/**********************************************/
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
-		canvas_align_width = 64;
-
-	if (in->mode == EDPST_MODE_422_10BIT_PACK)
-		nr_width = (width * 5) / 4;
-	else if (in->mode == EDPST_MODE_422_10BIT)
-		nr_width = (width * 3) / 2;
-	else
-		nr_width = width;
-
-	if (in->is_i || in->p_as_i) {
-		//PR_ERR("%s:have i flg\n", __func__);
-		return -1;
-	}
-	/* p */
-	nr_width = roundup(nr_width, canvas_align_width);
-
-	if (in->mode == EDPST_MODE_NV21_8BIT) {
-		in->o_mode = 1;
-		pnv21 = &info->nv21;
-		tmpa = (nr_width * canvas_height) >> 1;/*uv*/
-		tmpb = roundup(tmpa, PAGE_SIZE);
-		tmpa = roundup(nr_width * canvas_height, PAGE_SIZE);
-
-		pnv21->size_buf_uv	= tmpb;
-		pnv21->size_buf		= tmpa;
-		pnv21->off_y		= tmpa;
-		pnv21->size_total = tmpa + tmpb;
-		pnv21->size_page = pnv21->size_total >> PAGE_SHIFT;
-		pnv21->cvs_w	= nr_width;
-		pnv21->cvs_h	= canvas_height;
-	} else {
-		/* 422 */
-		in->o_mode = 2;
-		po = &info->p;
-		tmpa = roundup(nr_width * canvas_height * 2, PAGE_SIZE);
-		po->size_buf = tmpa;
-
-		po->size_total = po->size_buf;
-		po->size_page = po->size_total >> PAGE_SHIFT;
-		po->cvs_w	= nr_width << 1;
-		po->cvs_h	= canvas_height;
-	}
-
-	return 0;
-}
-
-/*****************************************************
- * double write test
- *****************************************************/
-
-static struct dw_s dw_d;
-static struct dw_s *pdw;
-
-static const struct mm_size_in_s cdw_info = {
-	.w	= 960,
-	.h	= 540,
-	.p_as_i	= 0,
-	.is_i	= 0,
-	.en_afbce	= 0,
-	.mode	= EDPST_MODE_422_10BIT_PACK,
-};
-
-static const struct SHRK_S cdw_sk = {
-	.hsize_in	= 960,
-	.vsize_in	= 540,
-	.h_shrk_mode	= 0,
-	.v_shrk_mode	= 0,
-	.shrk_en	= 1,
-	.frm_rst	= 0,
-};
-
-void dw_int(void)
-{
-	pdw = &dw_d;
-
-	memcpy(&pdw->size_info.info_in, &cdw_info,
-	       sizeof(pdw->size_info.info_in));
-	cnt_mm_info_simple_p(&pdw->size_info);
-
-	memcpy(&pdw->shrk_cfg, &cdw_sk, sizeof(pdw->shrk_cfg));
-
-	pdw->shrk_cfg.h_shrk_mode = dw_get_h();
-	pdw->shrk_cfg.v_shrk_mode = dw_get_h();
-}
-
-struct dw_s *dim_getdw(void)
-{
-	return &dw_d;
-}
-
-void dw_fill_outvf(struct vframe_s *vfm,
-		   struct di_buf_s *di_buf)
-{
-	struct canvas_config_s *cvsp;
-//	unsigned int cvsh, cvsv, csize;
-
-	memcpy(vfm, di_buf->vframe, sizeof(*vfm));
-
-	/* canvas */
-	vfm->canvas0Addr = (u32)-1;
-
-	vfm->plane_num = 1;
-	cvsp = &vfm->canvas0_config[0];
-	cvsp->phy_addr = di_buf->dw_adr;
-	cvsp->block_mode = 0;
-	cvsp->endian = 0;
-	cvsp->width = pdw->size_info.p.cvs_w;
-	cvsp->height = pdw->size_info.p.cvs_h;
-
-	pdw->shrk_cfg.hsize_in = vfm->width;
-	pdw->shrk_cfg.vsize_in = vfm->height;
-
-	vfm->height = vfm->height >> (pdw->shrk_cfg.v_shrk_mode + 1);
-	vfm->width = vfm->width >> (pdw->shrk_cfg.h_shrk_mode + 1);
-#ifdef NV21_DBG
-	if (cfg_vf)
-		vfm->type = cfg_vf;
-#endif
-}
-
 const struct dim_hw_opsv_s dim_ops_l1_v3 = {
 	.info = {
 		.name = "l1_sc2",
@@ -5480,7 +5398,10 @@ const struct dim_hw_opsv_s dim_ops_l1_v3 = {
 	.pst_set_flow	= di_post_set_flow_v3,
 	.pst_bit_mode_cfg	= post_bit_mode_cfg_v3,
 	.wr_cfg_mif	= wr_mif_cfg_v3,
+	.wr_cfg_mif_dvfm = wr_mif_cfg_by_dvfm, /* new from dw*/
 	.wrmif_set	= set_wrmif_simple_v3,
+	.shrk_set	= set_shrk_ch,
+	.shrk_disable	= set_shrk_disable,
 	.wrmif_sw_buf	= NULL,
 	.wrmif_trig	= NULL,
 	.wr_rst_protect	= NULL,
@@ -5527,8 +5448,11 @@ const struct dim_hw_opsv_s dim_ops_l1_v4 = { //for t7
 	.pst_set_flow	= di_post_set_flow_v3,
 	.pst_bit_mode_cfg	= post_bit_mode_cfg_v3,
 	.wr_cfg_mif	= wr_mif_cfg_v3,
+	.wr_cfg_mif_dvfm = wr_mif_cfg_by_dvfm, /* new from dw*/
 	.wrmif_set	= set_wrmif_simple_v3,
 	.wrmif_sw_buf	= NULL,
+	.shrk_set	= set_shrk_ch,
+	.shrk_disable	= set_shrk_disable,
 	.pre_ma_mif_set	= set_ma_pre_mif_t7,
 	.post_mtnrd_mif_set = set_post_mtnrd_mif_t7,
 	.pre_enable_mc	= pre_enable_mc_t7,
@@ -5574,8 +5498,6 @@ static const struct hw_ops_s dim_hw_v3_ops = {
 	},
 	.afbcd_set	= set_afbcd_mult_simple,
 	.afbce_set	= set_afbce_cfg_v1,
-	.shrk_set	= set_shrk,
-	.shrk_disable	= set_shrk_disable,
 	.wrmif_set	= set_wrmif_simple,
 	.mult_wr	= set_di_mult_write,
 	.pre_set	= set_di_pre,

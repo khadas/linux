@@ -71,18 +71,6 @@ enum EAFBCE_INDEX_V3 {
 
 #define DIM_ERR		(0xffffffff)
 
-#ifdef MARK_SC2
-struct SHRK_S {
-	u32 hsize_in;
-	u32 vsize_in;
-	u32 h_shrk_mode;
-	u32 v_shrk_mode;
-	u32 shrk_en;
-	u32 frm_rst;
-
-};
-#endif
-
 #ifdef MARK_SC2	//ary use DI_MIF_S
 struct DI_MIF0_S {
 	u16  luma_x_start0;
@@ -295,9 +283,6 @@ struct hw_ops_s {
 				  int enable,//open nbit of afbce
 				  struct AFBCE_S  *afbce,
 				  const struct reg_acc *op);
-	void (*shrk_set)(struct SHRK_S *srkcfg,
-			 const struct reg_acc *op);
-	void (*shrk_disable)(void);
 	void (*wrmif_set)(int index, int enable,
 			  struct DI_MIF_S *wr_mif, const struct reg_acc *op);
 	void (*mult_wr)(struct DI_MULTI_WR_S *mwcfg, const struct reg_acc *op);
