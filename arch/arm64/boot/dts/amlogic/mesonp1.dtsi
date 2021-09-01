@@ -587,13 +587,13 @@
 		memory-region = <&dsp_fw_reserved>;
 		reg = <0 0xfe340018 0 0x114>,   /*dspa base address*/
 			  <0 0xfe350018 0 0x114>,   /*dspb base address*/
-			  <0 0xfe010258 0 0x4>,     /*dspa status counter*/
-			  <0 0xfe01025c 0 0x4>,     /*dspb status counter*/
-			  <0 0x40820000 0 0x80000>; /*dsp shm region*/
+			  <0 0 0 0>,     /*dspa status counter*/
+			  <0 0 0 0>,     /*dspb status counter*/
+			  <0 0x30820000 0 0x80000>; /*dsp shm region*/
 		dsp-monitor-period-ms = <1000>;
 		reg-names = "dspa_top_reg", "dspb_top_reg";
-		//clocks = <&clkc CLKID_DSPA_CLK>, <&clkc CLKID_DSPB_CLK>;
-		//clock-names = "dspa_clk", "dspb_clk";
+		clocks = <&clkc CLKID_DSPA>, <&clkc CLKID_DSPB>;
+		clock-names = "dspa_clk", "dspb_clk";
 		dsp-start-mode = <1>; /*0:scpi start mode,1:smc start mode*/
 		dsp-cnt = <2>;
 		dspaoffset = <0xa0000>;
@@ -606,7 +606,7 @@
 		power-domains = <&pwrdm PDID_P1_DSPA>,
 						<&pwrdm PDID_P1_DSPB>;
 		power-domain-names = "dspa", "dspb";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vddcpua: pwmao_d-regulator {

@@ -84,7 +84,7 @@
 			reusable;
 			size = <0x0 0x1000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x40000000 0x0 0x1000000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x1000000>;
 		};
 
 		/*dsp_shm_reserved:linux,dsp_shm {      */
