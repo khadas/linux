@@ -1362,8 +1362,6 @@
 				regulator-name = "VDDCAM";
 				regulator-min-microvolt = <700000>;
 				regulator-max-microvolt = <1350000>;
-				regulator-boot-on;
-				regulator-always-on;
 			};
 
 			AVDD_3V3: BUCK6 {
