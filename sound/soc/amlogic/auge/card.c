@@ -31,7 +31,9 @@
 #include "../common/misc.h"
 #include "../common/audio_uevent.h"
 #include "audio_controller.h"
-//#include <linux/amlogic/media/sound/debug.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+#include <linux/amlogic/media/video_sink/video.h>
+#endif
 
 /*the same as audio hal type define!*/
 static const char * const audio_format[] = {
@@ -203,14 +205,31 @@ static int aml_chip_id_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+static int aml_media_video_delay_get_enum(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	(void)kcontrol;
+	ucontrol->value.integer.value[0] = get_playback_delay_duration();
+	return 0;
+}
+#endif
+
 static const struct snd_kcontrol_new snd_user_controls[] = {
 	SOC_ENUM_EXT("Audio HAL Format",
-		     audio_hal_format_enum,
-		     aml_audio_hal_format_get_enum,
-		     aml_audio_hal_format_set_enum),
+			audio_hal_format_enum,
+			aml_audio_hal_format_get_enum,
+			aml_audio_hal_format_set_enum),
 
 	SND_SOC_BYTES_EXT("AML chip id", 1,
-			aml_chip_id_get, NULL)
+			aml_chip_id_get, NULL),
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+	SOC_SINGLE_EXT("Media Video Delay",
+			0, 0, 0, 0,
+			aml_media_video_delay_get_enum,
+			NULL),
+#endif
 };
 
 static void jack_audio_start_timer(struct aml_card_data *card_data,
