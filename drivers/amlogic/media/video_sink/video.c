@@ -1867,6 +1867,17 @@ static u8 enable_hdmi_delay_normal_check = 1;
 /* video_inuse */
 u32 video_inuse;
 
+u32 get_playback_delay_duration(void)
+{
+	u32 memc_delay = 0;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC
+	memc_delay = frc_get_video_latency();
+#endif
+	return memc_delay;
+}
+EXPORT_SYMBOL(get_playback_delay_duration);
+
 void set_freerun_mode(int mode)
 {
 	freerun_mode = mode;

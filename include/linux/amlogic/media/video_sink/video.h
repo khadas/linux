@@ -405,5 +405,6 @@ int frc_get_video_latency(void);
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 int get_vdin_add_delay_num(void);
 #endif
+u32 get_playback_delay_duration(void);
 
 #endif /* VIDEO_H */
