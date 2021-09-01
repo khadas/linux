@@ -153,7 +153,7 @@ int vdin_dbg_en;
 module_param(vdin_dbg_en, int, 0664);
 MODULE_PARM_DESC(vdin_dbg_en, "enable/disable vdin debug information");
 
-int vdin_delay_num = 1;
+int vdin_delay_num;
 module_param(vdin_delay_num, int, 0664);
 MODULE_PARM_DESC(vdin_delay_num, "vdin_delay_num vdin debug information");
 
@@ -236,6 +236,23 @@ static const struct vframe_operations_s vdin_vf_ops = {
 	.event_cb = vdin_event_cb,
 	.vf_states = vdin_vf_states,
 };
+
+/*
+ * not game mode vdin has one frame
+ * delay this interface get vdin
+ * whether has two frame delay
+ * return
+ *	0: vdin is one delay
+ *	1: vdin is two delay
+ */
+int get_vdin_add_delay_num(void)
+{
+	if (vdin_delay_num)
+		return 1;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(get_vdin_add_delay_num);
 
 /*
  * 1. find the corresponding frontend according to the port & save it.
@@ -4755,6 +4772,9 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	/*probe v4l interface*/
 	if (vdevp->v4l_support_en)
 		vdin_v4l2_probe(pdev, vdevp);
+
+	if (!vdevp->index && is_meson_t3_cpu())
+		vdin_delay_num = 1;
 
 	/* vdin measure clock */
 	if (is_meson_gxbb_cpu()) {
