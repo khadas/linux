@@ -47,7 +47,7 @@ static struct pdm_chipinfo sc2_pdm_chipinfo = {
 static struct pdm_chipinfo p1_pdm_chipinfo_a = {
 	.id              = PDM_A,
 	.mute_fn         = true,
-	.truncate_data   = false,
+	.truncate_data   = true,
 	.train           = true,
 	.train_version   = PDM_TRAIN_VERSION_V1,
 };
@@ -55,7 +55,7 @@ static struct pdm_chipinfo p1_pdm_chipinfo_a = {
 static struct pdm_chipinfo p1_pdm_chipinfo_b = {
 	.id              = PDM_B,
 	.mute_fn         = true,
-	.truncate_data   = false,
+	.truncate_data   = true,
 	.train           = true,
 	.train_version   = PDM_TRAIN_VERSION_V1,
 };

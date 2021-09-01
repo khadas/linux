@@ -327,7 +327,6 @@ void aed_set_lane_and_channels_v3(int lane_mask, int ch_mask)
 void aed_set_ctrl(bool enable, int sel, enum frddr_dest module, int offset)
 {
 	int mask = 0, val = 0;
-
 	switch (sel) {
 	case 0: /* REQ_SEL0 */
 		mask = 0xf << 0;
@@ -346,7 +345,6 @@ void aed_set_ctrl(bool enable, int sel, enum frddr_dest module, int offset)
 		       sel, module);
 		return;
 	}
-
 	/*AED_TOP_REQ_CTL or AED_TOP_CTL2*/
 	eqdrc_update_bits((AED_TOP_REQ_CTL + offset), mask, val);
 
@@ -354,6 +352,8 @@ void aed_set_ctrl(bool enable, int sel, enum frddr_dest module, int offset)
 	if (module <= TDMOUT_C && module >= TDMOUT_A) {
 		/* TDMOUT A/B/C */
 		aml_tdmout_select_aed(enable, module);
+	} else if (module == TDMOUT_D) {
+		aml_tdmout_select_aed(enable, 3);
 	} else {
 		/* SPDIFOUT A/B */
 		aml_spdifout_select_aed(enable, module - SPDIFOUT_A);

@@ -474,8 +474,7 @@ void pdm_init_truncate_data(int freq, int id)
 	int mask_val;
 
 	/* assume mask 1.05ms */
-	mask_val = ((freq / 1000) * 1050) / 1000 - 1;
-
+	mask_val = ((freq / 1000) * 1050 * 8) / 1000 - 1;
 	aml_pdm_write(id, PDM_MASK_NUM, mask_val);
 }
 
