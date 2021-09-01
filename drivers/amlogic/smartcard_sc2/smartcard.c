@@ -1363,7 +1363,7 @@ static int smc_hw_deactive(struct smc_dev *smc)
 		_gpio_out(smc->reset_pin, RESET_ENABLE, SMC_RESET_PIN_NAME);
 		//_gpio_out(smc->reset_pin, RESET_DISABLE, SMC_RESET_PIN_NAME);
 #endif
-		usleep_range(200, 400);
+		usleep_range(25, 26);
 
 		sc_reg0_reg->rst_level = RESET_ENABLE;
 		sc_reg0_reg->enable = 1;
@@ -1509,7 +1509,9 @@ static int smc_hw_read_atr(struct smc_dev *smc)
 #endif
 
 	smc->atr.atr_len = 0;
-	if (smc_hw_get(smc, 2, 2000) < 0)
+	//from 2000 to 100 for reducing to get
+	//ATR time
+	if (smc_hw_get(smc, 2, 100) < 0)
 		goto end;
 
 #ifdef SW_INVERT
@@ -1800,8 +1802,10 @@ static int smc_hw_hot_reset(struct smc_dev *smc)
 				  SMC_RESET_PIN_NAME);
 #endif
 			/*tf >= 400/f && <= 40000/f*/
-			usleep_range(400 * 1000 / smc->param.freq + 20,
-				     40000 * 1000 / smc->param.freq);
+//remove this for reducing get ATR time,
+//there are delay in smc_hw_read_atr.
+//			usleep_range(400 * 1000 / smc->param.freq + 20,
+//				     40000 * 1000 / smc->param.freq);
 		}
 #if defined(ATR_FROM_INT)
 		/*enable receive interrupt */
