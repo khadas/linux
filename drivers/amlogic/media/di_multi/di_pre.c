@@ -208,19 +208,13 @@ enum EDI_SUB_ID pw_ch_next_count(enum EDI_SUB_ID channel)
 		lch = channel + i + 1;
 		if (lch >= DI_CHANNEL_NUB)
 			lch -= DI_CHANNEL_NUB;
-		#ifdef MARK_HIS
-		if (pbm->sub_act_flg[lch]) {
-			nch = lch;
-			break;
-		}
-		#else
+
 		if (get_reg_flag(lch)		&&
 		    !get_flag_trig_unreg(lch)	&&
 		    !is_bypss2_complete(lch)) {
 			nch = lch;
 			break;
 		}
-		#endif
 	}
 	return nch;
 }

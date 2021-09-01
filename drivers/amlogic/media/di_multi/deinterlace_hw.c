@@ -46,6 +46,7 @@
 #include "di_reg_tab.h"
 #include "di_prc.h"
 #include "di_hw_v3.h"
+#include "di_dbg.h"
 
 #include <linux/seq_file.h>
 
@@ -955,8 +956,11 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 		di_mem_mif->luma_y_start0 + 1;
 	if (chan2_hsize != nrwr_hsize || chan2_vsize != nrwr_vsize)
 		chan2_disable = true;
-	if (mem_hsize != nrwr_hsize || mem_vsize != nrwr_vsize)
-		mem_bypass = true;
+
+	if (!di_nrwr_mif->is_dw) {
+		if (mem_hsize != nrwr_hsize || mem_vsize != nrwr_vsize)
+			mem_bypass = true;
+	}
 
 	if (last_bypass != mem_bypass) {	//dbg only
 		dbg_reg("mem_bypass %d->%d\n", last_bypass, mem_bypass);
@@ -3133,18 +3137,7 @@ void dimh_enable_di_post_afbc(struct pst_cfg_afbc_s *cfg)
 	if (cfg->buf_mif[2] && cfg->buf_mif[2]->vframe)
 		if2_vf = cfg->buf_mif[2]->vframe;
 
-	if (is_mask(SC2_DW_EN)) {
-		if (cfg->di_ddr_en) {
-			dim_print("%s:en dw:\n", __func__);
-			cfg->di_diwr_mif->urgent = cfg->urgent;
-			cfg->di_diwr_mif->ddr_en = cfg->di_ddr_en;
-			//dimh_pst_mif_set(di_diwr_mif, urgent, di_ddr_en);
-			opl1()->wrmif_set(cfg->di_diwr_mif, NULL, EDI_MIFSM_WR);
-
-			opl2()->shrk_set(&dim_getdw()->shrk_cfg,
-					 &di_pre_regset);
-		}
-	} else if (pst->pst_top_cfg.b.mif_en) {
+	if (pst->pst_top_cfg.b.mif_en) {
 		dim_print("%s:en mif\n", __func__);
 		cfg->di_diwr_mif->urgent = cfg->urgent;
 		cfg->di_diwr_mif->ddr_en = cfg->di_ddr_en;
