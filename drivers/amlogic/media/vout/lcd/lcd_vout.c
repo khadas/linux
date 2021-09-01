@@ -22,6 +22,7 @@
 #include <linux/reboot.h>
 #include <linux/clk.h>
 #include <linux/of_device.h>
+#include <linux/workqueue.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #endif
@@ -151,18 +152,13 @@ EXPORT_SYMBOL(aml_lcd_get_driver);
 
 inline void lcd_queue_work(struct work_struct *work)
 {
-	if (lcd_workqueue)
-		queue_work(lcd_workqueue, work);
-	else
-		schedule_work(work);
+	queue_work_on(WORK_CPU_UNBOUND, system_highpri_wq, work);
 }
 
 inline void lcd_queue_delayed_work(struct delayed_work *dwork, int ms)
 {
-	if (lcd_workqueue)
-		queue_delayed_work(lcd_workqueue, dwork, msecs_to_jiffies(ms));
-	else
-		schedule_delayed_work(dwork, msecs_to_jiffies(ms));
+	queue_delayed_work_on(WORK_CPU_UNBOUND, system_highpri_wq,
+			      dwork, msecs_to_jiffies(ms));
 }
 
 /* ********************************************************* */
