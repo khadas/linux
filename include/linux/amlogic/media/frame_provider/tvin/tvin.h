@@ -594,6 +594,7 @@ struct rx_audio_stat_s {
 	u8 ch_sts[7];
 };
 
+int get_vdin_delay_num(void);
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
 void adc_pll_down(void);
 void adc_set_pll_reset(void);
