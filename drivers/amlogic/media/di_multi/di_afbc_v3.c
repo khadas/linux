@@ -1446,7 +1446,10 @@ static void afbc_pre_check(struct vframe_s *vf, void *a)/*pch*/
 	cfg->b.mode_4k = 0;
 	if (pblk->b.enc_nr) {
 		cfg->b.afbc_nr_en	= 1;
-		cfg->b.mif_en		= 0;
+		if (di_buf->dw_have)
+			cfg->b.mif_en	= 1;
+		else
+			cfg->b.mif_en	= 0;
 		if (di_buf->is_4k)
 			cfg->b.mode_4k = 1;
 	} else {

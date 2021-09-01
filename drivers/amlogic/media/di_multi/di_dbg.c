@@ -676,10 +676,12 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 		   pvfm->flag & VFRAME_FLAG_DI_PW_VFM);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_N_LOCAL",
 		   pvfm->flag & VFRAME_FLAG_DI_PW_N_LOCAL);
-	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_N_EXT",
+	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_PW_N_EXT",
 		   pvfm->flag & VFRAME_FLAG_DI_PW_N_EXT);
-	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_HF",
+	seq_printf(seq, "\t%-15s:%d\n", "flag:_HF",
 		   pvfm->flag & VFRAME_FLAG_HF);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_DW",
+		   pvfm->flag & VFRAME_FLAG_DI_DW);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);
 	seq_printf(seq, "%-15s:0x%lx\n", "compHeadAddr", pvfm->compHeadAddr);
@@ -795,6 +797,106 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	}
 
 	return 0;
+}
+
+//static
+int seq_file_dvfm(struct seq_file *seq, void *v, struct dvfm_s *pvfm)
+{
+	int i;
+	struct canvas_config_s *pcvs;
+
+	if (!pvfm) {
+		seq_puts(seq, "war: dump dvfm NULL\n");
+		return 0;
+	}
+	seq_printf(seq, "%-15s:0x%p\n", "addr", pvfm);
+	seq_printf(seq, "%-15s:0x%x\n", "type", pvfm->type);
+	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
+	seq_printf(seq, "%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);
+	seq_printf(seq, "%-15s:0x%x\n", "compHeadAddr", pvfm->compHeadAddr);
+	seq_printf(seq, "%-15s:0x%x\n", "compBodyAddr", pvfm->compBodyAddr);
+	seq_printf(seq, "%-15s:%d\n", "plane_num", pvfm->plane_num);
+	seq_printf(seq, "%-15s:%d\n", "width", pvfm->width);
+	seq_printf(seq, "%-15s:%d\n", "height", pvfm->height);
+	seq_printf(seq, "%-15s:%d\n", "bitdepth", pvfm->bitdepth);
+	for (i = 0; i < pvfm->plane_num; i++) {
+		pcvs = &pvfm->canvas0_config[i];
+		seq_printf(seq, "%-15s:%d\n", "canvas0_cfg", i);
+	#ifdef CVS_UINT
+		seq_printf(seq, "\t%-15s:0x%x\n", "phy_addr",
+			   pcvs->phy_addr);
+	#else
+		seq_printf(seq, "\t%-15s:0x%lx\n", "phy_addr",
+			   pcvs->phy_addr);
+	#endif
+		seq_printf(seq, "\t%-15s:%d\n", "width",
+			   pcvs->width);
+		seq_printf(seq, "\t%-15s:%d\n", "height",
+			   pcvs->height);
+		seq_printf(seq, "\t%-15s:%d\n", "block_mode",
+			   pcvs->block_mode);
+		seq_printf(seq, "\t%-15s:0x%x\n", "endian",
+			   pcvs->endian);
+	}
+	seq_printf(seq, "%-15s:%d\n", "nub_in_frm", pvfm->nub_in_frm);
+	seq_printf(seq, "%-15s:0x%x\n", "vfm_type_in", pvfm->vfm_type_in);
+	seq_printf(seq, "%-15s:0x%x\n", "sts_di", pvfm->sts_di);
+	PR_INF("\t%-15s\n", "cvs");
+	for (i = 0; i < 2; i++)
+		seq_printf(seq, "\t%-15s:%d\n", "cvs id", pvfm->cvs_nu[i]);
+
+	seq_printf(seq, "\t%-15s:%d\n", "buf_hsize", pvfm->buf_hsize);
+	seq_printf(seq, "\t%-15s:%d\n", "is_dw", pvfm->is_dw);
+	return 0;
+}
+
+void print_dvfm(struct dvfm_s *pvfm, char *name)
+{
+	int i;
+	struct canvas_config_s *pcvs;
+
+	if (!pvfm) {
+		PR_INF("war: dump dvfm NULL\n");
+		return;
+	}
+	PR_INF("%s:%-15s:0x%p-------------\n", name, "addr", pvfm);
+	PR_INF("\t%-15s:0x%x\n", "type", pvfm->type);
+	PR_INF("\t%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
+	PR_INF("\t%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);
+	PR_INF("\t%-15s:0x%x\n", "compHeadAddr", pvfm->compHeadAddr);
+	PR_INF("\t%-15s:0x%x\n", "compBodyAddr", pvfm->compBodyAddr);
+	PR_INF("\t%-15s:%d\n", "plane_num", pvfm->plane_num);
+	PR_INF("\t%-15s:%d\n", "width", pvfm->width);
+	PR_INF("\t%-15s:%d\n", "height", pvfm->height);
+	PR_INF("\t%-15s:0x%x\n", "bitdepth", pvfm->bitdepth);
+	for (i = 0; i < pvfm->plane_num; i++) {
+		pcvs = &pvfm->canvas0_config[i];
+		PR_INF("\t%-15s:%d\n", "canvas0_cfg", i);
+	#ifdef CVS_UINT
+		PR_INF("\t\t%-15s:0x%x\n", "phy_addr",
+			   pcvs->phy_addr);
+	#else
+		PR_INF("\t\t%-15s:0x%lx\n", "phy_addr",
+			   pcvs->phy_addr);
+	#endif
+		PR_INF("\t\t%-15s:%d\n", "width",
+			   pcvs->width);
+		PR_INF("\t\t%-15s:%d\n", "height",
+			   pcvs->height);
+		PR_INF("\t\t%-15s:%d\n", "block_mode",
+			   pcvs->block_mode);
+		PR_INF("\t\t%-15s:0x%x\n", "endian",
+			   pcvs->endian);
+	}
+	PR_INF("\t%-15s:%d\n", "nub_in_frm", pvfm->nub_in_frm);
+	PR_INF("\t%-15s:0x%x\n", "vfm_type_in", pvfm->vfm_type_in);
+	PR_INF("\t%-15s:0x%x\n", "sts_di", pvfm->sts_di);
+	PR_INF("\t%-15s\n", "cvs");
+	for (i = 0; i < 2; i++)
+		PR_INF("\t\t%-15s:%d\n", "cvs id", pvfm->cvs_nu[i]);
+
+	PR_INF("\t%-15s:%d\n", "buf_hsize", pvfm->buf_hsize);
+	PR_INF("\t%-15s:%d\n", "is_dw", pvfm->is_dw);
 }
 
 /**********************/

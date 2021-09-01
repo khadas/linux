@@ -392,6 +392,7 @@ static void dev_vframe_reg_first(struct dim_itf_s *itf)
 	itf->op_fill_ready	= ndis_fill_ready;
 	itf->op_m_unreg		= nins_m_unreg;
 	itf->op_ready_out	= NULL;
+	itf->op_cfg_ch_set	= NULL;
 }
 
 static void dev_vframe_reg(struct dim_itf_s *itf)

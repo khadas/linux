@@ -89,6 +89,19 @@
 	| VIDTYPE_COMPRESS		\
 	| VIDTYPE_MVC)
 
+/* di use this to clear di out vfm type */
+#define DI_VFM_T_MASK_DI_CLEAR		\
+	(VIDTYPE_TYPEMASK		\
+	| VIDTYPE_VIU_NV12		\
+	| VIDTYPE_VIU_422		\
+	| VIDTYPE_VIU_SINGLE_PLANE	\
+	| VIDTYPE_VIU_FIELD		\
+	| VIDTYPE_VIU_NV21		\
+	| VIDTYPE_VIU_444		\
+	| VIDTYPE_COMPRESS		\
+	| VIDTYPE_RGB_444		\
+	| VIDTYPE_V4L_EOS)
+
 enum EDI_MEM_M {
 	EDI_MEM_M_REV = 0,
 	EDI_MEM_M_CMA = 1,
@@ -149,6 +162,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_DCT,
 	EDI_CFG_T5DB_AFBCD_EN,
 	EDI_CFG_HDR_EN,
+	EDI_CFG_DW_EN,
 	EDI_CFG_END,
 };
 
@@ -972,6 +986,7 @@ enum EDI_MP_UI_T {
 	edi_mp_hdr_mode,
 	edi_mp_hdr_ctrl,
 	edi_mp_clock_low_ratio,//set low ratio of vpu clkb
+	edi_mp_shr_cfg,
 	EDI_MP_SUB_DI_E,
 	/**************************************/
 	EDI_MP_SUB_NR_B,
@@ -1176,6 +1191,7 @@ struct dim_itf_s {
 	void (*op_m_unreg)(struct di_ch_s *pch);
 	bool (*op_fill_ready)(struct di_ch_s *pch, struct di_buf_s *di_buf);
 	void (*op_ready_out)(struct di_ch_s *pch);
+	void (*op_cfg_ch_set)(struct di_ch_s *pch);
 	/* @ary_note: vfm only */
 	struct dev_vfram_t	dvfm;	/* for vfm prob fix */
 
@@ -1864,7 +1880,7 @@ struct di_ch_s {
 	unsigned char cfg_cp[EDI_CFG_END];/*2020-12-15*/
 	//struct dev_vfram_t vfm;
 	enum vframe_source_type_e	src_type;
-	bool	ponly;
+	//move bool	ponly;
 	struct dentry *dbg_rootx;	/*dbg_fs*/
 
 	unsigned int ch_id;
@@ -1957,8 +1973,12 @@ struct di_ch_s {
 	unsigned char	sts_unreg_dis2keep;
 	unsigned int	sts_unreg_blk_msk;
 	unsigned int	sts_unreg_pat_mst;
+	bool	ponly;
 	bool en_hf_buf;
 	bool en_hf; //
+	bool cst_no_dw;
+	bool en_dw;
+	bool en_dw_mem;
 };
 
 struct dim_policy_s {
@@ -2037,7 +2057,7 @@ struct di_mng_s {
 /*************************
  *debug register:
  *************************/
-#define K_DI_SIZE_REG_LOG	(1000)
+#define K_DI_SIZE_REG_LOG	(8)
 #define K_DI_LAB_MOD		(0xf001)
 /*also see: dbg_mode_name*/
 enum EDI_DBG_MOD {
@@ -2142,6 +2162,14 @@ struct db_save_s {
 	unsigned int mask;
 };
 
+struct dw_s {
+	struct mm_size_out_s size_info;
+	struct SHRK_S shrk_cfg;
+	bool dbg_show_dw;
+	bool state_en;
+	bool state_cfg_by_dbg;
+};
+
 struct di_data_l_s {
 	/*bool cfg_en[K_DI_CFG_NUB];*/	/*cfg_top*/
 	union di_cfg_tdata_u cfg_en[K_DI_CFG_NUB];
@@ -2160,6 +2188,7 @@ struct di_data_l_s {
 	struct di_hpre_s hw_pre;
 	struct di_hpst_s hw_pst;
 	struct di_hdct_s hw_dct;
+	struct dw_s dw_d;
 	const struct di_dct_ops_s *dct_op;
 	struct db_save_s db_save[DIM_DB_SAVE_NUB];
 	const struct dim_hw_opsv_s *hop_l1; /* from sc2 */
@@ -2834,6 +2863,7 @@ static inline void p_ref_set_buf(struct di_buf_s *buf,
  ************************************************/
 #define IC_SUPPORT_DECONTOUR	DI_BIT0
 #define IC_SUPPORT_HDR		DI_BIT1
+#define IC_SUPPORT_DW		DI_BIT2 /* double write */
 
 #define IS_IC_SUPPORT(cc)	(get_datal()->mdata->support & \
 				IC_SUPPORT_##cc ? true : false)

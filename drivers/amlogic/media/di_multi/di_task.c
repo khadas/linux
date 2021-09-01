@@ -634,7 +634,7 @@ bool mtsk_alloc_block2(unsigned int ch, struct mtsk_cmd_s *cmd)
 	timeout = wait_for_completion_timeout(&fcmd->alloc_done,
 		msecs_to_jiffies(30));
 	if (!timeout) {
-		PR_ERR("%s:ch[%d]timeout\n", __func__, ch);
+		PR_WARN("%s:ch[%d]timeout\n", __func__, ch);
 		return false;
 	}
 	return true;

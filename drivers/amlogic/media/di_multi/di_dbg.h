@@ -76,4 +76,6 @@ void dbg_timer(unsigned int ch, enum EDBG_TIMER item);
 void dbg_timer_clear(unsigned int ch);
 void dim_dump_mif_state(struct DI_MIF_S *mif, char *name);
 
+int seq_file_dvfm(struct seq_file *seq, void *v, struct dvfm_s *pvfm);
+void print_dvfm(struct dvfm_s *pvfm, char *name);
 #endif	/*__DI_DBG_H__*/
