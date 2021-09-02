@@ -1141,7 +1141,7 @@ static int smc_default_init(struct smc_dev *smc)
 	return 0;
 }
 
-static int smc_hw_setup(struct smc_dev *smc)
+static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 {
 	unsigned long v = 0;
 	struct smccard_hw_reg0 *reg0;
@@ -1164,7 +1164,10 @@ static int smc_hw_setup(struct smc_dev *smc)
 	v = SMC_READ_REG(REG0);
 	reg0 = (struct smccard_hw_reg0 *)&v;
 	reg0->enable = 1;
-	reg0->clk_en = 0;
+	if (clk_out)
+		reg0->clk_en = 1;
+	else
+		reg0->clk_en = 0;
 	reg0->clk_oen = 0;
 //      reg0->card_detect = 0;
 	reg0->start_atr = 0;
@@ -1342,8 +1345,8 @@ static int smc_hw_active(struct smc_dev *smc)
 		}
 
 		usleep_range(200, 300);
-		smc_hw_setup(smc);
-
+		//add clk output for synamedia's requirement
+		smc_hw_setup(smc, 1);
 		smc->active = 1;
 	}
 
@@ -1779,9 +1782,9 @@ static int smc_hw_hot_reset(struct smc_dev *smc)
 			_gpio_out(smc->reset_pin, RESET_ENABLE,
 				  SMC_RESET_PIN_NAME);
 #endif
-			/*te <= 400/f*/
-			usleep_range(400 * 1000 / smc->param.freq - 20,
-				     400 * 1000 / smc->param.freq);
+			/*te >= 40000/f to meet synamedia's requirement*/
+			usleep_range(40000 * 1000 / smc->param.freq,
+				     40000 * 1000 / smc->param.freq + 20);
 
 			/*disable receive interrupt */
 			sc_int = SMC_READ_REG(INTR);
@@ -2492,7 +2495,7 @@ static int smc_dev_init(struct smc_dev *smc, int id)
 
 	smc->init = 1;
 
-	smc_hw_setup(smc);
+	smc_hw_setup(smc, 0);
 
 	return 0;
 }
