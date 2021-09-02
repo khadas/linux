@@ -34,7 +34,8 @@
 #define HDMITX_ATTR_LEN_MAX	16
 #define HDMITX_MAX_BPC	12
 
-static struct am_hdmi_tx am_hdmi_info;
+struct am_hdmi_tx am_hdmi_info;
+bool attr_force_debugfs;
 
 /*for hw limitiation, limit to 1080p/720p for recovery ui.*/
 static bool hdmitx_set_smaller_pref = true;
@@ -1016,6 +1017,7 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		to_am_hdmitx_connector_state(conn_state);
 	struct hdmitx_color_attr *attr = &hdmitx_state->color_attr_para;
 	bool update_attr = false;
+	char attr_debugfs[HDMITX_ATTR_LEN_MAX];
 
 	if (am_hdmi_info.android_path)
 		return;
@@ -1028,6 +1030,15 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	 *for uboot: it may not support dv, but kernel support dv, the attr
 	 *from uboot is not valid.
 	 */
+	if (attr_force_debugfs) {
+		attr_force_debugfs = false;
+		am_hdmi_info.hdmitx_dev->get_attr(attr_debugfs);
+		convert_attrstr(attr_debugfs, attr);
+		am_hdmi_info.hdmitx_dev->setup_attr(attr_debugfs);
+		DRM_INFO("debugfs attr\n");
+		goto end;
+	}
+
 	if (attr->colorformat != COLORSPACE_RESERVED) {
 		if (meson_hdmitx_test_color_attr(meson_crtc_state,
 			hdmitx_state, attr)) {
@@ -1048,6 +1059,10 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	}
 
 	meson_hdmitx_setup_color_attr(attr);
+
+end:
+	DRM_INFO("[%s]end\n", __func__);
+
 }
 
 void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
