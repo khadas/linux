@@ -18,6 +18,10 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun);
 
 struct rt_bandwidth def_rt_bandwidth;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int rt_throttled_panic;
+core_param(rt_throttled_panic, rt_throttled_panic, int, 0644);
+#endif
 static enum hrtimer_restart sched_rt_period_timer(struct hrtimer *timer)
 {
 	struct rt_bandwidth *rt_b =
@@ -856,6 +860,10 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 {
 	int i, idle = 1, throttled = 0;
 	const struct cpumask *span;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	u64 exec_runtime;
+	u64 rt_time;
+#endif
 
 	span = sched_rt_period_mask();
 #ifdef CONFIG_RT_GROUP_SCHED
@@ -892,6 +900,18 @@ static int do_sched_rt_period_timer(struct rt_bandwidth *rt_b, int overrun)
 		raw_spin_lock(&rq->lock);
 		update_rq_clock(rq);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+		if (rt_rq->rt_time > sysctl_sched_rt_runtime * 1000) {
+			exec_runtime = rq->curr->se.sum_exec_runtime;
+			rt_time = rt_rq->rt_time;
+			do_div(exec_runtime, 1000000);
+			do_div(rt_time, 1000000);
+			pr_warn("RT throttling on cpu:%d rt_time:%llums, curr:%s/%d prio:%d sum_runtime:%llums\n",
+				i, rt_time, rq->curr->comm, rq->curr->pid,
+				rq->curr->prio, exec_runtime);
+			BUG_ON(rt_throttled_panic);
+		}
+#endif
 		if (rt_rq->rt_time) {
 			u64 runtime;
 
