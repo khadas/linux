@@ -3443,7 +3443,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_VSDB_PACKET, 0);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdmitx21_disable_clk(hdev);
-	hdev->para = hdmitx21_tst_fmt_name("invalid", hdev->fmt_attr);
+	hdev->para = hdmitx21_get_fmtpara("invalid", hdev->fmt_attr);
 	hdmitx_validate_vmode("null", 0, NULL);
 	if (hdev->cedst_policy)
 		cancel_delayed_work(&hdev->work_cedst);
