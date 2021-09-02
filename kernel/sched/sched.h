@@ -82,6 +82,9 @@
 # define SCHED_WARN_ON(x)	({ (void)(x), 0; })
 #endif
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+extern int sysctl_sched_rt_runtime;
+#endif
 struct rq;
 struct cpuidle_state;
 
