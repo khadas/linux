@@ -499,6 +499,7 @@
 		ts2 = "parallel";
 		ts2_control = <0>;
 		ts2_invert = <0>;
+		tsin_deglitch = <1>;
 
 		clocks = <&clkc CLKID_DEMUX
 		&clkc CLKID_AHB_ARB0
