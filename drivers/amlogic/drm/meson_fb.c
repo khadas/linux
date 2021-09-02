@@ -28,8 +28,11 @@ int am_meson_fb_create_handle(struct drm_framebuffer *fb,
 {
 	struct am_meson_fb *meson_fb = to_am_meson_fb(fb);
 
-	return drm_gem_handle_create(file_priv,
+	if (meson_fb->bufp[0])
+		return drm_gem_handle_create(file_priv,
 				     &meson_fb->bufp[0]->base, handle);
+	else
+		return -EFAULT;
 }
 
 struct drm_framebuffer_funcs am_meson_fb_funcs = {
