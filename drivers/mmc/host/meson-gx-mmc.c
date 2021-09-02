@@ -3160,6 +3160,9 @@ static int meson_mmc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	struct meson_host *host = mmc_priv(mmc);
 	int err = 0;
 
+	// hyphop
+	//if (1) return err;
+
 	host->is_tuning = 1;
 	if (host->use_intf3_tuning)
 		err = mmc_intf3_win_tuning(mmc, opcode);
@@ -3449,6 +3452,8 @@ static void scan_emmc_tx_win(struct mmc_host *mmc)
 	int repeat_times = 100;
 	char str[64] = {0};
 
+	// hyphop
+	//return;
 	aml_sd_emmc_cali_v3(mmc, MMC_READ_MULTIPLE_BLOCK,
 			    host->blk_test, 512, 40, MMC_RANDOM_NAME);
 	host->is_tuning = 1;
@@ -3462,8 +3467,10 @@ static void scan_emmc_tx_win(struct mmc_host *mmc)
 		writel(SD_INTF3, host->regs + SD_EMMC_INTF3);
 		aml_get_ctrl_ver(mmc);
 		for (j = 0; j < repeat_times; j++) {
-			err = mmc_write_internal(mmc->card, MMC_RANDOM_OFFSET,
-						 40, host->blk_test);
+			// hyphop
+			// err = mmc_write_internal(mmc->card, MMC_RANDOM_OFFSET,
+			//			 40, host->blk_test);
+			err = 0;
 			if (!err)
 				str[i]++;
 			else
@@ -3663,6 +3670,14 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		"mmc-hs400", strlen(caps2_quirks))) {
 		dev_warn(&pdev->dev, "Force HS400\n");
 		mmc->caps2 |= MMC_CAP2_HS400_1_8V | MMC_CAP2_HS200_1_8V_SDR;
+	}
+
+	// hyphop
+	if (aml_card_type_mmc(host) && caps2_quirks &&
+		!strncmp(caps2_quirks,
+		"no-mmc-hs400", strlen(caps2_quirks))) {
+		dev_warn(&pdev->dev, "disable HS400\n");
+		mmc->caps2 &= ~(MMC_CAP2_HS400_1_8V);
 	}
 
 	host->data = (struct meson_mmc_data *)
@@ -3875,7 +3890,9 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		sdio_host = mmc;
 	}
 
-	if (mmc->debugfs_root && aml_card_type_mmc(host)) {
+	// hyphop
+	//if (mmc->debugfs_root && aml_card_type_mmc(host)) {
+	if ( 0 && mmc->debugfs_root && aml_card_type_mmc(host)) {
 		host->debugfs_root = debugfs_create_dir(dev_name(&pdev->dev), mmc->debugfs_root);
 		if (IS_ERR_OR_NULL(host->debugfs_root))
 			goto err_bounce_buf;
