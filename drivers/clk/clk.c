@@ -471,6 +471,7 @@ unsigned int __clk_get_enable_count(struct clk *clk)
 {
 	return !clk ? 0 : clk->core->enable_count;
 }
+EXPORT_SYMBOL_GPL(__clk_get_enable_count);
 
 static unsigned long clk_core_get_rate_nolock(struct clk_core *core)
 {
