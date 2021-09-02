@@ -633,6 +633,8 @@ int mmc_write_internal(struct mmc_card *card, unsigned int dev_addr,
 	return mmc_transfer(card, dev_addr, blocks, buf, 1);
 }
 
+EXPORT_SYMBOL(mmc_write_internal);
+
 static int mmc_partition_tbl_checksum_calc(struct partitions *part,
 					   int part_num)
 {
