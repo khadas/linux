@@ -285,9 +285,6 @@ static int hd3s3200_i2c_probe(struct i2c_client *i2c,
 
 	INIT_DELAYED_WORK(&hd3s3200->work, amlogic_m31_crg_otg_work);
 
-	if (otg)
-		phy_m31_detect_pin_config(hd3s3200);
-
 	amlogic_m31_crg_otg_init(hd3s3200);
 
 	if (otg == 0) {
@@ -308,7 +305,22 @@ static int hd3s3200_i2c_probe(struct i2c_client *i2c,
 		dev_info(&i2c->dev, "current_mode is 0x%x\n",
 			 current_mode);
 		aml_m31_i2c_write(hd3s3200->i2c, 9, 0x10);
-		hd3s3200->current_mode = 0;
+
+		if (current_mode == 1) {
+			crg_init();
+			amlogic_m31_set_vbus_power(hd3s3200, 1);
+			set_mode(HOST_MODE);
+			hd3s3200->current_mode = 1;
+		} else if (current_mode == 2) {
+			set_mode(DEVICE_MODE);
+			amlogic_m31_set_vbus_power(hd3s3200, 0);
+			crg_gadget_init();
+			hd3s3200->current_mode = 2;
+		} else {
+			hd3s3200->current_mode = 0;
+		}
+
+		phy_m31_detect_pin_config(hd3s3200);
 	}
 
 	return 0;
@@ -347,7 +359,13 @@ static struct i2c_driver hd3s3200_i2c_driver = {
 		   },
 };
 
-module_i2c_driver(hd3s3200_i2c_driver);
+static int __init amlogic_m31_otg_init(void)
+{
+	i2c_add_driver(&hd3s3200_i2c_driver);
+
+	return 0;
+}
+late_initcall(amlogic_m31_otg_init);
 
 MODULE_AUTHOR("Amlogic Inc.");
 MODULE_DESCRIPTION("amlogic m31 crg otg driver");
