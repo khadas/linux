@@ -1689,6 +1689,19 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 			(vd_mif_reg->vd_if0_gen_reg, 0);
 		return;
 	}
+
+	/* DI only output NV21 8bit DW buffer */
+	if (frame_par->nocomp &&
+	    vf->plane_num == 2 &&
+	    (vf->flag & VFRAME_FLAG_DI_DW)) {
+		type &= ~(VIDTYPE_VIU_SINGLE_PLANE |
+			VIDTYPE_VIU_NV12 |
+			VIDTYPE_VIU_422 |
+			VIDTYPE_VIU_444 |
+			VIDTYPE_RGB_444);
+		type |= VIDTYPE_VIU_NV21;
+	}
+
 	if (cur_dev->t7_display)
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_afbc_reg->afbc_top_ctrl,
@@ -1709,6 +1722,7 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 	if (layer->mif_setting.block_mode)
 		burst_len = layer->mif_setting.block_mode;
 	if ((vf->bitdepth & BITDEPTH_Y10) &&
+	    !(vf->flag & VFRAME_FLAG_DI_DW) &&
 	    !frame_par->nocomp) {
 		if ((vf->type & VIDTYPE_VIU_444) ||
 		    (vf->type & VIDTYPE_RGB_444)) {
@@ -2194,6 +2208,19 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 			(vd_mif_reg->vd_if0_gen_reg, 0);
 		return;
 	}
+
+	/* DI only output NV21 8bit DW buffer */
+	if (frame_par->nocomp &&
+	    vf->plane_num == 2 &&
+	    (vf->flag & VFRAME_FLAG_DI_DW)) {
+		type &= ~(VIDTYPE_VIU_SINGLE_PLANE |
+			VIDTYPE_VIU_NV12 |
+			VIDTYPE_VIU_422 |
+			VIDTYPE_VIU_444 |
+			VIDTYPE_RGB_444);
+		type |= VIDTYPE_VIU_NV21;
+	}
+
 	if (cur_dev->t7_display)
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits
 			(vd_afbc_reg->afbc_top_ctrl,
@@ -2215,6 +2242,7 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 		burst_len = layer->mif_setting.block_mode;
 
 	if ((vf->bitdepth & BITDEPTH_Y10) &&
+	    !(vf->flag & VFRAME_FLAG_DI_DW) &&
 	    !frame_par->nocomp) {
 		if ((vf->type & VIDTYPE_VIU_444) ||
 		    (vf->type & VIDTYPE_RGB_444)) {

@@ -12872,6 +12872,7 @@ static ssize_t vframe_states_show(struct class *cla,
 
 	memset(&states, 0, sizeof(struct vframe_states));
 	if (video_vf_get_states(&states) == 0) {
+		ret += sprintf(buf + ret, "amvideo vframe states\n");
 		ret += sprintf(buf + ret, "vframe_pool_size=%d\n",
 			states.vf_pool_size);
 		ret += sprintf(buf + ret, "vframe buf_free_num=%d\n",
@@ -12938,7 +12939,66 @@ static ssize_t vframe_states_show(struct class *cla,
 		spin_unlock_irqrestore(&lock, flags);
 
 	} else {
-		ret += sprintf(buf + ret, "vframe no states\n");
+		spin_lock_irqsave(&lock, flags);
+
+		vf = get_dispbuf(0);
+		if (vf) {
+			ret += sprintf(buf + ret,
+				"vd_layer[0] vframe states\n");
+			ret += sprintf(buf + ret,
+				"vframe ready frame delayed =%dms\n",
+				(int)(jiffies_64 -
+				vf->ready_jiffies64) * 1000 /
+				HZ);
+			ret += sprintf(buf + ret,
+				"vf index=%d\n", vf->index);
+			ret += sprintf(buf + ret,
+				"vf->pts=%d\n", vf->pts);
+			ret += sprintf(buf + ret,
+				"cur vpts=%d\n",
+				timestamp_vpts_get());
+			ret += sprintf(buf + ret,
+				"vf type=%d\n",
+				vf->type);
+			ret += sprintf(buf + ret,
+				"vf type_original=%d\n",
+				vf->type_original);
+			if (vf->type & VIDTYPE_COMPRESS) {
+				ret += sprintf(buf + ret,
+					"vf compHeadAddr=%lx\n",
+						vf->compHeadAddr);
+				ret += sprintf(buf + ret,
+					"vf compBodyAddr =%lx\n",
+						vf->compBodyAddr);
+			} else {
+				ret += sprintf(buf + ret,
+					"vf canvas0Addr=%x\n",
+						vf->canvas0Addr);
+				ret += sprintf(buf + ret,
+					"vf canvas1Addr=%x\n",
+						vf->canvas1Addr);
+				ret += sprintf(buf + ret,
+					"vf canvas0Addr.y.addr=%lx(%ld)\n",
+					canvas_get_addr
+					(canvasY(vf->canvas0Addr)),
+					canvas_get_addr
+					(canvasY(vf->canvas0Addr)));
+				ret += sprintf(buf + ret,
+					"vf canvas0Adr.uv.adr=%lx(%ld)\n",
+					canvas_get_addr
+					(canvasUV(vf->canvas0Addr)),
+					canvas_get_addr
+					(canvasUV(vf->canvas0Addr)));
+			}
+			if (vf->vf_ext)
+				ret += sprintf(buf + ret,
+					"vf_ext=%p\n",
+					vf->vf_ext);
+		} else {
+			ret += sprintf(buf + ret, "vframe no states\n");
+		}
+		spin_unlock_irqrestore(&lock, flags);
+
 	}
 	return ret;
 }

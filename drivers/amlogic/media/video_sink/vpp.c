@@ -1943,9 +1943,10 @@ RESTART:
 
 	if ((vf->type & VIDTYPE_COMPRESS) &&
 	    !(vf->type & VIDTYPE_NO_DW) &&
-	    !IS_DI_POSTWRTIE(vf->type) &&
+	    !next_frame_par->nocomp &&
 	    vf->canvas0Addr != 0 &&
-	    !next_frame_par->nocomp) {
+	    (!IS_DI_POSTWRTIE(vf->type) ||
+	     vf->flag & VFRAME_FLAG_DI_DW)) {
 		if (vd1_vd2_mux)
 			afbc_support = 0;
 		else
@@ -2240,6 +2241,7 @@ RESTART:
 	    !(vpp_flags & VPP_FLAG_FORCE_NOT_SWITCH_VF)) {
 		if ((next_frame_par->vscale_skip_count > 1 &&
 		     (vf->type & VIDTYPE_COMPRESS) &&
+		     !next_frame_par->nocomp &&
 		     IS_DI_POSTWRTIE(vf->type)) ||
 		    (vpp_flags & VPP_FLAG_FORCE_SWITCH_VF))
 			ret = vppfilter_changed_but_switch;
@@ -4197,9 +4199,10 @@ RESTART:
 
 	if ((vf->type & VIDTYPE_COMPRESS) &&
 	    !(vf->type & VIDTYPE_NO_DW) &&
-	    !IS_DI_POSTWRTIE(vf->type) &&
+	    !next_frame_par->nocomp &&
 	    vf->canvas0Addr != 0 &&
-	    !next_frame_par->nocomp) {
+	    (!IS_DI_POSTWRTIE(vf->type) ||
+	     vf->flag & VFRAME_FLAG_DI_DW)) {
 		if (vd1_vd2_mux)
 			afbc_support = false;
 		else
@@ -4285,6 +4288,7 @@ RESTART:
 	    !(vpp_flags & VPP_FLAG_FORCE_NOT_SWITCH_VF)) {
 		if ((next_frame_par->vscale_skip_count > 1 &&
 		     (vf->type & VIDTYPE_COMPRESS) &&
+		     !next_frame_par->nocomp &&
 		     IS_DI_POSTWRTIE(vf->type)) ||
 		    (vpp_flags & VPP_FLAG_FORCE_SWITCH_VF))
 			ret = vppfilter_changed_but_switch;
