@@ -43,6 +43,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_info_global.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ddc.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
+#include <linux/amlogic/media/vout/hdmi_tx/meson_drm_hdmitx.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_config.h>
 #include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
@@ -159,6 +160,7 @@ static int log_level;
  */
 static int hdr_mute_frame = 20;
 static unsigned int res_1080p;
+static char suspend_fmt_attr[16];
 
 struct vout_device_s hdmitx_vdev = {
 	.dv_info = &hdmitx_device.rxcap.dv_info,
@@ -321,6 +323,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	 * so that hdmitx output will keep disabled.
 	 */
 	hdev->hpd_lock = 0;
+	memcpy(suspend_fmt_attr, hdev->fmt_attr, sizeof(hdev->fmt_attr));
 }
 
 static int hdmitx_is_hdmi_vmode(char *mode_name)
@@ -337,28 +340,49 @@ static void hdmitx_late_resume(struct early_suspend *h)
 {
 	const struct vinfo_s *info = hdmitx_get_current_vinfo(NULL);
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)h->param;
+	u8 hpd_state = 0;
 
 	if (info && (hdmitx_is_hdmi_vmode(info->name) == 1))
 		hdev->hwop.cntlmisc(&hdmitx_device, MISC_HPLL_FAKE, 0);
 
 	hdev->hpd_lock = 0;
-
 	/* update status for hpd and switch/state */
-	hdev->hpd_state = !!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0));
+	hpd_state = !!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0));
+	/* for RDK userspace, after receive plug change uevent,
+	 * it will check connector state before enable encoder.
+	 * so should not change hpd_state other than in plug handler
+	 */
+	if (hdev->hdcp_ctl_lvl != 0x1)
+		hdev->hpd_state = hpd_state;
 	if (hdev->hpd_state)
 		hdev->already_used = 1;
 
 	pr_info("hdmitx hpd state: %d\n", hdev->hpd_state);
 
 	/*force to get EDID after resume for Amplifier Power case*/
-	if (hdev->hpd_state)
+	if (hpd_state)
 		hdmitx_get_edid(hdev);
-	hdmitx_notify_hpd(hdev->hpd_state,
+	hdmitx_notify_hpd(hpd_state,
 			  hdev->edid_parsing ?
 			  hdev->edid_ptr : NULL);
 
 	hdev->hwop.cntlconfig(hdev, CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
-	set_disp_mode_auto();
+	/* recover attr (especially for HDR case) */
+	if (info && drm_hdmitx_chk_mode_attr_sup(info->name,
+	    suspend_fmt_attr))
+		setup_attr(suspend_fmt_attr);
+	/* hpd plug uevent may not be handled by rdk userspace
+	 * during suspend/resume (such as no plugout uevent is
+	 * triggered, and subsequent plugin event will be ignored)
+	 * as a result, hdmi/hdcp may not set correctly.
+	 * in such case, force restart hdmi/hdcp when resume.
+	 */
+	if (hdev->hpd_state) {
+		if (hdev->hdcp_ctl_lvl == 0x1)
+			hdev->hwop.am_hdmitx_set_out_mode();
+		else
+			set_disp_mode_auto();
+	}
 
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, hdev->hpd_state);
 	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
