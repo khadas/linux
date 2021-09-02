@@ -429,6 +429,7 @@ static void am_hdmitx_set_out_mode(void)
 
 	if (hdmitx_dev->hdcp_ctl_lvl > 0) {
 		drm_hdmitx_avmute(1);
+		/* may reduce */
 		msleep(100);
 		last_hdcp_mode = meson_hdcp.hdcp_execute_type;
 		meson_hdcp_disable();
