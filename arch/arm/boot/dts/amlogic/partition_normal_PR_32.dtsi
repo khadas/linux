@@ -1,0 +1,140 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Amlogic partition set for normal
+ *
+ * Copyright (c) 2017-2017 Amlogic Ltd
+ *
+ * This file is licensed under a dual GPLv2 or BSD license.
+ *
+ */
+
+#include "firmware_system.dtsi"
+
+/ {
+    partitions: partitions{
+		parts = <19>;
+		part-0 = <&recovery>;
+		part-1 = <&frp>;
+		part-2 = <&factory>;
+		part-3 = <&tee>;
+		part-4 = <&logo>;
+		part-5 = <&misc>;
+		part-6 = <&dtbo>;
+		part-7 = <&cri_data>;
+		part-8 = <&param>;
+		part-9 = <&boot>;
+		part-10 = <&rsv>;
+		part-11 = <&metadata>;
+		part-12 = <&vbmeta>;
+		part-13 = <&vendor>;
+		part-14 = <&odm>;
+		part-15 = <&system>;
+		part-16 = <&product>;
+		part-17 = <&cache>;
+		part-18 = <&userdata>;
+
+		recovery:recovery{
+			pname = "recovery";
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		frp:frp{
+			pname = "frp";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		factory:factory{
+			pname = "factory";
+			size = <0x0 0x800000>;
+			mask = <0x11>;
+		};
+		tee:tee{
+			pname = "tee";
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		logo:logo{
+			pname = "logo";
+			size = <0x0 0x800000>;
+			mask = <1>;
+		};
+		misc:misc{
+			pname = "misc";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		dtbo:dtbo{
+			pname = "dtbo";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		cri_data:cri_data
+		{
+			pname = "cri_data";
+			size = <0x0 0x800000>;
+			mask = <2>;
+		};
+		rsv:rsv{
+			pname = "rsv";
+			size = <0x0 0x1000000>;
+			mask = <0x11>;
+		};
+		metadata:metadata{
+			pname = "metadata";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		vbmeta:vbmeta{
+			pname = "vbmeta";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		param:param{
+			pname = "param";
+			size = <0x0 0x1000000>;
+			mask = <2>;
+		};
+		boot:boot
+		{
+			pname = "boot";
+			size = <0x0 0x4000000>;
+			mask = <1>;
+		};
+
+		vendor:vendor
+		{
+			pname = "vendor";
+			size = <0x0 0x18000000>;
+			mask = <1>;
+		};
+		odm:odm
+		{
+			pname = "odm";
+			size = <0x0 0x4000000>;
+			mask = <1>;
+		};
+		system:system
+		{
+			pname = "system";
+			size = <0x0 0x40000000>;
+			mask = <1>;
+		};
+		product:product{
+			pname = "product";
+			size = <0x0 0x8000000>;
+			mask = <1>;
+		};
+		cache:cache
+		{
+			pname = "cache";
+			size = <0x0 0x32000000>;
+			mask = <2>;
+		};
+		userdata:userdata
+		{
+			pname = "userdata";
+			size = <0xffffffff 0xffffffff>;
+			mask = <4>;
+		};
+	};
+};/* end of / */
