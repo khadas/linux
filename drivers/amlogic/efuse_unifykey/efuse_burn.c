@@ -173,8 +173,8 @@ static ssize_t version_store(struct class *cla,
 			      struct class_attribute *attr,
 			      const char *buf, size_t count)
 {
-	pr_notice("%s:%d,buf=0x%x,count=%d\n",
-		__func__, __LINE__, (int)buf, count);
+	pr_notice("%s:%d,buf=0x%lx,count=%lu\n",
+		__func__, __LINE__, (long)buf, count);
 	return count;
 }
 
