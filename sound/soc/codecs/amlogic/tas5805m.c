@@ -96,6 +96,7 @@
 #define TAS5805M_CLEAR_FAULT (0x80)
 #define	TAS5805M_DIE_A1 (0x1)
 #define	TAS5805M_DIE_B0 (0x3)
+#define TAS5805M_DAMP_PBTL_MASK (0x04)
 
 static int master_vol = 0x6e;   // 0dB
 static int digital_gain = 0x30; // 0dB
@@ -718,6 +719,10 @@ static void tas5805m_configure_deepsleep_mode
 		usleep_range(2000, 2200);
 		snd_soc_component_write(component,
 		TAS5805M_REG_02, TAS5805M_DEVICE_HYBRID_MOD_MODE);
+		if (tas5805m->pdata->pbtl_mode) {
+			snd_soc_component_update_bits(component,
+				TAS5805M_REG_02, TAS5805M_DAMP_PBTL_MASK, 0x07);
+		}
 		usleep_range(15000, 15200);
 		snd_soc_component_write(component,
 		TAS5805M_REG_03, TAS5805M_DEVICE_PLAY_MODE);
@@ -1161,6 +1166,13 @@ static int tas5805m_parse_dt(struct tas5805m_priv *tas5805m)
 	if (ret)
 		pr_warn("%s: speaker-config not found. Setting to default\n",
 			__func__);
+
+	if (device_property_read_bool(tas5805m->dev, "pbtl-mode"))
+		tas5805m->pdata->pbtl_mode = true;
+	else
+		tas5805m->pdata->pbtl_mode = false;
+	dev_info(tas5805m->dev, "%s: pbtl mode %d\n", __func__,
+					tas5805m->pdata->pbtl_mode);
 
 	return ret;
 }

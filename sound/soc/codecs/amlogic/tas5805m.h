@@ -72,6 +72,7 @@ struct tas5805m_platform_data {
 	int reset_pin;
 	int spk_config;
 	int power_pin;
+	bool pbtl_mode;
 };
 
 #endif

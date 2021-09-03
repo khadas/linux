@@ -1603,6 +1603,7 @@
 		power-gpio = <&gpio GPIOW_17 0>;
 		reset-gpio = <&gpio GPIOW_12 0>;
 		speaker-config = <0>;
+		pbtl-mode;
 		status = "okay";
 	};
 };
