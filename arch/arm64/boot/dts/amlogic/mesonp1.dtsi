@@ -1874,6 +1874,8 @@
 		reg = <0x0 0xff998000 0x0 0x6000>,
 				<0x0 0xff980000 0x0 0x1000>;
 		reg-names = "adapter","wrmif";
+		clocks = <&clkc CLKID_ISP4>;
+		clock-names = "cts_mipi_wrmif_clk";
 		interrupts = <0 81 1>;
 	};
 
