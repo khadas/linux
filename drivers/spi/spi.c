@@ -3319,6 +3319,10 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 			w_size = 1;
 		else if (xfer->bits_per_word <= 16)
 			w_size = 2;
+#ifdef CONFIG_AMLOGIC_MODIFY
+		else if (xfer->bits_per_word > 32)
+			w_size = 8;
+#endif
 		else
 			w_size = 4;
 

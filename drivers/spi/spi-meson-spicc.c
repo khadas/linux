@@ -99,6 +99,7 @@
 #define SPICC_DMAREG	0x10
 #define SPICC_DMA_ENABLE		BIT(0)
 #define SPICC_TXFIFO_THRESHOLD_MASK	GENMASK(5, 1)
+#define SPICC_TXFIFO_THRESHOLD_DEFAULT	10
 #define SPICC_RXFIFO_THRESHOLD_MASK	GENMASK(10, 6)
 #define SPICC_READ_BURST_MASK		GENMASK(14, 11)
 #define SPICC_WRITE_BURST_MASK		GENMASK(18, 15)
@@ -158,6 +159,8 @@
 
 #define SPICC_DWADDR	0x24	/* Write Address of DMA */
 
+#define SPICC_LD_CNTL0	0x28
+#define SPICC_LD_CNTL1	0x2c
 #ifdef CONFIG_AMLOGIC_MODIFY
 #define SPICC_ENH_CTL0	0x38	/* Enhanced Feature */
 #define SPICC_ENH_CLK_CS_DELAY_MASK	GENMASK(15, 0)
@@ -176,9 +179,9 @@
 	writel_relaxed((readl_relaxed(addr) & ~(mask)) | (val), addr)
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-static int SPICC_BURST_MAX = 16;
+static int SPICC_FIFO_SIZE = 16;
 #else
-#define SPICC_BURST_MAX	16
+#define SPICC_FIFO_SIZE	16
 #endif
 #define SPICC_FIFO_HALF 10
 
@@ -210,12 +213,8 @@ struct meson_spicc_device {
 	u8				*rx_buf;
 	unsigned int			bytes_per_word;
 	unsigned long			tx_remain;
-	unsigned long			txb_remain;
 	unsigned long			rx_remain;
-	unsigned long			rxb_remain;
 	unsigned long			xfer_remain;
-	bool				is_burst_end;
-	bool				is_last_burst;
 	unsigned int			backup_con;
 	unsigned int			backup_enh0;
 	unsigned int			backup_test;
@@ -302,47 +301,58 @@ static void meson_spicc_dma_unmap(struct meson_spicc_device *spicc,
 	dma_unmap_single(dev, t->rx_dma, t->len, DMA_FROM_DEVICE);
 }
 
+#define DMA_BURST_MAX	0xffff
 static void meson_spicc_setup_dma_burst(struct meson_spicc_device *spicc)
 {
-	unsigned int dma, burst_len, thres;
+	unsigned int words, thres, count = 1;
 
-	burst_len = min_t(unsigned int,
-			  spicc->xfer_remain / spicc->bytes_per_word,
-			  SPICC_BURST_MAX << 3);
-
-	thres = burst_len % SPICC_BURST_MAX;
-	if (thres == 0) {
-		thres = SPICC_BURST_MAX;
-	} else if (burst_len != thres) {
-		burst_len -= thres;
-		thres = SPICC_BURST_MAX;
+	words = spicc->xfer_remain >> 3;
+	thres = SPICC_FIFO_SIZE - SPICC_TXFIFO_THRESHOLD_DEFAULT;
+	for (; thres > 0; thres--) {
+		if (!(words % thres)) {
+			count = words / thres;
+			break;
+		}
 	}
 
+	/* must not use thres 1 for ambus */
+	if (thres == 1) {
+		words -= 3;
+		thres = 2;
+		count = words / thres;
+	}
+
+	if (count > DMA_BURST_MAX)
+		count = DMA_BURST_MAX;
+
 	/* Setup Xfer variables */
-	spicc->xfer_remain -= burst_len * spicc->bytes_per_word;
+	spicc->xfer_remain -= (thres * count) << 3;
+
+	/* Enable DMA write/read counter */
+	writel_relaxed(0x3 << 4, spicc->base + SPICC_LD_CNTL0);
 
 	/* Setup burst length */
-	writel_bits_relaxed(SPICC_BURSTLENGTH_MASK,
-			    FIELD_PREP(SPICC_BURSTLENGTH_MASK,
-				       burst_len - 1),
-			    spicc->base + SPICC_CONREG);
+	writel_relaxed((count << 16) | count, spicc->base + SPICC_LD_CNTL1);
 
-	dma = SPICC_DMA_ENABLE;
-	dma |= FIELD_PREP(SPICC_TXFIFO_THRESHOLD_MASK, 4);
-	dma |= FIELD_PREP(SPICC_READ_BURST_MASK, SPICC_BURST_MAX - 4);
-	dma |= FIELD_PREP(SPICC_RXFIFO_THRESHOLD_MASK, thres - 1);
-	dma |= FIELD_PREP(SPICC_WRITE_BURST_MASK, thres - 1);
-	writel_relaxed(dma, spicc->base + SPICC_DMAREG);
+	writel_relaxed(SPICC_DMA_ENABLE
+		| FIELD_PREP(SPICC_TXFIFO_THRESHOLD_MASK,
+			     SPICC_TXFIFO_THRESHOLD_DEFAULT)
+		| FIELD_PREP(SPICC_READ_BURST_MASK, thres - 1)
+		| FIELD_PREP(SPICC_RXFIFO_THRESHOLD_MASK, thres - 1)
+		| FIELD_PREP(SPICC_WRITE_BURST_MASK, thres - 1),
+		spicc->base + SPICC_DMAREG);
 }
 
 static void meson_spicc_dma_irq(struct meson_spicc_device *spicc)
 {
-	writel_bits_relaxed(SPICC_TC, SPICC_TC, spicc->base + SPICC_STATREG);
+	if (readl_relaxed(spicc->base + SPICC_DMAREG) & SPICC_DMA_ENABLE)
+		return;
 
 	if (!spicc->xfer_remain) {
 		/* Disable all IRQs */
 		writel_relaxed(0, spicc->base + SPICC_INTREG);
 		writel_relaxed(0, spicc->base + SPICC_DMAREG);
+		writel_relaxed(0, spicc->base + SPICC_LD_CNTL0);
 		if (!spicc->message->is_dma_mapped)
 			meson_spicc_dma_unmap(spicc, spicc->xfer);
 		spi_finalize_current_transfer(spicc->master);
@@ -352,9 +362,6 @@ static void meson_spicc_dma_irq(struct meson_spicc_device *spicc)
 
 	/* Setup burst */
 	meson_spicc_setup_dma_burst(spicc);
-
-	/* Start burst */
-	writel_bits_relaxed(SPICC_XCH, SPICC_XCH, spicc->base + SPICC_CONREG);
 }
 #endif
 
@@ -426,26 +433,6 @@ static inline void meson_spicc_tx(struct meson_spicc_device *spicc)
 			       spicc->base + SPICC_TXDATA);
 }
 
-static inline u32 meson_spicc_setup_rx_irq(struct meson_spicc_device *spicc,
-					   u32 irq_ctrl)
-{
-#ifdef CONFIG_AMLOGIC_MODIFY
-	if (spicc->using_dma) {
-		irq_ctrl |= SPICC_TC_EN;
-		return irq_ctrl;
-	}
-	/* SoCs has async-clk is incapable of half-full interrupt */
-	if (spicc->rx_remain > SPICC_FIFO_HALF && !spicc->data->has_async_clk)
-#else
-	if (spicc->rx_remain > SPICC_FIFO_HALF)
-#endif
-		irq_ctrl |= SPICC_RH_EN;
-	else
-		irq_ctrl |= SPICC_RR_EN;
-
-	return irq_ctrl;
-}
-
 static inline void meson_spicc_setup_burst(struct meson_spicc_device *spicc,
 					   unsigned int burst_len)
 {
@@ -453,11 +440,6 @@ static inline void meson_spicc_setup_burst(struct meson_spicc_device *spicc,
 	spicc->tx_remain = burst_len;
 	spicc->rx_remain = burst_len;
 	spicc->xfer_remain -= burst_len * spicc->bytes_per_word;
-	spicc->is_burst_end = false;
-	if (burst_len < SPICC_BURST_MAX || !spicc->xfer_remain)
-		spicc->is_last_burst = true;
-	else
-		spicc->is_last_burst = false;
 
 	/* Setup burst length */
 	writel_bits_relaxed(SPICC_BURSTLENGTH_MASK,
@@ -531,10 +513,10 @@ static void meson_spicc_hw_prepare(struct meson_spicc_device *spicc,
 static irqreturn_t meson_spicc_irq(int irq, void *data)
 {
 	struct meson_spicc_device *spicc = (void *) data;
-	u32 ctrl = readl_relaxed(spicc->base + SPICC_INTREG);
-	u32 stat = readl_relaxed(spicc->base + SPICC_STATREG) & ctrl;
+	unsigned int burst_len;
 
-	ctrl &= ~(SPICC_RH_EN | SPICC_RR_EN);
+	/* Clear TC bit */
+	writel_relaxed(SPICC_TC, spicc->base + SPICC_STATREG);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 	if (spicc->using_dma) {
@@ -547,52 +529,20 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 	meson_spicc_rx(spicc);
 
 	/* Enable TC interrupt since we transferred everything */
-	if (!spicc->tx_remain && !spicc->rx_remain) {
-		spicc->is_burst_end = true;
-
-		/* Enable TC interrupt */
-		ctrl |= SPICC_TC_EN;
-
-		/* Reload IRQ status */
-		stat = readl_relaxed(spicc->base + SPICC_STATREG) & ctrl;
+	if (!spicc->xfer_remain) {
+		spi_finalize_current_transfer(spicc->master);
+		return IRQ_HANDLED;
 	}
 
-	/* Check transfer complete */
-	if ((stat & SPICC_TC) && spicc->is_burst_end) {
-		unsigned int burst_len;
+	burst_len = min_t(unsigned int,
+			  spicc->xfer_remain / spicc->bytes_per_word,
+			  SPICC_FIFO_SIZE);
 
-		/* Clear TC bit */
-		writel_relaxed(SPICC_TC, spicc->base + SPICC_STATREG);
+	/* Setup burst */
+	meson_spicc_setup_burst(spicc, burst_len);
 
-		/* Disable TC interrupt */
-		ctrl &= ~SPICC_TC_EN;
-
-		if (spicc->is_last_burst) {
-			/* Disable all IRQs */
-			writel(0, spicc->base + SPICC_INTREG);
-
-			spi_finalize_current_transfer(spicc->master);
-
-			return IRQ_HANDLED;
-		}
-
-		burst_len = min_t(unsigned int,
-				  spicc->xfer_remain / spicc->bytes_per_word,
-				  SPICC_BURST_MAX);
-
-		/* Setup burst */
-		meson_spicc_setup_burst(spicc, burst_len);
-
-		/* Restart burst */
-		writel_bits_relaxed(SPICC_XCH, SPICC_XCH,
-				    spicc->base + SPICC_CONREG);
-	}
-
-	/* Setup RX interrupt trigger */
-	ctrl = meson_spicc_setup_rx_irq(spicc, ctrl);
-
-	/* Reconfigure interrupts */
-	writel(ctrl, spicc->base + SPICC_INTREG);
+	/* Restart burst */
+	writel_bits_relaxed(SPICC_XCH, SPICC_XCH, spicc->base + SPICC_CONREG);
 
 	return IRQ_HANDLED;
 }
@@ -603,7 +553,6 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 {
 	struct meson_spicc_device *spicc = spi_master_get_devdata(master);
 	unsigned int burst_len;
-	u32 irq = 0;
 
 	/* Store current transfer */
 	spicc->xfer = xfer;
@@ -623,7 +572,6 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 		meson_spicc_hw_prepare(spicc, spi->mode, xfer->bits_per_word,
 				       xfer->speed_hz);
 
-#ifdef CONFIG_AMLOGIC_MODIFY
 	spicc->using_dma = 0;
 	writel_relaxed(0, spicc->base + SPICC_DMAREG);
 	if (xfer->bits_per_word == 64 && (spicc->message->is_dma_mapped ||
@@ -634,27 +582,20 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 		writel_relaxed(xfer->speed_hz >> 25,
 			       spicc->base + SPICC_PERIODREG);
 		meson_spicc_setup_dma_burst(spicc);
+		writel_relaxed(SPICC_TE_EN, spicc->base + SPICC_INTREG);
+		writel_bits_relaxed(SPICC_SMC, SPICC_SMC,
+				    spicc->base + SPICC_CONREG);
+
 	} else {
 		burst_len = min_t(unsigned int,
 				  spicc->xfer_remain / spicc->bytes_per_word,
-				  SPICC_BURST_MAX);
+				  SPICC_FIFO_SIZE);
 		meson_spicc_setup_burst(spicc, burst_len);
+		writel_relaxed(SPICC_TC_EN, spicc->base + SPICC_INTREG);
+		/* Start burst */
+		writel_bits_relaxed(SPICC_XCH, SPICC_XCH,
+				    spicc->base + SPICC_CONREG);
 	}
-#else
-	burst_len = min_t(unsigned int,
-			  spicc->xfer_remain / spicc->bytes_per_word,
-			  SPICC_BURST_MAX);
-
-	meson_spicc_setup_burst(spicc, burst_len);
-#endif
-
-	irq = meson_spicc_setup_rx_irq(spicc, irq);
-
-	/* Start burst */
-	writel_bits_relaxed(SPICC_XCH, SPICC_XCH, spicc->base + SPICC_CONREG);
-
-	/* Enable interrupts */
-	writel_relaxed(irq, spicc->base + SPICC_INTREG);
 
 	return 1;
 }
@@ -826,7 +767,7 @@ int dirspi_xfer(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len)
 		rx_remain = spicc->rx_remain;
 		burst_len = min_t(unsigned int,
 				  spicc->xfer_remain / spicc->bytes_per_word,
-				  SPICC_BURST_MAX - rx_remain);
+				  SPICC_FIFO_SIZE - rx_remain);
 		meson_spicc_setup_burst(spicc, burst_len);
 		spicc->rx_remain += rx_remain;
 
@@ -1219,7 +1160,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_MODIFY
 	if (spicc->data->has_async_clk) {
 		/* SoCs has async-clk is incapable of using full burst */
-		SPICC_BURST_MAX = 15;
+		SPICC_FIFO_SIZE = 15;
 
 		spicc->async_clk = devm_clk_get(&pdev->dev, "async");
 		if (IS_ERR_OR_NULL(spicc->async_clk)) {
