@@ -320,6 +320,7 @@
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xff8000a8 0x0 0x4>;
 		status = "okay";
+		mboxes = <&mailbox_pl 1>;
 	};
 
 	reboot {
