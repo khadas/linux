@@ -1523,7 +1523,7 @@ static const char * const i2c3_groups[] = {
 };
 
 static const char * const i2c4_groups[] = {
-	"i2c4_sck_t8", "i2c4_sda_t9", "i2c4_sck_t26", "i2c4_sda_t28"
+	"i2c4_sck_t9", "i2c4_sda_t8", "i2c4_sck_t26", "i2c4_sda_t28"
 };
 
 static const char * const i2c5_groups[] = {

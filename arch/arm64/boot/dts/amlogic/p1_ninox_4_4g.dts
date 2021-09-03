@@ -524,7 +524,7 @@
 		aml-audio-card,dai-link@1 {
 			format = "dsp_b";
 			mclk-fs = <256>;
-			//continuous-clock;
+			continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
@@ -546,7 +546,8 @@
 				system-clock-frequency = <24576000>;
 			};
 			tdmbcodec: codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&dummy_codec
+					&tlv320adc5140_4c &tlv320adc5140_4e>;
 			};
 		};
 
@@ -1469,6 +1470,38 @@
 	};
 };
 
+&i2c4 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4_pins1>;
+	status = "okay";
+
+	tlv320adc5140_4c: tlv320adc5140_4c@4c {
+		compatible = "ti,tlv320adc5140";
+		#sound-dai-cells = <0>;
+		reg = <0x4c>;
+		reset-gpio = <&gpio GPIOX_4 GPIO_ACTIVE_HIGH>;
+		adc-num = <0>;
+		pga-gain = <0x38>;
+		dga-gain = <0xC9>;
+		/*daisy-chain = <1>;*/
+		disable-suspend;
+		status = "okay";
+	};
+
+	tlv320adc5140_4e: tlv320adc5140_4e@4e {
+		compatible = "ti,tlv320adc5140";
+		#sound-dai-cells = <0>;
+		reg = <0x4e>;
+		//reset-gpio = <&gpio GPIOX_4 GPIO_ACTIVE_HIGH>;
+		adc-num = <1>;
+		pga-gain = <0x38>;
+		dga-gain = <0xC9>;
+		disable-suspend;
+		status = "okay";
+	};
+};
+
 &i2c6 {
 	status = "okay";
 	clock-frequency = <100000>;
@@ -1946,13 +1979,13 @@
 	tdm_d2_pins: tdm_d2_pin {
 		mux {
 			groups = "tdm_d2";
-			function = "tdmoutb_lane0";
+			function = "tdminb_lane0";
 		};
 	};
 	tdm_d3_pins: tdm_d3_pin {
 		mux {
 			groups = "tdm_d3";
-			function = "tdminb_lane0";
+			function = "tdmoutb_lane0";
 		};
 	};
 	tdm_d4_pins: tdm_d4_pin {

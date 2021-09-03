@@ -22,6 +22,8 @@ snd-soc-ad82584f-objs := ad82584f.o
 snd-soc-ad82587d-objs := ad82587d.o
 snd-soc-tas5805-objs := tas5805.o
 snd-soc-tas5805m-objs := tas5805m.o
+snd-soc-tlv320adc5140-objs := tlv320adc5140.o
+
 # Amlogic
 obj-$(CONFIG_AMLOGIC_SND_CODEC_DUMMY_CODEC) += snd-soc-dummy_codec.o
 obj-$(CONFIG_AMLOGIC_SND_CODEC_PDM_DUMMY_CODEC) += snd-soc-pdm-dummy.o
@@ -46,6 +48,7 @@ obj-$(CONFIG_AMLOGIC_SND_SOC_AD82587D) += ad82587d.o
 obj-$(CONFIG_AMLOGIC_SND_SOC_CS42528) += cs42528.o
 obj-$(CONFIG_AMLOGIC_SND_SOC_TAS5805) += snd-soc-tas5805.o
 obj-$(CONFIG_AMLOGIC_SND_SOC_TAS5805m) += snd-soc-tas5805m.o
+obj-$(CONFIG_AMLOGIC_SND_SOC_TLV320ADC5140) += snd-soc-tlv320adc5140.o
 
 
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)

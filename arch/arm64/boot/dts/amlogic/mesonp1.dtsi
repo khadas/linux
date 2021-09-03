@@ -2900,8 +2900,8 @@
 
 	i2c4_pins1:i2c4_pins1 {
 		mux {
-			groups = "i2c4_sda_t9",
-				"i2c4_sck_t8";
+			groups = "i2c4_sda_t8",
+				"i2c4_sck_t9";
 			function = "i2c4";
 			drive-strength-microamp = <3000>;
 			bias-disable;
