@@ -5160,7 +5160,7 @@ static struct clk_regmap p1_isp4_sel = {
 
 static struct clk_regmap p1_isp4_div = {
 	.data = &(struct clk_regmap_div_data){
-		.offset = CLKCTRL_ISP3_CLK_CTRL,
+		.offset = CLKCTRL_ISP4_CLK_CTRL,
 		.shift = 0,
 		.width = 7,
 	},
@@ -5395,7 +5395,7 @@ static struct clk_regmap p1_csiphy4_sel = {
 
 static struct clk_regmap p1_csiphy4_div = {
 	.data = &(struct clk_regmap_div_data){
-		.offset = CLKCTRL_ISP3_CLK_CTRL,
+		.offset = CLKCTRL_ISP4_CLK_CTRL,
 		.shift = 16,
 		.width = 7,
 	},
