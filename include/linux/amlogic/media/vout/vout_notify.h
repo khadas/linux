@@ -83,7 +83,7 @@ static inline int vout_unregister_client(struct notifier_block *p)
 	return 0;
 }
 
-static inline int vout_notifier_call_chain(unsigned int long, void *p)
+static inline int vout_notifier_call_chain(unsigned long val, void *p)
 {
 	return 0;
 }
@@ -155,6 +155,71 @@ int get_vframe2_rate_hint(void);
 int set_vframe2_rate_policy(int policy);
 int get_vframe2_rate_policy(void);
 void set_vout2_bist(unsigned int bist);
+
+#else
+static inline int vout2_register_client(struct notifier_block *p)
+{
+	return 0;
+}
+
+static inline int vout2_unregister_client(struct notifier_block *p)
+{
+	return 0;
+}
+
+static inline int vout2_notifier_call_chain(unsigned long val, void *p)
+{
+	return 0;
+}
+
+static inline int vout2_register_server(struct vout_server_s *p)
+{
+	return 0;
+}
+
+static inline int vout2_unregister_server(struct vout_server_s *p)
+{
+	return 0;
+}
+
+static inline int get_vout2_disp_cap(char *buf)
+{
+	return 0;
+}
+
+static inline struct vinfo_s *get_current_vinfo2(void)
+{
+	return 0;
+}
+
+static inline enum vmode_e get_current_vmode2(void)
+{
+	return 0;
+}
+
+static inline int set_vframe2_rate_hint(int duration)
+{
+	return 0;
+}
+
+static inline int get_vframe2_rate_hint(void)
+{
+	return 0;
+}
+
+static inline int set_vframe2_rate_policy(int policy)
+{
+	return 0;
+}
+
+static inline int get_vframe2_rate_policy(void)
+{
+	return 0;
+}
+
+static inline void set_vout2_bist(unsigned int bist)
+{
+}
 
 #endif
 
