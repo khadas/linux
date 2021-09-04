@@ -709,7 +709,7 @@ static ssize_t checkburn_store(struct class *cla,
 	efuse_dev = container_of(cla, struct aml_efuse_dev, cls);
 
 	n = strlen(buf);
-	pr_notice("%s:%d %s,n=%ld\n", __func__, __LINE__, buf, n);
+	pr_notice("%s:%d %s,n=%zd\n", __func__, __LINE__, buf, n);
 
 	n--; //discard '\n'
 	if (n >= EFUSE_CHECK_NAME_LEN)
