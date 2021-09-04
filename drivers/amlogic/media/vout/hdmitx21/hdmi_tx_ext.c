@@ -8,6 +8,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ext.h>
 #include "hdmi_tx_ext.h"
 
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 /* for notify to cec */
 int hdmitx_event_notifier_regist(struct notifier_block *nb)
 {
@@ -20,10 +21,13 @@ int hdmitx_event_notifier_unregist(struct notifier_block *nb)
 	return _hdmitx_event_notifier_unregist(nb);
 }
 EXPORT_SYMBOL(hdmitx_event_notifier_unregist);
+#endif
 
 int register_earcrx_callback(pf_callback callback)
 {
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	pf_callback *hdmitx;
+#endif
 #ifdef CONFIG_AMLOGIC_HDMITX
 	hdmitx = hdmitx_earc_hpdst();
 	*hdmitx = callback;
@@ -40,7 +44,9 @@ EXPORT_SYMBOL(register_earcrx_callback);
 
 void unregister_earcrx_callback(void)
 {
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	pf_callback *hdmitx;
+#endif
 #ifdef CONFIG_AMLOGIC_HDMITX
 	hdmitx = hdmitx_earc_hpdst();
 	*hdmitx = NULL;

@@ -190,6 +190,7 @@ static bool am_meson_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
+#ifdef CONFIG_AMLOGIC_VOUT
 static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 					struct drm_crtc_state *old_state)
 {
@@ -264,6 +265,17 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 	set_vout_init(mode);
 	DRM_DEBUG("%s:out\n", __func__);
 }
+#else
+static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
+					struct drm_crtc_state *old_state)
+{
+}
+
+static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
+					 struct drm_crtc_state *old_state)
+{
+}
+#endif
 
 static void am_meson_crtc_commit(struct drm_crtc *crtc)
 {

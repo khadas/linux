@@ -474,16 +474,22 @@ void tvafe_enable_avout(enum tvin_port_e port, bool enable)
 		if (enable) {
 			tvafe_clk_gate_ctrl(1);
 			if (IS_TVAFE_ATV_SRC(port)) {
+#ifdef CONFIG_AMLOGIC_VDAC
 				vdac_enable(1, VDAC_MODULE_AVOUT_ATV);
+#endif
 			} else {
 				W_APB_REG(TVFE_ATV_DMD_CLP_CTRL, 0);
+#ifdef CONFIG_AMLOGIC_VDAC
 				vdac_enable(1, VDAC_MODULE_AVOUT_AV);
+#endif
 			}
 		} else {
+#ifdef CONFIG_AMLOGIC_VDAC
 			if (IS_TVAFE_ATV_SRC(port))
 				vdac_enable(0, VDAC_MODULE_AVOUT_ATV);
 			else
 				vdac_enable(0, VDAC_MODULE_AVOUT_AV);
+#endif
 			tvafe_clk_gate_ctrl(0);
 		}
 	}

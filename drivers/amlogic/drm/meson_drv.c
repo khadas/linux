@@ -140,7 +140,9 @@ static struct drm_framebuffer *am_meson_logo_init_fb(struct drm_device *dev)
 	u32 reverse_type, osd_index;
 
 	/*TODO: get mode from vout api temp.*/
+#ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	strcpy(logo.outputmode, get_vout_mode_uboot());
+#endif
 	logo.width = get_logo_fb_width();
 	logo.height = get_logo_fb_height();
 	logo.bpp = get_logo_display_bpp();
@@ -266,7 +268,9 @@ int __am_meson_drm_set_config(struct drm_mode_set *set,
 		return PTR_ERR(crtc_state);
 
 	meson_crtc_state = to_am_meson_crtc_state(crtc_state);
+#ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	meson_crtc_state->uboot_mode_init = get_vout_mode_uboot_state();
+#endif
 
 	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
 	if (IS_ERR(primary_state))
@@ -894,7 +898,9 @@ static int am_meson_drv_probe(struct platform_device *pdev)
 		of_node_put(port);
 	}
 	pr_info("[%s] out\n", __func__);
+#ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	disable_vout_mode_set_sysfs();
+#endif
 	return component_master_add_with_match(dev, &am_meson_drm_ops, match);
 }
 
