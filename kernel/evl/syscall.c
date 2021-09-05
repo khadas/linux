@@ -25,6 +25,7 @@
 #include <evl/sched.h>
 #include <evl/file.h>
 #include <trace/events/evl.h>
+#include <asm/syscall.h>
 #include <uapi/evl/syscall.h>
 #include <asm/evl/syscall.h>
 
@@ -124,8 +125,10 @@ static const char *evl_sysnames[] = {
 #define SYSCALL_STOP        1
 
 static __always_inline
-void invoke_syscall(unsigned int nr, struct pt_regs *regs)
+void invoke_syscall(unsigned int nr, struct pt_regs *regs,
+		unsigned long *args)
 {
+	int error;
 	long ret;
 
 	/*
@@ -135,23 +138,24 @@ void invoke_syscall(unsigned int nr, struct pt_regs *regs)
 	 */
 	switch (nr) {
 	case sys_evl_read:
-		ret = EVL_read((int)oob_arg1(regs),
-			(char __user *)oob_arg2(regs),
-			(size_t)oob_arg3(regs));
+		ret = EVL_read((int)args[0],
+			(char __user *)args[1],
+			(size_t)args[2]);
 		break;
 	case sys_evl_write:
-		ret = EVL_write((int)oob_arg1(regs),
-				(const char __user *)oob_arg2(regs),
-				(size_t)oob_arg3(regs));
+		ret = EVL_write((int)args[0],
+				(const char __user *)args[1],
+				(size_t)args[2]);
 		break;
 	case sys_evl_ioctl:
-		ret = EVL_ioctl((int)oob_arg1(regs),
-				(unsigned int)oob_arg2(regs),
-				oob_arg3(regs));
+		ret = EVL_ioctl((int)args[0],
+				(unsigned int)args[1],
+				args[2]);
 		break;
 	}
 
-	set_oob_retval(regs, ret);
+	error = IS_ERR_VALUE(ret) ? ret : 0;
+	syscall_set_return_value(current, regs, error, ret);
 }
 
 static void prepare_for_signal(struct task_struct *p,
@@ -183,7 +187,7 @@ static void prepare_for_signal(struct task_struct *p,
 	 */
 	if (curr->info & T_KICKED) {
 		if (signal_pending(p)) {
-			set_oob_error(regs, -ERESTARTSYS);
+			syscall_set_return_value(current, regs, -ERESTARTSYS, 0);
 			curr->info &= ~T_BREAK;
 		}
 		curr->info &= ~T_KICKED;
@@ -204,15 +208,15 @@ static void prepare_for_signal(struct task_struct *p,
  * in-band mode unless we provide the service directly from here,
  * which is not optimal but still correct.
  */
-static __always_inline
-bool handle_vdso_fallback(int nr, struct pt_regs *regs)
+static bool handle_vdso_fallback(struct pt_regs *regs, unsigned int nr,
+				unsigned long *args)
 {
 	struct __kernel_old_timespec __user *u_old_ts;
 	struct __kernel_timespec uts, __user *u_uts;
 	struct __kernel_old_timespec old_ts;
+	int clock_id, ret = 0, error;
 	struct evl_clock *clock;
 	struct timespec64 ts64;
-	int clock_id, ret = 0;
 
 #define is_clock_gettime(__nr) ((__nr) == __NR_clock_gettime)
 #ifndef __NR_clock_gettime64
@@ -224,7 +228,7 @@ bool handle_vdso_fallback(int nr, struct pt_regs *regs)
 	if (!is_clock_gettime(nr) && !is_clock_gettime64(nr))
 		return false;
 
-	clock_id = (int)oob_arg1(regs);
+	clock_id = (int)args[0];
 	switch (clock_id) {
 	case CLOCK_MONOTONIC:
 		clock = &evl_mono_clock;
@@ -241,18 +245,19 @@ bool handle_vdso_fallback(int nr, struct pt_regs *regs)
 	if (is_clock_gettime(nr)) {
 		old_ts.tv_sec = (__kernel_old_time_t)ts64.tv_sec;
 		old_ts.tv_nsec = ts64.tv_nsec;
-		u_old_ts = (struct __kernel_old_timespec __user *)oob_arg2(regs);
+		u_old_ts = (struct __kernel_old_timespec __user *)args[1];
 		if (raw_copy_to_user(u_old_ts, &old_ts, sizeof(old_ts)))
 			ret = -EFAULT;
 	} else if (is_clock_gettime64(nr)) {
 		uts.tv_sec = ts64.tv_sec;
 		uts.tv_nsec = ts64.tv_nsec;
-		u_uts = (struct __kernel_timespec __user *)oob_arg2(regs);
+		u_uts = (struct __kernel_timespec __user *)args[1];
 		if (raw_copy_to_user(u_uts, &uts, sizeof(uts)))
 			ret = -EFAULT;
 	}
 
-	set_oob_retval(regs, ret);
+	error = IS_ERR_VALUE((long)ret) ? ret : 0;
+	syscall_set_return_value(current, regs, error, ret);
 
 #undef is_clock_gettime
 #undef is_clock_gettime64
@@ -260,26 +265,28 @@ bool handle_vdso_fallback(int nr, struct pt_regs *regs)
 	return true;
 }
 
-static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
+static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs,
+			unsigned int nr, unsigned long *args)
 {
+	struct task_struct *tsk = current;
 	struct evl_thread *curr;
-	struct task_struct *p;
-	unsigned int nr;
 
-	if (!is_oob_syscall(regs))
+	if (!(nr & __OOB_SYSCALL_BIT))
 		goto do_inband;
 
-	nr = oob_syscall_nr(regs);
-	if (nr >= NR_EVL_SYSCALLS)
+	nr &= ~__OOB_SYSCALL_BIT;
+	if (nr >= NR_EVL_SYSCALLS) {
+		printk(EVL_WARNING "invalid out-of-band syscall <%#x>\n", nr);
 		goto bad_syscall;
+	}
 
 	curr = evl_current();
 	if (curr == NULL || !cap_raised(current_cap(), CAP_SYS_NICE)) {
 		if (EVL_DEBUG(CORE))
 			printk(EVL_WARNING
 				"syscall <oob_%s> denied to %s[%d]\n",
-				evl_sysnames[nr], current->comm, task_pid_nr(current));
-		set_oob_error(regs, -EPERM);
+				evl_sysnames[nr], tsk->comm, task_pid_nr(tsk));
+		syscall_set_return_value(tsk, regs, -EPERM, 0);
 		return SYSCALL_STOP;
 	}
 
@@ -293,13 +300,12 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
 
 	trace_evl_oob_sysentry(nr);
 
-	invoke_syscall(nr, regs);
+	invoke_syscall(nr, regs, args);
 
 	/* Syscall might have switched in-band, recheck. */
 	if (!evl_is_inband()) {
-		p = current;
-		if (signal_pending(p) || (curr->info & T_KICKED))
-			prepare_for_signal(p, curr, regs);
+		if (signal_pending(tsk) || (curr->info & T_KICKED))
+			prepare_for_signal(tsk, curr, regs);
 		else if ((curr->state & T_WEAK) &&
 			!atomic_read(&curr->inband_disable_count))
 			evl_switch_inband(EVL_HMDIAG_NONE);
@@ -309,7 +315,7 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs)
 	evl_inc_counter(&curr->stat.sc);
 	evl_sync_uwindow(curr);
 
-	trace_evl_oob_sysexit(oob_retval(regs));
+	trace_evl_oob_sysexit(syscall_get_return_value(tsk, regs));
 
 	return SYSCALL_STOP;
 
@@ -322,31 +328,28 @@ do_inband:
 	 * current request issued from the out-of-band stage is not a
 	 * valid in-band syscall, but rather deliver -ENOSYS directly
 	 * instead.  Otherwise, switch to in-band mode before
-	 * propagating the syscall down the pipeline. CAUTION:
-	 * inband_syscall_nr(regs, &nr) is valid only if
-	 * !is_oob_syscall(regs), which we checked earlier in
-	 * do_oob_syscall().
+	 * propagating the syscall down the pipeline.
 	 */
-	if (inband_syscall_nr(regs, &nr)) {
-		if (handle_vdso_fallback(nr, regs))
+	if (is_valid_inband_syscall(nr)) {
+		if (handle_vdso_fallback(regs, nr, args))
 			return SYSCALL_STOP;
 		evl_switch_inband(EVL_HMDIAG_SYSDEMOTE);
 		return SYSCALL_PROPAGATE;
 	}
 
-bad_syscall:
-	printk(EVL_WARNING "invalid out-of-band syscall <%#x>\n", nr);
+	printk(EVL_WARNING "invalid in-band syscall <%u>\n", nr);
 
-	set_oob_error(regs, -ENOSYS);
+bad_syscall:
+	syscall_set_return_value(tsk, regs, -ENOSYS, 0);
 
 	return SYSCALL_STOP;
 }
 
-static int do_inband_syscall(struct irq_stage *stage, struct pt_regs *regs)
+static int do_inband_syscall(struct pt_regs *regs, unsigned int nr,
+			unsigned long *args)
 {
 	struct evl_thread *curr = evl_current(); /* Always valid. */
-	struct task_struct *p;
-	unsigned int nr;
+	struct task_struct *tsk = current;
 	int ret;
 
 	/*
@@ -370,16 +373,16 @@ static int do_inband_syscall(struct irq_stage *stage, struct pt_regs *regs)
 	evl_propagate_schedparam_change(curr);
 
 	/* Propagate in-band syscalls. */
-	if (!is_oob_syscall(regs))
+	if (!(nr & __OOB_SYSCALL_BIT))
 		return SYSCALL_PROPAGATE;
 
-	/*
-	 * Process an OOB syscall after switching current to OOB
-	 * context.  do_oob_syscall() already checked the syscall
-	 * number.
-	 */
-	nr = oob_syscall_nr(regs);
+	nr &= ~__OOB_SYSCALL_BIT;
 
+	/*
+	 * Process an OOB syscall after switching current to the
+	 * out-of-band stage.  do_oob_syscall() already checked the
+	 * syscall number.
+	 */
 	trace_evl_inband_sysentry(nr);
 
 	ret = evl_switch_oob();
@@ -391,16 +394,15 @@ static int do_inband_syscall(struct irq_stage *stage, struct pt_regs *regs)
 	 * T_KICKED and/or signal_pending()).
 	 */
 	if (ret == -ERESTARTSYS) {
-		set_oob_error(regs, ret);
+		syscall_set_return_value(tsk, regs, ret, 0);
 		goto done;
 	}
 
-	invoke_syscall(nr, regs);
+	invoke_syscall(nr, regs, args);
 
 	if (!evl_is_inband()) {
-		p = current;
-		if (signal_pending(p) || (curr->info & T_KICKED))
-			prepare_for_signal(p, curr, regs);
+		if (signal_pending(tsk) || (curr->info & T_KICKED))
+			prepare_for_signal(tsk, curr, regs);
 		else if ((curr->state & T_WEAK) &&
 			!atomic_read(&curr->inband_disable_count))
 			evl_switch_inband(EVL_HMDIAG_NONE);
@@ -412,23 +414,71 @@ done:
 	evl_inc_counter(&curr->stat.sc);
 	evl_sync_uwindow(curr);
 
-	trace_evl_inband_sysexit(oob_retval(regs));
+	trace_evl_inband_sysexit(syscall_get_return_value(tsk, regs));
 
 	return SYSCALL_STOP;
 }
 
+static unsigned int collect_syscall_args(struct pt_regs *regs,
+					unsigned long *args)
+{
+	struct task_struct *tsk = current;
+	unsigned int nr = syscall_get_nr(tsk, regs);
+
+	syscall_get_arguments(tsk, regs, args);
+
+	/*
+	 * We use __OOB_SYSCALL_BIT as a marker for EVL syscalls,
+	 * whichever call form was used to get there: i.e. legacy call
+	 * with __OOB_SYSCALL_BIT ORed into the syscall register, or
+	 * the prctl() form. At the end of the day, @nr has
+	 * __OOB_SYSCALL_BIT set if it carries an EVL syscall.
+	 */
+	if (nr & __OOB_SYSCALL_BIT)
+		return nr;
+
+	/*
+	 * Not a legacy call form, look for the prctl form, i.e:
+	 * prctl(nr | __OOB_SYSCALL_BIT, args...). If not matched,
+	 * this is an in-band syscall.
+	 */
+	if (nr != __NR_prctl || !(args[0] & __OOB_SYSCALL_BIT))
+		return nr;
+
+	/*
+	 * Reshuffle the arguments, shifting them left to skip the EVL
+	 * syscall number. In this call form, userland can pass up to
+	 * four arguments, which is just fine with us.
+	 */
+	nr = args[0];
+	args[0] = args[1];
+	args[1] = args[2];
+	args[2] = args[3];
+	args[3] = args[4];
+
+	return nr;
+}
+
 int handle_pipelined_syscall(struct irq_stage *stage, struct pt_regs *regs)
 {
-	if (unlikely(running_inband()))
-		return do_inband_syscall(stage, regs);
+	unsigned long args[6];
+	unsigned int nr;
 
-	return do_oob_syscall(stage, regs);
+	nr = collect_syscall_args(regs, args);
+
+	if (unlikely(running_inband()))
+		return do_inband_syscall(regs, nr, args);
+
+	return do_oob_syscall(stage, regs, nr, args);
 }
 
 void handle_oob_syscall(struct pt_regs *regs)
 {
+	unsigned long args[6];
+	unsigned int nr;
 	int ret;
 
-	ret = do_oob_syscall(&oob_stage, regs);
-	EVL_WARN_ON(CORE, ret == SYSCALL_PROPAGATE);
+	nr = collect_syscall_args(regs, args);
+	ret = do_oob_syscall(&oob_stage, regs, nr, args);
+	EVL_WARN_ON(CORE, ret == SYSCALL_PROPAGATE); /* Keep me there! */
 }
