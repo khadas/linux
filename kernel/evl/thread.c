@@ -22,6 +22,7 @@
 #include <linux/err.h>
 #include <linux/ptrace.h>
 #include <linux/math64.h>
+#include <linux/cn_proc.h>
 #include <uapi/linux/sched/types.h>
 #include <evl/sched.h>
 #include <evl/timer.h>
@@ -2386,6 +2387,7 @@ thread_factory_build(struct evl_factory *fac, const char __user *u_name,
 	struct evl_observable *observable = NULL;
 	struct task_struct *tsk = current;
 	struct evl_init_thread_attr iattr;
+	unsigned char comm[sizeof(tsk->comm)];
 	struct evl_thread *curr;
 	int ret;
 
@@ -2464,9 +2466,10 @@ thread_factory_build(struct evl_factory *fac, const char __user *u_name,
 	 */
 	evl_get_element(&curr->element);
 
-	strncpy(tsk->comm, evl_element_name(&curr->element),
-		sizeof(tsk->comm));
-	tsk->comm[sizeof(tsk->comm) - 1] = '\0';
+	strncpy(comm, evl_element_name(&curr->element), sizeof(comm));
+	comm[sizeof(comm) - 1] = '\0';
+	set_task_comm(tsk, comm);
+	proc_comm_connector(tsk);
 
 	return &curr->element;
 
