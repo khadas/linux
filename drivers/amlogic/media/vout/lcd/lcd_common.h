@@ -60,6 +60,7 @@ void lcd_mipi_dsi_config_set(struct aml_lcd_drv_s *pdrv);
 void lcd_edp_config_set(struct aml_lcd_drv_s *pdrv);
 void lcd_timing_init_config(struct aml_lcd_drv_s *pdrv);
 
+int lcd_fr_is_fixed(struct aml_lcd_drv_s *pdrv);
 int lcd_vmode_change(struct aml_lcd_drv_s *pdrv);
 void lcd_clk_change(struct aml_lcd_drv_s *pdrv);
 void lcd_if_enable_retry(struct aml_lcd_drv_s *pdrv);

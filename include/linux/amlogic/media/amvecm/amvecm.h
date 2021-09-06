@@ -387,6 +387,15 @@ struct eye_protect_s {
 
 #define AMVECM_IOC_S_EYE_PROT   _IOW(_VE_CM, 0x78, struct eye_protect_s)
 
+/*Freerun type ioctl enum*/
+enum freerun_type_e {
+	GAME_MODE = 0,
+	FREERUN_MODE,
+	FREERUN_TYPE_MAX
+};
+
+#define AMVECM_IOC_S_FREERUN_TYPE   _IOW(_VE_CM, 0x79, enum freerun_type_e)
+
 struct am_vdj_mode_s {
 	int flag;
 	int brightness;
@@ -731,6 +740,7 @@ struct single_scene_s {
 	int (*func)(int offset, int enable);
 };
 extern struct single_scene_s detected_scenes[SCENE_MAX];
+extern int freerun_en;
 u32 hdr_set(u32 module_sel, u32 hdr_process_select, enum vpp_index vpp_index);
 int vinfo_lcd_support(void);
 int dv_pq_ctl(enum dv_pq_ctl_e ctl);
