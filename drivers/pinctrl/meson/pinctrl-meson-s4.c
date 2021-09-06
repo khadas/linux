@@ -788,6 +788,10 @@ static struct meson_pmx_group meson_s4_periphs_groups[] __initdata = {
 	GROUP(pwm_g_z,			5),
 	GROUP(pwm_f_z,			5),
 	GROUP(pwm_e_z,			5),
+	GROUP(tsin_b_clk_z,		5),
+	GROUP(tsin_b_sop_z,		5),
+	GROUP(tsin_b_valid_z,		5),
+	GROUP(tsin_b_d0_z,		5),
 
 	/* Bank Z func6 */
 	GROUP(s2_demod_gpio7,		6),
@@ -799,10 +803,6 @@ static struct meson_pmx_group meson_s4_periphs_groups[] __initdata = {
 	GROUP(diseqc_out,		6),
 	GROUP(s2_demod_gpio1,		6),
 	GROUP(s2_demod_gpio0,		6),
-	GROUP(tsin_b_clk_z,		6),
-	GROUP(tsin_b_sop_z,		6),
-	GROUP(tsin_b_valid_z,		6),
-	GROUP(tsin_b_d0_z,		6),
 
 	/* Bank Z func7 */
 	GROUP(gen_clk_z9,		7),
