@@ -1266,12 +1266,19 @@ static ssize_t attr_store(struct class *cls,
 			devp->atsc_cr_step_size_dbg = val;
 		PR_INFO("set atsc cr val to 0x%x\n", devp->atsc_cr_step_size_dbg);
 	} else if (!strcmp(parm[0], "ci_mode")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &val)) == 0) {
-			if (val == 0)
-				qam_write_bits(demod, 0x11, 0x90, 24, 8);
-			else if (val == 1)
-				qam_write_bits(demod, 0x11, 0x00, 24, 8);
-			PR_INFO("ic card set mode to %d\n", val);
+		if (demod->demod_status.delsys == SYS_DVBC_ANNEX_A) {
+			if (parm[1] && (kstrtouint(parm[1], 16, &val)) == 0) {
+				if (val == 0) {
+					qam_write_bits(demod, 0x11, 0x90, 24, 8);
+					demod->ci_mode = 0;
+				} else if (val == 1) {
+					qam_write_bits(demod, 0x11, 0x00, 24, 8);
+					demod->ci_mode = 1;
+				}
+				PR_INFO("ic card set mode to %d\n", val);
+			}
+		} else {
+			PR_INFO("not dvbc mode,nothing to do\n");
 		}
 	} else if (!strcmp(parm[0], "blind_min")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)

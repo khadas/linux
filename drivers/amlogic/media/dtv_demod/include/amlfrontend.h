@@ -12,7 +12,7 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/9/18: fix 22K will off after diseqc send"
+#define DTVDEMOD_VER	"2021/9/18: ci card mode do not change in other mode"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
@@ -236,6 +236,7 @@ struct aml_dtvdemod {
 	bool inited;
 	bool suspended;
 	bool reseted;
+	unsigned int ci_mode;
 };
 
 struct amldtvdemod_device_s {
