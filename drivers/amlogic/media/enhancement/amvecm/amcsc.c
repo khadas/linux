@@ -441,8 +441,44 @@ int boot_hdr_policy(char *str)
 	}
 	return 0;
 }
-
 __setup("hdr_policy=", boot_hdr_policy);
+
+int boot_hdr_debug(char *str)
+{
+	u32 cur_debug_csc = 0;
+
+	if (strncmp("4", str, 1) == 0) {
+		/* print more csc/dv log and disable flush hdr */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		debug_dolby = 0x103;
+#endif
+		debug_csc = 0xf;
+		disable_flush_flag = 0xffffffff;
+		cur_debug_csc = 4;
+	} else if (strncmp("3", str, 1) == 0) {
+		/* print more csc/dv log */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		debug_dolby = 0x103;
+#endif
+		debug_csc = 0xf;
+		cur_debug_csc = 3;
+	} else if (strncmp("2", str, 1) == 0) {
+		/* only print csc/dv trigger status */
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		debug_dolby = 0x100;
+#endif
+		debug_csc = 0xc;
+		cur_debug_csc = 2;
+	} else if (strncmp("1", str, 1) == 0) {
+		/* only disable flush hdr core */
+		disable_flush_flag = 0xffffffff;
+		cur_debug_csc = 1;
+	}
+	if (cur_debug_csc)
+		pr_info("enable hdr_debug: %d\n", cur_debug_csc);
+	return 0;
+}
+__setup("hdr_debug=", boot_hdr_debug);
 
 /* when get_hdr_policy() == 0 */
 /* enum output_format_e */

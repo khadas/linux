@@ -121,6 +121,8 @@ struct dv_config_file_s {
 #define DV_AV1_SEI 0x14000000
 #define HDR10P 0x02000000
 
+extern unsigned int debug_dolby;
+
 void enable_dolby_vision(int enable);
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);

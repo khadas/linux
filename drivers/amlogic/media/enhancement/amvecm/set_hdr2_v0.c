@@ -33,6 +33,10 @@
 #include "reg_helper.h"
 #include "hdr/gamut_convert.h"
 
+u32 disable_flush_flag;
+module_param(disable_flush_flag, uint, 0664);
+MODULE_PARM_DESC(disable_flush_flag, "\n disable_flush_flag\n");
+
 // sdr to hdr table  12bit
 int cgain_lut0[65] = {
 	0x400, 0x400, 0x400, 0x400, 0x400, 0x400, 0x400, 0x400, 0x400,
@@ -1575,29 +1579,29 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 	if (!hdr_mtx_param)
 		return;
 
-	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
-				 hdr_mtx_param->mtx_on, 13, 1, vpp_sel);
-
 	/* need change clock gate as freerun when mtx on directly, not rdma op */
 	/* Now only operate osd1/vd1/vd2 hdr core */
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_S4) {
 		if (hdr_clk_gate != 0) {
-			cur_hdr_ctrl = READ_VPP_REG(hdr_ctrl);
+			cur_hdr_ctrl =
+				VSYNC_READ_VPP_REG_VPP_SEL(hdr_ctrl, vpp_sel);
 			if (hdr_mtx_param->mtx_on && !(cur_hdr_ctrl & (1 << 13))) {
 				WRITE_VPP_REG_BITS(hdr_clk_gate, 0xaaa, 0, 12);
-				VSYNC_WRITE_VPP_REG_BITS(hdr_clk_gate, 0xaaa, 0, 12);
+				VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_clk_gate,
+					0xaaa, 0, 12, vpp_sel);
 			}
 		}
 	}
 
-	VSYNC_WRITE_VPP_REG_BITS(hdr_ctrl,
-		 hdr_mtx_param->mtx_on, 13, 1);
+	VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_ctrl,
+		 hdr_mtx_param->mtx_on, 13, 1, vpp_sel);
 
 	/* recover the clock gate as auto gate by rdma op when mtx off */
 	/* Now only operate osd1/vd1/vd2 hdr core */
 	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_S4) {
 		if (hdr_clk_gate != 0 && !hdr_mtx_param->mtx_on)
-			VSYNC_WRITE_VPP_REG_BITS(hdr_clk_gate, 0, 0, 12);
+			VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(hdr_clk_gate,
+				0, 0, 12, vpp_sel);
 	}
 
 	if (mtx_sel == HDR_IN_MTX) {
@@ -2475,6 +2479,9 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	bool always_full_func = false;
 	int vpp_sel;
 
+	if (disable_flush_flag)
+		return hdr_process_select;
+
 	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T7 &&
 	    (module_sel == OSD2_HDR ||
 	    module_sel == VD3_HDR))
@@ -3210,6 +3217,9 @@ int hdr10p_ebzcurve_update(enum hdr_module_sel module_sel,
 	struct hdr_proc_mtx_param_s hdr_mtx_param;
 	bool eo_gmt_bit_mode = false;
 
+	if (disable_flush_flag)
+		return hdr_process_select;
+
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
@@ -3291,6 +3301,9 @@ int hdr10_tm_update(enum hdr_module_sel module_sel,
 	unsigned int i = 0;
 	struct hdr_proc_mtx_param_s hdr_mtx_param;
 
+	if (disable_flush_flag)
+		return hdr_process_select;
+
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
@@ -3338,6 +3351,9 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 	int *coeff_in = bypass_coeff;
 	int *oft_pre_in = bypass_pre;
 	int *oft_post_in = bypass_pos;
+
+	if (disable_flush_flag)
+		return hdr_process_select;
 
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
@@ -3570,6 +3586,9 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 	unsigned int matrix_pre_offset2 = 0;
 	unsigned int matrix_en_ctrl = 0;
 	int vpp_sel;
+
+	if (disable_flush_flag)
+		return;
 
 	if (mtx_sel == VPP2_POST2_MTX &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
