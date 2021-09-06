@@ -448,6 +448,12 @@ static const struct of_device_id amlogic_pm_dt_match[] = {
 	{}
 };
 
+static void meson_pm_shutdown(struct platform_device *pdev)
+{
+	if (exit_reg)
+		writel_relaxed(0, exit_reg);
+}
+
 static struct platform_driver meson_pm_driver = {
 	.probe = meson_pm_probe,
 	.driver = {
@@ -456,6 +462,7 @@ static struct platform_driver meson_pm_driver = {
 		   .of_match_table = amlogic_pm_dt_match,
 		   },
 	.remove = __exit_p(meson_pm_remove),
+	.shutdown = meson_pm_shutdown,
 };
 
 module_platform_driver(meson_pm_driver);
