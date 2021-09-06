@@ -17,3 +17,13 @@ config AMLOGIC_PCIE_RC
 	found on the MESON family of SoCs.  This controller is
 	GEN2 compliant.
 	If you have a controller with this interface, say Y here.
+
+config AMLOGIC_PCIE_V3
+	bool "amlogic pcie v3"
+	depends on PCI_MSI_IRQ_DOMAIN
+	default n
+	help
+	This selects support for the Amlogic PCIE Host Controller
+	found on the MESON family of SoCs.  This controller is
+	GEN2 compliant.
+	If you have a controller with this interface, say Y here.

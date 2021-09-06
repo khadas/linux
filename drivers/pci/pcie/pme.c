@@ -27,7 +27,11 @@
  * that using MSI for PCIe PME signaling doesn't play well with PCIe PME-based
  * wake-up from system sleep states.
  */
+#ifdef CONFIG_AMLOGIC_MODIFY
+bool pcie_pme_msi_disabled = 1;
+#else
 bool pcie_pme_msi_disabled;
+#endif
 
 static int __init pcie_pme_setup(char *str)
 {

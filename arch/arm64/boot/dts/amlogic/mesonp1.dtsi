@@ -1487,48 +1487,116 @@
 			};
 		};
 
-		pcie: pcie@f5000000 {
-			compatible = "amlogic, amlogic-pcie-v2", "snps,dw-pcie";
-			reg = <0x0 0xf5000000 0x0 0x400000
+		pcie: pcie@0xe0000000 {
+			compatible = "amlogic, amlogic-pcie-v3";
+			reg = <0x0 0xe0000000 0x0 0x1000
 				0x0 0xfe02c000 0x0 0x2000
-				0x0 0xf5400000 0x0 0x200000
-				0x0 0xfe02a000 0x0 0x2000
-				0x0 0xfe002044 0x0 0x10>;
-			reg-names = "elbi", "cfg", "config", "phy", "reset";
-			interrupts = <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>;
+				0x0 0xe0000000 0x0 0x10000000
+				0x0 0xefe00000 0x0 0x200000
+				0x0 0xfe072000 0x0 0x2000
+				0x0 0xfe002040 0x0 0x10>;
+			reg-names = "apb-base", "pcictrl-base", "axi-base",
+				    "ecam-base", "phy-base", "reset-base";
+			interrupts = <GIC_SPI 78 IRQ_TYPE_EDGE_RISING>;
 			#interrupt-cells = <1>;
+			msi-controller;
+			msi-parent = <&pcie>;
+			interrupt-parent = <&gic>;
 			bus-range = <0x0 0xff>;
 			#address-cells = <3>;
 			#size-cells = <2>;
-			interrupt-map-mask = <0 0 0 0>;
-			interrupt-map = <0 0 0 0 &gic GIC_SPI 143 IRQ_TYPE_EDGE_RISING>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &gic GIC_SPI 188
+					IRQ_TYPE_EDGE_RISING>,
+					<0 0 0 2 &gic GIC_SPI 91
+					IRQ_TYPE_EDGE_RISING>,
+					<0 0 0 3 &gic GIC_SPI 92
+					IRQ_TYPE_EDGE_RISING>,
+					<0 0 0 4 &gic GIC_SPI 93
+					IRQ_TYPE_EDGE_RISING>;
 			device_type = "pci";
-			ranges = <0x81000000 0 0 0 0xf5600000 0x0 0x100000
-				/* downstream I/O */
-				0x82000000 0 0xf5700000 0x0 0xf5700000 0 0x1900000>;
+			ranges =
+				/*
+				 *  <0x81000000 0 0xff000000
+				 *  0 0xe1000000 0x0 0x100000
+				 */
+				/*downstream I/O */
+				<0x82000000 0 0xe4000000 0x0 0xe4000000
+				0 0x8000000>;
 				/* non-prefetchable memory */
 			num-lanes = <1>;
 			pcie-num = <1>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pcieck_pins>;
 
-			//clocks = <&clkc CLKID_PCIE_PLL
-			//	&clkc CLKID_PCIE
-			//	&clkc CLKID_PCIE_PHY
-			//	&clkc CLKID_PCIE_HCSL>;
-			//clock-names = "pcie_refpll",
-			//		"pcie",
-			//		"pcie_phy",
-			//		"pcie_hcsl";
-			/*reset-gpio-type 0:Shared pad(no reset)1:OD pad2:Normal pad*/
+			clocks = <&clkc CLKID_PCIE_PLL
+				&clkc CLKID_SYS_CLK_PCIE
+				&clkc CLKID_SYS_CLK_PCIEPHY
+				&clkc CLKID_PCIE_HCSL
+				&clkc CLKID_PCIE_400M
+				&clkc CLKID_PCIE_TL_CLK
+				&clkc CLKID_PCIE_CLK>;
+			clock-names = "pcie_refpll",
+					"pcie",
+					"pcie_phy",
+					"pcie_hcsl",
+					"pcie_400m_clk",
+					"pcie_tl_clk",
+					"cts_pcie_clk";
+			/*reset-gpio-type
+			 *0:Shared pad(no reset)
+			 *1:OD pad2:Normal pad
+			 */
 			gpio-type = <2>;
+			pcie-m31phy-rst-bit = <21>;
+			pcie-gen3-l0-rst-bit = <18>;
 			pcie-apb-rst-bit = <14>;
 			pcie-phy-rst-bit = <13>;
-			pcie-ctrl-a-rst-bit = <12>;
-			pwr-ctl = <0>;
+			pcie-a-rst-bit = <12>;
+			pcie-rst-bit = <12>;
+			pcie-rst-mask = <0xff>;
+			power-domains = <&pwrdm PDID_P1_PCIE>;
+			status = "disabled";
+		};
+
+		pcie_ep: pcie-ep@0xe0000000 {
+			compatible = "amlogic, amlogic-pcie-ep";
+			reg = <0x0 0xe0000000 0x0 0x1000
+				0x0 0xfe02c000 0x0 0x2000
+				0x0 0xe0000000 0x0 0x10000000
+				0x0 0xefe00000 0x0 0x200000
+				0x0 0xfe072000 0x0 0x2000
+				0x0 0xfe002000 0x0 0x10>;
+			reg-names = "apb-base", "pcictrl-base", "axi-base",
+				    "ecam-base", "phy-base", "reset-base";
+			interrupts = <GIC_SPI 78 IRQ_TYPE_EDGE_RISING>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pcieck_pins>;
+
+			clocks = <&clkc CLKID_PCIE_PLL
+				&clkc CLKID_SYS_CLK_PCIE
+				&clkc CLKID_SYS_CLK_PCIEPHY
+				&clkc CLKID_PCIE_HCSL
+				&clkc CLKID_PCIE_400M
+				&clkc CLKID_PCIE_TL_CLK
+				&clkc CLKID_PCIE_CLK>;
+			clock-names = "pcie_refpll",
+					"pcie",
+					"pcie_phy",
+					"pcie_hcsl",
+					"pcie_400m_clk",
+					"pcie_tl_clk",
+					"cts_pcie_clk";
+			/*reset-gpio-type 0:Shared pad(no reset)1:OD pad2:Normal pad*/
+			gpio-type = <2>;
+			pcie-m31phy-rst-bit = <21>;
+			pcie-gen3-l0-rst-bit = <18>;
+			pcie-apb-rst-bit = <14>;
+			pcie-phy-rst-bit = <13>;
+			pcie-a-rst-bit = <12>;
+			pcie-rst-bit = <12>;
+			pcie-rst-mask = <0xff>;
 			//power-domains = <&pwrdm PDID_T7_PCIE>;
-			pcie-ctrl-sleep-shift = <15>;
-			pcie-hhi-mem-pd-shift = <26>;
-			pcie-hhi-mem-pd-mask = <0xf>;
-			pcie-ctrl-iso-shift = <15>;
 			status = "disabled";
 		};
 
@@ -3674,6 +3742,13 @@
 			function = "eth";
 			drive-strength-microamp = <4000>;
 			bias-disable;
+		};
+	};
+
+	pcieck_pins: pcieck_pin {
+		mux {
+			groups = "pcieck_reqn_d";
+			function = "pcieck";
 		};
 	};
 };

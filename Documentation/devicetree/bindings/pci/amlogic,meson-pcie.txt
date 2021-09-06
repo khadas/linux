@@ -36,7 +36,8 @@ Required properties:
 Example configuration:
 
 	pcie: pcie@f9800000 {
-			compatible = "amlogic,axg-pcie", "snps,dw-pcie";
+			compatible = "amlogic,axg-pcie", "snps,dw-pcie",
+				 "amlogic,amlogic-pcie-v3";
 			reg = <0x0 0xf9800000 0x0 0x400000
 					0x0 0xff646000 0x0 0x2000
 					0x0 0xff644000 0x0 0x2000
