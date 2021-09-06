@@ -34,17 +34,14 @@ static const struct clk_ops meson_pll_clk_no_ops = {};
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table t3_sys_pll_params_table[] = {
-	PLL_PARAMS(67, 1, 0), /*DCO=1608M OD=1608MM*/
-	PLL_PARAMS(71, 1, 0), /*DCO=1704MM OD=1704M*/
-	PLL_PARAMS(75, 1, 0), /*DCO=1800M OD=1800M*/
-	PLL_PARAMS(126, 1, 1), /*DCO=3024 OD=1512M*/
-	PLL_PARAMS(116, 1, 1), /*DCO=2784 OD=1392M*/
-	PLL_PARAMS(118, 1, 1), /*DCO=2832M OD=1416M*/
-	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=1200M*/
-	PLL_PARAMS(79, 1, 0), /*DCO=1896M OD=1896M*/
-	PLL_PARAMS(80, 1, 0), /*DCO=1920M OD=1920M*/
-	PLL_PARAMS(84, 1, 0), /*DCO=2016M OD=2016M*/
-	PLL_PARAMS(92, 1, 0), /*DCO=2208M OD=2208M*/
+	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=DCO/2=1200M*/
+	PLL_PARAMS(117, 1, 1), /*DCO=2808M OD=DCO/2=1404M*/
+	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=DCO/2=1500M*/
+	PLL_PARAMS(67, 1, 0),  /*DCO=1608M OD=DCO/1=1608M*/
+	PLL_PARAMS(71, 1, 0),  /*DCO=1704M OD=DCO/1=1704M*/
+	PLL_PARAMS(75, 1, 0),  /*DCO=1800M OD=DCO/1=1800M*/
+	PLL_PARAMS(80, 1, 0),  /*DCO=1920M OD=DCO/1=1920M*/
+	PLL_PARAMS(84, 1, 0),  /*DCO=2016M OD=DCO/1=2016M*/
 	{ /* sentinel */ }
 };
 #else
@@ -699,7 +696,7 @@ static struct clk_regmap t3_gp0_pll = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table t3_gp1_pll_table[] = {
-	PLL_PARAMS(200, 1, 2), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=1200M*/
 	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=1500M*/
 	{ /* sentinel */  }
 };
