@@ -627,6 +627,14 @@ unsigned int atsc_read_ser(void)
 	return ser;
 }
 
+unsigned int atsc_read_ck(void)
+{
+	unsigned int ck;
+
+	ck = atsc_read_reg_v4(ATSC_DEMOD_REG_0X75);
+
+	return ck;
+}
 
 int atsc_find(unsigned int data, unsigned int *ptable, int len)
 {

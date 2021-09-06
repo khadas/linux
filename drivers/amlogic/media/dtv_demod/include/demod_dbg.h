@@ -20,6 +20,7 @@ enum {
 	ATSC_READ_LOCK = 2,
 	ATSC_READ_SER = 3,
 	ATSC_READ_FREQ = 4,
+	ATSC_READ_CK = 5,
 };
 
 enum {

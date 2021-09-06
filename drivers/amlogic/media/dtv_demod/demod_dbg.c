@@ -1373,7 +1373,7 @@ static ssize_t atsc_para_show(struct class *cls,
 			      struct class_attribute *attr, char *buf)
 {
 	int snr, lock_status;
-	unsigned int ser;
+	unsigned int ser, ck;
 	int strength = 0;
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
@@ -1406,6 +1406,10 @@ static ssize_t atsc_para_show(struct class *cls,
 		return sprintf(buf, "ser is %d\n", ser);
 	} else if (atsc_mode_para == ATSC_READ_FREQ) {
 		return sprintf(buf, "freq is %d\n", demod->freq);
+	} else if (atsc_mode_para == ATSC_READ_CK) {
+		ck = atsc_read_ck();
+		return sprintf(buf, "ck=0x%x lock=%d\n",
+						ck, demod->last_status);
 	} else {
 		return sprintf(buf, "atsc_para_show can't match mode\n");
 	}
