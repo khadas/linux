@@ -60,8 +60,9 @@
 /*  V1.0.17  DVBS blind scan change                 */
 /*  V1.0.18  dvbt 8K QPSK search failed            */
 /*  V1.0.19  22K will off after diseqc send        */
+/*  V1.0.20  ci card mode do not change in other mode        */
 /****************************************************/
-#define AMLDTVDEMOD_VER "V1.0.19"
+#define AMLDTVDEMOD_VER "V1.0.20"
 
 MODULE_PARM_DESC(auto_search_std, "\n\t\t atsc-c std&hrc search");
 static unsigned int auto_search_std;
@@ -3347,7 +3348,7 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			 fe->dtv_property_cache.symbol_rate);
 		demod->last_lock = ilock;
 	}
-	demod->last_status = *status;
+	//demod->last_status = *status;
 
 	return 0;
 }
@@ -5514,8 +5515,8 @@ static int aml_dtvdm_read_status(struct dvb_frontend *fe,
 	switch (delsys) {
 	case SYS_DVBS:
 	case SYS_DVBS2:
-		//ret = dtvdemod_dvbs_read_status(fe, status);
-		*status = demod->last_status;
+		ret = dtvdemod_dvbs_read_status(fe, status);
+		//*status = demod->last_status;
 		break;
 
 	case SYS_DVBC_ANNEX_A:
