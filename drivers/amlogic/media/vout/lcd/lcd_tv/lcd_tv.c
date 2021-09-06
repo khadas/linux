@@ -209,7 +209,7 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv,
 	}
 
 	/* store standard duration */
-	if (pdrv->config.timing.fr_adjust_type == 0xff) {
+	if (lcd_fr_is_fixed(pdrv)) {
 		pdrv->std_duration.duration_num =
 			((pdrv->config.timing.lcd_clk /
 			pconf->basic.h_period) * 100) /
@@ -260,6 +260,9 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv,
 		break;
 	case 4:
 		pdrv->vinfo.fr_adj_type = VOUT_FR_ADJ_HDMI;
+		break;
+	case 5:
+		pdrv->vinfo.fr_adj_type = VOUT_FR_ADJ_FREERUN;
 		break;
 	default:
 		pdrv->vinfo.fr_adj_type = VOUT_FR_ADJ_NONE;
@@ -318,7 +321,7 @@ static enum vmode_e lcd_validate_vmode(char *mode, unsigned int frac,
 		       pdrv->index, __func__);
 		return VMODE_MAX;
 	}
-	if (pdrv->config.timing.fr_adjust_type == 0xff) {
+	if (lcd_fr_is_fixed(pdrv)) {
 		LCDPR("[%d]: %s: fixed timing\n", pdrv->index, __func__);
 		return lcd_vmode_info[lcd_vmode].mode;
 	}
@@ -365,15 +368,14 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 		LCDPR("[%d]: vout_serve bypass\n", pdrv->index);
 		return 0;
 	}
-	if (pdrv->config.timing.fr_adjust_type == 0xff) {
+
+	if (lcd_fr_is_fixed(pdrv)) {
 		LCDPR("[%d]: fixed timing, exit vmode change\n", pdrv->index);
 		return -1;
 	}
 	mutex_lock(&lcd_power_mutex);
-
 	/* do not change mode value here, for bit mask is useful */
 	lcd_vmode_vinfo_update(pdrv, mode & VMODE_MODE_BIT_MASK);
-
 	if (VMODE_LCD == (mode & VMODE_MODE_BIT_MASK)) {
 		if (mode & VMODE_INIT_BIT_MASK) {
 			lcd_clk_gate_switch(pdrv, 1);
@@ -560,7 +562,7 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 		return -1;
 	}
 
-	if (pdrv->config.timing.fr_adjust_type == 0xff) {
+	if (lcd_fr_is_fixed(pdrv)) {
 		LCDPR("[%d]: %s: fixed timing, exit\n", pdrv->index, __func__);
 		return -1;
 	}

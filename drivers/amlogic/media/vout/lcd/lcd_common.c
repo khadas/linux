@@ -2105,6 +2105,23 @@ void lcd_timing_init_config(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
+int lcd_fr_is_fixed(struct aml_lcd_drv_s *pdrv)
+{
+	int ret = 0;
+
+	switch (pdrv->config.timing.fr_adjust_type) {
+	case 5: /* free run mode, vlock enabled nearby fixed frame rate */
+	case 0xff: /* fix fr mode, vlock disabled */
+		ret = 1;
+		break;
+	default:
+		ret = 0;
+		break;
+	}
+
+	return ret;
+}
+
 int lcd_vmode_change(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->config;

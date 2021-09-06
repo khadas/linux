@@ -41,6 +41,7 @@ enum vout_fr_adj_type_e {
 	VOUT_FR_ADJ_VTOTAL,
 	VOUT_FR_ADJ_COMBO, /* vtotal + htotal + clk */
 	VOUT_FR_ADJ_HDMI,  /* 50<->60: htotal; 60<->59.94: clk */
+	VOUT_FR_ADJ_FREERUN,  /* freerun, panel fix frame rate*/
 	VOUT_FR_ADJ_NONE,  /* disable fr_adj */
 	VOUT_FR_ADJ_MAX,
 };

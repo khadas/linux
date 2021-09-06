@@ -2254,6 +2254,7 @@ u32 vlock_fsm_check_support(struct stvlock_sig_sts *pvlock,
 {
 	u32 ret = true;
 	u32 vs_support = false;
+	u32 video_clk = vinfo->sync_duration_num / vinfo->sync_duration_den;
 
 	/* ex:30Hz->30Hz 50Hz->50Hz ...*/
 	if (pvlock->input_hz > 0 &&
@@ -2289,10 +2290,27 @@ u32 vlock_fsm_check_support(struct stvlock_sig_sts *pvlock,
 		ret = false;
 	}
 
-	if (vinfo->fr_adj_type == VOUT_FR_ADJ_NONE || vinfo->fr_adj_type == VOUT_FR_ADJ_HDMI) {
+	if (vinfo->fr_adj_type == VOUT_FR_ADJ_NONE ||
+			vinfo->fr_adj_type == VOUT_FR_ADJ_HDMI) {
 		if (vlock_debug & VLOCK_DEBUG_INFO)
 			pr_info("[%s] for adj_type VOUT_FR_ADJ_NONE or VOUT_FR_ADJ_HDMI!!!\n",
 				__func__);
+		ret = false;
+	}
+
+	if (freerun_en == GAME_MODE &&
+		(vinfo->fr_adj_type == VOUT_FR_ADJ_FREERUN &&
+		((pvlock->input_hz == 50 && diff(video_clk, 50) <= 1) ||
+		(pvlock->input_hz == 60 && diff(video_clk, 60) <= 1)))) {
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info("[%s]  FREERUN input 50 or 60hz, fix out frame rate,video_clk :%d!!!\n",
+				__func__, video_clk);
+		ret = true;
+	} else if (freerun_en == FREERUN_MODE &&
+			vinfo->fr_adj_type == VOUT_FR_ADJ_FREERUN){
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info("[%s] video_clk :%d VOUT_FR_ADJ_FREERUN and freerun_en == FREERUN_MODE!!!\n",
+				__func__, video_clk);
 		ret = false;
 	}
 

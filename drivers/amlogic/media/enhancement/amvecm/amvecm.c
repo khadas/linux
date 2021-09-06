@@ -299,6 +299,10 @@ MODULE_PARM_DESC(tx_op_color_primary,
 unsigned int debug_game_mode_1;
 module_param(debug_game_mode_1, uint, 0664);
 MODULE_PARM_DESC(debug_game_mode_1, "\n debug_game_mode_1\n");
+int freerun_en = GAME_MODE;/* 0:game mode;1:freerun mode */
+module_param(freerun_en, int, 0664);
+MODULE_PARM_DESC(freerun_en, "\n enable or disable freerun\n");
+
 unsigned int pq_user_value;
 enum hdr_type_e hdr_source_type = HDRTYPE_NONE;
 
@@ -2919,6 +2923,12 @@ static long amvecm_ioctl(struct file *file,
 				eye_prot->rgb, 3 * sizeof(int));
 			vecm_latch_flag2 |= VPP_EYE_PROTECT_UPDATE;
 		}
+		break;
+	case AMVECM_IOC_S_FREERUN_TYPE:
+		if (copy_from_user(&freerun_en,
+			(void __user *)arg,
+			sizeof(enum freerun_type_e)))
+			ret = -EFAULT;
 		break;
 	default:
 		ret = -EINVAL;

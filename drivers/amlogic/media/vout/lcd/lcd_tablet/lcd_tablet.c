@@ -238,7 +238,7 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 		return -1;
 	}
 
-	if (pdrv->config.timing.fr_adjust_type == 0xff) {
+	if (lcd_fr_is_fixed(pdrv)) {
 		LCDPR("%s: fixed timing, exit\n", __func__);
 		return -1;
 	}
@@ -421,6 +421,9 @@ static void lcd_tablet_vinfo_update(struct aml_lcd_drv_s *pdrv)
 		break;
 	case 4:
 		pdrv->vinfo.fr_adj_type = VOUT_FR_ADJ_HDMI;
+		break;
+	case 5:
+		pdrv->vinfo.fr_adj_type = VOUT_FR_ADJ_FREERUN;
 		break;
 	default:
 		pdrv->vinfo.fr_adj_type = VOUT_FR_ADJ_NONE;
