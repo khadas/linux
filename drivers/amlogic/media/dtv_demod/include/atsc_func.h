@@ -72,6 +72,8 @@ int atsc_read_snr(void);
 
 unsigned int atsc_read_ser(void);
 
+unsigned int atsc_read_ck(void);
+
 void atsc_thread(void);
 
 void atsc_set_performance_register(int flag, int init);
