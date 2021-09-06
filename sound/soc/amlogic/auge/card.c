@@ -976,11 +976,11 @@ MODULE_DEVICE_TABLE(of, auge_of_match);
 static int card_suspend_pre(struct snd_soc_card *card)
 {
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
+	struct device *dev = aml_priv_to_dev(priv);
 
 	priv->av_mute_enable = 1;
 	priv->spk_mute_enable = 1;
-	INIT_WORK(&priv->init_work, aml_init_work);
-	schedule_work(&priv->init_work);
+	aml_card_parse_gpios(dev->of_node, priv);
 	pr_info("it is card_pre_suspend\n");
 	return 0;
 }
@@ -988,11 +988,11 @@ static int card_suspend_pre(struct snd_soc_card *card)
 static int card_resume_post(struct snd_soc_card *card)
 {
 	struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
+	struct device *dev = aml_priv_to_dev(priv);
 
 	priv->av_mute_enable = 0;
 	priv->spk_mute_enable = 0;
-	INIT_WORK(&priv->init_work, aml_init_work);
-	schedule_work(&priv->init_work);
+	aml_card_parse_gpios(dev->of_node, priv);
 	pr_info("it is card_post_resume\n");
 	return 0;
 
@@ -1201,8 +1201,7 @@ static void aml_card_platform_shutdown(struct platform_device *pdev)
 
 	priv->av_mute_enable = 1;
 	priv->spk_mute_enable = 1;
-	INIT_WORK(&priv->init_work, aml_init_work);
-	schedule_work(&priv->init_work);
+	aml_card_parse_gpios(pdev->dev.of_node, priv);
 }
 
 static struct platform_driver aml_card = {
