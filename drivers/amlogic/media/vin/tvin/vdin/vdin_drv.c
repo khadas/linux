@@ -4774,9 +4774,6 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	if (vdevp->v4l_support_en)
 		vdin_v4l2_probe(pdev, vdevp);
 
-	if (!vdevp->index && is_meson_t3_cpu())
-		vdin_delay_num = 1;
-
 	/* vdin measure clock */
 	if (is_meson_gxbb_cpu()) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
