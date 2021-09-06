@@ -3674,6 +3674,11 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 			hdr_mtx_param.gmt_bit_mode = 1;
 	}
 
+	/* enable hdr: first enable X_HDR2_CLK_GATE */
+	/* then enable hdr mode */
+	if (!(hdr_process_select & HDR_BYPASS))
+		hdr_gclk_ctrl_switch(module_sel, hdr_process_select, vpp_index);
+
 	set_hdr_matrix(module_sel, HDR_IN_MTX,
 		&hdr_mtx_param, NULL, NULL, vpp_index);
 	set_eotf_lut(module_sel, &hdr_lut_param, vpp_index);
@@ -3692,6 +3697,11 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 			clip_func_after_ootf(hdr_mtx_param.mtx_gamut_mode,
 				module_sel, vpp_index);
 	}
+
+	/* disable hdr: first disable X_HDR2_CTRL bit13, */
+	/* then disable X_HDR2_CLK_GATE */
+	if (hdr_process_select & HDR_BYPASS)
+		hdr_gclk_ctrl_switch(module_sel, hdr_process_select, vpp_index);
 
 	return hdr_process_select;
 }
