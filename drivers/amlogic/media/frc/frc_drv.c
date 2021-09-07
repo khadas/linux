@@ -576,11 +576,12 @@ int frc_vd_notify_callback(struct notifier_block *block, unsigned long cmd, void
 	info = (struct vd_info_s *)para;
 	flags = info->flags;
 
-	pr_frc(1, "%s cmd: 0x%lx flags:0x%x\n", __func__, cmd, flags);
+	pr_frc(3, "%s cmd: 0x%lx flags:0x%x\n", __func__, cmd, flags);
 	switch (cmd) {
 	case VIDEO_INFO_CHANGED:
 		/*if frc on, need disable frc, and enable frc*/
-		if (flags == VIDEO_SIZE_CHANGE_EVENT && devp->probe_ok) {
+		if (((flags & VIDEO_SIZE_CHANGE_EVENT)
+			== VIDEO_SIZE_CHANGE_EVENT) && devp->probe_ok) {
 			set_frc_enable(false);
 			set_frc_bypass(true);
 			frc_change_to_state(FRC_STATE_DISABLE);
@@ -663,8 +664,8 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 
 	devp->in_out_ratio = FRC_RATIO_1_1;
 	// devp->in_out_ratio = FRC_RATIO_2_5;
-	devp->film_mode = EN_FILM32;
-	// devp->film_mode = EN_VIDEO;
+	// devp->film_mode = EN_FILM32;
+	devp->film_mode = EN_VIDEO;
 	devp->film_mode_det = 0;
 
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;

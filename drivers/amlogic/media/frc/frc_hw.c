@@ -601,6 +601,8 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	reg_mc_dly_vofst0 = fw_data->holdline_parm.reg_mc_dly_vofst0;
 
 	frc_input_init(frc_devp, frc_top);
+	config_phs_lut(frc_top->frc_ratio_mode, frc_top->film_mode);
+	config_phs_regs(frc_top->frc_ratio_mode, frc_top->film_mode);
 	pr_frc(log, "%s\n", __func__);
 	//Config frc input size
 	WRITE_FRC_BITS(FRC_FRAME_SIZE ,(frc_top->vsize <<16) | frc_top->hsize  , 0  ,32 );
@@ -1101,12 +1103,12 @@ void config_phs_regs(enum frc_ratio_mode_type frc_ratio_mode,
 		if(film_mode == EN_VIDEO) {
 			reg_ip_film_end     = 1;
 			reg_frc_pd_pat_num  = 1;
-			reg_out_frm_dly_num = 3;
+			reg_out_frm_dly_num = 3;   // 10
 		}
 		else if(film_mode == EN_FILM22) {
 			reg_ip_film_end    = 0x2;
 			reg_frc_pd_pat_num = 2;
-			reg_out_frm_dly_num = 4;
+			reg_out_frm_dly_num = 7;
 		}
 		else if(film_mode == EN_FILM32) {
 			reg_ip_film_end    = 0x12;
@@ -1131,7 +1133,7 @@ void config_phs_regs(enum frc_ratio_mode_type frc_ratio_mode,
 		else if(film_mode == EN_FILM44) {
 			reg_ip_film_end    = 0x8;
 			reg_frc_pd_pat_num = 4;
-			reg_out_frm_dly_num = 8;
+			reg_out_frm_dly_num = 14;
 		}
 		else if(film_mode == EN_FILM21111) {
 			reg_ip_film_end    = 0x2f;
@@ -1156,7 +1158,7 @@ void config_phs_regs(enum frc_ratio_mode_type frc_ratio_mode,
 		else if(film_mode == EN_FILM33) {
 			reg_ip_film_end    = 0x4;
 			reg_frc_pd_pat_num = 3;
-			reg_out_frm_dly_num = 6;
+			reg_out_frm_dly_num = 11;
 		}
 		else if(film_mode == EN_FILM334) {
 			reg_ip_film_end    = 0x224;
@@ -1166,7 +1168,7 @@ void config_phs_regs(enum frc_ratio_mode_type frc_ratio_mode,
 		else if(film_mode == EN_FILM55) {
 			reg_ip_film_end    = 0x10;
 			reg_frc_pd_pat_num = 5;
-			reg_out_frm_dly_num = 10;
+			reg_out_frm_dly_num = 15;
 		}
 		else if(film_mode == EN_FILM64) {
 			reg_ip_film_end    = 0x208;
@@ -1283,6 +1285,7 @@ void config_phs_regs(enum frc_ratio_mode_type frc_ratio_mode,
 		WRITE_FRC_BITS(FRC_REG_LOAD_ORG_FRAME_3,0             ,4   ,4);
 	}
 }
+EXPORT_SYMBOL(config_phs_regs);
 
 void config_me_top_hw_reg(void)
 {
@@ -2076,6 +2079,27 @@ void frc_internal_initial(struct frc_dev_s *frc_devp)
 	/*disable: memc delay n frame, n depend on candence, for debug*/
 	pr_frc(0, "%s\n", __func__);
 	return;
+}
+
+u8 frc_frame_forcebuf_enable(u8 enable)
+{
+	u8  ro_frc_input_fid = 0;//u4
+
+	if (enable == 1) {	//frc off->on
+		ro_frc_input_fid = READ_FRC_REG(FRC_REG_PAT_POINTER) >> 4 & 0xF;
+		//force phase 0
+		UPDATE_FRC_REG_BITS(FRC_REG_TOP_CTRL7, 0xD000000, 0xD000000);
+		UPDATE_FRC_REG_BITS(FRC_REG_TOP_CTRL8, 0, 0xFFFF);
+	} else {
+		UPDATE_FRC_REG_BITS(FRC_REG_TOP_CTRL7, 0x0000000, 0xD000000);
+	}
+	return ro_frc_input_fid;
+}
+
+void frc_frame_forcebuf_count(u8 forceidx)
+{
+	UPDATE_FRC_REG_BITS(FRC_REG_TOP_CTRL7,
+	(forceidx | forceidx << 4 | forceidx << 8), 0xFFF);//0-11bit
 }
 
 
