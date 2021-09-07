@@ -17,7 +17,7 @@
 
 /dts-v1/;
 
-#include "mesonsm1_2g.dtsi"
+#include "mesonsm1.dtsi"
 #include "partition_mbox_normal.dtsi"
 #include "mesonsm1_skt-panel.dtsi"
 
@@ -730,34 +730,34 @@
 			};
 		};
 
-		//aml-audio-card,dai-link@4 {
-		//	mclk-fs = <128>;
+		aml-audio-card,dai-link@4 {
+			mclk-fs = <128>;
 			/* suffix-name, sync with android audio hal used for */
-		//	suffix-name = "alsaPORT-spdif";
-		//	cpu {
-		//		sound-dai = <&spdifa>;
-		//		system-clock-frequency = <6144000>;
-		//	};
-		//	codec {
-		//		sound-dai = <&dummy_codec>;
-		//	};
-		//};
+			suffix-name = "alsaPORT-spdif";
+			cpu {
+				sound-dai = <&spdifa>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
 
-		//aml-audio-card,dai-link@5 {
-		//	mclk-fs = <128>;
-		//	continuous-clock;
+		aml-audio-card,dai-link@5 {
+			mclk-fs = <128>;
+			continuous-clock;
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-		//	suffix-name = "alsaPORT-spdifb";
-		//	cpu {
-		//		sound-dai = <&spdifb>;
-		//		system-clock-frequency = <6144000>;
-		//	};
-		//	codec {
-		//		sound-dai = <&dummy_codec>;
-		//	};
-		//};
+			suffix-name = "alsaPORT-spdifb";
+			cpu {
+				sound-dai = <&spdifb>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
 
 		aml-audio-card,dai-link@6 {
 			mclk-fs = <256>;
@@ -844,7 +844,6 @@
 		tuner_xtal_cap = <30>; /* when tuner_xtal_mode = 1, set 25 */
 	};
 
-
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";
 		opp-shared;
@@ -902,7 +901,7 @@
 	cpufreq-meson {
 		compatible = "amlogic, cpufreq-meson";
 		pinctrl-names = "default";
-		/*pinctrl-0 = <&pwm_ao_d_pins3>;*/
+		pinctrl-0 = <&pwm_ao_d_pins3>;
 		status = "okay";
 	};
 
@@ -917,35 +916,8 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
-&i2c_AO {
-	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&ao_i2c_master_pins2>;
-	clock-frequency = <400000>;
-	
-	yk618@34 {
-		compatible = "amlogic,yk618_mfd";
+&pwm_AO_cd {
 		status = "okay";
-		reg = <0x34>;
-		system-power-controller;
-		regulators {
-			vddcpu0: DCDC2{
-				regulator-compatible = "DCDC2";
-				regulator-name = "vddcpu0";
-				regulator-min-microvolt = <700000>;
-				regulator-max-microvolt = <1200000>;
-				regulator-always-on;
-			};
-		};
-	};
-	tcs9563@51 {
-		compatible = "torch_chip,tcs9563";
-		status = "disable";
-		reg = <0x51>;
-		irq-gpio = <&gpio_ao GPIOAO_10 IRQ_TYPE_LEVEL_LOW>;
-		/*gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_LOW>;*/
-		/*torch_chip,irq-gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_LOW>; */
-	};
 };
 
 &i2c0 {
@@ -1499,8 +1471,8 @@
 		};
 	};
 
-	/* GPIOH_5 */
-	/* bob remove spdifin
+	/*GPIOH_5 */
+	/*bob remove spdifin
 	 *spdifin: spdifin {
 	 *	mux {/* GPIOH_5
 	 *		groups = "spdif_in_h";

@@ -17,7 +17,7 @@
 
 /dts-v1/;
 
-#include "mesonsm1_2g.dtsi"
+#include "mesonsm1.dtsi"
 #include "partition_mbox_normal.dtsi"
 #include "mesonsm1_skt-panel.dtsi"
 
@@ -846,7 +846,6 @@
 		tuner_xtal_cap = <30>; /* when tuner_xtal_mode = 1, set 25 */
 	};
 
-
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";
 		opp-shared;
@@ -904,7 +903,7 @@
 	cpufreq-meson {
 		compatible = "amlogic, cpufreq-meson";
 		pinctrl-names = "default";
-		/*pinctrl-0 = <&pwm_ao_d_pins3>;*/
+		pinctrl-0 = <&pwm_ao_d_pins3>;
 		status = "okay";
 	};
 
@@ -919,35 +918,8 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
-&i2c_AO {
-	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&ao_i2c_master_pins2>;
-	clock-frequency = <400000>;
-	
-	yk618@34 {
-		compatible = "amlogic,yk618_mfd";
+&pwm_AO_cd {
 		status = "okay";
-		reg = <0x34>;
-		system-power-controller;
-		regulators {
-			vddcpu0: DCDC2{
-				regulator-compatible = "DCDC2";
-				regulator-name = "vddcpu0";
-				regulator-min-microvolt = <700000>;
-				regulator-max-microvolt = <1200000>;
-				regulator-always-on;
-			};
-		};
-	};
-	tcs9563@51 {
-		compatible = "torch_chip,tcs9563";
-		status = "disable";
-		reg = <0x51>;
-		irq-gpio = <&gpio_ao GPIOAO_10 IRQ_TYPE_LEVEL_LOW>;
-		/*gpios = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_LOW>;*/
-		/*torch_chip,irq-gpio = <&gpio_ao GPIOAO_10 GPIO_ACTIVE_LOW>; */
-	};
 };
 
 &i2c0 {
@@ -1092,7 +1064,7 @@
 		 * 3: spdifout;
 		 * 4: spdifout_b;
 		 */
-		samesource_sel = <3>;
+		//samesource_sel = <3>;
 
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
@@ -1191,7 +1163,7 @@
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 
-		status = "okay";
+		status = "disabled";
 	};
 	spdifb: spdif@1 {
 		compatible = "amlogic, sm1-snd-spdif-b";
@@ -1202,7 +1174,7 @@
 		clock-names = "sysclk",
 				"gate_spdifout", "clk_spdifout";
 
-		status = "okay";
+		status = "disabled";
 	};
 	pdm: pdm {
 		compatible = "amlogic, sm1-snd-pdm";
@@ -1501,8 +1473,8 @@
 		};
 	};
 
-	/* GPIOH_5 */
-	/* bob remove spdifin
+	/*GPIOH_5 */
+	/*bob remove spdifin
 	 *spdifin: spdifin {
 	 *	mux {/* GPIOH_5
 	 *		groups = "spdif_in_h";
@@ -1653,7 +1625,7 @@
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23",
 			 "MMC_CAP_DRIVER_TYPE_D";
-		caps2 = "MMC_CAP2_HS200";
+		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
 		f_min = <400000>;
 		f_max = <200000000>;
 	};
