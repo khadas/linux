@@ -1554,9 +1554,9 @@
 		};
 	};
 
-	ov20381_1: sensor0@21 {
+	ov20381_1: sensor0@10 {
 		compatible = "omnivision, ov20381";
-		reg = <0x21>;
+		reg = <0x10>;
 		//pwr-gpios = <&gpio GPIOK_29 GPIO_ACTIVE_HIGH>;
 		//pwdn-gpios = <&gpio GPIOC_2 GPIO_ACTIVE_HIGH>;
 		assigned-clocks = <&clkc CLKID_MCLK_0_SEL>;
