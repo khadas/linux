@@ -46,7 +46,7 @@
 #include "frc_proc.h"
 #include "frc_hw.h"
 
-int frc_enable_cnt = 1;
+int frc_enable_cnt = 2;   // 1
 module_param(frc_enable_cnt, int, 0664);
 MODULE_PARM_DESC(frc_enable_cnt, "frc enable counter");
 
@@ -54,7 +54,7 @@ int frc_disable_cnt = 2;
 module_param(frc_disable_cnt, int, 0664);
 MODULE_PARM_DESC(frc_disable_cnt, "frc disable counter");
 
-int frc_re_cfg_cnt = 3;/*need bigger than frc_disable_cnt*/
+int frc_re_cfg_cnt = 3;/*need bigger than frc_disable_cnt 3, 15*/
 module_param(frc_re_cfg_cnt, int, 0664);
 MODULE_PARM_DESC(frc_re_cfg_cnt, "frc reconfig counter");
 
@@ -311,6 +311,7 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 		/*need reconfig*/
 		devp->frc_sts.re_cfg_cnt = frc_re_cfg_cnt;
 		sts_change |= FRC_EVENT_VF_CHG_IN_SIZE;
+		frc_enable_cnt = 1;
 	}
 	devp->in_sts.in_hsize = cur_in_sts->in_hsize;
 	/* check size change */
@@ -320,6 +321,7 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 		/*need reconfig*/
 		devp->frc_sts.re_cfg_cnt = frc_re_cfg_cnt;
 		sts_change |= FRC_EVENT_VF_CHG_IN_SIZE;
+		frc_enable_cnt = 1;
 	}
 	devp->in_sts.in_vsize = cur_in_sts->in_vsize;
 
@@ -327,10 +329,14 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 		pr_frc(1, "out_put_mode_changed 0x%x re_config:%d\n",
 			devp->frc_sts.out_put_mode_changed,
 			devp->frc_sts.re_config);
-		if (devp->frc_sts.out_put_mode_changed == FRC_EVENT_VF_CHG_IN_SIZE)
+		if (devp->frc_sts.out_put_mode_changed ==
+			FRC_EVENT_VF_CHG_IN_SIZE) {
 			devp->frc_sts.re_cfg_cnt = 5;
-		else
+			frc_enable_cnt = 1;
+		} else {
 			devp->frc_sts.re_cfg_cnt = frc_re_cfg_cnt;
+			frc_enable_cnt = 2;
+		}
 		sts_change |= FRC_EVENT_VOUT_CHG;
 		devp->frc_sts.out_put_mode_changed = 0;
 		devp->frc_sts.re_config = 0;
@@ -562,6 +568,9 @@ void frc_state_handle(struct frc_dev_s *devp)
 	struct frc_fw_data_s *pfw_data;
 	u32 state_changed = 0;
 	u32 frame_cnt = 0;
+	static u8  forceidx;
+	static u8 frc_frame_delay;
+	u8 frc_input_fid = 0;
 	u32 log = 1;
 
 	cur_state = devp->frc_sts.state;
@@ -570,110 +579,160 @@ void frc_state_handle(struct frc_dev_s *devp)
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	if (cur_state != new_state) {
 		state_changed = 1;
-		pr_frc(log, "sm state_changed (%d->%d) cnt:%d\n", cur_state, new_state,
-			devp->frc_sts.frame_cnt);
+		pr_frc(log, "sm state_changed (%d->%d) cnt0:%d\n", cur_state,
+			new_state, devp->frc_sts.frame_cnt);
 	}
 	switch (cur_state) {
 	case FRC_STATE_DISABLE:
-		if (state_changed) {
-			if (new_state == FRC_STATE_BYPASS) {
-				set_frc_bypass(ON);
+	if (state_changed) {
+		if (new_state == FRC_STATE_BYPASS) {
+			set_frc_bypass(ON);
+			frc_mm_secure_set(devp);
+			devp->frc_sts.frame_cnt = 0;
+			pr_frc(log, "sm state change %s -> %s\n",
+					frc_state_ary[cur_state],
+					frc_state_ary[new_state]);
+			frc_state_change_finish(devp);
+		} else if (new_state == FRC_STATE_ENABLE) {
+			if (devp->frc_sts.frame_cnt == 0) {
 				frc_mm_secure_set(devp);
+				frc_hw_initial(devp);
+				//first : set bypass off
+				set_frc_bypass(OFF);
+				if (pfw_data->frc_input_cfg)
+					pfw_data->frc_input_cfg(devp->fw_data);
+				//second: set frc enable on
+				set_frc_enable(ON);
+				frc_frame_delay =
+				(READ_FRC_REG(FRC_REG_TOP_CTRL9) >> 24) & 0xF;
+				pr_frc(log, "frc_frame_delay %d\n",
+							frc_frame_delay);
+				devp->frc_sts.frame_cnt++;
+			} else if (devp->frc_sts.frame_cnt == frc_frame_delay) {
+				forceidx = frc_frame_forcebuf_enable(1);
+				frc_frame_forcebuf_count(forceidx);
+				pr_frc(log, "d-e_force cnt %d, idx %d\n",
+				devp->frc_sts.frame_cnt, forceidx);
+				devp->frc_sts.frame_cnt++;
+			} else if (devp->frc_sts.frame_cnt > frc_frame_delay &&
+						devp->frc_sts.frame_cnt <
+						frc_frame_delay * 2) {
+				frc_frame_forcebuf_count(forceidx);
+				frc_input_fid =
+				READ_FRC_REG(FRC_REG_PAT_POINTER) >> 4 & 0xF;
+				pr_frc(log, "d-e_force cnt %d, readidx %d\n",
+				devp->frc_sts.frame_cnt, frc_input_fid);
+				devp->frc_sts.frame_cnt++;
+			} else if (devp->frc_sts.frame_cnt ==
+						frc_frame_delay * 2) {
+				frc_frame_forcebuf_enable(0);
+				frc_state_change_finish(devp);
+				pr_frc(log, "d-e_sm state change %s -> %s\n",
+					frc_state_ary[cur_state],
+					frc_state_ary[new_state]);
+				devp->frc_sts.frame_cnt = 0;
+			} else if (devp->frc_sts.frame_cnt < frc_frame_delay) {
+				devp->frc_sts.frame_cnt++;
+			}
+		} else {
+			pr_frc(0, "err new state %d\n", new_state);
+		}
+	}
+	break;
+	case FRC_STATE_ENABLE:
+	if (state_changed) {
+		if (new_state == FRC_STATE_DISABLE) {
+			if (devp->frc_sts.frame_cnt == 0) {
+				frc_mm_secure_set(devp);
+				set_frc_enable(OFF);
+				devp->frc_sts.frame_cnt++;
+			} else {
 				devp->frc_sts.frame_cnt = 0;
 				pr_frc(log, "sm state change %s -> %s\n",
-				       frc_state_ary[cur_state], frc_state_ary[new_state]);
+					frc_state_ary[cur_state],
+					frc_state_ary[new_state]);
 				frc_state_change_finish(devp);
-			} else if (new_state == FRC_STATE_ENABLE) {
-				if (devp->frc_sts.frame_cnt == 0) {
-					frc_mm_secure_set(devp);
-					frc_hw_initial(devp);
-					//first : set bypass off
-					set_frc_bypass(OFF);
-					if (pfw_data->frc_input_cfg)
-						pfw_data->frc_input_cfg(devp->fw_data);
-					//second: set frc enable on
-					set_frc_enable(ON);
-					pr_frc(log, "sm state change %s -> %s\n",
-						frc_state_ary[cur_state], frc_state_ary[new_state]);
-					devp->frc_sts.frame_cnt = 0;
-					frc_state_change_finish(devp);
-				} else {
-					devp->frc_sts.frame_cnt++;
-				}
-			} else {
-				pr_frc(0, "err new state %d\n", new_state);
 			}
+		} else if (new_state == FRC_STATE_BYPASS) {
+			//first frame set enable off
+			if (devp->frc_sts.frame_cnt == 0) {
+				frc_mm_secure_set(devp);
+				set_frc_enable(OFF);
+				//set_frc_bypass(OFF);
+				devp->frc_sts.frame_cnt++;
+			} else {
+				//second frame set bypass on
+				set_frc_bypass(ON);
+				devp->frc_sts.frame_cnt = 0;
+				pr_frc(log, "sm state change %s->%s\n",
+				       frc_state_ary[cur_state],
+				       frc_state_ary[new_state]);
+				frc_state_change_finish(devp);
+			}
+		} else {
+			pr_frc(0, "err new state %d\n", new_state);
 		}
-		break;
-	case FRC_STATE_ENABLE:
-		if (state_changed) {
-			if (new_state == FRC_STATE_DISABLE) {
-				if (devp->frc_sts.frame_cnt == 0) {
-					frc_mm_secure_set(devp);
-					set_frc_enable(OFF);
-					devp->frc_sts.frame_cnt++;
-				} else {
-					devp->frc_sts.frame_cnt = 0;
-					pr_frc(log, "sm state change %s -> %s\n",
+	}
+	break;
+	case FRC_STATE_BYPASS:
+	if (state_changed) {
+		if (new_state == FRC_STATE_DISABLE) {
+			set_frc_bypass(OFF);
+			set_frc_enable(OFF);
+			devp->frc_sts.frame_cnt = 0;
+			pr_frc(log, "sm state change %s -> %s\n",
+					frc_state_ary[cur_state],
+					frc_state_ary[new_state]);
+			frc_state_change_finish(devp);
+		} else if (new_state == FRC_STATE_ENABLE) {
+			if (devp->frc_sts.frame_cnt == 0) {
+				frc_mm_secure_set(devp);
+				//first frame set bypass off
+				set_frc_bypass(OFF);
+				//set_frc_enable(OFF);
+				devp->frc_sts.frame_cnt++;
+			} else if (devp->frc_sts.frame_cnt == 1) {
+				frc_hw_initial(devp);
+				//second frame set enable on
+				if (pfw_data->frc_input_cfg)
+					pfw_data->frc_input_cfg(devp->fw_data);
+				set_frc_enable(ON);
+				frc_frame_delay =
+				(READ_FRC_REG(FRC_REG_TOP_CTRL9) >> 24) & 0xF;
+				pr_frc(log, "frc_frame_delay %d\n",
+							frc_frame_delay);
+				devp->frc_sts.frame_cnt++;
+			} else if (devp->frc_sts.frame_cnt == frc_frame_delay) {
+				forceidx = frc_frame_forcebuf_enable(1);
+				frc_frame_forcebuf_count(forceidx);
+				pr_frc(log, "d-e_force cnt %d, idx %d\n",
+				devp->frc_sts.frame_cnt, forceidx);
+				devp->frc_sts.frame_cnt++;
+			} else if (devp->frc_sts.frame_cnt > frc_frame_delay &&
+					devp->frc_sts.frame_cnt <
+					 frc_frame_delay * 2) {
+				frc_frame_forcebuf_count(forceidx);
+				frc_input_fid =
+				READ_FRC_REG(FRC_REG_PAT_POINTER) >> 4 & 0xF;
+				pr_frc(log, "d-e_force cnt %d, readidx %d\n",
+				devp->frc_sts.frame_cnt, frc_input_fid);
+				devp->frc_sts.frame_cnt++;
+			} else if (devp->frc_sts.frame_cnt ==
+					frc_frame_delay * 2) {
+				frc_frame_forcebuf_enable(0);
+				frc_state_change_finish(devp);
+				pr_frc(log, "d-e_sm state change %s -> %s\n",
 						frc_state_ary[cur_state],
 						frc_state_ary[new_state]);
-					frc_state_change_finish(devp);
-				}
-			} else if (new_state == FRC_STATE_BYPASS) {
-				//first frame set enable off
-				if (devp->frc_sts.frame_cnt == 0) {
-					frc_mm_secure_set(devp);
-					set_frc_enable(OFF);
-					//set_frc_bypass(OFF);
-					devp->frc_sts.frame_cnt++;
-				} else {
-					//second frame set bypass on
-					set_frc_bypass(ON);
-					devp->frc_sts.frame_cnt = 0;
-					pr_frc(log, "sm state change %s -> %s\n",
-					       frc_state_ary[cur_state], frc_state_ary[new_state]);
-					frc_state_change_finish(devp);
-				}
-			} else {
-				pr_frc(0, "err new state %d\n", new_state);
-			}
-		}
-		break;
-
-	case FRC_STATE_BYPASS:
-		if (state_changed) {
-			if (new_state == FRC_STATE_DISABLE) {
-				set_frc_bypass(OFF);
-				set_frc_enable(OFF);
 				devp->frc_sts.frame_cnt = 0;
-				pr_frc(log, "sm state change %s -> %s\n",
-				       frc_state_ary[cur_state], frc_state_ary[new_state]);
-				frc_state_change_finish(devp);
-			} else if (new_state == FRC_STATE_ENABLE) {
-				if (devp->frc_sts.frame_cnt == 0) {
-					frc_mm_secure_set(devp);
-					//first frame set bypass off
-					set_frc_bypass(OFF);
-					//set_frc_enable(OFF);
-					devp->frc_sts.frame_cnt++;
-				} else if (devp->frc_sts.frame_cnt == 1) {
-					frc_hw_initial(devp);
-					//second frame set enable on
-					if (pfw_data->frc_input_cfg)
-						pfw_data->frc_input_cfg(devp->fw_data);
-					set_frc_enable(ON);
-					devp->frc_sts.frame_cnt = 0;
-					pr_frc(log, "sm state change %s -> %s\n",
-					       frc_state_ary[cur_state], frc_state_ary[new_state]);
-					frc_state_change_finish(devp);
-				} else {
-					devp->frc_sts.frame_cnt++;
-				}
-			} else {
-				pr_frc(0, "err new state %d\n", new_state);
+			} else if (devp->frc_sts.frame_cnt < frc_frame_delay) {
+				devp->frc_sts.frame_cnt++;
 			}
+		} else {
+			pr_frc(0, "err new state %d\n", new_state);
 		}
-		break;
+	}
+	break;
 
 	default:
 		pr_frc(0, "err state %d\n", cur_state);

@@ -150,7 +150,8 @@ enum en_film_mode {
 	EN_FILM64,
 	EN_FILM66,
 	EN_FILM87,
-	EN_FILM212
+	EN_FILM212,
+	EN_FILM_MAX = 0xFF,
 };
 
 struct frc_holdline_s {
@@ -229,6 +230,9 @@ struct frc_fw_data_s {
 
 extern int frc_dbg_en;
 extern int frc_kerdrv_ver;
+void config_phs_regs(enum frc_ratio_mode_type frc_ratio_mode,
+	enum en_film_mode film_mode);
+
 
 #define pr_frc(level, fmt, arg...)			\
 	do {						\

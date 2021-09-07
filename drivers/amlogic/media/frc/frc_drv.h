@@ -32,8 +32,8 @@
 // frc_20210818 frc add read version function
 // frc_20210824 frc video delay interface
 
-#define FRC_FW_VER			"2021-0824 frc video delay interface"
-#define FRC_KERDRV_VER                  980
+#define FRC_FW_VER			"2021-0907 frc set delay frame"
+#define FRC_KERDRV_VER                  1031
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
