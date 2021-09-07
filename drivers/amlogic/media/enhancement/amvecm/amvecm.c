@@ -9258,7 +9258,8 @@ void init_pq_setting(void)
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
-		get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
 		goto tvchip_pq_setting;
 	else if (is_meson_g12a_cpu() || is_meson_g12b_cpu() ||
 		 is_meson_sm1_cpu() ||
@@ -9297,7 +9298,8 @@ tvchip_pq_setting:
 			bitdepth = 10;
 		else if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
 			     get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
-			     get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
+			     get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+			     get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
 			bitdepth = 10;
 		else if (is_meson_tm2_cpu())
 			bitdepth = 12;
@@ -9709,6 +9711,16 @@ static const struct vecm_match_data_s vecm_dt_t3 = {
 	.vlk_ctl_for_frc = 1,
 };
 
+/*t5w vlock follow t5 */
+static const struct vecm_match_data_s vecm_dt_t5w = {
+	.vlk_chip = vlock_chip_t5,
+	.vlk_support = true,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_tm2verb,
+	.vlk_phlock_en = true,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
+};
+
 static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm",
@@ -9747,6 +9759,10 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 	{
 		.compatible = "amlogic, vecm-t3",
 		.data = &vecm_dt_t3,
+	},
+	{
+		.compatible = "amlogic, vecm-t5w",
+		.data = &vecm_dt_t5w,
 	},
 	{},
 };

@@ -139,6 +139,26 @@
 	status = "disabled";
 };
 
+&amlvecm {
+	status = "okay";
+	gamma_en = <1>;/*1:enabel ;0:disable*/
+	wb_en = <1>;/*1:enabel ;0:disable*/
+	cm_en = <1>;/*1:enabel ;0:disable*/
+	wb_sel = <0>;/*1:mtx ;0:gainoff*/
+	vlock_en = <1>;/*1:enable;0:disable*/
+	vlock_mode = <0x8>;
+	/*vlock work mode:
+	 *bit0:auto ENC
+	 *bit1:auto PLL
+	 *bit2:manual PLL
+	 *bit3:manual ENC
+	 *bit4:manual soft ENC
+	 *bit5:manual MIX PLL ENC
+	 */
+	 vlock_pll_m_limit = <1>;
+	 vlock_line_limit = <2>;
+};
+
 &fb {
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;

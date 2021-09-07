@@ -547,6 +547,13 @@
 				&ion_fb_reserved>;
 	};
 
+	amlvecm: amlvecm {
+		compatible = "amlogic, vecm-t5w";
+		dev_name = "aml_vecm";
+		clocks = <&clkc CLKID_VID_LOCK>;
+		clock-names = "cts_vid_lock_clk";
+	};
+
 	fb: fb {
 		compatible = "amlogic, fb-t5w";
 		memory-region = <&logo_reserved>;

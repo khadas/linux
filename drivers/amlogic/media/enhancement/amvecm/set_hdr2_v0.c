@@ -2779,7 +2779,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
 	    is_meson_s4_cpu() ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
 		bit_depth = 10;
 
 	/*lut parameters*/
@@ -3475,9 +3476,10 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
 
 	if (clip_func == 0xff) {
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
 			clip_func_after_ootf(hdr_mtx_param.mtx_gamut_mode,
-				module_sel, vpp_index);
+						module_sel, vpp_index);
 	}
 
 	/* disable hdr: first disable X_HDR2_CTRL bit13, */
@@ -3694,7 +3696,8 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
 	    is_meson_s4_cpu() ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
 		bit_depth = 10;
 
 	/*lut parameters*/
@@ -3872,9 +3875,10 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 	hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
 
 	if (clip_func == 0xff) {
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
 			clip_func_after_ootf(hdr_mtx_param.mtx_gamut_mode,
-				module_sel, vpp_index);
+						module_sel, vpp_index);
 	}
 
 	/* disable hdr: first disable X_HDR2_CTRL bit13, */
