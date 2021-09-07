@@ -1199,7 +1199,7 @@
 	pinctrl-names = "default";
 	pinctrl-0=<&i2c10_pins1>;
 
-	hd3s3200: hd3s3200@67 {
+	hd3s3200_b: hd3s3200_b@47 {
 		compatible = "ti, hd3s3200";
 		reg = <0x47>;
 		controller-type = <3>;
@@ -1207,6 +1207,34 @@
 		gpios = <&gpio GPIOY_14 GPIO_ACTIVE_HIGH
 		&gpio GPIOZ_3  GPIO_ACTIVE_LOW>;
 		udc-name = "fde00000.crgudc2";
+		status = "okay";
+	};
+};
+
+&i2c0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0=<&i2c0_pins1>;
+
+	hd3s3200_a: hd3s3200_a@67 {
+		compatible = "ti, hd3s3200";
+		reg = <0x67>;
+		controller-type = <1>;
+		gpio-vbus-power = "GPIOX_3";
+		gpios = <&gpio GPIOX_3 GPIO_ACTIVE_LOW
+		&gpio GPIOZ_2  GPIO_ACTIVE_LOW>;
+		udc-name = "fdd00000.crgudc2";
+		status = "okay";
+	};
+
+	hd3s3200_c: hd3s3200_c@47 {
+		compatible = "ti, hd3s3200";
+		reg = <0x47>;
+		controller-type = <1>;
+		gpio-vbus-power = "GPIOX_27";
+		gpios = <&gpio GPIOX_27 GPIO_ACTIVE_LOW
+		&gpio GPIOX_0  GPIO_ACTIVE_LOW>;
+		udc-name = "fdf00000.crgudc2";
 		status = "okay";
 	};
 };

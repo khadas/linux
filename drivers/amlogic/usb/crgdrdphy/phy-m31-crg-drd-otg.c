@@ -47,6 +47,7 @@ struct hd3s3200_priv {
 	struct gpio_desc *usb_gpio_desc;
 	int vbus_power_pin;
 	int current_mode;
+	int otg;
 };
 
 bool m31_crg_force_device_mode;
@@ -143,30 +144,46 @@ static void amlogic_m31_crg_otg_work(struct work_struct *work)
 	dev_info(hd3s3200->dev, "work current_mode is 0x%x\n", current_mode);
 	current_mode = ((current_mode >> 6) & 0x3);
 
-	if (current_mode == 1) {
-		/* to do*/
-		if (hd3s3200->current_mode != 1) {
+	if (hd3s3200->otg) {
+		if (current_mode == 1) {
+			/* to do*/
+			if (hd3s3200->current_mode != 1) {
+				amlogic_m31_set_vbus_power(hd3s3200, 1);
+				set_mode(HOST_MODE);
+				crg_init();
+				hd3s3200->current_mode = 1;
+			}
+		} else if (current_mode == 2) {
+			/* to do*/
+			if (hd3s3200->current_mode != 2) {
+				set_mode(DEVICE_MODE);
+				amlogic_m31_set_vbus_power(hd3s3200, 0);
+				crg_gadget_init();
+				if (UDC_exist_flag != 1) {
+					ret = crg_otg_write_UDC(crg_UDC_name);
+					if (ret == 0 || ret == -EBUSY)
+						UDC_exist_flag = 1;
+				}
+				hd3s3200->current_mode = 2;
+			}
+		} else if (current_mode == 0) {
+			amlogic_m31_set_vbus_power(hd3s3200, 0);
 			if (hd3s3200->current_mode == 2)
 				crg_gadget_exit();
-			amlogic_m31_set_vbus_power(hd3s3200, 1);
-			set_mode(HOST_MODE);
-			crg_init();
-			hd3s3200->current_mode = 1;
-		}
-	} else if (current_mode == 2) {
-		/* to do*/
-		if (hd3s3200->current_mode != 2) {
 			if (hd3s3200->current_mode == 1)
 				crg_exit();
-			set_mode(DEVICE_MODE);
-			amlogic_m31_set_vbus_power(hd3s3200, 0);
-			crg_gadget_init();
-			if (UDC_exist_flag != 1) {
-				ret = crg_otg_write_UDC(crg_UDC_name);
-				if (ret == 0 || ret == -EBUSY)
-					UDC_exist_flag = 1;
+			hd3s3200->current_mode = 0;
+		}
+	} else {
+		if (current_mode == 1) {
+			/* to do*/
+			if (hd3s3200->current_mode != 1) {
+				amlogic_m31_set_vbus_power(hd3s3200, 1);
+				hd3s3200->current_mode = 1;
 			}
-			hd3s3200->current_mode = 2;
+		} else {
+			amlogic_m31_set_vbus_power(hd3s3200, 0);
+			hd3s3200->current_mode = current_mode;
 		}
 	}
 
@@ -256,30 +273,30 @@ static int hd3s3200_i2c_probe(struct i2c_client *i2c,
 	if (prop)
 		controller_type = of_read_ulong(prop, 1);
 
-	udc_name = of_get_property(i2c->dev.of_node, "udc-name", NULL);
-	if (!udc_name)
-		udc_name = "fdd00000.crgudc2";
-	len = strlen(udc_name);
-	if (len >= 128) {
-		dev_info(&i2c->dev, "udc_name is too long: %d\n", len);
-		return -EINVAL;
-	}
-	strncpy(crg_UDC_name, udc_name, len);
-	crg_UDC_name[len] = '\0';
-
-	if (controller_type == USB_OTG)
+	if (controller_type == USB_OTG) {
 		otg = 1;
+		udc_name = of_get_property(i2c->dev.of_node, "udc-name", NULL);
+		if (!udc_name)
+			udc_name = "fdd00000.crgudc2";
+		len = strlen(udc_name);
+		if (len >= 128) {
+			dev_info(&i2c->dev, "udc_name is too long: %d\n", len);
+			return -EINVAL;
+		}
+		strncpy(crg_UDC_name, udc_name, len);
+		crg_UDC_name[len] = '\0';
+	}
 
 	dev_info(&i2c->dev, "controller_type is %d\n", controller_type);
 	dev_info(&i2c->dev, "force_device_mode is %d\n",
 		 m31_crg_force_device_mode);
 	dev_info(&i2c->dev, "otg is %d\n", otg);
-	dev_info(&i2c->dev, "udc_name: %s\n", crg_UDC_name);
 
 	hd3s3200->vbus_power_pin = gpio_vbus_power_pin;
 	hd3s3200->usb_gpio_desc = usb_gd;
 	hd3s3200->regmap = regmap;
 	hd3s3200->i2c = i2c;
+	hd3s3200->otg = otg;
 	hd3s3200->dev = dev;
 	dev_set_drvdata(&i2c->dev, hd3s3200);
 
@@ -287,25 +304,24 @@ static int hd3s3200_i2c_probe(struct i2c_client *i2c,
 
 	amlogic_m31_crg_otg_init(hd3s3200);
 
+	current_mode = aml_m31_i2c_read(hd3s3200->i2c, 9);
+	dev_info(&i2c->dev, "current_mode is 0x%x\n", current_mode);
+	current_mode = ((current_mode >> 6) & 0x3);
+	aml_m31_i2c_write(hd3s3200->i2c, 9, 0x10);
+
 	if (otg == 0) {
-		if (m31_crg_force_device_mode ||
-		 controller_type == USB_DEVICE_ONLY) {
-			set_mode(DEVICE_MODE);
+		if (current_mode == 1) {
+			amlogic_m31_set_vbus_power(hd3s3200, 1);
+			hd3s3200->current_mode = 1;
+		} else if (current_mode == 2) {
 			amlogic_m31_set_vbus_power(hd3s3200, 0);
 			crg_gadget_init();
-		} else if (controller_type == USB_HOST_ONLY) {
-			crg_init();
-			amlogic_m31_set_vbus_power(hd3s3200, 1);
-			set_mode(HOST_MODE);
+			hd3s3200->current_mode = 2;
+		} else if (current_mode == 0) {
+			amlogic_m31_set_vbus_power(hd3s3200, 0);
+			hd3s3200->current_mode = 0;
 		}
 	} else {
-		current_mode = aml_m31_i2c_read(hd3s3200->i2c, 9);
-		dev_info(&i2c->dev, "current_mode is 0x%x\n", current_mode);
-		current_mode = ((current_mode >> 6) & 0x3);
-		dev_info(&i2c->dev, "current_mode is 0x%x\n",
-			 current_mode);
-		aml_m31_i2c_write(hd3s3200->i2c, 9, 0x10);
-
 		if (current_mode == 1) {
 			crg_init();
 			amlogic_m31_set_vbus_power(hd3s3200, 1);
@@ -316,12 +332,12 @@ static int hd3s3200_i2c_probe(struct i2c_client *i2c,
 			amlogic_m31_set_vbus_power(hd3s3200, 0);
 			crg_gadget_init();
 			hd3s3200->current_mode = 2;
-		} else {
+		} else if (current_mode == 0) {
+			amlogic_m31_set_vbus_power(hd3s3200, 0);
 			hd3s3200->current_mode = 0;
 		}
-
-		phy_m31_detect_pin_config(hd3s3200);
 	}
+	phy_m31_detect_pin_config(hd3s3200);
 
 	return 0;
 }
