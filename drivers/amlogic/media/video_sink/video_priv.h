@@ -720,6 +720,7 @@ s32 config_aisr_position(struct video_layer_s *layer,
 void aisr_demo_enable(void);
 void aisr_demo_axis_set(void);
 void pre_process_for_3d(struct vframe_s *vf);
+bool tvin_vf_disp_mode_check(struct vframe_s *vf);
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void vsync_rdma_process(void);
 #endif
