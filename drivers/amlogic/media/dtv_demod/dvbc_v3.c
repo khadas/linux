@@ -121,7 +121,7 @@ void qam_auto_scan(struct aml_dtvdemod *demod, int auto_qam_enable)
 		qam_write_reg(demod, SR_SCAN_SPEED, 0x235cf459);
 		/* j83b */
 		if (demod->atsc_mode == QAM_64 || demod->atsc_mode == QAM_256 ||
-			!is_meson_t5d_cpu()) {
+			(!is_meson_t5d_cpu() && !is_meson_s4d_cpu() && !is_meson_s4_cpu() && !is_meson_t3_cpu())) {
 //			qam_write_reg(demod, SR_SCAN_SPEED, 0x235cf459);
 			qam_write_reg(demod, TIM_SWEEP_RANGE_CFG, 0x400);
 		} else {
@@ -335,7 +335,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		/* j83b */
 		if (demod->atsc_mode == QAM_64 || demod->atsc_mode == QAM_256 ||
-			!is_meson_t5d_cpu())
+			(!is_meson_t5d_cpu() && !is_meson_s4d_cpu() && !is_meson_s4_cpu() && !is_meson_t3_cpu()))
 			qam_write_reg(demod, SR_SCAN_SPEED, 0x245cf450);
 		else
 			qam_write_reg(demod, SR_SCAN_SPEED, 0x235cf459);
