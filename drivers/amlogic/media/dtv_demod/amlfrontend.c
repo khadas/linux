@@ -56,7 +56,7 @@
 #include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 
-#define AMLDTVDEMOD_VER "V1.0.15"
+#define AMLDTVDEMOD_VER "V1.0.16"
 
 MODULE_PARM_DESC(auto_search_std, "\n\t\t atsc-c std&hrc search");
 static unsigned int auto_search_std;
