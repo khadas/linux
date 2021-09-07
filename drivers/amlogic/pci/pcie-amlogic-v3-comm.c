@@ -654,6 +654,12 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 	if (err)
 		return err;
 
+	/*set phy for gen3 device*/
+	regs = readl(amlogic->phy_base);
+	regs |= BIT(19);
+	writel(regs, amlogic->phy_base);
+	usleep_range(20, 30);
+
 	amlogic_pcie_set_reset_gpio(amlogic);
 
 	regs = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL0);
