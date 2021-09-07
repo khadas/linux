@@ -42,7 +42,7 @@ static struct reboot_reason_str reboot_reason_name[] = {
 	[MESON_BOOTLOADER_REBOOT] = { .name = "bootloader reboot" },
 	[MESON_RPMBP_REBOOT] = { .name = "rpmbp reboot" },
 	[MESON_QUIESCENT_REBOOT] = { .name = "quiescent reboot" },
-	[MESON_CRASH_REBOOT] = { .name = "crash reboot" },
+	[MESON_RESCUEPARTY_REBOOT] = { .name = "rescueparty reboot" },
 	[MESON_KERNEL_PANIC] = { .name = "kernel panic" },
 	[MESON_RECOVERY_QUIESCENT_REBOOT] = {
 		.name = "recovery quiescent reboot" },
@@ -79,8 +79,8 @@ static u32 parse_reason(const char *cmd)
 			reboot_reason = MESON_BOOTLOADER_REBOOT;
 		else if (strcmp(cmd, "rpmbp") == 0)
 			reboot_reason = MESON_RPMBP_REBOOT;
-		else if (strcmp(cmd, "report_crash") == 0)
-			reboot_reason = MESON_CRASH_REBOOT;
+		else if (strcmp(cmd, "rescueparty") == 0)
+			reboot_reason = MESON_RESCUEPARTY_REBOOT;
 		else if (strcmp(cmd, "uboot_suspend") == 0)
 			reboot_reason = MESON_UBOOT_SUSPEND;
 		else if (strcmp(cmd, "quiescent") == 0 ||
