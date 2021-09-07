@@ -2798,7 +2798,7 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 {
 	size_t qsz;
 #ifdef CONFIG_AMLOGIC_MODIFY
-	unsigned int base_addr_phys;
+	unsigned long base_addr_phys;
 	void *vmap_addr = NULL;
 #endif
 
@@ -2979,7 +2979,7 @@ static int arm_smmu_init_strtab_linear(struct arm_smmu_device *smmu)
 	u32 size;
 	struct arm_smmu_strtab_cfg *cfg = &smmu->strtab_cfg;
 #ifdef CONFIG_AMLOGIC_MODIFY
-	unsigned int base_addr_phys;
+	unsigned long base_addr_phys;
 	void *vmap_addr = NULL;
 #endif
 
