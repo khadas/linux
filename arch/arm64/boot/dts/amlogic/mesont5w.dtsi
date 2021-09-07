@@ -357,6 +357,12 @@
 				/* 0 not support; 1 support */
 				support-sysrq = <0>;
 			};
+
+			reset: reset-controller@1004 {
+				compatible = "amlogic,meson-t5d-reset";
+				reg = <0x0 0x1004 0x0 0x9C>;
+				#reset-cells = <1>;
+			};
 	};
 
 	sd_emmc_c: mmc@ffe07000 {
