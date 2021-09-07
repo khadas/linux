@@ -3662,7 +3662,7 @@ static int src_timing_outputmode_changed(struct vframe_s *vf,
 {
 	unsigned int width, height;
 
-	if (vinfo->mode == VMODE_LCD)
+	if (vinfo_lcd_support())
 		return 0;
 
 	width = (vf->type & VIDTYPE_COMPRESS) ?
@@ -4624,7 +4624,7 @@ static int check_primaries(uint (*p)[3][2],/* src primaries and white point */
 			if ((*di)[3][i] != bt709_white_point[i])
 				need_calculate_mtx = 1;
 		}
-		if (v->mode == VMODE_LCD)
+		if (vinfo_lcd_support())
 			cal_out_curve(v->hdr_info.lumi_max);
 	} else {
 		for (i = 0; i < 3; i++) {
@@ -4806,7 +4806,7 @@ static void vpp_lut_curve_set(enum vpp_lut_sel_e lut_sel,
 
 	if (lut_sel == VPP_LUT_EOTF) {
 		/* eotf lut 2048 */
-		if (vinfo->mode != VMODE_LCD) {
+		if (!vinfo_lcd_support()) {
 			if (video_lut_switch == 1)
 				/*350nit alpha_low = 0.12; */
 				ptable = eotf_33_2084_mapping_level1_box;
@@ -4828,7 +4828,7 @@ static void vpp_lut_curve_set(enum vpp_lut_sel_e lut_sel,
 		}
 	} else if (lut_sel == VPP_LUT_OETF) {
 		/* oetf lut bypass */
-		if (vinfo->mode != VMODE_LCD) {
+		if (!vinfo_lcd_support()) {
 			if (video_lut_switch == 1)
 				ptable = oetf_289_gamma22_mapping_level1_box;
 			else if (video_lut_switch == 2)
@@ -5092,7 +5092,7 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 		vpp_lut_curve_set(VPP_LUT_OETF, vinfo);
 
 		/* xvyccc matrix3: bypass */
-		if (vinfo->mode != VMODE_LCD)
+		if (!vinfo_lcd_support())
 			set_vpp_matrix(VPP_MATRIX_XVYCC,
 				       RGB709_to_YUV709l_coeff,
 				       CSC_ON);
@@ -5113,7 +5113,7 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 		/* xvyccc matrix3: RGB to YUV */
 		/* other cases */
 		/* xvyccc matrix3: bypass */
-		if (vinfo->mode != VMODE_LCD &&
+		if (!vinfo_lcd_support() &&
 		    get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709);
 		else
@@ -5378,7 +5378,7 @@ static int hlg_process(enum vpp_matrix_csc_e csc_type,
 			    CSC_ON);
 
 		/* xvyccc matrix3: bypass */
-		if (vinfo->mode != VMODE_LCD)
+		if (!vinfo_lcd_support())
 			set_vpp_matrix(VPP_MATRIX_XVYCC,
 				       RGB709_to_YUV709l_coeff,
 				       CSC_ON);
@@ -5399,7 +5399,7 @@ static int hlg_process(enum vpp_matrix_csc_e csc_type,
 		/* xvyccc matrix3: RGB to YUV */
 		/* other cases */
 		/* xvyccc matrix3: bypass */
-		if (vinfo->mode != VMODE_LCD &&
+		if (!vinfo_lcd_support() &&
 		    get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB)
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709);
 		else
@@ -5479,7 +5479,7 @@ static void bypass_hdr_process(enum vpp_matrix_csc_e csc_type,
 				 vpp_index);
 		if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB &&
 		    ((sink_hdr_support(vinfo) & (HDR_SUPPORT | HLG_SUPPORT)) &&
-		     vinfo->mode != VMODE_LCD)) {
+		     !vinfo_lcd_support())) {
 			if (get_hdr_type() & HLG_FLAG) {
 				hdr_func(OSD1_HDR,
 					 SDR_HLG | hdr_ex, vinfo, NULL, vpp_index);
@@ -5509,7 +5509,7 @@ static void bypass_hdr_process(enum vpp_matrix_csc_e csc_type,
 		/*(VIU_OSD1_BLK0_CFG_W0,0, 7, 1);*/
 		if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB &&
 		    ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
-		     vinfo->mode != VMODE_LCD)) {
+		     !vinfo_lcd_support())) {
 			/* OSD convert to HDR to match HDR video */
 			/* osd eotf lut 709 */
 			if (get_hdr_type() & HLG_FLAG) {
@@ -5665,7 +5665,7 @@ static void bypass_hdr_process(enum vpp_matrix_csc_e csc_type,
 				       bypass_coeff,
 				       CSC_OFF);/* limit->limit range */
 		} else {
-			if (vinfo->mode == VMODE_LCD) {
+			if (vinfo_lcd_support()) {
 				if (signal_range == 0) {/* limit range */
 					if (csc_type == VPP_MATRIX_YUV601_RGB) {
 						pmatrix =
@@ -5723,7 +5723,7 @@ static void bypass_hdr_process(enum vpp_matrix_csc_e csc_type,
 		}
 
 		/* post matrix bypass */
-		if (vinfo->mode != VMODE_LCD) {
+		if (!vinfo_lcd_support()) {
 			/* yuv2rgb for eye protect mode */
 			set_vpp_matrix(VPP_MATRIX_POST,
 				       bypass_coeff,
@@ -5778,7 +5778,7 @@ static void bypass_hdr_process(enum vpp_matrix_csc_e csc_type,
 			    CSC_OFF);
 
 		/* xvycc matrix full2limit or bypass */
-		if (vinfo->mode != VMODE_LCD) {
+		if (!vinfo_lcd_support()) {
 			if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) {
 				set_vpp_matrix(VPP_MATRIX_XVYCC,
 					       bypass_coeff,
@@ -5835,7 +5835,7 @@ static void bypass_hdr_process(enum vpp_matrix_csc_e csc_type,
 		/* xvyccc matrix3: RGB to YUV */
 		/* other cases */
 		/* xvyccc matrix3: bypass */
-		if (vinfo->mode != VMODE_LCD &&
+		if (!vinfo_lcd_support() &&
 		    get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709);
 		} else {
@@ -5886,7 +5886,7 @@ static void set_bt2020csc_process(enum vpp_matrix_csc_e csc_type,
 		/*(VIU_OSD1_BLK0_CFG_W0,0, 7, 1);*/
 		if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB &&
 		    ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
-		     vinfo->mode != VMODE_LCD)) {
+		     !vinfo_lcd_support())) {
 			/* OSD convert to HDR to match HDR video */
 			/* osd eotf lut 709 */
 			if (get_hdr_type() & HLG_FLAG)
@@ -5994,7 +5994,7 @@ static void set_bt2020csc_process(enum vpp_matrix_csc_e csc_type,
 				       bypass_coeff,
 				       CSC_OFF);/* limit->limit range */
 		} else {
-			if (vinfo->mode == VMODE_LCD) {
+			if (vinfo_lcd_support()) {
 				if (signal_range == 0) {/* limit range */
 					if (csc_type == VPP_MATRIX_YUV601_RGB) {
 						pmatrix =
@@ -6052,7 +6052,7 @@ static void set_bt2020csc_process(enum vpp_matrix_csc_e csc_type,
 		}
 
 		/* post matrix bypass */
-		if (vinfo->mode != VMODE_LCD) {
+		if (!vinfo_lcd_support()) {
 			/* yuv2rgb for eye protect mode */
 			set_vpp_matrix(VPP_MATRIX_POST,
 				       YUV709l_to_YUV2020_coeff,
@@ -6104,7 +6104,7 @@ static void set_bt2020csc_process(enum vpp_matrix_csc_e csc_type,
 			    CSC_OFF);
 
 		/* xvycc matrix full2limit or bypass */
-		if (vinfo->mode != VMODE_LCD) {
+		if (!vinfo_lcd_support()) {
 			if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB)
 				set_vpp_matrix(VPP_MATRIX_XVYCC,
 					       bypass_coeff,
@@ -6152,7 +6152,7 @@ static void set_bt2020csc_process(enum vpp_matrix_csc_e csc_type,
 		/* xvyccc matrix3: RGB to YUV */
 		/* other cases */
 		/* xvyccc matrix3: bypass */
-		if (vinfo->mode != VMODE_LCD &&
+		if (!vinfo_lcd_support() &&
 		    get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709);
 		} else {
@@ -6217,7 +6217,7 @@ static void hlg_hdr_process(enum vpp_matrix_csc_e csc_type,
 		/* 0, 7, 1); */
 		if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB &&
 		    ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
-		     vinfo->mode != VMODE_LCD)) {
+		     !vinfo_lcd_support())) {
 			/* OSD convert to HDR to match HDR video */
 			/* osd eotf lut 709 */
 			if (get_hdr_type() & HLG_FLAG)
@@ -6348,7 +6348,7 @@ static void hlg_hdr_process(enum vpp_matrix_csc_e csc_type,
 			    CSC_ON);
 
 		/* post matrix bypass */
-		if (vinfo->mode != VMODE_LCD)
+		if (!vinfo_lcd_support())
 			/* yuv2rgb for eye protect mode */
 			set_vpp_matrix(VPP_MATRIX_POST,
 				       YUV2020l_to_RGB2020_coeff,
@@ -6378,7 +6378,7 @@ static void hlg_hdr_process(enum vpp_matrix_csc_e csc_type,
 			    CSC_ON);
 
 		/* xvycc matrix full2limit or bypass */
-		if (vinfo->mode != VMODE_LCD) {
+		if (!vinfo_lcd_support()) {
 			if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) {
 				set_vpp_matrix(VPP_MATRIX_XVYCC,
 					       RGB2020_to_YUV2020l_coeff,
@@ -6434,7 +6434,7 @@ static void hlg_hdr_process(enum vpp_matrix_csc_e csc_type,
 		/* xvyccc matrix3: RGB to YUV */
 		/* other cases */
 		/* xvyccc matrix3: bypass */
-		if (vinfo->mode != VMODE_LCD &&
+		if (!vinfo_lcd_support() &&
 		    get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) {
 			vpp_set_matrix3(CSC_ON, VPP_MATRIX_RGB_YUV709);
 		} else {
@@ -6453,7 +6453,7 @@ static void sdr_hdr_process(enum vpp_matrix_csc_e csc_type,
 			    enum hdr_type_e *source_type,
 			    enum vpp_index vpp_index)
 {
-	if (vinfo->mode != VMODE_LCD) {
+	if (!vinfo_lcd_support()) {
 		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 			if (vd_path == VD1_PATH)
 				hdr_func(VD1_HDR,
@@ -6574,7 +6574,7 @@ static int vpp_eye_protection_process(enum vpp_matrix_csc_e csc_type,
 	    sdr_process_mode[vd_path])
 		return 0;
 
-	if (vinfo->mode == VMODE_LCD)
+	if (vinfo_lcd_support())
 		return 0;
 	/* post matrix bypass */
 
@@ -6684,10 +6684,10 @@ static void hdr_support_process(struct vinfo_s *vinfo, enum vd_path_e vd_path,
 	if (sdr_mode == 2) { /* auto */
 		if ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
 		    ((cpu_after_eq(MESON_CPU_MAJOR_ID_GXL)) &&
-		     vinfo->mode != VMODE_LCD))
+		     !vinfo_lcd_support()))
 			/*box sdr->hdr*/
 			sdr_process_mode[vd_path] = PROC_SDR_TO_HDR;
-		else if (vinfo->mode == VMODE_LCD &&
+		else if (vinfo_lcd_support() &&
 			 ((get_cpu_type() == MESON_CPU_MAJOR_ID_GXTVBB) ||
 			 (get_cpu_type() == MESON_CPU_MAJOR_ID_TXL))) {
 			/*tv sdr->hdr*/
@@ -6726,7 +6726,7 @@ static int sink_support_hlg(const struct vinfo_s *vinfo)
 static int sink_support_hdr10_plus(const struct vinfo_s *vinfo)
 {
 	/* panel output and TL1 and TM2 */
-	if (vinfo->mode == VMODE_LCD &&
+	if (vinfo_lcd_support() &&
 	    ((get_cpu_type() == MESON_CPU_MAJOR_ID_TL1) ||
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_TM2)))
 		return 1;
@@ -7123,7 +7123,7 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 		h10_para = hdmitx_hdr10plus_param;
 	}
 
-	if (vinfo->mode != VMODE_LCD &&
+	if (!vinfo_lcd_support() &&
 	    ((sink_hdr_support(vinfo) &
 	    (HDR_SUPPORT | HLG_SUPPORT)) ||
 	     (signal_change_flag & SIG_HDR_SUPPORT) ||
@@ -7534,7 +7534,7 @@ static void video_process(struct vframe_s *vf,
 	}
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		if (vinfo->mode != VMODE_LCD) {
+		if (!vinfo_lcd_support()) {
 			if (vpp_index == VPP_TOP1)
 				mtx_setting(VPP1_POST2_MTX, MATRIX_NULL, MTX_OFF);
 			else if (vpp_index == VPP_TOP2)
@@ -7952,6 +7952,7 @@ static struct vframe_s *last_vf[VD_PATH_MAX];
 static int last_vf_signal_type[VD_PATH_MAX];
 static int null_vf_cnt[VD_PATH_MAX] = {2, 2};
 static int prev_color_fmt;
+static int prev_vmode = 0xff;
 static bool dovi_on;
 
 static unsigned int fg_vf_sw_dbg;
@@ -8153,6 +8154,17 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		}
 
 		/* handle change between output mode*/
+		if (prev_vmode != vinfo->mode) {
+			if (is_video_layer_on(vd_path))
+				null_vf_cnt[vd_path] = 0;
+			else
+				force_fake = true;
+			prev_vmode = vinfo->mode;
+			pr_csc(4, "vd%d: output display mode changed\n",
+			       vd_path + 1);
+		}
+
+		/* handle change between output mode*/
 		if (prev_color_fmt != vinfo->viu_color_fmt) {
 			if (is_video_layer_on(vd_path))
 				null_vf_cnt[vd_path] = 0;
@@ -8177,7 +8189,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		/* gxl handle sdr_mode change bug fix. */
 		if ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
 		    !cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
-		    vinfo->mode != VMODE_LCD) {
+		    !vinfo_lcd_support()) {
 			if (sdr_mode != cur_sdr_mode) {
 				force_fake = true;
 				cur_sdr_mode = sdr_mode;
@@ -8190,7 +8202,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		if (is_video_layer_on(vd_path) &&
 		    (sink_hdr_support(vinfo) & HDR_SUPPORT) &&
 		    ((cpu_after_eq(MESON_CPU_MAJOR_ID_GXL)) &&
-		     vinfo->mode != VMODE_LCD)) {
+		     !vinfo_lcd_support())) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 				if (sdr_mode != cur_sdr_mode) {
 					null_vf_cnt[vd_path] = 0;

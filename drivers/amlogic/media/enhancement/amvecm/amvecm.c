@@ -8847,6 +8847,17 @@ void init_pq_control(unsigned int enable)
 	}
 }
 
+int vinfo_lcd_support(void)
+{
+	struct vinfo_s *vinfo = get_current_vinfo();
+
+	if (vinfo->mode == VMODE_LCD ||
+		vinfo->mode == VMODE_DUMMY_ENCP)
+		return 1;
+	else
+		return 0;
+}
+
 /* #if (MESON_CPU_TYPE == MESON_CPU_TYPE_MESONG9TV) */
 void init_pq_setting(void)
 {
@@ -8854,7 +8865,7 @@ void init_pq_setting(void)
 
 	int bitdepth;
 
-	if (vinfo->mode == VMODE_LCD)
+	if (vinfo_lcd_support())
 		init_pq_control(PQ_TV);
 	else
 		init_pq_control(PQ_BOX);

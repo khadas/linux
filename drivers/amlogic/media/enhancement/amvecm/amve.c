@@ -204,7 +204,6 @@ void ve_dnlp_load_reg(void)
 {
 	int i;
 	int dnlp_reg = 0;
-	struct vinfo_s *vinfo = get_current_vinfo();
 
 	if  (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
 		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu()) {
@@ -212,7 +211,7 @@ void ve_dnlp_load_reg(void)
 				WRITE_VPP_REG(SRSHARP1_DNLP_00 + i,
 					      ve_dnlp_reg[i]);
 		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			if (vinfo->mode != VMODE_LCD || is_meson_t7_cpu())
+			if (!vinfo_lcd_support() || is_meson_t7_cpu())
 				dnlp_reg = SRSHARP0_DNLP2_00;
 			else
 				dnlp_reg = SRSHARP1_DNLP2_00;
@@ -236,7 +235,6 @@ static void ve_dnlp_load_def_reg(void)
 {
 	int i;
 	int dnlp_reg = 0;
-	struct vinfo_s *vinfo = get_current_vinfo();
 
 	if  (dnlp_sel == NEW_DNLP_IN_SHARPNESS) {
 		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu()) {
@@ -244,7 +242,7 @@ static void ve_dnlp_load_def_reg(void)
 				WRITE_VPP_REG(SRSHARP1_DNLP_00 + i,
 					      ve_dnlp_reg[i]);
 		} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			if (vinfo->mode != VMODE_LCD || is_meson_t7_cpu())
+			if (!vinfo_lcd_support() || is_meson_t7_cpu())
 				dnlp_reg = SRSHARP0_DNLP2_00;
 			else
 				dnlp_reg = SRSHARP1_DNLP2_00;
@@ -614,7 +612,7 @@ void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 {
 	int m[24];
 	int i;
-	struct vinfo_s *vinfo = get_current_vinfo();
+
 	/* write to registers */
 	if (video_rgb_ogo_xvy_mtx) {
 		if (video_rgb_ogo_xvy_mtx_latch & MTX_BYPASS_RGB_OGO) {
@@ -637,7 +635,7 @@ void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 		m[10] = p->g_gain * m[10] / COEFF_NORM(1.0);
 		m[11] = p->b_gain * m[11] / COEFF_NORM(1.0);
 
-		if (vinfo->mode == VMODE_LCD) {
+		if (vinfo_lcd_support()) {
 			m[18] = (p->r_pre_offset + m[18] + 1024)
 				* p->r_gain / COEFF_NORM(1.0)
 				- p->r_gain + p->r_post_offset;
@@ -792,8 +790,6 @@ void vpp_set_rgb_ogo(struct tcon_rgb_ogo_s *p)
 
 void ve_enable_dnlp(void)
 {
-	struct vinfo_s *vinfo = get_current_vinfo();
-
 	ve_en = 1;
 /* #ifdef NEW_DNLP_IN_SHARPNESS */
 /* if(dnlp_sel == NEW_DNLP_IN_SHARPNESS){ */
@@ -801,7 +797,7 @@ void ve_enable_dnlp(void)
 		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu())
 			WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 1, 0, 1);
 		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
-			if (vinfo->mode != VMODE_LCD || is_meson_t7_cpu())
+			if (!vinfo_lcd_support() || is_meson_t7_cpu())
 				WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 1, 0, 1);
 			else
 				WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 1, 0, 1);
@@ -816,14 +812,12 @@ void ve_enable_dnlp(void)
 
 void ve_disable_dnlp(void)
 {
-	struct vinfo_s *vinfo = get_current_vinfo();
-
 	ve_en = 0;
 	if (dnlp_sel == NEW_DNLP_IN_SHARPNESS)
 		if (is_meson_gxlx_cpu() || is_meson_txlx_cpu())
 			WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 0, 0, 1);
 		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
-			if (vinfo->mode != VMODE_LCD || is_meson_t7_cpu())
+			if (!vinfo_lcd_support() || is_meson_t7_cpu())
 				WRITE_VPP_REG_BITS(SRSHARP0_DNLP_EN, 0, 0, 1);
 			else
 				WRITE_VPP_REG_BITS(SRSHARP1_DNLP_EN, 0, 0, 1);
@@ -2689,9 +2683,8 @@ void eye_proc(int *rgb, int mtx_on)
 	int offset[3] = {
 		64, 512, 512
 	};
-	struct vinfo_s *vinfo = get_current_vinfo();
 
-	if (vinfo->mode == VMODE_LCD)
+	if (vinfo_lcd_support())
 		return;
 
 	matrix_coef00_01 = VPP_POST2_MATRIX_COEF00_01;
