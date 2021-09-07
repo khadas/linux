@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/of_device.h>
+#include <linux/amlogic/clk_measure.h>
 
 /* Local Headers */
 #include "vout_func.h"
@@ -25,10 +26,48 @@
 #include <linux/amlogic/gki_module.h>
 
 struct vout_mux_data_s {
+	int vdin_meas_id;
 	void (*update_viu_mux)(int index, unsigned int mux_sel);
 };
 
 static struct vout_mux_data_s *vout_mux_data;
+
+static inline unsigned int vout_do_div(unsigned long long num, unsigned int den)
+{
+	unsigned long long val = num;
+
+	do_div(val, den);
+
+	return (unsigned int)val;
+}
+
+unsigned int vout_frame_rate_measure(void)
+{
+	int clk_mux = 38;
+	unsigned int val[2], fr;
+	unsigned long long msr_clk;
+
+	if (vout_mux_data)
+		clk_mux = vout_mux_data->vdin_meas_id;
+
+	if (clk_mux == -1)
+		return 0;
+	msr_clk = meson_clk_measure(clk_mux);
+
+	val[0] = vout_vcbus_read(VPP_VDO_MEAS_CTRL);
+	if (val[0]) {
+		vout_vcbus_write(VPP_VDO_MEAS_CTRL, 0);
+		msleep(200);
+	}
+	val[0] = vout_vcbus_read(VPP_VDO_MEAS_VS_COUNT_HI);
+	val[1] = vout_vcbus_read(VPP_VDO_MEAS_VS_COUNT_LO);
+	msr_clk *= 1000;
+	if (val[0] & 0xffff)
+		return 0;
+	fr = vout_do_div(msr_clk, val[1]);
+
+	return fr;
+}
 
 /* **********************************************************
  * vout venc mux
@@ -200,14 +239,17 @@ void vout_viu_mux_update(int index, unsigned int mux_sel)
 
 /* ********************************************************* */
 static struct vout_mux_data_s vout_mux_match_data = {
+	.vdin_meas_id = 38,
 	.update_viu_mux = vout_viu_mux_update_default,
 };
 
 static struct vout_mux_data_s vout_mux_match_data_t7 = {
+	.vdin_meas_id = 60,
 	.update_viu_mux = vout_viu_mux_update_t7,
 };
 
 static struct vout_mux_data_s vout_mux_match_data_t3 = {
+	.vdin_meas_id = 60,
 	.update_viu_mux = vout_viu_mux_update_t3,
 };
 

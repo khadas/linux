@@ -475,17 +475,18 @@ static ssize_t vout_vinfo_show(struct class *class,
 {
 	const struct vinfo_s *info = NULL;
 	ssize_t len = 0;
-	unsigned int i, j;
+	unsigned int i, j, fr;
 	unsigned char val;
 
 	info = get_current_vinfo();
 	if (!info)
 		return sprintf(buf, "current vinfo is null\n");
 
+	fr = vout_frame_rate_measure();
 	len = sprintf(buf, "current vinfo:\n"
 		       "    name:                  %s\n"
 		       "    mode:                  %d\n"
-			   "    frac:                  %d\n"
+		       "    frac:                  %d\n"
 		       "    width:                 %d\n"
 		       "    height:                %d\n"
 		       "    field_height:          %d\n"
@@ -493,6 +494,7 @@ static ssize_t vout_vinfo_show(struct class *class,
 		       "    aspect_ratio_den:      %d\n"
 		       "    sync_duration_num:     %d\n"
 		       "    sync_duration_den:     %d\n"
+		       "    (meas_frame_rate:      %d.%3d)\n"
 		       "    screen_real_width:     %d\n"
 		       "    screen_real_height:    %d\n"
 		       "    htotal:                %d\n"
@@ -506,6 +508,7 @@ static ssize_t vout_vinfo_show(struct class *class,
 		       info->width, info->height, info->field_height,
 		       info->aspect_ratio_num, info->aspect_ratio_den,
 		       info->sync_duration_num, info->sync_duration_den,
+		       (fr / 1000), (fr % 1000),
 		       info->screen_real_width, info->screen_real_height,
 		       info->htotal, info->vtotal, info->fr_adj_type,
 		       info->video_clk, info->viu_color_fmt, info->viu_mux,
