@@ -1612,9 +1612,26 @@ static void video_composer_task(struct composer_dev *dev)
 			vf->crop[3] = pic_w
 				- frame_info->crop_w
 				- frame_info->crop_x;
-			/*omx receive w*h is small than actual w*h;such as 8k*/
-			if (pic_w > frame_info->buffer_w ||
+			if (frame_info->source_type == DTV_FIX_TUNNEL) {
+				vf->crop[0] = frame_info->crop_x;
+				vf->crop[1] = frame_info->crop_y;
+				vf->crop[2] = frame_info->crop_x +
+					frame_info->crop_w;
+				vf->crop[3] = frame_info->crop_y +
+					frame_info->crop_h;
+				vc_print(dev->index, PRINT_AXIS,
+					"dtv crop: x y w h %d %d %d %d\n",
+					frame_info->crop_x,
+					frame_info->crop_y,
+					frame_info->crop_w,
+					frame_info->crop_h);
+				vc_print(dev->index, PRINT_AXIS,
+					"dtv set vf crop:%d %d %d %d\n",
+					vf->crop[0], vf->crop[1],
+					vf->crop[2], vf->crop[3]);
+			} else if (pic_w > frame_info->buffer_w ||
 				pic_h > frame_info->buffer_h) {
+			/*omx receive w*h is small than actual w*h;such as 8k*/
 				vf->crop[0] = 0;
 				vf->crop[1] = 0;
 				vf->crop[2] = 0;

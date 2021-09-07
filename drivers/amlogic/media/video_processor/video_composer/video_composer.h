@@ -88,6 +88,10 @@ enum vc_transform_t {
 	VC_TRANSFORM_FLIP_V_ROT_90 = VC_TRANSFORM_FLIP_V | VC_TRANSFORM_ROT_90,
 };
 
+enum source_type_t {
+	DTV_FIX_TUNNEL = 1,
+};
+
 struct frame_info_t {
 	u32 fd;
 	u32 composer_fen_fd;
@@ -106,7 +110,8 @@ struct frame_info_t {
 	u32 transform;
 	u32 type;
 	u32 sideband_type;
-	u32 reserved[3];
+	u32 reserved[2];
+	u32 source_type;
 };
 
 struct frames_info_t {
