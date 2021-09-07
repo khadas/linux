@@ -822,7 +822,7 @@ void amlogic_pcie_cfg_addr_map(struct amlogic_pcie *amlogic,
 				atr_base + ATR_TRSL_PARAM);
 
 	dev_dbg(dev,
-		 "ATR Map: 0x%010lx %s 0x%010lx [0x%010llx] (param: 0x%06x)\n",
+		 "ATR Map:0x%010llx %s 0x%010llx [0x%010llx] (param: 0x%06x)\n",
 		 src_addr, (trsl_param & 0x400000) ? "<-" : "->", trsl_addr,
 		 ((u64)1) << (size + 1), trsl_param);
 }
