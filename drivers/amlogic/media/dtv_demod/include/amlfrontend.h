@@ -54,6 +54,7 @@
 /* tested on BTC, sensertivity of demod is -100dBm */
 #define THRD_TUNER_STRENTH_DVBT (-101)
 #define THRD_TUNER_STRENTH_DVBS (-79)
+#define THRD_TUNER_STRENTH_DTMB (-92)
 
 #define TIMEOUT_ATSC		2000
 #define TIMEOUT_DVBT		3000

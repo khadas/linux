@@ -285,7 +285,7 @@ void dtmb_reset(void);
 
 int dtmb_check_status_gxtv(struct dvb_frontend *fe);
 int dtmb_check_status_txl(struct dvb_frontend *fe);
-int dtmb_bch_check(void);
+int dtmb_bch_check(struct dvb_frontend *fe);
 void dtmb_write_reg(int reg_addr, int reg_data);
 unsigned int dtmb_read_reg(unsigned int reg_addr);
 void dtmb_write_reg_bits(u32 addr, const u32 data, const u32 start, const u32 len);

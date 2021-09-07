@@ -2784,7 +2784,7 @@ static int gxtv_demod_dtmb_read_status_old
 		dtmb_check_status_gxtv(fe);
 #endif
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL)) {
-		dtmb_bch_check();
+		dtmb_bch_check(fe);
 		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
 			dtmb_check_status_txl(fe);
 	} else {

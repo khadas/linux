@@ -395,14 +395,13 @@ int dtmb_check_cci(void)
 	return cci_det;
 }
 
-int dtmb_bch_check(void)
+int dtmb_bch_check(struct dvb_frontend *fe)
 {
-	int fec_bch_add, i;
+	int fec_bch_add, i, strenth;
 	char *info1 = "fec lock,but bch add ,need reset,wait not to reset";
 	char *info2 = "fec lock,but bch add ,need reset,now is lock";
 
 	fec_bch_add = dtmb_reg_r_bch();
-
 	/*PR_DTMB("[debug]fec lock,fec_bch_add is %d\n", fec_bch_add);*/
 	msleep(100);
 	if ((dtmb_reg_r_bch()-fec_bch_add) >= 50) {
@@ -413,6 +412,15 @@ int dtmb_bch_check(void)
 			if (check_dtmb_fec_lock() == 1) {
 				PR_DTMB("%s\n", info2);
 				return 0;
+			}
+			if (i % 2 == 0) {
+				strenth = tuner_get_ch_power(fe);
+				if (strenth < THRD_TUNER_STRENTH_DTMB) {
+					/*weak signal,return*/
+					PR_DTMB("%s strenth=%d, return\n",
+						 __func__, strenth);
+					return 0;
+				}
 			}
 		}
 	}
@@ -565,7 +573,7 @@ int dtmb_check_status_gxtv(struct dvb_frontend *fe)
 		}
 	} else {
 		dtmb_check_cci();
-		dtmb_bch_check();
+		dtmb_bch_check(fe);
 	#if 0
 		cci_det = dtmb_check_cci();
 		if ((check_dtmb_mobile_det() <= demod_mobile_power)
@@ -628,7 +636,7 @@ int dtmb_check_status_txl(struct dvb_frontend *fe)
 			PR_DTMB("*all reset,timeout is %d\n", demod_timeout);
 		}
 	} else {
-		dtmb_bch_check();
+		dtmb_bch_check(fe);
 		dtmb_constell_check();
 	}
 	return 0;
