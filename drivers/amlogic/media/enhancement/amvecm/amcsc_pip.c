@@ -1392,7 +1392,7 @@ void video_post_process(struct vframe_s *vf,
 	}
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		if (vinfo->mode != VMODE_LCD) {
+		if (!vinfo_lcd_support()) {
 			if (vpp_index == VPP_TOP1)
 				mtx_setting(VPP1_POST2_MTX, MATRIX_NULL, MTX_OFF);
 			else if (vpp_index == VPP_TOP2)
