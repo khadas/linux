@@ -114,6 +114,10 @@
 /* add more bits which indicates display attr change in vf->flag */
 #define VFRAME_FLAG_DISP_ATTR_MASK VFRAME_FLAG_VIDEO_LINEAR
 
+/* need check folllowing bits when toggle frame, to trigger property change */
+/* add more bits which indicates display attr change in vf->flag */
+#define VFRAME_FLAG_DISP_ATTR_MASK VFRAME_FLAG_VIDEO_LINEAR
+
 enum pixel_aspect_ratio_e {
 	PIXEL_ASPECT_RATIO_1_1,
 	PIXEL_ASPECT_RATIO_8_9,
