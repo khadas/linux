@@ -45,6 +45,7 @@
 #define AMLOGIC_MFH_BOOTUP 0x8200004E
 #define AMLOGIC_MFH_BOOT   0x82000097
 #define AMLOGIC_MFH_RESET  0x820000a8
+#define AMLOGIC_M4_BANK    0xFCB87430
 #define PWR_START           1
 #define PWR_STOP            2
 #define PWR_RESET           3
@@ -180,7 +181,7 @@ static int mfh_startup(struct mfh_struct *mfh_struct,
 	/*enable power domain*/
 	ret = pm_runtime_get_sync(pd_dev);
 	arm_smccc_smc(AMLOGIC_MFH_BOOT, cpuid, phy_addr,
-		      mfh_struct->addr_offset, PWR_START, 0, 0, 0, &res);
+		      AMLOGIC_M4_BANK, PWR_START, 0, 0, 0, &res);
 	return ret;
 }
 

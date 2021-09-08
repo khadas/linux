@@ -2904,7 +2904,7 @@
 			 <&clkc CLKID_M4_CLK_1>,
 			 <&clkc CLKID_M4_CLK>,
 			 <&clkc CLKID_M4_PLL>;
-		clock-names = "m4_clk0", "m4_clk1", "m4_clk", "mp_pll";
+		clock-names = "m4_clk0", "m4_clk1", "m4_clk", "m4_pll";
 		mfh-cnt = <2>;
 		mfh-addr-offset = <0x40000>;
 		mfh-name = "mfha",
