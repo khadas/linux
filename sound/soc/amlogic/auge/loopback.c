@@ -34,6 +34,7 @@
 #include "resample.h"
 
 #include "vad.h"
+#include "pdm.h"
 
 #define DRV_NAME "loopback"
 
@@ -66,6 +67,7 @@ struct loopback {
 	unsigned int datain_chmask;
 	unsigned int datain_lane_mask; /* related with data lane */
 
+	void *mic_src;
 	/*
 	 * datalb
 	 */
@@ -633,6 +635,11 @@ static void datatin_pdm_cfg(
 	unsigned int bit_depth = snd_pcm_format_width(runtime->format);
 	unsigned int osr;
 	struct pdm_info info;
+	struct aml_pdm *pdm = (struct aml_pdm *)p_loopback->mic_src;
+	int gain_index = 0;
+
+	if (pdm)
+		gain_index = pdm->pdm_gain_index;
 
 	info.bitdepth	  = bit_depth;
 	info.channels	  = p_loopback->datain_chnum;
@@ -645,7 +652,7 @@ static void datatin_pdm_cfg(
 	/* filter for pdm */
 	osr = pdm_get_ors(p_loopback->dclk_idx, runtime->rate);
 
-	aml_pdm_filter_ctrl(osr, 1);
+	aml_pdm_filter_ctrl(gain_index, osr, 1);
 }
 
 static int loopback_dai_prepare(
@@ -1452,6 +1459,8 @@ static int loopback_platform_probe(struct platform_device *pdev)
 	struct loopback_chipinfo *p_chipinfo = NULL;
 	struct device_node *node_prt = NULL;
 	struct platform_device *pdev_parent = NULL;
+	struct device_node *np_src = NULL;
+	struct platform_device *dev_src = NULL;
 	struct aml_audio_controller *actrl = NULL;
 	int ret = 0;
 
@@ -1460,6 +1469,14 @@ static int loopback_platform_probe(struct platform_device *pdev)
 			GFP_KERNEL);
 	if (!p_loopback)
 		return -ENOMEM;
+
+	np_src = of_parse_phandle(node, "mic-src", 0);
+	if (np_src) {
+		dev_src = of_find_device_by_node(np_src);
+		of_node_put(np_src);
+		p_loopback->mic_src = platform_get_drvdata(dev_src);
+		pr_debug("%s(), mic_src found\n", __func__);
+	}
 
 	/* match data */
 	p_chipinfo = (struct loopback_chipinfo *)

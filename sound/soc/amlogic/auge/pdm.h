@@ -22,8 +22,6 @@
 #include <linux/pinctrl/consumer.h>
 
 
-#define DRV_NAME "snd_pdm"
-
 #define DEFAULT_FS_RATIO		256
 
 #define PDM_CHANNELS_MIN		1
@@ -97,6 +95,7 @@ struct aml_pdm {
 
 	/* low power mode, for dclk_sycpll to 24m */
 	bool isLowPower;
+    int pdm_gain_index;
 };
 
 #endif /*__AML_PDM_H__*/

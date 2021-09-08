@@ -41,7 +41,7 @@ extern void aml_pdm_arb_config(struct aml_audio_controller *actrl);
 
 extern int aml_pmd_set_HPF_filter_parameters(void *array);
 
-extern void aml_pdm_filter_ctrl(int osr, int set);
+void aml_pdm_filter_ctrl(int pdm_gain_index, int osr, int set);
 
 extern void pdm_enable(int is_enable);
 

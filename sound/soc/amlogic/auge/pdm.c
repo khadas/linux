@@ -38,8 +38,11 @@
 #include "regs.h"
 #include "ddr_mngr.h"
 #include "vad.h"
+#include "pdm_hw_coeff.h"
 
 /*#define __PTM_PDM_CLK__*/
+
+#define DRV_NAME "snd_pdm"
 
 static struct snd_pcm_hardware aml_pdm_hardware = {
 	.info			=
@@ -269,7 +272,7 @@ static void pdm_set_lowpower_mode(struct aml_pdm *p_pdm, bool isLowPower)
 			osr = 192;
 
 		filter_mode = p_pdm->isLowPower ? 4 : p_pdm->filter_mode;
-		aml_pdm_filter_ctrl(osr, filter_mode);
+		aml_pdm_filter_ctrl(p_pdm->pdm_gain_index, osr, filter_mode);
 
 		/* update sample count */
 		pdm_set_channel_ctrl(
@@ -371,6 +374,33 @@ static int pdm_train_set_enum(
 	return 0;
 }
 
+/*  set pdm gain index. */
+static int pdm_gain_get_enum(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+    struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+    struct aml_pdm *p_pdm = dev_get_drvdata(component->dev);
+
+    ucontrol->value.integer.value[0] = p_pdm->pdm_gain_index;
+
+    return 0;
+}
+
+static int pdm_gain_set_enum(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
+{
+        struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+        struct aml_pdm *p_pdm = dev_get_drvdata(component->dev);
+        int value = ucontrol->value.integer.value[0];
+
+        if (value < 0 || value > (NUM_PDM_GAIN_INDEX - 1)) {
+                pr_info("%s, invalid value: %d [Range:0~48]", __func__, value);
+                return 0;
+        }
+
+        p_pdm->pdm_gain_index = value;
+
+        return 0;
+}
+
 static const struct snd_kcontrol_new snd_pdm_controls[] = {
 	/* which set */
 	SOC_ENUM_EXT("PDM Filter Mode",
@@ -403,6 +433,12 @@ static const struct snd_kcontrol_new snd_pdm_controls[] = {
 		     pdm_bypass_enum,
 		     pdm_bypass_get_enum,
 		     pdm_bypass_set_enum),
+    /*  index of pdm_gain_table[49], index: 0~48 */
+    SOC_SINGLE_EXT("PDM Gain",
+                 SND_SOC_NOPM, 0,
+                 (NUM_PDM_GAIN_INDEX - 1), 0,
+                 pdm_gain_get_enum,
+                 pdm_gain_set_enum)
 };
 
 #if 0
@@ -925,7 +961,7 @@ static int aml_pdm_dai_prepare(
 								dclk_idx);
 
 		aml_pdm_ctrl(&info);
-		aml_pdm_filter_ctrl(osr, filter_mode);
+        aml_pdm_filter_ctrl(p_pdm->pdm_gain_index, osr, filter_mode);
 
 		if (p_pdm->chipinfo && p_pdm->chipinfo->truncate_data)
 			pdm_init_truncate_data(runtime->rate);

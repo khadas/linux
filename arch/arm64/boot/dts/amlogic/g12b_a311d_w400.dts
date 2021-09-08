@@ -1091,6 +1091,8 @@
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 0 1 0>;
+		/* define loopack with pdm mic. */
+		mic-src = <&aml_pdm>;
 
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
