@@ -35,6 +35,7 @@ struct thermal_cooling_device *cpucore_cooling_register(struct device_node *np,
  */
 void cpucore_cooling_unregister(struct thermal_cooling_device *cdev);
 extern struct platform_driver meson_tsensor_driver;
+int get_cpunum_by_cluster(int cluster);
 
 int cpu_hotplug_init(void);
 #endif /* __CPU_COOLING_H__ */
