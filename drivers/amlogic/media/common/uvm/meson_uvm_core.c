@@ -71,7 +71,7 @@ static struct sg_table
 
 	UVM_PRINTK(1, "%s called, %s. gpu_access:%d\n", __func__, current->comm, gpu_access);
 
-	if (ua->flags & BIT(UVM_DELAY_ALLOC))
+	if (ua->flags & BIT(UVM_DELAY_ALLOC) && gpu_access)
 		ua->delay_alloc(dmabuf, ua->obj);
 
 	if (ua->flags & BIT(UVM_IMM_ALLOC) && gpu_access && ua->scalar > 1) {
