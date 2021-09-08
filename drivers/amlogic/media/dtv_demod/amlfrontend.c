@@ -6000,7 +6000,8 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 			struct dtv_property *tvp)
 {
 	char v;
-	unsigned char modulation = 0x00;
+	unsigned char modulation = 0xFF;
+	unsigned char cr = 0xFF;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
@@ -6029,6 +6030,67 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 				tvp->u.data = SYS_DVBS;
 				tvp->reserved[0] = QPSK;
 			}
+		} else if (demod->last_delsys == SYS_DVBT2 &&
+			demod->last_status == 0x1F) {
+			if (demod_is_t5d_cpu(devp)) {
+				modulation = (front_read_reg(0x3e) >> 5) & 0x3;
+				cr = (front_read_reg(0x3e) >> 2) & 0x7;
+			} else {
+				modulation = (dvbt_t2_rdb(0x8c3) >> 4) & 0x7;
+				cr = (dvbt_t2_rdb(0x8c3) >> 1) & 0x7;
+			}
+
+			if (modulation == 0)
+				tvp->reserved[0] = QPSK;
+			else if (modulation == 1)
+				tvp->reserved[0] = QAM_16;
+			else if (modulation == 2)
+				tvp->reserved[0] = QAM_64;
+			else if (modulation == 3)
+				tvp->reserved[0] = QAM_256;
+			else
+				tvp->reserved[0] = 0xFF;
+
+			if (cr == 0)
+				tvp->reserved[1] = FEC_1_2;
+			else if (cr == 1)
+				tvp->reserved[1] = FEC_3_5;
+			else if (cr == 2)
+				tvp->reserved[1] = FEC_2_3;
+			else if (cr == 3)
+				tvp->reserved[1] = FEC_3_4;
+			else if (cr == 4)
+				tvp->reserved[1] = FEC_4_5;
+			else if (cr == 5)
+				tvp->reserved[1] = FEC_5_6;
+			else
+				tvp->reserved[1] = 0xFF;
+		} else if (demod->last_delsys == SYS_DVBT &&
+			demod->last_status == 0x1F) {
+			modulation = dvbt_t2_rdb(0x2912) & 0x3;
+			cr = dvbt_t2_rdb(0x2913) & 0x7;
+
+			if (modulation == 0)
+				tvp->reserved[0] = QPSK;
+			else if (modulation == 1)
+				tvp->reserved[0] = QAM_16;
+			else if (modulation == 2)
+				tvp->reserved[0] = QAM_64;
+			else
+				tvp->reserved[0] = 0xFF;
+
+			if (cr == 0)
+				tvp->reserved[1] = FEC_1_2;
+			else if (cr == 1)
+				tvp->reserved[1] = FEC_2_3;
+			else if (cr == 2)
+				tvp->reserved[1] = FEC_3_4;
+			else if (cr == 3)
+				tvp->reserved[1] = FEC_5_6;
+			else if (cr == 4)
+				tvp->reserved[1] = FEC_7_8;
+			else
+				tvp->reserved[1] = 0xFF;
 		}
 		PR_INFO("[id %d] get delivery system : %d,modulation:0x%x\n",
 			demod->id, tvp->u.data, tvp->reserved[0]);
