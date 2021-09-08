@@ -93,6 +93,8 @@ static u32 debug_vd_layer;
 static u64 nn_need_time = 15000;
 static u64 nn_margin_time = 9000;
 static u32 nn_bypass;
+static u32 tv_fence_creat_count;
+
 
 #define PRINT_ERROR		0X0
 #define PRINT_QUEUE_STATUS	0X0001
@@ -2133,6 +2135,9 @@ static void set_frames_info(struct composer_dev *dev,
 				if (vf->flag & VFRAME_FLAG_VIDEO_SECURE)
 					is_tvp = true;
 			}
+			if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+				vf->source_type == VFRAME_SOURCE_TYPE_CVBS)
+				tv_fence_creat_count++;
 			vc_print(dev->index, PRINT_FENCE | PRINT_PATTERN,
 				 "received_cnt=%lld,new_cnt=%lld,i=%d,z=%d,omx_index=%d, fence_fd=%d, fc_no=%d, index_disp=%d,pts=%lld\n",
 				 dev->received_count + 1,
@@ -3327,6 +3332,12 @@ static ssize_t nn_bypass_store(struct class *class,
 	return count;
 }
 
+static ssize_t tv_fence_creat_count_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "tv_fence_creat_count: %d\n", tv_fence_creat_count);
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -3358,6 +3369,7 @@ static CLASS_ATTR_RO(total_put_count);
 static CLASS_ATTR_RW(nn_need_time);
 static CLASS_ATTR_RW(nn_margin_time);
 static CLASS_ATTR_RW(nn_bypass);
+static CLASS_ATTR_RO(tv_fence_creat_count);
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -3391,6 +3403,7 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_nn_need_time.attr,
 	&class_attr_nn_margin_time.attr,
 	&class_attr_nn_bypass.attr,
+	&class_attr_tv_fence_creat_count.attr,
 	NULL
 };
 

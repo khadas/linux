@@ -61,6 +61,9 @@ static u64 vframe_get_delay;
 static int force_delay_ms;
 static int game_mode;
 static int force_game_mode;
+static int fence_dq_count;
+static int fence_put_count;
+static int fence_null_count;
 
 int vq_print(int debug_flag, const char *fmt, ...)
 {
@@ -606,9 +609,13 @@ static void do_file_thread(struct video_queue_dev *dev)
 			continue;
 		}
 
-		if (!IS_ERR_OR_NULL(fence_file))
+		if (!IS_ERR_OR_NULL(fence_file)) {
+			fence_dq_count++;
 			sync_file =
 				(struct sync_file *)fence_file->private_data;
+		} else {
+			fence_null_count++;
+		}
 		vq_print(P_FENCE, "dq: free_file=%px, fence_file=%px\n",
 			free_file, fence_file);
 		file_pop_display_q(dev, free_file);
@@ -675,8 +682,10 @@ static void do_fence_thread(struct video_queue_dev *dev)
 			vq_print(P_ERROR, "fence timeout\n");
 	}
 
-	if (!IS_ERR_OR_NULL(fence_file))
+	if (!IS_ERR_OR_NULL(fence_file)) {
 		fput(fence_file);
+		fence_put_count++;
+	}
 
 	private_data = v4lvideo_get_file_private_data(free_file, true);
 	if (private_data) {
@@ -939,8 +948,10 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 			vq_print(P_ERROR, "unreg: dq_info_q keep vf\n");
 			if (free_file)
 				v4lvideo_keep_vf(free_file);
-			if (fence_file)
+			if (!IS_ERR_OR_NULL(fence_file)) {
 				fput(fence_file);
+				fence_put_count++;
+			}
 		}
 	}
 
@@ -955,7 +966,8 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 	vq_print(P_ERROR, "total get=%d put=%d, di_get=%d, di_put=%d\n",
 			total_get_count, total_put_count,
 			di_get_count, di_put_count);
-	vq_print(P_ERROR, "unreg: out\n");
+	vq_print(P_ERROR, "unreg: out fence_dq=%d, fence_put=%d\n",
+		fence_dq_count, fence_put_count);
 
 	sync_start = false;
 	game_mode = 0;
@@ -1210,6 +1222,33 @@ static ssize_t force_game_mode_store(struct class *cla,
 	return count;
 }
 
+static ssize_t fence_dq_count_show(struct class *cla,
+			       struct class_attribute *attr,
+			       char *buf)
+{
+	return snprintf(buf, 80,
+			"current fence_dq_count is %d\n",
+			fence_dq_count);
+}
+
+static ssize_t fence_put_count_show(struct class *cla,
+			       struct class_attribute *attr,
+			       char *buf)
+{
+	return snprintf(buf, 80,
+			"current fence_put_count is %d\n",
+			fence_put_count);
+}
+
+static ssize_t fence_null_count_show(struct class *cla,
+			       struct class_attribute *attr,
+			       char *buf)
+{
+	return snprintf(buf, 80,
+			"current fence_null_count is %d\n",
+			fence_null_count);
+}
+
 static CLASS_ATTR_RW(print_close);
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RO(buf_count);
@@ -1219,6 +1258,9 @@ static CLASS_ATTR_RO(vframe_get_delay);
 static CLASS_ATTR_RW(force_delay_ms);
 static CLASS_ATTR_RW(game_mode);
 static CLASS_ATTR_RW(force_game_mode);
+static CLASS_ATTR_RO(fence_dq_count);
+static CLASS_ATTR_RO(fence_put_count);
+static CLASS_ATTR_RO(fence_null_count);
 
 static struct attribute *videoqueue_class_attrs[] = {
 	&class_attr_print_close.attr,
@@ -1230,6 +1272,9 @@ static struct attribute *videoqueue_class_attrs[] = {
 	&class_attr_force_delay_ms.attr,
 	&class_attr_game_mode.attr,
 	&class_attr_force_game_mode.attr,
+	&class_attr_fence_dq_count.attr,
+	&class_attr_fence_put_count.attr,
+	&class_attr_fence_null_count.attr,
 	NULL
 };
 
