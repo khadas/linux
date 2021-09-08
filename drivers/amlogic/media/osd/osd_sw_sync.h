@@ -45,6 +45,7 @@ void aml_sync_inc_timeline(void *timeline, unsigned int value);
 struct dma_fence *aml_sync_get_fence(int syncfile_fd);
 int aml_sync_wait_fence(struct dma_fence *fence, long timeout);
 void aml_sync_put_fence(struct dma_fence *fence);
+void output_fence_info(void);
 #endif
 
 #endif /* _OSD_SW_SYNC_H */

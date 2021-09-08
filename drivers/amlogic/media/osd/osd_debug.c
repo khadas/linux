@@ -26,6 +26,7 @@
 #include "osd_reg.h"
 #include "osd_io.h"
 #include "osd_hw.h"
+#include "osd_sw_sync.h"
 
 #define OSD_TEST_DURATION 200
 
@@ -777,6 +778,9 @@ int osd_set_debug_hw(u32 index, const char *buf)
 		break;
 	case 's':
 		output_save_info();
+		break;
+	case 'f':
+		output_fence_info();
 		break;
 	default:
 		osd_log_err("arg error\n");

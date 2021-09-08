@@ -11,7 +11,29 @@
 
 #include "osd_sw_sync.h"
 
+#define MAX_NUM 64
+static int timeline_num;
+struct timeline_debug_info {
+	char name[32];
+	u32 create_num;
+	u32 release_num;
+};
+
+static struct timeline_debug_info timeline_debug_s[MAX_NUM];
 static const struct dma_fence_ops timeline_fence_ops;
+
+void output_fence_info(void)
+{
+	int i;
+
+	for (i = 0; (i < timeline_num) && (i < MAX_NUM); i++) {
+		pr_info("fence info: name=%s, create_num=%d, release_num=%d\n",
+			timeline_debug_s[i].name,
+			timeline_debug_s[i].create_num,
+			timeline_debug_s[i].release_num);
+	}
+}
+
 static inline struct sync_pt *fence_to_sync_pt(struct dma_fence *fence)
 {
 	if (fence->ops != &timeline_fence_ops)
@@ -40,7 +62,10 @@ static struct sync_timeline *sync_timeline_create(const char *name)
 	INIT_LIST_HEAD(&obj->active_list_head);
 	INIT_LIST_HEAD(&obj->pt_list);
 	spin_lock_init(&obj->lock);
-
+	if (timeline_num < MAX_NUM)
+		strlcpy(timeline_debug_s[timeline_num].name,
+			name, sizeof(obj->name));
+	timeline_num++;
 	return obj;
 }
 
@@ -79,6 +104,7 @@ static void timeline_fence_release(struct dma_fence *fence)
 	struct sync_pt *pt = fence_to_sync_pt(fence);
 	struct sync_timeline *parent = dma_fence_parent(fence);
 	unsigned long flags;
+	int i;
 
 	spin_lock_irqsave(fence->lock, flags);
 	list_del(&pt->link);
@@ -87,6 +113,10 @@ static void timeline_fence_release(struct dma_fence *fence)
 	spin_unlock_irqrestore(fence->lock, flags);
 	sync_timeline_put(parent);
 	dma_fence_free(fence);
+	for (i = 0; (i < timeline_num) && (i < MAX_NUM); i++) {
+		if (!strcmp(timeline_debug_s[i].name, parent->name))
+			timeline_debug_s[i].release_num++;
+	}
 }
 
 static bool timeline_fence_signaled(struct dma_fence *fence)
@@ -200,6 +230,7 @@ int aml_sync_create_fence(void *timeline, unsigned int value)
 	int err;
 	struct sync_pt *pt;
 	struct sync_file *sync_file;
+	int i;
 
 	if (!tl)
 		return -EPERM;
@@ -224,6 +255,10 @@ int aml_sync_create_fence(void *timeline, unsigned int value)
 	}
 
 	fd_install(fd, sync_file->file);
+	for (i = 0; (i < timeline_num) && (i < MAX_NUM); i++) {
+		if (!strcmp(timeline_debug_s[i].name, tl->name))
+			timeline_debug_s[i].create_num++;
+	}
 	return fd;
 
 err:
