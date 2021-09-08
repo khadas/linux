@@ -97,9 +97,10 @@ struct hw_enc_clk_val_group {
 	u32 od3;
 	u32 vid_pll_div;
 	u32 vid_clk_div;
-	u32 hdmi_tx_pixel_div;
-	u32 encp_div;
-	u32 enci_div;
+	u32 enc_div;
+	u32 fe_div;
+	u32 pnx_div;
+	u32 pixel_div;
 };
 
 void hdmitx21_set_default_clk(void);
@@ -137,6 +138,7 @@ void hdmitx21_phy_bandgap_en_t7(void);
 void set21_phy_by_mode_t7(u32 mode);
 
 void hdmitx21_sys_reset_t7(void);
+void hdmitx21_debugfs_init(void);
 
 void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk);
 void set21_hpll_od1_t7(u32 div);
@@ -146,6 +148,6 @@ void set21_hpll_od3_t7(u32 div);
 void set21_hpll_sspll_t7(enum hdmi_vic vic);
 
 void dump_hdmitx_reg(void);
-void dump_infoframe_packets(void);
+void dump_infoframe_packets(struct seq_file *s);
 
 #endif

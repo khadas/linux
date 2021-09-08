@@ -25,6 +25,7 @@
 #include <linux/compiler.h>
 #include <linux/arm-smccc.h>
 #include <linux/spinlock.h>
+#include <linux/seq_file.h>
 
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/enc_clk_config.h>
@@ -84,7 +85,7 @@ static int tpi_info_get(u8 sel, u8 *data)
 	return 31; /* fixed value */
 }
 
-void dump_infoframe_packets(void)
+void dump_infoframe_packets(struct seq_file *s)
 {
 	int i, j;
 	u8 body[32] = {0};
@@ -92,9 +93,9 @@ void dump_infoframe_packets(void)
 	for (i = 0; i < 17; i++) {
 		tpi_info_get(i, body);
 		body[31] = hdmitx21_rd_reg(TPI_INFO_EN_IVCTX);
-		pr_info("dump hdmi infoframe[%d]\n", i);
+		seq_printf(s, "dump hdmi infoframe[%d]\n", i);
 		for (j = 0; j < 32; j += 8)
-			pr_info("%02x%02x%02x%02x%02x%02x%02x%02x\n",
+			seq_printf(s, "%02x%02x%02x%02x%02x%02x%02x%02x\n",
 				body[j + 0], body[j + 1],
 				body[j + 2], body[j + 3],
 				body[j + 4], body[j + 5],
