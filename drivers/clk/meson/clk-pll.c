@@ -782,13 +782,27 @@ static int meson_secure_pll_v2_set_rate(struct clk_hw *hw, unsigned long rate,
 
 static int meson_secure_pll_v2_enable(struct clk_hw *hw)
 {
-	/* do nothing if the PLL is already enabled */
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+	unsigned int m, n, od;
+	struct arm_smccc_res res;
+
+	/*
+	 * In most case,  do nothing if the PLL is already enabled
+	 */
 	if (clk_hw_is_enabled(hw))
 		return 0;
 
-	/* set the enable in bl31 when call clk_set_rate
-	 * Do nothing here to keep the pll sequence.
+	/* If PLL is not enabled because setting the same rate,
+	 * Enable it again, CCF will return when set the same rate
 	 */
+
+	n = meson_parm_read(clk->map, &pll->n);
+	m = meson_parm_read(clk->map, &pll->m);
+	od = meson_parm_read(clk->map, &pll->od);
+
+	arm_smccc_smc(pll->smc_id, pll->secid,
+			      m, n, od, 0, 0, 0, &res);
 
 	return 0;
 }
