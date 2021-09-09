@@ -51,10 +51,8 @@ struct meson_clk_pll_data {
 	struct parm frac;
 	struct parm l;
 	struct parm rst;
-#if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ARM
 	/* for 32bit dco overflow */
 	struct parm od;
-#endif
 	/*for pcie*/
 	struct parm pcie_hcsl;
 	struct parm pcie_exen;
