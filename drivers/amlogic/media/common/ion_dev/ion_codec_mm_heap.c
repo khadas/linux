@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+#include <linux/amlogic/media/codec_mm/secmem.h>
 #include <linux/ion.h>
 
 #include "dev_ion.h"
@@ -68,6 +69,34 @@ static void ion_codec_mm_free(struct ion_heap *heap,
 	mutex_unlock(&codec_heap->mutex);
 }
 
+static phys_addr_t ion_secure_allocate(struct ion_heap *heap,
+				unsigned long size, unsigned long flags)
+{
+	struct ion_cma_heap *codec_heap =
+		container_of(heap, struct ion_cma_heap, heap);
+	phys_addr_t paddr;
+
+	paddr = secure_block_alloc(size, flags);
+	if (!paddr) {
+		pr_err("%s failed out size %d\n", __func__, (int)size);
+		return ION_CODEC_MM_ALLOCATE_FAIL;
+	}
+	codec_heap->alloced_size += size;
+	return paddr;
+}
+
+static void ion_secure_free(struct ion_heap *heap,
+				phys_addr_t addr,
+				unsigned long size)
+{
+	struct ion_cma_heap *codec_heap =
+		container_of(heap, struct ion_cma_heap, heap);
+	if (addr == ION_CODEC_MM_ALLOCATE_FAIL)
+		return;
+	secure_block_free(addr, size);
+	codec_heap->alloced_size -= size;
+}
+
 static int ion_codec_mm_heap_allocate(struct ion_heap *heap,
 				      struct ion_buffer *buffer,
 				      unsigned long size,
@@ -86,7 +115,10 @@ static int ion_codec_mm_heap_allocate(struct ion_heap *heap,
 	if (ret)
 		goto err_free;
 
-	paddr = ion_codec_mm_allocate(heap, size, flags);
+	if (flags & ION_FLAG_EXTEND_MESON_SECURE_VDEC_HEAP)
+		paddr = ion_secure_allocate(heap, size, flags);
+	else
+		paddr = ion_codec_mm_allocate(heap, size, flags);
 	if (paddr == ION_CODEC_MM_ALLOCATE_FAIL) {
 		ret = -ENOMEM;
 		goto err_free_table;
@@ -117,13 +149,16 @@ static void ion_codec_mm_heap_free(struct ion_buffer *buffer)
 		ION_FLAG_EXTEND_PROTECTED)
 		ion_buffer_zero(buffer);
 
-	if (!!(buffer->flags & ION_FLAG_CACHED))
-		dma_sync_sg_for_device(ion_dev,
-				       table->sgl,
-				       table->nents,
-				       DMA_BIDIRECTIONAL);
-
-	ion_codec_mm_free(heap, paddr, buffer->size);
+	if (buffer->flags & ION_FLAG_EXTEND_MESON_SECURE_VDEC_HEAP) {
+		ion_secure_free(heap, paddr, buffer->size);
+	} else {
+		if (!!(buffer->flags & ION_FLAG_CACHED))
+			dma_sync_sg_for_device(ion_dev,
+							table->sgl,
+							table->nents,
+							DMA_BIDIRECTIONAL);
+		ion_codec_mm_free(heap, paddr, buffer->size);
+	}
 	sg_free_table(table);
 	kfree(table);
 }
