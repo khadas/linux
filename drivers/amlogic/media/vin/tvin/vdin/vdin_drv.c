@@ -3239,9 +3239,10 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				parm->index, tvin_port_str(parm->port), devp->flags);
 
 		mutex_unlock(&devp->fe_lock);
-		reset_tvin_smr(parm->index);
-		if (IS_HDMI_SRC(parm->port))
+		if (IS_HDMI_SRC(parm->port)) {
+			reset_tvin_smr(parm->index);
 			tvin_smr_init(parm->index);
+		}
 		break;
 	}
 	case TVIN_IOC_VF_REG:
