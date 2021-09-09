@@ -1013,6 +1013,9 @@ fail_pcie_hcsl:
 	clk_disable_unprepare(amlogic_pcie->dev_clk);
 	port_num--;
 fail_pcie_phy:
+	if (!amlogic_pcie->phy->phy_type)
+		writel(0x1d, pcie_aml_regs_v2.pcie_phy_r[0]);
+	amlogic_pcie->phy->power_state = 0;
 	return ret;
 }
 

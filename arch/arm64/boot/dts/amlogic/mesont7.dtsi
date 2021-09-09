@@ -1666,8 +1666,10 @@
 			usb3-apb-reset-bit = <23>;
 			usb3-phy-reset-bit = <22>;
 			usb3-reset-shit = <0x4>;
-			clocks = <&clkc CLKID_PCIE_PLL>;
-			clock-names = "pcie_refpll";
+			clocks = <&clkc CLKID_PCIE_PLL
+				&clkc CLKID_PCIE_HCSL>;
+			clock-names = "pcie_refpll",
+					"pcie_hcsl";
 			phy-id = <1>;
 		};
 
@@ -1684,8 +1686,10 @@
 			usb3-apb-reset-bit = <23>;
 			usb3-phy-reset-bit = <22>;
 			usb3-reset-shit = <0x4>;
-			clocks = <&clkc CLKID_PCIE_PLL>;
-			clock-names = "pcie_refpll";
+			clocks = <&clkc CLKID_PCIE_PLL
+				&clkc CLKID_PCIE_HCSL>;
+			clock-names = "pcie_refpll",
+					"pcie_hcsl";
 			phy-id = <0>;
 		};
 

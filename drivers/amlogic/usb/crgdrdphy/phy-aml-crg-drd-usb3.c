@@ -458,6 +458,19 @@ static int amlogic_crg_drd_usb3_probe(struct platform_device *pdev)
 			dev_err(dev, "pcie_refpll is not 100M, it is %ld\n",
 				rate);
 
+		phy->clk = devm_clk_get(dev, "pcie_hcsl");
+		if (IS_ERR(phy->clk)) {
+			dev_dbg(dev, "Failed to get usb3 hcsl clock\n");
+			ret = PTR_ERR(phy->clk);
+		} else {
+			ret = clk_prepare_enable(phy->clk);
+			if (ret) {
+				dev_err(dev, "Failed to enable usb3 hcsl clock\n");
+				ret = PTR_ERR(phy->clk);
+				return ret;
+			}
+		}
+
 		phy->phy.flags = AML_USB3_PHY_ENABLE;
 	}
 
