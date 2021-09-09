@@ -370,7 +370,7 @@
 		pinctrl-2=<&diseqc_out>;
 		lnb_en-gpios = <&gpio GPIOZ_6 GPIO_ACTIVE_HIGH>;
 		lnb_sel-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
-		interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 221 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "demod_isr";
 
 		power-domains = <&pwrdm PDID_S4_DEMOD>;

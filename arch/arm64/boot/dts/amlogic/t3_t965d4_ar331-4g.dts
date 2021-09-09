@@ -677,7 +677,7 @@
 		pinctrl-2=<&dtvdemod_rf_agc_pins>;
 		lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>;
 		lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>;
-		interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 87 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "demod_isr";
 		power-domains = <&pwrdm PDID_T3_DEMOD>;
 		clocks = <&clkc CLKID_DEMOD_32K>;
