@@ -12,7 +12,7 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 #define KERNEL_4_9_EN		1
-#define DTVDEMOD_VER	"2021/9/10: S4/S4D/T3 dvbc autosr support"
+#define DTVDEMOD_VER	"2021/9/18: fix 22K will off after diseqc send"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
