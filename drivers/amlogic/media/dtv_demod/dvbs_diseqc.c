@@ -161,9 +161,10 @@ u32 aml_diseqc_send_cmd(struct dvb_diseqc_master_cmd *cmd)
 	}
 
 	/* Is tone on, need set tone on */
-	/*if (lnb->tone_on)*/
-	/*	mdelay(16);*/
-	/*aml_diseqc_tone_on(lnb->tone_on);*/
+	if (lnb->tone_on)
+		mdelay(16);
+	aml_diseqc_tone_on(lnb->tone_on);
+
 
 cmd_exit:
 	dprintk(0, "%s burst_on:%d\n", __func__, sendburst_on);

@@ -59,8 +59,9 @@
 /****************************************************/
 /*  V1.0.17  DVBS blind scan change                 */
 /*  V1.0.18  dvbt 8K QPSK search failed            */
+/*  V1.0.19  22K will off after diseqc send        */
 /****************************************************/
-#define AMLDTVDEMOD_VER "V1.0.18"
+#define AMLDTVDEMOD_VER "V1.0.19"
 
 MODULE_PARM_DESC(auto_search_std, "\n\t\t atsc-c std&hrc search");
 static unsigned int auto_search_std;
