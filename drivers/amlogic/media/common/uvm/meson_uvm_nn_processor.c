@@ -24,7 +24,8 @@ static int uvm_open_nn;
 module_param(uvm_open_nn, int, 0644);
 
 #define PRINT_ERROR		0X0
-#define PRINT_OTHER	    0X0001
+#define PRINT_OTHER		0X0001
+#define PRINT_NN_DUMP		0X0002
 
 int nn_print(int debug_flag, const char *fmt, ...)
 {
@@ -73,6 +74,9 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr, int *di_flag)
 
 	if (is_dec_vf) {
 		vf = dmabuf_get_vframe(dmabuf);
+		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME))
+			vf = vf->vf_ext;
+		nn_print(PRINT_OTHER, "vframe type: %d\n", vf->type);
 		dmabuf_put_vframe(dmabuf);
 	} else {
 		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
@@ -376,7 +380,8 @@ int nn_mod_getinfo(void *arg, char *buf)
 		return 0;
 	}
 
-	if (addr && si_sr_info->hf_phy_addr) {
+	if ((uvm_nn_debug & PRINT_NN_DUMP) &&
+		si_sr_info->hf_phy_addr) {
 		hf_size = si_sr_info->hf_align_w * si_sr_info->hf_align_h;
 		data_hf = codec_mm_vmap(si_sr_info->hf_phy_addr, hf_size);
 		data_tmp = codec_mm_vmap(addr, hf_size);
@@ -387,6 +392,5 @@ int nn_mod_getinfo(void *arg, char *buf)
 		if (data_tmp)
 			codec_mm_unmap_phyaddr(data_tmp);
 	}
-
 	return 0;
 }
