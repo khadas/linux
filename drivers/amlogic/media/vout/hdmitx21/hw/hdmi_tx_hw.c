@@ -2038,6 +2038,8 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	data32 |= (active_lines << 16); // [30:16] cntl_vactive
 	data32 |= (active_pixels << 0);  // [14: 0] cntl_hactive
 	hdmitx21_wr_reg(HDMITX_TOP_HV_ACTIVE, data32);
+	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 3, 1, 2);
+	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 1, 2);
 } /* config_hdmi21_tx */
 
 static void hdmitx_csc_config(u8 input_color_format,
