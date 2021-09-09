@@ -13,6 +13,7 @@
 #include <linux/dma-buf.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/genalloc.h>
 #include <linux/amlogic/media/codec_mm/secmem.h>
 
 static int secmem_debug;
@@ -37,8 +38,20 @@ struct ksecmem_attachment {
 	enum dma_data_direction dma_dir;
 };
 
+#define SECMEM_MM_ALIGNED_2N	16
+
+struct secmem_vdec_info {
+	unsigned long used;
+	phys_addr_t start;
+	unsigned long size;
+	unsigned long release;
+	struct gen_pool *pool;
+};
+
 static int dev_no;
 static struct device *secmem_dev;
+static DEFINE_MUTEX(g_secmem_mutex);
+static struct secmem_vdec_info g_vdec_info;
 
 static int secmem_dma_attach(struct dma_buf *dbuf, struct dma_buf_attachment *attachment)
 {
@@ -313,6 +326,145 @@ error_copy:
 	return res;
 }
 
+static void *secure_pool_init(phys_addr_t addr, uint32_t size, uint32_t order)
+{
+	struct gen_pool *pool;
+
+	pool = gen_pool_create(order, -1);
+	if (!pool)
+		return NULL;
+	if (gen_pool_add(pool, addr, size, -1) != 0) {
+		gen_pool_destroy(pool);
+		return NULL;
+	}
+	return pool;
+}
+
+static void secure_pool_destroy(void *handle)
+{
+	gen_pool_destroy(handle);
+}
+
+static phys_addr_t secure_pool_alloc(void *handle, uint32_t size)
+{
+	return gen_pool_alloc(handle, size);
+}
+
+static void secure_pool_free(void *handle, uint32_t addr, uint32_t size)
+{
+	return gen_pool_free(handle, addr, size);
+}
+
+static size_t secure_pool_size(void *handle)
+{
+	return gen_pool_size(handle);
+}
+
+phys_addr_t secure_block_alloc(unsigned long size, unsigned long flags)
+{
+	phys_addr_t paddr = 0;
+
+	mutex_lock(&g_secmem_mutex);
+	pr_enter();
+	if (!g_vdec_info.used) {
+		pr_inf("invalid state for block pool\n");
+		goto error_alloc;
+	}
+	paddr = secure_pool_alloc(g_vdec_info.pool, size);
+error_alloc:
+	mutex_unlock(&g_secmem_mutex);
+	return paddr;
+}
+
+unsigned long secure_block_free(phys_addr_t addr, unsigned long size)
+{
+	mutex_lock(&g_secmem_mutex);
+	pr_enter();
+	if (!g_vdec_info.used) {
+		pr_inf("invalid state for block pool\n");
+		goto error_free;
+	}
+	secure_pool_free(g_vdec_info.pool, addr, size);
+	size = secure_pool_size(g_vdec_info.pool);
+	pr_inf("Also will release later size is %ld", size);
+	if (!size && g_vdec_info.release) {
+		secure_pool_destroy(g_vdec_info.pool);
+		memset(&g_vdec_info, 0,
+			sizeof(struct secmem_vdec_info));
+	}
+	mutex_unlock(&g_secmem_mutex);
+	return 0;
+error_free:
+	mutex_unlock(&g_secmem_mutex);
+	return -1;
+}
+
+static long secmem_set_vdec_info(unsigned long args)
+{
+	int ret;
+	struct secmem_block *info;
+
+	mutex_lock(&g_secmem_mutex);
+	pr_enter();
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		pr_error("kmalloc failed\n");
+		goto error_alloc_object;
+	}
+	ret = copy_from_user((void *)info, (void __user *)args,
+			     sizeof(struct secmem_block));
+	if (ret) {
+		pr_error("copy_from_user failed\n");
+		goto error_copy;
+	}
+	pr_inf("used %lx addr %x size %x\n", g_vdec_info.used,
+		info->paddr, info->size);
+	if (!g_vdec_info.used) {
+		g_vdec_info.start = info->paddr;
+		g_vdec_info.size = info->size;
+		g_vdec_info.pool = secure_pool_init(g_vdec_info.start,
+			g_vdec_info.size, SECMEM_MM_ALIGNED_2N);
+		if (!g_vdec_info.pool) {
+			pr_error("secmem pool create failed\n");
+			goto error_copy;
+		}
+		g_vdec_info.used = 1;
+	} else {
+		pr_inf("secmem have configurated, do nothing\n");
+	}
+	mutex_unlock(&g_secmem_mutex);
+	kfree(info);
+	return 0;
+error_copy:
+	mutex_unlock(&g_secmem_mutex);
+	kfree(info);
+error_alloc_object:
+	return -EFAULT;
+}
+
+static long secmem_clear_vdec_info(unsigned long args)
+{
+	size_t size = 0;
+
+	mutex_lock(&g_secmem_mutex);
+	pr_enter();
+	pr_inf("used %lx addr %llx size %lx\n", g_vdec_info.used,
+		g_vdec_info.start, g_vdec_info.size);
+	if (g_vdec_info.used) {
+		size = secure_pool_size(g_vdec_info.pool);
+		if (size) {
+			pr_inf("will release later size is %zx", size);
+			g_vdec_info.release = 1;
+		} else {
+			secure_pool_destroy(g_vdec_info.pool);
+			memset(&g_vdec_info, 0,
+				sizeof(struct secmem_vdec_info));
+		}
+	}
+	mutex_unlock(&g_secmem_mutex);
+	return 0;
+}
+
 static int secmem_open(struct inode *inodep, struct file *filep)
 {
 	pr_enter();
@@ -357,6 +509,12 @@ static long secmem_ioctl(struct file *filep, unsigned int cmd,
 		break;
 	case SECMEM_IMPORT_DMA:
 		ret = secmem_import(args);
+		break;
+	case SECMEM_SET_VDEC_INFO:
+		ret = secmem_set_vdec_info(args);
+		break;
+	case SECMEM_CLEAR_VDEC_INFO:
+		ret = secmem_clear_vdec_info(args);
 		break;
 	default:
 		break;
