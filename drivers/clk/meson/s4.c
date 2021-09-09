@@ -572,14 +572,11 @@ static struct clk_regmap s4d_gp1_pll_dco = {
 			.shift   = 10,
 			.width   = 5,
 		},
-#ifdef CONFIG_ARM
-		/* for 32bit */
 		.od = {
 			.reg_off = ANACTRL_GP1PLL_CTRL0,
 			.shift	 = 16,
 			.width	 = 3,
 		},
-#endif
 		.frac = {
 			.reg_off = ANACTRL_GP1PLL_CTRL1,
 			.shift   = 0,
