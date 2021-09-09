@@ -220,6 +220,39 @@ static const struct file_operations debug_session_fops = {
 	.release = single_release,
 };
 
+static int vt_debug_state_show(struct seq_file *s, void *unused)
+{
+	struct vt_state *state = s->private;
+
+	mutex_lock(&debugfs_mutex);
+	seq_puts(s, "-----------------------------------------------\n");
+
+	seq_printf(s, "totol fence fget: %ld\n", state->total_fence_get);
+	seq_printf(s, "totol fence fput: %ld\n", state->total_fence_put);
+	seq_printf(s, "totol null fence: %ld\n", state->total_null_fence);
+	seq_printf(s, "totol release: %ld\n", state->total_release_count);
+	seq_printf(s, "totol dequeue: %ld\n", state->total_dequeue_count);
+
+	seq_puts(s, "-----------------------------------------------\n");
+	mutex_unlock(&debugfs_mutex);
+
+	return 0;
+}
+
+static int vt_debug_state_open(struct inode *inode, struct file *file)
+{
+	return single_open(file,
+			   vt_debug_state_show,
+			   inode->i_private);
+}
+
+static const struct file_operations debug_state_fops = {
+	.open = vt_debug_state_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 static int vt_close_fd(struct vt_session *session, unsigned int fd)
 {
 	int ret;
@@ -279,8 +312,10 @@ static void vt_instance_destroy(struct kref *kref)
 	/* destroy fifo to producer */
 	if (!kfifo_is_empty(&instance->fifo_to_producer)) {
 		while (kfifo_get(&instance->fifo_to_producer, &buffer)) {
-			if (buffer->file_fence)
+			if (buffer->file_fence) {
 				fput(buffer->file_fence);
+				dev->state.total_fence_put++;
+			}
 			buffer->item.buffer_status = VT_BUFFER_FREE;
 		}
 	}
@@ -510,8 +545,10 @@ static void vt_session_trim_lock(struct vt_session *session,
 
 	if (instance->producer && instance->producer == session) {
 		while (kfifo_get(&instance->fifo_to_producer, &buffer)) {
-			if (buffer->file_fence)
+			if (buffer->file_fence) {
 				fput(buffer->file_fence);
+				session->dev->state.total_fence_put++;
+			}
 
 			buffer->item.buffer_status = VT_BUFFER_FREE;
 		}
@@ -563,8 +600,10 @@ static int vt_instance_trim(struct vt_session *session)
 		if (instance->producer && instance->producer == session) {
 			while (kfifo_get(&instance->fifo_to_producer,
 					 &buffer)) {
-				if (buffer->file_fence)
+				if (buffer->file_fence) {
 					fput(buffer->file_fence);
+					dev->state.total_fence_put++;
+				}
 				buffer->item.buffer_status = VT_BUFFER_FREE;
 			}
 			instance->producer = NULL;
@@ -590,8 +629,10 @@ static int vt_instance_trim(struct vt_session *session)
 		if (!instance->consumer && !instance->producer) {
 			while (kfifo_get(&instance->fifo_to_producer,
 					 &buffer)) {
-				if (buffer->file_fence)
+				if (buffer->file_fence) {
 					fput(buffer->file_fence);
+					dev->state.total_fence_put++;
+				}
 			}
 			while (kfifo_get(&instance->fifo_to_consumer,
 					 &buffer)) {
@@ -1284,8 +1325,10 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 	buffer->item.buffer_status = VT_BUFFER_DEQUEUE;
 	/* it's previous connect buffer */
 	if (buffer->cid_pro != session->cid) {
-		if (buffer->file_fence)
+		if (buffer->file_fence) {
 			fput(buffer->file_fence);
+			dev->state.total_fence_put++;
+		}
 
 		mutex_unlock(&instance->lock);
 		return -EAGAIN;
@@ -1299,6 +1342,7 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 			       instance->id);
 			/* could not get unused fd, put the file fence */
 			fput(buffer->file_fence);
+			dev->state.total_fence_put++;
 			mutex_unlock(&instance->lock);
 			return -ENOMEM;
 		}
@@ -1322,6 +1366,8 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 	/* return the buffer */
 	*data = buffer->item;
 	mutex_unlock(&instance->lock);
+
+	dev->state.total_dequeue_count++;
 
 	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] dequeuebuffer buffer(%p) end pfd(%d) cfd(%d) fence fd(%d) timestamp(%lld)\n",
 		 instance->id, buffer, buffer->buffer_fd_pro, buffer->buffer_fd_con,
@@ -1437,19 +1483,6 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 		return -EINVAL;
 	}
 
-	buffer->file_fence = NULL;
-	if (data->fence_fd >= 0)
-		buffer->file_fence = fget(data->fence_fd);
-
-	if (!buffer->file_fence)
-		vt_debug(VT_DEBUG_BUFFERS,
-			 "vt [%d] releasebuffer fence file is null\n",
-			 instance->id);
-	else
-		vt_debug(VT_DEBUG_FILE,
-			"vt [%d] releasebuffer fence file(%p) fence fd(%d)\n",
-			instance->id, buffer->file_fence, data->fence_fd);
-
 	/* close the fd in consumer side */
 	vt_close_fd(session, buffer->buffer_fd_con);
 	instance->fcount--;
@@ -1483,6 +1516,23 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 		return -EINVAL;
 	}
 
+	buffer->file_fence = NULL;
+	if (data->fence_fd >= 0) {
+		buffer->file_fence = fget(data->fence_fd);
+		dev->state.total_fence_get++;
+	} else {
+		dev->state.total_null_fence++;
+	}
+
+	if (!buffer->file_fence)
+		vt_debug(VT_DEBUG_BUFFERS,
+			 "vt [%d] releasebuffer fence file is null\n",
+			 instance->id);
+	else
+		vt_debug(VT_DEBUG_FILE,
+			"vt [%d] releasebuffer fence file(%p) fence fd(%d)\n",
+			instance->id, buffer->file_fence, data->fence_fd);
+
 	kfifo_put(&instance->fifo_to_producer, buffer);
 	mutex_unlock(&instance->lock);
 
@@ -1493,6 +1543,8 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 		 "vt [%d] releasebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%p) timestamp(%lld)\n",
 		 instance->id, buffer->buffer_fd_pro,
 		 buffer->buffer_fd_con, buffer, buffer->file_buffer, buffer->item.time_stamp);
+
+	dev->state.total_release_count++;
 
 	return 0;
 }
@@ -1724,8 +1776,14 @@ static int vt_probe(struct platform_device *pdev)
 
 	mutex_init(&debugfs_mutex);
 	vdev->debug_root = debugfs_create_dir("videotunnel", NULL);
+
 	if (!vdev->debug_root)
 		pr_err("videotunnel: failed to create debugfs root directory.\n");
+	else
+		vdev->state.debug_root =
+		debugfs_create_file("state", 0664, vdev->debug_root,
+					    &vdev->state,
+					    &debug_state_fops);
 
 	return 0;
 

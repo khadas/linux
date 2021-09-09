@@ -59,6 +59,26 @@ union vt_ioctl_arg {
 };
 
 /*
+ * struct vt_state - videotunnel status information
+ * @debug_root:		debug fs root
+ * @total_fence_get:	number count of total fence fget
+ * @total_fence_put:	number count of total fence fput
+ * @total_null_fence:		number count of -1 fence
+ * @total_dequeue_count:	number count of total dequeue
+ * @total_release_count:	number count of total release
+ */
+struct vt_state {
+	struct dentry *debug_root;
+
+	long total_fence_get;
+	long total_fence_put;
+	long total_null_fence;
+
+	long total_dequeue_count;
+	long total_release_count;
+};
+
+/*
  * struct vt_dev - the metadata of the videotunnel device node
  * @mdev:			the actual misc device
  * @instance_lock:	mutex procting the instances
@@ -73,6 +93,7 @@ struct vt_dev {
 	struct mutex instance_lock; /* protect the instances */
 	struct idr instance_idr;
 	struct rb_root instances;
+	struct vt_state state;
 
 	struct rw_semaphore session_lock;
 	struct rb_root sessions;
