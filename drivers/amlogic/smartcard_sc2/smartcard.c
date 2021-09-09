@@ -1153,7 +1153,7 @@ static int smc_hw_setup(struct smc_dev *smc)
 
 //      unsigned long freq_cpu = clk_get_rate(aml_smartcard_clk)/DIV_SMC;
 
-	clk_set_rate(aml_smartcard_clk, DIV_SMC * 1000 * 1000);
+	clk_set_rate(aml_smartcard_clk, FREQ_DEFAULT * 1000);
 
 //      pr_error("SMC CLK SOURCE - %luKHz\n", freq_cpu);
 
@@ -1772,9 +1772,9 @@ static int smc_hw_hot_reset(struct smc_dev *smc)
 
 			sc_reg0_reg->rst_level = RESET_ENABLE;
 			sc_reg0_reg->enable = 0;
-			sc_reg0_reg->clk_en = 1;
+//			sc_reg0_reg->clk_en = 1;
 			SMC_WRITE_REG(REG0, sc_reg0);
-			smc_clk_enable(sc_reg0_reg->clk_en);
+//			smc_clk_enable(sc_reg0_reg->clk_en);
 #ifdef RST_FROM_PIO
 			_gpio_out(smc->reset_pin, RESET_ENABLE,
 				  SMC_RESET_PIN_NAME);

@@ -16,7 +16,7 @@
 
 #define F_DEFAULT 372
 #define D_DEFAULT 1
-#define FREQ_DEFAULT 4000		/*KHz*/
+#define FREQ_DEFAULT 4500		/*KHz*/
 #define FIFO_THRESHOLD_DEFAULT 1
 #define ETU_DIVIDER_CLOCK_HZ	24000	/* KHz*/
 /*00: soc crystal;*/
