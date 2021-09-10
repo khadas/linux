@@ -440,6 +440,25 @@ struct tvin_emp_data_s {
 	u8 tag_id;
 };
 
+struct tvin_vtem_data_s {
+	u8 vrr_en;
+	u8 m_const;
+	u8 fva_factor_m1;
+	u8 base_vfront;
+	u8 rb;
+	u16 base_framerate;
+	//real structure
+	//u8 vrr_en:1;
+	//u8 m_const:1;
+	//u8 rsvd0:2;
+	//u8 fva_factor_m1:4;
+	//u8 base_vfront;
+	//u8 base_fr_high:2;
+	//u8 rb:1;
+	//u8 rsvd1:5;
+	//u8 base_fr_low;
+};
+
 struct tvin_hdr10plus_info_s {
 	bool hdr10p_on;
 	struct tvin_hdr10p_data_s hdr10p_data;
@@ -490,6 +509,7 @@ struct tvin_sig_property_s {
 	struct tvin_latency_s latency;
 	struct tvin_hdr10plus_info_s hdr10p_info;
 	struct tvin_emp_data_s emp_data;
+	struct tvin_vtem_data_s vtem_data;
 	unsigned int cnt;
 
 	/* only use for loopback, 0=positvie, 1=negative */

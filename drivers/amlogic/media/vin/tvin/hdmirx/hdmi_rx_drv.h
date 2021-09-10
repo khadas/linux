@@ -483,6 +483,16 @@ struct vtem_info_s {
 	u8 base_vfront;
 	u8 rb;
 	u16 base_framerate;
+	//real structure
+	//u8 vrr_en:1;
+	//u8 m_const:1;
+	//u8 rsvd0:2;
+	//u8 fva_factor_m1:4;
+	//u8 base_vfront;
+	//u8 base_fr_high:2;
+	//u8 rb:1;
+	//u8 rsvd1:5;
+	//u8 base_fr_low;
 };
 
 #define CHANNEL_STATUS_SIZE   24

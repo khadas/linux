@@ -328,7 +328,7 @@ void hdmirx_fsm_var_init(void)
 		clk_unstable_max = 100;
 		esd_phy_rst_max = 8;
 		pll_unlock_max = 30;
-		stable_check_lvl = 0x7df;
+		stable_check_lvl = 0x7d3;
 		pll_lock_max = 2;
 		err_cnt_sum_max = 10;
 		hpd_wait_max = 40;

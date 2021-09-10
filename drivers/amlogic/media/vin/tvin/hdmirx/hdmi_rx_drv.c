@@ -1034,6 +1034,14 @@ void hdmirx_get_emp_info(struct tvin_sig_property_s *prop)
 #endif
 }
 
+void hdmirx_get_vtem_info(struct tvin_sig_property_s *prop)
+{
+	memset(&prop->vtem_data, 0, sizeof(struct tvin_vtem_data_s));
+	if (rx.vrr_en)
+		memcpy(&prop->vtem_data,
+			   &rx.vtem_info, sizeof(struct vtem_info_s));
+}
+
 void rx_set_sig_info(void)
 {
 	struct tvin_frontend_s *fe = tvin_get_frontend(TVIN_PORT_HDMI0,
@@ -1145,6 +1153,7 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	hdmirx_get_vsi_info(prop);
 	hdmirx_get_latency_info(prop);
 	hdmirx_get_emp_info(prop);
+	hdmirx_get_vtem_info(prop);
 	hdmirx_get_active_aspect_ratio(prop);
 	hdmirx_get_hdcp_sts(prop);
 	prop->skip_vf_num = vdin_drop_frame_cnt;
