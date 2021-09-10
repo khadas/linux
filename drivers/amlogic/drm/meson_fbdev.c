@@ -61,11 +61,39 @@ static int am_meson_fbdev_alloc_fb_gem(struct fb_info *info)
 static void am_meson_fbdev_free_fb_gem(struct fb_info *info)
 {
 	struct drm_fb_helper *helper = info->par;
-	struct meson_drm_fbdev *fbdev = container_of(helper, struct meson_drm_fbdev, base);
+	struct meson_drm_fbdev *fbdev;
+	struct drm_framebuffer *fb;
+	struct am_meson_fb *meson_fb;
 
-	if (fbdev->fb_gem) {
+	if (!helper) {
+		DRM_ERROR("fb helper is NULL!\n");
+		return;
+	}
+
+	fbdev = container_of(helper, struct meson_drm_fbdev, base);
+	if (fbdev && fbdev->fb_gem) {
+		struct drm_gem_object *gem_obj = fbdev->fb_gem;
+		struct am_meson_gem_object *meson_gem = container_of(gem_obj,
+					struct am_meson_gem_object, base);
+
+		ion_heap_unmap_kernel(meson_gem->ionbuffer->heap,
+				meson_gem->ionbuffer);
+		info->screen_base = NULL;
+
 		am_meson_gem_object_free(fbdev->fb_gem);
 		fbdev->fb_gem = NULL;
+
+		fb = helper->fb;
+		if (fb) {
+			meson_fb = container_of(fb, struct am_meson_fb, base);
+			if (meson_fb)
+				meson_fb->bufp[0] = NULL;
+			else
+				DRM_ERROR("meson_fb is NULL!\n");
+		} else {
+			DRM_ERROR("drm framebuffer is NULL!\n");
+		}
+
 		DRM_DEBUG("free memory done\n");
 	} else {
 		DRM_DEBUG("memory already free before\n");
@@ -560,12 +588,37 @@ static int am_meson_fbdev_parse_config(struct drm_device *dev)
 	return ret;
 }
 
+static ssize_t show_force_free_mem(struct device *device,
+		struct device_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "Usage: echo 1 > force_free mem\n");
+}
+
+static ssize_t store_force_free_mem(struct device *device,
+		struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+
+	if (strncmp("1", buf, 1) == 0) {
+		am_meson_fbdev_free_fb_gem(fb_info);
+		DRM_INFO("fb mem is freed !\n");
+	}
+	return count;
+}
+
+static struct device_attribute fbdev_device_attrs[] = {
+	__ATTR(force_free_mem, 0644, show_force_free_mem, store_force_free_mem),
+};
+
 struct meson_drm_fbdev *am_meson_create_drm_fbdev(struct drm_device *dev)
 {
 	struct meson_drm *drmdev = dev->dev_private;
 	struct meson_drm_fbdev *fbdev;
 	struct drm_fb_helper *helper;
 	int ret, bpp;
+	struct fb_info *fbinfo;
+	int i = 0;
 
 	bpp = drmdev->ui_config.fb_bpp;
 	fbdev = devm_kzalloc(dev->dev, sizeof(struct meson_drm_fbdev), GFP_KERNEL);
@@ -594,6 +647,18 @@ struct meson_drm_fbdev *am_meson_create_drm_fbdev(struct drm_device *dev)
 		dev_err(dev->dev, "Failed to set initial hw config - %d.\n",
 			ret);
 		goto err_drm_fb_helper_fini;
+	}
+
+	fbinfo = helper->fbdev;
+	if (fbinfo && fbinfo->dev) {
+		for (i = 0; i < ARRAY_SIZE(fbdev_device_attrs); i++) {
+			ret = device_create_file(fbinfo->dev,
+						&fbdev_device_attrs[i]);
+			if (ret) {
+				DRM_ERROR("Failed to create file - %d.\n", ret);
+				continue;
+			}
+		}
 	}
 
 	fbdev->blank = false;
@@ -658,19 +723,37 @@ void am_meson_drm_fbdev_fini(struct drm_device *dev)
 	struct meson_drm *private = dev->dev_private;
 	struct meson_drm_fbdev *fbdev;
 	struct drm_fb_helper *helper;
+	struct fb_info *fbinfo;
 	int i;
 
 	for (i = 0; i < MESON_MAX_OSD; i++) {
 		fbdev = private->osd_fbdevs[i];
-		if (fbdev) {
-			helper = &fbdev->base;
-			drm_fb_helper_unregister_fbi(helper);
-			drm_fb_helper_fini(helper);
-			if (helper->fb)
-				drm_framebuffer_put(helper->fb);
-			fbdev->fb_gem = NULL;
-			drm_fb_helper_fini(helper);
-			kfree(fbdev);
+		if (!fbdev) {
+			dev_err(dev->dev, "fbdev is NULL.\n");
+			continue;
 		}
+
+		helper = &fbdev->base;
+		if (!helper || !helper->fbdev) {
+			kfree(fbdev);
+			dev_err(dev->dev, "helper or fbinfo is NULL.\n");
+			continue;
+		}
+
+		fbinfo = helper->fbdev;
+		if (fbinfo && fbinfo->dev) {
+			for (i = 0; i < ARRAY_SIZE(fbdev_device_attrs); i++) {
+				device_remove_file(fbinfo->dev,
+						&fbdev_device_attrs[i]);
+			}
+		}
+
+		drm_fb_helper_unregister_fbi(helper);
+		drm_fb_helper_fini(helper);
+		if (helper->fb)
+			drm_framebuffer_put(helper->fb);
+		fbdev->fb_gem = NULL;
+		drm_fb_helper_fini(helper);
+		kfree(fbdev);
 	}
 }
