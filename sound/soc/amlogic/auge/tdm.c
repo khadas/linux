@@ -26,7 +26,7 @@
 #include <linux/amlogic/clk_measure.h>
 #include <linux/amlogic/cpu_version.h>
 
-#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
+#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include <linux/amlogic/media/sound/aout_notify.h>
 
 #include "ddr_mngr.h"

@@ -42,9 +42,7 @@
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/vout/vdac_dev.h>
 /*#include <linux/amlogic/amports/vframe.h>*/
-/* #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h> */
-#include <linux/amlogic/media/vout/hdmi.h>
-#include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ext.h>
+#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include <linux/of_gpio.h>
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>

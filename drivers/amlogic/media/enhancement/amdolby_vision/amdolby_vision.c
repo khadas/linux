@@ -72,7 +72,7 @@
 #include <linux/spinlock.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/gki_module.h>
-#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
+#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include <linux/amlogic/media/utils/am_com.h>
 #include "../../common/vfm/vfm.h"
 #include <linux/amlogic/media/utils/vdec_reg.h>

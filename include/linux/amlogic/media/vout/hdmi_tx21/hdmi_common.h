@@ -8,6 +8,7 @@
 
 #include <linux/hdmi.h>
 #include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 
 /* HDMI VIC definitions */
 
@@ -361,50 +362,6 @@ u32 hdmi21_get_aud_n_paras(enum hdmi_audio_fs fs,
 				  enum hdmi_color_depth cd,
 				  u32 tmds_clk);
 
-/* HDMI Audio Parmeters */
-/* Refer to CEA-861-D Page 88 */
-#define DTS_HD_TYPE_MASK 0xff00
-#define DTS_HD_MA  (0X1 << 8)
-enum hdmi_audio_type {
-	CT_REFER_TO_STREAM = 0,
-	CT_PCM,
-	CT_AC_3, /* DD */
-	CT_MPEG1,
-	CT_MP3,
-	CT_MPEG2,
-	CT_AAC,
-	CT_DTS,
-	CT_ATRAC,
-	CT_ONE_BIT_AUDIO,
-	CT_DOLBY_D, /* DDP or DD+ */
-	CT_DTS_HD,
-	CT_MAT, /* TrueHD */
-	CT_DST,
-	CT_WMA,
-	CT_DTS_HD_MA = CT_DTS_HD + (DTS_HD_MA),
-	CT_MAX,
-};
-
-enum hdmi_audio_chnnum {
-	CC_REFER_TO_STREAM = 0,
-	CC_2CH,
-	CC_3CH,
-	CC_4CH,
-	CC_5CH,
-	CC_6CH,
-	CC_7CH,
-	CC_8CH,
-	CC_MAX_CH
-};
-
-enum hdmi_audio_format {
-	AF_SPDIF = 0, AF_I2S, AF_DSD, AF_HBR, AT_MAX
-};
-
-enum hdmi_audio_sampsize {
-	SS_REFER_TO_STREAM = 0, SS_16BITS, SS_20BITS, SS_24BITS, SS_MAX
-};
-
 struct size_map {
 	u32 sample_bits;
 	enum hdmi_audio_sampsize ss;
@@ -487,26 +444,6 @@ enum hdmi_rx_audio_state {
 	STATE_AUDIO__REQUEST_AUDIO = 1,
 	STATE_AUDIO__AUDIO_READY = 2,
 	STATE_AUDIO__ON = 3,
-};
-
-/* Sampling Freq Fs:
- * 0 - Refer to Stream Header;
- * 1 - 32KHz;
- * 2 - 44.1KHz;
- * 3 - 48KHz;
- * 4 - 88.2KHz...
- */
-enum hdmi_audio_fs {
-	FS_REFER_TO_STREAM = 0,
-	FS_32K = 1,
-	FS_44K1 = 2,
-	FS_48K = 3,
-	FS_88K2 = 4,
-	FS_96K = 5,
-	FS_176K4 = 6,
-	FS_192K = 7,
-	FS_768K = 8,
-	FS_MAX,
 };
 
 struct rate_map_fs {
