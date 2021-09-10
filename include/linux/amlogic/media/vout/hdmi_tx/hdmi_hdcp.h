@@ -6,7 +6,7 @@
 #ifndef __HDMI_HDCP_H__
 #define __HDMI_HDCP_H__
 #include <linux/wait.h>
-#include "../hdmi.h"
+#include "../hdmi_tx_ext.h"
 
 struct hdcp_obs_val {
 	unsigned char obs0;

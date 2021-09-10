@@ -802,22 +802,17 @@ struct hdmitx_uevent {
 	const char *env;
 };
 
-#ifdef CONFIG_AMLOGIC_HDMITX
 struct hdmitx_dev *get_hdmitx_device(void);
+/* for hdmitx internal usage */
 void hdmitx_hdcp_status(int hdmi_authenticated);
 void hdmitx_event_notify(unsigned long state, void *arg);
-#else
-static inline struct hdmitx_dev *get_hdmitx_device(void)
-{
-	return NULL;
-}
-
-#endif
+void setup20_attr(const char *buf);
+void get20_attr(char attr[16]);
+void hdmitx20_video_mute_op(unsigned int flag);
 
 void hdmi_set_audio_para(int para);
 int get_cur_vout_index(void);
 void phy_pll_off(void);
-int get_hpd_state(void);
 void hdmitx_hdcp_do_work(struct hdmitx_dev *hdev);
 
 /***********************************************************************
@@ -825,13 +820,6 @@ void hdmitx_hdcp_do_work(struct hdmitx_dev *hdev);
  ***********************************************************************/
 void hdmitx_meson_init(struct hdmitx_dev *hdmitx_device);
 unsigned int get_hdcp22_base(void);
-/*
- * hdmitx_audio_mute_op() is used by external driver call
- * flag: 0: audio off   1: audio_on
- *       2: for EDID auto mode
- */
-void hdmitx_audio_mute_op(unsigned int flag);
-void hdmitx_video_mute_op(unsigned int flag);
 
 /*
  * HDMITX HPD HW related operations
@@ -899,8 +887,6 @@ struct Hdcp_Sub {
 
 void hdmi_tx_edid_proc(unsigned char *edid);
 
-void setup_attr(const char *buf);
-void get_attr(char attr[16]);
 unsigned int hd_read_reg(unsigned int addr);
 void hd_write_reg(unsigned int addr, unsigned int val);
 void hd_set_reg_bits(unsigned int addr, unsigned int value,
