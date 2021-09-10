@@ -98,7 +98,7 @@ static void am_meson_gem_free_ion_buf(struct drm_device *dev,
 	if (meson_gem_obj->ionbuffer) {
 		DRM_DEBUG("%s free buffer  (0x%p).\n", __func__,
 			  meson_gem_obj->ionbuffer);
-		ion_free(meson_gem_obj->ionbuffer);
+		dma_buf_put(meson_gem_obj->dmabuf);
 		meson_gem_obj->ionbuffer = NULL;
 		meson_gem_obj->dmabuf = NULL;
 	} else {
