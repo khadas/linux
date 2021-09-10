@@ -1249,6 +1249,15 @@ static int tas5805m_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
+static void tas5805m_i2c_shutdown(struct i2c_client *i2c)
+{
+	struct tas5805m_priv *tas5805m = i2c_get_clientdata(i2c);
+	struct tas5805m_platform_data *pdata = tas5805m->pdata;
+
+	if (pdata->reset_pin)
+		gpio_direction_output(pdata->reset_pin, GPIOF_OUT_INIT_LOW);
+}
+
 static const struct i2c_device_id tas5805m_i2c_id[] = {
 	{"tas5805",},
 	{}
@@ -1268,6 +1277,7 @@ MODULE_DEVICE_TABLE(of, tas5805m_of_match);
 static struct i2c_driver tas5805m_i2c_driver = {
 	.probe = tas5805m_i2c_probe,
 	.remove = tas5805m_i2c_remove,
+	.shutdown = tas5805m_i2c_shutdown,
 	.id_table = tas5805m_i2c_id,
 	.driver = {
 		   .name = TAS5805M_DRV_NAME,
