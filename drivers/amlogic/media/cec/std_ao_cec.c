@@ -42,10 +42,6 @@
 #include <linux/pm_wakeirq.h>
 #include <linux/pm.h>
 #include <linux/poll.h>
-#ifdef CONFIG_AMLOGIC_HDMITX
-#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
-#include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ext.h>
-#endif
 #include <linux/amlogic/pm.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/scpi_protocol.h>
@@ -100,7 +96,7 @@ static struct st_ao_cec std_ao_cec;
 static void cec_store_msg_to_buff(unsigned char len, unsigned char *msg);
 static void cec_new_msg_push(void);
 
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 static int hdmitx_notify_callback(struct notifier_block *block,
 				  unsigned long cmd, void *para)
 {
@@ -129,17 +125,9 @@ static struct notifier_block hdmitx_notifier_nb = {
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 static int hdmirx_notify_callback(unsigned int pwr5v_sts)
 {
-	int ret = 0;
-	unsigned int tmp = 0;
-
-#ifdef CONFIG_AMLOGIC_HDMITX
-	tmp |= (cec_dev->tx_dev->hpd_state << 4);
-#endif
-	tmp |= (pwr5v_sts & 0xF);
-
 	queue_delayed_work(cec_dev->hdmi_plug_wq, &cec_dev->work_hdmi_plug, 0);
 
-	return ret;
+	return 0;
 }
 #endif
 
@@ -414,9 +402,9 @@ static bool check_physical_addr_valid(int timeout)
 		if (phy_addr_test)
 			break;
 		/* physical address for box */
-		if (cec_dev->tx_dev &&
-			cec_dev->tx_dev->hpd_state &&
-		    cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.valid == 0) {
+		if (get_hpd_state() &&
+		    get_hdmitx_phy_addr() &&
+		    get_hdmitx_phy_addr()->valid == 0) {
 			msleep(40);
 			timeout--;
 		} else {
@@ -983,7 +971,7 @@ static ssize_t port_status_show(struct class *cla,
 	unsigned int tmp;
 	unsigned int tx_hpd;
 
-	tx_hpd = cec_dev->tx_dev->hpd_state;
+	tx_hpd = get_hpd_state();
 	if (cec_dev->dev_type != CEC_TV_ADDR) {
 		tmp = tx_hpd;
 		return sprintf(buf, "%x\n", tmp);
@@ -1002,7 +990,7 @@ static ssize_t pin_status_show(struct class *cla,
 	unsigned int tx_hpd;
 	char p;
 
-	tx_hpd = cec_dev->tx_dev->hpd_state;
+	tx_hpd = get_hpd_state();
 	if (cec_dev->dev_type != CEC_TV_ADDR) {
 		if (!tx_hpd) {
 			pin_status = 0;
@@ -1826,8 +1814,8 @@ static void cec_hdmi_plug_handler(struct work_struct *work)
 {
 	unsigned int tmp = 0;
 
-#ifdef CONFIG_AMLOGIC_HDMITX
-	tmp |= (cec_dev->tx_dev->hpd_state << 4);
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
+	tmp |= (get_hpd_state() << 4);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 	tmp |= (hdmirx_get_connect_info() & 0xF);
@@ -1992,7 +1980,7 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	const char *irq_name_a = NULL;
 	const char *irq_name_b = NULL;
 	struct pinctrl *pin;
-	struct vendor_info_data *vend;
+	struct vendor_info *vend;
 	struct resource *res;
 	resource_size_t *base;
 #endif
@@ -2013,7 +2001,6 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	/*will replace by CEC_IOC_SET_DEV_TYPE*/
 	cec_dev->dev_type = CEC_PLAYBACK_DEVICE_1_ADDR;
 	cec_dev->dbg_dev  = &pdev->dev;
-	cec_dev->tx_dev   = get_hdmitx_device();
 	/* cec_dev->cpu_type = get_cpu_type(); */
 	cec_dev->node = pdev->dev.of_node;
 	cec_dev->probe_finish = false;
@@ -2365,7 +2352,7 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	queue_delayed_work(cec_dev->cec_thread, &cec_dev->cec_work, 0);
 	tasklet_init(&ceca_tasklet, ceca_tasklet_pro,
 			 (unsigned long)cec_dev);
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	hdmitx_event_notifier_regist(&hdmitx_notifier_nb);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
@@ -2450,7 +2437,7 @@ tag_cec_allocate_adapter_fail:
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 	unregister_cec_callback();
 #endif
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	hdmitx_event_notifier_unregist(&hdmitx_notifier_nb);
 #endif
 	destroy_workqueue(cec_dev->cec_rx_event_wq);
@@ -2512,7 +2499,7 @@ static int aml_aocec_remove(struct platform_device *pdev)
 		cancel_delayed_work_sync(&cec_dev->cec_work);
 		destroy_workqueue(cec_dev->cec_thread);
 	}
-#ifdef CONFIG_AMLOGIC_HDMITX
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	hdmitx_event_notifier_unregist(&hdmitx_notifier_nb);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
