@@ -1656,14 +1656,11 @@ void amvecm_saturation_hue_update(int offset_val)
 
 void amvecm_video_latch(void)
 {
-	unsigned int temp;
 	pc_mode_process();
 	cm_latch_process();
 	/*amvecm_size_patch();*/
 	ve_dnlp_latch_process();
-	/*venc*/
-	temp = vpp_get_encl_viu_mux();
-	if (temp == 1 || temp == 3)
+	if (vpp_get_encl_viu_mux() == 1)
 		ve_lcd_gamma_process();
 	lvds_freq_process();
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
