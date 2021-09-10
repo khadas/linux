@@ -291,31 +291,17 @@ int vpp_get_encl_viu_mux(void)
 		return 1;
 	if (((temp >> 2) & 0x3) == 0)
 		return 2;
-	/*t7 panel1_type(vx_b) read [0x271a] is 0x3d,
-	 *default(vx_a) is 0x3c
-	 */
-	if ((temp & 0x3) == 1)
-		return 3;
 
 	return 0;
 }
 
 void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write)
 {
-	unsigned int temp;
-	unsigned int offset = 0x0;
-
-	temp = vpp_get_encl_viu_mux();
-	if (temp == 3)
-		offset = 0x100;
-
 	if (cpu_after_eq_t7()) {
 		if (rdma_write)
-			VSYNC_WRITE_VPP_REG_BITS(LCD_GAMMA_CNTL_PORT0 + offset,
-				1, L_GAMMA_EN, 1);
+			VSYNC_WRITE_VPP_REG_BITS(LCD_GAMMA_CNTL_PORT0, 1, L_GAMMA_EN, 1);
 		else
-			WRITE_VPP_REG_BITS(LCD_GAMMA_CNTL_PORT0 + offset,
-				1, L_GAMMA_EN, 1);
+			WRITE_VPP_REG_BITS(LCD_GAMMA_CNTL_PORT0, 1, L_GAMMA_EN, 1);
 		return;
 	}
 
@@ -327,20 +313,11 @@ void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write)
 
 void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write)
 {
-	unsigned int temp;
-	unsigned int offset = 0x0;
-
-	temp = vpp_get_encl_viu_mux();
-	if (temp == 3)
-		offset = 0x100;
-
 	if (cpu_after_eq_t7()) {
 		if (rdma_write)
-			VSYNC_WRITE_VPP_REG_BITS(LCD_GAMMA_CNTL_PORT0 + offset,
-				0, L_GAMMA_EN, 1);
+			VSYNC_WRITE_VPP_REG_BITS(LCD_GAMMA_CNTL_PORT0, 0, L_GAMMA_EN, 1);
 		else
-			WRITE_VPP_REG_BITS(LCD_GAMMA_CNTL_PORT0 + offset,
-				0, L_GAMMA_EN, 1);
+			WRITE_VPP_REG_BITS(LCD_GAMMA_CNTL_PORT0, 0, L_GAMMA_EN, 1);
 		return;
 	}
 
@@ -360,13 +337,10 @@ void lcd_gamma_api(unsigned int index, u16 *r_data, u16 *g_data, u16 *b_data,
 {
 	int i;
 	unsigned int val;
-	unsigned int temp;
 	unsigned int offset = 0;
 
-	temp = vpp_get_encl_viu_mux();
-	/*force init gamma*/
-	/*if (!gamma_en)*/
-	/*	return;*/
+	if (!gamma_en)
+		return;
 
 	if (index == 0)
 		offset = 0;
@@ -965,8 +939,6 @@ void ve_lcd_gamma_process(void)
 	struct tcon_gamma_table_s *ptable;
 
 	viu_sel = vpp_get_encl_viu_mux();
-	if (viu_sel == 3) /*t7 vx_b*/
-		gamma_index = 1;
 
 	if (vecm_latch_flag & FLAG_GAMMA_TABLE_EN) {
 		vecm_latch_flag &= ~FLAG_GAMMA_TABLE_EN;
