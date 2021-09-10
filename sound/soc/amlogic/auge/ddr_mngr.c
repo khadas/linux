@@ -299,7 +299,7 @@ int aml_toddr_set_intrpt(struct toddr *to, unsigned int intrpt)
 	reg = calc_toddr_address(EE_AUDIO_TODDR_A_INT_ADDR, reg_base);
 	aml_audiobus_write(actrl, reg, intrpt);
 	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL0, reg_base);
-	aml_audiobus_update_bits(actrl, reg, 0xff << 16, 0x34 << 16);
+	aml_audiobus_update_bits(actrl, reg, 0xff << 16, 0x4 << 16);
 
 	return 0;
 }
