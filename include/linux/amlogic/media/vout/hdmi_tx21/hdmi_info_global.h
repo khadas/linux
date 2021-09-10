@@ -7,6 +7,7 @@
 #define _HDMI_INFO_GLOBAL_H
 
 #include "hdmi_common.h"
+#include "../hdmi_tx_ext.h"
 
 enum hdmi_rx_video_state {
 	STATE_VIDEO__POWERDOWN = 0,
@@ -234,15 +235,6 @@ struct hdmitx_audinfo {
 	enum hdmi_audio_chnnum channels;
 	enum hdmi_audio_fs fs; /* !< Signal sample rate in Hz */
 	enum hdmi_audio_sampsize ss;
-};
-
-/* -----------------Source Physical Address--------------- */
-struct vsdb_phyaddr {
-	u8 a:4;
-	u8 b:4;
-	u8 c:4;
-	u8 d:4;
-	u8 valid;
 };
 
 #define Y420CMDB_MAX	32

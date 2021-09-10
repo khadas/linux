@@ -44,7 +44,8 @@
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ddc.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_config.h>
-#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
+#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#include "hdmi_tx_ext.h"
 #include "hdmi_tx.h"
 
 #include <linux/amlogic/gki_module.h>
@@ -111,6 +112,16 @@ struct hdmitx_dev *get_hdmitx21_device(void)
 }
 EXPORT_SYMBOL(get_hdmitx21_device);
 
+int get_hdmitx21_init(void)
+{
+	return hdmitx21_device.hdmi_init;
+}
+
+struct vsdb_phyaddr *get_hdmitx21_phy_addr(void)
+{
+	return &hdmitx21_device.hdmi_info.vsdb_phy_addr;
+}
+
 static const struct dv_info dv_dummy;
 static int log21_level;
 
@@ -120,6 +131,9 @@ static struct vout_device_s hdmitx_vdev = {
 	.fresh_tx_vsif_pkt = hdmitx_set_vsif_pkt,
 	.fresh_tx_hdr10plus_pkt = hdmitx_set_hdr10plus_pkt,
 	.fresh_tx_emp_pkt = hdmitx_set_emp_pkt,
+	.get_attr = get21_attr,
+	.setup_attr = setup21_attr,
+	.video_mute = hdmitx21_video_mute_op,
 };
 
 static struct hdmitx_uevent hdmi_events[] = {
@@ -720,7 +734,6 @@ void setup21_attr(const char *buf)
 	memcpy(attr, buf, sizeof(attr));
 	memcpy(hdev->fmt_attr, attr, sizeof(hdev->fmt_attr));
 }
-EXPORT_SYMBOL(setup21_attr);
 
 void get21_attr(char attr[16])
 {
@@ -728,7 +741,6 @@ void get21_attr(char attr[16])
 
 	memcpy(attr, hdev->fmt_attr, sizeof(hdev->fmt_attr));
 }
-EXPORT_SYMBOL(get21_attr);
 
 /*edid attr*/
 static ssize_t edid_show(struct device *dev,
@@ -1025,7 +1037,6 @@ void hdmitx21_audio_mute_op(u32 flag)
 	else
 		hdev->hwop.cntlconfig(hdev, CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
 }
-EXPORT_SYMBOL(hdmitx21_audio_mute_op);
 
 void hdmitx21_video_mute_op(u32 flag)
 {
@@ -1036,7 +1047,6 @@ void hdmitx21_video_mute_op(u32 flag)
 	else
 		hdev->hwop.cntlconfig(hdev, CONF_VIDEO_MUTE_OP, VIDEO_UNMUTE);
 }
-EXPORT_SYMBOL(hdmitx21_video_mute_op);
 
 /*
  *  SDR/HDR uevent
@@ -2052,7 +2062,6 @@ void hdmitx21_ext_set_audio_output(int enable)
 {
 	hdmitx21_audio_mute_op(enable);
 }
-EXPORT_SYMBOL_GPL(hdmitx21_ext_set_audio_output);
 
 int hdmitx21_ext_get_audio_status(void)
 {
@@ -2060,7 +2069,6 @@ int hdmitx21_ext_get_audio_status(void)
 
 	return !!hdev->tx_aud_cfg;
 }
-EXPORT_SYMBOL_GPL(hdmitx21_ext_get_audio_status);
 
 void hdmitx21_ext_set_i2s_mask(char ch_num, char ch_msk)
 {
@@ -3911,7 +3919,6 @@ int get21_hpd_state(void)
 
 	return ret;
 }
-EXPORT_SYMBOL(get21_hpd_state);
 
 /******************************
  *  hdmitx kernel task
@@ -4082,7 +4089,20 @@ int hdmitx21_event_notifier_regist(struct notifier_block *nb)
 
 	return ret;
 }
-EXPORT_SYMBOL(hdmitx21_event_notifier_regist);
+
+int hdmitx21_event_notifier_unregist(struct notifier_block *nb)
+{
+	int ret;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (hdev->hdmi_init != 1)
+		return 1;
+
+	ret = blocking_notifier_chain_unregister(&hdmitx21_event_notify_list,
+						 nb);
+
+	return ret;
+}
 
 void hdmitx21_event_notify(unsigned long state, void *arg)
 {

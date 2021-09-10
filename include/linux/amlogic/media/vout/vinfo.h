@@ -312,6 +312,9 @@ struct vout_device_s {
 	void (*fresh_tx_cuva_hdr_vs_emds)(struct cuva_hdr_vs_emds_para *data);
 	void (*fresh_tx_emp_pkt)(unsigned char *data, unsigned int type,
 				 unsigned int size);
+	void (*get_attr)(char attr[16]);
+	void (*setup_attr)(const char *buf);
+	void (*video_mute)(unsigned int flag);
 };
 
 struct vinfo_base_s {

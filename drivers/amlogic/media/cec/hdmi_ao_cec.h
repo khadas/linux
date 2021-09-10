@@ -5,9 +5,8 @@
 
 #ifndef __AO_CEC_H__
 #define __AO_CEC_H__
-#ifdef CONFIG_AMLOGIC_HDMITX
-#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
-#endif
+#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
 #define CEC_DRIVER_VERSION     "2021/07/30: add linux std cec framework"
@@ -149,6 +148,17 @@ struct st_cec_mailbox_data {
 	unsigned char osd_name[16];
 } __packed;
 
+struct vendor_info {
+	unsigned char *vendor_name; /* Max Chars: 8 */
+	/* vendor_id, 3 Bytes, Refer to
+	 * http://standards.ieee.org/develop/regauth/oui/oui.txt
+	 */
+	unsigned char *product_desc; /* Max Chars: 16 */
+	unsigned char *cec_osd_string; /* Max Chars: 14 */
+	unsigned int cec_config; /* 4 bytes: use to control cec switch on/off */
+	unsigned int vendor_id;
+};
+
 /* global struct for tx and rx */
 struct ao_cec_dev {
 	bool probe_finish;
@@ -170,7 +180,7 @@ struct ao_cec_dev {
 	void __iomem *hhi_reg;
 	void __iomem *periphs_reg;
 	void __iomem *clk_reg;
-	struct hdmitx_dev *tx_dev;
+	/* struct hdmitx_dev *tx_dev; */
 	struct workqueue_struct *cec_thread;
 	struct workqueue_struct *hdmi_plug_wq;
 	struct workqueue_struct *cec_rx_event_wq;
@@ -193,7 +203,7 @@ struct ao_cec_dev {
 #ifdef CONFIG_PM
 	int cec_suspend;
 #endif
-	struct vendor_info_data v_data;
+	struct vendor_info v_data;
 	struct cec_global_info_t cec_info;
 	struct cec_platform_data_s *plat_data;
 

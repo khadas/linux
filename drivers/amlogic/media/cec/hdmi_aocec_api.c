@@ -1661,18 +1661,17 @@ void init_cec_port_info(struct hdmi_port_info *port,
 {
 	unsigned int a, b, c = 0, d, e = 0;
 	unsigned int phy_head = 0xf000, phy_app = 0x1000, phy_addr;
-	struct hdmitx_dev *tx_dev;
+	struct vsdb_phyaddr *tx_phy_addr = get_hdmitx_phy_addr();
 
 	/* physical address for TV or repeator */
-	tx_dev = cec_dev->tx_dev;
-	if (!tx_dev || cec_dev->dev_type == CEC_TV_ADDR) {
+	if (!tx_phy_addr || cec_dev->dev_type == CEC_TV_ADDR) {
 		phy_addr = 0;
-	} else if (tx_dev->hdmi_info.vsdb_phy_addr.valid == 1) {
+	} else if (tx_phy_addr->valid == 1) {
 		/* get phy address from tx module */
-		a = tx_dev->hdmi_info.vsdb_phy_addr.a;
-		b = tx_dev->hdmi_info.vsdb_phy_addr.b;
-		c = tx_dev->hdmi_info.vsdb_phy_addr.c;
-		d = tx_dev->hdmi_info.vsdb_phy_addr.d;
+		a = tx_phy_addr->a;
+		b = tx_phy_addr->b;
+		c = tx_phy_addr->c;
+		d = tx_phy_addr->d;
 		phy_addr = ((a << 12) | (b << 8) | (c << 4) | (d));
 	} else {
 		phy_addr = 0;
@@ -1756,7 +1755,7 @@ void cec_status(void)
 	CEC_ERR("output:0x%x\n", cec_dev->output);
 	CEC_ERR("arc_port:0x%x\n", cec_dev->arc_port);
 	CEC_ERR("hal_flag:0x%x\n", cec_dev->hal_flag);
-	CEC_ERR("hpd_state:0x%x\n", cec_dev->tx_dev->hpd_state);
+	CEC_ERR("hpd_state:0x%x\n", get_hpd_state());
 	CEC_ERR("cec_config:0x%x\n", cec_config(0, 0));
 	CEC_ERR("log_addr:0x%x\n", cec_dev->cec_info.log_addr);
 
@@ -1811,23 +1810,22 @@ void cec_status(void)
 
 unsigned int cec_get_cur_phy_addr(void)
 {
-		struct hdmitx_dev *tx_dev;
 		unsigned int a, b, c, d;
 		unsigned int tmp = 0, i;
+		struct vsdb_phyaddr *tx_phy_addr = get_hdmitx_phy_addr();
 
-		tx_dev = cec_dev->tx_dev;
-		if (!tx_dev || cec_dev->dev_type == CEC_TV_ADDR) {
+		if (!tx_phy_addr || cec_dev->dev_type == CEC_TV_ADDR) {
 			tmp = 0;
 		} else {
 			for (i = 0; i < 5; i++) {
 				/*hpd attach and wait read edid*/
-				a = tx_dev->hdmi_info.vsdb_phy_addr.a;
-				b = tx_dev->hdmi_info.vsdb_phy_addr.b;
-				c = tx_dev->hdmi_info.vsdb_phy_addr.c;
-				d = tx_dev->hdmi_info.vsdb_phy_addr.d;
+				a = tx_phy_addr->a;
+				b = tx_phy_addr->b;
+				c = tx_phy_addr->c;
+				d = tx_phy_addr->d;
 				tmp = ((a << 12) | (b << 8) | (c << 4) | (d));
 
-				if (tx_dev->hdmi_info.vsdb_phy_addr.valid == 1)
+				if (tx_phy_addr->valid == 1)
 					break;
 				msleep(20);
 			}

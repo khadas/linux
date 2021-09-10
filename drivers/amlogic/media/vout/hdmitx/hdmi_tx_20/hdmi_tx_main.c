@@ -45,7 +45,8 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx/meson_drm_hdmitx.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_config.h>
-#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
+#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include "hw/tvenc_conf.h"
 #include "hw/common.h"
 #include "hw/hw_clk.h"
@@ -160,6 +161,9 @@ struct vout_device_s hdmitx_vdev = {
 	.fresh_tx_cuva_hdr_vsif = hdmitx_set_cuva_hdr_vsif,
 	.fresh_tx_cuva_hdr_vs_emds = hdmitx_set_cuva_hdr_vs_emds,
 	.fresh_tx_emp_pkt = hdmitx_set_emp_pkt,
+	.get_attr = get20_attr,
+	.setup_attr = setup20_attr,
+	.video_mute = hdmitx20_video_mute_op,
 };
 
 struct hdmi_config_platform_data *hdmi_pdata;
@@ -756,22 +760,18 @@ ssize_t attr_store(struct device *dev,
 	return count;
 }
 
-/*aud_mode attr*/
-
-void setup_attr(const char *buf)
+void setup20_attr(const char *buf)
 {
 	char attr[16] = {0};
 
 	memcpy(attr, buf, sizeof(attr));
 	memcpy(hdmitx_device.fmt_attr, attr, sizeof(hdmitx_device.fmt_attr));
 }
-EXPORT_SYMBOL(setup_attr);
 
-void get_attr(char attr[16])
+void get20_attr(char attr[16])
 {
 	memcpy(attr, hdmitx_device.fmt_attr, sizeof(hdmitx_device.fmt_attr));
 }
-EXPORT_SYMBOL(get_attr);
 
 /* for android application data exchange / swap */
 static char *tmp_swap;
@@ -1336,7 +1336,7 @@ static ssize_t hdcp22_base_show(struct device *dev,
 	return pos;
 }
 
-void hdmitx_audio_mute_op(unsigned int flag)
+void hdmitx20_audio_mute_op(unsigned int flag)
 {
 	if (hdmitx_device.hdmi_init != 1)
 		return;
@@ -1349,9 +1349,8 @@ void hdmitx_audio_mute_op(unsigned int flag)
 		hdmitx_device.hwop.cntlconfig(&hdmitx_device,
 			CONF_AUDIO_MUTE_OP, AUDIO_UNMUTE);
 }
-EXPORT_SYMBOL(hdmitx_audio_mute_op);
 
-void hdmitx_video_mute_op(unsigned int flag)
+void hdmitx20_video_mute_op(unsigned int flag)
 {
 	if (hdmitx_device.hdmi_init != 1)
 		return;
@@ -1366,7 +1365,6 @@ void hdmitx_video_mute_op(unsigned int flag)
 		hdmitx_device.vid_mute_op = VIDEO_UNMUTE;
 	}
 }
-EXPORT_SYMBOL(hdmitx_video_mute_op);
 
 /*
  *  SDR/HDR uevent
@@ -2698,19 +2696,17 @@ static ssize_t config_store(struct device *dev,
 	return count;
 }
 
-void hdmitx_ext_set_audio_output(int enable)
+void hdmitx20_ext_set_audio_output(int enable)
 {
 	hdmitx_audio_mute_op(enable);
 }
-EXPORT_SYMBOL_GPL(hdmitx_ext_set_audio_output);
 
-int hdmitx_ext_get_audio_status(void)
+int hdmitx20_ext_get_audio_status(void)
 {
 	return !!hdmitx_device.tx_aud_cfg;
 }
-EXPORT_SYMBOL_GPL(hdmitx_ext_get_audio_status);
 
-void hdmitx_ext_set_i2s_mask(char ch_num, char ch_msk)
+void hdmitx20_ext_set_i2s_mask(char ch_num, char ch_msk)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	static unsigned int update_flag = -1;
@@ -2737,7 +2733,7 @@ void hdmitx_ext_set_i2s_mask(char ch_num, char ch_msk)
 	}
 }
 
-char hdmitx_ext_get_i2s_mask(void)
+char hdmitx20_ext_get_i2s_mask(void)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
 
@@ -6037,7 +6033,7 @@ static void hdmitx_internal_intr_handler(struct work_struct *work)
 	hdev->hwop.debugfun(hdev, "dumpintr");
 }
 
-int get_hpd_state(void)
+int get20_hpd_state(void)
 {
 	int ret;
 
@@ -6047,7 +6043,6 @@ int get_hpd_state(void)
 
 	return ret;
 }
-EXPORT_SYMBOL(get_hpd_state);
 
 /******************************
  *  hdmitx kernel task
@@ -6150,6 +6145,16 @@ struct hdmitx_dev *get_hdmitx_device(void)
 	return &hdmitx_device;
 }
 EXPORT_SYMBOL(get_hdmitx_device);
+
+int get_hdmitx20_init(void)
+{
+	return hdmitx_device.hdmi_init;
+}
+
+struct vsdb_phyaddr *get_hdmitx20_phy_addr(void)
+{
+	return &hdmitx_device.hdmi_info.vsdb_phy_addr;
+}
 
 static int get_dt_vend_init_data(struct device_node *np,
 				 struct vendor_info_data *vend)
@@ -6268,7 +6273,7 @@ static void hdmitx_init_fmt_attr(struct hdmitx_dev *hdev)
 
 /* for notify to cec */
 static BLOCKING_NOTIFIER_HEAD(hdmitx_event_notify_list);
-int _hdmitx_event_notifier_regist(struct notifier_block *nb)
+int hdmitx20_event_notifier_regist(struct notifier_block *nb)
 {
 	int ret = 0;
 
@@ -6290,9 +6295,8 @@ int _hdmitx_event_notifier_regist(struct notifier_block *nb)
 
 	return ret;
 }
-EXPORT_SYMBOL(_hdmitx_event_notifier_regist);
 
-int _hdmitx_event_notifier_unregist(struct notifier_block *nb)
+int hdmitx20_event_notifier_unregist(struct notifier_block *nb)
 {
 	int ret;
 
@@ -6303,7 +6307,6 @@ int _hdmitx_event_notifier_unregist(struct notifier_block *nb)
 
 	return ret;
 }
-EXPORT_SYMBOL(_hdmitx_event_notifier_unregist);
 
 void hdmitx_event_notify(unsigned long state, void *arg)
 {

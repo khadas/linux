@@ -12,7 +12,7 @@
 #include "ddr_mngr.h"
 #include "spdif.h"
 
-#include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ext.h>
+#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include <linux/amlogic/media/sound/aout_notify.h>
 
 unsigned int aml_spdif_ctrl_read(struct aml_audio_controller *actrl,
