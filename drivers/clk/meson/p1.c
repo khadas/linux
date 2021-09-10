@@ -189,7 +189,7 @@ static struct clk_regmap p1_sys1_pll_dco = {
 		/*
 		 * Register has the risk of being directly operated
 		 */
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
 	},
 };
 
