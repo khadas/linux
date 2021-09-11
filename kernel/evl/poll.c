@@ -121,11 +121,11 @@ void __evl_signal_poll_events(struct evl_poll_head *head,
 }
 EXPORT_SYMBOL_GPL(__evl_signal_poll_events);
 
-void evl_drop_poll_table(struct evl_thread *thread)
+void evl_drop_poll_table(struct evl_thread *curr)
 {
 	struct evl_poll_watchpoint *table;
 
-	table = thread->poll_context.table;
+	table = curr->poll_context.table;
 	if (table)
 		evl_free(table);
 }
@@ -485,8 +485,10 @@ collect:
 			if (ret)
 				return -EFAULT;
 			u_set++;
-			if (++count >= maxevents)
+			if (++count > maxevents) {
+				count = maxevents;
 				break;
+			}
 		}
 	}
 
