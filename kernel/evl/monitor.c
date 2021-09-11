@@ -38,7 +38,6 @@ struct evl_monitor {
 			struct evl_monitor *gate;
 			struct evl_poll_head poll_head;
 			struct list_head next; /* in ->events */
-			struct list_head next_poll;
 		};
 	};
 };
