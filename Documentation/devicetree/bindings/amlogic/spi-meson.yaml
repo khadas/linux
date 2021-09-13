@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/spi-meson.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Amlogic Meson SPI slave controller device tree bindings
+
+maintainers:
+  - Sunny.luo <sunny.luo@amlogic.com>
+
+properties:
+  compatible:
+    description: LSI AXM5516 Validation board (Amarillo)
+    items:
+      - const: amlogic,slave-spicc
+  reg:
+    description: physical base address and length of the controller registers
+  interrupts:
+    description: The interrupt specifier
+  clock-names:
+    description: Must contain "core", "comp"
+  clocks:
+    description: Phandle of the input clock for the baud rate generator
+  pinctrl-names:
+    description: Should contain only one value - "default"
+  cs-num:
+    description: Should be 0~3
+  spi-mode:
+    description: Refer to spi-summary.txt
+  vmem-bus-num:
+    description: Should be 0~16
