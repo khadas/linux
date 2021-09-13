@@ -947,6 +947,19 @@
 				status = "disabled";
 			};
 
+			sspicc1: sspi@52000 {
+				compatible = "amlogic,slave-spicc";
+				reg = <0x0 0x52000 0x0 0x44>;
+				interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+				clock-names = "core", "comp";
+				clocks = <&clkc CLKID_SYS_CLK_SPICC1>,
+					 <&clkc CLKID_SPICC1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				//power-domains = <&pwrdm PDID_T7_SPICC1>;
+				status = "disabled";
+			};
+
 			spicc2: spi@54000 {
 				compatible = "amlogic,meson-g12-spicc";
 				reg = <0x0 0x54000 0x0 0x44>;
@@ -3743,6 +3756,14 @@
 				 "spi_b_miso",
 				 //"spi_b_ss0",used as GPIOH_13
 				 "spi_b_clk";
+			function = "spi_b";
+			drive-strength-microamp = <2000>;
+		};
+	};
+
+	spicc1_cs_pins: spicc1_cs_pins {
+		mux {
+			groups = "spi_b_ss0";
 			function = "spi_b";
 			drive-strength-microamp = <2000>;
 		};

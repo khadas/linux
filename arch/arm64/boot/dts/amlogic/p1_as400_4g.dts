@@ -1639,6 +1639,15 @@
 	cs-gpios = <&gpio GPIOH_13 0>;
 };
 
+&sspicc1 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc1_pins &spicc1_cs_pins>;
+	cs-num = <0>;
+	spi-mode = <0x0>;
+	vmem-bus-num = <0>;
+};
+
 &spicc2 {
 	status = "disabled";
 	pinctrl-names = "default";
