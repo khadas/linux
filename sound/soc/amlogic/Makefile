@@ -53,7 +53,7 @@ $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_COMMON) += common/audio_uevent.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_COMMON) += common/debug.o
 
 ifndef CONFIG_AMLOGIC_GKI
-$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_COMMON) += common/notify.o
+obj-$(CONFIG_AMLOGIC_SND_SOC_COMMON) += common/notify.o
 else
 SND_NOTIFY = snd_soc_notify
 obj-$(CONFIG_AMLOGIC_SND_NOTIFY) += $(SND_NOTIFY).o
