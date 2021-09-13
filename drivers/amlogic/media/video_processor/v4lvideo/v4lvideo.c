@@ -1964,8 +1964,8 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 	u32 inst_id = dev->inst;
 
 	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
-		mutex_lock(&dev->mutex_input);
 		dev->receiver_register = false;
+		mutex_lock(&dev->mutex_input);
 		while (!v4l2q_empty(&dev->display_queue)) {
 			v4lvideo_file = pop_from_display_q(dev);
 			if (!v4lvideo_file) {
@@ -1978,7 +1978,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 			/*pr_err("unreg:v4lvideo, keep last frame\n");*/
 		}
 		mutex_unlock(&dev->mutex_input);
-		pr_err("unreg:v4lvideo\n");
+		pr_err("unreg:v4lvideo inst=%d\n", dev->inst);
 		v4l_print(dev->inst, PRINT_COUNT,
 			"unreg get=%d, put=%d, release=%d\n",
 			total_get_count[inst_id], total_put_count[inst_id],
@@ -1988,7 +1988,6 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		v4l2q_init(&dev->display_queue,
 			   V4LVIDEO_POOL_SIZE,
 			   (void **)&dev->v4lvideo_display_queue[0]);
-		dev->receiver_register = true;
 		dev->frame_num = 0;
 		dev->first_frame = 0;
 		dev->last_pts_us64 = U64_MAX;
@@ -1997,7 +1996,8 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		put_count[inst_id] = 0;
 		q_count[inst_id] = 0;
 		dq_count[inst_id] = 0;
-		pr_err("reg:v4lvideo\n");
+		pr_err("reg:v4lvideo inst=%d\n", dev->inst);
+		dev->receiver_register = true;
 	} else if (type == VFRAME_EVENT_PROVIDER_QUREY_STATE) {
 		if (dev->vf_wait_cnt > 1) {
 			if (!inactive_check_disp)
