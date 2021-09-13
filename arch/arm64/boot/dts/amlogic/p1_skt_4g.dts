@@ -1251,7 +1251,7 @@
 
 &pcie {
 	reset-gpio = <&gpio GPIOX_28 GPIO_ACTIVE_HIGH>;
-	status = "disabled";
+	status = "okay";
 };
 
 &i2c9 {
