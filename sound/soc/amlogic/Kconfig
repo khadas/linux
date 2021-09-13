@@ -30,7 +30,7 @@ config AMLOGIC_SND_SOC_COMMON
 config AMLOGIC_SND_NOTIFY
 	tristate "Amlogic sound notify interface"
 	default y if AMLOGIC_SND_SOC=m || AMLOGIC_SND_SOC=y
-	depends on AMLOGIC_GKI
+	#depends on AMLOGIC_GKI
 	help
 		Say Y or M if you want to add support for sound
 		notify interface. This config is used to remove
