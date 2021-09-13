@@ -1234,7 +1234,7 @@
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 1 0 0>;
 		/* define loopack with pdm mic. */
-		mic-src = <&aml_pdm>;
+		mic-src = <&pdm>;
 
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
