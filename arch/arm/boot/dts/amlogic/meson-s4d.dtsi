@@ -17,6 +17,7 @@
 #include <dt-bindings/pwm/meson.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/meson_ir.h>
+#include <dt-bindings/mailbox/amlogic,mbox.h>
 #include "meson-ir-map.dtsi"
 #include "mesong12a-bifrost.dtsi"
 / {
@@ -322,6 +323,29 @@
 			 <&mailbox_mhu_fifo 1>;
 		mbox-id = <0x2 0x3>;
 		#mbox-cells = <1>;
+	};
+
+	mbox_mhu_sec: mhu_sec@0xfe441800 {
+		status = "okay";
+		compatible = "amlogic, meson_mhu_sec";
+		reg = <0xfe441800 0x10>,  /* nee2scpu csr */
+		      <0xfe441c00 0x10>,  /* scpu2nee csr */
+		      <0xfe441a00 0x80>,   /* nee2scpu st */
+		      <0xfe441e00 0x80>;   /* scpu2nee st*/
+		interrupts = <0 49 1>;   /* irq ree */
+		mbox-nums = <2>;
+		mbox-names = "nee2scpu",
+			     "scpu2nee";
+		#mbox-cells = <1>;
+	};
+
+	mbox_user: mbox-user@0 {
+		status = "okay";
+		compatible = "amlogic, meson-mbox-user";
+		mbox-nums = <1>;
+		mbox-names = "nee2scpu";
+		mboxes = <&mbox_mhu_sec 0>;
+		mbox-dests = <MAILBOX_SECPU>;
 	};
 
 	vddcpu0: pwm_j-regulator {
