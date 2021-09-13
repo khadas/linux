@@ -642,7 +642,7 @@ static bool aml_toddr_check_status_flag(struct toddr *to)
 			udelay(1);
 			arb_status = aml_audiobus_read(actrl, EE_AUDIO_ARB_STS);
 
-			pr_info("toddr stop success, fifo id %d, regbase:0x%x, arb sts:0x%x\n",
+			pr_debug("toddr stop success, fifo id %d, regbase:0x%x, arb sts:0x%x\n",
 				to->fifo_id, reg_base, arb_status);
 
 			if (arb_status & 0x80000000) {
@@ -673,7 +673,7 @@ static bool aml_toddr_check_status_flag(struct toddr *to)
 		}
 
 		if ((i % 20) == 0)
-			pr_info("toddr:delay:[%dus];fifo id %d,reg_base 0x%x,sts1 0x%x,arb sts 0x%x\n",
+			pr_debug("toddr:delay:[%dus];fifo id %d,reg_base 0x%x,sts1 0x%x,arb sts 0x%x\n",
 				i, to->fifo_id, reg_base,
 				aml_audiobus_read(actrl, reg),
 				aml_audiobus_read(actrl, EE_AUDIO_ARB_STS));
@@ -1436,7 +1436,7 @@ static bool aml_frddr_burst_finished(struct frddr *fr)
 			udelay(1);
 			arb_status = aml_audiobus_read(actrl, EE_AUDIO_ARB_STS);
 
-			pr_info("frddr stop success, fifo id %d, regbase:0x%x, arb sts:0x%x\n",
+			pr_debug("frddr stop success, fifo id %d, regbase:0x%x, arb sts:0x%x\n",
 				fr->fifo_id, reg_base, arb_status);
 
 			if (arb_status & 0x80000000) {
@@ -1467,7 +1467,7 @@ static bool aml_frddr_burst_finished(struct frddr *fr)
 		}
 
 		if ((i % 20) == 0)
-			pr_info("frddr:delay:[%dus]; id %d, reg_base 0x%x, sts1 0x%x, arb sts 0x%x\n",
+			pr_debug("frddr:delay:[%dus]; id %d, reg_base 0x%x, sts1 0x%x, arb sts 0x%x\n",
 				i, fr->fifo_id, reg_base,
 				aml_audiobus_read(actrl, reg),
 				aml_audiobus_read(actrl, EE_AUDIO_ARB_STS));
