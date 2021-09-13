@@ -60,11 +60,14 @@ struct aml_dvb {
 	 */
 	unsigned int dsc_pipeline;
 	unsigned int tsn_flag;
+	unsigned char loop_tsn;
 };
 
 struct aml_dvb *aml_get_dvb_device(void);
 struct device *aml_get_device(void);
 int tsn_set_double_out(int flag);
+void set_dvb_loop_tsn(int flag);
+int get_dvb_loop_tsn(void);
 
 extern int is_security_dmx;
 

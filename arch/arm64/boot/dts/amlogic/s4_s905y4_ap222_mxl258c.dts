@@ -223,16 +223,16 @@
 		/* header: max 12 bytes */
 		/* data: The same as demux */
 		fe0_ts_header_bytes = <4>;
-		fe0_ts_header_data = <0x4b 0x20 0x0 0x0>;
+		fe0_ts_header_data = <0x4b 0x10 0x0 0x0>;
 
 		fe1_ts_header_bytes = <4>;
-		fe1_ts_header_data = <0x4b 0x21 0x0 0x0>;
+		fe1_ts_header_data = <0x4b 0x11 0x0 0x0>;
 
 		fe2_ts_header_bytes = <4>;
-		fe2_ts_header_data = <0x4b 0x22 0x0 0x0>;
+		fe2_ts_header_data = <0x4b 0x12 0x0 0x0>;
 
 		fe3_ts_header_bytes = <4>;
-		fe3_ts_header_data = <0x4b 0x23 0x0 0x0>;
+		fe3_ts_header_data = <0x4b 0x13 0x0 0x0>;
 
 		fe0_demod = "MXL258C";
 		fe0_i2c_adap_id = <&i2c4>;
@@ -324,20 +324,20 @@
 
 		/*single demod setting */
 		/*ts will bind with dmx device*/
-		//ts0_sid = <0x20>;
+		//ts0_sid = <0x10>;
 		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
 		ts0_control = <0x0>;
 
 		/* tsinB: parallel, serial-4wire, serial-3wire */
-		//ts1_sid = <0x22>;
+		//ts1_sid = <0x12>;
 		ts1 = "parallel";
 		ts1_control = <0x0>;
 
-		//ts2_sid = <0x22>;
+		//ts2_sid = <0x12>;
 		ts2 = "serial-4wire"; /* tsinC: serial-4wire, serial-3wire */
 		ts2_control = <0x0>;
 
-		//ts3_sid = <0x23>;
+		//ts3_sid = <0x13>;
 		ts3 = "serial-4wire"; /* tsinD: serial-4wire, serial-3wire */
 		ts3_control = <0x0>;
 
@@ -351,19 +351,19 @@
 		 * dmx31 sid:0x2F
 		 */
 		ts0_header_len = <4>;
-		ts0_header = <0x4b 0x20 0x0 0x0>;
+		ts0_header = <0x4b 0x10 0x0 0x0>;
 		ts0_sid_offset = <1>;
 
 		ts1_header_len = <4>;
-		ts1_header = <0x4b 0x21 0x0 0x0>;
+		ts1_header = <0x4b 0x11 0x0 0x0>;
 		ts1_sid_offset = <1>;
 
 		ts2_header_len = <4>;
-		ts2_header = <0x4b 0x22 0x0 0x0>;
+		ts2_header = <0x4b 0x12 0x0 0x0>;
 		ts2_sid_offset = <1>;
 
 		ts3_header_len = <4>;
-		ts3_header = <0x4b 0x23 0x0 0x0>;
+		ts3_header = <0x4b 0x13 0x0 0x0>;
 		ts3_sid_offset = <1>;
 
 		/* serial */

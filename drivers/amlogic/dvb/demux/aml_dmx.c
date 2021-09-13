@@ -356,6 +356,11 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	else
 		sid = demux->demod_sid;
 
+	if (get_dvb_loop_tsn()) {
+		sid = sid >= 32 ? sid : (sid + 32);
+		pr_dbg("%s tsn out loop, sid:%d\n", __func__, sid);
+	}
+
 	if (pes_type == DMX_PES_PCR0 ||
 	    pes_type == DMX_PES_PCR1 ||
 	    pes_type == DMX_PES_PCR2 || pes_type == DMX_PES_PCR3) {
@@ -743,6 +748,11 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 		sid = demux->local_sid;
 	else
 		sid = demux->demod_sid;
+
+	if (get_dvb_loop_tsn()) {
+		sid = sid >= 32 ? sid : (sid + 32);
+		pr_dbg("%s tsn out loop, sid:%d\n", __func__, sid);
+	}
 
 	if (sec_feed->sec_out_elem)
 		pr_dbg("pid elem:0x%lx exist\n",

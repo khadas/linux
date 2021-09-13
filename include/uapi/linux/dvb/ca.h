@@ -208,12 +208,15 @@ enum ca_sc2_dsc_type {
  * @dsc_type:	CA_DSC_COMMON_TYPE:support all ca_algo_type
  *		CA_DSC_TSD_TYPE & CA_DSC_TSE_TYPE just support AES
  * @ca_index:	return slot index.
+ * @loop:	0: just descramble once.
+ *			1: descramble twice.
  */
 struct ca_sc2_alloc {
 	unsigned int pid;
 	enum ca_sc2_algo_type algo;
 	enum ca_sc2_dsc_type dsc_type;
 	unsigned int ca_index;
+	unsigned char loop;
 };
 
 /**

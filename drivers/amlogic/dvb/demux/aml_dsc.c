@@ -59,6 +59,7 @@ struct dsc_channel {
 
 	int sid;
 	int pid;
+	char loop;
 	enum ca_sc2_algo_type algo;
 	struct dsc_channel *next;
 };
@@ -220,7 +221,7 @@ static struct dsc_channel *_get_chan_from_list(struct aml_dsc *dsc, int id)
 
 static int _dsc_chan_alloc(struct aml_dsc *dsc,
 			   unsigned int pid, int algo, int dsc_type,
-			   unsigned int *ca_index)
+			   unsigned int *ca_index, char loop)
 {
 	char index = 0;
 
@@ -241,6 +242,13 @@ static int _dsc_chan_alloc(struct aml_dsc *dsc,
 	else
 		ch->sid = dsc->local_sid;
 
+	if (loop && ch->sid >= 32)
+		dprint("warn: double descram sid should small than 32\n");
+
+	if (loop)
+		ch->sid = ch->sid >= 32 ? ch->sid : (ch->sid + 32);
+
+	ch->loop = loop;
 	ch->pid = pid;
 	ch->dsc_type = dsc_type;
 	ch->algo = algo;
@@ -457,13 +465,23 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 				ret = -EINVAL;
 				break;
 			}
+			if (d->params.alloc_params.loop != 1 &&
+				d->params.alloc_params.loop != 0) {
+				dprint("alloc_params.loop:%d err\n",
+					d->params.alloc_params.loop);
+				ret = -EINVAL;
+				break;
+			}
+
 			ret = _dsc_chan_alloc(dsc,
 					      d->params.alloc_params.pid & 0x1FFF,
 					      d->params.alloc_params.algo + 1,
 					      d->params.alloc_params.dsc_type,
-					      &d->params.alloc_params.ca_index);
-			pr_dbg("%s CA_ALLOC:%d\n", __func__,
-			       d->params.alloc_params.ca_index);
+					      &d->params.alloc_params.ca_index,
+					      d->params.alloc_params.loop);
+			pr_dbg("%s CA_ALLOC:%d, loop:%d\n", __func__,
+			       d->params.alloc_params.ca_index,
+			       d->params.alloc_params.loop);
 		}
 		break;
 	case CA_FREE:{
@@ -475,6 +493,7 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 						 d->params.free_params.ca_index);
 			if (ch)
 				_dsc_chan_free(ch);
+
 			ret = 0;
 		}
 		break;
@@ -900,8 +919,8 @@ int dsc_dump_info(char *buf)
 			buf += r;
 			total += r;
 
-			r = sprintf(buf, "slot:%d, 00_slot:%d\n",
-				    chans->index, chans->index00);
+			r = sprintf(buf, "slot:%d, 00_slot:%d, loop:%d\n",
+				    chans->index, chans->index00, chans->loop);
 			buf += r;
 			total += r;
 			if (chans->index != -1) {

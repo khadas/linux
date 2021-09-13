@@ -2962,6 +2962,11 @@ int ts_output_update_filter(int dmx_no, int sid)
 {
 	int i = 0;
 
+	if (get_dvb_loop_tsn()) {
+		sid = sid >= 32 ? sid : (sid + 32);
+		pr_dbg("%s tsn out loop, sid:%d\n", __func__, sid);
+	}
+
 	/*update dvr filter*/
 	for (i = 0; i < MAX_OUT_ELEM_NUM; i++) {
 		struct out_elem *pout = &out_elem_table[i];

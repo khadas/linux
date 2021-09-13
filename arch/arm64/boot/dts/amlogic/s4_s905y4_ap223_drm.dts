@@ -281,17 +281,17 @@
 		tsn_from = "demod";
 
 		/*single demod setting */
-		ts0_sid = <0x20>;
+		ts0_sid = <0x10>;
 		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
 		ts0_control = <0x0>;
 		ts0_invert = <0>;
 
-		ts1_sid = <0x21>;
+		ts1_sid = <0x11>;
 		ts1 = "parallel";
 		ts1_control = <0x0>;
 		ts1_invert = <0>;
 
-		ts2_sid = <0x22>;
+		ts2_sid = <0x12>;
 		ts2 = "parallel";
 		ts2_control = <0x0>;
 		ts2_invert = <0>;

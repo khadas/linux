@@ -273,6 +273,53 @@ ssize_t tso_source_store(struct class *class,
 	return count;
 }
 
+ssize_t tsn_loop_show(struct class *class,
+			struct class_attribute *attr, char *buf)
+{
+	struct aml_dvb *advb = aml_get_dvb_device();
+	int r, total = 0;
+	u32 val = 0;
+	int ret = 0;
+
+	ret = tee_read_reg_bits(0xfe440320, &val, 2, 1);
+
+	r = sprintf(buf, "loop:%d, reg val:%d, ret:%d\n", advb->loop_tsn,
+		val, ret);
+
+	buf += r;
+	total += r;
+	return total;
+}
+
+ssize_t tsn_loop_store(struct class *class,
+			 struct class_attribute *attr,
+			 const char *buf, size_t count)
+{
+	struct aml_dvb *advb = aml_get_dvb_device();
+	long val = 0;
+	int loop = 0;
+
+	if (kstrtol(buf, 0, &val) == 0) {
+		loop = (int)val;
+		if (loop != 1 && loop != 0) {
+			dprint("tsn err loop:%d\n", loop);
+			return count;
+		}
+		dprint("tsn loop :0x%0x\n", loop);
+	} else {
+		dprint("%s parameter fail\n", buf);
+		return count;
+	}
+
+	if (mutex_lock_interruptible(&advb->mutex))
+		return -ERESTARTSYS;
+
+	set_dvb_loop_tsn(loop);
+
+	mutex_unlock(&advb->mutex);
+	return count;
+}
+
 static CLASS_ATTR_RW(ts_setting);
 static CLASS_ATTR_RW(get_pcr);
 static CLASS_ATTR_RO(dmx_setting);
@@ -280,6 +327,7 @@ static CLASS_ATTR_RO(dsc_setting);
 
 static CLASS_ATTR_RW(tsn_source);
 static CLASS_ATTR_RW(tso_source);
+static CLASS_ATTR_RW(tsn_loop);
 
 static struct attribute *aml_stb_class_attrs[] = {
 	&class_attr_ts_setting.attr,
@@ -288,6 +336,7 @@ static struct attribute *aml_stb_class_attrs[] = {
 	&class_attr_dsc_setting.attr,
 	&class_attr_tsn_source.attr,
 	&class_attr_tso_source.attr,
+	&class_attr_tsn_loop.attr,
 	NULL
 };
 
@@ -530,6 +579,30 @@ INIT_ERR:
 	aml_dvb_remove(pdev);
 
 	return -1;
+}
+
+void set_dvb_loop_tsn(int flag)
+{
+	struct aml_dvb *advb;
+	int ret = 0;
+
+	advb = &aml_dvb_device;
+
+	if (advb->loop_tsn == flag)
+		return;
+
+	// set loop_tsn in tee
+	advb->loop_tsn = flag;
+	ret = tee_write_reg_bits(0xfe440320, (u32)flag, 2, 1);
+}
+
+int get_dvb_loop_tsn(void)
+{
+	struct aml_dvb *advb;
+
+	advb = &aml_dvb_device;
+
+	return advb->loop_tsn;
 }
 
 #ifdef CONFIG_OF
