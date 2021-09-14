@@ -33,6 +33,7 @@ obj-$(CONFIG_AMLOGIC_AMAUDIO)		+= amaudio/
 obj-$(CONFIG_AMLOGIC_AUDIO_INFO) 	+= audioinfo/
 obj-$(CONFIG_AMLOGIC_ETH_PRIVE)		+= ethernet/phy/
 obj-$(CONFIG_AMLOGIC_MEDIA_ALGORITHM)	+= algorithm/
+obj-$(CONFIG_AMLOGIC_GLOBAL_TIMER)	+= global_timer/
 
 #Always build in code/modules
 obj-$(CONFIG_AMLOGIC_CPUIDLE)		+= cpuidle/
@@ -56,6 +57,9 @@ obj-$(CONFIG_DOLBY_FW) += dolby_fw/
 obj-$(CONFIG_AMLOGIC_CPU_INFO)          += cpu_info/
 obj-$(CONFIG_AMLOGIC_SOC_INFO) 		+= soc_info/
 obj-$(CONFIG_GATOR)	+= gator-driver/
+obj-$(CONFIG_AMLOGIC_MFD) += mfd/
+obj-$(CONFIG_AMLOGIC_REGULATOR) += regulator/
+obj-$(CONFIG_AMLOGIC_MFH_MODULE)     += mfh/
 
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)
 

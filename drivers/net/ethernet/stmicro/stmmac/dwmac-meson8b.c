@@ -331,13 +331,13 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 void __iomem *ee_reset_base;
+unsigned int internal_phy;
 static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac *dwmac)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct device *dev = &pdev->dev;
 	void __iomem *addr = NULL;
 	struct resource *res = NULL;
-	unsigned int internal_phy = 0;
 	unsigned int cali_val = 0;
 	unsigned int mc_val = 0;
 
@@ -410,7 +410,9 @@ static int aml_dwmac_suspend(struct device *dev)
 
 	pr_info("aml_eth_suspend\n");
 	ret = stmmac_pltfr_suspend(dev);
-	dwmac_meson_disable_analog(dev);
+	/*internal phy only*/
+	if (internal_phy != 2)
+		dwmac_meson_disable_analog(dev);
 	return ret;
 }
 
@@ -420,7 +422,8 @@ static int aml_dwmac_resume(struct device *dev)
 	int ret = 0;
 
 	pr_info("aml_eth_resume\n");
-	dwmac_meson_recover_analog(dev);
+	if (internal_phy != 2)
+		dwmac_meson_recover_analog(dev);
 	ret = stmmac_pltfr_resume(dev);
 	return 0;
 }
@@ -429,7 +432,8 @@ void meson8b_dwmac_shutdown(struct platform_device *pdev)
 {
 	pr_info("aml_eth_shutdown\n");
 	stmmac_pltfr_suspend(&pdev->dev);
-	dwmac_meson_disable_analog(&pdev->dev);
+	if (internal_phy != 2)
+		dwmac_meson_disable_analog(&pdev->dev);
 }
 
 void set_wol_notify_bl31(void)
@@ -468,6 +472,7 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err_remove_config_dt;
 	}
+
 	dwmac->regs = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(dwmac->regs)) {
 		ret = PTR_ERR(dwmac->regs);
@@ -507,6 +512,7 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (ret)
 		goto err_remove_config_dt;
+
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 	aml_custom_setting(pdev, dwmac);
 	if (support_mac_wol) {

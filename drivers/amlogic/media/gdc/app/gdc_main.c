@@ -24,7 +24,7 @@ int gdc_run(struct gdc_cmd_s *g, struct gdc_dma_cfg_t *dma_cfg)
 
 	gdc_log(LOG_DEBUG, "Done gdc config..\n");
 
-	switch (g->gdc_config.format) {
+	switch (g->gdc_config.format & FORMAT_TYPE_MASK) {
 	case NV12:
 		gdc_process(g, g->y_base_addr, g->uv_base_addr, dma_cfg);
 	break;

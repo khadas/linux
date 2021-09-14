@@ -14,6 +14,7 @@
 #include <dt-bindings/power/t7-pd.h>
 #include <dt-bindings/power/s4-pd.h>
 #include <dt-bindings/power/t3-pd.h>
+#include <dt-bindings/power/p1-pd.h>
 #include <linux/kallsyms.h>
 
 struct sec_pm_private_domain {
@@ -333,6 +334,74 @@ static struct sec_pm_domain_data t3_pm_domain_data = {
 	.domains_count = ARRAY_SIZE(t3_pm_domains),
 };
 
+static struct sec_pm_private_domain p1_pm_domains[] = {
+	[PDID_P1_DSPA] = POWER_DOMAIN(dspa, PDID_P1_DSPA, DOMAIN_INIT_OFF, 0),
+	[PDID_P1_DSPB] = POWER_DOMAIN(dspb, PDID_P1_DSPB, DOMAIN_INIT_OFF, 0),
+	[PDID_P1_M4A] = POWER_DOMAIN(m4a, PDID_P1_M4A, DOMAIN_INIT_OFF, 0),
+	[PDID_P1_M4B] = POWER_DOMAIN(m4b, PDID_P1_M4B, DOMAIN_INIT_OFF, 0),
+	[PDID_P1_ISP_A] = POWER_DOMAIN(ispa, PDID_P1_ISP_A, DOMAIN_INIT_OFF, 0),
+	[PDID_P1_ISP_B] = POWER_DOMAIN(ispb, PDID_P1_ISP_B, DOMAIN_INIT_OFF, 0),
+	[PDID_P1_ISP_C] = POWER_DOMAIN(ispc, PDID_P1_ISP_C, DOMAIN_INIT_OFF, 0),
+	[PDID_P1_ISP_D] = POWER_DOMAIN(ispd, PDID_P1_ISP_D, DOMAIN_INIT_OFF, 0),
+	[PDID_P1_MIPI_ISP_TOP] = POWER_DOMAIN(mipiisptop, PDID_P1_MIPI_ISP_TOP,
+			DOMAIN_INIT_OFF, 0),
+
+	[PDID_P1_USB_COMB] = POWER_DOMAIN(usbcomb, PDID_P1_USB_COMB,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_P1_PCIE] = POWER_DOMAIN(pcie, PDID_P1_PCIE,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_P1_ETH] = POWER_DOMAIN(eth, PDID_P1_ETH,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_P1_SDIO] = POWER_DOMAIN(sdio, PDID_P1_SDIO,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+
+	[PDID_P1_NAND_EMMC] = POWER_DOMAIN(nandemmc, PDID_P1_NAND_EMMC,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_P1_NNA_A] = TOP_DOMAIN(nnaa, PDID_P1_NNA_A, DOMAIN_INIT_OFF,
+			0, PDID_P1_NNA_TOP),
+	[PDID_P1_NNA_B] = TOP_DOMAIN(nnab, PDID_P1_NNA_B, DOMAIN_INIT_OFF,
+			0, PDID_P1_NNA_TOP),
+	[PDID_P1_NNA_C] = TOP_DOMAIN(nnac, PDID_P1_NNA_C, DOMAIN_INIT_OFF,
+			0, PDID_P1_NNA_TOP),
+	[PDID_P1_NNA_D] = TOP_DOMAIN(nnad, PDID_P1_NNA_D, DOMAIN_INIT_OFF,
+			0, PDID_P1_NNA_TOP),
+	[PDID_P1_NNA_E] = TOP_DOMAIN(nnae, PDID_P1_NNA_E, DOMAIN_INIT_OFF,
+			0, PDID_P1_NNA_TOP),
+	[PDID_P1_NNA_F] = TOP_DOMAIN(nnaf, PDID_P1_NNA_F, DOMAIN_INIT_OFF,
+			0, PDID_P1_NNA_TOP),
+	[PDID_P1_NNA_TOP] = POWER_DOMAIN(nnatop, PDID_P1_NNA_TOP,
+			DOMAIN_INIT_OFF, 0),
+
+	[PDID_P1_GE2D] = TOP_DOMAIN(ge2d, PDID_P1_GE2D, DOMAIN_INIT_OFF,
+			0, PDID_P1_FDLE),
+	[PDID_P1_DEWA] = TOP_DOMAIN(dewa, PDID_P1_DEWA, DOMAIN_INIT_OFF,
+			0, PDID_P1_FDLE),
+	[PDID_P1_DEWB] = TOP_DOMAIN(dewb, PDID_P1_DEWB, DOMAIN_INIT_OFF,
+			0, PDID_P1_FDLE),
+	[PDID_P1_DEWC] = TOP_DOMAIN(dewc, PDID_P1_DEWC, DOMAIN_INIT_OFF,
+			0, PDID_P1_FDLE),
+	[PDID_P1_FDLE] = POWER_DOMAIN(fdle, PDID_P1_FDLE,
+			DOMAIN_INIT_OFF, 0),
+
+	[PDID_P1_DMC0] = TOP_DOMAIN(dmc0, PDID_P1_DMC0,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON, PDID_P1_NOC_DMC_TOP),
+	[PDID_P1_DMC1] = TOP_DOMAIN(dmc1, PDID_P1_DMC1,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON, PDID_P1_NOC_DMC_TOP),
+	[PDID_P1_NOC_DMC_TOP] = POWER_DOMAIN(nocdmctop, PDID_P1_NOC_DMC_TOP,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_P1_SMMU] = POWER_DOMAIN(smmu, PDID_P1_SMMU,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_P1_DDR0] = POWER_DOMAIN(ddr0, PDID_P1_DDR0,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+	[PDID_P1_DDR1] = POWER_DOMAIN(ddr1, PDID_P1_DDR1,
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
+};
+
+static struct sec_pm_domain_data p1_pm_domain_data = {
+	.domains = p1_pm_domains,
+	.domains_count = ARRAY_SIZE(p1_pm_domains),
+};
+
 static int sec_pd_probe(struct platform_device *pdev)
 {
 	int ret, i;
@@ -469,6 +538,10 @@ static const struct of_device_id pd_match_table[] = {
 	{
 		.compatible = "amlogic,t3-power-domain",
 		.data = &t3_pm_domain_data,
+	},
+	{
+		.compatible = "amlogic,p1-power-domain",
+		.data = &p1_pm_domain_data,
 	},
 	{}
 };

@@ -15,7 +15,7 @@
 #define DAIF_ERRCTX		(PSR_I_BIT | PSR_A_BIT)
 #define DAIF_MASK		(PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
 
-
+extern int ignore_a_flag;
 /* mask/save/unmask/restore all exceptions, including interrupts. */
 static inline void local_daif_mask(void)
 {
@@ -112,6 +112,8 @@ static inline void local_daif_restore(unsigned long flags)
 		gic_write_pmr(pmr);
 	}
 
+	if (ignore_a_flag)
+		flags |=  0x100;
 	write_sysreg(flags, daif);
 
 	if (irq_disabled)

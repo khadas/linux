@@ -68,7 +68,10 @@ enum toddr_src {
 	RESAMPLEA = 13,   /* t5 */
 	RESAMPLEB = 14,
 	VAD = 15,
-	TODDR_SRC_MAX = 16
+	PDMIN_B = 16,
+	TDMINB_LB = 17,
+	TDMIN_D = 18,
+	TODDR_SRC_MAX = 19
 };
 
 enum resample_idx {
@@ -92,6 +95,7 @@ enum frddr_dest {
 	SPDIFOUT_A,
 	SPDIFOUT_B,
 	EARCTX_DMAC,
+	TDMOUT_D,
 	FRDDR_MAX
 };
 
@@ -116,6 +120,14 @@ struct toddr_fmt {
 };
 
 struct toddr_src_conf {
+	char name[32];
+	unsigned int val;
+	unsigned int reg;
+	unsigned int shift;
+	unsigned int mask;
+};
+
+struct frddr_src_conf {
 	char name[32];
 	unsigned int val;
 	unsigned int reg;
@@ -172,6 +184,7 @@ struct ddr_chipinfo {
 	bool burst_finished_flag;
 
 	struct toddr_src_conf *to_srcs;
+	struct toddr_src_conf *fr_srcs;
 };
 
 struct toddr {

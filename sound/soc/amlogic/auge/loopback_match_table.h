@@ -35,9 +35,11 @@ struct mux_conf lb_srcs_v2[] = {
 	AUDIO_SRC_CONFIG("resample_a", 13, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	AUDIO_SRC_CONFIG("resample_b", 14, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	AUDIO_SRC_CONFIG("vad", 15, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("pdmin_b", 16, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("tdminb_lb", 17, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("tdmin_d", 18, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	{ /* sentinel */ }
 };
-
 struct mux_conf tdmin_lb_srcs_v1[] = {
 	AUDIO_SRC_CONFIG("tdmout_a", 0, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
 	AUDIO_SRC_CONFIG("tdmout_b", 1, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
@@ -57,14 +59,13 @@ struct mux_conf tdmin_lb_srcs_v2[] = {
 	AUDIO_SRC_CONFIG("tdmin_a", 0, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
 	AUDIO_SRC_CONFIG("tdmin_b", 1, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
 	AUDIO_SRC_CONFIG("tdmin_c", 2, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
-	AUDIO_SRC_CONFIG("hdmirx", 4, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
-	AUDIO_SRC_CONFIG("acodec_adc", 5, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmin_d", 3, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
 	AUDIO_SRC_CONFIG("tdmout_a", 12, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
 	AUDIO_SRC_CONFIG("tdmout_b", 13, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
 	AUDIO_SRC_CONFIG("tdmout_c", 14, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
+	AUDIO_SRC_CONFIG("tdmout_d", 15, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
 	{ /* sentinel */ }
 };
-
 struct loopback_chipinfo {
 	unsigned int id;
 
@@ -96,83 +97,101 @@ struct loopback_chipinfo {
 };
 
 static struct loopback_chipinfo g12a_loopbacka_chipinfo = {
-	.id      = LOOPBACKA,
+	.id = LOOPBACKA,
 	.chnum_en = true,
-	.srcs     = &lb_srcs_v1[0],
+	.srcs = &lb_srcs_v1[0],
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct loopback_chipinfo tl1_loopbacka_chipinfo = {
-	.id      = LOOPBACKA,
+	.id = LOOPBACKA,
 	.ch_ctrl = true,
 	.chnum_en = true,
-	.srcs	  = &lb_srcs_v1[0],
+	.srcs = &lb_srcs_v1[0],
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo tl1_loopbackb_chipinfo = {
-	.id      = LOOPBACKB,
+	.id = LOOPBACKB,
 	.ch_ctrl = true,
 	.chnum_en = true,
-	.srcs	  = &lb_srcs_v1[0],
+	.srcs = &lb_srcs_v1[0],
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 #endif
 
 static struct loopback_chipinfo sm1_loopbacka_chipinfo = {
-	.id      = LOOPBACKA,
+	.id = LOOPBACKA,
 	.ch_ctrl = true,
 	.chnum_en = true,
-	.srcs	  = &lb_srcs_v1[0],
+	.srcs = &lb_srcs_v1[0],
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo sm1_loopbackb_chipinfo = {
-	.id      = LOOPBACKB,
+	.id = LOOPBACKB,
 	.ch_ctrl = true,
 	.chnum_en = true,
-	.srcs	  = &lb_srcs_v1[0],
+	.srcs = &lb_srcs_v1[0],
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo tm2_loopbacka_chipinfo = {
-	.id      = LOOPBACKA,
+	.id = LOOPBACKA,
 	.ch_ctrl = true,
 	.chnum_en = true,
-	.srcs	  = &lb_srcs_v1[0],
+	.srcs  = &lb_srcs_v1[0],
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo tm2_loopbackb_chipinfo = {
-	.id      = LOOPBACKB,
+	.id = LOOPBACKB,
 	.ch_ctrl = true,
 	.chnum_en = true,
-	.srcs	  = &lb_srcs_v1[0],
+	.srcs = &lb_srcs_v1[0],
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo tm2_revb_loopbacka_chipinfo = {
-	.id      = LOOPBACKA,
+	.id = LOOPBACKA,
 	.ch_ctrl = true,
 	.chnum_en = false,
-	.srcs	  = &lb_srcs_v1[0],
+	.srcs = &lb_srcs_v1[0],
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo tm2_revb_loopbackb_chipinfo = {
-	.id      = LOOPBACKB,
+	.id = LOOPBACKB,
 	.ch_ctrl = true,
 	.chnum_en = false,
-	.srcs	  = &lb_srcs_v1[0],
+	.srcs = &lb_srcs_v1[0],
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v1[0],
 };
 
 static struct loopback_chipinfo t5_loopbacka_chipinfo = {
-	.id      = LOOPBACKA,
+	.id = LOOPBACKA,
 	.ch_ctrl = true,
 	.chnum_en = false,
-	.srcs	  = &lb_srcs_v2[0],
+	.srcs = &lb_srcs_v2[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v2[0],
+	.multi_bits_lbsrcs = true,
+};
+
+static struct loopback_chipinfo p1_loopbacka_chipinfo = {
+	.id = LOOPBACKA,
+	.ch_ctrl = true,
+	.chnum_en = false,
+	.srcs = &lb_srcs_v2[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v2[0],
+	.multi_bits_lbsrcs = true,
+};
+
+static struct loopback_chipinfo p1_loopbackb_chipinfo = {
+	.id = LOOPBACKB,
+	.ch_ctrl = true,
+	.chnum_en = false,
+	.srcs = &lb_srcs_v2[0],
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v2[0],
 	.multi_bits_lbsrcs = true,
 };
@@ -181,52 +200,60 @@ static const struct of_device_id loopback_device_id[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
 		.compatible = "amlogic, snd-loopback",
-		.data		= &g12a_loopbacka_chipinfo,
+		.data = &g12a_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, axg-loopback",
-		.data       = &g12a_loopbacka_chipinfo,
+		.data = &g12a_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, tl1-loopbacka",
-		.data		= &tl1_loopbacka_chipinfo,
+		.data = &tl1_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, tl1-loopbackb",
-		.data		= &tl1_loopbackb_chipinfo,
+		.data = &tl1_loopbackb_chipinfo,
 	},
 #endif
 	{
 		.compatible = "amlogic, g12a-loopback",
-		.data       = &g12a_loopbacka_chipinfo,
+		.data = &g12a_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, sm1-loopbacka",
-		.data		= &sm1_loopbacka_chipinfo,
+		.data = &sm1_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, sm1-loopbackb",
-		.data		= &sm1_loopbackb_chipinfo,
+		.data = &sm1_loopbackb_chipinfo,
 	},
 	{
 		.compatible = "amlogic, tm2-loopbacka",
-		.data		= &tm2_loopbacka_chipinfo,
+		.data = &tm2_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, tm2-loopbackb",
-		.data		= &tm2_loopbackb_chipinfo,
+		.data = &tm2_loopbackb_chipinfo,
 	},
 	{
 		.compatible = "amlogic, tm2-revb-loopbacka",
-		.data		= &tm2_revb_loopbacka_chipinfo,
+		.data = &tm2_revb_loopbacka_chipinfo,
 	},
 	{
 		.compatible = "amlogic, tm2-revb-loopbackb",
-		.data		= &tm2_revb_loopbackb_chipinfo,
+		.data = &tm2_revb_loopbackb_chipinfo,
 	},
 	{
 		.compatible = "amlogic, t5-loopbacka",
-		.data       = &t5_loopbacka_chipinfo,
+		.data = &t5_loopbacka_chipinfo,
+	},
+	{
+		.compatible = "amlogic, p1-loopbacka",
+		.data = &p1_loopbacka_chipinfo,
+	},
+	{
+		.compatible = "amlogic, p1-loopbackb",
+		.data = &p1_loopbackb_chipinfo,
 	},
 	{}
 };

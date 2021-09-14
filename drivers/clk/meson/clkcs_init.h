@@ -85,5 +85,6 @@ static inline int meson_t3_clkc_init(void)
 	return 0;
 }
 #endif
+
 #endif /* end of ifdef MODULE */
 #endif /* end of _CLK_MODULE_H__ */

@@ -65,6 +65,8 @@ struct tdm_chipinfo {
 #define SRC_TDMIN_A     "tdmin_a"
 #define SRC_TDMIN_B     "tdmin_b"
 #define SRC_TDMIN_C     "tdmin_c"
+#define SRC_TDMIN_D     "tdmin_d"
+
 #define SRC_TDMIND_A    "tdmind_a"
 #define SRC_TDMIND_B    "tdmind_b"
 #define SRC_TDMIND_C    "tdmind_c"
@@ -73,7 +75,7 @@ struct tdm_chipinfo {
 #define SRC_TDMOUT_A    "tdmout_a"
 #define SRC_TDMOUT_B    "tdmout_b"
 #define SRC_TDMOUT_C    "tdmout_c"
-
+#define SRC_TDMOUT_D    "tdmout_d"
 #define TDMIN_SRC_CONFIG(_name, _val) \
 {	.name = (_name), .val = (_val)}
 
@@ -88,7 +90,7 @@ struct src_table tdmin_srcs_v1[] = {
 	TDMIN_SRC_CONFIG(SRC_ACODEC, 7),
 	TDMIN_SRC_CONFIG(SRC_TDMOUT_A, 13),
 	TDMIN_SRC_CONFIG(SRC_TDMOUT_B, 14),
-	TDMIN_SRC_CONFIG(SRC_TDMOUT_B, 15),
+	TDMIN_SRC_CONFIG(SRC_TDMOUT_C, 15),
 	{ /* sentinel */ }
 };
 
@@ -101,7 +103,7 @@ struct src_table tdmin_srcs_v2[] = {
 	TDMIN_SRC_CONFIG(SRC_ACODEC, 5),
 	TDMIN_SRC_CONFIG(SRC_TDMOUT_A, 12),
 	TDMIN_SRC_CONFIG(SRC_TDMOUT_B, 13),
-	TDMIN_SRC_CONFIG(SRC_TDMOUT_B, 14),
+	TDMIN_SRC_CONFIG(SRC_TDMOUT_C, 14),
 	{ /* sentinel */ }
 };
 
@@ -114,7 +116,20 @@ struct src_table tdmin_srcs_v3[] = {
 	TDMIN_SRC_CONFIG(SRC_ACODEC, 7),
 	TDMIN_SRC_CONFIG(SRC_TDMOUT_A, 12),
 	TDMIN_SRC_CONFIG(SRC_TDMOUT_B, 13),
-	TDMIN_SRC_CONFIG(SRC_TDMOUT_B, 14),
+	TDMIN_SRC_CONFIG(SRC_TDMOUT_C, 14),
+	{ /* sentinel */ }
+};
+
+/* for p1 */
+struct src_table tdmin_srcs_v4[] = {
+	TDMIN_SRC_CONFIG(SRC_TDMIN_A, 0),
+	TDMIN_SRC_CONFIG(SRC_TDMIN_B, 1),
+	TDMIN_SRC_CONFIG(SRC_TDMIN_C, 2),
+	TDMIN_SRC_CONFIG(SRC_TDMIN_D, 3),
+	TDMIN_SRC_CONFIG(SRC_TDMOUT_A, 12),
+	TDMIN_SRC_CONFIG(SRC_TDMOUT_B, 13),
+	TDMIN_SRC_CONFIG(SRC_TDMOUT_C, 14),
+	TDMIN_SRC_CONFIG(SRC_TDMOUT_D, 15),
 	{ /* sentinel */ }
 };
 
@@ -417,6 +432,65 @@ struct tdm_chipinfo t7_tdmc_chipinfo = {
 	.gain_ver = GAIN_VER3,
 };
 
+struct tdm_chipinfo p1_tdma_chipinfo = {
+	.id          = TDM_A,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = false,
+	.adc_fn      = false,
+	.lane_cnt    = LANE_MAX1,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
+	.separate_tohdmitx_en = true,
+	.tdmin_srcs = &tdmin_srcs_v4[0],
+	.slot_num_en = true,
+	.chnum_en = false,
+};
+
+struct tdm_chipinfo p1_tdmb_chipinfo = {
+	.id          = TDM_B,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = false,
+	.adc_fn      = false,
+	.lane_cnt    = LANE_MAX1,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
+	.separate_tohdmitx_en = true,
+	.tdmin_srcs = &tdmin_srcs_v4[0],
+	.slot_num_en = true,
+	.chnum_en = false,
+};
+
+struct tdm_chipinfo p1_tdmc_chipinfo = {
+	.id          = TDM_C,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = false,
+	.adc_fn      = false,
+	.lane_cnt    = LANE_MAX1,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
+	.separate_tohdmitx_en = true,
+	.tdmin_srcs = &tdmin_srcs_v4[0],
+	.slot_num_en = true,
+	.chnum_en = false,
+};
+
+struct tdm_chipinfo p1_tdmd_chipinfo = {
+	.id          = TDM_D,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = false,
+	.adc_fn      = false,
+	.lane_cnt    = LANE_MAX1,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
+	.separate_tohdmitx_en = true,
+	.tdmin_srcs = &tdmin_srcs_v4[0],
+	.slot_num_en = true,
+	.chnum_en = false,
+};
 static const struct of_device_id aml_tdm_device_id[] = {
 	{
 		.compatible = "amlogic, g12a-snd-tdma",
@@ -503,6 +577,22 @@ static const struct of_device_id aml_tdm_device_id[] = {
 	{
 		.compatible = "amlogic, t7-snd-tdmc",
 		.data       = &t7_tdmc_chipinfo,
+	},
+	{
+		.compatible = "amlogic, p1-snd-tdma",
+		.data       = &p1_tdma_chipinfo,
+	},
+	{
+		.compatible = "amlogic, p1-snd-tdmb",
+		.data       = &p1_tdmb_chipinfo,
+	},
+	{
+		.compatible = "amlogic, p1-snd-tdmc",
+		.data       = &p1_tdmc_chipinfo,
+	},
+	{
+		.compatible = "amlogic, p1-snd-tdmd",
+		.data       = &p1_tdmd_chipinfo,
 	},
 	{}
 };

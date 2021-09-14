@@ -14,7 +14,6 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/cpu_cooling.h>
-#include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
 #include <linux/arm-smccc.h>
 #include <linux/amlogic/secmon.h>
@@ -519,41 +518,14 @@ static void r1p1_tsensor_update_irqs(struct meson_tsensor_data *data)
 static int meson_get_temp(void *p, int *temp)
 {
 	struct meson_tsensor_data *data = p;
-	struct thermal_zone_device *tz = data->tzd;
-	int triptemp, ret;
 
 	if (!data->tsensor_read)
 		return -EINVAL;
 
-	ret = pm_runtime_get_sync(data->dev);
-	if (ret < 0)
-		goto out;
 	mutex_lock(&data->lock);
 	*temp = code_to_temp(data, data->tsensor_read(data));
 	mutex_unlock(&data->lock);
 
-	tz->ops->get_trip_temp(tz, 0, &triptemp);
-	if (tz->last_temperature < triptemp) {
-		/*
-		 *if wo use disable api, need re set runtime
-		 *pm_runtime_enable
-		 *pm_runtime_set_autosuspend_delay
-		 *pm_runtime_use_autosuspend
-		 */
-		pm_runtime_set_autosuspend_delay(data->dev,
-						 R1P1_PM_MIN_TIMEOUT);
-	} else {
-		/*
-		 *maybe we can use disable runtime api
-		 *pm_runtime_put_noidle
-		 *pm_runtime_disable
-		 */
-		pm_runtime_set_autosuspend_delay(data->dev,
-						 R1P1_PM_MAX_TIMEOUT);
-	}
-out:
-	pm_runtime_mark_last_busy(data->dev);
-	pm_runtime_put_autosuspend(data->dev);
 	return 0;
 }
 
@@ -788,20 +760,11 @@ static int meson_tsensor_probe(struct platform_device *pdev)
 	if (IS_ERR(data->tzd)) {
 		ret = PTR_ERR(data->tzd);
 		dev_err(&pdev->dev, "Failed to register tsensor: %d\n", ret);
-		goto err_thermal;
+		return ret;
 	}
 
 	if (thermal_add_hwmon_sysfs(data->tzd))
 		dev_warn(&pdev->dev, "Failed to add hwmon sysfs attributes\n");
-
-	pm_runtime_enable(data->dev);
-	pm_runtime_set_autosuspend_delay(data->dev, R1P1_PM_MAX_TIMEOUT);
-	pm_runtime_use_autosuspend(data->dev);
-	ret = pm_runtime_get_sync(data->dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to initialize tsensor\n");
-		goto err_thermal;
-	}
 
 	ret = devm_request_irq(&pdev->dev, data->irq, meson_tsensor_irq,
 			       IRQF_TRIGGER_RISING | IRQF_SHARED,
@@ -811,14 +774,17 @@ static int meson_tsensor_probe(struct platform_device *pdev)
 		goto err_thermal;
 	}
 
-	pm_runtime_mark_last_busy(data->dev);
-	pm_runtime_put_autosuspend(data->dev);
+	meson_tsensor_hw_initialize(pdev);
+	meson_tsensor_trips_initialize(pdev);
+
+	/*if no pm pd only need enable control*/
+	meson_tsensor_control(pdev, true);
+	/*wait tsensor work*/
+	msleep(R1P1_TS_WAIT);
 
 	return 0;
 
 err_thermal:
-	pm_runtime_put_noidle(data->dev);
-	pm_runtime_disable(data->dev);
 	thermal_zone_of_sensor_unregister(&pdev->dev, data->tzd);
 
 	return ret;
@@ -836,14 +802,7 @@ static int meson_tsensor_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused meson_tsensor_runtime_suspend(struct device *dev)
-{
-	meson_tsensor_control(to_platform_device(dev), false);
-
-	return 0;
-}
-
-static int __maybe_unused meson_tsensor_runtime_resume(struct device *dev)
+static int __maybe_unused meson_tsensor_hw_resume(struct device *dev)
 {
 	/*if power domain power down, need hw/trips init when resume*/
 	meson_tsensor_hw_initialize(to_platform_device(dev));
@@ -860,19 +819,13 @@ static int __maybe_unused meson_tsensor_runtime_resume(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 static int meson_tsensor_suspend(struct device *dev)
 {
-	if (!pm_runtime_status_suspended(dev))
-		meson_tsensor_runtime_suspend(dev);
-
+	meson_tsensor_control(to_platform_device(dev), false);
 	return 0;
 }
 
 static int meson_tsensor_resume(struct device *dev)
 {
-	if (!pm_runtime_status_suspended(dev))
-		meson_tsensor_runtime_resume(dev);
-
-	pm_runtime_mark_last_busy(dev);
-	pm_request_autosuspend(dev);
+	meson_tsensor_hw_resume(dev);
 
 	return 0;
 }
@@ -880,8 +833,6 @@ static int meson_tsensor_resume(struct device *dev)
 static const struct dev_pm_ops meson_tsensor_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(meson_tsensor_suspend,
 				meson_tsensor_resume)
-	SET_RUNTIME_PM_OPS(meson_tsensor_runtime_suspend,
-			   meson_tsensor_runtime_resume, NULL)
 };
 
 struct platform_driver meson_tsensor_driver = {

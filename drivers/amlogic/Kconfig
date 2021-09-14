@@ -94,6 +94,24 @@ config AMLOGIC_DVB_COMPAT
 		it is enabled by default,depending on
 		AMLOGIC_DVB and DVB_CORE.
 
+config AMLOGIC_MFD
+	tristate "Compat amlogic mfd"
+	default n
+	help
+		This option is used only to compatible with
+		amlogic dvb related code,it is enabled by
+		default,depending on
+		AMLOGIC_MFD.
+
+config AMLOGIC_REGULATOR
+	tristate "Compat amlogic mfd"
+	default n
+	help
+		This option is used only to compatible with
+		amlogic mfd related code,it is enabled
+		by default,depending on
+		AMLOGIC_REGULATOR.
+
 endmenu
 
 if AMLOGIC_DRIVER
@@ -144,5 +162,10 @@ source "drivers/amlogic/cpu_info/Kconfig"
 source "drivers/amlogic/ethernet/phy/Kconfig"
 source "drivers/amlogic/soc_info/Kconfig"
 source "drivers/amlogic/gator-driver/Kconfig"
+source "drivers/amlogic/global_timer/Kconfig"
+source "drivers/amlogic/mfd/Kconfig"
+source "drivers/amlogic/regulator/Kconfig"
+source "drivers/amlogic/mfh/Kconfig"
+
 endmenu
 endif

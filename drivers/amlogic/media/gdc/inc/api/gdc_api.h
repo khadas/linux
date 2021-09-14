@@ -127,6 +127,12 @@ enum {
 	GDC_BUFF_TYPE_MAX
 };
 
+/* format type and format bit width mask
+ * example: (NV12 | BIT_16) means nv12 16bit.
+ */
+#define FORMAT_TYPE_MASK  0xffff
+#define FORMAT_BITW_MASK  0xffff0000
+
 enum {
 	NV12 = 1,
 	YV12,
@@ -134,6 +140,13 @@ enum {
 	YUV444_P,
 	RGB444_P,
 	FMT_MAX
+};
+
+enum {
+	BITW_8  = 0, /* default bit width */
+	BITW_10 = (1 << 16),
+	BITW_12 = (1 << 17),
+	BITW_16 = (1 << 18),
 };
 
 enum {

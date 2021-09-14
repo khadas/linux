@@ -22,7 +22,6 @@
 #include <linux/mailbox_client.h>
 
 #include "meson_mhu.h"
-#include "../firmware/bl40_module.h"
 
 u32 num_scp_chans;
 u32 send_listen_chans;
@@ -80,10 +79,6 @@ u32 isr_m4;
 
 void bl40_rx_callback(struct mbox_client *cl, void *msg)
 {
-	struct mhu_data_buf *data = (struct mhu_data_buf *)msg;
-
-	pr_debug("call %s\n", __func__);
-	bl40_rx_msg(data->rx_buf, data->rx_size);
 }
 
 static irqreturn_t mbox_handler(int irq, void *p)

@@ -447,6 +447,22 @@ static int aml_jtag_setup(struct aml_jtag_dev *jdev)
 		break;
 	}
 
+	ret = of_property_read_bool(jdev->pdev->dev.of_node,
+				    "amlogic,support-jtag-trace");
+	if (ret) {
+		s = pinctrl_lookup_state(jdev->jtag_pinctrl, "jtag_trace_pins");
+		if (IS_ERR_OR_NULL(s)) {
+			dev_err(&jdev->pdev->dev,
+				"could not get jtag_trace_pins state\n");
+			return -EINVAL;
+		}
+		ret = pinctrl_select_state(jdev->jtag_pinctrl, s);
+		if (ret) {
+			dev_err(&jdev->pdev->dev, "failed to set pinctrl\n");
+			return -EINVAL;
+		}
+	}
+
 	/* save to global */
 	global_select = jdev->select;
 	aml_jtag_select(jdev->pdev);

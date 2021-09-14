@@ -75,7 +75,9 @@ int crg_clk_enable_usb_v2(struct platform_device *pdev,
 	clk_prepare_enable(usb_reset);
 	crg_p_clk_reset[pdev->id].usb_reset_usb_general = usb_reset;
 
-	crg_set_device_mode_v2(pdev, usb_peri_reg, controller_type);
+	if (controller_type != USB_M31)
+		crg_set_device_mode_v2(pdev, usb_peri_reg, controller_type);
+
 	return 0;
 }
 

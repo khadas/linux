@@ -12,7 +12,9 @@
 #define TDM_A	0
 #define TDM_B	1
 #define TDM_C	2
-#define TDM_LB	3
+#define TDM_D	3
+
+#define TDM_LB	4
 
 #define LANE_MAX0 2
 #define LANE_MAX1 4

@@ -1,0 +1,10 @@
+#
+# Amlogic GLOBAL TIMER configuration
+#
+config	AMLOGIC_GLOBAL_TIMER
+	tristate "amlogic global timer driver"
+	default n
+	help
+		This option enables support meson global timer which is
+		a multi-function timer supoort gpio/mipi trigger and gpio
+		output.

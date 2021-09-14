@@ -12711,8 +12711,8 @@ void set_viu2_format(u32 format)
 void osd_init_viu2(void)
 {
 	u32 idx, data32;
-	struct vinfo_s *vinfo;
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	struct vinfo_s *vinfo;
 	vinfo = get_current_vinfo2();
 	if (vinfo && vinfo->name && (strcmp(vinfo->name, "invalid") &&
 		      strcmp(vinfo->name, "null")))

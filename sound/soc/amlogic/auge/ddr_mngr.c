@@ -44,6 +44,11 @@ struct src_enum_table {
 	char *name;
 };
 
+struct frddr_enum_table {
+	enum frddr_dest dest;
+	char *name;
+};
+
 struct src_enum_table toddr_src_table[TODDR_SRC_MAX] = {
 	{TDMIN_A,      "tdmin_a"},
 	{TDMIN_B,      "tdmin_b"},
@@ -61,8 +66,21 @@ struct src_enum_table toddr_src_table[TODDR_SRC_MAX] = {
 	{RESAMPLEA,    "resample_a"},
 	{RESAMPLEB,    "resample_b"},
 	{VAD,          "vad"},
+	{PDMIN_B,      "pdmin_b"},
+	{TDMINB_LB,    "tdminb_lb"},
+	{TDMIN_D,      "tdmin_d"},
 };
 
+struct frddr_enum_table frddr_src_table[FRDDR_MAX] = {
+	{TDMOUT_A,      "tdmout_a"},
+	{TDMOUT_B,      "tdmout_b"},
+	{TDMOUT_C,      "tdmout_c"},
+	{TDMOUT_D,      "tdmout_d"},
+	{SPDIFOUT_A,    "spdif_a"},
+	{SPDIFOUT_B,    "spdif_b"},
+	{EARCTX_DMAC,   "earctx"},
+
+};
 /* resample */
 static struct toddr_attach attach_resample_a;
 static struct toddr_attach attach_resample_b;
@@ -369,6 +387,14 @@ static char *toddr_src2str(enum toddr_src tsrc)
 		tsrc = TDMIN_A;
 
 	return toddr_src_table[tsrc].name;
+}
+
+static char *frddr_src2str(enum frddr_dest fsrc)
+{
+	if (fsrc >= FRDDR_MAX)
+		fsrc = TDMOUT_A;
+
+	return frddr_src_table[fsrc].name;
 }
 
 void aml_toddr_select_src(struct toddr *to, enum toddr_src src)
@@ -1183,6 +1209,27 @@ static inline unsigned int
 	return base + reg - EE_AUDIO_FRDDR_A_CTRL0;
 }
 
+void aml_frddr_select_src(struct frddr *fr, enum frddr_dest src)
+{
+	struct aml_audio_controller *actrl = fr->actrl;
+	unsigned int reg_base = fr->reg_base;
+	unsigned int reg;
+	struct toddr_src_conf *conf;
+	char *src_str = frddr_src2str(src);
+
+	/* store to check toddr num */
+
+	conf = fr->chipinfo->fr_srcs;
+	for (; conf->name[0]; conf++) {
+		if (strncmp(conf->name, src_str, strlen(src_str)) == 0)
+			break;
+	}
+
+	reg = calc_toddr_address(conf->reg, reg_base);
+	aml_audiobus_update_bits(actrl, reg,
+				 conf->mask << conf->shift,
+				 conf->val << conf->shift);
+}
 /*
  * check frddr_src is used by other frddr for sharebuffer
  * if used, disabled the other share frddr src, the module would
@@ -1730,7 +1777,7 @@ void aml_frddr_reset(struct frddr *fr, int offset)
 		reg = EE_AUDIO_SW_RESET0(offset);
 		val = REG_BIT_RESET_FRDDRC;
 	} else if (fr->fifo_id == 3) {
-		reg = EE_AUDIO_SW_RESET1;
+		reg = EE_AUDIO_SW_RESET1(offset);
 		val = REG_BIT_RESET_FRDDRD;
 	} else {
 		pr_err("invalid frddr id %d\n", fr->fifo_id);
@@ -1838,7 +1885,7 @@ static int frddr_src_idx = -1;
 
 static const char *const frddr_src_sel_texts[] = {
 	"TDMOUT_A", "TDMOUT_B", "TDMOUT_C",
-	"SPDIFOUT_A", "SPDIFOUT_B", "EARCTX_DMAC"
+	"SPDIFOUT_A", "SPDIFOUT_B", "EARCTX_DMAC", "TDMOUT_D"
 };
 
 static const struct soc_enum frddr_output_source_enum =
@@ -1971,9 +2018,11 @@ struct toddr_src_conf toddr_srcs_v3[] = {
 	TODDR_SRC_CONFIG("resample_a", 13, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	TODDR_SRC_CONFIG("resample_b", 14, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	TODDR_SRC_CONFIG("vad", 15, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
+	TODDR_SRC_CONFIG("pdmin_b", 16, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
+	TODDR_SRC_CONFIG("tdminb_lb", 17, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
+	TODDR_SRC_CONFIG("tdmin_d", 18, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	{ /* sentinel */ }
 };
-
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct ddr_chipinfo axg_ddr_chipinfo = {
 	.int_start_same_addr   = true,
@@ -2052,6 +2101,18 @@ static struct ddr_chipinfo t5_ddr_chipinfo = {
 	.to_srcs               = &toddr_srcs_v3[0],
 };
 
+static struct ddr_chipinfo p1_ddr_chipinfo = {
+	.same_src_fn           = true,
+	.ugt                   = true,
+	.src_sel_ctrl          = true,
+	.asrc_src_sel_ctrl     = true,
+	.wakeup                = 2,
+	.fifo_num              = 4,
+	.fifo_depth            = FIFO_DEPTH_1K,
+	.chnum_sync            = true,
+	.burst_finished_flag   = true,
+	.to_srcs               = &toddr_srcs_v3[0],
+};
 static const struct of_device_id aml_ddr_mngr_device_id[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -2082,6 +2143,10 @@ static const struct of_device_id aml_ddr_mngr_device_id[] = {
 	{
 		.compatible = "amlogic, t5-audio-ddr-manager",
 		.data       = &t5_ddr_chipinfo,
+	},
+	{
+		.compatible = "amlogic, p1-audio-ddr-manager",
+		.data       = &p1_ddr_chipinfo,
 	},
 	{},
 };

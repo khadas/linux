@@ -4359,6 +4359,20 @@ static int crg_vbus_detect_thread(void *data)
 	return 0;
 }
 
+void amlogic_crg_m31_phy_init(struct crg_gadget_dev *crg_udc)
+{
+#define M31_SETTING 0x1E30CEB9
+	writel(1, crg_udc->phy_reg_addr + 0x8);
+	udelay(9);
+
+	writel(0, crg_udc->phy_reg_addr + 0xc);
+	udelay(9);
+
+	/* to do */
+	writel(M31_SETTING, crg_udc->phy_reg_addr);
+	udelay(9);
+}
+
 /**
  * crg_gadget_probe - Initializes gadget driver
  *
@@ -4420,8 +4434,11 @@ static int crg_udc_probe(struct platform_device *pdev)
 			crg_udc->controller_type = controller_type;
 
 			prop = of_get_property(of_node, "port-speed", NULL);
-			if (prop)
+			if (prop) {
 				port_speed = of_read_ulong(prop, 1);
+				crg_udc->gadget.max_speed = port_speed;
+				crg_udc->gadget.speed = port_speed;
+			}
 
 			retval = of_property_read_u32(of_node, "phy-reg", &p_phy_reg_addr);
 			if (retval < 0)
@@ -4453,7 +4470,10 @@ static int crg_udc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	amlogic_crg_device_usb2_init(phy_id);
+	if (controller_type != USB_M31)
+		amlogic_crg_device_usb2_init(phy_id);
+	else
+		amlogic_crg_m31_phy_init(crg_udc);
 
 	crg_udc->mmio_phys_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!crg_udc->mmio_phys_base) {

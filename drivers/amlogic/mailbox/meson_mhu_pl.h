@@ -10,7 +10,7 @@
 #include <linux/mailbox_controller.h>
 #include <linux/amlogic/meson_mhu_common.h>
 
-#define CHANNEL_PL_MAX		6
+#define CHANNEL_PL_MAX		MBOX_MAX
 //#define MHUDEV_MAX		(CHANNEL_PL_MAX / 2)
 
 #define MBOX_PL_SIZE		512

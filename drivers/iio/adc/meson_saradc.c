@@ -221,6 +221,8 @@
 /* for use with IIO_VAL_INT_PLUS_MICRO */
 #define MILLION							1000000
 
+#define SAR_ADC_DEF_VREF					1800000	/* uV */
+
 #ifdef CONFIG_AMLOGIC_MODIFY
 #define MESON_SAR_ADC_CHAN(_chan) {					\
 	.type = IIO_VOLTAGE,						\
@@ -959,10 +961,8 @@ static int meson_sar_adc_iio_info_read_raw(struct iio_dev *indio_dev,
 		if (chan->type == IIO_VOLTAGE) {
 			ret = regulator_get_voltage(priv->vref);
 			if (ret < 0) {
-				dev_err(indio_dev->dev.parent,
-					"failed to get vref voltage: %d\n",
-					ret);
-				return ret;
+				/* use the default vref voltage */
+				ret = SAR_ADC_DEF_VREF;
 			}
 
 			*val = ret / 1000;

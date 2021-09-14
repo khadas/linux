@@ -1335,6 +1335,24 @@ static struct ge2d_device_data_s ge2d_s4 = {
 	.src2_repeat = 1,
 };
 
+static struct ge2d_device_data_s ge2d_p1 = {
+	.ge2d_rate = 667000000,
+	.src2_alp = 1,
+	.canvas_status = 2,
+	.deep_color = 1,
+	.hang_flag = 1,
+	.fifo = 1,
+	.has_self_pwr = 1,
+	.poweron_table = &runtime_poweron_table,
+	.poweroff_table = &runtime_poweroff_table,
+	.chip_type = MESON_CPU_MAJOR_ID_P1,
+	.adv_matrix = 1,
+	.src2_repeat = 1,
+	.dst_repeat = 1,
+	.dst_sign_mode = 1,
+	.blk_stride_mode = 1,
+};
+
 static const struct of_device_id ge2d_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -1394,6 +1412,10 @@ static const struct of_device_id ge2d_dt_match[] = {
 		.compatible = "amlogic, ge2d-s4",
 		.data = &ge2d_s4,
 	},
+	{
+		.compatible = "amlogic, ge2d-p1",
+		.data = &ge2d_p1,
+	},
 	{},
 };
 
@@ -1444,7 +1466,7 @@ static int ge2d_probe(struct platform_device *pdev)
 		goto failed1;
 	}
 
-	if (clk_cnt == 3) {
+	if (clk_cnt == 3 || clk_cnt == 2) {
 		clk_gate = devm_clk_get(&pdev->dev, "clk_ge2d_gate");
 		if (IS_ERR_OR_NULL(clk_gate)) {
 			ge2d_log_err("cannot get clock\n");
@@ -1453,17 +1475,24 @@ static int ge2d_probe(struct platform_device *pdev)
 			goto failed1;
 		}
 		ge2d_log_dbg("clock source clk_ge2d_gate %p\n", clk_gate);
+		if (clk_cnt == 2) {
+			clk_set_rate(clk_gate, ge2d_meson_dev.ge2d_rate);
+			ge2d_log_info("ge2d gate clock is %lu MHZ\n",
+				       clk_get_rate(clk_gate) / 1000000);
+		}
 		clk_prepare_enable(clk_gate);
 
-		clk = devm_clk_get(&pdev->dev, "clk_ge2d");
-		if (IS_ERR_OR_NULL(clk)) {
-			ge2d_log_err("cannot get clock\n");
-			clk = NULL;
-			ret = -ENOENT;
-			goto failed1;
+		if (clk_cnt == 3) {
+			clk = devm_clk_get(&pdev->dev, "clk_ge2d");
+			if (IS_ERR_OR_NULL(clk)) {
+				ge2d_log_err("cannot get clock\n");
+				clk = NULL;
+				ret = -ENOENT;
+				goto failed1;
+			}
+			ge2d_log_dbg("clock clk_ge2d source %p\n", clk);
+			clk_prepare_enable(clk);
 		}
-		ge2d_log_dbg("clock clk_ge2d source %p\n", clk);
-		clk_prepare_enable(clk);
 
 		clk_vapb0 = devm_clk_get(&pdev->dev, "clk_vapb_0");
 		if (PTR_ERR(clk_vapb0) != -ENOENT) {
@@ -1486,7 +1515,7 @@ static int ge2d_probe(struct platform_device *pdev)
 					vapb_rate = 333333333;
 				else if (vpu_rate == 166660000)
 					vapb_rate = 166666667;
-				else if (vapb_rate > vpu_rate)
+				else if (vpu_rate > 0 && vapb_rate > vpu_rate)
 					vapb_rate = vpu_rate;
 				clk_set_rate(clk_vapb0, vapb_rate);
 				clk_prepare_enable(clk_vapb0);

@@ -1740,7 +1740,7 @@
 			reg = <0x0 0xfde00000 0x0 0x100000>;
 			interrupts = <0 130 IRQ_TYPE_EDGE_RISING>;
 			clock-src = "usb0"; /** clock src */
-			port-speed = <0>; /** 0: default, high, 1: full */
+			port-speed = <5>; /** 0: default, high, 1: full */
 			phy-reg = <0xfe03a000>;
 			phy-reg-size = <0xa0>;
 			clocks = <&clkc CLKID_USB>;
@@ -1755,7 +1755,7 @@
 			reg = <0x0 0xfdd00000 0x0 0x100000>;
 			interrupts = <0 131 IRQ_TYPE_EDGE_RISING>;
 			clock-src = "usb0"; /** clock src */
-			port-speed = <0>; /** 0: default, high, 1: full */
+			port-speed = <3>; /** 0: default, high, 1: full */
 			phy-reg = <0xfe03a020>;
 			phy-reg-size = <0xa0>;
 			clocks = <&clkc CLKID_USB>;

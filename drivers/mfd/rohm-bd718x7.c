@@ -119,6 +119,85 @@ static int bd718xx_init_press_duration(struct bd718xx *bd718xx)
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+struct regmap *regmap_all1;
+
+static ssize_t read_reg_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int ret = 0;
+	int reg = 0;
+	u32 val = 0;
+
+	ret = kstrtoint(buf, 16, &reg);
+	if (ret) {
+		pr_err("%s: %d\n", __func__, __LINE__);
+		return ret;
+	}
+
+	ret = regmap_read(regmap_all1, reg, &val);
+	if (ret)
+		pr_err("%s: %d\n", __func__, __LINE__);
+
+	pr_info("[0x%x] = 0x%x\n", reg, val);
+
+	return strlen(buf);
+}
+
+static ssize_t write_reg_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int ret = 0;
+	int i = 0;
+	int j = 0;
+	int reg = 0, val = 0;
+	char tone[20];
+
+	while (buf[i] != '\0') {
+		if (buf[i] == 's') {
+			tone[j] = '\0';
+			ret = kstrtoint(tone, 16, &reg);
+			if (ret) {
+				pr_err("%s: %d\n", __func__, __LINE__);
+				return ret;
+			}
+		break;
+		}
+		tone[j] = buf[i];
+		i++;
+		j++;
+	}
+	ret = kstrtoint(&buf[i + 1], 16, &val);
+	if (ret) {
+		pr_err("%s: %d\n", __func__, __LINE__);
+		return ret;
+	}
+
+	ret = regmap_write(regmap_all1, reg, val);
+	if (ret)
+		pr_err("%s: %d\n", __func__, __LINE__);
+
+	pr_info("[0x%x] = 0x%x\n", reg, val);
+
+	return strlen(buf);
+}
+
+static DEVICE_ATTR_WO(read_reg);
+static DEVICE_ATTR_WO(write_reg);
+
+static struct attribute *bd71888_attrs[] = {
+		&dev_attr_read_reg.attr,
+		&dev_attr_write_reg.attr,
+		NULL,
+};
+
+static struct attribute_group bd71888_attr_group = {
+		.attrs = bd71888_attrs,
+};
+#endif
+
 static int bd718xx_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -147,6 +226,16 @@ static int bd718xx_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev, "regmap initialization failed\n");
 		return PTR_ERR(bd718xx->chip.regmap);
 	}
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	regmap_all1 = bd718xx->chip.regmap;
+
+	ret = sysfs_create_group(&(&i2c->dev)->kobj, &bd71888_attr_group);
+	if (ret) {
+		dev_err(&i2c->dev,
+			"pmic sysfs group creation failed: %d\n", ret);
+	}
+#endif
 
 	ret = devm_regmap_add_irq_chip(&i2c->dev, bd718xx->chip.regmap,
 				       bd718xx->chip_irq, IRQF_ONESHOT, 0,
@@ -188,6 +277,12 @@ static const struct of_device_id bd718xx_of_match[] = {
 		.compatible = "rohm,bd71847",
 		.data = (void *)ROHM_CHIP_TYPE_BD71847,
 	},
+#ifdef CONFIG_AMLOGIC_MODIFY
+	{
+		.compatible = "rohm,bd71888",
+		.data = (void *)ROHM_CHIP_TYPE_BD71888,
+	},
+#endif
 	{ }
 };
 MODULE_DEVICE_TABLE(of, bd718xx_of_match);

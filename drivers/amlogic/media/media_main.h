@@ -87,10 +87,6 @@ static inline int esm_init(void)
 {
 	return 0;
 }
-
-static void esm_exit(void)
-{
-}
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI

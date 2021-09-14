@@ -155,6 +155,7 @@ struct ddr_bandwidth {
 	unsigned int irq_num;
 	unsigned int clock_count;
 	unsigned int channels;
+	unsigned int dmc_number;
 	unsigned int usage_stat[10];
 	spinlock_t lock;		/* lock for usage statistics */
 	struct ddr_bandwidth_sample cur_sample;
@@ -164,6 +165,8 @@ struct ddr_bandwidth {
 	u64	     port[MAX_CHANNEL];
 	void __iomem *ddr_reg1;		/* dmc 1 */
 	void __iomem *ddr_reg2;		/* dmc 2 */
+	void __iomem *ddr_reg3;		/* dmc 3 */
+	void __iomem *ddr_reg4;		/* dmc 4 */
 	void __iomem *pll_reg;
 	struct class *class;
 	struct ddr_port_desc *port_desc;

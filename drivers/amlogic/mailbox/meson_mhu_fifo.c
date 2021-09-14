@@ -153,17 +153,17 @@ static void mbox_chan_report(u32 status, void *msg, int idx)
 void mbox_irq_clean(u64 mask, struct mhu_ctlr *ctlr)
 {
 	void __iomem *mbox_irq_base = ctlr->mbox_irq_base;
-	int irqctlr = ctlr->mhu_irqctlr;
+	int irqclr = ctlr->mhu_irqclr;
 	int irqmax = ctlr->mhu_irqmax;
 	u64 hstatus, lstatus;
 
 	if (irqmax / MHUIRQ_MAXNUM_DEF == 2) {
 		hstatus = (mask >> MBOX_IRQSHIFT) & MBOX_IRQMASK;
 		lstatus = mask & MBOX_IRQMASK;
-		writel(lstatus, mbox_irq_base + IRQ_CLR_OFFSETL(irqctlr));
-		writel(hstatus, mbox_irq_base + IRQ_CLR_OFFSETH(irqctlr));
+		writel(lstatus, mbox_irq_base + IRQ_CLR_OFFSETL(irqclr));
+		writel(hstatus, mbox_irq_base + IRQ_CLR_OFFSETH(irqclr));
 	} else {
-		writel((mask & MBOX_IRQMASK), mbox_irq_base + IRQ_CLR_OFFSET(irqctlr));
+		writel((mask & MBOX_IRQMASK), mbox_irq_base + IRQ_CLR_OFFSET(irqclr));
 	}
 }
 
@@ -258,7 +258,7 @@ static u64 mbox_irqstatus(struct mhu_ctlr *ctlr)
 	} else {
 		status = readl(mbox_irq_base + IRQ_STS_OFFSET(irqctlr));
 	}
-
+	pr_info("irq status = %llu\n", status);
 	return status;
 }
 
@@ -288,6 +288,7 @@ static irqreturn_t mbox_handler(int irq, void *p)
 		outcnt--;
 		WARN_ON(!outcnt);
 	}
+	pr_info("in mbox handler\n");
 	return IRQ_HANDLED;
 }
 
@@ -625,6 +626,7 @@ static int mhu_fifo_probe(struct platform_device *pdev)
 	int idx, err;
 	u32 num_chans = 0;
 	u32 irqctlr = 0;
+	u32 irqclr = 0;
 	u32 irqmax = 0;
 	int wrrd = 0;
 	int memid = 0;
@@ -725,6 +727,12 @@ static int mhu_fifo_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 	mhu_ctlr->mhu_irqctlr = irqctlr;
+
+	err = of_property_read_u32(dev->of_node,
+				   "mbox-irqclr", &irqclr);
+	if (err)
+		irqclr = irqctlr;
+	mhu_ctlr->mhu_irqclr = irqclr;
 
 	err = of_property_read_u32(dev->of_node,
 				   "mbox-irqmax", &irqmax);

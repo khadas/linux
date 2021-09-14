@@ -73,6 +73,9 @@ static int bd71837_clk_probe(struct platform_device *pdev)
 	struct clk_init_data init = {
 		.name = "bd718xx-32k-out",
 		.ops = &bd71837_clk_ops,
+#ifdef CONFIG_AMLOGIC_MODIFY
+		.flags = CLK_IGNORE_UNUSED,
+#endif
 	};
 
 	c = devm_kzalloc(&pdev->dev, sizeof(*c), GFP_KERNEL);
@@ -90,6 +93,9 @@ static int bd71837_clk_probe(struct platform_device *pdev)
 	switch (mfd->chip_type) {
 	case ROHM_CHIP_TYPE_BD71837:
 	case ROHM_CHIP_TYPE_BD71847:
+#ifdef CONFIG_AMLOGIC_MODIFY
+	case ROHM_CHIP_TYPE_BD71888:
+#endif
 		c->reg = BD718XX_REG_OUT32K;
 		c->mask = BD718XX_OUT32K_EN;
 		break;

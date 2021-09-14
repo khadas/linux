@@ -1366,7 +1366,7 @@ static const struct file_operations videoqueue_fops = {
 	.poll = NULL,
 };
 
-static int __init videoqueue_create_instance(int inst)
+static int videoqueue_create_instance(int inst)
 {
 	struct video_queue_dev *dev;
 	unsigned long flags;

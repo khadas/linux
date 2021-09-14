@@ -31,7 +31,7 @@
 #define MASK_MHU_SEC            (BIT(3))
 #define MASK_MHU_ALL            (MASK_MHU | MASK_MHU_FIFO | MASK_MHU_PL | MASK_MHU_SEC)
 
-#define MBOX_MAX		6
+#define MBOX_MAX		10
 #define MHUDEV_MAX		(MBOX_MAX / 2)
 #define CDEV_NAME_SIZE		32
 
@@ -105,6 +105,7 @@ struct mhu_ctlr {
 	int mhu_id[MBOX_MAX];
 	int mhu_irq;
 	int mhu_irqctlr;
+	int mhu_irqclr;
 	int mhu_irqmax;
 	/*for pl mhu*/
 	void __iomem *mbox_sts_base[MHUDEV_MAX];

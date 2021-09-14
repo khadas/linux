@@ -384,6 +384,12 @@ struct regulator_desc {
 	unsigned int pull_down_reg;
 	unsigned int pull_down_mask;
 	unsigned int pull_down_val_on;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int ramp_reg;
+	unsigned int ramp_mask;
+	unsigned int *ramp_delay_table;
+	unsigned int n_ramp_values;
+#endif
 
 	unsigned int enable_time;
 

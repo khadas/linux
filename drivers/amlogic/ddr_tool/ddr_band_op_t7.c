@@ -71,8 +71,24 @@ static void t7_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 	int i;
 	void *io;
 
-	for (i = 0; i < 2; i++) {
-		io  = i ? db->ddr_reg2 : db->ddr_reg1;
+	for (i = 0; i < db->dmc_number; i++) {
+		switch (i) {
+		case 0:
+			io = db->ddr_reg1;
+			break;
+		case 1:
+			io = db->ddr_reg2;
+			break;
+		case 2:
+			io = db->ddr_reg3;
+			break;
+		case 3:
+			io = db->ddr_reg4;
+			break;
+		default:
+			break;
+		}
+
 		off = DMC_MON0_CTRL + channel * 16;
 		if (port < 0) {
 			/* clear all port mask */
@@ -94,8 +110,24 @@ static void t7_dmc_range_config(struct ddr_bandwidth *db, int channel,
 
 	start >>= 12;
 	end   >>= 12;
-	for (i = 0; i < 2; i++) {
-		io  = i ? db->ddr_reg2 : db->ddr_reg1;
+	for (i = 0; i < db->dmc_number; i++) {
+		switch (i) {
+		case 0:
+			io = db->ddr_reg1;
+			break;
+		case 1:
+			io = db->ddr_reg2;
+			break;
+		case 2:
+			io = db->ddr_reg3;
+			break;
+		case 3:
+			io = db->ddr_reg4;
+			break;
+		default:
+			break;
+		}
+
 		off = DMC_MON0_STA + channel * 16;
 		writel(start, io + off);	/* DMC_MON*_STA */
 		writel(end, io + off + 4);	/* DMC_MON*_EDA */
@@ -111,37 +143,72 @@ static unsigned long t7_get_dmc_freq_quick(struct ddr_bandwidth *db)
 
 	val = readl(db->pll_reg);
 	val = val & 0xfffff;
-	switch ((val >> 16) & 7) {
-	case 0:
-		od_div = 2;
-		break;
+	if (db->cpu_type == DMC_TYPE_P1) {
+		switch ((val >> 16) & 7) {
+		case 0:
+			od_div = 1;
+			break;
 
-	case 1:
-		od_div = 3;
-		break;
+		case 1:
+			od_div = 2;
+			break;
 
-	case 2:
-		od_div = 4;
-		break;
+		case 2:
+			od_div = 3;
+			break;
 
-	case 3:
-		od_div = 6;
-		break;
+		case 3:
+			od_div = 4;
+			break;
 
-	case 4:
-		od_div = 8;
-		break;
+		case 4:
+			od_div = 6;
+			break;
 
-	default:
-		break;
+		case 5:
+			od_div = 8;
+			break;
+
+		default:
+			break;
+		}
+	} else {
+		switch ((val >> 16) & 7) {
+		case 0:
+			od_div = 2;
+			break;
+
+		case 1:
+			od_div = 3;
+			break;
+
+		case 2:
+			od_div = 4;
+			break;
+
+		case 3:
+			od_div = 6;
+			break;
+
+		case 4:
+			od_div = 8;
+			break;
+
+		default:
+			break;
+		}
 	}
-
 	m = val & 0x1ff;
 	n = ((val >> 10) & 0x1f);
 	od1 = (((val >> 19) & 0x1)) == 1 ? 2 : 1;
 	freq = DEFAULT_XTAL_FREQ / 1000;	/* avoid overflow */
-	if (n)
-		freq = ((((freq * m) / n) >> od1) / od_div) * 1000;
+	if (n) {
+		if (db->cpu_type == DMC_TYPE_P1)
+			freq = ((((freq * m) / n) >> od1) / od_div) * 1000 / 2;
+		else
+
+			freq = ((((freq * m) / n) >> od1) / od_div) * 1000;
+	}
 
 	return freq;
 }
@@ -150,6 +217,10 @@ static void t7_dmc_bandwidth_enable(struct ddr_bandwidth *db)
 {
 	writel((0x01 << 31), db->ddr_reg2 + DMC_MON_CTRL0);
 	writel((0x01 << 31), db->ddr_reg1 + DMC_MON_CTRL0);
+	if (db->dmc_number == 4) {
+		writel((0x01 << 31), db->ddr_reg3 + DMC_MON_CTRL0);
+		writel((0x01 << 31), db->ddr_reg4 + DMC_MON_CTRL0);
+	}
 }
 
 static void t7_dmc_bandwidth_init(struct ddr_bandwidth *db)
@@ -159,6 +230,10 @@ static void t7_dmc_bandwidth_init(struct ddr_bandwidth *db)
 	/* set timer trigger clock_cnt */
 	writel(db->clock_count, db->ddr_reg1 + DMC_MON_TIMER);
 	writel(db->clock_count, db->ddr_reg2 + DMC_MON_TIMER);
+	if (db->dmc_number == 4) {
+		writel(db->clock_count, db->ddr_reg3 + DMC_MON_TIMER);
+		writel(db->clock_count, db->ddr_reg4 + DMC_MON_TIMER);
+	}
 	t7_dmc_bandwidth_enable(db);
 
 	for (i = 0; i < db->channels; i++) {
@@ -176,8 +251,24 @@ static int t7_handle_irq(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	void *io;
 	int ret = -1;
 
-	for (d = 0; d < 2; d++) {
-		io  = d ? db->ddr_reg2 : db->ddr_reg1;
+	for (d = 0; d < db->dmc_number; d++) {
+		switch (d) {
+		case 0:
+			io = db->ddr_reg1;
+			break;
+		case 1:
+			io = db->ddr_reg2;
+			break;
+		case 2:
+			io = db->ddr_reg3;
+			break;
+		case 3:
+			io = db->ddr_reg4;
+			break;
+		default:
+			break;
+		}
+
 		val = readl(io + DMC_MON_CTRL0);
 		/*
 		 * get total bytes by each channel, each cycle 16 bytes;
@@ -210,8 +301,23 @@ static int t7_dump_reg(struct ddr_bandwidth *db, char *buf)
 	unsigned int r, off;
 	void *io;
 
-	for (d = 0; d < 2; d++) {
-		io  = d ? db->ddr_reg2 : db->ddr_reg1;
+	for (d = 0; d < db->dmc_number; d++) {
+		switch (d) {
+		case 0:
+			io = db->ddr_reg1;
+			break;
+		case 1:
+			io = db->ddr_reg2;
+			break;
+		case 2:
+			io = db->ddr_reg3;
+			break;
+		case 3:
+			io = db->ddr_reg4;
+			break;
+		default:
+			break;
+		}
 
 		s += sprintf(buf + s, "\nDMC%d:\n", d);
 

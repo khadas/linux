@@ -33,30 +33,29 @@ static int amlogic_usb3_m31_suspend(struct usb_phy *x, int suspend)
 static void amlogic_usb3_m31_shutdown(struct usb_phy *x)
 {
 	struct amlogic_usb_m31 *phy = phy_to_m31usb(x);
-	u32 val, temp = 0;
+	u32 val, temp, shift = 0;
 	size_t mask = 0;
 
 	if (phy->portnum > 0) {
 		mask = (size_t)phy->reset_regs & 0xf;
+		shift = (phy->m31phy_reset_level_bit % 32) * 4;
 		temp = 1 << phy->m31phy_reset_level_bit;
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask) + 0x4));
+			(phy->reset_level - mask) + shift));
 		writel((val & (~temp)), (void __iomem	*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask) + 0x4));
+			(phy->reset_level - mask) + shift));
 
 		temp = 1 << phy->m31ctl_reset_level_bit;
+		shift = (phy->m31ctl_reset_level_bit % 32) * 4;
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask)));
+			(phy->reset_level - mask) + shift));
 		writel((val & (~temp)), (void __iomem	*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask)));
+			(phy->reset_level - mask) + shift));
 	}
-
-	if (phy->phy.flags == AML_USB3_PHY_ENABLE)
-		clk_disable_unprepare(phy->clk);
 
 	phy->suspend_flag = 1;
 }
@@ -64,31 +63,31 @@ static void amlogic_usb3_m31_shutdown(struct usb_phy *x)
 static int amlogic_usb3_m31_init(struct usb_phy *x)
 {
 	struct amlogic_usb_m31 *phy = phy_to_m31usb(x);
-	u32 val, temp = 0;
+	u32 val, temp, shift = 0;
 	size_t mask = 0;
 
 	if (phy->portnum > 0) {
 		mask = (size_t)phy->reset_regs & 0xf;
 		temp = 1 << phy->m31phy_reset_level_bit;
+		shift = (phy->m31phy_reset_level_bit % 32) * 4;
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask) + 0x4));
+			(phy->reset_level - mask) + shift));
 		writel((val | (temp)), (void __iomem	*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask) + 0x4));
+			(phy->reset_level - mask) + shift));
 
 		temp = 1 << phy->m31ctl_reset_level_bit;
+		shift = (phy->m31ctl_reset_level_bit % 32) * 4;
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask)));
+			(phy->reset_level - mask) + shift));
 		writel((val | (temp)), (void __iomem	*)
 			((unsigned long)phy->reset_regs +
-			(phy->reset_level - mask)));
+			(phy->reset_level - mask) + shift));
 	}
 
 	if (phy->suspend_flag) {
-		if (phy->phy.flags == AML_USB3_PHY_ENABLE)
-			clk_prepare_enable(phy->clk);
 		phy->suspend_flag = 0;
 		return 0;
 	}
@@ -212,6 +211,12 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 
 	/* set the phy from pcie to usb3 */
 	if (phy->portnum > 0) {
+		writel(0x1, phy->phy3_cfg + 0x8);
+		usleep_range(90, 100);
+
+		writel(0, phy->phy3_cfg + 0xc);
+		usleep_range(90, 100);
+
 		r0.d32 = readl(phy->phy3_cfg);
 		r0.b.PHY_SEL = 0;
 		r0.b.U3_HOST_PHY = 1;
@@ -222,22 +227,10 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 		r0.b.TX_ENABLE_N = 1;
 		r0.b.TX_SE0 = 0;
 		r0.b.FSLSSERIALMODE = 0;
+
 		writel(r0.d32, phy->phy3_cfg);
 		usleep_range(90, 100);
 
-		phy->clk = devm_clk_get(dev, "pcie_refpll");
-		if (IS_ERR(phy->clk)) {
-			dev_err(dev, "Failed to get usb3 bus clock\n");
-			ret = PTR_ERR(phy->clk);
-			return ret;
-		}
-
-		ret = clk_prepare_enable(phy->clk);
-		if (ret) {
-			dev_err(dev, "Failed to enable usb3 bus clock\n");
-			ret = PTR_ERR(phy->clk);
-			return ret;
-		}
 		phy->phy.flags = AML_USB3_PHY_ENABLE;
 	}
 

@@ -128,6 +128,7 @@ properties:
       - arm,cortex-a57
       - arm,cortex-a72
       - arm,cortex-a73
+      - arm,cortex-a76
       - arm,cortex-m0
       - arm,cortex-m0+
       - arm,cortex-m1

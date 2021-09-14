@@ -1353,6 +1353,12 @@ static int bd718xx_probe(struct platform_device *pdev)
 			.r_datas = bd71847_regulators,
 			.r_amount = ARRAY_SIZE(bd71847_regulators),
 		},
+#ifdef CONFIG_AMLOGIC_MODIFY
+		[ROHM_CHIP_TYPE_BD71888] = {
+			.r_datas = bd71837_regulators,
+			.r_amount = ARRAY_SIZE(bd71837_regulators),
+		},
+#endif
 	};
 
 	int i, j, err;

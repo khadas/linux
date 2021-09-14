@@ -39,6 +39,12 @@ static bool cpufreq_voltage_set_skip;
 static DEFINE_MUTEX(cpufreq_target_lock);
 struct proc_dir_entry *cpufreq_proc;
 static int opp_table_index[MAX_CLUSTERS];
+static u32 dsu_voltage_vote_result[VOTER_NUM];
+static u32 dsu_freq_vote_result[VOTER_NUM];
+#define MAX(x1, x2) ({ \
+	typeof(x1) _x1 = x1; \
+	typeof(x2) _x2 = x2; \
+	(_x1 > _x2 ? _x1 : _x2); })
 
 static unsigned int get_cpufreq_table_index(u64 function_id,
 					    u64 arg0, u64 arg1, u64 arg2)
@@ -55,13 +61,53 @@ static unsigned int get_cpufreq_table_index(u64 function_id,
 
 static unsigned int meson_cpufreq_get_rate(unsigned int cpu)
 {
-	u32 cur_cluster = topology_physical_package_id(cpu);
-	u32 rate = clk_get_rate(clk[cur_cluster]) / 1000;
+	struct cpufreq_policy policy;
+	struct meson_cpufreq_driver_data *cpufreq_data;
+	u32 cur_cluster;
+	u32 rate = 0;
+
+	if (!cpufreq_get_policy(&policy, cpu)) {
+		cpufreq_data = policy.driver_data;
+		cur_cluster = cpufreq_data->clusterid;
+		rate = clk_get_rate(clk[cur_cluster]) / 1000;
+	}
 
 	pr_debug("%s: cpu: %d, cluster: %d, freq: %u\n",
 		 __func__, cpu, cur_cluster, rate);
 
 	return rate;
+}
+
+static int meson_set_shared_dsu_rate(struct clk *dsu,
+	struct clk *dyn_parent, struct clk *gp1_parent)
+{
+	int ret = 0;
+	struct clk *dsu_parent;
+	unsigned int dsu_set_rate = MAX(dsu_freq_vote_result[LITTLE_VOTER],
+		dsu_freq_vote_result[BIG_VOTER]);
+
+	dsu_parent = dsu_set_rate > low_dsu_rate ? gp1_parent : dyn_parent;
+	pr_debug("[%s %d][%s]dsu_set_rate=%uMHz begin\n",
+		__func__, __LINE__, __clk_get_name(dsu_parent), dsu_set_rate / 1000);
+	ret = clk_set_rate(dsu_parent, dsu_set_rate * 1000);
+	if (ret) {
+		pr_err("%s: dsu parent clk set %u MHz failed, ret = %d!\n",
+		       __func__, dsu_set_rate, ret);
+		return ret;
+	}
+	ret = clk_prepare_enable(dsu_parent);
+	if (ret) {
+		pr_err("%s: dsu parent enable failed, ret = %d\n", __func__, ret);
+		return ret;
+	}
+	ret = clk_set_parent(dsu, dsu_parent);
+	if (ret) {
+		pr_err("%s: dsu set parent failed,ret = %d\n",
+		       __func__, ret);
+		return ret;
+	}
+	pr_debug("%s:dsu parent clk set rate succeed!\n", __func__);
+	return ret;
 }
 
 static int meson_dsufreq_adjust(struct meson_cpufreq_driver_data *cpufreq_data,
@@ -71,6 +117,7 @@ static int meson_dsufreq_adjust(struct meson_cpufreq_driver_data *cpufreq_data,
 	struct clk *dsu_clk = cpufreq_data->clk_dsu;
 	struct clk *dsu_cpu_parent =  policy->clk;
 	struct clk *dsu_pre_parent = cpufreq_data->clk_dsu_pre;
+	struct clk *dsu_pre_parent2 = cpufreq_data->clk_dsu_pre2;
 	int ret = 0;
 	unsigned int dsu_set_rate;
 
@@ -82,43 +129,50 @@ static int meson_dsufreq_adjust(struct meson_cpufreq_driver_data *cpufreq_data,
 	switch (state) {
 	case CPUFREQ_PRECHANGE:
 		if (freq->new > low_dsu_rate) {
-			pr_debug("%s:dsu clk switch parent to dsu pre!\n",
-				 __func__);
-			if (!__clk_is_enabled(dsu_pre_parent)) {
-				ret = clk_prepare_enable(dsu_pre_parent);
+			if (cpufreq_data->dsu_clock_shared) {
+				meson_set_shared_dsu_rate(dsu_clk, dsu_pre_parent, dsu_pre_parent2);
+			} else {
+				pr_debug("%s:dsu clk switch parent to dsu pre!\n",
+					 __func__);
+				if (!__clk_is_enabled(dsu_pre_parent)) {
+					ret = clk_prepare_enable(dsu_pre_parent);
+					if (ret) {
+						pr_err("%s: CPU%d gp1 pll enable failed,ret = %d\n",
+						       __func__, policy->cpu,
+						       ret);
+						return ret;
+					}
+				}
+
+				if (freq->new > CPU_CMP_RATE)
+					dsu_set_rate = DSU_HIGH_RATE;
+				else
+					dsu_set_rate = low_dsu_rate;
+
+				clk_set_rate(dsu_pre_parent, dsu_set_rate * 1000);
 				if (ret) {
-					pr_err("%s: CPU%d gp1 pll enable failed,ret = %d\n",
-					       __func__, policy->cpu,
-					       ret);
+					pr_err("%s: GP1 clk setting %u MHz failed, ret = %d!\n",
+					       __func__, dsu_set_rate, ret);
 					return ret;
 				}
+				pr_debug("%s:GP1 clk setting %u MHz!\n",
+					 __func__, dsu_set_rate);
+
+				ret = clk_set_parent(dsu_clk, dsu_pre_parent);
 			}
-
-			if (freq->new > CPU_CMP_RATE)
-				dsu_set_rate = DSU_HIGH_RATE;
-			else
-				dsu_set_rate = low_dsu_rate;
-
-			clk_set_rate(dsu_pre_parent,
-				     dsu_set_rate * 1000);
-			if (ret) {
-				pr_err("%s: GP1 clk setting %u MHz failed, ret = %d!\n",
-				       __func__, dsu_set_rate, ret);
-				return ret;
-			}
-			pr_debug("%s:GP1 clk setting %u MHz!\n",
-				 __func__, dsu_set_rate);
-
-			ret = clk_set_parent(dsu_clk, dsu_pre_parent);
 		}
 		break;
 	case CPUFREQ_POSTCHANGE:
 		if (freq->new <= low_dsu_rate) {
-			pr_debug("%s:dsu clk switch parent to cpu!\n",
-				 __func__);
-			ret = clk_set_parent(dsu_clk, dsu_cpu_parent);
-			if (__clk_is_enabled(dsu_pre_parent))
-				clk_disable_unprepare(dsu_pre_parent);
+			if (cpufreq_data->dsu_clock_shared) {
+				meson_set_shared_dsu_rate(dsu_clk, dsu_pre_parent, dsu_pre_parent2);
+			} else {
+				pr_debug("%s:dsu clk switch parent to cpu!\n",
+					 __func__);
+				ret = clk_set_parent(dsu_clk, dsu_cpu_parent);
+				if (__clk_is_enabled(dsu_pre_parent))
+					clk_disable_unprepare(dsu_pre_parent);
+			}
 		}
 
 		break;
@@ -290,13 +344,60 @@ static int meson_regulator_get_volate(struct regulator *regulator)
 	return ret;
 }
 
+static u32 meson_get_suggested_dsu_volt(u32 *dsu_opp_table,
+	struct cpufreq_freqs *freq, unsigned int volt_new)
+{
+	if (freq->new > CPU_CMP_RATE)
+		return dsu_opp_table[3];
+	else if (freq->new > low_dsu_rate)
+		return dsu_opp_table[1];
+	else
+		return volt_new;
+}
+
+static u32 meson_get_suggested_dsu_freq(u32 *dsu_opp_table, struct cpufreq_freqs *freq)
+{
+	if (freq->new > CPU_CMP_RATE)
+		return dsu_opp_table[2];
+	else if (freq->new > low_dsu_rate)
+		return dsu_opp_table[0];
+	else
+		return freq->new;
+}
+
+static void meson_dsuvolt_adjust(struct meson_cpufreq_driver_data *cpufreq_data)
+{
+	struct regulator *dsu_reg = cpufreq_data->reg_dsu;
+	u32 new_dsu_vol, old_dsu_vol;
+
+	if (cpufreq_voltage_set_skip || !dsu_reg)
+		return;
+	old_dsu_vol = meson_regulator_get_volate(dsu_reg);
+	new_dsu_vol = MAX(dsu_voltage_vote_result[LITTLE_VOTER],
+		dsu_voltage_vote_result[BIG_VOTER]);
+	meson_regulator_set_volate(dsu_reg, cpufreq_data->clusterid, old_dsu_vol, new_dsu_vol, 0);
+}
+
+static void meson_dsu_volt_freq_vote(struct meson_cpufreq_driver_data *cpufreq_data,
+	struct cpufreq_freqs *freq, unsigned int volt_new)
+{
+	if (cpufreq_data->reg_external_used)
+		dsu_voltage_vote_result[cpufreq_data->clusterid] = volt_new;
+	else if (cpufreq_data->reg_dsu && cpufreq_data->dsu_opp_table)
+		dsu_voltage_vote_result[cpufreq_data->clusterid] =
+		meson_get_suggested_dsu_volt(cpufreq_data->dsu_opp_table, freq, volt_new);
+	if (cpufreq_data->dsu_clock_shared && cpufreq_data->dsu_opp_table)
+		dsu_freq_vote_result[cpufreq_data->clusterid] =
+		meson_get_suggested_dsu_freq(cpufreq_data->dsu_opp_table, freq);
+}
+
 /* Set clock frequency */
 static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 				    unsigned int index)
 {
 	struct dev_pm_opp *opp;
 	u32 cpu, cur_cluster;
-	unsigned long freq_new, freq_old;
+	unsigned long freq_new, freq_old, dsu_freq;
 	unsigned int volt_new = 0, volt_old = 0, volt_tol = 0;
 	struct meson_cpufreq_driver_data *cpufreq_data;
 	struct device *cpu_dev;
@@ -313,7 +414,7 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 	cpufreq_data = policy->driver_data;
 	cpu_dev = cpufreq_data->cpu_dev;
 	cpu_reg = cpufreq_data->reg;
-	cur_cluster = topology_physical_package_id(cpu);
+	cur_cluster = cpufreq_data->clusterid;
 
 	pr_debug("setting target for cpu %d, index =%d\n", policy->cpu, index);
 
@@ -336,13 +437,23 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 	}
 	freq_old = clk_get_rate(clk[cur_cluster]);
 
-	pr_debug("[cluster%d:%d]Scalling from %lu MHz, %u mV --> %lu MHz, %u mV\n",
+	freqs.old = freq_old / 1000;
+	freqs.new = freq_new / 1000;
+
+	meson_dsu_volt_freq_vote(cpufreq_data, &freqs, volt_new);
+
+	pr_debug("[cluster%d:%d]Scalling from %lu MHz, %u mV --> %lu MHz, %u mV[%u %u][%u %u]\n",
 		 cur_cluster, reg_use_buck[cur_cluster],
 		 freq_old / 1000000, (volt_old > 0) ? volt_old / 1000 : -1,
-		 freq_new / 1000000, volt_new ? volt_new / 1000 : -1);
+		 freq_new / 1000000, volt_new ? volt_new / 1000 : -1,
+		 dsu_voltage_vote_result[LITTLE_VOTER], dsu_voltage_vote_result[BIG_VOTER],
+		 dsu_freq_vote_result[LITTLE_VOTER], dsu_freq_vote_result[BIG_VOTER]);
 
 	/*cpufreq up,change voltage before frequency*/
 	if (freq_new > freq_old) {
+		if (cpufreq_data->reg_external_used)
+			volt_new = MAX(dsu_voltage_vote_result[LITTLE_VOTER],
+			dsu_voltage_vote_result[BIG_VOTER]);
 		ret = meson_regulator_set_volate(cpu_reg, cur_cluster, volt_old,
 						 volt_new, volt_tol);
 		if (ret) {
@@ -351,10 +462,9 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 			       volt_new, volt_tol, ret);
 			return ret;
 		}
+		meson_dsuvolt_adjust(cpufreq_data);
 	}
 
-	freqs.old = freq_old / 1000;
-	freqs.new = freq_new / 1000;
 	meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_PRECHANGE);
 	/*scale clock frequency*/
 	ret = meson_cpufreq_set_rate(policy, cur_cluster,
@@ -364,8 +474,19 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 		       freq_new / 1000000, ret);
 		if (volt_old > 0 && freq_new > freq_old) {
 			pr_debug("scaling to old voltage %u\n", volt_old);
+			freqs.old = freq_new / 1000;
+			freqs.new = freq_old / 1000;
+			meson_dsu_volt_freq_vote(cpufreq_data, &freqs, volt_old);
+			if (cpufreq_data->dsu_clock_shared) {
+				meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_PRECHANGE);
+				meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_POSTCHANGE);
+			}
+			if (cpufreq_data->reg_external_used)
+				volt_old = MAX(dsu_voltage_vote_result[LITTLE_VOTER],
+				dsu_voltage_vote_result[BIG_VOTER]);
 			meson_regulator_set_volate(cpu_reg, cur_cluster, volt_old, volt_old,
 						   volt_tol);
+			meson_dsuvolt_adjust(cpufreq_data);
 		}
 		mutex_unlock(&cpufreq_target_lock);
 		return ret;
@@ -374,6 +495,9 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 	meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_POSTCHANGE);
 	/*cpufreq down,change voltage after frequency*/
 	if (freq_new < freq_old) {
+		if (cpufreq_data->reg_external_used)
+			volt_new = MAX(dsu_voltage_vote_result[LITTLE_VOTER],
+			dsu_voltage_vote_result[BIG_VOTER]);
 		ret = meson_regulator_set_volate(cpu_reg, cur_cluster, volt_old,
 						 volt_new, volt_tol);
 		if (ret) {
@@ -381,18 +505,24 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 			       volt_new, volt_tol, ret);
 			freqs.old = freq_new / 1000;
 			freqs.new = freq_old / 1000;
-			meson_dsufreq_adjust(cpufreq_data, &freqs,
-					     CPUFREQ_PRECHANGE);
-			meson_cpufreq_set_rate(policy, cur_cluster,
-					       freq_old / 1000);
-			meson_dsufreq_adjust(cpufreq_data, &freqs,
-					     CPUFREQ_POSTCHANGE);
+			freq_new = freqs.new;
+			opp = dev_pm_opp_find_freq_ceil(cpu_dev, &freq_new);
+			volt_new = dev_pm_opp_get_voltage(opp);
+			dev_pm_opp_put(opp);
+			meson_dsu_volt_freq_vote(cpufreq_data, &freqs, volt_new);
+			meson_dsuvolt_adjust(cpufreq_data);
+
+			meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_PRECHANGE);
+			meson_cpufreq_set_rate(policy, cur_cluster, freq_old / 1000);
+			meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_POSTCHANGE);
 		}
 	}
 
 	freq_new = clk_get_rate(clk[cur_cluster]) / 1000000;
-	pr_debug("After transition, new lk rate %luMhz, volt %dmV\n",
-		 freq_new, meson_regulator_get_volate(cpu_reg) / 1000);
+	dsu_freq = clk_get_rate(cpufreq_data->clk_dsu) / 1000000;
+
+	pr_debug("After transition, new lk rate %luMhz, volt %dmV[dsu %luMhz]\n",
+		 freq_new, meson_regulator_get_volate(cpu_reg) / 1000, dsu_freq);
 	mutex_unlock(&cpufreq_target_lock);
 	return ret;
 }
@@ -425,11 +555,19 @@ int choose_cpufreq_tables_index(const struct device_node *np, u32 cur_cluster)
 	return ret;
 }
 
-static void get_cluster_cores(unsigned int cpuid, struct cpumask *dstp)
+static void get_cluster_cores(unsigned int cpuid, struct cpumask *dstp, u32 *cur_cluster)
 {
-	int cpu;
+	int cpu, i;
 
 	cpumask_clear(dstp);
+	for (i = 0; i < MAX_CLUSTERS; i++) {
+		if (cpumask_test_cpu(cpuid, &cluster_cpus[i])) {
+			*cur_cluster = i;
+			cpumask_copy(dstp, &cluster_cpus[i]);
+			return;
+		}
+	}
+
 	for_each_possible_cpu(cpu) {
 		if (topology_physical_package_id(cpuid) ==
 			topology_physical_package_id(cpu))
@@ -584,21 +722,30 @@ static void create_meson_cpufreq_proc_files(struct cpufreq_policy *policy)
 	proc_create_data(policy_name, 0444, cpufreq_proc, &meson_cpufreq_fops, policy);
 }
 
+static void show_dsu_opp_table(u32 *table, int clusterid)
+{
+	pr_debug("[cluster%d dsu_opp_table][%u %u %u %u]\n",
+		clusterid, table[0], table[1], table[2], table[3]);
+}
+
 /* CPU initialization */
 static int meson_cpufreq_init(struct cpufreq_policy *policy)
 {
 	u32 cur_cluster;
 	struct device *cpu_dev;
 	struct device_node *np;
-	struct regulator *cpu_reg = NULL;
+	struct regulator *cpu_reg = NULL, *dsu_reg = NULL;
 	struct meson_cpufreq_driver_data *cpufreq_data;
 	struct clk *low_freq_clk_p, *high_freq_clk_p = NULL;
-	struct clk *dsu_clk, *dsu_pre_parent;
+	struct clk *dsu_clk, *dsu_pre_parent, *dsu_pre_parent2;
 	unsigned int transition_latency = CPUFREQ_ETERNAL;
 	unsigned int volt_tol = 0;
 	unsigned long freq_hz = 0;
 	int cpu = 0, ret = 0, tables_index;
 	int nr_opp, tmp_rate;
+	u32 *dsu_opp_table;
+	bool cpu_supply_external_used;
+	bool dsu_clock_shared;
 
 	if (!policy) {
 		pr_err("invalid cpufreq_policy\n");
@@ -619,6 +766,8 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 		pr_err("ERROR failed to find cpu%d node\n", cpu);
 		return -ENOENT;
 	}
+
+	get_cluster_cores(cpu, policy->cpus, &cur_cluster);
 
 	cpufreq_data = kmalloc(sizeof(*cpufreq_data), GFP_KERNEL);
 	if (IS_ERR(cpufreq_data)) {
@@ -670,17 +819,43 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 		dsu_pre_parent = NULL;
 		pr_info("%s: ignor dsu pre parent clk!\n", __func__);
 	}
+	dsu_pre_parent2 = of_clk_get_by_name(np, DSU_PRE_PARENT2);
+	if (IS_ERR(dsu_pre_parent2)) {
+		dsu_pre_parent2 = NULL;
+		pr_info("%s: ignor dsu pre parent2 clk!\n", __func__);
+	}
 
 	cpufreq_voltage_set_skip = of_property_read_bool(np,
 							 "cpufreq_voltage_set_skip");
 	reg_use_buck[cur_cluster] = of_property_read_bool(np,
 		"cpu_reg_use_buck");
+	dsu_opp_table = kmalloc(sizeof(*dsu_opp_table) * 4, GFP_KERNEL);
+	if (IS_ERR(dsu_opp_table)) {
+		pr_err("failed to alloc dsu_opp_table.\n");
+		dsu_opp_table = NULL;
+	} else {
+		if (of_property_read_u32_array(np, "dsu-opp-table", &dsu_opp_table[0], 4))
+			dsu_opp_table = NULL;
+		else
+			show_dsu_opp_table(dsu_opp_table, cur_cluster);
+	}
 	cpu_reg = devm_regulator_get(cpu_dev, CORE_SUPPLY);
 	if (IS_ERR(cpu_reg)) {
 		pr_err("%s:failed to get regulator, %ld\n", __func__,
 		       PTR_ERR(cpu_reg));
 		cpu_reg = NULL;
 	}
+	dsu_reg = regulator_get_optional(cpu_dev, DSU_SUPPLY);
+	if (IS_ERR(dsu_reg)) {
+		pr_info("[cluster%d]get dsu_regulator failed.\n", cur_cluster);
+		dsu_reg = NULL;
+	} else {
+		pr_info("[cluster%d]get dsu_regulator succeed.\n", cur_cluster);
+	}
+
+	cpu_supply_external_used = of_property_read_bool(np, "cpu_supply_external_used");
+	dsu_clock_shared = of_property_read_bool(np, "dsu_clock_shared");
+	pr_info("[%s %d][%d %d]\n", __func__, __LINE__, cpu_supply_external_used, dsu_clock_shared);
 
 	if (of_property_read_u32(np, "voltage-tolerance", &volt_tol))
 		volt_tol = DEF_VOLT_TOL;
@@ -693,8 +868,6 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 				 &low_dsu_rate))
 		low_dsu_rate = DSU_LOW_RATE;
 	pr_info("value of low_dsu_rate %u\n", low_dsu_rate);
-
-	get_cluster_cores(cpu, policy->cpus);
 
 	tables_index = choose_cpufreq_tables_index(np, cur_cluster);
 	ret = dev_pm_opp_of_add_table_indexed(cpu_dev, tables_index);
@@ -728,7 +901,13 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	cpufreq_data->high_freq_clk_p = high_freq_clk_p;
 	cpufreq_data->clk_dsu = dsu_clk;
 	cpufreq_data->clk_dsu_pre = dsu_pre_parent;
+	cpufreq_data->clk_dsu_pre2 = dsu_pre_parent2;
 	cpufreq_data->reg = cpu_reg;
+	cpufreq_data->reg_dsu = dsu_reg;
+	cpufreq_data->dsu_opp_table = dsu_opp_table;
+	cpufreq_data->reg_external_used = cpu_supply_external_used;
+	cpufreq_data->dsu_clock_shared = dsu_clock_shared;
+	cpufreq_data->clusterid = cur_cluster;
 	cpufreq_data->volt_tol = volt_tol;
 	cpufreq_data->policy = policy;
 	policy->driver_data = cpufreq_data;
@@ -762,6 +941,8 @@ free_opp_table:
 free_reg:
 	if (!IS_ERR(cpu_reg))
 		devm_regulator_put(cpu_reg);
+	if (!IS_ERR(dsu_reg))
+		regulator_put(dsu_reg);
 free_clk:
 	if (!IS_ERR(clk[cur_cluster]))
 		clk_put(clk[cur_cluster]);
@@ -781,13 +962,15 @@ static int meson_cpufreq_exit(struct cpufreq_policy *policy)
 {
 	struct device *cpu_dev;
 	struct meson_cpufreq_driver_data *cpufreq_data;
-	int cur_cluster = topology_physical_package_id(policy->cpu);
+	int cur_cluster;
 
 	cpufreq_data = policy->driver_data;
 	if (!cpufreq_data)
 		return 0;
-
+	cur_cluster = cpufreq_data->clusterid;
 	cpufreq_cooling_unregister(cpufreq_data->cdev);
+	dsu_voltage_vote_result[cpufreq_data->clusterid] = 0;
+	dsu_freq_vote_result[cpufreq_data->clusterid] = 0;
 
 	cpu_dev = get_cpu_device(policy->cpu);
 	if (!cpu_dev) {
@@ -840,6 +1023,48 @@ static struct cpufreq_driver meson_cpufreq_driver = {
 	.ready			= meson_cpufreq_ready,
 };
 
+static void meson_get_cluster_cores(void)
+{
+	struct device *cpu_dev;
+	struct device_node *np;
+	int cpu = 0, cluster_id = 0, i;
+	u32 core_num, *cores;
+
+	for (i = 0; i < MAX_CLUSTERS; i++)
+		cpumask_clear(&cluster_cpus[i]);
+	for_each_possible_cpu(cpu) {
+		if (!cpumask_test_cpu(cpu, &cluster_cpus[cluster_id])) {
+			cpu_dev = get_cpu_device(cpu);
+			if (!cpu_dev)
+				return;
+			np = of_node_get(cpu_dev->of_node);
+			if (!np)
+				return;
+			if (of_property_read_u32(np, "dvfs_sibling_core_num", &core_num)) {
+				continue;
+			} else {
+				cores = kmalloc_array(core_num, sizeof(*cores), GFP_KERNEL);
+				if (!cores)
+					return;
+				if (!of_property_read_u32_array(np, "dvfs_sibling_cores",
+							&cores[0], core_num)) {
+					for (i = 0; i < core_num; i++) {
+						pr_debug("[%s %d]cpu%d->cluster%d\n",
+							__func__, __LINE__, cores[i], cluster_id);
+						cpumask_set_cpu(cores[i],
+								&cluster_cpus[cluster_id]);
+					}
+				}
+			}
+		}
+		if (cpu >= cores[core_num - 1]) {
+			cluster_id++;
+			kfree(cores);
+			cores = NULL;
+		}
+	}
+}
+
 static int meson_cpufreq_probe(struct platform_device *pdev)
 {
 	struct device *cpu_dev;
@@ -865,6 +1090,7 @@ static int meson_cpufreq_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	meson_get_cluster_cores();
 	cpu_clk = of_clk_get_by_name(np, CORE_CLK);
 	ret = PTR_ERR_OR_ZERO(cpu_clk);
 	if (ret) {

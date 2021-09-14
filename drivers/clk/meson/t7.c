@@ -5967,7 +5967,7 @@ static struct clk_regmap t7_spicc5_gate = {
 
 /*cts_bt656*/
 
-static const struct clk_parent_data t7_pwm_parent_data[] = {
+static const struct clk_parent_data t7_pwm_parent_data[]  = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t7_vid_pll.hw },
 	{ .hw = &t7_fclk_div4.hw },
