@@ -4214,10 +4214,13 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 	return ret;
 }
 
+#define RXSEN_LOW_CNT 5
 static int hdmitx_tmds_rxsense(void)
 {
 	unsigned int curr0, curr3;
 	int ret = 0;
+	static int filter_value;
+	static int count;
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 	switch (hdev->data->chip_type) {
@@ -4252,18 +4255,27 @@ static int hdmitx_tmds_rxsense(void)
 	default:
 		curr0 = hd_read_reg(P_HHI_HDMI_PHY_CNTL0);
 		curr3 = hd_read_reg(P_HHI_HDMI_PHY_CNTL3);
-		if (curr0 == 0)
-			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x33604142);
-		hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL3, 0x1, 4, 1);
+		if (curr0 == 0) {
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0x333d3282);
+			hd_write_reg(P_HHI_HDMI_PHY_CNTL3, 0x2136315b);
+			hd_set_reg_bits(P_HHI_HDMI_PHY_CNTL3, 0x1, 20, 1);
+		}
 		ret = hd_read_reg(P_HHI_HDMI_PHY_CNTL2) & 0x1;
+		hd_write_reg(P_HHI_HDMI_PHY_CNTL0, curr0);
 		hd_write_reg(P_HHI_HDMI_PHY_CNTL3, curr3);
-		if (curr0 == 0)
-			hd_write_reg(P_HHI_HDMI_PHY_CNTL0, 0);
 		break;
 	}
 	if (!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0)))
 		return 0;
-	return ret;
+	if (ret == 0) {
+		count++;
+	} else {
+		filter_value = 1;
+		count = 0;
+	}
+	if (count >= RXSEN_LOW_CNT)
+		filter_value = 0;
+	return filter_value;
 }
 
 /*Check from SCDC Status_Flags_0/1 */
