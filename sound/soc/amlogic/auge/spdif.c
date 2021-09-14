@@ -91,7 +91,13 @@ struct aml_spdif {
 	int in_err_cnt;
 	/* share buffer with module */
 	enum sharebuffer_srcs samesource_sel;
+	unsigned int l_src;
 };
+
+unsigned int get_spdif_source_l_config(int id)
+{
+	return spdif_priv[id]->l_src;
+}
 
 #define SPDIF_BUFFER_BYTES (512 * 1024)
 static const struct snd_pcm_hardware aml_spdif_hardware = {
@@ -708,6 +714,49 @@ static int spdif_clk_set(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int spdif_get_cs(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct aml_spdif *p_spdif = snd_soc_component_get_drvdata(component);
+	int id = p_spdif->id;
+
+	ucontrol->value.integer.value[0] = spdif_get_channel_status0(id);
+	return 0;
+}
+
+#define SPDIF_CS_L_SRC   0x1
+
+/*
+ * func: set spdif channels status
+ * kcontrol value: lower 16 bits are config masks, higher 16 bits are
+ * corrisponding config value.
+ */
+static int spdif_set_cs(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct aml_spdif *p_spdif = snd_soc_component_get_drvdata(component);
+	int value = ucontrol->value.integer.value[0];
+	int mask = value & 0xffff;
+	int val = value >> 16;
+	int status0 = spdif_get_channel_status0(p_spdif->id);
+
+	/* L src bit */
+	if (mask & SPDIF_CS_L_SRC) {
+		if (val & SPDIF_CS_L_SRC) {
+			status0 |= (IEC958_AES1_CON_ORIGINAL << 8);
+			p_spdif->l_src = 1;
+		} else {
+			status0 &= ~(IEC958_AES1_CON_ORIGINAL << 8);
+			p_spdif->l_src = 0;
+		}
+	}
+	pr_info("%s(), status0=%#x\n", __func__, status0);
+	spdif_set_channel_status0(p_spdif->id, status0);
+	return 0;
+}
+
 static const struct snd_kcontrol_new snd_spdif_controls[] = {
 	SOC_ENUM_EXT("SPDIFIN audio samplerate",
 				spdifin_sample_rate_enum,
@@ -738,6 +787,11 @@ static const struct snd_kcontrol_new snd_spdif_controls[] = {
 				0, aml_get_hdmi_out_audio,
 				aml_set_hdmi_out_audio),
 #endif
+
+	SOC_SINGLE_EXT("spdif out channel status",
+			0, 0, 0xffffffff, 0,
+			spdif_get_cs,
+			spdif_set_cs),
 };
 
 static const struct snd_kcontrol_new snd_spdif_clk_controls[] = {
@@ -813,6 +867,10 @@ static const struct snd_kcontrol_new snd_spdif_b_controls[] = {
 	SOC_SINGLE_EXT("SPDIF_B CLK Fine Setting",
 		       0, 0, 2000000, 0,
 		       spdif_clk_get, spdif_clk_set),
+	SOC_SINGLE_EXT("spdif_b out channel status",
+			0, 0, 0xffffffff, 0,
+			spdif_get_cs,
+			spdif_set_cs),
 };
 
 #define SPDIFIN_ERR_CNT 100
@@ -1251,6 +1309,7 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		struct frddr *fr = p_spdif->fddr;
 		enum frddr_dest dst;
 		struct iec958_chsts chsts;
+		unsigned int l_src = 0;
 
 		switch (p_spdif->id) {
 		case 0:
@@ -1272,10 +1331,12 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 			spdifout_get_frddr_type(bit_depth));
 		aml_frddr_select_dst(fr, dst);
 
+		l_src = get_spdif_source_l_config(p_spdif->id);
 		/* check channel status info, and set them */
 		iec_get_channel_status_info(&chsts,
 					    p_spdif->codec_type,
-					    runtime->rate);
+					    runtime->rate,
+					    l_src);
 		spdif_set_channel_status_info(&chsts, p_spdif->id);
 
 		/* TOHDMITX_CTRL0

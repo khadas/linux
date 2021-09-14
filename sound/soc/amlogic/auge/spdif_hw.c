@@ -524,6 +524,31 @@ void spdifin_set_src(int src)
 	audiobus_update_bits(EE_AUDIO_SPDIFIN_CTRL0, 0x3 << 4, src << 4);
 }
 
+unsigned int spdif_get_channel_status0(int spdif_id)
+{
+	unsigned int offset, reg;
+
+	offset = EE_AUDIO_SPDIFOUT_B_CHSTS0 - EE_AUDIO_SPDIFOUT_CHSTS0;
+	reg = EE_AUDIO_SPDIFOUT_CHSTS0 + offset * spdif_id;
+
+	return audiobus_read(reg);
+}
+
+void spdif_set_channel_status0(int spdif_id, unsigned int status0)
+{
+	unsigned int offset, reg;
+
+	/* channel status a */
+	offset = EE_AUDIO_SPDIFOUT_B_CHSTS0 - EE_AUDIO_SPDIFOUT_CHSTS0;
+	reg = EE_AUDIO_SPDIFOUT_CHSTS0 + offset * spdif_id;
+	audiobus_write(reg, status0);
+
+	/* channel status b */
+	offset = EE_AUDIO_SPDIFOUT_B_CHSTS6 - EE_AUDIO_SPDIFOUT_CHSTS6;
+	reg = EE_AUDIO_SPDIFOUT_CHSTS6 + offset * spdif_id;
+	audiobus_write(reg, status0);
+}
+
 void spdif_set_channel_status_info(struct iec958_chsts *chsts, int spdif_id)
 {
 	unsigned int offset, reg;
@@ -589,7 +614,7 @@ void spdifout_play_with_zerodata(unsigned int spdif_id, bool reenable, int separ
 		/* channel status info */
 		iec_get_channel_status_info(&chsts,
 					    AUD_CODEC_TYPE_STEREO_PCM,
-					    sample_rate);
+					    sample_rate, 0);
 		spdif_set_channel_status_info(&chsts, spdif_id);
 
 		/* notify hdmitx audio */

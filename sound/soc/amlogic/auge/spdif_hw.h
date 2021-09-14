@@ -48,6 +48,9 @@ int spdifin_get_mode(void);
 
 int spdif_get_channel_status(int reg);
 
+unsigned int spdif_get_channel_status0(int spdif_id);
+void spdif_set_channel_status0(int spdif_id, unsigned int status0);
+
 void spdifin_set_channel_status(int ch, int bits);
 
 void aml_spdifout_select_aed(bool enable, int spdifout_id);

@@ -10,6 +10,7 @@
 
 #include "sharebuffer.h"
 #include "ddr_mngr.h"
+#include "spdif.h"
 #include "spdif_hw.h"
 #include "earc.h"
 
@@ -40,6 +41,7 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 	int bit_depth;
 	struct iec958_chsts chsts;
 	struct aud_para aud_param;
+	unsigned int l_src = 0;
 
 	memset(&aud_param, 0, sizeof(aud_param));
 
@@ -54,9 +56,11 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 
 	/* spdif to hdmitx */
 	enable_spdifout_to_hdmitx(separated);
+	l_src = get_spdif_source_l_config(spdif_id);
 	/* check and set channel status */
 	iec_get_channel_status_info(&chsts,
-				    type, runtime->rate);
+				    type, runtime->rate,
+				    l_src);
 	spdif_set_channel_status_info(&chsts, spdif_id);
 
 	/* for samesource case, always 2ch substream to hdmitx */

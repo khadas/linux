@@ -219,9 +219,11 @@ bool raw_is_4x_clk(enum aud_codec_types codec_type);
 
 unsigned int mpll2sys_clk_ratio_by_type(enum aud_codec_types codec_type);
 unsigned int mpll2dmac_clk_ratio_by_type(enum audio_coding_types coding_type);
+/* l_bit is to set the consumer copyright if copying allowed */
 void iec_get_channel_status_info(struct iec958_chsts *chsts,
 				 enum aud_codec_types codec_type,
-				 unsigned int rate);
+				 unsigned int rate,
+				 unsigned int l_bit);
 
 void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,
 			    enum aud_codec_types codec_type);
