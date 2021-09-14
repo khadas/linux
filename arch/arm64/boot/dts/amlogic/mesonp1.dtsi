@@ -459,7 +459,8 @@
 	vrtc: rtc@0xfe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe010288 0x0 0x4>;
-		status = "disabled";
+		status = "okay";
+		mboxes = <&mhu_fifo P1_REE2AO>;
 	};
 
 	pwrdm: power-domains {
