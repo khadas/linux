@@ -1848,6 +1848,8 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	//-------------
 	//config video
 	//-------------
+	hdmi_drm_infoframe_set(NULL);
+	hdmi_vend_infoframe_set(NULL);
 	data8 = 0;
 	data8 |= (dp_color_depth & 0x03); // [1:0]color depth. 00:8bpp;01:10bpp;10:12bpp;11:16bpp
 	data8 |= (((dp_color_depth != 4) ? 1 : 0) << 7);  // [7]  deep color enable bit
@@ -1985,36 +1987,6 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	//---------------
 	// config Packet
 	//---------------
-	//==== General Control PACKET
-	hdmitx21_wr_reg(TPI_INFO_FSEL_IVCTX, 0x06);            //GEN1
-	hdmitx21_wr_reg(TPI_INFO_B4_IVCTX, 0x00);              //byte1 [0] set_AVMUTE
-	//byte2 [3:0] CD3~CD1=5, 30bits per pixel
-	hdmitx21_wr_reg(TPI_INFO_B5_IVCTX, dp_color_depth & 0xff);
-	hdmitx21_wr_reg(TPI_INFO_B6_IVCTX, 0x00);              //byte3
-	hdmitx21_wr_reg(TPI_INFO_B7_IVCTX, 0x00);              //byte4
-	hdmitx21_wr_reg(TPI_INFO_EN_IVCTX, 0xff);         //TPI Info enable
-
-	//======audio infoFrame packet============
-	//---aif config en----
-	hdmitx21_wr_reg(TPI_INFO_FSEL_IVCTX, 0x02); //audio infoframe packet config sel
-	//------header--------
-	hdmitx21_wr_reg(TPI_INFO_B0_IVCTX, 0x84); //header -- HB0 pkt type
-	hdmitx21_wr_reg(TPI_INFO_B1_IVCTX, 0x01); //header -- HB1 version
-	hdmitx21_wr_reg(TPI_INFO_B2_IVCTX, 0x0a); //header -- HB2 length
-	//---subpackets------
-	hdmitx21_wr_reg(TPI_INFO_B3_IVCTX, 0x3D); //content -- PB0 checksum
-
-	data32 = 0;
-	data32 |= 0x01;
-	//content -- PB1 CT,CC.coding type,channel num
-	hdmitx21_wr_reg(TPI_INFO_B4_IVCTX, data32 & 0xff);
-	hdmitx21_wr_reg(TPI_INFO_B5_IVCTX, 0x00); //content -- PB2 SS,SF TODO
-	hdmitx21_wr_reg(TPI_INFO_B6_IVCTX, 0x00); //content -- PB3 fromat TODO
-	hdmitx21_wr_reg(TPI_INFO_B7_IVCTX, 0x2d); //content -- PB4 CA
-	hdmitx21_wr_reg(TPI_INFO_B8_IVCTX, 0x00); //content -- PB5 LFEP TODO
-	//--aif inforFrame pkt en---
-	hdmitx21_wr_reg(TPI_INFO_EN_IVCTX, 0xbf); //packet Info enable [6]:tpi_info_repeat
-
 	hdmitx21_wr_reg(VTEM_CTRL_IVCTX, 0x04); //[2] reg_vtem_ctrl
 
 	//drm,emp pacekt
