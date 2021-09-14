@@ -88,7 +88,7 @@ void hdmitx21_set_bit(u32 addr, u32 bit_val, bool st);
 #define VID_PLL_DIV_2p5    14
 #define VID_PLL_DIV_3p25   15
 
-#define GROUP_MAX	8
+#define GROUP_MAX	10
 struct hw_enc_clk_val_group {
 	enum hdmi_vic group[GROUP_MAX];
 	u32 hpll_clk_out; /* Unit: kHz */
