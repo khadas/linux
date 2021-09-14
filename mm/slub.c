@@ -4119,7 +4119,10 @@ void kfree(const void *x)
 		BUG_ON(!PageCompound(page));
 		kfree_hook(object);
 	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
-		nr_pages = page->index;
+		if (page->index)
+			nr_pages = page->index;
+		else
+			nr_pages = 1 << order;
 		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE,
 			-(nr_pages));
 		mod_node_page_state(page_pgdat(page), NR_SLAB_UNRECLAIMABLE_O,
