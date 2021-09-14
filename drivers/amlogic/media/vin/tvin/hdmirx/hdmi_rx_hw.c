@@ -1321,11 +1321,10 @@ void rx_get_audinfo(struct aud_info_s *audio_info)
 			//hdmirx_rd_bits_dwc(DWC_PDEC_STS, PD_AUD_LAYOUT);
 		audio_info->aud_hbr_rcv =
 			(hdmirx_rd_cor(RX_AUDP_STAT_DP2_IVCRX) >> 6) & 1;
-		//if (audio_info->aud_hbr_rcv)
-			//audio_info->aud_packet_received = 8;
-		//else
-		audio_info->aud_packet_received =
-			hdmirx_rd_top(TOP_MISC_STAT0) >> 16 & 0xff;
+		if (audio_info->aud_hbr_rcv)
+			audio_info->aud_packet_received = 8;
+		else
+			audio_info->aud_packet_received = 1;
 		audio_info->ch_sts[0] = hdmirx_rd_cor(RX_CHST1_AUD_IVCRX);
 		audio_info->ch_sts[1] = hdmirx_rd_cor(RX_CHST2_AUD_IVCRX);
 		audio_info->ch_sts[2] = hdmirx_rd_cor(RX_CHST3a_AUD_IVCRX);
@@ -3554,10 +3553,6 @@ void cor_init(void)
 	hdmirx_wr_cor(HDCP2X_RX_ECC_FRM_ERR_THR_1, 0x0);
 	//hdmirx_wr_cor(HDCP2X_RX_ECC_GVN_FRM_ERR_THR_2, 0xff);
 	//hdmirx_wr_cor(HDCP2X_RX_GVN_FRM, 30);
-
-	//DPLL
-	hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x10);
-	hdmirx_wr_cor(DPLL_HDMI2_DPLL_IVCRX, 0);
 }
 
 void hdcp_init_t7(void)
@@ -5252,7 +5247,7 @@ void rx_emp_to_ddr_init(void)
 		data32 |= 0x0 << 14;/*[14] buffer_info_mode=0 */
 		data32 |= 0x1 << 13;/*[13] reset_on_de=1 */
 		data32 |= 0x1 << 12;/*[12] burst_end_on_last_emp=1 */
-		data32 |= 0x3ff << 2;/*[11:2] de_rise_delay=0 */
+		data32 |= 0x0 << 2;/*[11:2] de_rise_delay=0 */
 		data32 |= 0x0 << 0;/*[1:0] Endian = 0 */
 		hdmirx_wr_top(TOP_EMP_CNTL_0, data32);
 

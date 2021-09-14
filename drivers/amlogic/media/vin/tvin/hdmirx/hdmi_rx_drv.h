@@ -46,7 +46,6 @@
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 
-#define TIME_1MS 1000000
 #define EDID_MIX_MAX_SIZE 64
 #define ESM_KILL_WAIT_TIMES 250
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))

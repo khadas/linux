@@ -65,7 +65,7 @@ static int err_dbg_cnt_max;
 static int aud_sr_stb_max;
 static int audio_coding_type;
 static int audio_channel_count;
-int irq_err_max = 30;
+int irq_err_max = 10;
 int clk_unstable_cnt;
 static int clk_unstable_max;
 int clk_stable_cnt;
@@ -978,23 +978,18 @@ irqreturn_t irq_handler(int irq, void *params)
 	cur_clks = sched_clock();
 	irq_duration = cur_clks - last_clks;
 	last_clks = cur_clks;
-
-	if (irq_duration <= TIME_1MS) {
-		if (log_level & DBG1_LOG)
+	if (log_level & DBG1_LOG) {
+		if (irq_duration <= 1000000) {
 			rx_pr("!:%ld\n", irq_duration);
-		irq_err_cnt++;
-	} else {
-		irq_err_cnt = 0;
+			irq_err_cnt++;
+		} else {
+			irq_err_cnt = 0;
+		}
+		if (irq_err_cnt >= irq_err_max) {
+			log_level &= ~DBG1_LOG;
+			irq_err_cnt = 0;
+		}
 	}
-	if (irq_err_cnt >= irq_err_max) {
-		rx_pr("DE ERR\n");
-		hdmirx_top_irq_en(false);
-		hdmirx_output_en(false);
-		if (rx.state > FSM_WAIT_CLK_STABLE)
-			rx.state = FSM_WAIT_CLK_STABLE;
-		irq_err_cnt = 0;
-	}
-
 	if (params == 0) {
 		rx_pr("%s: %s\n", __func__,
 		      "RX IRQ invalid parameter");
