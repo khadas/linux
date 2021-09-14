@@ -2945,7 +2945,7 @@ static struct clk_regmap p1_sys_clk = {
 	},
 };
 
-static u32 mux_table_dsp_clk_sel[] = { 0, 1, 2, 4, 5, 7 };
+static u32 mux_table_dsp_clk_sel[] = { 0, 1, 2, 3, 4, 5, 7 };
 
 static const struct clk_parent_data p1_dsp_parent_hws[] = {
 	{ .fw_name = "xtal", },
