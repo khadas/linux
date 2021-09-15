@@ -30,6 +30,7 @@ u8 hdmi_ddc_status_check(void);
 u8 hdmi_ddc_busy_check(void);
 void hdmi_ddc_error_reset(void);
 
+void hdmitx21_fmt_attr(struct hdmitx_dev *hdev);
 int hdmitx21_hdcp_init(void);
 int hdmitx21_uboot_audio_en(void);
 
