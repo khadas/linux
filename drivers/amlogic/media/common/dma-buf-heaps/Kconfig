@@ -1,0 +1,10 @@
+menu "Amlogic dma-buf support"
+
+config AMLOGIC_SECURE_DMABUF
+	tristate "Amlogic secure dma buf memory management support"
+	depends on DMABUF_HEAPS
+	default n
+	help
+		Select to enable "Amlogic secure dma buf device support.
+endmenu
+
