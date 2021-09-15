@@ -1,0 +1,50 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/meson-g12a-gpio.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	fragment@0 {
+		target = <&spicc1>;
+
+		__overlay__ {
+			status = "okay";
+
+			can0: mcp2515@0 {
+				spi-max-frequency = <2000000>;
+				compatible = "microchip,mcp2515";
+				reg = <0>;
+				int-gpio = <&gpio GPIOA_15 GPIO_ACTIVE_LOW>;
+				status = "okay";
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&i2c3>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	fragment@2 {
+		target = <&pwm_ef>;
+
+		__overlay__ {
+			// NOTE: This syntax DOES NOT work on device tree overlays
+			// If you want to use SPI1, you have to remove pwm_f overlay
+			/delete-property/ pinctrl-names;
+			/delete-property/ pinctrl-0;
+		};
+	};
+
+	fragment@3 {
+		target = <&uart_C>;
+
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+};
