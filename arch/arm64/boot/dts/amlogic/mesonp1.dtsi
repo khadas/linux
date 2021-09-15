@@ -1642,7 +1642,7 @@
 			card_type = <3>;
 			cap-sdio-irq;
 			keep-power-in-suspend;
-			//use_intf3_tuning;
+			use_intf3_tuning;
 			mmc_debug_flag;
 			//resets = <&reset RESET_SD_EMMC_A>;
 		};
