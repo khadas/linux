@@ -27,6 +27,7 @@ struct pin_desc {
 	struct gpio_desc *desc;
 	int irq_num;
 	u32 code;
+	u32 switch_code;
 	const char *name;
 	int count;
 };
@@ -39,6 +40,7 @@ struct gpio_keypad {
 	struct pin_desc *current_key;
 	struct timer_list polling_timer;
 	struct input_dev *input_dev;
+	struct class kp_class;
 };
 
 static irqreturn_t gpio_irq_handler(int irq, void *data)
@@ -58,14 +60,27 @@ static void report_key_code(struct gpio_keypad *keypad, int gpio_val)
 	if (key->count >= KEY_JITTER_COUNT) {
 		key->current_status = gpio_val;
 		if (key->current_status) {
-			input_report_key(keypad->input_dev,
-					 key->code, 0);
+			if (key->switch_code) {
+				input_report_key(keypad->input_dev,
+						 key->code, 1);
+				input_report_key(keypad->input_dev,
+						 key->code, 0);
+			} else {
+				input_report_key(keypad->input_dev,
+						 key->code, 0);
+			}
 			dev_info(&keypad->input_dev->dev,
 				 "key %d up.\n", key->code);
 		} else {
-			input_report_key(keypad->input_dev,
-					 key->code, 1);
-
+			if (key->switch_code) {
+				input_report_key(keypad->input_dev,
+						 key->switch_code, 1);
+				input_report_key(keypad->input_dev,
+						 key->switch_code, 0);
+			} else {
+				input_report_key(keypad->input_dev,
+						 key->code, 1);
+			}
 			dev_info(&keypad->input_dev->dev,
 				 "key %d down.\n", key->code);
 		}
@@ -113,6 +128,33 @@ static void polling_timer_handler(struct timer_list *t)
 		}
 	}
 }
+
+static ssize_t table_show(struct class *cls, struct class_attribute *attr,
+			  char *buf)
+{
+	struct gpio_keypad *keypad = container_of(cls,
+					struct gpio_keypad, kp_class);
+	int i;
+	int len = 0;
+
+	for (i = 0; i < keypad->key_size; i++) {
+		len += sprintf(buf + len,
+			"[%d]: name = %-21s status = %-5d\n", i,
+			keypad->key[i].name,
+			keypad->key[i].current_status);
+	}
+
+	return len;
+}
+
+static CLASS_ATTR_RO(table);
+
+static struct attribute *meson_gpiokey_attrs[] = {
+	&class_attr_table.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(meson_gpiokey);
 
 static int meson_gpio_kp_probe(struct platform_device *pdev)
 {
@@ -174,6 +216,13 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 				"find key_code=%d finished\n", i);
 			return -EINVAL;
 		}
+
+		ret = of_property_read_u32_index(pdev->dev.of_node,
+						 "switch_key_code", i,
+						 &keypad->key[i].switch_code);
+		if (ret)
+			keypad->key[i].switch_code = 0;
+
 		ret = of_property_read_string_index(pdev->dev.of_node,
 						    "key_name", i,
 						    &keypad->key[i].name);
@@ -185,6 +234,16 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 		gpiod_direction_input(keypad->key[i].desc);
 		gpiod_set_pull(keypad->key[i].desc, GPIOD_PULL_UP);
 	}
+
+	keypad->kp_class.name = "gpio_keypad";
+	keypad->kp_class.owner = THIS_MODULE;
+	keypad->kp_class.class_groups = meson_gpiokey_groups;
+	ret = class_register(&keypad->kp_class);
+	if (ret) {
+		dev_err(&pdev->dev, "fail to create gpio keypad class.\n");
+		return -EINVAL;
+	}
+
 	/* input */
 	input_dev = input_allocate_device();
 	if (!input_dev)
@@ -192,8 +251,13 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 	set_bit(EV_KEY,  input_dev->evbit);
 	for (i = 0; i < keypad->key_size; i++) {
 		set_bit(keypad->key[i].code,  input_dev->keybit);
-		dev_info(&pdev->dev, "%s key(%d) registed.\n",
-			 keypad->key[i].name, keypad->key[i].code);
+
+		if (keypad->key[i].switch_code)
+			set_bit(keypad->key[i].switch_code,  input_dev->keybit);
+
+		dev_info(&pdev->dev, "%s key(%d/%d) registered.\n",
+			 keypad->key[i].name, keypad->key[i].code,
+			 keypad->key[i].switch_code);
 	}
 	input_dev->name = "gpio_keypad";
 	input_dev->phys = "gpio_keypad/input0";
@@ -263,6 +327,7 @@ static int meson_gpio_kp_remove(struct platform_device *pdev)
 	struct gpio_keypad *keypad;
 
 	keypad = platform_get_drvdata(pdev);
+	class_unregister(&keypad->kp_class);
 	input_unregister_device(keypad->input_dev);
 	input_free_device(keypad->input_dev);
 	del_timer(&keypad->polling_timer);
