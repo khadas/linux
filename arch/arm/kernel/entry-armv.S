@@ -901,6 +901,7 @@ ENTRY(__switch_to)
 	ldr	r6, [r2, #TI_CPU_DOMAIN]
 #endif
 	switch_tls r1, r4, r5, r3, r7
+#ifndef CONFIG_AMLOGIC_STACKPROTECTOR
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
 	ldr	r7, [r2, #TI_TASK]
 	ldr	r8, =__stack_chk_guard
@@ -909,6 +910,7 @@ ENTRY(__switch_to)
 	.endif
 	ldr	r7, [r7, #TSK_STACK_CANARY & IMM12_MASK]
 #endif
+#endif /* CONFIG_AMLOGIC_STACKPROTECTOR */
 #ifdef CONFIG_CPU_USE_DOMAINS
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
 #endif
@@ -917,9 +919,11 @@ ENTRY(__switch_to)
 	ldr	r0, =thread_notify_head
 	mov	r1, #THREAD_NOTIFY_SWITCH
 	bl	atomic_notifier_call_chain
+#ifndef CONFIG_AMLOGIC_STACKPROTECTOR
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
 	str	r7, [r8]
 #endif
+#endif /* CONFIG_AMLOGIC_STACKPROTECTOR */
  THUMB(	mov	ip, r4			   )
 	mov	r0, r5
  ARM(	ldmia	r4, {r4 - sl, fp, sp, pc}  )	@ Load all regs saved previously

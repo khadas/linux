@@ -66,6 +66,7 @@ config AMLOGIC_KASAN32
 config AMLOGIC_VMAP
 	bool "Amlogic kernel stack"
 	depends on AMLOGIC_MEMORY_EXTEND
+	select AMLOGIC_STACKPROTECTOR
 	default n
 	help
 		This config is used to enable amlogic kernel stack
@@ -82,6 +83,15 @@ config AMLOGIC_VMALLOC_SHRINKER
 		This config is used to enable amlogic vmalloc shrinker
 		function, it will compress/decompress vmalloc memory to zram
 		in order to save memory. It depends on AMLOGIC_MEMORY_EXTEND.
+
+config AMLOGIC_STACKPROTECTOR
+	bool "Amlogic stack protector"
+	depends on AMLOGIC_MEMORY_EXTEND
+	default n
+	help
+		This config is used to disable CONFIG_STACKPROTECTOR
+		if enabled AMLOGIC_VMAP. CONFIG_STACKPROTECTOR have
+		bad effect to save stack usage.
 
 config AMLOGIC_WATCHPOINT
 	tristate "Amlogic point driver"
