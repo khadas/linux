@@ -66,7 +66,6 @@ static void hdmitx_set_emp_pkt(u8 *data,
 			       u32 type,
 			       u32 size);
 static int check_fbc_special(u8 *edid_dat);
-static void hdmitx_fmt_attr(struct hdmitx_dev *hdev);
 static void clear_rx_vinfo(struct hdmitx_dev *hdev);
 static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev);
 static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev);
@@ -685,7 +684,7 @@ static ssize_t attr_show(struct device *dev,
 	if (!memcmp(hdev->fmt_attr, "default,", 7)) {
 		memset(hdev->fmt_attr, 0,
 		       sizeof(hdev->fmt_attr));
-		hdmitx_fmt_attr(hdev);
+		hdmitx21_fmt_attr(hdev);
 	}
 	pos += snprintf(buf + pos, PAGE_SIZE, "%s\n\r", hdev->fmt_attr);
 	return pos;
@@ -3975,7 +3974,7 @@ static int get_dt_vend_init_data(struct device_node *np,
 	return 0;
 }
 
-static void hdmitx_fmt_attr(struct hdmitx_dev *hdev)
+void hdmitx21_fmt_attr(struct hdmitx_dev *hdev)
 {
 	if (strlen(hdev->fmt_attr) >= 8) {
 		pr_info("fmt_attr %s\n", hdev->fmt_attr);

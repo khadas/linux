@@ -246,9 +246,116 @@ void hdmitx21_sys_reset(void)
 	}
 }
 
+static bool hdmitx_uboot_already_display(void)
+{
+	if (hd21_read_reg(ANACTRL_HDMIPHY_CTRL0))
+		return 1;
+	return 0;
+}
+
+static enum hdmi_color_depth _get_colordepth(void)
+{
+	u32 data;
+	u8 val;
+	enum hdmi_color_depth depth = COLORDEPTH_24B;
+
+	data = hdmitx21_rd_reg(P2T_CTRL_IVCTX);
+	if (data & (1 << 7)) {
+		val = data & 0x3;
+		switch (val) {
+		case 1:
+			depth = COLORDEPTH_30B;
+			break;
+		case 2:
+			depth = COLORDEPTH_36B;
+			break;
+		case 3:
+			depth = COLORDEPTH_48B;
+			break;
+		case 0:
+		default:
+			depth = COLORDEPTH_24B;
+			break;
+		}
+	}
+
+	return depth;
+}
+
+static enum hdmi_vic _get_vic_from_vsif(struct hdmitx_dev *hdev)
+{
+	int ret;
+	u8 body[32] = {0};
+	enum hdmi_vic hdmi4k_vic = HDMI_0_UNKNOWN;
+	union hdmi_infoframe *infoframe = &hdev->infoframes.vend;
+	struct hdmi_vendor_infoframe *vendor = &infoframe->vendor.hdmi;
+
+	hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	ret = hdmi_infoframe_unpack(infoframe, body, sizeof(body));
+	if (ret < 0) {
+		pr_info("hdmitx21: parsing VEND failed %d\n", ret);
+	} else {
+		switch (vendor->vic) {
+		case 1:
+			hdmi4k_vic = HDMI_95_3840x2160p30_16x9;
+			break;
+		case 2:
+			hdmi4k_vic = HDMI_94_3840x2160p25_16x9;
+			break;
+		case 3:
+			hdmi4k_vic = HDMI_93_3840x2160p24_16x9;
+			break;
+		case 4:
+			hdmi4k_vic = HDMI_98_4096x2160p24_256x135;
+			break;
+		default:
+			break;
+		}
+	}
+	return hdmi4k_vic;
+}
+
 static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 {
 	u32 data32;
+
+	if (hdmitx_uboot_already_display()) {
+		int ret;
+		u8 body[32] = {0};
+		union hdmi_infoframe *infoframe = &hdev->infoframes.avi;
+		struct hdmi_avi_infoframe *avi = &infoframe->avi;
+		const struct hdmi_timing *tp;
+		const char *name;
+		enum hdmi_vic vic = HDMI_0_UNKNOWN;
+
+		hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_AVI, body);
+		ret = hdmi_infoframe_unpack(infoframe, body, sizeof(body));
+		if (ret < 0) {
+			pr_info("hdmitx21: parsing AVI failed %d\n", ret);
+		} else {
+			if (hdev->para) {
+				hdev->para->cs = avi->colorspace;
+				hdev->para->cd = _get_colordepth();
+				if (hdev->para->cs == HDMI_COLORSPACE_YUV422)
+					hdev->para->cd = COLORDEPTH_36B;
+				hdmitx21_fmt_attr(hdev);
+				vic = avi->video_code;
+				if (vic == HDMI_0_UNKNOWN)
+					vic = _get_vic_from_vsif(hdev);
+				tp = hdmitx21_gettiming_from_vic(vic);
+				name = tp->sname ? tp->sname : tp->name;
+				hdev->para = hdmitx21_get_fmtpara(name,
+					hdev->fmt_attr);
+			} else {
+				pr_info("hdmitx21: failed to get para\n");
+				hdev->para->cs = HDMI_COLORSPACE_YUV444;
+				hdev->para->cd = COLORDEPTH_24B;
+			}
+			pr_info("hdmitx21: parsing AVI CS%d CD%d\n",
+				avi->colorspace, hdev->para->cd);
+		}
+		return;
+	}
 
 	// --------------------------------------------------------
 	// Program core_pin_mux to enable HDMI pins
