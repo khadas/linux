@@ -50,6 +50,7 @@ enum vt_mode_e {
 	VT_MODE_BLOCK,
 	VT_MODE_NONE_BLOCK,
 	VT_MODE_GAME,
+	VT_MODE_INVALID,
 };
 
 union vt_ioctl_arg {
@@ -184,6 +185,7 @@ struct vt_cmd {
  * @wait_producer:	producer wait queue for buffer
  * @cmd_lock:			protect cmd fifo
  * @wait_cmd:			consumer wait queue for vt cmd
+ * @mode:			the mode of this instance
  * @fcount:				file operation count
  * @fifo_to_consumer:	fifo that queued the buffer transfer to consumer
  * @fifo_to_producer:	fifo that queued the buffer transfer to producer
@@ -201,6 +203,7 @@ struct vt_instance {
 	struct vt_session *producer;
 	wait_queue_head_t wait_producer;
 	wait_queue_head_t wait_cmd;
+	enum vt_mode_e mode;
 
 	struct mutex cmd_lock; /* protect cmd fifo */
 	DECLARE_KFIFO_PTR(fifo_cmd, struct vt_cmd*);

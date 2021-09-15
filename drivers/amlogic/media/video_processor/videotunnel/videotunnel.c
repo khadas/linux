@@ -132,11 +132,12 @@ static int vt_debug_instance_show(struct seq_file *s, void *unused)
 	size_cmd = kfifo_len(&instance->fifo_cmd);
 	ref_count = atomic_read(&instance->ref.refcount.refs);
 
-	seq_printf(s, "tunnel (%p) id=%d, ref=%d, fcount=%d\n",
+	seq_printf(s, "tunnel (%p) id=%d, ref=%d, fcount=%d, mode=%s\n",
 		   instance,
 		   instance->id,
 		   ref_count,
-		   instance->fcount);
+		   instance->fcount,
+		   vt_debug_mode_status_to_string(instance->mode));
 	seq_puts(s, "-----------------------------------------------\n");
 	if (instance->consumer)
 		seq_printf(s, "consumer session (%s) %p\n",
@@ -366,6 +367,8 @@ static struct vt_instance *vt_instance_create_lock(struct vt_dev *dev)
 
 	instance->dev = dev;
 	instance->fcount = 0;
+	instance->mode = VT_MODE_NONE_BLOCK;
+
 	mutex_init(&instance->lock);
 	mutex_init(&instance->cmd_lock);
 	kref_init(&instance->ref);
@@ -607,6 +610,7 @@ static int vt_instance_trim(struct vt_session *session)
 				buffer->item.buffer_status = VT_BUFFER_FREE;
 			}
 			instance->producer = NULL;
+			instance->mode = VT_MODE_NONE_BLOCK;
 		}
 		if (instance->consumer && instance->consumer == session) {
 			while (kfifo_get(&instance->fifo_to_consumer,
@@ -651,6 +655,8 @@ static int vt_instance_trim(struct vt_session *session)
 			/* set all instance buffer to free */
 			for (i = 0; i < VT_POOL_SIZE; i++)
 				instance->vt_buffers[i].item.buffer_status = VT_BUFFER_FREE;
+
+			instance->mode = VT_MODE_NONE_BLOCK;
 		}
 
 		mutex_unlock(&instance->lock);
@@ -815,6 +821,7 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 	struct vt_dev *dev = session->dev;
 	struct vt_instance *instance;
 	struct vt_instance *replace;
+	struct vt_cmd *cmd;
 	int id = data->tunnel_id;
 	int ret = 0;
 	char name[64];
@@ -888,6 +895,30 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 			       id);
 			return -EINVAL;
 		}
+
+		/* consumer connect, send game mode cmd if needed */
+		if (instance->mode == VT_MODE_GAME) {
+			cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+			if (!cmd) {
+				mutex_unlock(&instance->lock);
+				vt_instance_put(instance);
+				pr_err("Connect to vt [%d] err, resend cmd fail\n",
+				    id);
+				return -ENOMEM;
+			}
+
+			cmd->cmd = VT_VIDEO_SET_GAME_MODE;
+			cmd->cmd_data = 1;
+
+			mutex_lock(&instance->cmd_lock);
+			kfifo_put(&instance->fifo_cmd, cmd);
+			mutex_unlock(&instance->cmd_lock);
+
+			session->cmd_status++;
+			vt_debug(VT_DEBUG_CMD, "vt [%d] resend cmd:%d data:%d\n",
+				instance->id, cmd->cmd, cmd->cmd_data);
+		}
+
 		instance->consumer = session;
 	}
 	session->cid = vt_get_connected_id();
@@ -925,6 +956,7 @@ static int vt_disconnect_process(struct vt_ctrl_data *data,
 
 		vt_session_trim_lock(session, instance);
 		instance->producer = NULL;
+		instance->mode = VT_MODE_NONE_BLOCK;
 	} else if (data->role == VT_ROLE_CONSUMER) {
 		if (!instance->consumer)
 			goto disconnect_fail;
@@ -976,6 +1008,10 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 	cmd->source_crop = data->source_crop;
 
 	mutex_lock(&instance->cmd_lock);
+	if (cmd->cmd == VT_VIDEO_SET_GAME_MODE)
+		instance->mode =
+		    cmd->cmd_data ?  VT_MODE_GAME : VT_MODE_NONE_BLOCK;
+
 	kfifo_put(&instance->fifo_cmd, cmd);
 	mutex_unlock(&instance->cmd_lock);
 
