@@ -559,10 +559,14 @@ int meson_mmc_tuning_transfer(struct mmc_host *mmc, u32 opcode)
 	/* try ntries */
 	for (n = 0, nmatch = 0; n < TUNING_NUM_PER_POINT; n++) {
 		tuning_err = mmc_send_tuning(mmc, opcode, NULL);
-		if (!tuning_err)
+		if (!tuning_err) {
 			nmatch++;
-		else
+		} else {
+			if (tuning_err != -EIO)
+				mmc_abort_tuning(mmc,
+					MMC_SEND_TUNING_BLOCK_HS200);
 			break;
+		}
 	}
 	return nmatch;
 }
@@ -867,12 +871,14 @@ static u32 _find_fixed_adj_mid(unsigned long map,
 	right = find_first_bit(&map, div);
 	mid = find_first_zero_bit(&map, div);
 	size = left - right + 1;
-	pr_info("left:%u, right:%u, mid:%u, size:%u\n",
+	pr_debug("left:%u, right:%u, mid:%u, size:%u\n",
 			left, right, mid, size);
 	if (size >= 3 && (mid < right || mid > left)) {
 		mid = (adj + (size - 1) / 2 + (size - 1) % 2) % div;
 		if ((mid == (co - 1)) && div == 5)
 			return NO_FIXED_ADJ_MID;
+		pr_info("tuning-c:%u, tuning-s:%u\n",
+			mid, size);
 		return mid;
 	}
 	return NO_FIXED_ADJ_MID;
@@ -1199,6 +1205,8 @@ tuning:
 		adj_delay_find = best_s + (best_sz - 1) / 2
 		+ (best_sz - 1) % 2;
 		writel(old_dly, host->regs + SD_EMMC_DELAY1);
+		pr_info("tuning-c:%u, tuning-s:%u\n",
+			adj_delay_find % clk_div, best_sz);
 	}
 	adj_delay_find = adj_delay_find % clk_div;
 
@@ -1938,8 +1946,8 @@ static u32 emmc_search_cmd_delay(char *str, int repeat_times, u32 *p_size)
 	cmd_delay =	 (best_start + best_size / 2) << 24;
 	if (p_size)
 		*p_size = best_size;
-	pr_info("best_start 0x%x, best_size %d\n",
-		best_start, best_size);
+	pr_info("cmd-best-c:%d, cmd-best-size:%d\n",
+		(cmd_delay >> 24), best_size);
 	return cmd_delay;
 }
 
