@@ -1363,7 +1363,7 @@ static int smc_hw_deactive(struct smc_dev *smc)
 		_gpio_out(smc->reset_pin, RESET_ENABLE, SMC_RESET_PIN_NAME);
 		//_gpio_out(smc->reset_pin, RESET_DISABLE, SMC_RESET_PIN_NAME);
 #endif
-		usleep_range(25, 26);
+		usleep_range(100, 150);
 
 		sc_reg0_reg->rst_level = RESET_ENABLE;
 		sc_reg0_reg->enable = 1;
