@@ -14,6 +14,7 @@
 #include <linux/amlogic/iomap.h>
 #include <linux/cdev.h>
 #include <linux/irqreturn.h>
+#include <linux/input.h>
 #include "../tvin_global.h"
 #include "../tvin_frontend.h"
 //#include "hdmirx_repeater.h"
@@ -51,8 +52,8 @@
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
 
-/* add phy rterm trim control */
-#define RX_VER2 "ver.2021/06/19"
+/* add hdmi source plugin wakeup method */
+#define RX_VER2 "ver.2021/09/17"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
@@ -109,6 +110,7 @@ struct hdmirx_dev_s {
 	struct clk *cts_hdmirx_2m_clk;
 	struct clk *cts_hdmirx_hdcp2x_eclk;
 	const struct meson_hdmirx_data *data;
+	struct input_dev *hdmirx_input_dev;
 };
 
 #define HDMI_IOC_MAGIC 'H'

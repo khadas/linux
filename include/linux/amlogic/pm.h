@@ -22,6 +22,7 @@
 #define	CECB_WAKEUP	11
 #define	ETH_PHY_GPIO	12
 #define	VAD_WAKEUP	13
+#define HDMI_RX_WAKEUP	14
 unsigned int get_resume_method(void);
 unsigned int get_resume_reason(void);
 unsigned int is_pm_s2idle_mode(void);
