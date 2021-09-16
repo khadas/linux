@@ -446,11 +446,13 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	case DMC_TYPE_SM1:
 	case DMC_TYPE_TL1:
 		mon->ops = &g12_dmc_mon_ops;
+		mon->mon_number = 1;
 		break;
 #endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_C1
 	case DMC_TYPE_C1:
 		mon->ops = &c1_dmc_mon_ops;
+		mon->mon_number = 1;
 		break;
 #endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_GX
@@ -464,6 +466,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	case DMC_TYPE_GXLX:
 	case DMC_TYPE_TXHD:
 		mon->ops = &gx_dmc_mon_ops;
+		mon->mon_number = 1;
 		break;
 #endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_TM2
@@ -476,6 +479,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 		#else
 			#error need support for revA
 		#endif
+		mon->mon_number = 1;
 		break;
 
 	case DMC_TYPE_SC2:
@@ -485,6 +489,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	case DMC_TYPE_T5:
 	case DMC_TYPE_T5D:
 		mon->ops = &tm2_dmc_mon_ops;
+		mon->mon_number = 1;
 		break;
 #endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_T7
@@ -493,6 +498,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 		mon->ops = &t7_dmc_mon_ops;
 		mon->configs |= DUAL_DMC;
 		mon->configs |= POLICY_INCLUDE;
+		mon->mon_number = 2;
 		break;
 	case DMC_TYPE_P1:
 		mon->ops = &t7_dmc_mon_ops;
@@ -504,6 +510,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_S4
 	case DMC_TYPE_S4:
 		mon->ops = &s4_dmc_mon_ops;
+		mon->mon_number = 1;
 		break;
 #endif
 	default:
