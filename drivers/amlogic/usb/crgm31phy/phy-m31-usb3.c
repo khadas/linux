@@ -132,6 +132,8 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	u32 reset_level = 0x84;
 	u32 m31phy_reset_level_bit;
 	u32 m31ctl_reset_level_bit;
+	u32 val;
+	int uncomposite;
 
 	prop = of_get_property(dev->of_node, "portnum", NULL);
 	if (prop)
@@ -140,12 +142,20 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	if (!portnum)
 		dev_err(&pdev->dev, "This phy has no usb port\n");
 
-	tsi_pci = of_find_node_by_type(NULL, "pci");
-	if (tsi_pci) {
-		if (device_is_available(tsi_pci)) {
-			dev_info(&pdev->dev,
-				"pci-e driver probe, disable USB 3.0 function!!!\n");
-			portnum = 0;
+	prop = of_get_property(dev->of_node, "uncomposite", NULL);
+	if (prop)
+		uncomposite = of_read_ulong(prop, 1);
+	else
+		uncomposite = 0;
+
+	if (uncomposite == 0) {
+		tsi_pci = of_find_node_by_type(NULL, "pci");
+		if (tsi_pci) {
+			if (device_is_available(tsi_pci)) {
+				dev_info(&pdev->dev,
+					"pci-e driver probe, disable USB 3.0 function!!!\n");
+				portnum = 0;
+			}
 		}
 	}
 
@@ -216,6 +226,18 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 
 		writel(0, phy->phy3_cfg + 0xc);
 		usleep_range(90, 100);
+
+		if (uncomposite) {
+			val = readl(phy->phy3_cfg + 0x82c);
+			val |= (1 << 5);
+			writel(val, phy->phy3_cfg + 0x82c);
+			usleep_range(90, 100);
+
+			val = readl(phy->phy3_cfg + 0x848);
+			val |= (3 << 0);
+			writel(val, phy->phy3_cfg + 0x848);
+			usleep_range(90, 100);
+		}
 
 		r0.d32 = readl(phy->phy3_cfg);
 		r0.b.PHY_SEL = 0;

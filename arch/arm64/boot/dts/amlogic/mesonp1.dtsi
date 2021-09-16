@@ -1281,6 +1281,7 @@
 			phy-reg-size = <0x2000>;
 			m31phy-reset-level-bit = <10>;
 			m31ctl-reset-level-bit = <6>;
+			uncomposite = <1>;
 		};
 
 		usb2_m31_1_phy: usb2m311phy {
@@ -1299,6 +1300,7 @@
 			phy-reg-size = <0x2000>;
 			m31phy-reset-level-bit = <9>;
 			m31ctl-reset-level-bit = <5>;
+			uncomposite = <1>;
 		};
 
 		usb2_m31_2_phy: usb2m312phy {
@@ -1317,6 +1319,7 @@
 			phy-reg-size = <0x2000>;
 			m31phy-reset-level-bit = <8>;
 			m31ctl-reset-level-bit = <3>;
+			uncomposite = <1>;
 		};
 
 		crg_udc_2: crgudc2@0xfde00000 {
