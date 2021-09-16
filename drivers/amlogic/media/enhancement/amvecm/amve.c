@@ -2767,7 +2767,7 @@ void set_vpp_enh_clk(struct vframe_s *vf, struct vframe_s *rpt_vf)
 		break;
 	case PW_OFF:
 		if (pre_state != PW_OFF) {
-			vpp_enhence_clk_ctl(PW_OFF);
+			vpp_enhence_clk_ctl(PW_ON);
 			pre_state = pw_state;
 			pr_amve_dbg("PW_OFF: pre_state: %d\n", pre_state);
 		}

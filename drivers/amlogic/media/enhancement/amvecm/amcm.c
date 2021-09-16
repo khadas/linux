@@ -224,6 +224,7 @@ void am_set_regmap(struct am_regs_s *p)
 			} else {
 				aml_write_vcbus_s(VPP_CHROMA_DATA_PORT, val);
 			}
+			default_sat_param(addr, val);
 			break;
 		case REG_TYPE_VCBUS:
 			if (addr == offset_addr(SRSHARP0_DEJ_ALPHA)) {
