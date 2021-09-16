@@ -32,6 +32,7 @@
 
 #include "am_hdr10_plus.h"
 #include "am_hdr10_plus_ootf.h"
+#include "../amcsc.h"
 
 uint debug_hdr;
 #define pr_hdr(fmt, args...)\
@@ -647,6 +648,10 @@ void hdr10_plus_parser_metadata(struct vframe_s *vf)
 	char *p;
 	unsigned int size = 0;
 	unsigned int type = 0;
+	int i;
+	int j;
+	char *meta_buf;
+	int len;
 
 	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI) {
 		hdr10_plus_vf_md_parse(vf);
@@ -670,6 +675,36 @@ void hdr10_plus_parser_metadata(struct vframe_s *vf)
 				vf_notify_provider_by_name("decoder",
 							   VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
 							   (void *)&req);
+		}
+		if (req.aux_buf && req.aux_size &&
+			(debug_csc & 0x10)) {
+			meta_buf = req.aux_buf;
+			pr_csc(0x10,
+				"hdr10 source_type = %d src_fmt = %d metadata(%d):\n",
+				get_vframe_src_fmt(vf),
+				vf->source_type, req.aux_size);
+			for (i = 0; i < req.aux_size + 8; i += 8) {
+				len = req.aux_size - i;
+				if (len < 8) {
+					pr_csc(0x10, "\t i = %02d", i);
+					for (j = 0; j < len; j++)
+						pr_csc(0x10,
+						"%02x ", meta_buf[i + j]);
+					pr_csc(0x10, "\n");
+				} else {
+					pr_csc(0x10,
+						"\t i = %02d: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+						i,
+						meta_buf[i],
+						meta_buf[i + 1],
+						meta_buf[i + 2],
+						meta_buf[i + 3],
+						meta_buf[i + 4],
+						meta_buf[i + 5],
+						meta_buf[i + 6],
+						meta_buf[i + 7]);
+				}
+			}
 		}
 		if (req.aux_buf && req.aux_size) {
 			p = req.aux_buf;
