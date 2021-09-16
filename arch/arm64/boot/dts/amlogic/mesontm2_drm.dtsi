@@ -95,6 +95,7 @@
 		compatible = "amlogic, drm-subsystem";
 		ports = <&vpu_out>;
 		fbdev_sizes = <1920 1080 1920 2160 32>;
+		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {
