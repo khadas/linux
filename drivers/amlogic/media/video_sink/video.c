@@ -4400,9 +4400,10 @@ static void dmc_adjust_for_mali_vpu(unsigned int width,
 #define VDIN_KEEP_COUNT 1
 #define DI_KEEP_COUNT_P 1
 #define DI_KEEP_COUNT_I 2
-#define DIS_PATH_DELAY_COUNT 3
+#define DIS_PATH_DELAY_COUNT 2
 #define VDIN_BUF_COUNT 11
 #define DI_MAX_OUT_COUNT 9
+#define VLOCL_DELAY 7  /*vdin vsync before vpp vsync about 7ms*/
 
 static void hdmi_in_delay_maxmin_reset(void)
 {
@@ -4489,6 +4490,8 @@ static void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	u64 hdmin_delay_max = 0;
 	u64 memc_delay = 0;
 	int vdin_keep_count = VDIN_KEEP_COUNT;
+	unsigned int ret_hz = 0;
+	u64 ext_delay = 0;
 
 	if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
 		vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
@@ -4520,15 +4523,23 @@ static void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	memc_delay = frc_get_video_latency();
 #endif
 
-	/*pre: vdin keep 1, di keep 1/2(if do di, one process), total 2/3
+	if (vf->duration != 0)
+		ret_hz = (96000 + vf->duration / 2) / vf->duration;
+
+	if (ret_hz >= 25)
+		ext_delay = VLOCL_DELAY * 1000;
+	else
+		ext_delay = vpp_vsync;
+
+	/*pre: vdin keep 1, di keep 1/2(p:1; I:2, one process), total 2/3
 	 *I frame di will keep two, P frame keep one,
-	 *post:disp path 3 buf delay(vq->vpp 2 buf, rdma one buf),
-	 *one for vq next vsync to get, total 4;
-	 *if do di: count = (1 + 1/2) * vdin_vsync + 4 * vpp_vsync;
-	 *if no di: count = (1 + 0) * vdin_vsync + 4 * vpp_vsync;
+	 *post:disp path 2 buf delay(vq->vpp 1 buf, rdma one buf),
+	 *if do di: count = (1 + 1/2) * vdin_vsync + 2 * vpp_vsync;
+	 *if no di: count = (1 + 0) * vdin_vsync + 2* vpp_vsync;
+	 *vdin vsync before vpp vsync about 7ms
 	 */
 	hdmin_delay_min = (vdin_keep_count + di_keep_count) * vdin_vsync +
-		(DIS_PATH_DELAY_COUNT + 1) * vpp_vsync;
+		DIS_PATH_DELAY_COUNT * vpp_vsync + ext_delay;
 	hdmin_delay_min_ms = div64_u64(hdmin_delay_min, 1000);
 	hdmin_delay_min_ms += memc_delay;
 

@@ -38,6 +38,7 @@
 #define videoqueue_DEVICE_NAME "videoqueue"
 
 #define HDMI_DELAY_FIRST_CHECK_COUNT 60
+#define HDMI_DELAY_CHECK_INDEX 500
 
 #define P_ERROR		0X0
 #define P_OTHER		0X1
@@ -64,6 +65,8 @@ static int force_game_mode;
 static int fence_dq_count;
 static int fence_put_count;
 static int fence_null_count;
+static int low_latency_mode = 1;
+static int resync_open;
 
 int vq_print(int debug_flag, const char *fmt, ...)
 {
@@ -150,7 +153,7 @@ static void dump_hf(struct vframe_s *vf)
 
 static u64 time_cur;
 static u32 vsync_pts_inc;
-static u64 vsync_pts64_inc;
+static u64 vpp_vsync_us;
 static u64 pcr_time;
 static u64 pcr_time64;
 static u32 pcr_margin;
@@ -169,11 +172,11 @@ void vsync_notify_videoqueue(void)
 void videoqueue_pcrscr_update(s32 inc, u32 base)
 {
 	vsync_pts_inc = 90000 * inc / base;
-	vsync_pts64_inc = vsync_pts_inc * 100 / 9;  //us
+	vpp_vsync_us = vsync_pts_inc * 100 / 9;  //us
 	pcr_margin = vsync_pts_inc / 4;
 	if (sync_start) {
 		pcr_time += vsync_pts_inc;
-		pcr_time64 += vsync_pts64_inc;
+		pcr_time64 += vpp_vsync_us;
 		vsync_no++;
 		vq_print(P_SYNC, "vsync: NO=%d, pcr_time=%lld, time=%lld\n",
 			vsync_no, pcr_time, time_cur);
@@ -252,7 +255,7 @@ static void videoq_hdmi_video_sync(struct video_queue_dev *dev,
 			audio_need_delay, vframe_get_delay);
 	dev->check_sync_count++;
 	if (audio_need_delay * 1000 > vframe_get_delay * 1000 +
-			3 * vsync_pts64_inc + vsync_pts64_inc / 2) {
+			3 * vpp_vsync_us + vpp_vsync_us / 2) {
 		vq_print(P_SYNC, "delay: audio need =%lld, delay=%lld\n",
 			audio_need_delay, vframe_get_delay);
 		dev->sync_need_delay = true;
@@ -266,38 +269,42 @@ static void videoq_hdmi_video_sync_2(struct video_queue_dev *dev,
 {
 	u64 audio_need_delay;
 	u64 vframe_delay;
-	s64 vdin_delay;
+	s64 vdin_vsync;
 	int need_drop = 0;
-	u32 vsync_pts64 = vsync_pts64_inc;
 	s64 diff = 0;
 	u64 actual_delay = 0;
 	u64 frc_delay = 0;
+	u32 disp_delay_count;
 
+	if (dev->low_latency_mode)
+		disp_delay_count = 2;
+	else
+		disp_delay_count = 3;
 	audio_need_delay = get_tvin_delay_duration();
 	if (audio_need_delay == 0)
 		return;
 
-	vdin_delay = vf->duration / 96;
+	vdin_vsync = vf->duration / 96;
 	vframe_delay = (int)div_u64(((jiffies_64 -
 		vf->ready_jiffies64) * 1000), HZ);
-	vframe_delay -= vdin_delay;
-	actual_delay = vframe_delay * 1000 + 3 * vsync_pts64;
+	vframe_delay -= vdin_vsync;
+	actual_delay = vframe_delay * 1000 + disp_delay_count * vpp_vsync_us;
 #ifdef CONFIG_AMLOGIC_MEDIA_FRC
 	frc_delay = frc_get_video_latency();
 	frc_delay = frc_delay * 1000;
 #endif
 	actual_delay += frc_delay;
 	diff = actual_delay - audio_need_delay * 1000;
-	if (diff > vdin_delay * 1000 / 2) {
+	if (diff > vdin_vsync * 1000 / 2) {
 		diff = div_u64(diff, 1000);
-		need_drop = div_u64(diff + vdin_delay / 2, vdin_delay);
+		need_drop = div_u64(diff + vdin_vsync / 2, vdin_vsync);
 		if (need_drop > 0)
 			dev->sync_need_drop = true;
 		vq_print(P_AVSYNC, "drop=%d,delay=%lld,actual=%lld,need=%lld\n",
 			need_drop, vframe_delay,
 			actual_delay, audio_need_delay);
 		dev->sync_need_drop_count = need_drop;
-	} else if (diff + vdin_delay * 1000 / 2 < 0) {
+	} else if (diff + vdin_vsync * 1000 / 2 < 0) {
 		vq_print(P_SYNC, "delay: audio need =%lld, delay=%lld\n",
 			audio_need_delay, vframe_delay);
 		dev->sync_need_delay = true;
@@ -355,6 +362,13 @@ static void do_file_thread(struct video_queue_dev *dev)
 	bool need_continue = false;
 	char *provider_name = NULL;
 	u32 vframe_disp_mode = VFRAME_DISP_MODE_NULL;
+	u32 vframe_walk_delay = 0;
+	u32 tvin_delay_duration = 0;
+	u64 avsync_diff = 0;
+	u32 frc_delay = 0;
+	bool vlock_locked = false;
+	bool need_resync = false;
+	u64 vdin_vsync = 0;
 
 	if (!dev->provider_name) {
 		provider_name = vf_get_provider_name(dev->vf_receiver_name);
@@ -373,10 +387,19 @@ static void do_file_thread(struct video_queue_dev *dev)
 		return;
 	vf = vf_peek(dev->vf_receiver_name);
 	if (!vf && !dev->game_mode) {
-		usleep_range(10000, 11000);
+		if (dev->low_latency_mode) {
+		/*if do ai_sr, 6ms for ai_sr, 3ms software scheduling*/
+			if (dev->need_aisr || !sync_start)
+				usleep_range(6000, 7000);
+			else
+				usleep_range(10000, 11000);
+		} else {
+			usleep_range(10000, 11000);
+		}
 		vf = vf_peek(dev->vf_receiver_name);
 		if (vf)
-			vq_print(P_SYNC, "peek 2 time ok\n");
+			vq_print(P_SYNC, "peek 2 time ok, need_aisr=%d\n",
+				dev->need_aisr);
 	}
 
 	if (!vf) {
@@ -402,6 +425,11 @@ static void do_file_thread(struct video_queue_dev *dev)
 		vq_print(P_ERROR, "set game mode true\n");
 		if (ret < 0)
 			vq_print(P_ERROR, "set game mode true err\n");
+	} else if (dev->low_latency_mode && !sync_start) {
+		ret = vt_send_cmd(dev->dev_session, dev->tunnel_id,
+			VT_VIDEO_SET_GAME_MODE, 1);
+		if (ret < 0)
+			vq_print(P_ERROR, "set game mode true err\n");
 	}
 
 	dev->sync_need_delay = false;
@@ -417,9 +445,46 @@ static void do_file_thread(struct video_queue_dev *dev)
 		set_tvin_delay_start(0);
 	}
 
+	vlock_locked = vlock_get_phlock_flag() && vlock_get_vlock_flag();
+
+	if (vlock_locked && !dev->vlock_locked)
+		need_resync = true;
+	else if (resync_open)
+		need_resync = true;
+
+	if (dev->frame_num > HDMI_DELAY_CHECK_INDEX &&
+		dev->need_check_delay_count == 0 &&
+		need_resync) {
+		tvin_delay_duration = get_tvin_delay_duration();
+		vframe_walk_delay = get_tvin_delay();
+		avsync_diff = abs(tvin_delay_duration - vframe_walk_delay);
+
+		vdin_vsync = vf->duration;
+		vdin_vsync = vdin_vsync * 1000;
+		vdin_vsync = div64_u64(vdin_vsync, 96);
+
+		if (avsync_diff * 1000 > vdin_vsync * 3 / 4) {
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
+			frc_delay = get_vdin_add_delay_num();
+#endif
+			vq_print(P_OTHER, "resync: frc1:%d,frc2:%d\n",
+				dev->frc_delay_first_frame, frc_delay);
+
+			if (frc_delay == dev->frc_delay_first_frame) {
+				vq_print(P_ERROR,
+					"resync:need=%d,actual=%d,diff=%lld\n",
+					tvin_delay_duration, vframe_walk_delay,
+					avsync_diff);
+				dev->need_check_delay_count =
+					CHECK_DELAYE_COUNT;
+			}
+		}
+	}
+	dev->vlock_locked = vlock_locked;
 	/*step 1: audio required*/
 	if (!sync_start) {
-		vq_print(P_ERROR, "queue first frame\n");
+		vq_print(P_ERROR, "queue first frame frc=%d\n",
+			dev->frc_delay_first_frame);
 	} else if (dev->need_check_delay_count > 0) {
 	/*step 2: recheck video sync after hdmi-in start*/
 		videoq_hdmi_video_sync_2(dev, vf);
@@ -461,6 +526,9 @@ static void do_file_thread(struct video_queue_dev *dev)
 	if (!sync_start) {
 		pcr_time = pts;
 		sync_start = true;
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
+		dev->frc_delay_first_frame = get_vdin_add_delay_num();
+#endif
 	}
 
 	pts = vf->pts;
@@ -474,6 +542,8 @@ static void do_file_thread(struct video_queue_dev *dev)
 	while (1) {
 		if (dev->game_mode)
 			break;
+		if (dev->low_latency_mode)
+			break;
 
 		if (pts + pcr_margin <= pcr_time) {
 			vq_print(P_SYNC,
@@ -481,8 +551,8 @@ static void do_file_thread(struct video_queue_dev *dev)
 				pts, pcr_time, dev->frame_num);
 			pcr_time = pts;
 			vq_print(P_SYNC, "reset pcr =%lld\n", pcr_time);
-			disp_time = time_cur + vsync_pts64_inc
-				+ vsync_pts64_inc * 3 / 4;
+			disp_time = time_cur + vpp_vsync_us
+				+ vpp_vsync_us * 3 / 4;
 			display_vsync_no = vsync_no + 1;
 			if (vsync_count > 4)
 				vq_print(P_ERROR,
@@ -495,8 +565,8 @@ static void do_file_thread(struct video_queue_dev *dev)
 			(pts_tmp < pcr_time
 				+ (vsync_count + 1) * vsync_pts_inc)) {
 			disp_time = time_cur
-				+ vsync_pts64_inc * (vsync_count + 1)
-				+ vsync_pts64_inc * 3 / 4;
+				+ vpp_vsync_us * (vsync_count + 1)
+				+ vpp_vsync_us * 3 / 4;
 			display_vsync_no = vsync_no + vsync_count + 1;
 			vq_print(P_SYNC,
 				"vsync=%d, count=%d, pts=%lld, omx_index=%d\n",
@@ -510,6 +580,27 @@ static void do_file_thread(struct video_queue_dev *dev)
 			break;
 		}
 	}
+	if (dev->low_latency_mode) {
+		if (pts + pcr_margin <= pcr_time) {
+			vq_print(P_ERROR,
+				"delay pts= %lld, pcr=%lld,omx_index=%d\n",
+				pts, pcr_time, dev->frame_num);
+			pcr_time = pts;
+		}
+		pts_tmp = pts + pcr_margin;
+		if (pts_tmp > pcr_time &&
+			(pts_tmp < pcr_time + vsync_pts_inc)) {
+			display_vsync_no = vsync_no;
+			vq_print(P_SYNC,
+				"vsync=%d, pts=%lld, omx_index=%d\n",
+				display_vsync_no,
+				pts, dev->frame_num);
+		} else if (pts_tmp >= pcr_time + vsync_pts_inc) {
+			vq_print(P_SYNC, "early continue\n");
+			return;
+		}
+	}
+
 	if (need_continue)
 		return;
 
@@ -524,6 +615,10 @@ static void do_file_thread(struct video_queue_dev *dev)
 	vf = vf_get(dev->vf_receiver_name);
 	if (!vf)
 		return;
+	if (vf->hf_info)
+		dev->need_aisr = true;
+	else
+		dev->need_aisr = false;
 
 	vframe_get_delay = (int)div_u64(((jiffies_64 -
 			vf->ready_jiffies64) * 1000), HZ);
@@ -556,10 +651,9 @@ static void do_file_thread(struct video_queue_dev *dev)
 #endif
 
 	vsync_diff = display_vsync_no - vf->omx_index;
-	if (display_vsync_no != vf->omx_index + 1)
-		vq_print(P_SYNC, "dis_vsync=%d, omx_index=%d, diff=%d\n",
-			display_vsync_no, vf->omx_index,
-			vsync_diff);
+	vq_print(P_SYNC, "dis_vsync=%d, omx_index=%d, diff=%d\n",
+		display_vsync_no, vf->omx_index,
+		vsync_diff);
 	if (dev->last_vsync_diff != vsync_diff) {
 		vq_print(P_SYNC, "omx_index=%d display_vsync=%d diff=%d\n",
 			vf->omx_index, display_vsync_no, vsync_diff);
@@ -830,9 +924,12 @@ static int videoqueue_reg_provider(struct video_queue_dev *dev)
 	dev->check_sync_count = 0;
 	dev->provider_name = NULL;
 	dev->need_check_delay_count = 0;
+	dev->frc_delay_first_frame = 0;
+	dev->vlock_locked = false;
 	vframe_get_delay = 0;
 	dev->game_mode = false;
 	game_mode = 0;
+	dev->low_latency_mode = low_latency_mode;
 
 	INIT_KFIFO(dev->file_q);
 	INIT_KFIFO(dev->display_q);
@@ -921,9 +1018,10 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 			 "unreg:wait fence_thread time %d\n", time_left);
 	dev->fence_thread = NULL;
 
-	if (dev->game_mode) {
+	if (dev->game_mode || dev->low_latency_mode) {
 		ret = vt_send_cmd(dev->dev_session, dev->tunnel_id,
 			VT_VIDEO_SET_GAME_MODE, 0);
+		vq_print(P_ERROR, "set no game mode\n");
 		dev->game_mode = false;
 		if (ret < 0)
 			vq_print(P_ERROR, "set game mode false err\n");
@@ -1249,6 +1347,31 @@ static ssize_t fence_null_count_show(struct class *cla,
 			fence_null_count);
 }
 
+static ssize_t resync_open_show(struct class *cla,
+			       struct class_attribute *attr,
+			       char *buf)
+{
+	return snprintf(buf, 80,
+			"current resync_open is %d\n",
+			resync_open);
+}
+
+static ssize_t resync_open_store(struct class *cla,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	resync_open = tmp;
+	return count;
+}
+
 static CLASS_ATTR_RW(print_close);
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RO(buf_count);
@@ -1261,6 +1384,7 @@ static CLASS_ATTR_RW(force_game_mode);
 static CLASS_ATTR_RO(fence_dq_count);
 static CLASS_ATTR_RO(fence_put_count);
 static CLASS_ATTR_RO(fence_null_count);
+static CLASS_ATTR_RW(resync_open);
 
 static struct attribute *videoqueue_class_attrs[] = {
 	&class_attr_print_close.attr,
@@ -1275,6 +1399,7 @@ static struct attribute *videoqueue_class_attrs[] = {
 	&class_attr_fence_dq_count.attr,
 	&class_attr_fence_put_count.attr,
 	&class_attr_fence_null_count.attr,
+	&class_attr_resync_open.attr,
 	NULL
 };
 
