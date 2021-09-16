@@ -37,7 +37,6 @@ static struct chip_register_ops ex_gx_ops[] __initdata = {
 
 int __init vdec_reg_ops_init(void)
 {
-#define NOT_T5_AND_T5D (t != MESON_CPU_MAJOR_ID_T5 && t != MESON_CPU_MAJOR_ID_T5D)
 	int  i = 0;
 	int  t = 0;
 
@@ -77,7 +76,10 @@ int __init vdec_reg_ops_init(void)
 
 			case IO_RESET_BUS:
 				t = get_cpu_type();
-				if (t >= MESON_CPU_MAJOR_ID_SC2 && NOT_T5_AND_T5D)
+				if (t >= MESON_CPU_MAJOR_ID_SC2 &&
+					t != MESON_CPU_MAJOR_ID_T5 &&
+					t != MESON_CPU_MAJOR_ID_T5D &&
+					t != MESON_CPU_MAJOR_ID_T5W)
 					m8_ops[i].ext_offset = 0;
 				else
 					m8_ops[i].ext_offset = -0xd00;

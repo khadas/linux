@@ -8,6 +8,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/amlogic,meson-t5w-reset.h>
 #include <dt-bindings/clock/t5w-clkc.h>
+#include <dt-bindings/power/t5-pd.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
 
 / {
@@ -533,6 +534,56 @@
 			    "vcbus",
 			    "dmcbus",
 			    "efusebus";
+	};
+
+	mesonstream {
+		compatible = "amlogic, codec, streambuf";
+		dev_name = "mesonstream";
+		status = "okay";
+		clocks = <&clkc CLKID_CLK81_DOS
+			&clkc CLKID_VDEC
+			&clkc CLKID_HEVCF>;
+		clock-names = "vdec",
+			"clk_vdec_mux",
+			"clk_hevcf_mux";
+		assigned-clock-parents = <&clkc CLKID_VDEC_0>,
+			<&clkc CLKID_HEVCF_0>;
+		assigned-clocks = <&clkc CLKID_VDEC>,
+			<&clkc CLKID_HEVCF>;
+	};
+
+	vdec {
+		compatible = "amlogic, vdec-pm-pd";
+		dev_name = "vdec.0";
+		status = "okay";
+		interrupts = <0 3 1
+			0 23 1
+			0 32 1
+			0 43 1
+			0 44 1
+			0 45 1
+			0 74 1>;
+		interrupt-names = "vsync",
+			"demux",
+			"parser",
+			"mailbox_0",
+			"mailbox_1",
+			"mailbox_2",
+			"parser_b";
+		power-domains = <&pwrdm PDID_T5_DOS_VDEC>,
+			<&pwrdm PDID_T5_DOS_HEVC>;
+		power-domain-names = "pwrc-vdec",
+			"pwrc-hevc";
+	};
+
+	vdec_cpu_ver: cpu_ver_name {
+		compatible = "amlogic, cpu-major-id-t5w";
+	};
+
+	vcodec_dec {
+		compatible = "amlogic, vcodec-dec";
+		dev_name = "aml-vcodec-dec";
+		status = "okay";
 	};
 
 	canvas: canvas {
