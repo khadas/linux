@@ -366,10 +366,8 @@ phys_addr_t secure_block_alloc(unsigned long size, unsigned long flags)
 
 	mutex_lock(&g_secmem_mutex);
 	pr_enter();
-	if (!g_vdec_info.used) {
-		pr_inf("invalid state for block pool\n");
+	if (!g_vdec_info.used)
 		goto error_alloc;
-	}
 	paddr = secure_pool_alloc(g_vdec_info.pool, size);
 error_alloc:
 	mutex_unlock(&g_secmem_mutex);
@@ -380,13 +378,10 @@ unsigned long secure_block_free(phys_addr_t addr, unsigned long size)
 {
 	mutex_lock(&g_secmem_mutex);
 	pr_enter();
-	if (!g_vdec_info.used) {
-		pr_inf("invalid state for block pool\n");
+	if (!g_vdec_info.used)
 		goto error_free;
-	}
 	secure_pool_free(g_vdec_info.pool, addr, size);
 	size = secure_pool_size(g_vdec_info.pool);
-	pr_inf("Also will release later size is %ld", size);
 	if (!size && g_vdec_info.release) {
 		secure_pool_destroy(g_vdec_info.pool);
 		memset(&g_vdec_info, 0,
@@ -417,8 +412,6 @@ static long secmem_set_vdec_info(unsigned long args)
 		pr_error("copy_from_user failed\n");
 		goto error_copy;
 	}
-	pr_inf("used %lx addr %x size %x\n", g_vdec_info.used,
-		info->paddr, info->size);
 	if (!g_vdec_info.used) {
 		g_vdec_info.start = info->paddr;
 		g_vdec_info.size = info->size;
@@ -448,12 +441,9 @@ static long secmem_clear_vdec_info(unsigned long args)
 
 	mutex_lock(&g_secmem_mutex);
 	pr_enter();
-	pr_inf("used %lx addr %llx size %lx\n", g_vdec_info.used,
-		g_vdec_info.start, g_vdec_info.size);
 	if (g_vdec_info.used) {
 		size = secure_pool_size(g_vdec_info.pool);
 		if (size) {
-			pr_inf("will release later size is %zx", size);
 			g_vdec_info.release = 1;
 		} else {
 			secure_pool_destroy(g_vdec_info.pool);

@@ -1750,7 +1750,8 @@ static int codec_mm_tvp_pool_unprotect_and_release(struct extpool_mgt_s *tvp_poo
 
 		if (gpool) {
 			if (gen_pool_avail(gpool) != gen_pool_size(gpool)) {
-				pr_err("Warn: TVP pool will release later.\n");
+				if (debug_mode & 0x20)
+					pr_err("Warn: TVP pool will release later.\n");
 				ignored++;
 				continue;	/*ignore this free now, */
 			}
