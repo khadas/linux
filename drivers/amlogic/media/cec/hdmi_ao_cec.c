@@ -1370,6 +1370,60 @@ static ssize_t dbg_show(struct class *cla,
 	return 0;
 }
 
+static ssize_t port_info_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	unsigned char i = 0;
+	int pos = 0;
+	struct hdmi_port_info *port;
+
+	port = kcalloc(cec_dev->port_num, sizeof(*port), GFP_KERNEL);
+	if (!port) {
+		CEC_ERR("no memory for port info\n");
+		return pos;
+	}
+	/* check delay time:20 x 40ms maximum */
+	check_physical_addr_valid(20);
+	init_cec_port_info(port, cec_dev);
+
+	for (i = 0; i < cec_dev->port_num; i++) {
+		/* port_id: 1/2/3 means HDMIRX1/2/3, 0 means HDMITX port */
+		pos += snprintf(buf + pos, PAGE_SIZE, "port_id: %d, ",
+				port[i].port_id);
+		pos += snprintf(buf + pos, PAGE_SIZE, "port_type: %s, ",
+				port[i].type == HDMI_INPUT ?
+				"hdmirx" : "hdmitx");
+		pos += snprintf(buf + pos, PAGE_SIZE, "physical_address: %x, ",
+				port[i].physical_address);
+		pos += snprintf(buf + pos, PAGE_SIZE, "cec_supported: %s, ",
+				port[i].cec_supported ? "true" : "false");
+		pos += snprintf(buf + pos, PAGE_SIZE, "arc_supported: %s\n",
+				port[i].arc_supported ? "true" : "false");
+	}
+	kfree(port);
+
+	return pos;
+}
+
+/* cat after receive "hdmi_conn=" uevent
+ * 0xXY, bit[4] stands for HDMITX port,
+ * bit[3~0] stands for HDMIRX PCB port D~A,
+ * bit value 1: plug, 0: unplug
+ */
+static ssize_t conn_status_show(struct class *cla,
+			struct class_attribute *attr, char *buf)
+{
+	unsigned int tmp = 0;
+
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
+	tmp |= (get_hpd_state() << 4);
+#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+	tmp |= (hdmirx_get_connect_info() & 0xF);
+#endif
+	return sprintf(buf, "0x%x\n", tmp);
+}
+
 /******************** cec hal interface ***************************/
 static int hdmitx_cec_open(struct inode *inode, struct file *file)
 {
@@ -1806,6 +1860,8 @@ static CLASS_ATTR_RW(dbg_en);
 static CLASS_ATTR_RW(log_addr);
 static CLASS_ATTR_RW(fun_cfg);
 static CLASS_ATTR_RW(dbg);
+static CLASS_ATTR_RO(conn_status);
+static CLASS_ATTR_RO(port_info);
 
 static struct attribute *aocec_class_attrs[] = {
 	&class_attr_cmd.attr,
@@ -1828,6 +1884,8 @@ static struct attribute *aocec_class_attrs[] = {
 	&class_attr_log_addr.attr,
 	&class_attr_fun_cfg.attr,
 	&class_attr_dbg.attr,
+	&class_attr_conn_status.attr,
+	&class_attr_port_info.attr,
 	NULL,
 };
 
