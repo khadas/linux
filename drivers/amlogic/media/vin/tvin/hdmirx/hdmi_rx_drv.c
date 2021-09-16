@@ -2555,6 +2555,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	int clk_rate;
 	const struct of_device_id *of_id;
 	int disable_port;
+	struct input_dev *input_dev;
 
 	log_init(DEF_LOG_BUF_SIZE);
 	hdmirx_dev = &pdev->dev;
@@ -3003,6 +3004,27 @@ static int hdmirx_probe(struct platform_device *pdev)
 		hdmitx_event_notifier_regist(&rx.tx_notify);
 	}
 #endif
+	input_dev = input_allocate_device();
+	if (!input_dev) {
+		rx_pr("input_allocate_device failed\n");
+	} else {
+		/* supported input event type and key */
+		set_bit(KEY_POWER, input_dev->keybit);
+		set_bit(EV_KEY, input_dev->evbit);
+		input_dev->name = "input_hdmirx";
+		input_dev->id.bustype = BUS_ISA;
+		input_dev->id.vendor = 0x0001;
+		input_dev->id.product = 0x0001;
+		input_dev->id.version = 0x0001;
+
+		ret = input_register_device(input_dev);
+		if (ret < 0) {
+			rx_pr("input_register_device failed: %d\n", ret);
+			input_free_device(input_dev);
+		} else {
+			hdevp->hdmirx_input_dev = input_dev;
+		}
+	}
 	rx_pr("hdmirx: driver probe ok\n");
 	return 0;
 fail_kmalloc_pd_fifo:
@@ -3178,6 +3200,16 @@ static int hdmirx_resume(struct platform_device *pdev)
 		rx_phy_resume();
 	rx_set_suspend_edid_clk(false);
 	rx_pr("hdmirx: resume\n");
+	/* for wakeup by pwr5v pin, only available on T7 for now */
+	if (get_resume_method() == HDMI_RX_WAKEUP &&
+	    hdevp->hdmirx_input_dev) {
+		input_event(hdevp->hdmirx_input_dev,
+			EV_KEY, KEY_POWER, 1);
+		input_sync(hdevp->hdmirx_input_dev);
+		input_event(hdevp->hdmirx_input_dev,
+			EV_KEY, KEY_POWER, 0);
+		input_sync(hdevp->hdmirx_input_dev);
+	}
 	return 0;
 }
 #endif
