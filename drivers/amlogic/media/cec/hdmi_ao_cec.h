@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2021/07/30: add linux std cec framework"
+#define CEC_DRIVER_VERSION     "2021/09/30: update port_info and conn status"
 
 #define CEC_DEV_NAME		"cec"
 

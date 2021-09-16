@@ -703,6 +703,7 @@
 		/*cec_sel = <2>;*/
 		output = <1>;   /*output port number*/
 		arc_port_mask = <0x2>;
+		port_seq = <0xf321>;
 		interrupts = <0 203 1
 			0 199 1>;
 		interrupt-names = "hdmi_aocecb","hdmi_aocec";
