@@ -68,7 +68,18 @@ struct video_queue_dev {
 	u64 ready_time;
 	u32 delay_vsync_count;
 	u32 need_check_delay_count;
+	bool low_latency_mode;
+	bool need_aisr;
+	u32 frc_delay_first_frame;
+	bool vlock_locked;
 };
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VDIN
+int get_vdin_add_delay_num(void);
+#endif
+
+bool vlock_get_phlock_flag(void);
+bool vlock_get_vlock_flag(void);
 
 #define videoqueue_IOC_MAGIC  'I'
 #define videoqueue_IOCTL_ALLOC_ID   _IOW(videoqueue_IOC_MAGIC, 0x00, int)
