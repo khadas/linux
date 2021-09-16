@@ -3913,8 +3913,8 @@
 				"nor_d",
 				"nor_q",
 				"nor_c",
-				"nor_wp",
-				"nor_cs";
+				"nor_wp"; //,
+				//"nor_cs";
 			function = "nor";
 			drive-strength-microamp = <3000>;
 		};
