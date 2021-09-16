@@ -114,6 +114,7 @@
 		status = "okay";
 		compatible = "amlogic, drm-subsystem";
 		ports = <&vpu_out>;
+		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {

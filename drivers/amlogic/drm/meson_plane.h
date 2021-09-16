@@ -49,8 +49,20 @@ struct am_video_plane {
 	int plane_index;
 	int plane_type;
 	struct meson_vpu_pipeline *pipeline;
-
+	spinlock_t lock; //used for video plane dma_fence
+	u32 vfm_mode;
 	/*video exted*/
+};
+
+struct meson_video_plane_fence_info {
+	struct dma_fence *fence;
+	struct vframe_s *vf;
+	atomic_t refcount;
+};
+
+struct vf_node {
+	struct meson_video_plane_fence_info *infos;
+	struct list_head vfm_node;
 };
 
 #define to_am_osd_plane(x) container_of(x, \
@@ -76,5 +88,8 @@ void meson_osd_plane_async_update(struct drm_plane *plane,
 struct drm_property *
 meson_create_scaling_filter_prop(struct drm_device *dev,
 			       unsigned int supported_filters);
+
+void meson_video_set_vfmmode(struct device_node *of_node,
+	struct meson_drm *priv);
 
 #endif

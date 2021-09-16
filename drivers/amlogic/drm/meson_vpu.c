@@ -216,7 +216,7 @@ static int am_meson_vpu_bind(struct device *dev,
 	struct reserved_mem *rmem = NULL;
 	struct device_node *np, *mem_node;
 #endif
-	int ret, irq;
+	int i, ret, irq;
 
 	/* Allocate crtc struct */
 	DRM_INFO("[%s] in\n", __func__);
@@ -296,6 +296,10 @@ static int am_meson_vpu_bind(struct device *dev,
 		am_meson_vpu_power_config(1);
 	else
 		osd_vpu_power_on();
+
+	for (i = 0; i < pipeline->num_video; i++)
+		pipeline->video[i]->vfm_mode =
+			private->video_planes[i]->vfm_mode;
 
 	vpu_pipeline_init(pipeline);
 

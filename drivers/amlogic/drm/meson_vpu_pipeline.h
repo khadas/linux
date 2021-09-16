@@ -231,6 +231,8 @@ struct meson_vpu_video_layer_info {
 	u32 fb_size[2];
 	u32 pixel_blend;
 	struct vframe_s *vf;
+	struct dma_buf *dmabuf;
+	u32 vfm_mode;
 	bool is_uvm;
 };
 
@@ -244,7 +246,10 @@ struct meson_vpu_video {
 	DECLARE_KFIFO(display_q, struct vframe_s *, BUFFER_NUM);
 	struct vframe_s vframe[BUFFER_NUM];
 	u32 video_path_reg;
+	u32 vfm_mode;
 	bool video_enabled;
+	struct dma_fence *fence;
+	struct list_head vfm_node[MESON_MAX_VIDEO];
 };
 
 struct meson_vpu_video_state {
@@ -279,6 +284,7 @@ struct meson_vpu_video_state {
 	u32 pixel_blend;
 	u32 afbc_en;
 	struct vframe_s *vf;
+	struct dma_buf *dmabuf;
 	bool is_uvm;
 };
 

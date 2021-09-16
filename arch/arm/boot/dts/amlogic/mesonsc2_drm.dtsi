@@ -99,6 +99,7 @@
 		fbdev_fb_w = <1920>;
 		fbdev_fb_h = <2160>;
 		fbdev_fb_bpp = <32>;
+		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {
