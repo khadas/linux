@@ -442,6 +442,7 @@ void aml_toddr_force_finish(struct toddr *to)
 	unsigned int reg;
 
 	reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
+	aml_audiobus_update_bits(actrl, reg, 1 << 25, 0 << 25);
 	aml_audiobus_update_bits(actrl, reg, 1 << 25, 1 << 25);
 	aml_audiobus_update_bits(actrl, reg, 1 << 25, 0 << 25);
 }

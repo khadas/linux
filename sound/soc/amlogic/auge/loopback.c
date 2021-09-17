@@ -246,6 +246,12 @@ static int loopback_prepare(struct snd_pcm_substream *ss)
 	unsigned int period, threshold;
 	struct toddr *to = p_loopback->tddr;
 
+	if (p_loopback->loopback_trigger_state == TRIGGER_START_ALSA_BUF ||
+	    p_loopback->loopback_trigger_state == TRIGGER_START_VAD_BUF) {
+		pr_err("%s, trigger state is %d\n", __func__,
+			p_loopback->loopback_trigger_state);
+		return 0;
+	}
 	start_addr = runtime->dma_addr;
 	end_addr = start_addr + runtime->dma_bytes - FIFO_BURST;
 	period	 = frames_to_bytes(runtime, runtime->period_size);

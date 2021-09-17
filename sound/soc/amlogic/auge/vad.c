@@ -463,17 +463,6 @@ static int vad_set_clks(struct vad *p_vad, bool enable)
 static int vad_init(struct vad *p_vad)
 {
 	int ret = 0, flag = 0;
-
-	/* malloc buffer */
-	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-				p_vad->dev,
-				DMA_BUFFER_BYTES_MAX,
-				&p_vad->dma_buffer);
-	if (ret) {
-		dev_err(p_vad->dev, "Cannot allocate buffer(s)\n");
-		return ret;
-	}
-
 	/* register irq */
 	if (p_vad->level == LEVEL_KERNEL) {
 		flag = IRQF_SHARED | IRQF_NO_SUSPEND;
@@ -553,9 +542,6 @@ static void vad_deinit(struct vad *p_vad)
 	free_irq(p_vad->irq_wakeup, p_vad);
 	free_irq(p_vad->irq_fs, p_vad);
 
-	/* free buffer */
-	snd_dma_free_pages(&p_vad->dma_buffer);
-
 	/* clock disabled */
 	vad_set_clks(p_vad, false);
 }
@@ -568,10 +554,11 @@ void vad_set_lowerpower_mode(bool islowpower)
 void vad_update_buffer(bool isvadbuf)
 {
 	struct vad *p_vad = get_vad();
-	unsigned int start, end;
+	unsigned int start, end, curr_addr;
 	unsigned int rd_th;
+	int i = 0;
 
-	if (!p_vad || !p_vad->en || !p_vad->tddr ||
+	if (!p_vad || !p_vad->tddr ||
 	    !p_vad->tddr->in_use || !p_vad->tddr->actrl) {
 		pr_err("%s, happened error\n", __func__);
 		return;
@@ -615,8 +602,23 @@ void vad_update_buffer(bool isvadbuf)
 		rd_th = p_vad->threshold;
 		vad_set_trunk_data_readable(true);
 	}
-	aml_toddr_set_buf(p_vad->tddr, start, end);
+
+	aml_toddr_set_buf_startaddr(p_vad->tddr, start);
 	aml_toddr_force_finish(p_vad->tddr);
+
+	/* make sure DMA point is in new buffer */
+	curr_addr = aml_toddr_get_position(p_vad->tddr);
+	while (curr_addr < start || curr_addr > end) {
+		if (i++ > 10000) {
+			pr_err("break\n");
+			break;
+		}
+		udelay(1);
+		curr_addr = aml_toddr_get_position(p_vad->tddr);
+	}
+
+	aml_toddr_set_buf_endaddr(p_vad->tddr, end);
+
 	aml_toddr_set_fifos(p_vad->tddr, rd_th);
 	p_vad->addr = 0;
 }
@@ -852,15 +854,16 @@ static int vad_set_switch_enum(struct snd_kcontrol *kcontrol,
 {
 	struct vad *p_vad = snd_kcontrol_chip(kcontrol);
 
-	pr_debug("%s()\n", __func__);
+	pr_debug("%s(), %ld\n", __func__, ucontrol->value.integer.value[0]);
 	if (!p_vad) {
 		pr_debug("VAD is not inited\n");
 		return 0;
 	}
 
-	if (p_vad->en)
-		vad_update_buffer(ucontrol->value.integer.value[0]);
-
+	/*
+	 * if (p_vad->en)
+	 *	vad_update_buffer(ucontrol->value.integer.value[0]);
+	 */
 	return 0;
 }
 
@@ -1058,6 +1061,16 @@ static int vad_platform_probe(struct platform_device *pdev)
 
 	device_init_wakeup(dev, 1);
 
+	/* malloc buffer */
+	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
+				p_vad->dev,
+				DMA_BUFFER_BYTES_MAX,
+				&p_vad->dma_buffer);
+	if (ret) {
+		dev_err(p_vad->dev, "Cannot allocate buffer(s)\n");
+		return ret;
+	}
+
 	return 0;
 }
 
@@ -1097,6 +1110,15 @@ static int vad_platform_resume(struct platform_device *pdev)
 	return 0;
 }
 
+static int vad_platform_remove(struct platform_device *pdev)
+{
+	struct vad *p_vad = dev_get_drvdata(&pdev->dev);
+
+	/* free buffer */
+	snd_dma_free_pages(&p_vad->dma_buffer);
+	return 0;
+}
+
 struct platform_driver vad_driver = {
 	.driver = {
 		.name = DRV_NAME,
@@ -1105,6 +1127,7 @@ struct platform_driver vad_driver = {
 	.probe   = vad_platform_probe,
 	.suspend = vad_platform_suspend,
 	.resume  = vad_platform_resume,
+	.remove   = vad_platform_remove,
 };
 
 int __init vad_drv_init(void)
