@@ -1039,7 +1039,7 @@
 		 * 7: PAD_TDMINB_D*, oe, refer to core pinmux
 		 */
 		/* if tdmin_lb >= 3, use external loopback */
-		datalb_src = <1>;
+		datalb_src = <2>;
 		datalb_chnum = <2>;
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
