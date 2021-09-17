@@ -177,7 +177,7 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 				struct drm_plane_state *state,
 				struct meson_vpu_pipeline *pipeline)
 {
-	u32 dst_w, dst_h, src_w, src_h, scan_mode_out;
+	u32 dst_w, dst_h, src_w, src_h;
 	struct drm_atomic_state *atomic_state = state->state;
 	struct drm_crtc *crtc = pipeline->crtc;
 	unsigned int index = drm_crtc_index(crtc);
@@ -186,7 +186,6 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 
 	if (!crtc_state || !mode)
 		mode = &pipeline->mode;
-	scan_mode_out = mode->flags & DRM_MODE_FLAG_INTERLACE;
 	plane_info->src_x = state->src_x >> 16;
 	plane_info->src_y = state->src_y >> 16;
 	plane_info->src_w = (state->src_w >> 16) & 0xffff;
@@ -196,10 +195,6 @@ meson_video_plane_position_calc(struct meson_vpu_video_layer_info *plane_info,
 	plane_info->dst_y = state->crtc_y;
 	plane_info->dst_w = state->crtc_w;
 	plane_info->dst_h = state->crtc_h;
-	if (scan_mode_out) {
-		plane_info->dst_y >>= 1;
-		plane_info->dst_h >>= 1;
-	}
 	/*negative position process*/
 	if (state->crtc_x < 0) {
 		dst_w = state->crtc_w + state->crtc_x;
