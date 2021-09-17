@@ -8960,11 +8960,22 @@ void fgrain_update_table(struct video_layer_s *layer,
 }
 #endif
 
+static bool is_layer_aisr_supported(struct video_layer_s *layer)
+{
+	/* only vd1 has aisr for t3 */
+	if (!layer || layer->layer_id != 0)
+		return false;
+	else
+		return true;
+}
 #define DI_HF_Y_REVERSE
 bool aisr_update_frame_info(struct video_layer_s *layer,
 			 struct vframe_s *vf)
 {
 	struct vpp_frame_par_s *aisr_frame_par = NULL;
+
+	if (!is_layer_aisr_supported(layer))
+		return false;
 	/* update layer->aisr_mif_setting */
 	if (vf->vc_private &&
 	    vf->vc_private->flag & VC_FLAG_AI_SR) {
@@ -9035,6 +9046,8 @@ void aisr_reshape_addr_set(struct video_layer_s *layer,
 	u32 aisr_stride, aisr_align_h;
 	int i, j;
 
+	if (!is_layer_aisr_supported(layer))
+		return;
 	if (!aisr_mif_setting->aisr_enable) {
 		cur_dev->rdma_func[VPP0].rdma_wr_bits
 			(aisr_reshape_reg.aisr_post_ctrl,
@@ -9237,7 +9250,8 @@ void aisr_reshape_cfg(struct video_layer_s *layer,
 	int reg_hloop_num, reg_vloop_num;
 	int r = 0;
 
-	if (!layer || !aisr_mif_setting)
+	if (!is_layer_aisr_supported(layer) ||
+	    !aisr_mif_setting)
 		return;
 	if (!aisr_mif_setting->aisr_enable)
 		return;
@@ -9315,7 +9329,8 @@ s32 config_aisr_position(struct video_layer_s *layer,
 {
 	int padding_y;
 
-	if (!layer || !aisr_mif_setting ||
+	if (!is_layer_aisr_supported(layer) ||
+	    !aisr_mif_setting ||
 	    !aisr_mif_setting->aisr_enable)
 		return -1;
 
@@ -9364,7 +9379,8 @@ s32 config_aisr_pps(struct video_layer_s *layer,
 	u32 src_w, src_h;
 	u32 dst_w, dst_h;
 	struct vpp_frame_par_s *aisr_frame_par = NULL;
-	if (!layer || !aisr_setting)
+	if (!is_layer_aisr_supported(layer) ||
+	    !aisr_setting)
 		return -1;
 	if (!layer->aisr_mif_setting.aisr_enable)
 		return -1;
@@ -9401,7 +9417,8 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 	u8 vpp_index, layer_id;
 	u32 aisr_enable = layer->aisr_mif_setting.aisr_enable;
 
-	if (!setting || !setting->frame_par)
+	if (!is_layer_aisr_supported(layer) ||
+	    !setting || !setting->frame_par)
 		return;
 	if (!aisr_enable) {
 		aisr_sr1_nn_enable(0);
