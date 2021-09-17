@@ -580,8 +580,18 @@ static void create_meson_cpufreq_proc_files(struct cpufreq_policy *policy)
 {
 	char policy_name[10] = {0};
 
-	snprintf(policy_name, sizeof(policy_name), "policy%u", policy->cpu);
+	snprintf(policy_name, sizeof(policy_name), "policy%u",
+		cpumask_first(policy->related_cpus));
 	proc_create_data(policy_name, 0444, cpufreq_proc, &meson_cpufreq_fops, policy);
+}
+
+static void destroy_meson_cpufreq_proc_files(struct cpufreq_policy *policy)
+{
+	char policy_name[10] = {0};
+
+	snprintf(policy_name, sizeof(policy_name), "policy%u",
+		cpumask_first(policy->related_cpus));
+	remove_proc_entry(policy_name, cpufreq_proc);
 }
 
 /* CPU initialization */
@@ -749,8 +759,6 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	nr_opp = dev_pm_opp_get_opp_count(cpu_dev);
 	dev_pm_opp_of_register_em(policy->cpus);
 
-	create_meson_cpufreq_proc_files(policy);
-
 	dev_info(cpu_dev, "%s: CPU %d initialized\n", __func__, policy->cpu);
 	return ret;
 free_opp_table:
@@ -788,6 +796,7 @@ static int meson_cpufreq_exit(struct cpufreq_policy *policy)
 		return 0;
 
 	cpufreq_cooling_unregister(cpufreq_data->cdev);
+	destroy_meson_cpufreq_proc_files(policy);
 
 	cpu_dev = get_cpu_device(policy->cpu);
 	if (!cpu_dev) {
@@ -822,6 +831,7 @@ static void meson_cpufreq_ready(struct cpufreq_policy *policy)
 	struct meson_cpufreq_driver_data *cpufreq_data = policy->driver_data;
 
 	cpufreq_data->cdev = of_cpufreq_cooling_register(policy);
+	create_meson_cpufreq_proc_files(policy);
 }
 
 static struct cpufreq_driver meson_cpufreq_driver = {
