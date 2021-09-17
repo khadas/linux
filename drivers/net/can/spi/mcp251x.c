@@ -76,6 +76,9 @@
 #include <linux/spi/spi.h>
 #include <linux/uaccess.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
+#include <asm/irq.h>
 
 /* SPI interface instruction set */
 #define INSTRUCTION_WRITE	0x02
@@ -1044,13 +1047,13 @@ static int mcp251x_can_probe(struct spi_device *spi)
 {
 	const struct of_device_id *of_id = of_match_device(mcp251x_of_match,
 							   &spi->dev);
-	struct mcp251x_platform_data *pdata = dev_get_platdata(&spi->dev);
+//	struct mcp251x_platform_data *pdata = dev_get_platdata(&spi->dev);
 	struct net_device *net;
 	struct mcp251x_priv *priv;
 	struct clk *clk;
 	int freq, ret;
 
-	clk = devm_clk_get(&spi->dev, NULL);
+/*	clk = devm_clk_get(&spi->dev, NULL);
 	if (IS_ERR(clk)) {
 		if (pdata)
 			freq = pdata->oscillator_frequency;
@@ -1058,7 +1061,8 @@ static int mcp251x_can_probe(struct spi_device *spi)
 			return PTR_ERR(clk);
 	} else {
 		freq = clk_get_rate(clk);
-	}
+	}*/
+	freq = 11000000;
 
 	/* Sanity check */
 	if (freq < 1000000 || freq > 25000000)
@@ -1110,6 +1114,8 @@ static int mcp251x_can_probe(struct spi_device *spi)
 		ret = -EPROBE_DEFER;
 		goto out_clk;
 	}
+
+	spi->irq = gpio_to_irq(of_get_named_gpio(spi->dev.of_node, "int-gpio", 0));
 
 	ret = mcp251x_power_enable(priv->power, 1);
 	if (ret)

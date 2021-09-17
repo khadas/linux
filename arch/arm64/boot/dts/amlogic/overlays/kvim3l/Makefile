@@ -7,7 +7,8 @@ dtbo-y += uart3.dtbo \
 		  m2x-eth.dtbo \
 		  otg-device.dtbo \
 		  watchdog.dtbo \
-		  i2s.dtbo
+		  i2s.dtbo \
+		  can.dtbo
 
 targets += $(dtbo-y)
 always  := $(dtbo-y)
