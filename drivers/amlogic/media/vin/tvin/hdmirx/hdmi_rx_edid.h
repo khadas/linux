@@ -761,6 +761,8 @@ enum edid_ver_e get_edid_selection(u8 port);
 enum edid_ver_e rx_parse_edid_ver(u8 *p_edid);
 u_char *rx_get_cur_edid(u_char port);
 bool rx_set_vsvdb(unsigned char *data, unsigned int len);
+u_char rx_edid_get_aud_sad(u_char *sad_data);
+bool rx_edid_set_aud_sad(u_char *sad, u_char len);
 #ifdef CONFIG_AMLOGIC_HDMITX
 bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data,
 					unsigned char *audio_block);

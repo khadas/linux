@@ -1232,6 +1232,9 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 	//unsigned int size = sizeof(struct pd_infoframe_s);
 	struct pd_infoframe_s pkt_info;
 	void *srcbuff;
+	u8 sad_data[30];
+	u8 len = 0;
+	u8 i = 0;
 
 	if (_IOC_TYPE(cmd) != HDMI_IOC_MAGIC) {
 		pr_err("%s invalid command: %u\n", __func__, cmd);
@@ -1380,6 +1383,37 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 		else
 			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 2);
 		rx_pr("hdcp2.2 not support\n");
+		break;
+	case HDMI_IOC_GET_AUD_SAD:
+		if (!argp)
+			return -EINVAL;
+		mutex_lock(&devp->rx_lock);
+		rx_edid_get_aud_sad(sad_data);
+		if (copy_to_user(argp, &sad_data, 30)) {
+			pr_err("sad err\n");
+			ret = -EFAULT;
+			mutex_unlock(&devp->rx_lock);
+			break;
+		}
+		mutex_unlock(&devp->rx_lock);
+		break;
+	case HDMI_IOC_SET_AUD_SAD:
+		if (!argp)
+			return -EINVAL;
+		mutex_lock(&devp->rx_lock);
+		if (copy_from_user(&sad_data, argp, 30)) {
+			pr_err("get sad data err\n");
+			ret = -EFAULT;
+			mutex_unlock(&devp->rx_lock);
+			break;
+		}
+		mutex_unlock(&devp->rx_lock);
+		while (sad_data[i * 3] != '\0' && i < 10) {
+			len += 3;
+			i++;
+		}
+		if (!rx_edid_set_aud_sad(sad_data, len))
+			rx_pr("sad data length err\n");
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
