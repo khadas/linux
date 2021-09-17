@@ -810,11 +810,11 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		 (para->timing.h_pol << 2) |
 		 (para->timing.v_pol << 3) |
 		 (0 << 4) |
-		 (((TX_INPUT_COLOR_FORMAT == HDMI_COLORSPACE_YUV420) ? 4 : 0) << 5) |
+		 (((para->cs == HDMI_COLORSPACE_YUV420) ? 4 : 0) << 5) |
 		 (0 << 8) |
 		 (0 << 12) |
 		 (((TX_INPUT_COLOR_FORMAT == HDMI_COLORSPACE_RGB) ? 0 : 3) << 16) |
-		 (0 << 20) |
+		 (((para->cs == HDMI_COLORSPACE_YUV420) ? 1 : 0) << 20) |
 		 (0 << 24);
 	hd21_write_reg(VPU_HDMI_SETTING, data32);
 	// [    1] src_sel_encp: Enable ENCI or ENCP output to HDMI
@@ -1753,6 +1753,11 @@ static int hdmitx_tmds_rxsense(void)
 
 	switch (hdev->data->chip_type) {
 	case MESON_CPU_ID_T7:
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL0, 1, 16, 1);
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 1, 23, 1);
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 0, 24, 1);
+		hd21_set_reg_bits(ANACTRL_HDMIPHY_CTRL3, 3, 20, 3);
+		ret = hd21_read_reg(ANACTRL_HDMIPHY_CTRL2) & 0x1;
 		return ret;
 	default:
 		break;
@@ -1955,6 +1960,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	//-------------
 	//config video
 	//-------------
+	hdmitx21_set_reg_bits(TPI_SC_IVCTX, 1, 0, 1);
 	hdmi_drm_infoframe_set(NULL);
 	hdmi_vend_infoframe_set(NULL);
 	data8 = 0;

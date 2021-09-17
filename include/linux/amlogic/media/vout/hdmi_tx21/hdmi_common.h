@@ -12,11 +12,9 @@
 
 /* HDMI VIC definitions */
 
-/* HDMITX_VIC420_OFFSET and HDMITX_VIC_MASK are associated with
+/* HDMITX_VIC_MASK are associated with
  * VIC_MAX_VALID_MODE and VIC_MAX_NUM in hdmi_tx_module.h
  */
-#define HDMITX_VIC420_OFFSET	0x100
-#define HDMITX_VIC420_FAKE_OFFSET 0x200
 #define HDMITX_VESA_OFFSET	0x300
 
 #define HDMITX_VIC_MASK			0xff
@@ -24,6 +22,7 @@
 /* Refer to http://standards-oui.ieee.org/oui/oui.txt */
 #define DOVI_IEEEOUI		0x00D046
 #define HDR10PLUS_IEEEOUI	0x90848B
+#define CUVA_IEEEOUI		0x047503
 
 #define GET_OUI_BYTE0(oui)	((oui) & 0xff) /* Little Endian */
 #define GET_OUI_BYTE1(oui)	(((oui) >> 8) & 0xff)
@@ -204,7 +203,6 @@ enum hdmi_vic {
 	HDMI_217_10240x4320p120_64x27	= 217,
 	HDMI_218_4096x2160p100_256x135	= 218,
 	HDMI_219_4096x2160p120_256x135	= 219,
-	HDMI_VIC_FAKE = HDMITX_VIC420_FAKE_OFFSET,
 	HDMIV_640x480p60hz = HDMITX_VESA_OFFSET,
 	HDMIV_800x480p60hz,
 	HDMIV_800x600p60hz,
@@ -233,6 +231,7 @@ enum hdmi_vic {
 	HDMIV_2560x1600p60hz,
 	HDMIV_3440x1440p60hz,
 	HDMIV_2400x1200p90hz,
+	HDMI_VIC_FAKE,
 	HDMI_VIC_END,
 };
 
@@ -505,8 +504,8 @@ struct dtd {
 	unsigned short h_sync;
 	unsigned short v_sync_offset;
 	unsigned short v_sync;
-	u8 h_image_size;
-	u8 v_image_size;
+	u16 h_image_size;
+	u16 v_image_size;
 	u8 h_border;
 	u8 v_border;
 	u8 flags;
@@ -518,7 +517,7 @@ struct vesa_standard_timing {
 	unsigned short vactive;
 	unsigned short hblank;
 	unsigned short vblank;
-	unsigned short hsync;
+	unsigned short vsync;
 	unsigned short tmds_clk; /* Value = Pixel clock ?? 10,000 */
 	enum hdmi_vic vesa_timing;
 };
