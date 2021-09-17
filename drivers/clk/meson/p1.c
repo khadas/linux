@@ -792,17 +792,28 @@ static struct clk_regmap p1_gp1_pll = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table p1_fdle_pll_table[] = {
-	PLL_PARAMS(200, 1, 2), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(100, 1, 1, /*DCO=2400M OD=1200M*/
 	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=1500M*/
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table p1_fdle_pll_table[] = {
-	PLL_PARAMS(200, 1), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(100, 1), /*DCO=2400M OD=1200M*/
 	PLL_PARAMS(125, 1), /*DCO=3000M OD=1500M*/
 	{ /* sentinel */  }
 };
 #endif
+
+static const struct reg_sequence p1_fdle_pll_init_regs[] = {
+	{ .reg = CLKCTRL_FDLEPLL_CTRL0, .def = 0x20011086 },
+	{ .reg = CLKCTRL_FDLEPLL_CTRL0, .def = 0x30011086 },
+	{ .reg = CLKCTRL_FDLEPLL_CTRL1, .def = 0x1420500f },
+	{ .reg = CLKCTRL_FDLEPLL_CTRL2, .def = 0x00023041 },
+	{ .reg = CLKCTRL_FDLEPLL_CTRL3, .def = 0x0, .delay_us = 50 },
+	{ .reg = CLKCTRL_FDLEPLL_CTRL0, .def = 0x10011086, .delay_us = 20 },
+	{ .reg = CLKCTRL_FDLEPLL_CTRL2, .def = 0x00023001, .delay_us = 50 }
+};
+
 static struct clk_regmap p1_fdle_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
@@ -831,6 +842,8 @@ static struct clk_regmap p1_fdle_pll_dco = {
 			.width   = 1,
 		},
 		.table = p1_fdle_pll_table,
+		.init_regs = p1_fdle_pll_init_regs,
+		.init_count = ARRAY_SIZE(p1_fdle_pll_init_regs),
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "fdle_pll_dco",
@@ -872,17 +885,28 @@ static struct clk_regmap p1_fdle_pll = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table p1_m4_pll_table[] = {
-	PLL_PARAMS(200, 1, 2), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(100, 1, 1), /*DCO=4800M OD=1200M*/
 	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=1500M*/
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table p1_m4_pll_table[] = {
-	PLL_PARAMS(200, 2), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(100, 1), /*DCO=4800M OD=1200M*/
 	PLL_PARAMS(125, 1), /*DCO=3000M OD=1500M*/
 	{ /* sentinel */  }
 };
 #endif
+
+static const struct reg_sequence p1_m4_pll_init_regs[] = {
+	{ .reg = CLKCTRL_M4PLL_CTRL0, .def = 0x20011086 },
+	{ .reg = CLKCTRL_M4PLL_CTRL0, .def = 0x30011086 },
+	{ .reg = CLKCTRL_M4PLL_CTRL1, .def = 0x1420500f },
+	{ .reg = CLKCTRL_M4PLL_CTRL2, .def = 0x00023041 },
+	{ .reg = CLKCTRL_M4PLL_CTRL3, .def = 0x0, .delay_us = 50 },
+	{ .reg = CLKCTRL_M4PLL_CTRL0, .def = 0x10011086, .delay_us = 20 },
+	{ .reg = CLKCTRL_M4PLL_CTRL2, .def = 0x00023001, .delay_us = 50 }
+};
+
 static struct clk_regmap p1_m4_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
@@ -911,6 +935,8 @@ static struct clk_regmap p1_m4_pll_dco = {
 			.width   = 1,
 		},
 		.table = p1_m4_pll_table,
+		.init_regs = p1_m4_pll_init_regs,
+		.init_count = ARRAY_SIZE(p1_m4_pll_init_regs),
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "m4_pll_dco",
@@ -1033,18 +1059,28 @@ static struct clk_regmap p1_gp2_pll = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table p1_nna_pll_table[] = {
-	PLL_PARAMS(200, 1, 2), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=1200M*/
 	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=1500M*/
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table p1_nna_pll_table[] = {
-	PLL_PARAMS(200, 1), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(100, 1), /*DCO=2400M OD=1200M*/
 	PLL_PARAMS(125, 1), /*DCO=3000M OD=1500M*/
 	{ /* sentinel */  }
 };
 #endif
-/* TODO: need check */
+
+static const struct reg_sequence p1_nna_pll_init_regs[] = {
+	{ .reg = CLKCTRL_NNAPLL_CTRL0, .def = 0x20011086 },
+	{ .reg = CLKCTRL_NNAPLL_CTRL0, .def = 0x30011086 },
+	{ .reg = CLKCTRL_NNAPLL_CTRL1, .def = 0x1420500f },
+	{ .reg = CLKCTRL_NNAPLL_CTRL2, .def = 0x00023041 },
+	{ .reg = CLKCTRL_NNAPLL_CTRL3, .def = 0x0, .delay_us = 50 },
+	{ .reg = CLKCTRL_NNAPLL_CTRL0, .def = 0x10011086, .delay_us = 20 },
+	{ .reg = CLKCTRL_NNAPLL_CTRL2, .def = 0x00023001, .delay_us = 50 }
+};
+
 static struct clk_regmap p1_nna_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
@@ -1073,6 +1109,8 @@ static struct clk_regmap p1_nna_pll_dco = {
 			.width   = 1,
 		},
 		.table = p1_nna_pll_table,
+		.init_regs = p1_nna_pll_init_regs,
+		.init_count = ARRAY_SIZE(p1_nna_pll_init_regs),
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "nna_pll_dco",
