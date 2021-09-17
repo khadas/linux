@@ -743,26 +743,43 @@ static const struct hdmi_csc_coef_table hdmi_csc_coef[] = {
 bool _is_hdmi14_4k(enum hdmi_vic vic)
 {
 	bool ret = 0;
+	int i;
+	enum hdmi_vic hdmi14_4k[] = {
+		HDMI_93_3840x2160p24_16x9,
+		HDMI_94_3840x2160p25_16x9,
+		HDMI_95_3840x2160p30_16x9,
+		HDMI_98_4096x2160p24_256x135,
+	};
 
-	switch (vic) {
-	case HDMI_93_3840x2160p24_16x9:
-	case HDMI_94_3840x2160p25_16x9:
-	case HDMI_95_3840x2160p30_16x9:
-	case HDMI_98_4096x2160p24_256x135:
-		ret = 1;
-		break;
-	default:
-		ret = 0;
-		break;
+	for (i = 0; i < ARRAY_SIZE(hdmi14_4k); i++) {
+		if (vic == hdmi14_4k[i]) {
+			ret = 1;
+			break;
+		}
 	}
 
 	return ret;
 }
 
-bool _is_hdmi4k_420(enum hdmi_vic vic)
+bool _is_y420_vic(enum hdmi_vic vic)
 {
-	if ((vic & HDMITX_VIC420_OFFSET) == HDMITX_VIC420_OFFSET)
-		return 1;
-	return 0;
-}
+	bool ret = 0;
+	int i;
+	enum hdmi_vic y420_vic[] = {
+		HDMI_96_3840x2160p50_16x9,
+		HDMI_97_3840x2160p60_16x9,
+		HDMI_101_4096x2160p50_256x135,
+		HDMI_102_4096x2160p60_256x135,
+		HDMI_106_3840x2160p50_64x27,
+		HDMI_107_3840x2160p60_64x27,
+	};
 
+	for (i = 0; i < ARRAY_SIZE(y420_vic); i++) {
+		if (vic == y420_vic[i]) {
+			ret = 1;
+			break;
+		}
+	}
+
+	return ret;
+}

@@ -41,7 +41,7 @@ struct amhdmitx_data_s {
  *    hdmitx device structure
  *************************************/
 /*  VIC_MAX_VALID_MODE and VIC_MAX_NUM are associated with
- *	HDMITX_VIC420_OFFSET and HDMITX_VIC_MASK in hdmi_common.h
+ *	HDMITX_VIC_MASK in hdmi_common.h
  */
 #define VIC_MAX_VALID_MODE	256 /* consider 4k2k */
 /* half for valid vic, half for vic with y420*/
@@ -52,6 +52,18 @@ struct rx_audiocap {
 	u8 channel_num_max;
 	u8 freq_cc;
 	u8 cc3;
+};
+
+struct dolby_vsadb_cap {
+	unsigned char rawdata[7 + 1]; // padding extra 1 byte
+	unsigned int ieeeoui;
+	unsigned char length;
+	unsigned char dolby_vsadb_ver;
+	unsigned char spk_center:1;
+	unsigned char spk_surround:1;
+	unsigned char spk_height:1;
+	unsigned char headphone_only:1;
+	unsigned char mat_48k_pcm_only:1;
 };
 
 #define MAX_RAW_LEN 64
@@ -72,11 +84,13 @@ struct hdr_dynamic_struct {
 };
 
 #define VESA_MAX_TIMING 64
+#define Y420_VIC_MAX_NUM 6 /* only 6 4k mode for y420 */
 
 struct rx_cap {
 	u32 native_Mode;
 	/*video*/
 	u32 VIC[VIC_MAX_NUM];
+	u32 y420_vic[Y420_VIC_MAX_NUM];
 	u32 VIC_count;
 	u32 native_vic;
 	u32 native_vic2; /* some Rx has two native mode, normally only one */
@@ -85,6 +99,7 @@ struct rx_cap {
 	struct rx_audiocap RxAudioCap[AUD_MAX_NUM];
 	u8 AUD_count;
 	u8 RxSpeakerAllocation;
+	struct dolby_vsadb_cap dolby_vsadb_cap;
 	/*vendor*/
 	u32 ieeeoui;
 	u8 Max_TMDS_Clock1; /* HDMI1.4b TMDS_CLK */
@@ -111,18 +126,14 @@ struct rx_cap {
 	u32 cnc3:1; /* Game */
 	u32 mdelta:1;
 	u32 fva:1;
-	u32 hdr_sup_eotf_sdr:1;
-	u32 hdr_sup_eotf_hdr:1;
-	u32 hdr_sup_eotf_smpte_st_2084:1;
-	u32 hdr_sup_eotf_hlg:1;
-	u32 hdr_sup_SMD_type1:1;
-	u32 hdmi2ver;
-	u8 hdr_lum_max;
-	u8 hdr_lum_avg;
-	u8 hdr_lum_min;
-	u8 hdr_rawdata[7];
-	struct hdr_dynamic_struct hdr_dynamic_info[4];
-	struct hdr10_plus_info hdr10plus_info;
+	struct hdr_info hdr_info;
+	struct dv_info dv_info;
+	/* When hdr_priority is 1, then dv_info will be all 0;
+	 * when hdr_priority is 2, then dv_info/hdr_info will be all 0
+	 * App won't get real dv_cap/hdr_cap, but can get real dv_cap2/hdr_cap2
+	 */
+	struct hdr_info hdr_info2;
+	struct dv_info dv_info2;
 	u8 IDManufacturerName[4];
 	u8 IDProductCode[2];
 	u8 IDSerialNumber[4];
@@ -149,12 +160,6 @@ struct rx_cap {
 		u8 top_and_bottom;
 		u8 side_by_side;
 	} support_3d_format[VIC_MAX_NUM];
-	struct dv_info dv_info;
-	/* When hdr_priority is 1, then dv_info will be all 0
-	 * And select HDR10 to DolbyVision from HDR priority,
-	 * System won't get real dv_cap, but can get real dv_cap2
-	 */
-	struct dv_info dv_info2;
 	enum hdmi_vic preferred_mode;
 	struct dtd dtd[16];
 	u8 dtd_idx;
@@ -409,6 +414,7 @@ struct hdmitx_dev {
 	u32 bist_lock:1;
 	u32 drm_feature;/*Direct Rander Management*/
 	u32 vend_id_hit:1;
+	spinlock_t edid_spinlock; /* edid hdr/dv cap lock */
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
 };
 
@@ -564,9 +570,8 @@ int hdmitx21_construct_vsif(struct hdmitx_dev *hdev, enum vsif_type type, int on
 
 /* if vic is 93 ~ 95, or 98 (HDMI14 4K), return 1 */
 bool _is_hdmi14_4k(enum hdmi_vic vic);
-
-/* if 4k is Y420, return 1 */
-bool _is_hdmi4k_420(enum hdmi_vic vic);
+/* if vic is 96, 97, 101, 102, 106, 107, 4k 50/60hz, return 1 */
+bool _is_y420_vic(enum hdmi_vic vic);
 
 /* set vic to AVI.VIC */
 void hdmitx21_set_avi_vic(enum hdmi_vic vic);
