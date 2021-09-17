@@ -673,6 +673,7 @@ static struct ddr_port_desc ddr_port_desc_t3[] __initdata = {
 	{ .port_id = 54, .port_name = "HCODEC"        },
 	/* NoC_sys */
 	{ .port_id = 63, .port_name = "DEMUX"         },
+	{ .port_id = 64, .port_name = "NNA"           },
 	{ .port_id = 68, .port_name = "DSP"           },
 	{ .port_id = 70, .port_name = "AOCPU"         },
 	{ .port_id = 71, .port_name = "JTAG"          },
@@ -808,9 +809,8 @@ static struct ddr_port_desc ddr_port_desc_p1[] __initdata = {
 	{ .port_id = 86, .port_name = "SPICC4"        },
 	{ .port_id = 87, .port_name = "SPICC5"        },
 	{ .port_id = 88, .port_name = "AUDIO"         },
-	{ .port_id = 89, .port_name = "DMA"           },
 	{ .port_id = 96, .port_name = "EMMC"          },
-	{ .port_id = 97, .port_name = "EMMC_DMA"      }
+	{ .port_id = 97, .port_name = "DMA"           }
 };
 
 static struct ddr_port_desc *chip_ddr_port;
