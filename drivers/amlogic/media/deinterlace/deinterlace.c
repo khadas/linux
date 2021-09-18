@@ -8258,6 +8258,9 @@ static long di_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -EFAULT;
 	}
 	di_devp = file->private_data;
+	if (!di_devp || (di_devp->flags & DI_SUSPEND_FLAG))
+		return  -EFAULT;
+
 	switch (cmd) {
 	case AMDI_IOC_SET_PQ_PARM:
 		mm_size = sizeof(struct am_pq_parm_s);

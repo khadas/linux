@@ -3563,12 +3563,17 @@ static int di_release(struct inode *node, struct file *file)
 static long di_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	long ret = 0;
+	struct di_dev_s *di_devp = NULL;
 
 	if (_IOC_TYPE(cmd) != _DI_) {
 		PR_ERR("%s invalid command: %u\n", __func__, cmd);
 		return -EFAULT;
 	}
-
+	di_devp = di_pdev;
+	if (!di_devp || (di_devp->flags & DI_SUSPEND_FLAG)) {
+		PR_ERR("%s:suspend, do nothing\n", __func__);
+		return  -EFAULT;
+	}
 #ifdef MARK_HIS
 	dbg_reg("no pq\n");
 	return 0;
