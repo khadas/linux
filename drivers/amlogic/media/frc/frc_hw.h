@@ -54,7 +54,7 @@ void config_phs_lut(enum frc_ratio_mode_type frc_ratio_mode,
 void config_phs_regs(enum frc_ratio_mode_type frc_ratio_mode,
 	enum en_film_mode film_mode);
 void config_me_top_hw_reg(void);
-void init_bb_xyxy(u32 hsize ,u32 vsize);
+void init_bb_xyxy(u32 hsize ,u32 vsize, u32 is_me1mc4);
 void fw_param_bbd_init(u32 hsize ,u32 vsize);
 void sys_fw_param_frc_init(u32 frm_hsize, u32 frm_vsize, u32 is_me1mc4);
 void config_loss_out(u32 fmt422);
