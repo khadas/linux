@@ -616,9 +616,6 @@ static void of_thermal_destroy_one_zone(int id)
 
 		if (zone->id == id - 1) {
 			thermal_zone_device_unregister(zone);
-			kfree(zone->tzp);
-			kfree(zone->ops);
-			kfree(zone->devdata);
 		}
 	}
 		of_node_put(np);
