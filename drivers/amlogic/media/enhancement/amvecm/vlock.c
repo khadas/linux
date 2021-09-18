@@ -1195,8 +1195,10 @@ static void vlock_disable_step1(struct stvlock_sig_sts *pvlock)
 		WRITE_VPP_REG_BITS(pvlock->enc_video_mode_addr + offset_enc, 0, 15, 1);
 		/*restore h,v total*/
 		WRITE_VPP_REG_BITS(pvlock->enc_max_line_switch_addr + offset_enc, 0x1fff, 0, 13);
-		WRITE_VPP_REG(pvlock->enc_max_line_addr + offset_enc, pvlock->org_enc_line_num);
-		WRITE_VPP_REG(pvlock->enc_max_pixel_addr + offset_enc, pvlock->org_enc_pixel_num);
+		//WRITE_VPP_REG(pvlock->enc_max_line_addr + offset_enc,
+		//	pvlock->org_enc_line_num);
+		//WRITE_VPP_REG(pvlock->enc_max_pixel_addr + offset_enc,
+		//	pvlock->org_enc_pixel_num);
 		if (vlock_debug & VLOCK_DEBUG_INFO)
 			pr_info("restore hv total:%d %d\n", pvlock->org_enc_line_num,
 				pvlock->org_enc_pixel_num);
