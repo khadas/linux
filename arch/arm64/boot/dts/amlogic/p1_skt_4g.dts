@@ -195,6 +195,7 @@
 		       0x0 0xfe098140 0x0 0x74>;
 		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "combined";
+		smc_irq_cmd = <0x82000078>;
 		dma-coherent;
 		#iommu-cells = <1>;
 	};

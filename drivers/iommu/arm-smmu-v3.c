@@ -35,6 +35,7 @@
 #ifdef CONFIG_AMLOGIC_MODIFY
 #include <asm/cacheflush.h>
 #include <dt-bindings/memory/meson-p1-sid-map.h>
+#include <linux/arm-smccc.h>
 #endif
 
 /* MMIO registers */
@@ -675,6 +676,17 @@ struct arm_smmu_option_prop {
 	u32 opt;
 	const char *prop;
 };
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+struct aml_irq_cmd {
+	unsigned int smc_irq_cmd;
+};
+
+struct aml_irq_cmd irq_cmd;
+
+#define AML_IRQ_CLEAR	0
+#define AML_IRQ_ENABLE	1
+#endif
 
 static struct arm_smmu_option_prop arm_smmu_options[] = {
 	{ ARM_SMMU_OPT_SKIP_PREFETCH, "hisilicon,broken-prefetch-cmd" },
@@ -1849,6 +1861,13 @@ static irqreturn_t arm_smmu_combined_irq_thread(int irq, void *dev)
 
 static irqreturn_t arm_smmu_combined_irq_handler(int irq, void *dev)
 {
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(irq_cmd.smc_irq_cmd, AML_IRQ_CLEAR,
+		      1, 0, 0, 0, 0, 0, &res);
+#endif
+
 	arm_smmu_gerror_handler(irq, dev);
 	return IRQ_WAKE_THREAD;
 }
@@ -3824,6 +3843,8 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	int i = 0;
 	void __iomem *smmu_ctrl_base, *smmu_ctrl_sid_base;
 	u32 ctrl_tmp;
+	struct arm_smccc_res smc_res;
+	struct device_node *np = pdev->dev.of_node;
 #endif
 
 	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
@@ -3881,6 +3902,15 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		return PTR_ERR(smmu->base);
 
 	init_streamid_reg(smmu_ctrl_sid_base);
+
+	of_node_get(np);
+	ret = of_property_read_u32(np, "smc_irq_cmd", &irq_cmd.smc_irq_cmd);
+	if (ret) {
+		dev_err(&pdev->dev, "please config smc_irq_cmd\n");
+		return ret;
+	}
+	arm_smccc_smc(irq_cmd.smc_irq_cmd, AML_IRQ_ENABLE,
+		      1, 0, 0, 0, 0, 0, &smc_res);
 #endif
 
 	/* Interrupt lines */
