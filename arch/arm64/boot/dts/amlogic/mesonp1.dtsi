@@ -596,8 +596,8 @@
 		memory-region = <&dsp_fw_reserved>;
 		reg = <0 0xfe340018 0 0x114>,   /*dspa base address*/
 			  <0 0xfe350018 0 0x114>,   /*dspb base address*/
-			  <0 0 0 0>,     /*dspa status counter*/
-			  <0 0 0 0>,     /*dspb status counter*/
+			  <0 0xfe010258 0 0x4>,     /*dspa status counter*/
+			  <0 0xfe01025c 0 0x4>,     /*dspb status counter*/
 			  <0 0x30820000 0 0x80000>; /*dsp shm region*/
 		dsp-monitor-period-ms = <1000>;
 		reg-names = "dspa_top_reg", "dspb_top_reg";
