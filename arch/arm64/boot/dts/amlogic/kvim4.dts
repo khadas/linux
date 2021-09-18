@@ -51,7 +51,7 @@
 	memory@00000000 {
 		device_type = "memory";
 		linux,usable-memory = <0x00000000 0x00000000 0x00000000 0xE0000000
-								0x00000001 0x00000000 0x00000000 0x20000000>;
+								0x00000001 0x00000000 0x00000001 0x20000000>;
 	};
 
 	reserved-memory {
@@ -72,9 +72,9 @@
 		linux,above_4g_mem {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x20000000>;
+			size = <0x1 0x20000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x1 0x0000000 0x0 0x20000000>;
+			alloc-ranges = <0x1 0x0000000 0x1 0x20000000>;
 		};
 
 		secmon_reserved:linux,secmon {
