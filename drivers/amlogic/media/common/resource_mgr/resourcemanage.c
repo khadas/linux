@@ -32,6 +32,7 @@
 
 #define QUERY_SECURE_BUFFER (1)
 #define QUERY_NO_SECURE_BUFFER (0)
+#define  RESMAN_VERSION         (2)
 struct {
 	int id;
 	char *name;
@@ -1270,6 +1271,7 @@ static long resman_ioctl_query(struct resman_session *sess, unsigned long para)
 	case RESMAN_TYPE_CODEC_MM:
 		resman.v.query.avail =
 			resman_codec_mm_available(resman.v.query.value);
+		resman.v.query.value = codec_mm_get_total_size() >> 20;
 		break;
 	case RESMAN_TYPE_TVP:
 		resman.v.query.avail =
@@ -1462,6 +1464,14 @@ static ssize_t config_store(struct class *class,
 	return size;
 }
 
+static ssize_t ver_show(struct class *class,
+			   struct class_attribute *attr,
+			   char *buf)
+{
+	sprintf(buf, "%d\n", RESMAN_VERSION);
+	return RESMAN_VERSION;
+}
+
 /* ------------------------------------------------------------------
  * File operations for the device
  * ------------------------------------------------------------------
@@ -1601,6 +1611,7 @@ const struct file_operations resman_fops = {
 static struct class_attribute resman_class_attrs[] = {
 	__ATTR_RO(usage),
 	__ATTR_RW(config),
+	__ATTR_RO(ver),
 	__ATTR_NULL
 };
 
