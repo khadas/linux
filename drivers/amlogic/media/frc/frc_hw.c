@@ -611,7 +611,8 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	frc_top->vfb = vpu_reg_read(ENCL_VIDEO_VAVON_BLINE);
 	pr_frc(log, "ENCL_VIDEO_VAVON_BLINE:%d\n", frc_top->vfb);
 	reg_mc_out_line = (frc_top->vfb / 4) * 3;// 3/4 point of front vblank
-	reg_me_dly_vofst = reg_mc_out_line;
+	// reg_me_dly_vofst = reg_mc_out_line;
+	reg_me_dly_vofst = reg_mc_dly_vofst0;  // change for keep me frist run
 	if (frc_top->hsize <= 1920 && (frc_top->hsize * frc_top->vsize <= 1920 * 1080)) {
 		frc_top->is_me1mc4 = 0;/*me:mc 1:2*/
 		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 0, 0, 1); //8*8 align
@@ -643,7 +644,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 
 	//memc_frm_dly
 	memc_frm_dly      = reg_me_dly_vofst + me_hold_line + mevp_frm_dly +
-				mc_frm_dly  + mc_hold_line ;//ref_frm_en before max_cnt_line
+				mc_frm_dly  + mc_hold_line + reg_mc_out_line;
 	reg_mc_dly_vofst1 = memc_frm_dly - mc_frm_dly   - mc_hold_line ;
 	frc_vporch_cal    = memc_frm_dly - reg_mc_out_line;
 	WRITE_FRC_REG(FRC_REG_TOP_CTRL27, frc_vporch_cal);
@@ -712,8 +713,8 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	////config_me_top_hw_reg
 	// config_me_top_hw_reg();//have initial config before this function
 	////Config bb
-	sys_fw_param_frc_init(frc_top->hsize,frc_top->vsize, frc_top->is_me1mc4);
-	init_bb_xyxy     (frc_top->hsize,frc_top->vsize);
+	sys_fw_param_frc_init(frc_top->hsize, frc_top->vsize, frc_top->is_me1mc4);
+	init_bb_xyxy(frc_top->hsize, frc_top->vsize, frc_top->is_me1mc4);
 
 	//loss ena or disable, default is disable
 	// cfg_me_loss(frc_top->me_loss_en);
@@ -1323,40 +1324,41 @@ void config_me_top_hw_reg(void)
 	WRITE_FRC_BITS(FRC_ME_CMV_CTRL, 0, 31, 1);
 }
 
-void init_bb_xyxy(u32 hsize ,u32 vsize)
+void init_bb_xyxy(u32 hsize, u32 vsize, u32 is_me1mc4)
 {
-	 u32     reg_data;
-	 u32     me_width     ;
-	 u32     me_height    ;
-	 u32     hme_width    ;
-	 u32     hme_height   ;
-	 u32     me_blk_xsize ;
-	 u32     me_blk_ysize ;
-	 u32     hme_blk_xsize;
-	 u32     hme_blk_ysize;
-	 u32     me_dsx          ;
-	 u32     me_dsy          ;
-	 u32     hme_dsx         ;
-	 u32     hme_dsy         ;
-	 u32     me_blksize_dsx  ;
-	 u32     me_blksize_dsy  ;
-	 u32     hme_blksize_dsx ;
-	 u32     hme_blksize_dsy ;
+	u32     reg_data;
+	u32     me_width;
+	u32     me_height;
+	u32     hme_width;
+	u32     hme_height;
+	u32     me_blk_xsize;
+	u32     me_blk_ysize;
+	u32     hme_blk_xsize;
+	u32     hme_blk_ysize;
+	u32     me_dsx;
+	u32     me_dsy;
+	u32     hme_dsx;
+	u32     hme_dsy;
+	u32     me_blksize_dsx;
+	u32     me_blksize_dsy;
+	u32     hme_blksize_dsx;
+	u32     hme_blksize_dsy;
+	u32     hsize_align, vsize_align;
 
-	 reg_data=READ_FRC_REG(FRC_REG_ME_HME_SCALE);
+	reg_data = READ_FRC_REG(FRC_REG_ME_HME_SCALE);
 
-	 me_dsx  = (reg_data>>6) & 0x3;
-	 me_dsy  = (reg_data>>4) & 0x3;
-	 hme_dsx = (reg_data>>2) & 0x3;
-	 hme_dsy = (reg_data)    & 0x3;
+	me_dsx  = (reg_data>>6) & 0x3;
+	me_dsy  = (reg_data>>4) & 0x3;
+	hme_dsx = (reg_data>>2) & 0x3;
+	hme_dsy = (reg_data)    & 0x3;
 
-	reg_data=READ_FRC_REG(FRC_REG_ME_HME_SCALE);
+	reg_data = READ_FRC_REG(FRC_REG_ME_HME_SCALE);
 	me_dsx  = (reg_data>>6) & 0x3;
 	me_dsy  = (reg_data>>4) & 0x3;
 	hme_dsx = (reg_data>>2) & 0x3;
 	hme_dsy = (reg_data>>0) & 0x3;
 
-	reg_data=READ_FRC_REG(FRC_REG_BLK_SIZE_XY);
+	reg_data = READ_FRC_REG(FRC_REG_BLK_SIZE_XY);
 	me_blksize_dsx  = (reg_data>>19) & 0x7;
 	me_blksize_dsy  = (reg_data>>16) & 0x7;
 	hme_blksize_dsx = (reg_data>>7)  & 0x7;
@@ -1364,35 +1366,41 @@ void init_bb_xyxy(u32 hsize ,u32 vsize)
 
 	//TODO match with reg_file.txt
 	//me
-	 WRITE_FRC_BITS(FRC_ME_PRE_LBUF_OFST,  43, 16, 15);
-	 WRITE_FRC_BITS(FRC_ME_PRE_LBUF_OFST, -48, 0 , 15);
-	 WRITE_FRC_BITS(FRC_ME_CUR_LBUF_OFST,  43, 16, 15);
-	 WRITE_FRC_BITS(FRC_ME_CUR_LBUF_OFST, -48, 0 , 15);
-	 WRITE_FRC_BITS(FRC_ME_NEX_LBUF_OFST,  43, 16, 15);
-	 WRITE_FRC_BITS(FRC_ME_NEX_LBUF_OFST, -48, 0 , 15);
+	WRITE_FRC_BITS(FRC_ME_PRE_LBUF_OFST,  43, 16, 15);
+	WRITE_FRC_BITS(FRC_ME_PRE_LBUF_OFST, -48, 0 , 15);
+	WRITE_FRC_BITS(FRC_ME_CUR_LBUF_OFST,  43, 16, 15);
+	WRITE_FRC_BITS(FRC_ME_CUR_LBUF_OFST, -48, 0 , 15);
+	WRITE_FRC_BITS(FRC_ME_NEX_LBUF_OFST,  43, 16, 15);
+	WRITE_FRC_BITS(FRC_ME_NEX_LBUF_OFST, -48, 0 , 15);
 
-	 WRITE_FRC_BITS(FRC_ME_LBUF_NUM, 92,  0, 8);
-	 WRITE_FRC_BITS(FRC_ME_LBUF_NUM, 92,  8, 8);
-	 WRITE_FRC_BITS(FRC_ME_LBUF_NUM, 92, 16, 8);
+	WRITE_FRC_BITS(FRC_ME_LBUF_NUM, 92,  0, 8);
+	WRITE_FRC_BITS(FRC_ME_LBUF_NUM, 92,  8, 8);
+	WRITE_FRC_BITS(FRC_ME_LBUF_NUM, 92, 16, 8);
 
 	//hme
-	 WRITE_FRC_BITS(FRC_ME_PRE_LBUF_OFST - HME_ME_OFFSET,43 ,16,16);
-	 WRITE_FRC_BITS(FRC_ME_PRE_LBUF_OFST - HME_ME_OFFSET,-48,0 ,16);
-	 WRITE_FRC_BITS(FRC_ME_CUR_LBUF_OFST - HME_ME_OFFSET,43 ,16,16);
-	 WRITE_FRC_BITS(FRC_ME_CUR_LBUF_OFST - HME_ME_OFFSET,-48,0 ,16);
-	 WRITE_FRC_BITS(FRC_ME_NEX_LBUF_OFST - HME_ME_OFFSET,43 ,16,16);
-	 WRITE_FRC_BITS(FRC_ME_NEX_LBUF_OFST - HME_ME_OFFSET,-48,0 ,16);
+	WRITE_FRC_BITS(FRC_ME_PRE_LBUF_OFST - HME_ME_OFFSET,43 ,16,16);
+	WRITE_FRC_BITS(FRC_ME_PRE_LBUF_OFST - HME_ME_OFFSET,-48,0 ,16);
+	WRITE_FRC_BITS(FRC_ME_CUR_LBUF_OFST - HME_ME_OFFSET,43 ,16,16);
+	WRITE_FRC_BITS(FRC_ME_CUR_LBUF_OFST - HME_ME_OFFSET,-48,0 ,16);
+	WRITE_FRC_BITS(FRC_ME_NEX_LBUF_OFST - HME_ME_OFFSET,43 ,16,16);
+	WRITE_FRC_BITS(FRC_ME_NEX_LBUF_OFST - HME_ME_OFFSET,-48,0 ,16);
 
 	//me  me_blksize_dsx me_blksize_dsy-> FRC_REG_BLK_SIZE_XY
-	 me_width      = (hsize+(1<<me_dsx)-1)/(1<<me_dsx);/*960*/
-	 me_height     = (vsize+(1<<me_dsy)-1)/(1<<me_dsy);/*540*/
-	 hme_width     = (me_width+(1<<hme_dsx)-1)/(1<<hme_dsx);/*240*/
-	 hme_height    = (me_height+(1<<hme_dsy)-1)/(1<<hme_dsy);/*135*/
-	 me_blk_xsize  = (me_width+(1<<me_blksize_dsx)-1)/(1<<me_blksize_dsx);/*240*/
-	 me_blk_ysize  = (me_height+(1<<me_blksize_dsy)-1)/(1<<me_blksize_dsy);/*135*/
-	 hme_blk_xsize = (hme_width+(1<<hme_blksize_dsx)-1)/(1<<hme_blksize_dsx);/*60*/
-	 hme_blk_ysize = (hme_height+(1<<hme_blksize_dsy)-1)/(1<<hme_blksize_dsy);/*34*/
-
+	if(is_me1mc4 == 0) {
+		hsize_align = (hsize + 7) / 8 * 8;
+		vsize_align = (vsize + 7) / 8 * 8;
+	} else {
+		hsize_align = (hsize + 15) / 16 * 16;
+		vsize_align = (vsize + 15) / 16 * 16;
+	}
+	me_width      = (hsize_align+(1<<me_dsx)-1)/(1<<me_dsx);/*960*/
+	me_height     = (vsize_align+(1<<me_dsy)-1)/(1<<me_dsy);/*540*/
+	hme_width     = (me_width+(1<<hme_dsx)-1)/(1<<hme_dsx);/*240*/
+	hme_height    = (me_height+(1<<hme_dsy)-1)/(1<<hme_dsy);/*135*/
+	me_blk_xsize  = (me_width+(1<<me_blksize_dsx)-1)/(1<<me_blksize_dsx);/*240*/
+	me_blk_ysize  = (me_height+(1<<me_blksize_dsy)-1)/(1<<me_blksize_dsy);/*135*/
+	hme_blk_xsize = (hme_width+(1<<hme_blksize_dsx)-1)/(1<<hme_blksize_dsx);/*60*/
+	hme_blk_ysize = (hme_height+(1<<hme_blksize_dsy)-1)/(1<<hme_blksize_dsy);/*34*/
 	pr_frc(1, "me_width = %d\n", me_width);
 	pr_frc(1, "me_height = %d\n", me_height);
 	pr_frc(1, "hme_width = %d\n", hme_width);
@@ -1402,42 +1410,40 @@ void init_bb_xyxy(u32 hsize ,u32 vsize)
 	pr_frc(1, "hme_blk_xsize = %d\n", hme_blk_xsize);
 	pr_frc(1, "hme_blk_ysize = %d\n", hme_blk_ysize);
 
-	 WRITE_FRC_BITS(FRC_ME_BB_PIX_ED, me_width-1,     16, 12);/*reg_me_bb_xyxy[2] 60*/
-	 WRITE_FRC_BITS(FRC_ME_BB_PIX_ED, me_height-1,     0, 12);/*reg_me_bb_xyxy[3] 40*/
-	 WRITE_FRC_BITS(FRC_ME_BB_BLK_ED, me_blk_xsize-1, 16, 10);/*reg_me_bb_blk_xyxy[2] 240*/
-	 WRITE_FRC_BITS(FRC_ME_BB_BLK_ED, me_blk_ysize-1,  0, 10);/*reg_me_bb_blk_xyxy[3] 135*/
+	WRITE_FRC_BITS(FRC_ME_BB_PIX_ED, me_width-1,     16, 12);/*reg_me_bb_xyxy[2] 60*/
+	WRITE_FRC_BITS(FRC_ME_BB_PIX_ED, me_height-1,     0, 12);/*reg_me_bb_xyxy[3] 40*/
+	WRITE_FRC_BITS(FRC_ME_BB_BLK_ED, me_blk_xsize-1, 16, 10);/*reg_me_bb_blk_xyxy[2] 240*/
+	WRITE_FRC_BITS(FRC_ME_BB_BLK_ED, me_blk_ysize-1,  0, 10);/*reg_me_bb_blk_xyxy[3] 135*/
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_HST, 0, 0,10);/*reg_me_stat_region_hend 0*/
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_H01, me_blk_xsize*1/4, 16, 10);/*reg_me_stat_region_hend 60*/
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_H01, me_blk_xsize*2/4, 0, 10);/*reg_me_stat_region_hend 120*/
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_H23, me_blk_xsize*3/4, 16, 10);/*reg_me_stat_region_hend 180*/
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_H23, me_blk_xsize*4/4 - 1, 0, 10);/*reg_me_stat_region_hend 240*/
 
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_HST   , 0, 0,10);/*reg_me_stat_region_hend 0*/
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_H01   , me_blk_xsize*1/4 ,16,10);/*reg_me_stat_region_hend 60*/
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_H01   , me_blk_xsize*2/4 ,0 ,10);/*reg_me_stat_region_hend 120*/
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_H23   , me_blk_xsize*3/4 ,16,10);/*reg_me_stat_region_hend 180*/
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_H23   , me_blk_xsize*4/4 - 1, 0 ,10);/*reg_me_stat_region_hend 240*/
-
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_V0    , 0 ,16 ,10);
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_V0    , me_blk_ysize*1/3 ,0 ,10);/*reg_me_stat_region_vend[0]: 45*/
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_V1    , me_blk_ysize*2/3 ,16,10);/*reg_me_stat_region_vend[1]: 90*/
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_V1    , me_blk_ysize*3/3 - 1,0 ,10);/*reg_me_stat_region_vend[2]: 135*/
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_V0    , 0, 16, 10);
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_V0    , me_blk_ysize*1/3, 0, 10);/*reg_me_stat_region_vend[0]: 45*/
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_V1    , me_blk_ysize*2/3, 16, 10);/*reg_me_stat_region_vend[1]: 90*/
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_V1    , me_blk_ysize*3/3 - 1, 0, 10);/*reg_me_stat_region_vend[2]: 135*/
 
 	//hme
-	 WRITE_FRC_BITS(FRC_ME_BB_PIX_ED- HME_ME_OFFSET, hme_width -1,16,12);/*hme w 240*/
-	 WRITE_FRC_BITS(FRC_ME_BB_PIX_ED- HME_ME_OFFSET, hme_height-1,0 ,12);/*hme h 135*/
-	 WRITE_FRC_BITS(FRC_ME_BB_BLK_ED- HME_ME_OFFSET  ,hme_blk_xsize-1,16,10);/*hme w block 60*/
-	 WRITE_FRC_BITS(FRC_ME_BB_BLK_ED- HME_ME_OFFSET  ,hme_blk_ysize-1,0 ,10);/*hme w block 34*/
-
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_HST - HME_ME_OFFSET  , 0 ,16,10);
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_H01 - HME_ME_OFFSET  , hme_blk_xsize*1/4 ,16,10);
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_H01 - HME_ME_OFFSET  , hme_blk_xsize*2/4 ,0 ,10);
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_H23 - HME_ME_OFFSET  , hme_blk_xsize*3/4 ,16,10);
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_H23 - HME_ME_OFFSET  , hme_blk_xsize*4/4 - 1, 0, 10);
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_V0  - HME_ME_OFFSET  , hme_blk_ysize*1/3 ,0 ,10);
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_V1  - HME_ME_OFFSET  , hme_blk_ysize*2/3 ,16,10);
-	WRITE_FRC_BITS(FRC_ME_STAT_12R_V1  - HME_ME_OFFSET  , hme_blk_ysize*3/3 - 1, 0, 10);
+	WRITE_FRC_BITS(FRC_ME_BB_PIX_ED- HME_ME_OFFSET, hme_width -1, 16, 12);/*hme w 240*/
+	WRITE_FRC_BITS(FRC_ME_BB_PIX_ED- HME_ME_OFFSET, hme_height-1, 0, 12);/*hme h 135*/
+	WRITE_FRC_BITS(FRC_ME_BB_BLK_ED- HME_ME_OFFSET,hme_blk_xsize-1, 16, 10);/*hme w block 60*/
+	WRITE_FRC_BITS(FRC_ME_BB_BLK_ED- HME_ME_OFFSET,hme_blk_ysize-1, 0, 10);/*hme w block 34*/
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_HST - HME_ME_OFFSET, 0,16,10);
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_H01 - HME_ME_OFFSET, hme_blk_xsize*1/4, 16, 10);
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_H01 - HME_ME_OFFSET, hme_blk_xsize*2/4, 0, 10);
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_H23 - HME_ME_OFFSET, hme_blk_xsize*3/4, 16, 10);
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_H23 - HME_ME_OFFSET, hme_blk_xsize*4/4 - 1, 0, 10);
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_V0  - HME_ME_OFFSET, hme_blk_ysize*1/3, 0, 10);
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_V1  - HME_ME_OFFSET, hme_blk_ysize*2/3, 16, 10);
+	WRITE_FRC_BITS(FRC_ME_STAT_12R_V1  - HME_ME_OFFSET, hme_blk_ysize*3/3 - 1, 0, 10);
 
 	//vp
 	WRITE_FRC_BITS(FRC_VP_BB_1, 0, 0, 16);
 	WRITE_FRC_BITS(FRC_VP_BB_1, 0, 16, 16);
-	WRITE_FRC_BITS(FRC_VP_BB_2 , me_blk_xsize-1,0 ,16);/*reg_vp_bb_xyxy[2] 240*/
-	WRITE_FRC_BITS(FRC_VP_BB_2 , me_blk_ysize-1,16,16);/*reg_vp_bb_xyxy[3] 135*/
+	WRITE_FRC_BITS(FRC_VP_BB_2, me_blk_xsize-1, 0, 16);/*reg_vp_bb_xyxy[2] 240*/
+	WRITE_FRC_BITS(FRC_VP_BB_2, me_blk_ysize-1, 16, 16);/*reg_vp_bb_xyxy[3] 135*/
 
 	WRITE_FRC_BITS(FRC_VP_ME_BB_1 , 0, 0, 16);
 	WRITE_FRC_BITS(FRC_VP_ME_BB_1 , 0, 16, 16);
