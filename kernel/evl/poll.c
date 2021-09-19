@@ -430,6 +430,7 @@ static int collect_events(struct poll_group *group,
 		table = evl_alloc(sizeof(*wpt) * nr);
 		if (table == NULL) {
 			curr->poll_context.nr = 0;
+			curr->poll_context.active = 0;
 			curr->poll_context.table = NULL;
 			curr->poll_context.generation = 0;
 			return -ENOMEM;
@@ -453,6 +454,9 @@ static int collect_events(struct poll_group *group,
 collect:
 	evl_unlock_kmutex(&group->item_lock);
 
+	if (flag)
+		curr->poll_context.active = 0;
+
 	for (n = 0, wpt = table; n < nr; n++, wpt++) {
 		if (flag) {
 			wpt->flag = flag;
@@ -465,6 +469,7 @@ collect:
 			efilp = evl_watch_fd(wpt->fd, &wpt->node);
 			if (efilp == NULL)
 				goto stale;
+			curr->poll_context.active++;
 			filp = efilp->filp;
 			wpt->filp = filp;
 			if (filp->f_op->oob_poll)
@@ -482,8 +487,10 @@ collect:
 			ev.pollval = wpt->pollval;
 			ev.events = ready;
 			ret = raw_copy_to_user(u_set, &ev, sizeof(ev));
-			if (ret)
-				return -EFAULT;
+			if (ret) {
+				count = -EFAULT;
+				break;
+			}
 			u_set++;
 			if (++count > maxevents) {
 				count = maxevents;
@@ -527,7 +534,7 @@ static inline void clear_wait(void)
 	 * here.
 	 */
 	for (n = 0, wpt = curr->poll_context.table;
-	     n < curr->poll_context.nr; n++, wpt++) {
+	     n < curr->poll_context.active; n++, wpt++) {
 		evl_ignore_fd(&wpt->node);
 		/* Remove from driver's poll head(s). */
 		for_each_poll_connector(poco, wpt) {

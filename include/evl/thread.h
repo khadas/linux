@@ -128,6 +128,7 @@ struct evl_thread {
 		struct evl_poll_watchpoint *table;
 		unsigned int generation;
 		int nr;
+		int active;
 	} poll_context;
 	atomic_t inband_disable_count;
 	struct irq_work inband_work;
