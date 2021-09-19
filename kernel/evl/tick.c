@@ -104,9 +104,10 @@ static void setup_proxy(struct clock_proxy_device *dev)
 	__this_cpu_write(proxy_device, dev);
 }
 
-int evl_enable_tick(void)
+#ifdef CONFIG_SMP
+static int request_timer_ipi(void)
 {
-	int ret;
+	int ret = 0;
 
 	/*
 	 * We may be running a SMP kernel on a uniprocessor machine
@@ -114,14 +115,45 @@ int evl_enable_tick(void)
 	 * the timer IPI only if the hardware can support multiple
 	 * CPUs.
 	 */
-	if (IS_ENABLED(CONFIG_SMP) && num_possible_cpus() > 1) {
+	if (num_possible_cpus() > 1)
 		ret = __request_percpu_irq(TIMER_OOB_IPI,
 					clock_ipi_handler,
 					IRQF_OOB, "EVL timer IPI",
 					&evl_machine_cpudata);
-		if (ret)
-			return ret;
+	return ret;
+}
+
+static void __free_timer_ipi(void *arg)
+{
+	disable_percpu_irq(TIMER_OOB_IPI);
+}
+
+static void free_timer_ipi(void)
+{
+	if (num_possible_cpus() > 1) {
+		on_each_cpu_mask(&evl_oob_cpus,
+				__free_timer_ipi, NULL, true);
+		free_percpu_irq(TIMER_OOB_IPI, &evl_machine_cpudata);
 	}
+}
+#else
+static inline int request_timer_ipi(void)
+{
+	return 0;
+}
+
+static inline void free_timer_ipi(void)
+{
+}
+#endif	/* !CONFIG_SMP */
+
+int evl_enable_tick(void)
+{
+	int ret;
+
+	ret = request_timer_ipi();
+	if (ret)
+		return ret;
 
 	/*
 	 * CAUTION:
@@ -135,20 +167,23 @@ int evl_enable_tick(void)
 	 * device supports oneshot mode, or fails.
 	 */
 	ret = tick_install_proxy(setup_proxy, &evl_oob_cpus);
-	if (ret && IS_ENABLED(CONFIG_SMP) && num_possible_cpus() > 1) {
-		free_percpu_irq(TIMER_OOB_IPI, &evl_machine_cpudata);
-		return ret;
-	}
+	if (ret)
+		goto fail_proxy;
 
 	return 0;
+
+fail_proxy:
+
+	free_timer_ipi();
+
+	return ret;
 }
 
 void evl_disable_tick(void)
 {
 	tick_uninstall_proxy(&evl_oob_cpus);
-#ifdef CONFIG_SMP
-	free_percpu_irq(TIMER_OOB_IPI, &evl_machine_cpudata);
-#endif
+	free_timer_ipi();
+
 	/*
 	 * When the kernel is swapping clock event devices on behalf
 	 * of enable_clock_devices(), it may end up calling
