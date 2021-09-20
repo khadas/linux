@@ -1,0 +1,15 @@
+#
+# Amlogic video_pp_common device configuration
+#
+
+menu "Amlogic video_pp_common support"
+
+config AMLOGIC_VIDEO_PP_COMMON
+	tristate "Amlogic video_pp_common device support"
+	select VIDEO_DEV
+	default n
+
+	help
+		Select to enable "Amlogic video_pp_common device support.
+
+endmenu

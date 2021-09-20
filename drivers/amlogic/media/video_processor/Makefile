@@ -19,3 +19,5 @@ include drivers/amlogic/media/video_processor/videotunnel/Makefile
 include drivers/amlogic/media/video_processor/vdetect/Makefile
 
 include drivers/amlogic/media/video_processor/videoqueue/Makefile
+
+include drivers/amlogic/media/video_processor/common/Makefile
