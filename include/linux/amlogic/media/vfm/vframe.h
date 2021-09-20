@@ -485,6 +485,12 @@ struct vf_nn_sr_t {
 	struct timeval start_time;
 };
 
+struct vf_aipq_t {
+	struct nn_value_t nn_value[AI_PQ_TOP];
+	s32 aipq_buf_index;
+	s32 aipq_value_index;
+};
+
 #define VC_FLAG_AI_SR	0x1
 
 struct video_composer_private {

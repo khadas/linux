@@ -24,6 +24,7 @@
 
 #include "meson_uvm_allocator.h"
 #include "meson_uvm_nn_processor.h"
+#include "meson_uvm_aipq_processor.h"
 
 static struct mua_device *mdev;
 
@@ -407,6 +408,12 @@ static int mua_attach(int fd, int type, char *buf)
 		if (ret)
 			return -EINVAL;
 		break;
+	case PROCESS_AIPQ:
+		ret = attach_aipq_hook_mod_info(fd, buf, &info);
+		if (ret)
+			return -EINVAL;
+		break;
+
 	default:
 		MUA_PRINTK(0, "mod_type is not valid.\n");
 	}

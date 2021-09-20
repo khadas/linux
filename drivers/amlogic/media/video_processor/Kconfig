@@ -25,6 +25,7 @@ source "drivers/amlogic/media/video_processor/video_composer/Kconfig"
 source "drivers/amlogic/media/video_processor/videotunnel/Kconfig"
 source "drivers/amlogic/media/video_processor/vdetect/Kconfig"
 source "drivers/amlogic/media/video_processor/videoqueue/Kconfig"
+source "drivers/amlogic/media/video_processor/common/Kconfig"
 endif
 
 endmenu
