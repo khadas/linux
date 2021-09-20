@@ -9042,11 +9042,13 @@ void aisr_reshape_addr_set(struct video_layer_s *layer,
 			31, 1);
 		cur_dev->scaler_sep_coef_en = 0;
 		cur_dev->aisr_enable = 0;
+		cur_dev->pps_auto_calc = 0;
 		video_info_change_status &= ~VIDEO_AISR_FRAME_EVENT;
 		return;
 	}
 	cur_dev->scaler_sep_coef_en = 1;
 	cur_dev->aisr_enable = 1;
+	cur_dev->pps_auto_calc = 1;
 	aisr_stride = aisr_mif_setting->src_align_w;
 	aisr_align_h = aisr_mif_setting->src_align_h;
 	video_info_change_status |= VIDEO_AISR_FRAME_EVENT;

@@ -15379,22 +15379,6 @@ static ssize_t pps_auto_calc_show(struct class *cla,
 	return snprintf(buf, 40, "aisr pps_auto_calc:%d\n", cur_dev->pps_auto_calc);
 }
 
-static ssize_t pps_auto_calc_store(struct class *cla,
-				 struct class_attribute *attr,
-				 const char *buf, size_t count)
-{
-	int res = 0;
-	int ret = 0;
-
-	ret = kstrtoint(buf, 0, &res);
-	if (ret) {
-		pr_err("kstrtoint err\n");
-		return -EINVAL;
-	}
-	cur_dev->pps_auto_calc = res;
-	return count;
-}
-
 static ssize_t ai_pq_disable_show(struct class *cla,
 				  struct class_attribute *attr, char *buf)
 {
@@ -16120,7 +16104,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(aisr_pps_auto_calc,
 	       0664,
 	       pps_auto_calc_show,
-	       pps_auto_calc_store),
+	       NULL),
 	__ATTR(ai_pq_disable,
 	       0664,
 	       ai_pq_disable_show,
