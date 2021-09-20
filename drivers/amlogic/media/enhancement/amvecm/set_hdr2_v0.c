@@ -2610,10 +2610,6 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	bool always_full_func = false;
 	int vpp_sel;
 
-	pr_csc(16, "hdr func: hdr module=%d, select=%x\n",
-	       module_sel,
-	       hdr_process_select);
-
 	if (disable_flush_flag)
 		return hdr_process_select;
 
@@ -2626,6 +2622,19 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	     get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) &&
 	    (module_sel == VD2_HDR || module_sel == OSD1_HDR))
 		return hdr_process_select;
+
+	if (((module_sel == OSD1_HDR && vpp_index == VPP_TOP1) ||
+		(module_sel == OSD2_HDR && vpp_index == VPP_TOP0)) &&
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T7) {
+		pr_csc(12, "%s: module_sel = %d vpp_index = %d not match\n",
+			__func__, module_sel, vpp_index);
+		return hdr_process_select;
+	}
+
+	pr_csc(12, "hdr func: hdr module=%d, select=%x vpp_index = %d\n",
+	       module_sel,
+	       hdr_process_select,
+	       vpp_index);
 
 	if (vpp_index == VPP_TOP1 &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
