@@ -1896,8 +1896,10 @@ RESTART:
 	/* speical mode did not use aisr */
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
 	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP ||
-	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T)
+	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T) {
 		cur_dev->aisr_enable = 0;
+		cur_dev->pps_auto_calc = 0;
+	}
 	/*
 	 *check the painful bandwidth limitation and see
 	 * if we need skip half resolution on source side for progressive
