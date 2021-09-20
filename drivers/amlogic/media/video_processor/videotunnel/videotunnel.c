@@ -1270,6 +1270,13 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 	if (instance->producer && instance->producer != session)
 		return -EINVAL;
 
+	/* in game mode, but has no consumer */
+	if (instance->mode == VT_MODE_GAME && !instance->consumer) {
+		vt_debug(VT_DEBUG_BUFFERS,
+			"vt [%d] game mode, but no consumer\n", instance->id);
+		return -ENOTCONN;
+	}
+
 	vt_debug(VT_DEBUG_BUFFERS,
 		 "vt [%d] queuebuffer start\n", instance->id);
 
