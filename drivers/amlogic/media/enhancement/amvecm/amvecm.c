@@ -9167,7 +9167,6 @@ void init_pq_control(unsigned int enable)
 int vinfo_lcd_support(void)
 {
 	struct vinfo_s *vinfo = get_current_vinfo();
-
 	if (vinfo->mode == VMODE_LCD ||
 		vinfo->mode == VMODE_DUMMY_ENCP)
 		return 1;
