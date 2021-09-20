@@ -78,6 +78,7 @@ enum chip_id_e {
 	CHIP_ID_T5D,
 	CHIP_ID_T7,
 	CHIP_ID_T3,
+	CHIP_ID_T5W,
 };
 
 enum phy_ver_e {
@@ -87,6 +88,7 @@ enum phy_ver_e {
 	PHY_VER_T5,
 	PHY_VER_T7,
 	PHY_VER_T3,
+	PHY_VER_T5W,
 };
 
 struct meson_hdmirx_data {

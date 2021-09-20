@@ -174,6 +174,11 @@ static struct notifier_block aml_hdcp22_pm_notifier = {
 	.notifier_call = aml_hdcp22_pm_notify,
 };
 
+static struct meson_hdmirx_data rx_t5w_data = {
+	.chip_id = CHIP_ID_T5W,
+	.phy_ver = PHY_VER_T5W,
+};
+
 static struct meson_hdmirx_data rx_t3_data = {
 	.chip_id = CHIP_ID_T3,
 	.phy_ver = PHY_VER_T3,
@@ -232,6 +237,10 @@ static struct meson_hdmirx_data rx_gxtvbb_data = {
 #endif
 
 static const struct of_device_id hdmirx_dt_match[] = {
+	{
+		.compatible		= "amlogic, hdmirx_t5w",
+		.data			= &rx_t5w_data
+	},
 	{
 		.compatible		= "amlogic, hdmirx_t3",
 		.data			= &rx_t3_data

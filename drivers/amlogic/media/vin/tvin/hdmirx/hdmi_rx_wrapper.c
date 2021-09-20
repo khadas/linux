@@ -320,6 +320,7 @@ void hdmirx_fsm_var_init(void)
 		break;
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
+	case CHIP_ID_T5W:
 	default:
 		hbr_force_8ch = 1; //use it to enable hdr2spdif
 		sig_stable_err_max = 5;

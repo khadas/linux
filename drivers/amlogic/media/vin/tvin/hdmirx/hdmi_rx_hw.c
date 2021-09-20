@@ -1577,6 +1577,7 @@ void set_scdc_cfg(int hpdlow, int pwrprovided)
 		break;
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
+	case CHIP_ID_T5W:
 	default:
 		//hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, pwrprovided);
 		break;
@@ -3874,7 +3875,7 @@ void rx_aud_pll_ctl(bool en)
 				tmp &= ~(1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
 				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
 			}
-		} else if (rx.chip_id == CHIP_ID_T3) {
+		} else if (rx.chip_id >= CHIP_ID_T3) {
 			if (en) {
 				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
 				tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
@@ -4447,6 +4448,12 @@ void rx_clkmsr_monitor(void)
 void rx_clkmsr_handler(struct work_struct *work)
 {
 	switch (rx.chip_id) {
+	case CHIP_ID_T5W:
+		rx.clk.cable_clk = meson_clk_measure_with_precision(30, 32);
+		rx.clk.tmds_clk = meson_clk_measure_with_precision(63, 32);
+		rx.clk.aud_pll = meson_clk_measure_with_precision(74, 32);
+		rx.clk.p_clk = meson_clk_measure_with_precision(0, 32);
+		break;
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
 		/* to decrease cpu loading of clk_msr work queue */
