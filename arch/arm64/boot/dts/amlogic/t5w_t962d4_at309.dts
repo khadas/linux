@@ -345,6 +345,62 @@
 		interrupts = <0 83 1>;
 	};
 
+	hdmirx {
+		compatible = "amlogic, hdmirx_t5w";
+		#address-cells=<1>;
+		#size-cells=<1>;
+		/*memory-region = <&hdmirx_emp_cma_reserved>;*/
+		status = "okay";
+		pinctrl-names = "hdmirx_pins";
+		pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
+			&hdmirx_c_mux>;
+		repeat = <0>;
+		/*power-domains = <&pwrdm PDID_T5W_HDMIRX>;*/
+		interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>;
+		clocks =<&clkc CLKID_HDMIRX_CFG>,
+			   <&clkc CLKID_HDMIRX_ACR>,
+			   <&clkc CLKID_HDMIRX_METER>,
+			   <&clkc CLKID_HDMIRX_2M>,
+			   <&clkc CLKID_HDMIRX_5M>,
+			   <&clkc CLKID_HDMIRX_HDCP>,
+			   <&xtal>,
+			   <&clkc CLKID_FCLK_DIV4>,
+			   <&clkc CLKID_FCLK_DIV5>;
+		clock-names = "hdmirx_cfg_clk",
+				"cts_hdmirx_acr_ref_clk",
+				"cts_hdmirx_meter_clk",
+				"cts_hdmirx_2m_clk",
+				"cts_hdmirx_5m_clk",
+				"cts_hdmirx_hdcp2x_eclk",
+				"xtal",
+				"fclk_div4",
+				"fclk_div5";
+		hdmirx_id = <0>;
+		en_4k_2_2k = <0>;
+		hpd_low_cec_off = <0>;
+		arc_port = <1>;
+		/* bit4: enable feature, bit3~0: port number */
+		disable_port = <0x0>;
+		/* MAP_ADDR_MODULE_CBUS */
+		/* MAP_ADDR_MODULE_HIU */
+		/* MAP_ADDR_MODULE_HDMIRX_CAPB3 */
+		/* MAP_ADDR_MODULE_SEC_AHB */
+		/* MAP_ADDR_MODULE_SEC_AHB2 */
+		/* MAP_ADDR_MODULE_APB4 */
+		/* MAP_ADDR_MODULE_TOP */
+		/* MAP_ADDR_MODULE_CLK_CTRL */
+		/* MAP_ADDR_MODULE_ANA_CTRL */
+		reg = < 0x0 0x0 0x0 0x0
+			0x0 0xff63C000 0x0 0x2000
+			0x0 0xffe0d000 0x0 0x2000
+			0x0 0x0 0x0 0x0
+			0x0 0x0 0x0 0x0
+			0x0 0x0 0x0 0x0
+			0x0 0xff688000 0x0 0x18000
+			0x0 0xfe000000 0x0 0x1fff
+			0x0 0xfe008000 0x280 0x334>;
+	};
+
 	multi-di {
 		//status = "okay";
 		/***************************************************
