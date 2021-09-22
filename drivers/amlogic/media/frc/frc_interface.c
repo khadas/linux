@@ -120,13 +120,14 @@ int frc_get_video_latency(void)
 	if (!devp || !vinfo)
 		return 0;
 	if (devp->frc_sts.auto_ctrl == 1) {
-		if (devp->in_sts.vf_sts == VFRAME_NO)
-			delay_time = delay;
-		else if (devp->frc_sts.state == FRC_STATE_BYPASS ||
-				devp->frc_sts.state == FRC_STATE_DISABLE)
-			delay_time = 0;
-		else if (devp->frc_sts.state == FRC_STATE_ENABLE)
-			delay_time = delay;
+		// if (devp->in_sts.vf_sts == VFRAME_NO)
+		// delay_time = delay;
+		// else if (devp->frc_sts.state == FRC_STATE_BYPASS ||
+		//	devp->frc_sts.state == FRC_STATE_DISABLE)
+		// delay_time = 0;
+		// else if (devp->frc_sts.state == FRC_STATE_ENABLE)
+		//	delay_time = delay;
+		delay_time = delay;
 	} else {
 		delay_time = 0;
 	}
