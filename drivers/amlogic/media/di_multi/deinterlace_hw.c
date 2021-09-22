@@ -51,6 +51,7 @@
 #include <linux/seq_file.h>
 
 static unsigned int ctrl_regs[SKIP_CTRE_NUM];
+static struct SC2_OVERLAP_REG_s sc2overlap_reg[SC2_OVERLAP_NUM];
 
 /*ary move to di_hw_v2.c */
 static void set_di_inp_fmt_more(unsigned int repeat_l0_en,
@@ -156,12 +157,13 @@ static void mc_di_param_init(void)
 	DIM_DI_WR(MCDI_CHK_EDGE_GAIN_OFFST, 0x4f6124);
 	DIM_DI_WR(MCDI_LMV_RT, 0x7455);
 	/*fix jira SWPL-32194,modify bit[31:24] to 0x20*/
-	if (!DIM_IS_IC(SC2))
+	if (!(DIM_IS_REV(SC2, MAJOR)))
 		DIM_DI_WR(MCDI_LMV_GAINTHD, 0x2014d409);
 
 	DIM_DI_WR(MCDI_REL_DET_LPF_MSK_22_30, 0x0a010001);
 	DIM_DI_WR(MCDI_REL_DET_LPF_MSK_31_34, 0x01010101);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL) && (!DIM_IS_IC(SC2)))
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXL) &&
+	    !(DIM_IS_REV(SC2, MAJOR)))
 		DIM_DI_WR_REG_BITS(MCDI_REF_MV_NUM, 2, 0, 2);
 }
 
@@ -491,6 +493,51 @@ static void set_skip_ctrl_size_regs(void)
 	ctrl_regs[15]	= MCDI_REF_MV_NUM;
 }
 
+static void sc2overlap_regs_init(void)
+{
+	unsigned int i = 0;
+
+	sc2overlap_reg[0].addr = DI_BLEND_REG0_X;
+	sc2overlap_reg[1].addr = DI_BLEND_REG0_Y;
+	sc2overlap_reg[2].addr = DI_BLEND_REG1_X;
+	sc2overlap_reg[3].addr = DI_BLEND_REG1_Y;
+	sc2overlap_reg[4].addr = DI_BLEND_REG2_X;
+	sc2overlap_reg[5].addr = DI_BLEND_REG2_Y;
+	sc2overlap_reg[6].addr = DI_BLEND_REG3_X;
+	sc2overlap_reg[7].addr = DI_BLEND_REG3_Y;
+	sc2overlap_reg[8].addr = DI_BLEND_CTRL;
+	for (i = 0; i < 8; i++)
+		sc2overlap_reg[i].value = 0;
+
+	sc2overlap_reg[8].value = 0x300000;
+}
+
+void set_sc2overlap_table(unsigned int addr, unsigned int value,
+			  unsigned int start,
+			  unsigned int len)
+{
+	unsigned int i = 0;
+	unsigned int mask = 0;
+	unsigned int val = 0;
+	unsigned int tmp;
+
+	for (i = 0; i < SC2_OVERLAP_NUM; i++) {
+		if (sc2overlap_reg[i].addr == addr) {
+			if (len == 32) {
+				sc2overlap_reg[i].value = value;
+			} else {
+				mask = ((1 << (len)) - 1) << (start);
+				val = (value) << (start);
+				tmp = sc2overlap_reg[i].value & ~mask;
+				tmp |= val & mask;
+				sc2overlap_reg[i].value = tmp;
+			}
+			DIM_VSYNC_WR_MPEG_REG(sc2overlap_reg[i].addr,
+					      sc2overlap_reg[i].value);
+		}
+	}
+}
+
 /* move to di_hw_v2.c */
 void dim_hw_init_reg(void)
 {
@@ -604,8 +651,10 @@ void dimh_hw_init(bool pd_enable, bool mc_enable)
 	set_skip_ctrl_size_regs();
 	ma_di_init();
 	ei_hw_init();
-	if (DIM_IS_IC(SC2))
+	if (DIM_IS_REV(SC2, MAJOR))
 		mc_blend_sc2_init();
+	if (DIM_IS_REV(SC2, SUB))
+		sc2overlap_regs_init();
 	crc_init();
 	get_ops_nr()->nr_hw_init();
 	if (pd_enable)
@@ -2553,27 +2602,49 @@ void dimh_initial_di_post_2(int hsize_post, int vsize_post,
 		DIM_VSC_WR_MPG_BT(DI_EI_CTRL3, 1, 31, 1);
 
 	/* DI_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post >> 2) - 1); */
-	if (DIM_IS_IC(SC2)) {
+	if (DIM_IS_REV(SC2, MAJOR)) {
 		DIM_VSC_WR_MPG_BT(MCDI_REF_MV_NUM,
 				  0, 16, 13);
 		DIM_VSC_WR_MPG_BT(MCDI_REF_MV_NUM,
 				  (vsize_post - 1) >> 2, 2, 11);
+	} else if (DIM_IS_REV(SC2, SUB)) {
+		set_sc2overlap_table(DI_BLEND_REG0_Y,
+				     (vsize_post - 1), 0, 32);
 	} else {
-		DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y, (vsize_post - 1));
+		DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_Y,
+				      (vsize_post - 1));
 	}
-	DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG1_Y,
-			      ((vsize_post >> 2) << 16) |
-			      (2 * (vsize_post >> 2) - 1));
-	DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG2_Y,
-			      ((2 * (vsize_post >> 2)) << 16) |
-			      (3 * (vsize_post >> 2) - 1));
-	DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG3_Y,
-			      ((3 * (vsize_post >> 2)) << 16) |
-			      (vsize_post - 1));
-	DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_X, (hsize_post - 1));
-	DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG1_X, (hsize_post - 1));
-	DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG2_X, (hsize_post - 1));
-	DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG3_X, (hsize_post - 1));
+
+	if (DIM_IS_REV(SC2, SUB)) {
+		set_sc2overlap_table(DI_BLEND_REG1_Y,
+				      ((vsize_post >> 2) << 16) |
+				      (2 * (vsize_post >> 2) - 1), 0, 32);
+		set_sc2overlap_table(DI_BLEND_REG2_Y,
+				      ((2 * (vsize_post >> 2)) << 16) |
+				      (3 * (vsize_post >> 2) - 1), 0, 32);
+		set_sc2overlap_table(DI_BLEND_REG3_Y,
+				      ((3 * (vsize_post >> 2)) << 16) |
+				      (vsize_post - 1), 0, 32);
+		set_sc2overlap_table(DI_BLEND_REG0_X, (hsize_post - 1), 0, 32);
+		set_sc2overlap_table(DI_BLEND_REG1_X, (hsize_post - 1), 0, 32);
+		set_sc2overlap_table(DI_BLEND_REG2_X, (hsize_post - 1), 0, 32);
+		set_sc2overlap_table(DI_BLEND_REG3_X, (hsize_post - 1), 0, 32);
+	} else {
+		DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG1_Y,
+				      ((vsize_post >> 2) << 16) |
+				      (2 * (vsize_post >> 2) - 1));
+		DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG2_Y,
+				      ((2 * (vsize_post >> 2)) << 16) |
+				      (3 * (vsize_post >> 2) - 1));
+		DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG3_Y,
+				      ((3 * (vsize_post >> 2)) << 16) |
+				      (vsize_post - 1));
+		DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG0_X, (hsize_post - 1));
+		DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG1_X, (hsize_post - 1));
+		DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG2_X, (hsize_post - 1));
+		DIM_VSYNC_WR_MPEG_REG(DI_BLEND_REG3_X, (hsize_post - 1));
+	}
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (post_write_en) {
 	#ifdef MARK_HIS
@@ -2791,14 +2862,18 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 	else
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_en, 31, 1);
 
-	if (DIM_IS_IC(SC2))
+	if (DIM_IS_REV(SC2, MAJOR))
 		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD, blend_mode, 20, 2);
+	else if (DIM_IS_REV(SC2, SUB))
+		set_sc2overlap_table(DI_BLEND_CTRL, blend_mode, 20, 2);
 	else
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_mode, 20, 2);
-
-	if ((dimp_get(edi_mp_pldn_ctrl_rflsh) == 1) && pd_enable)
-		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, 7, 22, 3);
-
+	if ((dimp_get(edi_mp_pldn_ctrl_rflsh) == 1) && pd_enable) {
+		if (DIM_IS_REV(SC2, SUB))
+			set_sc2overlap_table(DI_BLEND_CTRL, 7, 22, 3);
+		else
+			DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, 7, 22, 3);
+	}
 	if (mc_enable) {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
 			DIM_VSC_WR_MPG_BT(MCDI_MC_CRTL, invert_mv, 17, 1);
@@ -3037,18 +3112,24 @@ void dimh_enable_di_post_2(struct DI_MIF_S		   *di_buf0_mif,
 				     di_diwr_mif->bit_mode);
 		#endif
 	}
-	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, 7, 22, 3);
+	if (DIM_IS_REV(SC2, SUB))
+		set_sc2overlap_table(DI_BLEND_CTRL, 7, 22, 3);
+	else
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, 7, 22, 3);
 
 	if (DIM_IS_IC_EF(SC2))
 		DIM_VSC_WR_MPG_BT(DI_POST_CTRL, blend_en & 0x1, 1, 1);
 	else
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_en & 0x1, 31, 1);
 
-	if (DIM_IS_IC(SC2))
+	if (DIM_IS_REV(SC2, MAJOR))
 		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD, blend_mode & 0x3, 20, 2);
+	else if (DIM_IS_REV(SC2, SUB))
+		set_sc2overlap_table(DI_BLEND_CTRL,
+				     blend_mode & 0x3, 20, 2);
 	else
-		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, blend_mode & 0x3, 20, 2);
-
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
+				  blend_mode & 0x3, 20, 2);
 	if (!is_meson_txlx_cpu())
 		invert_mv = 0;
 
@@ -3156,17 +3237,23 @@ void dimh_enable_di_post_afbc(struct pst_cfg_afbc_s *cfg)
 		set_post_mtnrd_mif_g12(cfg->di_mtnprd_mif);
 	else
 		set_post_mtnrd_mif(cfg->di_mtnprd_mif, cfg->urgent);
-
-	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, 7, 22, 3);
+	if (DIM_IS_REV(SC2, SUB))
+		set_sc2overlap_table(DI_BLEND_CTRL, 7, 22, 3);
+	else
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, 7, 22, 3);
 	if (DIM_IS_IC_EF(SC2))
 		DIM_VSC_WR_MPG_BT(DI_POST_CTRL, cfg->blend_en & 0x1, 1, 1);
 	else
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, cfg->blend_en & 0x1, 31, 1);
-	if (DIM_IS_IC(SC2))
+	if (DIM_IS_REV(SC2, MAJOR))
 		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD,
 				  cfg->blend_mode & 0x3, 20, 2);
+	else if (DIM_IS_REV(SC2, SUB))
+		set_sc2overlap_table(DI_BLEND_CTRL,
+			cfg->blend_mode & 0x3, 20, 2);
 	else
-		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, cfg->blend_mode & 0x3, 20, 2);
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
+			cfg->blend_mode & 0x3, 20, 2);
 
 	//if (!is_meson_txlx_cpu())
 		//invert_mv = 0; /* ary ?? */
@@ -4515,11 +4602,16 @@ void dimh_combing_pd22_window_config(unsigned int width, unsigned int height)
 
 void dimh_pulldown_vof_win_config(struct pulldown_detected_s *wins)
 {
-	if (DIM_IS_IC(SC2)) {
+	if (DIM_IS_REV(SC2, MAJOR)) {
 		DIM_VSC_WR_MPG_BT(MCDI_REF_MV_NUM,
 				  wins->regs[0].win_vs, 17, 12);
 		DIM_VSC_WR_MPG_BT(MCDI_REF_MV_NUM,
 				  (wins->regs[0].win_ve) >> 2, 3, 10);
+	} else if (DIM_IS_REV(SC2, SUB)) {
+		set_sc2overlap_table(DI_BLEND_REG0_Y,
+				  wins->regs[0].win_vs, 17, 12);
+		set_sc2overlap_table(DI_BLEND_REG0_Y,
+				  wins->regs[0].win_ve, 1, 12);
 	} else {
 		DIM_VSC_WR_MPG_BT(DI_BLEND_REG0_Y,
 				  wins->regs[0].win_vs, 17, 12);
@@ -4527,44 +4619,96 @@ void dimh_pulldown_vof_win_config(struct pulldown_detected_s *wins)
 				  wins->regs[0].win_ve, 1, 12);
 	}
 
-	DIM_VSC_WR_MPG_BT(DI_BLEND_REG1_Y, wins->regs[1].win_vs, 17, 12);
-	DIM_VSC_WR_MPG_BT(DI_BLEND_REG1_Y, wins->regs[1].win_ve, 1, 12);
+	if (DIM_IS_REV(SC2, SUB)) {
+		set_sc2overlap_table(DI_BLEND_REG1_Y,
+				     wins->regs[1].win_vs, 17, 12);
+		set_sc2overlap_table(DI_BLEND_REG1_Y,
+				     wins->regs[1].win_ve, 1, 12);
 
-	DIM_VSC_WR_MPG_BT(DI_BLEND_REG2_Y, wins->regs[2].win_vs, 17, 12);
-	DIM_VSC_WR_MPG_BT(DI_BLEND_REG2_Y, wins->regs[2].win_ve, 1, 12);
+		set_sc2overlap_table(DI_BLEND_REG2_Y,
+				     wins->regs[2].win_vs, 17, 12);
+		set_sc2overlap_table(DI_BLEND_REG2_Y,
+				     wins->regs[2].win_ve, 1, 12);
 
-	DIM_VSC_WR_MPG_BT(DI_BLEND_REG3_Y, wins->regs[3].win_vs, 17, 12);
-	DIM_VSC_WR_MPG_BT(DI_BLEND_REG3_Y, wins->regs[3].win_ve, 1, 12);
+		set_sc2overlap_table(DI_BLEND_REG3_Y,
+				     wins->regs[3].win_vs, 17, 12);
+		set_sc2overlap_table(DI_BLEND_REG3_Y,
+				     wins->regs[3].win_ve, 1, 12);
+	} else {
+		DIM_VSC_WR_MPG_BT(DI_BLEND_REG1_Y,
+				  wins->regs[1].win_vs, 17, 12);
+		DIM_VSC_WR_MPG_BT(DI_BLEND_REG1_Y,
+				  wins->regs[1].win_ve, 1, 12);
 
-	if (DIM_IS_IC(SC2)) {
+		DIM_VSC_WR_MPG_BT(DI_BLEND_REG2_Y,
+				  wins->regs[2].win_vs, 17, 12);
+		DIM_VSC_WR_MPG_BT(DI_BLEND_REG2_Y,
+				  wins->regs[2].win_ve, 1, 12);
+
+		DIM_VSC_WR_MPG_BT(DI_BLEND_REG3_Y,
+				  wins->regs[3].win_vs, 17, 12);
+		DIM_VSC_WR_MPG_BT(DI_BLEND_REG3_Y,
+				  wins->regs[3].win_ve, 1, 12);
+	}
+
+	if (DIM_IS_REV(SC2, MAJOR)) {
 		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD,
 				  (wins->regs[0].win_ve > wins->regs[0].win_vs)
 				  ? 1 : 0, 19, 1);
 		DIM_VSC_WR_MPG_BT(MCDI_LMV_GAINTHD,
 				  (wins->regs[0].win_ve > wins->regs[0].win_vs)
 				  ? 0 : 1, 18, 1);
+	} else if (DIM_IS_REV(SC2, SUB)) {
+		set_sc2overlap_table(DI_BLEND_CTRL,
+			(wins->regs[0].win_ve > wins->regs[0].win_vs)
+			? 1 : 0, 16, 1);
 	} else {
 		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
-				  (wins->regs[0].win_ve > wins->regs[0].win_vs)
-				  ? 1 : 0, 16, 1);
+			(wins->regs[0].win_ve > wins->regs[0].win_vs)
+			? 1 : 0, 16, 1);
 	}
 
-	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, wins->regs[0].blend_mode, 8, 2);
-	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
-			  (wins->regs[1].win_ve > wins->regs[1].win_vs)
-			  ? 1 : 0, 17, 1);
-	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, wins->regs[1].blend_mode, 10, 2);
+	if (DIM_IS_REV(SC2, SUB)) {
+		set_sc2overlap_table(DI_BLEND_CTRL, wins->regs[0].blend_mode,
+			8, 2);
+		set_sc2overlap_table(DI_BLEND_CTRL,
+				  (wins->regs[1].win_ve > wins->regs[1].win_vs)
+				  ? 1 : 0, 17, 1);
+		set_sc2overlap_table(DI_BLEND_CTRL, wins->regs[1].blend_mode,
+			10, 2);
 
-	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
-			  (wins->regs[2].win_ve > wins->regs[2].win_vs)
-			  ? 1 : 0, 18, 1);
-	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, wins->regs[2].blend_mode, 12, 2);
+		set_sc2overlap_table(DI_BLEND_CTRL,
+				  (wins->regs[2].win_ve > wins->regs[2].win_vs)
+				  ? 1 : 0, 18, 1);
+		set_sc2overlap_table(DI_BLEND_CTRL, wins->regs[2].blend_mode,
+			12, 2);
 
-	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
-			  (wins->regs[3].win_ve > wins->regs[3].win_vs)
-			  ? 1 : 0, 19, 1);
-	DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
-			  wins->regs[3].blend_mode, 14, 2);
+		set_sc2overlap_table(DI_BLEND_CTRL,
+				  (wins->regs[3].win_ve > wins->regs[3].win_vs)
+				  ? 1 : 0, 19, 1);
+		set_sc2overlap_table(DI_BLEND_CTRL,
+				  wins->regs[3].blend_mode, 14, 2);
+	} else {
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, wins->regs[0].blend_mode,
+			8, 2);
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
+				  (wins->regs[1].win_ve > wins->regs[1].win_vs)
+				  ? 1 : 0, 17, 1);
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, wins->regs[1].blend_mode,
+			10, 2);
+
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
+				  (wins->regs[2].win_ve > wins->regs[2].win_vs)
+				  ? 1 : 0, 18, 1);
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL, wins->regs[2].blend_mode,
+			12, 2);
+
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
+				  (wins->regs[3].win_ve > wins->regs[3].win_vs)
+				  ? 1 : 0, 19, 1);
+		DIM_VSC_WR_MPG_BT(DI_BLEND_CTRL,
+				  wins->regs[3].blend_mode, 14, 2);
+	}
 }
 
 static bool pq_save_db(unsigned int addr, unsigned int val, unsigned int mask)
