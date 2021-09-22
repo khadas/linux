@@ -154,6 +154,19 @@ enum reshape_mode_e {
 	MODE_4X4 = 3,
 };
 
+enum VPU_MODULE_e {
+	FRC0_R,
+	FRC0_W,
+	FRC1_R,
+	FRC1_W,
+	FRC2_R,
+	VPU0_R,
+	VPU0_W,
+	VPU1_R,
+	VPU1_W,
+	VPU2_R,
+};
+
 typedef u32 (*rdma_rd_op)(u32 reg);
 typedef int (*rdma_wr_op)(u32 reg, u32 val);
 typedef int (*rdma_wr_bits_op)(u32 reg, u32 val, u32 start, u32 len);
@@ -721,6 +734,8 @@ void aisr_demo_enable(void);
 void aisr_demo_axis_set(void);
 void pre_process_for_3d(struct vframe_s *vf);
 bool tvin_vf_disp_mode_check(struct vframe_s *vf);
+int get_vpu_urgent_info(void);
+int set_vpu_super_urgent(u32 module_id, u32 low_level, u32 high_level);
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void vsync_rdma_process(void);
 #endif

@@ -1803,7 +1803,7 @@ const struct regs_s regs_table[REG_NUM] = {
 	{0x0489, 0x0000003e},
 };
 */
-#define REG_NUM 504
+#define REG_NUM 505 //  504
 const struct regs_s regs_table[REG_NUM] = {
 	{0x0146, 0x00000000},
 	{0x0147, 0x03010000},
@@ -2311,6 +2311,7 @@ const struct regs_s regs_table[REG_NUM] = {
 	{0x0487, 0x0032001e},
 	{0x0488, 0x00000145},
 	{0x0489, 0x0000003e},
+	{0x3f06, 0x00011111},   // 2021.0923 added for bandwidth
 	// {0xffff, 0xffffffff},
 };
 

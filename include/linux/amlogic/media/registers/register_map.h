@@ -16,6 +16,7 @@ enum {
 	CODECIO_VCBUS_BASE,
 	CODECIO_DMCBUS_BASE,
 	CODECIO_EFUSE_BASE,
+	CODECIO_NOC_BASE,
 	CODECIO_BUS_MAX,
 };
 
@@ -45,6 +46,8 @@ int codecio_read_resetbus(unsigned int reg);
 void codecio_write_resetbus(unsigned int reg, unsigned int val);
 int codecio_read_efusebus(unsigned int reg);
 void codecio_write_efusebus(unsigned int reg, unsigned int val);
+int codecio_read_nocbus(unsigned int reg);
+void codecio_write_nocbus(unsigned int reg, unsigned int val);
 
 int aml_reg_read(u32 bus_type, unsigned int reg, unsigned int *val);
 int aml_reg_write(u32 bus_type, unsigned int reg, unsigned int val);

@@ -5146,8 +5146,23 @@ static void osd_set_two_ports(bool set)
 {
 	static u32 data32[2];
 
-	if (osd_dev_hw.t7_display)
+	if (osd_dev_hw.t7_display) {
+		if (osd_hw.osd_meson_dev.cpu_id ==
+			__MESON_CPU_MAJOR_ID_T3) {
+			/* set osd, video two port */
+			if (set) {
+				/*mali afbcd,dolby0, osd1-4 etc->VPU0*/
+				/*aisr reshape, vd1, vd2, tcon p1 read->VPU2*/
+				osd_reg_write(VPP_RDARB_MODE, 0x10c00000);
+				osd_reg_write(VPU_RDARB_MODE_L2C1, 0x920000);
+			} else {
+				osd_reg_write(VPP_RDARB_MODE, 0xaa0000);
+				osd_reg_write(VPU_RDARB_MODE_L2C1, 0x900000);
+			}
+		}
 		return;
+	}
+	/* set osd, video two port */
 	if (set) {
 		data32[0] = osd_reg_read(VPP_RDARB_MODE);
 		data32[1] = osd_reg_read(VPU_RDARB_MODE_L2C1);

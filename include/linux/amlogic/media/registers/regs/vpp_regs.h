@@ -592,5 +592,20 @@
 #define VD1_HDR2_CLK_GATE                          0x3801
 #define VD2_HDR2_CLK_GATE                          0x3851
 #define VD3_HDR2_CLK_GATE                          0x5931
+
+#define VPU_AXI_CACHE                              0x2733
+
+/* noc_vpu */
+#define NOC_VPU_QOS_R_OFFSET_FRC0      0x100
+#define NOC_VPU_QOS_W_OFFSET_FRC0      0x300
+#define NOC_VPU_QOS_R_OFFSET_FRC1      0x500
+#define NOC_VPU_QOS_W_OFFSET_FRC1      0x700
+#define NOC_VPU_QOS_R_OFFSET_FRC2      0x900
+#define NOC_VPU_QOS_R_OFFSET_VPU0      0xb00
+#define NOC_VPU_QOS_W_OFFSET_VPU0      0xd00
+#define NOC_VPU_QOS_R_OFFSET_VPU1      0x1000
+#define NOC_VPU_QOS_W_OFFSET_VPU1      0x1200
+#define NOC_VPU_QOS_R_OFFSET_VPU2      0x1400
+
 #endif
 
