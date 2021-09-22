@@ -7485,6 +7485,9 @@ int stmmac_suspend(struct device *dev)
 							 false);
 		stmmac_mac_set(priv, priv->ioaddr, false);
 		pinctrl_pm_select_sleep_state(priv->device);
+		/* Make the phy into suspend state */
+		if (priv->mii)
+			stmmac_mdio_idle(priv->mii);
 	}
 
 	mutex_unlock(&priv->lock);
