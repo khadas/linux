@@ -2962,12 +2962,7 @@ static ssize_t free_scale_switch(struct device *device,
 	ret = kstrtoint(buf, 0, &res);
 	free_scale_enable = res;
 
-	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE)
-		osd_switch_free_scale
-			((fb_info->node == DEV_OSD0) ? DEV_OSD0 : DEV_OSD1,
-			1, free_scale_enable, fb_info->node, 1,
-			free_scale_enable);
-	else
+	if (osd_hw.osd_meson_dev.osd_ver == OSD_NORMAL) {
 		osd_switch_free_scale
 			((fb_info->node == DEV_OSD0) ? DEV_OSD1 : DEV_OSD0,
 			0, 0, fb_info->node, 1,
@@ -2975,6 +2970,7 @@ static ssize_t free_scale_switch(struct device *device,
 
 	osd_log_info("%s to fb%d, mode: 0x%x\n",
 		     __func__, fb_info->node, free_scale_enable);
+	}
 	return count;
 }
 

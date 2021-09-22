@@ -12574,6 +12574,7 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		osd_hw.free_scale_mode[idx] = 0;
 		osd_hw.buffer_alloc[idx] = 0;
 		osd_hw.osd_afbcd[idx].enable = 0;
+		osd_hw.osd_afbcd[idx].phy_addr = 0;
 		osd_hw.use_h_filter_mode[idx] = -1;
 		osd_hw.use_v_filter_mode[idx] = -1;
 		osd_hw.premult_en[idx] = 0;
