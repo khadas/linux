@@ -29,6 +29,7 @@
 #define MIN_BLEND_WIDTH	27
 
 #define	SKIP_CTRE_NUM	16
+#define	SC2_OVERLAP_NUM	9
 
 /* from sc2 */
 enum DI_MIF0_ID {
@@ -113,6 +114,11 @@ enum EDPST_MODE {
 	EDPST_MODE_422_10BIT,
 	EDPST_MODE_422_8BIT,
 	EDPST_MODE_420_10BIT /* add 2020-11-26 */
+};
+
+struct SC2_OVERLAP_REG_s {
+	unsigned int addr;
+	unsigned int value;
 };
 
 struct AFBCD_S {
@@ -896,4 +902,7 @@ bool dim_dbg_cfg_post_byapss(void);
 void dbg_reg_mem(unsigned int dbgid);
 bool dim_aisr_test(struct DI_SIM_MIF_s *mif, bool sel);//test only
 
+void set_sc2overlap_table(unsigned int addr, unsigned int value,
+			  unsigned int start,
+			  unsigned int len);
 #endif
