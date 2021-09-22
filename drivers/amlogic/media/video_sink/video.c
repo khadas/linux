@@ -15761,6 +15761,41 @@ static ssize_t frc_delay_show(struct class *class,
 
 #endif
 
+static ssize_t vpu_module_urgent_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	get_vpu_urgent_info();
+	return 0;
+	//return snprintf(buf, 80, "above vpu_module_urgent stat info\n");
+}
+
+static const char vpu_module_urgent_help[] = "Usage:\n"
+"  echo module_id low_level(0-7) high_level(0-7)> /sys/class/video/urgent_set\n"
+"  FRC0_R: 0\n"
+"  FRC0_W: 1\n"
+"  FRC1_R: 2\n"
+"  FRC1_W: 3\n"
+"  FRC2_R: 4\n"
+"  VPU0_R: 5\n"
+"  VPU0_W: 6\n"
+"  VPU1_R: 7\n"
+"  VPU1_W: 8\n"
+"  VPU2_R: 9\n\n";
+
+static ssize_t vpu_module_urgent_set(struct class *class,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
+{
+	int parsed[3];
+	int ret = -1;
+
+	if (likely(parse_para(buf, 3, parsed) == 3))
+		ret = set_vpu_super_urgent(parsed[0], parsed[1], parsed[2]);
+	if (ret < 0)
+		pr_info("%s", vpu_module_urgent_help);
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -16214,6 +16249,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       frc_delay_show,
 	       NULL),
+	__ATTR(urgent_set,
+		0644,
+		vpu_module_urgent_show,
+		vpu_module_urgent_set),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -17250,6 +17289,17 @@ static int amvideom_probe(struct platform_device *pdev)
 		       sizeof(struct video_device_hw_s));
 		aisr_en = 1;
 		cur_dev->power_ctrl = true;
+		WRITE_VCBUS_REG(VPU_AXI_CACHE, 0x11111);
+		set_vpu_super_urgent(FRC0_R, 3, 3);
+		set_vpu_super_urgent(FRC0_W, 3, 3);
+		set_vpu_super_urgent(FRC1_R, 2, 2);
+		set_vpu_super_urgent(FRC1_W, 2, 2);
+		set_vpu_super_urgent(FRC2_R, 3, 7);
+		set_vpu_super_urgent(VPU0_R, 3, 5);
+		set_vpu_super_urgent(VPU0_W, 3, 5);
+		set_vpu_super_urgent(VPU1_R, 0, 0);
+		set_vpu_super_urgent(VPU1_W, 0, 0);
+		set_vpu_super_urgent(VPU2_R, 3, 5);
 	} else {
 		memcpy(&amvideo_meson_dev.dev_property, &legcy_dev_property,
 		       sizeof(struct video_device_hw_s));

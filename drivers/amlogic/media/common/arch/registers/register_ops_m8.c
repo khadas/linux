@@ -20,6 +20,7 @@ static struct chip_register_ops m8_ops[] __initdata = {
 	{IO_DEMUX_BUS, 0, codecio_read_demuxbus, codecio_write_demuxbus},
 	{IO_RESET_BUS, 0, codecio_read_resetbus, codecio_write_resetbus},
 	{IO_EFUSE_BUS, 0, codecio_read_efusebus, codecio_write_efusebus},
+	{IO_NOC_BUS, 0, codecio_read_nocbus, codecio_write_nocbus},
 };
 
 static struct chip_register_ops ex_gx_ops[] __initdata = {

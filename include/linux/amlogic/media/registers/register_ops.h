@@ -28,6 +28,7 @@ enum amports_bus_type_e {
 	IO_DMC_BUS,
 	IO_RESET_BUS,
 	IO_EFUSE_BUS,
+	IO_NOC_BUS,
 	BUS_MAX
 };
 

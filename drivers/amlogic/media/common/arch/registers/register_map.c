@@ -511,6 +511,28 @@ void codecio_write_efusebus(unsigned int reg, unsigned int val)
 		pr_err("write reset reg %x error %d\n", reg, ret);
 }
 
+int codecio_read_nocbus(unsigned int reg)
+{
+	int ret, val;
+
+	ret = codecio_reg_read(CODECIO_NOC_BASE, reg, &val);
+	if (ret) {
+		pr_err("read reset reg %x error %d\n", reg, ret);
+		return -1;
+	}
+
+	return val;
+}
+
+void codecio_write_nocbus(unsigned int reg, unsigned int val)
+{
+	int ret;
+
+	ret = codecio_reg_write(CODECIO_NOC_BASE, reg, val);
+	if (ret)
+		pr_err("write reset reg %x error %d\n", reg, ret);
+}
+
 /* aml_read_xxx/ aml_write_xxx apis*/
 int aml_reg_read(u32 bus_type, unsigned int reg, unsigned int *val)
 {

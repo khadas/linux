@@ -10051,6 +10051,125 @@ void di_used_vd1_afbc(bool di_used)
 		WRITE_VCBUS_REG_BITS(VD1_AFBCD0_MISC_CTRL, 0, 1, 1);
 }
 
+int get_vpu_urgent_info(void)
+{
+	int i;
+	u32 reg = 0, value;
+
+	for (i = 0; i < 10; i++) {
+		switch (i) {
+		case FRC0_R:
+			reg = NOC_VPU_QOS_R_OFFSET_FRC0;
+			reg += 8;
+			value = codecio_read_nocbus(reg);
+			pr_info("FRC0_R:value=0x%x\n", value);
+			break;
+		case FRC0_W:
+			reg = NOC_VPU_QOS_W_OFFSET_FRC0;
+			reg += 8;
+			value = codecio_read_nocbus(reg);
+			pr_info("FRC0_W:value=0x%x\n", value);
+			break;
+		case FRC1_R:
+			reg = NOC_VPU_QOS_R_OFFSET_FRC1;
+			reg += 8;
+			value = codecio_read_nocbus(reg);
+			pr_info("FRC1_R:value=0x%x\n", value);
+			break;
+		case FRC1_W:
+			reg = NOC_VPU_QOS_W_OFFSET_FRC1;
+			reg += 8;
+			value = codecio_read_nocbus(reg);
+			pr_info("FRC1_W:value=0x%x\n", value);
+			break;
+		case FRC2_R:
+			reg = NOC_VPU_QOS_R_OFFSET_FRC2;
+			reg += 8;
+			value = codecio_read_nocbus(reg);
+			pr_info("FRC2_R:value=0x%x\n", value);
+			break;
+		case VPU0_R:
+			reg = NOC_VPU_QOS_R_OFFSET_VPU0;
+			reg += 8;
+			value = codecio_read_nocbus(reg);
+			pr_info("VPU0_R:value=0x%x\n", value);
+			break;
+		case VPU0_W:
+			reg = NOC_VPU_QOS_W_OFFSET_VPU0;
+			reg += 8;
+			value = codecio_read_nocbus(reg);
+			pr_info("VPU0_W:value=0x%x\n", value);
+			break;
+		case VPU1_R:
+			reg = NOC_VPU_QOS_R_OFFSET_VPU1;
+			reg += 8;
+			value = codecio_read_nocbus(reg);
+			pr_info("VPU1_R:value=0x%x\n", value);
+			break;
+		case VPU1_W:
+			reg = NOC_VPU_QOS_W_OFFSET_VPU1;
+			reg += 8;
+			value = codecio_read_nocbus(reg);
+			pr_info("VPU1_W:value=0x%x\n", value);
+			break;
+		case VPU2_R:
+			reg = NOC_VPU_QOS_R_OFFSET_VPU2;
+			reg += 8;
+			value = codecio_read_nocbus(reg);
+			pr_info("VPU2_R:value=0x%x\n", value);
+			break;
+		}
+	}
+	return 0;
+}
+
+int set_vpu_super_urgent(u32 module_id, u32 low_level, u32 high_level)
+{
+	u32 reg = 0;
+
+	if (low_level >= 7)
+		low_level = 7;
+	if (high_level >= 7)
+		high_level = 7;
+	switch (module_id) {
+	case FRC0_R:
+		reg = NOC_VPU_QOS_R_OFFSET_FRC0;
+		break;
+	case FRC0_W:
+		reg = NOC_VPU_QOS_W_OFFSET_FRC0;
+		break;
+	case FRC1_R:
+		reg = NOC_VPU_QOS_R_OFFSET_FRC1;
+		break;
+	case FRC1_W:
+		reg = NOC_VPU_QOS_W_OFFSET_FRC1;
+		break;
+	case FRC2_R:
+		reg = NOC_VPU_QOS_R_OFFSET_FRC2;
+		break;
+	case VPU0_R:
+		reg = NOC_VPU_QOS_R_OFFSET_VPU0;
+		break;
+	case VPU0_W:
+		reg = NOC_VPU_QOS_W_OFFSET_VPU0;
+		break;
+	case VPU1_R:
+		reg = NOC_VPU_QOS_R_OFFSET_VPU1;
+		break;
+	case VPU1_W:
+		reg = NOC_VPU_QOS_W_OFFSET_VPU1;
+		break;
+	case VPU2_R:
+		reg = NOC_VPU_QOS_R_OFFSET_VPU2;
+		break;
+	default:
+		return -1;
+	}
+	codecio_write_nocbus(reg + 0x08,
+		low_level << 8 | high_level);
+	return 0;
+}
+
 int video_hw_init(void)
 {
 	u32 cur_hold_line, ofifo_size;
