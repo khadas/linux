@@ -936,6 +936,9 @@ static void xhci_kill_endpoint_urbs(struct xhci_hcd *xhci,
 void xhci_hc_died(struct xhci_hcd *xhci)
 {
 	int i, j;
+#ifdef CONFIG_AMLOGIC_USB
+	struct usb_hcd *hcd = xhci_to_hcd(xhci);
+#endif
 
 	if (xhci->xhc_state & XHCI_STATE_DYING)
 		return;
@@ -956,6 +959,12 @@ void xhci_hc_died(struct xhci_hcd *xhci)
 	/* inform usb core hc died if PCI remove isn't already handling it */
 	if (!(xhci->xhc_state & XHCI_STATE_REMOVING))
 		usb_hc_died(xhci_to_hcd(xhci));
+#ifdef CONFIG_AMLOGIC_USB
+	if (hcd->primary_hcd)
+		hcd->primary_hcd->crg_do_reset = 1;
+	else
+		hcd->crg_do_reset = 1;
+#endif
 }
 
 /* Watchdog timer function for when a stop endpoint command fails to complete.
@@ -979,9 +988,6 @@ void xhci_stop_endpoint_command_watchdog(struct timer_list *t)
 {
 	struct xhci_virt_ep *ep = from_timer(ep, t, stop_cmd_timer);
 	struct xhci_hcd *xhci = ep->xhci;
-#ifdef CONFIG_AMLOGIC_USB
-	struct usb_hcd *hcd = xhci_to_hcd(xhci);
-#endif
 	unsigned long flags;
 
 	spin_lock_irqsave(&xhci->lock, flags);
@@ -1005,12 +1011,7 @@ void xhci_stop_endpoint_command_watchdog(struct timer_list *t)
 	 * and try to recover a -ETIMEDOUT with a host controller reset
 	 */
 	xhci_hc_died(xhci);
-#ifdef CONFIG_AMLOGIC_USB
-	if (hcd->primary_hcd)
-		hcd->primary_hcd->crg_do_reset = 1;
-	else
-		hcd->crg_do_reset = 1;
-#endif
+
 	spin_unlock_irqrestore(&xhci->lock, flags);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_cancel_urb,
 			"xHCI host controller is dead.");
