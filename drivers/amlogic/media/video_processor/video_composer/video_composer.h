@@ -61,6 +61,16 @@
 
 #define VCOM_PROVIDER_NAME_SIZE 32
 
+#define PRINT_ERROR		0X0
+#define PRINT_QUEUE_STATUS	0X0001
+#define PRINT_FENCE		0X0002
+#define PRINT_PERFORMANCE	0X0004
+#define PRINT_AXIS		0X0008
+#define PRINT_INDEX_DISP	0X0010
+#define PRINT_PATTERN	        0X0020
+#define PRINT_OTHER		0X0040
+#define PRINT_NN		0X0080
+
 enum vc_transform_t {
 	/* flip source image horizontally */
 	VC_TRANSFORM_FLIP_H = 1,
@@ -229,4 +239,9 @@ struct composer_dev {
 	_IOW(VIDEO_COMPOSER_IOC_MAGIC, 0x02, int)
 
 int video_composer_set_enable(struct composer_dev *dev, u32 val);
+struct video_composer_port_s *video_composer_get_port(u32 index);
+int vc_print(int index, int debug_flag, const char *fmt, ...);
+void videocomposer_vf_put(struct vframe_s *vf, void *op_arg);
+struct vframe_s *videocomposer_vf_peek(void *op_arg);
+
 #endif /* VIDEO_COMPOSER_H */

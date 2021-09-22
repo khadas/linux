@@ -1,0 +1,498 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * drivers/amlogic/media/video_processor/video_composer/videodisplay.c
+ *
+ * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ */
+ #include <linux/amlogic/meson_uvm_core.h>
+ #include <linux/amlogic/media/utils/am_com.h>
+ #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+#include <linux/amlogic/media/video_sink/video.h>
+#endif
+#include "videodisplay.h"
+
+static bool is_drm_enable;
+static struct timeval vsync_time;
+static DEFINE_MUTEX(video_display_mutex);
+static struct composer_dev *mdev[3];
+static struct dma_buf *last_dmabuf;
+static int cur_layer_index;
+static struct dma_fence *cur_frame_release_fence;
+
+#define MAX_VIDEO_COMPOSER_INSTANCE_NUM 3
+static int get_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
+static unsigned int countinue_vsync_count[MAX_VD_LAYERS];
+
+void vsync_notify_video_composer(void)
+{
+	int i;
+	int count = MAX_VIDEO_COMPOSER_INSTANCE_NUM;
+
+	countinue_vsync_count[0]++;
+	countinue_vsync_count[1]++;
+	/*if ((vidc_pattern_debug & 1) && vc_active[0])*/
+	/*	pr_info("vc: get_count[0]=%d\n", get_count[0]);*/
+	/*else if ((vidc_pattern_debug & 2) && vc_active[1])*/
+	/*	pr_info("vc: get_count[1]=%d\n", get_count[1]);*/
+
+	for (i = 0; i < count; i++)
+		get_count[i] = 0;
+	do_gettimeofday(&vsync_time);
+}
+
+static void vf_pop_display_q(struct composer_dev *dev, struct vframe_s *vf)
+{
+	struct vframe_s *dis_vf = NULL;
+
+	int k = kfifo_len(&dev->display_q);
+
+	while (kfifo_len(&dev->display_q) > 0) {
+		if (kfifo_get(&dev->display_q, &dis_vf)) {
+			if (dis_vf == vf)
+				break;
+			if (!kfifo_put(&dev->display_q, dis_vf))
+				vc_print(dev->index, PRINT_ERROR,
+					 "display_q is full!\n");
+		}
+		k--;
+		if (k < 0) {
+			vc_print(dev->index, PRINT_ERROR,
+				 "can find vf in display_q\n");
+			break;
+		}
+	}
+}
+
+/* -----------------------------------------------------------------
+ *           provider opeations
+ * -----------------------------------------------------------------
+ */
+static struct vframe_s *vc_vf_peek(void *op_arg)
+{
+	struct composer_dev *dev = (struct composer_dev *)op_arg;
+	struct vframe_s *vf = NULL;
+	struct timeval time1;
+	struct timeval time2;
+	u64 time_vsync;
+	int interval_time;
+
+	/*apk/sf drop 0/3 4; vc receive 1 2 5 in one vsync*/
+	/*apk queue 5 and wait 1, it will fence timeout*/
+	if (get_count[dev->index] == 2) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "has already get 2, can not get more\n");
+		return NULL;
+	}
+
+	time1 = dev->start_time;
+	time2 = vsync_time;
+	if (kfifo_peek(&dev->ready_q, &vf)) {
+		if (vf && get_count[dev->index] > 0 &&
+			!(vf->flag & VFRAME_FLAG_GAME_MODE)) {
+			time_vsync = (u64)1000000
+				* (time2.tv_sec - time1.tv_sec)
+				+ time2.tv_usec - time1.tv_usec;
+			interval_time = abs(time_vsync - vf->pts_us64);
+			vc_print(dev->index, PRINT_PERFORMANCE,
+				 "time_vsync=%lld, vf->pts_us64=%lld\n",
+				 time_vsync, vf->pts_us64);
+			//TODO
+			if (interval_time < 2000/*margin_time*/) {
+				vc_print(dev->index, PRINT_PATTERN,
+					 "display next vsync\n");
+				return NULL;
+			}
+		}
+		if (!vf)
+			return NULL;
+
+		if (is_drm_enable)
+			return vf;
+		else
+			return videocomposer_vf_peek(op_arg);
+	} else {
+		return NULL;
+	}
+}
+
+static struct vframe_s *vc_vf_get(void *op_arg)
+{
+	struct composer_dev *dev = (struct composer_dev *)op_arg;
+	struct vframe_s *vf = NULL;
+
+	if (kfifo_get(&dev->ready_q, &vf)) {
+		if (!vf)
+			return NULL;
+
+		if (vf->flag & VFRAME_FLAG_FAKE_FRAME)
+			return vf;
+
+		if (!kfifo_put(&dev->display_q, vf))
+			vc_print(dev->index, PRINT_ERROR,
+				 "display_q is full!\n");
+		if (!(vf->flag
+		      & VFRAME_FLAG_VIDEO_COMPOSER)) {
+			pr_err("vc: vf_get: flag is null\n");
+		}
+
+		get_count[dev->index]++;
+
+		vc_print(dev->index, PRINT_OTHER | PRINT_PATTERN,
+			 "get: omx_index=%d, index_disp=%d, get_count=%d, vsync =%d, vf=%p\n",
+			 vf->omx_index,
+			 vf->index_disp,
+			 get_count[dev->index],
+			 countinue_vsync_count[dev->index],
+			 vf);
+		countinue_vsync_count[dev->index] = 0;
+
+		return vf;
+	} else {
+		return NULL;
+	}
+}
+
+static void vc_vf_put(struct vframe_s *vf, void *op_arg)
+{
+	int repeat_count;
+	int i;
+	struct file *file_vf;
+	struct composer_dev *dev = (struct composer_dev *)op_arg;
+
+	if (!vf)
+		return;
+
+	if (is_drm_enable) {
+		if (vf->flag & VFRAME_FLAG_FAKE_FRAME) {
+			vc_print(dev->index, PRINT_OTHER,
+				 "put: fake frame\n");
+			return;
+		}
+		repeat_count = vf->repeat_count[dev->index];
+		file_vf = vf->file_vf;
+
+		vf_pop_display_q(dev, vf);
+		if (vf->rendered)
+			dev->drop_frame_count = 0;
+		else
+			dev->drop_frame_count += repeat_count + 1;
+
+		for (i = 0; i <= repeat_count; i++) {
+			if (file_vf) {
+				fput(file_vf);
+				dev->fput_count++;
+			} else {
+				vc_print(dev->index, PRINT_ERROR,
+					"put: file error!!!\n");
+			}
+		}
+	} else {
+		vf_pop_display_q(dev, vf);
+		videocomposer_vf_put(vf, op_arg);
+	}
+}
+
+static int vc_event_cb(int type, void *data, void *private_data)
+{
+	if (type & VFRAME_EVENT_RECEIVER_PUT)
+		;
+	else if (type & VFRAME_EVENT_RECEIVER_GET)
+		;
+	else if (type & VFRAME_EVENT_RECEIVER_FRAME_WAIT)
+		;
+	return 0;
+}
+
+static int vc_vf_states(struct vframe_states *states, void *op_arg)
+{
+	struct composer_dev *dev = (struct composer_dev *)op_arg;
+
+	states->vf_pool_size = COMPOSER_READY_POOL_SIZE;
+	states->buf_recycle_num = 0;
+	states->buf_free_num = COMPOSER_READY_POOL_SIZE
+		- kfifo_len(&dev->ready_q);
+	states->buf_avail_num = kfifo_len(&dev->ready_q);
+	return 0;
+}
+
+static const struct vframe_operations_s vc_vf_provider = {
+	.peek = vc_vf_peek,
+	.get = vc_vf_get,
+	.put = vc_vf_put,
+	.event_cb = vc_event_cb,
+	.vf_states = vc_vf_states,
+};
+
+int video_display_create_path(struct composer_dev *dev)
+{
+	char render_layer[16] = "";
+	//TODO
+	/*if (debug_vd_layer > 0)*/
+	/*	sprintf(render_layer, "video_render.%d",*/
+	/*		choose_video_layer[dev->index] - 1);*/
+	/*else*/
+	/*	sprintf(render_layer, "video_render.%d", dev->index);*/
+
+	sprintf(render_layer, "video_render.%d", dev->index);
+	snprintf(dev->vfm_map_chain, VCOM_MAP_NAME_SIZE,
+		 "%s %s", dev->vf_provider_name, render_layer);
+
+	snprintf(dev->vfm_map_id, VCOM_MAP_NAME_SIZE,
+		 "vcom-map-%d", dev->index);
+
+	if (vfm_map_add(dev->vfm_map_id, dev->vfm_map_chain) < 0) {
+		vc_print(dev->index, PRINT_ERROR,
+			"%s: vcom pipeline map creation failed %s.\n",
+			__func__, dev->vfm_map_id);
+		dev->vfm_map_id[0] = 0;
+		return -ENOMEM;
+	}
+
+	vf_provider_init(&dev->vc_vf_prov, dev->vf_provider_name,
+			 &vc_vf_provider, dev);
+
+	vf_reg_provider(&dev->vc_vf_prov);
+
+	vf_notify_receiver(dev->vf_provider_name,
+			   VFRAME_EVENT_PROVIDER_START, NULL);
+	return 0;
+}
+
+int video_display_release_path(struct composer_dev *dev)
+{
+	vf_unreg_provider(&dev->vc_vf_prov);
+
+	if (dev->vfm_map_id[0]) {
+		vfm_map_remove(dev->vfm_map_id);
+		dev->vfm_map_id[0] = 0;
+	}
+	return 0;
+}
+
+static struct composer_dev *video_display_getdev(int layer_index)
+{
+	struct composer_dev *dev;
+	struct video_composer_port_s *port;
+
+	vc_print(layer_index, PRINT_ERROR,
+		"%s: video_composerdev_%d.\n",
+		__func__, layer_index);
+	if (layer_index >= MAX_VIDEO_COMPOSER_INSTANCE_NUM) {
+		vc_print(layer_index, PRINT_ERROR,
+			"%s: layer-%d out of range.\n",
+			__func__, layer_index);
+		return NULL;
+	}
+
+	if (!mdev[layer_index]) {
+		mutex_lock(&video_display_mutex);
+		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+		if (!dev) {
+			mutex_unlock(&video_display_mutex);
+			vc_print(layer_index, PRINT_ERROR,
+				"%s: alloc dev failed.\n",
+				__func__);
+			return NULL;
+		}
+
+		port = video_composer_get_port(layer_index);
+		dev->port = port;
+		dev->index = port->index;
+		mdev[layer_index] = dev;
+		mutex_unlock(&video_display_mutex);
+	}
+
+	return mdev[layer_index];
+}
+
+static int video_display_init(int layer_index)
+{
+	int ret = 0;
+	struct composer_dev *dev;
+	char render_layer[16] = "";
+
+	dev = video_display_getdev(layer_index);
+	if (!dev) {
+		pr_info("%s: get dev failed.\n", __func__);
+		return -EBUSY;
+	}
+
+	mutex_lock(&video_display_mutex);
+	INIT_KFIFO(dev->ready_q);
+	INIT_KFIFO(dev->display_q);
+	kfifo_reset(&dev->ready_q);
+	kfifo_reset(&dev->display_q);
+
+	dev->fput_count = 0;
+	dev->drop_frame_count = 0;
+
+	memcpy(dev->vf_provider_name,
+		dev->port->name,
+		strlen(dev->port->name) + 1);
+	dev->port->open_count++;
+	do_gettimeofday(&dev->start_time);
+	mutex_unlock(&video_display_mutex);
+
+	_video_set_disable(2);
+	video_set_global_output(dev->index, 1);
+	ret = video_display_create_path(dev);
+	sprintf(render_layer, "video_render.%d", dev->index);
+	set_video_path_select(render_layer, dev->index);
+
+	return ret;
+}
+
+static int video_display_uninit(int layer_index)
+{
+	int ret;
+	struct composer_dev *dev;
+
+	dev = video_display_getdev(layer_index);
+	if (!dev) {
+		vc_print(layer_index, PRINT_ERROR,
+			"%s: get dev failed.\n",
+			__func__);
+		return -EBUSY;
+	}
+
+	set_video_path_select("default", 0);
+	set_blackout_policy(1);
+	_video_set_disable(1);
+	video_set_global_output(dev->index, 0);
+	ret = video_display_release_path(dev);
+
+	dev->port->open_count--;
+	kfree(dev);
+
+	return ret;
+}
+
+int video_display_setenable(int layer_index, int is_enable)
+{
+	int ret = 0;
+	struct composer_dev *dev;
+
+	if (is_enable > VIDEO_DISPLAY_ENABLE_NORMAL ||
+	    is_enable < VIDEO_DISPLAY_ENABLE_NONE) {
+		vc_print(layer_index, PRINT_ERROR,
+			"%s: invalid param.\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	vc_print(layer_index, PRINT_ERROR,
+		"%s: val=%d.\n",
+		 __func__, is_enable);
+
+	dev = video_display_getdev(layer_index);
+	if (!dev) {
+		vc_print(layer_index, PRINT_ERROR,
+			"%s: get dev failed.\n",
+			__func__);
+		return -EBUSY;
+	}
+
+	if (dev->enable_composer == is_enable) {
+		vc_print(dev->index, PRINT_ERROR,
+			"%s: same status, no need set.\n",
+			__func__);
+		return ret;
+	}
+
+	if (is_enable == VIDEO_DISPLAY_ENABLE_NORMAL)
+		ret = video_display_init(layer_index);
+	else
+		ret = video_display_uninit(layer_index);
+
+	return ret;
+}
+EXPORT_SYMBOL(video_display_setenable);
+
+int video_display_setframe(int layer_index,
+			struct video_display_frame_info_t *frame_info,
+			int flags)
+{
+	struct composer_dev *dev;
+	struct vframe_s *vf = NULL;
+	int ready_count = 0;
+
+	if (IS_ERR_OR_NULL(frame_info)) {
+		vc_print(layer_index, PRINT_ERROR,
+			"%s: frame_info is NULL.\n",
+			__func__);
+		return -EINVAL;
+	}
+
+	dev = video_display_getdev(layer_index);
+	if (!dev) {
+		vc_print(layer_index, PRINT_ERROR,
+			"%s: get dev failed.\n",
+			__func__);
+		return -EBUSY;
+	}
+
+	vf = dmabuf_get_vframe(frame_info->dmabuf);
+	dmabuf_put_vframe(frame_info->dmabuf);
+	if (!vf) {
+		vc_print(layer_index, PRINT_ERROR,
+			"%s: get vf failed.\n",
+			__func__);
+		return -ENOENT;
+	}
+
+	get_dma_buf(frame_info->dmabuf);
+	cur_layer_index = layer_index;
+	cur_frame_release_fence = frame_info->release_fence;
+
+	vf->axis[0] = frame_info->dst_x;
+	vf->axis[1] = frame_info->dst_y;
+	vf->axis[2] = frame_info->dst_w + frame_info->dst_x - 1;
+	vf->axis[3] = frame_info->dst_h + frame_info->dst_y - 1;
+	vf->crop[0] = frame_info->crop_y;
+	vf->crop[1] = frame_info->crop_x;
+	vf->crop[2] = frame_info->buffer_h
+		- frame_info->crop_h
+		- frame_info->crop_y;
+	vf->crop[3] = frame_info->buffer_w
+		- frame_info->crop_w
+		- frame_info->crop_x;
+	vf->zorder = frame_info->zorder;
+	vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER
+		| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+	vf->disp_pts = 0;
+
+	if (last_dmabuf == frame_info->dmabuf) {
+		vf->repeat_count[dev->index]++;
+		vc_print(layer_index, PRINT_ERROR,
+			"%s: same frame, no need put.\n",
+			__func__);
+		return 0;
+	}
+
+	last_dmabuf = frame_info->dmabuf;
+	vf->repeat_count[dev->index] = 0;
+	if (!kfifo_put(&dev->ready_q, (const struct vframe_s *)vf)) {
+		vc_print(layer_index, PRINT_ERROR,
+			"%s: ready_q is full.\n",
+			__func__);
+		return -EAGAIN;
+	}
+	ready_count = kfifo_len(&dev->ready_q);
+	vc_print(layer_index, PRINT_ERROR,
+		"%s: ready_q count is %d.\n",
+		__func__, ready_count);
+
+	return 0;
+}
+EXPORT_SYMBOL(video_display_setframe);
