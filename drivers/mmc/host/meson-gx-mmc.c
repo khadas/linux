@@ -1761,17 +1761,18 @@ static int emmc_send_cmd(struct mmc_host *mmc, u32 opcode,
 static int aml_sd_emmc_cmd_v3(struct mmc_host *mmc)
 {
 	int i;
+	int ret;
 
-	emmc_send_cmd(mmc, MMC_SEND_STATUS,
+	ret = emmc_send_cmd(mmc, MMC_SEND_STATUS,
 		      1 << 16, MMC_RSP_R1 | MMC_CMD_AC);
-	emmc_send_cmd(mmc, MMC_SELECT_CARD,
+	ret |= emmc_send_cmd(mmc, MMC_SELECT_CARD,
 		      0, MMC_RSP_NONE | MMC_CMD_AC);
 	for (i = 0; i < 2; i++)
-		emmc_send_cmd(mmc, MMC_SEND_CID,
+		ret |= emmc_send_cmd(mmc, MMC_SEND_CID,
 			      1 << 16, MMC_RSP_R2 | MMC_CMD_BCR);
-	emmc_send_cmd(mmc, MMC_SELECT_CARD,
+	ret |= emmc_send_cmd(mmc, MMC_SELECT_CARD,
 		      1 << 16, MMC_RSP_R1 | MMC_CMD_AC);
-	return 0;
+	return ret;
 }
 
 static int emmc_eyetest_log(struct mmc_host *mmc, u32 line_x)
@@ -1966,9 +1967,7 @@ static u32 scan_emmc_cmd_win(struct mmc_host *mmc,
 		offset = (u32)(get_random_long() % capacity);
 		for (j = 0; j < repeat_times; j++) {
 			if (send_status) {
-				err = emmc_send_cmd(mmc, MMC_SEND_STATUS,
-						    1 << 16,
-						    MMC_RSP_R1 | MMC_CMD_AC);
+				err = aml_sd_emmc_cmd_v3(mmc);
 			} else {
 				err = single_read_scan(mmc,
 						       MMC_READ_SINGLE_BLOCK,
@@ -2210,7 +2209,7 @@ static int emmc_ds_manual_sht(struct mmc_host *mmc)
 		readl(host->regs + SD_EMMC_INTF3),
 		readl(host->regs + SD_EMMC_CLOCK));
 	pr_info("adjust:0x%x\n", readl(host->regs + SD_EMMC_V3_ADJUST));
-	return 0;
+	return best_size;
 }
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -2553,9 +2552,31 @@ static void set_emmc_nwr_clks(struct mmc_host *mmc)
 
 static void aml_emmc_hs400_v5(struct mmc_host *mmc)
 {
+	struct meson_host *host = mmc_priv(mmc);
+	u32 delay2 = readl(host->regs + SD_EMMC_DELAY2);
+	u32 cmd_delay;
+	u32 data_size = 0;
+	u32 cmd_size;
+	u8 retry = 2;
+
 	set_emmc_nwr_clks(mmc);
-	set_emmc_cmd_delay(mmc, 1);
-	emmc_ds_manual_sht(mmc);
+	cmd_size = set_emmc_cmd_delay(mmc, 1);
+	/*when cmd_size is 64, manual set cmd_size half of current value*/
+	do {
+		data_size = emmc_ds_manual_sht(mmc);
+		if (cmd_size == 64 && data_size < 10) {
+			cmd_delay = delay2 >> 24;
+			cmd_delay /= 2;
+			delay2 &= ~(0xff << 24);
+			delay2 |= cmd_delay << 24;
+			writel(delay2, host->regs + SD_EMMC_DELAY2);
+		}
+		pr_info("delay2 is 0x%x\n", readl(host->regs + SD_EMMC_DELAY2));
+		retry--;
+	} while (cmd_size == 64 && data_size < 10 && retry > 0);
+
+	if (cmd_size >= EMMC_CMD_WIN_MAX_SIZE)
+		set_emmc_cmd_delay(mmc, 0);
 }
 
 static void aml_get_ctrl_ver(struct mmc_host *mmc)
