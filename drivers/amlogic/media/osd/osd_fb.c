@@ -1143,6 +1143,47 @@ static int osd_compat_ioctl(struct fb_info *info,
 }
 #endif
 
+void *aml_mm_vmap(phys_addr_t phys, unsigned long size)
+{
+	u32 offset, npages;
+	struct page **pages = NULL;
+	pgprot_t pgprot = PAGE_KERNEL;
+	void *vaddr;
+	int i;
+
+	offset = offset_in_page(phys);
+	npages = DIV_ROUND_UP(size + offset, PAGE_SIZE);
+
+	pages = vmalloc(sizeof(struct page *) * npages);
+	if (!pages)
+		return NULL;
+	for (i = 0; i < npages; i++) {
+		pages[i] = phys_to_page(phys);
+		phys += PAGE_SIZE;
+	}
+	vaddr = vmap(pages, npages, VM_MAP, pgprot);
+	if (!vaddr) {
+		pr_err("vmaped fail, size: %d\n",
+		       npages << PAGE_SHIFT);
+		vfree(pages);
+		return NULL;
+	}
+	vfree(pages);
+	osd_log_info("[HIGH-MEM-MAP] pa(%lx) to va(%p), size: %d\n",
+		     (unsigned long)phys, vaddr, npages << PAGE_SHIFT);
+	return vaddr;
+}
+
+void *aml_map_phyaddr_to_virt(dma_addr_t phys, unsigned long size)
+{
+	void *vaddr = NULL;
+
+	if (!PageHighMem(phys_to_page(phys)))
+		return phys_to_virt(phys);
+	vaddr = aml_mm_vmap(phys, size);
+	return vaddr;
+}
+
 static int malloc_osd_memory(struct fb_info *info)
 {
 	int j = 0;
@@ -1248,16 +1289,12 @@ static int malloc_osd_memory(struct fb_info *info)
 				fb_rmem_paddr[fb_index] =
 					page_to_phys(osd_page[fb_index + 1]);
 				fb_rmem_vaddr[fb_index] =
-					page_address(osd_page[fb_index + 1]);
+					aml_map_phyaddr_to_virt
+						(fb_rmem_paddr[fb_index],
+						fb_rmem_size[fb_index]);
 				if (!fb_rmem_vaddr[fb_index])
 					osd_log_err("fb[%d] get page_address error",
 						    fb_index);
-				pr_info("%s, osd%d,fb_rmem_paddr=%lx, fb_rmem_vaddr=%px, fb_rmem_size:%lx\n",
-					__func__,
-					fb_index,
-					fb_rmem_paddr[fb_index],
-					fb_rmem_vaddr[fb_index],
-					fb_rmem_size[fb_index]);
 				if (osd_meson_dev.afbc_type &&
 				   osd_get_afbc(fb_index)) {
 					fb_rmem_afbc_size[fb_index][0] =

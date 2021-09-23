@@ -553,47 +553,6 @@ static int virt_fb_stop_monitor(void)
 	return  0;
 }
 
-static void *aml_mm_vmap(phys_addr_t phys, unsigned long size)
-{
-	u32 offset, npages;
-	struct page **pages = NULL;
-	pgprot_t pgprot = PAGE_KERNEL;
-	void *vaddr;
-	int i;
-
-	offset = offset_in_page(phys);
-	npages = DIV_ROUND_UP(size + offset, PAGE_SIZE);
-
-	pages = vmalloc(sizeof(struct page *) * npages);
-	if (!pages)
-		return NULL;
-	for (i = 0; i < npages; i++) {
-		pages[i] = phys_to_page(phys);
-		phys += PAGE_SIZE;
-	}
-	vaddr = vmap(pages, npages, VM_MAP, pgprot);
-	if (!vaddr) {
-		pr_err("vmaped fail, size: %d\n",
-		       npages << PAGE_SHIFT);
-		vfree(pages);
-		return NULL;
-	}
-	vfree(pages);
-	osd_log_info("[HIGH-MEM-MAP] pa(%lx) to va(%p), size: %d\n",
-		     (unsigned long)phys, vaddr, npages << PAGE_SHIFT);
-	return vaddr;
-}
-
-static void *aml_map_phyaddr_to_virt(dma_addr_t phys, unsigned long size)
-{
-	void *vaddr = NULL;
-
-	if (!PageHighMem(phys_to_page(phys)))
-		return phys_to_virt(phys);
-	vaddr = aml_mm_vmap(phys, size);
-	return vaddr;
-}
-
 static int malloc_fb_memory(struct fb_info *info)
 {
 	u32 fb_index, stride, fb_len;
