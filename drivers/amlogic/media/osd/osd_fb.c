@@ -731,9 +731,10 @@ static void get_dma_buffer_id(struct fb_info *info,
 		dmaexp->fd =
 			ion_fd[info->node][dmaexp->buffer_idx];
 	} else {
-		dmaexp->fd =
-				ion_fd[info->node][0];
+		dmaexp->fd = ion_fd[info->node][0];
 	}
+	if (!dmaexp->fd)
+		pr_info("Notice: not support now\n");
 	dmaexp->flags = O_CLOEXEC;
 }
 
@@ -1191,8 +1192,11 @@ static int malloc_osd_memory(struct fb_info *info)
 		return -1;
 	fix = &info->fix;
 	var = &info->var;
-	for (j = 0; j <= osd_meson_dev.osd_count; j++)
-		fb_memsize_total += fb_memsize[j];
+	fb_memsize_total += fb_memsize[fb_index + 1];
+	osd_log_info("%s,base:%pa, size:%ld, b_reserved_mem=%d,fb_memsize_total=%lx\n",
+		     __func__, &base, size,
+		     b_reserved_mem,
+		     fb_memsize_total);
 	/* read cma/fb-reserved memory first */
 	if (b_reserved_mem &&
 	    (fb_memsize_total <= size &&
@@ -1241,12 +1245,28 @@ static int malloc_osd_memory(struct fb_info *info)
 					       fb_rmem_size[fb_index]);
 					return -ENOMEM;
 				}
+				fb_rmem_paddr[fb_index] =
+					page_to_phys(osd_page[fb_index + 1]);
 				fb_rmem_vaddr[fb_index] =
 					page_address(osd_page[fb_index + 1]);
 				if (!fb_rmem_vaddr[fb_index])
 					osd_log_err("fb[%d] get page_address error",
 						    fb_index);
-				pr_info("%s, cma mem\n", __func__);
+				pr_info("%s, osd%d,fb_rmem_paddr=%lx, fb_rmem_vaddr=%px, fb_rmem_size:%lx\n",
+					__func__,
+					fb_index,
+					fb_rmem_paddr[fb_index],
+					fb_rmem_vaddr[fb_index],
+					fb_rmem_size[fb_index]);
+				if (osd_meson_dev.afbc_type &&
+				   osd_get_afbc(fb_index)) {
+					fb_rmem_afbc_size[fb_index][0] =
+						fb_rmem_size[fb_index];
+					fb_rmem_afbc_paddr[fb_index][0] =
+						fb_rmem_paddr[fb_index];
+					fb_rmem_afbc_vaddr[fb_index][0] =
+						fb_rmem_vaddr[fb_index];
+				}
 			}
 #else
 			if (fb_map_flag)
