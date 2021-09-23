@@ -212,7 +212,7 @@ sub check_module_param
 	}
 }
 
-my $MAX_LEN	=	80;
+my $MAX_LEN	=	100;
 
 sub check_msg_common
 {
