@@ -714,9 +714,9 @@ static int hifi4dsp_driver_dsp_stop(struct hifi4dsp_dsp *dsp)
 			cancel_delayed_work(&dsp_status_work);
 			destroy_workqueue(dsp_status_wq);
 		}
-		if (!(hifi4dsp_p[dsp->id ? DSPA : DSPB]->dsp->dspstarted &&
-			hifi4dsp_p[dsp->id ? DSPA : DSPB]->dsp->logbuff &&
-			work_busy(&dsp_logbuff_work.work))) {
+		if (work_busy(&dsp_logbuff_work.work) &&
+		(hifi4dsp_p[dsp->id ? DSPA : DSPB]->dsp->dspstarted == 0 ||
+		!(hifi4dsp_p[dsp->id ? DSPA : DSPB]->dsp->logbuff))) {
 			cancel_delayed_work(&dsp_logbuff_work);
 			destroy_workqueue(dsp_logbuff_wq);
 		}
