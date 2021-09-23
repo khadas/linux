@@ -815,6 +815,13 @@ static void session_video_start(struct sync_session *session, u32 pts)
 				session->id, __LINE__,
 				pts, session->wall_clock);
 		}
+	} else if (session->mode == AVS_MODE_FREE_RUN) {
+		session_set_wall_clock(session, pts);
+		session->clock_start = true;
+		session->stat = AVS_STAT_STARTED;
+		update_f_vpts(session, pts);
+		msync_dbg(LOG_INFO, "[%d]%d video start %u\n",
+			session->id, __LINE__, pts);
 	}
 exit:
 	mutex_unlock(&session->session_mutex);
@@ -1211,13 +1218,11 @@ static void session_audio_switch(struct sync_session *session, u32 start)
 
 static void session_update_vpts(struct sync_session *session)
 {
-#if 0
-	if (session->mode == AVS_MODE_V_MASTER) {
+	if (session->mode == AVS_MODE_V_MASTER ||
+	    session->mode == AVS_MODE_FREE_RUN) {
 		struct pts_tri *p = &session->last_vpts;
 		u32 pts = p->pts;
 
-		if (pts > p->delay)
-			pts -= p->delay;
 		if (abs_diff(pts, session->wall_clock) >=
 			session->wall_adj_thres) {
 			unsigned long flags;
@@ -1230,7 +1235,6 @@ static void session_update_vpts(struct sync_session *session)
 			spin_unlock_irqrestore(&sync.lock, flags);
 		}
 	}
-#endif
 }
 
 static void session_update_apts(struct sync_session *session)
