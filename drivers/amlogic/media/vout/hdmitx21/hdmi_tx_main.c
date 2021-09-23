@@ -139,6 +139,10 @@ static struct hdmitx_uevent hdmi_events[] = {
 		.env = "hdmitx_audio=",
 	},
 	{
+		.type = HDMITX_HDCPPWR_EVENT,
+		.env = "hdmitx_hdcppwr=",
+	},
+	{
 		.type = HDMITX_HDR_EVENT,
 		.env = "hdmitx_hdr=",
 	},
@@ -227,6 +231,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdmitx21_edid_clear(hdev);
 	hdmitx21_edid_ram_buffer_clear(hdev);
 	edidinfo_detach_to_vinfo(hdev);
+	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_SUSPEND);
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_VSDB_PACKET, 0);
 }
@@ -267,7 +272,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	set_disp_mode_auto();
 
 	hdmitx21_set_uevent(HDMITX_HPD_EVENT, hdev->hpd_state);
-
+	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	hdmitx21_set_uevent(HDMITX_AUDIO_EVENT, hdev->hpd_state);
 	pr_info("%s: late resume module %d\n", DEVICE_NAME, __LINE__);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
@@ -4728,6 +4733,7 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 
 	hdev->hpd_state = !!hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0);
 	hdmitx_notify_hpd(hdev->hpd_state);
+	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	INIT_WORK(&hdev->work_hdr, hdr_work_func);
 pr_info("%s[%d]\n", __func__, __LINE__);
 
