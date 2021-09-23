@@ -8,6 +8,10 @@
 
 #define OSD_DUMP_PATH		"/tmp/osd_dump/"
 
+int crtc_force_hint;
+MODULE_PARM_DESC(crtc_force_hint, "\n force modesetting hint\n");
+module_param(crtc_force_hint, int, 0644);
+
 static int meson_crtc_set_mode(struct drm_mode_set *set,
 			       struct drm_modeset_acquire_ctx *ctx)
 {
@@ -364,6 +368,17 @@ static int am_meson_atomic_check(struct drm_crtc *crtc,
 
 	amcrtc = to_am_meson_crtc(crtc);
 	pipeline = amcrtc->pipeline;
+
+	/*apply parameters need modeset.*/
+	if (crtc_state->state &&
+		crtc_state->state->allow_modeset) {
+		/*apply state value not set from property.*/
+		DRM_DEBUG_KMS("%s force modeset.\n", __func__);
+		if (crtc_force_hint > 0) {
+			crtc_state->mode_changed = true;
+			crtc_force_hint = 0;
+		}
+	}
 
 	return vpu_pipeline_check(pipeline, state);
 }
