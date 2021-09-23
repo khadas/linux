@@ -1,0 +1,8 @@
+#
+# Amlogic i2c device configuration
+#
+
+config MESON_I2C_SLAVE
+	bool "Amlogic I2C Slave Driver"
+	help
+		Amlogic I2C Slave Driver.

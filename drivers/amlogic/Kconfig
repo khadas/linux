@@ -166,6 +166,7 @@ source "drivers/amlogic/global_timer/Kconfig"
 source "drivers/amlogic/mfd/Kconfig"
 source "drivers/amlogic/regulator/Kconfig"
 source "drivers/amlogic/mfh/Kconfig"
+source "drivers/amlogic/i2c_slave/Kconfig"
 
 endmenu
 endif
