@@ -1275,10 +1275,6 @@ static void update_current_para(struct hdmitx_dev *hdev)
 
 	memset(mode, 0, sizeof(mode));
 	strncpy(mode, info->name, sizeof(mode) - 1);
-	if (strstr(hdev->fmt_attr, "420")) {
-		if (!strstr(mode, "420"))
-			strncat(mode, "420", sizeof(mode) - strlen("420") - 1);
-	}
 	hdev->para = hdmitx21_get_fmtpara(mode, hdev->fmt_attr);
 }
 
