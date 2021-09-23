@@ -92,6 +92,14 @@ static int disable_flag;
 #define TEE_SMC_DEMUX_CONFIG_PAD \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_DEMUX_CONFIG_PAD)
 
+#define TEE_SMC_FUNCID_READ_REG                    0xE052
+#define TEE_SMC_READ_REG \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_READ_REG)
+
+#define TEE_SMC_FUNCID_WRITE_REG                   0xE053
+#define TEE_SMC_WRITE_REG \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_WRITE_REG)
+
 #define TEE_SMC_FUNCID_SYS_BOOT_COMPLETE           0xE060
 #define TEE_SMC_SYS_BOOT_COMPLETE \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_SYS_BOOT_COMPLETE)
@@ -382,6 +390,30 @@ int tee_demux_config_pad(int reg, int val)
 	return res.a0;
 }
 EXPORT_SYMBOL(tee_demux_config_pad);
+
+int tee_read_reg_bits(u32 reg, u32 *val, u32 offset, u32 length)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(TEE_SMC_READ_REG,
+			reg, 0, offset, length, 0, 0, 0, &res);
+
+	*val = res.a2;
+
+	return res.a0;
+}
+EXPORT_SYMBOL(tee_read_reg_bits);
+
+int tee_write_reg_bits(u32 reg, u32 val, u32 offset, u32 length)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(TEE_SMC_WRITE_REG,
+			reg, val, offset, length, 0, 0, 0, &res);
+
+	return res.a0;
+}
+EXPORT_SYMBOL(tee_write_reg_bits);
 
 int tee_vp9_prob_process(u32 cur_frame_type, u32 prev_frame_type,
 		u32 prob_status, u32 prob_addr)
