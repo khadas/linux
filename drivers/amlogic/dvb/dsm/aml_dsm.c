@@ -425,9 +425,9 @@ static ssize_t usage_show(struct class *class,
 	mutex_lock(&sessions_lock);
 	list_for_each_safe(pos1, tmp1, &sessions_head) {
 		sess = list_entry(pos1, struct dsm_session, list);
-		APPEND_ATTR_BUF("Session token: 0x%08x, keyslots: %2d\n",
+		APPEND_ATTR_BUF("Session token: 0x%08x, keyslots: %d\n",
 				sess->token,
-				sess->key_count)
+				atomic_read(&sess->key_count))
 		list_for_each_safe(pos2, tmp2, &sess->keys) {
 			key = list_entry(pos2, struct keytable_key, list);
 			APPEND_ATTR_BUF("\tSlot: %2d, type: 0x%x\n",
