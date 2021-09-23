@@ -54,6 +54,8 @@ struct fb_dmabuf_export {
 #define OSD_SECOND_GROUP_START 4
 #define OSD_END 7
 
+void *aml_mm_vmap(phys_addr_t phys, unsigned long size);
+void *aml_map_phyaddr_to_virt(dma_addr_t phys, unsigned long size);
 phys_addr_t get_fb_rmem_paddr(int index);
 void __iomem *get_fb_rmem_vaddr(int index);
 size_t get_fb_rmem_size(int index);
