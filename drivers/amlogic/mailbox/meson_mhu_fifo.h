@@ -16,8 +16,8 @@
 #define PAYLOAD_OFFSET(chan)	(0x80 * (chan))
 #define CTL_OFFSET(chan)	((chan) * 0x4)
 
-#define IRQ_REV_BIT(mbox)	(1 << ((mbox) * 2))
-#define IRQ_SENDACK_BIT(mbox)	(1 << ((mbox) * 2 + 1))
+#define IRQ_REV_BIT(mbox)	(1ULL << ((mbox) * 2))
+#define IRQ_SENDACK_BIT(mbox)	(1ULL << ((mbox) * 2 + 1))
 
 #define IRQ_MASK_OFFSET(x)	(0x00 + ((x) << 2))
 #define IRQ_TYPE_OFFSET(x)	(0x10 + ((x) << 2))
