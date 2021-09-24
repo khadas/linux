@@ -189,15 +189,92 @@ static int meson_ion_add_heap(struct cma *cma, void *data)
 	return 0;
 }
 
+static int ion_secure_mem_init(struct reserved_mem *rmem, struct device *dev)
+{
+#ifdef CONFIG_AMLOGIC_TEE
+	u32 secure_heap_handle;
+#endif
+	int ret;
+
+	secure_heap = ion_secure_heap_create(rmem->base, rmem->size);
+	ret = ion_device_add_heap(secure_heap);
+	if (ret)
+		DION_ERROR("%s fail\n", __func__);
+	else
+		DION_INFO("%s,secure_heap->name=%s secure_heap->id=%d\n",
+			  __func__, secure_heap->name, secure_heap->id);
+#ifdef CONFIG_AMLOGIC_TEE
+	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_GPU,
+					(u32)rmem->base,
+					(u32)rmem->size,
+					&secure_heap_handle);
+	if (ret)
+		DION_ERROR("tee protect gpu mem fail!\n");
+	else
+		DION_INFO("tee protect gpu mem done\n");
+#endif
+	DION_INFO("ion secure_mem_init size=0x%pa, paddr=0x%pa\n",
+		  &rmem->size, &rmem->base);
+
+	return 0;
+}
+
+static const struct reserved_mem_ops rmem_ion_secure_ops = {
+	.device_init = ion_secure_mem_init,
+};
+
+static int __init rmem_ion_secure_setup(struct reserved_mem *rmem)
+{
+	rmem->ops = &rmem_ion_secure_ops;
+	return 0;
+}
+
 static int dev_ion_probe(struct platform_device *pdev)
 {
 	int ret;
 	int nr = 0;
+	int secure_flag = 0;
+	int secure_region_index = 0;
+	struct device_node *search_target = NULL;
+#ifdef MODULE
+	struct device_node *target = NULL;
+	struct reserved_mem *mem = NULL;
+#endif
 
-	ret = of_reserved_mem_device_init_by_idx(&pdev->dev,
-		pdev->dev.of_node, 1);
-	if (ret != 0)
-		DION_INFO("failed get secure memory\n");
+	while (1) {
+		search_target = of_parse_phandle(pdev->dev.of_node,
+						"memory-region",
+						secure_region_index);
+		if (!search_target)
+			break;
+		if (!strcmp(search_target->name, "linux,ion-secure")) {
+			secure_flag = 1;
+			break;
+		}
+		secure_region_index++;
+	}
+
+	if (secure_flag) {
+#ifdef MODULE
+		target = of_parse_phandle(pdev->dev.of_node,
+					  "memory-region",
+					  secure_region_index);
+		if (target)
+			mem = of_reserved_mem_lookup(target);
+		if (mem) {
+			ret = rmem_ion_secure_setup(mem);
+			if (ret != 0)
+				DION_ERROR("failed to ion_secure_mem_init\n");
+			else
+				DION_INFO("ion_secure_mem_init succeed\n");
+		}
+#endif
+
+		ret = of_reserved_mem_device_init_by_idx(&pdev->dev,
+				pdev->dev.of_node, secure_region_index);
+		if (ret != 0)
+			DION_ERROR("failed get secure memory\n");
+	}
 
 	ret = cma_for_each_area(meson_ion_add_heap, &nr);
 	if (ret) {
@@ -234,49 +311,9 @@ static struct platform_driver ion_driver = {
 	}
 };
 
-static int ion_secure_mem_init(struct reserved_mem *rmem, struct device *dev)
-{
-	#ifdef CONFIG_AMLOGIC_TEE
-	u32 secure_heap_handle;
-	#endif
-	int ret;
-
-	secure_heap = ion_secure_heap_create(rmem->base, rmem->size);
-	ret = ion_device_add_heap(secure_heap);
-	if (ret)
-		DION_ERROR("%s fail\n", __func__);
-	else
-		DION_INFO("%s,secure_heap->name=%s secure_heap->id=%d\n",
-			  __func__, secure_heap->name, secure_heap->id);
-	#ifdef CONFIG_AMLOGIC_TEE
-	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_GPU,
-				      (u32)rmem->base,
-				      (u32)rmem->size,
-				      &secure_heap_handle);
-	if (ret)
-		DION_ERROR("tee protect gpu mem fail!\n");
-	else
-		DION_INFO("tee protect gpu mem done\n");
-	#endif
-	DION_INFO("ion secure_mem_init size=0x%pa, paddr=0x%pa\n",
-		  &rmem->size, &rmem->base);
-	return 0;
-}
-
-static const struct reserved_mem_ops rmem_ion_secure_ops = {
-	.device_init = ion_secure_mem_init,
-};
-
-static int __init ion_secure_mem_setup(struct reserved_mem *rmem)
-{
-	rmem->ops = &rmem_ion_secure_ops;
-	DION_DEBUG("ion secure mem setup\n");
-	return 0;
-}
-
 RESERVEDMEM_OF_DECLARE(ion_secure_mem,
 					"amlogic, ion-secure-mem",
-					ion_secure_mem_setup);
+					rmem_ion_secure_setup);
 
 int __init ion_init(void)
 {
