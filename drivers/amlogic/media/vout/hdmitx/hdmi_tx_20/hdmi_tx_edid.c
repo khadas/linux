@@ -56,6 +56,7 @@
 #define EXTENSION_VFPDB_TAG	0xd
 #define EXTENSION_Y420_VDB_TAG	0xe
 #define EXTENSION_Y420_CMDB_TAG	0xf
+#define EXTENSION_Y420_SCDB_TAG	0x79 /*HDMI Forum Sink Capability Data Block*/
 #define EXTENSION_DOLBY_VSADB	0x11
 
 #define EDID_DETAILED_TIMING_DES_BLOCK0_POS 0x36
@@ -1861,6 +1862,26 @@ MODULE_PARM_DESC(force_hdr, "\n force_drm\n");
 module_param_array(drm_data, byte, &drm_size, 0664);
 MODULE_PARM_DESC(drm_data, "\n drm data\n");
 
+static void hdmitx_parse_sink_capability(struct rx_cap *prxcap,
+	unsigned char offset, unsigned char *blockbuf,
+	unsigned char count)
+{
+	prxcap->hf_ieeeoui = HF_IEEEOUI;
+	prxcap->Max_TMDS_Clock2 = blockbuf[offset + 4];
+	prxcap->scdc_present =
+		!!(blockbuf[offset + 5] & (1 << 7));
+	prxcap->scdc_rr_capable =
+		!!(blockbuf[offset + 5] & (1 << 6));
+	prxcap->lte_340mcsc_scramble =
+		!!(blockbuf[offset + 5] & (1 << 3));
+	set_vsdb_dc_420_cap(prxcap, &blockbuf[offset]);
+	if (count > 7) {
+		unsigned char b7 = blockbuf[offset + 7];
+
+		prxcap->allm = !!(b7 & (1 << 1));
+	}
+}
+
 static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				   unsigned char *blockbuf)
 {
@@ -1944,19 +1965,9 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 							 blockbuf, count);
 			} else if ((blockbuf[offset] == 0xd8) &&
 				(blockbuf[offset + 1] == 0x5d) &&
-				(blockbuf[offset + 2] == 0xc4)) {
-				prxcap->hf_ieeeoui = HF_IEEEOUI;
-				prxcap->Max_TMDS_Clock2 = blockbuf[offset + 4];
-				prxcap->scdc_present =
-					!!(blockbuf[offset + 5] & (1 << 7));
-				prxcap->scdc_rr_capable =
-					!!(blockbuf[offset + 5] & (1 << 6));
-				prxcap->lte_340mcsc_scramble =
-					!!(blockbuf[offset + 5] & (1 << 3));
-				set_vsdb_dc_420_cap(&hdev->rxcap,
-						    &blockbuf[offset]);
-			}
-
+				(blockbuf[offset + 2] == 0xc4))
+				hdmitx_parse_sink_capability(prxcap,
+					offset, blockbuf, count);
 			offset += count; /* ignore the remaind. */
 			break;
 
@@ -2011,6 +2022,10 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				case EXTENSION_Y420_CMDB_TAG:
 					edid_parsingy420cmdb(hdev,
 							     &blockbuf[offset]);
+					break;
+				case EXTENSION_Y420_SCDB_TAG:
+					hdmitx_parse_sink_capability(prxcap,
+						offset + 1, blockbuf, count);
 					break;
 				case EXTENSION_DOLBY_VSADB:
 					edid_parsingdolbyvsadb(hdev,
