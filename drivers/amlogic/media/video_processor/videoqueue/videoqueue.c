@@ -663,7 +663,10 @@ static void do_file_thread(struct video_queue_dev *dev)
 	ret = vt_queue_buffer(dev->dev_session,
 			dev->tunnel_id, ready_file, -1, disp_time);
 	if (ret < 0) {
-		pr_err("vt queue buffer error\n");
+		if (ret != -ENOTCONN)
+			pr_err("vt queue buffer error\n");
+		else
+			vq_print(P_OTHER, "no consumer\n");
 		total_put_count++;
 		if (vf->type & VIDTYPE_DI_PW)
 			di_put_count++;
