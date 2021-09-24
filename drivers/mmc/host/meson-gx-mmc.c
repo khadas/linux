@@ -562,9 +562,13 @@ int meson_mmc_tuning_transfer(struct mmc_host *mmc, u32 opcode)
 		if (!tuning_err) {
 			nmatch++;
 		} else {
-			if (tuning_err != -EIO)
-				mmc_abort_tuning(mmc,
-					MMC_SEND_TUNING_BLOCK_HS200);
+		/* After the cmd21 command fails,
+		 * it takes a certain time for the emmc status to
+		 * switch from data back to transfer. Currently,
+		 * only this model has this problem.
+		 * by add usleep_range(20, 30);
+		 */
+			usleep_range(20, 30);
 			break;
 		}
 	}
