@@ -11,7 +11,12 @@
 
 #define DMC_MON_RW		0x8200004A
 
+#define DMC_READ_VIOLATION	BIT(0)
 #define DMC_WRITE_VIOLATION	BIT(1)
+
+#define DMC_DEBUG_WRITE		BIT(0)
+#define DMC_DEBUG_READ		BIT(1)
+#define DMC_DEBUG_CMA		BIT(2)
 
 /*
  * Address is aligned to 64 KB
@@ -37,6 +42,7 @@ struct dmc_monitor {
 	unsigned long  addr_start;	/* monitor start address */
 	unsigned long  addr_end;	/* monitor end address */
 	u64            device;		/* monitor device mask */
+	u8             debug;		/* monitor debug */
 	unsigned short port_num;	/* how many devices? */
 	unsigned char  chip;		/* chip ID */
 	unsigned char  configs;		/* config for dmc */

@@ -109,20 +109,36 @@ static size_t t7_dmc_dump_reg(char *buf)
 
 static void check_violation(struct dmc_monitor *mon, void *io)
 {
+	char rw = 'n';
+	char title[5] = "";
 	int port;
 	unsigned long addr;
 	unsigned long status;
 	struct page *page;
 	struct page_trace *trace;
 
+	/* irq write */
 	status = dmc_prot_rw(io, DMC_PROT_VIO_1, 0, DMC_READ);
-	if (!(status & (DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1)))
-		return;
+	if ((status & (DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1))) {
+		/* combine address */
+		addr  = (status >> 15) & 0x03;
+		addr  = (addr << 32ULL);
+		addr |= dmc_prot_rw(io, DMC_PROT_VIO_0, 0, DMC_READ);
+		rw = 'w';
+	} else {
+		/* irq read */
+		status = dmc_prot_rw(io, DMC_PROT_VIO_3, 0, DMC_READ);
+		if ((status & (DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1))) {
+			/* combine address */
+			addr  = (status >> 15) & 0x03;
+			addr  = (addr << 32ULL);
+			addr |= dmc_prot_rw(io, DMC_PROT_VIO_2, 0, DMC_READ);
+			rw = 'r';
+		} else {
+			return;
+		}
+	}
 
-	/* combine address */
-	addr  = (status >> 15) & 0x03;
-	addr  = (addr << 32ULL);
-	addr |= dmc_prot_rw(io, DMC_PROT_VIO_0, 0, DMC_READ);
 	if (addr > mon->addr_end)
 		return;
 
@@ -132,16 +148,21 @@ static void check_violation(struct dmc_monitor *mon, void *io)
 		mon->same_page++;
 		return;
 	}
+
 	/* ignore cma driver pages */
 	page = phys_to_page(addr);
 	trace = find_page_base(page);
-	if (trace && trace->migrate_type == MIGRATE_CMA)
-		return;
+	if (trace && trace->migrate_type == MIGRATE_CMA) {
+		if (mon->debug & DMC_DEBUG_CMA)
+			sprintf(title, "%s", "_CMA");
+		else
+			return;
+	}
 
 	port = status & 0xff;
-	pr_emerg(DMC_TAG ", addr:%08lx, s:%08lx, ID:%s, c:%ld, d:%p\n",
-		 addr, status, to_ports(port),
-		 mon->same_page, io);
+	pr_emerg(DMC_TAG "%s, addr:%08lx, s:%08lx, ID:%s, c:%ld, d:%p, rw:%c\n",
+		 title, addr, status, to_ports(port),
+		 mon->same_page, io, rw);
 	show_violation_mem(addr);
 	mon->same_page   = 0;
 	mon->last_addr   = addr & PAGE_MASK;
@@ -154,7 +175,7 @@ static void __t7_dmc_mon_irq(struct dmc_monitor *mon, void *io)
 
 	value = dmc_prot_rw(io, DMC_PROT_IRQ_CTRL_STS, 0, DMC_READ);
 	if (in_interrupt()) {
-		if (value & DMC_WRITE_VIOLATION)
+		if (value & (DMC_WRITE_VIOLATION | DMC_READ_VIOLATION))
 			check_violation(mon, io);
 
 		/* check irq flags just after IRQ handler */
@@ -199,7 +220,14 @@ static int t7_dmc_mon_set(struct dmc_monitor *mon)
 		dmc_prot_rw(io, DMC_PROT0_EDA, end, DMC_WRITE);
 		dmc_prot_rw(io, DMC_PROT1_STA, start, DMC_WRITE);
 		dmc_prot_rw(io, DMC_PROT1_EDA, end, DMC_WRITE);
-		val = (1 << 27) | 0xf;
+
+		val = 0xf;
+		if (dmc_mon->debug & DMC_DEBUG_WRITE)
+			val |= (1 << 27);
+
+		if (dmc_mon->debug & DMC_DEBUG_READ)
+			val |= (1 << 26);
+
 		if (dmc_mon->configs & POLICY_INCLUDE)
 			val |= (1 << 8);
 		else
