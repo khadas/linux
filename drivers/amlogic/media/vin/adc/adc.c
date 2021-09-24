@@ -826,6 +826,7 @@ void adc_pll_down(void)
 	if (!probe_finish || !adc_devp)
 		return;
 	struct adc_pll_reg_addr *pll_addr = &adc_devp->plat_data->pll_addr;
+	struct adc_reg_addr *adc_addr = &adc_devp->plat_data->adc_addr;
 
 	pr_info("adc: %s\n", __func__);
 
@@ -834,11 +835,10 @@ void adc_pll_down(void)
 		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0, 0, 28, 1);
 	}
 
-	if (!adc_devp->pll_flg && (get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
-		get_cpu_type() == MESON_CPU_MAJOR_ID_T5D)) {
-		adc_wr_hiu_bits(HHI_VDAC_CNTL1_T5, 0, 3, 1);
-		adc_wr_hiu_bits(HHI_DADC_CNTL3, 0, 0, 2);
-		adc_wr_hiu_bits(HHI_ADC_PLL_CNTL0_TL1, 0, 28, 1);
+	if (!adc_devp->pll_flg && get_cpu_type() >= MESON_CPU_MAJOR_ID_T5) {
+		adc_wr_hiu_bits(adc_addr->vdac_cntl_1, 0, 7, 1);
+		adc_wr_hiu_bits(adc_addr->dadc_cntl_3, 0, 0, 2);
+		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0, 0, 28, 1);
 	}
 }
 EXPORT_SYMBOL(adc_pll_down);

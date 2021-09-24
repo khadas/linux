@@ -47,6 +47,7 @@
 		.s2_dadc_cntl = 0x41,\
 		.s2_dadc_cntl_2 = 0x42,\
 		.vdac_cntl_0 = 0xbb,\
+		.vdac_cntl_1 = 0xbc,\
 	}
 
 #define ADC_ADDR_T3	.adc_addr = {\
@@ -57,6 +58,7 @@
 		.s2_dadc_cntl = 0x94,\
 		.s2_dadc_cntl_2 = 0x95,\
 		.vdac_cntl_0 = 0xb0,\
+		.vdac_cntl_1 = 0xb1,\
 	}
 
 #define ADC_PLL_ADDR_TL1	.pll_addr = {\
@@ -117,6 +119,7 @@ struct adc_reg_addr {
 	unsigned int s2_dadc_cntl;
 	unsigned int s2_dadc_cntl_2;
 	unsigned int vdac_cntl_0;
+	unsigned int vdac_cntl_1;
 };
 
 struct adc_pll_reg_addr {
