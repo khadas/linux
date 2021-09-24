@@ -1420,7 +1420,8 @@
 	ion_dev {
 		compatible = "amlogic, ion_dev";
 		memory-region = <&ion_cma_reserved
-				&ion_fb_reserved>;
+				&ion_fb_reserved
+				&ion_secure_reserved>;
 	};
 
 	fb: fb {

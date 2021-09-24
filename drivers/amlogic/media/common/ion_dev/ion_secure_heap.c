@@ -55,6 +55,9 @@ static int ion_secure_heap_allocate(struct ion_heap *heap,
 	phys_addr_t paddr;
 	int ret;
 
+	if (!(flags & ION_FLAG_EXTEND_MESON_HEAP) ||
+	    !(flags & ION_FLAG_EXTEND_MESON_HEAP_SECURE))
+		return -ENOMEM;
 	table = kmalloc(sizeof(*table), GFP_KERNEL);
 	if (!table)
 		return -ENOMEM;
