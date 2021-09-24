@@ -390,7 +390,7 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 			}
 		} else if (lcd_init_on_flag == 1) {
 			mutex_lock(&lcd_vout_mutex);
-			if (pdrv->driver_change(pdrv))
+			if (pdrv->driver_change)
 				ret = pdrv->driver_change(pdrv);
 			else
 				ret = -1;
