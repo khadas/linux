@@ -490,7 +490,12 @@ static int set_disp_mode_auto(void)
 	info = hdmitx_get_current_vinfo(NULL);
 	if (!info || !info->name)
 		return -1;
-	pr_info("get current mode: %s\n", info->name);
+	pr_info("hdmitx: get current mode: %s\n", info->name);
+	if (strncmp(info->name, "invalid", strlen("invalid")) == 0) {
+		hdev->hdcp_mode = 0;
+		hdcp_mode_set(0);
+		return -1;
+	}
 	/*update hdmi checksum to vout*/
 	memcpy(info->hdmichecksum, hdev->rxcap.chksum, 10);
 
