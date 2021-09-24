@@ -19,6 +19,7 @@ my $make_clang="make ARCH=arm64 CC=clang HOSTCC=clang LD=ld.lld NM=llvm-nm OBJCO
 my $make_defconfig_link = "https://wiki-china.amlogic.com/Platform/Kernel/Kernel5.4/Build";
 my $env_common = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
 my $arm64_dts = "arch/arm64/boot/dts/amlogic/";
+my $arm_dts = "arch/arm/boot/dts/amlogic/";
 
 #Check mesonxx_defconfig
 sub check_defconfig
@@ -108,15 +109,19 @@ sub check_defconfig
 
 sub dts_check
 {
+	my @dts_path = @_;
 	my $dts_diff = "";
-	my $diff = `git diff HEAD^ --name-only | grep  -E '*dts\$'`;
-	my $all_dts = `find $arm64_dts -name "*dts"`;
+	my $diff = `git diff  --name-only @dts_path | grep  -E *dts`;
+	if (!$diff)
+	{
+		return 0;
+	}
+	my $all_dts = `find @dts_path -name "*dts"`;
 	my @diff_str = split /[\n]/, $diff;
 	my @all_dts_str = split /[\n]/, $all_dts;
 	my $diff_count = 0;
 	my $all_dts_count = 0;
 	my $count = 0;
-	my $i = 0;
 	my $t = 0;
 	my $q = 0;
 	my $temp = "";
@@ -129,7 +134,7 @@ sub dts_check
 		if ($re=~m/^(.*?)\_/)
 		{
 			$dts_diff = $1;
-			$dts_diff =~ /$arm64_dts/;
+			$dts_diff =~ /@dts_path/;
 			$temp=$';
 			$dts_diff = $dts_diff."_";
 		}
@@ -139,7 +144,7 @@ sub dts_check
 			{
 				if ($_ =~ $dts_diff)
 				{
-					$_ =~ /$arm64_dts/;
+					$_ =~ /@dts_path/;
 					$arry1->[$diff_count] = $';
 					$diff_count = $diff_count+1;
 				}
@@ -151,7 +156,7 @@ sub dts_check
 					if ($_ =~ $dts_diff)
 					{
 						$all_dts_count=$all_dts_count+1;
-						$_ =~ /$arm64_dts/;
+						$_ =~ /@dts_path/;
 						$arry->[$all_dts_count] = $';
 					}
 				}
@@ -163,7 +168,7 @@ sub dts_check
 		}
 		while ($q<$t)
 		{
-			if ($arry2->[$q] =~ $temp)
+			if ($arry2->[$q] =~ $temp )
 			{
 				$count=0;
 			}
@@ -172,7 +177,7 @@ sub dts_check
 		if ($count != 0)
 		{
 		$err_cnt += 1;
-		$err_msg .= "	$err_cnt:You are modifying the board $temp DTS file \n";
+		$err_msg .= "	$err_cnt:You are modifying  the board $temp DTS file in @dts_path \n";
 		$err_msg .= "	  You have modified dts is ";
 		while($diff_count > 0)
 		{
@@ -180,14 +185,9 @@ sub dts_check
 			$diff_count=$diff_count-1;
 		}
 		$err_msg .= "\n";
-		$err_msg .= "	  Please confirm should you modify other boards too? ";
-		while( $i < $all_dts_count )
-		{
-			$err_msg .= "$arry->[$i+1] ";
-			$i = $i+1;
-		}
+		$err_msg .= "	  Please confirm should you modify other boards for $temp in @dts_path too? ";
+
 		$err_msg .= "\n";
-		$i = 0;
 		$count = 0;
 		$diff_count = 0;
 		$all_dts_count = 0;
@@ -220,7 +220,7 @@ sub check_msg_common
 	my $lnum = pop(@_);
 
 	if( (length($line) > ($MAX_LEN + 4) ) && ($lnum > 4) )
-	{	#Line over 80 characters is not allowed.
+	{	#Line over 100 characters is not allowed.
 		$line =~ s/^(\s){4}//;
 		$err_cnt += 1;
 		$err_msg .= "    $err_cnt: Line over $MAX_LEN characters: <$line>\n";
@@ -444,7 +444,8 @@ my $err_msg_p = "\nCommit Pre check failed. Total $err_cnt errors.\n";
 
 #Check meson_defconfig
 check_defconfig();
-dts_check();
+dts_check($arm64_dts);
+dts_check($arm_dts);
 
 #check_module_param
 check_module_param();
