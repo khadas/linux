@@ -708,17 +708,6 @@ static struct snd_pcm_ops earc_ops = {
 	.mmap      = earc_mmap,
 };
 
-static int earc_pcm_add_chmap_ctls(struct earc *p_earc, struct snd_pcm *pcm);
-static int earc_new(struct snd_soc_pcm_runtime *rtd)
-{
-	struct device *dev = rtd->cpu_dai->dev;
-	struct earc *p_earc = (struct earc *)dev_get_drvdata(dev);
-
-	earc_pcm_add_chmap_ctls(p_earc, rtd->pcm);
-
-	return 0;
-}
-
 static int earc_dai_prepare(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai)
 {
@@ -1788,8 +1777,6 @@ static const struct snd_pcm_chmap_elem snd_pcm_chmaps[] = {
 	}
 };
 
-#define TX_CHMAP "eARC_TX Channel Map"
-
 static bool support_chmap(enum audio_coding_types coding_type)
 {
 	if (coding_type == AUDIO_CODING_TYPE_STEREO_LPCM ||
@@ -1798,40 +1785,6 @@ static bool support_chmap(enum audio_coding_types coding_type)
 		return true;
 
 	return false;
-}
-
-static bool support_ca(unsigned int ca)
-{
-	if (ca == AIF_8CH ||
-	    ca == AIF_6CH ||
-	    ca == AIF_3CH ||
-	    ca == AIF_2CH)
-		return true;
-
-	return false;
-}
-
-static void convert_ca2chmap(unsigned int ca, struct snd_pcm_chmap *chmap)
-{
-	if (!chmap)
-		return;
-
-	if (ca == AIF_8CH) {
-		chmap->channel_mask = (1U << 8);
-		chmap->max_channels = 8;
-	} else if (ca == AIF_6CH) {
-		chmap->channel_mask = (1U << 6);
-		chmap->max_channels = 6;
-	} else if (ca == AIF_3CH) {
-		chmap->channel_mask = (1U << 3);
-		chmap->max_channels = 3;
-	} else if (ca == AIF_2CH) {
-		chmap->channel_mask = (1U << 2);
-		chmap->max_channels = 2;
-	} else {
-		chmap->channel_mask = 0;
-		chmap->max_channels = 0;
-	}
 }
 
 static int earcrx_get_ca(struct snd_kcontrol *kcontrol,
@@ -1867,94 +1820,49 @@ static int earcrx_get_ca(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int earctx_get_chmap(struct snd_kcontrol *kcontrol,
+static int earctx_get_ca(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
-	struct earc *p_earc = info->private_data;
-	struct snd_pcm_chmap *chmap;
-	enum audio_coding_types coding_type;
-	int ca;
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
 
-	if (!p_earc || IS_ERR(p_earc->tx_top_map))
-		goto err_chmap;
-
-	chmap = p_earc->tx_chmap;
-	coding_type = p_earc->tx_audio_coding_type;
-
-	/* Not in runtime, only show what's set. */
-	if (!p_earc->tx_dmac_clk_on) {
-		ca = p_earc->tx_cs_lpcm_ca;
-		goto show_chmap;
+	if (!p_earc || IS_ERR(p_earc->tx_top_map)) {
+		ucontrol->value.integer.value[0] = 0xff;
+		return 0;
 	}
 
-	if (support_chmap(coding_type))
-		ca = p_earc->tx_cs_lpcm_ca;
+	if (support_chmap(p_earc->tx_audio_coding_type))
+		ucontrol->value.integer.value[0] = p_earc->tx_cs_lpcm_ca;
 	else
-		ca = 0;
-
-show_chmap:
-	convert_ca2chmap(ca, chmap);
-
-	return 0;
-
-/* no chmap is found */
-err_chmap:
+		ucontrol->value.integer.value[0] = 0xff;
 
 	return 0;
 }
 
-static int earctx_set_chmap(struct snd_kcontrol *kcontrol,
+static int earctx_set_ca(struct snd_kcontrol *kcontrol,
 			    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
-	struct earc *p_earc = info->private_data;
-	enum audio_coding_types coding_type;
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
 	int ca = ucontrol->value.integer.value[0];
 
 	if (!p_earc || IS_ERR(p_earc->tx_top_map))
 		return 0;
 
-	if (!support_ca(ca))
+	if (ca >= 0x32)
 		return -EINVAL;
 
-	coding_type = p_earc->tx_audio_coding_type;
 	p_earc->tx_cs_lpcm_ca = ca;
 
 	if (!p_earc->tx_dmac_clk_on)
 		return 0;
 
-	if (!support_chmap(coding_type))
+	if (!support_chmap(p_earc->tx_audio_coding_type))
 		ca = 0;
 
 	/* runtime, update to channel status */
 	earctx_set_cs_ca(p_earc->tx_dmac_map, ca);
 
-	return 0;
-}
-
-static int earc_pcm_add_chmap_ctls(struct earc *p_earc, struct snd_pcm *pcm)
-{
-	struct snd_kcontrol *kctl;
-	int ret = 0;
-
-	/* TX Channel Map */
-	if (!IS_ERR(p_earc->tx_top_map)) {
-		ret = snd_pcm_add_chmap_ctls(pcm,
-					     SNDRV_PCM_STREAM_PLAYBACK,
-					     snd_pcm_chmaps, 8, 0,
-					     &p_earc->tx_chmap);
-		if (ret < 0)
-			return ret;
-
-		p_earc->tx_chmap->private_data = p_earc;
-		kctl = p_earc->tx_chmap->kctl;
-		kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_READWRITE;
-		kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE;
-		kctl->get = earctx_get_chmap;
-		kctl->put = earctx_set_chmap;
-		memcpy(kctl->id.name, TX_CHMAP, strlen(TX_CHMAP));
-	}
 	return 0;
 }
 
@@ -2009,6 +1917,11 @@ static const struct snd_kcontrol_new earc_controls[] = {
 			  earcrx_get_ca,
 			  NULL),
 
+	SND_SOC_BYTES_EXT("eARC_TX Channel Allocation",
+			  1,
+			  earctx_get_ca,
+			  earctx_set_ca),
+
 	SOC_SINGLE_BOOL_EXT("eARC_RX CS Mute",
 			    0,
 			    earcrx_get_mute,
@@ -2042,7 +1955,6 @@ static const struct snd_kcontrol_new earc_controls[] = {
 static const struct snd_soc_component_driver earc_component = {
 	.controls       = earc_controls,
 	.ops = &earc_ops,
-	.pcm_new = earc_new,
 	.num_controls   = ARRAY_SIZE(earc_controls),
 	.name		= DRV_NAME,
 };
