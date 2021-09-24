@@ -5028,6 +5028,10 @@ static __maybe_unused int dtv_demod_pm_suspend(struct device *dev)
 
 	ret = dtvdemod_leave_mode(devp);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ADC
+	adc_pll_down();
+#endif
+
 	PR_INFO("%s ret %d, OK.\n", __func__, ret);
 
 	return 0;
