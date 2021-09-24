@@ -222,7 +222,7 @@
 		fe0_tuner0 = <0>; /* use tuner0 */
 
 		fe1_demod = "internal";
-		fe1_tuner0 = <0>; /* use tuner1 */
+		fe1_tuner0 = <1>; /* use tuner1 */
 
 		fe2_demod = "cxd2856";
 		fe2_i2c_adap_id = <&i2c4>;
