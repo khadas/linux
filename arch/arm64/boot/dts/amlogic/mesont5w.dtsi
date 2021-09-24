@@ -32,7 +32,7 @@
 //				"high_freq_clk_parent";
 //			operating-points-v2 = <&cpu_opp_table0>;
 //			cpu-supply = <&vddcpu0>;
-//			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			dynamic-power-coefficient = <80>;
@@ -52,7 +52,7 @@
 //				"high_freq_clk_parent";
 //			operating-points-v2 = <&cpu_opp_table0>;
 //			cpu-supply = <&vddcpu0>;
-//			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			dynamic-power-coefficient = <80>;
@@ -72,7 +72,7 @@
 //				"high_freq_clk_parent";
 //			operating-points-v2 = <&cpu_opp_table0>;
 //			cpu-supply = <&vddcpu0>;
-//			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			dynamic-power-coefficient = <80>;
@@ -92,7 +92,7 @@
 //				"high_freq_clk_parent";
 //			operating-points-v2 = <&cpu_opp_table0>;
 //			cpu-supply = <&vddcpu0>;
-//			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
 			dynamic-power-coefficient = <80>;
