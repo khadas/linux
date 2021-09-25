@@ -1177,7 +1177,7 @@
 #define HHI_RX_PHY_MISC_STAT		(0x12 << 2)/*0x48*/
 #define HHI_RX_PHY_DCHD_STAT		(0x13 << 2)/*0x4c*/
 
-#define TMDS_CLK_MIN			(24000UL)
+#define TMDS_CLK_MIN			(15000UL)
 #define TMDS_CLK_MAX			(340000UL)
 
 /*

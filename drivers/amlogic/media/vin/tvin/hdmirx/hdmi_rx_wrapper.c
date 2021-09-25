@@ -1219,12 +1219,16 @@ static const struct freq_ref_s freq_ref[] = {
 	{0, 0,	0,	2688,	1520,	HDMI_2688_1520},
 	/* 4k2k mode */
 	{0,	0,	0,	3840,	2160,	HDMI_2160p24_16x9},
+	{0,	0,	0,	1920,	2160,	HDMI_2160p25_16x9},
 	{0,	0,	0,	4096,	2160,	HDMI_4096p24_256x135},
 	{0,	0,	0,	2560,	1440,	HDMI_2560_1440},
 	{0,	0,	1,	2560,	3488,	HDMI_2560_1440},
 	{0,	0,	2,	2560,	2986,	HDMI_2560_1440},
 	/* for AG-506 */
 	{0,	0,	0,	720,	483,	HDMI_480p60},
+	/* for NUC8BEK */
+	{0,	0,	0,	1920,	2160,	HDMI_1920x2160p60_16x9},
+	{0,	0,	0,	960,	540,	HDMI_960x540},
 };
 
 static bool fmt_vic_abnormal(void)
@@ -1563,6 +1567,12 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 	case HDMI_2560_1440:
 		fmt = TVIN_SIG_FMT_HDMI_1920X1200_00HZ;
 		break;
+	case HDMI_1920x2160p60_16x9:
+		fmt = TVIN_SIG_FMT_HDMI_1920X2160_60HZ;
+		break;
+	case HDMI_960x540:
+		fmt = TVIN_SIG_FMT_HDMI_960X540_60HZ;
+		break;
 	default:
 		break;
 	}
@@ -1741,6 +1751,8 @@ static int get_timing_fmt(void)
 		    freq_ref[i].cd420 != 0)
 			continue;
 		if (freq_ref[i].interlace != rx.pre.interlaced)
+			continue;
+		if (freq_ref[i].type_3d != rx.vs_info_details._3d_structure)
 			continue;
 		break;
 	}
