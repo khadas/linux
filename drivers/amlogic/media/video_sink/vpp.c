@@ -4508,10 +4508,20 @@ RERTY:
 		local_input.crop_left = vf->pic_mode.hs;
 		local_input.crop_bottom = vf->pic_mode.ve;
 		local_input.crop_right = vf->pic_mode.he;
+
 	}
 
 	if (!local_input.pps_support)
 		wide_mode = VIDEO_WIDEOPTION_NORMAL;
+
+	if ((vf->flag & VFRAME_FLAG_COMPOSER_DONE) &&
+		(vf->flag & VFRAME_FLAG_FIX_TUNNEL)) {
+		wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
+		local_input.crop_top = vf->crop[0];
+		local_input.crop_left = vf->crop[1];
+		local_input.crop_bottom = vf->crop[2];
+		local_input.crop_right = vf->crop[3];
+	}
 
 	/* don't restore the wide mode */
 	/* input->wide_mode = wide_mode; */

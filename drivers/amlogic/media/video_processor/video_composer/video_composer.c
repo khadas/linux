@@ -1107,6 +1107,7 @@ static void vframe_composer(struct composer_dev *dev)
 	bool is_dec_vf = false, is_v4l_vf = false;
 	bool is_tvp = false;
 	bool need_dw = false;
+	bool is_fixtunnel = false;
 
 	do_gettimeofday(&begin_time);
 
@@ -1213,6 +1214,11 @@ static void vframe_composer(struct composer_dev *dev)
 		is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
 		if (vframe_info[i]->transform != 0 || count != 1)
 			need_dw = true;
+
+		if (vframe_info[vf_dev[i]]->source_type == DTV_FIX_TUNNEL) {
+			is_fixtunnel = true;
+		}
+
 		if (vframe_info[vf_dev[i]]->type == 1) {
 			if (is_dec_vf || is_v4l_vf) {
 				vc_print(dev->index, PRINT_OTHER,
@@ -1338,6 +1344,10 @@ static void vframe_composer(struct composer_dev *dev)
 	}
 	if (is_tvp)
 		dst_vf->flag |= VFRAME_FLAG_VIDEO_SECURE;
+
+	if (is_fixtunnel)
+		dst_vf->flag |= VFRAME_FLAG_FIX_TUNNEL;
+
 	if (debug_axis_pip) {
 		dst_vf->axis[0] = 0;
 		dst_vf->axis[1] = 0;
@@ -1389,6 +1399,7 @@ static void vframe_composer(struct composer_dev *dev)
 			 "%s: copy hdr info.\n", __func__);
 		dst_vf->src_fmt = scr_vf->src_fmt;
 		dst_vf->signal_type = scr_vf->signal_type;
+		dst_vf->source_type = scr_vf->source_type;
 	}
 
 	dst_vf->zorder = frames_info->disp_zorder;
@@ -1669,6 +1680,7 @@ static void video_composer_task(struct composer_dev *dev)
 				- frame_info->crop_w
 				- frame_info->crop_x;
 			if (frame_info->source_type == DTV_FIX_TUNNEL) {
+				vf->flag |= VFRAME_FLAG_FIX_TUNNEL;
 				vf->crop[0] = frame_info->crop_x;
 				vf->crop[1] = frame_info->crop_y;
 				vf->crop[2] = frame_info->crop_x +
