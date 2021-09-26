@@ -11477,9 +11477,9 @@ void osd_mali_afbc_start(u32 output_index)
 
 	osd_count = osd_hw.osd_meson_dev.osd_count;
 	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC) {
-		for (i = 0; i < osd_count; i++) {
-			static int afbc0_start;
+		int afbc0_start = 0;
 
+		for (i = 0; i < osd_count; i++) {
 			osd_reg = &hw_osd_reg_array[i];
 			if (osd_hw.osd_afbcd[i].afbc_start)
 				/* enable mali afbc */
