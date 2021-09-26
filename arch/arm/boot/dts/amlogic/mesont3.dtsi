@@ -958,6 +958,8 @@
 			tdmout_index = <1>;
 			tdmin_index = <1>;
 			dat0_ch_sel = <1>;
+			reset-names = "acodec";
+			resets = <&reset RESET_ACODEC>;
 
 			status = "okay";
 		};
