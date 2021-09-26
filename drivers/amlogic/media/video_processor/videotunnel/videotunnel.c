@@ -1023,11 +1023,13 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 	else
 		vt_debug(VT_DEBUG_CMD, "data:%d\n", cmd->cmd_data);
 
+	mutex_lock(&instance->lock);
 	wake_up_interruptible(&instance->wait_cmd);
 	if (instance->consumer) {
 		instance->consumer->cmd_status++;
 		wake_up_interruptible(&instance->consumer->wait_cmd);
 	}
+	mutex_unlock(&instance->lock);
 
 	return 0;
 }
@@ -1310,7 +1312,6 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 		 buffer, buffer->session_pro, instance->fcount);
 
 	kfifo_put(&instance->fifo_to_consumer, buffer);
-	mutex_unlock(&instance->lock);
 
 	if (instance->consumer) {
 		wake_up_interruptible(&instance->wait_consumer);
@@ -1318,6 +1319,7 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 		if (instance->consumer->mode == VT_MODE_GAME)
 			wake_up_interruptible(&instance->consumer->wait_consumer);
 	}
+	mutex_unlock(&instance->lock);
 
 	vt_debug(VT_DEBUG_BUFFERS,
 		 "vt [%d] queuebuffer pfd: %d, buffer(%p) buffer file(%p) timestamp(%lld), now(%lld)\n",
