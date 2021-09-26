@@ -265,6 +265,24 @@ retry:
 }
 EXPORT_SYMBOL(vfm_map_add);
 
+bool vf_check_node(const char *name)
+{
+	int i;
+	int j;
+	bool has_node = false;
+
+	for (i = 0; i < vfm_map_num; i++) {
+		for (j = 0; j < vfm_map[i]->vfm_map_size; j++) {
+			if (!strcmp(vfm_map[i]->name[j], name)) {
+				has_node = true;
+				break;
+			}
+		}
+	}
+	return has_node;
+}
+EXPORT_SYMBOL(vf_check_node);
+
 static char *vf_get_provider_name_inmap(int i, const char *receiver_name)
 {
 	int j;
