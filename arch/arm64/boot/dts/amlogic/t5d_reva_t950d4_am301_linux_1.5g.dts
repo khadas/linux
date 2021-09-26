@@ -589,7 +589,7 @@
 		 * bit8:use 8bit  at 4k_50/60hz_10bit
 		 * bit9:use 10bit at 4k_50/60hz_10bit
 		 */
-		tv_bit_mode = <0x215>;
+		tv_bit_mode = <0x235>;
 		/* afbce_bit_mode: (amlogic frame buff compression encoder)
 		 * bit0 -- enable afbce
 		 * bit1 -- enable afbce compression-lossy
