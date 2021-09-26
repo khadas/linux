@@ -7906,7 +7906,9 @@ SET_FILTER:
 	}
 
 	/* TODO: need check more vd layer, now only vd1 */
-	if (atomic_read(&vt_unreg_flag) && vd_layer[0].dispbuf) {
+	if (vd_layer[0].dispbuf &&
+		(atomic_read(&vt_unreg_flag) ||
+		vd_layer[0].dispbuf->flag & VFRAME_FLAG_KEEPED)) {
 		source_type = vd_layer[0].dispbuf->source_type;
 		/* TODO: change new flag to detect video tunnel path */
 		if (source_type == VFRAME_SOURCE_TYPE_HDMI ||
