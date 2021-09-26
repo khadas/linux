@@ -79,16 +79,26 @@ void metadatainit(struct scene2094metadata *metadata,
 		  struct hdr10_plus_sei_s *hdr10_plus_sei)
 {
 	int i;
+	int found99percentage = 0;
 
-	metadata->maxscenesourceluminance =
-		max(max(hdr10_plus_sei->maxscl[0][0],
-			hdr10_plus_sei->maxscl[0][1]),
-			hdr10_plus_sei->maxscl[0][2]) / 10;
+	for (i = 0; i < hdr10_plus_sei->num_distributions[0]; i++) {
+		if (hdr10_plus_sei->distribution_index[0][i] == 99)
+			found99percentage = 1;
+	}
 
 	/*hdmitx vsif block have no maxscl,we can choose distribution value[8]*/
-	if (!metadata->maxscenesourceluminance)
+	/*if (!metadata->maxscenesourceluminance)*/
+	/* from samsung sdk code, it used distribution first,*/
+	/* if no 99 percentage, it will select maxscl*/
+	if (found99percentage &&
+		hdr10_plus_sei->distribution_values[0][8] != 0)
 		metadata->maxscenesourceluminance =
 			hdr10_plus_sei->distribution_values[0][8] / 10;
+	else
+		metadata->maxscenesourceluminance =
+			max(max(hdr10_plus_sei->maxscl[0][0],
+				hdr10_plus_sei->maxscl[0][1]),
+				hdr10_plus_sei->maxscl[0][2]) / 10;
 
 	metadata->minluminance = MIN_LUMINANCE;
 	metadata->referenceluminance =
