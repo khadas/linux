@@ -580,6 +580,7 @@ static int tl1_acodec_reset(struct snd_soc_component *component)
 	if (tl1_acodec && !IS_ERR(tl1_acodec->rst)) {
 		pr_info("call standard reset interface\n");
 		reset_control_reset(tl1_acodec->rst);
+		usleep_range(950, 1000);
 	} else {
 		pr_info("no call standard reset interface\n");
 	}
@@ -601,6 +602,7 @@ static void tl1_acodec_release_fast_mode_work_func(struct work_struct *p_work)
 {
 	struct tl1_acodec_priv *aml_acodec;
 	struct snd_soc_component *component;
+	int i;
 
 	aml_acodec = container_of(p_work, struct tl1_acodec_priv, work);
 	if (!aml_acodec) {
@@ -616,12 +618,19 @@ static void tl1_acodec_release_fast_mode_work_func(struct work_struct *p_work)
 
 	pr_info("%s\n", __func__);
 	tl1_acodec_set_toacodec(aml_acodec);
-	/*reset audio codec register*/
-	tl1_acodec_reset(component);
-	snd_soc_component_write(component, ACODEC_0, 0xF000);
-	msleep(200);
-	snd_soc_component_write(component, ACODEC_0, 0xB000);
-	tl1_acodec_reg_init(component);
+	/*
+	 * reset audio codec register
+	 * after init, need do reset again.
+	 * only reset before init acodec, there is the
+	 * output phase difference of left and right channels.
+	 */
+	for (i = 0; i < 2; i++) {
+		tl1_acodec_reset(component);
+		snd_soc_component_write(component, ACODEC_0, 0xF000);
+		msleep(200);
+		snd_soc_component_write(component, ACODEC_0, 0xB000);
+		tl1_acodec_reg_init(component);
+	}
 
 	aml_acodec->component = component;
 	tl1_acodec_dai_set_bias_level(component, SND_SOC_BIAS_STANDBY);
