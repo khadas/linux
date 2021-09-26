@@ -534,7 +534,7 @@
 		 *if support 1080p-YUV422-8BIT-WR:1920*1080*2*4 ~= 16M
 		 *worst case:(4096*2160*4 + 2M(afbce issue)) *6buf = 214.5M
 		 */
-		cma_size = <50>;
+		cma_size = <80>;
 		frame_buff_num = <10>;
 		interrupts = <0 83 1>;
 		rdma-irq = <2>;
@@ -556,7 +556,7 @@
 		 * bit8:use 8bit  at 4k_50/60hz_10bit
 		 * bit9:use 10bit at 4k_50/60hz_10bit
 		 */
-		tv_bit_mode = <0x215>;
+		tv_bit_mode = <0x235>;
 		/* afbce_bit_mode: (amlogic frame buff compression encoder)
 		 * bit0 -- enable afbce
 		 * bit1 -- enable afbce compression-lossy
