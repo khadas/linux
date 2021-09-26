@@ -469,7 +469,7 @@ MODULE_PARM_DESC(dolby_vision_graphics_priority, "\n dolby_vision_graphics_prior
 /*1:HDR10, 2:HLG, 3: DV LL*/
 static int force_hdmin_fmt;
 
-static unsigned int atsc_sei;
+static unsigned int atsc_sei = 1;
 module_param(atsc_sei, uint, 0664);
 MODULE_PARM_DESC(atsc_sei, "\n atsc_sei\n");
 
@@ -7049,7 +7049,8 @@ int parse_sei_and_meta_ext(struct vframe_s *vf,
 	static int parse_process_count;
 	int dump_size = 100;
 
-	if (!aux_buf || aux_size == 0)
+	if (!aux_buf || aux_size == 0 || !fmt || !md_buf || !comp_buf ||
+	    !total_comp_size || !total_md_size || !ret_flags)
 		return 1;
 
 	parse_process_count++;
@@ -7272,11 +7273,12 @@ int parse_sei_and_meta_ext(struct vframe_s *vf,
 		}
 		p += size;
 	}
-	if (atsc_sei) {
+	/*continue to check atsc/dvb dv*/
+	if (atsc_sei && *src_format != FORMAT_DOVI) {
 		struct dv_vui_parameters vui_param;
-		u32 len_2086_sei = 0;
+		static u32 len_2086_sei;
 		u32 len_2094_sei = 0;
-		u8 payload_2086_sei[MAX_LEN_2086_SEI];
+		static u8 payload_2086_sei[MAX_LEN_2086_SEI];
 		u8 payload_2094_sei[MAX_LEN_2094_SEI];
 		unsigned char nal_type;
 		unsigned char sei_payload_type = 0;
@@ -7503,6 +7505,8 @@ int parse_sei_and_meta_ext(struct vframe_s *vf,
 			spin_unlock_irqrestore(&dovi_lock, flags);
 			if (parser_overflow)
 				ret = 2;
+		} else {
+			len_2086_sei = 0;
 		}
 	}
 

@@ -10042,12 +10042,28 @@ EXPORT_SYMBOL(di_unreg_notify);
  *********************************************************/
 #define signal_color_primaries ((vf->signal_type >> 16) & 0xff)
 #define signal_transfer_characteristic ((vf->signal_type >> 8) & 0xff)
+#define PREFIX_SEI_NUT 39
+#define SUFFIX_SEI_NUT 40
+#define SEI_ITU_T_T35 4
+#define ATSC_T35_PROV_CODE    0x0031
+#define DVB_T35_PROV_CODE     0x003B
+#define ATSC_USER_ID_CODE     0x47413934
+#define DVB_USER_ID_CODE      0x00000000
+#define DM_MD_USER_TYPE_CODE  0x09
 
 static int check_media_sei(char *sei, u32 sei_size, u32 sei_type)
 {
 	int ret = 0;
 	char *p;
 	u32 type = 0, size;
+	unsigned char nal_type;
+	unsigned char sei_payload_type = 0;
+	unsigned char sei_payload_size = 0;
+	u32 len_2094_sei = 0;
+	u32 country_code;
+	u32 provider_code;
+	u32 user_id;
+	u32 user_type_code;
 
 	if (!sei || sei_size <= 8)
 		return ret;
@@ -10069,6 +10085,40 @@ static int check_media_sei(char *sei, u32 sei_size, u32 sei_type)
 			sei_type == (type & 0xffff0000))) {
 			ret = 1;
 			break;
+		} else if ((sei_type == DV_SEI) && type == HDR10P) {
+			/* check DVB/ATSC as DV */
+			if (p >= sei + sei_size - 12)
+				break;
+			nal_type = ((*p) & 0x7E) >> 1;
+			if (nal_type == PREFIX_SEI_NUT) {
+				sei_payload_type = *(p + 2);
+				sei_payload_size = *(p + 3);
+				if (sei_payload_type == SEI_ITU_T_T35 &&
+				    sei_payload_size >= 8) {
+					country_code = *(p + 4);
+					provider_code = (*(p + 5) << 8) |
+							*(p + 6);
+					user_id = (*(p + 7) << 24) |
+						(*(p + 8) << 16) |
+						(*(p + 9) << 8) |
+						(*(p + 10));
+					user_type_code = *(p + 11);
+					if (country_code == 0xB5 &&
+					    ((provider_code ==
+					    ATSC_T35_PROV_CODE &&
+					    user_id == ATSC_USER_ID_CODE) ||
+					    (provider_code ==
+					    DVB_T35_PROV_CODE &&
+					    user_id == DVB_USER_ID_CODE)) &&
+					    user_type_code ==
+					    DM_MD_USER_TYPE_CODE)
+						len_2094_sei = sei_payload_size;
+				}
+				if (len_2094_sei > 0) {
+					ret = 1;
+					break;
+				}
+			}
 		}
 		p += size;
 	}
