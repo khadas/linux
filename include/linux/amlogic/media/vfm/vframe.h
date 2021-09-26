@@ -109,6 +109,7 @@
 #define VFRAME_FLAG_KEEPED			0x1000000
 #define VFRAME_FLAG_THROUGH_VDETECT		0x2000000
 #define VFRAME_FLAG_DI_DW			0x4000000 /* di double write*/
+#define VFRAME_FLAG_FIX_TUNNEL			0x8000000 /*source fixtunnel*/
 #define VFRAME_FLAG_MIRROR_H                    0x10000000 /*mirror frame horizontally*/
 #define VFRAME_FLAG_MIRROR_V                    0x20000000 /*mirror frame vertically*/
 
