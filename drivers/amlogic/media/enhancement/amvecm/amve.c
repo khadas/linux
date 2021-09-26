@@ -2621,22 +2621,22 @@ void eye_proc(int *rgb, int mtx_on)
 	if (vinfo->mode == VMODE_LCD)
 		return;
 
-	matrix_coef00_01 = VPP_POST2_MATRIX_COEF00_01;
-	matrix_coef02_10 = VPP_POST2_MATRIX_COEF02_10;
-	matrix_coef11_12 = VPP_POST2_MATRIX_COEF11_12;
-	matrix_coef20_21 = VPP_POST2_MATRIX_COEF20_21;
-	matrix_coef22 = VPP_POST2_MATRIX_COEF22;
-	matrix_coef13_14 = VPP_POST2_MATRIX_COEF13_14;
-	matrix_coef23_24 = VPP_POST2_MATRIX_COEF23_24;
-	matrix_coef15_25 = VPP_POST2_MATRIX_COEF15_25;
-	matrix_clip = VPP_POST2_MATRIX_CLIP;
-	matrix_offset0_1 = VPP_POST2_MATRIX_OFFSET0_1;
-	matrix_offset2 = VPP_POST2_MATRIX_OFFSET2;
-	matrix_pre_offset0_1 = VPP_POST2_MATRIX_PRE_OFFSET0_1;
-	matrix_pre_offset2 = VPP_POST2_MATRIX_PRE_OFFSET2;
-	matrix_en_ctrl = VPP_POST2_MATRIX_EN_CTRL;
+	matrix_coef00_01 = VPP_POST_MATRIX_COEF00_01;
+	matrix_coef02_10 = VPP_POST_MATRIX_COEF02_10;
+	matrix_coef11_12 = VPP_POST_MATRIX_COEF11_12;
+	matrix_coef20_21 = VPP_POST_MATRIX_COEF20_21;
+	matrix_coef22 = VPP_POST_MATRIX_COEF22;
+	matrix_coef13_14 = VPP_POST_MATRIX_COEF13_14;
+	matrix_coef23_24 = VPP_POST_MATRIX_COEF23_24;
+	matrix_coef15_25 = VPP_POST_MATRIX_COEF15_25;
+	matrix_clip = VPP_POST_MATRIX_CLIP;
+	matrix_offset0_1 = VPP_POST_MATRIX_OFFSET0_1;
+	matrix_offset2 = VPP_POST_MATRIX_OFFSET2;
+	matrix_pre_offset0_1 = VPP_POST_MATRIX_PRE_OFFSET0_1;
+	matrix_pre_offset2 = VPP_POST_MATRIX_PRE_OFFSET2;
+	matrix_en_ctrl = VPP_POST_MATRIX_EN_CTRL;
 
-	VSYNC_WRITE_VPP_REG_BITS(VPP_POST2_MATRIX_EN_CTRL, mtx_on, 0, 1);
+	VSYNC_WRITE_VPP_REG_BITS(VPP_POST_MATRIX_EN_CTRL, mtx_on, 0, 1);
 
 	if (!mtx_on)
 		return;
