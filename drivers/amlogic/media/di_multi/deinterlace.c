@@ -5336,12 +5336,10 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 					break;
 				provider_name = tmp_name;
 			}
+
+			memset(&req, 0, sizeof(struct provider_aux_req_s));
 			if (provider_name) {
 				req.vf = vframe;
-				req.bot_flag = 0;
-				req.aux_buf = NULL;
-				req.aux_size = 0;
-				req.dv_enhance_exist = 0;
 				vf_notify_provider_by_name(provider_name,
 					VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
 					(void *)&req);
