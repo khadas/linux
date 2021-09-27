@@ -314,5 +314,6 @@ void vdin_dolby_de_tunnel_to_44410bit(struct vdin_dev_s *devp,
 void vdin_dolby_desc_to_4448bit(struct vdin_dev_s *devp,
 			       unsigned int onoff);
 void vdin_get_duration_by_fps(struct vdin_dev_s *devp);
+void vdin_set_to_vpp_parm(struct vdin_dev_s *devp);
 #endif
 

@@ -350,6 +350,15 @@ enum tvin_scan_mode_e {
 	TVIN_SCAN_MODE_INTERLACED,
 };
 
+struct tvin_to_vpp_info_s {
+	u32 is_dv;
+	enum tvin_scan_mode_e scan_mode;
+	unsigned int fps;
+	unsigned int width;
+	unsigned int height;
+	enum tvin_color_fmt_e cfmt;
+};
+
 struct tvin_info_s {
 	enum tvin_trans_fmt trans_fmt;
 	enum tvin_sig_fmt_e fmt;

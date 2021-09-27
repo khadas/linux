@@ -845,6 +845,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 
 	/* reverse/non-reverse write buffer */
 	vdin_wr_reverse(devp->addr_offset, devp->parm.h_reverse, devp->parm.v_reverse);
+	vdin_set_to_vpp_parm(devp);
 
 #ifdef CONFIG_CMA
 	vdin_cma_malloc_mode(devp);

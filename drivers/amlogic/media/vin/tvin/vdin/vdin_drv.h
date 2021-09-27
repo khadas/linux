@@ -451,6 +451,7 @@ struct vdin_dev_s {
 	struct vdin_dv_s dv;
 	struct delayed_work vlock_dwork;
 	struct vdin_afbce_s *afbce_info;
+	struct tvin_to_vpp_info_s vdin2vpp_info;
 	/*vdin event*/
 	struct vdin_event_info event_info;
 	struct vdin_event_info pre_event_info;
