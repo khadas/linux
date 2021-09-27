@@ -98,6 +98,7 @@ static unsigned int pre_output_freq;
 static unsigned int vlock_dis_cnt;
 static bool vlock_vmode_changed;
 static unsigned int vlock_notify_event = VOUT_EVENT_MODE_CHANGE;
+static unsigned int vlock_input_pre;
 //static unsigned int pre_hiu_reg_m;
 //static unsigned int pre_hiu_reg_frac;
 //static signed int pre_enc_max_line;
@@ -2298,6 +2299,19 @@ u32 vlock_fsm_check_support(struct stvlock_sig_sts *pvlock,
 	return ret;
 }
 
+void vlock_vmd_input_check(struct stvlock_sig_sts *pvlock)
+{
+	if (vlock_input_pre != pvlock->input_hz) {
+		pvlock->fsm_sts = VLOCK_STATE_DISABLE_STEP1_DONE;
+		pvlock->vmd_chg = true;
+
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info("vlock input frame rate chg fsm_prests:%d fsm_sts:%d\n",
+				pvlock->fsm_prests, pvlock->fsm_sts);
+	}
+	vlock_input_pre = pvlock->input_hz;
+}
+
 u32 vlock_fsm_input_check(struct stvlock_sig_sts *pvlock, struct vframe_s *vf)
 {
 	u32 ret = 0;
@@ -2676,6 +2690,7 @@ void vlock_fsm_monitor(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 		return;
 
 	changed = vlock_fsm_input_check(pvlock, vf);
+	vlock_vmd_input_check(pvlock);
 	switch (pvlock->fsm_sts) {
 	case VLOCK_STATE_NULL:
 		if (pvlock->vf_sts) {
