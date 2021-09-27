@@ -3369,6 +3369,7 @@ void rx_set_aud_output_t7(u32 param);
 void rx_sw_reset_t7(int level);
 void aml_phy_get_trim_val_t7(void);
 void rx_hdcp_22_sent_reauth(void);
+void rx_hdcp_14_sent_reauth(void);
 u32 rx_get_ecc_err(void);
 u32 rx_get_ecc_pkt_cnt(void);
 void hdmirx_output_en(bool en);

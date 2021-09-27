@@ -3093,18 +3093,19 @@ void rx_hdcp_monitor(void)
 {
 	if (rx.chip_id < CHIP_ID_T7)
 		return;
-	if (rx.cur.hdcp22_state & 1 &&
+	if (rx.hdcp.hdcp_version != HDCP_VER_NONE &&
 		rx.state == FSM_SIG_READY) {
 		if (rx.ecc_err_frames_cnt >= rx_ecc_err_frames) {
-			if (hdcp22_reauth_enable) {
-				skip_frame(5);
+			skip_frame(5);
+			if (rx.hdcp.hdcp_version == HDCP_VER_22)
 				rx_hdcp_22_sent_reauth();
-				rx_pr("reauth-err:%d\n", rx.ecc_err);
-				if (rx.state >= FSM_SIG_STABLE)
-					rx.state = FSM_SIG_WAIT_STABLE;
-				rx.ecc_err = 0;
-				rx.ecc_err_frames_cnt = 0;
-			}
+			else if (rx.hdcp.hdcp_version == HDCP_VER_14)
+				rx_hdcp_14_sent_reauth();
+			rx_pr("reauth-err:%d\n", rx.ecc_err);
+			if (rx.state >= FSM_SIG_STABLE)
+				rx.state = FSM_SIG_WAIT_STABLE;
+			rx.ecc_err = 0;
+			rx.ecc_err_frames_cnt = 0;
 		}
 	}
 }
@@ -5732,3 +5733,9 @@ void rx_hdcp_22_sent_reauth(void)
 	//hdmirx_wr_cor(RX_ECC_CTRL_DP2_IVCRX, 3);
 	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x80);
 }
+
+void rx_hdcp_14_sent_reauth(void)
+{
+	hdmirx_wr_cor(RX_HDCP_DEBUG_HDCP1X_IVCRX, 0x80);
+}
+
