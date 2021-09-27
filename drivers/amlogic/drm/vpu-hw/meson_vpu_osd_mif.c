@@ -437,58 +437,6 @@ static void osd_afbc_config(struct osd_mif_reg_s *reg,
 	osd_mem_mode(reg, afbc_en);
 }
 
-u8 *meson_drm_vmap(ulong addr, u32 size, bool *bflg)
-{
-	u8 *vaddr = NULL;
-	ulong phys = addr;
-	u32 offset = phys & ~PAGE_MASK;
-	u32 npages = PAGE_ALIGN(size) / PAGE_SIZE;
-	struct page **pages = NULL;
-	pgprot_t pgprot;
-	int i;
-
-	if (!PageHighMem(phys_to_page(phys)))
-		return phys_to_virt(phys);
-
-	if (offset)
-		npages++;
-
-	pages = vmalloc(sizeof(struct page *) * npages);
-	if (!pages)
-		return NULL;
-
-	for (i = 0; i < npages; i++) {
-		pages[i] = phys_to_page(phys);
-		phys += PAGE_SIZE;
-	}
-
-	/*nocache*/
-	pgprot = pgprot_writecombine(PAGE_KERNEL);
-
-	vaddr = vmap(pages, npages, VM_MAP, pgprot);
-	if (!vaddr) {
-		pr_err("the phy(%lx) vmaped fail, size: %d\n",
-		       addr - offset, npages << PAGE_SHIFT);
-		vfree(pages);
-		return NULL;
-	}
-
-	vfree(pages);
-
-	DRM_DEBUG("map high mem pa(%lx) to va(%p), size: %d\n",
-		  addr, vaddr + offset, npages << PAGE_SHIFT);
-	*bflg = true;
-
-	return vaddr + offset;
-}
-
-void meson_drm_unmap_phyaddr(u8 *vaddr)
-{
-	void *addr = (void *)(PAGE_MASK & (ulong)vaddr);
-
-	vunmap(addr);
-}
-
 static int osd_check_state(struct meson_vpu_block *vblk,
 			   struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps)
@@ -528,10 +476,6 @@ static int osd_check_state(struct meson_vpu_block *vblk,
 static void osd_set_state(struct meson_vpu_block *vblk,
 			  struct meson_vpu_block_state *state)
 {
-	struct file *fp;
-	mm_segment_t fs;
-	loff_t pos;
-	char name_buf[64];
 	struct drm_crtc *crtc;
 	struct am_meson_crtc *amc;
 	struct meson_vpu_osd *osd;
@@ -540,8 +484,6 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	struct osd_scope_s scope_src = {0, 1919, 0, 1079};
 	struct osd_mif_reg_s *reg;
 	bool alpha_div_en = 0, reverse_x, reverse_y, afbc_en;
-	bool bflg = false;
-	void *buff = NULL;
 	u64 phy_addr;
 	u16 global_alpha = 256; /*range 0~256*/
 
@@ -612,34 +554,6 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 		  scope_src.h_start, scope_src.h_end,
 		scope_src.v_start, scope_src.v_end);
 	DRM_DEBUG("%s set_state done.\n", osd->base.name);
-
-	if (amc->dump_enable) {
-		DRM_DEBUG("start to dump gem buff %d.\n", amc->dump_index);
-		memset(name_buf, 0, sizeof(name_buf));
-		amc->dump_index %= amc->dump_counts;
-		snprintf(name_buf, sizeof(name_buf), "%s/plane%d.dump.%d",
-			 amc->osddump_path, mvos->plane_index,
-					amc->dump_index++);
-
-		if (amc->dump_index >= amc->dump_counts)
-			amc->dump_index = 0;
-
-		fs = get_fs();
-		set_fs(KERNEL_DS);
-		pos = 0;
-		fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
-		if (IS_ERR(fp)) {
-			DRM_ERROR("create %s osd_dump fail.\n", name_buf);
-		} else {
-			buff = meson_drm_vmap(phy_addr, mvos->fb_size, &bflg);
-			vfs_write(fp, buff, mvos->fb_size, &pos);
-			filp_close(fp, NULL);
-		}
-		set_fs(fs);
-		DRM_DEBUG("low_mem: %d.\n", bflg);
-		if (bflg)
-			meson_drm_unmap_phyaddr(buff);
-	}
 }
 
 static void osd_hw_enable(struct meson_vpu_block *vblk)
