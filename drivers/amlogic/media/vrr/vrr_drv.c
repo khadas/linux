@@ -43,19 +43,34 @@ static struct vrr_cdev_s *vrr_cdev;
 static unsigned char vrr_global_init_flag;
 static unsigned int vrr_drv_init_state;
 static struct aml_vrr_drv_s *vrr_drv[VRR_MAX_DRV];
+static struct mutex vrr_mutex;
 
 static unsigned int vrr_debug_print;
 
 static int vrr_config_load(struct aml_vrr_drv_s *vdrv,
 			   struct platform_device *pdev)
 {
+	unsigned int temp;
+	int ret;
+
+	ret = of_property_read_u32(pdev->dev.of_node, "line_delay", &temp);
+	if (ret) {
+		VRRPR("[%d]: %s: can't find line_delay\n",
+		      vdrv->index, __func__);
+		vdrv->line_dly = 150;
+	} else {
+		vdrv->line_dly = temp;
+	}
+	VRRPR("[%d]: %s: line_delay: %d\n",
+	      vdrv->index, __func__, vdrv->line_dly);
+
 	return 0;
 }
 
 static void vrr_lcd_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 {
 	unsigned int vsp_in, vsp_sel;
-	unsigned int v_max, v_min;
+	unsigned int line_dly, v_max, v_min;
 	unsigned int offset = 0;
 
 	if (!vdrv->vrr_dev) {
@@ -68,6 +83,7 @@ static void vrr_lcd_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 	offset = vdrv->data->offset[vdrv->index];
 	v_max = vdrv->vrr_dev->vmax;
 	v_min = vdrv->vrr_dev->vmin;
+	line_dly = vdrv->line_dly;
 
 	if (mode) {
 		vsp_in = 2;  //gpu source
@@ -81,7 +97,7 @@ static void vrr_lcd_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 
 	//vrr setting
 	vrr_reg_write((VENC_VRR_CTRL + offset),
-			(10 << 8) | //cfg_vsp_dly_num (pixel clock) number
+			(line_dly << 8) | //cfg_vsp_dly_num number
 			(0 << 4) |  //cfg_vrr_frm_ths frame delay number
 			//cfg_vrr_vsp_en  bit[2]=hdmi_in, bit[3]=gpu_in
 			(vsp_in << 2) |
@@ -105,7 +121,7 @@ static void vrr_lcd_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 static void vrr_hdmi_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 {
 	unsigned int vsp_in, vsp_sel;
-	unsigned int v_max, v_min;
+	unsigned int line_dly, v_max, v_min;
 	unsigned int offset = 0;
 
 	if (!vdrv->vrr_dev) {
@@ -118,6 +134,7 @@ static void vrr_hdmi_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 	offset = vdrv->data->offset[vdrv->index];
 	v_max = vdrv->vrr_dev->vmax;
 	v_min = vdrv->vrr_dev->vmin;
+	line_dly = vdrv->line_dly;
 
 	if (mode) {
 		vsp_in = 2;  //gpu source
@@ -131,7 +148,7 @@ static void vrr_hdmi_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 
 	//vrr setting
 	vrr_reg_write(VENP_VRR_CTRL + offset,
-			(10 << 8) | //cfg_vsp_dly_num (pixel clock) number
+			(line_dly << 8) | //cfg_vsp_dly_num number
 			(0 << 4) |  //cfg_vrr_frm_ths frame delay number
 			//cfg_vrr_vsp_en  bit[2]=hdmi_in, bit[3]=gpu_in
 			(vsp_in << 2) |
@@ -150,6 +167,37 @@ static void vrr_hdmi_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 		      vrr_reg_read(VENP_VRR_ADJ_LMT + offset));
 	}
 	VRRPR("[%d]: %s: state = 0x%x\n", vdrv->index, __func__, vdrv->state);
+}
+
+static void vrr_line_delay_update(struct aml_vrr_drv_s *vdrv)
+{
+	unsigned int reg, temp, offset = 0;
+
+	if (!vdrv->vrr_dev) {
+		VRRERR("[%d]: %s: no vrr_dev\n", vdrv->index, __func__);
+		return;
+	}
+
+	offset = vdrv->data->offset[vdrv->index];
+	switch (vdrv->vrr_dev->output_src) {
+	case VRR_OUTPUT_ENCP:
+		reg = VENP_VRR_CTRL + offset;
+		break;
+	case VRR_OUTPUT_ENCL:
+		reg = VENC_VRR_CTRL + offset;
+		break;
+	default:
+		VRRERR("[%d]: %s: invalid output_src\n", vdrv->index, __func__);
+		return;
+	}
+
+	temp = vrr_reg_getb(reg + offset, 8, 16);
+	if (temp == vdrv->line_dly)
+		return;
+
+	vrr_reg_setb(reg, vdrv->line_dly, 8, 16);
+	VRRPR("[%d]: %s: %d->%d\n",
+	      vdrv->index, __func__, temp, vdrv->line_dly);
 }
 
 static void vrr_work_disable(struct aml_vrr_drv_s *vdrv)
@@ -190,7 +238,7 @@ static void vrr_timer_handler(struct timer_list *timer)
 
 	vrr_set_venc_vspin(vdrv);
 	if (vrr_debug_print & VRR_DBG_PR_ISR)
-		VRRPR("%s\n", __func__);
+		VRRPR("[%d]: %s\n", vdrv->index, __func__);
 
 	vrr_timert_start(vdrv);
 }
@@ -323,7 +371,10 @@ static int vrr_func_init(struct aml_vrr_drv_s *vdrv)
 //===========================================================================
 static const char *vrr_debug_usage_str = {
 "Usage:\n"
-"    cat status ; dump vrr status\n"
+"    cat /sys/class/aml_vrr/vrrx/status ; dump vrr status\n"
+"    echo en <val> >/sys/class/aml_vrr/vrrx/debug ; enable/disable vrr\n"
+"    echo line_dly <val> >/sys/class/aml_vrr/vrrx/debug ; set vrr lock line_dly\n"
+"\n"
 };
 
 static ssize_t vrr_debug_help(struct device *dev,
@@ -354,6 +405,9 @@ static ssize_t vrr_status_show(struct device *dev,
 		len += sprintf(buf + len, "dev->vmin:       %d\n",
 				vdrv->vrr_dev->vmin);
 	}
+	len += sprintf(buf + len, "line_dly:        %d\n", vdrv->line_dly);
+	len += sprintf(buf + len, "state:           0x%x\n", vdrv->state);
+	len += sprintf(buf + len, "enable:          0x%x\n", vdrv->enable);
 
 	/** vrr reg info **/
 	len += sprintf(buf + len, "VENC_VRR_CTRL: 0x%x\n",
@@ -390,7 +444,9 @@ static ssize_t vrr_debug_store(struct device *dev,
 	case 'e': /* en */
 		ret = sscanf(buf, "en %d", &temp);
 		if (ret == 1) {
+			mutex_lock(&vrr_mutex);
 			vrr_func_en(vdrv, temp);
+			mutex_unlock(&vrr_mutex);
 		} else {
 			VRRERR("invalid data\n");
 			return -EINVAL;
@@ -399,7 +455,9 @@ static ssize_t vrr_debug_store(struct device *dev,
 	case 't': /* test */
 		ret = sscanf(buf, "test %d", &temp);
 		if (ret == 1) {
+			mutex_lock(&vrr_mutex);
 			vrr_test_en(vdrv, temp);
+			mutex_unlock(&vrr_mutex);
 		} else {
 			VRRERR("invalid data\n");
 			return -EINVAL;
@@ -409,13 +467,23 @@ static ssize_t vrr_debug_store(struct device *dev,
 		ret = sscanf(buf, "print %x", &temp);
 		if (ret == 1)
 			vrr_debug_print = temp;
-		VRRPR("vrr_debug_print: 0x%x\n", temp);
+		VRRPR("[%d]: vrr_debug_print: 0x%x\n", vdrv->index, temp);
+		break;
+	case 'l':
+		ret = sscanf(buf, "line_dly %d", &temp);
+		if (ret == 1) {
+			mutex_lock(&vrr_mutex);
+			vdrv->line_dly = temp;
+			vrr_line_delay_update(vdrv);
+			mutex_unlock(&vrr_mutex);
+		}
+		VRRPR("[%d]: line_dly: %d\n", vdrv->index, vdrv->line_dly);
 		break;
 	case 'c':
 		ret = sscanf(buf, "cnt %d", &temp);
 		if (ret == 1)
 			vdrv->sw_timer_cnt = temp;
-		VRRPR("sw_timer_cnt: %d\n", temp);
+		VRRPR("[%d]: sw_timer_cnt: %d\n", vdrv->index, temp);
 		break;
 	default:
 		VRRERR("wrong command\n");
@@ -538,7 +606,48 @@ static int vrr_io_release(struct inode *inode, struct file *file)
 
 static long vrr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	return 0;
+	struct aml_vrr_drv_s *vdrv;
+	void __user *argp;
+	unsigned int mcd_nr, temp;
+	int ret = 0;
+
+	vdrv = (struct aml_vrr_drv_s *)file->private_data;
+	if (!vdrv)
+		return -EFAULT;
+
+	mutex_lock(&vrr_mutex);
+	mcd_nr = _IOC_NR(cmd);
+	VRRPR("[%d]: %s: cmd_dir = 0x%x, cmd_nr = 0x%x\n",
+	      vdrv->index, __func__, _IOC_DIR(cmd), mcd_nr);
+
+	argp = (void __user *)arg;
+	switch (mcd_nr) {
+	case VRR_IOC_GET_CAP:
+		if (!vdrv->vrr_dev) {
+			VRRERR("[%d]: %s: invalid vrr_dev\n",
+			       vdrv->index, __func__);
+			temp = 0;
+		} else {
+			temp = vdrv->vrr_dev->enable;
+		}
+		if (copy_to_user(argp, &temp, sizeof(unsigned int)))
+			ret = -EFAULT;
+		break;
+	case VRR_IOC_ENABLE:
+		vrr_func_en(vdrv, 1);
+		break;
+	case VRR_IOC_DISABLE:
+		vrr_func_en(vdrv, 0);
+		break;
+	default:
+		VRRERR("[%d]: not support ioctl cmd_nr: 0x%x\n",
+		       vdrv->index, mcd_nr);
+		ret = -EINVAL;
+		break;
+	}
+	mutex_unlock(&vrr_mutex);
+
+	return ret;
 }
 
 #ifdef CONFIG_COMPAT
@@ -625,6 +734,8 @@ static int vrr_global_init_once(void)
 		return 0;
 	}
 	vrr_global_init_flag++;
+
+	mutex_init(&vrr_mutex);
 
 	vrr_cdev = kzalloc(sizeof(*vrr_cdev), GFP_KERNEL);
 	if (!vrr_cdev)
@@ -813,7 +924,7 @@ static int vrr_suspend(struct platform_device *pdev, pm_message_t state)
 	if (vdrv->sw_timer_flag) {
 		vrr_timer_stop(vdrv);
 		vdrv->sw_timer_flag = 0;
-		VRRPR("%s: stop sw_timer\n", __func__);
+		VRRPR("[%d]: %s: stop sw_timer\n", vdrv->index, __func__);
 	}
 	vrr_work_disable(vdrv);
 	return 0;
@@ -826,7 +937,7 @@ static void vrr_shutdown(struct platform_device *pdev)
 	if (vdrv->sw_timer_flag) {
 		vrr_timer_stop(vdrv);
 		vdrv->sw_timer_flag = 0;
-		VRRPR("%s: stop sw_timer\n", __func__);
+		VRRPR("[%d]: %s: stop sw_timer\n", vdrv->index, __func__);
 	}
 	vrr_work_disable(vdrv);
 }

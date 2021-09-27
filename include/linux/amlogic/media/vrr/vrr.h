@@ -35,6 +35,20 @@ struct vrr_notifier_data_s {
 	unsigned int target_duration_den;
 };
 
+/* **********************************
+ * IOCTL define
+ * **********************************
+ */
+#define VRR_IOC_TYPE           'V'
+#define VRR_IOC_GET_CAP        0x0
+#define VRR_IOC_ENABLE         0x1
+#define VRR_IOC_DISABLE        0x2
+
+#define VRR_IOC_CMD_GET_CAP   _IOR(VRR_IOC_TYPE, VRR_IOC_GET_CAP, unsigned int)
+#define VRR_IOC_CMD_ENABLE    _IO(VRR_IOC_TYPE, VRR_IOC_ENABLE)
+#define VRR_IOC_CMD_DISABLE   _IO(VRR_IOC_TYPE, VRR_IOC_DISABLE)
+
+/* ************************************************************* */
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 int aml_vrr_register_device(struct vrr_device_s *vrr_dev, int index);
 int aml_vrr_unregister_device(int index);
