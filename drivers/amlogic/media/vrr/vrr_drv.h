@@ -41,6 +41,7 @@ struct aml_vrr_drv_s {
 	unsigned int index;
 	unsigned int state;
 	unsigned int enable;
+	unsigned int line_dly;
 	unsigned int sw_timer_cnt;
 	unsigned int sw_timer_flag;
 

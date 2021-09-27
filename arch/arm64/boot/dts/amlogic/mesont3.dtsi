@@ -1340,6 +1340,7 @@
 		compatible = "amlogic, vrr-t3";
 		status = "okay";
 		index = <0>;
+		line_delay = <150>;
 	};
 
 	canvas: canvas {
