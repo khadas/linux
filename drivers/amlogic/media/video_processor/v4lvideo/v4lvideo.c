@@ -859,7 +859,9 @@ free:
 		vfree(planes[i]);
 }
 
-void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
+void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
+				struct dma_buf *dmabuf,
+				u32 align)
 {
 	struct uvm_hook_mod *uhmod = NULL;
 	struct config_para_ex_s ge2d_config;
@@ -868,47 +870,67 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 	const char *keep_owner = "ge2d_dest_comp";
 	bool di_mode = false;
 	bool is_10bit = false;
+	bool is_dec_vf = false;
+	u32 aligned_height = 0;
 	struct file_private_data *file_private_data = NULL;
 
-	if (!dmabuf) {
-		file_private_data = v4l_data->file_private_data;
-	} else {
-		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
-		if (uhmod && uhmod->arg) {
-			file_private_data = uhmod->arg;
-			uvm_put_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
-		}
-	}
-	pr_info("%s: uhmod: %p\n", __func__, uhmod);
-	if (!file_private_data) {
-		pr_err("file_private_data is NULL\n");
-		return;
-	}
+	is_dec_vf = is_valid_mod_type(dmabuf, VF_SRC_DECODER);
 
-	if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR)
-		vf = &file_private_data->vf_ext;
-	else
-		vf = &file_private_data->vf;
-	if (cts_use_di)
-		vf = &file_private_data->vf;
-
-	if (is_valid_mod_type(dmabuf, VF_SRC_DECODER))
+	if (is_dec_vf) {
 		vf = dmabuf_get_vframe(dmabuf);
-	else
+		pr_debug("vf=%p vf->vf_ext:%p vf->flags:%d\n",
+				vf, vf->vf_ext, vf->flag);
+		if (vf->vf_ext &&
+				(vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
+			vf = vf->vf_ext;
+			pr_debug("get vf_ext\n");
+		}
+		dmabuf_put_vframe(dmabuf);
+	} else {
+		if (!dmabuf) {
+			file_private_data = v4l_data->file_private_data;
+		} else {
+			uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
+			if (uhmod && uhmod->arg) {
+				file_private_data = uhmod->arg;
+				uvm_put_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
+			}
+		}
+		pr_debug("%s: uhmod: %p\n", __func__, uhmod);
+		if (!file_private_data) {
+			pr_err("file_private_data is NULL\n");
+			return;
+		}
+
+		if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR)
+			vf = &file_private_data->vf_ext;
+		else
+			vf = &file_private_data->vf;
+		if (cts_use_di)
+			vf = &file_private_data->vf;
+
 		v4l_data->file_private_data = file_private_data;
+	}
+
 
 	if (!vf) {
 		pr_err("vf is NULL\n");
 		return;
 	}
 
-	pr_info("%s: vf->type: %d vf->compWidth: %d\n",
+	pr_debug("%s: vf->type: %d vf->compWidth: %d\n",
 			__func__, vf->type, vf->compWidth);
 
+	/*
+	 * fbc decoder for VIDTYPE_COMPRESS
+	 */
 	if ((vf->type & VIDTYPE_COMPRESS)) {
 		do_vframe_afbc_soft_decode(v4l_data, vf);
 		return;
 	}
+	/*
+	 * GE2D copy for non-compress
+	 */
 	is_10bit = vf->bitdepth & BITDEPTH_Y10;
 	di_mode = vf->type & VIDTYPE_DI_PW;
 	if (is_10bit && !di_mode) {
@@ -926,15 +948,22 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 		pr_err("create_ge2d_work_queue failed.\n");
 		return;
 	}
-
+	aligned_height = ALIGN(v4l_data->height, align);
 	dst_canvas_config[0].phy_addr = v4l_data->phy_addr[0];
 	dst_canvas_config[0].width = v4l_data->byte_stride;
 
 	dst_canvas_config[0].height = v4l_data->height;
 	dst_canvas_config[0].block_mode = 0;
 	dst_canvas_config[0].endian = 0;
+	/*
+	 * v4ldecoder:
+	 * for non-compress videos like H264
+	 * need align width and height
+	 * v4lvideo:
+	 * no requirement for height align
+	 */
 	dst_canvas_config[1].phy_addr = v4l_data->phy_addr[0] +
-		v4l_data->byte_stride * v4l_data->height;
+		v4l_data->byte_stride * aligned_height;
 	dst_canvas_config[1].width = v4l_data->byte_stride;
 	dst_canvas_config[1].height = v4l_data->height / 2;
 	dst_canvas_config[1].block_mode = 0;
@@ -943,7 +972,7 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 	pr_debug("compWidth: %u, compHeight: %u.\n",
 		 vf->compWidth, vf->compHeight);
 	pr_debug("vf-width:%u, vf-height:%u, vf-widht-align:%u\n",
-		 vf->width, vf->height, ALIGN(vf->width, 32));
+		 vf->width, vf->height, ALIGN(vf->width, 64));
 	pr_debug("umm-bytestride: %d, umm-width:%u, umm-height:%u\n",
 		 v4l_data->byte_stride, v4l_data->width, v4l_data->height);
 	pr_debug("y_addr:%lu, uv_addr:%lu.\n", dst_canvas_config[0].phy_addr,
@@ -1004,6 +1033,14 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data, struct dma_buf *dmabuf)
 
 	ge2d_config.src_para.mem_type = CANVAS_TYPE_INVALID;
 	ge2d_config.src_para.format = get_input_format(vf);
+	/*
+	 * also need config ge2d src format
+	 * VFRAME_FLAG_VIDEO_LINEAR -> little ednian
+	 */
+	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+		ge2d_config.src_para.format |= GE2D_LITTLE_ENDIAN;
+	pr_debug("%s: ge2d_config.src_para.format: %d\n",
+			__func__, ge2d_config.src_para.format);
 	ge2d_config.src_para.fill_color_en = 0;
 	ge2d_config.src_para.fill_mode = 0;
 	ge2d_config.src_para.x_rev = 0;
