@@ -1623,6 +1623,7 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
+	struct ldim_fw_custom_s *fw_cus = ldim_drv->fw_cus;
 	struct fw_ctrl_s *fw_ctrl;
 	struct ld_reg_s *nprm;
 	unsigned int n = 0;
@@ -2485,6 +2486,7 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 				       &fw->fw_print_frequent) < 0) {
 				goto ldim_attr_store_err;
 			}
+			fw_cus->fw_print_frequent = fw->fw_print_frequent;
 		}
 		pr_info("fw_print_frequent = %d\n", fw->fw_print_frequent);
 	} else if ((!strcmp(parm[0], "Dbprint_lv")) ||
@@ -2497,6 +2499,7 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			}
 			if (kstrtouint(parm[1], 10, &fw->fw_print_lv) < 0)
 				goto ldim_attr_store_err;
+			fw_cus->fw_print_lv = fw->fw_print_lv;
 		}
 		pr_info("fw_print_lv = %d\n", fw->fw_print_lv);
 	} else if (!strcmp(parm[0], "info")) {
