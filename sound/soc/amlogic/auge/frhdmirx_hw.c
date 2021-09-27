@@ -287,6 +287,10 @@ unsigned int frhdmirx_get_chan_status_pc(enum hdmirx_mode mode, int version)
 /* this is used for TL1, arc source select and enable */
 void arc_source_enable(int src, bool enable)
 {
+	/* open ARC bandgap, bit [1] = 0 */
+	if (enable)
+		aml_hiubus_update_bits(HHI_HDMIRX_PHY_MISC2,
+				       0x1 << 1, 0 << 1);
 	/* bits[1:0], 0x2: common; 0x1: single; 0x0: disabled */
 	aml_hiubus_update_bits(HHI_HDMIRX_ARC_CNTL,
 			       0x1f << 0,
@@ -329,12 +333,21 @@ void arc_enable(bool enable, int version)
 	if (is_earc_spdif()) {
 		aml_earctx_enable_d2a(enable);
 	} else {
-		if (version == TM2_ARC)
+		if (version == TM2_ARC) {
+			/* open ARC bandgap, bit [1] = 0 */
+			if (enable)
+				aml_hiubus_update_bits(HHI_HDMIRX_PHY_MISC2,
+					0x1 << 1, 0 << 1);
 			aml_hiubus_update_bits(HHI_HDMIRX_EARCTX_CNTL0,
 				0x1 << 31, (enable ? 0x1 : 0) << 31);
-		else if (version == T7_ARC)
+		} else if (version == T7_ARC) {
+			/* open ARC bandgap, bit [1] = 0 */
+			if (enable)
+				hdmirx_arc_update_reg(HDMIRX_PHY_MISC2,
+					0x1 << 1, 0 << 1);
 			hdmirx_arc_update_reg(HDMIRX_EARCTX_CNTL0,
 				0x1 << 31, (enable ? 0x1 : 0) << 31);
+		}
 	}
 }
 
