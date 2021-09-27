@@ -1574,7 +1574,8 @@ void hdmitx_set_scdc_div40(u32 div40)
 		data = 0x3;
 	else
 		data = 0;
-
+	hdmitx21_set_reg_bits(HDCP2X_CTL_0_IVCTX, 0, 0, 1);
+	hdmitx21_wr_reg(LM_DDC_IVCTX, 0x80);
 	hdmitx21_wr_reg(DDC_ADDR_IVCTX, 0xa8); //SCDC slave addr
 	hdmitx21_wr_reg(DDC_OFFSET_IVCTX, addr & 0xff); //SCDC slave offset
 	hdmitx21_wr_reg(DDC_DATA_AON_IVCTX, data & 0xff); //SCDC slave offset data to ddc fifo
