@@ -623,6 +623,7 @@ struct register_table {
 /*
  *	HIU, ARC
  */
+#define HHI_HDMIRX_PHY_MISC2               0x0e0
 #define HHI_HDMIRX_ARC_CNTL                0x0e8
 #define HHI_HDMIRX_EARCTX_CNTL0            0x069
 #define HHI_HDMIRX_EARCTX_CNTL1            0x06a
@@ -1428,6 +1429,7 @@ struct register_table {
 #define HHI_AUDIO_MEM_PD_REG0              0x045
 
 /* hdmirx for arc */
+#define HDMIRX_PHY_MISC2                   0x007
 #define HDMIRX_EARCTX_CNTL0                0x040
 #define HDMIRX_EARCTX_CNTL1                0x041
 #define HDMIRX_ARC_CNTL                    0x042

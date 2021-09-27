@@ -1929,10 +1929,9 @@
 		//hdmirx arc
 		hdmirx_arc {
 			compatible = "amlogic, hdmirx-arc-iomap";
-			reg = <0x0 0xfe39c000 0x0 0x3>;
+			reg = <0x0 0xfe39c000 0x0 0x10c>;
 			#address-cells = <2>;
 			#size-cells = <2>;
-			ranges = <0x0 0x0 0x0 0xfe39c000 0x0 0x3>;
 
 			reg-names = "hdmirx-arc";
 		};
