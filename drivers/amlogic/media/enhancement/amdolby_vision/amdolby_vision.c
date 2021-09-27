@@ -5093,10 +5093,15 @@ void enable_dolby_vision(int enable)
 				    is_meson_tm2_stbmode() ||
 				    is_meson_sc2() ||
 				    is_meson_s4d()) {
-					VSYNC_WR_DV_REG_BITS
-						(DOLBY_PATH_CTRL,
-						/* enable core1 */
-						0, 0, 2);
+					/* enable core1 with el */
+					if (dovi_setting.el_flag)
+						VSYNC_WR_DV_REG_BITS
+							(DOLBY_PATH_CTRL,
+							0, 0, 2);
+					else /* enable core1 without el */
+						VSYNC_WR_DV_REG_BITS
+							(DOLBY_PATH_CTRL,
+							0, 0, 1);
 					if (is_meson_stb_hdmimode()) {
 						/* core1 off */
 						VSYNC_WR_DV_REG_BITS
