@@ -12533,8 +12533,10 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		}
 		osd_set_basic_urgent(true);
 		osd_set_two_ports(true);
-		osd_set_vpp_path_default(VPP_OSD3, VPU_VPP0);
-		osd_set_vpp_path_default(VPP_OSD4, VPU_VPP0);
+		osd_set_vpp_path_default(VPP_OSD3,
+					 get_output_device_id(OSD3));
+		osd_set_vpp_path_default(VPP_OSD4,
+					 get_output_device_id(OSD4));
 	}
 	/* disable deband as default */
 	if (osd_hw.osd_meson_dev.has_deband)
