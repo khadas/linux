@@ -1690,7 +1690,7 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 			pm_runtime_put_sync_suspend(dsp->pd_dsp);
 		} else {
 			pm_runtime_enable(&pdev->dev);
-			dev_set_drvdata(priv->dev, &pdev->dev);
+			priv->dev_pd = &pdev->dev;
 		}
 		pr_info("register dsp-%d done\n", id);
 	}

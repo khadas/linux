@@ -36,6 +36,7 @@ struct hifi4dsp_priv {
 	char name[12];
 	struct class  *class;
 	struct device *dev;
+	struct device *dev_pd;
 
 	u32  dsp_freq;
 	//bool dsp_is_started;
