@@ -161,16 +161,21 @@ static int get_input_format(struct src_data_para *src_data)
 		}
 		break;
 	case VDIN_8BIT_NORMAL:
-		if (src_data->type & VIDTYPE_VIU_422)
+		if (src_data->type & VIDTYPE_VIU_422) {
 			format = GE2D_FORMAT_S16_YUV422;
-		else if (src_data->type & VIDTYPE_VIU_NV21)
+		} else if (src_data->type & VIDTYPE_VIU_NV21) {
 			format = GE2D_FORMAT_M24_NV21;
-		else if (src_data->type & VIDTYPE_VIU_NV12)
+		} else if (src_data->type & VIDTYPE_VIU_NV12) {
 			format = GE2D_FORMAT_M24_NV12;
-		else if (src_data->type & VIDTYPE_VIU_444)
+		} else if (src_data->type & VIDTYPE_VIU_444) {
 			format = GE2D_FORMAT_S24_YUV444;
-		else
+		} else if (src_data->type & VIDTYPE_RGB_444) {
+			format = GE2D_FORMAT_S24_RGB;
+			if (src_data->is_vframe)
+				format &= (~GE2D_LITTLE_ENDIAN);
+		} else {
 			format = GE2D_FORMAT_M24_YUV420;
+		}
 		break;
 	case VDIN_10BIT_NORMAL:
 		if (src_data->type & VIDTYPE_VIU_422) {
@@ -178,6 +183,12 @@ static int get_input_format(struct src_data_para *src_data)
 				format = GE2D_FORMAT_S16_10BIT_YUV422;
 			else
 				format = GE2D_FORMAT_S16_12BIT_YUV422;
+		} else if (src_data->type & VIDTYPE_VIU_444) {
+			format = GE2D_FORMAT_S24_10BIT_YUV444;
+		} else if (src_data->type & VIDTYPE_RGB_444) {
+			format = GE2D_FORMAT_S24_10BIT_RGB888;
+			if (!src_data->is_vframe)
+				format |= GE2D_LITTLE_ENDIAN;
 		}
 		break;
 	default:
