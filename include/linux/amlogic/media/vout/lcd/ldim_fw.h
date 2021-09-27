@@ -365,7 +365,7 @@ struct fw_ctrl_s {
 	unsigned int white_lvl_th_max;
 	unsigned int white_lvl_th_min;
 
-	unsigned int *bl_remap_curve; /* size: 16 */
+	unsigned int *bl_remap_curve; /* size: 17 */
 	unsigned int *fw_ld_whist;    /* size: 16 */
 
 	struct ld_reg_s *nprm;

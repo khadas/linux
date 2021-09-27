@@ -19,9 +19,9 @@ static struct ld_reg_s nprm;
 static struct fw_data_s fdata;
 
 /*bl_matrix remap curve*/
-static unsigned int bl_remap_curve[16] = {
+static unsigned int bl_remap_curve[17] = {
 	0, 256, 512, 768, 1024, 1280, 1536, 1792,
-	2048, 2304, 2560, 2816, 3072, 3328, 3584, 3840
+	2048, 2304, 2560, 2816, 3072, 3328, 3584, 3840, 4095
 };
 
 static unsigned int fw_ld_whist[16] = {
