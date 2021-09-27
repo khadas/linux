@@ -59,7 +59,7 @@ enum {
 	VT_DEBUG_FILE             = 1U << 3,
 };
 
-static u32 vt_debug_mask = VT_DEBUG_NONE;
+static u32 vt_debug_mask = VT_DEBUG_USER;
 module_param_named(debug_mask, vt_debug_mask, uint, 0644);
 
 #define vt_debug(mask, x...) \
@@ -168,6 +168,20 @@ static int vt_debug_instance_show(struct seq_file *s, void *unused)
 				   buffer->item.time_stamp);
 	}
 	seq_puts(s, "-----------------------------------------------\n");
+	seq_printf(s, "total acquire: %ld\n", instance->state.acquire_count);
+	seq_printf(s, "total release: %ld (%ld+%ld(prev))\n",
+		   instance->state.release_count +
+		   instance->state.release_invalid,
+		   instance->state.release_count,
+		   instance->state.release_invalid);
+	seq_printf(s, "total queue: %ld\n", instance->state.queue_count);
+	seq_printf(s, "total dequeue: %ld (%ld+%ld(prev))\n",
+		   instance->state.dequeue_count +
+		   instance->state.dequeue_invalid,
+		   instance->state.dequeue_count,
+		   instance->state.dequeue_invalid);
+	seq_puts(s, "-----------------------------------------------\n");
+
 	mutex_unlock(&instance->lock);
 	mutex_unlock(&debugfs_mutex);
 
@@ -182,6 +196,7 @@ static int vt_debug_instance_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations debug_instance_fops = {
+	.owner = THIS_MODULE,
 	.open = vt_debug_instance_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -215,6 +230,7 @@ static int vt_debug_session_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations debug_session_fops = {
+	.owner = THIS_MODULE,
 	.open = vt_debug_session_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
@@ -227,14 +243,29 @@ static int vt_debug_state_show(struct seq_file *s, void *unused)
 
 	mutex_lock(&debugfs_mutex);
 	seq_puts(s, "-----------------------------------------------\n");
-
-	seq_printf(s, "totol fence fget: %ld\n", state->total_fence_get);
-	seq_printf(s, "totol fence fput: %ld\n", state->total_fence_put);
-	seq_printf(s, "totol null fence: %ld\n", state->total_null_fence);
-	seq_printf(s, "totol release: %ld\n", state->total_release_count);
-	seq_printf(s, "totol dequeue: %ld\n", state->total_dequeue_count);
+	seq_puts(s, "fence status:\n");
+	seq_printf(s, "total fence fget: %ld\n", state->fence_get);
+	seq_printf(s, "total fence fput: %ld (%ld(dequeue)-%ld(null)+%ld(fput))\n",
+		   state->dequeue_count - state->null_fence + state->fence_put,
+		   state->dequeue_count, state->null_fence, state->fence_put);
 
 	seq_puts(s, "-----------------------------------------------\n");
+	seq_puts(s, "buffer status:\n");
+	seq_printf(s, "total acquire: %ld\n", state->acquire_count);
+	seq_printf(s, "total release: %ld (%ld+%ld(prev))\n",
+		   state->release_count + state->release_invalid,
+		   state->release_count, state->release_invalid);
+	seq_printf(s, "total queue: %ld\n", state->queue_count);
+	seq_printf(s, "total dequeue: %ld (%ld+%ld(prev))\n",
+		   state->dequeue_count + state->dequeue_invalid,
+		   state->dequeue_count, state->dequeue_invalid);
+	seq_puts(s, "-----------------------------------------------\n");
+	seq_printf(s, "total buffer fget: %ld\n", state->buffer_get);
+	seq_printf(s, "total buffer fput: %ld (%ld(fput)+%ld(close))\n",
+		   state->buffer_put + state->buffer_close,
+		   state->buffer_put, state->buffer_close);
+	seq_puts(s, "-----------------------------------------------\n");
+
 	mutex_unlock(&debugfs_mutex);
 
 	return 0;
@@ -248,10 +279,63 @@ static int vt_debug_state_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations debug_state_fops = {
+	.owner = THIS_MODULE,
 	.open = vt_debug_state_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
+};
+
+static int vt_debug_limit_show(struct seq_file *sf, void *data)
+{
+	struct vt_dev *vdev = sf->private;
+
+	seq_puts(sf, "when the buffer size in vt rearch the limit size then you can dequeue\n");
+	seq_printf(sf, "current: %d\n", vdev->limit);
+	return 0;
+}
+
+static int vt_debug_limit_open(struct inode *inode, struct file *file)
+{
+	return single_open(file,
+			   vt_debug_limit_show,
+			   inode->i_private);
+}
+
+static ssize_t vt_debug_limit_write(struct file *file, const char __user *ubuf,
+				size_t len, loff_t *offp)
+{
+	char *buf = NULL;
+	int limits = 0;
+	struct seq_file *sf = file->private_data;
+	struct vt_dev *vdev = sf->private;
+
+	if (len <= 0)
+		return -EINVAL;
+
+	buf = kmalloc(len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	if (copy_from_user(buf, ubuf, len)) {
+		kfree(buf);
+		return -EFAULT;
+	}
+
+	if (kstrtoint(buf, 0, &limits) == 0)
+		vdev->limit = (limits > 0) ? limits : 0;
+
+	kfree(buf);
+	return len;
+}
+
+static const struct file_operations debug_limit_fops = {
+	.owner = THIS_MODULE,
+	.open = vt_debug_limit_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = vt_debug_limit_write,
 };
 
 static int vt_close_fd(struct vt_session *session, unsigned int fd)
@@ -294,8 +378,6 @@ static void vt_instance_destroy(struct kref *kref)
 			idr_remove(&dev->instance_idr, i);
 	}
 
-	vt_debug(VT_DEBUG_USER, "vt [%d] destroy\n", instance->id);
-
 	/* destroy fifo to conusmer */
 	mutex_lock(&instance->lock);
 	if (!kfifo_is_empty(&instance->fifo_to_consumer)) {
@@ -304,6 +386,8 @@ static void vt_instance_destroy(struct kref *kref)
 			if (buffer->file_buffer) {
 				fput(buffer->file_buffer);
 				instance->fcount--;
+				dev->state.buffer_put++;
+				instance->state.buffer_put++;
 			}
 			buffer->item.buffer_status = VT_BUFFER_FREE;
 		}
@@ -315,7 +399,8 @@ static void vt_instance_destroy(struct kref *kref)
 		while (kfifo_get(&instance->fifo_to_producer, &buffer)) {
 			if (buffer->file_fence) {
 				fput(buffer->file_fence);
-				dev->state.total_fence_put++;
+				dev->state.fence_put++;
+				instance->state.fence_put++;
 			}
 			buffer->item.buffer_status = VT_BUFFER_FREE;
 		}
@@ -333,6 +418,9 @@ static void vt_instance_destroy(struct kref *kref)
 	mutex_unlock(&instance->cmd_lock);
 
 	debugfs_remove_recursive(instance->debug_root);
+
+	vt_debug(VT_DEBUG_USER, "vt [%d] destroy fcount:%d\n",
+		 instance->id, instance->fcount);
 
 	kfree(instance);
 	mutex_unlock(&dev->instance_lock);
@@ -551,7 +639,8 @@ static void vt_session_trim_lock(struct vt_session *session,
 		while (kfifo_get(&instance->fifo_to_producer, &buffer)) {
 			if (buffer->file_fence) {
 				fput(buffer->file_fence);
-				session->dev->state.total_fence_put++;
+				session->dev->state.fence_put++;
+				instance->state.fence_put++;
 			}
 
 			buffer->item.buffer_status = VT_BUFFER_FREE;
@@ -563,6 +652,8 @@ static void vt_session_trim_lock(struct vt_session *session,
 			if (buffer->file_buffer) {
 				fput(buffer->file_buffer);
 				instance->fcount--;
+				session->dev->state.buffer_put++;
+				instance->state.buffer_put++;
 
 				vt_debug(VT_DEBUG_FILE,
 					 "vt [%d] session trim file(%p) buffer(%p) fcount=%d\n",
@@ -606,7 +697,8 @@ static int vt_instance_trim(struct vt_session *session)
 					 &buffer)) {
 				if (buffer->file_fence) {
 					fput(buffer->file_fence);
-					dev->state.total_fence_put++;
+					dev->state.fence_put++;
+					instance->state.fence_put++;
 				}
 				buffer->item.buffer_status = VT_BUFFER_FREE;
 			}
@@ -619,6 +711,8 @@ static int vt_instance_trim(struct vt_session *session)
 				if (buffer->file_buffer) {
 					fput(buffer->file_buffer);
 					instance->fcount--;
+					dev->state.buffer_put++;
+					instance->state.buffer_put++;
 
 					vt_debug(VT_DEBUG_FILE,
 						 "vt [%d] instance trim file(%p) buffer(%p), fcount=%d\n",
@@ -636,7 +730,8 @@ static int vt_instance_trim(struct vt_session *session)
 					 &buffer)) {
 				if (buffer->file_fence) {
 					fput(buffer->file_fence);
-					dev->state.total_fence_put++;
+					dev->state.fence_put++;
+					instance->state.fence_put++;
 				}
 			}
 			while (kfifo_get(&instance->fifo_to_consumer,
@@ -644,6 +739,8 @@ static int vt_instance_trim(struct vt_session *session)
 				if (buffer->file_buffer) {
 					fput(buffer->file_buffer);
 					instance->fcount--;
+					dev->state.buffer_put++;
+					instance->state.buffer_put++;
 
 					vt_debug(VT_DEBUG_FILE,
 						 "vt [%d] instance trim file(%p) buffer(%p) fcount=%d\n",
@@ -657,6 +754,8 @@ static int vt_instance_trim(struct vt_session *session)
 			for (i = 0; i < VT_POOL_SIZE; i++)
 				instance->vt_buffers[i].item.buffer_status = VT_BUFFER_FREE;
 
+			/* reset status */
+			memset(&instance->state, 0, sizeof(instance->state));
 			instance->mode = VT_MODE_NONE_BLOCK;
 		}
 
@@ -1303,6 +1402,8 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 
 	mutex_lock(&instance->lock);
 	instance->fcount++;
+	dev->state.buffer_get++;
+	instance->state.buffer_get++;
 
 	buffer->buffer_fd_pro = data->buffer_fd;
 	buffer->buffer_fd_con = -1;
@@ -1326,6 +1427,9 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 	}
 	mutex_unlock(&instance->lock);
 
+	dev->state.queue_count++;
+	instance->state.queue_count++;
+
 	vt_debug(VT_DEBUG_BUFFERS,
 		 "vt [%d] queuebuffer pfd: %d, buffer(%p) buffer file(%p) timestamp(%lld), now(%lld)\n",
 		 instance->id, buffer->buffer_fd_pro,
@@ -1333,6 +1437,25 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 		 buffer->item.time_stamp, ktime_to_us(ktime_get()));
 
 	return 0;
+}
+
+static int vt_instance_buffer_size(struct vt_instance *instance)
+{
+	int size = 0;
+	int i;
+
+	mutex_lock(&instance->lock);
+	for (i = 0; i < VT_POOL_SIZE; i++) {
+		struct vt_buffer *buffer = &instance->vt_buffers[i];
+		int status = buffer->item.buffer_status;
+
+		if (status == VT_BUFFER_QUEUE || status == VT_BUFFER_ACQUIRE ||
+				status == VT_BUFFER_RELEASE)
+			size++;
+	}
+	mutex_unlock(&instance->lock);
+
+	return size;
 }
 
 static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
@@ -1363,6 +1486,9 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 			return -EAGAIN;
 	}
 
+	if (vt_instance_buffer_size(instance) < dev->limit)
+		return -EAGAIN;
+
 	mutex_lock(&instance->lock);
 	ret = kfifo_get(&instance->fifo_to_producer, &buffer);
 	if (!ret || !buffer) {
@@ -1377,8 +1503,13 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 	if (buffer->cid_pro != session->cid) {
 		if (buffer->file_fence) {
 			fput(buffer->file_fence);
-			dev->state.total_fence_put++;
+			dev->state.fence_put++;
+			instance->state.fence_put++;
 		}
+		dev->state.dequeue_invalid++;
+		instance->state.dequeue_invalid++;
+		pr_info("vt [%d] dequeuebuffer, previous connect buffer!!\n",
+			    instance->id);
 
 		mutex_unlock(&instance->lock);
 		return -EAGAIN;
@@ -1392,7 +1523,8 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 			       instance->id);
 			/* could not get unused fd, put the file fence */
 			fput(buffer->file_fence);
-			dev->state.total_fence_put++;
+			dev->state.fence_put++;
+			instance->state.fence_put++;
 			mutex_unlock(&instance->lock);
 			return -ENOMEM;
 		}
@@ -1417,7 +1549,8 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 	*data = buffer->item;
 	mutex_unlock(&instance->lock);
 
-	dev->state.total_dequeue_count++;
+	dev->state.dequeue_count++;
+	instance->state.dequeue_count++;
 
 	vt_debug(VT_DEBUG_BUFFERS, "vt [%d] dequeuebuffer buffer(%p) end pfd(%d) cfd(%d) fence fd(%d) timestamp(%lld)\n",
 		 instance->id, buffer, buffer->buffer_fd_pro, buffer->buffer_fd_con,
@@ -1473,6 +1606,8 @@ static int vt_acquire_buffer_process(struct vt_buffer_data *data,
 			if (buffer->file_buffer) {
 				fput(buffer->file_buffer);
 				instance->fcount--;
+				dev->state.buffer_put++;
+				instance->state.buffer_put++;
 
 				vt_debug(VT_DEBUG_FILE,
 					 "vt [%d] acuqirebuffer install fd error file(%p) buffer(%p) fcount=%d\n",
@@ -1498,6 +1633,9 @@ static int vt_acquire_buffer_process(struct vt_buffer_data *data,
 	/* return the buffer */
 	*data = buffer->item;
 	mutex_unlock(&instance->lock);
+
+	dev->state.acquire_count++;
+	instance->state.acquire_count++;
 
 	vt_debug(VT_DEBUG_BUFFERS,
 		 "vt [%d] acquirebuffer pfd: %d, cfd: %d, buffer(%p) buffer file(%p), timestamp(%lld), now(%lld)\n",
@@ -1536,6 +1674,8 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 	/* close the fd in consumer side */
 	vt_close_fd(session, buffer->buffer_fd_con);
 	instance->fcount--;
+	dev->state.buffer_close++;
+	instance->state.buffer_close++;
 
 	vt_debug(VT_DEBUG_FILE,
 		 "vt [%d] releasebuffer file(%p) buffer(%p) buffer sesion(%p) fcount=%d\n",
@@ -1546,32 +1686,26 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 	buffer->item.buffer_status = VT_BUFFER_RELEASE;
 
 	/* if producer has disconnect */
-	if (!instance->producer) {
+	if (!instance->producer || (buffer->session_pro &&
+	    buffer->session_pro != instance->producer)) {
 		vt_debug(VT_DEBUG_BUFFERS,
-			 "vt [%d] releasebuffer buffer, no producer\n",
+			 "vt [%d] releasebuffer buffer, no producer or previous producer\n",
 			 instance->id);
 		buffer->item.buffer_status = VT_BUFFER_FREE;
+		dev->state.release_invalid++;
+		instance->state.release_invalid++;
 		mutex_unlock(&instance->lock);
 		return 0;
-	}
-	if (buffer->session_pro &&
-	    buffer->session_pro != instance->producer) {
-		vt_debug(VT_DEBUG_BUFFERS,
-			 "vt [%d] releasebuffer buffer producer not valid, instance->producer(%p), buffer session(%p)\n",
-			 instance->id,
-			 instance->producer,
-			 buffer->session_pro);
-		buffer->item.buffer_status = VT_BUFFER_FREE;
-		mutex_unlock(&instance->lock);
-		return -EINVAL;
 	}
 
 	buffer->file_fence = NULL;
 	if (data->fence_fd >= 0) {
 		buffer->file_fence = fget(data->fence_fd);
-		dev->state.total_fence_get++;
+		dev->state.fence_get++;
+		instance->state.fence_get++;
 	} else {
-		dev->state.total_null_fence++;
+		dev->state.null_fence++;
+		instance->state.null_fence++;
 	}
 
 	if (!buffer->file_fence)
@@ -1594,7 +1728,8 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 		 instance->id, buffer->buffer_fd_pro,
 		 buffer->buffer_fd_con, buffer, buffer->file_buffer, buffer->item.time_stamp);
 
-	dev->state.total_release_count++;
+	dev->state.release_count++;
+	instance->state.release_count++;
 
 	return 0;
 }
@@ -1778,7 +1913,7 @@ EXPORT_SYMBOL(vt_dequeue_buffer);
 int vt_send_cmd(struct vt_session *session, int tunnel_id,
 		enum vt_video_cmd_e cmd, int cmd_data)
 {
-	struct vt_ctrl_data data;
+	struct vt_ctrl_data data = { 0 };
 
 	data.tunnel_id = tunnel_id;
 	data.video_cmd = cmd;
@@ -1827,13 +1962,18 @@ static int vt_probe(struct platform_device *pdev)
 	mutex_init(&debugfs_mutex);
 	vdev->debug_root = debugfs_create_dir("videotunnel", NULL);
 
-	if (!vdev->debug_root)
+	if (!vdev->debug_root) {
 		pr_err("videotunnel: failed to create debugfs root directory.\n");
-	else
+	} else {
 		vdev->state.debug_root =
 		debugfs_create_file("state", 0664, vdev->debug_root,
 					    &vdev->state,
 					    &debug_state_fops);
+
+		debugfs_create_file("limit", 0644, vdev->debug_root,
+					    vdev,
+					    &debug_limit_fops);
+	}
 
 	return 0;
 

@@ -62,21 +62,29 @@ union vt_ioctl_arg {
 /*
  * struct vt_state - videotunnel status information
  * @debug_root:		debug fs root
- * @total_fence_get:	number count of total fence fget
- * @total_fence_put:	number count of total fence fput
- * @total_null_fence:		number count of -1 fence
- * @total_dequeue_count:	number count of total dequeue
- * @total_release_count:	number count of total release
+ * @fence_get:	number count of total fence fget
+ * @fence_put:	number count of total fence fput
+ * @null_fence:		number count of -1 fence
+ * @dequeue_count:	number count of total dequeue
+ * @release_count:	number count of total release
  */
 struct vt_state {
 	struct dentry *debug_root;
 
-	long total_fence_get;
-	long total_fence_put;
-	long total_null_fence;
+	long fence_get;
+	long fence_put;
+	long null_fence;
 
-	long total_dequeue_count;
-	long total_release_count;
+	long queue_count;
+	long dequeue_count;
+	long dequeue_invalid;
+	long acquire_count;
+	long release_count;
+	long release_invalid;
+
+	long buffer_get;
+	long buffer_close;
+	long buffer_put;
 };
 
 /*
@@ -98,6 +106,7 @@ struct vt_dev {
 
 	struct rw_semaphore session_lock;
 	struct rb_root sessions;
+	int limit;
 
 	char *dev_name;
 	struct dentry *debug_root;
@@ -216,6 +225,7 @@ struct vt_instance {
 	DECLARE_KFIFO_PTR(fifo_to_producer, struct vt_buffer*);
 
 	struct vt_buffer vt_buffers[VT_POOL_SIZE];
+	struct vt_state state;
 };
 
 #endif /* __VIDEO_TUNNEL_PRIV_H */
