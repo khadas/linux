@@ -175,6 +175,10 @@ static int dumpfirstframe;
 static int count_scr;
 static int count_dst;
 
+static unsigned int ppmgr_color_format;
+MODULE_PARM_DESC(ppmgr_color_format, "\n ppmgr_color_format\n");
+module_param(ppmgr_color_format, uint, 0664);
+
 const struct vframe_receiver_op_s *vf_ppmgr_reg_provider(void);
 
 /* void vf_ppmgr_unreg_provider(void);
@@ -1319,14 +1323,21 @@ static int get_input_format(struct vframe_s *vf)
 		}
 		break;
 	case VDIN_8BIT_NORMAL:
-		if (vf->type & VIDTYPE_VIU_422)
+		if (vf->type & VIDTYPE_VIU_422) {
 			format = GE2D_FORMAT_S16_YUV422;
-		else if (vf->type & VIDTYPE_VIU_NV21)
+		} else if (vf->type & VIDTYPE_VIU_NV21) {
 			format = GE2D_FORMAT_M24_NV21;
-		else if (vf->type & VIDTYPE_VIU_444)
+		} else if (vf->type & VIDTYPE_VIU_444) {
 			format = GE2D_FORMAT_S24_YUV444;
-		else
+		} else if (vf->type & VIDTYPE_RGB_444) {
+			format = GE2D_FORMAT_S24_RGB;
+			if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+				;
+			else
+				format &= (~GE2D_LITTLE_ENDIAN);
+		} else {
 			format = GE2D_FORMAT_M24_YUV420;
+		}
 		break;
 	case VDIN_10BIT_NORMAL:
 		if (vf->type & VIDTYPE_VIU_422) {
@@ -1334,11 +1345,18 @@ static int get_input_format(struct vframe_s *vf)
 				format = GE2D_FORMAT_S16_10BIT_YUV422;
 			else
 				format = GE2D_FORMAT_S16_12BIT_YUV422;
+		} else if (vf->type & VIDTYPE_VIU_444) {
+			format = GE2D_FORMAT_S24_10BIT_YUV444;
+		} else if (vf->type & VIDTYPE_RGB_444) {
+			format = GE2D_FORMAT_S24_10BIT_RGB888;
+			if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+				format |= GE2D_LITTLE_ENDIAN;
 		}
 		break;
 	default:
 		format = GE2D_FORMAT_M24_YUV420;
 	}
+
 	return format;
 }
 
@@ -2336,7 +2354,10 @@ static void process_vf_rotate(struct vframe_s *vf,
 		| (ppmgr_src_canvas[2] << 16);
 
 	ge2d_config->src_para.canvas_index = canvas_id;
-	ge2d_config->src_para.format = get_input_format(vf);
+	if (ppmgr_color_format == 0)
+		ge2d_config->src_para.format = get_input_format(vf);
+	else
+		ge2d_config->src_para.format = ppmgr_color_format;
 
 	ge2d_config->src_para.fill_color_en = 0;
 	ge2d_config->src_para.fill_mode = 0;
