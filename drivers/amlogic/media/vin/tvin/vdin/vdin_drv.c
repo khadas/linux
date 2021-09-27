@@ -677,7 +677,7 @@ static u32 vdin_is_delay_vfe2rdlist(struct vdin_dev_s *devp)
  * 5. call the callback function of the frontend to start.
  * 6. enable irq .
  */
-void vdin_start_dec(struct vdin_dev_s *devp)
+int vdin_start_dec(struct vdin_dev_s *devp)
 {
 	struct tvin_state_machine_ops_s *sm_ops;
 	struct vf_entry *vfe;
@@ -686,17 +686,17 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	/* avoid null pointer oops */
 	if (IS_ERR_OR_NULL(devp) || IS_ERR_OR_NULL(devp->fmt_info_p)) {
 		pr_info("[vdin]%s null error.\n", __func__);
-		return;
+		return -1;
 	}
 
 	if (devp->index == 0 && devp->dtdata->vdin0_en == 0) {
 		pr_err("%s vdin%d not enable\n", __func__, devp->index);
-		return;
+		return -1;
 	}
 
 	if (devp->index == 1 && devp->dtdata->vdin1_en == 0) {
 		pr_err("%s vdin%d not enable\n", __func__, devp->index);
-		return;
+		return -1;
 	}
 
 	/* refuse start dec during suspend period,
@@ -705,7 +705,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	if (devp->flags & VDIN_FLAG_SUSPEND) {
 		pr_info("err:[vdin.%d]%s when suspend.\n",
 			devp->index, __func__);
-		return;
+		return -1;
 	}
 
 	if (devp->frontend && devp->frontend->sm_ops) {
@@ -809,7 +809,7 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 	if (vdin_cma_alloc(devp)) {
 		pr_err("\nvdin%d %s fail for cma alloc fail!!!\n",
 		       devp->index, __func__);
-		return;
+		return -1;
 	}
 #endif
 
@@ -952,6 +952,8 @@ void vdin_start_dec(struct vdin_dev_s *devp)
 		pr_info("vdin.%d start time: %ums, run time:%ums.\n",
 			devp->index, jiffies_to_msecs(jiffies),
 			jiffies_to_msecs(jiffies) - devp->start_time);
+
+	return 0;
 }
 
 /*
@@ -1281,7 +1283,12 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		break;
 	}
 #endif
-	vdin_start_dec(devp);
+	ret = vdin_start_dec(devp);
+	if (ret) {
+		pr_err("[vdin]%s kmalloc error.\n", __func__);
+		mutex_unlock(&devp->fe_lock);
+		return -1;
+	}
 
 	devp->flags |= VDIN_FLAG_DEC_OPENED;
 	devp->flags |= VDIN_FLAG_DEC_STARTED;
@@ -3175,7 +3182,14 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			mutex_unlock(&devp->fe_lock);
 			break;
 		}
-		vdin_start_dec(devp);
+		ret = vdin_start_dec(devp);
+		if (ret) {
+			pr_err("TVIN_IOC_START_DEC(%d) error, start_dec fail\n",
+			       devp->index);
+			ret = -EFAULT;
+			mutex_unlock(&devp->fe_lock);
+			break;
+		}
 		devp->flags |= VDIN_FLAG_DEC_STARTED;
 		if (devp->parm.port != TVIN_PORT_VIU1 ||
 		    viu_hw_irq != 0) {
