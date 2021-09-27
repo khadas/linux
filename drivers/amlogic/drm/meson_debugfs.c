@@ -15,6 +15,57 @@
 
 #ifdef CONFIG_DEBUG_FS
 
+static u8 *meson_drm_vmap(ulong addr, u32 size, bool *bflg)
+{
+	u8 *vaddr = NULL;
+	ulong phys = addr;
+	u32 offset = phys & ~PAGE_MASK;
+	u32 npages = PAGE_ALIGN(size) / PAGE_SIZE;
+	struct page **pages = NULL;
+	pgprot_t pgprot;
+	int i;
+
+	if (!PageHighMem(phys_to_page(phys)))
+		return phys_to_virt(phys);
+
+	if (offset)
+		npages++;
+
+	pages = kcalloc(npages, sizeof(struct page *), GFP_KERNEL);
+	if (!pages)
+		return NULL;
+
+	for (i = 0; i < npages; i++) {
+		pages[i] = phys_to_page(phys);
+		phys += PAGE_SIZE;
+	}
+
+	pgprot = PAGE_KERNEL;
+
+	vaddr = vmap(pages, npages, VM_MAP, pgprot);
+	if (!vaddr) {
+		pr_err("the phy(%lx) vmaped fail, size: %d\n",
+		       addr - offset, npages << PAGE_SHIFT);
+		kfree(pages);
+		return NULL;
+	}
+
+	kfree(pages);
+
+	DRM_DEBUG("map high mem pa(%lx) to va(%p), size: %d\n",
+		  addr, vaddr + offset, npages << PAGE_SHIFT);
+	*bflg = true;
+
+	return vaddr + offset;
+}
+
+static void meson_drm_unmap_phyaddr(u8 *vaddr)
+{
+	void *addr = (void *)(PAGE_MASK & (ulong)vaddr);
+
+	vunmap(addr);
+}
+
 static int meson_dump_show(struct seq_file *sf, void *data)
 {
 	struct drm_crtc *crtc = sf->private;
@@ -37,11 +88,26 @@ static int meson_dump_open(struct inode *inode, struct file *file)
 static ssize_t meson_dump_write(struct file *file, const char __user *ubuf,
 				size_t len, loff_t *offp)
 {
+	int i, j, num_plane;
 	char buf[8];
+	char name_buf[64];
 	int counts = 0;
+	struct file *fp;
+	mm_segment_t fs;
+	loff_t pos;
+	bool bflg = false;
+	void *buff = NULL;
+	u64 phy_addrs[MESON_MAX_OSD];
+	u32 fb_sizes[MESON_MAX_OSD];
+	u32 osd_index[MESON_MAX_OSD];
+	struct meson_vpu_osd_layer_info *info;
+	struct meson_vpu_pipeline_state *mvps;
 	struct seq_file *sf = file->private_data;
 	struct drm_crtc *crtc = sf->private;
 	struct am_meson_crtc *amc = to_am_meson_crtc(crtc);
+	struct meson_vpu_pipeline *pipeline = amc->pipeline;
+
+	mvps = priv_to_pipeline_state(pipeline->obj.state);
 
 	if (len > sizeof(buf) - 1)
 		return -EINVAL;
@@ -59,6 +125,51 @@ static ssize_t meson_dump_write(struct file *file, const char __user *ubuf,
 		if (kstrtoint(buf, 0, &counts) == 0) {
 			amc->dump_counts = (counts > 0) ? counts : 0;
 			amc->dump_enable = (counts > 0) ? 1 : 0;
+		}
+	}
+
+	if (amc->dump_enable) {
+		num_plane = 0;
+		for (i = 0; i < pipeline->num_osds; i++) {
+			if (mvps->plane_info[i].enable) {
+				info = &mvps->plane_info[i];
+				osd_index[num_plane] = i;
+				phy_addrs[num_plane] = info->phy_addr;
+				fb_sizes[num_plane] = info->fb_size;
+				num_plane++;
+			}
+		}
+
+		for (i = 0; i < num_plane; i++) {
+			j = osd_index[i];
+			DRM_DEBUG("start to dump gem buff.\n");
+			memset(name_buf, 0, sizeof(name_buf));
+			snprintf(name_buf, sizeof(name_buf),
+				"%s/plane%d.dump%llu",
+				amc->osddump_path, j,
+				drm_crtc_accurate_vblank_count(crtc));
+
+			fs = get_fs();
+			set_fs(KERNEL_DS);
+			pos = 0;
+			fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
+			if (IS_ERR(fp)) {
+				DRM_ERROR("create %s fail.\n", name_buf);
+			} else {
+				DRM_DEBUG("phy_addr-%llx, fb_size-%u\n",
+					phy_addrs[i], fb_sizes[i]);
+				buff = meson_drm_vmap(phy_addrs[i],
+					fb_sizes[i], &bflg);
+				DRM_DEBUG("vir_addr-%px\n", buff);
+				vfs_write(fp, buff, fb_sizes[i], &pos);
+				filp_close(fp, NULL);
+			}
+
+			set_fs(fs);
+			DRM_DEBUG("low_mem: %d.\n", bflg);
+
+			if (bflg)
+				meson_drm_unmap_phyaddr(buff);
 		}
 	}
 
