@@ -848,7 +848,7 @@ static ssize_t ldim_attr_show(struct class *cla, struct class_attribute *attr,
 		len = ldim_min_gain_lut_dbg_print(buf);
 		break;
 	case LDIM_DBG_ATTR_MODE_BL_DIM_CURVE:
-		len = ldim_int_table_dbg_print(buf, 16,
+		len = ldim_int_table_dbg_print(buf, 17,
 					       fw->ctrl->bl_remap_curve);
 		break;
 	case LDIM_DBG_ATTR_MODE_LD_WHIST:
@@ -2078,16 +2078,16 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 				goto ldim_attr_store_end;
 			}
 		}
-		if (parm[16]) {
+		if (parm[17]) {
 			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
 			dbg_attr.mode = LDIM_DBG_ATTR_MODE_BL_DIM_CURVE;
-			for (i = 0; i < 16; i++) {
+			for (i = 0; i < 17; i++) {
 				if (kstrtouint(parm[i + 1], 10,
 					       &fw_ctrl->bl_remap_curve[i]) < 0)
 					goto ldim_attr_store_err;
 			}
 		}
-		ldim_int_table_print(16, fw_ctrl->bl_remap_curve);
+		ldim_int_table_print(17, fw_ctrl->bl_remap_curve);
 	} else if (!strcmp(parm[0], "fw_LD_Whist") ||
 		   !strcmp(parm[0], "fw_ld_whist")) {
 		if (parm[1]) {

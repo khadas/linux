@@ -70,7 +70,7 @@ struct aml_ldim_info_s {
 	unsigned int fw_ld_thtf_l;
 	unsigned int fw_rgb_diff_th;
 	unsigned int fw_ld_thist;
-	unsigned int bl_remap_curve[16];
+	unsigned int bl_remap_curve[17];
 	unsigned int reg_ld_remap_lut[16][32];
 	unsigned int fw_ld_whist[16];
 };
@@ -122,7 +122,7 @@ struct aml_ldim_pq_s {
 	unsigned int ldc_dimming_curve_en;
 	unsigned int ldc_sc_hist_diff_th;
 	unsigned int ldc_sc_apl_diff_th;
-	unsigned int bl_remap_curve[16];
+	unsigned int bl_remap_curve[17];
 
 	/* comp parameters */
 	unsigned int ldc_bl_buf_diff;

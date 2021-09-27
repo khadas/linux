@@ -784,7 +784,7 @@ static void aml_ldim_info_update(void)
 	fctrl->fw_rgb_diff_th = ldim_info.fw_rgb_diff_th;
 	fctrl->fw_ld_thist = ldim_info.fw_ld_thist;
 
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < 17; i++)
 		fctrl->bl_remap_curve[i] = ldim_info.bl_remap_curve[i];
 
 	for (i = 0; i < 16; i++)
@@ -884,7 +884,7 @@ static void aml_ldim_pq_update(void)
 	fctrl->prm_ldc->ldc_dimming_curve_en = ldim_pq.ldc_dimming_curve_en;
 	fctrl->prm_ldc->ldc_sc_hist_diff_th = ldim_pq.ldc_sc_hist_diff_th;
 	fctrl->prm_ldc->ldc_sc_apl_diff_th = ldim_pq.ldc_sc_apl_diff_th;
-	for (i = 0; i < 16; i++)
+	for (i = 0; i < 17; i++)
 		fctrl->bl_remap_curve[i] = ldim_pq.bl_remap_curve[i];
 
 	comp = ldim_driver.comp;
@@ -976,13 +976,13 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				       ldim_info.fw_ld_thist);
 
 				/* ldim_bl_remap_curve_print */
-				len = 16 * 8 + 20;
+				len = 17 * 8 + 20;
 				curve_buf = kcalloc(len, sizeof(char), GFP_KERNEL);
 				if (!curve_buf)
 					return 0;
 				LDIMPR("bl_remap_curve:\n");
 				len = 0;
-				for (i = 0; i < 16; i++)
+				for (i = 0; i < 17; i++)
 					len +=
 					sprintf(curve_buf + len, "\t%d",
 						ldim_info.bl_remap_curve[i]);
