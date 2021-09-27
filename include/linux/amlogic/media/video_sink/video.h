@@ -20,6 +20,7 @@
 #define VIDEO_H
 
 #include <linux/amlogic/media/vfm/vframe.h>
+#include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 
 #define MAX_VD_LAYERS 3
 
@@ -406,5 +407,6 @@ int frc_get_video_latency(void);
 int get_vdin_add_delay_num(void);
 #endif
 u32 get_playback_delay_duration(void);
+void vdin_start_notify_vpp(struct tvin_to_vpp_info_s *tvin_info);
 
 #endif /* VIDEO_H */

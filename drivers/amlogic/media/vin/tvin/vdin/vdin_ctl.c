@@ -4168,6 +4168,49 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 			devp->color_depth_config);
 }
 
+static void vdin_get_video_format(struct vdin_dev_s *devp)
+{
+	switch (devp->format_convert) {
+	case VDIN_FORMAT_CONVERT_YUV_YUV444:
+	case VDIN_FORMAT_CONVERT_RGB_YUV444:
+		devp->vdin2vpp_info.cfmt = TVIN_YUV444;
+		break;
+	case VDIN_FORMAT_CONVERT_YUV_YUV422:
+	case VDIN_FORMAT_CONVERT_RGB_YUV422:
+		devp->vdin2vpp_info.cfmt = TVIN_YUV422;
+		break;
+	case VDIN_FORMAT_CONVERT_YUV_RGB:
+	case VDIN_FORMAT_CONVERT_RGB_RGB:
+		devp->vdin2vpp_info.cfmt = TVIN_RGB444;
+		break;
+	case VDIN_FORMAT_CONVERT_YUV_NV21:
+	case VDIN_FORMAT_CONVERT_RGB_NV21:
+		devp->vdin2vpp_info.cfmt = TVIN_NV21;
+		break;
+	case VDIN_FORMAT_CONVERT_YUV_NV12:
+	case VDIN_FORMAT_CONVERT_RGB_NV12:
+		devp->vdin2vpp_info.cfmt = TVIN_NV12;
+		break;
+	default:
+		break;
+	}
+}
+
+void vdin_set_to_vpp_parm(struct vdin_dev_s *devp)
+{
+	if (devp->index)
+		return;
+
+	devp->vdin2vpp_info.is_dv = devp->dv.dv_flag;
+	devp->vdin2vpp_info.scan_mode = devp->fmt_info_p->scan_mode;
+	devp->vdin2vpp_info.fps = devp->parm.info.fps;
+	devp->vdin2vpp_info.width = devp->h_active;
+	devp->vdin2vpp_info.height = devp->v_active;
+	vdin_get_video_format(devp);
+
+	vdin_start_notify_vpp(&devp->vdin2vpp_info);
+}
+
 /* do horizontal reverse and veritical reverse
  * hreverse:
  * VDIN_WR_H_START_END

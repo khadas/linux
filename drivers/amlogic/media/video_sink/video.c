@@ -4607,6 +4607,12 @@ static void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	hdmin_delay_max_ms += memc_delay;
 }
 
+void vdin_start_notify_vpp(struct tvin_to_vpp_info_s *tvin_info)
+{
+	pr_info("vdin start notify vpp\n");
+}
+EXPORT_SYMBOL(vdin_start_notify_vpp);
+
 u32 get_tvin_delay_start(void)
 {
 	return hdmin_delay_start;
