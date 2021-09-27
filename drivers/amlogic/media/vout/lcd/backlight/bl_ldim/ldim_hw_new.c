@@ -844,7 +844,7 @@ void ldim_hw_remap_en_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 
 void ldim_config_update_t7(struct aml_ldim_driver_s *ldim_drv)
 {
-	if (ldim_drv->fw->fw_sel == 0) { //hw update duty
+	if ((ldim_drv->fw->fw_sel & 0x01) == 0) { //hw update duty
 		lcd_vcbus_setb(LDC_SEG_INFO_SEL, 0, 0, 1);
 		lcd_vcbus_setb(LDC_CTRL_MISC0, 0, 25, 1);
 	} else {//sw update duty
@@ -879,7 +879,7 @@ void ldim_vs_arithmetic_t7(struct aml_ldim_driver_s *ldim_drv)
 	if (ldim_drv->alg_en == 0)
 		return;
 
-	if (ldim_drv->fw->fw_sel == 0) {
+	if ((ldim_drv->fw->fw_sel & 0x01) == 0) {
 		ldc_rmem_duty_get(ldim_drv);
 		memcpy(ldim_drv->local_bl_matrix, ldim_drv->fw->bl_matrix,
 		       size * (sizeof(unsigned int)));
@@ -890,6 +890,17 @@ void ldim_vs_arithmetic_t7(struct aml_ldim_driver_s *ldim_drv)
 					__func__);
 			}
 			return;
+		}
+
+		if (ldim_drv->fw_cus->fw_alg_frm) {
+			ldim_drv->fw->fw_sel |= 0x2;  //bit1: 1=have fw_cus
+			ldim_drv->fw_cus->fw_alg_frm(ldim_drv->fw_cus,
+				ldim_drv->stts);
+			memcpy(ldim_drv->fw->fdat->initial_bl,
+				ldim_drv->fw_cus->bl_matrix,
+				size * (sizeof(unsigned int)));
+		} else {
+			ldim_drv->fw->fw_sel &= 0xfd;  //bit1: 0=no fw_cus
 		}
 
 		ldim_drv->fw->fw_alg_frm(ldim_drv->fw, ldim_drv->stts);

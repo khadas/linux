@@ -178,6 +178,7 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.stts = &ldim_stts,
 	.fw = NULL,
 	.comp = &ldim_comp,
+	.fw_cus = NULL,
 
 	.test_matrix = NULL,
 	.local_bl_matrix = NULL,
@@ -1536,6 +1537,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 	struct ldim_dev_s *devp = &ldim_dev;
 	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct ldim_fw_s *fw = aml_ldim_get_fw();
+	struct ldim_fw_custom_s *fw_cus = aml_ldim_get_fw_cus();
 
 	memset(devp, 0, (sizeof(struct ldim_dev_s)));
 
@@ -1585,6 +1587,16 @@ int aml_ldim_probe(struct platform_device *pdev)
 	ldim_driver.fw->seg_row = ldim_config.seg_row;
 	ldim_driver.fw->seg_col = ldim_config.seg_col;
 	ldim_driver.fw->valid = 1;
+
+	if (!fw_cus) {
+		LDIMERR("%s: fw_cus is null\n", __func__);
+	} else {
+		LDIMPR("%s: fw_cus is exist\n", __func__);
+		ldim_driver.fw_cus = fw_cus;
+		ldim_driver.fw_cus->seg_row = ldim_config.seg_row;
+		ldim_driver.fw_cus->seg_col = ldim_config.seg_col;
+		ldim_driver.fw_cus->valid = 1;
+	}
 
 	if (devp->data->memory_init) {
 		ret = devp->data->memory_init(pdev, devp->data,

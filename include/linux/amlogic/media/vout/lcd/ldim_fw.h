@@ -415,9 +415,33 @@ struct ldim_fw_s {
 	void (*fw_alg_para_print)(struct ldim_fw_s *fw);
 };
 
+struct ldim_fw_custom_s {
+	/* header */
+	unsigned char valid;/*if ld firmware is ready*/
+
+	unsigned char seg_col;/*segment column number*/
+	unsigned char seg_row;/*segment row number*/
+	unsigned int global_hist_bin_num;/*global hist bin number*/
+
+	/*print frequent for debug,controlled by cmd*/
+	unsigned int fw_print_frequent;
+	/*print levle for debug,controlled by cmd, range at 200 - 300*/
+	unsigned int fw_print_lv;
+
+	unsigned int *bl_matrix;/*backlight matrix output*/
+
+	/*function for backlight matrix algorithm*/
+	void (*fw_alg_frm)(struct ldim_fw_custom_s *fw_cus,
+		struct ldim_stts_s *stts);
+	/*function for debug,controlled by cmd*/
+	void (*fw_alg_para_print)(struct ldim_fw_custom_s *fw_cus);
+};
+
 /* if struct ldim_fw_s changed, FW_PARA_VER must be update */
 #define FW_PARA_VER    0
 
 struct ldim_fw_s *aml_ldim_get_fw(void);
+
+struct ldim_fw_custom_s *aml_ldim_get_fw_cus(void);
 
 #endif

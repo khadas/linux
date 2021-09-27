@@ -129,7 +129,7 @@ static struct ldim_fw_s ldim_fw = {
 	.para_size = sizeof(struct ldim_fw_s),
 	.fw_ctrl_size = sizeof(struct fw_ctrl_s),
 	.alg_ver = "not installed",
-	.fw_sel = 0, /* switch fw, 0=aml_hw_fw, 1=aml_sw_fw, other for custom */
+	.fw_sel = 0, /* bit0:hw/sw, bit1:no/have fw_cus */
 	.valid = 0,
 	.flag = 0,
 
@@ -149,8 +149,30 @@ static struct ldim_fw_s ldim_fw = {
 	.fw_alg_para_print = NULL,
 };
 
+static struct ldim_fw_custom_s ldim_fw_cus = {
+	.valid = 0,
+	.seg_col = 1,
+	.seg_row = 1,
+	.global_hist_bin_num = 64,
+
+	.fw_print_frequent = 60,
+	.fw_print_lv = 0,
+
+	.bl_matrix = NULL,
+
+	.fw_alg_frm = NULL,
+	.fw_alg_para_print = NULL,
+};
+
 struct ldim_fw_s *aml_ldim_get_fw(void)
 {
 	return &ldim_fw;
 }
 EXPORT_SYMBOL(aml_ldim_get_fw);
+
+struct ldim_fw_custom_s *aml_ldim_get_fw_cus(void)
+{
+	return &ldim_fw_cus;
+}
+EXPORT_SYMBOL(aml_ldim_get_fw_cus);
+

@@ -335,6 +335,7 @@ struct aml_ldim_driver_s {
 	struct ldim_stts_s *stts;
 	struct ldim_fw_s *fw;
 	struct ldim_comp_s *comp;
+	struct ldim_fw_custom_s *fw_cus;
 
 	unsigned int *test_matrix;
 	unsigned int *local_bl_matrix;
