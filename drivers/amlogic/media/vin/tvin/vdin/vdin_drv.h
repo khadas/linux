@@ -751,7 +751,7 @@ void vdin_remove_device_files(struct device *dev);
 int vdin_open_fe(enum tvin_port_e port, int index,
 		 struct vdin_dev_s *devp);
 void vdin_close_fe(struct vdin_dev_s *devp);
-void vdin_start_dec(struct vdin_dev_s *devp);
+int vdin_start_dec(struct vdin_dev_s *devp);
 void vdin_stop_dec(struct vdin_dev_s *devp);
 irqreturn_t vdin_isr_simple(int irq, void *dev_id);
 irqreturn_t vdin_isr(int irq, void *dev_id);
