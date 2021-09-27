@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+# Copyright 2018 Linaro Ltd.
+%YAML 1.2
+---
+
+$id: "http://devicetree.org/schemas/meson-global-timer.yaml#"
+
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Binding details about meson global timer
+
+maintainers:
+  - Qianggui Song <Qianggui.Song@amlogic.com>
+
+description: |
+  This file is used to depict detils of four blocks of meson global timer
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+        - enum:
+          - amlogic,meson-glb-timer-core
+          - amlogic,meson-glb-timer-isp
+          - amlogic,meson-glb-timer-gpio-input
+          - amlogic,meson-glb-timer-gpio-output
+  reg:
+    minItems: 1
+    maxItems: 2
+    description: output function need 2 regs other need 1.
+
+  reg-names:
+    minItems: 1
+    maxItems: 2
+    description: output function need 2 regs other need 1.
+
+  clock:
+    description: Only use in core node.
+
+  clock-names:
+    description: Only use in core node.
+    items:
+      - const: glb_clk
+
+  amlogic,output-source:
+    description: use to specify output source and only used in output function
+
+  required:
+  - compatible
+  - reg
+  - reg-names
+
+  examples:
+    - |
+      gbl_timer_core: global_timer@8e000 {
+        compatible = "amlogic,meson-glb-timer-core";
+        reg = <0x0 0x8e000 0x0 0x28>;
+        reg-names = "topctrl";
+        clocks = <&clkc CLKID_SYS_CLK_GLB>;
+        clock-names = "glb_clk";
+      };
+
+
+
+
+

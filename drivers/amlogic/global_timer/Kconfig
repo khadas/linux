@@ -1,10 +1,47 @@
 #
 # Amlogic GLOBAL TIMER configuration
 #
-config	AMLOGIC_GLOBAL_TIMER
+menuconfig AMLOGIC_GLOBAL_TIMER
 	tristate "amlogic global timer driver"
 	default n
 	help
-		This option enables support meson global timer which is
+		This option enables meson global timer which is
 		a multi-function timer supoort gpio/mipi trigger and gpio
-		output.
+		output and includes several parts sub module
+
+if AMLOGIC_GLOBAL_TIMER
+
+config AMLOGIC_GLOBAL_TIMER_CORE
+	tristate "amlogic global timer core driver"
+	default n
+	help
+		This option enables meson global timer core which is
+		used to get current time stamp counter. Also, api for other
+		driver, sysfs and ioctl for user land are supported.
+
+config AMLOGIC_GLOBAL_TIMER_ISP
+	tristate "amlogic global timer isp driver"
+	default n
+	help
+		This option support time stamp for ISP to get the current counter
+		of starting frame and ending frame. There are 10 such trigger
+		source.
+
+config AMLOGIC_GLOBAL_TIMER_OUTPUT
+	tristate "amlogic global timer output driver"
+	default n
+	help
+		Output pulse function is used to output specified pulse, pulse
+		width, interval between pulses, oneshot or continue mode are
+		supported. This function is independent among global timer
+		drivers.
+
+config AMLOGIC_GLOBAL_TIMER_INPUT
+	tristate "amlogic global timer input driver"
+	default n
+	help
+		This driver is used to latch counter value of global timer when
+		specified GPIO interrupt trigger. 32 GPIOs are supported at the
+		same time.
+
+endif

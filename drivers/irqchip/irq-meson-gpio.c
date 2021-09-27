@@ -15,6 +15,9 @@
 #include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/amlogic/glb_timer.h>
+#endif
 
 #define NUM_CHANNEL 8
 #define MAX_INPUT_MUX 256
@@ -261,6 +264,10 @@ static const struct of_device_id meson_irq_gpio_matches[] = {
 	{ }
 };
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+struct meson_gpio_irq_controller *gclt;
+#endif
+
 struct meson_gpio_irq_controller {
 	const struct meson_gpio_irq_params *params;
 	void __iomem *base;
@@ -479,6 +486,23 @@ meson_gpio_irq_release_channel(struct meson_gpio_irq_controller *ctl,
 	idx = meson_gpio_irq_get_channel_idx(ctl, channel_hwirq);
 	clear_bit(idx, ctl->channel_map);
 }
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+unsigned int gpio_irq_get_channel_idx(int irq)
+{
+	struct irq_desc *desc;
+	u32 *channel_hwirq;
+
+	desc = irq_to_desc(irq);
+	if (!desc)
+		return -EINVAL;
+
+	channel_hwirq = irq_data_get_irq_chip_data(irq_desc_get_irq_data(desc));
+
+	return meson_gpio_irq_get_channel_idx(gclt, channel_hwirq);
+}
+EXPORT_SYMBOL(gpio_irq_get_channel_idx);
+#endif
 
 static int meson_gpio_irq_type_setup(struct meson_gpio_irq_controller *ctl,
 				     unsigned int type,
@@ -782,6 +806,7 @@ static int __init meson_gpio_irq_of_init(struct device_node *node,
 #else
 	pr_info("%d to %d gpio interrupt mux initialized\n",
 		ctl->params->nr_hwirq, ctl->channel_num);
+	gclt = ctl;
 #endif
 
 	return 0;

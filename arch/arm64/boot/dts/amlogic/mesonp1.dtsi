@@ -1307,17 +1307,25 @@
 				reg=<0x0 0x10220 0x0 0x140>;
 			};
 
-			gbl_timer: global_timer@8e000 {
-				compatible = "amlogic, meson-glb-timer";
-				reg = <0x0 0x8e000 0x0 0x28>,
-				      <0x0 0x8e040 0x0 0x68c>,
-				      <0x0 0x8e800 0x0 0x1f8>,
-				      <0x0 0x8f000 0x0 0x3c>;
-				reg-names = "topctrl", "srcsel", "outctl", "outsel";
+			gbl_timer_core: global-timer@8e000 {
+				compatible = "amlogic,meson-glb-timer-core";
+				reg = <0x0 0x8e000 0x0 0x28>;
+				reg-names = "topctrl";
 				clocks = <&clkc CLKID_SYS_CLK_GLB>;
 				clock-names = "glb_clk";
 			};
 
+			gbl_timer_isp: global-timer@8e040 {
+				compatible = "amlogic,meson-glb-timer-isp";
+				reg = <0x0 0x8e040 0x0 0x140>;
+				reg-names = "isp";
+			};
+
+			gbl_timer_gpio_input: global-timer@8e180 {
+				compatible = "amlogic,meson-glb-timer-gpio-input";
+				reg-names = "input-src-sel";
+				reg = <0x0 0x8e180 0x0 0x56c>;
+			};
 		};
 
 		crg21_otg: crg21otg@fe03a000 {
