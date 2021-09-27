@@ -1279,12 +1279,6 @@
 				regulator-max-microvolt = <1350000>;
 				regulator-always-on;
 			};
-			VDD_CPUA1: BUCK2 {
-				regulator-name = "VDD_CPUA1";
-				regulator-min-microvolt = <500000>;
-				regulator-max-microvolt = <1350000>;
-				regulator-always-on;
-			};
 			VDD_CPUB: BUCK3 {
 				regulator-name = "VDD_CPUB";
 				regulator-min-microvolt = <500000>;
