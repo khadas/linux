@@ -405,7 +405,7 @@ struct hdmitx_dev {
 	u32 flag_3dss:1;
 	u32 dongle_mode:1;
 	u32 cedst_en:1; /* configure in DTS */
-	u32 hdr_priority:1;
+	u32 hdr_priority;
 	u32 bist_lock:1;
 	u32 drm_feature;/*Direct Rander Management*/
 	u32 vend_id_hit:1;
