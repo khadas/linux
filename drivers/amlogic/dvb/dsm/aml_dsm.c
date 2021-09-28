@@ -53,7 +53,7 @@ struct dsm_session {
 	atomic_t ref_count;
 	atomic_t key_count;
 	__u32 token;
-	__u32 properties[DSM_DRV_PROP_MAX];
+	__u32 properties[MAX_DSM_PROP];
 	struct mutex lock; /*session lock*/
 	struct list_head keys;
 };
@@ -67,7 +67,10 @@ struct dsm_session {
 struct keytable_key {
 	struct list_head list;
 	__u32 id;
-	__u32 type;
+	__u32 parity;
+	__u32 algo;
+	__u32 is_iv;
+	__u32 is_enc;
 };
 
 static int debug = 1;
@@ -200,7 +203,10 @@ static long dsm_add_keyslot(struct dev_session *dev, union dsm_para *para)
 		r = -EOVERFLOW;
 	} else {
 		key->id = para->keyslot.id;
-		key->type = para->keyslot.type;
+		key->parity = para->keyslot.parity;
+		key->algo = para->keyslot.algo;
+		key->is_iv = para->keyslot.is_iv;
+		key->is_enc = para->keyslot.is_enc;
 		list_add_tail(&key->list, &sess->keys);
 		atomic_inc(&sess->key_count);
 	}
@@ -266,7 +272,10 @@ static long dsm_get_keyslot_list(struct dev_session *dev, union dsm_para *para)
 	list_for_each_safe(pos, tmp, &sess->keys) {
 		key = list_entry(pos, struct keytable_key, list);
 		para->keyslot_list.keyslots[i].id = key->id;
-		para->keyslot_list.keyslots[i].type = key->type;
+		para->keyslot_list.keyslots[i].parity = key->parity;
+		para->keyslot_list.keyslots[i].algo = key->algo;
+		para->keyslot_list.keyslots[i].is_iv = key->is_iv;
+		para->keyslot_list.keyslots[i].is_enc = key->is_enc;
 		i++;
 	}
 	para->keyslot_list.count = atomic_read(&sess->key_count);
@@ -281,7 +290,7 @@ static long dsm_set_property(struct dev_session *dev, union dsm_para *para)
 	if (!sess)
 		return -EINVAL;
 
-	if (para->property.key >= DSM_DRV_PROP_MAX)
+	if (para->property.key >= MAX_DSM_PROP)
 		return -EINVAL;
 
 	mutex_lock(&sess->lock);
@@ -297,7 +306,7 @@ static long dsm_get_property(struct dev_session *dev, union dsm_para *para)
 	if (!sess)
 		return -EINVAL;
 
-	if (para->property.key >= DSM_DRV_PROP_MAX)
+	if (para->property.key >= MAX_DSM_PROP)
 		return -EINVAL;
 
 	mutex_lock(&sess->lock);
@@ -430,9 +439,14 @@ static ssize_t usage_show(struct class *class,
 				atomic_read(&sess->key_count))
 		list_for_each_safe(pos2, tmp2, &sess->keys) {
 			key = list_entry(pos2, struct keytable_key, list);
-			APPEND_ATTR_BUF("\tSlot: %2d, type: 0x%x\n",
-				key->id,
-				key->type)
+			APPEND_ATTR_BUF("\tSlot: %2d, ",
+				key->id)
+			APPEND_ATTR_BUF("parity: 0x%x, algo: %d, ",
+				key->parity,
+				key->algo)
+			APPEND_ATTR_BUF("is_iv: %d, is_enc: %d\n",
+				key->is_iv,
+				key->is_enc)
 		}
 	}
 	mutex_unlock(&sessions_lock);
