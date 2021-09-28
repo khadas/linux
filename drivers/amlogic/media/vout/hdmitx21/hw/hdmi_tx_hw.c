@@ -1801,8 +1801,12 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 	case MISC_TMDS_PHY_OP:
 		if (argv == TMDS_PHY_ENABLE)
 			hdmi_phy_wakeup(hdev);  /* TODO */
-		if (argv == TMDS_PHY_DISABLE)
+		if (argv == TMDS_PHY_DISABLE) {
+			hdev->hdcp_mode = 0x00;
+			if (get_hdcp2_lstore() || get_hdcp1_lstore())
+				hdcp_mode_set(0);
 			hdmi_phy_suspend();
+		}
 		break;
 	case MISC_TMDS_RXSENSE:
 		return hdmitx_tmds_rxsense();
