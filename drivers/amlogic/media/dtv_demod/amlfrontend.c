@@ -2843,6 +2843,15 @@ static int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 	param.ch_freq = c->frequency / 1000;
 
 	demod->last_lock = -1;
+
+	if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+		PR_INFO("dtmb set ddr\n");
+		dtmb_write_reg(0x7, 0x6ffffd);
+		//dtmb_write_reg(0x47, 0xed33221);
+		dtmb_write_reg_bits(0x47, 0x1, 22, 1);
+		dtmb_write_reg_bits(0x47, 0x1, 23, 1);
+	}
+
 	tuner_set_params(fe);	/*aml_fe_analog_set_frontend(fe);*/
 	msleep(100);
 
@@ -4968,9 +4977,9 @@ static void aml_dtvdemod_shutdown(struct platform_device *pdev)
 		 */
 		if (devp->state != DTVDEMOD_ST_IDLE) {
 			if (demod->last_delsys != SYS_UNDEFINED) {
-				leave_mode(demod, demod->last_delsys);
 				if (demod->frontend.ops.tuner_ops.release)
 					demod->frontend.ops.tuner_ops.release(&demod->frontend);
+				leave_mode(demod, demod->last_delsys);
 			}
 		}
 	}
@@ -5031,9 +5040,9 @@ static int dtvdemod_leave_mode(struct amldtvdemod_device_s *devp)
 		delsys = demod->last_delsys;
 		PR_INFO("%s, delsys = %s\n", __func__, name_fe_delivery_system[delsys]);
 		if (delsys != SYS_UNDEFINED) {
-			leave_mode(demod, delsys);
 			if (demod->frontend.ops.tuner_ops.release)
 				demod->frontend.ops.tuner_ops.release(&demod->frontend);
+			leave_mode(demod, delsys);
 		}
 	}
 
@@ -5126,6 +5135,7 @@ void __exit aml_dtvdemod_exit(void)
 static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	enum fe_delivery_system ldelsys = demod->last_delsys;
 	enum fe_delivery_system cdelsys = delsys;
 
@@ -5208,10 +5218,28 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 	case SYS_ANALOG:
 		if (get_dtvpll_init_flag()) {
 			PR_INFO("delsys not support : %d\n", cdelsys);
-			leave_mode(demod, ldelsys);
+
+			if (devp->data->hw_ver == DTVDEMOD_HW_T3 && ldelsys == SYS_DTMB) {
+				dtmb_write_reg(0x7, 0x6ffffd);
+				//dtmb_write_reg(0x47, 0xed33221);
+				dtmb_write_reg_bits(0x47, 0x1, 22, 1);
+				dtmb_write_reg_bits(0x47, 0x1, 23, 1);
+			}
 
 			if (fe->ops.tuner_ops.release)
 				fe->ops.tuner_ops.release(fe);
+
+			if (devp->data->hw_ver == DTVDEMOD_HW_T3 && ldelsys == SYS_DTMB) {
+				if (fe->ops.tuner_ops.set_config)
+					fe->ops.tuner_ops.set_config(fe, NULL);
+				if (fe->ops.tuner_ops.release)
+					fe->ops.tuner_ops.release(fe);
+				msleep(demod->timeout_ddr_leave);
+				//msleep(50);
+				clear_ddr_bus_data();
+				PR_INFO("T3 demod clear ddr data done\n");
+			}
+			leave_mode(demod, ldelsys);
 		}
 
 		return 0;
@@ -5220,28 +5248,31 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 
 	if (cdelsys != SYS_UNDEFINED) {
 		if (ldelsys != SYS_UNDEFINED) {
-			leave_mode(demod, ldelsys);
-
 			if (fe->ops.tuner_ops.release)
 				fe->ops.tuner_ops.release(fe);
+
+			leave_mode(demod, ldelsys);
 		}
 
 		if (enter_mode(demod, cdelsys)) {
 			PR_INFO("enter_mode failed,leave!\n");
-			leave_mode(demod, cdelsys);
 
 			if (fe->ops.tuner_ops.release)
 				fe->ops.tuner_ops.release(fe);
+
+			leave_mode(demod, cdelsys);
+
 			return 0;
 		}
 	}
 
 	if (!get_dtvpll_init_flag()) {
 		PR_INFO("pll is not set!\n");
-		leave_mode(demod, cdelsys);
-
 		if (fe->ops.tuner_ops.release)
 			fe->ops.tuner_ops.release(fe);
+
+		leave_mode(demod, cdelsys);
+
 		return 0;
 	}
 
@@ -5300,11 +5331,12 @@ static int aml_dtvdm_sleep(struct dvb_frontend *fe)
 
 	if (get_dtvpll_init_flag()) {
 		PR_INFO("%s\n", __func__);
+		if (fe->ops.tuner_ops.release)
+			fe->ops.tuner_ops.release(fe);
+
 		if (delsys != SYS_UNDEFINED)
 			leave_mode(demod, delsys);
 
-		if (fe->ops.tuner_ops.release)
-			fe->ops.tuner_ops.release(fe);
 	}
 
 	PR_INFO("%s [id %d] OK.\n", __func__, demod->id);
@@ -5840,11 +5872,10 @@ static void aml_dtvdm_release(struct dvb_frontend *fe)
 
 	if (get_dtvpll_init_flag()) {
 		PR_INFO("%s\n", __func__);
-		if (delsys != SYS_UNDEFINED)
-			leave_mode(demod, delsys);
-
 		if (fe->ops.tuner_ops.release)
 			fe->ops.tuner_ops.release(fe);
+		if (delsys != SYS_UNDEFINED)
+			leave_mode(demod, delsys);
 	}
 
 	PR_INFO("%s [id %d] OK.\n", __func__, demod->id);
@@ -6195,6 +6226,7 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 	demod->timeout_dvbt_ms = TIMEOUT_DVBT;
 	demod->timeout_dvbs_ms = TIMEOUT_DVBS;
 	demod->timeout_dvbc_ms = TIMEOUT_DVBC;
+	demod->timeout_ddr_leave = TIMEOUT_DDR_LEAVE;
 	demod->last_lock = -1;
 	demod->inited = false;
 	demod->suspended = true;

@@ -773,6 +773,93 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode)
 	return 0;
 }
 
+unsigned int clear_ddr_bus_data(void)
+{
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	int testbus_addr, width, vld;
+	unsigned int tb_start, tb_depth;
+	unsigned int start_addr = 0;
+	unsigned int top_saved, polling_en;
+	//struct dvb_frontend *fe;
+	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
+	unsigned int offset, size;
+
+	if (unlikely(!devp)) {
+		PR_ERR("%s:devp is NULL\n", __func__);
+		return -1;
+	}
+
+	list_for_each_entry(tmp, &devp->demod_list, list) {
+		if (tmp->id == 0) {
+			demod = tmp;
+			PR_ERR("%s:tmp->id == 0\n", __func__);
+			break;
+		}
+	}
+
+	if (unlikely(!demod)) {
+		PR_ERR("%s: demod is NULL\n", __func__);
+		return -1;
+	}
+
+	testbus_addr = 0x1000;
+	width = 9;
+	vld = 0x100000;
+
+	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+		polling_en = devp->demod_thread;
+		devp->demod_thread = 0;
+		top_saved = demod_top_read_reg(DEMOD_TOP_CFG_REG_4);
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
+	}
+	/* enable arb */
+	front_write_bits(0x39, 1, 30, 1);
+	/* enable mask p2 */
+	front_write_bits(0x3a, 1, 10, 1);
+	/* Stop cap */
+	front_write_bits(0x3a, 1, 12, 1);
+	/* testbus addr */
+	front_write_bits(0x39, testbus_addr, 0, 16);
+
+	/* enable test_mode */
+	front_write_bits(0x3a, 1, 13, 1);
+	start_addr = devp->mem_start;
+
+	offset = 0 * 1024 * 1024;
+
+	size = (1 * 1024) - offset;
+	start_addr += offset;
+	front_write_reg(0x3c, start_addr);
+	front_write_reg(0x3d, start_addr + size);
+	tb_depth = size / SZ_1M;
+	/* set testbus width */
+	front_write_bits(0x3a, width, 0, 5);
+
+	/* sel adc 10bit */
+	demod_top_write_bits(DEMOD_TOP_REGC, 0, 8, 1);
+
+	/* collect by system clk */
+	front_write_reg(0x3b, vld);
+	/* disable mask p2 */
+	front_write_bits(0x3a, 0, 10, 1);
+	front_write_bits(0x39, 0, 31, 1);
+	front_write_bits(0x39, 1, 31, 1);
+	/* go tb */
+	front_write_bits(0x3a, 0, 12, 1);
+	wait_capture(0x3f, tb_depth, start_addr);
+	PR_INFO("clear done\n");
+	/* stop tb */
+	front_write_bits(0x3a, 1, 12, 1);
+	tb_start = front_read_reg(0x3f);
+
+	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, top_saved);
+		devp->demod_thread = polling_en;
+	}
+
+	return 0;
+}
+
 static void info_show(void)
 {
 	int snr, lock_status, agc_if_gain[3];
@@ -1288,6 +1375,9 @@ static ssize_t attr_store(struct class *cls,
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
 			devp->blind_debug_max_frc = val;
 		PR_INFO("set blind frec max to %d\n", devp->blind_debug_max_frc);
+	} else if (!strcmp(parm[0], "timeout_ddr_leave")) {
+		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
+			demod->timeout_ddr_leave = val;
 	}
 
 fail_exec_cmd:

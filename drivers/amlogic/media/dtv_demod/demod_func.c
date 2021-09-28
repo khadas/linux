@@ -628,6 +628,19 @@ unsigned int dtmb_read_reg(unsigned int reg_addr)
 	return tmp;
 }
 
+void dtmb_write_reg_bits(u32 addr, const u32 data, const u32 start, const u32 len)
+{
+	unsigned int val;
+
+	if (!get_dtvpll_init_flag())
+		return;
+
+	val = dtmb_read_reg(addr);
+	val &= ~(((1L << (len)) - 1) << (start));
+	val |= (((data) & ((1L << (len)) - 1)) << (start));
+	dtmb_write_reg(addr, val);
+}
+
 void dvbt_isdbt_wr_reg(unsigned int addr, unsigned int data)
 {
 	if (!get_dtvpll_init_flag())
