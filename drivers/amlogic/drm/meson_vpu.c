@@ -342,6 +342,7 @@ static void am_meson_vpu_unbind(struct device *dev,
 	am_meson_ctm_disable();
 #endif
 	am_meson_vpu_power_config(0);
+	vpu_pipeline_fini(private->pipeline);
 }
 
 static const struct component_ops am_meson_vpu_component_ops = {
