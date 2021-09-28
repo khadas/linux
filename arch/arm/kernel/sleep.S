@@ -146,6 +146,13 @@ ARM_BE8(setend be)			@ ensure we are in BE mode
 no_hyp:
 	mov	r1, #0
 	ALT_SMP(mrc p15, 0, r0, c0, c0, 5)
+#ifdef CONFIG_AMLOGIC_MODIFY
+	ALT_SMP(and r3, r0, #1<<24)
+	ALT_SMP(cmp r3, #0)
+	ALT_SMP(beq _cpu_resume_cont)
+	ALT_SMP(lsr r0, r0, #8)
+_cpu_resume_cont:
+#endif
 	ALT_UP_B(1f)
 	adr	r2, mpidr_hash_ptr
 	ldr	r3, [r2]
