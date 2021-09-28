@@ -22,16 +22,14 @@ union dsm_para;
 #define DSM_IOC_GET_PROPERTY		_IOWR(DSM_IOC_MAGIC, 7, union dsm_para)
 
 #define MAX_KEYSLOTS			32  /*Max Keyslot Per Session*/
-
-enum {
-	DSM_DRV_PROP_ALGO,
-	DSM_DRV_PROP_INTENT,
-	DSM_DRV_PROP_MAX
-};
+#define MAX_DSM_PROP			32  /*Max DSM property*/
 
 struct keyslot_s {
 	__u32 id;
-	__u32 type;
+	__u32 parity;
+	__u32 algo;
+	__u32 is_iv;
+	__u32 is_enc;
 };
 
 struct keyslot_list_s {
