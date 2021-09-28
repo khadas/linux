@@ -94,6 +94,7 @@ struct meson_vpu_block_ops {
 	void (*dump_register)(struct meson_vpu_block *vblk,
 			      struct seq_file *seq);
 	void (*init)(struct meson_vpu_block *vblk);
+	void (*fini)(struct meson_vpu_block *vblk);
 };
 
 struct meson_vpu_block_link {
@@ -526,6 +527,7 @@ int vpu_video_plane_update(struct meson_vpu_pipeline *pipeline,
 int vpu_osd_pipeline_update(struct meson_vpu_pipeline *pipeline,
 			struct drm_atomic_state *old_state);
 void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline);
+void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline);
 
 /* meson_vpu_pipeline_private.c */
 struct meson_vpu_block_state *

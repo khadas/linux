@@ -90,8 +90,7 @@ static struct osd_mif_reg_s osd_mif_reg[HW_OSD_MIF_NUM] = {
 	}
 };
 
-static unsigned int osd_canvas[3][2] = {
-	{0x41, 0x42}, {0x43, 0x44}, {0x45, 0x46} };
+static unsigned int osd_canvas[3][2];
 static u32 osd_canvas_index[3] = {0, 0, 0};
 
 /*
@@ -437,6 +436,24 @@ static void osd_afbc_config(struct osd_mif_reg_s *reg,
 	osd_mem_mode(reg, afbc_en);
 }
 
+static void meson_drm_osd_canvas_alloc(void)
+{
+	if (canvas_pool_alloc_canvas_table("osd_drm",
+					   &osd_canvas[0][0],
+					   sizeof(osd_canvas) /
+					   sizeof(osd_canvas[0][0]),
+					   CANVAS_MAP_TYPE_1)) {
+		DRM_INFO("allocate drm osd canvas error.\n");
+	}
+}
+
+static void meson_drm_osd_canvas_free(void)
+{
+	canvas_pool_free_canvas_table(&osd_canvas[0][0],
+				      sizeof(osd_canvas) /
+				      sizeof(osd_canvas[0][0]));
+}
+
 static int osd_check_state(struct meson_vpu_block *vblk,
 			   struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps)
@@ -648,10 +665,18 @@ static void osd_hw_init(struct meson_vpu_block *vblk)
 		DRM_DEBUG("hw_init break for NULL.\n");
 		return;
 	}
+
+	meson_drm_osd_canvas_alloc();
+
 	osd->reg = &osd_mif_reg[vblk->index];
 	osd_ctrl_init(osd->reg);
 
 	DRM_DEBUG("%s hw_init done.\n", osd->base.name);
+}
+
+static void osd_hw_fini(struct meson_vpu_block *vblk)
+{
+	meson_drm_osd_canvas_free();
 }
 
 struct meson_vpu_block_ops osd_ops = {
@@ -661,4 +686,5 @@ struct meson_vpu_block_ops osd_ops = {
 	.disable = osd_hw_disable,
 	.dump_register = osd_dump_register,
 	.init = osd_hw_init,
+	.fini = osd_hw_fini,
 };
