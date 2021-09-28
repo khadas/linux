@@ -287,6 +287,12 @@ void VPU_PIPELINE_HW_INIT(struct meson_vpu_block *mvb)
 		mvb->ops->init(mvb);
 }
 
+void VPU_PIPELINE_HW_FINI(struct meson_vpu_block *mvb)
+{
+	if (mvb->ops->fini)
+		mvb->ops->fini(mvb);
+}
+
 static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 				     struct meson_vpu_pipeline_state *mvps)
 {
@@ -408,6 +414,28 @@ void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
 	VPU_PIPELINE_HW_INIT(&pipeline->postblend->base);
 }
 
+void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline)
+{
+	int i;
+
+	for (i = 0; i < pipeline->num_osds; i++)
+		VPU_PIPELINE_HW_FINI(&pipeline->osds[i]->base);
+
+	for (i = 0; i < pipeline->num_video; i++)
+		VPU_PIPELINE_HW_FINI(&pipeline->video[i]->base);
+
+	for (i = 0; i < pipeline->num_afbc_osds; i++)
+		VPU_PIPELINE_HW_FINI(&pipeline->afbc_osds[i]->base);
+
+	for (i = 0; i < pipeline->num_scalers; i++)
+		VPU_PIPELINE_HW_FINI(&pipeline->scalers[i]->base);
+
+	VPU_PIPELINE_HW_FINI(&pipeline->osdblend->base);
+
+	VPU_PIPELINE_HW_FINI(&pipeline->hdr->base);
+
+	VPU_PIPELINE_HW_FINI(&pipeline->postblend->base);
+}
 /*
  * Start of Roku async update func implement
  */
