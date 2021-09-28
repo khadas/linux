@@ -694,7 +694,7 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode)
 		top_saved = demod_top_read_reg(DEMOD_TOP_CFG_REG_4);
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x0);
 	}
-
+	msleep(3000);
 	/* enable arb */
 	front_write_bits(0x39, 1, 30, 1);
 	/* enable mask p2 */
