@@ -7,6 +7,7 @@
 /*#include "reg_dtmb.h"*/
 
 #include "demod_func.h"
+#include "demod_dbg.h"
 
 MODULE_PARM_DESC(demod_enable_performance, "\n\t\t demod_enable_performance information");
 static int demod_enable_performance = 1;
@@ -251,8 +252,18 @@ void dtmb_all_reset(struct aml_dtvdemod *demod)
 
 void dtmb_initial(struct aml_dtvdemod *demod)
 {
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+
 	/* dtmb_write_reg(0x049, memstart);		//only for init */
 	dtmb_register_reset();
+
+	if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+		clear_ddr_bus_data();
+		dtmb_write_reg(0x7, 0xffffff);
+		//dtmb_write_reg(0x47, 0x133220);
+		dtmb_write_reg_bits(0x47, 0x0, 22, 1);
+		dtmb_write_reg_bits(0x47, 0x0, 23, 1);
+	}
 	dtmb_all_reset(demod);
 }
 
@@ -666,7 +677,6 @@ void dtmb_reset(void)
 void dtmb_register_reset(void)
 {
 	union DTMB_TOP_CTRL_SW_RST_BITS sw_rst;
-
 	sw_rst.b.ctrl_sw_rst = 1;
 	dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
 	sw_rst.b.ctrl_sw_rst = 0;
