@@ -25,8 +25,20 @@
 #define T_BUF_SIZE	(1024 * 1024 * 50)
 
 static struct hrtimer ddr_hrtimer_timer;
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DDR_BW
+#include <trace/events/meson_atrace.h>
 
 static struct ddr_bandwidth *aml_db;
+static const char chann_names[][50] = {
+	"ddr_bw ch 1 (MB/S)",
+	"ddr_bw ch 2 (MB/S)",
+	"ddr_bw ch 3 (MB/S)",
+	"ddr_bw ch 4 (MB/S)",
+	"ddr_bw ch 5 (MB/S)",
+	"ddr_bw ch 6 (MB/S)",
+	"ddr_bw ch 7 (MB/S)",
+	"ddr_bw ch 8 (MB/S)",
+};
 
 /* run time should be short */
 static enum hrtimer_restart  ddr_hrtimer_handler(struct hrtimer *timer)
@@ -154,6 +166,19 @@ static void cal_ddr_usage(struct ddr_bandwidth *db, struct ddr_grant *dg)
 	}
 	db->avg.sample_count++;
 	spin_unlock_irqrestore(&aml_db->lock, flags);
+
+	/* The bandwidth is the value of in the last statistic period
+	 * but systrace will use this value as the current statistic period
+	 * need record the last value as current period's value
+	 */
+	ATRACE_COUNTER("ddr_bw total (MB/S)",
+			db->prev_sample.total_bandwidth / 1000);
+
+	for (i = 0; i < db->channels; i++)
+		ATRACE_COUNTER(chann_names[i],
+				db->prev_sample.bandwidth[i] / 1000);
+
+	db->prev_sample = db->cur_sample;
 }
 
 static irqreturn_t dmc_irq_handler(int irq, void *dev_instance)

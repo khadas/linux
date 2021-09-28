@@ -29,6 +29,7 @@ struct {
 	TAG_INFO(MSYNC),
 	TAG_INFO(DEMUX),
 	TAG_INFO(MEDIA_SYNC),
+	TAG_INFO(DDR_BW),
 	{ NULL, 0 }
 };
 

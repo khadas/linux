@@ -166,6 +166,7 @@ struct ddr_bandwidth {
 	unsigned int usage_stat[10];
 	spinlock_t lock;		/* lock for usage statistics */
 	struct ddr_bandwidth_sample cur_sample;
+	struct ddr_bandwidth_sample prev_sample;
 	struct ddr_bandwidth_sample max_sample;
 	struct ddr_avg_bandwidth    avg;
 	struct bandwidth_addr_range range[MAX_CHANNEL];
