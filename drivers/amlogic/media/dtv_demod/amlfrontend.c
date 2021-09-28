@@ -5994,6 +5994,8 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 
 	switch (tvp->cmd) {
 	case DTV_DELIVERY_SYSTEM:
+		if (!devp->demod_thread)
+			break;
 		tvp->u.data = demod->last_delsys;
 		if (demod->last_delsys == SYS_DVBS || demod->last_delsys == SYS_DVBS2) {
 			v = dvbs_rd_byte(0x932) & 0x60;//bit5.6
