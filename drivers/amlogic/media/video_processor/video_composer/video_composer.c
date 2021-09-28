@@ -929,6 +929,9 @@ static int config_ge2d_data(struct composer_dev *dev,
 {
 	struct vframe_s *vf = NULL;
 
+	vc_print(dev->index, PRINT_AXIS, "crop %d %d %d %d\n",
+		info->crop_x, info->crop_y, info->crop_w, info->crop_h);
+
 	if (src_vf) {
 		if (src_vf->canvas0_config[0].phy_addr == 0) {
 			if ((src_vf->flag &  VFRAME_FLAG_DOUBLE_FRAM) &&
@@ -1006,8 +1009,8 @@ static int config_ge2d_data(struct composer_dev *dev,
 				| VIDTYPE_VIU_FIELD
 				| VIDTYPE_VIU_NV21;
 		data->plane_num = 2;
-		data->width = info->buffer_w;
-		data->height = info->buffer_h;
+		data->width = info->crop_w;
+		data->height = info->crop_h;
 		data->is_vframe = false;
 	}
 	return 0;
@@ -1089,6 +1092,7 @@ static void vframe_composer(struct composer_dev *dev)
 	if (!kfifo_peek(&dev->receive_q, &received_frames_tmp))
 		return;
 	is_tvp = received_frames_tmp->is_tvp;
+
 	dev->ge2d_para.ge2d_config = &ge2d_config;
 	ret = video_composer_init_buffer(dev, is_tvp);
 	if (ret != 0) {
