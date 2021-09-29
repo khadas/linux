@@ -1,0 +1,60 @@
+* Amlogic PCIe endpoint controller
+
+Required properties:
+- compatible: Should contain "amlogic, amlogic-pcie-ep" to identify the IP used.
+- reg: Should contain the controller register base address and AXI interface
+  region base address respectively.
+- reg-names: Must be "reg" and "mem" respectively.
+
+Optional properties:
+- max-functions: Maximum number of functions that can be configured (default 1).
+- phys: From PHY bindings: List of Generic PHY phandles. One per lane if more
+  than one in the list.  If only one PHY listed it must manage all lanes.
+- phy-names:  List of names to identify the PHY.
+
+Example:
+
+		pcie_ep: pcie-ep@0xe0000000 {
+			compatible = "amlogic, amlogic-pcie-ep",
+				   "amlogic,amlogic-pcie-ep";
+			reg = <0x0 0xe0000000 0x0 0x1000
+				0x0 0xfe02c000 0x0 0x2000
+				0x0 0xe0000000 0x0 0x10000000
+				0x0 0xefe00000 0x0 0x200000
+				0x0 0xfe072000 0x0 0x2000
+				0x0 0xfe002040 0x0 0x10
+				0x0 0xe4000000 0x0 0x8000000>;
+			reg-names = "apb-base", "pcictrl-base", "axi-base",
+				    "ecam-base", "phy-base", "reset-base",
+				    "mem0";
+			interrupts = <GIC_SPI 78 IRQ_TYPE_EDGE_RISING>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pcieck_pins>;
+
+			clocks = <&clkc CLKID_PCIE_PLL
+				&clkc CLKID_SYS_CLK_PCIE
+				&clkc CLKID_SYS_CLK_PCIEPHY
+				&clkc CLKID_PCIE_HCSL
+				&clkc CLKID_PCIE_400M
+				&clkc CLKID_PCIE_TL_CLK
+				&clkc CLKID_PCIE_CLK>;
+			clock-names = "pcie_refpll",
+					"pcie",
+					"pcie_phy",
+					"pcie_hcsl",
+					"pcie_400m_clk",
+					"pcie_tl_clk",
+					"cts_pcie_clk";
+			/*reset-gpio-type 0:Shared pad(no reset)1:OD pad2:Normal pad*/
+			gpio-type = <2>;
+			pcie-m31phy-rst-bit = <21>;
+			pcie-gen3-l0-rst-bit = <18>;
+			pcie-apb-rst-bit = <14>;
+			pcie-phy-rst-bit = <13>;
+			pcie-a-rst-bit = <12>;
+			pcie-rst-bit = <12>;
+			pcie-rst-mask = <0xff>;
+			power-domains = <&pwrdm PDID_P1_PCIE>;
+			status = "disabled";
+		};
+

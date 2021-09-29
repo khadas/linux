@@ -1299,6 +1299,11 @@
 	status = "okay";
 };
 
+&pcie_ep {
+	reset-gpio = <&gpio GPIOX_28 GPIO_ACTIVE_LOW>;
+	status = "disable";
+};
+
 &i2c9 {
 	clock-frequency = <400000>;
 	pinctrl-names = "default";

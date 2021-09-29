@@ -17,17 +17,6 @@
 
 #include "pcie-amlogic-v3.h"
 
-static u32 amlogic_pciectrl_read(struct amlogic_pcie *pcie, u32 reg)
-{
-	return readl(pcie->pcictrl_base + reg);
-}
-
-static void amlogic_pciectrl_write(struct amlogic_pcie *pcie, u32 val,
-				   u32 reg)
-{
-	writel(val, pcie->pcictrl_base + reg);
-}
-
 int amlogic_pcie_get_reset(struct amlogic_pcie *amlogic)
 {
 	struct device *dev = amlogic->dev;
@@ -197,10 +186,11 @@ get_rst_reg:
 	return 0;
 }
 
-int amlogic_pcie_set_reset(struct amlogic_pcie *amlogic)
+int amlogic_pcie_set_reset(struct amlogic_pcie *amlogic, bool set)
 {
 	struct device *dev = amlogic->dev;
 	int err = 0, val = 0;
+	int regs = 0;
 
 	if (amlogic->rst_base)
 		goto set_rst_reg;
@@ -362,35 +352,56 @@ int amlogic_pcie_set_reset(struct amlogic_pcie *amlogic)
 	}
 
 set_rst_reg:
-	val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
-	val &= ~(1 << amlogic->m31phy_rst_bit);
-	writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
-	val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
-	val |= (1 << amlogic->m31phy_rst_bit);
-	writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
+	if (!set) {
+		val = readl(amlogic->rst_base + RESETCTRL3_OFFSET);
+		val &= ~(amlogic->pcie_rst_mask << amlogic->pcie_rst_bit);
+		writel(val, amlogic->rst_base + RESETCTRL3_OFFSET);
+		val = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL0);
 
-	val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
-	val &= ~((1 << amlogic->pcie_a_rst_bit) |
-		 (1 << amlogic->phy_rst_bit) |
-		 (1 << amlogic->apb_rst_bit));
-		 //(1 << amlogic->gen3_l0_rst_bit));
-	writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
-	val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
-	val |= ((1 << amlogic->pcie_a_rst_bit) |
-		 (1 << amlogic->phy_rst_bit) |
-		 (1 << amlogic->apb_rst_bit));
-		 //(1 << amlogic->gen3_l0_rst_bit));
-	writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
+		amlogic_pciectrl_write(amlogic, val, PCIE_A_CTRL0);
 
-	val = readl(amlogic->rst_base + RESETCTRL3_OFFSET);
-	val &= ~(amlogic->pcie_rst_mask << amlogic->pcie_rst_bit);
-	writel(val, amlogic->rst_base + RESETCTRL3_OFFSET);
-	val = readl(amlogic->rst_base + RESETCTRL3_OFFSET);
-	val |= (amlogic->pcie_rst_mask << amlogic->pcie_rst_bit);
-	writel(val, amlogic->rst_base + RESETCTRL3_OFFSET);
+		val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
+		val &= ~((1 << amlogic->pcie_a_rst_bit) |
+			 (1 << amlogic->phy_rst_bit) |
+			 (1 << amlogic->apb_rst_bit));
+		val &= ~(1 << amlogic->m31phy_rst_bit);
+		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
+	} else {
+		val = readl(amlogic->rst_base + RESETCTRL3_OFFSET);
+		val |= (amlogic->pcie_rst_mask << amlogic->pcie_rst_bit);
+		writel(val, amlogic->rst_base + RESETCTRL3_OFFSET);
+
+		/*PHY_Register_XCFGA_COM value from vendor recommend*/
+		regs = readl(amlogic->phy_base + 0x828);
+		regs &= ~GENMASK(31, 28);
+		regs |= (2 << 28);
+		writel(regs, amlogic->phy_base + 0x828);
+
+		/*PHY_Register_XCFGD value from vendor recommend*/
+		regs = readl(amlogic->phy_base + 0x460);
+		regs &= ~GENMASK(23, 20);
+		regs |= (4 << 20);
+		writel(regs, amlogic->phy_base + 0x460);
+
+		val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
+		val |= ((1 << amlogic->pcie_a_rst_bit) |
+			 (1 << amlogic->phy_rst_bit) |
+			 (1 << amlogic->apb_rst_bit));
+		val |= (1 << amlogic->m31phy_rst_bit);
+		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
+
+		val = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL0);
+
+		if (amlogic->is_rc)
+			val |= PORT_TYPE;
+		else
+			val &= ~PORT_TYPE;
+		amlogic_pciectrl_write(amlogic, val, PCIE_A_CTRL0);
+	}
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(amlogic_pcie_set_reset);
 
 void amlogic_pcie_set_reset_gpio(struct amlogic_pcie *amlogic)
 {
@@ -550,6 +561,9 @@ bool amlogic_pcie_link_up(struct amlogic_pcie *amlogic)
 	do {
 		ltssm_up = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL5);
 		ltssm_up = ((ltssm_up >> 18) & 0x1f) == 0x10 ? 1 : 0;
+		dev_dbg(dev, "%s:%d, ltssm_up=0x%x\n", __func__, __LINE__,
+			((amlogic_pciectrl_read(amlogic,
+						PCIE_A_CTRL5) >> 18) & 0x1f));
 
 		val = amlogic_pcieinter_read(amlogic, PCIE_BASIC_STATUS);
 		neg_link_speed = (val >> 8) & 0xf;
@@ -563,10 +577,10 @@ bool amlogic_pcie_link_up(struct amlogic_pcie *amlogic)
 			dev_err(dev, "Error: Wait linkup timeout.\n");
 			return false;
 		}
-
 		cnt++;
-		udelay(10);
-	} while ((ltssm_up == 0) || (!(val & LINK_UP_MASK)));
+		udelay(20);
+	} while (ltssm_up == 0);
+
 	return true;
 }
 
@@ -649,10 +663,23 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 	struct device *dev = amlogic->dev;
 	int err;
 	u32 regs;
+	u32 val;
 
-	err = amlogic_pcie_set_reset(amlogic);
+	val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
+	val &= ~(1 << amlogic->m31phy_rst_bit);
+	writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
+	val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
+	val |= (1 << amlogic->m31phy_rst_bit);
+	writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
+
+	err = amlogic_pcie_set_reset(amlogic, false);
 	if (err)
 		return err;
+
+	/*PHY_Register_XCFGD value from vendor recommend*/
+	regs = readl(amlogic->phy_base + 0x470);
+	regs |= (1 << 6);
+	writel(regs, amlogic->phy_base + 0x470);
 
 	/*set phy for gen3 device*/
 	regs = readl(amlogic->phy_base);
@@ -662,13 +689,9 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 
 	amlogic_pcie_set_reset_gpio(amlogic);
 
-	regs = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL0);
-	if (amlogic->is_rc)
-		regs |= PORT_TYPE;
-	else
-		regs &= ~PORT_TYPE;
-
-	amlogic_pciectrl_write(amlogic, regs, PCIE_A_CTRL0);
+	err = amlogic_pcie_set_reset(amlogic, true);
+	if (err)
+		return err;
 
 	if (!amlogic_pcie_link_up(amlogic))
 		return -ETIMEDOUT;

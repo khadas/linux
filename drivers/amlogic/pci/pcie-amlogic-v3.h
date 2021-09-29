@@ -22,6 +22,17 @@
 #define PCIE_PCI_IDS1		0x09c
 #define PCIE_PCI_IDS2		0x0a0
 #define PCIE_PCI_IRQ		0x0a8
+#define PCIE_BAR_0		0x0e4
+#define PCIE_BAR_1		0x0e8
+#define PCIE_BAR_2		0x0ec
+#define PCIE_BAR_3		0x0f0
+#define PCIE_BAR_4		0x0f4
+#define PCIE_BAR_5		0x0f8
+#define   PCIE_BAR_IO			BIT(1)
+#define   PCIE_BAR_MEM_TYPE_64		BIT(2)
+#define   PCIE_BAR_MEM_TYPE_PREFETCH	BIT(3)
+#define   PCIE_BAR_MEM_MASK	(~0x0fUL)
+#define   PCIE_BAR_IO_MASK	(~0x03UL)
 
 #define PCIE_CFGNUM		0x140
 #define IMASK_LOCAL		0x180
@@ -94,14 +105,14 @@
 #define PCIE_A_CTRL5	0x14
 #define PCIE_A_CTRL6	0x18
 
-#define EP_BASE_OFFSET		0x100000
+#define EP_BASE_OFFSET		0
 #define AMLOGIC_PCIE_EP_FUNC_BASE(fn)	(((fn) << 12) & GENMASK(19, 12))
 #define EP_FUNC_MSI_CAP_OFFSET		0x0e0
 
 #define RESETCTRL1_OFFSET	0x4
 #define RESETCTRL3_OFFSET	0xc
 
-#define WAIT_LINKUP_TIMEOUT         5000
+#define WAIT_LINKUP_TIMEOUT         9000
 
 enum pcie_data_rate {
 	PCIE_GEN1,
@@ -116,7 +127,7 @@ struct amlogic_pcie {
 	void __iomem *pcictrl_base;		/* pcie_A_ctrl for oneself*/
 	void __iomem *phy_base;		/* pcie_gen3_phy*/
 	void __iomem *rst_base;		/* reset_ctrl*/
-	void __iomem *ecam_base;		/* ecam*/
+	void __iomem *ecam_base;	/* ecam*/
 	phys_addr_t ecam_bus_base;
 	u32 ecam_size;
 
@@ -169,16 +180,17 @@ struct amlogic_pcie {
 
 	u32 lanes;
 
-	struct gpio_desc *ep_gpio;
 	u8 lanes_map;
 	int link_gen;
 	int offset;
 	struct resource	*mem_res;
 };
 
+#define PTR_ALIGN_DOWN(p, a)    ((typeof(p))ALIGN_DOWN((unsigned long)(p), (a)))
+
 static inline u32 amlogic_pcie_read_sz(void __iomem *addr, int size)
 {
-	void __iomem *aligned_addr = PTR_ALIGN(addr, 0x4);
+	void __iomem *aligned_addr = PTR_ALIGN_DOWN(addr, 0x4);
 	unsigned int offset = (unsigned long)addr & 0x3;
 	u32 val = readl(aligned_addr);
 
@@ -196,7 +208,7 @@ static inline u32 amlogic_pcie_read_sz(void __iomem *addr, int size)
 static inline void amlogic_pcie_write_sz(void __iomem *addr, int size,
 					 u32 value)
 {
-	void __iomem *aligned_addr = PTR_ALIGN(addr, 0x4);
+	void __iomem *aligned_addr = PTR_ALIGN_DOWN(addr, 0x4);
 	unsigned int offset = (unsigned long)addr & 0x3;
 	u32 mask;
 	u32 val;
@@ -277,6 +289,18 @@ static inline void amlogic_pcieinter_write(struct amlogic_pcie *pcie, u32 val,
 		       PCIE_ECAM_ADDR(0, 0, 0, reg - PCI_CFG_SPACE));
 }
 
+static inline u32 amlogic_pciectrl_read(struct amlogic_pcie *pcie, u32 reg)
+{
+	return readl(pcie->pcictrl_base + reg);
+}
+
+static inline void amlogic_pciectrl_write(struct amlogic_pcie *pcie, u32 val,
+					  u32 reg)
+{
+	writel(val, pcie->pcictrl_base + reg);
+}
+
+int amlogic_pcie_set_reset(struct amlogic_pcie *amlogic, bool set);
 int amlogic_pcie_parse_dt(struct amlogic_pcie *amlogic);
 int amlogic_pcie_init_port(struct amlogic_pcie *amlogic);
 int amlogic_pcie_get_phys(struct amlogic_pcie *amlogic);
