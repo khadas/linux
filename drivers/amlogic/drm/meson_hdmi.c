@@ -493,10 +493,6 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 	new_hdmitx_state = to_am_hdmitx_connector_state
 		(drm_atomic_get_new_connector_state(state, connector));
 
-	if (new_hdmitx_state->base.crtc)
-		new_crtc_state = drm_atomic_get_new_crtc_state(state,
-			new_hdmitx_state->base.crtc);
-
 	/*check content type.*/
 	if (((1 << new_hdmitx_state->base.content_type) &
 		hdmitx_content_type) == 0) {
@@ -505,6 +501,20 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 			new_hdmitx_state->base.content_type,
 			hdmitx_content_type);
 		return -EINVAL;
+	}
+
+	if (new_hdmitx_state->base.crtc)
+		new_crtc_state = drm_atomic_get_new_crtc_state(state,
+			new_hdmitx_state->base.crtc);
+	else
+		return 0;
+
+	if (state && state->allow_modeset &&
+		new_hdmitx_state && new_crtc_state) {
+		if (!am_hdmi_info.hdmitx_on) {
+			new_crtc_state->connectors_changed = true;
+			DRM_ERROR("hdmitx_on changed, force modeset.\n");
+		}
 	}
 
 	/*force set mode.*/
@@ -1062,6 +1072,8 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 		am_hdmi_info.hdmitx_dev->avmute(0);
 		meson_hdmitx_update_hdcp();
 	}
+
+	am_hdmi_info.hdmitx_on = 1;
 }
 
 void meson_hdmitx_encoder_atomic_disable(struct drm_encoder *encoder,
@@ -1076,6 +1088,7 @@ void meson_hdmitx_encoder_atomic_disable(struct drm_encoder *encoder,
 		meson_crtc_state->uboot_mode_init == 1)
 		return;
 
+	am_hdmi_info.hdmitx_on = 0;
 	am_hdmi_info.hdmitx_dev->avmute(1);
 	meson_hdmitx_stop_hdcp();
 	msleep(100);
@@ -1113,9 +1126,10 @@ static void meson_hdmitx_hpd_cb(void *data)
 #endif
 
 	DRM_INFO("drm hdmitx hpd notify\n");
-	if (am_hdmi->hdmitx_dev->detect() == 0 && !am_hdmi->android_path)
+	if (am_hdmi->hdmitx_dev->detect() == 0 && !am_hdmi->android_path) {
 		meson_hdmitx_disconnect_hdcp();
-
+		am_hdmi_info.hdmitx_on = 0;
+	}
 #ifdef CONFIG_CEC_NOTIFIER
 	if (am_hdmi->hdmitx_dev->detect()) {
 		DRM_INFO("%s[%d]\n", __func__, __LINE__);
