@@ -871,16 +871,14 @@ static int ramoops_probe(struct platform_device *pdev)
 	ramoops_ftrace_size = pdata->ftrace_size;
 
 #ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
-	if (ramoops_ftrace_size)
+	if (ramoops_ftrace_size) {
 		ramoops_ftrace_en = 1;
-
-	pr_info("ramoops_io_en:%d %d old:0x%lx ftrace_size:0x%lx\n",
-		ramoops_io_en, ramoops_ftrace_en,
-		cxt->fprzs[0] ?
-		(unsigned long)persistent_ram_old_size(cxt->fprzs[0]) : 0,
-		ramoops_ftrace_size);
-
-	pstore_ftrace_dump_old(cxt->fprzs[0]);
+		pr_info("ramoops_io_en:%d %d old:0x%lx ftrace_size:0x%lx\n",
+			ramoops_io_en, ramoops_ftrace_en,
+			cxt->fprzs[0] ? (unsigned long)persistent_ram_old_size(cxt->fprzs[0]): 0,
+			ramoops_ftrace_size);
+		pstore_ftrace_dump_old(cxt->fprzs[0]);
+	}
 #endif
 
 #ifdef CONFIG_AMLOGIC_DEBUG_SCRAMBLER_RAMOOPS
