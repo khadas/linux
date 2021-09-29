@@ -1188,7 +1188,7 @@
 		pinctrl-1 = <&tdmout_a_gpio>;
 
 		/* In for ACODEC_ADC */
-		acodec_adc = <1>;
+		tdmin-src-name = "acodec_adc";
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
 
