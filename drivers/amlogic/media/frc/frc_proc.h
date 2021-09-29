@@ -26,6 +26,7 @@ void frc_scene_detect_output(struct frc_fw_data_s *fw_data);
 
 void frc_change_to_state(enum frc_state_e state);
 void frc_state_change_finish(struct frc_dev_s *devp);
+void frc_state_handle_old(struct frc_dev_s *devp);
 void frc_state_handle(struct frc_dev_s *devp);
 void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					struct vpp_frame_par_s *cur_video_sts);
