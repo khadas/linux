@@ -1392,13 +1392,7 @@ void video_post_process(struct vframe_s *vf,
 	}
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		if (!(vinfo->mode == VMODE_LCD ||
-			vinfo->mode == VMODE_DUMMY_ENCP)) {
-			pr_csc(12, "%s: vpp_index = %d mode = %d [%d]\n",
-				__func__,
-			    vpp_index,
-			    vinfo->mode,
-			    __LINE__);
+		if (!vinfo_lcd_support()) {
 			if (vpp_index == VPP_TOP1)
 				mtx_setting(VPP1_POST2_MTX, MATRIX_NULL, MTX_OFF);
 			else if (vpp_index == VPP_TOP2)
@@ -1406,19 +1400,9 @@ void video_post_process(struct vframe_s *vf,
 			else
 				mtx_setting(POST2_MTX, MATRIX_NULL, MTX_OFF);
 		} else {
-			pr_csc(12, "%s: vpp_index = %d mode = %d [%d]\n",
-				__func__,
-				vpp_index,
-				vinfo->mode,
-				__LINE__);
 			if ((vf && vf->type & VIDTYPE_RGB_444) &&
 			    source_type[vd_path] == HDRTYPE_SDR &&
 			    (get_hdr_module_status(vd_path, vpp_index) != HDR_MODULE_OFF)) {
-				pr_csc(12, "%s: type[vd%d]=%d type=%d\n",
-					__func__,
-					vd_path + 1,
-					source_type[vd_path],
-					vf->type);
 				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 0, 1, 1);
 				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 0, 1, 1);
 				if (vpp_index == VPP_TOP1)
@@ -1431,11 +1415,6 @@ void video_post_process(struct vframe_s *vf,
 					mtx_setting(POST2_MTX,
 						MATRIX_YUV709F_RGB, MTX_ON);
 			} else {
-				pr_csc(12, "%s: type[vd%d]=%d type=%d\n",
-					__func__,
-					vd_path + 1,
-					source_type[vd_path],
-					vf->type);
 				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);
 				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);
 				if (vpp_index == VPP_TOP1)

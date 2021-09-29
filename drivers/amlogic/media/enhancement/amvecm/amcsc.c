@@ -5087,8 +5087,7 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 		vpp_lut_curve_set(VPP_LUT_OETF, vinfo);
 
 		/* xvyccc matrix3: bypass */
-		if (!(vinfo->mode == VMODE_LCD ||
-			vinfo->mode == VMODE_DUMMY_ENCP))
+		if (!vinfo_lcd_support())
 			set_vpp_matrix(VPP_MATRIX_XVYCC,
 				       RGB709_to_YUV709l_coeff,
 				       CSC_ON);
@@ -7530,8 +7529,7 @@ static void video_process(struct vframe_s *vf,
 	}
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		if (!(vinfo->mode == VMODE_LCD ||
-			vinfo->mode == VMODE_DUMMY_ENCP)) {
+		if (!vinfo_lcd_support()) {
 			if (vpp_index == VPP_TOP1)
 				mtx_setting(VPP1_POST2_MTX, MATRIX_NULL, MTX_OFF);
 			else if (vpp_index == VPP_TOP2)
@@ -7948,8 +7946,8 @@ static struct vframe_s last_vf_backup[VD_PATH_MAX];
 static struct vframe_s *last_vf[VD_PATH_MAX];
 static int last_vf_signal_type[VD_PATH_MAX];
 static int null_vf_cnt[VD_PATH_MAX] = {2, 2};
-static int prev_color_fmt[3];
-static int prev_vmode[3] = {0xff, 0xff, 0xff};
+static int prev_color_fmt;
+static int prev_vmode = 0xff;
 static bool dovi_on;
 
 static unsigned int fg_vf_sw_dbg;
@@ -8151,29 +8149,25 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		}
 
 		/* handle change between output mode*/
-		if (prev_vmode[vpp_index] != vinfo->mode) {
+		if (prev_vmode != vinfo->mode) {
 			if (is_video_layer_on(vd_path))
 				null_vf_cnt[vd_path] = 0;
 			else
 				force_fake = true;
-			prev_vmode[vpp_index] = vinfo->mode;
+			prev_vmode = vinfo->mode;
 			pr_csc(4, "vd%d: output display mode changed\n",
 			       vd_path + 1);
 		}
 
 		/* handle change between output mode*/
-		if (prev_color_fmt[vpp_index] != vinfo->viu_color_fmt) {
+		if (prev_color_fmt != vinfo->viu_color_fmt) {
 			if (is_video_layer_on(vd_path))
 				null_vf_cnt[vd_path] = 0;
 			else
 				force_fake = true;
-			prev_color_fmt[vpp_index] = vinfo->viu_color_fmt;
+			prev_color_fmt = vinfo->viu_color_fmt;
 			pr_csc(4, "vd%d: output color format changed\n",
 			       vd_path + 1);
-			pr_csc(4, "p_c_fmt[top%d] = %d v_c_fmt = %d",
-				   vpp_index,
-				   prev_color_fmt[vpp_index],
-				   vinfo->viu_color_fmt);
 		}
 
 		/* handle eye protect mode */
@@ -8190,8 +8184,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		/* gxl handle sdr_mode change bug fix. */
 		if ((sink_hdr_support(vinfo) & HDR_SUPPORT) &&
 		    !cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
-		    (!(vinfo->mode == VMODE_LCD ||
-		    vinfo->mode == VMODE_DUMMY_ENCP))) {
+		    !vinfo_lcd_support()) {
 			if (sdr_mode != cur_sdr_mode) {
 				force_fake = true;
 				cur_sdr_mode = sdr_mode;
@@ -8204,8 +8197,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		if (is_video_layer_on(vd_path) &&
 		    (sink_hdr_support(vinfo) & HDR_SUPPORT) &&
 		    ((cpu_after_eq(MESON_CPU_MAJOR_ID_GXL)) &&
-		     (!(vinfo->mode == VMODE_LCD ||
-		     vinfo->mode == VMODE_DUMMY_ENCP)))) {
+		     !vinfo_lcd_support())) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 				if (sdr_mode != cur_sdr_mode) {
 					null_vf_cnt[vd_path] = 0;

@@ -167,6 +167,11 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 	layer_id = vd_layer_vpp[vpp_id].layer_id;
 	vd_path_id = glayer_info[layer_id].display_path_id;
 
+	if (vpp_index == VPP1 && (!is_vpp1(layer_id)))
+		return IRQ_HANDLED;
+	if (vpp_index == VPP2 && (!is_vpp2(layer_id)))
+		return IRQ_HANDLED;
+
 	if (cur_vd_path_id == 0xff)
 		cur_vd_path_id = vd_path_id;
 
