@@ -266,34 +266,55 @@ static inline void gdc_mesh_addr_write(ulong data, u32 core_id)
 static inline void gdc_bit_width_write(u32 format, u32 core_id)
 {
 	u32 curr = 0;
-	u32 bitw = 0;
+	u32 in_bitw = 0;
+	u32 out_bitw = 0;
 
-	switch (format & FORMAT_BITW_MASK) {
-	case BITW_8:
-		bitw  = 0;
+	switch (format & FORMAT_IN_BITW_MASK) {
+	case IN_BITW_8:
+		in_bitw  = 0;
 		break;
-	case BITW_10:
-		bitw  = 1;
+	case IN_BITW_10:
+		in_bitw  = 1;
 		break;
-	case BITW_12:
-		bitw  = 2;
+	case IN_BITW_12:
+		in_bitw  = 2;
 		break;
-	case BITW_16:
-		bitw  = 3;
+	case IN_BITW_16:
+		in_bitw  = 3;
 		break;
 	default:
-		gdc_log(LOG_ERR, "%s, format (0x%x) is wrong\n",
+		gdc_log(LOG_ERR, "%s, format (0x%x) in_bitw is wrong\n",
 			__func__, format);
 	}
-	gdc_log(LOG_DEBUG, "bit width:%d\n", bitw);
+
+	switch (format & FORMAT_OUT_BITW_MASK) {
+	case OUT_BITW_8:
+		out_bitw  = 0;
+		break;
+	case OUT_BITW_10:
+		out_bitw  = 1;
+		break;
+	case OUT_BITW_12:
+		out_bitw  = 2;
+		break;
+	case OUT_BITW_16:
+		out_bitw  = 3;
+		break;
+	default:
+		gdc_log(LOG_ERR, "%s, format (0x%x) out_bitw is wrong\n",
+			__func__, format);
+	}
+
+	gdc_log(LOG_DEBUG, "in bit width:%d\n", in_bitw);
+	gdc_log(LOG_DEBUG, "out bit width:%d\n", out_bitw);
 
 	curr = system_gdc_read_32(ISP_DWAP_TOP_CMD_CTRL1, core_id);
 	system_gdc_write_32(ISP_DWAP_TOP_CMD_CTRL1,
-			    (curr & 0x3fffffff) | (bitw << 30), core_id);
+			    (curr & 0x3fffffff) | (in_bitw << 30), core_id);
 
 	curr = system_gdc_read_32(ISP_DWAP_GAMMA_CTRL, core_id);
 	system_gdc_write_32(ISP_DWAP_GAMMA_CTRL,
-			    (curr & 0xfffffff3) | (bitw << 2), core_id);
+			    (curr & 0xfffffff3) | (out_bitw << 2), core_id);
 }
 
 // args: data (32-bit)
