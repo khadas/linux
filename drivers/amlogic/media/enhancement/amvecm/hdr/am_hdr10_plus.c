@@ -470,8 +470,8 @@ static int parse_sei(char *sei_buf, uint32_t size)
 	char *p = sei_buf;
 	char *p_sei;
 	u16 header;
-	u8 nal_unit_type;
-	u8 payload_type, payload_size;
+	u16 nal_unit_type;
+	u16 payload_type, payload_size;
 
 	if (size < 2)
 		return 0;
@@ -482,9 +482,14 @@ static int parse_sei(char *sei_buf, uint32_t size)
 	if (nal_unit_type != NAL_UNIT_SEI &&
 	    nal_unit_type != NAL_UNIT_SEI_SUFFIX)
 		return 0;
-	while (p + 2 <= sei_buf + size) {
+	while (p + 4 <= sei_buf + size) {
 		payload_type = *p++;
+		/*unsupport type for the current*/
+		if (payload_type == 0xff)
+			payload_type += *p++;
 		payload_size = *p++;
+		if (payload_size == 0xff)
+			payload_size += *p++;
 		if (p + payload_size <= sei_buf + size) {
 			switch (payload_type) {
 			case SEI_SYNTAX:
