@@ -121,7 +121,7 @@ static struct toddr *register_toddr_l(struct device *dev,
 
 	to->dev = dev;
 	to->in_use = true;
-	pr_info("toddrs[%d] registered by device %s\n", i, dev_name(dev));
+	pr_debug("toddrs[%d] registered by device %s\n", i, dev_name(dev));
 	return to;
 }
 
@@ -832,7 +832,7 @@ static void aml_resample_enable(struct toddr *to, struct toddr_attach *p_attach_
 	else if (p_attach_resample->resample_version == AXG_RESAMPLE)
 		resample_enable(p_attach_resample->id, enable);
 	mutex_unlock(&p_attach_resample->lock);
-	pr_info("toddr %d selects data to %s resample_%c for module:%s\n",
+	pr_debug("toddr %d selects data to %s resample_%c for module:%s\n",
 		to->fifo_id,
 		enable ? "enable" : "disable",
 		(p_attach_resample->id == RESAMPLE_A) ? 'a' : 'b',
