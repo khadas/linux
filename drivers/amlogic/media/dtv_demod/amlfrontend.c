@@ -1191,7 +1191,7 @@ static int gxtv_demod_dvbt_read_signal_strength
 
 	*strength = (s16)tuner_get_ch_power(fe);
 	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4))
-		*strength += 8;
+		*strength += 2;
 	else if (!strncmp(fe->ops.tuner_ops.info.name, "mxl661", 6))
 		*strength += 3;
 
