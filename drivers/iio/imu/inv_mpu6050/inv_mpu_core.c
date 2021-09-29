@@ -26,6 +26,8 @@
 #include <linux/i2c-mux.h>
 #include <linux/acpi.h>
 #include "inv_mpu_iio.h"
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
 
 /*
  * this is the gyro scale translated from dynamic range plus/minus
@@ -805,6 +807,9 @@ static int inv_mpu_probe(struct i2c_client *client,
 			"Could not initialize device.\n");
 		return result;
 	}
+
+	printk("of_get_named_gpio: %d\n", of_get_named_gpio(client->dev.of_node, "int-gpio", 0));
+	client->irq = gpio_to_irq(of_get_named_gpio(client->dev.of_node, "int-gpio", 0));
 
 	i2c_set_clientdata(client, indio_dev);
 	indio_dev->dev.parent = &client->dev;
