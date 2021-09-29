@@ -46,6 +46,11 @@ enum vt_video_cmd_e {
 	VT_VIDEO_GET_STATUS,
 	VT_VIDEO_SET_GAME_MODE,
 	VT_VIDEO_SET_SOURCE_CROP,
+	VT_VIDEO_SET_VIDEO_TYPE,
+};
+
+enum vt_video_type_e {
+	VT_VIDEO_TV = 0,
 };
 
 struct vt_alloc_id_data {
