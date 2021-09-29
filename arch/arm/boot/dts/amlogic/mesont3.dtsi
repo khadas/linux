@@ -245,9 +245,11 @@
 		dev_name = "galcore";
 		status = "okay";
 		clocks = <&clkc CLKID_CTS_NNA_AXI_CLK>,
-		      <&clkc CLKID_CTS_NNA_CORE_CLK>;
+		      <&clkc CLKID_CTS_NNA_CORE_CLK>,
+		      <&clkc CLKID_SYS1_PLL>;
 		clock-names = "cts_vipnanoq_axi_clk_composite",
-		      "cts_vipnanoq_core_clk_composite";
+		      "cts_vipnanoq_core_clk_composite",
+		      "sys1_pll";
 		assigned-clocks =  <&clkc CLKID_SYS1_PLL>;
 		assigned-clock-rates =  <1704000000>;
 		interrupts = <0 59 4>;
@@ -422,7 +424,7 @@
 		};
 		opp04 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <789000>;
+			opp-microvolt = <799000>;
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <1200000000>;
@@ -430,11 +432,11 @@
 		};
 		opp06 {
 			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <819000>;
+			opp-microvolt = <829000>;
 		};
 		opp07 {
 			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <829000>;
+			opp-microvolt = <849000>;
 		};
 		opp08 {
 			opp-hz = /bits/ 64 <1608000000>;
@@ -442,18 +444,14 @@
 		};
 		opp09 {
 			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <929000>;
+			opp-microvolt = <909000>;
 		};
 		opp10 {
 			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <979000>;
+			opp-microvolt = <969000>;
 		};
 		opp11 {
 			opp-hz = /bits/ 64 <1920000000>;
-			opp-microvolt = <999000>;
-		};
-		opp12 {
-			opp-hz = /bits/ 64 <2016000000>;
 			opp-microvolt = <1009000>;
 		};
 	};
@@ -1335,6 +1333,12 @@
 		status = "okay";
 	};
 
+	vrr0: vrr0 {
+		compatible = "amlogic, vrr-t3";
+		status = "okay";
+		index = <0>;
+	};
+
 	canvas: canvas {
 		compatible = "amlogic, meson, canvas";
 		status = "okay";
@@ -1828,7 +1832,7 @@
 		reset-level = <0x40>;
 		phy-reg = <0xfe02a000>;
 		phy-reg-size = <0x2000>;
-		m31phy-reset-level-bit = <13>;
+		m31phy-reset-level-bit = <45>;
 		m31ctl-reset-level-bit = <6>;
 	};
 
@@ -2721,19 +2725,22 @@ dvb_p_ts2_pins: dvb_p_ts2_pins {
 			"cicam_cen", "cicam_oen",
 			"cicam_wen", "cicam_iordn",
 			"cicam_iowrn",
-			"cicam_reset", "cicam_waitn",
-			"cicam_irqn";
+			"cicam_reset", "cicam_waitn";
 			function = "cicam";
 		};
 	};
 	ci_ts_pins: ci_ts_pins {
 		mux {
-			groups =  "tsout_clk_z",
-			"tsout_sop_z", "tsout_valid_z",
-			"tsout_d0_z", "tsout_d1_z",
-			"tsout_d2_z", "tsout_d3_z",
-			"tsout_d4_z", "tsout_d5_z",
-			"tsout_d6_z", "tsout_d7_z";
+			groups = "tsout_sop_z",
+			"tsout_valid_z",
+			"tsout_d0_z",
+			"tsout_d1_z",
+			"tsout_d2_z",
+			"tsout_d3_z",
+			"tsout_d4_z",
+			"tsout_d5_z",
+			"tsout_d6_z",
+			"tsout_d7_z";
 			function = "tsout";
 		};
 	};
@@ -2749,6 +2756,18 @@ dvb_p_ts2_pins: dvb_p_ts2_pins {
 		};
 	};
 
+	ci_ts_clk_pins: ci_ts_clk_pins {
+		mux {
+			groups =  "tsout_clk_z";
+			function = "tsout";
+		};
+	};
+	ci_gpio_pins: ci_gpio_pins {
+		mux {
+			groups =  "GPIOZ_7";
+			function = "gpio_periphs";
+		};
+	};
 	diseqc_out: diseqc_out {
 		mux {/*only use out, don't support */
 			groups = "diseqc_out_z0";
