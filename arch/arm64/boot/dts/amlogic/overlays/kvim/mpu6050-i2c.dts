@@ -1,0 +1,31 @@
+/dts-v1/;
+/plugin/;
+
+#include <dt-bindings/gpio/meson-g12a-gpio.h>
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	fragment@0 {
+		target = <&i2c0>;
+
+		__overlay__ {
+			status = "okay";
+
+			mpu6050@68 {
+				compatible = "invensense,mpu6050";
+				reg = <0x68>;
+			 	int-gpio = <&gpio GPIOH_5 GPIO_ACTIVE_LOW>;
+				mount-matrix = "-0.984807753012208",  /* x0 */
+	 							"0",                   /* y0 */
+				 				"-0.173648177666930",  /* z0 */
+				 				"0",                   /* x1 */
+				 				"-1",                  /* y1 */
+				 				"0",                   /* z1 */
+				 				"-0.173648177666930",  /* x2 */
+				 				"0",                   /* y2 */
+				 				"0.984807753012208";   /* z2 */
+		 	};
+		};
+	};
+
+};
