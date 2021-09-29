@@ -45,7 +45,7 @@ int audio_send_uevent(struct snd_soc_card *card, enum audio_event type, int val)
 	snprintf(env, MAX_UEVENT_LEN, "%s%d", event->env, val);
 
 	ret = kobject_uevent_env(&card->dev->kobj, KOBJ_CHANGE, envp);
-	pr_info("%s[%d] %s %d\n", __func__, __LINE__, env, ret);
+	pr_debug("%s[%d] %s %d\n", __func__, __LINE__, env, ret);
 	return ret;
 }
 
