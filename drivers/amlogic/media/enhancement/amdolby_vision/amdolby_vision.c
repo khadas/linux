@@ -440,7 +440,7 @@ static unsigned int dv_target_graphics_max[3][3] = {
 };
 static unsigned int dv_target_graphics_LL_max[3][3] = {
 	{ 300, 375, 100 }, /* DOVI => DOVI/HDR/SDR */
-	{ 130, 375, 100 }, /* HDR =>  DOVI/HDR/SDR */
+	{ 210, 375, 100 }, /* HDR =>  DOVI/HDR/SDR */
 	{ 300, 375, 100 }, /* SDR =>  DOVI/HDR/SDR */
 };
 
