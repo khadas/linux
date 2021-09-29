@@ -89,7 +89,7 @@ struct aml_tdm {
 	int lane_ss;
 	/* virtual link for i2s to hdmitx */
 	int i2s2hdmitx;
-	int acodec_adc;
+	const char *tdmin_src_name;
 	uint last_mpll_freq;
 	uint last_mclk_freq;
 	uint last_fmt;
@@ -370,8 +370,10 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 capture:
 	/* update skew for ACODEC_ADC */
 	if (capture_active &&
-		p_tdm->chipinfo->adc_fn	&&
-		p_tdm->acodec_adc) {
+	    p_tdm->chipinfo->adc_fn &&
+	    p_tdm->tdmin_src_name &&
+	    strncmp(p_tdm->tdmin_src_name, SRC_ACODEC,
+		    strlen(p_tdm->tdmin_src_name)) == 0) {
 		aml_update_tdmin_skew(p_tdm->actrl, p_tdm->id, 4);
 		aml_update_tdmin_rev_ws(p_tdm->actrl, p_tdm->id, 0);
 	}
@@ -450,7 +452,7 @@ void aml_tdm_hw_setting_free(struct aml_tdm *p_tdm, int stream)
 	}
 }
 
-unsigned int get_tdmin_src(struct src_table *table, char *src)
+unsigned int get_tdmin_src(struct src_table *table, const char *src)
 {
 	for (; table->name[0]; table++) {
 		if (strncmp(table->name, src, strlen(src)) == 0)
@@ -468,10 +470,29 @@ void aml_tdmin_set_src(struct aml_tdm *p_tdm)
 		return;
 
 	/* if tdm* is using internal ADC, reset tdmin src to ACODEC */
-	if (p_tdm->chipinfo->adc_fn && p_tdm->acodec_adc) {
-		src = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs, SRC_ACODEC);
-		aml_update_tdmin_src(p_tdm->actrl, p_tdm->id, src);
+
+	if (p_tdm->chipinfo->adc_fn && p_tdm->tdmin_src_name) {
+		src = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs, p_tdm->tdmin_src_name);
+	} else {
+		const char *tdm_src;
+
+		switch (p_tdm->id) {
+		case TDM_A:
+			tdm_src = SRC_TDMIN_A;
+			break;
+		case TDM_B:
+			tdm_src = SRC_TDMIN_B;
+			break;
+		case TDM_C:
+			tdm_src = SRC_TDMIN_C;
+			break;
+		default:
+			tdm_src = SRC_TDMIN_A;
+			break;
+		}
+		src = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs, tdm_src);
 	}
+	aml_update_tdmin_src(p_tdm->actrl, p_tdm->id, src);
 }
 
 void tdm_mute_capture(struct aml_tdm *p_tdm, bool mute)
@@ -1633,12 +1654,11 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	}
 	/* default no acodec_adc */
 	if (p_tdm->chipinfo->adc_fn) {
-		ret = of_property_read_u32(node, "acodec_adc",
-				&p_tdm->acodec_adc);
-		if (ret < 0)
-			p_tdm->acodec_adc = 0;
-		else
-			pr_info("TDM id %d supports ACODEC_ADC\n", p_tdm->id);
+		ret = of_property_read_string(node, "tdmin-src-name",
+				&p_tdm->tdmin_src_name);
+		if (!ret)
+			pr_info("TDM id %d supports %s\n",
+				p_tdm->id, p_tdm->tdmin_src_name);
 	}
 
 	ret = of_property_read_u32(node, "i2s2hdmi", &p_tdm->i2s2hdmitx);
