@@ -270,8 +270,15 @@ void aml_host_bus_fsm_show(struct mmc_host *mmc, int status);
 #define   DS_SHT_M_MASK GENMASK(17, 12)
 #define   DS_SHT_EXP_MASK GENMASK(21, 18)
 #define   SD_INTF3 BIT(22)
+
 #define   EYETEST_SEL BIT(26)
 #define   RESP_SEL BIT(27)
+#define   CFG_RX_SEL BIT(26)
+#define   CFG_RX_PN BIT(27)
+#define   RESP_OLD BIT(28)
+#define   RESP_PN BIT(29)
+#define   RESP_DS BIT(30)
+
 #define SD_EMMC_START 0x40
 #define   START_DESC_INIT BIT(0)
 #define   START_DESC_BUSY BIT(1)
@@ -402,6 +409,7 @@ void aml_host_bus_fsm_show(struct mmc_host *mmc, int status);
 
 #define SD_EMMC_FIXED_ADJ_HS200
 #define EMMC_CMD_WIN_MAX_SIZE	50
+#define EMMC_CMD_WIN_FULL_SIZE	64
 
 #define DBG_COMMON        BIT(0)
 #define DBG_HS200         BIT(1)
