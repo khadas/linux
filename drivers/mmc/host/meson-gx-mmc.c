@@ -3607,6 +3607,79 @@ static int mmc_eyetestlog_show(struct seq_file *s, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(mmc_eyetestlog);
 
+/* To provide Total Write Size which is cumulative written data
+ * size from Host to e-MMC. The unit is MByte.
+ *
+ * The Total Write Size counts total blocks written by Write Multiple
+ * Block(CMD25). The other CMDs such as CMD24 or CMDQ are not counted.
+ */
+static int write_size_get(void *data, u64 *val)
+{
+	struct mmc_host *mmc = data;
+	unsigned char *buf = NULL;
+	u32 err;
+
+	buf = kmalloc(512, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mmc_claim_host(mmc);
+	err = single_read_scan(mmc, MMC_GEN_CMD, buf, 512, 1, 0x42535491);
+	if (err || buf[0] != 0x91 || buf[1] != 0x50) {
+		pr_err("%s: read error", __func__);
+		return -EINVAL;
+	}
+	mmc_release_host(mmc);
+
+	*val = buf[19] << 0
+		| (u64)buf[18] << 8
+		| (u64)buf[17] << 16
+		| (u64)buf[16] << 24;
+	kfree(buf);
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(fops_write_size, write_size_get,
+			 NULL, "%llu\n");
+
+/* Check the average erase count including average value of erase
+ * count in TLC area and average value of erase count in pseudo
+ * SLC area.
+ */
+static int erase_count_show(struct seq_file *s, void *data)
+{
+	struct mmc_host	*mmc = s->private;
+	unsigned char *buf = NULL;
+	u32 err, tlc, slc;
+
+	buf = kmalloc(512, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mmc_claim_host(mmc);
+	err = single_read_scan(mmc, MMC_GEN_CMD, buf, 512, 1, 0x42535493);
+	if (err || buf[0] != 0x93 || buf[1] != 0x50) {
+		pr_err("%s: read error", __func__);
+		return -EINVAL;
+	}
+
+	mmc_release_host(mmc);
+	tlc = buf[27] << 0
+		| (u32)buf[26] << 8
+		| (u32)buf[25] << 16
+		| (u32)buf[24] << 24;
+
+	slc = buf[43] << 0
+		| (u32)buf[42] << 8
+		| (u32)buf[41] << 16
+		| (u32)buf[40] << 24;
+
+	seq_printf(s, "tlc: 0x%x slc: 0x%x", tlc, slc);
+	seq_putc(s, '\n');
+	kfree(buf);
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(erase_count);
+
 static int meson_mmc_probe(struct platform_device *pdev)
 {
 	struct meson_host *host;
@@ -3877,6 +3950,10 @@ static int meson_mmc_probe(struct platform_device *pdev)
 				&mmc_tx_win_fops);
 		debugfs_create_file("cmd_rx_win", 0400, host->debugfs_root, mmc,
 				&mmc_cmd_rx_win_fops);
+		debugfs_create_file("write_size", 0400, host->debugfs_root, mmc,
+				&fops_write_size);
+		debugfs_create_file("erase_count", 0400, host->debugfs_root,
+				mmc, &erase_count_fops);
 	}
 
 	host->blk_test = devm_kzalloc(host->dev,
