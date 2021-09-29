@@ -2148,6 +2148,7 @@ int ts_output_close(struct out_elem *pout)
 			dvr_dump_file.file_fp)
 			dump_file_close(&dvr_dump_file);
 		remove_ts_out_list(pout, &ts_out_task_tmp);
+		kfree(pout->cache);
 	}
 
 	if (pout->aucpu_handle >= 0) {
