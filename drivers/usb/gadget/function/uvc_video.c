@@ -398,9 +398,9 @@ int uvcg_video_init(struct uvc_video *video, struct uvc_device *uvc)
 	video->uvc = uvc;
 	video->fcc = V4L2_PIX_FMT_YUYV;
 	video->bpp = 16;
-	video->width = 320;
-	video->height = 240;
-	video->imagesize = 320 * 240 * 2;
+	video->width = 1920;
+	video->height = 1080;
+	video->imagesize = 1024;
 
 	/* Initialize the video buffers queue. */
 	uvcg_queue_init(&video->queue, V4L2_BUF_TYPE_VIDEO_OUTPUT,

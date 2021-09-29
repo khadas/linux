@@ -70,14 +70,18 @@ struct usb_ep *usb_ep_autoconfig_ss(
 
 	if (gadget->ops->match_ep) {
 		ep = gadget->ops->match_ep(gadget, desc, ep_comp);
-		if (ep)
+		if (ep) {
+            printk("find ep 1---%s(%d)\n", ep->name, ep->claimed);
 			goto found_ep;
+        }
 	}
 
 	/* Second, look at endpoints until an unclaimed one looks usable */
 	list_for_each_entry (ep, &gadget->ep_list, ep_list) {
-		if (usb_gadget_ep_match_desc(gadget, ep, desc, ep_comp))
+		if (usb_gadget_ep_match_desc(gadget, ep, desc, ep_comp)) {
+            printk("find ep 2---%s(%d)\n", ep->name, ep->claimed);
 			goto found_ep;
+        }
 	}
 
 	/* Fail */

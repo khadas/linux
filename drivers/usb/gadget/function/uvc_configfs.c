@@ -1357,12 +1357,12 @@ static struct config_item *uvcg_frame_make(struct config_group *group,
 
 	h->frame.b_descriptor_type		= USB_DT_CS_INTERFACE;
 	h->frame.b_frame_index			= 1;
-	h->frame.w_width			= 640;
-	h->frame.w_height			= 360;
+	h->frame.w_width			= 1920;
+	h->frame.w_height			= 1080;
 	h->frame.dw_min_bit_rate		= 18432000;
 	h->frame.dw_max_bit_rate		= 55296000;
 	h->frame.dw_max_video_frame_buffer_size	= 460800;
-	h->frame.dw_default_frame_interval	= 666666;
+	h->frame.dw_default_frame_interval	= 333333;
 
 	opts_item = group->cg_item.ci_parent->ci_parent->ci_parent;
 	opts = to_f_uvc_opts(opts_item);

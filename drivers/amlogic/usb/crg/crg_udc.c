@@ -34,7 +34,7 @@
 
 #define MAX_PACKET_SIZE 1024
 int g_dnl_board_usb_cable_connected(void);
-
+static int crg_gadget_stop(struct usb_gadget *g);
 #define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
 
 #define CRG_ERST_SIZE 1
@@ -1615,8 +1615,8 @@ static int ep_halt(struct crg_udc_ep *udc_ep_ptr,
 
 	if (udc_ep_ptr->DCI == 0) {
 		//return set_ep0_halt(crg_udc);
-		return 0;
-	}
+	    return 0;
+    }
 
 	ep_state = get_ep_state(crg_udc, udc_ep_ptr->DCI);
 
@@ -1753,7 +1753,7 @@ static int crg_udc_ep_disable(struct usb_ep *ep)
 	if (ep_state == EP_STATE_DISABLED) {
 		/* get here if ep is already disabled */
 		spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
-		return -EINVAL;
+		return 0;
 	}
 
 	CRG_DEBUG("EPDCI = 0x%x\n", udc_ep->DCI);
@@ -1940,6 +1940,7 @@ static void crg_udc_free_request(struct usb_ep *_ep, struct usb_request *_req)
 
 	udc_req_ptr = container_of(_req, struct crg_udc_request, usb_req);
 	kfree(udc_req_ptr);
+    udc_req_ptr = NULL;
 }
 
 static int
@@ -2297,10 +2298,13 @@ static void crg_ep_struct_setup(struct crg_gadget_dev *crg_udc,
 		ep->usb_ep.caps.type_bulk = 1;
 		ep->usb_ep.caps.type_int = 1;
 		ep->usb_ep.caps.type_control = 1;
-		if (ep->DCI % 2)
-			ep->usb_ep.caps.dir_out = 1;
-		else
+		if (ep->DCI % 2) {
+            ep->usb_ep.caps.dir_in = 0;
+            ep->usb_ep.caps.dir_out = 1;
+		} else {
 			ep->usb_ep.caps.dir_in = 1;
+            ep->usb_ep.caps.dir_out = 0;
+        }
 		usb_ep_set_maxpacket_limit(&ep->usb_ep, MAX_PACKET_SIZE);
 	} else {
 		strcpy(ep->name, "ep0");
@@ -2891,7 +2895,13 @@ static int crg_gadget_set_selfpowered(struct usb_gadget *g,
 static int crg_gadget_pullup(struct usb_gadget *g, int is_on)
 {
 	CRG_DEBUG("%s\n", __func__);
-	g_dnl_board_usb_cable_connected();
+	printk("crg_gadget_pullup is %d\n", is_on);
+
+    if ( is_on ) {
+        g_dnl_board_usb_cable_connected();
+    } else {
+        crg_gadget_stop(g);
+    }
 
 	return 0;
 }
@@ -2939,7 +2949,7 @@ static int crg_gadget_start(struct usb_gadget *g,
 	CRG_DEBUG("%s %d gadget speed=%d, max speed=%d\n",
 		__func__, __LINE__, g->speed, g->max_speed);
 	CRG_DEBUG("%s %d driver speed=%d\n", __func__, __LINE__, driver->max_speed);
-	g_dnl_board_usb_cable_connected();
+	//g_dnl_board_usb_cable_connected();
 
 	return 0;
 }
@@ -2966,7 +2976,7 @@ static int crg_gadget_stop(struct usb_gadget *g)
 
 	reset_data_struct(crg_udc);
 	crg_udc->connected = 0;
-	crg_udc->gadget_driver = NULL;
+	//crg_udc->gadget_driver = NULL;
 	crg_udc->gadget.speed = USB_SPEED_UNKNOWN;
 
 	init_ep0(crg_udc);
@@ -3941,8 +3951,8 @@ int crg_handle_port_status(struct crg_gadget_dev *crg_udc)
 				return 0;
 			}
 
-			if (crg_udc->device_state >= USB_STATE_DEFAULT)
-				crg_udc_reinit(crg_udc);
+            if (crg_udc->device_state >= USB_STATE_DEFAULT)
+                crg_udc_reinit(crg_udc);
 
 			crg_udc->gadget.speed = speed;
 			pdebug("gadget speed = 0x%x\n", crg_udc->gadget.speed);
@@ -4079,11 +4089,11 @@ int crg_handle_port_status(struct crg_gadget_dev *crg_udc)
 			reg_write(&uccr->portsc, tmp);
 			CRG_DEBUG("pls to 0, write portsc 0x%x\n", tmp);
 		}  else if (CRG_U3DC_PORTSC_PLS_GET(tmp) == 0x3) {
-			if (crg_udc->gadget_driver->disconnect) {
-				spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
-				crg_udc->gadget_driver->disconnect(&crg_udc->gadget);
-				spin_lock_irqsave(&crg_udc->udc_lock, flags);
-			}
+			//if (crg_udc->gadget_driver->disconnect) {
+			//	spin_unlock_irqrestore(&crg_udc->udc_lock, flags);
+			//	crg_udc->gadget_driver->disconnect(&crg_udc->gadget);
+			//	spin_lock_irqsave(&crg_udc->udc_lock, flags);
+			//}
 		}
 	}
 

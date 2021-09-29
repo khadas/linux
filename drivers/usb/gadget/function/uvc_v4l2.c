@@ -34,9 +34,10 @@ uvc_send_response(struct uvc_device *uvc, struct uvc_request_data *data)
 {
 	struct usb_composite_dev *cdev = uvc->func.config->cdev;
 	struct usb_request *req = uvc->control_req;
-
+    printk("------uvc_send_response  len=%d  data0=%x\n", data->length, data->data[0]);
 	if (data->length < 0)
-		return usb_ep_set_halt(cdev->gadget->ep0);
+		//return usb_ep_set_halt(cdev->gadget->ep0);
+        data->length = 0;
 
 	req->length = min_t(unsigned int, uvc->event_length, data->length);
 	req->zero = data->length < uvc->event_length;
@@ -352,6 +353,9 @@ const struct v4l2_file_operations uvc_v4l2_fops = {
 	.open		= uvc_v4l2_open,
 	.release	= uvc_v4l2_release,
 	.unlocked_ioctl	= video_ioctl2,
+#ifdef CONFIG_AMLOGIC_USB
+    .compat_ioctl32 = video_ioctl2,
+#endif
 	.mmap		= uvc_v4l2_mmap,
 	.poll		= uvc_v4l2_poll,
 #ifndef CONFIG_MMU
