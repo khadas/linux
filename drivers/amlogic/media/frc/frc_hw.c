@@ -336,10 +336,12 @@ void me_undown_read(struct frc_dev_s *frc_devp)
 	if (frc_devp->ud_dbg.meud_dbg_en) {
 		val = READ_FRC_REG(FRC_INP_UE_DBG);
 		me_ud_flag = val & 0x3e;
-		pr_frc(0, "invs_cnt = %d, me_ud_flag = %d\n",
-			frc_devp->in_sts.vs_cnt, me_ud_flag);
-		WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x3e, 1, 5);
-		WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x0, 1, 5);
+		if (me_ud_flag != 0) {
+			pr_frc(0, "invs_cnt = %d, me_ud_flag = %d\n",
+				frc_devp->in_sts.vs_cnt, me_ud_flag);
+			WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x3e, 1, 5);
+			WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x0, 1, 5);
+		}
 	}
 }
 
@@ -352,10 +354,12 @@ void mc_undown_read(struct frc_dev_s *frc_devp)
 	if (frc_devp->ud_dbg.mcud_dbg_en) {
 		val = READ_FRC_REG(FRC_MC_DBG_MC_WRAP);
 		mc_ud_flag = (val >> 24) & 0x1;
-		pr_frc(0, "outvs_cnt = %d, mc_ud_flag = %d\n",
-			frc_devp->out_sts.vs_cnt, mc_ud_flag);
-		WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 1, 21, 1);
-		WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 0, 21, 1);
+		if (mc_ud_flag != 0) {
+			pr_frc(0, "outvs_cnt = %d, mc_ud_flag = %d\n",
+				frc_devp->out_sts.vs_cnt, mc_ud_flag);
+			WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 1, 21, 1);
+			WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 0, 21, 1);
+		}
 	}
 }
 
