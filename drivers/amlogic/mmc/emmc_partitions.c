@@ -1136,6 +1136,9 @@ int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 	if (is_card_emmc(card)) /* not emmc, nothing to do */
 		return 0;
 
+	if (!of_find_node_by_path("/partitions"))
+		return 0;
+
 	buffer = kmalloc(512, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
