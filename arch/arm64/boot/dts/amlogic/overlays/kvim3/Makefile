@@ -9,7 +9,8 @@ dtbo-y += uart3.dtbo \
 		  otg-device.dtbo \
 		  watchdog.dtbo \
 		  i2s.dtbo \
-		  can.dtbo
+		  can.dtbo \
+		  mpu6050-i2c.dtbo
 
 targets += $(dtbo-y)
 always  := $(dtbo-y)
