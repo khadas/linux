@@ -2559,10 +2559,26 @@ static void set_emmc_nwr_clks(struct mmc_host *mmc)
 		readl(host->regs + SD_EMMC_DELAY2));
 }
 
+static void set_emmc_cmd_sample(struct mmc_host *mmc)
+{
+	struct meson_host *host = mmc_priv(mmc);
+	u32 intf3 = readl(host->regs + SD_EMMC_INTF3);
+
+	intf3 |= CFG_RX_PN;
+	writel(intf3, host->regs + SD_EMMC_INTF3);
+}
+
 static void aml_emmc_hs400_v5(struct mmc_host *mmc)
 {
+	u32 cmd_size = 0;
+
 	set_emmc_nwr_clks(mmc);
-	set_emmc_cmd_delay(mmc, 1);
+	cmd_size = set_emmc_cmd_delay(mmc, 1);
+	if (cmd_size == EMMC_CMD_WIN_FULL_SIZE) {
+		set_emmc_cmd_sample(mmc);
+		cmd_size = set_emmc_cmd_delay(mmc, 1);
+		pr_debug(">>>cmd_size:%u\n", cmd_size);
+	}
 	emmc_ds_manual_sht(mmc);
 }
 
