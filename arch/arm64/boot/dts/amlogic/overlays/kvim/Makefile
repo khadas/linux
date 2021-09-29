@@ -4,7 +4,8 @@ dtbo-y += uart4.dtbo \
 		  pwm_f.dtbo \
 		  i2c0.dtbo \
 		  watchdog.dtbo \
-		  i2s.dtbo
+		  i2s.dtbo \
+		  mpu6050-i2c.dtbo
 
 targets += $(dtbo-y)
 always  := $(dtbo-y)

@@ -18,6 +18,8 @@
 #include <linux/iio/iio.h>
 #include <linux/module.h>
 #include "inv_mpu_iio.h"
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
 
 static const struct regmap_config inv_mpu_regmap_config = {
 	.reg_bits = 8,
@@ -118,6 +120,9 @@ static int inv_mpu_probe(struct i2c_client *client,
 			(int)PTR_ERR(regmap));
 		return PTR_ERR(regmap);
 	}
+
+	printk("of_get_named_gpio: %d\n", of_get_named_gpio(client->dev.of_node, "int-gpio", 0));
+	client->irq = gpio_to_irq(of_get_named_gpio(client->dev.of_node, "int-gpio", 0));
 
 	result = inv_mpu_core_probe(regmap, client->irq, name,
 				    NULL, chip_type);
