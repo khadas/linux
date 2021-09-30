@@ -78,6 +78,8 @@ void hdmi_avi_infoframe_config(enum avi_component_conf conf, u8 val);
 
 int hdmitx_infoframe_rawget(u8 info_type, u8 *body);
 
+void hdmi_gcppkt_manual_set(bool en);
+
 struct intr_t;
 
 typedef void(*hdmi_intr_cb)(struct intr_t *);

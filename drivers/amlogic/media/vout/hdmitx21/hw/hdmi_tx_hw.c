@@ -694,7 +694,14 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	enable_crt_video_hdmi(1,
 			      (TX_INPUT_COLOR_FORMAT == HDMI_COLORSPACE_YUV420) ? 1 : 0,
 			      enc_sel);
-
+	// configure GCP
+	if (para->cs == HDMI_COLORSPACE_YUV422 || para->cd == COLORDEPTH_24B) {
+		hdmitx21_set_reg_bits(GCP_CNTL_IVCTX, 0, 0, 1);
+		hdmi_gcppkt_manual_set(1);
+	} else {
+		hdmi_gcppkt_manual_set(0);
+		hdmitx21_set_reg_bits(GCP_CNTL_IVCTX, 1, 0, 1);
+	}
 	// --------------------------------------------------------
 	// Enable viu vsync interrupt, enable hdmitx interrupt, enable htx_hdcp22 interrupt
 	// --------------------------------------------------------
@@ -715,10 +722,10 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	if (para->timing.pi_mode == 0 &&
 	    (para->timing.v_active == 480 || para->timing.v_active == 576)) {
 		hd21_write_reg(VPU_VENC_CTRL + (0 << 2), 0); // sel enci timming
-		set_tv_enci_new(enc_sel, vic, 1);
+		set_tv_enci_new(hdev, enc_sel, vic, 1);
 	} else {
 		hd21_write_reg(VPU_VENC_CTRL + (0 << 2), 1); // sel encp timming
-		set_tv_encp_new(enc_sel, vic, 1);
+		set_tv_encp_new(hdev, enc_sel, vic, 1);
 	}
 
 	// --------------------------------------------------------
@@ -1967,7 +1974,6 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	//-------------
 	//config video
 	//-------------
-	hdmitx21_set_reg_bits(TPI_SC_IVCTX, 1, 0, 1);
 	hdmi_drm_infoframe_set(NULL);
 	hdmi_vend_infoframe_set(NULL);
 	data8 = 0;
@@ -2132,6 +2138,10 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	hdmitx21_wr_reg(HDMITX_TOP_HV_ACTIVE, data32);
 	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 3, 1, 2);
 	hdmitx21_set_reg_bits(PWD_SRST_IVCTX, 0, 1, 2);
+	if (hdev->rxcap.ieeeoui == HDMI_IEEE_OUI)
+		hdmitx21_set_reg_bits(TPI_SC_IVCTX, 1, 0, 1);
+	else
+		hdmitx21_set_reg_bits(TPI_SC_IVCTX, 0, 0, 1);
 } /* config_hdmi21_tx */
 
 static void hdmitx_csc_config(u8 input_color_format,

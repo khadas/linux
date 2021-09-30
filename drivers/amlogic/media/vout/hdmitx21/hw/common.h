@@ -110,8 +110,10 @@ void hdmitx21_set_top_pclk(struct hdmitx_dev *hdev);
 void hdmitx21_set_hdcp_pclk(struct hdmitx_dev *hdev);
 void hdmitx21_set_cts_hdcp22_clk(struct hdmitx_dev *hdev);
 
-void set_tv_encp_new(u32 enc_index, enum hdmi_vic vic, u32 enable);
-void set_tv_enci_new(u32 enc_index, enum hdmi_vic vic, u32 enable);
+void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index,
+	enum hdmi_vic vic, u32 enable);
+void set_tv_enci_new(struct hdmitx_dev *hdev, u32 enc_index,
+	enum hdmi_vic vic, u32 enable);
 void hdmitx21_venc_en(bool en, bool pi_mode);
 
 /***********************************************************************
