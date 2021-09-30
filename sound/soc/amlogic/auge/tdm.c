@@ -331,6 +331,8 @@ static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq)
 
 static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture_active)
 {
+	bool tdmin_src_hdmirx = false;
+
 	if (!p_tdm)
 		return -EINVAL;
 
@@ -356,8 +358,13 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 
 	p_tdm->setting.sclk_ws_inv = p_tdm->chipinfo->sclk_ws_inv;
 
+	if (p_tdm->tdmin_src_name &&
+	    strncmp(p_tdm->tdmin_src_name, SRC_HDMIRX,
+		    strlen(SRC_HDMIRX)) == 0)
+		tdmin_src_hdmirx = true;
 	aml_tdm_set_format(p_tdm->actrl, &p_tdm->setting,
-			   p_tdm->clk_sel, p_tdm->id, fmt, 1, 1);
+			   p_tdm->clk_sel, p_tdm->id, fmt, 1, 1,
+			   tdmin_src_hdmirx);
 	if (p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
 		int ret = clk_prepare_enable(p_tdm->mclk);
 
