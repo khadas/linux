@@ -48,6 +48,7 @@ static LIST_HEAD(early_suspend_handlers);
  */
 unsigned int sysfs_trigger;
 unsigned int early_suspend_state;
+bool is_clr_exit_reg;
 /*
  * Avoid run early_suspend/late_resume repeatly.
  */
@@ -419,6 +420,11 @@ static int meson_pm_probe(struct platform_device *pdev)
 	if (unlikely(err))
 		return err;
 #endif
+	if (of_property_read_bool(pdev->dev.of_node, "clr_reboot_mode"))
+		is_clr_exit_reg = true;
+	else
+		is_clr_exit_reg = false;
+
 
 	err = register_pm_notifier(&clr_suspend_notifier);
 	if (unlikely(err))
@@ -450,7 +456,7 @@ static const struct of_device_id amlogic_pm_dt_match[] = {
 
 static void meson_pm_shutdown(struct platform_device *pdev)
 {
-	if (exit_reg)
+	if ((exit_reg) && (is_clr_exit_reg))
 		writel_relaxed(0, exit_reg);
 }
 
