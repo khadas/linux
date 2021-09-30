@@ -564,8 +564,9 @@ static int codec_mm_slot_free(struct codec_mm_scatter_mgt *smgt,
 		break;
 		/*other */
 	default:
-		ERR_LOG("unknown from type:%d\n", slot->from_type);
 		ret = -1;
+		ERR_LOG("unknown from type:%d ret is 0x%x\n",
+			slot->from_type, ret);
 	}
 
 	kfree(slot->pagemap);
@@ -1005,7 +1006,6 @@ static int codec_mm_page_alloc_from_slot(struct codec_mm_scatter_mgt *smgt,
 				DBG_LOG("slot->free_list.next:%p\n",
 					slot->free_list.next);
 				/*codec_mm_dump_slot(slot, NULL, 0); */
-				continue;	/*try next. */
 			}
 		} else {
 			/*

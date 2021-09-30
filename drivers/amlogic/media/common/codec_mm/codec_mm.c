@@ -120,7 +120,7 @@ static u32 tvp_dynamic_alloc_force_small_segment_size;
 #define TVP_MAX_SLOT 8
 /*
  *tvp_mode == 0 means protect secure memory in secmem ta
- *tvp_mode == 1 means use protect secure memory in codec_mm
+ *tvp_mode == 1 means use protect secure memory in codec_mm.
  */
 static u32 tvp_mode;
 
@@ -1007,7 +1007,7 @@ void *codec_mm_dma_alloc_coherent(ulong *handle,
 	struct codec_mm_s *mem = NULL;
 	void *vaddr = NULL;
 	int space, s_res, s_cma, s_sys;
-	dma_addr_t dma_handle;
+	dma_addr_t dma_handle = 0;
 	int buf_size = PAGE_ALIGN(size);
 	ulong flags;
 
@@ -1066,6 +1066,7 @@ void *codec_mm_dma_alloc_coherent(ulong *handle,
 	}
 	return vaddr;
 err:
+	kfree(mem);
 	if (vaddr)
 		dma_free_coherent(mgt->dev, buf_size, vaddr, dma_handle);
 
@@ -1552,7 +1553,7 @@ int codec_mm_extpool_pool_alloc(struct extpool_mgt_s *tvp_pool,
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	struct codec_mm_s *mem;
 	int alloced_size = tvp_pool->total_size;
-	int try_alloced_size = size;
+	int try_alloced_size = 0;
 	int ret;
 	int retry_cnt = size / (4 * SZ_1M);
 	int slot_num = tvp_pool->slot_num;
@@ -2199,38 +2200,47 @@ static int codec_mm_calc_init_pool_count(void)
 	u32 segment_size[TVP_POOL_SEGMENT_MAX_USED] = { 0 };
 	u32 i = 0;
 
-	if (tvp_dynamic_alloc_force_small_segment) {
+	if (tvp_dynamic_alloc_force_small_segment > 0) {
 		if (tvp_dynamic_alloc_force_small_segment_size == 0)
 			tvp_dynamic_alloc_force_small_segment_size =
 				50 * 1024 * 1024;
 		need_pool_count =
 			size / tvp_dynamic_alloc_force_small_segment_size;
-		if (need_pool_count > TVP_POOL_SEGMENT_MAX_USED)
-			return 1;
-		for (i = 0; i < need_pool_count; i++)
-			segment_size[i] =
-				tvp_dynamic_alloc_force_small_segment_size;
 		last_segment_size =
 			size % tvp_dynamic_alloc_force_small_segment_size;
-		if (last_segment_size >= DEFAULT_TVP_SEGMENT_MIN_SIZE) {
-			segment_size[need_pool_count] = last_segment_size;
+		if (last_segment_size < DEFAULT_TVP_SEGMENT_MIN_SIZE)
+			last_segment_size = 0;
+		else
 			need_pool_count++;
-		}
-		if (need_pool_count > TVP_POOL_SEGMENT_MAX_USED - 1)
-			need_pool_count = TVP_POOL_SEGMENT_MAX_USED - 1;
-		last_segment_size = mgt->total_codec_mem_size - 2 * SZ_1M;
-		for (i = 0; i < TVP_POOL_SEGMENT_MAX_USED - 1; i++) {
-			if (i < need_pool_count) {
-				last_segment_size -= segment_size[i];
-				default_tvp_pool_segment_size[i] =
-					segment_size[i];
-			} else {
-				last_segment_size -=
-					default_tvp_pool_segment_size[i];
+		if (need_pool_count <= TVP_POOL_SEGMENT_MAX_USED) {
+			for (i = 0; i < need_pool_count; i++) {
+				if (i == need_pool_count - 1 &&
+					last_segment_size > 0)
+					segment_size[i] =
+						last_segment_size;
+				else
+					segment_size[i] =
+				tvp_dynamic_alloc_force_small_segment_size;
 			}
-		}
+			if (need_pool_count > TVP_POOL_SEGMENT_MAX_USED - 1)
+				need_pool_count = TVP_POOL_SEGMENT_MAX_USED - 1;
+			last_segment_size =
+				mgt->total_codec_mem_size - 2 * SZ_1M;
+			for (i = 0; i < TVP_POOL_SEGMENT_MAX_USED - 1; i++) {
+				if (i < need_pool_count) {
+					last_segment_size -= segment_size[i];
+					default_tvp_pool_segment_size[i] =
+						segment_size[i];
+				} else {
+					last_segment_size -=
+					default_tvp_pool_segment_size[i];
+				}
+			}
 		default_tvp_pool_segment_size[TVP_POOL_SEGMENT_MAX_USED - 1] =
-			last_segment_size;
+				last_segment_size;
+		} else {
+			need_pool_count = 1;
+		}
 	} else {
 		need_pool_count = 1;
 	}
@@ -2432,9 +2442,9 @@ struct device *v4l_get_dev_from_codec_mm(void)
 EXPORT_SYMBOL(v4l_get_dev_from_codec_mm);
 
 struct codec_mm_s *v4l_reqbufs_from_codec_mm(const char *owner,
-					     unsigned int addr,
-					     unsigned int size,
-					     unsigned int index)
+						 unsigned int addr,
+						 unsigned int size,
+						 unsigned int index)
 {
 	unsigned long flags;
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
@@ -2445,11 +2455,11 @@ struct codec_mm_s *v4l_reqbufs_from_codec_mm(const char *owner,
 	if (IS_ERR_OR_NULL(mem))
 		goto out;
 
-	mem->owner[0]    = owner;
+	mem->owner[0]	= owner;
 	mem->mem_handle  = NULL;
 	mem->buffer_size = buf_size;
 	mem->page_count  = buf_size / PAGE_SIZE;
-	mem->phy_addr    = addr;
+	mem->phy_addr	= addr;
 	mem->ins_buffer_id = index;
 	mem->alloced_jiffies = get_jiffies_64();
 	mem->from_flags =
@@ -2482,7 +2492,7 @@ void v4l_freebufs_back_to_codec_mm(const char *owner, struct codec_mm_s *mem)
 		return;
 
 	if (!mem->owner[0] || strcmp(owner, mem->owner[0]) ||
-	    !mem->buffer_size)
+		!mem->buffer_size)
 		goto out;
 
 	spin_lock_irqsave(&mgt->lock, flags);
@@ -2530,6 +2540,7 @@ EXPORT_SYMBOL(codec_mm_enough_for_size);
 int codec_mm_mgt_init(struct device *dev)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
+	int ret;
 
 	INIT_LIST_HEAD(&mgt->mem_list);
 	mgt->dev = dev;
@@ -2546,8 +2557,12 @@ int codec_mm_mgt_init(struct device *dev)
 			(~((1 << RESERVE_MM_ALIGNED_2N) - 1));
 		aligned_size = mgt->rmem.size -
 			(int)(aligned_addr - (unsigned long)mgt->rmem.base);
-		gen_pool_add(mgt->res_pool,
-			     aligned_addr, aligned_size, -1);
+		ret = gen_pool_add(mgt->res_pool,
+				 aligned_addr, aligned_size, -1);
+		if (ret < 0) {
+			gen_pool_destroy(mgt->res_pool);
+			return -1;
+		}
 		pr_debug("add reserve memory %p(aligned %p) size=%x(aligned %x)\n",
 			 (void *)mgt->rmem.base, (void *)aligned_addr,
 			 (int)mgt->rmem.size, (int)aligned_size);
@@ -2717,8 +2732,8 @@ static ssize_t fastplay_enable_show(struct class *class,
 }
 
 static ssize_t fastplay_enable_store(struct class *class,
-				     struct class_attribute *attr,
-				     const char *buf, size_t size)
+					 struct class_attribute *attr,
+					 const char *buf, size_t size)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
 	unsigned int val;
@@ -2733,11 +2748,11 @@ static ssize_t fastplay_enable_store(struct class *class,
 	case 0:
 		ret = codec_mm_extpool_pool_release(&mgt->cma_res_pool);
 		mgt->fastplay_enable = 0;
-		pr_err("disalbe fastplay\n");
+		pr_err("disalbe fastplay ret 0x%lx\n", ret);
 		break;
 	case 1:
 		codec_mm_extpool_pool_alloc(&mgt->cma_res_pool,
-					    default_cma_res_size, 0, 0);
+						default_cma_res_size, 0, 0);
 		mgt->fastplay_enable = 1;
 		pr_err("enable fastplay\n");
 		break;
@@ -2753,7 +2768,7 @@ static ssize_t config_show(struct class *class,
 	ssize_t ret;
 
 	ret = configs_list_path_nodes(CONFIG_PATH, buf, PAGE_SIZE,
-				      LIST_MODE_NODE_CMDVAL_ALL);
+					  LIST_MODE_NODE_CMDVAL_ALL);
 	return ret;
 }
 
@@ -2770,7 +2785,7 @@ static ssize_t config_store(struct class *class,
 }
 
 static ssize_t tvp_region_show(struct class *class,
-			       struct class_attribute *attr, char *buf)
+				   struct class_attribute *attr, char *buf)
 {
 	size_t ret;
 	ulong res_victor[16];
@@ -2959,7 +2974,7 @@ static ssize_t debug_sc_mode_store(struct class *class,
 }
 
 static ssize_t debug_keep_mode_show(struct class *class,
-				    struct class_attribute *attr, char *buf)
+					struct class_attribute *attr, char *buf)
 {
 	ssize_t size = 0;
 
@@ -2969,8 +2984,8 @@ static ssize_t debug_keep_mode_show(struct class *class,
 }
 
 static ssize_t debug_keep_mode_store(struct class *class,
-				     struct class_attribute *attr,
-				     const char *buf, size_t size)
+					 struct class_attribute *attr,
+					 const char *buf, size_t size)
 {
 	unsigned int val;
 	ssize_t ret;
@@ -3121,8 +3136,8 @@ static int codec_mm_probe(struct platform_device *pdev)
 	codec_mm_scatter_mgt_test();
 	REG_PATH_CONFIGS(CONFIG_PATH, codec_mm_configs);
 	INIT_REG_NODE_CONFIGS(CONFIG_PATH, &codec_mm_trigger_node,
-			      "trigger", codec_mm_trigger,
-			      CONFIG_FOR_RW | CONFIG_FOR_T);
+				  "trigger", codec_mm_trigger,
+				  CONFIG_FOR_RW | CONFIG_FOR_T);
 	return 0;
 }
 
@@ -3182,7 +3197,7 @@ static int __init codec_mm_res_setup(struct reserved_mem *rmem)
 }
 
 RESERVEDMEM_OF_DECLARE(codec_mm_reserved, "amlogic, codec-mm-reserved",
-		       codec_mm_res_setup);
+			   codec_mm_res_setup);
 
 module_param(debug_mode, uint, 0664);
 MODULE_PARM_DESC(debug_mode, "\n debug module\n");
