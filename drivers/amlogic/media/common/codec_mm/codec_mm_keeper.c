@@ -57,7 +57,7 @@ EXPORT_SYMBOL(is_codec_mm_keeped);
 int codec_mm_keeper_mask_keep_mem(void *mem_handle, int type)
 {
 	struct codec_mm_keeper_mgr *mgr = get_codec_mm_keeper_mgr();
-	int keep_id = -1;
+	int keep_id;
 	int i;
 	unsigned long flags;
 	int ret;

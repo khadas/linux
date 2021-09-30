@@ -63,7 +63,8 @@ static int secmem_dma_attach(struct dma_buf *dbuf, struct dma_buf_attachment *at
 	int ret;
 
 	pr_enter();
-	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
+	attach = (struct ksecmem_attachment *)
+		kzalloc(sizeof(*attach), GFP_KERNEL);
 	if (!attach) {
 		pr_error("kzalloc failed\n");
 		return -ENOMEM;
@@ -193,7 +194,8 @@ static long secmem_export(unsigned long args)
 	int fd;
 
 	pr_enter();
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = (struct secmem_block *)
+		kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		pr_error("kmalloc failed\n");
 		goto error_alloc_object;
