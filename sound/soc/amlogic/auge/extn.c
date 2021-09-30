@@ -99,6 +99,7 @@ struct extn {
 	int default_edid_size;
 	char user_setting_edid[MAX_AUDIO_EDID_LENGTH];
 	int user_setting_edid_size;
+	int hdmiin_audio_output_mode;
 };
 
 #define EXTN_BUFFER_BYTES (512 * 1024)
@@ -882,8 +883,6 @@ int aml_set_audio_edid(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#endif
-
 int aml_get_hdmiin_audio_bitwidth(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
@@ -932,6 +931,40 @@ int aml_get_hdmiin_audio_bitwidth(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
+
+static const char * const hdmiin_audio_output_mode_names[] = {
+	/*  0 */ "SPDIF",
+	/*  1 */ "I2S",
+	/*  2 */ "TDM",
+};
+
+const struct soc_enum hdmiin_audio_output_mode_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0,
+			ARRAY_SIZE(hdmiin_audio_output_mode_names),
+			hdmiin_audio_output_mode_names);
+
+int aml_get_hdmiin_audio_output_mode(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct extn *p_extn = dev_get_drvdata(component->dev);
+
+	ucontrol->value.integer.value[0] = p_extn->hdmiin_audio_output_mode;
+	return 0;
+}
+
+int aml_set_hdmiin_audio_output_mode(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct extn *p_extn = dev_get_drvdata(component->dev);
+
+	rx_set_audio_param(ucontrol->value.integer.value[0]);
+	p_extn->hdmiin_audio_output_mode = ucontrol->value.integer.value[0];
+	return 0;
+}
+
+#endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 static int get_tvin_video_delay_enum(struct snd_kcontrol *kcontrol,
@@ -1054,6 +1087,10 @@ static const struct snd_kcontrol_new extn_controls[] = {
 		MAX_AUDIO_EDID_LENGTH,
 		aml_get_audio_edid,
 		aml_set_audio_edid),
+	SOC_ENUM_EXT("HDMIIN Audio output mode",
+		hdmiin_audio_output_mode_enum,
+		aml_get_hdmiin_audio_output_mode,
+		aml_set_hdmiin_audio_output_mode),
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 	SOC_SINGLE_EXT("TVIN VIDEO DELAY",
