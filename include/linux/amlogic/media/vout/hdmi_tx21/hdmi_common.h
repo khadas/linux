@@ -28,6 +28,7 @@
 #define GET_OUI_BYTE1(oui)	(((oui) >> 8) & 0xff)
 #define GET_OUI_BYTE2(oui)	(((oui) >> 16) & 0xff)
 
+#define HDMI_PACKET_TYPE_GCP 0x3
 enum hdmi_tf_type {
 	HDMI_NONE = 0,
 	/* HDMI_HDR_TYPE, HDMI_DV_TYPE, and HDMI_HDR10P_TYPE

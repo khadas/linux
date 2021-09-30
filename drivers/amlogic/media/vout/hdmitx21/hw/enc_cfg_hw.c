@@ -33,7 +33,7 @@
  * and send data to ENCP_DVI/DE_H/V* via a fifo (pixel delay)
  * The input timing of HDMITx is from ENCP_DVI/DE_H/V*
  */
-static void config_tv_enc_calc(enum hdmi_vic vic)
+static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 {
 	const struct hdmi_timing *tp = NULL;
 	struct hdmi_timing timing = {0};
@@ -45,7 +45,10 @@ static void config_tv_enc_calc(enum hdmi_vic vic)
 	u32 de_h_end = 0;
 	u32 de_v_begin = 0;
 	u32 de_v_end = 0;
+	bool y420_mode = 0;
 
+	if (hdev->para && hdev->para->cs == HDMI_COLORSPACE_YUV420)
+		y420_mode = 1;
 	tp = hdmitx21_gettiming_from_vic(vic);
 	if (!tp) {
 		pr_info("not find hdmitx vic %d timing\n", vic);
@@ -67,8 +70,9 @@ static void config_tv_enc_calc(enum hdmi_vic vic)
 	hd21_write_reg(ENCP_DVI_HSO_END, hsync_st + tp->h_sync);
 
 	// generate vsync
-	hd21_write_reg(ENCP_DVI_VSO_BLINE_EVN, vsync_st);
-	hd21_write_reg(ENCP_DVI_VSO_ELINE_EVN, vsync_st + tp->v_sync);
+	hd21_write_reg(ENCP_DVI_VSO_BLINE_EVN, vsync_st + y420_mode);
+	hd21_write_reg(ENCP_DVI_VSO_ELINE_EVN,
+		vsync_st + tp->v_sync + y420_mode);
 	hd21_write_reg(ENCP_DVI_VSO_BEGIN_EVN, hsync_st);
 	hd21_write_reg(ENCP_DVI_VSO_END_EVN, hsync_st);
 
@@ -374,7 +378,8 @@ static void hdmi_tvenc1080i_set(enum hdmi_vic vic)
 	hd21_set_reg_bits(VPU_HDMI_SETTING, 1, 1, 1);
 }
 
-void set_tv_encp_new(u32 enc_index, enum hdmi_vic vic, u32 enable)
+void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
+	u32 enable)
 {
 	u32 reg_offset;
 	// VENC0A 0x1b
@@ -390,7 +395,7 @@ void set_tv_encp_new(u32 enc_index, enum hdmi_vic vic, u32 enable)
 		hdmi_tvenc1080i_set(vic);
 		break;
 	default:
-		config_tv_enc_calc(vic);
+		config_tv_enc_calc(hdev, vic);
 		break;
 	}
 } /* set_tv_encp_new */
@@ -463,7 +468,8 @@ static void config_tv_enci(enum hdmi_vic vic)
 	}
 }
 
-void set_tv_enci_new(u32 enc_index, enum hdmi_vic vic, u32 enable)
+void set_tv_enci_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
+	u32 enable)
 {
 	u32 reg_offset;
 

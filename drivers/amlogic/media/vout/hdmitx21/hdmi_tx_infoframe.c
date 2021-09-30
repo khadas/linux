@@ -195,3 +195,16 @@ void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb)
 	memcpy(&body[3], pb, 28);
 	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_DRM, body);
 }
+
+/* for only 8bit */
+void hdmi_gcppkt_manual_set(bool en)
+{
+	u8 body[31] = {0};
+
+	body[0] = HDMI_PACKET_TYPE_GCP;
+	if (en)
+		hdmitx_infoframe_send(HDMI_PACKET_TYPE_GCP, body);
+	else
+		hdmitx_infoframe_send(HDMI_PACKET_TYPE_GCP, NULL);
+}
+

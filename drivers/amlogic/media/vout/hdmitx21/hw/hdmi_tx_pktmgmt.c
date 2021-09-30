@@ -64,6 +64,26 @@ static void tpi_info_send(u8 sel, u8 *data)
 	spin_unlock_irqrestore(&tpi_lock, flags);
 }
 
+/* packet no need checksum */
+static void tpi_packet_send(u8 sel, u8 *data)
+{
+	int i;
+	unsigned long flags;
+
+	spin_lock_irqsave(&tpi_lock, flags);
+	hdmitx21_wr_reg(TPI_INFO_FSEL_IVCTX, sel); // buf selection
+	if (!data) {
+		hdmitx21_wr_reg(TPI_INFO_EN_IVCTX, 0);
+		spin_unlock_irqrestore(&tpi_lock, flags);
+		return;
+	}
+
+	for (i = 0; i < 31; i++)
+		hdmitx21_wr_reg(TPI_INFO_B0_IVCTX + i, data[i]);
+	hdmitx21_wr_reg(TPI_INFO_EN_IVCTX, 0xe0); //TPI Info enable
+	spin_unlock_irqrestore(&tpi_lock, flags);
+}
+
 static int tpi_info_get(u8 sel, u8 *data)
 {
 	int i;
@@ -125,6 +145,10 @@ static int _tpi_infoframe_wrrd(u8 wr, u8 info_type, u8 *body)
 	case HDMI_INFOFRAME_TYPE_DRM:
 		sel = 6;
 		break;
+	case HDMI_PACKET_TYPE_GCP:
+		sel = 7;
+		tpi_packet_send(sel, body);
+		return 0;
 	default:
 		pr_info("%s[%d] wrong info_type %d\n", __func__, __LINE__, info_type);
 		return -1;
