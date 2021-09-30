@@ -82,7 +82,8 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 	unsigned int index,
 	unsigned int fmt,
 	unsigned int capture_active,
-	unsigned int playback_active);
+	unsigned int playback_active,
+	bool tdmin_src_hdmirx);
 
 void aml_update_tdmin_skew(struct aml_audio_controller *actrl,
 			   int idx, int skew);
