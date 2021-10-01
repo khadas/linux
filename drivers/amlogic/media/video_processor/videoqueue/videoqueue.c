@@ -414,6 +414,32 @@ static void do_file_thread(struct video_queue_dev *dev)
 			return;
 	}
 
+	if (dev->provider_name && !(strcmp(dev->provider_name, "dv_vdin"))) {
+		if (vf->dv_crc_sts) {
+			dev->vdin_err_crc_count = 0;
+		} else {
+			vq_print(P_ERROR, "invalid vframe.\n");
+			vf_get(dev->vf_receiver_name);
+			dev->frame_num++;
+			vf_put(vf, dev->vf_receiver_name);
+			dev->vdin_err_crc_count++;
+			vq_print(P_ERROR,
+				"vdin_err_crc_count is %d.\n",
+				dev->vdin_err_crc_count);
+			if (dev->vdin_err_crc_count >= 6) {
+				ret = vt_send_cmd(dev->dev_session,
+						  dev->tunnel_id,
+						  VT_VIDEO_SET_STATUS,
+						  1);
+				if (ret < 0)
+					vq_print(P_ERROR,
+						"crc black screen err\n");
+			}
+
+			return;
+		}
+	}
+
 	if ((vf->flag & VFRAME_FLAG_GAME_MODE || force_game_mode) &&
 		!dev->game_mode) {
 		dev->game_mode = true;
@@ -887,6 +913,7 @@ static int videoqueue_reg_provider(struct video_queue_dev *dev)
 	dev->game_mode = false;
 	game_mode = 0;
 	dev->low_latency_mode = low_latency_mode;
+	dev->vdin_err_crc_count = 0;
 
 	INIT_KFIFO(dev->file_q);
 	INIT_KFIFO(dev->display_q);

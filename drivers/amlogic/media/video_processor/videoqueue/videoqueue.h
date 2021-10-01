@@ -72,6 +72,7 @@ struct video_queue_dev {
 	bool need_aisr;
 	u32 frc_delay_first_frame;
 	bool vlock_locked;
+	int vdin_err_crc_count;
 };
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
