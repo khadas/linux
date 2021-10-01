@@ -67,6 +67,17 @@ static int vrr_config_load(struct aml_vrr_drv_s *vdrv,
 	return 0;
 }
 
+int aml_vrr_state(int index)
+{
+	if (index >= VRR_MAX_DRV)
+		return 0;
+	if (!vrr_drv[index])
+		return 0;
+	if (vrr_drv[index]->state & VRR_STATE_EN)
+		return 1;
+	return 0;
+}
+
 static void vrr_lcd_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 {
 	unsigned int vsp_in, vsp_sel;
@@ -638,6 +649,10 @@ static long vrr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case VRR_IOC_DISABLE:
 		vrr_func_en(vdrv, 0);
+		break;
+	case VRR_IOC_GET_EN:
+		if (copy_to_user(argp, &vdrv->enable, sizeof(unsigned int)))
+			ret = -EFAULT;
 		break;
 	default:
 		VRRERR("[%d]: not support ioctl cmd_nr: 0x%x\n",

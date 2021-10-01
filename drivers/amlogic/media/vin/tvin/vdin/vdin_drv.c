@@ -64,6 +64,7 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>
 #endif
+#include <linux/amlogic/media/vrr/vrr.h>
 /* Local Headers */
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
@@ -115,6 +116,11 @@ static int phase_lock_flag;
 /*game_mode_switch_frames:min num is 5 by 1080p60hz input test*/
 static int game_mode_switch_frames = 10;
 static int game_mode_phlock_switch_frames = 120;
+/* skip frames for hdmirx vrr M_CONST switch
+ * static int vrr_input_switch_frames = 12;
+ */
+/* waitting frames for vout vrr lock */
+static int vrr_output_lock_frames = 6;
 static unsigned int dv_work_delby;
 
 unsigned int max_ignore_frame_cnt = 2;
@@ -147,6 +153,13 @@ MODULE_PARM_DESC(game_mode_switch_frames, "game mode switch <n> frames");
 module_param(game_mode_phlock_switch_frames, int, 0664);
 MODULE_PARM_DESC(game_mode_phlock_switch_frames,
 		 "game mode switch <n> frames for phase_lock");
+
+/* module_param(vrr_input_switch_frames, int, 0664);
+ *MODULE_PARM_DESC(vrr_input_switch_frames,
+ *		 "vrr input M_CONST switch <n> frames");
+ */
+module_param(vrr_output_lock_frames, int, 0664);
+MODULE_PARM_DESC(vrr_output_lock_frames, "vrr output lock <n> frames");
 #endif
 
 int vdin_dbg_en;
@@ -396,6 +409,35 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 {
 	if (!game_mode)
 		return;
+
+	if (devp->vrr_en) {
+		if (devp->game_mode & VDIN_GAME_MODE_SWITCH_EN) {
+			/* phase unlock state, wait ph lock*/
+			/* make sure phase lock for next few frames */
+			if (aml_vrr_state(0))
+				phase_lock_flag++;
+			else
+				phase_lock_flag = 0;
+			if (phase_lock_flag >= vrr_output_lock_frames) {
+				if (vdin_dbg_en) {
+					pr_info("switch game mode (0x%x->0x%x), frame_cnt=%d\n",
+						devp->game_mode_pre,
+						devp->game_mode,
+						devp->frame_cnt);
+				}
+				if (devp->parm.info.fps < 45) {
+					/*1 to 2 need delay more than one vf*/
+					devp->game_mode = (VDIN_GAME_MODE_0 |
+						VDIN_GAME_MODE_1);
+				} else {
+					devp->game_mode = (VDIN_GAME_MODE_0 |
+						VDIN_GAME_MODE_2);
+				}
+				phase_lock_flag = 0;
+			}
+		}
+		return;
+	}
 
 	/*switch to game mode 2 from game mode 1,otherwise may appear blink*/
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
@@ -3748,6 +3790,26 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		if (vdin_dbg_en)
 			pr_info("vdin_pc_mode:%d\n", vdin_pc_mode);
+		break;
+	case TVIN_IOC_S_VRR_EN:
+		if (copy_from_user(&devp->vrr_en, argp, sizeof(unsigned int))) {
+			ret = -EFAULT;
+			break;
+		}
+		if (vdin_dbg_en) {
+			pr_info("[vdin.%d] set vdin_vrr_en:%d\n",
+				devp->index, devp->vrr_en);
+		}
+		break;
+	case TVIN_IOC_G_VRR_EN:
+		if (copy_to_user(argp, &devp->vrr_en, sizeof(unsigned int))) {
+			ret = -EFAULT;
+			break;
+		}
+		if (vdin_dbg_en) {
+			pr_info("[vdin.%d] get vdin_vrr_en:%d\n",
+				devp->index, devp->vrr_en);
+		}
 		break;
 	case TVIN_IOC_S_FRAME_WR_EN:
 		if (copy_from_user(&devp->vframe_wr_en, argp,
