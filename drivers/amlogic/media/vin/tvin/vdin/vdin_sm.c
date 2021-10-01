@@ -217,7 +217,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 
 	if (!devp) {
 		return signal_chg;
-	} else if (!devp->frontend) {
+	}
+	if (!devp->frontend) {
 		sm_dev[devp->index].state = TVIN_SM_STATUS_NULL;
 		return signal_chg;
 	}
@@ -353,6 +354,18 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			}
 		}
 
+		if (devp->pre_prop.vtem_data.vrr_en !=
+		    devp->prop.vtem_data.vrr_en) {
+			signal_chg |= TVIN_SIG_CHG_VRR;
+			pr_info("%s vrr chg:(%d->%d)\n", __func__,
+				devp->pre_prop.vtem_data.vrr_en,
+				devp->prop.vtem_data.vrr_en);
+			devp->pre_prop.vtem_data.vrr_en =
+				devp->prop.vtem_data.vrr_en;
+			devp->prop.vdin_vrr_flag =
+				devp->prop.vtem_data.vrr_en;
+		}
+
 		if (color_range_force)
 			prop->color_fmt_range =
 			tvin_get_force_fmt_range(pre_prop->color_format);
@@ -454,12 +467,13 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 	       &prop->dv_vsif, sizeof(struct tvin_dv_vsif_s));
 
 	if (sm_debug_enable & VDIN_SM_LOG_L_4)
-		pr_info("[sm.%d]dv:%d, hdr state:%d eotf:%d flag:0x%x\n",
+		pr_info("[sm.%d]dv:%d, hdr state:%d eotf:%d flag:0x%x, vrr state:%d\n",
 			devp->index,
 			devp->prop.dolby_vision,
 			devp->prop.hdr_info.hdr_state,
 			devp->prop.hdr_info.hdr_data.eotf,
-			devp->prop.vdin_hdr_flag);
+			devp->prop.vdin_hdr_flag,
+			devp->prop.vdin_vrr_flag);
 
 	if (devp->prop.dolby_vision)
 		signal_type |= (1 << 30);
@@ -552,8 +566,15 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 	    devp->parm.info.signal_type != signal_type) {
 		signal_chg |= TVIN_SIG_CHG_SDR2HDR;
 	}
-
 	/* check HDR 10+ end */
+
+	/* check vrr begin */
+	if (devp->prop.vdin_vrr_flag)
+		signal_type |= (1 << 31);
+	else
+		signal_type &= ~(1 << 31);
+	/* check vrr end */
+
 	devp->parm.info.signal_type = signal_type;
 
 	return signal_chg;
@@ -598,6 +619,8 @@ void tvin_sigchg_event_process(struct vdin_dev_s *devp, u32 chg)
 				re_cfg = true;
 		} else if (chg & TVIN_SIG_CHG_AFD) {
 			devp->event_info.event_sts = TVIN_SIG_CHG_AFD;
+		} else if (chg & TVIN_SIG_CHG_VRR) {
+			devp->event_info.event_sts = TVIN_SIG_CHG_VRR;
 		} else {
 			return;
 		}
@@ -949,8 +972,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				(devp->flags & VDIN_FLAG_SNOW_FLAG) &&
 				(sm_ops->get_fmt && sm_ops->get_sig_property)) {
 				sm_p->state_cnt = 0;
-				stable_fmt =
-					sm_ops->get_fmt(fe);
+				stable_fmt = sm_ops->get_fmt(fe);
 				if (sm_atv_prestable_fmt != stable_fmt &&
 				    stable_fmt != TVIN_SIG_FMT_NULL) {
 					/*cvbs in*/

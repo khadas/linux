@@ -43,13 +43,17 @@ struct vrr_notifier_data_s {
 #define VRR_IOC_GET_CAP        0x0
 #define VRR_IOC_ENABLE         0x1
 #define VRR_IOC_DISABLE        0x2
+#define VRR_IOC_GET_EN         0x3
 
 #define VRR_IOC_CMD_GET_CAP   _IOR(VRR_IOC_TYPE, VRR_IOC_GET_CAP, unsigned int)
 #define VRR_IOC_CMD_ENABLE    _IO(VRR_IOC_TYPE, VRR_IOC_ENABLE)
 #define VRR_IOC_CMD_DISABLE   _IO(VRR_IOC_TYPE, VRR_IOC_DISABLE)
+#define VRR_IOC_CMD_GET_EN    _IOR(VRR_IOC_TYPE, VRR_IOC_GET_EN, unsigned int)
 
 /* ************************************************************* */
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
+int aml_vrr_state(int index);
+
 int aml_vrr_register_device(struct vrr_device_s *vrr_dev, int index);
 int aml_vrr_unregister_device(int index);
 /* atomic notify */
@@ -57,6 +61,11 @@ int aml_vrr_atomic_notifier_register(struct notifier_block *nb);
 int aml_vrr_atomic_notifier_unregister(struct notifier_block *nb);
 int aml_vrr_atomic_notifier_call_chain(unsigned long event, void *v);
 #else
+static int aml_vrr_state(int index)
+{
+	return 0;
+}
+
 static inline int aml_vrr_register_device(struct vrr_device_s *vrr_dev,
 					  int index)
 {
@@ -68,17 +77,18 @@ static inline int aml_vrr_unregister_device(int index)
 	return 0;
 }
 
-int aml_vrr_atomic_notifier_register(struct notifier_block *nb)
+static inline int aml_vrr_atomic_notifier_register(struct notifier_block *nb)
 {
 	return 0;
 }
 
-int aml_vrr_atomic_notifier_unregister(struct notifier_block *nb)
+static inline int aml_vrr_atomic_notifier_unregister(struct notifier_block *nb)
 {
 	return 0;
 }
 
-int aml_vrr_atomic_notifier_call_chain(unsigned long event, void *v)
+static inline int aml_vrr_atomic_notifier_call_chain(unsigned long event,
+						     void *v)
 {
 	return 0;
 }

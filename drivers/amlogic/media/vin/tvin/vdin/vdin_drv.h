@@ -62,10 +62,9 @@
 #include "vdin_regs.h"
 #include "vdin_v4l2_if.h"
 
-/* Ref.2019/04/25: tl1 vdin0 afbce dynamically switch support,
- *                 vpp also should support this function
+/* Ref.2021-0926: t5d/t7 default force yuv422 to yuv444
  */
-#define VDIN_VER "ver:2021-0926: t5d/t7 default force yuv422 to yuv444"
+#define VDIN_VER "ver:2021-1001: support vrr output for game mode"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -134,6 +133,7 @@ enum vdin_irq_flg_e {
 	VDIN_IRQ_FLG_NO_WR_FE,
 	VDIN_IRQ_FLG_NO_NEXT_FE, /* 15 */
 	VDIN_IRQ_FLG_SECURE_MD,
+	VDIN_IRQ_FLG_VRR_CHG,
 };
 
 /* for config hw function support */
@@ -616,6 +616,7 @@ struct vdin_dev_s {
 	 */
 	unsigned int game_mode;
 	unsigned int game_mode_pre;
+	bool vrr_en;
 	unsigned int rdma_enable;
 	/* afbce_mode: (amlogic frame buff compression encoder)
 	 * 0: normal mode, not use afbce

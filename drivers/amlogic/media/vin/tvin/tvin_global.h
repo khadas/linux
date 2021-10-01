@@ -497,6 +497,7 @@ struct tvin_sig_property_s {
 	unsigned int		decimation_ratio;	/* for decimation */
 	unsigned int		colordepth; /* for color bit depth */
 	unsigned int		vdin_hdr_flag;
+	unsigned int            vdin_vrr_flag;
 	enum tvin_color_fmt_range_e color_fmt_range;
 	struct tvin_hdr_info_s hdr_info;
 	struct tvin_dv_vsif_s dv_vsif;/*dolby vsi info*/
