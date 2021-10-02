@@ -5692,7 +5692,8 @@ void rx_ddc_active_monitor(void)
 		break;
 	}
 
-	if (temp & 0xff) {
+	temp = temp & 0xff;
+	if (temp < 0x3f && temp != 8 && temp) {
 		rx.ddc_filter_en = true;
 		if (log_level & EDID_LOG)
 			rx_pr("port: %d, edid_status: 0x%x,\n", rx.port, temp);
