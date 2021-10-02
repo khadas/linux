@@ -20,6 +20,12 @@ enum {
 	HDCP_STATE_DISCONNECT,
 };
 
+enum {
+	MESON_PREF_DV = 0,
+	MESON_PREF_HDR,
+	MESON_PREF_SDR,
+};
+
 struct hdmitx_color_attr {
 	int colorformat;
 	int bitdepth;
@@ -28,9 +34,6 @@ struct hdmitx_color_attr {
 struct am_hdmi_tx {
 	struct meson_connector base;
 	struct drm_encoder encoder;
-
-	/*drm current hdmitx attr color-subsample(format)/colordepth*/
-	struct hdmitx_color_attr color_attr;
 
 	/*drm request content type.*/
 	int hdcp_request_content_type;
@@ -47,6 +50,7 @@ struct am_hdmi_tx {
 	 *colorspace/colordepth from sysfs.
 	 */
 	struct drm_property *update_attr_prop;
+
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;
 #endif
@@ -54,6 +58,14 @@ struct am_hdmi_tx {
 
 struct am_hdmitx_connector_state {
 	struct drm_connector_state base;
+
+	/*drm hdmitx attr from external modules,
+	 *ONLY used for once, and reset when duplicate.
+	 */
+	struct hdmitx_color_attr color_attr_para;
+	/*HDR Priority: dv,hdr,sdr*/
+	int pref_hdr_policy;
+
 	bool update : 1;
 };
 

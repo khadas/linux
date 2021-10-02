@@ -228,14 +228,6 @@ extern "C" {
 #define DRM_MODE_CONTENT_PROTECTION_DESIRED     1
 #define DRM_MODE_CONTENT_PROTECTION_ENABLED     2
 
-/* HDR policy options */
-#define DRM_MODE_HDR_FOLLOW_SINK	0
-#define DRM_MODE_HDR_FOLLOW_SOURCE	1
-
-/* DV policy options */
-#define DRM_MODE_DV_FOLLOW_SINK		0
-#define DRM_MODE_DV_FOLLOW_SOURCE	1
-
 struct drm_mode_modeinfo {
 	__u32 clock;
 	__u16 hdisplay;

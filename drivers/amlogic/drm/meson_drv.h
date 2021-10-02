@@ -83,6 +83,8 @@ struct meson_drm {
 	/*CONFIG_DRM_MESON_EMULATE_FBDEV*/
 	struct meson_drm_fbdev_config ui_config;
 	struct meson_drm_fbdev *osd_fbdevs[MESON_MAX_OSD];
+
+	bool compat_mode;
 };
 
 static inline int meson_vpu_is_compatible(struct meson_drm *priv,
