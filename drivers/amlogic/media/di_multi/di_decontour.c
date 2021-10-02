@@ -27,6 +27,8 @@
 #define DCT_PRE_LS_CH	DI_BIT30
 #define DCT_PRE_LS_MEM	DI_BIT29
 
+static DEFINE_SPINLOCK(dct_pre);
+
 static void ini_dcntr_pre(int hsize, int vsize, int grd_num_mode, u32 ratio)
 {
 	int xsize = hsize;
@@ -688,13 +690,14 @@ static void decontour_init(struct di_ch_s *pch)
 	/***********************/
 	dct->statusx[pch->ch_id] |= DCT_PRE_LS_ACT;
 	/**/
-	if (!pch->dct_pre) {
+	if (!pch->dct_pre)
 		pdct = vmalloc(sizeof(*pdct));
-		if (!pdct) {
-			PR_WARN("%s:vmalloc\n", __func__);
-			return;
-		}
+
+	if (!pdct) {
+		PR_WARN("%s:vmalloc\n", __func__);
+		return;
 	}
+
 	pch->dct_pre = pdct;
 
 	dct->statusx[pch->ch_id] |= DCT_PRE_LS_CH;
@@ -789,17 +792,17 @@ static void decontour_uninit(struct di_ch_s *pch)
 
 irqreturn_t dct_pre_isr(int irq, void *dev_id)
 {
-//	struct di_pre_dct_s *pdct = dim_pdct();
 	struct di_hdct_s  *dct = &get_datal()->hw_dct;
+	ulong flags = 0;
 
-	//isr_received = 1;
-	//complete(&isr_done);
-
+	spin_lock_irqsave(&dct_pre, flags);
 	if (!atomic_dec_and_test(&dct->irq_wait)) {
 		PR_ERR("%s:%d\n", "irq_dct", atomic_read(&dct->irq_wait));
+		spin_unlock_irqrestore(&dct_pre, flags);
 		return IRQ_HANDLED;
 	}
 	dim_tr_ops.irq_dct(dct->curr_nins->c.cnt);
+	spin_unlock_irqrestore(&dct_pre, flags);
 
 	dbg_dctp("decontour: isr %d\n", atomic_read(&dct->irq_wait));
 	return IRQ_HANDLED;
