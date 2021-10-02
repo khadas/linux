@@ -8,7 +8,6 @@
 
 #include <linux/amlogic/media/vout/vout_notify.h>
 
-#define VIDEO_LATENCY_VSYNC 2
 
 struct am_vout_mode {
 	char name[DRM_DISPLAY_MODE_LEN];

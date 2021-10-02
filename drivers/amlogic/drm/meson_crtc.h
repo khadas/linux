@@ -11,54 +11,44 @@
 #include <drm/drm_plane.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <linux/sync_file.h>
-#include <linux/amlogic/media/vout/vout_notify.h>
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
-#include <linux/amlogic/media/amvecm/amvecm.h>
-#endif
 #include "meson_vpu.h"
 #include "meson_drv.h"
 #include "meson_fb.h"
 
-struct video_out_fence_state {
-	s32 __user *video_out_fence_ptr;
-	struct sync_file *sync_file;
-	int fd;
+enum {
+	MESON_HDR_POLICY_FOLLOW_SINK = 0,
+	MESON_HDR_POLICY_FOLLOW_SOURCE,
+};
+
+enum {
+	HDMI_EOTF_MESON_DOLBYVISION = (HDMI_EOTF_BT_2100_HLG + 0xf),
+	HDMI_EOTF_MESON_DOLBYVISION_LL,
 };
 
 struct am_meson_crtc_state {
 	struct drm_crtc_state base;
-	u32 hdr_policy;
-	u32 dv_policy;
-	struct video_out_fence_state fence_state;
 
 	int uboot_mode_init;
-};
-
-struct am_meson_video_out_fence {
-	struct dma_fence *fence;
-	atomic_t refcount;
+	/*policy update by y property*/
+	u8 crtc_hdr_process_policy; /*follow sink or follow source*/
+	/*only used to indicate if dv ll mode output now.*/
+	u8 crtc_eotf_type;
+	/*dv core enabled, control by usersapce not driver*/
+	bool crtc_dv_enable;
+	/*hdr core enabled, always on if soc support hdr.*/
+	bool crtc_hdr_enable;
 };
 
 struct am_meson_crtc {
 	struct drm_crtc base;
-	struct device *dev;
 	struct drm_device *drm_dev;
-
 	struct meson_drm *priv;
 
-	struct drm_pending_vblank_event *event;
-	struct am_meson_video_out_fence video_fence[VIDEO_LATENCY_VSYNC];
-
 	unsigned int irq;
-
-	struct dentry *crtc_debugfs_dir;
-
+	struct drm_pending_vblank_event *event;
 	struct meson_vpu_pipeline *pipeline;
-	struct drm_property *prop_hdr_policy;
-	struct drm_property *prop_dv_policy;
 
-	struct drm_property *prop_video_out_fence_ptr;
+    /*debug*/
 	int dump_enable;
 	int blank_enable;
 	int dump_counts;
@@ -74,9 +64,14 @@ struct am_meson_crtc {
 		struct am_meson_crtc_state, base)
 
 int am_meson_crtc_create(struct am_meson_crtc *amcrtc);
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 void set_dolby_vision_policy(int policy);
 int get_dolby_vision_policy(void);
+void set_dolby_vision_ll_policy(int policy);
+void set_dolby_vision_enable(bool enable);
+int get_dv_support_info(void);
+bool is_dolby_vision_enable(void);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 void set_hdr_policy(int policy);

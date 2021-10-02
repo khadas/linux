@@ -11312,6 +11312,12 @@ bool is_dolby_vision_el_disable(void)
 }
 EXPORT_SYMBOL(is_dolby_vision_el_disable);
 
+void set_dolby_vision_ll_policy(int policy)
+{
+	dolby_vision_ll_policy = policy;
+}
+EXPORT_SYMBOL(set_dolby_vision_ll_policy);
+
 void set_dolby_vision_policy(int policy)
 {
 	dolby_vision_policy = policy;
@@ -11323,6 +11329,12 @@ int get_dolby_vision_policy(void)
 	return dolby_vision_policy;
 }
 EXPORT_SYMBOL(get_dolby_vision_policy);
+
+void set_dolby_vision_enable(bool enable)
+{
+	dolby_vision_enable = enable;
+}
+EXPORT_SYMBOL(set_dolby_vision_enable);
 
 /* bit 0 for HDR10: 1=by dv, 0-by vpp */
 /* bit 1 for HLG: 1=by dv, 0-by vpp */

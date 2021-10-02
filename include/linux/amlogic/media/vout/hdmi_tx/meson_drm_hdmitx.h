@@ -48,4 +48,9 @@ void drm_hdmitx_hdcp22_init(void);
 void drm_hdmitx_avmute(unsigned char mute);
 void drm_hdmitx_set_phy(unsigned char en);
 
+const struct dv_info *drm_hdmitx_get_dv_info(void);
+const struct hdr_info *drm_hdmitx_get_hdr_info(void);
+
+int drm_hdmitx_get_hdr_priority(void);
+
 #endif

@@ -536,12 +536,11 @@ static void hdmi_physical_size_update(struct hdmitx_dev *hdev)
 	}
 }
 
-static void hdrinfo_to_vinfo(struct vinfo_s *info, struct hdmitx_dev *hdev)
+static void hdrinfo_to_vinfo(struct hdr_info *hdrinfo, struct hdmitx_dev *hdev)
 {
-	memcpy(&info->hdr_info, &hdev->rxcap.hdr_info, sizeof(struct hdr_info));
-	info->hdr_info.colorimetry_support = hdev->rxcap.colorimetry_data;
-	pr_info(SYS "update rx hdr info %x\n",
-		info->hdr_info.hdr_support);
+	memcpy(hdrinfo, &hdev->rxcap.hdr_info, sizeof(struct hdr_info));
+	hdrinfo->colorimetry_support = hdev->rxcap.colorimetry_data;
+	pr_info(SYS "update rx hdr info %x\n", hdrinfo->hdr_support);
 }
 
 static void rxlatency_to_vinfo(struct vinfo_s *info, struct rx_cap *rx)
@@ -569,7 +568,7 @@ static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev)
 		return;
 
 	mutex_lock(&getedid_mutex);
-	hdrinfo_to_vinfo(info, hdev);
+	hdrinfo_to_vinfo(&info->hdr_info, hdev);
 	if (hdev->para->cd == COLORDEPTH_24B)
 		memset(&info->hdr_info, 0, sizeof(struct hdr_info));
 	rxlatency_to_vinfo(info, &hdev->rxcap);
@@ -7606,5 +7605,28 @@ int drm_hdmitx_set_contenttype(int content_type)
 EXPORT_SYMBOL(drm_hdmitx_set_contenttype);
 
 
-/*************DRM connector API end**************/
+const struct dv_info *drm_hdmitx_get_dv_info(void)
+{
+	const struct dv_info *dv = &hdmitx_device.rxcap.dv_info;
 
+	return dv;
+}
+EXPORT_SYMBOL(drm_hdmitx_get_dv_info);
+
+const struct hdr_info *drm_hdmitx_get_hdr_info(void)
+{
+	static struct hdr_info hdrinfo;
+
+	hdrinfo_to_vinfo(&hdrinfo, &hdmitx_device);
+
+	return &hdrinfo;
+}
+EXPORT_SYMBOL(drm_hdmitx_get_hdr_info);
+
+int drm_hdmitx_get_hdr_priority(void)
+{
+	return hdmitx_device.hdr_priority;
+}
+EXPORT_SYMBOL(drm_hdmitx_get_hdr_priority);
+
+/*************DRM connector API end**************/
