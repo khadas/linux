@@ -33,7 +33,6 @@
 
 #include <linux/amba/bus.h>
 #ifdef CONFIG_AMLOGIC_MODIFY
-#include <asm/cacheflush.h>
 #include <dt-bindings/memory/meson-p1-sid-map.h>
 #include <linux/arm-smccc.h>
 #endif
@@ -1503,7 +1502,6 @@ static void arm_smmu_write_ctx_desc(struct arm_smmu_device *smmu,
 	cfg->cdptr[1] = cpu_to_le64(val);
 
 	cfg->cdptr[3] = cpu_to_le64(cfg->cd.mair);
-	__flush_dcache_area(cfg->cdptr, 32);
 }
 
 /* Stream table manipulation functions */
@@ -2173,48 +2171,6 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
 	kfree(smmu_domain);
 }
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-static void *persistent_ram_vmap_nocache(phys_addr_t start, size_t size)
-{
-	struct page **pages;
-	phys_addr_t page_start;
-	unsigned int page_count;
-	pgprot_t prot;
-	unsigned int i;
-	void *vaddr;
-
-	page_start = start - offset_in_page(start);
-	page_count = DIV_ROUND_UP(size + offset_in_page(start), PAGE_SIZE);
-
-	prot = pgprot_noncached(PAGE_KERNEL);
-
-	pages = kmalloc_array(page_count, sizeof(struct page *), GFP_KERNEL);
-	/*
-	 *if (!pages) {
-	 *	pr_err("%s: Failed to allocate array for %u pages\n",
-	 *	       __func__, page_count);
-	 *	return NULL;
-	 *}
-	 */
-
-	for (i = 0; i < page_count; i++) {
-		phys_addr_t addr = page_start + i * PAGE_SIZE;
-
-		pages[i] = pfn_to_page(addr >> PAGE_SHIFT);
-	}
-	vaddr = vmap(pages, page_count, VM_MAP, prot);
-	kfree(pages);
-
-	/*
-	 * Since vmap() uses page granularity, we must add the offset
-	 * into the page here, to get the byte granularity address
-	 * into the mapping to represent the actual "start" location.
-	 */
-	//return vaddr + offset_in_page(start);
-	return vaddr;
-}
-#endif
-
 static int arm_smmu_domain_finalise_s1(struct arm_smmu_domain *smmu_domain,
 				       struct io_pgtable_cfg *pgtbl_cfg)
 {
@@ -2235,7 +2191,6 @@ static int arm_smmu_domain_finalise_s1(struct arm_smmu_domain *smmu_domain,
 		ret = -ENOMEM;
 		goto out_free_asid;
 	}
-	__flush_dcache_area(cfg->cdptr, (CTXDESC_CD_DWORDS << 3));
 
 	cfg->cd.asid	= (u16)asid;
 	cfg->cd.ttbr	= pgtbl_cfg->arm_lpae_s1_cfg.ttbr[0];
@@ -2816,20 +2771,11 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 				   size_t dwords, const char *name)
 {
 	size_t qsz;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	unsigned long base_addr_phys;
-	void *vmap_addr = NULL;
-#endif
 
 	do {
 		qsz = ((1 << q->llq.max_n_shift) * dwords) << 3;
-#ifndef CONFIG_AMLOGIC_MODIFY
 		q->base = dmam_alloc_coherent(smmu->dev, qsz, &q->base_dma,
 					      GFP_KERNEL);
-#else
-		q->base = kzalloc(qsz, GFP_KERNEL);
-		__flush_dcache_area(q->base, qsz);
-#endif
 		if (q->base || qsz < PAGE_SIZE)
 			break;
 
@@ -2843,19 +2789,6 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
 		return -ENOMEM;
 	}
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-	base_addr_phys = virt_to_phys(q->base);
-
-	vmap_addr = persistent_ram_vmap_nocache(base_addr_phys, qsz);
-	if (!vmap_addr) {
-		kfree(q->base);
-		dev_err(smmu->dev, "failed to persistent %zx bytes\n", qsz);
-		return -ENOMEM;
-	}
-
-	q->base = vmap_addr;
-	q->base_dma = base_addr_phys;
-#endif
 	if (!WARN_ON(q->base_dma & (qsz - 1))) {
 		dev_info(smmu->dev, "allocated %u entries for %s\n",
 			 1 << q->llq.max_n_shift, name);
@@ -2997,38 +2930,16 @@ static int arm_smmu_init_strtab_linear(struct arm_smmu_device *smmu)
 	u64 reg;
 	u32 size;
 	struct arm_smmu_strtab_cfg *cfg = &smmu->strtab_cfg;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	unsigned long base_addr_phys;
-	void *vmap_addr = NULL;
-#endif
 
 	size = (1 << smmu->sid_bits) * (STRTAB_STE_DWORDS << 3);
-#ifndef CONFIG_AMLOGIC_MODIFY
 	strtab = dmam_alloc_coherent(smmu->dev, size, &cfg->strtab_dma,
 				     GFP_KERNEL | __GFP_ZERO);
-#else
-	strtab = kzalloc(size, GFP_KERNEL);
-	__flush_dcache_area(strtab, size);
-#endif
 	if (!strtab) {
 		dev_err(smmu->dev,
 			"failed to allocate linear stream table (%u bytes)\n",
 			size);
 		return -ENOMEM;
 	}
-#ifdef CONFIG_AMLOGIC_MODIFY
-	base_addr_phys = virt_to_phys(strtab);
-
-	vmap_addr = persistent_ram_vmap_nocache(base_addr_phys, size);
-	if (!vmap_addr) {
-		kfree(strtab);
-		dev_err(smmu->dev, "failed to persistent %d bytes\n", size);
-		return -ENOMEM;
-	}
-
-	strtab = vmap_addr;
-	cfg->strtab_dma = base_addr_phys;
-#endif
 	cfg->strtab = strtab;
 	cfg->num_l1_ents = 1 << smmu->sid_bits;
 
@@ -3459,10 +3370,8 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 	if (reg & IDR0_SEV)
 		smmu->features |= ARM_SMMU_FEAT_SEV;
 
-#ifndef CONFIG_AMLOGIC_MODIFY
 	if (reg & IDR0_MSI)
 		smmu->features |= ARM_SMMU_FEAT_MSI;
-#endif
 
 	if (reg & IDR0_HYP)
 		smmu->features |= ARM_SMMU_FEAT_HYP;
@@ -3892,7 +3801,6 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 		writel_relaxed(ctrl_tmp, smmu_ctrl_base + i * 4);
 	}
 
-	__flush_dcache_area(smmu_ctrl_base, 0x80);
 	devm_iounmap(dev, smmu_ctrl_base);
 
 	/* init the stream ID in MMU_CTRL_SID_REGx */
