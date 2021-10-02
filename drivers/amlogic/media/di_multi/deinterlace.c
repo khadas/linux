@@ -10343,6 +10343,7 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 {
 	unsigned short nr_height = 0, first_field_type;
 	struct di_dev_s *de_devp = get_dim_de_devp();
+	unsigned int x, y;
 
 	dbg_pl("%s:ch[%d]:for first ch reg:\n", __func__, channel);
 
@@ -10429,8 +10430,11 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 	}
 
 	/*--------------------------*/
-
-	nr_height = (vframe->height >> 1);/*temp*/
+	dim_vf_x_y(vframe, &x, &y);
+	nr_height = (unsigned short)y;
+	if (IS_I_SRC(vframe->type))
+		nr_height = (nr_height >> 1);/*temp*/
+	dbg_reg("%s:0x%x:%d,%d,%d\n", __func__, vframe->type, x, y, nr_height);
 	/*--------------------------*/
 	dimh_calc_lmv_init();
 	first_field_type = (vframe->type & VIDTYPE_TYPEMASK);

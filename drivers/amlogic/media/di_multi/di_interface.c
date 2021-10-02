@@ -559,7 +559,10 @@ enum DI_ERRORTYPE di_empty_input_buffer(int index, struct di_buffer *buffer)
 	if (buffer->flag & DI_FLAG_EOS) {
 		pins->c.vfm_cp.type |= (VIDTYPE_V4L_EOS |
 					VIDTYPE_INTERLACE_TOP); //test only
-		PR_INF("ch[%d] in eos\n", ch);
+		pins->c.vfm_cp.width = 1920;
+		pins->c.vfm_cp.height = 1080;
+		pins->c.vfm_cp.type |= 0x3800;
+		PR_INF("ch[%d] in eos a\n", ch);
 	} else {
 		/* @ary_note: eos may be no vf */
 		memcpy(&pins->c.vfm_cp, buffer->vf, sizeof(pins->c.vfm_cp));
