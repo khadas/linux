@@ -69,6 +69,7 @@
 		.adc_pll_cntl_4 = 0xb4,\
 		.adc_pll_cntl_5 = 0xb5,\
 		.adc_pll_cntl_6 = 0xb6,\
+		.adc_pll_cntl_7 = 0xb7,\
 	}
 
 #define ADC_PLL_ADDR_T3		.pll_addr = {\
@@ -79,6 +80,7 @@
 		.adc_pll_cntl_4 = 0x9b,\
 		.adc_pll_cntl_5 = 0x9c,\
 		.adc_pll_cntl_6 = 0x9d,\
+		.adc_pll_cntl_7 = 0x9e,\
 	}
 
 enum adc_map_addr {
@@ -130,6 +132,7 @@ struct adc_pll_reg_addr {
 	unsigned int adc_pll_cntl_4;
 	unsigned int adc_pll_cntl_5;
 	unsigned int adc_pll_cntl_6;
+	unsigned int adc_pll_cntl_7;
 };
 
 struct adc_platform_data_s {
