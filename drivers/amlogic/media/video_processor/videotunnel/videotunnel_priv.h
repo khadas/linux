@@ -57,6 +57,7 @@ union vt_ioctl_arg {
 	struct vt_alloc_id_data alloc_data;
 	struct vt_ctrl_data ctrl_data;
 	struct vt_buffer_data buffer_data;
+	struct vt_display_vsync vsync_data;
 };
 
 /*
@@ -103,6 +104,10 @@ struct vt_dev {
 	struct idr instance_idr;
 	struct rb_root instances;
 	struct vt_state state;
+
+	struct mutex vsync_lock; /* proctect vsync info */
+	u64 vsync_timestamp;
+	u32 vsync_period;
 
 	struct rw_semaphore session_lock;
 	struct rb_root sessions;
