@@ -1402,15 +1402,16 @@ int evl_killall(int mask)
 
 	count = nrthreads - nrkilled;
 	if (EVL_DEBUG(CORE))
-		printk(EVL_INFO "waiting for %d threads to exit\n",
-			nrkilled);
+		printk(EVL_INFO "waiting for %d %s threads to exit\n",
+			nrkilled, mask & T_USER ? "user" : "kernel");
 
 	ret = wait_event_interruptible(join_all,
 				evl_nrthreads == count);
 
 	if (EVL_DEBUG(CORE))
-		printk(EVL_INFO "joined %d threads\n",
-			count + nrkilled - evl_nrthreads);
+		printk(EVL_INFO "joined %d %s threads\n",
+			count + nrkilled - evl_nrthreads,
+			mask & T_USER ? "user" : "kernel");
 
 	return ret < 0 ? -EINTR : 0;
 }
