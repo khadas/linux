@@ -57,6 +57,7 @@ enum {
 	VT_DEBUG_BUFFERS          = 1U << 1,
 	VT_DEBUG_CMD              = 1U << 2,
 	VT_DEBUG_FILE             = 1U << 3,
+	VT_DEBUG_VSYNC            = 1U << 4,
 };
 
 static u32 vt_debug_mask = VT_DEBUG_USER;
@@ -1781,6 +1782,46 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 	return 0;
 }
 
+static int vt_set_vsync_info(struct vt_display_vsync *data,
+			     struct vt_session *session)
+{
+	struct vt_dev *dev = session->dev;
+
+	if (session->role != VT_ROLE_CONSUMER || !dev)
+		return -EINVAL;
+
+	mutex_lock(&dev->vsync_lock);
+	dev->vsync_timestamp = data->timestamp;
+	dev->vsync_period = data->period;
+	mutex_unlock(&dev->vsync_lock);
+
+	vt_debug(VT_DEBUG_VSYNC,
+		 "vt set vsync timestamp:%llu period:%u\n",
+		 data->timestamp, data->period);
+
+	return 0;
+}
+
+static int vt_get_vsync_info(struct vt_display_vsync *data,
+			     struct vt_session *session)
+{
+	struct vt_dev *dev = session->dev;
+
+	if (session->role != VT_ROLE_PRODUCER || !dev)
+		return -EINVAL;
+
+	mutex_lock(&dev->vsync_lock);
+	data->timestamp = dev->vsync_timestamp;
+	data->period = dev->vsync_period;
+	mutex_unlock(&dev->vsync_lock);
+
+	vt_debug(VT_DEBUG_VSYNC,
+		 "vt [%d] get vsync timestamp:%llu period:%u\n",
+		 data->tunnel_id, data->timestamp, data->period);
+
+	return 0;
+}
+
 static unsigned int vt_ioctl_dir(unsigned int cmd)
 {
 	switch (cmd) {
@@ -1788,10 +1829,12 @@ static unsigned int vt_ioctl_dir(unsigned int cmd)
 	case VT_IOC_DEQUEUE_BUFFER:
 	case VT_IOC_ACQUIRE_BUFFER:
 	case VT_IOC_CTRL:
+	case VT_IOC_GET_VSYNCTIME:
 		return _IOC_READ;
 	case VT_IOC_QUEUE_BUFFER:
 	case VT_IOC_RELEASE_BUFFER:
 	case VT_IOC_FREE_ID:
+	case VT_IOC_SET_VSYNCTIME:
 		return _IOC_WRITE;
 	default:
 		return _IOC_DIR(cmd);
@@ -1837,6 +1880,12 @@ static long vt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 	case VT_IOC_ACQUIRE_BUFFER:
 		ret = vt_acquire_buffer_process(&data.buffer_data, session);
+		break;
+	case VT_IOC_SET_VSYNCTIME:
+		ret = vt_set_vsync_info(&data.vsync_data, session);
+		break;
+	case VT_IOC_GET_VSYNCTIME:
+		ret = vt_get_vsync_info(&data.vsync_data, session);
 		break;
 	default:
 		return -ENOTTY;
@@ -2001,6 +2050,7 @@ static int vt_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&vdev->instance_lock);
+	mutex_init(&vdev->vsync_lock);
 	idr_init(&vdev->instance_idr);
 	vdev->instances = RB_ROOT;
 	init_rwsem(&vdev->session_lock);
