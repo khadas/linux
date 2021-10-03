@@ -89,7 +89,7 @@ struct aml_tdm {
 	int lane_ss;
 	/* virtual link for i2s to hdmitx */
 	int i2s2hdmitx;
-	const char *tdmin_src_name;
+	char tdmin_src_name[32];
 	uint last_mpll_freq;
 	uint last_mclk_freq;
 	uint last_fmt;
@@ -341,12 +341,14 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 
 	pr_debug("%s...%#x, id(%d), clksel(%d)\n",
 		 __func__, fmt, p_tdm->id, p_tdm->clk_sel);
-	if (p_tdm->last_fmt == fmt) {
-		pr_debug("%s(), fmt not change\n", __func__);
-		goto capture;
-	} else {
-		p_tdm->last_fmt = fmt;
-	}
+	/*
+	 *if (p_tdm->last_fmt == fmt) {
+	 *	pr_debug("%s(), fmt not change\n", __func__);
+	 *	goto capture;
+	 *} else {
+	 *	p_tdm->last_fmt = fmt;
+	 *}
+	 */
 
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_MASK) {
 	case SND_SOC_DAIFMT_CONT:
@@ -361,8 +363,7 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 
 	p_tdm->setting.sclk_ws_inv = p_tdm->chipinfo->sclk_ws_inv;
 
-	if (p_tdm->tdmin_src_name &&
-	    strncmp(p_tdm->tdmin_src_name, SRC_HDMIRX,
+	if (strncmp(p_tdm->tdmin_src_name, SRC_HDMIRX,
 		    strlen(SRC_HDMIRX)) == 0)
 		tdmin_src_hdmirx = true;
 	aml_tdm_set_format(p_tdm->actrl, &p_tdm->setting,
@@ -377,11 +378,10 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 		}
 	}
 
-capture:
+/* capture: */
 	/* update skew for ACODEC_ADC */
 	if (capture_active &&
 	    p_tdm->chipinfo->adc_fn &&
-	    p_tdm->tdmin_src_name &&
 	    strncmp(p_tdm->tdmin_src_name, SRC_ACODEC,
 		    strlen(p_tdm->tdmin_src_name)) == 0) {
 		aml_update_tdmin_skew(p_tdm->actrl, p_tdm->id, 4);
@@ -480,7 +480,7 @@ void aml_tdmin_set_src(struct aml_tdm *p_tdm)
 		return;
 
 	/* if tdm* is using internal ADC, reset tdmin src to ACODEC */
-	if (p_tdm->chipinfo->adc_fn && p_tdm->tdmin_src_name) {
+	if (p_tdm->chipinfo->adc_fn && strlen(p_tdm->tdmin_src_name) > 0) {
 		src_val = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs,
 			p_tdm->tdmin_src_name);
 	} else {
@@ -617,6 +617,51 @@ static const struct snd_kcontrol_new snd_tdm_a_controls[] = {
 			    tdmout_set_mute_enum),
 };
 
+static const char * const tdmin_source_text[] = {
+	"tdmin_a", "tdmin_b", "tdmin_c", "NULL", "NULL",
+	"NULL", "hdmirx", "acodec_adc",	"NULL",	"NULL",
+	"NULL", "NULL", "tdmout_a", "tdmout_b", "tdmout_c"
+};
+
+static const struct soc_enum tdmin_source_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(tdmin_source_text),
+		tdmin_source_text);
+
+static int tdmin_src_enum_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+	int value = 0;
+
+	if (p_tdm->chipinfo->tdmin_srcs)
+		value = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs,
+					p_tdm->tdmin_src_name);
+
+	ucontrol->value.enumerated.item[0] = value;
+
+	return 0;
+}
+
+static int tdmin_src_enum_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+	int value = ucontrol->value.enumerated.item[0];
+	char *p = (char *)p_tdm->tdmin_src_name;
+
+	if (value >= ARRAY_SIZE(tdmin_source_text))
+		return -EINVAL;
+
+	if (p) {
+		pr_info("%s(), strlen = %d\n",
+				__func__, strlen(p));
+		memcpy(p, tdmin_source_text[value],	strlen(p));
+	}
+	return 0;
+}
+
 static const struct snd_kcontrol_new snd_tdm_b_controls[] = {
 	/*TDMOUT_B gain, enable data * gain*/
 	SOC_SINGLE_EXT("TDMOUT_B GAIN",
@@ -627,6 +672,10 @@ static const struct snd_kcontrol_new snd_tdm_b_controls[] = {
 			    0,
 			    tdmout_get_mute_enum,
 			    tdmout_set_mute_enum),
+	SOC_ENUM_EXT("TDMIN_B source select",
+				tdmin_source_enum,
+				tdmin_src_enum_get,
+				tdmin_src_enum_put),
 };
 
 static const struct snd_kcontrol_new snd_tdm_c_controls[] = {
@@ -1711,8 +1760,12 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	}
 	/* default no acodec_adc */
 	if (p_tdm->chipinfo->adc_fn) {
-		ret = of_property_read_string(node, "tdmin-src-name",
-				&p_tdm->tdmin_src_name);
+		const char *p = NULL;
+
+		ret = of_property_read_string(node, "tdmin-src-name", &p);
+		if (p)
+			memcpy(p_tdm->tdmin_src_name, p, strlen(p));
+
 		if (!ret)
 			pr_info("TDM id %d supports %s\n",
 				p_tdm->id, p_tdm->tdmin_src_name);

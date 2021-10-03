@@ -3620,8 +3620,8 @@ void hdcp_init_t7(void)
 
 void hdmirx_hbr2spdif(u8 val)
 {
-	if (rx.chip_id < CHIP_ID_T7)
-		return;
+	/* if (rx.chip_id < CHIP_ID_T7) */
+	return;
 
 	if (hdmirx_rd_cor(RX_AUDP_STAT_DP2_IVCRX) & _BIT(6))
 		hdmirx_wr_bits_top(TOP_CLK_CNTL, _BIT(15), val);
