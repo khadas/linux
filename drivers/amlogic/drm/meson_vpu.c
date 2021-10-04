@@ -43,38 +43,6 @@ static int irq_init_done;
 static struct platform_device *gp_dev;
 static unsigned long gem_mem_start, gem_mem_size;
 
-static int am_meson_crtc_loader_protect(struct drm_crtc *crtc, bool on)
-{
-	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
-
-	DRM_INFO("%s  %d\n", __func__, on);
-
-	if (on) {
-		enable_irq(amcrtc->irq);
-		drm_crtc_vblank_on(crtc);
-	} else {
-		disable_irq(amcrtc->irq);
-		drm_crtc_vblank_off(crtc);
-	}
-
-	return 0;
-}
-
-static int am_meson_crtc_enable_vblank(struct drm_crtc *crtc)
-{
-	return 0;
-}
-
-static void am_meson_crtc_disable_vblank(struct drm_crtc *crtc)
-{
-}
-
-const struct meson_crtc_funcs meson_private_crtc_funcs = {
-	.loader_protect = am_meson_crtc_loader_protect,
-	.enable_vblank = am_meson_crtc_enable_vblank,
-	.disable_vblank = am_meson_crtc_disable_vblank,
-};
-
 char *am_meson_crtc_get_voutmode(struct drm_display_mode *mode)
 {
 	struct vinfo_s *vinfo;
@@ -287,10 +255,12 @@ static int am_meson_vpu_bind(struct device *dev,
 	if (ret)
 		return ret;
 
-	am_meson_register_crtc_funcs(private->crtc, &meson_private_crtc_funcs);
-
 	ret = of_property_read_u8(dev->of_node,
 				  "osd_ver", &pipeline->osd_version);
+
+	#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+	meson_vpu_reg_handle_register();
+	#endif
 
 	if (0)
 		am_meson_vpu_power_config(1);
@@ -328,7 +298,6 @@ static void am_meson_vpu_unbind(struct device *dev,
 	struct drm_device *drm_dev = data;
 	struct meson_drm *private = drm_dev->dev_private;
 
-	am_meson_unregister_crtc_funcs(private->crtc);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 	amvecm_drm_gamma_disable(0);
 	am_meson_ctm_disable();

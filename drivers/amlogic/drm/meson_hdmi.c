@@ -337,30 +337,34 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 			den = hdmi_para->hdmitx_vinfo.sync_duration_den;
 			mode->vrefresh = (int)DIV_ROUND_CLOSEST(num, den);
 			mode->clock = timing->pixel_freq;
+
 			mode->hdisplay = timing->h_active;
-			mode->hsync_start = timing->h_active + timing->h_front;
+			mode->hsync_start = mode->hdisplay + timing->h_front;
 			mode->hsync_end = timing->h_active + timing->h_front + timing->h_sync;
+
 			mode->htotal = timing->h_total;
 			mode->hskew = 0;
 			mode->flags |= timing->hsync_polarity ?
 				DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
 
 			mode->vdisplay = timing->v_active;
-			if (hdmi_para->hdmitx_vinfo.field_height !=
-				hdmi_para->hdmitx_vinfo.height) {
-				/* follow general rule       to use full vidsplay while
-				 * amlogic vout use half value.
-				 */
-				mode->vdisplay = mode->vdisplay << 1;
-				mode->flags |= DRM_MODE_FLAG_INTERLACE;
-			}
-
 			mode->vsync_start = mode->vdisplay + timing->v_front;
 			mode->vsync_end = mode->vdisplay + timing->v_front + timing->v_sync;
 			mode->vtotal = timing->v_total;
 			mode->vscan = 0;
 			mode->flags |= timing->vsync_polarity ?
 				DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
+
+			/* use logical display timing for drm. vidsplay
+			 * while amlogic vout use half value.
+			 */
+			if (hdmi_para->hdmitx_vinfo.field_height !=
+				hdmi_para->hdmitx_vinfo.height) {
+				mode->flags |= DRM_MODE_FLAG_INTERLACE;
+				mode->vdisplay = mode->vdisplay << 1;
+				mode->vsync_start = mode->vsync_start << 1;
+				mode->vsync_end = mode->vsync_end << 1;
+			}
 
 			/*for recovery ui*/
 			if (hdmitx_set_smaller_pref) {

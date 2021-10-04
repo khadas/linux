@@ -198,6 +198,15 @@ static int meson_crtc_verify_crc_source(struct drm_crtc *crtc,
 	return 0;
 }
 
+static int meson_crtc_enable_vblank(struct drm_crtc *crtc)
+{
+	return 0;
+}
+
+static void meson_crtc_disable_vblank(struct drm_crtc *crtc)
+{
+}
+
 static const struct drm_crtc_funcs am_meson_crtc_funcs = {
 	.atomic_destroy_state	= meson_crtc_destroy_state,
 	.atomic_duplicate_state = meson_crtc_duplicate_state,
@@ -211,12 +220,19 @@ static const struct drm_crtc_funcs am_meson_crtc_funcs = {
 	.get_crc_sources	= meson_crtc_get_crc_sources,
 	.set_crc_source		= meson_crtc_set_crc_source,
 	.verify_crc_source	= meson_crtc_verify_crc_source,
+	.enable_vblank = meson_crtc_enable_vblank,
+	.disable_vblank = meson_crtc_disable_vblank,
 };
 
 static bool am_meson_crtc_mode_fixup(struct drm_crtc *crtc,
 				     const struct drm_display_mode *mode,
 				struct drm_display_mode *adj_mode)
 {
+	/* TODO: drm_calc_timestamping_constants() do framedur_ns /= 2,
+	 * reset crtc info same as logical size, so we can get correct
+	 * framedur_ns.
+	 */
+	drm_mode_set_crtcinfo(adj_mode, 0);
 	//DRM_INFO("%s !!\n", __func__);
 
 	return true;
@@ -388,15 +404,12 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 			#endif
 		}
 	}
-#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	meson_vpu_line_check(crtc->index, crtc->mode.vdisplay, crtc->mode.vrefresh);
-#endif
+	vpu_pipeline_prepare_update(amcrtc->pipeline,
+		crtc->mode.vdisplay, crtc->mode.vrefresh);
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	if (!meson_crtc_state->uboot_mode_init) {
 		vpu_osd_pipeline_update(pipeline, old_atomic_state);
-		#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-		meson_vpu_reg_vsync_config();
-		#endif
+		vpu_pipeline_finish_update(pipeline);
 	}
 
 	if (crtc->state->event) {
@@ -414,6 +427,35 @@ static const struct drm_crtc_helper_funcs am_crtc_helper_funcs = {
 	.atomic_enable	= am_meson_crtc_atomic_enable,
 	.atomic_disable	= am_meson_crtc_atomic_disable,
 };
+
+static int meson_crtc_get_scannout_position(struct am_meson_crtc *crtc,
+	bool in_vblank_irq, int *vpos, int *hpos,
+	ktime_t *stime, ktime_t *etime,
+	const struct drm_display_mode *mode)
+{
+	int ret = 0;
+	/*adjust mode crtc_vtotal is same as logical vtotal*/
+	int real_vtotal = 0;
+
+	if (stime)
+		*stime = ktime_get();
+
+	ret = vpu_pipeline_read_scanout_pos(crtc->pipeline, vpos, hpos);
+
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		/* for interlace mode, enc 0 ~ vtotal*2
+		 * include two interlace image.
+		 */
+		real_vtotal = mode->crtc_vtotal >> 1;
+		if (*vpos >= real_vtotal)
+			*vpos -= real_vtotal;
+	}
+
+	if (etime)
+		*etime = ktime_get();
+
+	return ret;
+}
 
 int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 {
@@ -444,6 +486,8 @@ int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 	drm_mode_crtc_set_gamma_size(crtc, gamma_lut_size);
 	drm_crtc_enable_color_mgmt(crtc, 0, true, gamma_lut_size);
 #endif
+
+	amcrtc->get_scannout_position = meson_crtc_get_scannout_position;
 
 	amcrtc->pipeline = pipeline;
 	pipeline->crtc = crtc;

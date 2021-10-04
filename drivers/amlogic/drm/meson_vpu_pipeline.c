@@ -15,6 +15,10 @@
 #include "meson_vpu_pipeline.h"
 #include "meson_drv.h"
 
+static int flush_time = 3;
+module_param(flush_time, int, 0664);
+MODULE_PARM_DESC(flush_time, "flush time");
+
 #define MAX_LINKS 5
 #define MAX_PORTS 6
 #define MAX_PORT_ID 32
@@ -275,6 +279,9 @@ static int populate_vpu_pipeline(struct device_node *vpu_block_node,
 	}
 	pipeline->mvbs = vpu_blocks;
 	pipeline->num_blocks = num_blocks;
+
+	/*TODO:read from dts*/
+	pipeline->index = 0;
 
 	populate_block_link();
 
@@ -628,3 +635,107 @@ int vpu_topology_init(struct platform_device *pdev, struct meson_drm *priv)
 	return 0;
 }
 EXPORT_SYMBOL(vpu_topology_init);
+
+int vpu_pipeline_read_scanout_pos(struct meson_vpu_pipeline *pipeline,
+	int *vpos, int *hpos)
+{
+	unsigned int reg = 0;
+	u32 enc_sel;
+
+	if (pipeline->index == 1)
+		enc_sel = (aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) >> 2) & 0x3;
+	else
+		enc_sel = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3;
+	switch (enc_sel) {
+	case 0:
+		reg = aml_read_vcbus(ENCL_INFO_READ);
+		break;
+	case 1:
+		reg = aml_read_vcbus(ENCI_INFO_READ);
+		break;
+	case 2:
+		reg = aml_read_vcbus(ENCP_INFO_READ);
+		break;
+	case 3:
+		reg = aml_read_vcbus(ENCT_INFO_READ);
+		break;
+	}
+
+	*vpos = (reg >> 16) & 0x1fff;
+	*hpos = (reg & 0x1fff);
+
+	return 0;
+}
+EXPORT_SYMBOL(vpu_pipeline_read_scanout_pos);
+
+static int vpu_pipeline_get_active_begin_line
+	(struct meson_vpu_pipeline *pipeline)
+{
+	int active_line_begin;
+	u32 enc_sel;
+
+	if (pipeline->index == 1)
+		enc_sel = (aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) >> 2) & 0x3;
+	else
+		enc_sel = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3;
+	switch (enc_sel) {
+	case 0:
+		active_line_begin =
+			aml_read_vcbus(ENCL_VIDEO_VAVON_BLINE);
+		break;
+	case 1:
+		active_line_begin =
+			aml_read_vcbus(ENCI_VFIFO2VD_LINE_TOP_START);
+		break;
+	case 2:
+		active_line_begin =
+			aml_read_vcbus(ENCP_VIDEO_VAVON_BLINE);
+		break;
+	case 3:
+		active_line_begin =
+			aml_read_vcbus(ENCT_VIDEO_VAVON_BLINE);
+		break;
+	}
+
+	return active_line_begin;
+}
+
+void vpu_pipeline_prepare_update(struct meson_vpu_pipeline *pipeline,
+	int vdisplay, int vrefresh)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+	int vsync_active_begin, wait_cnt, cur_line, cur_col, line_threshold;
+
+	/*for rdma, we need
+	 * 1. finish rdma table write before VACTIVE(last_VFP~VBP).
+	 * 2. wait rdma hw flush finish (flush time depends on aps clock.)
+	 * | VSYNC| VBackP | VACTIVE | VFrontP |...
+	 */
+	vsync_active_begin = vpu_pipeline_get_active_begin_line(pipeline);
+	vpu_pipeline_read_scanout_pos(pipeline, &cur_line, &cur_col);
+	line_threshold = vdisplay * flush_time * vrefresh / 1000;
+	wait_cnt = 0;
+	while (cur_line >= vdisplay + vsync_active_begin - line_threshold ||
+			cur_line <= vsync_active_begin) {
+		DRM_DEBUG_VBL("enc line=%d, vdisplay %d, BP = %d\n",
+			cur_line, vdisplay, vsync_active_begin);
+		/* 0.5ms */
+		usleep_range(500, 600);
+		wait_cnt++;
+		if (wait_cnt >= WAIT_CNT_MAX) {
+			DRM_DEBUG_VBL("%s time out\n", __func__);
+			break;
+		}
+		vpu_pipeline_read_scanout_pos(pipeline, &cur_line, &cur_col);
+	}
+#endif
+}
+EXPORT_SYMBOL(vpu_pipeline_prepare_update);
+
+void vpu_pipeline_finish_update(struct meson_vpu_pipeline *pipeline)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+	meson_vpu_reg_vsync_config();
+#endif
+}
+EXPORT_SYMBOL(vpu_pipeline_finish_update);

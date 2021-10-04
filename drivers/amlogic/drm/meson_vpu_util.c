@@ -16,10 +16,6 @@
 /*one item need two u32 = 8byte,total 512 item is enough for vpu*/
 #define MESON_VPU_RDMA_TABLE_SIZE (512 * 8)
 
-static int flush_time = 3;
-module_param(flush_time, int, 0664);
-MODULE_PARM_DESC(flush_time, "flush time");
-
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 static int meson_vpu_reg_handle;
 static void meson_vpu_vsync_rdma_irq(void *arg)
@@ -46,95 +42,8 @@ int meson_vpu_reg_vsync_config(void)
 {
 	return rdma_config(meson_vpu_reg_handle, RDMA_TRIGGER_VSYNC_INPUT);
 }
-
-static int meson_vpu_get_active_begin_line(u32 viu_index)
-{
-	int active_line_begin;
-	u32 enc_sel;
-
-	if (viu_index == 1)
-		enc_sel = (aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) >> 2) & 0x3;
-	else
-		enc_sel = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3;
-	switch (enc_sel) {
-	case 0:
-		active_line_begin =
-			aml_read_vcbus(ENCL_VIDEO_VAVON_BLINE);
-		break;
-	case 1:
-		active_line_begin =
-			aml_read_vcbus(ENCI_VFIFO2VD_LINE_TOP_START);
-		break;
-	case 2:
-		active_line_begin =
-			aml_read_vcbus(ENCP_VIDEO_VAVON_BLINE);
-		break;
-	case 3:
-		active_line_begin =
-			aml_read_vcbus(ENCT_VIDEO_VAVON_BLINE);
-		break;
-	}
-
-	return active_line_begin;
-}
-
-int meson_vpu_get_enter_encp_line(int viu_index)
-{
-	int enc_line = 0;
-	unsigned int reg = 0;
-	u32 enc_sel;
-
-	if (viu_index == 1)
-		enc_sel = (aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) >> 2) & 0x3;
-	else
-		enc_sel = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3;
-	switch (enc_sel) {
-	case 0:
-		reg = aml_read_vcbus(ENCL_INFO_READ);
-		break;
-	case 1:
-		reg = aml_read_vcbus(ENCI_INFO_READ);
-		break;
-	case 2:
-		reg = aml_read_vcbus(ENCP_INFO_READ);
-		break;
-	case 3:
-		reg = aml_read_vcbus(ENCT_INFO_READ);
-		break;
-	}
-	enc_line = (reg >> 16) & 0x1fff;
-
-	return enc_line;
-}
-
-void meson_vpu_line_check(int viu_index, int vdisplay, int vrefresh)
-{
-	int vsync_begin_porch, wait_cnt, cur_line, line_threshold;
-
-	/*for rdma, we need
-	 * 1. finish rdma table write before VSYNC(in VBP).
-	 * 2. wait rdma hw flush finish (flush time depends on aps clock.)
-	 * | VSYNC| VBP | VACTIVE | VFP | VSYNC |...
-	 */
-	vsync_begin_porch = meson_vpu_get_active_begin_line(viu_index);
-	cur_line = meson_vpu_get_enter_encp_line(viu_index);
-	line_threshold = vdisplay * flush_time * vrefresh / 1000;
-	wait_cnt = 0;
-	while (cur_line >= vdisplay + vsync_begin_porch - line_threshold ||
-			cur_line <= vsync_begin_porch) {
-		DRM_DEBUG("enc line=%d, vdisplay %d, BP = %d\n",
-			cur_line, vdisplay, vsync_begin_porch);
-		/* 0.5ms */
-		usleep_range(500, 600);
-		wait_cnt++;
-		if (wait_cnt >= WAIT_CNT_MAX) {
-			DRM_DEBUG("time out\n");
-			break;
-		}
-		cur_line = meson_vpu_get_enter_encp_line(viu_index);
-	}
-}
 #endif
+
 u32 meson_vpu_read_reg(u32 addr)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
