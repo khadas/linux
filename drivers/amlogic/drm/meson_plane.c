@@ -1132,14 +1132,10 @@ void meson_osd_plane_async_update(struct drm_plane *plane,
 		return;
 	}
 
-#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	meson_vpu_line_check(plane->crtc->index, plane->crtc->mode.vdisplay,
+	vpu_pipeline_prepare_update(pipeline, plane->crtc->mode.vdisplay,
 			     plane->crtc->mode.vrefresh);
-#endif
 	vpu_pipeline_osd_update(pipeline, old_state->state);
-#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	meson_vpu_reg_vsync_config();
-#endif
+	vpu_pipeline_finish_update(pipeline);
 }
 
 void meson_video_plane_async_update(struct drm_plane *plane,

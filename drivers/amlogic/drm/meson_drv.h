@@ -25,18 +25,6 @@
 #define MESON_MAX_OSD		4
 #define MESON_MAX_VIDEO		2
 
-/*
- * Amlogic drm private crtc funcs.
- * @loader_protect: protect loader logo crtc's power
- * @enable_vblank: enable crtc vblank irq.
- * @disable_vblank: disable crtc vblank irq.
- */
-struct meson_crtc_funcs {
-	int (*loader_protect)(struct drm_crtc *crtc, bool on);
-	int (*enable_vblank)(struct drm_crtc *crtc);
-	void (*disable_vblank)(struct drm_crtc *crtc);
-};
-
 struct meson_drm_thread {
 	struct kthread_worker worker;
 	struct drm_device *dev;
@@ -58,7 +46,6 @@ struct meson_drm {
 
 	struct drm_device *drm;
 	struct drm_crtc *crtc;
-	const struct meson_crtc_funcs *crtc_funcs[MESON_MAX_CRTC];
 	struct drm_plane *primary_plane;
 	struct drm_plane *cursor_plane;
 	struct drm_property_blob *gamma_lut_blob;
@@ -92,11 +79,6 @@ static inline int meson_vpu_is_compatible(struct meson_drm *priv,
 {
 	return of_device_is_compatible(priv->dev->of_node, compat);
 }
-
-int am_meson_register_crtc_funcs(struct drm_crtc *crtc,
-				 const struct meson_crtc_funcs *crtc_funcs);
-void am_meson_unregister_crtc_funcs(struct drm_crtc *crtc);
-struct drm_connector *am_meson_hdmi_connector(void);
 
 /*meson mode config atomic func*/
 int meson_atomic_commit(struct drm_device *dev,

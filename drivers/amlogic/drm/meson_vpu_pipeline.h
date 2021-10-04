@@ -438,6 +438,7 @@ struct meson_vpu_pipeline {
 	struct drm_crtc *crtc;
 	struct meson_vpu_block **mvbs;
 	int num_blocks;
+	int index;
 };
 
 struct meson_vpu_common_state {
@@ -534,6 +535,12 @@ int vpu_osd_pipeline_update(struct meson_vpu_pipeline *pipeline,
 			struct drm_atomic_state *old_state);
 void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline);
 void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline);
+
+int vpu_pipeline_read_scanout_pos(struct meson_vpu_pipeline *pipeline,
+			int *vpos, int *hpos);
+void vpu_pipeline_prepare_update(struct meson_vpu_pipeline *pipeline,
+	int vdisplay, int vrefresh);
+void vpu_pipeline_finish_update(struct meson_vpu_pipeline *pipeline);
 
 /* meson_vpu_pipeline_private.c */
 struct meson_vpu_block_state *

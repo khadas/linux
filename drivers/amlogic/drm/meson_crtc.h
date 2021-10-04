@@ -56,6 +56,12 @@ struct am_meson_crtc {
 	char osddump_path[64];
 
 	int vpp_crc_enable;
+
+	/*funcs*/
+	int (*get_scannout_position)(struct am_meson_crtc *crtc,
+		bool in_vblank_irq, int *vpos, int *hpos,
+		ktime_t *stime, ktime_t *etime,
+		const struct drm_display_mode *mode);
 };
 
 #define to_am_meson_crtc(x) container_of(x, \

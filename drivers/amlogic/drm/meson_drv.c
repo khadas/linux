@@ -76,46 +76,19 @@ static const struct drm_mode_config_helper_funcs meson_mode_config_helpers = {
 	.atomic_commit_tail = meson_atomic_helper_commit_tail,
 };
 
-int am_meson_register_crtc_funcs(struct drm_crtc *crtc,
-				 const struct meson_crtc_funcs *crtc_funcs)
+bool meson_drm_get_scannout_position(struct drm_device *dev,
+	unsigned int pipe, bool in_vblank_irq,
+	int *vpos, int *hpos, ktime_t *stime, ktime_t *etime,
+	const struct drm_display_mode *mode)
 {
-	int pipe = drm_crtc_index(crtc);
-	struct meson_drm *priv = crtc->dev->dev_private;
+	int ret = 0;
+	struct am_meson_crtc *crtc = to_am_meson_crtc
+		(drm_crtc_from_index(dev, pipe));
 
-	if (pipe >= MESON_MAX_CRTC)
-		return -EINVAL;
+	ret = crtc->get_scannout_position(crtc,
+		in_vblank_irq, vpos, hpos, stime, etime, mode);
 
-	priv->crtc_funcs[pipe] = crtc_funcs;
-
-	return 0;
-}
-EXPORT_SYMBOL(am_meson_register_crtc_funcs);
-
-void am_meson_unregister_crtc_funcs(struct drm_crtc *crtc)
-{
-	int pipe = drm_crtc_index(crtc);
-	struct meson_drm *priv = crtc->dev->dev_private;
-
-	if (pipe >= MESON_MAX_CRTC)
-		return;
-
-	priv->crtc_funcs[pipe] = NULL;
-}
-EXPORT_SYMBOL(am_meson_unregister_crtc_funcs);
-
-static int am_meson_enable_vblank(struct drm_device *dev, unsigned int crtc)
-{
-	return 0;
-}
-
-static void am_meson_disable_vblank(struct drm_device *dev, unsigned int crtc)
-{
-}
-
-static u32 am_meson_get_vblank_counter(struct drm_device *dev,
-	unsigned int pipe)
-{
-	return 0;
+	return (ret == 0) ? true : false;
 }
 
 static char *strmode;
@@ -504,10 +477,8 @@ static const struct file_operations fops = {
 static struct drm_driver meson_driver = {
 	/*driver_features setting move to probe functions*/
 	.driver_features	= 0,
-	/* Vblank */
-	.enable_vblank		= am_meson_enable_vblank,
-	.disable_vblank		= am_meson_disable_vblank,
-	.get_vblank_counter	= am_meson_get_vblank_counter,
+	.get_scanout_position = meson_drm_get_scannout_position,
+	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = meson_debugfs_init,
 #endif
