@@ -3493,7 +3493,7 @@ void cor_init(void)
 	data8 |= (0 << 2);//[2]  reg_mute_flag
 	data8 |= (0 << 1);//[1]  reg_vucp
 	data8 |= (0 << 0);//[0]  reg_pcm
-	hdmirx_wr_cor(RX_I2S_CTRL2_AUD_IVCRX, data8) ;//register address: 0x1427 (0xf0)
+	hdmirx_wr_cor(RX_I2S_CTRL2_AUD_IVCRX, data8);
 
 	data8 = 0;
 	data8 |= (3 << 6);//[7:6] reg_sd3_map
@@ -3510,16 +3510,40 @@ void cor_init(void)
 	hdmirx_wr_cor(RX_OW_15_8_AUD_IVCRX, 0x00);//OW_15_8
 	hdmirx_wr_cor(AAC_MCLK_SEL_AUD_IVCRX, 0x80);//MCLK_SEL [5:4]=>00:128*Fs;01:256*Fs
 
-	data8	= 0;
+	data8 = 0;
 	data8 |= (0 << 7);//[7] enable overwrite length ralated cbit
 	data8 |= (0 << 6);//[6] enable sine wave
-	data8 |= (0 << 5);//[5] enable hardware mute
+	data8 |= (1 << 5);//[5] enable hardware mute
 	data8 |= (1 << 4);//[4] pass spdif error
 	data8 |= (1 << 3);//[3] pass aud error
 	data8 |= (1 << 2);//[2] reg_i2s_mode
 	data8 |= (1 << 1);//[1] reg_spdif_mode
 	data8 |= (1 << 0);//[0] reg_spidf_en
-	hdmirx_wr_cor(RX_AUDRX_CTRL_AUD_IVCRX, data8) ;//AUDRX_CTRL
+	hdmirx_wr_cor(RX_AUDRX_CTRL_AUD_IVCRX, data8);//AUDRX_CTRL
+
+	data8 = 0;
+	data8 |= (1 << 1);//[1] dont_clr_sys_intr
+	hdmirx_wr_cor(AEC4_CTRL_AUD_IVCRX, data8); //AEC4 CTRL
+
+	data8 = 0;
+	data8 |= (1 << 7);//ctl acr en
+	data8 |= (1 << 6);//aac exp sel
+	data8 |= (0 << 5);//[5] reg_aac_out_off_en
+	data8 |= (0 << 2);//[2] reserved
+	data8 |= (1 << 1);//[1] aac hw auto unmute enable
+	data8 |= (1 << 0);//[0] aac hw auto mute enable
+	hdmirx_wr_cor(AEC0_CTRL_AUD_IVCRX, data8); //AEC0 CTRL
+
+	data8 = 0;
+	data8 |= (0 << 7);//[7] H resoslution change
+	data8 |= (0 << 6);//[6] polarity change
+	data8 |= (0 << 5);//[5] change of interlaced
+	data8 |= (0 << 4);//[4] change of the FS
+	data8 |= (0 << 3);//[3] CTS reused
+	data8 |= (0 << 2);//[2] audio fifo overrun
+	data8 |= (0 << 1);//[1] audio fifo underrun
+	data8 |= (0 << 0);//[0] hdmi mode
+	hdmirx_wr_cor(RX_AEC_EN2_AUD_IVCRX, data8);//RX_AEC_EN2
 
 	data8 = 0;
 	//if(rx_hbr_sel_i2s_spdif == 1){        //hbr_i2s
