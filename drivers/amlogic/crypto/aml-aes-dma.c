@@ -1009,7 +1009,7 @@ static int aml_aes_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 
 static struct crypto_alg aes_algs[] = {
 	{
-		.cra_name         = "ecb(aes)",
+		.cra_name         = "ecb(aes-aml)",
 		.cra_driver_name  = "ecb-aes-aml",
 		.cra_priority   = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
@@ -1030,7 +1030,7 @@ static struct crypto_alg aes_algs[] = {
 		}
 	},
 	{
-		.cra_name         = "cbc(aes)",
+		.cra_name         = "cbc(aes-aml)",
 		.cra_driver_name  = "cbc-aes-aml",
 		.cra_priority   = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
@@ -1051,7 +1051,7 @@ static struct crypto_alg aes_algs[] = {
 		}
 	},
 	{
-		.cra_name        = "ctr(aes)",
+		.cra_name        = "ctr(aes-aml)",
 		.cra_driver_name = "ctr-aes-aml",
 		.cra_priority    = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
@@ -1111,7 +1111,7 @@ static void aml_aes_lite_cra_exit(struct crypto_tfm *tfm)
 
 static struct crypto_alg aes_lite_algs[] = {
 	{
-		.cra_name         = "ecb(aes)",
+		.cra_name         = "ecb(aes-aml)",
 		.cra_driver_name  = "ecb-aes-lite-aml",
 		.cra_priority   = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
@@ -1132,7 +1132,7 @@ static struct crypto_alg aes_lite_algs[] = {
 		}
 	},
 	{
-		.cra_name         = "cbc(aes)",
+		.cra_name         = "cbc(aes-aml)",
 		.cra_driver_name  = "cbc-aes-lite-aml",
 		.cra_priority   = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
@@ -1154,7 +1154,7 @@ static struct crypto_alg aes_lite_algs[] = {
 		}
 	},
 	{
-		.cra_name        = "ctr(aes)",
+		.cra_name        = "ctr(aes-aml)",
 		.cra_driver_name = "ctr-aes-lite-aml",
 		.cra_priority    = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
