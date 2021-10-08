@@ -176,8 +176,12 @@ void frc_input_tasklet_pro(unsigned long arg)
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	if (!pfw_data)
 		return;
-	if (!devp->probe_ok || !devp->power_on_flag)
+	if (!devp->probe_ok)
 		return;
+	if (!devp->power_on_flag) {
+		// devp->power_off_flag++;
+		return;
+	}
 	devp->in_sts.vs_tsk_cnt++;
 	if (!devp->frc_fw_pause) {
 		if (pfw_data->scene_detect_input)
@@ -188,6 +192,8 @@ void frc_input_tasklet_pro(unsigned long arg)
 			pfw_data->bbd_ctrl(pfw_data);
 		if (pfw_data->iplogo_ctrl)
 			pfw_data->iplogo_ctrl(pfw_data);
+		// if (!devp->power_on_flag)
+		//	devp->power_off_flag++;
 	}
 }
 
@@ -222,8 +228,12 @@ void frc_output_tasklet_pro(unsigned long arg)
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	if (!pfw_data)
 		return;
-	if (!devp->probe_ok || !devp->power_on_flag)
+	if (!devp->probe_ok)
 		return;
+	if (!devp->power_on_flag) {
+		// devp->power_off_flag++;
+		return;
+	}
 	devp->out_sts.vs_tsk_cnt++;
 	if (!devp->frc_fw_pause) {
 		if (pfw_data->scene_detect_output)
@@ -236,6 +246,8 @@ void frc_output_tasklet_pro(unsigned long arg)
 			pfw_data->mc_ctrl(pfw_data);
 		if (pfw_data->melogo_ctrl)
 			pfw_data->melogo_ctrl(pfw_data);
+		// if (!devp->power_on_flag)
+		//	devp->power_off_flag++;
 	}
 }
 

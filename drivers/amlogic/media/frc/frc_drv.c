@@ -342,7 +342,6 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 {
 	struct frc_data_s *frc_data;
 	struct frc_fw_data_s *pfw_data;
-
 	enum chip_id chip;
 
 	frc_data = (struct frc_data_s *)devp->data;
@@ -355,13 +354,14 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 		pr_frc(0, "warning: same pw state\n");
 		return;
 	}
-
 	if (!onoff) {
-		devp->power_on_flag = false;
+		// devp->power_on_flag = false;
 		frc_change_to_state(FRC_STATE_BYPASS);
 		set_frc_enable(false);
 		set_frc_bypass(true);
 		frc_state_change_finish(devp);
+		devp->power_on_flag = false;
+		// devp->power_off_flag = 0;
 	}
 
 	if (chip == ID_T3) {
@@ -371,6 +371,7 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 			pwr_ctrl_psci_smc(PDID_T3_FRCME, PWR_ON);
 			pwr_ctrl_psci_smc(PDID_T3_FRCMC, PWR_ON);
 #endif
+			devp->power_on_flag = true;
 			frc_init_config(devp);
 			frc_buf_config(devp);
 			frc_internal_initial(devp);
@@ -386,9 +387,8 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 		}
 		pr_frc(0, "t3 power domain power %d\n", onoff);
 	}
-
-	if (onoff)
-		devp->power_on_flag = true;
+	// if (onoff)
+	//	devp->power_on_flag = true;
 }
 
 static int frc_dts_parse(struct frc_dev_s *frc_devp)
@@ -779,6 +779,7 @@ static int frc_probe(struct platform_device *pdev)
 	/*driver internal data initial*/
 	frc_drv_initial(frc_devp);
 	frc_clk_init(frc_devp);
+	frc_devp->power_on_flag = true;
 	frc_init_config(frc_devp);
 
 	/*buffer config*/
@@ -795,7 +796,7 @@ static int frc_probe(struct platform_device *pdev)
 	if (frc_devp->out_irq > 0)
 		enable_irq(frc_devp->out_irq);
 	frc_devp->probe_ok = true;
-	frc_devp->power_on_flag = true;
+	frc_devp->power_off_flag = false;
 
 	PR_FRC("%s probe st:%d", __func__, frc_devp->probe_ok);
 	return ret;

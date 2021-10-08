@@ -19,6 +19,10 @@
 #include <linux/vmalloc.h>
 #include <linux/io.h>
 #include <linux/amlogic/media/registers/register_map.h>
+#include <linux/interrupt.h>
+#include <linux/workqueue.h>
+
+#include "frc_drv.h"
 
 void __iomem *frc_base;
 
@@ -27,6 +31,8 @@ void __iomem *frc_base;
 void WRITE_FRC_REG(unsigned int reg, unsigned int val)
 {
 #ifndef FRC_DISABLE_REG_RD_WR
+	if (get_frc_devp()->power_on_flag == 0)
+		return;
 	writel(val, (frc_base + (reg << 2)));
 #endif
 }
@@ -39,9 +45,9 @@ void WRITE_FRC_BITS(unsigned int reg, unsigned int value,
 #ifndef FRC_DISABLE_REG_RD_WR
 	unsigned int tmp, orig;
 	unsigned int mask = (((1L << len) - 1) << start);
-
 	int r = (reg << 2);
-
+	if (get_frc_devp()->power_on_flag == 0)
+		return;
 	orig =  readl((frc_base + r));
 	tmp = orig  & ~mask;
 	tmp |= (value << start) & mask;
@@ -58,6 +64,8 @@ void UPDATE_FRC_REG_BITS(unsigned int reg,
 #ifndef FRC_DISABLE_REG_RD_WR
 	unsigned int val;
 
+	if (get_frc_devp()->power_on_flag == 0)
+		return;
 	value &= mask;
 	val = readl(frc_base + (reg << 2));
 	val &= ~mask;
@@ -71,6 +79,8 @@ EXPORT_SYMBOL(UPDATE_FRC_REG_BITS);
 int READ_FRC_REG(unsigned int reg)
 {
 #ifndef FRC_DISABLE_REG_RD_WR
+	if (get_frc_devp()->power_on_flag == 0)
+		return 0;
 	return readl(frc_base + (reg << 2));
 #else
 	return 0;
@@ -83,6 +93,8 @@ u32 READ_FRC_BITS(u32 reg, const u32 start, const u32 len)
 	u32 val = 0;
 
 #ifndef FRC_DISABLE_REG_RD_WR
+	if (get_frc_devp()->power_on_flag == 0)
+		return 0;
 	val = ((READ_FRC_REG(reg) >> (start)) & ((1L << (len)) - 1));
 #endif
 	return val;

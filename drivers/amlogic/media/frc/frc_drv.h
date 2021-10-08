@@ -33,8 +33,9 @@
 // frc_20210824 frc video delay interface
 // frc_20210907 frc set delay frame
 // frc_20210918 frc chg me_dly_vofst
+// frc_20210929 frc chg hold fow for null-vframe
 
-#define FRC_FW_VER			"2021-0929 frc chg hold fow for null-vframe"
+#define FRC_FW_VER			"2021-1008 frc protect opt frc register"
 #define FRC_KERDRV_VER                  1083
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
@@ -290,6 +291,7 @@ struct frc_dev_s {
 	unsigned int frc_fw_pause;
 	u32 probe_ok;
 	u32 power_on_flag;
+	u32 power_off_flag;
 	struct frc_data_s *data;
 	void *fw_data;
 

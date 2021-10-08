@@ -135,7 +135,7 @@ ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf)
 
 	len += sprintf(buf + len, "status:%d\t: (%s)\n", devp->frc_sts.state,
 				frc_state_ary[devp->frc_sts.state]);
-	len += sprintf(buf + len, "dbg_level\t: %d\n", frc_dbg_en);
+	len += sprintf(buf + len, "dbg_level=%d\n", frc_dbg_en);//style for tool
 	len += sprintf(buf + len, "dbg_mode\t: 0:disable 1:enable 2:bypass\n");
 	len += sprintf(buf + len, "dbg_ratio\t: set debug input ratio\n");
 	len += sprintf(buf + len, "dbg_force\t: force debug mode\n");
