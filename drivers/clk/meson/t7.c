@@ -529,7 +529,7 @@ static const struct reg_sequence t7_gp0_init_regs[] = {
 	{ .reg = ANACTRL_GP0PLL_CTRL2,	.def = 0x00000000 },
 	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x48681c00 },
 	{ .reg = ANACTRL_GP0PLL_CTRL4,	.def = 0x88770290 },
-	{ .reg = ANACTRL_GP0PLL_CTRL5,	.def = 0x39272000 },
+	{ .reg = ANACTRL_GP0PLL_CTRL5,	.def = 0x3927200a },
 	{ .reg = ANACTRL_GP0PLL_CTRL6,	.def = 0x56540000 }
 };
 
@@ -1076,7 +1076,7 @@ static const struct reg_sequence t7_hifi_init_regs[] = {
 	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00000000 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x6a285c00 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL4,	.def = 0x65771290 },
-	{ .reg = ANACTRL_HIFIPLL_CTRL5,	.def = 0x39272000 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL5,	.def = 0x3927200a },
 	{ .reg = ANACTRL_HIFIPLL_CTRL6,	.def = 0x56540000 }
 };
 
