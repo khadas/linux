@@ -893,10 +893,14 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 	if (is_dec_vf) {
 		vf =
 		dmabuf_get_vframe((struct dma_buf *)(file_vf->private_data));
-		if (vf->vf_ext &&
-			(vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME) &&
-			!need_dw)
-			vf = vf->vf_ext;
+		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
+			if (!need_dw ||
+			    (need_dw && vf->width == 0)) {
+				vc_print(dev->index, PRINT_OTHER,
+					"use ext vf.\n");
+				vf = vf->vf_ext;
+			}
+		}
 		dmabuf_put_vframe((struct dma_buf *)(file_vf->private_data));
 		vc_print(dev->index, PRINT_OTHER, "vf is from decoder\n");
 	} else {
@@ -1381,9 +1385,6 @@ static void video_composer_task(struct composer_dev *dev)
 	time_us64 = received_frames->time_us64;
 
 	if (count == 1) {
-		if (transform)
-			received_frames->frames_info.frame_info[0].transform =
-				transform;
 		if ((dev->index == 0 && force_composer) ||
 		    (dev->index == 1 && force_composer_pip))
 			need_composer = true;
@@ -2036,6 +2037,12 @@ static void set_frames_info(struct composer_dev *dev,
 	}
 
 	fence_fd = video_timeline_create_fence(dev);
+
+	if (transform) {
+		for (j = 0; j < frames_info->frame_count; j++)
+			frames_info->frame_info[j].transform = transform;
+	}
+
 	dev->received_frames[i].frames_info = *frames_info;
 	dev->received_frames[i].frames_num = dev->received_count;
 	dev->received_frames[i].time_us64 = time_us64;
