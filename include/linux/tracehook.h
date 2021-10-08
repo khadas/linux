@@ -62,7 +62,9 @@ static inline int ptrace_report_syscall(struct pt_regs *regs,
 	if (!(ptrace & PT_PTRACED))
 		return 0;
 
+#ifndef CONFIG_AMLOGIC_ANDROIDP
 	current->ptrace_message = message;
+#endif
 	ptrace_notify(SIGTRAP | ((ptrace & PT_TRACESYSGOOD) ? 0x80 : 0));
 
 	/*
