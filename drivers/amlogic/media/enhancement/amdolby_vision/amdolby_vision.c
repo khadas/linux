@@ -11566,7 +11566,7 @@ static void remove_comments(char *p_buf)
 static char cur_line[MAX_READ_SIZE];
 
 /*read one line from cfg, return eof flag*/
-static bool get_one_line(char **cfg_buf, char *line_buf)
+static bool get_one_line(char **cfg_buf, char *line_buf, bool ignore_comments)
 {
 	char *line_end;
 	size_t line_len = 0;
@@ -11594,7 +11594,8 @@ static bool get_one_line(char **cfg_buf, char *line_buf)
 			line_buf[line_len - 1] = '\0';
 
 		*cfg_buf = *cfg_buf + line_len + 1;
-		remove_comments(line_buf);
+		if (ignore_comments)
+			remove_comments(line_buf);
 		while (isspace(*line_buf))
 			line_buf++;
 		if (**cfg_buf == '\0')
@@ -11612,9 +11613,12 @@ static void get_picture_mode_info(char *cfg_buf)
 	int picmode_count = 0;
 	int ret = 0;
 	bool eof_flag = false;
+	char *p_cfg_buf = cfg_buf;
+	s32 bri_off_1 = 0;
+	s32 bri_off_2 = 0;
 
 	while (!eof_flag) {
-		eof_flag = get_one_line(&cfg_buf, (char *)&cur_line);
+		eof_flag = get_one_line(&cfg_buf, (char *)&cur_line, true);
 		ptr_line = cur_line;
 		if (eof_flag && (strlen(cur_line) == 0))
 			break;
@@ -11632,6 +11636,69 @@ static void get_picture_mode_info(char *cfg_buf)
 				picmode_count++;
 				if (picmode_count >= num_picture_mode)
 					break;
+			}
+		}
+	}
+
+	eof_flag = false;
+	while (!eof_flag) {
+		eof_flag = get_one_line(&p_cfg_buf, (char *)&cur_line, false);
+		ptr_line = cur_line;
+		if (eof_flag && (strlen(cur_line) == 0))
+			break;
+		if ((strncmp(ptr_line, "#Amlogic_inside DV OTT",
+			strlen("#Amlogic_inside DV OTT")) == 0)) {
+			ret = sscanf(ptr_line, "#Amlogic_inside DV OTT{%d, %d}",
+				     &bri_off_1, &bri_off_2);
+			if (ret == 2) {
+				brightness_off[0][0] = bri_off_1;
+				brightness_off[0][1] = bri_off_2;
+				pr_info("update DV OTT bri off: %d %d\n",
+					bri_off_1, bri_off_2);
+			}
+		} else if ((strncmp(ptr_line, "#Amlogic_inside Sink-led",
+			strlen("#Amlogic_inside Sink-led")) == 0)) {
+			ret = sscanf(ptr_line,
+				     "#Amlogic_inside Sink-led{%d, %d}",
+				     &bri_off_1, &bri_off_2);
+			if (ret == 2) {
+				brightness_off[1][0] = bri_off_1;
+				brightness_off[1][1] = bri_off_2;
+				pr_info("update Sink-led bri off: %d %d\n",
+					bri_off_1, bri_off_2);
+			}
+		} else if ((strncmp(ptr_line, "#Amlogic_inside Source-led",
+			strlen("#Amlogic_inside Source-led")) == 0)) {
+			ret = sscanf(ptr_line,
+				     "#Amlogic_inside Source-led{%d, %d}",
+				     &bri_off_1, &bri_off_2);
+			if (ret == 2) {
+				brightness_off[2][0] = bri_off_1;
+				brightness_off[2][1] = bri_off_2;
+				pr_info("update Source-led bri off: %d %d\n",
+					bri_off_1, bri_off_2);
+			}
+		} else if ((strncmp(ptr_line, "#Amlogic_inside HDR OTT",
+			strlen("#Amlogic_inside HDR OTT")) == 0)) {
+			ret = sscanf(ptr_line,
+				     "#Amlogic_inside HDR OTT{%d, %d}",
+				     &bri_off_1, &bri_off_2);
+			if (ret == 2) {
+				brightness_off[3][0] = bri_off_1;
+				brightness_off[3][1] = bri_off_2;
+				pr_info("update HDR OTT bri off: %d %d\n",
+					bri_off_1, bri_off_2);
+			}
+		} else if ((strncmp(ptr_line, "#Amlogic_inside HLG OTT",
+			strlen("#Amlogic_inside HLG OTT")) == 0)) {
+			ret = sscanf(ptr_line,
+				     "#Amlogic_inside HLG OTT{%d, %d}",
+				     &bri_off_1, &bri_off_2);
+			if (ret == 2) {
+				brightness_off[4][0] = bri_off_1;
+				brightness_off[4][1] = bri_off_2;
+				pr_info("update HLG OTT bri off: %d %d\n",
+					bri_off_1, bri_off_2);
 			}
 		}
 	}
@@ -13636,6 +13703,17 @@ static ssize_t amdolby_vision_use_cfg_target_lum_store
 	return count;
 }
 
+static ssize_t	amdolby_vision_brightness_off_show
+	(struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 100, "brightness_off %d %d,%d %d,%d %d,%d %d\n",
+			brightness_off[0][0], brightness_off[0][1],
+			brightness_off[1][0], brightness_off[1][1],
+			brightness_off[2][0], brightness_off[2][1],
+			brightness_off[3][0], brightness_off[3][1]);
+}
+
 /* supported mode: IPT_TUNNEL/HDR10/SDR10 */
 static const int dv_mode_table[6] = {
 	5, /*DOLBY_VISION_OUTPUT_MODE_BYPASS*/
@@ -14156,6 +14234,9 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(use_target_lum_from_cfg, 0644,
 	       amdolby_vision_use_cfg_target_lum_show,
 	       amdolby_vision_use_cfg_target_lum_store),
+	__ATTR(brightness_off, 0644,
+	       amdolby_vision_brightness_off_show,
+	       NULL),
 	__ATTR_NULL
 };
 
