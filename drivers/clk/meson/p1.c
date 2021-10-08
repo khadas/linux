@@ -605,7 +605,7 @@ static const struct reg_sequence p1_gp0_init_regs[] = {
 	{ .reg = CLKCTRL_GP0PLL_CTRL2,	.def = 0x00000000 },
 	{ .reg = CLKCTRL_GP0PLL_CTRL3,	.def = 0x48681c00 },
 	{ .reg = CLKCTRL_GP0PLL_CTRL4,	.def = 0x88770290 },
-	{ .reg = CLKCTRL_GP0PLL_CTRL5,	.def = 0x39272008 },
+	{ .reg = CLKCTRL_GP0PLL_CTRL5,	.def = 0x3927200a },
 	{ .reg = CLKCTRL_GP0PLL_CTRL6,	.def = 0x56540000 }
 };
 
@@ -1441,7 +1441,7 @@ static const struct reg_sequence p1_hifi_init_regs[] = {
 	{ .reg = CLKCTRL_HIFIPLL_CTRL2,	.def = 0x00000000 },
 	{ .reg = CLKCTRL_HIFIPLL_CTRL3,	.def = 0x6a285c00 },
 	{ .reg = CLKCTRL_HIFIPLL_CTRL4,	.def = 0x65771290 },
-	{ .reg = CLKCTRL_HIFIPLL_CTRL5,	.def = 0x39272008 },
+	{ .reg = CLKCTRL_HIFIPLL_CTRL5,	.def = 0x3927200a },
 	{ .reg = CLKCTRL_HIFIPLL_CTRL6,	.def = 0x56540000 }
 };
 
