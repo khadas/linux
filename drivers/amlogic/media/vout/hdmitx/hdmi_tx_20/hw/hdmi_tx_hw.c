@@ -4290,6 +4290,7 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 {
 	static int st;
 	unsigned int pll_cntl = P_HHI_HDMI_PLL_CNTL;
+	u8 rx_ver;
 
 	if ((cmd & CMD_MISC_OFFSET) != CMD_MISC_OFFSET) {
 		pr_err(HW "misc: w: invalid cmd 0x%x\n", cmd);
@@ -4365,7 +4366,7 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, unsigned int cmd,
 		hdmitx_set_reg_bits(HDMITX_DWC_HDCP22REG_CTRL, 0, 2, 1);
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_SS_SCL_HCNT_1, 0xff);
 		hdmitx_wr_reg(HDMITX_DWC_I2CM_SS_SCL_HCNT_0, 0xf6);
-		edid_read_head_8bytes();
+		scdc_rd_sink(SINK_VER, &rx_ver);
 		hdmi_hwi_init(hdev);
 		mdelay(5);
 		break;
