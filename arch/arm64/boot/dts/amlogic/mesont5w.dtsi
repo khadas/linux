@@ -629,6 +629,11 @@
 			GIC_SPI 56 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vsync", "vsync_viu2";
 	};
+
+	lut_dma {
+		compatible = "amlogic, meson-t7, lut_dma";
+		status = "okay";
+	};
 }; /* end of / */
 
 &pinctrl_periphs {
