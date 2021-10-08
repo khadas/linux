@@ -203,6 +203,8 @@ void dimh_init_field_mode(unsigned short height)
 	DIM_DI_WR(DIPD_COMB_CTRL4, 0x20070002);
 	if (height > 288)
 		DIM_DI_WR(DIPD_COMB_CTRL5, 0x04041020);
+	else if (DIM_IS_IC_EF(SC2))
+		DIM_DI_WR(DIPD_COMB_CTRL5, 0x05050807);
 	else
 		DIM_DI_WR(DIPD_COMB_CTRL5, 0x04040805);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
