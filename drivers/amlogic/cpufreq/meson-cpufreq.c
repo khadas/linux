@@ -295,8 +295,9 @@ static int meson_regulator_set_volate(struct regulator *regulator, u32 cluster_i
 	cur = regulator_map_voltage_iterate(rdev, old_uv, old_uv + tol_uv);
 	to = regulator_map_voltage_iterate(rdev, new_uv, new_uv + tol_uv);
 	vol_cnt = regulator_count_voltages(regulator);
-	pr_debug("%s:old_uv:%d,cur:%d----->new_uv:%d,to:%d,vol_cnt=%d\n",
-		 __func__, old_uv, cur, new_uv, to, vol_cnt);
+	pr_debug("%s[cluster%d set %s]:old_uv:%d,cur:%d----->new_uv:%d,to:%d,vol_cnt=%d\n",
+		 __func__, cluster_id, regulator->supply_name,
+		 old_uv, cur, new_uv, to, vol_cnt);
 
 	if (to >= vol_cnt)
 		to = vol_cnt - 1;
@@ -368,14 +369,14 @@ static u32 meson_get_suggested_dsu_freq(u32 *dsu_opp_table, struct cpufreq_freqs
 static void meson_dsuvolt_adjust(struct meson_cpufreq_driver_data *cpufreq_data)
 {
 	struct regulator *dsu_reg = cpufreq_data->reg_dsu;
-	u32 new_dsu_vol, old_dsu_vol;
+	u32 old_dsu_vol;
 
 	if (cpufreq_voltage_set_skip || !dsu_reg)
 		return;
 	old_dsu_vol = meson_regulator_get_volate(dsu_reg);
-	new_dsu_vol = MAX(dsu_voltage_vote_result[LITTLE_VOTER],
-		dsu_voltage_vote_result[BIG_VOTER]);
-	meson_regulator_set_volate(dsu_reg, cpufreq_data->clusterid, old_dsu_vol, new_dsu_vol, 0);
+	meson_regulator_set_volate(dsu_reg,
+		cpufreq_data->clusterid, old_dsu_vol,
+		dsu_voltage_vote_result[cpufreq_data->clusterid], 0);
 }
 
 static void meson_dsu_volt_freq_vote(struct meson_cpufreq_driver_data *cpufreq_data,
@@ -515,6 +516,8 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 			meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_PRECHANGE);
 			meson_cpufreq_set_rate(policy, cur_cluster, freq_old / 1000);
 			meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_POSTCHANGE);
+		} else {
+			meson_dsuvolt_adjust(cpufreq_data);
 		}
 	}
 
