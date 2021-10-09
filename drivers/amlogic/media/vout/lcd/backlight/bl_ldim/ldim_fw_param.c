@@ -149,15 +149,32 @@ static struct ldim_fw_s ldim_fw = {
 	.fw_alg_para_print = NULL,
 };
 
-static struct ldim_fw_custom_s ldim_fw_cus = {
+static struct ldim_fw_custom_s ldim_fw_cus_pre = {
 	.valid = 0,
 	.seg_col = 1,
 	.seg_row = 1,
 	.global_hist_bin_num = 64,
 
-	.fw_print_frequent = 60,
+	.fw_print_frequent = 200,
 	.fw_print_lv = 0,
 
+	.param = NULL,
+	.bl_matrix = NULL,
+
+	.fw_alg_frm = NULL,
+	.fw_alg_para_print = NULL,
+};
+
+static struct ldim_fw_custom_s ldim_fw_cus_post = {
+	.valid = 0,
+	.seg_col = 1,
+	.seg_row = 1,
+	.global_hist_bin_num = 64,
+
+	.fw_print_frequent = 200,
+	.fw_print_lv = 0,
+
+	.param = NULL,
 	.bl_matrix = NULL,
 
 	.fw_alg_frm = NULL,
@@ -170,9 +187,16 @@ struct ldim_fw_s *aml_ldim_get_fw(void)
 }
 EXPORT_SYMBOL(aml_ldim_get_fw);
 
-struct ldim_fw_custom_s *aml_ldim_get_fw_cus(void)
+struct ldim_fw_custom_s *aml_ldim_get_fw_cus_pre(void)
 {
-	return &ldim_fw_cus;
+	return &ldim_fw_cus_pre;
 }
-EXPORT_SYMBOL(aml_ldim_get_fw_cus);
+EXPORT_SYMBOL(aml_ldim_get_fw_cus_pre);
+
+struct ldim_fw_custom_s *aml_ldim_get_fw_cus_post(void)
+{
+	return &ldim_fw_cus_post;
+}
+EXPORT_SYMBOL(aml_ldim_get_fw_cus_post);
+
 

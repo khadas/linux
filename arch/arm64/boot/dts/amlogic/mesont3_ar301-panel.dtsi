@@ -612,6 +612,19 @@
 			ldim_bl_profile_path =
 				"/odm/etc/tvconfig/panel/tcon/HV650QUB-F70_LDIM/bl_profile.bin";
 
+			ldim_cus_param = < /* maximum = 32 x 4 bytes*/
+				0
+				594
+				268
+				30550
+				1231500
+				20960790
+				0
+				5000000
+				0
+				0
+				>;
+
 			cmd_size = <0xff>;
 			/* init: (type, data...) */
 			/*   type: 0x00=cmd with delay,

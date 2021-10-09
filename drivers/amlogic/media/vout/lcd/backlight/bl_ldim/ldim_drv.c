@@ -178,7 +178,8 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.stts = &ldim_stts,
 	.fw = NULL,
 	.comp = &ldim_comp,
-	.fw_cus = NULL,
+	.fw_cus_pre = NULL,
+	.fw_cus_post = NULL,
 
 	.test_matrix = NULL,
 	.local_bl_matrix = NULL,
@@ -622,7 +623,8 @@ static void ldim_dev_smr(int update_flag, unsigned int size)
 
 	if (update_flag) {
 		dev_drv->dev_smr(&ldim_driver, ldim_driver.bl_matrix_cur, size);
-		memcpy(ldim_driver.bl_matrix_pre, ldim_driver.bl_matrix_cur, size);
+		memcpy(ldim_driver.bl_matrix_pre, ldim_driver.bl_matrix_cur,
+				(size * sizeof(unsigned int)));
 	} else {
 		if (dev_drv->dev_smr_dummy) {
 			ret = dev_drv->dev_smr_dummy(&ldim_driver);
@@ -763,7 +765,7 @@ static void aml_ldim_info_update(void)
 	struct fw_ctrl_s *fctrl;
 	int i = 0, j = 0;
 
-	if (!ldim_driver.fw || ldim_driver.fw->ctrl) {
+	if (!ldim_driver.fw || !ldim_driver.fw->ctrl) {
 		LDIMERR("%s: fw ctrl is null\n", __func__);
 		return;
 	}
@@ -827,7 +829,7 @@ static void aml_ldim_pq_update(void)
 	struct ldim_comp_s *comp;
 	int i = 0, j = 0;
 
-	if (!ldim_driver.fw || ldim_driver.fw->ctrl) {
+	if (!ldim_driver.fw || !ldim_driver.fw->ctrl) {
 		LDIMERR("%s: fw ctrl is null\n", __func__);
 		return;
 	}
@@ -1537,7 +1539,8 @@ int aml_ldim_probe(struct platform_device *pdev)
 	struct ldim_dev_s *devp = &ldim_dev;
 	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct ldim_fw_s *fw = aml_ldim_get_fw();
-	struct ldim_fw_custom_s *fw_cus = aml_ldim_get_fw_cus();
+	struct ldim_fw_custom_s *fw_cus_pre = aml_ldim_get_fw_cus_pre();
+	struct ldim_fw_custom_s *fw_cus_post = aml_ldim_get_fw_cus_post();
 
 	memset(devp, 0, (sizeof(struct ldim_dev_s)));
 
@@ -1588,14 +1591,24 @@ int aml_ldim_probe(struct platform_device *pdev)
 	ldim_driver.fw->seg_col = ldim_config.seg_col;
 	ldim_driver.fw->valid = 1;
 
-	if (!fw_cus) {
-		LDIMERR("%s: fw_cus is null\n", __func__);
+	if (!fw_cus_pre) {
+		LDIMERR("%s: fw_cus_pre is null\n", __func__);
 	} else {
-		LDIMPR("%s: fw_cus is exist\n", __func__);
-		ldim_driver.fw_cus = fw_cus;
-		ldim_driver.fw_cus->seg_row = ldim_config.seg_row;
-		ldim_driver.fw_cus->seg_col = ldim_config.seg_col;
-		ldim_driver.fw_cus->valid = 1;
+		LDIMPR("%s: fw_cus_pre is exist\n", __func__);
+		ldim_driver.fw_cus_pre = fw_cus_pre;
+		ldim_driver.fw_cus_pre->seg_row = ldim_config.seg_row;
+		ldim_driver.fw_cus_pre->seg_col = ldim_config.seg_col;
+		ldim_driver.fw_cus_pre->valid = 1;
+	}
+
+	if (!fw_cus_post) {
+		LDIMERR("%s: fw_cus_post is null\n", __func__);
+	} else {
+		LDIMPR("%s: fw_cus_post is exist\n", __func__);
+		ldim_driver.fw_cus_post = fw_cus_post;
+		ldim_driver.fw_cus_post->seg_row = ldim_config.seg_row;
+		ldim_driver.fw_cus_post->seg_col = ldim_config.seg_col;
+		ldim_driver.fw_cus_post->valid = 1;
 	}
 
 	if (devp->data->memory_init) {

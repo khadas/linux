@@ -428,7 +428,17 @@ struct ldim_fw_custom_s {
 	/*print levle for debug,controlled by cmd, range at 200 - 300*/
 	unsigned int fw_print_lv;
 
+	unsigned int *param; /*custom fw parameters*/
 	unsigned int *bl_matrix;/*backlight matrix output*/
+
+	/* Soc firmware control level output
+	 * bit0: Temporal filter
+	 * bit1: Backlight remapping
+	 * bit2: Spatial filter
+	 * bit3: Backlight matrix calculation
+	 * bit4~bit7: reserved
+	 */
+	unsigned int ctrl_level;
 
 	/*function for backlight matrix algorithm*/
 	void (*fw_alg_frm)(struct ldim_fw_custom_s *fw_cus,
@@ -442,6 +452,8 @@ struct ldim_fw_custom_s {
 
 struct ldim_fw_s *aml_ldim_get_fw(void);
 
-struct ldim_fw_custom_s *aml_ldim_get_fw_cus(void);
+struct ldim_fw_custom_s *aml_ldim_get_fw_cus_pre(void);
+struct ldim_fw_custom_s *aml_ldim_get_fw_cus_post(void);
+
 
 #endif
