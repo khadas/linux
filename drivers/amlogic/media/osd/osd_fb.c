@@ -1252,7 +1252,7 @@ static int malloc_osd_memory(struct fb_info *info)
 				if (!fb_rmem_vaddr[fb_index])
 					osd_log_err("fb[%d] get page_address error",
 						    fb_index);
-				pr_info("%s, osd%d,fb_rmem_paddr=%lx, fb_rmem_vaddr=%px, fb_rmem_size:%lx\n",
+				pr_info("%s, osd%d,fb_rmem_paddr=%llx, fb_rmem_vaddr=%px, fb_rmem_size:%lx\n",
 					__func__,
 					fb_index,
 					fb_rmem_paddr[fb_index],
