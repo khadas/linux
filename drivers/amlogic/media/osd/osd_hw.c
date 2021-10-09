@@ -10405,13 +10405,15 @@ static void osd_set_vpp_path(u32 vpp_osd_index, u32 vpp_index)
 	struct osd_rdma_fun_s *rdma_func = &osd_hw.osd_rdma_func[vpp_index];
 	osd_rdma_wr_bits_op rdma_wr_bits = rdma_func->osd_rdma_wr_bits;
 
-	/* osd_index is vpp mux input */
-	/* default setting osd2 route to vpp0 vsync */
-	if (vpp_osd_index == VPP_OSD3)
-		rdma_wr_bits(PATH_START_SEL, vpp_index, 24, 2);
-	/* default setting osd3 route to vpp0 vsync */
-	if (vpp_osd_index == VPP_OSD4)
-		rdma_wr_bits(PATH_START_SEL, vpp_index, 28, 2);
+	if (osd_dev_hw.has_multi_vpp) {
+		/* osd_index is vpp mux input */
+		/* default setting osd2 route to vpp0 vsync */
+		if (vpp_osd_index == VPP_OSD3)
+			rdma_wr_bits(PATH_START_SEL, vpp_index, 24, 2);
+		/* default setting osd3 route to vpp0 vsync */
+		if (vpp_osd_index == VPP_OSD4)
+			rdma_wr_bits(PATH_START_SEL, vpp_index, 28, 2);
+	}
 }
 
 static void set_osd_hdr_size_in(u32 osd_index, u32 osd_hsize, u32 osd_vsize)
@@ -11044,14 +11046,13 @@ static void osd_setting_default_hwc(void)
 			     blend_vsize  << 16 |
 			     blend_hsize);
 	if (osd_dev_hw.has_multi_vpp) {
-		osd_set_vpp_path(VPP_OSD3, VPU_VPP0);
-		osd_set_vpp_path(VPP_OSD4, VPU_VPP0);
+		osd_set_vpp_path(VPP_OSD3, get_output_device_id(OSD3));
+		osd_set_vpp_path(VPP_OSD4, get_output_device_id(OSD4));
 		set_osd_hdr_size_in(VPP_OSD1,
 				    blend_hsize,
 				    blend_vsize);
-	/* vpp input mux */
-	VSYNCOSD_WR_MPEG_REG(OSD_PATH_MISC_CTRL,
-				  VPP_OSD1 << 16);
+		/* vpp input mux */
+		VSYNCOSD_WR_MPEG_REG_BITS(OSD_PATH_MISC_CTRL, VPP_OSD1, 16, 4);
 	}
 }
 
