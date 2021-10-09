@@ -40,7 +40,7 @@ static void construct_avi_packet(struct hdmitx_dev *hdev)
 	info->picture_aspect = HDMI_PICTURE_ASPECT_16_9;
 	info->active_aspect = HDMI_ACTIVE_ASPECT_PICTURE;
 	info->itc = 0;
-	info->extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_RESERVED;
+	info->extended_colorimetry = HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
 	info->quantization_range = HDMI_QUANTIZATION_RANGE_LIMITED;
 	info->nups = HDMI_NUPS_UNKNOWN;
 	info->video_code = para->timing.vic;
