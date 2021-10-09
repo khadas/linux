@@ -10,6 +10,7 @@
 #include <linux/kthread.h>
 #include <linux/of.h>
 #include <drm/drmP.h>
+#include <drm/drm_writeback.h>
 #ifdef CONFIG_DRM_MESON_USE_ION
 #include <ion/ion_private.h>
 #endif
@@ -34,6 +35,7 @@ struct meson_drm_thread {
 
 struct meson_connector {
 	struct drm_connector connector;
+	struct drm_writeback_connector wb_connector;
 	struct meson_drm *drm_priv;
 	void (*update)(struct drm_connector_state *new_state,
 		struct drm_connector_state *old_state);

@@ -745,7 +745,7 @@ void meson_hdmitx_update(struct drm_connector_state *new_state,
 		am_hdmi_info.hdcp_request_content_protection =
 			new_state->content_protection;
 
-		if (!drm_atomic_crtc_needs_modeset(new_state->crtc->state))
+		if (new_state->crtc && !drm_atomic_crtc_needs_modeset(new_state->crtc->state))
 			meson_hdmitx_update_hdcp();
 	}
 }

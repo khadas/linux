@@ -37,6 +37,7 @@
 #include "meson_vpu_pipeline.h"
 #include "meson_crtc.h"
 #include "meson_sysfs.h"
+#include "meson_writeback.h"
 
 #include <linux/amlogic/media/osd/osd_logo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -610,6 +611,11 @@ static int am_meson_drm_bind(struct device *dev)
 
 	/* Try to bind all sub drivers. */
 	ret = component_bind_all(dev, drm);
+	if (ret)
+		goto err_gem;
+
+	/* Writeback should be registered after HDMI registration. */
+	ret = am_meson_writeback_create(drm);
 	if (ret)
 		goto err_gem;
 	DRM_INFO("mode_config crtc number:%d\n", drm->mode_config.num_crtc);
