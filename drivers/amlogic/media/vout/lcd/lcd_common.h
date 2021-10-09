@@ -24,11 +24,21 @@
 /* 20210621: separate resume(PREPARE) and late_resume(ENABLE)*/
 /* 20210625: add tcon multi lut support*/
 /* 20210705: add lcd mute and test state protection*/
-#define LCD_DRV_VERSION    "20210705"
+/* 20211009: support 59 & 47 frame rate for tv mode*/
+#define LCD_DRV_VERSION    "20211009"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
 extern int lcd_vout_serve_bypass;
+
+static inline unsigned int lcd_do_div(unsigned long long num, unsigned int den)
+{
+	unsigned long long ret = num;
+
+	do_div(ret, den);
+
+	return (unsigned int)ret;
+}
 
 /* lcd common */
 void lcd_delay_us(int us);
