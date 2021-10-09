@@ -606,7 +606,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 			break;
 		}
 	}
-	if (dev->low_latency_mode) {
+	if (dev->low_latency_mode && !dev->game_mode) {
 		if (pts + pcr_margin <= pcr_time) {
 			vq_print(P_ERROR,
 				"delay pts= %lld, pcr=%lld,omx_index=%d\n",
