@@ -1623,7 +1623,8 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	struct ldim_fw_s *fw = ldim_drv->fw;
-	struct ldim_fw_custom_s *fw_cus = ldim_drv->fw_cus;
+	struct ldim_fw_custom_s *fw_cus_pre = aml_ldim_get_fw_cus_pre();
+	struct ldim_fw_custom_s *fw_cus_post = aml_ldim_get_fw_cus_post();
 	struct fw_ctrl_s *fw_ctrl;
 	struct ld_reg_s *nprm;
 	unsigned int n = 0;
@@ -2486,7 +2487,8 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 				       &fw->fw_print_frequent) < 0) {
 				goto ldim_attr_store_err;
 			}
-			fw_cus->fw_print_frequent = fw->fw_print_frequent;
+			fw_cus_pre->fw_print_frequent = fw->fw_print_frequent;
+			fw_cus_post->fw_print_frequent = fw->fw_print_frequent;
 		}
 		pr_info("fw_print_frequent = %d\n", fw->fw_print_frequent);
 	} else if ((!strcmp(parm[0], "Dbprint_lv")) ||
@@ -2499,9 +2501,33 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			}
 			if (kstrtouint(parm[1], 10, &fw->fw_print_lv) < 0)
 				goto ldim_attr_store_err;
-			fw_cus->fw_print_lv = fw->fw_print_lv;
+			fw_cus_pre->fw_print_lv = fw->fw_print_lv;
+			fw_cus_post->fw_print_lv = fw->fw_print_lv;
 		}
 		pr_info("fw_print_lv = %d\n", fw->fw_print_lv);
+	} else if (!strcmp(parm[0], "cus_fw_param")) {
+		if (parm[2]) {
+			if (kstrtouint(parm[1], 10, &i) < 0)
+				goto ldim_attr_store_err;
+			if (kstrtouint(parm[2], 10, &j) < 0)
+				goto ldim_attr_store_err;
+
+			if (fw_cus_pre->fw_alg_frm)
+				fw_cus_pre->param[i] = j;
+
+			if (fw_cus_post->fw_alg_frm)
+				fw_cus_post->param[i] = j;
+		}
+		for (k = 0; k < 32; k++) {
+			if (fw_cus_pre->fw_alg_frm) {
+				pr_info("cus_pre_data[%d] = %d\n",
+					k, fw_cus_pre->param[k]);
+			}
+			if (fw_cus_post->fw_alg_frm) {
+				pr_info("cus_post_data[%d] = %d\n",
+					k, fw_cus_post->param[k]);
+			}
+		}
 	} else if (!strcmp(parm[0], "info")) {
 		pr_info("ldim_drv_ver: %s\n", LDIM_DRV_VER);
 		if (ldim_drv->config_print)

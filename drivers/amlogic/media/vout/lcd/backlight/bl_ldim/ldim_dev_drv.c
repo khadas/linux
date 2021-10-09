@@ -921,6 +921,8 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 	unsigned int *temp, val;
 	struct bl_pwm_config_s *bl_pwm;
 	struct ldim_profile_s *profile;
+	struct ldim_fw_custom_s *fw_cus_pre = aml_ldim_get_fw_cus_pre();
+	struct ldim_fw_custom_s *fw_cus_post = aml_ldim_get_fw_cus_post();
 	int i, ret = 0;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
@@ -1246,6 +1248,28 @@ ldim_dev_get_config_from_dts_profile:
 	}
 
 ldim_dev_get_config_from_dts_next:
+	/* get cus_param , maximum = 32 x 4 bytes */
+	for (i = 0; i < 32; i++) {
+		ret = of_property_read_u32_index(child,
+			"ldim_cus_param", i, &val);
+		if (ret) {
+			LDIMPR("get ldim_cus_param[%d] failed, size =%d\n",
+				i, i);
+			i = 32;
+		} else {
+			if (fw_cus_pre->fw_alg_frm) {
+				fw_cus_pre->param[i] = val;
+				LDIMPR("param[%d] = %d\n",
+					i, fw_cus_pre->param[i]);
+			}
+			if (fw_cus_post->fw_alg_frm) {
+				fw_cus_post->param[i] = val;
+				LDIMPR("param[%d] = %d\n",
+					i, fw_cus_post->param[i]);
+			}
+		}
+	}
+
 	/* get init_cmd */
 	ret = of_property_read_u32(child, "cmd_size", &val);
 	if (ret) {
@@ -1282,11 +1306,13 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 	unsigned char *para, *p;
 	int key_len, len;
 	const char *str;
-	unsigned int temp;
+	unsigned int temp, temp_val;
 	struct aml_lcd_unifykey_header_s ldev_header;
 	struct bl_pwm_config_s *bl_pwm;
 	struct ldim_profile_s *profile;
 	int i, ret = 0;
+	struct ldim_fw_custom_s *fw_cus_pre = aml_ldim_get_fw_cus_pre();
+	struct ldim_fw_custom_s *fw_cus_post = aml_ldim_get_fw_cus_post();
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
 		LDIMPR("load ldim_dev config from unifykey\n");
@@ -1518,6 +1544,33 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 	}
 
 ldim_dev_get_config_from_ukey_next:
+	/* param_data : maximum = 32 x 4 Bytes */
+	temp = *(p + LCD_UKEY_LDIM_DEV_CUST_PARAM_SIZE);
+	LDIMPR("custom param size = %d\n",  temp);
+	for (i = 0; i < temp; i++) {
+		temp_val =
+			(*(p + LCD_UKEY_LDIM_DEV_CUST_PARAM
+			+ 4 * i) |
+			((*(p + LCD_UKEY_LDIM_DEV_CUST_PARAM
+			+ 4 * i + 1)) << 8) |
+			((*(p + LCD_UKEY_LDIM_DEV_CUST_PARAM
+			+ 4 * i + 2)) << 16) |
+			((*(p + LCD_UKEY_LDIM_DEV_CUST_PARAM
+			+ 4 * i + 3)) << 24));
+		if (fw_cus_pre->fw_alg_frm)	{
+			fw_cus_pre->param[i] = temp_val;
+			LDIMPR("fw_cus_pre->param[%d] = %d =  0x%x\n",
+			i, fw_cus_pre->param[i],
+			fw_cus_pre->param[i]);
+		}
+		if (fw_cus_post->fw_alg_frm) {
+			fw_cus_post->param[i] = temp_val;
+			LDIMPR("fw_cus_post->param[%d] = %d =  0x%x\n",
+			i, fw_cus_post->param[i],
+			fw_cus_post->param[i]);
+		}
+	}
+
 	dev_drv->cmd_size = *(p + LCD_UKEY_LDIM_DEV_CMD_SIZE);
 	if (ldim_debug_print)
 		LDIMPR("%s: cmd_size = %d\n", dev_drv->name, dev_drv->cmd_size);

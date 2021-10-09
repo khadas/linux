@@ -892,18 +892,33 @@ void ldim_vs_arithmetic_t7(struct aml_ldim_driver_s *ldim_drv)
 			return;
 		}
 
-		if (ldim_drv->fw_cus->fw_alg_frm) {
-			ldim_drv->fw->fw_sel |= 0x2;  //bit1: 1=have fw_cus
-			ldim_drv->fw_cus->fw_alg_frm(ldim_drv->fw_cus,
+		if (ldim_drv->fw_cus_pre->fw_alg_frm) {
+			ldim_drv->fw->fw_sel |= 0x2;  //bit1: 1=have fw_cus_pre
+			ldim_drv->fw_cus_pre->fw_alg_frm(ldim_drv->fw_cus_pre,
 				ldim_drv->stts);
 			memcpy(ldim_drv->fw->fdat->initial_bl,
-				ldim_drv->fw_cus->bl_matrix,
+				ldim_drv->fw_cus_pre->bl_matrix,
 				size * (sizeof(unsigned int)));
 		} else {
-			ldim_drv->fw->fw_sel &= 0xfd;  //bit1: 0=no fw_cus
+			ldim_drv->fw->fw_sel &= 0xfd;  //bit1: 0=no fw_cus_pre
 		}
 
 		ldim_drv->fw->fw_alg_frm(ldim_drv->fw, ldim_drv->stts);
+
+		if (ldim_drv->fw_cus_post->fw_alg_frm) {
+			ldim_drv->fw->fw_sel |= 0x4;  //bit2: 1=have fw_cus_post
+			memcpy(ldim_drv->fw_cus_post->bl_matrix,
+					ldim_drv->fw->bl_matrix,
+					size * (sizeof(unsigned int)));
+			ldim_drv->fw_cus_post->fw_alg_frm(ldim_drv->fw_cus_post,
+				ldim_drv->stts);
+			memcpy(ldim_drv->fw->bl_matrix,
+				ldim_drv->fw_cus_post->bl_matrix,
+				size * (sizeof(unsigned int)));
+		} else {
+			ldim_drv->fw->fw_sel &= 0xfb;  //bit2: 0=no fw_cus_post
+		}
+
 		memcpy(ldim_drv->local_bl_matrix, ldim_drv->fw->bl_matrix,
 		       size * (sizeof(unsigned int)));
 		ldc_rmem_duty_set(ldim_drv);
