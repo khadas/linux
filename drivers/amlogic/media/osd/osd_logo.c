@@ -221,7 +221,7 @@ int set_osd_logo_freescaler(void)
 	 * if viu1 interface(such as hdmi) is unplugged when booting.
 	 * the viu2 display device will be used for viu1 after booting.
 	 */
-	if (osd_hw.osd_meson_dev.has_viu2)
+	if (osd_hw.osd_meson_dev.has_viu2 || osd_dev_hw.has_multi_vpp)
 		if (index >= LOGO_DEV_VIU2_OSD0)
 			index = LOGO_DEV_OSD0;
 
