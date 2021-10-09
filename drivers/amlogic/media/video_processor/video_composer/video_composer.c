@@ -333,6 +333,9 @@ static void video_composer_uninit_buffer(struct composer_dev *dev)
 	if (ret < 0)
 		vc_print(dev->index, PRINT_ERROR,
 			 "uninit ge2d composer failed!\n");
+	dev->last_dst_vf = NULL;
+	INIT_KFIFO(dev->free_q);
+	kfifo_reset(&dev->free_q);
 }
 
 static struct file_private_data *vc_get_file_private(struct composer_dev *dev,
@@ -1117,7 +1120,7 @@ static void vframe_composer(struct composer_dev *dev)
 			break;
 		drop_count++;
 		frames_put_file(dev, received_frames);
-		vc_print(dev->index, PRINT_PERFORMANCE, "com: drop frame\n");
+		vc_print(dev->index, PRINT_OTHER, "com: drop frame\n");
 		atomic_set(&received_frames->on_use, false);
 	}
 
