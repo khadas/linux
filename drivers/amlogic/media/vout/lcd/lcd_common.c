@@ -2134,50 +2134,70 @@ int lcd_vmode_change(struct aml_lcd_drv_s *pdrv)
 	unsigned int pclk_max = pconf->basic.lcd_clk_max;
 	unsigned int duration_num = pconf->timing.sync_duration_num;
 	unsigned int duration_den = pconf->timing.sync_duration_den;
+	unsigned long long temp;
 	char str[100];
 	int len = 0;
 
 	pconf->timing.clk_change = 0; /* clear clk flag */
 	switch (type) {
 	case 0: /* pixel clk adjust */
-		pclk = (h_period * v_period) / duration_den * duration_num;
+		temp = duration_num;
+		temp = temp * h_period * v_period;
+		pclk = lcd_do_div(temp, duration_den);
 		if (pconf->timing.lcd_clk != pclk)
 			pconf->timing.clk_change = LCD_CLK_PLL_CHANGE;
 		break;
 	case 1: /* htotal adjust */
-		h_period = ((pclk / v_period) * duration_den * 100) / duration_num;
+		temp = pclk;
+		temp =  temp * duration_den * 100;
+		h_period = v_period * duration_num;
+		h_period = lcd_do_div(temp, h_period);
 		h_period = (h_period + 99) / 100; /* round off */
 		if (pconf->basic.h_period != h_period) {
 			/* check clk frac update */
-			pclk = (h_period * v_period) / duration_den * duration_num;
+			temp = duration_num;
+			temp = temp * h_period * v_period;
+			pclk = lcd_do_div(temp, duration_den);
 			if (pconf->timing.lcd_clk != pclk)
 				pconf->timing.clk_change = LCD_CLK_FRAC_UPDATE;
 		}
 		break;
 	case 2: /* vtotal adjust */
-		v_period = ((pclk / h_period) * duration_den * 100) / duration_num;
+		temp = pclk;
+		temp = temp * duration_den * 100;
+		v_period = h_period * duration_num;
+		v_period = lcd_do_div(temp, v_period);
 		v_period = (v_period + 99) / 100; /* round off */
 		if (pconf->basic.v_period != v_period) {
 			/* check clk frac update */
-			pclk = (h_period * v_period) / duration_den * duration_num;
+			temp = duration_num;
+			temp = temp * h_period * v_period;
+			pclk = lcd_do_div(temp, duration_den);
 			if (pconf->timing.lcd_clk != pclk)
 				pconf->timing.clk_change = LCD_CLK_FRAC_UPDATE;
 		}
 		break;
 	case 3: /* free adjust, use min/max range to calculate */
-		v_period = ((pclk / h_period) * duration_den * 100) / duration_num;
+		temp = pclk;
+		temp = temp * duration_den * 100;
+		v_period = h_period * duration_num;
+		v_period = lcd_do_div(temp, v_period);
 		v_period = (v_period + 99) / 100; /* round off */
 		if (v_period > pconf->basic.v_period_max) {
 			v_period = pconf->basic.v_period_max;
-			h_period = ((pclk / v_period) * duration_den * 100) / duration_num;
+			h_period = v_period * duration_num;
+			h_period = lcd_do_div(temp, h_period);
 			h_period = (h_period + 99) / 100; /* round off */
 			if (h_period > pconf->basic.h_period_max) {
 				h_period = pconf->basic.h_period_max;
-				pclk = (h_period * v_period) / duration_den * duration_num;
+				temp = duration_num;
+				temp = temp * h_period * v_period;
+				pclk = lcd_do_div(temp, duration_den);
 				if (pconf->timing.lcd_clk != pclk) {
 					if (pclk > pclk_max) {
 						pclk = pclk_max;
-						LCDERR("[%d]: invalid vmode\n", pdrv->index);
+						LCDERR("[%d]: invalid vmode\n",
+						       pdrv->index);
 						return -1;
 					}
 					pconf->timing.clk_change = LCD_CLK_PLL_CHANGE;
@@ -2185,15 +2205,19 @@ int lcd_vmode_change(struct aml_lcd_drv_s *pdrv)
 			}
 		} else if (v_period < pconf->basic.v_period_min) {
 			v_period = pconf->basic.v_period_min;
-			h_period = ((pclk / v_period) * duration_den * 100) / duration_num;
+			h_period = v_period * duration_num;
+			h_period = lcd_do_div(temp, h_period);
 			h_period = (h_period + 99) / 100; /* round off */
 			if (h_period < pconf->basic.h_period_min) {
 				h_period = pconf->basic.h_period_min;
-				pclk = (h_period * v_period) / duration_den * duration_num;
+				temp = duration_num;
+				temp = temp * h_period * v_period;
+				pclk = lcd_do_div(temp, duration_den);
 				if (pconf->timing.lcd_clk != pclk) {
 					if (pclk < pclk_min) {
 						pclk = pclk_min;
-						LCDERR("[%d]: invalid vmode\n", pdrv->index);
+						LCDERR("[%d]: invalid vmode\n",
+						       pdrv->index);
 						return -1;
 					}
 					pconf->timing.clk_change = LCD_CLK_PLL_CHANGE;
@@ -2202,7 +2226,9 @@ int lcd_vmode_change(struct aml_lcd_drv_s *pdrv)
 		}
 		/* check clk frac update */
 		if ((pconf->timing.clk_change & LCD_CLK_PLL_CHANGE) == 0) {
-			pclk = (h_period * v_period) / duration_den * duration_num;
+			temp = duration_num;
+			temp = temp * h_period * v_period;
+			pclk = lcd_do_div(temp, duration_den);
 			if (pconf->timing.lcd_clk != pclk)
 				pconf->timing.clk_change = LCD_CLK_FRAC_UPDATE;
 		}
@@ -2210,16 +2236,23 @@ int lcd_vmode_change(struct aml_lcd_drv_s *pdrv)
 	case 4: /* hdmi mode */
 		if ((duration_num / duration_den) == 59) {
 			/* pixel clk adjust */
-			pclk = (h_period * v_period) / duration_den * duration_num;
+			temp = duration_num;
+			temp = temp * h_period * v_period;
+			pclk = lcd_do_div(temp, duration_den);
 			if (pconf->timing.lcd_clk != pclk)
 				pconf->timing.clk_change = LCD_CLK_PLL_CHANGE;
 		} else {
 			/* htotal adjust */
-			h_period = ((pclk / v_period) * duration_den * 100) / duration_num;
+			temp = pclk;
+			temp = temp * duration_den * 100;
+			h_period = v_period * duration_num;
+			h_period = lcd_do_div(temp, h_period);
 			h_period = (h_period + 99) / 100; /* round off */
 			if (pconf->basic.h_period != h_period) {
 				/* check clk frac update */
-				pclk = (h_period * v_period) / duration_den * duration_num;
+				temp = duration_num;
+				temp = temp * h_period * v_period;
+				pclk = lcd_do_div(temp, duration_den);
 				if (pconf->timing.lcd_clk != pclk)
 					pconf->timing.clk_change = LCD_CLK_FRAC_UPDATE;
 			}
