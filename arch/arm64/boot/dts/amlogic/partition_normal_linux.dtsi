@@ -12,7 +12,7 @@
 
 / {
     partitions: partitions{
-		parts = <15>;
+		parts = <16>;
 		part-0 = <&logo>;
 		part-1 = <&recovery>;
 		part-2 = <&misc>;
@@ -23,11 +23,12 @@
 		part-7 = <&tee>;
 		part-8 = <&factory>;
 		part-9 = <&vendor>;
-		part-10 = <&odm>;
-		part-11 = <&system>;
-		part-12 = <&product>;
-		part-13 = <&cache>;
-		part-14 = <&data>;
+		part-10 = <&vbmeta>;
+		part-11 = <&odm>;
+		part-12 = <&system>;
+		part-13 = <&product>;
+		part-14 = <&cache>;
+		part-15 = <&data>;
 
 		logo:logo{
 			pname = "logo";
@@ -80,6 +81,12 @@
 		{
 			pname = "vendor";
 			size = <0x0 0x1C000000>;
+			mask = <1>;
+		};
+		vbmeta:vbmeta
+		{
+			pname = "vbmeta";
+			size = <0x0 0x200000>;
 			mask = <1>;
 		};
 		odm:odm
