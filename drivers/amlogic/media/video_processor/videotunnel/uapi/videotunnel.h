@@ -39,6 +39,7 @@ enum vt_ctrl_cmd_e {
 	VT_CTRL_SET_NONBLOCK_MODE,
 	VT_CTRL_REPLY_CMD,
 	VT_CTRL_POLL_CMD,
+	VT_CTRL_CANCEL_BUFFER,
 };
 
 enum vt_video_cmd_e {
