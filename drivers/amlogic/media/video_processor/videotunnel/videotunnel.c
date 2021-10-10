@@ -1265,6 +1265,41 @@ static int vt_poll_cmd_process(struct vt_ctrl_data *data,
 		return -EAGAIN;
 }
 
+static int vt_cancel_buffer_process(struct vt_ctrl_data *data,
+				    struct vt_session *session)
+{
+	struct vt_dev *dev = session->dev;
+	struct vt_instance *instance = NULL;
+	struct vt_buffer *buffer = NULL;
+	int id = data->tunnel_id;
+
+	instance = idr_find(&dev->instance_idr, id);
+
+	if (!instance || !instance->producer)
+		return -EINVAL;
+	if (instance->producer && instance->producer != session)
+		return -EINVAL;
+
+	mutex_lock(&instance->lock);
+	while (kfifo_get(&instance->fifo_to_consumer, &buffer)) {
+		if (buffer->file_buffer) {
+			fput(buffer->file_buffer);
+			instance->fcount--;
+			buffer->item.buffer_status = VT_BUFFER_RELEASE;
+
+			vt_debug(VT_DEBUG_FILE,
+				 "vt [%d] cancel buffer file(%p) buffer(%p), fcount=%d\n",
+				 instance->id,
+				 buffer->file_buffer,
+				 buffer, instance->fcount);
+		}
+		kfifo_put(&instance->fifo_to_producer, buffer);
+	}
+	mutex_unlock(&instance->lock);
+
+	return 0;
+}
+
 static int vt_ctrl_process(struct vt_ctrl_data *data,
 			   struct vt_session *session)
 {
@@ -1303,6 +1338,10 @@ static int vt_ctrl_process(struct vt_ctrl_data *data,
 	}
 	case VT_CTRL_POLL_CMD: {
 		ret = vt_poll_cmd_process(data, session);
+		break;
+	}
+	case VT_CTRL_CANCEL_BUFFER: {
+		ret = vt_cancel_buffer_process(data, session);
 		break;
 	}
 	default:
@@ -1482,8 +1521,16 @@ static int vt_dequeue_buffer_process(struct vt_buffer_data *data,
 						   vt_has_buffer(instance, VT_ROLE_PRODUCER),
 						   msecs_to_jiffies(VT_MAX_WAIT_MS));
 		/* timeout */
-		if (ret == 0)
-			return -EAGAIN;
+		if (ret == 0) {
+			if (!instance->consumer) {
+				vt_debug(VT_DEBUG_BUFFERS,
+					"vt [%d] dequeue buffer, no consumer\n",
+					instance->id);
+				return -ENOTCONN;
+			} else {
+				return -EAGAIN;
+			}
+		}
 	}
 
 	if (vt_instance_buffer_size(instance) < dev->limit)
