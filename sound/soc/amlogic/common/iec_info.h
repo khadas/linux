@@ -10,6 +10,10 @@
 #include <sound/pcm.h>
 #include <sound/control.h>
 
+/* mpll clk range from 5M to 500M */
+#define AML_MPLL_FREQ_MIN   5000000
+#define AML_MPLL_FREQ_MAX   500000000
+
 /* IEC958_mode_codec */
 #define STEREO_PCM              0
 #define DTS_RAW_MODE            1

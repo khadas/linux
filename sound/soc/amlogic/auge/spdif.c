@@ -699,6 +699,10 @@ static int spdif_clk_set(struct snd_kcontrol *kcontrol,
 	sysclk += value;
 
 	mpll_freq = sysclk * mpll2sys_clk_ratio_by_type(p_spdif->codec_type);
+	/* make sure mpll_freq doesn't exceed MPLL max freq */
+	while (mpll_freq > AML_MPLL_FREQ_MAX)
+		mpll_freq = mpll_freq >> 1;
+
 	p_spdif->sysclk_freq = sysclk;
 	clk_set_rate(p_spdif->sysclk, mpll_freq);
 	clk_set_rate(p_spdif->clk_spdifout, p_spdif->sysclk_freq);
@@ -1492,7 +1496,9 @@ static void aml_set_spdifclk(struct aml_spdif *p_spdif)
 		}
 		mpll_freq = p_spdif->sysclk_freq *
 				mpll2sys_clk_ratio_by_type(p_spdif->codec_type);
-
+		/* make sure mpll_freq doesn't exceed MPLL max freq */
+		while (mpll_freq > AML_MPLL_FREQ_MAX)
+			mpll_freq = mpll_freq >> 1;
 		clk_set_rate(p_spdif->sysclk, mpll_freq);
 		/*
 		 * clk_set_rate(p_spdif->clk_spdifout, p_spdif->sysclk_freq);

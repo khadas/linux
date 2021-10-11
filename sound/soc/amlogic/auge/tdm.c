@@ -278,9 +278,6 @@ static int aml_tdm_set_clkdiv(struct aml_tdm *p_tdm, int div)
 	return 0;
 }
 
-/* mpll clk range from 5M to 500M */
-#define AML_MPLL_FREQ_MIN   5000000
-#define AML_MPLL_FREQ_MAX   500000000
 static unsigned int aml_mpll_mclk_ratio(unsigned int freq)
 {
 	unsigned int i, ratio = 2;

@@ -811,6 +811,10 @@ static void earctx_update_clk(struct earc *p_earc,
 	unsigned int mpll_freq = freq *
 		mpll2dmac_clk_ratio_by_type(p_earc->tx_audio_coding_type);
 
+	/* make sure mpll_freq doesn't exceed MPLL max freq */
+	while (mpll_freq > AML_MPLL_FREQ_MAX)
+		mpll_freq = mpll_freq >> 1;
+
 	dev_info(p_earc->dev, "set %dX normal dmac clk, p_earc->tx_dmac_freq:%d\n",
 		multi, p_earc->tx_dmac_freq);
 	dev_info(p_earc->dev,
