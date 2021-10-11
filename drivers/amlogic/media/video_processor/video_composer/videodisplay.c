@@ -193,7 +193,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 				fput(file_vf);
 				dev->fput_count++;
 			} else {
-				vc_print(dev->index, PRINT_ERROR,
+				vc_print(dev->index, PRINT_OTHER,
 					"put: file error!!!\n");
 			}
 		}
@@ -233,6 +233,48 @@ static const struct vframe_operations_s vc_vf_provider = {
 	.event_cb = vc_event_cb,
 	.vf_states = vc_vf_states,
 };
+
+static struct vframe_s *vd_get_vf_from_buf(struct composer_dev *dev,
+						struct dma_buf *buf)
+{
+	struct vframe_s *vf = NULL;
+	bool is_dec_vf = false;
+	struct uvm_hook_mod *uhmod;
+	struct file_private_data *temp_file;
+
+	if (IS_ERR_OR_NULL(buf)) {
+		vc_print(dev->index, PRINT_ERROR,
+			"%s: dma_buf is NULL.\n",
+			__func__);
+		return vf;
+	}
+
+	is_dec_vf = is_valid_mod_type(buf, VF_SRC_DECODER);
+	if (is_dec_vf) {
+		vc_print(dev->index, PRINT_OTHER, "vf is from decoder.\n");
+		vf = dmabuf_get_vframe(buf);
+		dmabuf_put_vframe(buf);
+	} else {
+		vc_print(dev->index, PRINT_OTHER, "vf is from v4lvideo.\n");
+		uhmod = uvm_get_hook_mod(buf, VF_PROCESS_V4LVIDEO);
+		if (!uhmod) {
+			vc_print(dev->index, PRINT_ERROR,
+				"get vframe from v4lvideo failed.\n");
+			return vf;
+		}
+
+		if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
+			vc_print(dev->index, PRINT_ERROR,
+				 "vframe in v4lvideo is NULL.\n");
+			return vf;
+		}
+		temp_file = uhmod->arg;
+		vf = &temp_file->vf;
+		uvm_put_hook_mod(buf, VF_PROCESS_V4LVIDEO);
+	}
+
+	return vf;
+}
 
 int video_display_create_path(struct composer_dev *dev)
 {
@@ -285,7 +327,7 @@ static struct composer_dev *video_display_getdev(int layer_index)
 	struct composer_dev *dev;
 	struct video_composer_port_s *port;
 
-	vc_print(layer_index, PRINT_ERROR,
+	vc_print(layer_index, PRINT_OTHER,
 		"%s: video_composerdev_%d.\n",
 		__func__, layer_index);
 	if (layer_index >= MAX_VIDEO_COMPOSER_INSTANCE_NUM) {
@@ -313,6 +355,7 @@ static struct composer_dev *video_display_getdev(int layer_index)
 		mutex_unlock(&video_display_mutex);
 	}
 
+	is_drm_enable = true;
 	return mdev[layer_index];
 }
 
@@ -374,7 +417,8 @@ static int video_display_uninit(int layer_index)
 
 	dev->port->open_count--;
 	kfree(dev);
-
+	mdev[layer_index] = NULL;
+	is_drm_enable = false;
 	return ret;
 }
 
@@ -410,6 +454,7 @@ int video_display_setenable(int layer_index, int is_enable)
 		return ret;
 	}
 
+	dev->enable_composer = is_enable;
 	if (is_enable == VIDEO_DISPLAY_ENABLE_NORMAL)
 		ret = video_display_init(layer_index);
 	else
@@ -442,8 +487,10 @@ int video_display_setframe(int layer_index,
 		return -EBUSY;
 	}
 
-	vf = dmabuf_get_vframe(frame_info->dmabuf);
-	dmabuf_put_vframe(frame_info->dmabuf);
+	if (dev->enable_composer != 1)
+		video_display_setenable(layer_index, 1);
+
+	vf = vd_get_vf_from_buf(dev, frame_info->dmabuf);
 	if (!vf) {
 		vc_print(layer_index, PRINT_ERROR,
 			"%s: get vf failed.\n",
@@ -489,7 +536,7 @@ int video_display_setframe(int layer_index,
 		return -EAGAIN;
 	}
 	ready_count = kfifo_len(&dev->ready_q);
-	vc_print(layer_index, PRINT_ERROR,
+	vc_print(layer_index, PRINT_OTHER,
 		"%s: ready_q count is %d.\n",
 		__func__, ready_count);
 
