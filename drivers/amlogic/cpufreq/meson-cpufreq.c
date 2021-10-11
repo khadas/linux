@@ -452,9 +452,6 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 
 	/*cpufreq up,change voltage before frequency*/
 	if (freq_new > freq_old) {
-		if (cpufreq_data->reg_external_used)
-			volt_new = MAX(dsu_voltage_vote_result[LITTLE_VOTER],
-			dsu_voltage_vote_result[BIG_VOTER]);
 		ret = meson_regulator_set_volate(cpu_reg, cur_cluster, volt_old,
 						 volt_new, volt_tol);
 		if (ret) {
@@ -482,9 +479,6 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 				meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_PRECHANGE);
 				meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_POSTCHANGE);
 			}
-			if (cpufreq_data->reg_external_used)
-				volt_old = MAX(dsu_voltage_vote_result[LITTLE_VOTER],
-				dsu_voltage_vote_result[BIG_VOTER]);
 			meson_regulator_set_volate(cpu_reg, cur_cluster, volt_old, volt_old,
 						   volt_tol);
 			meson_dsuvolt_adjust(cpufreq_data);
@@ -496,9 +490,6 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 	meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_POSTCHANGE);
 	/*cpufreq down,change voltage after frequency*/
 	if (freq_new < freq_old) {
-		if (cpufreq_data->reg_external_used)
-			volt_new = MAX(dsu_voltage_vote_result[LITTLE_VOTER],
-			dsu_voltage_vote_result[BIG_VOTER]);
 		ret = meson_regulator_set_volate(cpu_reg, cur_cluster, volt_old,
 						 volt_new, volt_tol);
 		if (ret) {
