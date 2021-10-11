@@ -124,6 +124,17 @@ config AMLOGIC_SND_SOC_TAS5707
                 Enable support for Texas Instruments TAS5707 CODEC.
                 Select this if your TAS5707 is connected via an I2C bus.
 
+config AMLOGIC_SND_SOC_ES8316
+	bool "Texas Instruments ES8316 amplifier"
+	depends on AMLOGIC_SND_SOC_CODECS
+	depends on I2C
+	default n
+	help
+		Enable support for Texas Instruments ES8316 CODEC.
+		Select this if your ES8316 is connected via an I2C bus.
+		Enable support for Texas Instruments ES8316 CODEC.
+		Select this if your ES8316 is connected via an I2C bus.
+
 config AMLOGIC_SND_SOC_TLV320ADC3101
 	bool "Texas Instruments TLV320ADC3101"
 	depends on AMLOGIC_SND_SOC_CODECS
