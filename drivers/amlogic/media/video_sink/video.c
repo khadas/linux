@@ -4463,7 +4463,8 @@ static void hdmi_in_delay_maxmin_old(struct vframe_s *vf)
 	int vdin_keep_count = VDIN_KEEP_COUNT;
 
 	if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-		vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
+		vf->source_type != VFRAME_SOURCE_TYPE_CVBS &&
+		vf->source_type != VFRAME_SOURCE_TYPE_TUNER)
 		return;
 
 	if (vf->type & VIDTYPE_DI_PW) {
@@ -4532,7 +4533,8 @@ static void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	u64 ext_delay = 0;
 
 	if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-		vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
+		vf->source_type != VFRAME_SOURCE_TYPE_CVBS &&
+		vf->source_type != VFRAME_SOURCE_TYPE_TUNER)
 		return;
 
 	if (vf->type & VIDTYPE_DI_PW) {
@@ -6314,7 +6316,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	 */
 	if (display_frame_count < 3 && vf &&
 	    (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
-	    vf->source_type == VFRAME_SOURCE_TYPE_CVBS))
+	    vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+	    vf->source_type == VFRAME_SOURCE_TYPE_TUNER))
 		hdmi_in_delay_maxmin_old(vf);
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
@@ -7356,7 +7359,8 @@ SET_FILTER:
 			new_frame_count = 0;
 			source_type = path3_new_frame->source_type;
 			if (source_type == VFRAME_SOURCE_TYPE_HDMI ||
-				source_type == VFRAME_SOURCE_TYPE_CVBS)
+				source_type == VFRAME_SOURCE_TYPE_CVBS ||
+				source_type == VFRAME_SOURCE_TYPE_TUNER)
 				hdmi_in_delay_maxmin_reset();
 		} else if (path3_new_frame) {
 			new_frame_count = gvideo_recv[0]->frame_count;
@@ -7368,7 +7372,8 @@ SET_FILTER:
 				new_frame_count = 0;
 				source_type = vf->source_type;
 				if (source_type == VFRAME_SOURCE_TYPE_HDMI ||
-					source_type == VFRAME_SOURCE_TYPE_CVBS)
+				    source_type == VFRAME_SOURCE_TYPE_CVBS ||
+				    source_type == VFRAME_SOURCE_TYPE_TUNER)
 					hdmi_in_delay_maxmin_reset();
 			}
 		}
