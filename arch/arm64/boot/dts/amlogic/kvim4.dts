@@ -452,20 +452,20 @@
 	sensor: sensor {
 		compatible = "soc, sensor";
 		status = "okay";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name = "imx335"; /*imx290;os08a10;imx227*/
 		pinctrl-names= "default";
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
 		clocks = <&clkc CLKID_MCLK_0>,
 				<&clkc CLKID_MCLK_1>;
 		clock-names = "mclk_0","mclk_1";
-		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
-		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		pwdn = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
 		compatible = "soc, iq";
 		status = "okay";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name = "imx335"; /*imx290;os08a10;imx227*/
 	};
 
 	hdmirx {
@@ -1355,11 +1355,11 @@
 	pinctrl-0 = <&i2c2_pins3>;
 	//pinctrl-1 = <&i2c2_sleep_pins2>;
 	clock-frequency = <100000>; /* default 100k */
-	sensor-i2c@6c {
+	sensor-i2c@1a {
 		compatible = "arm, i2c-sensor";
-		reg = <0x6c>;
+		reg = <0x1a>;
 		reg-names = "i2c-sensor";
-		slave-addr = <0x6c>;
+		slave-addr = <0x1a>;
 		reg-type = <2>;
 		reg-data-type = <1>;
 		link-device = <&phycsi>;
@@ -1567,10 +1567,8 @@
 
 &periphs_pinctrl {
 	pdmin_pins: pdmin_pin {
-		mux { /* GPIOM_3, GPIOM_4, GPIOM_5, GPIOM_1, GPIOM_2 */
+		mux { /* GPIOM_3, GPIOM_1, GPIOM_2 */
 			groups = "pdm_dclk",
-				"pdm_din0",
-				"pdm_din1_m5",
 				"pdm_din2",
 				"pdm_din3";
 			function = "pdm";
