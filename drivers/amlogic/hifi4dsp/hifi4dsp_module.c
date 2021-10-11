@@ -527,6 +527,9 @@ static void dsp_health_monitor(struct work_struct *work)
 {
 	char data[20], *envp[] = { data, NULL };
 
+	if (dsp_online == 0)
+		return;
+
 	switch (get_dsp_health_status(dsp_online)) {
 	case DSP_GOOD:
 		hifi4dsp_p[DSPA]->dsp->dsphang = 0;
@@ -618,7 +621,7 @@ static void dsp_logbuff_polling(struct work_struct *work)
 
 static void init_and_start_dsp_log_polling(void)
 {
-	if (!work_busy(&dsp_logbuff_work.work)) {
+	if (!dsp_logbuff_wq) {
 		dsp_logbuff_wq = create_freezable_workqueue("dsplogbuff_wq");
 		if (!dsp_logbuff_wq)
 			pr_err("create dsplogbuff_wq failed.\n");
@@ -632,7 +635,6 @@ static void init_and_start_dsp_log_polling(void)
 static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp)
 {
 	struct  hifi4dsp_info_t *info;
-	char wq_name[10];
 
 	pr_debug("%s\n", __func__);
 	info = (struct  hifi4dsp_info_t *)dsp->info;
@@ -658,11 +660,10 @@ static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp)
 	dsp->dspstarted = 1;
 	set_bit(dsp->id, &dsp_online);
 	pr_warn("[%s]dsp_online=0x%lx\n", __func__, dsp_online);
-	if (hifi4dsp_p[dsp->id]->dsp->status_reg && !work_busy(&dsp_status_work.work)) {
-		snprintf(wq_name, sizeof(wq_name), "dsp%u_wq", dsp->id);
-		dsp_status_wq = create_freezable_workqueue(wq_name);
+	if (hifi4dsp_p[dsp->id]->dsp->status_reg && !dsp_status_wq) {
+		dsp_status_wq = create_freezable_workqueue("dspstatus_wq");
 		if (!dsp_status_wq) {
-			pr_err("create %s failed.\n", wq_name);
+			pr_err("create dspstatus_wq failed.\n");
 			return -EINVAL;
 		}
 		INIT_DEFERRABLE_WORK(&dsp_status_work, dsp_health_monitor);
@@ -700,25 +701,32 @@ static int hifi4dsp_driver_dsp_stop(struct hifi4dsp_dsp *dsp)
 	strcpy(message, "SCPI_CMD_HIFI4STOP");
 
 	if (dsp->dspstarted == 1) {
-		if (hifi4dsp_p[dsp->id]->dsp->status_reg && !dsp->dsphang)
+		if (hifi4dsp_p[dsp->id]->dsp->status_reg && !dsp->dsphang) {
 			scpi_send_data(message, sizeof(message), dsp->id ? SCPI_DSPB : SCPI_DSPA,
 				SCPI_CMD_HIFI4STOP, NULL, 0);
-		msleep(50);
+			msleep(50);
+		}
+		clear_bit(dsp->id, &dsp_online);
 		soc_dsp_poweroff(info->id);
 		hifi4dsp_driver_dsp_clk_off(dsp);
 		dsp->dspstarted = 0;
 		dsp->info = NULL;
-		clear_bit(dsp->id, &dsp_online);
 		pr_warn("[%s]dsp_online=0x%lx\n", __func__, dsp_online);
-		if (!dsp_online && work_busy(&dsp_status_work.work)) {
-			cancel_delayed_work(&dsp_status_work);
+		if (!dsp_online && dsp_status_wq) {
+			cancel_delayed_work_sync(&dsp_status_work);
+			flush_workqueue(dsp_status_wq);
 			destroy_workqueue(dsp_status_wq);
+			memset(&dsp_status_work, 0, sizeof(dsp_status_work));
+			dsp_status_wq = NULL;
 		}
-		if (work_busy(&dsp_logbuff_work.work) &&
+		if (dsp_logbuff_wq &&
 		(hifi4dsp_p[dsp->id ? DSPA : DSPB]->dsp->dspstarted == 0 ||
 		!(hifi4dsp_p[dsp->id ? DSPA : DSPB]->dsp->logbuff))) {
-			cancel_delayed_work(&dsp_logbuff_work);
+			cancel_delayed_work_sync(&dsp_logbuff_work);
+			flush_workqueue(dsp_logbuff_wq);
 			destroy_workqueue(dsp_logbuff_wq);
+			memset(&dsp_logbuff_work, 0, sizeof(dsp_logbuff_work));
+			dsp_logbuff_wq = NULL;
 		}
 	}
 	return 0;
