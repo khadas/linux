@@ -175,7 +175,14 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x8000000>;
+			size = <0x6400000>;
+			alignment = <0x400000>;
+		};
+		ion_fb_reserved:linux,ion-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1920x1080x4x3 round up 4M align */
+			size = <0x1c00000>;
 			alignment = <0x400000>;
 		};
 

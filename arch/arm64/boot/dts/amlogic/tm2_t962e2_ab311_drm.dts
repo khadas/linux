@@ -189,6 +189,74 @@
 		status = "okay";
 	};
 
+	hdmirx {
+		compatible = "amlogic, hdmirx_tm2_b";
+		#address-cells=<1>;
+		#size-cells=<1>;
+		/*memory-region = <&hdmirx_emp_cma_reserved>;*/
+		status = "okay";
+		pinctrl-names = "hdmirx_pins";
+		pinctrl-0 = <&hdmirx_a_mux &hdmirx_b_mux
+			&hdmirx_c_mux>;
+		repeat = <0>;
+		/* bit 4: tdr enable bit
+		 * bits [3:0]: tdr level control
+		 */
+		term_lvl = <0x11>;
+		interrupts = <0 41 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CLKID_HDMIRX_MODET_GATE>,
+				<&clkc CLKID_HDMIRX_CFG_GATE>,
+				<&clkc CLKID_HDMIRX_ACR_GATE>,
+				<&clkc CLKID_HDMIRX_METER_GATE>,
+				<&clkc CLKID_HDMIRX_AXI_GATE>,
+				<&xtal>,
+				<&clkc CLKID_FCLK_DIV3>,
+				<&clkc CLKID_FCLK_DIV5>,
+				<&clkc CLKID_FCLK_DIV7>,
+				<&clkc CLKID_HDMIRX_SKP_GATE>,
+				<&clkc CLKID_HDMIRX_ESM_GATE>;
+				//<&clkc CLK_AUD_PLL2FS>,
+				//<&clkc CLK_AUD_PLL4FS>,
+				//<&clkc CLK_AUD_OUT>;
+		clock-names = "hdmirx_modet_clk",
+				"hdmirx_cfg_clk",
+				"hdmirx_acr_ref_clk",
+				"cts_hdmirx_meter_clk",
+				"cts_hdmi_axi_clk",
+				"xtal",
+				"fclk_div3",
+				"fclk_div5",
+				"fclk_div7",
+				"hdcp_rx22_skp",
+				"hdcp_rx22_esm";
+				//"hdmirx_aud_pll2fs",
+				//"hdmirx_aud_pll4f",
+				//"clk_aud_out";
+		hdmirx_id = <0>;
+		en_4k_2_2k = <0>;
+		hpd_low_cec_off = <0>;
+		cec_dev_en = <0>;
+		arc_port = <1>;
+		/* bit4: enable feature, bit3~0: port number */
+		disable_port = <0x0>;
+		hdcp_tee_path = <1>;
+		/* MAP_ADDR_MODULE_CBUS */
+		/* MAP_ADDR_MODULE_HIU */
+		/* MAP_ADDR_MODULE_HDMIRX_CAPB3 */
+		/* MAP_ADDR_MODULE_SEC_AHB */
+		/* MAP_ADDR_MODULE_SEC_AHB2 */
+		/* MAP_ADDR_MODULE_APB4 */
+		/* MAP_ADDR_MODULE_TOP */
+		/* MAP_ADDR_MODULE_CLK_CTRL */
+		reg = < 0x0 0x0 0x0 0x0
+			0x0 0xff63C000 0x0 0x2000
+			0x0 0xffe0d000 0x0 0x2000
+			0x0 0x0 0x0 0x0
+			0x0 0x0 0x0 0x0
+			0x0 0x0 0x0 0x0
+			0x0 0xff610000 0x0 0xa000>;
+	};
+
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-tm2";
 		dev_name = "aml_dtv_demod";
@@ -274,9 +342,8 @@
 
 	tvafe_avin_detect {
 		compatible = "amlogic, tm2_tvafe_avin_detect";
-		status = "disabled";
+		status = "okay";
 		device_mask = <1>;/*bit0:ch1;bit1:ch2*/
-		reg = <0x0 0xffd0f090 0x0 0x20>;/*cbus register*/
 		interrupts = <0 12 1>,
 			<0 13 1>;
 	};
@@ -387,7 +454,7 @@
 		aml-audio-card,dai-link@3 {
 			mclk-fs = <64>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-pdm";
+			suffix-name = "alsaPORT-pdm-builtinmic";
 			cpu {
 				sound-dai = <&pdm>;
 			};
@@ -718,11 +785,10 @@
 	tvafe {
 		compatible = "amlogic, tvafe-tm2_b";
 		/*memory-region = <&tvafe_cma_reserved>;*/
-		status = "disabled";
+		status = "okay";
 		flag_cma = <1>;/*1:share with codec_mm;0:cma alone*/
 		cma_size = <5>;/*MByte*/
-		reg = <0x0 0xff654000 0x0 0x2000 /*tvafe reg base*/
-				0x0 0xff63c000 0x0 0x2000>; /*hiu reg base*/
+		reg = <0x0 0xff654000 0x0 0x2000>; /*tvafe reg base*/
 		reserve-iomap = "true";
 		tvafe_id = <0>;
 		//pinctrl-names = "default";
@@ -744,7 +810,7 @@
 
 	vbi {
 		compatible = "amlogic, vbi";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 83 1>;
 	};
 
@@ -1387,6 +1453,30 @@
 		};
 	};
 
+	hdmirx_a_mux:hdmirx_a_mux {
+			mux {
+				groups = "hdmirx_a_hpd", "hdmirx_a_det",
+					"hdmirx_a_sda", "hdmirx_a_sck";
+				function = "hdmirx_a";
+			};
+		};
+
+		hdmirx_b_mux:hdmirx_b_mux {
+			mux {
+				groups = "hdmirx_b_hpd", "hdmirx_b_det",
+					"hdmirx_b_sda", "hdmirx_b_sck";
+				function = "hdmirx_b";
+			};
+		};
+
+		hdmirx_c_mux:hdmirx_c_mux {
+			mux {
+				groups = "hdmirx_c_hpd", "hdmirx_c_det",
+					"hdmirx_c_sda", "hdmirx_c_sck";
+				function = "hdmirx_c";
+			};
+		};
+
 }; /* end of pinctrl_periphs */
 
 &audio_data{
@@ -1513,3 +1603,26 @@
        status = "disabled";
 };
 
+&aml_bt {
+	status = "okay";
+	reset-gpios = <&gpio       GPIOC_13       GPIO_ACTIVE_HIGH>;
+};
+
+&aml_wifi{
+	status = "okay";
+	dhd_static_buf;
+	interrupt-gpios = <&gpio       GPIOC_12       GPIO_ACTIVE_HIGH>;
+	power_on-gpios  = <&gpio       GPIOC_11       GPIO_ACTIVE_HIGH>;
+};
+
+&pwm_ab {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_b_c_pins>;
+	status = "okay";
+};
+
+&uart_A {
+	status = "okay";
+	pinctrl-0 = <&uart_a_pins>, <&uart_a_cts_rts_pins>;
+	uart-has-rtscts;
+};

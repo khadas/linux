@@ -34,18 +34,32 @@
 		tsensor1 = &d_tsensor;
 	};
 
-	memory@0 {
+	memory@00000000 {
 		device_type = "memory";
-		reg = <0x0 0x80000000>;
+		linux,usable-memory = <0x000000 0x80000000>;
 	};
 
 	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* global autoconfigured region for contiguous allocations */
+		ramoops@0x07400000 {
+			compatible = "ramoops";
+			reg = <0x07400000 0x00100000>;
+			record-size = <0x20000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x80000>;
+			pmsg-size = <0x20000>;
+		};
+
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x400000>;
+			size = <0x3400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x05000000 0x400000>;
+			alloc-ranges = <0x05000000 0x3400000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -59,7 +73,15 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x8000000>;
+			size = <0x6400000>;
+			alignment = <0x400000>;
+		};
+
+		ion_fb_reserved:linux,ion-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1920x1080x4x3 round up 4M align */
+			size = <0x1c00000>;
 			alignment = <0x400000>;
 		};
 		/*di CMA pool */
@@ -89,16 +111,16 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x1b000000>;
-			alignment = <0x0 0x400000>;
+			size = <0x1b000000>;
+			alignment = <0x400000>;
 			linux,contiguous-region;
 		};
 
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
-			size = <0x0 0x0>;
-			alignment = <0x0 0x100000>;
+			size = <0x0>;
+			alignment = <0x100000>;
 			//no-map;
 		};
 
@@ -302,6 +324,30 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
+	};
+
+	gpio_keypad{
+		compatible = "amlogic, gpio_keypad";
+		status = "okay";
+		scan_period = <20>;
+		key_num = <1>;
+		key_name = "bluetooth";
+		key_code = <600>;
+		key-gpios = <&gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
+		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
+	};
+
+	adc_keypad {
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "vol-", "vol+", "power";
+		key_num = <3>;
+		io-channels = <&saradc 0>;
+		io-channel-names = "key-chan-0";
+		key_chan = <0 0 0>;
+		key_code = <114 115 116>;
+		key_val = <630 910 20>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40>;
 	};
 
 	provisionkey {
@@ -643,12 +689,6 @@
 
 	audiolocker: locker {
 		compatible = "amlogic, audiolocker";
-		clocks = <&clkaudio CLKID_AUDIO_LOCKER_OUT
-				&clkaudio CLKID_AUDIO_LOCKER_IN
-				&clkaudio CLKID_AUDIO_MCLK_D
-				&clkaudio CLKID_AUDIO_MCLK_E
-				&clkc CLKID_MPLL1
-				&clkc CLKID_MPLL2>;
 		clock-names = "lock_out", "lock_in", "out_src",
 					"in_src", "out_calc", "in_ref";
 		interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
@@ -656,8 +696,7 @@
 		frequency = <49000000>; /* pll */
 		dividor = <49>; /* locker's parent */
 		status = "disabled";
-	};
-	/* Audio Related end */
+	};/* Audio Related end */
 
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";
@@ -1179,12 +1218,12 @@
 	};
 
 	tdmout_c:tdmout_c {
-		mux { /* GPIOA_12, GPIOA_13, GPIOA_8, GPIOA_7*/
+		mux { /* GPIOA_12, GPIOA_13 */
 			groups = "tdmc_sclk_a",
-				"tdmc_fs_a",
-				"tdmc_dout0_a"
-				/*,	"tdmc_dout2",
-				 * "tdmc_dout3"
+				"tdmc_fs_a"
+				/*, "tdmc_dout0_a"
+				 *,	"tdmc_dout2"
+				 *, "tdmc_dout3"
 				 */;
 			function = "tdmc_out";
 		};
@@ -1538,6 +1577,10 @@
 	logo_addr = "0x7f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
+};
+
+&amhdmitx {
+	status = "okay";
 };
 
 /*if you want to use vdin just modify status to "ok"*/

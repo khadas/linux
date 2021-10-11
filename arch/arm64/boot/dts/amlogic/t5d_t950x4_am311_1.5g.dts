@@ -500,6 +500,7 @@
 		ts2 = "parallel";
 		ts2_control = <0>;
 		ts2_invert = <0>;
+		tsin_deglitch = <1>;
 
 		clocks = <&clkc CLKID_DEMUX
 		&clkc CLKID_AHB_ARB0
@@ -592,6 +593,7 @@
 		 * bit2:support 10bit
 		 * bit3:support 12bit
 		 * bit4:support yuv422 10bit full pack mode (from txl new add)
+		 * bit5:force yuv422 to yuv444 malloc (for vdin0 debug)
 		 * bit8:use 8bit  at 4k_50/60hz_10bit
 		 * bit9:use 10bit at 4k_50/60hz_10bit
 		 */
@@ -622,6 +624,7 @@
 		interrupts = <0 85 1>;
 		rdma-irq = <4>;
 		vdin_id = <1>;
+		frame_buff_num = <4>;
 		/*vdin write mem color depth support:
 		 *bit0:support 8bit
 		 *bit1:support 9bit

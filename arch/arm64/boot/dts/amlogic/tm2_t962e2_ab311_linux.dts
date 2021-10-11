@@ -1589,3 +1589,27 @@
 &lut_dma {
 	status = "okay";
 };
+
+&aml_bt {
+	status = "okay";
+	reset-gpios = <&gpio       GPIOC_13       GPIO_ACTIVE_HIGH>;
+};
+
+&aml_wifi{
+	status = "okay";
+	dhd_static_buf;
+	interrupt-gpios = <&gpio       GPIOC_12       GPIO_ACTIVE_HIGH>;
+	power_on-gpios  = <&gpio       GPIOC_11       GPIO_ACTIVE_HIGH>;
+};
+
+&pwm_ab {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_b_c_pins>;
+	status = "okay";
+};
+
+&uart_A {
+	status = "okay";
+	pinctrl-0 = <&uart_a_pins>, <&uart_a_cts_rts_pins>;
+	uart-has-rtscts;
+};

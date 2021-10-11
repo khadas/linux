@@ -211,6 +211,20 @@
 			<0xfe0102dc 0x4>; /*SYSCTRL_STICKY_REG7*/
 	};
 
+	cpu_info {
+		compatible = "amlogic, cpuinfo";
+		status = "okay";
+		cpuinfo_cmd = <0x82000044>;
+	};
+
+	soc_info {
+		compatible = "amlogic, socdata";
+		reg= <0xfe010000 0x8 0xfe010180 0x4>;
+		read_nocsdata_cmd =<0x82000039>;
+		write_nocsdata_cmd=<0x82000038>;
+		auth_reg_ops_cmd=<0x820000f0>;
+	};
+
 	aml_reboot {
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
@@ -1633,6 +1647,20 @@
 		interrupt-names = "vpu_security";
 	};
 
+	dmx_aucpu: aucpu {
+		compatible = "amlogic, aucpu";
+		dev_name = "aml_aucpu";
+		status = "okay";
+		interrupts = <0 77 1>;
+		interrupt-names = "aucpu_irq";
+		#address-cells=<1>;
+		#size-cells=<1>;
+		ranges;
+		io_reg_base{
+			reg = <0xfe09e080 0x100>;
+		};
+	};
+
 	ge2d {
 		compatible = "amlogic, ge2d-sc2";
 		status = "okay";
@@ -1673,6 +1701,75 @@
 			pwms = <&pwm_ef 2 30500 0>;
 			duty-cycle = <15250>;
 			times = <12>;
+		};
+	};
+
+	efuseburn: efuse_burn {
+		compatible = "amlogic, efuseburn";
+		efuse_pattern_size = <0x1200>;
+		status = "okay";
+	};
+	efusecheck: efusecheck{
+		maincmd = <0x8200003E>;
+		checknum = <3>;
+		check0 = <&check_0>;
+		check1 = <&check_1>;
+		check2 = <&check_2>;
+		check_0:check_0{
+			checkname = "dgpk1";
+			subcmd = <0x1000>;
+		};
+		check_1:check_1{
+			checkname = "dgpk2";
+			subcmd = <0x1001>;
+		};
+		check_2:check_2{
+			checkname = "aud_id";
+			subcmd = <0x1002>;
+		};
+	};
+	efuse: efuse{
+		compatible = "amlogic, efuse";
+		reg=<0xfe440040 0x4>;
+		secureboot_mask = <0x00000c00>;
+		mem_size = <0x100000>;
+		read_cmd = <0x82000030>;
+		write_cmd = <0x82000031>;
+		get_max_cmd = <0x82000033>;
+		mem_in_base_cmd = <0x82000020>;
+		mem_out_base_cmd = <0x82000021>;
+		efuse_pattern_size = <0x1200>;
+		key = <&efusekey>;
+		check = <&efusecheck>;
+		clock-names = "efuse_clk";
+		status = "okay";
+	};
+
+	efusekey:efusekey{
+		keynum = <4>;
+		key0 = <&key_0>;
+		key1 = <&key_1>;
+		key2 = <&key_2>;
+		key3 = <&key_3>;
+		key_0:key_0{
+			keyname = "mac";
+			offset = <0>;
+			size = <6>;
+		};
+		key_1:key_1{
+			keyname = "mac_bt";
+			offset = <6>;
+			size = <6>;
+		};
+		key_2:key_2{
+			keyname = "mac_wifi";
+			offset = <12>;
+			size = <6>;
+		};
+		key_3:key_3{
+			keyname = "usid";
+			offset = <18>;
+			size = <16>;
 		};
 	};
 };
@@ -2388,6 +2485,103 @@
 			function = "remote_out";
 		};
 	};
+
+	sd_iso7816_pins:sd_iso7816_pins {
+		mux {
+			groups = "iso7816_clk_c",
+				"iso7816_data_c";
+			function = "iso7816";
+			input-enable;
+			bias-pull-down;
+		};
+	};
+
+	iso7816_pins_mode_0:iso7816_pins_mode_0 {
+		mux {
+			groups = "iso7816_data_c";
+			function = "iso7816";
+			input-enable;
+			bias-pull-down;
+		};
+	};
+
+	iso7816_pins_mode_1:iso7816_pins_mode_1 {
+		mux {
+			groups = "iso7816_data_x";
+			function = "iso7816";
+			input-enable;
+			bias-pull-down;
+		};
+	};
+
+	iso7816_pins_mode_2:iso7816_pins_mode_2 {
+		mux {
+			groups = "iso7816_data_h";
+			function = "iso7816";
+			input-enable;
+			bias-pull-down;
+		};
+	};
+
+	iso7816_pin_data_m_0_h:iso7816_pin_data_m_0_h {
+		mux {
+			groups = "GPIOC_6";
+			function = "gpio_periphs";
+			output-high;
+			bias-pull-up;
+			drive-strength = <3>;
+		};
+	};
+
+	iso7816_pin_data_m_1_h:iso7816_pin_data_m_1_h {
+		mux {
+			groups = "GPIOX_9";
+			function = "gpio_periphs";
+			output-high;
+			bias-pull-up;
+			drive-strength = <3>;
+		};
+	};
+
+	iso7816_pin_data_m_2_h:iso7816_pin_data_m_2_h {
+		mux {
+			groups = "GPIOH_7";
+			function = "gpio_periphs";
+			output-high;
+			bias-pull-up;
+			drive-strength = <3>;
+		};
+	};
+
+	iso7816_pin_data_m_0_l:iso7816_pin_data_m_0_l {
+		mux {
+			groups = "GPIOC_6";
+			function = "gpio_periphs";
+			output-low;
+			bias-pull-up;
+			drive-strength = <3>;
+		};
+	};
+
+	iso7816_pin_data_m_1_l:iso7816_pin_data_m_1_l {
+		mux {
+			groups = "GPIOX_9";
+			function = "gpio_periphs";
+			output-low;
+			bias-pull-up;
+			drive-strength = <3>;
+		};
+	};
+
+	iso7816_pin_data_m_2_l:iso7816_pin_data_m_2_l {
+		mux {
+			groups = "GPIOH_7";
+			function = "gpio_periphs";
+			output-low;
+			bias-pull-up;
+			drive-strength = <3>;
+		};
+	};
 };
 
 &gpu{
@@ -2401,6 +2595,23 @@
 	interrupt-names = "GPU", "MMU", "JOB";
 	clk_cntl_reg = <0x57>;
 
+	clocks = <&clkc CLKID_MALI>;
+	clock-names = "gpu_mux";
+
+	/*
+	 * Mali clocking is provided by two identical clock paths
+	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
+	 * free mux to safely change frequency while running.
+	 */
+	assigned-clocks = <&clkc CLKID_MALI_0_SEL>,
+			  <&clkc CLKID_MALI_0>,
+			  <&clkc CLKID_MALI>; /* Glitch free mux */
+	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
+				 <0>, /* Do Nothing */
+				 <&clkc CLKID_MALI_0>;
+	assigned-clock-rates = <0>, /* Do Nothing */
+				   <800000000>,
+				   <0>; /* Do Nothing */
 	tbl =  <&dvfs285_cfg
 		&dvfs400_cfg
 		&dvfs500_cfg

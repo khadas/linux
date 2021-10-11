@@ -631,11 +631,12 @@
 	dvbci {
 		compatible = "amlogic, dvbci";
 		dev_name = "dvbci";
+		le_enable_level = <1>; /*LE pin enable level*/
 		io_type = <4>; /* 0=iobus,1=spi,2=cimax,3=spi-t312 4:T5D,ci bus*/
 		/*gpio pin define*/
 		pinctrl-names= "ci_ts_pins", "ci_addr_pins";
-		pinctrl-0=<&dvb_ci_bus_pins &ci_ts_pins>;
-		pinctrl-1=<&dvb_ci_bus_pins &ci_addr_pins>;
+		pinctrl-0=<&dvb_ci_bus_pins &ci_ts_pins &ci_ts_clk_pins>;
+		pinctrl-1=<&dvb_ci_bus_pins &ci_addr_pins &ci_gpio_pins>;
 		reg = <0xFE080000 0x1FFF>;
 		/*irq define*/
 		interrupts = <0 186 1
@@ -646,6 +647,7 @@
 			/*gpio define  GPIOM_27 GPIOM_28*/
 			cd_pin1 = <&gpio       GPIOM_27       GPIO_ACTIVE_HIGH>;
 			pwr_pin = <&gpio       GPIOM_28       GPIO_ACTIVE_HIGH>;
+			le_pin = <&gpio       GPIOM_30       GPIO_ACTIVE_HIGH>;
 		};
 	};
 
@@ -660,7 +662,7 @@
 		pinctrl-2=<&dtvdemod_rf_agc_pins>;
 		lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>;
 		lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>;
-		interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 87 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "demod_isr";
 		power-domains = <&pwrdm PDID_T3_DEMOD>;
 		clocks = <&clkc CLKID_DEMOD_32K>;

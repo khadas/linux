@@ -12,6 +12,7 @@ Required properties:
 				 or "goodix,gt9271"
 				 or "goodix,gt928"
 				 or "goodix,gt967"
+				 or "goodix,gt738x"
  - reg			: I2C address of the chip. Should be 0x5d or 0x14
  - interrupts		: Interrupt to which the chip is connected
 

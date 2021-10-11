@@ -177,6 +177,25 @@
 			};
 		};
 
+		demux: demux {
+			compatible = "amlogic, dmx";
+			status = "okay";
+
+			interrupts = <GIC_SPI 23 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 5 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 53 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 19 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 25 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 18 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 24 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "demux0_irq",
+				"demux1_irq",
+				"demux2_irq",
+				"dvr0_irq",
+				"dvr1_irq",
+				"dvrfill0_fill",
+				"dvrfill1_flush";
+		};
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
@@ -2048,6 +2067,22 @@
 			function = "gpio_periphs";
 			bias-pull-down;
 			drive-strength-microamp = <4000>;
+		};
+	};
+	dvb_p_ts2_pins: dvb_p_ts2_pins {
+		mux {
+			groups = "tsin_b_d0",
+			"tsin_b_d1",
+			"tsin_b_d2",
+			"tsin_b_d3",
+			"tsin_b_d4",
+			"tsin_b_d5",
+			"tsin_b_d6",
+			"tsin_b_d7",
+			"tsin_b_clk",
+			"tsin_b_sop",
+			"tsin_b_valid";
+			function = "tsin_b";
 		};
 	};
 };

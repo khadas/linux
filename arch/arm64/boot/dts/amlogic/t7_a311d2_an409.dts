@@ -1317,6 +1317,60 @@
 			function = "tdm";
 		};
 	};
+	lcd_vbyone_a_off_pins: lcd_vbyone_a_off_pin {
+		mux {
+			groups = "GPIOY_10","GPIOY_12";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
+	lcd_vbyone_b_off_pins: lcd_vbyone_b_off_pin {
+		mux {
+			groups = "GPIOY_11","GPIOY_13";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
+	lcd_edp_a_off_pins: lcd_edp_a_off_pin {
+		mux {
+			groups = "GPIOY_10";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
+	lcd_edp_b_off_pins: lcd_edp_b_off_pin {
+		mux {
+			groups = "GPIOY_11";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
+	bl_pwm_vs_on_pins:bl_pwm_vs_on_pin {
+		mux {
+			groups = "pwm_vs_y";
+			function = "pwm_vs";
+		};
+	};
+
+	bl_pwm_off_pins:bl_pwm_off_pin {
+		mux {
+			groups = "GPIOY_1";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
+
+	bl1_pwm_off_pins:bl1_pwm_off_pin {
+		mux {
+			groups = "GPIOY_8";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
 };
 
 &pinctrl_audio {

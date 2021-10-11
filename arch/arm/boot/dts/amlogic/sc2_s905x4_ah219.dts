@@ -35,18 +35,32 @@
 		tsensor1 = &d_tsensor;
 	};
 
-	memory@0 {
+	memory@00000000 {
 		device_type = "memory";
-		reg = <0x0 0x80000000>;
+		linux,usable-memory = <0x000000 0x80000000>;
 	};
 
 	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		/* global autoconfigured region for contiguous allocations */
+		ramoops@0x07400000 {
+			compatible = "ramoops";
+			reg = <0x07400000 0x00100000>;
+			record-size = <0x20000>;
+			console-size = <0x40000>;
+			ftrace-size = <0x80000>;
+			pmsg-size = <0x20000>;
+		};
+
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x400000>;
+			size = <0x3400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x05000000 0x400000>;
+			alloc-ranges = <0x05000000 0x3400000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -60,7 +74,15 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x8000000>;
+			size = <0x6400000>;
+			alignment = <0x400000>;
+		};
+
+		ion_fb_reserved:linux,ion-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1920x1080x4x3 round up 4M align */
+			size = <0x1c00000>;
 			alignment = <0x400000>;
 		};
 		/*di CMA pool */
@@ -98,8 +120,8 @@
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 				compatible = "amlogic, codec-mm-reserved";
-				size = <0x0 0x0>;
-				alignment = <0x0 0x100000>;
+				size = <0x0>;
+				alignment = <0x100000>;
 				//no-map;
 		};
 
@@ -303,6 +325,30 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
+	};
+
+	gpio_keypad{
+		compatible = "amlogic, gpio_keypad";
+		status = "okay";
+		scan_period = <20>;
+		key_num = <1>;
+		key_name = "power";
+		key_code = <116>;
+		key-gpios = <&gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
+		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
+	};
+
+	adc_keypad {
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "menu", "vol-", "vol+", "esc", "home";
+		key_num = <5>;
+		io-channels = <&saradc 2>;
+		io-channel-names = "key-chan-2";
+		key_chan = <2 2 2 2 2>;
+		key_code = <139 114 115 1 102>;
+		key_val = <0 143 266 389 512>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40 40>;
 	};
 
 	provisionkey {
@@ -573,7 +619,7 @@
 			 */
 			suffix-name = "alsaPORT-pdm-builtinmic";
 			cpu {
-				sound-dai = <&apdm>;
+				sound-dai = <&pdm>;
 			};
 			codec {
 				sound-dai = <&dummy_codec>;
@@ -639,14 +685,9 @@
 		compatible = "amlogic, picdec";
 		status = "okay";
 	};
+
 	audiolocker: locker {
 		compatible = "amlogic, audiolocker";
-		clocks = <&clkaudio CLKID_AUDIO_LOCKER_OUT
-				&clkaudio CLKID_AUDIO_LOCKER_IN
-				&clkaudio CLKID_AUDIO_MCLK_D
-				&clkaudio CLKID_AUDIO_MCLK_E
-				&clkc CLKID_MPLL1
-				&clkc CLKID_MPLL2>;
 		clock-names = "lock_out", "lock_in", "out_src",
 					"in_src", "out_calc", "in_ref";
 		interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
@@ -654,8 +695,7 @@
 		frequency = <49000000>; /* pll */
 		dividor = <49>; /* locker's parent */
 		status = "disabled";
-	};
-	/* Audio Related end */
+	};/* Audio Related end */
 
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";
@@ -881,7 +921,7 @@
 
 		status = "okay";
 	};
-	apdm: pdm {
+	pdm: pdm {
 		compatible = "amlogic, sc2-snd-pdm";
 		#sound-dai-cells = <0>;
 
@@ -1177,12 +1217,12 @@
 	};
 
 	tdmout_c:tdmout_c {
-		mux { /* GPIOA_12, GPIOA_13, GPIOA_8, GPIOA_7*/
+		mux { /* GPIOA_12, GPIOA_13 */
 			groups = "tdmc_sclk_a",
-				"tdmc_fs_a",
-				"tdmc_dout0_a"
-				/*,	"tdmc_dout2",
-				 * "tdmc_dout3"
+				"tdmc_fs_a"
+				/*, "tdmc_dout0_a"
+				 *,	"tdmc_dout2"
+				 *, "tdmc_dout3"
 				 */;
 			function = "tdmc_out";
 		};
@@ -1203,9 +1243,12 @@
 	};
 
 	pdmin: pdmin {
-		mux { /* GPIOC_0, GPIOC_4 */
-			groups = "pdm_din0_c",
-			"pdm_dclk_c";
+		mux { /* GPIOX_0, GPIOX_1, GPIOX_2, GPIOX_3, GPIOX_4 */
+			groups = "pdm_din0_x",
+				"pdm_din1_x",
+				"pdm_din2_x",
+				"pdm_din3_x",
+				"pdm_dclk_x";
 			function = "pdm";
 		};
 	};
@@ -1266,6 +1309,10 @@
 	};
 }; /* end of periphs_pinctrl */
 
+&audio_data {
+	status = "okay";
+};
+
 &dwc2_a {
 	status = "okay";
 	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
@@ -1292,6 +1339,12 @@
 &pcie {
 	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
 	status = "disable";
+};
+
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins2>;
+	pinctrl-names = "default";
+	status = "disabled";
 };
 
 /* SDIO */
@@ -1532,6 +1585,10 @@
 	logo_addr = "0x7f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
+};
+
+&amhdmitx {
+	status = "okay";
 };
 
 /*if you want to use vdin just modify status to "ok"*/

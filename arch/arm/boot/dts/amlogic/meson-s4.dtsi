@@ -190,6 +190,14 @@
 		cpuinfo_cmd = <0x82000044>;
 	};
 
+	soc_info {
+		compatible = "amlogic, socdata";
+		reg= <0xfe010000 0x8 0xfe010180 0x4>;
+		read_nocsdata_cmd =<0x82000039>;
+		write_nocsdata_cmd=<0x82000038>;
+		auth_reg_ops_cmd=<0x820000f0>;
+	};
+
 	aml_reboot {
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
@@ -1994,6 +2002,76 @@
 	state_led: state_led {
 		compatible = "amlogic,state-led-aocpu";
 		status = "disabled";
+	};
+
+	efuseburn: efuse_burn {
+		compatible = "amlogic, efuseburn";
+		efuse_pattern_size = <0x600>;
+		status = "okay";
+	};
+	efusecheck: efusecheck{
+		maincmd = <0x8200003E>;
+		checknum = <3>;
+		check0 = <&check_0>;
+		check1 = <&check_1>;
+		check2 = <&check_2>;
+		check_0:check_0{
+			checkname = "dgpk1";
+			subcmd = <0x1000>;
+		};
+		check_1:check_1{
+			checkname = "dgpk2";
+			subcmd = <0x1001>;
+		};
+		check_2:check_2{
+			checkname = "aud_id";
+			subcmd = <0x1002>;
+		};
+	};
+
+	efuse: efuse{
+		compatible = "amlogic, efuse";
+		reg=<0xfe440040 0x4>;
+		secureboot_mask = <0x00000c00>;
+		mem_size = <0x100000>;
+		read_cmd = <0x82000030>;
+		write_cmd = <0x82000031>;
+		get_max_cmd = <0x82000033>;
+		mem_in_base_cmd = <0x82000020>;
+		mem_out_base_cmd = <0x82000021>;
+		efuse_pattern_size = <0x600>;
+		key = <&efusekey>;
+		check = <&efusecheck>;
+		clock-names = "efuse_clk";
+		status = "okay";
+	};
+
+	efusekey:efusekey{
+		keynum = <4>;
+		key0 = <&key_0>;
+		key1 = <&key_1>;
+		key2 = <&key_2>;
+		key3 = <&key_3>;
+		key_0:key_0{
+			keyname = "mac";
+			offset = <0>;
+			size = <6>;
+		};
+		key_1:key_1{
+			keyname = "mac_bt";
+			offset = <6>;
+			size = <6>;
+		};
+		key_2:key_2{
+			keyname = "mac_wifi";
+			offset = <12>;
+			size = <6>;
+		};
+		key_3:key_3{
+			keyname = "usid";
+			offset = <18>;
+			size = <16>;
+		};
 	};
 };
 
