@@ -1666,8 +1666,10 @@ static void update_file_cache(struct filecache_stat *fs,
 					r = record_fct(page, fct, &fs->files,
 						       &fct_root, mc, a, l);
 					/* some data may lost */
-					if (r == -ERANGE)
+					if (r == -ERANGE) {
+						spin_unlock_irq(&tmp->lru_lock);
 						goto out;
+					}
 					if (r) {
 						if (a)
 							an++;
