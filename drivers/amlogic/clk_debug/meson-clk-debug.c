@@ -81,7 +81,7 @@ static ssize_t measure_write(struct file *file, const char __user *buffer,
 {
 	int ret;
 	char input[5];
-	unsigned int id, rate;
+	unsigned int id = 0, rate;
 
 	count = min_t(size_t, count, (sizeof(input) - 1));
 	if (copy_from_user(input, buffer, count))
@@ -115,7 +115,7 @@ static ssize_t enable_write(struct file *file, const char __user *buffer,
 {
 	int ret;
 	char *input;
-	unsigned int enable;
+	unsigned int enable = 0;
 
 	input = kzalloc(count, GFP_KERNEL);
 	if (!input) {
@@ -161,7 +161,7 @@ static ssize_t rate_write(struct file *file, const char __user *buffer,
 {
 	int ret;
 	char *input;
-	unsigned long rate;
+	unsigned long rate = 0;
 
 	input = kzalloc(count, GFP_KERNEL);
 	if (!input) {
@@ -249,7 +249,7 @@ static ssize_t secure_reg_write(struct file *file, const char __user *buffer,
 {
 	int ret;
 	char *input;
-	unsigned long reg;
+	unsigned long reg = 0;
 	struct arm_smccc_res res;
 
 	input = kzalloc(count, GFP_KERNEL);
