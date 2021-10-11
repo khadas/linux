@@ -18,7 +18,7 @@ static int hdr_check_state(struct meson_vpu_block *vblk,
 
 	//vpu_block_check_input(vblk, state, mvps);
 
-	DRM_DEBUG("%s set_state called.\n", hdr->base.name);
+	DRM_DEBUG("%s check_state called.\n", hdr->base.name);
 	return 0;
 }
 

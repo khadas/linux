@@ -39,6 +39,7 @@ $(MESON_DRM_MODULE_NAME)-y += meson_drv.o meson_plane.o \
                               vpu-hw/meson_osd_scaler.o \
                               vpu-hw/meson_vpu_osdblend.o \
                               vpu-hw/meson_vpu_hdr_dv.o \
-                              vpu-hw/meson_vpu_postblend.o
+                              vpu-hw/meson_vpu_postblend.o \
+                              vpu-hw/meson_vpu_global_mif.o \
 
 ccflags-y += -I$(srctree)/$(src)/vpu-hw -I$(srctree)/$(src)

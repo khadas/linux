@@ -6,7 +6,7 @@
 #ifndef _MESON_VPU_OSD_MIF_H_
 #define _MESON_VPU_OSD_MIF_H_
 
-#define HW_OSD_MIF_NUM 3
+#define HW_OSD_MIF_NUM 4
 #define MAX_HOLD_LINE     0x1f
 #define MIN_HOLD_LINE     0x04
 #define VIU1_DEFAULT_HOLD_LINE  0x08
@@ -104,6 +104,27 @@
 #define VIU_OSD3_PROT_CTRL 0x3d9e
 #define VIU_OSD3_MALI_UNPACK_CTRL 0x3d9f
 #define VIU_OSD3_DIMM_CTRL 0x3da0
+
+#define VIU_OSD4_CTRL_STAT 0x3dc0
+#define VIU_OSD4_CTRL_STAT2 0x3dc1
+#define VIU_OSD4_COLOR_ADDR 0x3dc2
+#define VIU_OSD4_COLOR 0x3dc3
+#define VIU_OSD4_TCOLOR_AG0 0x3dc4
+#define VIU_OSD4_TCOLOR_AG1 0x3dc5
+#define VIU_OSD4_TCOLOR_AG2 0x3dc6
+#define VIU_OSD4_TCOLOR_AG3 0x3dc7
+#define VIU_OSD4_BLK0_CFG_W0 0x3dc8
+#define VIU_OSD4_BLK0_CFG_W1 0x3dcc
+#define VIU_OSD4_BLK0_CFG_W2 0x3dd0
+#define VIU_OSD4_BLK0_CFG_W3 0x3dd4
+#define VIU_OSD4_BLK0_CFG_W4 0x3dd8
+#define VIU_OSD4_BLK1_CFG_W4 0x3dd9
+#define VIU_OSD4_BLK2_CFG_W4 0x3dda
+#define VIU_OSD4_FIFO_CTRL_STAT 0x3ddc
+#define VIU_OSD4_TEST_RDDATA 0x3ddd
+#define VIU_OSD4_PROT_CTRL 0x3dde
+#define VIU_OSD4_MALI_UNPACK_CTRL 0x3ddf
+#define VIU_OSD4_DIMM_CTRL 0x3de0
 
 struct osd_mif_reg_s {
 	u32 viu_osd_ctrl_stat;

@@ -33,6 +33,7 @@
 #include "meson_plane.h"
 #include "meson_crtc.h"
 #include "meson_vpu_pipeline.h"
+#include "vpu-hw/meson_vpu_global_mif.h"
 
 #define AM_VOUT_NULL_MODE "null"
 /* vpp crc */
@@ -262,10 +263,6 @@ static int am_meson_vpu_bind(struct device *dev,
 	ret = of_property_read_u8(dev->of_node,
 				  "osd_ver", &pipeline->osd_version);
 
-	#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	meson_vpu_reg_handle_register();
-	#endif
-
 	if (0)
 		am_meson_vpu_power_config(1);
 	else
@@ -293,6 +290,15 @@ static int am_meson_vpu_bind(struct device *dev,
 			return ret;
 		/* IRQ is initially disabled; it gets enabled in crtc_enable */
 		disable_irq(amcrtc->irq);
+	}
+
+	/* HW config for different VPUs */
+	if (pipeline->osd_version == OSD_V7) {
+		fix_vpu_clk2_default_regs();
+		/* OSD3  uses VPP0*/
+		osd_set_vpp_path_default(3, 0);
+		/* OSD4  uses VPP0*/
+		osd_set_vpp_path_default(4, 0);
 	}
 
 	irq_init_done = 1;
@@ -336,6 +342,7 @@ static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
 	{.compatible = "amlogic, meson-t5-vpu",},
 	{.compatible = "amlogic, meson-sc2-vpu",},
 	{.compatible = "amlogic, meson-s4-vpu",},
+	{.compatible = "amlogic, meson-t7-vpu",},
 	{}
 };
 
