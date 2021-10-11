@@ -18,6 +18,7 @@
 #include <dt-bindings/mailbox/amlogic,mbox.h>
 #include "meson-ir-map.dtsi"
 #include "mesong12a-bifrost.dtsi"
+#include <dt-bindings/memory/meson-p1-sid-map.h>
 / {
 	cpus:cpus {
 		#address-cells = <2>;
@@ -1663,6 +1664,7 @@
 			pcie-rst-mask = <0xff>;
 			power-domains = <&pwrdm PDID_P1_PCIE>;
 			status = "disabled";
+			iommu-map = <0x100 &smmu P1_SID_PCIE 0x10>;
 		};
 
 		pcie_ep: pcie-ep@0xe0000000 {
