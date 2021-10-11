@@ -82,6 +82,7 @@
 #include "cabc_aadc/cabc_aadc_fw.h"
 #include "hdr/am_hdr10_tmo_fw.h"
 #include "hdr/gamut_convert.h"
+#include "../../video_sink/vpp_pq.h"
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -362,9 +363,9 @@ static int nn_coring[11] = {
 	10, 8, 6, 4, 3, 2, 1, 1, 1, 1, 1
 };
 
-#define AIPQ_SCENE_MAX 22
+#define AIPQ_SCENE_MAX 25
 #define AIPQ_FUNC_MAX 10
-int aipq_ofst_table[AIPQ_SCENE_MAX][AIPQ_FUNC_MAX];
+#define AIPQ_SINGL_DATA_LEN 3
 
 static struct vpp_mtx_info_s mtx_info = {
 	MTX_NULL,
@@ -383,8 +384,56 @@ static struct vpp_mtx_info_s mtx_info = {
 
 static struct pre_gamma_table_s pre_gamma;
 struct eye_protect_s eye_protect;
-
 static int hist_chl;
+
+static void str_sapr_to_d(char *s, int *d, int n)
+{
+	int i, j, count;
+	long value;
+	char des[9] = {0};
+
+	count = (strlen(s) + n - 2) / (n - 1);
+	for (i = 0; i < count; i++) {
+		for (j = 0; j < n - 1; j++)
+			des[j] = s[j + i * (n - 1)];
+
+		des[n - 1] = '\0';
+		if (kstrtol(des, 10, &value) < 0)
+			return;
+		d[i] = value;
+	}
+}
+
+static void d_convert_str(int num,
+			  int num_num, char cur_s[],
+			  int char_bit, int bit_chose)
+{
+	char buf[9] = {0};
+	int i, count;
+
+	if (bit_chose == 10)
+		snprintf(buf, sizeof(buf), "%d", num);
+	else if (bit_chose == 16)
+		snprintf(buf, sizeof(buf), "%x", num);
+	count = strlen(buf);
+	if (count > 4)
+		count = 4;
+	for (i = 0; i < count; i++)
+		buf[i + char_bit] = buf[i];
+	for (i = 0; i < char_bit; i++)
+		buf[i] = '0';
+	count = strlen(buf);
+	for (i = 0; i < char_bit; i++)
+		buf[i] = buf[count - char_bit + i];
+	if (num_num > 0) {
+		for (i = 0; i < char_bit; i++)
+			cur_s[i + num_num * char_bit] =
+				buf[i];
+	} else {
+		for (i = 0; i < char_bit; i++)
+			cur_s[i] = buf[i];
+	}
+}
 
 /* vpp brightness/contrast/saturation/hue */
 int __init amvecm_load_pq_val(char *str)
@@ -2254,11 +2303,9 @@ static int parse_aipq_ofst_table(int *table_ptr,
 	unsigned int i;
 	unsigned int size = 0;
 
-	size = sizeof(int) * AIPQ_SCENE_MAX * AIPQ_FUNC_MAX;
-	memset(aipq_ofst_table, 0, size);
 	size = width * sizeof(int);
 	for (i = 0; i < height; i++)
-		memcpy(aipq_ofst_table[i], table_ptr + (i * width), size);
+		memcpy(vpp_pq_data[i], table_ptr + (i * width), size);
 
 	return 0;
 }
@@ -2277,9 +2324,10 @@ static long amvecm_ioctl(struct file *file,
 	struct vpp_pq_ctrl_s pq_ctrl;
 	enum meson_cpu_ver_e cpu_ver;
 	struct aipq_load_s aipq_load_table;
-	int *aipq_ofst_ptr = NULL;
-	int size;
-	//struct cms_data_s data;
+	char *aipq_char_data_ptr = NULL;
+	int *aipq_int_data_ptr = NULL;
+	int size, size1;
+	int aipq_data_length;
 	struct cm_color_md cm_color_mode;
 	struct table_3dlut_s *p3dlut;
 	int lut_order, lut_index;
@@ -2292,6 +2340,7 @@ static long amvecm_ioctl(struct file *file,
 	int tmp;
 	struct primary_s color_pr;
 	int cm_color = 0;
+
 	if (debug_amvecm & 2)
 		pr_info("[amvecm..] %s: cmd_nr = 0x%x\n",
 			__func__, _IOC_NR(cmd));
@@ -2815,22 +2864,44 @@ static long amvecm_ioctl(struct file *file,
 			aipq_load_table.height = AIPQ_SCENE_MAX;
 		if (aipq_load_table.width > AIPQ_FUNC_MAX)
 			aipq_load_table.width = AIPQ_FUNC_MAX;
-		size = aipq_load_table.height *
-			aipq_load_table.width *
-			sizeof(int);
-		aipq_ofst_ptr = kmalloc(size, GFP_KERNEL);
-		if (!aipq_ofst_ptr) {
+		aipq_data_length = AIPQ_SINGL_DATA_LEN *
+						aipq_load_table.height *
+						aipq_load_table.width;
+
+		size = (aipq_data_length + 1) * sizeof(char);
+		aipq_char_data_ptr = kmalloc(size, GFP_KERNEL);
+		if (!aipq_char_data_ptr) {
 			ret = -EFAULT;
-			pr_amvecm_dbg("aipq offset ptr kmalloc fail!!!\n");
+			pr_amvecm_dbg("aipq_char_data_ptr kmalloc fail!!!\n");
 			break;
 		}
+
+		size1 = aipq_load_table.height *
+			aipq_load_table.width *
+			sizeof(int);
+		aipq_int_data_ptr = kmalloc(size1, GFP_KERNEL);
+		if (!aipq_int_data_ptr) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("aipq_int_data_ptr kmalloc fail!!!\n");
+			break;
+		}
+
 		argp = (void __user *)aipq_load_table.table_ptr;
-		if (copy_from_user(aipq_ofst_ptr, argp, size)) {
+		if (copy_from_user(aipq_char_data_ptr, argp, size)) {
 			ret = -EFAULT;
 			pr_amvecm_dbg("aipq table copy from user fail\n");
 			break;
 		}
-		parse_aipq_ofst_table(aipq_ofst_ptr,
+
+		aipq_char_data_ptr[aipq_data_length] = '\0';
+		if (strlen(aipq_char_data_ptr) != aipq_data_length) {
+			pr_amvecm_dbg("aipq data length not eq 3*height*width!!!\n");
+			break;
+		}
+
+		str_sapr_to_d(aipq_char_data_ptr, aipq_int_data_ptr, 4);
+
+		parse_aipq_ofst_table(aipq_int_data_ptr,
 				      aipq_load_table.height,
 				      aipq_load_table.width);
 		break;
@@ -3060,7 +3131,8 @@ static long amvecm_ioctl(struct file *file,
 
 	kfree(vpp_pq_load_table);
 	kfree(hdr_tm);
-	kfree(aipq_ofst_ptr);
+	kfree(aipq_char_data_ptr);
+	kfree(aipq_int_data_ptr);
 	kfree(pre_gma_tb);
 	kfree(eye_prot);
 	// kfree(pre_tmo_reg);
@@ -3097,54 +3169,6 @@ static ssize_t amvecm_dnlp_debug_show(struct class *cla,
 	}
 
 	return 0;
-}
-
-static void str_sapr_to_d(char *s, int *d, int n)
-{
-	int i, j, count;
-	long value;
-	char des[9] = {0};
-
-	count = (strlen(s) + n - 2) / (n - 1);
-	for (i = 0; i < count; i++) {
-		for (j = 0; j < n - 1; j++)
-			des[j] = s[j + i * (n - 1)];
-		des[n - 1] = '\0';
-		if (kstrtol(des, 10, &value) < 0)
-			return;
-		d[i] = value;
-	}
-}
-
-static void d_convert_str(int num,
-			  int num_num, char cur_s[],
-			  int char_bit, int bit_chose)
-{
-	char buf[9] = {0};
-	int i, count;
-
-	if (bit_chose == 10)
-		snprintf(buf, sizeof(buf), "%d", num);
-	else if (bit_chose == 16)
-		snprintf(buf, sizeof(buf), "%x", num);
-	count = strlen(buf);
-	if (count > 4)
-		count = 4;
-	for (i = 0; i < count; i++)
-		buf[i + char_bit] = buf[i];
-	for (i = 0; i < char_bit; i++)
-		buf[i] = '0';
-	count = strlen(buf);
-	for (i = 0; i < char_bit; i++)
-		buf[i] = buf[count - char_bit + i];
-	if (num_num > 0) {
-		for (i = 0; i < char_bit; i++)
-			cur_s[i + num_num * char_bit] =
-				buf[i];
-	} else {
-		for (i = 0; i < char_bit; i++)
-			cur_s[i] = buf[i];
-	}
 }
 
 static ssize_t amvecm_dnlp_debug_store(struct class *cla,

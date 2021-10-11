@@ -11,6 +11,9 @@
 #define AI_SCENES_MAX 25
 #define SCENES_VALUE 10
 
+#define AI_SCENES_CUR_USE_MAX 7
+#define SCENES_CUR_USE_VALUE 6
+
 enum ai_scenes {
 	AI_SCENES_FACESKIN = 0,
 	AI_SCENES_BLUESKY,

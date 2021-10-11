@@ -11742,6 +11742,80 @@ static void set_video_window(struct disp_info_s *layer,
 		parsed[0], parsed[1], parsed[2], parsed[3]);
 }
 
+static void parse_param_to_char(char *buf_orig, char **parm)
+{
+	char *ps, *token;
+	unsigned int n = 0;
+	char delim1[3] = " ";
+	char delim2[2] = "\n";
+
+	ps = buf_orig;
+	strcat(delim1, delim2);
+	while (1) {
+		token = strsep(&ps, delim1);
+		if (!token)
+			break;
+		if (*token == '\0')
+			continue;
+		parm[n++] = token;
+	}
+}
+
+static void int_convert_str(int num, char cur_s[], int bit_chose)
+{
+	char buf[SCENES_CUR_USE_VALUE] = {0};
+	int i, count, cur_s_len;
+
+	if (bit_chose == 10)
+		snprintf(buf, sizeof(buf), "%d", num);
+	else if (bit_chose == 16)
+		snprintf(buf, sizeof(buf), "%x", num);
+
+	count = strlen(buf);
+	cur_s_len = strlen(cur_s);
+
+	buf[count] = ' ';
+
+	for (i = 0; i < count + 1; i++)
+		cur_s[i + cur_s_len] = buf[i];
+}
+
+static void str_sapr_conv(const char *s, unsigned int size, int *dest, int num)
+{
+	int i, j;
+	char *s1;
+	const char *end;
+	unsigned int len;
+	long value;
+
+	if (size <= 0 || !s)
+		return;
+
+	s1 = kmalloc(size + 1, GFP_KERNEL);
+	if (!s1)
+		return;
+
+	//len = sizeof(s);
+	len = size * num;
+	end = s;
+
+	j = 0;
+	while (len >= size) {
+		for (i = 0; i < size; i++)
+			s1[i] = end[i];
+		s1[size] = '\0';
+		if (kstrtoul(s1, 10, &value) < 0)
+			break;
+		*dest++ = value;
+		end = end + size;
+		len -= size;
+		j++;
+		if (j >= num)
+			break;
+	}
+	kfree(s1);
+}
+
 static ssize_t video_3d_scale_store(struct class *cla,
 				    struct class_attribute *attr,
 				    const char *buf, size_t count)
@@ -15243,6 +15317,84 @@ static ssize_t pq_data_store(struct class *cla,
 	return strnlen(buf, count);
 }
 
+static ssize_t aipq_dbg_data_show(struct class *cla,
+					struct class_attribute *attr,
+					char *buf)
+{
+	ssize_t len = 0;
+	char *stemp = NULL;
+	int i, j;
+	int stemp_len = AI_SCENES_CUR_USE_MAX * SCENES_CUR_USE_VALUE * 3;
+
+	stemp = kmalloc(stemp_len, GFP_KERNEL);
+	if (!stemp)
+		return 0;
+
+	memset(stemp, 0, stemp_len);
+
+	for (i = 0; i < AI_SCENES_CUR_USE_MAX; i++) {
+		for (j = 0; j < SCENES_CUR_USE_VALUE; j++) {
+			int_convert_str(vpp_pq_data[i][j],
+				stemp, 10);
+		}
+	}
+
+	len = sprintf(buf, "for_tool:%s\n", stemp);
+	kfree(stemp);
+
+	return len;
+}
+
+static ssize_t aipq_dbg_data_store(struct class *cla,
+			     struct class_attribute *attr,
+			     const char *buf, size_t count)
+{
+	int i, j;
+	char *buf_orig, *parm[8] = {NULL};
+	int aipq_data[AI_SCENES_CUR_USE_MAX * SCENES_CUR_USE_VALUE] = {0};
+
+	if (!buf)
+		return count;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	if (!buf_orig)
+		return -ENOMEM;
+
+	parse_param_to_char(buf_orig, (char **)&parm);
+
+	if (!strncmp(parm[0], "w", 1)) {
+		if (strlen(parm[1]) !=
+			AI_SCENES_CUR_USE_MAX * SCENES_CUR_USE_VALUE * 3) {
+			goto free_buf;
+		}
+
+		str_sapr_conv(parm[1], 3,
+		aipq_data,
+		AI_SCENES_CUR_USE_MAX * SCENES_CUR_USE_VALUE);
+
+		for (i = 0; i < AI_SCENES_CUR_USE_MAX; i++)
+			for (j = 0; j < SCENES_CUR_USE_VALUE; j++)
+				vpp_pq_data[i][j] =
+					aipq_data[i * SCENES_CUR_USE_VALUE + j];
+	} else if (!strncmp(parm[0], "r", 1)) {
+		int i, j;
+
+		for (i = 0; i < AI_SCENES_MAX; i++) {
+			for (j = 0; j < SCENES_VALUE; j++)
+				pr_info("%d   ", vpp_pq_data[i][j]);
+		}
+	} else {
+		pr_info("aipq_dbg cmd invalid!!!\n");
+	}
+
+	kfree(buf_orig);
+	return count;
+
+free_buf:
+	kfree(buf_orig);
+	return -EINVAL;
+}
+
 static ssize_t hscaler_8tap_enable_show(struct class *cla,
 					struct class_attribute *attr,
 					char *buf)
@@ -15795,7 +15947,7 @@ static ssize_t pps_auto_calc_show(struct class *cla,
 static ssize_t ai_pq_disable_show(struct class *cla,
 				  struct class_attribute *attr, char *buf)
 {
-	return snprintf(buf, 80, "ai_pq_disable: %d\n", ai_pq_disable);
+	return snprintf(buf, 80, "for_tool:%d\n", ai_pq_disable);
 }
 
 static ssize_t ai_pq_disable_store(struct class *cla,
@@ -15817,7 +15969,7 @@ static ssize_t ai_pq_disable_store(struct class *cla,
 static ssize_t ai_pq_debug_show(struct class *cla,
 				struct class_attribute *attr, char *buf)
 {
-	return snprintf(buf, 80, "ai_pq_debug: %d\n", ai_pq_debug);
+	return snprintf(buf, 80, "for_tool:%d\n", ai_pq_debug);
 }
 
 static ssize_t ai_pq_debug_store(struct class *cla,
@@ -15839,7 +15991,7 @@ static ssize_t ai_pq_debug_store(struct class *cla,
 static ssize_t ai_pq_value_show(struct class *cla,
 				struct class_attribute *attr, char *buf)
 {
-	return snprintf(buf, 80, "ai_pq_value: %d\n", ai_pq_value);
+	return snprintf(buf, 80, "for_tool:%d\n", ai_pq_value);
 }
 
 static ssize_t ai_pq_value_store(struct class *cla,
@@ -15861,7 +16013,7 @@ static ssize_t ai_pq_value_store(struct class *cla,
 static ssize_t ai_pq_policy_show(struct class *cla,
 				 struct class_attribute *attr, char *buf)
 {
-	return snprintf(buf, 80, "ai_pq_policy: %d\n", ai_pq_policy);
+	return snprintf(buf, 80, "for_tool:%d\n", ai_pq_policy);
 }
 
 static ssize_t ai_pq_policy_store(struct class *cla,
@@ -16615,6 +16767,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0644,
 		vpu_module_urgent_show,
 		vpu_module_urgent_set),
+	__ATTR(aipq_dbg,
+		0644,
+		aipq_dbg_data_show,
+		aipq_dbg_data_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
