@@ -172,14 +172,22 @@ meson_vpu_create_block(struct meson_vpu_block_para *para,
 	switch (para->type) {
 	case MESON_BLK_OSD:
 		blk_size = sizeof(struct meson_vpu_osd);
-		mvb = create_block(blk_size, para, &osd_ops, pipeline);
+		if (pipeline->osd_version != OSD_V7)
+			mvb = create_block(blk_size, para, &osd_ops, pipeline);
+		else
+			mvb = create_block(blk_size, para, &osd_ops_v7,
+					pipeline);
 
 		pipeline->osds[mvb->index] = to_osd_block(mvb);
 		pipeline->num_osds++;
 		break;
 	case MESON_BLK_AFBC:
 		blk_size = sizeof(struct meson_vpu_afbc);
-		mvb = create_block(blk_size, para, &afbc_ops, pipeline);
+		if (pipeline->osd_version != OSD_V7)
+			mvb = create_block(blk_size, para, &afbc_ops, pipeline);
+		else
+			mvb = create_block(blk_size, para, &afbc_ops_v7,
+					pipeline);
 
 		pipeline->afbc_osds[mvb->index] = to_afbc_block(mvb);
 		pipeline->num_afbc_osds++;
@@ -213,7 +221,12 @@ meson_vpu_create_block(struct meson_vpu_block_para *para,
 		break;
 	case MESON_BLK_VPPBLEND:
 		blk_size = sizeof(struct meson_vpu_postblend);
-		mvb = create_block(blk_size, para, &postblend_ops, pipeline);
+		if (pipeline->osd_version != OSD_V7)
+			mvb = create_block(blk_size, para, &postblend_ops,
+					pipeline);
+		else
+			mvb = create_block(blk_size, para, &postblend_ops_v7,
+					pipeline);
 
 		pipeline->postblends[mvb->index] = to_postblend_block(mvb);
 		pipeline->num_postblend++;
@@ -661,6 +674,7 @@ int vpu_topology_init(struct platform_device *pdev, struct meson_drm *priv)
 	struct device_node *np = dev->of_node;
 	struct device_node *child, *vpu_block_node;
 	struct meson_vpu_pipeline *pipeline;
+	int ret;
 
 	child = of_get_child_by_name(np, "vpu_topology");
 	if (!child)
@@ -675,6 +689,11 @@ int vpu_topology_init(struct platform_device *pdev, struct meson_drm *priv)
 	pipeline = kzalloc(sizeof(*pipeline), GFP_KERNEL);
 	if (!pipeline)
 		return -ENOMEM;
+
+	ret = of_property_read_u8(dev->of_node,
+				"osd_ver", &pipeline->osd_version);
+	if (ret)
+		DRM_ERROR("osd_ver is not configured!\n");
 
 	populate_vpu_pipeline(vpu_block_node, pipeline);
 	priv->pipeline = pipeline;

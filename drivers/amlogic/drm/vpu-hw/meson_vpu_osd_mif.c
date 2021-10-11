@@ -87,6 +87,28 @@ static struct osd_mif_reg_s osd_mif_reg[HW_OSD_MIF_NUM] = {
 		VIU_OSD3_PROT_CTRL,
 		VIU_OSD3_MALI_UNPACK_CTRL,
 		VIU_OSD3_DIMM_CTRL,
+	},
+	{
+		VIU_OSD4_CTRL_STAT,
+		VIU_OSD4_CTRL_STAT2,
+		VIU_OSD4_COLOR_ADDR,
+		VIU_OSD4_COLOR,
+		VIU_OSD4_TCOLOR_AG0,
+		VIU_OSD4_TCOLOR_AG1,
+		VIU_OSD4_TCOLOR_AG2,
+		VIU_OSD4_TCOLOR_AG3,
+		VIU_OSD4_BLK0_CFG_W0,
+		VIU_OSD4_BLK0_CFG_W1,
+		VIU_OSD4_BLK0_CFG_W2,
+		VIU_OSD4_BLK0_CFG_W3,
+		VIU_OSD4_BLK0_CFG_W4,
+		VIU_OSD4_BLK1_CFG_W4,
+		VIU_OSD4_BLK2_CFG_W4,
+		VIU_OSD4_FIFO_CTRL_STAT,
+		VIU_OSD4_TEST_RDDATA,
+		VIU_OSD4_PROT_CTRL,
+		VIU_OSD4_MALI_UNPACK_CTRL,
+		VIU_OSD4_DIMM_CTRL,
 	}
 };
 
@@ -308,6 +330,14 @@ void osd_mali_src_en(struct osd_mif_reg_s *reg, u8 osd_index, bool flag)
 	meson_vpu_write_reg_bits(OSD_PATH_MISC_CTRL, flag, (osd_index + 4), 1);
 }
 
+void osd_mali_src_en_v7(struct osd_mif_reg_s *reg, u8 osd_index, bool flag)
+{
+	meson_vpu_write_reg_bits(reg->viu_osd_blk0_cfg_w0, flag, 30, 1);
+
+	meson_vpu_write_reg_bits(OSD_PATH_MISC_CTRL, (osd_index + 1),
+			(osd_index * 4 + 16), 4);
+}
+
 /*osd endian mode
  * 1: little endian;0: big endian[for mali afbc input]
  */
@@ -436,6 +466,20 @@ static void osd_afbc_config(struct osd_mif_reg_s *reg,
 	osd_mem_mode(reg, afbc_en);
 }
 
+static void osd_afbc_config_v7(struct osd_mif_reg_s *reg,
+			    u8 osd_index, bool afbc_en)
+{
+	if (!afbc_en)
+		meson_vpu_write_reg_bits(reg->viu_osd_ctrl_stat2, 0, 1, 1);
+	else
+		meson_vpu_write_reg_bits(reg->viu_osd_ctrl_stat2, 1, 1, 1);
+
+	osd_mali_unpack_enable(reg, afbc_en);
+	osd_endian_mode(reg, !afbc_en);
+	osd_mem_mode(reg, 1);
+	osd_mali_src_en_v7(reg, osd_index, afbc_en);
+}
+
 static void osd_scan_mode_config(struct osd_mif_reg_s *reg, int scan_mode)
 {
 	if (scan_mode)
@@ -458,6 +502,14 @@ static void meson_drm_osd_canvas_free(void)
 	canvas_pool_free_canvas_table(&osd_canvas[0][0],
 				      sizeof(osd_canvas) /
 				      sizeof(osd_canvas[0][0]));
+}
+
+static void osd_linear_addr_config(struct osd_mif_reg_s *reg,
+		u64 phy_addr, u32 byte_stride)
+{
+	meson_vpu_write_reg(reg->viu_osd_blk1_cfg_w4, phy_addr >> 4);
+	meson_vpu_write_reg_bits(reg->viu_osd_blk2_cfg_w4,
+				byte_stride, 0, 12);
 }
 
 static int osd_check_state(struct meson_vpu_block *vblk,
@@ -497,9 +549,90 @@ static int osd_check_state(struct meson_vpu_block *vblk,
 	return 0;
 }
 
+/* the return stride unit is 128bit(16bytes) */
+static u32 line_stride_calc(u32 drm_format,
+		u32 hsize,
+		u32 stride_align_32bytes)
+{
+	u32 line_stride = 0;
+	u32 line_stride_32bytes;
+	u32 line_stride_64bytes;
+
+	switch (drm_format) {
+	/* 8-bit */
+	case DRM_FORMAT_R8:
+	case DRM_FORMAT_RGB332:
+	case DRM_FORMAT_BGR233:
+		line_stride = ((hsize << 3) + 127) >> 7;
+		break;
+
+		/* 16-bit */
+	case DRM_FORMAT_R16:
+	case DRM_FORMAT_RG88:
+	case DRM_FORMAT_GR88:
+	case DRM_FORMAT_XRGB4444:
+	case DRM_FORMAT_XBGR4444:
+	case DRM_FORMAT_RGBX4444:
+	case DRM_FORMAT_BGRX4444:
+	case DRM_FORMAT_ARGB4444:
+	case DRM_FORMAT_ABGR4444:
+	case DRM_FORMAT_RGBA4444:
+	case DRM_FORMAT_BGRA4444:
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_XBGR1555:
+	case DRM_FORMAT_RGBX5551:
+	case DRM_FORMAT_BGRX5551:
+	case DRM_FORMAT_ARGB1555:
+	case DRM_FORMAT_ABGR1555:
+	case DRM_FORMAT_RGBA5551:
+	case DRM_FORMAT_BGRA5551:
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+		line_stride = ((hsize << 4) + 127) >> 7;
+		break;
+
+		/* 24-bit */
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
+		line_stride = ((hsize << 4) + (hsize << 3) + 127) >> 7;
+		break;
+		/* 32-bit */
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_RGBX8888:
+	case DRM_FORMAT_BGRX8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_RGBA8888:
+	case DRM_FORMAT_BGRA8888:
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_RGBX1010102:
+	case DRM_FORMAT_BGRX1010102:
+	case DRM_FORMAT_ARGB2101010:
+	case DRM_FORMAT_ABGR2101010:
+	case DRM_FORMAT_RGBA1010102:
+	case DRM_FORMAT_BGRA1010102:
+		line_stride = ((hsize << 5) + 127) >> 7;
+		break;
+	}
+
+	line_stride_32bytes = ((line_stride + 1) >> 1) << 1;
+	line_stride_64bytes = ((line_stride + 3) >> 2) << 2;
+
+	/* need wr ddr is 32bytes aligned */
+	if (stride_align_32bytes)
+		line_stride = line_stride_32bytes;
+	else
+		line_stride = line_stride_64bytes;
+
+	return line_stride;
+}
+
 static void osd_set_state(struct meson_vpu_block *vblk,
 			  struct meson_vpu_block_state *state)
 {
+	struct meson_vpu_pipeline *pipeline;
 	struct meson_vpu_osd *osd;
 	struct meson_vpu_osd_state *mvos;
 	struct meson_vpu_pipeline_state *mvps;
@@ -521,6 +654,7 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	}
 
 	osd = to_osd_block(vblk);
+	pipeline = osd->base.pipeline;
 	mvos = to_osd_state(state);
 	crtc_index = mvos->crtc_index;
 
@@ -543,6 +677,9 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 
 	src_h = mvos->src_h + mvos->src_y;
 	byte_stride = mvos->byte_stride;
+	if (pipeline->osd_version == OSD_V7)
+		byte_stride = line_stride_calc(mvos->pixel_format,
+						mvos->src_w, 0);
 	phy_addr = mvos->phy_addr;
 	scope_src.h_start = mvos->src_x;
 	scope_src.h_end = mvos->src_x + mvos->src_w - 1;
@@ -555,13 +692,30 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	reverse_y = (mvos->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0;
 	osd_reverse_x_enable(reg, reverse_x);
 	osd_reverse_y_enable(reg, reverse_y);
-	canvas_config(canvas_index, phy_addr, byte_stride, src_h,
-		      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
-	osd_canvas_index[vblk->index] ^= 1;
-	osd_canvas_config(reg, canvas_index);
+	if (pipeline->osd_version == OSD_V7) {
+		osd_linear_addr_config(reg, phy_addr, byte_stride);
+		DRM_DEBUG("byte stride=0x%x,phy_addr=0x%pa\n",
+			  byte_stride, &phy_addr);
+	} else {
+		u32 canvas_index_idx = osd_canvas_index[vblk->index];
+
+		canvas_index = osd_canvas[vblk->index][canvas_index_idx];
+		canvas_config(canvas_index, phy_addr, byte_stride, src_h,
+				CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		osd_canvas_config(reg, canvas_index);
+		DRM_DEBUG("canvas_index[%d]=0x%x,phy_addr=0x%pa\n",
+			  canvas_index_idx, canvas_index, &phy_addr);
+		osd_canvas_index[vblk->index] ^= 1;
+	}
+
 	osd_input_size_config(reg, scope_src);
 	osd_color_config(reg, pixel_format, mvos->pixel_blend, afbc_en);
-	osd_afbc_config(reg, vblk->index, afbc_en);
+
+	if (pipeline->osd_version == OSD_V7)
+		osd_afbc_config_v7(reg, vblk->index, afbc_en);
+	else
+		osd_afbc_config(reg, vblk->index, afbc_en);
+
 	osd_premult_enable(reg, alpha_div_en);
 	osd_global_alpha_set(reg, global_alpha);
 	osd_scan_mode_config(reg, pipe->subs[crtc_index].mode.flags &
@@ -669,6 +823,7 @@ static void osd_dump_register(struct meson_vpu_block *vblk,
 
 static void osd_hw_init(struct meson_vpu_block *vblk)
 {
+	struct meson_vpu_pipeline *pipeline;
 	struct meson_vpu_osd *osd = to_osd_block(vblk);
 
 	if (!vblk || !osd) {
@@ -676,7 +831,14 @@ static void osd_hw_init(struct meson_vpu_block *vblk)
 		return;
 	}
 
-	meson_drm_osd_canvas_alloc();
+	pipeline = osd->base.pipeline;
+	if (!pipeline) {
+		DRM_DEBUG("hw_init break for NULL.\n");
+		return;
+	}
+
+	if (pipeline->osd_version != OSD_V7)
+		meson_drm_osd_canvas_alloc();
 
 	osd->reg = &osd_mif_reg[vblk->index];
 	osd_ctrl_init(osd->reg);
@@ -686,10 +848,35 @@ static void osd_hw_init(struct meson_vpu_block *vblk)
 
 static void osd_hw_fini(struct meson_vpu_block *vblk)
 {
-	meson_drm_osd_canvas_free();
+	struct meson_vpu_osd *osd = to_osd_block(vblk);
+	struct meson_vpu_pipeline *pipeline;
+
+	if (!vblk || !osd) {
+		DRM_DEBUG("hw_fini break for NULL.\n");
+		return;
+	}
+
+	pipeline = osd->base.pipeline;
+	if (!pipeline) {
+		DRM_DEBUG("hw_fini break for NULL.\n");
+		return;
+	}
+
+	if (pipeline->osd_version != OSD_V7)
+		meson_drm_osd_canvas_free();
 }
 
 struct meson_vpu_block_ops osd_ops = {
+	.check_state = osd_check_state,
+	.update_state = osd_set_state,
+	.enable = osd_hw_enable,
+	.disable = osd_hw_disable,
+	.dump_register = osd_dump_register,
+	.init = osd_hw_init,
+	.fini = osd_hw_fini,
+};
+
+struct meson_vpu_block_ops osd_ops_v7 = {
 	.check_state = osd_check_state,
 	.update_state = osd_set_state,
 	.enable = osd_hw_enable,

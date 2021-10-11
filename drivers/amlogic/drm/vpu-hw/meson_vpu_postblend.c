@@ -174,7 +174,11 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 		/*vpp input config*/
 		vpp_osd1_preblend_mux_set(postblend->reg, VPP_NULL);
 		vpp_osd2_preblend_mux_set(postblend->reg, VPP_NULL);
-		vpp_osd1_postblend_mux_set(postblend->reg, VPP_OSD1);
+
+		if (pipeline->osd_version == OSD_V7)
+			vpp_osd1_postblend_mux_set(postblend->reg, VPP_OSD2);
+		else
+			vpp_osd1_postblend_mux_set(postblend->reg, VPP_OSD1);
 		vpp_osd2_postblend_mux_set(postblend->reg, VPP_NULL);
 	}
 
@@ -247,6 +251,15 @@ static void postblend_hw_init(struct meson_vpu_block *vblk)
 }
 
 struct meson_vpu_block_ops postblend_ops = {
+	.check_state = postblend_check_state,
+	.update_state = postblend_set_state,
+	.enable = postblend_hw_enable,
+	.disable = postblend_hw_disable,
+	.dump_register = postblend_dump_register,
+	.init = postblend_hw_init,
+};
+
+struct meson_vpu_block_ops postblend_ops_v7 = {
 	.check_state = postblend_check_state,
 	.update_state = postblend_set_state,
 	.enable = postblend_hw_enable,

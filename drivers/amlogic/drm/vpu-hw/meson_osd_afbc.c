@@ -361,7 +361,12 @@ static void osd_afbc_set_state(struct meson_vpu_block *vblk,
 	reverse_y = (plane_info->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0;
 
 	/* set osd path misc ctrl */
-	meson_vpu_write_reg_bits(OSD_PATH_MISC_CTRL, 0x1, (osd_index + 4), 1);
+	if (pipeline->osd_version == OSD_V7)
+		meson_vpu_write_reg_bits(OSD_PATH_MISC_CTRL, (osd_index + 1),
+			(osd_index * 4 + 16), 4);
+	else
+		meson_vpu_write_reg_bits(OSD_PATH_MISC_CTRL, 0x1,
+				(osd_index + 4), 1);
 
 	/* set linear addr */
 	meson_vpu_write_reg_bits(osd_reg->viu_osd_ctrl_stat, 0x1, 2, 1);
@@ -574,6 +579,15 @@ void arm_fbc_check_error(void)
 }
 
 struct meson_vpu_block_ops afbc_ops = {
+	.check_state = osd_afbc_check_state,
+	.update_state = osd_afbc_set_state,
+	.enable = osd_afbc_hw_enable,
+	.disable = osd_afbc_hw_disable,
+	.dump_register = osd_afbc_dump_register,
+	.init = osd_afbc_hw_init,
+};
+
+struct meson_vpu_block_ops afbc_ops_v7 = {
 	.check_state = osd_afbc_check_state,
 	.update_state = osd_afbc_set_state,
 	.enable = osd_afbc_hw_enable,

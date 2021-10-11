@@ -35,7 +35,7 @@
 #define MESON_OSD_INPUT_W_LIMIT 3840
 #define MESON_OSD_INPUT_H_LIMIT 2160
 
-#define MAX_DIN_NUM 4
+#define MAX_DIN_NUM 5
 #define MAX_DOUT_NUM 2
 
 #define VP_MAP_STRUCT_SIZE	120
@@ -595,6 +595,10 @@ extern struct meson_vpu_block_ops osdblend_ops;
 extern struct meson_vpu_block_ops hdr_ops;
 extern struct meson_vpu_block_ops dolby_ops;
 extern struct meson_vpu_block_ops postblend_ops;
+
+extern struct meson_vpu_block_ops osd_ops_v7;
+extern struct meson_vpu_block_ops afbc_ops_v7;
+extern struct meson_vpu_block_ops postblend_ops_v7;
 
 #ifdef CONFIG_DEBUG_FS
 extern u32 overwrite_reg[256];
