@@ -138,6 +138,7 @@ static struct tvafe_user_param_s tvafe_user_param = {
 	 */
 	.auto_adj_en = 0x3e,
 	.vline_chk_cnt = 100, /* 100*10ms */
+	.low_amp_level = 0,
 
 	.nostd_vs_th = 0x0,
 	.nostd_no_vs_th = 0xf0,

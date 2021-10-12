@@ -79,6 +79,7 @@ struct tvafe_user_param_s {
 	unsigned int unlock_cnt_max;
 	unsigned int avout_en;
 	unsigned int nostd_bypass_iir;
+	unsigned int low_amp_level;
 
 	/* debug */
 	unsigned int cutwin_test_en;
