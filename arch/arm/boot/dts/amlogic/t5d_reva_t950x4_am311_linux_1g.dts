@@ -515,6 +515,7 @@
 		wb_en = <1>;/*1:enabel ;0:disable*/
 		cm_en = <1>;/*1:enabel ;0:disable*/
 		wb_sel = <0>;/*1:mtx ;0:gainoff*/
+		hist_sel = <0>;/*1:vd2 ;0:vd1*/
 		vlock_en = <1>;/*1:enable;0:disable*/
 		vlock_mode = <0x8>;
 		/* vlock work mode:
@@ -529,6 +530,8 @@
 		 vlock_line_limit = <2>;
 		 clocks = <&peripheral_clkc CLKID_VID_LOCK_CLK>;
 		 clock-names = "cts_vid_lock_clk";
+		interrupts = <0 87 1>;
+		interrupt-names = "lc_curve";
 	};
 
 	vdin@0 {

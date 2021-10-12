@@ -1489,6 +1489,8 @@
 	 */
 	 vlock_pll_m_limit = <1>;
 	 vlock_line_limit = <2>;
+	interrupts = <0 207 1>;
+	interrupt-names = "lc_curve";
 };
 
 &crg20 {

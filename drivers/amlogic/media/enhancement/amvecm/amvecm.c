@@ -384,6 +384,8 @@ static struct vpp_mtx_info_s mtx_info = {
 static struct pre_gamma_table_s pre_gamma;
 struct eye_protect_s eye_protect;
 
+static int hist_chl;
+
 /* vpp brightness/contrast/saturation/hue */
 int __init amvecm_load_pq_val(char *str)
 {
@@ -924,7 +926,7 @@ static void vpp_dump_histgram(void)
 
 void vpp_get_hist_en(void)
 {
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5D)
+	if (hist_chl)
 		WRITE_VPP_REG_BITS(VI_HIST_CTRL, 0x2, 11, 3);
 	else
 		WRITE_VPP_REG_BITS(VI_HIST_CTRL, 0x1, 11, 3);
@@ -9821,6 +9823,13 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 			pr_amvecm_dbg("Can't find  wb_sel.\n");
 		else
 			video_rgb_ogo_xvy_mtx = val;
+
+		ret = of_property_read_u32(node, "hist_sel", &val);
+		if (ret)
+			pr_amvecm_dbg("Can't find  hist_sel.\n");
+		else
+			hist_chl = val;
+
 		/*hdr:cfg:osd_100*/
 		ret = of_property_read_u32(node, "cfg_en_osd_100", &val);
 		if (ret) {
