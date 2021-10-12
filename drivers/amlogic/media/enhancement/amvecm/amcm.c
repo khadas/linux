@@ -219,10 +219,24 @@ void am_set_regmap(struct am_regs_s *p)
 		case REG_TYPE_INDEX_VPP_COEF:
 			if (((addr & 0xf) == 0) ||
 			    ((addr & 0xf) == 0x8)) {
-				aml_write_vcbus_s(VPP_CHROMA_ADDR_PORT, addr);
-				aml_write_vcbus_s(VPP_CHROMA_DATA_PORT, val);
+				if (pq_reg_wr_rdma) {
+					VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT,
+						addr);
+					VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
+						val);
+				} else {
+					aml_write_vcbus_s(VPP_CHROMA_ADDR_PORT,
+						addr);
+					aml_write_vcbus_s(VPP_CHROMA_DATA_PORT,
+						val);
+				}
 			} else {
-				aml_write_vcbus_s(VPP_CHROMA_DATA_PORT, val);
+				if (pq_reg_wr_rdma)
+					VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
+						val);
+				else
+					aml_write_vcbus_s(VPP_CHROMA_DATA_PORT,
+						val);
 			}
 			default_sat_param(addr, val);
 			break;
