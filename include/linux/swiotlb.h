@@ -68,6 +68,9 @@ extern void swiotlb_tbl_sync_single(struct device *hwdev,
 #ifdef CONFIG_SWIOTLB
 extern enum swiotlb_force swiotlb_force;
 extern phys_addr_t io_tlb_start, io_tlb_end;
+#ifdef CONFIG_AMLOGIC_MODIFY
+extern unsigned long io_tlb_nslabs;
+#endif
 
 static inline bool is_swiotlb_buffer(phys_addr_t paddr)
 {
