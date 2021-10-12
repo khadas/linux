@@ -224,6 +224,7 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params);
 static int start_aucpu_non_es(struct out_elem *pout);
 static int aucpu_bufferid_read(struct out_elem *pout,
 			       char **pread, unsigned int len, int is_pts);
+static void enforce_flush_cache(char *addr, unsigned int len);
 
 static void dump_file_open(char *path, struct dump_file *dump_file_fp,
 	int sid, int pid, int is_ts)
@@ -586,6 +587,16 @@ static int dvr_process(struct out_elem *pout)
 				dump_file_close(&dvr_dump_file);
 			}
 		} else if (pout->cb_ts_list && flag == 1) {
+			if (dump_dvr_ts == 1) {
+				dump_file_open(DVR_DUMP_FILE, &dvr_dump_file,
+					0, 0, 1);
+				enforce_flush_cache(pread, ret);
+				dump_file_write(pread - pout->pchan->mem_phy +
+					pout->pchan->mem, ret,
+					&dvr_dump_file);
+			} else {
+				dump_file_close(&dvr_dump_file);
+			}
 			write_sec_ts_data(pout, pread, ret);
 		}
 	}

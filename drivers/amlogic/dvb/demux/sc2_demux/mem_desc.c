@@ -447,9 +447,9 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 		if (pchan->sec_size) {
 			mem_size = pchan->sec_size;
 			mem_phy = pchan->sec_mem;
-			mem = mem_phy;
-			pr_dbg("use sec mem:0x%lx, size:0x%x\n",
-					mem_phy, mem_size);
+			mem = (unsigned long)phys_to_virt(mem_phy);
+			pr_dbg("use sec phy mem:0x%lx, virt:0x%lx size:0x%x\n",
+					mem_phy, mem, mem_size);
 		} else {
 			ret = _alloc_buff(mem_size, sec_level, &mem,
 				&mem_phy, &pchan->tee_handle);
@@ -898,6 +898,7 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 	unsigned int tmp;
 	unsigned int times = 0;
 	struct dmx_sec_ts_data ts_data;
+	unsigned long mem;
 
 	pr_dbg("%s start w:%d\n", __func__, r);
 	do {
@@ -925,13 +926,23 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 			pchan->memdescs->bits.byte_length =
 				ts_data.buf_end - ts_data.buf_start;
 
+			if (dump_input_ts) {
+				dump_file_open(INPUT_DUMP_FILE);
+				mem = (unsigned long)
+					phys_to_virt(ts_data.buf_start);
+				dump_file_write((char *)mem,
+					pchan->memdescs->bits.byte_length);
+			}
+
 			dma_sync_single_for_device(aml_get_device(),
 				pchan->memdescs_phy, sizeof(union mem_desc),
 				DMA_TO_DEVICE);
 
-			tmp = (unsigned long)(pchan->memdescs) & 0xFFFFFFFF;
+//			tmp = (unsigned long)(pchan->memdescs) & 0xFFFFFFFF;
+			tmp = pchan->memdescs_phy & 0xFFFFFFFF;
 			len = pchan->memdescs->bits.byte_length;
 			//rdma_config_enable(pchan->id, 1, tmp, count, len);
+
 			rdma_config_enable(pchan, 1, tmp, count, len);
 			pr_dbg("%s isphybuf\n", __func__);
 			/*it will exit write loop*/
