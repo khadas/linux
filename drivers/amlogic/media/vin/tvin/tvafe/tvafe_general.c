@@ -306,6 +306,7 @@ static void tvafe_pq_apb_reg_trust_write(unsigned int addr,
 			val, val, mask, mask);
 
 	cvd_reg87_pal = R_APB_REG(CVD2_REG_87);
+	acd_166 = R_APB_REG(ACD_REG_66);
 }
 
 enum tvafe_adc_ch_e tvafe_port_to_channel(enum tvin_port_e port,

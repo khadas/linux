@@ -122,6 +122,7 @@ static int ignore_443_358;
 
 static unsigned int no_color_burst_cfg;
 
+unsigned int acd_166 = 0x80000f10;
 unsigned int cvd_reg87_pal;
 static unsigned int acd_vde_config = 0x00170107;
 
@@ -502,6 +503,7 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 
 	cvd_reg87_pal = R_APB_REG(CVD2_REG_87);
 	acd_vde_config = R_APB_REG(ACD_REG_2E);
+	acd_166 = R_APB_REG(ACD_REG_66);
 
 	/* enable CVD2 */
 	W_APB_BIT(CVD2_RESET_REGISTER, 0, SOFT_RST_BIT, SOFT_RST_WID);
@@ -889,6 +891,8 @@ static void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
 	cvd2->hw_data[cvd2->hw_data_cur].vcrrew =
 				(bool)((data & 0x80) >> VCR_REW_BIT);
 
+	cvd2->hw_data[cvd2->hw_data_cur].noise_level = R_APB_REG(ACD_REG_3D);
+
 	cvd2->hw_data[cvd2->hw_data_cur].cordic =
 			R_APB_BIT(CVD2_CORDIC_FREQUENCY_STATUS,
 			STATUS_CORDIQ_FRERQ_BIT, STATUS_CORDIQ_FRERQ_WID);
@@ -1085,6 +1089,14 @@ static void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
 	if (!cvd2->hw_data[0].noisy && !cvd2->hw_data[1].noisy &&
 		!cvd2->hw_data[2].noisy)
 		cvd2->hw.noisy = false;
+
+	cvd2->hw.noise_level = (cvd2->hw_data[0].noise_level +
+				cvd2->hw_data[1].noise_level +
+				cvd2->hw_data[2].noise_level) / 3;
+	if (cvd2->hw.noisy || cvd2->hw.noise_level > 0xa000)
+		cvd2->hw.low_amp = true;
+	else
+		cvd2->hw.low_amp = false;
 
 	if (cvd2->hw_data[0].vcr && cvd2->hw_data[1].vcr &&
 		cvd2->hw_data[2].vcr)
@@ -1915,6 +1927,11 @@ static void tvafe_cvd2_auto_de(struct tvafe_cvd2_s *cvd2)
 		l_ave = (l_ave - l_max - l_min + 1) >> 1;
 		/* get the average value */
 		if (l_ave > TVAFE_CVD2_AUTO_DE_TH) {
+			if (user_param->low_amp_level == 1) {
+				if (cvd2->hw.low_amp)
+					return;
+			}
+
 			tmp = (0xff - l_ave + 1) >> 2;
 			/* avoid overflow */
 			if (tmp > TVAFE_CVD2_PAL_DE_START)
@@ -1932,6 +1949,11 @@ static void tvafe_cvd2_auto_de(struct tvafe_cvd2_s *cvd2)
 				__func__, l_ave, lines->de_offset, tmp);
 			}
 		} else if (l_ave > 0) {
+			if (user_param->low_amp_level == 1) {
+				if (cvd2->hw.low_amp)
+					return;
+			}
+
 			if (lines->de_offset > 0) {
 				tmp = ((TVAFE_CVD2_PAL_DE_START -
 					lines->de_offset + 1) << 16) |
@@ -2335,6 +2357,11 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 			return;
 		diff = abs(hcnt64_ave - hcnt64_standard);
 		if (diff > hs_adj_th_level0) {
+			if (user_param->low_amp_level == 1) {
+				if (cvd2->hw.low_amp)
+					return;
+			}
+
 			if (R_APB_REG(CVD2_YC_SEPARATION_CONTROL) != 0x11)
 				W_APB_REG(CVD2_YC_SEPARATION_CONTROL, 0x11);
 			if (R_APB_REG(CVD2_H_LOOP_MAXSTATE) != 0xc)
@@ -2381,7 +2408,7 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 				acd_h = temp;
 
 				/*@20190530 vlsi adjust colorbar display*/
-				W_APB_REG(ACD_REG_66, 0x80000f10);
+				W_APB_REG(ACD_REG_66, acd_166);
 				W_APB_REG(ACD_REG_64, 0xff00);
 
 				cvd2->info.auto_hs_flag =
@@ -2405,10 +2432,13 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 				temp = temp + acd_128;
 				W_APB_BIT(ACD_REG_28, temp, 16, 5);
 				/*0x166 bit31*/
-				if (cvd2->info.hs_adj_level > 0)
-					W_APB_BIT(ACD_REG_66, 0,
-						AML_2DCOMB_EN_BIT,
-						AML_2DCOMB_EN_WID);
+				if (cvd2->info.hs_adj_level > 0) {
+					if (!cvd2->hw.low_amp) {
+						W_APB_BIT(ACD_REG_66, 0,
+							AML_2DCOMB_EN_BIT,
+							AML_2DCOMB_EN_WID);
+					}
+				}
 				/*0x12d, 0x94 is test result, 0x88 is default*/
 				temp = (0x94 - 0x88) * cvd2->info.hs_adj_level;
 				delta = temp / 4;
@@ -2419,7 +2449,8 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 				acd_h = temp;
 
 				/*@20190530 vlsi adjust colorbar display*/
-				W_APB_REG(ACD_REG_66, 0x0);
+				if (!cvd2->hw.low_amp)
+					W_APB_REG(ACD_REG_66, 0x0);
 
 				cvd2->info.auto_hs_flag =
 					((1 << CVD2_AUTO_HS_ADJ_EN) |
@@ -2436,9 +2467,11 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 				}
 			}
 		} else {
-			if (cvd2->info.auto_hs_flag &
-				(1 << CVD2_AUTO_HS_DEFAULT))
-				return;
+			//if (cvd2->info.auto_hs_flag &
+			//	(1 << CVD2_AUTO_HS_DEFAULT))
+			//	return;
+
+			W_APB_REG(ACD_REG_66, acd_166);
 
 			if (R_APB_REG(CVD2_YC_SEPARATION_CONTROL) != 0x12)
 				W_APB_REG(CVD2_YC_SEPARATION_CONTROL, 0x12);
@@ -2466,8 +2499,8 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 			}
 		}
 	} else {
-		if (cvd2->info.auto_hs_flag & (1 << CVD2_AUTO_HS_UNSTABLE))
-			return;
+		//if (cvd2->info.auto_hs_flag & (1 << CVD2_AUTO_HS_UNSTABLE))
+		//	return;
 
 		/*signal unstable,set default value*/
 		if (R_APB_REG(CVD2_YC_SEPARATION_CONTROL) != 0x12)
@@ -2480,6 +2513,7 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 				  CDETECT_VFILTER_SEL_BIT,
 				  CDETECT_VFILTER_SEL_WID);
 		}
+		W_APB_REG(ACD_REG_66, acd_166);
 
 		W_APB_REG(ACD_REG_2D, acd_h_back);
 		W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, cvd_2e,

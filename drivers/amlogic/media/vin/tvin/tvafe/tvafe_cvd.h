@@ -87,11 +87,13 @@ struct tvafe_cvd2_hw_data_s {
 	unsigned char acc425_cnt;
 	unsigned char acc3xx_cnt;
 	unsigned char acc358_cnt;
+	unsigned int noise_level;
 	bool secam_detected;
 	bool secam_phase;
 	bool fsc_358;
 	bool fsc_425;
 	bool fsc_443;
+	bool low_amp;
 };
 
 /* cvd2 memory */

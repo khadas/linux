@@ -161,7 +161,6 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->vcrtrick:%d\n", hw->vcrtrick);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->vcrff:%d\n", hw->vcrff);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->vcrrew:%d\n", hw->vcrrew);
-	tvafe_pr_info("tvafe_cvd2_hw_data_s->noisy:%d\n", hw->noisy);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->acc4xx_cnt:%d\n",
 		hw->acc4xx_cnt);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->acc425_cnt:%d\n",
@@ -177,6 +176,9 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->fsc_358:%d\n", hw->fsc_358);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->fsc_425:%d\n", hw->fsc_425);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->fsc_443:%d\n", hw->fsc_443);
+	tvafe_pr_info("tvafe_cvd2_hw_data_s->noise_level:%d\n",
+		hw->noise_level);
+	tvafe_pr_info("tvafe_cvd2_hw_data_s->low_amp:%d\n", hw->low_amp);
 
 	tvafe_pr_info("\ntvafe_cvd2_info_s->smr_cnt:%d\n",
 		cvd2_info->smr_cnt);
@@ -212,6 +214,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 	tvafe_pr_info("nostd_stable_cnt:%d\n", user_param->nostd_stable_cnt);
 	tvafe_pr_info("nostd_dmd_clp_step:0x%x\n",
 		user_param->nostd_dmd_clp_step);
+	tvafe_pr_info("low_amp_level:%d\n", user_param->low_amp_level);
 	tvafe_pr_info("skip_vf_num:%d\n", user_param->skip_vf_num);
 	tvafe_pr_info("unlock_cnt_max:%d\n", user_param->unlock_cnt_max);
 	tvafe_pr_info("nostd_bypass_iir:%d\n", user_param->nostd_bypass_iir);
@@ -552,6 +555,17 @@ static ssize_t debug_store(struct device *dev,
 		}
 	} else if (!strncmp(parm[0], "tvafe_init", strlen("tvafe_init"))) {
 		tvafe_bringup_detect_signal(devp, TVIN_PORT_CVBS1);
+	} else if (!strncmp(parm[0], "low_amp_level",
+		   strlen("low_amp_level"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10, &val) == 0)
+				user_param->low_amp_level = val;
+			pr_info("[tvafe]%s low_amp_level val = %u\n",
+				__func__, user_param->low_amp_level);
+		} else {
+			pr_info("[tvafe]%s low_amp_level, ori val = %u\n",
+				__func__, user_param->low_amp_level);
+		}
 	} else {
 		tvafe_pr_info("[%s]:invalid command.\n", __func__);
 	}
