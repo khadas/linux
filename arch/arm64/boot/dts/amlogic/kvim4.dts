@@ -1559,7 +1559,9 @@
 &fb {
 	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
-	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x100000>;
+	mem_size = <0x00800000 0x4000000 0x100000 0x100000 0x100000>;
+	4k2k_fb = <1>;
+	display_device_cnt = <2>;
 	logo_addr = "0x3f800000";
 	mem_alloc = <1>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
