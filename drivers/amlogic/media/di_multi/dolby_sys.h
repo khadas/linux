@@ -29,48 +29,45 @@
 
 #define DIDEF_G2L_LUT_SIZE           0x100
 
-struct didm_lut_ipcore_s {
-	u32 tmluti[64 * 4];
-	u32 tmluts[64 * 4];
-	u32 smluti[64 * 4];
-	u32 smluts[64 * 4];
+struct didm_lut_ipcore {
+	u32 tm_lut_i[64 * 4];
+	u32 tm_lut_s[64 * 4];
+	u32 sm_lut_i[64 * 4];
+	u32 sm_lut_s[64 * 4];
 	u32 G2L[DIDEF_G2L_LUT_SIZE];
 };
 
-struct didm_register_ipcore_1_s {
-	u32 srange;
-	u32 srange_inverse;
-	u32 frame_format_1;
-	u32 frame_format_2;
+struct didm_reg_ipcore1 {
+	u32 s_range;
+	u32 s_range_inverse;
+	u32 frame_fmt1;
+	u32 frame_fmt2;
 	u32 frame_pixel_def;
-	u32 y2rgb_coefficient_1;
-	u32 y2rgb_coefficient_2;
-	u32 y2rgb_coefficient_3;
-	u32 y2rgb_coefficient_4;
-	u32 y2rgb_coefficient_5;
-	u32 y2rgb_offset_1;
-	u32 y2rgb_offset_2;
-	u32 y2rgb_offset_3;
+	u32 y2rgb_coeff1;
+	u32 y2rgb_coeff2;
+	u32 y2rgb_coeff3;
+	u32 y2rgb_coeff4;
+	u32 y2rgb_coeff5;
+	u32 y2rgb_off1;
+	u32 y2rgb_off2;
+	u32 y2rgb_off3;
 	u32 eotf;
-/*	u32 Sparam_1;*/
-/*	u32 Sparam_2;*/
-/*	u32 Sgamma; */
-	u32 a2b_coefficient_1;
-	u32 a2b_coefficient_2;
-	u32 a2b_coefficient_3;
-	u32 a2b_coefficient_4;
-	u32 a2b_coefficient_5;
-	u32 c2d_coefficient_1;
-	u32 c2d_coefficient_2;
-	u32 c2d_coefficient_3;
-	u32 c2d_coefficient_4;
-	u32 c2d_coefficient_5;
-	u32 c2d_offset;
-	u32 active_area_left_top;
-	u32 active_area_bottom_right;
+	u32 a2b_coeff1;
+	u32 a2b_coeff2;
+	u32 a2b_coeff3;
+	u32 a2b_coeff4;
+	u32 a2b_coeff5;
+	u32 c2d_coeff1;
+	u32 c2d_coeff2;
+	u32 c2d_coeff3;
+	u32 c2d_coeff4;
+	u32 c2d_coeff5;
+	u32 c2d_off;
+	u32 active_left_top;
+	u32 active_bottom_right;
 };
 
-struct dicomposer_register_ipcore_s {
+struct dicomp_reg_ipcore {
 	/* offset 0xc8 */
 	u32 composer_mode;
 	u32 vdr_resolution;
