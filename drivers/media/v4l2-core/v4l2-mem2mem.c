@@ -266,10 +266,9 @@ static void v4l2_m2m_try_run(struct v4l2_m2m_dev *m2m_dev)
 	m2m_dev->curr_ctx = list_first_entry(&m2m_dev->job_queue,
 				   struct v4l2_m2m_ctx, queue);
 	m2m_dev->curr_ctx->job_flags |= TRANS_RUNNING;
-	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
-
 	dprintk("Running job on m2m_ctx: %p\n", m2m_dev->curr_ctx);
 	m2m_dev->m2m_ops->device_run(m2m_dev->curr_ctx->priv);
+	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
 }
 
 /*
