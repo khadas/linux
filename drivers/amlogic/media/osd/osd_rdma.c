@@ -139,6 +139,14 @@ static void rdma_start_end_addr_update(u32 vpp_index, ulong table_paddr)
 			      (table_paddr - 1) & 0xffffffff);
 		osd_reg_write(end_addr_msb,
 			      ((table_paddr - 1) >> 32) & 0xffffffff);
+	#else
+		osd_reg_write(start_addr,
+			      table_paddr & 0xffffffff);
+		osd_reg_write(start_addr_msb, 0);
+
+		osd_reg_write(end_addr,
+			      (table_paddr - 1) & 0xffffffff);
+		osd_reg_write(end_addr_msb, 0);
 	#endif
 	} else {
 		osd_reg_write(start_addr,
@@ -174,6 +182,11 @@ static void rdma_end_addr_update(u32 vpp_index, ulong table_paddr, u32 count)
 		osd_reg_write(end_addr_msb,
 			      ((table_paddr +
 			      count * 8 - 1) >> 32) & 0xffffffff);
+	#else
+		osd_reg_write(end_addr,
+			      (table_paddr +
+			      count * 8 - 1) & 0xffffffff);
+		osd_reg_write(end_addr_msb, 0);
 	#endif
 	} else {
 		osd_reg_write(end_addr,
@@ -207,6 +220,9 @@ static ulong rdma_end_addr_get(u32 vpp_index)
 		rdma_end_addr = osd_reg_read(end_addr_msb);
 		rdma_end_addr = (rdma_end_addr & 0xffffffff) << 32;
 		rdma_end_addr |= osd_reg_read(end_addr);
+		rdma_end_addr++;
+	#else
+		rdma_end_addr = osd_reg_read(end_addr);
 		rdma_end_addr++;
 	#endif
 	} else {
@@ -1647,6 +1663,13 @@ void enable_line_n_rdma(void)
 			      (table_paddr[0] - 1) & 0xffffffff);
 		osd_reg_write(END_ADDR_MSB,
 			      ((table_paddr[0] - 1) >> 32) & 0xffffffff);
+		#else
+		osd_reg_write(START_ADDR,
+			      table_paddr[0] & 0xffffffff);
+		osd_reg_write(START_ADDR_MSB, 0);
+		osd_reg_write(END_ADDR,
+			      (table_paddr[0] - 1) & 0xffffffff);
+		osd_reg_write(END_ADDR_MSB, 0);
 		#endif
 	} else {
 		osd_reg_write(START_ADDR,
@@ -1685,6 +1708,13 @@ void enable_vsync_rdma(u32 vpp_index)
 			      (table_paddr[vpp_index] - 1) & 0xffffffff);
 		osd_reg_write(END_ADDR_MSB,
 			      ((table_paddr[vpp_index] - 1) >> 32) & 0xffffffff);
+		#else
+		osd_reg_write(START_ADDR,
+			      table_paddr[vpp_index] & 0xffffffff);
+		osd_reg_write(START_ADDR_MSB, 0);
+		osd_reg_write(END_ADDR,
+			      (table_paddr[vpp_index] - 1) & 0xffffffff);
+		osd_reg_write(END_ADDR_MSB, 0);
 		#endif
 	} else {
 		osd_reg_write(START_ADDR,

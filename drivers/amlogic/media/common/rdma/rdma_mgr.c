@@ -655,6 +655,21 @@ int rdma_config(int handle, u32 trigger_type)
 					(man_ins->rdma_regadr->rdma_ahb_end_addr_msb,
 					((ins->rdma_table_phy_addr
 					+ ins->rdma_item_count * 8 - 1) >> 32) & 0xffffffff);
+					#else
+					WRITE_VCBUS_REG
+					(man_ins->rdma_regadr->rdma_ahb_start_addr,
+					 ins->rdma_table_phy_addr & 0xffffffff);
+					WRITE_VCBUS_REG
+					(man_ins->rdma_regadr->rdma_ahb_start_addr_msb,
+					0);
+					WRITE_VCBUS_REG
+					(man_ins->rdma_regadr->rdma_ahb_end_addr,
+					(ins->rdma_table_phy_addr +
+					ins->rdma_item_count * 8 - 1)
+					& 0xffffffff);
+					WRITE_VCBUS_REG
+					(man_ins->rdma_regadr->rdma_ahb_end_addr_msb,
+					0);
 					#endif
 				} else {
 					WRITE_VCBUS_REG
@@ -710,6 +725,21 @@ int rdma_config(int handle, u32 trigger_type)
 					(ins->rdma_regadr->rdma_ahb_end_addr_msb,
 					 ((ins->rdma_table_phy_addr +
 					 ins->rdma_item_count * 8 - 1) >> 32) & 0xffffffff);
+					#else
+					WRITE_VCBUS_REG
+					(ins->rdma_regadr->rdma_ahb_start_addr,
+					ins->rdma_table_phy_addr & 0xffffffff);
+					WRITE_VCBUS_REG
+					(ins->rdma_regadr->rdma_ahb_start_addr_msb,
+					0);
+					WRITE_VCBUS_REG
+					(ins->rdma_regadr->rdma_ahb_end_addr,
+					(ins->rdma_table_phy_addr +
+					ins->rdma_item_count * 8 - 1) &
+					0xffffffff);
+					WRITE_VCBUS_REG
+					(ins->rdma_regadr->rdma_ahb_end_addr_msb,
+					0);
 					#endif
 				} else {
 					WRITE_VCBUS_REG
