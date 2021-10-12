@@ -15,6 +15,7 @@ enum hdr_module_sel {
 	VDIN1_HDR = 7,
 	DI_HDR = 8,
 	DI_M2M_HDR = 9,
+	OSD3_HDR = 10,
 	HDR_MAX
 };
 

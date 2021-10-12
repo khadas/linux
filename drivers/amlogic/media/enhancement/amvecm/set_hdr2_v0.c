@@ -2613,10 +2613,25 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	if (disable_flush_flag)
 		return hdr_process_select;
 
-	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T7 &&
-	    (module_sel == OSD2_HDR ||
-	    module_sel == VD3_HDR))
-		return hdr_process_select;
+	/* t3 have osd1/2/3 and vd1/2, no vd3 */
+	/* t7 have osd1/3 and vd1/2/3, no osd2 */
+	switch (module_sel) {
+	case OSD2_HDR:
+		if (get_cpu_type() != MESON_CPU_MAJOR_ID_T3)
+			return hdr_process_select;
+		break;
+	case OSD3_HDR:
+		if (get_cpu_type() != MESON_CPU_MAJOR_ID_T3 &&
+			get_cpu_type() != MESON_CPU_MAJOR_ID_T7)
+			return hdr_process_select;
+		break;
+	case VD3_HDR:
+		if (get_cpu_type() != MESON_CPU_MAJOR_ID_T7)
+			return hdr_process_select;
+		break;
+	default:
+		break;
+	}
 
 	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
 	     get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) &&
@@ -3343,6 +3358,18 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		}
 		hdr_mtx_param.mtx_on = MTX_ON;
 		hdr_mtx_param.p_sel = hdr_process_select;
+	}
+
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 &&
+		(module_sel == OSD2_HDR ||
+		module_sel == OSD3_HDR)) {
+		pr_csc(12, "%s: t3 osd2/3 hdr only have matrix(0x%x)\n",
+	       __func__, module_sel);
+		set_hdr_matrix(module_sel, HDR_IN_MTX,
+			&hdr_mtx_param, NULL, NULL, vpp_index);
+		set_hdr_matrix(module_sel, HDR_OUT_MTX,
+			&hdr_mtx_param, NULL, NULL, vpp_index);
+		return hdr_process_select;
 	}
 
 	/* enable hdr: first enable X_HDR2_CLK_GATE */
