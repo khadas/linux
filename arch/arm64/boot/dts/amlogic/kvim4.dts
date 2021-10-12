@@ -1509,7 +1509,7 @@
 
 &fb {
 	status = "okay";
-	display_size_default = <3840 2160 3840 4320 32>;
+	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x4000000 0x100000 0x100000 0x100000>;
 	4k2k_fb = <1>;
 	display_device_cnt = <2>;
