@@ -59,10 +59,12 @@ struct aml_dvb {
 	 *0: dsc connect local
 	 */
 	unsigned int dsc_pipeline;
+	unsigned int tsn_flag;
 };
 
 struct aml_dvb *aml_get_dvb_device(void);
 struct device *aml_get_device(void);
+int tsn_set_double_out(int flag);
 
 extern int is_security_dmx;
 
