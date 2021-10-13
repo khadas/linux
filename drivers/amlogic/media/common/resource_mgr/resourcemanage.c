@@ -819,11 +819,12 @@ static bool resman_codec_mm_enough(struct resman_resource *resource,
 	if (!secure && (codec_mm_get_free_size() >> 20 < score)) {
 		enough = false;
 		dprintk(2, "free size 0x%x\n", codec_mm_get_free_size());
-	}
-	else if (secure && atomic_read(&resource->d.codec_mm.counter_secure)
-		>= resource->d.codec_mm.secure)
+	} else if (secure && ((codec_mm_get_tvp_free_size() + codec_mm_get_free_size()) >> 20)
+			< score) {
 		enough = false;
-	else if (resource->value + score > resource->d.codec_mm.total)
+		dprintk(2, "free size 0x%x\n", codec_mm_get_tvp_free_size() +
+			+ codec_mm_get_free_size());
+	} else if (resource->value + score > resource->d.codec_mm.total)
 		enough = false;
 
 	return enough;
