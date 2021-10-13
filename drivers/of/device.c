@@ -166,6 +166,14 @@ int of_dma_configure(struct device *dev, struct device_node *np, bool force_dma)
 	dev_dbg(dev, "device is%sbehind an iommu\n",
 		iommu ? " " : " not ");
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (iommu && *dev->dma_mask > 0xe0000000) {
+		mask = DMA_BIT_MASK(ilog2(0x80000000 - 1) + 1);
+		dev->coherent_dma_mask &= mask;
+		*dev->dma_mask &= mask;
+	}
+#endif
+
 	arch_setup_dma_ops(dev, dma_addr, size, iommu, coherent);
 
 	return 0;
