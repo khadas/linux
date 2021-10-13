@@ -1974,8 +1974,6 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	//-------------
 	//config video
 	//-------------
-	hdmi_drm_infoframe_set(NULL);
-	hdmi_vend_infoframe_set(NULL);
 	data8 = 0;
 	data8 |= (dp_color_depth & 0x03); // [1:0]color depth. 00:8bpp;01:10bpp;10:12bpp;11:16bpp
 	data8 |= (((dp_color_depth != 4) ? 1 : 0) << 7);  // [7]  deep color enable bit
