@@ -64,6 +64,8 @@ struct extn {
 	int sysclk_freq;
 
 	int irq_frhdmirx;
+	/* protection of request/free not in pair */
+	bool irq_on;
 
 	/*
 	 * 0: select spdif lane;
@@ -267,7 +269,7 @@ static int extn_open(struct snd_pcm_substream *substream)
 			goto err_ddr;
 		}
 
-		if (toddr_src_get() == FRHDMIRX) {
+		if (toddr_src_get() == FRHDMIRX && !p_extn->irq_on) {
 			ret = request_irq(p_extn->irq_frhdmirx,
 					frhdmirx_isr, IRQF_SHARED,
 					"irq_frhdmirx", p_extn);
@@ -277,6 +279,7 @@ static int extn_open(struct snd_pcm_substream *substream)
 							p_extn->irq_frhdmirx);
 				goto err_irq;
 			}
+			p_extn->irq_on = true;
 		}
 	}
 
@@ -303,10 +306,11 @@ static int extn_close(struct snd_pcm_substream *substream)
 	} else {
 		aml_audio_unregister_toddr(p_extn->dev, substream);
 
-		if (toddr_src_get() == FRHDMIRX) {
+		if (toddr_src_get() == FRHDMIRX && p_extn->irq_on) {
 			frhdmirx_nonpcm2pcm_clr_reset(p_extn);
 			frhdmirx_clr_all_irq_bits(p_extn->frhdmirx_version);
 			free_irq(p_extn->irq_frhdmirx, p_extn);
+			p_extn->irq_on = false;
 		}
 	}
 	runtime->private_data = NULL;
@@ -1205,6 +1209,7 @@ static int extn_platform_probe(struct platform_device *pdev)
 			p_extn->irq_frhdmirx);
 		return -ENXIO;
 	}
+	p_extn->irq_on = false;
 
 	/* Default ARC SRC */
 	p_extn->arc_src = SPDIFA_TO_HDMIRX;
