@@ -743,7 +743,7 @@ static int frhdmirx_set_mode(struct snd_kcontrol *kcontrol,
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 /* spdif in audio format detect: LPCM or NONE-LPCM */
-struct sppdif_audio_info {
+struct spdif_audio_info {
 	unsigned char aud_type;
 	/*IEC61937 package presamble Pc value*/
 	short pc;
@@ -760,7 +760,7 @@ static const char *const spdif_audio_type_texts[] = {
 	"PAUSE"
 };
 
-static const struct sppdif_audio_info type_texts[] = {
+static const struct spdif_audio_info type_texts[] = {
 	{0, 0, "LPCM"},
 	{1, 0x1, "AC3"},
 	{2, 0x15, "EAC3"},
@@ -780,7 +780,7 @@ static const struct soc_enum hdmirx_audio_type_enum =
 
 static int hdmiin_check_audio_type(struct extn *p_extn)
 {
-	int total_num = sizeof(type_texts) / sizeof(struct sppdif_audio_info);
+	int total_num = sizeof(type_texts) / sizeof(struct spdif_audio_info);
 	int pc = frhdmirx_get_chan_status_pc(p_extn->hdmirx_mode, p_extn->frhdmirx_version);
 	int audio_type = 0;
 	int i;

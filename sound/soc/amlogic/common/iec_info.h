@@ -163,7 +163,7 @@ static const char * const audio_coding_type_names[] = {
 	/* 12 */ "DTS-HD",
 	/* 13 */ "DTS-HD MA",
 	/* 14 */ "DSD (One Bit Audio 6CH)",
-	/* 16 */ "DSD (One Bit Audio 12CH)",
+	/* 15 */ "DSD (One Bit Audio 12CH)",
 	/* 16 */ "PAUSE",
 };
 

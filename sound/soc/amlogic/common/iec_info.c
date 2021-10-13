@@ -220,7 +220,13 @@ enum audio_coding_types iec_61937_pc_to_coding_type(unsigned int pc)
 	case 17:
 		coding_type = AUDIO_CODING_TYPE_DTS_HD;
 		break;
+	case 3:
+		coding_type = AUDIO_CODING_TYPE_PAUSE;
+		break;
 	case 0:
+		/* invalid data */
+		coding_type = AUDIO_CODING_TYPE_PAUSE;
+		break;
 	default:
 		break;
 	}
