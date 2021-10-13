@@ -149,9 +149,10 @@ void hdr_proc(struct vframe_s *vf,
 		}
 	}
 
-	pr_csc(8, "am_vecm: hdr module=%s, process=%s, dv %d\n",
+	pr_csc(8, "am_vecm: hdr module=%s, process=%s,vpp_index = %d, dv %d\n",
 	       module_str[module_sel],
 	       process_str[index],
+	       vpp_index,
 	       is_dolby_vision_on());
 
 	if (module_sel == 1)
@@ -1004,6 +1005,8 @@ void hdmi_packet_process(int signal_change_flag,
 			| (1 << 8)	/* bt709 */
 			| (1 << 0);	/* bt709 */
 		vd_signal.signal_type = SIGNAL_SDR;
+		pr_csc(4, "%s: SIGNAL_SDR vpp_index = %d\n",
+			__func__, vpp_index);
 		break;
 	case BT2020:
 		send_info.features =
@@ -1017,6 +1020,8 @@ void hdmi_packet_process(int signal_change_flag,
 			| (1 << 8)	/* bt709 */
 			| (10 << 0);
 		vd_signal.signal_type = SIGNAL_HDR10;
+		pr_csc(4, "%s: SIGNAL_HDR10 vpp_index = %d\n",
+			__func__, vpp_index);
 		break;
 	case BT2020_PQ:
 		send_info.features =
@@ -1029,6 +1034,8 @@ void hdmi_packet_process(int signal_change_flag,
 			| (16 << 8)
 			| (10 << 0);	/* bt2020c */
 		vd_signal.signal_type = SIGNAL_HDR10;
+		pr_csc(4, "%s: SIGNAL_HDR10 vpp_index = %d\n",
+			__func__, vpp_index);
 		break;
 	case BT2020_HLG:
 		send_info.features =
@@ -1041,6 +1048,8 @@ void hdmi_packet_process(int signal_change_flag,
 			| (18 << 8)
 			| (10 << 0);
 		vd_signal.signal_type = SIGNAL_HLG;
+		pr_csc(4, "%s: SIGNAL_HLG vpp_index = %d\n",
+			__func__, vpp_index);
 		break;
 	case BT2020_PQ_DYNAMIC:
 		send_info.features =
@@ -1053,6 +1062,8 @@ void hdmi_packet_process(int signal_change_flag,
 			| (16 << 8)  /* Always HDR10 */
 			| (10 << 0); /* bt2020c */
 		vd_signal.signal_type = SIGNAL_HDR10PLUS;
+		pr_csc(4, "%s: SIGNAL_HDR10PLUS vpp_index = %d\n",
+			__func__, vpp_index);
 		break;
 	case UNKNOWN_FMT:
 	case BT2100_IPT:

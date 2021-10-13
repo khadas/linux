@@ -2646,10 +2646,11 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		return hdr_process_select;
 	}
 
-	pr_csc(12, "hdr func: hdr module=%d, select=%x vpp_index = %d\n",
-	       module_sel,
-	       hdr_process_select,
-	       vpp_index);
+	pr_csc(12, "%s: hdr module=%d, select=%x vpp_index = %d\n",
+		__func__,
+		module_sel,
+		hdr_process_select,
+		vpp_index);
 
 	if (vpp_index == VPP_TOP1 &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
