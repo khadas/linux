@@ -1100,6 +1100,19 @@ static void init_drm_db0(struct hdmitx_dev *hdev, u8 *dat)
 	}
 }
 
+static bool _check_hdmi_mode(void)
+{
+	struct vinfo_s *vinfo = NULL;
+
+	vinfo = get_current_vinfo();
+	if (vinfo && vinfo->mode == VMODE_HDMI)
+		return 1;
+	vinfo = get_current_vinfo2();
+	if (vinfo && vinfo->mode == VMODE_HDMI)
+		return 1;
+	return 0;
+}
+
 #define GET_LOW8BIT(a)	((a) & 0xff)
 #define GET_HIGH8BIT(a)	(((a) >> 8) & 0xff)
 static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
@@ -1111,6 +1124,8 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 	u8 *drm_db = &db[1]; /* db[0] is the checksum */
 	unsigned long flags = 0;
 
+	if (!_check_hdmi_mode())
+		return;
 	hdmi_debug();
 	spin_lock_irqsave(&hdev->edid_spinlock, flags);
 	init_drm_db0(hdev, &drm_db[0]);
@@ -1319,6 +1334,8 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 	enum hdmi_tf_type hdr_type = HDMI_NONE;
 	unsigned long flags = 0;
 
+	if (!_check_hdmi_mode())
+		return;
 	hdmi_debug();
 	spin_lock_irqsave(&hdev->edid_spinlock, flags);
 	if (hdev->bist_lock) {
@@ -1557,6 +1574,8 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 	u8 db[28] = {0x00};
 	u8 *ven_db = &db[1];
 
+	if (!_check_hdmi_mode())
+		return;
 	hdmi_debug();
 	if (hdev->bist_lock)
 		return;
@@ -1627,6 +1646,8 @@ static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data)
 	unsigned char db[28] = {0x00};
 	unsigned char *ven_db = &db[1];
 
+	if (!_check_hdmi_mode())
+		return;
 	spin_lock_irqsave(&hdev->edid_spinlock, flags);
 	if (!data) {
 		hdmi_vend_infoframe_rawset(NULL, NULL);
@@ -1657,6 +1678,8 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 	static unsigned char *virt_ptr_align32bit;
 	unsigned long phys_ptr;
 
+	if (!_check_hdmi_mode())
+		return;
 	memset(vs_emds, 0, sizeof(vs_emds));
 	spin_lock_irqsave(&hdev->edid_spinlock, flags);
 	if (!data) {
@@ -1783,6 +1806,8 @@ static void hdmitx_set_emp_pkt(u8 *data, u32 type,
 	u32 data_set_tag = 0;
 	u32 data_set_length = 0;
 
+	if (!_check_hdmi_mode())
+		return;
 	hdmi_debug();
 
 	if (!data) {
