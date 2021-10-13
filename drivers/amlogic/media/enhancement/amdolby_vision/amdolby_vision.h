@@ -22,8 +22,6 @@
 
 #include <linux/types.h>
 
-#define G2L_LUT_LEN         BIT(8)
-
 #define EXT_MD_LEVEL_1      BIT(0)
 #define EXT_MD_LEVEL_2      BIT(1)
 #define EXT_MD_LEVEL_4      BIT(2)
@@ -247,68 +245,6 @@ enum graphics_format_enum  {
 	G_HDR_RGB = 3
 };
 
-struct composer_reg_ipcore {
-	/* offset 0xc8 */
-	u32 composer_mode;
-	u32 vdr_resolution;
-	u32 bit_depth;
-	u32 coefficient_log2_denominator;
-	u32 bl_num_pivots_y;
-	u32 bl_pivot[5];
-	u32 bl_order;
-	u32 bl_coefficient_y[8][3];
-	u32 el_nlq_offset_y;
-	u32 el_coefficient_y[3];
-	u32 mapping_idc_u;
-	u32 bl_num_pivots_u;
-	u32 bl_pivot_u[3];
-	u32 bl_order_u;
-	u32 bl_coefficient_u[4][3];
-	u32 mmr_coefficient_u[22][2];
-	u32 mmr_order_u;
-	u32 el_nlq_offset_u;
-	u32 el_coefficient_u[3];
-	u32 mapping_idc_v;
-	u32 bl_num_pivots_v;
-	u32 bl_pivot_v[3];
-	u32 bl_order_v;
-	u32 bl_coefficient_v[4][3];
-	u32 mmr_coefficient_v[22][2];
-	u32 mmr_order_v;
-	u32 el_nlq_off_v;
-	u32 el_coefficient_v[3];
-};
-
-struct dm_reg_ipcore1 {
-	u32 s_range;
-	u32 s_range_inverse;
-	u32 frame_fmt1;
-	u32 frame_fmt2;
-	u32 frame_pixel_def;
-	u32 y2rgb_coeff1;
-	u32 y2rgb_coeff2;
-	u32 y2rgb_coeff3;
-	u32 y2rgb_coeff4;
-	u32 y2rgb_coeff5;
-	u32 y2rgb_off1;
-	u32 y2rgb_off2;
-	u32 y2rgb_off3;
-	u32 eotf;
-	u32 a2b_coeff1;
-	u32 a2b_coeff2;
-	u32 a2b_coeff3;
-	u32 a2b_coeff4;
-	u32 a2b_coeff5;
-	u32 c2d_coeff1;
-	u32 c2d_coeff2;
-	u32 c2d_coeff3;
-	u32 c2d_coeff4;
-	u32 c2d_coeff5;
-	u32 c2d_off;
-	u32 active_left_top;
-	u32 active_bottom_right;
-};
-
 struct dm_reg_ipcore2 {
 	u32 s_range;
 	u32 s_range_inverse;
@@ -363,15 +299,6 @@ struct dm_reg_ipcore3 {
 	u32 rgb2yuv_off0;
 	u32 rgb2yuv_off1;
 	u32 rgb2yuv_off2;
-};
-
-/*dm luts for core1 and core2 */
-struct dm_lut_ipcore {
-	u32 tm_lut_i[64 * 4];
-	u32 tm_lut_s[64 * 4];
-	u32 sm_lut_i[64 * 4];
-	u32 sm_lut_s[64 * 4];
-	u32 g_2_l[G2L_LUT_LEN];
 };
 
 /*hdmi metadata for core3 */
