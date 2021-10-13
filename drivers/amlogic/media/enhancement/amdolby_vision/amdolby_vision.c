@@ -6318,7 +6318,7 @@ void enable_dolby_vision(int enable)
 			gd_en = 0;
 #ifdef CONFIG_AMLOGIC_LCD
 			aml_lcd_atomic_notifier_call_chain
-			(LCD_EVENT_BACKLIGHT_DV_SEL, &gd_en);
+			(LCD_EVENT_BACKLIGHT_GD_SEL, &gd_en);
 			dv_control_backlight_status = false;
 #endif
 		}
@@ -6835,7 +6835,7 @@ static void update_pwm_control(void)
 #ifdef CONFIG_AMLOGIC_LCD
 		if (!force_disable_dv_backlight) {
 			aml_lcd_atomic_notifier_call_chain
-			(LCD_EVENT_BACKLIGHT_DV_SEL, &gd_en);
+			(LCD_EVENT_BACKLIGHT_GD_SEL, &gd_en);
 			dv_control_backlight_status = gd_en > 0 ? true : false;
 			if (gd_en)
 				tv_backlight_force_update = true;
@@ -12167,7 +12167,7 @@ void dolby_vision_update_backlight(void)
 			    set_backlight_delay_vsync == bl_delay_cnt) {
 				pr_dolby_dbg("dv set backlight %d\n", tv_backlight);
 				aml_lcd_atomic_notifier_call_chain
-					(LCD_EVENT_BACKLIGHT_DV_DIM,
+					(LCD_EVENT_BACKLIGHT_GD_DIM,
 					 &tv_backlight);
 				tv_backlight_changed = false;
 			}
@@ -12186,7 +12186,7 @@ void dolby_vision_disable_backlight(void)
 
 	if (is_meson_tvmode()) {
 		aml_lcd_atomic_notifier_call_chain
-		(LCD_EVENT_BACKLIGHT_DV_SEL, &gd_en);
+		(LCD_EVENT_BACKLIGHT_GD_SEL, &gd_en);
 		dv_control_backlight_status = false;
 	}
 #endif

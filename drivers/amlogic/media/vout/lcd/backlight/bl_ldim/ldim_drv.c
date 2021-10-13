@@ -40,6 +40,7 @@
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/vout/lcd/ldim_fw.h>
@@ -77,6 +78,7 @@ static int ldim_power_on(void);
 static int ldim_power_off(void);
 static int ldim_set_level(unsigned int level);
 static void ldim_test_ctrl(int flag);
+static void ldim_ld_sel_ctrl(int flag);
 static void ldim_pwm_vs_update(void);
 static void ldim_config_print(void);
 
@@ -151,6 +153,7 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.remap_en = 0,
 	.demo_en = 0,
 	.black_frm_en = 0,
+	.ld_sel = 1,
 	.func_bypass = 0,
 	.brightness_bypass = 0,
 	.test_bl_en = 0,
@@ -163,6 +166,7 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.load_db_en = 1,
 	.db_print_flag = 0,
 
+	.state = 0,
 	.data_min = LD_DATA_MIN,
 	.data_max = LD_DATA_MAX,
 	.brightness_level = 0,
@@ -191,6 +195,7 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.power_off = ldim_power_off,
 	.set_level = ldim_set_level,
 	.test_ctrl = ldim_test_ctrl,
+	.ld_sel_ctrl = ldim_ld_sel_ctrl,
 	.pwm_vs_update = ldim_pwm_vs_update,
 	.config_print = ldim_config_print,
 };
@@ -254,6 +259,12 @@ static void ldim_func_ctrl(struct aml_ldim_driver_s *ldim_drv, int flag)
 		return;
 
 	if (flag) {
+		if (ldim_driver.ld_sel == 0) {
+			if (ldim_debug_print)
+				LDIMPR("%s: exit for ld_sel=0\n", __func__);
+			return;
+		}
+
 		/* enable other flag */
 		ldim_driver.top_en = 1;
 		ldim_driver.hist_en = 1;
@@ -264,7 +275,11 @@ static void ldim_func_ctrl(struct aml_ldim_driver_s *ldim_drv, int flag)
 		ldim_driver.func_en = 1;
 
 		ldim_remap_ctrl(ldim_config.remap_en);
+
+		ldim_driver.state |= LDIM_STATE_FUNC_EN;
 	} else {
+		ldim_driver.state &= ~LDIM_STATE_FUNC_EN;
+
 		/* disable remap */
 		ldim_remap_ctrl(0);
 
@@ -371,6 +386,7 @@ static int ldim_on_init(void)
 
 	ldim_driver.init_on_flag = 1;
 	ldim_driver.level_update = 1;
+	ldim_driver.state |= LDIM_STATE_POWER_ON;
 
 	return ret;
 }
@@ -390,6 +406,7 @@ static int ldim_power_on(void)
 		ldim_driver.dev_drv->power_on(&ldim_driver);
 	ldim_driver.init_on_flag = 1;
 	ldim_driver.level_update = 1;
+	ldim_driver.state |= LDIM_STATE_POWER_ON;
 
 	return ret;
 }
@@ -400,6 +417,7 @@ static int ldim_power_off(void)
 
 	LDIMPR("%s\n", __func__);
 
+	ldim_driver.state &= ~LDIM_STATE_POWER_ON;
 	ldim_driver.init_on_flag = 0;
 	if (ldim_driver.dev_drv && ldim_driver.dev_drv->power_off)
 		ldim_driver.dev_drv->power_off(&ldim_driver);
@@ -445,6 +463,24 @@ static void ldim_test_ctrl(int flag)
 		ldim_driver.func_bypass = 0;
 	LDIMPR("%s: ldim_func_bypass = %d\n",
 	       __func__, ldim_driver.func_bypass);
+}
+
+static void ldim_ld_sel_ctrl(int flag)
+{
+	LDIMPR("%s: ld_sel: %d\n", __func__, flag);
+	if (flag) {
+		ldim_driver.ld_sel = 1;
+		ldim_driver.state |= LDIM_STATE_LD_EN;
+		if (ldim_driver.data->func_ctrl) {
+			ldim_driver.data->func_ctrl(&ldim_driver,
+				ldim_config.func_en);
+		}
+	} else {
+		ldim_driver.ld_sel = 0;
+		ldim_driver.state &= ~LDIM_STATE_LD_EN;
+		if (ldim_driver.data->func_ctrl)
+			ldim_driver.data->func_ctrl(&ldim_driver, 0);
+	}
 }
 
 static void ldim_pwm_vs_update(void)

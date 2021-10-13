@@ -2537,10 +2537,12 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			"ldim_bl_mode          = %d\n\n",
 			ldim_drv->conf->seg_row, ldim_drv->conf->seg_col,
 			ldim_drv->conf->bl_mode);
-		pr_info("ldim_on_flag          = %d\n"
+		pr_info("state                 = 0x%x\n"
+			"ldim_on_flag          = %d\n"
 			"ldim_func_en          = %d\n"
 			"ldim_remap_en         = %d\n"
 			"ldim_demo_en          = %d\n"
+			"ldim_ld_sel           = %d\n"
 			"ldim_func_bypass      = %d\n"
 			"ldim_test_bl_en       = %d\n"
 			"ldim_test_remap_en    = %d\n"
@@ -2556,9 +2558,10 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			"fw_sel                = %d\n"
 			"fw_flag               = %d\n"
 			"ldim_irq_cnt          = %d\n\n",
+			ldim_drv->state,
 			ldim_drv->init_on_flag, ldim_drv->func_en,
 			ldim_drv->remap_en, ldim_drv->demo_en,
-			ldim_drv->func_bypass,
+			ldim_drv->ld_sel, ldim_drv->func_bypass,
 			ldim_drv->test_bl_en,
 			ldim_drv->test_remap_en,
 			ldim_drv->avg_update_en,

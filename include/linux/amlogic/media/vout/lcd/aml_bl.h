@@ -162,7 +162,7 @@ struct bl_config_s {
 /* backlight_properties: state */
 /* Flags used to signal drivers of state changes */
 /* Upper 4 bits in bl props are reserved for driver internal use */
-#define BL_STATE_DV_EN                BIT(4)
+#define BL_STATE_GD_EN                BIT(4)
 #define BL_STATE_LCD_ON               BIT(3)
 #define BL_STATE_BL_INIT_ON           BIT(2)
 #define BL_STATE_BL_POWER_ON          BIT(1)
@@ -175,7 +175,8 @@ struct aml_bl_drv_s {
 	unsigned int config_load;
 	unsigned int state;
 	unsigned int level;
-	unsigned int level_dv;
+	unsigned int level_brightness;
+	unsigned int level_gd;
 	unsigned int level_init_on;
 
 	unsigned char probe_done;
