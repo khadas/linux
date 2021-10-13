@@ -89,13 +89,13 @@ struct di_dolby_hw_s {
 	u32 dm_count;
 	u32 comp_count;
 	u32 lut_count;
-	struct dicomp_reg_ipcore *comp_reg;
-	struct didm_reg_ipcore1 *dm_reg;
-	struct didm_lut_ipcore *dm_lut;
+	struct composer_reg_ipcore *comp_reg;
+	struct dm_reg_ipcore1 *dm_reg;
+	struct dm_lut_ipcore *dm_lut;
 
-	struct dicomp_reg_ipcore *last_comp_reg;
-	struct didm_reg_ipcore1 *last_dm_reg;
-	struct didm_lut_ipcore *last_dm_lut;
+	struct composer_reg_ipcore *last_comp_reg;
+	struct dm_reg_ipcore1 *last_dm_reg;
+	struct dm_lut_ipcore *last_dm_lut;
 };
 
 enum disignal_format_e {
@@ -124,9 +124,9 @@ struct di_dolby_dev_s {
 	//struct mutex di_mutex;
 
 	u32 update_flag[2];
-	struct dicomp_reg_ipcore comp_reg[2];
-	struct didm_reg_ipcore1 dm_reg[2];
-	struct didm_lut_ipcore dm_lut[2];
+	struct composer_reg_ipcore comp_reg[2];
+	struct dm_reg_ipcore1 dm_reg[2];
+	struct dm_lut_ipcore dm_lut[2];
 	struct di_dolby_hw_s hw;
 };
 
@@ -317,9 +317,9 @@ int di_dolby_do_setting(void /*struct di_dolby_dev_s *dev*/)
 	return 0;
 }
 
-int di_dolby_update_setting(struct didm_reg_ipcore1 *dm_reg,
-			    struct dicomp_reg_ipcore *comp_reg,
-			    struct didm_lut_ipcore *dm_lut,
+int di_dolby_update_setting(struct dm_reg_ipcore1 *dm_reg,
+			    struct composer_reg_ipcore *comp_reg,
+			    struct dm_lut_ipcore *dm_lut,
 			    u32 dm_count,
 			    u32 comp_count,
 			    u32 lut_count,
@@ -327,9 +327,9 @@ int di_dolby_update_setting(struct didm_reg_ipcore1 *dm_reg,
 			    u32 hsize,
 			    u32 vsize)
 {
-	struct didm_reg_ipcore1 *new_dm_reg;
-	struct dicomp_reg_ipcore *new_comp_reg;
-	struct didm_lut_ipcore *new_dm_lut;
+	struct dm_reg_ipcore1 *new_dm_reg;
+	struct composer_reg_ipcore *new_comp_reg;
+	struct dm_lut_ipcore *new_dm_lut;
 
 	if (!dm_reg || !comp_reg || !dm_lut || !dm_count || !comp_count ||
 	    !lut_count)
