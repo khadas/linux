@@ -3918,6 +3918,11 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 		if (dv_cap)
 			hdr_cap |= (dv_cap << DV_SUPPORT_SHF) & DV_SUPPORT;
 	}
+	if (vinfo)
+		pr_csc(32, "%s: mode=%d  hdr_cap = 0x%x\n",
+			__func__,
+			vinfo->mode,
+			hdr_cap);
 	return hdr_cap;
 }
 EXPORT_SYMBOL(sink_hdr_support);
@@ -6988,6 +6993,9 @@ void update_hdr10_plus_pkt(bool enable,
 	else
 		vinfo = get_current_vinfo();
 
+	if (vinfo && vinfo->mode != VMODE_HDMI)
+		return;
+
 	if (vinfo->vout_device) {
 		vdev = vinfo->vout_device;
 		if (!vdev)
@@ -7044,6 +7052,9 @@ void send_hdr10_plus_pkt(enum vd_path_e vd_path, enum vpp_index vpp_index)
 	#endif
 	else
 		vinfo = get_current_vinfo();
+
+	if (vinfo && vinfo->mode != VMODE_HDMI)
+		return;
 
 	if (vinfo->vout_device) {
 		vdev = vinfo->vout_device;
@@ -7857,7 +7868,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		if (vd_path == VD1_PATH ||
 		    (vd_path == VD2_PATH &&
 		     !is_video_layer_on(VD1_PATH) &&
-		     is_video_layer_on(VD2_PATH))) {
+		     is_video_layer_on(VD2_PATH)) ||
+		     vpp_index == VPP_TOP1) {
 			para =
 			hdr10p_meta_updated ?
 			&hdmitx_hdr10plus_params[vd_path] : NULL;
@@ -7987,6 +7999,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	else
 		vinfo = get_current_vinfo();
 
+	pr_csc(1, "%s: vd_path = %d vpp_index = %d\n",
+		__func__, vd_path, vpp_index);
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_GXTVBB ||
 	    is_meson_gxl_package_905M2() || csc_en == 0 || !vinfo)
 		return 0;
@@ -8043,20 +8057,19 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			}
 		}
 	}
-
 	sink_changed = is_sink_cap_changed(vinfo,
-					   &current_hdr_cap[vd_path],
-					   &current_sink_available[vd_path],
+					   &current_hdr_cap[vpp_index],
+					   &current_sink_available[vpp_index],
 					   vpp_index);
 	if (sink_changed) {
 		cap_changed = sink_changed & 0x02;
-		pr_csc(4, "sink %s, cap%s 0x%x, vd%d %s %p %p\n",
+		pr_csc(4, "sink %s, cap%s 0x%x, vd%d %s %p %p vpp%d\n",
 		       current_sink_available[vd_path] ? "on" : "off",
 		       cap_changed ? " changed" : "",
 		       current_hdr_cap[vd_path],
 		       vd_path + 1,
 		       is_video_layer_on(vd_path) ? "on" : "off",
-		       vf, vf_rpt);
+		       vf, vf_rpt, vpp_index);
 	}
 
 	if (is_video_turn_on(video_on, vd_path) == 1)
