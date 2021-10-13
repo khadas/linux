@@ -60,10 +60,12 @@
 
 /* lcd backlight pwm_vs vfreq change occurred */
 #define LCD_EVENT_BACKLIGHT_UPDATE     BIT(25)
-/* lcd backlight brightness update by dimming */
-#define LCD_EVENT_BACKLIGHT_DV_DIM     BIT(26)
-/* lcd backlight brightness on/off by dolby vision */
-#define LCD_EVENT_BACKLIGHT_DV_SEL     BIT(27)
+/* lcd backlight brightness update by global dimming */
+#define LCD_EVENT_BACKLIGHT_GD_DIM     BIT(26)
+/* lcd backlight brightness on/off by global dimming */
+#define LCD_EVENT_BACKLIGHT_GD_SEL     BIT(27)
+/* lcd backlight brightness on/off by local dimming */
+#define LCD_EVENT_BACKLIGHT_LD_SEL     BIT(28)
 
 /* blocking notify */
 int aml_lcd_notifier_register(struct notifier_block *nb);

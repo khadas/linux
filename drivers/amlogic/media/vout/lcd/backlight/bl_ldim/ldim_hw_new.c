@@ -838,7 +838,13 @@ static void ldc_rmem_duty_set(struct aml_ldim_driver_s *ldim_drv)
 
 void ldim_hw_remap_en_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 {
-	ldim_drv->comp->ldc_comp_en = flag ? 1 : 0;
+	if (flag) {
+		ldim_drv->comp->ldc_comp_en = 1;
+		ldim_drv->state |= LDIM_STATE_REMAP_EN;
+	} else {
+		ldim_drv->state &= ~LDIM_STATE_REMAP_EN;
+		ldim_drv->comp->ldc_comp_en = 0;
+	}
 	lcd_vcbus_setb(LDC_DGB_CTRL, ldim_drv->comp->ldc_comp_en, 14, 1);
 }
 
@@ -928,6 +934,12 @@ void ldim_vs_arithmetic_t7(struct aml_ldim_driver_s *ldim_drv)
 void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 {
 	if (flag) {
+		if (ldim_drv->ld_sel == 0) {
+			if (ldim_debug_print)
+				LDIMPR("%s: exit for ld_sel=0\n", __func__);
+			return;
+		}
+
 		ldim_config_update_t7(ldim_drv);
 		ldim_drv->remap_en = ldim_drv->conf->remap_en;
 		ldim_hw_remap_en_t7(ldim_drv, ldim_drv->conf->remap_en);
@@ -937,7 +949,11 @@ void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 		ldim_drv->hist_en = 1;
 		ldim_drv->alg_en = 1;
 		ldim_drv->func_en = 1;
+
+		ldim_drv->state |= LDIM_STATE_FUNC_EN;
 	} else {
+		ldim_drv->state &= ~LDIM_STATE_FUNC_EN;
+
 		ldim_drv->func_en = 0;
 		ldim_drv->top_en = 0;
 		ldim_drv->hist_en = 0;

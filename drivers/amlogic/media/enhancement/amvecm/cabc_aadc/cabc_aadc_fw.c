@@ -335,7 +335,7 @@ void backlight_update_ctrl(u32 en)
 		return;
 #endif
 #ifdef CONFIG_AMLOGIC_LCD
-		aml_lcd_atomic_notifier_call_chain(LCD_EVENT_BACKLIGHT_DV_SEL,
+		aml_lcd_atomic_notifier_call_chain(LCD_EVENT_BACKLIGHT_GD_SEL,
 			&en);
 #endif
 }
@@ -348,7 +348,7 @@ static void backlight_setting_update(u32 backlight)
 #endif
 #ifdef CONFIG_AMLOGIC_LCD
 	if (pre_backlight != backlight) {
-		aml_lcd_atomic_notifier_call_chain(LCD_EVENT_BACKLIGHT_DV_DIM,
+		aml_lcd_atomic_notifier_call_chain(LCD_EVENT_BACKLIGHT_GD_DIM,
 			&backlight);
 		pre_backlight = backlight;
 	}

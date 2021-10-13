@@ -294,6 +294,12 @@ struct ldim_drv_data_s {
 };
 
 /*******global API******/
+#define LDIM_STATE_POWER_ON             BIT(0)
+#define LDIM_STATE_FUNC_EN              BIT(1)
+#define LDIM_STATE_REMAP_EN             BIT(2)
+#define LDIM_STATE_REMAP_FORCE_UPDATE   BIT(3)
+#define LDIM_STATE_LD_EN                BIT(4)
+
 struct aml_ldim_driver_s {
 	unsigned char valid_flag;
 	unsigned char static_pic_flag;
@@ -304,6 +310,7 @@ struct aml_ldim_driver_s {
 	unsigned char remap_en;
 	unsigned char demo_en;
 	unsigned char black_frm_en;
+	unsigned char ld_sel;  /* for gd bypass */
 	unsigned char func_bypass;  /* for lcd bist pattern */
 	unsigned char dev_smr_bypass;
 	unsigned char brightness_bypass;
@@ -318,6 +325,7 @@ struct aml_ldim_driver_s {
 	unsigned char db_print_flag;
 	unsigned char level_update;
 
+	unsigned int state;
 	unsigned int data_min;
 	unsigned int data_max;
 	unsigned int brightness_level;
@@ -349,6 +357,7 @@ struct aml_ldim_driver_s {
 	int (*power_off)(void);
 	int (*set_level)(unsigned int level);
 	void (*test_ctrl)(int flag);
+	void (*ld_sel_ctrl)(int flag);
 	void (*pwm_vs_update)(void);
 	void (*config_print)(void);
 };
