@@ -5989,7 +5989,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 	vpp_misc_save = READ_VCBUS_REG(VPP_MISC + vpp_off);
 
 	vpp_misc_set = vpp_misc_save;
-	if (is_dolby_vision_on())
+	if (is_dolby_vision_on() && !is_tv_panel())
 		vpp_misc_set &= ~VPP_CM_ENABLE;
 	else if (mode & COMPOSE_MODE_BYPASS_CM)
 		vpp_misc_set &= ~VPP_CM_ENABLE;
@@ -6458,7 +6458,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 	vpp_misc_save = READ_VCBUS_REG(VPP_MISC + vpp_off);
 
 	vpp_misc_set = vpp_misc_save;
-	if (is_dolby_vision_on())
+	if (is_dolby_vision_on() && !is_tv_panel())
 		vpp_misc_set &= ~VPP_CM_ENABLE;
 	else if (mode & COMPOSE_MODE_BYPASS_CM)
 		vpp_misc_set &= ~VPP_CM_ENABLE;
