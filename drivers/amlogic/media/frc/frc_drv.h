@@ -35,9 +35,11 @@
 // frc_20210918 frc chg me_dly_vofst
 // frc_20210929 frc chg hold fow for null-vframe
 // frc_20211008 frc protect opt frc register
+// frc_20211021 frc chg me little_window
 
-#define FRC_FW_VER			"2021-1021 frc chg me little_window"
-#define FRC_KERDRV_VER                  1083
+#define FRC_FW_VER			"2021-1022 frc reduce clk under noframe"
+#define FRC_KERDRV_VER                  1158
+
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
 #define FRC_CLASS_NAME	"frc"

@@ -41,6 +41,7 @@
 #include <linux/amlogic/media/frc/frc_reg.h>
 #include <linux/amlogic/media/frc/frc_common.h>
 #include <linux/amlogic/tee.h>
+#include <linux/clk.h>
 
 #include "frc_drv.h"
 #include "frc_proc.h"
@@ -393,6 +394,15 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 			}
 		} else {
 			devp->in_sts.have_vf_cnt = 0;
+			if (devp->frc_sts.state == FRC_STATE_DISABLE &&
+				devp->in_sts.vf_null_cnt == 108) {
+				frc_change_to_state(FRC_STATE_BYPASS);
+				pr_frc(1, "no_frm->chg bypass\n");
+			} else if (devp->frc_sts.state == FRC_STATE_BYPASS &&
+					devp->in_sts.vf_null_cnt == 120) {
+				clk_set_rate(devp->clk_frc, 333333333);
+				pr_frc(1, "no_frm->reduce frc clk\n");
+			}
 		}
 		break;
 	case VFRAME_HAVE:
@@ -737,6 +747,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 		} else if (new_state == FRC_STATE_ENABLE) {
 			if (devp->frc_sts.frame_cnt == 0) {
 				frc_mm_secure_set(devp);
+				clk_set_rate(devp->clk_frc, 667000000);
 				frc_hw_initial(devp);
 				//first : set bypass off
 				set_frc_bypass(OFF);
@@ -830,12 +841,13 @@ void frc_state_handle(struct frc_dev_s *devp)
 		} else if (new_state == FRC_STATE_ENABLE) {
 			if (devp->frc_sts.frame_cnt == 0) {
 				frc_mm_secure_set(devp);
+				clk_set_rate(devp->clk_frc, 667000000);
 				//first frame set bypass off
+				frc_hw_initial(devp);
 				set_frc_bypass(OFF);
 				//set_frc_enable(OFF);
 				devp->frc_sts.frame_cnt++;
 			} else if (devp->frc_sts.frame_cnt == 1) {
-				frc_hw_initial(devp);
 				//second frame set enable on
 				if (pfw_data->frc_input_cfg)
 					pfw_data->frc_input_cfg(devp->fw_data);
