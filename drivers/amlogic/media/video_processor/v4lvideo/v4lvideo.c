@@ -102,6 +102,24 @@ static struct keeper_mgr keeper_mgr_private;
 static const struct file_operations v4lvideo_file_fops;
 
 static u32 print_flag;
+static u32 cts_video_flag;
+
+const struct video_info_t cts_vp9_videos[] = {
+	{
+		.width = 426,
+		.height = 240,
+	},
+	{
+		.width = 2560,
+		.height = 1090,
+	},
+	{
+		.width = 1216,
+		.height = 2160,
+	},
+};
+
+const s32 num_vp9_videos = ARRAY_SIZE(cts_vp9_videos);
 
 #define PRINT_ERROR		0X0
 #define PRINT_QUEUE_STATUS	0X0001
@@ -859,6 +877,49 @@ free:
 		vfree(planes[i]);
 }
 
+/* for fbc output video:vp9 */
+static bool need_do_extend_one_column_fbc(struct vframe_s *vf,
+					  struct v4l_data_t *v4l_data)
+{
+	u32 video_idx;
+
+	pr_info("vf->compwidth:%d v4l_data->byte_stride:%d num_vp9_videos:%d\n",
+		 vf->compWidth, v4l_data->byte_stride, num_vp9_videos);
+
+	if (cts_video_flag || vf->compWidth >= v4l_data->byte_stride)
+		return false;
+
+	for (video_idx = 0; video_idx < num_vp9_videos; video_idx++) {
+		if (v4l_data->width == cts_vp9_videos[video_idx].width &&
+			v4l_data->height == cts_vp9_videos[video_idx].height) {
+			pr_info("no need_do_extend_one_column_vp9\n");
+			return false;
+		}
+	}
+	return true;
+}
+
+static bool need_do_extend_one_row_fbc(struct vframe_s *vf,
+				       struct v4l_data_t *v4l_data)
+{
+	u32 video_idx;
+
+	pr_info("vf->compHeight:%d v4l_data->height:%d num_vp9_videos:%d\n",
+		 vf->compHeight, v4l_data->height, num_vp9_videos);
+
+	if (cts_video_flag || vf->compHeight >= v4l_data->height)
+		return false;
+
+	for (video_idx = 0; video_idx < num_vp9_videos; video_idx++) {
+		if (v4l_data->width == cts_vp9_videos[video_idx].width &&
+			v4l_data->height == cts_vp9_videos[video_idx].height) {
+			pr_info("no need_do_extend_one_row_vp9\n");
+			return false;
+		}
+	}
+	return true;
+}
+
 void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 				struct dma_buf *dmabuf,
 				u32 align)
@@ -872,6 +933,11 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 	bool is_10bit = false;
 	bool is_dec_vf = false;
 	u32 aligned_height = 0;
+	char *y_vaddr = NULL;
+	char *uv_vaddr = NULL;
+	char *y_src = NULL;
+	char *uv_src = NULL;
+	u32 row;
 	struct file_private_data *file_private_data = NULL;
 
 	is_dec_vf = is_valid_mod_type(dmabuf, VF_SRC_DECODER);
@@ -925,7 +991,52 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 	 * fbc decoder for VIDTYPE_COMPRESS
 	 */
 	if ((vf->type & VIDTYPE_COMPRESS)) {
+		pr_info("fbc decoder path\n");
 		do_vframe_afbc_soft_decode(v4l_data, vf);
+		if (need_do_extend_one_column_fbc(vf, v4l_data) == true) {
+			y_vaddr = (char *)phys_to_virt(v4l_data->phy_addr[0]);
+			uv_vaddr = y_vaddr +
+				v4l_data->byte_stride * v4l_data->height;
+			for (row = 0; row < vf->compHeight; row++) {
+				int cnt = vf->compWidth +
+					row * v4l_data->byte_stride;
+
+				if (print_flag)
+					pr_debug("before move y_vaddr[%d]=%d\n",
+						 cnt, *(y_vaddr + cnt));
+				*(y_vaddr + cnt) = *(y_vaddr + cnt - 1);
+				if (print_flag)
+					pr_debug("after move y_vaddr[%d]=%d\n",
+						 cnt, *(y_vaddr + cnt));
+				if (row < vf->compHeight / 2) {
+					cnt = vf->compWidth +
+						row * v4l_data->byte_stride;
+					if (print_flag)
+						pr_debug("before uv_vaddr[%d]=%d\n",
+							 cnt,
+							 *(uv_vaddr + cnt));
+					*(uv_vaddr + cnt) =
+						*(uv_vaddr + cnt - 2);
+					*(uv_vaddr + cnt + 1) =
+						*(uv_vaddr + cnt - 1);
+					if (print_flag)
+						pr_debug("after uv_vaddr[%d]=%d\n",
+							 cnt,
+							 *(uv_vaddr + cnt));
+				}
+			}
+		}
+		if (need_do_extend_one_row_fbc(vf, v4l_data) == false)
+			return;
+		pr_info("begin copy row\n");
+		y_vaddr = (char *)phys_to_virt(v4l_data->phy_addr[0]);
+		uv_vaddr = y_vaddr + v4l_data->byte_stride * v4l_data->height;
+		y_src = y_vaddr + v4l_data->byte_stride * (vf->compHeight - 1);
+		uv_src = uv_vaddr +
+			v4l_data->byte_stride * (vf->compHeight / 2 - 1);
+		memcpy(y_src + v4l_data->byte_stride, y_src, vf->compWidth + 1);
+		memcpy(uv_src + v4l_data->byte_stride,
+				uv_src, vf->compWidth + 1);
 		return;
 	}
 	/*
@@ -2741,6 +2852,30 @@ static ssize_t print_flag_store(struct class *cla,
 	return count;
 }
 
+static ssize_t cts_video_flag_show(struct class *class,
+				   struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "cts_video_flag: %d\n", cts_video_flag);
+}
+
+static ssize_t cts_video_flag_store(struct class *class,
+				    struct class_attribute *attr,
+				    const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+
+	if (val > 0)
+		cts_video_flag = val;
+	else
+		cts_video_flag = 0;
+	return count;
+}
+
 static ssize_t inactive_check_disp_show(struct class *cla,
 			    struct class_attribute *attr,
 			    char *buf)
@@ -2787,6 +2922,7 @@ static CLASS_ATTR_RO(total_get_count);
 static CLASS_ATTR_RO(total_put_count);
 static CLASS_ATTR_RO(total_release_count);
 static CLASS_ATTR_RW(print_flag);
+static CLASS_ATTR_RW(cts_video_flag);
 static CLASS_ATTR_RW(inactive_check_disp);
 
 static struct attribute *v4lvideo_class_attrs[] = {
@@ -2813,6 +2949,7 @@ static struct attribute *v4lvideo_class_attrs[] = {
 	&class_attr_total_release_count.attr,
 	&class_attr_print_flag.attr,
 	&class_attr_inactive_check_disp.attr,
+	&class_attr_cts_video_flag.attr,
 	NULL
 };
 
