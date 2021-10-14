@@ -1355,6 +1355,13 @@ static void vframe_composer(struct composer_dev *dev)
 		 "min_top,min_left,max_bottom,max_right: %d %d %d %d\n",
 		 min_top, min_left, max_bottom, max_right);
 
+	if (scr_vf && count == 1) {
+		vc_print(dev->index, PRINT_OTHER,
+			 "%s: copy hdr info.\n", __func__);
+		dst_vf->src_fmt = scr_vf->src_fmt;
+		dst_vf->signal_type = scr_vf->signal_type;
+	}
+
 	dst_vf->zorder = frames_info->disp_zorder;
 	dst_vf->canvas0Addr = -1;
 	dst_vf->canvas1Addr = -1;
