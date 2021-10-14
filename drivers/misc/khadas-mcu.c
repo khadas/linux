@@ -280,7 +280,7 @@ static bool is_duty_control_version(void)
 static int is_mcu_fan_control_available(void)
 {
 	// MCU FAN control only for Khadas VIM2 V13 and later.
-	if (g_mcu_data->fan_data.hwver > KHADAS_FAN_HWVER_VIM2_V13){
+	if (g_mcu_data->fan_data.hwver >= KHADAS_FAN_HWVER_VIM1_V13){
 		return 1;
 	}
 	else
