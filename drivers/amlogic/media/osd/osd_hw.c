@@ -10745,7 +10745,7 @@ void osd_secure_cb(u32 arg)
 
 static int osd_setting_order(u32 output_index)
 {
-#define RDMA_DETECT_REG VIU_OSD2_TCOLOR_AG2
+#define RDMA_DETECT_REG VIU_OSD2_TCOLOR_AG0
 	int i;
 	struct hw_osd_blending_s *blending;
 	u32 osd_count = osd_hw.osd_meson_dev.osd_count;
@@ -11260,7 +11260,7 @@ static void osd_setting_viux(u32 output_index)
 			osd_hw.dst_data[index].y;
 		width = osd_hw.dst_data[index].w;
 		height = osd_hw.dst_data[index].h;
-		if (osd_hw.field_out_en[VIU2]) {
+		if (osd_hw.field_out_en[output_index]) {
 			height = height >> 1;
 			osd_hw.free_dst_data[index].y_start >>= 1;
 		}
@@ -11412,7 +11412,7 @@ static void osd_setting_viux(u32 output_index)
 		osd_hw.reg[OSD_ENABLE].update_func(index);
 
 		if (osd_hw.hw_rdma_en)
-			osd_mali_afbc_start(VIU2);
+			osd_mali_afbc_start(output_index);
 
 	} else {
 		count++;
@@ -11430,7 +11430,7 @@ static void osd_setting_viux(u32 output_index)
 			/* geometry and freescale need update with ioctl */
 			osd_hw.reg[DISP_GEOMETRY].update_func(index);
 			osd_hw.reg[DISP_OSD_REVERSE].update_func(index);
-			if (!osd_hw.osd_display_debug[VIU2])
+			if (!osd_hw.osd_display_debug[output_index])
 				osd_hw.reg[OSD_ENABLE]
 				.update_func(index);
 		}
@@ -13402,6 +13402,21 @@ void osd_get_screen_info(u32 index,
 		return;
 	*screen_base = (char __iomem *)osd_hw.screen_base[index];
 	*screen_size = osd_hw.screen_size[index];
+}
+
+void osd_get_fence_count(u32 index, u32 *fence_cnt, u32 *timeline_cnt)
+{
+	u32 output_index;
+	struct sync_timeline *tl = NULL;
+
+	if (index >= OSD_MAX || !fence_cnt || !timeline_cnt)
+		return;
+
+	output_index = get_output_device_id(index);
+	tl = (struct sync_timeline *)osd_timeline[output_index];
+
+	*fence_cnt = cur_streamline_val[output_index];
+	*timeline_cnt = tl ? tl->value : 0;
 }
 
 int get_vmap_addr(u32 index, u8 __iomem **buf)

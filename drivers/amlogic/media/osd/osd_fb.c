@@ -3703,6 +3703,18 @@ static ssize_t store_osd_sc_depend(struct device *device,
 	return count;
 }
 
+static ssize_t show_fence_count(struct device *device,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	u32 fence_cnt = 0, timeline_cnt = 0;
+
+	osd_get_fence_count(fb_info->node, &fence_cnt, &timeline_cnt);
+	return snprintf(buf, PAGE_SIZE, "fence:%d timeline:%d\n",
+			fence_cnt, timeline_cnt);
+}
+
 static inline  int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -3947,6 +3959,8 @@ static struct device_attribute osd_attrs[] = {
 	       show_osd_sc_depend, store_osd_sc_depend),
 	__ATTR(display_dev_cnt, 0644,
 	       show_display_dev_cnt, store_display_dev_cnt),
+	__ATTR(fence_count, 0440,
+	       show_fence_count, NULL),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
@@ -4002,6 +4016,8 @@ static struct device_attribute osd_attrs_viu2[] = {
 	       show_osd_hold_line, store_osd_hold_line),
 	__ATTR(osd_do_hwc, 0220,
 	       NULL, store_do_hwc),
+	__ATTR(fence_count, 0440,
+	       show_fence_count, NULL),
 };
 
 #ifdef CONFIG_PM
