@@ -149,6 +149,13 @@ struct aml_demod_para {
 	u32_t dtmb_coderate;
 };
 
+struct aml_demod_para_real {
+	u32_t modulation;
+	u32_t coderate;
+	u32_t symbol;
+	u32_t snr;
+};
+
 #define CAP_NAME_LEN	100
 struct dtvdemod_capture_s {
 	char cap_dev_name[CAP_NAME_LEN];
@@ -237,6 +244,8 @@ struct aml_dtvdemod {
 	bool suspended;
 	bool reseted;
 	unsigned int ci_mode;
+
+	struct aml_demod_para_real real_para;
 };
 
 struct amldtvdemod_device_s {
