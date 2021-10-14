@@ -533,7 +533,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 						data.hook_data.mode_type,
 						data.hook_data.data_buf);
 		if (ret < 0) {
-			MUA_PRINTK(0, "get meta data fail.\n");
+			MUA_PRINTK(1, "meson_uvm_setinfo fail.\n");
 			return -EINVAL;
 		}
 		break;
