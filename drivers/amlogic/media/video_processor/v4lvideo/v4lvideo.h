@@ -255,6 +255,11 @@ enum vframe_source_type {
 	VDIN_10BIT_NORMAL,
 };
 
+struct video_info_t {
+	u32 width;
+	u32 height;
+};
+
 unsigned int get_v4lvideo_debug(void);
 
 #define V4LVIDEO_IOC_MAGIC  'I'
