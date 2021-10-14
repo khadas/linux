@@ -235,4 +235,5 @@ void osd_get_display_fb(u32 index, u32 *osd_display_fb);
 void osd_set_display_fb(u32 index, u32 osd_display_fb);
 void osd_get_sc_depend(u32 *osd_sc_depend);
 void osd_set_sc_depend(u32 osd_sc_depend);
+void osd_get_fence_count(u32 index, u32 *fence_cnt, u32 *timeline_cnt);
 #endif
