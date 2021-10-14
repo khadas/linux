@@ -1475,7 +1475,7 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 			ret = true;
 		break;
 	case TVIN_SIG_FMT_CVBS_SECAM:
-		if (!cvd2->hw.secam && !cvd2->hw.secam_detected)
+		if (!cvd2->hw.secam || !cvd2->hw.secam_detected)
 			ret = true;
 		break;
 	case TVIN_SIG_FMT_CVBS_NTSC_443:
@@ -1731,8 +1731,8 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 				TVIN_SIG_FMT_CVBS_NTSC_443);
 			break;
 		case TVIN_SIG_FMT_CVBS_SECAM:
-			if (cvd2->hw.line625 && (cvd2->hw.secam_detected ||
-			cvd2->hw.secam)){
+			if (cvd2->hw.line625 && cvd2->hw.secam_detected &&
+			cvd2->hw.secam){
 				/* 625 + secam =>*/
 				/*confirm SECAM */
 				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
