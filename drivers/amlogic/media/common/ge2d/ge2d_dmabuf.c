@@ -510,7 +510,6 @@ int ge2d_dma_buffer_export(struct aml_dma_buffer *buffer,
 
 int ge2d_dma_buffer_map(struct aml_dma_cfg *cfg)
 {
-	long ret = -1;
 	int fd = -1;
 	struct dma_buf *dbuf = NULL;
 	struct dma_buf_attachment *d_att = NULL;
@@ -544,20 +543,11 @@ int ge2d_dma_buffer_map(struct aml_dma_cfg *cfg)
 		goto map_attach_err;
 	}
 
-	ret = dma_buf_begin_cpu_access(dbuf, dir);
-	if (ret != 0) {
-		pr_err("failed to access dma buff");
-		goto access_err;
-	}
-
 	cfg->dbuf = dbuf;
 	cfg->attach = d_att;
 	cfg->sg = sg;
 	ge2d_log_dbg("%s, dbuf=0x%p\n", __func__, dbuf);
-	return ret;
-
-access_err:
-	dma_buf_unmap_attachment(d_att, sg, dir);
+	return 0;
 
 map_attach_err:
 	dma_buf_detach(dbuf, d_att);
@@ -565,7 +555,7 @@ map_attach_err:
 attach_err:
 	dma_buf_put(dbuf);
 
-	return ret;
+	return -1;
 }
 
 static int ge2d_dma_buffer_get_phys_internal(struct aml_dma_buffer *buffer,
@@ -619,12 +609,6 @@ int ge2d_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 			page = sg_page(sg_table->sgl);
 			*addr = PFN_PHYS(page_to_pfn(page));
 			ret = 0;
-		if (cfg->dir == DMA_TO_DEVICE)
-			dma_sync_sg_for_device(cfg->dev, sg_table->sgl,
-					       sg_table->nents, cfg->dir);
-		else
-			dma_sync_sg_for_cpu(cfg->dev, sg_table->sgl,
-					    sg_table->nents, cfg->dir);
 		}
 		ge2d_dma_buffer_unmap(cfg);
 	}
@@ -652,15 +636,6 @@ void ge2d_dma_buffer_unmap(struct aml_dma_cfg *cfg)
 	dbuf = cfg->dbuf;
 	d_att = cfg->attach;
 	sg = cfg->sg;
-
-	if (dir == DMA_TO_DEVICE)
-		dma_sync_sg_for_device(cfg->dev, sg->sgl,
-				       sg->nents, dir);
-	else
-		dma_sync_sg_for_cpu(cfg->dev, sg->sgl,
-				    sg->nents, dir);
-
-	dma_buf_end_cpu_access(dbuf, dir);
 
 	dma_buf_unmap_attachment(d_att, sg, dir);
 
