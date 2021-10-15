@@ -704,6 +704,9 @@ static struct class aml_ddr_class = {
 
 static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 {
+	/* default init dmc_number is 1 */
+	band->dmc_number = 1;
+
 	switch (cpu) {
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_A1
 	case DMC_TYPE_A1:
