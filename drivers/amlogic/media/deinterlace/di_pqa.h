@@ -164,6 +164,7 @@ bool di_attach_ops_mtn(const struct mtn_op_s **ops);
 #define DI_IC_ID_S4		(0x2a)
 #define DI_IC_ID_T7		(0x30)
 #define DI_IC_ID_T3		(0x35)
+#define DI_IC_ID_T5W		(0x38)// same with t3 linear
 
 #define DI_IC_ID_DEINTERLACE		(0xFF)
 

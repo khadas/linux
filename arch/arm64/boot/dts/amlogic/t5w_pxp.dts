@@ -62,6 +62,22 @@
 			linux,contiguous-region;
 		};
 
+		/*di CMA pool */
+		di_cma_reserved:linux,di_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* buffer_size = 3621952(yuv422 8bit)
+			 *  | 4736064(yuv422 10bit)
+			 *  | 4074560(yuv422 10bit full pack mode)
+			 * 10x3621952=34.6M(0x23) support 8bit
+			 * 10x4736064=45.2M(0x2e) support 12bit
+			 * 10x4074560=40M(0x28) support 10bit
+			 */
+			size = <0x0 0x0B000000>;
+			//size = <0x0 0x0>;
+			alignment = <0x0 0x400000>;
+		};
+
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
@@ -106,6 +122,49 @@
 		compatible = "amlogic, ionvideo";
 		dev_name = "ionvideo";
 		status = "okay";
+	};
+
+	multi-di {
+		//status = "okay";
+		/***************************************************
+		 * memory: default is 4
+		 *	0:use reserved;
+		 *	1:use cma;
+		 *	2:use cma as reserved
+		 *  4:use codec mem
+		 ***************************************************/
+		flag_cma = <1>;//t5d unsupport 4K,di 1CH need 42M
+		//memory-region = <&di_cma_reserved>;
+		/***************************************************
+		 * clock-range: <min max>
+		 *	default: <334 667>
+		 ***************************************************/
+		//clock-range = <334 667>;
+		/***************************************************
+		 * en_4k: t5d not support 4k
+		 ***************************************************/
+		en_4k = <1>;
+		keep_dec_vf = <2>;
+		po_fmt = <6>;
+		dct = <0>;//decontour disable
+		/***************************************************
+		 * post_nub: default is 11 (T7/T3/SC2/S4 new path)
+		 * local 7*4075520 = 28
+		 * post 11*5222400 = 56
+		 ***************************************************/
+		post_nub = <11>;
+		/***************************************************
+		 * 0:not support
+		 * bit 0: for 4k
+		 * bit 1: for 1080p
+		 ***************************************************/
+		alloc_sct = <1>;
+		/***************************************************
+		 * hf: default is 0 (T7/T3/SC2/S4 new path)
+		 * 0:not enable;
+		 * 1: enable
+		 ***************************************************/
+		hf = <0>;
 	};
 }; /* end of reserved-memory */
 

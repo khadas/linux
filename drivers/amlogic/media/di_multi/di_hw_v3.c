@@ -1884,6 +1884,11 @@ static void set_di_mif_v1(struct DI_MIF_S *mif,
 		op->wr(off + RDMIFXN_LUMA_FIFO_SIZE, 0xc0);
 	}
 
+	if (DIM_IS_IC(T5W)) {//axi bus fifo from feijun.fan for t5w
+		op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
+		op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
+	}
+
 	bytes_per_pixel = (mif->set_separate_en) ?
 		0 : ((mif->video_mode == 2) ? 2 : 1);
 
@@ -4208,6 +4213,11 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		op->wr(off + reg[MIF_LUMA_FIFO_SIZE], 0xC0);
 	}
 
+	if (DIM_IS_IC(T5W)) {//axi bus fifo from feijun.fan for t5w
+		op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
+		op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
+	}
+
 	bytes_per_pixel = (mif->set_separate_en) ?
 		0 : ((mif->video_mode == 2) ? 2 : 1);
 
@@ -4448,6 +4458,11 @@ static void hw_init_v3(void)
 		op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, fifo_size_di);
 		op->wr(DI_SC2_IF1_LUMA_FIFO_SIZE, fifo_size_di);
 		op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, fifo_size_di);
+
+		if (DIM_IS_IC(T5W)) {//axi bus fifo from feijun.fan for t5w
+			op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
+			op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
+		}
 
 		path_sel = 1;
 		op->bwr(DI_TOP_PRE_CTRL, (path_sel & 0x3), 0, 2);

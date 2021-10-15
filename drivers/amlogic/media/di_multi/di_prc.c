@@ -383,7 +383,8 @@ void di_cfg_top_dts(void)
 	if (DIM_IS_IC(TM2B)	||
 	    DIM_IS_IC(SC2) || DIM_IS_IC(T5) ||
 	    DIM_IS_IC(T7) ||
-	    DIM_IS_IC(T3)) {
+	    DIM_IS_IC(T3) ||
+	    DIM_IS_IC(T5W)) {
 		if (!pd->b.dts_have) {
 			pd->b.val_c = 0x3;
 			//pd->b.val_c = 0x0;//test

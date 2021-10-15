@@ -1594,7 +1594,7 @@ void dcntr_prob(void)
 	dbg_reg("%s\n", __func__);
 	memset(pcfg, 0, sizeof(*pcfg));
 
-	if (DIM_IS_IC(T5) || DIM_IS_IC(T3))
+	if (DIM_IS_IC(T5) || DIM_IS_IC(T3) || DIM_IS_IC(T5W))
 		pcfg->support = 1;
 	else
 		pcfg->support = 0;

@@ -645,6 +645,69 @@
 		reg = <0x0 0xff940000 0x0 0x10000>;
 	};
 
+	di_local {
+		compatible = "amlogic, di-local";
+		status = "okay";
+	};
+
+	multi-di {
+		compatible = "amlogic, dim-t5w";
+		status = "okay";
+		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
+		flag_cma = <4>;	//<1>;
+		//memory-region = <&di_reserved>;
+		memory-region = <&di_cma_reserved>;
+		interrupts = <0 46 1
+				0 40 1
+				0 39 1>;
+		interrupt-names = "pre_irq", "post_irq","dct_irq";
+		clocks = <&clkc CLKID_VPU_CLKB>,
+			<&clkc CLKID_VPU>;
+		clock-names = "vpu_clkb",
+			"vpu_mux";
+		clock-range = <334 667>;
+		/* buffer-size = <3621952>;(yuv422 8bit) */
+		buffer-size = <4074560>;/*yuv422 fullpack*/
+		/* reserve-iomap = "true"; */
+		/* if enable nr10bit, set nr10bit-support to 1 */
+		post-wr-support = <1>;
+		nr10bit-support = <1>;
+		nrds-enable = <1>;
+		pps-enable = <1>;
+		en_4k = <1>;
+		keep_dec_vf = <2>;
+		po_fmt = <6>;
+		post_nub = <11>;
+		alloc_sct = <1>;
+		hf = <0>;
+		dct = <2>;//decontour enable
+		/***************************************************
+		 * t5w t3 support 4k ,same with t7 ,no canvas,
+		 * post_nub---default is 11
+		 *            (T7/T3/SC2/S4 new path)
+		 *            post 11*5222400 = 56M,local 7*4075520 = 28m
+		 * flag_cma---0: use reserved; 1:use cma;
+		 *            2:use cma as reserved 4:use codec mem
+		 * en_4k :en_4k---0: not support 4K;  1: enable 4K
+		 *                2: dynamic: vdin: 4k enable,
+		 *                   other source 4k disable
+		 *                8: when 4k,
+		 *                   output with a resolution is below 1080p
+		 * keep_dec_vf---0:not keep; 1: keep dec vf for p;
+		 *               2: dynamic keep dec vf for p,other is disable
+		 * po_fmt---1: NV21/8;  2: nv12/8;  3: AFBC 422/10BIT;
+		 *          4: dynamic(4K AFBC,10/422);
+		 *          6: dynamic(from decoder 4K source,
+		 *             out is AFBC,10/420),
+		 *             other is 422/10BIT
+		 * bypass_mem---0:nr not bypass; 1: nr bypass;
+		 *              2: when 4k input ,nr is bypass;
+		 *              3: bypass nr for 4k,but not from vdin;
+		 * alloc_sct---0:not support; bit 0: for 4k; bit 1: for 1080p
+		 * hf---0:not enable; 1: enable
+		 * dct---0:not enable; 1: enable 1 ch; 2: enable 2 ch
+		 ***************************************************/
+	};
 }; /* end of / */
 
 &pinctrl_periphs {
