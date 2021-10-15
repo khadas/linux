@@ -260,6 +260,8 @@ static void seq_dump_status(struct seq_file *seq)
 	unsigned int polling_en = 1;
 
 	seq_printf(seq, "version:%s\n", DTVDEMOD_VER);
+	seq_printf(seq, "AMLDTVDEMOD_VER:%s\nAMLDTVDEMOD_T2_FW_VER:%s\n",
+		AMLDTVDEMOD_VER, AMLDTVDEMOD_T2_FW_VER);
 	get_chip_name(devp, chip_name);
 	seq_printf(seq, "chip: %d, %s\n", devp->data->hw_ver, chip_name);
 	seq_printf(seq, "demod_thread: %d\n", devp->demod_thread);
@@ -344,6 +346,13 @@ static int demod_dump_info_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+static int demod_version_info_show(struct seq_file *seq, void *v)
+{
+	seq_printf(seq, "AMLDTVDEMOD_VER:%s\nAMLDTVDEMOD_T2_FW_VER:%s\n",
+		AMLDTVDEMOD_VER, AMLDTVDEMOD_T2_FW_VER);
+	return 0;
+}
+
 #define DEFINE_SHOW_DEMOD(__name) \
 static int __name ## _open(struct inode *inode, struct file *file)	\
 { \
@@ -360,9 +369,12 @@ static const struct file_operations __name ## _fops = {			\
 
 /* cat /sys/kernel/debug/demod/dump_info */
 DEFINE_SHOW_DEMOD(demod_dump_info);
+/* cat /sys/kernel/debug/demod/version_info */
+DEFINE_SHOW_DEMOD(demod_version_info);
 
 static struct demod_debugfs_files_t demod_debug_files[] = {
 	{"dump_info", S_IFREG | 0644, &demod_dump_info_fops},
+	{"version_info", S_IFREG | 0644, &demod_version_info_fops},
 	{"dvbc_channel_fast", S_IFREG | 0644, &dvbc_fast_search_fops},
 };
 
@@ -648,11 +660,20 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode)
 	PR_INFO("%s:[path]%s,[cap_mode]%d\n", __func__, path, capture_mode);
 	switch (capture_mode) {
 	case 0: /* common fe */
-		testbus_addr = 0x1000;
-		//tb_depth = 10;
-		/* sample bit width */
-		width = 9;
-		vld = 0x100000;
+		if (devp->data->hw_ver == DTVDEMOD_HW_S4D ||
+			devp->data->hw_ver == DTVDEMOD_HW_S4) {
+			testbus_addr = 0x101b;
+			//tb_depth = 10;
+			/* sample bit width */
+			width = 19;
+			vld = 0x100000;
+		} else {
+			testbus_addr = 0x1000;
+			//tb_depth = 10;
+			/* sample bit width */
+			width = 9;
+			vld = 0x100000;
+		}
 		break;
 
 	case 3: /* ts stream */
@@ -672,11 +693,20 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode)
 		break;
 
 	case 5: /* S/S2 */
-		testbus_addr = 0x1012;
-		//tb_depth = 10;
-		/* sample bit width */
-		width = 19;
-		vld = 0x100000;
+		if (devp->data->hw_ver == DTVDEMOD_HW_S4D ||
+			devp->data->hw_ver == DTVDEMOD_HW_S4) {
+			testbus_addr = 0x101b;
+			//tb_depth = 10;
+			/* sample bit width */
+			width = 19;
+			vld = 0x100000;
+		} else {
+			testbus_addr = 0x1012;
+			//tb_depth = 10;
+			/* sample bit width */
+			width = 19;
+			vld = 0x100000;
+		}
 		break;
 
 	default: /* common fe */

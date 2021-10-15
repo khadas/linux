@@ -56,18 +56,6 @@
 #include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 
-/****************************************************/
-/*  V1.0.17  DVBS blind scan change                 */
-/*  V1.0.18  dvbt 8K QPSK search failed            */
-/*  V1.0.19  22K will off after diseqc send        */
-/*  V1.0.20  ci card mode do not change in other mode */
-/*  V1.0.21  dvbc C/N worse                         */
-/*  V1.0.22  no audio output after random source switch */
-/*  V1.0.23  fixed code and dts CMA config          */
-/*  V1.0.24  dvbt2 add reset when unlocked for 3s   */
-/****************************************************/
-#define AMLDTVDEMOD_VER "V1.0.24"
-
 MODULE_PARM_DESC(auto_search_std, "\n\t\t atsc-c std&hrc search");
 static unsigned int auto_search_std;
 module_param(auto_search_std, int, 0644);
@@ -4929,8 +4917,8 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 		INIT_WORK(&devp->blind_scan_work, dvbs_blind_scan_work);
 	}
 
-	PR_INFO("[amldtvdemod.] : version: %s (%s), probe ok.\n",
-			AMLDTVDEMOD_VER, DTVDEMOD_VER);
+	PR_INFO("[amldtvdemod.] : version: %s (%s),T2 fw version: %s, probe ok.\n",
+			AMLDTVDEMOD_VER, DTVDEMOD_VER, AMLDTVDEMOD_T2_FW_VER);
 
 	return 0;
 fail_ic_config:
