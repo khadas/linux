@@ -43,7 +43,7 @@ int nn_print(int debug_flag, const char *fmt, ...)
 	return 0;
 }
 
-int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr)
+int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr, int *di_flag)
 {
 	struct uvm_hook_mod *uhmod = NULL;
 	struct dma_buf *dmabuf = NULL;
@@ -96,6 +96,10 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr)
 			nn_sr->hf_height = hf_info->height;
 			nn_sr->hf_align_w = hf_info->buffer_w;
 			nn_sr->hf_align_h = hf_info->buffer_h;
+			if (vf->type_original & VIDTYPE_INTERLACE)
+				*di_flag = 1;
+			else
+				*di_flag = 0;
 			nn_print(PRINT_OTHER, "has hf:phy=%llx omx_index=%d\n",
 				hf_info->phy_addr, vf->omx_index);
 		} else {
@@ -103,6 +107,7 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr)
 			nn_sr->hf_phy_addr = 0;
 			nn_sr->hf_width = 0;
 			nn_sr->hf_height = 0;
+			*di_flag = 0;
 		}
 	} else {
 		nn_print(PRINT_ERROR, "not find vf\n");
@@ -144,6 +149,7 @@ int attach_nn_hook_mod_info(int shared_fd,
 	struct uvm_ai_sr_info *ai_sr_info = (struct uvm_ai_sr_info *)buf;
 	struct vf_nn_sr_t nn_sr_t;
 	bool attached = false;
+	int src_interlace_flag = 0;
 
 	memset(&nn_sr_t, 0, sizeof(struct vf_nn_sr_t));
 
@@ -152,7 +158,7 @@ int attach_nn_hook_mod_info(int shared_fd,
 		ai_sr_info->hf_width = 0;
 		ai_sr_info->hf_height = 0;
 	} else {
-		ret = nn_get_hf_info(shared_fd, &nn_sr_t);
+		ret = nn_get_hf_info(shared_fd, &nn_sr_t, &src_interlace_flag);
 		ai_sr_info->hf_phy_addr = nn_sr_t.hf_phy_addr;
 		ai_sr_info->hf_width = nn_sr_t.hf_width;
 		ai_sr_info->hf_height = nn_sr_t.hf_height;
@@ -330,6 +336,7 @@ int nn_mod_getinfo(void *arg, char *buf)
 	u8 *data_hf;
 	u8 *data_tmp;
 	int hf_size;
+	int src_interlace_flag = 0;
 
 	si_sr_info = (struct uvm_ai_sr_info *)buf;
 	vf_nn_sr = (struct vf_nn_sr_t *)arg;
@@ -342,7 +349,9 @@ int nn_mod_getinfo(void *arg, char *buf)
 	}
 
 	if (si_sr_info->get_info_type == GET_HF_INFO) {
-		ret = nn_get_hf_info(si_sr_info->shared_fd, vf_nn_sr);
+		ret = nn_get_hf_info(si_sr_info->shared_fd,
+					vf_nn_sr,
+					&src_interlace_flag);
 		if (ret) {
 			nn_print(PRINT_ERROR, "get hf info error\n");
 			return -EINVAL;
@@ -357,6 +366,7 @@ int nn_mod_getinfo(void *arg, char *buf)
 	si_sr_info->nn_out_phy_addr = vf_nn_sr->nn_out_phy_addr;
 	si_sr_info->nn_status = vf_nn_sr->nn_status;
 	si_sr_info->nn_index = vf_nn_sr->nn_index;
+	si_sr_info->src_interlace_flag = src_interlace_flag;
 
 	if (si_sr_info->get_info_type == GET_HF_INFO) {
 		nn_print(PRINT_OTHER, "getinfo: hf_phy_addr=%llx, %d*%d\n",

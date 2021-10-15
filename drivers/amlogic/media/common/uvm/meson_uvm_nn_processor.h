@@ -28,6 +28,7 @@ struct uvm_ai_sr_info {
 	s32 nn_index;
 	s32 nn_mode;
 	s32 get_info_type;
+	s32 src_interlace_flag;
 };
 
 struct meson_nn_mod_ops {
