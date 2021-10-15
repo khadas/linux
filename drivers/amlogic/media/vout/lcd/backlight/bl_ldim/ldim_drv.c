@@ -606,6 +606,7 @@ static void ldim_time_sort_save(unsigned long long *table,
 
 static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 {
+	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	unsigned long long local_time[3];
 	unsigned long flags;
 
@@ -617,6 +618,11 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 	if (ldim_driver.dbg_vs_cnt++ >= 300) /* for debug print */
 		ldim_driver.dbg_vs_cnt = 0;
 
+	if (bdrv->data->chip_type == LCD_CHIP_T3 ||
+		bdrv->data->chip_type == LCD_CHIP_T7) {
+		ldim_remap_update();
+	}
+
 	if (ldim_driver.func_en) {
 		local_time[0] = sched_clock();
 		if (ldim_dev.data->vs_arithmetic)
@@ -626,7 +632,11 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 		ldim_time_sort_save(ldim_driver.arithmetic_time, local_time[2]);
 		/*schedule_work(&ldim_on_vs_work);*/
 		queue_work(ldim_queue, &ldim_on_vs_work);
-		ldim_remap_update();
+		if (bdrv->data->chip_type != LCD_CHIP_T3 &&
+			bdrv->data->chip_type != LCD_CHIP_T7) {
+			ldim_remap_update();
+		}
+
 	} else {
 		/*schedule_work(&ldim_off_vs_work);*/
 		queue_work(ldim_queue, &ldim_off_vs_work);
@@ -798,6 +808,7 @@ static int ldim_release(struct inode *inode, struct file *file)
 
 static void aml_ldim_info_update(void)
 {
+	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct fw_ctrl_s *fctrl;
 	int i = 0, j = 0;
 
@@ -836,8 +847,14 @@ static void aml_ldim_info_update(void)
 
 	ldim_config.remap_en = ldim_info.remapping_en;
 	ldim_config.func_en = ldim_info.func_en;
-	if (ldim_driver.data->func_ctrl)
-		ldim_driver.data->func_ctrl(&ldim_driver, ldim_config.func_en);
+
+	//LCD_CHIP_T3/T7 update in vsync isr
+	if (bdrv->data->chip_type != LCD_CHIP_T3 &&
+		bdrv->data->chip_type != LCD_CHIP_T7) {
+		if (ldim_driver.data->func_ctrl)
+			ldim_driver.data->func_ctrl(&ldim_driver,
+			ldim_config.func_en);
+	}
 }
 
 static void ldim_remap_lut_print(char *buf, int len)
@@ -861,6 +878,7 @@ static void ldim_remap_lut_print(char *buf, int len)
 
 static void aml_ldim_pq_update(void)
 {
+	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct fw_ctrl_s *fctrl;
 	struct ldim_comp_s *comp;
 	int i = 0, j = 0;
@@ -945,8 +963,14 @@ static void aml_ldim_pq_update(void)
 
 	ldim_config.remap_en = ldim_pq.remapping_en;
 	ldim_config.func_en = ldim_pq.func_en;
-	if (ldim_driver.data->func_ctrl)
-		ldim_driver.data->func_ctrl(&ldim_driver, ldim_config.func_en);
+
+	//LCD_CHIP_T3/T7 update in vsync isr
+	if (bdrv->data->chip_type != LCD_CHIP_T3 &&
+		bdrv->data->chip_type != LCD_CHIP_T7) {
+		if (ldim_driver.data->func_ctrl)
+			ldim_driver.data->func_ctrl(&ldim_driver,
+			ldim_config.func_en);
+	}
 }
 
 static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -1444,6 +1468,30 @@ ldim_malloc_t7_err0:
 	return -1;
 }
 
+static void ldim_remap_update_t3(struct ld_reg_s *nprm,
+		unsigned int avg_update_en, unsigned int matrix_update_en)
+{
+	unsigned int linecnt, vstart;
+
+	linecnt = lcd_vcbus_getb(VPU_VENCP_STAT, 16, 13);
+	vstart = lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE);
+	if ((linecnt + 20) < vstart) {
+		if (ldim_config.func_en != ldim_driver.func_en) {
+			if (ldim_driver.data && ldim_driver.data->func_ctrl)
+				ldim_driver.data->func_ctrl(&ldim_driver,
+				ldim_config.func_en);
+			ldim_driver.func_en = ldim_config.func_en;
+//			linecnt = lcd_vcbus_getb(VPU_VENCP_STAT, 16, 13);
+//			LDIMPR("%s linecnt = %d\n", __func__, linecnt);
+		}
+
+		if (ldim_config.remap_en != ldim_driver.remap_en) {
+			ldim_hw_remap_en_t7(&ldim_driver, ldim_config.remap_en);
+			ldim_driver.remap_en = ldim_config.remap_en;
+		}
+	}
+}
+
 static struct ldim_drv_data_s ldim_data_tl1 = {
 	.h_zone_max = 31,
 	.v_zone_max = 16,
@@ -1508,7 +1556,7 @@ static struct ldim_drv_data_s ldim_data_t7 = {
 	.wr_mem_size = 0x400000,
 	.rd_mem_size = 0,
 
-	.remap_update = NULL,
+	.remap_update = ldim_remap_update_t3,
 	.alloc_rmem = NULL,
 	.stts_init = NULL,
 	.remap_init = NULL,
@@ -1527,7 +1575,7 @@ static struct ldim_drv_data_s ldim_data_t3 = {
 	.wr_mem_size = 0x400000,
 	.rd_mem_size = 0,
 
-	.remap_update = NULL,
+	.remap_update = ldim_remap_update_t3,
 	.alloc_rmem = NULL,
 	.stts_init = NULL,
 	.remap_init = NULL,
