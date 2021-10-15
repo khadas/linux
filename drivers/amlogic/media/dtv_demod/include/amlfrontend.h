@@ -11,7 +11,31 @@
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 
+/****************************************************/
+/*  V1.0.20  ci card mode do not change in other mode */
+/*  V1.0.21  dvbc C/N worse                         */
+/*  V1.0.22  no audio output after random source switch */
+/*  V1.0.23  fixed code and dts CMA config          */
+/*  V1.0.24  dvbt2 add reset when unlocked for 3s   */
+/*  V1.0.25  add demod version and t2 fw version node*/
+/****************************************************/
+/****************************************************************/
+/*               AMLDTVDEMOD_VER  Description:                  */
+/*->The first digit indicates:                                  */
+/*    In case of kernel version replacement                     */
+/*    or driver schema update, increase the corresponding value */
+/*->The second digit indicates:                                 */
+/*    The changes relate to electrical performance and          */
+/*    important function development                            */
+/*->The third digit indicates:                                  */
+/*    Minor changes and bug fixes                               */
+/*             AMLDTVDEMOD_T2_FW_VER  Description:              */
+/*->The first four digits indicate the fw version number        */
+/*->The last four digits indicate the release time              */
+/****************************************************************/
 #define KERNEL_4_9_EN		1
+#define AMLDTVDEMOD_VER "V1.0.25"
+#define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DTVDEMOD_VER	"2021/10/27: DTMB ddr access cause abus hangup"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
