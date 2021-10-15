@@ -80,6 +80,7 @@ static dev_t amlmmc_dtb_no;
 struct cdev amlmmc_dtb;
 struct device *dtb_dev;
 struct class *amlmmc_dtb_class;
+static char *glb_dtb_buf;
 struct mmc_card *card_dtb;
 static struct aml_dtb_info dtb_infos = {{0, 0}, {0, 0} };
 struct mmc_partitions_fmt *pt_fmt;
@@ -169,9 +170,12 @@ static int _dtb_init(struct mmc_card *mmc)
 	int bit = mmc->csd.read_blkbits;
 	int blk;
 
-	dtb = kmalloc(CONFIG_DTB_SIZE, GFP_KERNEL);
-	if (!dtb)
-		return -ENOMEM;
+	if (!glb_dtb_buf) {
+		glb_dtb_buf = kmalloc(CONFIG_DTB_SIZE, GFP_KERNEL);
+		if (!glb_dtb_buf)
+			return -ENOMEM;
+	}
+	dtb = (struct aml_dtb_rsv *)glb_dtb_buf;
 
 	/* read dtb2 1st, for compatibility without checksum. */
 	while (cpy >= 0) {
@@ -194,7 +198,6 @@ static int _dtb_init(struct mmc_card *mmc)
 	}
 	pr_info("total valid %d\n", valid);
 
-	kfree(dtb);
 	return ret;
 }
 
@@ -260,7 +263,7 @@ int amlmmc_dtb_read(struct mmc_card *card, unsigned char *buf, int len)
 	memset(buf, 0x0, len);
 
 	start_blk = MMC_DTB_PART_OFFSET;
-	buffer = kmalloc(CONFIG_DTB_SIZE, GFP_KERNEL | __GFP_RECLAIM);
+	buffer = kmalloc(DTB_CELL_SIZE, GFP_KERNEL | __GFP_RECLAIM);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -308,7 +311,7 @@ ssize_t mmc_dtb_read(struct file *file, char __user *buf,
 		return -EFAULT;
 	}
 
-	dtb_ptr = kmalloc(CONFIG_DTB_SIZE, GFP_KERNEL);
+	dtb_ptr = glb_dtb_buf;
 	if (!dtb_ptr)
 		return -ENOMEM;
 
@@ -329,7 +332,6 @@ ssize_t mmc_dtb_read(struct file *file, char __user *buf,
 
 exit:
 	mmc_release_host(card_dtb->host);
-	kfree(dtb_ptr);
 	return read_size;
 }
 
@@ -347,7 +349,7 @@ ssize_t mmc_dtb_write(struct file *file,
 		return -EFAULT;
 	}
 
-	dtb_ptr = kmalloc(CONFIG_DTB_SIZE, GFP_KERNEL);
+	dtb_ptr = glb_dtb_buf;
 	if (!dtb_ptr)
 		return -ENOMEM;
 
@@ -371,7 +373,6 @@ ssize_t mmc_dtb_write(struct file *file,
 	*ppos += write_size;
 exit:
 	mmc_release_host(card_dtb->host);
-	kfree(dtb_ptr);
 	return write_size;
 }
 
