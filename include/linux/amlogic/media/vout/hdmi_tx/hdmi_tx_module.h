@@ -804,12 +804,8 @@ struct hdmitx_uevent {
 
 #ifdef CONFIG_AMLOGIC_HDMITX
 struct hdmitx_dev *get_hdmitx_device(void);
-/* for hdmitx internal usage */
 void hdmitx_hdcp_status(int hdmi_authenticated);
 void hdmitx_event_notify(unsigned long state, void *arg);
-void setup20_attr(const char *buf);
-void get20_attr(char attr[16]);
-void hdmitx20_video_mute_op(unsigned int flag);
 #else
 static inline struct hdmitx_dev *get_hdmitx_device(void)
 {
@@ -903,6 +899,8 @@ struct Hdcp_Sub {
 
 void hdmi_tx_edid_proc(unsigned char *edid);
 
+void setup_attr(const char *buf);
+void get_attr(char attr[16]);
 unsigned int hd_read_reg(unsigned int addr);
 void hd_write_reg(unsigned int addr, unsigned int val);
 void hd_set_reg_bits(unsigned int addr, unsigned int value,

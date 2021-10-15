@@ -44,7 +44,7 @@
 #include <linux/poll.h>
 #ifdef CONFIG_AMLOGIC_HDMITX
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
-#include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ext.h>
 #endif
 #include <linux/amlogic/pm.h>
 #include <linux/amlogic/cpu_version.h>
@@ -113,9 +113,17 @@ static struct notifier_block hdmitx_notifier_nb = {
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 static int hdmirx_notify_callback(unsigned int pwr5v_sts)
 {
+	int ret = 0;
+	unsigned int tmp = 0;
+
+#ifdef CONFIG_AMLOGIC_HDMITX
+	tmp |= (cec_dev->tx_dev->hpd_state << 4);
+#endif
+	tmp |= (pwr5v_sts & 0xF);
+
 	queue_delayed_work(cec_dev->hdmi_plug_wq, &cec_dev->work_hdmi_plug, 0);
 
-	return 0;
+	return ret;
 }
 #endif
 
@@ -360,9 +368,9 @@ static bool check_physical_addr_valid(int timeout)
 		if (phy_addr_test)
 			break;
 		/* physical address for box */
-		if (get_hpd_state() &&
-		    get_hdmitx_phy_addr() &&
-		    get_hdmitx_phy_addr()->valid == 0) {
+		if (cec_dev->tx_dev &&
+			cec_dev->tx_dev->hpd_state &&
+		    cec_dev->tx_dev->hdmi_info.vsdb_phy_addr.valid == 0) {
 			msleep(40);
 			timeout--;
 		} else {
@@ -938,7 +946,7 @@ static ssize_t port_status_show(struct class *cla,
 	unsigned int tmp;
 	unsigned int tx_hpd;
 
-	tx_hpd = get_hpd_state();
+	tx_hpd = cec_dev->tx_dev->hpd_state;
 	if (cec_dev->dev_type != CEC_TV_ADDR) {
 		tmp = tx_hpd;
 		return sprintf(buf, "%x\n", tmp);
@@ -957,7 +965,7 @@ static ssize_t pin_status_show(struct class *cla,
 	unsigned int tx_hpd;
 	char p;
 
-	tx_hpd = get_hpd_state();
+	tx_hpd = cec_dev->tx_dev->hpd_state;
 	if (cec_dev->dev_type != CEC_TV_ADDR) {
 		if (!tx_hpd) {
 			pin_status = 0;
@@ -1489,6 +1497,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 	struct hdmi_port_info *port;
 	unsigned int a, i = 0;
 	struct st_rx_msg wk_msg;
+	/*struct hdmitx_dev *tx_dev;*/
 	/*unsigned int tx_hpd;*/
 
 	mutex_lock(&cec_dev->cec_ioctl_mutex);
@@ -1658,7 +1667,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 			else
 				tmp = 0;
 		} else {
-			tmp = get_hpd_state();
+			tmp = cec_dev->tx_dev->hpd_state;
 		}
 		/*CEC_ERR("port id:%d, sts:%d\n", a, tmp);*/
 		if (copy_to_user(argp, &tmp, _IOC_SIZE(cmd))) {
@@ -2164,7 +2173,7 @@ static void cec_hdmi_plug_handler(struct work_struct *work)
 	unsigned int tmp = 0;
 
 #ifdef CONFIG_AMLOGIC_HDMITX
-	tmp |= (get_hpd_state() << 4);
+	tmp |= (cec_dev->tx_dev->hpd_state << 4);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
 	tmp |= (hdmirx_get_connect_info() & 0xF);
@@ -2215,6 +2224,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	/*will replace by CEC_IOC_SET_DEV_TYPE*/
 	cec_dev->dev_type = CEC_PLAYBACK_DEVICE_1_ADDR;
 	cec_dev->dbg_dev  = &pdev->dev;
+	cec_dev->tx_dev   = get_hdmitx_device();
 	/* cec_dev->cpu_type = get_cpu_type(); */
 	cec_dev->node = pdev->dev.of_node;
 	cec_dev->probe_finish = false;

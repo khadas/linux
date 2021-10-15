@@ -693,6 +693,13 @@ int get21_hpd_state(void);
  *    hdmitx hardware level interface
  ***********************************************************************/
 void hdmitx21_meson_init(struct hdmitx_dev *hdev);
+/*
+ * hdmitx_audio_mute_op() is used by external driver call
+ * flag: 0: audio off   1: audio_on
+ *       2: for EDID auto mode
+ */
+void hdmitx_audio_mute_op(u32 flag);
+void hdmitx_video_mute_op(u32 flag);
 
 /*
  * HDMITX HPD HW related operations
@@ -750,6 +757,8 @@ int hdmitx21_ddc_hw_op(enum ddc_op cmd);
 
 void hdmi_tx_edid_proc(u8 *edid);
 
+void setup_attr(const char *buf);
+void get_attr(char attr[16]);
 void vsem_init_cfg(struct hdmitx_dev *hdev);
 
 enum hdmi_tf_type hdmitx21_get_cur_hdr_st(void);
