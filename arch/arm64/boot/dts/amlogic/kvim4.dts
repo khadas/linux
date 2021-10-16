@@ -1268,13 +1268,13 @@
 };
 
 &crg20_otg {
-	status = "disable";
-	controller-type = <3>;
+	status = "okay";
+	controller-type = <2>;
 };
 
 &crg21_otg {
 	status = "okay";
-	controller-type = <3>;
+	controller-type = <2>;
 };
 
 &crg2_drd {
