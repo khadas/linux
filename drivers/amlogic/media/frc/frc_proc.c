@@ -942,3 +942,13 @@ int frc_memc_set_demo(u8 setdemo)
 	}
 	return 1;
 }
+
+int frc_init_out_line(void)
+{
+	u32 vfb = 0;
+
+	vfb = aml_read_vcbus_s(ENCL_VIDEO_VAVON_BLINE);
+	if (vfb)
+		vfb = (vfb / 4) * 3;  // 3/4 point of front vblank, default
+	return vfb;
+}

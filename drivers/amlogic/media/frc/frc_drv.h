@@ -34,8 +34,9 @@
 // frc_20210907 frc set delay frame
 // frc_20210918 frc chg me_dly_vofst
 // frc_20210929 frc chg hold fow for null-vframe
+// frc_20211008 frc protect opt frc register
 
-#define FRC_FW_VER			"2021-1008 frc protect opt frc register"
+#define FRC_FW_VER			"2021-1021 frc chg me little_window"
 #define FRC_KERDRV_VER                  1083
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
@@ -332,6 +333,8 @@ struct frc_dev_s {
 	u32 prot_mode;/*0:memc prefetch acorrding mode frame 1:memc prefetch 1 frame*/
 	u32 film_mode;
 	u32 film_mode_det;/*0: hw detect, 1: sw detect*/
+
+	u32 out_line;/*ctl mc out line for user*/
 
 	struct tasklet_struct input_tasklet;
 	struct tasklet_struct output_tasklet;

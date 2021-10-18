@@ -258,8 +258,10 @@ static long frc_ioctl(struct file *file,
 		}
 		pr_frc(1, "set memc_autoctrl:%d\n", data);
 		if (data) {
-			devp->frc_sts.auto_ctrl = true;
-			devp->frc_sts.re_config = true;
+			if (!devp->frc_sts.auto_ctrl) {
+				devp->frc_sts.auto_ctrl = true;
+				devp->frc_sts.re_config = true;
+			}
 		} else {
 			devp->frc_sts.auto_ctrl = false;
 			if (devp->frc_sts.state == FRC_STATE_ENABLE)
@@ -729,6 +731,7 @@ static int frc_probe(struct platform_device *pdev)
 	}
 	PR_FRC("%s fw_data st size:%d", __func__, sizeof_frc_fw_data_struct());
 
+	frc_devp->out_line = frc_init_out_line();
 	ret = alloc_chrdev_region(&frc_devp->devno, 0, FRC_DEVNO, FRC_NAME);
 	if (ret < 0) {
 		PR_ERR("%s: alloc region fail\n", __func__);
