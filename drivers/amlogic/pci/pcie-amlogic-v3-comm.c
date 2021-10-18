@@ -364,7 +364,6 @@ set_rst_reg:
 		val &= ~((1 << amlogic->pcie_a_rst_bit) |
 			 (1 << amlogic->phy_rst_bit) |
 			 (1 << amlogic->apb_rst_bit));
-		val &= ~(1 << amlogic->m31phy_rst_bit);
 		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
 	} else {
 		val = readl(amlogic->rst_base + RESETCTRL3_OFFSET);
@@ -387,7 +386,6 @@ set_rst_reg:
 		val |= ((1 << amlogic->pcie_a_rst_bit) |
 			 (1 << amlogic->phy_rst_bit) |
 			 (1 << amlogic->apb_rst_bit));
-		val |= (1 << amlogic->m31phy_rst_bit);
 		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
 
 		val = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL0);
