@@ -38,6 +38,7 @@
 #define CRG_GCTL_PRTCAP_DEVICE	2
 #define CRG_GCTL_PRTCAP_OTG	3
 #define CRG_XHCI_REGS_END		0x7fff
+#define	CRG_U3DC_CFG0_MAXSPEED_SS		(0x4L << 0)
 
 struct crg_drd {
 	struct device		*dev;
@@ -267,6 +268,7 @@ static int crg_probe(struct platform_device *pdev)
 	struct crg_drd *crg;
 	int	ret;
 	void *mem;
+	u32 tmp;
 
 	mem = devm_kzalloc(dev, sizeof(*crg) + CRG_ALIGN_MASK, GFP_KERNEL);
 	if (!mem)
@@ -323,14 +325,20 @@ static int crg_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	crg->maximum_speed = USB_SPEED_HIGH;
+	if (crg->super_speed_support)
+		crg->maximum_speed = USB_SPEED_SUPER;
+	else
+		crg->maximum_speed = USB_SPEED_HIGH;
 
 	/* Check the maximum_speed parameter */
 	switch (crg->maximum_speed) {
 	case USB_SPEED_LOW:
 	case USB_SPEED_FULL:
 	case USB_SPEED_HIGH:
+		break;
 	case USB_SPEED_SUPER:
+		tmp = CRG_U3DC_CFG0_MAXSPEED_SS;
+		writel(tmp, crg->regs + 0x2410);
 	case USB_SPEED_SUPER_PLUS:
 		break;
 	default:
