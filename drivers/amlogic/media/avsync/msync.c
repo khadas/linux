@@ -2172,7 +2172,7 @@ static int create_session(u32 id)
 	session->last_check_pcr_clock = AVS_INVALID_PTS;
 	session->pcr_disc_clock = AVS_INVALID_PTS;
 	session->d_vsync_last = -1;
-	session->start_policy.policy = AMSYNC_START_ALIGN;
+	session->start_policy.policy = AMSYNC_START_ASAP;
 	session->start_policy.timeout = WAIT_INTERVAL;
 	INIT_DELAYED_WORK(&session->wait_work, wait_work_func);
 	INIT_DELAYED_WORK(&session->transit_work, transit_work_func);
