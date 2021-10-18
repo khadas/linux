@@ -576,9 +576,9 @@ static int dvr_process(struct out_elem *pout)
 	len = MAX_DVR_READ_BUF_LEN;
 	ret = SC2_bufferid_read(pout->pchan, &pread, len, flag);
 	if (ret != 0) {
-		if (pout->cb_ts_list && flag == 0) {
-//                      dprint("%s w:%d wwwwww\n", __func__, len);
-			out_ts_cb_list(pout, pread, ret, 0, 0);
+		if (flag == 0) {
+			if (pout->cb_ts_list)
+				out_ts_cb_list(pout, pread, ret, 0, 0);
 			if (dump_dvr_ts == 1) {
 				dump_file_open(DVR_DUMP_FILE, &dvr_dump_file,
 					0, 0, 1);
@@ -3015,3 +3015,12 @@ int ts_output_update_filter(int dmx_no, int sid)
 	return 0;
 }
 
+int ts_output_set_dvr_dump(int flag)
+{
+	dump_dvr_ts = flag;
+
+	mod_timer(&ts_out_task_tmp.out_timer,
+	  jiffies + msecs_to_jiffies(out_flush_time));
+
+	return 0;
+}
