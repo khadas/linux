@@ -38,6 +38,7 @@
 #include "frc_drv.h"
 #include "frc_hw.h"
 #include "frc_regs_table.h"
+#include "frc_proc.h"
 
 void __iomem *frc_clk_base;
 void __iomem *vpu_base;
@@ -494,7 +495,8 @@ void frc_mtx_set(struct frc_dev_s *frc_devp)
 
 static void set_vd1_out_size(struct frc_dev_s *frc_devp)
 {
-	unsigned int hsize, vsize;
+	unsigned int hsize = 0;
+	unsigned int vsize = 0;
 
 	if (frc_devp->frc_hw_pos == FRC_POS_BEFORE_POSTBLEND) {
 		if (frc_devp->force_size.force_en) {
@@ -591,6 +593,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	u32 frc_v_porch;
 	u32 frc_vporch_cal;
 	u32 frc_porch_delta;
+	u32 adj_mc_dly;
 
 	struct frc_fw_data_s *fw_data;
 	struct frc_top_type_s *frc_top;
@@ -614,7 +617,10 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	/*!!!!!!!!! tread de, vpu register*/
 	frc_top->vfb = vpu_reg_read(ENCL_VIDEO_VAVON_BLINE);
 	pr_frc(log, "ENCL_VIDEO_VAVON_BLINE:%d\n", frc_top->vfb);
-	reg_mc_out_line = (frc_top->vfb / 4) * 3;// 3/4 point of front vblank
+	//(frc_top->vfb / 4) * 3; 3/4 point of front vblank, default
+	reg_mc_out_line = frc_init_out_line();
+	adj_mc_dly = frc_devp->out_line;    // from user debug
+
 	// reg_me_dly_vofst = reg_mc_out_line;
 	reg_me_dly_vofst = reg_mc_dly_vofst0;  // change for keep me frist run
 	if (frc_top->hsize <= 1920 && (frc_top->hsize * frc_top->vsize <= 1920 * 1080)) {
@@ -625,6 +631,14 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 		frc_top->is_me1mc4 = 1;/*me:mc 1:4*/
 		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 0, 1); //16*16 align
 		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 1, 1); //16*16 align
+	}
+	// little window
+	if (frc_top->hsize * frc_top->vsize <=
+		frc_top->out_hsize * frc_top->out_vsize) {
+		frc_top->is_me1mc4 = 1;/*me:mc 1:4*/
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 0, 1); //16*16 align
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 1, 1); //16*16 align
+		pr_frc(log, "me:mc 1:4\n");
 	}
 
 	if (frc_top->out_hsize == 1920 && frc_top->out_vsize == 1080) {
@@ -648,7 +662,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 
 	//memc_frm_dly
 	memc_frm_dly      = reg_me_dly_vofst + me_hold_line + mevp_frm_dly +
-				mc_frm_dly  + mc_hold_line + reg_mc_out_line;
+				mc_frm_dly  + mc_hold_line + adj_mc_dly;
 	reg_mc_dly_vofst1 = memc_frm_dly - mc_frm_dly   - mc_hold_line ;
 	frc_vporch_cal    = memc_frm_dly - reg_mc_out_line;
 	WRITE_FRC_REG(FRC_REG_TOP_CTRL27, frc_vporch_cal);
@@ -691,6 +705,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	pr_frc(log, "me_hold_line      = %d\n", me_hold_line);
 	pr_frc(log, "mc_hold_line      = %d\n", mc_hold_line);
 	pr_frc(log, "mevp_frm_dly      = %d\n", mevp_frm_dly);
+	pr_frc(log, "adj_mc_dly        = %d\n", adj_mc_dly);
 	pr_frc(log, "mc_frm_dly        = %d\n", mc_frm_dly);
 	pr_frc(log, "memc_frm_dly      = %d\n", memc_frm_dly);
 	pr_frc(log, "reg_mc_dly_vofst1 = %d\n", reg_mc_dly_vofst1);

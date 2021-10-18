@@ -125,7 +125,7 @@ void frc_status(struct frc_dev_s *devp)
 		devp->force_size.force_en, devp->force_size.force_hsize,
 		devp->force_size.force_vsize);
 	pr_frc(0, "get_video_latency = %d\n", frc_get_video_latency());
-
+	pr_frc(0, "get_frc_adj_me_out_line = %d\n", devp->out_line);
 
 }
 
@@ -411,6 +411,14 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			frc_memc_set_demo((u8)val1);
+	} else if (!strcmp(parm[0], "out_line")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
+			devp->out_line = (u32)val1;
+			pr_frc(2, "set frc adj me out line is %d\n",
+				devp->out_line);
+		}
 	}
 exit:
 	kfree(buf_orig);
