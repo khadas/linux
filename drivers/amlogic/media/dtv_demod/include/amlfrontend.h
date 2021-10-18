@@ -19,6 +19,7 @@
 /*  V1.0.24  dvbt2 add reset when unlocked for 3s   */
 /*  V1.0.25  add demod version and t2 fw version node*/
 /*  V1.0.26  weak signal sidplay after dvbs search*/
+/*  V1.0.27  s4d remove dvbs blindscan fastsearch threadhold*/
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -35,9 +36,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.0.26"
+#define AMLDTVDEMOD_VER "V1.0.27"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
-#define DTVDEMOD_VER	"2021/11/6: weak signal sidplay after dvbs search"
+#define DTVDEMOD_VER	"2021/11/8: s4d remove dvbs blindscan fastsearch threadhold"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)

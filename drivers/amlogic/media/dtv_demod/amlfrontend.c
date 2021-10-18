@@ -3319,7 +3319,7 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 	demod->time_start = jiffies_to_msecs(jiffies);
 
 	if (devp->agc_direction) {
-		PR_INFO("DTV AGC direction: %d, Set dvbs agc pin reverse\n", devp->agc_direction);
+		PR_DVBS("DTV AGC direction: %d, Set dvbs agc pin reverse\n", devp->agc_direction);
 		dvbs_wr_byte(0x118, 0x04);
 		dvbs_wr_byte(0x913, 0x50);
 	}
@@ -4636,6 +4636,7 @@ static void dvbs_blind_scan_work(struct work_struct *work)
 	unsigned int cur_locked_freq = 0;
 	//unsigned int threshold_average = 0;
 	unsigned int threshold = 0;
+	unsigned int fastsrearch_val = 0;
 	int sr_int = 0;
 	int i = 0;
 
@@ -4668,7 +4669,7 @@ static void dvbs_blind_scan_work(struct work_struct *work)
 	/* map blind scan process */
 	freq_one_percent = (freq_max - freq_min) / 100;
 	PR_DVBS("freq_one_percent : %d\n", freq_one_percent);
-	timer_set_max(demod, D_TIMER_DETECT, 6800);
+	timer_set_max(demod, D_TIMER_DETECT, 7000);
 	fe->ops.info.type = FE_QPSK;
 
 	if (fe->ops.tuner_ops.set_config)
@@ -4705,13 +4706,24 @@ static void dvbs_blind_scan_work(struct work_struct *work)
 			usleep_range(250000, 260000);
 			dtvdemod_dvbs_read_status(fe, &status);
 
+			//threshold = 0;
+
+			if ((unsigned int)status != 0)
+				break;
+
 			for (i = 0; i < 10; i++)
 				threshold += dvbs_rd_byte(0x91A);
 			threshold = (unsigned int)threshold / 10;
+			PR_INFO("check no dvbs signal:0x%x\n", threshold);
 
-			if ((unsigned int)threshold < 0xa0) {
+			if (devp->data->hw_ver == DTVDEMOD_HW_T5D ||
+				devp->data->hw_ver == DTVDEMOD_HW_T3)
+				fastsrearch_val = 0xa0;
+
+			if ((unsigned int)threshold < fastsrearch_val ||
+					devp->data->hw_ver != DTVDEMOD_HW_S4D) {
 				status = FE_TIMEDOUT;
-				PR_INFO("check no dvbs signal\n");
+				PR_INFO("check no dvbs signal:0x%x\n", threshold);
 				break;
 			}
 
@@ -4724,9 +4736,6 @@ static void dvbs_blind_scan_work(struct work_struct *work)
 //					break;
 //				}
 //			}
-
-			if ((unsigned int)status != 0)
-				break;
 
 			if (fe->dtv_property_cache.bandwidth_hz > 10000000) {
 				fe->dtv_property_cache.bandwidth_hz -= 2000000;
