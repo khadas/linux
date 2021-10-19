@@ -1110,6 +1110,11 @@ MODULE_PARM_DESC(osd_afbc_dec_enable, "osd_afbc_dec_enable");
 
 static u32 osd_vpp_misc;
 static u32 osd_vpp_misc_mask = OSD_RELATIVE_BITS;
+static u32 osd_vpp1_bld_ctrl;
+static u32 osd_vpp1_bld_ctrl_mask = 0x30;
+static u32 osd_vpp2_bld_ctrl;
+static u32 osd_vpp2_bld_ctrl_mask = 0x30;
+
 module_param(osd_vpp_misc, uint, 0444);
 MODULE_PARM_DESC(osd_vpp_misc, "osd_vpp_misc");
 
@@ -3189,12 +3194,22 @@ void osd_hw_reset(u32 output_index)
 
 static int notify_to_amvideo(void)
 {
-	u32 para[2];
+	u32 para[6];
 
 	para[0] = osd_vpp_misc;
 	para[1] = osd_vpp_misc_mask;
+	/* osd_vpp1_bld_ctrl */
+	para[2] = osd_vpp1_bld_ctrl;
+	para[3] = osd_vpp1_bld_ctrl_mask;
+	/* osd_vpp2_bld_ctrl */
+	para[4] = osd_vpp2_bld_ctrl;
+	para[5] = osd_vpp2_bld_ctrl_mask;
+
 	pr_debug("osd %s vpp misc:0x%08x, mask:0x%08x\n",
 		 __func__, para[0], para[1]);
+	pr_debug("vpp1_bld_ctrl:0x%08x, mask:0x%08x,vpp2_bld_ctrl:0x%08x, mask:0x%08x\n",
+		para[2], para[3], para[4], para[5]);
+
 	if (osd_hw.hw_rdma_en) {
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 		amvideo_notifier_call_chain(AMVIDEO_UPDATE_OSD_MODE,
@@ -7171,14 +7186,13 @@ static void osd_update_enable(u32 index)
 				(VPP_MISC,
 				temp_val |
 				VPP_POSTBLEND_EN);
-			notify_to_amvideo();
 		}
+		notify_to_amvideo();
 	} else {
-		if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL) {
-			notify_to_amvideo();
+		notify_to_amvideo();
+		if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL)
 			osd_hw.osd_rdma_func[output_index].osd_rdma_clr_mask
 				(VPP_MISC, temp_val);
-		}
 		if (!(osd_hw.osd_meson_dev.cpu_id ==
 			__MESON_CPU_MAJOR_ID_G12B))
 			osd_hw.osd_rdma_func[output_index].osd_rdma_clr_mask
@@ -11243,7 +11257,7 @@ static void osd_setting_viux(u32 output_index)
 	static int count;
 	struct hw_vppx_blend_reg_s *vppx_blend_reg = NULL;
 	struct vinfo_s *vinfo = NULL;
-	u32 vpp_blend_ctrl;
+	u32 vpp_blend_ctrl = 0;
 	/* 1:vd1  2:osd1 else :close */
 	u32 bld_src2_sel = 2;
 	u32 osd1_premult = 0;
@@ -11398,13 +11412,19 @@ static void osd_setting_viux(u32 output_index)
 			(osd_hw.free_dst_data[index].y_start << 16) |
 			osd_hw.free_dst_data[index].y_end);
 
-		vpp_blend_ctrl = rdma_rd(vppx_blend_reg->vpp_bld_ctrl);
+		if (osd_hw.enable[index] == ENABLE)
+			bld_src2_sel = 2;
+		else
+			bld_src2_sel = 0;
+		//vpp_blend_ctrl = rdma_rd(vppx_blend_reg->vpp_bld_ctrl);
 		vpp_blend_ctrl |= bld_src2_sel << 4 |
 				  osd1_premult << 17 |
 				  blend_en << 31;
-
-		rdma_wr(vppx_blend_reg->vpp_bld_ctrl, vpp_blend_ctrl);
-
+		if (output_index == VPU_VPP1)
+			osd_vpp1_bld_ctrl = vpp_blend_ctrl;
+		else if (output_index == VPU_VPP2)
+			osd_vpp2_bld_ctrl = vpp_blend_ctrl;
+		//rdma_wr(vppx_blend_reg->vpp_bld_ctrl, vpp_blend_ctrl);
 		switch (output_index) {
 		case VPU_VPP0:
 			#ifdef CONFIG_AMLOGIC_VOUT_SERVE

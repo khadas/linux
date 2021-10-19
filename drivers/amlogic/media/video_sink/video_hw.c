@@ -6994,8 +6994,8 @@ void vpp1_blend_update(u32 vpp_index)
 	u32 vd_path_msic_ctrl;
 	u32 vpp1_blend_ctrl = 0;
 	u32 blend_en, vd1_premult = 1, osd1_premult = 0;
-	u32 bld_src1_sel, bld_src2_sel;
 	u32 layer_id;
+	static u32 bld_src1_sel;
 	static u32 blend_en_status_save;
 
 	if (vd_layer_vpp[0].vpp_index != VPP0) {
@@ -7064,8 +7064,11 @@ void vpp1_blend_update(u32 vpp_index)
 	if ((vd_layer_vpp[0].vpp_index != VPP0) &&
 		(blend_en_status_save != vd_layer_vpp[0].vppx_blend_en ||
 		force_flush)) {
-		bld_src1_sel = 1;
-		bld_src2_sel = 0;
+		if (videox_off_req)
+			bld_src1_sel = 0;
+		else
+			bld_src1_sel = 1;
+
 		/* 1:vd1  2:osd1 else :close */
 		/* osd1 is top, vd1 is bottom */
 
@@ -7087,18 +7090,6 @@ void vpp1_blend_update(u32 vpp_index)
 		} else {
 			blend_en = 0;
 		}
-
-		vpp1_blend_ctrl =
-			cur_dev->rdma_func[vpp_index].rdma_rd(vppx_blend_reg_array[0].vpp_bld_ctrl);
-
-		vpp1_blend_ctrl = bld_src1_sel;
-		vpp1_blend_ctrl |=
-			bld_src2_sel << 4 |
-			vd1_premult << 16 |
-			osd1_premult << 17 |
-			(vd_layer_vpp[0].layer_alpha & 0x1ff) << 20 |
-			blend_en << 31;
-
 		cur_dev->rdma_func[vpp_index].rdma_wr(viu_misc_reg.vd_path_misc_ctrl,
 			vd_path_msic_ctrl);
 		/* 0:use vpp0_go_field 1:use vpp1_go_field 2:use vpp2_go_field  */
@@ -7109,12 +7100,23 @@ void vpp1_blend_update(u32 vpp_index)
 		else if (vd_layer_vpp[0].layer_id == 2)
 			cur_dev->rdma_func[vpp_index].rdma_wr_bits(viu_misc_reg.path_start_sel,
 				vd_path_start_sel, 8, 4);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vppx_blend_reg_array[0].vpp_bld_ctrl,
-			vpp1_blend_ctrl);
+
 	}
+	vpp1_blend_ctrl =
+		cur_dev->rdma_func[vpp_index].rdma_rd(vppx_blend_reg_array[0].vpp_bld_ctrl);
+	vpp1_blend_ctrl = bld_src1_sel;
+	vpp1_blend_ctrl |=
+		vd1_premult << 16 |
+		osd1_premult << 17 |
+		(vd_layer_vpp[0].layer_alpha & 0x1ff) << 20 |
+		1 << 31;
+	vpp1_blend_ctrl |= osd_vpp1_bld_ctrl;
+	cur_dev->rdma_func[vpp_index].rdma_wr(vppx_blend_reg_array[0].vpp_bld_ctrl,
+		vpp1_blend_ctrl);
+
 	blend_en_status_save = vd_layer_vpp[0].vppx_blend_en;
 	if (vd_layer_vpp[0].vpp_index != VPP0 &&
-	    vd_layer_vpp[0].dispbuf && videox_off_req) {
+	    videox_off_req) {
 		if (vd_layer_vpp[0].layer_id == 1)
 			disable_vd2_blend(&vd_layer_vpp[0]);
 		else if (vd_layer_vpp[0].layer_id == 2)
@@ -7125,14 +7127,14 @@ void vpp1_blend_update(u32 vpp_index)
 void vpp2_blend_update(u32 vpp_index)
 {
 	unsigned long flags;
-	int video_off_req = 0;
+	int videox_off_req = 0;
 	bool force_flush = false;
 	u32 vd_path_start_sel;
 	u32 vd_path_msic_ctrl;
 	u32 vpp2_blend_ctrl = 0;
 	u32 blend_en, vd1_premult = 1, osd1_premult = 0;
-	u32 bld_src1_sel, bld_src2_sel;
 	u32 layer_id;
+	static u32 bld_src1_sel;
 	static u32 blend_en_status_save;
 
 	if (vd_layer_vpp[1].vpp_index != VPP0) {
@@ -7166,7 +7168,7 @@ void vpp2_blend_update(u32 vpp_index)
 					VPU_VIDEO_LAYER3_CHANGED;
 				if (vd_layer_vpp[1].global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info("VIDEO: VsyncDisableVideoLayer3\n");
-				video_off_req = 1;
+				videox_off_req = 1;
 				force_flush = true;
 			}
 			spin_unlock_irqrestore(&videox_vpp2_onoff_lock, flags);
@@ -7200,8 +7202,10 @@ void vpp2_blend_update(u32 vpp_index)
 	if (vd_layer_vpp[1].vpp_index != VPP0 &&
 		(blend_en_status_save != vd_layer_vpp[1].vppx_blend_en ||
 		force_flush)) {
-		bld_src1_sel = 1;
-		bld_src2_sel = 0;
+		if (videox_off_req)
+			bld_src1_sel = 0;
+		else
+			bld_src1_sel = 1;
 		/* 1:vd1  2:osd1 else :close */
 		/* osd1 is top, vd1 is bottom */
 
@@ -7219,17 +7223,6 @@ void vpp2_blend_update(u32 vpp_index)
 		} else {
 			blend_en = 0;
 		}
-
-		vpp2_blend_ctrl =
-			cur_dev->rdma_func[vpp_index].rdma_rd(vppx_blend_reg_array[1].vpp_bld_ctrl);
-
-		vpp2_blend_ctrl = bld_src1_sel;
-		vpp2_blend_ctrl |=
-			bld_src2_sel << 4 |
-			vd1_premult << 16 |
-			osd1_premult << 17 |
-			(vd_layer_vpp[1].layer_alpha & 0x1ff) << 20 |
-			blend_en << 31;
 		cur_dev->rdma_func[vpp_index].rdma_wr(viu_misc_reg.vd_path_misc_ctrl,
 			vd_path_msic_ctrl);
 		/* 0:use vpp0_go_field 1:use vpp1_go_field 2:use vpp2_go_field */
@@ -7237,13 +7230,22 @@ void vpp2_blend_update(u32 vpp_index)
 
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits(viu_misc_reg.path_start_sel,
 			vd_path_start_sel, 8, 4);
-
-		cur_dev->rdma_func[vpp_index].rdma_wr(vppx_blend_reg_array[1].vpp_bld_ctrl,
-			vpp2_blend_ctrl);
 	}
+	vpp2_blend_ctrl =
+		cur_dev->rdma_func[vpp_index].rdma_rd(vppx_blend_reg_array[1].vpp_bld_ctrl);
+	vpp2_blend_ctrl = bld_src1_sel;
+	vpp2_blend_ctrl |=
+		vd1_premult << 16 |
+		osd1_premult << 17 |
+		(vd_layer_vpp[1].layer_alpha & 0x1ff) << 20 |
+		1 << 31;
+	vpp2_blend_ctrl |= osd_vpp2_bld_ctrl;
+	cur_dev->rdma_func[vpp_index].rdma_wr(vppx_blend_reg_array[1].vpp_bld_ctrl,
+		vpp2_blend_ctrl);
+
 	blend_en_status_save = vd_layer_vpp[1].vppx_blend_en;
 	if (vd_layer_vpp[1].vpp_index != VPP0 &&
-	    vd_layer_vpp[1].dispbuf && video_off_req) {
+	    videox_off_req) {
 		if (vd_layer_vpp[1].layer_id == 2)
 			disable_vd3_blend(&vd_layer_vpp[1]);
 	}

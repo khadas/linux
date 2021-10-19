@@ -141,11 +141,20 @@ u32 vd1_vd2_mux_dts;
 u32 osd_vpp_misc;
 u32 osd_vpp_misc_mask;
 bool update_osd_vpp_misc;
+u32 osd_vpp1_bld_ctrl;
+u32 osd_vpp1_bld_ctrl_mask;
+u32 osd_vpp2_bld_ctrl;
+u32 osd_vpp2_bld_ctrl_mask;
 u32 osd_preblend_en;
 int video_vsync = -ENXIO;
 int video_vsync_viu2 = -ENXIO;
 int video_vsync_viu3 = -ENXIO;
 int video_pre_vsync = -ENXIO;
+
+module_param(osd_vpp1_bld_ctrl, uint, 0444);
+MODULE_PARM_DESC(osd_vpp1_bld_ctrl, "osd_vpp1_bld_ctrl");
+module_param(osd_vpp2_bld_ctrl, uint, 0444);
+MODULE_PARM_DESC(osd_vpp2_bld_ctrl, "osd_vpp2_bld_ctrl");
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 unsigned int det_stb_cnt = 30;
@@ -16760,6 +16769,16 @@ static int amvideo_notify_callback(struct notifier_block *block,
 			& (~osd_vpp_misc_mask);
 		val |= (p[0] & osd_vpp_misc_mask);
 		osd_vpp_misc = val;
+
+		osd_vpp1_bld_ctrl_mask = p[3];
+		val = (p[2] & osd_vpp1_bld_ctrl_mask);
+
+		osd_vpp1_bld_ctrl = val;
+
+		osd_vpp1_bld_ctrl_mask = p[5];
+		val = (p[4] & osd_vpp2_bld_ctrl_mask);
+		osd_vpp2_bld_ctrl = val;
+
 		if (!update_osd_vpp_misc)
 			update_osd_vpp_misc = true;
 		break;
@@ -17548,6 +17567,9 @@ static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 			layer_cap |= LAYER1_ALPHA;
 		if (p_amvideo->alpha_support[2])
 			layer_cap |= LAYER2_ALPHA;
+		layer_cap |= ((u32)vd_layer[0].vpp_index << LAYER0_VPP |
+			(u32)vd_layer[1].vpp_index << LAYER1_VPP |
+			(u32)vd_layer[2].vpp_index << LAYER2_VPP);
 	}
 	pr_debug("%s cap:%x, ptype:%d\n", __func__, layer_cap, p_amvideo->cpu_type);
 }
@@ -17638,14 +17660,39 @@ static int amvideom_probe(struct platform_device *pdev)
 				      &vd1_vd2_mux_dts);
 	if (vdtemp < 0)
 		vd1_vd2_mux_dts = 1;
-
-	prop = of_get_property(pdev->dev.of_node, "display_device_cnt", NULL);
-	if (prop)
-		display_device_cnt = of_read_ulong(prop, 1);
-
 	set_rdma_func_handler();
 	video_early_init(&amvideo_meson_dev);
 	video_hw_init();
+	prop = of_get_property(pdev->dev.of_node, "display_device_cnt", NULL);
+	if (prop)
+		display_device_cnt = of_read_ulong(prop, 1);
+	prop = of_get_property(pdev->dev.of_node, "vpp2_layer_count", NULL);
+	if (prop && display_device_cnt >= 3) {
+		int layer_count;
+
+		layer_count = of_read_ulong(prop, 1);
+		if (layer_count >= 2) {
+			pr_err("vpp2 only support one video layer\n");
+		} else if (layer_count == 1) {
+			vd_layer[2].vpp_index = VPP2;
+			vd_layer_vpp[1].vpp_index = VPP2;
+			vd_layer_vpp[1].layer_id = 2;
+		}
+	}
+	prop = of_get_property(pdev->dev.of_node, "vpp1_layer_count", NULL);
+	if (prop && display_device_cnt >= 2) {
+		int layer_count;
+
+		layer_count = of_read_ulong(prop, 1);
+		if (layer_count >= 2) {
+			pr_err("vpp1 only support one video layer\n");
+		} else if (layer_count == 1) {
+			vd_layer[1].vpp_index = VPP1;
+			vd_layer_vpp[0].vpp_index = VPP1;
+			vd_layer_vpp[0].layer_id = 1;
+		}
+	}
+
 	video_cap_set(&amvideo_meson_dev);
 	video_suspend = false;
 	video_suspend_cycle = 0;

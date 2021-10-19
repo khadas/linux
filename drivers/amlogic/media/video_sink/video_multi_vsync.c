@@ -62,7 +62,11 @@ static int vsync_enter_line_max_vpp[2];
 static int vsync_exit_line_max_vpp[2];
 static bool rdma_enable_vppx_pre[2];
 
-static inline bool is_vpp0(u8 layer_id)
+static unsigned int debug_flag1;
+MODULE_PARM_DESC(debug_flag1, "\n debug_flag1\n");
+module_param(debug_flag1, uint, 0664);
+
+bool is_vpp0(u8 layer_id)
 {
 	if (vd_layer[layer_id].vpp_index == VPP0)
 		return true;
@@ -70,7 +74,7 @@ static inline bool is_vpp0(u8 layer_id)
 		return false;
 }
 
-static inline bool is_vpp1(u8 layer_id)
+bool is_vpp1(u8 layer_id)
 {
 	if (layer_id < 1)
 		return false;
@@ -80,7 +84,7 @@ static inline bool is_vpp1(u8 layer_id)
 		return false;
 }
 
-static inline bool is_vpp2(u8 layer_id)
+bool is_vpp2(u8 layer_id)
 {
 	if (layer_id < 1)
 		return false;
@@ -88,6 +92,36 @@ static inline bool is_vpp2(u8 layer_id)
 		return true;
 	else
 		return false;
+}
+
+int get_receiver_id(u8 layer_id)
+{
+	int receiver_id = VFM_PATH_VIDEO_RENDER0;
+
+	switch (layer_id) {
+	case 0:
+		receiver_id = VFM_PATH_VIDEO_RENDER0;
+	break;
+	case 1:
+		if (is_vpp0(layer_id))
+			receiver_id = VFM_PATH_VIDEO_RENDER1;
+		else if (is_vpp1(layer_id))
+			receiver_id = VFM_PATH_VIDEO_RENDER5;
+		else if (is_vpp2(layer_id))
+			receiver_id = VFM_PATH_VIDEO_RENDER6;
+	break;
+	case 2:
+		if (is_vpp0(layer_id))
+			receiver_id = VFM_PATH_VIDEO_RENDER2;
+		else if (is_vpp1(layer_id))
+			receiver_id = VFM_PATH_VIDEO_RENDER5;
+		else if (is_vpp2(layer_id))
+			receiver_id = VFM_PATH_VIDEO_RENDER6;
+	break;
+	default:
+	break;
+	}
+	return receiver_id;
 }
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
@@ -204,6 +238,8 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 
 	/* video_render.5/6 toggle frame */
 	if (gvideo_recv_vpp[recv_id]) {
+		if (debug_flag1 & 1)
+			pr_info("video_render5/6 dequeue\n");
 		path0_new_frame =
 			gvideo_recv_vpp[recv_id]->func->dequeue_frame(gvideo_recv_vpp[recv_id]);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
