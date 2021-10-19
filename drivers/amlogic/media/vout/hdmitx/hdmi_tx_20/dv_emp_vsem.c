@@ -54,9 +54,9 @@
 #include "dv_emp_vsem.h"
 
 #undef pr_fmt
-#define pr_fmt(fmt) "dvemp: " fmt
+#define pr_fmt(fmt) "emp: " fmt
 
-static unsigned int crc32_lut[256] = {
+static unsigned int crc32_lut_table[256] = {
 0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b,
 0x1a864db2, 0x1e475005, 0x2608edb8, 0x22c9f00f, 0x2f8ad6d6, 0x2b4bcb61,
 0x350c9b64, 0x31cd86d3, 0x3c8ea00a, 0x384fbdbd, 0x4c11db70, 0x48d0c6c7,
@@ -102,47 +102,44 @@ static unsigned int crc32_lut[256] = {
 0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4
 };
 
-void SetByteField(unsigned char *meta_byte,
-				  unsigned char field_value,
-				  unsigned char field_mask)
+void set_byte(unsigned char *meta,
+		 unsigned char value,
+		 unsigned char mask)
 {
 	unsigned int count;
 	unsigned int test_val;
 	unsigned int set_val;
 	unsigned char test_mask;
 
-	test_mask = field_mask;
+	test_mask = mask;
 	count = 0;
 	while ((test_mask > 0) && (count < 8)) {
 		test_val = 1 << count;
-		if ((test_val & field_mask) == test_val) {
-			set_val = (field_value & 1);
-			field_value >>= 1;
+		if ((test_val & mask) == test_val) {
+			set_val = (value & 1);
+			value >>= 1;
 			if (set_val > 0)
-				*meta_byte |= 1 << count;
+				*meta |= 1 << count;
 			else
-				*meta_byte &= ~(1 << count);
+				*meta &= ~(1 << count);
 			test_mask  &= ~(1 << count);
 		}
 		count++;
 	}
 }
 
-/* given metadata length, figure out how many packets are needed */
-unsigned int vsem_get_num_packets(unsigned int metadata_len,
-						unsigned int *last_packet_len)
+u32 get_vsem_pkt_num(u32 metadata_len, u32 *last_packet_len)
 {
-	unsigned int num_packets = 1;
+	u32 num_packets = 1;
 
 	if (metadata_len == 0)
 		return 0;
 
-	/* how many packets are needed */
 	*last_packet_len = metadata_len;
-	if (*last_packet_len > VSEM_FIRST_PACKET_EDR_DATA_LEN) {
-		*last_packet_len -= VSEM_FIRST_PACKET_EDR_DATA_LEN;
-		while (*last_packet_len > VSEM_PACKET_BODY_LEN) {
-			*last_packet_len -= VSEM_PACKET_BODY_LEN;
+	if (*last_packet_len > VSEM_FIRST_PKT_EDR_DATA_SIZE) {
+		*last_packet_len -= VSEM_FIRST_PKT_EDR_DATA_SIZE;
+		while (*last_packet_len > VSEM_PKT_BODY_SIZE) {
+			*last_packet_len -= VSEM_PKT_BODY_SIZE;
 			num_packets++;
 		}
 		if (*last_packet_len > 0)
@@ -152,13 +149,13 @@ unsigned int vsem_get_num_packets(unsigned int metadata_len,
 	return num_packets;
 }
 
-unsigned int crc32(unsigned int crc, const void *buf, unsigned int size)
+unsigned int get_crc32(u32 crc, const void *buf, u32 size)
 {
-	const unsigned char *p = (unsigned char *)buf;
+	const u8 *p = (u8 *)buf;
 
 	crc = ~crc;
 	while (size) {
-		crc = (crc << 8) ^ crc32_lut[((crc >> 24) ^ *p) & 0xff];
+		crc = (crc << 8) ^ crc32_lut_table[((crc >> 24) ^ *p) & 0xff];
 		p++;
 		size--;
 	}
@@ -171,10 +168,10 @@ static int pack_vsemds(struct emp_edr_config *pconfig,
 					   int metadata_len,
 					   unsigned char data_version)
 {
-	struct vsem_data_packet *cur_packet;
+	struct vsem_pkt *cur_pkt;
 	int count, acrc_loc, frt_loc;
 	unsigned int p;
-	unsigned int num_packets = 1;
+	unsigned int num_pkts = 1;
 	unsigned int last_packet_len = 0;
 	unsigned int cur_packet_len;
 	unsigned int crc;
@@ -183,128 +180,127 @@ static int pack_vsemds(struct emp_edr_config *pconfig,
 	unsigned char PB0;
 	unsigned char HB1;
 
-	edr_data_len = metadata_len + VSEM_CRC_LENGTH;
+	edr_data_len = metadata_len + VSEM_CRC_LEN;
 	pcrcfrt = NULL;
-	/* how many packets are needed */
-	num_packets = vsem_get_num_packets(edr_data_len, &last_packet_len);
-	if (num_packets > MAX_VSEM_NUM)
+	num_pkts = get_vsem_pkt_num(edr_data_len, &last_packet_len);
+	if (num_pkts > MAX_VSEM_NUM)
 		pr_info("vsem metada_len is too big\n");
 
-	/* allocate packets memory */
-	pconfig->num_packets = num_packets;
+	pconfig->num_packets = num_pkts;
 	if (pconfig->vsem_packets == NULL) {
 		pr_info("vsem_packets don't alloc\n");
 		return -1;
 	}
 
-	memset(pconfig->vsem_packets, 0,
-		sizeof(struct vsem_data_packet) * num_packets);
+	memset(pconfig->vsem_packets, 0, sizeof(struct vsem_pkt) * num_pkts);
 
-	/*compute CRC*/
-	crc = crc32(0, p_metadata, metadata_len);
+	crc = get_crc32(0, p_metadata, metadata_len);
 
-	/* process the first packet */
+	/* first pkt */
 	p = 0;
-	cur_packet = &pconfig->vsem_packets[p];
-	pcrc = cur_packet->PB;
-	cur_packet->packet_type = 0x7F;
+	cur_pkt = &pconfig->vsem_packets[p];
+	pcrc = cur_pkt->pb;
+	cur_pkt->pkt_type = 0x7F;
 	HB1 = 0;
-	SetByteField(&HB1, 1, FIELD_MASK_FIRST);
-	SetByteField(&HB1, 0, FIELD_MASK_LAST);
-	cur_packet->HB1 = HB1;
-	cur_packet->sequence_index = p;
+	set_byte(&HB1, 1, FIELD_FIRST);
+	set_byte(&HB1, 0, FIELD_LAST);
+	cur_pkt->hb1 = HB1;
+	cur_pkt->seq_index = p;
 	edr_data_len += 6; /* PB0~12 */
 	PB0 = 0;
-	SetByteField(&PB0, 1, FIELD_MASK_NEW);
-	SetByteField(&PB0, 1, FIELD_MASK_END);
-	SetByteField(&PB0, 2, FIELD_MASK_DS_TYPE);
-	SetByteField(&PB0, 1, FIELD_MASK_AFR);
-	SetByteField(&PB0, 1, FIELD_MASK_VFR);
-	SetByteField(&PB0, 1, FIELD_MASK_SYNC);
-	cur_packet->PB[0] = PB0;
-	cur_packet->PB[1] = 0x00; /* Reserved */
-	cur_packet->PB[2] = 0x00; /* Organization ID */
-	cur_packet->PB[3] = 0x00; /* Data Set Tag hi  = 0 */
-	cur_packet->PB[4] = 0x00; /* Data Set Tag low = 0 */
-	cur_packet->PB[5] = edr_data_len >> 8;   /* Data Set Length hi  */
-	cur_packet->PB[6] = edr_data_len & 0xff; /* Data Set Length low */
-	cur_packet->PB[7] = 0x46;  /* MD0 */
-	cur_packet->PB[8] = 0xD0;  /* MD1 */
-	cur_packet->PB[9] = 0x00;  /* MD2 */
-	cur_packet->PB[10] = data_version; /* data_version */
-	cur_packet->PB[11] = 0x00;  /* Reserved */
-	cur_packet->PB[12] = 0x00;  /* Reserved */
-	cur_packet_len = VSEM_FIRST_PACKET_EDR_DATA_LEN;
+	set_byte(&PB0, 1, FIELD_NEW);
+	set_byte(&PB0, 1, FIELD_END);
+	set_byte(&PB0, 2, FIELD_DS_TYPE);
+	set_byte(&PB0, 1, FIELD_AFR);
+	set_byte(&PB0, 1, FIELD_VFR);
+	set_byte(&PB0, 1, FIELD_SYNC);
+	cur_pkt->pb[0] = PB0;
+	cur_pkt->pb[1] = 0x00;
+	cur_pkt->pb[2] = 0x00;
+	cur_pkt->pb[3] = 0x00;
+	cur_pkt->pb[4] = 0x00;
+	cur_pkt->pb[5] = edr_data_len >> 8;
+	cur_pkt->pb[6] = edr_data_len & 0xff;
+	cur_pkt->pb[7] = 0x46;
+	cur_pkt->pb[8] = 0xD0;
+	cur_pkt->pb[9] = 0x00;
+	cur_pkt->pb[10] = data_version;
+	cur_pkt->pb[11] = 0x00;
+	cur_pkt->pb[12] = 0x00;
+	cur_packet_len = VSEM_FIRST_PKT_EDR_DATA_SIZE;
 	if (cur_packet_len > metadata_len)
 		cur_packet_len = metadata_len;
-	memcpy(&cur_packet->PB[13], p_metadata, cur_packet_len);
-	pcrc = &cur_packet->PB[13];
+	memcpy(&cur_pkt->pb[13], p_metadata, cur_packet_len);
+	pcrc = &cur_pkt->pb[13];
 	p_metadata += cur_packet_len;
 	metadata_len -= cur_packet_len;
-	num_packets--;
+	num_pkts--;
 	p++;
-	/* process following packets */
-	while (num_packets > 0) {
+	/*other pkts */
+	while (num_pkts > 0) {
 		if (p == 1)
 			frt_loc = 13 + cur_packet_len - 1;
 		else
 			frt_loc = cur_packet_len - 1;
 		pcrcfrt =
-			&pconfig->vsem_packets[p - 1].PB[frt_loc];
-		cur_packet = &pconfig->vsem_packets[p];
-		cur_packet->packet_type = 0x7F;
+			&pconfig->vsem_packets[p - 1].pb[frt_loc];
+		cur_pkt = &pconfig->vsem_packets[p];
+		cur_pkt->pkt_type = 0x7F;
 		HB1 = 0x00;
-		SetByteField(&HB1, 0, FIELD_MASK_FIRST);
-		if (num_packets == 1) {
-			SetByteField(&HB1, 1, FIELD_MASK_LAST);
+		set_byte(&HB1, 0, FIELD_FIRST);
+		if (num_pkts == 1) {
+			set_byte(&HB1, 1, FIELD_LAST);
 			cur_packet_len = last_packet_len;
 		} else {
-			SetByteField(&HB1, 0, FIELD_MASK_LAST);
-			cur_packet_len = VSEM_PACKET_BODY_LEN;
+			set_byte(&HB1, 0, FIELD_LAST);
+			cur_packet_len = VSEM_PKT_BODY_SIZE;
 		}
-		cur_packet->HB1 = HB1;
-		cur_packet->sequence_index = (unsigned char)p;
+		cur_pkt->hb1 = HB1;
+		cur_pkt->seq_index = (unsigned char)p;
 		if (metadata_len > 0) {
 			if (metadata_len >= cur_packet_len) {
-				memcpy(cur_packet->PB, p_metadata, cur_packet_len);
+				memcpy(cur_pkt->pb,
+				       p_metadata, cur_packet_len);
 				metadata_len -= cur_packet_len;
 				p_metadata += cur_packet_len;
 			} else {
-				memcpy(cur_packet->PB, p_metadata, metadata_len);
+				memcpy(cur_pkt->pb,
+				       p_metadata, metadata_len);
 				p_metadata += metadata_len;
 				metadata_len = 0;
 			}
 		}
-		pcrc = &cur_packet->PB[0];
-		num_packets--;
+		pcrc = &cur_pkt->pb[0];
+		num_pkts--;
 		p++;
 	}
-	/*write CRC*/
+	/*crc*/
 	acrc[0] = (crc & 0xff000000) >> 24;
 	acrc[1] = (crc & 0xff0000) >> 16;
 	acrc[2] = (crc & 0xff00) >>  8;
 	acrc[3] =  crc & 0xff;
-	if (last_packet_len >= VSEM_CRC_LENGTH) {
-		pcrc += last_packet_len - VSEM_CRC_LENGTH;
+	if (last_packet_len >= VSEM_CRC_LEN) {
+		pcrc += last_packet_len - VSEM_CRC_LEN;
 		for (count = 0; count < 4; count++) {
 			pcrc[count] = acrc[count];
 		}
 	} else {
 		if (pcrcfrt != NULL) {
-		/*last packet*/
-			pcrc = &cur_packet->PB[0];
+			/*last pkt*/
+			pcrc = &cur_pkt->pb[0];
 			for (count = last_packet_len - 1;
 			     count >= 0;
 			     count--) {
-				/*VSEM_CRC_LENGTH - 1 - (last_packet_len - 1 - count)*/
-				acrc_loc = VSEM_CRC_LENGTH - last_packet_len + count;
+				/*LEN - 1 - (last_packet_len - 1 - count)*/
+				acrc_loc = VSEM_CRC_LEN -
+					last_packet_len + count;
 				pcrc[count] = acrc[acrc_loc];
 			}
-			/*the packet before last packet*/
-			pcrcfrt -= VSEM_CRC_LENGTH  - last_packet_len;
+			/*the pkt before last pkt*/
+			pcrcfrt -= VSEM_CRC_LEN  - last_packet_len;
 			pcrcfrt++;
 			for (count = 0;
-			     count < VSEM_CRC_LENGTH - last_packet_len;
+			     count < VSEM_CRC_LEN - last_packet_len;
 			     count++) {
 			     pcrcfrt[count] = acrc[count];
 			}
@@ -313,25 +309,25 @@ static int pack_vsemds(struct emp_edr_config *pconfig,
 	return 0;
 }
 
-static struct dv_emp_hdmi_cfg dv_emp_cfg_val;
-static void hdmitx_set_dv_emp_pkt(struct emp_edr_config *pconfig)
+static struct emp_hdmi_cfg emp_cfg_val;
+static void hdmitx_set_emp_pkt(struct emp_edr_config *pconfig)
 {
 	struct hdmitx_dev *hdev;
 
-	hdev = dv_emp_cfg_val.hdev;
+	hdev = emp_cfg_val.hdev;
 	hdev->hwop.cntlconfig(hdev, CONF_EMP_PHY_ADDR, pconfig->phys_ptr);
 	hdev->hwop.cntlconfig(hdev, CONF_EMP_NUMBER, pconfig->num_packets);
 }
 
-static void hdmitx_disable_dv_emp_pkt(void)
+static void hdmitx_disable_emp_pkt(void)
 {
 	struct hdmitx_dev *hdev;
 
-	hdev = dv_emp_cfg_val.hdev;
+	hdev = emp_cfg_val.hdev;
 	hdev->hwop.cntlconfig(hdev, CONF_EMP_NUMBER, 0);
 }
 
-static void hdmitx_emp_dv_infoframe(struct hdmitx_dev *hdev,
+static void hdmitx_emp_infoframe(struct hdmitx_dev *hdev,
 					enum eotf_type type,
 					enum eotf_type type_save,
 				    bool signal_sdr)
@@ -385,7 +381,7 @@ static void hdmitx_emp_dv_infoframe(struct hdmitx_dev *hdev,
 	}
 }
 
-int send_dv_emp(enum eotf_type type,
+int send_emp(enum eotf_type type,
 		enum mode_type tunnel_mode,
 		struct dv_vsif_para *vsif_data,
 		unsigned char *p_vsem,
@@ -394,7 +390,7 @@ int send_dv_emp(enum eotf_type type,
 {
 	struct emp_edr_config config;
 	int rv;
-	struct hdmitx_dev *hdev = dv_emp_cfg_val.hdev;
+	struct hdmitx_dev *hdev = emp_cfg_val.hdev;
 	unsigned char data_version = 0;
 	static enum eotf_type type_save = EOTF_T_NULL;
 	static bool vsem_flag = false;
@@ -417,12 +413,12 @@ int send_dv_emp(enum eotf_type type,
 		pr_info("EMP hdmitx_set_vsif_pkt: type = %d\n", type);
 	hdr_status_pos = 2;
 	hdev->hdmi_current_eotf_type = type;
-	hdmitx_emp_dv_infoframe(hdev, type, type_save, signal_sdr);
+	hdmitx_emp_infoframe(hdev, type, type_save, signal_sdr);
 	type_save = type;
 	if ((type != EOTF_T_DOLBYVISION) &&
 	    (type != EOTF_T_LL_MODE)) {
 		if (vsem_flag == true) { /*exit from Dolby VS-EMDS*/
-			hdmitx_disable_dv_emp_pkt();
+			hdmitx_disable_emp_pkt();
 		} else {  /*exit from Dolby VSIF*/
 			hdmitx_set_vsif_pkt(type, tunnel_mode, vsif_data, signal_sdr);
 		}
@@ -441,36 +437,36 @@ int send_dv_emp(enum eotf_type type,
 
 		dma_sync_single_for_cpu(
 			hdev->hdtx_dev,
-			dv_emp_cfg_val.pkts_phy_addr,
-			dv_emp_cfg_val.size,
+			emp_cfg_val.pkts_phy_addr,
+			emp_cfg_val.size,
 			DMA_TO_DEVICE);
 			config.num_packets = 0;
-			config.phys_ptr = dv_emp_cfg_val.pkts_phy_addr;
-			config.vsem_packets = dv_emp_cfg_val.p_pkts;
+			config.phys_ptr = emp_cfg_val.pkts_phy_addr;
+			config.vsem_packets = emp_cfg_val.p_pkts;
 		rv = pack_vsemds(&config, p_vsem, vsem_len, data_version);
 		if (rv != 0) {
 			pr_info("pack_vsem fail!\n");
 			return -1;
 		}
-		/*Disable Dolby VSIF send*/
+		/*Disable VSIF send*/
 		hdev->hwop.setpacket(HDMI_PACKET_VEND, NULL, NULL);
-		/*Enable Dolby VS-EMDS send*/
+		/*Enable VS-EMDS send*/
 		dma_sync_single_for_device(
 			hdev->hdtx_dev,
-			dv_emp_cfg_val.pkts_phy_addr,
-			dv_emp_cfg_val.size,
+			emp_cfg_val.pkts_phy_addr,
+			emp_cfg_val.size,
 			DMA_TO_DEVICE);
-		hdmitx_set_dv_emp_pkt(&config);
-	} else { /*Dolby VSIF or HDMI 14b VSIF*/
+		hdmitx_set_emp_pkt(&config);
+	} else {
 		vsem_flag = false;
-		/*Disable Dolby VS-EMDS send*/
-		hdmitx_disable_dv_emp_pkt();
-		/*Enable Dolby VSIF send*/
+		/*Disable VS-EMDS send*/
+		hdmitx_disable_emp_pkt();
+		/*Enable VSIF send*/
 		hdmitx_set_vsif_pkt(type, tunnel_mode, vsif_data, signal_sdr);
 	}
 	return 1;
 }
-EXPORT_SYMBOL(send_dv_emp);
+EXPORT_SYMBOL(send_emp);
 
 void vsem_init_cfg(struct hdmitx_dev *hdev)
 {
@@ -478,7 +474,7 @@ void vsem_init_cfg(struct hdmitx_dev *hdev)
 	void *virt_ptr;
 	dma_addr_t paddr;
 
-	alloc_len = sizeof(struct vsem_data_packet) * MAX_VSEM_NUM;
+	alloc_len = sizeof(struct vsem_pkt) * MAX_VSEM_NUM;
 	alloc_size = (alloc_len + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
 
 	virt_ptr = kmalloc(alloc_size, GFP_KERNEL | GFP_DMA);
@@ -494,9 +490,9 @@ void vsem_init_cfg(struct hdmitx_dev *hdev)
 		return;
 	}
 
-	dv_emp_cfg_val.hdev = hdev;
-	dv_emp_cfg_val.p_pkts = (struct vsem_data_packet *)virt_ptr;
-	dv_emp_cfg_val.pkts_phy_addr = paddr;
-	dv_emp_cfg_val.size = alloc_size;
-	dv_emp_cfg_val.send_vsemds = send_dv_emp;
+	emp_cfg_val.hdev = hdev;
+	emp_cfg_val.p_pkts = (struct vsem_pkt *)virt_ptr;
+	emp_cfg_val.pkts_phy_addr = paddr;
+	emp_cfg_val.size = alloc_size;
+	emp_cfg_val.send_vsemds = send_emp;
 }

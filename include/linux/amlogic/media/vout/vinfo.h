@@ -264,7 +264,7 @@ struct vout_device_s {
 	unsigned int size);
 };
 
-extern int send_dv_emp(enum eotf_type type,
+int send_emp(enum eotf_type type,
 	enum mode_type tunnel_mode,
 	struct dv_vsif_para *vsif_data,
 	unsigned char *p_vsem,

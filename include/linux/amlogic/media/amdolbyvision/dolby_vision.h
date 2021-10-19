@@ -18,9 +18,6 @@
 #ifndef _DV_H_
 #define _DV_H_
 
-#define V1_5
-#define V2_4
-
 #include <linux/types.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vfm/vframe.h>
@@ -49,10 +46,13 @@
 /*		else bypass Dolby Vision */
 #define DOLBY_VISION_FORCE_OUTPUT_MODE	2
 
-#define MUTE_TYPE_NONE	0
-#define MUTE_TYPE_YUV	1
-#define MUTE_TYPE_RGB	2
-#define MUTE_TYPE_IPT	3
+
+#define MD_BUF_SIZE 1024
+#define COMP_BUF_SIZE 8196
+
+#define DV_SEI 0x01000000
+#define DV_AV1_SEI 0x14000000
+#define HDR10P 0x02000000
 
 void enable_dolby_vision(int enable);
 bool is_dolby_vision_enable(void);
@@ -80,9 +80,6 @@ void dolby_vision_update_pq_config(
 	char *pq_config_buf);
 int dolby_vision_update_setting(void);
 bool is_dolby_vision_stb_mode(void);
-void tv_dolby_vision_crc_clear(int flag);
-char *tv_dolby_vision_get_crc(u32 *len);
-void tv_dolby_vision_insert_crc(bool print);
 int dolby_vision_check_hdr10(struct vframe_s *vf);
 int dolby_vision_check_hlg(struct vframe_s *vf);
 int dolby_vision_check_hdr10plus(struct vframe_s *vf);
@@ -94,8 +91,6 @@ int dolby_vision_parse_metadata(
 	bool bypass_release, bool drop_flag);
 void dolby_vision_update_vsvdb_config(
 	char *vsvdb_buf, u32 tbl_size);
-void tv_dolby_vision_el_info(void);
-
 int enable_rgb_to_yuv_matrix_for_dvll(
 	int32_t on, uint32_t *coeff_orig, uint32_t bits);
 
@@ -108,8 +103,23 @@ bool is_dolby_vision_el_disable(void);
 bool is_dovi_dual_layer_frame(struct vframe_s *vf);
 void dolby_vision_set_provider(char *prov_name);
 int dolby_vision_check_mvc(struct vframe_s *vf);
-
 bool for_dolby_vision_video_effect(void);
 int get_dolby_vision_hdr_policy(void);
-
+int get_dv_support_info(void);
+void dv_vf_light_reg_provider(void);
+void dv_vf_light_unreg_provider(void);
+void dolby_vision_update_backlight(void);
+int dolby_vision_update_src_format(struct vframe_s *vf, u8 toggle_mode);
+int parse_sei_and_meta_ext
+	(struct vframe_s *vf,
+	 char *aux_buf,
+	 int aux_size,
+	 int *total_comp_size,
+	 int *total_md_size,
+	 void *fmt,
+	 int *ret_flags,
+	 char *md_buf,
+	 char *comp_buf);
+void dolby_vision_clear_buf(void);
+bool is_dv_control_backlight(void);
 #endif
