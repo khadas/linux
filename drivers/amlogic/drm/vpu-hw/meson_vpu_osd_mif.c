@@ -436,6 +436,12 @@ static void osd_afbc_config(struct osd_mif_reg_s *reg,
 	osd_mem_mode(reg, afbc_en);
 }
 
+static void osd_scan_mode_config(struct osd_mif_reg_s *reg, int scan_mode)
+{
+	if (scan_mode)
+		meson_vpu_write_reg_bits(reg->viu_osd_blk0_cfg_w0, 0, 1, 1);
+}
+
 static void meson_drm_osd_canvas_alloc(void)
 {
 	if (canvas_pool_alloc_canvas_table("osd_drm",
@@ -561,6 +567,8 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	osd_afbc_config(reg, vblk->index, afbc_en);
 	osd_premult_enable(reg, alpha_div_en);
 	osd_global_alpha_set(reg, global_alpha);
+	osd_scan_mode_config(reg, vblk->pipeline->mode.flags &
+				 DRM_MODE_FLAG_INTERLACE);
 	ods_hold_line_config(reg, osd_hold_line);
 
 	DRM_DEBUG("plane_index=%d,HW-OSD=%d\n",
