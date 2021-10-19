@@ -32,7 +32,8 @@
 
 #define QUERY_SECURE_BUFFER (1)
 #define QUERY_NO_SECURE_BUFFER (0)
-#define  RESMAN_VERSION         (2)
+#define RESMAN_VERSION         (2)
+#define SINGLE_SIZE           (64)
 struct {
 	int id;
 	char *name;
@@ -858,8 +859,8 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 		if (!strncmp(opt, "size", 4))
 			resman_parser_kv(opt, "size", &score);
 		else if (!strcmp(opt, "single"))
-		/*single mode,3/4 codec mm size is enough*/
-			score = resource->d.codec_mm.total*3/4;
+		/*single mode, 64M codec mm size is enough*/
+			score = SINGLE_SIZE;
 		else if (!strcmp(opt, "uhd"))
 			score = resource->d.codec_mm.uhd;
 		else if (!strcmp(opt, "secure"))
