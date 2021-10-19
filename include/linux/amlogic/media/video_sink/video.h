@@ -24,6 +24,9 @@
 
 #define MAX_VD_LAYERS 3
 
+#define LAYER2_VPP    22 /* 2 bits */
+#define LAYER1_VPP    20 /* 2 bits */
+#define LAYER0_VPP    18 /* 2 bits */
 #define LAYER2_ALPHA  BIT(17)
 #define LAYER2_BUSY   BIT(16)
 #define LAYER2_AFBC   BIT(15)
@@ -410,4 +413,8 @@ int get_vdin_add_delay_num(void);
 u32 get_playback_delay_duration(void);
 void vdin_start_notify_vpp(struct tvin_to_vpp_info_s *tvin_info);
 void get_video_axis_offset(s32 *x_offset, s32 *y_offset);
+bool is_vpp0(u8 layer_id);
+bool is_vpp1(u8 layer_id);
+bool is_vpp2(u8 layer_id);
+int get_receiver_id(u8 layer_id);
 #endif /* VIDEO_H */
