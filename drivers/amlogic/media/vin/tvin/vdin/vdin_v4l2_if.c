@@ -77,7 +77,7 @@
 /*give a default page size*/
 #define VDIN_IMG_SIZE		(1024 * 8)
 
-unsigned int vdin_v4l_debug;
+int vdin_v4l_debug;
 
 #define dprintk(level, fmt, arg...)				\
 	do {							\
@@ -305,7 +305,7 @@ static int vdin_vidioc_reqbufs(struct file *file, void *priv,
 	struct vdin_dev_s *pdev = video_drvdata(file);
 	unsigned int req_buffs_num = reqbufs->count;
 	unsigned int type = reqbufs->type;
-	unsigned int ret = 0;
+	int ret = 0;
 	unsigned int i = 0;
 	struct vb2_v4l2_buffer *vbbuf = NULL;
 	struct vdin_vb_buff *vdin_buf = NULL;
@@ -416,7 +416,7 @@ static int vdin_vidioc_qbuf(struct file *file, void *priv,
 			    struct v4l2_buffer *p)
 {
 	struct vdin_dev_s *pdev = video_drvdata(file);
-	unsigned int ret = 0;
+	int ret = 0;
 	struct dma_buf *dmabuf;
 	struct vb2_v4l2_buffer *vb = NULL;
 	struct vdin_vb_buff *vdin_buf = NULL;
@@ -927,6 +927,11 @@ static void vdin_vb2ops_buffer_queue(struct vb2_buffer *vb)
 		vb2_buf_sts_to_str(buf->vb.vb2_buf.state));
 }
 
+static int vdin_v4l2_start_streaming(struct vdin_dev_s *pdev)
+{
+	return 0;
+}
+
 /*
  * start_streaming
  * Start streaming. First check if the minimum number of buffers have been
@@ -952,6 +957,7 @@ static int vdin_vb2ops_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	pdev->frame_cnt = 0;
 
+	ret = vdin_v4l2_start_streaming(pdev);
 	if (ret) {
 		/*
 		 * In case of an error, return all active buffers to the
@@ -1238,7 +1244,6 @@ int vdin_v4l2_probe(struct platform_device *pldev,
 	return 0;
 
 video_register_device_fail:
-	video_device_release(video_dev);
 	v4l2_device_unregister(&pvdindev->v4l2_dev);
 
 v4l2_device_register_fail:

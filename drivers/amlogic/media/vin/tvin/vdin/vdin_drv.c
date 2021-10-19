@@ -204,7 +204,6 @@ MODULE_PARM_DESC(vdin_frame_work_mode, "vdin_frame_work_mode");
 
 static unsigned int panel_reverse;
 struct vdin_hist_s vdin1_hist;
-struct vdin_v4l2_param_s vdin_v4l2_param;
 
 int irq_max_count;
 
@@ -3623,7 +3622,10 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 		}
 		break;
-	case TVIN_IOC_S_VDIN_V4L2START:
+	case TVIN_IOC_S_VDIN_V4L2START:{
+		struct vdin_v4l2_param_s vdin_v4l2_param;
+
+		memset(&vdin_v4l2_param, 0, sizeof(vdin_v4l2_param));
 		if (devp->index == 0) {
 			pr_info("TVIN_IOC_S_VDIN_V4L2START cann't be used at vdin0\n");
 			break;
@@ -3640,6 +3642,12 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			pr_info("vdin_v4l2_param copy fail\n");
 			return -EFAULT;
 		}
+		if (vdin_v4l2_param.fps == 0) {
+			ret = -EFAULT;
+			pr_err("TVIN_IOC_S_VDIN_V4L2START,fps should not be zero\n");
+			break;
+		}
+
 		memset(&param, 0, sizeof(struct vdin_parm_s));
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_SM1))
 			param.port = TVIN_PORT_VIU1_WB0_VPP;
@@ -3675,7 +3683,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		devp->hist_bar_enable = 1;
 		start_tvin_service(devp->index, &param);
 		break;
-
+	}
 	case TVIN_IOC_S_VDIN_V4L2STOP:
 		if (devp->index == 0) {
 			pr_info("TVIN_IOC_S_VDIN_V4L2STOP cann't be used at vdin0\n");
