@@ -1068,25 +1068,23 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 					rx.vrr_en = false;
 				}
 				if (rx.chip_id >= CHIP_ID_T7) {
-					if (rx.cur.hdcp22_state & 1) {
-						ecc_err_tmp = rx_get_ecc_err();
-						ecc_pkt_cnt =
-						rx_get_ecc_pkt_cnt();
-						if (log_level & ECC_LOG)
-							rx_pr("ecc:%d-%d\n",
-							ecc_err_tmp,
-							ecc_pkt_cnt);
-						if (ecc_err_tmp &&
-							ecc_pkt_cnt) {
-							rx.ecc_err_frames_cnt++;
-							rx.ecc_err +=
-							ecc_err_tmp;
-							skip_frame(2);
-						} else {
-							rx.ecc_err = 0;
-							rx.ecc_err_frames_cnt =
-								0;
-						}
+					ecc_err_tmp = rx_get_ecc_err();
+					ecc_pkt_cnt =
+					rx_get_ecc_pkt_cnt();
+					if (log_level & ECC_LOG)
+						rx_pr("ecc:%d-%d\n",
+						ecc_err_tmp,
+						ecc_pkt_cnt);
+					if (ecc_err_tmp &&
+						ecc_pkt_cnt) {
+						rx.ecc_err_frames_cnt++;
+						rx.ecc_err +=
+						ecc_err_tmp;
+						skip_frame(2);
+					} else {
+						rx.ecc_err = 0;
+						rx.ecc_err_frames_cnt =
+							0;
 					}
 				}
 				rx_update_sig_info();
