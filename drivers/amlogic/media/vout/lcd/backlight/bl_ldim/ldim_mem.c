@@ -164,12 +164,14 @@ void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size)
 	set_fs(old_fs);
 
 	highmem_flag = PageHighMem(phys_to_page(mem_paddr));
-	LDIMPR("%s: highmem_flag: %d\n", __func__, highmem_flag);
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+		LDIMPR("%s: highmem_flag: %d\n", __func__, highmem_flag);
 	if (highmem_flag == 0) {
 		vaddr = phys_to_virt(mem_paddr);
 		if (!vaddr)
 			goto lcd_ldc_axi_rmem_write_end;
-		LDIMPR("%s: directly write: paddr=0x%lx, vaddr=0x%px, size: 0x%x\n",
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+			LDIMPR("%s: directly write: paddr=0x%lx, vaddr=0x%px, size: 0x%x\n",
 		       __func__, mem_paddr, vaddr, size);
 		memcpy(vaddr, buf, size);
 	} else {
@@ -182,7 +184,8 @@ void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size)
 			vaddr = lcd_vmap(phys, span);
 			if (!vaddr)
 				goto lcd_ldc_axi_rmem_write_end;
-			LDIMPR("%s: write: paddr=0x%lx, vaddr=0x%px, size: 0x%x\n",
+			if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+				LDIMPR("%s: write: paddr=0x%lx, vaddr=0x%px, size: 0x%x\n",
 			       __func__, phys, vaddr, span);
 			p = buf + i * span;
 			memcpy(vaddr, p, span);
@@ -193,7 +196,8 @@ void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size)
 			vaddr = lcd_vmap(phys, remain);
 			if (!vaddr)
 				goto lcd_ldc_axi_rmem_write_end;
-			LDIMPR("%s: write: paddr=0x%lx, vaddr=0x%px, size: 0x%x\n",
+			if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+				LDIMPR("%s: write: paddr=0x%lx, vaddr=0x%px, size: 0x%x\n",
 			       __func__, phys, vaddr, remain);
 			p = buf + count * span;
 			memcpy(vaddr, p, remain);
