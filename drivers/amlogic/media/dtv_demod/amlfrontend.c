@@ -3041,6 +3041,8 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		for (i = 0; i < 3; i++) {
 			demod->sr_val_hw = dvbc_get_symb_rate(demod);
 			PR_DVBC("srate : %d\n", demod->sr_val_hw);
+			if (demod->sr_val_hw <= 3500)
+				demod->sr_val_hw = 7000;
 			qam_write_bits(demod, 0xd, demod->sr_val_hw & 0xffff, 0, 16);
 			qam_write_bits(demod, 0x11, demod->sr_val_hw & 0xffff, 8, 16);
 			msleep(30);
