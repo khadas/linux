@@ -1327,13 +1327,15 @@ static unsigned char *aml_ldim_rmem_map(unsigned long paddr, unsigned int mem_si
 		vaddr = phys_to_virt(paddr);
 		if (!vaddr)
 			return NULL;
-		LDIMPR("%s: phys_to_virt: paddr=0x%lx, vaddr=0x%px, size: 0x%x\n",
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+			LDIMPR("%s: phys_to_virt: paddr=0x%lx, vaddr=0x%px, size: 0x%x\n",
 		       __func__, paddr, vaddr, mem_size);
 	} else {
 		vaddr = lcd_vmap(paddr, mem_size);
 		if (!vaddr)
 			return NULL;
-		LDIMPR("%s: vmap: paddr=0x%lx, vaddr=0x%px, size: 0x%x\n",
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+			LDIMPR("%s: vmap: paddr=0x%lx, vaddr=0x%px, size: 0x%x\n",
 		       __func__, paddr, vaddr, mem_size);
 	}
 

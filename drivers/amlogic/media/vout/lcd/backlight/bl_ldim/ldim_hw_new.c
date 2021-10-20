@@ -240,7 +240,7 @@ void ldc_gain_lut_set_t7(void)
 	unsigned int data, ram_base = 0;
 	int i, j;
 
-	LDIMPR("%s\n", __func__);
+//	LDIMPR("%s\n", __func__);
 
 	for (i = 0; i < 16; i++) {
 		p = ldc_gain_lut_array[i];
@@ -266,7 +266,7 @@ void ldc_gain_lut_set_t3(void)
 	unsigned int data_wr, data_rd;
 	int i, j;
 
-	LDIMPR("%s\n", __func__);
+//	LDIMPR("%s\n", __func__);
 
 	//switch to cbus clock for gain lut ram
 	lcd_vcbus_write(LDC_GAIN_LUT_CTRL0, 2);
@@ -307,7 +307,7 @@ void ldc_min_gain_lut_set(void)
 	unsigned int data;
 	int i, j;
 
-	LDIMPR("%s\n", __func__);
+//	LDIMPR("%s\n", __func__);
 
 	p = ldc_min_gain_lut;
 	for (i = 0; i < 16; i++) {
@@ -323,7 +323,7 @@ void ldc_dither_lut_set(void)
 	unsigned int data, temp, offset, index;
 	int i, j, k;
 
-	LDIMPR("%s\n", __func__);
+//	LDIMPR("%s\n", __func__);
 
 	for (i = 0; i < 4; i++) { /* ls2b */
 		for (j = 0; j < 8; j++) { /* frm_idx */
@@ -418,12 +418,12 @@ static void ldc_factor_init(unsigned int width, unsigned int height,
 	bits_div_10 = bits_for_div[2];
 	bits_div_11 = bits_for_div[3];
 
-	LDIMPR("ldc_factor_for_div_00/01/10/11:%d, %d, %d, %d\n",
-	       factor_div_00, factor_div_01,
-	       factor_div_10, factor_div_11);
-	LDIMPR("ldc_bits_for_div_00/01/10/11:%d, %d, %d, %d\n",
-	       bits_div_00, bits_div_01,
-	       bits_div_10, bits_div_11);
+//	LDIMPR("ldc_factor_for_div_00/01/10/11:%d, %d, %d, %d\n",
+//	       factor_div_00, factor_div_01,
+//	       factor_div_10, factor_div_11);
+//	LDIMPR("ldc_bits_for_div_00/01/10/11:%d, %d, %d, %d\n",
+//	       bits_div_00, bits_div_01,
+//	       bits_div_10, bits_div_11);
 
 	lcd_vcbus_setb(LDC_REG_FACTOR_DIV_0, factor_div_00, 16, 16);
 	lcd_vcbus_setb(LDC_REG_FACTOR_DIV_0, factor_div_01, 0, 16);
@@ -434,8 +434,8 @@ static void ldc_factor_init(unsigned int width, unsigned int height,
 	lcd_vcbus_setb(LDC_REG_BITS_DIV, bits_div_01, 16, 8);
 	lcd_vcbus_setb(LDC_REG_BITS_DIV, bits_div_10, 8, 8);
 	lcd_vcbus_setb(LDC_REG_BITS_DIV, bits_div_11, 0, 8);
-	LDIMPR("%s: LDC_REG_BITS_DIV 0x%x=0x%x\n", __func__,
-	       LDC_REG_BITS_DIV, lcd_vcbus_read(LDC_REG_BITS_DIV));
+//	LDIMPR("%s: LDC_REG_BITS_DIV 0x%x=0x%x\n", __func__,
+//	       LDC_REG_BITS_DIV, lcd_vcbus_read(LDC_REG_BITS_DIV));
 }
 
 #define MAX_SEG_COL_NUM 48
@@ -451,13 +451,13 @@ static void ldc_set_t7(struct aml_ldim_driver_s *ldim_drv,
 	unsigned int overlap = 4;
 	int i;
 
-	LDIMPR("width:%d, height:%d, col_num:%d, row_num:%d\n",
-	       width, height, col_num, row_num);
+//	LDIMPR("width:%d, height:%d, col_num:%d, row_num:%d\n",
+//	       width, height, col_num, row_num);
 
 	lcd_vcbus_setb(LDC_REG_PANEL_SIZE, width, 16, 16);
 	lcd_vcbus_setb(LDC_REG_PANEL_SIZE, height, 0, 16);
-	LDIMPR("%s: LDC_REG_PANEL_SIZE 0x%x=0x%x\n", __func__,
-	       LDC_REG_PANEL_SIZE, lcd_vcbus_read(LDC_REG_PANEL_SIZE));
+//	LDIMPR("%s: LDC_REG_PANEL_SIZE 0x%x=0x%x\n", __func__,
+//	       LDC_REG_PANEL_SIZE, lcd_vcbus_read(LDC_REG_PANEL_SIZE));
 
 	ldc_factor_init(width, height, col_num, row_num);
 
@@ -544,12 +544,12 @@ static void ldc_set_t7(struct aml_ldim_driver_s *ldim_drv,
 	//data = width / col_num;
 	for (i = 0; i < col_num; i++) {
 		seg_x_bdy[i] = width * (i + 1) / col_num;
-		LDIMPR("seg_x_bdy[%d]: %d\n", i, seg_x_bdy[i]);
+//		LDIMPR("seg_x_bdy[%d]: %d\n", i, seg_x_bdy[i]);
 	}
 	//data = height / row_num;
 	for (i = 0; i < row_num; i++) {
 		seg_y_bdy[i] = height * (i + 1) / row_num;
-		LDIMPR("seg_y_bdy[%d]: %d\n", i, seg_y_bdy[i]);
+//		LDIMPR("seg_y_bdy[%d]: %d\n", i, seg_y_bdy[i]);
 	}
 
 	seg_base = LDC_REG_SEG_X_BOUNDARY_0_1;
@@ -570,9 +570,9 @@ static void ldc_set_t7(struct aml_ldim_driver_s *ldim_drv,
 			temp[1] = 0;
 		}
 
-		LDIMPR("SEG_X addr: 0x%x, %d,%d, readback: 0x%x\n",
-		       seg_base, temp[0], temp[1],
-		       lcd_vcbus_read(seg_base));
+//		LDIMPR("SEG_X addr: 0x%x, %d,%d, readback: 0x%x\n",
+//		       seg_base, temp[0], temp[1],
+//		       lcd_vcbus_read(seg_base));
 		seg_base = seg_base + 1;
 	}
 
@@ -594,9 +594,9 @@ static void ldc_set_t7(struct aml_ldim_driver_s *ldim_drv,
 			temp[1] = 0;
 		}
 
-		LDIMPR("SEG_Y addr: 0x%x, %d,%d, readback: 0x%x\n",
-		       seg_base, temp[0], temp[1],
-		       lcd_vcbus_read(seg_base));
+//		LDIMPR("SEG_Y addr: 0x%x, %d,%d, readback: 0x%x\n",
+//		       seg_base, temp[0], temp[1],
+//		       lcd_vcbus_read(seg_base));
 		seg_base = seg_base + 1;
 	}
 
