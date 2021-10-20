@@ -269,9 +269,9 @@
 	};
 
 	pwrdm: power-domains {
-		compatible = "amlogic,s4-power-domain";
+		compatible = "amlogic,a5-power-domain";
 		#power-domain-cells = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	jtag {
