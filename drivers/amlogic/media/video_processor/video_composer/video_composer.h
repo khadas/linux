@@ -177,6 +177,12 @@ struct received_frames_t {
 	bool is_tvp;
 };
 
+struct vd_prepare_s {
+	struct vframe_s *src_frame;
+	struct vframe_s dst_frame;
+	void *release_fence;
+};
+
 struct composer_dev {
 	u32 index;
 	struct video_composer_port_s *port;
@@ -185,9 +191,12 @@ struct composer_dev {
 	DECLARE_KFIFO(receive_q, struct received_frames_t *,
 		      FRAMES_INFO_POOL_SIZE);
 	DECLARE_KFIFO(free_q, struct vframe_s *, BUFFER_LEN);
-	DECLARE_KFIFO(display_q, struct vframe_s *, COMPOSER_READY_POOL_SIZE);
-	DECLARE_KFIFO(dma_free_q, struct vframe_s *, BUFFER_LEN);
-	DECLARE_KFIFO(vc_private_q, struct video_composer_private *, COMPOSER_READY_POOL_SIZE);
+	DECLARE_KFIFO(display_q, struct vframe_s *,
+			COMPOSER_READY_POOL_SIZE);
+	DECLARE_KFIFO(vc_private_q, struct video_composer_private *,
+			COMPOSER_READY_POOL_SIZE);
+	DECLARE_KFIFO(vc_prepare_data_q, struct vd_prepare_s *,
+			COMPOSER_READY_POOL_SIZE);
 	char vf_provider_name[VCOM_PROVIDER_NAME_SIZE];
 	char vfm_map_id[VCOM_MAP_STRUCT_SIZE];
 	char vfm_map_chain[VCOM_MAP_STRUCT_SIZE];
@@ -204,6 +213,7 @@ struct composer_dev {
 	unsigned long long fence_creat_count;
 	unsigned long long fence_release_count;
 	unsigned long long fput_count;
+	unsigned long long fget_count;
 	bool need_free_buffer;
 	//struct mutex mutex_input;
 	wait_queue_head_t wq;
@@ -226,9 +236,12 @@ struct composer_dev {
 	struct vframe_s fake_vf;
 	struct vframe_s fake_back_vf;
 	struct video_composer_private vc_private[COMPOSER_READY_POOL_SIZE];
+	struct vd_prepare_s vd_prepare[COMPOSER_READY_POOL_SIZE];
+	struct vd_prepare_s *vd_prepare_last;
 	bool select_path_done;
 	bool composer_enabled;
 	bool thread_need_stop;
+	bool is_drm_enable;
 };
 
 #define VIDEO_COMPOSER_IOC_MAGIC  'V'
