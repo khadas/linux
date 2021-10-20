@@ -429,7 +429,6 @@ static void frames_put_file(struct composer_dev *dev,
 static void vc_private_q_init(struct composer_dev *dev)
 {
 	int i;
-	int len;
 
 	INIT_KFIFO(dev->vc_private_q);
 	kfifo_reset(&dev->vc_private_q);
@@ -442,14 +441,11 @@ static void vc_private_q_init(struct composer_dev *dev)
 			vc_print(dev->index, PRINT_ERROR,
 				"q_init: vc_private_q is full!\n");
 	}
-	len = kfifo_len(&dev->vc_private_q);
 }
 
 static void vc_private_q_recycle(struct composer_dev *dev,
 	struct video_composer_private *vc_private)
 {
-	int len;
-
 	if (!vc_private)
 		return;
 
@@ -458,7 +454,6 @@ static void vc_private_q_recycle(struct composer_dev *dev,
 	if (!kfifo_put(&dev->vc_private_q, vc_private))
 		vc_print(dev->index, PRINT_ERROR,
 			"vc_private_q is full!\n");
-	len = kfifo_len(&dev->vc_private_q);
 }
 
 static struct video_composer_private *vc_private_q_pop(struct composer_dev *dev)
@@ -683,7 +678,7 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	bool is_composer;
 	int i;
 	struct file *file_vf;
-	bool is_dma_buf;
+	struct vd_prepare_s *vd_prepare;
 
 	if (!vf)
 		return;
@@ -693,8 +688,6 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	index_disp = vf->index_disp;
 	rendered = vf->rendered;
 	is_composer = vf->flag & VFRAME_FLAG_COMPOSER_DONE;
-	file_vf = vf->file_vf;
-	is_dma_buf = vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_DMA;
 
 	if (vf->flag & VFRAME_FLAG_FAKE_FRAME) {
 		vc_print(dev->index, PRINT_OTHER,
@@ -727,6 +720,14 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 	}
 
 	if (!is_composer) {
+		vd_prepare = container_of(vf, struct vd_prepare_s, dst_frame);
+		if (IS_ERR_OR_NULL(vd_prepare)) {
+			vc_print(dev->index, PRINT_ERROR,
+				"%s: prepare is NULL.\n",
+				__func__);
+			return;
+		}
+		file_vf = vd_prepare->src_frame->file_vf;
 		for (i = 0; i <= repeat_count; i++) {
 			if (file_vf) {
 				fput(file_vf);
@@ -734,16 +735,15 @@ void videocomposer_vf_put(struct vframe_s *vf, void *op_arg)
 				dev->fput_count++;
 			} else {
 				vc_print(dev->index, PRINT_ERROR,
-					"put: file error!!!\n");
+					"%s error:src_index=%d,dst_index=%d.\n",
+					__func__,
+					vd_prepare->src_frame->omx_index,
+					vd_prepare->dst_frame.omx_index);
 			}
 		}
+		vd_prepare_data_q_put(dev, vd_prepare);
 	} else {
 		videocom_vf_put(vf, dev);
-	}
-	if (is_dma_buf) {
-		if (!kfifo_put(&dev->dma_free_q, vf))
-			vc_print(dev->index, PRINT_ERROR,
-				 "dma_free is full!\n");
 	}
 }
 
@@ -1422,7 +1422,6 @@ static void empty_ready_queue(struct composer_dev *dev)
 	bool is_composer;
 	int i;
 	struct file *file_vf;
-	bool is_dma_buf;
 	struct vframe_s *vf = NULL;
 
 	vc_print(dev->index, PRINT_OTHER, "vc: empty ready_q len=%d\n",
@@ -1436,7 +1435,6 @@ static void empty_ready_queue(struct composer_dev *dev)
 			omx_index = vf->omx_index;
 			is_composer = vf->flag & VFRAME_FLAG_COMPOSER_DONE;
 			file_vf = vf->file_vf;
-			is_dma_buf = vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_DMA;
 			vc_print(dev->index, PRINT_OTHER,
 				 "empty: repeat_count =%d, omx_index=%d\n",
 				 repeat_count, omx_index);
@@ -1449,11 +1447,6 @@ static void empty_ready_queue(struct composer_dev *dev)
 				}
 			} else {
 				videocom_vf_put(vf, dev);
-			}
-			if (is_dma_buf) {
-				if (!kfifo_put(&dev->dma_free_q, vf))
-					vc_print(dev->index, PRINT_ERROR,
-						 "dma_free is full!\n");
 			}
 		}
 	}
@@ -1510,13 +1503,14 @@ static void video_composer_task(struct composer_dev *dev)
 	struct vframe_s *vf_ext = NULL;
 	u32 pic_w;
 	u32 pic_h;
-	bool is_dec_vf = false, is_v4l_vf = false;
+	bool is_dec_vf = false, is_v4l_vf = false, is_repeat_vf = false;
 	struct vf_nn_sr_t *srout_data = NULL;
 	struct video_composer_private *vc_private;
 	u32 nn_status;
 	u64 delay_time1;
 	u64 delay_time2;
 	u64 now_time;
+	struct vd_prepare_s *vd_prepare = NULL;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -1558,10 +1552,18 @@ static void video_composer_task(struct composer_dev *dev)
 			 dev->index,
 			 kfifo_len(&dev->receive_q));
 		file_vf = received_frames->file_vf[0];
+		if (!file_vf) {
+			vc_print(dev->index, PRINT_ERROR, "file_vf is NULL\n");
+			return;
+		}
 		is_dec_vf =
 		is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
 		is_v4l_vf =
 		is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+		/*check repeat vframe*/
+		if (dev->last_file == file_vf && (is_dec_vf || is_v4l_vf))
+			is_repeat_vf = true;
+
 		if (frame_info->type == 0) {
 			if (is_dec_vf || is_v4l_vf)
 				vf = get_vf_from_file(dev, file_vf, false);
@@ -1588,12 +1590,6 @@ static void video_composer_task(struct composer_dev *dev)
 			} else {
 				vc_print(dev->index, PRINT_OTHER,
 					 "%s dma buffer not vf\n", __func__);
-				if (!kfifo_get(&dev->dma_free_q, &vf)) {
-					vc_print(dev->index, PRINT_ERROR,
-					    "task: get dma_free_q failed\n");
-					return;
-				}
-				memset(vf, 0, sizeof(struct vframe_s));
 			}
 		}
 
@@ -1602,11 +1598,35 @@ static void video_composer_task(struct composer_dev *dev)
 				 "task: get failed\n");
 			return;
 		}
-		if (!vf) {
-			vc_print(dev->index, PRINT_ERROR,
-				 "vf is NULL\n");
-			return;
+
+		if (is_repeat_vf) {
+			vd_prepare = dev->vd_prepare_last;
+		} else {
+			vd_prepare = vd_prepare_data_q_get(dev);
+			if (!vd_prepare) {
+				vc_print(dev->index, PRINT_ERROR,
+					 "%s: get prepare_data failed.\n",
+					 __func__);
+				return;
+			}
+
+			if (is_dec_vf || is_v4l_vf) {
+				if (!vf) {
+					vc_print(dev->index, PRINT_ERROR,
+						 "vf is NULL\n");
+					return;
+				}
+				vd_prepare->src_frame = vf;
+				vd_prepare->src_frame->file_vf = file_vf;
+				vd_prepare->dst_frame = *vf;
+			} else {/*dma buf*/
+				vd_prepare->src_frame = &vd_prepare->dst_frame;
+				vd_prepare->src_frame->file_vf = file_vf;
+			}
 		}
+
+		vf = &vd_prepare->dst_frame;
+
 		vf->axis[0] = frame_info->dst_x;
 		vf->axis[1] = frame_info->dst_y;
 		vf->axis[2] = frame_info->dst_w + frame_info->dst_x - 1;
@@ -1776,7 +1796,7 @@ static void video_composer_task(struct composer_dev *dev)
 			}
 		}
 
-		if (dev->last_file == file_vf && (is_dec_vf || is_v4l_vf)) {
+		if (is_repeat_vf) {
 			vf->repeat_count[dev->index]++;
 			vc_print(dev->index, PRINT_FENCE,
 				 "repeat =%d, omx_index=%d\n",
@@ -1806,6 +1826,7 @@ static void video_composer_task(struct composer_dev *dev)
 			}
 			dev->last_file = file_vf;
 			vf->repeat_count[dev->index] = 0;
+			dev->vd_prepare_last = vd_prepare;
 			if (vf->flag & VFRAME_FLAG_GAME_MODE) {
 				now_time = ktime_to_us(ktime_get());
 				delay_time1 = now_time - vf->disp_pts_us64;
@@ -1837,6 +1858,7 @@ static void video_composer_task(struct composer_dev *dev)
 	} else {
 		vframe_composer(dev);
 		dev->last_file = NULL;
+		dev->vd_prepare_last = NULL;
 	}
 }
 
@@ -2364,15 +2386,15 @@ static int video_composer_init(struct composer_dev *dev)
 	INIT_KFIFO(dev->receive_q);
 	INIT_KFIFO(dev->free_q);
 	INIT_KFIFO(dev->display_q);
-	INIT_KFIFO(dev->dma_free_q);
+	INIT_KFIFO(dev->vc_prepare_data_q);
 	kfifo_reset(&dev->ready_q);
 	kfifo_reset(&dev->receive_q);
 	kfifo_reset(&dev->free_q);
 	kfifo_reset(&dev->display_q);
-	kfifo_reset(&dev->dma_free_q);
+	kfifo_reset(&dev->vc_prepare_data_q);
 
-	for (i = 0; i < DMA_BUF_COUNT; i++)
-		kfifo_put(&dev->dma_free_q, &dev->dma_vf[i]);
+	for (i = 0; i < COMPOSER_READY_POOL_SIZE; i++)
+		vd_prepare_data_q_put(dev, &dev->vd_prepare[i]);
 
 	vc_private_q_init(dev);
 
@@ -2387,6 +2409,7 @@ static int video_composer_init(struct composer_dev *dev)
 	dev->need_empty_ready = false;
 	dev->last_file = NULL;
 	dev->select_path_done = false;
+	dev->vd_prepare_last = NULL;
 	init_completion(&dev->task_done);
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
 		for (j = 0; j < MXA_LAYER_COUNT; j++)

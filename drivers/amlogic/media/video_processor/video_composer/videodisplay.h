@@ -49,5 +49,7 @@ int video_display_setenable(int layer_index, int is_enable);
 int video_display_setframe(int layer_index,
 			struct video_display_frame_info_t *frame_info,
 			int flags);
-
+void vd_prepare_data_q_put(struct composer_dev *dev,
+			struct vd_prepare_s *vd_prepare);
+struct vd_prepare_s *vd_prepare_data_q_get(struct composer_dev *dev);
 #endif

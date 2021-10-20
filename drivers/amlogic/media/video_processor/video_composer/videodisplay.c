@@ -22,13 +22,9 @@
 #endif
 #include "videodisplay.h"
 
-static bool is_drm_enable;
 static struct timeval vsync_time;
 static DEFINE_MUTEX(video_display_mutex);
 static struct composer_dev *mdev[3];
-static struct dma_buf *last_dmabuf;
-static int cur_layer_index;
-static struct dma_fence *cur_frame_release_fence;
 
 #define MAX_VIDEO_COMPOSER_INSTANCE_NUM 3
 static int get_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
@@ -70,6 +66,90 @@ static void vf_pop_display_q(struct composer_dev *dev, struct vframe_s *vf)
 			vc_print(dev->index, PRINT_ERROR,
 				 "can find vf in display_q\n");
 			break;
+		}
+	}
+}
+
+static void vc_display_q_uninit(struct composer_dev *dev)
+{
+	struct vframe_s *dis_vf = NULL;
+	struct file *file_vf = NULL;
+	int repeat_count;
+	int i;
+	struct vd_prepare_s *vd_prepare;
+
+	vc_print(dev->index, PRINT_QUEUE_STATUS,
+		"%s: display_q len=%d\n",
+		__func__, kfifo_len(&dev->display_q));
+
+	while (kfifo_len(&dev->display_q) > 0) {
+		if (kfifo_get(&dev->display_q, &dis_vf)) {
+			vd_prepare = container_of(dis_vf,
+						struct vd_prepare_s,
+						dst_frame);
+			if (IS_ERR_OR_NULL(vd_prepare)) {
+				vc_print(dev->index, PRINT_ERROR,
+					"%s: prepare is NULL.\n",
+					__func__);
+				return;
+			}
+			if (dis_vf->flag
+			    & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
+				repeat_count = dis_vf->repeat_count[dev->index];
+				file_vf = dis_vf->file_vf;
+				vc_print(dev->index, PRINT_FENCE,
+					 "%s: repeat_count=%d, omx_index=%d\n",
+					 __func__,
+					 repeat_count,
+					 dis_vf->omx_index);
+				for (i = 0; i <= repeat_count; i++) {
+					dma_buf_put((struct dma_buf *)file_vf);
+					dma_fence_signal(vd_prepare->release_fence);
+					dev->fput_count++;
+				}
+			} else if (!(dis_vf->flag
+				     & VFRAME_FLAG_VIDEO_COMPOSER)) {
+				vc_print(dev->index, PRINT_ERROR,
+					 "%s: display_q flag is null, omx_index=%d\n",
+					 __func__, dis_vf->omx_index);
+			}
+		}
+	}
+}
+
+static void vc_ready_q_uninit(struct composer_dev *dev)
+{
+	struct vframe_s *dis_vf = NULL;
+	struct file *file_vf = NULL;
+	int repeat_count;
+	int i;
+	struct vd_prepare_s *vd_prepare;
+
+	vc_print(dev->index, PRINT_QUEUE_STATUS,
+		"%s: ready_q len=%d\n",
+		__func__, kfifo_len(&dev->ready_q));
+
+	while (kfifo_len(&dev->ready_q) > 0) {
+		if (kfifo_get(&dev->ready_q, &dis_vf)) {
+			vd_prepare = container_of(dis_vf,
+						struct vd_prepare_s,
+						dst_frame);
+			if (IS_ERR_OR_NULL(vd_prepare)) {
+				vc_print(dev->index, PRINT_ERROR,
+					"%s: prepare is NULL.\n",
+					__func__);
+				return;
+			}
+			if (dis_vf->flag
+			    & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
+				repeat_count = dis_vf->repeat_count[dev->index];
+				file_vf = dis_vf->file_vf;
+				for (i = 0; i <= repeat_count; i++) {
+					dma_buf_put((struct dma_buf *)file_vf);
+					dma_fence_signal(vd_prepare->release_fence);
+					dev->fput_count++;
+				}
+			}
 		}
 	}
 }
@@ -117,7 +197,7 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 		if (!vf)
 			return NULL;
 
-		if (is_drm_enable)
+		if (dev->is_drm_enable)
 			return vf;
 		else
 			return videocomposer_vf_peek(op_arg);
@@ -137,7 +217,6 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 
 		if (vf->flag & VFRAME_FLAG_FAKE_FRAME)
 			return vf;
-
 		if (!kfifo_put(&dev->display_q, vf))
 			vc_print(dev->index, PRINT_ERROR,
 				 "display_q is full!\n");
@@ -147,12 +226,15 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 		}
 
 		get_count[dev->index]++;
+		dev->fget_count++;
 
 		vc_print(dev->index, PRINT_OTHER | PRINT_PATTERN,
-			 "get: omx_index=%d, index_disp=%d, get_count=%d, vsync =%d, vf=%p\n",
+			 "%s: omx_index=%d, index_disp=%d, get_count=%d, total_get_count=%lld, vsync =%d, vf=%p\n",
+			 __func__,
 			 vf->omx_index,
 			 vf->index_disp,
 			 get_count[dev->index],
+			 dev->fget_count,
 			 countinue_vsync_count[dev->index],
 			 vf);
 		countinue_vsync_count[dev->index] = 0;
@@ -169,34 +251,45 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 	int i;
 	struct file *file_vf;
 	struct composer_dev *dev = (struct composer_dev *)op_arg;
+	struct vd_prepare_s *vd_prepare_tmp;
 
 	if (!vf)
 		return;
 
-	if (is_drm_enable) {
+	if (dev->is_drm_enable) {
 		if (vf->flag & VFRAME_FLAG_FAKE_FRAME) {
 			vc_print(dev->index, PRINT_OTHER,
 				 "put: fake frame\n");
+			return;
+		}
+
+		vd_prepare_tmp = container_of(vf,
+					struct vd_prepare_s,
+					dst_frame);
+		if (IS_ERR_OR_NULL(vd_prepare_tmp)) {
+			vc_print(dev->index, PRINT_ERROR,
+				"%s: prepare is NULL.\n",
+				__func__);
 			return;
 		}
 		repeat_count = vf->repeat_count[dev->index];
 		file_vf = vf->file_vf;
 
 		vf_pop_display_q(dev, vf);
-		if (vf->rendered)
-			dev->drop_frame_count = 0;
-		else
-			dev->drop_frame_count += repeat_count + 1;
-
 		for (i = 0; i <= repeat_count; i++) {
 			if (file_vf) {
-				fput(file_vf);
+				dma_buf_put((struct dma_buf *)file_vf);
+				dma_fence_signal(vd_prepare_tmp->release_fence);
 				dev->fput_count++;
 			} else {
-				vc_print(dev->index, PRINT_OTHER,
+				vc_print(dev->index, PRINT_ERROR,
 					"put: file error!!!\n");
 			}
 		}
+		vd_prepare_data_q_put(dev, vd_prepare_tmp);
+		vc_print(dev->index, PRINT_OTHER | PRINT_PATTERN,
+			"%s: omx_index=%d, put_count=%lld.\n",
+			__func__, vf->omx_index, dev->fput_count);
 	} else {
 		vf_pop_display_q(dev, vf);
 		videocomposer_vf_put(vf, op_arg);
@@ -274,6 +367,36 @@ static struct vframe_s *vd_get_vf_from_buf(struct composer_dev *dev,
 	}
 
 	return vf;
+}
+
+void vd_prepare_data_q_put(struct composer_dev *dev,
+				struct vd_prepare_s *vd_prepare)
+{
+	if (!vd_prepare)
+		return;
+
+	if (!kfifo_put(&dev->vc_prepare_data_q, vd_prepare))
+		vc_print(dev->index, PRINT_ERROR,
+			"%s: vc_prepare_data_q is full!\n",
+			__func__);
+}
+
+struct vd_prepare_s *vd_prepare_data_q_get(struct composer_dev *dev)
+{
+	struct vd_prepare_s *vd_prepare = NULL;
+
+	if (!kfifo_get(&dev->vc_prepare_data_q, &vd_prepare)) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "%s: get vc_prepare_data failed\n",
+			 __func__);
+		vd_prepare = NULL;
+	} else {
+		vd_prepare->src_frame = NULL;
+		memset(&vd_prepare->dst_frame, 0, sizeof(struct vframe_s));
+		vd_prepare->release_fence = NULL;
+	}
+
+	return vd_prepare;
 }
 
 int video_display_create_path(struct composer_dev *dev)
@@ -355,13 +478,12 @@ static struct composer_dev *video_display_getdev(int layer_index)
 		mutex_unlock(&video_display_mutex);
 	}
 
-	is_drm_enable = true;
 	return mdev[layer_index];
 }
 
 static int video_display_init(int layer_index)
 {
-	int ret = 0;
+	int ret = 0, i = 0;
 	struct composer_dev *dev;
 	char render_layer[16] = "";
 
@@ -374,11 +496,21 @@ static int video_display_init(int layer_index)
 	mutex_lock(&video_display_mutex);
 	INIT_KFIFO(dev->ready_q);
 	INIT_KFIFO(dev->display_q);
+	INIT_KFIFO(dev->vc_prepare_data_q);
 	kfifo_reset(&dev->ready_q);
 	kfifo_reset(&dev->display_q);
+	kfifo_reset(&dev->vc_prepare_data_q);
+
+	for (i = 0; i < COMPOSER_READY_POOL_SIZE; i++)
+		vd_prepare_data_q_put(dev, &dev->vd_prepare[i]);
 
 	dev->fput_count = 0;
 	dev->drop_frame_count = 0;
+	dev->fget_count = 0;
+	dev->received_count = 0;
+	dev->last_file = NULL;
+	dev->vd_prepare_last = NULL;
+	dev->is_drm_enable = true;
 
 	memcpy(dev->vf_provider_name,
 		dev->port->name,
@@ -414,11 +546,15 @@ static int video_display_uninit(int layer_index)
 	_video_set_disable(1);
 	video_set_global_output(dev->index, 0);
 	ret = video_display_release_path(dev);
+	vc_ready_q_uninit(dev);
+	vc_display_q_uninit(dev);
+	vc_print(dev->index, PRINT_OTHER | PRINT_PATTERN,
+		 "%s: total put count is %lld.\n",
+		 __func__, dev->fput_count);
 
 	dev->port->open_count--;
 	kfree(dev);
 	mdev[layer_index] = NULL;
-	is_drm_enable = false;
 	return ret;
 }
 
@@ -471,6 +607,8 @@ int video_display_setframe(int layer_index,
 	struct composer_dev *dev;
 	struct vframe_s *vf = NULL;
 	int ready_count = 0;
+	bool is_repeat_vf = false;
+	struct vd_prepare_s *vd_prepare = NULL;
 
 	if (IS_ERR_OR_NULL(frame_info)) {
 		vc_print(layer_index, PRINT_ERROR,
@@ -499,8 +637,31 @@ int video_display_setframe(int layer_index,
 	}
 
 	get_dma_buf(frame_info->dmabuf);
-	cur_layer_index = layer_index;
-	cur_frame_release_fence = frame_info->release_fence;
+	dev->received_count++;
+	vc_print(layer_index, PRINT_OTHER | PRINT_PATTERN,
+		"%s: total receive_count is %lld.\n",
+		__func__, dev->received_count);
+
+	if (dev->last_file == (struct file *)frame_info->dmabuf)
+		is_repeat_vf = true;
+
+	if (is_repeat_vf) {
+		vd_prepare = dev->vd_prepare_last;
+	} else {
+		vd_prepare = vd_prepare_data_q_get(dev);
+		if (!vd_prepare) {
+			vc_print(dev->index, PRINT_ERROR,
+				 "%s: get prepare_data failed.\n",
+				 __func__);
+			return -ENOENT;
+		}
+
+		vd_prepare->src_frame = vf;
+		vd_prepare->dst_frame = *vf;
+		vd_prepare->release_fence = frame_info->release_fence;
+	}
+
+	vf = &vd_prepare->dst_frame;
 
 	vf->axis[0] = frame_info->dst_x;
 	vf->axis[1] = frame_info->dst_y;
@@ -519,15 +680,16 @@ int video_display_setframe(int layer_index,
 		| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 	vf->disp_pts = 0;
 
-	if (last_dmabuf == frame_info->dmabuf) {
+	if (is_repeat_vf) {
 		vf->repeat_count[dev->index]++;
 		vc_print(layer_index, PRINT_ERROR,
-			"%s: same frame, no need put.\n",
-			__func__);
+			"%s: repeat frame, repeat_count is %d.\n",
+			__func__, vf->repeat_count[dev->index]);
 		return 0;
 	}
 
-	last_dmabuf = frame_info->dmabuf;
+	dev->last_file = (struct file *)frame_info->dmabuf;
+	vf->file_vf = (struct file *)(frame_info->dmabuf);
 	vf->repeat_count[dev->index] = 0;
 	if (!kfifo_put(&dev->ready_q, (const struct vframe_s *)vf)) {
 		vc_print(layer_index, PRINT_ERROR,
