@@ -39,6 +39,10 @@ enum pstore_type_id {
 	PSTORE_TYPE_PMSG	= 7,
 	PSTORE_TYPE_PPC_OPAL	= 8,
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	PSTORE_TYPE_BCONSOLE	= 9,
+#endif
+
 	/* End of the list */
 	PSTORE_TYPE_MAX
 };
@@ -196,6 +200,9 @@ struct pstore_info {
 #define PSTORE_FLAGS_FTRACE	BIT(2)
 #define PSTORE_FLAGS_PMSG	BIT(3)
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define PSTORE_FLAGS_BCONSOLE	BIT(4)
+#endif
 extern int pstore_register(struct pstore_info *);
 extern void pstore_unregister(struct pstore_info *);
 

@@ -25,6 +25,13 @@ static inline void pstore_register_pmsg(void) {}
 static inline void pstore_unregister_pmsg(void) {}
 #endif
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+extern bool console_enable;
+extern bool bconsole_enable;
+extern u32 bconsole_size;
+extern void dump_log_to_bconsole(void);
+#endif
+
 extern struct pstore_info *psinfo;
 
 extern void	pstore_set_kmsg_bytes(int);
