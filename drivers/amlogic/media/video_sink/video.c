@@ -477,7 +477,8 @@ EXPORT_SYMBOL(get_video_reverse);
 
 bool is_di_hf_y_reverse(void)
 {
-	if (reverse || mirror == 2)
+	//if (reverse || mirror == 2)
+	if (glayer_info[0].reverse || glayer_info[0].mirror == 2)
 		return cur_dev->di_hf_y_reverse;
 	else
 		return false;
@@ -4964,6 +4965,63 @@ void _set_video_window(struct disp_info_s *layer, int *p)
 	}
 }
 
+void _set_video_mirror(struct disp_info_s *layer, int mirror)
+{
+	int last_mirror, new_mirror;
+	bool revser_temp = false;
+
+	if (!layer)
+		return;
+
+#ifdef TV_REVERSE
+	if (reverse) {
+		revser_temp = true;
+		if (mirror == H_MIRROR) {
+			mirror = V_MIRROR;
+			revser_temp = false;
+		} else if (mirror == V_MIRROR) {
+			mirror = H_MIRROR;
+			revser_temp = false;
+		}
+	}
+#endif
+	last_mirror = layer->mirror;
+	new_mirror = mirror;
+	layer->mirror = mirror;
+	layer->reverse = revser_temp;
+
+	if (last_mirror != new_mirror) {
+		if (layer->layer_id == 0) {
+			vd_layer[0].property_changed = true;
+			if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
+				pr_info("VD1 mirror changed: %d ->%d\n",
+					last_mirror, new_mirror);
+		} else if (layer->layer_id == 1) {
+			if (vd_layer[1].vpp_index == VPP0)
+				vd_layer[1].property_changed = true;
+			/* vpp1 case */
+			else if (vd_layer_vpp[0].layer_id == layer->layer_id &&
+				vd_layer_vpp[0].vpp_index == VPP1)
+				vd_layer_vpp[0].property_changed = true;
+			/* vpp2 case */
+			else if (vd_layer_vpp[1].layer_id == layer->layer_id &&
+				vd_layer_vpp[1].vpp_index == VPP2)
+				vd_layer_vpp[1].property_changed = true;
+		} else if (layer->layer_id == 2) {
+			if (vd_layer[2].vpp_index == VPP0)
+				vd_layer[2].property_changed = true;
+			/* vpp1 case */
+			else if (vd_layer_vpp[0].layer_id == layer->layer_id &&
+				vd_layer_vpp[0].vpp_index == VPP1)
+				vd_layer_vpp[0].property_changed = true;
+			/* vpp2 case */
+			else if (vd_layer_vpp[1].layer_id == layer->layer_id &&
+				vd_layer_vpp[1].vpp_index == VPP2)
+				vd_layer_vpp[1].property_changed = true;
+		}
+	}
+}
+
 void set_video_crop_ext(int layer_index, int *p)
 {
 	struct disp_info_s *layer = &glayer_info[layer_index];
@@ -5031,6 +5089,8 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 	if ((vf->flag & (VFRAME_FLAG_VIDEO_COMPOSER |
 	    VFRAME_FLAG_VIDEO_DRM)) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
+		int mirror = 0;
+
 		axis[0] = vf->axis[0];
 		axis[1] = vf->axis[1];
 		axis[2] = vf->axis[2];
@@ -5043,7 +5103,11 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
 			vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
 			_set_video_crop(layer_info, crop);
-
+		if (vf->flag & VFRAME_FLAG_MIRROR_H)
+			mirror = H_MIRROR;
+		if (vf->flag & VFRAME_FLAG_MIRROR_V)
+			mirror = V_MIRROR;
+		_set_video_mirror(layer_info, mirror);
 		layer_info->zorder = vf->zorder;
 	}
 
@@ -5186,6 +5250,8 @@ void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 	if ((vf->flag & (VFRAME_FLAG_VIDEO_COMPOSER |
 	    VFRAME_FLAG_VIDEO_DRM)) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
+		int mirror = 0;
+
 		axis[0] = vf->axis[0];
 		axis[1] = vf->axis[1];
 		axis[2] = vf->axis[2];
@@ -5198,7 +5264,11 @@ void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
 			vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
 			_set_video_crop(layer_info, crop);
-
+		if (vf->flag & VFRAME_FLAG_MIRROR_H)
+			mirror = H_MIRROR;
+		if (vf->flag & VFRAME_FLAG_MIRROR_V)
+			mirror = V_MIRROR;
+		_set_video_mirror(layer_info, mirror);
 		layer_info->zorder = vf->zorder;
 	}
 
@@ -5358,6 +5428,8 @@ static void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1
 	    VFRAME_FLAG_VIDEO_DRM)) &&
 	    !(vf->flag & VFRAME_FLAG_FAKE_FRAME) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
+		int mirror = 0;
+
 		axis[0] = vf->axis[0];
 		axis[1] = vf->axis[1];
 		axis[2] = vf->axis[2];
@@ -5370,7 +5442,11 @@ static void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1
 		if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
 			vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
 			_set_video_crop(&glayer_info[0], crop);
-
+		if (vf->flag & VFRAME_FLAG_MIRROR_H)
+			mirror = H_MIRROR;
+		if (vf->flag & VFRAME_FLAG_MIRROR_V)
+			mirror = V_MIRROR;
+		_set_video_mirror(&glayer_info[0], mirror);
 		glayer_info[0].zorder = vf->zorder;
 	}
 
@@ -7864,6 +7940,8 @@ SET_FILTER:
 		VFRAME_FLAG_VIDEO_DRM)) &&
 	    !(vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
+		int mirror = 0;
+
 		axis[0] = vd_layer[0].dispbuf->axis[0];
 		axis[1] = vd_layer[0].dispbuf->axis[1];
 		axis[2] = vd_layer[0].dispbuf->axis[2];
@@ -7877,6 +7955,11 @@ SET_FILTER:
 		if (source_type != VFRAME_SOURCE_TYPE_HDMI &&
 			source_type != VFRAME_SOURCE_TYPE_CVBS)
 			_set_video_crop(&glayer_info[0], crop);
+		if (vd_layer[0].dispbuf->flag & VFRAME_FLAG_MIRROR_H)
+			mirror = H_MIRROR;
+		if (vd_layer[0].dispbuf->flag & VFRAME_FLAG_MIRROR_V)
+			mirror = V_MIRROR;
+		_set_video_mirror(&glayer_info[0], mirror);
 		set_alpha_scpxn(&vd_layer[0], vd_layer[0].dispbuf->componser_info);
 		glayer_info[0].zorder = vd_layer[0].dispbuf->zorder;
 	}
@@ -8231,6 +8314,8 @@ SET_FILTER:
 	    (vd_layer[1].dispbuf->flag & (VFRAME_FLAG_VIDEO_COMPOSER |
 		VFRAME_FLAG_VIDEO_DRM)) &&
 	    !(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
+		int mirror = 0;
+
 		axis[0] = vd_layer[1].dispbuf->axis[0];
 		axis[1] = vd_layer[1].dispbuf->axis[1];
 		axis[2] = vd_layer[1].dispbuf->axis[2];
@@ -8244,6 +8329,11 @@ SET_FILTER:
 		if (source_type != VFRAME_SOURCE_TYPE_HDMI &&
 			source_type != VFRAME_SOURCE_TYPE_CVBS)
 			_set_video_crop(&glayer_info[1], crop);
+		if (vd_layer[1].dispbuf->flag & VFRAME_FLAG_MIRROR_H)
+			mirror = H_MIRROR;
+		if (vd_layer[1].dispbuf->flag & VFRAME_FLAG_MIRROR_V)
+			mirror = V_MIRROR;
+		_set_video_mirror(&glayer_info[1], mirror);
 		set_alpha_scpxn(&vd_layer[1], vd_layer[1].dispbuf->componser_info);
 		glayer_info[1].zorder = vd_layer[1].dispbuf->zorder;
 	}
@@ -15273,6 +15363,9 @@ static ssize_t mirror_axis_store(struct class *cla,
 	}
 	pr_info("mirror: %d->%d (1: H_MIRROR 2: V_MIRROR)\n", mirror, res);
 	mirror = res;
+	_set_video_mirror(&glayer_info[0], mirror);
+	_set_video_mirror(&glayer_info[1], mirror);
+	_set_video_mirror(&glayer_info[2], mirror);
 
 	return count;
 }
@@ -16381,6 +16474,7 @@ static int vpp_axis_reverse(char *str)
 		reverse = true;
 	else
 		reverse = false;
+	glayer_info[0].reverse = reverse;
 
 	return 0;
 }
