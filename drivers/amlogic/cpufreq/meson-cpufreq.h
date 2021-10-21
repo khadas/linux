@@ -24,6 +24,7 @@ static struct clk *clk[MAX_CLUSTERS];
 static bool reg_use_buck[MAX_CLUSTERS];
 static struct cpufreq_frequency_table *freq_table[MAX_CLUSTERS];
 static struct cpumask cluster_cpus[MAX_CLUSTERS];
+static struct thermal_cooling_device *cooldev[MAX_CLUSTERS];
 
 /* Default voltage_tolerance */
 #define DEF_VOLT_TOL		0
@@ -67,7 +68,6 @@ struct meson_cpufreq_driver_data {
 	struct clk *clk_dsu;
 	struct clk *clk_dsu_pre;
 	struct clk *clk_dsu_pre2;
-	struct thermal_cooling_device *cdev;
 	int clusterid;
 };
 

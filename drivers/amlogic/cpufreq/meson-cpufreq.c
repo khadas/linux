@@ -970,7 +970,6 @@ static int meson_cpufreq_exit(struct cpufreq_policy *policy)
 	if (!cpufreq_data)
 		return 0;
 	cur_cluster = cpufreq_data->clusterid;
-	cpufreq_cooling_unregister(cpufreq_data->cdev);
 	dsu_voltage_vote_result[cpufreq_data->clusterid] = 0;
 	dsu_freq_vote_result[cpufreq_data->clusterid] = 0;
 	destroy_meson_cpufreq_proc_files(policy);
@@ -1007,7 +1006,8 @@ static void meson_cpufreq_ready(struct cpufreq_policy *policy)
 {
 	struct meson_cpufreq_driver_data *cpufreq_data = policy->driver_data;
 
-	cpufreq_data->cdev = of_cpufreq_cooling_register(policy);
+	if (!cooldev[cpufreq_data->clusterid])
+		cooldev[cpufreq_data->clusterid] = of_cpufreq_cooling_register(policy);
 	create_meson_cpufreq_proc_files(policy);
 }
 
