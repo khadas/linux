@@ -11562,7 +11562,7 @@ static void remove_comments(char *p_buf)
 	*p_buf = 0;
 }
 
-#define MAX_READ_SIZE 1536
+#define MAX_READ_SIZE 256
 static char cur_line[MAX_READ_SIZE];
 
 /*read one line from cfg, return eof flag*/
@@ -11580,7 +11580,6 @@ static bool get_one_line(char **cfg_buf, char *line_buf, bool ignore_comments)
 		line_end = memchr(*cfg_buf, '\n', MAX_READ_SIZE);
 		if (!line_end)
 			line_end = memchr(*cfg_buf, '\r', MAX_READ_SIZE);
-
 		if (!line_end) {
 			line_len = strlen(*cfg_buf);
 			eof_flag = true;
@@ -11589,7 +11588,6 @@ static bool get_one_line(char **cfg_buf, char *line_buf, bool ignore_comments)
 		}
 		memcpy(line_buf, *cfg_buf, line_len);
 		line_buf[line_len] = '\0';
-
 		if (line_len > 0 && line_buf[line_len - 1] == '\r')
 			line_buf[line_len - 1] = '\0';
 
@@ -11598,11 +11596,15 @@ static bool get_one_line(char **cfg_buf, char *line_buf, bool ignore_comments)
 			remove_comments(line_buf);
 		while (isspace(*line_buf))
 			line_buf++;
+
 		if (**cfg_buf == '\0')
 			eof_flag = true;
+
 		if (eof_flag)
 			break;
 	}
+	if (debug_dolby & 0x200)
+		pr_info("get line %s\n", line_buf);
 	return eof_flag;
 }
 
@@ -11778,8 +11780,8 @@ static bool load_dv_pq_config_data(char *bin_path, char *txt_path)
 		}
 
 		length = stat.size;
-		txt_buf = vmalloc(length);
-
+		txt_buf = vmalloc(length + 2);
+		memset(txt_buf, 0, length + 2);
 		if (txt_buf) {
 			vfs_read(filp_txt, txt_buf, length, &pos);
 			get_picture_mode_info(txt_buf);
