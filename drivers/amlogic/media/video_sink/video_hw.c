@@ -7780,8 +7780,8 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 				(&layer->frame_parms[0] == layer->next_frame_par) ?
 				&layer->frame_parms[1] : &layer->frame_parms[0];
 		/* FIXME: remove the global variables */
-		glayer_info[layer_id].reverse = reverse;
-		glayer_info[layer_id].mirror = mirror;
+		//glayer_info[layer_id].reverse = reverse;
+		//glayer_info[layer_id].mirror = mirror;
 		glayer_info[layer_id].proc_3d_type =
 			process_3d_type;
 
