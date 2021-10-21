@@ -72,14 +72,14 @@ static struct clk_regmap t5w_sys_pll_dco = {
 		},
 		.n = {
 			.reg_off = HHI_SYS_PLL_CNTL0,
-			.shift   = 10,
+			.shift   = 16,
 			.width   = 5,
 		},
 #ifdef CONFIG_ARM
 		/* od for 32bit */
 		.od = {
 			.reg_off = HHI_SYS_PLL_CNTL0,
-			.shift	 = 16,
+			.shift	 = 12,
 			.width	 = 3,
 		},
 #endif
@@ -106,7 +106,7 @@ static struct clk_regmap t5w_sys_pll_dco = {
 		 * This clock feeds the CPU, avoid disabling it
 		 * Register has the risk of being directly operated
 		 */
-		//.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -148,7 +148,7 @@ static struct clk_regmap t5w_sys_pll = {
 static struct clk_regmap t5w_sys_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = HHI_SYS_PLL_CNTL0,
-		.shift = 16,
+		.shift = 12,
 		.width = 3,
 		.flags = CLK_DIVIDER_POWER_OF_TWO,
 	},
@@ -486,7 +486,7 @@ static const struct reg_sequence t5w_gp0_init_regs[] = {
 	{ .reg = HHI_GP0_PLL_CNTL2,	.def = 0x00000180 },
 	{ .reg = HHI_GP0_PLL_CNTL3,	.def = 0x4a681c00 },
 	{ .reg = HHI_GP0_PLL_CNTL4,	.def = 0x88770290 },
-	{ .reg = HHI_GP0_PLL_CNTL5,	.def = 0x39272000 },
+	{ .reg = HHI_GP0_PLL_CNTL5,	.def = 0x3927200a },
 	{ .reg = HHI_GP0_PLL_CNTL6,	.def = 0x56540000 }
 };
 
@@ -718,7 +718,7 @@ static const struct reg_sequence t5w_hifi_init_regs[] = {
 	{ .reg = HHI_HIFI_PLL_CNTL2,	.def = 0x00000000 },
 	{ .reg = HHI_HIFI_PLL_CNTL3,	.def = 0x6a285c00 },
 	{ .reg = HHI_HIFI_PLL_CNTL4,	.def = 0x65771290 },
-	{ .reg = HHI_HIFI_PLL_CNTL5,	.def = 0x39272000 },
+	{ .reg = HHI_HIFI_PLL_CNTL5,	.def = 0x3927200a },
 	{ .reg = HHI_HIFI_PLL_CNTL6,	.def = 0x56540000 }
 };
 
@@ -810,7 +810,7 @@ static struct clk_fixed_factor t5w_mpll_50m_div = {
 	},
 };
 
-static const struct clk_parent_data t5w_mpll_50m_sel[] __initconst = {
+static const struct clk_parent_data t5w_mpll_50m_sel[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t5w_mpll_50m_div.hw }
 };
@@ -1480,7 +1480,7 @@ static struct clk_regmap t5w_clk81 = {
 };
 
 /* cts_vdec_clk */
-static const struct clk_parent_data t5w_dec_parent_hws[] __initconst = {
+static const struct clk_parent_data t5w_dec_parent_hws[] = {
 	{ .hw = &t5w_fclk_div2p5.hw },
 	{ .hw = &t5w_fclk_div3.hw },
 	{ .hw = &t5w_fclk_div4.hw },
@@ -1910,7 +1910,7 @@ static struct clk_regmap t5w_vapb = {
  */
 static u32 mux_table_mali[] = { 0, 3, 4, 5, 6, 7};
 
-static const struct clk_parent_data t5w_mali_0_1_parent_data[] __initconst = {
+static const struct clk_parent_data t5w_mali_0_1_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t5w_fclk_div2p5.hw },
 	{ .hw = &t5w_fclk_div3.hw },
@@ -2070,7 +2070,7 @@ static struct clk_regmap t5w_ts_clk = {
 	},
 };
 
-static const struct clk_parent_data t5w_sd_emmc_parent_data[] __initconst = {
+static const struct clk_parent_data t5w_sd_emmc_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t5w_fclk_div2.hw },
 	{ .hw = &t5w_fclk_div3.hw },
@@ -2179,7 +2179,7 @@ static struct clk_regmap t5w_sd_emmc_b = {
 
 /* cts_vdin_meas_clk */
 static u32 t5w_vdin_meas_table[] = {0, 1, 2, 3};
-static const struct clk_parent_data t5w_vdin_parent_hws[] __initconst = {
+static const struct clk_parent_data t5w_vdin_parent_hws[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t5w_fclk_div4.hw },
 	{ .hw = &t5w_fclk_div3.hw },
@@ -2591,7 +2591,7 @@ static struct clk_regmap t5w_vpu_clkc = {
 };
 
 /*cts tcon pll clk*/
-static const struct clk_parent_data t5w_tcon_pll_parent_data[] __initconst = {
+static const struct clk_parent_data t5w_tcon_pll_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t5w_fclk_div5.hw },
 	{ .hw = &t5w_fclk_div4.hw },
@@ -2648,7 +2648,7 @@ static struct clk_regmap t5w_cts_tcon_pll_clk = {
 };
 
 /*adc extclk in clkl*/
-static const struct clk_parent_data t5w_adc_extclk_parent_data[] __initconst = {
+static const struct clk_parent_data t5w_adc_extclk_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t5w_fclk_div4.hw },
 	{ .hw = &t5w_fclk_div3.hw },
@@ -2707,7 +2707,7 @@ static struct clk_regmap t5w_adc_extclk = {
 };
 
 /*cts demod core*/
-static const struct clk_parent_data t5w_demod_parent_data[] __initconst = {
+static const struct clk_parent_data t5w_demod_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t5w_fclk_div7.hw },
 	{ .hw = &t5w_fclk_div4.hw },
@@ -2887,7 +2887,7 @@ static struct clk_regmap t5w_demod_32k = {
 	},
 };
 
-static const struct clk_parent_data t5w_hdmirx_sys_parent_data[] __initconst = {
+static const struct clk_parent_data t5w_hdmirx_sys_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t5w_fclk_div4.hw },
 	{ .hw = &t5w_fclk_div3.hw },
@@ -3224,7 +3224,7 @@ static struct clk_regmap t5w_hdmirx_meter  = {
 };
 
 /*cts_cdac_clk*/
-static const struct clk_parent_data t5w_cdac_parent_data[] __initconst = {
+static const struct clk_parent_data t5w_cdac_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t5w_fclk_div5.hw },
 };
@@ -3346,7 +3346,7 @@ static struct clk_regmap t5w_eth_125m = {
 
 /*spicc clk*/
 static u32 t5w_spicc_mux_table[] = { 0, 1, 2, 3, 4, 5, 6};
-static const struct clk_parent_data t5w_spicc_parent_hws[] __initconst = {
+static const struct clk_parent_data t5w_spicc_parent_hws[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t5w_clk81.hw },
 	{ .hw = &t5w_fclk_div4.hw },
@@ -3749,6 +3749,7 @@ static struct clk_hw_onecell_data t5w_hw_onecell_data = {
 		[CLKID_CPU_CLK_DYN1_DIV]	= &t5w_cpu_clk_mux1_div.hw,
 		[CLKID_CPU_CLK_DYN1]		= &t5w_cpu_clk_postmux1.hw,
 		[CLKID_CPU_CLK_DYN]		= &t5w_cpu_clk_dyn.hw,
+		[CLKID_CPU_CLK]			= &t5w_cpu_clk.hw,
 		[CLKID_CLK81_DDR]		= &t5w_clk81_ddr.hw,
 		[CLKID_CLK81_DOS]		= &t5w_clk81_dos.hw,
 		[CLKID_CLK81_ETH_PHY]		= &t5w_clk81_ethphy.hw,
@@ -4187,12 +4188,8 @@ static int meson_t5w_dvfs_setup(struct platform_device *pdev)
 	struct clk_hw *fclk_div2;
 	struct clk_hw **hws = t5w_hw_onecell_data.hws;
 
-	pr_info("%s %d\n", __func__, __LINE__);
-	return 0;
-
 	fclk_div2 = clk_hw_get_parent_by_index(hws[CLKID_CPU_CLK_DYN1_SEL], 1);
 
-	pr_info("%s %d\n", __func__, __LINE__);
 	/* Setup clock notifier for cpu_clk_postmux0 */
 	t5w_cpu_clk_postmux0_nb_data.fclk_div2 = fclk_div2;
 	notifier_clk = t5w_cpu_clk_postmux0.hw.clk;
@@ -4258,7 +4255,6 @@ static int __ref meson_t5w_probe(struct platform_device *pdev)
 		dev_err(dev, "basic clk registers not found\n");
 		return PTR_ERR(basic_map);
 	}
-	pr_info("%s %d  1\n", __func__, __LINE__);
 
 	cpu_map = t5w_regmap_resource(dev, "cpu");
 	if (IS_ERR(cpu_map)) {
@@ -4280,8 +4276,6 @@ static int __ref meson_t5w_probe(struct platform_device *pdev)
 		if (!t5w_hw_onecell_data.hws[i])
 			continue;
 
-	  dev_err(dev, "register %d th %s\n", i,
-	    t5w_hw_onecell_data.hws[i]->init->name);
 		ret = devm_clk_hw_register(dev, t5w_hw_onecell_data.hws[i]);
 		if (ret) {
 			dev_err(dev, "Clock registration failed\n");

@@ -8,7 +8,6 @@
 #include "mesont5w.dtsi"
 #include "partition_mbox_ab.dtsi"
 #include "mesont5w_pxp-panel.dtsi"
-#include "partition_mbox_ab.dtsi"
 
 / {
 	model = "Amlogic T5W AT301 2G";
