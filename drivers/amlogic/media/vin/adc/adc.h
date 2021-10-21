@@ -6,7 +6,7 @@
 #ifndef __ADC_H_
 #define __ADC_H_
 
-#define TVDIN_ADC_VER "2021/05/20 S4D dvbs clk support"
+#define TVDIN_ADC_VER "2021/10/20 Fixed T3 and S4D pll lock state"
 
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000
