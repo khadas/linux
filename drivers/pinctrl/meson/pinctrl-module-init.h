@@ -85,7 +85,16 @@ int meson_t5w_pinctrl_init(void);
 #else
 static inline int meson_t5w_pinctrl_init(void)
 {
-	return 0;
+  return 0;
+}
+#endif
+
+#ifdef CONFIG_PINCTRL_MESON_A5
+int meson_a5_pinctrl_init(void);
+#else
+static inline int meson_a5_pinctrl_init(void)
+{
+  return 0;
 }
 #endif
 

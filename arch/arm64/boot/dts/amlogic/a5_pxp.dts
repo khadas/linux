@@ -200,7 +200,7 @@
 		fe2_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
 		fe2_reset_dir = <0>; /* 0: out, 1: in. */
 		fe2_ant_poweron_value = <0>;
-		fe2_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
+		//fe2_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
 		fe2_ts = <0>;
 		fe2_tuner1 = <3>; /* use tuner3, only S. */
 
@@ -498,7 +498,7 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		//avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
 
 		spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
 
