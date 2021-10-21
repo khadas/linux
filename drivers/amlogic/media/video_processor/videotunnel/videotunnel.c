@@ -917,11 +917,11 @@ static int vt_connect_process(struct vt_ctrl_data *data,
 
 			mutex_lock(&instance->cmd_lock);
 			kfifo_put(&instance->fifo_cmd, cmd);
-			mutex_unlock(&instance->cmd_lock);
 
 			session->cmd_status++;
 			vt_debug(VT_DEBUG_CMD, "vt [%d] resend cmd:%d data:%d\n",
 				instance->id, cmd->cmd, cmd->cmd_data);
+			mutex_unlock(&instance->cmd_lock);
 		}
 
 		instance->consumer = session;
@@ -1008,18 +1008,16 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
 		return -ENOMEM;
+
+	mutex_lock(&instance->cmd_lock);
 	cmd->cmd = data->video_cmd;
 	cmd->cmd_data = data->video_cmd_data;
 	cmd->client_id = session->pid;
 	cmd->source_crop = data->source_crop;
-
-	mutex_lock(&instance->cmd_lock);
 	if (cmd->cmd == VT_VIDEO_SET_GAME_MODE)
 		instance->mode =
 		    cmd->cmd_data ?  VT_MODE_GAME : VT_MODE_NONE_BLOCK;
-
 	kfifo_put(&instance->fifo_cmd, cmd);
-	mutex_unlock(&instance->cmd_lock);
 
 	vt_debug(VT_DEBUG_CMD, "vt [%d] send cmd:%d ", instance->id, cmd->cmd);
 	if (cmd->cmd == VT_VIDEO_SET_SOURCE_CROP)
@@ -1028,6 +1026,7 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 			 cmd->source_crop.right, cmd->source_crop.bottom);
 	else
 		vt_debug(VT_DEBUG_CMD, "data:%d\n", cmd->cmd_data);
+	mutex_unlock(&instance->cmd_lock);
 
 	mutex_lock(&instance->lock);
 	wake_up_interruptible(&instance->wait_cmd);
@@ -1225,10 +1224,10 @@ static struct vt_buffer *vt_buffer_get_locked(struct vt_instance *instance, int 
 
 		if (buffer->item.buffer_status == VT_BUFFER_ACQUIRE &&
 				buffer->buffer_fd_con == key)
-			break;
+			return buffer;
 	}
 
-	return buffer;
+	return NULL;
 }
 
 static int vt_has_buffer(struct vt_instance *instance, enum vt_role_e role)
