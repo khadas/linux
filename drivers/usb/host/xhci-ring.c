@@ -55,6 +55,10 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
+#ifdef CONFIG_AMLOGIC_USB
+#include <linux/amlogic/cpu_version.h>
+#endif
+
 #include "xhci.h"
 #include "xhci-trace.h"
 
@@ -2396,11 +2400,17 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 
 	if (GET_EP_CTX_STATE(ep_ctx) == EP_STATE_DISABLED) {
 #ifdef CONFIG_AMLOGIC_USB
-		if (xhci->quirks & XHCI_CRG_HOST)
+		if ((xhci->quirks & XHCI_CRG_HOST) &&
+			(is_meson_t5_cpu() || is_meson_t5d_cpu())) {
 			if (!db_wait)
 				xhci_err(xhci,
-					 "ERROR Transfer event for disabled endpoint slot %u ep %u\n",
-					 slot_id, ep_index);
+					"ERROR Transfer event for disabled endpoint slot %u ep %u\n",
+					slot_id, ep_index);
+		} else {
+			xhci_err(xhci,
+				"ERROR Transfer event for disabled endpoint slot %u ep %u\n",
+				slot_id, ep_index);
+		}
 #else
 		xhci_err(xhci,
 			 "ERROR Transfer event for disabled endpoint slot %u ep %u\n",
@@ -2736,7 +2746,8 @@ cleanup:
 
 err_out:
 #ifdef CONFIG_AMLOGIC_USB
-	if (xhci->quirks & XHCI_CRG_HOST)
+	if ((xhci->quirks & XHCI_CRG_HOST) &&
+			(is_meson_t5_cpu() || is_meson_t5d_cpu())) {
 		if (!db_wait)
 			xhci_err(xhci, "@%016llx %08x %08x %08x %08x\n",
 				 (unsigned long long)xhci_trb_virt_to_dma
@@ -2746,6 +2757,16 @@ err_out:
 				 upper_32_bits(le64_to_cpu(event->buffer)),
 				 le32_to_cpu(event->transfer_len),
 				 le32_to_cpu(event->flags));
+	} else {
+		xhci_err(xhci, "@%016llx %08x %08x %08x %08x\n",
+			(unsigned long long)xhci_trb_virt_to_dma
+			(xhci->event_ring->deq_seg,
+			 xhci->event_ring->dequeue),
+			lower_32_bits(le64_to_cpu(event->buffer)),
+			upper_32_bits(le64_to_cpu(event->buffer)),
+			le32_to_cpu(event->transfer_len),
+			le32_to_cpu(event->flags));
+	}
 #else
 	xhci_err(xhci, "@%016llx %08x %08x %08x %08x\n",
 		 (unsigned long long)xhci_trb_virt_to_dma

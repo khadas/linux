@@ -2856,7 +2856,8 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 		return -EINVAL;
 
 #ifdef CONFIG_AMLOGIC_USB
-	if (xhci->quirks & XHCI_CRG_HOST) {
+	if ((xhci->quirks & XHCI_CRG_HOST) &&
+			(is_meson_t5_cpu() || is_meson_t5d_cpu())) {
 		if (udev->speed == USB_SPEED_FULL &&
 		    udev->state == USB_STATE_NOTATTACHED) {
 			db_wait	 = 1;
@@ -2929,7 +2930,8 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 
 	/*Full speed device disconnect*/
 #ifdef CONFIG_AMLOGIC_USB
-	if (xhci->quirks & XHCI_CRG_HOST) {
+	if ((xhci->quirks & XHCI_CRG_HOST) &&
+			(is_meson_t5_cpu() || is_meson_t5d_cpu())) {
 		if (udev->speed == USB_SPEED_FULL &&
 			udev->state == USB_STATE_NOTATTACHED) {
 			for (i = 1; i < 31; ++i) {
@@ -2979,7 +2981,8 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 	/* Wait for the configure endpoint command to complete */
 	wait_for_completion(command->completion);
 #ifdef CONFIG_AMLOGIC_USB
-	if (xhci->quirks & XHCI_CRG_HOST) {
+	if ((xhci->quirks & XHCI_CRG_HOST) &&
+			(is_meson_t5_cpu() || is_meson_t5d_cpu())) {
 		if (udev->speed == USB_SPEED_FULL &&
 			udev->state == USB_STATE_NOTATTACHED) {
 			db_wait	 = 0;
