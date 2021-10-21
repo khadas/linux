@@ -34,6 +34,21 @@ static ulong ramoops_console_size = MIN_MEM_SIZE;
 module_param_named(console_size, ramoops_console_size, ulong, 0400);
 MODULE_PARM_DESC(console_size, "size of kernel console log");
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static ulong ramoops_bconsole_size = MIN_MEM_SIZE;
+module_param_named(bconsole_size, ramoops_bconsole_size, ulong, 0400);
+MODULE_PARM_DESC(bconsole_size, "size of kernel bconsole log");
+
+bool console_enable;
+EXPORT_SYMBOL(console_enable);
+
+bool bconsole_enable;
+EXPORT_SYMBOL(bconsole_enable);
+
+u32 bconsole_size;
+EXPORT_SYMBOL(bconsole_size);
+#endif
+
 static ulong ramoops_ftrace_size = MIN_MEM_SIZE;
 module_param_named(ftrace_size, ramoops_ftrace_size, ulong, 0400);
 MODULE_PARM_DESC(ftrace_size, "size of ftrace log");
@@ -72,11 +87,17 @@ MODULE_PARM_DESC(ramoops_ecc,
 struct ramoops_context {
 	struct persistent_ram_zone **dprzs;	/* Oops dump zones */
 	struct persistent_ram_zone *cprz;	/* Console zone */
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct persistent_ram_zone *scprz;  /* Startcon zone */
+#endif
 	struct persistent_ram_zone **fprzs;	/* Ftrace zones */
 	struct persistent_ram_zone *mprz;	/* PMSG zone */
 	phys_addr_t phys_addr;
 	unsigned long size;
 	unsigned int memtype;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	size_t bconsole_size;
+#endif
 	size_t record_size;
 	size_t console_size;
 	size_t ftrace_size;
@@ -89,6 +110,9 @@ struct ramoops_context {
 	/* _read_cnt need clear on ramoops_pstore_open */
 	unsigned int dump_read_cnt;
 	unsigned int console_read_cnt;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int bconsole_read_cnt;
+#endif
 	unsigned int max_ftrace_cnt;
 	unsigned int ftrace_read_cnt;
 	unsigned int pmsg_read_cnt;
@@ -103,6 +127,9 @@ static int ramoops_pstore_open(struct pstore_info *psi)
 
 	cxt->dump_read_cnt = 0;
 	cxt->console_read_cnt = 0;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	cxt->bconsole_read_cnt = 0;
+#endif
 	cxt->ftrace_read_cnt = 0;
 	cxt->pmsg_read_cnt = 0;
 	return 0;
@@ -257,6 +284,11 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 	if (!prz_ok(prz) && !cxt->console_read_cnt++)
 		prz = ramoops_get_next_prz(&cxt->cprz, 0 /* single */, record);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (!prz_ok(prz) && !cxt->bconsole_read_cnt++)
+		prz = ramoops_get_next_prz(&cxt->scprz, 0 /* single */, record);
+#endif
+
 	if (!prz_ok(prz) && !cxt->pmsg_read_cnt++)
 		prz = ramoops_get_next_prz(&cxt->mprz, 0 /* single */, record);
 
@@ -352,6 +384,14 @@ static int notrace ramoops_pstore_write(struct pstore_record *record)
 	struct persistent_ram_zone *prz;
 	size_t size, hlen;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (record->type == PSTORE_TYPE_BCONSOLE) {
+		if (!cxt->scprz)
+			return -ENOMEM;
+		persistent_ram_write(cxt->scprz, record->buf, record->size);
+		return 0;
+	}
+#endif
 	if (record->type == PSTORE_TYPE_CONSOLE) {
 		if (!cxt->cprz)
 			return -ENOMEM;
@@ -698,6 +738,9 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 
 	parse_size("record-size", pdata->record_size);
 	parse_size("console-size", pdata->console_size);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	parse_size("bconsole-size", pdata->bconsole_size);
+#endif
 	parse_size("ftrace-size", pdata->ftrace_size);
 	parse_size("pmsg-size", pdata->pmsg_size);
 	parse_size("ecc-size", pdata->ecc_info.ecc_size);
@@ -773,6 +816,10 @@ static int ramoops_probe(struct platform_device *pdev)
 		pdata->record_size = rounddown_pow_of_two(pdata->record_size);
 	if (pdata->console_size && !is_power_of_2(pdata->console_size))
 		pdata->console_size = rounddown_pow_of_two(pdata->console_size);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (pdata->bconsole_size && !is_power_of_2(pdata->bconsole_size))
+		pdata->bconsole_size = rounddown_pow_of_two(pdata->bconsole_size);
+#endif
 	if (pdata->ftrace_size && !is_power_of_2(pdata->ftrace_size))
 		pdata->ftrace_size = rounddown_pow_of_two(pdata->ftrace_size);
 	if (pdata->pmsg_size && !is_power_of_2(pdata->pmsg_size))
@@ -783,6 +830,10 @@ static int ramoops_probe(struct platform_device *pdev)
 	cxt->memtype = pdata->mem_type;
 	cxt->record_size = pdata->record_size;
 	cxt->console_size = pdata->console_size;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	cxt->bconsole_size = pdata->bconsole_size;
+	bconsole_size = pdata->bconsole_size;
+#endif
 	cxt->ftrace_size = pdata->ftrace_size;
 	cxt->pmsg_size = pdata->pmsg_size;
 	cxt->dump_oops = pdata->dump_oops;
@@ -792,7 +843,7 @@ static int ramoops_probe(struct platform_device *pdev)
 	paddr = cxt->phys_addr;
 
 	dump_mem_sz = cxt->size - cxt->console_size - cxt->ftrace_size
-			- cxt->pmsg_size;
+			- cxt->pmsg_size - cxt->bconsole_size;
 	err = ramoops_init_przs("dmesg", dev, cxt, &cxt->dprzs, &paddr,
 				dump_mem_sz, cxt->record_size,
 				&cxt->max_dump_cnt, 0, 0);
@@ -803,6 +854,13 @@ static int ramoops_probe(struct platform_device *pdev)
 			       cxt->console_size, 0);
 	if (err)
 		goto fail_init_cprz;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	err = ramoops_init_prz("bconsole", dev, cxt, &cxt->scprz, &paddr,
+			       cxt->bconsole_size, 0);
+	if (err)
+		goto fail_init_scprz;
+#endif
 
 	cxt->max_ftrace_cnt = (cxt->flags & RAMOOPS_FLAG_FTRACE_PER_CPU)
 				? nr_cpu_ids
@@ -832,6 +890,10 @@ static int ramoops_probe(struct platform_device *pdev)
 		cxt->pstore.flags |= PSTORE_FLAGS_DMESG;
 	if (cxt->console_size)
 		cxt->pstore.flags |= PSTORE_FLAGS_CONSOLE;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (cxt->bconsole_size)
+		cxt->pstore.flags |= PSTORE_FLAGS_BCONSOLE;
+#endif
 	if (cxt->max_ftrace_cnt)
 		cxt->pstore.flags |= PSTORE_FLAGS_FTRACE;
 	if (cxt->pmsg_size)
@@ -867,6 +929,9 @@ static int ramoops_probe(struct platform_device *pdev)
 	record_size = pdata->record_size;
 	dump_oops = pdata->dump_oops;
 	ramoops_console_size = pdata->console_size;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	ramoops_bconsole_size = pdata->bconsole_size;
+#endif
 	ramoops_pmsg_size = pdata->pmsg_size;
 	ramoops_ftrace_size = pdata->ftrace_size;
 
@@ -895,6 +960,10 @@ fail_clear:
 fail_init_mprz:
 fail_init_fprz:
 	persistent_ram_free(cxt->cprz);
+#ifdef CONFIG_AMLOGIC_MODIFY
+fail_init_scprz:
+	persistent_ram_free(cxt->scprz);
+#endif
 fail_init_cprz:
 	ramoops_free_przs(cxt);
 fail_out:
@@ -957,6 +1026,9 @@ static void __init ramoops_register_dummy(void)
 	pdata.mem_type = mem_type;
 	pdata.record_size = record_size;
 	pdata.console_size = ramoops_console_size;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	pdata.bconsole_size = ramoops_bconsole_size;
+#endif
 	pdata.ftrace_size = ramoops_ftrace_size;
 	pdata.pmsg_size = ramoops_pmsg_size;
 	pdata.dump_oops = dump_oops;

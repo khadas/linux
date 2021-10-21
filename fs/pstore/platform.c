@@ -58,6 +58,9 @@ static const char * const pstore_type_names[] = {
 	"powerpc-common",
 	"pmsg",
 	"powerpc-opal",
+#ifdef CONFIG_AMLOGIC_MODIFY
+	"bconsole"
+#endif
 };
 
 static int pstore_new_entry;
@@ -490,6 +493,7 @@ static void pstore_unregister_kmsg(void)
 }
 
 #ifdef CONFIG_PSTORE_CONSOLE
+#ifndef CONFIG_AMLOGIC_MODIFY
 static void pstore_console_write(struct console *con, const char *s, unsigned c)
 {
 	struct pstore_record record;
@@ -522,8 +526,32 @@ static void pstore_unregister_console(void)
 	unregister_console(&pstore_console);
 }
 #else
+static void pstore_register_console(void)
+{
+	console_enable = 1;
+}
+
+static void pstore_unregister_console(void)
+{
+	console_enable = 0;
+}
+#endif
+#else
 static void pstore_register_console(void) {}
 static void pstore_unregister_console(void) {}
+#endif
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+static void pstore_register_bconsole(void)
+{
+	bconsole_enable = 1;
+	dump_log_to_bconsole();
+}
+
+static void pstore_unregister_bconsole(void)
+{
+	bconsole_enable = 0;
+}
 #endif
 
 static int pstore_write_user_compat(struct pstore_record *record,
@@ -609,6 +637,10 @@ int pstore_register(struct pstore_info *psi)
 		pstore_register_kmsg();
 	if (psi->flags & PSTORE_FLAGS_CONSOLE)
 		pstore_register_console();
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (psi->flags & PSTORE_FLAGS_BCONSOLE)
+		pstore_register_bconsole();
+#endif
 	if (psi->flags & PSTORE_FLAGS_FTRACE)
 		pstore_register_ftrace();
 	if (psi->flags & PSTORE_FLAGS_PMSG)
@@ -648,6 +680,10 @@ void pstore_unregister(struct pstore_info *psi)
 		pstore_unregister_ftrace();
 	if (psi->flags & PSTORE_FLAGS_CONSOLE)
 		pstore_unregister_console();
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (psi->flags & PSTORE_FLAGS_BCONSOLE)
+		pstore_unregister_bconsole();
+#endif
 	if (psi->flags & PSTORE_FLAGS_DMESG)
 		pstore_unregister_kmsg();
 
