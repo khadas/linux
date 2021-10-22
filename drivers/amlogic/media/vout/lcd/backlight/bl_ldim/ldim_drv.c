@@ -1473,24 +1473,23 @@ ldim_malloc_t7_err0:
 static void ldim_remap_update_t3(struct ld_reg_s *nprm,
 		unsigned int avg_update_en, unsigned int matrix_update_en)
 {
-	unsigned int linecnt, vstart;
+	unsigned int linecnt;
 
-	linecnt = lcd_vcbus_getb(VPU_VENCP_STAT, 16, 13);
-	vstart = lcd_vcbus_read(ENCL_VIDEO_VAVON_BLINE);
-	if ((linecnt + 20) < vstart) {
-		if (ldim_config.func_en != ldim_driver.func_en) {
-			if (ldim_driver.data && ldim_driver.data->func_ctrl)
-				ldim_driver.data->func_ctrl(&ldim_driver,
-				ldim_config.func_en);
-			ldim_driver.func_en = ldim_config.func_en;
-//			linecnt = lcd_vcbus_getb(VPU_VENCP_STAT, 16, 13);
-//			LDIMPR("%s linecnt = %d\n", __func__, linecnt);
-		}
+	if (ldim_debug_print == 9) {
+		linecnt = lcd_vcbus_getb(VPU_VENCP_STAT, 16, 13);
+		LDIMPR("%s linecnt = %d\n", __func__, linecnt);
+	}
 
-		if (ldim_config.remap_en != ldim_driver.remap_en) {
-			ldim_hw_remap_en_t7(&ldim_driver, ldim_config.remap_en);
-			ldim_driver.remap_en = ldim_config.remap_en;
-		}
+	if (ldim_config.func_en != ldim_driver.func_en) {
+		if (ldim_driver.data && ldim_driver.data->func_ctrl)
+			ldim_driver.data->func_ctrl(&ldim_driver,
+			ldim_config.func_en);
+		ldim_driver.func_en = ldim_config.func_en;
+	}
+
+	if (ldim_config.remap_en != ldim_driver.remap_en) {
+		ldim_hw_remap_en_t7(&ldim_driver, ldim_config.remap_en);
+		ldim_driver.remap_en = ldim_config.remap_en;
 	}
 }
 
