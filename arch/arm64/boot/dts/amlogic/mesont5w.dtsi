@@ -898,6 +898,55 @@
 		reg = <0x0 0xFF800000 0x0 0x400>;
 		reg-names = "ao";
 	};
+
+	ionvideo {
+		compatible = "amlogic, ionvideo";
+		status = "okay";
+	};
+
+	amlvideo {
+		compatible = "amlogic, amlvideo";
+		status = "okay";
+	};
+
+	meson_uvm {
+		compatible = "amlogic, meson_uvm";
+		status = "okay";
+	};
+
+	video_composer {
+		compatible = "amlogic, video_composer";
+		dev_name = "video_composer";
+		status = "okay";
+	};
+
+	/* POST PROCESS MANAGER */
+	ppmgr_reserved:linux,ppmgr {
+		compatible = "amlogic, ppmgr_memory";
+		size = <0x0 0x0>;
+	};
+
+	ppmgr {
+		compatible = "amlogic, ppmgr";
+		memory-region = <&ppmgr_reserved>;
+		status = "okay";
+	};
+
+	amlvideo2_0 {
+		compatible = "amlogic, amlvideo2";
+		dev_name = "amlvideo2";
+		status = "okay";
+		amlvideo2_id = <0>;
+		cma_mode = <1>;
+	};
+
+	amlvideo2_1 {
+		compatible = "amlogic, amlvideo2";
+		dev_name = "amlvideo2";
+		status = "okay";
+		amlvideo2_id = <1>;
+		cma_mode = <1>;
+	};
 }; /* end of / */
 
 &pinctrl_periphs {
