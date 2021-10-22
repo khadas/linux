@@ -10,6 +10,7 @@
 #include <dt-bindings/clock/t5w-clkc.h>
 #include <dt-bindings/power/t5-pd.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
+#include "mesong12a-bifrost.dtsi"
 
 / {
 	compatible = "amlogic";
@@ -1135,4 +1136,36 @@
 		};
 	};
 
+};
+
+&gpu{
+	reg = <0 0xFFE40000 0 0x40000>, /*mali APB bus base address*/
+		<0 0xFFD01000 0 0x01000>, /*reset register*/
+		<0 0xFF800000 0 0x01000>, /*aobus for gpu pmu domain*/
+		<0 0xFF646000 0 0x01000>, /*gpu clk cntl*/
+		<0 0xFFD01000 0 0x01000>; /*reset register*/
+	clocks = <&clkc CLKID_MALI>;
+	clock-names = "gpu_mux";
+
+	/*
+	 * Mali clocking is provided by two identical clock paths
+	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
+	 * free mux to safely change frequency while running.
+	 */
+	assigned-clocks = <&clkc CLKID_MALI_0_SEL>,
+			  <&clkc CLKID_MALI_0>,
+			  <&clkc CLKID_MALI>; /* Glitch free mux */
+	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
+				 <0>, /* Do Nothing */
+				 <&clkc CLKID_MALI_0>;
+	assigned-clock-rates = <0>, /* Do Nothing */
+				   <800000000>,
+				   <0>; /* Do Nothing */
+
+	tbl =  <&dvfs285_cfg
+		&dvfs400_cfg
+		&dvfs500_cfg
+		&dvfs666_cfg
+		&dvfs800_cfg
+		&dvfs800_cfg>; /* the last one of table is for preheat */
 };
