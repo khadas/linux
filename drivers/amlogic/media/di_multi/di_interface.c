@@ -557,12 +557,29 @@ enum DI_ERRORTYPE di_empty_input_buffer(int index, struct di_buffer *buffer)
 	pch->in_cnt++;
 
 	if (buffer->flag & DI_FLAG_EOS) {
-		pins->c.vfm_cp.type |= (VIDTYPE_V4L_EOS |
-					VIDTYPE_INTERLACE_TOP); //test only
+		if (buffer->vf) {
+			memcpy(&pins->c.vfm_cp,
+			       buffer->vf, sizeof(pins->c.vfm_cp));
+
+			if (IS_I_SRC(pins->c.vfm_cp.type)) {
+				PR_INF("ch[%d] in eos I\n", ch);
+				pins->c.vfm_cp.type |= 0x3800;
+			} else if (IS_COMP_MODE(pins->c.vfm_cp.type)) {
+				PR_INF("ch[%d] in eos COMP\n", ch);
+				pins->c.vfm_cp.type |= 0x9000;
+			} else {
+				pins->c.vfm_cp.type |= 0x9000;
+				PR_INF("ch[%d] in eos p-other\n", ch);
+			}
+		} else {
+			pins->c.vfm_cp.type |= VIDTYPE_INTERLACE_TOP;
+						//test only
+			pins->c.vfm_cp.type |= 0x3800;
+			PR_INF("ch[%d] in eos vf null\n", ch);
+		}
+		pins->c.vfm_cp.type |= VIDTYPE_V4L_EOS;
 		pins->c.vfm_cp.width = 1920;
 		pins->c.vfm_cp.height = 1080;
-		pins->c.vfm_cp.type |= 0x3800;
-		PR_INF("ch[%d] in eos a\n", ch);
 	} else {
 		/* @ary_note: eos may be no vf */
 		memcpy(&pins->c.vfm_cp, buffer->vf, sizeof(pins->c.vfm_cp));
