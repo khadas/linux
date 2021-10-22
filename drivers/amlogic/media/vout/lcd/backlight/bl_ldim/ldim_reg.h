@@ -253,6 +253,10 @@
 #define LDIM_VSYNC_RDMA      0
 #endif
 
+int VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
+u32 VSYNC_RD_MPEG_REG(u32 adr);
+int VSYNC_WR_MPEG_REG(u32 adr, u32 val);
+
 static inline void ldim_wr_vcbus(unsigned int addr, unsigned int val)
 {
 	lcd_vcbus_write(addr, val);
@@ -299,9 +303,23 @@ static inline void ldim_wr_reg_bits(unsigned int addr, unsigned int val,
 	unsigned int data;
 
 	data = ldim_rd_reg(addr);
-	data = (data & (~((1 << len) - 1) << start))  |
+	data = (data & (~(((1 << len) - 1) << start))) |
 		((val & ((1 << len) - 1)) << start);
 	ldim_wr_reg(addr, data);
+}
+
+//add for ld on/off and compensation on/off
+static inline void ldim_wr_reg_bits_rdma(unsigned int addr, unsigned int val,
+				    unsigned int start, unsigned int len)
+{
+	unsigned int data;
+
+	data = lcd_vcbus_read(addr);
+	//pr_info("r: 0x%x = 0x%x", addr, data);
+	data = (data & (~(((1 << len) - 1) << start))) |
+		((val & ((1 << len) - 1)) << start);
+	//pr_info("w: 0x%x = 0x%x", addr, data);
+	VSYNC_WR_MPEG_REG(addr, data);
 }
 
 static inline void ldim_wr_lut(unsigned int base, unsigned int *pdata,

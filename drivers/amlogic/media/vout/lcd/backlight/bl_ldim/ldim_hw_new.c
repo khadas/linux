@@ -845,25 +845,26 @@ void ldim_hw_remap_en_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 		ldim_drv->state &= ~LDIM_STATE_REMAP_EN;
 		ldim_drv->comp->ldc_comp_en = 0;
 	}
-	lcd_vcbus_setb(LDC_DGB_CTRL, ldim_drv->comp->ldc_comp_en, 14, 1);
+
+	ldim_wr_reg_bits_rdma(LDC_DGB_CTRL, ldim_drv->comp->ldc_comp_en, 14, 1);
 }
 
 void ldim_config_update_t7(struct aml_ldim_driver_s *ldim_drv)
 {
 	if ((ldim_drv->fw->fw_sel & 0x01) == 0) { //hw update duty
-		lcd_vcbus_setb(LDC_SEG_INFO_SEL, 0, 0, 1);
-		lcd_vcbus_setb(LDC_CTRL_MISC0, 0, 25, 1);
+		ldim_wr_reg_bits_rdma(LDC_SEG_INFO_SEL, 0, 0, 1);
+		ldim_wr_reg_bits_rdma(LDC_CTRL_MISC0, 0, 25, 1);
 	} else {//sw update duty
-		lcd_vcbus_setb(LDC_CTRL_MISC0, 0, 23, 2);
-		lcd_vcbus_setb(LDC_CTRL_MISC0, 1, 25, 1);
-		lcd_vcbus_setb(LDC_SEG_INFO_SEL, 1, 0, 1);
+		ldim_wr_reg_bits_rdma(LDC_CTRL_MISC0, 0, 23, 2);
+		ldim_wr_reg_bits_rdma(LDC_CTRL_MISC0, 1, 25, 1);
+		ldim_wr_reg_bits_rdma(LDC_SEG_INFO_SEL, 1, 0, 1);
 	}
 
-	lcd_vcbus_setb(LDC_REG_BL_MEMORY,
+	ldim_wr_reg_bits_rdma(LDC_REG_BL_MEMORY,
 		       ldim_drv->comp->ldc_bl_buf_diff, 0, 2);
-	lcd_vcbus_setb(LDC_REG_GLB_GAIN, ldim_drv->comp->ldc_glb_gain, 0, 12);
-	lcd_vcbus_setb(LDC_REG_DITHER, ldim_drv->comp->ldc_dth_en, 1, 1);
-	lcd_vcbus_setb(LDC_REG_DITHER, ldim_drv->comp->ldc_dth_bw, 0, 1);
+	ldim_wr_reg_bits_rdma(LDC_REG_GLB_GAIN, ldim_drv->comp->ldc_glb_gain, 0, 12);
+	ldim_wr_reg_bits_rdma(LDC_REG_DITHER, ldim_drv->comp->ldc_dth_en, 1, 1);
+	ldim_wr_reg_bits_rdma(LDC_REG_DITHER, ldim_drv->comp->ldc_dth_bw, 0, 1);
 }
 
 void ldim_vs_arithmetic_t7(struct aml_ldim_driver_s *ldim_drv)
@@ -943,7 +944,7 @@ void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 		ldim_config_update_t7(ldim_drv);
 		ldim_drv->remap_en = ldim_drv->conf->remap_en;
 		ldim_hw_remap_en_t7(ldim_drv, ldim_drv->conf->remap_en);
-		lcd_vcbus_setb(LDC_REG_BLOCK_NUM, 1, 20, 1);
+		ldim_wr_reg_bits_rdma(LDC_REG_BLOCK_NUM, 1, 20, 1);
 
 		ldim_drv->top_en = 1;
 		ldim_drv->hist_en = 1;
@@ -959,7 +960,7 @@ void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 		ldim_drv->hist_en = 0;
 		ldim_drv->alg_en = 0;
 
-		lcd_vcbus_setb(LDC_REG_BLOCK_NUM, 0, 20, 1);
+		ldim_wr_reg_bits_rdma(LDC_REG_BLOCK_NUM, 0, 20, 1);
 		ldim_hw_remap_en_t7(ldim_drv, 0);
 
 		ldim_drv->remap_en = 0;
