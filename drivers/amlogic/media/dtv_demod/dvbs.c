@@ -456,7 +456,7 @@ static struct stchip_register_t l2a_def_val_local[] = {
 	{0x920,    0x00},/* REG_RL2A_DVBSX_DEMOD_DEMOD */
 	/* REG_RL2A_DVBSX_DEMOD_DMDCFGMD, important dvbs/s2/s2x auto search */
 	/* value changed from 0xcc to 0xdc, enable auto sr */
-	{0x922,    0xdc},
+	{0x922,    0xcc}, /*0xdc to enable auto sr ,0xcc to disable autosr*/
 	{0x923,    0x3b},/* REG_RL2A_DVBSX_DEMOD_DMDCFG2 */
 	{0x924,    0x15},/* REG_RL2A_DVBSX_DEMOD_DMDISTATE */
 	{0x925,    0x40},/* REG_RL2A_DVBSX_DEMOD_DMDT0M */
@@ -517,7 +517,7 @@ static struct stchip_register_t l2a_def_val_local[] = {
 	{0x987,    0x02},/* REG_RL2A_DVBSX_DEMOD_PLHMODCOD */
 	{0x988,    0x01},/* REG_RL2A_DVBSX_DEMOD_DMDREG */
 	{0x990,    0x5b},/* REG_RL2A_DVBSX_DEMOD_AGC2O */
-	{0x991,    0x38},/* REG_RL2A_DVBSX_DEMOD_AGC2REF */
+	{0x991,    0x40},/* REG_RL2A_DVBSX_DEMOD_AGC2REF */
 	{0x992,    0x00},/* REG_RL2A_DVBSX_DEMOD_AGCNADJ */
 	{0x993,    0x00},/* REG_RL2A_DVBSX_DEMOD_AGCKS */
 	{0x994,    0x38},/* REG_RL2A_DVBSX_DEMOD_AGCRSADJ */
@@ -601,7 +601,7 @@ static struct stchip_register_t l2a_def_val_local[] = {
 	{0x9ea,    0x40},/* REG_RL2A_DVBSX_DEMOD_TMGCFG2 */
 	{0x9eb,    0x50},/* REG_RL2A_DVBSX_DEMOD_KREFTMG2 */
 	/* value changed from 0x6 to 0,enable auto sr upper and low */
-	{0x9ec,    0x00},/* REG_RL2A_DVBSX_DEMOD_TMGCFG3 */
+	{0x9ec,    0x06},/* REG_RL2A_DVBSX_DEMOD_TMGCFG3 */
 	{0x9ed,    0x91},/* REG_RL2A_DVBSX_DEMOD_TMGMTHRES */
 	//{0x9f0,    0x19},/* REG_RL2A_DVBSX_DEMOD_SFRINIT2 */
 	//{0x9f1,    0x98},/* REG_RL2A_DVBSX_DEMOD_SFRINIT1 */
@@ -717,7 +717,7 @@ static struct stchip_register_t l2a_def_val_local[] = {
 	{0xa89,    0x00},/* REG_RL2A_DVBSX_DEMOD_CFR2AVRGE0 */
 	{0xa8a,    0x00},/* REG_RL2A_DVBSX_DEMOD_DPILOTMAX1 */
 	{0xa8b,    0x00},/* REG_RL2A_DVBSX_DEMOD_DPILOTMAX0 */
-	{0xa98,    0x2c},/* REG_RL2A_DVBSX_DEMOD_NOSCFG */
+	{0xa98,    0x3f},/* REG_RL2A_DVBSX_DEMOD_NOSCFG */
 	{0xa99,    0x00},/* REG_RL2A_DVBSX_DEMOD_NOSCFGF1 */
 	{0xa9a,    0x00},/* REG_RL2A_DVBSX_DEMOD_NOSCFGF2 */
 	{0xaa0,    0x25},/* REG_RL2A_DVBSX_DEMOD_NNOSDATAT1 */
@@ -1214,21 +1214,24 @@ static struct fe_lla_lookup_t fe_l2a_s2_cn_lookup = {
 	}
 };
 
-void demod_init_local(void)
+void demod_init_local(unsigned int is_blind_scan)
 {
 	unsigned int reg = 0;
 
 	do {
 		if (l2a_def_val_local[reg].addr == 0xffff)
 			break;
-
-		dvbs_wr_byte(l2a_def_val_local[reg].addr,
-			     l2a_def_val_local[reg].value);
+		//while blind scan,set autosr on,0 means blind scan
+		if (is_blind_scan == 0 && l2a_def_val_local[reg].addr == AUTOSR_REG)
+			dvbs_wr_byte(AUTOSR_REG, AUTOSR_ON);
+		else
+			dvbs_wr_byte(l2a_def_val_local[reg].addr,
+				     l2a_def_val_local[reg].value);
 		reg++;
 	} while (1);
 }
 
-void dvbs2_reg_initial(unsigned int symb_rate)
+void dvbs2_reg_initial(unsigned int symb_rate, unsigned int is_blind_scan)
 {
 	unsigned int tmp = 0;
 
@@ -1243,7 +1246,8 @@ void dvbs2_reg_initial(unsigned int symb_rate)
 	dvbs_wr_byte(0x9f1, (tmp >> 8) & 0xff);
 	dvbs_wr_byte(0x9f2, tmp & 0xff);
 
-	demod_init_local();
+	PR_DVBS("reg initial is_blind_scan:%d\n", is_blind_scan);
+	demod_init_local(is_blind_scan);
 
 	dvbs_wr_byte(0x110, 0x00);
 	dvbs_wr_byte(0x111, 0x00);

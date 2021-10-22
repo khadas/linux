@@ -618,6 +618,6 @@ int aml_demod_init(void);
 void aml_demod_exit(void);
 unsigned int write_riscv_ram(void);
 unsigned int dvbs_get_quality(void);
-void dvbs2_reg_initial(unsigned int symb_rate);
+void dvbs2_reg_initial(unsigned int symb_rate, unsigned int is_blind_scan);
 int dvbs_get_signal_strength_off(void);
 #endif

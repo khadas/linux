@@ -9,6 +9,9 @@
 
 #define CNR_HIGH	0xcae
 #define CNR_LOW		0xcad
+#define AUTOSR_REG   0x922
+#define AUTOSR_OFF 0xcc
+#define AUTOSR_ON  0xdc
 
 enum diseq_irq_flag {
 	DISEQ_IRQGAPBURST = 0x01,

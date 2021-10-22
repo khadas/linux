@@ -18,6 +18,7 @@
 /*  V1.0.23  fixed code and dts CMA config          */
 /*  V1.0.24  dvbt2 add reset when unlocked for 3s   */
 /*  V1.0.25  add demod version and t2 fw version node*/
+/*  V1.0.26  weak signal sidplay after dvbs search*/
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -34,9 +35,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.0.25"
+#define AMLDTVDEMOD_VER "V1.0.26"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
-#define DTVDEMOD_VER	"2021/10/27: DTMB ddr access cause abus hangup"
+#define DTVDEMOD_VER	"2021/11/6: weak signal sidplay after dvbs search"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
