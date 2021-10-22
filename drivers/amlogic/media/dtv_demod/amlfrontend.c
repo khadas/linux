@@ -3282,8 +3282,10 @@ static int dtvdemod_dvbs_set_ch(struct aml_demod_sta *demod_sta)
 {
 	int ret = 0;
 	unsigned int symb_rate;
+	unsigned int is_blind_scan;
 
 	symb_rate = demod_sta->symb_rate;
+	is_blind_scan = demod_sta->is_blind_scan;
 
 	/* 0:16, 1:32, 2:64, 3:128, 4:256 */
 	demod_sta->agc_mode = 1;
@@ -3291,7 +3293,7 @@ static int dtvdemod_dvbs_set_ch(struct aml_demod_sta *demod_sta)
 	if (demod_sta->ch_if == 0)
 		demod_sta->ch_if = 5000;
 
-	dvbs2_reg_initial(symb_rate);
+	dvbs2_reg_initial(symb_rate, is_blind_scan);
 
 	return ret;
 }
@@ -3309,6 +3311,7 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 				c->bandwidth_hz);
 
 	demod->demod_status.symb_rate = c->symbol_rate / 1000;
+	demod->demod_status.is_blind_scan = devp->blind_scan_stop;
 	demod->last_lock = -1;
 
 	tuner_set_params(fe);
@@ -3345,7 +3348,6 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status)
 //	if (strenth < THRD_TUNER_STRENTH_DVBS) {
 //		*status = FE_TIMEDOUT;
 //		demod->last_lock = -1;
-//		demod->last_status = *status;
 //		PR_DVBS("[id %d] tuner:no signal!\n", demod->id);
 //		return 0;
 //	}
@@ -3355,7 +3357,6 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		if (!dvbs_rd_byte(0x160)) {
 //			*status = FE_TIMEDOUT;
 //			demod->last_lock = -1;
-//			demod->last_status = *status;
 //			PR_DVBS("[id %d] not dvbs signal\n", demod->id);
 //			return 0;
 		}
@@ -3385,7 +3386,6 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			 fe->dtv_property_cache.symbol_rate);
 		demod->last_lock = ilock;
 	}
-	//demod->last_status = *status;
 
 	return 0;
 }
@@ -5580,7 +5580,6 @@ static int aml_dtvdm_read_status(struct dvb_frontend *fe,
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		ret = dtvdemod_dvbs_read_status(fe, status);
-		//*status = demod->last_status;
 		break;
 
 	case SYS_DVBC_ANNEX_A:

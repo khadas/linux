@@ -1055,10 +1055,17 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 	case SYS_DVBS2:
 		if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
 			nco_rate = 0x0;
-			demod_top_write_reg(DEMOD_TOP_REGC, 0x220011);
-			demod_top_write_reg(DEMOD_TOP_REGC, 0x220010);
-			usleep_range(1000, 1001);
-			demod_top_write_reg(DEMOD_TOP_REGC, 0x220011);
+			if (devp->data->hw_ver >= DTVDEMOD_HW_T3) {
+				demod_top_write_reg(DEMOD_TOP_REGC, 0x80220011);
+				demod_top_write_reg(DEMOD_TOP_REGC, 0x80220010);
+				usleep_range(1000, 1001);
+				demod_top_write_reg(DEMOD_TOP_REGC, 0x80220011);
+			} else {
+				demod_top_write_reg(DEMOD_TOP_REGC, 0x220011);
+				demod_top_write_reg(DEMOD_TOP_REGC, 0x220010);
+				usleep_range(1000, 1001);
+				demod_top_write_reg(DEMOD_TOP_REGC, 0x220011);
+			}
 			if (devp->data->hw_ver == DTVDEMOD_HW_S4D)
 				front_write_bits(AFIFO_ADC_S4D, nco_rate,
 					AFIFO_NCO_RATE_BIT,

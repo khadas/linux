@@ -92,6 +92,7 @@ struct aml_demod_sta {
 	u8_t tmp;
 	u32_t sts;		/*pointer */
 	u8_t spectrum;
+	u8_t is_blind_scan;
 	enum fe_delivery_system delsys;
 };
 
