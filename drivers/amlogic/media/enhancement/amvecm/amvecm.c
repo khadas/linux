@@ -1332,6 +1332,8 @@ void amvecm_dejaggy_patch(struct vframe_s *vf)
 void amvecm_fmeter_process(struct vframe_s *vf)
 {
 	u8 fmeter_score_unit, fmeter_score_ten, fmeter_score_hundred;
+	uint val;
+	uint reg_val;
 
 	if (!vf)
 		return;
@@ -1359,6 +1361,11 @@ void amvecm_fmeter_process(struct vframe_s *vf)
 #endif
 
 		cur_fmeter_level = vf->fmeter0_score / 10;
+		if (cur_fmeter_level > 10)
+			cur_fmeter_level = 10;
+		if (cur_fmeter_level < 0)
+			cur_fmeter_level = 0;
+
 		if (cur_fmeter_level == pre_fmeter_level)
 			fmeter_flag++;
 		else
@@ -1381,58 +1388,96 @@ void amvecm_fmeter_process(struct vframe_s *vf)
 		if (fmeter_debug == 1)
 			frc_set_seg_display(1, fmeter_score_hundred,
 				fmeter_score_ten, fmeter_score_unit);
-		else
+		if (fmeter_debug == 0)
 			frc_set_seg_display(0, 0, 0, 0);
 #endif
 
 		cur_fmeter_level = vf->fmeter1_score / 10;
+		if (cur_fmeter_level > 10)
+			cur_fmeter_level = 10;
+		if (cur_fmeter_level < 0)
+			cur_fmeter_level = 0;
+
 		if (cur_fmeter_level == pre_fmeter_level)
 			fmeter_flag++;
 		else
 			fmeter_flag = 0;
 	}
+
 	if (fmeter_flag == fmeter_count && fmeter_en) {
 		fmeter_flag = 0;
 		if (cur_sr_level < cur_fmeter_level)
 			cur_sr_level++;
 		else if (cur_sr_level > cur_fmeter_level)
 			cur_sr_level--;
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_SR7_PKLONG_PF_GAIN,
-		sr1_gain_val[cur_sr_level] << 24 | sr1_gain_val[cur_sr_level]
-		<< 16 | sr1_gain_val[cur_sr_level] << 8
-		| sr1_gain_val[cur_sr_level], 0, 32);
+		else
+			return;
 
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_OS_STATIC,
-		sr1_shoot_val[cur_sr_level], 0, 10);
+		val = sr1_gain_val[cur_sr_level] << 24 |
+			sr1_gain_val[cur_sr_level] << 16 |
+			sr1_gain_val[cur_sr_level] << 8 |
+			sr1_gain_val[cur_sr_level];
+		VSYNC_WRITE_VPP_REG(SRSHARP1_SR7_PKLONG_PF_GAIN, val);
 
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_OS_STATIC,
-		sr1_shoot_val[cur_sr_level], 12, 10);
+		reg_val = READ_VPP_REG(SRSHARP1_PK_OS_STATIC);
 
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_SR7_PKLONG_PF_GAIN,
-		sr0_gain_val[cur_sr_level] << 24 | sr0_gain_val[cur_sr_level]
-		<< 16 | sr0_gain_val[cur_sr_level] << 8
-		| sr0_gain_val[cur_sr_level], 0, 32);
+		reg_val &= ~(0x3ff | (0x3ff << 12));
+		val = reg_val |
+			((sr1_shoot_val[cur_sr_level] & 0x3ff) << 12) |
+			(sr1_shoot_val[cur_sr_level] & 0x3ff);
 
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_OS_STATIC,
-		sr0_shoot_val[cur_sr_level], 0, 10);
+		VSYNC_WRITE_VPP_REG(SRSHARP1_PK_OS_STATIC, val);
 
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_OS_STATIC,
-		sr0_shoot_val[cur_sr_level], 12, 10);
+		val = sr0_gain_val[cur_sr_level] << 24 |
+			sr0_gain_val[cur_sr_level] << 16 |
+			sr0_gain_val[cur_sr_level] << 8 |
+			sr0_gain_val[cur_sr_level];
+		VSYNC_WRITE_VPP_REG(SRSHARP0_SR7_PKLONG_PF_GAIN, val);
 
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_CON_2CIRHPGAIN_LIMIT,
-		sr1_gain_lmt[cur_sr_level], 24, 8);
+		reg_val = READ_VPP_REG(SRSHARP0_PK_OS_STATIC);
+		reg_val &= ~(0x3ff | (0x3ff << 12));
+		val = reg_val |
+			((sr0_shoot_val[cur_sr_level] & 0x3ff) << 12) |
+			(sr0_shoot_val[cur_sr_level] & 0x3ff);
 
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_PK_CON_2CIRBPGAIN_LIMIT,
-		sr1_gain_lmt[cur_sr_level], 24, 8);
+		VSYNC_WRITE_VPP_REG(SRSHARP0_PK_OS_STATIC, val);
 
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_CON_2CIRHPGAIN_LIMIT,
-		sr0_gain_lmt[cur_sr_level], 24, 8);
+		reg_val = READ_VPP_REG(SRSHARP1_PK_CON_2CIRHPGAIN_LIMIT);
+		reg_val &= ~(0xff << 24);
+		val = reg_val |
+			((sr1_gain_lmt[cur_sr_level] & 0xff) << 24);
 
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_CON_2CIRBPGAIN_LIMIT,
-		sr0_gain_lmt[cur_sr_level], 24, 8);
+		VSYNC_WRITE_VPP_REG(SRSHARP1_PK_CON_2CIRHPGAIN_LIMIT, val);
 
-		VSYNC_WRITE_VPP_REG_BITS(NN_ADP_CORING,
-		nn_coring[cur_sr_level], 8, 8);
+
+		reg_val = READ_VPP_REG(SRSHARP1_PK_CON_2CIRBPGAIN_LIMIT);
+		reg_val &= ~(0xff << 24);
+		val = reg_val |
+			((sr1_gain_lmt[cur_sr_level] & 0xff) << 24);
+
+		VSYNC_WRITE_VPP_REG(SRSHARP1_PK_CON_2CIRBPGAIN_LIMIT, val);
+
+		reg_val = READ_VPP_REG(SRSHARP0_PK_CON_2CIRHPGAIN_LIMIT);
+		reg_val &= ~(0xff << 24);
+		val = reg_val |
+			((sr0_gain_lmt[cur_sr_level] & 0xff) << 24);
+
+		VSYNC_WRITE_VPP_REG(SRSHARP0_PK_CON_2CIRHPGAIN_LIMIT, val);
+
+		reg_val = READ_VPP_REG(SRSHARP0_PK_CON_2CIRBPGAIN_LIMIT);
+		reg_val &= ~(0xff << 24);
+		val = reg_val |
+			((sr0_gain_lmt[cur_sr_level] & 0xff) << 24);
+
+		VSYNC_WRITE_VPP_REG(SRSHARP0_PK_CON_2CIRBPGAIN_LIMIT, val);
+
+
+		reg_val = READ_VPP_REG(NN_ADP_CORING);
+		reg_val &= ~(0xff << 8);
+		val = reg_val |
+			((nn_coring[cur_sr_level] & 0xff) << 8);
+
+		VSYNC_WRITE_VPP_REG(NN_ADP_CORING, val);
 	}
 	pre_fmeter_level = cur_fmeter_level;
 }
