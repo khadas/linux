@@ -1901,7 +1901,7 @@ void lc_init(int bitdepth)
 	WRITE_VPP_REG(SRSHARP1_LC_SAT_LUT_62, tmp);
 	/*end*/
 
-	if (set_lc_curve(1, 1))
+	if (set_lc_curve(1, 0))
 		pr_info("%s: init fail", __func__);
 }
 
@@ -1975,7 +1975,7 @@ void lc_process(struct vframe_s *vf,
 		lc_prt_curve();
 		lc_curve_prcnt--;
 	}
-	if (set_lc_curve(0, 1))
+	if (set_lc_curve(0, 0))
 		pr_amlc_dbg("%s: set lc curve fail", __func__);
 
 	if (amlc_debug == 0xc &&

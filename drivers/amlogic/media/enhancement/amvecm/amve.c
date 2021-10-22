@@ -2368,39 +2368,41 @@ void amve_fmeter_init(int enable)
 /*frequence meter size config*/
 void amve_fmetersize_config(u32 sr0_w, u32 sr0_h, u32 sr1_w, u32 sr1_h)
 {
-	u32 fmeter0_x_st, fmeter0_x_end, fmeter0_y_st, fmeter0_y_end;
-	u32 fmeter1_x_st, fmeter1_x_end, fmeter1_y_st, fmeter1_y_end;
+	static u32 pre_fm0_x_st, pre_fm0_y_end, pre_fm1_x_end, pre_fm1_y_end;
+	u32 fm0_x_st, fm0_x_end, fm0_y_st, fm0_y_end;
+	u32 fm1_x_st, fm1_x_end, fm1_y_st, fm1_y_end;
 
-	fmeter0_x_st = 0;
-	fmeter0_x_end = sr0_w & 0x1fff;
-	fmeter0_y_st = 0;
-	fmeter0_y_end = sr0_h & 0x1fff;
+	fm0_x_st = 0;
+	fm0_x_end = sr0_w & 0x1fff;
+	fm0_y_st = 0;
+	fm0_y_end = sr0_h & 0x1fff;
 
-	fmeter1_x_st = 0;
-	fmeter1_x_end = sr1_w & 0x1fff;
-	fmeter1_y_st = 0;
-	fmeter1_y_end = sr1_h & 0x1fff;
+	fm1_x_st = 0;
+	fm1_x_end = sr1_w & 0x1fff;
+	fm1_y_st = 0;
+	fm1_y_end = sr1_h & 0x1fff;
+
+	if (fm0_x_end == pre_fm0_x_st &&
+		fm0_y_end == pre_fm0_y_end &&
+		fm1_x_end == pre_fm1_x_end &&
+		fm1_y_end == pre_fm1_y_end)
+		return;
 
 	if ((fmeter_en) && (get_cpu_type() == MESON_CPU_MAJOR_ID_T3)) {
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_FMETER_WIN_HOR,
-			fmeter0_x_st, 0, 13);
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_FMETER_WIN_HOR,
-			fmeter0_x_end, 16, 13);
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_FMETER_WIN_HOR,
-			fmeter0_y_st, 0, 13);
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_FMETER_WIN_VER,
-			fmeter0_y_end, 16, 13);
+		VSYNC_WRITE_VPP_REG(SRSHARP0_FMETER_WIN_HOR,
+			fm0_x_st | fm0_x_end << 16);
+		VSYNC_WRITE_VPP_REG(SRSHARP0_FMETER_WIN_VER,
+			fm0_y_st | fm0_y_end << 16);
 
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_FMETER_WIN_HOR,
-			fmeter1_x_st, 0, 13);
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_FMETER_WIN_HOR,
-			fmeter1_x_end, 16, 13);
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_FMETER_WIN_HOR,
-			fmeter1_y_st, 0, 13);
-		VSYNC_WRITE_VPP_REG_BITS(SRSHARP1_FMETER_WIN_VER,
-			fmeter1_y_end, 16, 13);
-	} else {
-		return;
+		VSYNC_WRITE_VPP_REG(SRSHARP1_FMETER_WIN_HOR,
+			fm1_x_st | fm1_x_end << 16);
+		VSYNC_WRITE_VPP_REG(SRSHARP1_FMETER_WIN_VER,
+			fm1_y_st | fm1_y_end << 16);
+
+		pre_fm0_x_st = fm0_x_end;
+		pre_fm0_y_end = fm0_y_end;
+		pre_fm1_x_end = fm1_x_end;
+		pre_fm1_y_end = fm1_y_end;
 	}
 }
 
