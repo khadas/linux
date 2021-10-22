@@ -638,6 +638,38 @@ struct ad82584f_priv {
 #endif
 };
 
+static int ad82584f_hw_params(struct snd_pcm_substream *substream,
+			     struct snd_pcm_hw_params *params,
+			     struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	int rate = params_rate(params);
+
+	if (rate >= 64000 && rate <= 96000) {
+		snd_soc_component_write(component,
+			0x01,
+			0x1 << 7 | /* Bclk system enable */
+			0x1 << 5 | /* 64/88.2/96kHz */
+			0x1 << 0   /* 64x bclk/fs */
+		);
+	} else if (rate >= 128000 && rate <= 192000) {
+		snd_soc_component_write(component,
+			0x01,
+			0x1 << 7 | /* Bclk system enable */
+			0x1 << 6 | /* 128/176.4/192kHz */
+			0x1 << 0   /* 64x bclk/fs */
+		);
+	} else {
+		snd_soc_component_write(component,
+			0x01,
+			0x1 << 7 | /* Bclk system enable */
+			0x1 << 0   /* 32/44.1/48kHz 64x bclk/fs */
+		);
+	}
+
+	return 0;
+}
+
 static int ad82584f_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	int clk_id, unsigned int freq, int dir)
 {
@@ -700,6 +732,7 @@ static int ad82584f_set_bias_level(struct snd_soc_component *component,
 }
 
 static const struct snd_soc_dai_ops ad82584f_dai_ops = {
+	.hw_params  = ad82584f_hw_params,
 	.set_sysclk = ad82584f_set_dai_sysclk,
 	.set_fmt    = ad82584f_set_dai_fmt,
 };
