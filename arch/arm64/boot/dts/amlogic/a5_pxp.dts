@@ -27,7 +27,6 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
-		i2c4 = &i2c4;
 		spi0 = &spifc;
 		spi1 = &spicc0;
 		tsensor0 = &p_tsensor;
@@ -195,7 +194,7 @@
 		fe1_tuner0 = <1>; /* use tuner1 */
 
 		fe2_demod = "cxd2856";
-		fe2_i2c_adap_id = <&i2c4>;
+		//fe2_i2c_adap_id = <&i2c4>;
 		fe2_demod_i2c_addr = <0xD8>;
 		fe2_reset_value = <0>;
 		fe2_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
@@ -318,11 +317,11 @@
 		interrupts = <0 203 1
 				0 202 1>;
 		interrupt-names = "pre_irq", "post_irq";
-		clocks = <&clkc CLKID_VPU_CLKB>,
-			<&clkc CLKID_VPU>;
-		clock-names = "vpu_clkb",
-			"vpu_mux";
-		clock-range = <334 667>;
+		//clocks = <&clkc CLKID_VPU_CLKB>,
+		//	<&clkc CLKID_VPU>;
+		//clock-names = "vpu_clkb",
+		//	"vpu_mux";
+		//clock-range = <334 667>;
 		/* buffer-size = <3621952>;(yuv422 8bit) */
 		buffer-size = <4074560>;/*yuv422 fullpack*/
 		/* reserve-iomap = "true"; */
@@ -734,21 +733,10 @@
 	};
 };
 
-&pwm_ij {
-	status = "disabled";
-};
-
 &i2c3 {
 	status = "disabled";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_pins2>;
-	clock-frequency = <300000>;
-};
-
-&i2c4 {
-	status = "disabled";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c4_pins3>;
 	clock-frequency = <300000>;
 };
 

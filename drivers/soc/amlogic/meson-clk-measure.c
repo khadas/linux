@@ -1890,6 +1890,107 @@ static struct meson_msr_id clk_msr_t5w[] __initdata = {
 };
 #endif
 
+static struct meson_msr_id clk_msr_a5[] __initdata = {
+	CLK_MSR_ID(0, "cts_sys_clk"),
+	CLK_MSR_ID(1, "cts_axi_clk"),
+	CLK_MSR_ID(2, "cts_rtc_clk"),
+	CLK_MSR_ID(3, "cts_dspa_clk"),
+	CLK_MSR_ID(6, "sys_cpu_clk_div16"),
+	CLK_MSR_ID(10, "fclk_div5"),
+	CLK_MSR_ID(11, "mp0_clk_out"),
+	CLK_MSR_ID(12, "mp1_clk_out"),
+	CLK_MSR_ID(13, "mp2_clk_out"),
+	CLK_MSR_ID(14, "mp3_clk_out"),
+	CLK_MSR_ID(15, "mpll_clk_50m"),
+	CLK_MSR_ID(16, "sys_oscin32k_i"),
+	CLK_MSR_ID(17, "rtc_pll_clk"),
+	CLK_MSR_ID(18, "mpll_clk_test_out"),
+	CLK_MSR_ID(19, "hifi_pll_clk"),
+	CLK_MSR_ID(20, "gp0_pll_clk"),
+	CLK_MSR_ID(21, "gp1_pll_clk"),
+	CLK_MSR_ID(23, "sys_pll_div16"),
+	CLK_MSR_ID(24, "ddr_dpll_pt_clk"),
+	CLK_MSR_ID(25, "cts_nna_axi_clk"),
+	CLK_MSR_ID(26, "cts_nna_core_clk"),
+	CLK_MSR_ID(27, "rtc_sec_pulse_out"),
+	CLK_MSR_ID(28, "rtc_osc_clk_out"),
+	CLK_MSR_ID(30, "mod_eth_phy_ref_clk"),
+	CLK_MSR_ID(31, "mod_eth_tx_clk"),
+	CLK_MSR_ID(35, "mod_eth_rx_clk_rmii"),
+	CLK_MSR_ID(79, "cts_rama_clk"),
+	CLK_MSR_ID(106, "deskew_pll_clk_div32_out"),
+	CLK_MSR_ID(111, "cts_sar_adc_clk"),
+	CLK_MSR_ID(112, "cts_ts_clk"),
+	CLK_MSR_ID(113, "cts_sd_emmc_C_clk(nand)"),
+	CLK_MSR_ID(115, "cts_sd_emmc_A_clk"),
+	CLK_MSR_ID(116, "gpio_msr_clk"),
+	CLK_MSR_ID(117, "cts_spicc_1_clk"),
+	CLK_MSR_ID(118, "cts_spicc_0_clk"),
+	CLK_MSR_ID(119, "o_mst_sclk_vad"),
+	CLK_MSR_ID(120, "o_mst_mclk_vad"),
+	CLK_MSR_ID(121, "o_pdm_sysclk"),
+	CLK_MSR_ID(122, "mod_audio_pdm_dclk_o"),
+	CLK_MSR_ID(123, "o_vad_clk"),
+	CLK_MSR_ID(124, "audio_mst_clkCLK_MSR_ID(0]"),
+	CLK_MSR_ID(125, "audio_mst_clkCLK_MSR_ID(1]"),
+	CLK_MSR_ID(126, "audio_mst_clkCLK_MSR_ID(2]"),
+	CLK_MSR_ID(127, "audio_mst_clkCLK_MSR_ID(3]"),
+	CLK_MSR_ID(128, "audio_mst_clkCLK_MSR_ID(4]"),
+	CLK_MSR_ID(129, "audio_mst_clkCLK_MSR_ID(5]"),
+	CLK_MSR_ID(130, "audio_mst_clkCLK_MSR_ID(6]"),
+	CLK_MSR_ID(131, "audio_mst_clkCLK_MSR_ID(7]"),
+	CLK_MSR_ID(132, "audio_mst_clkCLK_MSR_ID(8]"),
+	CLK_MSR_ID(133, "audio_mst_clkCLK_MSR_ID(9]"),
+	CLK_MSR_ID(134, "audio_mst_clkCLK_MSR_ID(10]"),
+	CLK_MSR_ID(135, "audio_mst_clkCLK_MSR_ID(11]"),
+	CLK_MSR_ID(136, "audio_mst_clkCLK_MSR_ID(12]"),
+	CLK_MSR_ID(137, "audio_mst_clkCLK_MSR_ID(13]"),
+	CLK_MSR_ID(138, "audio_mst_clkCLK_MSR_ID(14]"),
+	CLK_MSR_ID(139, "audio_mst_clkCLK_MSR_ID(15]"),
+	CLK_MSR_ID(140, "audio_mst_clkCLK_MSR_ID(16]"),
+	CLK_MSR_ID(141, "audio_mst_clkCLK_MSR_ID(17]"),
+	CLK_MSR_ID(142, "audio_mst_clkCLK_MSR_ID(18]"),
+	CLK_MSR_ID(143, "audio_mst_clkCLK_MSR_ID(19]"),
+	CLK_MSR_ID(144, "audio_mst_clkCLK_MSR_ID(20]"),
+	CLK_MSR_ID(145, "audio_mst_clkCLK_MSR_ID(21]"),
+	CLK_MSR_ID(146, "audio_mst_clkCLK_MSR_ID(22]"),
+	CLK_MSR_ID(147, "audio_mst_clkCLK_MSR_ID(23]"),
+	CLK_MSR_ID(148, "audio_mst_clkCLK_MSR_ID(24]"),
+	CLK_MSR_ID(149, "audio_mst_clkCLK_MSR_ID(25]"),
+	CLK_MSR_ID(150, "audio_mst_clkCLK_MSR_ID(26]"),
+	CLK_MSR_ID(151, "audio_mst_clkCLK_MSR_ID(27]"),
+	CLK_MSR_ID(152, "audio_mst_clkCLK_MSR_ID(28]"),
+	CLK_MSR_ID(153, "audio_mst_clkCLK_MSR_ID(29]"),
+	CLK_MSR_ID(154, "audio_mst_clkCLK_MSR_ID(30]"),
+	CLK_MSR_ID(155, "audio_mst_clkCLK_MSR_ID(31]"),
+	CLK_MSR_ID(156, "audio_mst_clkCLK_MSR_ID(32]"),
+	CLK_MSR_ID(157, "audio_mst_clkCLK_MSR_ID(33]"),
+	CLK_MSR_ID(158, "audio_mst_clkCLK_MSR_ID(34]"),
+	CLK_MSR_ID(159, "audio_mst_clkCLK_MSR_ID(35]"),
+	CLK_MSR_ID(162, "pwm_h_clk"),
+	CLK_MSR_ID(163, "pwm_g_clk"),
+	CLK_MSR_ID(164, "pwm_f_clk"),
+	CLK_MSR_ID(165, "pwm_e_clk"),
+	CLK_MSR_ID(166, "pwm_d_clk"),
+	CLK_MSR_ID(167, "pwm_c_clk"),
+	CLK_MSR_ID(168, "pwm_b_clk"),
+	CLK_MSR_ID(169, "pwm_a_clk"),
+	CLK_MSR_ID(176, "rng_ring_osc_clkCLK_MSR_ID(0]"),
+	CLK_MSR_ID(177, "rng_ring_osc_clkCLK_MSR_ID(1]"),
+	CLK_MSR_ID(178, "rng_ring_osc_clkCLK_MSR_ID(2]"),
+	CLK_MSR_ID(179, "rng_ring_osc_clkCLK_MSR_ID(3]"),
+	CLK_MSR_ID(180, "dmc_osc_ring(LVT16)"),
+	CLK_MSR_ID(181, "dsp_osc_ring(SVT16)"),
+	CLK_MSR_ID(182, "axi_srama_osc_ring(SVT16)"),
+	CLK_MSR_ID(183, "nna_osc_ringCLK_MSR_ID(0](ULVT20)"),
+	CLK_MSR_ID(184, "nna_osc_ringCLK_MSR_ID(1](LVT16)"),
+	CLK_MSR_ID(185, "sys_cpu_osc_ringCLK_MSR_ID(0](ULVT16)"),
+	CLK_MSR_ID(186, "sys_cpu_osc_ringCLK_MSR_ID(1](ULVT20)"),
+	CLK_MSR_ID(187, "sys_cpu_osc_ringCLK_MSR_ID(2](ULVT16)"),
+	CLK_MSR_ID(188, "sys_cpu_osc_ringCLK_MSR_ID(3](LVT16)"),
+	CLK_MSR_ID(189, "axi_sramb_osc_ring(SVT16)"),
+};
+
 static int meson_measure_id(struct meson_msr_id *clk_msr_id,
 			       unsigned int duration)
 {
@@ -2240,6 +2341,15 @@ static struct meson_msr_data meson_t5w_data __initdata = {
 };
 #endif
 
+static struct meson_msr_data meson_a5_data __initdata = {
+	.msr_table = (struct meson_msr_id *)&clk_msr_a5,
+	.table_size = ARRAY_SIZE(clk_msr_a5),
+	.duty_offset = (0x6 * 4),
+	.reg0_offset = 0x0,
+	.reg1_offset = 0x4,
+	.reg2_offset = 0x8,
+};
+
 static const struct of_device_id meson_msr_match_table[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -2293,6 +2403,7 @@ static const struct of_device_id meson_msr_match_table[] = {
 		.compatible = "amlogic,meson-s4-clk-measure",
 		.data = &meson_s4_data,
 	},
+
 	{
 		.compatible = "amlogic,meson-t3-clk-measure",
 		.data = &meson_t3_data,
@@ -2308,6 +2419,10 @@ static const struct of_device_id meson_msr_match_table[] = {
 	},
 #endif
 
+	{
+		.compatible = "amlogic,meson-a5-clk-measure",
+		.data = &meson_a5_data,
+	},
 	{ /* sentinel */ }
 };
 
