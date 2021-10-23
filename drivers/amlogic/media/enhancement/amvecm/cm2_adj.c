@@ -35,17 +35,17 @@ static uint lpf_coef[NUM_MATRIX_PARAM] = {
 
 static uint color_key_pts_matrix_param = NUM_COLOR_MAX;
 static uint color_key_pts[NUM_COLOR_MAX] = {
-	4, 9, 12, 15, 17, 19, 23, 25, 29
+	5, 9, 12, 15, 17, 19, 23, 25, 29
 };
 
 static uint color_start_param = NUM_COLOR_MAX;
 static uint color_start[NUM_COLOR_MAX] = {
-	0, 7, 11, 14, 16, 18, 23, 25, 29
+	1, 7, 11, 14, 16, 18, 23, 25, 29
 };
 
 static uint color_end_param = NUM_COLOR_MAX;
 static uint color_end[NUM_COLOR_MAX] = {
-	6, 10, 13, 15, 17, 22, 24, 28, 31
+	6, 10, 13, 15, 17, 22, 24, 28, 32
 };
 
 static uint cm_14_color_key_pts_matrix_param = NUM_CM_14_COLOR_MAX;
@@ -60,7 +60,7 @@ static uint cm_14_color_start[NUM_CM_14_COLOR_MAX] = {
 
 static uint cm_14_color_end_param = NUM_CM_14_COLOR_MAX;
 static uint cm_14_color_end[NUM_CM_14_COLOR_MAX] = {
-	2, 5, 7, 9, 11, 13, 14, 16, 19, 21, 24, 27, 29, 31
+	2, 5, 7, 9, 11, 13, 14, 16, 19, 21, 24, 27, 29, 32
 };
 
 static uint smth_coef_hue_matrix_param = NUM_SMTH_PARAM;
@@ -273,7 +273,7 @@ static void color_adj(int inp_color, int inp_val, int lpf_en,
  */
 void cm2_curve_update_hue_by_hs(struct cm_color_md cm_color_md_hue_by_hs)
 {
-	unsigned int i, j, start = 0, end = 0;
+	unsigned int i, j, k, start = 0, end = 0;
 	unsigned int val1[5] = {0}, val2[5] = {0};
 	int temp, reg_node1, reg_node2;
 	int colormode;
@@ -308,19 +308,20 @@ void cm2_curve_update_hue_by_hs(struct cm_color_md cm_color_md_hue_by_hs)
 	reg_node2 = (CM2_ENH_COEF3_H00 - 0x100) % 8;
 
 	for (i = start; i <= end; i++) {
-		if (i > 31)
-			i = i  - 32;
+		k = i;
+		if (k > 31)
+			k = k  - 32;
 		for (j = 0; j < 5; j++) {
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				      0x100 + i * 8 + j);
+				      0x100 + k * 8 + j);
 			val1[j] = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 
 			if (j == reg_node1) {
 				/*curve 0,1*/
 				val1[j] &= 0x0000ffff;
-				temp = adj_hue_via_s[colormode][0][i];
+				temp = adj_hue_via_s[colormode][0][k];
 				val1[j] |= (temp << 16) & 0x00ff0000;
-				temp = adj_hue_via_s[colormode][1][i];
+				temp = adj_hue_via_s[colormode][1][k];
 				val1[j] |= (temp << 24) & 0xff000000;
 				continue;
 			}
@@ -328,22 +329,22 @@ void cm2_curve_update_hue_by_hs(struct cm_color_md cm_color_md_hue_by_hs)
 
 		for (j = 0; j < 5; j++) {
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				      0x100 + i * 8 + j);
+				      0x100 + k * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val1[j]);
 		}
 
 		for (j = 0; j < 5; j++) {
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				      0x100 + i * 8 + j);
+				      0x100 + k * 8 + j);
 			val2[j] = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 			if (j == reg_node2) {
 				/*curve 2,3,4*/
 				val2[j] &= 0xff000000;
-				val2[j] |= adj_hue_via_s[colormode][2][i]
+				val2[j] |= adj_hue_via_s[colormode][2][k]
 					& 0x000000ff;
-				temp = adj_hue_via_s[colormode][3][i];
+				temp = adj_hue_via_s[colormode][3][k];
 				val2[j] |= (temp << 8) & 0x0000ff00;
-				temp = adj_hue_via_s[colormode][4][i];
+				temp = adj_hue_via_s[colormode][4][k];
 				val2[j] |= (temp << 16) & 0x00ff0000;
 				continue;
 			}
@@ -355,7 +356,7 @@ void cm2_curve_update_hue_by_hs(struct cm_color_md cm_color_md_hue_by_hs)
 				pr_info("%s:val1[%d]:%d\n",
 					__func__, j, val1[j]);
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				      0x100 + i * 8 + j);
+				      0x100 + k * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val2[j]);
 		}
 	}
@@ -363,7 +364,7 @@ void cm2_curve_update_hue_by_hs(struct cm_color_md cm_color_md_hue_by_hs)
 
 void cm2_curve_update_hue(struct cm_color_md cm_color_md_hue)
 {
-	unsigned int i, j, start = 0, end = 0;
+	unsigned int i, j, k, start = 0, end = 0;
 	unsigned int val1[5] = {0};
 	int temp = 0, reg_node;
 	int colormode;
@@ -397,16 +398,17 @@ void cm2_curve_update_hue(struct cm_color_md cm_color_md_hue)
 	reg_node = (CM2_ENH_COEF1_H00 - 0x100) % 8;
 
 	for (i = start; i <= end; i++) {
-		if (i > 31)
-			i = i  - 32;
+		k = i;
+		if (k > 31)
+			k = k  - 32;
 		for (j = 0; j < 5; j++) {
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				      0x100 + i * 8 + j);
+				      0x100 + k * 8 + j);
 			val1[j] = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 			if (j == reg_node) {
 				/*curve 0*/
 				val1[j] &= 0xffffff00;
-				temp = adj_hue_via_hue[colormode][i];
+				temp = adj_hue_via_hue[colormode][k];
 				val1[j] |= (temp) & 0x000000ff;
 				continue;
 			}
@@ -416,7 +418,7 @@ void cm2_curve_update_hue(struct cm_color_md cm_color_md_hue)
 				pr_info("%s:val1[%d]:%d\n",
 					__func__, j, val1[j]);
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				      0x100 + i * 8 + j);
+				      0x100 + k * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val1[j]);
 		}
 	}
@@ -438,7 +440,7 @@ void cm2_curve_update_hue(struct cm_color_md cm_color_md_hue)
  */
 void cm2_curve_update_luma(struct cm_color_md cm_color_md_luma)
 {
-	unsigned int i, j, start = 0, end = 0;
+	unsigned int i, j, k, start = 0, end = 0;
 	unsigned int val1[5] = {0};
 	int temp = 0, reg_node;
 	int colormode;
@@ -472,16 +474,17 @@ void cm2_curve_update_luma(struct cm_color_md cm_color_md_luma)
 	reg_node = (CM2_ENH_COEF0_H00 - 0x100) % 8;
 
 	for (i = start; i <= end; i++) {
-		if (i > 31)
-			i = i  - 32;
+		k = i;
+		if (k > 31)
+			k = k  - 32;
 		for (j = 0; j < 5; j++) {
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				      CM2_ENH_COEF0_H00 + i * 8 + j);
+				      CM2_ENH_COEF0_H00 + k * 8 + j);
 			val1[j] = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 			if (j == reg_node) {
 				/*curve 0*/
 				val1[j] &= 0xffffff00;
-				temp = adj_luma_via_hue[colormode][i];
+				temp = adj_luma_via_hue[colormode][k];
 				val1[j] |= (temp) & 0x000000ff;
 				continue;
 			}
@@ -491,7 +494,7 @@ void cm2_curve_update_luma(struct cm_color_md cm_color_md_luma)
 				pr_info("%s:val1[%d]:%d\n",
 					__func__, j, val1[j]);
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				      CM2_ENH_COEF0_H00 + i * 8 + j);
+				      CM2_ENH_COEF0_H00 + k * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val1[j]);
 		}
 	}
@@ -513,7 +516,7 @@ void cm2_curve_update_luma(struct cm_color_md cm_color_md_luma)
  */
 void cm2_curve_update_sat(struct cm_color_md cm_color_md_sat)
 {
-	unsigned int i, j, start = 0, end = 0;
+	unsigned int i, j, k, start = 0, end = 0;
 	unsigned int val1[5] = {0};
 	int temp = 0, reg_node;
 	int colormode;
@@ -546,25 +549,26 @@ void cm2_curve_update_sat(struct cm_color_md cm_color_md_sat)
 	reg_node = (CM2_ENH_COEF0_H00 - 0x100) % 8;
 
 	for (i = start; i <= end; i++) {
-		if (i > 31)
-			i = i  - 32;
+		k = i;
+		if (k > 31)
+			k = k  - 32;
 		for (j = 0; j < 5; j++) {
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				      CM2_ENH_COEF0_H00 + i * 8 + j);
+				      CM2_ENH_COEF0_H00 + k * 8 + j);
 			val1[j] = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
 			if (j == reg_node) {
 				val1[j] &= 0x000000ff;
 				/*curve 0*/
-				temp = adj_sat_via_hs[colormode][0][i] +
-				def_sat_via_hs[0][i];
+				temp = adj_sat_via_hs[colormode][0][k] +
+				def_sat_via_hs[0][k];
 				val1[j] |= (temp << 8) & 0x0000ff00;
 				/*curve 1*/
-				temp = adj_sat_via_hs[colormode][1][i] +
-				def_sat_via_hs[1][i];
+				temp = adj_sat_via_hs[colormode][1][k] +
+				def_sat_via_hs[1][k];
 				val1[j] |= (temp << 16) & 0x00ff0000;
 				/*curve 2*/
-				temp = adj_sat_via_hs[colormode][2][i] +
-				def_sat_via_hs[2][i];
+				temp = adj_sat_via_hs[colormode][2][k] +
+				def_sat_via_hs[2][k];
 				val1[j] |= (temp << 24) & 0xff000000;
 				continue;
 			}
@@ -575,7 +579,7 @@ void cm2_curve_update_sat(struct cm_color_md cm_color_md_sat)
 					__func__, j, val1[j]);
 
 			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				      CM2_ENH_COEF0_H00 + i * 8 + j);
+				      CM2_ENH_COEF0_H00 + k * 8 + j);
 			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, val1[j]);
 		}
 	}
