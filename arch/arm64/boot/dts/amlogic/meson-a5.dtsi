@@ -1322,11 +1322,11 @@
 				 <&clkc CLKID_FCLK_DIV2>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1";
-			card_type = <3>;
+			card_type = <5>;
 			mmc_debug_flag;
-			cap-sdio-irq;
-			keep-power-in-suspend;
-			use_intf3_tuning;
+			//cap-sdio-irq;
+			//keep-power-in-suspend;
+			//use_intf3_tuning;
 			//resets = <&reset RESET_SD_EMMC_A>;
 		};
 
@@ -2324,13 +2324,13 @@
 
 	sdcard_pins: sdcard_pins {
 		mux {
-			groups = "sdcard_d0_c",
-				 "sdcard_d1_c",
-				 "sdcard_d2_c",
-				 "sdcard_d3_c",
-				 "sdcard_clk_c",
-				 "sdcard_cmd_c";
-			function = "sdcard";
+			groups = "sdio_d0",
+				 "sdio_d1",
+				 "sdio_d2",
+				 "sdio_d3",
+				 "sdio_clk",
+				 "sdio_cmd";
+			function = "sdio";
 			bias-pull-up;
 			drive-strength-microamp = <4000>;
 		};
@@ -2358,16 +2358,16 @@
 
 	sd_clr_all_pins: sd_clr_all_pins {
 		mux {
-			groups = "GPIOC_0",
-				   "GPIOC_1",
-				   "GPIOC_2",
-				   "GPIOC_3",
-				   "GPIOC_5";
+			groups = "GPIOX_0",
+				   "GPIOX_1",
+				   "GPIOX_2",
+				   "GPIOX_3",
+				   "GPIOX_5";
 			function = "gpio_periphs";
 			output-high;
 		};
 		mux1 {
-			groups = "GPIOC_4";
+			groups = "GPIOX_4";
 			function = "gpio_periphs";
 			output-low;
 		};
@@ -2375,10 +2375,10 @@
 
 	sd_clr_noall_pins: sd_clr_noall_pins {
 		mux {
-			groups = "GPIOC_0",
-				   "GPIOC_1",
-				   "GPIOC_4",
-				   "GPIOC_5";
+			groups = "GPIOX_0",
+				   "GPIOX_1",
+				   "GPIOX_4",
+				   "GPIOX_5";
 			function = "gpio_periphs";
 			output-high;
 		};
@@ -2386,10 +2386,10 @@
 
 	sd_1bit_pins: sd_1bit_pins {
 		mux {
-			groups = "sdcard_d0_c",
-				 "sdcard_clk_c",
-				 "sdcard_cmd_c";
-			function = "sdcard";
+			groups = "sdio_d0",
+				 "sdio_clk",
+				 "sdio_cmd";
+			function = "sdio";
 			bias-pull-up;
 			drive-strength-microamp = <4000>;
 		};
@@ -2397,7 +2397,7 @@
 
 	sdcard_clk_gate_pins: sdcard_clk_gate_pins {
 		mux {
-			groups = "GPIOC_4";
+			groups = "GPIOX_4";
 			function = "gpio_periphs";
 			bias-pull-down;
 			drive-strength-microamp = <4000>;
