@@ -150,3 +150,4 @@ x509.genkey
 /compile_commands.json
 
 *.symversions
+kernel/cfg_less.txt
