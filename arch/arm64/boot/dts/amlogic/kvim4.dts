@@ -1484,6 +1484,7 @@
 };
 
 &spifc {
+	status = "disabled";
 	cs-gpios = <&gpio GPIOB_12 GPIO_ACTIVE_HIGH>;
 	spi-nor@0 {
 		spi-max-frequency = <40000000>;
