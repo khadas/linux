@@ -248,6 +248,6 @@
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000>;
 	logo_addr = "0x3f800000";
 	/* display_device_cnt = <2>; */ /* for dual screen upport */
-	mem_alloc = <1>;
+	mem_alloc = <0>;
 	pxp_mode = <1>; /** 0:normal mode 1:pxp mode */
 };
