@@ -2506,6 +2506,7 @@ static long amvecm_ioctl(struct file *file,
 		} else {
 			force_primary = tmp;
 			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
+			force_toggle();
 		}
 		break;
 	case AMVECM_IOC_COLOR_PRIMARY:
@@ -2519,6 +2520,7 @@ static long amvecm_ioctl(struct file *file,
 			memcpy(force_dst_primary, color_pr.dest,
 				8 * sizeof(u32));
 			vecm_latch_flag |= FLAG_COLORPRI_LATCH;
+			force_toggle();
 		}
 		break;
 	/*VLOCK*/

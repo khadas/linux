@@ -7785,6 +7785,11 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		}
 	}
 
+	/*used for force process when repeat frame, run the full flow*/
+	if (video_process_status[vd_path] == HDR_MODULE_ON &&
+	    (video_process_flags[vd_path] & PROC_FLAG_FORCE_PROCESS))
+		signal_change_flag |= SIG_FORCE_CHG;
+
 	if (is_dolby_vision_on() &&
 	    (vd_path == VD1_PATH ||
 	    !cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)))
@@ -8410,6 +8415,20 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		}
 	}
 	return 0;
+}
+
+void force_toggle(void)
+{
+	enum vd_path_e vd_path;
+
+	for (vd_path = VD1_PATH; vd_path < VD_PATH_MAX; vd_path++) {
+		if (null_vf_cnt[vd_path] == 0) {
+			video_process_flags[vd_path] |=
+				PROC_FLAG_FORCE_PROCESS;
+			pr_csc(2, "vd%d: force toggle for API set\n",
+				vd_path + 1);
+		}
+	}
 }
 
 int amvecm_hdr_dbg(u32 sel)
