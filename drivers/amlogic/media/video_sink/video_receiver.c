@@ -77,6 +77,10 @@ static inline struct vframe_s *common_vf_get(struct video_recv_s *ins)
 
 	vf = vf_get(ins->recv_name);
 
+	if (vf && debug_flag & DEBUG_FLAG_VPP_GET_BUFFER_TIME)
+		pr_info("vpp_get buf_idx:%d vpp_cur_time:%lld\n",
+		vf->index_disp, ktime_to_us(ktime_get()));
+
 	if (vf) {
 		if (!tvin_vf_disp_mode_check(vf)) {
 			vf_put(vf, ins->recv_name);

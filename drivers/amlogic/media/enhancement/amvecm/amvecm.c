@@ -83,6 +83,7 @@
 #include "hdr/am_hdr10_tmo_fw.h"
 #include "hdr/gamut_convert.h"
 #include "../../video_sink/vpp_pq.h"
+#include "frame_lock_policy.h"
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -927,6 +928,19 @@ static ssize_t amvecm_vlock_store(struct class *cla,
 		const char *buf, size_t count)
 {
 	return vlock_debug_store(cla, attr, buf, count);
+}
+
+static ssize_t amvecm_frame_lock_show(struct class *cla,
+				 struct class_attribute *attr, char *buf)
+{
+	return frame_lock_debug_show(cla, attr, buf);
+}
+
+static ssize_t amvecm_frame_lock_store(struct class *cla,
+				  struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	return frame_lock_debug_store(cla, attr, buf, count);
 }
 
 /* #endif */
@@ -9632,6 +9646,9 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(cabc_aad, 0644,
 	       amvecm_cabc_aad_show,
 	       amvecm_cabc_aad_store),
+	__ATTR(frame_lock, 0644,
+	       amvecm_frame_lock_show,
+		amvecm_frame_lock_store),
 	__ATTR_NULL
 };
 
@@ -9969,6 +9986,10 @@ static struct notifier_block vlock_notifier_nb = {
 	.notifier_call	= vlock_notify_callback,
 };
 
+static struct notifier_block flock_vdin_vrr_en_notifier_nb = {
+	.notifier_call	= flock_vrr_nfy_callback,
+};
+
 static int aml_vecm_viu2_vsync_irq_init(void)
 {
 	if (res_viu2_vsync_irq) {
@@ -10046,6 +10067,8 @@ static int aml_vecm_probe(struct platform_device *pdev)
 #endif
 	/* register vout client */
 	vout_register_client(&vlock_notifier_nb);
+	/* register vdin vrr en client*/
+	aml_vrr_atomic_notifier_register(&flock_vdin_vrr_en_notifier_nb);
 
 	init_pattern_detect();
 	/* #endif */
@@ -10144,6 +10167,9 @@ static int __exit aml_vecm_remove(struct platform_device *pdev)
 	aml_lcd_notifier_unregister(&aml_lcd_gamma_nb);
 	cancel_work_sync(&aml_lcd_vlock_param_work);
 #endif
+	vout_unregister_client(&vlock_notifier_nb);
+	aml_vrr_atomic_notifier_unregister(&flock_vdin_vrr_en_notifier_nb);
+
 	probe_ok = 0;
 	lc_free();
 	pr_info("[amvecm.] : amvecm_exit.\n");

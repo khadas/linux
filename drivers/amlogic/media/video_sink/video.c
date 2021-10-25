@@ -6571,9 +6571,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		vd1_path_id == VFM_PATH_DEF)) {
 		/*need call every vsync*/
 		if (vf)
-			vlock_process(vf, cur_frame_par);
+			frame_lock_process(vf, cur_frame_par);
 		else
-			vlock_process(NULL, cur_frame_par);
+			frame_lock_process(NULL, cur_frame_par);
 	}
 #endif
 
@@ -7616,13 +7616,13 @@ SET_FILTER:
 			cur_frame_par) {
 			/*need call every vsync*/
 			if (path3_new_frame)
-				vlock_process(path3_new_frame,
+				frame_lock_process(path3_new_frame,
 					cur_frame_par);
 			else if (vd_layer[0].dispbuf)
-				vlock_process(vd_layer[0].dispbuf,
+				frame_lock_process(vd_layer[0].dispbuf,
 					cur_frame_par);
 			else
-				vlock_process(NULL, cur_frame_par);
+				frame_lock_process(NULL, cur_frame_par);
 		}
 #endif
 

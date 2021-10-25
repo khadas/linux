@@ -772,6 +772,8 @@ void vdin_dump_frames(struct vdin_dev_s *devp);
 
 bool vlock_get_phlock_flag(void);
 bool vlock_get_vlock_flag(void);
+bool frame_lock_vrr_lock_status(void);
+
 u32 vlock_get_phase_en(u32 enc_idx);
 void vdin_change_matrix0(u32 offset, u32 matrix_csc);
 void vdin_change_matrix1(u32 offset, u32 matrix_csc);

@@ -362,21 +362,25 @@ static void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 
 	if (devp->index != 0)
 		return;
-	if (!devp->game_mode)
-		return;
 
 	vrr_data.input_src = VRR_INPUT_TVIN;
 	vrr_data.target_vfreq_num = devp->parm.info.fps;
 	vrr_data.target_vfreq_den = 1;
 
 	if (state) {
-		aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_ON,
+		if (devp->game_mode) {
+			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_ON,
 						   &vrr_data);
-		pr_info("%s: enable\n", __func__);
+			pr_info("%s: state =1 and Game, enable framelock\n", __func__);
+		} else {
+			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_OFF,
+							   &vrr_data);
+			pr_info("%s: state =1 and no Game, disable v\n", __func__);
+		}
 	} else {
 		aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_OFF,
 						   &vrr_data);
-		pr_info("%s: disable\n", __func__);
+		pr_info("%s: state=0 ,disable framelock\n", __func__);
 	}
 }
 
@@ -435,16 +439,18 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 		if (devp->game_mode & VDIN_GAME_MODE_SWITCH_EN) {
 			/* phase unlock state, wait ph lock*/
 			/* make sure phase lock for next few frames */
-			if (vlock_get_phlock_flag() && vlock_get_vlock_flag())
+			if ((vlock_get_phlock_flag() && vlock_get_vlock_flag()) ||
+					frame_lock_vrr_lock_status())
 				phase_lock_flag++;
 			else
 				phase_lock_flag = 0;
+
 			if (phase_lock_flag >= game_mode_phlock_switch_frames) {
 				if (vdin_dbg_en) {
-					pr_info("switch game mode (0x%x->0x%x), frame_cnt=%d\n",
+					pr_info("switch game mode (0x%x->0x%x), frame_cnt=%d fps:%d\n",
 						devp->game_mode_pre,
 						devp->game_mode,
-						devp->frame_cnt);
+						devp->frame_cnt, devp->parm.info.fps);
 				}
 				if (devp->parm.info.fps == 25 ||
 				    devp->parm.info.fps == 30) {
@@ -461,7 +467,7 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 			/* if phase lock fail, exit game mode and re-entry
 			 * after phase lock
 			 */
-			if (!vlock_get_phlock_flag()) {
+			if (!vlock_get_phlock_flag() && !frame_lock_vrr_lock_status()) {
 				if (phase_lock_flag++ > 1) {
 					if (vdin_isr_monitor & BIT(4))
 						pr_info("game mode switch (0x%x->0x%x)\n",

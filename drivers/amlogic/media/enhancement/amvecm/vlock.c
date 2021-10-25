@@ -1966,6 +1966,25 @@ void vlock_clear_frame_counter(struct stvlock_sig_sts *pvlock)
 	pvlock->all_lock_cnt = 0;
 }
 
+void vlock_set_sts_by_frame_lock(bool en)
+{
+	struct stvlock_sig_sts *pvlock;
+
+#ifdef VLOCK_DEBUG_ENC_IDX
+	pvlock = vlock_tab[VLOCK_DEBUG_ENC_IDX];
+#else
+	pvlock = vlock_tab[VLOCK_ENC0];
+#endif
+
+	if (!en) {
+		vlock_disable_step1(pvlock);
+		vlock_disable_step2(pvlock);
+		vlock_clear_frame_counter(pvlock);
+	} else {
+		pvlock->fsm_sts = VLOCK_STATE_NULL;
+	}
+}
+
 void vlock_set_en(bool en)
 {
 	vlock_en = en;
@@ -2318,6 +2337,20 @@ bool vlock_get_vlock_flag(void)
 	struct stvlock_sig_sts *pvlock = vlock_tab[VLOCK_ENC0];
 
 	return vlock_get_vlock_flag_ex(pvlock);
+}
+
+u32 vlock_get_vlock_sts(void)
+{
+	struct stvlock_sig_sts *pvlock = vlock_tab[VLOCK_ENC0];
+
+	if (!pvlock) {
+		if (vlock_debug & VLOCK_DEBUG_INFO)
+			pr_info("[%s] pvlock NULL\n",
+				__func__);
+		return 0;
+	}
+
+	return pvlock->fsm_sts;
 }
 
 void vlock_enc_timing_monitor(struct stvlock_sig_sts *pvlock)

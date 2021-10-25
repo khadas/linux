@@ -354,4 +354,6 @@ int frc_is_on(void);
 bool vlock_get_phlock_flag(void);
 bool vlock_get_vlock_flag(void);
 int vlock_sync_frc_vporch(struct stvlock_frc_param frc_param);
+void vlock_set_sts_by_frame_lock(bool en);
+
 
