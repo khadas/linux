@@ -108,7 +108,11 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 static bool sugov_update_next_freq(struct sugov_policy *sg_policy, u64 time,
 				   unsigned int next_freq)
 {
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (sg_policy->next_freq == next_freq && sg_policy->policy->cur == next_freq)
+#else
 	if (sg_policy->next_freq == next_freq)
+#endif
 		return false;
 
 	sg_policy->next_freq = next_freq;
