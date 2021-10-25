@@ -671,14 +671,22 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 	ge2d_comp_para->ge2d_config->dst_para.y_rev = 0;
 	ge2d_comp_para->ge2d_config->dst_xy_swap = 0;
 
-	if (ge2d_comp_para->angle == 1) {
+	if (ge2d_comp_para->angle == GE2D_ANGLE_TYPE_ROT_90) {
 		ge2d_comp_para->ge2d_config->dst_xy_swap = 1;
 		ge2d_comp_para->ge2d_config->dst_para.x_rev = 1;
-	} else if (ge2d_comp_para->angle == 2) {
+	} else if (ge2d_comp_para->angle == GE2D_ANGLE_TYPE_ROT_180) {
 		ge2d_comp_para->ge2d_config->dst_para.x_rev = 1;
 		ge2d_comp_para->ge2d_config->dst_para.y_rev = 1;
-	} else if (ge2d_comp_para->angle == 3) {
+	} else if (ge2d_comp_para->angle == GE2D_ANGLE_TYPE_ROT_270) {
 		ge2d_comp_para->ge2d_config->dst_xy_swap = 1;
+		ge2d_comp_para->ge2d_config->dst_para.y_rev = 1;
+	} else if (ge2d_comp_para->angle == GE2D_ANGLE_TYPE_FLIP_H) {
+		ge2d_comp_para->ge2d_config->dst_xy_swap = 0;
+		ge2d_comp_para->ge2d_config->dst_para.x_rev = 1;
+		ge2d_comp_para->ge2d_config->dst_para.y_rev = 0;
+	} else if (ge2d_comp_para->angle == GE2D_ANGLE_TYPE_FLIP_V) {
+		ge2d_comp_para->ge2d_config->dst_xy_swap = 0;
+		ge2d_comp_para->ge2d_config->dst_para.x_rev = 0;
 		ge2d_comp_para->ge2d_config->dst_para.y_rev = 1;
 	}
 	ge2d_comp_para->ge2d_config->dst_para.canvas_index = dst_canvas_id;
