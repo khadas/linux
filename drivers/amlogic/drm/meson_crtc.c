@@ -55,8 +55,17 @@ static void meson_crtc_init_hdr_preference
 	(struct am_meson_crtc_state *crtc_state)
 {
 	crtc_state->crtc_hdr_process_policy = MESON_HDR_POLICY_FOLLOW_SINK;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	crtc_state->crtc_dv_enable = is_dolby_vision_enable();
+#else
 	crtc_state->crtc_dv_enable = false;
+#endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	crtc_state->crtc_hdr_enable = true;
+#else
 	crtc_state->crtc_hdr_enable = false;
+#endif
 }
 
 static void meson_crtc_reset(struct drm_crtc *crtc)
@@ -251,6 +260,8 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct meson_vpu_pipeline *pipeline = amcrtc->pipeline;
 	struct am_meson_crtc_state *meson_crtc_state =
 					to_am_meson_crtc_state(crtc->state);
+	struct meson_drm *priv = amcrtc->priv;
+	int hdrpolicy = 0;
 
 	DRM_INFO("%s:in\n", __func__);
 	if (!adjusted_mode) {
@@ -259,6 +270,39 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 		return;
 	}
 	DRM_INFO("%s: %s, %d\n", __func__, adjusted_mode->name, meson_crtc_state->uboot_mode_init);
+
+	if (!priv->compat_mode) {
+		/* update follow source/follow sink to hdr/dv core.
+		 * drm didnot send hdmitx pkt, we just set policy to hdr core.
+		 */
+		if (meson_crtc_state->crtc_hdr_process_policy
+				== MESON_HDR_POLICY_FOLLOW_SOURCE ||
+			meson_crtc_state->crtc_hdr_process_policy
+				== MESON_HDR_POLICY_FOLLOW_SINK) {
+			hdrpolicy = (meson_crtc_state->crtc_hdr_process_policy
+				== MESON_HDR_POLICY_FOLLOW_SINK) ? 0 : 1;
+			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+			set_hdr_policy(hdrpolicy);
+			#endif
+
+			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			/*enable/disable dv*/
+			if (meson_crtc_state->crtc_eotf_type
+					== HDMI_EOTF_MESON_DOLBYVISION_LL) {
+				set_dolby_vision_ll_policy(1);
+			} else {
+				set_dolby_vision_ll_policy(0);
+			}
+
+			if (meson_crtc_state->crtc_eotf_type
+					== HDMI_EOTF_MESON_DOLBYVISION ||
+				meson_crtc_state->crtc_eotf_type
+					== HDMI_EOTF_MESON_DOLBYVISION_LL) {
+				set_dolby_vision_enable(true);
+			}
+			#endif
+		}
+	}
 
 	/*update mode*/
 	name = am_meson_crtc_get_voutmode(adjusted_mode);
@@ -396,6 +440,10 @@ static void am_meson_crtc2_atomic_disable(struct drm_crtc *crtc,
 	DRM_DEBUG("%s:out\n", __func__);
 }
 
+static bool crtc_dv_enable_value;
+module_param_named(crtc_dv_enable, crtc_dv_enable_value, bool, 0644);
+MODULE_PARM_DESC(crtc_dv_enable, "crtc_dv_enable parameter to set dv");
+
 static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state)
 {
@@ -414,6 +462,7 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 			crtc_state->mode_changed = true;
 			crtc_force_hint = 0;
 		}
+	new_state->crtc_dv_enable = crtc_dv_enable_value;
 	}
 
 	if (cur_state->crtc_dv_enable != new_state->crtc_dv_enable)
