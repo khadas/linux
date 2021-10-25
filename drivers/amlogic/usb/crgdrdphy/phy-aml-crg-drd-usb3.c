@@ -33,8 +33,14 @@ static void amlogic_crg_drd_usb3phy_shutdown(struct usb_phy *x)
 {
 	struct amlogic_usb_v2 *phy = phy_to_amlusb(x);
 
-	if (phy->phy.flags == AML_USB3_PHY_ENABLE)
+	if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
+		if (!(IS_ERR(phy->hcsl_clk)))
+			clk_disable_unprepare(phy->hcsl_clk);
+
 		clk_disable_unprepare(phy->clk);
+
+		writel(0xf5, phy->phy31_cfg);
+	}
 
 	phy->suspend_flag = 1;
 }
@@ -223,10 +229,19 @@ static int amlogic_crg_drd_usb3_init(struct usb_phy *x)
 	union phy3_r2 p3_r2 = {.d32 = 0};
 	union phy3_r1 p3_r1 = {.d32 = 0};
 	int i = 0;
+	u32 val;
 
 	if (phy->suspend_flag) {
-		if (phy->phy.flags == AML_USB3_PHY_ENABLE)
+		if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
 			clk_prepare_enable(phy->clk);
+			if (!(IS_ERR(phy->hcsl_clk)))
+				clk_prepare_enable(phy->hcsl_clk);
+
+			val = readl(phy->phy31_cfg);
+			val |= (3 << 5);
+			val &= (~(1));
+			writel(val, phy->phy31_cfg);
+		}
 
 		phy->suspend_flag = 0;
 		return 0;
@@ -279,6 +294,26 @@ static int amlogic_crg_drd_usb3_init(struct usb_phy *x)
 	return 0;
 }
 
+static bool device_is_available(const struct device_node *device)
+{
+	const char *status;
+	int statlen;
+
+	if (!device)
+		return false;
+
+	status = of_get_property(device, "status", &statlen);
+	if (!status)
+		return true;
+
+	if (statlen > 0) {
+		if (!strcmp(status, "okay") || !strcmp(status, "ok"))
+			return true;
+	}
+
+	return false;
+}
+
 static int amlogic_crg_drd_usb3_probe(struct platform_device *pdev)
 {
 	struct amlogic_usb_v2			*phy;
@@ -286,9 +321,12 @@ static int amlogic_crg_drd_usb3_probe(struct platform_device *pdev)
 	struct resource *phy_mem;
 	void __iomem	*phy_base;
 	void __iomem *phy31_base;
+	void __iomem *phy_pcie_base;
 	void __iomem	*reset_base = NULL;
 	unsigned int phy31_mem;
 	unsigned int phy31_mem_size = 0;
+	unsigned int phy_pcie_mem;
+	unsigned int phy_pcie_mem_size = 0;
 	unsigned int reset_mem;
 	unsigned int reset_mem_size = 0;
 	const void *prop;
@@ -303,6 +341,7 @@ static int amlogic_crg_drd_usb3_probe(struct platform_device *pdev)
 	u32 usb3_apb_reset_bit = 23;
 	u32 usb3_phy_reset_bit = 22;
 	u32 usb3_reset_shift = 4;
+	struct device_node *tsi_pci;
 
 	prop = of_get_property(dev->of_node, "portnum", NULL);
 	if (prop)
@@ -412,6 +451,30 @@ static int amlogic_crg_drd_usb3_probe(struct platform_device *pdev)
 
 	/* set the phy from pcie to usb3 */
 	if (phy->portnum > 0) {
+		retval = of_property_read_u32(dev->of_node,
+			 "phy-pcie-reg", &phy_pcie_mem);
+		if (retval < 0)
+			return -EINVAL;
+
+		retval = of_property_read_u32
+					(dev->of_node, "phy-pcie-reg-size",
+						&phy_pcie_mem_size);
+		if (retval < 0)
+			return -EINVAL;
+
+		phy_pcie_base = ioremap((resource_size_t)phy_pcie_mem,
+				(unsigned long)phy_pcie_mem_size);
+		if (!phy_pcie_base)
+			return -ENOMEM;
+
+		tsi_pci = of_find_node_by_type(NULL, "pci");
+		if (tsi_pci) {
+			if (!device_is_available(tsi_pci)) {
+				dev_info(&pdev->dev, "no pci-e driver!,power down pcie phy\n");
+				writel(0x1d, phy_pcie_base);
+			}
+		}
+
 		writel((0x1 << usb3_apb_reset_bit) | (0x1 << usb3_phy_reset_bit),
 			(void __iomem *)
 			((unsigned long)phy->reset_regs + phy->usb3_reset_shift));
@@ -458,15 +521,15 @@ static int amlogic_crg_drd_usb3_probe(struct platform_device *pdev)
 			dev_err(dev, "pcie_refpll is not 100M, it is %ld\n",
 				rate);
 
-		phy->clk = devm_clk_get(dev, "pcie_hcsl");
-		if (IS_ERR(phy->clk)) {
+		phy->hcsl_clk = devm_clk_get(dev, "pcie_hcsl");
+		if (IS_ERR(phy->hcsl_clk)) {
 			dev_dbg(dev, "Failed to get usb3 hcsl clock\n");
-			ret = PTR_ERR(phy->clk);
+			ret = PTR_ERR(phy->hcsl_clk);
 		} else {
-			ret = clk_prepare_enable(phy->clk);
+			ret = clk_prepare_enable(phy->hcsl_clk);
 			if (ret) {
 				dev_err(dev, "Failed to enable usb3 hcsl clock\n");
-				ret = PTR_ERR(phy->clk);
+				ret = PTR_ERR(phy->hcsl_clk);
 				return ret;
 			}
 		}

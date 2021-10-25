@@ -353,6 +353,7 @@ struct crg_gadget_dev {
 	int setup_tag_mismatch_found;
 	int portsc_on_reconnecting;
 	int controller_type;
+	int phy_id;
 };
 
 /*An array should be implemented if we want to support multi
@@ -4444,6 +4445,7 @@ static int crg_udc_probe(struct platform_device *pdev)
 				phy_id = of_read_ulong(prop, 1);
 			else
 				phy_id = 1;
+			crg_udc->phy_id = phy_id;
 		}
 	}
 
@@ -4537,7 +4539,10 @@ static int crg_udc_remove(struct platform_device *pdev)
 	if (crg_udc->irq)
 		free_irq(crg_udc->irq, crg_udc);
 
-	/* crg_clk_disable_usb(pdev, (unsigned long)crg_udc->phy_reg_addr); */
+	if (crg_udc->controller_type != USB_M31)
+		amlogic_crg_device_usb2_shutdown(crg_udc->phy_id);
+
+	crg_clk_disable_usb(pdev, (unsigned long)crg_udc->phy_reg_addr);
 	/*
 	 * Clear the drvdata pointer.
 	 */
@@ -4560,6 +4565,9 @@ static void crg_udc_shutdown(struct platform_device *pdev)
 
 	if (crg_udc->irq)
 		free_irq(crg_udc->irq, crg_udc);
+
+	if (crg_udc->controller_type != USB_M31)
+		amlogic_crg_device_usb2_shutdown(crg_udc->phy_id);
 
 	crg_clk_disable_usb(pdev, (unsigned long)crg_udc->phy_reg_addr);
 
@@ -4594,6 +4602,9 @@ static int crg_udc_suspend(struct device *dev)
 
 	crg_udc = &crg_udc_dev;
 
+	if (crg_udc->controller_type != USB_M31)
+		amlogic_crg_device_usb2_shutdown(crg_udc->phy_id);
+
 	crg_clk_disable_usb(pdev, (unsigned long)crg_udc->phy_reg_addr);
 	return 0;
 }
@@ -4607,6 +4618,9 @@ static int crg_udc_resume(struct device *dev)
 	crg_clk_enable_usb(pdev,
 			(unsigned long)crg_udc->phy_reg_addr,
 			crg_udc->controller_type);
+
+	if (crg_udc->controller_type != USB_M31)
+		amlogic_crg_device_usb2_init(crg_udc->phy_id);
 
 	return 0;
 }

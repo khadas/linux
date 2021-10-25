@@ -364,6 +364,38 @@ static int amlogic_crg_drd_usb2_suspend(struct usb_phy *x, int suspend)
 	return 0;
 }
 
+int amlogic_crg_device_usb2_shutdown(u32 phy_id)
+{
+	struct usb_phy *x;
+	struct amlogic_usb_v2 *phy;
+	u32 val, i = 0;
+	u32 temp = 0;
+	u32 cnt;
+	size_t mask = 0;
+
+	x = &g_crg_drd_phy2[phy_id]->phy;
+	phy = phy_to_amlusb(x);
+	cnt = phy->portnum;
+
+	mask = (size_t)phy->reset_regs & 0xf;
+
+	for (i = 0; i < cnt; i++)
+		temp = temp | (1 << phy->phy_reset_level_bit[i]);
+
+	/* set usb phy to low power mode */
+	val = readl((void __iomem		*)
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
+	writel((val & (~temp)), (void __iomem	*)
+		((unsigned long)phy->reset_regs + (phy->reset_level - mask)));
+
+	if (phy->phy.flags == AML_USB2_PHY_ENABLE)
+		clk_disable_unprepare(phy->clk);
+
+	phy->suspend_flag = 1;
+
+	return 0;
+}
+
 static void amlogic_crg_drd_usb2phy_shutdown(struct usb_phy *x)
 {
 	struct amlogic_usb_v2 *phy = phy_to_amlusb(x);

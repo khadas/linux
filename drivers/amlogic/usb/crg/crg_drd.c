@@ -72,16 +72,58 @@ static void crg_set_mode(struct crg_drd *crg, u32 mode)
 
 static int crg_core_soft_reset(struct crg_drd *crg)
 {
+	if (crg->usb2_phy)
+		usb_phy_init(crg->usb2_phy);
+
+	if (crg->usb3_phy)
+		usb_phy_init(crg->usb3_phy);
+
 	return 0;
 }
 
+static void crg_core_exit(struct crg_drd	*crg)
+{
+	if (crg->usb2_phy)
+		usb_phy_shutdown(crg->usb2_phy);
+	if (crg->usb3_phy)
+		usb_phy_shutdown(crg->usb3_phy);
+
+	if (crg->usb2_phy)
+		usb_phy_set_suspend(crg->usb2_phy, 1);
+	if (crg->usb3_phy)
+		usb_phy_set_suspend(crg->usb3_phy, 1);
+}
+
 static int crg_core_init(struct crg_drd *crg)
+{
+	switch (crg->dr_mode) {
+	case USB_DR_MODE_PERIPHERAL:
+		crg_set_mode(crg, CRG_GCTL_PRTCAP_DEVICE);
+		break;
+	case USB_DR_MODE_HOST:
+		crg_set_mode(crg, CRG_GCTL_PRTCAP_HOST);
+		break;
+	case USB_DR_MODE_OTG:
+		crg_set_mode(crg, CRG_GCTL_PRTCAP_OTG);
+		break;
+	default:
+		dev_warn(crg->dev, "Unsupported mode %d\n", crg->dr_mode);
+		break;
+	}
+
+	return 0;
+}
+
+static int crg_core_resume(struct crg_drd *crg)
 {
 	int			ret;
 
 	ret = crg_core_soft_reset(crg);
 	if (ret)
 		return ret;
+
+	usb_phy_set_suspend(crg->usb2_phy, 0);
+	usb_phy_set_suspend(crg->usb3_phy, 0);
 
 	switch (crg->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
@@ -106,6 +148,8 @@ static int crg_core_get_phy(struct crg_drd *crg)
 	struct device *dev = crg->dev;
 
 	crg->super_speed_support = 0;
+
+	crg->usb2_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
 
 	crg->usb3_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 1);
 
@@ -393,11 +437,19 @@ static int crg_suspend_common(struct crg_drd *crg)
 		break;
 	}
 
+	crg_core_exit(crg);
+
 	return 0;
 }
 
 static int crg_resume_common(struct crg_drd *crg)
 {
+	int		ret;
+
+	ret = crg_core_resume(crg);
+	if (ret)
+		return ret;
+
 	crg_set_mode(crg, CRG_GCTL_PRTCAP_HOST);
 
 	return 0;
