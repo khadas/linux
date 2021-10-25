@@ -44,6 +44,15 @@ enum videocom_source_type {
 	VDIN_10BIT_NORMAL,
 };
 
+enum ge2d_angle_type {
+	GE2D_ANGLE_TYPE_ROT_90 = 1,
+	GE2D_ANGLE_TYPE_ROT_180,
+	GE2D_ANGLE_TYPE_ROT_270,
+	GE2D_ANGLE_TYPE_FLIP_H,
+	GE2D_ANGLE_TYPE_FLIP_V,
+	GE2D_ANGLE_TYPE_MAX,
+};
+
 struct ge2d_composer_para {
 	int count;
 	int format;

@@ -887,7 +887,8 @@ static struct output_axis output_axis_adjust(struct composer_dev *dev,
 	disp_w = vframe_info->dst_w;
 	disp_h = vframe_info->dst_h;
 
-	if (ge2d_comp_para->angle & 1) {
+	if (ge2d_comp_para->angle == VC_TRANSFORM_ROT_90 ||
+		ge2d_comp_para->angle == VC_TRANSFORM_ROT_270) {
 		tmp = picture_height;
 		picture_height = picture_width;
 		picture_width = tmp;
@@ -1246,12 +1247,16 @@ static void vframe_composer(struct composer_dev *dev)
 			vframe_info[vf_dev[i]]->dst_h;
 
 		dev->ge2d_para.angle = 0;
-		if (cur_transform == VC_TRANSFORM_ROT_90)
-			dev->ge2d_para.angle = 1;
+		if (cur_transform == VC_TRANSFORM_FLIP_H)
+			dev->ge2d_para.angle = GE2D_ANGLE_TYPE_FLIP_H;
+		else if (cur_transform == VC_TRANSFORM_FLIP_V)
+			dev->ge2d_para.angle = GE2D_ANGLE_TYPE_FLIP_V;
+		else if (cur_transform == VC_TRANSFORM_ROT_90)
+			dev->ge2d_para.angle = GE2D_ANGLE_TYPE_ROT_90;
 		else if (cur_transform == VC_TRANSFORM_ROT_180)
-			dev->ge2d_para.angle = 2;
+			dev->ge2d_para.angle = GE2D_ANGLE_TYPE_ROT_180;
 		else if (cur_transform == VC_TRANSFORM_ROT_270)
-			dev->ge2d_para.angle = 3;
+			dev->ge2d_para.angle = GE2D_ANGLE_TYPE_ROT_270;
 		else if (cur_transform != 0)
 			vc_print(dev->index, PRINT_ERROR,
 				 "not support transform=%d\n", cur_transform);
@@ -1497,6 +1502,7 @@ static void video_composer_task(struct composer_dev *dev)
 	struct received_frames_t *received_frames = NULL;
 	struct frames_info_t *frames_info = NULL;
 	int count;
+	u32 frame_transform = 0;
 	bool need_composer = false;
 	int ready_count = 0;
 	unsigned long phy_addr;
@@ -1530,7 +1536,11 @@ static void video_composer_task(struct composer_dev *dev)
 		if ((dev->index == 0 && force_composer) ||
 		    (dev->index == 1 && force_composer_pip))
 			need_composer = true;
-		if (received_frames->frames_info.frame_info[0].transform) {
+		frame_transform =
+			received_frames->frames_info.frame_info[0].transform;
+		if (frame_transform == VC_TRANSFORM_ROT_90 ||
+			frame_transform == VC_TRANSFORM_ROT_180 ||
+			frame_transform == VC_TRANSFORM_ROT_270) {
 			need_composer = true;
 			dev->need_rotate = true;
 		}
@@ -1659,6 +1669,12 @@ static void video_composer_task(struct composer_dev *dev)
 		//vf->zorder = 1;
 		vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER
 			| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+		//mirror frame
+		if (frame_transform == VC_TRANSFORM_FLIP_H)
+			vf->flag |= VFRAME_FLAG_MIRROR_H;
+		else if (frame_transform == VC_TRANSFORM_FLIP_V)
+			vf->flag |= VFRAME_FLAG_MIRROR_V;
+
 		vf->pts_us64 = time_us64;
 		vf->disp_pts = 0;
 
