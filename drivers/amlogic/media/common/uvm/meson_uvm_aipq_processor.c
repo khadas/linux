@@ -186,10 +186,9 @@ struct vframe_s *aipq_get_dw_vf(struct uvm_aipq_info *aipq_info)
 		if (!file_private_data) {
 			aipq_print(PRINT_ERROR, "invalid fd no uvm/v4lvideo\n");
 		} else {
-			if (file_private_data->flag & V4LVIDEO_FLAG_DI_NR)
-				vf = &file_private_data->vf_ext;
-			else
-				vf = &file_private_data->vf;
+			vf = &file_private_data->vf;
+			if (vf->vf_ext)
+				vf = vf->vf_ext;
 		}
 	}
 	if (!vf) {
