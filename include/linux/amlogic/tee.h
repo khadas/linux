@@ -23,6 +23,7 @@
 #define TEE_MEM_ALIGN_SIZE                                 0x10000
 
 /* memory type used by tee_protect_mem_by_type() */
+#define TEE_MEM_TYPE_STREAM_INPUT                          0x4
 #define TEE_MEM_TYPE_STREAM_OUTPUT                         0x5
 #define TEE_MEM_TYPE_GPU                                   0x6
 #define TEE_MEM_TYPE_VDIN                                  0x7
@@ -68,6 +69,10 @@ int tee_demux_config_pad(int reg, int val);
 
 u32 tee_protect_mem(u32 type, u32 level,
 		u32 start, u32 size, u32 *handle);
+
+int tee_check_in_mem(u32 pa, u32 size);
+
+int tee_check_out_mem(u32 pa, u32 size);
 
 int tee_vp9_prob_process(u32 cur_frame_type, u32 prev_frame_type,
 		u32 prob_status, u32 prob_addr);
