@@ -64,8 +64,9 @@
 /*  V1.0.21  dvbc C/N worse                         */
 /*  V1.0.22  no audio output after random source switch */
 /*  V1.0.23  fixed code and dts CMA config          */
+/*  V1.0.24  dvbt2 add reset when unlocked for 3s   */
 /****************************************************/
-#define AMLDTVDEMOD_VER "V1.0.23"
+#define AMLDTVDEMOD_VER "V1.0.24"
 
 MODULE_PARM_DESC(auto_search_std, "\n\t\t atsc-c std&hrc search");
 static unsigned int auto_search_std;
@@ -1058,6 +1059,8 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 #define TIMEOUT_SIGNAL_T2 800
 #define CONTINUE_TIMES_LOCK 3
 #define CONTINUE_TIMES_UNLOCK 2
+#define RESET_IN_UNLOCK_TIMES 24
+//24:3Seconds
 static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	unsigned char s = 0;
@@ -1066,7 +1069,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	unsigned int p1_peak, val;
-	static int no_signal_cnt;
+	static int no_signal_cnt, unlock_cnt;
 	int snr, modu, cr, l1post, ldpc;
 
 	if (!devp->demod_thread) {
@@ -1083,6 +1086,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	if (strenth < strength_limit) {
 		if (!(no_signal_cnt++ % 20))
 			dvbt2_reset(demod);
+		unlock_cnt = 0;
 		*status = FE_TIMEDOUT;
 		demod->last_status = *status;
 		demod->real_para.snr = 0;
@@ -1107,7 +1111,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	}
 
 	PR_DVBT("s=%d, p1=%d, demod->p1=%d, demod->last_lock=%d, val=0x%08x\n",
-		p1_peak, s, demod->p1_peak, demod->last_lock, val);
+		s, p1_peak, demod->p1_peak, demod->last_lock, val);
 
 	if (demod_is_t5d_cpu(devp)) {
 		cr = (val >> 2) & 0x7;
@@ -1184,6 +1188,15 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		demod->real_para.coderate = -1;
 	} else {
 		*status = 0;
+	}
+
+	if (*status == FE_TIMEDOUT)
+		unlock_cnt++;
+	else
+		unlock_cnt = 0;
+	if (unlock_cnt >= RESET_IN_UNLOCK_TIMES) {
+		unlock_cnt = 0;
+		dvbt2_reset(demod);
 	}
 
 	if (*status == 0)
