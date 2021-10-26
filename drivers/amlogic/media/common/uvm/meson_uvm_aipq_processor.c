@@ -435,13 +435,14 @@ int attach_aipq_hook_mod_info(int shared_fd,
 
 	dma_buf_put(dmabuf);
 
-	if (dmabuf_last == dmabuf)
+	if (dmabuf_last == dmabuf) {
 		aipq_info->repert_frame = 1;
-	dmabuf_last = dmabuf;
-
-	ret = aipq_vf_set_value(aipq_info, enable_aipq);
-	if (ret != 0)
-		aipq_print(PRINT_ERROR, "set aipq value err\n");
+	} else {
+		dmabuf_last = dmabuf;
+		ret = aipq_vf_set_value(aipq_info, enable_aipq);
+		if (ret != 0)
+			aipq_print(PRINT_ERROR, "set aipq value err\n");
+	}
 
 	if (attached)
 		return 0;
