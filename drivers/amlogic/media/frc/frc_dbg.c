@@ -159,7 +159,7 @@ ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf)
 	len += sprintf(buf + len, "buf_num val\t: val(1 - 16)\n");
 	len += sprintf(buf + len, " \t\t 5:32322 6:44\n");
 	len += sprintf(buf + len, "force_mode en(0/1) hize vsize\n");
-	len += sprintf(buf + len, "ud_dbg 0/1 0/1\t: meud_en, mcud_en\n");
+	len += sprintf(buf + len, "ud_dbg 0/1 0/1 0/1 0/1\t: meud_en,mcud_en,in,out alg time\n");
 	len += sprintf(buf + len, "auto_ctrl 0/1 \t: frc auto on off work mode\n");
 	len += sprintf(buf + len, "mc_lossy 0/1 \t: 0:off 1:on\n");
 	len += sprintf(buf + len, "me_lossy 0/1 \t: 0:off 1:on\n");
@@ -348,12 +348,18 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 		if (kstrtoint(parm[3], 10, &val1) == 0)
 			devp->force_size.force_vsize = val1;
 	} else if (!strcmp(parm[0], "ud_dbg")) {
-		if (!parm[2])
+		if (!parm[4]) {
+			pr_frc(0, "err:input parameters error!\n");
 			goto exit;
+		}
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			devp->ud_dbg.meud_dbg_en = val1;
 		if (kstrtoint(parm[2], 10, &val1) == 0)
 			devp->ud_dbg.mcud_dbg_en = val1;
+		if (kstrtoint(parm[3], 10, &val1) == 0)
+			devp->ud_dbg.inud_time_en = val1;
+		if (kstrtoint(parm[4], 10, &val1) == 0)
+			devp->ud_dbg.outud_time_en = val1;
 	} else if (!strcmp(parm[0], "auto_ctrl")) {
 		if (!parm[1])
 			goto exit;

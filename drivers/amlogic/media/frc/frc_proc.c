@@ -146,6 +146,50 @@ void frc_dump_monitor_data(struct frc_dev_s *devp)
 	devp->dbg_buf_len = 0;
 }
 
+/*frc-fw input task execution time*/
+void frc_in_task_print(u64 timer)
+{
+	static u64 in_tsk_inx, in_tsk_min, in_tsk_max, in_tsk_sum;
+
+	in_tsk_inx++;
+	in_tsk_sum += timer;
+	if (in_tsk_min > timer)
+		in_tsk_min = timer;
+	if (in_tsk_max < timer)
+		in_tsk_max = timer;
+
+	if (in_tsk_inx == 60) {
+		pr_frc(0, "in_tsk_time  min = %lld max = %lld avg = %lld\n",
+			in_tsk_min, in_tsk_max, div64_u64(in_tsk_sum, 60));
+		in_tsk_min = in_tsk_max;
+		in_tsk_inx = 0;
+		in_tsk_sum = 0;
+		in_tsk_max = 0;
+	}
+}
+
+/*frc-fw output task execution time*/
+void frc_out_task_print(u64 timer)
+{
+	static u64 out_tsk_inx, out_tsk_min, out_tsk_max, out_tsk_sum;
+
+	out_tsk_inx++;
+	out_tsk_sum += timer;
+	if (out_tsk_min > timer)
+		out_tsk_min = timer;
+	if (out_tsk_max < timer)
+		out_tsk_max = timer;
+
+	if (out_tsk_inx == 60) {
+		pr_frc(0, "out_tsk_time min = %lld max = %lld avg = %lld\n",
+			out_tsk_min, out_tsk_max, div64_u64(out_tsk_sum, 60));
+		out_tsk_min = out_tsk_max;
+		out_tsk_inx = 0;
+		out_tsk_sum = 0;
+		out_tsk_max = 0;
+	}
+}
+
 irqreturn_t frc_input_isr(int irq, void *dev_id)
 {
 	struct frc_dev_s *devp = (struct frc_dev_s *)dev_id;
@@ -173,6 +217,7 @@ void frc_input_tasklet_pro(unsigned long arg)
 {
 	struct frc_dev_s *devp = (struct frc_dev_s *)arg;
 	struct frc_fw_data_s *pfw_data;
+	u64 timestamp;
 
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	if (!pfw_data)
@@ -185,6 +230,7 @@ void frc_input_tasklet_pro(unsigned long arg)
 	}
 	devp->in_sts.vs_tsk_cnt++;
 	if (!devp->frc_fw_pause) {
+		timestamp = sched_clock();
 		if (pfw_data->scene_detect_input)
 			pfw_data->scene_detect_input(pfw_data);
 		if (pfw_data->film_detect_ctrl)
@@ -195,6 +241,8 @@ void frc_input_tasklet_pro(unsigned long arg)
 			pfw_data->iplogo_ctrl(pfw_data);
 		// if (!devp->power_on_flag)
 		//	devp->power_off_flag++;
+		if (devp->ud_dbg.inud_time_en)
+			frc_in_task_print(sched_clock() - timestamp);
 	}
 }
 
@@ -225,6 +273,7 @@ void frc_output_tasklet_pro(unsigned long arg)
 {
 	struct frc_dev_s *devp = (struct frc_dev_s *)arg;
 	struct frc_fw_data_s *pfw_data;
+	u64 timestamp;
 
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	if (!pfw_data)
@@ -237,6 +286,7 @@ void frc_output_tasklet_pro(unsigned long arg)
 	}
 	devp->out_sts.vs_tsk_cnt++;
 	if (!devp->frc_fw_pause) {
+		timestamp = sched_clock();
 		if (pfw_data->scene_detect_output)
 			pfw_data->scene_detect_output(pfw_data);
 		if (pfw_data->me_ctrl)
@@ -249,6 +299,8 @@ void frc_output_tasklet_pro(unsigned long arg)
 			pfw_data->melogo_ctrl(pfw_data);
 		// if (!devp->power_on_flag)
 		//	devp->power_off_flag++;
+		if (devp->ud_dbg.outud_time_en)
+			frc_out_task_print(sched_clock() - timestamp);
 	}
 }
 
