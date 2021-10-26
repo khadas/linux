@@ -7,7 +7,7 @@
  *
  */
 
-#include "firmware_normal.dtsi"
+#include "firmware_system.dtsi"
 
 / {
     partitions: partitions{
@@ -90,7 +90,7 @@
 		vendor:vendor
 		{
 			pname = "vendor";
-			size = <0x0 0x14000000>;
+			size = <0x0 0x1D000000>;
 			mask = <1>;
 		};
 		odm:odm
