@@ -2319,7 +2319,7 @@ u32 vlock_fsm_check_support(struct stvlock_sig_sts *pvlock,
 
 void vlock_vmd_input_check(struct stvlock_sig_sts *pvlock)
 {
-	if (vlock_input_pre != pvlock->input_hz) {
+	if (vlock_input_pre != pvlock->input_hz && pvlock->md_support) {
 		pvlock->fsm_sts = VLOCK_STATE_DISABLE_STEP1_DONE;
 		pvlock->vmd_chg = true;
 
