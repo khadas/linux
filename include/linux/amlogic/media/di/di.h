@@ -19,6 +19,23 @@
 #ifndef DI_H
 #define DI_H
 
+/************************************************
+ * dil_set_diffver_flag
+ *	ref to dil_get_diffver_flag
+ *	DI_DRV_OLD_DEINTERLACE	: old deinterlace
+ *	DI_DRV_MULTI		: di_multi
+ ************************************************/
+void dil_set_diffver_flag(unsigned int para);
+
+struct reg_acc {
+	void (*wr)(unsigned int adr, unsigned int val);
+	unsigned int (*rd)(unsigned int adr);
+	unsigned int (*bwr)(unsigned int adr, unsigned int val,
+			    unsigned int start, unsigned int len);
+	unsigned int (*brd)(unsigned int adr, unsigned int start,
+			    unsigned int len);
+};
+
 void dim_post_keep_cmd_release2(struct vframe_s *vframe);
 
 /************************************************

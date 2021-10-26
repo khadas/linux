@@ -165,6 +165,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_HDR_EN,
 	EDI_CFG_DW_EN,
 	EDI_CFG_SUB_V,
+	EDI_CFG_EN_PRE_LINK,
 	EDI_CFG_END,
 };
 
@@ -703,6 +704,7 @@ enum EDI_TOP_STATE {
 	EDI_TOP_STATE_REG_STEP2,	/*till alloc and ready*/
 	EDI_TOP_STATE_READY,		/*can do DI*/
 	EDI_TOP_STATE_BYPASS,		/*complet bypass*/
+	EDI_TOP_STATE_PREVPP_LINK,	/* pre-vpp link */
 	EDI_TOP_STATE_UNREG_STEP1,	/*till pre/post is finish;*/
 	/* do unreg and to IDLE.
 	 * no need to wait cma release after  this unreg event finish
@@ -785,6 +787,8 @@ union   DI_L_CMD_BITS {
 
 enum ECMD_LOCAL {
 	ECMD_NONE,
+	ECMD_PV_LINK_REG,
+	ECMD_PV_LINK_UNREG,
 	ECMD_REG,
 	ECMD_UNREG,
 	ECMD_READY,
@@ -1206,6 +1210,7 @@ struct dim_itf_s {
 	/*status:*/
 	bool bypass_complete;
 	bool flg_s4dw; /* copy */
+	bool pre_vpp_link; //
 	bool reg;
 	struct mutex lock_reg; /* for reg */
 	struct mutex lock_in; /* for input */
@@ -1404,6 +1409,7 @@ typedef uintptr_t ud;
 #define CODE_SCT	(DIM_DATA_MASK | 0x09)
 #define CODE_NIN	(DIM_DATA_MASK | 0x0a)
 #define CODE_NDIS	(DIM_DATA_MASK | 0x0b)
+#define CODE_LKIN	(DIM_DATA_MASK | 0x0e)
 
 #define CODE_OUT	(0xff123402)
 #define CODE_IN		(0xff123406)
@@ -1883,7 +1889,7 @@ struct di_ch_s {
 	/************************/
 	/*bypass_state*/
 	bool bypass_state;
-
+	atomic_t	vf_get_idle;/* 1: idle, other: busy */
 	/*video_peek_cnt*/
 	unsigned int sum[EDI_SUM_NUB + 1];
 	unsigned int sum_get;
@@ -1979,6 +1985,8 @@ struct dim_policy_s {
 	unsigned int ch[DI_CHANNEL_NUB];
 	unsigned int order_i;
 	unsigned int idle; /*no use*/
+	unsigned int i_reg;/*add for pre-vpp link */
+	bool flg_pvpp_link;
 	union {
 		unsigned int cfg_d32;
 		struct {
@@ -2132,6 +2140,7 @@ struct di_dbg_data {
 #define DI_CVS_EN_INP	DI_BIT4
 #define DI_CVS_EN_DS	DI_BIT5
 
+#define DIM_NUB_CVS_NUB		25
 struct di_cvs_s {
 	unsigned int post_idx[2][6];
 	unsigned int pre_idx[2][10];
@@ -2141,6 +2150,7 @@ struct di_cvs_s {
 	unsigned int post_num;
 	unsigned int en;/*bit0:pre,bit1,post; bit2,pre_2*/
 	unsigned int err_cnt;
+	char *name_used[DIM_NUB_CVS_NUB];
 };
 
 struct db_save_s {
@@ -2161,6 +2171,405 @@ struct dw_s {
 	bool dbg_show_dw;
 	bool state_en;
 	bool state_cfg_by_dbg;
+};
+
+/************************************************
+ * pre-vpp link
+ ************************************************/
+#define DPVPP_BUF_NUB	(2)
+#define DIM_LKIN_NUB	(20) /* buf number*/
+
+enum EPVPP_BYPASS_REASON {
+	EPVPP_BYPASS_REASON_I = 1,
+	EPVPP_BYPASS_REASON_SIZE_L,
+	EPVPP_BYPASS_REASON_SIZE_S,
+	EPVPP_BYPASS_REASON_TYPE,
+	EPVPP_BYPASS_REASON_HIGH_BANDWIDTH,
+	EPVPP_BYPASS_REASON_NO_AFBC,
+	EPVPP_BYPASS_REASON_DBG,//dbg cmd
+};
+
+enum EPVPP_DISPLAY {
+	EPVPP_OK	= 0,
+	EPVPP_DIS_BYPASS = 0x01,
+	ERR_NOT_DI_VPP = 0x80000001,
+};
+
+struct dimn_qs_cls_s;
+
+/* copy from qsp_ops_s*/
+struct dimn_qsp_ops_s {
+	bool (*reset)(struct dimn_qs_cls_s *q);
+	bool (*put)(struct dimn_qs_cls_s *q, void *ubuf);
+	void *(*get)(struct dimn_qs_cls_s *q);
+	unsigned int (*in)(struct dimn_qs_cls_s *q, void *ubuf, unsigned int cnt);
+	unsigned int (*out)(struct dimn_qs_cls_s *q, void *buf, unsigned int cnt);
+	bool (*is_empty)(struct dimn_qs_cls_s *q);
+	bool (*is_full)(struct dimn_qs_cls_s *q);
+	unsigned int (*count)(struct dimn_qs_cls_s *q);
+	unsigned int (*avail)(struct dimn_qs_cls_s *q);
+	unsigned int (*list)(struct dimn_qs_cls_s *p, ud *rtab);
+
+	void *(*peek)(struct dimn_qs_cls_s *q);
+};
+
+struct dimn_qs_cfg_s {
+	unsigned char	*name;
+	unsigned char	ele_nub;
+	unsigned char	ele_size;
+	unsigned char	ele_mod;
+	unsigned char	flg_lock;
+};
+
+/* copy from qs_cls_s*/
+struct dimn_qs_cls_s {
+	struct dimn_qs_cfg_s cfg;
+
+	enum Q_TYPE	type;
+	struct dimn_qsp_ops_s ops;
+	spinlock_t     lock_wr;/*spinlock*/
+	spinlock_t     lock_rd;/*spinlock*/
+
+	struct kfifo	fifo;
+
+	bool	flg; /* for kfifo */
+	unsigned int size;/* fifo size used for check */
+	struct qs_err_log_s *plog;
+};
+
+enum QBF_LKIN_Q_TYPE {
+	QBF_LKIN_Q_IDLE,
+	QBF_LKIN_Q_USED,
+	QBF_LKIN_Q_DISPLAY,
+//	QBF_NDIS_Q_BACK,
+	QBF_LKIN_Q_KEEP,
+	QBF_LKIN_Q_NUB,
+};
+
+//move from di_prepost_link to data_l.h
+//ary add 03-15 for pre-post link
+struct dim_mifpara_s { //for mif_cfg
+	unsigned int cur_inp_type;
+	unsigned int prog_proc_type; //ppr->?
+	unsigned char cvs_id[3];
+	struct di_win_s win;//move to dvframe?
+	bool linear; //input/out format //for pre-post link tmp
+};
+
+struct dim_cvspara_s {
+	unsigned int plane_nub;
+	unsigned char *cvs_id;
+	struct canvas_config_s	*cvs_cfg;
+};
+
+/*copy from EDI_CVSI */
+enum EDI_CVSI_PVPP {
+	EDI_CVSI_PVPP_A_NR,
+	EDI_CVSI_PVPP_A_NR_C,
+	EDI_CVSI_PVPP_A_MEM,
+	EDI_CVSI_PVPP_A_MEM_C,
+	EDI_CVSI_PVPP_A_IN1,
+	EDI_CVSI_PVPP_A_IN1_C,
+	EDI_CVSI_PVPP_B_NR,
+	EDI_CVSI_PVPP_B_NR_C,
+	EDI_CVSI_PVPP_B_MEM,
+	EDI_CVSI_PVPP_B_MEM_C,
+	EDI_CVSI_PVPP_B_IN1,
+	EDI_CVSI_PVPP_B_IN1_C,
+};
+
+struct dim_type_smp_s { //use this to check signal change or not
+	unsigned int vf_type;
+	unsigned int x_size;
+	unsigned int y_size;
+	unsigned int cur_source_type;
+	unsigned int other;
+};
+
+struct dim_dvpp_set_s {
+	union {
+		unsigned int d32;
+		struct {
+			unsigned int en_in_mif	: 1,
+				en_in_afbcd	: 1,
+				en_in_cvs	: 1,
+				en_mem_mif	: 1,
+				en_mem_afbcd	: 1,
+				en_mem_cvs	: 1,
+				en_wr_mif	: 1,
+				en_wr_afbce	: 1,
+				en_wr_cvs	: 1,
+				en_linear_cp	: 1;
+		} b;
+	};
+};
+
+struct dimn_dvfm_s {
+	struct qs_buf_s	header;
+	enum EDIM_NIN_TYPE etype;
+	struct vframe_s *pvf; /* set when reg and not clear */
+	struct {
+		void *ori_in;
+		struct vframe_s *ori_vf; /* avoid new interface's issue */
+		struct vframe_s vf_in_cp;
+		unsigned int cnt_in;
+		unsigned int cnt_parser;//
+		unsigned int cnt_display;
+		unsigned int sum_reg_cnt;
+		struct dim_dvpp_set_s	set_cfg;
+		union afbc_blk_s	afbc_sgn_cfg;
+		struct dvfm_s in_dvfm;
+		struct dvfm_s in_dvfm_crop;
+		struct dvfm_s out_dvfm;
+		struct dvfm_s mem_dvfm; //add for afbcd
+		//struct vframe_s out_vfm;
+		atomic_t wr_set;	/* vpp have called display */
+		atomic_t wr_cvs_set;
+		atomic_t wr_done;	/*vpp have called */
+		atomic_t flg_get;
+		atomic_t flg_vpp;	/* get by vpp	*/
+		atomic_t flg_ref;	/* is refer	*/
+		atomic_t flg_show;	/* is display	*/
+		unsigned int mem_cnt;
+		struct dimn_dvfm_s *mem_link;//?
+		unsigned int bypass_reason;
+		struct dim_cvspara_s cvspara_in;
+		struct dim_cvspara_s cvspara_wr;
+		struct dim_cvspara_s cvspara_mem;
+		bool is_inp_4k;
+		bool is_out_4k;
+		bool dw_have;
+		unsigned int sts_diff;
+		unsigned int src_w;//temp
+		unsigned int src_h; //temp
+	} c;
+};
+
+#define DIM_PRE_VPP_NUB		(0xf0)
+
+/* ds */
+struct dim_prevpp_ds_s {
+	/* que */
+	struct dimn_dvfm_s	lk_in_bf[DIM_LKIN_NUB];
+	//move struct vframe_s		vf_bf[DIM_LKIN_NUB];
+	/* que */
+	struct dimn_qs_cls_s		lk_que_idle;
+	struct dimn_qs_cls_s		lk_que_in;
+	struct dimn_qs_cls_s		lk_que_ready;
+	struct dimn_qs_cls_s		lk_que_recycle;
+	struct dimn_qs_cls_s		lk_que_kback;
+
+	unsigned int sum_que_idle;
+	unsigned int sum_que_in;
+	unsigned int sum_que_ready;
+	unsigned int sum_que_recycle;
+	unsigned int sum_que_kback;
+
+	struct div2_mm_s	mm;
+	unsigned char		cfg_cp[EDI_CFG_END];
+	unsigned char		cma_mode;
+	unsigned int cnt_parser; /* source change set to 0 */
+	unsigned int cnt_display;
+	enum EDPST_MODE		out_mode; //	EDPST_MODE_422_10BIT_PACK
+	bool	en_pst_wr_test; //use this for post write test only
+	bool	en_4k;	/* en 4k */
+	bool	en_out_afbce;
+	bool	out_afbce_nv2110;
+	bool	en_out_sctmem;
+	bool	en_hf_buf;	/* not support hf */
+	bool	en_dw;
+	bool	en_out_nv12;
+	bool	en_dbg_check_ud;
+	bool	en_dbg_check_vf;
+	unsigned char	en_dbg_off_nr;//bit 7: disable all; bit 0:disable nr
+	/* setting cfg */
+	bool	en_linear;
+	struct completion pw_done;//use this for post write test only
+	struct dim_dvpp_set_s set_cfg_cur;
+	struct dvfm_s out_dvfm_demo;
+	struct pvpp_dis_para_in_s	dis_para_demo;
+	struct pvpp_dis_para_in_s	dis_para_demo2; //from interface;
+	struct di_win_s out_win;
+	struct dim_type_smp_s in_last;
+//	unsigned long		addr_cmem;
+	struct dim_mm_blk_s	blk_buf;
+	struct di_dat_s		dat_p_afbct; /* */
+	unsigned int		dbuf_plan_nub;
+	unsigned int		dbuf_hsize;
+	struct canvas_config_s	dbuf_wr[DPVPP_BUF_NUB][2];
+	unsigned char		cvs[2][6]; /*0~1:input; 2~3:nr;4~5:mem */
+	unsigned char		cvs_last; //only one bit use
+	struct pvpp_dis_para_in_s	dis_last_para;
+	struct dimn_dvfm_s		*dis_last_dvf;
+	struct pvpp_dis_para_in_s	dis_c_para;
+//	union hw_sc2_ctr_pre_s pre_top_cfg;
+	struct DI_MIF_S mif_in;
+	struct DI_MIF_S mif_wr;
+	struct DI_MIF_S mif_mem;
+	struct dim_mifpara_s mifpara_in;
+	struct dim_mifpara_s mifpara_out;
+	struct dim_mifpara_s mifpara_mem;
+	const struct reg_acc *op;
+	bool is_inp_4k;
+	bool is_out_4k;
+	unsigned char intr_mode;
+	union afbc_blk_s	afbc_sgn_cfg;
+	union afbc_blk_s	afbc_en_cfg;
+	union afbc_blk_s	afbc_en_set;
+	union hw_sc2_ctr_pre_s	pre_top_cfg;
+	struct di_dbg_datax_s dbg_data;
+	unsigned int pre_done_nub;
+	unsigned int dbg_last_diff;
+};
+
+struct dimn_vfm_s {
+	/*receiver:*/
+	struct vframe_receiver_s di_vf_recv;
+	/*provider:*/
+	struct vframe_provider_s di_vf_prov;
+
+	/**/
+};
+
+struct dimn_itf_s;
+
+struct dimn_vfml_ops_s {
+	bool (*vf_m_in)(struct dimn_itf_s *itf);
+	void (*vf_m_2_ready)(struct dimn_itf_s *itf);
+	bool (*vf_m_bypass_first_frame)(struct dimn_itf_s *itf);
+	unsigned int (*vf_bypass_check_chg)(struct dimn_itf_s *itf,
+					    struct vframe_s *vfm);
+	void (*vf_put)(struct vframe_s *vf, struct dimn_itf_s *itf);
+	struct vframe_s *(*vf_get)(struct dimn_itf_s *itf);
+	struct vframe_s *(*vf_peek)(struct dimn_itf_s *itf);
+
+	bool (*unreg_trig)(struct dimn_itf_s *itf); //before unreg post
+	bool (*unreg_api)(struct dimn_itf_s *itf); //common
+	bool (*reg_pre_check)(struct dimn_itf_s *itf);//true means ok;
+	bool (*reg_api)(struct dimn_itf_s *itf); //common
+	bool (*reg_start)(struct dimn_itf_s *itf);
+	int (*et_ready)(struct dimn_itf_s *itf);
+	int (*et_states)(struct dimn_itf_s *itf,
+			struct vframe_states *states);
+	int (*et_reset)(struct dimn_itf_s *itf);
+};
+
+struct dimn_pvpp_ops_s {
+	bool (*reg)(void *para);
+	bool (*unreg)(void *para);
+	bool (*parser)(void *para);
+	//int (*display)(struct vframe_s *vfm,
+	//		  void *in_para, void *out_para);
+};
+
+struct dimn_pvpp_ops_api_s {
+	int (*display)(struct vframe_s *vfm,
+		       struct pvpp_dis_para_in_s *in_para,
+		       void *out_para);
+	int (*display_unreg_bypass)(void);
+	int (*check_vf)(struct vframe_s *vfm);
+	int (*check_di_act)(void);
+	int (*vpp_sw)(bool on);
+	int (*vpp_get)(struct vframe_s *vfm);
+	int (*vpp_put)(struct vframe_s *vfm);
+};
+
+struct dimn_ins_ops_s {
+};
+
+struct dimn_vfml_ext_s {
+	/* data */
+};
+
+struct dimn_ins_ext_s {
+};
+
+struct dimn_itf_s {
+	unsigned int ch;
+	atomic_t reg;
+	struct mutex lock_reg; /* for reg */
+//	struct mutex lock_dbg;
+	atomic_t regging_api; /* in api, set from start to end */
+	atomic_t reg_real;	/* after vpp_sw, used by di internal */
+	atomic_t unregging_api;
+	atomic_t unregging_back;
+	atomic_t link_on_byvpp;
+	atomic_t link_on_bydi;
+
+	struct completion reg_done; /* reg/unreg share */
+	enum EDIM_NIN_TYPE etype; /* set by reg_api */
+	unsigned int sum_reg_cnt; /* set in event */
+
+	unsigned int src_need;
+	unsigned int tmode; /* ex:EDIM_TMODE_2_PW_OUT */
+
+	/*status:*/
+	bool bypass_complete;
+	unsigned int bind_ch;
+	struct {
+		unsigned int src_state; /* ref to src_need */
+		unsigned int src_last;
+		/* 2021-09-09 */
+		unsigned int sum_pre_get;
+		unsigned int sum_pre_put;
+		unsigned int sum_pst_get;
+		unsigned int sum_pst_put;
+		unsigned int sum_parser;
+
+		//unsigned char flg_do; /*get, reg, unreg, reset */
+		bool reg_di; /* used for di local */
+		atomic_t link_sts;
+		bool is_tvp;
+		bool pause_parser;
+		bool pause_pst_get;
+		bool pause_pre_get; /* stop input get */
+		bool flg_block;
+		unsigned int bypass_reason;
+		atomic_t dbg_display_cnt; //use this to cnt display is called
+		atomic_t dbg_display_sts;
+		unsigned long jiff_display;
+		bool	has_notify_vpp;
+	} c;
+	struct di_init_parm nitf_parm;
+	struct dim_itf_ops_s opsi;
+	struct dim_itf_ops_s opso;
+
+	/* @ary_note: vfm only */
+	struct dev_vfram_t	dvfm;		/* for vfm prob fix */
+	struct dimn_vfml_ext_s	*ext_vfm;	/* struct dimn_vfml_ext_s */
+	struct dimn_ins_ext_s	*ext_ins;
+
+	const struct dimn_vfml_ops_s *ops_vfm;
+	struct dimn_ins_ops_s ops_ins;
+};
+
+/* */
+#define	DIM_WKUP_TAG_CRITICLE   DI_BIT31
+enum EDIM_WKUP_REASON {
+	EDIM_WKUP_REASON_IN_HAVE = 50,
+	EDIM_WKUP_REASON_BACK_BUF,
+	EDIM_WKUP_REASON_IN_L,
+	EDIM_WKUP_REASON_EXT_BUF_HAVE,
+
+};
+
+struct dim_dvs_prevpp_s {
+	bool allowed;	/* support vpp link */
+	bool insert;
+	bool en_polling; /* used for dbg crt */
+	struct dimn_itf_s	itf;
+	struct dim_prevpp_ds_s *ds;
+	struct vframe_s		vf_bf[DIM_LKIN_NUB]; //tmp
+	struct di_buffer	buf_bf[DIM_LKIN_NUB];//tmp
+	const struct dimn_pvpp_ops_s *ops;
+	const struct dimn_pvpp_ops_api_s *ops_api;
+	struct hrtimer hrtimer_wk;
+	atomic_t wk_need; /* only debug ?*/
+	atomic_t hr_timer_have;
+	ktime_t ktimer_lst_wk;
+	atomic_t sum_wk_rq;	/*debug: total cal wk */
+	atomic_t sum_wk_real_cnt; /*debug: real wk */
+	const struct vframe_operations_s *vf_ops;
 };
 
 struct di_data_l_s {
@@ -2195,6 +2604,7 @@ struct di_data_l_s {
 	const struct pulldown_op_s *ops_pd;	/* pulldown */
 	const struct detect3d_op_s *ops_3d;	/* detect_3d */
 	const struct nr_op_s *ops_nr;	/* nr */
+	const struct nr_opr_s *ops_nr_op;	/* nr for pre-vpp link */
 	const struct mtn_op_s *ops_mtn;	/* deinterlace_mtn */
 	const struct ext_ops_s	*ops_ext;
 	/*di ops for other module */
@@ -2207,6 +2617,12 @@ struct di_data_l_s {
 	unsigned int ic_sub_ver;
 	struct reg_t s4dw_reg[DIM_S4DW_REG_BACK_NUB];
 	void *mng_hf_buf;
+	struct dim_dvs_prevpp_s dvs_prevpp;
+	atomic_t	state_cnt_reg;
+	atomic_t	cnt_reg_pre_link;/* pre-vpp link cnt */
+	bool	pre_vpp_exist;	/* interface */
+	bool	pre_vpp_active; /* interface sw multi wr bypass contr */
+	bool	pre_vpp_set;	/* interface sw other multi wr */
 };
 
 /**************************************
@@ -2241,10 +2657,11 @@ struct di_data_l_s {
 #define DBG_M_NQ		DI_BIT20
 #define DBG_M_BPASS		DI_BIT21
 #define DBG_M_DCT		DI_BIT22
-#define DBG_M_PDCT		DI_BIT23 //pre dct
-#define DBG_M_PP		DI_BIT24
-#define DBG_M_HDR		DI_BIT25
-
+#define DBG_M_PP		DI_BIT23
+#define DBG_M_LINK		DI_BIT24
+#define DBG_M_TST		DI_BIT25
+#define DBG_M_PDCT		DI_BIT26 //pre dct
+#define DBG_M_HDR		DI_BIT27
 #define DBG_M_IC		DI_BIT28
 #define DBG_M_RESET_PRE		DI_BIT29
 extern unsigned int di_dbg;
@@ -2287,7 +2704,8 @@ extern unsigned int di_dbg;
 #define dbg_pp(fmt, args ...)		dbg_m(DBG_M_PP, fmt, ##args)
 #define dbg_dctp(fmt, args ...)		dbg_m(DBG_M_PDCT, fmt, ##args)
 #define dbg_hdr(fmt, args ...)		dbg_m(DBG_M_HDR, fmt, ##args)
-
+#define dbg_link(fmt, args ...)		dbg_m(DBG_M_LINK, fmt, ##args)
+#define dbg_tst(fmt, args ...)		dbg_m(DBG_M_TST, fmt, ##args)
 #define dbg_bypass(fmt, args ...)	dbg_m(DBG_M_BPASS, fmt, ##args)
 #define dbg_ic(fmt, args ...)		dbg_m(DBG_M_IC, fmt, ##args)
 char *di_cfgx_get_name(enum EDI_CFGX_IDX idx);
@@ -2725,6 +3143,11 @@ static inline const struct nr_op_s *get_ops_nr(void)
 	return get_datal()->ops_nr;
 }
 
+static inline const struct nr_opr_s *nr_op(void)
+{
+	return get_datal()->ops_nr_op;
+}
+
 static inline const struct mtn_op_s *get_ops_mtn(void)
 {
 	return get_datal()->ops_mtn;
@@ -2875,4 +3298,6 @@ static inline void p_ref_set_buf(struct di_buf_s *buf,
 				IC_SUPPORT_##cc ? true : false)
 #define DIM_IS_ICS(T5W)		(DIM_IS_IC(T3) && \
 				cfgg(SUB_V) == 1)
+
+#define IC_SUPPORT_PRE_VPP_LINK		DI_BIT3
 #endif	/*__DI_DATA_L_H__*/

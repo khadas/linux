@@ -1841,9 +1841,9 @@ static void s4dw_pre_set(unsigned int channel)
 		if (cfgg(LINEAR)) {
 			ppre->di_nrwr_mif.linear = 1;
 			ppre->di_nrwr_mif.addr =
-				ppre->dw_wr_dvfm.canvas0_config[0].phy_addr;
+				ppre->dw_wr_dvfm.vfs.canvas0_config[0].phy_addr;
 			ppre->di_nrwr_mif.addr1 =
-				ppre->dw_wr_dvfm.canvas0_config[1].phy_addr;
+				ppre->dw_wr_dvfm.vfs.canvas0_config[1].phy_addr;
 		}
 
 		dim_dvf_config_canvas(&ppre->dw_wr_dvfm);

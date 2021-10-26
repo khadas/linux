@@ -220,7 +220,8 @@ static bool mm_codec_alloc(const char *owner, size_t count,
 	return true;
 }
 
-static bool mm_cma_alloc(struct device *dev, size_t count,
+//static
+bool mm_cma_alloc(struct device *dev, size_t count,
 			 struct dim_mm_s *o)
 {
 	o->ppage = dma_alloc_from_contiguous(dev, count, 0, 0);
@@ -3680,6 +3681,7 @@ static const struct di_meson_data  data_sc2 = {
 static const struct di_meson_data  data_t5 = {
 	.name = "dim_t5",
 	.ic_id	= DI_IC_ID_T5,
+	.support = IC_SUPPORT_PRE_VPP_LINK
 };
 
 static const struct di_meson_data  data_t7 = {
@@ -3696,6 +3698,7 @@ static const struct di_meson_data  data_t5d_va = {
 static const struct di_meson_data  data_t5d_vb = {
 	.name = "dim_t5d_vb", //note: this is vb
 	.ic_id	= DI_IC_ID_T5DB,
+	.support = IC_SUPPORT_PRE_VPP_LINK
 };
 
 static const struct di_meson_data  data_s4 = {

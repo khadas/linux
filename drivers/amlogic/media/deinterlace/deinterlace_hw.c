@@ -547,7 +547,7 @@ void di_hw_init(bool pd_enable, bool mc_enable)
 	set_skip_ctrl_size_regs();
 	ma_di_init();
 	ei_hw_init();
-	nr_hw_init();
+	di_nr_opl()->nr_hw_init();
 	if (pd_enable)
 		init_field_mode(288);
 
@@ -574,7 +574,7 @@ void di_hw_init(bool pd_enable, bool mc_enable)
 void di_hw_uninit(void)
 {
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
-		nr_gate_control(false);
+		di_nr_opl()->nr_gate_control(false);
 }
 
 /*
@@ -3984,7 +3984,7 @@ void di_load_regs(struct di_pq_parm_s *di_pq_ptr)
 			continue;
 		}
 		if (table_name & nr_table)
-			ctrl_reg_flag = set_nr_ctrl_reg_table(addr, value);
+			ctrl_reg_flag = di_nr_opl()->set_nr_ctrl_reg_table(addr, value);
 		if (table_name & (TABLE_NAME_DI | TABLE_NAME_NR))
 			mov_flg = di_patch_mov_db(addr, value);
 		if (!ctrl_reg_flag && !mov_flg)
@@ -4159,11 +4159,29 @@ static unsigned int dim_reg_read(unsigned int addr)
 {
 	return aml_read_vcbus(addr);
 }
-static const struct reg_acc di_pre_regset = {
+
+unsigned int DI_WRB(unsigned int adr, unsigned int val,
+		unsigned int start, unsigned int len)
+{
+	if (is_need_stop_reg(adr))
+		return 0;
+
+	Wr_reg_bits(adr, val, start, len);
+	return 0;
+}
+
+unsigned int DI_RDB(unsigned int adr, unsigned int start,
+			      unsigned int len)
+{
+	return Rd_reg_bits(adr, start, len);
+}
+
+//static
+const struct reg_acc dio_pre_regset = {
 	.wr = DI_Wr,
 	.rd = dim_reg_read,
-	.bwr = RDMA_WR_BITS,
-	.brd = RDMA_RD_BITS,
+	.bwr = DI_WRB,
+	.brd = DI_RDB,
 };
 
 static bool di_wr_tab(const struct reg_acc *ops,
@@ -4202,7 +4220,7 @@ bool di_wr_cue_int(void)
 	unsigned int tabsize;
 
 	di_g_rtab_cue(&ptab, &tabsize);
-	di_wr_tab(&di_pre_regset,
+	di_wr_tab(&dio_pre_regset,
 		ptab,
 		tabsize);
 	di_pr_info("%s:finish\n", __func__);

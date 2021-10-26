@@ -742,7 +742,7 @@ static int seq_hf_info(struct seq_file *seq, void *v, struct hf_info_t *hf)
 	return 0;
 }
 
-static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
+int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 {
 	int i;
 	struct canvas_config_s *pcvs;
@@ -786,10 +786,16 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 		   pvfm->flag & VFRAME_FLAG_HF);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_DW",
 		   pvfm->flag & VFRAME_FLAG_DI_DW);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_BYPASS",
+		   (pvfm->flag & VFRAME_FLAG_DI_BYPASS) ? true : false);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VIDTYPE_PRE_INTERLACE",
+		   (pvfm->flag & VIDTYPE_PRE_INTERLACE) ? true : false);
+	seq_printf(seq, "%-15s:%d\n", "ins_id", pvfm->di_instance_id);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);
-	seq_printf(seq, "%-15s:0x%lx\n", "compHeadAddr", pvfm->compHeadAddr);
-	seq_printf(seq, "%-15s:0x%lx\n", "compBodyAddr", pvfm->compBodyAddr);
+
+	seq_printf(seq, "%-15s:0x%lx\n", "compHeadAddr", (unsigned long)pvfm->compHeadAddr);
+	seq_printf(seq, "%-15s:0x%lx\n", "compBodyAddr", (unsigned long)pvfm->compBodyAddr);
 	seq_printf(seq, "%-15s:%d\n", "plane_num", pvfm->plane_num);
 
 	seq_printf(seq, "%-15s:%d\n", "bufWidth", pvfm->bufWidth);
@@ -883,7 +889,7 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	seq_hf_info(seq, v, pvfm->hf_info);
 
 	if (pvfm->vf_ext)
-		seq_printf(seq, "%-15s\n", "vf_ext");
+		seq_printf(seq, "%-15s\n", "vf_ext:have");
 	else
 		seq_printf(seq, "%-15s\n", "vf_ext:none");
 	rpt = dim_api_getrpt(pvfm);
@@ -903,36 +909,193 @@ static int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	return 0;
 }
 
-//static
-int seq_file_dvfm(struct seq_file *seq, void *v, struct dvfm_s *pvfm)
+int print_vframe(struct vframe_s *pvfm)
+{
+	int i;
+	struct canvas_config_s *pcvs;
+	struct dim_rpt_s *rpt;
+
+	if (!pvfm) {
+		PR_INF("war: dump vframe NULL\n");
+		return 0;
+	}
+	PR_INF("%-15s:0x%px\n", "addr", pvfm);
+	PR_INF("%-15s:%d\n", "index", pvfm->index);
+	PR_INF("%-15s:%d\n", "index_disp", pvfm->index_disp);
+	PR_INF("%-15s:%d\n", "omx_index", pvfm->omx_index);
+	PR_INF("%-15s:0x%x\n", "type", pvfm->type);
+	PR_INF("%-15s:0x%x\n", "type_backup", pvfm->type_backup);
+	PR_INF("%-15s:0x%x\n", "type_original", pvfm->type_original);
+	PR_INF("%-15s:%d\n", "blend_mode", pvfm->blend_mode);
+	PR_INF("%-15s:%d\n", "duration",  pvfm->duration);
+	PR_INF("%-15s:%d\n", "duration_pull", pvfm->duration_pulldown);
+	PR_INF("%-15s:%d\n", "pts", pvfm->pts);
+
+	PR_INF("%-15s:%lld\n", "pts_us64", pvfm->pts_us64);
+	PR_INF("%-15s:%d\n", "next_vf_pts_valid",
+		   pvfm->next_vf_pts_valid);
+	PR_INF("%-15s:%d\n", "next_vf_pts", pvfm->next_vf_pts);
+	PR_INF("%-15s:%d\n", "disp_pts", pvfm->disp_pts);
+	PR_INF("%-15s:%lld\n", "disp_pts_us64", pvfm->disp_pts_us64);
+	PR_INF("%-15s:%lld\n", "timestamp", pvfm->timestamp);
+	PR_INF("%-15s:0x%x\n", "flag", pvfm->flag);
+	PR_INF("\t%-15s:%d\n", "flag:VFRAME_FLAG_DOUBLE_FRAM",
+		   pvfm->flag & VFRAME_FLAG_DOUBLE_FRAM);
+	PR_INF("\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_P_ONLY",
+		   pvfm->flag & VFRAME_FLAG_DI_P_ONLY);
+	PR_INF("\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_VFM",
+		   pvfm->flag & VFRAME_FLAG_DI_PW_VFM);
+	PR_INF("\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_N_LOCAL",
+		   pvfm->flag & VFRAME_FLAG_DI_PW_N_LOCAL);
+	PR_INF("\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_N_EXT",
+		   pvfm->flag & VFRAME_FLAG_DI_PW_N_EXT);
+	PR_INF("\t%-15s:%d\n", "flag:VFRAME_FLAG_HF",
+		   pvfm->flag & VFRAME_FLAG_HF);
+	PR_INF("\t%-15s:%d\n", "flag:VIDTYPE_PRE_INTERLACE",
+		   (pvfm->flag & VIDTYPE_PRE_INTERLACE) ? true : false);
+	PR_INF("%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
+	PR_INF("%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);
+	PR_INF("%-15s:0x%lx\n", "compHeadAddr", pvfm->compHeadAddr);
+	PR_INF("%-15s:0x%lx\n", "compBodyAddr", pvfm->compBodyAddr);
+	PR_INF("%-15s:%d\n", "plane_num", pvfm->plane_num);
+
+	PR_INF("%-15s:%d\n", "bufWidth", pvfm->bufWidth);
+	PR_INF("%-15s:%d\n", "width", pvfm->width);
+	PR_INF("%-15s:%d\n", "height", pvfm->height);
+	PR_INF("%-15s:%d\n", "compWidth", pvfm->compWidth);
+	PR_INF("%-15s:%d\n", "compHeight", pvfm->compHeight);
+	PR_INF("%-15s:%d\n", "ratio_control", pvfm->ratio_control);
+	PR_INF("%-15s:0x%x\n", "bitdepth", pvfm->bitdepth);
+	PR_INF("%-15s:0x%x\n", "signal_type", pvfm->signal_type);
+
+	/*
+	 *	   bit 29: present_flag
+	 *	   bit 28-26: video_format
+	 *	   "component", "PAL", "NTSC", "SECAM",
+	 *	   "MAC", "unspecified"
+	 *	   bit 25: range "limited", "full_range"
+	 *	   bit 24: color_description_present_flag
+	 *	   bit 23-16: color_primaries
+	 *	   "unknown", "bt709", "undef", "bt601",
+	 *	   "bt470m", "bt470bg", "smpte170m", "smpte240m",
+	 *	   "film", "bt2020"
+	 *	   bit 15-8: transfer_characteristic
+	 *	   "unknown", "bt709", "undef", "bt601",
+	 *	   "bt470m", "bt470bg", "smpte170m", "smpte240m",
+	 *	   "linear", "log100", "log316", "iec61966-2-4",
+	 *	   "bt1361e", "iec61966-2-1", "bt2020-10", "bt2020-12",
+	 *	   "smpte-st-2084", "smpte-st-428"
+	 *	   bit 7-0: matrix_coefficient
+	 *	   "GBR", "bt709", "undef", "bt601",
+	 *	   "fcc", "bt470bg", "smpte170m", "smpte240m",
+	 *	   "YCgCo", "bt2020nc", "bt2020c"
+	 */
+	PR_INF("%-15s:0x%x\n", "orientation", pvfm->orientation);
+	PR_INF("%-15s:0x%x\n", "video_angle", pvfm->video_angle);
+	PR_INF("%-15s:0x%x\n", "source_type", pvfm->source_type);
+
+	PR_INF("%-15s:0x%x\n", "phase", pvfm->phase);
+	PR_INF("%-15s:0x%x\n", "source_mode", pvfm->source_mode);
+	PR_INF("%-15s:0x%x\n", "sig_fmt", pvfm->sig_fmt);
+	PR_INF("%-15s:0x%x\n", "trans_fmt", pvfm->trans_fmt);
+
+	PR_INF("%-15s:0x%x\n", "mode_3d_enable",
+		   pvfm->mode_3d_enable);
+
+	PR_INF("%-15s:0x%p\n", "early_process_fun",
+		   pvfm->early_process_fun);
+	PR_INF("%-15s:0x%p\n", "process_fun",
+		   pvfm->process_fun);
+	PR_INF("%-15s:0x%p\n", "private_data",
+		   pvfm->private_data);
+
+	/* vframe properties */
+
+	/* pixel aspect ratio */
+	PR_INF("%-15s:%d\n", "pixel_ratio", pvfm->pixel_ratio);
+
+	/* ready from decode on  jiffies_64 */
+	PR_INF("%-15s:%d\n", "use_cnt", atomic_read(&pvfm->use_cnt));
+	PR_INF("%-15s:%d\n", "frame_dirty", pvfm->frame_dirty);
+	/*
+	 *prog_proc_config:
+	 *1: process p from decoder as filed
+	 *0: process p from decoder as frame
+	 */
+	PR_INF("%-15s:0x%x\n", "prog_proc_config",
+		   pvfm->prog_proc_config);
+		/* used for indicate current video is motion or static */
+	PR_INF("%-15s:%d\n", "combing_cur_lev",
+		   pvfm->combing_cur_lev);
+	for (i = 0; i < pvfm->plane_num; i++) {
+		pcvs = &pvfm->canvas0_config[i];
+		PR_INF("%-15s:%d\n", "canvas0_cfg", i);
+	#ifdef CVS_UINT
+		PR_INF("\t%-15s:0x%x\n", "phy_addr",
+			   pcvs->phy_addr);
+	#else
+		PR_INF("\t%-15s:0x%lx\n", "phy_addr",
+			   pcvs->phy_addr);
+	#endif
+		PR_INF("\t%-15s:%d\n", "width",
+			   pcvs->width);
+		PR_INF("\t%-15s:%d\n", "height",
+			   pcvs->height);
+		PR_INF("\t%-15s:%d\n", "block_mode",
+			   pcvs->block_mode);
+		PR_INF("\t%-15s:0x%x\n", "endian",
+			   pcvs->endian);
+	}
+	if (pvfm->hf_info)
+		dim_print_hf(pvfm->hf_info);
+	else
+		PR_INF("%-15s\n", "hf_info:none");
+
+	if (pvfm->vf_ext)
+		PR_INF("%-15s\n", "vf_ext");
+	else
+		PR_INF("%-15s\n", "vf_ext:none");
+	rpt = dim_api_getrpt(pvfm);
+	if (rpt) {
+		if (rpt->spt_bits) {
+			PR_INF("bits[0x%x], map0[0x%x,0x%x,0x%x,0x%x,0x%x,bld2[0x%x]\n",
+				   rpt->spt_bits,
+				   rpt->dct_map_0,
+				   rpt->dct_map_1,
+				   rpt->dct_map_2,
+				   rpt->dct_map_3,
+				   rpt->dct_map_15,
+				   rpt->dct_bld_2);
+		}
+	}
+
+	return 0;
+}
+
+int vf_sub_seq_file(struct seq_file *seq, struct dsub_vf_s *pvfs)
 {
 	int i;
 	struct canvas_config_s *pcvs;
 
-	if (!pvfm) {
-		seq_puts(seq, "war: dump dvfm NULL\n");
-		return 0;
-	}
-	seq_printf(seq, "%-15s:0x%p\n", "addr", pvfm);
-	seq_printf(seq, "%-15s:0x%x\n", "type", pvfm->type);
-	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
-	seq_printf(seq, "%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);
-	seq_printf(seq, "%-15s:0x%x\n", "compHeadAddr", pvfm->compHeadAddr);
-	seq_printf(seq, "%-15s:0x%x\n", "compBodyAddr", pvfm->compBodyAddr);
-	seq_printf(seq, "%-15s:%d\n", "plane_num", pvfm->plane_num);
-	seq_printf(seq, "%-15s:%d\n", "width", pvfm->width);
-	seq_printf(seq, "%-15s:%d\n", "height", pvfm->height);
-	seq_printf(seq, "%-15s:%d\n", "bitdepth", pvfm->bitdepth);
-	for (i = 0; i < pvfm->plane_num; i++) {
-		pcvs = &pvfm->canvas0_config[i];
+	seq_printf(seq, "%-15s:0x%x\n", "type", pvfs->type);
+	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pvfs->canvas0Addr);
+	seq_printf(seq, "%-15s:0x%x\n", "canvas1Addr", pvfs->canvas1Addr);
+	seq_printf(seq, "%-15s:0x%lx\n", "compHeadAddr", pvfs->compHeadAddr);
+	seq_printf(seq, "%-15s:0x%lx\n", "compBodyAddr", pvfs->compBodyAddr);
+	seq_printf(seq, "%-15s:%d\n", "plane_num", pvfs->plane_num);
+	seq_printf(seq, "%-15s:%d\n", "width", pvfs->width);
+	seq_printf(seq, "%-15s:%d\n", "height", pvfs->height);
+	seq_printf(seq, "%-15s:%d\n", "bitdepth", pvfs->bitdepth);
+	for (i = 0; i < pvfs->plane_num; i++) {
+		pcvs = &pvfs->canvas0_config[i];
 		seq_printf(seq, "%-15s:%d\n", "canvas0_cfg", i);
-	#ifdef CVS_UINT
+#ifdef CVS_UINT
 		seq_printf(seq, "\t%-15s:0x%x\n", "phy_addr",
 			   pcvs->phy_addr);
-	#else
+#else
 		seq_printf(seq, "\t%-15s:0x%lx\n", "phy_addr",
 			   pcvs->phy_addr);
-	#endif
+#endif
 		seq_printf(seq, "\t%-15s:%d\n", "width",
 			   pcvs->width);
 		seq_printf(seq, "\t%-15s:%d\n", "height",
@@ -942,6 +1105,20 @@ int seq_file_dvfm(struct seq_file *seq, void *v, struct dvfm_s *pvfm)
 		seq_printf(seq, "\t%-15s:0x%x\n", "endian",
 			   pcvs->endian);
 	}
+	return 0;
+}
+
+//static
+int seq_file_dvfm(struct seq_file *seq, void *v, struct dvfm_s *pvfm)
+{
+	int i;
+
+	if (!pvfm) {
+		seq_puts(seq, "war: dump dvfm NULL\n");
+		return 0;
+	}
+	seq_printf(seq, "%-15s:0x%p\n", "addr", pvfm);
+	vf_sub_seq_file(seq, &pvfm->vfs);
 	seq_printf(seq, "%-15s:%d\n", "nub_in_frm", pvfm->nub_in_frm);
 	seq_printf(seq, "%-15s:0x%x\n", "vfm_type_in", pvfm->vfm_type_in);
 	seq_printf(seq, "%-15s:0x%x\n", "sts_di", pvfm->sts_di);
@@ -951,30 +1128,32 @@ int seq_file_dvfm(struct seq_file *seq, void *v, struct dvfm_s *pvfm)
 
 	seq_printf(seq, "\t%-15s:%d\n", "buf_hsize", pvfm->buf_hsize);
 	seq_printf(seq, "\t%-15s:%d\n", "is_dw", pvfm->is_dw);
+	seq_printf(seq, "\t%-15s:%d\n", "is_prvpp_link", pvfm->is_prvpp_link);
+	seq_printf(seq, "\t%-15s:%d\n", "is_p_pw", pvfm->is_p_pw);
+	seq_printf(seq, "\t%-15s:%d\n", "is_itf_vfm", pvfm->is_itf_vfm);
+	seq_printf(seq, "\t%-15s:%d\n", "is_itf_ins_local", pvfm->is_itf_ins_local);
+	seq_printf(seq, "\t%-15s:%d,%d\n", "src", pvfm->src_w, pvfm->src_h);
 	return 0;
 }
 
-void print_dvfm(struct dvfm_s *pvfm, char *name)
+void vfs_print(struct dsub_vf_s *pvfs, char *name)
 {
 	int i;
 	struct canvas_config_s *pcvs;
 
-	if (!pvfm) {
-		PR_INF("war: dump dvfm NULL\n");
-		return;
-	}
-	PR_INF("%s:%-15s:0x%p-------------\n", name, "addr", pvfm);
-	PR_INF("\t%-15s:0x%x\n", "type", pvfm->type);
-	PR_INF("\t%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
-	PR_INF("\t%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);
-	PR_INF("\t%-15s:0x%x\n", "compHeadAddr", pvfm->compHeadAddr);
-	PR_INF("\t%-15s:0x%x\n", "compBodyAddr", pvfm->compBodyAddr);
-	PR_INF("\t%-15s:%d\n", "plane_num", pvfm->plane_num);
-	PR_INF("\t%-15s:%d\n", "width", pvfm->width);
-	PR_INF("\t%-15s:%d\n", "height", pvfm->height);
-	PR_INF("\t%-15s:0x%x\n", "bitdepth", pvfm->bitdepth);
-	for (i = 0; i < pvfm->plane_num; i++) {
-		pcvs = &pvfm->canvas0_config[i];
+	if (name)
+		PR_INF("\t%-15s:%s\n", "name", name);
+	PR_INF("\t%-15s:0x%x\n", "type", pvfs->type);
+	PR_INF("\t%-15s:0x%x\n", "canvas0Addr", pvfs->canvas0Addr);
+	PR_INF("\t%-15s:0x%x\n", "canvas1Addr", pvfs->canvas1Addr);
+	PR_INF("\t%-15s:0x%lx\n", "compHeadAddr", pvfs->compHeadAddr);
+	PR_INF("\t%-15s:0x%lx\n", "compBodyAddr", pvfs->compBodyAddr);
+	PR_INF("\t%-15s:%d\n", "plane_num", pvfs->plane_num);
+	PR_INF("\t%-15s:%d\n", "width", pvfs->width);
+	PR_INF("\t%-15s:%d\n", "height", pvfs->height);
+	PR_INF("\t%-15s:0x%x\n", "bitdepth", pvfs->bitdepth);
+	for (i = 0; i < pvfs->plane_num; i++) {
+		pcvs = &pvfs->canvas0_config[i];
 		PR_INF("\t%-15s:%d\n", "canvas0_cfg", i);
 	#ifdef CVS_UINT
 		PR_INF("\t\t%-15s:0x%x\n", "phy_addr",
@@ -992,6 +1171,19 @@ void print_dvfm(struct dvfm_s *pvfm, char *name)
 		PR_INF("\t\t%-15s:0x%x\n", "endian",
 			   pcvs->endian);
 	}
+}
+
+void print_dvfm(struct dvfm_s *pvfm, char *name)
+{
+	int i;
+
+	if (!pvfm) {
+		PR_INF("war: dump dvfm NULL\n");
+		return;
+	}
+	PR_INF("%s:%-15s:0x%p-------------\n", name, "addr", pvfm);
+
+	vfs_print(&pvfm->vfs, NULL);
 	PR_INF("\t%-15s:%d\n", "nub_in_frm", pvfm->nub_in_frm);
 	PR_INF("\t%-15s:0x%x\n", "vfm_type_in", pvfm->vfm_type_in);
 	PR_INF("\t%-15s:0x%x\n", "sts_di", pvfm->sts_di);
@@ -1001,6 +1193,53 @@ void print_dvfm(struct dvfm_s *pvfm, char *name)
 
 	PR_INF("\t%-15s:%d\n", "buf_hsize", pvfm->buf_hsize);
 	PR_INF("\t%-15s:%d\n", "is_dw", pvfm->is_dw);
+	PR_INF("\t%-15s:%d\n", "is_prvpp_link", pvfm->is_prvpp_link);
+	PR_INF("\t%-15s:%d\n", "is_p_pw", pvfm->is_p_pw);
+	PR_INF("\t%-15s:%d\n", "is_itf_vfm", pvfm->is_itf_vfm);
+	PR_INF("\t%-15s:%d\n", "is_itf_ins_local", pvfm->is_itf_ins_local);
+}
+
+void print_mif(struct DI_MIF_S *mif, char *name)
+{
+	PR_INF("%s:------------------------\n", name);
+	PR_INF("\tluma <%u, %u> <%u %u>.\n",
+		   mif->luma_x_start0, mif->luma_x_end0,
+		   mif->luma_y_start0, mif->luma_y_end0);
+	PR_INF("\tchroma <%u, %u> <%u %u>.\n",
+		   mif->chroma_x_start0, mif->chroma_x_end0,
+		   mif->chroma_y_start0, mif->chroma_y_end0);
+	PR_INF("\tcanvas id <%u %u %u>.\n",
+		   mif->canvas0_addr0,
+		   mif->canvas0_addr1,
+		   mif->canvas0_addr2);
+	PR_INF("\tbit_mode [%u] set_separate_en[%u] hold_line[%u]\n",
+		   mif->bit_mode,
+		   mif->set_separate_en,
+		   mif->hold_line);
+	PR_INF("\tvideo_mode [%u] src_prog[%u]\n",
+		   mif->video_mode,
+		   mif->src_prog);
+	PR_INF("\tsrc_field_mode [%u] output_field_num[%u]\n",
+		   mif->src_field_mode,
+		   mif->output_field_num);
+	PR_INF("\tl_endian [%d] cbcr_swap[%d] reg_swap[%d]\n",
+		   mif->l_endian,
+		   mif->cbcr_swap,
+		   mif->reg_swap);
+	PR_INF("\tlinear <%u>.per_bits <%u>\n",
+		mif->linear, mif->buf_hsize);
+}
+
+void print_mif_simple(struct DI_SIM_MIF_S *simp_mif, char *name)
+{
+	PR_INF("%s:------------------------\n", name);
+	PR_INF("\t<%u %u> <%u %u>.\n",
+		simp_mif->start_x, simp_mif->end_x,
+		simp_mif->start_y, simp_mif->end_y);
+	PR_INF("\tcanvas num <%u>.\n",
+		simp_mif->canvas_num);
+	PR_INF("\tlinear <%u>.per_bits <%u>\n",
+		simp_mif->linear, simp_mif->per_bits);
 }
 
 /**********************/
