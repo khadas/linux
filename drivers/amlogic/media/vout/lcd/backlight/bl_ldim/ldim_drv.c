@@ -738,25 +738,28 @@ static void ldim_off_vs_brightness(void)
 	local_time[0] = sched_clock();
 
 	size = ldim_driver.conf->seg_row * ldim_driver.conf->seg_col;
+	if (ldim_driver.test_bl_en) {
+		memcpy(ldim_driver.bl_matrix_cur, ldim_driver.test_matrix,
+			(size * sizeof(unsigned int)));
+	} else {
+		for (i = 0; i < size; i++)
+			ldim_driver.bl_matrix_cur[i] = ldim_driver.litgain;
+	}
 
 	if (ldim_driver.level_update) {
 		ldim_driver.level_update = 0;
-		if (ldim_driver.test_bl_en) {
-			memcpy(ldim_driver.bl_matrix_cur, ldim_driver.test_matrix,
-			       (size * sizeof(unsigned int)));
-		} else {
-			if (ldim_debug_print)
-				LDIMPR("%s: level update: 0x%x\n", __func__, ldim_driver.litgain);
-			for (i = 0; i < size; i++) {
-				ldim_driver.bl_matrix_cur[i] =
-					ldim_driver.litgain;
-			}
-		}
-
-		update_flag = memcmp(ldim_driver.bl_matrix_cur, ldim_driver.bl_matrix_pre,
-				     (size * sizeof(unsigned int)));
+		update_flag = 1;
+	} else {
+		update_flag = memcmp(ldim_driver.bl_matrix_cur,
+				ldim_driver.bl_matrix_pre,
+				(size * sizeof(unsigned int)));
 	}
-
+	if (ldim_debug_print && update_flag) {
+		if (ldim_driver.test_bl_en)
+			LDIMPR("%s: test_matrix update\n", __func__);
+		else
+			LDIMPR("%s: level update: 0x%x\n", __func__, ldim_driver.litgain);
+	}
 	ldim_dev_smr(update_flag, size);
 
 	local_time[1] = sched_clock();
