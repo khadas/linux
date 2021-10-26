@@ -104,6 +104,7 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 #include <linux/amlogic/media/di/di.h>
+#include <linux/amlogic/media/di/di_interface.h>
 #endif
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 #include <linux/amlogic/pm.h>
@@ -4198,7 +4199,7 @@ int dvel_swap_frame(struct vframe_s *vf)
 			dvel_changed = true;
 		ret = set_layer_display_canvas
 			(layer, vf, layer->cur_frame_par,
-			layer_info);
+			layer_info, __LINE__);
 		dvel_status = true;
 	} else if (dvel_status) {
 		dvel_changed = true;
@@ -6063,6 +6064,48 @@ s32 primary_render_frame(struct video_layer_s *layer)
 		dispbuf = layer->vf_ext;
 	else
 		dispbuf = layer->dispbuf;
+
+#ifdef ENABLE_PRE_LINK
+	if (is_pre_link_on(layer, dispbuf) &&
+	    dispbuf && !is_local_vf(dispbuf)) {
+		int iret;
+		struct pvpp_dis_para_in_s di_in_p;
+
+		if (layer->prelink_skip_cnt == 0) {
+			memset(&di_in_p, 0, sizeof(struct pvpp_dis_para_in_s));
+			di_in_p.win.x_st = layer->cur_frame_par->VPP_hd_start_lines_;
+			di_in_p.win.x_end = layer->cur_frame_par->VPP_hd_end_lines_;
+			di_in_p.win.y_st = layer->cur_frame_par->VPP_vd_start_lines_;
+			di_in_p.win.y_end = layer->cur_frame_par->VPP_vd_end_lines_;
+			di_in_p.win.x_size = di_in_p.win.x_end - di_in_p.win.x_st + 1;
+			di_in_p.win.y_size = di_in_p.win.y_end - di_in_p.win.y_st + 1;
+			di_in_p.dmode = EPVPP_DISPLAY_MODE_NR;
+			di_in_p.unreg_bypass = 0;
+			iret = pvpp_display(dispbuf, &di_in_p, NULL);
+			if (layer->global_debug & DEBUG_FLAG_PRELINK_MORE)
+				pr_info("do di callback iret:%d\n", iret);
+		} else {
+			layer->prelink_skip_cnt--;
+		}
+	} else if (is_pre_link_on(layer, dispbuf) &&
+			layer->need_disable_prelink && !dispbuf) {
+		int iret;
+		struct pvpp_dis_para_in_s di_in_p;
+
+		/* no keep buffer after unreg case */
+		memset(&di_in_p, 0, sizeof(struct pvpp_dis_para_in_s));
+		di_in_p.dmode = EPVPP_DISPLAY_MODE_BYPASS;
+		di_in_p.unreg_bypass = 1;
+		iret = pvpp_display(NULL, &di_in_p, NULL);
+		if (layer->global_debug & DEBUG_FLAG_PRELINK)
+			pr_info("%s: unreg_bypass pre-link mode ret %d\n", __func__, iret);
+		layer->pre_link_en = false;
+		layer->prelink_skip_cnt = 0;
+		iret = pvpp_sw(false);
+		if (layer->global_debug & DEBUG_FLAG_PRELINK)
+			pr_info("%s: Disable pre-link mode ret %d\n", __func__, iret);
+	}
+#endif
 
 	/* process cur frame for each vsync */
 	if (dispbuf) {
@@ -8361,7 +8404,8 @@ SET_FILTER:
 	    is_local_vf(vd_layer[0].dispbuf)) {
 		if (cur_blackout) {
 			vd_layer[0].property_changed = false;
-		} else if (!is_di_post_mode(vd_layer[0].dispbuf)) {
+		} else if (!is_di_post_mode(vd_layer[0].dispbuf) &&
+				!is_pre_link_on(&vd_layer[0], vd_layer[0].dispbuf)) {
 			if (vd_layer[0].switch_vf && vd_layer[0].vf_ext)
 				vd_layer[0].vf_ext->canvas0Addr =
 					get_layer_display_canvas(0);
@@ -9562,8 +9606,21 @@ static void video_vf_unreg_provider(void)
 			vf_local_ext = *tmp;
 			vf_local = *cur_dispbuf;
 			vf_local.vf_ext = (void *)&vf_local_ext;
+		} else if (cur_dispbuf->vf_ext &&
+			is_pre_link_source(cur_dispbuf)) {
+			struct vframe_s *tmp =
+				(struct vframe_s *)cur_dispbuf->vf_ext;
+
+			if (debug_flag & DEBUG_FLAG_PRELINK)
+				pr_info("video_unreg: prelink: cur_dispbuf:%p, vf->ext:%p, flag:%x\n",
+					cur_dispbuf, cur_dispbuf->vf_ext, cur_dispbuf->flag);
+			memcpy(&tmp->pic_mode, &cur_dispbuf->pic_mode,
+				sizeof(struct vframe_pic_mode_s));
+			vf_local = *tmp;
+			vf_local.vf_ext = NULL;
 		} else {
 			vf_local = *cur_dispbuf;
+			vf_local.vf_ext = NULL;
 		}
 		cur_dispbuf = &vf_local;
 		cur_dispbuf->video_angle = 0;
@@ -9772,8 +9829,21 @@ static void video_vf_light_unreg_provider(int need_keep_frame)
 			vf_local_ext = *tmp;
 			vf_local = *cur_dispbuf;
 			vf_local.vf_ext = (void *)&vf_local_ext;
+		} else if (cur_dispbuf->vf_ext &&
+			is_pre_link_source(cur_dispbuf)) {
+			struct vframe_s *tmp =
+				(struct vframe_s *)cur_dispbuf->vf_ext;
+
+			if (debug_flag & DEBUG_FLAG_PRELINK)
+				pr_info("video_light_unreg: prelink: cur_dispbuf:%p, vf->ext:%p, flag:%x\n",
+					cur_dispbuf, cur_dispbuf->vf_ext, cur_dispbuf->flag);
+			memcpy(&tmp->pic_mode, &cur_dispbuf->pic_mode,
+				sizeof(struct vframe_pic_mode_s));
+			vf_local = *tmp;
+			vf_local.vf_ext = NULL;
 		} else {
 			vf_local = *cur_dispbuf;
+			vf_local.vf_ext = NULL;
 		}
 		cur_dispbuf = &vf_local;
 	}
@@ -10539,6 +10609,36 @@ void di_unreg_notify(void)
 	msleep(sleep_time);
 }
 EXPORT_SYMBOL(di_unreg_notify);
+
+void di_disable_prelink_notify(bool async)
+{
+	u32 sleep_time = 40;
+
+	while (atomic_read(&video_inirq_flag) > 0)
+		schedule();
+
+	vd_layer[0].need_disable_prelink = true;
+	vd_layer[0].property_changed = true;
+
+	if (vinfo && !async) {
+		sleep_time = vinfo->sync_duration_den * 1000;
+		if (vinfo->sync_duration_num) {
+			sleep_time /= vinfo->sync_duration_num;
+			/* need two vsync */
+			sleep_time = (sleep_time + 1) * 2;
+		} else {
+			sleep_time = 40;
+		}
+	}
+	msleep(sleep_time);
+}
+EXPORT_SYMBOL(di_disable_prelink_notify);
+
+void di_prelink_state_changed_notify(void)
+{
+	vd_layer[0].property_changed = true;
+}
+EXPORT_SYMBOL(di_prelink_state_changed_notify);
 
 /*********************************************************
  * Vframe src fmt API
@@ -11651,17 +11751,8 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		}
 		break;
 
-	case AMSTREAM_IOC_CLEAR_VBUF:{
-			unsigned long flags;
-
-			while (atomic_read(&video_inirq_flag) > 0 ||
-			       atomic_read(&video_unreg_flag) > 0)
-				schedule();
-			spin_lock_irqsave(&lock, flags);
-			if (cur_dispbuf != &vf_local)
-				cur_dispbuf = NULL;
-			spin_unlock_irqrestore(&lock, flags);
-		}
+	case AMSTREAM_IOC_CLEAR_VBUF:
+		pr_info("Invalid cmd now, skip clear vbuf\n");
 		break;
 
 	case AMSTREAM_IOC_CLEAR_VIDEO:
@@ -11669,34 +11760,18 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 			safe_switch_videolayer(0, false, false);
 		break;
 
-	case AMSTREAM_IOC_CLEAR_PIP_VBUF:{
-			unsigned long flags;
-
-			while (atomic_read(&video_inirq_flag) > 0 ||
-			       atomic_read(&video_unreg_flag) > 0)
-				schedule();
-			spin_lock_irqsave(&lock, flags);
-			if (cur_pipbuf != &local_pip)
-				cur_pipbuf = NULL;
-			spin_unlock_irqrestore(&lock, flags);
-		}
-		break;
-	case AMSTREAM_IOC_CLEAR_PIP2_VBUF:{
-			unsigned long flags;
-
-			while (atomic_read(&video_inirq_flag) > 0 ||
-			       atomic_read(&video_unreg_flag) > 0)
-				schedule();
-			spin_lock_irqsave(&lock, flags);
-			if (cur_pipbuf2 != &local_pip2)
-				cur_pipbuf2 = NULL;
-			spin_unlock_irqrestore(&lock, flags);
-		}
+	case AMSTREAM_IOC_CLEAR_PIP_VBUF:
+		pr_info("Invalid cmd now, skip clear pip vbuf\n");
 		break;
 
 	case AMSTREAM_IOC_CLEAR_VIDEOPIP:
 		safe_switch_videolayer(1, false, false);
 		break;
+
+	case AMSTREAM_IOC_CLEAR_PIP2_VBUF:
+		pr_info("Invalid cmd now, skip clear pip2 vbuf\n");
+		break;
+
 	case AMSTREAM_IOC_CLEAR_VIDEOPIP2:
 		safe_switch_videolayer(2, false, false);
 		break;

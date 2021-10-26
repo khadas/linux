@@ -23,6 +23,10 @@
 #include "video_reg.h"
 #include <linux/amlogic/media/amvecm/amvecm.h>
 
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+#define ENABLE_PRE_LINK
+#endif
+
 #define VIDEO_ENABLE_STATE_IDLE       0
 #define VIDEO_ENABLE_STATE_ON_REQ     1
 #define VIDEO_ENABLE_STATE_ON_PENDING 2
@@ -39,6 +43,9 @@
 #define DEBUG_FLAG_BLACKOUT     0x200
 #define DEBUG_FLAG_NO_CLIP_SETTING     0x400
 #define DEBUG_FLAG_VPP_GET_BUFFER_TIME     0x800
+#define DEBUG_FLAG_PRINT_FRAME_DETAIL     0x1000
+#define DEBUG_FLAG_PRELINK			0x2000
+#define DEBUG_FLAG_PRELINK_MORE     0x4000
 #define DEBUG_FLAG_TOGGLE_SKIP_KEEP_CURRENT  0x10000
 #define DEBUG_FLAG_TOGGLE_FRAME_PER_VSYNC    0x20000
 #define DEBUG_FLAG_RDMA_WAIT_1		     0x40000
@@ -453,6 +460,9 @@ struct video_layer_s {
 	u32 src_height;
 	bool alpha_win_en;
 	struct pip_alpha_scpxn_s alpha_win;
+	bool pre_link_en;
+	bool need_disable_prelink;
+	u8 prelink_skip_cnt;
 };
 
 enum {
@@ -645,7 +655,7 @@ int get_layer_display_canvas(u8 layer_id);
 int set_layer_display_canvas(struct video_layer_s *layer,
 			     struct vframe_s *vf,
 			     struct vpp_frame_par_s *cur_frame_par,
-			     struct disp_info_s *disp_info);
+			     struct disp_info_s *disp_info, u32 line);
 u32 *get_canvase_tbl(u8 layer_id);
 s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     bool force_toggle,
@@ -804,6 +814,11 @@ void amvecm_process(struct path_id_s *path_id, struct video_recv_s *p_gvideo_rec
 #endif
 
 u32 get_force_skip_cnt(enum vd_path_e path);
+bool is_pre_link_source(struct vframe_s *vf);
+bool is_pre_link_on(struct video_layer_s *layer, struct vframe_s *vf);
+#ifdef ENABLE_PRE_LINK
+bool is_pre_link_available(struct vframe_s *vf);
+#endif
 
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 enum avevent_e {
