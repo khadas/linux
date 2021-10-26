@@ -4833,13 +4833,17 @@ static void re_build_buf(struct di_ch_s *pch, enum EDI_SGN sgn)
 		}
 
 		/* post */
-		if (mm->cfg.pbuf_flg.b.typ == EDIM_BLK_TYP_PSCT)
-			sct_sw_on(pch,
-				mm->cfg.num_post,
-				mm->cfg.pbuf_flg.b.tvp,
-				mm->cfg.pst_buf_size);
-		else
+		if (mm->cfg.pbuf_flg.b.typ == EDIM_BLK_TYP_PSCT) {
+			if (mm->cfg.num_post)
+				sct_sw_on(pch,
+					mm->cfg.num_post,
+					mm->cfg.pbuf_flg.b.tvp,
+					mm->cfg.pst_buf_size);
+			else
+				PR_WARN("post is 0, no alloc\n");
+		} else {
 			sct_sw_off_rebuild(pch);
+		}
 		if (mm->sts.flg_alloced)
 			release_post += mem_release_sct_wait(pch);
 
@@ -4889,7 +4893,7 @@ unsigned char dim_pre_bypass(struct di_ch_s *pch)
 	vframe = &nins->c.vfm_cp;
 
 	bypassr = is_bypass2(vframe, ch);
-	if (!bypassr) {
+	if (!bypassr && !(vframe->type & VIDTYPE_V4L_EOS)) {
 		mm = dim_mm_get(ch);
 		if (!mm->sts.flg_alloced) {
 			sgn = di_vframe_2_sgn(vframe);
@@ -5002,11 +5006,12 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 	if (di_que_list_count(channel, QUE_IN_FREE) < 2	&&
 	    !ppre->di_inp_buf_next)
 		return 3;
+#ifdef HIS_TEMP
 	if (ppre->sgn_lv != EDI_SGN_4K &&
 	    !pch->ponly		&&
 	    queue_empty(channel, QUEUE_LOCAL_FREE))
 		return 35;
-
+#endif
 	if (di_que_list_count(channel, QUE_PRE_READY) >= DI_PRE_READY_LIMIT)
 		return 4;
 
@@ -5141,6 +5146,12 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			//pre_run_flag = DI_RUN_FLAG_PAUSE;
 			return 12;
 		}
+		sgn = di_vframe_2_sgn(vframe);
+		if (sgn != EDI_SGN_4K &&
+		    !pch->ponly &&
+		    queue_empty(channel, QUEUE_LOCAL_FREE))
+			return 35;
+
 		/**************************************************/
 		/*mem check*/
 		memcpy(&ppre->vfm_cpy, vframe, sizeof(ppre->vfm_cpy));
@@ -10532,12 +10543,15 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 		//	      is_progressive(vframe), channel);
 		di_init_buf_new(pch, vframe);
 
-		if (mm->cfg.pbuf_flg.b.typ == EDIM_BLK_TYP_PSCT)
-			sct_sw_on(pch,
-				mm->cfg.num_post,
-				mm->cfg.pbuf_flg.b.tvp,
-				mm->cfg.pst_buf_size);
-
+		if (mm->cfg.pbuf_flg.b.typ == EDIM_BLK_TYP_PSCT) {
+			if (mm->cfg.num_post)
+				sct_sw_on(pch,
+					mm->cfg.num_post,
+					mm->cfg.pbuf_flg.b.tvp,
+					mm->cfg.pst_buf_size);
+			else
+				PR_WARN("post is 0, reg no alloc\n");
+		}
 		pre_sec_alloc(pch, mm->cfg.dat_idat_flg.d32);
 		pst_sec_alloc(pch, mm->cfg.dat_pafbct_flg.d32);
 		ppre->mtn_status =
