@@ -36,8 +36,9 @@
 // frc_20210929 frc chg hold fow for null-vframe
 // frc_20211008 frc protect opt frc register
 // frc_20211021 frc chg me little_window
+// fec_20211022 frc reduce clk under noframe
 
-#define FRC_FW_VER			"2021-1022 frc reduce clk under noframe"
+#define FRC_FW_VER			"2021-1027 frc add print alg speed-time"
 #define FRC_KERDRV_VER                  1158
 
 #define FRC_DEVNO	1
@@ -270,6 +271,8 @@ struct frc_crc_data_s {
 struct frc_ud_s {
 	u32 meud_dbg_en;
 	u32 mcud_dbg_en;
+	u32 inud_time_en;
+	u32 outud_time_en;
 };
 
 struct frc_force_size_s {
