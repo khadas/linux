@@ -76,6 +76,14 @@ static int disable_flag;
 #define TEE_SMC_UNPROTECT_MEM \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_UNPROTECT_MEM)
 
+#define TEE_SMC_FUNCID_CHECK_IN_MEM                0xE025
+#define TEE_SMC_CHECK_IN_MEM \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_CHECK_IN_MEM)
+
+#define TEE_SMC_FUNCID_CHECK_OUT_MEM               0xE026
+#define TEE_SMC_CHECK_OUT_MEM \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_CHECK_OUT_MEM)
+
 #define TEE_SMC_FUNCID_DEMUX_CONFIG_PIPELINE       0xE050
 #define TEE_SMC_DEMUX_CONFIG_PIPELINE \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_DEMUX_CONFIG_PIPELINE)
@@ -321,6 +329,28 @@ void tee_unprotect_mem(u32 handle)
 			handle, 0, 0, 0, 0, 0, 0, &res);
 }
 EXPORT_SYMBOL(tee_unprotect_mem);
+
+int tee_check_in_mem(u32 pa, u32 size)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(TEE_SMC_CHECK_IN_MEM,
+			pa, size, 0, 0, 0, 0, 0, &res);
+
+	return res.a0;
+}
+EXPORT_SYMBOL(tee_check_in_mem);
+
+int tee_check_out_mem(u32 pa, u32 size)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(TEE_SMC_CHECK_OUT_MEM,
+			pa, size, 0, 0, 0, 0, 0, &res);
+
+	return res.a0;
+}
+EXPORT_SYMBOL(tee_check_out_mem);
 
 int tee_config_device_state(int dev_id, int secure)
 {
