@@ -37,7 +37,7 @@
 		};
 		recovery:recovery{
 			pname = "recovery";
-			size = <0x0 0x1800000>;
+			size = <0x0 0x2000000>;
 			mask = <1>;
 		};
 		misc:misc{
