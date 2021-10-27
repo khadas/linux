@@ -4424,6 +4424,14 @@ static const struct match_data_s vdin_dt_s4d = {
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
 };
 
+static const struct match_data_s vdin_dt_t5w = {
+	.name = "vdin-t5w",
+	.hw_ver = VDIN_HW_T5W,
+	.vdin0_en = 1,                  .vdin1_en = 1,
+	.de_tunnel_tunnel = 0, /*0,1*/  .ipt444_to_422_12bit = 0, /*0,1*/
+	.vdin0_line_buff_size = 0x1000,  .vdin1_line_buff_size = 0x1000,
+};
+
 static const struct of_device_id vdin_dt_match[] = {
 	{
 		.compatible = "amlogic, vdin",
@@ -4474,6 +4482,10 @@ static const struct of_device_id vdin_dt_match[] = {
 	{
 		.compatible = "amlogic, vdin-s4d",
 		.data = &vdin_dt_s4d,
+	},
+	{
+		.compatible = "amlogic, vdin-t5w",
+		.data = &vdin_dt_t5w,
 	},
 	/* DO NOT remove to avoid scan error of KASAN */
 	{}

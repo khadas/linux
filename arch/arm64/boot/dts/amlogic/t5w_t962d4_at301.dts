@@ -56,6 +56,27 @@
 			alloc-ranges = <0x0 0x3f800000 0x0 0x800000>;
 		};
 
+		/*  vdin0 CMA pool */
+		/*vdin0_cma_reserved:linux,vdin0_cma {*/
+		/*	compatible = "shared-dma-pool";*/
+		/*	reusable;*/
+			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			 * 1920x1080x2x5 = 20 M
+			 */
+		/*	size = <0x0 0x01400000>;*/
+		/*	alignment = <0x0 0x400000>;*/
+		/*};*/
+		/*  vdin1 CMA pool */
+		vdin1_cma_reserved:linux,vdin1_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* up to 1920x1080 yuv422 8bit and 5 buffers
+			 * 1920x1080x2x5 = 20 M
+			 */
+			size = <0x0 0x01400000>;
+			alignment = <0x0 0x400000>;
+		};
+
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -282,6 +303,30 @@
 	 */
 	 vlock_pll_m_limit = <1>;
 	 vlock_line_limit = <2>;
+};
+
+/*if you want to use vdin just modify status to "ok"*/
+&vdin0 {
+	/*memory-region = <&vdin0_cma_reserved>;*/
+	status = "okay";
+	/*MByte, if 10bit disable: 64M(YUV422),
+	 *if 10bit enable: 64*1.5 = 96M(YUV422)
+	 *if support 4K2K-YUV444-10bit-WR:3840*2160*4*4 ~= 128M
+	 *if support 4K2K-YUV422-10bit-wr:3840*2160*3*4 ~= 96M
+	 *if support 4K2K-YUV422-8BIT-WR:3840*2160*2*4 ~= 64M
+	 *if support 1080p-YUV422-8BIT-WR:1920*1080*2*4 ~= 16M
+	 * onebuffer:
+	 * worst case:(4096*2160*3 + 2M(afbce issue)) = 27.5M
+	 * dw:960x540x3 = 1.5M
+	 * total size:(27.5+1.5)x buffernumber
+	 */
+	cma_size = <300>;
+	frame_buff_num = <11>;
+};
+
+&vdin1 {
+	memory-region = <&vdin1_cma_reserved>;
+	status = "okay";
 };
 
 &fb {
