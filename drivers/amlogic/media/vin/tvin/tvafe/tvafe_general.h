@@ -140,6 +140,7 @@ enum tvafe_cpu_type {
 	TVAFE_CPU_TYPE_T5  = 6,
 	TVAFE_CPU_TYPE_T5D  = 7,
 	TVAFE_CPU_TYPE_T3  = 8,
+	TVAFE_CPU_TYPE_T5W  = 9,
 	TVAFE_CPU_TYPE_MAX,
 };
 

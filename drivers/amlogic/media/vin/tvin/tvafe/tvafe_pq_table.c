@@ -233,6 +233,7 @@ int tvafe_pq_config_probe(struct meson_tvafe_data *tvafe_data)
 	case TVAFE_CPU_TYPE_T5:
 	case TVAFE_CPU_TYPE_T5D:
 	case TVAFE_CPU_TYPE_T3:
+	case TVAFE_CPU_TYPE_T5W:
 		tvafe_data->cvbs_pq_conf = cvbs_pq_config_tl1;
 		tvafe_data->rf_pq_conf = rf_pq_config_tl1;
 		break;
