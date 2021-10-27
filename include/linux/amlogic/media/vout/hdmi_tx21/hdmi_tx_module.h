@@ -16,6 +16,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vpu/vpu.h>
+#include <linux/amlogic/media/vrr/vrr.h>
 
 #define DEVICE_NAME "amhdmitx21"
 
@@ -118,14 +119,20 @@ struct rx_cap {
 	u32 dc_36bit_420:1;
 	u32 dc_48bit_420:1;
 	u32 max_frl_rate:4;
-	u32 fpap_start_loc:1;
-	u32 allm:1;
 	u32 cnc0:1; /* Graphics */
 	u32 cnc1:1; /* Photo */
 	u32 cnc2:1; /* Cinema */
 	u32 cnc3:1; /* Game */
+	u32 qms_tfr_max:1;
+	u32 qms:1;
 	u32 mdelta:1;
+	u32 qms_tfr_min:1;
+	u32 neg_mvrr:1;
 	u32 fva:1;
+	u32 allm:1;
+	u32 fapa_start_loc:1;
+	u32 vrr_max;
+	u32 vrr_min;
 	struct hdr_info hdr_info;
 	struct dv_info dv_info;
 	/* When hdr_priority is 1, then dv_info will be all 0;
@@ -294,6 +301,7 @@ struct hdmitx_dev {
 	struct delayed_work work_internal_intr;
 	struct delayed_work work_cedst;
 	struct work_struct work_hdr;
+	struct vrr_device_s hdmitx_vrr_dev;
 	void *am_hdcp;
 #ifdef CONFIG_AML_HDMI_TX_14
 	struct delayed_work cec_work;

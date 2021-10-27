@@ -45,6 +45,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_config.h>
 #include <linux/amlogic/media/vout/hdmi_tx_ext.h>
+#include <linux/amlogic/media/vrr/vrr.h>
 #include "hdmi_tx_ext.h"
 #include "hdmi_tx.h"
 
@@ -73,6 +74,8 @@ static void clear_rx_vinfo(struct hdmitx_dev *hdev);
 static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev);
 static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev);
 static void update_current_para(struct hdmitx_dev *hdev);
+static void hdmitx_register_vrr(struct hdmitx_dev *hdev);
+static void hdmitx_unregister_vrr(struct hdmitx_dev *hdev);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data);
@@ -2887,6 +2890,42 @@ static ssize_t hdr_cap2_show(struct device *dev,
 	return _hdr_cap_show(dev, attr, buf, info2);
 }
 
+static ssize_t vrr_cap_show(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct rx_cap *prxcap = &hdev->rxcap;
+	struct vrr_device_s *vrr = &hdev->hdmitx_vrr_dev;
+
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"neg_mvrr: %d\n", prxcap->neg_mvrr);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"fva: %d\n", prxcap->fva);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"allm: %d\n", prxcap->allm);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"fapa_start_location: %d\n", prxcap->fapa_start_loc);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"qms: %d\n", prxcap->qms);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"qms_tfr_max: %d\n", prxcap->qms_tfr_max);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"qms_tfr_min: %d\n", prxcap->qms_tfr_min);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"mdelta: %d\n", prxcap->mdelta);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"RX_CAP vrr_max: %d\n", prxcap->vrr_max);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"RX_CAP vrr_min: %d\n", prxcap->vrr_min);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"vrr.max: %d\n", vrr->vmax);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"vrr.min: %d\n", vrr->vmin);
+	return pos;
+}
+
 static ssize_t _show_dv_cap(struct device *dev,
 			    struct device_attribute *attr,
 			    char *buf,
@@ -3539,6 +3578,7 @@ static DEVICE_ATTR_RO(edid_parsing);
 static DEVICE_ATTR_RW(config);
 static DEVICE_ATTR_WO(debug);
 static DEVICE_ATTR_RO(disp_cap);
+static DEVICE_ATTR_RO(vrr_cap);
 static DEVICE_ATTR_RO(preferred_mode);
 static DEVICE_ATTR_RO(cea_cap);
 static DEVICE_ATTR_RO(vesa_cap);
@@ -3636,6 +3676,7 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 		recalc_vinfo_sync_duration(vinfo,
 					   hdev->frac_rate_policy);
 
+	hdmitx_register_vrr(hdev);
 	if (!(mode & VMODE_INIT_BIT_MASK)) {
 		set_disp_mode_auto();
 	} else {
@@ -3692,6 +3733,7 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 		cancel_delayed_work(&hdev->work_cedst);
 	if (hdev->rxsense_policy)
 		queue_delayed_work(hdev->rxsense_wq, &hdev->work_rxsense, 0);
+	hdmitx_unregister_vrr(hdev);
 
 	return 0;
 }
@@ -4661,6 +4703,41 @@ static void amhdmitx_infoframe_init(struct hdmitx_dev *hdev)
 	hdmi_drm_infoframe_init(&hdev->infoframes.drm.drm);
 }
 
+static void hdmitx_unregister_vrr(struct hdmitx_dev *hdev)
+{
+	int ret;
+
+	ret = aml_vrr_unregister_device(0);
+	pr_info("%s ret = %d\n", __func__, ret);
+}
+
+static void hdmitx_register_vrr(struct hdmitx_dev *hdev)
+{
+	int ret;
+	char *name = "hdmitx_vrr";
+	struct rx_cap *prxcap = &hdev->rxcap;
+	struct vinfo_s *vinfo;
+	struct vrr_device_s *vrr = &hdev->hdmitx_vrr_dev;
+
+	vinfo = hdmitx_get_current_vinfo(NULL);
+	if (!vinfo || vinfo->mode != VMODE_HDMI)
+		return;
+	vrr->output_src = VRR_OUTPUT_ENCP;
+	vrr->vmax =
+		vinfo->vtotal * (prxcap->vrr_max / prxcap->vrr_min);
+	if (prxcap->vrr_max == 0)
+		vrr->vmin = 0;
+	else
+		vrr->vmin = vinfo->vtotal;
+	if (prxcap->vrr_max < 100 || prxcap->vrr_min > 48)
+		vrr->enable = 0;
+	else
+		vrr->enable = 1;
+	strncpy(vrr->name, name, VRR_NAME_LEN_MAX);
+	ret = aml_vrr_register_device(vrr, 0);
+	pr_info("%s ret = %d\n", __func__, ret);
+}
+
 static int amhdmitx_probe(struct platform_device *pdev)
 {
 	int r, ret = 0;
@@ -4712,6 +4789,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_config);
 	ret = device_create_file(dev, &dev_attr_debug);
 	ret = device_create_file(dev, &dev_attr_disp_cap);
+	ret = device_create_file(dev, &dev_attr_vrr_cap);
 	ret = device_create_file(dev, &dev_attr_preferred_mode);
 	ret = device_create_file(dev, &dev_attr_cea_cap);
 	ret = device_create_file(dev, &dev_attr_vesa_cap);
@@ -4829,7 +4907,6 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 pr_info("%s[%d]\n", __func__, __LINE__);
 
 	hdev->hdmi_init = 1;
-
 	pr_info("%s end\n", __func__);
 
 	return r;
@@ -4868,6 +4945,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_config);
 	device_remove_file(dev, &dev_attr_debug);
 	device_remove_file(dev, &dev_attr_disp_cap);
+	device_remove_file(dev, &dev_attr_vrr_cap);
 	device_remove_file(dev, &dev_attr_preferred_mode);
 	device_remove_file(dev, &dev_attr_cea_cap);
 	device_remove_file(dev, &dev_attr_vesa_cap);
