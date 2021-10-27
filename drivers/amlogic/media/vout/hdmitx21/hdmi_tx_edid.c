@@ -1833,6 +1833,27 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 					!!(blockbuf[offset + 5] & (1 << 3));
 				set_vsdb_dc_420_cap(&hdev->rxcap,
 						    &blockbuf[offset]);
+				prxcap->vrr_max =
+					(((blockbuf[offset + 8] & 0xc0) >> 6) << 8) +
+							blockbuf[offset + 9];
+				prxcap->vrr_min =
+					(blockbuf[offset + 8] & 0x3f);
+				prxcap->qms =
+					!!(blockbuf[offset + 7] & (1 << 6));
+				prxcap->qms_tfr_max =
+					!!(blockbuf[offset + 7] & (1 << 7));
+				prxcap->qms_tfr_min =
+					!!(blockbuf[offset + 7] & (1 << 4));
+				prxcap->mdelta =
+					!!(blockbuf[offset + 7] & (1 << 5));
+				prxcap->neg_mvrr =
+					!!(blockbuf[offset + 7] & (1 << 3));
+				prxcap->fva =
+					!!(blockbuf[offset + 7] & (1 << 2));
+				prxcap->allm =
+					!!(blockbuf[offset + 7] & (1 << 1));
+				prxcap->fapa_start_loc =
+					!!(blockbuf[offset + 7] & (1 << 0));
 			}
 
 			offset += count; /* ignore the remaind. */
