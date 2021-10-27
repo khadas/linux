@@ -384,6 +384,7 @@ struct hdmitx_dev {
 	u32 backup_frac_rate_policy;
 	u32 rxsense_policy;
 	u32 cedst_policy;
+	u32 enc_idx;
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st chlocked_st;
 	u32 allm_mode; /* allm_mode: 1/on 0/off */

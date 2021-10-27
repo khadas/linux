@@ -8,13 +8,25 @@
 #include <linux/hdmi.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_module.h>
 
-#define HDCPTX_IOOPR		0x820000ab
-
 #define HDCP_STAGE1_RETRY_TIMER 2000 /* unit: ms */
 #define HDCP_BSKV_CHECK_TIMER 100
 #define HDCP_FAILED_RETRY_TIMER 200
 #define HDCP_DS_KSVLIST_RETRY_TIMER 5000
 #define HDCP_RCVIDLIST_CHECK_TIMER 3000
+
+#define HDCPTX_IOOPR		0x820000ab
+enum hdcptx_oprcmd {
+	HDCP_DEFAULT,
+	HDCP14_KEY_READY,
+	HDCP14_LOADKEY,
+	HDCP14_RESULT,
+	HDCP22_KEY_READY,
+	HDCP22_LOADKEY,
+	HDCP22_RESULT,
+	HDCP22_SET_TOPO,
+	HDCP22_GET_TOPO,
+	CONF_ENC_IDX, /* 0: get idx; 1: set idx */
+};
 
 /* DDC bus error codes */
 enum ddc_err_t {
