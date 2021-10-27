@@ -159,6 +159,20 @@ struct bl_config_s {
 	unsigned int bl_extern_index;
 };
 
+#define BL_LEVEL_CNT_MAX	      3600 //default 1h
+struct bl_metrics_config_s {
+	unsigned int frame_rate;
+	unsigned int level_count;
+	unsigned int brightness_count;
+	unsigned int level_metrics;
+	unsigned int brightness_metrics;
+	unsigned int cnt;
+	unsigned int sum_cnt;
+	unsigned int times;
+	unsigned int *level_buf;
+	unsigned int *brightness_buf;
+};
+
 /* backlight_properties: state */
 /* Flags used to signal drivers of state changes */
 /* Upper 4 bits in bl props are reserved for driver internal use */
@@ -167,7 +181,6 @@ struct bl_config_s {
 #define BL_STATE_BL_INIT_ON           BIT(2)
 #define BL_STATE_BL_POWER_ON          BIT(1)
 #define BL_STATE_BL_ON                BIT(0)
-
 /* #define BL_POWER_ON_DELAY_WORK */
 struct aml_bl_drv_s {
 	unsigned int index;
@@ -187,6 +200,7 @@ struct aml_bl_drv_s {
 	unsigned char pwm_bypass; /*debug flag*/
 	unsigned char pwm_duty_free; /*debug flag*/
 
+	struct bl_metrics_config_s bl_metrics_conf;
 	struct bl_config_s        bconf;
 	struct cdev               cdev;
 	struct bl_data_s          *data;
