@@ -361,6 +361,13 @@
 		};
 	};
 
+	dsu-pmu-0 {
+		compatible = "arm,dsu-pmu";
+		status = "okay";
+		cpus = <&CPU0>,<&CPU1>,<&CPU2>,<&CPU3>,<&CPU4>,<&CPU5>;
+		interrupts = <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 0xff08>,
