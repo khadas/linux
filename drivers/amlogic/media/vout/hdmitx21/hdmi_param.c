@@ -294,6 +294,7 @@ struct hdmi_format_para *hdmitx21_get_fmtpara(const char *mode,
 	/* 1080i use the ENCP, not ENCI */
 	if (strstr(timing->name, "1080i"))
 		tx_vinfo->viu_mux = VIU_MUX_ENCP;
+	tx_vinfo->viu_mux |= hdev->enc_idx << 4;
 
 	return hdev->para;
 }

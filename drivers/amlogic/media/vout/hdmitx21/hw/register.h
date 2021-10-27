@@ -352,6 +352,7 @@ void init_reg_map(u32 type);
 #define ENCT_INFO_READ                VPUCTRL_REG_ADDR(0x271e)
 #define ENCL_INFO_READ                VPUCTRL_REG_ADDR(0x271f)
 #define VPU_HDMI_FMT_CTRL             VPUCTRL_REG_ADDR(0x2743)
+#define VPU_DISP_VIU2_CTRL            VPUCTRL_REG_ADDR(0x2788)
 #define VPU_HDMI_DITH_CNTL            VPUCTRL_REG_ADDR(0x27fc)
 
 #endif // __REGISTER_H__

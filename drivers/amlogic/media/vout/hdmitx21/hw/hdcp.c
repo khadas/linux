@@ -29,18 +29,6 @@
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_module.h>
 #include "common.h"
 
-enum hdcptx_oprcmd {
-	HDCP_DEFAULT,
-	HDCP14_KEY_READY,
-	HDCP14_LOADKEY,
-	HDCP14_RESULT,
-	HDCP22_KEY_READY,
-	HDCP22_LOADKEY,
-	HDCP22_RESULT,
-	HDCP22_SET_TOPO,
-	HDCP22_GET_TOPO,
-};
-
 static void hdcptx1_load_key(void)
 {
 	struct arm_smccc_res res;

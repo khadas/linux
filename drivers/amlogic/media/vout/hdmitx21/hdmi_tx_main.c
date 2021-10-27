@@ -612,6 +612,7 @@ static ssize_t disp_mode_show(struct device *dev,
 	pos += snprintf(buf + pos, PAGE_SIZE, "tmds_clk: %d\n", para->tmds_clk);
 	pos += snprintf(buf + pos, PAGE_SIZE, "vic: %d\n", timing->vic);
 	pos += snprintf(buf + pos, PAGE_SIZE, "name: %s\n", timing->name);
+	pos += snprintf(buf + pos, PAGE_SIZE, "enc_idx: %d\n", hdev->enc_idx);
 	if (timing->sname)
 		pos += snprintf(buf + pos, PAGE_SIZE, "sname: %s\n",
 			timing->sname);
@@ -4567,6 +4568,13 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 			if (val == 1)
 				;
 		}
+		ret = of_property_read_u32(pdev->dev.of_node,
+					   "enc_idx", &val);
+		hdev->enc_idx = 0; /* default 0 */
+		if (!ret) {
+			if (val == 2)
+				hdev->enc_idx = 2;
+		}
 
 		/* Get vendor information */
 		ret = of_property_read_u32(pdev->dev.of_node,
@@ -4707,7 +4715,7 @@ static void hdmitx_unregister_vrr(struct hdmitx_dev *hdev)
 {
 	int ret;
 
-	ret = aml_vrr_unregister_device(0);
+	ret = aml_vrr_unregister_device(hdev->enc_idx);
 	pr_info("%s ret = %d\n", __func__, ret);
 }
 
@@ -4734,7 +4742,7 @@ static void hdmitx_register_vrr(struct hdmitx_dev *hdev)
 	else
 		vrr->enable = 1;
 	strncpy(vrr->name, name, VRR_NAME_LEN_MAX);
-	ret = aml_vrr_register_device(vrr, 0);
+	ret = aml_vrr_register_device(vrr, hdev->enc_idx);
 	pr_info("%s ret = %d\n", __func__, ret);
 }
 
