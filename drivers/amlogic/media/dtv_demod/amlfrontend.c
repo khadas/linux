@@ -62,8 +62,10 @@
 /*  V1.0.19  22K will off after diseqc send        */
 /*  V1.0.20  ci card mode do not change in other mode */
 /*  V1.0.21  dvbc C/N worse                         */
+/*  V1.0.22  no audio output after random source switch */
+/*  V1.0.23  fixed code and dts CMA config          */
 /****************************************************/
-#define AMLDTVDEMOD_VER "V1.0.22"
+#define AMLDTVDEMOD_VER "V1.0.23"
 
 MODULE_PARM_DESC(auto_search_std, "\n\t\t atsc-c std&hrc search");
 static unsigned int auto_search_std;
@@ -3727,7 +3729,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 			dvbc_create_cci_task(demod);
 	/*mem_buf = (long *)phys_to_virt(memstart);*/
 
-	if (devp->cma_flag == 1 && !devp->flg_cma_allc) {
+	if (devp->cma_flag == 1 && !devp->flg_cma_allc && devp->cma_mem_size) {
 		PR_DBG("CMA MODE, cma flag is %d,mem size is %d",
 				devp->cma_flag, devp->cma_mem_size);
 
@@ -3906,7 +3908,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 		demod_32k_ctrl(0);
 		set_agc_pinmux(delsys, 0);
 
-		if (devp->cma_flag == 1 && devp->flg_cma_allc) {
+		if (devp->cma_flag == 1 && devp->flg_cma_allc && devp->cma_mem_size) {
 			dtvdemod_cma_release(devp);
 			devp->flg_cma_allc = false;
 		}
@@ -4341,16 +4343,20 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 			devp->cma_mem_size = 0;
 		}
 #endif
-		devp->cma_mem_size =
+		/* Get the actual CMA of Demod in dts.*/
+		/* If 0, do not get the default value of CMA. */
+		/* DTMB(8M)/DVB-T2(40M)/ISDB-T(8M) requires CMA, and others do not. */
+		if (devp->cma_mem_size)
+			devp->cma_mem_size =
 				dma_get_cma_size_int_byte(&pdev->dev);
 		devp->this_pdev = pdev;
 		devp->cma_mem_alloc = 0;
 		PR_INFO("[cma]demod cma_mem_size = %d MB\n",
 				(u32)devp->cma_mem_size / SZ_1M);
 #endif
-		} else {
+	} else {
 #ifdef CONFIG_OF
-			devp->mem_start = memstart;
+		devp->mem_start = memstart;
 #endif
 	}
 
