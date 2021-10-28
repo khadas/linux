@@ -1932,7 +1932,7 @@ static int ao_cec_adap_enable(struct cec_adapter *adap, bool enable)
 	    tmp != 0xffff) {
 		cec_dev->phy_addr = tmp;
 	} else {
-		CEC_INFO("%s dev_type %d, tmp_phy_addr: 0x%x\n",
+		CEC_INFO("%s dev_type %ul, tmp_phy_addr: 0x%x\n",
 			 __func__, cec_dev->dev_type, tmp);
 		cec_dev->phy_addr = 0;
 	}
@@ -2080,6 +2080,9 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	struct resource *res;
 	resource_size_t *base;
 #endif
+	unsigned char a, b, c, d;
+	u16 phy_addr = 0;
+	struct vsdb_phyaddr *tx_phy_addr = get_hdmitx_phy_addr();
 
 	if (!node || !node->name) {
 		pr_err("%s no devtree node\n", __func__);
@@ -2548,6 +2551,18 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	}
 #endif
 #endif
+	if (get_hpd_state() &&
+	    tx_phy_addr &&
+	    tx_phy_addr->valid == 1) {
+		a = tx_phy_addr->a;
+		b = tx_phy_addr->b;
+		c = tx_phy_addr->c;
+		d = tx_phy_addr->d;
+		phy_addr = ((a << 12) | (b << 8) | (c << 4) | (d));
+		cec_s_phys_addr(std_ao_cec.adap,
+				phy_addr,
+				false);
+	}
 	CEC_ERR("%s success end\n", __func__);
 	cec_dev->probe_finish = true;
 	return 0;
