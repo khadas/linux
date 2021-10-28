@@ -5107,7 +5107,9 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		crop[3] = vf->crop[3];
 		_set_video_window(layer_info, axis);
 		if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-			vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
+			vf->source_type != VFRAME_SOURCE_TYPE_CVBS &&
+			vf->source_type != VFRAME_SOURCE_TYPE_TUNER &&
+			vf->source_type != VFRAME_SOURCE_TYPE_HWC)
 			_set_video_crop(layer_info, crop);
 		if (vf->flag & VFRAME_FLAG_MIRROR_H)
 			mirror = H_MIRROR;
@@ -5268,7 +5270,9 @@ void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		crop[3] = vf->crop[3];
 		_set_video_window(layer_info, axis);
 		if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-			vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
+			vf->source_type != VFRAME_SOURCE_TYPE_CVBS &&
+			vf->source_type != VFRAME_SOURCE_TYPE_TUNER &&
+			vf->source_type != VFRAME_SOURCE_TYPE_HWC)
 			_set_video_crop(layer_info, crop);
 		if (vf->flag & VFRAME_FLAG_MIRROR_H)
 			mirror = H_MIRROR;
@@ -5446,7 +5450,9 @@ static void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1
 		crop[3] = vf->crop[3];
 		_set_video_window(&glayer_info[0], axis);
 		if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-			vf->source_type != VFRAME_SOURCE_TYPE_CVBS)
+			vf->source_type != VFRAME_SOURCE_TYPE_CVBS &&
+			vf->source_type != VFRAME_SOURCE_TYPE_TUNER &&
+			vf->source_type != VFRAME_SOURCE_TYPE_HWC)
 			_set_video_crop(&glayer_info[0], crop);
 		if (vf->flag & VFRAME_FLAG_MIRROR_H)
 			mirror = H_MIRROR;
@@ -7959,7 +7965,9 @@ SET_FILTER:
 		_set_video_window(&glayer_info[0], axis);
 		source_type = vd_layer[0].dispbuf->source_type;
 		if (source_type != VFRAME_SOURCE_TYPE_HDMI &&
-			source_type != VFRAME_SOURCE_TYPE_CVBS)
+			source_type != VFRAME_SOURCE_TYPE_CVBS &&
+			source_type != VFRAME_SOURCE_TYPE_TUNER &&
+			source_type != VFRAME_SOURCE_TYPE_HWC)
 			_set_video_crop(&glayer_info[0], crop);
 		if (vd_layer[0].dispbuf->flag & VFRAME_FLAG_MIRROR_H)
 			mirror = H_MIRROR;
@@ -8333,7 +8341,9 @@ SET_FILTER:
 		_set_video_window(&glayer_info[1], axis);
 		source_type = vd_layer[1].dispbuf->source_type;
 		if (source_type != VFRAME_SOURCE_TYPE_HDMI &&
-			source_type != VFRAME_SOURCE_TYPE_CVBS)
+			source_type != VFRAME_SOURCE_TYPE_CVBS &&
+			source_type != VFRAME_SOURCE_TYPE_TUNER &&
+			source_type != VFRAME_SOURCE_TYPE_HWC)
 			_set_video_crop(&glayer_info[1], crop);
 		if (vd_layer[1].dispbuf->flag & VFRAME_FLAG_MIRROR_H)
 			mirror = H_MIRROR;
@@ -8614,7 +8624,9 @@ SET_FILTER:
 			_set_video_window(&glayer_info[2], axis);
 			source_type = vd_layer[2].dispbuf->source_type;
 			if (source_type != VFRAME_SOURCE_TYPE_HDMI &&
-				source_type != VFRAME_SOURCE_TYPE_CVBS)
+				source_type != VFRAME_SOURCE_TYPE_CVBS &&
+				source_type != VFRAME_SOURCE_TYPE_TUNER &&
+				source_type != VFRAME_SOURCE_TYPE_HWC)
 				_set_video_crop(&glayer_info[2], crop);
 			set_alpha_scpxn(&vd_layer[2], vd_layer[2].dispbuf->componser_info);
 			glayer_info[2].zorder = vd_layer[2].dispbuf->zorder;
