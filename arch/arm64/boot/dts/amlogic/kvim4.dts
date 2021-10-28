@@ -1753,6 +1753,11 @@
 	status = "okay";
 };
 
+&aml_reboot {
+	sd_power_en_gpio = <&gpio GPIOD_11 GPIO_ACTIVE_LOW>;
+	vccio_en_gpio = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
+};
+
 &CPU0 {
 	cpu-supply = <&vddcpua>;
 	multi_tables_available;
