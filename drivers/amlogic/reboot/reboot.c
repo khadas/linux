@@ -26,10 +26,16 @@
 #include <linux/syscore_ops.h>
 #include <linux/cpu.h>
 
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
+
 static void __iomem *reboot_reason_vaddr;
 static u32 psci_function_id_restart;
 static u32 psci_function_id_poweroff;
 static char *kernel_panic;
+
+static int sd_power_en_gpio;
+static int vccio_en_gpio;
 
 static struct reboot_reason_str reboot_reason_name[] = {
 	[MESON_COLD_REBOOT] = { .name = "cold reboot" },
@@ -136,9 +142,69 @@ void meson_common_restart(char mode, const char *cmd)
 				  (u64)reboot_reason);
 }
 
+void sd_card_power_reset(void)
+{
+	int ret = 0;
+
+	if (sd_power_en_gpio < 1 || vccio_en_gpio < 1)
+		return;
+
+	gpio_free(vccio_en_gpio);
+	gpio_free(sd_power_en_gpio);
+
+	ret = gpio_request_one(vccio_en_gpio,
+			GPIOF_OUT_INIT_LOW, "SD_VCCIO");
+
+	if (ret < 0) {
+		pr_err("%s, gpio_request_one failed, ret=%d!\n",
+				__func__, ret);
+		return;
+	}
+
+	mdelay(10);
+
+	ret = gpio_direction_output(vccio_en_gpio, 1);
+	if (ret < 0) {
+		pr_err("%s, gpio_direction_output failed, ret=%d!\n",
+				__func__, ret);
+
+		return;
+	}
+
+	ret = gpio_request_one(sd_power_en_gpio,
+					GPIOF_OUT_INIT_HIGH, "SD_POWER");
+	if (ret < 0) {
+		pr_err("%s, gpio_request_one failed, ret=%d!\n",
+				__func__, ret);
+
+		return;
+	}
+	mdelay(10);
+
+	ret = gpio_direction_output(vccio_en_gpio, 0);
+	if (ret < 0) {
+		pr_err("%s, gpio_direction_output failed, ret=%d!\n",
+				__func__, ret);
+		return;
+	}
+	ret = gpio_direction_output(sd_power_en_gpio, 0);
+	if (ret < 0) {
+		pr_err("%s, gpio_direction_output failed, ret=%d!\n",
+				__func__, ret);
+		return;
+	}
+	mdelay(10);
+
+	gpio_free(vccio_en_gpio);
+	gpio_free(sd_power_en_gpio);
+
+	pr_info("Reset SDCARD power.\n");
+}
+
 static int do_aml_restart(struct notifier_block *nb, unsigned long reboot_mode,
 			  void *cmd)
 {
+	sd_card_power_reset();
 	meson_common_restart(reboot_mode, cmd);
 
 	return NOTIFY_DONE;
@@ -146,6 +212,8 @@ static int do_aml_restart(struct notifier_block *nb, unsigned long reboot_mode,
 
 static void do_aml_poweroff(void)
 {
+	sd_card_power_reset();
+
 	/* TODO: Add poweroff capability */
 	__invoke_psci_fn_smc(0x82000042, 1, 0, 0);
 	__invoke_psci_fn_smc(psci_function_id_poweroff,
@@ -238,6 +306,14 @@ static int aml_restart_probe(struct platform_device *pdev)
 		psci_function_id_poweroff = id;
 		pm_power_off = do_aml_poweroff;
 	}
+
+	sd_power_en_gpio = 0;
+	vccio_en_gpio = 0;
+	sd_power_en_gpio = of_get_named_gpio(pdev->dev.of_node,
+			"sd_power_en_gpio", 0);
+
+	vccio_en_gpio = of_get_named_gpio(pdev->dev.of_node,
+			"vccio_en_gpio", 0);
 
 	reboot_reason_vaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (!IS_ERR(reboot_reason_vaddr)) {
