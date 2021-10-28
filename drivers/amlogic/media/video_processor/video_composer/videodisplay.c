@@ -399,6 +399,34 @@ struct vd_prepare_s *vd_prepare_data_q_get(struct composer_dev *dev)
 	return vd_prepare;
 }
 
+int vd_render_index_get(struct composer_dev *dev)
+{
+	int reveiver_id = 0;
+	int render_index = 0;
+
+	if (!dev) {
+		pr_info("%s: dev is null.\n", __func__);
+	} else {
+		if (dev->index >= MAX_VD_LAYERS) {
+			vc_print(dev->index, PRINT_ERROR,
+				"%s: invalid param.\n",
+				__func__);
+		} else {
+			reveiver_id = get_receiver_id(dev->index);
+			if (reveiver_id >= 5)
+				render_index = reveiver_id - 3;
+			else if (reveiver_id <= 3)
+				render_index = reveiver_id - 2;
+			else
+				render_index = 0;
+		}
+		vc_print(dev->index, PRINT_ERROR,
+			"%s: render_index is %d.\n",
+			__func__, render_index);
+	}
+	return render_index;
+}
+
 int video_display_create_path(struct composer_dev *dev)
 {
 	char render_layer[16] = "";
@@ -409,7 +437,7 @@ int video_display_create_path(struct composer_dev *dev)
 	/*else*/
 	/*	sprintf(render_layer, "video_render.%d", dev->index);*/
 
-	sprintf(render_layer, "video_render.%d", dev->index);
+	sprintf(render_layer, "video_render.%d", dev->video_render_index);
 	snprintf(dev->vfm_map_chain, VCOM_MAP_NAME_SIZE,
 		 "%s %s", dev->vf_provider_name, render_layer);
 
@@ -511,7 +539,7 @@ static int video_display_init(int layer_index)
 	dev->last_file = NULL;
 	dev->vd_prepare_last = NULL;
 	dev->is_drm_enable = true;
-
+	dev->video_render_index = vd_render_index_get(dev);
 	memcpy(dev->vf_provider_name,
 		dev->port->name,
 		strlen(dev->port->name) + 1);
@@ -522,7 +550,7 @@ static int video_display_init(int layer_index)
 	_video_set_disable(2);
 	video_set_global_output(dev->index, 1);
 	ret = video_display_create_path(dev);
-	sprintf(render_layer, "video_render.%d", dev->index);
+	sprintf(render_layer, "video_render.%d", dev->video_render_index);
 	set_video_path_select(render_layer, dev->index);
 
 	return ret;
