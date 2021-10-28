@@ -77,16 +77,19 @@ signed int saturation_offset;
 
 void hdr_osd_off(enum vpp_index vpp_index)
 {
-	enum hdr_process_sel cur_hdr_process;
+	enum hdr_process_sel cur_hdr_process[3];
 
-	cur_hdr_process =
+	cur_hdr_process[0] =
 		hdr_func(OSD1_HDR, HDR_BYPASS,
 			 NULL, NULL, vpp_index);
-	cur_hdr_process =
+	cur_hdr_process[1] =
 		hdr_func(OSD2_HDR, HDR_BYPASS,
 			 NULL, NULL, vpp_index);
-	pr_csc(8, "am_vecm: module=OSD1_HDR, process=HDR_BYPASS(%d, %d)\n",
-	       HDR_BYPASS, cur_hdr_process);
+	cur_hdr_process[2] =
+		hdr_func(OSD3_HDR, HDR_BYPASS,
+			 NULL, NULL, vpp_index);
+	pr_csc(8, "am_vecm: module=OSDn_HDR, process=HDR_BYPASS(%d, %d, %d, %d)\n",
+	       HDR_BYPASS, cur_hdr_process[0], cur_hdr_process[1], cur_hdr_process[2]);
 }
 
 void hdr_osd2_off(enum vpp_index vpp_index)
@@ -97,6 +100,17 @@ void hdr_osd2_off(enum vpp_index vpp_index)
 		hdr_func(OSD2_HDR, HDR_BYPASS,
 			 NULL, NULL, vpp_index);
 	pr_csc(8, "am_vecm: module=OSD2_HDR, process=HDR_BYPASS(%d, %d)\n",
+	       HDR_BYPASS, cur_hdr_process);
+}
+
+void hdr_osd3_off(enum vpp_index vpp_index)
+{
+	enum hdr_process_sel cur_hdr_process;
+
+	cur_hdr_process =
+		hdr_func(OSD3_HDR, HDR_BYPASS,
+			 NULL, NULL, vpp_index);
+	pr_csc(8, "am_vecm: module=OSD3_HDR, process=HDR_BYPASS(%d, %d)\n",
 	       HDR_BYPASS, cur_hdr_process);
 }
 
@@ -4919,6 +4933,7 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 		eo_clip_proc(master_info, 0);
 		hdr_func(OSD1_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
 		hdr_func(OSD2_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
+		hdr_func(OSD3_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
 		if (vd_path == VD1_PATH)
 			hdr_func(VD1_HDR, HDR_SDR | hdr_ex, vinfo, &m, vpp_index);
 		else if (vd_path == VD2_PATH)
@@ -5152,6 +5167,7 @@ static int hdr10p_process(enum vpp_matrix_csc_e csc_type,
 		gamut_convert_process(vinfo, source_type, vd_path, &m, 8);
 		hdr_func(OSD1_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
 		hdr_func(OSD2_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
+		hdr_func(OSD3_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
 		if (vd_path == VD1_PATH)
 			hdr10p_func(VD1_HDR, HDR10P_SDR | hdr_ex, vinfo, &m, vpp_index);
 		else if (vd_path == VD2_PATH)
@@ -5231,6 +5247,7 @@ static int hlg_process(enum vpp_matrix_csc_e csc_type,
 			hdr_func(VD3_HDR, HLG_SDR | hdr_ex, vinfo, &m, vpp_index);
 		hdr_func(OSD1_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
 		hdr_func(OSD2_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
+		hdr_func(OSD3_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
 		return need_adjust_contrast_saturation;
 	}
 
@@ -5491,16 +5508,21 @@ static void bypass_hdr_process(enum vpp_matrix_csc_e csc_type,
 					 SDR_HLG | hdr_ex, vinfo, NULL, vpp_index);
 				hdr_func(OSD2_HDR,
 					 SDR_HLG | hdr_ex, vinfo, NULL, vpp_index);
+				hdr_func(OSD3_HDR,
+					 SDR_HLG | hdr_ex, vinfo, NULL, vpp_index);
 			} else {
 				hdr_func(OSD1_HDR,
 					 SDR_HDR | hdr_ex, vinfo, NULL, vpp_index);
 				hdr_func(OSD2_HDR,
+					 SDR_HLG | hdr_ex, vinfo, NULL, vpp_index);
+				hdr_func(OSD3_HDR,
 					 SDR_HLG | hdr_ex, vinfo, NULL, vpp_index);
 			}
 			pr_csc(1, "\t osd sdr->hdr/hlg\n");
 		} else {
 			hdr_func(OSD1_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
 			hdr_func(OSD2_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
+			hdr_func(OSD3_HDR, HDR_BYPASS | hdr_ex, vinfo, NULL, vpp_index);
 		}
 		return;
 	}
@@ -6209,6 +6231,7 @@ static void hlg_hdr_process(enum vpp_matrix_csc_e csc_type,
 			hdr_func(VD3_HDR, HLG_HDR | hdr_ex, vinfo, NULL, vpp_index);
 		hdr_func(OSD1_HDR, SDR_HDR | hdr_ex, vinfo, NULL, vpp_index);
 		hdr_func(OSD2_HDR, SDR_HDR | hdr_ex, vinfo, NULL, vpp_index);
+		hdr_func(OSD3_HDR, SDR_HDR | hdr_ex, vinfo, NULL, vpp_index);
 		return;
 	}
 	/*vpp matrix mux read*/
@@ -6472,6 +6495,7 @@ static void sdr_hdr_process(enum vpp_matrix_csc_e csc_type,
 					 SDR_HDR | hdr_ex, vinfo, NULL, vpp_index);
 			hdr_func(OSD1_HDR, SDR_HDR | hdr_ex, vinfo, NULL, vpp_index);
 			hdr_func(OSD2_HDR, SDR_HDR | hdr_ex, vinfo, NULL, vpp_index);
+			hdr_func(OSD3_HDR, SDR_HDR | hdr_ex, vinfo, NULL, vpp_index);
 			return;
 		}
 		/*vpp matrix mux read*/

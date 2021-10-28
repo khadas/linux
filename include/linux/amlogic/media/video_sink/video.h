@@ -319,6 +319,7 @@ enum vpu_module_e {
 	VD2_HDR_CORE,
 	OSD1_HDR_CORE,
 	OSD2_HDR_CORE,
+	OSD3_HDR_CORE,
 	DV_TVCORE,
 };
 
