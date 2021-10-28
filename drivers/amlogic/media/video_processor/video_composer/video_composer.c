@@ -1679,6 +1679,8 @@ static void video_composer_task(struct composer_dev *dev)
 		vf->disp_pts = 0;
 
 		if (frame_info->type == 1 && !(is_dec_vf || is_v4l_vf)) {
+			if (frame_info->source_type == HWC_CREAT_ION)
+				vf->source_type = VFRAME_SOURCE_TYPE_HWC;
 			vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER_DMA;
 			vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
 			vf->canvas0Addr = -1;

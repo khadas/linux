@@ -90,6 +90,7 @@ enum vc_transform_t {
 
 enum source_type_t {
 	DTV_FIX_TUNNEL = 1,
+	HWC_CREAT_ION = 2,
 };
 
 struct frame_info_t {

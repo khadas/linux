@@ -286,6 +286,7 @@ enum vframe_source_type_e {
 	VFRAME_SOURCE_TYPE_HDMI,
 	VFRAME_SOURCE_TYPE_PPMGR,
 	VFRAME_SOURCE_TYPE_OSD,
+	VFRAME_SOURCE_TYPE_HWC,
 };
 
 enum vframe_source_mode_e {
