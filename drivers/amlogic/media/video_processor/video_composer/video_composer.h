@@ -242,6 +242,7 @@ struct composer_dev {
 	bool composer_enabled;
 	bool thread_need_stop;
 	bool is_drm_enable;
+	u32 video_render_index;
 };
 
 #define VIDEO_COMPOSER_IOC_MAGIC  'V'

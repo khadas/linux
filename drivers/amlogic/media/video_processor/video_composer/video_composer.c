@@ -2000,7 +2000,7 @@ static int video_composer_open(struct inode *inode, struct file *file)
 
 	memcpy(dev->vf_provider_name, port->name,
 	       strlen(port->name) + 1);
-
+	dev->video_render_index = vd_render_index_get(dev);
 	port->open_count++;
 	do_gettimeofday(&dev->start_time);
 
@@ -2110,6 +2110,7 @@ static void set_frames_info(struct composer_dev *dev,
 	bool is_tvp = false, is_used = false;
 	bool is_repeat = true;
 	bool need_dw = false;
+	char render_layer[16] = "";
 
 	if (!frames_info ||
 	    frames_info->frame_count <= 0 ||
@@ -2204,12 +2205,10 @@ static void set_frames_info(struct composer_dev *dev,
 				 "sideband to non\n");
 		}
 		dev->is_sideband = false;
-		if (channel == 0 || (dev->index == 0 && channel < 0))
-			set_video_path_select("video_render.0", 0);
-		else if (channel == 1 || (dev->index == 1 && channel < 0))
-			set_video_path_select("video_render.1", 1);
-		else if (channel == 2 || (dev->index == 2 && channel < 0))
-			set_video_path_select("video_render.2", 2);
+		sprintf(render_layer,
+			"video_render.%d",
+			dev->video_render_index);
+		set_video_path_select(render_layer, dev->index);
 	}
 	dev->is_sideband = false;
 
@@ -2450,7 +2449,9 @@ static int video_composer_init(struct composer_dev *dev)
 		sprintf(render_layer, "video_render.%d", channel);
 		set_video_path_select(render_layer, channel);
 	} else {
-		sprintf(render_layer, "video_render.%d", dev->index);
+		sprintf(render_layer,
+			"video_render.%d",
+			dev->video_render_index);
 		set_video_path_select(render_layer, dev->index);
 	}
 	vc_active[dev->index] = 1;
