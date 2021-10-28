@@ -158,6 +158,8 @@ struct earc {
 	 * ATNDTYP_EARC: The device(eARC Rx) is eARC device
 	 */
 	enum attend_type earctx_connected_device_type;
+	unsigned int rx_status0;
+	unsigned int rx_status1;
 };
 
 static struct earc *s_earc;
@@ -324,38 +326,51 @@ static void valid_auto_work_func(struct work_struct *p_work)
 	earcrx_pll_reset(p_earc);
 }
 
+static irqreturn_t rx_handler(int irq, void *data)
+{
+	struct earc *p_earc = (struct earc *)data;
+	unsigned int mask = earcrx_dmac_get_mask(p_earc->rx_top_map);
+
+	p_earc->rx_status0 = earcrx_cdmc_get_irqs(p_earc->rx_top_map);
+	if (p_earc->rx_status0)
+		earcrx_cdmc_clr_irqs(p_earc->rx_top_map, p_earc->rx_status0);
+
+	p_earc->rx_status1 = earcrx_dmac_get_irqs(p_earc->rx_top_map);
+	p_earc->rx_status1 = p_earc->rx_status1 & mask;
+	if (p_earc->rx_status1)
+		earcrx_dmac_clr_irqs(p_earc->rx_top_map, p_earc->rx_status1);
+
+	return IRQ_WAKE_THREAD;
+}
+
 static irqreturn_t earc_rx_isr(int irq, void *data)
 {
 	struct earc *p_earc = (struct earc *)data;
-	unsigned int status0 = earcrx_cdmc_get_irqs(p_earc->rx_top_map);
 
-	if (status0)
-		earcrx_cdmc_clr_irqs(p_earc->rx_top_map, status0);
-
-	if (status0 & INT_EARCRX_CMDC_TIMEOUT) {
+	if (p_earc->rx_status0 & INT_EARCRX_CMDC_TIMEOUT) {
 		earcrx_update_attend_event(p_earc,
 					   false, false);
 
 		dev_info(p_earc->dev, "EARCRX_CMDC_TIMEOUT\n");
 	}
 
-	if (status0 & INT_EARCRX_CMDC_IDLE2) {
+	if (p_earc->rx_status0 & INT_EARCRX_CMDC_IDLE2) {
 		earcrx_update_attend_event(p_earc,
 					   false, true);
 
 		dev_info(p_earc->dev, "EARCRX_CMDC_IDLE2\n");
 	}
-	if (status0 & INT_EARCRX_CMDC_IDLE1) {
+	if (p_earc->rx_status0 & INT_EARCRX_CMDC_IDLE1) {
 		earcrx_update_attend_event(p_earc,
 					   false, false);
 
 		dev_info(p_earc->dev, "EARCRX_CMDC_IDLE1\n");
 	}
-	if (status0 & INT_EARCRX_CMDC_DISC2)
+	if (p_earc->rx_status0 & INT_EARCRX_CMDC_DISC2)
 		dev_info(p_earc->dev, "EARCRX_CMDC_DISC2\n");
-	if (status0 & INT_EARCRX_CMDC_DISC1)
+	if (p_earc->rx_status0 & INT_EARCRX_CMDC_DISC1)
 		dev_info(p_earc->dev, "EARCRX_CMDC_DISC1\n");
-	if (status0 & INT_EARCRX_CMDC_EARC) {
+	if (p_earc->rx_status0 & INT_EARCRX_CMDC_EARC) {
 		u8 latency = EARCRX_DEFAULT_LATENCY;
 
 		earcrx_cmdc_set_latency(p_earc->rx_cmdc_map, &latency);
@@ -366,47 +381,39 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 		dev_info(p_earc->dev, "EARCRX_CMDC_EARC\n");
 	}
 
-	if (status0 & INT_EARCRX_CMDC_LOSTHB)
+	if (p_earc->rx_status0 & INT_EARCRX_CMDC_LOSTHB)
 		dev_info(p_earc->dev, "EARCRX_CMDC_LOSTHB\n");
 
-	if (status0 & INT_EARCRX_CMDC_STATUS_CH)
+	if (p_earc->rx_status0 & INT_EARCRX_CMDC_STATUS_CH)
 		dev_info(p_earc->dev, "EARCRX_CMDC_STATUS_CH\n");
 
 	if (p_earc->rx_dmac_clk_on) {
-		unsigned int status1 = earcrx_dmac_get_irqs(p_earc->rx_top_map);
-		unsigned int mask = earcrx_dmac_get_mask(p_earc->rx_top_map);
-
-		status1 = status1 & mask;
-
-		if (status1)
-			earcrx_dmac_clr_irqs(p_earc->rx_top_map, status1);
-
-		if (status1 & INT_EARCRX_ANA_RST_C_EARCRX_DIV2_HOLD_SET)
+		if (p_earc->rx_status1 & INT_EARCRX_ANA_RST_C_EARCRX_DIV2_HOLD_SET)
 			dev_info(p_earc->dev, "EARCRX_ANA_RST_C_EARCRX_DIV2_HOLD_SET\n");
 
-		if (status1 & INT_EARCRX_ANA_RST_C_NEW_FORMAT_SET) {
+		if (p_earc->rx_status1 & INT_EARCRX_ANA_RST_C_NEW_FORMAT_SET) {
 			dev_info(p_earc->dev, "EARCRX_ANA_RST_C_NEW_FORMAT_SET\n");
 
 			earcrx_pll_refresh(p_earc->rx_top_map,
 					   RST_BY_SELF, true);
 		}
 
-		if (status1 & INT_EARCRX_ERR_CORRECT_C_BCHERR_INT_SET)
+		if (p_earc->rx_status1 & INT_EARCRX_ERR_CORRECT_C_BCHERR_INT_SET)
 			dev_info(p_earc->dev, "EARCRX_ERR_CORRECT_BCHERR\n");
-		if (status1 & INT_ARCRX_BIPHASE_DECODE_R_PARITY_ERR)
+		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_R_PARITY_ERR)
 			dev_info(p_earc->dev, "ARCRX_R_PARITY_ERR\n");
 
-		if (status0 & INT_EARCRX_CMDC_HB_STATUS)
+		if (p_earc->rx_status0 & INT_EARCRX_CMDC_HB_STATUS)
 			dev_dbg(p_earc->dev, "EARCRX_CMDC_HB_STATUS\n");
-		if (status1 & INT_ARCRX_BIPHASE_DECODE_C_FIND_PAPB)
+		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_C_FIND_PAPB)
 			dev_dbg(p_earc->dev, "ARCRX_C_FIND_PAPB\n");
-		if (status1 & INT_ARCRX_BIPHASE_DECODE_C_VALID_CHANGE)
+		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_C_VALID_CHANGE)
 			dev_dbg(p_earc->dev, "ARCRX_C_VALID_CHANGE\n");
-		if (status1 & INT_ARCRX_BIPHASE_DECODE_C_FIND_NONPCM2PCM)
+		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_C_FIND_NONPCM2PCM)
 			dev_dbg(p_earc->dev, "ARCRX_C_FIND_NONPCM2PCM\n");
-		if (status1 & INT_ARCRX_BIPHASE_DECODE_C_PCPD_CHANGE)
+		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_C_PCPD_CHANGE)
 			dev_dbg(p_earc->dev, "ARCRX_C_PCPD_CHANGE\n");
-		if (status1 & INT_ARCRX_BIPHASE_DECODE_C_CH_STATUS_CHANGE) {
+		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_C_CH_STATUS_CHANGE) {
 			int mute = earcrx_get_cs_mute(p_earc->rx_dmac_map);
 
 			if (p_earc->rx_cs_mute != mute) {
@@ -415,15 +422,15 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 						   RST_BY_SELF, true);
 			}
 		}
-		if (status1 & INT_ARCRX_BIPHASE_DECODE_I_SAMPLE_MODE_CHANGE)
+		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_I_SAMPLE_MODE_CHANGE)
 			dev_dbg(p_earc->dev, "ARCRX_I_SAMPLE_MODE_CHANGE\n");
 		if (p_earc->chipinfo->rx_dmac_sync_int &&
-		    status1 & INT_EARCRX_DMAC_VALID_AUTO_NEG_INT_SET) {
+		    p_earc->rx_status1 & INT_EARCRX_DMAC_VALID_AUTO_NEG_INT_SET) {
 			earcrx_dmac_sync_int_enable(p_earc->rx_top_map, 0);
 			schedule_work(&p_earc->rx_dmac_int_work);
 			pr_info("%s EARCRX_DMAC_VALID_AUTO_NEG_INT_SET\n", __func__);
 		} else if (p_earc->chipinfo->unstable_tick_sel &&
-			   status1 & INT_EARCRX_DMAC_VALID_AUTO_NEG_INT_SET) {
+			   p_earc->rx_status1 & INT_EARCRX_DMAC_VALID_AUTO_NEG_INT_SET) {
 			earcrx_dmac_sync_clr_irqs(p_earc->rx_top_map);
 			pr_info("%s unstable tick happen\n", __func__);
 			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true);
@@ -2073,7 +2080,7 @@ static int earcrx_cmdc_setup(struct earc *p_earc)
 
 	ret = devm_request_threaded_irq(p_earc->dev,
 					p_earc->irq_earc_rx,
-					NULL,
+					rx_handler,
 					earc_rx_isr,
 					IRQF_TRIGGER_HIGH |
 					IRQF_ONESHOT,
