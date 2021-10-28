@@ -1105,6 +1105,9 @@ static int am_meson_hdmi_bind(struct device *dev,
 	struct meson_connector *mesonconn;
 	struct drm_hdmitx_hpd_cb hpd_cb;
 	int ret;
+#ifdef CONFIG_CEC_NOTIFIER
+	struct edid *pedid;
+#endif
 
 	DRM_INFO("[%s] in\n", __func__);
 	am_hdmi = &am_hdmi_info;
@@ -1158,7 +1161,20 @@ static int am_meson_hdmi_bind(struct device *dev,
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;
-
+	/* notifier phy addr to cec when boot
+	 * so that to not miss any hpd event
+	 */
+#ifdef CONFIG_CEC_NOTIFIER
+	if (drm_hdmitx_detect_hpd()) {
+		DRM_INFO("%s[%d]\n", __func__, __LINE__);
+		pedid = (struct edid *)drm_hdmitx_get_raw_edid();
+		cec_notifier_set_phys_addr_from_edid(am_hdmi->cec_notifier,
+						     pedid);
+	} else {
+		cec_notifier_set_phys_addr(am_hdmi->cec_notifier,
+					   CEC_PHYS_ADDR_INVALID);
+	}
+#endif
 	DRM_INFO("[%s] out\n", __func__);
 	return 0;
 }
