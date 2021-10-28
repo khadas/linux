@@ -359,8 +359,12 @@ void aml_toddr_enable(struct toddr *to, bool enable)
 			aml_check_vad(to, enable);
 	}
 
-	if (!enable)
+	if (!enable) {
 		aml_audiobus_write(actrl, reg, 0x0);
+		/* clear ctrl1 register */
+		reg = calc_toddr_address(EE_AUDIO_TODDR_A_CTRL1, reg_base);
+		aml_audiobus_write(actrl, reg, 0x0);
+	}
 }
 
 static char *toddr_src2str(enum toddr_src tsrc)
