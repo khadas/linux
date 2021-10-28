@@ -1291,6 +1291,7 @@ static int vpp_set_filters_internal
 	int is_larger_4k50hz = 0;
 	u32 src_width_max, src_height_max;
 	bool afbc_support;
+	bool crop_adjust = false;
 
 	if (!input)
 		return vppfilter_fail;
@@ -1388,6 +1389,15 @@ RESTART_ALL:
 	crop_right = video_source_crop_right / crop_ratio;
 	crop_top = video_source_crop_top / crop_ratio;
 	crop_bottom = video_source_crop_bottom / crop_ratio;
+
+	/* fix both h/w crop odd issue */
+	if (crop_adjust) {
+		crop_left &= ~1;
+		crop_top &= ~1;
+		w_in = width_in;
+		h_in = height_in;
+		crop_adjust = false;
+	}
 
 	if (likely(w_in >
 		(crop_left + crop_right))) {
@@ -2111,6 +2121,29 @@ RESTART:
 		filter->vpp_hsc_start_phase_step >>= 1;
 	} else {
 		filter->vpp_pre_hsc_en = 0;
+
+	if (filter->vpp_hsc_start_phase_step == 0x1000000 &&
+	   filter->vpp_vsc_start_phase_step == 0x1000000 &&
+	   h_crop_enable && v_crop_enable) {
+		int w, h;
+
+		w = next_frame_par->VPP_hd_end_lines_ -
+			next_frame_par->VPP_hd_start_lines_ + 1;
+		h = next_frame_par->VPP_vd_end_lines_ -
+			next_frame_par->VPP_vd_start_lines_ + 1;
+		pr_info("%s:crop info=%d,%d,%d,%d\n",
+			__func__, crop_left, crop_top, crop_right, crop_bottom);
+		pr_info("%s:w_in=%d, h_in=%d, w=%x, h=%x\n",
+			__func__, w_in, h_in, w, h);
+
+		if ((w & 1) && (h & 1)) {
+			crop_adjust = true;
+			h_crop_enable = false;
+			v_crop_enable = false;
+			goto RESTART_ALL;
+		}
+	}
+
 	/* vscaler enable
 	 * vout 4k 50hz
 	 * video src heiht >= 2160*60%
@@ -3858,6 +3891,7 @@ static int vpp_set_filters_no_scaler_internal
 	bool no_compress = false;
 	u32 cur_super_debug = 0;
 	bool afbc_support;
+	bool crop_adjust = false;
 
 	if (!input)
 		return vppfilter_fail;
@@ -3906,6 +3940,15 @@ RESTART_ALL:
 	crop_right = video_source_crop_right / crop_ratio;
 	crop_top = video_source_crop_top / crop_ratio;
 	crop_bottom = video_source_crop_bottom / crop_ratio;
+
+	/* fix both h/w crop odd issue */
+	if (crop_adjust) {
+		crop_left &= ~1;
+		crop_top &= ~1;
+		w_in = width_in;
+		h_in = height_in;
+		crop_adjust = false;
+	}
 
 	if (likely(w_in >
 		(crop_left + crop_right))) {
@@ -4277,6 +4320,27 @@ RESTART:
 		filter->vpp_hf_start_phase_step >>= 1;
 		filter->vpp_hsc_start_phase_step >>= 1;
 		next_frame_par->VPP_line_in_length_ >>= 1;
+	}
+	if (filter->vpp_hsc_start_phase_step == 0x1000000 &&
+	   filter->vpp_vsc_start_phase_step == 0x1000000 &&
+	   h_crop_enable && v_crop_enable) {
+		int w, h;
+
+		w = next_frame_par->VPP_hd_end_lines_ -
+			next_frame_par->VPP_hd_start_lines_ + 1;
+		h = next_frame_par->VPP_vd_end_lines_ -
+			next_frame_par->VPP_vd_start_lines_ + 1;
+		pr_info("%s:crop info=%d,%d,%d,%d\n",
+			__func__, crop_left, crop_top, crop_right, crop_bottom);
+		pr_info("%s:w_in=%d, h_in=%d, w=%x, h=%x\n",
+			__func__, w_in, h_in, w, h);
+
+		if ((w & 1) && (h & 1)) {
+			crop_adjust = true;
+			h_crop_enable = false;
+			v_crop_enable = false;
+			goto RESTART_ALL;
+		}
 	}
 
 	if (next_frame_par->vscale_skip_count > 1 &&
