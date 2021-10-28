@@ -178,6 +178,17 @@ static struct meson_vdac_data meson_s4d_vdac_data = {
 	.ctrl_table = vdac_ctrl_enable_s4,
 };
 
+static struct meson_vdac_data meson_t5w_vdac_data = {
+	.cpu_id = VDAC_CPU_T5W,
+	.name = "meson-t5w-vdac",
+
+	.reg_cntl0 = HHI_VDAC_CNTL0_G12A,
+	.reg_cntl1 = HHI_VDAC_CNTL1_G12A,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
+	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.ctrl_table = vdac_ctrl_enable_t5,
+};
+
 const struct of_device_id meson_vdac_dt_match[] = {
 	{
 		.compatible = "amlogic, vdac-g12a",
@@ -216,6 +227,9 @@ const struct of_device_id meson_vdac_dt_match[] = {
 	}, {
 		.compatible = "amlogic, vdac-s4d",
 		.data		= &meson_s4d_vdac_data,
+	}, {
+		.compatible = "amlogic, vdac-T5w",
+		.data		= &meson_t5w_vdac_data,
 	},
 	{}
 };

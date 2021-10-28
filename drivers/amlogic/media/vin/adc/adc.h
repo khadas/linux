@@ -6,7 +6,7 @@
 #ifndef __ADC_H_
 #define __ADC_H_
 
-#define TVDIN_ADC_VER "2021/10/20 Fixed T3 and S4D pll lock state"
+#define TVDIN_ADC_VER "2021/10/28 T5W bringup"
 
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000
@@ -106,6 +106,7 @@ enum adc_chip_ver {
 	ADC_CHIP_S4,
 	ADC_CHIP_T3,
 	ADC_CHIP_S4D,
+	ADC_CHIP_T5W,
 };
 
 struct adc_reg_phy {

@@ -604,6 +604,19 @@
 		fr_policy = <0>;
 	};
 
+	vdac {
+		compatible = "amlogic, vdac-t5w";
+		status = "okay";
+	};
+
+	adc: adc {
+		compatible = "amlogic, adc-t5w";
+		status = "okay";
+		reg = <0x0 0xff654000 0x0 0x2000/* afe reg base */
+			0x0 0xff63c000 0x0 0x2000/* hiu base */
+		>;
+	};
+
 	rdma {
 		compatible = "amlogic, meson-t3, rdma";
 		status = "okay";

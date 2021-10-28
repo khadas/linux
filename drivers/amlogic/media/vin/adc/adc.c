@@ -134,6 +134,7 @@ void adc_set_ddemod_default(enum fe_delivery_system delsys)
 		switch (devp->plat_data->chip_id) {
 		case ADC_CHIP_T5D:
 		case ADC_CHIP_T3:
+		case ADC_CHIP_T5W:
 			switch (delsys) {
 			case SYS_DVBT:
 			case SYS_DVBT2:
@@ -426,7 +427,7 @@ static void adc_set_dtvdemod_pll_by_delsys(struct tvin_adc_dev *devp,
 			adc_wr_hiu(pll_addr->adc_pll_cntl_5 + reg_offset, 0x3927a000);
 			adc_wr_hiu(pll_addr->adc_pll_cntl_6 + reg_offset, 0x56540000);
 			adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x10070487);
-		} else if (chip == ADC_CHIP_T3) {
+		} else if (chip == ADC_CHIP_T3 || chip == ADC_CHIP_T5W) {
 			adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x20070487);
 			adc_wr_hiu(pll_addr->adc_pll_cntl_0, 0x30070487);
 			adc_wr_hiu(pll_addr->adc_pll_cntl_1, 0x01000000);
@@ -701,6 +702,7 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 				case ADC_CHIP_S4:
 				case ADC_CHIP_T3:
 				case ADC_CHIP_S4D:
+				case ADC_CHIP_T5W:
 					adc_set_dtvdemod_pll_by_delsys(devp, p_dtv_para);
 					break;
 
@@ -1192,6 +1194,12 @@ static const struct adc_platform_data_s adc_data_s4d = {
 	.chip_id = ADC_CHIP_S4D,
 };
 
+static const struct adc_platform_data_s adc_data_t5w = {
+	ADC_ADDR_TL1_TO_S4,
+	ADC_PLL_ADDR_TL1,
+	.chip_id = ADC_CHIP_T5W,
+};
+
 static const struct of_device_id adc_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -1234,6 +1242,10 @@ static const struct of_device_id adc_dt_match[] = {
 	{
 		.compatible = "amlogic, adc-s4d",
 		.data = &adc_data_s4d,
+	},
+	{
+		.compatible = "amlogic, adc-t5w",
+		.data = &adc_data_t5w,
 	},
 	{}
 };
