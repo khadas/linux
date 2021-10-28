@@ -367,7 +367,10 @@ static void adc_set_dtvdemod_pll_by_clk(struct tvin_adc_dev *devp,
 			//if (chip >= ADC_CHIP_T5D)
 			//adc_wr_hiu_bits(pll_addr->adc_pll_cntl_5 + reg_offset, 1, 0, 16);
 			//else
-			adc_wr_hiu(pll_addr->adc_pll_cntl_5, 0x3927a000);
+			if (chip == ADC_CHIP_T5W)
+				adc_wr_hiu(pll_addr->adc_pll_cntl_5, 0x3927a00a);
+			else
+				adc_wr_hiu(pll_addr->adc_pll_cntl_5, 0x3927a000);
 
 			adc_wr_hiu(pll_addr->adc_pll_cntl_6 + reg_offset, 0x56540000);
 			adc_wr_hiu(pll_addr->adc_pll_cntl_0 + reg_offset, 0x111104e0);

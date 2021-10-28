@@ -70,6 +70,10 @@ static void get_chip_name(struct amldtvdemod_device_s *devp, char *str)
 		strcpy(str, "DTVDEMOD_HW_S4D");
 		break;
 
+	case DTVDEMOD_HW_T5W:
+		strcpy(str, "DTVDEMOD_HW_T5W");
+		break;
+
 	default:
 		strcpy(str, "UNKNOWN");
 		break;

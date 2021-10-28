@@ -156,6 +156,14 @@
 		status = "okay";
 	};
 
+	adc: adc {
+		compatible = "amlogic, adc-t5d";
+		status = "okay";
+		reg = <0x0 0xff654000 0x0 0x2000/* afe reg base */
+			0x0 0xff63c000 0x0 0x2000/* hiu base */
+			>;
+	};
+
 	arm_pmu {
 		compatible = "arm,armv8-pmuv3";
 		private-interrupts;
@@ -2067,6 +2075,28 @@
 		mux { /* GPIOZ_19 */
 			groups = "spdif_in_z";
 			function = "spdif_in";
+		};
+	};
+
+	dtvdemod_if_agc_pins: dtvdemod_if_agc_pins {
+		mux {
+			groups = "dtv_if_agc_z6";
+			function = "dtv";
+		};
+	};
+
+	dtvdemod_rf_agc_pins: dtvdemod_rf_agc_pins {
+		mux {
+			groups = "dtv_rf_agc_z6";
+			function = "dtv";
+		};
+	};
+
+	diseqc_out: diseqc_out {
+		mux {
+			groups = "diseqc_out_z0";
+			function = "diseqc_out";
+			bias-pull-down;
 		};
 	};
 

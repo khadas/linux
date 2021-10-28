@@ -134,6 +134,7 @@ enum dtv_demod_hw_ver_e {
 	DTVDEMOD_HW_T5D_B,
 	DTVDEMOD_HW_T3,
 	DTVDEMOD_HW_S4D,
+	DTVDEMOD_HW_T5W,
 };
 
 struct ddemod_dig_clk_addr {

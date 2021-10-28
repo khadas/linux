@@ -56,6 +56,15 @@
 #include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 
+/****************************************************/
+/*  V1.0.17  DVBS blind scan change                 */
+/*  V1.0.18  dvbt 8K QPSK search failed            */
+/*  V1.0.19  22K will off after diseqc send        */
+/*  V1.0.20  ci card mode do not change in other mode */
+/*  V1.0.21  dvbc C/N worse                         */
+/*  V1.1.21  T5W chip bringup                        */
+/****************************************************/
+
 MODULE_PARM_DESC(auto_search_std, "\n\t\t atsc-c std&hrc search");
 static unsigned int auto_search_std;
 module_param(auto_search_std, int, 0644);
@@ -3672,7 +3681,8 @@ static void demod_32k_ctrl(unsigned int onoff)
 		return;
 	}
 
-	if (devp->data->hw_ver != DTVDEMOD_HW_T3)
+	if (devp->data->hw_ver != DTVDEMOD_HW_T3 &&
+		devp->data->hw_ver != DTVDEMOD_HW_T5W)
 		return;
 
 	if (onoff) {
@@ -4085,6 +4095,25 @@ const struct meson_ddemod_data  data_s4d = {
 	.hw_ver = DTVDEMOD_HW_S4D,
 };
 
+const struct meson_ddemod_data  data_t5w = {
+	.dig_clk = {
+		.demod_clk_ctl = 0x74,
+		.demod_clk_ctl_1 = 0x75,
+	},
+	.regoff = {
+		.off_demod_top = 0xf000,
+		.off_dvbc = 0x1000,
+		.off_dtmb = 0x0000,
+		.off_atsc = 0x0c00,
+		.off_isdbt = 0x800,
+		.off_front = 0x3800,
+		.off_dvbs = 0x2000,
+		.off_dvbt_isdbt = 0x800,
+		.off_dvbt_t2 = 0x0000,
+	},
+	.hw_ver = DTVDEMOD_HW_T5W,
+};
+
 static const struct of_device_id meson_ddemod_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -4128,6 +4157,9 @@ static const struct of_device_id meson_ddemod_match[] = {
 	}, {
 		.compatible = "amlogic, ddemod-s4d",
 		.data		= &data_s4d,
+	}, {
+		.compatible = "amlogic, ddemod-t5w",
+		.data		= &data_t5w,
 	},
 	/* DO NOT remove, to avoid scan err of KASAN */
 	{}
@@ -4180,6 +4212,7 @@ static int dds_init_reg_map(struct platform_device *pdev)
 		break;
 
 	case DTVDEMOD_HW_T3:
+	case DTVDEMOD_HW_T5W:
 		break;
 
 	default:
@@ -6403,6 +6436,24 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 			aml_dtvdm_ops.delsys[4] = SYS_ANALOG;
 #endif
 			strcpy(aml_dtvdm_ops.info.name, "amlogic DVB-C/DVB-S dtv demod s4d");
+			break;
+
+		case DTVDEMOD_HW_T5W:
+			/* max delsys is 8, index: 0~7 */
+			aml_dtvdm_ops.delsys[0] = SYS_DVBC_ANNEX_A;
+			aml_dtvdm_ops.delsys[1] = SYS_ATSC;
+			aml_dtvdm_ops.delsys[2] = SYS_DVBS2;
+			aml_dtvdm_ops.delsys[3] = SYS_ISDBT;
+			aml_dtvdm_ops.delsys[4] = SYS_DVBS;
+			aml_dtvdm_ops.delsys[5] = SYS_DVBT2;
+			aml_dtvdm_ops.delsys[6] = SYS_DVBT;
+			aml_dtvdm_ops.delsys[7] = SYS_DVBC_ANNEX_B;
+			aml_dtvdm_ops.delsys[8] = SYS_DTMB;
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+			aml_dtvdm_ops.delsys[9] = SYS_ANALOG;
+#endif
+			strcpy(aml_dtvdm_ops.info.name,
+					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT/DTMB ddemod t5w");
 			break;
 
 		default:
