@@ -24,6 +24,12 @@ my $arm_dts = "arch/arm/boot/dts/amlogic/";
 #Check mesonxx_defconfig
 sub check_defconfig
 {
+	my $arm64_config = `git diff  --name-only arch/arm64/configs | grep  -E *defconfig`;
+	my $arm_config = `git diff  --name-only arch/arm/configs | grep  -E *defconfig`;
+	if (!$arm_config && !$arm64_config)
+	{
+		return 0;
+	}
 	my $err = 0;
 	#print "2. Check meson_defconfig: ";
 	if( -e $config1)
