@@ -50,6 +50,9 @@
 #define DMC_VIO_PROT_RANGE0_T5W     BIT(20)
 #define DMC_VIO_PROT_RANGE1_T5W     BIT(21)
 
+#define DMC_VIO_PROT_RANGE0_A5     BIT(20)
+#define DMC_VIO_PROT_RANGE1_A5     BIT(21)
+
 static size_t s4_dmc_dump_reg(char *buf)
 {
 	size_t sz = 0, i;
@@ -90,6 +93,9 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 		case DMC_TYPE_T5W:
 			value = (DMC_VIO_PROT_RANGE0_T5W |
 						DMC_VIO_PROT_RANGE1_T5W);
+			break;
+		case DMC_TYPE_A5:
+			value = (DMC_VIO_PROT_RANGE0_A5 | DMC_VIO_PROT_RANGE1_A5);
 			break;
 
 		default:
@@ -180,6 +186,7 @@ static int s4_dmc_mon_set(struct dmc_monitor *mon)
 
 	switch (dmc_mon->chip) {
 	case DMC_TYPE_T5W:
+	case DMC_TYPE_A5:
 		value = (1 << 24 | 0xffff);
 		break;
 

@@ -504,7 +504,7 @@ static ssize_t usage_stat_show(struct class *cla,
 		do_div(tmp.avg_port[i], total_count);
 
 	rem     = do_div(tmp.avg_usage, 100);
-	percent = tmp.avg_usage,
+	percent = tmp.avg_usage;
 	s      += sprintf(buf + s, AVG_PREFIX ", samples:%ld\n",
 			  tmp.avg_bandwidth,
 			  percent, rem, total_count);
@@ -912,6 +912,7 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S4
 	case DMC_TYPE_S4:
 	case DMC_TYPE_T5W:
+	case DMC_TYPE_A5:
 		band->ops = &s4_ddr_bw_ops;
 		aml_db->channels = 8;
 		aml_db->mali_port[0] = 1; /* port1: mali */
@@ -1198,6 +1199,10 @@ static const struct of_device_id aml_ddr_bandwidth_dt_match[] = {
 	{
 		.compatible = "amlogic,ddr-bandwidth-p1",
 		.data = (void *)DMC_TYPE_P1,
+	},
+	{
+		.compatible = "amlogic,ddr-bandwidth-a5",
+		.data = (void *)DMC_TYPE_A5,
 	},
 	{}
 };

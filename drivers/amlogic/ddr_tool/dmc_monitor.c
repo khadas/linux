@@ -184,7 +184,7 @@ unsigned int get_all_dev_mask(void)
 	for (i = 0; i < PORT_MAJOR; i++) {
 		if (dmc_mon->port[i].port_id >= PORT_MAJOR)
 			break;
-		ret |= (1 << dmc_mon->port[i].port_id);
+		ret |= (1ULL << dmc_mon->port[i].port_id);
 	}
 	return ret;
 }
@@ -582,6 +582,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_S4
 	case DMC_TYPE_S4:
 	case DMC_TYPE_T5W:
+	case DMC_TYPE_A5:
 		mon->ops = &s4_dmc_mon_ops;
 		mon->mon_number = 1;
 		break;
@@ -825,6 +826,10 @@ static const struct of_device_id dmc_monitor_match[] = {
 	{
 		.compatible = "amlogic,dmc_monitor-sc2",
 		.data = (void *)DMC_TYPE_SC2,
+	},
+	{
+		.compatible = "amlogic,dmc_monitor-a5",
+		.data = (void *)DMC_TYPE_A5,
 	},
 	{}
 };
