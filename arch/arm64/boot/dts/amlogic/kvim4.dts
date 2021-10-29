@@ -1315,7 +1315,7 @@
 
 &pcie {
 	reset-gpio = <&gpio GPIOH_3 GPIO_ACTIVE_HIGH>;
-	status = "okay";
+//	status = "okay";
 };
 
 &i2c0{
