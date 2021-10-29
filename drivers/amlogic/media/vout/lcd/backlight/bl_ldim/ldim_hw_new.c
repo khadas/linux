@@ -941,9 +941,9 @@ void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 			return;
 		}
 
-		ldim_config_update_t7(ldim_drv);
-		ldim_drv->remap_en = ldim_drv->conf->remap_en;
-		ldim_hw_remap_en_t7(ldim_drv, ldim_drv->conf->remap_en);
+//		ldim_config_update_t7(ldim_drv);
+//		ldim_drv->remap_en = ldim_drv->conf->remap_en;
+//		ldim_hw_remap_en_t7(ldim_drv, ldim_drv->conf->remap_en);
 		ldim_wr_reg_bits_rdma(LDC_REG_BLOCK_NUM, 1, 20, 1);
 
 		ldim_drv->top_en = 1;

@@ -1484,15 +1484,22 @@ static void ldim_remap_update_t3(struct ld_reg_s *nprm,
 	}
 
 	if (ldim_config.func_en != ldim_driver.func_en) {
+		if (ldim_debug_print)
+			LDIMPR("%s  func_en = %d : %d\n", __func__,
+			ldim_driver.func_en, ldim_config.func_en);
 		if (ldim_driver.data && ldim_driver.data->func_ctrl)
 			ldim_driver.data->func_ctrl(&ldim_driver,
 			ldim_config.func_en);
 		ldim_driver.func_en = ldim_config.func_en;
-	}
-
-	if (ldim_config.remap_en != ldim_driver.remap_en) {
-		ldim_hw_remap_en_t7(&ldim_driver, ldim_config.remap_en);
-		ldim_driver.remap_en = ldim_config.remap_en;
+	} else if (ldim_config.remap_en != ldim_driver.remap_en) {
+		if (ldim_driver.func_en) {
+			if (ldim_debug_print)
+				LDIMPR("%s  func_en = 1,remap_en = %d : %d\n", __func__,
+				ldim_driver.remap_en, ldim_config.remap_en);
+			ldim_config_update_t7(&ldim_driver);
+			ldim_hw_remap_en_t7(&ldim_driver, ldim_config.remap_en);
+			ldim_driver.remap_en = ldim_config.remap_en;
+		}
 	}
 }
 
