@@ -182,6 +182,15 @@ int convert_snr(int in_snr)
 	return out_snr;
 }
 
+static void real_para_clear(struct aml_demod_para_real *para)
+{
+	para->modulation = -1;
+	para->coderate = -1;
+	para->symbol = 0;
+	para->snr = 0;
+	para->plp_num = 0;
+}
+
 //static void dtvdemod_do_8vsb_rst(void)
 //{
 	//union atsc_cntl_reg_0x20 val;
@@ -876,10 +885,9 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		*status = FE_TIMEDOUT;
 		demod->last_lock = -1;
 		demod->last_status = *status;
-		demod->real_para.snr = 0;
-		demod->real_para.modulation = -1;
-		demod->real_para.coderate = -1;
+		real_para_clear(&demod->real_para);
 		PR_DVBT("tuner:no signal! strength:%d\n", strenth);
+
 		return 0;
 	}
 
@@ -889,10 +897,9 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			*status = FE_TIMEDOUT;
 			demod->last_lock = -1;
 			demod->last_status = *status;
-			demod->real_para.snr = 0;
-			demod->real_para.modulation = -1;
-			demod->real_para.coderate = -1;
+			real_para_clear(&demod->real_para);
 			PR_DVBT("[id %d] not dvbt signal\n", demod->id);
+
 			return 0;
 		}
 	}
@@ -920,9 +927,7 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			*status = FE_TIMEDOUT;
 			timer_disable(demod, D_TIMER_DETECT);
 		}
-		demod->real_para.snr = 0;
-		demod->real_para.modulation = -1;
-		demod->real_para.coderate = -1;
+		real_para_clear(&demod->real_para);
 	}
 
 	/* porting from ST driver FE_368dvbt_LockFec() */
@@ -1059,11 +1064,11 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	unsigned int p1_peak, val;
 	static int no_signal_cnt, unlock_cnt;
 	int snr, modu, cr, l1post, ldpc;
+	unsigned int plp_num;
 
 	if (!devp->demod_thread) {
-		demod->real_para.snr = 0;
-		demod->real_para.modulation = -1;
-		demod->real_para.coderate = -1;
+		real_para_clear(&demod->real_para);
+
 		return 0;
 	}
 
@@ -1077,10 +1082,9 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		unlock_cnt = 0;
 		*status = FE_TIMEDOUT;
 		demod->last_status = *status;
-		demod->real_para.snr = 0;
-		demod->real_para.modulation = -1;
-		demod->real_para.coderate = -1;
+		real_para_clear(&demod->real_para);
 		PR_INFO("!! >> UNLOCKT2 << !! no signal!\n");
+
 		return 0;
 	}
 	no_signal_cnt = 0;
@@ -1107,12 +1111,14 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		ldpc = (val >> 7) & 0x3F;
 		snr = val >> 13;
 		l1post = (val >> 30) & 0x1;
+		plp_num = (val >> 24) & 0x3f;
 	} else {
 		snr = (dvbt_t2_rdb(0x2a09) << 8) | dvbt_t2_rdb(0x2a08);
 		cr = (dvbt_t2_rdb(0x8c3) >> 1) & 0x7;
 		modu = (dvbt_t2_rdb(0x8c3) >> 4) & 0x7;
 		ldpc = dvbt_t2_rdb(0xa50);
 		l1post = (dvbt_t2_rdb(0x839) >> 3) & 0x1;
+		plp_num = dvbt_t2_rdb(0x805);
 	}
 	snr &= 0x7ff;
 	snr = snr * 300 / 64;
@@ -1169,11 +1175,10 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		demod->real_para.snr = snr / 10;
 		demod->real_para.modulation = modu;
 		demod->real_para.coderate = cr;
+		demod->real_para.plp_num = plp_num;
 	} else if (demod->last_lock == -CONTINUE_TIMES_UNLOCK) {
 		*status = FE_TIMEDOUT;
-		demod->real_para.snr = 0;
-		demod->real_para.modulation = -1;
-		demod->real_para.coderate = -1;
+		real_para_clear(&demod->real_para);
 	} else {
 		*status = 0;
 	}
@@ -1410,10 +1415,7 @@ static int dvbt_set_frontend(struct dvb_frontend *fe)
 	param.dat0 = 1;
 	demod->last_lock = -1;
 	demod->last_status = 0;
-	demod->real_para.modulation = -1;
-	demod->real_para.coderate = -1;
-	demod->real_para.symbol = -1;
-	demod->real_para.snr = 0;
+	real_para_clear(&demod->real_para);
 
 	tuner_set_params(fe);
 	dvbt_set_ch(demod, &param);
@@ -1437,10 +1439,7 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 	demod->last_lock = 0;
 	demod->last_status = 0;
 	demod->p1_peak = 0;
-	demod->real_para.modulation = -1;
-	demod->real_para.coderate = -1;
-	demod->real_para.symbol = -1;
-	demod->real_para.snr = 0;
+	real_para_clear(&demod->real_para);
 
 	tuner_set_params(fe);
 	dvbt2_set_ch(demod);
@@ -6166,7 +6165,23 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 			break;
 
 		/* plp nums & ids */
-		dtvdemod_get_plp(devp, tvp);
+		tvp->u.buffer.reserved1[0] = demod->real_para.plp_num;
+		if (tvp->u.buffer.reserved2 && demod->real_para.plp_num > 0) {
+			unsigned char i, *plp_ids;
+
+			plp_ids = kmalloc(demod->real_para.plp_num, GFP_KERNEL);
+			if (plp_ids) {
+				for (i = 0; i < demod->real_para.plp_num; i++)
+					plp_ids[i] = i;
+				if (copy_to_user(tvp->u.buffer.reserved2,
+					plp_ids, demod->real_para.plp_num))
+					pr_err("copy plp ids to user err\n");
+
+				kfree(plp_ids);
+			}
+		}
+		PR_INFO("[id %d] get plp num = %d\n",
+			demod->id, demod->real_para.plp_num);
 		break;
 
 	default:
