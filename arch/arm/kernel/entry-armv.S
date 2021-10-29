@@ -196,6 +196,9 @@ ENDPROC(__und_invalid)
 #endif
  SPFIX(	subeq	sp, sp, #4	)
 	.endif
+#else
+ SPFIX(	tst	sp, #4		)
+ SPFIX(	subeq	sp, sp, #4	)
 #endif
 	stmia	sp, {r1 - r12}
 
@@ -209,6 +212,9 @@ ENDPROC(__und_invalid)
 	add	r2, sp, #(SVC_REGS_SIZE + \stack_hole - 4)
  SPFIX(	addeq	r2, r2, #4	)
 	.endif
+#else
+	add	r2, sp, #(SVC_REGS_SIZE + \stack_hole - 4)
+ SPFIX(	addeq	r2, r2, #4	)
 #endif
 	str	r3, [sp, #-4]!		@ save the "real" r0 copied
 					@ from the exception stack
@@ -232,7 +238,7 @@ ENDPROC(__und_invalid)
 	 * get fault task thread info
 	 */
 	ldr	r0, [sp, #(SVC_REGS_SIZE + TI_VMAP_BACK_SP)]
-#ifdef CONFIG_AMLOGIC_KASAN32
+#ifdef CONFIG_KASAN
 	/* FAR may be kasan shadow then nobody will handle it */
 	mrc	p15, 0, r1, c6, c0, 0		@ get FAR
 	bl	pmd_check
@@ -300,7 +306,7 @@ __dabt_svc:
 	subne	r0, r0, #4
 	mov	r1, sp
 	mov	r2, #SVC_REGS_SIZE
-#ifdef CONFIG_AMLOGIC_KASAN32
+#ifdef CONFIG_KASAN
 	bl	__memcpy		/* copy back sp	*/
 #else
 	bl	memcpy			/* copy back sp	*/
@@ -398,7 +404,7 @@ __pabt_svc:
 	subne	r0, r0, #4
 	mov	r1, sp
 	mov	r2, #SVC_REGS_SIZE
-#ifdef CONFIG_AMLOGIC_KASAN32
+#ifdef CONFIG_KASAN
 	bl	__memcpy		/* copy back sp	*/
 #else
 	bl	memcpy			/* copy back sp	*/
