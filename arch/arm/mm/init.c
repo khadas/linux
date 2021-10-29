@@ -468,6 +468,9 @@ static void __init free_highpages(void)
  */
 void __init mem_init(void)
 {
+#ifdef CONFIG_AMLOGIC_MEM_DEBUG
+	char *buf = NULL;
+#endif
 #ifdef CONFIG_ARM_LPAE
 	swiotlb_init(1);
 #endif
@@ -487,6 +490,16 @@ void __init mem_init(void)
 
 	mem_init_print_info(NULL);
 
+#ifdef CONFIG_AMLOGIC_MEM_DEBUG
+	buf = (void *)__get_free_page(GFP_KERNEL);
+	if (!buf) {
+		pr_err("%s alloc buffer failed\n", __func__);
+	} else {
+		dump_mem_layout(buf);
+		pr_notice("%s\n", buf);
+		free_page((unsigned long)buf);
+	}
+#endif
 	/*
 	 * Check boundaries twice: Some fundamental inconsistencies can
 	 * be detected at build time already.

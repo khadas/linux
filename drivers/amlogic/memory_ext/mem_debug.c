@@ -73,7 +73,7 @@ void dump_mem_layout(char *buf)
 		    (unsigned long)high_memory), (unsigned long)memblock_start_of_DRAM());
 #else
 		sprintf(buf, "Virtual kernel memory layout:\n"
-#ifdef CONFIG_AMLOGIC_KASAN32
+#ifdef CONFIG_KASAN
 					"	 kasan	 : 0x%08lx - 0x%08lx   (%4ld MB)\n"
 #endif
 #ifdef CONFIG_HAVE_TCM
@@ -93,7 +93,7 @@ void dump_mem_layout(char *buf)
 					"	   .init : 0x%px" " - 0x%px" "   (%4td kB)\n"
 					"	   .data : 0x%px" " - 0x%px" "   (%4td kB)\n"
 					"		.bss : 0x%px" " - 0x%px" "   (%4td kB)\n",
-#ifdef CONFIG_AMLOGIC_KASAN32
+#ifdef CONFIG_KASAN
 					MLM(KASAN_SHADOW_START, KASAN_SHADOW_END),
 #endif
 
