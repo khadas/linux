@@ -1439,6 +1439,7 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
 	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d.\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
@@ -1449,6 +1450,17 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 	demod->last_status = 0;
 	demod->p1_peak = 0;
 	real_para_clear(&demod->real_para);
+
+	if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+		dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
+		riscv_ctl_write_reg(0x30, 4);
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+		dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
+		dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
+		dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
+	}
 
 	tuner_set_params(fe);
 	dvbt2_set_ch(demod, fe);
@@ -5282,12 +5294,22 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 				//dtmb_write_reg(0x47, 0xed33221);
 				dtmb_write_reg_bits(0x47, 0x1, 22, 1);
 				dtmb_write_reg_bits(0x47, 0x1, 23, 1);
+			} else if (devp->data->hw_ver == DTVDEMOD_HW_T3 && ldelsys == SYS_DVBT2) {
+				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+				dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
+				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
+				riscv_ctl_write_reg(0x30, 4);
+				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+				dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
+				dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
+				dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
 			}
 
 			if (fe->ops.tuner_ops.release)
 				fe->ops.tuner_ops.release(fe);
 
-			if (devp->data->hw_ver == DTVDEMOD_HW_T3 && ldelsys == SYS_DTMB) {
+			if (devp->data->hw_ver == DTVDEMOD_HW_T3 &&
+				(ldelsys == SYS_DTMB || ldelsys == SYS_DVBT2)) {
 				if (fe->ops.tuner_ops.set_config)
 					fe->ops.tuner_ops.set_config(fe, NULL);
 				if (fe->ops.tuner_ops.release)

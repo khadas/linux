@@ -12,8 +12,6 @@
 #include <linux/amlogic/aml_dtvdemod.h>
 
 /****************************************************/
-/*  V1.0.20  ci card mode do not change in other mode */
-/*  V1.0.21  dvbc C/N worse                         */
 /*  V1.0.22  no audio output after random source switch */
 /*  V1.0.23  fixed code and dts CMA config          */
 /*  V1.0.24  dvbt2 add reset when unlocked for 3s   */
@@ -22,6 +20,7 @@
 /*  V1.0.27  s4d remove dvbs blindscan fastsearch threadhold*/
 /*  V1.0.28  fix the hang when read mplp info in DVBT system*/
 /*  V1.0.29  add auto recognition t/t2 r842 config*/
+/*  V1.0.30  DVBT2 no audio output after random source switch*/
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -38,9 +37,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.0.29"
+#define AMLDTVDEMOD_VER "V1.0.30"
+#define DTVDEMOD_VER	"2021/11/09: DVBT2 no audio output after random source switch"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
-#define DTVDEMOD_VER	"2021/11/22: add auto recognition t/t2 r842 config"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
