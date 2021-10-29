@@ -1599,7 +1599,7 @@ int packet_init_t5(void)
 	data32 |= 1 << 3; /* gcp_err_filter */
 	data32 |= 1 << 2; /* acrp_err_filter */
 	data32 |= 1 << 1; /* ph_err_filter */
-	data32 |= 1 << 0; /* checksum_err_filter */
+	data32 |= 0 << 0; /* checksum_err_filter */
 	hdmirx_wr_dwc(DWC_PDEC_ERR_FILTER, data32);
 
 	data32 = hdmirx_rd_dwc(DWC_PDEC_CTRL);
