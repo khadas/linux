@@ -1,3 +1,17 @@
 source "drivers/power/avs/Kconfig"
 source "drivers/power/reset/Kconfig"
 source "drivers/power/supply/Kconfig"
+
+config CHARGER_BQ25700
+	tristate "TI BQ25700 battery charger driver"
+	depends on I2C
+	help
+		Say Y to enable support for the TI BQ25700 battery charger.
+
+config BATTERY_CW2015
+	tristate "BATTERY_CW2015 Battery driver"
+	depends on I2C]
+	help
+		If you say yes here you will get support for the battery of CW2015.
+		This driver can give support for CW2015 Battery Interface.
+
