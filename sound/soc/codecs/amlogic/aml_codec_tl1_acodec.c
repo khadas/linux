@@ -66,7 +66,7 @@ struct tl1_acodec_priv {
 };
 
 static const struct reg_default tl1_acodec_init_list[] = {
-	{ACODEC_0, 0x3403BFCF},
+	{ACODEC_0, 0x3430BFCF},
 	{ACODEC_1, 0x50503030},
 	{ACODEC_2, 0xFBFB0000},
 	{ACODEC_3, 0x00002222},
