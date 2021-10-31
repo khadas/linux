@@ -347,6 +347,27 @@ static int aml_restart_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static int aml_restart_remove(struct platform_device *pdev)
+{
+	u32 id;
+
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+						&panic_notifier);
+	unregister_die_notifier(&panic_notifier);
+
+	if (of_property_read_bool(pdev->dev.of_node,
+					"dis_nb_cpus_in_shutdown"))
+		unregister_syscore_ops(&disable_non_bootcpu_syscore_ops);
+
+	if (!IS_ERR(reboot_reason_vaddr))
+		device_remove_file(&pdev->dev, &dev_attr_reboot_reason);
+
+	if (!of_property_read_u32(pdev->dev.of_node, "sys_reset", &id))
+		unregister_restart_handler(&aml_restart_nb);
+
+	return 0;
+}
+
 static const struct of_device_id of_aml_restart_match[] = {
 	{ .compatible = "aml, reboot", },
 	{},
@@ -355,6 +376,7 @@ MODULE_DEVICE_TABLE(of, of_aml_restart_match);
 
 static struct platform_driver aml_restart_driver = {
 	.probe = aml_restart_probe,
+	.remove = aml_restart_remove,
 	.driver = {
 		.name = "aml-restart",
 		.of_match_table = of_match_ptr(of_aml_restart_match),
