@@ -3008,6 +3008,14 @@
 			     <MAILBOX_MF>;
 	};
 
+	aml_hwlock: aml_hwlock@0 {
+		status = "okay";
+		compatible = "amlogic, meson-hwspinlock";
+		reg = <0x0 0xfe006a80 0x0 0x80>;
+		bakery-cpus = <5>;
+		#hwlock-cells = <1>;
+	};
+
 	lut_dma:lut_dma {
 		compatible = "amlogic, meson-t7, lut_dma";
 		status = "disabled";

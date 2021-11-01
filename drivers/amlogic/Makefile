@@ -61,6 +61,7 @@ obj-$(CONFIG_AMLOGIC_MFD) += mfd/
 obj-$(CONFIG_AMLOGIC_REGULATOR) += regulator/
 obj-$(CONFIG_AMLOGIC_MFH_MODULE)     += mfh/
 obj-$(CONFIG_MESON_I2C_SLAVE)     += i2c_slave/
+obj-$(CONFIG_AMLOGIC_HWSPINLOCK)     += aml_hwspinlock/
 
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)
 

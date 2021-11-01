@@ -1,0 +1,17 @@
+#
+# Amlogic hwspinlock device configuration
+#
+
+menu "MESON hw spin lock Support"
+
+config AMLOGIC_HWSPINLOCK
+	bool "MESON HW SPIN LOCK"
+	depends on AMLOGIC_MODIFY
+	select HWSPINLOCK
+	help
+		MESON HWSPIN LOCK.
+		.
+		.
+		.
+
+endmenu
