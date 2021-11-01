@@ -596,14 +596,19 @@ static void osd_hw_enable(struct meson_vpu_block *vblk)
 
 static void osd_hw_disable(struct meson_vpu_block *vblk)
 {
-	struct meson_vpu_osd *osd = to_osd_block(vblk);
-	struct osd_mif_reg_s *reg = osd->reg;
-	u8 version = vblk->pipeline->osd_version;
+	struct meson_vpu_osd *osd;
+	struct osd_mif_reg_s *reg;
+	u8 version;
 
 	if (!vblk) {
 		DRM_DEBUG("disable break for NULL.\n");
 		return;
 	}
+
+	osd = to_osd_block(vblk);
+	reg = osd->reg;
+	version = vblk->pipeline->osd_version;
+
 	/*G12B should always enable,avoid afbc decoder error*/
 	if (version != OSD_V2 && version != OSD_V3)
 		osd_block_enable(reg, 0);
