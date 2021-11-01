@@ -10,7 +10,7 @@
 #include <uapi/evl/types.h>
 #include <uapi/evl/fcntl.h>
 
-#define AF_OOB		45	/* Out-of-band domain sockets */
+#define AF_OOB		46	/* Out-of-band domain sockets */
 
 #define SOCK_OOB	O_OOB	/* Request out-of-band capabilities */
 
