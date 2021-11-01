@@ -3445,10 +3445,12 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		hdr_mtx_param.p_sel = hdr_process_select;
 	}
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 &&
+	if ((get_cpu_type() == MESON_CPU_MAJOR_ID_T3 &&
 		(module_sel == OSD2_HDR ||
-		module_sel == OSD3_HDR)) {
-		pr_csc(12, "%s: t3 osd2/3 hdr only have matrix(0x%x)\n",
+		module_sel == OSD3_HDR)) ||
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_T5W &&
+		module_sel == OSD1_HDR)) {
+		pr_csc(12, "%s: t3 or t5w osd hdr only have matrix(0x%x)\n",
 	       __func__, module_sel);
 		set_hdr_matrix(module_sel, HDR_IN_MTX,
 			&hdr_mtx_param, NULL, NULL, vpp_index);
