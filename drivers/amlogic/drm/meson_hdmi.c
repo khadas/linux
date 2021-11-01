@@ -479,14 +479,16 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 	struct drm_atomic_state *state)
 {
 	struct am_hdmitx_connector_state *new_hdmitx_state, *old_hdmitx_state;
-	struct drm_crtc_state *new_crtc_state;
+	struct drm_crtc_state *new_crtc_state = NULL;
 	unsigned int hdmitx_content_type = drm_hdmitx_get_contenttypes();
 	old_hdmitx_state = to_am_hdmitx_connector_state
 		(drm_atomic_get_old_connector_state(state, connector));
 	new_hdmitx_state = to_am_hdmitx_connector_state
 		(drm_atomic_get_new_connector_state(state, connector));
-	new_crtc_state = drm_atomic_get_new_crtc_state(state,
-							   connector->state->crtc);
+
+	if (new_hdmitx_state->base.crtc)
+		new_crtc_state = drm_atomic_get_new_crtc_state(state,
+			new_hdmitx_state->base.crtc);
 
 	/*check content type.*/
 	if (((1 << new_hdmitx_state->base.content_type) &
@@ -499,7 +501,7 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 	}
 
 	/*force set mode.*/
-	if (new_hdmitx_state->update)
+	if (new_crtc_state && new_hdmitx_state->update)
 		new_crtc_state->connectors_changed = true;
 
 	return 0;
