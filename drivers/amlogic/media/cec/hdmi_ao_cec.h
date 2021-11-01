@@ -45,6 +45,7 @@ enum cec_chip_ver {
 	CEC_CHIP_T7,
 	CEC_CHIP_S4,/*base on sc2*/
 	CEC_CHIP_T3,	/* only have cecb */
+	CEC_CHIP_T5W,	/* from T5D */
 };
 
 enum cecaver {
@@ -258,6 +259,7 @@ enum {
 	AO_CECB_INTR_CLR,	/*0xc*/
 	AO_CECB_INTR_STAT,	/*0xd*/
 
+	/* only for old chip CECA clk */
 	AO_RTI_STATUS_REG1,
 	AO_RTI_PWR_CNTL_REG0,
 	AO_CRT_CLK_CNTL1,

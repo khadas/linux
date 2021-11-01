@@ -872,6 +872,32 @@
 		};
 	};
 
+	aocec: aocec {
+		compatible = "amlogic, aocec-t5w";
+		device_name = "aocec";
+		status = "okay";
+		vendor_name = "Amlogic"; /* Max Chars: 8	 */
+		/* Refer to the following URL at:
+		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
+		 */
+		vendor_id = <0xffffff>;
+		product_desc = "t5w"; /* Max Chars: 16	  */
+		cec_osd_string = "AML_TV"; /* Max Chars: 14    */
+		cec_version = <5>; /*5:1.4;6:2.0*/
+		port_num = <3>;
+		ee_cec;
+		cec_sel = <1>;
+		output = <0>;	/*output port number*/
+		arc_port_mask = <0x2>;
+		interrupts = <0 203 1>;
+		interrupt-names = "hdmi_aocecb";
+		pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep";
+		pinctrl-0=<&aocecb_mux>;
+		pinctrl-1=<&aocecb_mux>;
+		pinctrl-2=<&aocecb_mux>;
+		reg = <0x0 0xFF800000 0x0 0x400>;
+		reg-names = "ao";
+	};
 }; /* end of / */
 
 &pinctrl_periphs {
@@ -1352,6 +1378,12 @@
 		};
 	};
 
+	aocecb_mux:aocecb_mux {
+		mux {
+			groups = "cec";
+			function = "cec";
+		};
+	};
 };
 
 &gpu{

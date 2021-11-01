@@ -1783,6 +1783,18 @@ static const struct cec_platform_data_s cec_t3_data = {
 	.reg_tab_group = cec_reg_group_a1,
 };
 
+static const struct cec_platform_data_s cec_t5w_data = {
+	.chip_id = CEC_CHIP_T5W,
+	.line_reg = 0xff,/*don't check*/ /*line_reg=0:AO_GPIO_I*/
+	.line_bit = 10,
+	.ee_to_ao = 1,
+	.ceca_sts_reg = 1,
+	.ceca_ver = CECA_NONE,
+	.cecb_ver = CECB_VER_2,
+	.share_io = true,
+	.reg_tab_group = cec_reg_group_old,
+};
+
 static const struct of_device_id aml_cec_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -1845,6 +1857,10 @@ static const struct of_device_id aml_cec_dt_match[] = {
 	{
 		.compatible = "amlogic, aocec-t3",
 		.data = &cec_t3_data,
+	},
+	{
+		.compatible = "amlogic, aocec-t5w",
+		.data = &cec_t5w_data,
 	},
 	{}
 };
