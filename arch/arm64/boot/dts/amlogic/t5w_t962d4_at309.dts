@@ -253,3 +253,26 @@
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
+
+&crg {
+	status = "okay";
+};
+
+&usb2_phy_v2 {
+	status = "okay";
+	portnum = <3>;
+};
+
+&usb3_phy_v2 {
+	status = "okay";
+	portnum = <0>;
+	portconfig-30 = <0>;
+	portconfig-31 = <0>;
+	otg = <0>;
+};
+
+&dwc2_a {
+	status = "okay";
+	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
+	controller-type = <1>;
+};
