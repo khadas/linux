@@ -564,6 +564,8 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 	memset(ge2d_comp_para->ge2d_config,
 	       0, sizeof(struct config_para_ex_s));
 
+	memset(dst_canvas0_config, 0, sizeof(dst_canvas0_config));
+
 	if (ge2d_comp_para->format == GE2D_FORMAT_S24_YUV444) {
 		dst_canvas0_config[0].phy_addr = ge2d_comp_para->phy_addr[0];
 		dst_canvas0_config[0].width = ge2d_comp_para->buffer_w * 3;
