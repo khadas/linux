@@ -118,6 +118,7 @@ void dolby_vision_set_toggle_flag(int flag);
 #define VPP_DEMO_CM_EN              BIT(0)
 
 /*PQ USER LATCH*/
+#define PQ_USER_OVERSCAN_RESET     BIT(25)
 #define PQ_USER_CMS_SAT_HUE        BIT(24)
 #define PQ_USER_CMS_CURVE_HUE_HS   BIT(23)
 #define PQ_USER_CMS_CURVE_HUE      BIT(22)
@@ -652,10 +653,11 @@ extern unsigned int pd_detect_en;
 extern bool wb_en;
 extern struct pq_ctrl_s pq_cfg;
 
-extern bool wb_en;
 extern struct pq_ctrl_s pq_cfg;
 extern struct pq_ctrl_s dv_cfg_bypass;
 extern unsigned int lc_offset;
+extern unsigned int pq_user_latch_flag;
+
 
 extern enum ecm_color_type cm_cur_work_color_md;
 extern int cm2_debug;

@@ -2193,6 +2193,8 @@ static void parse_overscan_table(unsigned int length,
 		overscan_table[i].ve =
 				(amvecm_pq_load_table[i].value2 >> 16) & 0xffff;
 	}
+	if (!overscan_table[0].load_flag)
+		pq_user_latch_flag |= PQ_USER_OVERSCAN_RESET;
 	/*because SOURCE_TV is 0,so need to add a flg to check ATV*/
 	if (overscan_table[offset].load_flag == 1 &&
 	    overscan_table[offset].source == SOURCE_TV)

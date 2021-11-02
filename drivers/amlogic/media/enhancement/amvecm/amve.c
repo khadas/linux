@@ -1791,6 +1791,17 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
 	}
 #endif
+	if (pq_user_latch_flag & PQ_USER_OVERSCAN_RESET) {
+		pq_user_latch_flag &= ~PQ_USER_OVERSCAN_RESET;
+		vf->pic_mode.AFD_enable = 0;
+		vf->pic_mode.screen_mode = 0;
+		vf->pic_mode.hs = 0;
+		vf->pic_mode.he = 0;
+		vf->pic_mode.vs = 0;
+		vf->pic_mode.ve = 0;
+		vf->ratio_control &= ~DISP_RATIO_ADAPTED_PICMODE;
+	}
+
 }
 
 void amvecm_reset_overscan(void)
