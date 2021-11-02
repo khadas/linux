@@ -1211,7 +1211,7 @@ void video_post_process(struct vframe_s *vf,
 		} else if (sdr_process_mode[vd_path] == PROC_SDR_TO_TRG) {
 			if (gamut_conv_enable)
 				gamut_convert_process(
-					vinfo, source_type, vd_path, &m, 10);
+					vinfo, source_type, vd_path, &m, 11);
 			if (vd_path == VD1_PATH)
 				hdr_proc(vf, VD1_HDR,
 				gamut_conv_enable ? SDR_GMT_CONVERT : HDR_BYPASS,

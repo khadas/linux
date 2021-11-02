@@ -456,6 +456,17 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 	}
 
 	if (force_primary) {
+		/* because of blue x,y too close to zero,
+		 * and usually have differece
+		 * force blue dest primary >= src primary to avoid blue clip
+		 */
+		if (source_type[vd_path] == HDRTYPE_SDR) {
+			if (force_dst_primary[5] > force_src_primary[5])
+				force_dst_primary[5] = force_src_primary[5];
+			if (force_dst_primary[4] > force_src_primary[4])
+				force_dst_primary[4] = force_src_primary[4];
+		}
+
 		for (i = 0; i < 4; i++)
 			for (j = 0; j < 2; j++) {
 				src_prmy[i][j] =
