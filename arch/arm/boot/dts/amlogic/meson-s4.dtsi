@@ -1934,6 +1934,20 @@
 		interrupt-names = "vpu_security";
 	};
 
+	dmx_aucpu: aucpu {
+		compatible = "amlogic, aucpu";
+		dev_name = "aml_aucpu";
+		status = "okay";
+		interrupts = <0 77 1>;
+		interrupt-names = "aucpu_irq";
+		#address-cells=<1>;
+		#size-cells=<1>;
+		ranges;
+		io_reg_base{
+			reg = <0xfe09e080 0x100>;
+		};
+	};
+
 	ge2d {
 		compatible = "amlogic, ge2d-s4";
 		status = "okay";
