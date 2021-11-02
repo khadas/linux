@@ -266,6 +266,7 @@ struct ldim_dev_driver_s {
 	int (*dev_smr_dummy)(struct aml_ldim_driver_s *ldim_drv);
 	int (*pwm_vs_update)(struct aml_ldim_driver_s *ldim_drv);
 	void (*config_print)(struct aml_ldim_driver_s *ldim_drv);
+	int (*config_update)(struct aml_ldim_driver_s *ldim_drv);
 };
 
 struct ldim_drv_data_s {

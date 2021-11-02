@@ -770,6 +770,14 @@ static int iw7027_power_off(struct aml_ldim_driver_s *ldim_drv)
 	return 0;
 }
 
+static int iw7027_config_update(struct aml_ldim_driver_s *ldim_drv)
+{
+	int ret = 0;
+
+	LDIMPR("%s: func_en = %d\n", __func__, ldim_drv->func_en);
+	return ret;
+}
+
 static ssize_t iw7027_show(struct class *class, struct class_attribute *attr, char *buf)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
@@ -880,6 +888,7 @@ static int iw7027_ldim_dev_update(struct ldim_dev_driver_s *dev_drv)
 	dev_drv->power_off = iw7027_power_off;
 	dev_drv->dev_smr = iw7027_smr;
 	dev_drv->dev_smr_dummy = iw7027_smr_dummy;
+	dev_drv->config_update = iw7027_config_update;
 
 	dev_drv->reg_write = iw7027_reg_write;
 	dev_drv->reg_read = iw7027_reg_read;
