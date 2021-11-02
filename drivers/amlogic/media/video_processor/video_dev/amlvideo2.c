@@ -3924,17 +3924,20 @@ static int amlvideo2_thread_tick(struct amlvideo2_fh *fh)
 		/* drop the frame to get the last one */
 		if (!vfq_full(&node->q_ready)) {
 			vf = vf_get(node->recv.name);
-			if (vf)
+			if (vf) {
 				amlvideo2_total_get_count++;
-			if (vf->type & VIDTYPE_V4L_EOS) {
-				vf_inqueue(vf, node);
-				goto unlock;
-			}
-			if (vf && ((vf->type & VIDTYPE_TYPEMASK) ==
-				   VIDTYPE_INTERLACE_TOP) &&
-			    node->field_flag) {
-				node->field_flag = false;
-				node->field_condition_flag = true;
+				if (vf->type & VIDTYPE_V4L_EOS) {
+					vf_inqueue(vf, node);
+					goto unlock;
+				}
+				if (((vf->type & VIDTYPE_TYPEMASK) ==
+					   VIDTYPE_INTERLACE_TOP) &&
+				    node->field_flag) {
+					node->field_flag = false;
+					node->field_condition_flag = true;
+				}
+			} else {
+				pr_info("%s:vf is NULL.\n", __func__);
 			}
 			while (vf_peek(node->recv.name) &&
 			       !node->field_condition_flag) {

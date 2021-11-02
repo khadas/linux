@@ -697,8 +697,10 @@ static void do_file_thread(struct video_queue_dev *dev)
 			if (!dev->dq_info[i].used)
 				break;
 		}
-		if (i == FILE_CNT)
+		if (i == FILE_CNT) {
 			vq_print(P_ERROR, "dq_info q is empty!\n");
+			i = 0;
+		}
 
 		dev->dq_info[i].free_file = free_file;
 		dev->dq_info[i].fence_file = fence_file;

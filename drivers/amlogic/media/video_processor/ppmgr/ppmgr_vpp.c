@@ -343,7 +343,7 @@ static void decontour_init(void)
 		dcntr_mem_info[i].cds_size = cds_size;
 		dcntr_mem_info[i].free = true;
 
-		dc_print("i=%d, grd_addr=%x, yds_addr=%x,cds_addr=%x, %d, %d, %d\n",
+		dc_print("i=%d, grd_addr=%lx, yds_addr=%lx,cds_addr=%lx, %d, %d, %d\n",
 			i,
 			dcntr_mem_info[i].grd_addr,
 			dcntr_mem_info[i].yds_addr,
@@ -533,7 +533,7 @@ static void decontour_dump_reg(void)
 
 static void decontour_print_parm(struct dcntr_mem_s *dcntr_mem)
 {
-	dc_print("i=%d,grd_addr=%x,y_addr=%x,c_addr=%x,g_size=%d,y_size=%d,c_size=%d,ratio=%d\n",
+	dc_print("i=%d,grd_addr=%lx,y_addr=%lx,c_addr=%lx,g_size=%d,y_size=%d,c_size=%d,ratio=%d\n",
 		dcntr_mem->index,
 		dcntr_mem->grd_addr,
 		dcntr_mem->yds_addr,
@@ -573,7 +573,7 @@ static int decontour_dump_output(u32 w, u32 h, struct dcntr_mem_s *dcntr_mem, in
 	if (w == 0 || h == 0)
 		return -7;
 	write_size = dcntr_mem->grd_size;
-	dc_print("addr =%x, size=%d\n", dcntr_mem->grd_addr, write_size);
+	dc_print("addr =%lx, size=%d\n", dcntr_mem->grd_addr, write_size);
 	snprintf(name_buf, sizeof(name_buf), "/data/tmp/%d-%d.grid",
 		w, h);
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
@@ -597,9 +597,9 @@ static int decontour_dump_output(u32 w, u32 h, struct dcntr_mem_s *dcntr_mem, in
 
 	dc_print("decontour:dump_2.0/2");
 	write_size = w * h;
-	dc_print("decontour:dump_4:yds_addr =%x, write_size=%d\n",
+	dc_print("decontour:dump_4:yds_addr =%lx, write_size=%d\n",
 		dcntr_mem->yds_addr, write_size);
-	dc_print("decontour:dump_4:cds_addr =%x\n", dcntr_mem->cds_addr);
+	dc_print("decontour:dump_4:cds_addr =%lx\n", dcntr_mem->cds_addr);
 	snprintf(name_buf, sizeof(name_buf), "/data/tmp/ds_out.yuv");
 
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);

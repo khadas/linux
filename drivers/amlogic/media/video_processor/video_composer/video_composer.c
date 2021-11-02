@@ -2068,6 +2068,15 @@ static void set_frames_info(struct composer_dev *dev,
 	bool is_repeat = true;
 	bool need_dw = false;
 
+	if (!frames_info ||
+	    frames_info->frame_count <= 0 ||
+	    frames_info->frame_count > MXA_LAYER_COUNT) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "%s: param is invalid.\n",
+			 __func__);
+		return;
+	}
+
 	if (debug_vd_layer)
 		channel = choose_video_layer[dev->index] - 1;
 
