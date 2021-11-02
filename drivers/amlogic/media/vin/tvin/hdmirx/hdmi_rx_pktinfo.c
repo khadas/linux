@@ -1051,8 +1051,7 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 				pkt->sbpkt.vsi_st_21.data[i] = tmp;
 			}
 		}
-	} else if (rx.chip_id != CHIP_ID_TXHD &&
-		   rx.chip_id != CHIP_ID_T5D) {
+	} else if (rx.chip_id != CHIP_ID_TXHD) {
 		st0 = hdmirx_rd_dwc(DWC_PDEC_VSI_ST0);
 		st1 = hdmirx_rd_dwc(DWC_PDEC_VSI_ST1);
 		pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
