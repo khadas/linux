@@ -511,7 +511,7 @@
 		};
 
 		aml-audio-card,dai-link@1 {
-			format = "dsp_b";
+			format = "dsp_a";
 			mclk-fs = <256>;
 			continuous-clock;
 			//bitclock-inversion;
