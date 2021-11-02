@@ -950,6 +950,7 @@ void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 		ldim_drv->hist_en = 1;
 		ldim_drv->alg_en = 1;
 		ldim_drv->func_en = 1;
+		ldim_drv->dev_drv->config_update(ldim_drv);
 
 		ldim_drv->state |= LDIM_STATE_FUNC_EN;
 	} else {
@@ -964,6 +965,8 @@ void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 		ldim_hw_remap_en_t7(ldim_drv, 0);
 
 		ldim_drv->remap_en = 0;
+		ldim_drv->dev_drv->config_update(ldim_drv);
+
 		/* refresh system brightness */
 		ldim_drv->level_update = 1;
 	}
