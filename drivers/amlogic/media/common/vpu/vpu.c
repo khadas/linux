@@ -29,7 +29,8 @@
 /* v20190605: add sm1, tm2 support */
 /* v20201026: add tm2b, sc2, t5, t5d support */
 /* v20201118: add t7 support */
-#define VPU_VERION        "v20201118"
+/* v20211102: add t5w support */
+#define VPU_VERION        "v20211102"
 
 int vpu_debug_print_flag;
 static spinlock_t vpu_mem_lock;

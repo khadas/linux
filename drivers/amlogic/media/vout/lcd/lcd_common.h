@@ -25,7 +25,8 @@
 /* 20210625: add tcon multi lut support*/
 /* 20210705: add lcd mute and test state protection*/
 /* 20211009: support 59 & 47 frame rate for tv mode*/
-#define LCD_DRV_VERSION    "20211009"
+/* 20211102: add t5w support*/
+#define LCD_DRV_VERSION    "20211102"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;

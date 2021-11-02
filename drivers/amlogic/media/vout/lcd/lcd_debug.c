@@ -6381,14 +6381,6 @@ static struct lcd_debug_info_reg_s lcd_debug_info_reg_t5 = {
 	.prbs_test = aml_lcd_prbs_test,
 };
 
-static struct lcd_debug_info_reg_s lcd_debug_info_reg_t5w = {
-	.reg_pll_table = lcd_reg_dump_pll_t5,
-	.reg_clk_table = lcd_reg_dump_clk_t5w,
-	.reg_encl_table = lcd_reg_dump_encl_tl1,
-	.reg_pinmux_table = lcd_reg_dump_pinmux_t5,
-	.prbs_test = aml_lcd_prbs_test,
-};
-
 static struct lcd_debug_info_reg_s lcd_debug_info_reg_t7_0 = {
 	.reg_pll_table = lcd_reg_dump_pll_t7_0,
 	.reg_clk_table = lcd_reg_dump_clk_t7_0,
@@ -6427,6 +6419,14 @@ static struct lcd_debug_info_reg_s lcd_debug_info_reg_t3_1 = {
 	.reg_encl_table = lcd_reg_dump_encl_t7_1,
 	.reg_pinmux_table = lcd_reg_dump_pinmux_t3,
 	.prbs_test = aml_lcd_prbs_test_t3,
+};
+
+static struct lcd_debug_info_reg_s lcd_debug_info_reg_t5w = {
+	.reg_pll_table = lcd_reg_dump_pll_t5,
+	.reg_clk_table = lcd_reg_dump_clk_t5w,
+	.reg_encl_table = lcd_reg_dump_encl_t7_0,
+	.reg_pinmux_table = lcd_reg_dump_pinmux_tl1,
+	.prbs_test = aml_lcd_prbs_test,
 };
 
 /* interface data */

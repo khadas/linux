@@ -45,11 +45,29 @@ void vpu_module_init_config(void)
 	}
 
 	/* dmc_arb_config */
-	vpu_vcbus_write(VPU_RDARB_MODE_L1C1, 0x210000);
-	vpu_vcbus_write(VPU_RDARB_MODE_L1C2, 0x10000);
-	vpu_vcbus_write(VPU_RDARB_MODE_L2C1, 0x900000);
-	/*from vlsi feijun*/
-	vpu_vcbus_write(VPU_WRARB_MODE_L2C1, 0x170000/*0x20000*/);
+	switch (vpu_conf.data->chip_type) {
+	case VPU_CHIP_G12A:
+	case VPU_CHIP_G12B:
+	case VPU_CHIP_TL1:
+	case VPU_CHIP_SM1:
+	case VPU_CHIP_TM2:
+	case VPU_CHIP_TM2B:
+	case VPU_CHIP_SC2:
+	case VPU_CHIP_T5:
+	case VPU_CHIP_T5D:
+	case VPU_CHIP_T7:
+	case VPU_CHIP_S4:
+	case VPU_CHIP_S4D:
+	case VPU_CHIP_T3:
+		vpu_vcbus_write(VPU_RDARB_MODE_L1C1, 0x210000);
+		vpu_vcbus_write(VPU_RDARB_MODE_L1C2, 0x10000);
+		vpu_vcbus_write(VPU_RDARB_MODE_L2C1, 0x900000);
+		/*from vlsi feijun*/
+		vpu_vcbus_write(VPU_WRARB_MODE_L2C1, 0x170000/*0x20000*/);
+		break;
+	default:
+		break;
+	}
 
 	if (vpu_debug_print_flag)
 		VPUPR("%s finish\n", __func__);

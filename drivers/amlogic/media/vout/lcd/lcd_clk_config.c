@@ -4671,7 +4671,7 @@ static struct lcd_clk_data_s lcd_clk_data_t5w = {
 
 	.clk_path_valid = 0,
 	.vclk_sel = 0,
-	.enc_clk_msr_id = 9,
+	.enc_clk_msr_id = 6,
 	.fifo_clk_msr_id = 129,
 	.pll_ctrl_table = pll_ctrl_table_tl1,
 
