@@ -783,6 +783,64 @@
 		 * dct---0:not enable; 1: enable 1 ch; 2: enable 2 ch
 		 ***************************************************/
 	};
+
+	eth_phy: mdio-multiplexer@ff64c000 {
+		compatible = "amlogic,g12a-mdio-mux";
+		reg = <0x0 0xff64c000 0x0 0xa4>;
+		clocks = <&clkc CLKID_CLK81_ETH_PHY>,
+			 <&xtal>,
+			 <&clkc CLKID_MPLL_50M>;
+		clock-names = "pclk", "clkin0", "clkin1";
+		mdio-parent-bus = <&mdio0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enet_type = <4>;
+		tx_amp_src = <0xFF800270>;
+
+		ext_mdio: mdio@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		int_mdio: mdio@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			internal_ephy: ethernet_phy@8 {
+				compatible = "ethernet-phy-id0180.3301",
+					     "ethernet-phy-ieee802.3-c22";
+				interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+				reg = <8>;
+				max-speed = <100>;
+			};
+		};
+	};
+
+	ethmac: ethernet@ff3f0000 {
+		compatible = "amlogic,meson-axg-dwmac",
+			     "snps,dwmac-3.70a",
+			     "snps,dwmac";
+		reg = <0x0 0xff3f0000 0x0 0x10000>,
+			  <0x0 0xff634400 0x0 0x8>;
+		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "macirq";
+		clocks = <&clkc CLKID_CLK81_ETH_CORE>,
+			 <&clkc CLKID_FCLK_DIV2>,
+			 <&clkc CLKID_MPLL2>;
+		clock-names = "stmmaceth", "clkin0", "clkin1";
+		rx-fifo-depth = <4096>;
+		tx-fifo-depth = <2048>;
+		status = "disabled";
+
+		mdio0: mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,dwmac-mdio";
+		};
+	};
+
 }; /* end of / */
 
 &pinctrl_periphs {
