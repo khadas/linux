@@ -1461,6 +1461,9 @@
 
 &amvideom {
 	display_device_cnt = <2>;
+	vpp0_layer_count = <2>;
+	/* number of video layer display on vpp1 */
+	vpp1_layer_count = <1>;
 };
 
 &amhdmitx {
