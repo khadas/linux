@@ -258,7 +258,7 @@
 
 		reg = <0xfe000000 0x480000>;
 
-		dmxdev_num = <4>;
+		dmxdev_num = <6>;
 
 		tsn_from = "demod";
 
