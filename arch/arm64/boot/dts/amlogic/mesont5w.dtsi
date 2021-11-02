@@ -731,6 +731,11 @@
 		interrupt-names = "vsync", "vsync_viu2";
 	};
 
+	meson_videotunnel{
+		compatible = "amlogic, meson_videotunnel";
+		status = "okay";
+	};
+
 	lut_dma {
 		compatible = "amlogic, meson-t7, lut_dma";
 		status = "okay";
