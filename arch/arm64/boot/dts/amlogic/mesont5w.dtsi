@@ -5,12 +5,15 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/gpio/meson-t5w-gpio.h>
+#include <dt-bindings/input/meson_rc.h>
+#include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/reset/amlogic,meson-t5w-reset.h>
 #include <dt-bindings/clock/t5w-clkc.h>
 #include <dt-bindings/power/t5-pd.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
 #include "mesong12a-bifrost.dtsi"
+#include "meson-ir-map.dtsi"
 
 / {
 	compatible = "amlogic";
@@ -228,6 +231,19 @@
 				amlogic,has-chip-id;
 			};
 
+		};
+
+		remote: rc@8040 {
+			compatible = "amlogic, meson-ir";
+			reg = <0x0 0x8040 0x0 0xA4>,
+				<0x0 0x8000 0x0 0x20>;
+			status = "okay";
+			protocol = <REMOTE_TYPE_NEC>;
+			interrupts = <GIC_SPI 196 IRQ_TYPE_EDGE_RISING>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&remote_pins>;
+			map = <&custom_maps>;
+			max_frame_time = <200>;
 		};
 
 		pinctrl_aobus: pinctrl@14 {
@@ -1524,6 +1540,14 @@
 			function = "cec";
 		};
 	};
+
+	remote_pins:remote_pin {
+		mux {
+			groups = "remote_input_ao";
+			function = "remote_input_ao";
+		};
+	};
+
 };
 
 &gpu{
