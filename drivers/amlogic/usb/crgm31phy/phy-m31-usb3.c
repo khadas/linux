@@ -38,8 +38,8 @@ static void amlogic_usb3_m31_shutdown(struct usb_phy *x)
 
 	if (phy->portnum > 0) {
 		mask = (size_t)phy->reset_regs & 0xf;
-		shift = (phy->m31phy_reset_level_bit % 32) * 4;
-		temp = 1 << phy->m31phy_reset_level_bit;
+		shift = (phy->m31phy_reset_level_bit / 32) * 4;
+		temp = 1 << (phy->m31phy_reset_level_bit % 32);
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
 			(phy->reset_level - mask) + shift));
@@ -47,8 +47,8 @@ static void amlogic_usb3_m31_shutdown(struct usb_phy *x)
 			((unsigned long)phy->reset_regs +
 			(phy->reset_level - mask) + shift));
 
-		temp = 1 << phy->m31ctl_reset_level_bit;
-		shift = (phy->m31ctl_reset_level_bit % 32) * 4;
+		temp = 1 << (phy->m31ctl_reset_level_bit % 32);
+		shift = (phy->m31ctl_reset_level_bit / 32) * 4;
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
 			(phy->reset_level - mask) + shift));
@@ -68,8 +68,8 @@ static int amlogic_usb3_m31_init(struct usb_phy *x)
 
 	if (phy->portnum > 0) {
 		mask = (size_t)phy->reset_regs & 0xf;
-		temp = 1 << phy->m31phy_reset_level_bit;
-		shift = (phy->m31phy_reset_level_bit % 32) * 4;
+		temp = 1 << (phy->m31phy_reset_level_bit % 32);
+		shift = (phy->m31phy_reset_level_bit / 32) * 4;
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
 			(phy->reset_level - mask) + shift));
@@ -77,8 +77,8 @@ static int amlogic_usb3_m31_init(struct usb_phy *x)
 			((unsigned long)phy->reset_regs +
 			(phy->reset_level - mask) + shift));
 
-		temp = 1 << phy->m31ctl_reset_level_bit;
-		shift = (phy->m31ctl_reset_level_bit % 32) * 4;
+		temp = 1 << (phy->m31ctl_reset_level_bit % 32);
+		shift = (phy->m31ctl_reset_level_bit / 32) * 4;
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
 			(phy->reset_level - mask) + shift));
