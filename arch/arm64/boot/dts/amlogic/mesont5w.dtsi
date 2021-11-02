@@ -250,6 +250,15 @@
 			max_frame_time = <200>;
 		};
 
+		irblaster: meson-irblaster@14c {
+			compatible = "amlogic, meson_irblaster";
+			reg = <0x0 0x14c 0x0 0x10>,
+				<0x0 0x40 0x0 0x4>;
+			#irblaster-cells = <2>;
+			interrupts = <GIC_SPI 198 IRQ_TYPE_EDGE_RISING>;
+			status = "disabled";
+		};
+
 		pinctrl_aobus: pinctrl@14 {
 			compatible = "amlogic,meson-t5w-aobus-pinctrl";
 			#address-cells = <2>;
@@ -1728,6 +1737,13 @@
 		};
 	};
 
+	irblaster_pins: irblaster_pins {
+		mux {
+			groups = "remote_out";
+			function = "remote_out";
+		};
+	};
+
 	/* sdemmc portC */
 	emmc_clk_cmd_pins: emmc_clk_cmd_pins {
 		mux {
@@ -2019,6 +2035,20 @@
 		mux { /* GPIOD_8 */
 			groups = "GPIOD_8";
 			function = "gpio_aobus";
+		};
+	};
+
+	irblaster_ao_pins1:irblaster_ao_pins1 {
+		mux {
+			groups = "remote_out_ao1";
+			function = "remote_out_ao";
+		};
+	};
+
+	irblaster_ao_pins2:irblaster_ao_pins2 {
+		mux {
+			groups = "remote_out_ao9";
+			function = "remote_out_ao";
 		};
 	};
 
