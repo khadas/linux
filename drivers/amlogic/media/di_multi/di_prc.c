@@ -37,6 +37,7 @@
 #include "di_api.h"
 #include "di_hw_v3.h"
 #include "reg_decontour.h"
+#include "reg_decontour_t3.h"
 #include "deinterlace_dbg.h"
 
 #include <linux/amlogic/media/di/di.h>
@@ -3019,6 +3020,10 @@ static void pq_sv_db_ini(void)
 		dbp = &get_datal()->db_save[DIM_DB_SV_DCT_BL2];
 		dbp->support = 1;
 		dbp->addr	= DCTR_BLENDING2;
+	} else if (DIM_IS_IC_EF(T3)) {
+		dbp = &get_datal()->db_save[DIM_DB_SV_DCT_BL2];
+		dbp->support = 1;
+		dbp->addr	= DCTR_T3_BLENDING2;
 	}
 }
 
