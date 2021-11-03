@@ -215,6 +215,7 @@ struct ldim_dev_driver_s {
 	char pinmux_name[LDIM_DEV_NAME_MAX];
 	unsigned char key_valid;
 	unsigned char type;
+	unsigned int dma_support;
 	int cs_hold_delay;
 	int cs_clk_delay;
 	int en_gpio;
@@ -264,6 +265,7 @@ struct ldim_dev_driver_s {
 	int (*dev_smr)(struct aml_ldim_driver_s *ldim_drv,
 		       unsigned int *buf, unsigned int len);
 	int (*dev_smr_dummy)(struct aml_ldim_driver_s *ldim_drv);
+	int (*dev_err_handler)(struct aml_ldim_driver_s *ldim_drv);
 	int (*pwm_vs_update)(struct aml_ldim_driver_s *ldim_drv);
 	void (*config_print)(struct aml_ldim_driver_s *ldim_drv);
 	int (*config_update)(struct aml_ldim_driver_s *ldim_drv);

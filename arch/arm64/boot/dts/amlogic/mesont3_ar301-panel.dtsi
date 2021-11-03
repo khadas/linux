@@ -585,6 +585,7 @@
 			spi_chip_select = <0>;
 			spi_max_frequency = <1000000>; /* unit: hz */
 			spi_mode = <0>; /* mode: 0, 1, 2, 3 */
+			spi_dma_support = <1>;
 			spi_cs_delay = <10  /* hold_high_delay */
 				100>; /* clk_cs_delay (unit: us) */
 			en_gpio_on_off = <0 /* ldim_dev-gpios index */

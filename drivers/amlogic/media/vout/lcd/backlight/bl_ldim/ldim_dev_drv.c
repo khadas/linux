@@ -58,6 +58,7 @@ static int ldim_dev_probe_flag;
 struct ldim_dev_driver_s ldim_dev_drv = {
 	.index = 0xff,
 	.type = LDIM_DEV_TYPE_NORMAL,
+	.dma_support = 0,
 	.cs_hold_delay = 0,
 	.cs_clk_delay = 0,
 	.en_gpio = LCD_EXT_GPIO_INVALID,
@@ -514,6 +515,7 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 			"spi_max_speed_hz      = %d\n"
 			"spi_bus_num           = %d\n"
 			"spi_chip_select       = %d\n"
+			"spi_dma_support       = %d\n"
 			"cs_hold_delay         = %d\n"
 			"cs_clk_delay          = %d\n"
 			"lamp_err_gpio         = %d\n"
@@ -525,6 +527,7 @@ static void ldim_dev_config_print(struct aml_ldim_driver_s *ldim_drv)
 			ldim_drv->dev_drv->spi_info->max_speed_hz,
 			ldim_drv->dev_drv->spi_info->bus_num,
 			ldim_drv->dev_drv->spi_info->chip_select,
+			ldim_drv->dev_drv->dma_support,
 			ldim_drv->dev_drv->cs_hold_delay,
 			ldim_drv->dev_drv->cs_clk_delay,
 			ldim_drv->dev_drv->lamp_err_gpio,
@@ -1008,6 +1011,17 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 				LDIMPR("spi mode: %d\n", ldim_spi_info.mode);
 		}
 
+		ret = of_property_read_u32(child, "spi_dma_support", &val);
+		if (ret) {
+			LDIMERR("failed to get spi_dma_support\n");
+		} else {
+			dev_drv->dma_support = val;
+			if (ldim_debug_print) {
+				LDIMPR("spi_dma_support: %d\n",
+				       dev_drv->dma_support);
+			}
+		}
+
 		ret = of_property_read_u32_array(child, "spi_cs_delay",
 						 &temp[0], 2);
 		if (ret) {
@@ -1380,12 +1394,13 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 			((*(p + LCD_UKEY_LDIM_DEV_IF_FREQ + 2)) << 16) |
 			((*(p + LCD_UKEY_LDIM_DEV_IF_FREQ + 3)) << 24));
 		ldim_spi_info.mode = *(p + LCD_UKEY_LDIM_DEV_IF_ATTR_2);
+		dev_drv->dma_support = *(p + LCD_UKEY_LDIM_DEV_IF_ATTR_3);
 		dev_drv->cs_hold_delay =
-			(*(p + LCD_UKEY_LDIM_DEV_IF_ATTR_3) |
-			((*(p + LCD_UKEY_LDIM_DEV_IF_ATTR_3 + 1)) << 8));
-		dev_drv->cs_clk_delay =
 			(*(p + LCD_UKEY_LDIM_DEV_IF_ATTR_4) |
 			((*(p + LCD_UKEY_LDIM_DEV_IF_ATTR_4 + 1)) << 8));
+		dev_drv->cs_clk_delay =
+			(*(p + LCD_UKEY_LDIM_DEV_IF_ATTR_5) |
+			((*(p + LCD_UKEY_LDIM_DEV_IF_ATTR_5 + 1)) << 8));
 		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
 			LDIMPR("spi bus_num: %d\n", ldim_spi_info.bus_num);
 			LDIMPR("spi chip_select: %d\n",
@@ -1393,6 +1408,7 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 			LDIMPR("spi max_speed_hz: %d\n",
 			       ldim_spi_info.max_speed_hz);
 			LDIMPR("spi mode: %d\n", ldim_spi_info.mode);
+			LDIMPR("spi dma_support: %d\n", dev_drv->dma_support);
 		}
 		break;
 	default:
