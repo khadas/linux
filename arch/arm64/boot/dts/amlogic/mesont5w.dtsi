@@ -12,9 +12,9 @@
 #include <dt-bindings/clock/t5w-clkc.h>
 #include <dt-bindings/power/t5-pd.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
+#include <dt-bindings/clock/amlogic,t5-audio-clk.h>
 #include "mesong12a-bifrost.dtsi"
 #include "meson-ir-map.dtsi"
-
 / {
 	compatible = "amlogic";
 
@@ -643,7 +643,104 @@
 		resets = <&reset RESET_RDMA>;
 		rdma_table_page_count = <16>;
 	};
+	audiobus: audiobus@0xff600000 {
+		compatible = "amlogic, audio-controller", "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		reg = <0x0 0xff600000 0x0 0x3000>;
+		ranges = <0x0 0x0 0x0 0xff600000 0x0 0x3000>;
+		chip_id = <0x3b>;
+		clkaudio:audio_clocks {
+			compatible = "amlogic, t5-audio-clocks";
+			#clock-cells = <1>;
+			reg = <0x0 0x0 0x0 0xb0>;
+		};
+		ddr_manager {
+			compatible =
+				"amlogic, t5-audio-ddr-manager";
+			interrupts = <
+				GIC_SPI 148 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 149 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 150 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 48 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 152 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 153 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 154 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 49 IRQ_TYPE_EDGE_RISING
+			>;
+			interrupt-names =
+				"toddr_a", "toddr_b", "toddr_c",
+				"toddr_d",
+				"frddr_a", "frddr_b", "frddr_c",
+				"frddr_d";
+		};
 
+		pinctrl_audio: pinctrl {
+			compatible = "amlogic, audio-pinctrl";
+		};
+	};/* end of audiobus*/
+
+	/* Sound iomap */
+	aml_snd_iomap {
+		compatible = "amlogic, snd-iomap";
+		status = "okay";
+		#address-cells=<2>;
+		#size-cells=<2>;
+		ranges;
+		pdm_bus {
+			reg = <0x0 0xFF601000 0x0 0x400>;
+		};
+		audiobus_base {
+			reg = <0x0 0xFF600000 0x0 0x1000>;
+		};
+		audiolocker_base {
+			reg = <0x0 0xFF601400 0x0 0x400>;
+		};
+		eqdrc_base {
+			reg = <0x0 0xFF602000 0x0 0x1000>;
+		};
+		vad_base {
+			reg = <0x0 0xFF601800 0x0 0x400>;
+		};
+		resampleA_base {
+			reg = <0x0 0xFF601C00 0x0 0x104>;
+		};
+		resampleB_base {
+			reg = <0x0 0xFF604000 0x0 0x104>;
+		};
+	};
+
+	dummy_codec:dummy {
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, aml_dummy_codec";
+		status = "okay";
+	};
+
+	acodec:codec {
+		#sound-dai-cells = <0>;
+		compatible = "amlogic, t3_acodec";
+		status = "okay";
+		reg = <0x0 0xff632000 0x0 0x1c>;
+		tdmout_index = <1>;
+		tdmin_index = <1>;
+		dat0_ch_sel = <1>;
+		reset-names = "acodec";
+		resets = <&reset RESET_AUDIO_CODEC>;
+	};
+
+	audio_data: audio_data {
+		compatible = "amlogic, audio_data";
+		mem_in_base_cmd = <0x82000020>;
+		query_licence_cmd = <0x82000050>;
+		status = "okay";
+	}; /* Audio Related end */
+
+	amaudio: amaudio {
+		compatible = "amlogic, amaudio";
+		reg = <0x0 0xff610000 0x0 0x10000>;
+		reg-names = "otp_tee_base";
+		status = "okay";
+	};
 	codec_io: codec_io {
 		compatible = "amlogic, meson-t5w, codec-io";
 		status = "okay";
@@ -1477,6 +1574,13 @@
 		};
 	};
 
+	spdifin_z19_pins: spdifin {
+		mux { /* GPIOZ_19 */
+			groups = "spdif_in_z";
+			function = "spdif_in";
+		};
+	};
+
 };
 
 &pinctrl_aobus {
@@ -1545,6 +1649,19 @@
 		mux {
 			groups = "remote_input_ao";
 			function = "remote_input_ao";
+		};
+	};
+	spdifout_d8_pins: spdifout_a {
+		mux { /* GPIOD_8 */
+			groups = "spdif_out_a_ao";
+			function = "spdif_out_a_ao";
+		};
+	};
+
+	spdifout_d8_mute: spdifout_a_mute {
+		mux { /* GPIOD_8 */
+			groups = "GPIOD_8";
+			function = "gpio_aobus";
 		};
 	};
 
