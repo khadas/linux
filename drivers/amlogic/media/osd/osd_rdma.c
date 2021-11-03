@@ -56,7 +56,7 @@ static u32 item_count[VPP_NUM];
 static u32 rdma_debug;
 static u32 rdma_hdr_delay;
 static bool osd_rdma_init_flag;
-#define OSD_RDMA_UPDATE_RETRY_COUNT 100
+#define OSD_RDMA_UPDATE_RETRY_COUNT 10
 static unsigned int debug_rdma_status[VPP_NUM];
 static unsigned int rdma_irq_count[VPP_NUM];
 static unsigned int rdma_lost_count[VPP_NUM];
@@ -71,6 +71,12 @@ static bool osd_rdma_done[VPP_NUM];
 static int osd_rdma_handle[VPP_NUM] = {-1, -1, -1};
 static struct rdma_table_item *rdma_temp_tbl[VPP_NUM];
 static int support_64bit_addr = 1;
+
+static uint num_reject = 2;
+static int rdma_reject_cnt[2];
+module_param_array(rdma_reject_cnt, uint, &num_reject, 0664);
+MODULE_PARM_DESC(rdma_reject_cnt, "\n rdma_reject_cnt\n");
+
 void *memcpy(void *dest, const void *src, size_t len);
 
 static inline void spin_lock_irqsave_vpp(u32 vpp_index, unsigned long *flags)
@@ -580,6 +586,7 @@ retry:
 		 * or rdma isr is block
 		 */
 		reject1++;
+		rdma_reject_cnt[0] = reject1;
 		pr_debug("update reg but rdma running, mode: %d,",
 			 irq_mode);
 		pr_debug("retry count:%d (%d), flag: 0x%x, status: 0x%x\n",
@@ -605,6 +612,7 @@ retry:
 		rdma_end_addr_update(vpp_index, paddr, 0);
 	} else if (!irq_mode) {
 		reject2++;
+		rdma_reject_cnt[1] = reject1;
 		pr_debug("need update ---, but rdma running,");
 		pr_debug("retry count:%d (%d), flag: 0x%x, status: 0x%x\n",
 			 retry_count, reject2,
@@ -1940,11 +1948,14 @@ int osd_rdma_reset_and_flush(u32 output_index, u32 reset_bit)
 	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
 	    osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE &&
 	    osd_dev_hw.multi_afbc_core) {
-		if (reset_bit & HW_RESET_MALI_AFBCD_REGS)
+		//if (reset_bit & HW_RESET_MALI_AFBCD_REGS)
+		if (osd_hw.osd_afbcd[0].enable || osd_hw.osd_afbcd[1].enable)
 			wrtie_reg_internal(output_index, VPU_MAFBC_COMMAND, 1);
-		if (reset_bit & HW_RESET_MALI_AFBCD1_REGS)
+		//if (reset_bit & HW_RESET_MALI_AFBCD1_REGS)
+		if (osd_hw.osd_afbcd[2].enable)
 			wrtie_reg_internal(output_index, VPU_MAFBC1_COMMAND, 1);
-		if (reset_bit & HW_RESET_MALI_AFBCD2_REGS)
+		//if (reset_bit & HW_RESET_MALI_AFBCD2_REGS)
+		if (osd_hw.osd_afbcd[3].enable)
 			wrtie_reg_internal(output_index, VPU_MAFBC2_COMMAND, 1);
 	}
 

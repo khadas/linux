@@ -3045,8 +3045,6 @@ void osd_hw_reset(u32 output_index)
 
 	backup_mask = is_backup();
 	osd_hw.hw_reset_flag = reset_bit;
-	if (reset_bit == HW_RESET_NONE)
-		return;
 	spin_lock_irqsave(&osd_lock, lock_flags);
 	if ((reset_bit & HW_RESET_OSD1_REGS) &&
 	    !(backup_mask & HW_RESET_OSD1_REGS))
@@ -12585,21 +12583,6 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 				__MESON_CPU_MAJOR_ID_G12A) {
 				osd_hw.afbc_force_reset = 1;
 				osd_hw.afbc_regs_backup = 1;
-			} else {
-				osd_hw.afbc_force_reset = 1;
-				osd_hw.afbc_regs_backup = 1;
-				data32 = osd_reg_read(MALI_AFBCD_TOP_CTRL);
-				osd_reg_write(MALI_AFBCD_TOP_CTRL,
-					      data32 | 0x800000);
-				if (osd_dev_hw.multi_afbc_core) {
-					data32 = osd_reg_read(MALI_AFBCD1_TOP_CTRL);
-					osd_reg_write(MALI_AFBCD1_TOP_CTRL,
-						      data32 | 0x800000);
-					data32 = osd_reg_read(MALI_AFBCD2_TOP_CTRL);
-					osd_reg_write(MALI_AFBCD2_TOP_CTRL,
-						      data32 | 0x800000);
-					/* osd_hw.afbc_regs_backup = 0; */
-				}
 			}
 
 			if (idx < osd_hw.osd_meson_dev.viu1_osd_count) {
