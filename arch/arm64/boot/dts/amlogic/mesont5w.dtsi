@@ -1939,6 +1939,12 @@
 		};
 	};
 
+	aocecb_mux:aocecb_mux {
+		mux {
+			groups = "cec";
+			function = "cec";
+		};
+	};
 };
 
 &pinctrl_aobus {
@@ -1993,13 +1999,6 @@
 			groups = "GPIOE_0", "GPIOE_1";
 			function = "gpio_aobus";
 			output-low;
-		};
-	};
-
-	aocecb_mux:aocecb_mux {
-		mux {
-			groups = "cec";
-			function = "cec";
 		};
 	};
 
