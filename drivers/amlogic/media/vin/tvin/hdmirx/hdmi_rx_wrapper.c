@@ -2594,7 +2594,7 @@ int rx_set_global_variable(const char *buf, int size)
 void skip_frame(unsigned int cnt)
 {
 	if (rx.state == FSM_SIG_READY) {
-		rx.skip = (1000 * 100 / rx.pre.frame_rate / 10) + 1;
+		rx.skip = (1000 * 100 / rx.pre.frame_rate / 12) + 1;
 		rx.skip = cnt * rx.skip;
 		rx_pr("rx.skip = %d\n", rx.skip);
 	}

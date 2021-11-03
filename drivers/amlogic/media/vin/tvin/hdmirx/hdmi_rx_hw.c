@@ -1705,6 +1705,12 @@ int packet_init_t7(void)
 	data8 |= 1 << 0; /*  */
 	hdmirx_wr_cor(RX_AUTO_CLR_PKT2_DP2_IVCRX, data8);
 
+	/* auto clr pkt if did not get update */
+	data8 = 0;
+	data8 |= 1 << 1; /* meta data */
+	data8 |= 1 << 0; /* GCP */
+	hdmirx_wr_cor(IF_CTRL2_DP3_IVCRX, data8);
+
 	return 0;
 }
 
