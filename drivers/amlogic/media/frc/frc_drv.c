@@ -60,6 +60,9 @@
 #include "frc_dbg.h"
 #include "frc_buf.h"
 #include "frc_hw.h"
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
+#include "frc_rdma.h"
+#endif
 
 // static struct frc_dev_s *frc_dev; // for SWPL-53056:KASAN: use-after-free
 static struct frc_dev_s frc_dev;
@@ -456,7 +459,16 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 	frc_devp->rdma_irq = of_irq_get_byname(of_node, "irq_frc_rdma");
 	snprintf(frc_devp->rdma_irq_name, sizeof(frc_devp->rdma_irq_name), "frc_rdma_irq");
 	PR_FRC("%s=%d\n", frc_devp->rdma_irq_name, frc_devp->rdma_irq);
-
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
+	if (frc_devp->rdma_irq > 0) {
+		ret = request_irq(frc_devp->rdma_irq, frc_rdma_isr, IRQF_SHARED,
+				  frc_devp->rdma_irq_name, (void *)frc_devp);
+		if (ret)
+			PR_ERR("request rdma irq fail\n");
+		else
+			disable_irq(frc_devp->rdma_irq);
+	}
+#endif
 	/*register map*/
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "frc_reg");
 	if (res) {
@@ -617,6 +629,30 @@ static const struct file_operations frc_fops = {
 	.compat_ioctl = frc_campat_ioctl,
 #endif
 };
+
+static void frc_clock_workaround(struct work_struct *work)
+{
+	struct frc_dev_s *devp = container_of(work,
+		struct frc_dev_s, frc_clk_work);
+
+	if (unlikely(!devp)) {
+		PR_ERR("%s err, devp is NULL\n", __func__);
+		return;
+	}
+	if (!devp->probe_ok)
+		return;
+	if (!devp->power_on_flag)
+		return;
+	// pr_frc(1, "%s, clk_state:%d\n", __func__, devp->clk_state);
+	if (devp->clk_state == FRC_CLOCK_2MIN) {
+		clk_set_rate(devp->clk_frc, 333333333);
+		devp->clk_state = FRC_CLOCK_MIN;
+	} else if (devp->clk_state == FRC_CLOCK_2NOR) {
+		clk_set_rate(devp->clk_frc, 667000000);
+		devp->clk_state = FRC_CLOCK_NOR;
+	}
+	pr_frc(1, "%s, clk_new state:%d\n", __func__, devp->clk_state);
+}
 
 static void frc_drv_initial(struct frc_dev_s *devp)
 {
@@ -798,6 +834,12 @@ static int frc_probe(struct platform_device *pdev)
 		enable_irq(frc_devp->in_irq);
 	if (frc_devp->out_irq > 0)
 		enable_irq(frc_devp->out_irq);
+#ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
+	if (frc_devp->rdma_irq > 0)
+		enable_irq(frc_devp->rdma_irq);
+#endif
+	INIT_WORK(&frc_devp->frc_clk_work, frc_clock_workaround);
+
 	frc_devp->probe_ok = true;
 	frc_devp->power_off_flag = false;
 
@@ -832,6 +874,7 @@ static int __exit frc_remove(struct platform_device *pdev)
 
 	PR_FRC("%s:module remove\n", __func__);
 	// frc_devp = platform_get_drvdata(pdev);
+	cancel_work_sync(&frc_devp->frc_clk_work);
 	tasklet_kill(&frc_devp->input_tasklet);
 	tasklet_kill(&frc_devp->output_tasklet);
 	tasklet_disable(&frc_devp->input_tasklet);

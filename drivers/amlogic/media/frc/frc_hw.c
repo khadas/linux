@@ -157,9 +157,9 @@ void frc_clk_init(struct frc_dev_s *frc_devp)
 	if (1) /*(frc_devp->clk_frc && frc_devp->clk_me)*/ {
 		clk_set_rate(frc_devp->clk_frc, 667000000);
 		clk_prepare_enable(frc_devp->clk_frc);
-		frc_devp->clk_frc_Frq = clk_get_rate(frc_devp->clk_frc);
-		pr_frc(0, "clk_frc frq : %d Mhz\n", frc_devp->clk_frc_Frq / 1000000);
-
+		frc_devp->clk_frc_frq = clk_get_rate(frc_devp->clk_frc);
+		pr_frc(0, "clk_frc frq : %d Mhz\n", frc_devp->clk_frc_frq / 1000000);
+		frc_devp->clk_state = FRC_CLOCK_NOR;
 		clk_set_rate(frc_devp->clk_me, 333333333);
 		clk_prepare_enable(frc_devp->clk_me);
 		frc_devp->clk_me_frq = clk_get_rate(frc_devp->clk_me);

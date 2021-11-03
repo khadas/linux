@@ -36,14 +36,17 @@
 // frc_20210929 frc chg hold fow for null-vframe
 // frc_20211008 frc protect opt frc register
 // frc_20211021 frc chg me little_window
-// fec_20211022 frc reduce clk under noframe
+// frc_20211022 frc reduce clk under noframe
+// frc_20211027 frc add print alg speed-time
 
-#define FRC_FW_VER			"2021-1027 frc add print alg speed-time"
+#define FRC_FW_VER			"2021-1104 frc add clkctrl workaround"
 #define FRC_KERDRV_VER                  1158
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
 #define FRC_CLASS_NAME	"frc"
+
+// #define CONFIG_AMLOGIC_MEDIA_FRC_RDMA
 
 /*
 extern int frc_dbg_en;
@@ -83,6 +86,17 @@ extern int frc_dbg_en;
 #define LOSSY_MC_INFO_LINE_SIZE		128	/*bytes*/
 #define LOSSY_ME_INFO_LINE_SIZE		128	/*bytes*/
 //------------------------------------------------------- buf define end
+//------------------------------------------------------- clock defined start
+#define FRC_CLOCK_OFF                0
+#define FRC_CLOCK_2MIN               1
+#define FRC_CLOCK_MIN                2
+#define FRC_CLOCK_2NOR               3
+#define FRC_CLOCK_NOR                4
+#define FRC_CLOCK_2MAX               5
+#define FRC_CLOCK_MAX                6
+#define FRC_CLOCK_2OFF               7
+
+//------------------------------------------------------- clock defined end
 
 enum chip_id {
 	ID_NULL = 0,
@@ -312,9 +326,11 @@ struct frc_dev_s {
 	void __iomem *clk_reg;
 	void __iomem *vpu_reg;
 	struct clk *clk_frc;
-	u32 clk_frc_Frq;
+	u32 clk_frc_frq;
 	struct clk *clk_me;
 	u32 clk_me_frq;
+	unsigned int clk_state;
+	u32 rdma_handle;
 
 	/* vframe check */
 	u32 vs_duration;	/*vpu int duration*/
@@ -346,6 +362,7 @@ struct frc_dev_s {
 
 	//struct workqueue_struct *frc_wq;
 	//struct work_struct frc_work;
+	struct work_struct frc_clk_work;
 
 	struct st_frc_sts frc_sts;
 	struct st_frc_in_sts in_sts;

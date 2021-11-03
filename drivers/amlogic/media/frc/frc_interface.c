@@ -75,7 +75,6 @@ int frc_input_handle(struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts)
 	/*frc work mode handle*/
 	// frc_state_handle_old(devp);
 	frc_state_handle(devp);
-
 	return 0;
 }
 EXPORT_SYMBOL(frc_input_handle);
