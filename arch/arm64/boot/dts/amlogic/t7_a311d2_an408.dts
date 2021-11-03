@@ -1287,7 +1287,7 @@
 	 * total size:(27.5+1.5)x buffernumber
 	 */
 	cma_size = <300>;
-	frame_buff_num = <10>;
+	frame_buff_num = <11>;
 };
 
 &vdin1 {
