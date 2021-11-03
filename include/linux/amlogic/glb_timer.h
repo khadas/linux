@@ -5,6 +5,7 @@
 
 #ifndef __AML_GLB_TIMER_H__
 #define __AML_GLB_TIMER_H__
+#include <linux/types.h>
 
 /* used for mipi0~4 */
 #define GLBT_MIPI0_SOF		0
