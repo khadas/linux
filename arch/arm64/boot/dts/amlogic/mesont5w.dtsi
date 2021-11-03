@@ -8,6 +8,8 @@
 #include <dt-bindings/input/meson_rc.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pwm/pwm.h>
+#include <dt-bindings/pwm/meson.h>
 #include <dt-bindings/reset/amlogic,meson-t5w-reset.h>
 #include <dt-bindings/clock/t5w-clkc.h>
 #include <dt-bindings/power/t5-pd.h>
@@ -362,6 +364,55 @@
 					"usb1";
 	};
 
+	vddcpu0: pwmb-regulator {
+		compatible = "pwm-regulator";
+		pwms = <&pwm_ab MESON_PWM_1 1500 0>;
+		regulator-name = "vddcpu0";
+		regulator-min-microvolt = <690000>;
+		regulator-max-microvolt = <1050000>;
+		regulator-always-on;
+		max-duty-cycle = <1500>;
+		/* Voltage Duty-Cycle */
+		voltage-table = <1050000 0>,
+				<1040000 3>,
+				<1030000 6>,
+				<1020000 9>,
+				<1010000 12>,
+				<1000000 14>,
+				<990000 17>,
+				<980000 20>,
+				<970000 23>,
+				<960000 26>,
+				<950000 29>,
+				<940000 31>,
+				<930000 34>,
+				<920000 37>,
+				<910000 40>,
+				<900000 43>,
+				<890000 45>,
+				<880000 48>,
+				<870000 51>,
+				<860000 54>,
+				<850000 56>,
+				<840000 59>,
+				<830000 62>,
+				<820000 65>,
+				<810000 68>,
+				<800000 70>,
+				<790000 73>,
+				<780000 76>,
+				<770000 79>,
+				<760000 81>,
+				<750000 84>,
+				<740000 87>,
+				<730000 89>,
+				<720000 92>,
+				<710000 95>,
+				<700000 98>,
+				<690000 100>;
+		status = "disabled";
+	};
+
 	cbus: cbus@ffd00000 {
 			compatible = "simple-bus";
 			reg = <0x0 0xffd00000 0x0 0x27000>;
@@ -434,6 +485,54 @@
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_CLK81_I2C>;
 				clock-frequency = <100000>;
+				status = "disabled";
+			};
+
+			pwm_ab: pwm@1b000 {
+				compatible = "amlogic,meson-t5d-ee-pwm";
+				reg = <0x0 0x1b000 0x0 0x20>;
+				#pwm-cells = <3>;
+				clocks = <&xtal>,
+						<&xtal>,
+						<&xtal>,
+						<&xtal>;
+				clock-names = "clkin0",
+						"clkin1",
+						"clkin2",
+						"clkin3";
+				/* default xtal 24m  clkin0-clkin2 and
+				 * clkin1-clkin3 should be set the same
+				 */
+				status = "disabled";
+			};
+
+			pwm_cd: pwm@1a000 {
+				compatible = "amlogic,meson-t5d-ee-pwm";
+				reg = <0x0 0x1a000 0x0 0x20>;
+				#pwm-cells = <3>;
+				clocks = <&xtal>,
+						<&xtal>,
+						<&xtal>,
+						<&xtal>;
+				clock-names = "clkin0",
+						"clkin1",
+						"clkin2",
+						"clkin3";
+				status = "disabled";
+			};
+
+			pwm_ef: pwm@19000 {
+				compatible = "amlogic,meson-t5d-ee-pwm";
+				reg = <0x0 0x19000 0x0 0x20>;
+				#pwm-cells = <3>;
+				clocks = <&xtal>,
+						<&xtal>,
+						<&xtal>,
+						<&xtal>;
+				clock-names = "clkin0",
+						"clkin1",
+						"clkin2",
+						"clkin3";
 				status = "disabled";
 			};
 
@@ -1521,6 +1620,111 @@
 				"hdmirx_c_sda",
 				"hdmirx_c_sck";
 			function = "hdmirx_c";
+		};
+	};
+
+	pwm_a_pins: pwm_a_pins {
+		mux {
+			groups = "pwm_a";
+			function = "pwm_a";
+		};
+	};
+
+	pwm_b_pins1: pwm_b_pins1 {
+		mux {
+			groups = "pwm_b_z";
+			function = "pwm_b";
+		};
+	};
+
+	pwm_b_pins2: pwm_b_pins2 {
+		mux {
+			groups = "pwm_b_h";
+			function = "pwm_b";
+		};
+	};
+
+	pwm_c_pins: pwm_c_pins {
+		mux {
+			groups = "pwm_c";
+			function = "pwm_c";
+		};
+	};
+
+	pwm_d_pins1: pwm_d_pins1 {
+		mux {
+			groups = "pwm_d_z";
+			function = "pwm_d";
+		};
+	};
+
+	pwm_d_pins2: pwm_d_pins2 {
+		mux {
+			groups = "pwm_d_h5";
+			function = "pwm_d";
+		};
+	};
+
+	pwm_d_pins3: pwm_d_pins3 {
+		mux {
+			groups = "pwm_d_h12";
+			function = "pwm_d";
+		};
+	};
+
+	pwm_d_pins4: pwm_d_pins4 {
+		mux {
+			groups = "pwm_d_m1";
+			function = "pwm_d";
+		};
+	};
+
+	pwm_d_pins5: pwm_d_pins5 {
+		mux {
+			groups = "pwm_d_m23";
+			function = "pwm_d";
+		};
+	};
+
+	pwm_e_pins1: pwm_e_pins1 {
+		mux {
+			groups = "pwm_e_z";
+			function = "pwm_e";
+		};
+	};
+
+	pwm_e_pins2: pwm_e_pins2 {
+		mux {
+			groups = "pwm_e_h";
+			function = "pwm_e";
+		};
+	};
+
+	pwm_e_pins3: pwm_e_pins3 {
+		mux {
+			groups = "pwm_e_m";
+			function = "pwm_e";
+		};
+	};
+
+	pwm_f_pins1: pwm_f_pins1 {
+		mux {
+			groups = "pwm_f_z";
+			function = "pwm_f";
+		};
+	};
+
+	pwm_f_pins2: pwm_f_pins2 {
+		mux {
+			groups = "pwm_f_c";
+			function = "pwm_f";
+		};
+	};
+
+	pwm_f_pins3: pwm_f_pins3 {
+		mux {
+			groups = "pwm_f_m";
+			function = "pwm_f";
 		};
 	};
 
