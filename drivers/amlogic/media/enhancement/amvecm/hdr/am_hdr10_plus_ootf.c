@@ -452,7 +452,7 @@ int guidedootf(struct scene2094metadata *metadata,
 	int nump = order - 1;
 
 	int blendcoeff, norm;
-	int anchorlinear[14];
+	int anchorlinear[N];
 	int i;
 	int ps1;
 
@@ -631,7 +631,7 @@ int guidedootf(struct scene2094metadata *metadata,
 int decasteliau(u64 *beziercurve, u64 *anchory,
 		u64 u, int order, u64 range_ebz_x)
 {
-	u64 pointy[16];
+	u64 pointy[N + 2];
 	int i, j;
 
 	for (i = 0; i < order + 1; i++)
@@ -681,7 +681,7 @@ int gen_ebzurve(u64 *curvex, u64 *curvey,
 	u64 nkx, uint64_t nky,
 	u64 *anchory, int order)
 {
-	u64 my_anchor_y[16];
+	u64 my_anchor_y[N + 2];
 	u64 temp;
 	u64 kx, ky;
 
@@ -693,7 +693,7 @@ int gen_ebzurve(u64 *curvex, u64 *curvey,
 	int i;
 	int nump;
 
-	if (order > 1 && order <= N)
+	if (order > 1 && order <= N + 1)
 		nump = order - 1;
 	else
 		nump = N - 1;
@@ -709,7 +709,7 @@ int gen_ebzurve(u64 *curvex, u64 *curvey,
 		/*anchorY default range:PROCESSING_MAX */
 		my_anchor_y[i + 1] = anchory[i] << (U32 - PROCESSING_MAX);
 	my_anchor_y[0] = 0;
-	my_anchor_y[N] = _U32_MAX; /* u12 */
+	my_anchor_y[nump + 1] = _U32_MAX; /* u12 */
 #else
 	for (i = 0; i < nump; i++)/* u12-> ebz_y, u32*/
 		/*anchorY default range:PROCESSING_MAX */
@@ -964,7 +964,7 @@ int hdr10_plus_ootf_gen(int panel_lumin,
 	/*int referenceCurve_flag = 1;*/
 	int order, i;
 	u64 kx, ky;
-	u64 anchory[15];
+	u64 anchory[N];
 
 	/* bezier params obtained from metadata */
 	static struct hdr10_plus_sei_s hdr10_plus_sei;

@@ -19,7 +19,7 @@
 #ifndef AM_HDR10_PLUS_OOTF_H
 #define AM_HDR10_PLUS_OOTF_H
 
-#define N 10
+#define N 15
 #define PERCENTILE_ORDER 10
 #define NUM_P (N - 1)
 #define POINTS 149
@@ -67,7 +67,7 @@ struct hdr10_plus_sei_s {
 	int knee_point_x[3];
 	int knee_point_y[3];
 	int num_bezier_curve_anchors[3];
-	int bezier_curve_anchors[3][14];
+	int bezier_curve_anchors[3][15];
 	int color_saturation_mapping_flag[3];
 };
 
