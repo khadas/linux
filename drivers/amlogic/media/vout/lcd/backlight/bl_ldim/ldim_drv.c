@@ -72,6 +72,7 @@ static spinlock_t rdma_ldim_isr_lock;
 static struct workqueue_struct *ldim_queue;
 static struct work_struct ldim_on_vs_work;
 static struct work_struct ldim_off_vs_work;
+static struct work_struct ldim_err_handle_work;
 
 static int ldim_on_init(void);
 static int ldim_power_on(void);
@@ -604,6 +605,9 @@ static void ldim_time_sort_save(unsigned long long *table,
 	}
 }
 
+static void ldim_on_vs_brightness(void);
+static void ldim_off_vs_brightness(void);
+
 static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 {
 	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
@@ -630,16 +634,24 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 		local_time[1] = sched_clock();
 		local_time[2] = local_time[1] - local_time[0];
 		ldim_time_sort_save(ldim_driver.arithmetic_time, local_time[2]);
+#ifdef LDIM_SPI_DUTY_VSYNC_DIRECT
+		ldim_on_vs_brightness();
+#else
 		/*schedule_work(&ldim_on_vs_work);*/
 		queue_work(ldim_queue, &ldim_on_vs_work);
+#endif
 		if (bdrv->data->chip_type != LCD_CHIP_T3 &&
 			bdrv->data->chip_type != LCD_CHIP_T7) {
 			ldim_remap_update();
 		}
 
 	} else {
+#ifdef LDIM_SPI_DUTY_VSYNC_DIRECT
+		ldim_off_vs_brightness();
+#else
 		/*schedule_work(&ldim_off_vs_work);*/
 		queue_work(ldim_queue, &ldim_off_vs_work);
+#endif
 	}
 
 	ldim_driver.irq_cnt++;
@@ -651,10 +663,27 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void ldim_dev_smr(int update_flag, unsigned int size)
+static void ldim_dev_err_handler(void)
 {
 	struct ldim_dev_driver_s *dev_drv = ldim_driver.dev_drv;
 	int ret;
+
+	if (ldim_driver.dev_smr_bypass)
+		return;
+
+	if (!dev_drv || !dev_drv->dev_err_handler)
+		return;
+
+	ret = dev_drv->dev_err_handler(&ldim_driver);
+	if (ret) {
+		/*force update for next vsync*/
+		ldim_driver.level_update = 1;
+	}
+}
+
+static void ldim_dev_smr(int update_flag, unsigned int size)
+{
+	struct ldim_dev_driver_s *dev_drv = ldim_driver.dev_drv;
 
 	if (ldim_driver.dev_smr_bypass)
 		return;
@@ -672,16 +701,16 @@ static void ldim_dev_smr(int update_flag, unsigned int size)
 		memcpy(ldim_driver.bl_matrix_pre, ldim_driver.bl_matrix_cur,
 				(size * sizeof(unsigned int)));
 	} else {
-		if (dev_drv->dev_smr_dummy) {
-			ret = dev_drv->dev_smr_dummy(&ldim_driver);
-			if (ret) {
-				/*force update for next vsync*/
-				memset(ldim_driver.bl_matrix_pre, 0xff,
-				       (size * sizeof(unsigned int)));
-				ldim_driver.level_update = 1;
-			}
-		}
+		if (dev_drv->dev_smr_dummy)
+			dev_drv->dev_smr_dummy(&ldim_driver);
 	}
+
+#ifdef LDIM_SPI_DUTY_VSYNC_DIRECT
+	/*schedule_work(&ldim_err_handle_work);*/
+	queue_work(ldim_queue, &ldim_err_handle_work);
+#else
+	ldim_dev_err_handler();
+#endif
 }
 
 static void ldim_on_vs_brightness(void)
@@ -775,6 +804,11 @@ static void ldim_on_update_brightness(struct work_struct *work)
 static void ldim_off_update_brightness(struct work_struct *work)
 {
 	ldim_off_vs_brightness();
+}
+
+static void ldim_err_handler(struct work_struct *work)
+{
+	ldim_dev_err_handler();
 }
 
 /* ******************************************************
@@ -1764,6 +1798,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 	}
 	INIT_WORK(&ldim_on_vs_work, ldim_on_update_brightness);
 	INIT_WORK(&ldim_off_vs_work, ldim_off_update_brightness);
+	INIT_WORK(&ldim_err_handle_work, ldim_err_handler);
 
 	spin_lock_init(&ldim_isr_lock);
 	spin_lock_init(&rdma_ldim_isr_lock);

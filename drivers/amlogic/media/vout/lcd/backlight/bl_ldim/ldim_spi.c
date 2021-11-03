@@ -19,6 +19,117 @@
 #include "ldim_drv.h"
 #include "ldim_dev_drv.h"
 
+static int ldim_spi_async_busy;
+
+static int ldim_spi_dump_buffer_array(unsigned char *buf, int buf_len)
+{
+	int i;
+	int strlen;
+	unsigned char *strbuf;
+
+	LDIMPR("[%s] buf_len = %d\n", __func__, buf_len);
+	strlen = 0;
+	strbuf = kcalloc(100, sizeof(unsigned char), GFP_KERNEL);
+	if (!strbuf)
+		return -1;
+
+	for (i = 0; i < buf_len; i++) {
+		strlen += sprintf(strbuf + strlen, "0x%02x ", buf[i]);
+		if (((i % 8) == 7) || (i == (buf_len - 1))) {
+			pr_info("%s\n", strbuf);
+			strlen = 0;
+			}
+	}
+	pr_info("\n");
+	kfree(strbuf);
+	return 0;
+}
+
+static u64 _bswap64(u64 a)
+{
+	a = ((a & 0x00000000000000FFULL) << 56) |
+	    ((a & 0x000000000000FF00ULL) << 40) |
+	    ((a & 0x0000000000FF0000ULL) << 24) |
+	    ((a & 0x00000000FF000000ULL) <<  8) |
+	    ((a & 0x000000FF00000000ULL) >>  8) |
+	    ((a & 0x0000FF0000000000ULL) >> 24) |
+	    ((a & 0x00FF000000000000ULL) >> 40) |
+	    ((a & 0xFF00000000000000ULL) >> 56);
+	return a;
+}
+
+static int ldim_spi_buf_byte_swap_64bit(unsigned char *buf, unsigned int tlen,
+					unsigned int xlen)
+{
+	u64 *tmp = (u64 *)buf;
+	u64 a = 0;
+	int n, i;
+
+	if (!buf)
+		return -1;
+
+	if (ldim_debug_print == 20) {
+		LDIMPR("dump Original buf len = %d\n", tlen);
+		ldim_spi_dump_buffer_array(buf, tlen);
+	}
+
+	for (i = tlen; i < xlen; i++)
+		buf[i] = 0;
+	n = xlen / 8;
+	for (i = 0; i < n; i++) {
+		a = tmp[i];
+		tmp[i] = _bswap64(a);
+	}
+
+	if (ldim_debug_print == 20) {
+		LDIMPR("dump buf_swap len = %d\n", xlen);
+		ldim_spi_dump_buffer_array(buf, xlen);
+	}
+
+	return 0;
+}
+
+static void ldim_spi_async_callback(void *arg)
+{
+	int *state = (int *)arg;
+
+	*state = 0;
+}
+
+int ldim_spi_write_async(struct spi_device *spi, unsigned char *tbuf,
+			 unsigned char *rbuf, int tlen,
+			 int dma_mode, int max_len)
+{
+	unsigned int n, xlen;
+	int ret;
+
+	xlen = tlen;
+	if (dma_mode) {
+		n = (tlen + 7) / 8;
+		xlen = n * 8;
+		if (xlen > max_len) {
+			LDIMERR("%s: dma xlen %d out of max_len %d\n",
+				__func__, xlen, max_len);
+			return -1;
+		}
+		ldim_spi_buf_byte_swap_64bit(tbuf, tlen, xlen);
+		spi->bits_per_word = 64;
+	} else {
+		spi->bits_per_word = 8;
+	}
+
+	if (ldim_spi_async_busy)
+		LDIMERR("%s: spi_async_busy=%d\n", __func__, ldim_spi_async_busy);
+
+	ldim_spi_async_busy = 1;
+	ret = dirspi_async(spi, tbuf, rbuf, xlen,
+		ldim_spi_async_callback, (void *)&ldim_spi_async_busy);
+	if (ret)
+		LDIMERR("%s\n", __func__);
+
+	return ret;
+}
+
 int ldim_spi_write(struct spi_device *spi, unsigned char *tbuf, int tlen)
 {
 	struct ldim_dev_driver_s *dev_drv = dev_get_drvdata(&spi->dev);
@@ -34,6 +145,7 @@ int ldim_spi_write(struct spi_device *spi, unsigned char *tbuf, int tlen)
 	if (dev_drv->cs_hold_delay)
 		udelay(dev_drv->cs_hold_delay);
 
+	spi->bits_per_word = 8;
 	spi_message_init(&msg);
 	memset(&xfer, 0, sizeof(xfer));
 	xfer.tx_buf = (void *)tbuf;
@@ -63,6 +175,7 @@ int ldim_spi_read(struct spi_device *spi, unsigned char *tbuf, int tlen,
 	if (dev_drv->cs_hold_delay)
 		udelay(dev_drv->cs_hold_delay);
 
+	spi->bits_per_word = 8;
 	spi_message_init(&msg);
 	memset(&xfer, 0, sizeof(xfer));
 	xfer[0].tx_buf = (void *)tbuf;
@@ -97,6 +210,7 @@ int ldim_spi_read_sync(struct spi_device *spi, unsigned char *tbuf,
 	if (dev_drv->cs_hold_delay)
 		udelay(dev_drv->cs_hold_delay);
 
+	spi->bits_per_word = 8;
 	spi_message_init(&msg);
 	memset(&xfer, 0, sizeof(xfer));
 	xfer.tx_buf = (void *)tbuf;
