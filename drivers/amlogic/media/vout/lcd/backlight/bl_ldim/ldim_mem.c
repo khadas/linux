@@ -135,7 +135,7 @@ void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size)
 
 	pos = 0;
 
-	buf = kcalloc(mem_size, sizeof(char), GFP_KERNEL);
+	buf = vmalloc(mem_size);
 	if (!buf)
 		return;
 
@@ -144,7 +144,7 @@ void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size)
 	if (IS_ERR_OR_NULL(filp)) {
 		pr_info("read %s error or filp is NULL.\n", path);
 		set_fs(old_fs);
-		kfree(buf);
+		vfree(buf);
 		return;
 	}
 
@@ -153,7 +153,7 @@ void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size)
 		pr_info("read %s error\n", path);
 		filp_close(filp, NULL);
 		set_fs(old_fs);
-		kfree(buf);
+		vfree(buf);
 		return;
 	}
 	size = ret;
@@ -205,12 +205,12 @@ void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size)
 		}
 	}
 
-	kfree(buf);
+	vfree(buf);
 	LDIMPR("write %s to buf finished\n", path);
 	return;
 
 lcd_ldc_axi_rmem_write_end:
-	kfree(buf);
+	vfree(buf);
 	LDIMERR("buf mapping failed: 0x%lx\n", mem_paddr);
 }
 
