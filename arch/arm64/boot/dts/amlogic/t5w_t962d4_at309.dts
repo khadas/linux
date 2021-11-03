@@ -25,6 +25,7 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
+		tsensor0 = &p_tsensor;
 	};
 
 	memory@00000000 {
