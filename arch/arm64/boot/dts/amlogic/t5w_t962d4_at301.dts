@@ -329,7 +329,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmacodec: codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&dummy_codec &acodec>;
 			};
 		};
 
@@ -356,7 +356,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				sound-dai = <&dummy_codec>;
+				prefix-names = "AMP";
+				sound-dai = <&tas5805 &acodec>;
 			};
 		};
 
@@ -678,7 +679,7 @@
 /*audio soc*/
 &audiobus {
 	tdma:tdm@0 {
-		compatible = "amlogic, t5-snd-tdma";
+		compatible = "amlogic, t7-snd-tdma";
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0>;
@@ -696,7 +697,7 @@
 	};
 
 	tdmb:tdm@1 {
-		compatible = "amlogic, t5-snd-tdmb";
+		compatible = "amlogic, t7-snd-tdmb";
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0>;
@@ -704,10 +705,13 @@
 		dai-tdm-clk-sel = <1>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-				&clkaudio CLKID_AUDIO_MCLK_PAD0
 				&clkc CLKID_MPLL1>;
-		clock-names = "mclk", "mclk_pad", "clk_srcpll";
-
+		clock-names = "mclk", "clk_srcpll";
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 =
+			<&tdm_b_pins
+			&tdm_d0_pins
+			&tdm_clk_pins>;
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -737,7 +741,7 @@
 	};
 
 	tdmc:tdm@2 {
-		compatible = "amlogic, t5-snd-tdmc";
+		compatible = "amlogic, t7-snd-tdmc";
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0 0 0>;
@@ -1159,7 +1163,7 @@
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_ao_pins1>;
-	status = "disabled";
+	status = "okay";
 };
 
 &amlvecm {
@@ -1253,6 +1257,41 @@
 				"pdm_din1_h14";
 			function = "pdm";
 		};
+	};
+	tdm_b_pins: tdm_a_pin {
+		mux { /* GPIOH_16, GPIOH_15, GPIOH_17 */
+			groups = "tdm_sclk1_h",
+				"tdm_fs1_h",
+				"tdm_d0_h";
+			function = "tdm";
+		};
+	};
+};
+
+&pinctrl_audio {
+	tdm_d0_pins: tdm_d0_pin {
+		mux {
+			groups = "tdm_d0";
+			function = "tdmoutb_lane0";
+		};
+	};
+	tdm_clk_pins: tdm_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outb";
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	tas5805: tas5805@2e {
+		compatible = "ti, tas5805";
+		#sound-dai-cells = <0>;
+		codec_name = "tas5805";
+		reset_pin = <&gpio_ao GPIOD_9 GPIO_ACTIVE_HIGH>;
+		reg = <0x2e>;
+		status = "okay";
 	};
 };
 

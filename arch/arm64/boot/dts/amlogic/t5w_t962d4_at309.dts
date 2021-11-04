@@ -697,7 +697,7 @@
 /*audio soc*/
 &audiobus {
 	tdma:tdm@0 {
-		compatible = "amlogic, t5-snd-tdma";
+		compatible = "amlogic, t7-snd-tdma";
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0>;
@@ -715,7 +715,7 @@
 	};
 
 	tdmb:tdm@1 {
-		compatible = "amlogic, t5-snd-tdmb";
+		compatible = "amlogic, t7-snd-tdmb";
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0>;
@@ -756,7 +756,7 @@
 	};
 
 	tdmc:tdm@2 {
-		compatible = "amlogic, t5-snd-tdmc";
+		compatible = "amlogic, t7-snd-tdmc";
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0 0 0>;

@@ -41,6 +41,7 @@ struct tl1_acodec_chipinfo {
 	int mclk_sel;
 	bool separate_toacodec_en;
 	int data_sel_shift;
+	int dac_count;
 };
 
 struct tl1_acodec_priv {
@@ -70,6 +71,17 @@ static const struct reg_default tl1_acodec_init_list[] = {
 	{ACODEC_1, 0x50503030},
 	{ACODEC_2, 0xFBFB0000},
 	{ACODEC_3, 0x00002222},
+	{ACODEC_4, 0x00010000},
+	{ACODEC_5, 0xFBFB0033},
+	{ACODEC_6, 0x0},
+	{ACODEC_7, 0x0}
+};
+
+static const struct reg_default tl1_acodec_init_list_v2[] = {
+	{ACODEC_0, 0x3403BFFF},
+	{ACODEC_1, 0x50503030},
+	{ACODEC_2, 0xFBFB0000},
+	{ACODEC_3, 0x00002244},
 	{ACODEC_4, 0x00010000},
 	{ACODEC_5, 0xFBFB0033},
 	{ACODEC_6, 0x0},
@@ -106,6 +118,22 @@ static struct tl1_acodec_chipinfo tm2_revb_acodec_cinfo = {
 	.data_sel_shift = DATA_SEL_SHIFT_VERSION0,
 };
 
+static struct tl1_acodec_chipinfo t5w_acodec_cinfo = {
+	.id = 0,
+	.is_bclk_cap_inv = true,	//default  true
+	.is_bclk_o_inv = false,		//default  false
+	.is_lrclk_inv = false,
+
+	.is_dac_phase_differ_exist = false,
+	.is_adc_phase_differ_exist = true,
+	//if is_adc_phase_differ=true,modified tdmin_in_rev_ws,revert ws(lrclk);
+	//0 :disable; 1: enable;
+	//.mclk_sel = 1,
+	.separate_toacodec_en = true,
+	.data_sel_shift = DATA_SEL_SHIFT_VERSION0,
+	.dac_count = 4,
+};
+
 static struct tl1_acodec_chipinfo t3_acodec_cinfo = {
 	.id = 0,
 	.is_bclk_cap_inv = true,	//default  true
@@ -124,13 +152,26 @@ static struct tl1_acodec_chipinfo t3_acodec_cinfo = {
 static int tl1_acodec_reg_init(struct snd_soc_component *component)
 {
 	int i;
-
-	for (i = 0; i < ARRAY_SIZE(tl1_acodec_init_list); i++)
-		snd_soc_component_write
-			(component,
-			tl1_acodec_init_list[i].reg,
-			tl1_acodec_init_list[i].def);
-
+	struct tl1_acodec_priv *aml_acodec =
+				snd_soc_component_get_drvdata(component);
+	if (aml_acodec && aml_acodec->chipinfo) {
+		/*t5w have 4 dac*/
+		if (aml_acodec->chipinfo->dac_count == 4) {
+			for (i = 0;
+				i < ARRAY_SIZE(tl1_acodec_init_list_v2); i++)
+				snd_soc_component_write
+				(component,
+				tl1_acodec_init_list_v2[i].reg,
+				tl1_acodec_init_list_v2[i].def);
+		} else {
+			for (i = 0;
+				i < ARRAY_SIZE(tl1_acodec_init_list); i++)
+				snd_soc_component_write
+				(component,
+				tl1_acodec_init_list[i].reg,
+				tl1_acodec_init_list[i].def);
+			}
+	}
 	return 0;
 }
 
@@ -970,6 +1011,11 @@ static const struct of_device_id aml_tl1_acodec_dt_match[] = {
 		.compatible = "amlogic, t3_acodec",
 		.data = &t3_acodec_cinfo,
 	},
+	{
+		.compatible = "amlogic, t5w_acodec",
+		.data = &t5w_acodec_cinfo,
+	},
+
 	{},
 };
 

@@ -910,7 +910,7 @@
 
 	acodec:codec {
 		#sound-dai-cells = <0>;
-		compatible = "amlogic, t3_acodec";
+		compatible = "amlogic, t5w_acodec";
 		status = "okay";
 		reg = <0x0 0xff632000 0x0 0x1c>;
 		tdmout_index = <1>;
@@ -2129,6 +2129,13 @@
 		mux {
 			groups = "cec";
 			function = "cec";
+		};
+	};
+
+	mclk_1_pins: mclk_1_pin {
+		mux { /* GPIOH_14 */
+			groups = "mclk_1_h";
+			function = "mclk";
 		};
 	};
 };
