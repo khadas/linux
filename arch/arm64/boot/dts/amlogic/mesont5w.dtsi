@@ -667,7 +667,7 @@
 		clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1", "clkin2";
 		card_type = <1>;
-		tx_delay = <10>;
+		tx_delay = <20>;
 		save_para = <0>;
 		src_clk_rate = <1152000000>;
 		compute_cmd_delay = <0>;
