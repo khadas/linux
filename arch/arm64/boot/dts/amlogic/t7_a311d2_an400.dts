@@ -700,6 +700,12 @@
 		status = "okay";
 	};
 
+	video_queue {
+		compatible = "amlogic, video_queue";
+		dev_name = "videoqueue";
+		status = "okay";
+	};
+
 	amdolby_vision {
 		compatible = "amlogic, dolby_vision_t7";
 		dev_name = "aml_amdolby_vision_driver";
