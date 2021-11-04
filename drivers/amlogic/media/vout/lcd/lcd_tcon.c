@@ -29,7 +29,7 @@
 #endif
 #include <linux/fs.h>
 #include <linux/uaccess.h>
-#ifdef CONFIG_AMLOGIC_TEE_TODO
+#ifdef CONFIG_AMLOGIC_TEE
 #include <linux/amlogic/tee.h>
 #endif
 #include "lcd_common.h"
@@ -1794,7 +1794,7 @@ static void lcd_tcon_axi_mem_config_t5d(void)
 
 static void lcd_tcon_axi_mem_secure_tl1(void)
 {
-#ifdef CONFIG_AMLOGIC_TEE_TODO
+#ifdef CONFIG_AMLOGIC_TEE
 	int ret;
 
 	tcon_local_cfg.secure_cfg.handle = 0;
@@ -1804,8 +1804,8 @@ static void lcd_tcon_axi_mem_secure_tl1(void)
 				      &tcon_local_cfg.secure_cfg.handle);
 	if (ret) {
 		tcon_local_cfg.secure_cfg.protect = 0;
-		LCDERR("%s: the tcon secure mem failed! protect status is:%d\n",
-		       __func__, tcon_local_cfg.secure_cfg.protect);
+		LCDERR("%s: tee_protect_mem failed! protect 0, ret: %d\n",
+		       __func__, ret);
 	} else {
 		tcon_local_cfg.secure_cfg.protect = 1;
 	}
@@ -1815,7 +1815,7 @@ static void lcd_tcon_axi_mem_secure_tl1(void)
 static void lcd_tcon_axi_mem_secure_t5(void)
 {
 	/* only protect od mem */
-#ifdef CONFIG_AMLOGIC_TEE_TODO
+#ifdef CONFIG_AMLOGIC_TEE
 	int ret;
 
 	if (!tcon_rmem.axi_rmem)
@@ -1828,8 +1828,11 @@ static void lcd_tcon_axi_mem_secure_t5(void)
 				      &tcon_local_cfg.secure_cfg.handle);
 	if (ret) {
 		tcon_local_cfg.secure_cfg.protect = 0;
-		LCDERR("%s: the tcon secure mem failed! protect status is:%d\n",
-		       __func__, tcon_local_cfg.secure_cfg.protect);
+		LCDERR("%s: tee_protect_mem failed! protect 0, ret: %d\n",
+		       __func__, ret);
+		LCDERR("%s: mem_start: 0x%08x, mem_size: 0x%x\n",
+		       __func__, (unsigned int)tcon_rmem.axi_rmem[0].mem_paddr,
+		       tcon_rmem.axi_rmem[0].mem_size);
 	} else {
 		tcon_local_cfg.secure_cfg.protect = 1;
 	}
@@ -1884,7 +1887,7 @@ static int lcd_tcon_mem_config(void)
 	return ret;
 }
 
-#ifdef CONFIG_AMLOGIC_TEE_TODO
+#ifdef CONFIG_AMLOGIC_TEE
 int lcd_tcon_mem_tee_get_status(void)
 {
 	return tcon_local_cfg.secure_cfg.protect;

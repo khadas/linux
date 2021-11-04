@@ -5780,7 +5780,7 @@ static ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute 
 	} else if (strcmp(parm[0], "tee") == 0) {
 		if (!parm[1])
 			goto lcd_tcon_debug_store_err;
-#ifdef CONFIG_AMLOGIC_TEE_TODO
+#ifdef CONFIG_AMLOGIC_TEE
 		if (strcmp(parm[1], "status") == 0) {
 			pr_info("tcon tee secure memory protect status %d\n",
 				lcd_tcon_mem_tee_get_status());
