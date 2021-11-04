@@ -3932,7 +3932,8 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 		if (dv_cap)
 			hdr_cap |= (dv_cap << DV_SUPPORT_SHF) & DV_SUPPORT;
 	}
-	pr_csc(32, "%s: mode=%d  hdr_cap = 0x%x\n",
+	if (vinfo)
+		pr_csc(32, "%s: mode=%d  hdr_cap = 0x%x\n",
 			__func__,
 			vinfo->mode,
 			hdr_cap);
