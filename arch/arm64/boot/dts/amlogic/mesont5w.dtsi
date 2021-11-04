@@ -750,6 +750,15 @@
 		mbox-dests = <MAILBOX_AOCPU>;
 	};
 
+	jtag {
+		compatible = "amlogic, jtag";
+		status = "okay";
+		select = "disable"; /* disable/apao */
+		interrupts = <GIC_SPI 204 IRQ_TYPE_EDGE_RISING>;
+		pinctrl-names="jtag_a_pins";
+		pinctrl-0=<&jtag_apao_pins>;
+	};
+
 	vpu: vpu {
 		compatible = "amlogic, vpu-t5w";
 		status = "okay";
@@ -2155,6 +2164,16 @@
 		mux {
 			groups = "remote_out_ao9";
 			function = "remote_out_ao";
+		};
+	};
+
+	jtag_apao_pins:jtag_apao_pin {
+		mux {
+			groups = "jtag_a_tdi",
+			"jtag_a_tdo",
+			"jtag_a_clk",
+			"jtag_a_tms";
+			function = "jtag_a";
 		};
 	};
 
