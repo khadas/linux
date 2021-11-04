@@ -1279,6 +1279,12 @@
 		cma_mode = <1>;
 	};
 
+	video_queue {
+		compatible = "amlogic, video_queue";
+		dev_name = "videoqueue";
+		status = "okay";
+	};
+
 	p_tsensor: p_tsensor@ff634800 {
 		compatible = "amlogic, r1p1-tsensor";
 		status = "okay";
