@@ -641,6 +641,23 @@
 		//resets = <&reset RESET_SD_EMMC_B>;
 	};
 
+	mtd_nand: nfc@0xFFE07800 {
+		compatible = "amlogic,meson-nfc-single-ecc";
+		status = "disabled";
+		reg = <0x0 0xFFE07800 0x0 0x200>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_EDGE_RISING>;
+
+		pinctrl-names = "nand_norb_mod", "nand_cs_only";
+		pinctrl-0 = <&all_nand_pins>;
+		pinctrl-1 = <&nand_cs_pins>;
+		clocks = <&clkc CLKID_SD_EMMC_C>,
+				<&clkc CLKID_FCLK_DIV2>;
+		clock-names = "gate", "fdiv2pll";
+
+		nand_clk_ctrl = <0xFFE07000>;
+		/*partitions defined in dts*/
+	};
+
 	clkc: clock-controller@0 {
 		compatible = "amlogic,t5w-clkc";
 		reg = <0 0xff646000 0 0x400>,
@@ -1893,6 +1910,35 @@
 			function = "sdcard";
 			bias-pull-up;
 			drive-strength-microamp = <4000>;
+		};
+	};
+
+	all_nand_pins: all_nand_pins {
+		mux {
+			groups = "emmc_nand_d0",
+				"emmc_nand_d1",
+				"emmc_nand_d2",
+				"emmc_nand_d3",
+				"emmc_nand_d4",
+				"emmc_nand_d5",
+				"emmc_nand_d6",
+				"emmc_nand_d7",
+				"nand_ce0",
+				"nand_ale",
+				"nand_cle",
+				"nand_wen_clk",
+				"nand_ren_wr";
+			function = "nand";
+			input-enable;
+			drive-strength-microamp = <3000>;
+		};
+	};
+
+	nand_cs_pins:nand_cs {
+		mux {
+			groups = "nand_ce0";
+			function = "nand";
+			drive-strength-microamp = <3000>;
 		};
 	};
 

@@ -866,6 +866,60 @@
 //	vqmmc-supply = <&vddao_1v8>;
 };
 
+&mtd_nand {
+	status = "disabled";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	bl_mode = <1>;
+	fip_copies = <4>;
+	fip_size = <0x200000>;
+	ship_bad_block = <1>;
+	disa_irq_flag = <1>;
+
+	nand@bootloader {
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		nand-ecc-maximize;
+		partition@0 {
+			label = "bootloader";
+			reg = <0x0 0x00000000>;
+		};
+	};
+	nand@normal {
+		reg = <0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		nand-ecc-maximize;
+
+		partition@0 {
+			label = "tpl";
+			reg = <0x0 0x00000000>;
+		};
+		partition@1 {
+			label = "logo";
+			reg = <0x0 0x00200000>;
+		};
+		partition@2 {
+			label = "recovery";
+			reg = <0x0 0x1000000>;
+		};
+		partition@3 {
+			label = "boot";
+			reg = <0x0 0x0F00000>;
+		};
+		partition@4 {
+			label = "system";
+			reg = <0x0 0x11800000>;
+		};
+		partition@5 {
+			label = "data";
+			reg = <0x0 0xffffffff>;
+		};
+	};
+};
+
 &i2c1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_ao_pins1>;
