@@ -10637,6 +10637,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 		p_amvideo->dev_property.vd2_independ_blend_ctrl;
 	cur_dev->aisr_support = p_amvideo->dev_property.aisr_support;
 	cur_dev->di_hf_y_reverse = p_amvideo->dev_property.di_hf_y_reverse;
+	cur_dev->sr_in_size = p_amvideo->dev_property.sr_in_size;
 	if (cur_dev->aisr_support)
 		cur_dev->pps_auto_calc = 1;
 	if (cur_dev->t7_display) {

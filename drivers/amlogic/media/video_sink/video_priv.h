@@ -198,6 +198,7 @@ struct video_dev_s {
 	struct hw_pps_reg_s aisr_pps_reg;
 	struct vpp_frame_par_s aisr_frame_parms;
 	struct rdma_fun_s rdma_func[RDMA_INTERFACE_NUM];
+	u32 sr_in_size;
 };
 
 struct video_layer_s;
@@ -454,6 +455,7 @@ struct video_device_hw_s {
 	u32 aisr_support;
 	u32 frc_support;
 	u32 di_hf_y_reverse;
+	u32 sr_in_size;
 };
 
 struct amvideo_device_data_s {

@@ -17448,6 +17448,7 @@ static struct video_device_hw_s legcy_dev_property = {
 	.vd2_independ_blend_ctrl = 0,
 	.aisr_support = 0,
 	.frc_support = 0,
+	.sr_in_size = 0,
 };
 
 static struct video_device_hw_s t3_dev_property = {
@@ -17456,6 +17457,7 @@ static struct video_device_hw_s t3_dev_property = {
 	.frc_support = 1,
 	/* aisr reverse workaround for t3*/
 	.di_hf_y_reverse = 1,
+	.sr_in_size = 1,
 };
 
 static struct video_device_hw_s t5w_dev_property = {
@@ -17463,6 +17465,7 @@ static struct video_device_hw_s t5w_dev_property = {
 	.aisr_support = 0,
 	.frc_support = 0,
 	.di_hf_y_reverse = 0,
+	.sr_in_size = 1,
 };
 
 static const struct of_device_id amlogic_amvideom_dt_match[] = {

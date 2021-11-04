@@ -2962,7 +2962,7 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 		VSYNC_WR_MPEG_REG
 		(SRSHARP0_SHARP_HVSIZE + sr_reg_offt,
 		tmp_data);
-	if (cur_dev->aisr_support) {
+	if (cur_dev->sr_in_size) {
 		tmp_data2 = VSYNC_RD_MPEG_REG(VPP_SR0_IN_SIZE);
 		if (tmp_data != tmp_data2)
 			VSYNC_WR_MPEG_REG
@@ -2984,7 +2984,7 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 #endif
 		}
 	}
-	if (cur_dev->aisr_support) {
+	if (cur_dev->sr_in_size) {
 		tmp_data2 = VSYNC_RD_MPEG_REG(VPP_SR1_IN_SIZE);
 		if (tmp_data != tmp_data2)
 			VSYNC_WR_MPEG_REG
