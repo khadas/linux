@@ -215,7 +215,8 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	}
 
 	/* enable write back hsync */
-	if  (is_meson_t7_cpu() || is_meson_t3_cpu())
+	if  (is_meson_t7_cpu() || is_meson_t3_cpu() ||
+	     cpu_after_eq(MESON_CPU_MAJOR_ID_T5W))
 		wr_bits_viu(VIU_FRM_CTRL, 3, 24, 2);
 
 	if (is_meson_gxbb_cpu() || is_meson_gxm_cpu() || is_meson_gxl_cpu()) {
