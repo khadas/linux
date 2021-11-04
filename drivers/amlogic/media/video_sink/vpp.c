@@ -1400,14 +1400,16 @@ RESTART_ALL:
 	}
 
 	if (likely(w_in >
-		(crop_left + crop_right))) {
+		(crop_left + crop_right)) &&
+		(crop_left > 0 || crop_right > 0)) {
 		w_in -= crop_left;
 		w_in -= crop_right;
 		h_crop_enable = true;
 	}
 
 	if (likely(h_in >
-		(crop_top + crop_bottom))) {
+		(crop_top + crop_bottom)) &&
+		(crop_top > 0 || crop_bottom > 0)) {
 		h_in -= crop_top;
 		h_in -= crop_bottom;
 		v_crop_enable = true;
@@ -2131,11 +2133,12 @@ RESTART:
 			next_frame_par->VPP_hd_start_lines_ + 1;
 		h = next_frame_par->VPP_vd_end_lines_ -
 			next_frame_par->VPP_vd_start_lines_ + 1;
-		pr_info("%s:crop info=%d,%d,%d,%d\n",
-			__func__, crop_left, crop_top, crop_right, crop_bottom);
-		pr_info("%s:w_in=%d, h_in=%d, w=%x, h=%x\n",
-			__func__, w_in, h_in, w, h);
-
+		if (cur_super_debug) {
+			pr_info("%s:crop info=%d,%d,%d,%d\n",
+				__func__, crop_left, crop_top, crop_right, crop_bottom);
+			pr_info("%s:w_in=%d, h_in=%d, w=%x, h=%x\n",
+				__func__, w_in, h_in, w, h);
+		}
 		if ((w & 1) && (h & 1)) {
 			crop_adjust = true;
 			h_crop_enable = false;
@@ -3951,14 +3954,16 @@ RESTART_ALL:
 	}
 
 	if (likely(w_in >
-		(crop_left + crop_right))) {
+		(crop_left + crop_right)) &&
+		(crop_left > 0 || crop_right > 0)) {
 		w_in -= crop_left;
 		w_in -= crop_right;
 		h_crop_enable = true;
 	}
 
 	if (likely(h_in >
-		(crop_top + crop_bottom))) {
+		(crop_top + crop_bottom)) &&
+		(crop_top > 0 || crop_bottom > 0)) {
 		h_in -= crop_top;
 		h_in -= crop_bottom;
 		v_crop_enable = true;
@@ -4330,11 +4335,12 @@ RESTART:
 			next_frame_par->VPP_hd_start_lines_ + 1;
 		h = next_frame_par->VPP_vd_end_lines_ -
 			next_frame_par->VPP_vd_start_lines_ + 1;
-		pr_info("%s:crop info=%d,%d,%d,%d\n",
-			__func__, crop_left, crop_top, crop_right, crop_bottom);
-		pr_info("%s:w_in=%d, h_in=%d, w=%x, h=%x\n",
-			__func__, w_in, h_in, w, h);
-
+		if (cur_super_debug) {
+			pr_info("%s:crop info=%d,%d,%d,%d\n",
+				__func__, crop_left, crop_top, crop_right, crop_bottom);
+			pr_info("%s:w_in=%d, h_in=%d, w=%x, h=%x\n",
+				__func__, w_in, h_in, w, h);
+		}
 		if ((w & 1) && (h & 1)) {
 			crop_adjust = true;
 			h_crop_enable = false;
