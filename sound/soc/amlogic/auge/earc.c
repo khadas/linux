@@ -860,18 +860,12 @@ int spdif_codec_to_earc_codec[][2] = {
 
 int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_type)
 {
-	enum audio_coding_types last_coding_type;
 	struct frddr *fr;
 	enum attend_type type;
 	struct iec_cnsmr_cs cs_info;
 	int channels, rate;
 
 	if (!s_earc || IS_ERR(s_earc->tx_cmdc_map))
-		return 0;
-
-	last_coding_type = s_earc->tx_audio_coding_type;
-
-	if (new_coding_type == last_coding_type)
 		return 0;
 
 	s_earc->tx_audio_coding_type = new_coding_type;
@@ -1614,7 +1608,15 @@ int earctx_get_audio_coding_type(struct snd_kcontrol *kcontrol,
 int earctx_set_audio_coding_type(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	return aml_earctx_set_audio_coding_type(ucontrol->value.integer.value[0]);
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	enum audio_coding_types new_coding_type = ucontrol->value.integer.value[0];
+
+	if (!p_earc || IS_ERR(p_earc->tx_cmdc_map) ||
+	    new_coding_type == p_earc->tx_audio_coding_type)
+		return 0;
+
+	return aml_earctx_set_audio_coding_type(new_coding_type);
 }
 
 int earctx_get_mute(struct snd_kcontrol *kcontrol,
