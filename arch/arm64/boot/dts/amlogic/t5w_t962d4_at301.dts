@@ -136,6 +136,29 @@
 		};
 	};
 
+	vddio_3v3_reg: fixedregulator@5{
+		vin-supply = <&vddao3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+/*		pinctrl-names = "default"; */
+		gpio = <&gpio_ao GPIOD_10 GPIO_ACTIVE_HIGH>;	/* gpio d 10 */
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
+	afe_1v8_reg: fixedregulator@6{
+		compatible = "regulator-fixed";
+		vin-supply = <&vddio_3v3_reg>;
+		regulator-name = "AFE_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	/* Audio Related start */
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
