@@ -24,6 +24,9 @@ module_param(secmem_debug, int, 0644);
 static int secmem_vdec_def_size_bytes;
 module_param(secmem_vdec_def_size_bytes, int, 0644);
 
+static u32 secmem_block_align_2n;
+module_param(secmem_block_align_2n, int, 0644);
+
 #define  DEVICE_NAME "secmem"
 #define  CLASS_NAME  "secmem"
 
@@ -46,6 +49,7 @@ struct ksecmem_attachment {
 #define SZ_1_5G				0x60000000
 #define SECMEM_MM_ALIGNED_2N		20
 #define SECMEM_MM_BLOCK_ALIGNED_2N	16
+#define SECMEM_MM_BLOCK_PADDING_SIZE (256 * 1024)
 #define SECMEM_MM_MAX_VDEC_SIZE_BYTES		(32 * 1024 * 1024)
 #define SECMEM_MM_DEF_VDEC_SIZE_BYTES		(28 * 1024 * 1024)
 #define SECMEM_MM_MID_VDEC_SIZE_BYTES		(20 * 1024 * 1024)
@@ -415,7 +419,7 @@ static int secure_block_pool_init(void)
 			SECMEM_MM_ALIGNED_2N);
 	g_vdec_info.vdec_paddr = codec_mm_alloc_for_dma("dma-secure-buf",
 		g_vdec_info.vdec_size / PAGE_SIZE,
-		SECMEM_MM_BLOCK_ALIGNED_2N, CODEC_MM_FLAGS_DMA);
+		0, CODEC_MM_FLAGS_DMA);
 	if (!g_vdec_info.vdec_paddr) {
 		pr_error("allocate cma size failed %x\n",
 			g_vdec_info.vdec_size);
@@ -440,8 +444,10 @@ static int secure_block_pool_init(void)
 		g_vdec_info.vdec_pool_size = g_vdec_info.vdec_paddr +
 			g_vdec_info.vdec_size - g_vdec_info.vdec_pool_paddr;
 	}
+	if (secmem_block_align_2n == 0)
+		secmem_block_align_2n = SECMEM_MM_BLOCK_ALIGNED_2N;
 	g_vdec_info.pool = secure_pool_init(g_vdec_info.vdec_pool_paddr,
-		g_vdec_info.vdec_pool_size, SECMEM_MM_ALIGNED_2N);
+		g_vdec_info.vdec_pool_size, secmem_block_align_2n);
 	if (!g_vdec_info.pool) {
 		pr_error("secmem pool create failed\n");
 		goto error_init;
@@ -496,14 +502,17 @@ phys_addr_t secure_block_alloc(unsigned long size, unsigned long flags)
 {
 	phys_addr_t paddr = 0;
 	int ret;
+	u32 alignsize = 0;
 
 	mutex_lock(&g_secmem_mutex);
 	pr_enter();
 	if (!g_vdec_info.used)
 		goto error_alloc;
-	paddr = secure_pool_alloc(g_vdec_info.pool, size);
+	alignsize = secmem_align_up2n(size, SECMEM_MM_BLOCK_ALIGNED_2N);
+	alignsize += SECMEM_MM_BLOCK_PADDING_SIZE;
+	paddr = secure_pool_alloc(g_vdec_info.pool, alignsize);
 	if (paddr > 0) {
-		ret = tee_check_in_mem(paddr, size);
+		ret = tee_check_in_mem(paddr, alignsize);
 		if (ret)
 			pr_error("checkin err \n");
 	}
@@ -516,13 +525,16 @@ error_alloc:
 unsigned long secure_block_free(phys_addr_t addr, unsigned long size)
 {
 	int ret;
+	u32 alignsize = 0;
 
 	mutex_lock(&g_secmem_mutex);
 	pr_enter();
 	if (!g_vdec_info.used)
 		goto error_free;
-	secure_pool_free(g_vdec_info.pool, addr, size);
-	ret = tee_check_out_mem(addr, size);
+	alignsize = secmem_align_up2n(size, SECMEM_MM_BLOCK_ALIGNED_2N);
+	alignsize += SECMEM_MM_BLOCK_PADDING_SIZE;
+	secure_pool_free(g_vdec_info.pool, addr, alignsize);
+	ret = tee_check_out_mem(addr, alignsize);
 	if (ret) {
 		pr_error("checkout err \n");
 		goto error_free;
