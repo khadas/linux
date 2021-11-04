@@ -813,6 +813,27 @@ static struct ddr_port_desc ddr_port_desc_p1[] __initdata = {
 	{ .port_id = 97, .port_name = "DMA"           }
 };
 
+static struct ddr_port_desc ddr_port_desc_t5W[] __initdata = {
+	{ .port_id =  0, .port_name = "CPU/A53"           },
+	{ .port_id =  1, .port_name = "MALI"          },
+	{ .port_id =  2, .port_name = "PCIE"          },
+	{ .port_id =  3, .port_name = "HDCP"          },
+	{ .port_id =  4, .port_name = "HEVC"          },
+	{ .port_id =  5, .port_name = "TEST"          },
+	{ .port_id =  6, .port_name = "USB3.0"        },
+	{ .port_id =  7, .port_name = "DEVICE"        },
+	{ .port_id =  8, .port_name = "HEVC_B"        },
+	{ .port_id =  9, .port_name = "WAVE"        },
+	{ .port_id = 16, .port_name = "VPU READ0"     },
+	{ .port_id = 17, .port_name = "VPU READ1"     },
+	{ .port_id = 18, .port_name = "VPU READ2"     },
+	{ .port_id = 19, .port_name = "VPU WRITE0"    },
+	{ .port_id = 20, .port_name = "VPU WRITE1"    },
+	{ .port_id = 21, .port_name = "VDEC"          },
+	{ .port_id = 22, .port_name = "HCODEC"          },
+	{ .port_id = 23, .port_name = "GE2D"          }
+};
+
 static struct ddr_port_desc *chip_ddr_port;
 static unsigned int chip_ddr_port_num __initdata;
 
@@ -937,6 +958,11 @@ int __init ddr_find_port_desc(int cpu_type, struct ddr_port_desc **desc)
 	case DMC_TYPE_P1:
 		*desc = ddr_port_desc_p1;
 		desc_size = ARRAY_SIZE(ddr_port_desc_p1);
+		break;
+
+	case DMC_TYPE_T5W:
+		*desc = ddr_port_desc_t5W;
+		desc_size = ARRAY_SIZE(ddr_port_desc_t5W);
 		break;
 
 	default:
