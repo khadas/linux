@@ -387,6 +387,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, hdev->hpd_state);
 	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
+	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, hdev->hpd_state);
 	pr_info("amhdmitx: late resume module %d\n", __LINE__);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_LATE_RESUME);
@@ -703,7 +704,6 @@ static int set_disp_mode_auto(void)
 				(hdev->hpdmode == 2) ? 1 : 0);
 		}
 	}
-	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 1);
 	hdmitx_set_audio(hdev, &hdev->cur_audio_param);
 	if (hdev->cedst_policy) {
 		cancel_delayed_work(&hdev->work_cedst);
@@ -5928,7 +5928,14 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		hdmitx_device.drm_hpd_cb.callback(hdmitx_device.drm_hpd_cb.data);
 
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, 1);
-
+	/* audio uevent is used for android to
+	 * register hdmi audio device, it should
+	 * sync with hdmi hpd state.
+	 * 1.when bootup, android will get from hpd_state
+	 * 2.when hotplug or suspend/resume, sync audio
+	 * uevent with hpd uevent
+	 */
+	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 1);
 	/* Should be started at end of output */
 	cancel_delayed_work(&hdev->work_cedst);
 	if (hdev->cedst_policy)
