@@ -1474,28 +1474,13 @@ int meson_nand_bbt_check(struct nand_chip *nand)
 		meson_rsv_bbt_write((u_char *)buf, nfc->rsv->bbt->size);
 	}
 
-	return 0;
-}
-
-int meson_nand_block_isbad(struct mtd_info *mtd, loff_t offs)
-{
-	struct nand_device *nand = mtd_to_nanddev(mtd);
-	struct nand_pos pos;
-	int block_status = 0;
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	struct meson_nfc *nfc = nand_get_controller_data(chip);
-
-	nand_get_device(chip);
-	nanddev_offs_to_pos(nand, offs, &pos);
-	if (nfc->block_status) {
-		block_status = nfc->block_status[pos.eraseblock];
-		if (block_status == NAND_BLOCK_BAD ||
-			block_status == NAND_FACTORY_BAD)
-			pr_info("NAND bbt detect Bad block at %llx\n",
-				(u64)offs);
+	if (nand->options & NAND_SKIP_BBTSCAN) {
+		/* sync with nand chip bbt */
+		nand->bbt = nfc->block_status;
+		mtd_to_nand(aml_mtd_info[0])->bbt = nfc->block_status;
 	}
-	nand_release_device(chip);
-	return block_status;
+
+	return 0;
 }
 
 int meson_nand_block_markbad(struct mtd_info *mtd, loff_t offs)
@@ -1611,7 +1596,6 @@ meson_nfc_nand_chip_init(struct device *dev,
 	else
 		mtd->writesize_shift = 0;
 
-	mtd->_block_isbad =  meson_nand_block_isbad;
 	mtd->_block_markbad = meson_nand_block_markbad;
 	if (aml_mtd_devnum != 0) {
 		meson_rsv_init(mtd, nfc->rsv);

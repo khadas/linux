@@ -154,7 +154,7 @@ int meson_rsv_write(struct meson_rsv_info_t *rsv_info, u_char *buf)
 	offset = rsv_info->valid_node->phy_blk_addr;
 	offset *= mtd->erasesize;
 	offset += rsv_info->valid_node->phy_page_addr * mtd->writesize;
-	pr_debug("%s:%d,save info to %llx\n", __func__, __LINE__, offset);
+	pr_info("%s:%d,save info to %llx\n", __func__, __LINE__, offset);
 
 	memcpy(oobinfo.name, rsv_info->name, 4);
 	oobinfo.ec = rsv_info->valid_node->ec;
@@ -527,7 +527,7 @@ READ_RSV_AGAIN:
 	offset = rsv_info->valid_node->phy_blk_addr;
 	offset *= mtd->erasesize;
 	offset += rsv_info->valid_node->phy_page_addr * mtd->writesize;
-	pr_debug("%s:%d,read info %s from %llx\n", __func__, __LINE__,
+	pr_info("%s:%d,read info %s from %llx\n", __func__, __LINE__,
 		 rsv_info->name, offset);
 
 	while (length < rsv_info->size) {

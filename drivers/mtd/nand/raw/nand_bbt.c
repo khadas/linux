@@ -65,6 +65,25 @@
 
 #include "internals.h"
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/amlogic/aml_mtd_nand.h>
+
+#define BBT_BLOCK_GOOD		NAND_BLOCK_GOOD
+#define BBT_BLOCK_WORN		NAND_BLOCK_BAD
+#define BBT_BLOCK_FACTORY_BAD	NAND_FACTORY_BAD
+#define BBT_BLOCK_RESERVED	0x03
+
+static inline uint8_t bbt_get_entry(struct nand_chip *chip, int block)
+{
+	return chip->bbt[block];
+}
+
+static inline void bbt_mark_entry(struct nand_chip *chip, int block,
+		uint8_t mark)
+{
+	chip->bbt[block] = mark;
+}
+#else
 #define BBT_BLOCK_GOOD		0x00
 #define BBT_BLOCK_WORN		0x01
 #define BBT_BLOCK_RESERVED	0x02
@@ -86,6 +105,7 @@ static inline void bbt_mark_entry(struct nand_chip *chip, int block,
 	uint8_t msk = (mark & BBT_ENTRY_MASK) << ((block & BBT_ENTRY_MASK) * 2);
 	chip->bbt[block >> BBT_ENTRY_SHIFT] |= msk;
 }
+#endif
 
 static int check_pattern_no_oob(uint8_t *buf, struct nand_bbt_descr *td)
 {
