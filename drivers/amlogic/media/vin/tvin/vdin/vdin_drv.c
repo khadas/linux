@@ -3301,6 +3301,7 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (IS_HDMI_SRC(parm->port)) {
 			reset_tvin_smr(parm->index);
 			tvin_smr_init(parm->index);
+			devp->parm.info.status = TVIN_SIG_STATUS_UNSTABLE;
 		}
 		break;
 	}
