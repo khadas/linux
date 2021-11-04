@@ -110,13 +110,13 @@ typedef struct evl_spinlock {
 		_evl_spin_lock_check();			\
 		__evl_spin_trylock(__lock);		\
 	})
-#define evl_spin_lock(__lock)		_evl_spin_lock(__lock)
-#define evl_spin_lock_nested(__lock)	_evl_spin_lock_nested(__lock)
-#define evl_spin_trylock(__lock)	_evl_spin_trylock(__lock)
+#define evl_spin_lock(__lock)				_evl_spin_lock(__lock)
+#define evl_spin_lock_nested(__lock, __subclass)	_evl_spin_lock_nested(__lock, __subclass)
+#define evl_spin_trylock(__lock)			_evl_spin_trylock(__lock)
 #else
-#define evl_spin_lock(__lock)		__evl_spin_lock(__lock)
-#define evl_spin_lock_nested(__lock)	__evl_spin_lock_nested(__lock)
-#define evl_spin_trylock(__lock)	__evl_spin_trylock(__lock)
+#define evl_spin_lock(__lock)				__evl_spin_lock(__lock)
+#define evl_spin_lock_nested(__lock, __subclass)	__evl_spin_lock_nested(__lock, __subclass)
+#define evl_spin_trylock(__lock)			__evl_spin_trylock(__lock)
 #endif	/* !CONFIG_EVL_DEBUG_CORE */
 
 #define evl_spin_lock_irq(__lock)			\
