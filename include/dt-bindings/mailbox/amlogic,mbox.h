@@ -23,4 +23,7 @@
 #define P1_BL40B2REE    8
 #define P1_REE2BL40B    9
 
+// A5 MAILBOX DEST
+#define A5_AO2REE       0
+#define A5_REE2AO       1
 #endif /* __AMLOGIC_MBOX_H__ */

@@ -17,6 +17,7 @@
 #include <dt-bindings/pwm/meson.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/input/meson_ir.h>
+#include <dt-bindings/mailbox/amlogic,mbox.h>
 #include "meson-ir-map.dtsi"
 #include "mesong12a-bifrost.dtsi"
 / {
@@ -251,7 +252,7 @@
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe010288 0x0 0x4>;
 		status = "disabled";
-		mboxes = <&mailbox_mhu_fifo 1>;
+		mboxes = <&mhu_fifo A5_REE2AO>;
 	};
 
 	audio_data: audio_data {
@@ -283,8 +284,8 @@
 		pinctrl-1=<&jtag_b_pins>;
 	};
 
-	mailbox_mhu_fifo: mhu@0 {
-		status = "disabled";
+	mhu_fifo: mhu@0 {
+		status = "okay";
 		compatible = "amlogic, meson_mhu_fifo";
 		reg = <0x0 0xfe006000 0x0 0x800>,  /* mhu wr fifo */
 		      <0x0 0xfe006800 0x0 0x800>,  /* mhu rd fifo */
@@ -297,10 +298,19 @@
 		mbox-nums = <2>;
 		mbox-names = "ao_dev",
 			     "ap_to_ao";
-		mboxes = <&mailbox_mhu_fifo 0>,
-			 <&mailbox_mhu_fifo 1>;
+		mboxes = <&mhu_fifo A5_AO2REE>,
+			 <&mhu_fifo A5_REE2AO>;
 		mbox-id = <0x2 0x3>;
 		#mbox-cells = <1>;
+	};
+
+	mbox_user: mbox-user@0 {
+		status = "okay";
+		compatible = "amlogic, meson-mbox-user";
+		mbox-nums = <1>;
+		mbox-names = "ree2aocpu";
+		mboxes = <&mhu_fifo A5_REE2AO>;
+		mbox-dests = <MAILBOX_AOCPU>;
 	};
 
 	vddcpu0: pwm_j-regulator {
