@@ -1077,6 +1077,7 @@ static int aml_aes_lite_cra_init(struct crypto_tfm *tfm)
 	const char *alg_name = crypto_tfm_alg_name(tfm);
 	const char *driver_name = crypto_tfm_alg_driver_name(tfm);
 	const u32 flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK;
+	char alg_to_use[16] = {0};
 
 	tfm->crt_ablkcipher.reqsize = sizeof(struct aml_aes_reqctx);
 
@@ -1085,7 +1086,9 @@ static int aml_aes_lite_cra_init(struct crypto_tfm *tfm)
 	 */
 	if (!strstr(driver_name, "-kl")) {
 		/* Allocate a fallback and abort if it failed. */
-		ctx->fallback = crypto_alloc_skcipher(alg_name, 0,
+		strncpy(alg_to_use, "xxx(aes)", sizeof(alg_to_use));
+		memcpy(alg_to_use, alg_name, 3);
+		ctx->fallback = crypto_alloc_skcipher(alg_to_use, 0,
 						      flags);
 		if (IS_ERR(ctx->fallback)) {
 			pr_err("aml-aes: fallback '%s' could not be loaded.\n",
