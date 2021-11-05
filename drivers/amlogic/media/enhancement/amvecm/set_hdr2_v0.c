@@ -2628,7 +2628,8 @@ void hdr_gclk_ctrl_switch(enum hdr_module_sel module_sel,
 	bool enable = true;
 
 	/* only support T3 */
-	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T3)
+	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T3 &&
+		get_cpu_type() != MESON_CPU_MAJOR_ID_T5W)
 		return;
 
 	if (hdr_process_select & HDR_BYPASS)
