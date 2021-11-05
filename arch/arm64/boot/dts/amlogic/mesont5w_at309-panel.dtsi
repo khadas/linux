@@ -10,7 +10,7 @@
 		index = <0>;
 		mode = "tv";
 		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
-		key_valid = <0>;
+		key_valid = <1>;
 		clocks = <&clkc CLKID_CLK81_VCLK2_ENCL
 			&clkc CLKID_CLK81_VCLK2_VENCL>;
 		clock-names = "encl_top_gate",
@@ -19,10 +19,22 @@
 			0x0 0xff634400 0x0 0x300 /*periphs*/
 			0x0 0xffd01000 0x0 0xa0>; /*reset*/
 		interrupts = <0 3 1
+			0 56 1
+			0 78 1
 			0 88 1>;
-		interrupt-names = "vsync", "vbyone";
-		pinctrl-names = "vbyone","vbyone_off";
+		interrupt-names = "vsync","vsync2","vbyone","tcon";
+		pinctrl-names = "vbyone","vbyone_off",
+				"tcon_p2p","tcon_p2p_usit","tcon_p2p_off",
+				"tcon_mlvds","tcon_mlvds_off";
+		pinctrl-0 = <&lcd_vbyone_a_pins>;
+		pinctrl-1 = <&lcd_vbyone_a_off_pins>;
+		pinctrl-2 = <&lcd_tcon_p2p_pins>;
+		pinctrl-3 = <&lcd_tcon_p2p_usit_pins>;
+		pinctrl-4 = <&lcd_tcon_p2p_off_pins>;
+		pinctrl-5 = <&lcd_tcon_mlvds_pins>;
+		pinctrl-6 = <&lcd_tcon_mlvds_off_pins>;
 		pinctrl_version = <2>; /* for uboot */
+		memory-region = <&lcd_tcon_reserved>;
 
 		/* power type:(0=cpu_gpio, 2=signal, 3=extern, 0xff=ending) */
 		/* power index:(gpios_index, or extern_index, 0xff=invalid) */

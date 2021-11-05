@@ -2203,6 +2203,81 @@
 		};
 	};
 
+	lcd_vbyone_a_pins: lcd_vbyone_a_pin {
+		mux {
+			groups = "vx1_a_lockn","vx1_a_htpdn";
+			function = "vx1";
+		};
+	};
+
+	lcd_vbyone_a_off_pins: lcd_vbyone_a_off_pin {
+		mux {
+			groups = "GPIOH_0","GPIOH_8";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
+	lcd_vbyone_b_pins: lcd_vbyone_b_pin {
+		mux {
+			groups = "vx1_b_lockn","vx1_b_htpdn";
+			function = "vx1";
+		};
+	};
+
+	lcd_vbyone_b_off_pins: lcd_vbyone_b_off_pin {
+		mux {
+			groups = "GPIOH_9","GPIOH_10";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
+	lcd_tcon_p2p_pins: lcd_tcon_p2p_pin {
+		mux {
+			groups = "tcon_1","tcon_2","tcon_3",
+				"tcon_4","tcon_5","tcon_6",
+				"tcon_lock";
+			function = "tcon";
+		};
+	};
+
+	lcd_tcon_p2p_usit_pins: lcd_tcon_p2p_usit_pin {
+		mux {
+			groups = "tcon_1","tcon_2","tcon_3",
+				"tcon_4","tcon_5","tcon_6",
+				"tcon_sfc_h0";
+			function = "tcon";
+		};
+	};
+
+	lcd_tcon_p2p_off_pins: lcd_tcon_p2p_off_pin {
+		mux {
+			groups = "GPIOH_1","GPIOH_2","GPIOH_3",
+				"GPIOH_4","GPIOH_5","GPIOH_6",
+				"GPIOH_0";
+				function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
+	lcd_tcon_mlvds_pins: lcd_tcon_mlvds_pin {
+		mux {
+			groups = "tcon_0","tcon_1","tcon_2","tcon_3",
+				"tcon_4","tcon_5","tcon_6";
+			function = "tcon";
+		};
+	};
+
+	lcd_tcon_mlvds_off_pins: lcd_tcon_mlvds_off_pin {
+		mux {
+			groups = "GPIOH_0","GPIOH_1","GPIOH_2","GPIOH_3",
+				"GPIOH_4","GPIOH_5","GPIOH_6";
+			function = "gpio_periphs";
+			input-enable;
+		};
+	};
+
 	aocecb_mux:aocecb_mux {
 		mux {
 			groups = "cec";

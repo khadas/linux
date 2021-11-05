@@ -1761,7 +1761,7 @@ static void lcd_set_vclk_crt_t5w(struct aml_lcd_drv_s *pdrv)
 
 	lcd_clk_setb(HHI_VIID_CLK0_CTRL, 1, VCLK2_DIV1_EN, 1);
 	lcd_clk_setb(HHI_VIID_CLK0_CTRL, 1, VCLK2_SOFT_RST, 1);
-	usleep_range(10, 12);
+	udelay(10);
 	lcd_clk_setb(HHI_VIID_CLK0_CTRL, 0, VCLK2_SOFT_RST, 1);
 	udelay(5);
 

@@ -57,6 +57,15 @@
 			alloc-ranges = <0x0 0x3f800000 0x0 0x800000>;
 		};
 
+		lcd_tcon_reserved:linux,lcd_tcon {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* alloc-ranges start should not be 0x0*/
+			size = <0x0 0x00c00000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x3ec00000 0x0 0x00c00000>;
+		};
+
 		/*  vdin0 CMA pool */
 		/*vdin0_cma_reserved:linux,vdin0_cma {*/
 		/*	compatible = "shared-dma-pool";*/
@@ -143,6 +152,13 @@
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
 		};
+
+		ldc_mem_reserved:linux,ldc_mem {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x400000>;
+			alignment = <0x0 0x400000>;
+		};
 	};
 
 	vddio_3v3_reg: fixedregulator@5{
@@ -171,7 +187,7 @@
 	unifykey{
 		compatible = "amlogic,unifykey";
 		status = "okay";
-		unifykey-num = <19>;
+		unifykey-num = <24>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -191,6 +207,11 @@
 		unifykey-index-16= <&keysn_16>;
 		unifykey-index-17= <&keysn_17>;
 		unifykey-index-18= <&keysn_18>;
+		unifykey-index-19= <&keysn_19>;
+		unifykey-index-20= <&keysn_20>;
+		unifykey-index-21= <&keysn_21>;
+		unifykey-index-22= <&keysn_22>;
+		unifykey-index-23= <&keysn_23>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -287,6 +308,31 @@
 		};
 		keysn_18:key_18{
 			key-name = "oemkey";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_19:key_19{
+			key-name = "lcd";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_20:key_20{
+			key-name = "lcd_extern";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_21:key_21{
+			key-name = "backlight";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_22:key_22{
+			key-name = "lcd_tcon";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_23:key_23{
+			key-name = "lcd_tcon_spi";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
@@ -1058,6 +1104,35 @@
 	pinctrl-0=<&i2c0_z_pins>;
 };
 
+&i2c2 {
+	status = "okay";
+	clock-frequency = <100000>;
+	pinctrl-names="default";
+	pinctrl-0=<&i2c2_h_pins1>;
+
+	lcd_extern_i2c0: lcd_extern_i2c@29 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_HV650LS";
+		reg = <0x29>;
+		status = "okay";
+	};
+
+	lcd_extern_i2c1: lcd_extern_i2c@33 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_CS602";
+		reg = <0x33>;
+		status = "okay";
+	};
+};
+
+&pwm_cd {
+	status = "okay";
+};
+
+&pwm_ef {
+	status = "okay";
+};
+
 /* SD card */
 &sd_emmc_b {
 	status = "okay";
@@ -1278,6 +1353,41 @@
 			function = "tdm";
 		};
 	};
+
+	/*backlight*/
+	bl_pwm_vs_on_pins:bl_pwm_vs_on_pin {
+		mux {
+			groups = "pwm_vs_h12";
+			function = "pwm_vs";
+		};
+	};
+	bl_pwm_off_pins:bl_pwm_off_pin {
+		mux {
+			groups = "GPIOH_12";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
+
+	bl_pwm_combo_0_vs_on_pins:bl_pwm_combo_0_vs_on_pin {
+		mux {
+			groups = "pwm_vs_h12";
+			function = "pwm_vs";
+		};
+	};
+	bl_pwm_combo_1_vs_on_pins:bl_pwm_combo_1_vs_on_pin {
+		mux {
+			groups = "pwm_vs_h13";
+			function = "pwm_vs";
+		};
+	};
+	bl_pwm_combo_off_pins:bl_pwm_combo_off_pin {
+		mux {
+			groups = "GPIOH_12","GPIOH_13";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
 };
 
 &pinctrl_audio {
@@ -1306,4 +1416,3 @@
 		status = "okay";
 	};
 };
-
