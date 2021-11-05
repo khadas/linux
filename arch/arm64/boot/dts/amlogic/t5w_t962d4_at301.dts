@@ -1210,6 +1210,18 @@
 	status = "okay";
 };
 
+&aml_wifi{
+	status = "okay";
+	interrupt-gpios = <&gpio  GPIOC_12  GPIO_ACTIVE_HIGH>;
+	power_on-gpios = <&gpio   GPIOC_11  GPIO_ACTIVE_HIGH>;
+};
+
+&aml_bt {
+	status = "okay";
+	reset-gpios = <&gpio    GPIOC_13 GPIO_ACTIVE_HIGH>;
+	//hostwake-gpios = <&gpio GPIOC_14 GPIO_ACTIVE_HIGH>;
+};
+
 &fb {
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;

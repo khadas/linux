@@ -1495,6 +1495,21 @@
 		interrupts = <0 52 IRQ_TYPE_EDGE_RISING>;
 	};
 
+	aml_bt: aml_bt {
+		compatible = "amlogic, aml-bt";
+		status = "disabled";
+	};
+
+	aml_wifi: aml_wifi {
+		compatible = "amlogic, aml-wifi";
+		status = "disabled";
+		irq_trigger_type = "GPIO_IRQ_LOW";
+		/* dhd_static_buf; */ /*use bcm wifi*/
+		//pinctrl-0 = <&pwm_e_pins>;
+		//pinctrl-names = "default";
+		//pwm_config = <&wifi_pwm_conf>;
+	};
+
 }; /* end of / */
 
 &pinctrl_periphs {
