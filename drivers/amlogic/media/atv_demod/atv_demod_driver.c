@@ -57,7 +57,8 @@
 /* 2021/05/12 --- V2.30 --- Fix adc filter enable/disable in tvafe and demod. */
 /*                          Fix atbm253/2040 stable delay when scanning. */
 /*                          Fix pal-dk and add pal-bg/i audio overmodulation. */
-#define AMLATVDEMOD_VER "V2.30"
+/* 2021/11/05 --- V2.31 --- Bringup t5w. */
+#define AMLATVDEMOD_VER "V2.31"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 

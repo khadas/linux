@@ -2078,6 +2078,13 @@
 		};
 	};
 
+	atvdemod_agc_pins: atvdemod_agc_pins {
+		mux {
+			groups = "atv_if_agc_z6";
+			function = "atv";
+		};
+	};
+
 	dtvdemod_if_agc_pins: dtvdemod_if_agc_pins {
 		mux {
 			groups = "dtv_if_agc_z6";
