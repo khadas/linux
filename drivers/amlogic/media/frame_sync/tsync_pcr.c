@@ -368,7 +368,8 @@ static void tsync_set_pcr_mode(int mode, u32 param)
 	if (mode == 0) {
 		tsync_use_demux_pcr = 0;
 		timestamp_pcrscr_set(param);
-		timestamp_pcrscr_enable(1);
+		if (tsync_pcr_vpause_flag != 1)
+			timestamp_pcrscr_enable(1);
 		timestamp_vpts_set(param);
 	} else if (mode == 1) {
 		tsync_use_demux_pcr = 1;
