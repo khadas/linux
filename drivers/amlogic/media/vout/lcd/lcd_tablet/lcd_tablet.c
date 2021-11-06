@@ -92,6 +92,21 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 
 	mutex_lock(&lcd_power_mutex);
 
+	pdrv->vrr_dev = kzalloc(sizeof(*pdrv->vrr_dev), GFP_KERNEL);
+	if (pdrv->vrr_dev) {
+		sprintf(pdrv->vrr_dev->name, "lcd%d_dev", pdrv->index);
+		pdrv->vrr_dev->output_src = VRR_OUTPUT_ENCL;
+		if (pdrv->config.timing.fr_adjust_type == 2) /* vtotal adj */
+			pdrv->vrr_dev->enable = 1;
+		else
+			pdrv->vrr_dev->enable = 0;
+		pdrv->vrr_dev->vline_max = pdrv->config.basic.v_period_max;
+		pdrv->vrr_dev->vline_min = pdrv->config.basic.v_period_min;
+		pdrv->vrr_dev->vfreq_max = pdrv->config.basic.frame_rate_max;
+		pdrv->vrr_dev->vfreq_min = pdrv->config.basic.frame_rate_min;
+		aml_vrr_register_device(pdrv->vrr_dev, pdrv->index);
+	}
+
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDPR("[%d]: %s: drv_mode=%s\n",
 		      pdrv->index, __func__, pdrv->vinfo.name);
@@ -121,6 +136,12 @@ static int lcd_vout_disable(enum vmode_e cur_vmod, void *data)
 		return -1;
 
 	mutex_lock(&lcd_power_mutex);
+	if (pdrv->vrr_dev) {
+		aml_vrr_unregister_device(pdrv->index);
+		kfree(pdrv->vrr_dev);
+		pdrv->vrr_dev = NULL;
+	}
+
 	pdrv->status &= ~LCD_STATUS_VMODE_ACTIVE;
 	aml_lcd_notifier_call_chain(LCD_EVENT_POWER_OFF, (void *)pdrv);
 	LCDPR("%s finished\n", __func__);
@@ -519,25 +540,7 @@ void lcd_tablet_vout_server_remove(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_config_init(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
-	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
-	unsigned int temp;
-	unsigned int sync_duration, h_period, v_period;
-
-	temp = pconf->timing.lcd_clk;
-	h_period = pconf->basic.h_period;
-	v_period = pconf->basic.v_period;
-	if (temp < 200) { /* regard as frame_rate */
-		sync_duration = temp * 100;
-		pconf->timing.lcd_clk = temp * h_period * v_period;
-	} else { /* regard as pixel clock */
-		sync_duration = ((temp / h_period) * 100) / v_period;
-	}
-	pconf->timing.sync_duration_num = sync_duration;
-	pconf->timing.sync_duration_den = 100;
-	pconf->timing.lcd_clk_dft = pconf->timing.lcd_clk;
-	pconf->timing.h_period_dft = pconf->basic.h_period;
-	pconf->timing.v_period_dft = pconf->basic.v_period;
+	lcd_basic_timing_range_update(pdrv);
 	lcd_timing_init_config(pdrv);
 
 	lcd_tablet_vinfo_update(pdrv);
@@ -545,16 +548,7 @@ static void lcd_config_init(struct aml_lcd_drv_s *pdrv)
 	lcd_tablet_config_update(pdrv);
 	lcd_clk_generate_parameter(pdrv);
 
-	if (cconf && cconf->data) {
-		temp = pconf->timing.ss_level & 0xff;
-		cconf->ss_level = (temp >= cconf->data->ss_level_max) ? 0 : temp;
-		temp = (pconf->timing.ss_level >> 8) & 0xff;
-		temp = (temp >> LCD_CLK_SS_BIT_FREQ) & 0xf;
-		cconf->ss_freq = (temp >= cconf->data->ss_freq_max) ? 0 : temp;
-		temp = (pconf->timing.ss_level >> 8) & 0xff;
-		temp = (temp >> LCD_CLK_SS_BIT_MODE) & 0xf;
-		cconf->ss_mode = (temp >= cconf->data->ss_mode_max) ? 0 : temp;
-	}
+	lcd_clk_ss_config_update(pdrv);
 
 	lcd_tablet_config_post_update(pdrv);
 }

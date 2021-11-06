@@ -120,7 +120,6 @@ static int game_mode_phlock_switch_frames = 120;
  * static int vrr_input_switch_frames = 12;
  */
 /* waitting frames for vout vrr lock */
-static int vrr_output_lock_frames = 6;
 static unsigned int dv_work_delby;
 
 unsigned int max_ignore_frame_cnt = 2;
@@ -158,8 +157,6 @@ MODULE_PARM_DESC(game_mode_phlock_switch_frames,
  *MODULE_PARM_DESC(vrr_input_switch_frames,
  *		 "vrr input M_CONST switch <n> frames");
  */
-module_param(vrr_output_lock_frames, int, 0664);
-MODULE_PARM_DESC(vrr_output_lock_frames, "vrr output lock <n> frames");
 #endif
 
 int vdin_dbg_en;
@@ -359,6 +356,30 @@ void vdin_close_fe(struct vdin_dev_s *devp)
 	pr_info("%s ok\n", __func__);
 }
 
+static void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
+{
+	struct vrr_notifier_data_s vrr_data;
+
+	if (devp->index != 0)
+		return;
+	if (!devp->game_mode)
+		return;
+
+	vrr_data.input_src = VRR_INPUT_TVIN;
+	vrr_data.target_vfreq_num = devp->parm.info.fps;
+	vrr_data.target_vfreq_den = 1;
+
+	if (state) {
+		aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_ON,
+						   &vrr_data);
+		pr_info("%s: enable\n", __func__);
+	} else {
+		aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_OFF,
+						   &vrr_data);
+		pr_info("%s: disable\n", __func__);
+	}
+}
+
 static void vdin_game_mode_check(struct vdin_dev_s *devp)
 {
 	if (game_mode == 1 && (!IS_TVAFE_ATV_SRC(devp->parm.port))) {
@@ -408,35 +429,6 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 {
 	if (!game_mode)
 		return;
-
-	if (devp->vrr_en) {
-		if (devp->game_mode & VDIN_GAME_MODE_SWITCH_EN) {
-			/* phase unlock state, wait ph lock*/
-			/* make sure phase lock for next few frames */
-			if (aml_vrr_state(0))
-				phase_lock_flag++;
-			else
-				phase_lock_flag = 0;
-			if (phase_lock_flag >= vrr_output_lock_frames) {
-				if (vdin_dbg_en) {
-					pr_info("switch game mode (0x%x->0x%x), frame_cnt=%d\n",
-						devp->game_mode_pre,
-						devp->game_mode,
-						devp->frame_cnt);
-				}
-				if (devp->parm.info.fps < 45) {
-					/*1 to 2 need delay more than one vf*/
-					devp->game_mode = (VDIN_GAME_MODE_0 |
-						VDIN_GAME_MODE_1);
-				} else {
-					devp->game_mode = (VDIN_GAME_MODE_0 |
-						VDIN_GAME_MODE_2);
-				}
-				phase_lock_flag = 0;
-			}
-		}
-		return;
-	}
 
 	/*switch to game mode 2 from game mode 1,otherwise may appear blink*/
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
@@ -989,6 +981,8 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	if (devp->dv.dv_flag)
 		color_range_force = COLOR_RANGE_AUTO;
 
+	vdin_frame_lock_check(devp, 1);
+
 	/* write vframe as default */
 	devp->vframe_wr_en = 1;
 	devp->vframe_wr_en_pre = 1;
@@ -1035,6 +1029,8 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		return;
 	}
 #endif
+
+	vdin_frame_lock_check(devp, 0);
 
 	disable_irq(devp->irq);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && devp->index == 0 &&
@@ -1942,12 +1938,14 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 		devp->vfp->last_last_vfe->vf.ready_clock[1] = sched_clock();
 
 		if (vdin_time_en) {
-			pr_info("vdin.%d put latency %lld us.first %lld us\n",
+			pr_info("vdin.%d put latency %lld us.first %lld us buffer_idx:%d cur_time:%lld\n",
 				devp->index,
 			func_div(devp->vfp->last_last_vfe->vf.ready_clock[1],
 				 1000),
 			func_div(devp->vfp->last_last_vfe->vf.ready_clock[0],
-				 1000));
+				 1000),
+				 devp->vfp->last_last_vfe->vf.index_disp,
+				 ktime_to_us(ktime_get()));
 		}
 
 		if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
@@ -2047,6 +2045,10 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	/* avoid null pointer oops */
 	if (!devp)
 		return IRQ_HANDLED;
+
+	if (vdin_isr_monitor & BIT(6))
+		pr_info("vdin frame_cnt:%d vdin_cur_time:%lld\n",
+			devp->frame_cnt, ktime_to_us(ktime_get()));
 
 	vdin_check_cycle(devp);
 
@@ -3808,26 +3810,6 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		if (vdin_dbg_en)
 			pr_info("vdin_pc_mode:%d\n", vdin_pc_mode);
-		break;
-	case TVIN_IOC_S_VRR_EN:
-		if (copy_from_user(&devp->vrr_en, argp, sizeof(unsigned int))) {
-			ret = -EFAULT;
-			break;
-		}
-		if (vdin_dbg_en) {
-			pr_info("[vdin.%d] set vdin_vrr_en:%d\n",
-				devp->index, devp->vrr_en);
-		}
-		break;
-	case TVIN_IOC_G_VRR_EN:
-		if (copy_to_user(argp, &devp->vrr_en, sizeof(unsigned int))) {
-			ret = -EFAULT;
-			break;
-		}
-		if (vdin_dbg_en) {
-			pr_info("[vdin.%d] get vdin_vrr_en:%d\n",
-				devp->index, devp->vrr_en);
-		}
 		break;
 	case TVIN_IOC_S_FRAME_WR_EN:
 		if (copy_from_user(&devp->vframe_wr_en, argp,

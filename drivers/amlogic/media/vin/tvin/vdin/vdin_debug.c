@@ -981,7 +981,6 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		vdin_drop_cnt, devp->frame_cnt, devp->ignore_frames);
 	pr_info("game_mode cfg :  0x%x\n", game_mode);
 	pr_info("game_mode cur:  0x%x\n", devp->game_mode);
-	pr_info("vrr_en:         %d\n", devp->vrr_en);
 	pr_info("vdin_vrr_flag:  %d\n", devp->prop.vdin_vrr_flag);
 
 	pr_info("afbce_flag: 0x%x\n", devp->afbce_flag);
@@ -2627,11 +2626,6 @@ start_chk:
 			devp->game_mode = temp;
 			vdin_force_game_mode = temp;
 			pr_info("set game mode: 0x%x\n", temp);
-		}
-	} else if (!strcmp(parm[0], "vrr_en")) {
-		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
-			devp->vrr_en = temp;
-			pr_info("set vrr_en: 0x%x\n", temp);
 		}
 	} else if (!strcmp(parm[0], "matrix_pattern")) {
 		/*

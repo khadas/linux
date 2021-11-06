@@ -26,7 +26,8 @@
 /* 20210705: add lcd mute and test state protection*/
 /* 20211009: support 59 & 47 frame rate for tv mode*/
 /* 20211102: add t5w support*/
-#define LCD_DRV_VERSION    "20211102"
+/* 20211106: support vrr config*/
+#define LCD_DRV_VERSION    "20211106"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -69,6 +70,7 @@ void lcd_mlvds_config_set(struct aml_lcd_drv_s *pdrv);
 void lcd_p2p_config_set(struct aml_lcd_drv_s *pdrv);
 void lcd_mipi_dsi_config_set(struct aml_lcd_drv_s *pdrv);
 void lcd_edp_config_set(struct aml_lcd_drv_s *pdrv);
+void lcd_basic_timing_range_update(struct aml_lcd_drv_s *pdrv);
 void lcd_timing_init_config(struct aml_lcd_drv_s *pdrv);
 
 int lcd_fr_is_fixed(struct aml_lcd_drv_s *pdrv);

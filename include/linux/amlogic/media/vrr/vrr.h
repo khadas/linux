@@ -9,7 +9,7 @@
 enum vrr_input_src_e {
 	VRR_INPUT_TVIN = 0,
 	VRR_INPUT_GPU = 1,
-	VRR_INPUT_DOS = 1,
+	VRR_INPUT_DOS = 2,
 	VRR_INPUT_MAX,
 };
 
@@ -24,15 +24,18 @@ struct vrr_device_s {
 	char name[VRR_NAME_LEN_MAX];
 	enum vrr_output_src_e output_src;
 	unsigned int enable;
-	unsigned int vmax;
-	unsigned int vmin;
+	unsigned int vline_max;
+	unsigned int vline_min;
+	unsigned int vfreq_max;
+	unsigned int vfreq_min;
 };
 
 struct vrr_notifier_data_s {
-	int index;
 	enum vrr_input_src_e input_src;
-	unsigned int target_duration_num;
-	unsigned int target_duration_den;
+	unsigned int target_vfreq_num;
+	unsigned int target_vfreq_den;
+	unsigned int dev_vfreq_max;
+	unsigned int dev_vfreq_min;
 };
 
 /* **********************************
@@ -50,9 +53,21 @@ struct vrr_notifier_data_s {
 #define VRR_IOC_CMD_DISABLE   _IO(VRR_IOC_TYPE, VRR_IOC_DISABLE)
 #define VRR_IOC_CMD_GET_EN    _IOR(VRR_IOC_TYPE, VRR_IOC_GET_EN, unsigned int)
 
+/* **********************************
+ * NOTIFY define
+ * **********************************
+ */
+/* original event */
+#define FRAME_LOCK_EVENT_ON				BIT(0)
+#define FRAME_LOCK_EVENT_OFF			BIT(1)
+#define FRAME_LOCK_EVENT_VRR_ON_MODE	BIT(2)
+#define FRAME_LOCK_EVENT_VRR_OFF_MODE	BIT(3)
+#define VRR_EVENT_UPDATE				BIT(4)
+
 /* ************************************************************* */
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
-int aml_vrr_state(int index);
+int aml_vrr_state(void);
+int aml_vrr_func_en(int flag);
 
 int aml_vrr_register_device(struct vrr_device_s *vrr_dev, int index);
 int aml_vrr_unregister_device(int index);
@@ -61,7 +76,12 @@ int aml_vrr_atomic_notifier_register(struct notifier_block *nb);
 int aml_vrr_atomic_notifier_unregister(struct notifier_block *nb);
 int aml_vrr_atomic_notifier_call_chain(unsigned long event, void *v);
 #else
-static inline int aml_vrr_state(int index)
+static inline int aml_vrr_state(void)
+{
+	return 0;
+}
+
+static inline int aml_vrr_func_en(int flag)
 {
 	return 0;
 }

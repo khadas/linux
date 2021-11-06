@@ -613,7 +613,6 @@ struct vdin_dev_s {
 	 */
 	unsigned int game_mode;
 	unsigned int game_mode_pre;
-	bool vrr_en;
 	unsigned int rdma_enable;
 	/* afbce_mode: (amlogic frame buff compression encoder)
 	 * 0: normal mode, not use afbce

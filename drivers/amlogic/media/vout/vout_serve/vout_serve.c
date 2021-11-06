@@ -439,6 +439,18 @@ static ssize_t vout_fr_hint_store(struct class *class,
 	return count;
 }
 
+static ssize_t vout_frame_rate_show(struct class *class,
+				    struct class_attribute *attr, char *buf)
+{
+	unsigned int fr;
+	int ret = 0;
+
+	fr = vout_frame_rate_measure();
+	ret = sprintf(buf, "%d.%3d\n", (fr / 1000), (fr % 1000));
+
+	return ret;
+}
+
 static ssize_t vout_bist_show(struct class *class,
 			      struct class_attribute *attr, char *buf)
 {
@@ -597,14 +609,15 @@ static ssize_t vout_debug_mode_store(struct class *class,
 }
 
 static struct class_attribute vout_class_attrs[] = {
-	__ATTR(mode,      0644, vout_mode_show, vout_mode_store),
-	__ATTR(fr_policy, 0644,
+	__ATTR(mode,       0644, vout_mode_show, vout_mode_store),
+	__ATTR(fr_policy,  0644,
 	       vout_fr_policy_show, vout_fr_policy_store),
-	__ATTR(fr_hint,   0644, vout_fr_hint_show, vout_fr_hint_store),
-	__ATTR(bist,      0644, vout_bist_show, vout_bist_store),
-	__ATTR(vinfo,     0444, vout_vinfo_show, NULL),
-	__ATTR(cap,       0644, vout_cap_show, NULL),
-	__ATTR(debug,       0644, vout_debug_mode_show, vout_debug_mode_store),
+	__ATTR(fr_hint,    0644, vout_fr_hint_show, vout_fr_hint_store),
+	__ATTR(frame_rate, 0644, vout_frame_rate_show, NULL),
+	__ATTR(bist,       0644, vout_bist_show, vout_bist_store),
+	__ATTR(vinfo,      0444, vout_vinfo_show, NULL),
+	__ATTR(cap,        0644, vout_cap_show, NULL),
+	__ATTR(debug,      0644, vout_debug_mode_show, vout_debug_mode_store),
 };
 
 static int vout_attr_create(void)

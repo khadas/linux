@@ -3729,6 +3729,24 @@ int lcd_get_ss(struct aml_lcd_drv_s *pdrv, char *buf)
 	return len;
 }
 
+void lcd_clk_ss_config_update(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
+	unsigned int temp;
+
+	if (!cconf || !cconf->data)
+		return;
+
+	temp = pdrv->config.timing.ss_level & 0xff;
+	cconf->ss_level = (temp >= cconf->data->ss_level_max) ? 0 : temp;
+	temp = (pdrv->config.timing.ss_level >> 8) & 0xff;
+	temp = (temp >> LCD_CLK_SS_BIT_FREQ) & 0xf;
+	cconf->ss_freq = (temp >= cconf->data->ss_freq_max) ? 0 : temp;
+	temp = (pdrv->config.timing.ss_level >> 8) & 0xff;
+	temp = (temp >> LCD_CLK_SS_BIT_MODE) & 0xf;
+	cconf->ss_mode = (temp >= cconf->data->ss_mode_max) ? 0 : temp;
+}
+
 int lcd_set_ss(struct aml_lcd_drv_s *pdrv, unsigned int level, unsigned int freq, unsigned int mode)
 {
 	struct lcd_clk_config_s *cconf;

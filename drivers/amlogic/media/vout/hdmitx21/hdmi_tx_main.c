@@ -2921,9 +2921,13 @@ static ssize_t vrr_cap_show(struct device *dev,
 	pos += snprintf(buf + pos, PAGE_SIZE,
 			"RX_CAP vrr_min: %d\n", prxcap->vrr_min);
 	pos += snprintf(buf + pos, PAGE_SIZE,
-			"vrr.max: %d\n", vrr->vmax);
+			"vrr.vfreq_max: %d\n", vrr->vfreq_max);
 	pos += snprintf(buf + pos, PAGE_SIZE,
-			"vrr.min: %d\n", vrr->vmin);
+			"vrr.vfreq_min: %d\n", vrr->vfreq_min);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"vrr.vline_max: %d\n", vrr->vline_max);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+			"vrr.vline_min: %d\n", vrr->vline_min);
 	return pos;
 }
 
@@ -4731,12 +4735,14 @@ static void hdmitx_register_vrr(struct hdmitx_dev *hdev)
 	if (!vinfo || vinfo->mode != VMODE_HDMI)
 		return;
 	vrr->output_src = VRR_OUTPUT_ENCP;
-	vrr->vmax =
+	vrr->vfreq_max = prxcap->vrr_min;
+	vrr->vfreq_min = prxcap->vrr_max;
+	vrr->vline_max =
 		vinfo->vtotal * (prxcap->vrr_max / prxcap->vrr_min);
 	if (prxcap->vrr_max == 0)
-		vrr->vmin = 0;
+		vrr->vline_min = 0;
 	else
-		vrr->vmin = vinfo->vtotal;
+		vrr->vline_min = vinfo->vtotal;
 	if (prxcap->vrr_max < 100 || prxcap->vrr_min > 48)
 		vrr->enable = 0;
 	else

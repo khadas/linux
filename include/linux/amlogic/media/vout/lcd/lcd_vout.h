@@ -18,6 +18,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/media/vrr/vrr.h>
 #include <linux/amlogic/media/vout/lcd/aml_lcd.h>
 #include <linux/amlogic/media/vout/lcd/lcd_tcon_data.h>
 
@@ -127,6 +128,8 @@ struct lcd_basic_s {
 	unsigned short h_period_max;
 	unsigned short v_period_min;
 	unsigned short v_period_max;
+	unsigned short frame_rate_min;
+	unsigned short frame_rate_max;
 	unsigned int lcd_clk_min;
 	unsigned int lcd_clk_max;
 
@@ -583,6 +586,7 @@ struct aml_lcd_drv_s {
 	struct lcd_boot_ctrl_s *boot_ctrl;
 	struct lcd_debug_ctrl_s *debug_ctrl;
 	struct vout_server_s *vout_server[3];
+	struct vrr_device_s *vrr_dev;
 #ifdef CONFIG_OF
 	struct device_node *of_node;
 #endif
