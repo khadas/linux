@@ -591,10 +591,13 @@ static int lcd_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		"h_period_max    %d\n"
 		"v_period_min    %d\n"
 		"v_period_max    %d\n"
+		"frame_rate_min  %d\n"
+		"frame_rate_max  %d\n"
 		"pclk_min        %d\n"
 		"pclk_max        %d\n\n",
 		pconf->basic.h_period_min, pconf->basic.h_period_max,
 		pconf->basic.v_period_min, pconf->basic.v_period_max,
+		pconf->basic.frame_rate_min, pconf->basic.frame_rate_max,
 		pconf->basic.lcd_clk_min, pconf->basic.lcd_clk_max);
 
 	n = lcd_debug_info_len(len + offset);

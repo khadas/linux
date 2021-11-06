@@ -34,7 +34,6 @@
 #include "../lcd_common.h"
 
 static int lcd_init_on_flag;
-static struct vrr_device_s *lcd_vrr_dev;
 
 /* ************************************************** *
  * lcd mode function
@@ -651,7 +650,6 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 		pdrv->fr_duration = duration;
 		/* if the sync_duration is same as current */
 		if (duration_num == info->sync_duration_num &&
-		    duration_den == info->sync_duration_den &&
 		    duration_den == info->sync_duration_den) {
 			LCDPR("[%d]: %s: sync_duration is the same, exit\n",
 			      pdrv->index, __func__);
@@ -851,43 +849,22 @@ static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_config_init(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf = &pdrv->config;
-	struct lcd_clk_config_s *cconf = get_lcd_clk_config(pdrv);
-	unsigned int temp;
-
 	if (pdrv->config.timing.lcd_clk == 0) { /* default 0 for 60hz */
 		pdrv->config.timing.lcd_clk = 60;
 	} else {
 		LCDPR("[%d]: custome clk: %d\n",
 		      pdrv->index, pdrv->config.timing.lcd_clk);
 	}
-	temp = pdrv->config.timing.lcd_clk;
-	if (temp < 200) { /* regard as frame_rate */
-		pdrv->config.timing.lcd_clk = temp * pconf->basic.h_period *
-			pconf->basic.v_period;
-	} else { /* regard as pixel clock */
-		pdrv->config.timing.lcd_clk = temp;
-	}
 
-	pdrv->config.timing.lcd_clk_dft = pdrv->config.timing.lcd_clk;
-	pdrv->config.timing.h_period_dft = pconf->basic.h_period;
-	pdrv->config.timing.v_period_dft = pconf->basic.v_period;
+	lcd_basic_timing_range_update(pdrv);
+
 	/* before vmode_init to avoid period changing */
 	lcd_timing_init_config(pdrv);
 	lcd_vmode_init(pdrv);
 	lcd_tv_config_update(pdrv);
 	lcd_clk_generate_parameter(pdrv);
 
-	if (cconf && cconf->data) {
-		temp = pdrv->config.timing.ss_level & 0xff;
-		cconf->ss_level = (temp >= cconf->data->ss_level_max) ? 0 : temp;
-		temp = (pdrv->config.timing.ss_level >> 8) & 0xff;
-		temp = (temp >> LCD_CLK_SS_BIT_FREQ) & 0xf;
-		cconf->ss_freq = (temp >= cconf->data->ss_freq_max) ? 0 : temp;
-		temp = (pdrv->config.timing.ss_level >> 8) & 0xff;
-		temp = (temp >> LCD_CLK_SS_BIT_MODE) & 0xf;
-		cconf->ss_mode = (temp >= cconf->data->ss_mode_max) ? 0 : temp;
-	}
+	lcd_clk_ss_config_update(pdrv);
 }
 
 /* ************************************************** *
@@ -948,17 +925,19 @@ int lcd_mode_tv_init(struct aml_lcd_drv_s *pdrv)
 		break;
 	}
 
-	lcd_vrr_dev = kzalloc(sizeof(*lcd_vrr_dev), GFP_KERNEL);
-	if (lcd_vrr_dev) {
-		sprintf(lcd_vrr_dev->name, "lcd%d_dev", pdrv->index);
-		lcd_vrr_dev->output_src = VRR_OUTPUT_ENCL;
+	pdrv->vrr_dev = kzalloc(sizeof(*pdrv->vrr_dev), GFP_KERNEL);
+	if (pdrv->vrr_dev) {
+		sprintf(pdrv->vrr_dev->name, "lcd%d_dev", pdrv->index);
+		pdrv->vrr_dev->output_src = VRR_OUTPUT_ENCL;
 		if (pdrv->config.timing.fr_adjust_type == 2) /* vtotal adj */
-			lcd_vrr_dev->enable = 1;
+			pdrv->vrr_dev->enable = 1;
 		else
-			lcd_vrr_dev->enable = 0;
-		lcd_vrr_dev->vmax = pdrv->config.basic.v_period_max;
-		lcd_vrr_dev->vmin = pdrv->config.basic.v_period_min;
-		aml_vrr_register_device(lcd_vrr_dev, pdrv->index);
+			pdrv->vrr_dev->enable = 0;
+		pdrv->vrr_dev->vline_max = pdrv->config.basic.v_period_max;
+		pdrv->vrr_dev->vline_min = pdrv->config.basic.v_period_min;
+		pdrv->vrr_dev->vfreq_max = pdrv->config.basic.frame_rate_max;
+		pdrv->vrr_dev->vfreq_min = pdrv->config.basic.frame_rate_min;
+		aml_vrr_register_device(pdrv->vrr_dev, pdrv->index);
 	}
 
 	return 0;
@@ -966,8 +945,11 @@ int lcd_mode_tv_init(struct aml_lcd_drv_s *pdrv)
 
 int lcd_mode_tv_remove(struct aml_lcd_drv_s *pdrv)
 {
-	if (lcd_vrr_dev)
+	if (pdrv->vrr_dev) {
 		aml_vrr_unregister_device(pdrv->index);
+		kfree(pdrv->vrr_dev);
+		pdrv->vrr_dev = NULL;
+	}
 
 	switch (pdrv->config.basic.lcd_type) {
 	case LCD_VBYONE:

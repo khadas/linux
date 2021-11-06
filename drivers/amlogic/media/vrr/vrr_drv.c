@@ -47,6 +47,14 @@ static struct mutex vrr_mutex;
 
 static unsigned int vrr_debug_print;
 
+struct aml_vrr_drv_s *vrr_drv_get(int index)
+{
+	if (index >= VRR_MAX_DRV)
+		return NULL;
+
+	return vrr_drv[index];
+}
+
 static int vrr_config_load(struct aml_vrr_drv_s *vdrv,
 			   struct platform_device *pdev)
 {
@@ -67,17 +75,6 @@ static int vrr_config_load(struct aml_vrr_drv_s *vdrv,
 	return 0;
 }
 
-int aml_vrr_state(int index)
-{
-	if (index >= VRR_MAX_DRV)
-		return 0;
-	if (!vrr_drv[index])
-		return 0;
-	if (vrr_drv[index]->state & VRR_STATE_EN)
-		return 1;
-	return 0;
-}
-
 static void vrr_lcd_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 {
 	unsigned int vsp_in, vsp_sel;
@@ -92,8 +89,8 @@ static void vrr_lcd_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 		return;
 
 	offset = vdrv->data->offset[vdrv->index];
-	v_max = vdrv->vrr_dev->vmax;
-	v_min = vdrv->vrr_dev->vmin;
+	v_max = vdrv->vrr_dev->vline_max;
+	v_min = vdrv->vrr_dev->vline_min;
 	line_dly = vdrv->line_dly;
 
 	if (mode) {
@@ -143,8 +140,8 @@ static void vrr_hdmi_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 		return;
 
 	offset = vdrv->data->offset[vdrv->index];
-	v_max = vdrv->vrr_dev->vmax;
-	v_min = vdrv->vrr_dev->vmin;
+	v_max = vdrv->vrr_dev->vline_max;
+	v_min = vdrv->vrr_dev->vline_min;
 	line_dly = vdrv->line_dly;
 
 	if (mode) {
@@ -254,7 +251,7 @@ static void vrr_timer_handler(struct timer_list *timer)
 	vrr_timert_start(vdrv);
 }
 
-static int vrr_func_en(struct aml_vrr_drv_s *vdrv, int flag)
+int vrr_drv_func_en(struct aml_vrr_drv_s *vdrv, int flag)
 {
 	VRRPR("[%d]: %s, flag=%d\n", vdrv->index, __func__, flag);
 	if (!vdrv->vrr_dev) {
@@ -411,10 +408,14 @@ static ssize_t vrr_status_show(struct device *dev,
 				vdrv->vrr_dev->output_src);
 		len += sprintf(buf + len, "dev->enable:     %d\n",
 				vdrv->vrr_dev->enable);
-		len += sprintf(buf + len, "dev->vmax:       %d\n",
-				vdrv->vrr_dev->vmax);
-		len += sprintf(buf + len, "dev->vmin:       %d\n",
-				vdrv->vrr_dev->vmin);
+		len += sprintf(buf + len, "dev->vline_max:  %d\n",
+				vdrv->vrr_dev->vline_max);
+		len += sprintf(buf + len, "dev->vline_min:  %d\n",
+				vdrv->vrr_dev->vline_min);
+		len += sprintf(buf + len, "dev->vfreq_max:  %d\n",
+				vdrv->vrr_dev->vfreq_max);
+		len += sprintf(buf + len, "dev->vfreq_min:  %d\n",
+				vdrv->vrr_dev->vfreq_min);
 	}
 	len += sprintf(buf + len, "line_dly:        %d\n", vdrv->line_dly);
 	len += sprintf(buf + len, "state:           0x%x\n", vdrv->state);
@@ -456,7 +457,7 @@ static ssize_t vrr_debug_store(struct device *dev,
 		ret = sscanf(buf, "en %d", &temp);
 		if (ret == 1) {
 			mutex_lock(&vrr_mutex);
-			vrr_func_en(vdrv, temp);
+			vrr_drv_func_en(vdrv, temp);
 			mutex_unlock(&vrr_mutex);
 		} else {
 			VRRERR("invalid data\n");
@@ -506,6 +507,7 @@ static ssize_t vrr_debug_store(struct device *dev,
 static struct device_attribute vrr_debug_attrs[] = {
 	__ATTR(help, 0444, vrr_debug_help, NULL),
 	__ATTR(status, 0444, vrr_status_show, NULL),
+	__ATTR(active, 0444, vrr_active_status_show, NULL),
 	__ATTR(debug, 0644, vrr_debug_help, vrr_debug_store),
 };
 
@@ -645,10 +647,10 @@ static long vrr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 		break;
 	case VRR_IOC_ENABLE:
-		vrr_func_en(vdrv, 1);
+		vrr_drv_func_en(vdrv, 1);
 		break;
 	case VRR_IOC_DISABLE:
-		vrr_func_en(vdrv, 0);
+		vrr_drv_func_en(vdrv, 0);
 		break;
 	case VRR_IOC_GET_EN:
 		if (copy_to_user(argp, &vdrv->enable, sizeof(unsigned int)))
@@ -769,6 +771,8 @@ static int vrr_global_init_once(void)
 		goto vrr_global_init_once_err_1;
 	}
 
+	aml_vrr_if_probe();
+
 	return 0;
 
 vrr_global_init_once_err_1:
@@ -790,6 +794,8 @@ static void vrr_global_remove_once(void)
 
 	if (!vrr_cdev)
 		return;
+
+	aml_vrr_if_remove();
 
 	class_destroy(vrr_cdev->class);
 	unregister_chrdev_region(vrr_cdev->devno, VRR_MAX_DRV);

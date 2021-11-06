@@ -368,7 +368,6 @@ struct tvin_info_s {
 	unsigned int is_dvi;
 
 	/*
-	 * bit 31: is_vrr
 	 * bit 30: is_dv
 	 * bit 29: present_flag
 	 * bit 28-26: video_format
@@ -534,8 +533,6 @@ bool IS_TVAFE_AVIN_SRC(enum tvin_port_e port);
 #define TVIN_IOC_S_PC_MODE		_IOW(_TM_T, 0x50, unsigned int)
 #define TVIN_IOC_S_FRAME_WR_EN		_IOW(_TM_T, 0x51, unsigned int)
 #define TVIN_IOC_G_INPUT_TIMING		_IOR(_TM_T, 0x52, struct tvin_format_s)
-#define TVIN_IOC_S_VRR_EN		_IOW(_TM_T, 0x53, unsigned int)
-#define TVIN_IOC_G_VRR_EN		_IOR(_TM_T, 0x54, unsigned int)
 
 
 #define TVIN_IOC_S_CANVAS_RECOVERY  _IO(_TM_T, 0x0a)
