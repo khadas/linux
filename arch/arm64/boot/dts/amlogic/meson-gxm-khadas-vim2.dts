@@ -18,6 +18,8 @@
 	aliases {
 		serial0 = &uart_AO;
 		serial2 = &uart_AO_B;
+		rtc0 = &rtc;
+		rtc1 = &vrtc;
 	};
 
 	chosen {
