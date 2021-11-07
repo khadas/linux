@@ -1559,6 +1559,13 @@
 		};
 	};
 
+	bl_pwm_vs_on_pins:bl_pwm_vs_on_pin {
+		mux {
+			groups = "pwm_vs_y";
+			function = "pwm_vs";
+		};
+	};
+
 	bl_pwm_off_pins:bl_pwm_off_pin {
 		mux {
 			groups = "GPIOY_1";
