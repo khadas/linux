@@ -36,7 +36,7 @@ int evl_fast_lock_mutex(atomic_t *fastlock, fundle_t new_ownerh)
 static inline
 int evl_fast_unlock_mutex(atomic_t *fastlock, fundle_t cur_ownerh)
 {
-	return atomic_cmpxchg(fastlock, cur_ownerh, EVL_NO_HANDLE)
+	return (fundle_t)atomic_cmpxchg(fastlock, cur_ownerh, EVL_NO_HANDLE)
 		== cur_ownerh;
 }
 
