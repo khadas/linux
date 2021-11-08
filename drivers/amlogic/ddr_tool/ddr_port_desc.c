@@ -813,25 +813,43 @@ static struct ddr_port_desc ddr_port_desc_p1[] __initdata = {
 	{ .port_id = 97, .port_name = "DMA"           }
 };
 
-static struct ddr_port_desc ddr_port_desc_t5W[] __initdata = {
-	{ .port_id =  0, .port_name = "CPU/A53"           },
+static struct ddr_port_desc ddr_port_desc_t5w[] __initdata = {
+	{ .port_id =  0, .port_name = "CPU/A53"       },
 	{ .port_id =  1, .port_name = "MALI"          },
 	{ .port_id =  2, .port_name = "PCIE"          },
 	{ .port_id =  3, .port_name = "HDCP"          },
 	{ .port_id =  4, .port_name = "HEVC"          },
 	{ .port_id =  5, .port_name = "TEST"          },
 	{ .port_id =  6, .port_name = "USB3.0"        },
-	{ .port_id =  7, .port_name = "DEVICE"        },
+	{ .port_id =  7, .port_name = "DEVICE0"       },
 	{ .port_id =  8, .port_name = "HEVC_B"        },
-	{ .port_id =  9, .port_name = "WAVE"        },
+	{ .port_id =  9, .port_name = "WAVE"          },
+	{ .port_id = 10, .port_name = "DEVICE1"       },
 	{ .port_id = 16, .port_name = "VPU READ0"     },
 	{ .port_id = 17, .port_name = "VPU READ1"     },
 	{ .port_id = 18, .port_name = "VPU READ2"     },
 	{ .port_id = 19, .port_name = "VPU WRITE0"    },
 	{ .port_id = 20, .port_name = "VPU WRITE1"    },
 	{ .port_id = 21, .port_name = "VDEC"          },
-	{ .port_id = 22, .port_name = "HCODEC"          },
-	{ .port_id = 23, .port_name = "GE2D"          }
+	{ .port_id = 22, .port_name = "HCODEC"        },
+	{ .port_id = 23, .port_name = "GE2D"          },
+	/* start of each device */
+	{ .port_id = 32, .port_name = "USB0"          },
+	{ .port_id = 33, .port_name = "DMA"           },
+	{ .port_id = 34, .port_name = "USB1"          },
+	{ .port_id = 35, .port_name = "AUCPU"         },
+	{ .port_id = 36, .port_name = "AO2DDR"        },
+	{ .port_id = 37, .port_name = "ETH"           },
+	{ .port_id = 38, .port_name = "SANA"          },
+	{ .port_id = 39, .port_name = "DEMOD"         },
+	{ .port_id = 40, .port_name = "SPICC1"        },
+	{ .port_id = 41, .port_name = "ARBTODDR"      },
+	{ .port_id = 42, .port_name = "SD_EMMC_B"     },
+	{ .port_id = 43, .port_name = "AUDIO"         },
+	{ .port_id = 44, .port_name = "AIFIFO"        },
+	{ .port_id = 45, .port_name = "SPICC2"        },
+	{ .port_id = 46, .port_name = "SD_EMMC_C"     },
+	{ .port_id = 46, .port_name = "SPICC0"        }
 };
 
 static struct ddr_port_desc *chip_ddr_port;
@@ -961,8 +979,8 @@ int __init ddr_find_port_desc(int cpu_type, struct ddr_port_desc **desc)
 		break;
 
 	case DMC_TYPE_T5W:
-		*desc = ddr_port_desc_t5W;
-		desc_size = ARRAY_SIZE(ddr_port_desc_t5W);
+		*desc = ddr_port_desc_t5w;
+		desc_size = ARRAY_SIZE(ddr_port_desc_t5w);
 		break;
 
 	default:

@@ -139,15 +139,21 @@ char *to_ports(int id)
 
 char *to_sub_ports(int mid, int sid, char *id_str)
 {
-	int i;
+	int i, s_port;
 
 	if (dual_dmc(dmc_mon) || quad_dmc(dmc_mon))	/* not supported */
 		return NULL;
 
 	/* 7 is device port id */
-	if (mid == 7) {
+	/* t5w 7 and 10 is device port id */
+	if (strstr(dmc_mon->port[mid].port_name, "DEVICE")) {
+		if (mid == 7)
+			s_port = sid + PORT_MAJOR;
+		else if (mid == 10)
+			s_port = sid + PORT_MAJOR + 8;
+
 		for (i = 0; i < dmc_mon->port_num; i++) {
-			if (dmc_mon->port[i].port_id == sid + PORT_MAJOR)
+			if (dmc_mon->port[i].port_id == s_port)
 				return dmc_mon->port[i].port_name;
 		}
 	}
@@ -224,7 +230,7 @@ size_t dump_dmc_reg(char *buf)
 		}
 	} else {
 		for (i = 0; i < sizeof(dmc_mon->device) * 8; i++) {
-			if (dmc_mon->device & (1 << i))
+			if (dmc_mon->device & (1ULL << i))
 				sz += sprintf(buf + sz, "    %s\n", to_ports(i));
 		}
 	}

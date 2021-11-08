@@ -47,6 +47,9 @@
 #define DMC_VIO_PROT_RANGE0     BIT(19)
 #define DMC_VIO_PROT_RANGE1     BIT(20)
 
+#define DMC_VIO_PROT_RANGE0_T5W     BIT(20)
+#define DMC_VIO_PROT_RANGE1_T5W     BIT(21)
+
 static size_t s4_dmc_dump_reg(char *buf)
 {
 	size_t sz = 0, i;
@@ -75,15 +78,28 @@ static size_t s4_dmc_dump_reg(char *buf)
 static void check_violation(struct dmc_monitor *mon, void *data)
 {
 	int i, port, subport;
-	unsigned long addr, status;
+	unsigned long addr, status, value;
 	char id_str[4];
 	struct page *page;
 	struct page_trace *trace;
 
 	for (i = 1; i < 4; i += 2) {
 		status = dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT_VIO_0 + (i << 2), 0, DMC_READ);
-		if (!(status & (DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1)))
+
+		switch (dmc_mon->chip) {
+		case DMC_TYPE_T5W:
+			value = (DMC_VIO_PROT_RANGE0_T5W |
+						DMC_VIO_PROT_RANGE1_T5W);
+			break;
+
+		default:
+			value = (DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1);
+			break;
+		}
+
+		if (!(status & value))
 			continue;
+
 		addr = dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT_VIO_0 + ((i - 1) << 2), 0,
 				   DMC_READ);
 		if (addr > mon->addr_end)
@@ -101,11 +117,22 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 		if (trace && trace->migrate_type == MIGRATE_CMA)
 			continue;
 
-		port = (status >> 11) & 0x1f;
-		subport = (status >> 6) & 0xf;
+		switch (dmc_mon->chip) {
+		case DMC_TYPE_T5W:
+			port = (status >> 9) & 0x1f;
+			subport = (status >> 4) & 0xf;
+			value = (port == 10 && (subport == 6 || subport == 2));
+			break;
+
+		default:
+			port = (status >> 11) & 0x1f;
+			subport = (status >> 6) & 0xf;
+			value = (port == 7 && (subport == 11 || subport == 4));
+			break;
+		}
 
 		/* ignore sd_emmc in device */
-		if (port == 7 && (subport == 11 || subport == 4))
+		if (value)
 			continue;
 
 		pr_emerg(DMC_TAG ", addr:%08lx, s:%08lx, ID:%s, sub:%s, c:%ld, d:%p\n",
@@ -151,16 +178,17 @@ static int s4_dmc_mon_set(struct dmc_monitor *mon)
 
 	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_CTRL, mon->device | 1 << 24, DMC_WRITE);
 
-	if (dmc_mon->chip == DMC_TYPE_T5W)
-		dmc_prot_rw(dmc_mon->io_mem1,
-					DMC_PROT0_CTRL1,
-					1 << 24 | 0xffff,
-					DMC_WRITE);
-	else
-		dmc_prot_rw(dmc_mon->io_mem1,
-					DMC_PROT0_CTRL1,
-					1 << 24 | 0xff,
-					DMC_WRITE);
+	switch (dmc_mon->chip) {
+	case DMC_TYPE_T5W:
+		value = (1 << 24 | 0xffff);
+		break;
+
+	default:
+		value = (1 << 24 | 0xff);
+		break;
+	}
+	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_CTRL1, value, DMC_WRITE);
+
 	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT_IRQ_CTRL, 0x06, DMC_WRITE);
 
 	pr_emerg("range:%08lx - %08lx, device:%llx\n",
