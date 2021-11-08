@@ -1134,31 +1134,29 @@
 	};
 };
 
-/* SD card */
+/* sdio wifi for T5w skt */
 &sd_emmc_b {
 	status = "okay";
 	pinctrl-0 = <&sd_all_pins>;
-	pinctrl-1 = <&sd_1bit_pins>;
-	pinctrl-2 = <&sd_clk_gate_pins>;
-	pinctrl-names = "sd_default",
-			"sd_1bit_pins",
-			"clk-gate";
+	pinctrl-1 = <&sd_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
 	bus-width = <4>;
 	cap-sd-highspeed;
-//	sd-uhs-sdr12;
-//	sd-uhs-sdr25;
-//	sd-uhs-sdr50;
-//	sd_uhs-sdr104;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
 	max-frequency = <200000000>;
 
 	disable-wp;
 	non-removable;
-//	amlogic,dram-access-quirk;
+	use_intf3_tuning;
 
-	cd-gpios = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
-//	dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
 	//vmmc-supply = <&vddao_3v3>;
 	//vqmmc-supply = <&emmc_1v8>;
+
+	brcmf: wifi@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+	};
 };
 
 &sd_emmc_c {

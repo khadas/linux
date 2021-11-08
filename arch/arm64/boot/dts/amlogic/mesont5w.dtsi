@@ -762,7 +762,7 @@
 			 <&clkc CLKID_FCLK_DIV2>;
 		clock-names = "core", "mux0", "mux1",
 				"clkin0", "clkin1";
-		card_type = <5>;
+		card_type = <3>;
 		mmc_debug_flag;
 		//resets = <&reset RESET_SD_EMMC_B>;
 	};
