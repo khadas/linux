@@ -1239,11 +1239,18 @@
 #define COR_VSYNC_HIGH_COUNT_LO     0x189A
 #define COR_VSYNC_HIGH_COUNT_HI     0x189B
 
+/*t7/t3*/
 #define RX_CLK_CTRL			(0x4A << 2)
 #define RX_CLK_CTRL1		(0x4B << 2)
 #define RX_CLK_CTRL2		(0x4C << 2)
 #define RX_CLK_CTRL3		(0x4D << 2)
 #define CLKCTRL_SYS_CLK_EN0_REG2	(0x13 << 2)
+
+/*t5w*/
+#define RX_CLK_CTRL_T5W			(0x8 << 2)
+#define RX_CLK_CTRL1_T5W		(0x9 << 2)
+#define RX_CLK_CTRL2_T5W		(0xa << 2)
+#define RX_CLK_CTRL3_T5W		(0xb << 2)
 
 /* AONREG */
 #define RX_AON_SRST		0x05
