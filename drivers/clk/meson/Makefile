@@ -32,6 +32,5 @@ $(CLK_MODULE_NAME)-$(CONFIG_COMMON_CLK_S4) += s4.o
 $(CLK_MODULE_NAME)-$(CONFIG_COMMON_CLK_T3) += t3.o sc2_clk_regmap.o
 $(CLK_MODULE_NAME)-$(CONFIG_COMMON_CLK_P1) += p1.o
 #ifdef CONFIG_AMLOGIC_MODIFY
-$(CLK_MODULE_NAME)-$(CONFIG_COMMON_CLK_T5W) += t5w.o
+$(CLK_MODULE_NAME)-$(CONFIG_COMMON_CLK_T5W) += t5w.o t5w-aoclk.o
 #endif
->>>>>>> 8e3b84f8be7d... clk: add t5w clock driver support [1/1]

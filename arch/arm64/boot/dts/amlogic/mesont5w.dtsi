@@ -12,6 +12,7 @@
 #include <dt-bindings/pwm/meson.h>
 #include <dt-bindings/reset/amlogic,meson-t5w-reset.h>
 #include <dt-bindings/clock/t5w-clkc.h>
+#include <dt-bindings/clock/t5w-aoclkc.h>
 #include <dt-bindings/power/t5-pd.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
 #include <dt-bindings/clock/amlogic,t5-audio-clk.h>
@@ -302,6 +303,12 @@
 				amlogic,has-chip-id;
 			};
 
+			clkc_AO: clock-controller@2 {
+				compatible = "amlogic,t5w-aoclkc";
+				#clock-cells = <1>;
+				clocks = <&xtal>;
+				clock-names = "xtal";
+			};
 		};
 
 		remote: rc@8040 {
