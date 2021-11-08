@@ -1335,6 +1335,10 @@
 	phy-mode = "rmii";
 };
 
+&saradc {
+	status = "okay";
+};
+
 &pinctrl_periphs {
 	pdmin: pdmin {
 		mux { /* GPIOH_19, GPIOH_18 */

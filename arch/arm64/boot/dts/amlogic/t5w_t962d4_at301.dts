@@ -1390,6 +1390,10 @@
 	};
 };
 
+&saradc {
+	status = "okay";
+};
+
 &pinctrl_audio {
 	tdm_d0_pins: tdm_d0_pin {
 		mux {

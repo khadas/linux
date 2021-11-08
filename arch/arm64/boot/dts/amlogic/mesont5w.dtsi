@@ -807,6 +807,20 @@
 		/*partitions defined in dts*/
 	};
 
+	saradc:saradc {
+		compatible = "amlogic,meson-g12a-saradc";
+		status = "disabled";
+		#io-channel-cells = <1>;
+		clocks = <&xtal>,
+		    <&clkc_AO CLKID_AO_SAR_ADC>,
+		    <&clkc_AO CLKID_SARADC_GATE>,
+		    <&clkc_AO CLKID_SARADC_MUX>;
+		clock-names = "clkin", "core",
+		    "adc_clk", "adc_sel";
+		interrupts = <GIC_SPI 200 IRQ_TYPE_EDGE_RISING>;
+		reg = <0x0 0xff809000 0x0 0x48>;
+	};
+
 	clkc: clock-controller@0 {
 		compatible = "amlogic,t5w-clkc";
 		reg = <0 0xff646000 0 0x400>,
