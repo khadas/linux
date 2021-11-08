@@ -486,19 +486,13 @@ ifndef CONFIG_KASAN
 KBUILD_CFLAGS	+= -Werror
 endif
 
+ifdef CONFIG_AMLOGIC_MODIFY
 ifndef CONFIG_DYNAMIC_DEBUG
-KBUILD_CFLAGS   := -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs \
-		   -fno-strict-aliasing -fno-common -fshort-wchar -fno-PIE \
-		   -Werror=implicit-function-declaration -Werror=implicit-int \
-		   -Werror=return-type -Wno-format-security \
-		   -Wno-builtin-macro-redefined \
-		   -std=gnu89
-
 # re-define of __func__, __file__ to save rodata size
 AMLOGIC_KFLAGS 	:= -U__FILE__ -D__FILE__='"$(subst $(srctree)/,,$(<))"'
 export AMLOGIC_KFLAGS
 endif
-
+endif
 
 KBUILD_CPPFLAGS := -D__KERNEL__
 KBUILD_AFLAGS_KERNEL :=

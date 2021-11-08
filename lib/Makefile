@@ -6,8 +6,21 @@
 ifdef CONFIG_FUNCTION_TRACER
 ORIG_CFLAGS := $(KBUILD_CFLAGS)
 KBUILD_CFLAGS = $(subst $(CC_FLAGS_FTRACE),,$(ORIG_CFLAGS))
+
+ifdef CONFIG_AMLOGIC_VMAP
+ifdef CONFIG_CLANG_VERSION
+ifneq ($(shell echo $(CONFIG_CLANG_VERSION) | grep "^1[1-9]"),)
+# clang version 11~19
+#$(warning CONFIG_CLANG_VERSION=$(CONFIG_CLANG_VERSION))
+else
+# clang version 11~19, eg clang10, can't disable ftrace -pg
+#$(warning CONFIG_CLANG_VERSION=$(CONFIG_CLANG_VERSION) force ftrace!!!)
+KBUILD_CFLAGS = $(ORIG_CFLAGS)
+endif
+endif
 endif
 
+endif
 # These files are disabled because they produce lots of non-interesting and/or
 # flaky coverage that is not a function of syscall inputs. For example,
 # rbtree can be global and individual rotations don't correlate with inputs.
