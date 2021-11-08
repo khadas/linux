@@ -472,6 +472,14 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 			usleep_range(10000, 15000);
 		} while (res & (KTE_PENDING << KTE_PENDING_OFFSET));
 	} else {
+		if (get_chip_type() == 1) {
+			if (algo == MKL_USAGE_AES)
+				algo = 2;
+			else if (algo == MKL_USAGE_TDES)
+				algo = 1;
+			else /*csa2 and des is 0*/
+				algo = 0;
+		}
 		WRITE_CBUS_REG(KT_KEY0, key0);
 		WRITE_CBUS_REG(KT_KEY1, key1);
 		WRITE_CBUS_REG(KT_KEY2, key2);

@@ -6,7 +6,8 @@
 #ifndef _TS_OUTPUT_REG_H_
 #define _TS_OUTPUT_REG_H_
 
-#define SECURE_BASE  (0xFE440000 - 0xFE000000)
+//#define SECURE_BASE  (0xFE440000 - 0xFE000000)
+#define SECURE_BASE  (0x0)
 #define TS_OUT_REG_BASE  (SECURE_BASE + 0x2c00)
 
 union PID_RDY_FIELD {

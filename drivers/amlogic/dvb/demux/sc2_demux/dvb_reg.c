@@ -28,6 +28,8 @@ static int debug_rw;
 module_param(debug_rw, int, 0644);
 
 static void *p_hw_base;
+/*1:t5w chip*/
+static int chip_flag;
 
 void aml_write_self(unsigned int reg, unsigned int val)
 {
@@ -73,13 +75,27 @@ int init_demux_addr(struct platform_device *pdev)
 		return -1;
 	}
 
+	dprint("%s test addr = %lx\n", __func__,
+		       (unsigned long)res->start);
+
+	/*this is T5W base address */
+	if (res->start == 0xff610000)
+		chip_flag = 1;
+
 	p_hw_base = devm_ioremap_nocache(&pdev->dev, res->start,
 					 resource_size(res));
 	if (p_hw_base) {
+		if (chip_flag != 1)
+			p_hw_base += 0x440000;
 		dprint("%s base addr = %lx\n", __func__,
 		       (unsigned long)p_hw_base);
 	} else {
 		dprint("%s base addr error\n", __func__);
 	}
 	return 0;
+}
+
+int get_chip_type(void)
+{
+	return chip_flag;
 }

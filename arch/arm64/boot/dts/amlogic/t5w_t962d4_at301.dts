@@ -720,6 +720,23 @@
 					 */
 		tuner1_xtal_cap = <30>;
 	};
+
+	dvb-demux {
+		compatible = "amlogic sc2, dvb-demux";
+		dev_name = "dvb-demux";
+		status = "okay";
+
+		reg = <0x0 0xff610000 0x0 0x10000>;
+
+		dmxdev_num = <4>;
+
+		tsn_from = "demod";
+
+		ts2_sid = <0x12>;
+		ts2 = "parallel";
+		ts2_control = <0x0>;
+		ts2_invert = <0>;
+	};
 }; /* end of reserved-memory */
 
 /*audio soc*/

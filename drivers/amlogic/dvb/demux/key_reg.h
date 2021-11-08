@@ -6,15 +6,15 @@
 #ifndef _KEY_REG_H_
 #define _KEY_REG_H_
 
-#define KT_REE_S17_CONFIG                          0x442408
-#define KT_REE_RDY                                 ((0x0020  << 2) + 0x440500)
-#define KT_REE_RDY2                                ((0x0021  << 2) + 0x440500)
-#define KT_REE_CFG                                 ((0x0022  << 2) + 0x440500)
-#define KT_REE_STS                                 ((0x0023  << 2) + 0x440500)
-#define KT_REE_KEY0                                ((0x0024  << 2) + 0x440500)
-#define KT_REE_KEY1                                ((0x0025  << 2) + 0x440500)
-#define KT_REE_KEY2                                ((0x0026  << 2) + 0x440500)
-#define KT_REE_KEY3                                ((0x0027  << 2) + 0x440500)
+#define KT_REE_S17_CONFIG                          0x2408
+#define KT_REE_RDY                                 ((0x0020  << 2) + 0x0500)
+#define KT_REE_RDY2                                ((0x0021  << 2) + 0x0500)
+#define KT_REE_CFG                                 ((0x0022  << 2) + 0x0500)
+#define KT_REE_STS                                 ((0x0023  << 2) + 0x0500)
+#define KT_REE_KEY0                                ((0x0024  << 2) + 0x0500)
+#define KT_REE_KEY1                                ((0x0025  << 2) + 0x0500)
+#define KT_REE_KEY2                                ((0x0026  << 2) + 0x0500)
+#define KT_REE_KEY3                                ((0x0027  << 2) + 0x0500)
 
 #define KTE_PENDING_OFFSET   (31)
 #define KTE_STATUS_OFFSET    (29)

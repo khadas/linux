@@ -13,6 +13,7 @@
 void aml_write_self(unsigned int reg, unsigned int val);
 int aml_read_self(unsigned int reg);
 int init_demux_addr(struct platform_device *pdev);
+int get_chip_type(void);
 
 #define WRITE_CBUS_REG(_r, _v)   aml_write_self((_r), _v)
 #define READ_CBUS_REG(_r)        aml_read_self((_r))
