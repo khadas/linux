@@ -499,7 +499,8 @@ enum ve_source_input_e {
  *NTST_M/NTST_443/PAL_I/PAL_M/PAL_60/PAL_CN/SECAM/NTST_50 for AV/ATV
  */
 enum ve_pq_timing_e {
-	TIMING_SD = 0,
+	TIMING_SD_480 = 0,
+	TIMING_SD_576,
 	TIMING_HD,
 	TIMING_FHD,
 	TIMING_UHD,

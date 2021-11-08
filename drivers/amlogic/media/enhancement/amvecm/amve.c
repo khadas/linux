@@ -1707,8 +1707,10 @@ void amvecm_fresh_overscan(struct vframe_s *vf)
 	if (overscan_table[0].load_flag) {
 		height = (vf->type & VIDTYPE_COMPRESS) ?
 			vf->compHeight : vf->height;
-		if (height <= 576)
-			cur_overscan_timing = TIMING_SD;
+		if (height <= 480)
+			cur_overscan_timing = TIMING_SD_480;
+		else if (height <= 576)
+			cur_overscan_timing = TIMING_SD_576;
 		else if (height <= 720)
 			cur_overscan_timing = TIMING_HD;
 		else if (height <= 1088)
