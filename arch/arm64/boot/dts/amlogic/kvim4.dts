@@ -897,6 +897,18 @@
 	};
 };
 
+&i2c_AO_A {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c0_ao_pins1>;
+	clock-frequency = <100000>; /* default 100k */
+
+	khadas-rtc {
+		compatible = "khadas-rtc";
+		reg = <0x51>;
+	};
+};
+
 &audiobus {
 	tdma:tdm@0 {
 		compatible = "amlogic, t7-snd-tdma";
