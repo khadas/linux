@@ -1650,7 +1650,7 @@ static struct meson_bank meson_t5w_aobus_banks[] = {
 	BANK_DS("D",   GPIOD_0,  GPIOD_10,  0, 10,
 	     3,  0,  2, 0,  0,  0,  4, 0,  1,  0, 0x00, 0),
 	BANK_DS("E",   GPIOE_0,  GPIOE_1,   99, 100,
-	     3,  16, 2, 16, 0,  16, 4, 16, 1,  16, 0x01, 16)
+	     3,  16, 2, 16, 0,  16, 4, 16, 1,  16, 0x01, 0)
 };
 
 static struct meson_bank meson_t5w_analog_banks[] = {

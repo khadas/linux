@@ -362,7 +362,7 @@
 				"gpio";
 			gpio-controller;
 			#gpio-cells = <2>;
-			gpio-ranges = <&pinctrl_periphs 0 0 117>;
+			gpio-ranges = <&pinctrl_periphs 0 0 118>;
 		};
 	};
 
