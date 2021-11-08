@@ -3631,7 +3631,7 @@ void cor_init(void)
 void hdcp_init_t7(void)
 {
 	//key config and crc check
-	rx_sec_hdcp_cfg_t7();
+	//rx_sec_hdcp_cfg_t7();
 	//hdcp config
 	hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x1);//HPD
 	hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, 0x01);//ri_hdcp2x_en
@@ -3875,7 +3875,7 @@ void rx_aud_pll_ctl(bool en)
 				tmp &= ~(1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
 				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
 			}
-		} else if (rx.chip_id >= CHIP_ID_T3) {
+		} else if (rx.chip_id == CHIP_ID_T3) {
 			if (en) {
 				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
 				tmp |= (1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
@@ -3901,6 +3901,41 @@ void rx_aud_pll_ctl(bool en)
 				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x0);
 				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
 				tmp &= ~(1 << 8);// [    8] clk_en for cts_hdmirx_aud_pll_clk
+				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
+			}
+		} else if (rx.chip_id == CHIP_ID_T5W) {
+			if (en) {
+				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2_T5W);
+				/* [    8] clk_en for cts_hdmirx_aud_pll_clk */
+				tmp |= (1 << 8);
+				wr_reg_clk_ctl(RX_CLK_CTRL2_T5W, tmp);
+				/* AUD_CLK=N/CTS*TMDS_CLK */
+				wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x40001540);
+				/* use mpll */
+				tmp = 0;
+				/* 0:tmds_clk 1:ref_clk 2:mpll_clk */
+				tmp |= 2 << 2;
+				wr_reg_hhi(HHI_AUD_PLL_CNTL, tmp);
+				/* cntl3 2:0 0=1*cts 1=2*cts */
+				/* 010=4*cts 011=8*cts */
+				wr_reg_hhi(HHI_AUD_PLL_CNTL, rx.phy.aud_div);
+				if (log_level & AUDIO_LOG)
+					rx_pr("aud div=%d\n",
+					rd_reg_hhi(ANACTL_AUD_PLL_CNTL3));
+				wr_reg_hhi(HHI_AUD_PLL_CNTL, 0x60001540);
+				if (log_level & AUDIO_LOG) {
+					/* pll lock bit:*/
+					/*top reg acr_cntl_stat bit'31 */
+					tmp = hdmirx_rd_top(TOP_ACR_CNTL_STAT);
+					rx_pr("apll lock:0x%x\n", (tmp >> 31));
+				}
+				rx_audio_pll_sw_update();
+			} else {
+				/* disable pll, into reset mode */
+				wr_reg_ana_ctl(ANACTL_AUD_PLL_CNTL, 0x0);
+				tmp = rd_reg_clk_ctl(RX_CLK_CTRL2);
+				/* [    8] clk_en for cts_hdmirx_aud_pll_clk */
+				tmp &= ~(1 << 8);
 				wr_reg_clk_ctl(RX_CLK_CTRL2, tmp);
 			}
 		} else {
