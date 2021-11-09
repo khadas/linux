@@ -126,9 +126,10 @@ struct vframe_s *aipq_get_dw_vf(struct uvm_aipq_info *aipq_info)
 	struct dma_buf *dmabuf = NULL;
 	bool is_dec_vf = false, is_v4l_vf = false;
 	struct vframe_s *vf = NULL;
-	struct vframe_s *vf_tmp = NULL;
+	struct vframe_s *di_vf = NULL;
 	struct file_private_data *file_private_data = NULL;
 	int shared_fd = aipq_info->shared_fd;
+	int interlace_mode = 0;
 
 	dmabuf = dma_buf_get(shared_fd);
 
@@ -151,26 +152,30 @@ struct vframe_s *aipq_get_dw_vf(struct uvm_aipq_info *aipq_info)
 
 	if (is_dec_vf) {
 		vf = dmabuf_get_vframe(dmabuf);
-		if (vf)
-			aipq_print(PRINT_OTHER,
-				"vf: %d*%d,flag=%x,type=%x\n",
-				vf->width,
-				vf->height,
-				vf->flag,
-				vf->type);
+		if (IS_ERR_OR_NULL(vf)) {
+			aipq_print(PRINT_ERROR, "%s: vf is NULL.\n", __func__);
+			return NULL;
+		}
 
-		if (vf && vf->vf_ext &&
-			(vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
-			vf_tmp = vf->vf_ext;
-			aipq_print(PRINT_OTHER,
-				"vf_ext: %d*%d,flag=%x,type=%x\n",
-				vf_tmp->width,
-				vf_tmp->height,
-				vf_tmp->flag,
-				vf_tmp->type);
-			if (vf->width == 0) {/*for interlace*/
-				vf = vf->vf_ext;
-				aipq_print(PRINT_OTHER, "use ext vf\n");
+		aipq_print(PRINT_OTHER,
+			"vf: %d*%d,flag=%x,type=%x\n",
+			vf->width,
+			vf->height,
+			vf->flag,
+			vf->type);
+
+		di_vf = vf->vf_ext;
+		interlace_mode = vf->type & VIDTYPE_TYPEMASK;
+		if (di_vf && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
+			if (interlace_mode != VIDTYPE_PROGRESSIVE) {
+				/*for interlace*/
+				aipq_print(PRINT_OTHER,
+					"use di vf: %d*%d,flag=%x,type=%x\n",
+					di_vf->width,
+					di_vf->height,
+					di_vf->flag,
+					di_vf->type);
+				vf = di_vf;
 			}
 		}
 		dmabuf_put_vframe(dmabuf);
