@@ -87,7 +87,7 @@ int aipq_vf_set_value(struct uvm_aipq_info *aipq_info, bool enable_aipq)
 	} else {
 		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
 		if (IS_ERR_OR_NULL(uhmod) || !uhmod->arg) {
-			aipq_print(PRINT_ERROR, "get_fh err: no v4lvideo\n");
+			aipq_print(PRINT_OTHER, "get vf err: no v4lvideo\n");
 			dma_buf_put(dmabuf);
 			return -EINVAL;
 		}
@@ -182,7 +182,7 @@ struct vframe_s *aipq_get_dw_vf(struct uvm_aipq_info *aipq_info)
 	} else {
 		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
 		if (IS_ERR_OR_NULL(uhmod) || !uhmod->arg) {
-			aipq_print(PRINT_ERROR, "get_fh err: no v4lvideo\n");
+			aipq_print(PRINT_OTHER, "get dw vf err: no v4lvideo\n");
 			dma_buf_put(dmabuf);
 			return NULL;
 		}
@@ -388,7 +388,7 @@ int attach_aipq_hook_mod_info(int shared_fd,
 	} else {
 		vf = aipq_get_dw_vf(aipq_info);
 		if (IS_ERR_OR_NULL(vf)) {
-			aipq_print(PRINT_ERROR, "get no vf\n");
+			aipq_print(PRINT_OTHER, "get no vf\n");
 			return -EINVAL;
 		}
 		if (vf->width > 3840 || vf->height > 2160) {
@@ -446,7 +446,7 @@ int attach_aipq_hook_mod_info(int shared_fd,
 		dmabuf_last = dmabuf;
 		ret = aipq_vf_set_value(aipq_info, enable_aipq);
 		if (ret != 0)
-			aipq_print(PRINT_ERROR, "set aipq value err\n");
+			aipq_print(PRINT_OTHER, "set aipq value err\n");
 	}
 
 	if (attached)
