@@ -740,7 +740,8 @@ bool is_dovi_tv_on(void)
 	return ((is_meson_txlx_package_962X() ||
 		is_meson_tm2_cpu() ||
 		is_meson_t7_cpu() ||
-		is_meson_t3_cpu()) &&
+		is_meson_t3_cpu() ||
+		is_meson_t5w_cpu()) &&
 		!is_dolby_vision_stb_mode() && is_dolby_vision_on());
 #endif
 }

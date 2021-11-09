@@ -2320,7 +2320,7 @@ static int tv_dolby_core1_set
 	    (dolby_vision_flags & FLAG_DISABE_CORE_SETTING))
 		return 0;
 
-	if ((is_meson_t3() || is_meson_t5w()) && bl_enable) {
+	if (is_meson_t3() || is_meson_t5w()) {
 		VSYNC_WR_DV_REG_BITS(VPP_TOP_VTRL, 0, 0, 1); //DOLBY TV select
 		//T3 enable tvcore clk
 		if (!dolby_vision_on) {/*enable once*/
