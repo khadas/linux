@@ -1020,25 +1020,48 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 					 struct file *file_vf, bool need_dw)
 {
 	struct vframe_s *vf = NULL;
+	struct vframe_s *di_vf = NULL;
 	bool is_dec_vf = false;
 	struct file_private_data *file_private_data = NULL;
+
+	if (IS_ERR_OR_NULL(dev) || IS_ERR_OR_NULL(file_vf)) {
+		vc_print(dev->index, PRINT_ERROR,
+			"%s: invalid param.\n",
+			__func__);
+		return vf;
+	}
 
 	is_dec_vf = is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
 
 	if (is_dec_vf) {
+		vc_print(dev->index, PRINT_OTHER, "vf is from decoder\n");
 		vf =
 		dmabuf_get_vframe((struct dma_buf *)(file_vf->private_data));
-		if (vf->vf_ext && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
+		if (!vf) {
+			vc_print(dev->index, PRINT_ERROR, "vf is NULL.\n");
+			return vf;
+		}
+
+		di_vf = vf->vf_ext;
+		vc_print(dev->index, PRINT_OTHER,
+			"vframe_type = 0x%x, vframe_flag = 0x%x.\n",
+			vf->type,
+			vf->flag);
+		if (di_vf && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
+			vc_print(dev->index, PRINT_OTHER,
+				"di_vf->type = 0x%x, di_vf->org = 0x%x.\n",
+				di_vf->type,
+				di_vf->type_original);
 			if (!need_dw ||
-			    (need_dw && vf->width == 0)) {
+			    (need_dw && di_vf->width != 0)) {
 				vc_print(dev->index, PRINT_OTHER,
-					"use ext vf.\n");
-				vf = vf->vf_ext;
+					"use di vf.\n");
+				vf = di_vf;
 			}
 		}
 		dmabuf_put_vframe((struct dma_buf *)(file_vf->private_data));
-		vc_print(dev->index, PRINT_OTHER, "vf is from decoder\n");
 	} else {
+		vc_print(dev->index, PRINT_OTHER, "vf is from v4lvideo\n");
 		file_private_data = vc_get_file_private(dev, file_vf);
 		if (!file_private_data) {
 			vc_print(dev->index, PRINT_ERROR,
@@ -1048,8 +1071,6 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 			if (vf->vf_ext && (vf->flag &
 				VFRAME_FLAG_CONTAIN_POST_FRAME))
 				vf = vf->vf_ext;
-			vc_print(dev->index, PRINT_OTHER,
-				 "vf is from v4lvideo\n");
 		}
 	}
 	return vf;
