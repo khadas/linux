@@ -63,7 +63,7 @@
 			/* alloc-ranges start should not be 0x0*/
 			size = <0x0 0x00c00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x3ec00000 0x0 0x00c00000>;
+			alloc-ranges = <0x0 0x3c000000 0x0 0x00c00000>;
 		};
 
 		/*  vdin0 CMA pool */
