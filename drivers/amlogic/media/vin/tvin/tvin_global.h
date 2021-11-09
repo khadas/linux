@@ -450,7 +450,7 @@ struct tvin_vtem_data_s {
 	//real structure
 	//u8 vrr_en:1;
 	//u8 m_const:1;
-	//u8 rsvd0:2;
+	//u8 qms:2;
 	//u8 fva_factor_m1:4;
 	//u8 base_vfront;
 	//u8 base_fr_high:2;

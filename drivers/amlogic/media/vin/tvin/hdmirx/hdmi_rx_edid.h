@@ -97,7 +97,8 @@ enum edid_tag_e {
 	EDID_TAG_NONE,
 	EDID_TAG_AUDIO = 1,
 	EDID_TAG_VIDEO = 2,
-	EDID_TAG_VENDOR = 3,
+	EDID_TAG_VSDB = 3,
+	EDID_TAG_HF_VSDB = 0xf3,
 	EDID_TAG_HDR = ((0x7 << 8) | 6),
 };
 
@@ -279,22 +280,56 @@ struct vsdb_s {
 
 struct hf_vsdb_s {
 	unsigned int ieee_oui;
+	//pb1
 	unsigned char version;
+	//pb2
 	unsigned char max_tmds_rate;
-
+	//pb3
 	unsigned char scdc_present:1;
 	/* if set, the sink is capable of initiating an SCDC read request */
 	unsigned char rr_cap:1;
-	unsigned char resvd1:2;
+	unsigned char cable_status:1;
+	unsigned char ccbpci:1;
 	unsigned char lte_340m_scramble:1;
 	unsigned char independ_view:1;
 	unsigned char dual_view:1;
 	unsigned char _3d_osd_disparity:1;
-
-	unsigned char resvrd2:5;
+	//pb4
+	unsigned char max_frl_rate:4;
+	unsigned char uhd_vic:1;
 	unsigned char dc_48bit_420:1;
 	unsigned char dc_36bit_420:1;
 	unsigned char dc_30bit_420:1;
+	//pb5
+	unsigned char qms_tfr_max:1;
+	unsigned char qms:1;
+	unsigned char m_delta:1;
+	unsigned char qms_tfr_min:1;
+	unsigned char neg_mvrr:1;
+	unsigned char fva:1;
+	unsigned char allm:1;
+	unsigned char fapa_start_location:1;
+	//pb6
+	unsigned char vrr_max_hi:2;//bit[9:8]
+	unsigned char vrr_min:6;
+	//pb7
+	unsigned char vrr_max_lo;
+	//pb8
+	unsigned char dsc_1p2:1;
+	unsigned char dsc_native_420:1;
+	unsigned char fapa_end_extended:1;
+	unsigned char rsvd0:1;
+	unsigned char dsc_all_bpp:1;
+	unsigned char dsc_16bpc:1;//=0
+	unsigned char dsc_12bpc:1;
+	unsigned char dsc_10bpc:1;
+	//pb9
+	unsigned char dsc_max_frl_rate:4;
+	unsigned char dsc_max_slices:4;
+	//pb10
+	unsigned char rsvd1:2;
+	unsigned char dsc_totalchunkkbytes:6;
+
 };
 
 struct colorimetry_db_s {
@@ -763,6 +798,7 @@ u_char *rx_get_cur_edid(u_char port);
 bool rx_set_vsvdb(unsigned char *data, unsigned int len);
 u_char rx_edid_get_aud_sad(u_char *sad_data);
 bool rx_edid_set_aud_sad(u_char *sad, u_char len);
+u_int rx_get_cea_tag_offset(u8 *cur_edid, u16 tag_code);
 #ifdef CONFIG_AMLOGIC_HDMITX
 bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data,
 					unsigned char *audio_block);

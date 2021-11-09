@@ -3356,7 +3356,6 @@ void aml_phy_get_trim_val_t5(void);
 void hdmirx_irq_hdcp_enable(bool enable);
 u8 rx_get_avmute_sts(void);
 /* T7 */
-void rx_get_vtem_info(void);
 u8 hdmirx_rd_cor(u32 addr);
 void hdmirx_wr_cor(u32 addr, u8 data);
 u8 hdmirx_rd_bits_cor(u32 addr, u32 mask);

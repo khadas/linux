@@ -698,7 +698,7 @@ struct vsi_infoframe_st {
 		/*TODO:hdmi2.1 spec vsi packet*/
 		struct vsi_st_21 {
 			/*pb4*/
-			u8 ver:8;
+			uint8_t ver:8;
 			/*pb5*/
 			u8 valid_3d:1;
 			u8 allm_mode:1;
@@ -706,6 +706,7 @@ struct vsi_infoframe_st {
 			u8 ccbpc:4;
 			/*pb6*/
 			u8 data[22];
+			/*todo*/
 		} __packed vsi_st_21;
 	} __packed sbpkt;
 } __packed;
@@ -1102,5 +1103,6 @@ u32 rx_pkt_chk_busy_drm(void);
 void rx_get_pd_fifo_param(enum pkt_type_e pkt_type,
 			  struct pd_infoframe_s *pkt_info);
 void rx_get_avi_info(struct avi_infoframe_st *st_pkt);
+void rx_get_vtem_info(void);
 
 #endif

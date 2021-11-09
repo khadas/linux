@@ -476,14 +476,17 @@ struct vsi_info_s {
 	unsigned int eff_tmax_pq;
 	bool allm_mode;
 	bool hdr10plus;
+	u8 ccbpc;
 	u8 vsi_state;
 	u8 emp_pkt_cnt;
 	u8 timeout;
+	u8 max_frl_rate;
 };
 
 struct vtem_info_s {
 	u8 vrr_en;
 	u8 m_const;
+	u8 qms_en;
 	u8 fva_factor_m1;
 	u8 base_vfront;
 	u8 rb;
@@ -491,7 +494,8 @@ struct vtem_info_s {
 	//real structure
 	//u8 vrr_en:1;
 	//u8 m_const:1;
-	//u8 rsvd0:2;
+	//u8 qms_en;
+	//u8 rsvd0:1;
 	//u8 fva_factor_m1:4;
 	//u8 base_vfront;
 	//u8 base_fr_high:2;
@@ -663,6 +667,8 @@ struct rx_s {
 	bool arc_5vsts;
 	u32 vsync_cnt;
 	bool vrr_en;
+	u8 vrr_min;
+	u8 vrr_max;
 	u8 afifo_sts;
 	u32 ecc_err;
 	u32 ecc_err_frames_cnt;
@@ -670,6 +676,10 @@ struct rx_s {
 #ifdef CONFIG_AMLOGIC_HDMITX
 	struct notifier_block tx_notify;
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_VRR
+	struct notifier_block vrr_notify;
+#endif
+
 	struct rx_var_param var;
 	struct rx_aml_phy aml_phy;
 	u8 last_hdcp22_state;
@@ -739,6 +749,7 @@ extern bool hdmi_cec_en;
 extern int hdmi_yuv444_enable;
 extern int vdin_drop_frame_cnt;
 extern int aud_compose_type;
+extern u8 vrr_func_en;
 /* debug */
 extern bool hdcp_enable;
 extern int log_level;
@@ -772,7 +783,7 @@ void rx_debug_load22key(void);
 int rx_debug_wr_reg(const char *buf, char *tmpbuf, int i);
 int rx_debug_rd_reg(const char *buf, char *tmpbuf);
 void rx_update_sig_info(void);
-
+int aml_vrr_atomic_notifier_register(struct notifier_block *nb);
 /* repeater */
 bool hdmirx_repeat_support(void);
 
