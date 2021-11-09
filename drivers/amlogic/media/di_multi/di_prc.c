@@ -250,6 +250,12 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_DW_EN,
 			0,
 			K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_SUB_V]  = {"sub_v",
+			/* 0:major;	*/
+			/* 1:sub */
+			EDI_CFG_SUB_V,
+			0,
+			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
 
@@ -383,8 +389,7 @@ void di_cfg_top_dts(void)
 	if (DIM_IS_IC(TM2B)	||
 	    DIM_IS_IC(SC2) || DIM_IS_IC(T5) ||
 	    DIM_IS_IC(T7) ||
-	    DIM_IS_IC(T3) ||
-	    DIM_IS_IC(T5W)) {
+	    DIM_IS_IC(T3)) {
 		if (!pd->b.dts_have) {
 			pd->b.val_c = 0x3;
 			//pd->b.val_c = 0x0;//test

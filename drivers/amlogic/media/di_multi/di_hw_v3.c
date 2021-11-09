@@ -20,6 +20,7 @@
 #include <linux/amlogic/tee.h>
 #include "deinterlace.h"
 #include "di_data_l.h"
+#include "di_prc.h"
 
 //#include "sc2_ucode/cbus_register.h"
 //#include "sc2_ucode/deint_new.h"
@@ -1884,7 +1885,8 @@ static void set_di_mif_v1(struct DI_MIF_S *mif,
 		op->wr(off + RDMIFXN_LUMA_FIFO_SIZE, 0xc0);
 	}
 
-	if (DIM_IS_IC(T5W)) {//axi bus fifo from feijun.fan for t5w
+	if (DIM_IS_ICS(T5W)) {
+		//axi bus fifo from feijun.fan for t5w
 		op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
 		op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
 	}
@@ -4213,7 +4215,8 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 		op->wr(off + reg[MIF_LUMA_FIFO_SIZE], 0xC0);
 	}
 
-	if (DIM_IS_IC(T5W)) {//axi bus fifo from feijun.fan for t5w
+	if (DIM_IS_ICS(T5W)) {
+		//axi bus fifo from feijun.fan for t5w
 		op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
 		op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
 	}
@@ -4455,13 +4458,17 @@ static void hw_init_v3(void)
 		op->wr(DI_SC2_CHAN2_LUMA_FIFO_SIZE, fifo_size_di);
 
 		/*post*/
-		op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, fifo_size_di);
+		//op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, fifo_size_di);
 		op->wr(DI_SC2_IF1_LUMA_FIFO_SIZE, fifo_size_di);
-		op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, fifo_size_di);
+		//op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, fifo_size_di);
 
-		if (DIM_IS_IC(T5W)) {//axi bus fifo from feijun.fan for t5w
+		if (DIM_IS_ICS(T5W)) {
+			//axi bus fifo from feijun.fan for t5w
 			op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, 0x80);
 			op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, 0x80);
+		} else {
+			op->wr(DI_SC2_IF0_LUMA_FIFO_SIZE, fifo_size_di);
+			op->wr(DI_SC2_IF2_LUMA_FIFO_SIZE, fifo_size_di);
 		}
 
 		path_sel = 1;
@@ -5245,6 +5252,7 @@ void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg)
  * 0 off:
  * 1: pre afbce 4k
  * 2: post afbce 4k
+ * for t5w only 1 afbce ,no need change ram, DI_TOP_CTRL1 bit3 need set to 0
  */
 void dim_sc2_4k_set(unsigned int mode_4k)
 {
@@ -5257,6 +5265,9 @@ void dim_sc2_4k_set(unsigned int mode_4k)
 		op->wr(DI_TOP_CTRL1, 0x00000004); /*default*/
 	else if (mode_4k == 2)
 		op->wr(DI_TOP_CTRL1, 0x0000000c); /*default*/
+
+	if (DIM_IS_ICS(T5W))//from vlsi feijun for t5w
+		op->bwr(DI_TOP_CTRL1, 0, 3, 1);
 }
 
 void dim_sc2_afbce_rst(unsigned int ec_nub)

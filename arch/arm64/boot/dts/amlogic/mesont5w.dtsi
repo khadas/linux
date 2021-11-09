@@ -1314,7 +1314,7 @@
 	};
 
 	multi-di {
-		compatible = "amlogic, dim-t5w";
+		compatible = "amlogic, dim-t3";
 		status = "okay";
 		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
 		flag_cma = <4>;	//<1>;
@@ -1343,7 +1343,8 @@
 		post_nub = <11>;
 		alloc_sct = <1>;
 		hf = <0>;
-		dct = <2>;//decontour enable
+		dct = <2>;
+		sub_v = <1>;//sub version for t5w
 		/***************************************************
 		 * t5w t3 support 4k ,same with t7 ,no canvas,
 		 * post_nub---default is 11
@@ -1369,6 +1370,7 @@
 		 * alloc_sct---0:not support; bit 0: for 4k; bit 1: for 1080p
 		 * hf---0:not enable; 1: enable
 		 * dct---0:not enable; 1: enable 1 ch; 2: enable 2 ch
+		 * sub_v---0:major; 1: sub
 		 ***************************************************/
 	};
 

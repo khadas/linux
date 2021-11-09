@@ -163,6 +163,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_T5DB_AFBCD_EN,
 	EDI_CFG_HDR_EN,
 	EDI_CFG_DW_EN,
+	EDI_CFG_SUB_V,
 	EDI_CFG_END,
 };
 
@@ -2872,5 +2873,6 @@ static inline void p_ref_set_buf(struct di_buf_s *buf,
 
 #define IS_IC_SUPPORT(cc)	(get_datal()->mdata->support & \
 				IC_SUPPORT_##cc ? true : false)
-
+#define DIM_IS_ICS(T5W)		(DIM_IS_IC(T3) && \
+				cfgg(SUB_V) == 1)
 #endif	/*__DI_DATA_L_H__*/
