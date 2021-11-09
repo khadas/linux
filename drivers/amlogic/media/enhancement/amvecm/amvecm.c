@@ -1717,8 +1717,11 @@ void amvecm_video_latch(void)
 	/*amvecm_size_patch();*/
 	ve_dnlp_latch_process();
 	/*venc*/
-	temp = vpp_get_encl_viu_mux();
-	if (temp == 1 || temp == 3)
+	if (cpu_after_eq_t7())
+		temp = vpp_get_vout_viu_mux();
+	else
+		temp = vpp_get_encl_viu_mux();
+	if (temp)
 		ve_lcd_gamma_process();
 	lvds_freq_process();
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
