@@ -37,6 +37,8 @@
 #define REG_CTRL_ACK_IGNORE	BIT(1)
 #define REG_CTRL_STATUS		BIT(2)
 #define REG_CTRL_ERROR		BIT(3)
+#define REG_SCL_LEVEL		BIT(25)
+#define REG_SDA_LEVEL		BIT(26)
 #define REG_CTRL_CLKDIV_SHIFT	12
 #define REG_CTRL_CLKDIV_MASK	GENMASK(21, 12)
 #define REG_CTRL_CLKDIVEXT_SHIFT 28
@@ -416,6 +418,14 @@ static int meson_i2c_xfer_msg(struct meson_i2c *i2c, struct i2c_msg *msg,
 	i2c->count = 0;
 	i2c->error = 0;
 
+	if ((readl(i2c->regs + REG_CTRL) & REG_SCL_LEVEL) == 0 &&
+		(readl(i2c->regs + REG_CTRL) & REG_SDA_LEVEL) == 0) {
+		/*
+		 * I2C bus is error
+		 */
+		dev_dbg(i2c->dev, "I2C BUS is Error, No pull up register\n");
+		return -ENXIO;
+	}
 	meson_i2c_reset_tokens(i2c);
 
 	flags = (msg->flags & I2C_M_IGNORE_NAK) ? REG_CTRL_ACK_IGNORE : 0;
