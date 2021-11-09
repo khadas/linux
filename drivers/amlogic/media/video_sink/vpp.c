@@ -4652,6 +4652,7 @@ void vpp_disp_info_init(struct disp_info_s *info, u8 id)
 		info->speed_check_width = 1800;
 		info->speed_check_height = 1400;
 		info->layer_id = id;
+		info->reverse = reverse;
 		memset(&gfilter[id], 0, sizeof(struct filter_info_s));
 	}
 }
