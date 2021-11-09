@@ -81,7 +81,7 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr, int *di_flag)
 	} else {
 		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
 		if (IS_ERR_OR_NULL(uhmod) || !uhmod->arg) {
-			nn_print(PRINT_ERROR, "get_fh err: no v4lvideo\n");
+			nn_print(PRINT_OTHER, "get_fh err: no v4lvideo\n");
 			dma_buf_put(dmabuf);
 			return -EINVAL;
 		}
@@ -169,7 +169,8 @@ int attach_nn_hook_mod_info(int shared_fd,
 	}
 
 	if (ret) {
-		nn_print(PRINT_ERROR, "attach:get hf info error\n");
+		nn_print(PRINT_OTHER, "attach:get hf info error\n");
+		return -EINVAL;
 	}
 
 	dmabuf = dma_buf_get(shared_fd);
@@ -357,7 +358,7 @@ int nn_mod_getinfo(void *arg, char *buf)
 					vf_nn_sr,
 					&src_interlace_flag);
 		if (ret) {
-			nn_print(PRINT_ERROR, "get hf info error\n");
+			nn_print(PRINT_OTHER, "get hf info error\n");
 			return -EINVAL;
 		}
 	}
