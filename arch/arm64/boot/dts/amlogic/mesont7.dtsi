@@ -1275,7 +1275,7 @@
 				reg = <0x0 0x48000 0x0 0x1c>;
 			};
 
-			watchdog@2100 {
+			watchdog: watchdog@2100 {
 				compatible = "amlogic,meson-sc2-wdt";
 				status = "okay";
 				/* 0:userspace, 1:kernel */

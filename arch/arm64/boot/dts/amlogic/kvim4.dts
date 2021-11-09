@@ -1860,6 +1860,11 @@
 	vccio_en_gpio = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 };
 
+&watchdog {
+	/* 0:userspace, 1:kernel */
+	amlogic,feed_watchdog_mode = <0>;
+};
+
 &CPU0 {
 	cpu-supply = <&vddcpua>;
 	multi_tables_available;
