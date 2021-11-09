@@ -350,6 +350,21 @@
 		};
 	};//End unifykey
 
+	/* for external keypad */
+	adc_keypad {
+		compatible = "amlogic, adc_keypad";
+		status = "okay";
+		key_name = "power","vol-","vol+","enter","menu","source","exit";
+		key_num = <7>;
+		io-channels = <&saradc SARADC_CH1>,<&saradc SARADC_CH2>;
+		io-channel-names = "key-chan-1", "key-chan-2";
+		key_chan = <SARADC_CH1 SARADC_CH1 SARADC_CH1 SARADC_CH1
+			SARADC_CH1 SARADC_CH2 SARADC_CH2>;
+		key_code = <116 114 115 28 139 466 174>;
+		key_val = <0 143 266 389 507 143 266>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40 40 40 40 40>;
+	};
+
 	/* Audio Related start */
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";

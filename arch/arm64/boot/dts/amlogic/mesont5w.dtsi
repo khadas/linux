@@ -19,6 +19,7 @@
 #include "mesong12a-bifrost.dtsi"
 #include "meson-ir-map.dtsi"
 #include <dt-bindings/thermal/thermal.h>
+#include <dt-bindings/iio/adc/amlogic-saradc.h>
 
 / {
 	compatible = "amlogic";
