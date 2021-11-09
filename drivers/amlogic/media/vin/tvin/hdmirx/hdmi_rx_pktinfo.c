@@ -2090,3 +2090,30 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 	return 0;
 }
 
+void rx_get_vtem_info(void)
+{
+	u8 tmp;
+
+	if (rx.chip_id < CHIP_ID_T7)
+		return;
+	if (rx.vrr_en) {
+		tmp = hdmirx_rd_cor(RX_VT_EMP_DBYTE0_DP0B_IVCRX);
+		rx.vtem_info.vrr_en = tmp & 1;
+		rx.vtem_info.m_const = (tmp >> 1) & 1;
+		rx.vtem_info.qms_en = (tmp >> 2) & 1;
+		rx.vtem_info.fva_factor_m1 = (tmp >> 4) & 0x0f;
+		tmp = hdmirx_rd_cor(RX_VT_EMP_DBYTE1_DP0B_IVCRX);
+		rx.vtem_info.base_vfront = tmp;
+		tmp = hdmirx_rd_cor(RX_VT_EMP_DBYTE2_DP0B_IVCRX);
+		rx.vtem_info.rb = (tmp > 2) & 1;
+		rx.vtem_info.base_framerate = hdmirx_rd_cor(RX_VT_EMP_DBYTE3_DP0B_IVCRX);
+		rx.vtem_info.base_framerate |= (tmp & 3) << 8;
+	} else {
+		rx.vtem_info.vrr_en = 0;
+		rx.vtem_info.m_const = 0;
+		rx.vtem_info.fva_factor_m1 = 0;
+		rx.vtem_info.base_vfront = 0;
+		rx.vtem_info.rb = 0;
+		rx.vtem_info.base_framerate = 0;
+	}
+}

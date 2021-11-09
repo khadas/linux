@@ -41,6 +41,7 @@
 /*#include <linux/amlogic/amports/vframe_receiver.h>*/
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
 #include <linux/amlogic/media/vout/vdac_dev.h>
+#include <linux/amlogic/media/vrr/vrr.h>
 /*#include <linux/amlogic/amports/vframe.h>*/
 #include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include <linux/of_gpio.h>
@@ -962,7 +963,6 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 		}
 		break;
 	case E_VSI_4K3D:
-	case E_VSI_VSI21:
 		if (hdmirx_hw_get_3d_structure() == 1) {
 			if (rx.vs_info_details._3d_structure == 0x1) {
 				/* field alternative */
@@ -1005,6 +1005,8 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 				}
 			}
 		}
+		break;
+	case E_VSI_VSI21:
 		break;
 	default:
 		break;
@@ -1067,6 +1069,7 @@ void rx_set_sig_info(void)
 void rx_update_sig_info(void)
 {
 	rx_get_vsi_info();
+	rx_get_vtem_info();
 	rx_set_sig_info();
 }
 
@@ -2059,6 +2062,30 @@ static ssize_t edid_select_store(struct device *dev,
 	return count;
 }
 
+static ssize_t vrr_func_ctrl_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	return sprintf(buf, "vrr func: %d\n", vrr_func_en);
+}
+
+static ssize_t vrr_func_ctrl_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf,
+				 size_t count)
+{
+	int ret;
+	unsigned int tmp;
+
+	ret = kstrtouint(buf, 16, &tmp);
+	if (ret)
+		return -EINVAL;
+
+	vrr_func_en = tmp;
+	rx_pr("set vrr_func_en to: %d\n", vrr_func_en);
+	return count;
+}
+
 static ssize_t audio_blk_show(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
@@ -2109,6 +2136,7 @@ static DEVICE_ATTR_RW(edid_select);
 static DEVICE_ATTR_RW(audio_blk);
 static DEVICE_ATTR_RO(scan_mode);
 static DEVICE_ATTR_RW(edid_with_port);
+static DEVICE_ATTR_RW(vrr_func_ctrl);
 static DEVICE_ATTR_RO(hdcp14_onoff);
 static DEVICE_ATTR_RO(hdcp22_onoff);
 
@@ -2529,6 +2557,31 @@ static int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VRR
+static int rx_vrr_notify_handler(struct notifier_block *nb,
+				     unsigned long value, void *p)
+{
+	int ret = 0;
+	struct vrr_notifier_data_s vdata;
+
+	memcpy(&vdata, p, sizeof(struct vrr_notifier_data_s));
+
+	switch (value) {
+	case VRR_EVENT_UPDATE:
+		rx.vrr_min = vdata.dev_vfreq_min;
+		rx.vrr_max = vdata.dev_vfreq_max;
+		rx_pr("%s: vrrmin=%d, vrrmax=%d\n", __func__, rx.vrr_min, rx.vrr_max);
+		break;
+	default:
+		rx_pr("unsupported vrr notify:%ld, arg:%p\n",
+		      value, p);
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 static void hdmirx_early_suspend(struct early_suspend *h)
 {
@@ -2714,6 +2767,11 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		rx_pr("hdmirx: fail to create edid_select file\n");
 		goto fail_create_edid_select;
+	}
+	ret = device_create_file(hdevp->dev, &dev_attr_vrr_func_ctrl);
+	if (ret < 0) {
+		rx_pr("hdmirx: fail to create vrr_func_ctrl file\n");
+		goto fail_create_vrr_func_ctrl;
 	}
 	ret = device_create_file(hdevp->dev, &dev_attr_audio_blk);
 	if (ret < 0) {
@@ -3026,6 +3084,12 @@ static int hdmirx_probe(struct platform_device *pdev)
 		hdmitx_event_notifier_regist(&rx.tx_notify);
 	}
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_VRR
+	if (rx.chip_id >= CHIP_ID_T3) {
+		rx.vrr_notify.notifier_call = rx_vrr_notify_handler;
+		aml_vrr_atomic_notifier_register(&rx.vrr_notify);
+	}
+#endif
 	input_dev = input_allocate_device();
 	if (!input_dev) {
 		rx_pr("input_allocate_device failed\n");
@@ -3063,6 +3127,8 @@ fail_create_audio_blk:
 	device_remove_file(hdevp->dev, &dev_attr_audio_blk);
 fail_create_edid_select:
 	device_remove_file(hdevp->dev, &dev_attr_edid_select);
+fail_create_vrr_func_ctrl:
+	device_remove_file(hdevp->dev, &dev_attr_vrr_func_ctrl);
 fail_create_earc_cap_ds:
 	device_remove_file(hdevp->dev, &dev_attr_earc_cap_ds);
 fail_create_ksvlist:

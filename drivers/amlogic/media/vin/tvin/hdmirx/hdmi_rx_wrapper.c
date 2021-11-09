@@ -72,10 +72,10 @@ int clk_stable_cnt;
 static int clk_stable_max;
 static int unnormal_wait_max = 200;
 static int wait_no_sig_max = 600;
+u8 vrr_func_en = 1;
 
 typedef void (*pf_callback)(int earc_port, bool st);
 static pf_callback earc_hdmirx_hpdst;
-
 static cec_callback cec_hdmirx5v_update;
 
 /* for debug */
@@ -1054,8 +1054,6 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			if (rx.chip_id < CHIP_ID_T7)
 				rx_pkt_handler(PKT_BUFF_SET_FIFO);
 			#endif
-			if (dbg_pkt == PKT_TYPE_INFOFRAME_VSI)
-				rx_pkt_handler(PKT_BUFF_SET_VSI);
 			if (rx.state == FSM_SIG_READY) {
 				rx.vsync_cnt++;
 				if (vsif_type) {
@@ -1877,7 +1875,6 @@ void hdcp_sts_update(void)
 void packet_update(void)
 {
 	/*rx_getaudinfo(&rx.aud_info);*/
-	rx_get_vtem_info();
 	rgb_quant_range = rx.cur.rgb_quant_range;
 	yuv_quant_range = rx.cur.yuv_quant_range;
 	it_content = rx.cur.it_content;
@@ -2190,6 +2187,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(clk_stable_cnt, i++);
 	pr_var(clk_stable_max, i++);
 	pr_var(wait_no_sig_max, i++);
+	pr_var(vrr_func_en, i++);
 	pr_var(receive_edid_len, i++);
 	pr_var(hdcp_array_len, i++);
 	pr_var(hdcp_len, i++);
@@ -2385,6 +2383,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(clk_stable_max, index);
 	if (set_pr_var(tmpbuf, var_to_str(wait_no_sig_max), &wait_no_sig_max, value))
 		return pr_var(wait_no_sig_max, index);
+	if (set_pr_var(tmpbuf, var_to_str(vrr_func_en), &vrr_func_en, value))
+		return pr_var(vrr_func_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(receive_edid_len), &receive_edid_len, value))
 		return pr_var(receive_edid_len, index);
 	if (set_pr_var(tmpbuf, var_to_str(hdcp_len), &hdcp_len, value))
