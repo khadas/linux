@@ -31,6 +31,9 @@ module_param(uvm_open_aipq, int, 0644);
 static int uvm_aipq_dump;
 module_param(uvm_aipq_dump, int, 0644);
 
+static int uvm_aipq_skip_height = 1088;
+module_param(uvm_aipq_skip_height, int, 0644);
+
 #define PRINT_ERROR		0X0
 #define PRINT_OTHER		0X0001
 #define PRINT_NN_DUMP		0X0002
@@ -225,7 +228,7 @@ int ge2d_224_process(struct vframe_s *vf, struct ge2d_output_t *output)
 	struct config_para_ex_s ge2d_config_s;
 	struct config_para_ex_s *ge2d_config = &ge2d_config_s;
 	struct canvas_s cs0, cs1, cs2, cd;
-	int interlace_mode;
+	int interlace_mode, src_format;
 	int input_width, input_height;
 	u32 output_canvas = get_canvas(3);
 
@@ -295,11 +298,19 @@ int ge2d_224_process(struct vframe_s *vf, struct ge2d_output_t *output)
 
 	aipq_print(PRINT_OTHER, "src width: %d, height: %d\n",
 		input_width, input_height);
+
+	src_format = get_ge2d_input_format(vf);
 	interlace_mode = vf->type & VIDTYPE_TYPEMASK;
 	if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM ||
-	    interlace_mode == VIDTYPE_INTERLACE_TOP)
+	    interlace_mode == VIDTYPE_INTERLACE_TOP) {
 		input_height >>= 1;
-	ge2d_config->src_para.format = get_ge2d_input_format(vf);
+	} else if (vf->height > uvm_aipq_skip_height) {
+		/*used to reduce bandwidth by change format to interlace*/
+		aipq_print(PRINT_OTHER, "use interlace format.\n");
+		input_height >>= 1;
+		src_format |= (GE2D_FMT_M24_YUV420T & (3 << 3));
+	}
+
 	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
 		ge2d_config->src_para.format |= GE2D_LITTLE_ENDIAN;
 	aipq_print(PRINT_OTHER, "src width: %d, height: %d format =%x\n",
@@ -310,6 +321,8 @@ int ge2d_224_process(struct vframe_s *vf, struct ge2d_output_t *output)
 		      CANVAS_BLKMODE_LINEAR);
 
 	canvas_read(output_canvas & 0xff, &cd);
+
+	ge2d_config->src_para.format = src_format;
 	ge2d_config->dst_planes[0].addr = cd.addr;
 	ge2d_config->dst_planes[0].w = cd.width;
 	ge2d_config->dst_planes[0].h = cd.height;
@@ -381,6 +394,8 @@ int attach_aipq_hook_mod_info(int shared_fd,
 	bool enable_aipq = true;
 
 	aipq_info->need_do_aipq = 1;
+	aipq_info->dw_height = 0;
+	aipq_info->dw_width = 0;
 
 	if (!uvm_open_aipq) {
 		aipq_info->need_do_aipq = 0;
@@ -391,6 +406,8 @@ int attach_aipq_hook_mod_info(int shared_fd,
 			aipq_print(PRINT_OTHER, "get no vf\n");
 			return -EINVAL;
 		}
+		aipq_info->dw_height = vf->height;
+		aipq_info->dw_width = vf->width;
 		if (vf->width > 3840 ||
 		    vf->height > 2160 ||
 		    vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
@@ -443,8 +460,9 @@ int attach_aipq_hook_mod_info(int shared_fd,
 	dma_buf_put(dmabuf);
 
 	if (dmabuf_last == dmabuf) {
-		aipq_info->repert_frame = 1;
+		aipq_info->repeat_frame = 1;
 	} else {
+		aipq_info->repeat_frame = 0;
 		dmabuf_last = dmabuf;
 		ret = aipq_vf_set_value(aipq_info, enable_aipq);
 		if (ret != 0)
