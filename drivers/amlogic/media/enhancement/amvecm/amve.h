@@ -132,6 +132,7 @@ void ve_enable_dnlp(void);
 void ve_disable_dnlp(void);
 
 int vpp_get_encl_viu_mux(void);
+int vpp_get_vout_viu_mux(void);
 void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write);
 void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write);
 void vpp_set_lcd_gamma_table(u16 *data, u32 rgb_mask, int viu_sel);

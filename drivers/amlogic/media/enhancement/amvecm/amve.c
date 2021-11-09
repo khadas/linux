@@ -291,24 +291,72 @@ int vpp_get_encl_viu_mux(void)
 		return 1;
 	if (((temp >> 2) & 0x3) == 0)
 		return 2;
-	/*t7 panel1_type(vx_b) read [0x271a] is 0x3d,
-	 *default(vx_a) is 0x3c
-	 */
-	if ((temp & 0x3) == 1)
-		return 3;
-
 	return 0;
+}
+
+int vpp_get_vout_viu_mux(void)
+{
+	unsigned int temp = 0;
+	struct vinfo_s *vinfo1, *vinfo2, *vinfo3;
+
+	vinfo1 = NULL;
+	vinfo2 = NULL;
+	vinfo3 = NULL;
+	#ifdef CONFIG_AMLOGIC_VOUT_SERVE
+	vinfo1 = get_current_vinfo();
+	if (vinfo1->mode == 2) {
+		temp = (vinfo1->viu_mux >> 4) & 0xf;
+		if (temp == 0)
+			temp = 1;
+		else if (temp == 1)
+			temp = 2;
+		else if (temp > 1)
+			temp = 3;
+		return temp;
+	}
+	#endif
+
+	#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	vinfo2 = get_current_vinfo2();
+	if (vinfo2->mode == 2) {
+		temp = (vinfo2->viu_mux >> 4) & 0xf;
+		if (temp == 0)
+			temp = 1;
+		else if (temp == 1)
+			temp = 2;
+		else if (temp > 1)
+			temp = 3;
+		return temp;
+	}
+	#endif
+
+	#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	vinfo3 = get_current_vinfo3();
+	if (vinfo3->mode == 2) {
+		temp = (vinfo3->viu_mux >> 4) & 0xf;
+		if (temp == 0)
+			temp = 1;
+		else if (temp == 1)
+			temp = 2;
+		else if (temp > 1)
+			temp = 3;
+		return temp;
+	}
+	#endif
+
+	return temp;
 }
 
 void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write)
 {
-	unsigned int temp;
 	unsigned int offset = 0x0;
 
-	temp = vpp_get_encl_viu_mux();
-	if (temp == 3 && is_meson_t7_cpu())
+	if (viu_sel == 0) /*venc0*/
+		offset = 0;
+	else if (viu_sel == 1) /*venc1*/
 		offset = 0x100;
-
+	else if (viu_sel == 2) /*venc2*/
+		offset = 0x200;
 	if (cpu_after_eq_t7()) {
 		if (rdma_write)
 			VSYNC_WRITE_VPP_REG_BITS(LCD_GAMMA_CNTL_PORT0 + offset,
@@ -327,13 +375,14 @@ void vpp_enable_lcd_gamma_table(int viu_sel, int rdma_write)
 
 void vpp_disable_lcd_gamma_table(int viu_sel, int rdma_write)
 {
-	unsigned int temp;
 	unsigned int offset = 0x0;
 
-	temp = vpp_get_encl_viu_mux();
-	if (temp == 3 && is_meson_t7_cpu())
+	if (viu_sel == 0) /*venc0*/
+		offset = 0;
+	else if (viu_sel == 1) /*venc1*/
 		offset = 0x100;
-
+	else if (viu_sel == 2) /*venc2*/
+		offset = 0x200;
 	if (cpu_after_eq_t7()) {
 		if (rdma_write)
 			VSYNC_WRITE_VPP_REG_BITS(LCD_GAMMA_CNTL_PORT0 + offset,
@@ -529,7 +578,6 @@ void amve_write_gamma_table(u16 *data, u32 rgb_mask)
 			memcpy(gamma_data_g, data, sizeof(u16) * 256);
 		else if (rgb_mask == H_SEL_B)
 			memcpy(gamma_data_b, data, sizeof(u16) * 256);
-
 		lcd_gamma_api(gamma_index, gamma_data_r,
 			gamma_data_g, gamma_data_b, 0, 0);
 		return;
@@ -962,11 +1010,15 @@ void ve_lcd_gamma_process(void)
 	int viu_sel;
 	struct tcon_gamma_table_s *ptable;
 
-	viu_sel = vpp_get_encl_viu_mux();
-
-	if (viu_sel == 3 && is_meson_t7_cpu())
-		gamma_index = 1;
-
+	if (cpu_after_eq_t7()) {
+		viu_sel = vpp_get_vout_viu_mux();
+		viu_sel = viu_sel - 1;
+		if (viu_sel < 0)
+			viu_sel = 0;
+		gamma_index = viu_sel;
+	} else {
+		viu_sel = vpp_get_encl_viu_mux();
+	}
 	if (vecm_latch_flag & FLAG_GAMMA_TABLE_EN) {
 		vecm_latch_flag &= ~FLAG_GAMMA_TABLE_EN;
 		vpp_enable_lcd_gamma_table(viu_sel, 0);
@@ -985,9 +1037,9 @@ void ve_lcd_gamma_process(void)
 		vecm_latch_flag &= ~FLAG_GAMMA_TABLE_B;
 		if (cpu_after_eq_t7()) {
 			lcd_gamma_api(gamma_index, video_gamma_table_r.data,
-				video_gamma_table_g.data,
-				video_gamma_table_b.data,
-				1, 0);
+					video_gamma_table_g.data,
+					video_gamma_table_b.data,
+					1, 0);
 		} else {
 			vpp_set_lcd_gamma_table(video_gamma_table_r.data, H_SEL_R,
 				viu_sel);
@@ -2419,6 +2471,7 @@ void amve_fmetersize_config(u32 sr0_w, u32 sr0_h, u32 sr1_w, u32 sr1_h)
 
 int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg)
 {
+	unsigned int i;
 	VSYNC_WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
 				 pq_cfg.sharpness0_en, 1, 1);
 
@@ -2464,10 +2517,21 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg)
 	amvecm_wb_enable(pq_cfg.wb_en);
 
 	gamma_en = pq_cfg.gamma_en;
-	if (gamma_en)
-		vpp_enable_lcd_gamma_table(0, 1);
-	else
-		vpp_disable_lcd_gamma_table(0, 1);
+	if (gamma_en) {
+		if (is_meson_t7_cpu()) {
+			for (i = 0; i < 3; i++)
+				vpp_enable_lcd_gamma_table(i, 1);
+		} else {
+			vpp_enable_lcd_gamma_table(0, 1);
+		}
+	} else {
+		if (is_meson_t7_cpu()) {
+			for (i = 0; i < 3; i++)
+				vpp_disable_lcd_gamma_table(i, 1);
+		} else {
+			vpp_disable_lcd_gamma_table(0, 1);
+		}
+	}
 
 	if (pq_cfg.lc_en) {
 		lc_en = 1;
