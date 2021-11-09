@@ -1161,6 +1161,8 @@
 };
 
 &pwm_ef {
+	pinctrl-0 = <&pwm_f_pins2>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 
@@ -1450,4 +1452,9 @@
 		reg = <0x2e>;
 		status = "okay";
 	};
+};
+
+&uart_A {
+	status = "okay";
+	uart-has-rtscts;
 };

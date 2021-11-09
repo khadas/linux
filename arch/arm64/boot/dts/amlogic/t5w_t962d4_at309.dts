@@ -1327,6 +1327,12 @@
 	//hostwake-gpios = <&gpio GPIOC_14 GPIO_ACTIVE_HIGH>;
 };
 
+&pwm_ef {
+	pinctrl-0 = <&pwm_f_pins2>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &fb {
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;
@@ -1381,3 +1387,7 @@
 	};
 };
 
+&uart_A {
+	status = "okay";
+	uart-has-rtscts;
+};

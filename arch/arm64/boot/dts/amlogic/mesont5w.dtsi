@@ -1673,7 +1673,20 @@
 		/* dhd_static_buf; */ /*use bcm wifi*/
 		//pinctrl-0 = <&pwm_e_pins>;
 		//pinctrl-names = "default";
-		//pwm_config = <&wifi_pwm_conf>;
+		pwm_config = <&wifi_pwm_conf>;
+	};
+
+	wifi_pwm_conf:wifi_pwm_conf{
+		pwm_channel1_conf {
+			pwms = <&pwm_ef 1 30550 0>;
+			duty-cycle = <15270>;
+			times = <8>;
+		};
+		pwm_channel2_conf {
+			pwms = <&pwm_ef 3 30500 0>;
+			duty-cycle = <15250>;
+			times = <12>;
+		};
 	};
 
 }; /* end of / */
@@ -2228,7 +2241,7 @@
 		};
 	};
 
-	a_uart_pins1:a_uart {
+	a_uart_pins1:a_uart1 {
 		mux {
 			groups = "uart_a_tx_z",
 				"uart_a_rx_z",
