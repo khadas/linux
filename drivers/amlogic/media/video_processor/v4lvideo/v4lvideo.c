@@ -948,8 +948,13 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 				vf, vf->vf_ext, vf->flag);
 		if (vf->vf_ext &&
 				(vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
-			vf = vf->vf_ext;
-			pr_debug("get vf_ext\n");
+			if (print_flag)
+				pr_info("vf->type:%d\n", vf->type);
+			if (vf->type & VIDTYPE_INTERLACE) {
+				vf = vf->vf_ext;
+				if (print_flag)
+					pr_info("get vf_ext\n");
+			}
 		}
 		dmabuf_put_vframe(dmabuf);
 	} else {
@@ -991,7 +996,8 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 	 * fbc decoder for VIDTYPE_COMPRESS
 	 */
 	if ((vf->type & VIDTYPE_COMPRESS)) {
-		pr_info("fbc decoder path\n");
+		if (print_flag)
+			pr_info("fbc decoder path\n");
 		do_vframe_afbc_soft_decode(v4l_data, vf);
 		y_vaddr = v4l_data->dst_addr;
 		uv_vaddr = y_vaddr +
@@ -1031,7 +1037,8 @@ void v4lvideo_data_copy(struct v4l_data_t *v4l_data,
 		if (need_do_extend_one_row_fbc(vf, v4l_data) == false)
 			return;
 
-		pr_info("begin copy row\n");
+		if (print_flag)
+			pr_info("begin copy row\n");
 		y_src = y_vaddr + v4l_data->byte_stride * (vf->compHeight - 1);
 		uv_src = uv_vaddr +
 			v4l_data->byte_stride * (vf->compHeight / 2 - 1);
