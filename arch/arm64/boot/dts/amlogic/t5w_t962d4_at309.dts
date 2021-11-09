@@ -571,7 +571,7 @@
 			&hdmirx_c_mux>;
 		repeat = <0>;
 		/*power-domains = <&pwrdm PDID_T5W_HDMIRX>;*/
-		interrupts = <0 57 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <0 41 IRQ_TYPE_LEVEL_HIGH>;
 		clocks =<&clkc CLKID_HDMIRX_CFG>,
 			   <&clkc CLKID_HDMIRX_ACR>,
 			   <&clkc CLKID_HDMIRX_METER>,
