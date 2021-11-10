@@ -759,13 +759,13 @@ static void aml_bl_set_level(struct aml_bl_drv_s *bdrv, unsigned int level)
 	}
 }
 
-static unsigned int aml_bl_get_level(struct aml_bl_drv_s *bdrv)
+static unsigned int aml_bl_get_level_brightness(struct aml_bl_drv_s *bdrv)
 {
 	if (aml_bl_check_driver(bdrv))
 		return 0;
 
 	BLPR("aml bl state: 0x%x\n", bdrv->state);
-	return bdrv->level;
+	return bdrv->level_brightness;
 }
 
 static inline unsigned int bl_brightness_level_map(struct aml_bl_drv_s *bdrv,
@@ -786,14 +786,13 @@ static inline unsigned int bl_brightness_level_map(struct aml_bl_drv_s *bdrv,
 }
 
 static inline unsigned int bl_gd_level_map(struct aml_bl_drv_s *bdrv,
-					   unsigned int level)
+					   unsigned int gd_level)
 {
 	unsigned int max, min, val;
 
 	min = bdrv->bconf.level_min;
 	max = bdrv->bconf.level_max;
-	val = (level - min) * (bdrv->bldev->props.brightness - min) /
-		(max - min) + min;
+	val = (gd_level * (bdrv->bldev->props.brightness - min)) / 4095 + min;
 
 	return val;
 }
@@ -859,7 +858,7 @@ static int aml_bl_get_brightness(struct backlight_device *bd)
 {
 	struct aml_bl_drv_s *bdrv = (struct aml_bl_drv_s *)bl_get_data(bd);
 
-	return aml_bl_get_level(bdrv);
+	return aml_bl_get_level_brightness(bdrv);
 }
 
 static const struct backlight_ops aml_bl_ops = {
@@ -3066,6 +3065,95 @@ static ssize_t bl_debug_level_store(struct device *dev,
 	return count;
 }
 
+static ssize_t bl_debug_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf, size_t count)
+{
+	struct aml_bl_drv_s *bdrv = dev_get_drvdata(dev);
+	unsigned int val, temp, ret;
+
+	switch (buf[0]) {
+	case 'g': /* gd */
+		ret = sscanf(buf, "gd %d", &val);
+		if (ret == 1) {
+			if ((bdrv->state & BL_STATE_GD_EN) == 0) {
+				temp = 1;
+				aml_lcd_atomic_notifier_call_chain(LCD_EVENT_BACKLIGHT_GD_SEL,
+					&temp);
+			}
+			mutex_lock(&bl_level_mutex);
+			aml_lcd_atomic_notifier_call_chain(LCD_EVENT_BACKLIGHT_GD_DIM, &val);
+			mutex_unlock(&bl_level_mutex);
+		} else {
+			BLERR("invalid parameters\n");
+		}
+		break;
+	case 'b': /* brightness */
+		ret = sscanf(buf, "brightness %d", &val);
+		if (ret == 1) {
+			if (!bdrv->brightness_bypass)
+				bdrv->brightness_bypass = 1;
+
+			mutex_lock(&bl_status_mutex);
+			bdrv->level_brightness = bl_brightness_level_map(bdrv, val);
+
+			if (bdrv->level_brightness == 0) {
+				if (bdrv->state & BL_STATE_BL_ON)
+					bl_power_off(bdrv);
+			} else {
+				if ((bdrv->state & BL_STATE_GD_EN) == 0) {
+					aml_bl_set_level(bdrv, bdrv->level_brightness);
+					BLPR("[%d]: debug brightness: %u->%u, state: 0x%x\n",
+						bdrv->index, val, bdrv->level_brightness,
+						bdrv->state);
+				} else {
+					temp = bl_gd_level_map(bdrv, bdrv->level_gd);
+					aml_bl_set_level(bdrv, temp);
+					BLPR("[%d]: debug brightness: %u->%u, state: 0x%x\n",
+						bdrv->index, val, temp, bdrv->state);
+				}
+
+				if ((bdrv->state & BL_STATE_BL_ON) == 0)
+					bl_power_on(bdrv);
+			}
+			mutex_unlock(&bl_status_mutex);
+		} else {
+			BLERR("invalid parameters\n");
+		}
+		break;
+	case 'l': /* level */
+		ret = sscanf(buf, "level %d", &val);
+		if (ret == 1) {
+			if (!bdrv->brightness_bypass)
+				bdrv->brightness_bypass = 1;
+
+			mutex_lock(&bl_level_mutex);
+
+			temp = bl_brightness_level_map(bdrv, val);
+			aml_bl_set_level(bdrv, temp);
+			BLPR("[%d]: debug level: %u, state: 0x%x\n",
+				bdrv->index, temp, bdrv->state);
+
+			mutex_unlock(&bl_level_mutex);
+		} else {
+			BLERR("invalid parameters\n");
+		}
+		break;
+	case 'o': /* off */
+		if (bdrv->state & BL_STATE_GD_EN) {
+			temp = 0;
+			aml_lcd_atomic_notifier_call_chain(LCD_EVENT_BACKLIGHT_GD_SEL, &temp);
+		}
+		bdrv->brightness_bypass = 0;
+		break;
+	default:
+		BLERR("wrong command\n");
+		break;
+	}
+
+	return count;
+}
+
 static struct device_attribute bl_debug_attrs[] = {
 	__ATTR(help, 0444, bl_debug_help, NULL),
 	__ATTR(status, 0444, bl_status_show, NULL),
@@ -3077,6 +3165,7 @@ static struct device_attribute bl_debug_attrs[] = {
 	__ATTR(brightness_bypass, 0644, bl_debug_brightness_bypass_show,
 	       bl_debug_brightness_bypass_store),
 	__ATTR(debug_level, 0644, bl_debug_level_show, bl_debug_level_store),
+	__ATTR(debug, 0644, bl_debug_help, bl_debug_store),
 };
 
 static int bl_debug_file_creat(struct aml_bl_drv_s *bdrv)
