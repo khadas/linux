@@ -870,6 +870,13 @@
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
 
+	tps3851_wdt {
+		compatible = "linux,wdt-tps3851";
+		status = "okay";
+		hw_margin_ms = <500>;
+		hw-gpios = <&gpio  GPIOD_12  GPIO_ACTIVE_HIGH>;
+	};
+	
 	sd_3v3: regulator-sd_3v3 {
 		compatible = "regulator-fixed";
 
