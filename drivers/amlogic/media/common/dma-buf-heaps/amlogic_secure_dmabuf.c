@@ -277,14 +277,14 @@ static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
 	buffer->block = (struct secure_block_info *)
 		get_zeroed_page(GFP_KERNEL);
 	if (!buffer->block)
-		goto free_buffer;
+		goto free_priv_buffer;
 	buffer->block_page = pfn_to_page(PFN_DOWN(virt_to_phys(buffer->block)));
 	if (buffer->block_page)
 		mark_page_reserved(buffer->block_page);
 
 	table = &buffer->sg_table;
 	if (sg_alloc_table(table, 1, GFP_KERNEL))
-		goto free_priv_buffer;
+		goto free_buffer;
 
 	paddr = secure_block_alloc(len, 0);
 	if (!paddr)
@@ -312,7 +312,7 @@ static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
 free_tables:
 	sg_free_table(table);
 free_priv_buffer:
-	free_page(buffer->block);
+	kfree(buffer->block);
 free_buffer:
 	kfree(buffer);
 	return ERR_PTR(ret);
