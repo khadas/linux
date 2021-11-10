@@ -130,7 +130,6 @@ static int __init media_main_init(void)
 	call_sub_init(aml_dtvdemod_init);
 	call_sub_init(msync_init);
 	call_sub_init(frc_init);
-	call_sub_init(amlogic_system_secure_dma_buf_init);
 	pr_info("### %s() end\n", __func__);
 	return 0;
 }
