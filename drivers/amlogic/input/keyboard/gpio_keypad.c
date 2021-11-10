@@ -27,7 +27,7 @@ struct pin_desc {
 	struct gpio_desc *desc;
 	int irq_num;
 	u32 code;
-	u32 switch_code;
+	u32 key_type;
 	const char *name;
 	int count;
 };
@@ -60,27 +60,15 @@ static void report_key_code(struct gpio_keypad *keypad, int gpio_val)
 	if (key->count >= KEY_JITTER_COUNT) {
 		key->current_status = gpio_val;
 		if (key->current_status) {
-			if (key->switch_code) {
-				input_report_key(keypad->input_dev,
-						 key->code, 1);
-				input_report_key(keypad->input_dev,
-						 key->code, 0);
-			} else {
-				input_report_key(keypad->input_dev,
-						 key->code, 0);
-			}
+			input_event(keypad->input_dev, key->key_type,
+				    key->code, 0);
+
 			dev_info(&keypad->input_dev->dev,
 				 "key %d up.\n", key->code);
 		} else {
-			if (key->switch_code) {
-				input_report_key(keypad->input_dev,
-						 key->switch_code, 1);
-				input_report_key(keypad->input_dev,
-						 key->switch_code, 0);
-			} else {
-				input_report_key(keypad->input_dev,
-						 key->code, 1);
-			}
+			input_event(keypad->input_dev, key->key_type,
+				    key->code, 1);
+
 			dev_info(&keypad->input_dev->dev,
 				 "key %d down.\n", key->code);
 		}
@@ -218,10 +206,10 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 		}
 
 		ret = of_property_read_u32_index(pdev->dev.of_node,
-						 "switch_key_code", i,
-						 &keypad->key[i].switch_code);
+						 "key_type", i,
+						 &keypad->key[i].key_type);
 		if (ret)
-			keypad->key[i].switch_code = 0;
+			keypad->key[i].key_type = EV_KEY;
 
 		ret = of_property_read_string_index(pdev->dev.of_node,
 						    "key_name", i,
@@ -248,16 +236,13 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 	input_dev = input_allocate_device();
 	if (!input_dev)
 		return -EINVAL;
-	set_bit(EV_KEY,  input_dev->evbit);
 	for (i = 0; i < keypad->key_size; i++) {
-		set_bit(keypad->key[i].code,  input_dev->keybit);
+		input_set_capability(input_dev, keypad->key[i].key_type,
+				     keypad->key[i].code);
 
-		if (keypad->key[i].switch_code)
-			set_bit(keypad->key[i].switch_code,  input_dev->keybit);
-
-		dev_info(&pdev->dev, "%s key(%d/%d) registered.\n",
+		dev_info(&pdev->dev, "%s key(%d) type(0x%x) registered.\n",
 			 keypad->key[i].name, keypad->key[i].code,
-			 keypad->key[i].switch_code);
+			 keypad->key[i].key_type);
 	}
 	input_dev->name = "gpio_keypad";
 	input_dev->phys = "gpio_keypad/input0";
