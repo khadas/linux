@@ -268,6 +268,9 @@ static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
 	INIT_LIST_HEAD(&buffer->attachments);
 	mutex_init(&buffer->lock);
 	buffer->heap = heap;
+	//vdec limit will remove later 3.75M
+	if (len > 375 * 1024 * 10)
+		len = 375 * 1024 * 10;
 	buffer->len = len;
 	buffer->uncached = uncached;
 
@@ -309,7 +312,7 @@ static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
 free_tables:
 	sg_free_table(table);
 free_priv_buffer:
-	free_page((unsigned long)buffer->block);
+	free_page(buffer->block);
 free_buffer:
 	kfree(buffer);
 	return ERR_PTR(ret);

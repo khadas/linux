@@ -14,15 +14,10 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/genalloc.h>
-#include <linux/amlogic/tee.h>
-#include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/codec_mm/secmem.h>
 
 static int secmem_debug;
 module_param(secmem_debug, int, 0644);
-
-static int secmem_vdec_def_size_bytes;
-module_param(secmem_vdec_def_size_bytes, int, 0644);
 
 #define  DEVICE_NAME "secmem"
 #define  CLASS_NAME  "secmem"
@@ -43,23 +38,14 @@ struct ksecmem_attachment {
 	enum dma_data_direction dma_dir;
 };
 
-#define SZ_1_5G				0x60000000
-#define SECMEM_MM_ALIGNED_2N		20
-#define SECMEM_MM_BLOCK_ALIGNED_2N	16
-#define SECMEM_MM_MAX_VDEC_SIZE_BYTES		(32 * 1024 * 1024)
-#define SECMEM_MM_DEF_VDEC_SIZE_BYTES		(28 * 1024 * 1024)
-#define SECMEM_MM_MID_VDEC_SIZE_BYTES		(20 * 1024 * 1024)
-#define SECMEM_MM_MIN_VDEC_SIZE_BYTES		(8 * 1024 * 1024)
-#define SECMEM_MM_MIN_CMA_SIZE_BYTES		(230 * 1024 * 1024)
+#define SECMEM_MM_ALIGNED_2N	16
 
 struct secmem_vdec_info {
-	u32 used;
+	unsigned long used;
+	phys_addr_t start;
+	unsigned long size;
+	unsigned long release;
 	struct gen_pool *pool;
-	u32 vdec_handle;
-	u32 vdec_paddr;
-	u32 vdec_size;
-	u32 vdec_pool_paddr;
-	u32 vdec_pool_size;
 };
 
 static int dev_no;
@@ -342,7 +328,7 @@ error_copy:
 	return res;
 }
 
-static void *secure_pool_init(phys_addr_t addr, u32 size, u32 order)
+static void *secure_pool_init(phys_addr_t addr, uint32_t size, uint32_t order)
 {
 	struct gen_pool *pool;
 
@@ -356,12 +342,17 @@ static void *secure_pool_init(phys_addr_t addr, u32 size, u32 order)
 	return pool;
 }
 
-static phys_addr_t secure_pool_alloc(void *handle, u32 size)
+static void secure_pool_destroy(void *handle)
+{
+	gen_pool_destroy(handle);
+}
+
+static phys_addr_t secure_pool_alloc(void *handle, uint32_t size)
 {
 	return gen_pool_alloc(handle, size);
 }
 
-static void secure_pool_free(void *handle, u32 addr, u32 size)
+static void secure_pool_free(void *handle, uint32_t addr, uint32_t size)
 {
 	return gen_pool_free(handle, addr, size);
 }
@@ -371,169 +362,99 @@ static size_t secure_pool_size(void *handle)
 	return gen_pool_size(handle);
 }
 
-static size_t secure_pool_free_size(void *handle)
-{
-	return gen_pool_avail(handle);
-}
-
-static inline u32 secmem_align_up2n(u32 size, u32 alg2n)
-{
-	return ((size + (1 << alg2n) - 1) & (~((1 << alg2n) - 1)));
-}
-
-static inline u32 secmem_addr_is_aligned(u32 addr, u32 alg2n)
-{
-	if ((addr & (~((1 << alg2n) - 1))) == addr)
-		return 1;
-	return 0;
-}
-
-static int secure_block_pool_init(void)
-{
-	int ret;
-	u32 max_cma_size_bytes = codec_mm_get_total_size();
-	u32 vdec_size = secmem_vdec_def_size_bytes;
-	u32 total_mem = totalram_pages() << PAGE_SHIFT;
-
-	if (g_vdec_info.used)
-		return 0;
-	if (vdec_size < SECMEM_MM_MIN_VDEC_SIZE_BYTES ||
-		vdec_size > SECMEM_MM_MAX_VDEC_SIZE_BYTES) {
-		if (total_mem <= SZ_1G) {
-			vdec_size = SECMEM_MM_MIN_VDEC_SIZE_BYTES;
-		} else if (total_mem > SZ_1G && total_mem < SZ_1_5G) {
-			if (max_cma_size_bytes >= SECMEM_MM_MIN_CMA_SIZE_BYTES)
-				vdec_size = SECMEM_MM_DEF_VDEC_SIZE_BYTES;
-			else
-				vdec_size = SECMEM_MM_MID_VDEC_SIZE_BYTES;
-		} else {
-			vdec_size = SECMEM_MM_DEF_VDEC_SIZE_BYTES;
-		}
-	}
-	vdec_size += SZ_1M;
-	g_vdec_info.vdec_size = secmem_align_up2n(vdec_size,
-			SECMEM_MM_ALIGNED_2N);
-	g_vdec_info.vdec_paddr = codec_mm_alloc_for_dma("dma-secure-buf",
-		g_vdec_info.vdec_size / PAGE_SIZE,
-		SECMEM_MM_BLOCK_ALIGNED_2N, CODEC_MM_FLAGS_DMA);
-	if (!g_vdec_info.vdec_paddr) {
-		pr_error("allocate cma size failed %x\n",
-			g_vdec_info.vdec_size);
-		goto error_init;
-	}
-	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_STREAM_INPUT,
-				(u32)g_vdec_info.vdec_paddr,
-				(u32)g_vdec_info.vdec_size,
-				&g_vdec_info.vdec_handle);
-	if (ret) {
-		pr_error("protect vdec failed  addr %x %x ret is %x\n",
-			g_vdec_info.vdec_paddr, g_vdec_info.vdec_size, ret);
-		goto error_init;
-	}
-	if (secmem_addr_is_aligned(g_vdec_info.vdec_paddr,
-				SECMEM_MM_ALIGNED_2N)) {
-		g_vdec_info.vdec_pool_paddr = g_vdec_info.vdec_paddr;
-		g_vdec_info.vdec_pool_size = g_vdec_info.vdec_size;
-	} else {
-		g_vdec_info.vdec_pool_paddr =
-			secmem_align_up2n(g_vdec_info.vdec_paddr, SECMEM_MM_ALIGNED_2N);
-		g_vdec_info.vdec_pool_size = g_vdec_info.vdec_paddr +
-			g_vdec_info.vdec_size - g_vdec_info.vdec_pool_paddr;
-	}
-	g_vdec_info.pool = secure_pool_init(g_vdec_info.vdec_pool_paddr,
-		g_vdec_info.vdec_pool_size, SECMEM_MM_ALIGNED_2N);
-	if (!g_vdec_info.pool) {
-		pr_error("secmem pool create failed\n");
-		goto error_init;
-	}
-	g_vdec_info.used = 1;
-	return 0;
-error_init:
-	if (g_vdec_info.vdec_handle)
-		tee_unprotect_mem(g_vdec_info.vdec_handle);
-	if (g_vdec_info.vdec_paddr) {
-		if (codec_mm_free_for_dma("dma-secure-buf", g_vdec_info.vdec_paddr))
-			pr_error("free dma buf failed in init");
-	}
-	memset(&g_vdec_info, 0, sizeof(struct secmem_vdec_info));
-	return -1;
-}
-
-static ssize_t secmem_mm_dump_vdec_info(int forceshow)
-{
-	char buf[512] = { 0 };
-	char *pbuf = buf;
-	u32 size = 512;
-	u32 s = 0;
-	u32 tsize = 0;
-	u32 freesize = 0;
-
-	if (forceshow == 0 && secmem_debug < 8)
-		return 0;
-	s = snprintf(pbuf, size - tsize,
-			"secmem mem info:\nused %d\n",
-			g_vdec_info.used);
-	tsize += s;
-	pbuf += s;
-	s = snprintf(pbuf, size - tsize,
-			"vdec size= %d MB\ndef vdec size: %dMB\n",
-			g_vdec_info.vdec_pool_size / SZ_1M,
-			secmem_vdec_def_size_bytes / SZ_1M);
-	tsize += s;
-	pbuf += s;
-	if (g_vdec_info.used) {
-		freesize = secure_pool_free_size(g_vdec_info.pool);
-		s = snprintf(pbuf, size - tsize,
-				"Allocate = %ld bytes\nfreed: %d bytes\n",
-				secure_pool_size(g_vdec_info.pool) - freesize,
-				freesize);
-	}
-	pr_error("%s", buf);
-	return 0;
-}
-
 phys_addr_t secure_block_alloc(unsigned long size, unsigned long flags)
 {
 	phys_addr_t paddr = 0;
-	int ret;
 
 	mutex_lock(&g_secmem_mutex);
 	pr_enter();
 	if (!g_vdec_info.used)
 		goto error_alloc;
 	paddr = secure_pool_alloc(g_vdec_info.pool, size);
-	if (paddr > 0) {
-		ret = tee_check_in_mem(paddr, size);
-		if (ret)
-			pr_error("checkin err %x addr %llx size %ld\n", ret, paddr, size);
-	}
 error_alloc:
-	secmem_mm_dump_vdec_info(0);
 	mutex_unlock(&g_secmem_mutex);
 	return paddr;
 }
 
 unsigned long secure_block_free(phys_addr_t addr, unsigned long size)
 {
-	int ret;
-
 	mutex_lock(&g_secmem_mutex);
 	pr_enter();
 	if (!g_vdec_info.used)
 		goto error_free;
 	secure_pool_free(g_vdec_info.pool, addr, size);
-	ret = tee_check_out_mem(addr, size);
-	if (ret) {
-		pr_error("checkout err %x addr is %llx size %ld\n", ret, addr, size);
-		goto error_free;
+	size = secure_pool_size(g_vdec_info.pool);
+	if (!size && g_vdec_info.release) {
+		secure_pool_destroy(g_vdec_info.pool);
+		memset(&g_vdec_info, 0,
+			sizeof(struct secmem_vdec_info));
 	}
-	secmem_mm_dump_vdec_info(0);
 	mutex_unlock(&g_secmem_mutex);
 	return 0;
 error_free:
-	secmem_mm_dump_vdec_info(0);
 	mutex_unlock(&g_secmem_mutex);
 	return -1;
+}
+
+static long secmem_set_vdec_info(unsigned long args)
+{
+	int ret;
+	struct secmem_block *info;
+
+	mutex_lock(&g_secmem_mutex);
+	pr_enter();
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		pr_error("kmalloc failed\n");
+		goto error_alloc_object;
+	}
+	ret = copy_from_user((void *)info, (void __user *)args,
+			     sizeof(struct secmem_block));
+	if (ret) {
+		pr_error("copy_from_user failed\n");
+		goto error_copy;
+	}
+	if (!g_vdec_info.used) {
+		g_vdec_info.start = info->paddr;
+		g_vdec_info.size = info->size;
+		g_vdec_info.pool = secure_pool_init(g_vdec_info.start,
+			g_vdec_info.size, SECMEM_MM_ALIGNED_2N);
+		if (!g_vdec_info.pool) {
+			pr_error("secmem pool create failed\n");
+			goto error_copy;
+		}
+		g_vdec_info.used = 1;
+	} else {
+		pr_inf("secmem have configurated, do nothing\n");
+	}
+	mutex_unlock(&g_secmem_mutex);
+	kfree(info);
+	return 0;
+error_copy:
+	mutex_unlock(&g_secmem_mutex);
+	kfree(info);
+error_alloc_object:
+	return -EFAULT;
+}
+
+static long secmem_clear_vdec_info(unsigned long args)
+{
+	size_t size = 0;
+
+	mutex_lock(&g_secmem_mutex);
+	pr_enter();
+	if (g_vdec_info.used) {
+		size = secure_pool_size(g_vdec_info.pool);
+		if (size) {
+			g_vdec_info.release = 1;
+		} else {
+			secure_pool_destroy(g_vdec_info.pool);
+			memset(&g_vdec_info, 0,
+				sizeof(struct secmem_vdec_info));
+		}
+	}
+	mutex_unlock(&g_secmem_mutex);
+	return 0;
 }
 
 static int secmem_open(struct inode *inodep, struct file *filep)
@@ -582,7 +503,10 @@ static long secmem_ioctl(struct file *filep, unsigned int cmd,
 		ret = secmem_import(args);
 		break;
 	case SECMEM_SET_VDEC_INFO:
-		ret = secure_block_pool_init();
+		ret = secmem_set_vdec_info(args);
+		break;
+	case SECMEM_CLEAR_VDEC_INFO:
+		ret = secmem_clear_vdec_info(args);
 		break;
 	default:
 		break;
@@ -614,27 +538,8 @@ const struct file_operations fops = {
 #endif
 };
 
-static ssize_t secmem_mm_dump_show(struct class *class,
-				  struct class_attribute *attr, char *buf)
-{
-	mutex_lock(&g_secmem_mutex);
-	secmem_mm_dump_vdec_info(1);
-	mutex_unlock(&g_secmem_mutex);
-	return 0;
-}
-
-static CLASS_ATTR_RO(secmem_mm_dump);
-
-static struct attribute *secmem_class_attrs[] = {
-	&class_attr_secmem_mm_dump.attr,
-	NULL
-};
-
-ATTRIBUTE_GROUPS(secmem_class);
-
 static struct class secmem_class = {
 	.name = CLASS_NAME,
-	.class_groups = secmem_class_groups,
 };
 
 int __init secmem_init(void)
