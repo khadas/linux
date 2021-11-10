@@ -4487,7 +4487,8 @@ void rx_clkmsr_handler(struct work_struct *work)
 		rx.clk.cable_clk = meson_clk_measure_with_precision(30, 32);
 		rx.clk.tmds_clk = meson_clk_measure_with_precision(63, 32);
 		rx.clk.aud_pll = meson_clk_measure_with_precision(74, 32);
-		rx.clk.p_clk = meson_clk_measure_with_precision(0, 32);
+		/* renamed to clk81_hdmirx_pclk,id=7 */
+		rx.clk.p_clk = meson_clk_measure_with_precision(7, 32);
 		break;
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
