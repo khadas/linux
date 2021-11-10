@@ -614,6 +614,8 @@ static int lcd_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	else
 		LCDERR("%s: lcd_debug_info_if is null\n", __func__);
 
+	len += lcd_clk_clkmsr_print(pdrv, (buf + len), (len + offset));
+
 	return len;
 }
 
@@ -3468,7 +3470,8 @@ static ssize_t lcd_debug_clk_show(struct device *dev,
 	if (!print_buf)
 		return sprintf(buf, "%s: buf malloc error\n", __func__);
 
-	lcd_clk_config_print(pdrv, print_buf, 0);
+	n = lcd_clk_config_print(pdrv, print_buf, 0);
+	lcd_clk_clkmsr_print(pdrv, (buf + n), n);
 
 	n = sprintf(buf, "%s\n", print_buf);
 	kfree(print_buf);

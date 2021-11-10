@@ -81,6 +81,7 @@ struct lcd_clk_data_s {
 	unsigned char vclk_sel;
 	int enc_clk_msr_id;
 	int fifo_clk_msr_id;
+	int tcon_clk_msr_id;
 	struct lcd_clk_ctrl_s *pll_ctrl_table;
 
 	unsigned int ss_level_max;
@@ -164,6 +165,7 @@ void lcd_update_clk(struct aml_lcd_drv_s *pdrv);
 void lcd_set_clk(struct aml_lcd_drv_s *pdrv);
 void lcd_disable_clk(struct aml_lcd_drv_s *pdrv);
 void lcd_clk_gate_switch(struct aml_lcd_drv_s *pdrv, int status);
+int lcd_clk_clkmsr_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 int lcd_clk_config_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
 
 int lcd_clk_path_change(struct aml_lcd_drv_s *pdrv, int sel);

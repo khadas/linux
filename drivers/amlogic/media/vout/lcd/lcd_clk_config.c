@@ -4125,6 +4125,52 @@ void lcd_clk_gate_switch(struct aml_lcd_drv_s *pdrv, int status)
 	}
 }
 
+int lcd_clk_clkmsr_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	struct lcd_clk_config_s *cconf;
+	int clk;
+	int n, len = 0;
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "[%d]: %s: clk config is null\n",
+				pdrv->index, __func__);
+		return len;
+	}
+
+	if (cconf->data->enc_clk_msr_id == -1)
+		goto lcd_clk_clkmsr_print_step_1;
+	clk = meson_clk_measure(cconf->data->enc_clk_msr_id);
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n,
+		"encl_clk:        %d\n", clk);
+
+lcd_clk_clkmsr_print_step_1:
+	if (cconf->data->fifo_clk_msr_id == -1)
+		goto lcd_clk_clkmsr_print_step_2;
+	clk = meson_clk_measure(cconf->data->fifo_clk_msr_id);
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n,
+		"fifo_clk:        %d\n", clk);
+
+lcd_clk_clkmsr_print_step_2:
+	switch (pdrv->config.basic.lcd_type) {
+	case LCD_MLVDS:
+	case LCD_P2P:
+		if (cconf->data->tcon_clk_msr_id == -1)
+			break;
+		clk = meson_clk_measure(cconf->data->tcon_clk_msr_id);
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n,
+			"tcon_clk:        %d\n", clk);
+	default:
+		break;
+	}
+
+	return len;
+}
+
 int lcd_clk_config_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	struct lcd_clk_config_s *cconf;
@@ -4171,6 +4217,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12a_path0 = {
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 9,
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
+	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.pll_ctrl_table = pll_ctrl_table_g12a_path0,
 
 	.ss_level_max = 0,
@@ -4221,6 +4268,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12a_path1 = {
 	.vclk_sel = 1,
 	.enc_clk_msr_id = 9,
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
+	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.pll_ctrl_table = pll_ctrl_table_g12a_path1,
 
 	.ss_level_max = 0,
@@ -4271,6 +4319,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path0 = {
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 9,
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
+	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.pll_ctrl_table = pll_ctrl_table_g12a_path0,
 
 	.ss_level_max = 0,
@@ -4321,6 +4370,7 @@ static struct lcd_clk_data_s lcd_clk_data_g12b_path1 = {
 	.vclk_sel = 1,
 	.enc_clk_msr_id = 9,
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
+	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.pll_ctrl_table = pll_ctrl_table_g12a_path1,
 
 	.ss_level_max = 0,
@@ -4372,6 +4422,7 @@ static struct lcd_clk_data_s lcd_clk_data_tl1 = {
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 9,
 	.fifo_clk_msr_id = 129,
+	.tcon_clk_msr_id = 128,
 	.pll_ctrl_table = pll_ctrl_table_tl1,
 
 	.ss_level_max = sizeof(lcd_ss_level_table_tl1) / sizeof(char *),
@@ -4423,6 +4474,7 @@ static struct lcd_clk_data_s lcd_clk_data_tm2 = {
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 9,
 	.fifo_clk_msr_id = 129,
+	.tcon_clk_msr_id = 128,
 	.pll_ctrl_table = pll_ctrl_table_tl1,
 
 	.ss_level_max = sizeof(lcd_ss_level_table_tl1) / sizeof(char *),
@@ -4473,6 +4525,7 @@ static struct lcd_clk_data_s lcd_clk_data_t5 = {
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 9,
 	.fifo_clk_msr_id = 129,
+	.tcon_clk_msr_id = 128,
 	.pll_ctrl_table = pll_ctrl_table_tl1,
 
 	.ss_level_max = sizeof(lcd_ss_level_table_tl1) / sizeof(char *),
@@ -4523,6 +4576,7 @@ static struct lcd_clk_data_s lcd_clk_data_t5d = {
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 9,
 	.fifo_clk_msr_id = 129,
+	.tcon_clk_msr_id = 128,
 	.pll_ctrl_table = pll_ctrl_table_tl1,
 
 	.ss_level_max = sizeof(lcd_ss_level_table_tl1) / sizeof(char *),
@@ -4573,6 +4627,7 @@ static struct lcd_clk_data_s lcd_clk_data_t7 = {
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 222,
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
+	.tcon_clk_msr_id = LCD_CLK_MSR_INVALID,
 	.pll_ctrl_table = pll_ctrl_table_t7,
 
 	.ss_level_max = sizeof(lcd_ss_level_table_tl1) / sizeof(char *),
@@ -4623,6 +4678,7 @@ static struct lcd_clk_data_s lcd_clk_data_t3 = {
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 222,
 	.fifo_clk_msr_id = LCD_CLK_MSR_INVALID,
+	.tcon_clk_msr_id = 119,
 	.pll_ctrl_table = pll_ctrl_table_t7,
 
 	.ss_level_max = sizeof(lcd_ss_level_table_tl1) / sizeof(char *),
@@ -4673,6 +4729,7 @@ static struct lcd_clk_data_s lcd_clk_data_t5w = {
 	.vclk_sel = 0,
 	.enc_clk_msr_id = 6,
 	.fifo_clk_msr_id = 129,
+	.tcon_clk_msr_id = 128,
 	.pll_ctrl_table = pll_ctrl_table_tl1,
 
 	.ss_level_max = sizeof(lcd_ss_level_table_tl1) / sizeof(char *),
