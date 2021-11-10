@@ -1418,7 +1418,7 @@ static struct clk_regmap t5w_dsu_clk = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "dsu_clk",
-		.ops = &clk_regmap_mux_ro_ops,
+		.ops = &clk_regmap_mux_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&t5w_cpu_clk.hw,
 			&t5w_dsu_final_clk.hw,
@@ -4437,6 +4437,24 @@ static int meson_t5w_dvfs_setup(struct platform_device *pdev)
 	}
 	ret = clk_set_parent(t5w_dsu_clk_premux1.hw.clk,
 			     t5w_fclk_div2.hw.clk);
+	if (ret < 0) {
+		pr_err("%s: failed to set dsu premux1 parent\n", __func__);
+		return ret;
+	}
+
+	/* set gp1 to 1.2G */
+	clk_set_rate(t5w_gp1_pll.hw.clk, 1200000000);
+	clk_prepare_enable(t5w_gp1_pll.hw.clk);
+	/* Switch dsu to gp1 */
+	ret = clk_set_parent(t5w_dsu_clk_premux0.hw.clk,
+			     t5w_gp1_pll.hw.clk);
+	if (ret < 0) {
+		pr_err("%s: failed to set dsu premux0 parent\n", __func__);
+		return ret;
+	}
+	/* Switch dsu to dsu final */
+	ret = clk_set_parent(t5w_dsu_clk.hw.clk,
+			     t5w_dsu_final_clk.hw.clk);
 	if (ret < 0) {
 		pr_err("%s: failed to set dsu parent\n", __func__);
 		return ret;
