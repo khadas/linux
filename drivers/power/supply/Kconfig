@@ -701,6 +701,13 @@ config CHARGER_BD70528
 	 information and altering charger configurations from charger
 	 block of the ROHM BD70528 Power Management IC.
 
+config BATTERY_CW2015
+	tristate "BATTERY_CW2015 Battery driver"
+	depends on I2C
+	help
+		If you say yes here you will get support for the battery of CW2015.
+		This driver can give support for CW2015 Battery Interface.
+
 config CHARGER_WILCO
 	tristate "Wilco EC based charger for ChromeOS"
 	depends on WILCO_EC
