@@ -202,7 +202,9 @@ static const struct drm_crtc_funcs am_meson_crtc_funcs = {
 	.atomic_destroy_state	= meson_crtc_destroy_state,
 	.atomic_duplicate_state = meson_crtc_duplicate_state,
 	.destroy		= drm_crtc_cleanup,
+	.page_flip		= drm_atomic_helper_page_flip,
 	.reset			= meson_crtc_reset,
+	.set_config		= drm_atomic_helper_set_config,
 	.atomic_get_property = meson_crtc_atomic_get_property,
 	.atomic_set_property = meson_crtc_atomic_set_property,
 	.atomic_print_state = meson_crtc_atomic_print_state,
@@ -210,6 +212,15 @@ static const struct drm_crtc_funcs am_meson_crtc_funcs = {
 	.set_crc_source		= meson_crtc_set_crc_source,
 	.verify_crc_source	= meson_crtc_verify_crc_source,
 };
+
+static bool am_meson_crtc_mode_fixup(struct drm_crtc *crtc,
+				     const struct drm_display_mode *mode,
+				struct drm_display_mode *adj_mode)
+{
+	//DRM_INFO("%s !!\n", __func__);
+
+	return true;
+}
 
 static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 					struct drm_crtc_state *old_state)
@@ -397,6 +408,7 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 
 static const struct drm_crtc_helper_funcs am_crtc_helper_funcs = {
 	.atomic_check	= meson_crtc_atomic_check,
+	.mode_fixup		= am_meson_crtc_mode_fixup,
 	.atomic_begin	= am_meson_crtc_atomic_begin,
 	.atomic_flush	= am_meson_crtc_atomic_flush,
 	.atomic_enable	= am_meson_crtc_atomic_enable,
