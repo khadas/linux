@@ -85,6 +85,8 @@ static u32 parse_reason(const char *cmd)
 			reboot_reason = MESON_UBOOT_SUSPEND;
 		else if (strcmp(cmd, "quiescent") == 0 ||
 			strcmp(cmd, "userrequested,recovery,quiescent") == 0 ||
+			strcmp(cmd, "reboot-ab-update,quiescent") == 0 ||
+			strcmp(cmd, "unattended,ota_update,quiescent") == 0 ||
 			strcmp(cmd, ",quiescent") == 0)
 			reboot_reason = MESON_QUIESCENT_REBOOT;
 		else if (strcmp(cmd, "recovery,quiescent") == 0 ||
