@@ -3611,10 +3611,13 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 		recalc_vinfo_sync_duration(vinfo,
 					   hdev->frac_rate_policy);
 
-	if (!(mode & VMODE_INIT_BIT_MASK)) {
+	if (!(mode & VMODE_INIT_BIT_MASK) || !hdev->hpd_state) {
+		pr_info("HDMI display force init (%d)\n", hdev->hpd_state);
+		edidinfo_attach_to_vinfo(hdev);
 		set_disp_mode_auto();
 	} else {
-		pr_info("alread display in uboot\n");
+		pr_info("HDMI display was activated by uboot (%d)\n",
+			hdev->hpd_state);
 		edidinfo_attach_to_vinfo(hdev);
 	}
 	return 0;
@@ -4059,6 +4062,11 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	if (hdev->cedst_policy)
 		queue_delayed_work(hdev->cedst_wq, &hdev->work_cedst, 0);
 	mutex_unlock(&setclk_mutex);
+
+	if (info && info->mode == VMODE_HDMI) {
+		pr_info("HDMI display force refresh\n");
+		set_disp_mode_auto();
+	}
 }
 
 static void clear_rx_vinfo(struct hdmitx_dev *hdev)
