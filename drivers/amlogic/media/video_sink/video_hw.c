@@ -7414,6 +7414,8 @@ static void canvas_update_for_mif(struct video_layer_s *layer,
 				&cs0[0], &cs1[0], &cs2[0],
 				vf,
 				0);
+			layer->mif_setting.block_mode =
+				cs0[0].blkmode;
 		}
 	} else {
 		vframe_canvas_set
