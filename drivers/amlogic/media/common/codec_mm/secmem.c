@@ -484,7 +484,7 @@ static ssize_t secmem_mm_dump_vdec_info(int forceshow)
 	if (g_vdec_info.used) {
 		freesize = secure_pool_free_size(g_vdec_info.pool);
 		s = snprintf(pbuf, size - tsize,
-				"Allocate = %ld bytes\nfreed: %d bytes\n",
+				"Allocate = %zx bytes\nfreed: %d bytes\n",
 				secure_pool_size(g_vdec_info.pool) - freesize,
 				freesize);
 	}
@@ -505,7 +505,7 @@ phys_addr_t secure_block_alloc(unsigned long size, unsigned long flags)
 	if (paddr > 0) {
 		ret = tee_check_in_mem(paddr, size);
 		if (ret)
-			pr_error("checkin err %x addr %llx size %ld\n", ret, paddr, size);
+			pr_error("checkin err \n");
 	}
 error_alloc:
 	secmem_mm_dump_vdec_info(0);
@@ -524,7 +524,7 @@ unsigned long secure_block_free(phys_addr_t addr, unsigned long size)
 	secure_pool_free(g_vdec_info.pool, addr, size);
 	ret = tee_check_out_mem(addr, size);
 	if (ret) {
-		pr_error("checkout err %x addr is %llx size %ld\n", ret, addr, size);
+		pr_error("checkout err \n");
 		goto error_free;
 	}
 	secmem_mm_dump_vdec_info(0);

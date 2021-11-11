@@ -1418,7 +1418,9 @@ static bool tv_backlight_changed;
 static bool tv_backlight_force_update;
 static int force_disable_dv_backlight;
 static bool dv_control_backlight_status;
+#ifdef CONFIG_AMLOGIC_LCD
 static bool use_12b_bl = true;/*12bit backlight interface*/
+#endif
 static bool enable_vpu_probe;
 static bool bypass_all_vpp_pq;
 static int use_target_lum_from_cfg;

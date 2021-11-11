@@ -61,7 +61,7 @@ int aml_vrr_atomic_notifier_register(struct notifier_block *nb);
 int aml_vrr_atomic_notifier_unregister(struct notifier_block *nb);
 int aml_vrr_atomic_notifier_call_chain(unsigned long event, void *v);
 #else
-static int aml_vrr_state(int index)
+static inline int aml_vrr_state(int index)
 {
 	return 0;
 }

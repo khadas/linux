@@ -2749,7 +2749,7 @@ static ssize_t fastplay_enable_store(struct class *class,
 	case 0:
 		ret = codec_mm_extpool_pool_release(&mgt->cma_res_pool);
 		mgt->fastplay_enable = 0;
-		pr_err("disalbe fastplay ret 0x%lx\n", ret);
+		pr_err("disalbe fastplay ret 0x%zx\n", ret);
 		break;
 	case 1:
 		codec_mm_extpool_pool_alloc(&mgt->cma_res_pool,
