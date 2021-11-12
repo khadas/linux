@@ -252,6 +252,8 @@ struct composer_dev {
 	_IOW(VIDEO_COMPOSER_IOC_MAGIC, 0x01, int)
 #define VIDEO_COMPOSER_IOCTL_SET_DISABLE	\
 	_IOW(VIDEO_COMPOSER_IOC_MAGIC, 0x02, int)
+#define VIDEO_COMPOSER_IOCTL_GET_PANEL_CAPABILITY	\
+	_IOR(VIDEO_COMPOSER_IOC_MAGIC, 0x03, int)
 
 int video_composer_set_enable(struct composer_dev *dev, u32 val);
 struct video_composer_port_s *video_composer_get_port(u32 index);

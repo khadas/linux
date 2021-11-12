@@ -2596,6 +2596,10 @@ static long video_composer_ioctl(struct file *file,
 		break;
 	case VIDEO_COMPOSER_IOCTL_SET_DISABLE:
 		break;
+	case VIDEO_COMPOSER_IOCTL_GET_PANEL_CAPABILITY:
+		val = video_get_layer_capability();
+		ret = copy_to_user(argp, &val, sizeof(u32));
+		break;
 	default:
 		return -EINVAL;
 	}
