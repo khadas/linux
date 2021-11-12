@@ -589,11 +589,11 @@ int aml_vrr_unregister_device(int index)
 		vrr_drv[index]->enable = 0;
 		vrr_work_disable(vrr_drv[index]);
 	}
-	vrr_drv[index]->vrr_dev = NULL;
 	VRRPR("[%d]: %s: %s %d unregister successfully\n",
 		index, __func__,
 		vrr_drv[index]->vrr_dev->name,
 		vrr_drv[index]->vrr_dev->output_src);
+	vrr_drv[index]->vrr_dev = NULL;
 
 	return 0;
 }
