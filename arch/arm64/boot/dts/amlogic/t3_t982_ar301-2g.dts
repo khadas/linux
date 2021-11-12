@@ -1631,7 +1631,6 @@
 &aml_bt {
 	status = "okay";
 	reset-gpios = <&gpio  GPIOC_13  GPIO_ACTIVE_HIGH>;
-	btwakeup-gpios = <&gpio  GPIOC_14  GPIO_ACTIVE_HIGH>;
 };
 
 &spicc0 {	//for TCON
