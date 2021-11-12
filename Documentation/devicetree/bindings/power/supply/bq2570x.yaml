@@ -1,0 +1,80 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+
+title: Battery driver for CW2015 shuntless fuel gauge by CellWise.
+
+maintainers:
+  - Yan <yan-wyb@foxmail.com>
+
+description: |
+  This driver will support the bq2570x and the bq25700. There are other ICs
+  in the same family but those have not been tested.
+
+
+properties:
+  compatible:
+    const: bq25703
+
+  reg:
+    maxItems: 1
+
+  cellwise,battery-profile:
+    description: |
+      This property specifies characteristics of the battery used. The format
+      of this binary blob is kept secret by CellWise. The only way to obtain
+      it is to mail two batteries to a test facility of CellWise and receive
+      back a test report with the binary blob.
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    minItems: 64
+    maxItems: 64
+
+  cellwise,monitor-interval-ms:
+    description:
+      Specifies the interval in milliseconds gauge values are polled at
+    minimum: 250
+
+  power-supplies:
+    description:
+      Specifies supplies used for charging the battery connected to this gauge
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    minItems: 1
+    maxItems: 8 # Should be enough
+
+  monitored-battery:
+    description:
+      Specifies the phandle of a simple-battery connected to this gauge
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+		bq25703@6b {
+			compatible = "bq25703";
+			reg = <0x6b>;
+			ti,charge-current = <1500000>;
+			ti,max-charge-voltage = <8500000>;
+			ti,max-input-voltage = <20000000>;
+			ti,max-input-current = <6000000>;
+			ti,input-current-sdp = <500000>;
+			ti,input-current-dcp = <2000000>;
+			ti,input-current-cdp = <2000000>;
+			ti,input-current-dc = <2000000>;
+			ti,minimum-sys-voltage = <7400000>;
+			ti,otg-voltage = <5000000>;
+			ti,otg-current = <500000>;
+			ti,input-current = <500000>;
+			pd-charge-only = <0>;
+		};
+
+    };
+
