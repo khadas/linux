@@ -48,7 +48,7 @@ static struct vinfo_s *lcd_get_current_info(void *data)
 
 static int lcd_check_same_vmodeattr(char *mode, void *data)
 {
-	return 0;
+	return 1;
 }
 
 static int lcd_vmode_is_supported(enum vmode_e mode, void *data)
