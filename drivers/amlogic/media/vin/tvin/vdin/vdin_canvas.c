@@ -635,7 +635,7 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	else if (devp->index == 1)
 		strcpy(vdin_name, "vdin1");
 
-	if (devp->set_canvas_manual == 1) {
+	if (devp->set_canvas_manual == 1 || devp->cfg_dma_buf) {
 		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
 			if (vdin_set_canvas_addr[i].dmabuff == 0)
 				break;
@@ -643,7 +643,9 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				roundup(vdin_set_canvas_addr[i].paddr,
 					devp->canvas_align);
 			/*real buffer number*/
-			max_buffer_num = i;
+			max_buffer_num = i + 1;
+			if (devp->cfg_dma_buf)
+				devp->mem_start = vdin_set_canvas_addr[i].paddr;
 			devp->canvas_max_num = max_buffer_num;
 			devp->vfmem_max_cnt = max_buffer_num;
 			/*update to real total frames size*/

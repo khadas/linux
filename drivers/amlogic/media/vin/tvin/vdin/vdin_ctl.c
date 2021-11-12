@@ -2172,7 +2172,7 @@ static inline void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 		VDIN_WRCTRLREG_PAUSE_BIT, VDIN_WRCTRLREG_PAUSE_WID);
 	/*  swap the 2 64bits word in 128 words */
 	/*if (is_meson_gxbb_cpu())*/
-	if (devp->set_canvas_manual == 1) {
+	if (devp->set_canvas_manual == 1 || devp->cfg_dma_buf) {
 		/*not swap 2 64bits words in 128 words */
 		wr_bits(offset, VDIN_WR_CTRL, 0, WORDS_SWAP_BIT, WORDS_SWAP_WID);
 		/*little endian*/
@@ -3998,6 +3998,8 @@ void vdin_set_hvscale(struct vdin_dev_s *devp)
 	if (K_FORCE_HV_SHRINK)
 		goto set_hvshrink;
 
+	pr_info("[vdin.%d] %s hactive:%u,vactive:%u.\n", devp->index,
+		__func__, devp->h_active, devp->v_active);
 	if (devp->prop.scaling4w < devp->h_active &&
 	    devp->prop.scaling4w > 0) {
 		if (devp->prehsc_en && (devp->prop.scaling4w <=
@@ -4021,6 +4023,8 @@ void vdin_set_hvscale(struct vdin_dev_s *devp)
 			vdin_set_vscale(devp);
 	}
 
+	pr_info("[vdin.%d] %s hactive:%u,vactive:%u.\n", devp->index,
+		__func__, devp->h_active, devp->v_active);
 set_hvshrink:
 
 	if ((devp->double_wr || K_FORCE_HV_SHRINK) &&

@@ -632,6 +632,7 @@ struct vdin_dev_s {
 	unsigned int afbce_mode;
 	unsigned int afbce_valid;
 
+	unsigned int cfg_dma_buf;
 	/*fot 'T correction' on projector*/
 	unsigned int set_canvas_manual;
 	unsigned int keystone_vframe_ready;
