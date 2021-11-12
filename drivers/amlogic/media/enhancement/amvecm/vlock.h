@@ -24,7 +24,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2021/0927: 1:2 input output vlock failure"
+#define VLOCK_VER "Ref.2021/1118: chg frc set max line to vlock module"
 
 #define VLOCK_REG_NUM	33
 #define VLOCK_ALL_LOCK_CNT	400
@@ -185,6 +185,12 @@ enum vlock_change {
 	VLOCK_CHG_NEED_RESET,
 };
 
+struct stvlock_frc_param {
+	u32 max_lncnt;
+	u32 max_pxcnt;
+	u32 frc_v_porch;
+};
+
 #define diff(a, b) ({ \
 	typeof(a) _a = a; \
 	typeof(b) _b = b; \
@@ -296,6 +302,8 @@ enum vlock_pll_sel {
 #define VLOCK_DEBUG_PLL2ENC_DIS (0x20)
 #define VLOCK_DEBUG_FSM_PAUSE (0x40)
 #define VLOCK_DEBUG_FORCE_ON (0x80)
+#define VLOCK_DEBUG_FLASH (0x100)
+
 #define VLOCK_DEBUG_INFO_ERR	(BIT(15))
 
 #define ENCL_SYNC_LINE_LENGTH			0x1c4c
@@ -322,6 +330,8 @@ void vlock_param_config(struct device_node *node);
 #ifdef CONFIG_AMLOGIC_LCD
 extern struct work_struct aml_lcd_vlock_param_work;
 void vlock_lcd_param_work(struct work_struct *p_work);
+void lcd_vlock_m_update(int index, unsigned int vlock_m);
+void lcd_vlock_frac_update(int index, unsigned int vlock_frac);
 #endif
 int vlock_notify_callback(struct notifier_block *block,
 			  unsigned long cmd, void *para);
@@ -331,9 +341,6 @@ void vlock_dt_match_init(struct vecm_match_data_s *pdata);
 void vlock_set_en(bool en);
 void vlock_set_phase(struct stvlock_sig_sts *vlock, u32 percent);
 void vlock_set_phase_en(struct stvlock_sig_sts *vlock, u32 en);
-
-void lcd_vlock_m_update(unsigned int vlock_m);
-void lcd_vlock_frac_update(unsigned int vlock_frac);
 int lcd_set_ss(unsigned int level, unsigned int freq, unsigned int mode);
 ssize_t vlock_debug_store(struct class *cla,
 			  struct class_attribute *attr,
@@ -342,4 +349,7 @@ ssize_t vlock_debug_show(struct class *cla,
 			 struct class_attribute *attr, char *buf);
 void vlock_clk_config(struct device *dev);
 int frc_is_on(void);
+bool vlock_get_phlock_flag(void);
+bool vlock_get_vlock_flag(void);
+int vlock_sync_frc_vporch(struct stvlock_frc_param frc_param);
 

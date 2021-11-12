@@ -33,6 +33,7 @@
 #include <linux/amlogic/media/registers/register_map.h>
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/frc/frc_reg.h>
+#include <linux/amlogic/media/amvecm/amvecm.h>
 // #include <linux/amlogic/media/frc/frc_common.h>
 
 #include "frc_drv.h"
@@ -597,6 +598,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 
 	struct frc_fw_data_s *fw_data;
 	struct frc_top_type_s *frc_top;
+	struct stvlock_frc_param frc_param;
 
 	fw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	frc_top = &fw_data->frc_top_type;
@@ -683,9 +685,19 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 		//frc_v_porch     = max_lncnt > 1800 ? max_lncnt - 1800 : frc_vporch_cal;
 		frc_v_porch = ((max_lncnt - frc_vporch_cal) <= 1950) ?
 				frc_vporch_cal : (max_lncnt - 1950);
-		vpu_reg_write(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
-		vpu_reg_write(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
-		vpu_reg_write(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));
+
+		frc_param.frc_v_porch = frc_v_porch;
+		frc_param.max_lncnt = max_lncnt;
+		frc_param.max_pxcnt = max_pxcnt;
+
+		if (vlock_sync_frc_vporch(frc_param) < 0)
+			pr_frc(0, "set maxlnct fail !!!\n");
+		else
+			pr_frc(0, "set maxlnct success!!!\n");
+
+		//vpu_reg_write(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
+		//vpu_reg_write(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
+		//vpu_reg_write(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));
 
 		pr_frc(log, "ENCL_SYNC_TO_LINE_EN=0x%x\n", vpu_reg_read(ENCL_SYNC_TO_LINE_EN));
 		pr_frc(log, "ENCL_SYNC_PIXEL_EN=0x%x\n", vpu_reg_read(ENCL_SYNC_PIXEL_EN));

@@ -30,6 +30,7 @@
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include <drm/drmP.h>
+#include <../drivers/amlogic/media/enhancement/amvecm/vlock.h>
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 bool is_dolby_vision_enable(void);
@@ -629,6 +630,7 @@ struct vecm_match_data_s {
 	u32 reg_addr_vlock;
 	u32 reg_addr_hiu;
 	u32 reg_addr_anactr;
+	u32 vlk_ctl_for_frc;/*control frc flash patch*/
 };
 
 enum vd_path_e {

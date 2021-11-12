@@ -39,8 +39,9 @@
 // frc_20211022 frc reduce clk under noframe
 // frc_20211027 frc add print alg speed-time
 // frc_20211104 frc add clkctrl workaround
+// frc_20211109 frc chg demo mode
 
-#define FRC_FW_VER			"2021-1109 frc chg demo mode"
+#define FRC_FW_VER			"2021-1118 frc chg set max line to vlock module"
 #define FRC_KERDRV_VER                  1158
 
 #define FRC_DEVNO	1
