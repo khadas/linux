@@ -5,6 +5,7 @@
 
 #ifndef __TVIN_V4L2_H
 #define __TVIN_V4L2_H
+#include <linux/dma-buf.h>
 #include "tvin.h"
 
 /*
@@ -817,10 +818,28 @@ struct vdin_v4l2_ops_s {
 	int (*start_tvin_service_ex)(int devnum, int port, struct vdin_parm_s *para);
 };
 
+#define TVIN_PIXEL_FORMAT_NUM 5
+enum tvin_pixel_format_e {
+	TVIN_PIXEL_RGB444 = 0,
+	TVIN_PIXEL_YUV422 = 1,
+	TVIN_PIXEL_UYVY444 = 2,
+	TVIN_PIXEL_NV12 = 7,
+	TVIN_PIXEL_NV21 = 8,
+	TVIN_PIXEL_FORMAT_MAX,
+};
+
+struct support_pixel_format {
+	enum tvin_pixel_format_e pixel_value[TVIN_PIXEL_FORMAT_NUM];
+};
+
 /*
  *macro defined applied to camera driver is ending
  */
 int v4l2_vdin_ops_init(struct vdin_v4l2_ops_s *vdin_v4l2p);
 struct vdin_v4l2_ops_s *get_vdin_v4l2_ops(void);
 int vdin_reg_v4l2(struct vdin_v4l2_ops_s *ops);
+int vdin_get_support_pixel_format(struct support_pixel_format *pixel_format);
+int vdin_capture_picture(struct vdin_parm_s *vdin_cap_param,
+			 struct dma_buf *cap_buf);
+int vdin_screen_get_secure_flag(bool *secure_flag);
 #endif
