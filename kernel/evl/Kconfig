@@ -235,6 +235,7 @@ if EVL_DEBUG
 
 config EVL_DEBUG_CORE
 	bool "Core runtime assertions"
+	select DOVETAIL_DEBUG
 	help
 	  This option activates various assertions inside the EVL
 	  core. This option has moderate overhead.
@@ -258,6 +259,7 @@ config EVL_DEBUG_WOLI
 
 config EVL_DEBUG_NET
 	bool "Network stack debugging"
+	select DOVETAIL_DEBUG
 	help
 	  This option activates various assertions inside the EVL
 	  network stack. This option has moderate overhead.
