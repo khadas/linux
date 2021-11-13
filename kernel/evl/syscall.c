@@ -428,27 +428,24 @@ static unsigned int collect_syscall_args(struct pt_regs *regs,
 	syscall_get_arguments(tsk, regs, args);
 
 	/*
-	 * We use __OOB_SYSCALL_BIT as a marker for EVL syscalls,
-	 * whichever call form was used to get there: i.e. legacy call
-	 * with __OOB_SYSCALL_BIT ORed into the syscall register, or
-	 * the prctl() form. At the end of the day, @nr has
-	 * __OOB_SYSCALL_BIT set if it carries an EVL syscall.
-	 */
-	if (nr & __OOB_SYSCALL_BIT)
-		return nr;
-
-	/*
-	 * Not a legacy call form, look for the prctl form, i.e:
-	 * prctl(nr | __OOB_SYSCALL_BIT, args...). If not matched,
-	 * this is an in-band syscall.
+	 * We use the __OOB_SYSCALL_BIT as a marker for EVL syscalls,
+	 * whichever call format was used to get there: i.e. legacy
+	 * call with __OOB_SYSCALL_BIT ORed into the syscall register,
+	 * or EVL requests folded into a prctl() call. At the end of
+	 * the day, @nr has __OOB_SYSCALL_BIT set if it carries an EVL
+	 * syscall.
+	 *
+	 * We accept both syscall(@nr | __OOB_SYSCALL_BIT, args...)
+	 * and prctl(@nr | __OOB_SYSCALL_BIT, args...). If none is
+	 * matched, this is an in-band syscall.
 	 */
 	if (nr != __NR_prctl || !(args[0] & __OOB_SYSCALL_BIT))
 		return nr;
 
 	/*
-	 * Reshuffle the arguments, shifting them left to skip the EVL
-	 * syscall number. In this call form, userland can pass up to
-	 * four arguments, which is just fine with us.
+	 * This is a prctl-based call. Fetch the EVL syscall number
+	 * then shift the arguments left to skip it. In this call
+	 * format, userland can pass up to four arguments.
 	 */
 	nr = args[0];
 	args[0] = args[1];
@@ -472,7 +469,7 @@ int handle_pipelined_syscall(struct irq_stage *stage, struct pt_regs *regs)
 	return do_oob_syscall(stage, regs, nr, args);
 }
 
-void handle_oob_syscall(struct pt_regs *regs)
+int handle_oob_syscall(struct pt_regs *regs)
 {
 	unsigned long args[6];
 	unsigned int nr;
@@ -481,4 +478,6 @@ void handle_oob_syscall(struct pt_regs *regs)
 	nr = collect_syscall_args(regs, args);
 	ret = do_oob_syscall(&oob_stage, regs, nr, args);
 	EVL_WARN_ON(CORE, ret == SYSCALL_PROPAGATE); /* Keep me there! */
+
+	return ret;
 }
