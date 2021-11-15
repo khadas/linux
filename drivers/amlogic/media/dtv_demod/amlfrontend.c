@@ -3398,6 +3398,16 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			 fe->dtv_property_cache.frequency,
 			 fe->dtv_property_cache.symbol_rate);
 		demod->last_lock = ilock;
+		/*add for DVBS2 QPSK 1/4 C/N worse*/
+		if (ilock == 1) {
+			if (((dvbs_rd_byte(0x932) & 0x60) == 0x40) &&
+					((dvbs_rd_byte(0x930) >> 2) == 0x1)) {
+				dvbs_wr_byte(0x991, 0x24);
+				PR_INFO("DVBS2 QPSK 1/4 set 0x991 to 0x24\n");
+			}
+		} else {
+			dvbs_wr_byte(0x991, 0x40);
+		}
 	}
 
 	return 0;

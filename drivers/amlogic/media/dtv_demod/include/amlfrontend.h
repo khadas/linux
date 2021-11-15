@@ -23,6 +23,7 @@
 /*  V1.0.30  DVBT2 no audio output after random source switch*/
 /*  V1.1.31  t5w back trunk,version fix              */
 /*  V1.1.32  dvbc frc offset optimization              */
+/*  V1.1.33  dvbs qpsk 1/4 C/N worse             */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -39,9 +40,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.32"
+#define AMLDTVDEMOD_VER "V1.1.33"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
-#define DTVDEMOD_VER	"2021/11/30: dvbc frc offset optimization"
+#define DTVDEMOD_VER	"2021/12/6: dvbs qpsk 1/4 C/N worse"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
