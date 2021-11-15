@@ -546,7 +546,9 @@ scripts_basic:
 	$(Q)rm -f .tmp_quiet_recordmcount
 	$(Q)if [ -d $(srctree)/.git/hooks ]; then \
 		cp $(srctree)/scripts/amlogic/pre-commit $(srctree)/.git/hooks/; \
+		cp $(srctree)/scripts/amlogic/commit-msg $(srctree)/.git/hooks/; \
 		chmod +x $(srctree)/.git/hooks/pre-commit; \
+		chmod +x $(srctree)/.git/hooks/commit-msg; \
 	fi
 #$(Q)mkdir -p $(srctree)/.git/hooks
 
