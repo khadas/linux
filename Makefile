@@ -638,7 +638,11 @@ export RCS_TAR_IGNORE := --exclude SCCS --exclude BitKeeper --exclude .svn \
 PHONY += scripts_basic
 scripts_basic:
 	$(Q)$(MAKE) $(build)=scripts/basic
-
+	$(Q)rm -f .tmp_quiet_recordmcount
+	$(Q)if [ -d $(srctree)/.git/hooks ]; then \
+		cp $(srctree)/scripts/commit-msg $(srctree)/.git/hooks/; \
+		chmod +x $(srctree)/.git/hooks/commit-msg; \
+	fi
 PHONY += outputmakefile
 ifdef building_out_of_srctree
 # Before starting out-of-tree build, make sure the source tree is clean.
