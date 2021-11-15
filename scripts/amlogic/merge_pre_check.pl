@@ -117,7 +117,7 @@ sub dts_check
 {
 	my @dts_path = @_;
 	my $dts_diff = "";
-	my $diff = `git diff  --name-only @dts_path | grep  -E *dts`;
+	my $diff = `git diff  --name-only @dts_path | grep -E *dts\$`;
 	if (!$diff)
 	{
 		return 0;
@@ -204,6 +204,18 @@ sub dts_check
 	}
 }
 
+sub check_dtsi
+{
+	my $file = `git diff  --name-only  | grep -E *dtsi\$`;
+	my $arm_dts_num = () = ($file =~ /arch\/arm\/boot\/dts\/amlogic/g);
+	my $arm64_dts_num = () = ($file =~ /arch\/arm64\/boot\/dts\/amlogic/g);
+
+	if( $arm_dts_num != $arm64_dts_num )
+	{
+		$err_cnt += 1;
+		$err_msg .= "	$err_cnt: maybe should modify dtsi in both arm and arm64\n";
+	}
+}
 
 # check module_param number
 sub check_module_param
@@ -452,6 +464,7 @@ my $err_msg_p = "\nCommit Pre check failed. Total $err_cnt errors.\n";
 check_defconfig();
 dts_check($arm64_dts);
 dts_check($arm_dts);
+check_dtsi();
 
 #check_module_param
 check_module_param();
