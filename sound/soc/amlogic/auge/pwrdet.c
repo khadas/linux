@@ -48,7 +48,7 @@ static int pwrdet_request_irq(struct aml_pwrdet *p_pwrdet)
 	ret = request_irq(p_pwrdet->irq, pwrdet_isr_handler,
 			  IRQF_SHARED, "power-detect", p_pwrdet);
 	if (ret) {
-		pr_err("failed to claim irq %u\n", p_pwrdet->irq);
+		pr_err("failed to claim irq %u, ret: %d\n", p_pwrdet->irq, ret);
 		return ret;
 	}
 

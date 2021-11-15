@@ -1037,7 +1037,7 @@ static int register_audio_exception64_isr(int irq_exception64)
 			  NULL);
 
 	if (ret)
-		pr_err("failed claim irq_exception64 %u\n", irq_exception64);
+		pr_err("failed claim irq_exception64 %u, ret: %d\n", irq_exception64, ret);
 
 	return ret;
 }

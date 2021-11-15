@@ -1042,8 +1042,8 @@ static int aml_spdif_open(struct snd_pcm_substream *substream)
 				aml_spdifin_status_isr, 0, "irq_spdifin",
 				p_spdif);
 		if (ret) {
-			dev_err(p_spdif->dev, "failed to claim irq_spdifin %u\n",
-						p_spdif->irq_spdifin);
+			dev_err(p_spdif->dev, "failed to claim irq_spdifin %u, ret: %d\n",
+						p_spdif->irq_spdifin, ret);
 			goto err_irq;
 		}
 	}

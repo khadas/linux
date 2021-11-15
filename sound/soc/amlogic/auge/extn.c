@@ -269,14 +269,14 @@ static int extn_open(struct snd_pcm_substream *substream)
 			goto err_ddr;
 		}
 
-		if (toddr_src_get() == FRHDMIRX && !p_extn->irq_on) {
+		if (toddr_src_get() == FRHDMIRX) {
 			ret = request_irq(p_extn->irq_frhdmirx,
 					frhdmirx_isr, IRQF_SHARED,
 					"irq_frhdmirx", p_extn);
 			if (ret) {
 				ret = -ENXIO;
-				dev_err(p_extn->dev, "failed to claim irq_frhdmirx %u\n",
-							p_extn->irq_frhdmirx);
+				dev_err(p_extn->dev, "failed to claim irq_frhdmirx %u, ret: %d\n",
+							p_extn->irq_frhdmirx, ret);
 				goto err_irq;
 			}
 			p_extn->irq_on = true;
@@ -306,7 +306,7 @@ static int extn_close(struct snd_pcm_substream *substream)
 	} else {
 		aml_audio_unregister_toddr(p_extn->dev, substream);
 
-		if (toddr_src_get() == FRHDMIRX && p_extn->irq_on) {
+		if (p_extn->irq_on) {
 			frhdmirx_nonpcm2pcm_clr_reset(p_extn);
 			frhdmirx_clr_all_irq_bits(p_extn->frhdmirx_version);
 			free_irq(p_extn->irq_frhdmirx, p_extn);

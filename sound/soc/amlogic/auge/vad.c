@@ -501,8 +501,8 @@ static int vad_init(struct vad *p_vad)
 			vad_wakeup_isr, flag, "vad_wakeup",
 			p_vad);
 	if (ret) {
-		dev_err(p_vad->dev, "failed to claim irq_wakeup %u\n",
-					p_vad->irq_wakeup);
+		dev_err(p_vad->dev, "failed to claim irq_wakeup %u, ret: %d\n",
+					p_vad->irq_wakeup, ret);
 		return -ENXIO;
 	}
 
@@ -510,8 +510,8 @@ static int vad_init(struct vad *p_vad)
 			vad_fs_isr, 0, "vad_fs",
 			p_vad);
 	if (ret) {
-		dev_err(p_vad->dev, "failed to claim irq_fs %u\n",
-					p_vad->irq_fs);
+		dev_err(p_vad->dev, "failed to claim irq_fs %u, ret: %d\n",
+					p_vad->irq_fs, ret);
 		return -ENXIO;
 	}
 
