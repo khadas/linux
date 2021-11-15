@@ -493,6 +493,7 @@ struct video_composer_private {
 	u32 index;
 	u32 flag; /*if  & VC_FLAG_AI_SR, and VPP will get AI_SR_out*/
 	struct vf_nn_sr_t *srout_data;
+	struct vframe_s *src_vf;
 };
 
 struct vframe_s {

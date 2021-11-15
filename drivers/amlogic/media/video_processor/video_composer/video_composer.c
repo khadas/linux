@@ -437,6 +437,7 @@ static void vc_private_q_init(struct composer_dev *dev)
 		dev->vc_private[i].index = i;
 		dev->vc_private[i].flag = 0;
 		dev->vc_private[i].srout_data = NULL;
+		dev->vc_private[i].src_vf = NULL;
 		if (!kfifo_put(&dev->vc_private_q, &dev->vc_private[i]))
 			vc_print(dev->index, PRINT_ERROR,
 				"q_init: vc_private_q is full!\n");
@@ -451,6 +452,7 @@ static void vc_private_q_recycle(struct composer_dev *dev,
 
 	vc_private->flag = 0;
 	vc_private->srout_data = NULL;
+	vc_private->src_vf = NULL;
 	if (!kfifo_put(&dev->vc_private_q, vc_private))
 		vc_print(dev->index, PRINT_ERROR,
 			"vc_private_q is full!\n");
@@ -467,6 +469,7 @@ static struct video_composer_private *vc_private_q_pop(struct composer_dev *dev)
 	} else {
 		vc_private->flag = 0;
 		vc_private->srout_data = NULL;
+		vc_private->src_vf = NULL;
 	}
 
 	return vc_private;
@@ -1843,6 +1846,7 @@ static void video_composer_task(struct composer_dev *dev)
 						vc_private->flag |= VC_FLAG_AI_SR;
 					}
 				}
+				vc_private->src_vf = vd_prepare->src_frame;
 				vf->vc_private = vc_private;
 			}
 			dev->last_file = file_vf;

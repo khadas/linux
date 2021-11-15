@@ -3861,7 +3861,8 @@ bool tvin_vf_disp_mode_check(struct vframe_s *vf)
 	char *provider_name = NULL;
 
 	if (!vf || !(vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
-		     vf->source_type == VFRAME_SOURCE_TYPE_CVBS))
+		     vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		     vf->source_type == VFRAME_SOURCE_TYPE_TUNER))
 		return true;
 
 	if (vf->flag & VFRAME_FLAG_KEEPED)
@@ -4776,6 +4777,34 @@ u32 get_tvin_delay_min_ms(void)
 	return hdmin_delay_min_ms;
 }
 EXPORT_SYMBOL(get_tvin_delay_min_ms);
+
+static bool tvin_vf_is_keeped(struct vframe_s *vf)
+{
+	struct vframe_s *src_vf;
+
+	if (!vf)
+		return false;
+
+	if (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+		vf->source_type != VFRAME_SOURCE_TYPE_CVBS &&
+		vf->source_type != VFRAME_SOURCE_TYPE_TUNER)
+		return false;
+
+	if (!(vf->flag & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS))
+		return false;
+
+	if (!vf->vc_private)
+		return false;
+
+	src_vf = vf->vc_private->src_vf;
+	if (!src_vf)
+		return false;
+
+	if (src_vf->flag & VFRAME_FLAG_KEEPED)
+		return true;
+
+	return false;
+}
 
 /*ret = 0: no need delay*/
 /*ret = 1: need to delay*/
@@ -7563,15 +7592,13 @@ SET_FILTER:
 		path3_new_frame =
 			gvideo_recv[0]->func->dequeue_frame(gvideo_recv[0]);
 		if (path3_new_frame &&
-			path3_new_frame->flag & VFRAME_FLAG_KEEPED) {
+			tvin_vf_is_keeped(path3_new_frame)) {
 			new_frame_count = 0;
 		} else if (path3_new_frame) {
 			new_frame_count = gvideo_recv[0]->frame_count;
 			hdmi_in_delay_maxmin_new(path3_new_frame);
 		} else if (gvideo_recv[0]->cur_buf) {
-			vf = gvideo_recv[0]->cur_buf;
-			source_type = vf->flag;
-			if (source_type & VFRAME_FLAG_KEEPED)
+			if (tvin_vf_is_keeped(gvideo_recv[0]->cur_buf))
 				new_frame_count = 0;
 		}
 
@@ -8119,11 +8146,12 @@ SET_FILTER:
 	/* TODO: need check more vd layer, now only vd1 */
 	if (vd_layer[0].dispbuf &&
 		(atomic_read(&vt_unreg_flag) ||
-		vd_layer[0].dispbuf->flag & VFRAME_FLAG_KEEPED)) {
+		tvin_vf_is_keeped(vd_layer[0].dispbuf))) {
 		source_type = vd_layer[0].dispbuf->source_type;
 		/* TODO: change new flag to detect video tunnel path */
 		if (source_type == VFRAME_SOURCE_TYPE_HDMI ||
-		    source_type == VFRAME_SOURCE_TYPE_CVBS) {
+		    source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		    source_type == VFRAME_SOURCE_TYPE_TUNER) {
 			if (!vd_layer[0].force_disable) {
 				safe_switch_videolayer(0, false, true);
 				atomic_set(&vt_disable_video_done, 0);
