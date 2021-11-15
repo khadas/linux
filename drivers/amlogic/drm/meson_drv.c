@@ -427,7 +427,7 @@ static void am_meson_load_logo(struct drm_device *dev)
 	DRM_ERROR("mode private flag %x\n", mode->private_flags);
 
 	connector_set[0] = connector;
-	set.crtc = private->crtc;
+	set.crtc = &private->crtcs[0]->base;
 	set.x = 0;
 	set.y = 0;
 	set.mode = mode;

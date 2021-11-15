@@ -8,6 +8,30 @@
 #include <drm/drm_atomic_helper.h>
 #include "meson_vpu_pipeline.h"
 #include "meson_drv.h"
+#include "meson_crtc.h"
+#include "meson_plane.h"
+
+static int get_attached_crtc_index(int osd_index,
+			struct drm_atomic_state *state)
+{
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	struct drm_crtc *crtc;
+	struct am_meson_crtc *amc;
+	struct meson_drm *priv = state->dev->dev_private;
+
+	plane = &priv->osd_planes[osd_index]->base;
+	plane_state = drm_atomic_get_plane_state(state, plane);
+
+	crtc = plane_state->crtc;
+
+	if (crtc) {
+		amc = to_am_meson_crtc(crtc);
+		return amc->crtc_index;
+	}
+
+	return -EINVAL;
+}
 
 static void stack_init(struct meson_vpu_stack *mvs)
 {
@@ -550,15 +574,23 @@ int vpu_video_pipeline_check_block(struct meson_vpu_pipeline_state *mvps,
 void vpu_pipeline_enable_block(int *combination, int num_planes,
 			       struct meson_vpu_pipeline_state *mvps)
 {
-	int i, j, osd_index;
+	int i, j, osd_index, crtc_index;
 	struct meson_vpu_traverse *mvt;
 	struct meson_vpu_block **mvb;
 	struct meson_vpu_block *block;
+	struct meson_vpu_sub_pipeline_state *sub_state;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (!mvps->plane_info[i].enable)
 			continue;
 		osd_index = mvps->plane_index[i];
+		crtc_index = get_attached_crtc_index(osd_index,
+					mvps->obj.state);
+		if (crtc_index == -EINVAL) {
+			DRM_ERROR("%s, overbound crtc index\n", __func__);
+			crtc_index = 0;
+		}
+		sub_state = &mvps->sub_states[crtc_index];
 		mvt = &mvps->osd_traverse[osd_index];
 		mvb = mvt->path[combination[i]];
 
@@ -566,7 +598,7 @@ void vpu_pipeline_enable_block(int *combination, int num_planes,
 			block = mvb[j];
 			if (!block)
 				break;
-			mvps->enable_blocks |= BIT(block->id);
+			sub_state->enable_blocks |= BIT(block->id);
 		}
 	}
 	/*TODO*/
@@ -683,15 +715,13 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 			  struct drm_atomic_state *state)
 {
-	int i, osd_index, ret;
+	int i, osd_index, crtc_index, ret;
 	int num_planes;
 	struct meson_vpu_block *start, *end;
 	int path[MESON_MAX_OSDS] = {0};
 	struct meson_vpu_pipeline *mvp = mvps->pipeline;
 
-	end = &mvp->postblend->base;
 	num_planes = mvps->num_plane;
-
 	if (!num_planes)
 		return 0;
 
@@ -700,7 +730,14 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 		if (!mvps->plane_info[i].enable)
 			continue;
 		osd_index = mvps->plane_index[i];
+		crtc_index = get_attached_crtc_index(osd_index, state);
+		if (crtc_index == -EINVAL) {
+			DRM_ERROR("%s, overbound crtc index\n", __func__);
+			crtc_index = 0;
+		}
+
 		start = &mvp->osds[osd_index]->base;
+		end = &mvp->postblends[crtc_index]->base;
 		DRM_DEBUG("do pipeline_dfs: OSD%d.\n", (osd_index + 1));
 		pipeline_dfs(osd_index, mvps, start, end, state);
 	}

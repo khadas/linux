@@ -21,9 +21,9 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/vfm/vfm_ext.h>
 
-#define MESON_MAX_CRTC		2
+#define MESON_MAX_CRTC		3
 #define MESON_MAX_OSD		4
-#define MESON_MAX_VIDEO		2
+#define MESON_MAX_VIDEO		3
 
 struct meson_drm_thread {
 	struct kthread_worker worker;
@@ -45,7 +45,6 @@ struct meson_drm {
 	struct device *dev;
 
 	struct drm_device *drm;
-	struct drm_crtc *crtc;
 	struct drm_plane *primary_plane;
 	struct drm_plane *cursor_plane;
 	struct drm_property_blob *gamma_lut_blob;
