@@ -1177,7 +1177,8 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf)
 	READ_VPP_REG_BITS(VI_DNLP_HIST31,
 			  VI_HIST_ON_BIN_63_BIT, VI_HIST_ON_BIN_63_WID);
 
-	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3) {
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T5W) {
 		vf->fmeter0_hcnt[0] =
 		READ_VPP_REG(SRSHARP0_RO_FMETER_HCNT_TYPE0);
 		vf->fmeter0_hcnt[1] =
@@ -1471,13 +1472,14 @@ void amvecm_fmeter_process(struct vframe_s *vf)
 
 		VSYNC_WRITE_VPP_REG(SRSHARP0_PK_CON_2CIRBPGAIN_LIMIT, val);
 
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3) {
+			reg_val = READ_VPP_REG(NN_ADP_CORING);
+			reg_val &= ~(0xff << 8);
+			val = reg_val |
+				((nn_coring[cur_sr_level] & 0xff) << 8);
 
-		reg_val = READ_VPP_REG(NN_ADP_CORING);
-		reg_val &= ~(0xff << 8);
-		val = reg_val |
-			((nn_coring[cur_sr_level] & 0xff) << 8);
-
-		VSYNC_WRITE_VPP_REG(NN_ADP_CORING, val);
+			VSYNC_WRITE_VPP_REG(NN_ADP_CORING, val);
+		}
 	}
 	pre_fmeter_level = cur_fmeter_level;
 }
@@ -1882,7 +1884,8 @@ int amvecm_on_vs(struct vframe_s *vf,
 			amvecm_size_patch(cm_in_w, cm_in_h);
 			/*1080i pulldown combing workaround*/
 			amvecm_dejaggy_patch(toggle_vf);
-			if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3) {
+			if ((get_cpu_type() == MESON_CPU_MAJOR_ID_T3) ||
+				(get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)) {
 				/*frequence meter size config*/
 				amve_fmetersize_config(vf->width, vf->height,
 					sps_w_in, sps_h_in);
@@ -9313,7 +9316,8 @@ tvchip_pq_setting:
 		lc_init(bitdepth);
 
 		/*frequence meter init*/
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+			get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
 			amve_fmeter_init(fmeter_en);
 
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))

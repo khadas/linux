@@ -2399,7 +2399,7 @@ void amve_fmetersize_config(u32 sr0_w, u32 sr0_h, u32 sr1_w, u32 sr1_h)
 		fm1_y_end == pre_fm1_y_end)
 		return;
 
-	if ((fmeter_en) && (get_cpu_type() == MESON_CPU_MAJOR_ID_T3)) {
+	if (fmeter_en) {
 		VSYNC_WRITE_VPP_REG(SRSHARP0_FMETER_WIN_HOR,
 			fm0_x_st | fm0_x_end << 16);
 		VSYNC_WRITE_VPP_REG(SRSHARP0_FMETER_WIN_VER,
