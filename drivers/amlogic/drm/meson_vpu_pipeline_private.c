@@ -481,10 +481,13 @@ int meson_vpu_block_state_init(struct meson_drm *private,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < pipeline->num_osds; i++) {
-		ret = meson_vpu_osd_state_init(private, pipeline->osds[i]);
-		if (ret)
-			return ret;
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (pipeline->osds[i]) {
+			ret = meson_vpu_osd_state_init(private,
+						       pipeline->osds[i]);
+			if (ret)
+				return ret;
+		}
 	}
 
 	for (i = 0; i < pipeline->num_video; i++) {
@@ -511,13 +514,18 @@ int meson_vpu_block_state_init(struct meson_drm *private,
 	if (ret)
 		return ret;
 
-	ret = meson_vpu_hdr_state_init(private, pipeline->hdr);
-	if (ret)
-		return ret;
+	for (i = 0; i < pipeline->num_hdrs; i++) {
+		ret = meson_vpu_hdr_state_init(private, pipeline->hdrs[i]);
+		if (ret)
+			return ret;
+	}
 
-	ret = meson_vpu_postblend_state_init(private, pipeline->postblend);
-	if (ret)
-		return ret;
+	for (i = 0; i < pipeline->num_postblend; i++) {
+		ret = meson_vpu_postblend_state_init(private,
+				pipeline->postblends[i]);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }

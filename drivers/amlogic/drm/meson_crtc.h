@@ -41,10 +41,12 @@ struct am_meson_crtc_state {
 
 struct am_meson_crtc {
 	struct drm_crtc base;
+	struct device *dev;
 	struct drm_device *drm_dev;
 	struct meson_drm *priv;
 
 	unsigned int irq;
+	int crtc_index;
 	struct drm_pending_vblank_event *event;
 	struct meson_vpu_pipeline *pipeline;
 
@@ -70,6 +72,7 @@ struct am_meson_crtc {
 		struct am_meson_crtc_state, base)
 
 int am_meson_crtc_create(struct am_meson_crtc *amcrtc);
+int am_meson_crtcs_add(struct meson_drm *private, struct device *dev);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 void set_dolby_vision_policy(int policy);

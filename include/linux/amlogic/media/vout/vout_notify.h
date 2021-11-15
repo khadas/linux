@@ -156,6 +156,10 @@ int set_vframe2_rate_policy(int policy);
 int get_vframe2_rate_policy(void);
 void set_vout2_bist(unsigned int bist);
 
+enum vmode_e validate_vmode2(char *name, unsigned int frac);
+void set_vout2_init(enum vmode_e mode);
+void update_vout2_viu(void);
+
 #else
 static inline int vout2_register_client(struct notifier_block *p)
 {

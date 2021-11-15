@@ -201,19 +201,22 @@ meson_vpu_create_block(struct meson_vpu_block_para *para,
 		blk_size = sizeof(struct meson_vpu_hdr);
 		mvb = create_block(blk_size, para, &hdr_ops, pipeline);
 
-		pipeline->hdr = to_hdr_block(mvb);
+		pipeline->hdrs[mvb->index] = to_hdr_block(mvb);
+		pipeline->num_hdrs++;
 		break;
 	case MESON_BLK_DOVI:
 		blk_size = sizeof(struct meson_vpu_dolby);
 		mvb = create_block(blk_size, para, &dolby_ops, pipeline);
 
-		pipeline->dolby = to_dolby_block(mvb);
+		pipeline->dolbys[mvb->index] = to_dolby_block(mvb);
+		pipeline->num_dolbys++;
 		break;
 	case MESON_BLK_VPPBLEND:
 		blk_size = sizeof(struct meson_vpu_postblend);
 		mvb = create_block(blk_size, para, &postblend_ops, pipeline);
 
-		pipeline->postblend = to_postblend_block(mvb);
+		pipeline->postblends[mvb->index] = to_postblend_block(mvb);
+		pipeline->num_postblend++;
 		break;
 	case MESON_BLK_VIDEO:
 		blk_size = sizeof(struct meson_vpu_video);
@@ -255,6 +258,7 @@ static void populate_block_link(void)
 static int populate_vpu_pipeline(struct device_node *vpu_block_node,
 				 struct meson_vpu_pipeline *pipeline)
 {
+	int i;
 	struct device_node *child_node;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_para para;
@@ -285,6 +289,11 @@ static int populate_vpu_pipeline(struct device_node *vpu_block_node,
 
 	populate_block_link();
 
+	for (i = 0; i < MESON_MAX_CRTC; i++) {
+		pipeline->subs[i].index = i;
+		pipeline->subs[i].pipeline = pipeline;
+	}
+
 	return 0;
 }
 
@@ -304,11 +313,13 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 				     struct meson_vpu_pipeline_state *mvps)
 {
 	u8 i;
+	int crtc_index;
+	struct meson_vpu_sub_pipeline_state *mvsps;
 
 	mvps->num_plane = 0;
 	mvps->num_plane_video = 0;
-	mvps->enable_blocks = 0;
-	for (i = 0; i < pipeline->num_osds; i++) {
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (mvps->plane_info[i].enable) {
 			if (mvps->plane_info[i].src_w >
 				MESON_OSD_INPUT_W_LIMIT ||
@@ -327,9 +338,15 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 			DRM_DEBUG("osdplane indx [%d] disable.\n", i);
 		}
 	}
+
+	for (i = 0; i < MESON_MAX_CRTC; i++)
+		mvps->sub_states[i].enable_blocks = 0;
+
 	for (i = 0; i < pipeline->num_video; i++) {
 		if (mvps->video_plane_info[i].enable) {
-			mvps->enable_blocks |=
+			crtc_index = mvps->video_plane_info[i].crtc_index;
+			mvsps = &mvps->sub_states[crtc_index];
+			mvsps->enable_blocks |=
 				BIT(pipeline->video[i]->base.id);
 			mvps->num_plane_video++;
 			DRM_DEBUG("video[%d]-id=%d\n", i,
@@ -402,8 +419,10 @@ void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
 {
 	int i;
 
-	for (i = 0; i < pipeline->num_osds; i++)
-		VPU_PIPELINE_HW_INIT(&pipeline->osds[i]->base);
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (pipeline->osds[i])
+			VPU_PIPELINE_HW_INIT(&pipeline->osds[i]->base);
+	}
 
 	for (i = 0; i < pipeline->num_video; i++)
 		VPU_PIPELINE_HW_INIT(&pipeline->video[i]->base);
@@ -416,17 +435,21 @@ void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
 
 	VPU_PIPELINE_HW_INIT(&pipeline->osdblend->base);
 
-	VPU_PIPELINE_HW_INIT(&pipeline->hdr->base);
+	for (i = 0; i < pipeline->num_hdrs; i++)
+		VPU_PIPELINE_HW_INIT(&pipeline->hdrs[i]->base);
 
-	VPU_PIPELINE_HW_INIT(&pipeline->postblend->base);
+	for (i = 0; i < pipeline->num_postblend; i++)
+		VPU_PIPELINE_HW_INIT(&pipeline->postblends[i]->base);
 }
 
 void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline)
 {
 	int i;
 
-	for (i = 0; i < pipeline->num_osds; i++)
-		VPU_PIPELINE_HW_FINI(&pipeline->osds[i]->base);
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (pipeline->osds[i])
+			VPU_PIPELINE_HW_FINI(&pipeline->osds[i]->base);
+	}
 
 	for (i = 0; i < pipeline->num_video; i++)
 		VPU_PIPELINE_HW_FINI(&pipeline->video[i]->base);
@@ -439,35 +462,42 @@ void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline)
 
 	VPU_PIPELINE_HW_FINI(&pipeline->osdblend->base);
 
-	VPU_PIPELINE_HW_FINI(&pipeline->hdr->base);
+	for (i = 0; i < pipeline->num_hdrs; i++)
+		VPU_PIPELINE_HW_FINI(&pipeline->hdrs[i]->base);
 
-	VPU_PIPELINE_HW_FINI(&pipeline->postblend->base);
+	for (i = 0; i < pipeline->num_postblend; i++)
+		VPU_PIPELINE_HW_FINI(&pipeline->postblends[i]->base);
 }
 /*
  * Start of Roku async update func implement
  */
-int vpu_pipeline_video_update(struct meson_vpu_pipeline *pipeline,
+int vpu_pipeline_video_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			struct drm_atomic_state *old_state)
 {
+	int crtc_index;
 	unsigned long id;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs;
 	struct meson_vpu_pipeline_state *new_mvps;
+	struct meson_vpu_sub_pipeline_state *new_mvsps;
 	unsigned long affected_blocks = 0;
+	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
 
+	crtc_index = sub_pipeline->index;
 	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
+	new_mvsps = &new_mvps->sub_states[crtc_index];
 
 	#ifdef MESON_DRM_VERSION_V0
 	meson_vpu_pipeline_atomic_backup_state(new_mvps);
 	#endif
-	affected_blocks = new_mvps->enable_blocks;
+	affected_blocks = new_mvsps->enable_blocks;
 	for_each_set_bit(id, &affected_blocks, 32) {
 		mvb = vpu_blocks[id];
 		if (mvb->type != MESON_BLK_VIDEO)
 			continue;
 
 		mvbs = priv_to_block_state(mvb->obj.state);
-		if (new_mvps->enable_blocks & BIT(id)) {
+		if (new_mvsps->enable_blocks & BIT(id)) {
 			mvb->ops->update_state(mvb, mvbs);
 			mvb->ops->enable(mvb);
 		} else {
@@ -478,24 +508,29 @@ int vpu_pipeline_video_update(struct meson_vpu_pipeline *pipeline,
 	return 0;
 }
 
-int vpu_pipeline_osd_update(struct meson_vpu_pipeline *pipeline,
+int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			struct drm_atomic_state *old_state)
 {
 #ifdef CONFIG_DEBUG_FS
 	int i;
 #endif
+	int crtc_index;
 	unsigned long id;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs;
 	struct meson_vpu_pipeline_state *new_mvps;
+	struct meson_vpu_sub_pipeline_state *new_mvsps;
+	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
 	unsigned long affected_blocks = 0;
 
+	crtc_index = sub_pipeline->index;
 	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
+	new_mvsps = &new_mvps->sub_states[crtc_index];
 
 	#ifdef MESON_DRM_VERSION_V0
 	meson_vpu_pipeline_atomic_backup_state(new_mvps);
 	#endif
-	affected_blocks = new_mvps->enable_blocks;
+	affected_blocks = new_mvsps->enable_blocks;
 	for_each_set_bit(id, &affected_blocks, 32) {
 		mvb = vpu_blocks[id];
 		/*TODO: we may need also update other blocks on newer soc.*/
@@ -503,7 +538,7 @@ int vpu_pipeline_osd_update(struct meson_vpu_pipeline *pipeline,
 			continue;
 
 		mvbs = priv_to_block_state(mvb->obj.state);
-		if (new_mvps->enable_blocks & BIT(id)) {
+		if (new_mvsps->enable_blocks & BIT(id)) {
 			mvb->ops->update_state(mvb, mvbs);
 			mvb->ops->enable(mvb);
 		} else {
@@ -525,23 +560,30 @@ int vpu_pipeline_osd_update(struct meson_vpu_pipeline *pipeline,
 
 //end of Roku async update func implement
 
-int vpu_video_plane_update(struct meson_vpu_pipeline *pipeline,
+int vpu_video_plane_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			struct drm_atomic_state *old_state, int plane_index)
 {
+	int crtc_index;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs;
 	struct meson_vpu_pipeline_state *old_mvps, *new_mvps;
+	struct meson_vpu_sub_pipeline_state *old_mvsps, *new_mvsps;
+	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
 	struct meson_vpu_video *mvv = pipeline->video[plane_index];
 	unsigned long affected_blocks = 0;
 
+	crtc_index = sub_pipeline->index;
 	mvb = &mvv->base;
 	mvbs = priv_to_block_state(mvb->obj.state);
 	old_mvps = meson_vpu_pipeline_get_state(pipeline, old_state);
 	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
-	affected_blocks = old_mvps->enable_blocks | new_mvps->enable_blocks;
+	old_mvsps = &old_mvps->sub_states[crtc_index];
+	new_mvsps = &new_mvps->sub_states[crtc_index];
+
+	affected_blocks = old_mvsps->enable_blocks | new_mvsps->enable_blocks;
 
 	if (affected_blocks & BIT(mvb->id)) {
-		if (new_mvps->enable_blocks & BIT(mvb->id)) {
+		if (new_mvsps->enable_blocks & BIT(mvb->id)) {
 			mvb->ops->update_state(mvb, mvbs);
 			mvb->ops->enable(mvb);
 		} else {
@@ -553,32 +595,39 @@ int vpu_video_plane_update(struct meson_vpu_pipeline *pipeline,
 }
 
 /* maybe use graph traverse is a good choice */
-int vpu_osd_pipeline_update(struct meson_vpu_pipeline *pipeline,
+int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			struct drm_atomic_state *old_state)
 {
 #ifdef CONFIG_DEBUG_FS
 	int i;
 #endif
+
+	int crtc_index;
 	unsigned long id;
 	struct meson_vpu_block *mvb;
 	struct meson_vpu_block_state *mvbs;
 	struct meson_vpu_pipeline_state *old_mvps, *new_mvps;
+	struct meson_vpu_sub_pipeline_state *old_mvsps, *new_mvsps;
+	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
 	unsigned long affected_blocks = 0;
 
+	crtc_index = sub_pipeline->index;
 	old_mvps = meson_vpu_pipeline_get_state(pipeline, old_state);
 	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
+	old_mvsps = &old_mvps->sub_states[crtc_index];
+	new_mvsps = &new_mvps->sub_states[crtc_index];
 	new_mvps->global_afbc = 0;
 
 	DRM_DEBUG("old_enable_blocks: 0x%llx - %p, new_enable_blocks: 0x%llx - %p.\n",
-		  old_mvps->enable_blocks, old_mvps,
-		  new_mvps->enable_blocks, new_mvps);
+		  old_mvsps->enable_blocks, old_mvsps,
+		  new_mvsps->enable_blocks, new_mvsps);
 
 	arm_fbc_check_error();
 
 	#ifdef MESON_DRM_VERSION_V0
 	meson_vpu_pipeline_atomic_backup_state(new_mvps);
 	#endif
-	affected_blocks = old_mvps->enable_blocks | new_mvps->enable_blocks;
+	affected_blocks = old_mvsps->enable_blocks | new_mvsps->enable_blocks;
 	for_each_set_bit(id, &affected_blocks, 32) {
 		mvb = vpu_blocks[id];
 		if (mvb->type == MESON_BLK_VIDEO)
@@ -586,7 +635,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_pipeline *pipeline,
 
 		mvbs = priv_to_block_state(mvb->obj.state);
 
-		if (new_mvps->enable_blocks & BIT(id)) {
+		if (new_mvsps->enable_blocks & BIT(id)) {
 			mvb->ops->update_state(mvb, mvbs);
 			mvb->ops->enable(mvb);
 		} else {
@@ -629,6 +678,7 @@ int vpu_topology_init(struct platform_device *pdev, struct meson_drm *priv)
 
 	populate_vpu_pipeline(vpu_block_node, pipeline);
 	priv->pipeline = pipeline;
+	pipeline->priv = priv;
 	of_node_put(vpu_block_node);
 	of_node_put(child);
 

@@ -89,6 +89,11 @@ void meson_drm_write_reg(u32 addr, u32 val)
 	aml_write_vcbus(addr, val);
 }
 
+void meson_drm_write_reg_bits(u32 addr, u32 val, u32 start, u32 len)
+{
+	aml_vcbus_update_bits(addr, ((1 << len) - 1) << start, val << start);
+}
+
 /** canvas config  **/
 
 void meson_drm_canvas_config(u32 index, unsigned long addr, u32 width,

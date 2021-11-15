@@ -493,16 +493,18 @@ static int osd_check_state(struct meson_vpu_block *vblk,
 	mvos->blend_bypass = plane_info->blend_bypass;
 	mvos->plane_index = plane_info->plane_index;
 	mvos->global_alpha = plane_info->global_alpha;
+	mvos->crtc_index = plane_info->crtc_index;
 	return 0;
 }
 
 static void osd_set_state(struct meson_vpu_block *vblk,
 			  struct meson_vpu_block_state *state)
 {
-	struct drm_crtc *crtc;
-	struct am_meson_crtc *amc;
 	struct meson_vpu_osd *osd;
 	struct meson_vpu_osd_state *mvos;
+	struct meson_vpu_pipeline_state *mvps;
+	struct meson_vpu_pipeline *pipe;
+	int crtc_index;
 	u32 pixel_format, canvas_index, src_h, byte_stride;
 	struct osd_scope_s scope_src = {0, 1919, 0, 1079};
 	struct osd_mif_reg_s *reg;
@@ -510,6 +512,8 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	u64 phy_addr;
 	u16 global_alpha = 256; /*range 0~256*/
 
+	pipe = vblk->pipeline;
+	mvps = priv_to_pipeline_state(pipe->obj.state);
 
 	if (!vblk || !state) {
 		DRM_DEBUG("set_state break for NULL.\n");
@@ -518,20 +522,13 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 
 	osd = to_osd_block(vblk);
 	mvos = to_osd_state(state);
+	crtc_index = mvos->crtc_index;
 
 	reg = osd->reg;
 	if (!reg) {
 		DRM_DEBUG("set_state break for NULL OSD mixer reg.\n");
 		return;
 	}
-
-	crtc = vblk->pipeline->crtc;
-	if (!crtc) {
-		DRM_DEBUG("set_state break for NULL crtc.\n");
-		return;
-	}
-
-	amc = to_am_meson_crtc(crtc);
 
 	DRM_DEBUG("%s - %d %s called.\n", osd->base.name, vblk->index, __func__);
 
@@ -567,7 +564,7 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	osd_afbc_config(reg, vblk->index, afbc_en);
 	osd_premult_enable(reg, alpha_div_en);
 	osd_global_alpha_set(reg, global_alpha);
-	osd_scan_mode_config(reg, vblk->pipeline->mode.flags &
+	osd_scan_mode_config(reg, pipe->subs[crtc_index].mode.flags &
 				 DRM_MODE_FLAG_INTERLACE);
 	ods_hold_line_config(reg, osd_hold_line);
 

@@ -129,7 +129,8 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 		cstate->crtc_hdr_enable);
 
 	drm_printf(p, "\tmeson vpu pipeline state:\n");
-	drm_printf(p, "\t\tenable_blocks=%llu\n", mvps->enable_blocks);
+	drm_printf(p, "\t\tenable_blocks=%llu\n",
+		mvps->sub_states[meson_crtc->crtc_index].enable_blocks);
 	drm_printf(p, "\t\tnum_plane=%u\n", mvps->num_plane);
 	drm_printf(p, "\t\tnum_plane_video=%u\n", mvps->num_plane_video);
 	drm_printf(p, "\t\tglobal_afbc=%u\n", mvps->global_afbc);
@@ -281,7 +282,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	}
 	set_vout_mode_name(name);
 
-	memcpy(&pipeline->mode, adjusted_mode,
+	memcpy(&pipeline->subs[crtc->index].mode, adjusted_mode,
 	       sizeof(struct drm_display_mode));
 	drm_crtc_vblank_on(crtc);
 	enable_irq(amcrtc->irq);
@@ -313,6 +314,84 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 		return;
 	}
 	set_vout_init(mode);
+	DRM_DEBUG("%s:out\n", __func__);
+}
+
+static void am_meson_crtc2_atomic_enable(struct drm_crtc *crtc,
+					struct drm_crtc_state *old_state)
+{
+	int ret;
+	char *name;
+	enum vmode_e mode;
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
+	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
+	struct meson_vpu_pipeline *pipeline = amcrtc->pipeline;
+	struct am_meson_crtc_state *meson_crtc_state =
+					to_am_meson_crtc_state(crtc->state);
+
+	DRM_INFO("%s:in\n", __func__);
+	if (!adjusted_mode) {
+		DRM_ERROR("meson_crtc_enable fail, unsupport mode:%s\n",
+			  adjusted_mode->name);
+		return;
+	}
+	DRM_INFO("%s: %s, %d\n", __func__, adjusted_mode->name, meson_crtc_state->uboot_mode_init);
+
+	/*update mode*/
+	name = am_meson_crtc2_get_voutmode(adjusted_mode);
+	mode = validate_vmode2(name, 0);
+	if (mode == VMODE_MAX) {
+		DRM_ERROR("no matched vout mode\n");
+		return;
+	}
+
+	if (mode == VMODE_DUMMY_ENCL ||
+		mode == VMODE_DUMMY_ENCI ||
+		mode == VMODE_DUMMY_ENCP) {
+		ret = set_current_vmode(mode);
+		if (ret)
+			DRM_ERROR("new mode set error\n");
+	} else {
+		if (meson_crtc_state->uboot_mode_init)
+			mode |= VMODE_INIT_BIT_MASK;
+
+		set_vout2_init(mode);
+		update_vout2_viu();
+	}
+	set_vout_mode_name(name);
+
+	memcpy(&pipeline->subs[crtc->index].mode, adjusted_mode,
+	       sizeof(struct drm_display_mode));
+	drm_crtc_vblank_on(crtc);
+	enable_irq(amcrtc->irq);
+
+	DRM_INFO("%s-%d:out\n", __func__, meson_crtc_state->uboot_mode_init);
+}
+
+static void am_meson_crtc2_atomic_disable(struct drm_crtc *crtc,
+	struct drm_crtc_state *old_state)
+{
+	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
+	enum vmode_e mode;
+
+	DRM_INFO("%s:in\n", __func__);
+	drm_crtc_vblank_off(crtc);
+	if (crtc->state->event && !crtc->state->active) {
+		spin_lock_irq(&crtc->dev->event_lock);
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+		crtc->state->event = NULL;
+	}
+	disable_irq(amcrtc->irq);
+	/* disable output by config null
+	 * Todo: replace or delete it if have new method
+	 */
+	mode = validate_vmode2("null", 0);
+	if (mode == VMODE_MAX) {
+		DRM_ERROR("no matched vout mode\n");
+		return;
+	}
+	set_vout2_init(mode);
 	DRM_DEBUG("%s:out\n", __func__);
 }
 
@@ -356,6 +435,7 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 {
 	struct drm_color_ctm *ctm;
 	struct drm_color_lut *lut;
+	struct meson_vpu_sub_pipeline *sub_pipe;
 	unsigned long flags;
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
 	struct drm_atomic_state *old_atomic_state = old_state->state;
@@ -366,6 +446,7 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 	int gamma_lut_size = 0;
 #endif
 
+	sub_pipe = &pipeline->subs[amcrtc->crtc_index];
 	meson_crtc_state = to_am_meson_crtc_state(crtc->state);
 	if (crtc->state->color_mgmt_changed) {
 		DRM_INFO("%s color_mgmt_changed!\n", __func__);
@@ -408,7 +489,7 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 		crtc->mode.vdisplay, crtc->mode.vrefresh);
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	if (!meson_crtc_state->uboot_mode_init) {
-		vpu_osd_pipeline_update(pipeline, old_atomic_state);
+		vpu_osd_pipeline_update(sub_pipe, old_atomic_state);
 		vpu_pipeline_finish_update(pipeline);
 	}
 
@@ -426,6 +507,15 @@ static const struct drm_crtc_helper_funcs am_crtc_helper_funcs = {
 	.atomic_flush	= am_meson_crtc_atomic_flush,
 	.atomic_enable	= am_meson_crtc_atomic_enable,
 	.atomic_disable	= am_meson_crtc_atomic_disable,
+};
+
+static const struct drm_crtc_helper_funcs am_crtc2_helper_funcs = {
+	.atomic_check	= meson_crtc_atomic_check,
+	.mode_fixup		= am_meson_crtc_mode_fixup,
+	.atomic_begin	= am_meson_crtc_atomic_begin,
+	.atomic_flush	= am_meson_crtc_atomic_flush,
+	.atomic_enable	= am_meson_crtc2_atomic_enable,
+	.atomic_disable	= am_meson_crtc2_atomic_disable,
 };
 
 static int meson_crtc_get_scannout_position(struct am_meson_crtc *crtc,
@@ -476,7 +566,10 @@ int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 		return ret;
 	}
 
-	drm_crtc_helper_add(crtc, &am_crtc_helper_funcs);
+	if (amcrtc->crtc_index == 0)
+		drm_crtc_helper_add(crtc, &am_crtc_helper_funcs);
+	else if (amcrtc->crtc_index == 1)
+		drm_crtc_helper_add(crtc, &am_crtc2_helper_funcs);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	meson_vpu_reg_handle_register();
 #endif
@@ -490,11 +583,32 @@ int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 	amcrtc->get_scannout_position = meson_crtc_get_scannout_position;
 
 	amcrtc->pipeline = pipeline;
-	pipeline->crtc = crtc;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
-	priv->crtc = crtc;
 	priv->crtcs[priv->num_crtcs++] = amcrtc;
 
 	return 0;
 }
 
+int am_meson_crtcs_add(struct meson_drm *private, struct device *dev)
+{
+	int i, ret;
+	struct am_meson_crtc *amcrtc;
+	struct meson_vpu_pipeline *pipeline = private->pipeline;
+
+	for (i = 0; i < pipeline->num_postblend; i++) {
+		amcrtc = devm_kzalloc(dev, sizeof(*amcrtc), GFP_KERNEL);
+		if (!amcrtc)
+			return -ENOMEM;
+
+		amcrtc->priv = private;
+		amcrtc->dev = dev;
+		amcrtc->drm_dev = private->drm;
+		amcrtc->crtc_index = i;
+
+		ret = am_meson_crtc_create(amcrtc);
+		if (ret < 0)
+			return -ENOMEM;
+	}
+
+	return 0;
+}

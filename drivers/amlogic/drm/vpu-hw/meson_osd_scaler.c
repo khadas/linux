@@ -715,7 +715,9 @@ static void scaler_size_check(struct meson_vpu_block *vblk,
 void scan_mode_check(struct meson_vpu_pipeline *pipeline,
 		     struct meson_vpu_scaler_state *scaler_state)
 {
-	u32 scan_mode_out = pipeline->mode.flags & DRM_MODE_FLAG_INTERLACE;
+	int crtc_index = scaler_state->crtc_index;
+	u32 scan_mode_out = pipeline->subs[crtc_index].mode.flags &
+				DRM_MODE_FLAG_INTERLACE;
 
 	if (scaler_state->scan_mode_out != scan_mode_out) {
 		scaler_state->scan_mode_out = scan_mode_out;
@@ -740,12 +742,16 @@ static int scaler_check_state(struct meson_vpu_block *vblk,
 			      struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps)
 {
+	struct meson_vpu_osd_layer_info *plane_info;
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
+	struct meson_vpu_scaler_state *scaler_state = to_scaler_state(state);
 
 	if (state->checked)
 		return 0;
 
 	state->checked = true;
+	plane_info = &mvps->plane_info[vblk->index];
+	scaler_state->crtc_index = plane_info->crtc_index;
 	DRM_DEBUG("%s check_state called.\n", scaler->base.name);
 
 	return 0;

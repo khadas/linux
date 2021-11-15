@@ -65,6 +65,28 @@ char *am_meson_crtc_get_voutmode(struct drm_display_mode *mode)
 		return name;
 }
 
+char *am_meson_crtc2_get_voutmode(struct drm_display_mode *mode)
+{
+	struct vinfo_s *vinfo;
+	char *name = NULL;
+
+	vinfo = get_current_vinfo2();
+
+	if (vinfo && vinfo->mode == VMODE_LCD)
+		return mode->name;
+#ifdef CONFIG_DRM_MESON_HDMI
+	name = am_meson_hdmi_get_voutmode(mode);
+#endif
+#ifdef CONFIG_DRM_MESON_CVBS
+	if (!name)
+		name = am_cvbs_get_voutmode(mode);
+#endif
+	if (!name)
+		return AM_VOUT_NULL_MODE;
+	else
+		return name;
+}
+
 static void meson_drm_handle_vpp_crc(struct am_meson_crtc *amcrtc)
 {
 	u32 crc;
@@ -97,22 +119,14 @@ void am_meson_crtc_handle_vsync(struct am_meson_crtc *amcrtc)
 	meson_drm_handle_vpp_crc(amcrtc);
 }
 
-void am_meson_crtc_irq(struct meson_drm *priv)
-{
-	struct am_meson_crtc *amcrtc = to_am_meson_crtc(priv->crtc);
-
-	am_meson_crtc_handle_vsync(amcrtc);
-}
-
 static irqreturn_t am_meson_vpu_irq(int irq, void *arg)
 {
-	struct drm_device *dev = arg;
-	struct meson_drm *priv = dev->dev_private;
+	struct am_meson_crtc *amcrtc = arg;
 
 	if (!irq_init_done)
 		return IRQ_NONE;
 
-	am_meson_crtc_irq(priv);
+	am_meson_crtc_handle_vsync(amcrtc);
 
 	return IRQ_HANDLED;
 }
@@ -186,17 +200,7 @@ static int am_meson_vpu_bind(struct device *dev,
 #endif
 	int i, ret, irq;
 
-	/* Allocate crtc struct */
 	DRM_INFO("[%s] in\n", __func__);
-	amcrtc = devm_kzalloc(dev, sizeof(*amcrtc),
-			      GFP_KERNEL);
-	if (!amcrtc)
-		return -ENOMEM;
-
-	amcrtc->priv = private;
-	amcrtc->drm_dev = drm_dev;
-
-	dev_set_drvdata(dev, amcrtc);
 
 	/* init reserved memory */
 	ret = of_reserved_mem_device_init(&pdev->dev);
@@ -251,7 +255,7 @@ static int am_meson_vpu_bind(struct device *dev,
 	if (ret)
 		return ret;
 
-	ret = am_meson_crtc_create(amcrtc);
+	ret = am_meson_crtcs_add(private, dev);
 	if (ret)
 		return ret;
 
@@ -273,20 +277,24 @@ static int am_meson_vpu_bind(struct device *dev,
 
 	vpu_pipeline_init(pipeline);
 
-	/*vsync irq.*/
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "cannot find irq for vpu\n");
-		return irq;
-	}
-	amcrtc->irq = (unsigned int)irq;
+	for (i = 0; i < pipeline->num_postblend; i++) {
+		amcrtc = private->crtcs[i];
 
-	ret = devm_request_irq(dev, amcrtc->irq, am_meson_vpu_irq,
-			       IRQF_SHARED, dev_name(dev), drm_dev);
-	if (ret)
-		return ret;
-	/* IRQ is initially disabled; it gets enabled in crtc_enable */
-	disable_irq(amcrtc->irq);
+		irq = platform_get_irq(pdev, i);
+		if (irq < 0) {
+			dev_err(dev, "cannot find irq for vpu\n");
+			return irq;
+		}
+		amcrtc->irq = (unsigned int)irq;
+
+		ret = devm_request_irq(dev, amcrtc->irq, am_meson_vpu_irq,
+					IRQF_SHARED, dev_name(dev), amcrtc);
+		if (ret)
+			return ret;
+		/* IRQ is initially disabled; it gets enabled in crtc_enable */
+		disable_irq(amcrtc->irq);
+	}
+
 	irq_init_done = 1;
 	DRM_INFO("[%s] out\n", __func__);
 	return 0;

@@ -150,6 +150,18 @@ enum vmode_e validate_vmode2(char *name, unsigned int frac)
 }
 EXPORT_SYMBOL(validate_vmode2);
 
+void set_vout2_init(enum vmode_e mode)
+{
+	vout_func_set_state(2, mode);
+}
+EXPORT_SYMBOL(set_vout2_init);
+
+void update_vout2_viu(void)
+{
+	vout_func_update_viu(2);
+}
+EXPORT_SYMBOL(update_vout2_viu);
+
 /*
  *interface export to client who want to notify about source frame rate.
  */

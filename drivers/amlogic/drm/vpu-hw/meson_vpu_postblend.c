@@ -143,7 +143,7 @@ static int postblend_check_state(struct meson_vpu_block *vblk,
 static void postblend_set_state(struct meson_vpu_block *vblk,
 				struct meson_vpu_block_state *state)
 {
-	struct drm_crtc *crtc;
+	int crtc_index;
 	struct am_meson_crtc *amc;
 	struct meson_vpu_pipeline_state *mvps;
 
@@ -152,8 +152,8 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_pipeline *pipeline = postblend->base.pipeline;
 	struct postblend_reg_s *reg = postblend->reg;
 
-	crtc = vblk->pipeline->crtc;
-	amc = to_am_meson_crtc(crtc);
+	crtc_index = vblk->index;
+	amc = vblk->pipeline->priv->crtcs[crtc_index];
 
 	DRM_DEBUG("%s set_state called.\n", postblend->base.name);
 	mvps = priv_to_pipeline_state(pipeline->obj.state);

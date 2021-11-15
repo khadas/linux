@@ -18,6 +18,8 @@ struct am_vout_mode {
 
 extern struct am_meson_logo logo;
 char *am_meson_crtc_get_voutmode(struct drm_display_mode *mode);
+char *am_meson_crtc2_get_voutmode(struct drm_display_mode *mode);
+
 void am_meson_free_logo_memory(void);
 #ifdef CONFIG_DRM_MESON_HDMI
 char *am_meson_hdmi_get_voutmode(struct drm_display_mode *mode);
