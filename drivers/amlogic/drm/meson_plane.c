@@ -858,6 +858,7 @@ static void meson_video_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tpixel_blend=%u\n", plane_info->pixel_blend);
 	/*TODO: vframe_s */
 	drm_printf(p, "\t\tis_uvm=%u\n", plane_info->is_uvm);
+	drm_printf(p, "\t\tvfm_mode=%u\n", plane_info->vfm_mode);
 }
 
 static const struct drm_plane_funcs am_osd_plane_funs = {
