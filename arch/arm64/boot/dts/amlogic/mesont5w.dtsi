@@ -15,7 +15,7 @@
 #include <dt-bindings/clock/t5w-aoclkc.h>
 #include <dt-bindings/power/t5-pd.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
-#include <dt-bindings/clock/amlogic,t5-audio-clk.h>
+#include <dt-bindings/clock/amlogic,t3-audio-clk.h>
 #include "mesong12a-bifrost.dtsi"
 #include "meson-ir-map.dtsi"
 #include <dt-bindings/thermal/thermal.h>
@@ -1007,7 +1007,7 @@
 		ranges = <0x0 0x0 0x0 0xff600000 0x0 0x3000>;
 		chip_id = <0x3b>;
 		clkaudio:audio_clocks {
-			compatible = "amlogic, t5-audio-clocks";
+			compatible = "amlogic, t3-audio-clocks";
 			#clock-cells = <1>;
 			reg = <0x0 0x0 0x0 0xb0>;
 		};
@@ -1064,6 +1064,52 @@
 		resampleB_base {
 			reg = <0x0 0xFF604000 0x0 0x104>;
 		};
+	};
+
+	/* eARC */
+	audio_earc: bus@ff603000 {
+		compatible = "simple-bus";
+		reg = <0x0 0xff603000 0x0 0x1000>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0x0 0x0 0x0 0xff603000 0x0 0x1000>;
+		earc: earc@0 {
+			compatible = "amlogic, t7-snd-earc";
+			#sound-dai-cells = <0>;
+
+			status = "disabled";
+
+			reg =<0x0 0x0 0x0 0x400>,
+				<0x0 0x400 0x0 0x200>,
+				<0x0 0x600 0x0 0x200>;
+			reg-names = "tx_cmdc",
+					"tx_dmac",
+					"tx_top";
+			clocks = < &clkaudio CLKID_EARCTX_CMDC
+					&clkaudio CLKID_EARCTX_DMAC
+					&clkc CLKID_FCLK_DIV4
+					&clkc CLKID_MPLL2
+					>;
+			clock-names =
+					"tx_cmdc",
+					"tx_dmac",
+					"tx_cmdc_srcpll",
+					"tx_dmac_srcpll";
+
+			interrupts = <
+					GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names ="earc_tx";
+		};
+	};
+
+	//hdmirx arc
+	hdmirx_arc {
+		compatible = "amlogic, hdmirx-arc-iomap";
+		reg = <0x0 0xff68c000 0x0 0x3>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges = <0x0 0x0 0x0 0xff68c000 0x0 0x3>;
+		reg-names = "hdmirx-arc";
 	};
 
 	dummy_codec:dummy {
