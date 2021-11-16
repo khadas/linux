@@ -788,7 +788,7 @@ static void dump_yuv_data(struct vframe_s *vf,
 static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data,
 					struct vframe_s *vf)
 {
-	int i, j, ret, y_size, free_cnt;
+	int i, j, ret, y_size;
 	short *planes[4];
 	short *y_src, *u_src, *v_src, *s2c, *s2c1;
 	u8 *tmp, *tmp1;
@@ -807,15 +807,9 @@ static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data,
 		 vf->width, vf->height, vf->compWidth, vf->compHeight);
 	for (i = 0; i < 4; i++) {
 		planes[i] = vmalloc(y_size);
-		if (!planes[i]) {
-			free_cnt = i;
-			pr_err("vmalloc fail in %s\n", __func__);
-			goto free;
-		}
 		pr_info("plane %d size: %d, vmalloc addr: %p.\n",
-			i, y_size, planes[i]);
+			 i, y_size, planes[i]);
 	}
-	free_cnt = 4;
 
 	do_gettimeofday(&start);
 	ret = AMLOGIC_FBC_vframe_decoder_v1((void **)planes, vf, 0, 0);
@@ -879,7 +873,7 @@ static void do_vframe_afbc_soft_decode(struct v4l_data_t *v4l_data,
 		dump_yuv_data(vf, v4l_data);
 
 free:
-	for (i = 0; i < free_cnt; i++)
+	for (i = 0; i < 4; i++)
 		vfree(planes[i]);
 }
 
