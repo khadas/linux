@@ -25,15 +25,25 @@
 #include <linux/sched.h>
 #include <linux/jiffies.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+
 #include "resourcemanage.h"
+#define RESMAM_ENABLE_JSON  (1)
+
+#ifdef RESMAM_ENABLE_JSON
+#include "cjson.h"
+#endif
 
 #define DEVICE_NAME "amresource_mgr"
 #define DEVICE_CLASS_NAME "resource_mgr"
 
 #define QUERY_SECURE_BUFFER (1)
 #define QUERY_NO_SECURE_BUFFER (0)
-#define RESMAN_VERSION         (2)
+#define  RESMAN_VERSION         (3)
 #define SINGLE_SIZE           (64)
+#define  EXT_MAX_SIZE     (64 * 1024)
+#define  EXTCONFIGNAME "/vendor/etc/resman.json"
+#define  EXTCONFIGNAMELIX "/etc/resman.json"
+
 struct {
 	int id;
 	char *name;
@@ -49,7 +59,6 @@ struct {
 	{RESMAN_ID_HWC, "hwc"},
 	{RESMAN_ID_DMX, "dmx"},
 	{RESMAN_ID_DI, "di"},
-	{0, NULL}
 };
 
 enum RESMAN_STATUS {
@@ -91,6 +100,9 @@ struct resman_node {
 			__u32 score;
 			bool secure;
 		} codec_mm;
+		struct {
+			__u32 use;
+		} capacity;
 	} s;
 };
 
@@ -183,6 +195,12 @@ struct resman_resource {
 			atomic_t counter_secure;
 			atomic_t counter_nonsecure;
 		} codec_mm;
+		/**
+		 * @total: max available capacity size
+		 */
+		struct {
+			__u32 total;
+		} capacity;
 	} d;
 };
 
@@ -197,6 +215,7 @@ static int sess_id = 1;
 static struct cdev *resman_cdev;
 static struct class *resman_class;
 static char *resman_configs;
+static bool extloaded;
 
 module_param(resman_debug, int, 0644);
 module_param(preempt_timeout_ms, int, 0644);
@@ -950,31 +969,203 @@ static void resman_codec_mm_probe(struct resman_resource *resource)
 	resource->d.codec_mm.fhd = tvp_fhd >> 20;
 }
 
+static bool resman_capacity_enough(struct resman_resource *resource,
+				   __u32 size)
+{
+	bool enough = true;
+
+	if ((resource->value + size) > resource->d.capacity.total)
+		enough = false;
+	dprintk(2, "[%s] value 0x%x score 0x%x total 0x%x\n",
+			resource->name, resource->value,
+			size, resource->d.capacity.total);
+	return enough;
+}
+
+/**
+ * resman_capacity_preempt() - resman_capacity_preempt
+ *
+ * @curr: current session data
+ * @resource: resource data
+ * @size: need resman to release resource size
+ * Return: true for success or false
+ */
+
+static bool resman_capacity_preempt(struct resman_session *curr,
+				    struct resman_resource *resource,
+				    __u32 size)
+{
+	bool ret = false;
+	struct resman_node *node, *selected;
+	struct resman_session *sess;
+	struct list_head *pos, *tmp;
+	__u32 used_size;
+
+	do {
+		selected = NULL;
+		/*Calculate the available size*/
+		used_size = resource->value;
+		list_for_each_safe(pos, tmp, &resource->sessions) {
+			node = list_entry(pos, struct resman_node, slist);
+			sess = node->session_ptr;
+			if (sess->status == RESMAN_STATUS_PREEMPTED)
+				used_size -= node->s.capacity.use;
+		}
+		dprintk(2, "used_size 0x%x size 0x%x\n", used_size, size);
+		if ((used_size + size) <= resource->d.capacity.total)
+			break;
+
+		/*Find the oldest session not preempted*/
+		list_for_each_safe(pos, tmp, &resource->sessions) {
+			node = list_entry(pos, struct resman_node, slist);
+			sess = node->session_ptr;
+			if (sess->status == RESMAN_STATUS_ACQUIRED) {
+				selected = node;
+				break;
+			}
+		}
+
+		if (resman_preempt_session(curr, selected)) {
+			used_size -= selected->s.capacity.use;
+			ret = true;
+		}
+	} while (selected &&
+		(used_size + size > resource->d.capacity.total));
+
+	return ret;
+}
+
+/**
+ * resman_capacity_acquire() - resman_capacity_acquire
+ *
+ * @sess: session data
+ * @resource: resource data
+ * @node: node data
+ * @preempt: preempt or not
+ * @timeout: time out
+ * @arg: arg rw
+ * Return: true for success or false
+ */
+static bool resman_capacity_acquire(struct resman_session *sess,
+				    struct resman_resource *resource,
+				    struct resman_node *node,
+				    bool preempt,
+				    __u32 timeout,
+				    char *arg)
+{
+	bool ret = false;
+	long remain;
+	__u32 size = 0;
+	char *opt;
+
+	while ((opt = strsep(&arg, ","))) {
+		if (!strncmp(opt, "size", 4))
+			resman_parser_kv(opt, "size", &size);
+	}
+	if (size <= 0) {
+		dprintk(0, "%d size %d parameter format:size:X!\n", sess->id, size);
+		return ret;
+	}
+
+	if (!resman_capacity_enough(resource, size)) {
+		if (preempt) {
+			if (!timeout)
+				timeout = preempt_timeout_ms;
+			if (!resman_capacity_preempt(sess, resource, size))
+				timeout = 0;
+		}
+		if (timeout) {
+			atomic_inc(&resource->pending_acquire);
+			mutex_unlock(&resource->lock);
+			dprintk(1, "%d acquire wait\n", sess->id);
+			remain =
+			wait_event_interruptible_timeout(resource->wq_release,
+				resman_capacity_enough(resource, size),
+				msecs_to_jiffies(timeout));
+			dprintk(1, "%d acquire wait return %ld\n",
+				sess->id, remain);
+			mutex_lock(&resource->lock);
+			atomic_dec(&resource->pending_acquire);
+			wake_up_interruptible_all(&resource->wq_acquire);
+		}
+	}
+
+	if (resman_capacity_enough(resource, size)) {
+		node->s.capacity.use = size;
+		resource->value += size;
+		ret = true;
+	}
+	return ret;
+}
+
+/**
+ * resman_codec_mm_release() - resman_codec_mm_release
+ *
+ * @sess: session data
+ * @resource: resource data
+ * @node: node data
+ */
+static void resman_capacity_release(struct resman_session *sess,
+				    struct resman_resource *resource,
+				    struct resman_node *node)
+{
+	if (resource->value >= node->s.capacity.use)
+		resource->value -= node->s.capacity.use;
+}
+
 static bool resman_create_resource(const char *name,
 				   __u32 type,
 				   char *arg)
 {
-	struct resman_resource *resource = NULL;
+	struct resman_resource *resource = NULL, *restmp = NULL;
 	char *opt;
 	int i;
+	char r0 = 0;
+	char r1 = 0;
+	char r2 = 0;
+	char r3 = 0;
 
 	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
-	if (!resource)
+	if (!resource || !name)
 		goto error;
 
 	resource->id = -1;
 	for (i = 0; i < ARRAY_SIZE(resources_map) && resources_map[i].name;
 			i++) {
 		if (!strcmp(resources_map[i].name, name)) {
-			if (resman_find_resource_by_id(resources_map[i].id)) {
-				pr_err("%s error [%s] exist\n", __func__, name);
-				goto error;
-			}
-			resource->id = resources_map[i].id;
-			strncpy(resource->name, resources_map[i].name,
+			restmp = resman_find_resource_by_id(resources_map[i].id);
+			if (restmp) {
+				dprintk(3, "notice: [%s] exist\n", name);
+				kfree(resource);
+				resource = restmp;
+			} else {
+				resource->id = resources_map[i].id;
+				strncpy(resource->name, resources_map[i].name,
 				sizeof(resource->name));
-			resource->name[sizeof(resource->name) - 1] = 0;
+				resource->name[sizeof(resource->name) - 1] = 0;
+			}
 			break;
+		}
+	}
+	if (i >= ARRAY_SIZE(resources_map)) {
+		if (strlen(name) < 4) {
+			dprintk(0, "At least 4 letters are required for resource name %s.\n");
+			goto error;
+		}
+		r0 = name[0];
+		r1 = name[1];
+		r2 = name[2];
+		r3 = name[3];
+		resource->id = (r0 << 24) | (r1 << 16) | (r2 << 8) | r3;
+		restmp = resman_find_resource_by_id(resource->id);
+		if (restmp) {
+			dprintk(3, "notice: [%s] exist\n", name);
+			kfree(resource);
+			resource = restmp;
+		} else {
+			strncpy(resource->name, name, strlen(name));
+			dprintk(3, "ext resource id[%d] name %s\n",
+				resource->id, resource->name);
 		}
 	}
 	if (resource->id < 0) {
@@ -1034,14 +1225,26 @@ static bool resman_create_resource(const char *name,
 		atomic_set(&resource->d.codec_mm.counter_secure, 0);
 		atomic_set(&resource->d.codec_mm.counter_nonsecure, 0);
 		break;
+	case RESMAN_TYPE_CAPACITY_SIZE:
+		resource->acquire = resman_capacity_acquire;
+		resource->release = resman_capacity_release;
+
+		opt = strsep(&arg, ",");
+		if (!resman_parser_kv(opt, "total",
+				&resource->d.capacity.total)) {
+			goto error;
+		}
+		break;
 	}
 	resource->type = type;
-	INIT_LIST_HEAD(&resource->sessions);
-	mutex_init(&resource->lock);
-	list_add_tail(&resource->list, &resources_head);
-	init_waitqueue_head(&resource->wq_release);
-	init_waitqueue_head(&resource->wq_acquire);
-	atomic_set(&resource->pending_acquire, 0);
+	if (!restmp) {//resource exist just need update the parameter
+		INIT_LIST_HEAD(&resource->sessions);
+		mutex_init(&resource->lock);
+		list_add_tail(&resource->list, &resources_head);
+		init_waitqueue_head(&resource->wq_release);
+		init_waitqueue_head(&resource->wq_acquire);
+		atomic_set(&resource->pending_acquire, 0);
+	}
 	return true;
 error:
 	kfree(resource);
@@ -1064,6 +1267,8 @@ static void all_resource_uninit(void)
 	struct list_head *pos1, *tmp1;
 
 	mutex_lock(&resource_lock);
+	kfree(resman_configs);
+	resman_configs = NULL;
 	list_for_each_safe(pos, tmp, &resources_head) {
 		resource = list_entry(pos, struct resman_resource, list);
 
@@ -1076,6 +1281,119 @@ static void all_resource_uninit(void)
 	mutex_unlock(&resource_lock);
 }
 
+#ifdef RESMAM_ENABLE_JSON
+/**
+ * resman_config_from_json() - parse resource config
+ *
+ * @buf: config string
+ *
+ * Parse config
+ * The config is a json file that contains various of resource config arrays
+ * Every resource config contains resource name and type and optional args
+ *
+ * config_string
+ *     {   "resman_config": [
+ *         {
+ *          "name": "resname1",
+ *          "type": type1,
+ *          "args": "args1"
+ *         },
+ *         {
+ *          "name": "resname2",
+ *          "type": type1,
+ *          "args": "args1"
+ *         }
+ *      ]
+ *     }
+ *
+ * Return: true for success or false
+ */
+
+static bool resman_config_from_json(char *buf)
+{
+	bool ret = true;
+	char *configs = kstrdup(buf, GFP_KERNEL);
+	char *newconfig = NULL;
+	struct cjson *root = NULL, *arrs_node = NULL;
+	struct cjson *node = NULL, *name_node = NULL, *type_node = NULL, *args_node = NULL;
+
+	if (!configs | !buf) {
+		dprintk(0, "read %s\n", buf);
+		return false;
+	}
+
+	if (configs[strlen(configs) - 1] == '\n')
+		configs[strlen(configs) - 1] = 0;
+
+	root = cjson_parse(configs);
+	if (root == 0) {
+		dprintk(0, "json null or has error, please check the json file:[ %s]\n", configs);
+		ret = false;
+		goto error;
+	}
+	arrs_node = cjson_getobjectitem(root, "resman_config");
+	if (arrs_node == 0) {
+		ret = false;
+		goto error;
+	}
+	mutex_lock(&resource_lock);
+
+	if (arrs_node->type == cjson_array) {
+		node = arrs_node->child;
+		while (node) {
+			name_node = cjson_getobjectitem(node, "name");
+			if (!name_node) {
+				ret = false;
+				mutex_unlock(&resource_lock);
+				goto error;
+			}
+			dprintk(3, "%s:%s\n", name_node->string, name_node->valuestring);
+			type_node = cjson_getobjectitem(node, "type");
+			if (!type_node) {
+				ret = false;
+				mutex_unlock(&resource_lock);
+				goto error;
+			}
+			dprintk(3, "type:%d\n", type_node->valueint);
+			args_node = cjson_getobjectitem(node, "args");
+			if (args_node)
+				dprintk(3, "args:%s\n", args_node->valuestring);
+			else
+				dprintk(3, "args = NULL");
+			if (!resman_create_resource(name_node->valuestring, type_node->valueint,
+					args_node ? args_node->valuestring : NULL)) {
+				ret = false;
+				break;
+			}
+			node = node->next;
+		}
+	}
+
+	mutex_unlock(&resource_lock);
+	if (!ret) {
+		dprintk(0, "%s parse config failed\n%s\n", __func__, buf);
+		all_resource_uninit();
+	} else if (resman_configs) {
+		newconfig = kzalloc(strlen(resman_configs) + strlen(buf) + 1,
+					GFP_KERNEL);
+		if (newconfig) {
+			memcpy(newconfig, resman_configs,
+				strlen(resman_configs));
+			memcpy(newconfig + strlen(resman_configs),
+				buf, strlen(buf));
+			kfree(resman_configs);
+			resman_configs = newconfig;
+		}
+	} else {
+		resman_configs = kstrdup(buf, GFP_KERNEL);
+	}
+
+error:
+	cjson_delete(root);
+	kfree(configs);
+	return ret;
+}
+#else
 /**
  * resman_parser_config() - parse resource config
  *
@@ -1096,6 +1414,7 @@ static void all_resource_uninit(void)
  *
  * Return: true for success or false
  */
+
 static bool resman_parser_config(const char *buf)
 {
 	bool ret = true;
@@ -1103,8 +1422,9 @@ static bool resman_parser_config(const char *buf)
 	char *name, *type_str, *arg;
 	__u32 type;
 	char *configs = kstrdup(buf, GFP_KERNEL);
+	char *newconfig = NULL;
 
-	if (!configs)
+	if (!configs | !buf)
 		return false;
 
 	cur = configs;
@@ -1141,16 +1461,157 @@ static bool resman_parser_config(const char *buf)
 	if (!ret) {
 		dprintk(0, "%s parse config failed\n%s\n", __func__, buf);
 		all_resource_uninit();
+	} else if (resman_configs) {
+		newconfig = kzalloc(strlen(resman_configs) + strlen(buf) + 1,
+					GFP_KERNEL);
+		if (newconfig) {
+			memcpy(newconfig, resman_configs,
+				strlen(resman_configs));
+			memcpy(newconfig + strlen(resman_configs),
+				buf, strlen(buf));
+			kfree(resman_configs);
+			resman_configs = newconfig;
+		}
 	} else {
-		kfree(resman_configs);
 		resman_configs = kstrdup(buf, GFP_KERNEL);
 	}
 	kfree(configs);
 	return ret;
 }
 
+#endif
+
+static bool ext_resource_init(void)
+{
+	bool ret = false;
+	struct file *extfile = NULL;
+	struct kstat stat;
+	char *extfilename = EXTCONFIGNAME;
+	char *extconfig = NULL;
+	mm_segment_t old_fs;
+	loff_t pos = 0;
+	loff_t flen = 0;
+	int error;
+	ssize_t readlen = 0;
+
+	old_fs = get_fs();
+	extfile = filp_open(extfilename, O_RDONLY, 0);
+
+	if (IS_ERR_OR_NULL(extfile)) {
+		dprintk(2, "There(%s) is no ext config or read failed\n", extfilename);
+		extfilename = EXTCONFIGNAMELIX;
+		extfile = filp_open(extfilename, O_RDONLY, 0);
+		if (IS_ERR_OR_NULL(extfile)) {
+			dprintk(2, "There(%s) is no ext config or read failed\n", extfilename);
+			return false;
+		}
+	}
+
+	set_fs(KERNEL_DS);
+
+	error = vfs_stat(extfilename, &stat);
+	if (error) {
+		dprintk(0, "vfs_stat fail %s\n", extfilename);
+		ret = false;
+		goto error;
+	}
+	if (flen > EXT_MAX_SIZE)
+		dprintk(0, "extconfig file is too large%d\n", stat.size);
+	else
+		dprintk(3, "%s file size %d\n", __func__, stat.size);
+	flen = (stat.size > EXT_MAX_SIZE) ? EXT_MAX_SIZE : stat.size;
+	extconfig = kzalloc(flen + 8, GFP_KERNEL);
+	if (extconfig) {
+		readlen = vfs_read(extfile, extconfig,
+					flen, &pos);
+		if (readlen < flen)
+			dprintk(0, "size %d read %d\n", flen, readlen);
+#ifdef RESMAM_ENABLE_JSON
+		ret = resman_config_from_json(extconfig);
+#else
+		resman_parser_config(extconfig);
+#endif
+		kfree(extconfig);
+	}
+
+error:
+	filp_close(extfile, NULL);
+	set_fs(old_fs);
+	return ret;
+}
+
 static void all_resource_init(void)
 {
+#ifdef RESMAM_ENABLE_JSON
+/*
+ * default resman_config json
+ * {
+ *	   "resman_config": [
+ *		   {
+ *			   "name": "vfm_default",
+ *			   "type": 1,
+ *			   "args": "avail:1"
+ *		   },
+ *		   {
+ *			   "name": "amvideo",
+ *			   "type": 1,
+ *			   "args": "avail:1"
+ *		   },
+ *		   {
+ *			   "name": "videopip",
+ *			   "type": 1,
+ *			   "args": "avail:1"
+ *		   },
+ *		   {
+ *			   "name": "tvp",
+ *			   "type": 3
+ *		   },
+ *		   {
+ *			   "name": "tsparser",
+ *			   "type": 1,
+ *			   "args": "avail:1"
+ *		   },
+ *		   {
+ *			   "name": "codec_mm",
+ *			   "type": 4,
+ *			   "args": "total:0"
+ *		   },
+ *		   {
+ *			   "name": "adc_pll",
+ *			   "type": 1,
+ *			   "args": "avail:1"
+ *		   },
+ *		   {
+ *			   "name": "decoder",
+ *			   "type": 1,
+ *			   "args": "avail:9"
+ *		   }
+ *	   ]
+ * }
+ */
+	char *default_configs = NULL;
+	int len = 0, i = 0;
+	char c[8][100] = {
+	"{\"resman_config\":[{\"name\":\"vfm_default\",\"type\":1,\"args\":\"avail:1\"},",
+	"{\"name\": \"amvideo\",\"type\": 1,\"args\": \"avail:1\"},",
+	"{\"name\": \"videopip\",\"type\": 1,\"args\": \"avail:1\"},",
+	"{\"name\": \"tvp\",\"type\": 3},",
+	"{\"name\": \"tsparser\",\"type\": 1,\"args\": \"avail:1\"},",
+	"{\"name\": \"codec_mm\",\"type\": 4,\"args\": \"total:0\"},",
+	"{\"name\": \"adc_pll\",\"type\": 1,\"args\": \"avail:1\"},",
+	"{\"name\": \"decoder\",\"type\": 1,\"args\": \"avail:9\"}]}"};
+
+	len = strlen(c[0]) + strlen(c[1]) + strlen(c[2]) + strlen(c[3]) +
+			strlen(c[4]) + strlen(c[5]) + strlen(c[6]) + strlen(c[7]);
+	default_configs = kzalloc(len + 1, GFP_KERNEL);
+	len = 0;
+	if (default_configs) {
+		for (i = 0; i < 8; i++) {
+			memcpy(default_configs + len, c[i], strlen(c[i]));
+			len +=  strlen(c[i]);
+		}
+	}
+#else
 	char *default_configs =
 		"vfm_default,type:1,avail:1;"
 		"amvideo,type:1,avail:1;"
@@ -1163,9 +1624,15 @@ static void all_resource_init(void)
 		"dmx,type:1,avail:4;"
 		"di,type:1,avail:4;"
 		"hwc,type:1,avail:9;";
+#endif
 	INIT_LIST_HEAD(&sessions_head);
 	INIT_LIST_HEAD(&resources_head);
+#ifdef RESMAM_ENABLE_JSON
+	resman_config_from_json(default_configs);
+	kfree(default_configs);
+#else
 	resman_parser_config(default_configs);
+#endif
 }
 
 static long resman_ioctl_acquire(struct resman_session *sess,
@@ -1274,6 +1741,12 @@ static long resman_ioctl_query(struct resman_session *sess, unsigned long para)
 		resman.v.query.avail =
 			resman_codec_mm_available(resman.v.query.value);
 		resman.v.query.value = codec_mm_get_total_size() >> 20;
+		break;
+	case RESMAN_TYPE_CAPACITY_SIZE:
+		resman.v.query.value = resource->value;
+		resman.v.query.avail =
+			(resource->d.capacity.total > resource->value) ?
+			(resource->d.capacity.total - resource->value) : 0;
 		break;
 	case RESMAN_TYPE_TVP:
 		resman.v.query.avail =
@@ -1449,7 +1922,6 @@ static ssize_t config_show(struct class *class,
 			   char *buf)
 {
 	ssize_t size = 0;
-
 	if (resman_configs)
 		APPEND_ATTR_BUF("%s\n", resman_configs)
 	return size;
@@ -1462,7 +1934,44 @@ static ssize_t config_store(struct class *class,
 			    const char *buf, size_t size)
 {
 	all_resource_uninit();
+#ifdef RESMAM_ENABLE_JSON
+	resman_config_from_json((char *)buf);
+#else
 	resman_parser_config(buf);
+#endif
+	return size;
+}
+
+static ssize_t extconfig_show(struct class *class,
+			   struct class_attribute *attr,
+			   char *buf)
+{
+	ssize_t size = 0;
+
+	if (resman_configs)
+		dprintk(0, "%s\n", resman_configs);
+	return size;
+}
+
+static ssize_t extconfig_store(struct class *class,
+			    struct class_attribute *attr,
+			    const char *buf, size_t size)
+{
+	int r;
+	int val;
+
+	if (extloaded && resman_debug != 4) {
+		dprintk(0, "extconfig has already loaded\n");
+		return size;
+	}
+
+	r = kstrtoint(buf, 10, &val);
+	if (r < 0) {
+		dprintk(0, "extcofig format has error\n");
+		return -EINVAL;
+	}
+	if (val == 1 && ext_resource_init())
+		extloaded = true;
 	return size;
 }
 
@@ -1614,6 +2123,7 @@ static struct class_attribute resman_class_attrs[] = {
 	__ATTR_RO(usage),
 	__ATTR_RW(config),
 	__ATTR_RO(ver),
+	__ATTR_RW(extconfig),
 	__ATTR_NULL
 };
 
