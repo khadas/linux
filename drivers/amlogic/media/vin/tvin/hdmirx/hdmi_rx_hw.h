@@ -3387,4 +3387,5 @@ bool is_ddc_filter_en(void);
 void rx_aud_fifo_rst(void);
 void rx_esm_reset(int level);
 void hdmirx_hdcp22_reauth(void);
+void rx_earc_hpd_handler(struct work_struct *work);
 #endif

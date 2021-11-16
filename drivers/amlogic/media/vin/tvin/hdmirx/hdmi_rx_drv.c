@@ -94,6 +94,8 @@ struct work_struct     amlphy_dwork;
 struct workqueue_struct *amlphy_wq;
 struct work_struct     clkmsr_dwork;
 struct workqueue_struct *clkmsr_wq;
+struct work_struct     earc_hpd_dwork;
+struct workqueue_struct *earc_hpd_wq;
 
 unsigned int hdmirx_addr_port;
 unsigned int hdmirx_data_port;
@@ -2929,6 +2931,11 @@ static int hdmirx_probe(struct platform_device *pdev)
 	/* create for clk msr */
 	clkmsr_wq = create_workqueue(hdevp->frontend.name);
 	INIT_WORK(&clkmsr_dwork, rx_clkmsr_handler);
+
+	/* create for earc hpd ctl */
+	earc_hpd_wq = create_workqueue(hdevp->frontend.name);
+	INIT_WORK(&earc_hpd_dwork, rx_earc_hpd_handler);
+
 	/*repeater_wq = create_singlethread_workqueue(hdevp->frontend.name);*/
 	/*INIT_DELAYED_WORK(&repeater_dwork, repeater_dwork_handle);*/
 
