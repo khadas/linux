@@ -2553,7 +2553,8 @@ unsigned int vdin_get_chma_canvas_id(unsigned int offset)
 
 void vdin_set_crc_pulse(struct vdin_dev_s *devp)
 {
-	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_SM1))
+	if (!cpu_after_eq(MESON_CPU_MAJOR_ID_SM1) ||
+	    cpu_after_eq(MESON_CPU_MAJOR_ID_T5W))
 		return;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
