@@ -1251,12 +1251,6 @@ static void session_update_apts(struct sync_session *session)
 			session->wall_adj_thres) {
 			unsigned long flags;
 
-			if (session->rate != 1000) {
-				msync_dbg(LOG_DEBUG,
-					"[%d]ignore reset %u --> %u\n",
-					session->id, session->wall_clock, pts);
-				return;
-			}
 			/* correct wall with apts */
 			msync_dbg(LOG_WARN, "[%d]a reset wall %u --> %u\n",
 				session->id, session->wall_clock, pts);
