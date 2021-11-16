@@ -332,4 +332,5 @@ void earctx_ana_auto_cal(struct regmap *top_map);
 bool earxrx_get_pll_valid(struct regmap *top_map);
 bool earxrx_get_pll_valid_auto(struct regmap *top_map);
 u8 earcrx_cmdc_get_rx_stat_bits(struct regmap *cmdc_map);
+void earctx_cmdc_earc_mode(struct regmap *cmdc_map, bool enable);
 #endif
