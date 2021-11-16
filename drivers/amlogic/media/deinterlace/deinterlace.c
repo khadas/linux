@@ -4576,6 +4576,10 @@ jiffies_to_msecs(jiffies_64 - vframe->ready_jiffies64));
 		/*********************************/
 			if (di_pre_stru.di_chan2_buf_dup_p == NULL) {
 				di_pre_stru.field_count_for_cont = 0;
+				di_pre_stru.source_change_flag = 1;
+				di_pre_stru.input_size_change_flag = true;
+				//di_buf->new_format_flag = 1;
+				di_pr_info("set cnt 0;");
 				/* ignore contp2rd and contprd */
 			}
 			di_buf->post_proc_flag = 1;
