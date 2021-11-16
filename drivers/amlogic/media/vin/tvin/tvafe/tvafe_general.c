@@ -11,6 +11,7 @@
 /*#include <mach/am_regs.h>*/
 
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
+#include <linux/amlogic/media/vout/vclk_serve.h>
 #include <linux/amlogic/media/vout/vdac_dev.h>
 #include "../tvin_global.h"
 #include "../tvin_format_table.h"
@@ -599,6 +600,15 @@ void tvafe_enable_module(bool enable)
 		W_HIU_REG(HHI_VAFE_CLKPI_CNTL, 0x100);
 		W_HIU_REG(HHI_TVFE_AUTOMODE_CLK_CNTL, 0x100);
 	}
+
+	/* T5W add 3d comb clk */
+	if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_T5W) {
+		vclk_clk_reg_setb(HHI_TVFECLK_CNTL, 1, TVFECLK_GATE,
+				  TVFECLK_GATE_WIDTH);
+		vclk_clk_reg_setb(HHI_TVFECLK_CNTL, 1, TVFECLK_SEL,
+				  TVFECLK_SEL_WIDTH);
+	}
+
 	/* tvfe power up */
 	W_APB_BIT(TVFE_TOP_CTRL, 1, COMP_CLK_ENABLE_BIT, COMP_CLK_ENABLE_WID);
 	W_APB_BIT(TVFE_TOP_CTRL, 1, EDID_CLK_EN_BIT, EDID_CLK_EN_WID);
@@ -629,6 +639,14 @@ void tvafe_enable_module(bool enable)
 		W_APB_BIT(TVFE_TOP_CTRL, 0, VAFE_MCLK_EN_BIT, VAFE_MCLK_EN_WID);
 		W_APB_BIT(TVFE_TOP_CTRL, 0, TVFE_ADC_CLK_DIV_BIT,
 			TVFE_ADC_CLK_DIV_WID);
+
+		/* T5W add 3d comb clk */
+		if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_T5W) {
+			vclk_clk_reg_setb(HHI_TVFECLK_CNTL, 0, TVFECLK_GATE,
+					  TVFECLK_GATE_WIDTH);
+			vclk_clk_reg_setb(HHI_TVFECLK_CNTL, 0, TVFECLK_SEL,
+					  TVFECLK_SEL_WIDTH);
+		}
 
 		/* main clk down */
 		if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_T5) {
