@@ -1968,7 +1968,9 @@ bool hdmi_rx_top_edid_update(void)
 	 * is common for both edid14 and edid20,
 	 * so only need to calculate one time.
 	 */
-	if (up_phy_addr) {
+	if (up_phy_addr ||
+	    size == 2 * EDID_SIZE ||
+	    size == EDID_SIZE) {
 		sts = rx_edid_cal_phy_addr(brepeat,
 					   up_phy_addr, port_map,
 					   pedid_data1, &phy_addr_off1,

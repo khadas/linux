@@ -700,7 +700,7 @@
 		product_desc = "TM2"; /* Max Chars: 16    */
 		cec_osd_string = "AML_TV"; /* Max Chars: 14    */
 		port_num = <4>;
-		ee_cec;
+		ee_cec = <1>;
 		/*cec_sel = <2>;*/
 		output = <1>;   /*output port number*/
 		arc_port_mask = <0x2>;

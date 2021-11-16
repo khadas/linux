@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2021/12/22: update freeze mode wakeup event"
+#define CEC_DRIVER_VERSION     "2021/12/28: rm sw check of bus & add dbg option"
 
 #define CEC_DEV_NAME		"cec"
 
@@ -113,6 +113,10 @@ enum {
 #define CEC_MSG_BUFF_MAX	30
 #define PHY_ADDR_LEN 4
 
+#define SIGNAL_FREE_TIME_RETRY 3
+#define SIGNAL_FREE_TIME_NEW_INITIATOR 5
+#define SIGNAL_FREE_TIME_NEXT_XFER 7
+
 struct cec_platform_data_s {
 	enum cec_chip_ver chip_id;
 	unsigned char line_reg;/*cec gpio_i reg:0  ao;1 periph*/
@@ -183,6 +187,7 @@ struct ao_cec_dev {
 	/* struct hdmitx_dev *tx_dev; */
 	struct workqueue_struct *cec_thread;
 	struct workqueue_struct *hdmi_plug_wq;
+	struct workqueue_struct *cec_tx_event_wq;
 	struct workqueue_struct *cec_rx_event_wq;
 	struct device *dbg_dev;
 	const char *pin_name;
@@ -217,6 +222,9 @@ struct ao_cec_dev {
 	struct clk *ceca_clk;
 	struct clk *cecb_clk;
 	bool framework_on;
+	bool chk_sig_free_time;
+	/* default not enable SW check, for debug */
+	bool sw_chk_bus;
 };
 
 struct cec_msg_last {
@@ -679,6 +687,6 @@ void wr_reg_hhi(unsigned int offset, unsigned int val)
 
 #endif
 void cecb_irq_handle(void);
-int cec_ll_tx(const unsigned char *msg, unsigned char len);
+int cec_ll_tx(const unsigned char *msg, unsigned char len, unsigned char signal_free_time);
 
 #endif	/* __AO_CEC_H__ */

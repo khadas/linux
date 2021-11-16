@@ -61,8 +61,6 @@ static struct early_suspend aocec_suspend_handler;
 
 #define STD_CEC_NAME "std_cec"
 
-DECLARE_WAIT_QUEUE_HEAD(cec_msg_wait_queue);
-
 int cec_msg_dbg_en;
 static unsigned int input_event_en;
 struct cec_msg_last *last_cec_msg;
@@ -82,6 +80,10 @@ static unsigned char rx_len;
 static unsigned int  new_msg;
 static bool pin_status;
 
+static unsigned int cec_ver_cnt;
+static unsigned int cec_ver_cnt_max = 1;
+static unsigned int wait_notify_ms = 100;
+
 struct st_ao_cec {
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier *tx_notify;
@@ -89,7 +91,12 @@ struct st_ao_cec {
 	struct cec_adapter *adap;
 	struct cec_msg rx_msg;
 	u8 tx_result;
-	struct work_struct work_cec_tx;
+	struct delayed_work work_cec_tx;
+	bool adapt_log_addr_valid;
+	bool need_rx_uevent;
+	/* transmit/receive done notify_work in common queue */
+	bool common_queue;
+	bool dbg_ret;
 };
 
 static struct st_ao_cec std_ao_cec;
@@ -171,6 +178,7 @@ void cecb_irq_handle(void)
 	u32 lock;
 	int shift = 0;
 	struct delayed_work *dwork;
+	unsigned int wait_ms = 0;
 
 	intr_cec = cecb_irq_stat();
 
@@ -183,13 +191,25 @@ void cecb_irq_handle(void)
 	dprintk(L_2, "cecb intsts:0x%x\n", intr_cec);
 	if (cec_dev->plat_data->ee_to_ao)
 		shift = 16;
+	if (cec_ver_cnt == cec_ver_cnt_max) {
+		wait_ms = wait_notify_ms;
+		CEC_INFO("%s wait: %dms\n", __func__, wait_notify_ms);
+	}
+
 	/* TX DONE irq, increase tx buffer pointer */
 	if (intr_cec == CEC_IRQ_TX_DONE) {
 		cec_tx_result = CEC_FAIL_NONE;
-		dprintk(L_2, "irqflg:TX_DONE\n");
-		complete(&cec_dev->tx_ok);
 		std_ao_cec.tx_result = CEC_TX_STATUS_OK;
-		schedule_work(&std_ao_cec.work_cec_tx);
+		dprintk(L_2, "irqflg:TX_DONE\n");
+		if (std_ao_cec.common_queue)
+			queue_delayed_work(cec_dev->cec_rx_event_wq,
+					   &std_ao_cec.work_cec_tx,
+					   msecs_to_jiffies(wait_ms));
+		else
+			queue_delayed_work(cec_dev->cec_tx_event_wq,
+					   &std_ao_cec.work_cec_tx,
+					   msecs_to_jiffies(wait_ms));
+		complete(&cec_dev->tx_ok);
 	}
 
 	/* TX error irq flags */
@@ -200,7 +220,6 @@ void cecb_irq_handle(void)
 			cec_tx_result = CEC_FAIL_NACK;
 			dprintk(L_2, "irqflg:TX_NACK\n");
 			std_ao_cec.tx_result = CEC_TX_STATUS_NACK;
-			schedule_work(&std_ao_cec.work_cec_tx);
 		} else if (intr_cec & CEC_IRQ_TX_ARB_LOST) {
 			cec_tx_result = CEC_FAIL_BUSY;
 			/* clear start */
@@ -208,21 +227,28 @@ void cecb_irq_handle(void)
 			hdmirx_set_bits_dwc(DWC_CEC_CTRL, 0, 0, 3);
 			dprintk(L_2, "irqflg:ARB_LOST\n");
 			std_ao_cec.tx_result = CEC_TX_STATUS_ARB_LOST;
-			schedule_work(&std_ao_cec.work_cec_tx);
 		} else if (intr_cec & CEC_IRQ_TX_ERR_INITIATOR) {
 			dprintk(L_2, "irqflg:INITIATOR\n");
 			cec_tx_result = CEC_FAIL_OTHER;
 			std_ao_cec.tx_result = CEC_TX_STATUS_ERROR;
-			schedule_work(&std_ao_cec.work_cec_tx);
+			if (std_ao_cec.dbg_ret)
+				std_ao_cec.tx_result =
+					CEC_TX_STATUS_MAX_RETRIES | CEC_TX_STATUS_ERROR;
 		} else {
 			dprintk(L_2, "irqflg:Other\n");
 			cec_tx_result = CEC_FAIL_OTHER;
 			std_ao_cec.tx_result = CEC_TX_STATUS_ERROR;
-			schedule_work(&std_ao_cec.work_cec_tx);
 		}
+		if (std_ao_cec.common_queue)
+			queue_delayed_work(cec_dev->cec_rx_event_wq,
+					   &std_ao_cec.work_cec_tx,
+					   msecs_to_jiffies(wait_ms));
+		else
+			queue_delayed_work(cec_dev->cec_tx_event_wq,
+					   &std_ao_cec.work_cec_tx,
+					   msecs_to_jiffies(wait_ms));
 		complete(&cec_dev->tx_ok);
 	}
-
 	/* The CEC driver should always process the transmit
 	 * interrupts first before handling the receive
 	 * interrupt. The framework expects to see the
@@ -315,7 +341,6 @@ static int ceca_rx_irq_handle(unsigned char *msg, unsigned char *len)
 	std_ao_cec.rx_msg.len = *len;
 	if (std_ao_cec.rx_msg.len <= CEC_MAX_MSG_SIZE)
 		memcpy(std_ao_cec.rx_msg.msg, msg, std_ao_cec.rx_msg.len);
-	cec_received_msg(std_ao_cec.adap, &std_ao_cec.rx_msg);
 
 	return ret;
 }
@@ -323,6 +348,12 @@ static int ceca_rx_irq_handle(unsigned char *msg, unsigned char *len)
 static void ceca_tx_irq_handle(void)
 {
 	unsigned int tx_status = aocec_rd_reg(CEC_TX_MSG_STATUS);
+	unsigned int wait_ms = 0;
+
+	if (cec_ver_cnt == cec_ver_cnt_max) {
+		wait_ms = wait_notify_ms;
+		CEC_INFO("%s wait: %dms\n", __func__, wait_notify_ms);
+	}
 
 	cec_tx_result = -1;
 	switch (tx_status) {
@@ -330,18 +361,32 @@ static void ceca_tx_irq_handle(void)
 		aocec_wr_reg(CEC_TX_MSG_CMD, TX_NO_OP);
 		cec_tx_result = CEC_FAIL_NONE;
 		std_ao_cec.tx_result = CEC_TX_STATUS_OK;
-		schedule_work(&std_ao_cec.work_cec_tx);
+		if (std_ao_cec.common_queue)
+			queue_delayed_work(cec_dev->cec_rx_event_wq,
+					   &std_ao_cec.work_cec_tx,
+					   msecs_to_jiffies(wait_ms));
+		else
+			queue_delayed_work(cec_dev->cec_tx_event_wq,
+					   &std_ao_cec.work_cec_tx,
+					   msecs_to_jiffies(wait_ms));
 		break;
 
 	case TX_BUSY:
 		CEC_ERR("TX_BUSY\n");
 		cec_tx_result = CEC_FAIL_BUSY;
 		std_ao_cec.tx_result = CEC_TX_STATUS_ARB_LOST;
-		schedule_work(&std_ao_cec.work_cec_tx);
+		if (std_ao_cec.common_queue)
+			queue_delayed_work(cec_dev->cec_rx_event_wq,
+					   &std_ao_cec.work_cec_tx,
+					   msecs_to_jiffies(wait_ms));
+		else
+			queue_delayed_work(cec_dev->cec_tx_event_wq,
+					   &std_ao_cec.work_cec_tx,
+					   msecs_to_jiffies(wait_ms));
 		break;
 
 	case TX_ERROR:
-		CEC_ERR("TX ERROR!\n");
+		CEC_INFO("TX ERROR!\n");
 		aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
 		ceca_hw_reset();
 		if (cec_dev->cec_num <= ENABLE_ONE_CEC)
@@ -349,14 +394,28 @@ static void ceca_tx_irq_handle(void)
 						 cec_dev->cec_info.addr_enable);
 		cec_tx_result = CEC_FAIL_NACK;
 		std_ao_cec.tx_result = CEC_TX_STATUS_NACK;
-		schedule_work(&std_ao_cec.work_cec_tx);
+		if (std_ao_cec.common_queue)
+			queue_delayed_work(cec_dev->cec_rx_event_wq,
+					   &std_ao_cec.work_cec_tx,
+					   msecs_to_jiffies(wait_ms));
+		else
+			queue_delayed_work(cec_dev->cec_tx_event_wq,
+					   &std_ao_cec.work_cec_tx,
+					   msecs_to_jiffies(wait_ms));
 		break;
 
 	case TX_IDLE:
 		CEC_ERR("TX_IDLE\n");
 		cec_tx_result = CEC_FAIL_OTHER;
 		std_ao_cec.tx_result = CEC_TX_STATUS_ERROR;
-		schedule_work(&std_ao_cec.work_cec_tx);
+		if (std_ao_cec.common_queue)
+			queue_delayed_work(cec_dev->cec_rx_event_wq,
+					   &std_ao_cec.work_cec_tx,
+					   msecs_to_jiffies(wait_ms));
+		else
+			queue_delayed_work(cec_dev->cec_tx_event_wq,
+					   &std_ao_cec.work_cec_tx,
+					   msecs_to_jiffies(wait_ms));
 		break;
 	default:
 		break;
@@ -418,7 +477,7 @@ static bool check_physical_addr_valid(int timeout)
 }
 
 /* Return value: < 0: fail, > 0: success */
-int cec_ll_tx(const unsigned char *msg, unsigned char len)
+int cec_ll_tx(const unsigned char *msg, unsigned char len, unsigned char signal_free_time)
 {
 	int ret = -1;
 	int t;
@@ -474,14 +533,17 @@ try_again:
 	 * free time, that means a send is already started by other
 	 * device, we should wait it finished.
 	 */
-	if (check_confilct()) {
-		CEC_ERR("bus confilct too long\n");
-		mutex_unlock(&cec_dev->cec_tx_mutex);
-		return CEC_FAIL_BUSY;
+	if (cec_dev->sw_chk_bus) {
+		if (check_confilct()) {
+			CEC_ERR("bus confilct too long\n");
+			mutex_unlock(&cec_dev->cec_tx_mutex);
+			return CEC_FAIL_BUSY;
+		}
 	}
-
+	/* for std cec, driver never retry itself */
+	retry = 0;
 	if (cec_sel == CEC_B)
-		ret = cecb_trigle_tx(msg, len);
+		ret = cecb_trigle_tx(msg, len, signal_free_time);
 	else
 		ret = ceca_trigle_tx(msg, len);
 	if (ret < 0) {
@@ -571,15 +633,14 @@ static void cec_store_msg_to_buff(unsigned char len, unsigned char *msg)
 static void cec_new_msg_push(void)
 {
 	if (cec_config(0, 0) & CEC_FUNC_CFG_CEC_ON) {
-		complete(&cec_dev->rx_ok);
 		new_msg = 1;
 		/* will notify by stored_msg_push */
-		if (cec_dev->framework_on && cec_need_store_msg_to_buff())
-			return;
-		wake_up(&cec_msg_wait_queue);
+		/* if (cec_dev->framework_on && cec_need_store_msg_to_buff()) */
+			/* return; */
 		/* uevent to notify cec msg received */
 		queue_delayed_work(cec_dev->cec_rx_event_wq,
 				   &cec_dev->work_cec_rx, 0);
+		complete(&cec_dev->rx_ok);
 	}
 }
 
@@ -999,7 +1060,7 @@ static ssize_t pin_status_show(struct class *cla,
 		}
 		if (pin_status == 0) {
 			p = (cec_dev->cec_info.log_addr << 4) | CEC_TV_ADDR;
-			if (cec_ll_tx(&p, 1) == CEC_FAIL_NONE)
+			if (cec_ll_tx(&p, 1, CEC_SIGNAL_FREE_TIME_NEW_INITIATOR) == CEC_FAIL_NONE)
 				return sprintf(buf, "%s\n", "ok");
 			else
 				return sprintf(buf, "%s\n", "fail");
@@ -1083,7 +1144,7 @@ static ssize_t cmd_store(struct class *cla, struct class_attribute *attr,
 		buf[i] = (char)tmpbuf[i];
 
 	/*CEC_ERR("cnt=%d\n", cnt);*/
-	ret = cec_ll_tx(buf, cnt);
+	ret = cec_ll_tx(buf, cnt, CEC_SIGNAL_FREE_TIME_NEW_INITIATOR);
 	dprintk(L_2, "%s ret:%d, %s\n", __func__, ret, cec_tx_ret_str(ret));
 	return count;
 }
@@ -1137,7 +1198,7 @@ static ssize_t cmdb_store(struct class *cla, struct class_attribute *attr,
 		buf[i] = (char)tmpbuf[i];
 
 	if (cec_dev->cec_num > ENABLE_ONE_CEC)
-		cecb_trigle_tx(buf, cnt);
+		cecb_trigle_tx(buf, cnt, 5);
 
 	return count;
 }
@@ -1414,6 +1475,48 @@ static ssize_t dbg_store(struct class *cla, struct class_attribute *attr,
 		if (!token || kstrtouint(token, 16, &addr) < 0)
 			return count;
 		input_event_en = addr;
+	} else if (token && strncmp(token, "chk_sig_free", 12) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 10, &addr) < 0)
+			return count;
+		cec_dev->chk_sig_free_time = !!addr;
+		CEC_ERR("check signal free time enable: %d\n", cec_dev->chk_sig_free_time);
+	} else if (token && strncmp(token, "sw_chk_bus", 10) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 10, &addr) < 0)
+			return count;
+		cec_dev->sw_chk_bus = !!addr;
+		CEC_ERR("sw_chk_bus enable: %d\n", cec_dev->sw_chk_bus);
+	} else if (token && strncmp(token, "cec_ver_cnt_max", 15) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 10, &addr) < 0)
+			return count;
+		cec_ver_cnt_max = addr;
+		CEC_ERR("cec_ver_cnt_max: %d\n", cec_ver_cnt_max);
+	} else if (token && strncmp(token, "wait_notify_ms", 14) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 10, &addr) < 0)
+			return count;
+		wait_notify_ms = addr;
+		CEC_ERR("wait_notify_ms: %d\n", wait_notify_ms);
+	} else if (token && strncmp(token, "need_rx_uevent", 14) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 10, &addr) < 0)
+			return count;
+		std_ao_cec.need_rx_uevent = !!addr;
+		CEC_ERR("need_rx_uevent: %d\n", std_ao_cec.need_rx_uevent);
+	}  else if (token && strncmp(token, "common_queue", 12) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 10, &addr) < 0)
+			return count;
+		std_ao_cec.common_queue = !!addr;
+		CEC_ERR("common_queue: %d\n", std_ao_cec.common_queue);
+	} else if (token && strncmp(token, "dbg_ret", 7) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 10, &addr) < 0)
+			return count;
+		std_ao_cec.dbg_ret = !!addr;
+		CEC_ERR("dbg_ret: %d\n", std_ao_cec.dbg_ret);
 	} else {
 		if (token)
 			CEC_ERR("no cmd:%s, supported list:\n", token);
@@ -1701,7 +1804,8 @@ static const struct cec_platform_data_s cec_sm1_data = {
 
 static const struct cec_platform_data_s cec_tm2_data = {
 	.chip_id = CEC_CHIP_TM2,
-	.line_reg = 0,/*line_reg=0:AO_GPIO_I*/
+	/* don't check */
+	.line_reg = 0xff,
 	.line_bit = 10,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 1,
@@ -1892,11 +1996,19 @@ static void cec_hdmi_plug_handler(struct work_struct *work)
 
 static void cec_rx_uevent_handler(struct work_struct *work)
 {
-	/* notify framework to read cec msg */
-	cec_set_uevent(CEC_RX_MSG, 1);
-	/* clear notify */
-	cec_set_uevent(CEC_RX_MSG, 0);
+	/* not notify cec core before log addr valid
+	 * even when receive broadcast msg
+	 */
+	if (!std_ao_cec.adapt_log_addr_valid)
+		return;
 
+	/* actually no need for std linux cec, for debug */
+	if (std_ao_cec.need_rx_uevent) {
+		/* notify framework to read cec msg */
+		cec_set_uevent(CEC_RX_MSG, 1);
+		/* clear notify */
+		cec_set_uevent(CEC_RX_MSG, 0);
+	}
 	std_ao_cec.rx_msg.len = rx_len;
 	if (std_ao_cec.rx_msg.len <= CEC_MAX_MSG_SIZE)
 		memcpy(std_ao_cec.rx_msg.msg, rx_msg, std_ao_cec.rx_msg.len);
@@ -1964,6 +2076,7 @@ static int ao_cec_set_log_addr(struct cec_adapter *adap, u8 logical_addr)
 	}
 	if (logical_addr == CEC_LOG_ADDR_INVALID) {
 		cec_ap_clear_logical_addr();
+		std_ao_cec.adapt_log_addr_valid = false;
 		return 0;
 	} else if (cur_log_addr_num > MAX_LOG_ADDR_CNT) {
 		/* log_addr_num > maximum number of available */
@@ -1985,12 +2098,13 @@ static int ao_cec_set_log_addr(struct cec_adapter *adap, u8 logical_addr)
 	}
 	cec_ap_add_logical_addr(logical_addr);
 	cec_config2_devtype(cec_dev->dev_type, 1);
+	std_ao_cec.adapt_log_addr_valid = true;
 	return 0;
 }
 
 static void ao_cec_tx_work(struct work_struct *work)
 {
-	struct st_ao_cec *ao_cec = container_of(work,
+	struct st_ao_cec *ao_cec = container_of((struct delayed_work *)work,
 			struct st_ao_cec, work_cec_tx);
 
 	cec_transmit_attempt_done(ao_cec->adap, ao_cec->tx_result);
@@ -2012,10 +2126,15 @@ static void ao_cec_tx_work(struct work_struct *work)
 static int ao_cec_transmit(struct cec_adapter *adap, u8 attempts,
 				 u32 signal_free_time, struct cec_msg *msg)
 {
-	CEC_INFO("%s\n", __func__);
 	if (!msg)
 		return -1;
-	cec_ll_tx(msg->msg, msg->len);
+	dprintk(L_2, "%s signal_free_time: %x, attempts: %d\n",
+		__func__, signal_free_time, attempts);
+	if (is_get_cec_ver_msg(msg->msg, msg->len))
+		cec_ver_cnt++;
+	else
+		cec_ver_cnt = 0;
+	cec_ll_tx(msg->msg, msg->len, signal_free_time);
 
 	return 0;
 }
@@ -2027,6 +2146,11 @@ static int ao_cec_transmit(struct cec_adapter *adap, u8 attempts,
 void aml_adap_status(struct cec_adapter *adap, struct seq_file *file)
 {
 	cec_status();
+	CEC_ERR("cec_ver_cnt: %d\n", cec_ver_cnt);
+	CEC_ERR("cec_ver_cnt_max: %d\n", cec_ver_cnt_max);
+	CEC_ERR("wait_notify_ms: %d\n", wait_notify_ms);
+	CEC_ERR("common_queue: %d\n", std_ao_cec.common_queue);
+	CEC_ERR("adapt_log_addr_valid: %d\n", std_ao_cec.adapt_log_addr_valid);
 }
 
 /* To free any resources when the adapter is deleted,
@@ -2083,6 +2207,7 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	unsigned char a, b, c, d;
 	u16 phy_addr = 0;
 	struct vsdb_phyaddr *tx_phy_addr = get_hdmitx_phy_addr();
+	unsigned int is_ee_cec;
 
 	if (!node || !node->name) {
 		pr_err("%s no devtree node\n", __func__);
@@ -2167,10 +2292,13 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	}
 
 	/* if using EE CEC */
-	if (of_property_read_bool(node, "ee_cec"))
-		ee_cec = CEC_B;
-	else
+	r = of_property_read_u32(node, "ee_cec", &is_ee_cec);
+	if (r) {
+		CEC_ERR("not find 'ee_cec'\n");
 		ee_cec = CEC_A;
+	} else {
+		ee_cec = !!is_ee_cec;
+	}
 	CEC_ERR("using cec:%d\n", ee_cec);
 	/* pinmux set */
 	if (of_get_property(node, "pinctrl-names", NULL)) {
@@ -2459,8 +2587,20 @@ static int aml_aocec_probe(struct platform_device *pdev)
 		goto tag_cec_rx_event_wq_err;
 	}
 	INIT_DELAYED_WORK(&cec_dev->work_cec_rx, cec_rx_uevent_handler);
-	/* notify cec framework tx done */
-	INIT_WORK(&std_ao_cec.work_cec_tx, ao_cec_tx_work);
+	/* notify cec framework tx done, note that need
+	 * to use dedicated high priority workqueue,
+	 * as cec-compliance test will check the roundtrip
+	 * time of msg, so need to return tx result asap.
+	 */
+	cec_dev->cec_tx_event_wq = alloc_workqueue("cec_tx_event",
+						   WQ_HIGHPRI |
+						   WQ_CPU_INTENSIVE, 0);
+	if (!cec_dev->cec_tx_event_wq) {
+		CEC_INFO("create cec_tx_event_wq failed\n");
+		ret = -EFAULT;
+		goto tag_cec_tx_event_wq_err;
+	}
+	INIT_DELAYED_WORK(&std_ao_cec.work_cec_tx, ao_cec_tx_work);
 #ifdef CEC_FREEZE_WAKE_UP
 	/*freeze wakeup init*/
 	device_init_wakeup(&pdev->dev, 1);
@@ -2503,7 +2643,21 @@ static int aml_aocec_probe(struct platform_device *pdev)
 	}
 #endif
 	cec_irq_enable(true);
-
+	/* not check signal free time by default
+	 * otherwise it eazily fail at
+	 * utils/cec-compliance/cec-test-adapter.cpp(1224):
+	 * There were 87 messages in the receive queue for 68 transmits
+	 * intsts:0x11 and irqflg:INITIATOR
+	 */
+	cec_dev->chk_sig_free_time = false;
+	cec_dev->sw_chk_bus = false;
+	std_ao_cec.adapt_log_addr_valid = false;
+	/* std linux cec not need uevent, for back */
+	std_ao_cec.need_rx_uevent = false;
+	/* tx/rx done notify queued in sequence if
+	 * set to true, for debug;
+	 */
+	std_ao_cec.common_queue = false;
 	/* Must be 1 <= available_las <= CEC_MAX_LOG_ADDRS. */
 	/* std_ao_cec is priv data */
 	std_ao_cec.adap = cec_allocate_adapter(&ao_cec_ops, &std_ao_cec,
@@ -2579,6 +2733,8 @@ tag_cec_allocate_adapter_fail:
 #if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
 	hdmitx_event_notifier_unregist(&hdmitx_notifier_nb);
 #endif
+	destroy_workqueue(cec_dev->cec_tx_event_wq);
+tag_cec_tx_event_wq_err:
 	destroy_workqueue(cec_dev->cec_rx_event_wq);
 tag_cec_rx_event_wq_err:
 	destroy_workqueue(cec_dev->hdmi_plug_wq);
@@ -2653,6 +2809,10 @@ static int aml_aocec_remove(struct platform_device *pdev)
 	if (cec_dev->cec_rx_event_wq) {
 		cancel_delayed_work_sync(&cec_dev->work_cec_rx);
 		destroy_workqueue(cec_dev->cec_rx_event_wq);
+	}
+	if (cec_dev->cec_tx_event_wq) {
+		cancel_delayed_work_sync(&std_ao_cec.work_cec_tx);
+		destroy_workqueue(cec_dev->cec_tx_event_wq);
 	}
 	input_unregister_device(cec_dev->cec_info.remote_cec_dev);
 	unregister_chrdev(cec_dev->cec_info.dev_no, CEC_DEV_NAME);
