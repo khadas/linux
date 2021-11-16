@@ -214,12 +214,25 @@ static int t7_dmc_mon_set(struct dmc_monitor *mon)
 	end   = end >> PAGE_SHIFT;
 	dev1  = mon->device & 0xffffffff;
 	dev2  = mon->device >> 32;
+
 	for (i = 0; i < 2; i++) {
 		io = i ? dmc_mon->io_mem2 : dmc_mon->io_mem1;
-		dmc_prot_rw(io, DMC_PROT0_STA, start, DMC_WRITE);
-		dmc_prot_rw(io, DMC_PROT0_EDA, end, DMC_WRITE);
-		dmc_prot_rw(io, DMC_PROT1_STA, start, DMC_WRITE);
-		dmc_prot_rw(io, DMC_PROT1_EDA, end, DMC_WRITE);
+		if (dev1) {
+			dmc_prot_rw(io, DMC_PROT0_STA, start, DMC_WRITE);
+			dmc_prot_rw(io, DMC_PROT0_EDA, end, DMC_WRITE);
+		} else {
+			dmc_prot_rw(io, DMC_PROT0_STA, 0, DMC_WRITE);
+			dmc_prot_rw(io, DMC_PROT0_EDA, 0, DMC_WRITE);
+		}
+
+		/* when set exclude, PROT1 can not be used */
+		if (dev2 && (dmc_mon->configs & POLICY_INCLUDE)) {
+			dmc_prot_rw(io, DMC_PROT1_STA, start, DMC_WRITE);
+			dmc_prot_rw(io, DMC_PROT1_EDA, end, DMC_WRITE);
+		} else {
+			dmc_prot_rw(io, DMC_PROT1_STA, 0UL, DMC_WRITE);
+			dmc_prot_rw(io, DMC_PROT1_EDA, 0UL, DMC_WRITE);
+		}
 
 		val = 0xf;
 		if (dmc_mon->debug & DMC_DEBUG_WRITE)
@@ -233,10 +246,22 @@ static int t7_dmc_mon_set(struct dmc_monitor *mon)
 		else
 			val &= ~(1 << 8);
 
-		dmc_prot_rw(io, DMC_PROT0_CTRL,  val,  DMC_WRITE);
-		dmc_prot_rw(io, DMC_PROT0_CTRL1, dev1, DMC_WRITE);
-		dmc_prot_rw(io, DMC_PROT1_CTRL,  val,  DMC_WRITE);
-		dmc_prot_rw(io, DMC_PROT1_CTRL1, dev2, DMC_WRITE);
+		if (dev1) {
+			dmc_prot_rw(io, DMC_PROT0_CTRL,  val,  DMC_WRITE);
+			dmc_prot_rw(io, DMC_PROT0_CTRL1, dev1, DMC_WRITE);
+		} else {
+			dmc_prot_rw(io, DMC_PROT0_CTRL,  0UL,  DMC_WRITE);
+			dmc_prot_rw(io, DMC_PROT0_CTRL1, 0UL, DMC_WRITE);
+		}
+
+		/* when set exclude, PROT1 can not be used */
+		if (dev2 && (dmc_mon->configs & POLICY_INCLUDE)) {
+			dmc_prot_rw(io, DMC_PROT1_CTRL,  val,  DMC_WRITE);
+			dmc_prot_rw(io, DMC_PROT1_CTRL1, dev2, DMC_WRITE);
+		} else {
+			dmc_prot_rw(io, DMC_PROT1_CTRL,  0UL,  DMC_WRITE);
+			dmc_prot_rw(io, DMC_PROT1_CTRL1, 0UL, DMC_WRITE);
+		}
 	}
 
 	pr_emerg("range:%08lx - %08lx, device:%16llx\n",

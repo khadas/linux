@@ -364,6 +364,8 @@ static ssize_t device_store(struct class *cla,
 	if (dual_dmc(dmc_mon)) {
 		if (!strncmp(buf, "exclude", 3)) {
 			dmc_mon->configs &= ~POLICY_INCLUDE;
+		} else if (!strncmp(buf, "include", 3)) {
+			dmc_mon->configs |= POLICY_INCLUDE;
 		} else {
 			i = dev_name_to_id(buf);
 			if (i < 0) {
