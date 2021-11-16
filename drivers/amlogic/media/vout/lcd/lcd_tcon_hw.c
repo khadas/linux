@@ -485,6 +485,10 @@ static int lcd_tcon_wr_n_data_write(struct aml_lcd_drv_s *pdrv,
 				lcd_tcon_write_byte(pdrv, (reg + k), data);
 			else
 				lcd_tcon_write(pdrv, (reg + k), data);
+			if (lcd_debug_print_flag & LCD_DBG_PR_ADV) {
+				LCDPR("%s: write reg 0x%x=0x%x\n",
+				      __func__, (reg + k), data);
+			}
 			n += wr_n->reg_data_byte;
 		}
 	} else {
@@ -496,6 +500,10 @@ static int lcd_tcon_wr_n_data_write(struct aml_lcd_drv_s *pdrv,
 				lcd_tcon_write_byte(pdrv, reg, data);
 			else
 				lcd_tcon_write(pdrv, reg, data);
+			if (lcd_debug_print_flag & LCD_DBG_PR_ADV) {
+				LCDPR("%s: write reg 0x%x=0x%x\n",
+				      __func__, (reg + k), data);
+			}
 			n += wr_n->reg_data_byte;
 		}
 	}
@@ -636,6 +644,10 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 				lcd_tcon_update_bits_byte(pdrv, reg, mask, data);
 			else
 				lcd_tcon_update_bits(pdrv, reg, mask, data);
+			if (lcd_debug_print_flag & LCD_DBG_PR_ADV) {
+				LCDPR("%s: write reg 0x%x, data=0x%x, mask=0x%x\n",
+				      __func__, reg, mask, data);
+			}
 			break;
 		case LCD_TCON_DATA_PART_TYPE_RD_MASK:
 			if (block_ctrl_flag)
@@ -703,6 +715,10 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 				temp = lcd_tcon_read_byte(pdrv, reg) & mask;
 			else
 				temp = lcd_tcon_read(pdrv, reg) & mask;
+			if (lcd_debug_print_flag & LCD_DBG_PR_ADV) {
+				LCDPR("%s read reg 0x%04x = 0x%02x, mask = 0x%02x\n",
+				      __func__, reg, temp, mask);
+			}
 			n += data_byte;
 			for (j = 0; j < data_cnt; j++) {
 				data = 0;
@@ -737,6 +753,10 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 				lcd_tcon_update_bits_byte(pdrv, reg, mask, data);
 			else
 				lcd_tcon_update_bits(pdrv, reg, mask, data);
+			if (lcd_debug_print_flag & LCD_DBG_PR_ADV) {
+				LCDPR("%s: write reg 0x%x, data=0x%x, mask=0x%x\n",
+				      __func__, reg, mask, data);
+			}
 			break;
 		case LCD_TCON_DATA_PART_TYPE_CHK_EXIT:
 			if (block_ctrl_flag)
