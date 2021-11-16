@@ -3565,12 +3565,6 @@ static void osd_wait_vsync_hw_viux(u32 output_index)
 	wait_queue_head_t *wait_queue = &osd_rdma_vpp0_done_wq;
 
 	if (osd_hw.fb_drvier_probe) {
-		/* for the independent viu2 HW module,
-		 * use the latch and skip waiting for vsync.
-		 */
-		if (osd_hw.osd_meson_dev.has_viu2 && output_index == VIU2)
-			return;
-
 		vsync_hit[output_index] = false;
 
 		if (pxp_mode) {
