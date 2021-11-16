@@ -112,9 +112,9 @@
 			 *        |HWC_PRIMARY_FRAMEBUFFER_WIDTH := 1920
 			 *        |      |HWC_PRIMARY_FRAMEBUFFER_HEIGHT := 1080
 			 *        |      |      |NUM_FRAMEBUFFER_SURFACE_BUFFERS := 3
-			 * size = 1920 * 1080 * 3 * 4(RGBA: 4 bytes/pixel) + 4M(10% * afbc)
+			 * size = 1920 * 1080 * 3 * 4(RGBA: 4 bytes/pixel) + 4M(10% * afbc) + 8M(extra)
 			 */
-			size = <0x0 0x01c00000>;
+			size = <0x0 0x02400000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0x3f000000>;
 		};
