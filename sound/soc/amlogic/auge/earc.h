@@ -15,6 +15,7 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 bool aml_get_earctx_enable(void);
 bool get_earcrx_chnum_mult_mode(void);
 enum attend_type aml_get_earctx_connected_device_type(void);
+bool aml_get_earctx_reset_hpd(void);
 void aml_earctx_enable_d2a(int enable);
 
 #endif

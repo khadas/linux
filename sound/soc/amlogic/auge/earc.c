@@ -37,6 +37,10 @@
 #include "sharebuffer.h"
 #include "spdif_hw.h"
 #include "../common/audio_uevent.h"
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
+#include <linux/amlogic/media/frame_provider/tvin/tvin.h>
+#endif
 
 #define DRV_NAME "EARC"
 
@@ -160,6 +164,8 @@ struct earc {
 	enum attend_type earctx_connected_device_type;
 	unsigned int rx_status0;
 	unsigned int rx_status1;
+	bool tx_earc_mode;
+	bool tx_reset_hpd;
 };
 
 static struct earc *s_earc;
@@ -217,6 +223,14 @@ enum attend_type aml_get_earctx_connected_device_type(void)
 		return -ENOTCONN;
 
 	return s_earc->earctx_connected_device_type;
+}
+
+bool aml_get_earctx_reset_hpd(void)
+{
+	if (!s_earc)
+		return 0;
+
+	return s_earc->tx_reset_hpd;
 }
 
 void aml_earctx_enable_d2a(int enable)
@@ -481,6 +495,7 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 	if (status0 & INT_EARCTX_CMDC_EARC) {
 		earctx_update_attend_event(p_earc,
 					   true, true);
+		p_earc->tx_reset_hpd = false;
 		dev_info(p_earc->dev, "EARCTX_CMDC_EARC\n");
 	}
 
@@ -494,8 +509,11 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 		dev_dbg(p_earc->dev, "EARCTX_CMDC_HB_STATUS\n");
 	if (status0 & INT_EARCTX_CMDC_LOSTHB)
 		dev_info(p_earc->dev, "EARCTX_CMDC_LOSTHB\n");
-	if (status0 & INT_EARCTX_CMDC_TIMEOUT)
+	if (status0 & INT_EARCTX_CMDC_TIMEOUT) {
 		dev_info(p_earc->dev, "EARCTX_CMDC_TIMEOUT\n");
+		earctx_cmdc_arc_connect(p_earc->tx_cmdc_map, true);
+		p_earc->tx_reset_hpd = false;
+	}
 	if (status0 & INT_EARCTX_CMDC_RECV_NACK)
 		dev_dbg(p_earc->dev, "EARCTX_CMDC_RECV_NACK\n");
 	if (status0 & INT_EARCTX_CMDC_RECV_NORSP)
@@ -1660,6 +1678,47 @@ int earctx_set_mute(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+int earctx_set_earc_mode(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	int earc_mode = ucontrol->value.integer.value[0];
+
+	if (!p_earc || IS_ERR(p_earc->tx_cmdc_map) || p_earc->tx_earc_mode == earc_mode)
+		return 0;
+
+	p_earc->tx_earc_mode = earc_mode;
+
+	/* set arc initiated and arc_enable */
+	earctx_cmdc_arc_connect(p_earc->tx_cmdc_map, !earc_mode);
+	/* set earc mode */
+	earctx_cmdc_earc_mode(p_earc->tx_cmdc_map, earc_mode);
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+	defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
+	if (p_earc->tx_earc_mode) {
+		p_earc->tx_reset_hpd = true;
+		rx_earc_hpd_cntl(); /* reset hpd */
+	}
+#endif
+
+	return 0;
+}
+
+int earctx_get_earc_mode(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+
+	if (!p_earc)
+		return 0;
+
+	ucontrol->value.integer.value[0] = p_earc->tx_earc_mode;
+
+	return 0;
+}
+
 static int earcrx_get_iec958(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
@@ -1930,6 +1989,11 @@ static const struct snd_kcontrol_new earc_controls[] = {
 			    earctx_get_mute,
 			    earctx_set_mute),
 
+	SOC_SINGLE_BOOL_EXT("eARC_TX eARC Mode",
+			    0,
+			    earctx_get_earc_mode,
+			    earctx_set_earc_mode),
+
 	SOC_SINGLE_EXT("eARC_RX Audio Sample Frequency",
 		       0, 0, 384000, 0,
 		       earcrx_get_freq,
@@ -2115,6 +2179,8 @@ void earc_hdmirx_hpdst(int earc_port, bool st)
 		p_earc->earctx_connected_device_type = ATNDTYP_DISCNCT;
 		/* release earctx same source when cable plug out */
 		aml_check_and_release_sharebuffer(NULL, EARCTX_DMAC);
+		/* disable arc */
+		earctx_cmdc_arc_connect(p_earc->tx_cmdc_map, st);
 	} else {
 		/* set ARC type as defaule when cable plugin */
 		p_earc->earctx_connected_device_type = ATNDTYP_ARC;
@@ -2128,7 +2194,7 @@ void earc_hdmirx_hpdst(int earc_port, bool st)
 	/* tx cmdc anlog init */
 	earctx_cmdc_init(p_earc->tx_top_map, st, p_earc->chipinfo->rterm_on);
 
-	earctx_cmdc_arc_connect(p_earc->tx_cmdc_map, st);
+	earctx_cmdc_earc_mode(p_earc->tx_cmdc_map, p_earc->tx_earc_mode);
 	earctx_cmdc_hpd_detect(p_earc->tx_top_map,
 			       p_earc->tx_cmdc_map,
 			       earc_port, st);
@@ -2353,7 +2419,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 			"snd_soc_register_component failed\n");
 		return ret;
 	}
-
+	p_earc->tx_earc_mode = true;
 	s_earc = p_earc;
 
 	/* RX */

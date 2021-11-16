@@ -1770,3 +1770,26 @@ u8 earcrx_cmdc_get_rx_stat_bits(struct regmap *cmdc_map)
 			    1);
 	return stat_bits;
 }
+
+void earctx_cmdc_earc_mode(struct regmap *cmdc_map, bool enable)
+{
+	if (enable) {
+		mmio_update_bits(cmdc_map,
+				 EARC_TX_CMDC_VSM_CTRL0,
+				 0xf << 28 | 0x3 << 8,
+				 0x0);
+		mmio_update_bits(cmdc_map,
+				 EARC_TX_CMDC_VSM_CTRL0,
+				 0x1 << 26,
+				 0x1 << 26);
+		mmio_update_bits(cmdc_map,
+				 EARC_TX_CMDC_VSM_CTRL0,
+				 0x1 << 26,
+				 0x0);
+	} else {
+		mmio_update_bits(cmdc_map,
+				 EARC_TX_CMDC_VSM_CTRL0,
+				 0xf << 28 | 0x3 << 8,
+				 0xe << 28 | 0x3 << 8);
+	}
+}
