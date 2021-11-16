@@ -956,14 +956,16 @@ static int start_aucpu_non_es(struct out_elem *pout)
 	return 0;
 }
 
-static void create_aucpu_pts(struct out_elem *pout)
+static int create_aucpu_pts(struct out_elem *pout)
 {
 	struct aml_aucpu_strm_buf src;
 	struct aml_aucpu_strm_buf dst;
 	struct aml_aucpu_inst_config cfg;
 	int ret;
+
 	if (!pout || !pout->pchan1)
-		return;
+		return -1;
+
 	if (pout->aucpu_pts_handle < 0 && pout->pchan1->sec_level) {
 		src.phy_start = pout->pchan1->mem_phy;
 		src.buf_size = pout->pchan1->mem_size;
@@ -976,9 +978,11 @@ static void create_aucpu_pts(struct out_elem *pout)
 		ret =
 		    _alloc_buff(pout->aucpu_pts_mem_size, 0,
 					&pout->aucpu_pts_mem,
-					&pout->aucpu_pts_mem_phy, 0);
-		if (ret != 0)
-			return;
+					&pout->aucpu_pts_mem_phy);
+		if (ret != 0) {
+			dprint("aucpu pts alloc buf fail\n");
+			return -1;
+		}
 		pr_dbg("%s dst aucpu pts mem:0x%lx, phy:0x%lx\n",
 		       __func__, pout->aucpu_pts_mem, pout->aucpu_pts_mem_phy);
 
@@ -991,33 +995,41 @@ static void create_aucpu_pts(struct out_elem *pout)
 		cfg.config_flags = 0;
 		pout->aucpu_pts_handle = aml_aucpu_strm_create(&src,
 				&dst, &cfg);
-		if (pout->aucpu_pts_handle < 0)
+		if (pout->aucpu_pts_handle < 0) {
+			_free_buff(pout->aucpu_pts_mem_phy,
+				pout->aucpu_pts_mem_size, 0);
+			pout->aucpu_pts_mem = 0;
+
 			dprint("%s create aucpu pts fail, ret:%d\n",
 			       __func__, pout->aucpu_pts_handle);
-		else
-			dprint("%s create aucpu pts inst success\n", __func__);
-
+			return -1;
+		}
+		dprint("%s create aucpu pts inst success\n", __func__);
 		pout->aucpu_pts_r_offset = 0;
 		pout->aucpu_pts_start = 0;
 	}
+	return 0;
 }
-static void create_aucpu_inst(struct out_elem *pout)
+
+static int create_aucpu_inst(struct out_elem *pout)
 {
 	struct aml_aucpu_strm_buf src;
 	struct aml_aucpu_strm_buf dst;
 	struct aml_aucpu_inst_config cfg;
 	int ret;
+
 	if (!pout)
-		return;
+		return -1;
 
 	if (pout->type == NONE_TYPE)
-		return;
+		return -1;
 
 	if (pout->type == VIDEO_TYPE) {
-		create_aucpu_pts(pout);
-		return;
+		return create_aucpu_pts(pout);
 	} else if (pout->type == AUDIO_TYPE) {
-		create_aucpu_pts(pout);
+		ret = create_aucpu_pts(pout);
+		if (ret != 0)
+			return ret;
 	}
 	/*now except the video, others will pass by aucpu */
 	if (pout->aucpu_handle < 0) {
@@ -1031,9 +1043,11 @@ static void create_aucpu_inst(struct out_elem *pout)
 		pout->aucpu_mem_size = pout->pchan->mem_size;
 		ret =
 		    _alloc_buff(pout->aucpu_mem_size, 0, &pout->aucpu_mem,
-				&pout->aucpu_mem_phy, 0);
-		if (ret != 0)
-			return;
+				&pout->aucpu_mem_phy);
+		if (ret != 0) {
+			dprint("aucpu mem alloc fail\n");
+			return -1;
+		}
 		pr_dbg("%s dst aucpu mem:0x%lx, phy:0x%lx\n",
 		       __func__, pout->aucpu_mem, pout->aucpu_mem_phy);
 
@@ -1044,15 +1058,19 @@ static void create_aucpu_inst(struct out_elem *pout)
 		cfg.dma_chn_id = pout->pchan->id;
 		cfg.config_flags = 0;
 		pout->aucpu_handle = aml_aucpu_strm_create(&src, &dst, &cfg);
-		if (pout->aucpu_handle < 0)
+		if (pout->aucpu_handle < 0) {
+			_free_buff(pout->aucpu_mem_phy,
+				pout->aucpu_mem_size, 0);
+			pout->aucpu_mem = 0;
 			dprint("%s create aucpu fail, ret:%d\n",
 			       __func__, pout->aucpu_handle);
-		else
+		} else {
 			dprint("%s create aucpu inst success\n", __func__);
-
+		}
 		pout->aucpu_read_offset = 0;
 		pout->aucpu_start = 0;
 	}
+	return 0;
 }
 
 static unsigned int aucpu_read_pts_process(struct out_elem *pout,
@@ -2181,7 +2199,7 @@ int ts_output_close(struct out_elem *pout)
 		pout->aucpu_handle = -1;
 
 		_free_buff(pout->aucpu_mem_phy,
-				pout->aucpu_mem_size, 0, 0);
+				pout->aucpu_mem_size, 0);
 		pout->aucpu_mem = 0;
 	}
 
@@ -2204,7 +2222,7 @@ int ts_output_close(struct out_elem *pout)
 		pout->aucpu_pts_handle = -1;
 
 		_free_buff(pout->aucpu_pts_mem_phy,
-				pout->aucpu_pts_mem_size, 0, 0);
+				pout->aucpu_pts_mem_size, 0);
 		pout->aucpu_pts_mem = 0;
 	}
 
@@ -2239,6 +2257,7 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 {
 	struct pid_entry *pid_slot = NULL;
 	struct es_entry *es_pes = NULL;
+	int ret = 0;
 
 	if (!pout)
 		return -1;
@@ -2272,8 +2291,11 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		pout->es_pes = es_pes;
 
 		/*before pid filter enable */
-		if (pout->pchan->sec_level)
-			create_aucpu_inst(pout);
+		if (pout->pchan->sec_level) {
+			ret = create_aucpu_inst(pout);
+			if (ret != 0)
+				return -1;
+		}
 		if (pout->type == VIDEO_TYPE) {
 			if (((dump_video_es & 0xFFFF) == pout->es_pes->pid &&
 				((dump_video_es >> 16) & 0xFFFF) == pout->sid) ||

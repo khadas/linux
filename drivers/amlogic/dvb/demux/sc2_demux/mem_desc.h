@@ -38,7 +38,6 @@ struct chan_id {
 	unsigned int r_offset;
 	unsigned long memdescs_map;
 	unsigned int last_w_addr;
-	unsigned int tee_handle;
 
 	/*just for DVR sec direct mem*/
 	unsigned int sec_mem;
@@ -151,12 +150,14 @@ unsigned int SC2_bufferid_get_free_size(struct chan_id *pchan);
 unsigned int SC2_bufferid_get_wp_offset(struct chan_id *pchan);
 
 int _alloc_buff(unsigned int len, int sec_level,
-		unsigned long *vir_mem, unsigned long *phy_mem,
-		unsigned int *handle);
-void _free_buff(unsigned long buf, unsigned int len, int sec_level,
-		unsigned int handle);
+		unsigned long *vir_mem, unsigned long *phy_mem);
+void _free_buff(unsigned long buf, unsigned int len, int sec_level);
 
 int cache_status_info(char *buf);
 int cache_clear(void);
 int cache_adjust(int cache0_count, int cache1_count);
+
+int dmc_mem_set_size(int sec_level, unsigned int mem_size);
+int dmc_mem_dump_info(char *buf);
+
 #endif

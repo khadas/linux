@@ -320,6 +320,39 @@ ssize_t tsn_loop_store(struct class *class,
 	return count;
 }
 
+ssize_t dmc_mem_show(struct class *class,
+			struct class_attribute *attr, char *buf)
+{
+	return dmc_mem_dump_info(buf);
+}
+
+ssize_t dmc_mem_store(struct class *class,
+			 struct class_attribute *attr,
+			 const char *buf, size_t count)
+{
+	struct aml_dvb *advb = aml_get_dvb_device();
+	int sec_level = 0;
+	unsigned int size = 0;
+
+	dprint("input: %s\n", buf);
+	if (sscanf(buf, "%d %d\n", &sec_level, &size) == 2) {
+		dprint("sec_level :0x%0x\n", sec_level);
+		dprint("size :0x%0x\n", size);
+	} else {
+		dprint("%s parameter fail, like sec_level(1~7) mem_size\n",
+			buf);
+		return count;
+	}
+
+	if (mutex_lock_interruptible(&advb->mutex))
+		return -ERESTARTSYS;
+
+	dmc_mem_set_size(sec_level, size);
+
+	mutex_unlock(&advb->mutex);
+	return count;
+}
+
 static CLASS_ATTR_RW(ts_setting);
 static CLASS_ATTR_RW(get_pcr);
 static CLASS_ATTR_RO(dmx_setting);
@@ -328,6 +361,7 @@ static CLASS_ATTR_RO(dsc_setting);
 static CLASS_ATTR_RW(tsn_source);
 static CLASS_ATTR_RW(tso_source);
 static CLASS_ATTR_RW(tsn_loop);
+static CLASS_ATTR_RW(dmc_mem);
 
 static struct attribute *aml_stb_class_attrs[] = {
 	&class_attr_ts_setting.attr,
@@ -337,6 +371,7 @@ static struct attribute *aml_stb_class_attrs[] = {
 	&class_attr_tsn_source.attr,
 	&class_attr_tso_source.attr,
 	&class_attr_tsn_loop.attr,
+	&class_attr_dmc_mem.attr,
 	NULL
 };
 

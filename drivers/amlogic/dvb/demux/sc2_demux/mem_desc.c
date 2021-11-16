@@ -88,6 +88,29 @@ static int cache1_count_max = SECOND_CACHE_ELEM_COUNT;
 static struct mem_cache *first_cache;
 static struct mem_cache *second_cache;
 
+struct mem_region {
+	u8 status;
+	unsigned int start_phy;
+	unsigned long start_virt;
+	unsigned int len;
+	struct mem_region *pnext;
+};
+
+struct dmc_mem {
+	int init;
+	u8 level;
+	unsigned int handle;
+	unsigned int size;
+	unsigned int buf_start_phy;
+	unsigned int ref;
+	unsigned int free_start_phy;
+	unsigned int free_len;
+	struct mem_region *region_list;
+};
+
+#define DMC_MEM_DEFAULT_SIZE (20 * 1024 * 1024)
+static struct dmc_mem dmc_mem_level[7];
+
 static int cache_init(int cache_level)
 {
 	int total_size = 0;
@@ -355,29 +378,240 @@ int cache_status_info(char *buf)
 	return total;
 }
 
-int _alloc_buff(unsigned int len, int sec_level,
-		unsigned long *vir_mem, unsigned long *phy_mem,
-		unsigned int *handle)
+static int dmc_mem_init(struct dmc_mem *mem, int sec_level)
 {
 	int flags = 0;
 	int buf_page_num = 0;
 	unsigned long buf_start = 0;
 	unsigned long buf_start_virt = 0;
 	u32 ret = -1;
+	u32 len = mem->size;
+
+	flags = CODEC_MM_FLAGS_DMA_CPU | CODEC_MM_FLAGS_FOR_VDECODER;
+
+	buf_page_num = PAGE_ALIGN(len) / PAGE_SIZE;
+
+	buf_start =
+	    codec_mm_alloc_for_dma("dmx", buf_page_num, 4 + PAGE_SHIFT, flags);
+	if (!buf_start) {
+		dprint("%s fail\n", __func__);
+		return -1;
+	}
+	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
+	pr_dbg("dmc mem init phy:0x%lx, virt:0x%lx, len:%d\n",
+		buf_start, buf_start_virt, len);
+	memset((char *)buf_start_virt, 0, len);
+	mem->level = sec_level;
+	if (sec_level) {
+		sec_level = sec_level == 1 ? 0 : sec_level;
+		ret = tee_protect_mem(TEE_MEM_TYPE_DEMUX, sec_level, buf_start, len, &mem->handle);
+		dprint("%s, protect 0x%lx, len:%d, ret:0x%x\n",
+				__func__, buf_start, len, ret);
+	}
+	mem->buf_start_phy = buf_start;
+	mem->free_start_phy = buf_start;
+	mem->free_len = len;
+	mem->ref = 0;
+	mem->init = 1;
+	return 0;
+}
+
+static int dmc_mem_destroy(struct dmc_mem *mem)
+{
+	struct mem_region *header = NULL;
+	struct mem_region *tmp = NULL;
+
+	tee_unprotect_mem(mem->handle);
+	codec_mm_free_for_dma("dmx", mem->buf_start_phy);
+	mem->handle = 0;
+	mem->buf_start_phy = 0;
+
+	header = mem->region_list;
+	while (header) {
+		tmp = header->pnext;
+		if (header->status == 1)
+			dprint("%s used mem have free error\n", __func__);
+		vfree(header);
+		header = tmp;
+	}
+
+	mem->region_list = NULL;
+//	mem->size = 0;
+	mem->free_len = 0;
+	mem->free_start_phy = 0;
+	mem->init = 0;
+	return 0;
+}
+
+static int dmc_mem_get_block(struct dmc_mem *mem, unsigned int len,
+	unsigned long *p_virt, unsigned long *p_phys)
+{
+	struct mem_region *header = mem->region_list;
+	struct mem_region *temp = NULL;
+
+	while (header) {
+		if (header->len == len &&
+			header->status == 0) {
+			header->status = 1;
+			*p_virt = header->start_virt;
+			*p_phys = header->start_phy;
+			mem->ref++;
+			return 0;
+		}
+		header = header->pnext;
+	}
+
+	if (mem->free_len < len) {
+		dprint("%s err free len:%d, req len:%d\n",
+			__func__, mem->free_len, len);
+		return -1;
+	}
+	temp = vmalloc(sizeof(*temp));
+	if (!temp) {
+		dprint("%s err vmalloc\n", __func__);
+		return -1;
+	}
+	temp->len = len;
+	temp->start_phy = mem->free_start_phy;
+	temp->start_virt = (unsigned long)codec_mm_phys_to_virt(temp->start_phy);
+	if (!temp->start_virt) {
+		vfree(temp);
+		dprint("%s codec_mm_phys_to_virt fail\n", __func__);
+		return -1;
+	}
+	temp->status = 1;
+	temp->pnext = mem->region_list;
+
+	mem->region_list = temp;
+	mem->free_len -= len;
+	mem->free_start_phy += len;
+	mem->ref++;
+
+	*p_virt = temp->start_virt;
+	*p_phys = temp->start_phy;
+	return 0;
+}
+
+static int dmc_mem_free_block(struct dmc_mem *mem, unsigned long phys_mem)
+{
+	struct mem_region *header = mem->region_list;
+
+	while (header) {
+		if (header->start_phy == phys_mem &&
+			header->status == 1) {
+			header->status = 0;
+			mem->ref--;
+			return 0;
+		}
+		header = header->pnext;
+	}
+	dprint("%s no find block\n", __func__);
+	return 0;
+}
+
+static int dmc_mem_malloc(int sec_level, int len,
+	unsigned long *p_virt, unsigned long *p_phys)
+{
+	int dmc_index = sec_level - 1;
+	int ret = 0;
+
+	if (dmc_index < 0 || dmc_index >= 7) {
+		dprint("%s err level:%d\n", __func__, sec_level);
+		return -1;
+	}
+
+	if (!dmc_mem_level[dmc_index].init) {
+		ret = dmc_mem_init(&dmc_mem_level[dmc_index], sec_level);
+		if (ret != 0)
+			return -1;
+	}
+	return dmc_mem_get_block(&dmc_mem_level[dmc_index], len, p_virt, p_phys);
+}
+
+static int dmc_mem_free(unsigned long buf, unsigned int len, int sec_level)
+{
+	int dmc_index = sec_level - 1;
+	int ret = 0;
+
+	if (dmc_index < 0 || dmc_index >= 7) {
+		dprint("%s err level:%d\n", __func__, sec_level);
+		return -1;
+	}
+	if (!dmc_mem_level[dmc_index].init) {
+		dprint("%s err no init\n", __func__);
+		return -1;
+	}
+	ret = dmc_mem_free_block(&dmc_mem_level[dmc_index], buf);
+	if (ret != 0)
+		return -1;
+	if (!dmc_mem_level[dmc_index].ref)
+		ret = dmc_mem_destroy(&dmc_mem_level[dmc_index]);
+
+	return ret;
+}
+
+int dmc_mem_set_size(int sec_level, unsigned int mem_size)
+{
+	int dmc_index = sec_level - 1;
+
+	if (dmc_index < 0 || dmc_index >= 7) {
+		dprint("%s err level:%d\n", __func__, sec_level);
+		return -1;
+	}
+	if (!dmc_mem_level[dmc_index].init)
+		dmc_mem_level[dmc_index].size = mem_size / (64 * 1024) * (64 * 1024);
+	else
+		dprint("%s should set size before app\n", __func__);
+	return 0;
+}
+
+int dmc_mem_dump_info(char *buf)
+{
+	int i = 0;
+	int r, total = 0;
+
+	r = sprintf(buf, "********dmc mem********\n");
+	buf += r;
+	total += r;
+
+	for (i = 0; i < 7; i++) {
+		r = sprintf(buf, "%d status %s level:%d size:%d ref:%d, free:%d\n",
+			i,
+			dmc_mem_level[i].init ? "using" : "no use",
+			dmc_mem_level[i].level,
+			dmc_mem_level[i].size,
+			dmc_mem_level[i].ref,
+			dmc_mem_level[i].free_len);
+		buf += r;
+		total += r;
+	}
+	return total;
+}
+
+int _alloc_buff(unsigned int len, int sec_level,
+		unsigned long *vir_mem, unsigned long *phy_mem)
+{
+	int flags = 0;
+	int buf_page_num = 0;
+	unsigned long buf_start = 0;
+	unsigned long buf_start_virt = 0;
 	int iret = 0;
+
+	if (sec_level) {
+		iret = dmc_mem_malloc(sec_level, len, &buf_start_virt, &buf_start);
+		if (iret == 0) {
+			*vir_mem = buf_start_virt;
+			*phy_mem = buf_start;
+			return 0;
+		}
+		return -1;
+	}
 
 	iret = cache_malloc(len, &buf_start_virt, &buf_start);
 	if (iret == 0) {
 		pr_dbg("init cache phy:0x%lx, virt:0x%lx, len:%d\n",
 				buf_start, buf_start_virt, len);
-		memset((char *)buf_start_virt, 0, len);
-		if (sec_level) {
-			sec_level = sec_level == 1 ? 0 : sec_level;
-			ret = tee_protect_mem(TEE_MEM_TYPE_DEMUX, sec_level,
-				buf_start, len, handle);
-			pr_dbg("%s, protect 0x%lx, len:%d, ret:0x%x\n",
-				__func__, buf_start, len, ret);
-		}
+		memset((char *)buf_start_virt, 0xa5, len);
 		*vir_mem = buf_start_virt;
 		*phy_mem = buf_start;
 		return 0;
@@ -399,15 +633,7 @@ int _alloc_buff(unsigned int len, int sec_level,
 	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
 	pr_dbg("init phy:0x%lx, virt:0x%lx, len:%d\n",
 			buf_start, buf_start_virt, len);
-	memset((char *)buf_start_virt, 0, len);
-	if (sec_level) {
-		sec_level = sec_level == 1 ? 0 : sec_level;
-		//ret = tee_protect_tvp_mem(buf_start, len, handle);
-		ret = tee_protect_mem(TEE_MEM_TYPE_DEMUX, sec_level,
-				buf_start, len, handle);
-		pr_dbg("%s, protect 0x%lx, len:%d, ret:0x%x\n",
-				__func__, buf_start, len, ret);
-	}
+	memset((char *)buf_start_virt, 0xa5, len);
 
 	*vir_mem = buf_start_virt;
 	*phy_mem = buf_start;
@@ -415,14 +641,13 @@ int _alloc_buff(unsigned int len, int sec_level,
 	return 0;
 }
 
-void _free_buff(unsigned long buf, unsigned int len, int sec_level,
-		unsigned int handle)
+void _free_buff(unsigned long buf, unsigned int len, int sec_level)
 {
 	int iret = 0;
 
 	if (sec_level) {
-		tee_unprotect_mem(handle);
-		pr_dbg("%s, unprotect handle:%d\n", __func__, handle);
+		dmc_mem_free(buf, len, sec_level);
+		return;
 	}
 
 	iret = cache_free(len, buf);
@@ -458,7 +683,7 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 					mem_phy, mem, mem_size);
 		} else {
 			ret = _alloc_buff(mem_size, sec_level, &mem,
-				&mem_phy, &pchan->tee_handle);
+				&mem_phy);
 			if (ret != 0) {
 				dprint("%s malloc fail\n", __func__);
 				return -1;
@@ -468,9 +693,9 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 		}
 	}
 	ret =
-	    _alloc_buff(sizeof(union mem_desc), 0, &memdescs, &memdescs_phy, 0);
+	    _alloc_buff(sizeof(union mem_desc), 0, &memdescs, &memdescs_phy);
 	if (ret != 0) {
-		_free_buff(mem_phy, mem_size, sec_level, pchan->tee_handle);
+		_free_buff(mem_phy, mem_size, sec_level);
 		dprint("%s malloc 2 fail\n", __func__);
 		return -1;
 	}
@@ -501,11 +726,10 @@ static void _bufferid_free_desc_mem(struct chan_id *pchan)
 {
 	if (pchan->mem && pchan->sec_size == 0)
 		_free_buff((unsigned long)pchan->mem_phy,
-			   pchan->mem_size, pchan->sec_level,
-			   pchan->tee_handle);
+			   pchan->mem_size, pchan->sec_level);
 	if (pchan->memdescs)
 		_free_buff((unsigned long)pchan->memdescs_phy,
-			   sizeof(union mem_desc), 0, 0);
+			   sizeof(union mem_desc), 0);
 	pchan->mem = 0;
 	pchan->mem_phy = 0;
 	pchan->mem_size = 0;
@@ -640,6 +864,9 @@ int SC2_bufferid_init(void)
 		pchan->id = i;
 		pchan->mode = INPUT_MODE;
 	}
+
+	for (i = 1; i <= 7; i++)
+		dmc_mem_set_size(i, DMC_MEM_DEFAULT_SIZE);
 
 	return 0;
 }

@@ -60,7 +60,7 @@
 #define TS_OUTPUT_CHAN_PES_BUF_SIZE		(3 * 188 * 1024)
 #define TS_OUTPUT_CHAN_SEC_BUF_SIZE		(188 * 500)
 #define TS_OUTPUT_CHAN_PTS_BUF_SIZE		(16 * 500)
-#define TS_OUTPUT_CHAN_PTS_SEC_BUF_SIZE		(128 * 1024)
+#define TS_OUTPUT_CHAN_PTS_SEC_BUF_SIZE		(16 * 500)
 #define TS_OUTPUT_CHAN_DVR_BUF_SIZE		(30 * 1024 * 188)
 
 struct jiffies_pcr {
@@ -484,11 +484,17 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			return -1;
 		}
 		if (feed->pid == 0x2000)
-			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0x1fff,
+			ret = ts_output_add_pid(feed->ts_out_elem, feed->pid, 0x1fff,
 					  demux->id, &cb_id);
 		else
-			ts_output_add_pid(feed->ts_out_elem, feed->pid, 0,
+			ret = ts_output_add_pid(feed->ts_out_elem, feed->pid, 0,
 					  demux->id, &cb_id);
+		if (ret != 0) {
+			ts_output_close(feed->ts_out_elem);
+			feed->ts_out_elem = NULL;
+			mutex_unlock(demux->pmutex);
+			return -1;
+		}
 		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed,
 			cb_id, format, 0, demux->id);
 		feed->cb_id = cb_id;
@@ -798,8 +804,14 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 			mutex_unlock(demux->pmutex);
 			return -1;
 		}
-		ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
+		ret = ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
 				  demux->id, &cb_id);
+		if (ret != 0) {
+			ts_output_close(sec_feed->sec_out_elem);
+			sec_feed->sec_out_elem = NULL;
+			mutex_unlock(demux->pmutex);
+			return -1;
+		}
 		ts_output_add_cb(sec_feed->sec_out_elem,
 				 _ts_out_sec_cb, sec_feed, cb_id,
 				 SECTION_FORMAT, 1, demux->id);
