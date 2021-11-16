@@ -57,6 +57,10 @@ enum vad_level {
 	LEVEL_KERNEL,
 };
 
+struct vad_chipinfo {
+	bool vad_top;
+};
+
 struct vad {
 	struct aml_audio_controller *actrl;
 	struct device *dev;
@@ -117,6 +121,7 @@ struct vad {
 	mm_segment_t fs;
 	loff_t pos;
 #endif
+	struct vad_chipinfo *chipinfo;
 };
 
 static struct vad *s_vad;
@@ -561,7 +566,16 @@ static void vad_deinit(struct vad *p_vad)
 
 void vad_set_lowerpower_mode(bool islowpower)
 {
-	vad_force_clk_to_oscin(islowpower);
+	struct vad *p_vad = get_vad();
+	bool vad_top;
+
+	if (!p_vad || !p_vad->en)
+		return;
+
+	vad_top = (p_vad->chipinfo &&
+		p_vad->chipinfo->vad_top) ? true : false;
+
+	vad_force_clk_to_oscin(islowpower, vad_top);
 }
 
 void vad_update_buffer(bool isvadbuf)
@@ -616,23 +630,61 @@ void vad_update_buffer(bool isvadbuf)
 		vad_set_trunk_data_readable(true);
 	}
 
-	aml_toddr_set_buf_startaddr(p_vad->tddr, start);
-	aml_toddr_force_finish(p_vad->tddr);
+	if (p_vad->chipinfo &&
+	    p_vad->chipinfo->vad_top) {
+	    /* switch between normal fifo and toddr_vad fifo */
+		if (isvadbuf) {
+			struct toddr_fmt fmt;
+			unsigned int toddr_type = 0, lsb, bitdepth;
 
-	/* make sure DMA point is in new buffer */
-	curr_addr = aml_toddr_get_position(p_vad->tddr);
-	while (curr_addr < start || curr_addr > end) {
-		if (i++ > 10000) {
-			pr_err("break\n");
-			break;
+			bitdepth = p_vad->tddr->fmt.bit_depth;
+			lsb = 32 - bitdepth;
+			if (bitdepth == 24) {
+				toddr_type = 4;
+			} else if (bitdepth == 16 || bitdepth == 32) {
+				toddr_type = 0;
+			} else {
+				pr_err("%s, not support bit width:%d\n",
+				       __func__, bitdepth);
+				return;
+			}
+
+			/* to ddr pdmin */
+			fmt.type   = toddr_type;
+			fmt.msb    = 31;
+			fmt.lsb    = lsb;
+			fmt.endian = 0;
+
+			/* enable toddr_vad and sram */
+			toddr_vad_set_buf(start, end);
+			toddr_vad_set_intrpt(0x200);
+			toddr_vad_select_src(p_vad->tddr->src);
+			toddr_vad_set_fifos(0x10);
+			toddr_vad_set_format(&fmt);
+			toddr_vad_enable(true);
+		} else {
+			/* disabled toddr vad */
+			toddr_vad_enable(false);
 		}
-		udelay(1);
+	} else {
+		aml_toddr_set_buf_startaddr(p_vad->tddr, start);
+		aml_toddr_force_finish(p_vad->tddr);
+
+		/* make sure DMA point is in new buffer */
 		curr_addr = aml_toddr_get_position(p_vad->tddr);
+		while (curr_addr < start || curr_addr > end) {
+			if (i++ > 10000) {
+				pr_err("break\n");
+				break;
+			}
+			udelay(1);
+			curr_addr = aml_toddr_get_position(p_vad->tddr);
+		}
+
+		aml_toddr_set_buf_endaddr(p_vad->tddr, end);
+
+		aml_toddr_set_fifos(p_vad->tddr, rd_th);
 	}
-
-	aml_toddr_set_buf_endaddr(p_vad->tddr, end);
-
-	aml_toddr_set_fifos(p_vad->tddr, rd_th);
 	p_vad->addr = 0;
 }
 
@@ -722,9 +774,17 @@ void vad_set_toddr_info(struct toddr *to)
 void vad_enable(bool enable)
 {
 	struct vad *p_vad = get_vad();
-
+	bool vad_top;
 	if (!p_vad || !p_vad->en)
 		return;
+
+	vad_top = (p_vad->chipinfo &&
+		p_vad->chipinfo->vad_top) ? true : false;
+
+	pr_info("%s, enable:%d, vad_top:%d\n",
+		__func__,
+		enable,
+		vad_top);
 
 	/* Force VAD enable to set parameters */
 	if (enable) {
@@ -745,18 +805,18 @@ void vad_enable(bool enable)
 		pr_info("%s, gain_index = %d, osr = %d, vad_sample_rate = %d\n",
 			__func__, gain_index, osr, p_vad->tddr->fmt.rate);
 
-		vad_set_enable(true);
+		vad_set_enable(true, vad_top);
 		vad_set_ram_coeff(len_ram, p_win_coeff);
 		vad_set_de_params(len_de, p_de_coeff);
 		vad_set_pwd();
 		vad_set_cep();
-		vad_set_src(p_vad->src);
+		vad_set_src(p_vad->src, vad_top);
 		vad_set_in();
 
 		/* reset then enable VAD */
-		vad_set_enable(false);
+		vad_set_enable(false, vad_top);
 	}
-	vad_set_enable(enable);
+	vad_set_enable(enable, vad_top);
 }
 
 static int vad_get_enable_enum(struct snd_kcontrol *kcontrol,
@@ -938,9 +998,17 @@ int card_add_vad_kcontrols(struct snd_soc_card *card)
 	return 0;
 }
 
+static struct vad_chipinfo vad_top_chipinfo = {
+	.vad_top         = true,
+};
+
 static const struct of_device_id vad_device_id[] = {
 	{
 		.compatible = "amlogic, snd-vad",
+	},
+	{
+		.compatible = "amlogic, snd-vad-top",
+		.data       = &vad_top_chipinfo,
 	},
 	{},
 };
@@ -957,6 +1025,7 @@ static int vad_platform_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct aml_audio_controller *actrl = NULL;
 	struct vad *p_vad = NULL;
+	struct vad_chipinfo *p_chipinfo;
 	int ret = 0;
 
 	p_vad = devm_kzalloc(&pdev->dev, sizeof(struct vad), GFP_KERNEL);
@@ -982,6 +1051,14 @@ static int vad_platform_probe(struct platform_device *pdev)
 
 	p_vad->dev = dev;
 	dev_set_drvdata(dev, p_vad);
+
+	/* match data */
+	p_chipinfo = (struct vad_chipinfo *)
+		of_device_get_match_data(dev);
+	if (!p_chipinfo)
+		dev_warn_once(dev, "check whether to update vad chipinfo\n");
+
+	p_vad->chipinfo = p_chipinfo;
 
 	/* get audio controller */
 	node_prt = of_get_parent(node);

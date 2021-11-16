@@ -47,6 +47,8 @@ struct data_src_table loopback_data_table[DATAIN_MAX] = {
 	{DATAIN_PDM,	   "pdmin"},
 	{DATAIN_TDMD,	   "tdmin_d"},
 	{DATAIN_PDMB,	   "pdmin_b"},
+	{DATAIN_VAD_TDMIN, "vad_tdmin"},
+	{DATAIN_VAD_PDMIN, "vad_pdmin"},
 };
 
 struct lb_src_table tdmin_lb_src_table[TDMINLB_SRC_MAX] = {
@@ -411,6 +413,7 @@ static int loopback_dai_startup(struct snd_pcm_substream *ss,
 			break;
 		case DATAIN_PDM:
 		case DATAIN_PDMB:
+		case DATAIN_VAD_PDMIN:
 			ret = datain_pdm_startup(p_loopback);
 			if (ret < 0)
 				goto err;
@@ -458,6 +461,7 @@ static void loopback_dai_shutdown(struct snd_pcm_substream *ss,
 			break;
 		case DATAIN_PDM:
 		case DATAIN_PDMB:
+		case DATAIN_VAD_PDMIN:
 			datain_pdm_shutdown(p_loopback);
 			break;
 		case DATAIN_LOOPBACK:
@@ -525,6 +529,7 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 		case DATAIN_TDMD:
 		case DATAIN_PDM:
 		case DATAIN_PDMB:
+		case DATAIN_VAD_PDMIN:
 			datain_toddr_type = 0;
 			datain_msb = 32 - 1;
 			datain_lsb = 0;
@@ -637,7 +642,7 @@ static void datatin_pdm_cfg(struct snd_pcm_runtime *runtime,
 		gain_index = pdm->pdm_gain_index;
 	if (pdm && pdm->chipinfo)
 		pdm_id = pdm->chipinfo->id;
-	if (p_loopback->datain_src == DATAIN_PDM)
+	if (p_loopback->datain_src == DATAIN_PDM || p_loopback->datain_src == DATAIN_VAD_PDMIN)
 		pdm_id = 0;
 	else if (p_loopback->datain_src == DATAIN_PDMB)
 		pdm_id = 1;
@@ -722,6 +727,7 @@ static int loopback_dai_prepare(struct snd_pcm_substream *ss,
 			break;
 		case DATAIN_PDM:
 		case DATAIN_PDMB:
+		case DATAIN_VAD_PDMIN:
 			datatin_pdm_cfg(runtime, p_loopback);
 			break;
 		case DATAIN_LOOPBACK:
@@ -780,6 +786,7 @@ static void loopback_mic_src_trigger(struct loopback *p_loopback,
 	case DATAIN_SPDIF:
 		break;
 	case DATAIN_PDM:
+	case DATAIN_VAD_PDMIN:
 		pdm_enable(enable, 0);
 		break;
 	case DATAIN_PDMB:
@@ -809,6 +816,7 @@ static void loopback_mic_src_fifo_reset(struct loopback *p_loopback,
 	case DATAIN_SPDIF:
 		break;
 	case DATAIN_PDM:
+	case DATAIN_VAD_PDMIN:
 		pdm_fifo_reset(0);
 		break;
 	case DATAIN_PDMB:
@@ -981,6 +989,7 @@ static int loopback_dai_hw_params(struct snd_pcm_substream *ss,
 			break;
 		case DATAIN_PDM:
 		case DATAIN_PDMB:
+		case DATAIN_VAD_PDMIN:
 			datain_pdm_set_clk(p_loopback);
 			break;
 		case DATAIN_LOOPBACK:
@@ -1025,6 +1034,7 @@ int loopback_dai_hw_free(struct snd_pcm_substream *ss,
 		case DATAIN_SPDIF:
 			break;
 		case DATAIN_PDM:
+		case DATAIN_VAD_PDMIN:
 			break;
 		case DATAIN_LOOPBACK:
 			break;
@@ -1075,6 +1085,7 @@ static int loopback_dai_mute_stream(struct snd_soc_dai *dai,
 		case DATAIN_SPDIF:
 			break;
 		case DATAIN_PDM:
+		case DATAIN_VAD_PDMIN:
 			break;
 		case DATAIN_LOOPBACK:
 			break;
@@ -1383,6 +1394,7 @@ static int datain_parse_of(struct device_node *node,
 			break;
 		case DATAIN_PDM:
 		case DATAIN_PDMB:
+		case DATAIN_VAD_PDMIN:
 			ret = datain_pdm_parse_of(&pdev->dev, p_loopback);
 			if (ret < 0)
 				goto err;

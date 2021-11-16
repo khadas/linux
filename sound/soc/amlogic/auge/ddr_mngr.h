@@ -169,7 +169,8 @@ struct ddr_chipinfo {
 	 * 0: default, 3 toddr, axg, g12a, g12b
 	 * 4: 4 toddr, tl1
 	 */
-	int fifo_num;
+	int toddr_num;
+	int frddr_num;
 	unsigned int fifo_depth;
 
 	/* power detect or VAD
@@ -185,6 +186,7 @@ struct ddr_chipinfo {
 
 	struct toddr_src_conf *to_srcs;
 	struct toddr_src_conf *fr_srcs;
+	bool use_arb;
 };
 
 struct toddr {
@@ -300,6 +302,15 @@ unsigned int aml_toddr_read1(struct toddr *to);
 void aml_toddr_write1(struct toddr *to, unsigned int val);
 unsigned int aml_toddr_read_status2(struct toddr *to);
 bool aml_toddr_burst_finished(struct toddr *to);
+
+void toddr_vad_enable(bool enable);
+void toddr_vad_set_buf(unsigned int start, unsigned int end);
+void toddr_vad_set_intrpt(unsigned int intrpt);
+void toddr_vad_select_src(enum toddr_src src);
+void toddr_vad_set_fifos(unsigned int thresh);
+void toddr_vad_set_format(struct toddr_fmt *fmt);
+unsigned int toddr_vad_get_status(void);
+unsigned int toddr_vad_get_status2(struct toddr *to);
 
 /* resample */
 void aml_set_resample(enum resample_idx id,

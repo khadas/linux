@@ -259,27 +259,58 @@ void new_resample_update_bits(enum resample_idx id, unsigned int reg,
 	new_resample_write(id, reg, tmp);
 }
 
+int vad_top_read(unsigned int reg)
+{
+	int ret, val = 0;
+
+	ret = aml_snd_read(IO_TOP_VAD, reg, &val);
+
+	if (ret) {
+		pr_err("read audio reg %x error %d\n", reg, ret);
+		return -1;
+	}
+	return val;
+}
+EXPORT_SYMBOL(vad_top_read);
+
+void vad_top_write(unsigned int reg, unsigned int val)
+{
+	aml_snd_write(IO_TOP_VAD, reg, val);
+}
+EXPORT_SYMBOL(vad_top_write);
+
+void vad_top_update_bits(unsigned int reg,
+			 unsigned int mask,
+			 unsigned int val)
+{
+	aml_snd_update_bits(IO_TOP_VAD, reg, mask, val);
+}
+EXPORT_SYMBOL(vad_top_update_bits);
+
 static int snd_iomap_probe(struct platform_device *pdev)
 {
 	struct resource res;
 	struct device_node *np, *child;
-	int i = 0;
+
+	int i;
 	int ret = 0;
 
 	np = pdev->dev.of_node;
-	for_each_child_of_node(np, child) {
-		if (of_address_to_resource(child, 0, &res)) {
-			ret = -1;
-			pr_err("%s could not get resource", __func__);
-			break;
+	for (i = 0; i < IO_MAX; i++) {
+		child = of_get_child_by_name(np, iomap_name[i]);
+		if (child) {
+			if (of_address_to_resource(child, 0, &res)) {
+				ret = -1;
+				pr_err("%s could not get resource", __func__);
+				break;
+			}
+			aml_snd_reg_map[i] =
+				ioremap_nocache(res.start, resource_size(&res));
+			pr_info("aml_snd_reg_map[%d], reg:%x, size:%x\n",
+				i, (u32)res.start, (u32)resource_size(&res));
 		}
-		aml_snd_reg_map[i] =
-			ioremap_nocache(res.start, resource_size(&res));
-		pr_debug("aml_snd_reg_map[%d], reg:%x, size:%x\n",
-			i, (u32)res.start, (u32)resource_size(&res));
-
-		i++;
 	}
+
 	pr_info("amlogic %s probe done\n", DEV_NAME);
 
 	return ret;

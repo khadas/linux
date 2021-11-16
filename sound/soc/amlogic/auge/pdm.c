@@ -281,7 +281,7 @@ static void pdm_set_lowpower_mode(struct aml_pdm *p_pdm, bool islowpower, int id
 		pdm_set_channel_ctrl(pdm_get_sample_count(p_pdm->islowpower, dclk_idx), id);
 
 		/* check to set pdm sysclk */
-		pdm_force_sysclk_to_oscin(p_pdm->islowpower, id);
+		pdm_force_sysclk_to_oscin(p_pdm->islowpower, id, p_pdm->chipinfo->vad_top);
 
 		pr_info("\n%s, pdm_sysclk:%lu pdm_dclk:%lu, dclk_srcpll:%lu\n",
 			__func__,
@@ -693,8 +693,6 @@ static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
 	int pdm_id;
 	struct toddr *to;
 
-	if (!p_pdm)
-		return -EINVAL;
 	if (!p_pdm->chipinfo)
 		return -EINVAL;
 	to = p_pdm->tddr;
@@ -751,7 +749,7 @@ static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
 		/* dclk for 768k */
 		dclk_idx = 2;
 		filter_mode = 4;
-		pdm_force_sysclk_to_oscin(true, pdm_id);
+		pdm_force_sysclk_to_oscin(true, pdm_id, p_pdm->chipinfo->vad_top);
 		if (vad_pdm_is_running())
 			vad_set_lowerpower_mode(true);
 
@@ -935,7 +933,7 @@ void aml_pdm_dai_shutdown(struct snd_pcm_substream *substream,
 	p_pdm->rate = 0;
 
 	if (p_pdm->islowpower) {
-		pdm_force_sysclk_to_oscin(false, id);
+		pdm_force_sysclk_to_oscin(false, id, p_pdm->chipinfo->vad_top);
 		vad_set_lowerpower_mode(false);
 	}
 
@@ -1189,7 +1187,7 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, p_pdm);
 
 	/*config ddr arb */
-	aml_pdm_arb_config(p_pdm->actrl);
+	aml_pdm_arb_config(p_pdm->actrl, p_pdm->chipinfo->use_arb);
 	INIT_WORK(&p_pdm->debug_work, aml_pdm_train_debug_work);
 
 	ret = devm_snd_soc_register_component(&pdev->dev,

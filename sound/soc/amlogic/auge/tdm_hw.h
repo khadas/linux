@@ -64,7 +64,7 @@ void aml_tdm_enable(struct aml_audio_controller *actrl,
 	int stream, int index,
 	bool is_enable, bool fade_out);
 
-void aml_tdm_arb_config(struct aml_audio_controller *actrl);
+void aml_tdm_arb_config(struct aml_audio_controller *actrl, bool use_arb);
 
 void aml_tdm_fifo_reset(struct aml_audio_controller *actrl,
 	int stream, int index);

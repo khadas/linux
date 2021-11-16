@@ -26,7 +26,7 @@ void aml_spdif_mute(struct aml_audio_controller *actrl,
 void aml_spdifout_mute_without_actrl(int index,
 	bool is_mute);
 
-void aml_spdif_arb_config(struct aml_audio_controller *actrl);
+void aml_spdif_arb_config(struct aml_audio_controller *actrl, bool use_arb);
 
 int aml_spdifin_status_check(struct aml_audio_controller *actrl);
 void aml_spdifin_clr_irq(struct aml_audio_controller *actrl,

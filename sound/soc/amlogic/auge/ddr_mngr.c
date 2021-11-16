@@ -171,7 +171,8 @@ static int unregister_toddr_l(struct device *dev, void *data)
 	/*		1 << mask_bit, 0 << mask_bit);*/
 
 	/* no ddr active, disable arb switch */
-	value = aml_audiobus_read(actrl, EE_AUDIO_ARB_CTRL) & 0x77;
+	if (to->chipinfo->use_arb)
+		value = aml_audiobus_read(actrl, EE_AUDIO_ARB_CTRL) & 0x77;
 	/*if (value == 0)*/
 	/*	aml_audiobus_update_bits(actrl, EE_AUDIO_ARB_CTRL,*/
 	/*			1 << 31, 0 << 31);*/
@@ -621,7 +622,7 @@ static bool aml_toddr_check_status_flag(struct toddr *to)
 {
 	struct aml_audio_controller *actrl = to->actrl;
 	unsigned int reg_base = to->reg_base;
-	unsigned int reg, status, arb_status;
+	unsigned int reg, status, arb_status = 0;
 	int i;
 	bool ret = false;
 
@@ -645,12 +646,13 @@ static bool aml_toddr_check_status_flag(struct toddr *to)
 		status = (aml_audiobus_read(actrl, reg) & 0x800000) >> 23;
 		if (status) {
 			udelay(1);
-			arb_status = aml_audiobus_read(actrl, EE_AUDIO_ARB_STS);
+			if (to->chipinfo->use_arb)
+				arb_status = aml_audiobus_read(actrl, EE_AUDIO_ARB_STS);
 
 			pr_debug("toddr stop success, fifo id %d, regbase:0x%x, arb sts:0x%x\n",
 				to->fifo_id, reg_base, arb_status);
 
-			if (arb_status & 0x80000000) {
+			if (arb_status & 0x80000000 && to->chipinfo->use_arb) {
 				if (arb_status & (1 << to->fifo_id)) {
 					aml_audiobus_update_bits(actrl,
 								 EE_AUDIO_ARB_CTRL,
@@ -677,7 +679,7 @@ static bool aml_toddr_check_status_flag(struct toddr *to)
 			break;
 		}
 
-		if ((i % 20) == 0)
+		if ((i % 20) == 0 && to->chipinfo->use_arb)
 			pr_debug("toddr:delay:[%dus];fifo id %d,reg_base 0x%x,sts1 0x%x,arb sts 0x%x\n",
 				i, to->fifo_id, reg_base,
 				aml_audiobus_read(actrl, reg),
@@ -757,6 +759,89 @@ bool aml_toddr_burst_finished(struct toddr *to)
 		return aml_toddr_check_status_flag(to);
 	else
 		return aml_toddr_check_fifo_count(to);
+}
+
+void toddr_vad_enable(bool enable)
+{
+	unsigned int reg;
+
+	reg = EE_AUDIO2_TODDR_VAD_CTRL0;
+	vad_top_update_bits(reg, 1 << 31, enable << 31);
+
+	if (!enable)
+		vad_top_write(reg, 0x0);
+}
+
+void toddr_vad_set_buf(unsigned int start, unsigned int end)
+{
+	unsigned int reg;
+
+	reg = EE_AUDIO2_TODDR_VAD_START_ADDR;
+	vad_top_write(reg, start);
+
+	reg = EE_AUDIO2_TODDR_VAD_FINISH_ADDR;
+	vad_top_write(reg, end);
+
+	reg = EE_AUDIO2_TODDR_VAD_INIT_ADDR;
+	vad_top_write(reg, start);
+}
+
+void toddr_vad_set_intrpt(unsigned int intrpt)
+{
+	unsigned int reg;
+
+	reg = EE_AUDIO2_TODDR_VAD_INT_ADDR;
+	vad_top_write(reg, intrpt);
+
+	reg = EE_AUDIO2_TODDR_VAD_CTRL0,
+	vad_top_update_bits(reg, 0xff << 16, 0x34 << 16);
+}
+
+void toddr_vad_select_src(enum toddr_src src)
+{
+	unsigned int reg;
+
+	reg = EE_AUDIO2_TODDR_VAD_CTRL1;
+	vad_top_update_bits(reg, 0x1f << 26,
+			(src & 0x1f) << 26);
+}
+
+void toddr_vad_set_fifos(unsigned int thresh)
+{
+	unsigned int reg, mask, val;
+
+	reg = EE_AUDIO2_TODDR_VAD_CTRL1;
+	mask = 0xfff << 12 | 0xf << 8;
+	val = (thresh - 1) << 12 | 0 << 8;
+
+	vad_top_update_bits(reg, mask, val);
+}
+
+void toddr_vad_set_format(struct toddr_fmt *fmt)
+{
+	unsigned int reg;
+
+	reg = EE_AUDIO2_TODDR_VAD_CTRL0;
+	vad_top_update_bits(reg, 0x7 << 24 | 0x1fff << 3,
+			    fmt->endian << 24 | fmt->type << 13 |
+			    fmt->msb << 8 | fmt->lsb << 3);
+}
+
+unsigned int toddr_vad_get_status(void)
+{
+	unsigned int reg;
+
+	reg = EE_AUDIO2_TODDR_VAD_STATUS1;
+	return vad_top_read(reg);
+}
+
+unsigned int toddr_vad_get_status2(struct toddr *to)
+{
+	unsigned int reg;
+
+	reg = EE_AUDIO2_TODDR_VAD_STATUS2;
+
+	return vad_top_read(reg);
 }
 
 /* not for tl1 */
@@ -1150,7 +1235,8 @@ static int unregister_frddr_l(struct device *dev, void *data)
 	/*		1 << mask_bit, 0 << mask_bit);*/
 
 	/* no ddr active, disable arb switch */
-	value = aml_audiobus_read(actrl, EE_AUDIO_ARB_CTRL) & 0x77;
+	if (from->chipinfo->use_arb)
+		value = aml_audiobus_read(actrl, EE_AUDIO_ARB_CTRL) & 0x77;
 	/*if (value == 0)*/
 	/*	aml_audiobus_update_bits(actrl, EE_AUDIO_ARB_CTRL,*/
 	/*			1 << 31, 0 << 31);*/
@@ -1415,7 +1501,7 @@ static bool aml_frddr_burst_finished(struct frddr *fr)
 {
 	struct aml_audio_controller *actrl = fr->actrl;
 	unsigned int reg_base = fr->reg_base;
-	unsigned int reg, status, arb_status;
+	unsigned int reg, status, arb_status = 0;
 	int i;
 	bool ret = false;
 
@@ -1439,12 +1525,13 @@ static bool aml_frddr_burst_finished(struct frddr *fr)
 		status = (aml_audiobus_read(actrl, reg) & 0x20000) >> 17;
 		if (status) {
 			udelay(1);
-			arb_status = aml_audiobus_read(actrl, EE_AUDIO_ARB_STS);
+			if (fr->chipinfo->use_arb)
+				arb_status = aml_audiobus_read(actrl, EE_AUDIO_ARB_STS);
 
 			pr_debug("frddr stop success, fifo id %d, regbase:0x%x, arb sts:0x%x\n",
 				fr->fifo_id, reg_base, arb_status);
 
-			if (arb_status & 0x80000000) {
+			if (arb_status & 0x80000000 && fr->chipinfo->use_arb) {
 				if (arb_status & (1 << (fr->fifo_id + 4))) {
 					aml_audiobus_update_bits(actrl,
 								 EE_AUDIO_ARB_CTRL,
@@ -1471,7 +1558,7 @@ static bool aml_frddr_burst_finished(struct frddr *fr)
 			break;
 		}
 
-		if ((i % 20) == 0)
+		if ((i % 20) == 0 && fr->chipinfo->use_arb)
 			pr_debug("frddr:delay:[%dus]; id %d, reg_base 0x%x, sts1 0x%x, arb sts 0x%x\n",
 				i, fr->fifo_id, reg_base,
 				aml_audiobus_read(actrl, reg),
@@ -2028,14 +2115,27 @@ struct toddr_src_conf toddr_srcs_v3[] = {
 	TODDR_SRC_CONFIG("tdmin_d", 18, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	{ /* sentinel */ }
 };
+
+struct toddr_src_conf toddr_srcs_v4[] = {
+	TODDR_SRC_CONFIG("tdmin_a", 0, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
+	TODDR_SRC_CONFIG("spdifin", 3, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
+	TODDR_SRC_CONFIG("tdmin_lb", 6, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
+	TODDR_SRC_CONFIG("loopback_a", 7, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
+	TODDR_SRC_CONFIG("resample_a", 13, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
+	/*need vap top */
+	{ /* sentinel */ }
+};
+
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static struct ddr_chipinfo axg_ddr_chipinfo = {
 	.int_start_same_addr   = true,
 	.asrc_only_left_j      = true,
 	.wakeup                = 1,
-	.fifo_num              = 3,
+	.toddr_num             = 3,
+	.frddr_num             = 3,
 	.fifo_depth            = FIFO_DEPTH_1K,
 	.to_srcs               = &toddr_srcs_v1[0],
+	.use_arb               = true,
 };
 
 static struct ddr_chipinfo tl1_ddr_chipinfo = {
@@ -2044,9 +2144,11 @@ static struct ddr_chipinfo tl1_ddr_chipinfo = {
 	.src_sel_ctrl          = true,
 	.asrc_src_sel_ctrl     = true,
 	.wakeup                = 2,
-	.fifo_num              = 4,
+	.toddr_num             = 4,
+	.frddr_num             = 4,
 	.fifo_depth            = FIFO_DEPTH_1K,
 	.to_srcs               = &toddr_srcs_v2[0],
+	.use_arb               = true,
 };
 
 static struct ddr_chipinfo a1_ddr_chipinfo = {
@@ -2054,9 +2156,11 @@ static struct ddr_chipinfo a1_ddr_chipinfo = {
 	.src_sel_ctrl          = true,
 	.asrc_src_sel_ctrl     = true,
 	.wakeup                = 2,
-	.fifo_num              = 2,
+	.toddr_num             = 2,
+	.frddr_num             = 2,
 	.fifo_depth            = FIFO_DEPTH_512,
 	.to_srcs               = &toddr_srcs_v2[0],
+	.use_arb               = true,
 };
 #endif
 
@@ -2064,9 +2168,11 @@ static struct ddr_chipinfo g12a_ddr_chipinfo = {
 	.same_src_fn           = true,
 	.asrc_only_left_j      = true,
 	.wakeup                = 1,
-	.fifo_num              = 3,
+	.toddr_num             = 3,
+	.frddr_num             = 3,
 	.fifo_depth            = FIFO_DEPTH_1K,
 	.to_srcs               = &toddr_srcs_v1[0],
+	.use_arb               = true,
 };
 
 static struct ddr_chipinfo sm1_ddr_chipinfo = {
@@ -2075,9 +2181,11 @@ static struct ddr_chipinfo sm1_ddr_chipinfo = {
 	.src_sel_ctrl          = true,
 	.asrc_src_sel_ctrl     = true,
 	.wakeup                = 2,
-	.fifo_num              = 4,
+	.toddr_num             = 4,
+	.frddr_num             = 4,
 	.fifo_depth            = FIFO_DEPTH_1K,
 	.to_srcs               = &toddr_srcs_v2[0],
+	.use_arb               = true,
 };
 
 static struct ddr_chipinfo tm2_revb_ddr_chipinfo = {
@@ -2086,11 +2194,13 @@ static struct ddr_chipinfo tm2_revb_ddr_chipinfo = {
 	.src_sel_ctrl          = true,
 	.asrc_src_sel_ctrl     = true,
 	.wakeup                = 2,
-	.fifo_num              = 4,
+	.toddr_num             = 4,
+	.frddr_num             = 4,
 	.fifo_depth            = FIFO_DEPTH_1K,
 	.chnum_sync            = true,
 	.burst_finished_flag   = true,
 	.to_srcs               = &toddr_srcs_v2[0],
+	.use_arb               = true,
 };
 
 static struct ddr_chipinfo t5_ddr_chipinfo = {
@@ -2099,11 +2209,13 @@ static struct ddr_chipinfo t5_ddr_chipinfo = {
 	.src_sel_ctrl          = true,
 	.asrc_src_sel_ctrl     = true,
 	.wakeup                = 2,
-	.fifo_num              = 4,
+	.toddr_num             = 4,
+	.frddr_num             = 4,
 	.fifo_depth            = FIFO_DEPTH_1K,
 	.chnum_sync            = true,
 	.burst_finished_flag   = true,
 	.to_srcs               = &toddr_srcs_v3[0],
+	.use_arb               = true,
 };
 
 static struct ddr_chipinfo p1_ddr_chipinfo = {
@@ -2112,12 +2224,27 @@ static struct ddr_chipinfo p1_ddr_chipinfo = {
 	.src_sel_ctrl          = true,
 	.asrc_src_sel_ctrl     = true,
 	.wakeup                = 2,
-	.fifo_num              = 4,
+	.toddr_num             = 4,
+	.frddr_num             = 4,
 	.fifo_depth            = FIFO_DEPTH_1K,
 	.chnum_sync            = true,
 	.burst_finished_flag   = true,
 	.to_srcs               = &toddr_srcs_v3[0],
+	.use_arb               = true,
 };
+
+static struct ddr_chipinfo a5_ddr_chipinfo = {
+	.same_src_fn           = true,
+	.src_sel_ctrl          = true,
+	.asrc_src_sel_ctrl     = true,
+	.wakeup                = 2,
+	.toddr_num             = 2,
+	.frddr_num             = 3,
+	.fifo_depth            = FIFO_DEPTH_512,
+	.to_srcs               = &toddr_srcs_v4[0],
+	.use_arb               = false,
+};
+
 static const struct of_device_id aml_ddr_mngr_device_id[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -2152,6 +2279,10 @@ static const struct of_device_id aml_ddr_mngr_device_id[] = {
 	{
 		.compatible = "amlogic, p1-audio-ddr-manager",
 		.data       = &p1_ddr_chipinfo,
+	},
+	{
+		.compatible = "amlogic, a5-audio-ddr-manager",
+		.data       = &a5_ddr_chipinfo,
 	},
 	{},
 };
@@ -2227,7 +2358,6 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 	struct platform_device *pdev_parent;
 	struct aml_audio_controller *actrl = NULL;
 	struct ddr_chipinfo *p_ddr_chipinfo;
-	int ddr_num = 3; /* early chipset support max 3 ddr num */
 	int i, ret;
 
 	/* get audio controller */
@@ -2248,12 +2378,7 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (p_ddr_chipinfo->fifo_num == 2)
-		ddr_num = p_ddr_chipinfo->fifo_num;
-	else if (p_ddr_chipinfo->fifo_num == 4)
-		ddr_num = p_ddr_chipinfo->fifo_num;
-
-	for (i = 0; i < ddr_num; i++) {
+	for (i = 0; i < p_ddr_chipinfo->toddr_num; i++) {
 		toddrs[i].irq =
 			platform_get_irq_byname(pdev,
 						ddr_get_toddr_name_by_idx(i));
@@ -2262,6 +2387,15 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 		toddrs[i].chipinfo   = p_ddr_chipinfo;
 		toddrs[i].actrl      = actrl;
 
+		dev_info(&pdev->dev, "%d, irqs toddr %d\n", i, toddrs[i].irq);
+
+		if (toddrs[i].irq <= 0) {
+			dev_err(&pdev->dev, "%s, get irq failed\n", __func__);
+			return -ENXIO;
+		}
+	}
+
+	for (i = 0; i < p_ddr_chipinfo->frddr_num; i++) {
 		frddrs[i].irq        =
 			platform_get_irq_byname(pdev,
 						ddr_get_frddr_name_by_idx(i));
@@ -2270,14 +2404,14 @@ static int aml_ddr_mngr_platform_probe(struct platform_device *pdev)
 		frddrs[i].chipinfo   = p_ddr_chipinfo;
 		frddrs[i].actrl      = actrl;
 
-		dev_info(&pdev->dev, "%d, irqs toddr %d, frddr %d\n",
-			 i, toddrs[i].irq, frddrs[i].irq);
+		dev_info(&pdev->dev, "%d, irqs frddr %d\n", i, frddrs[i].irq);
 
-		if (toddrs[i].irq <= 0 || frddrs[i].irq <= 0) {
+		if (frddrs[i].irq <= 0) {
 			dev_err(&pdev->dev, "%s, get irq failed\n", __func__);
 			return -ENXIO;
 		}
 	}
+
 	mutex_init(&attach_resample_a.lock);
 	mutex_init(&attach_resample_b.lock);
 

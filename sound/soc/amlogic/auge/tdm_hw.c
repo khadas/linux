@@ -84,10 +84,11 @@ void aml_tdm_enable(struct aml_audio_controller *actrl,
 
 }
 
-void aml_tdm_arb_config(struct aml_audio_controller *actrl)
+void aml_tdm_arb_config(struct aml_audio_controller *actrl, bool use_arb)
 {
 	/* config ddr arb */
-	aml_audiobus_write(actrl, EE_AUDIO_ARB_CTRL, 1 << 31 | 0xff << 0);
+	if (use_arb)
+		aml_audiobus_write(actrl, EE_AUDIO_ARB_CTRL, 1 << 31 | 0xff << 0);
 }
 
 void aml_tdm_fifo_reset(struct aml_audio_controller *actrl,

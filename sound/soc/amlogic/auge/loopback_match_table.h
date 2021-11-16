@@ -38,8 +38,12 @@ struct mux_conf lb_srcs_v2[] = {
 	AUDIO_SRC_CONFIG("pdmin_b", 16, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	AUDIO_SRC_CONFIG("tdminb_lb", 17, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	AUDIO_SRC_CONFIG("tdmin_d", 18, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("vad_top_vad", 29, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("vad_tdmin", 30, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("vad_pdmin", 31, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	{ /* sentinel */ }
 };
+
 struct mux_conf tdmin_lb_srcs_v1[] = {
 	AUDIO_SRC_CONFIG("tdmout_a", 0, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
 	AUDIO_SRC_CONFIG("tdmout_b", 1, EE_AUDIO_TDMIN_LB_CTRL, 20, 0xf),
@@ -196,6 +200,15 @@ static struct loopback_chipinfo p1_loopbackb_chipinfo = {
 	.multi_bits_lbsrcs = true,
 };
 
+static struct loopback_chipinfo a5_loopbacka_chipinfo = {
+	.id = LOOPBACKA,
+	.ch_ctrl = true,
+	.chnum_en = false,
+	.srcs = &lb_srcs_v2[0],
+	.tdmin_lb_srcs = &tdmin_lb_srcs_v2[0],
+	.multi_bits_lbsrcs = true,
+};
+
 static const struct of_device_id loopback_device_id[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -254,6 +267,10 @@ static const struct of_device_id loopback_device_id[] = {
 	{
 		.compatible = "amlogic, p1-loopbackb",
 		.data = &p1_loopbackb_chipinfo,
+	},
+	{
+		.compatible = "amlogic, a5-loopbacka",
+		.data = &a5_loopbacka_chipinfo,
 	},
 	{}
 };

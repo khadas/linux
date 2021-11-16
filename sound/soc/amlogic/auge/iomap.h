@@ -17,7 +17,20 @@ enum{
 	IO_RESAMPLEA,
 	IO_RESAMPLEB,
 	IO_PDM_BUS_B,
+	IO_TOP_VAD,
 	IO_MAX,
+};
+
+static const char * const iomap_name[] = {
+	"pdm_bus",
+	"audiobus_base",
+	"audiolocker_base",
+	"eqdrc_base",
+	"vad_base",
+	"resampleA_base",
+	"resampleB_base",
+	"pdm_bus_b",
+	"vad_top_base"
 };
 
 int aml_pdm_read(int id, unsigned int reg);
@@ -55,4 +68,9 @@ void new_resample_write(enum resample_idx id, unsigned int reg,
 void new_resample_update_bits(enum resample_idx id, unsigned int reg,
 			      unsigned int mask, unsigned int val);
 
+int vad_top_read(unsigned int reg);
+void vad_top_write(unsigned int reg, unsigned int val);
+void vad_top_update_bits(unsigned int reg,
+			 unsigned int mask,
+			 unsigned int val);
 #endif

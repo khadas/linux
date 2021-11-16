@@ -48,6 +48,9 @@ struct pdm_chipinfo {
 
 	int train_version;
 	int id;
+	bool use_arb;
+	/* vad top */
+	bool vad_top;
 };
 
 struct aml_pdm {

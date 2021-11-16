@@ -1535,7 +1535,7 @@ static int aml_dai_tdm_probe(struct snd_soc_dai *cpu_dai)
 	}
 
 	/* config ddr arb */
-	aml_tdm_arb_config(p_tdm->actrl);
+	aml_tdm_arb_config(p_tdm->actrl, p_tdm->chipinfo->use_arb);
 
 	if (p_tdm->ctrl_gain_enable && p_tdm->id == 0) {
 		ret = snd_soc_add_dai_controls(cpu_dai,

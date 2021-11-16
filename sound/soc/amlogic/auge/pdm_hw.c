@@ -56,12 +56,16 @@ void pdm_fifo_reset(int id)
 		0x1 << 16);
 }
 
-void pdm_force_sysclk_to_oscin(bool force, int id)
+void pdm_force_sysclk_to_oscin(bool force, int id, bool vad_top)
 {
-	if (id == 0)
-		audiobus_update_bits(EE_AUDIO_CLK_PDMIN_CTRL1, 0x1 << 30, force << 30);
-	else if (id == 1)
-		audiobus_update_bits(EE_AUDIO_CLK_PDMIN_CTRL3, 0x1 << 30, force << 30);
+	if (vad_top) {
+		vad_top_update_bits(EE_AUDIO2_CLK_PDMIN_CTRL1, 0x1 << 30, force << 30);
+	} else {
+		if (id == 0)
+			audiobus_update_bits(EE_AUDIO_CLK_PDMIN_CTRL1, 0x1 << 30, force << 30);
+		else if (id == 1)
+			audiobus_update_bits(EE_AUDIO_CLK_PDMIN_CTRL3, 0x1 << 30, force << 30);
+	}
 }
 
 void pdm_set_channel_ctrl(int sample_count, int id)
@@ -150,10 +154,11 @@ void aml_pdm_ctrl(struct pdm_info *info, int id)
 	pdm_set_channel_ctrl(info->sample_count, id);
 }
 
-void aml_pdm_arb_config(struct aml_audio_controller *actrl)
+void aml_pdm_arb_config(struct aml_audio_controller *actrl, bool use_arb)
 {
 	/* config ddr arb */
-	aml_audiobus_write(actrl, EE_AUDIO_ARB_CTRL, 1 << 31 | 0xff << 0);
+	if (use_arb)
+		aml_audiobus_write(actrl, EE_AUDIO_ARB_CTRL, 1 << 31 | 0xff << 0);
 }
 
 /* config for hcic, lpf1,2,3, hpf */

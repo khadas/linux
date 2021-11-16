@@ -50,7 +50,7 @@ struct register_table {
 #define PDM_STS                            0x0C
 #define PDM_MUTE_VALUE                     0x0D
 #define PDM_MASK_NUM                       0x0E
-
+#define PDM_CHAN_CTRL2                     0x0F
 /*
  *	AUDIO CLOCK, MST PAD,
  */
@@ -300,6 +300,13 @@ struct register_table {
 #define EE_AUDIO_ARB_CTRL1                 0x0a1
 #define EE_AUDIO_ARB_STS                   0x0a8
 
+/* for A5 AM2AXI  */
+#define EE_AUDIO_AM2AXI_CTRL0              0x0a2
+#define EE_AUDIO_AM2AXI_CTRL1              0x0a3
+#define EE_AUDIO_AXI_ASYNC_CTRL0           0x0a4
+#define EE_AUDIO_AM2AXI_STS                0x0a9
+#define EE_AUDIO_AXI_ASYNC_STS             0x0aa
+
 /*
  *	AUDIO LOOPBACK
  */
@@ -526,6 +533,10 @@ struct register_table {
 #define EE_AUDIO_SPDIFOUT_CHSTSA           0x131
 #define EE_AUDIO_SPDIFOUT_CHSTSB           0x132
 #define EE_AUDIO_SPDIFOUT_MUTE_VAL         0x133
+#define EE_AUDIO_SPDIFOUT_GAIN2            0x134
+#define EE_AUDIO_SPDIFOUT_GAIN3            0x135
+#define EE_AUDIO_SPDIFOUT_GAIN_EN          0x136
+#define EE_AUDIO_SPDIFOUT_GAIN_CTRL        0x137
 
 #define EE_AUDIO_TDMOUT_A_CTRL0            0x140
 #define EE_AUDIO_TDMOUT_A_CTRL1            0x141
@@ -1047,6 +1058,7 @@ struct register_table {
 #define AED_TOP_CTL0                       0x83
 #define AED_TOP_CTL1                       0x84
 #define AED_TOP_CTL2                       0x85
+#define AED_AED_TOP_ST                     0x86
 
 /* dynamic control the ram coef from tm2_revb */
 #define AED_EQDRC_DYNAMIC_CNTL             0x90
@@ -1433,6 +1445,7 @@ struct register_table {
 #define EE_AUDIO2_SW_RESET0                0x002
 #define EE_AUDIO2_CLK_GATE_EN0             0x003
 #define EE_AUDIO2_SECURITY_CTRL0           0x004
+#define EE_AUDIO2_SECURITY_CTRL1           0x005
 #define EE_AUDIO2_MCLK_VAD_CTRL            0x010
 #define EE_AUDIO2_CLK_VAD_CTRL             0x011
 #define EE_AUDIO2_MST_DLY_CTRL0            0x012
@@ -1441,6 +1454,7 @@ struct register_table {
 #define EE_AUDIO2_CLK_TDMIN_VAD_CTRL       0x015
 #define EE_AUDIO2_CLK_PDMIN_CTRL0          0x016
 #define EE_AUDIO2_CLK_PDMIN_CTRL1          0x017
+#define EE_AUDIO2_AUD_VAD_PAD_CTRL0        0x018
 #define EE_AUDIO2_TOVAD_CTRL0              0x020
 #define EE_AUDIO2_TODDR_VAD_CTRL0          0x030
 #define EE_AUDIO2_TODDR_VAD_CTRL1          0x031
@@ -1474,6 +1488,26 @@ struct register_table {
 #define EE_AUDIO2_TDMIN_VAD_MASK5          0x05d
 #define EE_AUDIO2_TDMIN_VAD_MASK6          0x05e
 #define EE_AUDIO2_TDMIN_VAD_MASK7          0x05f
+#define EE_AUDIO2_VAD_DAT_PAD_CTRL0        0x060
+#define EE_AUDIO2_VAD_DAT_PAD_CTRL1        0x061
+#define EE_AUDIO2_TODDR_VAD_CHNUM_ID0      0x070
+#define EE_AUDIO2_TODDR_VAD_CHNUM_ID1      0x071
+#define EE_AUDIO2_TODDR_VAD_CHNUM_ID2      0x072
+#define EE_AUDIO2_TODDR_VAD_CHNUM_ID3      0x073
+#define EE_AUDIO2_TODDR_VAD_CHNUM_ID4      0x074
+#define EE_AUDIO2_TODDR_VAD_CHNUM_ID5      0x075
+#define EE_AUDIO2_TODDR_VAD_CHNUM_ID6      0x076
+#define EE_AUDIO2_TODDR_VAD_CHNUM_ID7      0x077
+#define EE_AUDIO2_TODDR_VAD_CHSYNC_CTRL    0x07f
+#define EE_AUDIO2_AM2AXI_CTRL0             0x080
+#define EE_AUDIO2_AXIWR_ASYNC_CTRL0        0x081
+#define EE_AUDIO2_AM2AXI_STAT              0x088
+#define EE_AUDIO2_AXIWR_ASYNC_STAT         0x089
+#define EE_AUDIO2_EXCEPTION_IRQ_STS0       0x090
+#define EE_AUDIO2_EXCEPTION_IRQ_MASK0      0x091
+#define EE_AUDIO2_EXCEPTION_IRQ_MODE0      0x092
+#define EE_AUDIO2_EXCEPTION_IRQ_CLR0       0x093
+#define EE_AUDIO2_EXCEPTION_IRQ_INV0       0x094
 
 /* 64 exception irq */
 #define EE_AUDIO_EXCEPTION_IRQ_STS0        0x380

@@ -9,7 +9,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/s4-pd.h>
-#include <dt-bindings/clock/amlogic,sc2-audio-clk.h>
+#include <dt-bindings/clock/amlogic,a5-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-a5-gpio.h>
 #include <dt-bindings/reset/amlogic,meson-a5-reset.h>
@@ -1115,7 +1115,7 @@
 		dummy_codec:dummy{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, aml_dummy_codec";
-			status = "disabled";
+			status = "okay";
 		};
 		amlogic_codec:t9015{
 			#sound-dai-cells = <0>;
@@ -1132,38 +1132,36 @@
 			status = "disabled";
 		};
 
+		clkaudio: audio_clocks {
+			compatible = "amlogic, a5-audio-clocks";
+			#clock-cells = <1>;
+			reg = <0x0 0xFE330000 0x0 0xb0>, <0x0 0xFE334C00 0x0 0x20>;
+			reg-names = "audio_bus", "audio_vad_top";
+		};
+
 		audiobus: audiobus@0xFE330000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
-			reg = <0x0 0xFE330000 0x0 0x3000>;
+			reg = <0x0 0xFE330000 0x0 0x3000>, <0x0 0xFE334C00 0x0 0x400>;
+			reg-names = "audio_bus", "vad_top";
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xFE330000 0x0 0x3000>;
-			chip_id = <0x37>;
-			power-domains = <&pwrdm PDID_S4_AUDIO>;
+			//chip_id = <0x37>;
+			//power-domains = <&pwrdm PDID_S4_AUDIO>;
 
-			clkaudio: audio_clocks {
-				compatible = "amlogic, sm1-audio-clocks";
-				#clock-cells = <1>;
-				reg = <0x0 0x0 0x0 0xb0>;
-			};
 			ddr_manager {
 				compatible =
-					"amlogic, t5-audio-ddr-manager";
+					"amlogic, a5-audio-ddr-manager";
 				interrupts = <
 					GIC_SPI 32 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 33 IRQ_TYPE_EDGE_RISING
-					GIC_SPI 34 IRQ_TYPE_EDGE_RISING
-					GIC_SPI 45 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 36 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 37 IRQ_TYPE_EDGE_RISING
 					GIC_SPI 38 IRQ_TYPE_EDGE_RISING
-					GIC_SPI 46 IRQ_TYPE_EDGE_RISING
-				>;
+					>;
 				interrupt-names =
-					"toddr_a", "toddr_b", "toddr_c",
-					"toddr_d",
-					"frddr_a", "frddr_b", "frddr_c",
-					"frddr_d";
+					"toddr_a", "toddr_b",
+					"frddr_a", "frddr_b", "frddr_c";
 			};
 
 			pinctrl_audio: pinctrl {
@@ -1174,7 +1172,7 @@
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
-			status = "disabled";
+			status = "okay";
 			#address-cells=<2>;
 			#size-cells=<2>;
 			ranges;
@@ -1194,10 +1192,10 @@
 				reg = <0x0 0xFE331800 0x0 0x400>;
 			};
 			resampleA_base {
-				reg = <0x0 0xFE331c00 0x0 0x104>;
+				reg = <0x0 0xFE331C00 0x0 0x104>;
 			};
-			resampleB_base {
-				reg = <0x0 0xFE334000 0x0 0x104>;
+			vad_top_base {
+				reg = <0x0 0xFE334C00 0x0 0x400>;
 			};
 		};
 
@@ -2723,13 +2721,14 @@
 			function = "remote_out";
 		};
 	};
-
+#if 0
 	spdifin: spdifin {
 		mux {/* GPIOH_5 */
 			groups = "spdif_in";
 			function = "spdif_in";
 		};
 	};
+#endif
 };
 
 &gpu{

@@ -10,6 +10,7 @@ static struct pdm_chipinfo g12a_pdm_chipinfo = {
 	.id              = PDM_A,
 	.mute_fn         = true,
 	.truncate_data   = false,
+	.use_arb         = true,
 };
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -17,6 +18,7 @@ static struct pdm_chipinfo tl1_pdm_chipinfo = {
 	.id              = PDM_A,
 	.mute_fn         = true,
 	.truncate_data   = false,
+	.use_arb         = true,
 };
 #endif
 
@@ -26,6 +28,7 @@ static struct pdm_chipinfo sm1_pdm_chipinfo = {
 	.truncate_data   = false,
 	.train           = true,
 	.train_version   = PDM_TRAIN_VERSION_V1,
+	.use_arb         = true,
 };
 
 static struct pdm_chipinfo tm2_pdm_chipinfo = {
@@ -34,6 +37,7 @@ static struct pdm_chipinfo tm2_pdm_chipinfo = {
 	.truncate_data   = false,
 	.train           = true,
 	.train_version   = PDM_TRAIN_VERSION_V1,
+	.use_arb         = true,
 };
 
 static struct pdm_chipinfo sc2_pdm_chipinfo = {
@@ -42,6 +46,7 @@ static struct pdm_chipinfo sc2_pdm_chipinfo = {
 	.truncate_data   = false,
 	.train           = true,
 	.train_version   = PDM_TRAIN_VERSION_V2,
+	.use_arb         = true,
 };
 
 static struct pdm_chipinfo p1_pdm_chipinfo_a = {
@@ -50,6 +55,7 @@ static struct pdm_chipinfo p1_pdm_chipinfo_a = {
 	.truncate_data   = true,
 	.train           = true,
 	.train_version   = PDM_TRAIN_VERSION_V1,
+	.use_arb         = true,
 };
 
 static struct pdm_chipinfo p1_pdm_chipinfo_b = {
@@ -58,6 +64,17 @@ static struct pdm_chipinfo p1_pdm_chipinfo_b = {
 	.truncate_data   = true,
 	.train           = true,
 	.train_version   = PDM_TRAIN_VERSION_V1,
+	.use_arb         = true,
+};
+
+static struct pdm_chipinfo a5_pdm_chipinfo = {
+	.id              = PDM_A,
+	.mute_fn         = true,
+	.truncate_data   = true,
+	.train           = true,
+	.train_version   = PDM_TRAIN_VERSION_V1,
+	.use_arb         = false,
+	.vad_top         = true,
 };
 
 static const struct of_device_id aml_pdm_device_id[] = {
@@ -94,6 +111,11 @@ static const struct of_device_id aml_pdm_device_id[] = {
 		.compatible = "amlogic, p1-snd-pdm-b",
 		.data       = &p1_pdm_chipinfo_b,
 	},
+	{
+		.compatible = "amlogic, a5-snd-pdm",
+		.data       = &a5_pdm_chipinfo,
+	},
+
 	{}
 };
 MODULE_DEVICE_TABLE(of, aml_pdm_device_id);
