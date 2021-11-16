@@ -1600,7 +1600,7 @@
 			tsensor_id = <0>;
 			cal_type = <0x1>;
 			cal_coeff = <324 424 3159 9411>;
-			rtemp = <120000>;
+			rtemp = <115000>;
 			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&clkc CLKID_TS_CLK>; // CLKID_TS_COMP>;
 			clock-names = "ts_comp";
@@ -1646,22 +1646,17 @@
 				thermal-sensors = <&p_tsensor 0>;
 				trips {
 					pswitch_on: trip-point@0 {
-						temperature = <95000>;
+						temperature = <85000>;
 						hysteresis = <5000>;
 						type = "passive";
 					};
 					pcontrol: trip-point@1 {
-						temperature = <100000>;
+						temperature = <95000>;
 						hysteresis = <5000>;
 						type = "passive";
 					};
-					pddr_change: trip-point@2 {
-						temperature = <75000>;
-						hysteresis = <10000>;
-						type = "hot";
-					};
-					pcritical: trip-point@3 {
-						temperature = <115000>;
+					pcritical: trip-point@2 {
+						temperature = <110000>;
 						hysteresis = <1000>;
 						type = "critical";
 					};
@@ -1670,16 +1665,6 @@
 					cpufreq_cooling_map {
 						trip = <&pcontrol>;
 						cooling-device = <&CPU0 0 8>;
-						contribution = <1024>;
-					};
-					ddr_cooling_map {
-						trip = <&pddr_change>;
-						cooling-device = <&ddr_cool0 0 2>;
-						contribution = <1024>;
-					};
-					gpufreq_cooling_map {
-						trip = <&pcontrol>;
-						cooling-device = <&gpu 0 3>;
 						contribution = <1024>;
 					};
 				};
