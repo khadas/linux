@@ -527,6 +527,22 @@
 			bl_ldim_mode = <2>; /* 0=LR, 1=TB, 2=DIRECT */
 			ldim_dev_index = <2>;
 		};
+
+		backlight_3{
+			index = <3>;
+			bl_name = "backlight_ld_blmcu";
+			bl_level_default_uboot_kernel = <100 100>;
+			bl_level_attr = <255 10 /*max, min*/
+				128 128>; /*mid, mid_mapping*/
+			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo,3=ldim*/
+			bl_power_attr = <0	/*en_gpio_index*/
+				1 0 /*on_value, off_value*/
+				200 200>; /* on_delay(ms), off_delay(ms)*/
+			en_sequence_reverse = <0>; /* 1 for reverse */
+			bl_ldim_zone_row_col = <10 10>;
+			bl_ldim_mode = <2>; /* 0=LR, 1=TB, 2=DIRECT */
+			ldim_dev_index = <3>;
+		};
 	};
 
 	local_dimming_device {
@@ -727,6 +743,55 @@
 				0xc0 2 0x5e 0x08
 				0xc0 2 0x5f 0x00
 				0xff 0>;
+			init_off = <0xff 0>;
+		};
+
+		ldim_dev_3 {
+			index = <3>;
+			type = <1>; /* 0=normal,1=spi,2=i2c */
+			ldim_dev_name = "blmcu";
+			ldim_pwm_port = "PWM_VS";
+			ldim_pwm_attr = <1  /* pol */
+				1 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
+				2>;/*default duty(%)*/
+			spi_bus_num = <2>;
+			spi_chip_select = <0>;
+			spi_max_frequency = <3000000>; /* unit: hz */
+			spi_mode = <1>; /* mode: 0, 1, 2, 3 */
+			spi_dma_support = <1>;
+			spi_cs_delay = <10  /* hold_high_delay */
+				100>; /* clk_cs_delay (unit: us) */
+			en_gpio_on_off = <0 /* ldim_dev-gpios index */
+				1 /* on_level */
+				0>; /* off_level */
+			lamp_err_gpio = <0xff>;
+				/* ldim_dev-gpios index, 0xff=invalid */
+			spi_write_check = <0>; /* 0=disable, 1=enable */
+
+			dim_max_min = <0xfff 0x0>; /* dim_max, dim_min */
+			chip_count = <3>;
+			ldim_zone_mapping = <0>;
+			ldim_bl_profile_mode = <2>; /*0=no profile*/
+			ldim_bl_profile_k_bits = <
+				3487 24>; /*profile_k, profile_bits*/
+			ldim_bl_profile_path =
+				"/odm/etc/tvconfig/panel/55R625/bl_profile.bin";
+
+			ldim_cus_param = < /* maximum = 32 x 4 bytes*/
+				11
+				23
+				>;
+
+			cmd_size = <0xff>;
+			/* init: (type, data...) */
+			/*   type: 0x00=cmd with delay,
+			 *         0xc0=cmd,
+			 *         0xfd=delay,
+			 *         0xff=ending
+			 */
+			/*   data: spi data, fill 0x0 for no use */
+			/*   delay: unit ms */
+			init_on = <	0xff 0>;
 			init_off = <0xff 0>;
 		};
 	};

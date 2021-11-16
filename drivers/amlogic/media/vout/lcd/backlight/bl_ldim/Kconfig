@@ -30,6 +30,16 @@ config AMLOGIC_BL_LDIM_IW7027
                 Through the spi iw7027 to write data like brightness
                 values for the local dimming
 
+config AMLOGIC_BL_LDIM_BLMCU
+        bool "Amlogic local Diming BLMCU"
+        depends on AMLOGIC_BL_LDIM
+        default n
+        help
+                Spi blmcu controller support.
+		Once use the local dimming, add the spi driver
+                Through the spi blmcu to write data like brightness
+                values for the local dimming
+
 config AMLOGIC_BL_LDIM_OB3350
 	bool "Amlogic local Diming Iw70XX_MCU"
 	depends on AMLOGIC_BL_LDIM
