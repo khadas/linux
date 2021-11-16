@@ -1230,7 +1230,7 @@ static int vt_poll_ready(struct vt_session *session, int buffer_or_cmd)
 			size += kfifo_len(&instance->fifo_to_producer);
 		} else if (instance->consumer &&
 			   instance->consumer == session) {
-			if (buffer_or_cmd == 1 && session->mode == VT_MODE_GAME)
+			if (buffer_or_cmd == 1)
 				size += kfifo_len(&instance->fifo_to_consumer);
 			if (buffer_or_cmd == 0)
 				size += kfifo_len(&instance->fifo_cmd);
@@ -1900,11 +1900,14 @@ static long vt_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 }
 
 /*
- * for producer side, support poll buffer
- * for consumer side, now only support poll cmd
+ * support poll cmds and buffer.
+ * poll cmds return POLLWRNORM | POLLOUT
+ * poll buffer return POLLRDNORM | POLLIN
+ * if not game mode ret with POLLRDBAND
  */
 static __poll_t vt_poll(struct file *filp, struct poll_table_struct *wait)
 {
+	__poll_t ret = 0;
 	struct vt_session *session = filp->private_data;
 
 	/* not connected */
@@ -1913,18 +1916,21 @@ static __poll_t vt_poll(struct file *filp, struct poll_table_struct *wait)
 
 	if (session->role == VT_ROLE_PRODUCER)
 		poll_wait(filp, &session->wait_producer, wait);
-	else if (session->role == VT_ROLE_CONSUMER) {
-		/* not game mode */
-		if (session->mode != VT_MODE_GAME)
-			return POLLERR;
-
+	else if (session->role == VT_ROLE_CONSUMER)
 		poll_wait(filp, &session->wait_consumer, wait);
-	}
 
+	/* has cmds ready*/
+	if (vt_poll_ready(session, 0) > 0)
+		ret |= POLLOUT | POLLWRNORM;
+
+	/* has buffer ready */
 	if (vt_poll_ready(session, 1) > 0)
-		return POLLIN | POLLRDNORM;
-	else
-		return 0;
+		ret |= POLLIN | POLLRDNORM;
+
+	if (session->mode != VT_MODE_GAME && ret != 0)
+		ret |= POLLRDBAND;
+
+	return ret;
 }
 
 struct vt_session *vt_session_create(const char *name)
