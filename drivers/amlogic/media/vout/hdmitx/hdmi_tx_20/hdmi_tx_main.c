@@ -2892,6 +2892,36 @@ static bool hdmitx_limited_1080p(void)
 	return res_1080p;
 }
 
+/* for some non-std TV, it declare 4k while MAX_TMDS_CLK
+ * not match 4K format, so filter out mode list by
+ * check if basic color space/depth is supported
+ * or not under this resolution
+ */
+static bool hdmi_sink_disp_mode_sup(char *disp_mode)
+{
+	if (!disp_mode)
+		return false;
+
+	if (is_4k50_fmt(disp_mode)) {
+		if (drm_hdmitx_chk_mode_attr_sup(disp_mode, "420,8bit"))
+			return true;
+		if (drm_hdmitx_chk_mode_attr_sup(disp_mode, "rgb,8bit"))
+			return true;
+		if (drm_hdmitx_chk_mode_attr_sup(disp_mode, "444,8bit"))
+			return true;
+		if (drm_hdmitx_chk_mode_attr_sup(disp_mode, "422,12bit"))
+			return true;
+	} else {
+		if (drm_hdmitx_chk_mode_attr_sup(disp_mode, "rgb,8bit"))
+			return true;
+		if (drm_hdmitx_chk_mode_attr_sup(disp_mode, "444,8bit"))
+			return true;
+		if (drm_hdmitx_chk_mode_attr_sup(disp_mode, "422,12bit"))
+			return true;
+	}
+	return false;
+}
+
 /**/
 static ssize_t disp_cap_show(struct device *dev,
 			     struct device_attribute *attr,
@@ -2919,6 +2949,11 @@ static ssize_t disp_cap_show(struct device *dev,
 							  mode_tmp, 0);
 			}
 			if (vic != HDMI_UNKNOWN) {
+				/* filter resolution list by sysctl by default,
+				 * if need to filter by driver, enable below filter
+				 */
+				/* if (!hdmi_sink_disp_mode_sup(mode_tmp)) */
+					/* continue; */
 				pos += snprintf(buf + pos, PAGE_SIZE, "%s",
 					disp_mode_t[i]);
 				if (native_disp_mode &&
@@ -7312,6 +7347,8 @@ int drm_hdmitx_get_vic_list(int **vics)
 		}
 
 		if (vic != HDMI_UNKNOWN) {
+			if (!hdmi_sink_disp_mode_sup(mode_tmp))
+				continue;
 			viclist[count] = vic;
 			count++;
 		}
@@ -7523,7 +7560,7 @@ bool drm_hdmitx_chk_mode_attr_sup(char *mode, char *attr)
 		return valid;
 	para = hdmi_tst_fmt_name(mode, attr);
 
-	if (para) {
+	if (para && log_level) {
 		pr_info(SYS "sname = %s\n", para->sname);
 		pr_info(SYS "char_clk = %d\n", para->tmds_clk);
 		pr_info(SYS "cd = %d\n", para->cd);
