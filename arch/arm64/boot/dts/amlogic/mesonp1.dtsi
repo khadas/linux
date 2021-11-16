@@ -19,6 +19,7 @@
 #include "meson-ir-map.dtsi"
 #include "mesong12a-bifrost.dtsi"
 #include <dt-bindings/memory/meson-p1-sid-map.h>
+#include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
 / {
 	cpus:cpus {
 		#address-cells = <2>;
@@ -1320,6 +1321,7 @@
 				reg-names = "topctrl";
 				clocks = <&clkc CLKID_SYS_CLK_GLB>;
 				clock-names = "glb_clk";
+				hwlocks = <&aml_hwlock HWSPINLOCK_ID_GLB_TIMER>;
 			};
 
 			gbl_timer_isp: global-timer@8e040 {

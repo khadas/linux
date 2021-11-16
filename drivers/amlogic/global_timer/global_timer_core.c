@@ -22,10 +22,12 @@
 #include <linux/clk.h>
 #include <linux/hrtimer.h>
 #include <linux/cdev.h>
+#include <linux/hwspinlock.h>
 #include <linux/amlogic/glb_timer.h>
 
 #define DRIVER_NAME	"global_timer_core"
 #define GLOBAL_TIMER_SNAPSHOT      _IOR('Z', 11, __u64)
+#define HWSPIN_LOCK_TIMEOUT	   5
 
 enum meson_glb_topctl_reg {
 	TOP_CTRL0			= 0x00 << 2,
@@ -51,6 +53,7 @@ struct meson_glb_timer_core_pdata {
 	struct platform_device *pdev;
 	struct cdev chrdev;
 	dev_t chr_devno;
+	struct hwspinlock *hwlock;
 };
 
 struct meson_glb_timer_core_pdata *glb_pdata;
@@ -98,8 +101,10 @@ u64 meson_global_timer_global_snapshot(void)
 
 	regmap = glb_pdata->regmap;
 
+	hwspin_lock_timeout(glb_pdata->hwlock, HWSPIN_LOCK_TIMEOUT);
 	regmap_read(regmap, TOP_TS0, &ts_l);
 	regmap_read(regmap, TOP_TS1, &ts_h);
+	hwspin_unlock(glb_pdata->hwlock);
 
 	ts = ts_h;
 
@@ -308,9 +313,20 @@ fail_cdev_add:
 	return ret;
 }
 
+void meson_glb_timer_core_cdev_deint(struct platform_device *pdev)
+{
+	struct meson_glb_timer_core_pdata *glb_timer;
+
+	glb_timer = platform_get_drvdata(pdev);
+
+	cdev_del(&glb_timer->chrdev);
+	unregister_chrdev_region(glb_timer->chr_devno, 1);
+}
+
 static int meson_glb_timer_core_probe(struct platform_device *pdev)
 {
 	int ret = 0;
+	int hwlock_id;
 	struct meson_glb_timer_core_pdata *glb_timer;
 
 	glb_timer = devm_kzalloc(&pdev->dev, sizeof(*glb_timer), GFP_KERNEL);
@@ -345,10 +361,25 @@ static int meson_glb_timer_core_probe(struct platform_device *pdev)
 	/* ioctl */
 	ret = meson_glb_timer_core_cdev_init(pdev);
 	if (ret)
-		return ret;
+		goto err_ioctl;
+
+	/* hwspinlock */
+	hwlock_id = of_hwspin_lock_get_id(pdev->dev.of_node, 0);
+	if (hwlock_id < 0)
+		goto err_hwspinlock;
+
+	glb_timer->hwlock = hwspin_lock_request_specific(hwlock_id);
+	if (!glb_timer->hwlock)
+		goto err_hwspinlock;
 
 	glb_pdata = glb_timer;
 
+	return ret;
+
+err_hwspinlock:
+	meson_glb_timer_core_cdev_deint(pdev);
+err_ioctl:
+	class_unregister(&global_timer_class);
 	return ret;
 }
 
