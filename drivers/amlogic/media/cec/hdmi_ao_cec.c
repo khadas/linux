@@ -298,7 +298,7 @@ static void ceca_tx_irq_handle(void)
 		break;
 
 	case TX_ERROR:
-		CEC_ERR("TX ERROR!\n");
+		CEC_INFO("TX ERROR!\n");
 		aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
 		ceca_hw_reset();
 		if (cec_dev->cec_num <= ENABLE_ONE_CEC)
@@ -371,7 +371,7 @@ static bool check_physical_addr_valid(int timeout)
 }
 
 /* Return value: < 0: fail, > 0: success */
-int cec_ll_tx(const unsigned char *msg, unsigned char len)
+int cec_ll_tx(const unsigned char *msg, unsigned char len, unsigned char signal_free_time)
 {
 	int ret = -1;
 	int t;
@@ -427,14 +427,19 @@ try_again:
 	 * free time, that means a send is already started by other
 	 * device, we should wait it finished.
 	 */
-	if (check_confilct()) {
-		CEC_ERR("bus confilct too long\n");
-		mutex_unlock(&cec_dev->cec_tx_mutex);
-		return CEC_FAIL_BUSY;
+	/* remove SW check of bus, let controller to
+	 * get bus arbitration directly, otherwise it
+	 * may cause message transfer delay/lost
+	 */
+	if (cec_dev->sw_chk_bus) {
+		if (check_confilct()) {
+			CEC_ERR("bus confilct too long\n");
+			mutex_unlock(&cec_dev->cec_tx_mutex);
+			return CEC_FAIL_BUSY;
+		}
 	}
-
 	if (cec_sel == CEC_B)
-		ret = cecb_trigle_tx(msg, len);
+		ret = cecb_trigle_tx(msg, len, signal_free_time);
 	else
 		ret = ceca_trigle_tx(msg, len);
 	if (ret < 0) {
@@ -961,7 +966,7 @@ static ssize_t pin_status_show(struct class *cla,
 		}
 		if (pin_status == 0) {
 			p = (cec_dev->cec_info.log_addr << 4) | CEC_TV_ADDR;
-			if (cec_ll_tx(&p, 1) == CEC_FAIL_NONE)
+			if (cec_ll_tx(&p, 1, SIGNAL_FREE_TIME_NEW_INITIATOR) == CEC_FAIL_NONE)
 				return sprintf(buf, "%s\n", "ok");
 			else
 				return sprintf(buf, "%s\n", "fail");
@@ -1044,7 +1049,7 @@ static ssize_t cmd_store(struct class *cla, struct class_attribute *attr,
 		buf[i] = (char)tmpbuf[i];
 
 	/*CEC_ERR("cnt=%d\n", cnt);*/
-	ret = cec_ll_tx(buf, cnt);
+	ret = cec_ll_tx(buf, cnt, SIGNAL_FREE_TIME_NEW_INITIATOR);
 	dprintk(L_2, "%s ret:%d, %s\n", __func__, ret, cec_tx_ret_str(ret));
 	return count;
 }
@@ -1098,7 +1103,7 @@ static ssize_t cmdb_store(struct class *cla, struct class_attribute *attr,
 		buf[i] = (char)tmpbuf[i];
 
 	if (cec_dev->cec_num > ENABLE_ONE_CEC)
-		cecb_trigle_tx(buf, cnt);
+		cecb_trigle_tx(buf, cnt, SIGNAL_FREE_TIME_NEW_INITIATOR);
 
 	return count;
 }
@@ -1336,6 +1341,18 @@ static ssize_t dbg_store(struct class *cla, struct class_attribute *attr,
 	} else if (token && strncmp(token, "setfreeze", 9) == 0) {
 		cec_save_pre_setting();
 		CEC_ERR("Set enter freeze mode\n");
+	}  else if (token && strncmp(token, "chk_sig_free", 12) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 16, &addr) < 0)
+			return count;
+		cec_dev->chk_sig_free_time = !!addr;
+		CEC_ERR("check signal free time enable: %d\n", cec_dev->chk_sig_free_time);
+	} else if (token && strncmp(token, "sw_chk_bus", 10) == 0) {
+		token = strsep(&cur, delim);
+		if (!token || kstrtouint(token, 16, &addr) < 0)
+			return count;
+		cec_dev->sw_chk_bus = !!addr;
+		CEC_ERR("sw_chk_bus enable: %d\n", cec_dev->sw_chk_bus);
 	} else {
 		if (token)
 			CEC_ERR("no cmd:%s, supported list:\n", token);
@@ -1517,7 +1534,7 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 		return -EINVAL;
 
 	/*osd name configed in android prop file*/
-	if ((size > 0 && size < 16) && tempbuf[1] == CEC_OC_SET_OSD_NAME) {
+	if (tempbuf[1] == CEC_OC_SET_OSD_NAME) {
 		memset(cec_dev->cec_info.osd_name, 0, 16);
 		memcpy(cec_dev->cec_info.osd_name, &tempbuf[2], (size - 2));
 		cec_dev->cec_info.osd_name[15] = (size - 2);
@@ -1526,7 +1543,7 @@ static ssize_t hdmitx_cec_write(struct file *f, const char __user *buf,
 	cec_cfg = cec_config(0, 0);
 	if (cec_cfg & CEC_FUNC_CFG_CEC_ON) {
 		/*cec module on*/
-		ret = cec_ll_tx(tempbuf, size);
+		ret = cec_ll_tx(tempbuf, size, SIGNAL_FREE_TIME_NEW_INITIATOR);
 	}
 	return ret;
 }
@@ -2036,7 +2053,8 @@ static const struct cec_platform_data_s cec_sm1_data = {
 
 static const struct cec_platform_data_s cec_tm2_data = {
 	.chip_id = CEC_CHIP_TM2,
-	.line_reg = 0,/*line_reg=0:AO_GPIO_I*/
+	/* don't check */
+	.line_reg = 0xff,
 	.line_bit = 10,
 	.ee_to_ao = 1,
 	.ceca_sts_reg = 1,
@@ -2716,6 +2734,9 @@ static int aml_cec_probe(struct platform_device *pdev)
 	}
 	#endif
 	cec_irq_enable(true);
+	/* still check bus by default, maybe not necessary */
+	cec_dev->sw_chk_bus = true;
+	cec_dev->chk_sig_free_time = false;
 	CEC_ERR("%s success end\n", __func__);
 	cec_dev->probe_finish = true;
 	return 0;

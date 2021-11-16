@@ -40,7 +40,7 @@ int ceca_trigle_tx(const unsigned char *msg, int len);
 unsigned int ao_ceca_intr_stat(void);
 void ceca_hw_reset(void);
 
-int cecb_trigle_tx(const unsigned char *msg, unsigned char len);
+int cecb_trigle_tx(const unsigned char *msg, unsigned char len, unsigned char sig_free);
 void cecb_check_irq_enable(void);
 int cecb_irq_stat(void);
 inline void cecb_clear_irq(unsigned int flags);
@@ -79,6 +79,7 @@ void cec_report_power_status(int dest, int status);
 /* common logic interface */
 bool need_nack_repeat_msg(const unsigned char *msg, int len, int t);
 inline bool is_poll_message(unsigned char header);
+inline bool is_get_cec_ver_msg(const unsigned char *msg, int len);
 
 unsigned int cec_config(unsigned int value, bool wr_flag);
 unsigned int cec_config2_phyaddr(unsigned int value, bool wr_flag);
