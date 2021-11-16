@@ -695,6 +695,8 @@ extern struct work_struct	amlphy_dwork;
 extern struct workqueue_struct	*amlphy_wq;
 extern struct work_struct     clkmsr_dwork;
 extern struct workqueue_struct *clkmsr_wq;
+extern struct work_struct     earc_hpd_dwork;
+extern struct workqueue_struct *earc_hpd_wq;
 extern struct workqueue_struct	*repeater_wq;
 extern struct tasklet_struct rx_tasklet;
 extern struct device *hdmirx_dev;

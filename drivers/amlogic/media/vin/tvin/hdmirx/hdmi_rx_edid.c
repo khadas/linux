@@ -1660,6 +1660,19 @@ bool rx_edid_set_aud_sad(u_char *sad, u_char len)
 }
 EXPORT_SYMBOL(rx_edid_set_aud_sad);
 
+void rx_earc_hpd_cntl(void)
+{
+	if (rx.open_fg && rx.port == rx.arc_port) {
+		rx_send_hpd_pulse();
+		if (log_level & AUDIO_LOG)
+			rx_pr("earc_hpd_cntl\n");
+	} else {
+		schedule_work(&earc_hpd_dwork);
+		pre_port = 0xff;
+	}
+}
+EXPORT_SYMBOL(rx_earc_hpd_cntl);
+
 bool rx_edid_update_aud_blk(u_char *pedid,
 			    u_char *sad_data,
 			    u_char len)

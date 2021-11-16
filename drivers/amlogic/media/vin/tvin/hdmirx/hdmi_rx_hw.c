@@ -4482,6 +4482,7 @@ void rx_clkmsr_handler(struct work_struct *work)
 		break;
 	}
 }
+
 /*
  * function - get clk related with hdmirx
  */
@@ -4565,6 +4566,14 @@ unsigned int rx_measure_clock(enum measure_clk_src_e clksrc)
 		clock = meson_clk_measure(0);
 	}
 	return clock;
+}
+
+void rx_earc_hpd_handler(struct work_struct *work)
+{
+	cancel_delayed_work(&eq_dwork);
+	rx_set_port_hpd(rx.arc_port, 0);
+	usleep_range(150000, 200000);
+	rx_set_port_hpd(rx.arc_port, 1);
 }
 
 static const unsigned int wr_only_register[] = {
