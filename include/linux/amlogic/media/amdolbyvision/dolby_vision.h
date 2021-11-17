@@ -278,4 +278,5 @@ int parse_sei_and_meta_ext
 void dolby_vision_clear_buf(void);
 bool is_dv_control_backlight(void);
 void update_dvcore2_timing(u32 *hsize, u32 *vsize);
+bool get_force_bypass_from_prebld_to_vadj1(void);
 #endif
