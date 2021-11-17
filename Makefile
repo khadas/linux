@@ -676,6 +676,9 @@ ifeq ($(KBUILD_EXTMOD),)
 # Objects we will link into vmlinux / subdirs we need to visit
 core-y		:= init/ usr/ arch/$(SRCARCH)/
 drivers-y	:= drivers/ sound/
+ifdef CONFIG_AMLOGIC_DRIVER
+drivers-y	+=../common_drivers/drivers/
+endif
 drivers-$(CONFIG_SAMPLES) += samples/
 drivers-$(CONFIG_NET) += net/
 drivers-y	+= virt/
@@ -1421,7 +1424,11 @@ kselftest-merge:
 # Devicetree files
 
 ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/boot/dts/),)
+ifdef CONFIG_AMLOGIC_DRIVER
+dtstree := ../common_drivers/arch/$(SRCARCH)/boot/dts
+else
 dtstree := arch/$(SRCARCH)/boot/dts
+endif
 endif
 
 ifneq ($(dtstree),)

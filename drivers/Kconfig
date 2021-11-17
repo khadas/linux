@@ -236,4 +236,18 @@ source "drivers/interconnect/Kconfig"
 source "drivers/counter/Kconfig"
 
 source "drivers/most/Kconfig"
+
+config AMLOGIC_DRIVER
+	bool "Amlogic Peripheral drivers"
+	default n
+	help
+	  this option is provided for control amlogic
+	  drivers, if you want to use amlogic driver
+	  please open it.
+	  Note: All amlogic driver should be placed in
+	  directory ../common_drivers/drivers/
+
+if AMLOGIC_DRIVER
+source "../common_drivers/drivers/Kconfig"
+endif
 endmenu
