@@ -5188,7 +5188,8 @@ void set_video_window_ext(int layer_index, int *p)
 {
 	struct disp_info_s *layer = &glayer_info[layer_index];
 
-	_set_video_window(layer, p);
+	if (!(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE))
+		_set_video_window(layer, p);
 }
 
 void set_video_zorder_ext(int layer_index, int zorder)

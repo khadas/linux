@@ -288,6 +288,13 @@ int get_dv_support_info(void)
 }
 EXPORT_SYMBOL(get_dv_support_info);
 
+static bool force_bypass_from_prebld_to_vadj1;/* t3/t5w, 1d93 bit0 -> 1d26 bit8*/
+bool get_force_bypass_from_prebld_to_vadj1(void)
+{
+	return force_bypass_from_prebld_to_vadj1;
+}
+EXPORT_SYMBOL(get_force_bypass_from_prebld_to_vadj1);
+
 char cur_crc[32] = "invalid";
 
 static uint dolby_vision_on_count;
@@ -4274,6 +4281,27 @@ static void video_effect_bypass(int bypass)
 	}
 }
 
+/*flag bit0: bypass from preblend to VADJ1, skip sr/pps/cm2*/
+/*flag bit1: skip OE/EO*/
+/*flag bit2: bypass from dolby3 to vkeystone, skip vajd2/post/mtx/gainoff*/
+static void bypass_pps_sr_gamma_gainoff(int flag)
+{
+	pr_dolby_dbg("%s: %d\n", __func__, flag);
+
+	if (flag | 1) {
+		if (is_meson_t3() || is_meson_t5w()) {
+			/*from t3, 1d93 bit0 change to 1d26 bit8*/
+			VSYNC_WR_DV_REG_BITS(VPP_MISC, 1, 8, 1);
+			force_bypass_from_prebld_to_vadj1 = true;
+		} else {
+			VSYNC_WR_DV_REG_BITS(VPP_DOLBY_CTRL, 1, 0, 1);
+		}
+	}
+	if (flag | 2)
+		VSYNC_WR_DV_REG_BITS(VPP_DOLBY_CTRL, 1, 1, 1);
+	if (flag | 4)
+		VSYNC_WR_DV_REG_BITS(VPP_DOLBY_CTRL, 1, 2, 1);
+}
 static void osd_path_enable(int on)
 {
 	u32 i = 0;
@@ -4623,8 +4651,7 @@ void enable_dolby_vision(int enable)
 				}
 				if (dolby_vision_flags & FLAG_CERTIFICAION) {
 					/* bypass dither/PPS/SR/CM, EO/OE */
-					VSYNC_WR_DV_REG_BITS
-						(VPP_DOLBY_CTRL, 3, 0, 2);
+					bypass_pps_sr_gamma_gainoff(3);
 					/* bypass all video effect */
 					video_effect_bypass(1);
 					if (is_meson_txlx_tvmode()) {
@@ -4706,8 +4733,7 @@ void enable_dolby_vision(int enable)
 					/* bypass dither/PPS/SR/CM*/
 					/*   bypass EO/OE*/
 					/*   bypass vadj2/mtx/gainoff */
-					VSYNC_WR_DV_REG_BITS
-						(VPP_DOLBY_CTRL, 7, 0, 3);
+					bypass_pps_sr_gamma_gainoff(7);
 					/* bypass all video effect */
 					video_effect_bypass(1);
 					/* 12 bit unsigned to sign*/
@@ -4957,8 +4983,7 @@ void enable_dolby_vision(int enable)
 					/* bypass dither/PPS/SR/CM*/
 					/*   bypass EO/OE*/
 					/*   bypass vadj2/mtx/gainoff */
-					VSYNC_WR_DV_REG_BITS
-						(VPP_DOLBY_CTRL, 7, 0, 3);
+					bypass_pps_sr_gamma_gainoff(7);
 					/* bypass all video effect */
 					video_effect_bypass(1);
 					/* 12 bit unsigned to sign*/
@@ -5654,6 +5679,7 @@ void enable_dolby_vision(int enable)
 		cur_csc_type[VD1_PATH] = VPP_MATRIX_NULL;
 		/* clean mute flag for next time dv on */
 		dolby_vision_flags &= ~FLAG_MUTE;
+		force_bypass_from_prebld_to_vadj1 = false;
 		if (!is_meson_gxm() && !is_meson_txlx()) {
 			hdr_osd_off(VPP_TOP0);
 			hdr_vd1_off(VPP_TOP0);
@@ -10202,6 +10228,9 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 	enum signal_format_enum check_format;
 	const struct vinfo_s *vinfo = get_current_vinfo();
 	bool vd1_on = false;
+
+	if (!dolby_vision_enable || !module_installed)
+		return 0;
 
 	if (single_step_enable) {
 		if (dolby_vision_flags & FLAG_SINGLE_STEP)

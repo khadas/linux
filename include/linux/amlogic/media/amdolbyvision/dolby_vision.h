@@ -277,4 +277,6 @@ int parse_sei_and_meta_ext
 	 char *comp_buf);
 void dolby_vision_clear_buf(void);
 bool is_dv_control_backlight(void);
+bool get_force_bypass_from_prebld_to_vadj1(void);
+
 #endif

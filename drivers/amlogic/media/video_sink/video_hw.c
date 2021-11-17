@@ -6928,6 +6928,13 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 				VPP_POSTBLEND_EN |
 				VPP_PREBLEND_EN |
 				0xf);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			if (get_force_bypass_from_prebld_to_vadj1() &&
+			    for_dolby_vision_certification()) {
+				/* t3/t5w, 1d93 bit0 -> 1d26 bit8*/
+				set_value |= (1 << 8);
+			}
+#endif
 			if (vd_layer[0].pre_blend_en ||
 			    vd_layer[1].pre_blend_en ||
 			    vd_layer[2].pre_blend_en)
