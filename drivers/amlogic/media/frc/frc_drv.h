@@ -38,8 +38,9 @@
 // frc_20211021 frc chg me little_window
 // frc_20211022 frc reduce clk under noframe
 // frc_20211027 frc add print alg speed-time
+// frc_20211104 frc add clkctrl workaround
 
-#define FRC_FW_VER			"2021-1104 frc add clkctrl workaround"
+#define FRC_FW_VER			"2021-1109 frc chg demo mode"
 #define FRC_KERDRV_VER                  1158
 
 #define FRC_DEVNO	1

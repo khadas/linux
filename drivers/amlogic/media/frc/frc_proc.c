@@ -992,26 +992,28 @@ int frc_memc_set_demo(u8 setdemo)
 		return 0;
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	pr_frc(1, "set_demo_mode:%d\n", setdemo);
-	pr_frc(1, "out_hsize:%d\n",  pfw_data->frc_top_type.out_hsize);
-	pr_frc(1, "out_vsize:%d\n",  pfw_data->frc_top_type.out_vsize);
+	pr_frc(1, "in_hsize:%4d\n",  pfw_data->frc_top_type.hsize);
+	pr_frc(1, "in_vsize:%4d\n",  pfw_data->frc_top_type.vsize);
+	pr_frc(1, "out_hsize:%4d\n",  pfw_data->frc_top_type.out_hsize);
+	pr_frc(1, "out_vsize:%4d\n",  pfw_data->frc_top_type.out_vsize);
 	if (setdemo == 0) {
 		WRITE_FRC_BITS(FRC_MC_DEMO_WINDOW, 0, 3, 1);
 		WRITE_FRC_BITS(FRC_REG_MC_DEBUG1, 0, 17, 1);
 	} else if (setdemo < 3) {
-		tmpstart = pfw_data->frc_top_type.out_hsize / 2 << 16;
-		pr_frc(1, "demo_win_start:0x%x\n", tmpstart);
+		tmpstart = pfw_data->frc_top_type.hsize / 2 << 16;
+		pr_frc(1, "demo_win_start:%4d\n", tmpstart);
 		WRITE_FRC_REG(FRC_REG_DEMOWINDOW1_XYXY_ST, tmpstart);
-		tmpend = ((pfw_data->frc_top_type.out_hsize - 1) << 16) +
-				(pfw_data->frc_top_type.out_vsize - 1);
-		pr_frc(1, "demo_win_end:0x%x\n", tmpend);
+		tmpend = ((pfw_data->frc_top_type.hsize - 1) << 16) +
+				(pfw_data->frc_top_type.vsize - 1);
+		pr_frc(1, "demo_win_end:%4d\n", tmpend);
 		WRITE_FRC_REG(FRC_REG_DEMOWINDOW1_XYXY_ED, tmpend);
 		WRITE_FRC_BITS(FRC_REG_MC_DEBUG1, (setdemo - 1), 17, 1);
 		WRITE_FRC_BITS(FRC_MC_DEMO_WINDOW, 1, 3, 1);
 	} else if (setdemo < 5) {
 		WRITE_FRC_REG(FRC_REG_DEMOWINDOW1_XYXY_ST, 0);
-		tmpend = ((pfw_data->frc_top_type.out_hsize / 2 - 1) << 16) +
-				(pfw_data->frc_top_type.out_vsize - 1);
-		pr_frc(1, "demo_win_end:0x%x\n", tmpend);
+		tmpend = ((pfw_data->frc_top_type.hsize / 2 - 1) << 16) +
+				(pfw_data->frc_top_type.vsize - 1);
+		pr_frc(1, "demo_win_end:%4d\n", tmpend);
 		WRITE_FRC_REG(FRC_REG_DEMOWINDOW1_XYXY_ED, tmpend);
 		WRITE_FRC_BITS(FRC_REG_MC_DEBUG1, (setdemo - 3), 17, 1);
 		WRITE_FRC_BITS(FRC_MC_DEMO_WINDOW, 1, 3, 1);

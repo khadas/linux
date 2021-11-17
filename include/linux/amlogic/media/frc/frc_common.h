@@ -151,6 +151,7 @@ enum en_film_mode {
 	EN_FILM66,
 	EN_FILM87,
 	EN_FILM212,
+	EN_FILM1123,
 	EN_FILM_MAX = 0xFF,
 };
 
