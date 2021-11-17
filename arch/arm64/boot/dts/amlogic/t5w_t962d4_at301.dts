@@ -891,7 +891,16 @@
 				&spdifin_z19_pins>;
 		pinctrl-1 = <&spdifout_d8_mute>;
 
-		samesource_sel = <4>;
+		/*
+		 * 0: tdmout_a;
+		 * 1: tdmout_b;
+		 * 2: tdmout_c;
+		 * 3: spdifout;
+		 * 4: spdifout_b;
+		 * 5: earc;
+		 */
+
+		samesource_sel = <5>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
