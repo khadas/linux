@@ -1846,25 +1846,29 @@ void vdin_drop_frame_info(struct vdin_dev_s *devp, char *info)
 int vdin_vs_duration_check(struct vdin_dev_s *devp)
 {
 	int ret = 0;
-	unsigned long long cur_time, diff_time;
-	unsigned long long temp;
+	int cur_time, diff_time;
+	int temp;
 
-	if (!(vdin_isr_monitor & VDIN_ISR_MONITOR_VS))
+	if (devp->game_mode)
 		return ret;
 
-	cur_time = sched_clock();
-	diff_time = cur_time - devp->vs_time_stamp;
-	/*13ms is unreliable vs input*/
-	if (devp->irq_cnt > 1 &&
-	    (diff_time < 9000000 || diff_time > 50000000)) {
-		temp = func_div(diff_time, 1000);
+	cur_time = devp->cycle;
+	temp = cur_time - devp->vs_time_stamp;
+	diff_time = abs(temp);
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_VS)
+		pr_info("isr:diff_time:%d, cycle:%d\n",
+			diff_time, devp->cycle);
+	/* more than 2 rate is unreliable vs need drop */
+	if (devp->irq_cnt > 2 && devp->irq_cnt < 0xff && diff_time > 0x186a0) {
+		temp = diff_time;
 		if (devp->unreliable_vs_idx >= 10)
 			devp->unreliable_vs_idx = 0;
 		devp->unreliable_vs_time[devp->unreliable_vs_idx] = temp;
 		devp->unreliable_vs_idx++;
-		ret = -1;
-		/*pr_info("vs t:%lld %d\n", temp, devp->unreliable_vs_cnt);*/
-		pr_info("err:vs %lld\n", diff_time);
+		/* In a duration 50M clk theory value */
+		devp->vs_time_stamp = (1000 * 50000) / devp->parm.info.fps;
+		return -1;
+
 	}
 
 	devp->vs_time_stamp = cur_time;
@@ -1937,16 +1941,20 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 
 		devp->vfp->last_last_vfe->vf.ready_clock[1] = sched_clock();
 
-		if (vdin_time_en) {
-			pr_info("vdin.%d put latency %lld us.first %lld us buffer_idx:%d cur_time:%lld\n",
+		if (vdin_time_en)
+			pr_info("vdin.%d put latency %lld us.first %lld us\n",
 				devp->index,
 			func_div(devp->vfp->last_last_vfe->vf.ready_clock[1],
 				 1000),
 			func_div(devp->vfp->last_last_vfe->vf.ready_clock[0],
-				 1000),
-				 devp->vfp->last_last_vfe->vf.index_disp,
-				 ktime_to_us(ktime_get()));
-		}
+				 1000));
+
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
+			pr_info("vdin.%d type:0x%x dur:%u disp:%d\n",
+				devp->index,
+				devp->vfp->last_last_vfe->vf.signal_type,
+				devp->vfp->last_last_vfe->vf.duration,
+				devp->vfp->last_last_vfe->vf.index_disp);
 
 		if (devp->work_mode == VDIN_WORK_MD_NORMAL) {
 			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -2091,6 +2099,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		devp->drop_hdr_set_sts = 0;
 	}
 
+	if (vdin_vs_duration_check(devp) < 0) {
+		vdin_drop_frame_info(devp, "duration error");
+		return IRQ_HANDLED;
+	}
+
 	cur_ms = jiffies_to_msecs(jiffies);
 	if (cur_ms - pre_ms <= 1)
 		err_vsync++;
@@ -2143,12 +2156,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_IRQ_STOP;
 		vdin_drop_frame_info(devp, "stop isr");
 		goto irq_handled;
-	}
-
-	if (vdin_vs_duration_check(devp) < 0) {
-		/*devp->frame_drop_num += 2;*/
-		if (vdin_isr_monitor & BIT(4))
-			pr_info("err:vs\n");
 	}
 
 	if (devp->frame_drop_num ||
@@ -2214,10 +2221,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			devp->last_wr_vfe->vf.dv_crc_sts =
 				devp->dv.dv_crc_check;
 
-		if (vdin_isr_monitor & BIT(5))
-			pr_info("%s:send frame dv_late:%x, sig_type:%x\n",
-				__func__, devp->dv.low_latency,
-				devp->last_wr_vfe->vf.signal_type);
 		vdin_vframe_put_and_recycle(devp, devp->last_wr_vfe, put_md);
 
 		/*skip policy process*/

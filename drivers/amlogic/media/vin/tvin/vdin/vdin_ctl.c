@@ -3673,27 +3673,20 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 	struct vframe_s *curr_wr_vf = NULL;
 	const struct tvin_format_s *fmt_info = devp->fmt_info_p;
 	enum tvin_port_e port = devp->parm.port;
-	u32 fps;
+	unsigned int fps;
 
 	curr_wr_vf = &devp->curr_wr_vfe->vf;
 	last_field_type = devp->curr_field_type;
 	cycle_phase = devp->msr_clk_val / 96000;
-	if (cycle_phase == 0) {
+	if (cycle_phase == 0)
 		cycle_phase = 250;
-		if (vdin_ctl_dbg)
-			pr_info("%s:cycle_phase is 0!!!!", __func__);
-	}
 
 	/* dynamic duration update */
 	if (devp->dtdata->hw_ver >= VDIN_HW_T7) {
 		/* vstamp to fps */
 		if (devp->cycle) {
-			fps = devp->cycle / (devp->msr_clk_val / 1000000);
-			fps = 100000000 / fps;/*5994 to 6000*/
-			fps = roundup(fps, 100);
-			fps = fps / 100;
-			/* fps to duration */
-			devp->duration = 96000 / fps;
+			fps = devp->cycle * 96;
+			devp->duration = fps / (devp->msr_clk_val / 1000);
 		}
 		curr_wr_vf->duration = devp->duration;
 	} else {
