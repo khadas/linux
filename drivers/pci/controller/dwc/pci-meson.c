@@ -451,6 +451,7 @@ static int meson_pcie_probe(struct platform_device *pdev)
 		goto err_phy;
 	}
 
+	max_pcie_mrrs = 512;
 	platform_set_drvdata(pdev, mp);
 
 	ret = dw_pcie_host_init(&pci->pp);
