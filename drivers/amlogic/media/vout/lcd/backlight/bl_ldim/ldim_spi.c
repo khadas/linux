@@ -265,6 +265,9 @@ static int ldim_spi_dev_probe(struct spi_device *spi)
 	if (ret)
 		LDIMERR("spi setup failed\n");
 
+	/* dummy for spi clktree init */
+	ldim_spi_write(spi, NULL, 0);
+
 	return ret;
 }
 
