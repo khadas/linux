@@ -331,6 +331,8 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 		if (ret < 0) {
 			pr_info("hdmitx21: parsing AVI failed %d\n", ret);
 		} else {
+			if (!hdev->para)
+				return;
 			if (hdev->para) {
 				hdev->para->cs = avi->colorspace;
 				hdev->para->cd = _get_colordepth();
@@ -1284,6 +1286,8 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 			return;
 		}
 		hdev->bist_lock = 1;
+		if (!hdev->para)
+			return;
 		hdmi_avi_infoframe_config(CONF_AVI_CS, hdev->para->cs);
 		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
 		hd21_write_reg(VENC_VIDEO_TST_EN, 1);

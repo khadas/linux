@@ -155,12 +155,11 @@ static void hdmitx_phy_bandgap_en(struct hdmitx_dev *hdev)
 void hdmitx_top_intr_handler(struct work_struct *work)
 {
 	int i;
-	struct intr_t *pint;
+	struct intr_t *pint = (struct intr_t *)&hdmi_all_intrs;
 	u32 val;
 	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
 		struct hdmitx_dev, work_internal_intr);
 
-	pint = &hdmi_all_intrs.entity.top_intr;
 	if (pint->st_data) {
 		u32 dat_top;
 
@@ -201,14 +200,13 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 	}
 next:
 	/* already called top_intr.callback, next others */
-	pint++;
 	for (i = 1; i < sizeof(union intr_u) / sizeof(struct intr_t); i++) {
+		pint++;
 		if (pint->st_data) {
 			val = pint->st_data;
 			pint->callback(pint);
 			pint->st_data = 0;
 		}
-		pint++;
 	}
 }
 
