@@ -992,6 +992,7 @@ int __init vfm_class_init(void)
 {
 	int error;
 
+	provide_table_init();
 	vfm_init();
 	error = class_register(&vfm_class);
 	if (error) {
