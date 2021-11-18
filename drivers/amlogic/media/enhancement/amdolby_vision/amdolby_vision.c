@@ -1430,7 +1430,7 @@ static int use_target_lum_from_cfg;
 static u32 debug_bypass_vpp_pq;
 
 static int bl_delay_cnt;
-static int set_backlight_delay_vsync = 2;
+static int set_backlight_delay_vsync = 1;
 module_param(set_backlight_delay_vsync, int, 0664);
 MODULE_PARM_DESC(set_backlight_delay_vsync,    "\n set_backlight_delay_vsync\n");
 
