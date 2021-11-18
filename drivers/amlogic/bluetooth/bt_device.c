@@ -131,6 +131,9 @@ struct bt_dev_runtime_data {
 
 static void off_def_power(struct bt_dev_data *pdata, unsigned long down_time)
 {
+	pr_info("[%s]: pid: %d comm: %s\n", __func__,
+		current->pid, current->comm);
+
 	if (pdata->gpio_reset > 0) {
 		if (pdata->power_on_pin_OD &&
 			pdata->power_low_level) {
@@ -156,6 +159,9 @@ static void off_def_power(struct bt_dev_data *pdata, unsigned long down_time)
 
 static void on_def_power(struct bt_dev_data *pdata, unsigned long up_time)
 {
+	pr_info("[%s]: pid: %d comm: %s\n", __func__,
+		current->pid, current->comm);
+
 	if (pdata->gpio_reset > 0) {
 		if (pdata->power_on_pin_OD &&
 			!pdata->power_low_level) {
@@ -237,7 +243,6 @@ static void bt_device_off(struct bt_dev_data *pdata)
 
 static void bt_device_init(struct bt_dev_data *pdata)
 {
-	int tmp = 0;
 	btpower_evt = 0;
 	btirq_flag = 0;
 
@@ -256,11 +261,6 @@ static void bt_device_init(struct bt_dev_data *pdata)
 		gpio_request(pdata->gpio_btwakeup, BT_RFKILL);
 		gpio_direction_input(pdata->gpio_btwakeup);
 	}
-
-	tmp = pdata->power_down_disable;
-	pdata->power_down_disable = 0;
-	bt_device_off(pdata);
-	pdata->power_down_disable = tmp;
 }
 
 static void bt_device_deinit(struct bt_dev_data *pdata)

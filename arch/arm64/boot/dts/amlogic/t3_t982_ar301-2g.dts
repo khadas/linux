@@ -1623,14 +1623,13 @@
 
 &aml_wifi{
 	status = "okay";
-	chip_en-gpios  = <&gpio   GPIOC_11  GPIO_ACTIVE_HIGH>;
-	power_on-gpios = <&gpio   GPIOC_7  GPIO_ACTIVE_HIGH>;
+	power_on-gpios = <&gpio   GPIOC_11  GPIO_ACTIVE_HIGH>;
 	disable-wifi-32k;
 };
 
 &aml_bt {
 	status = "okay";
-	reset-gpios = <&gpio  GPIOC_13  GPIO_ACTIVE_HIGH>;
+	bt_en-gpios = <&gpio  GPIOC_11  GPIO_ACTIVE_HIGH>;
 };
 
 &spicc0 {	//for TCON
