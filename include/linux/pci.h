@@ -1069,6 +1069,8 @@ enum pcie_bus_config_types {
 };
 
 extern enum pcie_bus_config_types pcie_bus_config;
+/* PCIe Max Read Request Size */
+extern u16 max_pcie_mrrs;
 
 extern struct bus_type pci_bus_type;
 
