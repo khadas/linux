@@ -1922,7 +1922,8 @@ static int lcd_optical_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int off
 		"white_point_x        %d\n"
 		"white_point_y        %d\n"
 		"luma_max             %d\n"
-		"luma_min             %d\n\n",
+		"luma_min             %d\n"
+		"luma_avg             %d\n\n",
 		pconf->optical.hdr_support,
 		pconf->optical.features,
 		pconf->optical.primaries_r_x,
@@ -1934,7 +1935,8 @@ static int lcd_optical_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int off
 		pconf->optical.white_point_x,
 		pconf->optical.white_point_y,
 		pconf->optical.luma_max,
-		pconf->optical.luma_min);
+		pconf->optical.luma_min,
+		pconf->optical.luma_avg);
 
 	return len;
 }
