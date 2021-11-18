@@ -336,6 +336,40 @@ struct aml_lcd_unifykey_header_s {
 /*#define LCD_UKEY_LDIM_DEV_INIT_DELAY     (n)*/
 
 /* ********************************
+ * lcd optical
+ * *********************************
+ */
+#define LCD_UKEY_OPTICAL_SIZE              102 /*10 + 52 + 40*/
+
+/* header (10Byte) */
+/* LCD_UKEY_HEAD_SIZE */
+/* attr (52Byte) */
+#define LCD_UKEY_OPT_HDR_SUPPORT           (LCD_UKEY_HEAD_SIZE + 0)
+#define LCD_UKEY_OPT_FEATURES              (LCD_UKEY_OPT_HDR_SUPPORT + 4)
+#define LCD_UKEY_OPT_PRI_R_X               (LCD_UKEY_OPT_HDR_SUPPORT + 8)
+#define LCD_UKEY_OPT_PRI_R_Y               (LCD_UKEY_OPT_HDR_SUPPORT + 12)
+#define LCD_UKEY_OPT_PRI_G_X               (LCD_UKEY_OPT_HDR_SUPPORT + 16)
+#define LCD_UKEY_OPT_PRI_G_Y               (LCD_UKEY_OPT_HDR_SUPPORT + 20)
+#define LCD_UKEY_OPT_PRI_B_X               (LCD_UKEY_OPT_HDR_SUPPORT + 24)
+#define LCD_UKEY_OPT_PRI_B_Y               (LCD_UKEY_OPT_HDR_SUPPORT + 28)
+#define LCD_UKEY_OPT_WHITE_X               (LCD_UKEY_OPT_HDR_SUPPORT + 32)
+#define LCD_UKEY_OPT_WHITE_Y               (LCD_UKEY_OPT_HDR_SUPPORT + 36)
+#define LCD_UKEY_OPT_LUMA_MAX              (LCD_UKEY_OPT_HDR_SUPPORT + 40)
+#define LCD_UKEY_OPT_LUMA_MIN              (LCD_UKEY_OPT_HDR_SUPPORT + 44)
+#define LCD_UKEY_OPT_LUMA_AVG              (LCD_UKEY_OPT_HDR_SUPPORT + 48)
+/* adv (40Byte) */
+#define LCD_UKEY_OPT_ADV_VAL0              (LCD_UKEY_OPT_HDR_SUPPORT + 52)
+#define LCD_UKEY_OPT_ADV_VAL1              (LCD_UKEY_OPT_HDR_SUPPORT + 56)
+#define LCD_UKEY_OPT_ADV_VAL2              (LCD_UKEY_OPT_HDR_SUPPORT + 60)
+#define LCD_UKEY_OPT_ADV_VAL3              (LCD_UKEY_OPT_HDR_SUPPORT + 64)
+#define LCD_UKEY_OPT_ADV_VAL4              (LCD_UKEY_OPT_HDR_SUPPORT + 68)
+#define LCD_UKEY_OPT_ADV_VAL5              (LCD_UKEY_OPT_HDR_SUPPORT + 72)
+#define LCD_UKEY_OPT_ADV_VAL6              (LCD_UKEY_OPT_HDR_SUPPORT + 76)
+#define LCD_UKEY_OPT_ADV_VAL7              (LCD_UKEY_OPT_HDR_SUPPORT + 80)
+#define LCD_UKEY_OPT_ADV_VAL8              (LCD_UKEY_OPT_HDR_SUPPORT + 84)
+#define LCD_UKEY_OPT_ADV_VAL9              (LCD_UKEY_OPT_HDR_SUPPORT + 88)
+
+/* ********************************
  * API
  * *********************************
  */

@@ -1070,6 +1070,149 @@ static int lcd_vlock_param_load_from_unifykey(struct aml_lcd_drv_s *pdrv, unsign
 	return 0;
 }
 
+static int lcd_optical_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_node *child)
+{
+	unsigned int para[13];
+	int ret;
+
+	ret = of_property_read_u32_array(child, "optical_attr", &para[0], 13);
+	if (ret == 0) {
+		LCDPR("[%d]: find optical_attr\n", pdrv->index);
+		pdrv->config.optical.hdr_support = para[0];
+		pdrv->config.optical.features = para[1];
+		pdrv->config.optical.primaries_r_x = para[2];
+		pdrv->config.optical.primaries_r_y = para[3];
+		pdrv->config.optical.primaries_g_x = para[4];
+		pdrv->config.optical.primaries_g_y = para[5];
+		pdrv->config.optical.primaries_b_x = para[6];
+		pdrv->config.optical.primaries_b_y = para[7];
+		pdrv->config.optical.white_point_x = para[8];
+		pdrv->config.optical.white_point_y = para[9];
+		pdrv->config.optical.luma_max = para[10];
+		pdrv->config.optical.luma_min = para[11];
+		pdrv->config.optical.luma_avg = para[12];
+	}
+
+	lcd_optical_vinfo_update(pdrv);
+
+	return 0;
+}
+
+static int lcd_optical_load_from_unifykey(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_optical_info_s *opt_info = &pdrv->config.optical;
+	char key_str[15];
+	unsigned char *para, *p;
+	int key_len, len;
+	int ret;
+
+	memset(key_str, 0, 15);
+	if (pdrv->index == 0)
+		sprintf(key_str, "lcd_optical");
+	else
+		sprintf(key_str, "lcd%d_optical", pdrv->index);
+
+	ret = lcd_unifykey_check(key_str);
+	if (ret < 0)
+		return -1;
+
+	LCDPR("[%d]: %s: find ukey %s\n", pdrv->index, __func__, key_str);
+
+	key_len = LCD_UKEY_OPTICAL_SIZE;
+	para = kzalloc(key_len, GFP_KERNEL);
+	if (!para)
+		return -1;
+
+	ret = lcd_unifykey_get(key_str, para, &key_len);
+	if (ret < 0) {
+		kfree(para);
+		return -1;
+	}
+
+	/* step 1: check header */
+	len = LCD_UKEY_HEAD_SIZE;
+	ret = lcd_unifykey_len_check(key_len, len);
+	if (ret < 0) {
+		LCDERR("[%d]: %s unifykey header length is incorrect\n",
+		       pdrv->index, key_str);
+		kfree(para);
+		return -1;
+	}
+
+	len = LCD_UKEY_OPTICAL_SIZE;
+
+	/* step 2: check parameters */
+	ret = lcd_unifykey_len_check(key_len, len);
+	if (ret < 0) {
+		LCDERR("[%d]: %s unifykey parameters length is incorrect\n",
+		       pdrv->index, key_str);
+		kfree(para);
+		return -1;
+	}
+
+	/* attr (52Byte) */
+	p = para;
+
+	opt_info->hdr_support = (*(p + LCD_UKEY_OPT_HDR_SUPPORT) |
+		((*(p + LCD_UKEY_OPT_HDR_SUPPORT + 1)) << 8) |
+		((*(p + LCD_UKEY_OPT_HDR_SUPPORT + 2)) << 16) |
+		((*(p + LCD_UKEY_OPT_HDR_SUPPORT + 3)) << 24));
+	opt_info->features = (*(p + LCD_UKEY_OPT_FEATURES) |
+		((*(p + LCD_UKEY_OPT_FEATURES + 1)) << 8) |
+		((*(p + LCD_UKEY_OPT_FEATURES + 2)) << 16) |
+		((*(p + LCD_UKEY_OPT_FEATURES + 3)) << 24));
+	opt_info->primaries_r_x = (*(p + LCD_UKEY_OPT_PRI_R_X) |
+		((*(p + LCD_UKEY_OPT_PRI_R_X + 1)) << 8) |
+		((*(p + LCD_UKEY_OPT_PRI_R_X + 2)) << 16) |
+		((*(p + LCD_UKEY_OPT_PRI_R_X + 3)) << 24));
+	opt_info->primaries_r_y = (*(p + LCD_UKEY_OPT_PRI_R_Y) |
+		((*(p + LCD_UKEY_OPT_PRI_R_Y + 1)) << 8) |
+		((*(p + LCD_UKEY_OPT_PRI_R_Y + 2)) << 16) |
+		((*(p + LCD_UKEY_OPT_PRI_R_Y + 3)) << 24));
+	opt_info->primaries_g_x = (*(p + LCD_UKEY_OPT_PRI_G_X) |
+		((*(p + LCD_UKEY_OPT_PRI_G_X + 1)) << 8) |
+		((*(p + LCD_UKEY_OPT_PRI_G_X + 2)) << 16) |
+		((*(p + LCD_UKEY_OPT_PRI_G_X + 3)) << 24));
+	opt_info->primaries_g_y = (*(p + LCD_UKEY_OPT_PRI_G_Y) |
+		((*(p + LCD_UKEY_OPT_PRI_G_Y + 1)) << 8) |
+		((*(p + LCD_UKEY_OPT_PRI_G_Y + 2)) << 16) |
+		((*(p + LCD_UKEY_OPT_PRI_G_Y + 3)) << 24));
+	opt_info->primaries_b_x = (*(p + LCD_UKEY_OPT_PRI_B_X) |
+		((*(p + LCD_UKEY_OPT_PRI_B_X + 1)) << 8) |
+		((*(p + LCD_UKEY_OPT_PRI_B_X + 2)) << 16) |
+		((*(p + LCD_UKEY_OPT_PRI_B_X + 3)) << 24));
+	opt_info->primaries_b_y = (*(p + LCD_UKEY_OPT_PRI_B_Y) |
+		((*(p + LCD_UKEY_OPT_PRI_B_Y + 1)) << 8) |
+		((*(p + LCD_UKEY_OPT_PRI_B_Y + 2)) << 16) |
+		((*(p + LCD_UKEY_OPT_PRI_B_Y + 3)) << 24));
+	opt_info->white_point_x = (*(p + LCD_UKEY_OPT_WHITE_X) |
+		((*(p + LCD_UKEY_OPT_WHITE_X + 1)) << 8) |
+		((*(p + LCD_UKEY_OPT_WHITE_X + 2)) << 16) |
+		((*(p + LCD_UKEY_OPT_WHITE_X + 3)) << 24));
+	opt_info->white_point_y = (*(p + LCD_UKEY_OPT_WHITE_Y) |
+		((*(p + LCD_UKEY_OPT_WHITE_Y + 1)) << 8) |
+		((*(p + LCD_UKEY_OPT_WHITE_Y + 2)) << 16) |
+		((*(p + LCD_UKEY_OPT_WHITE_Y + 3)) << 24));
+	opt_info->luma_max = (*(p + LCD_UKEY_OPT_LUMA_MAX) |
+		((*(p + LCD_UKEY_OPT_LUMA_MAX + 1)) << 8) |
+		((*(p + LCD_UKEY_OPT_LUMA_MAX + 2)) << 16) |
+		((*(p + LCD_UKEY_OPT_LUMA_MAX + 3)) << 24));
+	opt_info->luma_min = (*(p + LCD_UKEY_OPT_LUMA_MIN) |
+		((*(p + LCD_UKEY_OPT_LUMA_MIN + 1)) << 8) |
+		((*(p + LCD_UKEY_OPT_LUMA_MIN + 2)) << 16) |
+		((*(p + LCD_UKEY_OPT_LUMA_MIN + 3)) << 24));
+	opt_info->luma_avg = (*(p + LCD_UKEY_OPT_LUMA_AVG) |
+		((*(p + LCD_UKEY_OPT_LUMA_AVG + 1)) << 8) |
+		((*(p + LCD_UKEY_OPT_LUMA_AVG + 2)) << 16) |
+		((*(p + LCD_UKEY_OPT_LUMA_AVG + 3)) << 24));
+
+	kfree(para);
+
+	lcd_optical_vinfo_update(pdrv);
+
+	return 0;
+}
+
 static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 {
 	struct device_node *child;
@@ -1438,6 +1581,8 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 	lcd_vlock_param_load_from_dts(pdrv, child);
 	ret = lcd_power_load_from_dts(pdrv, child);
 
+	lcd_optical_load_from_dts(pdrv, child);
+
 	ret = of_property_read_u32(child, "backlight_index", &para[0]);
 	if (ret) {
 		LCDPR("[%d]: failed to get backlight_index\n", pdrv->index);
@@ -1724,11 +1869,14 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 		return -1;
 	}
 
+	kfree(para);
+
+	lcd_optical_load_from_unifykey(pdrv);
+
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
 	aml_bl_index_add(pdrv->index, 0);
 #endif
 
-	kfree(para);
 	return 0;
 }
 
@@ -1825,6 +1973,8 @@ void lcd_optical_vinfo_update(struct aml_lcd_drv_s *pdrv)
 	disp_vinfo->luminance[1] = pconf->optical.luma_min;
 
 	pdrv->vinfo.hdr_info.lumi_max = pconf->optical.luma_max;
+	pdrv->vinfo.hdr_info.lumi_min = pconf->optical.luma_min;
+	pdrv->vinfo.hdr_info.lumi_avg = pconf->optical.luma_avg;
 }
 
 static unsigned int vbyone_lane_num[] = {

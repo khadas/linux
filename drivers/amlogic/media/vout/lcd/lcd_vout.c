@@ -881,7 +881,8 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					"white_point_x        %d\n"
 					"white_point_y        %d\n"
 					"luma_max             %d\n"
-					"luma_min             %d\n\n",
+					"luma_min             %d\n"
+					"luma_avg             %d\n\n",
 					pdrv->index,
 					opt_info->hdr_support,
 					opt_info->features,
@@ -894,7 +895,8 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					opt_info->white_point_x,
 					opt_info->white_point_y,
 					opt_info->luma_max,
-					opt_info->luma_min);
+					opt_info->luma_min,
+					opt_info->luma_avg);
 			}
 		}
 		break;
