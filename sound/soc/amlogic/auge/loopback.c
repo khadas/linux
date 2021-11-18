@@ -1710,7 +1710,7 @@ static int loopback_platform_suspend(struct platform_device *pdev, pm_message_t 
 	pr_info("%s\n", __func__);
 
 	/* whether in freeze */
-	if (/* is_pm_freeze_mode() && */vad_lb_is_running(p_loopback->id)) {
+	if (is_pm_s2idle_mode() && vad_lb_is_running(p_loopback->id)) {
 		if (p_loopback->chipinfo)
 			lb_set_chnum_en(p_loopback->id,
 					true,
@@ -1733,7 +1733,7 @@ static int loopback_platform_resume(struct platform_device *pdev)
 	pr_info("%s\n", __func__);
 
 	/* whether in freeze mode */
-	if (/* is_pm_freeze_mode() && */vad_lb_is_running(p_loopback->id)) {
+	if (is_pm_s2idle_mode() && vad_lb_is_running(p_loopback->id)) {
 		pr_info("%s, Exist from freeze, p_loopback:%p\n",
 			__func__, p_loopback);
 		if (p_loopback->chipinfo)

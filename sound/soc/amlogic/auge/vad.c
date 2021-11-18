@@ -1189,7 +1189,7 @@ static int vad_platform_suspend(struct platform_device *pdev, pm_message_t state
 	pr_info("%s\n", __func__);
 
 	/* whether in freeze */
-	if (/* is_pm_freeze_mode() && */vad_is_enable()) {
+	if (is_pm_s2idle_mode() && vad_is_enable()) {
 		pr_info("%s, Entry in freeze\n", __func__);
 
 		if (p_vad->level == LEVEL_USER)
@@ -1207,7 +1207,7 @@ static int vad_platform_resume(struct platform_device *pdev)
 	pr_info("%s\n", __func__);
 
 	/* whether in freeze mode */
-	if (/* is_pm_freeze_mode() && */vad_is_enable()) {
+	if (is_pm_s2idle_mode() && vad_is_enable()) {
 		pr_info("%s, Exist from freeze\n", __func__);
 
 		if (p_vad->level == LEVEL_USER)

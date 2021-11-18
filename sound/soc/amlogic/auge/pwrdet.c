@@ -11,7 +11,7 @@
 #include <linux/of_device.h>
 #include <linux/pm_wakeirq.h>
 
-//#include <linux/amlogic/pm.h>
+#include <linux/amlogic/pm.h>
 
 #include <sound/pcm.h>
 
@@ -202,10 +202,10 @@ static int aml_pwrdet_platform_suspend(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 	struct aml_pwrdet *p_pwrdet = dev_get_drvdata(dev);
 
-	pr_info("%s entry freeze:%d\n", __func__, is_pm_freeze_mode());
+	pr_info("%s entry freeze:%d\n", __func__, is_pm_s2idle_mode());
 
 	/*whether in freeze*/
-	if (!is_pm_freeze_mode())
+	if (!is_pm_s2idle_mode())
 		return 0;
 
 	pwrdet_set(true);
@@ -225,7 +225,7 @@ static int aml_pwrdet_platform_resume(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct aml_pwrdet *p_pwrdet = dev_get_drvdata(dev);
 
-	pr_info("%s freeze:%d\n", __func__, is_pm_freeze_mode());
+	pr_info("%s freeze:%d\n", __func__, is_pm_s2idle_mode());
 
 	/* pm clean irq */
 	dev_pm_clear_wake_irq(dev);

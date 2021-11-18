@@ -1279,7 +1279,7 @@ static int pdm_platform_suspend(struct platform_device *pdev, pm_message_t state
 	struct aml_pdm *p_pdm = dev_get_drvdata(&pdev->dev);
 	int id = p_pdm->chipinfo->id;
 	/* whether in freeze */
-	if (/* is_pm_freeze_mode() && */vad_pdm_is_running()) {
+	if (is_pm_s2idle_mode() && vad_pdm_is_running()) {
 		if (!p_pdm->islowpower) {
 			p_pdm->force_lowpower = true;
 			pdm_set_lowpower_mode(p_pdm, p_pdm->force_lowpower, id);
@@ -1303,7 +1303,7 @@ static int pdm_platform_resume(struct platform_device *pdev)
 	int id = p_pdm->chipinfo->id;
 	int ret = 0;
 	/* whether in freeze mode */
-	if (/* is_pm_freeze_mode() && */vad_pdm_is_running()) {
+	if (is_pm_s2idle_mode() && vad_pdm_is_running()) {
 		pr_info("%s, PDM resume by force_lowpower:%d\n",
 			__func__,
 			p_pdm->force_lowpower);
