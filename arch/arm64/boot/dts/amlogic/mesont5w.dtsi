@@ -1278,6 +1278,8 @@
 		/** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
 		display_size_default = <1920 1080 1920 2160 32>;
 		/*1920*1080*4*3 = 0x17BB000*/
+		display_device_cnt = <2>;
+		/* for fixed path: OSD3->VPP1  */
 	};
 
 	meson-amvideom {
