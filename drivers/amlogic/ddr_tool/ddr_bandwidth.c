@@ -18,10 +18,43 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/sched/clock.h>
+#include <linux/timer.h>
 #include "ddr_bandwidth.h"
 #include "dmc.h"
 
+#define T_BUF_SIZE	(1024 * 1024 * 50)
+
+static struct hrtimer ddr_hrtimer_timer;
+
 static struct ddr_bandwidth *aml_db;
+
+/* run time should be short */
+static enum hrtimer_restart  ddr_hrtimer_handler(struct hrtimer *timer)
+{
+	static u64 index;
+
+	hrtimer_start(&ddr_hrtimer_timer,
+					ktime_set(0, aml_db->increase_tool.t_ns),
+					HRTIMER_MODE_REL);
+	memset(aml_db->increase_tool.buf_addr + index, 0, aml_db->increase_tool.once_size);
+	index += aml_db->increase_tool.once_size;
+	if ((index + aml_db->increase_tool.once_size) > T_BUF_SIZE)
+		index = 0;
+
+	return HRTIMER_RESTART;
+}
+
+static int __init ddr_hrtimer_init(void)
+{
+	hrtimer_init(&ddr_hrtimer_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	ddr_hrtimer_timer.function = ddr_hrtimer_handler;
+	return 0;
+}
+
+static void ddr_hrtimer_cancel(void)
+{
+	hrtimer_cancel(&ddr_hrtimer_timer);
+}
 
 static int dual_dmc(struct ddr_bandwidth *db)
 {
@@ -678,6 +711,86 @@ static ssize_t name_of_ports_show(struct class *cla,
 }
 static CLASS_ATTR_RO(name_of_ports);
 
+static ssize_t increase_tool_store(struct class *cla,
+			    struct class_attribute *attr,
+			    const char *buf, size_t count)
+{
+	long width_MB = 0;
+	u64 min_width = 0;
+	unsigned long t_s, t_e;
+	u64 t_ns;
+	u64 once_size;
+
+	if (sscanf(buf, "%ld %lld", &width_MB, &t_ns) != 2) {
+		if (kstrtoul(buf, 0, &width_MB)) {
+			pr_info("invalid input:%s\n", buf);
+			return -EINVAL;
+		}
+	} else {
+		aml_db->increase_tool.t_ns = t_ns;
+	}
+
+	if (aml_db->increase_tool.t_ns == 0)
+		aml_db->increase_tool.t_ns = 10000000; //default timer 10ms
+
+	min_width = 1000000000;
+	do_div(min_width, aml_db->increase_tool.t_ns);
+	if (width_MB) {
+		if (min_width > width_MB)
+			pr_info("set width_MB too small, min:%lld\n", min_width);
+
+		once_size = width_MB * 1024 * 1024;
+		do_div(once_size, min_width);
+
+		if (aml_db->increase_tool.increase_MB == 0) {
+			aml_db->increase_tool.buf_addr = vmalloc(T_BUF_SIZE);
+			if (IS_ERR(aml_db->increase_tool.buf_addr)) {
+				pr_err("increase_tool vmalloc failed.\n");
+				return count;
+			}
+		}
+
+		t_s = sched_clock();
+		memset(aml_db->increase_tool.buf_addr, 0x55, once_size);
+		t_e = sched_clock();
+		if ((t_e - t_s) > aml_db->increase_tool.t_ns) {
+			pr_info("once copy time %lld than max %ld ns\n",
+						aml_db->increase_tool.t_ns,
+						t_e - t_s);
+			return count;
+		}
+		pr_info("once copy time %ld ns, size %lld\n", t_e - t_s, once_size);
+		aml_db->increase_tool.once_size = once_size;
+
+		hrtimer_cancel(&ddr_hrtimer_timer);
+		hrtimer_start(&ddr_hrtimer_timer,
+						ktime_set(0, aml_db->increase_tool.t_ns),
+						HRTIMER_MODE_REL);
+	} else {
+		hrtimer_cancel(&ddr_hrtimer_timer);
+		aml_db->increase_tool.t_ns = 0;
+		aml_db->increase_tool.once_size = 0;
+
+		if (aml_db->increase_tool.increase_MB)
+			vfree(aml_db->increase_tool.buf_addr);
+	}
+
+	aml_db->increase_tool.increase_MB = width_MB;
+	pr_info("ddr will be increase %d MB/s, timer cycle:%lld ns\n",
+						aml_db->increase_tool.increase_MB,
+						aml_db->increase_tool.t_ns);
+	return count;
+}
+
+static ssize_t increase_tool_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "current set:%d MB/s, timer cycle:%lld ns\n",
+							aml_db->increase_tool.increase_MB,
+							aml_db->increase_tool.t_ns);
+}
+static CLASS_ATTR_RW(increase_tool);
+
 static struct attribute *aml_ddr_tool_attrs[] = {
 	&class_attr_port.attr,
 	&class_attr_irq_clock.attr,
@@ -690,6 +803,7 @@ static struct attribute *aml_ddr_tool_attrs[] = {
 	&class_attr_cpu_type.attr,
 	&class_attr_usage_stat.attr,
 	&class_attr_name_of_ports.attr,
+	&class_attr_increase_tool.attr,
 #if DDR_BANDWIDTH_DEBUG
 	&class_attr_dump_reg.attr,
 #endif
@@ -1107,11 +1221,14 @@ int __init ddr_bandwidth_init(void)
 
 	platform_driver_probe(&ddr_bandwidth_driver,
 			      ddr_bandwidth_probe);
+
+	ddr_hrtimer_init();
 	return 0;
 }
 
 void ddr_bandwidth_exit(void)
 {
 	platform_driver_unregister(&ddr_bandwidth_driver);
+	ddr_hrtimer_cancel();
 }
 

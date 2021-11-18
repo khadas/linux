@@ -142,6 +142,13 @@ struct bandwidth_addr_range {
 	unsigned long end;
 };
 
+struct ddr_increase_tool {
+	char *buf_addr;
+	unsigned int increase_MB;
+	unsigned int once_size;
+	u64 t_ns;
+};
+
 struct ddr_bandwidth {
 	unsigned short cpu_type;
 	unsigned short real_ports;
@@ -172,6 +179,7 @@ struct ddr_bandwidth {
 	struct ddr_port_desc *port_desc;
 	struct ddr_bandwidth_ops *ops;
 	struct work_struct work_bandwidth;
+	struct ddr_increase_tool increase_tool;
 };
 
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_G12
