@@ -380,6 +380,11 @@ static size_t secure_pool_free_size(void *handle)
 	return gen_pool_avail(handle);
 }
 
+static inline u32 secmem_align_down_2n(u32 size, u32 alg2n)
+{
+	return ((size) & (~((1 << (alg2n)) - 1)));
+}
+
 static inline u32 secmem_align_up2n(u32 size, u32 alg2n)
 {
 	return ((size + (1 << alg2n) - 1) & (~((1 << alg2n) - 1)));
@@ -425,15 +430,6 @@ static int secure_block_pool_init(void)
 			g_vdec_info.vdec_size);
 		goto error_init;
 	}
-	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_STREAM_INPUT,
-				(u32)g_vdec_info.vdec_paddr,
-				(u32)g_vdec_info.vdec_size,
-				&g_vdec_info.vdec_handle);
-	if (ret) {
-		pr_error("protect vdec failed  addr %x %x ret is %x\n",
-			g_vdec_info.vdec_paddr, g_vdec_info.vdec_size, ret);
-		goto error_init;
-	}
 	if (secmem_addr_is_aligned(g_vdec_info.vdec_paddr,
 				SECMEM_MM_ALIGNED_2N)) {
 		g_vdec_info.vdec_pool_paddr = g_vdec_info.vdec_paddr;
@@ -441,8 +437,18 @@ static int secure_block_pool_init(void)
 	} else {
 		g_vdec_info.vdec_pool_paddr =
 			secmem_align_up2n(g_vdec_info.vdec_paddr, SECMEM_MM_ALIGNED_2N);
-		g_vdec_info.vdec_pool_size = g_vdec_info.vdec_paddr +
+		vdec_size = g_vdec_info.vdec_paddr +
 			g_vdec_info.vdec_size - g_vdec_info.vdec_pool_paddr;
+		g_vdec_info.vdec_pool_size = secmem_align_down_2n(vdec_size, SECMEM_MM_ALIGNED_2N);
+	}
+	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_STREAM_INPUT,
+				(u32)g_vdec_info.vdec_pool_paddr,
+				(u32)g_vdec_info.vdec_pool_size,
+				&g_vdec_info.vdec_handle);
+	if (ret) {
+		pr_error("protect vdec failed  addr %x %x ret is %x\n",
+			g_vdec_info.vdec_pool_paddr, g_vdec_info.vdec_pool_size, ret);
+		goto error_init;
 	}
 	if (secmem_block_align_2n == 0)
 		secmem_block_align_2n = SECMEM_MM_BLOCK_ALIGNED_2N;
