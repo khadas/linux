@@ -10734,7 +10734,7 @@ long dim_pq_load_io(unsigned long arg)
 	if (tmp_pq_s.table_name & tab_flag) {
 		PR_INF("load 0x%x pq table len %u %s.\n",
 		       tmp_pq_s.table_name, tmp_pq_s.table_len,
-		       get_reg_flag_all() ? "directly" : "later");
+		       (!dim_dbg_is_force_later() && get_reg_flag_all()) ? "directly" : "later");
 	} else {
 		PR_ERR("load 0x%x wrong pq table.\n",
 		       tmp_pq_s.table_name);
@@ -10751,7 +10751,7 @@ long dim_pq_load_io(unsigned long arg)
 		PR_ERR("user copy pq table errors\n");
 		return -EFAULT;
 	}
-	if (get_reg_flag_all()) {
+	if (!dim_dbg_is_force_later() &&  get_reg_flag_all()) {
 		dimh_load_regs(di_pq_ptr);
 		di_pq_parm_destroy(di_pq_ptr);
 

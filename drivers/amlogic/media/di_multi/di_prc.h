@@ -462,4 +462,5 @@ void di_hf_lock_irq_flg(void);
 void dim_print_hf(struct hf_info_t *phf);
 void dim_dbg_seq_hf(struct hf_info_t *hf, struct seq_file *seq);
 
+bool dim_dbg_is_force_later(void);
 #endif	/*__DI_PRC_H__*/

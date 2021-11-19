@@ -42,7 +42,14 @@
 
 #include <linux/amlogic/media/di/di.h>
 //#include "../deinterlace/di_pqa.h"
+bool di_forc_pq_load_later = true;
+module_param(di_forc_pq_load_later, bool, 0664);
+MODULE_PARM_DESC(di_forc_pq_load_later, "debug pq");
 
+bool dim_dbg_is_force_later(void)
+{
+	return di_forc_pq_load_later;
+}
 unsigned int di_dbg = DBG_M_EVENT/*|DBG_M_IC|DBG_M_MEM2|DBG_M_RESET_PRE*/;
 module_param(di_dbg, uint, 0664);
 MODULE_PARM_DESC(di_dbg, "debug print");
