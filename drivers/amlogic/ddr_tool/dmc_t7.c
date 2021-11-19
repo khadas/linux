@@ -176,7 +176,9 @@ static void check_violation(struct dmc_monitor *mon, void *io)
 	pr_emerg(DMC_TAG "%s, addr:%08lx, s:%08lx, ID:%s, c:%ld, d:%p, rw:%c\n",
 		 title, addr, status, to_ports(port),
 		 mon->same_page, io, rw);
-	show_violation_mem(addr);
+
+	if (rw == 'w')
+		show_violation_mem(addr);
 	mon->same_page   = 0;
 	mon->last_addr   = addr & PAGE_MASK;
 	mon->last_status = status;
