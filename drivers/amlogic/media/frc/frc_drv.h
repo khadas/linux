@@ -40,8 +40,9 @@
 // frc_20211027 frc add print alg speed-time
 // frc_20211104 frc add clkctrl workaround
 // frc_20211109 frc chg demo mode
+// frc_20211118 frc chg set max line to vlock module
 
-#define FRC_FW_VER			"2021-1118 frc chg set max line to vlock module"
+#define FRC_FW_VER			"2021-1119 frc set off when vf pic type"
 #define FRC_KERDRV_VER                  1158
 
 #define FRC_DEVNO	1
@@ -232,6 +233,7 @@ struct st_frc_in_sts {
 
 	u32 game_mode;
 	u32 secure_mode;
+	u32 pic_type;
 };
 
 struct st_frc_out_sts {

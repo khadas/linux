@@ -523,6 +523,13 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 		} else {
 			devp->in_sts.secure_mode = false;
 		}
+
+		if ((vf->type & VIDTYPE_PIC) == VIDTYPE_PIC) {
+			devp->in_sts.pic_type = true;
+			no_input = true;
+		} else {
+			devp->in_sts.pic_type = false;
+		}
 	}
 
 	if (devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND)
