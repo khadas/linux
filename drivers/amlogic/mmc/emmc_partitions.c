@@ -1153,14 +1153,6 @@ int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 
 	gpt_h = (struct gpt_header *)buffer;
 
-	if (le64_to_cpu(gpt_h->signature) == GPT_HEADER_SIGNATURE) {
-		kfree(buffer);
-		mmc_release_host(card->host);
-		return 0;
-	}
-
-	kfree(buffer);
-
 	pt_fmt = kmalloc(sizeof(*pt_fmt), GFP_KERNEL);
 	if (!pt_fmt) {
 		/*	pr_info(
@@ -1170,6 +1162,21 @@ int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 		mmc_release_host(card->host);
 		return -ENOMEM;
 	}
+
+	if (le64_to_cpu(gpt_h->signature) == GPT_HEADER_SIGNATURE) {
+		kfree(buffer);
+		/**/
+		ret = mmc_read_partition_tbl(card, pt_fmt);
+		mmc_release_host(card->host);
+		if (ret == 0)
+			ret = emmc_key_init(card);
+		if (ret)
+			goto out;
+		return 0;
+	}
+
+	kfree(buffer);
+
 	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
 
 	while ((part = disk_part_iter_next(&piter))) {
