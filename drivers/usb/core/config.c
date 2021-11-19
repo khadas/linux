@@ -311,6 +311,15 @@ static int usb_parse_endpoint(struct device *ddev, int cfgno,
 	endpoint = &ifp->endpoint[ifp->desc.bNumEndpoints];
 	++ifp->desc.bNumEndpoints;
 
+#ifdef CONFIG_AMLOGIC_USB
+	if (bt_intep_is_blacklist(udev) && (usb_endpoint_xfer_int(d)) &&
+		bt_epaddr_is_blacklist(d)) {
+		d->bInterval = 0;
+		d->bmAttributes = 0x2;
+		d->wMaxPacketSize = 512;
+		dev_warn(ddev, "change	int ep(%x) => bulk ep\n", d->bEndpointAddress);
+	}
+#endif
 	memcpy(&endpoint->desc, d, n);
 	INIT_LIST_HEAD(&endpoint->urb_list);
 

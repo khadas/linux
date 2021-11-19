@@ -12,6 +12,9 @@
 #include <linux/wait.h>
 #include <linux/usb/hcd.h>
 #include <linux/scatterlist.h>
+#ifdef CONFIG_AMLOGIC_USB
+#include "usb.h"
+#endif
 
 #define to_urb(d) container_of(d, struct urb, kref)
 
@@ -479,9 +482,16 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	 */
 
 	/* Check that the pipe's type matches the endpoint's type */
-	if (usb_urb_ep_type_check(urb))
+	if (usb_urb_ep_type_check(urb)) {
+#ifdef CONFIG_AMLOGIC_USB
+		if (!bt_intep_is_blacklist(dev))
+			dev_WARN(&dev->dev, "BOGUS urb xfer, pipe %x != type %x\n",
+					usb_pipetype(urb->pipe), pipetypes[xfertype]);
+#else
 		dev_WARN(&dev->dev, "BOGUS urb xfer, pipe %x != type %x\n",
 			usb_pipetype(urb->pipe), pipetypes[xfertype]);
+#endif
+	}
 
 	/* Check against a simple/standard policy */
 	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_INTERRUPT | URB_DIR_MASK |
