@@ -960,9 +960,9 @@ int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv)
 
 	/* spi transfer buffer: header + reg_max_cnt + chip_cnt */
 	bl_iw7027->tbuf_size = 3 + IW7027_REG_MAX + dev_drv->chip_cnt;
-	if (bl_iw7027->dma_support) { /* must be multiple of 8byte(64bit) */
-		n = (bl_iw7027->tbuf_size + 7) / 8;
-		bl_iw7027->tbuf_size = n * 8;
+	if (bl_iw7027->dma_support) {
+		n = bl_iw7027->tbuf_size;
+		bl_iw7027->tbuf_size = ldim_spi_dma_cycle_align_byte(n);
 	}
 	bl_iw7027->tbuf = kcalloc(bl_iw7027->tbuf_size, sizeof(unsigned char), GFP_KERNEL);
 	if (!bl_iw7027->tbuf)

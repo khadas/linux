@@ -13,6 +13,8 @@
 
 #define LDIM_SPI_DUTY_VSYNC_DIRECT
 
+int ldim_spi_dma_cycle_align_byte(int size);
+
 /* ldim spi api*/
 int dirspi_async(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len,
 		 void (*complete)(void *context), void *context);

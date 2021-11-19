@@ -21,6 +21,28 @@
 
 static int ldim_spi_async_busy;
 
+int ldim_spi_dma_cycle_align_byte(int size)
+{
+	int new_size, word_cnt, n, remain_min, i;
+
+	/* spi dma word must be multiple of 8byte(64bit)  */
+	word_cnt = (size + 7) / 8;
+	new_size = word_cnt * 8;
+
+	/* spi dma cycle must be multiple of word and (2~8) */
+	remain_min = 8;
+	for (i = 2; i <= 8; i++) {
+		n = i - (word_cnt % i);
+		if (remain_min > n)
+			remain_min = n;
+	}
+
+	n = (remain_min * 8); /*word to byte*/
+	new_size += n;
+
+	return new_size;
+}
+
 static int ldim_spi_dump_buffer_array(unsigned char *buf, int buf_len)
 {
 	int i;
@@ -58,8 +80,7 @@ static u64 _bswap64(u64 a)
 	return a;
 }
 
-static int ldim_spi_buf_byte_swap_64bit(unsigned char *buf, unsigned int tlen,
-					unsigned int xlen)
+static int ldim_spi_buf_byte_swap_64bit(unsigned char *buf, int tlen, int xlen)
 {
 	u64 *tmp = (u64 *)buf;
 	u64 a = 0;
@@ -100,13 +121,11 @@ int ldim_spi_write_async(struct spi_device *spi, unsigned char *tbuf,
 			 unsigned char *rbuf, int tlen,
 			 int dma_mode, int max_len)
 {
-	unsigned int n, xlen;
-	int ret;
+	int xlen, ret;
 
 	xlen = tlen;
 	if (dma_mode) {
-		n = (tlen + 7) / 8;
-		xlen = n * 8;
+		xlen = ldim_spi_dma_cycle_align_byte(tlen);
 		if (xlen > max_len) {
 			LDIMERR("%s: dma xlen %d out of max_len %d\n",
 				__func__, xlen, max_len);
