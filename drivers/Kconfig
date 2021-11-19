@@ -247,7 +247,16 @@ config AMLOGIC_DRIVER
 	  Note: All amlogic driver should be placed in
 	  directory ../common_drivers/drivers/
 
-if AMLOGIC_DRIVER
+config AMLOGIC_NONGKI
+	bool "Amlogic Drivers in build or extra build"
+	default n
+	help
+	  this option is provided for control amlogic
+	  drivers in build or extra build, if you want
+	  to in build, should enable; if want to extra
+	  build, should disable
+
+if AMLOGIC_NONGKI
 source "../common_drivers/drivers/Kconfig"
 endif
 endmenu

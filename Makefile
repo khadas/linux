@@ -676,7 +676,7 @@ ifeq ($(KBUILD_EXTMOD),)
 # Objects we will link into vmlinux / subdirs we need to visit
 core-y		:= init/ usr/ arch/$(SRCARCH)/
 drivers-y	:= drivers/ sound/
-ifdef CONFIG_AMLOGIC_DRIVER
+ifdef CONFIG_AMLOGIC_NONGKI
 drivers-y	+=../common_drivers/drivers/
 endif
 drivers-$(CONFIG_SAMPLES) += samples/
