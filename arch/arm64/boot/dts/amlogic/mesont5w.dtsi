@@ -170,7 +170,7 @@
 		bit_resolution =<0>;
 	};
 
-	vrtc: rtc@0xfe010288 {
+	vrtc: rtc@ff8000a8 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xff8000a8 0x0 0x4>;
 		status = "okay";
