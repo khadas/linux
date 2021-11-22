@@ -41,6 +41,7 @@
 
 #include <linux/amlogic/media/osd/osd_logo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include "meson_hdmi.h"
 
 #define DRIVER_NAME "meson"
 #define DRIVER_DESC "Amlogic Meson DRM driver"
@@ -165,6 +166,8 @@ static int am_meson_update_output_state(struct drm_atomic_state *state,
 	struct drm_connector *connector;
 	struct drm_connector_state *new_conn_state;
 	int ret, i;
+	char hdmitx_attr[16];
+	struct am_hdmitx_connector_state *hdmitx_state;
 
 	ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
 			       state->acquire_ctx);
@@ -200,6 +203,14 @@ static int am_meson_update_output_state(struct drm_atomic_state *state,
 							set->crtc);
 		if (ret)
 			return ret;
+
+		if (new_conn_state->connector->connector_type == DRM_MODE_CONNECTOR_HDMIA) {
+			/*read attr from hdmitx, its from uboot*/
+			am_hdmi_info.hdmitx_dev->get_attr(hdmitx_attr);
+			hdmitx_state = to_am_hdmitx_connector_state(new_conn_state);
+			convert_attrstr(hdmitx_attr, &hdmitx_state->color_attr_para);
+			hdmitx_state->pref_hdr_policy = am_hdmi_info.hdmitx_dev->get_hdr_priority();
+		}
 	}
 
 	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {

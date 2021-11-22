@@ -28,6 +28,8 @@
 #define MESON_MAX_OSD		4
 #define MESON_MAX_VIDEO		3
 
+extern struct am_hdmi_tx am_hdmi_info;
+
 struct meson_drm_thread {
 	struct kthread_worker worker;
 	struct drm_device *dev;

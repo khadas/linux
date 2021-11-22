@@ -52,6 +52,8 @@ struct am_hdmi_tx {
 	 *colorspace/colordepth from sysfs.
 	 */
 	struct drm_property *update_attr_prop;
+	struct drm_property *color_space_prop;
+	struct drm_property *color_depth_prop;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;
@@ -71,6 +73,7 @@ struct am_hdmitx_connector_state {
 	int pref_hdr_policy;
 
 	bool update : 1;
+	bool color_force : 1;
 };
 
 #define to_am_hdmitx_connector_state(x)	container_of(x, struct am_hdmitx_connector_state, base)
@@ -83,5 +86,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf);
 int meson_hdmitx_dev_unbind(struct drm_device *drm,
 	int type, int connector_id);
+
+void convert_attrstr(char *attr_str, struct hdmitx_color_attr *attr_param);
 
 #endif
