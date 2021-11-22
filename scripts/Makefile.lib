@@ -328,6 +328,8 @@ DTC_FLAGS += -Wnode_name_chars_strict \
 	-Winterrupt_provider
 endif
 
+# enable creation of __symbols__ node
+DTC_FLAGS += -@
 DTC_FLAGS += $(DTC_FLAGS_$(basetarget))
 
 # Set -@ if the target is a base DTB that overlay is applied onto
