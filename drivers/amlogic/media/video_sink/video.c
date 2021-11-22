@@ -3885,8 +3885,6 @@ bool tvin_vf_disp_mode_check(struct vframe_s *vf)
 	if (req.disp_mode == VFRAME_DISP_MODE_SKIP) {
 		pr_info("tvin need skip\n");
 		return false;
-	} else if (req.disp_mode == VFRAME_DISP_MODE_UNKNOWN) {
-		pr_info("tvin vf unknown\n");
 	}
 
 	return true;
