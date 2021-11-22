@@ -771,7 +771,7 @@ static int tas5805m_vol_locked_put(struct snd_kcontrol *kcontrol,
 
 static int tas5805m_mute(struct snd_soc_component *component, bool mute)
 {
-	struct tas5805m_priv *tas5805m = snd_soc_component_get_drvdata(component);
+	//struct tas5805m_priv *tas5805m = snd_soc_component_get_drvdata(component);
 	u8 reg03_value = 0;
 	u8 reg35_value = 0;
 
@@ -790,7 +790,7 @@ static int tas5805m_mute(struct snd_soc_component *component, bool mute)
 	snd_soc_component_write(component, TAS5805M_REG_00, TAS5805M_PAGE_00);
 	snd_soc_component_write(component, TAS5805M_REG_03, reg03_value);
 	snd_soc_component_write(component, TAS5805M_REG_35, reg35_value);
-	tas5805m->mute = mute;
+	//tas5805m->mute = mute;
 
 	return 0;
 }
@@ -799,9 +799,10 @@ static int tas5805m_mute_locked_put(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
-	bool mute = !!ucontrol->value.integer.value[0];
+	struct tas5805m_priv *tas5805m = snd_soc_component_get_drvdata(component);
 
-	tas5805m_mute(component, mute);
+	tas5805m->mute = ucontrol->value.integer.value[0];
+	tas5805m_mute(component, tas5805m->mute);
 
 	return 0;
 }
@@ -1009,19 +1010,27 @@ static int tas5805m_trigger(struct snd_pcm_substream *substream, int cmd,
 		case SNDRV_PCM_TRIGGER_RESUME:
 		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 			pr_debug("%s(), start\n", __func__);
-			snd_soc_component_write(component, TAS5805M_REG_00, TAS5805M_PAGE_00);
-			snd_soc_component_write(component, TAS5805M_REG_7F, TAS5805M_BOOK_00);
-			snd_soc_component_write(component, TAS5805M_REG_00, TAS5805M_PAGE_00);
-			snd_soc_component_write(component, TAS5805M_DIG_VAL_CTL, 0x30);
+			/*
+			 *snd_soc_component_write(component, TAS5805M_REG_00, TAS5805M_PAGE_00);
+			 *snd_soc_component_write(component, TAS5805M_REG_7F, TAS5805M_BOOK_00);
+			 *snd_soc_component_write(component, TAS5805M_REG_00, TAS5805M_PAGE_00);
+			 *snd_soc_component_write(component, TAS5805M_DIG_VAL_CTL, 0x30);
+			 */
+			if (!tas5805m->mute)
+				tas5805m_mute(component, 0);
 			break;
 		case SNDRV_PCM_TRIGGER_STOP:
 		case SNDRV_PCM_TRIGGER_SUSPEND:
 		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 			pr_debug("%s(), stop\n", __func__);
-			snd_soc_component_write(component, TAS5805M_REG_00, TAS5805M_PAGE_00);
-			snd_soc_component_write(component, TAS5805M_REG_7F, TAS5805M_BOOK_00);
-			snd_soc_component_write(component, TAS5805M_REG_00, TAS5805M_PAGE_00);
-			snd_soc_component_write(component, TAS5805M_DIG_VAL_CTL, 0xff);
+			/*
+			 *snd_soc_component_write(component, TAS5805M_REG_00, TAS5805M_PAGE_00);
+			 *snd_soc_component_write(component, TAS5805M_REG_7F, TAS5805M_BOOK_00);
+			 *snd_soc_component_write(component, TAS5805M_REG_00, TAS5805M_PAGE_00);
+			 *snd_soc_component_write(component, TAS5805M_DIG_VAL_CTL, 0xff);
+			 */
+			if (!tas5805m->mute)
+				tas5805m_mute(component, 1);
 			break;
 		}
 	}
@@ -1101,8 +1110,8 @@ static int tas5805m_snd_resume(struct snd_soc_component *component)
 		goto err;
 	}
 
-	tas5805m_mute(component, tas5805m->mute);
 	tas5805m_set_volume(component, tas5805m->vol);
+	tas5805m_mute(component, tas5805m->mute);
 	tas5805m_set_bias_level(component, SND_SOC_BIAS_STANDBY);
 
 	return 0;
