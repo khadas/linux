@@ -454,6 +454,7 @@ bool di_hf_t_try_alloc(struct di_ch_s *pch);
 void di_hf_t_release(struct di_ch_s *pch);
 void di_hf_reg(struct di_ch_s *pch);
 bool di_hf_size_check(struct DI_SIM_MIF_s *w_mif);
+void di_hf_polling_active(struct di_ch_s *pch);
 
 void di_hf_lock_blend_buffer_pre(struct di_buf_s *di_buf);
 void di_hf_lock_blend_buffer_pst(struct di_buf_s *di_buf);

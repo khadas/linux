@@ -1761,6 +1761,7 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 		dct = <2>;//decontour enable
+		hf	= <2>; //enable aisr
 		/***************************************************
 		 * t3 support 4k ,same with t7 ,no canvas,
 		 * post_nub---default is 11
@@ -1777,7 +1778,7 @@
 		 * bypass_mem---0:nr not bypass; 1: nr bypass; 2: when 4k input ,nr is bypass;
 		 *              3: bypass nr for 4k,but not from vdin;
 		 * alloc_sct---0:not support; bit 0: for 4k; bit 1: for 1080p
-		 * hf---0:not enable; 1: enable
+		 * hf---0:not enable; 1: enable; 2: 2-channel
 		 ***************************************************/
 	};
 

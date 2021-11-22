@@ -1762,6 +1762,7 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 		dct = <2>;//decontour enable
+		hf	= <2>; //enable aisr
 		/***************************************************
 		 * t3 support 4k ,same with t7 ,no canvas,
 		 * post_nub---default is 11

@@ -6242,6 +6242,8 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		else
 			get_ops_mtn()->com_patch_pre_sw_set(0);
 	}
+	di_hf_polling_active(pch);
+
 	return 0; /*ok*/
 }
 
