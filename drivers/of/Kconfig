@@ -76,6 +76,13 @@ config OF_RESERVED_MEM
 config OF_RESOLVE
 	bool
 
+config OF_CONFIGFS
+	bool "Overlay ConfigFS interface"
+ 	select CONFIGFS_FS
+ 	select OF_OVERLAY
+ 	help
+	  Enable a simple user-space driver DT overlay interface.
+
 config OF_OVERLAY
 	bool "Device Tree overlays"
 	select OF_DYNAMIC
