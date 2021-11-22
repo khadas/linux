@@ -350,6 +350,36 @@
 		};
 	};//End unifykey
 
+	cvbsout {
+		compatible = "amlogic, cvbsout-t5w";
+		status = "okay";
+		/* clk path */
+		/* 0:vid_pll vid2_clk */
+		/* 2:vid_pll vid1_clk */
+		clk_path = <0>;
+
+		/* performance: reg_address, reg_value */
+		/* tm2 */
+		performance = <0x1bf0  0x9
+			0x1b56  0x333
+			0x1b12  0x8080
+			0x1b05  0xfd
+			0x1c59  0xf850
+			0xffff  0x0>; /* ending flag */
+		performance_sarft = <0x1bf0  0x9
+			0x1b56  0x333
+			0x1b12  0x0
+			0x1b05  0x9
+			0x1c59  0xfc48
+			0xffff  0x0>; /* ending flag */
+		performance_revB_telecom = <0x1bf0  0x9
+			0x1b56  0x546
+			0x1b12  0x8080
+			0x1b05  0x9
+			0x1c59  0xf850
+			0xffff  0x0>; /* ending flag */
+	};
+
 	/* for external keypad */
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";

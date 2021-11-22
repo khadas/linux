@@ -184,8 +184,8 @@ static struct meson_vdac_data meson_t5w_vdac_data = {
 
 	.reg_cntl0 = HHI_VDAC_CNTL0_G12A,
 	.reg_cntl1 = HHI_VDAC_CNTL1_G12A,
-	.reg_vid_clk_ctrl2 = HHI_VID_CLK_CNTL2,
-	.reg_vid2_clk_div = HHI_VIID_CLK_DIV,
+	.reg_vid_clk_ctrl2 = HHI_VID_CLK0_CTRL2,
+	.reg_vid2_clk_div = HHI_VIID_CLK0_DIV,
 	.ctrl_table = vdac_ctrl_enable_t5,
 };
 

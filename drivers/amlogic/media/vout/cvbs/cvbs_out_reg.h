@@ -171,6 +171,13 @@
 #define CLKCTRL_HDMI_CLK_CTRL                      0x0038
 #define CLKCTRL_VID_PLL_CLK_DIV                    0x0039
 
+/* T5W */
+#define HHI_VIID_CLK0_DIV                          0x00a0
+#define HHI_VIID_CLK0_CTRL                         0x00a1
+#define HHI_VID_CLK0_DIV                           0x00a2
+#define HHI_VID_CLK0_CTRL                          0x00a3
+#define HHI_VID_CLK0_CTRL2                         0x00a4
+
 #define HHI_DSI_LVDS_EDP_CNTL0                     0xd1
 #define HHI_DSI_LVDS_EDP_CNTL1                     0xd2
 #define HHI_DIF_CSI_PHY_CNTL0                      0xd8

@@ -36,6 +36,10 @@
 #define CLKCTRL_VIID_CLK_DIV  0x33
 #define VENC_VDAC_DACSEL0     0x1b78
 
+/* T5W vdac clk register */
+#define HHI_VIID_CLK0_DIV     0xa0
+#define HHI_VID_CLK0_CTRL2    0xa4
+
 #define VDAC_CTRL_MAX         10
 
 enum vdac_cpu_type {
