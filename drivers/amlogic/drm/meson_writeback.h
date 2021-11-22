@@ -3,8 +3,8 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#ifndef __MESON_HDMI_H__
-#define __MESON_HDMI_H__
+#ifndef __MESON_WRITEBACK_H__
+#define __MESON_WRITEBACK_H__
 
 #include "meson_drv.h"
 #include <drm/drm_connector.h>
