@@ -418,10 +418,6 @@ static void amlogic_pcie_init_dw(struct amlogic_pcie *amlogic_pcie)
 	amlogic_cfg_writel(amlogic_pcie, val, PCIE_CFG0);
 
 	val = amlogic_elb_readl(amlogic_pcie, PCIE_PORT_LINK_CTRL_OFF);
-	val |= (1<<7);
-	amlogic_elb_writel(amlogic_pcie, val, PCIE_PORT_LINK_CTRL_OFF);
-
-	val = amlogic_elb_readl(amlogic_pcie, PCIE_PORT_LINK_CTRL_OFF);
 	val &= (~(0x3f<<16));
 	amlogic_elb_writel(amlogic_pcie, val, PCIE_PORT_LINK_CTRL_OFF);
 
