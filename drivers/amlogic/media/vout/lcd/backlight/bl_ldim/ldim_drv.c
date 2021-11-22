@@ -745,8 +745,12 @@ static void ldim_on_vs_brightness(void)
 			}
 		}
 	}
-	update_flag = memcmp(ldim_driver.bl_matrix_cur, ldim_driver.bl_matrix_pre,
+
+	if (ldim_driver.duty_update_flag & 0x01)
+		update_flag = memcmp(ldim_driver.bl_matrix_cur, ldim_driver.bl_matrix_pre,
 			     (size * sizeof(unsigned int)));
+	else
+		update_flag = 1;
 
 	ldim_dev_smr(update_flag, size);
 
@@ -779,9 +783,12 @@ static void ldim_off_vs_brightness(void)
 		ldim_driver.level_update = 0;
 		update_flag = 1;
 	} else {
-		update_flag = memcmp(ldim_driver.bl_matrix_cur,
+		if (ldim_driver.duty_update_flag & 0x02)
+			update_flag = memcmp(ldim_driver.bl_matrix_cur,
 				ldim_driver.bl_matrix_pre,
 				(size * sizeof(unsigned int)));
+		else
+			update_flag = 1;
 	}
 	if (ldim_debug_print && update_flag) {
 		if (ldim_driver.test_bl_en)
@@ -1710,6 +1717,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 		return -1;
 
 	ldim_driver.level_update = 0;
+	ldim_driver.duty_update_flag = 0;
 
 	if (!fw) {
 		LDIMERR("%s: fw is null\n", __func__);

@@ -2566,7 +2566,8 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			"fw_valid              = %d\n"
 			"fw_sel                = %d\n"
 			"fw_flag               = %d\n"
-			"ldim_irq_cnt          = %d\n\n",
+			"ldim_irq_cnt          = %d\n"
+			"duty_update_flag      = %d\n\n",
 			ldim_drv->state,
 			ldim_drv->init_on_flag, ldim_drv->func_en,
 			ldim_drv->remap_en, ldim_drv->demo_en,
@@ -2582,7 +2583,8 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			ldim_drv->fw->valid,
 			ldim_drv->fw->fw_sel,
 			ldim_drv->fw->flag,
-			ldim_drv->irq_cnt);
+			ldim_drv->irq_cnt,
+			ldim_drv->duty_update_flag);
 	} else if (!strcmp(parm[0], "print")) {
 		if (parm[1]) {
 			if (kstrtoul(parm[1], 10, &val1) < 0)
@@ -2590,6 +2592,13 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			ldim_debug_print = (unsigned char)val1;
 		}
 		pr_info("ldim_debug_print = %d\n", ldim_debug_print);
+	} else if (!strcmp(parm[0], "duty_update_flag")) {
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				goto ldim_attr_store_err;
+			ldim_drv->duty_update_flag = (unsigned char)val1;
+		}
+		pr_info("duty_update_flag = %d\n", ldim_drv->duty_update_flag);
 	} else if ((!strcmp(parm[0], "alg")) ||
 		   (!strcmp(parm[0], "fw"))) {
 		if (fw->fw_alg_para_print)
