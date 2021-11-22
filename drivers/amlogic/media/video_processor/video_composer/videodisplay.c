@@ -37,10 +37,6 @@ void vsync_notify_video_composer(void)
 
 	countinue_vsync_count[0]++;
 	countinue_vsync_count[1]++;
-	/*if ((vidc_pattern_debug & 1) && vc_active[0])*/
-	/*	pr_info("vc: get_count[0]=%d\n", get_count[0]);*/
-	/*else if ((vidc_pattern_debug & 2) && vc_active[1])*/
-	/*	pr_info("vc: get_count[1]=%d\n", get_count[1]);*/
 
 	for (i = 0; i < count; i++)
 		get_count[i] = 0;
@@ -369,6 +365,16 @@ static struct vframe_s *vd_get_vf_from_buf(struct composer_dev *dev,
 	return vf;
 }
 
+static void vd_disable_video_layer(struct composer_dev *dev, int val)
+{
+	vc_print(dev->index, PRINT_ERROR, "%s: val is %d.\n", __func__, val);
+	if (dev->index == 0) {
+		_video_set_disable(val);
+	} else {
+		_videopip_set_disable(dev->index, val);
+	}
+}
+
 void vd_prepare_data_q_put(struct composer_dev *dev,
 				struct vd_prepare_s *vd_prepare)
 {
@@ -430,12 +436,6 @@ int vd_render_index_get(struct composer_dev *dev)
 int video_display_create_path(struct composer_dev *dev)
 {
 	char render_layer[16] = "";
-	//TODO
-	/*if (debug_vd_layer > 0)*/
-	/*	sprintf(render_layer, "video_render.%d",*/
-	/*		choose_video_layer[dev->index] - 1);*/
-	/*else*/
-	/*	sprintf(render_layer, "video_render.%d", dev->index);*/
 
 	sprintf(render_layer, "video_render.%d", dev->video_render_index);
 	snprintf(dev->vfm_map_chain, VCOM_MAP_NAME_SIZE,
@@ -547,7 +547,7 @@ static int video_display_init(int layer_index)
 	do_gettimeofday(&dev->start_time);
 	mutex_unlock(&video_display_mutex);
 
-	_video_set_disable(2);
+	vd_disable_video_layer(dev, 2);
 	video_set_global_output(dev->index, 1);
 	ret = video_display_create_path(dev);
 	sprintf(render_layer, "video_render.%d", dev->video_render_index);
@@ -568,10 +568,10 @@ static int video_display_uninit(int layer_index)
 			__func__);
 		return -EBUSY;
 	}
-
-	set_video_path_select("default", 0);
+	if (dev->index == 0)
+		set_video_path_select("default", 0);
 	set_blackout_policy(1);
-	_video_set_disable(1);
+	vd_disable_video_layer(dev, 1);
 	video_set_global_output(dev->index, 0);
 	ret = video_display_release_path(dev);
 	vc_ready_q_uninit(dev);

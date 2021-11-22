@@ -58,9 +58,7 @@
 #define WAIT_READY_Q_TIMEOUT 100
 
 static u32 video_composer_instance_num;
-static u32 choose_video_layer[MAX_VD_LAYERS];
 static unsigned int force_composer;
-static unsigned int vc_active[MAX_VD_LAYERS];
 static unsigned int force_composer_pip;
 static unsigned int transform;
 static unsigned int vidc_debug;
@@ -88,7 +86,6 @@ static u32 receive_new_count;
 static u32 receive_new_count_pip;
 static u32 total_get_count;
 static u32 total_put_count;
-static u32 debug_vd_layer;
 static u64 nn_need_time = 15000;
 static u64 nn_margin_time = 9000;
 static u32 nn_bypass;
@@ -2077,19 +2074,11 @@ static int video_composer_release(struct inode *inode, struct file *file)
 
 static void disable_video_layer(struct composer_dev *dev, int val)
 {
-	int channel = -1;
-
-	if (debug_vd_layer)
-		channel = choose_video_layer[dev->index] - 1;
 	pr_info("dev->index =%d, val=%d", dev->index, val);
-	if ((dev->index == 0 && channel < 0) || channel == 0) {
+	if (dev->index == 0)
 		_video_set_disable(val);
-	} else {
-		if (channel > 0)
-			_videopip_set_disable(channel, val);
-		else
-			_videopip_set_disable(dev->index, val);
-	}
+	else
+		_videopip_set_disable(dev->index, val);
 }
 
 static void set_frames_info(struct composer_dev *dev,
@@ -2110,7 +2099,6 @@ static void set_frames_info(struct composer_dev *dev,
 	bool current_is_sideband = false;
 	bool is_dec_vf = false, is_v4l_vf = false;
 	s32 sideband_type = -1;
-	int channel = -1;
 	bool is_tvp = false, is_used = false;
 	bool is_repeat = true;
 	bool need_dw = false;
@@ -2124,9 +2112,6 @@ static void set_frames_info(struct composer_dev *dev,
 			 __func__);
 		return;
 	}
-
-	if (debug_vd_layer)
-		channel = choose_video_layer[dev->index] - 1;
 
 	if (!dev->composer_enabled) {
 		for (j = 0; j < frames_info->frame_count; j++)
@@ -2154,15 +2139,9 @@ static void set_frames_info(struct composer_dev *dev,
 				+ axis[0] - 1;
 			axis[3] = frames_info->frame_info[j].dst_h
 				+ axis[1] - 1;
-			if (channel >= 0) {
-				set_video_window_ext(channel, axis);
-				set_video_zorder_ext(channel,
-						     frames_info->disp_zorder);
-			} else {
-				set_video_window_ext(dev->index, axis);
-				set_video_zorder_ext(dev->index,
-						     frames_info->disp_zorder);
-			}
+			set_video_window_ext(dev->index, axis);
+			set_video_zorder_ext(dev->index,
+						frames_info->disp_zorder);
 			if (!dev->is_sideband && dev->received_count > 0) {
 				vc_print(dev->index, PRINT_OTHER,
 					 "non change to sideband:wake_up\n");
@@ -2179,15 +2158,9 @@ static void set_frames_info(struct composer_dev *dev,
 	}
 	if (!dev->select_path_done) {
 		if (current_is_sideband) {
-			if (channel == 0 || (dev->index == 0 && channel < 0)) {
+			if (dev->index == 0) {
 				set_video_path_select("auto", 0);
 				set_sideband_type(sideband_type, 0);
-			} else if (channel == 1 ||
-				   (dev->index == 1 && channel < 0)) {
-				set_video_path_select("videopip", 1);
-			} else if (channel == 2 ||
-				   (dev->index == 2 && channel < 0)) {
-				set_video_path_select("videopip2", 2);
 			}
 		}
 		vc_print(dev->index, PRINT_ERROR,
@@ -2400,7 +2373,7 @@ static void set_frames_info(struct composer_dev *dev,
 static int video_composer_init(struct composer_dev *dev)
 {
 	int ret;
-	int i, channel = -1, j;
+	int i, j;
 	char render_layer[16] = "";
 
 	if (!dev)
@@ -2439,26 +2412,12 @@ static int video_composer_init(struct composer_dev *dev)
 		for (j = 0; j < MXA_LAYER_COUNT; j++)
 			last_index[i][j] = -1;
 	}
-	if (debug_vd_layer)
-		channel = choose_video_layer[dev->index] - 1;
-
 	disable_video_layer(dev, 2);
-	if (debug_vd_layer)
-		video_set_global_output(channel, 1);
-	else
-		video_set_global_output(dev->index, 1);
+	video_set_global_output(dev->index, 1);
 
 	ret = video_display_create_path(dev);
-	if (debug_vd_layer > 0) {
-		sprintf(render_layer, "video_render.%d", channel);
-		set_video_path_select(render_layer, channel);
-	} else {
-		sprintf(render_layer,
-			"video_render.%d",
-			dev->video_render_index);
-		set_video_path_select(render_layer, dev->index);
-	}
-	vc_active[dev->index] = 1;
+	sprintf(render_layer, "video_render.%d", dev->video_render_index);
+	set_video_path_select(render_layer, dev->index);
 
 	return ret;
 }
@@ -2467,34 +2426,21 @@ static int video_composer_uninit(struct composer_dev *dev)
 {
 	int ret;
 	int time_left = 0;
-	int channel = -1;
-
-	if (debug_vd_layer)
-		channel = choose_video_layer[dev->index] - 1;
 
 	if (dev->is_sideband) {
 		if (dev->index == 0) {
-			if (channel >= 0)
-				set_video_path_select("auto", channel);
-			else
-				set_video_path_select("auto", 0);
+			set_video_path_select("auto", 0);
 		}
 		set_blackout_policy(1);
 	} else {
 		if (dev->index == 0) {
-			if (channel >= 0)
-				set_video_path_select("default", channel);
-			else
-				set_video_path_select("default", 0);
+			set_video_path_select("default", 0);
 		}
 		set_blackout_policy(1);
 	}
 
 	disable_video_layer(dev, 1);
-	if (channel >= 0)
-		video_set_global_output(channel, 0);
-	else
-		video_set_global_output(dev->index, 0);
+	video_set_global_output(dev->index, 0);
 	ret = video_display_release_path(dev);
 
 	dev->need_unint_receive_q = true;
@@ -2530,8 +2476,6 @@ static int video_composer_uninit(struct composer_dev *dev)
 				- dev->fence_release_count);
 	dev->is_sideband = false;
 	dev->need_empty_ready = false;
-
-	vc_active[dev->index] = 0;
 
 	return ret;
 }
@@ -3079,54 +3023,6 @@ static ssize_t composer_use_444_store(struct class *class,
 	return count;
 }
 
-static ssize_t debug_vd_layer_show(struct class *class,
-				   struct class_attribute *attr, char *buf)
-{
-	int i = 0, j = 0;
-	bool is_debug_vd = false;
-
-	for (i = 0; i < MAX_VD_LAYERS; i++) {
-		if (choose_video_layer[i])
-			j++;
-	}
-
-	if (j > 0) {
-		i = 0;
-		is_debug_vd = true;
-		pr_info("use videoLayer:\n");
-	}
-
-	while (j > 0 && i < MAX_VD_LAYERS) {
-		if ((debug_vd_layer >> i) & 1)
-			pr_info("vd%d[true]\n", i);
-		else
-			pr_info("vd%d[false]\n", i);
-		i++;
-	}
-
-	return sprintf(buf, "debug_vd_layer: %d\n", debug_vd_layer);
-}
-
-static ssize_t debug_vd_layer_store(struct class *class,
-				    struct class_attribute *attr,
-				    const char *buf, size_t count)
-{
-	ssize_t r;
-	int val;
-	int i, j = 0;
-
-	r = kstrtoint(buf, 0, &val);
-	if (r < 0)
-		return -EINVAL;
-
-	debug_vd_layer = val;
-	for (i = 0; i < MAX_VD_LAYERS; i++) {
-		if ((debug_vd_layer >> i) & 1)
-			choose_video_layer[j++] = i + 1;
-	}
-	return count;
-}
-
 static ssize_t reset_drop_show(struct class *class,
 			       struct class_attribute *attr, char *buf)
 {
@@ -3287,7 +3183,6 @@ static CLASS_ATTR_RW(rotate_width);
 static CLASS_ATTR_RW(rotate_height);
 static CLASS_ATTR_RW(close_black);
 static CLASS_ATTR_RW(composer_use_444);
-static CLASS_ATTR_RW(debug_vd_layer);
 static CLASS_ATTR_RW(reset_drop);
 static CLASS_ATTR_RO(drop_cnt);
 static CLASS_ATTR_RO(drop_cnt_pip);
@@ -3321,7 +3216,6 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_rotate_height.attr,
 	&class_attr_close_black.attr,
 	&class_attr_composer_use_444.attr,
-	&class_attr_debug_vd_layer.attr,
 	&class_attr_reset_drop.attr,
 	&class_attr_drop_cnt.attr,
 	&class_attr_drop_cnt_pip.attr,
