@@ -744,10 +744,12 @@
 		compatible = "amlogic, gpio_keypad";
 		status = "okay";
 		scan_period = <20>;
-		key_num = <1>;
-		key_name = "bluetooth";
-		key_code = <600>;
-		key-gpios = <&gpio  GPIOD_2  GPIO_ACTIVE_HIGH>;
+		key_num = <2>;
+		key_name = "bluetooth", "mute";
+		key_code = <600 SW_MUTE_DEVICE>;
+		key_type = <EV_KEY EV_SW>;
+		key-gpios = <&gpio  GPIOD_2  GPIO_ACTIVE_HIGH
+			     &gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
 };
