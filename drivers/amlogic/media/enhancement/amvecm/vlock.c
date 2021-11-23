@@ -538,9 +538,6 @@ int vlock_sync_frc_vporch(struct stvlock_frc_param frc_param)
 			pvlock->enc_frc_max_pixel = frc_param.max_pxcnt;
 			pr_info("vlock: vlock not done, is locking ..., frc set max lncnt and ma px cnt!");
 			ret = 0;
-		} else if (vlock_get_phlock_flag() && vlock_get_vlock_flag()) {
-			pr_info("vlock: vlock is done, frc can not set max lncnt and ma px cnt again!!!");
-			ret = -1;
 		} else {
 			pr_info("vlock: vlock is NULL or Disable, frc set max lncnt and ma px cnt!");
 			vlock_tune_sync_frc(frc_param.frc_v_porch);
@@ -2989,6 +2986,15 @@ void vlock_process(struct vframe_s *vf,
 {
 	struct stvlock_sig_sts *pvlock;
 
+#ifdef VLOCK_DEBUG_ENC_IDX
+	pvlock = vlock_tab[VLOCK_DEBUG_ENC_IDX];
+#else
+	pvlock = vlock_tab[VLOCK_ENC0];
+#endif
+
+	if (!pvlock)
+		return;
+
 	if (probe_ok == 0 || !vlock_en || !cur_video_sts) {
 		if (vlock_debug & VLOCK_DEBUG_INFO) {
 			pr_info("%s probe_ok:%d vlock_en:%d\n",
@@ -3010,20 +3016,13 @@ void vlock_process(struct vframe_s *vf,
 
 	if (!(vlock_debug & VLOCK_DEBUG_FORCE_ON)) {
 		if (vlock_chk_is_small_win(cur_video_sts)) {
+			if (pvlock->dtdata->vlk_ctl_for_frc)
+				pvlock->fsm_sts = VLOCK_STATE_NULL;
 			if (vlock_debug & VLOCK_DEBUG_INFO)
 				pr_info("%s is small win\n", __func__);
 			return;
 		}
 	}
-
-#ifdef VLOCK_DEBUG_ENC_IDX
-	pvlock = vlock_tab[VLOCK_DEBUG_ENC_IDX];
-#else
-	pvlock = vlock_tab[VLOCK_ENC0];
-#endif
-
-	if (!pvlock)
-		return;
 
 	/* todo:vlock processs only for tv chip */
 	if (pvlock->dtdata->vlk_new_fsm)
