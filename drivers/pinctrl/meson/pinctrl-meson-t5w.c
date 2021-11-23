@@ -496,6 +496,19 @@ static const unsigned int spi2_ss0_c_pins[]		= { GPIOC_3 };
 static const unsigned int spi2_ss1_c_pins[]		= { GPIOC_4 };
 static const unsigned int spi2_ss2_c_pins[]		= { GPIOC_5 };
 
+/* BANK C func3 */
+static const unsigned int cicam_a2_c_pins[]		= { GPIOC_0 };
+static const unsigned int cicam_a3_c_pins[]		= { GPIOC_1 };
+static const unsigned int cicam_a4_c_pins[]		= { GPIOC_2 };
+static const unsigned int cicam_a5_c_pins[]		= { GPIOC_3 };
+static const unsigned int cicam_a6_c_pins[]		= { GPIOC_4 };
+static const unsigned int cicam_a7_c_pins[]		= { GPIOC_5 };
+static const unsigned int cicam_a8_c_pins[]		= { GPIOC_6 };
+static const unsigned int cicam_a9_c_pins[]		= { GPIOC_7 };
+static const unsigned int cicam_a10_c_pins[]		= { GPIOC_8 };
+static const unsigned int cicam_a11_c_pins[]		= { GPIOC_9 };
+static const unsigned int cicam_a12_c_pins[]		= { GPIOC_10 };
+
 /* BANK C func4 */
 static const unsigned int demod_uart_tx_c_pins[]	= { GPIOC_6 };
 static const unsigned int demod_uart_rx_c_pins[]	= { GPIOC_7 };
@@ -986,6 +999,18 @@ static struct meson_pmx_group meson_t5w_periphs_groups[] __initdata = {
 	GROUP(spi2_ss0_c,		2),
 	GROUP(spi2_ss1_c,		2),
 	GROUP(spi2_ss2_c,		2),
+
+	GROUP(cicam_a2_c,		3),
+	GROUP(cicam_a3_c,		3),
+	GROUP(cicam_a4_c,		3),
+	GROUP(cicam_a5_c,		3),
+	GROUP(cicam_a6_c,		3),
+	GROUP(cicam_a7_c,		3),
+	GROUP(cicam_a8_c,		3),
+	GROUP(cicam_a9_c,		3),
+	GROUP(cicam_a10_c,		3),
+	GROUP(cicam_a11_c,		3),
+	GROUP(cicam_a12_c,		3),
 
 	GROUP(demod_uart_tx_c,		4),
 	GROUP(demod_uart_rx_c,		4),
@@ -1518,6 +1543,9 @@ static const char * const cicam_groups[] = {
 	"cicam_a0", "cicam_a1", "cicam_a2", "cicam_a3", "cicam_a4",
 	"cicam_a5", "cicam_a6", "cicam_a7", "cicam_a8", "cicam_a9",
 	"cicam_a10", "cicam_a11", "cicam_a12", "cicam_a13", "cicam_a14",
+	"cicam_a2_c", "cicam_a3_c", "cicam_a4_c",
+	"cicam_a5_c", "cicam_a6_c", "cicam_a7_c", "cicam_a8_c", "cicam_a9_c",
+	"cicam_a10_c", "cicam_a11_c", "cicam_a12_c",
 
 	"cicam_data0", "cicam_data1", "cicam_data2", "cicam_data3",
 	"cicam_data4", "cicam_data5", "cicam_data6", "cicam_data7",

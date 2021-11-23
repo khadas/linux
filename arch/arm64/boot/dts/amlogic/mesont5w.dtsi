@@ -838,8 +838,8 @@
 				clock-names = "clk_uart",
 					"clk_gate";
 				fifosize = < 128 >;
-				pinctrl-names = "default";
-				pinctrl-0 = <&a_uart_pins0>;
+				#pinctrl-names = "default";
+				#pinctrl-0 = <&a_uart_pins0>;
 			};
 
 			uart_B: serial@23000 {
@@ -2456,6 +2456,79 @@
 		mux { /* GPIOH_14 */
 			groups = "mclk_1_h";
 			function = "mclk";
+		};
+	};
+	dvb_p_ts1_pins: dvb_p_ts1_pins {
+		mux {
+			groups = "tsin_b_d0",
+			"tsin_b_d1",
+			"tsin_b_d2",
+			"tsin_b_d3",
+			"tsin_b_d4",
+			"tsin_b_d5",
+			"tsin_b_d6",
+			"tsin_b_d7",
+			"tsin_b_clk",
+			"tsin_b_sop",
+			"tsin_b_valid";
+			function = "tsin_b";
+		};
+	};
+	dvb_ci_bus_pins_all: dvb_ci_bus_pins_all {
+		mux {
+			groups = "cicam_a0", "cicam_a1", "cicam_a2_c", "cicam_a3_c", "cicam_a4_c",
+			"cicam_a5_c", "cicam_a6_c", "cicam_a7_c", "cicam_a8_c", "cicam_a9_c",
+			"cicam_a10_c", "cicam_a11_c",
+			"cicam_data0", "cicam_data1", "cicam_data2", "cicam_data3",
+			"cicam_data4", "cicam_data5", "cicam_data6", "cicam_data7",
+			"cicam_cen", "cicam_oen", "cicam_wen", "cicam_iordn", "cicam_iowrn",
+			"cicam_reset";
+			function = "cicam";
+		};
+	};
+	dvb_ci_bus_pins: dvb_ci_bus_pins {
+		mux {
+			groups = "cicam_a0", "cicam_a1",
+			"cicam_data0", "cicam_data1", "cicam_data2", "cicam_data3",
+			"cicam_data4", "cicam_data5", "cicam_data6", "cicam_data7",
+			"cicam_cen", "cicam_oen", "cicam_wen", "cicam_iordn", "cicam_iowrn",
+			"cicam_reset";
+			function = "cicam";
+		};
+	};
+	ci_ts_pins: ci_ts_pins {
+		mux {
+			groups = "tsout_sop",
+			"tsout_valid",
+			"tsout_d0",
+			"tsout_d1",
+			"tsout_d2",
+			"tsout_d3",
+			"tsout_d4",
+			"tsout_d5",
+			"tsout_d6",
+			"tsout_d7";
+			function = "tsout";
+		};
+	};
+	ci_addr_pins: ci_addr_pins {
+		mux {
+			groups = "cicam_a2", "cicam_a3", "cicam_a4",
+			"cicam_a5", "cicam_a6", "cicam_a7", "cicam_a8", "cicam_a9",
+			"cicam_a10", "cicam_a11";
+			function = "cicam";
+		};
+	};
+	ci_ts_clk_pins: ci_ts_clk_pins {
+		mux {
+			groups =  "tsout_clk";
+			function = "tsout";
+		};
+	};
+	ci_gpio_pins: ci_gpio_pins {
+		mux {
+			groups =  "GPIOZ_7";
+			function = "gpio_periphs";
 		};
 	};
 };
