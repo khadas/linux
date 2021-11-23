@@ -565,7 +565,6 @@ static void meson_serial_port_write(struct uart_port *port, const char *s,
 {
 	unsigned long flags;
 	int locked;
-	u32 val, tmp;
 
 	local_irq_save(flags);
 	if (port->sysrq) {
@@ -577,12 +576,7 @@ static void meson_serial_port_write(struct uart_port *port, const char *s,
 		locked = 1;
 	}
 
-	val = readl_relaxed(port->membase + AML_UART_CONTROL);
-	tmp = val & ~(AML_UART_TX_INT_EN | AML_UART_RX_INT_EN);
-	writel_relaxed(tmp, port->membase + AML_UART_CONTROL);
-
 	uart_console_write(port, s, count, meson_console_putchar);
-	writel_relaxed(val, port->membase + AML_UART_CONTROL);
 
 	if (locked)
 		spin_unlock(&port->lock);
