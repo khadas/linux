@@ -265,6 +265,7 @@
 		memory-region = <&secmon_reserved>;
 		in_base_func = <0x82000020>;
 		out_base_func = <0x82000021>;
+		inout_size_func = <0x8200002a>;
 		reserve_mem_size = <0x00300000>;
 	};
 
@@ -576,6 +577,12 @@
 						&clkc CLKID_CLK81_USB1_TO_DDR>;
 			clock-names = "usb_general",
 						"usb1";
+		};
+
+		dolby_fw: dolby_fw {
+			compatible = "amlogic, dolby_fw";
+			mem_size = <0x100000>;
+			status = "okay";
 		};
 
 		aml_dma {
