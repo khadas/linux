@@ -687,6 +687,7 @@ int video_display_setframe(int layer_index,
 		vd_prepare->src_frame = vf;
 		vd_prepare->dst_frame = *vf;
 		vd_prepare->release_fence = frame_info->release_fence;
+		dev->vd_prepare_last = vd_prepare;
 	}
 
 	vf = &vd_prepare->dst_frame;
