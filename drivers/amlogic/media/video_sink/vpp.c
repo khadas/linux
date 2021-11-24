@@ -1374,16 +1374,15 @@ static int vpp_set_filters_internal
 		pr_info("sar_width=%d, sar_height = %d, %d\n",
 			vf->sar_width, vf->sar_height,
 			force_use_ext_ar);
+
+	/* width_in > src_width_max, hskip = 1 */
+	/* hskip = 1, crop left must 4 aligned */
 	if (width_in > src_width_max) {
 		video_source_crop_left =
-			(video_source_crop_left + 1) & ~0x01;
+			(video_source_crop_left + 3) & ~0x03;
 		video_source_crop_right =
-			(video_source_crop_right + 1) & ~0x01;
+			(video_source_crop_right + 3) & ~0x03;
 	}
-	if (width_in > src_width_max)
-		next_frame_par->hscale_skip_count++;
-	if (height_in > src_height_max)
-		next_frame_par->vscale_skip_count++;
 RESTART_ALL:
 	crop_left = video_source_crop_left / crop_ratio;
 	crop_right = video_source_crop_right / crop_ratio;
@@ -1414,6 +1413,10 @@ RESTART_ALL:
 		h_in -= crop_bottom;
 		v_crop_enable = true;
 	}
+	if (width_in > src_width_max)
+		next_frame_par->hscale_skip_count++;
+	if (height_in > src_height_max)
+		next_frame_par->vscale_skip_count++;
 
 RESTART:
 	aspect_factor = (vpp_flags & VPP_FLAG_AR_MASK) >> VPP_FLAG_AR_BITS;
