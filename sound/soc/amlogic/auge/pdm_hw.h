@@ -40,6 +40,8 @@ int pdm_train_sts(int id);
 int pdm_dclkidx2rate(int idx);
 int pdm_get_sample_count(int low_power, int dclk_idx);
 int pdm_get_ors(int dclk_idx, int sample_rate);
+int pdm_auto_train_algorithm(int pdm_id, int enable);
+
 extern int pdm_hcic_shift_gain;
 
 #endif /*__AML_PDM_HW_H__*/

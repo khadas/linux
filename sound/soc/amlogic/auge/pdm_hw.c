@@ -572,3 +572,53 @@ int pdm_get_ors(int dclk_idx, int sample_rate)
 
 	return osr;
 }
+
+int pdm_auto_train_algorithm(int pdm_id, int enable)
+{
+	int sample_count = 0;
+	int find = 0;
+	int val;
+	int count = 0;
+	int sample_count1, sample_count2;
+
+	aml_pdm_update_bits(pdm_id, PDM_CTRL, 1 << 19, enable << 19);
+	if (enable == 0)
+		return 0;
+	pdm_set_channel_ctrl(sample_count, pdm_id);
+	while (1) {
+		aml_pdm_update_bits(pdm_id, PDM_CTRL, 1 << 18, 1 << 18);
+		aml_pdm_update_bits(pdm_id, PDM_CTRL, 1 << 18, 0 << 18);
+		usleep_range(8, 10);
+		val = (aml_pdm_read(pdm_id, PDM_STS) >> 4) & 0xff;
+		if (val == 0) {
+			count++;
+			/*try to 10*/
+			if (count < 10)
+				continue;
+			else
+				count = 0;
+		} else {
+			/*must be find two sample count for max and min range*/
+			if (find == 1) {
+				sample_count2 = sample_count;
+				if (abs(sample_count2 - sample_count1) > 10) {
+					pr_info("sample range:%d~:%d\n",
+					(sample_count1 < sample_count2 ?
+					sample_count1 : sample_count2),
+					(sample_count1 < sample_count2 ?
+					sample_count2 : sample_count1));
+					break;
+				}
+			} else {
+				sample_count1 = sample_count;
+				find = 1;
+			}
+		}
+		pdm_set_channel_ctrl(sample_count++, 0);
+		if (sample_count > 100) {
+			pr_info("not find the sample range\n");
+			break;
+		}
+	}
+	return (sample_count1 + sample_count2) / 2;
+}

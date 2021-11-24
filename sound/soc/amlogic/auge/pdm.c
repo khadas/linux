@@ -394,6 +394,30 @@ static int pdm_gain_set_enum(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 	return 0;
 }
 
+static int pdm_train_debug_get_enum(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct aml_pdm *p_pdm = dev_get_drvdata(component->dev);
+
+	ucontrol->value.integer.value[0] = p_pdm->pdm_train_debug;
+
+	return 0;
+}
+
+static int pdm_train_debug_set_enum(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct aml_pdm *p_pdm = dev_get_drvdata(component->dev);
+	int value = ucontrol->value.integer.value[0];
+
+	p_pdm->pdm_train_debug = value;
+	schedule_work(&p_pdm->debug_work);
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new snd_pdm_controls[] = {
 	/* which set */
 	SOC_ENUM_EXT("PDM Filter Mode",
@@ -433,6 +457,13 @@ static const struct snd_kcontrol_new snd_pdm_controls[] = {
 		     (NUM_PDM_GAIN_INDEX - 1), 0,
 		     pdm_gain_get_enum,
 		     pdm_gain_set_enum),
+
+	SOC_SINGLE_EXT("PDM A Train Debug Enable",
+		     SND_SOC_NOPM, 0,
+		     1, 0,
+		     pdm_train_debug_get_enum,
+		     pdm_train_debug_set_enum),
+
 };
 
 static const struct snd_kcontrol_new snd_pdmb_controls[] = {
@@ -474,6 +505,12 @@ static const struct snd_kcontrol_new snd_pdmb_controls[] = {
 		     (NUM_PDM_GAIN_INDEX - 1), 0,
 		     pdm_gain_get_enum,
 		     pdm_gain_set_enum),
+	SOC_SINGLE_EXT("PDM B Train Debug Enable",
+		     SND_SOC_NOPM, 0,
+		     1, 0,
+		     pdm_train_debug_get_enum,
+		     pdm_train_debug_set_enum),
+
 };
 static irqreturn_t aml_pdm_isr_handler(int irq, void *data)
 {
@@ -640,16 +677,17 @@ static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int bitwidth;
 	unsigned int toddr_type, lsb;
-	struct toddr *to = p_pdm->tddr;
 	struct toddr_fmt fmt;
 	unsigned int osr = 192, filter_mode, dclk_idx;
 	struct pdm_info info;
 	int pdm_id;
+	struct toddr *to;
 
 	if (!p_pdm)
 		return -EINVAL;
 	if (!p_pdm->chipinfo)
 		return -EINVAL;
+	to = p_pdm->tddr;
 	pdm_id = p_pdm->pdm_id;
 	if (p_pdm->pdm_trigger_state == TRIGGER_START_ALSA_BUF ||
 	    p_pdm->pdm_trigger_state == TRIGGER_START_VAD_BUF) {
@@ -980,6 +1018,17 @@ static struct early_suspend pdm_platform_early_suspend_handler[] = {
 };
 #endif
 
+static void aml_pdm_train_debug_work(struct work_struct *debug)
+{
+	struct aml_pdm *p_pdm;
+	int ret;
+
+	p_pdm = container_of(debug, struct aml_pdm, debug_work);
+	ret = pdm_auto_train_algorithm(p_pdm->pdm_id, p_pdm->pdm_train_debug);
+	if (ret > 0)
+		pr_info("pdm train sample count = %d\n", ret);
+}
+
 static int aml_pdm_platform_probe(struct platform_device *pdev)
 {
 	struct aml_pdm *p_pdm;
@@ -1113,6 +1162,7 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 
 	/*config ddr arb */
 	aml_pdm_arb_config(p_pdm->actrl);
+	INIT_WORK(&p_pdm->debug_work, aml_pdm_train_debug_work);
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &aml_pdm_component[p_pdm->pdm_id],
