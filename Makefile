@@ -672,6 +672,10 @@ ifdef need-config
 include include/config/auto.conf
 endif
 
+ifdef CONFIG_AMLOGIC_DRIVER
+include $(srctree)/../common_drivers/header_include.mk
+endif
+
 ifeq ($(KBUILD_EXTMOD),)
 # Objects we will link into vmlinux / subdirs we need to visit
 core-y		:= init/ usr/ arch/$(SRCARCH)/
