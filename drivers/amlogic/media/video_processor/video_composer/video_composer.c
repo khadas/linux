@@ -635,6 +635,13 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 					vf->vc_private->srout_data->nn_status);
 				return vf;
 			}
+
+			if (vf->vc_private->srout_data->nn_index == 0) {
+				vf->vc_private->flag &= ~VC_FLAG_AI_SR;
+				vc_print(dev->index, PRINT_NN, "nn not done, bypass first frame\n");
+				return vf;
+			}
+
 			do_gettimeofday(&now_time);
 			nn_start_time = vf->vc_private->srout_data->start_time;
 			nn_used_time = (u64)1000000 *
