@@ -563,12 +563,6 @@
 		status = "okay";
 	};
 
-	ionvideo {
-		compatible = "amlogic, ionvideo";
-		dev_name = "ionvideo";
-		status = "okay";
-	};
-
 	tvafe_avin_detect {
 		compatible = "amlogic, t5w_tvafe_avin_detect";
 		status = "okay";

@@ -3978,6 +3978,7 @@ static struct clk_hw_onecell_data t5w_hw_onecell_data = {
 		[CLKID_CLK81_SPICC0]		= &t5w_clk81_spicc0.hw,
 		[CLKID_CLK81_I2C]		= &t5w_clk81_i2c.hw,
 		[CLKID_CLK81_SANA]		= &t5w_clk81_sana.hw,
+		[CLKID_CLK81_SMARTCARD]		= &t5w_clk81_smartcard.hw,
 		[CLKID_CLK81_UART0]		= &t5w_clk81_uart0.hw,
 		[CLKID_CLK81_STREAM]		= &t5w_clk81_stream.hw,
 		[CLKID_CLK81_ASYNC_FIFO]	= &t5w_clk81_async_fifo.hw,

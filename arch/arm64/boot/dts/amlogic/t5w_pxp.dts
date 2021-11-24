@@ -118,12 +118,6 @@
 		status = "okay";
 	};
 
-	ionvideo {
-		compatible = "amlogic, ionvideo";
-		dev_name = "ionvideo";
-		status = "okay";
-	};
-
 	multi-di {
 		//status = "okay";
 		/***************************************************
