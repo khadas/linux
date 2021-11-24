@@ -542,6 +542,7 @@ struct lcd_debug_ctrl_s {
 };
 
 struct lcd_duration_s {
+	unsigned int frame_rate;
 	unsigned int duration_num;
 	unsigned int duration_den;
 	unsigned int frac;
@@ -604,7 +605,8 @@ struct aml_lcd_drv_s {
 	struct cdev cdev;
 	struct device *dev;
 	struct lcd_config_s config;
-	struct lcd_duration_s std_duration;
+	struct lcd_duration_s *std_duration;
+	struct lcd_duration_s cur_duration;
 	struct vinfo_s vinfo;
 	void *clk_conf;
 	struct lcd_reg_map_s *reg_map;

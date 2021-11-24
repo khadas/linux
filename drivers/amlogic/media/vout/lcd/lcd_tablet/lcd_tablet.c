@@ -294,8 +294,8 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 
 		pdrv->fr_duration = 0;
 		/* update vinfo */
-		info->sync_duration_num = pdrv->std_duration.duration_num;
-		info->sync_duration_den = pdrv->std_duration.duration_den;
+		info->sync_duration_num = pdrv->cur_duration.duration_num;
+		info->sync_duration_den = pdrv->cur_duration.duration_den;
 		info->frac = 0;
 		pdrv->fr_mode = 0;
 	} else {
@@ -412,8 +412,8 @@ static void lcd_tablet_vinfo_update(struct aml_lcd_drv_s *pdrv)
 	pconf = &pdrv->config;
 
 	/* store standard duration */
-	pdrv->std_duration.duration_num = pconf->timing.sync_duration_num;
-	pdrv->std_duration.duration_den = pconf->timing.sync_duration_den;
+	pdrv->cur_duration.duration_num = pconf->timing.sync_duration_num;
+	pdrv->cur_duration.duration_den = pconf->timing.sync_duration_den;
 
 	pdrv->vinfo.width = pconf->basic.h_active;
 	pdrv->vinfo.height = pconf->basic.v_active;
