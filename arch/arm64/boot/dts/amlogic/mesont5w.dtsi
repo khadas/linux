@@ -1028,6 +1028,7 @@
 			resets = <&reset RESET_RDMA>;
 			rdma_table_page_count = <16>;
 		};
+
 		audiobus: audiobus@0xff600000 {
 			compatible = "amlogic, audio-controller", "simple-bus";
 			#address-cells = <2>;

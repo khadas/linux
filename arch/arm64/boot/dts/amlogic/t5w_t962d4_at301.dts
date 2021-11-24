@@ -886,6 +886,8 @@
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
 
+		train_sample_count = <10>;
+
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
 
