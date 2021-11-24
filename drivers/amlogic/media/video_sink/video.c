@@ -6250,6 +6250,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	unsigned char frame_par_di_set = 0;
 	s32 vout_type;
 	struct vframe_s *vf;
+	struct vframe_s *vf_tmp;
 	bool show_nosync = false;
 	int toggle_cnt;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -6518,11 +6519,16 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	vf = video_vf_peek();
 
-	if (vf) {
+	if (!vf)
+		vf_tmp = cur_dispbuf;
+	else
+		vf_tmp = vf;
+
+	if (vf_tmp) {
 		if (glayer_info[0].display_path_id == VFM_PATH_AUTO) {
-			if (vf->sidebind_type
+			if (vf_tmp->sidebind_type
 				== glayer_info[0].sideband_type ||
-				vf->sidebind_type == 0) {
+				vf_tmp->sidebind_type == 0) {
 				pr_info("VID: path_id %d -> %d\n",
 					glayer_info[0].display_path_id,
 					VFM_PATH_AMVIDEO);
@@ -6531,7 +6537,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				vd1_path_id = glayer_info[0].display_path_id;
 			} else if (glayer_info[0].sideband_type != -1)
 				pr_info("vf->sideband_type =%d,layertype=%d\n",
-					vf->sidebind_type,
+					vf_tmp->sidebind_type,
 					glayer_info[0].sideband_type);
 		}
 	}
