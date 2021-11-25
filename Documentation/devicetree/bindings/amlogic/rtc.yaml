@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/rtc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Amlogic Meson RTC device tree bindings
+
+
+maintainers:
+  - Yao Jie <jie.yao@amlogic.com>
+
+properties:
+  compatible:
+    description: Amlogic A5 board
+    items:
+      - const: amlogic,meson-rtc
+  reg:
+    description: physical base address and length of the controller registers
+  clock-names:
+    description: Must contain "core", "comp"
+  clocks:
+    description: Phandle of the input clock for RTC timer counter
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - status
+
+examples:
+  rtc: rtc@0xfe09a000 {
+	compatible = "amlogic,meson-rtc";
+	reg = <0x0 0xfe09a000 0x0 0x38>,
+	      <0x0 0xfe010288 0x0 0x4>,
+	      <0x0 0xfe002010 0x0 0x4>;
+	interrupts = <GIC_SPI 131 IRQ_TYPE_EDGE_FALLING>;
+	mboxes = <&mhu_fifo A5_REE2AO>;
+	status = "okay";
+};

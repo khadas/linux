@@ -1,0 +1,8 @@
+# Amlogic RTC device module configuration
+config AMLOGIC_MESON_RTC
+	tristate "Amlogic Meson RTC driver"
+	default n
+	help
+		This is the Amlogic rtc driver.
+		AMLOGIC_RTC provides rtc driver for A5 and later
+		of this chip.

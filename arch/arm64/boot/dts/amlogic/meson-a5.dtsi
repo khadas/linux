@@ -256,6 +256,16 @@
 		mboxes = <&mhu_fifo A5_REE2AO>;
 	};
 
+	rtc: rtc@0xfe09a000 {
+		compatible = "amlogic,meson-rtc";
+		reg = <0x0 0xfe09a000 0x0 0x38>;
+		interrupts = <GIC_SPI 131 IRQ_TYPE_EDGE_RISING>;
+		status = "okay";
+		mboxes = <&mhu_fifo A5_REE2AO>;
+		clocks = <&clkc CLKID_RTC_CLK>;
+		clock-names = "rtc_clk";
+	};
+
 	audio_data: audio_data {
 		compatible = "amlogic, audio_data";
 		mem_in_base_cmd = <0x82000020>;
@@ -1194,10 +1204,10 @@
 
 		dwc2_a: dwc2_a@fdd00000 {
 			compatible = "amlogic,dwc2";
-			status = "disable";
+			status = "disabled";
 			device_name = "dwc2_a";
 			reg = <0x0 0xfdd00000 0x0 0x100000>;
-			interrupts = <0 131 4>;
+//			interrupts = <0 131 4>;
 			pl-periph-id = <0>; /** lm name */
 			clock-src = "usb0"; /** clock src */
 			port-id = <0>;  /** ref to mach/usb.h */
