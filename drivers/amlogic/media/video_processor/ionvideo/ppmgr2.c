@@ -525,7 +525,7 @@ int ppmgr2_process(struct vframe_s *vf, struct ppmgr2_device *ppd, int index)
 	int dst_canvas_id = 0;
 
 	if (!ppd->phy_addr[index]) {
-		ppmgr2_printk(1, "NULL physical address!\n");
+		pr_err("ionvideo:NULL physical address!\n");
 		return -1;
 	}
 

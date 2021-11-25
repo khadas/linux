@@ -686,15 +686,13 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 
 	dev->ionvideo_input[p->index] = *p;
 
-	mutex_lock(&dev->mutex_input);
-	v4l2q_push(&dev->input_queue, &dev->ionvideo_input[p->index]);
-	mutex_unlock(&dev->mutex_input);
-
 	if (!ppmgr2_dev->phy_addr[p->index]) {
 		dbuf = dma_buf_get(p->m.fd);
 		attach = dma_buf_attach(dbuf, dev->v4l2_dev.dev);
-		if (IS_ERR(attach))
+		if (IS_ERR(attach)) {
+			pr_info("ionvideo: attach err\n");
 			return -EINVAL;
+		}
 
 		table = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
 		page = sg_page(table->sgl);
@@ -707,9 +705,16 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		ppmgr2_dev->dst_buffer_width = ALIGN(dev->width, 32);
 		ppmgr2_dev->dst_buffer_height = dev->height;
 		ppmgr2_dev->ge2d_fmt =  v4l_to_ge2d_format(dev->fmt->fourcc);
-		if (!phy_addr)
+		if (!phy_addr) {
+			pr_info("ionvideo: vidioc_qbuf phy_addr is null\n");
 			return -ENOMEM;
+		}
 	}
+
+	mutex_lock(&dev->mutex_input);
+	v4l2q_push(&dev->input_queue, &dev->ionvideo_input[p->index]);
+	mutex_unlock(&dev->mutex_input);
+
 	wake_up_interruptible(&dma_q->wq);
 	return 0;
 }
