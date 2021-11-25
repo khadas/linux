@@ -255,7 +255,7 @@ void test_hwspin_lock(struct hwspinlock *hwlock)
 	int val = 0x1234 + hwlock_id;
 
 	addr_off += sizeof(u32) * hwlock_id;
-	pr_debug("armv8 bakery test get %xp %xp %x\n",
+	pr_debug("armv8 bakery test get %px %px %x\n",
 		hwlock_addr, ((char *)hwlock_addr + addr_off),
 		readl((char *)hwlock_addr + addr_off));
 	/*Enter critical section*/
@@ -340,7 +340,7 @@ static int aml_hwspinlock_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, aml_spinlock);
 
-	pr_info("%s success %xp\n", __func__, addr);
+	pr_info("%s success %px\n", __func__, addr);
 	return 0;
 probe_err:
 	return err;
