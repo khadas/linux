@@ -280,6 +280,17 @@ static struct clk_regmap t3_sys1_pll = {
 };
 #endif
 
+#ifdef CONFIG_ARM
+static const struct pll_params_table t3_fix_pll_params_table[] = {
+	PLL_PARAMS(166, 1, 0), /*DCO=3984M OD=DCO/2=1992M*/
+};
+
+#else
+static const struct pll_params_table t3_fix_pll_params_table[] = {
+	PLL_PARAMS(166, 1), /*DCO=3984M OD=DCO/2=1992M*/
+};
+#endif
+
 static struct clk_regmap t3_fixed_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
@@ -307,15 +318,24 @@ static struct clk_regmap t3_fixed_pll_dco = {
 			.shift   = 31,
 			.width   = 1,
 		},
+		.od = {
+			.reg_off = ANACTRL_FIXPLL_CTRL0,
+			.shift	 = 16,
+			.width	 = 2,
+		},
 		.rst = {
 			.reg_off = ANACTRL_FIXPLL_CTRL0,
 			.shift   = 29,
 			.width   = 1,
 		},
+		.table = t3_fix_pll_params_table,
+		.smc_id = SECURE_PLL_CLK,
+		.secid_disable = SECID_FIX_DCO_PLL_DIS,
+		.secid = SECID_FIX_DCO_PLL
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "fixed_pll_dco",
-		.ops = &meson_clk_pll_ro_ops,
+		.ops = &meson_secure_pll_v2_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "xtal",
 		},
@@ -324,20 +344,41 @@ static struct clk_regmap t3_fixed_pll_dco = {
 		 * This clock feeds the sysytem, avoid disabling it
 		 * Register has the risk of being directly operated
 		 */
-		.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE,
 	},
 };
 
+#ifdef CONFIG_ARM
+static struct clk_regmap t3_fixed_pll = {
+	.hw.init = &(struct clk_init_data){
+		.name = "fixed_pll",
+		.ops = &meson_pll_clk_no_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t3_fixed_pll_dco.hw
+		},
+		.num_parents = 1,
+		/*
+		 * sys pll is used by cpu clock , it is initialized
+		 * to 1200M in bl2, CLK_IGNORE_UNUSED is needed to
+		 * prevent the system hang up which will be called
+		 * by clk_disable_unused
+		 */
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+	},
+};
+#else
 static struct clk_regmap t3_fixed_pll = {
 	.data = &(struct clk_regmap_div_data) {
 		.offset = ANACTRL_FIXPLL_CTRL0,
 		.shift = 16,
 		.width = 2,
 		.flags = CLK_DIVIDER_POWER_OF_TWO,
+		.smc_id = SECURE_PLL_CLK,
+		.secid = SECID_FIX_PLL_OD
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "fixed_pll",
-		.ops = &clk_regmap_divider_ro_ops,
+		.ops = &clk_regmap_secure_v2_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&t3_fixed_pll_dco.hw
 		},
@@ -347,9 +388,10 @@ static struct clk_regmap t3_fixed_pll = {
 		 * CLK_SET_RATE_PARENT is not required
 		 * Never close , Register may be rewritten
 		 */
-		.flags = CLK_IS_CRITICAL | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_IGNORE_UNUSED | CLK_GET_RATE_NOCACHE,
 	},
 };
+#endif
 
 static struct clk_fixed_factor t3_fclk_div2_div = {
 	.mult = 1,
@@ -374,16 +416,6 @@ static struct clk_regmap t3_fclk_div2 = {
 			&t3_fclk_div2_div.hw
 		},
 		.num_parents = 1,
-		/*
-		 * This clock is used by the resident firmware and is required
-		 * by the platform to operate correctly.
-		 * Until the following condition are met, we need this clock to
-		 * be marked as critical:
-		 * a) Mark the clock used by a firmware resource, if possible
-		 * b) CCF has a clock hand-off mechanism to make the sure the
-		 *    clock stays on until the proper driver comes along
-		 */
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -410,16 +442,6 @@ static struct clk_regmap t3_fclk_div3 = {
 			&t3_fclk_div3_div.hw
 		},
 		.num_parents = 1,
-		/*
-		 * This clock is used by the resident firmware and is required
-		 * by the platform to operate correctly.
-		 * Until the following condition are met, we need this clock to
-		 * be marked as critical:
-		 * a) Mark the clock used by a firmware resource, if possible
-		 * b) CCF has a clock hand-off mechanism to make the sure the
-		 *    clock stays on until the proper driver comes along
-		 */
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -446,16 +468,6 @@ static struct clk_regmap t3_fclk_div4 = {
 			&t3_fclk_div4_div.hw
 		},
 		.num_parents = 1,
-		/*
-		 * This clock is used by the resident firmware and is required
-		 * by the platform to operate correctly.
-		 * Until the following condition are met, we need this clock to
-		 * be marked as critical:
-		 * a) Mark the clock used by a firmware resource, if possible
-		 * b) CCF has a clock hand-off mechanism to make the sure the
-		 *    clock stays on until the proper driver comes along
-		 */
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -482,16 +494,6 @@ static struct clk_regmap t3_fclk_div5 = {
 			&t3_fclk_div5_div.hw
 		},
 		.num_parents = 1,
-		/*
-		 * This clock is used by the resident firmware and is required
-		 * by the platform to operate correctly.
-		 * Until the following condition are met, we need this clock to
-		 * be marked as critical:
-		 * a) Mark the clock used by a firmware resource, if possible
-		 * b) CCF has a clock hand-off mechanism to make the sure the
-		 *    clock stays on until the proper driver comes along
-		 */
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -518,16 +520,6 @@ static struct clk_regmap t3_fclk_div7 = {
 			&t3_fclk_div7_div.hw
 		},
 		.num_parents = 1,
-		/*
-		 * This clock is used by the resident firmware and is required
-		 * by the platform to operate correctly.
-		 * Until the following condition are met, we need this clock to
-		 * be marked as critical:
-		 * a) Mark the clock used by a firmware resource, if possible
-		 * b) CCF has a clock hand-off mechanism to make the sure the
-		 *    clock stays on until the proper driver comes along
-		 */
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -556,16 +548,6 @@ static struct clk_regmap t3_fclk_div2p5 = {
 			&t3_fclk_div2p5_div.hw
 		},
 		.num_parents = 1,
-		/*
-		 * This clock is used by the resident firmware and is required
-		 * by the platform to operate correctly.
-		 * Until the following condition are met, we need this clock to
-		 * be marked as critical:
-		 * a) Mark the clock used by a firmware resource, if possible
-		 * b) CCF has a clock hand-off mechanism to make the sure the
-		 *    clock stays on until the proper driver comes along
-		 */
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -1732,126 +1714,63 @@ static struct clk_regmap t3_rtc_clk = {
 	},
 };
 
-/* sys clk */
-static u32 mux_table_sys_ab_clk_sel[] = { 0, 1, 2, 3, 4, 7 };
-static const struct clk_parent_data t3_table_sys_ab_clk_sel[] = {
+static const struct cpu_dyn_table t3_sys_clk_table[] = {
+	/* sys clk no need dyn_post_mux */
+	CPU_LOW_PARAMS(24000000, 0, 0, 0),
+	CPU_LOW_PARAMS(166666666, 3, 1, 2),
+};
+
+static const struct clk_parent_data t3_sys_clk_sel[] = {
+	{ .fw_name = "xtal", },
+	{ .hw = &t3_fclk_div2.hw },
+	{ .hw = &t3_fclk_div3.hw },
+	{ .hw = &t3_fclk_div4.hw },
+};
+
+static struct clk_regmap t3_sys_clk = {
+	.data = &(struct meson_sec_cpu_dyn_data){
+		.table = t3_sys_clk_table,
+		.table_cnt = ARRAY_SIZE(t3_sys_clk_table),
+		.secid_dyn_rd = SECID_SYS_CLK_RD,
+		.secid_dyn = SECID_SYS_CLK_DYN,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "sys_clk",
+		.ops = &meson_sec_sys_clk_ops,
+		.parent_data = t3_sys_clk_sel,
+		.num_parents = ARRAY_SIZE(t3_sys_clk_sel),
+	},
+};
+
+static const struct cpu_dyn_table t3_axi_clk_table[] = {
+	/* axi clk no need dyn_post_mux */
+	CPU_LOW_PARAMS(24000000, 0, 0, 0),
+	/* switching 200M, cpu frequency needs switched to 1.2G first */
+	CPU_LOW_PARAMS(200000000, 5, 0, 1),
+	CPU_LOW_PARAMS(500000000, 3, 0, 0),
+};
+
+static const struct clk_parent_data t3_axi_clk_sel[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &t3_fclk_div2.hw },
 	{ .hw = &t3_fclk_div3.hw },
 	{ .hw = &t3_fclk_div4.hw },
 	{ .hw = &t3_fclk_div5.hw },
-	{ .hw = &t3_rtc_clk.hw }
+	{ .hw = &t3_dsu_clk.hw },
 };
 
-static struct clk_regmap t3_sysclk_1_sel = {
-	.data = &(struct clk_regmap_mux_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
-		.mask = 0x7,
-		.shift = 26,
-		.table = mux_table_sys_ab_clk_sel,
+static struct clk_regmap t3_axi_clk = {
+	.data = &(struct meson_sec_cpu_dyn_data){
+		.table = t3_axi_clk_table,
+		.table_cnt = ARRAY_SIZE(t3_axi_clk_table),
+		.secid_dyn_rd = SECID_AXI_CLK_RD,
+		.secid_dyn = SECID_AXI_CLK_DYN,
 	},
 	.hw.init = &(struct clk_init_data){
-		.name = "sysclk_1_sel",
-		.ops = &clk_regmap_mux_ro_ops,
-		.parent_data = t3_table_sys_ab_clk_sel,
-		.num_parents = ARRAY_SIZE(t3_table_sys_ab_clk_sel),
-	},
-};
-
-static struct clk_regmap t3_sysclk_1_div = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
-		.shift = 16,
-		.width = 10,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "sysclk_1_div",
-		.ops = &clk_regmap_divider_ro_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t3_sysclk_1_sel.hw
-		},
-		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
-	},
-};
-
-static struct clk_regmap t3_sysclk_1 = {
-	.data = &(struct clk_regmap_gate_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
-		.bit_idx = 29,
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "sysclk_1",
-		.ops = &clk_regmap_gate_ro_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t3_sysclk_1_div.hw
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_regmap t3_sysclk_0_sel = {
-	.data = &(struct clk_regmap_mux_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
-		.mask = 0x7,
-		.shift = 10,
-		.table = mux_table_sys_ab_clk_sel,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "sysclk_0_sel",
-		.ops = &clk_regmap_mux_ro_ops,
-		.parent_data = t3_table_sys_ab_clk_sel,
-		.num_parents = ARRAY_SIZE(t3_table_sys_ab_clk_sel),
-	},
-};
-
-static struct clk_regmap t3_sysclk_0_div = {
-	.data = &(struct clk_regmap_div_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
-		.shift = 0,
-		.width = 10,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "sysclk_0_div",
-		.ops = &clk_regmap_divider_ro_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t3_sysclk_0_sel.hw
-		},
-		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
-	},
-};
-
-static struct clk_regmap t3_sysclk_0 = {
-	.data = &(struct clk_regmap_gate_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
-		.bit_idx = 13,
-	},
-	.hw.init = &(struct clk_init_data) {
-		.name = "sysclk_0",
-		.ops = &clk_regmap_gate_ro_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t3_sysclk_0_div.hw
-		},
-		.num_parents = 1,
-	},
-};
-
-static struct clk_regmap t3_sys_clk = {
-	.data = &(struct clk_regmap_mux_data){
-		.offset = CLKCTRL_SYS_CLK_CTRL0,
-		.mask = 0x1,
-		.shift = 15,
-	},
-	.hw.init = &(struct clk_init_data){
-		.name = "sys_clk",
-		.ops = &clk_regmap_mux_ro_ops,
-		.parent_hws = (const struct clk_hw *[]) {
-			&t3_sysclk_0.hw,
-			&t3_sysclk_1.hw,
-		},
-		.num_parents = 2,
-		.flags = CLK_IS_CRITICAL,
+		.name = "axi_clk",
+		.ops = &meson_sec_sys_clk_ops,
+		.parent_data = t3_axi_clk_sel,
+		.num_parents = ARRAY_SIZE(t3_axi_clk_sel),
 	},
 };
 
@@ -6295,13 +6214,8 @@ static struct clk_hw_onecell_data t3_hw_onecell_data = {
 		[CLKID_RTC_32K_XATL]			= &t3_rtc_32k_xtal.hw,
 		[CLKID_RTC_32K_SEL]			= &t3_rtc_32k_sel.hw,
 		[CLKID_RTC_CLK]				= &t3_rtc_clk.hw,
-		[CLKID_SYS_CLK_1_SEL]			= &t3_sysclk_1_sel.hw,
-		[CLKID_SYS_CLK_1_DIV]			= &t3_sysclk_1_div.hw,
-		[CLKID_SYS_CLK_1]			= &t3_sysclk_1.hw,
-		[CLKID_SYS_CLK_0_SEL]			= &t3_sysclk_0_sel.hw,
-		[CLKID_SYS_CLK_0_DIV]			= &t3_sysclk_0_div.hw,
-		[CLKID_SYS_CLK_0]			= &t3_sysclk_0.hw,
 		[CLKID_SYS_CLK]				= &t3_sys_clk.hw,
+		[CLKID_AXI_CLK]				= &t3_axi_clk.hw,
 		[CLKID_CECB_32K_CLKIN]			= &t3_cecb_32k_clkin.hw,
 		[CLKID_CECB_32K_DIV]			= &t3_cecb_32k_div.hw,
 		[CLKID_CECB_32K_SEL_PRE]		= &t3_cecb_32k_sel_pre.hw,
@@ -6633,13 +6547,8 @@ static struct clk_regmap *const t3_clk_regmaps[] __initconst = {
 	&t3_rtc_32k_xtal,
 	&t3_rtc_32k_sel,
 	&t3_rtc_clk,
-	&t3_sysclk_1_sel,
-	&t3_sysclk_1_div,
-	&t3_sysclk_1,
-	&t3_sysclk_0_sel,
-	&t3_sysclk_0_div,
-	&t3_sysclk_0,
 	&t3_sys_clk,
+	&t3_axi_clk,
 	&t3_cecb_32k_clkin,
 	&t3_cecb_32k_div,
 	&t3_cecb_32k_sel_pre,
