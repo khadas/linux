@@ -39,5 +39,6 @@ struct meson_sec_cpu_dyn_data {
 
 extern const struct clk_ops meson_clk_cpu_dyndiv_ops;
 extern const struct clk_ops meson_sec_cpu_dyn_ops;
+extern const struct clk_ops meson_sec_sys_clk_ops;
 
 #endif /* __MESON_CLK_CPU_DYNDIV_H */
