@@ -460,6 +460,45 @@
 		//test_my_added_keyname { };
 	};//End provisionkey
 
+	fb: fb {
+		compatible = "amlogic, fb-t5w";
+		memory-region = <&logo_reserved>;
+		status = "disabled";
+		interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING
+			GIC_SPI 56 IRQ_TYPE_EDGE_RISING
+			GIC_SPI 89 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "viu-vsync", "viu2-vsync", "rdma";
+		/* uboot logo,fb0/fb1 memory size,if afbcd fb0=0x01851000*/
+		display_mode_default = "1080p60hz";
+		scale_mode = <1>;
+		/** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
+		display_size_default = <1920 1080 1920 2160 32>;
+		/*1920*1080*4*3 = 0x17BB000*/
+		display_device_cnt = <2>;
+		/* for fixed path: OSD3->VPP1  */
+	};
+
+	vpu: vpu {
+		compatible = "amlogic, vpu-t5w";
+		status = "okay";
+		clocks = <&clkc CLKID_VAPB>,
+			<&clkc CLKID_VPU_0>,
+			<&clkc CLKID_VPU_1>,
+			<&clkc CLKID_VPU>,
+			<&clkc CLKID_CLK81_VPU_INTR>;
+		clock-names = "vapb_clk",
+			"vpu_clk0",
+			"vpu_clk1",
+			"vpu_clk",
+			"vpu_intr_gate";
+		reg = <0x0 0xff646000 0x0 0x200   /* clk */
+		       0x0 0xff644000 0x0 0x100     /* pwrctrl */
+		       0x0 0xff900000 0x0 0xa000>; /* vcbus */
+		clk_level = <7>;
+		/* 0: 100.0M    1: 166.7M    2: 200.0M    3: 250.0M */
+		/* 4: 333.3M    5: 400.0M */
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -969,27 +1008,6 @@
 			pinctrl-0=<&jtag_apao_pins>;
 		};
 
-		vpu: vpu {
-			compatible = "amlogic, vpu-t5w";
-			status = "okay";
-			clocks = <&clkc CLKID_VAPB>,
-				<&clkc CLKID_VPU_0>,
-				<&clkc CLKID_VPU_1>,
-				<&clkc CLKID_VPU>,
-				<&clkc CLKID_CLK81_VPU_INTR>;
-			clock-names = "vapb_clk",
-				"vpu_clk0",
-				"vpu_clk1",
-				"vpu_clk",
-				"vpu_intr_gate";
-			reg = <0x0 0xff646000 0x0 0x200   /* clk */
-			       0x0 0xff644000 0x0 0x100     /* pwrctrl */
-			       0x0 0xff900000 0x0 0xa000>; /* vcbus */
-			clk_level = <7>;
-			/* 0: 100.0M    1: 166.7M    2: 200.0M    3: 250.0M */
-			/* 4: 333.3M    5: 400.0M */
-		};
-
 		vclk_serve: vclk_serve {
 			compatible = "amlogic, vclk_serve";
 			status = "okay";
@@ -1277,24 +1295,6 @@
 			dev_name = "aml_amdolby_vision_driver";
 			status = "okay";
 			tv_mode = <1>;/*1:enabel ;0:disable*/
-		};
-
-		fb: fb {
-			compatible = "amlogic, fb-t5w";
-			memory-region = <&logo_reserved>;
-			status = "disabled";
-			interrupts = <GIC_SPI 3 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 56 IRQ_TYPE_EDGE_RISING
-				GIC_SPI 89 IRQ_TYPE_EDGE_RISING>;
-			interrupt-names = "viu-vsync", "viu2-vsync", "rdma";
-			/* uboot logo,fb0/fb1 memory size,if afbcd fb0=0x01851000*/
-			display_mode_default = "1080p60hz";
-			scale_mode = <1>;
-			/** 0:VPU free scale 1:OSD free scale 2:OSD super scale */
-			display_size_default = <1920 1080 1920 2160 32>;
-			/*1920*1080*4*3 = 0x17BB000*/
-			display_device_cnt = <2>;
-			/* for fixed path: OSD3->VPP1  */
 		};
 
 		meson-amvideom {
