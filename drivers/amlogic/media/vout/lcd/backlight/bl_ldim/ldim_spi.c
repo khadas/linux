@@ -23,23 +23,22 @@ static int ldim_spi_async_busy;
 
 int ldim_spi_dma_cycle_align_byte(int size)
 {
-	int new_size, word_cnt, n, remain_min, i;
+	int new_size, word_cnt, n, i;
 
 	/* spi dma word must be multiple of 8byte(64bit)  */
 	word_cnt = (size + 7) / 8;
-	new_size = word_cnt * 8;
 
 	/* spi dma cycle must be multiple of word and (2~8) */
-	remain_min = 8;
-	for (i = 2; i <= 8; i++) {
-		n = i - (word_cnt % i);
-		if (remain_min > n)
-			remain_min = n;
+	if (word_cnt > 15) {
+		for (i = 8; i > 1; i--) {
+			n = word_cnt % i;
+			if (n == 0)
+				break;
+		}
+		word_cnt += n;
 	}
 
-	n = (remain_min * 8); /*word to byte*/
-	new_size += n;
-
+	new_size = word_cnt * 8;
 	return new_size;
 }
 
