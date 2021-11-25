@@ -1674,6 +1674,8 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	struct rx_cap *prxcap = &hdev->rxcap;
 	u32 aud_flag = 0;
 
+	if (blockbuf[0] == 0x0)
+		pr_info(EDID "unkonw Extension Tag detected, continue\n");
 	if (blockbuf[0] != 0x02)
 		return -1; /* not a CEA BLOCK. */
 	end = blockbuf[2]; /* CEA description. */
@@ -1685,7 +1687,8 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	prxcap->AUD_count = 0;
 
 	edid_y420cmdb_reset(&hdev->hdmi_info);
-
+	if (end > 126)
+		return 0;
 	for (offset = 4 ; offset < end ; ) {
 		tag = blockbuf[offset] >> 5;
 		count = blockbuf[offset] & 0x1f;
