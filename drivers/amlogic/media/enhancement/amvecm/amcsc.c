@@ -421,6 +421,8 @@ static enum vframe_source_type_e pre_src_type[VD_PATH_MAX] = {
 };
 
 static unsigned int vd_path_max = VD_PATH_MAX;
+static unsigned int vpp_top_max = VPP_TOP_MAX_S;
+
 
 uint cur_csc_type[VD_PATH_MAX] = {0xffff, 0xffff};
 module_param_array(cur_csc_type, uint, &vd_path_max, 0444);
@@ -625,9 +627,9 @@ static uint cur_hlg_support;
 module_param(cur_hlg_support, uint, 0664);
 MODULE_PARM_DESC(cur_hlg_support, "\n cur_hlg_support\n");
 
-static uint cur_color_fmt;
-module_param(cur_color_fmt, uint, 0664);
-MODULE_PARM_DESC(cur_color_fmt, "\n cur_color_fmt\n");
+static uint cur_color_fmt[VPP_TOP_MAX_S];
+module_param_array(cur_color_fmt, uint, &vpp_top_max, 0664);
+MODULE_PARM_DESC(cur_color_fmt, "\n current cur_color_fmt\n");
 
 static uint range_control;
 module_param(range_control, uint, 0664);
@@ -3942,7 +3944,8 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 EXPORT_SYMBOL(sink_hdr_support);
 
 int signal_type_changed(struct vframe_s *vf,
-			struct vinfo_s *vinfo, enum vd_path_e vd_path)
+			struct vinfo_s *vinfo, enum vd_path_e vd_path,
+			enum vpp_index vpp_index)
 {
 	u32 signal_type = 0;
 	u32 default_signal_type;
@@ -4151,10 +4154,10 @@ int signal_type_changed(struct vframe_s *vf,
 		change_flag |= SIG_COLORIMETRY_SUPPORT;
 		cur_colorimetry_support = vinfo->hdr_info.colorimetry_support;
 	}
-	if (cur_color_fmt != vinfo->viu_color_fmt) {
+	if (cur_color_fmt[vpp_index] != vinfo->viu_color_fmt) {
 		pr_csc(1, "color format changed.\n");
 		change_flag |= SIG_OP_CHG;
-		cur_color_fmt = vinfo->viu_color_fmt;
+		cur_color_fmt[vpp_index] = vinfo->viu_color_fmt;
 	}
 	if (cur_hlg_support != (vinfo->hdr_info.hdr_support & 0x8)) {
 		pr_csc(1, "Tx HLG support changed.\n");
@@ -7752,7 +7755,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 
 	if (vf && vinfo)
 		signal_change_flag =
-			signal_type_changed(vf, vinfo, vd_path);
+			signal_type_changed(vf, vinfo, vd_path, vpp_index);
 
 	if ((flags & CSC_FLAG_CHECK_OUTPUT) &&
 	    (signal_change_flag & SIG_PRI_INFO)) {
@@ -8027,6 +8030,12 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	#endif
 	else
 		vinfo = get_current_vinfo();
+
+	if (is_vpp1(VD2_PATH) &&
+		((vd_path == VD2_PATH &&
+		vpp_index != VPP_TOP1))) {
+		return 0;
+	}
 
 	pr_csc(1, "%s: vd_path = %d vpp_index = %d\n",
 		__func__, vd_path, vpp_index);
