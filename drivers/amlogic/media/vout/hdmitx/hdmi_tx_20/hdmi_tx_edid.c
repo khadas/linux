@@ -1911,7 +1911,8 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	prxcap->AUD_count = 0;
 
 	edid_y420cmdb_reset(&hdev->hdmi_info);
-
+	if (end > 126)
+		return 0;
 	for (offset = 4 ; offset < end ; ) {
 		tag = blockbuf[offset] >> 5;
 		count = blockbuf[offset] & 0x1f;
