@@ -497,7 +497,8 @@ struct tv_input_info_s {
 	s16 brightness_off[8][2];
 	s32 content_fps;
 	s32 gd_rf_adjust;
-	s32 debug_buf[498];
+	s32 tid;
+	s32 debug_buf[497];
 };
 
 #define PREFIX_SEI_NUT_NAL 39

@@ -4288,7 +4288,7 @@ static void bypass_pps_sr_gamma_gainoff(int flag)
 {
 	pr_dolby_dbg("%s: %d\n", __func__, flag);
 
-	if (flag | 1) {
+	if (flag & 1) {
 		if (is_meson_t3() || is_meson_t5w()) {
 			/*from t3, 1d93 bit0 change to 1d26 bit8*/
 			VSYNC_WR_DV_REG_BITS(VPP_MISC, 1, 8, 1);
@@ -4297,9 +4297,9 @@ static void bypass_pps_sr_gamma_gainoff(int flag)
 			VSYNC_WR_DV_REG_BITS(VPP_DOLBY_CTRL, 1, 0, 1);
 		}
 	}
-	if (flag | 2)
+	if (flag & 2)
 		VSYNC_WR_DV_REG_BITS(VPP_DOLBY_CTRL, 1, 1, 1);
-	if (flag | 4)
+	if (flag & 4)
 		VSYNC_WR_DV_REG_BITS(VPP_DOLBY_CTRL, 1, 2, 1);
 }
 static void osd_path_enable(int on)
@@ -9603,6 +9603,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 		/*config source fps and gd_rf_adjust, dmcfg_id*/
 		tv_input_info->content_fps = content_fps * (1 << 16);
 		tv_input_info->gd_rf_adjust = gd_rf_adjust;
+		tv_input_info->tid = cur_pic_mode;
 
 		if (debug_dolby & 0x400)
 			do_gettimeofday(&start);
