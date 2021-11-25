@@ -635,8 +635,9 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 1, 1); //16*16 align
 	}
 	// little window
-	if (frc_top->hsize * frc_top->vsize <=
-		frc_top->out_hsize * frc_top->out_vsize) {
+	if (frc_top->hsize * frc_top->vsize <
+		frc_top->out_hsize * frc_top->out_vsize &&
+		frc_top->out_hsize * frc_top->out_vsize >= 3840 * 1080) {
 		frc_top->is_me1mc4 = 1;/*me:mc 1:4*/
 		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 0, 1); //16*16 align
 		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 1, 1); //16*16 align

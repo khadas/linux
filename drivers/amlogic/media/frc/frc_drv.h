@@ -41,9 +41,10 @@
 // frc_20211104 frc add clkctrl workaround
 // frc_20211109 frc chg demo mode
 // frc_20211118 frc chg set max line to vlock module
+// frc_20211119 frc set off when vf pic type
 
-#define FRC_FW_VER			"2021-1119 frc set off when vf pic type"
-#define FRC_KERDRV_VER                  1158
+#define FRC_FW_VER			"2021-1125 frc chg me little_window fhd"
+#define FRC_KERDRV_VER                  1309
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
