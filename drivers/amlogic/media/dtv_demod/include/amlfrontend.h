@@ -21,6 +21,7 @@
 /*  V1.0.28  fix the hang when read mplp info in DVBT system*/
 /*  V1.0.29  add auto recognition t/t2 r842 config*/
 /*  V1.0.30  DVBT2 no audio output after random source switch*/
+/*  V1.1.31  t5w back trunk,version fix              */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -37,9 +38,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.0.30"
-#define DTVDEMOD_VER	"2021/11/09: DVBT2 no audio output after random source switch"
+#define AMLDTVDEMOD_VER "V1.1.31"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
+#define DTVDEMOD_VER	"2021/11/26: t5w back trunk,version fix "
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)

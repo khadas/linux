@@ -56,15 +56,6 @@
 #include <linux/amlogic/media/vout/vdac_dev.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 
-/****************************************************/
-/*  V1.0.17  DVBS blind scan change                 */
-/*  V1.0.18  dvbt 8K QPSK search failed            */
-/*  V1.0.19  22K will off after diseqc send        */
-/*  V1.0.20  ci card mode do not change in other mode */
-/*  V1.0.21  dvbc C/N worse                         */
-/*  V1.1.21  T5W chip bringup                        */
-/****************************************************/
-
 MODULE_PARM_DESC(auto_search_std, "\n\t\t atsc-c std&hrc search");
 static unsigned int auto_search_std;
 module_param(auto_search_std, int, 0644);
@@ -6470,12 +6461,11 @@ struct dvb_frontend *aml_dtvdm_attach(const struct demod_config *config)
 			aml_dtvdm_ops.delsys[5] = SYS_DVBT2;
 			aml_dtvdm_ops.delsys[6] = SYS_DVBT;
 			aml_dtvdm_ops.delsys[7] = SYS_DVBC_ANNEX_B;
-			aml_dtvdm_ops.delsys[8] = SYS_DTMB;
 #ifdef CONFIG_AMLOGIC_DVB_COMPAT
-			aml_dtvdm_ops.delsys[9] = SYS_ANALOG;
+			aml_dtvdm_ops.delsys[8] = SYS_ANALOG;
 #endif
 			strcpy(aml_dtvdm_ops.info.name,
-					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT/DTMB ddemod t5w");
+					"Aml DVB-C/T/T2/S/S2/ATSC/ISDBT ddemod t5w");
 			break;
 
 		default:
