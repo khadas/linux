@@ -1439,7 +1439,7 @@
 		};
 		partition@7 {
 			label = "system";
-			reg = <0x0 0x8000000>;
+			reg = <0x0 0x8800000>;
 		};
 		partition@8 {
 			label = "data";
