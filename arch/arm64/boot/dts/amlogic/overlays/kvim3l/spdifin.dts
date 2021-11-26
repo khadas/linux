@@ -1,0 +1,46 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	fragment@0 {
+		target = <&aml_sound>;
+
+		__overlay__ {
+			aml-audio-card,dai-link@4 {
+				mclk-fs = <128>;
+				/* suffix-name, sync with android audio hal
+				* what's the dai link used for
+				*/
+				suffix-name = "alsaPORT-spdif";
+				cpu {
+					sound-dai = <&aml_spdif>;
+					system-clock-frequency = <6144000>;
+				};
+				codec {
+					sound-dai = <&dummy_codec>;
+				};
+			};
+		};
+	};
+
+	fragment@1 {
+		target = <&aml_spdif>;
+
+		__overlay__ {
+			pinctrl-0 = <&spdifout &spdifin>;
+		};
+	};
+
+	fragment@2 {
+		target = <&pinctrl_periphs>;
+
+		__overlay__ {
+			spdifin: spdifin {
+			 	mux {/* GPIOH_5 */
+					groups = "spdif_in_h";
+	   				function = "spdif_in";
+				};
+			 };
+		};
+	};
+};
