@@ -24,6 +24,7 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
+#include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/highmem.h>
 #include <linux/page-flags.h>
 #include <linux/vmalloc.h>
@@ -3587,6 +3588,7 @@ void vdin_enable_module(struct vdin_dev_s *devp, bool enable)
 {
 	unsigned int offset = devp->addr_offset;
 
+	vdin_dmc_ctrl(devp, 1);
 	if (enable)	{
 		/* set VDIN_MEAS_CLK_CNTL, select XTAL clock */
 		/* if (is_meson_gxbb_cpu()) */
@@ -5907,6 +5909,32 @@ void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int onoff, unsigned
 	} else {
 		wr_bits(offset, VDIN_ASFIFO_CTRL0, 0,
 			VDI6_BIST_EN_BIT, VDI6_BIST_EN_WID);
+	}
+}
+
+void vdin_dmc_ctrl(struct vdin_dev_s *devp, bool onoff)
+{
+	unsigned int reg;
+
+	if (onoff) {
+		/* for 4k nr, dmc vdin write band width not good
+		 * dmc write 1 set to supper urgent
+		 */
+		if (devp->dtdata->hw_ver == VDIN_HW_T5 ||
+			devp->dtdata->hw_ver == VDIN_HW_T5W) {
+			reg = READ_DMCREG(0x6c) & (~(1 << 17));
+			if (!(reg & (1 << 18)))
+				WRITE_DMCREG(0x6c, reg | (1 << 18));
+		}
+	} else {
+		/* for 4k nr, dmc vdin write band width not good
+		 * dmc write 1 set to urgent
+		 */
+		if (devp->dtdata->hw_ver == VDIN_HW_T5 ||
+			devp->dtdata->hw_ver == VDIN_HW_T5W) {
+			reg = READ_DMCREG(0x6c) & (~(1 << 18));
+			WRITE_DMCREG(0x6c, reg | (1 << 17));
+		}
 	}
 }
 
