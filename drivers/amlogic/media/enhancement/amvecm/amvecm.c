@@ -82,7 +82,6 @@
 #include "cabc_aadc/cabc_aadc_fw.h"
 #include "hdr/am_hdr10_tmo_fw.h"
 #include "hdr/gamut_convert.h"
-#include "linux/amlogic/media/video_sink/video.h"
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -1843,12 +1842,6 @@ int amvecm_on_vs(struct vframe_s *vf,
 #endif
 	if (probe_ok == 0)
 		return 0;
-
-	if (is_vpp1(VD2_PATH) &&
-		((vd_path == VD2_PATH &&
-		vpp_index != VPP_TOP1))) {
-		return 0;
-	}
 
 	if (vd_path == VD1_PATH)
 		set_vpp_enh_clk(toggle_vf, vf);
