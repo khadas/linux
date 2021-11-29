@@ -473,6 +473,7 @@ static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev)
 		return;
 
 	edidinfo_attach_to_vinfo(hdev);
+	memset(&info->hdr_info, 0, sizeof(struct hdr_info));
 	hdmitx_vdev.dv_info = &dv_dummy;
 }
 
@@ -548,6 +549,7 @@ static int set_disp_mode_auto(void)
 
 	hdev->cur_VIC = HDMI_0_UNKNOWN;
 /* if vic is HDMI_0_UNKNOWN, hdmitx21_set_display will disable HDMI */
+	edidinfo_detach_to_vinfo(hdev);
 	ret = hdmitx21_set_display(hdev, vic);
 
 	if (ret >= 0) {
