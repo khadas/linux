@@ -726,11 +726,30 @@ static const struct usb_device_id bt_intep_blacklist[] = {
 	{ }
 };
 
+static const struct usb_chip_id usb_h06_blacklist[] = {
+	{ USB_CHIP(MESON_CPU_MAJOR_ID_T3, 0xA)},
+	{ USB_CHIP(MESON_CPU_MAJOR_ID_T5W, 0xA)},
+	{ }
+};
+
+bool usb_find_chip(void)
+{
+	const struct usb_chip_id *id;
+
+	for (id = usb_h06_blacklist; id->match_flags; ++id) {
+		if ((get_cpu_type() ==  id->chip_id) &&
+			(get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR) == id->version_id))
+			return true;
+	}
+
+	return false;
+}
+
 bool bt_intep_is_blacklist(struct usb_device *udev)
 {
 	const struct usb_device_id *id;
 
-	if (!(is_meson_t3_cpu() && is_meson_rev_a()))
+	if (!usb_find_chip())
 		return false;
 
 	for (id = bt_intep_blacklist; id->match_flags; ++id) {
@@ -745,7 +764,7 @@ bool bt_epaddr_is_blacklist(struct usb_endpoint_descriptor *epd)
 	const struct usb_device_id *id;
 	unsigned int address;
 
-	if (!(is_meson_t3_cpu() && is_meson_rev_a()))
+	if (!usb_find_chip())
 		return false;
 
 	for (id = usb_endpoint_blacklist; id->match_flags; ++id) {
