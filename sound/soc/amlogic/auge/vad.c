@@ -22,6 +22,8 @@
 #include <sound/control.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
+#include <linux/clk-provider.h>
+
 
 #include <linux/sched.h>
 #include <linux/kthread.h>
@@ -430,13 +432,19 @@ static irqreturn_t vad_fs_isr(int irq, void *data)
 
 static int vad_set_clks(struct vad *p_vad, bool enable)
 {
+	char *clk_name = NULL;
+
+	clk_name = (char *)__clk_get_name(p_vad->pll);
+
 	if (enable) {
 		int ret = 0;
 
 		/* enable clock gate */
 		ret = clk_prepare_enable(p_vad->gate);
-
-		clk_set_rate(p_vad->pll, 25000000);
+		if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll"))
+			clk_set_rate(p_vad->pll, 1806336 * 1000);
+		else
+			clk_set_rate(p_vad->pll, 25000000);
 		/* enable clock */
 		ret = clk_prepare_enable(p_vad->pll);
 		if (ret) {

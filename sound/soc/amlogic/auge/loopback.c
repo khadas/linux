@@ -10,6 +10,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 
 #include <sound/pcm_params.h>
 
@@ -912,6 +913,7 @@ static int loopback_dai_trigger(struct snd_pcm_substream *ss,
 static void datain_pdm_set_clk(struct loopback *p_loopback)
 {
 	unsigned int pdm_sysclk_srcpll_freq, pdm_dclk_srcpll_freq;
+	char *clk_name = NULL;
 
 	pdm_sysclk_srcpll_freq = clk_get_rate(p_loopback->pdm_sysclk_srcpll);
 	pdm_dclk_srcpll_freq = clk_get_rate(p_loopback->pdm_dclk_srcpll);
@@ -923,11 +925,17 @@ static void datain_pdm_set_clk(struct loopback *p_loopback)
 #else
 	clk_set_rate(p_loopback->pdm_sysclk, 133333351);
 
-	if (pdm_dclk_srcpll_freq == 0)
-		clk_set_rate(p_loopback->pdm_dclk_srcpll, 24576000);
-	else
-		pr_info("pdm pdm_dclk_srcpll:%lu\n",
-			clk_get_rate(p_loopback->pdm_dclk_srcpll));
+	clk_name = (char *)__clk_get_name(p_loopback->pdm_dclk_srcpll);
+	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
+		pr_info("hifipll set 1806336*1000\n");
+		clk_set_rate(p_loopback->pdm_dclk_srcpll, 1806336 * 1000);
+	} else {
+		if (pdm_dclk_srcpll_freq == 0)
+			clk_set_rate(p_loopback->pdm_dclk_srcpll, 24576000);
+		else
+			pr_info("pdm pdm_dclk_srcpll:%lu\n",
+				clk_get_rate(p_loopback->pdm_dclk_srcpll));
+	}
 #endif
 
 	clk_set_rate(p_loopback->pdm_dclk,

@@ -13,6 +13,7 @@
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/clk-provider.h>
 
 #include <sound/soc.h>
 #include <sound/tlv.h>
@@ -843,7 +844,7 @@ static int aml_pdm_dai_set_sysclk(struct snd_soc_dai *cpu_dai,
 	struct aml_pdm *p_pdm = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned int sysclk_srcpll_freq, dclk_srcpll_freq;
 	unsigned int dclk_idx = p_pdm->dclk_idx;
-
+	char *clk_name = NULL;
 	/* lowpower, force dclk to 768k */
 	if (p_pdm->islowpower)
 		dclk_idx = 2;
@@ -852,11 +853,17 @@ static int aml_pdm_dai_set_sysclk(struct snd_soc_dai *cpu_dai,
 	dclk_srcpll_freq = clk_get_rate(p_pdm->dclk_srcpll);
 	clk_set_rate(p_pdm->clk_pdm_sysclk, 133333351);
 
-	if (dclk_srcpll_freq == 0)
-		clk_set_rate(p_pdm->dclk_srcpll, 24576000 * 20);
+	clk_name = (char *)__clk_get_name(p_pdm->dclk_srcpll);
+	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
+		pr_info("%s:set hifi pll\n", __func__);
+		clk_set_rate(p_pdm->dclk_srcpll, 1806336 * 1000);
+	} else {
+		if (dclk_srcpll_freq == 0)
+			clk_set_rate(p_pdm->dclk_srcpll, 24576000 * 20);
 
-	clk_set_rate(p_pdm->clk_pdm_dclk,
-		pdm_dclkidx2rate(dclk_idx));
+		clk_set_rate(p_pdm->clk_pdm_dclk,
+			pdm_dclkidx2rate(dclk_idx));
+	}
 
 	pr_info("\n%s, pdm_sysclk:%lu pdm_dclk:%lu, dclk_srcpll:%lu\n",
 		__func__,

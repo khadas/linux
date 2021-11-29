@@ -173,10 +173,18 @@ int get_resample_version(void)
 static int resample_clk_set(struct audioresample *p_resample, int output_sr)
 {
 	int ret = 0;
+	char *clk_name;
 
-	/* defaule tdm out mclk to resample clk */
-	/* for same with earctx, so need *5 */
-	clk_set_rate(p_resample->pll, output_sr * CLK_RATIO * 2 * 20);
+	clk_name = (char *)__clk_get_name(p_resample->pll);
+	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
+		pr_info("%s:set hifi pll\n", __func__);
+		clk_set_rate(p_resample->pll, 1806336 * 1000);
+	} else {
+		/* defaule tdm out mclk to resample clk */
+		/* for same with earctx, so need *5 */
+		clk_set_rate(p_resample->pll, output_sr * CLK_RATIO * 2 * 20);
+	}
+
 	clk_set_rate(p_resample->sclk, output_sr * CLK_RATIO);
 	clk_set_rate(p_resample->clk, output_sr * CLK_RATIO);
 

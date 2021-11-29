@@ -21,6 +21,7 @@
 #include <sound/control.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
+#include <linux/clk-provider.h>
 
 #include <linux/amlogic/pm.h>
 #include <linux/amlogic/clk_measure.h>
@@ -306,10 +307,17 @@ static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq)
 {
 	unsigned int ratio = aml_mpll_mclk_ratio(freq);
 	unsigned int mpll_freq = 0;
-
+	char *clk_name;
 	p_tdm->setting.sysclk = freq;
 
-	mpll_freq = freq * ratio;
+	clk_name = (char *)__clk_get_name(p_tdm->clk);
+	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll"))
+		mpll_freq = 1806336 * 1000;
+	else
+		mpll_freq = freq * ratio;
+
+	pr_info("%s:set mpll_freq: %d\n", __func__, mpll_freq);
+
 	if (mpll_freq != p_tdm->last_mpll_freq) {
 		clk_set_rate(p_tdm->clk, mpll_freq);
 		p_tdm->last_mpll_freq = mpll_freq;
@@ -1454,36 +1462,42 @@ static int aml_dai_tdm_mute_stream(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
-static int aml_set_default_tdm_clk(struct aml_tdm *tdm)
+static int aml_set_default_tdm_clk(struct aml_tdm *p_tdm)
 {
 	unsigned int mclk = 12288000;
 	unsigned int ratio = aml_mpll_mclk_ratio(mclk);
 	unsigned int lrclk_hi;
 	unsigned int pll = mclk * ratio;
+	char *clk_name;
+
 	/*set default i2s  timing sequence*/
 	int fmt = SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_I2S
 	| SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CONT;
 
-	aml_tdm_set_fmt(tdm, fmt, 1);
+	aml_tdm_set_fmt(p_tdm, fmt, 1);
 	/*set default i2s clk for codec sequence*/
 
 	/*set default i2s clk for codec sequence*/
-	tdm->setting.bclk_lrclk_ratio = 64;
-	tdm->setting.sysclk_bclk_ratio = 4;
-	lrclk_hi = tdm->setting.bclk_lrclk_ratio - 1;
+	p_tdm->setting.bclk_lrclk_ratio = 64;
+	p_tdm->setting.sysclk_bclk_ratio = 4;
+	lrclk_hi = p_tdm->setting.bclk_lrclk_ratio - 1;
 
-	aml_tdm_set_lrclkdiv(tdm->actrl, tdm->clk_sel,
-		tdm->setting.sysclk_bclk_ratio - 1);
+	aml_tdm_set_lrclkdiv(p_tdm->actrl, p_tdm->clk_sel,
+		p_tdm->setting.sysclk_bclk_ratio - 1);
 
-	aml_tdm_set_bclk_ratio(tdm->actrl,
-		tdm->clk_sel, lrclk_hi / 2, lrclk_hi);
+	aml_tdm_set_bclk_ratio(p_tdm->actrl,
+		p_tdm->clk_sel, lrclk_hi / 2, lrclk_hi);
 
-	clk_prepare_enable(tdm->mclk);
-	clk_set_rate(tdm->clk, pll);
-	clk_set_rate(tdm->mclk, mclk);
+	clk_name = (char *)__clk_get_name(p_tdm->clk);
+	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll"))
+		pll = 1806336 * 1000;
 
-	tdm->last_mclk_freq = mclk;
-	tdm->last_mpll_freq = pll;
+	clk_prepare_enable(p_tdm->mclk);
+	clk_set_rate(p_tdm->clk, pll);
+	clk_set_rate(p_tdm->mclk, mclk);
+
+	p_tdm->last_mclk_freq = mclk;
+	p_tdm->last_mpll_freq = pll;
 
 	return 0;
 }

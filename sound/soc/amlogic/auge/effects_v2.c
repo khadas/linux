@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
+#include <linux/clk-provider.h>
 
 #include "effects_v2.h"
 #include "effects_hw_v2.h"
@@ -109,6 +110,7 @@ bool is_aed_reserve_frddr(void)
 static int eqdrc_clk_set(struct audioeffect *p_effect)
 {
 	int ret = 0;
+	char *clk_name = NULL;
 
 	ret = clk_prepare_enable(p_effect->clk);
 	if (ret) {
@@ -116,6 +118,10 @@ static int eqdrc_clk_set(struct audioeffect *p_effect)
 			ret);
 		return -EINVAL;
 	}
+
+	clk_name = (char *)__clk_get_name(p_effect->srcpll);
+	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll"))
+		clk_set_rate(p_effect->srcpll, 1806336 * 1000);
 
 	ret = clk_prepare_enable(p_effect->srcpll);
 	if (ret) {
