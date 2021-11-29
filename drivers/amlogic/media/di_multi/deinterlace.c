@@ -5146,12 +5146,6 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			//pre_run_flag = DI_RUN_FLAG_PAUSE;
 			return 12;
 		}
-		sgn = di_vframe_2_sgn(vframe);
-		if (sgn != EDI_SGN_4K &&
-		    !pch->ponly &&
-		    queue_empty(channel, QUEUE_LOCAL_FREE))
-			return 35;
-
 		/**************************************************/
 		/*mem check*/
 		memcpy(&ppre->vfm_cpy, vframe, sizeof(ppre->vfm_cpy));
@@ -5193,21 +5187,27 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				       ppre->sgn_lv = sgn;
 			}
 		}
+
+		sgn = di_vframe_2_sgn(vframe);
+		if (sgn < EDI_SGN_4K &&
+		    !pch->ponly &&
+		    queue_empty(channel, QUEUE_LOCAL_FREE))
+			return 35;
+
 		/**************************************************/
+		nins = nins_get(pch);
+		if (!nins)
+			return 14;
+		if (nins->c.cnt < 3) {
+			if (nins->c.cnt == 0)
+				dbg_timer(channel, EDBG_TIMER_1_PRE_CFG);
+			else if (nins->c.cnt == 1)
+				dbg_timer(channel, EDBG_TIMER_2_PRE_CFG);
+			else if (nins->c.cnt == 2)
+				dbg_timer(channel, EDBG_TIMER_3_PRE_CFG);
+		}
 
-			nins = nins_get(pch);
-			if (!nins)
-				return 14;
-			if (nins->c.cnt < 3) {
-				if (nins->c.cnt == 0)
-					dbg_timer(channel, EDBG_TIMER_1_PRE_CFG);
-				else if (nins->c.cnt == 1)
-					dbg_timer(channel, EDBG_TIMER_2_PRE_CFG);
-				else if (nins->c.cnt == 2)
-					dbg_timer(channel, EDBG_TIMER_3_PRE_CFG);
-			}
-
-			vframe = &nins->c.vfm_cp;
+		vframe = &nins->c.vfm_cp;
 
 		if (vframe->type & VIDTYPE_COMPRESS) {
 			/* backup the original vf->width/height for bypass case */
