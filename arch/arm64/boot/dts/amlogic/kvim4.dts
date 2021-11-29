@@ -910,6 +910,15 @@
 	pinctrl-0=<&i2c0_ao_pins1>;
 	clock-frequency = <100000>; /* default 100k */
 
+	khadas-mcu {
+		compatible = "khadas-mcu";
+		reg = <0x18>;
+		fan,trig_temp_level0 = <60>;
+		fan,trig_temp_level1 = <80>;
+		fan,trig_temp_level2 = <100>;
+		hwver = "VIM4.V11"; /* Will be updated in uboot. */
+	};
+
 	khadas-rtc {
 		compatible = "khadas-rtc";
 		reg = <0x51>;
