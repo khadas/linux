@@ -487,6 +487,13 @@ config HISI_HIKEY_USB
 	help
 	  If you say yes here you get support for usb functionality of HiSilicon Hikey Platform.
 
+config KHADAS_MCU
+	tristate "Khadas MCU"
+	default y
+	help
+		This driver is for Khadas MCU.
+		Control fan && WoL, and the power for CPU
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
