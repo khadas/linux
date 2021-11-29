@@ -5682,9 +5682,7 @@ static inline bool is_tv_panel(void)
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_TM2 ||
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5 ||
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5W))
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3))
 		return true;
 	else
 		return false;
