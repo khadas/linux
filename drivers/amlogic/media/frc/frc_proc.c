@@ -203,8 +203,7 @@ irqreturn_t frc_input_isr(int irq, void *dev_id)
 	if (!devp->probe_ok || !devp->power_on_flag)
 		return IRQ_HANDLED;
 
-	me_undown_read(devp);
-
+	inp_undone_read(devp);
 	if (devp->dbg_reg_monitor_i)
 		frc_in_reg_monitor(devp);
 
@@ -259,8 +258,12 @@ irqreturn_t frc_output_isr(int irq, void *dev_id)
 	if (!devp->probe_ok || !devp->power_on_flag)
 		return IRQ_HANDLED;
 
-	mc_undown_read(devp);
+	me_undone_read(devp);
+	mc_undone_read(devp);
+	vp_undone_read(devp);
+
 	get_vout_info(devp);
+
 	if (devp->dbg_reg_monitor_o)
 		frc_out_reg_monitor(devp);
 
@@ -931,7 +934,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 			} else if (devp->frc_sts.frame_cnt == framedelay + 1) {
 				forceidx = frc_frame_forcebuf_enable(1);
 				frc_frame_forcebuf_count(forceidx);
-				pr_frc(log, "d-e_force cnt %d, idx %d\n",
+				pr_frc(log, "b-e_force cnt %d, idx %d\n",
 				devp->frc_sts.frame_cnt, forceidx);
 				devp->frc_sts.frame_cnt++;
 			} else if (devp->frc_sts.frame_cnt > framedelay + 1 &&
@@ -940,14 +943,14 @@ void frc_state_handle(struct frc_dev_s *devp)
 				frc_frame_forcebuf_count(forceidx);
 				frc_input_fid =
 				READ_FRC_REG(FRC_REG_PAT_POINTER) >> 4 & 0xF;
-				pr_frc(log, "d-e_force cnt %d, readidx %d\n",
+				pr_frc(log, "b-e_force cnt %d, readidx %d\n",
 				devp->frc_sts.frame_cnt, frc_input_fid);
 				devp->frc_sts.frame_cnt++;
 			} else if (devp->frc_sts.frame_cnt ==
 					framedelay * 2 + 1) {
 				frc_frame_forcebuf_enable(0);
 				frc_state_change_finish(devp);
-				pr_frc(log, "d-e_sm state change %s -> %s\n",
+				pr_frc(log, "b-e_sm state change %s -> %s\n",
 						frc_state_ary[cur_state],
 						frc_state_ary[new_state]);
 				devp->frc_sts.frame_cnt = 0;
@@ -1037,3 +1040,19 @@ int frc_init_out_line(void)
 		vfb = (vfb / 4) * 3;  // 3/4 point of front vblank, default
 	return vfb;
 }
+
+void frc_vpp_vs_ir_chk_film(struct frc_dev_s *frc_devp)
+{
+	if (!frc_devp->probe_ok || !frc_devp->power_on_flag)
+		return;
+	if (frc_devp->ud_dbg.res0_dbg_en == 1) {
+		if (!frc_devp->frc_fw_pause)
+			frc_devp->frc_fw_pause = 1;
+		pr_frc(6, "vscnt=%7d, glb=%10d, cntglb=%7d\n",
+			frc_devp->frc_sts.vs_cnt,
+			READ_FRC_REG(FRC_FD_DIF_GL),
+			READ_FRC_REG(FRC_FD_DIF_COUNT_GL));
+	} // restore prev setting ,need first set fw_pause=0 by
+	// echo frc_pause 0 > /sys/class/frc/debug
+}
+

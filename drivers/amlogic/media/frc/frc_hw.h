@@ -38,6 +38,11 @@
 #define MAX_MC_Y_VRANG   64  // one side of Luma range(under MC scale)
 #define MAX_MC_C_VRANG   64  // one side of Chroma range
 
+#define MAX_INP_UNDONE_CNT         1
+#define MAX_ME_UNDONE_CNT          1
+#define MAX_MC_UNDONE_CNT          1
+#define MAX_VP_UNDONE_CNT          1
+
 extern void __iomem *frc_clk_base;
 extern void __iomem *vpu_base;
 void frc_clk_init(struct frc_dev_s *frc_devp);
@@ -69,8 +74,8 @@ void frc_mtx_set(struct frc_dev_s *frc_devp);
 void frc_crc_enable(struct frc_dev_s *frc_devp);
 void frc_me_crc_read(struct frc_dev_s *frc_devp);
 void frc_mc_crc_read(struct frc_dev_s *frc_devp);
-void me_undown_read(struct frc_dev_s *frc_devp);
-void mc_undown_read(struct frc_dev_s *frc_devp);
+void me_undone_read(struct frc_dev_s *frc_devp);
+void mc_undone_read(struct frc_dev_s *frc_devp);
 void frc_dump_fixed_table(void);
 void frc_reset(u32 onoff);
 void frc_mc_reset(u32 onoff);
@@ -78,4 +83,7 @@ void frc_force_secure(u32 onoff);
 void frc_osdbit_setfalsecolor(u32 falsecolor);
 u8 frc_frame_forcebuf_enable(u8 enable);
 void frc_frame_forcebuf_count(u8 forceidx);
+void inp_undone_read(struct frc_dev_s *frc_devp);
+void vp_undone_read(struct frc_dev_s *frc_devp);
+
 #endif

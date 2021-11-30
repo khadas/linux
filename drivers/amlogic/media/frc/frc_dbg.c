@@ -93,8 +93,9 @@ void frc_status(struct frc_dev_s *devp)
 	       devp->in_sts.vs_duration, (ulong)devp->in_sts.vs_timestamp);
 	pr_frc(0, "frc out vs_duration:%d timestamp:%ld\n",
 	       devp->out_sts.vs_duration, (ulong)devp->out_sts.vs_timestamp);
-	pr_frc(0, "int in vs_cnt:%d, vs_tsk_cnt:%d\n",
-		devp->in_sts.vs_cnt, devp->in_sts.vs_tsk_cnt);
+	pr_frc(0, "int in vs_cnt:%d, vs_tsk_cnt:%d, inp_err:0x%x\n",
+		devp->in_sts.vs_cnt, devp->in_sts.vs_tsk_cnt,
+		devp->ud_dbg.inp_undone_err);
 	pr_frc(0, "int out vs_cnt:%d, vs_tsk_cnt:%d\n",
 		devp->out_sts.vs_cnt, devp->out_sts.vs_tsk_cnt);
 	pr_frc(0, "frc_st vs_cnt:%d vf_repeat_cnt:%d vf_null_cnt:%d\n", devp->frc_sts.vs_cnt,
@@ -353,9 +354,12 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		}
 		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->ud_dbg.inpud_dbg_en = val1;
+		if (kstrtoint(parm[2], 10, &val1) == 0) {
 			devp->ud_dbg.meud_dbg_en = val1;
-		if (kstrtoint(parm[2], 10, &val1) == 0)
 			devp->ud_dbg.mcud_dbg_en = val1;
+			devp->ud_dbg.vpud_dbg_en = val1;
+		}
 		if (kstrtoint(parm[3], 10, &val1) == 0)
 			devp->ud_dbg.inud_time_en = val1;
 		if (kstrtoint(parm[4], 10, &val1) == 0)
@@ -425,6 +429,11 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			pr_frc(2, "set frc adj me out line is %d\n",
 				devp->out_line);
 		}
+	} else if (!strcmp(parm[0], "chk_motion")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->ud_dbg.res0_dbg_en = val1;
 	}
 exit:
 	kfree(buf_orig);

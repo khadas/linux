@@ -329,38 +329,114 @@ void frc_mc_crc_read(struct frc_dev_s *frc_devp)
 	}
 }
 
-void me_undown_read(struct frc_dev_s *frc_devp)
+void inp_undone_read(struct frc_dev_s *frc_devp)
 {
-	u32 val, me_ud_flag;
+	u32 inp_ud_flag;
 
 	if (!frc_devp)
 		return;
+	if (!frc_devp->probe_ok || !frc_devp->power_on_flag)
+		return;
+	inp_ud_flag = READ_FRC_REG(FRC_INP_UE_DBG) & 0x3f;
+	if (inp_ud_flag != 0) {
+		frc_devp->frc_sts.inp_undone_cnt++;
+		frc_devp->ud_dbg.inp_undone_err = inp_ud_flag;
+		WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x3f, 0, 6);
+		WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x0, 0, 6);
+		if (frc_devp->frc_sts.inp_undone_cnt >= MAX_INP_UNDONE_CNT) {
+			PR_ERR("inp_ud_err=0x%x, err_cnt = %d, frc reconfig\n",
+				inp_ud_flag, frc_devp->frc_sts.inp_undone_cnt);
+			frc_devp->frc_sts.re_config = true;
+		}
+	} else {
+		frc_devp->frc_sts.inp_undone_cnt = 0;
+		frc_devp->ud_dbg.inp_undone_err = inp_ud_flag;
+	}
+	if (frc_devp->ud_dbg.inpud_dbg_en &&
+		frc_devp->ud_dbg.inp_undone_err > 0 &&
+		frc_devp->frc_sts.inp_undone_cnt > 0) {
+		PR_ERR("inp_ud_err=0x%x, err_cnt = %d\n",
+			inp_ud_flag, frc_devp->frc_sts.inp_undone_cnt);
+	}
+}
+
+void me_undone_read(struct frc_dev_s *frc_devp)
+{
+	u32 me_ud_flag;
+
+	if (!frc_devp)
+		return;
+	if (!frc_devp->probe_ok || !frc_devp->power_on_flag)
+		return;
 	if (frc_devp->ud_dbg.meud_dbg_en) {
-		val = READ_FRC_REG(FRC_INP_UE_DBG);
-		me_ud_flag = val & 0x3e;
+		me_ud_flag = READ_FRC_REG(FRC_MEVP_RO_STAT0) & BIT_0;
 		if (me_ud_flag != 0) {
-			pr_frc(0, "invs_cnt = %d, me_ud_flag = %d\n",
-				frc_devp->in_sts.vs_cnt, me_ud_flag);
-			WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x3e, 1, 5);
-			WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x0, 1, 5);
+			frc_devp->frc_sts.me_undone_cnt++;
+			frc_devp->ud_dbg.me_undone_err = 1;
+			WRITE_FRC_BITS(FRC_MEVP_CTRL0, 1, 31, 1);
+			WRITE_FRC_BITS(FRC_MEVP_CTRL0, 0, 31, 1);
+			if (frc_devp->frc_sts.me_undone_cnt >= MAX_ME_UNDONE_CNT)
+				pr_frc(0, "outvs_cnt = %d, me_ud_err cnt= %d\n",
+					frc_devp->out_sts.vs_cnt,
+					frc_devp->frc_sts.me_undone_cnt);
+		} else {
+			frc_devp->ud_dbg.me_undone_err = 0;
+			frc_devp->frc_sts.me_undone_cnt = 0;
 		}
 	}
 }
 
-void mc_undown_read(struct frc_dev_s *frc_devp)
+void mc_undone_read(struct frc_dev_s *frc_devp)
 {
 	u32 val, mc_ud_flag;
 
 	if (!frc_devp)
 		return;
+	if (!frc_devp->probe_ok || !frc_devp->power_on_flag)
+		return;
 	if (frc_devp->ud_dbg.mcud_dbg_en) {
 		val = READ_FRC_REG(FRC_MC_DBG_MC_WRAP);
 		mc_ud_flag = (val >> 24) & 0x1;
 		if (mc_ud_flag != 0) {
-			pr_frc(0, "outvs_cnt = %d, mc_ud_flag = %d\n",
-				frc_devp->out_sts.vs_cnt, mc_ud_flag);
+			frc_devp->frc_sts.mc_undone_cnt++;
+			frc_devp->ud_dbg.mc_undone_err = 1;
 			WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 1, 21, 1);
 			WRITE_FRC_BITS(FRC_MC_HW_CTRL0, 0, 21, 1);
+			if (frc_devp->frc_sts.me_undone_cnt >= MAX_MC_UNDONE_CNT)
+				pr_frc(0, "outvs_cnt = %d, mc_ud_err cnt= %d\n",
+					frc_devp->out_sts.vs_cnt,
+					frc_devp->frc_sts.mc_undone_cnt);
+
+		} else {
+			frc_devp->ud_dbg.mc_undone_err = 0;
+			frc_devp->frc_sts.mc_undone_cnt = 0;
+		}
+	}
+}
+
+void vp_undone_read(struct frc_dev_s *frc_devp)
+{
+	u32 vp_ud_flag;
+
+	if (!frc_devp)
+		return;
+	if (!frc_devp->probe_ok || !frc_devp->power_on_flag)
+		return;
+	if (frc_devp->ud_dbg.vpud_dbg_en) {
+		vp_ud_flag = READ_FRC_REG(FRC_VP_TOP_STAT) & 0x03;
+		if (vp_ud_flag != 0) {
+			frc_devp->frc_sts.vp_undone_cnt++;
+			frc_devp->ud_dbg.vp_undone_err = vp_ud_flag;
+			WRITE_FRC_BITS(FRC_VP_TOP_CLR_STAT, 3, 0, 2);
+			WRITE_FRC_BITS(FRC_VP_TOP_CLR_STAT, 0, 0, 2);
+			if (frc_devp->frc_sts.vp_undone_cnt >= MAX_VP_UNDONE_CNT)
+				pr_frc(0, "outvs_cnt=%d, vperr=%x, errcnt=%d\n",
+					frc_devp->out_sts.vs_cnt,
+					frc_devp->ud_dbg.vp_undone_err,
+					frc_devp->frc_sts.vp_undone_cnt);
+		} else {
+			frc_devp->frc_sts.vp_undone_cnt = 0;
+			frc_devp->ud_dbg.vp_undone_err = 0;
 		}
 	}
 }
@@ -2139,5 +2215,4 @@ void frc_frame_forcebuf_count(u8 forceidx)
 	UPDATE_FRC_REG_BITS(FRC_REG_TOP_CTRL7,
 	(forceidx | forceidx << 4 | forceidx << 8), 0xFFF);//0-11bit
 }
-
 

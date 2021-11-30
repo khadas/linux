@@ -68,7 +68,7 @@ int frc_input_handle(struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts)
 	devp->frc_sts.vs_cnt++;
 	devp->vs_duration = timestamp - devp->vs_timestamp;
 	devp->vs_timestamp = timestamp;
-
+	frc_vpp_vs_ir_chk_film(devp);
 	/*vframe change detect and video state detects*/
 	frc_input_vframe_handle(devp, vf, cur_video_sts);
 

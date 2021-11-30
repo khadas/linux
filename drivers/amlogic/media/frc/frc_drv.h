@@ -43,8 +43,9 @@
 // frc_20211118 frc chg set max line to vlock module
 // frc_20211119 frc set off when vf pic type
 // frc_20211125 frc chg me little_window fhd
+// frc_20211202 fix frc reboot crash
 
-#define FRC_FW_VER			"2021-1202 fix frc reboot crash"
+#define FRC_FW_VER			"2021-1201 frc add detect error"
 #define FRC_KERDRV_VER                  1309
 
 #define FRC_DEVNO	1
@@ -211,6 +212,10 @@ struct st_frc_sts {
 	u32 re_cfg_cnt;
 	u32 out_put_mode_changed;
 	u32 re_config;
+	u32 inp_undone_cnt;
+	u32 me_undone_cnt;
+	u32 mc_undone_cnt;
+	u32 vp_undone_cnt;
 };
 
 struct st_frc_in_sts {
@@ -289,10 +294,40 @@ struct frc_crc_data_s {
 };
 
 struct frc_ud_s {
-	u32 meud_dbg_en;
-	u32 mcud_dbg_en;
-	u32 inud_time_en;
-	u32 outud_time_en;
+	unsigned inpud_dbg_en:1;
+	unsigned meud_dbg_en:1;
+	unsigned mcud_dbg_en:1;
+	unsigned vpud_dbg_en:1;
+	unsigned res0_dbg_en:1;
+	unsigned res1_dbg_en:1;
+	unsigned res2_dbg_en:1;
+	unsigned res3_dbg_en:1;
+
+	unsigned inud_time_en:1;
+	unsigned outud_time_en:1;
+	unsigned res1_time_en:1;
+	unsigned res2_time_en:1;
+	unsigned res3_time_en:1;
+	unsigned res4_time_en:1;
+	unsigned res5_time_en:1;
+	unsigned res6_time_en:1;
+
+	unsigned mc_undone_err:1;
+	unsigned me_undone_err:1;
+	// unsigned yuv444to422_err:1;
+	// unsigned blend_ud_err:1;
+	// unsigned me_dwscl_err:1;
+	// unsigned smp_nr_err:1;
+	// unsigned hme_dwscl_err:1;
+	unsigned inp_undone_err:6;
+
+	unsigned other6_err:1;
+	unsigned other5_err:1;
+	unsigned other4_err:1;
+	unsigned other3_err:1;
+	unsigned other2_err:1;
+	unsigned other1_err:1;
+	unsigned vp_undone_err:2;
 };
 
 struct frc_force_size_s {
