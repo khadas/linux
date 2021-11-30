@@ -828,8 +828,11 @@ static int aml_bl_update_status(struct backlight_device *bd)
 	struct aml_bl_drv_s *bdrv = (struct aml_bl_drv_s *)bl_get_data(bd);
 	unsigned int level;
 
-	if (bdrv->brightness_bypass)
+	if (bdrv->debug_force) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV)
+			BLPR("[%d]: %s: bypass for debug force\n", bdrv->index, __func__);
 		return 0;
+	}
 
 	mutex_lock(&bl_status_mutex);
 	bdrv->level_brightness = bl_brightness_level_map(bdrv,
@@ -2008,6 +2011,38 @@ static struct notifier_block bl_lcd_test_nb = {
 	.notifier_call = bl_lcd_test_notifier,
 };
 
+static int bl_gd_diming_func(struct aml_bl_drv_s *bdrv, unsigned int level)
+{
+	unsigned int level_new;
+
+	if (bdrv->brightness_bypass)
+		return 0;
+	if ((bdrv->state & BL_STATE_GD_EN) == 0)
+		return 0;
+
+	if (((bdrv->state & BL_STATE_LCD_ON) == 0) ||
+	    (bdrv->state & BL_STATE_BL_INIT_ON) ||
+	    ((bdrv->state & BL_STATE_BL_POWER_ON) == 0) ||
+	    ((bdrv->state & BL_STATE_BL_ON) == 0))
+		return 0;
+
+	/* atomic notifier, can't schedule or sleep */
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+		BLPR("[%d]: %s: level_gd: %d\n", bdrv->index, __func__, level);
+
+	bdrv->level_gd = (level < 10) ? 10 : ((level > 4095) ? 4095 : level);
+	level_new = bl_gd_level_map(bdrv, bdrv->level_gd);
+	aml_bl_set_level(bdrv, level_new);
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
+		BLPR("[%d]: %s: %u, final level: %u, state: 0x%x\n",
+		     bdrv->index, __func__, level,
+		     level_new, bdrv->state);
+	}
+
+	return 0;
+}
+
 static int bl_gd_dimming_notifier(struct notifier_block *nb,
 				  unsigned long event, void *data)
 {
@@ -2023,33 +2058,17 @@ static int bl_gd_dimming_notifier(struct notifier_block *nb,
 	if (bdrv->probe_done == 0)
 		return NOTIFY_DONE;
 
-	if (bdrv->brightness_bypass)
+	if (bdrv->debug_force) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV)
+			BLPR("[%d]: %s: bypass for debug force\n", bdrv->index, __func__);
 		return NOTIFY_DONE;
-	if ((bdrv->state & BL_STATE_GD_EN) == 0)
-		return NOTIFY_DONE;
+	}
 	if (!data)
-		return NOTIFY_DONE;
-
-	if (((bdrv->state & BL_STATE_LCD_ON) == 0) ||
-	    (bdrv->state & BL_STATE_BL_INIT_ON) ||
-	    ((bdrv->state & BL_STATE_BL_POWER_ON) == 0) ||
-	    ((bdrv->state & BL_STATE_BL_ON) == 0))
 		return NOTIFY_DONE;
 
 	/* atomic notifier, can't schedule or sleep */
 	level = *(unsigned int *)data;
-	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-		BLPR("[%d]: %s: level_gd: %d\n", bdrv->index, __func__, level);
-
-	bdrv->level_gd = (level < 10) ? 10 : ((level > 4095) ? 4095 : level);
-	level = bl_gd_level_map(bdrv, bdrv->level_gd);
-	aml_bl_set_level(bdrv, level);
-
-	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
-		BLPR("[%d]: %s: %u, final level: %u, state: 0x%x\n",
-		     bdrv->index, __func__, *(unsigned int *)data,
-		     level, bdrv->state);
-	}
+	bl_gd_diming_func(bdrv, level);
 
 	return NOTIFY_OK;
 }
@@ -2058,34 +2077,19 @@ static struct notifier_block bl_gd_dimming_nb = {
 	.notifier_call = bl_gd_dimming_notifier,
 };
 
-static int bl_gd_sel_notifier(struct notifier_block *nb,
-			      unsigned long event, void *data)
+static int bl_gd_sel_func(struct aml_bl_drv_s *bdrv, unsigned int sel)
 {
-	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 #endif
-	unsigned int *sel;
-
-	/* If we aren't interested in this event, skip it immediately */
-	if (event != LCD_EVENT_BACKLIGHT_GD_SEL)
-		return NOTIFY_DONE;
-
-	if (aml_bl_check_driver(bdrv))
-		return NOTIFY_DONE;
-	if (bdrv->probe_done == 0)
-		return NOTIFY_DONE;
 
 	if (bdrv->brightness_bypass)
-		return NOTIFY_DONE;
-	if (!data)
-		return NOTIFY_DONE;
+		return 0;
 
-	sel = (unsigned int *)data;
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
-		BLPR("[%d]: %s: gd_sel: %d\n", bdrv->index, __func__, *sel);
+		BLPR("[%d]: %s: gd_sel: %d\n", bdrv->index, __func__, sel);
 
-	if (*sel) {
+	if (sel) {
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 		if (bdrv->bconf.method == BL_CTRL_LOCAL_DIMMING) {
 			if (ldim_drv->ld_sel_ctrl)
@@ -2102,6 +2106,36 @@ static int bl_gd_sel_notifier(struct notifier_block *nb,
 		}
 #endif
 	}
+
+	return 0;
+}
+
+static int bl_gd_sel_notifier(struct notifier_block *nb,
+			      unsigned long event, void *data)
+{
+	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
+
+	unsigned int sel;
+
+	/* If we aren't interested in this event, skip it immediately */
+	if (event != LCD_EVENT_BACKLIGHT_GD_SEL)
+		return NOTIFY_DONE;
+
+	if (aml_bl_check_driver(bdrv))
+		return NOTIFY_DONE;
+	if (bdrv->probe_done == 0)
+		return NOTIFY_DONE;
+
+	if (bdrv->debug_force) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV)
+			BLPR("[%d]: %s: bypass for debug force\n", bdrv->index, __func__);
+		return NOTIFY_DONE;
+	}
+	if (!data)
+		return NOTIFY_DONE;
+
+	sel = *(unsigned int *)data;
+	bl_gd_sel_func(bdrv, sel);
 
 	return NOTIFY_OK;
 }
@@ -2275,6 +2309,7 @@ static ssize_t bl_status_show(struct device *dev,
 		      "level_default:      %d\n"
 		      "step_on_flag        %d\n"
 		      "brightness_bypass:  %d\n\n"
+		      "debug_force:        %d\n\n"
 		      "level_max:          %d\n"
 		      "level_min:          %d\n"
 		      "level_mid:          %d\n"
@@ -2290,6 +2325,7 @@ static ssize_t bl_status_show(struct device *dev,
 		      bdrv->level, bdrv->level_brightness, bdrv->level_gd,
 		      bconf->level_uboot, bconf->level_default,
 		      bdrv->step_on_flag, bdrv->brightness_bypass,
+		      bdrv->debug_force,
 		      bconf->level_max, bconf->level_min,
 		      bconf->level_mid, bconf->level_mid_mapping,
 		      bl_method_type_to_str(bconf->method),
@@ -3172,8 +3208,8 @@ static ssize_t bl_debug_level_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (!bdrv->brightness_bypass)
-		bdrv->brightness_bypass = 1;
+	if (!bdrv->debug_force)
+		bdrv->debug_force = 1;
 
 	mutex_lock(&bl_level_mutex);
 
@@ -3197,13 +3233,14 @@ static ssize_t bl_debug_store(struct device *dev,
 	case 'g': /* gd */
 		ret = sscanf(buf, "gd %d", &val);
 		if (ret == 1) {
-			if ((bdrv->state & BL_STATE_GD_EN) == 0) {
-				temp = 1;
-				aml_lcd_atomic_notifier_call_chain(LCD_EVENT_BACKLIGHT_GD_SEL,
-					&temp);
-			}
+			if (!bdrv->debug_force)
+				bdrv->debug_force = 1;
+			if ((bdrv->state & BL_STATE_DEBUG_FORCE_EN) == 0)
+				bdrv->state |= BL_STATE_DEBUG_FORCE_EN;
+			if ((bdrv->state & BL_STATE_GD_EN) == 0)
+				bl_gd_sel_func(bdrv, 1);
 			mutex_lock(&bl_level_mutex);
-			aml_lcd_atomic_notifier_call_chain(LCD_EVENT_BACKLIGHT_GD_DIM, &val);
+			bl_gd_diming_func(bdrv, val);
 			mutex_unlock(&bl_level_mutex);
 		} else {
 			BLERR("invalid parameters\n");
@@ -3212,8 +3249,10 @@ static ssize_t bl_debug_store(struct device *dev,
 	case 'b': /* brightness */
 		ret = sscanf(buf, "brightness %d", &val);
 		if (ret == 1) {
-			if (!bdrv->brightness_bypass)
-				bdrv->brightness_bypass = 1;
+			if (!bdrv->debug_force)
+				bdrv->debug_force = 1;
+			if ((bdrv->state & BL_STATE_DEBUG_FORCE_EN) == 0)
+				bdrv->state |= BL_STATE_DEBUG_FORCE_EN;
 
 			mutex_lock(&bl_status_mutex);
 			bdrv->level_brightness = bl_brightness_level_map(bdrv, val);
@@ -3245,8 +3284,10 @@ static ssize_t bl_debug_store(struct device *dev,
 	case 'l': /* level */
 		ret = sscanf(buf, "level %d", &val);
 		if (ret == 1) {
-			if (!bdrv->brightness_bypass)
-				bdrv->brightness_bypass = 1;
+			if (!bdrv->debug_force)
+				bdrv->debug_force = 1;
+			if ((bdrv->state & BL_STATE_DEBUG_FORCE_EN) == 0)
+				bdrv->state |= BL_STATE_DEBUG_FORCE_EN;
 
 			mutex_lock(&bl_level_mutex);
 
@@ -3265,7 +3306,8 @@ static ssize_t bl_debug_store(struct device *dev,
 			temp = 0;
 			aml_lcd_atomic_notifier_call_chain(LCD_EVENT_BACKLIGHT_GD_SEL, &temp);
 		}
-		bdrv->brightness_bypass = 0;
+		bdrv->state &= ~BL_STATE_DEBUG_FORCE_EN;
+		bdrv->debug_force = 0;
 		break;
 	default:
 		BLERR("wrong command\n");

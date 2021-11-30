@@ -176,6 +176,7 @@ struct bl_metrics_config_s {
 /* backlight_properties: state */
 /* Flags used to signal drivers of state changes */
 /* Upper 4 bits in bl props are reserved for driver internal use */
+#define BL_STATE_DEBUG_FORCE_EN       BIT(8)
 #define BL_STATE_GD_EN                BIT(4)
 #define BL_STATE_LCD_ON               BIT(3)
 #define BL_STATE_BL_INIT_ON           BIT(2)
@@ -199,6 +200,7 @@ struct aml_bl_drv_s {
 	unsigned char off_policy_cnt; /* bl_off_policy support */
 	unsigned char pwm_bypass; /*debug flag*/
 	unsigned char pwm_duty_free; /*debug flag*/
+	unsigned char debug_force;
 
 	struct bl_metrics_config_s bl_metrics_conf;
 	struct bl_config_s        bconf;
