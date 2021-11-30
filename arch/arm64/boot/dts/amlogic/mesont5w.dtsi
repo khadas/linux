@@ -1959,6 +1959,16 @@
 		};
 	};
 
+	sd_iso7816_pins:sd_iso7816_pins {
+		mux {
+			groups = "iso7816_clk_z",
+				"iso7816_data_z";
+			function = "iso7816";
+			input-enable;
+			bias-pull-down;
+		};
+	};
+
 	hdmirx_a_mux:hdmirx_a_mux {
 		mux {
 			groups = "hdmirx_a_hpd",

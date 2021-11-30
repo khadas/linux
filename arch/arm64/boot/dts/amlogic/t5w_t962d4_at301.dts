@@ -819,6 +819,60 @@
 			le_pin  = <&gpio       GPIOM_29       GPIO_ACTIVE_HIGH>;
 		};
 	};
+
+    /* SMC */
+	smartcard {
+		compatible = "amlogic,smartcard-sc2";
+		dev_name = "smartcard";
+		status = "disabled";
+
+		reg = <0x0 0xffd25000 0x0 0x1000>;
+		irq_trigger_type = "GPIO_IRQ_LOW";
+
+		reset_pin-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>;
+		detect_pin-gpios = <&gpio GPIOM_27 GPIO_ACTIVE_HIGH>;
+		enable_5v3v_pin-gpios = <&gpio GPIOM_28 GPIO_ACTIVE_HIGH>;
+		enable_pin-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>;
+
+		interrupts = <0 37 1>;
+		interrupt-names = "smc0_irq";
+		/*
+		 *Smc clock source, if change this,
+		 *you must adjust clk and divider in smartcard.c
+		 */
+		smc0_clock_source = <0>;
+		/*0: high voltage on detect pin indicates card in.*/
+		smc0_det_invert = <0>;
+		smc0_5v3v_level = <0>;
+		/*Ordinarily,smartcard controller needs a enable pin.*/
+		smc_need_enable_pin = "yes";
+		reset_level = <0>;
+		smc0_enable_level = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_iso7816_pins>;
+
+		/* For NSK2 Smartcard
+		 * pinctrl-names = "default", "pins-mode0", "pins-mode1",
+		 *	"pins-mode2", "data-m0-h",
+		 *	"data-m1-h", "data-m2-h",
+		 *	"data-m0-l", "data-m1-l",
+		 *	"data-m2-l";
+		 * pinctrl-0 = <&sd_iso7816_pins>;
+		 * pinctrl-1 = <&iso7816_pins_mode_0>;
+		 * pinctrl-2 = <&iso7816_pins_mode_1>;
+		 * pinctrl-3 = <&iso7816_pins_mode_2>;
+		 * pinctrl-4 = <&iso7816_pin_data_m_0_h>;
+		 * pinctrl-5 = <&iso7816_pin_data_m_1_h>;
+		 * pinctrl-6 = <&iso7816_pin_data_m_2_h>;
+		 * pinctrl-7 = <&iso7816_pin_data_m_0_l>;
+		 * pinctrl-8 = <&iso7816_pin_data_m_1_l>;
+		 * pinctrl-9 = <&iso7816_pin_data_m_2_l>;
+		 */
+
+		clocks = <&clkc CLKID_CLK81_SMARTCARD>;
+		clock-names = "smartcard";
+	};
 }; /* end of reserved-memory */
 
 /*audio soc*/

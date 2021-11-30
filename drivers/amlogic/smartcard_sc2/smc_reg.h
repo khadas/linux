@@ -106,15 +106,17 @@ struct smccard_hw_reg2 {
 	unsigned recv_parity:1;		/* Bit 9*/
 	unsigned recv_no_parity:1;		/* Bit 10*/
 	unsigned pulse_irq:1;			/* Bit 11*/
-	unsigned unused1:8;			/* Bit 19:12*/
+	unsigned clk_tcnt:8;			/* Bit 19:12*/
 	unsigned det_filter_sel:3;		/* Bit 22:20*/
 	unsigned io_filter_sel:3;	/* Bit 25:23*/
-	unsigned unused2:6;		/* Bit 31:26*/
+	unsigned unused2:4;		/* Bit 29:26*/
+	unsigned clk_sel:2;		/* Bit 31:30*/
 #else
-	unsigned unused2:6;		/* Bit 31:26*/
+	unsigned clk_sel:2		/* Bit 31:30*/
+	unsigned unused2:4;		/* Bit 29:26*/
 	unsigned io_filter_sel:3;	/* Bit 25:23*/
 	unsigned det_filter_sel:3;		/* Bit 22:20*/
-	unsigned unused1:8;			/* Bit 19:12*/
+	unsigned clk_tcnt:8;			/* Bit 19:12*/
 	unsigned pulse_irq:1;			/* Bit 11*/
 	unsigned recv_no_parity:1;		/* Bit 10*/
 	unsigned recv_parity:1;		/* Bit 9*/

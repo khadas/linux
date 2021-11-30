@@ -148,6 +148,7 @@ static int dcnt;
 #endif
 /*no used reset ctl,need use clk in 4.9 kernel*/
 static struct clk *aml_smartcard_clk;
+static int t5w_smartcard;
 
 #define REG_READ 0
 #define REG_WRITE 1
@@ -472,6 +473,16 @@ static int sc2_smc_addr(struct platform_device *pdev)
 	if (!p_smc_hw_base) {
 		pr_error("%s base addr error\n", __func__);
 		return -1;
+	}
+
+	pr_error("%s addr:0x%x\n", __func__, (unsigned int)res->start);
+
+	if (res->start == 0xfe000000) {
+		p_smc_hw_base += 0x38000;
+		pr_error("sc2 smartcard\n");
+	} else {
+		pr_error("t5w smartcard\n");
+		t5w_smartcard = 1;
 	}
 	return 0;
 }
@@ -1019,6 +1030,9 @@ static void smc_clk_enable(int enable)
 
 #define SMARTCARD_CLK_CTRL (0x26 * 4)
 
+	if (t5w_smartcard)
+		return;
+
 	data = SMC_READ_REG(CLK_CTRL);
 	if (enable)
 		data |= (1 << 8);
@@ -1034,19 +1048,39 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	struct smccard_hw_reg6 *reg6;
 	struct smccard_hw_reg2 *reg2;
 	struct smccard_hw_reg5 *reg5;
-	/*
-	 * smc_answer_t0_rst *reg1;
-	 * smc_interrupt_reg *reg_int;
-	 */
-//      unsigned long freq_cpu = clk_get_rate(aml_smartcard_clk)/1000*DIV_SMC;
+	unsigned long freq_cpu = 0;
 
 	pr_error("hw set param\n");
-	clk_set_rate(aml_smartcard_clk, smc->param.freq * 1000);
-
+	if (t5w_smartcard) {
+//		freq_cpu = clk_get_rate(aml_smartcard_clk) / 1000 * DIV_SMC;
+		switch (clock_source) {
+		case 0:
+			freq_cpu = 500000;
+			break;
+		case 1:
+			freq_cpu = 666000;
+			break;
+		case 2:
+			freq_cpu = 400000;
+			break;
+		case 3:
+			freq_cpu = 24000;
+			break;
+		default:
+			freq_cpu = 500000;
+			break;
+		}
+	} else {
+		clk_set_rate(aml_smartcard_clk, smc->param.freq * 1000);
+	}
 	v = SMC_READ_REG(REG0);
 	reg0 = (struct smccard_hw_reg0 *)&v;
+#if (ETU_CLK_SEL == 0)
 	reg0->etu_divider = ETU_DIVIDER_CLOCK_HZ * smc->param.f /
 	    (smc->param.d * smc->param.freq) - 1;
+#else
+	reg0->etu_divider = smc->param.f / smc->param.d - 1;
+#endif
 	SMC_WRITE_REG(REG0, v);
 	pr_error("REG0: 0x%08lx\n", v);
 	pr_error("f	  :%d\n", smc->param.f);
@@ -1067,10 +1101,12 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	reg2->xmit_retries = smc->param.xmit_retries;
 	reg2->xmit_repeat_dis = smc->param.xmit_repeat_dis;
 	reg2->recv_no_parity = smc->param.recv_no_parity;
-//      reg2->clk_tcnt = freq_cpu/smc->param.freq - 1;
+	if (t5w_smartcard)
+		reg2->clk_tcnt = freq_cpu / smc->param.freq - 1;
 	reg2->det_filter_sel = DET_FILTER_SEL_DEFAULT;
 	reg2->io_filter_sel = IO_FILTER_SEL_DEFAULT;
-//      reg2->clk_sel = clock_source;
+	if (t5w_smartcard)
+		reg2->clk_sel = clock_source;
 	/*reg2->pulse_irq = 0; */
 	SMC_WRITE_REG(REG2, v);
 	pr_error("REG2: 0x%08lx\n", v);
@@ -1083,7 +1119,8 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	pr_error("xmit_par:%d\n", smc->param.xmit_parity);
 	pr_error("xmit_rep:%d\n", smc->param.xmit_repeat_dis);
 	pr_error("xmit_try:%d\n", smc->param.xmit_retries);
-//      pr_error("clk_tcnt:%d freq_cpu:%ld\n", reg2->clk_tcnt, freq_cpu);
+	if (t5w_smartcard)
+		pr_error("clk_tcnt:%d freq_cpu:%ld\n", reg2->clk_tcnt, freq_cpu);
 
 	v = SMC_READ_REG(REG5);
 	reg5 = (struct smccard_hw_reg5 *)&v;
@@ -1150,12 +1187,31 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 	struct smc_interrupt_reg *reg_int;
 	struct smccard_hw_reg5 *reg5;
 	struct smccard_hw_reg6 *reg6;
+	unsigned long freq_cpu = 0;
 
-//      unsigned long freq_cpu = clk_get_rate(aml_smartcard_clk)/DIV_SMC;
-
-	clk_set_rate(aml_smartcard_clk, FREQ_DEFAULT * 1000);
-
-//      pr_error("SMC CLK SOURCE - %luKHz\n", freq_cpu);
+	if (t5w_smartcard) {
+	//	freq_cpu = clk_get_rate(aml_smartcard_clk) / 1000 * DIV_SMC;
+		switch (clock_source) {
+		case 0:
+			freq_cpu = 500000;
+			break;
+		case 1:
+			freq_cpu = 666000;
+			break;
+		case 2:
+			freq_cpu = 400000;
+			break;
+		case 3:
+			freq_cpu = 24000;
+			break;
+		default:
+			freq_cpu = 500000;
+			break;
+		}
+	} else {
+		clk_set_rate(aml_smartcard_clk, FREQ_DEFAULT * 1000);
+	}
+	pr_error("SMC CLK SOURCE - %luKHz\n", freq_cpu);
 
 #ifdef RST_FROM_PIO
 	_gpio_out(smc->reset_pin, RESET_ENABLE, SMC_RESET_PIN_NAME);
@@ -1175,8 +1231,12 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 	reg0->rst_level = RESET_ENABLE;
 //      reg0->io_level = 0;
 	reg0->recv_fifo_threshold = FIFO_THRESHOLD_DEFAULT;
+#if (ETU_CLK_SEL == 0)
 	reg0->etu_divider = ETU_DIVIDER_CLOCK_HZ * smc->param.f
 	    / (smc->param.d * smc->param.freq) - 1;
+#else
+	reg0->etu_divider = smc->param.f / smc->param.d - 1;
+#endif
 	reg0->first_etu_offset = 5;
 	SMC_WRITE_REG(REG0, v);
 	smc_clk_enable(reg0->clk_en);
@@ -1207,10 +1267,12 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 	reg2->xmit_retries = smc->param.xmit_retries;
 	reg2->xmit_repeat_dis = smc->param.xmit_repeat_dis;
 	reg2->recv_no_parity = smc->param.recv_no_parity;
-//      reg2->clk_tcnt = freq_cpu/smc->param.freq - 1;
+	if (t5w_smartcard)
+		reg2->clk_tcnt = freq_cpu / smc->param.freq - 1;
 	reg2->det_filter_sel = DET_FILTER_SEL_DEFAULT;
 	reg2->io_filter_sel = IO_FILTER_SEL_DEFAULT;
-//      reg2->clk_sel = clock_source;
+	if (t5w_smartcard)
+		reg2->clk_sel = clock_source;
 	/*reg2->pulse_irq = 0; */
 	SMC_WRITE_REG(REG2, v);
 	pr_error("REG2: 0x%08lx\n", v);
@@ -1223,7 +1285,8 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 	pr_error("xmit_par:%d\n", smc->param.xmit_parity);
 	pr_error("xmit_rep:%d\n", smc->param.xmit_repeat_dis);
 	pr_error("xmit_try:%d\n", smc->param.xmit_retries);
-//      pr_error("clk_tcnt:%d freq_cpu:%ld\n", reg2->clk_tcnt, freq_cpu);
+	if (t5w_smartcard)
+		pr_error("clk_tcnt:%d freq_cpu:%ld\n", reg2->clk_tcnt, freq_cpu);
 
 	v = SMC_READ_REG(INTR);
 	reg_int = (struct smc_interrupt_reg *)&v;
@@ -1647,8 +1710,12 @@ static int smc_hw_reset(struct smc_dev *smc)
 
 			sc_reg0_reg->rst_level = RESET_ENABLE;
 			sc_reg0_reg->clk_en = 1;
+#if (ETU_CLK_SEL == 0)
 			sc_reg0_reg->etu_divider = ETU_DIVIDER_CLOCK_HZ *
 			    smc->param.f / (smc->param.d * smc->param.freq) - 1;
+#else
+			sc_reg0_reg->etu_divider = smc->param.f / smc->param.d - 1;
+#endif
 			SMC_WRITE_REG(REG0, sc_reg0);
 			smc_clk_enable(sc_reg0_reg->clk_en);
 
@@ -1706,8 +1773,12 @@ static int smc_hw_reset(struct smc_dev *smc)
 //                      sc_reg0_reg->start_atr_en = 1;
 			sc_reg0_reg->start_atr = 1;
 			sc_reg0_reg->enable = 1;
+#if (ETU_CLK_SEL == 0)
 			sc_reg0_reg->etu_divider = ETU_DIVIDER_CLOCK_HZ *
 			    smc->param.f / (smc->param.d * smc->param.freq) - 1;
+#else
+			sc_reg0_reg->etu_divider = smc->param.f / smc->param.d - 1;
+#endif
 			SMC_WRITE_REG(REG0, sc_reg0);
 #ifdef RST_FROM_PIO
 
@@ -1777,9 +1848,9 @@ static int smc_hw_hot_reset(struct smc_dev *smc)
 
 			sc_reg0_reg->rst_level = RESET_ENABLE;
 			sc_reg0_reg->enable = 0;
-//			sc_reg0_reg->clk_en = 1;
+			sc_reg0_reg->clk_en = 1;
 			SMC_WRITE_REG(REG0, sc_reg0);
-//			smc_clk_enable(sc_reg0_reg->clk_en);
+			smc_clk_enable(sc_reg0_reg->clk_en);
 #ifdef RST_FROM_PIO
 			_gpio_out(smc->reset_pin, RESET_ENABLE,
 				  SMC_RESET_PIN_NAME);
@@ -2853,9 +2924,9 @@ static int smc_probe(struct platform_device *pdev)
 		pr_error("enable smc_clk fail:%d\n", ret);
 		clk_put(aml_smartcard_clk);
 	} else {
-		clk_set_rate(aml_smartcard_clk, 4000000);
+		if (!t5w_smartcard)
+			clk_set_rate(aml_smartcard_clk, 4000000);
 	}
-
 	if (smc) {
 		smc->init = 1;
 		smc->pdev = pdev;
