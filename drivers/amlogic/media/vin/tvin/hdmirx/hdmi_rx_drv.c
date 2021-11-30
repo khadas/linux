@@ -2234,8 +2234,7 @@ static void rx_phy_resume(void)
 	hdmirx_phy_init();
 	pre_port = 0xff;
 	rx.boot_flag = true;
-	if (rx.chip_id < CHIP_ID_T7)
-		hdmirx_top_irq_en(true);
+	//hdmirx_top_irq_en(true);
 }
 
 void rx_emp_resource_allocate(struct device *dev)
