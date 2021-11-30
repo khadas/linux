@@ -3565,10 +3565,12 @@ static void osd_wait_vsync_hw_viux(u32 output_index)
 
 	if (osd_hw.fb_drvier_probe) {
 		/* for the independent viu2 HW module,
-		 * use the latch and skip waiting for vsync.
+		 * use the latch, waiting for vsync (not rdma interrupt).
 		 */
-		if (osd_hw.osd_meson_dev.has_viu2 && output_index == VIU2)
+		if (osd_hw.osd_meson_dev.has_viu2 && output_index == VIU2) {
+			osd_wait_vsync_event_viu2();
 			return;
+		}
 
 		vsync_hit[output_index] = false;
 
@@ -6566,6 +6568,8 @@ out:
 	}
 	/* clear osd layer's order */
 	for (i = start_index; i < osd_count; i++) {
+		if (!validate_osd(i, output_index))
+			continue;
 		layer_map = &fence_map->layer_map[i];
 		if (displayed_bufs[i]) {
 			fput(displayed_bufs[i]);
