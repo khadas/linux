@@ -3207,7 +3207,7 @@ static int gxtv_demod_dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 			demod->fast_search_finish = 0;
 			*status = 0;
 			*delay = HZ / 8;
-			qam_write_reg(demod, 0x65, 0x400c);
+			qam_write_reg(demod, 0x65, 0x600c);
 			qam_write_reg(demod, 0x60, 0x10466000);
 			qam_write_reg(demod, 0xac, (qam_read_reg(demod, 0xac) & (~0xff00))
 				| 0x800);
