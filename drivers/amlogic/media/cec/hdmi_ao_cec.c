@@ -298,7 +298,7 @@ static void ceca_tx_irq_handle(void)
 		break;
 
 	case TX_ERROR:
-		CEC_ERR("TX ERROR!\n");
+		CEC_INFO("TX ERROR!\n");
 		aocec_wr_reg(CEC_TX_MSG_CMD, TX_ABORT);
 		ceca_hw_reset();
 		if (cec_dev->cec_num <= ENABLE_ONE_CEC)
