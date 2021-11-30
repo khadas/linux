@@ -258,7 +258,7 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	if (vpp2_used)
 		atomic_dec(&video_unreg_flag_vpp[1]);
 
-	while (wait && (!ins->exited || ins->request_exit))
+	while (wait && (!ins->exited || ins->request_exit) && !video_suspend)
 		schedule();
 }
 
