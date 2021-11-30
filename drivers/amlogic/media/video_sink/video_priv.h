@@ -506,6 +506,8 @@ extern bool aisr_en;
 extern u32 vd1_vd2_mux_dts;
 extern u32 osd_vpp1_bld_ctrl;
 extern u32 osd_vpp2_bld_ctrl;
+extern bool update_osd_vpp1_bld_ctrl;
+extern bool update_osd_vpp2_bld_ctrl;
 
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);

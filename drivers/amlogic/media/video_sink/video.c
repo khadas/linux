@@ -141,10 +141,13 @@ u32 vd1_vd2_mux_dts;
 u32 osd_vpp_misc;
 u32 osd_vpp_misc_mask;
 bool update_osd_vpp_misc;
+bool update_osd_vpp1_bld_ctrl;
+bool update_osd_vpp2_bld_ctrl;
 u32 osd_vpp1_bld_ctrl;
 u32 osd_vpp1_bld_ctrl_mask;
 u32 osd_vpp2_bld_ctrl;
 u32 osd_vpp2_bld_ctrl_mask;
+u32 osd_vpp_bld_ctrl_update_mask;
 u32 osd_preblend_en;
 int video_vsync = -ENXIO;
 int video_vsync_viu2 = -ENXIO;
@@ -16958,9 +16961,16 @@ static int amvideo_notify_callback(struct notifier_block *block,
 
 		osd_vpp1_bld_ctrl = val;
 
-		osd_vpp1_bld_ctrl_mask = p[5];
+		osd_vpp2_bld_ctrl_mask = p[5];
 		val = (p[4] & osd_vpp2_bld_ctrl_mask);
 		osd_vpp2_bld_ctrl = val;
+
+		osd_vpp_bld_ctrl_update_mask = p[6];
+		val = (p[2] & osd_vpp_bld_ctrl_update_mask);
+		update_osd_vpp1_bld_ctrl = val;
+
+		val = (p[4] & osd_vpp_bld_ctrl_update_mask);
+		update_osd_vpp2_bld_ctrl = val;
 
 		if (!update_osd_vpp_misc)
 			update_osd_vpp_misc = true;

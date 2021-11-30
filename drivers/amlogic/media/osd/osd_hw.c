@@ -1114,6 +1114,8 @@ static u32 osd_vpp1_bld_ctrl;
 static u32 osd_vpp1_bld_ctrl_mask = 0x30;
 static u32 osd_vpp2_bld_ctrl;
 static u32 osd_vpp2_bld_ctrl_mask = 0x30;
+/* indicates whether vpp1&vpp2 has been notified or not */
+static u32 osd_vpp_bld_ctrl_update_mask = 0x80000000;
 
 module_param(osd_vpp_misc, uint, 0444);
 MODULE_PARM_DESC(osd_vpp_misc, "osd_vpp_misc");
@@ -3193,7 +3195,7 @@ void osd_hw_reset(u32 output_index)
 
 static int notify_to_amvideo(void)
 {
-	u32 para[6];
+	u32 para[7];
 
 	para[0] = osd_vpp_misc;
 	para[1] = osd_vpp_misc_mask;
@@ -3203,11 +3205,12 @@ static int notify_to_amvideo(void)
 	/* osd_vpp2_bld_ctrl */
 	para[4] = osd_vpp2_bld_ctrl;
 	para[5] = osd_vpp2_bld_ctrl_mask;
+	para[6] = osd_vpp_bld_ctrl_update_mask;
 
 	pr_debug("osd %s vpp misc:0x%08x, mask:0x%08x\n",
 		 __func__, para[0], para[1]);
-	pr_debug("vpp1_bld_ctrl:0x%08x, mask:0x%08x,vpp2_bld_ctrl:0x%08x, mask:0x%08x\n",
-		para[2], para[3], para[4], para[5]);
+	pr_debug("vpp1_bld_ctrl:0x%08x, mask:0x%08x,vpp2_bld_ctrl:0x%08x, mask:0x%08x, notified_mask:0x%x\n",
+		para[2], para[3], para[4], para[5], para[6]);
 
 	if (osd_hw.hw_rdma_en) {
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
@@ -7201,13 +7204,22 @@ static void osd_update_enable(u32 index)
 				(VPP_MISC,
 				temp_val |
 				VPP_POSTBLEND_EN);
+			notify_to_amvideo();
+		} else {
+			/* notify osd_vpp1_bld_ctrl and osd_vpp2_bld_ctrl */
+			if (get_output_device_id(index) != VPP0)
+				notify_to_amvideo();
 		}
-		notify_to_amvideo();
+
 	} else {
-		notify_to_amvideo();
-		if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL)
+		if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL) {
+			notify_to_amvideo();
 			osd_hw.osd_rdma_func[output_index].osd_rdma_clr_mask
 				(VPP_MISC, temp_val);
+		} else {
+			if (get_output_device_id(index) != VPP0)
+				notify_to_amvideo();
+		}
 		if (!(osd_hw.osd_meson_dev.cpu_id ==
 			__MESON_CPU_MAJOR_ID_G12B))
 			osd_hw.osd_rdma_func[output_index].osd_rdma_clr_mask
@@ -11441,9 +11453,12 @@ static void osd_setting_viux(u32 output_index)
 				  osd1_premult << 17 |
 				  blend_en << 31;
 		if (output_index == VPU_VPP1)
-			osd_vpp1_bld_ctrl = vpp_blend_ctrl;
+			osd_vpp1_bld_ctrl = vpp_blend_ctrl |
+					    osd_vpp_bld_ctrl_update_mask;
 		else if (output_index == VPU_VPP2)
-			osd_vpp2_bld_ctrl = vpp_blend_ctrl;
+			osd_vpp2_bld_ctrl = vpp_blend_ctrl |
+					    osd_vpp_bld_ctrl_update_mask;
+
 		//rdma_wr(vppx_blend_reg->vpp_bld_ctrl, vpp_blend_ctrl);
 		switch (output_index) {
 		case VPU_VPP0:
