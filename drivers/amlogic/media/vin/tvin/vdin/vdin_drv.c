@@ -986,6 +986,8 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	/* write vframe as default */
 	devp->vframe_wr_en = 1;
 	devp->vframe_wr_en_pre = 1;
+	/* avoid abnormal image */
+	devp->dbg_stop_dec_delay = 50000;
 	if (vdin_time_en)
 		pr_info("vdin.%d start time: %ums, run time:%ums.\n",
 			devp->index, jiffies_to_msecs(jiffies),
@@ -1044,11 +1046,17 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		disable_irq(devp->vdin2_meta_wr_done_irq);
 
 	devp->flags &= (~VDIN_FLAG_ISR_EN);
+
 	if (vdin_dbg_en)
 		pr_info("%s vdin.%d disable_irq\n", __func__,
 			devp->index);
+	if (devp->dbg_stop_dec_delay) {
+		pr_info("vdin%d,delay %u us before stop dec!\n",
+			devp->index, devp->dbg_stop_dec_delay);
+		usleep_range(devp->dbg_stop_dec_delay, devp->dbg_stop_dec_delay + 1000);
+	}
 
-	if (devp->afbce_mode == 1) {
+	if (devp->afbce_mode == 1 || devp->double_wr) {
 		while (i++ < afbc_write_down_timeout) {
 			if (vdin_afbce_read_writedown_flag())
 				break;
@@ -1059,6 +1067,8 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 				devp->index);
 		}
 	}
+
+	vdin_dump_frames(devp);
 
 	if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
 	    devp->frontend->dec_ops &&

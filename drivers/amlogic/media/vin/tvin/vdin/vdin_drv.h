@@ -701,6 +701,8 @@ struct vdin_dev_s {
 
 	unsigned int tx_fmt;
 	unsigned int vd1_fmt;
+	unsigned int dbg_dump_frames;
+	unsigned int dbg_stop_dec_delay;
 };
 
 struct vdin_hist_s {
@@ -766,6 +768,7 @@ bool is_dolby_vision_enable(void);
 
 void vdin_debugfs_init(struct vdin_dev_s *vdevp);
 void vdin_debugfs_exit(struct vdin_dev_s *vdevp);
+void vdin_dump_frames(struct vdin_dev_s *devp);
 
 bool vlock_get_phlock_flag(void);
 bool vlock_get_vlock_flag(void);

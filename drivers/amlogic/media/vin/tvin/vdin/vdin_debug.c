@@ -449,7 +449,7 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 				    unsigned int buf_num)
 {
-	#define K_PATH_BUFF_LENGTH	150
+	#define K_PATH_BUFF_LENGTH	128
 	struct file *filp = NULL;
 	loff_t pos = 0;
 	void *buf_head = NULL;
@@ -526,14 +526,16 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	/*write header bin*/
 
 	if (strlen(path) < K_PATH_BUFF_LENGTH) {
-		strcpy(buff, path);
+		//strcpy(buff, path);
+		snprintf(buff, sizeof(buff), "%s/img_%03d", path, buf_num);
 	} else {
 		pr_info("err path len\n");
 		return;
 	}
-	strcat(buff, "_1header.bin");
+	strcat(buff, "header.bin");
 	filp = filp_open(buff, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR_OR_NULL(filp)) {
+		set_fs(old_fs);
 		pr_info("create %s header error or filp is NULL.\n", buff);
 		return;
 	}
@@ -551,10 +553,12 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 
 	/*write table bin*/
 	pos = 0;
-	strcpy(buff, path);
-	strcat(buff, "_1table.bin");
+	//strcpy(buff, path);
+	snprintf(buff, sizeof(buff), "%s/img_%03d", path, buf_num);
+	strcat(buff, "table.bin");
 	filp = filp_open(buff, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR_OR_NULL(filp)) {
+		set_fs(old_fs);
 		pr_info("create %s table error or filp is NULL.\n", buff);
 		return;
 	}
@@ -571,10 +575,12 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 
 	/*write body bin*/
 	pos = 0;
-	strcpy(buff, path);
-	strcat(buff, "_1body.bin");
+	//strcpy(buff, path);
+	snprintf(buff, sizeof(buff), "%s/img_%03d", path, buf_num);
+	strcat(buff, "body.bin");
 	filp = filp_open(buff, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR_OR_NULL(filp)) {
+		set_fs(old_fs);
 		pr_info("create %s body error or filp is NULL.\n", buff);
 		return;
 	}
@@ -591,6 +597,7 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 			highaddr = phys + j * span;
 			vbuf = vdin_vmap(highaddr, span);
 			if (!vbuf) {
+				set_fs(old_fs);
 				pr_info("vdin_vmap error\n");
 				return;
 			}
@@ -605,6 +612,7 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 			highaddr = phys + span;
 			vbuf = vdin_vmap(highaddr, remain);
 			if (!vbuf) {
+				set_fs(old_fs);
 				pr_info("vdin_vmap1 error\n");
 				return;
 			}
@@ -1060,6 +1068,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->vfp->dv_vsif.auxiliary_debug0);
 	pr_info("rdma handle : %d\n", devp->rdma_handle);
 	pr_info("hv reverse enabled: %d\n", devp->hv_reverse_en);
+	pr_info("dbg_dump_frames: %d,dbg_stop_dec_delay:%d\n",
+		devp->dbg_dump_frames, devp->dbg_stop_dec_delay);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 	/*vdin_dump_vs_info(devp);*/
 }
@@ -2504,6 +2514,20 @@ start_chk:
 		} else if (parm[1]) {
 			vdin_dump_one_afbce_mem(parm[1], devp, 0);
 		}
+	} else if (!strcmp(parm[0], "dbg_dump_frames")) {
+		if (parm[1]) {
+			if (kstrtol(parm[1], 10, &val) == 0)
+				devp->dbg_dump_frames = val;
+		}
+		pr_info("vdin%d,dbg_dump_frames = %d\n",
+			devp->index, devp->dbg_dump_frames);
+	} else if (!strcmp(parm[0], "dbg_stop_dec_delay")) {
+		if (parm[1]) {
+			if (kstrtol(parm[1], 10, &val) == 0)
+				devp->dbg_stop_dec_delay = val;
+		}
+		pr_info("vdin%d,dbg_stop_dec_delay = %u us\n",
+			devp->index, devp->dbg_stop_dec_delay);
 	} else if (!strcmp(parm[0], "skip_frame_debug")) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 10, &skip_frame_debug) == 0)
@@ -3316,6 +3340,27 @@ void vdin_debugfs_exit(struct vdin_dev_s *vdevp)
 	}
 
 	debugfs_remove(vdevp->dbg_root);
+}
+
+void vdin_dump_frames(struct vdin_dev_s *devp)
+{
+	char file_path[32];
+	int  i;
+
+	if (devp->dbg_dump_frames) {
+		/* todo:check path available */
+		snprintf(file_path, sizeof(file_path), "%s", "/mnt/img");
+		pr_info("dir:%s\n", file_path);
+		if (devp->afbce_valid == 1) {
+			vdin_pause_dec(devp);
+			for (i = 0; i < devp->canvas_max_num; i++)
+				vdin_dump_one_afbce_mem(file_path, devp, i);
+
+			vdin_resume_dec(devp);
+		} else {
+			/* mif */
+		}
+	}
 }
 
 /*------------------------------------------*/
