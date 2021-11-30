@@ -1321,11 +1321,15 @@ void rx_get_audinfo(struct aud_info_s *audio_info)
 			//hdmirx_rd_bits_dwc(DWC_PDEC_STS, PD_AUD_LAYOUT);
 		audio_info->aud_hbr_rcv =
 			(hdmirx_rd_cor(RX_AUDP_STAT_DP2_IVCRX) >> 6) & 1;
-		//if (audio_info->aud_hbr_rcv)
-			//audio_info->aud_packet_received = 8;
-		//else
-		audio_info->aud_packet_received =
-			hdmirx_rd_top(TOP_MISC_STAT0) >> 16 & 0xff;
+		if (rx.chip_id >= CHIP_ID_T3) {
+			audio_info->aud_packet_received =
+				hdmirx_rd_top(TOP_MISC_STAT0) >> 16 & 0xff;
+		} else {
+			if (audio_info->aud_hbr_rcv)
+				audio_info->aud_packet_received = 8;
+			else
+				audio_info->aud_packet_received = 1;
+		}
 		audio_info->ch_sts[0] = hdmirx_rd_cor(RX_CHST1_AUD_IVCRX);
 		audio_info->ch_sts[1] = hdmirx_rd_cor(RX_CHST2_AUD_IVCRX);
 		audio_info->ch_sts[2] = hdmirx_rd_cor(RX_CHST3a_AUD_IVCRX);
@@ -3694,8 +3698,8 @@ void hdmirx_hw_config(void)
 	if (rx.chip_id >= CHIP_ID_TL1)
 		aml_phy_switch_port();
 	hdmirx_phy_init();
-	if (rx.chip_id < CHIP_ID_T7)
-		hdmirx_top_irq_en(true);
+	//if (rx.chip_id < CHIP_ID_T7)
+		//hdmirx_top_irq_en(true);
 	rx_pr("%s  %d Done!\n", __func__, rx.port);
 	/* hdmi reset will cause cec not working*/
 	/* cec modult need reset */
@@ -3742,8 +3746,8 @@ void hdmirx_hw_probe(void)
 		hdcp_init_t7();
 	hdmirx_wr_top(TOP_PORT_SEL, 0x10);
 	hdmirx_wr_top(TOP_INTR_STAT_CLR, ~0);
-	if (rx.chip_id < CHIP_ID_T7)
-		hdmirx_top_irq_en(true);
+	//if (rx.chip_id < CHIP_ID_T7)
+		//hdmirx_top_irq_en(true);
 	rx_pr("%s Done!\n", __func__);
 }
 
