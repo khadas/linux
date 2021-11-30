@@ -7102,15 +7102,22 @@ void vpp1_blend_update(u32 vpp_index)
 				vd_path_start_sel, 8, 4);
 
 	}
-	vpp1_blend_ctrl =
-		cur_dev->rdma_func[vpp_index].rdma_rd(vppx_blend_reg_array[0].vpp_bld_ctrl);
-	vpp1_blend_ctrl = bld_src1_sel;
+	if (update_osd_vpp1_bld_ctrl) {
+		vpp1_blend_ctrl = bld_src1_sel;
+		vpp1_blend_ctrl |= osd_vpp1_bld_ctrl;
+	} else {
+		vpp1_blend_ctrl =
+			cur_dev->rdma_func[vpp_index].rdma_rd
+				(vppx_blend_reg_array[0].vpp_bld_ctrl);
+		vpp1_blend_ctrl |= bld_src1_sel;
+	}
+
 	vpp1_blend_ctrl |=
 		vd1_premult << 16 |
 		osd1_premult << 17 |
 		(vd_layer_vpp[0].layer_alpha & 0x1ff) << 20 |
 		1 << 31;
-	vpp1_blend_ctrl |= osd_vpp1_bld_ctrl;
+
 	cur_dev->rdma_func[vpp_index].rdma_wr(vppx_blend_reg_array[0].vpp_bld_ctrl,
 		vpp1_blend_ctrl);
 
@@ -7231,15 +7238,23 @@ void vpp2_blend_update(u32 vpp_index)
 		cur_dev->rdma_func[vpp_index].rdma_wr_bits(viu_misc_reg.path_start_sel,
 			vd_path_start_sel, 8, 4);
 	}
-	vpp2_blend_ctrl =
-		cur_dev->rdma_func[vpp_index].rdma_rd(vppx_blend_reg_array[1].vpp_bld_ctrl);
-	vpp2_blend_ctrl = bld_src1_sel;
+
+	if (update_osd_vpp2_bld_ctrl) {
+		vpp2_blend_ctrl = bld_src1_sel;
+		vpp2_blend_ctrl |= osd_vpp2_bld_ctrl;
+	} else {
+		vpp2_blend_ctrl =
+			cur_dev->rdma_func[vpp_index].rdma_rd
+				(vppx_blend_reg_array[1].vpp_bld_ctrl);
+		vpp2_blend_ctrl |= bld_src1_sel;
+	}
+
 	vpp2_blend_ctrl |=
 		vd1_premult << 16 |
 		osd1_premult << 17 |
 		(vd_layer_vpp[1].layer_alpha & 0x1ff) << 20 |
 		1 << 31;
-	vpp2_blend_ctrl |= osd_vpp2_bld_ctrl;
+
 	cur_dev->rdma_func[vpp_index].rdma_wr(vppx_blend_reg_array[1].vpp_bld_ctrl,
 		vpp2_blend_ctrl);
 
