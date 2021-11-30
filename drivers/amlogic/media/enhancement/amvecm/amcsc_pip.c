@@ -46,7 +46,7 @@ static u32 bt2020_white_point[2] = {
 	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5
 };
 
-static const char *module_str[9] = {
+static const char *module_str[10] = {
 	"UNKNOWN",
 	"VD1",
 	"VD2",
@@ -55,7 +55,8 @@ static const char *module_str[9] = {
 	"OSD2",
 	"VDIN0",
 	"VDIN1",
-	"DI"
+	"DI",
+	"OSD3"
 };
 
 static const char *process_str[15] = {
@@ -211,6 +212,12 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 		dv_hdr_policy = get_dolby_vision_hdr_policy();
 	}
 #endif
+	pr_csc(32, "%d %s: vd%d  vpp_index = %d hdr status = %d\n",
+		__LINE__,
+		__func__,
+		vd_path + 1,
+		vpp_index,
+		get_hdr_module_status(vd_path, vpp_index));
 
 	if (get_hdr_module_status(vd_path, vpp_index) != HDR_MODULE_ON && cur_hdr_policy != 2) {
 		/* hdr module off or bypass */
@@ -1503,6 +1510,14 @@ void video_post_process(struct vframe_s *vf,
 		is_vpp0(VD1_PATH),
 		is_vpp1(VD2_PATH),
 		vpp_index);
+	pr_csc(32, "%d  %s: vd_path=%d, vd1 %s, vd2 %s, hdr_module = %d src = %d\n",
+		__LINE__,
+		__func__,
+		vd_path,
+		is_video_layer_on(VD1_PATH) ? "on" : "off",
+		is_video_layer_on(VD2_PATH) ? "on" : "off",
+		get_hdr_module_status(vd_path, vpp_index),
+		cur_source_format[vd_path]);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
 		eo_sel = 1;
@@ -1517,7 +1532,9 @@ void video_post_process(struct vframe_s *vf,
 		if ((vd_path == VD1_PATH &&
 		     !is_video_layer_on(VD2_PATH)) ||
 		    (vd_path == VD2_PATH &&
-		     !is_video_layer_on(VD1_PATH))) {
+		     !is_video_layer_on(VD1_PATH)) ||
+		     (vd_path == VD2_PATH &&
+		     is_vpp1(VD2_PATH))) {
 			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
