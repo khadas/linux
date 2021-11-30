@@ -153,6 +153,7 @@ struct tas5707_priv {
 	unsigned char Ch1_vol;
 	unsigned char Ch2_vol;
 	unsigned char master_vol;
+	unsigned int ch_mute;
 	unsigned int mclk;
 	unsigned int EQ_enum_value;
 	unsigned int DRC_enum_value;
@@ -700,6 +701,7 @@ static int tas5707_suspend(struct snd_soc_component *component)
 	tas5707->Ch1_vol = snd_soc_component_read32(component, DDX_CHANNEL1_VOL);
 	tas5707->Ch2_vol = snd_soc_component_read32(component, DDX_CHANNEL2_VOL);
 	tas5707->master_vol = snd_soc_component_read32(component, DDX_MASTER_VOLUME);
+	tas5707->ch_mute = snd_soc_component_read32(component, DDX_SOFT_MUTE);
 	tas5707_set_bias_level(component, SND_SOC_BIAS_OFF);
 
 	return 0;
@@ -719,6 +721,7 @@ static int tas5707_resume(struct snd_soc_component *component)
 	snd_soc_component_write(component, DDX_CHANNEL1_VOL, tas5707->Ch1_vol);
 	snd_soc_component_write(component, DDX_CHANNEL2_VOL, tas5707->Ch2_vol);
 	snd_soc_component_write(component, DDX_MASTER_VOLUME, tas5707->master_vol);
+	snd_soc_component_update_bits(component, DDX_SOFT_MUTE, 0x3, tas5707->ch_mute);
 	tas5707_set_bias_level(component, SND_SOC_BIAS_STANDBY);
 
 	return 0;
